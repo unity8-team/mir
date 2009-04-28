@@ -31,7 +31,6 @@
 
 #include "xorgVersion.h"
 
-#ifdef XF86DRM_MODE
 #include "i830.h"
 #include "intel_bufmgr.h"
 #include "xf86drmMode.h"
@@ -921,5 +920,3 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 
 	return TRUE;
 }
-
-#endif

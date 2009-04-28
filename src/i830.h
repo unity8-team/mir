@@ -685,9 +685,7 @@ i830_pipe_a_require_deactivate (ScrnInfoPtr scrn);
 Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
 
-#ifdef XF86DRM_MODE
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
-#endif
 
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,

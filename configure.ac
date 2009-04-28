@@ -163,13 +163,6 @@ if test "$DRI" = yes; then
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 fi
 
-dnl Server 1.5's set_mode_major required for DRM_MODE.
-PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5],
-		 [DRM_MODE=yes], [DRM_MODE=no])
-if test "x$DRM_MODE" = xyes; then
-	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
-fi
-
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
 if test "$VIDEO_DEBUG" = yes; then
 	AC_DEFINE(VIDEO_DEBUG,1,[Enable debug support])

@@ -387,15 +387,10 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 	    pI830->PciInfo->dev,
 	    pI830->PciInfo->func);
 
-    info.fd = -1;
-
-#ifdef XF86DRM_MODE
     /* Use the already opened (master) fd from modesetting */
-    if (pI830->use_drm_mode)
+    if (pI830->use_drm_mode) {
 	info.fd = pI830->drmSubFD;
-#endif
-
-    if (info.fd < 0) {
+    } else {
 	info.fd = drmOpen("i915", buf);
 	drmSetVersion sv;
 	int err;

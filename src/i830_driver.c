@@ -208,10 +208,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sys/ioctl.h>
 #include "i915_drm.h"
-
-#ifdef XF86DRM_MODE
 #include <xf86drmMode.h>
-#endif
 
 #define BIT(x) (1 << (x))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -1176,7 +1173,6 @@ i830SetHotkeyControl(ScrnInfoPtr pScrn, int mode)
    pI830->writeControl(pI830, GRX, 0x18, gr18);
 }
 
-#ifdef XF86DRM_MODE
 /*
  * DRM mode setting Linux only at this point... later on we could
  * add a wrapper here.
@@ -1207,9 +1203,6 @@ static Bool i830_kernel_mode_enabled(ScrnInfoPtr pScrn)
 
     return TRUE;
 }
-#else
-#define i830_kernel_mode_enabled(x) FALSE
-#endif
 
 static Bool
 i830_detect_chipset(ScrnInfoPtr pScrn)
@@ -1620,7 +1613,6 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 static Bool
 I830DrmModeInit(ScrnInfoPtr pScrn)
 {
-#ifdef XF86DRM_MODE
     I830Ptr pI830 = I830PTR(pScrn);
     char *bus_id;
     int ret;
@@ -1651,7 +1643,6 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     pI830->directRenderingType = DRI_NONE;
 
     i830_init_bufmgr(pScrn);
-#endif
 
     return TRUE;
 }
@@ -2767,10 +2758,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
    if (pI830->use_drm_mode) {
-#ifdef XF86DRM_MODE
        pI830->stolen_size = 0;
        pScrn->videoRam = ~0UL / KB(1);
-#endif
    } else {
        I830AdjustMemory(pScreen);
    }
