@@ -32,7 +32,7 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 $(REGDUMPER)
 
 AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa \
-	-DI830_XV -DI830_USE_XAA -DI830_USE_EXA -DI830_USE_UXA
+	-DI830_XV -DI830_USE_EXA -DI830_USE_UXA
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
@@ -112,7 +112,6 @@ intel_drv_la_SOURCES = \
 	 i915_video.c \
 	 i965_video.c \
 	 i830_exa.c \
-	 i830_xaa.c \
 	 i830_render.c \
 	 i915_render.c \
 	 i965_render.c \

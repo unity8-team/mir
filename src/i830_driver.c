@@ -299,7 +299,6 @@ static PciChipsets I830PciChipsets[] = {
 typedef enum {
    OPTION_ACCELMETHOD,
    OPTION_NOACCEL,
-   OPTION_CACHE_LINES,
    OPTION_DRI,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
@@ -319,7 +318,6 @@ typedef enum {
 static OptionInfoRec I830Options[] = {
    {OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_ANYSTR,	{0},	FALSE},
    {OPTION_NOACCEL,	"NoAccel",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_CACHE_LINES,	"CacheLines",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
@@ -1473,7 +1471,6 @@ static const char *accel_name[] =
 {
    "unspecified",
    "no",
-   "XAA",
    "EXA",
    "UXA",
 };
@@ -1574,20 +1571,6 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 	pI830->accel = ACCEL_NONE;
     }
 
-    /*
-     * The ugliness below:
-     * If either XAA or EXA (exclusive) is compiled in, default to it.
-     *
-     * If both are compiled in, and the user didn't specify noAccel, use the
-     * config option AccelMethod to determine which to use, defaulting to EXA
-     * if none is specified, or if the string was unrecognized.
-     *
-     * Then, just to make things more confusing, the default EXA will
-     * be overridden to UXA if KMS is available. See I830DrmModeInit.
-     *
-     * All this *will* go away when we remove XAA and EXA support from
-     * this driver. (And there will be much rejoicing.)
-     */
     if (!(pI830->accel == ACCEL_NONE)) {
 #ifdef I830_USE_UXA
 	pI830->accel = ACCEL_UXA;
@@ -1595,17 +1578,13 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 #ifdef I830_USE_EXA
 	pI830->accel = ACCEL_EXA;
 #endif
-#if I830_USE_XAA + I830_USE_EXA + I830_USE_UXA >= 2
+#if I830_USE_EXA + I830_USE_UXA >= 2
 	from = X_DEFAULT;
 	if ((s = (char *)xf86GetOptValString(pI830->Options,
 					     OPTION_ACCELMETHOD))) {
 	    if (!xf86NameCmp(s, "EXA")) {
 		from = X_CONFIG;
 		pI830->accel = ACCEL_EXA;
-	    }
-	    else if (!xf86NameCmp(s, "XAA")) {
-		from = X_CONFIG;
-		pI830->accel = ACCEL_XAA;
 	    }
 	    else if (!xf86NameCmp(s, "UXA")) {
 		from = X_CONFIG;
@@ -1916,16 +1895,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    xf86LoaderReqSymLists(I810fbSymbols, NULL);
 
    switch (pI830->accel) {
-#ifdef I830_USE_XAA
-   case ACCEL_XAA:
-      if (!xf86LoadSubModule(pScrn, "xaa")) {
-	 PreInitCleanup(pScrn);
-	 return FALSE;
-      }
-      xf86LoaderReqSymLists(I810xaaSymbols, NULL);
-      break;
-#endif
-
 #ifdef I830_USE_EXA
    case ACCEL_EXA: {
       XF86ModReqInfo req;
@@ -2499,46 +2468,6 @@ I830PointerMoved(int index, int x, int y)
    (*pI830->PointerMoved)(index, newX, newY);
 }
 
-static Bool
-I830InitFBManager(
-    ScreenPtr pScreen,  
-    BoxPtr FullBox
-){
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   RegionRec ScreenRegion;
-   RegionRec FullRegion;
-   BoxRec ScreenBox;
-   Bool ret;
-
-   ScreenBox.x1 = 0;
-   ScreenBox.y1 = 0;
-   ScreenBox.x2 = pScrn->displayWidth;
-   if (pScrn->virtualX > pScrn->virtualY)
-      ScreenBox.y2 = pScrn->virtualX;
-   else
-      ScreenBox.y2 = pScrn->virtualY;
-
-   if((FullBox->x1 >  ScreenBox.x1) || (FullBox->y1 >  ScreenBox.y1) ||
-      (FullBox->x2 <  ScreenBox.x2) || (FullBox->y2 <  ScreenBox.y2)) {
-	return FALSE;   
-   }
-
-   if (FullBox->y2 < FullBox->y1) return FALSE;
-   if (FullBox->x2 < FullBox->x2) return FALSE;
-
-   REGION_INIT(pScreen, &ScreenRegion, &ScreenBox, 1); 
-   REGION_INIT(pScreen, &FullRegion, FullBox, 1); 
-
-   REGION_SUBTRACT(pScreen, &FullRegion, &FullRegion, &ScreenRegion);
-
-   ret = xf86InitFBManagerRegion(pScreen, &FullRegion);
-
-   REGION_UNINIT(pScreen, &ScreenRegion);
-   REGION_UNINIT(pScreen, &FullRegion);
-    
-   return ret;
-}
-
 /**
  * Intialiazes the hardware for the 3D pipeline use in the 2D driver.
  *
@@ -2712,14 +2641,6 @@ i830_memory_init(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex,
 	    pI830->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
 	    "VideoRam: %d KB\n", pScrn->videoRam);
-
-    if (xf86GetOptValInteger(pI830->Options, OPTION_CACHE_LINES,
-		&(pI830->CacheLines))) {
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Requested %d cache lines\n",
-		pI830->CacheLines);
-    } else {
-	pI830->CacheLines = -1;
-    }
 
     /* Tiled first if we got a good displayWidth */
     if (tiled) {
@@ -3067,13 +2988,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
-   if (pI830->accel <= ACCEL_XAA) {
-      if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Failed to init memory manager\n");
-      }
-   }
-
     if (pScrn->virtualX > pScrn->displayWidth)
 	pScrn->displayWidth = pScrn->virtualX;
 
@@ -3104,9 +3018,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    xf86SetBlackWhitePixels(pScreen);
 
    xf86DiDGAInit (pScreen, pI830->LinearAddr + pScrn->fbOffset);
-
-   DPRINTF(PFX,
-	   "assert( if(!I830InitFBManager(pScreen, &(pI830->FbMemBox))) )\n");
 
    if (pI830->accel != ACCEL_NONE) {
       if (!I830AccelInit(pScreen)) {
@@ -3327,9 +3238,6 @@ I830LeaveVT(int scrnIndex, int flags)
    if ((pI830->accel == ACCEL_EXA || pI830->accel == ACCEL_UXA) && IS_I965G(pI830))
       gen4_render_state_cleanup(pScrn);
 
-   if (pI830->AccelInfoRec)
-      pI830->AccelInfoRec->NeedToSync = FALSE;
-
    ret = drmDropMaster(pI830->drmSubFD);
    if (ret)
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -3483,9 +3391,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
-#ifdef I830_USE_XAA
-   XAAInfoRecPtr infoPtr = pI830->AccelInfoRec;
-#endif
 
    pI830->closing = TRUE;
 
@@ -3503,18 +3408,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
        vgaHWUnmapMem(pScrn);
    }
 
-   if (pI830->ScanlineColorExpandBuffers) {
-      xfree(pI830->ScanlineColorExpandBuffers);
-      pI830->ScanlineColorExpandBuffers = NULL;
-   }
-#ifdef I830_USE_XAA
-   if (infoPtr) {
-      if (infoPtr->ScanlineColorExpandBuffers)
-	 xfree(infoPtr->ScanlineColorExpandBuffers);
-      XAADestroyInfoRec(infoPtr);
-      pI830->AccelInfoRec = NULL;
-   }
-#endif
 #ifdef I830_USE_EXA
    if (pI830->EXADriverPtr) {
        exaDriverFini(pScreen);
@@ -3667,14 +3560,6 @@ i830WaitSync(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    switch (pI830->accel) {
-#ifdef I830_USE_XAA
-   case ACCEL_XAA:
-      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
-	 (*pI830->AccelInfoRec->Sync)(pScrn);
-	 pI830->AccelInfoRec->NeedToSync = FALSE;
-      }
-      break;
-#endif
 #ifdef I830_USE_EXA
    case ACCEL_EXA:
       if (pI830->EXADriverPtr) {
@@ -3702,12 +3587,6 @@ i830MarkSync(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    switch (pI830->accel) {
-#ifdef I830_USE_XAA
-   case ACCEL_XAA:
-      if (pI830->AccelInfoRec)
-	 pI830->AccelInfoRec->NeedToSync = TRUE;
-      break;
-#endif
 #ifdef I830_USE_EXA
    case ACCEL_EXA:
       if (pI830->EXADriverPtr) {

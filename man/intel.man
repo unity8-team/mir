@@ -147,12 +147,10 @@ have options for selecting adaptors.
 Default: Textured video adaptor is preferred.
 .TP
 .BI "Option \*qAccelMethod\*q \*q" string \*q
-Choose acceleration architecture, either "XAA", "EXA", or "UXA".  XAA is the old
-XFree86 based acceleration architecture.  EXA is a simpler
-acceleration architecture designed to better accelerate the X Render extension.
-UXA is a newer acceleration architecture built from the EXA acceleration
-code but taking advantage of kernel memory management to provide simpler,
-faster code.
+Choose acceleration architecture, either "UXA" or "EXA".
+EXA is a simple acceleration architecture designed for systems without
+kernel memory management, while UXA is designed to take advantage of the
+capabilities of kernel memory management.
 .IP
 Default: "UXA" if kernel-modesetting is available, "EXA" otherwise.
 .TP

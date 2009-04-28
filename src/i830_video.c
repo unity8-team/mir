@@ -70,8 +70,6 @@
 #include "i830_video.h"
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
-#include "xaa.h"
-#include "xaalocal.h"
 #include "dixstruct.h"
 #include "fourcc.h"
 
@@ -2487,16 +2485,6 @@ I830PutImage(ScrnInfoPtr pScrn,
 	exaMoveInPixmap(pPixmap);
     }
 #endif
-
-    if (pPriv->textured && pI830->accel <= ACCEL_XAA &&
-	    (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
-	     ((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
-	      pI830->FbMapSize))) {
-	/* If the pixmap wasn't in framebuffer, then we have no way in XAA to
-	 * force it there.  So, we simply refuse to draw and fail.
-	 */
-	return BadAlloc;
-    }
 
     if (!pPriv->textured) {
 	i830_display_video(pScrn, crtc, destId, width, height, dstPitch,

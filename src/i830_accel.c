@@ -57,7 +57,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <errno.h>
 
 #include "xf86.h"
-#include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
 #include "i830_debug.h"
@@ -137,9 +136,6 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	 else
 	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
-#ifdef I830_USE_XAA
-	 pI830->AccelInfoRec = NULL;	/* Stops recursive behavior */
-#endif
 #ifdef I830_USE_EXA
 	 pI830->EXADriverPtr = NULL;
 #endif
@@ -207,8 +203,6 @@ I830Sync(ScrnInfoPtr pScrn)
    } else if (!pI830->use_drm_mode) {
        i830_wait_ring_idle(pScrn);
    }
-
-   pI830->nextColorExpandBuf = 0;
 }
 
 void
@@ -314,10 +308,6 @@ I830AccelInit(ScreenPtr pScreen)
 #ifdef I830_USE_EXA
     case ACCEL_EXA:
 	return I830EXAInit(pScreen);
-#endif
-#ifdef I830_USE_XAA
-    case ACCEL_XAA:
-	return I830XAAInit(pScreen);
 #endif
     case ACCEL_UNINIT:
     case ACCEL_NONE:

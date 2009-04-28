@@ -64,11 +64,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * - Ring buffer
  * - HW cursor block (either one block or four)
  * - Overlay registers
- * - XAA linear allocator (optional)
- * - XAA scratch (screen 1)
- * - XAA scratch (screen 2, only in zaphod mode)
- * - Front buffer (screen 1, more is better for XAA)
- * - Front buffer (screen 2, only in zaphod mode, more is better for XAA)
+ * - Front buffer (screen 1)
+ * - Front buffer (screen 2, only in zaphod mode)
  * - Back/depth buffer (3D only)
  * - Compatibility texture pool (optional, more is always better)
  * - New texture pool (optional, more is always better.  aperture allocation
@@ -369,7 +366,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
 	pI830->cursor_mem_argb[p] = NULL;
     }
     pI830->front_buffer = NULL;
-    pI830->xaa_scratch = NULL;
     pI830->exa_offscreen = NULL;
     pI830->overlay_regs = NULL;
     pI830->power_context = NULL;
@@ -1015,8 +1011,7 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
 
 #ifdef I830_XV
 /**
- * Allocate space for overlay registers and XAA linear allocator (if
- * requested)
+ * Allocate space for overlay registers.
  */
 static Bool
 i830_allocate_overlay(ScrnInfoPtr pScrn)
@@ -1088,13 +1083,6 @@ IsTileable(ScrnInfoPtr pScrn, int pitch)
     }
 }
 
-/* This is the 2D rendering vertical coordinate limit.  We can ignore
- * the 3D rendering limits in our 2d pixmap cache allocation, because XAA
- * doesn't do any 3D rendering to/from the cache lines when using an offset
- * at the start of framebuffer.
- */
-#define MAX_2D_HEIGHT		65536
-
 /**
  * Allocates a framebuffer for a screen.
  *
@@ -1107,7 +1095,6 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
     unsigned long minspace, avail;
-    int cacheLines, maxCacheLines;
     int align;
     long size, fb_height;
     int flags;
@@ -1128,67 +1115,17 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 	    fb_height = pScrn->virtualY;
     }
 
-    pI830->FbMemBox.x1 = 0;
-    pI830->FbMemBox.x2 = pScrn->displayWidth;
-    pI830->FbMemBox.y1 = 0;
-    pI830->FbMemBox.y2 = fb_height;
-
     /* Calculate how much framebuffer memory to allocate.  For the
      * initial allocation, calculate a reasonable minimum.  This is
-     * enough for the virtual screen size, plus some pixmap cache
-     * space if we're using XAA.
+     * enough for the virtual screen size.
      */
     minspace = pitch * pScrn->virtualY;
     avail = pScrn->videoRam * 1024;
 
-    if (pI830->accel == ACCEL_XAA) {
-	maxCacheLines = (avail - minspace) / pitch;
-	/* This shouldn't happen. */
-	if (maxCacheLines < 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Internal Error: "
-		       "maxCacheLines < 0 in i830_allocate_2d_memory()\n");
-	    maxCacheLines = 0;
-	}
-	if (maxCacheLines > (MAX_2D_HEIGHT - pScrn->virtualY))
-	    maxCacheLines = MAX_2D_HEIGHT - pScrn->virtualY;
+    size = ROUND_TO_PAGE(pitch * fb_height);
 
-	if (pI830->CacheLines >= 0) {
-	    cacheLines = pI830->CacheLines;
-	} else {
-	    int size;
-
-	    size = 3 * pitch * pScrn->virtualY;
-	    size = ROUND_TO_PAGE(size);
-
-	    cacheLines = (size + pitch - 1) / pitch;
-	}
-	if (cacheLines > maxCacheLines)
-	    cacheLines = maxCacheLines;
-
-	pI830->FbMemBox.y2 += cacheLines;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Allocating %d scanlines for pixmap cache\n",
-		   cacheLines);
-    } else {
-	/* For non-XAA, we have a separate allocation for the linear allocator
-	 * which also does the pixmap cache.
-	 */
-	cacheLines = 0;
-    }
-
-    size = pitch * (fb_height + cacheLines);
-    size = ROUND_TO_PAGE(size);
-
-    /* Front buffer tiling has to be disabled with G965 XAA because some of the
-     * acceleration operations (non-XY COLOR_BLT) can't be done to tiled
-     * buffers.
-     */
     if (pI830->tiling)
 	tile_format = TILE_XMAJOR;
-    if (pI830->accel == ACCEL_XAA && IS_I965G(pI830))
-	tile_format = TILE_NONE;
 
     if (!IsTileable(pScrn, pitch))
 	tile_format = TILE_NONE;
@@ -1394,9 +1331,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     }
 
 #ifdef I830_XV
-    /* Allocate overlay register space and optional XAA linear allocator
-     * space.  The second head in zaphod mode will share the space.
-     */
     if (!pI830->use_drm_mode)
 	i830_allocate_overlay(pScrn);
 #endif
@@ -1434,29 +1368,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	}
     }
 #endif /* I830_USE_EXA */
-
-    if (pI830->accel == ACCEL_XAA) {
-	/* The lifetime fixed offset of xaa scratch is probably not required,
-	 * but we do some setup using it at XAAInit() time.  And XAA may not
-	 * end up being supported with GEM anyway.
-	 */
-	pI830->xaa_scratch =
-	    i830_allocate_memory(pScrn, "xaa scratch", MAX_SCRATCH_BUFFER_SIZE,
-				 PITCH_NONE, GTT_PAGE_SIZE, NEED_LIFETIME_FIXED,
-				 TILE_NONE);
-	if (pI830->xaa_scratch == NULL) {
-	    pI830->xaa_scratch =
-		i830_allocate_memory(pScrn, "xaa scratch",
-				     MIN_SCRATCH_BUFFER_SIZE, PITCH_NONE,
-				     GTT_PAGE_SIZE, NEED_LIFETIME_FIXED,
-				     TILE_NONE);
-	    if (pI830->xaa_scratch == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Failed to allocate scratch buffer space\n");
-		return FALSE;
-	    }
-	}
-    }
 
     return TRUE;
 }

@@ -53,7 +53,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
 #include "i810_reg.h"
-#include "xaa.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
 #include "vgaHW.h"
@@ -91,10 +90,6 @@ Bool i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo **bo_table,
 #if defined(I830_USE_UXA) || defined(I830_USE_EXA)
 dri_bo *i830_get_pixmap_bo (PixmapPtr pixmap);
 void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo);
-#endif
-
-#ifdef I830_USE_XAA
-Bool I830XAAInit(ScreenPtr pScreen);
 #endif
 
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
@@ -338,7 +333,6 @@ enum backlight_control {
 typedef enum accel_method {
     ACCEL_UNINIT = 0,
     ACCEL_NONE,
-    ACCEL_XAA,
     ACCEL_EXA,
     ACCEL_UXA
 } accel_method_t;
@@ -356,8 +350,6 @@ typedef struct _I830Rec {
    int cpp;
 
    unsigned int bufferOffset;		/* for I830SelectBuffer */
-   BoxRec FbMemBox;
-   int CacheLines;
 
    /* These are set in PreInit and never changed. */
    long FbMapSize;
@@ -381,7 +373,6 @@ typedef struct _I830Rec {
    /* separate small buffers for kernels that support this */
    i830_memory *cursor_mem_classic[2];
    i830_memory *cursor_mem_argb[2];
-   i830_memory *xaa_scratch;
 #ifdef I830_USE_EXA
    i830_memory *exa_offscreen;
 #endif
@@ -455,28 +446,9 @@ typedef struct _I830Rec {
 
    unsigned int BR[20];
 
-   unsigned char **ScanlineColorExpandBuffers;
-   int NumScanlineColorExpandBuffers;
-   int nextColorExpandBuf;
-
    Bool fence_used[FENCE_NEW_NR];
 
    accel_method_t accel;
-#ifdef I830_USE_XAA
-   XAAInfoRecPtr AccelInfoRec;
-
-   /* additional XAA accelerated Composite support */
-   CompositeProcPtr saved_composite;
-   Bool (*xaa_check_composite)(int op, PicturePtr pSrc, PicturePtr pMask,
-			       PicturePtr pDst);
-   Bool (*xaa_prepare_composite)(int op, PicturePtr pSrc, PicturePtr pMask,
-				 PicturePtr pDst, PixmapPtr pSrcPixmap,
-				 PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
-   void (*xaa_composite)(PixmapPtr pDst, int xSrc, int ySrc,
-			 int xMask, int yMask, int xDst, int yDst,
-			 int w, int h);
-   void (*xaa_done_composite)(PixmapPtr pDst);
-#endif
    CloseScreenProcPtr CloseScreen;
 
    void (*batch_flush_notify)(ScrnInfoPtr pScrn);
@@ -899,9 +871,9 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
     if (IS_IGD(pI830))
 	return FALSE;
     /* fbc depends on tiled surface. And we don't support tiled
-     * front buffer with XAA now.
+     * front buffer with unaccelerated.
      */
-    if (!pI830->tiling || (IS_I965G(pI830) && pI830->accel <= ACCEL_XAA))
+    if (!pI830->tiling || (IS_I965G(pI830) && pI830->accel == ACCEL_NONE))
 	return FALSE;
     /* We have not gotten FBC to work consistently on 965GM. Our best
      * working theory right now is that FBC simply isn't reliable on
