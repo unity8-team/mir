@@ -375,13 +375,10 @@ i965_create_dst_surface_state(ScrnInfoPtr scrn,
     dest_surf_state->ss0.mipmap_layout_mode = 0;
     dest_surf_state->ss0.render_cache_read_mode = 0;
 
-    if (pixmap_bo != NULL)
-	dest_surf_state->ss1.base_addr =
-	    intel_emit_reloc(surf_bo, offsetof(struct brw_surface_state, ss1),
-			     pixmap_bo, 0,
-			     I915_GEM_DOMAIN_SAMPLER, 0);
-    else
-	dest_surf_state->ss1.base_addr = intel_get_pixmap_offset(pixmap);
+    dest_surf_state->ss1.base_addr =
+	intel_emit_reloc(surf_bo, offsetof(struct brw_surface_state, ss1),
+			 pixmap_bo, 0,
+			 I915_GEM_DOMAIN_SAMPLER, 0);
 
     dest_surf_state->ss2.height = scrn->virtualY - 1;
     dest_surf_state->ss2.width = scrn->virtualX - 1;
@@ -1160,7 +1157,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	i965_post_draw_debug(pScrn);
     }
 
-    i830MarkSync(pScrn);
 #if WATCH_STATS
     i830_dump_error_state(pScrn);
 #endif

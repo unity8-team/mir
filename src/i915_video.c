@@ -415,7 +415,5 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    }
 
    intel_batch_end_atomic(pScrn);
-
-   i830MarkSync(pScrn);
 }
 
