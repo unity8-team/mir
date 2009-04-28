@@ -119,18 +119,6 @@ AC_MSG_RESULT([$DRI])
 
 PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10])
 
-SAVE_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
-
-AC_CHECK_DECL(xf86RotateFreeShadow,
-	      [AC_DEFINE(HAVE_FREE_SHADOW, 1, [have new FreeShadow API])],
-	      [],
-	      [#include <xorg-server.h>
-	       #include <windowstr.h>
-	       #include <xf86Crtc.h>])
-	     
-CPPFLAGS="$SAVE_CPPFLAGS"
-
 dnl Use lots of warning flags with GCC
 
 WARN_CFLAGS=""
