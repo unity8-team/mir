@@ -65,21 +65,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <pciaccess.h>
 #endif
 
-#ifdef XF86DRI
 #include "xf86drm.h"
 #include "sarea.h"
 #define _XF86DRI_SERVER_
 #include "dri.h"
 #include "GL/glxint.h"
 #include "i830_dri.h"
-#endif
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
 
 #ifdef I830_USE_EXA
 #include "exa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
-unsigned long long I830TexOffsetStart(PixmapPtr pPix);
 #endif
 
 #ifdef I830_USE_UXA
@@ -105,18 +102,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #include "common.h"
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
-
-/*
- * The mode handling is based upon the VESA driver written by
- * Paulo César Pereira de Andrade <pcpa@conectiva.com.br>.
- */
-
-#ifdef XF86DRI
-#define I830_MM_MINPAGES 512
-#define I830_MM_MAXSIZE  (32*1024)
-#define I830_KERNEL_MM  (1 << 0) /* Initialize the kernel memory manager*/
-#define I830_KERNEL_TEX (1 << 1) /* Allocate texture memory pool */
-#endif
 
 #ifdef XvMCExtension
 #ifdef ENABLE_XVMC
@@ -361,7 +346,6 @@ typedef enum accel_method {
 enum dri_type {
     DRI_DISABLED,
     DRI_NONE,
-    DRI_XF86DRI,
     DRI_DRI2
 };
 
@@ -445,21 +429,9 @@ typedef struct _I830Rec {
 
    i830_memory *power_context;
 
-#ifdef XF86DRI
-   i830_memory *back_buffer;
-   i830_memory *depth_buffer;
-   i830_memory *textures;		/**< Compatibility texture memory */
    i830_memory *memory_manager;		/**< DRI memory manager aperture */
-   i830_memory *hw_status;		/* for G33 hw status page alloc */
-
-   int TexGranularity;
-   int drmMinor;
-   Bool allocate_classic_textures;
 
    Bool can_resize;
-
-   Bool want_vblank_interrupts;
-#endif
 
    Bool need_mi_flush;
 
@@ -575,18 +547,9 @@ typedef struct _I830Rec {
 
    enum dri_type directRenderingType;	/* DRI enabled this generation. */
 
-#ifdef XF86DRI
    Bool directRenderingOpen;
-   int LockHeld;
-   DRIInfoPtr pDRIInfo;
    int drmSubFD;
-   int numVisualConfigs;
-   __GLXvisualConfig *pVisualConfigs;
-   I830ConfigPrivPtr pVisualConfigsPriv;
-   drm_handle_t buffer_map;
-   drm_handle_t ring_map;
    char deviceName[64];
-#endif
 
    /* Broken-out options. */
    OptionInfoPtr Options;
@@ -779,26 +742,8 @@ i830_pipe_a_require_activate (ScrnInfoPtr scrn);
 void
 i830_pipe_a_require_deactivate (ScrnInfoPtr scrn);
 
-#ifdef XF86DRI
-extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
-extern void I830SetupMemoryTiling(ScrnInfoPtr pScrn);
-extern Bool I830DRIScreenInit(ScreenPtr pScreen);
-extern Bool I830DRIDoMappings(ScreenPtr pScreen);
-extern Bool I830DRIResume(ScreenPtr pScreen);
-extern void I830DRICloseScreen(ScreenPtr pScreen);
-extern Bool I830DRIFinishScreenInit(ScreenPtr pScreen);
-extern void I830DRIUnlock(ScrnInfoPtr pScrn);
-extern Bool I830DRILock(ScrnInfoPtr pScrn);
-extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
-extern Bool i830_update_dri_buffers(ScrnInfoPtr pScrn);
-extern Bool I830DRISetHWS(ScrnInfoPtr pScrn);
-extern Bool I830DRIInstIrqHandler(ScrnInfoPtr pScrn);
-#endif
-
-#ifdef DRI2
 Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
-#endif
 
 #ifdef XF86DRM_MODE
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);

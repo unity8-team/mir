@@ -249,27 +249,7 @@ I830CheckTiling(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->bufferOffset == pI830->front_buffer->offset &&
-       pI830->front_buffer->tiling != TILE_NONE)
-   {
-       return TRUE;
-   }
-#ifdef XF86DRI
-   if (pI830->back_buffer != NULL &&
-       pI830->bufferOffset == pI830->back_buffer->offset &&
-       pI830->back_buffer->tiling != TILE_NONE)
-   {
-       return TRUE;
-   }
-   if (pI830->depth_buffer != NULL &&
-       pI830->bufferOffset == pI830->depth_buffer->offset &&
-       pI830->depth_buffer->tiling != TILE_NONE)
-   {
-       return TRUE;
-   }
-#endif
-
-   return FALSE;
+   return pI830->front_buffer->tiling != TILE_NONE;
 }
 
 void
@@ -331,7 +311,7 @@ I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y, int w, int h)
 	}
 	OUT_BATCH(pI830->BR[13]);
 	OUT_BATCH((h << 16) | (w * pI830->cpp));
-	OUT_BATCH(pI830->bufferOffset + (y * pScrn->displayWidth + x) *
+	OUT_BATCH(pI830->front_buffer->offset + (y * pScrn->displayWidth + x) *
 		  pI830->cpp);
 	OUT_BATCH(pI830->BR[16]);
 	OUT_BATCH(0);
@@ -409,10 +389,10 @@ I830SubsequentScreenToScreenCopy(ScrnInfoPtr pScrn, int src_x1, int src_y1,
 	OUT_BATCH(pI830->BR[13]);
 	OUT_BATCH((dst_y1 << 16) | (dst_x1 & 0xffff));
 	OUT_BATCH((dst_y2 << 16) | (dst_x2 & 0xffff));
-	OUT_BATCH(pI830->bufferOffset);
+	OUT_BATCH(pI830->front_buffer->offset);
 	OUT_BATCH((src_y1 << 16) | (src_x1 & 0xffff));
 	OUT_BATCH(pI830->BR[13] & 0xFFFF);
-	OUT_BATCH(pI830->bufferOffset);
+	OUT_BATCH(pI830->front_buffer->offset);
 
 	ADVANCE_BATCH();
     }
@@ -490,7 +470,7 @@ I830SubsequentMono8x8PatternFillRect(ScrnInfoPtr pScrn, int pattx, int patty,
 	OUT_BATCH(pI830->BR[13]);
 	OUT_BATCH((y1 << 16) | x1);
 	OUT_BATCH((y2 << 16) | x2);
-	OUT_BATCH(pI830->bufferOffset);
+	OUT_BATCH(pI830->front_buffer->offset);
 	OUT_BATCH(pI830->BR[18]);		/* bg */
 	OUT_BATCH(pI830->BR[19]);		/* fg */
 	OUT_BATCH(pI830->BR[16]);		/* pattern data */
@@ -571,7 +551,7 @@ I830SubsequentScanlineCPUToScreenColorExpandFill(ScrnInfoPtr pScrn,
 	       "%d,%d %dx%x %d\n", x, y, w, h, skipleft);
 
     /* Fill out register values */
-    pI830->BR[9] = (pI830->bufferOffset +
+    pI830->BR[9] = (pI830->front_buffer->offset +
 		    (y * pScrn->displayWidth + x) * pI830->cpp);
     pI830->BR[11] = ((1 << 16) | w);
 }
@@ -662,7 +642,7 @@ I830SubsequentScanlineImageWriteRect(ScrnInfoPtr pScrn, int x, int y,
 	       "%d,%d %dx%x %d\n", x, y, w, h, skipleft);
 
     /* Fill out register values */
-    pI830->BR[9] = (pI830->bufferOffset +
+    pI830->BR[9] = (pI830->front_buffer->offset +
 		    (y * pScrn->displayWidth + x) * pI830->cpp);
     pI830->BR[11] = ((1 << 16) | w);
 }

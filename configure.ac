@@ -70,10 +70,10 @@ AC_ARG_ENABLE(video-debug, AC_HELP_STRING([--enable-video-debug],
               [VIDEO_DEBUG="$enableval"],
               [VIDEO_DEBUG=no])
 
-AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
-                                  [Disable XvMC support [[default=auto]]]),
-              [XVMC="$enableval"],
-              [XVMC=auto])
+dnl AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
+dnl                                   [Disable XvMC support [[default=auto]]]),
+dnl               [XVMC="$enableval"],
+dnl               [XVMC=auto])
 
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)

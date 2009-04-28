@@ -137,12 +137,6 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	 else
 	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
-#ifdef XF86DRI
-	 if (pI830->directRenderingType == DRI_XF86DRI) {
-	    DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
-	    DRICloseScreen(screenInfo.screens[pScrn->scrnIndex]);
-	 }
-#endif
 #ifdef I830_USE_XAA
 	 pI830->AccelInfoRec = NULL;	/* Stops recursive behavior */
 #endif
@@ -179,14 +173,6 @@ I830Sync(ScrnInfoPtr pScrn)
 
    if (pI830->accel == ACCEL_NONE || !pScrn->vtSema || !pI830->batch_bo)
        return;
-
-#ifdef XF86DRI
-   /* VT switching tries to do this.
-    */
-   if (!pI830->LockHeld && pI830->directRenderingType == DRI_XF86DRI) {
-      return;
-   }
-#endif
 
    I830EmitFlush(pScrn);
 
@@ -241,35 +227,6 @@ I830EmitFlush(ScrnInfoPtr pScrn)
    }
 }
 
-Bool
-I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   switch (buffer) {
-#ifdef XF86DRI
-   case I830_SELECT_BACK:
-      pI830->bufferOffset = pI830->back_buffer->offset;
-      if (pI830->back_buffer->tiling == TILE_YMAJOR)
-	 return FALSE;
-      break;
-   case I830_SELECT_DEPTH:
-      pI830->bufferOffset = pI830->depth_buffer->offset;
-      if (pI830->depth_buffer->tiling == TILE_YMAJOR)
-	 return FALSE;
-      break;
-#endif
-   default:
-   case I830_SELECT_FRONT:
-      pI830->bufferOffset = pScrn->fbOffset;
-      break;
-   }
-
-   if (I810_DEBUG & DEBUG_VERBOSE_ACCEL)
-      ErrorF("I830SelectBuffer %d --> offset %x\n",
-	     buffer, pI830->bufferOffset);
-   return TRUE;
-}
 
 #if (ALWAYS_SYNC || ALWAYS_FLUSH)
 void

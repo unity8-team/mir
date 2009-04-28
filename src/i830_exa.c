@@ -737,8 +737,6 @@ I830EXAInit(ScreenPtr pScreen)
 	}
     }
 
-    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
-
     return TRUE;
 }
 
@@ -1043,26 +1041,8 @@ i830_uxa_init (ScreenPtr pScreen)
     pScreen->CreatePixmap = i830_uxa_create_pixmap;
     pScreen->DestroyPixmap = i830_uxa_destroy_pixmap;
 
-    I830SelectBuffer(scrn, I830_SELECT_FRONT);
-
     uxa_set_fallback_debug(pScreen, i830->fallback_debug);
 
     return TRUE;
 }
 #endif /* I830_USE_UXA */
-
-#ifdef XF86DRI
-
-#ifndef ExaOffscreenMarkUsed
-extern void ExaOffscreenMarkUsed(PixmapPtr);
-#endif
-
-unsigned long long
-I830TexOffsetStart(PixmapPtr pPix)
-{
-    exaMoveInPixmap(pPix);
-    ExaOffscreenMarkUsed(pPix);
-
-    return exaGetPixmapOffset(pPix);
-}
-#endif

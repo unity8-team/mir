@@ -698,7 +698,6 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
-    int pipe = intel_crtc->pipe;
     int plane = intel_crtc->plane;
     unsigned long Start, Offset, Stride;
     int dspbase = (plane == 0 ? DSPABASE : DSPBBASE);
@@ -737,30 +736,6 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	OUTREG(dspbase, Start + Offset);
 	POSTING_READ(dspbase);
     }
-
-#ifdef XF86DRI
-    if (pI830->directRenderingType == DRI_XF86DRI) {
-	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
-
-	if (!sPriv)
-	    return;
-
-	switch (pipe) {
-	case 0:
-	    sPriv->pipeA_x = x;
-	    sPriv->pipeA_y = y;
-	    break;
-	case 1:
-	    sPriv->pipeB_x = x;
-	    sPriv->pipeB_y = y;
-	    break;
-	default:
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Can't update pipe %d in SAREA\n", pipe);
-	    break;
-	}
-    }
-#endif
 }
 
 /*
@@ -1062,7 +1037,7 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     return TRUE;
 }
 
-#if defined(DRM_IOCTL_MODESET_CTL) && (defined(XF86DRI) || defined(DRI2))
+#if defined(DRM_IOCTL_MODESET_CTL)
 static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -1094,7 +1069,7 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int dpms_state)
 {
     return;
 }
-#endif /* DRM_IOCTL_MODESET_CTL && (XF86DRI || DRI2) */
+#endif /* DRM_IOCTL_MODESET_CTL */
 
 static void
 i830_disable_vga_plane (xf86CrtcPtr crtc)
@@ -1286,54 +1261,20 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     }
 
     intel_crtc->dpms_mode = mode;
-
-#ifdef XF86DRI
-    if (pI830->directRenderingType == DRI_XF86DRI) {
-	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
-	Bool enabled = crtc->enabled && mode != DPMSModeOff;
-
-	I830DRISetVBlankInterrupt (pScrn, TRUE);
-
-	if (!sPriv)
-	    return;
-
-	switch (pipe) {
-	case 0:
-	    sPriv->pipeA_w = enabled ? crtc->mode.HDisplay : 0;
-	    sPriv->pipeA_h = enabled ? crtc->mode.VDisplay : 0;
-	    break;
-	case 1:
-	    sPriv->pipeB_w = enabled ? crtc->mode.HDisplay : 0;
-	    sPriv->pipeB_h = enabled ? crtc->mode.VDisplay : 0;
-	    break;
-	default:
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Can't update pipe %d in SAREA\n", pipe);
-	    break;
-	}
-    }
-#endif
 }
 
 static Bool
 i830_crtc_lock (xf86CrtcPtr crtc)
 {
-   /* Sync the engine before mode switch */
-   i830WaitSync(crtc->scrn);
+    /* Sync the engine before mode switch */
+    i830WaitSync(crtc->scrn);
 
-#ifdef XF86DRI
-    return I830DRILock(crtc->scrn);
-#else
     return FALSE;
-#endif
 }
 
 static void
 i830_crtc_unlock (xf86CrtcPtr crtc)
 {
-#ifdef XF86DRI
-    I830DRIUnlock (crtc->scrn);
-#endif
 }
 
 static void
@@ -1368,11 +1309,6 @@ i830_crtc_commit (xf86CrtcPtr crtc)
     /* Reenable FB compression if possible */
     if (i830_use_fb_compression(crtc))
 	i830_enable_fb_compression(crtc);
-
-#ifdef XF86DRI
-    /* Tell DRI1 the news about new output config */
-    i830_update_dri_buffers(crtc->scrn);
-#endif
 }
 
 void
@@ -1919,10 +1855,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     OUTREG(dspcntr_reg, dspcntr);
     /* Flush the plane changes */
     i830PipeSetBase(crtc, x, y);
-#ifdef XF86DRI
-   I830DRISetVBlankInterrupt (pScrn, TRUE);
-#endif
-    
+
     i830WaitForVblank(pScrn);
 }
 
