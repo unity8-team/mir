@@ -135,12 +135,25 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
     unsigned char     *RADEONMMIO = info->MMIO;
 
     if (IS_AVIVO_VARIANT) {
-	avivo_lock_cursor(crtc, TRUE);
-	OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,
-	       INREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset)
-	       | AVIVO_D1CURSOR_EN);
-	avivo_setup_cursor(crtc, TRUE);
-	avivo_lock_cursor(crtc, FALSE);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+	/* both cursors should be enabled when dualhead is active
+	 * or you may get corruption bands
+	 */
+	if (pRADEONEnt->Controller[0]->enabled &&
+	    pRADEONEnt->Controller[1]->enabled) {
+	    avivo_lock_cursor(pRADEONEnt->pCrtc[0], TRUE);
+	    avivo_setup_cursor(pRADEONEnt->pCrtc[0], TRUE);
+	    avivo_lock_cursor(pRADEONEnt->pCrtc[0], FALSE);
+
+	    avivo_lock_cursor(pRADEONEnt->pCrtc[1], TRUE);
+	    avivo_setup_cursor(pRADEONEnt->pCrtc[1], TRUE);
+	    avivo_lock_cursor(pRADEONEnt->pCrtc[1], FALSE);
+	} else {
+	    avivo_lock_cursor(crtc, TRUE);
+	    avivo_setup_cursor(crtc, TRUE);
+	    avivo_lock_cursor(crtc, FALSE);
+	}
     } else {
         switch (crtc_id) {
         case 0:
@@ -169,9 +182,6 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
 
     if (IS_AVIVO_VARIANT) {
 	avivo_lock_cursor(crtc, TRUE);
-	OUTREG(AVIVO_D1CUR_CONTROL+ radeon_crtc->crtc_offset,
-	       INREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset)
-	       & ~(AVIVO_D1CURSOR_EN));
 	avivo_setup_cursor(crtc, FALSE);
 	avivo_lock_cursor(crtc, FALSE);
     } else {
