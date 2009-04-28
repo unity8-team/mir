@@ -1,4 +1,3 @@
-/* $xfree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_dri.c,v 1.15 2003/06/18 13:14:17 dawes Exp $ */
 /**************************************************************************
 
 Copyright 2001 VA Linux Systems Inc., Fremont, California.
@@ -28,34 +27,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************/
 
 /*
- * Reformatted with GNU indent (2.2.8), using the following options:
- *
- *    -bad -bap -c41 -cd0 -ncdb -ci6 -cli0 -cp0 -ncs -d0 -di3 -i3 -ip3 -l78
- *    -lp -npcs -psl -sob -ss -br -ce -sc -hnl
- *
- * This provides a good match with the original i810 code and preferred
- * XFree86 formatting conventions.
- *
- * When editing this driver, please follow the existing formatting, and edit
- * with <TAB> characters expanded at 8-column intervals.
- */
-
-/*
  * Authors: Jeff Hartmann <jhartmann@valinux.com>
  *          David Dawes <dawes@xfree86.org>
  *          Keith Whitwell <keith@tungstengraphics.com>
- */
-
-/*
- * This driver does AGP memory allocation a little differently from most
- * others.  The 2D and 3D allocations have been unified (see i830_memory.c).
- * The driver does the AGP allocations and binding directly, then passes
- * on the mappings to the DRM module.  The DRM's AGP interfaces are not used.
- * The main difference with this is that the offsets need to include
- * the AGP aperture base address because that won't be known or added on
- * by the DRM module.
- *
- * DHD 07/2002
  */
 
 #ifdef HAVE_CONFIG_H

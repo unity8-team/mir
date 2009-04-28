@@ -1,12 +1,3 @@
-/*
- * XXX So far, for GXxor this is about 40% of the speed of SW, but CPU
- * utilisation falls from 95% to < 5%.
- */
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -33,26 +24,21 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_accel.c,v 1.8 2003/04/24 18:00:24 eich Exp $ */
-
-/*
- * Reformatted with GNU indent (2.2.8), using the following options:
- *
- *    -bad -bap -c41 -cd0 -ncdb -ci6 -cli0 -cp0 -ncs -d0 -di3 -i3 -ip3 -l78
- *    -lp -npcs -psl -sob -ss -br -ce -sc -hnl
- *
- * This provides a good match with the original i810 code and preferred
- * XFree86 formatting conventions.
- *
- * When editing this driver, please follow the existing formatting, and edit
- * with <TAB> characters expanded at 8-column intervals.
- */
 
 /*
  * Authors:
  *   Keith Whitwell <keith@tungstengraphics.com>
  *
  */
+
+/*
+ * XXX So far, for GXxor this is about 40% of the speed of SW, but CPU
+ * utilisation falls from 95% to < 5%.
+ */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <errno.h>
 

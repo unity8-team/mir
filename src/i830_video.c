@@ -23,7 +23,6 @@
  THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_video.c,v 1.11tsi Exp $ */
 
 /*
  * i830_video.c: i830/i845 Xv driver. 

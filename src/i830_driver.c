@@ -1,4 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_driver.c,v 1.50 2004/02/20 00:06:00 alanh Exp $ */
 /**************************************************************************
 
 Copyright 2001 VA Linux Systems Inc., Fremont, California.
@@ -28,133 +27,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************/
 
 /*
- * Reformatted with GNU indent (2.2.8), using the following options:
- *
- *    -bad -bap -c41 -cd0 -ncdb -ci6 -cli0 -cp0 -ncs -d0 -di3 -i3 -ip3 -l78
- *    -lp -npcs -psl -sob -ss -br -ce -sc -hnl
- *
- * This provides a good match with the original i810 code and preferred
- * XFree86 formatting conventions.
- *
- * When editing this driver, please follow the existing formatting, and edit
- * with <TAB> characters expanded at 8-column intervals.
- */
-
-/*
  * Authors: Jeff Hartmann <jhartmann@valinux.com>
  *          Abraham van der Merwe <abraham@2d3d.co.za>
  *          David Dawes <dawes@xfree86.org>
  *          Alan Hourihane <alanh@tungstengraphics.com>
- */
-
-/*
- * Mode handling is based on the VESA driver written by:
- * Paulo César Pereira de Andrade <pcpa@conectiva.com.br>
- */
-
-/*
- * Changes:
- *
- *    23/08/2001 Abraham van der Merwe <abraham@2d3d.co.za>
- *        - Fixed display timing bug (mode information for some
- *          modes were not initialized correctly)
- *        - Added workarounds for GTT corruptions (I don't adjust
- *          the pitches for 1280x and 1600x modes so we don't
- *          need extra memory)
- *        - The code will now default to 60Hz if LFP is connected
- *        - Added different refresh rate setting code to work
- *          around 0x4f02 BIOS bug
- *        - BIOS workaround for some mode sets (I use legacy BIOS
- *          calls for setting those)
- *        - Removed 0x4f04, 0x01 (save state) BIOS call which causes
- *          LFP to malfunction (do some house keeping and restore
- *          modes ourselves instead - not perfect, but at least the
- *          LFP is working now)
- *        - Several other smaller bug fixes
- *
- *    06/09/2001 Abraham van der Merwe <abraham@2d3d.co.za>
- *        - Preliminary local memory support (works without agpgart)
- *        - DGA fixes (the code were still using i810 mode sets, etc.)
- *        - agpgart fixes
- *
- *    18/09/2001
- *        - Proper local memory support (should work correctly now
- *          with/without agpgart module)
- *        - more agpgart fixes
- *        - got rid of incorrect GTT adjustments
- *
- *    09/10/2001
- *        - Changed the DPRINTF() variadic macro to an ANSI C compatible
- *          version
- *
- *    10/10/2001
- *        - Fixed DPRINTF_stub(). I forgot the __...__ macros in there
- *          instead of the function arguments :P
- *        - Added a workaround for the 1600x1200 bug (Text mode corrupts
- *          when you exit from any 1600x1200 mode and 1280x1024@85Hz. I
- *          suspect this is a BIOS bug (hence the 1280x1024@85Hz case)).
- *          For now I'm switching to 800x600@60Hz then to 80x25 text mode
- *          and then restoring the registers - very ugly indeed.
- *
- *    15/10/2001
- *        - Improved 1600x1200 mode set workaround. The previous workaround
- *          was causing mode set problems later on.
- *
- *    18/10/2001
- *        - Fixed a bug in I830BIOSLeaveVT() which caused a bug when you
- *          switched VT's
- */
-/*
- *    07/2002 David Dawes
- *        - Add Intel(R) 855GM/852GM support.
- */
-/*
- *    07/2002 David Dawes
- *        - Cleanup code formatting.
- *        - Improve VESA mode selection, and fix refresh rate selection.
- *        - Don't duplicate functions provided in 4.2 vbe modules.
- *        - Don't duplicate functions provided in the vgahw module.
- *        - Rewrite memory allocation.
- *        - Rewrite initialisation and save/restore state handling.
- *        - Decouple the i810 support from i830 and later.
- *        - Remove various unnecessary hacks and workarounds.
- *        - Fix an 845G problem with the ring buffer not in pre-allocated
- *          memory.
- *        - Fix screen blanking.
- *        - Clear the screen at startup so you don't see the previous session.
- *        - Fix some HW cursor glitches, and turn HW cursor off at VT switch
- *          and exit.
- *
- *    08/2002 Keith Whitwell
- *        - Fix DRI initialisation.
- *
- *
- *    08/2002 Alan Hourihane and David Dawes
- *        - Add XVideo support.
- *
- *
- *    10/2002 David Dawes
- *        - Add Intel(R) 865G support.
- *
- *
- *    01/2004 Alan Hourihane
- *        - Add Intel(R) 915G support.
- *        - Add Dual Head and Clone capabilities.
- *        - Add lid status checking
- *        - Fix Xvideo with high-res LFP's
- *        - Add ARGB HW cursor support
- *
- *    05/2005 Alan Hourihane
- *        - Add Intel(R) 945G support.
- *
- *    09/2005 Alan Hourihane
- *        - Add Intel(R) 945GM support.
- *
- *    10/2005 Alan Hourihane, Keith Whitwell, Brian Paul
- *        - Added Rotation support
- *
- *    12/2005 Alan Hourihane, Keith Whitwell
- *        - Add Intel(R) 965G support.
  */
 
 #ifdef HAVE_CONFIG_H

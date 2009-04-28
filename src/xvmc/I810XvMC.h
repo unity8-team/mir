@@ -32,7 +32,6 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  *
  ***************************************************************************/
-/* $XFree86: xc/lib/XvMC/hw/i810/I810XvMC.h,v 1.3 2002/10/30 12:52:02 alanh Exp $ */
 
 
 #ifndef I810XVMC_H
