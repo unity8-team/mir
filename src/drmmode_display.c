@@ -824,9 +824,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	if (!pI830->can_resize)
-		return FALSE;
-
 	pitch = i830_pad_drawable_width(width, pI830->cpp);
 	tiled = i830_tiled_width(pI830, &pitch, pI830->cpp);
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
@@ -896,7 +893,6 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
 	xf86CrtcConfigPtr   xf86_config;
 	drmmode_ptr drmmode;
 	int i;
@@ -921,7 +917,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		drmmode_output_init(pScrn, drmmode, i);
 
-	xf86InitialConfiguration(pScrn, pI830->can_resize);
+	xf86InitialConfiguration(pScrn, TRUE);
 
 	return TRUE;
 }

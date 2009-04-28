@@ -1097,13 +1097,6 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
      * rotation.
      */
     fb_height = pScrn->virtualY;
-    if (!pI830->can_resize)
-    {
-	if (!pI830->use_drm_mode && pScrn->virtualX > pScrn->virtualY)
-	    fb_height = pScrn->virtualX;
-	else
-	    fb_height = pScrn->virtualY;
-    }
 
     /* Calculate how much framebuffer memory to allocate.  For the
      * initial allocation, calculate a reasonable minimum.  This is

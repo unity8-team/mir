@@ -1105,7 +1105,7 @@ i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
     scrn->virtualX = width;
     scrn->virtualY = height;
 #ifdef DRI2
-    if (i830->can_resize && i830->front_buffer)
+    if (i830->front_buffer)
     {
 	i830_memory *new_front, *old_front;
 	Bool	    tiled;
@@ -1599,16 +1599,8 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
     I830SetupOutputs(pScrn);
 
     SaveHWState(pScrn);
-    pI830->can_resize = FALSE;
-    if (pI830->accel == ACCEL_UXA)
-	pI830->can_resize = TRUE;
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Resizable framebuffer: %s (%d %d)\n",
-	       pI830->can_resize ? "available" : "not available",
-	       pI830->directRenderingType, pI830->accel);
-
-    if (!xf86InitialConfiguration (pScrn, pI830->can_resize))
+    if (!xf86InitialConfiguration (pScrn, TRUE))
     {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
 	RestoreHWState(pScrn);
@@ -1634,7 +1626,6 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     int ret;
 
     pI830->accel = ACCEL_UXA;
-    pI830->can_resize = TRUE;
 
     bus_id = DRICreatePCIBusID(pI830->PciInfo);
 

@@ -409,8 +409,6 @@ typedef struct _I830Rec {
 
    i830_memory *memory_manager;		/**< DRI memory manager aperture */
 
-   Bool can_resize;
-
    Bool need_mi_flush;
 
    Bool tiling;
