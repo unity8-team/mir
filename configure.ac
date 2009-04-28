@@ -117,21 +117,7 @@ if test x$DRI = xauto; then
 fi
 AC_MSG_RESULT([$DRI])
 
-AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
-	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
-	      [#include "xorg-server.h"])
-CFLAGS="$save_CFLAGS"
-
-if test x$XSERVER_LIBPCIACCESS = xyes; then
-	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10])
-else
-	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10],
-				       have_libpciaccess=yes,
-				       have_libpciaccess=no)
-fi
-AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
-AM_CONDITIONAL(LIBPCIACCESS,
-	test "x$XSERVER_LIBPCIACCESS" = xyes -o "x$have_libpciaccess" = xyes)
+PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10])
 
 SAVE_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"

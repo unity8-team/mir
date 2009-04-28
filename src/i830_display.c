@@ -1350,11 +1350,7 @@ i830_get_core_clock_speed(ScrnInfoPtr pScrn)
     else if (IS_I915GM(pI830)) {
 	uint16_t gcfgc;
 
-#if XSERVER_LIBPCIACCESS
       pci_device_cfg_read_u16 (pI830->PciInfo, &gcfgc, I915_GCFGC);
-#else
-      gcfgc = pciReadWord(pI830->PciTag, I915_GCFGC);
-#endif
       if (gcfgc & I915_LOW_FREQUENCY_ENABLE)
 	    return 133000;
 	else {
@@ -1369,14 +1365,9 @@ i830_get_core_clock_speed(ScrnInfoPtr pScrn)
     } else if (IS_I865G(pI830))
 	return 266000;
     else if (IS_I855(pI830)) {
-#if XSERVER_LIBPCIACCESS
         struct pci_device *bridge = intel_host_bridge ();
 	uint16_t hpllcc;
 	pci_device_cfg_read_u16 (bridge, &hpllcc, I855_HPLLCC);
-#else
-	PCITAG bridge = pciTag(0, 0, 0); /* This is always the host bridge */
-	uint16_t hpllcc = pciReadWord(bridge, I855_HPLLCC);
-#endif
 
 	/* Assume that the hardware is in the high speed state.  This
 	 * should be the default.

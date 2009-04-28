@@ -389,20 +389,11 @@ static int
 I830DetectMemory(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-#if !XSERVER_LIBPCIACCESS
-   PCITAG bridge;
-#endif
    uint16_t gmch_ctrl;
    int memsize = 0, gtt_size;
    int range;
-
-#if XSERVER_LIBPCIACCESS
    struct pci_device *bridge = intel_host_bridge ();
    pci_device_cfg_read_u16(bridge, & gmch_ctrl, I830_GMCH_CTRL);
-#else
-   bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
-   gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
-#endif
 
    if (IS_I965G(pI830)) {
       /* The 965 may have a GTT that is actually larger than is necessary
@@ -547,15 +538,10 @@ I830DetectMemory(ScrnInfoPtr pScrn)
 static Bool
 I830MapMMIO(ScrnInfoPtr pScrn)
 {
-#if XSERVER_LIBPCIACCESS
    int err;
    struct pci_device *device;
-#else
-   int mmioFlags;
-#endif
    I830Ptr pI830 = I830PTR(pScrn);
 
-#if XSERVER_LIBPCIACCESS
    device = pI830->PciInfo;
    err = pci_device_map_range (device,
 			       pI830->MMIOAddr,
@@ -569,20 +555,6 @@ I830MapMMIO(ScrnInfoPtr pScrn)
 		  strerror (err), err);
       return FALSE;
    }
-#else
-
-#if !defined(__alpha__)
-   mmioFlags = VIDMEM_MMIO | VIDMEM_READSIDEEFFECT;
-#else
-   mmioFlags = VIDMEM_MMIO | VIDMEM_READSIDEEFFECT | VIDMEM_SPARSE;
-#endif
-
-   pI830->MMIOBase = xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
-				   pI830->PciTag,
-				   pI830->MMIOAddr, I810_REG_SIZE);
-   if (!pI830->MMIOBase)
-      return FALSE;
-#endif
 
    /* Set up the GTT mapping for the various places it has been moved over
     * time.
@@ -605,7 +577,6 @@ I830MapMMIO(ScrnInfoPtr pScrn)
 	 gttaddr = I810_MEMBASE(pI830->PciInfo, 3) & 0xFFFFFF00;
 	 pI830->GTTMapSize = pI830->FbMapSize / 1024;
       }
-#if XSERVER_LIBPCIACCESS
       err = pci_device_map_range (device,
 				  gttaddr, pI830->GTTMapSize,
 				  PCI_DEV_MAP_FLAG_WRITABLE,
@@ -617,13 +588,6 @@ I830MapMMIO(ScrnInfoPtr pScrn)
 		     strerror (err), err);
 	 return FALSE;
       }
-#else
-      pI830->GTTBase = xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
-				     pI830->PciTag,
-				     gttaddr, pI830->GTTMapSize);
-      if (pI830->GTTBase == NULL)
-	 return FALSE;
-#endif
    } else {
       /* The GTT aperture on i830 is write-only.  We could probably map the
        * actual physical pages that back it, but leave it alone for now.
@@ -640,27 +604,17 @@ I830MapMem(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    long i;
-#if XSERVER_LIBPCIACCESS
    struct pci_device *const device = pI830->PciInfo;
    int err;
-#endif
 
    for (i = 2; i < pI830->FbMapSize; i <<= 1) ;
    pI830->FbMapSize = i;
 
-#if XSERVER_LIBPCIACCESS
    err = pci_device_map_range (device, pI830->LinearAddr, pI830->FbMapSize,
 			       PCI_DEV_MAP_FLAG_WRITABLE | PCI_DEV_MAP_FLAG_WRITE_COMBINE,
 			       (void **) &pI830->FbBase);
     if (err)
 	return FALSE;
-#else
-   pI830->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
-				 pI830->PciTag,
-				 pI830->LinearAddr, pI830->FbMapSize);
-   if (!pI830->FbBase)
-      return FALSE;
-#endif
 
    if (pI830->ring.mem != NULL) {
       pI830->ring.virtual_start = pI830->FbBase + pI830->ring.mem->offset;
@@ -674,20 +628,11 @@ I830UnmapMMIO(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-#if XSERVER_LIBPCIACCESS
    pci_device_unmap_range (pI830->PciInfo, pI830->MMIOBase, I810_REG_SIZE);
-#else
-   xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI830->MMIOBase,
-		   I810_REG_SIZE);
-#endif
    pI830->MMIOBase = NULL;
 
    if (IS_I9XX(pI830)) {
-#if XSERVER_LIBPCIACCESS
       pci_device_unmap_range (pI830->PciInfo, pI830->GTTBase, pI830->GTTMapSize);
-#else
-      xf86UnMapVidMem(pScrn->scrnIndex, pI830->GTTBase, pI830->GTTMapSize);
-#endif
       pI830->GTTBase = NULL;
    }
 }
@@ -697,12 +642,7 @@ I830UnmapMem(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-#if XSERVER_LIBPCIACCESS
    pci_device_unmap_range (pI830->PciInfo, pI830->FbBase, pI830->FbMapSize);
-#else
-   xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI830->FbBase,
-		   pI830->FbMapSize);
-#endif
    pI830->FbBase = NULL;
    I830UnmapMMIO(pScrn);
    return TRUE;
@@ -1179,11 +1119,7 @@ i830SetHotkeyControl(ScrnInfoPtr pScrn, int mode)
  */
 static Bool i830_kernel_mode_enabled(ScrnInfoPtr pScrn)
 {
-#if XSERVER_LIBPCIACCESS
     struct pci_device *PciInfo;
-#else
-    pciVideoPtr PciInfo;
-#endif
     EntityInfoPtr pEnt;
     char *busIdString;
     int ret;
@@ -1227,11 +1163,7 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	break;
     case PCI_CHIP_I855_GM:
 	/* Check capid register to find the chipset variant */
-#if XSERVER_LIBPCIACCESS
 	pci_device_cfg_read_u32 (pI830->PciInfo, &capid, I85X_CAPID);
-#else
-	capid = pciReadLong (pI830->PciTag, I85X_CAPID);
-#endif
 	pI830->variant = (capid >> I85X_VARIANT_SHIFT) & I85X_VARIANT_MASK;
 	switch (pI830->variant) {
 	case I855_GM:
@@ -1410,19 +1342,11 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 
     /* Now figure out mapsize on 8xx chips */
     if (IS_I830(pI830) || IS_845G(pI830)) {
-#if XSERVER_LIBPCIACCESS
 	uint16_t		gmch_ctrl;
 	struct pci_device *bridge;
 
 	bridge = intel_host_bridge ();
 	pci_device_cfg_read_u16 (bridge, &gmch_ctrl, I830_GMCH_CTRL);
-#else
-	PCITAG bridge;
-	uint16_t gmch_ctrl;
-
-	bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
-	gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
-#endif
 	if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
 	    pI830->FbMapSize = 0x8000000;
 	} else {
@@ -1430,12 +1354,7 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	}
     } else {
 	if (IS_I9XX(pI830)) {
-#if XSERVER_LIBPCIACCESS
 	    pI830->FbMapSize = pI830->PciInfo->regions[fb_bar].size;
-#else
-	    pI830->FbMapSize = 1UL << pciGetBaseSize(pI830->PciTag, 2, TRUE,
-						     NULL);
-#endif
 	} else {
 	    /* 128MB aperture for later i8xx series. */
 	    pI830->FbMapSize = 0x8000000;
@@ -1726,10 +1645,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
 
    pI830->PciInfo = xf86GetPciInfoForEntity(pI830->pEnt->index);
-#if !XSERVER_LIBPCIACCESS
-   pI830->PciTag = pciTag(pI830->PciInfo->bus, pI830->PciInfo->device,
-			  pI830->PciInfo->func);
-#endif
 
    if (xf86RegisterResources(pI830->pEnt->index, NULL, ResNone)) {
       PreInitCleanup(pScrn);

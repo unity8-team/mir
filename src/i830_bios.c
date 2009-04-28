@@ -218,7 +218,6 @@ i830_bios_init(ScrnInfoPtr pScrn)
     int ret;
     int size;
 
-#if XSERVER_LIBPCIACCESS
     size = pI830->PciInfo->rom_size;
     if (size == 0) {
 	size = INTEL_VBIOS_SIZE;
@@ -226,14 +225,10 @@ i830_bios_init(ScrnInfoPtr pScrn)
 		   "libpciaccess reported 0 rom size, guessing %dkB\n",
 		   size / 1024);
     }
-#else
-    size = INTEL_VBIOS_SIZE;
-#endif
     bios = xalloc(size);
     if (bios == NULL)
 	return -1;
 
-#if XSERVER_LIBPCIACCESS
     ret = pci_device_read_rom (pI830->PciInfo, bios);
     if (ret != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -242,14 +237,6 @@ i830_bios_init(ScrnInfoPtr pScrn)
 	xfree (bios);
 	return -1;
     }
-#else
-    /* xf86ReadPciBIOS returns the length read */
-    ret = xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, size);
-    if (ret <= 0) {
-	xfree (bios);
-	return -1;
-    }
-#endif
 
     vbt_off = INTEL_BIOS_16(0x1a);
     if (vbt_off >= size) {

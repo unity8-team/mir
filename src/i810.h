@@ -51,9 +51,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vgaHW.h"
 
 #include "xorg-server.h"
-#ifdef XSERVER_LIBPCIACCESS
 #include <pciaccess.h>
-#endif
 
 #ifdef XF86DRI
 #include "xf86drm.h"
@@ -190,12 +188,7 @@ typedef struct _I810Rec {
    unsigned long MMIOAddr;
    IOADDRESS ioBase;
    EntityInfoPtr pEnt;
-#if XSERVER_LIBPCIACCESS
    struct pci_device *PciInfo;
-#else
-   pciVideoPtr PciInfo;
-   PCITAG PciTag;
-#endif
 
    I810RingBuffer *LpRing;
    unsigned int BR[20];

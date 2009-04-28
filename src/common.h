@@ -322,21 +322,12 @@ extern int I810_DEBUG;
 #define PCI_CHIP_G41_G_BRIDGE	0x2E30
 #endif
 
-#if XSERVER_LIBPCIACCESS
 #define I810_MEMBASE(p,n) (p)->regions[(n)].base_addr
 #define VENDOR_ID(p)      (p)->vendor_id
 #define DEVICE_ID(p)      (p)->device_id
 #define SUBVENDOR_ID(p)	  (p)->subvendor_id
 #define SUBSYS_ID(p)      (p)->subdevice_id
 #define CHIP_REVISION(p)  (p)->revision
-#else
-#define I810_MEMBASE(p,n) (p)->memBase[n]
-#define VENDOR_ID(p)      (p)->vendor
-#define DEVICE_ID(p)      (p)->chipType
-#define SUBVENDOR_ID(p)	  (p)->subsysVendor
-#define SUBSYS_ID(p)      (p)->subsysCard
-#define CHIP_REVISION(p)  (p)->chipRev
-#endif
 
 #define IS_I810(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810 ||	\
 			DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810_DC100 || \
@@ -403,9 +394,7 @@ extern int I810_DEBUG;
 
 #define PIPE_NAME(n)			('A' + (n))
 
-#if XSERVER_LIBPCIACCESS
 struct pci_device *
 intel_host_bridge (void);
-#endif
-   
+
 #endif /* _INTEL_COMMON_H_ */

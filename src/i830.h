@@ -60,9 +60,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86RandR12.h"
 
 #include "xorg-server.h"
-#ifdef XSERVER_LIBPCIACCESS
 #include <pciaccess.h>
-#endif
 
 #include "xf86drm.h"
 #include "sarea.h"
@@ -420,12 +418,7 @@ typedef struct _I830Rec {
    unsigned long MMIOAddr;
    IOADDRESS ioBase;
    EntityInfoPtr pEnt;
-#if XSERVER_LIBPCIACCESS
    struct pci_device *PciInfo;
-#else
-   pciVideoPtr PciInfo;
-   PCITAG PciTag;
-#endif
    uint8_t variant;
 
    unsigned int BR[20];
