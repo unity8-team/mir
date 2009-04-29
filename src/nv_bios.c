@@ -2948,7 +2948,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 	int fpstrapping = get_fp_strap(pScrn, bios), lvdsmanufacturerindex = 0;
 	struct lvdstableheader lth;
 	uint16_t lvdsofs;
-	int ret;
+	int ret, chip_version = bios->pub.chip_version;
 
 	if ((ret = parse_lvds_manufacturer_table_header(pScrn, bios, &lth)))
 		return ret;
@@ -2961,14 +2961,23 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 		if (!pxclk)
 			break;
 
-		/* change in behaviour guessed at nv30; see datapoints below */
-		if (bios->pub.chip_version < 0x30) {
+		if (chip_version < 0x25) {
 			/* nv17 behaviour */
 			/* it seems the old style lvds script pointer is reused
 			 * to select 18/24 bit colour depth for EDID panels */
 			lvdsmanufacturerindex = (bios->legacy.lvds_single_a_script_ptr & 1) ? 2 : 0;
 			if (pxclk >= bios->fp.duallink_transition_clk)
 				lvdsmanufacturerindex++;
+		} else if (chip_version < 0x30) {
+			/* nv28 behaviour (off-chip encoder) */
+			/* nv28 does a complex dance of first using byte 121 of
+			 * the EDID to choose the lvdsmanufacturerindex, then
+			 * later attempting to match the EDID manufacturer and
+			 * product IDs in a table (signature 'pidt' (panel id
+			 * table?)), setting an lvdsmanufacturerindex of 0 and
+			 * an fp strap of the match index (or 0xf if none)
+			 */
+			lvdsmanufacturerindex = 0;
 		} else {
 			/* nv31, nv34 behaviour */
 			lvdsmanufacturerindex = 0;
@@ -3027,7 +3036,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 	}
 
 	/* set dual_link flag for EDID case */
-	if (pxclk)
+	if (pxclk && (chip_version < 0x25 || chip_version > 0x28))
 		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
 
 	*dl = bios->fp.dual_link;
