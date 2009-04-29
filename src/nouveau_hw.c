@@ -494,8 +494,7 @@ static void nouveau_hw_fix_bad_vpll(ScrnInfoPtr pScrn, int head)
 	    pv.log2P <= pll_lim.max_log2p)
 		return;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "VPLL %d outwith limits, attempting to fix\n", head + 1);
+	NV_WARN(pScrn, "VPLL %d outwith limits, attempting to fix\n", head + 1);
 
 	/* set lowest clock within static limits */
 	pv.M1 = pll_lim.vco1.max_m;
@@ -525,7 +524,7 @@ void nouveau_hw_save_vga_fonts(ScrnInfoPtr pScrn, bool save)
 	if (graphicsmode)	/* graphics mode => framebuffer => no need to save */
 		return;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%sing VGA fonts\n", save ? "Sav" : "Restor");
+	NV_TRACE(pScrn, "%sing VGA fonts\n", save ? "Sav" : "Restor");
 	if (pNv->twoHeads)
 		NVBlankScreen(pNv, 1, true);
 	NVBlankScreen(pNv, 0, true);

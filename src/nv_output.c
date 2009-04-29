@@ -122,7 +122,8 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
 	if (present) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %c\n", '@' + ffs(nv_encoder->dcb->or));
+		NV_TRACE(pScrn, "Load detected on output %c\n",
+			 '@' + ffs(nv_encoder->dcb->or));
 		return true;
 	}
 
@@ -243,7 +244,6 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 {
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
-	ScrnInfoPtr pScrn = output->scrn;
 	int max_h_active = 0, max_v_active = 0;
 	int i;
 	DisplayModePtr mode;
@@ -264,8 +264,7 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 				max_v_active = nv_connector->edid->timings2[i].vsize;
 			}
 	if (!max_h_active || !max_v_active) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "EDID too broken for finding native mode\n");
+		NV_ERROR(output->scrn, "EDID too broken to find native mode\n");
 		return NULL;
 	}
 
@@ -415,7 +414,7 @@ nv_output_destroy(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(output->scrn);
 	int i;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s called\n", __func__);
+	NV_TRACE(pScrn, "%s called\n", __func__);
 
 	if (!nv_connector)
 		return;
@@ -717,8 +716,8 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "%s called for encoder %d\n", __func__, nv_encoder->dcb->index);
+	NV_TRACE(pScrn, "%s called for encoder %d\n", __func__,
+		 nv_encoder->dcb->index);
 
 	if (pNv->gf4_disp_arch && nv_encoder->dcb->type == OUTPUT_ANALOG) {
 		uint32_t dac_offset = nv_output_ramdac_offset(nv_encoder);
@@ -764,7 +763,8 @@ nv_output_commit(xf86OutputPtr output)
 
 	output->funcs->dpms(output, DPMSModeOn);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %c\n", output->name, nv_crtc->head, '@' + ffs(nv_encoder->dcb->or));
+	NV_TRACE(pScrn, "Output %s is running on CRTC %d using output %c\n",
+		 output->name, nv_crtc->head, '@' + ffs(nv_encoder->dcb->or));
 }
 
 static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86CrtcPtr crtc, int mode)
@@ -806,8 +806,8 @@ lvds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 		return;
 	nv_encoder->last_dpms = mode;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Setting dpms mode %d on lvds encoder (output %d)\n", mode, nv_encoder->dcb->index);
+	NV_TRACE(pScrn, "Setting dpms mode %d on lvds encoder (output %d)\n",
+		 mode, nv_encoder->dcb->index);
 
 	if (nv_encoder->dcb->lvdsconf.use_power_scripts) {
 		/* when removing an output, crtc may not be set, but PANEL_OFF
@@ -847,8 +847,8 @@ vga_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crtc
 		return;
 	nv_encoder->last_dpms = mode;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Setting dpms mode %d on vga encoder (output %d)\n", mode, nv_encoder->dcb->index);
+	NV_TRACE(pScrn, "Setting dpms mode %d on vga encoder (output %d)\n",
+		 mode, nv_encoder->dcb->index);
 
 	if (pNv->gf4_disp_arch) {
 		uint32_t outputval = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder));
@@ -871,8 +871,8 @@ tmds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 		return;
 	nv_encoder->last_dpms = mode;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Setting dpms mode %d on tmds encoder (output %d)\n", mode, nv_encoder->dcb->index);
+	NV_TRACE(pScrn, "Setting dpms mode %d on tmds encoder (output %d)\n",
+		 mode, nv_encoder->dcb->index);
 
 	dpms_update_fp_control(pScrn, nv_encoder, crtc, mode);
 
@@ -1045,7 +1045,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 		if (dcbent->type == OUTPUT_TV)
 			continue;
 		if (dcbent->type > 3) {
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", dcbent->type);
+			NV_WARN(pScrn, "DCB type %d not known\n", dcbent->type);
 			continue;
 		}
 

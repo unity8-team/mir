@@ -144,9 +144,11 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 					  NV_PRAMDAC_PLL_COEFF_SELECT_VCLK_RATIO_DB2);
 
 	if (pv->NM2)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", pv->N1, pv->N2, pv->M1, pv->M2, pv->log2P);
+		NV_TRACE(pScrn, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n",
+			 pv->N1, pv->N2, pv->M1, pv->M2, pv->log2P);
 	else
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", pv->N1, pv->M1, pv->log2P);
+		NV_TRACE(pScrn, "vpll: n %d m %d log2p %d\n",
+			 pv->N1, pv->M1, pv->log2P);
 
 	nouveau_calc_arb(pScrn, vclk, pScrn->bitsPerPixel, &arb_burst, &arb_fifo_lwm);
 
@@ -167,7 +169,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting dpms mode %d on CRTC %d\n", mode, nv_crtc->head);
+	NV_TRACE(pScrn, "Setting dpms mode %d on CRTC %d\n", mode, nv_crtc->head);
 
 	if (nv_crtc->last_dpms == mode) /* Don't do unnecesary mode changes. */
 		return;
@@ -769,9 +771,9 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(pScrn);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CTRC mode on CRTC %d:\n", nv_crtc->head);
+	NV_TRACE(pScrn, "CTRC mode on CRTC %d:\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, mode);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output mode on CRTC %d:\n", nv_crtc->head);
+	NV_TRACE(pScrn, "Output mode on CRTC %d:\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, adjusted_mode);
 
 	/* unlock must come after turning off FP_TG_CONTROL in output_prepare */

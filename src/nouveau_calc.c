@@ -605,8 +605,8 @@ int nouveau_calc_pll_mnp(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
 		outclk = getMNP_double(pScrn, pll_lim, clk, pv);
 
 	if (!outclk)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Could not find a compatible set of PLL values\n");
+		NV_ERROR(pScrn,
+			 "Could not find a compatible set of PLL values\n");
 
 	return outclk;
 }
