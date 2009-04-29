@@ -1,3 +1,42 @@
+Snapshot 2.7.99.1 (2009-04-28)
+------------------------------
+This is a development snapshot very early in the process toward
+developing 2.8. There have been some big changes to the code, and
+we're anxious to get feedback on these changes as early as possible.
+
+Here is a summary of the biggest changes:
+
+  * Driver now depends on X server 1.6 or later
+
+  * Eliminate XAA and EXA support (in favor of UXA)
+
+  * Eliminate DRI1 support
+
+  * Fixes for running without DRI at all
+
+These code removals represent a deletion of a substantial amount of
+code, (and hopefully piles of bugs), as well as reduce the maintenance
+effort going forward as the number of combinatorial configurations for
+the driver are greatly reduced. This means that users are much more
+likely to be running code that has actually been tested, and it will
+be much easy for developers to replicate bugs that users experience.
+
+One of the things that would be most useful in testing this release is
+to revisit any outstanding bugs that you have previously reported. If
+the buggy behavior is gone, (or the bug is no longer relevant---such
+as a bug that's specific to XAA only), please feel free to indicate so
+in bugzilla or even just close the bug.
+
+If you confirm that the bug is still present, please indicate so in
+the bug report. (I was going to ask that you select a 1.7.99 version,
+but it looks like bugzilla only has versions for products not
+compoenents, while we use a "xorg" product and a "driver/intel"
+component.) We definitely want to make any such confirmed bugs a
+priority, so it would be nice to have a consistent mechanism to search
+for these bugs. Suggestions are welcome on the best approach.
+
+Thanks in advance for any testing or feedback on this snapshot.
+
 Release 2.7.0 (2009-04-15)
 --------------------------
 Compared to the 2.6 series, 2.7.0 has a large number of bug fixes, but
