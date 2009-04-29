@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu10) karmic; urgency=low
+
+  * Add 121_i965_default_to_virtual_2048_2048.patch, to force the default
+    Virtual resolution on i965 to 2048x2048 if not otherwise specified in
+    xorg.conf.  This works around freeze issues seen on this hardware.
+    (LP: #359392)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 29 Apr 2009 15:26:27 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu9) jaunty; urgency=low
 
   * Add 120_fix_vt_switch.patch: Fix null pointer deref in

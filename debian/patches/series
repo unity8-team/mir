@@ -13,3 +13,4 @@
 118_drop_legacy3d.patch
 119_drm_bo_unreference_needs_null.patch
 120_fix_vt_switch.patch
+121_i965_default_virtual_to_2048_2048.patch
