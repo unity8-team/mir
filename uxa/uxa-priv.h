@@ -26,6 +26,9 @@
 #ifndef UXAPRIV_H
 #define UXAPRIV_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
 #else
@@ -61,24 +64,35 @@
 #endif
 #include "damage.h"
 
-#define DEBUG_TRACE_FALL	0
+/* Provide substitutes for gcc's __FUNCTION__ on other compilers */
+#if !defined(__GNUC__) && !defined(__FUNCTION__)
+# if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
+#  define __FUNCTION__ __func__
+# else
+#  define __FUNCTION__ ""
+# endif
+#endif
+
+
+/* 1.6 and earlier server compat */
+#ifndef miGetCompositeClip
+#define miCopyRegion fbCopyRegion
+#define miDoCopy fbDoCopy
+#endif
+
 #define DEBUG_MIGRATE		0
 #define DEBUG_PIXMAP		0
 #define DEBUG_OFFSCREEN		0
 #define DEBUG_GLYPH_CACHE	0
 
-#if DEBUG_TRACE_FALL
 #define UXA_FALLBACK(x)     					\
-do {								\
+if (uxa_get_screen(screen)->fallback_debug) {			\
 	ErrorF("UXA fallback at %s: ", __FUNCTION__);		\
 	ErrorF x;						\
-} while (0)
+}
 
 char
 uxa_drawable_location(DrawablePtr pDrawable);
-#else
-#define UXA_FALLBACK(x)
-#endif
 
 #if DEBUG_PIXMAP
 #define DBG_PIXMAP(a) ErrorF a
@@ -139,6 +153,7 @@ typedef struct {
 #endif
     EnableDisableFBAccessProcPtr SavedEnableDisableFBAccess;
 
+    Bool			 fallback_debug;
     Bool			 swappedOut;
     unsigned			 disableFbCount;
     unsigned			 offScreenCounter;
@@ -159,7 +174,12 @@ typedef struct {
 #endif
 
 extern int uxa_screen_index;
-#define uxa_get_screen(s) ((uxa_screen_t *)dixLookupPrivate(&(s)->devPrivates, &uxa_screen_index))
+static inline uxa_screen_t *
+uxa_get_screen(ScreenPtr screen)
+{
+    return (uxa_screen_t *)dixLookupPrivate(&screen->devPrivates,
+					    &uxa_screen_index);
+}
 
 /** Align an offset to an arbitrary alignment */
 #define UXA_ALIGN(offset, align) (((offset) + (align) - 1) - \
@@ -260,6 +280,8 @@ uxa_check_get_spans (DrawablePtr pDrawable,
 		 int nspans,
 		 char *pdstStart);
 
+void uxa_check_paint_window (WindowPtr pWin, RegionPtr pRegion, int what);
+
 void
 uxa_check_add_traps (PicturePtr	pPicture,
 		  INT16		x_off,
@@ -289,6 +311,8 @@ void
 uxa_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, unsigned int format,
 	       int w, int h, int sx, int sy, int sw, int sh, int dx, int dy,
 	       char *data);
+
+void uxa_paint_window(WindowPtr pWin, RegionPtr pRegion, int what);
 
 void
 uxa_get_image (DrawablePtr pDrawable, int x, int y, int w, int h,

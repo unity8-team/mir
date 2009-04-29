@@ -58,13 +58,15 @@ typedef struct {
    uint32_t videoStatus;
    Time offTime;
    Time freeTime;
-   i830_memory *buf; /** YUV data buffer */
+   drm_intel_bo *buf; /** YUV data buffer */
 
    Bool overlayOK;
    int oneLineMode;
    int scaleRatio;
    Bool textured;
    Rotation rotation; /* should remove I830->rotation later*/
+
+   int SyncToVblank; /* -1: auto, 0: off, 1: on */
 } I830PortPrivRec, *I830PortPrivPtr;
 
 #define GET_PORT_PRIVATE(pScrn) \

@@ -35,6 +35,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 void intel_batch_init(ScrnInfoPtr pScrn);
 void intel_batch_teardown(ScrnInfoPtr pScrn);
 void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed);
+void intel_batch_wait_last(ScrnInfoPtr pScrn);
 
 static inline int
 intel_batch_space(I830Ptr pI830)
@@ -100,21 +101,10 @@ intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap,
 			      uint32_t read_domains, uint32_t write_domain,
 			      uint32_t delta)
 {
-#if I830_USE_UXA || I830_USE_EXA
     dri_bo *bo = i830_get_pixmap_bo(pPixmap);
-#endif
-    uint32_t offset;
     assert(pI830->batch_ptr != NULL);
     assert(intel_batch_space(pI830) >= 4);
-#if I830_USE_UXA || I830_USE_EXA
-    if (bo) {
-	intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
-	return;
-    }
-#endif
-    offset = intel_get_pixmap_offset(pPixmap);
-    *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = offset + delta;
-    pI830->batch_used += 4;
+    intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
 }
 
 #define OUT_BATCH(dword) intel_batch_emit_dword(pI830, dword)

@@ -36,28 +36,26 @@ noinst_PROGRAMS = bios_reader$(EXEEXT) $(am__EXEEXT_1) $(am__EXEEXT_2)
 subdir = src/bios_reader
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
-	$(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/dolt.m4 \
+	$(top_srcdir)/m4/shave.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
-@LIBPCIACCESS_TRUE@am__EXEEXT_1 = bios_dumper$(EXEEXT)
-@LIBPCIACCESS_TRUE@am__EXEEXT_2 = swf_dumper$(EXEEXT)
+am__EXEEXT_1 = bios_dumper$(EXEEXT)
+am__EXEEXT_2 = swf_dumper$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
-am__bios_dumper_SOURCES_DIST = bios_dumper.c
-@LIBPCIACCESS_TRUE@am_bios_dumper_OBJECTS = bios_dumper.$(OBJEXT)
+am_bios_dumper_OBJECTS = bios_dumper.$(OBJEXT)
 bios_dumper_OBJECTS = $(am_bios_dumper_OBJECTS)
 am__DEPENDENCIES_1 =
-@LIBPCIACCESS_TRUE@bios_dumper_DEPENDENCIES = $(am__DEPENDENCIES_1)
+bios_dumper_DEPENDENCIES = $(am__DEPENDENCIES_1)
 bios_reader_SOURCES = bios_reader.c
 bios_reader_OBJECTS = bios_reader.$(OBJEXT)
 bios_reader_LDADD = $(LDADD)
-am__swf_dumper_SOURCES_DIST = swf_dumper.c
-@LIBPCIACCESS_TRUE@am_swf_dumper_OBJECTS = swf_dumper.$(OBJEXT)
+am_swf_dumper_OBJECTS = swf_dumper.$(OBJEXT)
 swf_dumper_OBJECTS = $(am_swf_dumper_OBJECTS)
-@LIBPCIACCESS_TRUE@swf_dumper_DEPENDENCIES = $(am__DEPENDENCIES_1)
+swf_dumper_DEPENDENCIES = $(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -68,8 +66,8 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(bios_dumper_SOURCES) bios_reader.c $(swf_dumper_SOURCES)
-DIST_SOURCES = $(am__bios_dumper_SOURCES_DIST) bios_reader.c \
-	$(am__swf_dumper_SOURCES_DIST)
+DIST_SOURCES = $(bios_dumper_SOURCES) bios_reader.c \
+	$(swf_dumper_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -77,6 +75,7 @@ ACLOCAL = @ACLOCAL@
 ADMIN_MAN_DIR = @ADMIN_MAN_DIR@
 ADMIN_MAN_SUFFIX = @ADMIN_MAN_SUFFIX@
 AMTAR = @AMTAR@
+AM_MAKEFLAGS = @AM_MAKEFLAGS@
 APP_MAN_DIR = @APP_MAN_DIR@
 APP_MAN_SUFFIX = @APP_MAN_SUFFIX@
 AR = @AR@
@@ -104,8 +103,6 @@ DRI_CFLAGS = @DRI_CFLAGS@
 DRI_LIBS = @DRI_LIBS@
 DRM_CFLAGS = @DRM_CFLAGS@
 DRM_LIBS = @DRM_LIBS@
-DRM_MODE_CFLAGS = @DRM_MODE_CFLAGS@
-DRM_MODE_LIBS = @DRM_MODE_LIBS@
 DSYMUTIL = @DSYMUTIL@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
@@ -114,6 +111,7 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 F77 = @F77@
+FC = @FC@
 FFLAGS = @FFLAGS@
 FILE_MAN_DIR = @FILE_MAN_DIR@
 FILE_MAN_SUFFIX = @FILE_MAN_SUFFIX@
@@ -135,6 +133,7 @@ LTCOMPILE = @LTCOMPILE@
 LTCXXCOMPILE = @LTCXXCOMPILE@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
+MAKEFLAGS = @MAKEFLAGS@
 MAKEINFO = @MAKEINFO@
 MAKE_HTML = @MAKE_HTML@
 MAKE_PDF = @MAKE_PDF@
@@ -156,18 +155,17 @@ PCIACCESS_CFLAGS = @PCIACCESS_CFLAGS@
 PCIACCESS_LIBS = @PCIACCESS_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 PS2PDF = @PS2PDF@
+Q = @Q@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
-UXA_CFLAGS = @UXA_CFLAGS@
-UXA_LIBS = @UXA_LIBS@
+V = @V@
 VERSION = @VERSION@
 WARN_CFLAGS = @WARN_CFLAGS@
 XEXT_CFLAGS = @XEXT_CFLAGS@
 XEXT_LIBS = @XEXT_LIBS@
-XMODES_CFLAGS = @XMODES_CFLAGS@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
 XVMCLIB_CFLAGS = @XVMCLIB_CFLAGS@
@@ -220,20 +218,22 @@ program_transform_name = @program_transform_name@
 psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
+shavedir = @shavedir@
 srcdir = @srcdir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
+top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @XMODES_CFLAGS@ @PCIACCESS_CFLAGS@ \
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @PCIACCESS_CFLAGS@ \
 	-DREG_DUMPER
 
-@LIBPCIACCESS_TRUE@BIOS_DUMPER = bios_dumper
-@LIBPCIACCESS_TRUE@bios_dumper_SOURCES = bios_dumper.c
-@LIBPCIACCESS_TRUE@bios_dumper_LDADD = $(PCIACCESS_LIBS)
-@LIBPCIACCESS_TRUE@SWF_DUMPER = swf_dumper
-@LIBPCIACCESS_TRUE@swf_dumper_SOURCES = swf_dumper.c
-@LIBPCIACCESS_TRUE@swf_dumper_LDADD = $(PCIACCESS_LIBS)
+BIOS_DUMPER = bios_dumper
+bios_dumper_SOURCES = bios_dumper.c
+bios_dumper_LDADD = $(PCIACCESS_LIBS)
+SWF_DUMPER = swf_dumper
+swf_dumper_SOURCES = swf_dumper.c
+swf_dumper_LDADD = $(PCIACCESS_LIBS)
 all: all-am
 
 .SUFFIXES:
@@ -247,9 +247,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  src/bios_reader/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  src/bios_reader/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu  src/bios_reader/Makefile
+	  $(AUTOMAKE) --foreign  src/bios_reader/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

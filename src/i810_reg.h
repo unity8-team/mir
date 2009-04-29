@@ -1,4 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_reg.h,v 1.13 2003/02/06 04:18:04 dawes Exp $ */
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -114,6 +113,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define BITBLT_STATUS          0x01
 
 #define CHDECMISC	0x10111
+#define DCC			0x10200
 #define C0DRB0			0x10200
 #define C0DRB1			0x10202
 #define C0DRB2			0x10204
@@ -969,6 +969,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24) /* i915 */
 # define DPLL_P2_CLOCK_DIV_MASK			0x03000000 /* i915 */
 # define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000 /* i915 */
+# define DPLL_FPA01_P1_POST_DIV_MASK_IGD	0x00ff8000 /* IGD */
 /**
  *  The i830 generation, in DAC/serial mode, defines p1 as two plus this
  * bitfield, or just 2 if PLL_P1_DIVIDE_BY_TWO is set.
@@ -980,6 +981,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 # define DPLL_FPA01_P1_POST_DIV_SHIFT		16
+# define DPLL_FPA01_P1_POST_DIV_SHIFT_IGD	15
 # define PLL_P2_DIVIDE_BY_4			(1 << 23) /* i830, required in DVO non-gang */
 # define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
 # define PLL_REF_INPUT_DREFCLK			(0 << 13)
@@ -1228,10 +1230,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define FPB0		0x06048
 #define FPB1		0x0604c
 # define FP_N_DIV_MASK				0x003f0000
+# define FP_N_IGD_DIV_MASK			0x00ff0000
 # define FP_N_DIV_SHIFT				16
 # define FP_M1_DIV_MASK				0x00003f00
 # define FP_M1_DIV_SHIFT			8
 # define FP_M2_DIV_MASK				0x0000003f
+# define FP_M2_IGD_DIV_MASK			0x000000ff
 # define FP_M2_DIV_SHIFT			0
 
 #define PORT_HOTPLUG_EN		0x61110
@@ -1295,6 +1299,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_ENCODING_HDMI			(0x2 << 10)
 /** Requird for HDMI operation */
 #define SDVO_NULL_PACKETS_DURING_VSYNC		(1 << 9)
+#define SDVO_COLOR_NOT_FULL_RANGE		(1 << 8)
 #define SDVO_BORDER_ENABLE			(1 << 7)
 #define SDVO_AUDIO_ENABLE			(1 << 6)
 /** New with 965, default is to be set */
@@ -2431,8 +2436,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MI_OVERLAY_FLIP_OFF		(2<<21)
 
 /* Wait for Events */
-#define MI_WAIT_FOR_EVENT		(0x03<<23)
-#define MI_WAIT_FOR_OVERLAY_FLIP	(1<<16)
+#define MI_WAIT_FOR_EVENT			(0x03<<23)
+#define MI_WAIT_FOR_PIPEB_SVBLANK		(1<<18)
+#define MI_WAIT_FOR_PIPEA_SVBLANK		(1<<17)
+#define MI_WAIT_FOR_OVERLAY_FLIP		(1<<16)
+#define MI_WAIT_FOR_PIPEB_VBLANK		(1<<7)
+#define MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW	(1<<5)
+#define MI_WAIT_FOR_PIPEA_VBLANK		(1<<3)
+#define MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW	(1<<1)
+
+/* Set the scan line for MI_WAIT_FOR_PIPE?_SCAN_LINE_WINDOW */
+#define MI_LOAD_SCAN_LINES_INCL			(0x12<<23)
+#define MI_LOAD_SCAN_LINES_DISPLAY_PIPEA	(0)
+#define MI_LOAD_SCAN_LINES_DISPLAY_PIPEB	(0x1<<20)
 
 /* Flush */
 #define MI_FLUSH			(0x04<<23)

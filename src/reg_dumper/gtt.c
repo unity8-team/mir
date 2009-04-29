@@ -59,9 +59,9 @@ int main(int argc, char **argv)
 	else {
 		/* 915/945 chips has GTT range in bar 3*/
 		int err = 0;
-		err = pci_device_map_range (pI830->pci_dev,
-				pI830->pci_dev->regions[3].base_addr,
-				pI830->pci_dev->regions[3].size,
+		err = pci_device_map_range (pI830->PciInfo,
+				pI830->PciInfo->regions[3].base_addr,
+				pI830->PciInfo->regions[3].size,
 				PCI_DEV_MAP_FLAG_WRITABLE,
 				(void **)&gtt);
 		if (err != 0) {
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	aper_size = pI830->pci_dev->regions[2].size;
+	aper_size = pI830->PciInfo->regions[2].size;
 
 	for (start = 0; start < aper_size; start += KB(4)) {
 		uint32_t start_pte = INGTT(start);

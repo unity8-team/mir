@@ -1,5 +1,6 @@
 if XVMC
 lib_LTLIBRARIES=libI810XvMC.la libIntelXvMC.la
+endif
 
 libI810XvMC_la_SOURCES = I810XvMC.c \
 			 I810XvMC.h
@@ -122,5 +123,4 @@ BUILT_SOURCES= $(INTEL_G4B)
 
 clean-local:
 	-rm -f $(INTEL_G4B)
-endif
 endif
