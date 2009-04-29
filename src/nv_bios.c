@@ -4116,7 +4116,7 @@ parse_dcb20_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb,
 	entry->i2c_index = (conn >> 4) & 0xf;
 	entry->heads = (conn >> 8) & 0xf;
 	entry->bus = (conn >> 16) & 0xf;
-	entry->location = (conn >> 20) & 0xf;
+	entry->location = (conn >> 20) & 0x3;
 	entry->or = (conn >> 24) & 0xf;
 	/* Normal entries consist of a single bit, but dual link has the
 	 * next most significant bit set too
