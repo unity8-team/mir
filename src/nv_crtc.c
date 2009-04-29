@@ -646,7 +646,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	regp->fp_vert_regs[FP_VALID_START] = 0;
 	regp->fp_vert_regs[FP_VALID_END] = adjusted_mode->VDisplay - 1;
 
-	/* bit26: a bit sometimes seen on some g70 cards */
+	/* bit26: a bit seen on some g7x, no as yet discernable purpose */
 	regp->fp_control = NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS |
 			   (savep->fp_control & (1 << 26 | NV_PRAMDAC_FP_TG_CONTROL_READ_PROG));
 	/* Deal with vsync/hsync polarity */
@@ -666,6 +666,9 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_MODE_SCALE;
 	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12;
+	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP &&
+	    nv_encoder->native_mode->Clock > 165000)
+		regp->fp_control |= (2 << 24);
 	if (nv_encoder->dual_link)
 		regp->fp_control |= (8 << 28);
 
