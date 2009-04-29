@@ -176,6 +176,11 @@ struct nvbios {
 	struct bios_parsed_dcb bdcb;
 
 	struct {
+		int head;
+		uint16_t script_table_ptr;
+	} display;
+
+	struct {
 		uint16_t fptablepointer;	/* also used by tmds */
 		uint16_t fpxlatetableptr;
 		int xlatwidth;

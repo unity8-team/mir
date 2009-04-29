@@ -3699,6 +3699,29 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, struct nvbios *bios, bit_
 	return 0;
 }
 
+static int
+parse_bit_U_tbl_entry(ScrnInfoPtr pScrn, struct nvbios *bios,
+		      bit_entry_t *bitentry)
+{
+	/* Parses the pointer to the G80 output script tables
+	 *
+	 * Starting at bitentry->offset:
+	 *
+	 * offset + 0  (16 bits): output script table pointer
+	 */
+
+	uint16_t outputscripttableptr;
+
+	if (bitentry->length != 2) {
+		NV_ERROR(pScrn, "Do not understand BIT U table\n");
+		return -EINVAL;
+	}
+
+	outputscripttableptr = ROM16(bios->data[bitentry->offset]);
+	bios->display.script_table_ptr = outputscripttableptr;
+	return 0;
+}
+
 struct bit_table {
 	const char id;
 	int (* const parse_fn)(ScrnInfoPtr, struct nvbios *, bit_entry_t *);
@@ -3751,6 +3774,7 @@ static int parse_bit_structure(ScrnInfoPtr pScrn, struct nvbios *bios, const uin
 	parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('M', M)); /* memory? */
 	parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('L', lvds));
 	parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('T', tmds));
+	parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('U', U));
 
 	return 0;
 }
