@@ -73,14 +73,17 @@
 #define CURSOR_SWAPPING_DECL_MMIO   unsigned char *RADEONMMIO = info->MMIO;
 #define CURSOR_SWAPPING_START() \
   do { \
+  if (info->ChipFamily < CHIP_FAMILY_R600) \
     OUTREG(RADEON_SURFACE_CNTL, \
 	   (info->ModeReg->surface_cntl | \
 	     RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP) & \
 	   ~(RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP)); \
   } while (0)
-#define CURSOR_SWAPPING_END()	(OUTREG(RADEON_SURFACE_CNTL, \
-					info->ModeReg->surface_cntl))
-
+#define CURSOR_SWAPPING_END()	\
+  do { \
+  if (info->ChipFamily < CHIP_FAMILY_R600) \
+      OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl); \
+  } while (0)
 #else
 
 #define CURSOR_SWAPPING_DECL_MMIO
