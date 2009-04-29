@@ -256,6 +256,21 @@ static void still_alive(void)
 //	BIOS_USLEEP(2000);
 }
 
+static uint32_t
+munge_reg(ScrnInfoPtr pScrn, uint32_t reg)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->VBIOS.pub.chip_version < 0x80)
+		return reg;
+
+	if (reg & 0x40000000)
+		reg += pNv->VBIOS.display.head * 0x800;
+
+	reg &= ~(0x40000000);
+	return reg;
+}
+
 static int valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -359,6 +374,7 @@ static uint32_t bios_rd32(ScrnInfoPtr pScrn, uint32_t reg)
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t data;
 
+	reg = munge_reg(pScrn, reg);
 	if (!valid_reg(pScrn, reg))
 		return 0;
 
@@ -387,6 +403,7 @@ static void bios_wr32(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
+	reg = munge_reg(pScrn, reg);
 	if (!valid_reg(pScrn, reg))
 		return;
 
