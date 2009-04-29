@@ -345,10 +345,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	ADVANCE_BATCH();
      }
 
-#ifdef I830DEBUG
-    ErrorF("try to sync to show any errors...");
-    I830Sync(pScrn);
-#endif
+    i830_debug_sync(pScrn);
 
     return TRUE;
 }
@@ -404,7 +401,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     i830_exa_check_pitch_3d(pDst);
 
     IntelEmitInvarientState(pScrn);
-    *pI830->last_3d = LAST_3D_RENDER;
+    pI830->last_3d = LAST_3D_RENDER;
 
     if (!i830_get_dest_format(pDstPicture, &dst_format))
 	return FALSE;
@@ -569,10 +566,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	ADVANCE_BATCH();
     }
 
-#ifdef I830DEBUG
-    Error("try to sync to show any errors...");
-    I830Sync(pScrn);
-#endif
+    i830_debug_sync(pScrn);
 
     return TRUE;
 }

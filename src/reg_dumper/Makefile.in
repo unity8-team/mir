@@ -34,12 +34,13 @@ build_triplet = @build@
 host_triplet = @host@
 noinst_PROGRAMS = intel_reg_dumper$(EXEEXT) intel_gtt$(EXEEXT) \
 	intel_idle$(EXEEXT) intel_stepping$(EXEEXT) \
-	intel_statuspage$(EXEEXT) intel_hotplug$(EXEEXT)
+	intel_statuspage$(EXEEXT) intel_hotplug$(EXEEXT) \
+	intel_lid$(EXEEXT)
 subdir = src/reg_dumper
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
-	$(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/dolt.m4 \
+	$(top_srcdir)/m4/shave.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -58,6 +59,9 @@ am_intel_idle_OBJECTS = idle.$(OBJEXT) xprintf.$(OBJEXT) \
 	i830_debug.$(OBJEXT)
 intel_idle_OBJECTS = $(am_intel_idle_OBJECTS)
 intel_idle_DEPENDENCIES = $(am__DEPENDENCIES_1)
+am_intel_lid_OBJECTS = lid.$(OBJEXT) util.$(OBJEXT)
+intel_lid_OBJECTS = $(am_intel_lid_OBJECTS)
+intel_lid_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_intel_reg_dumper_OBJECTS = main.$(OBJEXT) xprintf.$(OBJEXT) \
 	i830_debug.$(OBJEXT)
 intel_reg_dumper_OBJECTS = $(am_intel_reg_dumper_OBJECTS)
@@ -78,11 +82,13 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(intel_gtt_SOURCES) $(intel_hotplug_SOURCES) \
-	$(intel_idle_SOURCES) $(intel_reg_dumper_SOURCES) \
-	$(intel_statuspage_SOURCES) $(intel_stepping_SOURCES)
+	$(intel_idle_SOURCES) $(intel_lid_SOURCES) \
+	$(intel_reg_dumper_SOURCES) $(intel_statuspage_SOURCES) \
+	$(intel_stepping_SOURCES)
 DIST_SOURCES = $(intel_gtt_SOURCES) $(intel_hotplug_SOURCES) \
-	$(intel_idle_SOURCES) $(intel_reg_dumper_SOURCES) \
-	$(intel_statuspage_SOURCES) $(intel_stepping_SOURCES)
+	$(intel_idle_SOURCES) $(intel_lid_SOURCES) \
+	$(intel_reg_dumper_SOURCES) $(intel_statuspage_SOURCES) \
+	$(intel_stepping_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -90,6 +96,7 @@ ACLOCAL = @ACLOCAL@
 ADMIN_MAN_DIR = @ADMIN_MAN_DIR@
 ADMIN_MAN_SUFFIX = @ADMIN_MAN_SUFFIX@
 AMTAR = @AMTAR@
+AM_MAKEFLAGS = @AM_MAKEFLAGS@
 APP_MAN_DIR = @APP_MAN_DIR@
 APP_MAN_SUFFIX = @APP_MAN_SUFFIX@
 AR = @AR@
@@ -117,8 +124,6 @@ DRI_CFLAGS = @DRI_CFLAGS@
 DRI_LIBS = @DRI_LIBS@
 DRM_CFLAGS = @DRM_CFLAGS@
 DRM_LIBS = @DRM_LIBS@
-DRM_MODE_CFLAGS = @DRM_MODE_CFLAGS@
-DRM_MODE_LIBS = @DRM_MODE_LIBS@
 DSYMUTIL = @DSYMUTIL@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
@@ -127,6 +132,7 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 F77 = @F77@
+FC = @FC@
 FFLAGS = @FFLAGS@
 FILE_MAN_DIR = @FILE_MAN_DIR@
 FILE_MAN_SUFFIX = @FILE_MAN_SUFFIX@
@@ -148,6 +154,7 @@ LTCOMPILE = @LTCOMPILE@
 LTCXXCOMPILE = @LTCXXCOMPILE@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
+MAKEFLAGS = @MAKEFLAGS@
 MAKEINFO = @MAKEINFO@
 MAKE_HTML = @MAKE_HTML@
 MAKE_PDF = @MAKE_PDF@
@@ -169,18 +176,17 @@ PCIACCESS_CFLAGS = @PCIACCESS_CFLAGS@
 PCIACCESS_LIBS = @PCIACCESS_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 PS2PDF = @PS2PDF@
+Q = @Q@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
-UXA_CFLAGS = @UXA_CFLAGS@
-UXA_LIBS = @UXA_LIBS@
+V = @V@
 VERSION = @VERSION@
 WARN_CFLAGS = @WARN_CFLAGS@
 XEXT_CFLAGS = @XEXT_CFLAGS@
 XEXT_LIBS = @XEXT_LIBS@
-XMODES_CFLAGS = @XMODES_CFLAGS@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
 XVMCLIB_CFLAGS = @XVMCLIB_CFLAGS@
@@ -233,9 +239,11 @@ program_transform_name = @program_transform_name@
 psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
+shavedir = @shavedir@
 srcdir = @srcdir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
+top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 intel_reg_dumper_SOURCES = \
@@ -269,12 +277,18 @@ intel_statuspage_SOURCES = \
 	reg_dumper.h \
 	util.c
 
+intel_lid_SOURCES = \
+	lid.c \
+	reg_dumper.h \
+	util.c
+
 intel_hotplug_LDADD = $(PCIACCESS_LIBS)
 intel_reg_dumper_LDADD = $(PCIACCESS_LIBS)
 intel_gtt_LDADD = $(PCIACCESS_LIBS)
 intel_idle_LDADD = $(PCIACCESS_LIBS)
 intel_stepping_LDADD = $(PCIACCESS_LIBS)
 intel_statuspage_LDADD = $(PCIACCESS_LIBS)
+intel_lid_LDADD = $(PCIACCESS_LIBS)
 AM_CFLAGS = $(PCIACCESS_CFLAGS) $(WARN_CFLAGS) \
 	-I$(srcdir)/.. -DREG_DUMPER
 
@@ -291,9 +305,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  src/reg_dumper/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  src/reg_dumper/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu  src/reg_dumper/Makefile
+	  $(AUTOMAKE) --foreign  src/reg_dumper/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -327,6 +341,9 @@ intel_hotplug$(EXEEXT): $(intel_hotplug_OBJECTS) $(intel_hotplug_DEPENDENCIES)
 intel_idle$(EXEEXT): $(intel_idle_OBJECTS) $(intel_idle_DEPENDENCIES) 
 	@rm -f intel_idle$(EXEEXT)
 	$(LINK) $(intel_idle_OBJECTS) $(intel_idle_LDADD) $(LIBS)
+intel_lid$(EXEEXT): $(intel_lid_OBJECTS) $(intel_lid_DEPENDENCIES) 
+	@rm -f intel_lid$(EXEEXT)
+	$(LINK) $(intel_lid_OBJECTS) $(intel_lid_LDADD) $(LIBS)
 intel_reg_dumper$(EXEEXT): $(intel_reg_dumper_OBJECTS) $(intel_reg_dumper_DEPENDENCIES) 
 	@rm -f intel_reg_dumper$(EXEEXT)
 	$(LINK) $(intel_reg_dumper_OBJECTS) $(intel_reg_dumper_LDADD) $(LIBS)
@@ -347,6 +364,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hotplug.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i830_debug.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/idle.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lid.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/statuspage.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stepping.Po@am__quote@

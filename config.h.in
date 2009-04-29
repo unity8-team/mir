@@ -2,17 +2,11 @@
 
 #include "xorg-server.h"
 
-/* Use Damage extension */
-#undef DAMAGE
-
 /* Enable XvMC support */
 #undef ENABLE_XVMC
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
-
-/* have new FreeShadow API */
-#undef HAVE_FREE_SHADOW
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -46,9 +40,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
-
-/* UMA Acceleration Architecture support */
-#undef I830_USE_UXA
 
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #undef NO_MINUS_C_MINUS_O
@@ -94,9 +85,3 @@
 
 /* Enable developmental DRI driver support */
 #undef XF86DRI_DEVEL
-
-/* DRM kernel modesetting */
-#undef XF86DRM_MODE
-
-/* X server has built-in mode code */
-#undef XMODES

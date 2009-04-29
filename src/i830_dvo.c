@@ -61,7 +61,7 @@ static const char *ch7017_symbols[] = {
 };
 
 /* driver list */
-struct _I830DVODriver i830_dvo_drivers[] =
+static struct _I830DVODriver i830_dvo_drivers[] =
 {
     {
 	.type = I830_OUTPUT_DVO_TMDS,
@@ -370,7 +370,7 @@ static const xf86OutputFuncsRec i830_dvo_output_funcs = {
  * Other chips with DVO LVDS will need to extend this to deal with the LVDS
  * chip being on DVOB/C and having multiple pipes.
  */
-DisplayModePtr
+static DisplayModePtr
 i830_dvo_get_current_mode (xf86OutputPtr output)
 {
     ScrnInfoPtr		    pScrn = output->scrn;

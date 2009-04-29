@@ -18,11 +18,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if LIBPCIACCESS
-REGDUMPER = reg_dumper
-endif
-
-SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 $(REGDUMPER)
+SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 reg_dumper
 
 # this is obnoxious:
 # -module lets us name the module exactly how we want
@@ -31,36 +27,13 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 $(REGDUMPER)
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
 AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
-	@PCIACCESS_CFLAGS@ @UXA_CFLAGS@ \
-	@XMODES_CFLAGS@ -DI830_XV -DI830_USE_XAA -DI830_USE_EXA
+	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
-intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel
-if BUILD_UXA
-intel_drv_la_LIBADD += ../uxa/libuxa.la
-endif
-if XSERVER_LIBPCIACCESS
+intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la
 intel_drv_la_LIBADD += @PCIACCESS_LIBS@
-endif
-
-XMODE_SRCS=\
-	 local_xf86Rename.h \
-	 parser/xf86Parser.h \
-	 parser/xf86Optrec.h \
-	 modes/xf86Modes.h \
-	 modes/xf86Modes.c \
-	 modes/xf86cvt.c \
-	 modes/xf86Crtc.h \
-	 modes/xf86Crtc.c \
-	 modes/xf86Cursors.c \
-	 modes/xf86EdidModes.c \
-	 modes/xf86RandR12.c \
-	 modes/xf86RandR12.h \
-	 modes/xf86Rename.h \
-	 modes/xf86Rotate.c \
-	 modes/xf86DiDGA.c
 
 INTEL_DRI_SRCS = \
          i810_dri.c \
@@ -132,12 +105,10 @@ intel_drv_la_SOURCES = \
 	 i915_video.c \
 	 i965_video.c \
 	 i830_exa.c \
-	 i830_xaa.c \
 	 i830_render.c \
 	 i915_render.c \
 	 i965_render.c \
-	 drmmode_display.c \
-	 drmmode_display.h
+	 drmmode_display.c
 
 INTEL_G4A =				\
 	packed_yuv_sf.g4a		\
@@ -208,11 +179,6 @@ clean-local:
 	-rm -f $(INTEL_G4B)
 endif
 
-if XMODES
-intel_drv_la_SOURCES += \
-	$(XMODE_SRCS)
-endif
-
 if DRI
 intel_drv_la_SOURCES += \
 	$(INTEL_DRI_SRCS)
@@ -224,9 +190,3 @@ if XVMC
 intel_drv_la_SOURCES += \
 	$(INTEL_XVMC_SRCS)
 endif
-
-install-data-local: install-intel_drv_laLTLIBRARIES
-	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so && ln -s intel_drv.so i810_drv.so)
-
-uninstall-local:
-	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so)

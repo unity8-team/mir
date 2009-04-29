@@ -326,23 +326,6 @@ i965_post_draw_debug(ScrnInfoPtr scrn)
 #define URB_CS_ENTRIES	      0
 #define URB_CS_ENTRY_SIZE     0
 
-/**
- * Little wrapper around drm_intel_bo_reloc to return the initial value you
- * should stuff into the relocation entry.
- *
- * If only we'd done this before settling on the library API.
- */
-static uint32_t
-intel_emit_reloc(drm_intel_bo *bo, uint32_t offset,
-		 drm_intel_bo *target_bo, uint32_t target_offset,
-		 uint32_t read_domains, uint32_t write_domain)
-{
-    drm_intel_bo_emit_reloc(bo, offset, target_bo, target_offset,
-			    read_domains, write_domain);
-
-    return target_bo->offset + target_offset;
-}
-
 static int
 intel_alloc_and_map(I830Ptr i830, char *name, int size,
 		    drm_intel_bo **bop, void *virtualp)
@@ -392,13 +375,10 @@ i965_create_dst_surface_state(ScrnInfoPtr scrn,
     dest_surf_state->ss0.mipmap_layout_mode = 0;
     dest_surf_state->ss0.render_cache_read_mode = 0;
 
-    if (pixmap_bo != NULL)
-	dest_surf_state->ss1.base_addr =
-	    intel_emit_reloc(surf_bo, offsetof(struct brw_surface_state, ss1),
-			     pixmap_bo, 0,
-			     I915_GEM_DOMAIN_SAMPLER, 0);
-    else
-	dest_surf_state->ss1.base_addr = intel_get_pixmap_offset(pixmap);
+    dest_surf_state->ss1.base_addr =
+	intel_emit_reloc(surf_bo, offsetof(struct brw_surface_state, ss1),
+			 pixmap_bo, 0,
+			 I915_GEM_DOMAIN_SAMPLER, 0);
 
     dest_surf_state->ss2.height = scrn->virtualY - 1;
     dest_surf_state->ss2.width = scrn->virtualX - 1;
@@ -414,6 +394,7 @@ i965_create_dst_surface_state(ScrnInfoPtr scrn,
 
 static drm_intel_bo *
 i965_create_src_surface_state(ScrnInfoPtr scrn,
+			      drm_intel_bo *src_bo,
 			      uint32_t src_offset,
 			      int src_width,
 			      int src_height,
@@ -441,12 +422,21 @@ i965_create_src_surface_state(ScrnInfoPtr scrn,
     src_surf_state->ss0.mipmap_layout_mode = 0;
     src_surf_state->ss0.render_cache_read_mode = 0;
 
-    src_surf_state->ss1.base_addr = src_offset;
     src_surf_state->ss2.width = src_width - 1;
     src_surf_state->ss2.height = src_height - 1;
     src_surf_state->ss2.mip_count = 0;
     src_surf_state->ss2.render_target_rotation = 0;
     src_surf_state->ss3.pitch = src_pitch - 1;
+
+    if (src_bo) {
+        src_surf_state->ss1.base_addr =
+            intel_emit_reloc(surface_bo,
+                             offsetof(struct brw_surface_state, ss1),
+                             src_bo, src_offset,
+                             I915_GEM_DOMAIN_SAMPLER, 0);
+    } else {
+        src_surf_state->ss1.base_addr = src_offset;
+    }
 
     drm_intel_bo_unmap(surface_bo);
     return surface_bo;
@@ -714,6 +704,179 @@ i965_create_cc_state(ScrnInfoPtr scrn)
     return cc_bo;
 }
 
+static void
+i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo *bind_bo, int n_src_surf)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int urb_vs_start, urb_vs_size;
+    int urb_gs_start, urb_gs_size;
+    int urb_clip_start, urb_clip_size;
+    int urb_sf_start, urb_sf_size;
+    int urb_cs_start, urb_cs_size;
+
+    IntelEmitInvarientState(pScrn);
+    pI830->last_3d = LAST_3D_VIDEO;
+
+    urb_vs_start = 0;
+    urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
+    urb_gs_start = urb_vs_start + urb_vs_size;
+    urb_gs_size = URB_GS_ENTRIES * URB_GS_ENTRY_SIZE;
+    urb_clip_start = urb_gs_start + urb_gs_size;
+    urb_clip_size = URB_CLIP_ENTRIES * URB_CLIP_ENTRY_SIZE;
+    urb_sf_start = urb_clip_start + urb_clip_size;
+    urb_sf_size = URB_SF_ENTRIES * URB_SF_ENTRY_SIZE;
+    urb_cs_start = urb_sf_start + urb_sf_size;
+    urb_cs_size = URB_CS_ENTRIES * URB_CS_ENTRY_SIZE;
+
+    BEGIN_BATCH(2);
+    OUT_BATCH(MI_FLUSH |
+	      MI_STATE_INSTRUCTION_CACHE_FLUSH |
+	      BRW_MI_GLOBAL_SNAPSHOT_RESET);
+    OUT_BATCH(MI_NOOP);
+    ADVANCE_BATCH();
+
+    /* brw_debug (pScrn, "before base address modify"); */
+    BEGIN_BATCH(12);
+    /* Match Mesa driver setup */
+    if (IS_G4X(pI830))
+	OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+    else
+	OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+
+    /* Mesa does this. Who knows... */
+    OUT_BATCH(BRW_CS_URB_STATE | 0);
+    OUT_BATCH((0 << 4) |	/* URB Entry Allocation Size */
+	      (0 << 0));	/* Number of URB Entries */
+
+    /* Zero out the two base address registers so all offsets are
+     * absolute
+     */
+    OUT_BATCH(BRW_STATE_BASE_ADDRESS | 4);
+    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
+    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
+    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
+    /* general state max addr, disabled */
+    OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+    /* media object state max addr, disabled */
+    OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+
+    /* Set system instruction pointer */
+    OUT_BATCH(BRW_STATE_SIP | 0);
+    /* system instruction pointer */
+    OUT_RELOC(pI830->video.gen4_sip_kernel_bo,
+	      I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+
+    OUT_BATCH(MI_NOOP);
+    ADVANCE_BATCH();
+
+    /* brw_debug (pScrn, "after base address modify"); */
+
+    BEGIN_BATCH(38);
+    /* Enable VF statistics */
+    OUT_BATCH(BRW_3DSTATE_VF_STATISTICS | 1);
+
+    /* Pipe control */
+    OUT_BATCH(BRW_PIPE_CONTROL |
+	      BRW_PIPE_CONTROL_NOWRITE |
+	      BRW_PIPE_CONTROL_IS_FLUSH |
+	      2);
+    OUT_BATCH(0);			/* Destination address */
+    OUT_BATCH(0);			/* Immediate data low DW */
+    OUT_BATCH(0);			/* Immediate data high DW */
+
+    /* Binding table pointers */
+    OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
+    OUT_BATCH(0); /* vs */
+    OUT_BATCH(0); /* gs */
+    OUT_BATCH(0); /* clip */
+    OUT_BATCH(0); /* sf */
+    /* Only the PS uses the binding table */
+    OUT_RELOC(bind_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+    drm_intel_bo_unreference(bind_bo);
+
+    /* Blend constant color (magenta is fun) */
+    OUT_BATCH(BRW_3DSTATE_CONSTANT_COLOR | 3);
+    OUT_BATCH(float_to_uint (1.0));
+    OUT_BATCH(float_to_uint (0.0));
+    OUT_BATCH(float_to_uint (1.0));
+    OUT_BATCH(float_to_uint (1.0));
+
+    /* The drawing rectangle clipping is always on.  Set it to values that
+     * shouldn't do any clipping.
+     */
+    OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2); /* XXX 3 for BLC or CTG */
+    OUT_BATCH(0x00000000);			/* ymin, xmin */
+    OUT_BATCH((pScrn->virtualX - 1) |
+	      (pScrn->virtualY - 1) << 16);	/* ymax, xmax */
+    OUT_BATCH(0x00000000);			/* yorigin, xorigin */
+
+    /* skip the depth buffer */
+    /* skip the polygon stipple */
+    /* skip the polygon stipple offset */
+    /* skip the line stipple */
+
+    /* Set the pointers to the 3d pipeline state */
+    OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
+    OUT_RELOC(pI830->video.gen4_vs_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+    /* disable GS, resulting in passthrough */
+    OUT_BATCH(BRW_GS_DISABLE);
+    /* disable CLIP, resulting in passthrough */
+    OUT_BATCH(BRW_CLIP_DISABLE);
+    OUT_RELOC(pI830->video.gen4_sf_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+    if (n_src_surf == 1)
+	OUT_RELOC(pI830->video.gen4_wm_packed_bo,
+		  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+    else
+	OUT_RELOC(pI830->video.gen4_wm_planar_bo,
+		  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+    OUT_RELOC(pI830->video.gen4_cc_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+
+    /* URB fence */
+    OUT_BATCH(BRW_URB_FENCE |
+	      UF0_CS_REALLOC |
+	      UF0_SF_REALLOC |
+	      UF0_CLIP_REALLOC |
+	      UF0_GS_REALLOC |
+	      UF0_VS_REALLOC |
+	      1);
+    OUT_BATCH(((urb_clip_start + urb_clip_size) << UF1_CLIP_FENCE_SHIFT) |
+	      ((urb_gs_start + urb_gs_size) << UF1_GS_FENCE_SHIFT) |
+	      ((urb_vs_start + urb_vs_size) << UF1_VS_FENCE_SHIFT));
+    OUT_BATCH(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
+	      ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
+
+    /* Constant buffer state */
+    OUT_BATCH(BRW_CS_URB_STATE | 0);
+    OUT_BATCH(((URB_CS_ENTRY_SIZE - 1) << 4) |
+	      (URB_CS_ENTRIES << 0));
+
+    /* Set up our vertex elements, sourced from the single vertex buffer. */
+    OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | 3);
+    /* offset 0: X,Y -> {X, Y, 1.0, 1.0} */
+    OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+	      VE0_VALID |
+	      (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+	      (0 << VE0_OFFSET_SHIFT));
+    OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+	      (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+	      (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+	      (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+	      (0 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+    /* offset 8: S0, T0 -> {S0, T0, 1.0, 1.0} */
+    OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+	      VE0_VALID |
+	      (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+	      (8 << VE0_OFFSET_SHIFT));
+    OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+	      (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+	      (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+	      (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+	      (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+
+    OUT_BATCH(MI_NOOP);			/* pad to quadword */
+    ADVANCE_BATCH();
+}
+
 void
 I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 RegionPtr dstRegion,
@@ -726,11 +889,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     I830Ptr pI830 = I830PTR(pScrn);
     BoxPtr pbox;
     int nbox, dxo, dyo, pix_xoff, pix_yoff;
-    int urb_vs_start, urb_vs_size;
-    int urb_gs_start, urb_gs_size;
-    int urb_clip_start, urb_clip_size;
-    int urb_sf_start, urb_sf_size;
-    int urb_cs_start, urb_cs_size;
     float src_scale_x, src_scale_y;
     int src_surf, i;
     int n_src_surf;
@@ -746,11 +904,11 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	   video_pitch);
 #endif
 
+#if 0
     /* enable debug */
     OUTREG (INST_PM,
 	    (1 << (16 + 4)) |
 	    (1 << 4));
-#if 0
     ErrorF ("INST_PM 0x%08x\n", INREG(INST_PM));
 #endif
 
@@ -798,24 +956,10 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	return;
     }    
 
-    IntelEmitInvarientState(pScrn);
-    *pI830->last_3d = LAST_3D_VIDEO;
-
 #if 0
     ErrorF("dst surf:      0x%08x\n", state_base_offset + dest_surf_offset);
     ErrorF("src surf:      0x%08x\n", state_base_offset + src_surf_offset);
 #endif
-
-    urb_vs_start = 0;
-    urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
-    urb_gs_start = urb_vs_start + urb_vs_size;
-    urb_gs_size = URB_GS_ENTRIES * URB_GS_ENTRY_SIZE;
-    urb_clip_start = urb_gs_start + urb_gs_size;
-    urb_clip_size = URB_CLIP_ENTRIES * URB_CLIP_ENTRY_SIZE;
-    urb_sf_start = urb_clip_start + urb_clip_size;
-    urb_sf_size = URB_SF_ENTRIES * URB_SF_ENTRY_SIZE;
-    urb_cs_start = urb_sf_start + urb_sf_size;
-    urb_cs_size = URB_CS_ENTRIES * URB_CS_ENTRY_SIZE;
 
     /* We'll be poking the state buffers that could be in use by the 3d
      * hardware here, but we should have synced the 3D engine already in
@@ -830,6 +974,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     for (src_surf = 0; src_surf < n_src_surf; src_surf++) {
 	drm_intel_bo *surf_bo =
 	    i965_create_src_surface_state(pScrn,
+					  pPriv->buf,
 					  src_surf_base[src_surf],
 					  src_width[src_surf],
 					  src_height[src_surf],
@@ -903,160 +1048,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	}
     }
 
-    {
-	BEGIN_BATCH(2);
-	OUT_BATCH(MI_FLUSH |
-		  MI_STATE_INSTRUCTION_CACHE_FLUSH |
-		  BRW_MI_GLOBAL_SNAPSHOT_RESET);
-	OUT_BATCH(MI_NOOP);
-	ADVANCE_BATCH();
-    }
-
-    /* brw_debug (pScrn, "before base address modify"); */
-    {
-	BEGIN_BATCH(12);
-	/* Match Mesa driver setup */
-	if (IS_G4X(pI830))
-	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
-	else
-	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
-
-	/* Mesa does this. Who knows... */
-	OUT_BATCH(BRW_CS_URB_STATE | 0);
-	OUT_BATCH((0 << 4) |	/* URB Entry Allocation Size */
-		  (0 << 0));	/* Number of URB Entries */
-
-	/* Zero out the two base address registers so all offsets are
-	 * absolute
-	 */
-	OUT_BATCH(BRW_STATE_BASE_ADDRESS | 4);
-	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
-	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
-	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
-	/* general state max addr, disabled */
-	OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
-	/* media object state max addr, disabled */
-	OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
-
-	/* Set system instruction pointer */
-	OUT_BATCH(BRW_STATE_SIP | 0);
-	/* system instruction pointer */
-	OUT_RELOC(pI830->video.gen4_sip_kernel_bo,
-		  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-
-	OUT_BATCH(MI_NOOP);
-	ADVANCE_BATCH();
-    }
-
-    /* brw_debug (pScrn, "after base address modify"); */
-
-    {
-       BEGIN_BATCH(38);
-       /* Enable VF statistics */
-       OUT_BATCH(BRW_3DSTATE_VF_STATISTICS | 1);
-
-       /* Pipe control */
-       OUT_BATCH(BRW_PIPE_CONTROL |
-		 BRW_PIPE_CONTROL_NOWRITE |
-		 BRW_PIPE_CONTROL_IS_FLUSH |
-		 2);
-       OUT_BATCH(0);			/* Destination address */
-       OUT_BATCH(0);			/* Immediate data low DW */
-       OUT_BATCH(0);			/* Immediate data high DW */
-
-       /* Binding table pointers */
-       OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
-       OUT_BATCH(0); /* vs */
-       OUT_BATCH(0); /* gs */
-       OUT_BATCH(0); /* clip */
-       OUT_BATCH(0); /* sf */
-       /* Only the PS uses the binding table */
-       OUT_RELOC(bind_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-       drm_intel_bo_unreference(bind_bo);
-
-       /* Blend constant color (magenta is fun) */
-       OUT_BATCH(BRW_3DSTATE_CONSTANT_COLOR | 3);
-       OUT_BATCH(float_to_uint (1.0));
-       OUT_BATCH(float_to_uint (0.0));
-       OUT_BATCH(float_to_uint (1.0));
-       OUT_BATCH(float_to_uint (1.0));
-
-       /* The drawing rectangle clipping is always on.  Set it to values that
-	* shouldn't do any clipping.
-	*/
-       OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2); /* XXX 3 for BLC or CTG */
-       OUT_BATCH(0x00000000);			/* ymin, xmin */
-       OUT_BATCH((pScrn->virtualX - 1) |
-		 (pScrn->virtualY - 1) << 16);	/* ymax, xmax */
-       OUT_BATCH(0x00000000);			/* yorigin, xorigin */
-
-       /* skip the depth buffer */
-       /* skip the polygon stipple */
-       /* skip the polygon stipple offset */
-       /* skip the line stipple */
-
-       /* Set the pointers to the 3d pipeline state */
-       OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-       OUT_RELOC(pI830->video.gen4_vs_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-       /* disable GS, resulting in passthrough */
-       OUT_BATCH(BRW_GS_DISABLE);
-       /* disable CLIP, resulting in passthrough */
-       OUT_BATCH(BRW_CLIP_DISABLE);
-       OUT_RELOC(pI830->video.gen4_sf_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-       if (n_src_surf == 1)
-	   OUT_RELOC(pI830->video.gen4_wm_packed_bo,
-		     I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-       else
-	   OUT_RELOC(pI830->video.gen4_wm_planar_bo,
-		     I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-       OUT_RELOC(pI830->video.gen4_cc_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-
-       /* URB fence */
-       OUT_BATCH(BRW_URB_FENCE |
-		 UF0_CS_REALLOC |
-		 UF0_SF_REALLOC |
-		 UF0_CLIP_REALLOC |
-		 UF0_GS_REALLOC |
-		 UF0_VS_REALLOC |
-		 1);
-       OUT_BATCH(((urb_clip_start + urb_clip_size) << UF1_CLIP_FENCE_SHIFT) |
-		 ((urb_gs_start + urb_gs_size) << UF1_GS_FENCE_SHIFT) |
-		 ((urb_vs_start + urb_vs_size) << UF1_VS_FENCE_SHIFT));
-       OUT_BATCH(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
-		 ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
-
-       /* Constant buffer state */
-       OUT_BATCH(BRW_CS_URB_STATE | 0);
-       OUT_BATCH(((URB_CS_ENTRY_SIZE - 1) << 4) |
-		 (URB_CS_ENTRIES << 0));
-
-       /* Set up our vertex elements, sourced from the single vertex buffer. */
-       OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | 3);
-       /* offset 0: X,Y -> {X, Y, 1.0, 1.0} */
-       OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		 VE0_VALID |
-		 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		 (0 << VE0_OFFSET_SHIFT));
-       OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-		 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-		 (0 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
-       /* offset 8: S0, T0 -> {S0, T0, 1.0, 1.0} */
-       OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		 VE0_VALID |
-		 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		 (8 << VE0_OFFSET_SHIFT));
-       OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-		 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-		 (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
-
-       OUT_BATCH(MI_NOOP);			/* pad to quadword */
-       ADVANCE_BATCH();
-    }
-
    /* Set up the offset for translating from the given region (in screen
     * coordinates) to the backing pixmap.
     */
@@ -1085,12 +1076,25 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	int i;
 	drm_intel_bo *vb_bo;
 	float *vb;
+	drm_intel_bo *bo_table[] = {
+	    NULL, /* vb_bo */
+	    pI830->batch_bo,
+	    bind_bo,
+	    pI830->video.gen4_sampler_bo,
+	    pI830->video.gen4_sip_kernel_bo,
+	    pI830->video.gen4_vs_bo,
+	    pI830->video.gen4_sf_bo,
+	    pI830->video.gen4_wm_packed_bo,
+	    pI830->video.gen4_wm_planar_bo,
+	    pI830->video.gen4_cc_bo,
+	};
 
 	pbox++;
 
 	if (intel_alloc_and_map(pI830, "textured video vb", 4096,
 				&vb_bo, &vb) != 0)
 	    break;
+	bo_table[0] = vb_bo;
 
 	i = 0;
 	vb[i++] = (box_x2 - dxo) * src_scale_x;
@@ -1111,6 +1115,18 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	drm_intel_bo_unmap(vb_bo);
 
 	i965_pre_draw_debug(pScrn);
+
+	/* If this command won't fit in the current batch, flush.
+	 * Assume that it does after being flushed.
+	 */
+	if (drm_intel_bufmgr_check_aperture_space(bo_table,
+						  ARRAY_SIZE(bo_table)) < 0) {
+	    intel_batch_flush(pScrn, FALSE);
+	}
+
+	intel_batch_start_atomic(pScrn, 100);
+
+	i965_emit_video_setup(pScrn, bind_bo, n_src_surf);
 
 	BEGIN_BATCH(10);
 	/* Set up the pointer to our vertex buffer */
@@ -1134,12 +1150,13 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	OUT_BATCH(0); /* index buffer offset, ignored */
 	ADVANCE_BATCH();
 
+	intel_batch_end_atomic(pScrn);
+
 	drm_intel_bo_unreference(vb_bo);
 
 	i965_post_draw_debug(pScrn);
     }
 
-    i830MarkSync(pScrn);
 #if WATCH_STATS
     i830_dump_error_state(pScrn);
 #endif
