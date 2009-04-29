@@ -123,7 +123,16 @@ struct pll_lims {
 		uint8_t max_n;
 	} vco1, vco2;
 
-	uint8_t max_log2p_bias;
+	uint8_t max_log2p;
+	/*
+	 * for most pre nv50 cards setting a log2P of 7 (the common max_log2p
+	 * value) is no different to 6 (at least for vplls) so allowing the MNP
+	 * calc to use 7 causes the generated clock to be out by a factor of 2.
+	 * however, max_log2p cannot be fixed-up during parsing as the
+	 * unmodified max_log2p value is still needed for setting mplls, hence
+	 * an additional max_usable_log2p member
+	 */
+	uint8_t max_usable_log2p;
 	uint8_t log2p_bias;
 	int refclk;
 };

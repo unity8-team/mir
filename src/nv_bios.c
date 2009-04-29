@@ -3183,6 +3183,8 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 			pll_lim->vco2.max_n = 0x1f;
 		pll_lim->vco2.min_m = 0x1;
 		pll_lim->vco2.max_m = 0x4;
+		pll_lim->max_log2p = 0x7;
+		pll_lim->max_usable_log2p = 0x6;
 	} else if (pll_lim_ver == 0x20 || pll_lim_ver == 0x21) {
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
 		uint32_t reg = 0; /* default match */
@@ -3249,7 +3251,13 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 		pll_lim->vco2.min_m = pll_rec[26];
 		pll_lim->vco2.max_m = pll_rec[27];
 
-		pll_lim->max_log2p_bias = pll_rec[29];
+		pll_lim->max_usable_log2p = pll_lim->max_log2p = pll_rec[29];
+		if (pll_lim->max_log2p > 0x7)
+			/* pll decoding in nv_hw.c assumes never > 7 */
+			NV_WARN(pScrn, "Max log2 P value greater than 7 (%d)\n",
+				pll_lim->max_log2p);
+		if (cv < 0x60)
+			pll_lim->max_usable_log2p = 0x6;
 		pll_lim->log2p_bias = pll_rec[30];
 
 		if (recordlen > 0x22)
@@ -3309,7 +3317,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 		pll_lim->vco2.max_n = record[21];
 		pll_lim->vco2.min_m = record[22];
 		pll_lim->vco2.max_m = record[23];
-		pll_lim->max_log2p_bias = record[25];
+		pll_lim->max_usable_log2p = pll_lim->max_log2p = record[25];
 		pll_lim->log2p_bias = record[27];
 		pll_lim->refclk = ROM32(record[28]);
 	}
@@ -3336,6 +3344,11 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 				pll_lim->vco1.min_m = 0x8;
 			pll_lim->vco1.max_m = 0xe;
 		}
+		if (cv < 0x17 || cv == 0x1a || cv == 0x20)
+			pll_lim->max_log2p = 4;
+		else
+			pll_lim->max_log2p = 5;
+		pll_lim->max_usable_log2p = pll_lim->max_log2p;
 	}
 
 	if (!pll_lim->refclk)
@@ -3374,7 +3387,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 	ErrorF("pll.vco2.min_m: %d\n", pll_lim->vco2.min_m);
 	ErrorF("pll.vco2.max_m: %d\n", pll_lim->vco2.max_m);
 
-	ErrorF("pll.max_log2p_bias: %d\n", pll_lim->max_log2p_bias);
+	ErrorF("pll.max_log2p: %d\n", pll_lim->max_log2p);
 	ErrorF("pll.log2p_bias: %d\n", pll_lim->log2p_bias);
 
 	ErrorF("pll.refclk: %d\n", pll_lim->refclk);

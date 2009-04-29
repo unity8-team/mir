@@ -302,8 +302,8 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg,
 			return;
 
 		Pval2 = pv->log2P + pll_lim.log2p_bias;
-		if (Pval2 > pll_lim.max_log2p_bias)
-			Pval2 = pll_lim.max_log2p_bias;
+		if (Pval2 > pll_lim.max_log2p)
+			Pval2 = pll_lim.max_log2p;
 		Pval |= 1 << 28 | Pval2 << 20;
 
 		saved4600 = nvReadMC(pNv, 0x4600);
@@ -368,7 +368,7 @@ static void nouveau_hw_decode_pll(NVPtr pNv, uint32_t reg1,
 {
 	/* to force parsing as single stage (i.e. nv40 vplls) pass pll2 as 0 */
 
-	/* log2P is & 0x7 as never more than 6, and nv30/35 only uses 3 bits */
+	/* log2P is & 0x7 as never more than 7, and nv30/35 only uses 3 bits */
 	pllvals->log2P = (pll1 >> 16) & 0x7;
 	pllvals->N2 = pllvals->M2 = 1;
 
@@ -491,7 +491,7 @@ static void nouveau_hw_fix_bad_vpll(ScrnInfoPtr pScrn, int head)
 
 	if (pv.M1 >= pll_lim.vco1.min_m && pv.M1 <= pll_lim.vco1.max_m &&
 	    pv.N1 >= pll_lim.vco1.min_n && pv.N1 <= pll_lim.vco1.max_n &&
-	    pv.log2P <= 4)	/* log2P limit for NV11 */
+	    pv.log2P <= pll_lim.max_log2p)
 		return;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -500,7 +500,7 @@ static void nouveau_hw_fix_bad_vpll(ScrnInfoPtr pScrn, int head)
 	/* set lowest clock within static limits */
 	pv.M1 = pll_lim.vco1.max_m;
 	pv.N1 = pll_lim.vco1.min_n;
-	pv.log2P = 4;
+	pv.log2P = pll_lim.max_usable_log2p;
 	nouveau_hw_setpll(pScrn, pllreg, &pv);
 }
 
