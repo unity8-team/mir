@@ -24,4 +24,4 @@ ACLOCAL_AMFLAGS = -I m4
 SUBDIRS = uxa src man
 
 EXTRA_DIST = README AUTHORS NEWS
-DISTCLEANFILES = doltcompile
+DISTCLEANFILES = doltcompile doltlibtool
