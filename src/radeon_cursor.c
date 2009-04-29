@@ -138,25 +138,9 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
     unsigned char     *RADEONMMIO = info->MMIO;
 
     if (IS_AVIVO_VARIANT) {
-	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-
-	/* both cursors should be enabled when dualhead is active
-	 * or you may get corruption bands
-	 */
-	if (pRADEONEnt->Controller[0]->enabled &&
-	    pRADEONEnt->Controller[1]->enabled) {
-	    avivo_lock_cursor(pRADEONEnt->pCrtc[0], TRUE);
-	    avivo_setup_cursor(pRADEONEnt->pCrtc[0], TRUE);
-	    avivo_lock_cursor(pRADEONEnt->pCrtc[0], FALSE);
-
-	    avivo_lock_cursor(pRADEONEnt->pCrtc[1], TRUE);
-	    avivo_setup_cursor(pRADEONEnt->pCrtc[1], TRUE);
-	    avivo_lock_cursor(pRADEONEnt->pCrtc[1], FALSE);
-	} else {
-	    avivo_lock_cursor(crtc, TRUE);
-	    avivo_setup_cursor(crtc, TRUE);
-	    avivo_lock_cursor(crtc, FALSE);
-	}
+	avivo_lock_cursor(crtc, TRUE);
+	avivo_setup_cursor(crtc, TRUE);
+	avivo_lock_cursor(crtc, FALSE);
     } else {
         switch (crtc_id) {
         case 0:
@@ -172,6 +156,7 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
         OUTREGP(RADEON_MM_DATA, RADEON_CRTC_CUR_EN | 2 << 20, 
                 ~(RADEON_CRTC_CUR_EN | RADEON_CRTC_CUR_MODE_MASK));
     }
+    radeon_crtc->cursor_enabled = TRUE;
 }
 
 void
@@ -185,6 +170,12 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
 
     if (IS_AVIVO_VARIANT) {
 	avivo_lock_cursor(crtc, TRUE);
+	/* set size to zero as proper size will get set in
+	 * set_cursor_postion(). This will prevent the cursor
+	 * from showing up even if it's enabled to work-around
+	 * corruption issues.
+	 */
+	OUTREG(AVIVO_D1CUR_SIZE + radeon_crtc->crtc_offset, 0);
 	avivo_setup_cursor(crtc, FALSE);
 	avivo_lock_cursor(crtc, FALSE);
     } else {
@@ -201,6 +192,7 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
 
         OUTREGP(RADEON_MM_DATA, 0, ~RADEON_CRTC_CUR_EN);
    }
+    radeon_crtc->cursor_enabled = FALSE;
 }
 
 void
@@ -247,6 +239,22 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	    }
 	    if (w <= 0)
 		w = 1;
+
+	    /* both cursors should be enabled when dualhead is active
+	     * or you may get corruption bands
+	     */
+	    if (!pRADEONEnt->Controller[0]->cursor_enabled) {
+		avivo_lock_cursor(pRADEONEnt->pCrtc[0], TRUE);
+		avivo_setup_cursor(pRADEONEnt->pCrtc[0], TRUE);
+		avivo_lock_cursor(pRADEONEnt->pCrtc[0], FALSE);
+		pRADEONEnt->Controller[0]->cursor_enabled = TRUE;
+	    }
+	    if (!pRADEONEnt->Controller[1]->cursor_enabled) {
+		avivo_lock_cursor(pRADEONEnt->pCrtc[1], TRUE);
+		avivo_setup_cursor(pRADEONEnt->pCrtc[1], TRUE);
+		avivo_lock_cursor(pRADEONEnt->pCrtc[1], FALSE);
+		pRADEONEnt->Controller[1]->cursor_enabled = TRUE;
+	    }
 	}
 
 	avivo_lock_cursor(crtc, TRUE);

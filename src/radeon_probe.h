@@ -159,6 +159,7 @@ typedef struct _RADEONCrtcPrivateRec {
     int can_tile;
     Bool enabled;
     Bool initialized;
+    Bool cursor_enabled;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct _radeon_encoder {
