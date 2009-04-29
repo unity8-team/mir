@@ -77,6 +77,9 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
     if ((mode == DPMSModeOn) && radeon_crtc->enabled)
 	return;
 
+    if (mode == DPMSModeOff)
+	radeon_crtc_modeset_ioctl(crtc, FALSE);
+
     if (IS_AVIVO_VARIANT || info->r4xx_atom) {
 	atombios_crtc_dpms(crtc, mode);
     } else {
@@ -95,6 +98,11 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	    if (crtc0->enabled)
 		legacy_crtc_dpms(crtc0, mode);
 	}
+    }
+
+    if (mode != DPMSModeOff) {
+	radeon_crtc_modeset_ioctl(crtc, TRUE);
+	radeon_crtc_load_lut(crtc);
     }
 
     if (mode == DPMSModeOn)
