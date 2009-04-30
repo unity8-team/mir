@@ -2770,7 +2770,10 @@ static int get_fp_strap(ScrnInfoPtr pScrn, struct nvbios *bios)
 	if (bios->major_version < 5 && bios->data[0x48] & 0x4)
 		return (NVReadVgaCrtc5758(NVPTR(pScrn), 0, 0xf) & 0xf);
 
-	return ((bios_rd32(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf);
+	if (bios->pub.chip_version >= 0x80)
+		return ((bios_rd32(pScrn, NV_PEXTDEV_BOOT_0) >> 24) & 0xf);
+	else
+		return ((bios_rd32(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf);
 }
 
 static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
