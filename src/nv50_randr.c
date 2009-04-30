@@ -522,8 +522,7 @@ nv50_output_get_modes(xf86OutputPtr output)
 		DisplayModeRec mode = {};
 
 		if (nv_output->output->type == OUTPUT_LVDS &&
-		    (!NV50SorGetLVDSNativeMode(pScrn, &mode) ||
-		      nouveau_bios_fp_mode(pScrn, &mode))) {
+		      nouveau_bios_fp_mode(pScrn, &mode)) {
 			mode.status = MODE_OK;
 			mode.type = M_T_DRIVER | M_T_PREFERRED;
 			xf86SetModeDefaultName(&mode);

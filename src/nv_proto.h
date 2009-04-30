@@ -248,7 +248,6 @@ void NV50DacSetFunctionPointers(nouveauOutputPtr output);
 
 /* nv50_sor.c */
 void NV50SorSetFunctionPointers(nouveauOutputPtr output);
-int NV50SorGetLVDSNativeMode(ScrnInfoPtr pScrn, DisplayModePtr mode);
 
 /* nv50_connector.c */
 void NV50ConnectorInit(ScrnInfoPtr pScrn);
