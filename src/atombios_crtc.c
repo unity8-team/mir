@@ -675,9 +675,10 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
     unsigned char *RADEONMMIO = info->MMIO;
 
     uint32_t dc_lb_memory_split;
-    float mem_bw, peak_disp_bw;
-    float min_mem_eff = 0.8; /* XXX: taken from legacy method */
-    float pix_clk, pix_clk2; /* in MHz */
+    float available_bandwidth = 0;
+    float read_delay_latency = 1000;
+    int i;
+    Bool sideport = FALSE;
 
     /*
      * Set display0/1 priority up in the memory controller for
@@ -705,29 +706,6 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
 	    OUTMC(pScrn, RS690_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
     }
 
-    /* XXX: fix me for AVIVO
-     * Determine if there is enough bandwidth for current display mode
-     */
-    mem_bw = info->mclk * (info->RamWidth / 8) * (info->IsDDR ? 2 : 1);
-
-    pix_clk = 0;
-    pix_clk2 = 0;
-    peak_disp_bw = 0;
-    if (mode1) {
-	pix_clk = mode1->Clock/1000.0;
-	peak_disp_bw += (pix_clk * pixel_bytes1);
-    }
-    if (mode2) {
-	pix_clk2 = mode2->Clock/1000.0;
-	peak_disp_bw += (pix_clk2 * pixel_bytes2);
-    }
-
-    if (peak_disp_bw >= mem_bw * min_mem_eff) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "You may not have enough display bandwidth for current mode\n"
-		   "If you have flickering problem, try to lower resolution, refresh rate, or color depth\n");
-    }
-
     /*
      * Line Buffer Setup
      * There is a single line buffer shared by both display controllers.
@@ -743,10 +721,8 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
      * 14:4; D2 allocation follows D1.
      */
 
-    /* is auto or manual better ? */
     dc_lb_memory_split = INREG(AVIVO_DC_LB_MEMORY_SPLIT) & ~AVIVO_DC_LB_MEMORY_SPLIT_MASK;
     dc_lb_memory_split &= ~AVIVO_DC_LB_MEMORY_SPLIT_SHIFT_MODE;
-#if 1
     /* auto */
     if (mode1 && mode2) {
 	if (mode1->HDisplay > mode2->HDisplay) {
@@ -766,7 +742,8 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
     } else if (mode2) {
 	dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1_1Q_D2_3Q;
     }
-#else
+    OUTREG(AVIVO_DC_LB_MEMORY_SPLIT, dc_lb_memory_split);
+#if 0
     /* manual */
     dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_SHIFT_MODE;
     dc_lb_memory_split &= ~(AVIVO_DC_LB_DISP1_END_ADR_MASK << AVIVO_DC_LB_DISP1_END_ADR_SHIFT);
@@ -779,11 +756,381 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
     OUTREG(AVIVO_DC_LB_MEMORY_SPLIT, dc_lb_memory_split);
 #endif
 
-    /*
-     * Watermark setup
-     * TODO...
-     * Unforunately, I haven't been able to dig up the avivo watermark programming
-     * guide yet. -AGD
+    // fixme
+    if (info->ChipFamily == CHIP_FAMILY_RS600)
+	return;
+
+    /* IGP bandwidth - get from integrated systems table
+     * SYSTEM_MEMORY_BANDWIDTH (Mbyte/s) = SYSTEM_MEMORY_CLOCK (MHz) * (1+DDR) * 8 * EFF * Num of channels
+     * SIDEPORT_MEMORY_BANDWIDTH = SIDEPORT_MEMORY_CLOCK * 2(byte) * 2(DDR) * 0.7(Eff)
+     * CORE_CLOCK_BANDWIDTH (Mbyte/s) = SCLK (MHz) * 16 / Dynamic Engine clock Divider
+     * HT_LINK_BANDWIDTH = HT_LINK_CLOCK * 2 * HT_LINK_WIDTH/8 * HT_LINK_EFF
+     * system read delay
+     * READ_DLY_MAX_LATENCY: 5000 ns
+     * sideport read delay
+     * READ_DLY_MAX_LATENCY: 370 * MCLK + 800 ns
+     * MCLK is the sideport memory clock period in ns (MCLK = 1000 / MCLKfreq MHz)
      */
+
+    if (info->IsIGP) {
+	float core_clock_bandwidth = ((float)info->pm.mode[info->pm.current_mode].sclk / 100) * 16 / 1;
+
+	if (sideport) {
+	    float sideport_memory_bandwidth = (info->igp_sideport_mclk / 2) * 2 * 2 * 0.7;
+	    float mclk = 1000 / info->igp_sideport_mclk;
+	    read_delay_latency = 370 * mclk * 800;
+	    available_bandwidth = MIN(sideport_memory_bandwidth, core_clock_bandwidth);
+	} else {
+	    float system_memory_bandwidth = (info->igp_system_mclk / 2) * (1 + 1) * 8 * 0.5 * 1;
+	    float ht_link_bandwidth = info->igp_ht_link_clk * 2 * (info->igp_ht_link_width / 8) * 0.8;
+	    read_delay_latency = 5000;
+	    available_bandwidth = MIN(system_memory_bandwidth, MIN(ht_link_bandwidth, core_clock_bandwidth));
+	}
+    }
+
+    /* calculate for each display */
+    for (i = 0; i < 2; i++) {
+	DisplayModePtr current = NULL;
+	//RADEONCrtcPrivatePtr radeon_crtc = pRADEONEnt->Controller[i];
+	float pclk, sclk, sclkfreq = 0;
+	float consumption_time, consumption_rate;
+	int num_line_pair, request_fifo_depth, lb_request_fifo_depth;
+	int max_req;
+	uint32_t lb_max_req_outstanding;
+	float line_time, active_time, chunk_time;
+	float worst_case_latency, tolerable_latency;
+	float fill_rate;
+	int priority_mark_max, priority_mark, priority_mark2;
+	int width, estimated_width;
+	/* FIXME: handle the scalers better */
+	Bool d1_scale_en = pRADEONEnt->Controller[0]->scaler_enabled;
+	Bool d2_scale_en = pRADEONEnt->Controller[1]->scaler_enabled;
+	float vtaps1 = 2; /* XXX */
+	float vsc1 = pRADEONEnt->Controller[0]->vsc;
+	float hsc1 = pRADEONEnt->Controller[0]->hsc;
+	float vtaps2 = 2; /* XXX */
+	float vsc2 = pRADEONEnt->Controller[1]->vsc;
+	float hsc2 = pRADEONEnt->Controller[1]->hsc;
+
+	if (i == 0)
+	    current = mode1;
+	else
+	    current = mode2;
+
+	if (current == NULL)
+	    continue;
+
+	/* Determine consumption rate
+	   pclk = pixel clock period(ns)
+	   vtaps = number of vertical taps,
+	   vsc = vertical scaling ratio, defined as source/destination
+	   hsc = horizontal scaling ration, defined as source/destination
+	*/
+
+	pclk = 1000 / ((float)current->Clock / 1000);
+
+	if (i == 0) {
+	    if (d1_scale_en)
+		consumption_time = pclk / ((MAX(vtaps1, vsc1) * hsc1) / vtaps1);
+	    else
+		consumption_time = pclk;
+	} else {
+	    if (d2_scale_en)
+		consumption_time = pclk / ((MAX(vtaps2, vsc2) * hsc2) / vtaps2);
+	    else
+		consumption_time = pclk;
+	}
+
+	consumption_rate = 1 / consumption_time;
+
+	/* Determine request line buffer fifo depth
+	   NumLinePair = Number of line pairs to request(1 = 2 lines, 2 = 4 lines)
+	   LBRequestFifoDepth = Number of chunk requests the LB can put into the request FIFO for a display
+	   width = viewport width in pixels
+	*/
+	if (i == 0) {
+	    if (vsc1 > 2)
+		num_line_pair = 2;
+	    else
+		num_line_pair = 1;
+	} else {
+	    if (vsc2 > 2)
+		num_line_pair = 2;
+	    else
+		num_line_pair = 1;
+	}
+
+	width = current->CrtcHDisplay;
+	request_fifo_depth = ceil(width/256) * num_line_pair;
+	if (request_fifo_depth < 4)
+	    lb_request_fifo_depth = 4;
+	else
+	    lb_request_fifo_depth = request_fifo_depth;
+
+	if (info->IsIGP) {
+	    if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+		(info->ChipFamily == CHIP_FAMILY_RS740))
+		OUTREG(RS690_DCP_CONTROL, 0);
+	    else if ((info->ChipFamily == CHIP_FAMILY_RS780) ||
+		     (info->ChipFamily == CHIP_FAMILY_RS880))
+		OUTREG(RS690_DCP_CONTROL, 2);
+	    max_req = lb_request_fifo_depth - 1;
+	} else
+	    max_req = lb_request_fifo_depth;
+
+	/*ErrorF("max_req %d: 0x%x\n", i, max_req);*/
+
+	lb_max_req_outstanding = INREG(AVIVO_LB_MAX_REQ_OUTSTANDING);
+	if (i == 0) {
+	    lb_max_req_outstanding &= ~(AVIVO_LB_D1_MAX_REQ_OUTSTANDING_MASK << AVIVO_LB_D1_MAX_REQ_OUTSTANDING_SHIFT);
+	    lb_max_req_outstanding |= (max_req & AVIVO_LB_D1_MAX_REQ_OUTSTANDING_MASK) << AVIVO_LB_D1_MAX_REQ_OUTSTANDING_SHIFT;
+	} else {
+	    lb_max_req_outstanding &= ~(AVIVO_LB_D2_MAX_REQ_OUTSTANDING_MASK << AVIVO_LB_D2_MAX_REQ_OUTSTANDING_SHIFT);
+	    lb_max_req_outstanding |= (max_req & AVIVO_LB_D2_MAX_REQ_OUTSTANDING_MASK) << AVIVO_LB_D2_MAX_REQ_OUTSTANDING_SHIFT;
+	}
+	OUTREG(AVIVO_LB_MAX_REQ_OUTSTANDING, lb_max_req_outstanding);
+
+	/* Determine line time
+	   LineTime = total time for one line of displayhtotal = total number of horizontal pixels
+	   pclk = pixel clock period(ns)
+	*/
+	line_time = current->CrtcHTotal * pclk;
+
+	/* Determine active time
+	   ActiveTime = time of active region of display within one line,
+	   hactive = total number of horizontal active pixels
+	   htotal = total number of horizontal pixels
+	*/
+	active_time = line_time * current->CrtcHDisplay / current->CrtcHTotal;
+
+	/* Determine chunk time
+	   ChunkTime = the time it takes the DCP to send one chunk of data
+	   to the LB which consists of pipeline delay and inter chunk gap
+	   sclk = system clock(ns)
+	*/
+	if (info->IsIGP) {
+	    sclk = 1000 / (available_bandwidth / 16);
+	    /* Sclkfreq = sclk in MHz = 1000/sclk (because sclk is in ns). */
+	    sclkfreq = 1000 / sclk;
+	    chunk_time = sclk * 256 * 1.3;
+	} else {
+	    sclk = 1000 / ((float)info->pm.mode[info->pm.current_mode].sclk / 100);
+	    chunk_time = sclk * 600;
+	}
+
+	/* Determine the worst case latency
+	   NumLinePair = Number of line pairs to request(1 = 2 lines, 2 = 4 lines)
+	   WorstCaseLatency = The worst case time from urgent to when the MC starts
+	   to return data
+	   READ_DELAY_IDLE_MAX = constant of 1us
+	   ChunkTime = the time it takes the DCP to send one chunk of data to the LB
+	   which consists of pipeline delay and
+	   inter chunk gap
+	*/
+	if (info->IsIGP) {
+	    if (num_line_pair > 1)
+		worst_case_latency = read_delay_latency + 3 * chunk_time;
+	    else
+		worst_case_latency = read_delay_latency + 2 * chunk_time;
+	} else {
+	    if (num_line_pair > 1)
+		worst_case_latency = read_delay_latency + 3 * chunk_time;
+	    else
+		worst_case_latency = read_delay_latency + chunk_time;
+	}
+
+	/* Determine the tolerable latency
+	   TolerableLatency = Any given request has only 1 line time for the data to be returned
+	   LBRequestFifoDepth = Number of chunk requests the LB can put into the request FIFO for a display
+	   LineTime = total time for one line of display
+	   ChunkTime = the time it takes the DCP to send one chunk of data to the LB which consists of
+	   pipeline delay and inter chunk gap
+	*/
+	if ((2 + lb_request_fifo_depth) >= request_fifo_depth)
+	    tolerable_latency = line_time;
+	else
+	    tolerable_latency = line_time - (request_fifo_depth - lb_request_fifo_depth - 2) * chunk_time;
+
+	if (mode1 && mode2) {
+	    int d1bpp, d2bpp;
+	    int d1_graph_enable = 1;
+	    int d2_graph_enable = 1;
+	    int d1_ovl_enable = 0;
+	    int d2_ovl_enable = 0;
+	    int d1grph_depth, d2grph_depth;
+	    int d1ovl_depth = 0;
+	    int d2ovl_depth = 0;
+	    int d1_num_line_pair, d2_num_line_pair;
+	    float d1_fill_rate_coeff, d2_fill_rate_coeff;
+
+	    switch (pixel_bytes1) {
+	    case 2:
+		d1grph_depth = 1;
+		break;
+	    case 4:
+		d1grph_depth = 2;
+		break;
+	    default:
+		d1grph_depth = 0;
+		break;
+	    }
+
+	    switch (pixel_bytes2) {
+	    case 2:
+		d2grph_depth = 1;
+		break;
+	    case 4:
+		d2grph_depth = 2;
+		break;
+	    default:
+		d2grph_depth = 0;
+		break;
+	    }
+
+	    /* If both displays are active, determine line buffer fill rate */
+	    if (d1_scale_en && (vsc1 > 2))
+		d1_num_line_pair = 2;
+	    else
+		d1_num_line_pair = 1;
+
+	    if (d2_scale_en && (vsc2 > 2))
+		d2_num_line_pair = 2;
+	    else
+		d2_num_line_pair = 1;
+
+	    if (info->IsIGP) {
+		d1bpp = (d1_graph_enable * pow(2, d1grph_depth) * 8) + (d1_ovl_enable * pow(2, d1ovl_depth) * 8);
+		d2bpp = (d2_graph_enable * pow(2, d2grph_depth) * 8) + (d2_ovl_enable * pow(2, d2ovl_depth) * 8);
+
+		if (d1bpp > 64)
+		    d1_fill_rate_coeff = d1bpp * d1_num_line_pair;
+		else
+		    d1_fill_rate_coeff = d1_num_line_pair;
+
+		if (d2bpp > 64)
+		    d2_fill_rate_coeff = d2bpp * d2_num_line_pair;
+		else
+		    d2_fill_rate_coeff = d2_num_line_pair;
+
+		fill_rate = sclkfreq / (d1_fill_rate_coeff + d2_fill_rate_coeff);
+	    } else {
+		d1bpp = (d1grph_depth + d1ovl_depth) * 16;
+		d2bpp = (d2grph_depth + d2ovl_depth) * 16;
+
+		if (d1bpp > 64)
+		    d1_fill_rate_coeff = d1bpp / d1_num_line_pair;
+		else
+		    d1_fill_rate_coeff = d1_num_line_pair;
+
+		if (d2bpp > 64)
+		    d2_fill_rate_coeff = d2bpp / d2_num_line_pair;
+		else
+		    d2_fill_rate_coeff = d2_num_line_pair;
+
+		fill_rate = sclk / (d1_fill_rate_coeff + d2_fill_rate_coeff);
+
+		/* Convert line buffer fill rate from period to frequency */
+		fill_rate = 1 / fill_rate;
+	    }
+	} else {
+	    int dxbpp;
+	    int dx_grph_enable = 1;
+	    int dx_ovl_enable = 0;
+	    int dxgrph_depth;
+	    int dxovl_depth = 0;
+	    int cpp;
+
+	    if (i == 0)
+		cpp = pixel_bytes1;
+	    else
+		cpp = pixel_bytes2;
+
+	    switch (cpp) {
+	    case 2:
+		dxgrph_depth = 1;
+		break;
+	    case 4:
+		dxgrph_depth = 2;
+		break;
+	    default:
+		dxgrph_depth = 0;
+		break;
+	    }
+
+	    /* If only one display active, the line buffer fill rate becomes */
+	    if (info->IsIGP) {
+		dxbpp = (dx_grph_enable * pow(2, dxgrph_depth) * 8) + (dx_ovl_enable * pow(2, dxovl_depth) * 8);
+		if (dxbpp > 64)
+		    fill_rate = sclkfreq / dxbpp / num_line_pair;
+		else
+		    fill_rate = sclkfreq / num_line_pair;
+	    } else {
+		dxbpp = (dxgrph_depth + dxovl_depth) * 16;
+
+		if (dxbpp > 64)
+		    fill_rate = sclk / dxbpp / num_line_pair;
+		else
+		    fill_rate = sclk / num_line_pair;
+
+		/* Convert line buffer fill rate from period to frequency */
+		fill_rate = 1 / fill_rate;
+	    }
+	}
+
+	/* Determine the maximum priority mark
+	   width = viewport width in pixels
+	*/
+	priority_mark_max = ceil(width/16);
+
+	/* Determine estimated width */
+	estimated_width = (tolerable_latency - worst_case_latency) / consumption_time;
+
+	/* Determine priority mark based on active time */
+	if (info->IsIGP) {
+	    if (estimated_width > width)
+		priority_mark = 10;
+	    else
+		priority_mark = priority_mark_max - ceil(estimated_width / 16);
+	} else {
+	    if (estimated_width > width)
+		priority_mark = priority_mark_max;
+	    else
+		priority_mark = priority_mark_max - ceil(estimated_width / 16);
+	}
+
+	/* Determine priority mark 2 based on worst case latency,
+	   consumption rate, fill rate and active time
+	*/
+	if (info->IsIGP) {
+	    if (consumption_rate > fill_rate)
+		priority_mark2 = ceil((worst_case_latency * consumption_rate + (consumption_rate - fill_rate) * active_time) / 1000 / 16);
+	    else
+		priority_mark2 = ceil(worst_case_latency * consumption_rate / 1000 / 16);
+	} else {
+	    if (consumption_rate > fill_rate)
+		priority_mark2 = ceil(worst_case_latency * consumption_rate + (consumption_rate - fill_rate) * active_time / 16);
+	    else
+		priority_mark2 = ceil(worst_case_latency * consumption_rate / 16);
+	}
+
+	/* Determine final priority mark and clamp if necessary */
+	priority_mark = max(priority_mark, priority_mark2);
+	if (priority_mark < 0)
+	    priority_mark = 0;
+	else if (priority_mark > priority_mark_max)
+	    priority_mark = priority_mark_max;
+
+	/*ErrorF("priority_mark %d: 0x%x\n", i, priority_mark);*/
+
+	/* Determine which display to program priority mark for */
+	/* FIXME: program DxMODE_PRIORITY_B_CNT for slower sclk */
+	if (i == 0) {
+	    OUTREG(AVIVO_D1MODE_PRIORITY_A_CNT, (priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK));
+	    OUTREG(AVIVO_D1MODE_PRIORITY_B_CNT, (priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK));
+	} else {
+	    OUTREG(AVIVO_D2MODE_PRIORITY_A_CNT, (priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK));
+	    OUTREG(AVIVO_D2MODE_PRIORITY_B_CNT, (priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK));
+	}
+    }
 
 }

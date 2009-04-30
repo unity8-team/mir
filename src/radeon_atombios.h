@@ -272,6 +272,9 @@ typedef struct _atomBiosHandle {
 extern Bool
 RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing, int32_t *pixel_clock);
 
+extern void
+RADEONATOMGetIGPInfo(ScrnInfoPtr pScrn);
+
 extern uint32_t
 radeon_get_device_index(uint32_t device_support);
 extern radeon_encoder_ptr

@@ -929,6 +929,12 @@ typedef struct {
     /* pm */
     RADEONPowerManagement pm;
 
+    /* igp info */
+    float igp_sideport_mclk;
+    float igp_system_mclk;
+    float igp_ht_link_clk;
+    float igp_ht_link_width;
+
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\

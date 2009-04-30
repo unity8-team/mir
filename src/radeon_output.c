@@ -430,8 +430,11 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     RADEONInfoPtr info = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     radeon_native_mode_ptr native_mode = &radeon_output->native_mode;
+    xf86CrtcPtr crtc = output->crtc;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
     radeon_output->Flags &= ~RADEON_USE_RMX;
+    radeon_crtc->scaler_enabled = FALSE;
 
     /*
      *  Refresh the Crtc values without INTERLACE_HALVE_V
@@ -442,14 +445,15 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     /* decide if we are using RMX */
     if ((radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT))
 	&& radeon_output->rmx_type != RMX_OFF) {
-	xf86CrtcPtr crtc = output->crtc;
-	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
 	if (IS_AVIVO_VARIANT || radeon_crtc->crtc_id == 0) {
 	    if (mode->HDisplay < native_mode->PanelXRes ||
 		mode->VDisplay < native_mode->PanelYRes) {
 		radeon_output->Flags |= RADEON_USE_RMX;
+		radeon_crtc->scaler_enabled = TRUE;
 		if (IS_AVIVO_VARIANT) {
+		    radeon_crtc->hsc = (float)mode->HDisplay / (float)native_mode->PanelXRes;
+		    radeon_crtc->vsc = (float)mode->VDisplay / (float)native_mode->PanelYRes;
 		    /* set to the panel's native mode */
 		    adjusted_mode->HDisplay = native_mode->PanelXRes;
 		    adjusted_mode->VDisplay = native_mode->PanelYRes;
@@ -493,6 +497,13 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		adjusted_mode->Flags = native_mode->Flags;
 	    }
 	}
+    }
+
+    /* FIXME: vsc/hsc */
+    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT)) {
+	radeon_crtc->scaler_enabled = TRUE;
+	radeon_crtc->hsc = (float)mode->HDisplay / (float)640;
+	radeon_crtc->vsc = (float)mode->VDisplay / (float)480;
     }
 
     if (IS_AVIVO_VARIANT) {

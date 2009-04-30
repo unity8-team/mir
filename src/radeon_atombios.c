@@ -2027,6 +2027,35 @@ RADEONGetATOMLVDSInfo(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds)
 	       native_mode->VBlank, native_mode->VOverPlus, native_mode->VSyncWidth);
 }
 
+void
+RADEONATOMGetIGPInfo(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    atomDataTablesPtr atomDataPtr;
+    unsigned short size;
+    uint8_t crev, frev;
+
+    atomDataPtr = info->atomBIOS->atomDataPtr;
+
+    if (!rhdAtomGetTableRevisionAndSize((ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->IntegratedSystemInfo.base), &frev, &crev, &size))
+	return;
+
+    switch (crev) {
+    case 1:
+	info->igp_sideport_mclk = atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo->ulBootUpMemoryClock / 100.0;
+	info->igp_system_mclk = le16_to_cpu(atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo->usK8MemoryClock);
+	info->igp_ht_link_clk = le16_to_cpu(atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo->usFSBClock);
+	info->igp_ht_link_width = atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo->ucHTLinkWidth;
+	break;
+    case 2:
+	info->igp_sideport_mclk = atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo_v2->ulBootUpSidePortClock / 100.0;
+	info->igp_system_mclk = atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo_v2->ulBootUpUMAClock / 100.0;
+	info->igp_ht_link_clk = atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo_v2->ulHTLinkFreq / 100.0;
+	info->igp_ht_link_width = le16_to_cpu(atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo_v2->usMinHTLinkWidth);
+	break;
+    }
+}
+
 Bool
 RADEONGetATOMTVInfo(xf86OutputPtr output)
 {

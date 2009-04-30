@@ -3730,6 +3730,19 @@
 #       define AVIVO_DC_LB_MEMORY_SPLIT_SHIFT_MODE (1 << 2)
 #       define AVIVO_DC_LB_DISP1_END_ADR_SHIFT  4
 #       define AVIVO_DC_LB_DISP1_END_ADR_MASK   0x7ff
+#define AVIVO_D1MODE_PRIORITY_A_CNT             0x6548
+#       define AVIVO_DxMODE_PRIORITY_MARK_MASK  0x7fff
+#       define AVIVO_DxMODE_PRIORITY_OFF        (1 << 16)
+#       define AVIVO_DxMODE_PRIORITY_ALWAYS_ON  (1 << 20)
+#       define AVIVO_DxMODE_PRIORITY_FORCE_MASK (1 << 24)
+#define AVIVO_D1MODE_PRIORITY_B_CNT             0x654c
+#define AVIVO_D2MODE_PRIORITY_A_CNT             0x6d48
+#define AVIVO_D2MODE_PRIORITY_B_CNT             0x6d4c
+#define AVIVO_LB_MAX_REQ_OUTSTANDING            0x6d58
+#       define AVIVO_LB_D1_MAX_REQ_OUTSTANDING_MASK    0xf
+#       define AVIVO_LB_D1_MAX_REQ_OUTSTANDING_SHIFT   0
+#       define AVIVO_LB_D2_MAX_REQ_OUTSTANDING_MASK    0xf
+#       define AVIVO_LB_D2_MAX_REQ_OUTSTANDING_SHIFT   16
 
 #define AVIVO_D1MODE_DATA_FORMAT                0x6528
 #       define AVIVO_D1MODE_INTERLEAVE_EN       (1 << 0)
@@ -3790,6 +3803,8 @@
 #define AVIVO_D2CUR_SURFACE_ADDRESS             0x6c08
 #define AVIVO_D2CUR_SIZE                        0x6c10
 #define AVIVO_D2CUR_POSITION                    0x6c14
+
+#define RS690_DCP_CONTROL                       0x6c9c
 
 #define AVIVO_D2MODE_DATA_FORMAT                0x6d28
 #define AVIVO_D2MODE_DESKTOP_HEIGHT             0x6d2c

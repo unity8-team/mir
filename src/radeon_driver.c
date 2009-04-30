@@ -2723,11 +2723,14 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
 	mask = 1;
     else
 	mask = 2;
-	
+
     if (!RADEONAllocateControllers(pScrn, mask))
 	return FALSE;
 
     RADEONGetClockInfo(pScrn);
+
+    if (info->IsAtomBios && info->IsIGP)
+	RADEONATOMGetIGPInfo(pScrn);
 
     if (!RADEONSetupConnectors(pScrn)) {
 	return FALSE;
@@ -2737,7 +2740,7 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
 	/* fixup outputs for zaphod */
 	RADEONFixZaphodOutputs(pScrn);
     }
-      
+
     RADEONPrintPortMap(pScrn);
 
     info->first_load_no_devices = FALSE;
@@ -3036,8 +3039,6 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 		output->crtc = xf86_config->crtc[0];
 	}
     }
-
-    ErrorF("after xf86InitialConfiguration\n");
 
     RADEONSetPitch(pScrn);
 
