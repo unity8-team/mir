@@ -261,7 +261,7 @@ munge_reg(ScrnInfoPtr pScrn, uint32_t reg)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->VBIOS.pub.chip_version < 0x80)
+	if (pNv->Architecture < NV_ARCH_50)
 		return reg;
 
 	if (reg & 0x40000000)
@@ -295,7 +295,7 @@ static int valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 	if (WITHIN(reg,NV_PFIFO_OFFSET,NV_PFIFO_SIZE))
 		return 1;
 	/* maybe a little large, but it will do for the moment. */
-	if (pNv->VBIOS.pub.chip_version >= 0x80 && WITHIN(reg, 0x1000, 0xEFFF))
+	if (pNv->Architecture == NV_ARCH_50 && WITHIN(reg, 0x1000, 0xEFFF))
 		return 1;
 	if (pNv->VBIOS.pub.chip_version >= 0x30 && WITHIN(reg,0x4000,0x600))
 		return 1;
@@ -309,12 +309,13 @@ static int valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 		if (WITHIN(reg,0x88000,NV_PBUS_SIZE)) /* new PBUS */
 			return 1;
 	}
-	if (pNv->VBIOS.pub.chip_version >= 0x80) {
-		/* No clue what they do, but because they are outside normal ranges we'd
-		 * better list them seperately. */
-		if (reg == 0x00020018 || reg == 0x0002004C || reg == 0x00020060 ||
-			reg == 0x00021218 || reg == 0x0002130C || reg == 0x00089008 ||
-			reg == 0x00089028)
+	if (pNv->Architecture == NV_ARCH_50) {
+		/* No clue what they do, but because they are outside normal
+		 * ranges we' better list them seperately. */
+		if (reg == 0x00020018 || reg == 0x0002004C ||
+		    reg == 0x00020060 || reg == 0x00021218 ||
+		    reg == 0x0002130C || reg == 0x00089008 ||
+		    reg == 0x00089028)
 			return 1;
 	}
 	if (WITHIN(reg,NV_PFB_OFFSET,NV_PFB_SIZE))
@@ -323,7 +324,8 @@ static int valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 		return 1;
 	if (WITHIN(reg,NV_PCRTC0_OFFSET,NV_PCRTC0_SIZE * 2))
 		return 1;
-	if (pNv->VBIOS.pub.chip_version >= 0x80 && WITHIN(reg, NV50_DISPLAY_OFFSET, NV50_DISPLAY_SIZE))
+	if (pNv->Architecture == NV_ARCH_50 &&
+	    WITHIN(reg, NV50_DISPLAY_OFFSET, NV50_DISPLAY_SIZE))
 		return 1;
 	if (WITHIN(reg,NV_PRAMDAC0_OFFSET,NV_PRAMDAC0_SIZE * 2))
 		return 1;
@@ -2766,11 +2768,12 @@ static int get_fp_strap(ScrnInfoPtr pScrn, struct nvbios *bios)
 	 * strap has been committed to CR58 for CR57=0xf on head A, which may be
 	 * read and used instead
 	 */
+	NVPtr pNv = NVPTR(pScrn);
 
 	if (bios->major_version < 5 && bios->data[0x48] & 0x4)
 		return (NVReadVgaCrtc5758(NVPTR(pScrn), 0, 0xf) & 0xf);
 
-	if (bios->pub.chip_version >= 0x80)
+	if (pNv->Architecture >= NV_ARCH_50)
 		return ((bios_rd32(pScrn, NV_PEXTDEV_BOOT_0) >> 24) & 0xf);
 	else
 		return ((bios_rd32(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf);
