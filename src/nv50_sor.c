@@ -108,24 +108,32 @@ static void
 NV50SorSetClockMode(nouveauOutputPtr output, int clock)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorSetClockMode is called.\n");
-
 	NVPtr pNv = NVPTR(pScrn);
-	const int limit = 165000;
+	const int limit = output->dcb->type == OUTPUT_LVDS ? 112000 : 165000;
+	int ret;
 
-	/* 0x70000 was a late addition to nv, mentioned as fixing tmds initialisation on certain gpu's. */
-	/* I presume it's some kind of clock setting, but what precisely i do not know. */
-	NVWrite(pNv, NV50_SOR0_CLK_CTRL2 + NV50OrOffset(output) * 0x800, 0x70000 | ((clock > limit) ? 0x101 : 0));
-}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "NV50SorSetClockMode is called.\n");
 
-static void
-NV50SorSetClockModeLVDS(nouveauOutputPtr output, int clock)
-{
-	xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-		   "NV50SorSetClockModeLVDS is called.\n");
+#if 0
+	ret = nouveau_bios_run_display_table(pScrn, output->dcb, clock);
+	if (ret)
+		NV_WARN(pScrn, "failed to run output script, may hang!\n");
+#else
+	/* just to keep the original behaviour until we can reliably run
+	 * the output scripts...
+	 */
+	if (output->dcb->type == OUTPUT_LVDS)
+		return;
+#endif
 
-	if (!nouveau_bios_run_display_table(output->scrn, output->dcb, clock))
-		NV50SorSetClockMode(output, clock);
+	/* 0x70000 was a late addition to nv, mentioned as fixing tmds
+	 * initialisation on certain gpu's. */
+	/* I presume it's some kind of clock setting, but what precisely i
+	 * do not know.
+	 */
+	NVWrite(pNv, NV50_SOR0_CLK_CTRL2 + NV50OrOffset(output) * 0x800,
+		     0x70000 | ((clock > limit) ? 0x101 : 0));
 }
 
 static int
@@ -200,10 +208,7 @@ NV50SorSetFunctionPointers(nouveauOutputPtr output)
 {
 	output->ModeValid = NV50SorModeValid;
 	output->ModeSet = NV50SorModeSet;
-	if (output->type == OUTPUT_TMDS)
-		output->SetClockMode = NV50SorSetClockMode;
-	else
-		output->SetClockMode = NV50SorSetClockModeLVDS;
+	output->SetClockMode = NV50SorSetClockMode;
 	output->Sense = NV50SorSense;
 	output->Detect = NV50SorDetect;
 	output->SetPowerMode = NV50SorSetPowerMode;
