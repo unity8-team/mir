@@ -67,8 +67,10 @@ NV50ConnectorGetDDCModes(nouveauConnectorPtr connector)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50ConnectorGetDDCModes is called.\n");
 
-	ddc_mon = NV50ConnectorGetEDID(connector);
+	if (!connector->pDDCBus)
+		return FALSE;
 
+	ddc_mon = NV50ConnectorGetEDID(connector);
 	if (!ddc_mon)
 		return NULL;
 
