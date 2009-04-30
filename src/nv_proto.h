@@ -90,6 +90,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int pxclk);
 int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim);
 uint8_t * nouveau_bios_embedded_edid(ScrnInfoPtr pScrn);
+int nouveau_bios_run_display_table(ScrnInfoPtr, struct dcb_entry *, int pxclk);
 
 /* nv_crtc.c */
 void nv_crtc_set_digital_vibrance(xf86CrtcPtr crtc, int level);

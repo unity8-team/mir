@@ -3061,6 +3061,154 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 	return 0;
 }
 
+static int
+find_script_pointers(ScrnInfoPtr pScrn, uint8_t *table, uint16_t *script0,
+		     uint16_t *script1, uint16_t headerlen, int pxclk)
+{
+	/* The output script tables describing a particular output type
+	 * look as follows:
+	 *
+	 * offset + 0   (32 bits): output this table matches (hash of DCB)
+	 * offset + 4   ( 8 bits): unknown
+	 * offset + 5   ( 8 bits): number of configurations
+	 * offset + 6   (16 bits): pointer to some script
+	 * offset + 8   (16 bits): pointer to some script
+	 *
+	 * headerlen == 10
+	 * offset + 10           : configuration 0
+	 *
+	 * headerlen == 12
+	 * offset + 10           : pointer to some script
+	 * offset + 12           : configuration 0
+	 *
+	 * Each config entry is as follows:
+	 *
+	 * offset + 0   (16 bits): unknown, assumed to be a match value
+	 * offset + 2   (16 bits): pointer to script table (clock set?)
+	 * offset + 4   (16 bits): pointer to script table (reset?)
+	 *
+	 * There doesn't appear to be a count value to say how many
+	 * entries exist in each script table, instead, a 0 value in
+	 * the first 16-bit word seems to indicate both the end of the
+	 * list and the default entry.  The second 16-bit word in the
+	 * script tables is a pointer to the script to execute.
+	 */
+
+	struct nvbios *bios = &NVPTR(pScrn)->VBIOS;
+	int i, cmpval = 0x0100;
+
+	*script0 = *script1 = 0;
+	for (i = 0; i < table[5]; i++) {
+		uint16_t offset;
+
+		if (ROM16(table[headerlen + i*6 + 0]) != cmpval)
+			continue;
+
+		offset = ROM16(table[headerlen + i*6 + 2]);
+		if (offset)
+			*script0 = clkcmptable(bios, offset, pxclk);
+
+		if (!*script0)
+			NV_WARN(pScrn, "script0 missing!\n");
+
+		offset = ROM16(table[headerlen + i*6 + 4]);
+		if (offset)
+			*script1 = clkcmptable(bios, offset, pxclk);
+
+		return 0;
+	}
+
+	NV_ERROR(pScrn, "couldn't find suitable output scripts\n");
+	return 1;
+}
+
+int
+nouveau_bios_run_display_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent,
+			       int pxclk)
+{
+	/* The display script table is located by the BIT 'U' table.
+	 *
+	 * It contains an array of pointers to various tables describing
+	 * a particular output type.  The first 32-bits of the output
+	 * tables contains similar information to a DCB entry, and is
+	 * used to decide whether that particular table is suitable for
+	 * the output you want to access.
+	 *
+	 * The "record header length" field here seems to indicate the
+	 * offset of the first configuration entry in the output tables.
+	 * This is 10 on most cards I've seen, but 12 has been witnessed
+	 * on DP cards, and there's another script pointer within the
+	 * header.
+	 *
+	 * offset + 0   ( 8 bits): version
+	 * offset + 1   ( 8 bits): header length
+	 * offset + 2   ( 8 bits): record length
+	 * offset + 3   ( 8 bits): number of records
+	 * offset + 4   ( 8 bits): record header length
+	 * offset + 5   (16 bits): pointer to first output script table
+	 */
+
+	NVPtr pNv = NVPTR(pScrn);
+	init_exec_t iexec = {true, false};
+	struct nvbios *bios = &pNv->VBIOS;
+	uint8_t *table = &bios->data[bios->display.script_table_ptr];
+	uint8_t *entry, *otable = NULL;
+	uint16_t script0, script1;
+	int i;
+	bool run_scripts = false;
+
+	if (!bios->display.script_table_ptr) {
+		NV_ERROR(pScrn, "No pointer to output script table\n");
+		return 1;
+	}
+
+	if (table[0] != 0x20) {
+		NV_ERROR(pScrn, "Output script table version 0x%02x unknown\n", table[0]);
+		return 1;
+	}
+
+	NV_DEBUG(pScrn, "Searching for output entry for %d %d %d\n",
+			dcbent->type, dcbent->location, dcbent->or);
+	entry = table + table[1];
+	for (i = 0; i < table[3]; i++, entry += table[2]) {
+		uint32_t match;
+
+		if (ROM16(entry[0]) == 0)
+			continue;
+		otable = &bios->data[ROM16(entry[0])];
+		match = ROM32(otable[0]);
+
+		NV_DEBUG(pScrn, " %d: 0x%08x\n", i, match);
+		if ((((match & 0x000f0000) >> 16)  & dcbent->or) &&
+		     ((match & 0x0000000f) >>  0) == dcbent->type &&
+		     ((match & 0x000000f0) >>  4) == dcbent->location)
+			break;
+	}
+
+	if (i == table[3]) {
+		NV_ERROR(pScrn, "Couldn't find matching output script table\n");
+		return 1;
+	}
+
+	if (find_script_pointers(pScrn, otable, &script0, &script1, table[4], pxclk))
+		return 1;
+	bios->display.head = ffs(dcbent->or) - 1;
+
+	if (script0) {
+		NV_TRACE(pScrn, "0x%04X: Parsing output Script0\n", script0);
+		if (run_scripts)
+		parse_init_table(pScrn, bios, script0, &iexec);
+	}
+
+	if (script1) {
+		NV_TRACE(pScrn, "0x%04X: Parsing output Script1\n", script1);
+		if (run_scripts)
+		parse_init_table(pScrn, bios, script1, &iexec);
+	}
+
+	return run_scripts ? 0 : 1;
+}
+
 int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int pxclk)
 {
 	/* the pxclk parameter is in kHz
@@ -3729,7 +3877,7 @@ parse_bit_U_tbl_entry(ScrnInfoPtr pScrn, struct nvbios *bios,
 
 	uint16_t outputscripttableptr;
 
-	if (bitentry->length != 2) {
+	if (bitentry->length != 3) {
 		NV_ERROR(pScrn, "Do not understand BIT U table\n");
 		return -EINVAL;
 	}

@@ -121,6 +121,11 @@ NV50SorSetClockMode(nouveauOutputPtr output, int clock)
 static void
 NV50SorSetClockModeLVDS(nouveauOutputPtr output, int clock)
 {
+	xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
+		   "NV50SorSetClockModeLVDS is called.\n");
+
+	if (!nouveau_bios_run_display_table(output->scrn, output->dcb, clock))
+		NV50SorSetClockMode(output, clock);
 }
 
 static int
