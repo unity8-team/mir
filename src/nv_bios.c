@@ -2845,36 +2845,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 
 	fpstrapping = get_fp_strap(pScrn, bios);
 
-	if (lth.lvds_ver == 0x40) {
-		/* Query all modes and find one with a matching clock. */
-		/* Note that this only serves as a backup solution if ddc fails. */
-
-		uint32_t clock, needed_clock;
-		int i, index = 0xf, matches = 0;
-		needed_clock = bios_rd32(pScrn, 0x00616404) & 0xFFFFF;
-		NV_TRACE(pScrn, "LVDS clock seems to be %d KHz.\n", needed_clock);
-
-		for (i = 0; i < fpentries; i++) {
-			clock = ROM16(fptable[headerlen + recordlen * i]) * 10;
-			if (clock == needed_clock) {
-				matches++;
-				index = i;
-			}
-		}
-
-		if (matches == 1)
-			NV_TRACE(pScrn, "Found a mode with matching clock\n");
-		else
-			NV_TRACE(pScrn, "Found %d modes, this is not useful\n", matches);
-
-		if (matches != 1)
-			index = 0xF;
-
-		fpindex = bios->data[bios->fp.fpxlatetableptr + index * bios->fp.xlatwidth];
-		/* strapping only set as a hack for DDC test below */
-		fpstrapping = fpindex & 0xf;
-	} else
-		fpindex = bios->data[bios->fp.fpxlatetableptr + fpstrapping * bios->fp.xlatwidth];
+	fpindex = bios->data[bios->fp.fpxlatetableptr + fpstrapping * bios->fp.xlatwidth];
 
 	if (fpindex > fpentries) {
 		NV_ERROR(pScrn, "Bad flat panel table index\n");
