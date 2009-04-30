@@ -379,7 +379,8 @@ nv50_output_dpms(xf86OutputPtr output, int mode)
 	}
 
 	/* Set dpms on all outputs for ths connector, just to be safe. */
-	nouveauConnectorPtr connector = pNv->connector[nv_output->output->dcb->bus];
+	nouveauConnectorPtr connector =
+		pNv->connector[nv_output->output->dcb->i2c_index];
 	int i;
 	for (i = 0; i < MAX_OUTPUTS_PER_CONNECTOR; i++) {
 		if (connector->outputs[i])
@@ -423,7 +424,8 @@ nv50_output_detect(xf86OutputPtr output)
 
 	NVPtr pNv = NVPTR(pScrn);
 	NV50OutputPrivatePtr nv_output = output->driver_private;
-	nouveauConnectorPtr connector = pNv->connector[nv_output->output->dcb->bus];
+	nouveauConnectorPtr connector =
+		pNv->connector[nv_output->output->dcb->i2c_index];
 
 	if (!connector)
 		return XF86OutputStatusDisconnected;
@@ -500,7 +502,8 @@ nv50_output_get_modes(xf86OutputPtr output)
 
 	NVPtr pNv = NVPTR(pScrn);
 	NV50OutputPrivatePtr nv_output = output->driver_private;
-	nouveauConnectorPtr connector = pNv->connector[nv_output->output->dcb->bus];
+	nouveauConnectorPtr connector =
+		pNv->connector[nv_output->output->dcb->i2c_index];
 
 	xf86MonPtr ddc_mon = connector->DDCDetect(connector);
 
