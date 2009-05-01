@@ -3085,6 +3085,9 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    free(pI830->offscreenImages);
    pI830->offscreenImages = NULL;
 
+   pScreen->CloseScreen = pI830->CloseScreen;
+   (*pScreen->CloseScreen) (scrnIndex, pScreen);
+
    dri_bufmgr_destroy(pI830->bufmgr);
    pI830->bufmgr = NULL;
 
@@ -3098,8 +3101,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pScrn->PointerMoved = pI830->PointerMoved;
    pScrn->vtSema = FALSE;
    pI830->closing = FALSE;
-   pScreen->CloseScreen = pI830->CloseScreen;
-   return (*pScreen->CloseScreen) (scrnIndex, pScreen);
+   return TRUE;
 }
 
 static ModeStatus
