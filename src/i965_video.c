@@ -772,8 +772,7 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo *bind_bo, int n_src_surf)
     /* brw_debug (pScrn, "after base address modify"); */
 
     BEGIN_BATCH(38);
-    /* Enable VF statistics */
-    OUT_BATCH(BRW_3DSTATE_VF_STATISTICS | 1);
+    OUT_BATCH(MI_NOOP);
 
     /* Pipe control */
     OUT_BATCH(BRW_PIPE_CONTROL |
