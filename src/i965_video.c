@@ -1127,15 +1127,16 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
 	i965_emit_video_setup(pScrn, bind_bo, n_src_surf);
 
-	BEGIN_BATCH(10);
+	BEGIN_BATCH(12);
 	/* Set up the pointer to our vertex buffer */
-	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 2);
+	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
 	/* four 32-bit floats per vertex */
 	OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 		  VB0_VERTEXDATA |
 		  ((4 * 4) << VB0_BUFFER_PITCH_SHIFT));
 	OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
 	OUT_BATCH(3); /* four corners to our rectangle */
+	OUT_BATCH(0); /* reserved */
 
 	OUT_BATCH(BRW_3DPRIMITIVE |
 		  BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
@@ -1147,6 +1148,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	OUT_BATCH(1); /* single instance */
 	OUT_BATCH(0); /* start instance location */
 	OUT_BATCH(0); /* index buffer offset, ignored */
+	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
 
 	intel_batch_end_atomic(pScrn);
