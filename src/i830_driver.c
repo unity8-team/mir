@@ -3079,7 +3079,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    xf86_cursors_fini (pScreen);
 
-   i830_allocator_fini(pScrn);
 
    i965_free_video(pScrn);
    free(pI830->offscreenImages);
@@ -3099,7 +3098,9 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pScrn->vtSema = FALSE;
    pI830->closing = FALSE;
    pScreen->CloseScreen = pI830->CloseScreen;
-   return (*pScreen->CloseScreen) (scrnIndex, pScreen);
+   (*pScreen->CloseScreen) (scrnIndex, pScreen);
+   i830_allocator_fini(pScrn);
+   return TRUE;
 }
 
 static ModeStatus
