@@ -57,7 +57,7 @@ intel_batch_start_atomic(ScrnInfoPtr pScrn, unsigned int sz)
     I830Ptr pI830 = I830PTR(pScrn);
 
     assert(!pI830->in_batch_atomic);
-    intel_batch_require_space(pScrn, pI830, sz);
+    intel_batch_require_space(pScrn, pI830, sz * 4);
 
     pI830->in_batch_atomic = TRUE;
     pI830->batch_atomic_limit = pI830->batch_used + sz * 4;
