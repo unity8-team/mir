@@ -50,7 +50,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    I830Ptr pI830 = I830PTR(pScrn);
    uint32_t format, ms3, s5;
    BoxPtr pbox = REGION_RECTS(dstRegion);
-   int nbox = REGION_NUM_RECTS(dstRegion);
+   int nbox_total = REGION_NUM_RECTS(dstRegion);
+   int nbox_this_time;
    int dxo, dyo, pix_xoff, pix_yoff;
    Bool planar;
 
@@ -73,7 +74,17 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       return;
    }
 
-   intel_batch_start_atomic(pScrn, 200 + 20 * nbox);
+#define BYTES_FOR_BOXES(n)	((200 + (n) * 20) * 4)
+#define BOXES_IN_BYTES(s)	((((s)/4) - 200) / 20)
+#define BATCH_BYTES(p)		((p)->batch_bo->size - 16)
+
+   while (nbox_total) {
+	nbox_this_time = nbox_total;
+	if (BYTES_FOR_BOXES(nbox_this_time) > BATCH_BYTES(pI830))
+		nbox_this_time = BOXES_IN_BYTES(BATCH_BYTES(pI830));
+	nbox_total -= nbox_this_time;
+
+   intel_batch_start_atomic(pScrn, 200 + 20 * nbox_this_time);
 
    IntelEmitInvarientState(pScrn);
    pI830->last_3d = LAST_3D_VIDEO;
@@ -366,7 +377,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    dxo = dstRegion->extents.x1;
    dyo = dstRegion->extents.y1;
 
-   while (nbox--)
+   while (nbox_this_time--)
    {
       int box_x1 = pbox->x1;
       int box_y1 = pbox->y1;
@@ -415,5 +426,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    }
 
    intel_batch_end_atomic(pScrn);
+   }
 }
 
