@@ -1941,7 +1941,6 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	    for (j = 0; j < ATOM_MAX_SUPPORTED_DEVICE; j++) {
 		if (info->BiosConnector[j].valid && (i != j) ) {
 		    if (info->BiosConnector[i].i2c_line_mux == info->BiosConnector[j].i2c_line_mux) {
-			ErrorF("Shared DDC line: %d %d\n", i, j);
 			info->BiosConnector[i].shared_ddc = TRUE;
 			info->BiosConnector[j].shared_ddc = TRUE;
 		    }
@@ -2415,12 +2414,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 		    }
 		}
 	    }
-	}
-    }
-
-    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
-	if (info->encoders[i] != NULL) {
-	    ErrorF("encoder: 0x%x\n", info->encoders[i]->encoder_id);
 	}
     }
 
