@@ -1594,19 +1594,6 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
-    /* Acer board, gpios for DFPs are not off by one */
-    if ((info->Chipset == PCI_CHIP_RS690_791E) &&
-	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x105b) &&
-	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0e0b)) {
-	if (index == ATOM_DEVICE_DFP3_INDEX) {
-	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_I;
-	    info->BiosConnector[index].output_id = 0;
-	    info->BiosConnector[index].ddc_i2c = RADEONLookupGPIOLineForDDC(pScrn, 0);
-	}
-	if (index == ATOM_DEVICE_DFP2_INDEX)
-	    info->BiosConnector[index].ddc_i2c = RADEONLookupGPIOLineForDDC(pScrn, 1);
-    }
-
     /* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
     if ((info->Chipset == PCI_CHIP_RS600_7941) &&
 	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x147b) &&
@@ -2342,12 +2329,14 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
 	else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
 		 (info->ChipFamily == CHIP_FAMILY_RS740)) {
-	    /* IGP DFP ports use non-standard gpio entries */
-	    if ((i == ATOM_DEVICE_DFP2_INDEX) || (i == ATOM_DEVICE_DFP3_INDEX)) {
+	    /* IGP DFP ports sometimes use non-standard gpio entries */
+	    if ((i == ATOM_DEVICE_DFP2_INDEX) && (ci.sucI2cId.sbfAccess.bfI2C_LineMux == 2))
 		info->BiosConnector[i].ddc_i2c =
 		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
-		info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1;
-	    } else
+	    else if ((i == ATOM_DEVICE_DFP3_INDEX) && (ci.sucI2cId.sbfAccess.bfI2C_LineMux == 1))
+		info->BiosConnector[i].ddc_i2c =
+		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
+	    else
 		info->BiosConnector[i].ddc_i2c =
 		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
 	} else
@@ -2406,6 +2395,8 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 			    ((j == ATOM_DEVICE_CRT1_INDEX) ||
 			     (j == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
+			    if (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D)
+				info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_I;
 			    info->BiosConnector[j].valid = FALSE;
 			} else if (((j == ATOM_DEVICE_DFP1_INDEX) ||
 				    (j == ATOM_DEVICE_DFP2_INDEX) ||
@@ -2413,6 +2404,8 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 				   ((i == ATOM_DEVICE_CRT1_INDEX) ||
 				    (i == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[j].devices |= info->BiosConnector[i].devices;
+			    if (info->BiosConnector[j].ConnectorType == CONNECTOR_DVI_D)
+				info->BiosConnector[j].ConnectorType = CONNECTOR_DVI_I;
 			    info->BiosConnector[i].valid = FALSE;
 			} else {
 			    info->BiosConnector[i].shared_ddc = TRUE;
