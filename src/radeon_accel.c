@@ -493,7 +493,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 		   "num quad-pipes is %d\n", info->accel_state->num_gb_pipes);
 
     if (IS_R300_3D || IS_R500_3D) {
-	uint32_t gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);
+	uint32_t gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
 
 	switch(info->accel_state->num_gb_pipes) {
 	case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;

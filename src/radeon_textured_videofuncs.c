@@ -2272,10 +2272,10 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	 */
 	BEGIN_ACCEL(2);
 	/* R300 has an offset */
-	OUT_ACCEL_REG(R300_SC_SCISSOR0, (((dstX + 1088) << R300_SCISSOR_X_SHIFT) |
-					 ((dstY + 1088) << R300_SCISSOR_Y_SHIFT)));
-	OUT_ACCEL_REG(R300_SC_SCISSOR1, (((dstX + dstw + 1088 - 1) << R300_SCISSOR_X_SHIFT) |
-					 ((dstY + dsth + 1088 - 1) << R300_SCISSOR_Y_SHIFT)));
+	OUT_ACCEL_REG(R300_SC_SCISSOR0, (((dstX + 1440) << R300_SCISSOR_X_SHIFT) |
+					 ((dstY + 1440) << R300_SCISSOR_Y_SHIFT)));
+	OUT_ACCEL_REG(R300_SC_SCISSOR1, (((dstX + dstw + 1440 - 1) << R300_SCISSOR_X_SHIFT) |
+					 ((dstY + dsth + 1440 - 1) << R300_SCISSOR_Y_SHIFT)));
 	FINISH_ACCEL();
 
 #ifdef ACCEL_CP
