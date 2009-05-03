@@ -1667,12 +1667,12 @@ RADEONI2CDoLock(xf86OutputPtr output, I2CBusPtr b, int lock_state)
 	 * holds the i2c port in a bad state - switch hw i2c away before
 	 * doing DDC - do this for all r200s/r300s for safety sakes */
 	if ((info->ChipFamily >= CHIP_FAMILY_R200) && (!IS_AVIVO_VARIANT)) {
-	    if (pRADEONI2CBus->mask_clk_reg == RADEON_GPIO_CRT2_DDC)
+	    if (pRADEONI2CBus->mask_clk_reg == RADEON_GPIO_MONID)
                 OUTREG(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
-					       R200_DVI_I2C_PIN_SEL(R200_SEL_DVI_DDC)));
+					       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC1)));
 	    else
                 OUTREG(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
-					       R200_DVI_I2C_PIN_SEL(R200_SEL_CRT2_DDC)));
+					       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3)));
 	}
 
 	temp = INREG(pRADEONI2CBus->a_clk_reg);

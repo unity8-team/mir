@@ -966,11 +966,11 @@
 #define RADEON_GENMO_WT                     0x03c2 /* VGA */
 #define RADEON_GENS0                        0x03c2 /* VGA */
 #define RADEON_GENS1                        0x03da /* VGA, 0x03ba */
-#define RADEON_GPIO_MONID                   0x0068 /* DDC interface via I2C */
+#define RADEON_GPIO_MONID                   0x0068 /* DDC interface via I2C */ /* DDC3 */
 #define RADEON_GPIO_MONIDB                  0x006c
 #define RADEON_GPIO_CRT2_DDC                0x006c
-#define RADEON_GPIO_DVI_DDC                 0x0064
-#define RADEON_GPIO_VGA_DDC                 0x0060
+#define RADEON_GPIO_DVI_DDC                 0x0064 /* DDC2 */
+#define RADEON_GPIO_VGA_DDC                 0x0060 /* DDC1 */
 #       define RADEON_GPIO_A_0              (1 <<  0)
 #       define RADEON_GPIO_A_1              (1 <<  1)
 #       define RADEON_GPIO_Y_0              (1 <<  8)
@@ -1027,9 +1027,9 @@
 
 #define RADEON_DVI_I2C_CNTL_0		    0x02e0
 #       define R200_DVI_I2C_PIN_SEL(x)      ((x) << 3)
-#       define R200_SEL_DVI_DDC             0
-#       define R200_SEL_VGA_DDC             1
-#       define R200_SEL_CRT2_DDC            2
+#       define R200_SEL_DDC1                0 /* 0x60 - VGA_DDC */
+#       define R200_SEL_DDC2                1 /* 0x64 - DVI_DDC */
+#       define R200_SEL_DDC3                2 /* 0x68 - MONID_DDC */
 #define RADEON_DVI_I2C_CNTL_1               0x02e4
 #define RADEON_DVI_I2C_DATA		    0x02e8
 
