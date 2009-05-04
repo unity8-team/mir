@@ -100,7 +100,10 @@ avivo_setup_cursor(xf86CrtcPtr crtc, Bool enable)
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     unsigned char     *RADEONMMIO = info->MMIO;
 
-    OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset, 0);
+    /* always use the same cursor mode even if the cursor is disabled,
+     * otherwise you may end up with cursor curruption bands
+     */
+    OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset, (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
 
     if (enable) {
 	OUTREG(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
@@ -156,7 +159,6 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
         OUTREGP(RADEON_MM_DATA, RADEON_CRTC_CUR_EN | 2 << 20, 
                 ~(RADEON_CRTC_CUR_EN | RADEON_CRTC_CUR_MODE_MASK));
     }
-    radeon_crtc->cursor_enabled = TRUE;
 }
 
 void
@@ -169,18 +171,7 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
     unsigned char     *RADEONMMIO = info->MMIO;
 
     if (IS_AVIVO_VARIANT) {
-	DisplayModePtr mode = &crtc->mode;
-
 	avivo_lock_cursor(crtc, TRUE);
-	/* Set position offscreen.  This will prevent the cursor
-	 * from showing up even if it's enabled to work-around
-	 * corruption issues.
-	 */
-	if (mode) {
-	    OUTREG(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset,
-		   ((crtc->x + mode->CrtcHDisplay) << 16) | (crtc->y + mode->CrtcVDisplay));
-	    OUTREG(AVIVO_D1CUR_HOT_SPOT + radeon_crtc->crtc_offset, 0);
-	}
 	avivo_setup_cursor(crtc, FALSE);
 	avivo_lock_cursor(crtc, FALSE);
     } else {
@@ -197,7 +188,6 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
 
         OUTREGP(RADEON_MM_DATA, 0, ~RADEON_CRTC_CUR_EN);
    }
-    radeon_crtc->cursor_enabled = FALSE;
 }
 
 void
@@ -244,22 +234,6 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	    }
 	    if (w <= 0)
 		w = 1;
-
-	    /* both cursors should be enabled when dualhead is active
-	     * or you may get corruption bands
-	     */
-	    if (!pRADEONEnt->Controller[0]->cursor_enabled) {
-		avivo_lock_cursor(pRADEONEnt->pCrtc[0], TRUE);
-		avivo_setup_cursor(pRADEONEnt->pCrtc[0], TRUE);
-		avivo_lock_cursor(pRADEONEnt->pCrtc[0], FALSE);
-		pRADEONEnt->Controller[0]->cursor_enabled = TRUE;
-	    }
-	    if (!pRADEONEnt->Controller[1]->cursor_enabled) {
-		avivo_lock_cursor(pRADEONEnt->pCrtc[1], TRUE);
-		avivo_setup_cursor(pRADEONEnt->pCrtc[1], TRUE);
-		avivo_lock_cursor(pRADEONEnt->pCrtc[1], FALSE);
-		pRADEONEnt->Controller[1]->cursor_enabled = TRUE;
-	    }
 	}
 
 	avivo_lock_cursor(crtc, TRUE);

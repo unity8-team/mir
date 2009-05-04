@@ -159,7 +159,6 @@ typedef struct _RADEONCrtcPrivateRec {
     int can_tile;
     Bool enabled;
     Bool initialized;
-    Bool cursor_enabled;
     Bool scaler_enabled;
     float vsc;
     float hsc;
