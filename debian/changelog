@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu11) karmic; urgency=low
+
+  * Update 121_i965_default_to_virtual_2048_2048.patch to check more
+    thoroughly for user-supplied Virtual settings.  (Thanks kedazo)
+    (LP: #370777, #371544)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 04 May 2009 15:10:00 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu10) karmic; urgency=low
 
   * Add 121_i965_default_to_virtual_2048_2048.patch, to force the default

@@ -1,11 +1,12 @@
-diff -Nurp xserver-xorg-video-intel-2.6.3/src/i830_driver.c working~virtual/src/i830_driver.c
---- xserver-xorg-video-intel-2.6.3/src/i830_driver.c	2009-03-02 11:21:07.000000000 -0800
-+++ working~virtual/src/i830_driver.c	2009-04-29 14:21:54.000000000 -0700
-@@ -1979,6 +1979,15 @@ I830PreInit(ScrnInfoPtr pScrn, int flags
+diff -Nurp patched/src/i830_driver.c working/src/i830_driver.c
+--- patched/src/i830_driver.c	2009-05-04 14:04:00.000000000 -0700
++++ working/src/i830_driver.c	2009-05-04 14:05:34.000000000 -0700
+@@ -1953,6 +1953,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
  		  "VBIOS initialization failed.\n");
  
-+   if (IS_I965G(pI830) && pScrn->virtualX == 0 && pScrn->virtualY == 0) {
++   if (IS_I965G(pI830) && pScrn->virtualX == 0 && pScrn->virtualY == 0
++       && pScrn->display->virtualX == 0 && pScrn->display->virtualY == 0) {
 +       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 +		  "Defaulting Virtual to 2048 2048 for i965.\n");
 +       pScrn->virtualX = 2048;
