@@ -116,6 +116,7 @@ if test x$DRI = xauto; then
         fi
 fi
 AC_MSG_RESULT([$DRI])
+CFLAGS="$save_CFLAGS"
 
 PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10])
 
