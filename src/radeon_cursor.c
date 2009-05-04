@@ -169,13 +169,18 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
     unsigned char     *RADEONMMIO = info->MMIO;
 
     if (IS_AVIVO_VARIANT) {
+	DisplayModePtr mode = &crtc->mode;
+
 	avivo_lock_cursor(crtc, TRUE);
-	/* set size to zero as proper size will get set in
-	 * set_cursor_postion(). This will prevent the cursor
+	/* Set position offscreen.  This will prevent the cursor
 	 * from showing up even if it's enabled to work-around
 	 * corruption issues.
 	 */
-	OUTREG(AVIVO_D1CUR_SIZE + radeon_crtc->crtc_offset, 0);
+	if (mode) {
+	    OUTREG(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset,
+		   ((crtc->x + mode->CrtcHDisplay) << 16) | (crtc->y + mode->CrtcVDisplay));
+	    OUTREG(AVIVO_D1CUR_HOT_SPOT + radeon_crtc->crtc_offset, 0);
+	}
 	avivo_setup_cursor(crtc, FALSE);
 	avivo_lock_cursor(crtc, FALSE);
     } else {
