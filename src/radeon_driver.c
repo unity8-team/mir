@@ -2081,13 +2081,7 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 	info->accel_state->has_tcl = TRUE;
     }
 
-    info->useEXA = FALSE;
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
-	    "Will attempt to use R6xx/R7xx EXA support if DRI is enabled.\n");
-	info->useEXA = TRUE;
-    }
+    info->useEXA = TRUE;
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	int errmaj = 0, errmin = 0;
@@ -2097,11 +2091,12 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 #if defined(USE_XAA)
 	optstr = (char *)xf86GetOptValString(info->Options, OPTION_ACCELMETHOD);
 	if (optstr != NULL) {
-	    if (xf86NameCmp(optstr, "EXA") == 0) {
+	    if (xf86NameCmp(optstr, "EXA") == 0)
 		from = X_CONFIG;
-		info->useEXA = TRUE;
-	    } else if (xf86NameCmp(optstr, "XAA") == 0) {
+	    else if (xf86NameCmp(optstr, "XAA") == 0) {
 		from = X_CONFIG;
+		if (info->ChipFamily < CHIP_FAMILY_R600)
+		    info->useEXA = FALSE;
 	    }
 	}
 #else /* USE_XAA */
@@ -2112,6 +2107,9 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, from,
 		       "Using %s acceleration architecture\n",
 		       info->useEXA ? "EXA" : "XAA");
+	else
+	    xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
+		       "Will attempt to use R6xx/R7xx EXA support if DRI is enabled.\n");
 
 #ifdef USE_EXA
 	if (info->useEXA) {

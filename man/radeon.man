@@ -346,9 +346,8 @@ and
 .B EXA.
 XAA is the traditional acceleration architecture and support for it is very
 stable.  EXA is a newer acceleration architecture with better performance for
-the Render and Composite extensions, but the rendering code for it is newer and
-possibly unstable.  The default is
-.B XAA.
+the Render and Composite extensions.  The default is
+.B EXA.
 .TP
 .BI "Option \*qAccelDFS\*q \*q" boolean \*q
 Use or don't use accelerated EXA DownloadFromScreen hook when possible (only
