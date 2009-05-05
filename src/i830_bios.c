@@ -43,8 +43,8 @@
 #define INTEL_BIOS_16(_addr)	(bios[_addr] |			\
 				 (bios[_addr + 1] << 8))
 #define INTEL_BIOS_32(_addr)	(bios[_addr] |			\
-				 (bios[_addr + 1] << 8)		\
-				 (bios[_addr + 2] << 16)	\
+				 (bios[_addr + 1] << 8) |	\
+				 (bios[_addr + 2] << 16) |	\
 				 (bios[_addr + 3] << 24))
 
 static void *
