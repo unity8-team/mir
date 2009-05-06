@@ -786,8 +786,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		nouveau_dri2_fini(pScreen);
 #endif
 
-	NVCloseDRM(pScrn);
-
 	if (pNv->randr12_enable)
 		xf86_cursors_fini(pScreen);
 	if (pNv->ShadowPtr) {
@@ -841,6 +839,8 @@ NVFreeScreen(int scrnIndex, int flags)
 
 	if (!pNv)
 		return;
+
+	NVCloseDRM(pScrn);
 
 	if (pNv->Architecture == NV_ARCH_50 && !pNv->kms_enable) {
 		NV50ConnectorDestroy(pScrn);
