@@ -2,7 +2,7 @@
  * Copyright 2003 NVIDIA, Corporation
  * Copyright 2006 Dave Airlie
  * Copyright 2007 Maarten Maathuis
- * Copyright 2007-2008 Stuart Bennett
+ * Copyright 2007-2009 Stuart Bennett
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,7 @@
  */
 
 #include <X11/Xatom.h>
+#include <X11/Xos.h>	/* X_GETTIMEOFDAY */
 #include "nv_include.h"
 
 #define MULTIPLE_ENCODERS(e) (e & (e - 1))
@@ -57,8 +58,182 @@ static int nv_get_digital_bound_head(NVPtr pNv, int or)
 	return (((NVReadRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_DATA) & 0x8) >> 3) ^ ramdac);
 }
 
+#define WAIT_FOR(cond, timeout_us) __extension__ ({	\
+	struct timeval begin, cur;			\
+	long d_secs, d_usecs, diff = 0;			\
+							\
+	X_GETTIMEOFDAY(&begin);				\
+	while (!(cond) && diff < timeout_us) {		\
+		X_GETTIMEOFDAY(&cur);			\
+		d_secs  = cur.tv_sec - begin.tv_sec;	\
+		d_usecs = cur.tv_usec - begin.tv_usec;	\
+		diff = d_secs * 1000000 + d_usecs;	\
+	};						\
+	diff >= timeout_us ? -EAGAIN : 0;		\
+})
+
+/*
+ * arbitrary limit to number of sense oscillations tolerated in one sample
+ * period (observed to be at least 13 in "nvidia")
+ */
+#define MAX_HBLANK_OSC 20
+
+/*
+ * arbitrary limit to number of conflicting sample pairs to tolerate at a
+ * voltage step (observed to be at least 5 in "nvidia")
+ */
+#define MAX_SAMPLE_PAIRS 10
+
+static int sample_load_twice(NVPtr pNv, bool sense[2])
+{
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		bool sense_a, sense_b, sense_b_prime;
+		int j = 0;
+
+		/*
+		 * wait for bit 0 clear -- out of hblank -- (say reg value 0x4),
+		 * then wait for transition 0x4->0x5->0x4: enter hblank, leave
+		 * hblank again
+		 * use a 10ms timeout (guards against crtc being inactive, in
+		 * which case blank state would never change)
+		 */
+		if (WAIT_FOR(!(VGA_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR) & 1), 10000))
+			return -EWOULDBLOCK;
+		if (WAIT_FOR(VGA_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR) & 1, 10000))
+			return -EWOULDBLOCK;
+		if (WAIT_FOR(!(VGA_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR) & 1), 10000))
+			return -EWOULDBLOCK;
+
+		WAIT_FOR(0, 100);	/* faster than usleep(100) */
+		/* when level triggers, sense is _LO_ */
+		sense_a = VGA_RD08(pNv->REGS, NV_PRMCIO_INP0) & 0x10;
+
+		/* take another reading until it agrees with sense_a... */
+		do {
+			WAIT_FOR(0, 100);
+			sense_b = VGA_RD08(pNv->REGS, NV_PRMCIO_INP0) & 0x10;
+			if (sense_a != sense_b) {
+				sense_b_prime = VGA_RD08(pNv->REGS, NV_PRMCIO_INP0) & 0x10;
+				if (sense_b == sense_b_prime) {
+					/* ... unless two consecutive subsequent
+					 * samples agree; sense_a is replaced */
+					sense_a = sense_b;
+					/* force mis-match so we loop */
+					sense_b = !sense_a;
+				}
+			}
+		} while ((sense_a != sense_b) && ++j < MAX_HBLANK_OSC);
+
+		if (j == MAX_HBLANK_OSC)
+			/* with so much oscillation, default to sense:LO */
+			sense[i] = false;
+		else
+			sense[i] = sense_a;
+	}
+
+	return 0;
+}
+
+static bool nv_legacy_load_detect(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	uint8_t saved_seq1, saved_pi, saved_rpc1;
+	uint8_t saved_palette0[3], saved_palette_mask;
+	uint32_t saved_rtest_ctrl, saved_rgen_ctrl;
+	int i;
+	uint8_t blue;
+	bool sense = true;
+
+	/*
+	 * for this detection to work, there needs to be a mode set up on the
+	 * CRTC.  this is presumed to be the case
+	 */
+
+	if (pNv->twoHeads)
+		/* only implemented for head A for now */
+		NVSetOwner(pNv, 0);
+
+	saved_seq1 = NVReadVgaSeq(pNv, 0, NV_VIO_SR_CLOCK_INDEX);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_CLOCK_INDEX, saved_seq1 & ~0x20);
+
+	saved_rtest_ctrl = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL,
+		      saved_rtest_ctrl & ~NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF);
+
+	usleep(10000);
+
+	saved_pi = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_PIXEL_INDEX);
+	NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_PIXEL_INDEX,
+		       saved_pi & ~(0x80 | MASK(NV_CIO_CRE_PIXEL_FORMAT)));
+	saved_rpc1 = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_RPC1_INDEX);
+	NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_RPC1_INDEX, saved_rpc1 & ~0xc0);
+
+	VGA_WR08(pNv->REGS, NV_PRMDIO_READ_MODE_ADDRESS, 0x0);
+	for (i = 0; i < 3; i++)
+		saved_palette0[i] = NV_RD08(pNv->REGS, NV_PRMDIO_PALETTE_DATA);
+	saved_palette_mask = NV_RD08(pNv->REGS, NV_PRMDIO_PIXEL_MASK);
+	VGA_WR08(pNv->REGS, NV_PRMDIO_PIXEL_MASK, 0);
+
+	saved_rgen_ctrl = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_GENERAL_CONTROL);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_GENERAL_CONTROL,
+		      (saved_rgen_ctrl & ~(NV_PRAMDAC_GENERAL_CONTROL_BPC_8BITS |
+					   NV_PRAMDAC_GENERAL_CONTROL_TERMINATION_75OHM)) |
+		      NV_PRAMDAC_GENERAL_CONTROL_PIXMIX_ON);
+
+	blue = 8;	/* start of test range */
+
+	do {
+		bool sense_pair[2];
+
+		VGA_WR08(pNv->REGS, NV_PRMDIO_WRITE_MODE_ADDRESS, 0);
+		NV_WR08(pNv->REGS, NV_PRMDIO_PALETTE_DATA, 0);
+		NV_WR08(pNv->REGS, NV_PRMDIO_PALETTE_DATA, 0);
+		/* testing blue won't find monochrome monitors.  I don't care */
+		NV_WR08(pNv->REGS, NV_PRMDIO_PALETTE_DATA, blue);
+
+		i = 0;
+		/* take sample pairs until both samples in the pair agree */
+		do {
+			if (sample_load_twice(pNv, sense_pair))
+				goto out;
+		} while ((sense_pair[0] != sense_pair[1]) &&
+							++i < MAX_SAMPLE_PAIRS);
+
+		if (i == MAX_SAMPLE_PAIRS)
+			/* too much oscillation defaults to LO */
+			sense = false;
+		else
+			sense = sense_pair[0];
+
+	/*
+	 * if sense goes LO before blue ramps to 0x18, monitor is not connected.
+	 * ergo, if blue gets to 0x18, monitor must be connected
+	 */
+	} while (++blue < 0x18 && sense);
+
+out:
+	VGA_WR08(pNv->REGS, NV_PRMDIO_PIXEL_MASK, saved_palette_mask);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_GENERAL_CONTROL, saved_rgen_ctrl);
+	VGA_WR08(pNv->REGS, NV_PRMDIO_WRITE_MODE_ADDRESS, 0);
+	for (i = 0; i < 3; i++)
+		NV_WR08(pNv->REGS, NV_PRMDIO_PALETTE_DATA, saved_palette0[i]);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL, saved_rtest_ctrl);
+	NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_PIXEL_INDEX, saved_pi);
+	NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_RPC1_INDEX, saved_rpc1);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_CLOCK_INDEX, saved_seq1);
+
+	if (blue == 0x18) {
+		NV_TRACE(pScrn, "Load detected on head A\n");
+		return true;
+	}
+
+	return false;
+}
+
 static bool
-nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
+nv_nv17_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t testval, regoffset = nv_output_ramdac_offset(nv_encoder);
@@ -216,11 +391,12 @@ nv_output_detect(xf86OutputPtr output)
 		    xf86CheckBoolOption(output->conf_monitor->mon_option_lst,
 					"Enable", FALSE))
 			ret = XF86OutputStatusConnected;
-		/* we don't have a load det function for early cards */
-		else if (!pNv->gf4_disp_arch)
-			ret = XF86OutputStatusUnknown;
-		else if (nv_load_detect(pScrn, det_encoder))
-			ret = XF86OutputStatusConnected;
+		else if (pNv->gf4_disp_arch) {
+			if (nv_nv17_load_detect(pScrn, det_encoder))
+				ret = XF86OutputStatusConnected;
+		} else
+			 if (nv_legacy_load_detect(pScrn))
+				ret = XF86OutputStatusConnected;
 	} else if ((det_encoder = find_encoder_by_type(OUTPUT_LVDS))) {
 		if (det_encoder->dcb->lvdsconf.use_straps_for_mode) {
 			if (nouveau_bios_fp_mode(pScrn, NULL))
