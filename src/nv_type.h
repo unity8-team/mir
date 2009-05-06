@@ -122,7 +122,7 @@ struct nouveau_pll_vals {
 	int refclk;
 };
 
-typedef struct _nv_crtc_reg 
+typedef struct nv_crtc_reg
 {
 	unsigned char MiscOutReg;     /* */
 	uint8_t CRTC[0x9f];
@@ -161,7 +161,7 @@ typedef struct _nv_crtc_reg
 	uint32_t ramdac_a34;
 } NVCrtcRegRec, *NVCrtcRegPtr;
 
-typedef struct _nv_output_reg
+typedef struct nv_output_reg
 {
 	uint32_t output;
 	int head;

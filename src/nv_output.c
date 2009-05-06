@@ -661,7 +661,9 @@ nv_output_prepare(xf86OutputPtr output)
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	NVPtr pNv = NVPTR(output->scrn);
 	int head = to_nouveau_crtc(output->crtc)->head;
-	uint8_t *cr_lcd = &pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_LCD__INDEX];
+	struct nv_crtc_reg *crtcstate = pNv->ModeReg.crtc_reg;
+	uint8_t *cr_lcd = &crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX];
+	uint8_t *cr_lcd_oth = &crtcstate[head ^ 1].CRTC[NV_CIO_CRE_LCD__INDEX];
 	bool digital_op = nv_encoder->dcb->type == OUTPUT_LVDS ||
 			  nv_encoder->dcb->type == OUTPUT_TMDS;
 
@@ -694,8 +696,16 @@ nv_output_prepare(xf86OutputPtr output)
 		if (digital_op && pNv->twoHeads) {
 			if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
 				*cr_lcd |= head ? 0x0 : 0x8;
-			else
+			else {
 				*cr_lcd |= (nv_encoder->dcb->or << 4) & 0x30;
+				if ((*cr_lcd & 0x30) == (*cr_lcd_oth & 0x30)) {
+					/* avoid being connected to both crtcs */
+					*cr_lcd_oth &= ~0x30;
+					NVWriteVgaCrtc(pNv, head ^ 1,
+						       NV_CIO_CRE_LCD__INDEX,
+						       *cr_lcd_oth);
+				}
+			}
 		}
 	}
 }
@@ -857,8 +867,6 @@ vga_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crtc
 static void
 tmds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86CrtcPtr crtc, int mode)
 {
-	NVPtr pNv = NVPTR(pScrn);
-
 	if (nv_encoder->last_dpms == mode)
 		return;
 	nv_encoder->last_dpms = mode;
@@ -867,24 +875,6 @@ tmds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 		 mode, nv_encoder->dcb->index);
 
 	dpms_update_fp_control(pScrn, nv_encoder, crtc, mode);
-
-	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP && pNv->twoHeads) {
-		if (mode == DPMSModeOn) {
-			int head = to_nouveau_crtc(crtc)->head;
-
-			NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_LCD__INDEX,
-				       pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_LCD__INDEX]);
-		} else {
-			int i;
-			uint8_t mask = pNv->gf4_disp_arch ?
-				       ~((nv_encoder->dcb->or << 4) & 0x30) :
-				       ~0x10;
-
-			for (i = 0; i < 2; i++)
-				NVWriteVgaCrtc(pNv, i, NV_CIO_CRE_LCD__INDEX,
-					       NVReadVgaCrtc(pNv, i, NV_CIO_CRE_LCD__INDEX) & mask);
-		}
-	}
 }
 
 static void nv_output_dpms(xf86OutputPtr output, int mode)
