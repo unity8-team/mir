@@ -1926,8 +1926,9 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 			break;
 		}
 
-		/* Make the change through RandR */
-		RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
+		if (crtc->randr_crtc)
+			/* Make the change through RandR */
+			RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
 	}
 }
 
