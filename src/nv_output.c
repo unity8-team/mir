@@ -877,6 +877,8 @@ nv_output_prepare(xf86OutputPtr output)
 				*cr_lcd |= head ? 0x0 : 0x8;
 			else {
 				*cr_lcd |= (nv_encoder->dcb->or << 4) & 0x30;
+				if (nv_encoder->dcb->type == OUTPUT_LVDS)
+					*cr_lcd |= 0x30;
 				if ((*cr_lcd & 0x30) == (*cr_lcd_oth & 0x30)) {
 					/* avoid being connected to both crtcs */
 					*cr_lcd_oth &= ~0x30;
