@@ -85,7 +85,6 @@ NVI2CPutBits(I2CBusPtr b, int clock, int data)
 static uint32_t NV50_GetI2CPort(ScrnInfoPtr pScrn, int index)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t reg;
 
 	if (index <= 3)
 		return 0xe138 + (index * 24);

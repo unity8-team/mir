@@ -110,7 +110,6 @@ NV50SorSetClockMode(nouveauOutputPtr output, int clock)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	const int limit = output->dcb->type == OUTPUT_LVDS ? 112000 : 165000;
-	int ret;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "NV50SorSetClockMode is called.\n");
