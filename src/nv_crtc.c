@@ -566,19 +566,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		/* Only bit that bios and blob set. */
 		regp->nv10_cursync = (1 << 25);
 
-	switch (pScrn->depth) {
-		case 24:
-		case 15:
-			regp->ramdac_gen_ctrl = 0x00100130;
-			break;
-		case 16:
-		default:
-			regp->ramdac_gen_ctrl = 0x00101130;
-			break;
-	}
+	regp->ramdac_gen_ctrl = NV_PRAMDAC_GENERAL_CONTROL_BPC_8BITS |
+				NV_PRAMDAC_GENERAL_CONTROL_VGA_STATE_SEL |
+				NV_PRAMDAC_GENERAL_CONTROL_PIXMIX_ON;
+	if (pScrn->depth == 16)
+		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_ALT_MODE_SEL;
 	if (pNv->alphaCursor)
-		/* PIPE_LONG mode, something to do with the size of the cursor? */
-		regp->ramdac_gen_ctrl |= 1 << 29;
+		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_PIPE_LONG;
 
 	regp->ramdac_630 = 0; /* turn off green mode (tv test pattern?) */
 
