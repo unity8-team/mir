@@ -27,6 +27,9 @@
 #include "xorg-server.h"
 #include "xf86int10.h"
 #include "xf86drm.h"
+#ifdef XF86DRM_MODE
+#include "xf86drmMode.h"
+#endif
 
 /*
  * Forward definitions for the functions that make up the driver.
