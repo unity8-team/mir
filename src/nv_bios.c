@@ -4232,7 +4232,7 @@ static void fabricate_dvi_i_output(struct parsed_dcb *dcb, bool twoHeads)
 	entry->i2c_index = LEGACY_I2C_PANEL;
 	entry->heads = twoHeads ? 3 : 1;
 	entry->location = !DCB_LOC_ON_CHIP;	/* ie OFF CHIP */
-	entry->or = 1;	/* naturally on head A; see setting of CRE_LCD__INDEX */
+	entry->or = 1;	/* means |0x10 gets set on CRE_LCD__INDEX */
 	entry->duallink_possible = false; /* SiI164 and co. are single link */
 
 #if 0

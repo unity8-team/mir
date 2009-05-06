@@ -661,7 +661,7 @@ nv_output_prepare(xf86OutputPtr output)
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	NVPtr pNv = NVPTR(output->scrn);
 	int head = to_nouveau_crtc(output->crtc)->head;
-	uint8_t *lcdi = &pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_LCD__INDEX];
+	uint8_t *cr_lcd = &pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_LCD__INDEX];
 	bool digital_op = nv_encoder->dcb->type == OUTPUT_LVDS ||
 			  nv_encoder->dcb->type == OUTPUT_TMDS;
 
@@ -689,21 +689,13 @@ nv_output_prepare(xf86OutputPtr output)
 	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f)
 	 * at LCD__INDEX which we don't alter
 	 */
-	if (!(*lcdi & 0x44)) {
-		*lcdi = 0;
-		if (digital_op) {
-			*lcdi = 0x3;
+	if (!(*cr_lcd & 0x44)) {
+		*cr_lcd = digital_op ? 0x3 : 0x0;
+		if (digital_op && pNv->twoHeads) {
 			if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
-				*lcdi |= head ? 0x0 : 0x8;
-			else if (pNv->gf4_disp_arch)
-				*lcdi |= (nv_encoder->dcb->or << 4) & 0x30;
-			else if (pNv->twoHeads)
-				/* the guess here is that 0x10 gets set when
-				 * the output is not on its "natural" crtc
-				 * (lvds naturally on head b, tmds head a)
-				 */
-				*lcdi |= (head + 1 != nv_encoder->dcb->or) ?
-					 0x10 : 0x00;
+				*cr_lcd |= head ? 0x0 : 0x8;
+			else
+				*cr_lcd |= (nv_encoder->dcb->or << 4) & 0x30;
 		}
 	}
 }
@@ -714,12 +706,12 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
+	struct dcb_entry *dcbe = nv_encoder->dcb;
+	int head = to_nouveau_crtc(output->crtc)->head;
 
-	NV_TRACE(pScrn, "%s called for encoder %d\n", __func__,
-		 nv_encoder->dcb->index);
+	NV_TRACE(pScrn, "%s called for encoder %d\n", __func__, dcbe->index);
 
-	if (pNv->gf4_disp_arch && nv_encoder->dcb->type == OUTPUT_ANALOG) {
+	if (pNv->gf4_disp_arch && dcbe->type == OUTPUT_ANALOG) {
 		uint32_t dac_offset = nv_output_ramdac_offset(nv_encoder);
 		uint32_t otherdac;
 		int i;
@@ -727,21 +719,21 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 		/* bit 16-19 are bits that are set on some G70 cards,
 		 * but don't seem to have much effect */
 		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + dac_offset,
-			      nv_crtc->head << 8 | NV_PRAMDAC_DACCLK_SEL_DACCLK);
+			      head << 8 | NV_PRAMDAC_DACCLK_SEL_DACCLK);
 		/* force any other vga encoders to bind to the other crtc */
 		for (i = 0; i < pNv->vbios->dcb->entries; i++)
-			if (i != nv_encoder->dcb->index && pNv->encoders[i].dcb &&
+			if (i != dcbe->index && pNv->encoders[i].dcb &&
 			    pNv->encoders[i].dcb->type == OUTPUT_ANALOG) {
 				dac_offset = nv_output_ramdac_offset(&pNv->encoders[i]);
 				otherdac = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + dac_offset);
 				NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + dac_offset,
-					      (otherdac & ~0x100) | (nv_crtc->head ^ 1) << 8);
+					      (otherdac & ~0x100) | (head ^ 1) << 8);
 			}
 	}
-	if (nv_encoder->dcb->type == OUTPUT_TMDS)
-		run_tmds_table(pScrn, nv_encoder->dcb, nv_crtc->head, adjusted_mode->Clock);
-	else if (nv_encoder->dcb->type == OUTPUT_LVDS)
-		call_lvds_script(pScrn, nv_encoder->dcb, nv_crtc->head, LVDS_RESET, adjusted_mode->Clock);
+	if (dcbe->type == OUTPUT_TMDS)
+		run_tmds_table(pScrn, dcbe, head, adjusted_mode->Clock);
+	else if (dcbe->type == OUTPUT_LVDS)
+		call_lvds_script(pScrn, dcbe, head, LVDS_RESET, adjusted_mode->Clock);
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44)
@@ -750,8 +742,8 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0x00100000);
 
 	/* update fp_control state for any changes made by scripts, for dpms */
-	pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control =
-			NVReadRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_FP_TG_CONTROL);
+	pNv->ModeReg.crtc_reg[head].fp_control =
+			NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL);
 }
 
 static void
