@@ -213,6 +213,7 @@ struct nouveau_crtc {
 	uint8_t last_dpms;
 	ExaOffscreenArea *shadow;
 	int fp_users;
+	uint32_t dpms_saved_fp_control;
 	int saturation, sharpness;
 };
 

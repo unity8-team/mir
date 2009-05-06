@@ -669,16 +669,19 @@ nv_output_prepare(xf86OutputPtr output)
 
 	output->funcs->dpms(output, DPMSModeOff);
 
-	if (nv_encoder->dcb->type == OUTPUT_ANALOG &&
-	    NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL) &
-			 FP_TG_CONTROL_ON) {
-		/* digital remnants must be cleaned before new crtc values
-		 * programmed.  delay is time for the vga stuff to realise it's
-		 * in control again
-		 */
-		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL,
-			      FP_TG_CONTROL_OFF);
-		usleep(50000);
+	if (nv_encoder->dcb->type == OUTPUT_ANALOG) {
+		if (NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL) &
+							FP_TG_CONTROL_ON) {
+			/* digital remnants must be cleaned before new crtc
+			 * values programmed.  delay is time for the vga stuff
+			 * to realise it's in control again
+			 */
+			NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL,
+				      FP_TG_CONTROL_OFF);
+			usleep(50000);
+		}
+		/* don't inadvertently turn it on when state written later */
+		crtcstate[head].fp_control = FP_TG_CONTROL_OFF;
 	}
 
 	/* calculate some output specific CRTC regs now, so that they can be
@@ -744,16 +747,17 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 		run_tmds_table(pScrn, dcbe, head, adjusted_mode->Clock);
 	else if (dcbe->type == OUTPUT_LVDS)
 		call_lvds_script(pScrn, dcbe, head, LVDS_RESET, adjusted_mode->Clock);
+	if (dcbe->type == OUTPUT_LVDS || dcbe->type == OUTPUT_TMDS)
+		/* update fp_control state for any changes made by scripts,
+		 * so correct value is written at DPMS on */
+		pNv->ModeReg.crtc_reg[head].fp_control =
+			NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL);
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44)
 		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0xf0000000);
 	else
 		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0x00100000);
-
-	/* update fp_control state for any changes made by scripts, for dpms */
-	pNv->ModeReg.crtc_reg[head].fp_control =
-			NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL);
 }
 
 static void
@@ -773,28 +777,37 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc;
-	uint32_t fpc;
+	uint32_t *fpc;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
 	if (mode == DPMSModeOn) {
 		nv_crtc = to_nouveau_crtc(crtc);
-		fpc = pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
+		fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
+
+		if ((*fpc & (FP_TG_CONTROL_ON | FP_TG_CONTROL_OFF)) ==
+							FP_TG_CONTROL_OFF)
+			/* using saved value is ok, as (is_digital && dpms_on &&
+			 * fp_control==OFF) is (at present) *only* true when
+			 * fpc's most recent change was by below "off" code
+			 */
+			*fpc = nv_crtc->dpms_saved_fp_control;
 
 		nv_crtc->fp_users |= 1 << nv_encoder->dcb->index;
-		NVWriteRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_FP_TG_CONTROL, fpc);
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_FP_TG_CONTROL, *fpc);
 	} else
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
-			fpc = pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
+			fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
 
 			nv_crtc->fp_users &= ~(1 << nv_encoder->dcb->index);
 			if (!nv_crtc->fp_users) {
+				nv_crtc->dpms_saved_fp_control = *fpc;
 				/* cut the FP output */
-				fpc &= ~FP_TG_CONTROL_ON;
-				fpc |= FP_TG_CONTROL_OFF;
+				*fpc &= ~FP_TG_CONTROL_ON;
+				*fpc |= FP_TG_CONTROL_OFF;
 				NVWriteRAMDAC(pNv, nv_crtc->head,
-					      NV_PRAMDAC_FP_TG_CONTROL, fpc);
+					      NV_PRAMDAC_FP_TG_CONTROL, *fpc);
 			}
 		}
 }
