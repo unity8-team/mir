@@ -342,23 +342,17 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 {
     ScrnInfoPtr        pScrn   = xf86Screens[pScreen->myNum];
     RADEONInfoPtr      info    = RADEONPTR(pScrn);
+    unsigned char     *RADEONMMIO = info->MMIO;
     xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int                width;
-    int		       width_bytes;
-    int                height;
-    int                size_bytes;
     int                c;
 
-    size_bytes  = CURSOR_WIDTH * 4 * CURSOR_HEIGHT;
-    width       = pScrn->displayWidth;
-    width_bytes = width * (pScrn->bitsPerPixel / 8);
-    height      = ((size_bytes * xf86_config->num_crtc) + width_bytes - 1) / width_bytes;
-    int align = IS_AVIVO_VARIANT ? 4096 : 256;
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[c];
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-    if (!info->useEXA) {
-	for (c = 0; c < xf86_config->num_crtc; c++) {
-	    xf86CrtcPtr crtc = xf86_config->crtc[c];
-	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+	if (!info->useEXA) {
+	    int size_bytes  = CURSOR_WIDTH * 4 * CURSOR_HEIGHT;
+	    int align = IS_AVIVO_VARIANT ? 4096 : 256;
 
 	    radeon_crtc->cursor_offset =
 		radeon_legacy_allocate_memory(pScrn, &radeon_crtc->cursor_mem, size_bytes, align);
@@ -372,6 +366,10 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 		       c,
 		       (unsigned int)radeon_crtc->cursor_offset);
 	}
+	/* set the cursor mode the same on both crtcs to avoid corruption */
+	if (IS_AVIVO_VARIANT)
+	    OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,
+		   (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
     }
 
     return xf86_cursors_init (pScreen, CURSOR_WIDTH, CURSOR_HEIGHT,
