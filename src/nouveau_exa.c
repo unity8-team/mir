@@ -546,7 +546,8 @@ nouveau_exa_init(ScreenPtr pScreen)
 	NVPtr pNv = NVPTR(pScrn);
 	ExaDriverPtr exa;
 
-	if(!(exa = (ExaDriverPtr)xnfcalloc(sizeof(ExaDriverRec), 1))) {
+	exa = exaDriverAlloc();
+	if (!exa) {
 		pNv->NoAccel = TRUE;
 		return FALSE;
 	}
