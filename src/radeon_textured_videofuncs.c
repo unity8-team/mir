@@ -2265,7 +2265,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	ErrorF("src: %d, %d, %d, %d\n", srcX, srcY, srcw, srch);
 #endif
 
-	if (IS_R300_3D && ((dstw+dsth) > 4021))
+	if ((dstw+dsth) > 4021)
 	    use_quad = TRUE;
 	/*
 	 * Set up the scissor area to that of the output size.
