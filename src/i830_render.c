@@ -404,7 +404,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     i830_exa_check_pitch_3d(pDst);
 
     IntelEmitInvarientState(pScrn);
-    *pI830->last_3d = LAST_3D_RENDER;
+    pI830->last_3d = LAST_3D_RENDER;
 
     if (!i830_get_dest_format(pDstPicture, &dst_format))
 	return FALSE;

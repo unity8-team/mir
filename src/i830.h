@@ -72,9 +72,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dri.h"
 #include "GL/glxint.h"
 #include "i830_dri.h"
-#ifdef DAMAGE
-#include "damage.h"
-#endif
 #endif
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
@@ -90,6 +87,8 @@ unsigned long long I830TexOffsetStart(PixmapPtr pPix);
 Bool i830_uxa_init(ScreenPtr pScreen);
 void i830_uxa_create_screen_resources(ScreenPtr pScreen);
 void i830_uxa_block_handler (ScreenPtr pScreen);
+Bool i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo **bo_table,
+			     int num_bos);
 #endif
 
 #if defined(I830_USE_UXA) || defined(I830_USE_EXA)
@@ -212,17 +211,6 @@ typedef struct {
    int tail;
    int space;
 } I830RingBuffer;
-
-typedef struct {
-   int            lastInstance;
-   int            refCount;
-   ScrnInfoPtr    pScrn_1;
-   ScrnInfoPtr    pScrn_2;
-   int            RingRunning;
-#ifdef I830_XV
-   int            XvInUse;
-#endif
-} I830EntRec, *I830EntPtr;
 
 /* store information about an Ixxx DVO */
 /* The i830->i865 use multiple DVOs with multiple i2cs */
@@ -382,12 +370,8 @@ typedef struct _I830Rec {
    unsigned char *FbBase;
    int cpp;
 
-   I830EntPtr entityPrivate;	
-   int init;
-
    unsigned int bufferOffset;		/* for I830SelectBuffer */
    BoxRec FbMemBox;
-   BoxRec FbMemBox2;
    int CacheLines;
 
    /* These are set in PreInit and never changed. */
@@ -405,7 +389,6 @@ typedef struct _I830Rec {
    int gtt_acquired;		/**< whether we currently own the AGP */
 
    i830_memory *front_buffer;
-   i830_memory *front_buffer_2;
    i830_memory *compressed_front_buffer;
    i830_memory *compressed_ll_buffer;
    /* One big buffer for all cursors for kernels that support this */
@@ -414,14 +397,13 @@ typedef struct _I830Rec {
    i830_memory *cursor_mem_classic[2];
    i830_memory *cursor_mem_argb[2];
    i830_memory *xaa_scratch;
-   i830_memory *xaa_scratch_2;
 #ifdef I830_USE_EXA
    i830_memory *exa_offscreen;
 #endif
    i830_memory *fake_bufmgr_mem;
 
    /* Regions allocated either from the above pools, or from agpgart. */
-   I830RingBuffer *LpRing;
+   I830RingBuffer ring;
 
    /** Number of bytes being emitted in the current BEGIN_LP_RING */
    unsigned int ring_emitting;
@@ -463,7 +445,6 @@ typedef struct _I830Rec {
 
 #ifdef XF86DRI
    i830_memory *back_buffer;
-   i830_memory *third_buffer;
    i830_memory *depth_buffer;
    i830_memory *textures;		/**< Compatibility texture memory */
    i830_memory *memory_manager;		/**< DRI memory manager aperture */
@@ -476,17 +457,11 @@ typedef struct _I830Rec {
    Bool can_resize;
 
    Bool want_vblank_interrupts;
-#ifdef DAMAGE
-   DamagePtr pDamage;
-   RegionRec driRegion;
-#endif
 #endif
 
    Bool need_mi_flush;
 
    Bool NeedRingBufferLow;
-   Bool allowPageFlip;
-   Bool TripleBuffer;
    Bool tiling;
    Bool fb_compression;
 
@@ -521,7 +496,6 @@ typedef struct _I830Rec {
    Bool fence_used[FENCE_NEW_NR];
 
    accel_method_t accel;
-   Bool SWCursor;
 #ifdef I830_USE_XAA
    XAAInfoRecPtr AccelInfoRec;
 
@@ -570,7 +544,7 @@ typedef struct _I830Rec {
    int colorKey;
    XF86VideoAdaptorPtr adaptor;
    ScreenBlockHandlerProcPtr BlockHandler;
-   Bool *overlayOn;
+   Bool overlayOn;
 
    struct {
       drm_intel_bo *gen4_vs_bo;
@@ -629,10 +603,9 @@ typedef struct _I830Rec {
    Bool lvds_dither;
    DisplayModePtr lvds_fixed_mode;
    Bool skip_panel_detect;
+   Bool integrated_lvds; /* LVDS config from driver feature BDB */
 
    Bool tv_present; /* TV connector present (from VBIOS) */
-
-   Bool StolenOnly;
 
    /* Driver phase/state information */
    Bool preinit;
@@ -730,7 +703,7 @@ typedef struct _I830Rec {
    uint32_t saveRAMCLK_GATE_D;
    uint32_t savePWRCTXA;
 
-   enum last_3d *last_3d;
+   enum last_3d last_3d;
 
    Bool use_drm_mode;
    Bool kernel_exec_fencing;
@@ -739,9 +712,6 @@ typedef struct _I830Rec {
    Bool debug_modes;
    unsigned int quirk_flag;
 
-   /* User option to ignore SDVO detect bit status, in case some outputs
-      not detected on SDVO, so let driver try its best. */
-   Bool force_sdvo_detect;
     /** User option to print acceleration fallback info to the server log. */
    Bool fallback_debug;
 } I830Rec;
@@ -885,7 +855,6 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 extern void i830_update_front_offset(ScrnInfoPtr pScrn);
 extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
 				   int *pitch);
-extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
 Bool
 i830_tiled_width(I830Ptr i830, int *width, int cpp);
@@ -930,8 +899,7 @@ Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 
 i830_memory *
-i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
-			  Bool secondary);
+i830_allocate_framebuffer(ScrnInfoPtr pScrn);
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
@@ -985,13 +953,17 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 
 void i830_enter_render(ScrnInfoPtr);
 
+#ifndef SERVER_1_5
+Bool xf86MonitorIsHDMI(xf86MonPtr mon);
+#endif
+
 static inline void
 i830_wait_ring_idle(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
    if (pI830->accel != ACCEL_NONE)
-       I830WaitLpRing(pScrn, pI830->LpRing->mem->size - 8, 0);
+       I830WaitLpRing(pScrn, pI830->ring.mem->size - 8, 0);
 }
 
 static inline int i830_fb_compression_supported(I830Ptr pI830)
@@ -1093,6 +1065,7 @@ extern const int I830CopyROP[16];
 #define QUIRK_RESET_MODES		0x00000020
 #define QUIRK_PFIT_SAFE			0x00000040
 #define QUIRK_IGNORE_CRT		0x00000080
+#define QUIRK_BROKEN_ACPI_LID		0x00000100
 extern void i830_fixup_devices(ScrnInfoPtr);
 
 /**

@@ -161,11 +161,38 @@ parse_general_features(I830Ptr pI830, struct bdb_header *bdb)
     pI830->tv_present = general->int_tv_support;
     pI830->lvds_use_ssc = general->enable_ssc;
     if (pI830->lvds_use_ssc) {
-	if (IS_I855(pI830))
+	if (IS_I85X(pI830))
 	    pI830->lvds_ssc_freq = general->ssc_freq ? 66 : 48;
 	else
 	    pI830->lvds_ssc_freq = general->ssc_freq ? 100 : 96;
     }
+}
+
+static void
+parse_driver_feature(I830Ptr pI830, struct bdb_header *bdb)
+{
+    struct bdb_driver_feature *feature;
+
+    /* For mobile chip, set default as true */
+    if (IS_MOBILE(pI830) && !IS_I830(pI830))
+	pI830->integrated_lvds = TRUE;
+
+    /* skip pre-9xx chips which is broken to parse this block. */
+    if (!IS_I9XX(pI830))
+	return;
+
+    /* XXX Disable this parsing, as it looks doesn't work for all
+       VBIOS. Reenable it if we could find out the reliable VBT parsing
+       for LVDS config later. */
+    if (1)
+	return;
+
+    feature = find_section(bdb, BDB_DRIVER_FEATURES);
+    if (!feature)
+	return;
+
+    if (feature->lvds_config != BDB_DRIVER_INT_LVDS)
+	pI830->integrated_lvds = FALSE;
 }
 
 #define INTEL_VBIOS_SIZE (64 * 1024)	/* XXX */
@@ -246,6 +273,7 @@ i830_bios_init(ScrnInfoPtr pScrn)
 
     parse_general_features(pI830, bdb);
     parse_panel_data(pI830, bdb);
+    parse_driver_feature(pI830, bdb);
 
     xfree(bios);
 

@@ -60,6 +60,9 @@ typedef struct {
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 static void
+drmmode_output_dpms(xf86OutputPtr output, int mode);
+
+static void
 drmmode_ConvertFromKMode(ScrnInfoPtr scrn,
 			 drmModeModeInfoPtr kmode,
 			 DisplayModePtr	mode)
@@ -210,6 +213,16 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	else
 		ret = TRUE;
 
+	/* Turn on any outputs on this crtc that may have been disabled */
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+
+		if (output->crtc != crtc)
+			continue;
+
+		drmmode_output_dpms(output, DPMSModeOn);
+	}
+
 done:
 	if (!ret) {
 		crtc->x = saved_x;
@@ -359,7 +372,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 		 * unbound. */
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
-		drm_intel_bo_unmap(drmmode_crtc->rotate_bo);
+		drm_intel_gem_bo_unmap_gtt(drmmode_crtc->rotate_bo);
 		dri_bo_unreference(drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_bo = NULL;
 	}
@@ -506,7 +519,27 @@ drmmode_output_destroy(xf86OutputPtr output)
 static void
 drmmode_output_dpms(xf86OutputPtr output, int mode)
 {
-	return;
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	drmmode_ptr drmmode = drmmode_output->drmmode;
+	int i;
+	drmModePropertyPtr props;
+
+	for (i = 0; i < koutput->count_props; i++) {
+		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+		if (!props)
+			continue;
+
+		if (!strcmp(props->name, "DPMS")) {
+                        drmModeConnectorSetProperty(drmmode->fd,
+                                drmmode_output->output_id,
+                                props->prop_id,
+                                mode);
+                        drmModeFreeProperty(props);
+                        return;
+		}
+		drmModeFreeProperty(props);
+	}
 }
 
 static const xf86OutputFuncsRec drmmode_output_funcs = {
@@ -612,7 +645,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	I830Ptr     pI830 = I830PTR(scrn);
 	i830_memory *old_front = NULL;
-	BoxRec	    mem_box;
 	Bool	    tiled, ret;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
 	uint32_t    old_fb_id;
@@ -639,8 +671,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualX = width;
 	scrn->virtualY = height;
 	scrn->displayWidth = pitch;
-	pI830->front_buffer =
-		i830_allocate_framebuffer(scrn, pI830, &mem_box, FALSE);
+	pI830->front_buffer = i830_allocate_framebuffer(scrn);
 	if (!pI830->front_buffer)
 		goto fail;
 

@@ -37,6 +37,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_reg.h"
 #include "i915_drm.h"
 #include <string.h>
+#include <sys/mman.h>
 
 #define ALWAYS_SYNC		0
 #define ALWAYS_FLUSH		0
@@ -81,6 +82,22 @@ const int I830PatternROP[16] =
     ROP_1
 };
 
+#ifdef I830_USE_UXA
+static int uxa_pixmap_index;
+#endif
+
+#ifndef SERVER_1_5
+static inline void *dixLookupPrivate(DevUnion **privates, int *key)
+{
+    return (*privates)[*key].ptr;
+}
+
+static inline void dixSetPrivate(DevUnion **privates, int *key, void *val)
+{
+    (*privates)[*key].ptr = val;
+}
+#endif
+
 /**
  * Returns whether a given pixmap is tiled or not.
  *
@@ -119,6 +136,21 @@ i830_pixmap_tiled(PixmapPtr pPixmap)
     }
 
     return FALSE;
+}
+
+Bool
+i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo **bo_table, int num_bos)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    bo_table[0] = pI830->batch_bo;
+    if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0) {
+	intel_batch_flush(pScrn, FALSE);
+	bo_table[0] = pI830->batch_bo;
+	if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0)
+	    I830FALLBACK("Couldn't get aperture space for BOs\n");
+    }
+    return TRUE;
 }
 
 static unsigned long
@@ -178,6 +210,10 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long pitch;
+    drm_intel_bo *bo_table[] = {
+	NULL, /* batch_bo */
+	i830_get_pixmap_bo(pPixmap),
+    };
 
     if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
@@ -194,6 +230,9 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 
     if (!i830_pixmap_pitch_is_aligned(pPixmap))
 	I830FALLBACK("pixmap pitch not aligned");
+
+    if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
+	return FALSE;
 
     pI830->BR[13] = (I830PatternROP[alu] & 0xff) << 16 ;
     switch (pPixmap->drawable.bitsPerPixel) {
@@ -272,12 +311,20 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    drm_intel_bo *bo_table[] = {
+	NULL, /* batch_bo */
+	i830_get_pixmap_bo(pSrcPixmap),
+	i830_get_pixmap_bo(pDstPixmap),
+    };
 
     if (!EXA_PM_IS_SOLID(&pSrcPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
 
     if (pDstPixmap->drawable.bitsPerPixel < 8)
 	I830FALLBACK("under 8bpp pixmaps unsupported\n");
+
+    if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
+	return FALSE;
 
     i830_exa_check_pitch_2d(pSrcPixmap);
     i830_exa_check_pitch_2d(pDstPixmap);
@@ -731,10 +778,6 @@ I830EXAInit(ScreenPtr pScreen)
     return TRUE;
 }
 
-#ifdef I830_USE_UXA
-static int uxa_pixmap_index;
-#endif
-
 dri_bo *
 i830_get_pixmap_bo(PixmapPtr pixmap)
 {
@@ -795,8 +838,6 @@ i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
 static Bool
 i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
 
     if (bo) {
@@ -811,15 +852,27 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	    i830->need_sync = FALSE;
 	}
 
-	if (pScrn->vtSema && !pI830->use_drm_mode) {
-	    if (drm_intel_bo_pin(bo, 4096) != 0)
-		return FALSE;
-	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
-	    pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
-	} else {
+	/* No VT sema or GEM?  No GTT mapping. */
+	if (!scrn->vtSema || !i830->memory_manager) {
 	    if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
 		return FALSE;
 	    pixmap->devPrivate.ptr = bo->virtual;
+	    return TRUE;
+	}
+
+	/* Kernel manages fences at GTT map/fault time */
+	if (i830->kernel_exec_fencing) {
+	    if (drm_intel_gem_bo_map_gtt(bo)) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: bo map failed\n",
+			   __FUNCTION__);
+		return FALSE;
+	    }
+	    pixmap->devPrivate.ptr = bo->virtual;
+	} else { /* or not... */
+	    if (drm_intel_bo_pin(bo, 4096) != 0)
+		return FALSE;
+	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
+	    pixmap->devPrivate.ptr = i830->FbBase + bo->offset;
 	}
     }
     return TRUE;
@@ -828,8 +881,6 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 static void
 i830_uxa_finish_access (PixmapPtr pixmap)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
 
     if (bo) {
@@ -837,14 +888,20 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
 
-	if (pScrn->vtSema && !pI830->use_drm_mode)
-	    drm_intel_bo_unpin(bo);
-	else
-	    dri_bo_unmap(bo);
-
-	pixmap->devPrivate.ptr = NULL;
 	if (bo == i830->front_buffer->bo)
 	    i830->need_flush = TRUE;
+
+	if (!scrn->vtSema || !i830->memory_manager) {
+	    dri_bo_unmap(bo);
+	    pixmap->devPrivate.ptr = NULL;
+	    return;
+	}
+
+	if (i830->kernel_exec_fencing)
+	    drm_intel_gem_bo_unmap_gtt(bo);
+	else
+	    drm_intel_bo_unpin(bo);
+	pixmap->devPrivate.ptr = NULL;
     }
 }
 
@@ -863,6 +920,12 @@ i830_uxa_block_handler (ScreenPtr screen)
 static Bool
 i830_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 {
+    ScreenPtr screen = pixmap->drawable.pScreen;
+
+    /* The front buffer is always in memory and pinned */
+    if (screen->GetScreenPixmap(screen) == pixmap)
+	return TRUE;
+
     return i830_get_pixmap_bo (pixmap) != NULL;
 }
 
@@ -878,8 +941,12 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     if (w > 32767 || h > 32767)
 	return NullPixmap;
 
+#ifdef SERVER_1_5
     pixmap = fbCreatePixmap (screen, 0, 0, depth, usage);
-    
+#else
+    pixmap = fbCreatePixmap (screen, 0, 0, depth);
+#endif
+
     if (w && h)
     {
 	unsigned int size;
@@ -923,6 +990,18 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     return pixmap;
 }
 
+
+#ifndef SERVER_1_5
+static PixmapPtr
+i830_uxa_server_14_create_pixmap (ScreenPtr screen, int w, int h, int depth)
+{
+    /* For server pre-1.6, we're never allocating DRI2 buffers, so no need for
+     * a hint.
+     */
+    return i830_uxa_create_pixmap(screen, w, h, depth, 0);
+}
+#endif
+
 static Bool
 i830_uxa_destroy_pixmap (PixmapPtr pixmap)
 {
@@ -955,9 +1034,14 @@ i830_uxa_init (ScreenPtr pScreen)
     ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
     I830Ptr i830 = I830PTR(scrn);
 
+#ifdef SERVER_1_5
     if (!dixRequestPrivate(&uxa_pixmap_index, 0))
 	return FALSE;
-    
+#else
+    if (!AllocatePixmapPrivate(pScreen, uxa_pixmap_index, 0))
+	return FALSE;
+#endif
+
     i830->uxa_driver = uxa_driver_alloc();
     if (i830->uxa_driver == NULL) {
 	i830->accel = ACCEL_NONE;
@@ -1011,10 +1095,16 @@ i830_uxa_init (ScreenPtr pScreen)
 	return FALSE;
     }
 
+#ifdef SERVER_1_5
     pScreen->CreatePixmap = i830_uxa_create_pixmap;
+#else
+    pScreen->CreatePixmap = i830_uxa_server_14_create_pixmap;
+#endif
     pScreen->DestroyPixmap = i830_uxa_destroy_pixmap;
 
     I830SelectBuffer(scrn, I830_SELECT_FRONT);
+
+    uxa_set_fallback_debug(pScreen, i830->fallback_debug);
 
     return TRUE;
 }

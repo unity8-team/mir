@@ -424,7 +424,8 @@ uxa_copy_n_to_n (DrawablePtr    pSrcDrawable,
 		 Pixel		bitplane,
 		 void		*closure)
 {
-    uxa_screen_t    *uxa_screen = uxa_get_screen(pDstDrawable->pScreen);
+    ScreenPtr       screen = pDstDrawable->pScreen;
+    uxa_screen_t    *uxa_screen = uxa_get_screen(screen);
     int		    src_off_x, src_off_y;
     int		    dst_off_x, dst_off_y;
     PixmapPtr	    pSrcPixmap, pDstPixmap;
@@ -492,9 +493,9 @@ uxa_copy_area(DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable, GCPtr pGC,
                                  srcx, srcy, width, height, dstx, dsty);
     }
 
-    return  fbDoCopy (pSrcDrawable, pDstDrawable, pGC,
-                      srcx, srcy, width, height,
-                      dstx, dsty, uxa_copy_n_to_n, 0, NULL);
+    return miDoCopy (pSrcDrawable, pDstDrawable, pGC,
+		     srcx, srcy, width, height,
+		     dstx, dsty, uxa_copy_n_to_n, 0, NULL);
 }
 
 static void
@@ -840,7 +841,7 @@ uxa_copy_window(WindowPtr pWin, DDXPointRec ptOldOrg, RegionPtr prgnSrc)
 			  -pPixmap->screen_x, -pPixmap->screen_y);
 #endif
 
-    fbCopyRegion (&pPixmap->drawable, &pPixmap->drawable,
+    miCopyRegion (&pPixmap->drawable, &pPixmap->drawable,
 		  NULL,
 		  &rgnDst, dx, dy, uxa_copy_n_to_n, 0, NULL);
 
@@ -976,6 +977,68 @@ out:
     return ret;
 }
 
+#ifndef SERVER_1_5
+void
+uxa_paint_window(WindowPtr pWin, RegionPtr pRegion, int what)
+{
+    ScreenPtr       screen = pWin->drawable.pScreen;
+    uxa_screen_t    *uxa_screen = uxa_get_screen(screen);
+    DDXPointRec     zeros = { 0, 0 };
+
+    if (REGION_NIL(pRegion))
+	return;
+
+    if (uxa_screen->swappedOut) {
+	uxa_check_paint_window(pWin, pRegion, what);
+	return;
+    }
+
+    switch (what) {
+    case PW_BACKGROUND:
+	switch (pWin->backgroundState) {
+	case None:
+	    return;
+	case ParentRelative:
+	    do {
+		pWin = pWin->parent;
+	    } while (pWin->backgroundState == ParentRelative);
+	    (*pWin->drawable.pScreen->PaintWindowBackground)(pWin, pRegion,
+							     what);
+	    return;
+	case BackgroundPixel:
+	    if (uxa_fill_region_solid(&pWin->drawable, pRegion,
+				      pWin->background.pixel,
+				      FB_ALLONES, GXcopy))
+		return;
+	    break;
+	case BackgroundPixmap:
+	    if (uxa_fill_region_tiled(&pWin->drawable, pRegion,
+				      pWin->background.pixmap,
+				      &zeros, FB_ALLONES, GXcopy))
+		return;
+	    break;
+	}
+	break;
+    case PW_BORDER:
+	if (pWin->borderIsPixel) {
+	    if (uxa_fill_region_solid(&pWin->drawable, pRegion,
+				      pWin->border.pixel,
+				      FB_ALLONES, GXcopy))
+		return;
+	    break;
+	} else {
+	    if (uxa_fill_region_tiled(&pWin->drawable, pRegion,
+				      pWin->border.pixmap,
+				      &zeros, FB_ALLONES, GXcopy))
+		return;
+	    break;
+	}
+	break;
+    }
+
+    uxa_check_paint_window(pWin, pRegion, what);
+}
+#endif /* !SERVER_1_5 */
 
 /**
  * Accelerates GetImage for solid ZPixmap downloads from framebuffer memory.
@@ -988,7 +1051,8 @@ void
 uxa_get_image (DrawablePtr pDrawable, int x, int y, int w, int h,
 	       unsigned int format, unsigned long planeMask, char *d)
 {
-    uxa_screen_t    *uxa_screen = uxa_get_screen(pDrawable->pScreen);
+    ScreenPtr       screen = pDrawable->pScreen;
+    uxa_screen_t    *uxa_screen = uxa_get_screen(screen);
     BoxRec	    Box;
     PixmapPtr	    pPix = uxa_get_drawable_pixmap (pDrawable);
     int		    xoff, yoff;

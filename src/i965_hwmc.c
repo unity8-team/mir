@@ -44,6 +44,7 @@
 
 static PutImageFuncPtr XvPutImage;
 
+#if 0
 static int alloc_drm_memory_tiled(ScrnInfoPtr pScrn, 
 	struct drm_memory_block *mem,
 	char *name, size_t size, unsigned long pitch, unsigned long alignment)
@@ -69,6 +70,8 @@ static int alloc_drm_memory_tiled(ScrnInfoPtr pScrn,
     mem->offset = mem->buffer->offset;
     return Success;
 }
+#endif
+
 static int alloc_drm_memory(ScrnInfoPtr pScrn, 
 	struct drm_memory_block *mem, 
 	char *name, size_t size)
