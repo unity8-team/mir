@@ -96,7 +96,7 @@ int
 I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   I830RingBuffer *ring = pI830->LpRing;
+   I830RingBuffer *ring = &pI830->ring;
    int iters = 0;
    unsigned int start = 0;
    unsigned int now = 0;
@@ -188,8 +188,6 @@ I830Sync(ScrnInfoPtr pScrn)
    }
 #endif
 
-   if (pI830->entityPrivate && !pI830->entityPrivate->RingRunning) return;
-
    I830EmitFlush(pScrn);
 
    intel_batch_flush(pScrn, TRUE);
@@ -253,11 +251,6 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
    case I830_SELECT_BACK:
       pI830->bufferOffset = pI830->back_buffer->offset;
       if (pI830->back_buffer->tiling == TILE_YMAJOR)
-	 return FALSE;
-      break;
-   case I830_SELECT_THIRD:
-      pI830->bufferOffset = pI830->third_buffer->offset;
-      if (pI830->third_buffer->tiling == TILE_YMAJOR)
 	 return FALSE;
       break;
    case I830_SELECT_DEPTH:

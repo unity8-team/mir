@@ -122,7 +122,7 @@ intel_next_batch(ScrnInfoPtr pScrn)
      * so we have to reinitialize our 3D state per batch.
      */
     if (pI830->directRenderingType == DRI_DRI2)
-	*pI830->last_3d = LAST_3D_OTHER;
+	pI830->last_3d = LAST_3D_OTHER;
 }
 
 void
@@ -159,6 +159,7 @@ intel_batch_teardown(ScrnInfoPtr pScrn)
 
     if (pI830->batch_ptr != NULL) {
 	dri_bo_unmap(pI830->batch_bo);
+	dri_bo_unreference(pI830->batch_bo);
 	pI830->batch_ptr = NULL;
     }
 }

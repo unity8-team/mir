@@ -84,11 +84,23 @@ i830_crt_restore (xf86OutputPtr output)
 static int
 i830_crt_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr	pI830 = I830PTR(pScrn);
+    int		maxclock;
+
     if (pMode->Flags & V_DBLSCAN)
 	return MODE_NO_DBLESCAN;
 
-    if (pMode->Clock > 400000 || pMode->Clock < 25000)
-	return MODE_CLOCK_RANGE;
+    if (pMode->Clock < 25000)
+	return MODE_CLOCK_LOW;
+
+    if (!IS_I9XX(pI830))
+	maxclock = 350000;
+    else
+	maxclock = 400000;
+
+    if (pMode->Clock > maxclock)
+	return MODE_CLOCK_HIGH;
 
     return MODE_OK;
 }

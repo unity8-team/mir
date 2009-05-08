@@ -56,8 +56,13 @@ enum tv_margin {
 /** Private structure for the integrated TV support */
 struct i830_tv_priv {
     int type;
+    Bool force_type;
     char *tv_format;
     int margin[4];
+    uint8_t brightness;
+    uint8_t contrast;
+    uint8_t saturation;
+    uint8_t hue;
     uint32_t save_TV_H_CTL_1;
     uint32_t save_TV_H_CTL_2;
     uint32_t save_TV_H_CTL_3;
@@ -1019,6 +1024,96 @@ i830_float_to_luma (float f)
     return ret;
 }
 
+static uint8_t
+float_to_float_2_6(float fin)
+{
+    uint8_t exp;
+    uint8_t mant;
+    float f = fin;
+    uint32_t tmp;
+
+    if (f < 0) f = -f;
+
+    tmp = f;
+    for (exp = 0; exp <= 3 && tmp > 0; exp++)
+	tmp /= 2;
+
+    mant = (f * (1 << 6) + 0.5);
+    mant >>= exp;
+    if (mant > (1 << 6))
+	mant = (1 << 6) - 1;
+
+    return (exp << 6) | mant;
+}
+
+static uint8_t
+float_to_fix_2_6(float f)
+{
+    uint8_t ret;
+
+    ret = f * (1 << 6);
+    return ret;
+}
+
+static void
+i830_tv_update_brightness(I830Ptr pI830, uint8_t brightness)
+{
+    /* brightness in 2's comp value */
+    uint32_t val = INREG(TV_CLR_KNOBS) & ~TV_BRIGHTNESS_MASK;
+    int8_t bri = brightness - 128; /* remove bias */
+
+    val |= (bri << TV_BRIGHTNESS_SHIFT) & TV_BRIGHTNESS_MASK;
+    OUTREG(TV_CLR_KNOBS, val);
+}
+
+static void
+i830_tv_update_contrast(I830Ptr pI830, uint8_t contrast)
+{
+    uint32_t val = INREG(TV_CLR_KNOBS) & ~TV_CONTRAST_MASK;;
+    float con;
+    uint8_t c;
+
+    if (IS_I965G(pI830)) {
+	/* 2.6 fixed point */
+	con = 3.0 * ((float) contrast / 255);
+	c = float_to_fix_2_6(con);
+    } else {
+	/* 2.6 floating point */
+	con = 2.65625 * ((float) contrast / 255);
+	c = float_to_float_2_6(con);
+    }
+    val |= (c << TV_CONTRAST_SHIFT) & TV_CONTRAST_MASK;
+    OUTREG(TV_CLR_KNOBS, val);
+}
+
+static void
+i830_tv_update_saturation(I830Ptr pI830, uint8_t saturation)
+{
+    uint32_t val = INREG(TV_CLR_KNOBS) & ~TV_SATURATION_MASK;
+    float sat;
+    uint8_t s;
+
+    /* same as contrast */
+    if (IS_I965G(pI830)) {
+	sat = 3.0 * ((float) saturation / 255);
+	s = float_to_fix_2_6(sat);
+    } else {
+	sat = 2.65625 * ((float) saturation / 255);
+	s = float_to_float_2_6(sat);
+    }
+    val |= (s << TV_SATURATION_SHIFT) & TV_SATURATION_MASK;
+    OUTREG(TV_CLR_KNOBS, val);
+}
+
+static void
+i830_tv_update_hue(I830Ptr pI830, uint8_t hue)
+{
+    uint32_t val = INREG(TV_CLR_KNOBS) & ~TV_HUE_MASK;
+
+    val |= (hue << TV_HUE_SHIFT) & TV_HUE_MASK;
+    OUTREG(TV_CLR_KNOBS, val);
+}
+
 static void
 i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode)
@@ -1180,14 +1275,6 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    (i830_float_to_csc(color_conversion->bv) << 16) |
 	    (i830_float_to_luma(color_conversion->av)));
 
-    if (IS_I965G(pI830)) {
-	/* 2.6 fixed point value for contrast and saturation modifier,
-	   use 1 as default */
-	OUTREG(TV_CLR_KNOBS, 0x00404000);
-    } else {
-	/* 915/945 uses 2 bits exponent and 6 bits mantissa format */
-	OUTREG(TV_CLR_KNOBS, 0x00606000);
-    }
     OUTREG(TV_CLR_LEVEL, ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 		(video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
     {
@@ -1371,6 +1458,10 @@ i830_tv_detect(xf86OutputPtr output)
     int			    dpms_mode;
     int			    type = dev_priv->type;
 
+    /* If TV connector type set by user, always return connected */
+    if (dev_priv->force_type)
+	return XF86OutputStatusConnected;
+
     mode = reported_modes[0];
     xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
     crtc = i830GetLoadDetectPipe (output, &mode, &dpms_mode);
@@ -1405,10 +1496,10 @@ static struct input_res {
 {
 	{"640x480", 640, 480},
 	{"800x600", 800, 600},
-	{"1024x768", 1024, 768},
-	{"1280x1024", 1280, 1024},
 	{"848x480", 848, 480},
+	{"1024x768", 1024, 768},
 	{"1280x720", 1280, 720},
+	{"1280x1024", 1280, 1024},
 	{"1920x1080", 1920, 1080},
 };
 
@@ -1488,6 +1579,26 @@ static char *margin_names[4] = {
     "LEFT", "TOP", "RIGHT", "BOTTOM"
 };
 
+/**
+ *  contrast and saturation has different format on 915/945 with 965.
+ *  On 915/945, it's 2.6 floating point number.
+ *  On 965, it's 2.6 fixed point number.
+ */
+#define TV_BRIGHTNESS_NAME "BRIGHTNESS"
+#define TV_BRIGHTNESS_DEFAULT 128	/* bias */
+static Atom brightness_atom;
+#define TV_CONTRAST_NAME "CONTRAST"
+#define TV_CONTRAST_DEFAULT 0x40
+#define TV_CONTRAST_DEFAULT_945G 0x60
+static Atom contrast_atom;
+#define TV_SATURATION_NAME "SATURATION"
+#define TV_SATURATION_DEFAULT 0x40
+#define TV_SATURATION_DEFAULT_945G 0x60
+static Atom saturation_atom;
+#define TV_HUE_NAME "HUE"
+#define TV_HUE_DEFAULT 0
+static Atom hue_atom;
+
 static Bool
 i830_tv_format_set_property (xf86OutputPtr output)
 {
@@ -1533,6 +1644,62 @@ i830_tv_format_configure_property (xf86OutputPtr output)
 				     num_atoms, (INT32 *) current_atoms);
 }
 
+static void
+i830_tv_color_set_property(xf86OutputPtr output, Atom property,
+			   uint8_t val)
+{
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
+
+    if (property == brightness_atom) {
+	dev_priv->brightness = val;
+	i830_tv_update_brightness(pI830, val);
+    } else if (property == contrast_atom) {
+	dev_priv->contrast = val;
+	i830_tv_update_contrast(pI830, val);
+    } else if (property == saturation_atom) {
+	dev_priv->saturation = val;
+	i830_tv_update_saturation(pI830, val);
+    } else if (property == hue_atom) {
+	dev_priv->hue = val;
+	i830_tv_update_hue(pI830, val);
+    }
+}
+
+static void
+i830_tv_color_create_property(xf86OutputPtr output, Atom *property,
+			      char *name, int name_len, uint8_t val)
+{
+    ScrnInfoPtr	pScrn = output->scrn;
+    INT32 range[2];
+    int err = 0;
+
+    *property = MakeAtom(name, name_len - 1, TRUE);
+    range[0] = 0;
+    range[1] = 255;
+    err = RRConfigureOutputProperty(output->randr_output, *property,
+				    FALSE, TRUE, FALSE, 2, range);
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "RRConfigureOutputProperty error, %d\n", err);
+	goto out;
+    }
+    /* Set the current value */
+    i830_tv_color_set_property(output, *property, val);
+
+    err = RRChangeOutputProperty(output->randr_output, *property,
+				 XA_INTEGER, 32, PropModeReplace, 1, &val,
+				 FALSE, FALSE);
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "RRChangeOutputProperty error, %d\n", err);
+    }
+out:
+    return;
+}
+
 #endif /* RANDR_12_INTERFACE */
 
 static void
@@ -1540,10 +1707,10 @@ i830_tv_create_resources(xf86OutputPtr output)
 {
 #ifdef RANDR_12_INTERFACE
     ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_tv_priv	    *dev_priv = intel_output->dev_priv;
-    int			    err;
-    int			    i;
+    int			    err, i;
 
     /* Set up the tv_format property, which takes effect on mode set
      * and accepts strings that match exactly
@@ -1591,6 +1758,23 @@ i830_tv_create_resources(xf86OutputPtr output)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRChangeOutputProperty error, %d\n", err);
     }
+
+    i830_tv_color_create_property(output, &brightness_atom,
+				  TV_BRIGHTNESS_NAME,
+				  sizeof(TV_BRIGHTNESS_NAME),
+				  TV_BRIGHTNESS_DEFAULT);
+    i830_tv_color_create_property(output, &contrast_atom,
+				  TV_CONTRAST_NAME,
+				  sizeof(TV_CONTRAST_NAME),
+				  IS_I965G(pI830) ? TV_CONTRAST_DEFAULT :
+						TV_CONTRAST_DEFAULT_945G);
+    i830_tv_color_create_property(output, &saturation_atom,
+				  TV_SATURATION_NAME,
+				  sizeof(TV_SATURATION_NAME),
+				  IS_I965G(pI830) ? TV_SATURATION_DEFAULT :
+						TV_SATURATION_DEFAULT_945G);
+    i830_tv_color_create_property(output, &hue_atom, TV_HUE_NAME,
+				  sizeof(TV_HUE_NAME), TV_HUE_DEFAULT);
 #endif /* RANDR_12_INTERFACE */
 }
 
@@ -1605,9 +1789,14 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
     {
 	I830OutputPrivatePtr    intel_output = output->driver_private;
 	struct i830_tv_priv	*dev_priv = intel_output->dev_priv;
+	I830Ptr			pI830 = I830PTR(output->scrn);
 	Atom			atom;
-	char			*name;
+	const char		*name;
 	char			*val;
+	RRCrtcPtr		randr_crtc;
+	xRRModeInfo		modeinfo;
+	RRModePtr		mode;
+	DisplayModePtr		crtc_mode;
 
 	if (value->type != XA_ATOM || value->format != 32 || value->size != 1)
 	    return FALSE;
@@ -1626,6 +1815,51 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
 	}
 	xfree (dev_priv->tv_format);
 	dev_priv->tv_format = val;
+
+	if (pI830->starting)
+	    return TRUE;
+
+	/* TV format change will generate new modelines, try
+	   to probe them and update outputs. */
+	xf86ProbeOutputModes(output->scrn, 0, 0);
+	 /* Mirror output modes to scrn mode list */
+	xf86SetScrnInfoModes (output->scrn);
+
+	for (crtc_mode = output->probed_modes; crtc_mode;
+		crtc_mode = crtc_mode->next)
+	{
+	    if (output->crtc->mode.HDisplay == crtc_mode->HDisplay &&
+		    output->crtc->mode.VDisplay == crtc_mode->VDisplay)
+		break;
+	}
+	if (!crtc_mode)
+	    crtc_mode = output->probed_modes;
+
+	xf86CrtcSetMode(output->crtc, crtc_mode, output->crtc->rotation,
+		output->crtc->x, output->crtc->y);
+
+	xf86RandR12TellChanged(output->scrn->pScreen);
+
+	modeinfo.width = crtc_mode->HDisplay;
+	modeinfo.height = crtc_mode->VDisplay;
+	modeinfo.dotClock = crtc_mode->Clock * 1000;
+	modeinfo.hSyncStart = crtc_mode->HSyncStart;
+	modeinfo.hSyncEnd = crtc_mode->HSyncEnd;
+	modeinfo.hTotal = crtc_mode->HTotal;
+	modeinfo.hSkew = crtc_mode->HSkew;
+	modeinfo.vSyncStart = crtc_mode->VSyncStart;
+	modeinfo.vSyncEnd = crtc_mode->VSyncEnd;
+	modeinfo.vTotal = crtc_mode->VTotal;
+	modeinfo.nameLength = strlen(crtc_mode->name);
+	modeinfo.modeFlags = crtc_mode->Flags;
+
+	mode = RRModeGet(&modeinfo, crtc_mode->name);
+	randr_crtc = output->crtc->randr_crtc;
+	if (mode != randr_crtc->mode) {
+	    if (randr_crtc->mode)
+		RRModeDestroy(randr_crtc->mode);
+	    randr_crtc->mode = mode;
+	}
 	return TRUE;
     }
     for (i = 0; i < 4; i++)
@@ -1644,6 +1878,18 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
 	    dev_priv->margin[i] = val;
 	    return TRUE;
 	}
+    }
+    if (property == brightness_atom || property == contrast_atom ||
+	property == saturation_atom || property == hue_atom) {
+	uint8_t val;
+
+	/* Make sure value is sane */
+	if (value->type != XA_INTEGER || value->format != 32 ||
+	    value->size != 1)
+	    return FALSE;
+
+	memcpy (&val, value->data, 1);
+	i830_tv_color_set_property(output, property, val);
     }
 
     return TRUE;
@@ -1693,6 +1939,7 @@ i830_tv_init(ScrnInfoPtr pScrn)
     uint32_t		    tv_dac_on, tv_dac_off, save_tv_dac;
     XF86OptionPtr	    mon_option_lst = NULL;
     char		    *tv_format = NULL;
+    char		    *tv_type = NULL;
 
     if (pI830->quirk_flag & QUIRK_IGNORE_TV)
 	return;
@@ -1760,11 +2007,31 @@ i830_tv_init(ScrnInfoPtr pScrn)
     dev_priv->margin[TV_MARGIN_BOTTOM] = xf86SetIntOption (mon_option_lst,
 	    "Bottom", 37);
 
-    tv_format = xf86findOptionValue (mon_option_lst, "TV Format");
+    tv_format = xf86findOptionValue (mon_option_lst, "TV_Format");
     if (tv_format)
 	dev_priv->tv_format = xstrdup (tv_format);
     else
 	dev_priv->tv_format = xstrdup (tv_modes[0].name);
+
+    tv_type = xf86findOptionValue (mon_option_lst, "TV_Connector");
+    if (tv_type) {
+	dev_priv->force_type = TRUE;
+	if (strcasecmp(tv_type, "S-Video") == 0)
+	    dev_priv->type = TV_TYPE_SVIDEO;
+	else if (strcasecmp(tv_type, "Composite") == 0)
+	    dev_priv->type = TV_TYPE_COMPOSITE;
+	else if (strcasecmp(tv_type, "Component") == 0)
+	    dev_priv->type = TV_TYPE_COMPONENT;
+	else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Unknown TV Connector type %s\n", tv_type);
+	    dev_priv->force_type = FALSE;
+	}
+    }
+
+    if (dev_priv->force_type)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"Force TV Connector type as %s\n", tv_type);
 
     output->driver_private = intel_output;
     output->interlaceAllowed = FALSE;
