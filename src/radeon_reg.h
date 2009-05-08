@@ -4094,6 +4094,11 @@
 #       define R600_SCK_PRESCALE_CRYSTAL_CLK_SHIFT 28
 #       define R600_SCK_PRESCALE_CRYSTAL_CLK_MASK  (0xf << 28)
 
+#define R600_CG_SPLL_FUNC_CNTL                     0x600
+#       define R600_SPLL_BYPASS_EN                 (1 << 3)
+#define R600_CG_SPLL_STATUS                        0x60c
+#       define R600_SPLL_CHG_STATUS                (1 << 1)
+
 #define R600_BIOS_0_SCRATCH               0x1724
 #define R600_BIOS_1_SCRATCH               0x1728
 #define R600_BIOS_2_SCRATCH               0x172c

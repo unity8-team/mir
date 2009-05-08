@@ -107,7 +107,62 @@ radeon_read_disabled_bios(ScrnInfoPtr pScrn)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Attempting to read un-POSTed bios\n");
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+    if (info->ChipFamily >= CHIP_FAMILY_RV770) {
+	uint32_t viph_control   = INREG(RADEON_VIPH_CONTROL);
+	uint32_t bus_cntl       = INREG(RADEON_BUS_CNTL);
+	uint32_t d1vga_control  = INREG(AVIVO_D1VGA_CONTROL);
+	uint32_t d2vga_control  = INREG(AVIVO_D2VGA_CONTROL);
+	uint32_t vga_render_control  = INREG(AVIVO_VGA_RENDER_CONTROL);
+	uint32_t rom_cntl       = INREG(R600_ROM_CNTL);
+	uint32_t cg_spll_func_cntl = 0;
+	uint32_t cg_spll_status;
+
+	/* disable VIP */
+	OUTREG(RADEON_VIPH_CONTROL, (viph_control & ~RADEON_VIPH_EN));
+
+	/* enable the rom */
+	OUTREG(RADEON_BUS_CNTL, (bus_cntl & ~RADEON_BUS_BIOS_DIS_ROM));
+
+	/* Disable VGA mode */
+	OUTREG(AVIVO_D1VGA_CONTROL, (d1vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
+						       AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+	OUTREG(AVIVO_D2VGA_CONTROL, (d2vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
+						       AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+	OUTREG(AVIVO_VGA_RENDER_CONTROL, (vga_render_control & ~AVIVO_VGA_VSTATUS_CNTL_MASK));
+
+	if (info->ChipFamily == CHIP_FAMILY_RV730) {
+	    cg_spll_func_cntl = INREG(R600_CG_SPLL_FUNC_CNTL);
+
+	    /* enable bypass mode */
+	    OUTREG(R600_CG_SPLL_FUNC_CNTL, (cg_spll_func_cntl | R600_SPLL_BYPASS_EN));
+
+	    /* wait for SPLL_CHG_STATUS to change to 1 */
+	    cg_spll_status = 0;
+	    while (!(cg_spll_status & R600_SPLL_CHG_STATUS))
+		cg_spll_status = INREG(R600_CG_SPLL_STATUS);
+
+	    OUTREG(R600_ROM_CNTL, (rom_cntl & ~R600_SCK_OVERWRITE));
+	} else
+	    OUTREG(R600_ROM_CNTL, (rom_cntl | R600_SCK_OVERWRITE));
+
+	ret = radeon_read_bios(pScrn);
+
+	/* restore regs */
+	if (info->ChipFamily == CHIP_FAMILY_RV730) {
+	    OUTREG(R600_CG_SPLL_FUNC_CNTL, cg_spll_func_cntl);
+
+	    /* wait for SPLL_CHG_STATUS to change to 1 */
+	    cg_spll_status = 0;
+	    while (!(cg_spll_status & R600_SPLL_CHG_STATUS))
+		cg_spll_status = INREG(R600_CG_SPLL_STATUS);
+	}
+	OUTREG(RADEON_VIPH_CONTROL, viph_control);
+	OUTREG(RADEON_BUS_CNTL, bus_cntl);
+	OUTREG(AVIVO_D1VGA_CONTROL, d1vga_control);
+	OUTREG(AVIVO_D2VGA_CONTROL, d2vga_control);
+	OUTREG(AVIVO_VGA_RENDER_CONTROL, vga_render_control);
+	OUTREG(R600_ROM_CNTL, rom_cntl);
+    } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	uint32_t viph_control   = INREG(RADEON_VIPH_CONTROL);
 	uint32_t bus_cntl       = INREG(RADEON_BUS_CNTL);
 	uint32_t d1vga_control  = INREG(AVIVO_D1VGA_CONTROL);
@@ -127,7 +182,7 @@ radeon_read_disabled_bios(ScrnInfoPtr pScrn)
 	/* enable the rom */
 	OUTREG(RADEON_BUS_CNTL, (bus_cntl & ~RADEON_BUS_BIOS_DIS_ROM));
 
-        /* Disable VGA mode */
+	/* Disable VGA mode */
 	OUTREG(AVIVO_D1VGA_CONTROL, (d1vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
 						       AVIVO_DVGA_CONTROL_TIMING_SELECT)));
 	OUTREG(AVIVO_D2VGA_CONTROL, (d2vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
