@@ -254,6 +254,7 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_RV770_9440, "ATI Radeon 4800 Series" },
   { PCI_CHIP_RV770_9441, "ATI Radeon HD 4870 x2" },
   { PCI_CHIP_RV770_9442, "ATI Radeon 4800 Series" },
+  { PCI_CHIP_RV770_9443, "ATI Radeon HD 4850 x2" },
   { PCI_CHIP_RV770_9444, "ATI FirePro V8750 (FireGL)" },
   { PCI_CHIP_RV770_9446, "ATI FirePro V7760 (FireGL)" },
   { PCI_CHIP_RV770_944A, "ATI Mobility RADEON HD 4850" },
