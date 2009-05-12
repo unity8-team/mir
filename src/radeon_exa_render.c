@@ -1099,9 +1099,6 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
      */
     txformat0 |= R300_TXPITCH_EN;
 
-    info->accel_state->texW[unit] = w;
-    info->accel_state->texH[unit] = h;
-
     txfilter = (unit << R300_TX_ID_SHIFT);
 
     if (pPict->repeat) {
@@ -1160,8 +1157,61 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     if (pPict->transform != 0) {
 	info->accel_state->is_transform[unit] = TRUE;
 	info->accel_state->transform[unit] = pPict->transform;
+
+	/* setup the PVS consts */
+	if (info->accel_state->has_tcl) {
+	    info->accel_state->texW[unit] = 1;
+	    info->accel_state->texH[unit] = 1;
+	    BEGIN_ACCEL(9);
+	    if (IS_R300_3D)
+		OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_INDX_REG, R300_PVS_VECTOR_CONST_INDEX(unit * 2));
+	    else
+		OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_INDX_REG, R500_PVS_VECTOR_CONST_INDEX(unit * 2));
+
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(xFixedToFloat(pPict->transform->matrix[0][0])));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(xFixedToFloat(pPict->transform->matrix[0][1])));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(xFixedToFloat(pPict->transform->matrix[0][2])));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(1.0/w));
+
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(xFixedToFloat(pPict->transform->matrix[1][0])));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(xFixedToFloat(pPict->transform->matrix[1][1])));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(xFixedToFloat(pPict->transform->matrix[1][2])));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(1.0/h));
+
+	    FINISH_ACCEL();
+	} else {
+	    info->accel_state->texW[unit] = w;
+	    info->accel_state->texH[unit] = h;
+	}
     } else {
 	info->accel_state->is_transform[unit] = FALSE;
+
+	/* setup the PVS consts */
+	if (info->accel_state->has_tcl) {
+	    info->accel_state->texW[unit] = 1;
+	    info->accel_state->texH[unit] = 1;
+
+	    BEGIN_ACCEL(9);
+	    if (IS_R300_3D)
+		OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_INDX_REG, R300_PVS_VECTOR_CONST_INDEX(unit * 2));
+	    else
+		OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_INDX_REG, R500_PVS_VECTOR_CONST_INDEX(unit * 2));
+
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(1.0));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(0.0));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(0.0));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(1.0/w));
+
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(0.0));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(1.0));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(0.0));
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG, F_TO_DW(1.0/h));
+
+	    FINISH_ACCEL();
+	} else {
+	    info->accel_state->texW[unit] = w;
+	    info->accel_state->texH[unit] = h;
+	}
     }
 
     return TRUE;
@@ -1310,9 +1360,10 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     /* setup the VAP */
     if (info->accel_state->has_tcl) {
 	if (pMask)
-	    BEGIN_ACCEL(8);
+	    BEGIN_ACCEL(10);
 	else
-	    BEGIN_ACCEL(7);
+	    BEGIN_ACCEL(9);
+	OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
     } else {
 	if (pMask)
 	    BEGIN_ACCEL(6);
@@ -1363,22 +1414,28 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     /* load the vertex shader
      * We pre-load vertex programs in RADEONInit3DEngine():
-     * - exa no mask
-     * - exa mask
+     * - exa
      * - Xv
+     * - Xv bicubic
      * Here we select the offset of the vertex program we want to use
      */
     if (info->accel_state->has_tcl) {
 	if (pMask) {
+	    /* consts used by vertex shaders */
+	    OUT_ACCEL_REG(R300_VAP_PVS_CONST_CNTL, (R300_PVS_CONST_BASE_OFFSET(0) |
+						    R300_PVS_MAX_CONST_ADDR(3)));
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
-			   (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
-			   (2 << R300_PVS_LAST_INST_SHIFT)));
+			   (8 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			   (8 << R300_PVS_LAST_INST_SHIFT)));
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
-			  (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+			  (8 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	} else {
+	    /* consts used by vertex shaders */
+	    OUT_ACCEL_REG(R300_VAP_PVS_CONST_CNTL, (R300_PVS_CONST_BASE_OFFSET(0) |
+						    R300_PVS_MAX_CONST_ADDR(3)));
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
-			  ((3 << R300_PVS_FIRST_INST_SHIFT) |
+			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
 			   (4 << R300_PVS_XYZW_VALID_INST_SHIFT) |
 			   (4 << R300_PVS_LAST_INST_SHIFT)));
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
@@ -2054,10 +2111,12 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
     srcBottomRight.y = IntToxFixed(srcY + h);
 
     if (info->accel_state->is_transform[0]) {
-	transformPoint(info->accel_state->transform[0], &srcTopLeft);
-	transformPoint(info->accel_state->transform[0], &srcTopRight);
-	transformPoint(info->accel_state->transform[0], &srcBottomLeft);
-	transformPoint(info->accel_state->transform[0], &srcBottomRight);
+	if ((info->ChipFamily < CHIP_FAMILY_R300) || !info->accel_state->has_tcl) {
+	    transformPoint(info->accel_state->transform[0], &srcTopLeft);
+	    transformPoint(info->accel_state->transform[0], &srcTopRight);
+	    transformPoint(info->accel_state->transform[0], &srcBottomLeft);
+	    transformPoint(info->accel_state->transform[0], &srcBottomRight);
+	}
     }
 
     if (info->accel_state->has_mask) {
@@ -2071,10 +2130,12 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	maskBottomRight.y = IntToxFixed(maskY + h);
 
 	if (info->accel_state->is_transform[1]) {
-	    transformPoint(info->accel_state->transform[1], &maskTopLeft);
-	    transformPoint(info->accel_state->transform[1], &maskTopRight);
-	    transformPoint(info->accel_state->transform[1], &maskBottomLeft);
-	    transformPoint(info->accel_state->transform[1], &maskBottomRight);
+	    if ((info->ChipFamily < CHIP_FAMILY_R300) || !info->accel_state->has_tcl) {
+		transformPoint(info->accel_state->transform[1], &maskTopLeft);
+		transformPoint(info->accel_state->transform[1], &maskTopRight);
+		transformPoint(info->accel_state->transform[1], &maskBottomLeft);
+		transformPoint(info->accel_state->transform[1], &maskBottomRight);
+	    }
 	}
 
 	vtx_count = 6;

@@ -4284,6 +4284,12 @@
 #define R300_VAP_PVS_CODE_CNTL_1			0x22D8
 #       define R300_PVS_LAST_VTX_SRC_INST_SHIFT         0
 #define R300_VAP_PVS_VECTOR_INDX_REG		        0x2200
+#       define R300_PVS_CODE_START                      0
+#       define R300_PVS_CONST_START                     512
+#       define R500_PVS_CONST_START                     1024
+#       define R300_PVS_VECTOR_INST_INDEX(x)            ((x) + R300_PVS_CODE_START)
+#       define R300_PVS_VECTOR_CONST_INDEX(x)           ((x) + R300_PVS_CONST_START)
+#       define R500_PVS_VECTOR_CONST_INDEX(x)           ((x) + R500_PVS_CONST_START)
 #define R300_VAP_PVS_VECTOR_DATA_REG		        0x2204
 /* PVS instructions */
 /* Opcode and dst instruction */
@@ -4401,6 +4407,10 @@
 #define R300_PVS_SRC_NEG_W                              (1 << 28)
 #define R300_PVS_SRC_ADDR_SEL(x)                        ((x) << 29)
 #define R300_PVS_SRC_ADDR_MODE_1                        (1 << 31)
+
+#define R300_VAP_PVS_CONST_CNTL                         0x22d4
+#       define R300_PVS_CONST_BASE_OFFSET(x)            ((x) << 0)
+#       define R300_PVS_MAX_CONST_ADDR(x)               ((x) << 16)
 
 #define R300_VAP_PVS_FLOW_CNTL_OPC		        0x22dc
 #define R300_VAP_OUT_VTX_FMT_0			        0x2090
@@ -5440,9 +5450,6 @@
 #   define R500_W_FMT_W24FP				(2 << 0)
 #   define R500_W_SRC_US				(0 << 2)
 #   define R500_W_SRC_RAS				(1 << 2)
-
-#define R500_GA_US_VECTOR_INDEX 0x4250
-#define R500_GA_US_VECTOR_DATA 0x4254
 
 #define R500_RS_INST_0					0x4320
 #define R500_RS_INST_1					0x4324

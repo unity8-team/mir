@@ -1213,26 +1213,26 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     /* load the vertex shader
      * We pre-load vertex programs in RADEONInit3DEngine():
-     * - exa mask/Xv bicubic
-     * - exa no mask
+     * - exa
      * - Xv
+     * - Xv bicubic
      * Here we select the offset of the vertex program we want to use
      */
     if (info->accel_state->has_tcl) {
 	if (pPriv->bicubic_enabled) {
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
-			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
-			   (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
-			   (2 << R300_PVS_LAST_INST_SHIFT)));
+			  ((11 << R300_PVS_FIRST_INST_SHIFT) |
+			   (13 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			   (13 << R300_PVS_LAST_INST_SHIFT)));
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
-			  (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+			  (13 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	} else {
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
-			  ((5 << R300_PVS_FIRST_INST_SHIFT) |
-			   (6 << R300_PVS_XYZW_VALID_INST_SHIFT) |
-			   (6 << R300_PVS_LAST_INST_SHIFT)));
+			  ((9 << R300_PVS_FIRST_INST_SHIFT) |
+			   (10 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			   (10 << R300_PVS_LAST_INST_SHIFT)));
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
-			  (6 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+			  (10 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	}
     }
 
@@ -2643,26 +2643,26 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     /* load the vertex shader
      * We pre-load vertex programs in RADEONInit3DEngine():
-     * - exa mask/Xv bicubic
-     * - exa no mask
+     * - exa
      * - Xv
+     * - Xv bicubic
      * Here we select the offset of the vertex program we want to use
      */
     if (info->accel_state->has_tcl) {
 	if (pPriv->bicubic_enabled) {
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
-			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
-			   (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
-			   (2 << R300_PVS_LAST_INST_SHIFT)));
+			  ((11 << R300_PVS_FIRST_INST_SHIFT) |
+			   (13 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			   (13 << R300_PVS_LAST_INST_SHIFT)));
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
-			  (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+			  (13 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	} else {
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
-			  ((5 << R300_PVS_FIRST_INST_SHIFT) |
-			   (6 << R300_PVS_XYZW_VALID_INST_SHIFT) |
-			   (6 << R300_PVS_LAST_INST_SHIFT)));
+			  ((9 << R300_PVS_FIRST_INST_SHIFT) |
+			   (10 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			   (10 << R300_PVS_LAST_INST_SHIFT)));
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
-			  (6 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+			  (10 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	}
     }
 
