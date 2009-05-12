@@ -2319,7 +2319,7 @@ i830_memory_init(ScrnInfoPtr pScrn)
 
     tiled = i830_tiled_width(pI830, &pScrn->displayWidth, pI830->cpp);
     /* Set up our video memory allocator for the chosen videoRam */
-    if (!i830_allocator_init(pScrn, 0, pScrn->videoRam * KB(1))) {
+    if (!i830_allocator_init(pScrn, pScrn->videoRam * KB(1))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		"Couldn't initialize video memory allocator\n");
 	PreInitCleanup(pScrn);

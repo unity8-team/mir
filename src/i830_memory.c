@@ -364,7 +364,7 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
  * addresses to reference.
  */
 Bool
-i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
+i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *start, *end;
@@ -395,12 +395,12 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
     }
 
     start->key = -1;
-    start->offset = offset;
+    start->offset = 0;
     start->end = start->offset;
     start->size = 0;
     start->next = end;
     end->key = -1;
-    end->offset = offset + size;
+    end->offset = size;
     end->end = end->offset;
     end->size = 0;
     end->prev = start;
