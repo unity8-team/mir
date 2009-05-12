@@ -2214,6 +2214,43 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPE_PIXEL_MASK		0x00ffffff
 #define PIPE_PIXEL_SHIFT	0
 
+/*
+ * Computing GMCH M and N values.
+ *
+ * GMCH M/N = dot clock * bytes per pixel / ls_clk * # of lanes
+ *
+ * ls_clk (we assume) is the DP link clock (1.62 or 2.7 GHz)
+ *
+ * The GMCH value is used internally
+ */
+#define PIPEA_GMCH_DATA_M	0x70050
+
+/* Transfer unit size for display port - 1, default is 0x3f (for TU size 64) */
+#define PIPE_GMCH_DATA_M_TU_SIZE_MASK	(0x3f << 25)
+#define PIPE_GMCH_DATA_M_TU_SIZE_SHIFT	25
+
+#define PIPE_GMCH_DATA_M_MASK		(0xffffff)
+
+#define PIPEA_GMCH_DATA_N	0x70054
+#define PIPE_GMCH_DATA_N_MASK		(0xffffff)
+
+/*
+ * Computing Link M and N values.
+ *
+ * Link M / N = pixel_clock / ls_clk
+ *
+ * (the DP spec calls pixel_clock the 'strm_clk')
+ *
+ * The Link value is transmitted in the Main Stream
+ * Attributes and VB-ID.
+ */
+
+#define PIPEA_DP_LINK_M		0x70060
+#define PIPEA_DP_LINK_M_MASK	(0xffffff)
+
+#define PIPEA_DP_LINK_N		0x70064
+#define PIPEA_DP_LINK_N_MASK	(0xffffff)
+
 #define PIPEB_DSL		0x71000
 
 #define PIPEBCONF 0x71008
@@ -2230,6 +2267,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPEBSTAT		0x71024
 #define PIPEBFRAMEHIGH		0x71040
 #define PIPEBFRAMEPIXEL		0x71044
+
+#define PIPEB_GMCH_DATA_M	0x71050
+#define PIPEB_GMCH_DATA_N	0x71054
+#define PIPEB_DP_LINK_M		0x71060
+#define PIPEB_DP_LINK_N		0x71064
 
 #define DSPACNTR		0x70180
 #define DSPBCNTR		0x71180
