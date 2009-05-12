@@ -33,8 +33,19 @@ The process for releasing a new tarball is as follows:
 
 	$ <path_to>/util/modular/release.sh driver <last_ver> <ver>
 
-7. Edit the generated release message as needed and send it out
+7. Edit and send the generated release message.
 
 	At the very least, add the release notes from the NEWS file.
+
+	The message is generated as xf86-video-inte-<version>.announce
+
+	For snapshots and release candidates, mail to:
+
+		intel-gfx@lists.freedesktop.org
+
+	For major releases also send to:
+
+		xorg@lists.freedesktop.org
+		xorg-announce@lists.freedesktop.org
 
 8. Throw a release party, you're done! :)
