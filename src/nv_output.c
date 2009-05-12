@@ -831,6 +831,12 @@ static void nv_digital_output_prepare_sel_clk(NVPtr pNv, struct nouveau_encoder 
 			   NV_PRAMDAC_FP_TG_CONTROL_HSYNC_DISABLE |	\
 			   NV_PRAMDAC_FP_TG_CONTROL_VSYNC_DISABLE)
 
+static bool is_fpc_off(uint32_t fpc)
+{
+	return ((fpc & (FP_TG_CONTROL_ON | FP_TG_CONTROL_OFF)) ==
+							FP_TG_CONTROL_OFF);
+}
+
 static void
 nv_output_prepare(xf86OutputPtr output)
 {
@@ -963,8 +969,7 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 		nv_crtc = to_nouveau_crtc(crtc);
 		fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
 
-		if ((*fpc & (FP_TG_CONTROL_ON | FP_TG_CONTROL_OFF)) ==
-							FP_TG_CONTROL_OFF)
+		if (is_fpc_off(*fpc))
 			/* using saved value is ok, as (is_digital && dpms_on &&
 			 * fp_control==OFF) is (at present) *only* true when
 			 * fpc's most recent change was by below "off" code
@@ -979,7 +984,7 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 			fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
 
 			nv_crtc->fp_users &= ~(1 << nv_encoder->dcb->index);
-			if (!nv_crtc->fp_users) {
+			if (!is_fpc_off(*fpc) && !nv_crtc->fp_users) {
 				nv_crtc->dpms_saved_fp_control = *fpc;
 				/* cut the FP output */
 				*fpc &= ~FP_TG_CONTROL_ON;
@@ -990,10 +995,17 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 		}
 }
 
+static bool is_powersaving_dpms(int mode)
+{
+	return (mode == DPMSModeStandby || mode == DPMSModeSuspend ||
+							mode == DPMSModeOff);
+}
+
 static void
 lvds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86CrtcPtr crtc, int mode)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	bool was_powersaving = is_powersaving_dpms(nv_encoder->last_dpms);
 
 	if (nv_encoder->last_dpms == mode)
 		return;
@@ -1001,6 +1013,9 @@ lvds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 
 	NV_TRACE(pScrn, "Setting dpms mode %d on lvds encoder (output %d)\n",
 		 mode, nv_encoder->dcb->index);
+
+	if (was_powersaving && is_powersaving_dpms(mode))
+		return;
 
 	if (nv_encoder->dcb->lvdsconf.use_power_scripts) {
 		/* when removing an output, crtc may not be set, but PANEL_OFF

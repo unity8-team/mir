@@ -182,7 +182,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* nv4ref indicates these two RPC1 bits inhibit h/v sync */
 	crtc1A = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_RPC1_INDEX) & ~0xC0;
 	switch(mode) {
-		case DPMSModeStandby:
+	case DPMSModeStandby:
 		/* Screen: Off; HSync: Off, VSync: On -- Not Supported */
 		seq1 = 0x20;
 		crtc17 = 0x80;
