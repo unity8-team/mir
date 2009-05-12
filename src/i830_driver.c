@@ -1009,6 +1009,14 @@ static Bool i830_kernel_mode_enabled(ScrnInfoPtr pScrn)
     busIdString = DRICreatePCIBusID(PciInfo);
 
     ret = drmCheckModesettingSupported(busIdString);
+    if (ret)
+	if (xf86LoadKernelModule("i915")) {
+	    ret = drmCheckModesettingSupported(busIdString);
+
+	    /* Be nice to the user and load fbcon too */
+	    if (!ret)
+		(void) xf86LoadKernelModule("fbcon");
+	}
     xfree(busIdString);
     if (ret)
 	return FALSE;
