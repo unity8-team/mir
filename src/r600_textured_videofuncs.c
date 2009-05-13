@@ -160,6 +160,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int ref = pPriv->transform_index;
     Bool needgamma = FALSE;
     float ps_alu_consts[12];
+    float vs_alu_consts[4];
 
     cont = RTFContrast(pPriv->contrast);
     bright = RTFBrightness(pPriv->brightness);
@@ -521,6 +522,15 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
 
 
+    vs_alu_consts[0] = 1.0 / pPriv->w;
+    vs_alu_consts[1] = 1.0 / pPriv->h;
+    vs_alu_consts[2] = 0.0;
+    vs_alu_consts[3] = 0.0;
+
+    /* VS alu constants */
+    set_alu_consts(pScrn, accel_state->ib, SQ_ALU_CONSTANT_vs,
+		   sizeof(vs_alu_consts) / SQ_ALU_CONSTANT_offset, vs_alu_consts);
+
     if (pPriv->vsync) {
 	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
 						    pPriv->drw_x,
@@ -571,18 +581,18 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
-	vb[2] = (float)srcX / pPriv->w;
-	vb[3] = (float)srcY / pPriv->h;
+	vb[2] = (float)srcX;
+	vb[3] = (float)srcY;
 
 	vb[4] = (float)dstX;
 	vb[5] = (float)(dstY + dsth);
-	vb[6] = (float)srcX / pPriv->w;
-	vb[7] = (float)(srcY + srch) / pPriv->h;
+	vb[6] = (float)srcX;
+	vb[7] = (float)(srcY + srch);
 
 	vb[8] = (float)(dstX + dstw);
 	vb[9] = (float)(dstY + dsth);
-	vb[10] = (float)(srcX + srcw) / pPriv->w;
-	vb[11] = (float)(srcY + srch) / pPriv->h;
+	vb[10] = (float)(srcX + srcw);
+	vb[11] = (float)(srcY + srch);
 
 	accel_state->vb_index += 3;
 
