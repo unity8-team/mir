@@ -497,7 +497,7 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	intel_batch_flush(scrn, FALSE);
 
 	/* No VT sema or GEM?  No GTT mapping. */
-	if (!scrn->vtSema || !i830->memory_manager) {
+	if (!scrn->vtSema || !i830->have_gem) {
 	    if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
 		return FALSE;
 	    pixmap->devPrivate.ptr = bo->virtual;
@@ -535,7 +535,7 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	if (bo == i830->front_buffer->bo)
 	    i830->need_flush = TRUE;
 
-	if (!scrn->vtSema || !i830->memory_manager) {
+	if (!scrn->vtSema || !i830->have_gem) {
 	    dri_bo_unmap(bo);
 	    pixmap->devPrivate.ptr = NULL;
 	    return;

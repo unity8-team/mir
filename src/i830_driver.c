@@ -611,7 +611,7 @@ i830_update_front_offset(ScrnInfoPtr pScrn)
    /* If we are still in ScreenInit, there is no screen pixmap to be updated
     * yet.  We'll fix it up at CreateScreenResources.
     */
-   if (!pI830->memory_manager) {
+   if (!pI830->have_gem) {
        data = pI830->FbBase + pScrn->fbOffset; /* default to legacy */
    } else {
       dri_bo *bo = pI830->front_buffer->bo;
@@ -1444,6 +1444,7 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     }
 
     pI830->directRenderingType = DRI_NONE;
+    pI830->have_gem = TRUE;
 
     i830_init_bufmgr(pScrn);
 
@@ -2227,7 +2228,7 @@ I830BlockHandler(int i,
 	* fashion.
 	*/
        intel_batch_flush(pScrn, flushed);
-       if (pI830->memory_manager)
+       if (pI830->have_gem)
 	 drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);
 
        pI830->need_mi_flush = FALSE;
@@ -2370,7 +2371,7 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
    if (pI830->bufmgr)
        return;
 
-   if (pI830->memory_manager || pI830->use_drm_mode) {
+   if (pI830->have_gem) {
       int batch_size;
 
       batch_size = 4096 * 4;
@@ -2557,8 +2558,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
    if (pI830->use_drm_mode) {
-       pI830->stolen_size = 0;
-       pScrn->videoRam = ~0UL / KB(1);
+       struct pci_device *const device = pI830->PciInfo;
+       int fb_bar = IS_I9XX(pI830) ? 2 : 0;
+
+       pScrn->videoRam = device->regions[fb_bar].size / 1024;
    } else {
        I830AdjustMemory(pScreen);
    }
@@ -2651,7 +2654,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
    if (pI830->accel != ACCEL_NONE && !pI830->use_drm_mode) {
-      if (pI830->memory_manager == NULL && pI830->ring.mem->size == 0) {
+      if (!pI830->have_gem && pI830->ring.mem->size == 0) {
 	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		     "Disabling acceleration because the ring buffer "
 		      "allocation failed.\n");
@@ -2875,11 +2878,10 @@ I830LeaveVT(int scrnIndex, int flags)
        /* Evict everything from the bufmgr, as we're about to lose ownership of
 	* the graphics memory.
 	*/
-       if (!pI830->memory_manager)
+       if (!pI830->have_gem) {
 	   intel_bufmgr_fake_evict_all(pI830->bufmgr);
-
-       if (!pI830->memory_manager)
 	   i830_stop_ring(pScrn, TRUE);
+       }
 
        if (pI830->debug_modes) {
 	   i830CompareRegsToSnapshot(pScrn, "After LeaveVT");
@@ -2891,7 +2893,7 @@ I830LeaveVT(int scrnIndex, int flags)
 
    i830_unbind_all_memory(pScrn);
 
-   if (pI830->memory_manager && !pI830->use_drm_mode) {
+   if (pI830->have_gem && !pI830->use_drm_mode) {
       int ret;
 
       /* Tell the kernel to evict all buffer objects and block GTT usage while
@@ -2968,7 +2970,7 @@ I830EnterVT(int scrnIndex, int flags)
    if (!pI830->use_drm_mode)
        i830_disable_render_standby(pScrn);
 
-   if (pI830->memory_manager && !pI830->use_drm_mode) {
+   if (pI830->have_gem && !pI830->use_drm_mode) {
       int ret;
 
       /* Tell the kernel that we're back in control and ready for GTT
@@ -2999,7 +3001,7 @@ I830EnterVT(int scrnIndex, int flags)
        }
 
        /* Re-set up the ring. */
-       if (!pI830->memory_manager) {
+       if (!pI830->have_gem) {
 	   i830_stop_ring(pScrn, FALSE);
 	   i830_start_ring(pScrn);
        }

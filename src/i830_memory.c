@@ -480,6 +480,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size)
 		    i830_free_memory(pScrn, pI830->memory_manager);
 		    pI830->memory_manager = NULL;
 		}
+		pI830->have_gem = TRUE;
 		i830_init_bufmgr(pScrn);
 	    }
 	} else {
