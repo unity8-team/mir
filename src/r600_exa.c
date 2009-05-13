@@ -924,17 +924,6 @@ do {					\
 
 #define xFixedToFloat(f) (((float) (f)) / 65536)
 
-static inline void transformPoint(PictTransform *transform, xPointFixed *point)
-{
-    PictVector v;
-    v.vector[0] = point->x;
-    v.vector[1] = point->y;
-    v.vector[2] = xFixed1;
-    PictureTransformPoint(transform, &v);
-    point->x = v.vector[0];
-    point->y = v.vector[1];
-}
-
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
@@ -1099,6 +1088,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_resource_t  tex_res;
     tex_sampler_t   tex_samp;
     int pix_r, pix_g, pix_b, pix_a;
+    float vs_alu_consts[8];
 
     CLEAR (tex_res);
     CLEAR (tex_samp);
@@ -1117,9 +1107,6 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	if (R600TexFormats[i].fmt == pPict->format)
 	    break;
     }
-
-    accel_state->texW[unit] = w;
-    accel_state->texH[unit] = h;
 
     /* ErrorF("Tex %d setup %dx%d\n", unit, w, h);  */
 
@@ -1294,8 +1281,33 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     if (pPict->transform != 0) {
 	accel_state->is_transform[unit] = TRUE;
 	accel_state->transform[unit] = pPict->transform;
-    } else
+
+	vs_alu_consts[0] = xFixedToFloat(pPict->transform->matrix[0][0]);
+	vs_alu_consts[1] = xFixedToFloat(pPict->transform->matrix[0][1]);
+	vs_alu_consts[2] = xFixedToFloat(pPict->transform->matrix[0][2]);
+	vs_alu_consts[3] = 1.0 / w;
+
+	vs_alu_consts[4] = xFixedToFloat(pPict->transform->matrix[1][0]);
+	vs_alu_consts[5] = xFixedToFloat(pPict->transform->matrix[1][1]);
+	vs_alu_consts[6] = xFixedToFloat(pPict->transform->matrix[1][2]);
+	vs_alu_consts[7] = 1.0 / h;
+    } else {
 	accel_state->is_transform[unit] = FALSE;
+
+	vs_alu_consts[0] = 1.0;
+	vs_alu_consts[1] = 0.0;
+	vs_alu_consts[2] = 0.0;
+	vs_alu_consts[3] = 1.0 / w;
+
+	vs_alu_consts[4] = 0.0;
+	vs_alu_consts[5] = 1.0;
+	vs_alu_consts[6] = 0.0;
+	vs_alu_consts[7] = 1.0 / h;
+    }
+
+    /* VS alu constants */
+    set_alu_consts(pScrn, accel_state->ib, SQ_ALU_CONSTANT_vs + (unit * 2),
+		   sizeof(vs_alu_consts) / SQ_ALU_CONSTANT_offset, vs_alu_consts);
 
     return TRUE;
 }
@@ -1586,14 +1598,6 @@ static void R600Composite(PixmapPtr pDst,
     srcBottomRight.x = IntToxFixed(srcX + w);
     srcBottomRight.y = IntToxFixed(srcY + h);
 
-    /* XXX do transform in vertex shader */
-    if (accel_state->is_transform[0]) {
-	transformPoint(accel_state->transform[0], &srcTopLeft);
-	transformPoint(accel_state->transform[0], &srcTopRight);
-	transformPoint(accel_state->transform[0], &srcBottomLeft);
-	transformPoint(accel_state->transform[0], &srcBottomRight);
-    }
-
     if (accel_state->has_mask) {
 	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
 
@@ -1616,33 +1620,26 @@ static void R600Composite(PixmapPtr pDst,
 	maskBottomRight.x = IntToxFixed(maskX + w);
 	maskBottomRight.y = IntToxFixed(maskY + h);
 
-	if (accel_state->is_transform[1]) {
-	    transformPoint(accel_state->transform[1], &maskTopLeft);
-	    transformPoint(accel_state->transform[1], &maskTopRight);
-	    transformPoint(accel_state->transform[1], &maskBottomLeft);
-	    transformPoint(accel_state->transform[1], &maskBottomRight);
-	}
-
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
-	vb[2] = xFixedToFloat(srcTopLeft.x) / accel_state->texW[0];
-	vb[3] = xFixedToFloat(srcTopLeft.y) / accel_state->texH[0];
-	vb[4] = xFixedToFloat(maskTopLeft.x) / accel_state->texW[1];
-	vb[5] = xFixedToFloat(maskTopLeft.y) / accel_state->texH[1];
+	vb[2] = xFixedToFloat(srcTopLeft.x);
+	vb[3] = xFixedToFloat(srcTopLeft.y);
+	vb[4] = xFixedToFloat(maskTopLeft.x);
+	vb[5] = xFixedToFloat(maskTopLeft.y);
 
 	vb[6] = (float)dstX;
 	vb[7] = (float)(dstY + h);
-	vb[8] = xFixedToFloat(srcBottomLeft.x) / accel_state->texW[0];
-	vb[9] = xFixedToFloat(srcBottomLeft.y) / accel_state->texH[0];
-	vb[10] = xFixedToFloat(maskBottomLeft.x) / accel_state->texW[1];
-	vb[11] = xFixedToFloat(maskBottomLeft.y) / accel_state->texH[1];
+	vb[8] = xFixedToFloat(srcBottomLeft.x);
+	vb[9] = xFixedToFloat(srcBottomLeft.y);
+	vb[10] = xFixedToFloat(maskBottomLeft.x);
+	vb[11] = xFixedToFloat(maskBottomLeft.y);
 
 	vb[12] = (float)(dstX + w);
 	vb[13] = (float)(dstY + h);
-	vb[14] = xFixedToFloat(srcBottomRight.x) / accel_state->texW[0];
-	vb[15] = xFixedToFloat(srcBottomRight.y) / accel_state->texH[0];
-	vb[16] = xFixedToFloat(maskBottomRight.x) / accel_state->texW[1];
-	vb[17] = xFixedToFloat(maskBottomRight.y) / accel_state->texH[1];
+	vb[14] = xFixedToFloat(srcBottomRight.x);
+	vb[15] = xFixedToFloat(srcBottomRight.y);
+	vb[16] = xFixedToFloat(maskBottomRight.x);
+	vb[17] = xFixedToFloat(maskBottomRight.y);
 
     } else {
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
@@ -1657,18 +1654,18 @@ static void R600Composite(PixmapPtr pDst,
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
-	vb[2] = xFixedToFloat(srcTopLeft.x) / accel_state->texW[0];
-	vb[3] = xFixedToFloat(srcTopLeft.y) / accel_state->texH[0];
+	vb[2] = xFixedToFloat(srcTopLeft.x);
+	vb[3] = xFixedToFloat(srcTopLeft.y);
 
 	vb[4] = (float)dstX;
 	vb[5] = (float)(dstY + h);
-	vb[6] = xFixedToFloat(srcBottomLeft.x) / accel_state->texW[0];
-	vb[7] = xFixedToFloat(srcBottomLeft.y) / accel_state->texH[0];
+	vb[6] = xFixedToFloat(srcBottomLeft.x);
+	vb[7] = xFixedToFloat(srcBottomLeft.y);
 
 	vb[8] = (float)(dstX + w);
 	vb[9] = (float)(dstY + h);
-	vb[10] = xFixedToFloat(srcBottomRight.x) / accel_state->texW[0];
-	vb[11] = xFixedToFloat(srcBottomRight.y) / accel_state->texH[0];
+	vb[10] = xFixedToFloat(srcBottomRight.x);
+	vb[11] = xFixedToFloat(srcBottomRight.y);
     }
 
     accel_state->vb_index += 3;
