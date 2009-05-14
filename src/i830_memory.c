@@ -1069,7 +1069,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
-    unsigned long minspace, avail;
+    unsigned long minspace;
     int align;
     long size, fb_height;
     int flags;
@@ -1088,7 +1088,6 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
      * enough for the virtual screen size.
      */
     minspace = pitch * pScrn->virtualY;
-    avail = pScrn->videoRam * 1024;
 
     size = ROUND_TO_PAGE(pitch * fb_height);
 
