@@ -67,16 +67,34 @@ nv50_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 static void
 nv50_crtc_prepare(xf86CrtcPtr crtc)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
 	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_prepare is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
-
+	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	nouveauOutputPtr output;
+	int i;
+
+	/* Rewire internal stucts to match randr-1.2... yet again.. */
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		NV50OutputPrivatePtr nv50_output = output->driver_private;
+		nouveauOutputPtr nv_output = nv50_output->output;
+
+		if (output->crtc) {
+			NV50CrtcPrivatePtr nv50_crtc =
+				output->crtc->driver_private;
+			nv_output->crtc = nv50_crtc->crtc;
+		} else {
+			nv_output->crtc = NULL;
+		}
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "nv50_crtc_prepare is called for %s.\n",
+		   nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
 
 	nv_crtc->crtc->active = TRUE;
 	nv_crtc->crtc->modeset_lock = TRUE;
-
-	nouveauOutputPtr output;
 
 	/* Detach any unused outputs. */
 	for (output = pNv->output; output != NULL; output = output->next) {
@@ -171,7 +189,8 @@ nv50_crtc_show_cursor(xf86CrtcPtr crtc)
 	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
 	//xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_show_cursor is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
 
-	nv_crtc->crtc->ShowCursor(nv_crtc->crtc, FALSE);
+	if (!nv_crtc->crtc->blanked)
+		nv_crtc->crtc->ShowCursor(nv_crtc->crtc, FALSE);
 }
 
 static void

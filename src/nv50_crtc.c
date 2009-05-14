@@ -308,6 +308,8 @@ NV50CrtcBlank(nouveauCrtcPtr crtc, Bool blanked)
 			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK1, NV84_CRTC0_BLANK_UNK1_UNBLANK);
 		NV50CrtcCommand(crtc, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_UNBLANK);
 	}
+
+	crtc->blanked = blanked;
 }
 
 static void

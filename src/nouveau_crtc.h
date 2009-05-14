@@ -32,6 +32,7 @@ typedef struct nouveauCrtc {
 	char *name;
 	uint8_t index;
 	Bool active;
+	Bool blanked;
 
 	/* Scanout area. */
 	struct nouveau_bo * front_buffer;
