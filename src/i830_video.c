@@ -2504,27 +2504,29 @@ I830PutImage(ScrnInfoPtr pScrn,
 		pipe = intel_crtc->pipe;
 	    }
 
-	    if (pipe == 0) {
-		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-		load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
-	    } else {
-		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-		load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+	    if (pipe >= 0) {
+		if (pipe == 0) {
+		    event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+		    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
+		} else {
+		    event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+		    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+		}
+
+		box = REGION_EXTENTS(unused, clipBoxes);
+		y1 = box->y1 - crtc->y;
+		y2 = box->y2 - crtc->y;
+
+		BEGIN_BATCH(5);
+		/* The documentation says that the LOAD_SCAN_LINES command
+		 * always comes in pairs. Don't ask me why. */
+		OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+		OUT_BATCH((y1 << 16) | y2);
+		OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+		OUT_BATCH((y1 << 16) | y2);
+		OUT_BATCH(MI_WAIT_FOR_EVENT | event);
+		ADVANCE_BATCH();
 	    }
-
-	    box = REGION_EXTENTS(unused, clipBoxes);
-	    y1 = box->y1 - crtc->y;
-	    y2 = box->y2 - crtc->y;
-
-            BEGIN_BATCH(5);
-	    /* The documentation says that the LOAD_SCAN_LINES command
-	     * always comes in pairs. Don't ask me why. */
-	    OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
-	    OUT_BATCH((y1 << 16) | y2);
-	    OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
-	    OUT_BATCH((y1 << 16) | y2);
-            OUT_BATCH(MI_WAIT_FOR_EVENT | event);
-            ADVANCE_BATCH();
         }
 
         if (IS_I965G(pI830)) {
