@@ -398,30 +398,30 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
 
+
 	if (isplanar) {
 	    /*
 	     * Just render a rect (using three coords).
-	     * Filter is a bit a misnomer, it's just texcoords...
 	     */
-	    VTX_OUT_6((float)dstX,                (float)(dstY + dsth),
-		      (float)srcX,                (float)(srcY + srch),
-		      (float)srcX,                (float)(srcY + (srch / 2)));
-	    VTX_OUT_6((float)(dstX + dstw),       (float)(dstY + dsth),
-		      (float)(srcX + srcw),       (float)(srcY + srch),
-		      (float)(srcX + (srcw / 2)), (float)(srcY + (srch / 2)));
-	    VTX_OUT_6((float)(dstX + dstw),       (float)dstY,
-		      (float)(srcX + srcw),       (float)srcY,
-		      (float)(srcX + (srcw / 2)), (float)srcY);
+	    VTX_OUT_6((float)dstX,                     (float)(dstY + dsth),
+		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h,
+		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
+	    VTX_OUT_6((float)(dstX + dstw),            (float)(dstY + dsth),
+		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h,
+		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
+	    VTX_OUT_6((float)(dstX + dstw),            (float)dstY,
+		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h,
+		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
 	} else {
 	    /*
 	     * Just render a rect (using three coords).
 	     */
-	    VTX_OUT_4((float)dstX,          (float)(dstY + dsth),
-		      (float)srcX,          (float)(srcY + srch));
-	    VTX_OUT_4((float)(dstX + dstw), (float)(dstY + dsth),
-		      (float)(srcX + srcw), (float)(srcY + srch));
-	    VTX_OUT_4((float)(dstX + dstw), (float)dstY,
-		      (float)(srcX + srcw), (float)srcY);
+	    VTX_OUT_4((float)dstX,                     (float)(dstY + dsth),
+		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
+	    VTX_OUT_4((float)(dstX + dstw),            (float)(dstY + dsth),
+		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
+	    VTX_OUT_4((float)(dstX + dstw),            (float)dstY,
+		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
 	}
 
 	pBox++;

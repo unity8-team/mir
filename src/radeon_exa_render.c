@@ -395,8 +395,8 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	txformat |= RADEON_TXFORMAT_NON_POWER2;
     txformat |= unit << 24; /* RADEON_TXFORMAT_ST_ROUTE_STQX */
 
-    info->accel_state->texW[unit] = 1;
-    info->accel_state->texH[unit] = 1;
+    info->accel_state->texW[unit] = w;
+    info->accel_state->texH[unit] = h;
 
     switch (pPict->filter) {
     case PictFilterNearest:
