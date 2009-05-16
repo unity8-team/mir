@@ -799,6 +799,9 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	}
     }
 
+    if (flags & DISABLE_REUSE)
+	drm_intel_bo_disable_reuse(mem->bo);
+
     /* Insert new allocation into the list */
     mem->prev = NULL;
     mem->next = pI830->bo_list;
@@ -1076,7 +1079,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
     i830_memory *front_buffer = NULL;
     enum tile_format tile_format = TILE_NONE;
 
-    flags = ALLOW_SHARING;
+    flags = ALLOW_SHARING|DISABLE_REUSE;
 
     /* We'll allocate the fb such that the root window will fit regardless of
      * rotation.
@@ -1141,6 +1144,8 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 	pI830->CursorNeedsPhysical = FALSE;
 
     flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
+
+    flags |= DISABLE_REUSE;
 
     /* Try to allocate one big blob for our cursor memory.  This works
      * around a limitation in the FreeBSD AGP driver that allows only one
