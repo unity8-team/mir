@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.7.0-1ubuntu2) karmic; urgency=low
+
+  * Drop 109_i830-fifo-watermark-conservative.patch:
+    + Patch was insufficient to fix #311895, and doesn't help any more
+      anyway.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Sat, 16 May 2009 13:50:15 -0700
+
 xserver-xorg-video-intel (2:2.7.0-1ubuntu1) karmic; urgency=low
 
   * Merge from Debian of upstream's 2.7.0 release.

@@ -1,6 +1,5 @@
 01_gen_pci_ids.diff
 103_quirk_intel_mb890.patch
-109_i830-fifo-watermark-conservative.patch
 110_quirk_hp_mini.patch
 116_8xx_disable_dri.patch
 117_quirk_thinkpad_x30.patch
