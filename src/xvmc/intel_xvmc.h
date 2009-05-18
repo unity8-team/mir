@@ -130,11 +130,6 @@ typedef struct _intel_xvmc_driver {
     int screen;			/* current screen num*/
 
     int fd;			/* drm file handler */
-    drm_handle_t hsarea;	/* DRI open connect */
-    char busID[32];
-
-    unsigned int sarea_size;
-    drmAddress sarea_address;
 
     struct {
 	unsigned int start_offset;
@@ -156,9 +151,7 @@ typedef struct _intel_xvmc_driver {
 
     sigset_t sa_mask;
     pthread_mutex_t ctxmutex;
-    int lock;   /* Lightweight lock to avoid locking twice */
     int locked;
-    drmLock *driHwLock;
 
     int num_ctx;
     intel_xvmc_context_ptr ctx_list;

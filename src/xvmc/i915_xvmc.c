@@ -1560,7 +1560,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
 {
     i915XvMCContext *pI915XvMC = NULL;
     I915XvMCCreateContextRec *tmpComm = NULL;
-    drm_sarea_t *pSAREA;
 
     XVMC_DBG("%s\n", __FUNCTION__);
 
@@ -1612,14 +1611,10 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->corrdata.handle = tmpComm->corrdata.handle;
     pI915XvMC->corrdata.offset = tmpComm->corrdata.offset;
     pI915XvMC->corrdata.size = tmpComm->corrdata.size;
-    pI915XvMC->sarea_priv_offset = tmpComm->sarea_priv_offset;
 
     /* Must free the private data we were passed from X */
     XFree(priv_data);
     priv_data = NULL;
-
-    pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
-    pI915XvMC->sarea = (drmI830Sarea*)((char*)pSAREA + pI915XvMC->sarea_priv_offset);
 
     if (i915_xvmc_map_buffers(pI915XvMC)) {
         i915_xvmc_unmap_buffers(pI915XvMC);
@@ -2042,11 +2037,6 @@ static int i915_xvmc_mc_get_surface_status(Display *display,
         }
     }
 
-    if (pI915Surface->last_render &&
-        (pI915Surface->last_render > pI915XvMC->sarea->last_dispatch)) {
-        *stat |= XVMC_RENDERING;
-    }
-
     PPTHREAD_MUTEX_UNLOCK();
     return 0;
 }
@@ -2457,12 +2447,7 @@ Status i915_xvmc_get_subpict_status(Display *display, XvMCSubpicture *subpicture
         return XvMCBadSubpicture;
 
     PPTHREAD_MUTEX_LOCK();
-    /* FIXME: */
-    if (pI915Subpicture->last_render &&
-        (pI915Subpicture->last_render > pI915XvMC->sarea->last_dispatch)) {
-        *stat |= XVMC_RENDERING;
-    }
-
+    
     PPTHREAD_MUTEX_UNLOCK();
     return Success;
 }

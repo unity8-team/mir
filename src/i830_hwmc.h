@@ -65,7 +65,6 @@ struct hwmc_buffer
 
 struct _intel_xvmc_common {
     unsigned int type;
-    unsigned int sarea_size;
     struct hwmc_buffer batchbuffer;
 };
 

@@ -89,7 +89,6 @@ static int create_context(ScrnInfoPtr pScrn,
 {
     struct i965_xvmc_context *private_context, *context_dup;
     I830Ptr I830 = I830PTR(pScrn);
-    DRIInfoPtr driinfo = I830->pDRIInfo;
 
     unsigned int blocknum = 
 	(((context->width + 15)/16)*((context->height+15)/16));
@@ -108,7 +107,6 @@ static int create_context(ScrnInfoPtr pScrn,
     private_context->is_g4x = IS_G4X(I830);
     private_context->is_965_q = IS_965_Q(I830);
     private_context->comm.type = xvmc_driver->flag;
-    private_context->comm.sarea_size = driinfo->SAREASize;
     private_context->comm.batchbuffer.offset = xvmc_driver->batch->offset;
     private_context->comm.batchbuffer.size = xvmc_driver->batch->size;
     private_context->comm.batchbuffer.handle = xvmc_driver->batch_handle;
