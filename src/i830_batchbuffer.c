@@ -159,8 +159,13 @@ intel_batch_teardown(ScrnInfoPtr pScrn)
 
     if (pI830->batch_ptr != NULL) {
 	dri_bo_unmap(pI830->batch_bo);
-	dri_bo_unreference(pI830->batch_bo);
 	pI830->batch_ptr = NULL;
+
+	dri_bo_unreference(pI830->batch_bo);
+	pI830->batch_bo = NULL;
+
+	dri_bo_unreference(pI830->last_batch_bo);
+	pI830->last_batch_bo = NULL;
     }
 }
 
@@ -174,7 +179,7 @@ intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
 	return;
 
     /* If we're not using GEM, then emit a flush after each batch buffer */
-    if (pI830->memory_manager == NULL && !flushed) {
+    if (!pI830->have_gem && !flushed) {
 	int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
 	if (IS_I965G(pI830))
@@ -201,16 +206,36 @@ intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
     if (ret != 0)
 	FatalError("Failed to submit batchbuffer: %s\n", strerror(-ret));
 
-    dri_bo_unreference(pI830->batch_bo);
+    /* Save a ref to the last batch emitted, which we use for syncing
+     * in debug code.
+     */
+    dri_bo_unreference(pI830->last_batch_bo);
+    pI830->last_batch_bo = pI830->batch_bo;
+    pI830->batch_bo = NULL;
+
     intel_next_batch(pScrn);
 
     /* Mark that we need to flush whatever potential rendering we've done in the
      * blockhandler.  We could set this less often, but it's probably not worth
      * the work.
      */
-    if (pI830->memory_manager != NULL)
+    if (pI830->have_gem)
 	pI830->need_mi_flush = TRUE;
 
     if (pI830->batch_flush_notify)
 	pI830->batch_flush_notify (pScrn);
 }
+
+/** Waits on the last emitted batchbuffer to be completed. */
+void
+intel_batch_wait_last(ScrnInfoPtr scrn)
+{
+    I830Ptr pI830 = I830PTR(scrn);
+
+    /* Map it CPU write, which guarantees it's done.  This is a completely
+     * non performance path, so we don't need anything better.
+     */
+    drm_intel_bo_map(pI830->last_batch_bo, TRUE);
+    drm_intel_bo_unmap(pI830->last_batch_bo);
+}
+

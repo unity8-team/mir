@@ -55,8 +55,8 @@ struct _fake_i830 *pI830 = &I830;
 #define INTEL_BIOS_16(_addr)	(pI830->VBIOS[_addr] | \
 				 (pI830->VBIOS[_addr + 1] << 8))
 #define INTEL_BIOS_32(_addr)	(pI830->VBIOS[_addr] | \
-				 (pI830->VBIOS[_addr + 1] << 8) \
-				 (pI830->VBIOS[_addr + 2] << 16) \
+				 (pI830->VBIOS[_addr + 1] << 8) | \
+				 (pI830->VBIOS[_addr + 2] << 16) | \
 				 (pI830->VBIOS[_addr + 3] << 24))
 
 #define YESNO(val) ((val) ? "yes" : "no")

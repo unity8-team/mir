@@ -35,7 +35,7 @@
 struct intel_xvmc_driver *xvmc_driver;
 
 /* set global current driver for xvmc */
-Bool intel_xvmc_set_driver(struct intel_xvmc_driver *d)
+static Bool intel_xvmc_set_driver(struct intel_xvmc_driver *d)
 {
     if (xvmc_driver) {
 	ErrorF("XvMC driver already set!\n");

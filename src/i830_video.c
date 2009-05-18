@@ -23,7 +23,6 @@
  THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_video.c,v 1.11tsi Exp $ */
 
 /*
  * i830_video.c: i830/i845 Xv driver. 
@@ -70,8 +69,6 @@
 #include "i830_video.h"
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
-#include "xaa.h"
-#include "xaalocal.h"
 #include "dixstruct.h"
 #include "fourcc.h"
 
@@ -138,11 +135,6 @@ static Atom xvSyncToVblank;
 #define OVERLAY_DEBUG ErrorF
 #else
 #define OVERLAY_DEBUG if (0) ErrorF
-#endif
-
-/* Oops, I never exported this function in EXA.  I meant to. */
-#ifndef exaMoveInPixmap
-void exaMoveInPixmap (PixmapPtr pPixmap);
 #endif
 
 /*
@@ -468,7 +460,7 @@ i830_overlay_on(ScrnInfoPtr pScrn)
     OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
     OUT_BATCH(MI_NOOP);
     ADVANCE_BATCH();
-    i830WaitSync(pScrn);
+    I830Sync(pScrn);
     
     /*
      * If we turned pipe A on up above, turn it
@@ -521,7 +513,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
 
     /*
      * Wait for overlay to go idle. This has to be
-     * separated from the turning off state by a WaitSync
+     * separated from the turning off state by a Sync
      * to ensure the overlay will not read OCMD early and
      * disable the overlay before the commands here are
      * executed
@@ -531,7 +523,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
 	OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
-	i830WaitSync(pScrn);
+	I830Sync(pScrn);
     }
     
     /*
@@ -552,7 +544,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
 	OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
-	i830WaitSync(pScrn);
+	I830Sync(pScrn);
     }
     pI830->overlayOn = FALSE;
     OVERLAY_DEBUG("overlay_off\n");
@@ -1019,7 +1011,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
 	pPriv->doubleBuffer = 0;
 
 	pPriv->rotation = RR_Rotate_0;
-	pPriv->SyncToVblank = -1;
+	pPriv->SyncToVblank = 1;
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);
@@ -2146,7 +2138,8 @@ i830_clip_video_helper (ScrnInfoPtr pScrn,
 						   pPriv->desired_crtc,
 						   &crtc_box);
 	
-	if (crtc)
+	/* For textured video, we don't actually want to clip at all. */
+	if (crtc && !pPriv->textured)
 	{
 	    REGION_INIT (pScreen, &crtc_region_local, &crtc_box, 1);
 	    crtc_region = &crtc_region_local;
@@ -2391,6 +2384,7 @@ I830PutImage(ScrnInfoPtr pScrn,
                 return BadAlloc;
             if (!pPriv->textured && drm_intel_bo_pin(pPriv->buf, 4096) != 0) {
                 drm_intel_bo_unreference(pPriv->buf);
+                pPriv->buf = NULL;
                 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                            "Failed to pin xv buffer\n");
                 return BadAlloc;
@@ -2479,23 +2473,6 @@ I830PutImage(ScrnInfoPtr pScrn,
 	pPixmap = (PixmapPtr)pDraw;
     }
 
-#ifdef I830_USE_EXA
-    if (pPriv->textured && pI830->accel == ACCEL_EXA) {
-	/* Force the pixmap into framebuffer so we can draw to it. */
-	exaMoveInPixmap(pPixmap);
-    }
-#endif
-
-    if (pPriv->textured && pI830->accel <= ACCEL_XAA &&
-	    (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
-	     ((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
-	      pI830->FbMapSize))) {
-	/* If the pixmap wasn't in framebuffer, then we have no way in XAA to
-	 * force it there.  So, we simply refuse to draw and fail.
-	 */
-	return BadAlloc;
-    }
-
     if (!pPriv->textured) {
 	i830_display_video(pScrn, crtc, destId, width, height, dstPitch,
 			   x1, y1, x2, y2, &dstBox, src_w, src_h,
@@ -2513,45 +2490,43 @@ I830PutImage(ScrnInfoPtr pScrn,
             sync = FALSE;
         } else if (pPriv->SyncToVblank == 0) {
             sync = FALSE;
-        } else if (pPriv->SyncToVblank == -1) {
-            BoxRec crtc_box;
-            BoxPtr pbox;
-            int nbox, crtc_area, coverage = 0;
-
-            i830_crtc_box(crtc, &crtc_box);
-            crtc_area = i830_box_area(&crtc_box);
-            pbox = REGION_RECTS(clipBoxes);
-            nbox = REGION_NUM_RECTS(clipBoxes);
-            
-            while (nbox--) {
-                coverage += i830_box_area(pbox);
-                pbox++;
-            }
-
-            if ((coverage << 2) < crtc_area)
-                sync = FALSE;
         }
 
         if (sync) {
-            I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-            int event;
+	    BoxPtr box;
+	    int y1, y2;
+            int pipe, event, load_scan_lines_pipe;
 
-            if (IS_I965G(pI830)) {
-                if (intel_crtc->pipe == 0)
-                    event = MI_WAIT_FOR_PIPEA_SVBLANK;
-                else
-                    event = MI_WAIT_FOR_PIPEB_SVBLANK;
-            } else {
-                if (intel_crtc->pipe == 0)
-                    event = MI_WAIT_FOR_PIPEA_VBLANK;
-                else
-                    event = MI_WAIT_FOR_PIPEB_VBLANK;
-            }
+	    if (pI830->use_drm_mode)
+		pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
+	    else {
+		I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+		pipe = intel_crtc->pipe;
+	    }
 
-            BEGIN_BATCH(2);
-            OUT_BATCH(MI_WAIT_FOR_EVENT | event);
-            OUT_BATCH(MI_NOOP);
-            ADVANCE_BATCH();
+	    if (pipe >= 0) {
+		if (pipe == 0) {
+		    event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+		    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
+		} else {
+		    event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+		    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+		}
+
+		box = REGION_EXTENTS(unused, clipBoxes);
+		y1 = box->y1 - crtc->y;
+		y2 = box->y2 - crtc->y;
+
+		BEGIN_BATCH(5);
+		/* The documentation says that the LOAD_SCAN_LINES command
+		 * always comes in pairs. Don't ask me why. */
+		OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+		OUT_BATCH((y1 << 16) | y2);
+		OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+		OUT_BATCH((y1 << 16) | y2);
+		OUT_BATCH(MI_WAIT_FOR_EVENT | event);
+		ADVANCE_BATCH();
+	    }
         }
 
         if (IS_I965G(pI830)) {
@@ -2894,10 +2869,11 @@ I830InitOffscreenImages(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    /* need to free this someplace */
     if (!(offscreenImages = xalloc(sizeof(XF86OffscreenImageRec)))) {
 	return;
     }
+
+    pI830->offscreenImages = offscreenImages;
 
     offscreenImages[0].image = &Images[0];
     offscreenImages[0].flags = VIDEO_OVERLAID_IMAGES /*| VIDEO_CLIP_TO_VIEWPORT*/;

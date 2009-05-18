@@ -652,6 +652,10 @@ static struct i830SnapshotRec {
     DEFINEREG2(PIPEACONF, i830_debug_pipeconf),
     DEFINEREG2(PIPEASRC, i830_debug_yxminus1),
     DEFINEREG2(PIPEASTAT, i830_debug_pipestat),
+    DEFINEREG(PIPEA_GMCH_DATA_M),
+    DEFINEREG(PIPEA_GMCH_DATA_N),
+    DEFINEREG(PIPEA_DP_LINK_M),
+    DEFINEREG(PIPEA_DP_LINK_N),
 
     DEFINEREG2(FPA0, i830_debug_fp),
     DEFINEREG2(FPA1, i830_debug_fp),
@@ -676,6 +680,10 @@ static struct i830SnapshotRec {
     DEFINEREG2(PIPEBCONF, i830_debug_pipeconf),
     DEFINEREG2(PIPEBSRC, i830_debug_yxminus1),
     DEFINEREG2(PIPEBSTAT, i830_debug_pipestat),
+    DEFINEREG(PIPEB_GMCH_DATA_M),
+    DEFINEREG(PIPEB_GMCH_DATA_N),
+    DEFINEREG(PIPEB_DP_LINK_M),
+    DEFINEREG(PIPEB_DP_LINK_N),
 
     DEFINEREG2(FPB0, i830_debug_fp),
     DEFINEREG2(FPB1, i830_debug_fp),
@@ -1874,7 +1882,7 @@ i830_check_error_state(ScrnInfoPtr pScrn)
 	errors++;
     }
     temp = INREG(LP_RING + RING_LEN);
-    if (!pI830->memory_manager && (temp & 1)) {
+    if (!pI830->have_gem && (temp & 1)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "PRB0_CTL (0x%08lx) indicates ring buffer enabled\n", temp);
 	errors++;

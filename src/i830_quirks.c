@@ -70,12 +70,13 @@ static char *i830_dmi_data[dmi_data_max];
 static void i830_dmi_store_##field(void) \
 {\
     FILE *f = NULL;\
+    int ret;\
     f = fopen(DMIID_FILE(field), "r");\
     if (f == NULL) {\
 	xfree(i830_dmi_data[field]); i830_dmi_data[field] = NULL;\
 	return;\
     }\
-    fread(i830_dmi_data[field], 64, 1, f);\
+    ret = fread(i830_dmi_data[field], 64, 1, f);	\
     fclose(f);\
 }
 
@@ -236,6 +237,17 @@ static void quirk_msi_lvds_dmi (I830Ptr pI830)
    }
 }
 
+static void quirk_ibase_lvds (I830Ptr pI830)
+{
+   if (!i830_dmi_data[board_name]) {
+       ErrorF("Failed to load DMI info, iBase LVDS quirk not applied.\n");
+       return;
+   }
+   if (!strncmp(i830_dmi_data[board_name], "i855-W83627HF", 13)) {
+       pI830->quirk_flag |= QUIRK_IGNORE_LVDS;
+   }
+}
+
 static void quirk_ivch_dvob (I830Ptr pI830)
 {
 	pI830->quirk_flag |= QUIRK_IVCH_NEED_DVOB;
@@ -378,6 +390,9 @@ static i830_quirk i830_quirk_list[] = {
 
     /* #19239: Mirrus Centrino laptop */
     { PCI_CHIP_I915_GM, 0x1584, 0x9800, quirk_broken_acpi_lid },
+
+    /* #19529: iBase MB890 board */
+    { PCI_CHIP_I855_GM, 0x8086, 0x3582, quirk_ibase_lvds },
 
     { 0, 0, 0, NULL },
 };

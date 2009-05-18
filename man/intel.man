@@ -146,16 +146,6 @@ have options for selecting adaptors.
 .IP
 Default: Textured video adaptor is preferred.
 .TP
-.BI "Option \*qAccelMethod\*q \*q" string \*q
-Choose acceleration architecture, either "XAA", "EXA", or "UXA".  XAA is the old
-XFree86 based acceleration architecture.  EXA is a simpler
-acceleration architecture designed to better accelerate the X Render extension.
-UXA is a newer acceleration architecture built from the EXA acceleration
-code but taking advantage of kernel memory management to provide simpler,
-faster code.
-.IP
-Default: "EXA".
-.TP
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
 the server log.
@@ -321,6 +311,14 @@ First DVI SDVO output
 .SS "TMDS-2"
 Second DVI SDVO output
 
+.SS "TMDS-1", "TMDS-2", "HDMI-1", "HDMI-2"
+DVI/HDMI outputs. Avaliable common properties include:
+.PP
+.B BROADCAST_RGB
+- method used to set RGB color range(full range 0-255, not full range 16-235)
+.TP 2
+Adjusting this propertie allows you to set RGB color range on each channel in order to match HDTV requirment(default 0 for full range). Setting 1 means RGB color range is 16-235, 0 means RGB color range is 0-255 on each channel.
+
 .PP
 SDVO and DVO TV outputs are not supported by the driver at this time.
 
@@ -451,10 +449,11 @@ You can use the "xvattr" tool to query/set those attributes at runtime.
 
 .SS "XV_SYNC_TO_VBLANK"
 XV_SYNC_TO_VBLANK is used to control whether textured adapter synchronizes 
-the screen update to the vblank to eliminate tearing. It has three 
-values 'auto'(-1), 'off'(0) and 'on(1). 'off' means never sync, 'on' means 
-always sync, no matter what size, and 'auto' means sync if the Xv image is 
-more than quarter of the pixels on the screen. The default is 'auto'(-1).
+the screen update to the vblank to eliminate tearing. It is a Boolean
+attribute with values of 0 (never sync) or 1 (always sync). An historic
+value of -1 (sync for large windows only) will now be interpreted as 1,
+(since the current approach for sync is not costly even with small
+video windows).
 
 .SS "XV_BRIGHTNESS"
         

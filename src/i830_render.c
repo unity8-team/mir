@@ -285,7 +285,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	wrap_mode = TEXCOORDMODE_MIRROR;
 	break;
     default:
-	FatalError("Unkown repeat type %d\n", pPict->repeatType);
+	FatalError("Unknown repeat type %d\n", pPict->repeatType);
     }
 
     switch (pPict->filter) {
@@ -345,10 +345,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	ADVANCE_BATCH();
      }
 
-#ifdef I830DEBUG
-    ErrorF("try to sync to show any errors...");
-    I830Sync(pScrn);
-#endif
+    i830_debug_sync(pScrn);
 
     return TRUE;
 }
@@ -569,10 +566,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	ADVANCE_BATCH();
     }
 
-#ifdef I830DEBUG
-    Error("try to sync to show any errors...");
-    I830Sync(pScrn);
-#endif
+    i830_debug_sync(pScrn);
 
     return TRUE;
 }

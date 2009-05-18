@@ -50,8 +50,6 @@
 
 #include "mipict.h"
 
-#ifdef SERVER_1_5
-
 #if DEBUG_GLYPH_CACHE
 #define DBG_GLYPH_CACHE(a) ErrorF a
 #else
@@ -873,5 +871,3 @@ uxa_glyphs (CARD8 	 op,
 	(*pScreen->DestroyPixmap) (pMaskPixmap);
     }
 }
-
-#endif /* SERVER_1_5 */

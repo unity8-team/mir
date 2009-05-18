@@ -27,7 +27,6 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/common.h,v 1.9 2003/09/24 02:43:23 dawes Exp $ */
 
 /*
  * Authors:
@@ -40,7 +39,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _INTEL_COMMON_H_
 
 /* Provide substitutes for gcc's __FUNCTION__ on other compilers */
-#ifndef __GNUC__
+#if !defined(__GNUC__) && !defined(__FUNCTION__)
 # if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
 #  define __FUNCTION__ __func__
 # else
@@ -55,11 +54,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef I830DEBUG
 #define MARKER() ErrorF("\n### %s:%d: >>> %s <<< ###\n\n", \
 			 __FILE__, __LINE__,__FUNCTION__)
-#define DPRINTF I830DPRINTF_stub
+#define DPRINTF I830DPRINTF
 #else /* #ifdef I830DEBUG */
 #define MARKER()
-/* this is a real ugly hack to get the compiler to optimize the debugging statements into oblivion */
-#define DPRINTF if(0) I830DPRINTF_stub
+#define DPRINTF I830DPRINTF_stub
+static inline void
+I830DPRINTF_stub(const char *filename, int line, const char *function,
+		 const char *fmt, ...)
+{
+}
 #endif /* #ifdef I830DEBUG */
 
 #define KB(x) ((x) * 1024)
@@ -318,21 +321,12 @@ extern int I810_DEBUG;
 #define PCI_CHIP_G41_G_BRIDGE	0x2E30
 #endif
 
-#if XSERVER_LIBPCIACCESS
 #define I810_MEMBASE(p,n) (p)->regions[(n)].base_addr
 #define VENDOR_ID(p)      (p)->vendor_id
 #define DEVICE_ID(p)      (p)->device_id
 #define SUBVENDOR_ID(p)	  (p)->subvendor_id
 #define SUBSYS_ID(p)      (p)->subdevice_id
 #define CHIP_REVISION(p)  (p)->revision
-#else
-#define I810_MEMBASE(p,n) (p)->memBase[n]
-#define VENDOR_ID(p)      (p)->vendor
-#define DEVICE_ID(p)      (p)->chipType
-#define SUBVENDOR_ID(p)	  (p)->subsysVendor
-#define SUBSYS_ID(p)      (p)->subsysCard
-#define CHIP_REVISION(p)  (p)->chipRev
-#endif
 
 #define IS_I810(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810 ||	\
 			DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810_DC100 || \
@@ -399,9 +393,7 @@ extern int I810_DEBUG;
 
 #define PIPE_NAME(n)			('A' + (n))
 
-#if XSERVER_LIBPCIACCESS
 struct pci_device *
 intel_host_bridge (void);
-#endif
-   
+
 #endif /* _INTEL_COMMON_H_ */

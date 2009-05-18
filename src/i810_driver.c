@@ -25,24 +25,10 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_driver.c,v 1.101 2004/01/02 20:15:47 dawes Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
-/*
- * Reformatted with GNU indent (2.2.8), using the following options:
- *
- *    -bad -bap -c41 -cd0 -ncdb -ci6 -cli0 -cp0 -ncs -d0 -di3 -i3 -ip3 -l78
- *    -lp -npcs -psl -sob -ss -br -ce -sc -hnl
- *
- * This provides a good match with the original i810 code and preferred
- * XFree86 formatting conventions.
- *
- * When editing this driver, please follow the existing formatting, and edit
- * with <TAB> characters expanded at 8-column intervals.
- */
 
 /*
  * Authors:
@@ -95,14 +81,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 static void I810Identify(int flags);
 
-#if XSERVER_LIBPCIACCESS
 static Bool intel_pci_probe (DriverPtr		drv,
 			     int		entity_num,
 			     struct pci_device	*dev,
 			     intptr_t		match_data);
-#else
-static Bool I810Probe(DriverPtr drv, int flags);
-#endif
 
 #ifndef I830_ONLY
 static Bool I810PreInit(ScrnInfoPtr pScrn, int flags);
@@ -119,9 +101,6 @@ static void I810DisplayPowerManagementSet(ScrnInfoPtr pScrn,
 static ModeStatus I810ValidMode(int scrnIndex, DisplayModePtr mode,
 				Bool verbose, int flags);
 #endif /* I830_ONLY */
-
-
-#if XSERVER_LIBPCIACCESS
 
 #define INTEL_DEVICE_MATCH(d,i) \
     { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, (i) }
@@ -162,25 +141,17 @@ static const struct pci_id_match intel_device_match[] = {
     { 0, 0, 0 },
 };
 
-#endif /* XSERVER_LIBPCIACCESS */
-
 _X_EXPORT DriverRec I810 = {
    I810_VERSION,
    I810_DRIVER_NAME,
    I810Identify,
-#if XSERVER_LIBPCIACCESS
    NULL,
-#else
-   I810Probe,
-#endif
    I810AvailableOptions,
    NULL,
    0,
    NULL,
-#if XSERVER_LIBPCIACCESS
    intel_device_match,
    intel_pci_probe
-#endif
 };
 
 /* *INDENT-OFF* */
@@ -482,11 +453,7 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
    if (!setupDone) {
       setupDone = 1;
       xf86AddDriver(&I810, module,
-#if XSERVER_LIBPCIACCESS
 		    HaveDriverFuncs
-#else
-		    0
-#endif
 		    );
 
       /*
@@ -575,7 +542,6 @@ I810AvailableOptions(int chipid, int busid)
 #endif
 }
 
-#if XSERVER_LIBPCIACCESS
 struct pci_device *
 intel_host_bridge (void)
 {
@@ -641,147 +607,6 @@ static Bool intel_pci_probe (DriverPtr		driver,
     }
     return scrn != NULL;
 }
-#else /* XSERVER_LIBPCIACCESS */
-
-/*
- * I810Probe --
- *
- * Look through the PCI bus to find cards that are I810 boards.
- * Setup the dispatch table for the rest of the driver functions.
- *
- */
-static Bool
-I810Probe(DriverPtr drv, int flags)
-{
-   int i, numUsed, numDevSections, *usedChips;
-   DevUnion *pPriv;						
-   GDevPtr *devSections;
-   Bool foundScreen = FALSE;
-   pciVideoPtr *VideoInfo;
-   pciVideoPtr *ppPci;
-   PciChipsets *id;
-
-   /*
-    * Find the config file Device sections that match this
-    * driver, and return if there are none.
-    */
-   if ((numDevSections =
-	xf86MatchDevice(I810_DRIVER_NAME, &devSections)) <= 0 ) {
-      return FALSE;
-   }
-
-   /*
-    * This probing is just checking the PCI data the server already
-    * collected.
-    */
-   if (!(VideoInfo = xf86GetPciVideoInfo()))
-      return FALSE;
-
-   /*
-    * Mobile platforms may have both function 0 and 1 active, but they
-    * are handled as a single entity.  To make sure that the function 1
-    * entity isn't assigned to a screen, check for and claim it here
-    * first.
-    *
-    * XXX If function 1's resources are ever needed, they'll need to be
-    * added to the screen and marked active.
-    */
-   for (ppPci = VideoInfo; ppPci != NULL && *ppPci != NULL; ppPci++) {
-      if ((*ppPci)->vendor == PCI_VENDOR_INTEL &&
-	  (*ppPci)->func == 1) {
-	 for (id = I810PciChipsets; id->PCIid != -1; id++) {
-	    if (id->PCIid == (*ppPci)->chipType) {
-	       /* Claim slot */
-	       if (xf86CheckPciSlot((*ppPci)->bus, (*ppPci)->device,
-				    (*ppPci)->func)) {
-	  	  xf86ClaimPciSlot((*ppPci)->bus, (*ppPci)->device,
-				   (*ppPci)->func, drv, id->PCIid,
-				   NULL, FALSE);
-	       }
-	       break;
-	    }
-	 }
-      }
-   }
-
-   /* Look for Intel i8xx devices. */
-   numUsed = xf86MatchPciInstances(I810_NAME, PCI_VENDOR_INTEL,
-				   I810Chipsets, I810PciChipsets,
-				   devSections, numDevSections,
-				   drv, &usedChips);
-
-   if (flags & PROBE_DETECT) {
-      if (numUsed > 0)
-	 foundScreen = TRUE;
-   } else {
-      for (i = 0; i < numUsed; i++) {
-	 ScrnInfoPtr pScrn = NULL;
-
-	 /* Allocate new ScrnInfoRec and claim the slot */
-	 if ((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
-					  I810PciChipsets, NULL, NULL, NULL,
-					  NULL, NULL))) {
-	    EntityInfoPtr pEnt;
-
-	    pEnt = xf86GetEntityInfo(usedChips[i]);
-
-	    pScrn->driverVersion = I810_VERSION;
-	    pScrn->driverName = I810_DRIVER_NAME;
-	    pScrn->name = I810_NAME;
-	    pScrn->Probe = I810Probe;
-	    foundScreen = TRUE;
-	    switch (pEnt->chipset) {
-	    case PCI_CHIP_845_G:
-	    case PCI_CHIP_I865_G:
-	    case PCI_CHIP_I830_M:
-	    case PCI_CHIP_I855_GM:
-	    case PCI_CHIP_I915_G:
-	    case PCI_CHIP_E7221_G:
-	    case PCI_CHIP_I915_GM:
-	    case PCI_CHIP_I945_G:
-	    case PCI_CHIP_I945_GM:
-	    case PCI_CHIP_I945_GME:
-	    case PCI_CHIP_IGD_GM:
-	    case PCI_CHIP_IGD_G:
-	    case PCI_CHIP_I965_G:
-	    case PCI_CHIP_G35_G:
-	    case PCI_CHIP_I965_Q:
-	    case PCI_CHIP_I946_GZ:
-	    case PCI_CHIP_I965_GM:
-	    case PCI_CHIP_I965_GME:
- 	    case PCI_CHIP_G33_G:
- 	    case PCI_CHIP_Q35_G:
- 	    case PCI_CHIP_Q33_G:
- 	    case PCI_CHIP_GM45_GM:
-	    case PCI_CHIP_IGD_E_G:
-	    case PCI_CHIP_G45_G:
-	    case PCI_CHIP_Q45_G:
-	    case PCI_CHIP_G41_G:
-	       I830InitpScrn(pScrn);
-	       break;
-#ifndef I830_ONLY
-	    default:
-	       pScrn->PreInit = I810PreInit;
-	       pScrn->ScreenInit = I810ScreenInit;
-	       pScrn->SwitchMode = I810SwitchMode;
-	       pScrn->AdjustFrame = I810AdjustFrame;
-	       pScrn->EnterVT = I810EnterVT;
-	       pScrn->LeaveVT = I810LeaveVT;
-	       pScrn->FreeScreen = I810FreeScreen;
-	       pScrn->ValidMode = I810ValidMode;
-	       break;
-#endif
-	    }
-	 }
-      }
-   }
-
-   xfree(usedChips);
-   xfree(devSections);
-
-   return foundScreen;
-}
-#endif /* else XSERVER_LIBPCIACCESS */
 
 #ifndef I830_ONLY
 static void
@@ -873,10 +698,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    pI810->ioBase = hwp->PIOOffset;
 
    pI810->PciInfo = xf86GetPciInfoForEntity(pI810->pEnt->index);
-#if !XSERVER_LIBPCIACCESS
-   pI810->PciTag = pciTag(pI810->PciInfo->bus, pI810->PciInfo->device,
-			  pI810->PciInfo->func);
-#endif
 
    if (xf86RegisterResources(pI810->pEnt->index, NULL, ResNone))
       return FALSE;
@@ -1015,45 +836,11 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    xf86DrvMsg(pScrn->scrnIndex, from, "Chipset: \"%s\"\n",
 	      (pScrn->chipset != NULL) ? pScrn->chipset : "Unknown i810");
 
-#if XSERVER_LIBPCIACCESS
    pI810->LinearAddr = pI810->PciInfo->regions[0].base_addr;
-#else
-   if (pI810->pEnt->device->MemBase != 0) {
-      pI810->LinearAddr = pI810->pEnt->device->MemBase;
-      from = X_CONFIG;
-   } else {
-      if (pI810->PciInfo->memBase[1] != 0) {
-	 pI810->LinearAddr = pI810->PciInfo->memBase[0] & 0xFF000000;
-	 from = X_PROBED;
-      } else {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "No valid FB address in PCI config space\n");
-	 I810FreeRec(pScrn);
-	 return FALSE;
-      }
-   }
-#endif
    xf86DrvMsg(pScrn->scrnIndex, from, "Linear framebuffer at 0x%lX\n",
 	      (unsigned long)pI810->LinearAddr);
 
-#if XSERVER_LIBPCIACCESS
    pI810->MMIOAddr = pI810->PciInfo->regions[1].base_addr;
-#else
-   if (pI810->pEnt->device->IOBase != 0) {
-      pI810->MMIOAddr = pI810->pEnt->device->IOBase;
-      from = X_CONFIG;
-   } else {
-      if (pI810->PciInfo->memBase[1]) {
-	 pI810->MMIOAddr = pI810->PciInfo->memBase[1] & 0xFFF80000;
-	 from = X_PROBED;
-      } else {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "No valid MMIO address in PCI config space\n");
-	 I810FreeRec(pScrn);
-	 return FALSE;
-      }
-   }
-#endif
    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
 	      (unsigned long)pI810->MMIOAddr);
 
@@ -1072,11 +859,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    {
       uint32_t whtcfg_pamr_drp;
     
-#if XSERVER_LIBPCIACCESS
       pci_device_cfg_read_u32(pI810->PciInfo, & whtcfg_pamr_drp, WHTCFG_PAMR_DRP);
-#else
-      whtcfg_pamr_drp = pciReadLong(pI810->PciTag, WHTCFG_PAMR_DRP);
-#endif
 
       /* Need this for choosing watermarks.
        */
@@ -1129,18 +912,10 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 
    /* Calculate Fixed Offsets depending on graphics aperture size */
    {
-#if XSERVER_LIBPCIACCESS
       struct pci_device *bridge = intel_host_bridge ();
       uint32_t   smram_miscc;
       
       pci_device_cfg_read_u32 (bridge, & smram_miscc, SMRAM_MISCC);
-#else
-      PCITAG bridge;
-      long smram_miscc;
-
-      bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
-      smram_miscc = pciReadLong(bridge, SMRAM_MISCC);
-#endif
 
       if ((smram_miscc & GFX_MEM_WIN_SIZE) == GFX_MEM_WIN_32M) {
 	 pI810->FbMapSize = 0x1000000;
@@ -1331,10 +1106,8 @@ I810MapMMIO(ScrnInfoPtr pScrn)
 {
    int mmioFlags;
    I810Ptr pI810 = I810PTR(pScrn);
-#if XSERVER_LIBPCIACCESS
    struct pci_device *const device = pI810->PciInfo;
    int err;
-#endif
 
 #if !defined(__alpha__)
    mmioFlags = VIDMEM_MMIO | VIDMEM_READSIDEEFFECT;
@@ -1342,7 +1115,6 @@ I810MapMMIO(ScrnInfoPtr pScrn)
    mmioFlags = VIDMEM_MMIO | VIDMEM_READSIDEEFFECT | VIDMEM_SPARSE;
 #endif
 
-#if XSERVER_LIBPCIACCESS
    err = pci_device_map_range (device,
 			       pI810->MMIOAddr,
 			       I810_REG_SIZE,
@@ -1355,13 +1127,6 @@ I810MapMMIO(ScrnInfoPtr pScrn)
 		  strerror (err), err);
       return FALSE;
    }
-#else
-   pI810->MMIOBase = xf86MapPciMem(pScrn->scrnIndex, mmioFlags,
-				   pI810->PciTag,
-				   pI810->MMIOAddr, I810_REG_SIZE);
-   if (!pI810->MMIOBase)
-      return FALSE;
-#endif
    return TRUE;
 }
 
@@ -1369,17 +1134,12 @@ static Bool
 I810MapMem(ScrnInfoPtr pScrn)
 {
    I810Ptr pI810 = I810PTR(pScrn);
-#if XSERVER_LIBPCIACCESS
    struct pci_device *const device = pI810->PciInfo;
    int err;
-#else
-   long i;
-#endif
 
    if (!I810MapMMIO(pScrn))
       return FALSE;
 
-#if XSERVER_LIBPCIACCESS
    err = pci_device_map_range (device,
 			       pI810->LinearAddr,
 			       pI810->FbMapSize,
@@ -1392,15 +1152,6 @@ I810MapMem(ScrnInfoPtr pScrn)
 		  strerror (err), err);
       return FALSE;
    }
-#else
-   for (i = 2; i < pI810->FbMapSize; i <<= 1) ;
-
-   pI810->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
-				 pI810->PciTag,
-				 pI810->LinearAddr, i);
-   if (!pI810->FbBase)
-      return FALSE;
-#endif
 
    pI810->LpRing->virtual_start = pI810->FbBase + pI810->LpRing->mem.Start;
 
@@ -1412,12 +1163,7 @@ I810UnmapMMIO(ScrnInfoPtr pScrn)
 {
    I810Ptr pI810 = I810PTR(pScrn);
 
-#if XSERVER_LIBPCIACCESS
    pci_device_unmap_range (pI810->PciInfo, pI810->MMIOBase, I810_REG_SIZE);
-#else
-   xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI810->MMIOBase,
-		   I810_REG_SIZE);
-#endif
    pI810->MMIOBase = NULL;
 }
 
@@ -1426,12 +1172,7 @@ I810UnmapMem(ScrnInfoPtr pScrn)
 {
    I810Ptr pI810 = I810PTR(pScrn);
 
-#if XSERVER_LIBPCIACCESS
    pci_device_unmap_range (pI810->PciInfo, pI810->FbBase, pI810->FbMapSize);
-#else
-   xf86UnMapVidMem(pScrn->scrnIndex, (pointer) pI810->FbBase,
-		   pI810->FbMapSize);
-#endif
    pI810->FbBase = NULL;
    I810UnmapMMIO(pScrn);
    return TRUE;

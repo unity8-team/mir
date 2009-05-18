@@ -1,4 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i810_reg.h,v 1.13 2003/02/06 04:18:04 dawes Exp $ */
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -1300,6 +1299,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_ENCODING_HDMI			(0x2 << 10)
 /** Requird for HDMI operation */
 #define SDVO_NULL_PACKETS_DURING_VSYNC		(1 << 9)
+#define SDVO_COLOR_NOT_FULL_RANGE		(1 << 8)
 #define SDVO_BORDER_ENABLE			(1 << 7)
 #define SDVO_AUDIO_ENABLE			(1 << 6)
 /** New with 965, default is to be set */
@@ -2214,6 +2214,43 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPE_PIXEL_MASK		0x00ffffff
 #define PIPE_PIXEL_SHIFT	0
 
+/*
+ * Computing GMCH M and N values.
+ *
+ * GMCH M/N = dot clock * bytes per pixel / ls_clk * # of lanes
+ *
+ * ls_clk (we assume) is the DP link clock (1.62 or 2.7 GHz)
+ *
+ * The GMCH value is used internally
+ */
+#define PIPEA_GMCH_DATA_M	0x70050
+
+/* Transfer unit size for display port - 1, default is 0x3f (for TU size 64) */
+#define PIPE_GMCH_DATA_M_TU_SIZE_MASK	(0x3f << 25)
+#define PIPE_GMCH_DATA_M_TU_SIZE_SHIFT	25
+
+#define PIPE_GMCH_DATA_M_MASK		(0xffffff)
+
+#define PIPEA_GMCH_DATA_N	0x70054
+#define PIPE_GMCH_DATA_N_MASK		(0xffffff)
+
+/*
+ * Computing Link M and N values.
+ *
+ * Link M / N = pixel_clock / ls_clk
+ *
+ * (the DP spec calls pixel_clock the 'strm_clk')
+ *
+ * The Link value is transmitted in the Main Stream
+ * Attributes and VB-ID.
+ */
+
+#define PIPEA_DP_LINK_M		0x70060
+#define PIPEA_DP_LINK_M_MASK	(0xffffff)
+
+#define PIPEA_DP_LINK_N		0x70064
+#define PIPEA_DP_LINK_N_MASK	(0xffffff)
+
 #define PIPEB_DSL		0x71000
 
 #define PIPEBCONF 0x71008
@@ -2230,6 +2267,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPEBSTAT		0x71024
 #define PIPEBFRAMEHIGH		0x71040
 #define PIPEBFRAMEPIXEL		0x71044
+
+#define PIPEB_GMCH_DATA_M	0x71050
+#define PIPEB_GMCH_DATA_N	0x71054
+#define PIPEB_DP_LINK_M		0x71060
+#define PIPEB_DP_LINK_N		0x71064
 
 #define DSPACNTR		0x70180
 #define DSPBCNTR		0x71180
@@ -2436,12 +2478,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MI_OVERLAY_FLIP_OFF		(2<<21)
 
 /* Wait for Events */
-#define MI_WAIT_FOR_EVENT		(0x03<<23)
-#define MI_WAIT_FOR_PIPEB_SVBLANK	(1<<18)
-#define MI_WAIT_FOR_PIPEA_SVBLANK	(1<<17)
-#define MI_WAIT_FOR_OVERLAY_FLIP	(1<<16)
-#define MI_WAIT_FOR_PIPEB_VBLANK	(1<<7)
-#define MI_WAIT_FOR_PIPEA_VBLANK	(1<<3)
+#define MI_WAIT_FOR_EVENT			(0x03<<23)
+#define MI_WAIT_FOR_PIPEB_SVBLANK		(1<<18)
+#define MI_WAIT_FOR_PIPEA_SVBLANK		(1<<17)
+#define MI_WAIT_FOR_OVERLAY_FLIP		(1<<16)
+#define MI_WAIT_FOR_PIPEB_VBLANK		(1<<7)
+#define MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW	(1<<5)
+#define MI_WAIT_FOR_PIPEA_VBLANK		(1<<3)
+#define MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW	(1<<1)
+
+/* Set the scan line for MI_WAIT_FOR_PIPE?_SCAN_LINE_WINDOW */
+#define MI_LOAD_SCAN_LINES_INCL			(0x12<<23)
+#define MI_LOAD_SCAN_LINES_DISPLAY_PIPEA	(0)
+#define MI_LOAD_SCAN_LINES_DISPLAY_PIPEB	(0x1<<20)
 
 /* Flush */
 #define MI_FLUSH			(0x04<<23)
