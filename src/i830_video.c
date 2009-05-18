@@ -2495,13 +2495,15 @@ I830PutImage(ScrnInfoPtr pScrn,
         if (sync) {
 	    BoxPtr box;
 	    int y1, y2;
-            int pipe, event, load_scan_lines_pipe;
+	    int pipe = -1, event, load_scan_lines_pipe;
 
-	    if (pI830->use_drm_mode)
-		pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
-	    else {
-		I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-		pipe = intel_crtc->pipe;
+	    if (pPixmap != pScreen->GetScreenPixmap(pScreen)) {
+		if (pI830->use_drm_mode)
+		    pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
+		else {
+		    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+		    pipe = intel_crtc->pipe;
+		}
 	    }
 
 	    if (pipe >= 0) {
