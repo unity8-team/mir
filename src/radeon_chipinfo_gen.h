@@ -40,6 +40,8 @@ RADEONCardInfo RADEONCards[] = {
  { 0x4A4E, CHIP_FAMILY_R420, 1, 0, 0, 0, 0 },
  { 0x4A4F, CHIP_FAMILY_R420, 0, 0, 0, 0, 0 },
  { 0x4A50, CHIP_FAMILY_R420, 0, 0, 0, 0, 0 },
+ { 0x4A54, CHIP_FAMILY_R420, 0, 0, 0, 0, 0 },
+ { 0x4B48, CHIP_FAMILY_R420, 0, 0, 0, 0, 0 },
  { 0x4B49, CHIP_FAMILY_R420, 0, 0, 0, 0, 0 },
  { 0x4B4A, CHIP_FAMILY_R420, 0, 0, 0, 0, 0 },
  { 0x4B4B, CHIP_FAMILY_R420, 0, 0, 0, 0, 0 },

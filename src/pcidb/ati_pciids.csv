@@ -61,6 +61,8 @@
 "0x4A4E","R420_JN","R420",1,,,,,"ATI Radeon Mobility 9800 (M18) JN (AGP)"
 "0x4A4F","R420_4A4F","R420",,,,,,"ATI Radeon X800 SE (R420) (AGP)"
 "0x4A50","R420_JP","R420",,,,,,"ATI Radeon X800XT (R420) JP (AGP)"
+"0x4A54","R420_JT","R420",,,,,,"ATI Radeon X800 VE (R420) JT (AGP)"
+"0x4B48","R481_4B48","R420",,,,,,"ATI Radeon X850 (R480) (AGP)"
 "0x4B49","R481_4B49","R420",,,,,,"ATI Radeon X850 XT (R480) (AGP)"
 "0x4B4A","R481_4B4A","R420",,,,,,"ATI Radeon X850 SE (R480) (AGP)"
 "0x4B4B","R481_4B4B","R420",,,,,,"ATI Radeon X850 PRO (R480) (AGP)"
