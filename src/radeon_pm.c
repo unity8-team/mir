@@ -38,66 +38,131 @@
 #include "radeon_macros.h"
 #include "radeon_atombios.h"
 
-static int calc_div(uint32_t num, uint32_t den)
+/* 10 khz */
+static uint32_t calc_eng_mem_clock(ScrnInfoPtr pScrn,
+				   uint32_t req_clock,
+				   int ref_div,
+				   int *fb_div,
+				   int *post_div)
 {
-    int div = (num + (den / 2)) / den;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONPLLPtr pll = &info->pll;
 
-    if ((div < 2) || (div > 0xff))
-	return 0;
-    else
-	return div;
+    if (req_clock < 15000) {
+	*post_div = 8;
+	req_clock *= 8;
+    } else if (req_clock < 30000) {
+	*post_div = 4;
+	req_clock *= 4;
+    } else if (req_clock < 60000) {
+	*post_div = 2;
+	req_clock *= 2;
+    } else
+	*post_div = 1;
+
+    req_clock *= ref_div;
+    req_clock += pll->reference_freq;
+    req_clock /= (2 * pll->reference_freq);
+
+    *fb_div = req_clock & 0xff;
+
+    req_clock = (req_clock & 0xffff) << 1;
+    req_clock *= pll->reference_freq;
+    req_clock /= ref_div;
+    req_clock /= *post_div;
+
+    return req_clock;
 
 }
 
-/* 10 khz */
 static void
 RADEONSetEngineClock(ScrnInfoPtr pScrn, uint32_t eng_clock)
 {
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONPLLPtr pll = &info->pll;
-    uint32_t ref_div, fb_div;
-    uint32_t m_spll_ref_fb_div;
+    uint32_t tmp;
+    int ref_div, fb_div, post_div;
 
     RADEONWaitForIdleMMIO(pScrn);
 
-    m_spll_ref_fb_div = INPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV);
-    ref_div = m_spll_ref_fb_div & RADEON_M_SPLL_REF_DIV_MASK;
-    fb_div = calc_div(eng_clock * ref_div, pll->reference_freq);
+    tmp = INPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV);
+    ref_div = tmp & RADEON_M_SPLL_REF_DIV_MASK;
 
-    if (!fb_div)
-	return;
+    eng_clock = calc_eng_mem_clock(pScrn, eng_clock, ref_div, &fb_div, &post_div);
 
-    m_spll_ref_fb_div &= ~(RADEON_SPLL_FB_DIV_MASK << RADEON_SPLL_FB_DIV_SHIFT);
-    m_spll_ref_fb_div |= (fb_div & RADEON_SPLL_FB_DIV_MASK) << RADEON_SPLL_FB_DIV_SHIFT;
-    OUTPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV, m_spll_ref_fb_div);
-    usleep(16000); /* Let the pll settle */
-}
+    tmp = INPLL(pScrn, RADEON_CLK_PIN_CNTL);
+    tmp &= ~RADEON_DONT_USE_XTALIN;
+    OUTPLL(pScrn, RADEON_CLK_PIN_CNTL, tmp);
 
-/* 10 khz */
-static void
-RADEONSetMemoryClock(ScrnInfoPtr pScrn, uint32_t mem_clock)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONPLLPtr pll = &info->pll;
-    uint32_t ref_div, fb_div;
-    uint32_t m_spll_ref_fb_div;
+    tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+    tmp &= ~RADEON_SCLK_SRC_SEL_MASK;
+    OUTPLL(pScrn, RADEON_SCLK_CNTL, tmp);
 
-    if (info->IsIGP)
-	return;
+    usleep(10);
 
-    RADEONWaitForIdleMMIO(pScrn);
+    tmp = INPLL(pScrn, RADEON_SPLL_CNTL);
+    tmp |= RADEON_SPLL_SLEEP;
+    OUTPLL(pScrn, RADEON_SPLL_CNTL, tmp);
 
-    m_spll_ref_fb_div = INPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV);
-    ref_div = m_spll_ref_fb_div & RADEON_M_SPLL_REF_DIV_MASK;
-    fb_div = calc_div(mem_clock * ref_div, pll->reference_freq);
+    usleep(2);
 
-    if (!fb_div)
-	return;
+    tmp = INPLL(pScrn, RADEON_SPLL_CNTL);
+    tmp |= RADEON_SPLL_RESET;
+    OUTPLL(pScrn, RADEON_SPLL_CNTL, tmp);
 
-    m_spll_ref_fb_div &= ~(RADEON_MPLL_FB_DIV_MASK << RADEON_MPLL_FB_DIV_SHIFT);
-    m_spll_ref_fb_div |= (fb_div & RADEON_MPLL_FB_DIV_MASK) << RADEON_MPLL_FB_DIV_SHIFT;
-    OUTPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV, m_spll_ref_fb_div);
-    usleep(16000); /* Let the pll settle */
+    usleep(200);
+
+    tmp = INPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV);
+    tmp &= ~(RADEON_SPLL_FB_DIV_MASK << RADEON_SPLL_FB_DIV_SHIFT);
+    tmp |= (fb_div & RADEON_SPLL_FB_DIV_MASK) << RADEON_SPLL_FB_DIV_SHIFT;
+    OUTPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV, tmp);
+
+    /* XXX: verify on different asics */
+    tmp = INPLL(pScrn, RADEON_SPLL_CNTL);
+    tmp &= ~RADEON_SPLL_PVG_MASK;
+    if ((eng_clock * post_div) >= 90000)
+	tmp |= (0x7 << RADEON_SPLL_PVG_SHIFT);
+    else
+	tmp |= (0x4 << RADEON_SPLL_PVG_SHIFT);
+    OUTPLL(pScrn, RADEON_SPLL_CNTL, tmp);
+
+    tmp = INPLL(pScrn, RADEON_SPLL_CNTL);
+    tmp &= ~RADEON_SPLL_SLEEP;
+    OUTPLL(pScrn, RADEON_SPLL_CNTL, tmp);
+
+    usleep(2);
+
+    tmp = INPLL(pScrn, RADEON_SPLL_CNTL);
+    tmp &= ~RADEON_SPLL_RESET;
+    OUTPLL(pScrn, RADEON_SPLL_CNTL, tmp);
+
+    usleep(200);
+
+    tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+    tmp &= ~RADEON_SCLK_SRC_SEL_MASK;
+    switch (post_div) {
+    case 1:
+    default:
+	tmp |= 1;
+	break;
+    case 2:
+	tmp |= 2;
+	break;
+    case 4:
+	tmp |= 3;
+	break;
+    case 8:
+	tmp |= 4;
+	break;
+    }
+    OUTPLL(pScrn, RADEON_SCLK_CNTL, tmp);
+
+    usleep(20);
+
+    tmp = INPLL(pScrn, RADEON_CLK_PIN_CNTL);
+    tmp |= RADEON_DONT_USE_XTALIN;
+    OUTPLL(pScrn, RADEON_CLK_PIN_CNTL, tmp);
+
+    usleep(10);
+
 }
 
 static void LegacySetClockGating(ScrnInfoPtr pScrn, Bool enable)

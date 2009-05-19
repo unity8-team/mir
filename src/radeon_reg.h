@@ -305,20 +305,30 @@
 #define RADEON_CAPABILITIES_ID              0x0f50 /* PCI */
 #define RADEON_CAPABILITIES_PTR             0x0f34 /* PCI */
 #define RADEON_CLK_PIN_CNTL                 0x0001 /* PLL */
+#       define RADEON_DONT_USE_XTALIN       (1 << 4)
 #       define RADEON_SCLK_DYN_START_CNTL   (1 << 15)
 #define RADEON_CLOCK_CNTL_DATA              0x000c
 #define RADEON_CLOCK_CNTL_INDEX             0x0008
 #       define RADEON_PLL_WR_EN             (1 << 7)
 #       define RADEON_PLL_DIV_SEL           (3 << 8)
 #       define RADEON_PLL2_DIV_SEL_MASK     ~(3 << 8)
-#define RADEON_M_SPLL_REF_FB_DIV            0x000a
+#define RADEON_M_SPLL_REF_FB_DIV            0x000a /* PLL */
 #       define RADEON_M_SPLL_REF_DIV_MASK   0xff
 #       define RADEON_M_SPLL_REF_DIV_SHIFT  0
 #       define RADEON_MPLL_FB_DIV_MASK      0xff
 #       define RADEON_MPLL_FB_DIV_SHIFT     8
 #       define RADEON_SPLL_FB_DIV_MASK      0xff
 #       define RADEON_SPLL_FB_DIV_SHIFT     16
-#define RADEON_CLK_PWRMGT_CNTL              0x0014
+#define RADEON_SPLL_CNTL                    0x000c /* PLL */
+#       define RADEON_SPLL_SLEEP            (1 << 0)
+#       define RADEON_SPLL_RESET            (1 << 1)
+#       define RADEON_SPLL_PCP_MASK         0x7
+#       define RADEON_SPLL_PCP_SHIFT        8
+#       define RADEON_SPLL_PVG_MASK         0x7
+#       define RADEON_SPLL_PVG_SHIFT        11
+#       define RADEON_SPLL_PDC_MASK         0x3
+#       define RADEON_SPLL_PDC_SHIFT        14
+#define RADEON_CLK_PWRMGT_CNTL              0x0014 /* PLL */
 #       define RADEON_ENGIN_DYNCLK_MODE     (1 << 12)
 #       define RADEON_ACTIVE_HILO_LAT_MASK  (3 << 13)
 #       define RADEON_ACTIVE_HILO_LAT_SHIFT 13
@@ -330,7 +340,7 @@
 #       define RADEON_DYN_STOP_MODE_MASK    (7 << 21)
 #       define RADEON_TVPLL_PWRMGT_OFF      (1 << 30)
 #       define RADEON_TVCLK_TURNOFF         (1 << 31)
-#define RADEON_PLL_PWRMGT_CNTL              0x0015
+#define RADEON_PLL_PWRMGT_CNTL              0x0015 /* PLL */
 #       define RADEON_TCL_BYPASS_DISABLE    (1 << 20)
 #define RADEON_CLR_CMP_CLR_3D               0x1a24
 #define RADEON_CLR_CMP_CLR_DST              0x15c8
