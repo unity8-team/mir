@@ -53,8 +53,9 @@
 #include <X11/extensions/XvMClib.h>
 #include <X11/extensions/vldXvMC.h>
 #include <drm_sarea.h>
-
+#include "i915_drm.h"
 #include "xf86dri.h"
+#include "intel_bufmgr.h"
 
 #include "intel_batchbuffer.h"
 
@@ -131,11 +132,16 @@ typedef struct _intel_xvmc_driver {
 
     int fd;			/* drm file handler */
 
+    dri_bufmgr      *bufmgr;
+    unsigned int kernel_exec_fencing:1;
+
     struct {
-	unsigned int start_offset;
+	unsigned int init_offset;
 	unsigned int size;
 	unsigned int space;
 	unsigned char *ptr;
+	unsigned char *init_ptr;
+	dri_bo *buf;
     } batch;
 
     struct

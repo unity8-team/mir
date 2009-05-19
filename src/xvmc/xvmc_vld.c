@@ -35,6 +35,8 @@
 
 #define BATCH_STRUCT(x) intelBatchbufferData(&x, sizeof(x), 0)
 
+#define VLD_MAX_SLICE_SIZE (32 * 1024)
+
 #define CS_SIZE 30
 #define URB_SIZE 384
 /* idct table */
@@ -125,25 +127,89 @@ struct media_kernel {
 
 #define MEDIA_KERNEL_NUM (sizeof(media_kernels)/sizeof(media_kernels[0]))
 
+struct media_kernel_obj {
+    dri_bo *bo;
+};
+
+struct interface_descriptor_obj {
+   dri_bo *bo;
+   struct media_kernel_obj kernels[MEDIA_KERNEL_NUM];
+};
+
+struct vfe_state_obj {
+   dri_bo *bo;
+   struct interface_descriptor_obj interface;
+};
+
+struct vld_state_obj {
+   dri_bo *bo;
+};
+
+struct surface_obj {
+     dri_bo *bo; 
+};
+
+struct surface_state_obj {
+      struct surface_obj surface; 
+      dri_bo *bo;
+};
+
+struct binding_table_obj {
+    dri_bo *bo;
+    struct surface_state_obj surface_states[I965_MAX_SURFACES];
+};
+
+struct slice_data_obj {
+    dri_bo *bo;
+};
+
+struct cs_state_obj {
+    dri_bo *bo;
+};
+
 static struct media_state {
-    unsigned long state_base;
-    void 	  *state_ptr;
-    unsigned long vld_state_offset;
-    unsigned long vfe_state_offset;
-    unsigned long interface_descriptor_offsets[16];
-    unsigned long kernel_offsets[MEDIA_KERNEL_NUM];
-    unsigned long cs_offset;
-    unsigned long surface_state_offsets[I965_MAX_SURFACES];
-    unsigned long binding_table_offset;
+    struct vfe_state_obj vfe_state;
+    struct vld_state_obj vld_state;
+    struct binding_table_obj binding_table;
+    struct cs_state_obj cs_object;
+    struct slice_data_obj slice_data;
 } media_state;
 
-static int map_buffer(struct drm_memory_block *mem)
+/* XvMCQMatrix * 2 + idct_table + 8 * kernel offset pointer */
+#define CS_OBJECT_SIZE (32*20 + sizeof(unsigned int) * 8)
+static int free_object(struct media_state *s)
 {
-    return drmMap(xvmc_driver->fd, mem->handle, mem->size, &mem->ptr);
+    int i;
+#define FREE_ONE_BO(bo) \
+    if (bo) \
+        drm_intel_bo_unreference(bo)
+    FREE_ONE_BO(s->vfe_state.bo);
+    FREE_ONE_BO(s->vfe_state.interface.bo);
+    for (i = 0; i < MEDIA_KERNEL_NUM; i++)
+        FREE_ONE_BO(s->vfe_state.interface.kernels[i].bo);
+    FREE_ONE_BO(s->binding_table.bo);
+    for (i = 0; i < I965_MAX_SURFACES; i++)
+        FREE_ONE_BO(s->binding_table.surface_states[i].bo);
+    FREE_ONE_BO(s->slice_data.bo);
+    FREE_ONE_BO(s->cs_object.bo);
+    FREE_ONE_BO(s->vld_state.bo);
 }
-static void unmap_buffer(struct drm_memory_block *mem)
+
+static int alloc_object(struct media_state *s)
 {
-    drmUnmap(mem->ptr, mem->size);
+    int i;
+
+    for (i = 0; i < I965_MAX_SURFACES; i++) {
+        s->binding_table.surface_states[i].bo =
+            drm_intel_bo_alloc(xvmc_driver->bufmgr, "surface_state", 
+ 		sizeof(struct brw_surface_state), 0x1000);
+        if (!s->binding_table.surface_states[i].bo)
+            goto out;
+    }
+    return 0;
+out:
+    free_object(s);
+    return BadAlloc;
 }
 
 static void flush()
@@ -156,47 +222,9 @@ static void flush()
     BATCH_STRUCT(f);
 }
 
-static void calc_state_layout()
+static Status vfe_state()
 {
-  int i;
-  media_state.vld_state_offset = media_state.state_base;
-  media_state.vfe_state_offset = 
-      ALIGN(media_state.vld_state_offset + sizeof(struct brw_vld_state), 64);
-  media_state.interface_descriptor_offsets[0] =
-      ALIGN(media_state.vfe_state_offset + sizeof(struct brw_vfe_state), 64);
-  for (i = 1; i < 16; i++)
-      media_state.interface_descriptor_offsets[i] =
-	  media_state.interface_descriptor_offsets[i - 1] 
-	  + sizeof(struct brw_interface_descriptor);
-  media_state.binding_table_offset = 
-	  ALIGN(media_state.interface_descriptor_offsets[15] + 
-	  + sizeof(struct brw_interface_descriptor), 64);
-  media_state.surface_state_offsets[0] = ALIGN(media_state.binding_table_offset 
-	  + 4*I965_MAX_SURFACES, 32);
-  for (i = 1; i < I965_MAX_SURFACES; i++)
-      media_state.surface_state_offsets[i] = 
-	  ALIGN(media_state.surface_state_offsets[i-1]
-		  + sizeof(struct brw_surface_state), 32);
-
-  media_state.kernel_offsets[0] = 
-      ALIGN(media_state.surface_state_offsets[I965_MAX_SURFACES - 1]
-	      + sizeof(struct brw_surface_state), 64);
-  for (i = 1; i < MEDIA_KERNEL_NUM; i++)
-      media_state.kernel_offsets[i] = 
-	  ALIGN(media_state.kernel_offsets[i-1] + media_kernels[i-1].size, 64);
-  media_state.cs_offset = ALIGN(media_state.kernel_offsets[MEDIA_KERNEL_NUM-1]
-	  + media_kernels[MEDIA_KERNEL_NUM-1].size, 64);
-}
-
-static void *offset_to_ptr(unsigned long offset)
-{
-    return media_state.state_ptr + (offset - media_state.state_base);
-}
-
-static void vfe_state()
-{
-  struct brw_vfe_state *vfe_state;
-  vfe_state = offset_to_ptr(media_state.vfe_state_offset);
+  struct brw_vfe_state tmp, *vfe_state = &tmp;
   memset(vfe_state, 0, sizeof(*vfe_state));
   vfe_state->vfe0.extend_vfe_state_present = 1;
   vfe_state->vfe1.vfe_mode = VFE_VLD_MODE;
@@ -204,59 +232,148 @@ static void vfe_state()
   vfe_state->vfe1.children_present = 0;
   vfe_state->vfe1.urb_entry_alloc_size = 2;
   vfe_state->vfe1.max_threads = 31;
+  vfe_state->vfe2.interface_descriptor_base =
+      media_state.vfe_state.interface.bo->offset >> 4;
 
-  vfe_state->vfe2.interface_descriptor_base = 
-      media_state.interface_descriptor_offsets[0] >> 4;
+    if (media_state.vfe_state.bo)
+        drm_intel_bo_unreference(media_state.vfe_state.bo);
+
+    media_state.vfe_state.bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+        "vfe state", sizeof(struct brw_vfe_state), 0x1000);
+    if (!media_state.vfe_state.bo)
+        return BadAlloc;
+
+    drm_intel_bo_subdata(media_state.vfe_state.bo, 0, sizeof(tmp), &tmp);
+
+    drm_intel_bo_emit_reloc(media_state.vfe_state.bo,
+	offsetof(struct brw_vfe_state, vfe2),
+	media_state.vfe_state.interface.bo, 0,
+	I915_GEM_DOMAIN_INSTRUCTION, 0);
+    return Success;
 }
 
-static void interface_descriptor()
+static Status interface_descriptor()
 {
     int i;
-    struct brw_interface_descriptor *desc;
+    struct brw_interface_descriptor tmp, *desc = &tmp;
+
+    if (media_state.vfe_state.interface.bo)
+        drm_intel_bo_unreference(media_state.vfe_state.interface.bo);
+
+    media_state.vfe_state.interface.bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+        "interfaces", MEDIA_KERNEL_NUM*sizeof(struct brw_interface_descriptor),
+	    0x1000);
+    if (!media_state.vfe_state.interface.bo)
+        return BadAlloc;
+
     for (i = 0; i < MEDIA_KERNEL_NUM; i++) {
-	desc = offset_to_ptr(media_state.interface_descriptor_offsets[i]);
 	memset(desc, 0, sizeof(*desc));
 	desc->desc0.grf_reg_blocks = 15;
-	desc->desc0.kernel_start_pointer = media_state.kernel_offsets[i] >> 6;
+	desc->desc0.kernel_start_pointer =
+            media_state.vfe_state.interface.kernels[i].bo->offset >> 6;
 
 	desc->desc1.const_urb_entry_read_offset = 0;
 	desc->desc1.const_urb_entry_read_len = 30;
 
 	desc->desc3.binding_table_entry_count = I965_MAX_SURFACES - 1;
-	desc->desc3.binding_table_pointer = media_state.binding_table_offset>>5;
+	desc->desc3.binding_table_pointer =
+            media_state.binding_table.bo->offset >> 5;
+
+        drm_intel_bo_subdata(media_state.vfe_state.interface.bo, i*sizeof(tmp), sizeof(tmp), desc);
+
+        drm_intel_bo_emit_reloc(
+	    media_state.vfe_state.interface.bo,
+	    i * sizeof(*desc) + 
+	    offsetof(struct brw_interface_descriptor, desc0),
+	    media_state.vfe_state.interface.kernels[i].bo,
+	    desc->desc0.grf_reg_blocks,
+	    I915_GEM_DOMAIN_INSTRUCTION, 0);
+
+       drm_intel_bo_emit_reloc(
+	    media_state.vfe_state.interface.bo,
+	    i * sizeof(*desc) + 
+	    offsetof(struct brw_interface_descriptor, desc3),
+	    media_state.binding_table.bo,
+	    desc->desc3.binding_table_entry_count,
+	    I915_GEM_DOMAIN_INSTRUCTION, 0);
     }
+    return Success;
 }
 
-static void setup_media_kernels()
+static int setup_media_kernels()
 {
     int i;
-    void *kernel_ptr;
+
     for (i = 0; i < MEDIA_KERNEL_NUM; i++) {
-	kernel_ptr = offset_to_ptr(media_state.kernel_offsets[i]);
-	memcpy(kernel_ptr, media_kernels[i].bin, media_kernels[i].size);
+        media_state.vfe_state.interface.kernels[i].bo =
+		drm_intel_bo_alloc(xvmc_driver->bufmgr, "kernel",
+			media_kernels[i].size, 0x1000);
+        if (!media_state.vfe_state.interface.kernels[i].bo)
+            goto out;
     }
+
+    for (i = 0; i < MEDIA_KERNEL_NUM; i++) {
+        dri_bo *bo = media_state.vfe_state.interface.kernels[i].bo;
+        drm_intel_bo_subdata(bo, 0, media_kernels[i].size, media_kernels[i].bin);
+    }
+    return 0;
+out:
+    free_object(&media_state);
+    return BadAlloc;
 }
 
-static void binding_tables()
+static Status binding_tables()
 {
-   unsigned int *table;
+   unsigned int table[I965_MAX_SURFACES];
    int i;
-   table = offset_to_ptr(media_state.binding_table_offset);
-   for (i = 0; i < I965_MAX_SURFACES; i++)
-       table[i] = media_state.surface_state_offsets[i];
+
+   if (media_state.binding_table.bo)
+       drm_intel_bo_unreference(media_state.binding_table.bo);
+   media_state.binding_table.bo = 
+	drm_intel_bo_alloc(xvmc_driver->bufmgr, "binding_table", 
+		I965_MAX_SURFACES*4, 0x1000);
+   if (!media_state.binding_table.bo)
+       return BadAlloc;
+
+   for (i = 0; i < I965_MAX_SURFACES; i++) {
+       table[i] = media_state.binding_table.surface_states[i].bo->offset;
+       drm_intel_bo_emit_reloc(media_state.binding_table.bo, 
+	    i * sizeof(unsigned int),
+	    media_state.binding_table.surface_states[i].bo, 0,
+	    I915_GEM_DOMAIN_INSTRUCTION, 0);
+   }
+
+   drm_intel_bo_subdata(media_state.binding_table.bo, 0, sizeof(table), table);
+   return Success;
 }
 
-static void cs_init()
+static Status cs_init()
 {
-   void *buf;
+   char buf[CS_OBJECT_SIZE];
    unsigned int *lib_reloc;
    int i;
-   buf = offset_to_ptr(media_state.cs_offset);
+
+   if (media_state.cs_object.bo)
+       drm_intel_bo_unreference(media_state.cs_object.bo);
+
+   media_state.cs_object.bo = drm_intel_bo_alloc(xvmc_driver->bufmgr, "cs object", CS_OBJECT_SIZE, 64);
+   if (!media_state.cs_object.bo)
+       return BadAlloc;
+
    memcpy(buf + 32*4, idct_table, sizeof(idct_table));
    /* idct lib reloction */
-   lib_reloc = buf + 32*20;
+   lib_reloc = (unsigned int *)(buf + 32*20);
    for (i = 0; i < 8; i++)
-       lib_reloc[i] = media_state.kernel_offsets[LIB_INTERFACE];
+       lib_reloc[i] = media_state.vfe_state.interface.kernels[LIB_INTERFACE].bo->offset;
+   drm_intel_bo_subdata(media_state.cs_object.bo, 32*4, 32*16 + 8*sizeof(unsigned int), buf + 32*4);
+
+   for (i = 0; i < 8; i++)
+       drm_intel_bo_emit_reloc(media_state.cs_object.bo,
+           32*20 + sizeof(unsigned int) * i,
+           media_state.vfe_state.interface.kernels[LIB_INTERFACE].bo, 0,
+           I915_GEM_DOMAIN_INSTRUCTION, 0);
+
+   return Success;
 }
 
 static Status create_context(Display *display, XvMCContext *context,
@@ -265,18 +382,12 @@ static Status create_context(Display *display, XvMCContext *context,
     struct i965_xvmc_context *i965_ctx;
     i965_ctx = (struct i965_xvmc_context *)priv_data;
     context->privData = priv_data;
-    if (map_buffer(&i965_ctx->static_buffer))
-	return BadAlloc;
-    if (map_buffer(&i965_ctx->slice))
-	return BadAlloc;
-    media_state.state_base = i965_ctx->static_buffer.offset;
-    media_state.state_ptr = i965_ctx->static_buffer.ptr;
-    calc_state_layout();
-    vfe_state();
-    interface_descriptor();
-    setup_media_kernels();
-    binding_tables();
-    cs_init();
+
+    if (alloc_object(&media_state))
+        return BadAlloc;
+
+    if (setup_media_kernels())
+        return BadAlloc;
     return Success;
 }
 
@@ -284,34 +395,45 @@ static Status destroy_context(Display *display, XvMCContext *context)
 {
     struct i965_xvmc_context *i965_ctx;
     i965_ctx = context->privData;
-    unmap_buffer(&i965_ctx->slice);
-    unmap_buffer(&i965_ctx->static_buffer);
     Xfree(i965_ctx);
     return Success;
 }
 
+#define STRIDE(w)               (w)
+#define SIZE_YUV420(w, h)       (h * (STRIDE(w) + STRIDE(w >> 1)))
 static Status create_surface(Display *display,
 	XvMCContext *context, XvMCSurface *surface, int priv_count,
 	CARD32 *priv_data)
 {
-    struct i965_xvmc_surface *x; 
+    struct i965_xvmc_surface *priv_surface =
+	(struct i965_xvmc_surface *)priv_data;
+    size_t size = SIZE_YUV420(priv_surface->w, priv_surface->h);
     surface->privData = priv_data;
-    x = surface->privData;
+    priv_surface->bo = drm_intel_bo_alloc(xvmc_driver->bufmgr, "surface", 
+	    size, 0x1000);
+
     return Success;
 }
 static Status destroy_surface(Display *display,
 	XvMCSurface *surface)
 {
+    struct i965_xvmc_surface *priv_surface = 
+	surface->privData;
+    XSync(display, False);
+    drm_intel_bo_unreference(priv_surface->bo);
     return Success;
 }
 
 static Status load_qmatrix(Display *display, XvMCContext *context,
 	const XvMCQMatrix *qmx)
 {
-    unsigned char *qmatrix;
-    qmatrix = offset_to_ptr(media_state.cs_offset);
-    memcpy(qmatrix, qmx->intra_quantiser_matrix, 64);
-    memcpy(qmatrix + 64, qmx->non_intra_quantiser_matrix, 64);
+    Status ret;
+    ret = cs_init();
+    if (ret != Success)
+        return ret;
+    drm_intel_bo_subdata(media_state.cs_object.bo, 0, 64, qmx->intra_quantiser_matrix);
+    drm_intel_bo_subdata(media_state.cs_object.bo, 64, 64, qmx->non_intra_quantiser_matrix);
+
     return Success;
 }
 
@@ -322,12 +444,18 @@ static Status get_surface_status(Display *display, XvMCSurface *surface,
     return Success;
 }
 
-static void vld_state(const XvMCMpegControl *control)
+static Status vld_state(const XvMCMpegControl *control)
 {
-    struct brw_vld_state *vld;
-    vld = offset_to_ptr(media_state.vld_state_offset);
-    memset(vld, 0, sizeof(*vld));
+    struct brw_vld_state tmp, *vld = &tmp;
 
+    if (media_state.vld_state.bo)
+        drm_intel_bo_unreference(media_state.vld_state.bo);
+    media_state.vld_state.bo = drm_intel_bo_alloc(xvmc_driver->bufmgr, 
+	    "vld state", sizeof(struct brw_vld_state), 64);
+    if (!media_state.vld_state.bo)
+        return BadAlloc;
+
+    memset(vld, 0, sizeof(*vld));
     vld->vld0.f_code_0_0 = control->FHMV_range + 1;
     vld->vld0.f_code_0_1 = control->FVMV_range + 1;
     vld->vld0.f_code_1_0 = control->BHMV_range + 1;
@@ -362,44 +490,80 @@ static void vld_state(const XvMCMpegControl *control)
     vld->desc_remap_table1.index_13 = FIELD_BACKWARD_INTERFACE;
     vld->desc_remap_table1.index_14 = F_B_INTERFACE;
     vld->desc_remap_table1.index_15 = FIELD_F_B_INTERFACE;
+
+    drm_intel_bo_subdata(media_state.vld_state.bo, 0, sizeof(tmp), vld);
+    return Success;
 }
 
-static void setup_media_surface(int binding_table_index, 
-	unsigned long offset, int w, int h)
+static Status setup_media_surface(int index, dri_bo *bo,
+	unsigned long offset, int w, int h, Bool write)
 {
-    struct brw_surface_state *ss;
-    ss = offset_to_ptr(media_state.surface_state_offsets[binding_table_index]);
+    struct brw_surface_state tmp, *ss = &tmp;
     memset(ss, 0, sizeof(*ss)); 
     ss->ss0.surface_type = BRW_SURFACE_2D;
     ss->ss0.surface_format = BRW_SURFACEFORMAT_R8_SINT;
-    ss->ss1.base_addr = offset;
+    ss->ss1.base_addr = offset + bo->offset;
     ss->ss2.width = w - 1;
     ss->ss2.height = h - 1;
     ss->ss3.pitch = w - 1;
+
+    if (media_state.binding_table.surface_states[index].bo)
+        drm_intel_bo_unreference(media_state.binding_table.surface_states[index].bo);
+
+    media_state.binding_table.surface_states[index].bo =
+            drm_intel_bo_alloc(xvmc_driver->bufmgr, "surface_state", 
+ 		sizeof(struct brw_surface_state), 0x1000);
+    if (!media_state.binding_table.surface_states[index].bo)
+        return BadAlloc;
+
+    drm_intel_bo_subdata(
+	    media_state.binding_table.surface_states[index].bo,
+	    0, sizeof(*ss), ss);
+    drm_intel_bo_emit_reloc(media_state.binding_table.surface_states[index].bo, 
+	    offsetof(struct brw_surface_state, ss1),
+	    bo, offset,
+	    I915_GEM_DOMAIN_RENDER, write?I915_GEM_DOMAIN_RENDER:0);
+    return Success;
 }
 
-static void setup_surface(struct i965_xvmc_surface *target,
+static Status setup_surface(struct i965_xvmc_surface *target,
 	 struct i965_xvmc_surface *past,
 	 struct i965_xvmc_surface *future,
 	 int w, int h)
 {
-    unsigned long dst_offset, past_offset, future_offset;
-    dst_offset = target->buffer.offset;
-    setup_media_surface(0, dst_offset, w, h);
-    setup_media_surface(1, dst_offset + w*h, w/2, h/2);
-    setup_media_surface(2, dst_offset + w*h + w*h/4, w/2, h/2);
+    Status ret;
+    ret = setup_media_surface(0, target->bo, 0, w, h, TRUE);
+    if (ret != Success)
+        return ret;
+    ret = setup_media_surface(1, target->bo, w*h, w/2, h/2, TRUE);
+    if (ret != Success)
+        return ret;
+    ret = setup_media_surface(2, target->bo, w*h + w*h/4, w/2, h/2, TRUE);
+    if (ret != Success)
+        return ret;
     if (past) {
-	past_offset = past->buffer.offset;
-	setup_media_surface(4, past_offset, w, h);
-	setup_media_surface(5, past_offset + w*h, w/2, h/2);
-	setup_media_surface(6, past_offset + w*h + w*h/4, w/2, h/2);
+	ret = setup_media_surface(4, past->bo, 0, w, h, FALSE);
+        if (ret != Success)
+            return ret;
+	ret = setup_media_surface(5, past->bo, w*h, w/2, h/2, FALSE);
+        if (ret != Success)
+            return ret;
+	ret = setup_media_surface(6, past->bo, w*h + w*h/4, w/2, h/2, FALSE);
+        if (ret != Success)
+            return ret;
     }
     if (future) {
-	future_offset = future->buffer.offset;
-	setup_media_surface(7, future_offset, w, h);
-	setup_media_surface(8, future_offset + w*h, w/2, h/2);
-	setup_media_surface(9, future_offset + w*h + w*h/4, w/2, h/2);
+	ret = setup_media_surface(7, future->bo, 0, w, h, FALSE);
+        if (ret != Success)
+            return ret;
+	ret = setup_media_surface(8, future->bo, w*h, w/2, h/2, FALSE);
+        if (ret != Success)
+            return ret;
+	ret = setup_media_surface(9, future->bo, w*h + w*h/4, w/2, h/2, FALSE);
+        if (ret != Success)
+            return ret;
     }
+    return Success;
 }
 
 static  Status begin_surface(Display *display, XvMCContext *context,
@@ -411,13 +575,30 @@ static  Status begin_surface(Display *display, XvMCContext *context,
     struct i965_xvmc_contex *i965_ctx;
     struct i965_xvmc_surface *priv_target, *priv_past, *priv_future;
     intel_xvmc_context_ptr intel_ctx;
+    Status ret;
+
     intel_ctx = intel_xvmc_find_context(context->context_id);
     priv_target = target->privData;
     priv_past = past?past->privData:NULL;
     priv_future = future?future->privData:NULL;
-    vld_state(control);
-    setup_surface(priv_target, priv_past, priv_future, 
+
+    ret = vld_state(control);
+    if (ret != Success)
+        return ret;
+    ret = setup_surface(priv_target, priv_past, priv_future, 
 	    context->width, context->height);
+    if (ret != Success)
+        return ret;
+    ret = binding_tables();
+    if (ret != Success)
+        return ret;
+    ret = interface_descriptor();
+    if (ret != Success)
+        return ret;
+    ret = vfe_state();
+    if (ret != Success)
+        return ret;
+
     LOCK_HARDWARE(intel_ctx->hw_context);
     flush();
     UNLOCK_HARDWARE(intel_ctx->hw_context);
@@ -455,8 +636,8 @@ static void media_state_pointers()
     BATCH_LOCALS;
     BEGIN_BATCH(3);
     OUT_BATCH(BRW_MEDIA_STATE_POINTERS|1);
-    OUT_BATCH(media_state.vld_state_offset|1);
-    OUT_BATCH(media_state.vfe_state_offset);
+    OUT_RELOC(media_state.vld_state.bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 1);
+    OUT_RELOC(media_state.vfe_state.bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
     ADVANCE_BATCH();
 }
 static void align_urb_fence()
@@ -513,11 +694,11 @@ static void cs_buffer()
     BATCH_LOCALS;
     BEGIN_BATCH(2);
     OUT_BATCH(BRW_CONSTANT_BUFFER|0|(1<<8));
-    OUT_BATCH(media_state.cs_offset|CS_SIZE);
+    OUT_RELOC(media_state.cs_object.bo, I915_GEM_DOMAIN_INSTRUCTION, 0, CS_SIZE);
     ADVANCE_BATCH();
 }
 
-static void vld_send_media_object(unsigned long slice_offset,
+static void vld_send_media_object(dri_bo *bo,
 	int slice_len, int mb_h_pos, int mb_v_pos, int mb_bit_offset,
 	int mb_count, int q_scale_code)
 {
@@ -526,11 +707,12 @@ static void vld_send_media_object(unsigned long slice_offset,
     OUT_BATCH(BRW_MEDIA_OBJECT|4);
     OUT_BATCH(0);
     OUT_BATCH(slice_len);
-    OUT_BATCH(slice_offset);
+    OUT_RELOC(bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
     OUT_BATCH((mb_h_pos<<24)|(mb_v_pos<<16)|(mb_count<<8)|(mb_bit_offset));
     OUT_BATCH(q_scale_code<<24);
     ADVANCE_BATCH();
 }
+
 static Status put_slice2(Display *display, XvMCContext *context, 
 	unsigned char *slice, int nbytes, int sliceCode)
 {
@@ -545,9 +727,26 @@ static Status put_slice2(Display *display, XvMCContext *context,
 
     q_scale_code = bit_buf>>27;
 
-    memcpy(i965_ctx->slice.ptr, slice, nbytes);
-    intel_ctx = intel_xvmc_find_context(context->context_id);
+    if (media_state.slice_data.bo) {
+        if (xvmc_driver->kernel_exec_fencing)
+            drm_intel_gem_bo_unmap_gtt(media_state.slice_data.bo);
+        else
+            drm_intel_bo_unmap(media_state.slice_data.bo);
 
+        drm_intel_bo_unreference(media_state.slice_data.bo);
+    }
+    media_state.slice_data.bo = drm_intel_bo_alloc(xvmc_driver->bufmgr, 
+	    "slice data", VLD_MAX_SLICE_SIZE, 64);
+    if (!media_state.slice_data.bo)
+        return BadAlloc;
+    if (xvmc_driver->kernel_exec_fencing)
+        drm_intel_gem_bo_map_gtt(media_state.slice_data.bo);
+    else
+        drm_intel_bo_map(media_state.slice_data.bo, 1);
+
+    memcpy(media_state.slice_data.bo->virtual, slice, nbytes);
+
+    intel_ctx = intel_xvmc_find_context(context->context_id);
     LOCK_HARDWARE(intel_ctx->hw_context);
     state_base_address();
     pipeline_select(&media_state);
@@ -555,7 +754,7 @@ static Status put_slice2(Display *display, XvMCContext *context,
     urb_layout();	
     cs_urb_layout();
     cs_buffer();
-    vld_send_media_object(i965_ctx->slice.offset, 
+    vld_send_media_object(media_state.slice_data.bo,
 	    nbytes, 
 	    0, mb_row, 6, 127, q_scale_code);
     intelFlushBatch(TRUE);
@@ -573,8 +772,10 @@ static Status put_surface(Display *display,XvMCSurface *surface,
 {
 	struct i965_xvmc_surface *private_surface =
 		surface->privData;
+        uint32_t handle;
 
-	data->surf_offset = private_surface->buffer.offset;
+        drm_intel_bo_flink(private_surface->bo, &handle);
+        data->handle = handle;
 	return Success;
 }
 

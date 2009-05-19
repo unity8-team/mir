@@ -10,9 +10,10 @@ struct  drm_memory_block {
 };
 
 struct i965_xvmc_surface {
-    struct 		drm_memory_block buffer;
+    int			w, h;
     unsigned int 	no;
     void 		*handle; 
+    dri_bo		*bo;
 };
 
 struct i965_xvmc_context {

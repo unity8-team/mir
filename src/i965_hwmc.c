@@ -38,6 +38,7 @@
 #define _INTEL_XVMC_SERVER_
 #include "i830_hwmc.h"
 #include "i965_hwmc.h"
+#include "intel_bufmgr.h"
 
 #define STRIDE(w)               (w)
 #define SIZE_YUV420(w, h)       (h * (STRIDE(w) + STRIDE(w >> 1)))
@@ -49,40 +50,6 @@
 
 static PutImageFuncPtr XvPutImage;
 
-
-static int alloc_drm_memory(ScrnInfoPtr pScrn, 
-	struct drm_memory_block *mem, 
-	char *name, size_t size)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    if ((mem->buffer = i830_allocate_memory(pScrn, 
-	    name, size, PITCH_NONE, GTT_PAGE_SIZE,
-	    ALIGN_BOTH_ENDS, TILE_NONE)) == NULL) {
-	ErrorF("Fail to alloc \n");
-	return BadAlloc;
-    }
-
-    if (drmAddMap(pI830->drmSubFD,
-                  (drm_handle_t)(mem->buffer->offset + pI830->LinearAddr),
-                  size, DRM_AGP, 0,
-                  (drmAddress)&mem->handle) < 0) {
-	ErrorF("Fail to map %d \n", errno);
-	i830_free_memory(pScrn, mem->buffer);
-	return BadAlloc;
-    }
-
-    mem->size = size;
-    mem->offset = mem->buffer->offset;
-    return Success;
-}
-
-static void free_drm_memory(ScrnInfoPtr pScrn,
-		struct drm_memory_block *mem)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    drmRmMap(pI830->drmSubFD, mem->handle);
-    i830_free_memory(pScrn, mem->buffer);
-}
 
 static int create_context(ScrnInfoPtr pScrn, 
 	XvMCContextPtr context, int *num_privates, CARD32 **private)
@@ -106,31 +73,8 @@ static int create_context(ScrnInfoPtr pScrn,
 
     private_context->is_g4x = IS_G4X(I830);
     private_context->is_965_q = IS_965_Q(I830);
+    private_context->comm.kernel_exec_fencing = I830->kernel_exec_fencing;
     private_context->comm.type = xvmc_driver->flag;
-    private_context->comm.batchbuffer.offset = xvmc_driver->batch->offset;
-    private_context->comm.batchbuffer.size = xvmc_driver->batch->size;
-    private_context->comm.batchbuffer.handle = xvmc_driver->batch_handle;
-
-    if (alloc_drm_memory(pScrn, &private_context->static_buffer,
-		"XVMC static buffers", 
-		I965_MC_STATIC_BUFFER_SIZE)) {
-	ErrorF("Unable to allocate and map static buffer for XVMC\n");	
-	return BadAlloc;
-    }
-
-    if (alloc_drm_memory(pScrn, &private_context->blocks,
-		"XVMC blocks", blocksize)) {
-	ErrorF("Unable to allocate and map block buffer for XVMC\n");	
-	return BadAlloc;
-    }
-
-    if (IS_G4X(I830)) {
-	if (alloc_drm_memory(pScrn, &private_context->slice,
-		    "XVMC vld slice", VLD_MAX_SLICE_LEN)) {
-	    ErrorF("Unable to allocate and vld slice buffer for XVMC\n");	
-	    return BadAlloc;
-	}
-    }
 
     *num_privates = sizeof(*private_context)/sizeof(CARD32);
     *private = (CARD32 *)private_context;
@@ -143,12 +87,7 @@ static int create_context(ScrnInfoPtr pScrn,
 static void destroy_context(ScrnInfoPtr pScrn, XvMCContextPtr context)
 {
     struct i965_xvmc_context *private_context;
-    I830Ptr pI830 = I830PTR(pScrn);
     private_context = context->driver_priv;
-    free_drm_memory(pScrn, &private_context->static_buffer);
-    free_drm_memory(pScrn, &private_context->blocks);
-    if (IS_G4X(pI830))
-	free_drm_memory(pScrn, &private_context->slice);
     Xfree(private_context);
 }
 
@@ -159,7 +98,6 @@ static int create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr surface,
 
 	struct i965_xvmc_surface *priv_surface, *surface_dup;
 	struct i965_xvmc_context *priv_ctx = ctx->driver_priv;
-	size_t bufsize = SIZE_YUV420(ctx->width, ctx->height);
 	int i;
 	for (i = 0 ; i < I965_MAX_SURFACES; i++) {
 	    if (priv_ctx->surfaces[i] == NULL) {
@@ -172,13 +110,10 @@ static int create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr surface,
 		
 		priv_surface->no = i;
 		priv_surface->handle = priv_surface;
+		priv_surface->w = ctx->width;
+		priv_surface->h = ctx->height;
 		priv_ctx->surfaces[i] = surface->driver_priv 
 		    = priv_surface;
-		if (alloc_drm_memory(pScrn, &priv_surface->buffer,
-			    "surface buffer\n", (bufsize+0xFFF)&~(0xFFF))) {
-		        ErrorF("Unable to allocate surface buffer\n");
-            		return BadAlloc;
-        	}
 		memcpy(surface_dup, priv_surface, sizeof(*priv_surface));
 		*num_priv = sizeof(*priv_surface)/sizeof(CARD32);
 		*priv = (CARD32 *)surface_dup;
@@ -200,7 +135,6 @@ static void destory_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr surface)
 	struct i965_xvmc_surface *priv_surface = surface->driver_priv; 
 	struct i965_xvmc_context *priv_ctx = ctx->driver_priv;
 	priv_ctx->surfaces[priv_surface->no] = NULL;
-	free_drm_memory(pScrn, &priv_surface->buffer);
 	Xfree(priv_surface);
 }
 
@@ -224,21 +158,27 @@ static int put_image(ScrnInfoPtr pScrn,
 {
 	I830Ptr pI830 = I830PTR(pScrn);
 	struct intel_xvmc_command *cmd = (struct intel_xvmc_command *)buf;
+	dri_bo *bo;
+
 	if (id == FOURCC_XVMC) {
-	    buf = pI830->FbBase + cmd->surf_offset;
+            bo = intel_bo_gem_create_from_name(pI830->bufmgr, "surface", cmd->handle);
+            dri_bo_pin(bo, 0x1000);
+	    buf = pI830->FbBase + bo->offset;
 	}
 	XvPutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
 		drw_w, drw_h, id, buf, width, height, sync, clipBoxes,
 		data, pDraw);
+
+	if (id == FOURCC_XVMC) {
+	    dri_bo_unpin(bo);
+	    dri_bo_unreference(bo);
+	}
+
 	return Success;
 }
 
 static Bool init(ScrnInfoPtr screen_info, XF86VideoAdaptorPtr adaptor)
 {
-    if (!intel_xvmc_init_batch(screen_info)) {
-	ErrorF("[XvMC] fail to init batch buffer\n");
-	return FALSE;
-    }
     XvPutImage = adaptor->PutImage;
     adaptor->PutImage = put_image;
 

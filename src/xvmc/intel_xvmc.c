@@ -342,9 +342,7 @@ _X_EXPORT Status XvMCCreateContext(Display *display, XvPortID port,
 
     XVMC_INFO("decoder type is %s", intel_xvmc_decoder_string(comm->type));
 
-    xvmc_driver->batchbuffer.handle = comm->batchbuffer.handle;
-    xvmc_driver->batchbuffer.offset = comm->batchbuffer.offset;
-    xvmc_driver->batchbuffer.size = comm->batchbuffer.size;
+    xvmc_driver->kernel_exec_fencing = comm->kernel_exec_fencing;
 
     /* assign local ctx info */
     intel_ctx = intel_xvmc_new_context(display);
@@ -410,6 +408,13 @@ _X_EXPORT Status XvMCCreateContext(Display *display, XvPortID port,
         return ret;
     }
 
+    if ((xvmc_driver->bufmgr =
+		intel_bufmgr_gem_init(xvmc_driver->fd, 1024*64)) == NULL) {
+	XVMC_ERR("Can't init bufmgr\n");
+ 	return BadAlloc;
+    }
+    drm_intel_bufmgr_gem_enable_reuse(xvmc_driver->bufmgr);
+
     /* call driver hook.
      * driver hook should free priv_data after return if success.*/
     ret = (xvmc_driver->create_context)(display, context, priv_count, priv_data);
@@ -451,6 +456,10 @@ _X_EXPORT Status XvMCDestroyContext(Display *display, XvMCContext *context)
 	return ret;
     }
 
+    intelFiniBatchBuffer();
+
+    dri_bufmgr_destroy(xvmc_driver->bufmgr);
+
     intel_xvmc_free_context(context->context_id);
 
     ret = _xvmc_destroy_context(display, context);
@@ -466,7 +475,6 @@ _X_EXPORT Status XvMCDestroyContext(Display *display, XvMCContext *context)
        close(xvmc_driver->fd);
    
 	xvmc_driver->fd = -1;
-	intelFiniBatchBuffer();
 	intel_xvmc_dump_close();
     }
     return Success;

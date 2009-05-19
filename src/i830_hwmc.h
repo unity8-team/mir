@@ -66,6 +66,7 @@ struct hwmc_buffer
 struct _intel_xvmc_common {
     unsigned int type;
     struct hwmc_buffer batchbuffer;
+    unsigned int kernel_exec_fencing:1;
 };
 
 /* Intel private XvMC command to DDX driver */
@@ -76,7 +77,7 @@ struct intel_xvmc_command {
     unsigned int subPicNo;
     unsigned int flags;
     unsigned int real_id;
-    unsigned int surf_offset;
+    uint32_t handle;
     unsigned int pad[5];
 };
 
