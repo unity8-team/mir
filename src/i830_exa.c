@@ -506,9 +506,18 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 
 	/* Kernel manages fences at GTT map/fault time */
 	if (i830->kernel_exec_fencing) {
-	    if (drm_intel_gem_bo_map_gtt(bo)) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: bo map failed\n",
-			   __FUNCTION__);
+	    if (bo->size < i830->max_gtt_map_size) {
+		if (drm_intel_gem_bo_map_gtt(bo)) {
+		    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			       "%s: bo map failed\n",
+			       __FUNCTION__);
+		    return FALSE;
+		}
+	    } else {
+		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
+		    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			       "%s: bo map failed\n",
+			       __FUNCTION__);
 		return FALSE;
 	    }
 	    pixmap->devPrivate.ptr = bo->virtual;
@@ -542,7 +551,10 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	}
 
 	if (i830->kernel_exec_fencing)
-	    drm_intel_gem_bo_unmap_gtt(bo);
+	    if (bo->size < i830->max_gtt_map_size)
+		drm_intel_gem_bo_unmap_gtt(bo);
+	    else
+		dri_bo_unmap(bo);
 	else
 	    drm_intel_bo_unpin(bo);
 	pixmap->devPrivate.ptr = NULL;

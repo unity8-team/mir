@@ -1128,6 +1128,8 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
     if (!pI830->use_drm_mode && pI830->FbBase && front_buffer->bound)
 	memset (pI830->FbBase + front_buffer->offset, 0, size);
 
+    i830_set_max_gtt_map_size(pScrn);
+
     return front_buffer;
 }
 
@@ -1588,6 +1590,7 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
     }
     if (!pI830->use_drm_mode)
 	i830_update_cursor_offsets(pScrn);
+    i830_set_max_gtt_map_size(pScrn);
 
     return TRUE;
 }
@@ -1672,3 +1675,26 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
     return TRUE;
 }
 #endif
+
+void
+i830_set_max_gtt_map_size(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct drm_i915_gem_get_aperture aperture;
+    int ret;
+
+    /* Default low value in case it gets used during server init. */
+    pI830->max_gtt_map_size = 16 * 1024 * 1024;
+
+    if (!pI830->have_gem)
+	return;
+
+    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+    if (ret == 0) {
+	/* Let objects up get bound up to the size where only 2 would fit in
+	 * the aperture, but then leave slop to account for alignment like
+	 * libdrm does.
+	 */
+	pI830->max_gtt_map_size = aperture.aper_available_size * 3 / 4 / 2;
+    }
+}

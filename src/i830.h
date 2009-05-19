@@ -437,6 +437,7 @@ typedef struct _I830Rec {
    int accel_pixmap_offset_alignment;
    int accel_max_x;
    int accel_max_y;
+   int max_gtt_map_size;
 
    I830WriteIndexedByteFunc writeControl;
    I830ReadIndexedByteFunc readControl;
@@ -748,6 +749,7 @@ Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
 Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
 unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size);
 unsigned long i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format);
+void i830_set_max_gtt_map_size(ScrnInfoPtr pScrn);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
