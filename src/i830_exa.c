@@ -514,11 +514,12 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 		    return FALSE;
 		}
 	    } else {
-		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
+		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0) {
 		    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			       "%s: bo map failed\n",
 			       __FUNCTION__);
-		return FALSE;
+		    return FALSE;
+		}
 	    }
 	    pixmap->devPrivate.ptr = bo->virtual;
 	} else { /* or not... */
