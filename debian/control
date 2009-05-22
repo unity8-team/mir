@@ -1,12 +1,11 @@
 Source: xserver-xorg-video-intel
 Section: x11
 Priority: optional
-Maintainer: Ubuntu Core Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Maintainer: Ubuntu X-SWAT <ubuntu-x@lists.ubuntu.com>
 XSBC-Original-Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
 Uploaders: David Nusinow <dnusinow@debian.org>, Drew Parsons <dparsons@debian.org>, Julien Cristau <jcristau@debian.org>, Brice Goglin <bgoglin@debian.org>
 Build-Depends:
  debhelper (>= 5),
- quilt,
  pkg-config,
  xserver-xorg-dev (>= 2:1.5.99.901),
  x11proto-gl-dev,
@@ -24,7 +23,8 @@ Build-Depends:
  dpkg-dev (>= 1.14.17),
  automake,
  libtool,
- xutils-dev
+ xutils-dev,
+ quilt
 Standards-Version: 3.7.3
 
 Package: xserver-xorg-video-intel
@@ -51,6 +51,7 @@ Description: X.Org X server -- Intel i8xx, i9xx display driver
 Package: xserver-xorg-video-intel-dbg
 Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 netbsd-i386 lpia
 Depends: xserver-xorg-video-intel (= ${binary:Version}), ${shlibs:Depends}
+Section: debug
 Priority: extra
 Description: X.Org X server -- Intel i8xx, i9xx display driver (debug symbols)
  This driver provides support for the Intel i8xx and i9xx family of chipsets,

@@ -2392,6 +2392,7 @@ I830PutImage(ScrnInfoPtr pScrn,
                 return BadAlloc;
             if (!pPriv->textured && drm_intel_bo_pin(pPriv->buf, 4096) != 0) {
                 drm_intel_bo_unreference(pPriv->buf);
+                pPriv->buf = NULL;
                 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                            "Failed to pin xv buffer\n");
                 return BadAlloc;

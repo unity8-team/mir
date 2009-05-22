@@ -1,3 +1,164 @@
+commit ba7d739416796d4045952209a0a0090a78d3978d
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue May 12 17:14:11 2009 -0700
+
+    Update version to 2.7.1
+    
+    In preparation for the 2.7.1 maintenance release.
+
+commit b0ad6ad6698643bfabc6a570c145d457ca70e0f5
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue May 12 17:13:26 2009 -0700
+
+    NEWS: Update release notes for 2.7.1
+    
+    Just changing the wording to turn 2.7.0.901 into 2.7.1.
+
+commit ae5b6d8135c7170821db37de0245b0e6b7a87e59
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue May 12 11:45:03 2009 -0700
+
+    RELEASING: Better instructions for where to send announcements
+    
+    The xorg-announce list doesn't need to hear about development
+    snapshots and release candidates. The intel-gfx list is good for
+    that.
+
+commit 2d7ddfe8d52e6d1dfc3d1a3de00940816d2e09ff
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri May 8 17:14:22 2009 -0700
+
+    Increment version number to 2.7.0.901
+    
+    Which means this is the first release candidate in preparation for 2.7.1.
+
+commit 9c7213fa7273742d91cd31a6052306043d9da784
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri May 8 17:13:44 2009 -0700
+
+    NEWS: Add items for 2.7.0.901 release candidate
+    
+    There are some nice bug fixes here.
+
+commit ca63a5d4afd8482d280d8d64c58021e568931e27
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 11:50:17 2009 -0700
+
+    3D_STATE_VERTEX_BUFFERS takes four 32-bit values, not three.
+    
+    The spec says this command takes an extra (mbz) 32-bit value, so let's
+    provide it with one.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit ed492131c13715b73c14d328d0668120acb58b40)
+
+commit 77153d690a3673fdee7bef8e567816b754c43081
+Author: Albert Damen <albrt@gmx.net>
+Date:   Sun Apr 5 16:36:35 2009 +0200
+
+    Fix crash with XV with large virtual display
+    
+    If a virtual display with width > 2048 is used, the first time
+    an XV buffer is needed will result in a BadAlloc error message,
+    but the next time X would crash.
+    
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+    (cherry picked from commit d7ca870e1ce251d42e3689a8e1e7d080ab1325fb)
+
+commit efda7c776b95f8634cd6a2fed88d526de80176bc
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed May 6 09:37:34 2009 -0700
+
+    Split i915 textured video commands to fit into batch buffers.
+    
+    i915 textured video commands are quite long, but must be contained in the
+    same batch buffer as the 3D setup commands. When the number of clip rects
+    for the video becomes too large for the associated commands to fit in the
+    same batch buffer, this change breaks the sequence into pieces, ensuring
+    that each batch contains the necessary setup sequence.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit 8255cca2c9092f7ecb798944aa8f03fa3efcfa6c)
+    
+    Conflicts:
+    
+    	src/i915_video.c
+
+commit a066cfb0be6e6b20a27eb4ba17f503f13e65e082
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed May 6 09:17:46 2009 -0700
+
+    Hold reference to video binding table until all rects are painted.
+    
+    The optimization of unreferencing the binding table when the relocation is
+    posted causes the object to be dereferenced for each box in the clip list,
+    causing general chaos in the buffer manager. It's easier to just hold a
+    reference to the object until all of the boxes are painted and then drop it.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit 11a853bd8e5d907fe7f5bd907453bcdac9032861)
+    
+    Conflicts:
+    
+    	src/i965_video.c
+
+commit 115fc9a7d79da07301b96d9fc5c513d33734d273
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 11:44:13 2009 -0700
+
+    intel_batch_start_atomic: fix size passed to intel_batch_require_space (*4)
+    
+    intel_batch_start_atomic takes an argument in 32-bit units, and so it must
+    multiply that by 4 before passing it to intel_batch_require_space, which
+    takes an argument in bytes.
+    
+    We should figure out what units we want to use and use the same everywhere...
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit 1142353b487c155a31011923fbd08ec67e60f505)
+
+commit 296a986e5258e2fd13ec494071b7063bd639cd68
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Mar 23 19:19:58 2009 +0800
+
+    KMS: hook up output properties for randr
+    
+    This gets output properties from kernel, then hook them up
+    for randr. So we can control output properties through randr
+    like in UMS.
+    
+    Signed-off-by: Zhenyu Wang <zhenyu.z.wang@intel.com>
+
+commit 300eddb8773344bf073f8f30a9c0a2c4bcdf983f
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Apr 15 18:18:14 2009 -0700
+
+    README: Fix typos in chipset list, and point to how_to_report_bug web page
+    
+    Thanks to Gordon Jin for these suggestions.
+    (cherry picked from commit 73c3be1aa033e8c5c7ee777eb2fd43c19668fa86)
+
+commit e1d336e9885fc4bb219dfc347570bb2ec637ff7d
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Apr 15 16:44:11 2009 -0700
+
+    RELEASING: Update instructions to reflect some minor process improvements
+    
+    We've added a NEWS file now, so that needs to be updated for each release.
+    
+    We're also now using tag names of just <version> rather than
+    xf86-video-intel-<version>.
+    (cherry picked from commit 3fd5a1ecd1d5140ae07ccc279298bcadd515e97f)
+
+commit 976ef05ad18d7d798649a0a198c4d88488677f87
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Apr 15 16:33:12 2009 -0700
+
+    NEWS: Add note about broken PAT code in some kernels
+    
+    Hoping to cut off some false bug reports here.
+    (cherry picked from commit e1cace16a6130dcdd93965d2329a349d49200fa6)
+
 commit cff6cf9adc4235af5cc73a47bb272c81635fc8b2
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 16:20:16 2009 -0700

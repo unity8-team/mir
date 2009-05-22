@@ -1,3 +1,32 @@
+xserver-xorg-video-intel (2:2.7.1-1ubuntu1) karmic; urgency=low
+
+  * Merge from debian unstable, remaining changes:
+    - Add lpia architecture
+    - 103_quirk_intel_mb890.patch: quirk
+    - 110_quirk_hp_mini.patch: quirk
+    - 116_8xx_disable_dri.patch: DRI proved buggy on certain 8xx chips so
+      this disables it.  The DRI probably needs re-testing to verify this
+      patch is still needed, but it will be kept for now.
+    - 117_quirk_thinkpad_x30.patch: quirk
+  * Drop 119_drm_bo_unreference_needs_null.patch: upstream.
+  * Re-enable the patch system, add quilt to build-deps.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 22 May 2009 11:17:55 +0300
+
+xserver-xorg-video-intel (2:2.7.1-1) unstable; urgency=low
+
+  [ Brice Goglin ]
+  * New upstream release.
+  * Install the upstream NEWS file, closes: #524334, #524336.
+  * Move the -dbg package to section debug.
+
+  [ David Nusinow ]
+  * Remove 01_gen_pci_ids.diff. The X server now uses an internal table to
+    choose a driver during autoconfiguration.
+    + Disable patch system and remove quilt from build-deps.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 13 May 2009 07:14:50 +0200
+
 xserver-xorg-video-intel (2:2.7.0-1ubuntu2) karmic; urgency=low
 
   * Drop 109_i830-fifo-watermark-conservative.patch:
