@@ -508,7 +508,8 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 		store_initial_head_owner(pScrn);
 
 	/* Parse the bios to initialize the card */
-	NVParseBios(pScrn);
+	if (!pNv->kms_enable)
+		NVParseBios(pScrn);
 
 	if (pNv->Architecture == NV_ARCH_04)
 		nv4GetConfig(pNv);
