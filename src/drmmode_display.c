@@ -130,7 +130,7 @@ drmmode_crtc_dpms(xf86CrtcPtr drmmode_crtc, int mode)
 }
 
 static PixmapPtr
-drmmode_fb_pixmap(ScrnInfoPtr pScrn, int id, int *w, int *h)
+drmmode_fb_pixmap(ScrnInfoPtr pScrn, int id, unsigned *w, unsigned *h)
 {
 	ScreenPtr pScreen = pScrn->pScreen;
 	struct nouveau_pixmap *nvpix;
@@ -155,8 +155,10 @@ drmmode_fb_pixmap(ScrnInfoPtr pScrn, int id, int *w, int *h)
 	miModifyPixmapHeader(ppix, fb->width, fb->height, fb->depth,
 			     pScrn->bitsPerPixel, fb->pitch, NULL);
 	if (w && h) {
-		*w = fb->width;
-		*h = fb->height;
+		if (fb->width < *w)
+			*w = fb->width;
+		if (fb->height < *h)
+			*h = fb->height;
 	}
 
 	/* This is kinda rediculous, libdrm_nouveau needs to be taught
@@ -192,9 +194,9 @@ drmmode_fb_copy(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int dst_id, int src_id,
 	NVPtr pNv = NVPTR(pScrn);
 	ExaDriverPtr exa = pNv->EXADriverPtr;
 	PixmapPtr pspix, pdpix;
-	int w, h;
+	unsigned w = -1, h = -1;
 
-	pspix = drmmode_fb_pixmap(pScrn, src_id, NULL, NULL);
+	pspix = drmmode_fb_pixmap(pScrn, src_id, &w, &h);
 	if (!pspix)
 		return;
 
