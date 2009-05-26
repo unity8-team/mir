@@ -2497,7 +2497,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    int y1, y2;
 	    int pipe = -1, event, load_scan_lines_pipe;
 
-	    if (pPixmap != pScreen->GetScreenPixmap(pScreen)) {
+	    if (pPixmap == pScreen->GetScreenPixmap(pScreen)) {
 		if (pI830->use_drm_mode)
 		    pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
 		else {
