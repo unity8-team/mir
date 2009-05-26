@@ -102,9 +102,16 @@ intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap,
 			      uint32_t delta)
 {
     dri_bo *bo = i830_get_pixmap_bo(pPixmap);
+    uint32_t offset;
     assert(pI830->batch_ptr != NULL);
     assert(intel_batch_space(pI830) >= 4);
-    intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
+    if (bo) {
+	intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
+	return;
+    }
+    offset = intel_get_pixmap_offset(pPixmap);
+    *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = offset + delta;
+    pI830->batch_used += 4;
 }
 
 #define OUT_BATCH(dword) intel_batch_emit_dword(pI830, dword)
