@@ -368,9 +368,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *start, *end;
-    struct drm_i915_getparam gp;
     struct drm_i915_setparam sp;
-    int has_gem;
 
     start = xcalloc(1, sizeof(*start));
     if (start == NULL)
@@ -407,24 +405,12 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size)
 
     pI830->memory_list = start;
 
-    has_gem = FALSE;
-
-    if (pI830->directRenderingType >= DRI_DRI2)
-    {
-	has_gem = FALSE;
-	gp.param = I915_PARAM_HAS_GEM;
-	gp.value = &has_gem;
-    
-	(void)drmCommandWriteRead(pI830->drmSubFD, DRM_I915_GETPARAM,
-				  &gp, sizeof(gp));
-    }
-
     /* Now that we have our manager set up, initialize the kernel MM if
      * possible, covering almost all of the aperture.  We need libdri interface
      * 5.4 or newer so we can rely on the lock being held after DRIScreenInit,
      * rather than after DRIFinishScreenInit.
      */
-    if (pI830->directRenderingType == DRI_DRI2 && has_gem) {
+    if (pI830->directRenderingType == DRI_DRI2) {
 	int mmsize;
 
 	/* Take over all of the graphics aperture minus enough to for

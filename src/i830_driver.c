@@ -1420,7 +1420,8 @@ i830_open_drm_master(ScrnInfoPtr scrn)
     struct pci_device *dev = i830->PciInfo;
     char *busid;
     drmSetVersion sv;
-    int err;
+    struct drm_i915_getparam gp;
+    int err, has_gem;
 
     /* We wish we had asprintf, but all we get is XNFprintf. */
     busid = XNFprintf("pci:%04x:%02x:%02x.%d",
@@ -1428,6 +1429,7 @@ i830_open_drm_master(ScrnInfoPtr scrn)
 
     i830->drmSubFD = drmOpen("i915", busid);
     if (i830->drmSubFD == -1) {
+	xfree(busid);
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		   "[drm] Failed to open DRM device for %s\n", busid);
 	return FALSE;
@@ -1444,6 +1446,19 @@ i830_open_drm_master(ScrnInfoPtr scrn)
     sv.drm_dd_major = -1;
     err = drmSetInterfaceVersion(i830->drmSubFD, &sv);
     if (err != 0) {
+	drmClose(i830->drmSubFD);
+	i830->drmSubFD = -1;
+	return FALSE;
+    }
+
+    has_gem = FALSE;
+    gp.param = I915_PARAM_HAS_GEM;
+    gp.value = &has_gem;
+    (void)drmCommandWriteRead(i830->drmSubFD, DRM_I915_GETPARAM,
+			      &gp, sizeof(gp));
+    if (!has_gem) {
+	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		   "[drm] Failed to detect GEM.  Kernel 2.6.28 required.\n");
 	drmClose(i830->drmSubFD);
 	i830->drmSubFD = -1;
 	return FALSE;
