@@ -2145,6 +2145,9 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 	    }
 	}
 #endif /* USE_XAA */
+    } else {
+	/* NoAccel */
+	info->useEXA = FALSE;
     }
 
     return TRUE;
