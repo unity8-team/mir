@@ -1414,28 +1414,61 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 }
 
 static Bool
+i830_open_drm_master(ScrnInfoPtr scrn)
+{
+    I830Ptr i830 = I830PTR(scrn);
+    struct pci_device *dev = i830->PciInfo;
+    char *busid;
+    drmSetVersion sv;
+    int err;
+
+    /* We wish we had asprintf, but all we get is XNFprintf. */
+    busid = XNFprintf("pci:%04x:%02x:%02x.%d",
+		      dev->domain, dev->bus, dev->dev, dev->func);
+
+    i830->drmSubFD = drmOpen("i915", busid);
+    if (i830->drmSubFD == -1) {
+	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		   "[drm] Failed to open DRM device for %s\n", busid);
+	return FALSE;
+    }
+
+    xfree(busid);
+
+    /* Check that what we opened was a master or a master-capable FD,
+     * by setting the version of the interface we'll use to talk to it.
+     * (see DRIOpenDRMMaster() in DRI1)
+     */
+    sv.drm_di_major = 1;
+    sv.drm_di_minor = 1;
+    sv.drm_dd_major = -1;
+    err = drmSetInterfaceVersion(i830->drmSubFD, &sv);
+    if (err != 0) {
+	drmClose(i830->drmSubFD);
+	i830->drmSubFD = -1;
+	return FALSE;
+    }
+
+    return TRUE;
+}
+
+static void
+i830_close_drm_master(ScrnInfoPtr scrn)
+{
+    I830Ptr i830 = I830PTR(scrn);
+    if (i830->drmSubFD > 0) {
+	drmClose(i830->drmSubFD);
+	i830->drmSubFD = -1;
+    }
+}
+
+static Bool
 I830DrmModeInit(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    char *bus_id;
-    int ret;
 
     pI830->accel = ACCEL_UXA;
 
-    bus_id = DRICreatePCIBusID(pI830->PciInfo);
-
-    /* Create a bus Id */
-    /* Low level DRM open */
-    ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, bus_id, "i915");
-    xfree(bus_id);
-    if (!ret) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "[dri] DRIGetVersion failed to open the DRM\n"
-		       "[dri] Disabling DRI.\n");
-	    return FALSE;
-    }
-
-    pI830->drmSubFD = DRIMasterFD(pScrn);
     if (drmmode_pre_init(pScrn, pI830->drmSubFD, pI830->cpp) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Kernel modesetting setup failed\n");
@@ -1477,11 +1510,17 @@ I830XvInit(ScrnInfoPtr pScrn)
 }
 
 /**
- * This is called per zaphod head (so usually just once) to do initialization
- * before the Screen is created.
+ * This is called before ScreenInit to do any require probing of screen
+ * configuration.
  *
  * This code generally covers probing, module loading, option handling
  * card mapping, and RandR setup.
+ *
+ * Since xf86InitialConfiguration ends up requiring that we set video modes
+ * in order to detect configuration, we end up having to do a lot of driver
+ * setup (talking to the DRM, mapping the device, etc.) in this function.
+ * As a result, we want to set up that server initialization once rather
+ * that doing it per generation.
  */
 static Bool
 I830PreInit(ScrnInfoPtr pScrn, int flags)
@@ -1530,6 +1569,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
 
    pI830->PciInfo = xf86GetPciInfoForEntity(pI830->pEnt->index);
+
+   i830_open_drm_master(pScrn);
 
    if (xf86RegisterResources(pI830->pEnt->index, NULL, ResNone)) {
       PreInitCleanup(pScrn);
@@ -2839,12 +2880,15 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 static void
 I830FreeScreen(int scrnIndex, int flags)
 {
-#ifdef INTEL_XVMC
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+#ifdef INTEL_XVMC
     I830Ptr pI830 = I830PTR(pScrn);
     if (pI830 && pI830->XvMCEnabled)
 	intel_xvmc_finish(xf86Screens[scrnIndex]);
 #endif
+
+    i830_close_drm_master(pScrn);
+
    I830FreeRec(xf86Screens[scrnIndex]);
    if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
       vgaHWFreeHWRec(xf86Screens[scrnIndex]);

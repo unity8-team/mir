@@ -329,7 +329,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     DRI2InfoRec info;
-    char *p, buf[64];
+    char *p;
     int i;
     struct stat sbuf;
     dev_t d;
@@ -355,36 +355,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     }
 #endif
 
-    sprintf(buf, "pci:%04x:%02x:%02x.%d",
-	    pI830->PciInfo->domain,
-	    pI830->PciInfo->bus,
-	    pI830->PciInfo->dev,
-	    pI830->PciInfo->func);
-
-    /* Use the already opened (master) fd from modesetting */
-    if (pI830->use_drm_mode) {
-	info.fd = pI830->drmSubFD;
-    } else {
-	info.fd = drmOpen("i915", buf);
-	drmSetVersion sv;
-	int err;
-
-	/* Check that what we opened was a master or a master-capable FD,
-	 * by setting the version of the interface we'll use to talk to it.
-	 * (see DRIOpenDRMMaster() in DRI1)
-	 */
-	sv.drm_di_major = 1;
-	sv.drm_di_minor = 1;
-	sv.drm_dd_major = -1;
-	err = drmSetInterfaceVersion(info.fd, &sv);
-	if (err != 0)
-	    return FALSE;
-    }
-
-    if (info.fd < 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to open DRM device\n");
-	return FALSE;
-    }
+    info.fd = pI830->drmSubFD;
 
     /* The whole drmOpen thing is a fiasco and we need to find a way
      * back to just using open(2).  For now, however, lets just make
@@ -422,8 +393,6 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 #endif
 
     info.CopyRegion = I830DRI2CopyRegion;
-
-    pI830->drmSubFD = info.fd;
 
     return DRI2ScreenInit(pScreen, &info);
 }
