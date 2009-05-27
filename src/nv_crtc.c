@@ -957,8 +957,8 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 
 	assert(nv_crtc->shadow == NULL);
 #if NOUVEAU_EXA_PIXMAPS
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-			align, size, &nv_crtc->shadow)) {
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
+			   NOUVEAU_BO_MAP, align, size, &nv_crtc->shadow)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for shadow buffer!\n");
 		return NULL;
 	}

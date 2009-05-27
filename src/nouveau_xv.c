@@ -264,7 +264,8 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 	if (pNv->Architecture >= NV_ARCH_50 && (flags & NOUVEAU_BO_VRAM))
 		flags |= NOUVEAU_BO_TILED;
 
-	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_PIN, 0, size, pbo);
+	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_PIN |
+			     NOUVEAU_BO_MAP, 0, size, pbo);
 	if (ret)
 		return ret;
 

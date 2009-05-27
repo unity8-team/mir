@@ -34,7 +34,8 @@ nouveau_dri2_create_pixmap(ScreenPtr pScreen, DrawablePtr pDraw, bool zeta)
 
 	pitch = NOUVEAU_ALIGN(aw * (pDraw->bitsPerPixel >> 3), 64);
 
-	ret = nouveau_bo_new(pNv->dev, flags, 0, pitch * ah, &bo);
+	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_MAP, 0,
+			     pitch * ah, &bo);
 	if (ret)
 		return NULL;
 

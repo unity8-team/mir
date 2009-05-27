@@ -388,8 +388,8 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	rotate_pitch = crtc->scrn->displayWidth * drmmode->cpp;
 	size = rotate_pitch * height;
 
-	ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, size,
-			     &drmmode_crtc->rotate_bo);
+	ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
+			     size, &drmmode_crtc->rotate_bo);
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow memory for rotated CRTC\n");
@@ -520,8 +520,8 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 						 drmmode->mode_res->crtcs[num]);
 	drmmode_crtc->drmmode = drmmode;
 
-	ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, 64*64*4,
-			     &drmmode_crtc->cursor);
+	ret = nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
+			     64*64*4, &drmmode_crtc->cursor);
 	assert(ret == 0);
 
 	crtc->driver_private = drmmode_crtc;
@@ -956,7 +956,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		return TRUE;
 
 	pitch = NOUVEAU_ALIGN(width, 64) * scrn->bitsPerPixel / 8;
-	flags = NOUVEAU_BO_VRAM;
+	flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
 #if 0
 	if (pNv->Architecture >= NV_ARCH_50)
 		flags |= NOUVEAU_BO_TILED;

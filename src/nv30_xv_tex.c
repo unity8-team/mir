@@ -92,8 +92,10 @@ NV30_LoadFilterTable(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (!pNv->xv_filtertable_mem) {
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART,
-				   0, TABLE_SIZE*sizeof(float)*4, &pNv->xv_filtertable_mem)) {
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
+				   NOUVEAU_BO_MAP, 0,
+				   TABLE_SIZE * sizeof(float) * 4,
+				   &pNv->xv_filtertable_mem)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				"Couldn't alloc filter table!\n");
 			return;

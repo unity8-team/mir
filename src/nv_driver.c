@@ -1656,8 +1656,8 @@ NVMapMem(ScrnInfoPtr pScrn)
 		size = pNv->VRAMPhysicalSize / 2;
 	}
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-			   0, size, &pNv->FB)) {
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP |
+			   NOUVEAU_BO_MAP, 0, size, &pNv->FB)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer memory\n");
 		return FALSE;
@@ -1683,8 +1683,8 @@ NVMapMem(ScrnInfoPtr pScrn)
 			   size >> 10);
 	}
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_PIN, 0,
-			   size, &pNv->GART)) {
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_PIN |
+			   NOUVEAU_BO_MAP, 0, size, &pNv->GART)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unable to allocate GART memory\n");
 	}
@@ -1700,15 +1700,15 @@ NVMapMem(ScrnInfoPtr pScrn)
 	if (pNv->kms_enable)
 		return TRUE;
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
-			   64 * 64 * 4, &pNv->Cursor)) {
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
+			   NOUVEAU_BO_MAP, 0, 64 * 64 * 4, &pNv->Cursor)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to allocate memory for hardware cursor\n");
 		return FALSE;
 	}
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
-		64 * 64 * 4, &pNv->Cursor2)) {
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
+			   NOUVEAU_BO_MAP, 0, 64 * 64 * 4, &pNv->Cursor2)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"Failed to allocate memory for hardware cursor\n");
 		return FALSE;
@@ -1725,7 +1725,8 @@ NVMapMem(ScrnInfoPtr pScrn)
 			nouveauCrtcPtr crtc = pNv->crtc[i];
 
 			if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM |
-					   NOUVEAU_BO_PIN, 0, 0x1000,
+					   NOUVEAU_BO_PIN |
+					   NOUVEAU_BO_MAP, 0, 0x1000,
 					   &crtc->lut)) {
 				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Failed to allocate memory for lut %d\n", i);

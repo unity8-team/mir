@@ -352,7 +352,7 @@ nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
 	if (!nvpix->bo && nvpix->size) {
 		uint32_t cpp = ppix->drawable.bitsPerPixel >> 3;
 		/* At some point we should just keep 1bpp pixmaps in sysram */
-		uint32_t flags = NOUVEAU_BO_VRAM;
+		uint32_t flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
 		int ret;
 
 		if (pNv->Architecture >= NV_ARCH_50 && cpp) {
