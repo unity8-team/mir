@@ -491,10 +491,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 
 #ifdef RENDER
     if (info->RenderAccel) {
-	if (info->ChipFamily >= CHIP_FAMILY_R600)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
-			       "unsupported on R600 and newer cards.\n");
-	else if (IS_R300_3D || IS_R500_3D) {
+	if (IS_R300_3D || IS_R500_3D) {
 	    if ((info->ChipFamily < CHIP_FAMILY_RS400)
 #ifdef XF86DRI
 		|| (info->directRenderingEnabled)
