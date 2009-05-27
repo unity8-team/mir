@@ -72,7 +72,7 @@ nv_cursor_convert_cursor(int px, uint32_t *src, uint16_t *dst, int bpp, uint32_t
 	}
 }
 
-static void nv_cursor_transform_cursor(NVPtr pNv, int head)
+static void nv_cursor_transform_cursor(NVPtr pNv, struct nouveau_crtc *nv_crtc)
 {
 	uint16_t *tmp;
 	struct nouveau_bo *cursor = NULL;
@@ -82,12 +82,10 @@ static void nv_cursor_transform_cursor(NVPtr pNv, int head)
 		return;
 
 	/* convert to colour cursor */
-	if (pNv->alphaCursor)
-		nv_cursor_convert_cursor(px, pNv->curImage, tmp, 32, pNv->curFg, pNv->curBg);
-	else
-		nv_cursor_convert_cursor(px, pNv->curImage, tmp, 16, pNv->curFg, pNv->curBg);
+	nv_cursor_convert_cursor(px, pNv->curImage, tmp, pNv->alphaCursor ? 32 : 16,
+				 nv_crtc->cursor_fg, nv_crtc->cursor_bg);
 
-	nouveau_bo_ref(head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+	nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
 	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
 
 	memcpy(cursor->map, tmp, px * 4);
@@ -101,8 +99,8 @@ static void nv_cursor_transform_cursor(NVPtr pNv, int head)
 void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 {
 	NVPtr pNv = NVPTR(crtc->scrn);
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	uint32_t fore, back;
-	int head = to_nouveau_crtc(crtc)->head;
 
 	if (pNv->alphaCursor) {
 		fore = TO_ARGB8888(fg);
@@ -118,10 +116,10 @@ void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 		back = TO_ARGB1555(bg);
 	}
 
-	if (pNv->curFg != fore || pNv->curBg != back) {
-		pNv->curFg = fore;
-		pNv->curBg = back;
-		nv_cursor_transform_cursor(pNv, head);
+	if (nv_crtc->cursor_fg != fore || nv_crtc->cursor_bg != back) {
+		nv_crtc->cursor_fg = fore;
+		nv_crtc->cursor_bg = back;
+		nv_cursor_transform_cursor(pNv, nv_crtc);
 	}
 }
 
@@ -133,7 +131,7 @@ void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 	/* save copy of image for colour changes */
 	memcpy(pNv->curImage, image, sz);
 
-	nv_cursor_transform_cursor(pNv, to_nouveau_crtc(crtc)->head);
+	nv_cursor_transform_cursor(pNv, to_nouveau_crtc(crtc));
 }
 
 void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)

@@ -211,10 +211,12 @@ typedef struct nouveau_mode_state
 struct nouveau_crtc {
 	int head;
 	uint8_t last_dpms;
-	ExaOffscreenArea *shadow;
 	int fp_users;
 	uint32_t dpms_saved_fp_control;
 	int saturation, sharpness;
+
+	uint32_t cursor_fg, cursor_bg;
+	ExaOffscreenArea *shadow;
 };
 
 struct nouveau_encoder {
@@ -306,7 +308,6 @@ typedef struct _NVRec {
     ScreenBlockHandlerProcPtr BlockHandler;
     CloseScreenProcPtr  CloseScreen;
     /* Cursor */
-	uint32_t	curFg, curBg;
 	uint32_t	curImage[256];
     /* I2C / DDC */
     xf86Int10InfoPtr    pInt10;
