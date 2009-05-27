@@ -1656,7 +1656,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 		size = pNv->VRAMPhysicalSize / 2;
 	}
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP |
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
 			   NOUVEAU_BO_MAP, 0, size, &pNv->FB)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer memory\n");
