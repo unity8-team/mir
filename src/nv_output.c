@@ -530,10 +530,9 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 
 		nv_encoder->native_mode = xf86DuplicateMode(&mode);
 		ret_mode = xf86DuplicateMode(&mode);
-	} else {
-		ret_mode = nv_output_get_edid_modes(output);
-		clock = nv_encoder->native_mode->Clock;
-	}
+	} else
+		if ((ret_mode = nv_output_get_edid_modes(output)))
+			clock = nv_encoder->native_mode->Clock;
 
 	if (nouveau_bios_parse_lvds_table(pScrn, clock, &dl, &if_is_24bit))
 		return NULL;
@@ -571,7 +570,11 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 			if (mode->Clock > 350000)
 				return MODE_CLOCK_HIGH;
 	}
-	if (IS_DFP(nv_encoder->dcb->type))
+	/* must have a native mode for fp (except in panel scaling case) */
+	if (IS_DFP(nv_encoder->dcb->type) && !nv_encoder->native_mode &&
+	    nv_encoder->scaling_mode != SCALE_PANEL)
+		return MODE_NOCLOCK;
+	if (IS_DFP(nv_encoder->dcb->type) && nv_encoder->native_mode)
 		/* No modes > panel's native res */
 		if (mode->HDisplay > nv_encoder->native_mode->HDisplay ||
 		    mode->VDisplay > nv_encoder->native_mode->VDisplay)
