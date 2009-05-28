@@ -534,8 +534,13 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 		if ((ret_mode = nv_output_get_edid_modes(output)))
 			clock = nv_encoder->native_mode->Clock;
 
-	if (nouveau_bios_parse_lvds_table(pScrn, clock, &dl, &if_is_24bit))
+	if (nouveau_bios_parse_lvds_table(pScrn, clock, &dl, &if_is_24bit)) {
+		if (nv_encoder->native_mode) {
+			xfree(nv_encoder->native_mode);
+			nv_encoder->native_mode = NULL;
+		}
 		return NULL;
+	}
 
 	/* because of the pre-existing native mode exit above, this will only
 	 * get run at startup (and before create_resources is called in
