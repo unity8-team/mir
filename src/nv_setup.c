@@ -281,7 +281,7 @@ static void store_initial_head_owner(ScrnInfoPtr pScrn)
 	}
 
 ownerknown:
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
+	NV_TRACE(pScrn, "Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
 
 	/* we need to ensure the heads are not tied henceforth, or reading any
 	 * 8 bit reg on head B will fail

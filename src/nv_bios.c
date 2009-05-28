@@ -1207,7 +1207,7 @@ static bool init_zm_i2c(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t offset,
 	uint8_t i2c_address = bios->data[offset + 2];
 	uint8_t count = bios->data[offset + 3];
 	I2CDevRec i2cdev;
-	uint8_t data[UINT8_MAX];
+	uint8_t data[256];	/* 256 is max "count" could specify */
 	int i;
 
 	if (!iexec->execute)

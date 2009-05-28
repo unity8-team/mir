@@ -609,16 +609,20 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	int i;
 
 	for (i = 0; i < xf86_config->num_output; i++) {
-		/* assuming one fp output per crtc seems ok */
-		nv_encoder = to_nouveau_encoder(xf86_config->output[i]);
-		if (xf86_config->output[i]->crtc != crtc)
+		xf86OutputPtr output = xf86_config->output[i];
+		struct nouveau_encoder *tmp_nve = to_nouveau_encoder(output);
+
+		if (output->crtc != crtc)
 			continue;
 
-		if (nv_encoder->dcb->type == OUTPUT_LVDS ||
-		    nv_encoder->dcb->type == OUTPUT_TMDS)
+		if (tmp_nve->dcb->type == OUTPUT_LVDS ||
+		    tmp_nve->dcb->type == OUTPUT_TMDS) {
+			/* assumes a maximum of one fp output per crtc */
+			nv_encoder = tmp_nve;
 			break;
+		}
 	}
-	if (i == xf86_config->num_output)
+	if (!nv_encoder)
 		return;
 
 	regp->fp_horiz_regs[FP_DISPLAY_END] = adjusted_mode->HDisplay - 1;
@@ -663,7 +667,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12;
 	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP &&
-	    nv_encoder->native_mode->Clock > 165000)
+	    adjusted_mode->Clock > 165000)
 		regp->fp_control |= (2 << 24);
 	if (nv_encoder->dual_link)
 		regp->fp_control |= (8 << 28);
@@ -1151,7 +1155,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);    
+	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	uint32_t start = (y * pScrn->displayWidth + x) * pScrn->bitsPerPixel / 8;
 

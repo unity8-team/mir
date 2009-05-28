@@ -586,11 +586,8 @@ nv_output_destroy(xf86OutputPtr output)
 {
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder;
-	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(output->scrn);
 	int i;
-
-	NV_TRACE(pScrn, "%s called\n", __func__);
 
 	if (!nv_connector)
 		return;
@@ -723,9 +720,11 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 			return FALSE;
 
 		nv_encoder->dithering = val;
-	} else if (output->crtc && (property == dv_atom || property == sharpness_atom)) {
+	} else if (property == dv_atom || property == sharpness_atom) {
 		int32_t val = *(int32_t *) value->data;
 
+		if (!output->crtc)
+			return FALSE;
 		if (value->type != XA_INTEGER || value->format != 32)
 			return FALSE;
 
