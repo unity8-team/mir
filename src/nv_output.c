@@ -425,20 +425,27 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 	DisplayModePtr mode;
 
 	for (i = 0; i < DET_TIMINGS; i++) {
+		struct detailed_timings *dt =
+			&nv_connector->edid->det_mon[i].section.d_timings;
+
 		if (nv_connector->edid->det_mon[i].type != DT)
 			continue;
 		/* Selecting only based on width ok? */
-		if (nv_connector->edid->det_mon[i].section.d_timings.h_active > max_h_active) {
-			max_h_active = nv_connector->edid->det_mon[i].section.d_timings.h_active;
-			max_v_active = nv_connector->edid->det_mon[i].section.d_timings.v_active;
+		if (dt->h_active > max_h_active) {
+			max_h_active = dt->h_active;
+			max_v_active = dt->v_active;
 		}
 	}
-	if (!max_h_active || !max_v_active) /* what kind of a joke EDID is this? */
-		for (i = 0; i < STD_TIMINGS; i++)
-			if (nv_connector->edid->timings2[i].hsize > max_h_active) {
-				max_h_active = nv_connector->edid->timings2[i].hsize;
-				max_v_active = nv_connector->edid->timings2[i].vsize;
+	if (!max_h_active || !max_v_active) /* clearly a joke EDID */
+		for (i = 0; i < STD_TIMINGS; i++) {
+			struct std_timings *st =
+					&nv_connector->edid->timings2[i];
+
+			if (st->hsize > max_h_active) {
+				max_h_active = st->hsize;
+				max_v_active = st->vsize;
 			}
+		}
 	if (!max_h_active || !max_v_active) {
 		NV_ERROR(output->scrn, "EDID too broken to find native mode\n");
 		return NULL;
@@ -458,7 +465,8 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 				break;
 			}
 			/* Find the highest refresh mode otherwise. */
-			if (!nv_encoder->native_mode || (mode->VRefresh > nv_encoder->native_mode->VRefresh)) {
+			if (!nv_encoder->native_mode ||
+			    (mode->VRefresh > nv_encoder->native_mode->VRefresh)) {
 				if (nv_encoder->native_mode)
 					xfree(nv_encoder->native_mode);
 				mode->type |= M_T_PREFERRED;
