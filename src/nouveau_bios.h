@@ -85,6 +85,8 @@ enum nouveau_encoder_type
 	OUTPUT_ANY = 5,
 };
 
+#define IS_DFP(t) (t == OUTPUT_LVDS || t == OUTPUT_TMDS)
+
 enum nouveau_or {
 	OUTPUT_A = (1 << 0),
 	OUTPUT_B = (1 << 1),

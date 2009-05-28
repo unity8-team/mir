@@ -316,7 +316,7 @@ update_output_fields(xf86OutputPtr output, struct nouveau_encoder *det_encoder)
 
 	nv_connector->detected_encoder = det_encoder;
 	output->possible_crtcs = det_encoder->dcb->heads;
-	if (det_encoder->dcb->type == OUTPUT_LVDS || det_encoder->dcb->type == OUTPUT_TMDS) {
+	if (IS_DFP(det_encoder->dcb->type)) {
 		output->doubleScanAllowed = false;
 		output->interlaceAllowed = false;
 	} else {
@@ -475,11 +475,10 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 {
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
-	enum nouveau_encoder_type enctype = nv_encoder->dcb->type;
 	DisplayModePtr edid_modes;
 
-	if (enctype == OUTPUT_LVDS ||
-	    (enctype == OUTPUT_TMDS && nv_encoder->scaling_mode != SCALE_PANEL))
+	if (IS_DFP(nv_encoder->dcb->type) &&
+	    nv_encoder->scaling_mode != SCALE_PANEL)
 		/* the digital scaler is not limited to modes given in the EDID,
 		 * so enable the GTF bit in order that the xserver thinks
 		 * continuous timing is available and adds the standard modes
@@ -490,10 +489,10 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 	if (!(edid_modes = xf86OutputGetEDIDModes(output)))
 		return edid_modes;
 
-	if (enctype == OUTPUT_LVDS || enctype == OUTPUT_TMDS)
+	if (IS_DFP(nv_encoder->dcb->type))
 		if (!get_native_mode_from_edid(output, edid_modes))
 			return NULL;
-	if (enctype == OUTPUT_TMDS)
+	if (nv_encoder->dcb->type == OUTPUT_TMDS)
 		nv_encoder->dual_link = nv_encoder->native_mode->Clock >= 165000;
 
 	return edid_modes;
@@ -564,7 +563,7 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 			if (mode->Clock > 350000)
 				return MODE_CLOCK_HIGH;
 	}
-	if (nv_encoder->dcb->type == OUTPUT_LVDS || nv_encoder->dcb->type == OUTPUT_TMDS)
+	if (IS_DFP(nv_encoder->dcb->type))
 		/* No modes > panel's native res */
 		if (mode->HDisplay > nv_encoder->native_mode->HDisplay ||
 		    mode->VDisplay > nv_encoder->native_mode->VDisplay)
@@ -664,7 +663,7 @@ static void nv_output_create_resources(xf86OutputPtr output)
 	if (!nv_encoder)
 		return;
 
-	if (nv_encoder->dcb->type == OUTPUT_LVDS || nv_encoder->dcb->type == OUTPUT_TMDS) {
+	if (IS_DFP(nv_encoder->dcb->type)) {
 		nv_output_create_prop(output, "DITHERING", &dithering_atom,
 				      (INT32 []){ 0, 1 }, nv_encoder->dithering, NULL, TRUE);
 		nv_output_create_prop(output, "SCALING_MODE", &scaling_mode_atom,
@@ -762,8 +761,8 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 
 	/* For internal panels and gpu scaling on DVI we need the native mode */
-	if (nv_encoder->dcb->type == OUTPUT_LVDS ||
-	    (nv_encoder->dcb->type == OUTPUT_TMDS && nv_encoder->scaling_mode != SCALE_PANEL)) {
+	if (IS_DFP(nv_encoder->dcb->type) &&
+	    nv_encoder->scaling_mode != SCALE_PANEL) {
 		adjusted_mode->HDisplay = nv_encoder->native_mode->HDisplay;
 		adjusted_mode->HSkew = nv_encoder->native_mode->HSkew;
 		adjusted_mode->HSyncStart = nv_encoder->native_mode->HSyncStart;
@@ -845,8 +844,6 @@ nv_output_prepare(xf86OutputPtr output)
 	struct nv_crtc_reg *crtcstate = pNv->ModeReg.crtc_reg;
 	uint8_t *cr_lcd = &crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX];
 	uint8_t *cr_lcd_oth = &crtcstate[head ^ 1].CRTC[NV_CIO_CRE_LCD__INDEX];
-	bool digital_op = nv_encoder->dcb->type == OUTPUT_LVDS ||
-			  nv_encoder->dcb->type == OUTPUT_TMDS;
 
 	output->funcs->dpms(output, DPMSModeOff);
 
@@ -869,15 +866,15 @@ nv_output_prepare(xf86OutputPtr output)
 	 * written in nv_crtc_set_mode
 	 */
 
-	if (digital_op)
+	if (IS_DFP(nv_encoder->dcb->type))
 		nv_digital_output_prepare_sel_clk(pNv, nv_encoder, head);
 
 	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f)
 	 * at LCD__INDEX which we don't alter
 	 */
 	if (!(*cr_lcd & 0x44)) {
-		*cr_lcd = digital_op ? 0x3 : 0x0;
-		if (digital_op && pNv->twoHeads) {
+		*cr_lcd = IS_DFP(nv_encoder->dcb->type) ? 0x3 : 0x0;
+		if (IS_DFP(nv_encoder->dcb->type) && pNv->twoHeads) {
 			if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
 				*cr_lcd |= head ? 0x0 : 0x8;
 			else {
@@ -930,7 +927,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 		run_tmds_table(pScrn, dcbe, head, adjusted_mode->Clock);
 	else if (dcbe->type == OUTPUT_LVDS)
 		call_lvds_script(pScrn, dcbe, head, LVDS_RESET, adjusted_mode->Clock);
-	if (dcbe->type == OUTPUT_LVDS || dcbe->type == OUTPUT_TMDS)
+	if (IS_DFP(dcbe->type))
 		/* update fp_control state for any changes made by scripts,
 		 * so correct value is written at DPMS on */
 		pNv->ModeReg.crtc_reg[head].fp_control =
@@ -1114,8 +1111,7 @@ void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 		nv_encoder->restore.output =
 			NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK +
 				nv_output_ramdac_offset(nv_encoder));
-	if (pNv->twoHeads && (nv_encoder->dcb->type == OUTPUT_LVDS ||
-			      nv_encoder->dcb->type == OUTPUT_TMDS))
+	if (pNv->twoHeads && IS_DFP(nv_encoder->dcb->type))
 		nv_encoder->restore.head =
 			nv_get_digital_bound_head(pNv, nv_encoder->dcb->or);
 }

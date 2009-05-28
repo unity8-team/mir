@@ -257,8 +257,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 		xf86OutputPtr output = xf86_config->output[i];
 		struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 
-		if (output->crtc == crtc && (nv_encoder->dcb->type == OUTPUT_LVDS ||
-					     nv_encoder->dcb->type == OUTPUT_TMDS))
+		if (output->crtc == crtc && IS_DFP(nv_encoder->dcb->type))
 			fp_output = true;
 	}
 
@@ -615,8 +614,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 		if (output->crtc != crtc)
 			continue;
 
-		if (tmp_nve->dcb->type == OUTPUT_LVDS ||
-		    tmp_nve->dcb->type == OUTPUT_TMDS) {
+		if (IS_DFP(tmp_nve->dcb->type)) {
 			/* assumes a maximum of one fp output per crtc */
 			nv_encoder = tmp_nve;
 			break;
