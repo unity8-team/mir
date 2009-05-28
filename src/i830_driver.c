@@ -824,7 +824,6 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
    if (!xf86LoadSubModule(pScrn, "ddc")) {
       pI830->ddc2 = FALSE;
    } else {
-      xf86LoaderReqSymLists(I810ddcSymbols, NULL);
       pI830->ddc2 = TRUE;
    }
 
@@ -832,8 +831,6 @@ I830PreInitDDC(ScrnInfoPtr pScrn)
    /* Load I2C if we have the code to use it */
    if (pI830->ddc2) {
       if (xf86LoadSubModule(pScrn, "i2c")) {
-	 xf86LoaderReqSymLists(I810i2cSymbols, NULL);
-
 	 pI830->ddc2 = TRUE;
       } else {
 	 pI830->ddc2 = FALSE;
@@ -1266,11 +1263,9 @@ I830LoadSyms(ScrnInfoPtr pScrn)
     /* The vgahw module should be loaded here when needed */
     if (!xf86LoadSubModule(pScrn, "vgahw"))
 	return FALSE;
-    xf86LoaderReqSymLists(I810vgahwSymbols, NULL);
 
     if (!xf86LoadSubModule(pScrn, "ramdac"))
        return FALSE;
-    xf86LoaderReqSymLists(I810ramdacSymbols, NULL);
 
     return TRUE;
 }
@@ -1674,8 +1669,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       PreInitCleanup(pScrn);
       return FALSE;
    }
-
-   xf86LoaderReqSymLists(I810fbSymbols, NULL);
 
    if (!pI830->use_drm_mode) {
        i830CompareRegsToSnapshot(pScrn, "After PreInit");

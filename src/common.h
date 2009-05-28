@@ -82,17 +82,6 @@ extern void I830InitpScrn(ScrnInfoPtr pScrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
 extern int I830EntityIndex;
-extern const char *I810vgahwSymbols[];
-extern const char *I810ramdacSymbols[];
-extern const char *I810ddcSymbols[];
-extern const char *I810fbSymbols[];
-extern const char *I810xaaSymbols[];
-extern const char *I810shadowFBSymbols[];
-#ifdef XF86DRI
-extern const char *I810driSymbols[];
-extern const char *I810drmSymbols[];
-#endif
-extern const char *I810i2cSymbols[];
 
 extern void I830DPRINTF_stub(const char *filename, int line,
 			     const char *function, const char *fmt, ...);
