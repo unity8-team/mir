@@ -203,8 +203,6 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	if (!ret && errmaj != LDR_ONCEONLY)
 		return FALSE;
 
-	xf86LoaderReqSymLists(drmSymbols, NULL);
-	xf86LoaderReqSymLists(driSymbols, NULL);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loaded DRI module\n");
 
 	/* Check the lib version */

@@ -131,118 +131,6 @@ static struct NvFamily NVKnownFamilies[] =
   { NULL, NULL}
 };
 
-/*
- * List of symbols from other modules that this module references.  This
- * list is used to tell the loader that it is OK for symbols here to be
- * unresolved providing that it hasn't been told that they haven't been
- * told that they are essential via a call to xf86LoaderReqSymbols() or
- * xf86LoaderReqSymLists().  The purpose is this is to avoid warnings about
- * unresolved symbols that are not required.
- */
-
-static const char *vgahwSymbols[] = {
-    "vgaHWUnmapMem",
-    "vgaHWDPMSSet",
-    "vgaHWFreeHWRec",
-    "vgaHWGetHWRec",
-    "vgaHWGetIndex",
-    "vgaHWInit",
-    "vgaHWMapMem",
-    "vgaHWProtect",
-    "vgaHWRestore",
-    "vgaHWSave",
-    "vgaHWSaveScreen",
-    NULL
-};
-
-static const char *fbSymbols[] = {
-    "fbPictureInit",
-    "fbScreenInit",
-    NULL
-};
-
-static const char *exaSymbols[] = {
-    "exaDriverInit",
-    "exaOffscreenInit",
-    NULL
-};
-
-static const char *ddcSymbols[] = {
-    "xf86PrintEDID",
-    "xf86DoEDID_DDC2",
-    "xf86SetDDCproperties",
-    NULL
-};
-
-static const char *vbeSymbols[] = {
-    "VBEInit",
-    "vbeFree",
-    "vbeDoEDID",
-    NULL
-};
-
-static const char *i2cSymbols[] = {
-    "xf86CreateI2CBusRec",
-    "xf86I2CBusInit",
-    NULL
-};
-
-static const char *shadowSymbols[] = {
-    "ShadowFBInit",
-    NULL
-};
-
-static const char *int10Symbols[] = {
-    "xf86FreeInt10",
-    "xf86InitInt10",
-    "xf86ExecX86int10",
-    NULL
-};
-
-const char *drmSymbols[] = {
-    "drmOpen", 
-    "drmAddBufs",
-    "drmAddMap",
-    "drmAgpAcquire",
-    "drmAgpVersionMajor",
-    "drmAgpVersionMinor",
-    "drmAgpAlloc",
-    "drmAgpBind",
-    "drmAgpEnable",
-    "drmAgpFree",
-    "drmAgpRelease",
-    "drmAgpUnbind",
-    "drmAuthMagic",
-    "drmCommandNone",
-    "drmCommandWrite",
-    "drmCommandWriteRead",
-    "drmCreateContext",
-    "drmCtlInstHandler",
-    "drmCtlUninstHandler",
-    "drmDestroyContext",
-    "drmFreeVersion",
-    "drmGetInterruptFromBusID",
-    "drmGetLibVersion",
-    "drmGetVersion",
-    NULL
-};
-
-const char *driSymbols[] = {
-    "DRICloseScreen",
-    "DRICreateInfoRec",
-    "DRIDestroyInfoRec",
-    "DRIFinishScreenInit",
-    "DRIGetSAREAPrivate",
-    "DRILock",
-    "DRIQueryVersion",
-    "DRIScreenInit",
-    "DRIUnlock",
-    "GlxSetVisualConfigs",
-    "DRICreatePCIBusID",
-    NULL
-};
-
-
 static MODULESETUPPROTO(nouveauSetup);
 
 static XF86ModuleVersionInfo nouveauVersRec =
@@ -273,19 +161,6 @@ nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 		/* The 1 here is needed to turn off a backwards compatibility mode */
 		/* Otherwise NVPciProbe() is not called */
 		xf86AddDriver(&NV, module, 1);
-
-		/*
-		 * Modules that this driver always requires may be loaded here
-		 * by calling LoadSubModule().
-		 */
-		/*
-		 * Tell the loader about symbols from other modules that this module
-		 * might refer to.
-		 */
-		LoaderRefSymLists(vgahwSymbols, exaSymbols, fbSymbols,
-				shadowSymbols, drmSymbols,
-				i2cSymbols, ddcSymbols, vbeSymbols,
-				int10Symbols, NULL);
 
 		/*
 		 * The return value must be non-NULL on success even though there
@@ -874,9 +749,6 @@ NVValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
 
 Bool NVI2CInit(ScrnInfoPtr pScrn)
 {
-	xf86LoaderReqSymLists(i2cSymbols,NULL);
-	xf86LoaderReqSymLists(ddcSymbols, NULL);
-
 	if (!NVPTR(pScrn)->randr12_enable)
 		return NVDACi2cInit(pScrn);
 	return TRUE;
@@ -1109,7 +981,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	/* Initialize the card through int10 interface if needed */
 	if (xf86LoadSubModule(pScrn, "int10")) {
-		xf86LoaderReqSymLists(int10Symbols, NULL);
 #if !defined(__alpha__) && !defined(__powerpc__)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing int10\n");
 		pNv->pInt10 = xf86InitInt10(pNv->pEnt->index);
@@ -1191,8 +1062,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86LoadSubModule(pScrn, "vgahw")) {
 		NVPreInitFail("\n");
 	}
-
-	xf86LoaderReqSymLists(vgahwSymbols, NULL);
 
 	/*
 	 * Allocate a vgaHWRec
@@ -1530,20 +1399,16 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (xf86LoadSubModule(pScrn, "fb") == NULL)
 		NVPreInitFail("\n");
 
-	xf86LoaderReqSymLists(fbSymbols, NULL);
-
 	/* Load EXA if needed */
 	if (!pNv->NoAccel) {
 		if (!xf86LoadSubModule(pScrn, "exa")) {
 			NVPreInitFail("\n");
 		}
-		xf86LoaderReqSymLists(exaSymbols, NULL);
 	}
 
 	/* Load shadowfb */
 	if (!xf86LoadSubModule(pScrn, "shadowfb"))
 		NVPreInitFail("\n");
-	xf86LoaderReqSymLists(shadowSymbols, NULL);
 
 	return TRUE;
 }
