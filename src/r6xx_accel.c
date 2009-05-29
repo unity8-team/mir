@@ -784,6 +784,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 	sq_conf.num_es_stack_entries = 0;
 	break;
     case CHIP_FAMILY_RV730:
+    case CHIP_FAMILY_RV740:
 	sq_conf.num_ps_gprs = 84;
 	sq_conf.num_vs_gprs = 36;
 	sq_conf.num_temp_gprs = 4;
