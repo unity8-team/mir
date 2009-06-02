@@ -31,7 +31,6 @@
 
 #include "xorgVersion.h"
 
-#ifdef XF86DRM_MODE
 #include "i830.h"
 #include "intel_bufmgr.h"
 #include "xf86drmMode.h"
@@ -232,6 +231,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		drmmode_output_dpms(output, DPMSModeOn);
 	}
+
+	i830_set_max_gtt_map_size(pScrn);
 
 done:
 	if (!ret) {
@@ -738,19 +739,19 @@ static int subpixel_conv_table[7] = { 0, SubPixelUnknown,
 				      SubPixelVerticalBGR,
 				      SubPixelNone };
 
-const char *output_names[] = { "None",
-			       "VGA",
-			       "DVI",
-			       "DVI",
-			       "DVI",
-			       "Composite",
-			       "TV",
-			       "LVDS",
-			       "CTV",
-			       "DIN",
-			       "DP",
-			       "HDMI",
-			       "HDMI",
+static const char *output_names[] = { "None",
+				      "VGA",
+				      "DVI",
+				      "DVI",
+				      "DVI",
+				      "Composite",
+				      "TV",
+				      "LVDS",
+				      "CTV",
+				      "DIN",
+				      "DP",
+				      "HDMI",
+				      "HDMI",
 };
 
 
@@ -824,9 +825,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	if (!pI830->can_resize)
-		return FALSE;
-
 	pitch = i830_pad_drawable_width(width, pI830->cpp);
 	tiled = i830_tiled_width(pI830, &pitch, pI830->cpp);
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
@@ -896,7 +894,6 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
 	xf86CrtcConfigPtr   xf86_config;
 	drmmode_ptr drmmode;
 	int i;
@@ -921,33 +918,15 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		drmmode_output_init(pScrn, drmmode, i);
 
-	xf86InitialConfiguration(pScrn, pI830->can_resize);
+	xf86InitialConfiguration(pScrn, TRUE);
 
 	return TRUE;
 }
 
-Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData, dri_bo **bo)
+int
+drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc)
 {
-	return FALSE;
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-#if 0
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
-	int i;
-
-	for (i = 0; i < config->num_crtc; i++) {
-		xf86CrtcPtr crtc = config->crtc[i];
-		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-		if (!drmmode_crtc->rotate_bo)
-			continue;
-
-		if (drmmode_crtc->rotate_bo->virtual == pPixData) {
-			*bo = drmmode_crtc->rotate_bo;
-			return TRUE;
-		}
-	}
-	return FALSE;
-#endif
+	return drm_intel_get_pipe_from_crtc_id (bufmgr, drmmode_crtc->mode_crtc->crtc_id);
 }
-
-#endif

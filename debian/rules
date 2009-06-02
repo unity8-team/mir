@@ -51,7 +51,7 @@ build-stamp: obj-$(DEB_BUILD_GNU_TYPE)/config.status
 	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE)
 	>$@
 
-clean: xsfclean
+clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp
@@ -64,6 +64,7 @@ clean: xsfclean
 	rm -f $$(find -name Makefile.in)
 	rm -f compile config.guess config.sub configure depcomp install-sh
 	rm -f ltmain.sh missing INSTALL aclocal.m4 config.h.in mkinstalldirs
+	rm -f m4/lt* m4/libtool.m4
 
 	dh_clean
 

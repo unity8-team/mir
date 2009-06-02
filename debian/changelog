@@ -1,3 +1,66 @@
+xserver-xorg-video-intel (2:2.7.99.1+git20090602.ec2fde7c-0ubuntu1) karmic; urgency=low
+
+  * Update to git 20090602 (master branch) up to commit ec2fde7c
+    - xvmc is disabled since DRI1 no longer supported
+    - LP: #96991 - 3D stuff breaks with Compiz: Redirected Direct Rendering
+      is needed in DRI
+    - LP: #120834 - X freezes with I830WaitLpRing error when running OpenGL apps
+    - LP: #337608 - X crashes in fbBlt() when using Sun Java Plugin 6 + firefox3.0
+    - LP: #339555 - compiz slowmotion after Jaunty upgrade
+    - LP: #363900 - X.org freezes with intel driver, no apparent trigger
+    - LP: #331719 - VT switching doesn't work on Intel 915GM
+    - LP: #339091 - X freezes a few minutes after resuming
+    - LP: #348436 - Kubuntu: X server crash when screensaver is started (4500MHD)
+    - LP: #279727 - Kubuntu: Display Corruption w/ Intel 4700MHD
+    - LP: #357851 - Kubuntu: Distorted display after switching virtual desktops w/ exa
+    - LP: #158415 - Front buffer dynamic resize not supported
+    - LP: #324998 - x server restarts itself w/ compiz on Intel 945GM
+    - LP: #355593 - after upgrade to 9.04, rotating desktop cube ran slow
+    - LP: #357290 - 1 fps in 3d apps like neverball with EXA
+    - LP: #360774 - Graphical Corruption with EXA on X4500
+    - LP: #364126 - screensaver prefs dialog in 9.04 RC livecd leaves dirt
+    - LP: #375712 - Native resolution for dell "2005fpw" monitor not listed
+    - LP: #375264 - Choppy flash video and poor performance with compiz
+    - LP: #349568 - Jaunty / Compiz slow and tearing on GMA 4500MHD
+    - LP: #356056 - window tearing during movement on 965 (no compiz)
+    - LP: #330460 - xorg shows black image/hangs with jpg in firefox
+    - LP: #347587 - X asserts on pI830->batch_ptr != 0 on resume from suspend
+  * Merge with Debian experimental.  Remaining Ubuntu changes:
+    - Add lpia architecture
+    - Re-enable the patch system, add quilt to build-deps.
+    - 110_quirk_hp_mini.patch: quirk (sent upstream)
+    - 117_quirk_thinkpad_x30.patch: quirk (sent upstream)
+  * Drop 116_8xx_disable_dri.patch.  There have been fixes for 3d on 8xx
+    chipsets upstream, so drop the DRI disablement so the fixes can be
+    re-tested.
+  * Drop 103_quirk_intel_mb890.patch.  Better quirk available upstream.
+    (LP: #305269)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 02 Jun 2009 10:47:32 -0700
+
+xserver-xorg-video-intel (2:2.7.99.1-2) experimental; urgency=low
+
+  [ Julien Cristau ]
+  * Pull from upstream git branch 'master', commit 8e942b70.
+  * Bump libdrm-dev build-dep to 2.4.11.
+  * Merge changes from 2:2.7.1-1.
+  * Bump Standards-Version to 3.8.1.
+
+  [ David Nusinow ]
+  * Add README.source
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 28 May 2009 20:10:30 +0200
+
+xserver-xorg-video-intel (2:2.7.99.1-1) experimental; urgency=low
+
+  * New upstream release candidate.
+  * Stop installing libI810XvMC.so and libIntelXvMC.so for now. They are
+    disabled in configure for now because DRI1 is not supported anymore.
+  * Install the upstream NEWS file, closes: #524334, #524336.
+  * Move the -dbg package to section debug.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 29 Apr 2009 19:50:26 +0200
+
 xserver-xorg-video-intel (2:2.7.1-1ubuntu1) karmic; urgency=low
 
   * Merge from debian unstable, remaining changes:

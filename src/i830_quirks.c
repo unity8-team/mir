@@ -70,12 +70,13 @@ static char *i830_dmi_data[dmi_data_max];
 static void i830_dmi_store_##field(void) \
 {\
     FILE *f = NULL;\
+    int ret;\
     f = fopen(DMIID_FILE(field), "r");\
     if (f == NULL) {\
 	xfree(i830_dmi_data[field]); i830_dmi_data[field] = NULL;\
 	return;\
     }\
-    fread(i830_dmi_data[field], 64, 1, f);\
+    ret = fread(i830_dmi_data[field], 64, 1, f);	\
     fclose(f);\
 }
 

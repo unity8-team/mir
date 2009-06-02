@@ -40,9 +40,6 @@
 #include "uxa.h"
 
 int uxa_screen_index;
-#ifndef SERVER_1_5
-static int uxa_generation;
-#endif
 
 /**
  * uxa_get_drawable_pixmap() returns a backing pixmap for a given drawable.
@@ -370,18 +367,12 @@ uxa_close_screen(int i, ScreenPtr pScreen)
     PictureScreenPtr	ps = GetPictureScreenIfSet(pScreen);
 #endif
 
-#ifdef SERVER_1_5
     uxa_glyphs_fini(pScreen);
-#endif
 
     pScreen->CreateGC = uxa_screen->SavedCreateGC;
     pScreen->CloseScreen = uxa_screen->SavedCloseScreen;
     pScreen->GetImage = uxa_screen->SavedGetImage;
     pScreen->GetSpans = uxa_screen->SavedGetSpans;
-#ifndef SERVER_1_5
-    pScreen->PaintWindowBackground = uxa_screen->SavedPaintWindowBackground;
-    pScreen->PaintWindowBorder = uxa_screen->SavedPaintWindowBorder;
-#endif
     pScreen->CreatePixmap = uxa_screen->SavedCreatePixmap;
     pScreen->DestroyPixmap = uxa_screen->SavedDestroyPixmap;
     pScreen->CopyWindow = uxa_screen->SavedCopyWindow;
@@ -478,15 +469,7 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 
     uxa_screen->info = uxa_driver;
 
-#ifdef SERVER_1_5
     dixSetPrivate(&screen->devPrivates, &uxa_screen_index, uxa_screen);
-#else
-    if (uxa_generation != serverGeneration) {
-	uxa_screen_index = AllocateScreenPrivateIndex();
-	uxa_generation = serverGeneration;
-    }
-    screen->devPrivates[uxa_screen_index].ptr = uxa_screen;
-#endif
 
 //    exaDDXDriverInit(screen);
 
@@ -505,14 +488,6 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
     uxa_screen->SavedGetSpans = screen->GetSpans;
     screen->GetSpans = uxa_check_get_spans;
 
-#ifndef SERVER_1_5
-    uxa_screen->SavedPaintWindowBackground = screen->PaintWindowBackground;
-    screen->PaintWindowBackground = uxa_paint_window;
-
-    uxa_screen->SavedPaintWindowBorder = screen->PaintWindowBorder;
-    screen->PaintWindowBorder = uxa_paint_window;
-#endif /* !SERVER_1_5 */
-
     uxa_screen->SavedCopyWindow = screen->CopyWindow;
     screen->CopyWindow = uxa_copy_window;
 
@@ -530,10 +505,8 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
         uxa_screen->SavedComposite = ps->Composite;
 	ps->Composite = uxa_composite;
 
-#ifdef SERVER_1_5
 	uxa_screen->SavedGlyphs = ps->Glyphs;
 	ps->Glyphs = uxa_glyphs;
-#endif
 
 	uxa_screen->SavedTriangles = ps->Triangles;
 	ps->Triangles = uxa_triangles;
@@ -554,9 +527,7 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
     ShmRegisterFuncs(screen, &uxa_shm_funcs);
 #endif
 
-#ifdef SERVER_1_5
     uxa_glyphs_init(screen);
-#endif
 
     LogMessage(X_INFO, "UXA(%d): Driver registered support for the following"
 	       " operations:\n", screen->myNum);
