@@ -663,7 +663,9 @@ extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
 extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
-
+extern xf86CrtcPtr i830_covering_crtc (ScrnInfoPtr pScrn, BoxPtr box,
+				       xf86CrtcPtr desired,
+				       BoxPtr crtc_box_ret);
 int
 i830_crtc_pipe (xf86CrtcPtr crtc);
 

@@ -1713,7 +1713,7 @@ i830_box_area (BoxPtr box)
  * with greater coverage
  */
 
-static xf86CrtcPtr
+xf86CrtcPtr
 i830_covering_crtc (ScrnInfoPtr pScrn,
 		    BoxPtr	box,
 		    xf86CrtcPtr desired,
