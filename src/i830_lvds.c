@@ -207,12 +207,8 @@ i830_lvds_set_backlight_legacy(xf86OutputPtr output, int level)
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
-#if XSERVER_LIBPCIACCESS
     pci_device_cfg_write_u8(pI830->PciInfo, level,
 			    LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-    pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, level);
-#endif
 }
 
 static int
@@ -222,11 +218,7 @@ i830_lvds_get_backlight_legacy(xf86OutputPtr output)
     I830Ptr pI830 = I830PTR(pScrn);
     uint8_t lbb;
 
-#if XSERVER_LIBPCIACCESS
     pci_device_cfg_read_u8(pI830->PciInfo, &lbb, LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-    lbb = pciReadByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS);
-#endif
 
     return lbb;
 }
@@ -242,22 +234,14 @@ i830_lvds_set_backlight_combo(xf86OutputPtr output, int level)
     uint32_t blc_pwm_ctl;
     uint8_t lbb;
 
-#if XSERVER_LIBPCIACCESS
     pci_device_cfg_read_u8(pI830->PciInfo, &lbb, LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-    lbb = pciReadByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS);
-#endif
     /*
      * If LBB is zero and we're shooting for a non-zero brightness level,
      * we have to increase LBB by at least 1.
      */
     if (!lbb && level) {
-#if XSERVER_LIBPCIACCESS
 	pci_device_cfg_write_u8(pI830->PciInfo, 1,
 				LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-	pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, 1);
-#endif
     }
 
     /*

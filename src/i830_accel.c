@@ -1,12 +1,3 @@
-/*
- * XXX So far, for GXxor this is about 40% of the speed of SW, but CPU
- * utilisation falls from 95% to < 5%.
- */
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -33,20 +24,6 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_accel.c,v 1.8 2003/04/24 18:00:24 eich Exp $ */
-
-/*
- * Reformatted with GNU indent (2.2.8), using the following options:
- *
- *    -bad -bap -c41 -cd0 -ncdb -ci6 -cli0 -cp0 -ncs -d0 -di3 -i3 -ip3 -l78
- *    -lp -npcs -psl -sob -ss -br -ce -sc -hnl
- *
- * This provides a good match with the original i810 code and preferred
- * XFree86 formatting conventions.
- *
- * When editing this driver, please follow the existing formatting, and edit
- * with <TAB> characters expanded at 8-column intervals.
- */
 
 /*
  * Authors:
@@ -54,10 +31,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+/*
+ * XXX So far, for GXxor this is about 40% of the speed of SW, but CPU
+ * utilisation falls from 95% to < 5%.
+ */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <errno.h>
 
 #include "xf86.h"
-#include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
 #include "i830_debug.h"
@@ -67,28 +52,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 unsigned long
 intel_get_pixmap_offset(PixmapPtr pPix)
 {
-#if defined(I830_USE_EXA) || defined(I830_USE_UXA)
     ScreenPtr pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->accel == ACCEL_EXA)
-	return exaGetPixmapOffset(pPix);
-#endif
     return (unsigned long)pPix->devPrivate.ptr - (unsigned long)pI830->FbBase;
 }
 
 unsigned long
 intel_get_pixmap_pitch(PixmapPtr pPix)
 {
-#ifdef I830_USE_EXA
-    ScreenPtr pScreen = pPix->drawable.pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    if (pI830->accel == ACCEL_EXA)
-	return exaGetPixmapPitch(pPix);
-#endif
     return (unsigned long)pPix->devKind;
 }
 
@@ -137,21 +110,7 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	 else
 	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
-#ifdef XF86DRI
-	 if (pI830->directRenderingType == DRI_XF86DRI) {
-	    DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
-	    DRICloseScreen(screenInfo.screens[pScrn->scrnIndex]);
-	 }
-#endif
-#ifdef I830_USE_XAA
-	 pI830->AccelInfoRec = NULL;	/* Stops recursive behavior */
-#endif
-#ifdef I830_USE_EXA
-	 pI830->EXADriverPtr = NULL;
-#endif
-#ifdef I830_USE_UXA
-	pI830->uxa_driver = NULL;
-#endif
+	 pI830->uxa_driver = NULL;
 	 FatalError("lockup\n");
       }
 
@@ -177,52 +136,13 @@ I830Sync(ScrnInfoPtr pScrn)
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
 
-   if (pI830->accel == ACCEL_NONE)
+   if (pI830->accel == ACCEL_NONE || !pScrn->vtSema || !pI830->batch_bo)
        return;
-
-#ifdef XF86DRI
-   /* VT switching tries to do this.
-    */
-   if (!pI830->LockHeld && pI830->directRenderingType == DRI_XF86DRI) {
-      return;
-   }
-#endif
 
    I830EmitFlush(pScrn);
 
    intel_batch_flush(pScrn, TRUE);
-
-   if (pI830->directRenderingType > DRI_NONE) {
-       struct drm_i915_irq_emit emit;
-       struct drm_i915_irq_wait wait;
-       int ret;
-
-       /* Most of the uses of I830Sync while using GEM should actually be
-	* using set_domain on a specific buffer.  We're not there yet, so fake
-	* it up using irq_emit/wait.  It's still better than spinning on
-	* register reads for idle.
-	*/
-       emit.irq_seq = &wait.irq_seq;
-       ret = drmCommandWriteRead(pI830->drmSubFD, DRM_I830_IRQ_EMIT, &emit,
-			    sizeof(emit));
-       if (ret != 0)
-	   FatalError("Failure to emit IRQ: %s\n", strerror(-ret));
-
-       do {
-	   ret = drmCommandWrite(pI830->drmSubFD, DRM_I830_IRQ_WAIT, &wait,
-				 sizeof(wait));
-       } while (ret == -EINTR);
-
-       if (ret != 0)
-	   FatalError("Failure to wait for IRQ: %s\n", strerror(-ret));
-
-       if (!pI830->memory_manager)
-	   i830_refresh_ring(pScrn);
-   } else if (!pI830->use_drm_mode) {
-       i830_wait_ring_idle(pScrn);
-   }
-
-   pI830->nextColorExpandBuf = 0;
+   intel_batch_wait_last(pScrn);
 }
 
 void
@@ -241,35 +161,17 @@ I830EmitFlush(ScrnInfoPtr pScrn)
    }
 }
 
-Bool
-I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
+
+#if (ALWAYS_SYNC || ALWAYS_FLUSH)
+void
+i830_debug_sync(ScrnInfoPtr scrn)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   switch (buffer) {
-#ifdef XF86DRI
-   case I830_SELECT_BACK:
-      pI830->bufferOffset = pI830->back_buffer->offset;
-      if (pI830->back_buffer->tiling == TILE_YMAJOR)
-	 return FALSE;
-      break;
-   case I830_SELECT_DEPTH:
-      pI830->bufferOffset = pI830->depth_buffer->offset;
-      if (pI830->depth_buffer->tiling == TILE_YMAJOR)
-	 return FALSE;
-      break;
-#endif
-   default:
-   case I830_SELECT_FRONT:
-      pI830->bufferOffset = pScrn->fbOffset;
-      break;
-   }
-
-   if (I810_DEBUG & DEBUG_VERBOSE_ACCEL)
-      ErrorF("I830SelectBuffer %d --> offset %x\n",
-	     buffer, pI830->bufferOffset);
-   return TRUE;
+    if (ALWAYS_SYNC)
+	I830Sync(scrn);
+    else
+	intel_batch_flush(scrn, FALSE);
 }
+#endif
 
 /* The following function sets up the supported acceleration. Call it
  * from the FbInit() function in the SVGA driver, or before ScreenInit
@@ -317,7 +219,7 @@ I830AccelInit(ScreenPtr pScreen)
      *
      * For the tiled issues, the only tiled buffer we draw to should be
      * the front, which will have an appropriate pitch/offset already set up,
-     * so EXA doesn't need to worry.
+     * so UXA doesn't need to worry.
      */
     if (IS_I965G(pI830)) {
 	pI830->accel_pixmap_offset_alignment = 4 * 2;
@@ -336,21 +238,7 @@ I830AccelInit(ScreenPtr pScreen)
 
     switch (pI830->accel) {
     case ACCEL_UXA:
-#ifdef I830_USE_UXA
 	return i830_uxa_init(pScreen);
-#else
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "UXA not built in, falling back to EXA.\n");
-	return I830EXAInit(pScreen);
-#endif
-#ifdef I830_USE_EXA
-    case ACCEL_EXA:
-	return I830EXAInit(pScreen);
-#endif
-#ifdef I830_USE_XAA
-    case ACCEL_XAA:
-	return I830XAAInit(pScreen);
-#endif
     case ACCEL_UNINIT:
     case ACCEL_NONE:
 	break;

@@ -29,6 +29,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <pciaccess.h>
 #include "common.h"
 
 /** @file
@@ -45,18 +46,12 @@ typedef char Bool;
 #define X_WARNING 1
 #define X_ERROR 2
 
-struct pci_info_rec {
-    uint16_t chipType;
-};
-
 typedef struct _i830 {
     /* Fields in common with the real pI830 */
-    struct pci_info_rec *PciInfo;
+    struct pci_device *PciInfo;
     Bool use_drm_mode;
 
     /* Fields used for setting up reg_dumper */
-    struct pci_device *pci_dev;
-    struct pci_info_rec pci_info_rec;
     volatile unsigned char *mmio;
 } I830Rec, *I830Ptr;
 

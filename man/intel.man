@@ -146,16 +146,6 @@ have options for selecting adaptors.
 .IP
 Default: Textured video adaptor is preferred.
 .TP
-.BI "Option \*qAccelMethod\*q \*q" string \*q
-Choose acceleration architecture, either "XAA", "EXA", or "UXA".  XAA is the old
-XFree86 based acceleration architecture.  EXA is a simpler
-acceleration architecture designed to better accelerate the X Render extension.
-UXA is a newer acceleration architecture built from the EXA acceleration
-code but taking advantage of kernel memory management to provide simpler,
-faster code.
-.IP
-Default: "UXA" if kernel-modesetting is available, "EXA" otherwise.
-.TP
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
 the server log.

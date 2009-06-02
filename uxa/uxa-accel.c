@@ -977,69 +977,6 @@ out:
     return ret;
 }
 
-#ifndef SERVER_1_5
-void
-uxa_paint_window(WindowPtr pWin, RegionPtr pRegion, int what)
-{
-    ScreenPtr       screen = pWin->drawable.pScreen;
-    uxa_screen_t    *uxa_screen = uxa_get_screen(screen);
-    DDXPointRec     zeros = { 0, 0 };
-
-    if (REGION_NIL(pRegion))
-	return;
-
-    if (uxa_screen->swappedOut) {
-	uxa_check_paint_window(pWin, pRegion, what);
-	return;
-    }
-
-    switch (what) {
-    case PW_BACKGROUND:
-	switch (pWin->backgroundState) {
-	case None:
-	    return;
-	case ParentRelative:
-	    do {
-		pWin = pWin->parent;
-	    } while (pWin->backgroundState == ParentRelative);
-	    (*pWin->drawable.pScreen->PaintWindowBackground)(pWin, pRegion,
-							     what);
-	    return;
-	case BackgroundPixel:
-	    if (uxa_fill_region_solid(&pWin->drawable, pRegion,
-				      pWin->background.pixel,
-				      FB_ALLONES, GXcopy))
-		return;
-	    break;
-	case BackgroundPixmap:
-	    if (uxa_fill_region_tiled(&pWin->drawable, pRegion,
-				      pWin->background.pixmap,
-				      &zeros, FB_ALLONES, GXcopy))
-		return;
-	    break;
-	}
-	break;
-    case PW_BORDER:
-	if (pWin->borderIsPixel) {
-	    if (uxa_fill_region_solid(&pWin->drawable, pRegion,
-				      pWin->border.pixel,
-				      FB_ALLONES, GXcopy))
-		return;
-	    break;
-	} else {
-	    if (uxa_fill_region_tiled(&pWin->drawable, pRegion,
-				      pWin->border.pixmap,
-				      &zeros, FB_ALLONES, GXcopy))
-		return;
-	    break;
-	}
-	break;
-    }
-
-    uxa_check_paint_window(pWin, pRegion, what);
-}
-#endif /* !SERVER_1_5 */
-
 /**
  * Accelerates GetImage for solid ZPixmap downloads from framebuffer memory.
  *

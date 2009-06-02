@@ -431,7 +431,7 @@ typedef enum {
 
 #define KERNEL(kernel_enum, kernel, masked) \
     [kernel_enum] = {&kernel, sizeof(kernel), masked}
-struct wm_kernel_info {
+static struct wm_kernel_info {
     void *data;
     unsigned int size;
     Bool has_mask;
@@ -1216,11 +1216,6 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 
 	ADVANCE_BATCH();
     }
-
-#ifdef I830DEBUG
-    ErrorF("try to sync to show any errors...\n");
-    I830Sync(pScrn);
-#endif
 }
 
 /**
@@ -1290,8 +1285,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     surface_state_bo = dri_bo_alloc(pI830->bufmgr, "surface_state",
 				    3 * sizeof (brw_surface_state_padded),
 				    4096);
-    if (dri_bo_map(surface_state_bo, 1) != 0)
+    if (dri_bo_map(surface_state_bo, 1) != 0) {
+	dri_bo_unreference(surface_state_bo);
 	return FALSE;
+    }
     /* Set up the state buffer for the destination surface */
     i965_set_picture_surface_state(surface_state_bo, 0,
 				   pDstPicture, pDst, TRUE);
@@ -1310,6 +1307,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     binding_table_bo = dri_bo_alloc(pI830->bufmgr, "binding_table",
 				    3 * sizeof(uint32_t), 4096);
     if (dri_bo_map (binding_table_bo, 1) != 0) {
+	dri_bo_unreference(binding_table_bo);
 	dri_bo_unreference(surface_state_bo);
 	return FALSE;
     }
@@ -1605,10 +1603,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     intel_batch_end_atomic(pScrn);
 
-#ifdef I830DEBUG
-    ErrorF("sync after 3dprimitive\n");
-    I830Sync(pScrn);
-#endif
+    i830_debug_sync(pScrn);
 }
 
 void
@@ -1716,35 +1711,28 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
     int i, j, k, l, m;
+    gen4_composite_op *composite_op = &render_state->composite_op;
 
-    if (render_state->vertex_buffer_bo) {
-	dri_bo_unreference (render_state->vertex_buffer_bo);
-	render_state->vertex_buffer_bo = NULL;
-    }
+    drm_intel_bo_unreference(composite_op->binding_table_bo);
+    drm_intel_bo_unreference(render_state->vertex_buffer_bo);
 
     drm_intel_bo_unreference(render_state->vs_state_bo);
-    render_state->vs_state_bo = NULL;
     drm_intel_bo_unreference(render_state->sf_state_bo);
-    render_state->sf_state_bo = NULL;
     drm_intel_bo_unreference(render_state->sf_mask_state_bo);
-    render_state->sf_mask_state_bo = NULL;
 
-    for (i = 0; i < WM_KERNEL_COUNT; i++) {
+    for (i = 0; i < WM_KERNEL_COUNT; i++)
 	drm_intel_bo_unreference(render_state->wm_kernel_bo[i]);
-	render_state->wm_kernel_bo[i] = NULL;
-    }
 
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++)
 	for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++)
 	    for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++)
 		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++)
-		    for (m = 0; m < WM_KERNEL_COUNT; m++) {
+		    for (m = 0; m < WM_KERNEL_COUNT; m++)
 			drm_intel_bo_unreference(render_state->wm_state_bo[m][i][j][k][l]);
-			render_state->wm_state_bo[m][i][j][k][l] = NULL;
-		    }
 
     drm_intel_bo_unreference(render_state->cc_state_bo);
-    render_state->cc_state_bo = NULL;
     drm_intel_bo_unreference(render_state->sip_kernel_bo);
-    render_state->sip_kernel_bo = NULL;
+
+    free(pI830->gen4_render_state);
+    pI830->gen4_render_state = NULL;
 }

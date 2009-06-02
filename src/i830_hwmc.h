@@ -101,7 +101,6 @@ extern struct intel_xvmc_driver *xvmc_driver;
 extern struct intel_xvmc_driver i915_xvmc_driver;
 extern struct intel_xvmc_driver i965_xvmc_driver;
 
-extern Bool intel_xvmc_set_driver(struct intel_xvmc_driver *);
 extern Bool intel_xvmc_probe(ScrnInfoPtr);
 extern Bool intel_xvmc_driver_init(ScreenPtr, XF86VideoAdaptorPtr);
 extern Bool intel_xvmc_screen_init(ScreenPtr);
