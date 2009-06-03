@@ -285,10 +285,11 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    PixmapPtr pSrcPixmap = (srcPrivate->attachment == DRI2BufferFrontLeft)
-	? (PixmapPtr) pDraw : srcPrivate->pPixmap;
-    PixmapPtr pDstPixmap = (dstPrivate->attachment == DRI2BufferFrontLeft)
-	? (PixmapPtr) pDraw : dstPrivate->pPixmap;
+    DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
+	? pDraw : &srcPrivate->pPixmap->drawable;
+    DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
+	? pDraw : &dstPrivate->pPixmap->drawable;
+    PixmapPtr dst_pixmap = get_drawable_pixmap(dst);
     RegionPtr pCopyClip;
     GCPtr pGC;
 
@@ -296,7 +297,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
     pCopyClip = REGION_CREATE(pScreen, NULL, 0);
     REGION_COPY(pScreen, pCopyClip, pRegion);
     (*pGC->funcs->ChangeClip) (pGC, CT_REGION, pCopyClip, 0);
-    ValidateGC(&pDstPixmap->drawable, pGC);
+    ValidateGC(dst, pGC);
 
     /* Wait for the scanline to be outside the region to be copied */
     if (dstPrivate->attachment == DRI2BufferFrontLeft) {
@@ -338,7 +339,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	ADVANCE_BATCH();
     }
 
-    (*pGC->ops->CopyArea)(&pSrcPixmap->drawable, &pDstPixmap->drawable,
+    (*pGC->ops->CopyArea)(src, dst,
 			  pGC, 0, 0, pDraw->width, pDraw->height, 0, 0);
     FreeScratchGC(pGC);
 
