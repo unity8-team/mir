@@ -707,29 +707,27 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 	NVPtr pNv = NVPTR(output->scrn);
 
 	if (property == scaling_mode_atom) {
-		int32_t ret;
-		char *name = NULL;
+		char *name = (char *) value->data;
+		int32_t val;
 
 		if (value->type != XA_STRING || value->format != 8)
 			return FALSE;
 
-		name = (char *) value->data;
-
 		/* Match a string to a scaling mode */
-		ret = nv_scaling_mode_lookup(name, value->size);
-		if (ret == SCALE_INVALID)
+		val = nv_scaling_mode_lookup(name, value->size);
+		if (val == SCALE_INVALID)
 			return FALSE;
 
 		/* LVDS must always use gpu scaling. */
-		if (ret == SCALE_PANEL && nv_encoder->dcb->type == OUTPUT_LVDS)
+		if (val == SCALE_PANEL && nv_encoder->dcb->type == OUTPUT_LVDS)
 			return FALSE;
 
-		nv_encoder->scaling_mode = ret;
+		nv_encoder->scaling_mode = val;
 	} else if (property == dithering_atom) {
+		int32_t val = *(int32_t *) value->data;
+
 		if (value->type != XA_INTEGER || value->format != 32)
 			return FALSE;
-
-		int32_t val = *(int32_t *) value->data;
 
 		if (val < 0 || val > 1)
 			return FALSE;
@@ -738,9 +736,10 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 	} else if (property == dv_atom || property == sharpness_atom) {
 		int32_t val = *(int32_t *) value->data;
 
-		if (!output->crtc)
-			return FALSE;
 		if (value->type != XA_INTEGER || value->format != 32)
+			return FALSE;
+
+		if (!output->crtc)
 			return FALSE;
 
 		if (property == dv_atom) {
