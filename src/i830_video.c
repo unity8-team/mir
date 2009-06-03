@@ -2216,7 +2216,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
     ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
     I830OverlayRegPtr overlay;
-    PixmapPtr pPixmap;
+    PixmapPtr pPixmap = get_drawable_pixmap(pDraw);;
     INT32 x1, x2, y1, y2;
     int srcPitch = 0, srcPitch2 = 0, dstPitch, destId;
     int dstPitch2 = 0;
@@ -2467,12 +2467,6 @@ I830PutImage(ScrnInfoPtr pScrn,
 	break;
     }
 
-    if (pDraw->type == DRAWABLE_WINDOW) {
-	pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr)pDraw);
-    } else {
-	pPixmap = (PixmapPtr)pDraw;
-    }
-
     if (!pPriv->textured) {
 	i830_display_video(pScrn, crtc, destId, width, height, dstPitch,
 			   x1, y1, x2, y2, &dstBox, src_w, src_h,
@@ -2497,7 +2491,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    int y1, y2;
 	    int pipe = -1, event, load_scan_lines_pipe;
 
-	    if (pPixmap == pScreen->GetScreenPixmap(pScreen)) {
+	    if (pixmap_is_scanout(pPixmap)) {
 		if (pI830->use_drm_mode)
 		    pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
 		else {

@@ -103,10 +103,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
     pDepthPixmap = NULL;
     for (i = 0; i < count; i++) {
 	if (attachments[i] == DRI2BufferFrontLeft) {
-	    if (pDraw->type == DRAWABLE_PIXMAP)
-		pPixmap = (PixmapPtr) pDraw;
-	    else
-		pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
+	    pPixmap = get_drawable_pixmap(pDraw);
 	    pPixmap->refcnt++;
 	} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 	    pPixmap = pDepthPixmap;
@@ -186,10 +183,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
     }
 
     if (attachment == DRI2BufferFrontLeft) {
-	if (pDraw->type == DRAWABLE_PIXMAP)
-	    pPixmap = (PixmapPtr) pDraw;
-	else
-	    pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
+	pPixmap = get_drawable_pixmap(pDraw);
 	pPixmap->refcnt++;
     } else {
 	unsigned int hint = 0;

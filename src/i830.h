@@ -946,4 +946,23 @@ i830_debug_sync(ScrnInfoPtr scrn)
 }
 #endif
 
+static inline PixmapPtr
+get_drawable_pixmap(DrawablePtr drawable)
+{
+    ScreenPtr screen = drawable->pScreen;
+
+    if (drawable->type == DRAWABLE_PIXMAP)
+	return (PixmapPtr)drawable;
+    else
+	return screen->GetWindowPixmap((WindowPtr)drawable);
+}
+
+static inline Bool
+pixmap_is_scanout(PixmapPtr pixmap)
+{
+    ScreenPtr screen = pixmap->drawable.pScreen;
+
+    return pixmap == screen->GetScreenPixmap(screen);
+}
+
 #endif /* _I830_H_ */
