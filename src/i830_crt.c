@@ -286,7 +286,8 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     {
 	uint32_t	pipeconf = INREG(pipeconf_reg);
 	OUTREG(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
-	
+        /* Wait for next Vblank to substitue border color for Color info */
+        i830WaitForVblank (pScrn);
 	st00 = pI830->readStandard (pI830, 0x3c2);
 	present = (st00 & (1 << 4)) != 0;
 	OUTREG(pipeconf_reg, pipeconf);
