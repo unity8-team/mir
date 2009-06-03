@@ -498,6 +498,7 @@ typedef struct _I830Rec {
    int lvds_ssc_freq; /* in MHz */
    Bool lvds_dither;
    DisplayModePtr lvds_fixed_mode;
+   DisplayModePtr sdvo_lvds_fixed_mode;
    Bool skip_panel_detect;
    Bool integrated_lvds; /* LVDS config from driver feature BDB */
 

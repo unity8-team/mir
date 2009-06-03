@@ -73,6 +73,36 @@ find_section(struct bdb_header *bdb, int section_id)
     return NULL;
 }
 
+static void
+fill_detail_timing_data(DisplayModePtr fixed_mode, unsigned char *timing_ptr)
+{
+    fixed_mode->HDisplay   = _H_ACTIVE(timing_ptr);
+    fixed_mode->VDisplay   = _V_ACTIVE(timing_ptr);
+    fixed_mode->HSyncStart = fixed_mode->HDisplay +
+        _H_SYNC_OFF(timing_ptr);
+    fixed_mode->HSyncEnd   = fixed_mode->HSyncStart +
+        _H_SYNC_WIDTH(timing_ptr);
+    fixed_mode->HTotal     = fixed_mode->HDisplay +
+        _H_BLANK(timing_ptr);
+    fixed_mode->VSyncStart = fixed_mode->VDisplay +
+        _V_SYNC_OFF(timing_ptr);
+    fixed_mode->VSyncEnd   = fixed_mode->VSyncStart +
+        _V_SYNC_WIDTH(timing_ptr);
+    fixed_mode->VTotal     = fixed_mode->VDisplay +
+        _V_BLANK(timing_ptr);
+    fixed_mode->Clock      = _PIXEL_CLOCK(timing_ptr) / 1000;
+    fixed_mode->type       = M_T_PREFERRED;
+
+    /* Some VBTs have bogus h/vtotal values */
+    if (fixed_mode->HSyncEnd > fixed_mode->HTotal)
+        fixed_mode->HTotal = fixed_mode->HSyncEnd + 1;
+    if (fixed_mode->VSyncEnd > fixed_mode->VTotal)
+        fixed_mode->VTotal = fixed_mode->VSyncEnd + 1;
+
+    xf86SetModeDefaultName(fixed_mode);
+
+}
+
 /**
  * Returns the BIOS's fixed panel mode.
  *
@@ -82,7 +112,7 @@ find_section(struct bdb_header *bdb, int section_id)
  * detecting the panel mode is preferable.
  */
 static void
-parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 {
     struct bdb_lvds_options *lvds_options;
     struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
@@ -118,32 +148,43 @@ parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
     /* Since lvds_bdb_2_fp_edid_dtd is just an EDID detailed timing
      * block, pull the contents out using EDID macros.
      */
-    fixed_mode->HDisplay   = _H_ACTIVE(timing_ptr);
-    fixed_mode->VDisplay   = _V_ACTIVE(timing_ptr);
-    fixed_mode->HSyncStart = fixed_mode->HDisplay +
-	_H_SYNC_OFF(timing_ptr);
-    fixed_mode->HSyncEnd   = fixed_mode->HSyncStart +
-	_H_SYNC_WIDTH(timing_ptr);
-    fixed_mode->HTotal     = fixed_mode->HDisplay +
-	_H_BLANK(timing_ptr);
-    fixed_mode->VSyncStart = fixed_mode->VDisplay +
-	_V_SYNC_OFF(timing_ptr);
-    fixed_mode->VSyncEnd   = fixed_mode->VSyncStart +
-	_V_SYNC_WIDTH(timing_ptr);
-    fixed_mode->VTotal     = fixed_mode->VDisplay +
-	_V_BLANK(timing_ptr);
-    fixed_mode->Clock      = _PIXEL_CLOCK(timing_ptr) / 1000;
-    fixed_mode->type       = M_T_PREFERRED;
-
-    /* Some VBTs have bogus h/vtotal values */
-    if (fixed_mode->HSyncEnd > fixed_mode->HTotal)
-	fixed_mode->HTotal = fixed_mode->HSyncEnd + 1;
-    if (fixed_mode->VSyncEnd > fixed_mode->VTotal)
-	fixed_mode->VTotal = fixed_mode->VSyncEnd + 1;
-
-    xf86SetModeDefaultName(fixed_mode);
-
+    fill_detail_timing_data(fixed_mode, timing_ptr);
     pI830->lvds_fixed_mode = fixed_mode;
+}
+
+static void
+parse_sdvo_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+{
+    DisplayModePtr fixed_mode;
+    struct bdb_sdvo_lvds_options *sdvo_lvds_options;
+    unsigned char *timing_ptr;
+
+    pI830->sdvo_lvds_fixed_mode = NULL;
+
+    sdvo_lvds_options = find_section(bdb, BDB_SDVO_LVDS_OPTIONS);
+    if (sdvo_lvds_options == NULL)
+        return;
+
+    timing_ptr = find_section(bdb, BDB_SDVO_PANEL_DTDS);
+    if (timing_ptr == NULL)
+        return;
+
+    fixed_mode = xnfalloc(sizeof(DisplayModeRec));
+    if (fixed_mode == NULL)
+        return;
+
+    memset(fixed_mode, 0, sizeof(*fixed_mode));
+    fill_detail_timing_data(fixed_mode, timing_ptr +
+                        (sdvo_lvds_options->panel_type * DET_TIMING_INFO_LEN));
+    pI830->sdvo_lvds_fixed_mode = fixed_mode;
+
+}
+
+static void
+parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+{
+    parse_integrated_panel_data(pI830, bdb);
+    parse_sdvo_panel_data(pI830, bdb);
 }
 
 static void

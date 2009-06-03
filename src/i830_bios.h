@@ -436,6 +436,23 @@ struct bdb_driver_feature {
     uint8_t	legacy_crt_max_refresh;
 } __attribute__((packed));
 
+struct bdb_sdvo_lvds_options {
+    uint8_t     panel_backlight;
+    uint8_t     h40_set_panel_type;
+    uint8_t     panel_type;
+    uint8_t     ssc_clk_freq;
+    uint16_t    als_low_trip;
+    uint16_t    als_high_trip;
+    uint8_t     sclalarcoeff_tab_row_num;
+    uint8_t     sclalarcoeff_tab_row_size;
+    uint8_t     coefficient[8];
+    uint8_t     panel_misc_bits_1;
+    uint8_t     panel_misc_bits_2;
+    uint8_t     panel_misc_bits_3;
+    uint8_t     panel_misc_bits_4;
+} __attribute__((packed));
+
+
 #ifndef REG_DUMPER
 int i830_bios_init(ScrnInfoPtr pScrn);
 #endif
