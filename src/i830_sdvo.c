@@ -91,6 +91,10 @@ struct i830_sdvo_priv {
      * This is set if we treat the device as HDMI, instead of DVI.
      */
     Bool is_hdmi;
+    /**
+     * This is set if we detect output of sdvo device as LVDS.
+     */
+    Bool is_lvds;
 
     /**
      * Returned SDTV resolutions allowed for the current format, if the
@@ -1550,6 +1554,31 @@ i830_sdvo_check_hdmi_encode (xf86OutputPtr output)
 	return FALSE;
 }
 
+/* This function will try to fetch native modes for sdvo lvds output*/
+static DisplayModePtr i830_sdvo_lvds_fetch_modes(xf86OutputPtr  output)
+{
+    I830Ptr                 pI830 = I830PTR(output->scrn);
+    DisplayModePtr          modes;
+
+    /*
+     * Attempt to get the mode list from DDC.
+     * Assume that the preferred modes are
+     * arranged in priority order,
+     */
+    modes = i830_ddc_get_modes(output);
+    if (modes != NULL)
+        goto end;
+
+    if (pI830->sdvo_lvds_fixed_mode != NULL)
+        modes = xf86DuplicateModes(output->scrn, pI830->sdvo_lvds_fixed_mode);
+
+end:
+    /* Guarantee the the first preferred mode is chosen by xserver */
+    if (modes != NULL)
+        modes->type |= (M_T_DRIVER | M_T_PREFERRED);
+    return modes;
+}
+
 static void i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv);
 
 static Bool
@@ -1568,6 +1597,7 @@ i830_sdvo_output_setup (xf86OutputPtr output, uint16_t flag)
     /* clear up privates */
     dev_priv->is_tv = FALSE;
     intel_output->needs_tv_clock = FALSE;
+    dev_priv->is_lvds = FALSE;
 
     if (flag & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
     {
@@ -1608,14 +1638,14 @@ i830_sdvo_output_setup (xf86OutputPtr output, uint16_t flag)
 	dev_priv->controlled_output = SDVO_OUTPUT_RGB1;
 	output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="VGA";
-    } else if (flag & SDVO_OUTPUT_LVDS0) {
-	dev_priv->controlled_output = SDVO_OUTPUT_LVDS0;
-	output->subpixel_order = SubPixelHorizontalRGB;
-	name_prefix="LVDS";
-    } else if (flag & SDVO_OUTPUT_LVDS1) {
-	dev_priv->controlled_output = SDVO_OUTPUT_LVDS1;
-	output->subpixel_order = SubPixelHorizontalRGB;
-	name_prefix="LVDS";
+    } else if (flag & (SDVO_OUTPUT_LVDS0 | SDVO_OUTPUT_LVDS1)) {
+        if (flag & SDVO_OUTPUT_LVDS0)
+            dev_priv->controlled_output = SDVO_OUTPUT_LVDS0;
+        else
+            dev_priv->controlled_output = SDVO_OUTPUT_LVDS1;
+        output->subpixel_order = SubPixelHorizontalRGB;
+        name_prefix="LVDS";
+        dev_priv->is_lvds = TRUE;
     } else {
 	unsigned char	bytes[2];
 
@@ -1746,11 +1776,15 @@ i830_sdvo_get_ddc_modes(xf86OutputPtr output)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     DisplayModePtr modes = NULL;
     xf86OutputPtr crt;
-    I830OutputPrivatePtr intel_output;
+    I830OutputPrivatePtr intel_output =output->driver_private;
     xf86MonPtr edid_mon = NULL;
-    struct i830_sdvo_priv *dev_priv;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
 
-    modes = i830_ddc_get_modes(output);
+    if (dev_priv->is_lvds)
+        modes = i830_sdvo_lvds_fetch_modes(output);
+    else
+        modes = i830_ddc_get_modes(output);
+
     if (modes != NULL)
 	goto check_hdmi;
 
@@ -1774,9 +1808,6 @@ i830_sdvo_get_ddc_modes(xf86OutputPtr output)
 
 check_hdmi:
     /* Check if HDMI encode, setup it and set the flag for HDMI audio */
-    intel_output = output->driver_private;
-    dev_priv = intel_output->dev_priv;
-
     if (dev_priv->caps.output_flags & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
     {
 	if (!i830_sdvo_check_hdmi_encode(output)) {
@@ -2104,7 +2135,6 @@ i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv)
     /* Corresponds to SDVO_CONTROL_BUS_DDCx */
     dev_priv->ddc_bus = 1 << num_bits;
 }
-
 
 Bool
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
