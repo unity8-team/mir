@@ -82,6 +82,52 @@ void NVSetOwner(NVPtr pNv, int owner)
 	}
 }
 
+/*
+ * on nv11 this may not be reliable
+ * returned value is suitable for directly programming back into cr44
+ */
+int nouveau_hw_get_current_head(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	int cr44;
+
+	if (pNv->NVArch != 0x11)
+		return NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_44);
+
+	/* reading CR44 is broken on nv11, so we attempt to infer it */
+	if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
+		cr44 = 0x4;
+	else {
+		bool waslocked, slaved_on_A, tvA, slaved_on_B, tvB;
+
+		waslocked = NVLockVgaCrtcs(pNv, false);
+
+		slaved_on_A = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
+		if (slaved_on_A)
+			tvA = !(NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_LCD__INDEX) & MASK(NV_CIO_CRE_LCD_LCD_SELECT));
+
+		slaved_on_B = NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
+		if (slaved_on_B)
+			tvB = !(NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_LCD__INDEX) & MASK(NV_CIO_CRE_LCD_LCD_SELECT));
+
+		if (waslocked)
+			NVLockVgaCrtcs(pNv, true);
+
+		if (slaved_on_A && !tvA)
+			cr44 = 0x0;
+		else if (slaved_on_B && !tvB)
+			cr44 = 0x3;
+		else if (slaved_on_A)
+			cr44 = 0x0;
+		else if (slaved_on_B)
+			cr44 = 0x3;
+		else
+			cr44 = 0x0;
+	}
+
+	return cr44;
+}
+
 void NVBlankScreen(NVPtr pNv, int head, bool blank)
 {
 	unsigned char seq1;

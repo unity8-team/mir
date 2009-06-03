@@ -108,6 +108,7 @@ uint8_t NVReadVgaSeq(NVPtr pNv, int head, uint8_t index);
 void NVWriteVgaGr(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaGr(NVPtr pNv, int head, uint8_t index);
 void NVSetOwner(NVPtr pNv, int owner);
+int nouveau_hw_get_current_head(ScrnInfoPtr pScrn);
 void NVBlankScreen(NVPtr pNv, int head, bool blank);
 void nouveau_hw_setpll(ScrnInfoPtr pScrn, uint32_t reg1,
 		       struct nouveau_pll_vals *pv);
