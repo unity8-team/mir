@@ -289,7 +289,6 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	? pDraw : &srcPrivate->pPixmap->drawable;
     DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
 	? pDraw : &dstPrivate->pPixmap->drawable;
-    PixmapPtr dst_pixmap = get_drawable_pixmap(dst);
     RegionPtr pCopyClip;
     GCPtr pGC;
 
@@ -300,7 +299,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
     ValidateGC(dst, pGC);
 
     /* Wait for the scanline to be outside the region to be copied */
-    if (dstPrivate->attachment == DRI2BufferFrontLeft) {
+    if (pixmap_is_scanout(get_drawable_pixmap(dst))) {
 	BoxPtr box;
 	BoxRec crtcbox;
 	int y1, y2;
@@ -310,33 +309,35 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	box = REGION_EXTENTS(unused, pGC->pCompositeClip);
 	crtc = i830_covering_crtc(pScrn, box, NULL, &crtcbox);
 
-	if (pI830->use_drm_mode)
-	    pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
-	else {
-	    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-	    pipe = intel_crtc->pipe;
+	if (crtc != NULL) {
+	    if (pI830->use_drm_mode)
+		pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
+	    else {
+		I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+		pipe = intel_crtc->pipe;
+	    }
+
+	    if (pipe == 0) {
+		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+		load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
+	    } else {
+		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+		load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+	    }
+
+	    y1 = box->y1 - crtc->y;
+	    y2 = box->y2 - crtc->y;
+
+	    BEGIN_BATCH(5);
+	    /* The documentation says that the LOAD_SCAN_LINES command
+	     * always comes in pairs. Don't ask me why. */
+	    OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+	    OUT_BATCH((y1 << 16) | y2);
+	    OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+	    OUT_BATCH((y1 << 16) | y2);
+	    OUT_BATCH(MI_WAIT_FOR_EVENT | event);
+	    ADVANCE_BATCH();
 	}
-
-	if (pipe == 0) {
-	    event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-	    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
-	} else {
-	    event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-	    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
-	}
-
-	y1 = box->y1 - crtc->y;
-	y2 = box->y2 - crtc->y;
-
-	BEGIN_BATCH(5);
-	/* The documentation says that the LOAD_SCAN_LINES command
-	 * always comes in pairs. Don't ask me why. */
-	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
-	OUT_BATCH((y1 << 16) | y2);
-	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
-	OUT_BATCH((y1 << 16) | y2);
-	OUT_BATCH(MI_WAIT_FOR_EVENT | event);
-	ADVANCE_BATCH();
     }
 
     (*pGC->ops->CopyArea)(src, dst,
