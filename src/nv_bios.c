@@ -3794,8 +3794,8 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, struct nvbios *bios, bit_
 	 * characteristic signature of 0x11,0x13 (1.1 being version, 0x13 being
 	 * length?)
 	 *
-	 * At offset +7 is a pointer to a script, which I don't know how to run yet
-	 * At offset +9 is a pointer to another script, likewise
+	 * At offsets +7 and +9 are pointers to scripts, which (when not
+	 * stubbed) seem to be called from the main init tables at POST
 	 * Offset +11 has a pointer to a table where the first word is a pxclk
 	 * frequency and the second word a pointer to a script, which should be
 	 * run if the comparison pxclk frequency is less than the pxclk desired.
@@ -3805,7 +3805,7 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, struct nvbios *bios, bit_
 	 * "or" from the DCB.
 	 */
 
-	uint16_t tmdstableptr, script1, script2;
+	uint16_t tmdstableptr;
 
 	if (bitentry->length != 2) {
 		NV_ERROR(pScrn, "Do not understand BIT TMDS table\n");
@@ -3826,12 +3826,6 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, struct nvbios *bios, bit_
 			bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
 		return -ENOSYS;
 	}
-
-	/* These two scripts are odd: they don't seem to get run even when they are not stubbed */
-	script1 = ROM16(bios->data[tmdstableptr + 7]);
-	script2 = ROM16(bios->data[tmdstableptr + 9]);
-	if (bios->data[script1] != 'q' || bios->data[script2] != 'q')
-		NV_WARN(pScrn, "TMDS table script pointers not stubbed\n");
 
 	bios->tmds.output0_script_ptr = ROM16(bios->data[tmdstableptr + 11]);
 	bios->tmds.output1_script_ptr = ROM16(bios->data[tmdstableptr + 13]);
