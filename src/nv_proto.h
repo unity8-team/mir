@@ -73,9 +73,9 @@ Bool nouveau_exa_pixmap_is_onscreen(PixmapPtr pPixmap);
 bool nouveau_exa_pixmap_is_tiled(PixmapPtr ppix);
 
 /* in nv_hw.c */
-void NVCalcStateExt(ScrnInfoPtr,struct nouveau_mode_state *,int,int,int,int,int,int);
-void NVLoadStateExt(ScrnInfoPtr pScrn,struct nouveau_mode_state *);
-void NVUnloadStateExt(NVPtr,struct nouveau_mode_state *);
+void NVCalcStateExt(ScrnInfoPtr,NVRegPtr,int,int,int,int,int,int);
+void NVLoadStateExt(ScrnInfoPtr pScrn,NVRegPtr);
+void NVUnloadStateExt(NVPtr,NVRegPtr);
 void NVSetStartAddress(NVPtr,CARD32);
 
 /* in nv_shadow.c */

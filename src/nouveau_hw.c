@@ -641,12 +641,14 @@ void nouveau_hw_save_vga_fonts(ScrnInfoPtr pScrn, bool save)
  * mode state save/load
  */
 
-static void rd_cio_state(NVPtr pNv, int head, NVCrtcRegPtr crtcstate, int index)
+static void rd_cio_state(NVPtr pNv, int head,
+			 struct nouveau_crtc_state *crtcstate, int index)
 {
 	crtcstate->CRTC[index] = NVReadVgaCrtc(pNv, head, index);
 }
 
-static void wr_cio_state(NVPtr pNv, int head, NVCrtcRegPtr crtcstate, int index)
+static void wr_cio_state(NVPtr pNv, int head,
+			 struct nouveau_crtc_state *crtcstate, int index)
 {
 	NVWriteVgaCrtc(pNv, head, index, crtcstate->CRTC[index]);
 }
@@ -655,7 +657,7 @@ static void
 nv_save_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *state)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	NVCrtcRegPtr regp = &state->crtc_reg[head];
+	struct nouveau_crtc_state *regp = &state->head[head];
 	int i;
 
 	if (pNv->Architecture >= NV_ARCH_10)
@@ -710,7 +712,7 @@ nv_save_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *sta
 static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *state)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	NVCrtcRegPtr regp = &state->crtc_reg[head];
+	struct nouveau_crtc_state *regp = &state->head[head];
 	uint32_t pllreg = head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
 	int i;
 
@@ -761,7 +763,7 @@ static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mod
 static void
 nv_save_state_vga(NVPtr pNv, int head, struct nouveau_mode_state *state)
 {
-	NVCrtcRegPtr regp = &state->crtc_reg[head];
+	struct nouveau_crtc_state *regp = &state->head[head];
 	int i;
 
 	regp->MiscOutReg = NVReadPRMVIO(pNv, head, NV_PRMVIO_MISC__READ);
@@ -783,7 +785,7 @@ nv_save_state_vga(NVPtr pNv, int head, struct nouveau_mode_state *state)
 
 static void nv_load_state_vga(NVPtr pNv, int head, struct nouveau_mode_state *state)
 {
-	NVCrtcRegPtr regp = &state->crtc_reg[head];
+	struct nouveau_crtc_state *regp = &state->head[head];
 	int i;
 
 	NVWritePRMVIO(pNv, head, NV_PRMVIO_MISC__WRITE, regp->MiscOutReg);
@@ -808,7 +810,7 @@ static void nv_load_state_vga(NVPtr pNv, int head, struct nouveau_mode_state *st
 static void
 nv_save_state_ext(NVPtr pNv, int head, struct nouveau_mode_state *state)
 {
-	NVCrtcRegPtr regp = &state->crtc_reg[head];
+	struct nouveau_crtc_state *regp = &state->head[head];
 	int i;
 
 	rd_cio_state(pNv, head, regp, NV_CIO_CRE_LCD__INDEX);
@@ -869,7 +871,7 @@ nv_save_state_ext(NVPtr pNv, int head, struct nouveau_mode_state *state)
 
 static void nv_load_state_ext(NVPtr pNv, int head, struct nouveau_mode_state *state)
 {
-	NVCrtcRegPtr regp = &state->crtc_reg[head];
+	struct nouveau_crtc_state *regp = &state->head[head];
 	int i;
 
 	if (pNv->Architecture >= NV_ARCH_10) {
@@ -965,8 +967,8 @@ nv_save_state_palette(NVPtr pNv, int head, struct nouveau_mode_state *state)
 	VGA_WR08(pNv->REGS, NV_PRMDIO_READ_MODE_ADDRESS + head_offset, 0x0);
 
 	for (i = 0; i < 768; i++) {
-		state->crtc_reg[head].DAC[i] = NV_RD08(pNv->REGS, NV_PRMDIO_PALETTE_DATA + head_offset);
-		DDXMMIOH("nv_save_state_palette: head %d reg 0x%04x data 0x%02x\n", head, NV_PRMDIO_PALETTE_DATA + head_offset, state->crtc_reg[head].DAC[i]);
+		state->head[head].DAC[i] = NV_RD08(pNv->REGS, NV_PRMDIO_PALETTE_DATA + head_offset);
+		DDXMMIOH("nv_save_state_palette: head %d reg 0x%04x data 0x%02x\n", head, NV_PRMDIO_PALETTE_DATA + head_offset, state->head[head].DAC[i]);
 	}
 
 	NVSetEnablePalette(pNv, head, false);
@@ -981,8 +983,8 @@ void nouveau_hw_load_state_palette(NVPtr pNv, int head,
 	VGA_WR08(pNv->REGS, NV_PRMDIO_WRITE_MODE_ADDRESS + head_offset, 0x0);
 
 	for (i = 0; i < 768; i++) {
-		DDXMMIOH("nouveau_mode_state_load_palette: head %d reg 0x%04x data 0x%02x\n", head, NV_PRMDIO_PALETTE_DATA + head_offset, state->crtc_reg[head].DAC[i]);
-		NV_WR08(pNv->REGS, NV_PRMDIO_PALETTE_DATA + head_offset, state->crtc_reg[head].DAC[i]);
+		DDXMMIOH("nouveau_mode_state_load_palette: head %d reg 0x%04x data 0x%02x\n", head, NV_PRMDIO_PALETTE_DATA + head_offset, state->head[head].DAC[i]);
+		NV_WR08(pNv->REGS, NV_PRMDIO_PALETTE_DATA + head_offset, state->head[head].DAC[i]);
 	}
 
 	NVSetEnablePalette(pNv, head, false);

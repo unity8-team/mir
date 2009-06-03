@@ -22,6 +22,8 @@
 
 #include "nouveau_bios.h"
 
+#include "nouveau_ms.h"
+
 #include "nouveau_crtc.h"
 #include "nouveau_connector.h"
 #include "nouveau_output.h"
@@ -96,78 +98,7 @@ typedef enum ORNum {
 	SOR2 = 2,
 } ORNum;
 
-enum scaling_modes {
-	SCALE_PANEL,
-	SCALE_FULLSCREEN,
-	SCALE_ASPECT,
-	SCALE_NOSCALE,
-	SCALE_INVALID
-};
-
-struct nouveau_pll_vals {
-	union {
-		struct {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-			uint8_t N1, M1, N2, M2;
-#else
-			uint8_t M1, N1, M2, N2;
-#endif
-		};
-		struct {
-			uint16_t NM1, NM2;
-		} __attribute__((packed));
-	};
-	int log2P;
-
-	int refclk;
-};
-
-typedef struct nv_crtc_reg
-{
-	unsigned char MiscOutReg;     /* */
-	uint8_t CRTC[0x9f];
-	uint8_t CR58[0x10];
-	uint8_t Sequencer[5];
-	uint8_t Graphics[9];
-	uint8_t Attribute[21];
-	unsigned char DAC[768];       /* Internal Colorlookuptable */
-
-	/* PCRTC regs */
-	uint32_t fb_start;
-	uint32_t crtc_cfg;
-	uint32_t cursor_cfg;
-	uint32_t gpio_ext;
-	uint32_t crtc_830;
-	uint32_t crtc_834;
-	uint32_t crtc_850;
-	uint32_t crtc_eng_ctrl;
-
-	/* PRAMDAC regs */
-	uint32_t nv10_cursync;
-	struct nouveau_pll_vals pllvals;
-	uint32_t ramdac_gen_ctrl;
-	uint32_t ramdac_630;
-	uint32_t ramdac_634;
-	uint32_t fp_horiz_regs[7];
-	uint32_t fp_vert_regs[7];
-	uint32_t dither;
-	uint32_t fp_control;
-	uint32_t dither_regs[6];
-	uint32_t fp_debug_0;
-	uint32_t fp_debug_1;
-	uint32_t fp_debug_2;
-	uint32_t ramdac_a20;
-	uint32_t ramdac_a24;
-	uint32_t ramdac_a34;
-} NVCrtcRegRec, *NVCrtcRegPtr;
-
-typedef struct nv_output_reg
-{
-	uint32_t output;
-	int head;
-} NVOutputRegRec, *NVOutputRegPtr;
-
-typedef struct nouveau_mode_state
+typedef struct _riva_hw_state
 {
 	uint32_t bpp;
 	uint32_t width;
@@ -191,7 +122,6 @@ typedef struct nouveau_mode_state
 	uint32_t vpllB;
 	uint32_t vpll2B;
 	uint32_t pllsel;
-	uint32_t sel_clk;
 	uint32_t general;
 	uint32_t crtcOwner;
 	uint32_t head;
@@ -204,47 +134,14 @@ typedef struct nouveau_mode_state
 	uint32_t timingV;
 	uint32_t displayV;
 	uint32_t crtcSync;
-
-	NVCrtcRegRec crtc_reg[2];
 } RIVA_HW_STATE, *NVRegPtr;
-
-struct nouveau_crtc {
-	int head;
-	uint8_t last_dpms;
-	int fp_users;
-	uint32_t dpms_saved_fp_control;
-	int saturation, sharpness;
-
-	uint32_t cursor_fg, cursor_bg;
-	ExaOffscreenArea *shadow;
-};
-
-struct nouveau_encoder {
-	uint8_t last_dpms;
-	struct dcb_entry *dcb;
-	DisplayModePtr native_mode;
-	uint8_t scaling_mode;
-	bool dithering;
-	bool dual_link;
-	NVOutputRegRec restore;
-};
-
-struct nouveau_connector {
-	xf86MonPtr edid;
-	I2CBusPtr pDDCBus;
-	uint16_t possible_encoders;
-	struct nouveau_encoder *detected_encoder;
-	struct nouveau_encoder *nv_encoder;
-};
-
-#define to_nouveau_connector(x) ((struct nouveau_connector *)(x)->driver_private)
-#define to_nouveau_crtc(x) ((struct nouveau_crtc *)(x)->driver_private)
-#define to_nouveau_encoder(x) ((struct nouveau_connector *)(x)->driver_private)->nv_encoder
 
 typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
     RIVA_HW_STATE       SavedReg;
     RIVA_HW_STATE       ModeReg;
+    struct nouveau_mode_state	saved_regs;
+    struct nouveau_mode_state	set_state;
     uint32_t saved_vga_font[4][16384];
     uint32_t              Architecture;
     EntityInfoPtr       pEnt;

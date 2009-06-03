@@ -302,7 +302,7 @@ static inline void nv_fix_nv40_hw_cursor(NVPtr pNv, int head)
 static inline void nv_show_cursor(NVPtr pNv, int head, bool show)
 {
 	uint8_t *curctl1 =
-		&pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
+		&pNv->set_state.head[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
 
 	if (show)
 		*curctl1 |= MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);

@@ -33,6 +33,7 @@ nouveau_drv_la_SOURCES = \
 			 nouveau_calc.c \
 			 nouveau_hw.c nouveau_hw.h \
 			 nouveau_local.h \
+			 nouveau_ms.h \
 			 nouveau_exa.c nouveau_xv.c nouveau_dri2.c \
 			 nv_accel_common.c \
 			 nv_bios.c \

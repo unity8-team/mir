@@ -799,7 +799,7 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 
 static void nv_digital_output_prepare_sel_clk(NVPtr pNv, struct nouveau_encoder *nv_encoder, int head)
 {
-	NVRegPtr state = &pNv->ModeReg;
+	struct nouveau_mode_state *state = &pNv->set_state;
 	uint32_t bits1618 = nv_encoder->dcb->or & OUTPUT_A ? 0x10000 : 0x40000;
 
 	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP)
@@ -829,8 +829,8 @@ static void nv_digital_output_prepare_sel_clk(NVPtr pNv, struct nouveau_encoder 
 	 * 	and which bit-pair to use, is unclear on nv40 (for earlier cards, the fp table
 	 * 	entry has the necessary info)
 	 */
-	if (nv_encoder->dcb->type == OUTPUT_LVDS && pNv->SavedReg.sel_clk & 0xf0) {
-		int shift = (pNv->SavedReg.sel_clk & 0x50) ? 0 : 1;
+	if (nv_encoder->dcb->type == OUTPUT_LVDS && pNv->saved_regs.sel_clk & 0xf0) {
+		int shift = (pNv->saved_regs.sel_clk & 0x50) ? 0 : 1;
 
 		state->sel_clk &= ~0xf0;
 		state->sel_clk |= (head ? 0x40 : 0x10) << shift;
@@ -856,7 +856,7 @@ nv_output_prepare(xf86OutputPtr output)
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	NVPtr pNv = NVPTR(output->scrn);
 	int head = to_nouveau_crtc(output->crtc)->head;
-	struct nv_crtc_reg *crtcstate = pNv->ModeReg.crtc_reg;
+	struct nouveau_crtc_state *crtcstate = pNv->set_state.head;
 	uint8_t *cr_lcd = &crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX];
 	uint8_t *cr_lcd_oth = &crtcstate[head ^ 1].CRTC[NV_CIO_CRE_LCD__INDEX];
 
@@ -945,7 +945,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 	if (IS_DFP(dcbe->type))
 		/* update fp_control state for any changes made by scripts,
 		 * so correct value is written at DPMS on */
-		pNv->ModeReg.crtc_reg[head].fp_control =
+		pNv->set_state.head[head].fp_control =
 			NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL);
 
 	/* This could use refinement for flatpanels, but it should work this way */
@@ -978,7 +978,7 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 
 	if (mode == DPMSModeOn) {
 		nv_crtc = to_nouveau_crtc(crtc);
-		fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
+		fpc = &nv_crtc->state->fp_control;
 
 		if (is_fpc_off(*fpc))
 			/* using saved value is ok, as (is_digital && dpms_on &&
@@ -992,7 +992,7 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 	} else
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
-			fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
+			fpc = &nv_crtc->state->fp_control;
 
 			nv_crtc->fp_users &= ~(1 << nv_encoder->dcb->index);
 			if (!is_fpc_off(*fpc) && !nv_crtc->fp_users) {
@@ -1051,10 +1051,10 @@ lvds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 	if (mode == DPMSModeOn)
 		nv_digital_output_prepare_sel_clk(pNv, nv_encoder, to_nouveau_crtc(crtc)->head);
 	else {
-		pNv->ModeReg.sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK);
-		pNv->ModeReg.sel_clk &= ~0xf0;
+		pNv->set_state.sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK);
+		pNv->set_state.sel_clk &= ~0xf0;
 	}
-	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, pNv->set_state.sel_clk);
 }
 
 static void
@@ -1148,7 +1148,7 @@ void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 				 nv_encoder->native_mode->Clock);
 	if (nv_encoder->dcb->type == OUTPUT_TMDS) {
 		int clock = nouveau_hw_pllvals_to_clk
-					(&pNv->SavedReg.crtc_reg[head].pllvals);
+					(&pNv->saved_regs.head[head].pllvals);
 
 		run_tmds_table(pScrn, nv_encoder->dcb, head, clock);
 	}

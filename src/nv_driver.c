@@ -2168,7 +2168,6 @@ static void
 NVSave(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	NVRegPtr nvReg = &pNv->SavedReg;
 
 	if (pNv->Architecture == NV_ARCH_50)
 		return;
@@ -2191,6 +2190,7 @@ NVSave(ScrnInfoPtr pScrn)
 	} else {
 		vgaHWPtr pVga = VGAHWPTR(pScrn);
 		vgaRegPtr vgaReg = &pVga->SavedReg;
+		NVRegPtr nvReg = &pNv->SavedReg;
 		if (pNv->twoHeads)
 			nvWriteCurVGA(pNv, NV_CIO_CRE_44, pNv->crtc_active[1] * 0x3);
 
