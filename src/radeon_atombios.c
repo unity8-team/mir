@@ -1625,12 +1625,6 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
-    /* some BIOSes seem to report DAC on HDMI - they hurt me with their lies */
-    if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
-    	(info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
-	info->BiosConnector[index].devices &= ~(ATOM_DEVICE_CRT_SUPPORT);
-    }
-
     /* ASUS HD 3600 XT board lists the DVI port as HDMI */
     if ((info->Chipset == PCI_CHIP_RV635_9598) &&
 	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1043) &&
@@ -1639,6 +1633,18 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
     }
 
+    /* some BIOSes seem to report DAC on HDMI - usually this is a board with
+     * HDMI + VGA reporting as HDMI
+     */
+    if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
+	(info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
+	if (info->BiosConnector[index].devices & (ATOM_DEVICE_CRT_SUPPORT)) {
+	    info->BiosConnector[index].devices &= ~(ATOM_DEVICE_DFP_SUPPORT);
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_VGA;
+	    info->BiosConnector[index].connector_object = 0;
+	} else
+	    info->BiosConnector[index].devices &= ~(ATOM_DEVICE_CRT_SUPPORT);
+    }
 
 }
 
