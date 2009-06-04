@@ -1,0 +1,97 @@
+commit 5e48146777921b693c828af9566a77422cc4f85f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jun 3 09:57:10 2009 +0000
+
+    Replace some pixmap-related idioms with inline functions to do so.
+
+diff --git a/src/i830.h b/src/i830.h
+index 2d9e905..c0e7dcd 100644
+--- a/src/i830.h
++++ b/src/i830.h
+@@ -946,4 +946,23 @@ i830_debug_sync(ScrnInfoPtr scrn)
+ }
+ #endif
+ 
++static inline PixmapPtr
++get_drawable_pixmap(DrawablePtr drawable)
++{
++    ScreenPtr screen = drawable->pScreen;
++
++    if (drawable->type == DRAWABLE_PIXMAP)
++	return (PixmapPtr)drawable;
++    else
++	return screen->GetWindowPixmap((WindowPtr)drawable);
++}
++
++static inline Bool
++pixmap_is_scanout(PixmapPtr pixmap)
++{
++    ScreenPtr screen = pixmap->drawable.pScreen;
++
++    return pixmap == screen->GetScreenPixmap(screen);
++}
++
+ #endif /* _I830_H_ */
+diff --git a/src/i830_dri.c b/src/i830_dri.c
+index 632280e..8b2629f 100644
+--- a/src/i830_dri.c
++++ b/src/i830_dri.c
+@@ -103,10 +103,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
+     pDepthPixmap = NULL;
+     for (i = 0; i < count; i++) {
+ 	if (attachments[i] == DRI2BufferFrontLeft) {
+-	    if (pDraw->type == DRAWABLE_PIXMAP)
+-		pPixmap = (PixmapPtr) pDraw;
+-	    else
+-		pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
++	    pPixmap = get_drawable_pixmap(pDraw);
+ 	    pPixmap->refcnt++;
+ 	} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
+ 	    pPixmap = pDepthPixmap;
+@@ -186,10 +183,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
+     }
+ 
+     if (attachment == DRI2BufferFrontLeft) {
+-	if (pDraw->type == DRAWABLE_PIXMAP)
+-	    pPixmap = (PixmapPtr) pDraw;
+-	else
+-	    pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
++	pPixmap = get_drawable_pixmap(pDraw);
+ 	pPixmap->refcnt++;
+     } else {
+ 	unsigned int hint = 0;
+diff --git a/src/i830_video.c b/src/i830_video.c
+index 085e79a..1ff80a0 100644
+--- a/src/i830_video.c
++++ b/src/i830_video.c
+@@ -2216,7 +2216,7 @@ I830PutImage(ScrnInfoPtr pScrn,
+     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
+     ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+     I830OverlayRegPtr overlay;
+-    PixmapPtr pPixmap;
++    PixmapPtr pPixmap = get_drawable_pixmap(pDraw);;
+     INT32 x1, x2, y1, y2;
+     int srcPitch = 0, srcPitch2 = 0, dstPitch, destId;
+     int dstPitch2 = 0;
+@@ -2467,12 +2467,6 @@ I830PutImage(ScrnInfoPtr pScrn,
+ 	break;
+     }
+ 
+-    if (pDraw->type == DRAWABLE_WINDOW) {
+-	pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr)pDraw);
+-    } else {
+-	pPixmap = (PixmapPtr)pDraw;
+-    }
+-
+     if (!pPriv->textured) {
+ 	i830_display_video(pScrn, crtc, destId, width, height, dstPitch,
+ 			   x1, y1, x2, y2, &dstBox, src_w, src_h,
+@@ -2497,7 +2491,7 @@ I830PutImage(ScrnInfoPtr pScrn,
+ 	    int y1, y2;
+ 	    int pipe = -1, event, load_scan_lines_pipe;
+ 
+-	    if (pPixmap == pScreen->GetScreenPixmap(pScreen)) {
++	    if (pixmap_is_scanout(pPixmap)) {
+ 		if (pI830->use_drm_mode)
+ 		    pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
+ 		else {

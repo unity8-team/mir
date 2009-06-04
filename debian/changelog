@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.7.99.1+git20090602.ec2fde7c-0ubuntu2) karmic; urgency=low
+
+  * Add 118_pixmap_inline_funcs.patch, 119_fix_drawable_abuse.patch,
+    120_fix_dri2_vblank_syncing_segfault.patch: Cherrypicks from upstream
+    to fix segfault associated with a last minute commit in the prior
+    snapshot to enable vsync for DRI2 CopyRegion.
+    (LP: #383129)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 04 Jun 2009 07:45:05 -0700
+
 xserver-xorg-video-intel (2:2.7.99.1+git20090602.ec2fde7c-0ubuntu1) karmic; urgency=low
 
   * Update to git 20090602 (master branch) up to commit ec2fde7c
