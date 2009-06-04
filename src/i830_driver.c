@@ -2816,8 +2816,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef INTEL_XVMC
     pI830->XvMCEnabled = FALSE;
-    from =  xf86GetOptValBool(pI830->Options, OPTION_XVMC,
-			      &pI830->XvMCEnabled) ? X_CONFIG : X_DEFAULT;
+    from = ((pI830->directRenderingType == DRI_DRI2) &&
+            xf86GetOptValBool(pI830->Options, OPTION_XVMC,
+                              &pI830->XvMCEnabled) ? X_CONFIG : X_DEFAULT);
     xf86DrvMsg(pScrn->scrnIndex, from, "Intel XvMC decoder %sabled\n",
 	       pI830->XvMCEnabled ? "en" : "dis");
 #endif

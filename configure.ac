@@ -78,10 +78,10 @@ else
 	DEBUGFLAGS=""
 fi
 
-dnl AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
-dnl                                   [Disable XvMC support [[default=auto]]]),
-dnl               [XVMC="$enableval"],
-dnl               [XVMC=auto])
+AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
+                                  [Disable XvMC support [[default=yes]]]),
+              [XVMC="$enableval"],
+              [XVMC=yes])
 
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
@@ -151,12 +151,6 @@ if test "$VIDEO_DEBUG" = yes; then
 	AC_DEFINE(VIDEO_DEBUG,1,[Enable debug support])
 fi
 
-if test "$XVMC" = auto; then
-	XVMC="$DRI"
-fi
-if test "$XVMC" = yes && test "$DRI" = no; then
-	AC_MSG_ERROR([XvMC can't be enabled without DRI])
-fi
 if test "$XVMC" = yes; then
 	PKG_CHECK_MODULES(XVMCLIB, [xvmc], [XVMC=yes], [XVMC=no])
 	PKG_CHECK_MODULES(XEXT, [xext])
@@ -191,6 +185,9 @@ AC_OUTPUT([
 	uxa/Makefile
 	src/Makefile
 	src/xvmc/Makefile
+	src/xvmc/shader/Makefile
+	src/xvmc/shader/mc/Makefile
+	src/xvmc/shader/vld/Makefile
 	src/bios_reader/Makefile
 	src/ch7017/Makefile
 	src/ch7xxx/Makefile

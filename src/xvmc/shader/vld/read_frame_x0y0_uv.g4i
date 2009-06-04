@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright © 2009 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,42 +20,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Authors:
- *    Xiang Haihao <haihao.xiang@intel.com>
- *
+ * Author:
+ *    Zou Nan hai <nanhai.zou@intel.com>
+ *    Yan Li <li.l.yan@intel.com>
+ *    Liu Xi bin<xibin.liu@intel.com>
  */
-#ifndef _I915_HWMC_H
-#define _I915_HWMC_H
+/* GRF allocation:
+   g1~g30: constant buffer
+           g1~g2:intra IQ matrix
+           g3~g4:non intra IQ matrix
+           g5~g20:IDCT table
+   g31:    thread payload 
+   g32:    message descriptor for reading reference data
+   g58~g81:reference data
+   g82:    thread payload backup
+   g83~g106:IDCT data                           */
+mov (1) g32.8<1>UD 0x007000fUD  {align1};
+send (16) 0 g36.0<1>UW g32<8,8,1>UW read(input_surface1, 2, 0, 2) mlen 1 rlen 4 {align1};
+send (16) 0 g40.0<1>UW g32<8,8,1>UW read(input_surface2, 2, 0, 2) mlen 1 rlen 4 {align1};
 
-#include "i830_hwmc.h"
-
-/* i915 hw requires surface to be at least 1KB aligned */
-#define STRIDE(w)               (((w) + 0x3ff) & ~0x3ff)
-#define SIZE_Y420(w, h)         (h * STRIDE(w))
-#define SIZE_UV420(w, h)        ((h >> 1) * STRIDE(w >> 1))
-#define SIZE_YUV420(w, h)       (SIZE_Y420(w,h) + SIZE_UV420(w,h) * 2)
-#define SIZE_XX44(w, h)         (h * STRIDE(w))
-
-#define I915_NUM_XVMC_ATTRIBUTES       0x02
-#define I915_XVMC_VALID 0x80000000
-
-typedef struct
-{
-    struct _intel_xvmc_common comm;
-    unsigned int ctxno; /* XvMC private context reference number */
-    struct hwmc_buffer sis;
-    struct hwmc_buffer ssb;
-    struct hwmc_buffer msb;
-    struct hwmc_buffer psp;
-    struct hwmc_buffer psc;
-    struct hwmc_buffer corrdata;/* Correction Data Buffer */
-    int deviceID;
-} I915XvMCCreateContextRec;
-
-typedef struct 
-{
-    unsigned int srfno;
-    struct hwmc_buffer srf;
-} I915XvMCCreateSurfaceRec;
-
-#endif /* _I915_HWMC_H */
+mov (16) g74.0<1>UW g36.0<16,8,1>UB {align1};
+mov (16) g75.0<1>UW g37.0<16,8,1>UB {align1};
+mov (16) g76.0<1>UW g38.0<16,8,1>UB {align1};
+mov (16) g77.0<1>UW g39.0<16,8,1>UB {align1};
+mov (16) g78.0<1>UW g40.0<16,8,1>UB {align1};
+mov (16) g79.0<1>UW g41.0<16,8,1>UB {align1};
+mov (16) g80.0<1>UW g42.0<16,8,1>UB {align1};
+mov (16) g81.0<1>UW g43.0<16,8,1>UB {align1};

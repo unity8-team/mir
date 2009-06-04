@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright © 2008 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,42 +20,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Authors:
- *    Xiang Haihao <haihao.xiang@intel.com>
- *
- */
-#ifndef _I915_HWMC_H
-#define _I915_HWMC_H
+ * Author:
+ *    Zou Nan hai <nanhai.zou@intel.com>
+ *    Zhang Hua jun <huajun.zhang@intel.com>
+ *    Xing Dong sheng <dongsheng.xing@intel.com>
+ */  
 
-#include "i830_hwmc.h"
-
-/* i915 hw requires surface to be at least 1KB aligned */
-#define STRIDE(w)               (((w) + 0x3ff) & ~0x3ff)
-#define SIZE_Y420(w, h)         (h * STRIDE(w))
-#define SIZE_UV420(w, h)        ((h >> 1) * STRIDE(w >> 1))
-#define SIZE_YUV420(w, h)       (SIZE_Y420(w,h) + SIZE_UV420(w,h) * 2)
-#define SIZE_XX44(w, h)         (h * STRIDE(w))
-
-#define I915_NUM_XVMC_ATTRIBUTES       0x02
-#define I915_XVMC_VALID 0x80000000
-
-typedef struct
-{
-    struct _intel_xvmc_common comm;
-    unsigned int ctxno; /* XvMC private context reference number */
-    struct hwmc_buffer sis;
-    struct hwmc_buffer ssb;
-    struct hwmc_buffer msb;
-    struct hwmc_buffer psp;
-    struct hwmc_buffer psc;
-    struct hwmc_buffer corrdata;/* Correction Data Buffer */
-    int deviceID;
-} I915XvMCCreateContextRec;
-
-typedef struct 
-{
-    unsigned int srfno;
-    struct hwmc_buffer srf;
-} I915XvMCCreateSurfaceRec;
-
-#endif /* _I915_HWMC_H */
+	and.z (1) null mv1<1,1,1>UW 2UD {align1};	
+	(f0) jmpi LL1;
+	and.z (1) null mv2<1,1,1>UW 2UD {align1};	
+	(f0) jmpi LL2;
+	include(`read_frame_x1y1_uv.g4i')
+	jmpi LL5;
+LL2:
+	include(`read_frame_x1y0_uv.g4i')
+	jmpi LL5;
+LL1:
+	and.z (1) null mv2<1,1,1>UW 2UD {align1};	
+	(f0) jmpi LL4;
+	include(`read_frame_x0y1_uv.g4i')
+	jmpi LL5;
+LL4:
+	include(`read_frame_x0y0_uv.g4i')
+LL5:
