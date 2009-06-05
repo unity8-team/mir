@@ -89,7 +89,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 			if (!linear) {
 				BEGIN_RING(chan, m2mf, 0x0200, 7);
 				OUT_RING  (chan, 0);
-				OUT_RING  (chan, 0);
+				OUT_RING  (chan, bo->tile_mode << 4);
 				OUT_RING  (chan, pspix->drawable.width * cpp);
 				OUT_RING  (chan, pspix->drawable.height);
 				OUT_RING  (chan, 1);
@@ -210,7 +210,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			if (!linear) {
 				BEGIN_RING(chan, m2mf, 0x021c, 7);
 				OUT_RING  (chan, 0);
-				OUT_RING  (chan, 0);
+				OUT_RING  (chan, bo->tile_mode << 4);
 				OUT_RING  (chan, pdpix->drawable.width * cpp);
 				OUT_RING  (chan, pdpix->drawable.height);
 				OUT_RING  (chan, 1);

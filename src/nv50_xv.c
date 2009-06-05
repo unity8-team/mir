@@ -105,7 +105,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8);
 	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RING  (chan, 0xd0005000);
+	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
@@ -117,7 +117,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8);
 	OUT_RELOCl(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RING  (chan, 0xd0005000);
+	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w >> 1);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | (src_h >> 1));
@@ -130,7 +130,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8);
 	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RING  (chan, 0xd0005000);
+	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
@@ -142,7 +142,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8_8_8);
 	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RING  (chan, 0xd0005000);
+	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, (src_w >> 1));
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);

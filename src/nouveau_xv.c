@@ -1125,7 +1125,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 			BEGIN_RING(chan, m2mf, 0x021c, 7);
 			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0);
+			OUT_RING  (chan, destination_buffer->tile_mode << 4);
 			OUT_RING  (chan, dstPitch);
 			OUT_RING  (chan, nlines);
 			OUT_RING  (chan, 1);

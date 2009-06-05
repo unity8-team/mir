@@ -128,7 +128,7 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 		BEGIN_RING(chan, eng2d, mthd, 5);
 		OUT_RING  (chan, fmt);
 		OUT_RING  (chan, 0);
-		OUT_RING  (chan, 0);
+		OUT_RING  (chan, bo->tile_mode << 4);
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 0);
 	}
@@ -458,7 +458,7 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 	OUT_RELOCh(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_RING  (chan, format);
-	OUT_RING  (chan, 0);
+	OUT_RING  (chan, bo->tile_mode << 4);
 	OUT_RING  (chan, 0x00000000);
 	BEGIN_RING(chan, tesla, NV50TCL_RT_HORIZ(0), 2);
 	OUT_RING  (chan, ppix->drawable.width);
@@ -578,7 +578,7 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 		NOUVEAU_FALLBACK("invalid picture format, this SHOULD NOT HAPPEN. Expect trouble.\n");
 	}
 	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RING  (chan, 0xd0005000);
+	OUT_RING  (chan, 0xd0005000 | (bo->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | ppix->drawable.height);
