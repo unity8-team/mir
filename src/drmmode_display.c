@@ -939,7 +939,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	NVPtr pNv = NVPTR(scrn);
 	PixmapPtr ppix;
 	struct nouveau_bo *bo = NULL;
-	unsigned pitch, flags, old_id;
+	unsigned pitch, flags, tile_mode = 0, tile_flags = 0, old_id;
 	int ret, i;
 
 	ErrorF("resize called %d %d\n", width, height);
@@ -956,14 +956,16 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		return TRUE;
 
 	pitch = NOUVEAU_ALIGN(width, 64) * scrn->bitsPerPixel / 8;
-	flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
-#if 0
-	if (pNv->Architecture >= NV_ARCH_50)
-		flags |= NOUVEAU_BO_TILED;
-#endif
 
-	ret = nouveau_bo_new(pNv->dev, flags, 0,
-			     pitch * NOUVEAU_ALIGN(height, 64), &bo);
+	flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
+	if (pNv->Architecture >= NV_ARCH_50) {
+		tile_mode = 4;
+		tile_flags = 0x7a00;
+	}
+
+	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, pitch *
+				  NOUVEAU_ALIGN(height, 64), tile_mode,
+				  tile_flags, &bo);
 	if (ret)
 		return FALSE;
 

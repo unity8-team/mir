@@ -1501,6 +1501,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint64_t res;
+	uint32_t tile_mode = 0, tile_flags = 0;
 	int size;
 
 	if (!pNv->dev)
@@ -1514,15 +1515,24 @@ NVMapMem(ScrnInfoPtr pScrn)
 	pNv->AGPSize=res;
 
 	if (pNv->exa_driver_pixmaps) {
+		uint32_t height = pScrn->virtualY;
+
+		if (pNv->Architecture == NV_ARCH_50 && pNv->kms_enable) {
+			tile_mode = 4;
+			tile_flags = 0x7a00;
+			height = NOUVEAU_ALIGN(height, 64);
+		}
+
 		size = NOUVEAU_ALIGN(pScrn->virtualX, 64);
 		size = size * (pScrn->bitsPerPixel >> 3);
-		size = size * pScrn->virtualY;
+		size = size * height;
 	} else {
 		size = pNv->VRAMPhysicalSize / 2;
 	}
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
-			   NOUVEAU_BO_MAP, 0, size, &pNv->FB)) {
+	if (nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
+				NOUVEAU_BO_MAP, 0, size, tile_mode,
+				tile_flags, &pNv->FB)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer memory\n");
 		return FALSE;
