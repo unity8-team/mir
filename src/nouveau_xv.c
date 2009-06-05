@@ -1250,18 +1250,16 @@ CPU_copy:
 		ppix = NVGetDrawablePixmap(pDraw);
 
 		/* Ensure pixmap is in offscreen memory */
-		exaMoveInPixmap(ppix);
+		if (!pNv->exa_driver_pixmaps) {
+			exaMoveInPixmap(ppix);
 
-		/* check if it made it offscreen */
-#if NOUVEAU_EXA_PIXMAPS
-		if (!pNv->EXADriverPtr->PixmapIsOffscreen(ppix))
-#else
-		if (exaGetPixmapOffset(ppix) >= pNv->EXADriverPtr->memorySize)
-#endif
-			/* we lost, insufficient space probably */
-			return BadAlloc;
+			/* check if it made it offscreen */
+			if (exaGetPixmapOffset(ppix) >= pNv->EXADriverPtr->memorySize)
+				/* we lost, insufficient space probably */
+				return BadAlloc;
 
-		ExaOffscreenMarkUsed(ppix);
+			ExaOffscreenMarkUsed(ppix);
+		}
 
 #ifdef COMPOSITE
 		/* Convert screen coords to pixmap coords */

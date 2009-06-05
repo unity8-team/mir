@@ -76,7 +76,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	case 24: OUT_RING  (chan, NV50TCL_RT_FORMAT_24BPP); break;
 	case 16: OUT_RING  (chan, NV50TCL_RT_FORMAT_16BPP); break;
 	}
-	OUT_RING  (chan, 0);
+	OUT_RING  (chan, bo->tile_mode << 4);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, tesla, NV50TCL_RT_HORIZ(0), 2);
 	OUT_RING  (chan, ppix->drawable.width);
