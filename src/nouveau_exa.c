@@ -259,7 +259,10 @@ nouveau_exa_mark_sync(ScreenPtr pScreen)
 static void
 nouveau_exa_wait_marker(ScreenPtr pScreen, int marker)
 {
-	NVSync(xf86Screens[pScreen->myNum]);
+	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
+	
+	if (!pNv->exa_driver_pixmaps)
+		NVSync(xf86Screens[pScreen->myNum]);
 }
 
 static Bool
