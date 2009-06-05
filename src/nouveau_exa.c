@@ -336,7 +336,7 @@ nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pixmap *nvpix;
 	uint32_t cpp = ppix->drawable.bitsPerPixel >> 3;
-	uint32_t flags = 0;
+	uint32_t flags = 0, tile_mode = 0, tile_flags = 0;
 	int ret;
 
 	nvpix = nouveau_pixmap(ppix);
@@ -359,17 +359,24 @@ nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
 		flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
 
 		if (pNv->Architecture >= NV_ARCH_50) {
-			uint32_t aw = (width + 7) & ~7;
-			uint32_t ah = (height + 7) & ~7;
+			uint32_t th;
 
-			flags |= NOUVEAU_BO_TILED;
+			if      (height > 32) tile_mode = 4;
+			else if (height > 16) tile_mode = 3;
+			else if (height >  8) tile_mode = 2;
+			else if (height >  4) tile_mode = 1;
+			else                  tile_mode = 0;
+			tile_flags = 0x7000;
 
-			devkind = ((aw * cpp) + 63) & ~63;
-			nvpix->size = devkind * ah;
+			th = 1 << (tile_mode + 2);
+
+			devkind = ((NOUVEAU_ALIGN(width, 8) * cpp) + 63) & ~63;
+			nvpix->size = devkind * NOUVEAU_ALIGN(height, th);
 		}
 	}
 
-	ret = nouveau_bo_new(pNv->dev, flags, 0, nvpix->size, &nvpix->bo);
+	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, nvpix->size, tile_mode,
+				  tile_flags, &nvpix->bo);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed pixmap creation: %d\n", ret);
