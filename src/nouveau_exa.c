@@ -390,7 +390,7 @@ nouveau_exa_pixmap_is_tiled(PixmapPtr ppix)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->exa_driver_pixmaps) {
-		if (!nouveau_pixmap_bo(ppix)->tiled)
+		if (!nouveau_pixmap_bo(ppix)->tile_flags)
 			return false;
 	} else
 	if (pNv->Architecture < NV_ARCH_50 ||
@@ -406,7 +406,7 @@ nouveau_exa_pixmap_map(PixmapPtr ppix)
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 	unsigned delta = nouveau_pixmap_offset(ppix);
 
-	if (bo->tiled) {
+	if (bo->tile_flags) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
 		nvpix->map_refcount++;
@@ -432,7 +432,7 @@ nouveau_exa_pixmap_unmap(PixmapPtr ppix)
 {
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 
-	if (bo->tiled) {
+	if (bo->tile_flags) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
 		if (--nvpix->map_refcount)
