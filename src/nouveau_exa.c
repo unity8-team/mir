@@ -335,6 +335,9 @@ nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_pixmap *nvpix;
+	uint32_t cpp = ppix->drawable.bitsPerPixel >> 3;
+	uint32_t flags = 0;
+	int ret;
 
 	nvpix = nouveau_pixmap(ppix);
 	if (!nvpix)
@@ -349,13 +352,13 @@ nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
 		return TRUE;
 	}
 
-	if (!nvpix->bo && nvpix->size) {
-		uint32_t cpp = ppix->drawable.bitsPerPixel >> 3;
-		/* At some point we should just keep 1bpp pixmaps in sysram */
-		uint32_t flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
-		int ret;
+	if (nvpix->bo || !nvpix->size)
+		return FALSE;
 
-		if (pNv->Architecture >= NV_ARCH_50 && cpp) {
+	if (cpp) {
+		flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
+
+		if (pNv->Architecture >= NV_ARCH_50) {
 			uint32_t aw = (width + 7) & ~7;
 			uint32_t ah = (height + 7) & ~7;
 
@@ -364,23 +367,19 @@ nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
 			devkind = ((aw * cpp) + 63) & ~63;
 			nvpix->size = devkind * ah;
 		}
-
-		ret = nouveau_bo_new(pNv->dev, flags, 0, nvpix->size,
-				     &nvpix->bo);
-		if (ret) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Failed pixmap creation: %d\n", ret);
-			return FALSE;
-		}
-
-		/* We don't want devPrivate.ptr set at all. */
-		miModifyPixmapHeader(ppix, width, height, depth, bpp, devkind,
-				     NULL);
-
-		return TRUE;
 	}
 
-	return FALSE;
+	ret = nouveau_bo_new(pNv->dev, flags, 0, nvpix->size, &nvpix->bo);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed pixmap creation: %d\n", ret);
+		return FALSE;
+	}
+
+	/* We don't want devPrivate.ptr set at all. */
+	miModifyPixmapHeader(ppix, width, height, depth, bpp, devkind, NULL);
+
+	return TRUE;
 }
 
 bool
