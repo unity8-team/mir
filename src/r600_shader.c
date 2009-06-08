@@ -546,7 +546,7 @@ int R600_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_GPR(0),
                                  DST_REL(ABSOLUTE),
                                  DST_ELEM(ELEM_X),
-                                 CLAMP(1));
+                                 CLAMP(0));
 
     /* 5 texY / h */
     shader[i++] = ALU_DWORD0(SRC0_SEL(0),
@@ -573,7 +573,7 @@ int R600_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_GPR(0),
                                  DST_REL(ABSOLUTE),
                                  DST_ELEM(ELEM_Y),
-                                 CLAMP(1));
+                                 CLAMP(0));
 
     /* 6/7 */
     shader[i++] = VTX_DWORD0(VTX_INST(SQ_VTX_INST_FETCH),
@@ -1715,7 +1715,7 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_GPR(1),
                                  DST_REL(ABSOLUTE),
                                  DST_ELEM(ELEM_X),
-                                 CLAMP(1));
+                                 CLAMP(0));
 
     /* 18 srcY / h */
     shader[i++] = ALU_DWORD0(SRC0_SEL(1),
@@ -1742,7 +1742,7 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_GPR(1),
                                  DST_REL(ABSOLUTE),
                                  DST_ELEM(ELEM_Y),
-                                 CLAMP(1));
+                                 CLAMP(0));
 
     /* 19 maskX / w */
     shader[i++] = ALU_DWORD0(SRC0_SEL(0),
@@ -1769,7 +1769,7 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_GPR(0),
                                  DST_REL(ABSOLUTE),
                                  DST_ELEM(ELEM_X),
-                                 CLAMP(1));
+                                 CLAMP(0));
 
     /* 20 maskY / h */
     shader[i++] = ALU_DWORD0(SRC0_SEL(0),
@@ -1796,7 +1796,7 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_GPR(0),
                                  DST_REL(ABSOLUTE),
                                  DST_ELEM(ELEM_Y),
-                                 CLAMP(1));
+                                 CLAMP(0));
     /* 21 */
     shader[i++] = 0x00000000;
     shader[i++] = 0x00000000;
@@ -2068,7 +2068,7 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_GPR(0),
                                  DST_REL(ABSOLUTE),
                                  DST_ELEM(ELEM_X),
-                                 CLAMP(1));
+                                 CLAMP(0));
 
     /* 38 srcY / h */
     shader[i++] = ALU_DWORD0(SRC0_SEL(0),
@@ -2095,7 +2095,7 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_GPR(0),
                                  DST_REL(ABSOLUTE),
                                  DST_ELEM(ELEM_Y),
-                                 CLAMP(1));
+                                 CLAMP(0));
 
     /* 39 */
     shader[i++] = 0x00000000;
