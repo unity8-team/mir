@@ -54,7 +54,6 @@
 #include <X11/extensions/vldXvMC.h>
 #include <drm_sarea.h>
 #include "i915_drm.h"
-#include "xf86dri.h"
 #include "intel_bufmgr.h"
 
 #include "intel_batchbuffer.h"
