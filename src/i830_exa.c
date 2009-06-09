@@ -598,6 +598,9 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     if (w > 32767 || h > 32767)
 	return NullPixmap;
 
+    if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE)
+	return fbCreatePixmap (screen, w, h, depth, usage);
+
     pixmap = fbCreatePixmap (screen, 0, 0, depth, usage);
 
     if (w && h)
