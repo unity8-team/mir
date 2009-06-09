@@ -1310,7 +1310,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     uint32_t dst_format, dst_offset, dst_pitch;
     uint32_t txenable, colorpitch;
-    uint32_t blendcntl;
+    uint32_t blendcntl, output_fmt;
+    uint32_t src_color, src_alpha;
+    uint32_t mask_color, mask_alpha;
     int pixel_shift;
     ACCEL_PREAMBLE();
 
@@ -1457,12 +1459,33 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     OUT_ACCEL_REG(R300_TX_ENABLE, txenable);
     FINISH_ACCEL();
 
+    /* shader output swizzling */
+    switch (pDstPicture->format) {
+    case PICT_a8r8g8b8:
+    case PICT_x8r8g8b8:
+    default:
+	output_fmt = (R300_OUT_FMT_C4_8 |
+		      R300_OUT_FMT_C0_SEL_BLUE |
+		      R300_OUT_FMT_C1_SEL_GREEN |
+		      R300_OUT_FMT_C2_SEL_RED |
+		      R300_OUT_FMT_C3_SEL_ALPHA);
+	break;
+    case PICT_a8b8g8r8:
+    case PICT_x8b8g8r8:
+	output_fmt = (R300_OUT_FMT_C4_8 |
+		      R300_OUT_FMT_C0_SEL_RED |
+		      R300_OUT_FMT_C1_SEL_GREEN |
+		      R300_OUT_FMT_C2_SEL_BLUE |
+		      R300_OUT_FMT_C3_SEL_ALPHA);
+	break;
+    case PICT_a8:
+	output_fmt = (R300_OUT_FMT_C4_8 |
+		      R300_OUT_FMT_C0_SEL_ALPHA);
+	break;
+    }
+
     /* setup pixel shader */
     if (IS_R300_3D) {
-	uint32_t output_fmt;
-	int src_color, src_alpha;
-	int mask_color, mask_alpha;
-
 	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0)
 	    src_color = R300_ALU_RGB_0_0;
 	else
@@ -1473,45 +1496,22 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	else
 	    src_alpha = R300_ALU_ALPHA_SRC0_A;
 
-	if (pMask && pMaskPicture->componentAlpha) {
-	    if (RadeonBlendOp[op].src_alpha) {
-		if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
-		    src_color = R300_ALU_RGB_1_0;
-		    src_alpha = R300_ALU_ALPHA_1_0;
-		} else {
-		    src_color = R300_ALU_RGB_SRC0_AAA;
-		    src_alpha = R300_ALU_ALPHA_SRC0_A;
-		}
-
+	if (pMask) {
+	    if (pMaskPicture->componentAlpha) {
+		if (RadeonBlendOp[op].src_alpha) {
+		    if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+			src_color = R300_ALU_RGB_1_0;
+		    else
+			src_color = R300_ALU_RGB_SRC0_AAA;
+		} else
+		    src_color = R300_ALU_RGB_SRC0_RGB;
 		mask_color = R300_ALU_RGB_SRC1_RGB;
-
-		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		    mask_alpha = R300_ALU_ALPHA_1_0;
-		else
-		    mask_alpha = R300_ALU_ALPHA_SRC1_A;
-
 	    } else {
-		src_color = R300_ALU_RGB_SRC0_RGB;
-
-		if (PICT_FORMAT_A(pSrcPicture->format) == 0)
-		    src_alpha = R300_ALU_ALPHA_1_0;
-		else
-		    src_alpha = R300_ALU_ALPHA_SRC0_A;
-
-		mask_color = R300_ALU_RGB_SRC1_RGB;
-
 		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		    mask_alpha = R300_ALU_ALPHA_1_0;
+		    mask_color = R300_ALU_RGB_1_0;
 		else
-		    mask_alpha = R300_ALU_ALPHA_SRC1_A;
-
+		    mask_color = R300_ALU_RGB_SRC1_AAA;
 	    }
-	} else if (pMask) {
-	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		mask_color = R300_ALU_RGB_1_0;
-	    else
-		mask_color = R300_ALU_RGB_SRC1_AAA;
-
 	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
 		mask_alpha = R300_ALU_ALPHA_1_0;
 	    else
@@ -1520,32 +1520,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    mask_color = R300_ALU_RGB_1_0;
 	    mask_alpha = R300_ALU_ALPHA_1_0;
 	}
-
-	/* shader output swizzling */
-	switch (pDstPicture->format) {
-	case PICT_a8r8g8b8:
-	case PICT_x8r8g8b8:
-	default:
-	    output_fmt = (R300_OUT_FMT_C4_8 |
-			  R300_OUT_FMT_C0_SEL_BLUE |
-			  R300_OUT_FMT_C1_SEL_GREEN |
-			  R300_OUT_FMT_C2_SEL_RED |
-			  R300_OUT_FMT_C3_SEL_ALPHA);
-	    break;
-	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
-	    output_fmt = (R300_OUT_FMT_C4_8 |
-			  R300_OUT_FMT_C0_SEL_RED |
-			  R300_OUT_FMT_C1_SEL_GREEN |
-			  R300_OUT_FMT_C2_SEL_BLUE |
-			  R300_OUT_FMT_C3_SEL_ALPHA);
-	    break;
-	case PICT_a8:
-	    output_fmt = (R300_OUT_FMT_C4_8 |
-			  R300_OUT_FMT_C0_SEL_ALPHA);
-	    break;
-	}
-
 
 	/* setup the rasterizer, load FS */
 	if (pMask) {
@@ -1690,10 +1664,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		       R300_ALU_ALPHA_CLAMP));
 	FINISH_ACCEL();
     } else {
-	uint32_t output_fmt;
-	uint32_t src_color, src_alpha;
-	uint32_t mask_color, mask_alpha;
-
 	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0)
 	    src_color = (R500_ALU_RGB_R_SWIZ_A_0 |
 			 R500_ALU_RGB_G_SWIZ_A_0 |
@@ -1708,59 +1678,35 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	else
 	    src_alpha = R500_ALPHA_SWIZ_A_A;
 
-	if (pMask && pMaskPicture->componentAlpha) {
-	    if (RadeonBlendOp[op].src_alpha) {
-		if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
-		    src_color = (R500_ALU_RGB_R_SWIZ_A_1 |
-				 R500_ALU_RGB_G_SWIZ_A_1 |
-				 R500_ALU_RGB_B_SWIZ_A_1);
-		    src_alpha = R500_ALPHA_SWIZ_A_1;
-		} else {
-		    src_color = (R500_ALU_RGB_R_SWIZ_A_A |
-				 R500_ALU_RGB_G_SWIZ_A_A |
-				 R500_ALU_RGB_B_SWIZ_A_A);
-		    src_alpha = R500_ALPHA_SWIZ_A_A;
-		}
+	if (pMask) {
+	    if (pMaskPicture->componentAlpha) {
+		if (RadeonBlendOp[op].src_alpha) {
+		    if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+			src_color = (R500_ALU_RGB_R_SWIZ_A_1 |
+				     R500_ALU_RGB_G_SWIZ_A_1 |
+				     R500_ALU_RGB_B_SWIZ_A_1);
+		    else
+			src_color = (R500_ALU_RGB_R_SWIZ_A_A |
+				     R500_ALU_RGB_G_SWIZ_A_A |
+				     R500_ALU_RGB_B_SWIZ_A_A);
+		} else
+		    src_color = (R500_ALU_RGB_R_SWIZ_A_R |
+				 R500_ALU_RGB_G_SWIZ_A_G |
+				 R500_ALU_RGB_B_SWIZ_A_B);
 
 		mask_color = (R500_ALU_RGB_R_SWIZ_B_R |
 			      R500_ALU_RGB_G_SWIZ_B_G |
 			      R500_ALU_RGB_B_SWIZ_B_B);
-
-		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		    mask_alpha = R500_ALPHA_SWIZ_B_1;
-		else
-		    mask_alpha = R500_ALPHA_SWIZ_B_A;
-
 	    } else {
-		src_color = (R500_ALU_RGB_R_SWIZ_A_R |
-			     R500_ALU_RGB_G_SWIZ_A_G |
-			     R500_ALU_RGB_B_SWIZ_A_B);
-
-		if (PICT_FORMAT_A(pSrcPicture->format) == 0)
-		    src_alpha = R500_ALPHA_SWIZ_A_1;
-		else
-		    src_alpha = R500_ALPHA_SWIZ_A_A;
-
-		mask_color = (R500_ALU_RGB_R_SWIZ_B_R |
-			      R500_ALU_RGB_G_SWIZ_B_G |
-			      R500_ALU_RGB_B_SWIZ_B_B);
-
 		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		    mask_alpha = R500_ALPHA_SWIZ_B_1;
+		    mask_color = (R500_ALU_RGB_R_SWIZ_B_1 |
+				  R500_ALU_RGB_G_SWIZ_B_1 |
+				  R500_ALU_RGB_B_SWIZ_B_1);
 		else
-		    mask_alpha = R500_ALPHA_SWIZ_B_A;
-
+		    mask_color = (R500_ALU_RGB_R_SWIZ_B_A |
+				  R500_ALU_RGB_G_SWIZ_B_A |
+				  R500_ALU_RGB_B_SWIZ_B_A);
 	    }
-	} else if (pMask) {
-	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		mask_color = (R500_ALU_RGB_R_SWIZ_B_1 |
-			      R500_ALU_RGB_G_SWIZ_B_1 |
-			      R500_ALU_RGB_B_SWIZ_B_1);
-	    else
-		mask_color = (R500_ALU_RGB_R_SWIZ_B_A |
-			      R500_ALU_RGB_G_SWIZ_B_A |
-			      R500_ALU_RGB_B_SWIZ_B_A);
-
 	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
 		mask_alpha = R500_ALPHA_SWIZ_B_1;
 	    else
@@ -1770,31 +1716,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			  R500_ALU_RGB_G_SWIZ_B_1 |
 			  R500_ALU_RGB_B_SWIZ_B_1);
 	    mask_alpha = R500_ALPHA_SWIZ_B_1;
-	}
-
-	/* shader output swizzling */
-	switch (pDstPicture->format) {
-	case PICT_a8r8g8b8:
-	case PICT_x8r8g8b8:
-	default:
-	    output_fmt = (R300_OUT_FMT_C4_8 |
-			  R300_OUT_FMT_C0_SEL_BLUE |
-			  R300_OUT_FMT_C1_SEL_GREEN |
-			  R300_OUT_FMT_C2_SEL_RED |
-			  R300_OUT_FMT_C3_SEL_ALPHA);
-	    break;
-	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
-	    output_fmt = (R300_OUT_FMT_C4_8 |
-			  R300_OUT_FMT_C0_SEL_RED |
-			  R300_OUT_FMT_C1_SEL_GREEN |
-			  R300_OUT_FMT_C2_SEL_BLUE |
-			  R300_OUT_FMT_C3_SEL_ALPHA);
-	    break;
-	case PICT_a8:
-	    output_fmt = (R300_OUT_FMT_C4_8 |
-			  R300_OUT_FMT_C0_SEL_ALPHA);
-	    break;
 	}
 
 	BEGIN_ACCEL(7);
