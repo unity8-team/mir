@@ -139,7 +139,7 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 }
 
 static void
-FUNC_NAME(RADEONDoneSolid)(PixmapPtr pPix)
+FUNC_NAME(RADEONDone2D)(PixmapPtr pPix)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     ACCEL_PREAMBLE();
@@ -231,7 +231,7 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 	dstY += h - 1;
     }
 
-    if (info->accel_state->vsync)    
+    if (info->accel_state->vsync)
 	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), dstY, dstY + h);
 
     BEGIN_ACCEL(3);
@@ -242,22 +242,6 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 
     FINISH_ACCEL();
 }
-
-static void
-FUNC_NAME(RADEONDoneCopy)(PixmapPtr pDst)
-{
-    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    ACCEL_PREAMBLE();
-
-    TRACE;
-
-    BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-                  RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
-    FINISH_ACCEL();
-}
-
 
 #ifdef ACCEL_CP
 
@@ -459,11 +443,11 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 
     info->accel_state->exa->PrepareSolid = FUNC_NAME(RADEONPrepareSolid);
     info->accel_state->exa->Solid = FUNC_NAME(RADEONSolid);
-    info->accel_state->exa->DoneSolid = FUNC_NAME(RADEONDoneSolid);
+    info->accel_state->exa->DoneSolid = FUNC_NAME(RADEONDone2D);
 
     info->accel_state->exa->PrepareCopy = FUNC_NAME(RADEONPrepareCopy);
     info->accel_state->exa->Copy = FUNC_NAME(RADEONCopy);
-    info->accel_state->exa->DoneCopy = FUNC_NAME(RADEONDoneCopy);
+    info->accel_state->exa->DoneCopy = FUNC_NAME(RADEONDone2D);
 
     info->accel_state->exa->MarkSync = FUNC_NAME(RADEONMarkSync);
     info->accel_state->exa->WaitMarker = FUNC_NAME(RADEONSync);
