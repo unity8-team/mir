@@ -321,6 +321,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	FINISH_ACCEL();
     }
 
+    BEGIN_ACCEL(2);
+    OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
+    OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, (((pPixmap->drawable.width) << RADEON_RE_WIDTH_SHIFT) |
+					   ((pPixmap->drawable.height) << RADEON_RE_HEIGHT_SHIFT)));
+    FINISH_ACCEL();
+
     if (pPriv->vsync) {
 	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
 						    pPriv->drw_x,
@@ -855,6 +861,12 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	FINISH_ACCEL();
     }
+
+    BEGIN_ACCEL(2);
+    OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
+    OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, (((pPixmap->drawable.width) << RADEON_RE_WIDTH_SHIFT) |
+					   ((pPixmap->drawable.height) << RADEON_RE_HEIGHT_SHIFT)));
+    FINISH_ACCEL();
 
     if (pPriv->vsync) {
 	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
