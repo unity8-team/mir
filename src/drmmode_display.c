@@ -955,17 +955,19 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	pitch = NOUVEAU_ALIGN(width, 64) * scrn->bitsPerPixel / 8;
+	pitch = width * scrn->bitsPerPixel / 8;
 
 	flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
 	if (pNv->Architecture >= NV_ARCH_50) {
 		tile_mode = 4;
 		tile_flags = 0x7a00;
+		height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 	}
 
-	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, pitch *
-				  NOUVEAU_ALIGN(height, 64), tile_mode,
-				  tile_flags, &bo);
+	pitch = NOUVEAU_ALIGN(pitch, 64);
+
+	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, pitch * height,
+				  tile_mode, tile_flags, &bo);
 	if (ret)
 		return FALSE;
 
@@ -983,8 +985,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	}
 
 	ppix = scrn->pScreen->GetScreenPixmap(scrn->pScreen);
-	miModifyPixmapHeader(ppix, width, height, -1, -1,
-			     pitch, NULL);
+	miModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
 
 	nouveau_bo_ref(bo, &nouveau_pixmap(ppix)->bo);
 
@@ -1003,7 +1004,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
-	scrn->displayWidth = NOUVEAU_ALIGN(width, 64);
+	scrn->displayWidth = pitch / (scrn->bitsPerPixel / 8);
 	return TRUE;
 }
 
