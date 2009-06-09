@@ -32,7 +32,7 @@ struct wfb_pixmap {
 	unsigned long end;
 	unsigned pitch;
 	unsigned horiz_tiles;
-	unsigned multiply_factor;
+	uint64_t multiply_factor;
 };
 
 static struct wfb_pixmap wfb_pixmap[6];
