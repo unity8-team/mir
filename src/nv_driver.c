@@ -1128,8 +1128,13 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			"Using \"Shadow Framebuffer\" - acceleration disabled\n");
 	}
 
-	if (xf86ReturnOptValBool(pNv->Options, OPTION_EXA_PIXMAPS, FALSE))
+	if (xf86ReturnOptValBool(pNv->Options, OPTION_EXA_PIXMAPS, FALSE)) {
 		pNv->exa_driver_pixmaps = TRUE;
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,6,99,0,0)
+		if (pNv->Architecture >= NV_50)
+			pNv->wfb_enabled = TRUE;
+#endif
+	}
 
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
@@ -1395,6 +1400,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	 * XXX This should be taken into account in some way in the mode valdation
 	 * section.
 	 */
+
+	if (pNv->wfb_enabled) {
+		if (xf86LoadSubModule(pScrn, "wfb") == NULL)
+			NVPreInitFail("\n");
+	}
 
 	if (xf86LoadSubModule(pScrn, "fb") == NULL)
 		NVPreInitFail("\n");
@@ -2008,18 +2018,26 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	}
 
 	switch (pScrn->bitsPerPixel) {
-		case 16:
-		case 32:
-			ret = fbScreenInit(pScreen, FBStart, pScrn->virtualX, pScrn->virtualY,
-				pScrn->xDpi, pScrn->yDpi,
-				displayWidth, pScrn->bitsPerPixel);
-			break;
-		default:
-			xf86DrvMsg(scrnIndex, X_ERROR,
-				"Internal error: invalid bpp (%d) in NVScreenInit\n",
-				pScrn->bitsPerPixel);
-			ret = FALSE;
-			break;
+	case 16:
+	case 32:
+	if (pNv->wfb_enabled) {
+		ret = wfbScreenInit(pScreen, FBStart, pScrn->virtualX,
+				    pScrn->virtualY, pScrn->xDpi, pScrn->yDpi,
+				    displayWidth, pScrn->bitsPerPixel,
+				    nouveau_wfb_setup_wrap,
+				    nouveau_wfb_finish_wrap);
+	} else {
+		ret = fbScreenInit(pScreen, FBStart, pScrn->virtualX,
+				   pScrn->virtualY, pScrn->xDpi, pScrn->yDpi,
+				   displayWidth, pScrn->bitsPerPixel);
+	}
+		break;
+	default:
+		xf86DrvMsg(scrnIndex, X_ERROR,
+			   "Internal error: invalid bpp (%d) in NVScreenInit\n",
+			   pScrn->bitsPerPixel);
+		ret = FALSE;
+		break;
 	}
 	if (!ret)
 		return FALSE;
@@ -2037,7 +2055,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		}
 	}
 
-	fbPictureInit (pScreen, 0, 0);
+	if (pNv->wfb_enabled)
+		wfbPictureInit (pScreen, 0, 0);
+	else
+		fbPictureInit (pScreen, 0, 0);
 
 	xf86SetBlackWhitePixels(pScreen);
 

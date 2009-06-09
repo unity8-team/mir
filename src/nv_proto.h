@@ -72,6 +72,12 @@ Bool nouveau_exa_init(ScreenPtr pScreen);
 Bool nouveau_exa_pixmap_is_onscreen(PixmapPtr pPixmap);
 bool nouveau_exa_pixmap_is_tiled(PixmapPtr ppix);
 
+/* in nouveau_wfb.c */
+void nouveau_wfb_setup_wrap(ReadMemoryProcPtr *, WriteMemoryProcPtr *,
+			    DrawablePtr);
+void nouveau_wfb_finish_wrap(DrawablePtr);
+void nouveau_wfb_init();
+
 /* in nv_hw.c */
 void NVCalcStateExt(ScrnInfoPtr,NVRegPtr,int,int,int,int,int,int);
 void NVLoadStateExt(ScrnInfoPtr pScrn,NVRegPtr);
@@ -271,6 +277,8 @@ int nv50_xv_port_attribute_get(ScrnInfoPtr, Atom, INT32 *, pointer);
 #ifndef exaMoveInPixmap
 extern void exaMoveInPixmap(PixmapPtr pPixmap);
 #endif
+
+extern Bool wfbPictureInit(ScreenPtr, PictFormatPtr, int);
 
 #endif /* __NV_PROTO_H__ */
 

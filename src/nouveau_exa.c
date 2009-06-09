@@ -485,10 +485,12 @@ nouveau_exa_pixmap_is_tiled(PixmapPtr ppix)
 static void *
 nouveau_exa_pixmap_map(PixmapPtr ppix)
 {
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 	unsigned delta = nouveau_pixmap_offset(ppix);
 
-	if (bo->tile_flags) {
+	if (bo->tile_flags && !pNv->wfb_enabled) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
 		nvpix->map_refcount++;
@@ -512,9 +514,11 @@ nouveau_exa_pixmap_map(PixmapPtr ppix)
 static void
 nouveau_exa_pixmap_unmap(PixmapPtr ppix)
 {
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 
-	if (bo->tile_flags) {
+	if (bo->tile_flags && !pNv->wfb_enabled) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
 		if (--nvpix->map_refcount)

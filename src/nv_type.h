@@ -202,6 +202,7 @@ typedef struct _NVRec {
     uint8_t cur_head;
     ExaDriverPtr	EXADriverPtr;
     Bool		exa_driver_pixmaps;
+    Bool		wfb_enabled;
     ScreenBlockHandlerProcPtr BlockHandler;
     CloseScreenProcPtr  CloseScreen;
     /* Cursor */
