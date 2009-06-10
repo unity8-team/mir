@@ -33,7 +33,6 @@ struct wfb_pixmap {
 	unsigned long end;
 	unsigned pitch;
 	unsigned tile_height;
-	unsigned tile_pitch;
 	unsigned horiz_tiles;
 	uint64_t multiply_factor;
 };
@@ -55,10 +54,10 @@ nouveau_wfb_wr_linear(void *dst, FbBits value, int size)
 	memcpy(dst, &value, size);
 }
 
-#define TP wfb->tile_pitch
+#define TP 6
 #define TH wfb->tile_height
-#define TPM ((1 << wfb->tile_pitch) - 1)
-#define THM ((1 << wfb->tile_height) - 1)
+#define TPM ((1 << TP) - 1)
+#define THM ((1 << TH) - 1)
 
 static FbBits
 nouveau_wfb_rd_tiled(const void *ptr, int size) {
@@ -75,7 +74,7 @@ nouveau_wfb_rd_tiled(const void *ptr, int size) {
 		}
 	}
 
-	if (!wfb || !wfb->tile_pitch)
+	if (!wfb || !wfb->pitch)
 		return nouveau_wfb_rd_linear(ptr, size);
 
 	offset -= wfb->base;
@@ -105,7 +104,7 @@ nouveau_wfb_wr_tiled(void *ptr, FbBits value, int size) {
 		}
 	}
 
-	if (!wfb || !wfb->tile_pitch) {
+	if (!wfb || !wfb->pitch) {
 		nouveau_wfb_wr_linear(ptr, value, size);
 		return;
 	}
@@ -148,13 +147,12 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 	wfb->base = (unsigned long)ppix->devPrivate.ptr;
 	wfb->end = wfb->base + nvpix->bo->size;
 	if (!nvpix->bo->tile_flags) {
-		wfb->tile_pitch = 0;
+		wfb->pitch = 0;
 	} else {
 		wfb->pitch = ppix->devKind;
 		wfb->multiply_factor = (0xFFFFFFFF / wfb->pitch) + 1;
 		wfb->tile_height = nvpix->bo->tile_mode + 2;
-		wfb->tile_pitch = nvpix->bo->tile_mode ? 6 : 5;
-		wfb->horiz_tiles = wfb->pitch / (1 << wfb->tile_pitch);
+		wfb->horiz_tiles = wfb->pitch / 64;
 	}
 
 	*pRead = nouveau_wfb_rd_tiled;
