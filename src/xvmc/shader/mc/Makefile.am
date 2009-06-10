@@ -13,7 +13,9 @@ INTEL_G4A = dual_prime_igd.g4a          \
         frame_backward.g4a              \
         frame_f_b.g4a                   \
         frame_forward.g4a               \
+		lib_igd.g4a						\
         ipicture.g4a                    \
+        ipicture_igd.g4a                \
         null.g4a
 
 INTEL_G4I = addidct.g4i                          \
@@ -74,6 +76,8 @@ INTEL_G4B = dual_prime.g4b          \
         frame_f_b_igd.g4b           \
         frame_forward_igd.g4b       \
         ipicture.g4b                \
+        ipicture_igd.g4b            \
+		lib_igd.g4b					\
         null.g4b
 
 EXTRA_DIST = $(INTEL_G4A)    \

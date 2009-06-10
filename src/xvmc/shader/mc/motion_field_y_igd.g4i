@@ -19,16 +19,15 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
  * Author:
  *    Zou Nan hai <nanhai.zou@intel.com>
  *    Zhang Hua jun <huajun.zhang@intel.com>
  *    Xing Dong sheng <dongsheng.xing@intel.com>
- *
  */
-	and.z (1) null mv1<1,1,1>UW 1UW {align1};	
+	and.z (1) null g[a0.0]<1,1,1>UW 1UW {align1};	
 	(f0) jmpi L1;
-	and.z (1) null mv2<1,1,1>UW 1UW {align1};	
+	add (1) a0.0<1>UD a0.0<1,1,1>UD 0x2UD {align1};
+	and.z (1) null g[a0.0]<1,1,1>UW 1UW {align1};	
 	(f0) jmpi L2;
 	include(`read_field_x1y1_y_igd.g4i')
 	jmpi L5;
@@ -36,7 +35,8 @@ L2:
 	include(`read_field_x1y0_y_igd.g4i')
 	jmpi L5;
 L1:
-	and.z (1) null mv2<1,1,1>UW 1UW {align1};	
+	add (1) a0.0<1>UD a0.0<1,1,1>UD 0x2UD {align1};
+	and.z (1) null g[a0.0]<1,1,1>UW 1UW {align1};	
 	(f0) jmpi L4;
 	include(`read_field_x0y1_y_igd.g4i')
 	jmpi L5;

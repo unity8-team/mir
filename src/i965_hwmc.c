@@ -244,6 +244,7 @@ static XF86MCSurfaceInfoPtr surface_info[] = {
 
 static XF86MCSurfaceInfoPtr surface_info_vld[] = {
     &yv12_mpeg2_vld_surface,
+    &yv12_mpeg2_surface,
 };
 
 static XF86MCAdaptorRec adaptor_vld = {

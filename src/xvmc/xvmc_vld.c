@@ -34,11 +34,9 @@
 #endif
 
 #define BATCH_STRUCT(x) intelBatchbufferData(&x, sizeof(x), 0)
-
 #define VLD_MAX_SLICE_SIZE (32 * 1024)
-
-#define CS_SIZE 30
-#define URB_SIZE 384
+#define CS_SIZE 	30
+#define URB_SIZE 	384
 /* idct table */
 #define C0 23170
 #define C1 22725
@@ -75,17 +73,19 @@ const uint32_t idct_table[] = {
 #undef C6 
 #undef C7 
 
+#define INTERFACE_NUM	8
 enum interface {
-    INTRA_INTERFACE = 0,
-    FORWARD_INTERFACE,
-    BACKWARD_INTERFACE,
-    F_B_INTERFACE,
-    FIELD_FORWARD_INTERFACE,
-    FIELD_BACKWARD_INTERFACE,
-    FIELD_F_B_INTERFACE,
+    FRAME_INTRA = 0,
+	FRAME_FRAME_PRED_FORWARD,
+	FRAME_FRAME_PRED_BACKWARD,
+	FRAME_FRAME_PRED_BIDIRECT,
+	FRAME_FIELD_PRED_FORWARD,
+	FRAME_FIELD_PRED_BACKWARD,
+	FRAME_FIELD_PRED_BIDIRECT,
     LIB_INTERFACE
 };
 
+/*kernels for vld mode*/
 static uint32_t lib_kernel[][4] = {
    #include "shader/vld/lib.g4b"
 };
@@ -111,10 +111,37 @@ static uint32_t field_f_b_kernel[][4] = {
    #include "shader/vld/field_f_b.g4b"
 };
 
+/*kernels for mc mode*/
+static uint32_t lib_kernel_idct[][4] = {
+   #include "shader/mc/lib_igd.g4b"
+};
+static uint32_t ipicture_kernel_idct[][4] = {
+   #include "shader/mc/ipicture_igd.g4b"
+};
+static uint32_t frame_forward_kernel_idct[][4] = {
+   #include "shader/mc/frame_forward_igd.g4b"
+};
+static uint32_t frame_backward_kernel_idct[][4] = {
+   #include "shader/mc/frame_backward_igd.g4b"
+};
+static uint32_t frame_f_b_kernel_idct[][4] = {
+   #include "shader/mc/frame_f_b_igd.g4b"
+};
+static uint32_t field_forward_kernel_idct[][4] = {
+   #include "shader/mc/field_forward_igd.g4b"
+};
+static uint32_t field_backward_kernel_idct[][4] = {
+   #include "shader/mc/field_backward_igd.g4b"
+};
+static uint32_t field_f_b_kernel_idct[][4] = {
+   #include "shader/mc/field_f_b_igd.g4b"
+};
+
 struct media_kernel {
    uint32_t (*bin)[4];
    int size;
 }media_kernels[] = {
+	/*kernels for vld mode*/
     {ipicture_kernel, sizeof(ipicture_kernel)},
     {frame_forward_kernel, sizeof(frame_forward_kernel)},
     {frame_backward_kernel, sizeof(frame_backward_kernel)},
@@ -122,7 +149,16 @@ struct media_kernel {
     {field_forward_kernel, sizeof(field_forward_kernel)},
     {field_backward_kernel, sizeof(field_backward_kernel)},
     {field_f_b_kernel, sizeof(field_f_b_kernel)},
-    {lib_kernel, sizeof(lib_kernel)}
+    {lib_kernel, sizeof(lib_kernel)},
+	/*kernels for mc mode*/
+    {ipicture_kernel_idct, sizeof(ipicture_kernel_idct)},
+    {frame_forward_kernel_idct, sizeof(frame_forward_kernel_idct)},
+    {frame_backward_kernel_idct, sizeof(frame_backward_kernel_idct)},
+    {frame_f_b_kernel_idct, sizeof(frame_f_b_kernel_idct)},
+    {field_forward_kernel_idct, sizeof(field_forward_kernel_idct)},
+    {field_backward_kernel_idct, sizeof(field_backward_kernel_idct)},
+    {field_f_b_kernel_idct, sizeof(field_f_b_kernel_idct)},
+    {lib_kernel_idct, sizeof(lib_kernel_idct)}
 };
 
 #define MEDIA_KERNEL_NUM (sizeof(media_kernels)/sizeof(media_kernels[0]))
@@ -163,6 +199,10 @@ struct slice_data_obj {
     dri_bo *bo;
 };
 
+struct mb_data_obj {
+    dri_bo *bo;
+};
+
 struct cs_state_obj {
     dri_bo *bo;
 };
@@ -173,6 +213,7 @@ static struct media_state {
     struct binding_table_obj binding_table;
     struct cs_state_obj cs_object;
     struct slice_data_obj slice_data;
+	struct mb_data_obj mb_data;
 } media_state;
 
 /* XvMCQMatrix * 2 + idct_table + 8 * kernel offset pointer */
@@ -191,6 +232,7 @@ static int free_object(struct media_state *s)
     for (i = 0; i < I965_MAX_SURFACES; i++)
         FREE_ONE_BO(s->binding_table.surface_states[i].bo);
     FREE_ONE_BO(s->slice_data.bo);
+    FREE_ONE_BO(s->mb_data.bo);
     FREE_ONE_BO(s->cs_object.bo);
     FREE_ONE_BO(s->vld_state.bo);
 }
@@ -222,18 +264,22 @@ static void flush()
     BATCH_STRUCT(f);
 }
 
-static Status vfe_state()
+static Status vfe_state(int vfe_mode)
 {
-  struct brw_vfe_state tmp, *vfe_state = &tmp;
-  memset(vfe_state, 0, sizeof(*vfe_state));
-  vfe_state->vfe0.extend_vfe_state_present = 1;
-  vfe_state->vfe1.vfe_mode = VFE_VLD_MODE;
-  vfe_state->vfe1.num_urb_entries = 1;
-  vfe_state->vfe1.children_present = 0;
-  vfe_state->vfe1.urb_entry_alloc_size = 2;
-  vfe_state->vfe1.max_threads = 31;
-  vfe_state->vfe2.interface_descriptor_base =
-      media_state.vfe_state.interface.bo->offset >> 4;
+	struct brw_vfe_state tmp, *vfe_state = &tmp;
+	memset(vfe_state, 0, sizeof(*vfe_state));
+	if (vfe_mode == VFE_VLD_MODE) {
+		vfe_state->vfe0.extend_vfe_state_present = 1;
+	} else {
+		vfe_state->vfe0.extend_vfe_state_present = 0; 
+	}
+	vfe_state->vfe1.vfe_mode = vfe_mode;
+	vfe_state->vfe1.num_urb_entries = 1;
+	vfe_state->vfe1.children_present = 0;
+	vfe_state->vfe1.urb_entry_alloc_size = 2;
+	vfe_state->vfe1.max_threads = 31;
+	vfe_state->vfe2.interface_descriptor_base =
+		media_state.vfe_state.interface.bo->offset >> 4;
 
     if (media_state.vfe_state.bo)
         drm_intel_bo_unreference(media_state.vfe_state.bo);
@@ -246,9 +292,9 @@ static Status vfe_state()
     drm_intel_bo_subdata(media_state.vfe_state.bo, 0, sizeof(tmp), &tmp);
 
     drm_intel_bo_emit_reloc(media_state.vfe_state.bo,
-	offsetof(struct brw_vfe_state, vfe2),
-	media_state.vfe_state.interface.bo, 0,
-	I915_GEM_DOMAIN_INSTRUCTION, 0);
+		offsetof(struct brw_vfe_state, vfe2),
+		media_state.vfe_state.interface.bo, 0,
+		I915_GEM_DOMAIN_INSTRUCTION, 0);
     return Success;
 }
 
@@ -267,35 +313,35 @@ static Status interface_descriptor()
         return BadAlloc;
 
     for (i = 0; i < MEDIA_KERNEL_NUM; i++) {
-	memset(desc, 0, sizeof(*desc));
-	desc->desc0.grf_reg_blocks = 15;
-	desc->desc0.kernel_start_pointer =
-            media_state.vfe_state.interface.kernels[i].bo->offset >> 6;
+		memset(desc, 0, sizeof(*desc));
+		desc->desc0.grf_reg_blocks = 15;
+		desc->desc0.kernel_start_pointer =
+				media_state.vfe_state.interface.kernels[i].bo->offset >> 6;
 
-	desc->desc1.const_urb_entry_read_offset = 0;
-	desc->desc1.const_urb_entry_read_len = 30;
+		desc->desc1.const_urb_entry_read_offset = 0;
+		desc->desc1.const_urb_entry_read_len = 30;
 
-	desc->desc3.binding_table_entry_count = I965_MAX_SURFACES - 1;
-	desc->desc3.binding_table_pointer =
-            media_state.binding_table.bo->offset >> 5;
+		desc->desc3.binding_table_entry_count = I965_MAX_SURFACES - 1;
+		desc->desc3.binding_table_pointer =
+				media_state.binding_table.bo->offset >> 5;
 
-        drm_intel_bo_subdata(media_state.vfe_state.interface.bo, i*sizeof(tmp), sizeof(tmp), desc);
+		drm_intel_bo_subdata(media_state.vfe_state.interface.bo, i*sizeof(tmp), sizeof(tmp), desc);
 
-        drm_intel_bo_emit_reloc(
-	    media_state.vfe_state.interface.bo,
-	    i * sizeof(*desc) + 
-	    offsetof(struct brw_interface_descriptor, desc0),
-	    media_state.vfe_state.interface.kernels[i].bo,
-	    desc->desc0.grf_reg_blocks,
-	    I915_GEM_DOMAIN_INSTRUCTION, 0);
-
-       drm_intel_bo_emit_reloc(
-	    media_state.vfe_state.interface.bo,
-	    i * sizeof(*desc) + 
-	    offsetof(struct brw_interface_descriptor, desc3),
-	    media_state.binding_table.bo,
-	    desc->desc3.binding_table_entry_count,
-	    I915_GEM_DOMAIN_INSTRUCTION, 0);
+		drm_intel_bo_emit_reloc(
+			media_state.vfe_state.interface.bo,
+			i * sizeof(*desc) + 
+			offsetof(struct brw_interface_descriptor, desc0),
+			media_state.vfe_state.interface.kernels[i].bo,
+			desc->desc0.grf_reg_blocks,
+			I915_GEM_DOMAIN_INSTRUCTION, 0);
+		
+		drm_intel_bo_emit_reloc(
+			media_state.vfe_state.interface.bo,
+			i * sizeof(*desc) + 
+			offsetof(struct brw_interface_descriptor, desc3),
+			media_state.binding_table.bo,
+			desc->desc3.binding_table_entry_count,
+			I915_GEM_DOMAIN_INSTRUCTION, 0);
     }
     return Success;
 }
@@ -347,7 +393,7 @@ static Status binding_tables()
    return Success;
 }
 
-static Status cs_init()
+static Status cs_init(int interface_offset)
 {
    char buf[CS_OBJECT_SIZE];
    unsigned int *lib_reloc;
@@ -364,13 +410,14 @@ static Status cs_init()
    /* idct lib reloction */
    lib_reloc = (unsigned int *)(buf + 32*20);
    for (i = 0; i < 8; i++)
-       lib_reloc[i] = media_state.vfe_state.interface.kernels[LIB_INTERFACE].bo->offset;
+       lib_reloc[i] = 
+	   media_state.vfe_state.interface.kernels[LIB_INTERFACE + interface_offset].bo->offset;
    drm_intel_bo_subdata(media_state.cs_object.bo, 32*4, 32*16 + 8*sizeof(unsigned int), buf + 32*4);
 
    for (i = 0; i < 8; i++)
        drm_intel_bo_emit_reloc(media_state.cs_object.bo,
            32*20 + sizeof(unsigned int) * i,
-           media_state.vfe_state.interface.kernels[LIB_INTERFACE].bo, 0,
+           media_state.vfe_state.interface.kernels[LIB_INTERFACE + interface_offset].bo, 0,
            I915_GEM_DOMAIN_INSTRUCTION, 0);
 
    return Success;
@@ -428,7 +475,7 @@ static Status load_qmatrix(Display *display, XvMCContext *context,
 	const XvMCQMatrix *qmx)
 {
     Status ret;
-    ret = cs_init();
+    ret = cs_init(0);
     if (ret != Success)
         return ret;
     drm_intel_bo_subdata(media_state.cs_object.bo, 0, 64, qmx->intra_quantiser_matrix);
@@ -449,11 +496,11 @@ static Status vld_state(const XvMCMpegControl *control)
     struct brw_vld_state tmp, *vld = &tmp;
 
     if (media_state.vld_state.bo)
-        drm_intel_bo_unreference(media_state.vld_state.bo);
+	drm_intel_bo_unreference(media_state.vld_state.bo);
     media_state.vld_state.bo = drm_intel_bo_alloc(xvmc_driver->bufmgr, 
 	    "vld state", sizeof(struct brw_vld_state), 64);
     if (!media_state.vld_state.bo)
-        return BadAlloc;
+	return BadAlloc;
 
     memset(vld, 0, sizeof(*vld));
     vld->vld0.f_code_0_0 = control->FHMV_range + 1;
@@ -473,23 +520,23 @@ static Status vld_state(const XvMCMpegControl *control)
 
     vld->vld1.picture_coding_type = control->picture_coding_type;
 
-    vld->desc_remap_table0.index_0 = INTRA_INTERFACE;
-    vld->desc_remap_table0.index_1 = FORWARD_INTERFACE;
-    vld->desc_remap_table0.index_2 = FIELD_FORWARD_INTERFACE;
-    vld->desc_remap_table0.index_3 = FIELD_F_B_INTERFACE; /* dual prime */
-    vld->desc_remap_table0.index_4 = BACKWARD_INTERFACE;
-    vld->desc_remap_table0.index_5 = FIELD_BACKWARD_INTERFACE;
-    vld->desc_remap_table0.index_6 = F_B_INTERFACE;
-    vld->desc_remap_table0.index_7 = FIELD_F_B_INTERFACE;
+    vld->desc_remap_table0.index_0 = FRAME_INTRA;
+    vld->desc_remap_table0.index_1 = FRAME_FRAME_PRED_FORWARD;
+    vld->desc_remap_table0.index_2 = FRAME_FIELD_PRED_FORWARD;
+    vld->desc_remap_table0.index_3 = FRAME_FIELD_PRED_BIDIRECT; /* dual prime */
+    vld->desc_remap_table0.index_4 = FRAME_FRAME_PRED_BACKWARD;
+    vld->desc_remap_table0.index_5 = FRAME_FIELD_PRED_BACKWARD;
+    vld->desc_remap_table0.index_6 = FRAME_FRAME_PRED_BIDIRECT;
+    vld->desc_remap_table0.index_7 = FRAME_FIELD_PRED_BIDIRECT;
 
-    vld->desc_remap_table1.index_8 = INTRA_INTERFACE;
-    vld->desc_remap_table1.index_9 = FORWARD_INTERFACE;
-    vld->desc_remap_table1.index_10 = FIELD_FORWARD_INTERFACE;
-    vld->desc_remap_table1.index_11 = FIELD_F_B_INTERFACE;
-    vld->desc_remap_table1.index_12 = BACKWARD_INTERFACE;
-    vld->desc_remap_table1.index_13 = FIELD_BACKWARD_INTERFACE;
-    vld->desc_remap_table1.index_14 = F_B_INTERFACE;
-    vld->desc_remap_table1.index_15 = FIELD_F_B_INTERFACE;
+    vld->desc_remap_table1.index_8 = FRAME_INTRA;
+    vld->desc_remap_table1.index_9 = FRAME_FRAME_PRED_FORWARD;
+    vld->desc_remap_table1.index_10 = FRAME_FIELD_PRED_FORWARD;
+    vld->desc_remap_table1.index_11 = FRAME_FIELD_PRED_BIDIRECT;
+    vld->desc_remap_table1.index_12 = FRAME_FRAME_PRED_BACKWARD;
+    vld->desc_remap_table1.index_13 = FRAME_FIELD_PRED_BACKWARD;
+    vld->desc_remap_table1.index_14 = FRAME_FRAME_PRED_BIDIRECT;
+    vld->desc_remap_table1.index_15 = FRAME_FIELD_PRED_BIDIRECT;
 
     drm_intel_bo_subdata(media_state.vld_state.bo, 0, sizeof(tmp), vld);
     return Success;
@@ -534,34 +581,34 @@ static Status setup_surface(struct i965_xvmc_surface *target,
     Status ret;
     ret = setup_media_surface(0, target->bo, 0, w, h, TRUE);
     if (ret != Success)
-        return ret;
+	return ret;
     ret = setup_media_surface(1, target->bo, w*h, w/2, h/2, TRUE);
     if (ret != Success)
-        return ret;
+	return ret;
     ret = setup_media_surface(2, target->bo, w*h + w*h/4, w/2, h/2, TRUE);
     if (ret != Success)
-        return ret;
+	return ret;
     if (past) {
 	ret = setup_media_surface(4, past->bo, 0, w, h, FALSE);
-        if (ret != Success)
-            return ret;
+	if (ret != Success)
+	    return ret;
 	ret = setup_media_surface(5, past->bo, w*h, w/2, h/2, FALSE);
-        if (ret != Success)
-            return ret;
+	if (ret != Success)
+	    return ret;
 	ret = setup_media_surface(6, past->bo, w*h + w*h/4, w/2, h/2, FALSE);
-        if (ret != Success)
-            return ret;
+	if (ret != Success)
+	    return ret;
     }
     if (future) {
 	ret = setup_media_surface(7, future->bo, 0, w, h, FALSE);
-        if (ret != Success)
-            return ret;
+	if (ret != Success)
+	    return ret;
 	ret = setup_media_surface(8, future->bo, w*h, w/2, h/2, FALSE);
-        if (ret != Success)
-            return ret;
+	if (ret != Success)
+	    return ret;
 	ret = setup_media_surface(9, future->bo, w*h + w*h/4, w/2, h/2, FALSE);
-        if (ret != Success)
-            return ret;
+	if (ret != Success)
+	    return ret;
     }
     return Success;
 }
@@ -595,7 +642,7 @@ static  Status begin_surface(Display *display, XvMCContext *context,
     ret = interface_descriptor();
     if (ret != Success)
         return ret;
-    ret = vfe_state();
+    ret = vfe_state(VFE_VLD_MODE);
     if (ret != Success)
         return ret;
 
@@ -631,15 +678,20 @@ static void pipeline_select()
     OUT_BATCH(NEW_PIPELINE_SELECT|PIPELINE_SELECT_MEDIA);
     ADVANCE_BATCH();
 }
-static void media_state_pointers()
+
+static void media_state_pointers(int vfe_mode)
 {
     BATCH_LOCALS;
     BEGIN_BATCH(3);
     OUT_BATCH(BRW_MEDIA_STATE_POINTERS|1);
-    OUT_RELOC(media_state.vld_state.bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 1);
+	if (vfe_mode == VFE_VLD_MODE) 
+		OUT_RELOC(media_state.vld_state.bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 1);
+	else
+		OUT_BATCH(0);
     OUT_RELOC(media_state.vfe_state.bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
     ADVANCE_BATCH();
 }
+
 static void align_urb_fence()
 {
     BATCH_LOCALS;
@@ -654,6 +706,7 @@ static void align_urb_fence()
 	ADVANCE_BATCH();
     }
 }
+
 static void urb_layout()
 {
     BATCH_LOCALS;
@@ -698,6 +751,39 @@ static void cs_buffer()
     ADVANCE_BATCH();
 }
 
+/* kick media object to gpu in idct mode*/
+static void send_media_object(XvMCMacroBlock *mb, dri_bo *bo, 
+							uint32_t offset,  
+							enum interface interface)
+{
+    BATCH_LOCALS;
+    BEGIN_BATCH(13);
+    OUT_BATCH(BRW_MEDIA_OBJECT|11);
+    OUT_BATCH(interface);
+    OUT_BATCH(6*128);
+    OUT_RELOC(bo, I915_GEM_DOMAIN_INSTRUCTION, 0, offset);
+    
+    OUT_BATCH(mb->x<<4);                 	  		
+    OUT_BATCH(mb->y<<4);
+	OUT_RELOC(bo, I915_GEM_DOMAIN_INSTRUCTION, 0, offset);
+    OUT_BATCH_SHORT(mb->coded_block_pattern); 			
+    OUT_BATCH_SHORT(mb->PMV[0][0][0]);        			
+    OUT_BATCH_SHORT(mb->PMV[0][0][1]);        			
+    OUT_BATCH_SHORT(mb->PMV[0][1][0]);        			
+    OUT_BATCH_SHORT(mb->PMV[0][1][1]);        			
+    
+    OUT_BATCH_SHORT(mb->PMV[1][0][0]);        			 
+    OUT_BATCH_SHORT(mb->PMV[1][0][1]);        			
+    OUT_BATCH_SHORT(mb->PMV[1][1][0]);        			
+    OUT_BATCH_SHORT(mb->PMV[1][1][1]);        			
+    OUT_BATCH_CHAR(mb->dct_type);             			
+    OUT_BATCH_CHAR(mb->motion_vertical_field_select);	
+    
+    OUT_BATCH(0xffffffff);
+    ADVANCE_BATCH();
+}
+
+/* kick media object to gpu in vld mode*/
 static void vld_send_media_object(dri_bo *bo,
 	int slice_len, int mb_h_pos, int mb_v_pos, int mb_bit_offset,
 	int mb_count, int q_scale_code)
@@ -749,8 +835,8 @@ static Status put_slice2(Display *display, XvMCContext *context,
     intel_ctx = intel_xvmc_find_context(context->context_id);
     LOCK_HARDWARE(intel_ctx->hw_context);
     state_base_address();
-    pipeline_select(&media_state);
-    media_state_pointers(&media_state);
+    pipeline_select();
+    media_state_pointers(VFE_VLD_MODE);
     urb_layout();	
     cs_urb_layout();
     cs_buffer();
@@ -779,6 +865,169 @@ static Status put_surface(Display *display,XvMCSurface *surface,
 	return Success;
 }
 
+static Status render_surface(Display *display, 
+	XvMCContext *context,
+	unsigned int picture_structure,
+	XvMCSurface *target_surface,
+	XvMCSurface *past_surface,
+	XvMCSurface *future_surface,
+	unsigned int flags,
+	unsigned int num_macroblocks,
+	unsigned int first_macroblock,
+	XvMCMacroBlockArray *macroblock_array,
+	XvMCBlockArray *blocks)
+{
+    struct i965_xvmc_surface *priv_target, *priv_past, *priv_future;
+    intel_xvmc_context_ptr intel_ctx;
+    XvMCMacroBlock *mb;
+    Status ret;
+    unsigned short *block_ptr;
+    int i, j;
+    int block_offset = 0;
+
+    intel_ctx = intel_xvmc_find_context(context->context_id);
+    if (!intel_ctx) {
+	XVMC_ERR("Can't find intel xvmc context\n");
+	return BadValue;
+    }
+
+    priv_target = target_surface->privData;
+    priv_past = past_surface?past_surface->privData:NULL;
+    priv_future = future_surface?future_surface->privData:NULL;
+
+    ret = setup_surface(priv_target, priv_past, priv_future, 
+	    context->width, context->height);
+    if (ret != Success)
+	return ret;
+    ret = binding_tables();
+    if (ret != Success)
+	return ret;
+    ret = interface_descriptor();
+    if (ret != Success)
+	return ret;
+    ret = cs_init(INTERFACE_NUM);
+    if (ret != Success)
+	return ret;
+    ret = vfe_state(VFE_GENERIC_MODE);
+    if (ret != Success)
+	return ret;
+
+    if (media_state.mb_data.bo) {
+	if (xvmc_driver->kernel_exec_fencing)
+	    drm_intel_gem_bo_unmap_gtt(media_state.mb_data.bo);
+	else
+	    drm_intel_bo_unmap(media_state.mb_data.bo);
+
+	drm_intel_bo_unreference(media_state.mb_data.bo);
+    }
+    unsigned int block_num = 
+	(((context->width + 15) >> 4) * ((context->height + 15) >> 4));
+    unsigned int surface_size = (64 * sizeof(short) * 6 * block_num);
+    media_state.mb_data.bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+	    "macroblock data", surface_size, 64); 
+    if(!media_state.mb_data.bo)
+	return BadAlloc;
+    if(xvmc_driver->kernel_exec_fencing)
+	drm_intel_gem_bo_map_gtt(media_state.mb_data.bo);
+    else
+	drm_intel_bo_map(media_state.mb_data.bo, 1);
+
+    block_ptr = media_state.mb_data.bo->virtual;
+    unsigned short *mb_block_ptr;
+    for (i = first_macroblock; 
+	    i < num_macroblocks + first_macroblock; i++) {
+	mb = &macroblock_array->macro_blocks[i];
+	mb_block_ptr = &blocks->blocks[(mb->index<<6)];
+
+	if (mb->coded_block_pattern & 0x20) {
+	    for (j = 0; j < 8; j++)
+		memcpy(block_ptr + 16*j, mb_block_ptr + 8*j, 16);	
+	    mb_block_ptr += 64;
+	}
+	if (mb->coded_block_pattern & 0x10) {
+	    for (j = 0; j < 8; j++)
+		memcpy(block_ptr + 16*j + 8, mb_block_ptr + 8*j, 16);	
+	    mb_block_ptr += 64;
+	}
+
+	block_ptr += 2*64;
+	if (mb->coded_block_pattern & 0x08) {
+	    for (j = 0; j < 8; j++)
+		memcpy(block_ptr + 16*j, mb_block_ptr + 8*j, 16);	
+	    mb_block_ptr += 64;
+	}
+	if (mb->coded_block_pattern & 0x04) {
+	    for (j = 0; j < 8; j++)
+		memcpy(block_ptr + 16*j + 8, mb_block_ptr + 8*j, 16);	
+	    mb_block_ptr += 64;
+	}
+
+	block_ptr += 2*64;
+	if (mb->coded_block_pattern & 0x2) {
+	    memcpy(block_ptr, mb_block_ptr, 128);
+	    mb_block_ptr += 64;
+	}
+
+	block_ptr += 64;
+	if (mb->coded_block_pattern & 0x1) 
+	    memcpy(block_ptr, mb_block_ptr, 128);
+	block_ptr += 64; 
+    }
+
+    LOCK_HARDWARE(intel_ctx->hw_context);
+    state_base_address();
+    flush();	
+    pipeline_select();
+    urb_layout();	
+    media_state_pointers(VFE_GENERIC_MODE);
+    cs_urb_layout();
+    cs_buffer();
+    for (i = first_macroblock; 
+	    i < num_macroblocks + first_macroblock; 
+	    i++, block_offset += 128*6) {
+	mb = &macroblock_array->macro_blocks[i];
+
+	if (mb->macroblock_type & XVMC_MB_TYPE_INTRA) {
+	    send_media_object(mb, media_state.mb_data.bo, block_offset, 
+		    FRAME_INTRA + INTERFACE_NUM);
+	} else {
+	    if (((mb->motion_type & 3) == XVMC_PREDICTION_FRAME)) {
+		if ((mb->macroblock_type & XVMC_MB_TYPE_MOTION_FORWARD)) {
+		    if ((mb->macroblock_type & XVMC_MB_TYPE_MOTION_BACKWARD)) {
+			send_media_object(mb, media_state.mb_data.bo, block_offset, 
+				FRAME_FRAME_PRED_BIDIRECT + INTERFACE_NUM);
+		    } else {
+			send_media_object(mb, media_state.mb_data.bo, block_offset, 
+				FRAME_FRAME_PRED_FORWARD + INTERFACE_NUM);
+		    }
+		} else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)) {
+		    send_media_object(mb, media_state.mb_data.bo, block_offset, 
+			    FRAME_FRAME_PRED_BACKWARD + INTERFACE_NUM);
+		}
+	    } else if ((mb->motion_type & 3) == XVMC_PREDICTION_FIELD) {
+		if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_FORWARD)) {
+		    if (((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD))) {
+			send_media_object(mb, media_state.mb_data.bo, block_offset, 
+				FRAME_FIELD_PRED_BIDIRECT + INTERFACE_NUM);
+		    } else {
+			send_media_object(mb, media_state.mb_data.bo, block_offset, 
+				FRAME_FIELD_PRED_FORWARD + INTERFACE_NUM);
+		    }
+		} else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)) {
+		    send_media_object(mb, media_state.mb_data.bo, block_offset, 
+			    FRAME_FIELD_PRED_BACKWARD + INTERFACE_NUM);
+		}
+	    } else {
+		send_media_object(mb, media_state.mb_data.bo, block_offset, 
+			FRAME_FIELD_PRED_BIDIRECT + INTERFACE_NUM); /*dual prime*/
+	    } 
+	}
+    }
+    intelFlushBatch(TRUE);
+    UNLOCK_HARDWARE(intel_ctx->hw_context);
+    return Success;
+}
+
 struct _intel_xvmc_driver xvmc_vld_driver = {
     .type = XVMC_I965_MPEG2_VLD,
     .create_context = create_context,
@@ -788,6 +1037,7 @@ struct _intel_xvmc_driver xvmc_vld_driver = {
     .load_qmatrix = load_qmatrix,
     .get_surface_status = get_surface_status,
     .begin_surface = begin_surface,
+	.render_surface = render_surface,
     .put_surface = put_surface,
     .put_slice = put_slice,
     .put_slice2 = put_slice2
