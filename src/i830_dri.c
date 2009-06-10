@@ -325,8 +325,10 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 		load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
 	    }
 
-	    y1 = box->y1 - crtc->y;
-	    y2 = box->y2 - crtc->y;
+	    /* Make sure we don't wait for a scanline that will never occur */
+	    y1 = (crtcbox.y1 <= box->y1) ? box->y1 - crtcbox.y1 : 0;
+	    y2 = (box->y2 <= crtcbox.y2) ?
+		box->y2 - crtcbox.y1 : crtcbox.y2 - crtcbox.y1;
 
 	    BEGIN_BATCH(5);
 	    /* The documentation says that the LOAD_SCAN_LINES command
