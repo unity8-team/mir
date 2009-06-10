@@ -326,7 +326,7 @@ static inline uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
 	/* Alignment requirements taken from the Haiku driver */
 	if (pNv->Architecture == NV_ARCH_04)
 		mask = 128 / bpp - 1;
-	if (pNv->Architecture >= NV_ARCH_50)
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps)
 		mask = 64 / bpp - 1;
 	else
 		mask = 512 / bpp - 1;
