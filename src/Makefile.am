@@ -104,7 +104,7 @@ intel_drv_la_SOURCES = \
 	 i915_reg.h \
 	 i915_video.c \
 	 i965_video.c \
-	 i830_exa.c \
+	 i830_uxa.c \
 	 i830_render.c \
 	 i915_render.c \
 	 i965_render.c \
