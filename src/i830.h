@@ -415,6 +415,7 @@ typedef struct _I830Rec {
    int Chipset;
    unsigned long LinearAddr;
    unsigned long MMIOAddr;
+   unsigned int MMIOSize;
    IOADDRESS ioBase;
    EntityInfoPtr pEnt;
    struct pci_device *PciInfo;

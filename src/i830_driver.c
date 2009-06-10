@@ -425,7 +425,7 @@ I830MapMMIO(ScrnInfoPtr pScrn)
    device = pI830->PciInfo;
    err = pci_device_map_range (device,
 			       pI830->MMIOAddr,
-			       I810_REG_SIZE,
+			       pI830->MMIOSize,
 			       PCI_DEV_MAP_FLAG_WRITABLE,
 			       (void **) &pI830->MMIOBase);
    if (err) 
@@ -508,7 +508,7 @@ I830UnmapMMIO(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   pci_device_unmap_range (pI830->PciInfo, pI830->MMIOBase, I810_REG_SIZE);
+   pci_device_unmap_range (pI830->PciInfo, pI830->MMIOBase, pI830->MMIOSize);
    pI830->MMIOBase = NULL;
 
    if (IS_I9XX(pI830)) {
@@ -1218,6 +1218,7 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
     if (pI830->pEnt->device->IOBase != 0) {
 	pI830->MMIOAddr = pI830->pEnt->device->IOBase;
 	from = X_CONFIG;
+	pI830->MMIOSize = I810_REG_SIZE;
     } else {
 	pI830->MMIOAddr = I810_MEMBASE (pI830->PciInfo, mmio_bar);
 	if (pI830->MMIOAddr == 0) {
@@ -1226,10 +1227,11 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	    PreInitCleanup(pScrn);
 	    return FALSE;
 	}
+	pI830->MMIOSize = pI830->PciInfo->regions[mmio_bar].size;
     }
 
-    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
-	       (unsigned long)pI830->MMIOAddr);
+    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX size %u\n",
+	       (unsigned long)pI830->MMIOAddr, pI830->MMIOSize);
 
     /* Now figure out mapsize on 8xx chips */
     if (IS_I830(pI830) || IS_845G(pI830)) {
