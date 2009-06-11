@@ -4050,10 +4050,15 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, struct nvbios *bios, unsigned 
 	bios->legacy.i2c_indices.crt = bios->data[legacy_i2c_offset];
 	bios->legacy.i2c_indices.tv = bios->data[legacy_i2c_offset + 1];
 	bios->legacy.i2c_indices.panel = bios->data[legacy_i2c_offset + 2];
-	bios->bdcb.dcb.i2c[0].write = bios->data[legacy_i2c_offset + 4];
-	bios->bdcb.dcb.i2c[0].read = bios->data[legacy_i2c_offset + 5];
-	bios->bdcb.dcb.i2c[1].write = bios->data[legacy_i2c_offset + 6];
-	bios->bdcb.dcb.i2c[1].read = bios->data[legacy_i2c_offset + 7];
+	/* don't overwrite defaults with zero (mac braindamage) */
+	if (bios->data[legacy_i2c_offset + 4])
+		bios->bdcb.dcb.i2c[0].write = bios->data[legacy_i2c_offset + 4];
+	if (bios->data[legacy_i2c_offset + 5])
+		bios->bdcb.dcb.i2c[0].read = bios->data[legacy_i2c_offset + 5];
+	if (bios->data[legacy_i2c_offset + 6])
+		bios->bdcb.dcb.i2c[1].write = bios->data[legacy_i2c_offset + 6];
+	if (bios->data[legacy_i2c_offset + 7])
+		bios->bdcb.dcb.i2c[1].read = bios->data[legacy_i2c_offset + 7];
 
 	if (bmplength > 74) {
 		bios->fmaxvco = ROM32(bmp[67]);
@@ -4205,7 +4210,8 @@ static struct dcb_entry * new_dcb_entry(struct parsed_dcb *dcb)
 	return entry;
 }
 
-static void fabricate_vga_output(struct parsed_dcb *dcb, int i2c, int heads)
+static void
+fabricate_vga_output(struct parsed_dcb *dcb, int i2c, int heads, int or)
 {
 	struct dcb_entry *entry = new_dcb_entry(dcb);
 
@@ -4213,7 +4219,8 @@ static void fabricate_vga_output(struct parsed_dcb *dcb, int i2c, int heads)
 	entry->i2c_index = i2c;
 	entry->heads = heads;
 	entry->location = DCB_LOC_ON_CHIP;
-	/* "or" mostly unused in early gen crt modesetting, 0 is fine */
+	/* setting "or" to 0 for early gen crt modesetting is fine (unused) */
+	entry->or = or;
 }
 
 static void fabricate_dvi_i_output(struct parsed_dcb *dcb, bool twoHeads)
@@ -4238,7 +4245,7 @@ static void fabricate_dvi_i_output(struct parsed_dcb *dcb, bool twoHeads)
 	 *
 	 * with this introduction, dvi-a left as an exercise for the reader.
 	 */
-	fabricate_vga_output(dcb, LEGACY_I2C_PANEL, entry->heads);
+	fabricate_vga_output(dcb, LEGACY_I2C_PANEL, entry->heads, 0);
 #endif
 }
 
@@ -4365,7 +4372,7 @@ parse_dcb15_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb,
 	case OUTPUT_TMDS:
 		/* invent a DVI-A output, by copying the fields of the DVI-D
 		 * output; reported to work by math_b on an NV20(!) */
-		fabricate_vga_output(dcb, entry->i2c_index, entry->heads);
+		fabricate_vga_output(dcb, entry->i2c_index, entry->heads, 0);
 	}
 
 	return true;
@@ -4454,10 +4461,19 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios, bool twoHeads
 	dcbptr = ROM16(bios->data[0x36]);
 
 	if (dcbptr == 0x0) {
+#ifdef __powerpc__
+		if ((NVPTR(pScrn)->Chipset & 0xffff) == 0x0172) {
+			/* retarded PowerMac G4 has DVI and ADC (#21273) */
+			NV_WARN(pScrn, "Working around missing output tables\n");
+			/* this is the dvi-a */
+			fabricate_vga_output(dcb, LEGACY_I2C_PANEL, 0x3, 2);
+			return 0;
+		}
+#endif
 		NV_WARN(pScrn, "No output data (DCB) found in BIOS, "
 			       "assuming a CRT output exists\n");
 		/* this situation likely means a really old card, pre DCB */
-		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1);
+		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1, 0);
 		return 0;
 	}
 
@@ -4517,7 +4533,7 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios, bool twoHeads
 		 */
 		NV_TRACEWARN(pScrn, "No useful information in BIOS output table; "
 				    "adding all possible outputs\n");
-		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1);
+		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1, 0);
 		if (bios->tmds.output0_script_ptr ||
 		    bios->tmds.output1_script_ptr)
 			fabricate_dvi_i_output(dcb, twoHeads);
