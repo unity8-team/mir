@@ -276,7 +276,10 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 
     memset(&spc_param, 0, sizeof(spc_param));
     if (IS_AVIVO_VARIANT) {
-	pll_flags |= RADEON_PLL_USE_FRAC_FB_DIV | RADEON_PLL_PREFER_CLOSEST_LOWER;
+	if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS740))
+	    pll_flags |= RADEON_PLL_USE_FRAC_FB_DIV | RADEON_PLL_PREFER_CLOSEST_LOWER;
 	if (IS_DCE3_VARIANT && mode->Clock > 200000) /* range limits??? */
 	    pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 	else
