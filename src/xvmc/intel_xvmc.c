@@ -25,6 +25,7 @@
  *
  */
 #include "intel_xvmc.h"
+#include "dri2.h"
 
 /* global */
 struct _intel_xvmc_driver *xvmc_driver = NULL;

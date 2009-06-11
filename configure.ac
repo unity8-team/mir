@@ -152,8 +152,7 @@ if test "$VIDEO_DEBUG" = yes; then
 fi
 
 if test "$XVMC" = yes; then
-	PKG_CHECK_MODULES(XVMCLIB, [xvmc], [XVMC=yes], [XVMC=no])
-	PKG_CHECK_MODULES(XEXT, [xext])
+	PKG_CHECK_MODULES(XVMCLIB, [xvmc xext xfixes dri2proto], [XVMC=yes], [XVMC=no])
 fi
 AC_MSG_CHECKING([whether to include XvMC support])
 AC_MSG_RESULT([$XVMC])
