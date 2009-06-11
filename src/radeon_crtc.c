@@ -230,7 +230,11 @@ RADEONComputePLL(RADEONPLLPtr pll,
 		    tmp += (CARD64)pll->reference_freq * 1000 * frac_feedback_div;
 		    current_freq = RADEONDiv(tmp, ref_div * post_div);
 
-		    error = abs(current_freq - freq);
+		    if (flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
+			error = freq - current_freq;
+			error = error < 0 ? 0xffffffff : error;
+		    } else
+			error = abs(current_freq - freq);
 		    vco_diff = abs(vco - best_vco);
 
 		    if ((best_vco == 0 && error < best_error) ||
