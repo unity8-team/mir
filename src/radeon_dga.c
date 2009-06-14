@@ -161,7 +161,7 @@ SECOND_PASS:
 	    currentMode->yViewportStep  = 1;
 	    currentMode->viewportFlags  = DGA_FLIP_RETRACE;
 	    currentMode->offset         = 0;
-	    currentMode->address        = (unsigned char*)info->LinearAddr;
+	    currentMode->address        = (unsigned char*)(unsigned long)info->LinearAddr;
 	    currentMode->bytesPerScanline = pitch * Bpp;
 	    currentMode->imageWidth     = pitch;
 	    currentMode->imageHeight    = (info->FbMapSize
@@ -457,7 +457,7 @@ static Bool RADEON_OpenFramebuffer(ScrnInfoPtr pScrn,
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
     *name   = NULL;             /* no special device */
-    *mem    = (unsigned char*)info->LinearAddr;
+    *mem    = (unsigned char*)(unsigned long)info->LinearAddr;
     *size   = info->FbMapSize;
     *offset = 0;
     *flags  = 0; /* DGA_NEED_ROOT; -- don't need root, just /dev/mem access */
