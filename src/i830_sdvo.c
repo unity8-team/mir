@@ -1038,7 +1038,6 @@ i830_sdvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	/* Set the input timing to the screen. Assume always input 0. */
 	i830_sdvo_set_target_input(output, TRUE, FALSE);
 
-
 	success = i830_sdvo_create_preferred_input_timing(output,
 							  mode->Clock / 10,
 							  mode->HDisplay,
@@ -2135,7 +2134,70 @@ i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv)
     /* Corresponds to SDVO_CONTROL_BUS_DDCx */
     dev_priv->ddc_bus = 1 << num_bits;
 }
+/**
+ * find the slave address for the given SDVO port based on the info
+ * parsed in general definition blocks
+ * If the slave address is found in the SDVO device info parsed from
+ * VBT,it will be returned. Otherwise it will return the slave address
+ * by the following steps.
+ * and 0x72 for SDVOC port.
+ * a. If one SDVO device info is found in another DVO port, it will return
+ * the slave address that is not used. For example: if 0x70 is used,
+ * then 0x72 is returned.
+ * b. If no SDVO device info is found in another DVO port, it will return
+ * 0x70 for SDVOB and 0x72 for SDVOC port.
+ */
+static
+void i830_find_sdvo_slave(ScrnInfoPtr pScrn, int output_device,
+			  uint8_t *slave_addr)
+{
+    uint8_t temp_slave_addr;
+    I830Ptr pI830 = I830PTR(pScrn);
+    uint8_t dvo_port, dvo2_port;
+    struct sdvo_device_mapping *p_mapping;
 
+    if (output_device == SDVOB) {
+	/* DEVICE_PORT_DVOB */
+	dvo_port = 0;
+	dvo2_port = 1;
+    } else {
+	/* DEVICE_POTR_DVOC */
+	dvo_port = 1;
+	dvo2_port = 0;
+    }
+
+    p_mapping = &(pI830->sdvo_mappings[dvo_port]);
+    temp_slave_addr = p_mapping->slave_addr;
+    if (temp_slave_addr) {
+	/* slave address is found . return it */
+	*slave_addr = temp_slave_addr;
+	return ;
+    }
+    /* Check whether the SDVO device info is found in another dvo port */
+    p_mapping = &(pI830->sdvo_mappings[dvo2_port]);
+    temp_slave_addr = p_mapping->slave_addr;
+    if (!temp_slave_addr) {
+	/* no SDVO device is found in another DVO port */
+	/* it will return 0x70 for SDVOB and 0x72 for SDVOC */
+	if (output_device == SDVOB)
+		temp_slave_addr = 0x70;
+	else
+		temp_slave_addr = 0x72;
+	*slave_addr = temp_slave_addr;
+	return ;
+    }
+    /* return the slave address that is not used.
+     * If the 0x70 is used, then 0x72 is returned.
+     * If the 0x72 is used, then 0x70 is returned.
+     */
+    if (temp_slave_addr == 0x70)
+	temp_slave_addr = 0x72;
+    else
+	temp_slave_addr = 0x70;
+
+    *slave_addr = temp_slave_addr;
+    return ;
+}
 Bool
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 {
@@ -2145,6 +2207,10 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     int			    i;
     unsigned char	    ch[0x40];
     I2CBusPtr		    i2cbus = NULL, ddcbus;
+    uint8_t slave_addr;
+
+    slave_addr = 0;
+    i830_find_sdvo_slave(pScrn, output_device, &slave_addr);
 
     output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,NULL);
     if (!output)
@@ -2180,14 +2246,12 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	xf86OutputDestroy (output);
 	return FALSE;
     }
-
     if (output_device == SDVOB) {
 	dev_priv->d.DevName = "SDVO Controller B";
-	dev_priv->d.SlaveAddr = 0x70;
     } else {
 	dev_priv->d.DevName = "SDVO Controller C";
-	dev_priv->d.SlaveAddr = 0x72;
     }
+    dev_priv->d.SlaveAddr = slave_addr;
     dev_priv->d.pI2CBus = i2cbus;
     dev_priv->d.DriverPrivate.ptr = output;
     dev_priv->output_device = output_device;
