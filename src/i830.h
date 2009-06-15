@@ -328,7 +328,12 @@ enum dri_type {
     DRI_NONE,
     DRI_DRI2
 };
-
+struct sdvo_device_mapping {
+   uint8_t dvo_port;
+   uint8_t slave_addr;
+   uint8_t dvo_wiring;
+   uint8_t initialized;
+};
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *GTTBase;
@@ -608,6 +613,7 @@ typedef struct _I830Rec {
 
     /** User option to print acceleration fallback info to the server log. */
    Bool fallback_debug;
+   struct sdvo_device_mapping sdvo_mappings[2];
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))

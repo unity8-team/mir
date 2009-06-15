@@ -47,6 +47,8 @@
 				 (bios[_addr + 2] << 16) |	\
 				 (bios[_addr + 3] << 24))
 
+#define		SLAVE_ADDR1	0x70
+#define		SLAVE_ADDR2	0x72
 static void *
 find_section(struct bdb_header *bdb, int section_id)
 {
@@ -236,6 +238,84 @@ parse_driver_feature(I830Ptr pI830, struct bdb_header *bdb)
 	pI830->integrated_lvds = FALSE;
 }
 
+static
+void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
+{
+    unsigned int block_size;
+    uint16_t *block_ptr;
+    struct bdb_general_definitions *defs;
+    struct child_device_config *child;
+    int i, child_device_num, count;
+    struct sdvo_device_mapping *p_mapping;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
+    if (!defs) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			"can't find the general definition blocks\n");
+	return;
+    }
+    /* Get the block size of general defintion block */
+    block_ptr = (uint16_t *)((char *)defs - 2);
+    block_size = *block_ptr;
+    child_device_num = (block_size - sizeof(*defs)) / sizeof(*child);
+    count = 0;
+
+    for (i = 0; i < child_device_num; i++) {
+	child = &defs->devices[i];
+	if (!child->device_type) {
+		/* skip invalid child device type*/
+		 continue;
+	}
+	if (child->slave_addr == SLAVE_ADDR1 ||
+			child->slave_addr == SLAVE_ADDR2) {
+	    if (child->dvo_port != DEVICE_PORT_DVOB &&
+			child->dvo_port != DEVICE_PORT_DVOC) {
+		/* skip the incorrect sdvo port */
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				"Incorrect SDVO port\n");
+		continue;
+	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"the SDVO device with slave addr %x "
+			"is found on DVO %x port\n",
+			child->slave_addr, child->dvo_port);
+	    /* fill the primary dvo port */
+	    p_mapping = &(pI830->sdvo_mappings[child->dvo_port - 1]);
+	    if (!p_mapping->initialized) {
+		p_mapping->dvo_port = child->dvo_port;
+		p_mapping->dvo_wiring = child->dvo_wiring;
+		p_mapping->initialized = 1;
+		p_mapping->slave_addr = child->slave_addr;
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				"One DVO port is shared by two slave "
+				"address. Maybe it can't be handled\n");
+	    }
+	    /* If there exists the slave2_addr, maybe it is a sdvo
+	     * device that contain multiple inputs. And it can't
+	     * handled by SDVO driver.
+	     * Ignore the dvo mapping of slave2_addr
+	     * of course its mapping info won't be added.
+	     */
+	    if (child->slave2_addr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				"Two DVO ports uses the same slave address."
+				"Maybe it can't be handled by SDVO driver\n");
+	    }
+	    count++;
+	} else {
+	    /* if the slave address is neither 0x70 nor 0x72, skip it. */
+	    continue;
+	}
+    }
+    /* If the count is zero, it indicates that no sdvo device is found */
+    if (!count)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"No SDVO device is found in VBT\n");
+
+    return;
+}
 #define INTEL_VBIOS_SIZE (64 * 1024)	/* XXX */
 
 /**
@@ -302,6 +382,7 @@ i830_bios_init(ScrnInfoPtr pScrn)
     parse_general_features(pI830, bdb);
     parse_panel_data(pI830, bdb);
     parse_driver_feature(pI830, bdb);
+    parse_sdvo_mapping(pScrn, bdb);
 
     xfree(bios);
 
