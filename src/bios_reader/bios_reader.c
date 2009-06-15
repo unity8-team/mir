@@ -170,6 +170,7 @@ static void dump_general_definitions(void)
     struct child_device_config *child;
     int i;
     char child_id[11];
+    int child_device_num;
 
     block = find_section(BDB_GENERAL_DEFINITIONS);
 
@@ -188,7 +189,8 @@ static void dump_general_definitions(void)
     printf("\tBoot display type: 0x%02x%02x\n", defs->boot_display[1],
 	   defs->boot_display[0]);
     printf("\tTV data block present: %s\n", YESNO(tv_present));
-    for (i = 0; i < 4; i++) {
+    child_device_num = (block->size - sizeof(*defs)) / sizeof(*child);
+    for (i = 0; i < child_device_num; i++) {
 	child = &defs->devices[i];
 	if (!child->device_type) {
 	    printf("\tChild device %d not present\n", i);
