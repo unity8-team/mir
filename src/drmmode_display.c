@@ -382,7 +382,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	NVPtr pNv = NVPTR(crtc->scrn);
 	uint32_t tile_mode = 0, tile_flags = 0;
-	int rotate_pitch, size, ah = height;
+	int rotate_pitch, ah = height;
 	int ret;
 
 	if (pNv->Architecture >= NV_ARCH_50) {
@@ -391,11 +391,10 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 	}
 
-	rotate_pitch = crtc->scrn->displayWidth * drmmode->cpp;
-	size = rotate_pitch * ah;
+	rotate_pitch = NOUVEAU_ALIGN(width * drmmode->cpp, 64);
 
 	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
-				  size, tile_mode, tile_flags,
+				  rotate_pitch * ah, tile_mode, tile_flags,
 				  &drmmode_crtc->rotate_bo);
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
