@@ -134,7 +134,6 @@ drmmode_fb_pixmap(ScrnInfoPtr pScrn, int id, unsigned *w, unsigned *h)
 {
 	ScreenPtr pScreen = pScrn->pScreen;
 	struct nouveau_pixmap *nvpix;
-	struct drm_gem_flink req;
 	NVPtr pNv = NVPTR(pScrn);
 	drmModeFBPtr fb;
 	PixmapPtr ppix;
@@ -930,15 +929,18 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 }
 
 static Bool
-drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
+drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
-	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[0]->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	ScreenPtr screen = screenInfo.screens[scrn->scrnIndex];
 	NVPtr pNv = NVPTR(scrn);
+	drmmode_crtc_private_ptr
+		    drmmode_crtc = xf86_config->crtc[0]->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	uint32_t pitch, old_width, old_height, old_pitch, old_fb_id;
+	struct nouveau_bo *old_bo = NULL;
+	uint32_t tile_mode = 0, tile_flags = 0;
 	PixmapPtr ppix;
-	struct nouveau_bo *bo = NULL;
-	unsigned pitch, flags, tile_mode = 0, tile_flags = 0, old_id;
 	int ret, i;
 
 	ErrorF("resize called %d %d\n", width, height);
@@ -954,57 +956,71 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	pitch = width * scrn->bitsPerPixel / 8;
-
-	flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
+	pitch = width * (scrn->bitsPerPixel >> 3);
 	if (pNv->Architecture >= NV_ARCH_50) {
 		tile_mode = 4;
 		tile_flags = 0x7a00;
 		height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 	}
-
 	pitch = NOUVEAU_ALIGN(pitch, 64);
 
-	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, pitch * height,
-				  tile_mode, tile_flags, &bo);
+	old_width = scrn->virtualX;
+	old_height = scrn->virtualY;
+	old_pitch = scrn->displayWidth;
+	old_fb_id = drmmode->fb_id;
+	nouveau_bo_ref(pNv->FB, &old_bo);
+	nouveau_bo_ref(NULL, &pNv->FB);
+
+	scrn->virtualX = width;
+	scrn->virtualY = height;
+	scrn->displayWidth = pitch / (scrn->bitsPerPixel >> 3);
+
+	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP |
+				  NOUVEAU_BO_PIN, 0,
+				  pitch * height, tile_mode, tile_flags,
+				  &pNv->FB);
 	if (ret)
-		return FALSE;
+		goto fail;
 
-	/* work around libdrm_nouveau api issue... */
-	nouveau_bo_map(bo, NOUVEAU_BO_WR);
-	nouveau_bo_unmap(bo);
+	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
+	pNv->FBMap = pNv->FB->map;
+	nouveau_bo_unmap(pNv->FB);
 
-	old_id = drmmode->fb_id;
-	ret = drmModeAddFB(nouveau_device(pNv->dev)->fd, width, height,
-			   scrn->depth, scrn->bitsPerPixel, pitch,
-			   bo->handle, &drmmode->fb_id);
-	if (ret) {
-		nouveau_bo_ref(NULL, &bo);
-		return FALSE;
-	}
+	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
+			   scrn->bitsPerPixel, pitch, pNv->FB->handle,
+			   &drmmode->fb_id);
+	if (ret)
+		goto fail;
 
-	ppix = scrn->pScreen->GetScreenPixmap(scrn->pScreen);
-	miModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
+	ppix = screen->GetScreenPixmap(screen);
 
-	nouveau_bo_ref(bo, &nouveau_pixmap(ppix)->bo);
+	nouveau_bo_ref(pNv->FB, &nouveau_pixmap(ppix)->bo);
+	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
 
-	for (i = 0; i < config->num_crtc; i++) {
-		xf86CrtcPtr crtc = config->crtc[i];
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
 
 		if (!crtc->enabled)
 			continue;
 
-		drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
-				       crtc->x, crtc->y);
+		drmmode_set_mode_major(crtc, &crtc->mode,
+				       crtc->rotation, crtc->x, crtc->y);
 	}
 
-	if (old_id)
-		drmModeRmFB(drmmode->fd, old_id);
+	if (old_fb_id)
+		drmModeRmFB(drmmode->fd, old_fb_id);
+	nouveau_bo_ref(NULL, &old_bo);
 
-	scrn->virtualX = width;
-	scrn->virtualY = height;
-	scrn->displayWidth = pitch / (scrn->bitsPerPixel / 8);
 	return TRUE;
+
+ fail:
+	nouveau_bo_ref(old_bo, &pNv->FB);
+	scrn->virtualX = old_width;
+	scrn->virtualY = old_height;
+	scrn->displayWidth = old_pitch;
+	drmmode->fb_id = old_fb_id;
+
+	return FALSE;
 }
 
 static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
