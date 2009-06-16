@@ -187,42 +187,62 @@ static void load_vbios_pci(NVPtr pNv, uint8_t *data)
 #endif
 }
 
+struct methods {
+	const char desc[8];
+	void (*loadbios)(NVPtr, uint8_t *);
+	const bool rw;
+	int score;
+};
+
+static struct methods nv04_methods[] = {
+	{ "PROM", load_vbios_prom, false },
+	{ "PRAMIN", load_vbios_pramin, true },
+	{ "PCI ROM", load_vbios_pci, true }
+};
+
+static struct methods nv50_methods[] = {
+	{ "PRAMIN", load_vbios_pramin, true },
+	{ "PROM", load_vbios_prom, false },
+	{ "PCI ROM", load_vbios_pci, true }
+};
+
 static bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct methods {
-		const char desc[8];
-		void (*loadbios)(NVPtr, uint8_t *);
-		const bool rw;
-		int score;
-	} method[] = {
-		{ "PROM", load_vbios_prom, false },
-		{ "PRAMIN", load_vbios_pramin, true },
-		{ "PCI ROM", load_vbios_pci, true }
-	};
-	int i, testscore = 3;
+	struct methods *methods, *method;
+	int testscore = 3;
 
-	for (i = 0; i < sizeof(method) / sizeof(struct methods); i++) {
+	if (pNv->Architecture < NV_ARCH_50)
+		methods = nv04_methods;
+	else
+		methods = nv50_methods;
+
+	method = methods;
+	while (method->loadbios) {
 		NV_TRACE(pScrn, "Attempting to load BIOS image from %s\n",
-			 method[i].desc);
+			 method->desc);
 		data[0] = data[1] = 0;	/* avoid reuse of previous image */
-		method[i].loadbios(pNv, data);
-		method[i].score = score_vbios(pScrn, data, method[i].rw);
-		if (method[i].score == testscore)
+		method->loadbios(pNv, data);
+		method->score = score_vbios(pScrn, data, method->rw);
+		if (method->score == testscore)
 			return true;
+		method++;
 	}
 
-	while (--testscore > 0)
-		for (i = 0; i < sizeof(method) / sizeof(struct methods); i++)
-			if (method[i].score == testscore) {
+	while (--testscore > 0) {
+		method = methods;
+		while (method->loadbios) {
+			if (method->score == testscore) {
 				NV_TRACE(pScrn, "Using BIOS image from %s\n",
-					 method[i].desc);
-				method[i].loadbios(pNv, data);
+					 method->desc);
+				method->loadbios(pNv, data);
 				return true;
 			}
+			method++;
+		}
+	}
 
 	NV_ERROR(pScrn, "No valid BIOS image found\n");
-
 	return false;
 }
 
