@@ -471,6 +471,21 @@ drmmode_output_detect(xf86OutputPtr output)
 static Bool
 drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 {
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	struct fixed_panel_lvds *p_lvds = drmmode_output->private_data;
+
+	/*
+	 * If the connector type is LVDS, we will use the panel limit to
+	 * verfiy whether the mode is valid.
+	 */
+	if ((koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
+		if (pModes->HDisplay > p_lvds->hdisplay ||
+			pModes->VDisplay > p_lvds->vdisplay)
+			return MODE_PANEL;
+		else
+			return MODE_OK;
+	}
 	return MODE_OK;
 }
 
@@ -483,6 +498,8 @@ drmmode_output_get_modes(xf86OutputPtr output)
 	int i;
 	DisplayModePtr Modes = NULL, Mode;
 	drmModePropertyPtr props;
+	struct fixed_panel_lvds *p_lvds;
+	drmModeModeInfo *mode_ptr;
 
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
@@ -517,6 +534,27 @@ drmmode_output_get_modes(xf86OutputPtr output)
 					 Mode);
 		Modes = xf86ModesAdd(Modes, Mode);
 
+	}
+	p_lvds = drmmode_output->private_data;
+	/*
+	 * If the connector type is LVDS, we will traverse the kernel mode to
+	 * get the panel limit.
+	 * If it is incorrect, please fix me.
+	 */
+	if ((koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
+		p_lvds->hdisplay = 0;
+		p_lvds->vdisplay = 0;
+		for (i = 0; i < koutput->count_modes; i++) {
+			mode_ptr = &koutput->modes[i];
+			if ((mode_ptr->hdisplay >= p_lvds->hdisplay) &&
+				(mode_ptr->vdisplay >= p_lvds->vdisplay)) {
+				p_lvds->hdisplay = mode_ptr->hdisplay;
+				p_lvds->vdisplay = mode_ptr->vdisplay;
+			}
+		}
+		if (!p_lvds->hdisplay || !p_lvds->vdisplay)
+			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+				"Incorrect KMS mode.\n");
 	}
 	return Modes;
 }
