@@ -454,6 +454,14 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
 	}
+
+	if (drmmode_crtc->rotate_bo) {
+		struct nouveau_pixmap *nvpix = nouveau_pixmap(rotate_pixmap);
+
+		if (nvpix)
+			nouveau_bo_ref(drmmode_crtc->rotate_bo, &nvpix->bo);
+	}
+
 	return rotate_pixmap;
 
 }
