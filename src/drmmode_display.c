@@ -161,22 +161,7 @@ drmmode_fb_pixmap(ScrnInfoPtr pScrn, int id, unsigned *w, unsigned *h)
 			*h = fb->height;
 	}
 
-	/* This is kinda rediculous, libdrm_nouveau needs to be taught
-	 * how to create a nouveau_bo from a GEM handle, and not just
-	 * a GEM name.
-	 */
-	{
-		req.handle = fb->handle;
-		ret = ioctl(nouveau_device(pNv->dev)->fd, DRM_IOCTL_GEM_FLINK,
-					   &req);
-		if (ret) {
-			pScreen->DestroyPixmap(ppix);
-			drmFree(fb);
-			return NULL;
-		}
-	}
-
-	ret = nouveau_bo_handle_ref(pNv->dev, req.name, &nvpix->bo);
+	ret = nouveau_bo_wrap(pNv->dev, fb->handle, &nvpix->bo);
 	drmFree(fb);
 	if (ret) {
 		pScreen->DestroyPixmap(ppix);
