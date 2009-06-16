@@ -356,6 +356,8 @@ static i830_quirk i830_quirk_list[] = {
 
     { PCI_CHIP_I855_GM, 0x161f, 0x2030, quirk_pfit_safe },
 
+    /* ThinkPad X30 needs pipe A force quirk (LP: #304614) */
+    { PCI_CHIP_I830_M,  0x1014, 0x0513, quirk_pipea_force },
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
 
