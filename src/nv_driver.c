@@ -1919,7 +1919,6 @@ NVDPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
 /* Mandatory */
 
 /* This gets called at the start of each server generation */
-
 static Bool
 NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
@@ -2117,6 +2116,14 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	NVInitVideo(pScreen);
 
+	/* Wrap the block handler here, if we do it after the EnterVT we
+	 * can end up in the unfortunate case where we've wrapped the
+	 * xf86RotateBlockHandler which sometimes is not expecting to
+	 * be in the wrap chain and calls a NULL pointer...
+	 */
+	pNv->BlockHandler = pScreen->BlockHandler;
+	pScreen->BlockHandler = NVBlockHandler;
+
 	pScrn->vtSema = TRUE;
 	pScrn->pScreen = pScreen;
 	if (!NVEnterVT(pScrn->scrnIndex, 0))
@@ -2159,9 +2166,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	/* Wrap the current CloseScreen function */
 	pNv->CloseScreen = pScreen->CloseScreen;
 	pScreen->CloseScreen = NVCloseScreen;
-
-	pNv->BlockHandler = pScreen->BlockHandler;
-	pScreen->BlockHandler = NVBlockHandler;
 
 	/* Report any unused options (only for the first generation) */
 	if (serverGeneration == 1)
