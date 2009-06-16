@@ -128,7 +128,7 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 	struct nouveau_pixmap *nvpix;
 	struct wfb_pixmap *wfb;
 	PixmapPtr ppix = NULL;
-	int wrap;
+	int wrap, have_tiled = 0;
 
 	if (!pRead || !pWrite)
 		return;
@@ -143,8 +143,11 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 	}
 
 	wrap = 0;
-	while (wfb_pixmap[wrap].ppix)
+	while (wfb_pixmap[wrap].ppix) {
+		if (wfb_pixmap[wrap].pitch)
+			have_tiled = 1;
 		wrap++;
+	}
 	wfb = &wfb_pixmap[wrap];
 
 	wfb->ppix = ppix;
@@ -157,10 +160,16 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		wfb->multiply_factor = (0xFFFFFFFF / wfb->pitch) + 1;
 		wfb->tile_height = nvpix->bo->tile_mode + 2;
 		wfb->horiz_tiles = wfb->pitch / 64;
+		have_tiled = 1;
 	}
 
-	*pRead = nouveau_wfb_rd_tiled;
-	*pWrite = nouveau_wfb_wr_tiled;
+	if (have_tiled) {
+		*pRead = nouveau_wfb_rd_tiled;
+		*pWrite = nouveau_wfb_wr_tiled;
+	} else {
+		*pRead = nouveau_wfb_rd_linear;
+		*pWrite = nouveau_wfb_wr_linear;
+	}
 }
 
 void
