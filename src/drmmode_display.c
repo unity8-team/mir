@@ -58,6 +58,10 @@ typedef struct {
     Atom *atoms;
 } drmmode_prop_rec, *drmmode_prop_ptr;
 
+struct fixed_panel_lvds {
+	int hdisplay;
+	int vdisplay;
+};
 typedef struct {
     drmmode_ptr drmmode;
     int output_id;
@@ -66,6 +70,8 @@ typedef struct {
     drmModePropertyBlobPtr edid_blob;
     int num_props;
     drmmode_prop_ptr props;
+    void *private_data;
+	/* this is used to store private data */
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 static void
@@ -529,6 +535,10 @@ drmmode_output_destroy(xf86OutputPtr output)
 	}
 	xfree(drmmode_output->props);
 	drmModeFreeConnector(drmmode_output->mode_output);
+	if (drmmode_output->private_data) {
+		xfree(drmmode_output->private_data);
+		drmmode_output->private_data = NULL;
+	}
 	xfree(drmmode_output);
 	output->driver_private = NULL;
 }
@@ -792,7 +802,19 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		drmModeFreeEncoder(kencoder);
 		return;
 	}
-
+	/*
+	 * If the connector type of the output device is LVDS, we will
+	 * allocate the private_data to store the panel limit.
+	 * For example: hdisplay, vdisplay
+	 */
+	drmmode_output->private_data = NULL;
+	if (koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) {
+		drmmode_output->private_data = xcalloc(
+				sizeof(struct fixed_panel_lvds), 1);
+		if (!drmmode_output->private_data)
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"Can't allocate private memory for LVDS.\n");
+	}
 	drmmode_output->output_id = drmmode->mode_res->connectors[num];
 	drmmode_output->mode_output = koutput;
 	drmmode_output->mode_encoder = kencoder;
