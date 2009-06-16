@@ -127,16 +127,20 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 {
 	struct nouveau_pixmap *nvpix;
 	struct wfb_pixmap *wfb;
-	PixmapPtr ppix;
+	PixmapPtr ppix = NULL;
 	int wrap;
 
 	if (!pRead || !pWrite)
 		return;
 
 	ppix = NVGetDrawablePixmap(pDraw);
-	if (!ppix)
+	if (ppix)
+		nvpix = nouveau_pixmap(ppix);
+	if (!nvpix || !nvpix->bo) {
+		*pRead = nouveau_wfb_rd_linear;
+		*pWrite = nouveau_wfb_wr_linear;
 		return;
-	nvpix = nouveau_pixmap(ppix);
+	}
 
 	wrap = 0;
 	while (wfb_pixmap[wrap].ppix)
@@ -164,13 +168,18 @@ nouveau_wfb_finish_wrap(DrawablePtr pDraw)
 {
 	struct wfb_pixmap *wfb = &wfb_pixmap[0];
 	PixmapPtr ppix;
+	int i;
 
 	ppix = NVGetDrawablePixmap(pDraw);
 	if (!ppix)
 		return;
 
-	while (wfb->ppix != ppix)
-		wfb++;
-	wfb->ppix = NULL;
+	for (i = 0; i < 6; i++) {
+		if (wfb->ppix != ppix)
+			continue;
+
+		wfb->ppix = NULL;
+		break;
+	}
 }
 
