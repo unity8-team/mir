@@ -489,6 +489,132 @@ drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 	return MODE_OK;
 }
 
+static void fill_detailed_lvds_block(struct detailed_monitor_section *det_mon,
+					DisplayModePtr mode)
+{
+	struct detailed_timings *timing = &det_mon->section.d_timings;
+
+	det_mon->type = DT;
+	timing->clock = mode->Clock * 1000;
+	timing->h_active = mode->HDisplay;
+	timing->h_blanking = mode->HTotal - mode->HDisplay;
+	timing->v_active = mode->VDisplay;
+	timing->v_blanking = mode->VTotal - mode->VDisplay;
+	timing->h_sync_off = mode->HSyncStart - mode->HDisplay;
+	timing->h_sync_width = mode->HSyncEnd - mode->HSyncStart;
+	timing->v_sync_off = mode->VSyncStart - mode->VDisplay;
+	timing->v_sync_width = mode->VSyncEnd - mode->VSyncStart;
+
+	if (mode->Flags & V_PVSYNC)
+		timing->misc |= 0x02;
+
+	if (mode->Flags & V_PHSYNC)
+		timing->misc |= 0x01;
+}
+
+static int drmmode_output_lvds_edid(xf86OutputPtr output,
+				struct fixed_panel_lvds *p_lvds)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	int i, j;
+	DisplayModePtr pmode;
+	xf86MonPtr	edid_mon;
+	drmModeModeInfo *mode_ptr;
+	struct detailed_monitor_section *det_mon;
+
+	if (output->MonInfo) {
+		/*
+		 * If there exists the EDID, we will either find a DS_RANGES
+		 * or replace a DS_VENDOR block, smashing it into a DS_RANGES
+		 * block with opern refresh to match all the default modes.
+		 */
+		int edid_det_block_num;
+		edid_mon = output->MonInfo;
+		edid_mon->features.msc |= 0x01;
+		j = -1;
+		edid_det_block_num = sizeof(edid_mon->det_mon) /
+					sizeof(edid_mon->det_mon[0]);
+		for (i = 0; i < edid_det_block_num; i++) {
+			if (edid_mon->det_mon[i].type >= DS_VENDOR && j == -1)
+				j = i;
+			if (edid_mon->det_mon[i].type == DS_RANGES) {
+				j = i;
+				break;
+			}
+		}
+		if (j != -1) {
+			struct monitor_ranges	*ranges =
+				&edid_mon->det_mon[j].section.ranges;
+			edid_mon->det_mon[j].type = DS_RANGES;
+			ranges->min_v = 0;
+			ranges->max_v = 200;
+			ranges->min_h = 0;
+			ranges->max_h = 200;
+		}
+		return 0;
+	}
+	/*
+	 * If there is no EDID, we will construct a bogus EDID for LVDS output
+	 * device. This is similar to what we have done in i830_lvds.c
+	 */
+	edid_mon = NULL;
+	edid_mon = xcalloc(1, sizeof(xf86Monitor));
+	if (!edid_mon) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			"Can't allocate memory for edid_mon.\n");
+		return 0;
+	}
+	/* Find the fixed panel mode.
+	 * In theory when there is no EDID, KMS kernel will return only one
+	 * mode. And this can be regarded as fixed lvds panel mode.
+	 * But it will be better to traverse the mode list to get the fixed
+	 * lvds panel mode again as we don't know whether some new modes
+	 * are added for the LVDS output device
+	 */
+	j = 0;
+	for (i = 0; i < koutput->count_modes; i++) {
+		mode_ptr = &koutput->modes[i];
+		if ((mode_ptr->hdisplay == p_lvds->hdisplay) &&
+			(mode_ptr->vdisplay == p_lvds->vdisplay)) {
+			/* find the fixed panel mode */
+			j = i;
+			break;
+		}
+	}
+	pmode = xnfalloc(sizeof(DisplayModeRec));
+	drmmode_ConvertFromKMode(output->scrn, &koutput->modes[j], pmode);
+	/*support DPM, instead of DPMS*/
+	edid_mon->features.dpms |= 0x1;
+	/*defaultly support RGB color display*/
+	edid_mon->features.display_type |= 0x1;
+	/*defaultly display support continuous-freqencey*/
+	edid_mon->features.msc |= 0x1;
+	/*defaultly  the EDID version is 1.4 */
+	edid_mon->ver.version = 1;
+	edid_mon->ver.revision = 4;
+	det_mon = edid_mon->det_mon;
+	if (pmode) {
+		/* now we construct new EDID monitor,
+		 * so filled one detailed timing block
+		 */
+		fill_detailed_lvds_block(det_mon, pmode);
+		/* the filed timing block should be set preferred*/
+		edid_mon->features.msc |= 0x2;
+		det_mon = det_mon + 1;
+	}
+	/* Set wide sync ranges so we get all modes
+	 * handed to valid_mode for checking
+	 */
+	det_mon->type = DS_RANGES;
+	det_mon->section.ranges.min_v = 0;
+	det_mon->section.ranges.max_v = 200;
+	det_mon->section.ranges.min_h = 0;
+	det_mon->section.ranges.max_h = 200;
+	output->MonInfo = edid_mon;
+	return 0;
+}
+
 static DisplayModePtr
 drmmode_output_get_modes(xf86OutputPtr output)
 {
@@ -555,6 +681,7 @@ drmmode_output_get_modes(xf86OutputPtr output)
 		if (!p_lvds->hdisplay || !p_lvds->vdisplay)
 			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
 				"Incorrect KMS mode.\n");
+		drmmode_output_lvds_edid(output, p_lvds);
 	}
 	return Modes;
 }
