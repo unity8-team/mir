@@ -197,13 +197,15 @@ struct methods {
 static struct methods nv04_methods[] = {
 	{ "PROM", load_vbios_prom, false },
 	{ "PRAMIN", load_vbios_pramin, true },
-	{ "PCI ROM", load_vbios_pci, true }
+	{ "PCI ROM", load_vbios_pci, true },
+	{ }
 };
 
 static struct methods nv50_methods[] = {
 	{ "PRAMIN", load_vbios_pramin, true },
 	{ "PROM", load_vbios_prom, false },
-	{ "PCI ROM", load_vbios_pci, true }
+	{ "PCI ROM", load_vbios_pci, true },
+	{ }
 };
 
 static bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
