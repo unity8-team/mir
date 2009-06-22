@@ -118,9 +118,11 @@ parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 {
     struct bdb_lvds_options *lvds_options;
     struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
-    int timing_offset;
+    struct bdb_lvds_lfp_data *lvds_data;
+    struct bdb_lvds_lfp_data_entry *entry;
     DisplayModePtr fixed_mode;
     unsigned char *timing_ptr;
+    int lfp_data_size;
 
     /* Defaults if we can't find VBT info */
     pI830->lvds_dither = 0;
@@ -133,13 +135,20 @@ parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
     if (lvds_options->panel_type == 0xff)
 	return;
 
+    lvds_data = find_section(bdb, BDB_LVDS_LFP_DATA);
+    if (!lvds_data) {
+	return;
+    }
+
     lvds_lfp_data_ptrs = find_section(bdb, BDB_LVDS_LFP_DATA_PTRS);
     if (!lvds_lfp_data_ptrs)
 	return;
 
-    timing_offset =
-	lvds_lfp_data_ptrs->ptr[lvds_options->panel_type].dvo_timing_offset;
-    timing_ptr = (unsigned char *)bdb + timing_offset;
+    lfp_data_size = lvds_lfp_data_ptrs->ptr[1].fp_timing_offset -
+	lvds_lfp_data_ptrs->ptr[0].fp_timing_offset;
+    entry = (struct bdb_lvds_lfp_data_entry *)((uint8_t *)lvds_data->data +
+					       (lfp_data_size * lvds_options->panel_type));
+    timing_ptr = (unsigned char *)&entry->fp_timing;
 
     if (pI830->skip_panel_detect)
 	return;

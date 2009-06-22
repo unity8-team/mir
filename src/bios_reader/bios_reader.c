@@ -275,18 +275,30 @@ static void dump_lvds_options(void)
 static void dump_lvds_ptr_data(void)
 {
     struct bdb_block *block;
+    struct bdb_lvds_lfp_data *lvds_data;
     struct bdb_lvds_lfp_data_ptrs *ptrs;
     struct lvds_fp_timing *fp_timing;
+    struct bdb_lvds_lfp_data_entry *entry;
+    int lfp_data_size;
 
     block = find_section(BDB_LVDS_LFP_DATA_PTRS);
     if (!block) {
 	printf("No LFP data pointers block\n");
 	return;
     }
-
     ptrs = block->data;
-    fp_timing =	(struct lvds_fp_timing *)((uint8_t *)bdb +
-					  ptrs->ptr[panel_type].fp_timing_offset);
+
+    block = find_section(BDB_LVDS_LFP_DATA);
+    if (!block) {
+	printf("No LVDS data block\n");
+	return;
+    }
+    lvds_data = block->data;
+
+    lfp_data_size = ptrs->ptr[1].fp_timing_offset - ptrs->ptr[0].fp_timing_offset;
+    entry = (struct bdb_lvds_lfp_data_entry *)((uint8_t *)lvds_data->data +
+					       (lfp_data_size * panel_type));
+    fp_timing = &entry->fp_timing;
 
     printf("LVDS timing pointer data:\n");
     printf("  Number of entries: %d\n", ptrs->lvds_entries);
