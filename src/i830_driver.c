@@ -171,6 +171,7 @@ typedef enum {
    OPTION_LVDS24BITMODE,
    OPTION_FBC,
    OPTION_TILING,
+   OPTION_SWAPBUFFERS_WAIT,
    OPTION_LVDSFIXEDMODE,
    OPTION_FORCEENABLEPIPEA,
 #ifdef INTEL_XVMC
@@ -189,6 +190,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_LVDS24BITMODE, "LVDS24Bit",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_LVDSFIXEDMODE, "LVDSFixedMode", OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
 #ifdef INTEL_XVMC
@@ -2663,10 +2665,23 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        pI830->fb_compression = FALSE;
    }
 
+   /* SwapBuffers delays to avoid tearing */
+   pI830->swapbuffers_wait = TRUE;
+
+   /* Allow user override if they set a value */
+   if (xf86IsOptionSet(pI830->Options, OPTION_SWAPBUFFERS_WAIT)) {
+       if (xf86ReturnOptValBool(pI830->Options, OPTION_SWAPBUFFERS_WAIT, FALSE))
+	   pI830->swapbuffers_wait = TRUE;
+       else
+	   pI830->swapbuffers_wait = FALSE;
+   }
+
    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Framebuffer compression %sabled\n",
 	      pI830->fb_compression ? "en" : "dis");
    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Tiling %sabled\n", pI830->tiling ?
 	      "en" : "dis");
+   xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "SwapBuffers wait %sabled\n",
+	      pI830->swapbuffers_wait ? "en" : "dis");
 
    pI830->last_3d = LAST_3D_OTHER;
    pI830->overlayOn = FALSE;

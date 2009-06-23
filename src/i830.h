@@ -414,6 +414,7 @@ typedef struct _I830Rec {
 
    Bool tiling;
    Bool fb_compression;
+   Bool swapbuffers_wait;
 
    Bool CursorNeedsPhysical;
 
