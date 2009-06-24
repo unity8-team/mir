@@ -2468,7 +2468,8 @@ Bool i830_crtc_on(xf86CrtcPtr crtc)
 	/* Kernel manages CRTC status based out output config */
 	for (i = 0; i < xf86_config->num_output; i++) {
 	    xf86OutputPtr output = xf86_config->output[i];
-	    if (drmmode_output_dpms_status(output) == DPMSModeOn)
+	    if (output->crtc == crtc &&
+		drmmode_output_dpms_status(output) == DPMSModeOn)
 		active_outputs++;
 	}
 
