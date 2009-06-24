@@ -1734,6 +1734,11 @@ i830_covering_crtc (ScrnInfoPtr pScrn,
     for (c = 0; c < xf86_config->num_crtc; c++)
     {
 	crtc = xf86_config->crtc[c];
+
+	/* If the CRTC is off, treat it as not covering */
+	if (!i830_crtc_on(crtc))
+	    continue;
+
 	i830_crtc_box (crtc, &crtc_box);
 	i830_box_intersect (&cover_box, &crtc_box, box);
 	coverage = i830_box_area (&cover_box);
@@ -2491,14 +2496,8 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    int y1, y2;
 	    int pipe = -1, event, load_scan_lines_pipe;
 
-	    if (pixmap_is_scanout(pPixmap)) {
-		if (pI830->use_drm_mode)
-		    pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
-		else {
-		    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-		    pipe = intel_crtc->pipe;
-		}
-	    }
+	    if (pixmap_is_scanout(pPixmap))
+		pipe = i830_crtc_to_pipe(crtc);
 
 	    if (pipe >= 0) {
 		if (pipe == 0) {

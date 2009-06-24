@@ -2456,6 +2456,49 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
    }
 }
 
+Bool i830_crtc_on(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (pI830->use_drm_mode) {
+	int i, active_outputs = 0;
+
+	/* Kernel manages CRTC status based out output config */
+	for (i = 0; i < xf86_config->num_output; i++) {
+	    xf86OutputPtr output = xf86_config->output[i];
+	    if (drmmode_output_dpms_status(output) == DPMSModeOn)
+		active_outputs++;
+	}
+
+	if (active_outputs)
+	    return TRUE;
+	return FALSE;
+    } else {
+	I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+
+	if (intel_crtc->dpms_mode == DPMSModeOn)
+	    return TRUE;
+	return FALSE;
+    }
+}
+
+int i830_crtc_to_pipe(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    int pipe;
+
+    if (pI830->use_drm_mode) {
+	pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
+    } else {
+	I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+	pipe = intel_crtc->pipe;
+    }
+
+    return pipe;
+}
 
 static void
 I830AdjustMemory(ScreenPtr pScreen)

@@ -71,7 +71,7 @@ typedef struct {
     int num_props;
     drmmode_prop_ptr props;
     void *private_data;
-	/* this is used to store private data */
+    int dpms_mode;
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 static void
@@ -727,11 +727,20 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
                                 drmmode_output->output_id,
                                 props->prop_id,
                                 mode);
+			drmmode_output->dpms_mode = mode;
                         drmModeFreeProperty(props);
                         return;
 		}
 		drmModeFreeProperty(props);
 	}
+}
+
+int
+drmmode_output_dpms_status(xf86OutputPtr output)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+
+	return drmmode_output->dpms_mode;
 }
 
 static Bool

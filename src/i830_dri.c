@@ -311,12 +311,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 
 	/* Make sure the CRTC is valid and this is the real front buffer */
 	if (crtc != NULL && !crtc->rotatedData) {
-	    if (pI830->use_drm_mode)
-		pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
-	    else {
-		I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-		pipe = intel_crtc->pipe;
-	    }
+	    pipe = i830_crtc_to_pipe(crtc);
 
 	    if (pipe == 0) {
 		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;

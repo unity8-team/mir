@@ -691,7 +691,10 @@ void I830DRI2CloseScreen(ScreenPtr pScreen);
 
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
+extern int drmmode_output_dpms_status(xf86OutputPtr output);
 
+extern Bool i830_crtc_on(xf86CrtcPtr crtc);
+extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,
