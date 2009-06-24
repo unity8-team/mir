@@ -234,7 +234,6 @@ radeon_ddc_connected(xf86OutputPtr output)
 	    break;
 	case CONNECTOR_DVI_D:
 	case CONNECTOR_HDMI_TYPE_A:
-	case CONNECTOR_HDMI_TYPE_B:
 	    if (radeon_output->shared_ddc) {
 		if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and DVI/HDMI/etc. */
 		    MonType = MT_DFP;
@@ -249,6 +248,7 @@ radeon_ddc_connected(xf86OutputPtr output)
 	     * or AUXCH.
 	     */
 	    MonType = MT_DFP;
+	case CONNECTOR_HDMI_TYPE_B:
 	case CONNECTOR_DVI_I:
 	    if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and DVI */
 		MonType = MT_DFP;

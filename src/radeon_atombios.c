@@ -1644,8 +1644,7 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
     /* some BIOSes seem to report DAC on HDMI - usually this is a board with
      * HDMI + VGA reporting as HDMI
      */
-    if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
-	(info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
+    if (info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) {
 	if (info->BiosConnector[index].devices & (ATOM_DEVICE_CRT_SUPPORT)) {
 	    info->BiosConnector[index].devices &= ~(ATOM_DEVICE_DFP_SUPPORT);
 	    info->BiosConnector[index].ConnectorType = CONNECTOR_VGA;
