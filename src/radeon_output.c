@@ -209,6 +209,12 @@ radeon_set_active_device(xf86OutputPtr output)
     }
 }
 
+static Bool
+monitor_is_digital(xf86MonPtr MonInfo)
+{
+    return (MonInfo->rawData[0x14] & 0x80) != 0;
+}
+
 static RADEONMonitorType
 radeon_ddc_connected(xf86OutputPtr output)
 {
@@ -235,7 +241,7 @@ radeon_ddc_connected(xf86OutputPtr output)
 	case CONNECTOR_DVI_D:
 	case CONNECTOR_HDMI_TYPE_A:
 	    if (radeon_output->shared_ddc) {
-		if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and DVI/HDMI/etc. */
+		if (monitor_is_digital(MonInfo))
 		    MonType = MT_DFP;
 		else
 		    MonType = MT_NONE;
@@ -250,7 +256,7 @@ radeon_ddc_connected(xf86OutputPtr output)
 	    MonType = MT_DFP;
 	case CONNECTOR_HDMI_TYPE_B:
 	case CONNECTOR_DVI_I:
-	    if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and DVI */
+	    if (monitor_is_digital(MonInfo))
 		MonType = MT_DFP;
 	    else
 		MonType = MT_CRT;
@@ -259,7 +265,7 @@ radeon_ddc_connected(xf86OutputPtr output)
 	case CONNECTOR_DVI_A:
 	default:
 	    if (radeon_output->shared_ddc) {
-		if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and VGA */
+		if (monitor_is_digital(MonInfo))
 		    MonType = MT_NONE;
 		else
 		    MonType = MT_CRT;
