@@ -254,6 +254,7 @@ radeon_ddc_connected(xf86OutputPtr output)
 	     * or AUXCH.
 	     */
 	    MonType = MT_DFP;
+	    break;
 	case CONNECTOR_HDMI_TYPE_B:
 	case CONNECTOR_DVI_I:
 	    if (monitor_is_digital(MonInfo))
