@@ -1,0 +1,32 @@
+From 88f766be008008d76c150e3ac16f09d4ecbb6d53 Mon Sep 17 00:00:00 2001
+From: Ma Ling <ling.ma@intel.com>
+Date: Fri, 15 May 2009 07:22:11 +0000
+Subject: Wait doubled regis to be stable for load pipe detection
+
+We have two approaches for VGA detections: hot plug detection for 945G onwards
+and load pipe detection for Pre-945G. load pipe detection will get one free
+pipe ,and set border color as red and blue, then check CRT status by
+swf register. Because pipe registers in hires mode are double buffered,
+once set force border bit in pipeconf register, we have to wait for
+a vblank until it is effective, otherwise result is unstable.
+
+It fixed freedesktop bug #20463
+
+Signed-off-by: Ma Ling <ling.ma@intel.com>
+---
+diff --git a/src/i830_crt.c b/src/i830_crt.c
+index eced5e8..536d63d 100644
+--- a/src/i830_crt.c
++++ b/src/i830_crt.c
+@@ -286,7 +286,8 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
+     {
+ 	uint32_t	pipeconf = INREG(pipeconf_reg);
+ 	OUTREG(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
+-	
++        /* Wait for next Vblank to substitue border color for Color info */
++        i830WaitForVblank (pScrn);
+ 	st00 = pI830->readStandard (pI830, 0x3c2);
+ 	present = (st00 & (1 << 4)) != 0;
+ 	OUTREG(pipeconf_reg, pipeconf);
+--
+cgit v0.8.2

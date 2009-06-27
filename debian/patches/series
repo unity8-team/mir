@@ -4,3 +4,4 @@
 119_fix_drawable_abuse.patch
 120_fix_dri2_vblank_syncing_segfault.patch
 121_dont_change_blank_sync_width.patch
+122_wait_for_vblank_to_sub_border_color.patch
