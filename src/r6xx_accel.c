@@ -974,7 +974,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EREG(ib, PA_SU_POLY_OFFSET_FRONT_OFFSET,      0);
 
     EREG(ib, PA_SU_LINE_CNTL,                     (8 << PA_SU_LINE_CNTL__WIDTH_shift)); /* Line width 1 pixel */
-    EREG(ib, PA_SU_VTX_CNTL,                      ((2 << PA_SU_VTX_CNTL__ROUND_MODE_shift) |
+    EREG(ib, PA_SU_VTX_CNTL,                      ((2 << PA_SU_VTX_CNTL__ROUND_MODE_shift) | PIX_CENTER_bit |
 						   (5 << QUANT_MODE_shift))); /* Round to Even, fixed point 1/256 */
     EREG(ib, PA_SU_POLY_OFFSET_CLAMP,             0);
 
