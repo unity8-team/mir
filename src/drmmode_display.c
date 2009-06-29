@@ -29,6 +29,8 @@
 #include "config.h"
 #endif
 
+#include <errno.h>
+
 #include "xorgVersion.h"
 
 #include "i830.h"
@@ -1103,8 +1105,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 
 	drmmode->cpp = cpp;
 	drmmode->mode_res = drmModeGetResources(drmmode->fd);
-	if (!drmmode->mode_res)
+	if (!drmmode->mode_res) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "failed to get resources: %s\n", strerror(errno));
 		return FALSE;
+	}
 
 	xf86CrtcSetSizeRange(pScrn, 320, 200, drmmode->mode_res->max_width,
 			     drmmode->mode_res->max_height);
