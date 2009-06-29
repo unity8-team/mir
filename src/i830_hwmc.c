@@ -55,6 +55,10 @@ Bool intel_xvmc_probe(ScrnInfoPtr pScrn)
     if (!pI830->XvMCEnabled)
 	return FALSE;
 
+    if (pI830->use_drm_mode &&
+	    (IS_I915G(pI830) || IS_I915GM(pI830)))
+	return FALSE;
+
     if (IS_I9XX(pI830)) {
 	if (IS_I915(pI830))
 	    ret = intel_xvmc_set_driver(&i915_xvmc_driver);
