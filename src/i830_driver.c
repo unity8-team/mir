@@ -1643,14 +1643,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!i830_detect_chipset(pScrn))
        return FALSE;
 
-   if (i830_bios_init(pScrn))
-       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		  "VBIOS initialization failed.\n");
-
    if (pI830->use_drm_mode) {
        if (!I830DrmModeInit(pScrn))
 	   return FALSE;
    } else {
+       if (i830_bios_init(pScrn))
+	   xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		      "VBIOS initialization failed.\n");
       I830PreInitCrtcConfig(pScrn);
       if (!I830AccelMethodInit(pScrn))
          return FALSE;
