@@ -2727,12 +2727,12 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    RADEONConnectorType conntype = info->BiosConnector[i].ConnectorType;
 	    if ((conntype == CONNECTOR_DVI_D) ||
 		(conntype == CONNECTOR_DVI_I) ||
-		(conntype == CONNECTOR_DVI_A)) {
+		(conntype == CONNECTOR_DVI_A) ||
+		(conntype == CONNECTOR_HDMI_TYPE_B)) {
 		num_dvi++;
 	    } else if (conntype == CONNECTOR_VGA) {
 		num_vga++;
-	    } else if ((conntype == CONNECTOR_HDMI_TYPE_A) ||
-		       (conntype == CONNECTOR_HDMI_TYPE_B)) {
+	    } else if (conntype == CONNECTOR_HDMI_TYPE_A) {
 		num_hdmi++;
 	    } else if (conntype == CONNECTOR_DISPLAY_PORT) {
 		num_dp++;
@@ -2762,14 +2762,18 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->linkb = info->BiosConnector[i].linkb;
 	    radeon_output->connector_id = info->BiosConnector[i].connector_object;
 
+	    /* Technically HDMI-B is a glorfied DL DVI so the bios is correct,
+	     * but this can be confusing to users when it comes to output names,
+	     * so call it DVI
+	     */
 	    if ((conntype == CONNECTOR_DVI_D) ||
 		(conntype == CONNECTOR_DVI_I) ||
-		(conntype == CONNECTOR_DVI_A)) {
+		(conntype == CONNECTOR_DVI_A) ||
+		(conntype == CONNECTOR_HDMI_TYPE_B)) {
 		output = RADEONOutputCreate(pScrn, "DVI-%d", --num_dvi);
 	    } else if (conntype == CONNECTOR_VGA) {
 		output = RADEONOutputCreate(pScrn, "VGA-%d", --num_vga);
-	    } else if ((conntype == CONNECTOR_HDMI_TYPE_A) ||
-		       (conntype == CONNECTOR_HDMI_TYPE_B)) {
+	    } else if (conntype == CONNECTOR_HDMI_TYPE_A) {
 		output = RADEONOutputCreate(pScrn, "HDMI-%d", --num_hdmi);
 	    } else if (conntype == CONNECTOR_DISPLAY_PORT) {
 		output = RADEONOutputCreate(pScrn, "DisplayPort-%d", --num_dp);
