@@ -807,6 +807,10 @@ static Bool R200CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 
     TRACE;
 
+    /* Check for unsupported compositing operations. */
+    if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
+	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
+
     if (!pSrcPicture->pDrawable)
 	return FALSE;
 
