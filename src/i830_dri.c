@@ -299,7 +299,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
     ValidateGC(dst, pGC);
 
     /* Wait for the scanline to be outside the region to be copied */
-    if (pixmap_is_scanout(get_drawable_pixmap(dst))) {
+    if (pixmap_is_scanout(get_drawable_pixmap(dst)) && pI830->swapbuffers_wait) {
 	BoxPtr box;
 	BoxRec crtcbox;
 	int y1, y2;
