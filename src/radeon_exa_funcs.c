@@ -596,9 +596,10 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     info->accel_state->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
     info->accel_state->exa->pixmapPitchAlign = 64;
 
+#ifdef EXA_HANDLES_PIXMAPS
     if (info->cs)
-      info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
-
+	info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
+#endif
 
 #ifdef RENDER
     if (info->RenderAccel) {
