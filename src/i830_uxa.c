@@ -722,14 +722,6 @@ i830_uxa_init (ScreenPtr pScreen)
  	i830->uxa_driver->done_composite = i830_done_composite;
     }
 
-    /* FIXME */
-    if (IS_IGDNG(i830)) {
-	i830->uxa_driver->check_composite = NULL;
-	i830->uxa_driver->prepare_composite = NULL;
-	i830->uxa_driver->composite = NULL;
-	i830->uxa_driver->done_composite = NULL;
-    }
-
     i830->uxa_driver->prepare_access = i830_uxa_prepare_access;
     i830->uxa_driver->finish_access = i830_uxa_finish_access;
     i830->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
