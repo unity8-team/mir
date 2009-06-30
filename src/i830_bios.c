@@ -144,11 +144,11 @@ parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
     if (!lvds_lfp_data_ptrs)
 	return;
 
-    lfp_data_size = lvds_lfp_data_ptrs->ptr[1].fp_timing_offset -
-	lvds_lfp_data_ptrs->ptr[0].fp_timing_offset;
+    lfp_data_size = lvds_lfp_data_ptrs->ptr[1].dvo_timing_offset -
+	lvds_lfp_data_ptrs->ptr[0].dvo_timing_offset;
     entry = (struct bdb_lvds_lfp_data_entry *)((uint8_t *)lvds_data->data +
 					       (lfp_data_size * lvds_options->panel_type));
-    timing_ptr = (unsigned char *)&entry->fp_timing;
+    timing_ptr = (unsigned char *)&entry->dvo_timing;
 
     if (pI830->skip_panel_detect)
 	return;
