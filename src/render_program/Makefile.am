@@ -46,21 +46,43 @@ INTEL_G4B = 				\
 	exa_wm_xy.g4b
 
 
+INTEL_G4B_GEN5 = 				\
+	packed_yuv_sf.g4b.gen5			\
+	packed_yuv_wm.g4b.gen5			\
+	exa_sf.g4b.gen5 			\
+	exa_sf_mask.g4b.gen5 			\
+	exa_wm_src_affine.g4b.gen5 		\
+	exa_wm_src_projective.g4b.gen5 		\
+	exa_wm_src_sample_argb.g4b.gen5 	\
+	exa_wm_src_sample_a.g4b.gen5 		\
+	exa_wm_src_sample_planar.g4b.gen5 	\
+	exa_wm_mask_affine.g4b.gen5 		\
+	exa_wm_mask_projective.g4b.gen5 	\
+	exa_wm_mask_sample_argb.g4b.gen5 	\
+	exa_wm_mask_sample_a.g4b.gen5 		\
+	exa_wm_noca.g4b.gen5			\
+	exa_wm_ca.g4b.gen5			\
+	exa_wm_ca_srcalpha.g4b.gen5		\
+	exa_wm_write.g4b.gen5 			\
+	exa_wm_yuv_rgb.g4b.gen5			\
+	exa_wm_xy.g4b.gen5
+
 EXTRA_DIST = 		\
 	$(INTEL_G4A)	\
 	$(INTEL_G4I)	\
-	$(INTEL_G4B)
+	$(INTEL_G4B)	\
+	$(INTEL_G4B_GEN5)
 
 if HAVE_GEN4ASM
 
 SUFFIXES = .g4a .g4b
 .g4a.g4b:
-	m4 -I$(srcdir) -s $< > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
+	m4 -I$(srcdir) -s $< > $*.g4m && intel-gen4asm -o $@ $*.g4m && intel-gen4asm -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
 
 $(INTEL_G4B): $(INTEL_G4I)
 
 BUILT_SOURCES= $(INTEL_G4B)
 
 clean-local:
-	-rm -f $(INTEL_G4B)
+	-rm -f $(INTEL_G4B) $(INTEL_G4B_GEN5)
 endif
