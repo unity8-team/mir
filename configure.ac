@@ -195,4 +195,5 @@ AC_OUTPUT([
 	src/sil164/Makefile
 	src/tfp410/Makefile
 	man/Makefile
+	src/render_program/Makefile
 ])

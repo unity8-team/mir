@@ -18,7 +18,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 reg_dumper
+SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 reg_dumper render_program
 
 # this is obnoxious:
 # -module lets us name the module exactly how we want
@@ -27,7 +27,7 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 reg_dumper
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
 AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
-	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa
+	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa -I$(top_srcdir)/src/render_program
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
@@ -110,74 +110,10 @@ intel_drv_la_SOURCES = \
 	 i965_render.c \
 	 drmmode_display.c
 
-INTEL_G4A =				\
-	packed_yuv_sf.g4a		\
-	packed_yuv_wm.g4a		\
-	exa_sf.g4a 			\
-	exa_sf_mask.g4a 		\
-	exa_wm_src_affine.g4a 		\
-	exa_wm_src_projective.g4a 	\
-	exa_wm_src_sample_argb.g4a 	\
-	exa_wm_src_sample_a.g4a 	\
-	exa_wm_src_sample_planar.g4a 	\
-	exa_wm_mask_affine.g4a 		\
-	exa_wm_mask_projective.g4a 	\
-	exa_wm_mask_sample_argb.g4a 	\
-	exa_wm_mask_sample_a.g4a 	\
-	exa_wm_noca.g4a			\
-	exa_wm_ca.g4a			\
-	exa_wm_ca_srcalpha.g4a		\
-	exa_wm_write.g4a 		\
-	exa_wm_yuv_rgb.g4a		\
-	exa_wm_xy.g4a
-
-INTEL_G4I =				\
-	exa_wm.g4i			\
-	exa_wm_affine.g4i		\
-	exa_wm_projective.g4i
-
-INTEL_G4B = 				\
-	packed_yuv_sf.g4b		\
-	packed_yuv_wm.g4b		\
-	exa_sf.g4b 			\
-	exa_sf_mask.g4b 		\
-	exa_wm_src_affine.g4b 		\
-	exa_wm_src_projective.g4b 	\
-	exa_wm_src_sample_argb.g4b 	\
-	exa_wm_src_sample_a.g4b 	\
-	exa_wm_src_sample_planar.g4b 	\
-	exa_wm_mask_affine.g4b 		\
-	exa_wm_mask_projective.g4b 	\
-	exa_wm_mask_sample_argb.g4b 	\
-	exa_wm_mask_sample_a.g4b 	\
-	exa_wm_noca.g4b			\
-	exa_wm_ca.g4b			\
-	exa_wm_ca_srcalpha.g4b		\
-	exa_wm_write.g4b 		\
-	exa_wm_yuv_rgb.g4b		\
-	exa_wm_xy.g4b
-
 EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
-	$(INTEL_G4A)	\
-	$(INTEL_G4I)	\
-	$(INTEL_G4B)	\
 	$(INTEL_DRI_SRCS) \
 	$(INTEL_XVMC_SRCS)
-
-if HAVE_GEN4ASM
-
-SUFFIXES = .g4a .g4b
-.g4a.g4b:
-	m4 -I$(srcdir) -s $< > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
-
-$(INTEL_G4B): $(INTEL_G4I)
-
-BUILT_SOURCES= $(INTEL_G4B)
-
-clean-local:
-	-rm -f $(INTEL_G4B)
-endif
 
 if DRI
 intel_drv_la_SOURCES += \
