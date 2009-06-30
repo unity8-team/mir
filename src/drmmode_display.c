@@ -892,8 +892,8 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 	    }
 	}
     }
-    /* no property found? */
-    return FALSE;
+
+    return TRUE;
 }
 
 static const xf86OutputFuncsRec drmmode_output_funcs = {
