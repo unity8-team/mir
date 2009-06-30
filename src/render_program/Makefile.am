@@ -1,6 +1,4 @@
 INTEL_G4A =				\
-	packed_yuv_sf.g4a		\
-	packed_yuv_wm.g4a		\
 	exa_sf.g4a 			\
 	exa_sf_mask.g4a 		\
 	exa_wm_src_affine.g4a 		\
@@ -25,8 +23,6 @@ INTEL_G4I =				\
 	exa_wm_projective.g4i
 
 INTEL_G4B = 				\
-	packed_yuv_sf.g4b		\
-	packed_yuv_wm.g4b		\
 	exa_sf.g4b 			\
 	exa_sf_mask.g4b 		\
 	exa_wm_src_affine.g4b 		\
@@ -47,8 +43,6 @@ INTEL_G4B = 				\
 
 
 INTEL_G4B_GEN5 = 				\
-	packed_yuv_sf.g4b.gen5			\
-	packed_yuv_wm.g4b.gen5			\
 	exa_sf.g4b.gen5 			\
 	exa_sf_mask.g4b.gen5 			\
 	exa_wm_src_affine.g4b.gen5 		\
