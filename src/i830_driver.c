@@ -1440,7 +1440,8 @@ i830_open_drm_master(ScrnInfoPtr scrn)
     if (i830->drmSubFD == -1) {
 	xfree(busid);
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-		   "[drm] Failed to open DRM device for %s\n", busid);
+		   "[drm] Failed to open DRM device for %s: %s\n", busid,
+		   strerror(errno));
 	return FALSE;
     }
 
@@ -1455,6 +1456,8 @@ i830_open_drm_master(ScrnInfoPtr scrn)
     sv.drm_dd_major = -1;
     err = drmSetInterfaceVersion(i830->drmSubFD, &sv);
     if (err != 0) {
+	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		   "[drm] failed to set drm interface version.\n");
 	drmClose(i830->drmSubFD);
 	i830->drmSubFD = -1;
 	return FALSE;
@@ -1594,7 +1597,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    pI830->PciInfo = xf86GetPciInfoForEntity(pI830->pEnt->index);
 
-   i830_open_drm_master(pScrn);
+   if (!i830_open_drm_master(pScrn))
+       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to become DRM master.\n");
+
 
    if (xf86RegisterResources(pI830->pEnt->index, NULL, ResNone)) {
       PreInitCleanup(pScrn);
