@@ -857,7 +857,7 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo *bind_bo, int n_src_surf)
     OUT_BATCH(0); /* clip */
     OUT_BATCH(0); /* sf */
     /* Only the PS uses the binding table */
-    OUT_RELOC(bind_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+    OUT_RELOC(bind_bo, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 
     /* Blend constant color (magenta is fun) */
     OUT_BATCH(BRW_3DSTATE_CONSTANT_COLOR | 3);
