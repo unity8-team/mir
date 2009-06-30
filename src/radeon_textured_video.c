@@ -142,6 +142,7 @@ static REF_TRANSFORM trans[2] =
 #define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
 #define OUT_ACCEL_REG(reg, val)	OUTREG(reg, val)
 #define OUT_ACCEL_REG_F(reg, val) OUTREG(reg, F_TO_DW(val))
+#define OUT_RELOC(x, read, write) do {} while(0)
 #define FINISH_ACCEL()
 
 #include "radeon_textured_videofuncs.c"
@@ -151,6 +152,7 @@ static REF_TRANSFORM trans[2] =
 #undef BEGIN_ACCEL
 #undef OUT_ACCEL_REG
 #undef OUT_ACCEL_REG_F
+#undef OUT_RELOC
 #undef FINISH_ACCEL
 
 #ifdef XF86DRI
@@ -164,6 +166,7 @@ static REF_TRANSFORM trans[2] =
 #define OUT_ACCEL_REG_F(reg, val)	OUT_ACCEL_REG(reg, F_TO_DW(val))
 #define FINISH_ACCEL()		ADVANCE_RING()
 #define OUT_RING_F(x) OUT_RING(F_TO_DW(x))
+#define OUT_RELOC(x, read, write) OUT_RING_RELOC(x, read, write)
 
 #include "radeon_textured_videofuncs.c"
 
@@ -323,6 +326,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 								size * 2, 64);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
+
+	if (info->cs)
+	    pPriv->src_bo = pPriv->video_memory;
     }
 
     /* Bicubic filter loading */
@@ -333,6 +339,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	pPriv->bicubic_src_offset = pPriv->bicubic_offset + info->fbLocation + pScrn->fbOffset;
 	if (pPriv->bicubic_offset == 0)
 		pPriv->bicubic_enabled = FALSE;
+
+	if (info->cs)
+	    pPriv->bicubic_bo = pPriv->bicubic_memory;
     }
 
     if (pDraw->type == DRAWABLE_WINDOW)
@@ -361,8 +370,18 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     top = (y1 >> 16) & ~1;
     nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 
-    pPriv->src_offset = pPriv->video_offset + info->fbLocation + pScrn->fbOffset;
-    pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset);
+    pPriv->src_offset = pPriv->video_offset;
+    if (info->cs) {
+	int ret;
+	radeon_bo_wait(pPriv->src_bo);
+	ret = radeon_bo_map(pPriv->src_bo, 1);
+	if (ret) 
+	    return BadAlloc;
+	
+	pPriv->src_addr = pPriv->src_bo->ptr;
+    } else {
+	pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset);
+    }
     pPriv->src_pitch = dstPitch;
 
     pPriv->planeu_offset = dstPitch * dst_height;
@@ -431,9 +450,23 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     /* Upload bicubic filter tex */
     if (pPriv->bicubic_enabled) {
-	if (info->ChipFamily < CHIP_FAMILY_R600)
-	    RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_512,
-			   (uint8_t *)(info->FB + pPriv->bicubic_offset), 1024, 1024, 1, 512, 2);
+	if (info->ChipFamily < CHIP_FAMILY_R600) {
+	    uint8_t *bicubic_addr;
+	    int ret;
+	    if (info->cs) {
+		radeon_bo_wait(pPriv->bicubic_bo);
+		ret = radeon_bo_map(pPriv->bicubic_bo, 1);
+		if (ret)
+		    return BadAlloc;
+		
+		bicubic_addr = pPriv->bicubic_bo->ptr;
+	    } else
+		bicubic_addr = (uint8_t *)(info->FB + pPriv->bicubic_offset);
+
+	    RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_512, bicubic_addr, 1024, 1024, 1, 512, 2);
+	   if (info->cs)
+	       radeon_bo_unmap(pPriv->bicubic_bo);
+	}
     }
 
     /* update cliplist */
@@ -453,6 +486,8 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->w = width;
     pPriv->h = height;
 
+    if (info->cs)
+	radeon_bo_unmap(pPriv->src_bo);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
 	if (IS_R600_3D)

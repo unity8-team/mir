@@ -297,7 +297,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     switch(pPriv->id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	accel_state->src_mc_addr[0] = pPriv->src_offset;
+	accel_state->src_mc_addr[0] = pPriv->src_offset + info->fbLocation + pScrn->fbOffset;
 	accel_state->src_size[0] = accel_state->src_pitch[0] * pPriv->h;
 
 	/* flush texture cache */
@@ -392,7 +392,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	accel_state->src_mc_addr[0] = pPriv->src_offset;
+	accel_state->src_mc_addr[0] = pPriv->src_offset + info->fbLocation + pScrn->fbOffset;
 	accel_state->src_size[0] = accel_state->src_pitch[0] * pPriv->h;
 
 	/* flush texture cache */

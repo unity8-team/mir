@@ -375,6 +375,9 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
+    if (info->cs)
+      return;
+
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "EngineRestore (%d/%d)\n",
 		   info->CurrentLayout.pixel_code,
@@ -421,6 +424,24 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     info->accel_state->XInited3D = FALSE;
 }
 
+static int RADEONDRMGetNumPipes(ScrnInfoPtr pScrn, int *num_pipes)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    if (info->dri->pKernelDRMVersion->version_major < 2) {
+        drm_radeon_getparam_t np;
+
+        memset(&np, 0, sizeof(np));
+        np.param = RADEON_PARAM_NUM_GB_PIPES;
+        np.value = num_pipes;
+        return drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_GETPARAM, &np, sizeof(np));
+    } else {
+        struct drm_radeon_info np2;
+        np2.value = (uint64_t)num_pipes;
+        np2.request = RADEON_INFO_NUM_GB_PIPES;
+        return drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &np2, sizeof(np2));
+    }
+}
+
 /* Initialize the acceleration hardware */
 void RADEONEngineInit(ScrnInfoPtr pScrn)
 {
@@ -436,15 +457,9 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 
 #ifdef XF86DRI
     if (info->directRenderingEnabled && (IS_R300_3D || IS_R500_3D)) {
-	drm_radeon_getparam_t np;
 	int num_pipes;
 
-	memset(&np, 0, sizeof(np));
-	np.param = RADEON_PARAM_NUM_GB_PIPES;
-	np.value = &num_pipes;
-
-	if (drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_GETPARAM, &np,
-				sizeof(np)) < 0) {
+	if(RADEONDRMGetNumPipes(pScrn, &num_pipes) < 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to determine num pipes from DRM, falling back to "
 		       "manual look-up!\n");
@@ -455,64 +470,67 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     }
 #endif
 
-    if ((info->ChipFamily == CHIP_FAMILY_RV410) ||
-	(info->ChipFamily == CHIP_FAMILY_R420)  ||
-	(info->ChipFamily == CHIP_FAMILY_RS600) ||
-	(info->ChipFamily == CHIP_FAMILY_RS690) ||
-	(info->ChipFamily == CHIP_FAMILY_RS740) ||
-	(info->ChipFamily == CHIP_FAMILY_RS400) ||
-	(info->ChipFamily == CHIP_FAMILY_RS480) ||
-	IS_R500_3D) {
-	if (info->accel_state->num_gb_pipes == 0) {
-	    uint32_t gb_pipe_sel = INREG(R400_GB_PIPE_SELECT);
+    if (!info->cs) {
+	if ((info->ChipFamily == CHIP_FAMILY_RV410) ||
+	    (info->ChipFamily == CHIP_FAMILY_R420)  ||
+	    (info->ChipFamily == CHIP_FAMILY_RS600) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS740) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS400) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS480) ||
+	    IS_R500_3D) {
+	    if (info->accel_state->num_gb_pipes == 0) {
+		uint32_t gb_pipe_sel = INREG(R400_GB_PIPE_SELECT);
 
-	    info->accel_state->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
-	    if (IS_R500_3D)
-		OUTPLL(pScrn, R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
-	}
-    } else {
-	if (info->accel_state->num_gb_pipes == 0) {
-	    if ((info->ChipFamily == CHIP_FAMILY_R300) ||
-		(info->ChipFamily == CHIP_FAMILY_R350)) {
-		/* R3xx chips */
-		info->accel_state->num_gb_pipes = 2;
-	    } else {
-		/* RV3xx chips */
-		info->accel_state->num_gb_pipes = 1;
+		info->accel_state->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
+		if (IS_R500_3D)
+		    OUTPLL(pScrn, R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
+	    }
+	} else {
+	    if (info->accel_state->num_gb_pipes == 0) {
+		if ((info->ChipFamily == CHIP_FAMILY_R300) ||
+		    (info->ChipFamily == CHIP_FAMILY_R350)) {
+		    /* R3xx chips */
+		    info->accel_state->num_gb_pipes = 2;
+		} else {
+		    /* RV3xx chips */
+		    info->accel_state->num_gb_pipes = 1;
+		}
 	    }
 	}
+
+	/* RV410 SE cards only have 1 quadpipe */
+	if ((info->Chipset == PCI_CHIP_RV410_5E4C) ||
+	    (info->Chipset == PCI_CHIP_RV410_5E4F))
+	    info->accel_state->num_gb_pipes = 1;
+
+	if (IS_R300_3D || IS_R500_3D)
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "num quad-pipes is %d\n", info->accel_state->num_gb_pipes);
+
+	if (IS_R300_3D || IS_R500_3D) {
+	    uint32_t gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
+	    
+	    switch(info->accel_state->num_gb_pipes) {
+	    case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;
+	    case 3: gb_tile_config |= R300_PIPE_COUNT_R420_3P; break;
+	    case 4: gb_tile_config |= R300_PIPE_COUNT_R420; break;
+	    default:
+	    case 1: gb_tile_config |= R300_PIPE_COUNT_RV350; break;
+	    }
+
+	    OUTREG(R300_GB_TILE_CONFIG, gb_tile_config);
+	    OUTREG(RADEON_WAIT_UNTIL, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
+	    if (info->ChipFamily >= CHIP_FAMILY_R420)
+		OUTREG(R300_DST_PIPE_CONFIG, INREG(R300_DST_PIPE_CONFIG) | R300_PIPE_AUTO_CONFIG);
+	    OUTREG(R300_RB2D_DSTCACHE_MODE, (INREG(R300_RB2D_DSTCACHE_MODE) |
+					     R300_DC_AUTOFLUSH_ENABLE |
+					     R300_DC_DC_DISABLE_IGNORE_PE));
+	} else
+	    OUTREG(RADEON_RB3D_CNTL, 0);
+	
+	RADEONEngineReset(pScrn);
     }
-
-    /* RV410 SE cards only have 1 quadpipe */
-    if ((info->Chipset == PCI_CHIP_RV410_5E4C) ||
-	(info->Chipset == PCI_CHIP_RV410_5E4F))
-	info->accel_state->num_gb_pipes = 1;
-
-    if (IS_R300_3D || IS_R500_3D)
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "num quad-pipes is %d\n", info->accel_state->num_gb_pipes);
-
-    if (IS_R300_3D || IS_R500_3D) {
-	uint32_t gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
-
-	switch(info->accel_state->num_gb_pipes) {
-	case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;
-	case 3: gb_tile_config |= R300_PIPE_COUNT_R420_3P; break;
-	case 4: gb_tile_config |= R300_PIPE_COUNT_R420; break;
-	default:
-	case 1: gb_tile_config |= R300_PIPE_COUNT_RV350; break;
-	}
-
-	OUTREG(R300_GB_TILE_CONFIG, gb_tile_config);
-	OUTREG(RADEON_WAIT_UNTIL, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
-	OUTREG(R300_DST_PIPE_CONFIG, INREG(R300_DST_PIPE_CONFIG) | R300_PIPE_AUTO_CONFIG);
-	OUTREG(R300_RB2D_DSTCACHE_MODE, (INREG(R300_RB2D_DSTCACHE_MODE) |
-					 R300_DC_AUTOFLUSH_ENABLE |
-					 R300_DC_DC_DISABLE_IGNORE_PE));
-    } else
-	OUTREG(RADEON_RB3D_CNTL, 0);
-
-    RADEONEngineReset(pScrn);
 
     switch (info->CurrentLayout.pixel_code) {
     case 8:  datatype = 2; break;
@@ -536,6 +554,24 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     RADEONEngineRestore(pScrn);
 }
 
+uint32_t radeonGetPixmapOffset(PixmapPtr pPix)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    uint32_t offset = 0;
+    if (info->cs)
+	return 0;
+#ifdef USE_EXA
+    if (info->useEXA) {
+	offset = exaGetPixmapOffset(pPix);
+    } else
+#endif
+    {
+	offset = pPix->devPrivate.ptr - info->FB;
+    }
+    offset += info->fbLocation + pScrn->fbOffset;
+    return offset;
+}
 
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()        unsigned char *RADEONMMIO = info->MMIO
@@ -620,6 +656,20 @@ int RADEONCPStop(ScrnInfoPtr pScrn, RADEONInfoPtr info)
     }
 }
 
+#define RADEON_IB_RESERVE (16 * sizeof(uint32_t))
+
+void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
+{
+#ifdef XF86DRM_MODE
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+
+    if (!info->cs->cdw)
+	return;
+    radeon_cs_emit(info->cs);
+    radeon_cs_erase(info->cs);
+#endif
+}
+
 /* Get an indirect buffer for the CP 2D acceleration commands  */
 drmBufPtr RADEONCPGetBuffer(ScrnInfoPtr pScrn)
 {
@@ -696,6 +746,7 @@ void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
     int                start  = info->cp->indirectStart;
     drm_radeon_indirect_t  indirect;
 
+    assert(!info->cs);
     if (!buffer) return;
     if (start == buffer->used && !discard) return;
 
@@ -745,6 +796,7 @@ void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn)
     int                start  = info->cp->indirectStart;
     drm_radeon_indirect_t  indirect;
 
+    assert(!info->cs);
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	if (buffer && (buffer->used & 0x3c)) {
 	    RING_LOCALS;

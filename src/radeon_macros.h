@@ -160,4 +160,41 @@ do {									\
 #define INPCIE_P(pScrn, addr) R600INPCIE_PORT(pScrn, addr)
 #define OUTPCIE_P(pScrn, addr, val) R600OUTPCIE_PORT(pScrn, addr, val)
 
+#define BEGIN_ACCEL_RELOC(n, r) do {		\
+	int _nqw = (n) + (info->cs ? (r) : 0);	\
+	BEGIN_ACCEL(_nqw);			\
+    } while (0)
+
+#define CHECK_OFFSET(pPix, mask, type) do {	\
+    if (!info->cs) {			       \
+	uint32_t _pix_offset = radeonGetPixmapOffset(pPix);	\
+	if ((_pix_offset & mask) != 0)					\
+	    RADEON_FALLBACK(("Bad %s offset 0x%x\n", type, (int)pix_offset)); \
+    }									\
+    } while(0)
+
+#define EMIT_OFFSET(reg, value, pPix, rd, wd) do {		\
+    if (info->cs) {						\
+	driver_priv = exaGetPixmapDriverPrivate(pPix);		\
+	OUT_ACCEL_REG((reg), 0);				\
+	OUT_RELOC(driver_priv->bo, (rd), (wd));			\
+    } else {							\
+	uint32_t _pix_offset;					\
+	_pix_offset = radeonGetPixmapOffset(pPix);	\
+	OUT_ACCEL_REG((reg), _pix_offset | value);		\
+    }								\
+    } while(0)
+
+#define EMIT_READ_OFFSET(reg, value, pPix) EMIT_OFFSET(reg, value, pPix, (RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT), 0)
+#define EMIT_WRITE_OFFSET(reg, value, pPix) EMIT_OFFSET(reg, value, pPix, 0, RADEON_GEM_DOMAIN_VRAM)
+
+#define OUT_TEXTURE_REG(reg, offset, bo) do {   \
+    if (info->cs) {                                                     \
+      OUT_ACCEL_REG((reg), (offset));                                   \
+      OUT_RELOC((bo), RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0); \
+    } else {                                                            \
+      OUT_ACCEL_REG((reg), (offset) + info->fbLocation + pScrn->fbOffset);} \
+  } while(0)
+
+
 #endif

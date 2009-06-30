@@ -120,6 +120,15 @@ static __inline__ uint32_t F_TO_DW(float val)
     return tmp.l;
 }
 
+static inline void radeon_add_pixmap(struct radeon_cs_space_check *bos, int index, PixmapPtr pPix, int read_domains, int write_domain)
+{
+    struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
+    bos[index].bo = driver_priv->bo;
+    bos[index].read_domains = read_domains;
+    bos[index].write_domain = write_domain;
+    bos[index].new_accounted = 0;
+}
+
 /* Assumes that depth 15 and 16 can be used as depth 16, which is okay since we
  * require src and dest datatypes to be equal.
  */
@@ -179,7 +188,6 @@ static Bool RADEONGetOffsetPitch(PixmapPtr pPix, int bpp, uint32_t *pitch_offset
 
 Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, uint32_t *pitch_offset)
 {
-	RINFO_FROM_SCREEN(pPix->drawable.pScreen);
 	uint32_t pitch, offset;
 	int bpp;
 
@@ -187,7 +195,7 @@ Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, uint32_t *pitch_offset)
 	if (bpp == 24)
 		bpp = 8;
 
-	offset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
+	offset = radeonGetPixmapOffset(pPix);
 	pitch = exaGetPixmapPitch(pPix);
 
 	return RADEONGetOffsetPitch(pPix, bpp, pitch_offset, offset, pitch);
@@ -224,7 +232,7 @@ int RADEONBiggerCrtcArea(PixmapPtr pPix)
 
 static unsigned long swapper_surfaces[6];
 
-static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
+static Bool RADEONPrepareAccess_BE(PixmapPtr pPix, int index)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -290,7 +298,7 @@ static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
     return TRUE;
 }
 
-static void RADEONFinishAccess(PixmapPtr pPix, int index)
+static void RADEONFinishAccess_BE(PixmapPtr pPix, int index)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -323,6 +331,123 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 
 #endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
+#ifdef XF86DRM_MODE
+static Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
+{
+    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
+    struct radeon_exa_pixmap_priv *driver_priv;
+    int ret;
+
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+    if (!driver_priv)
+      return FALSE;
+
+    /* if we have more refs than just the BO then flush */
+    if (driver_priv->bo->cref > 1)
+      RADEONCPFlushIndirect(pScrn, 0);
+    
+    radeon_bo_wait(driver_priv->bo);
+
+    /* flush IB */
+    ret = radeon_bo_map(driver_priv->bo, 1);
+    if (ret) {
+      FatalError("failed to map pixmap %d\n", ret);
+      return FALSE;
+    }
+
+    pPix->devPrivate.ptr = driver_priv->bo->ptr;
+
+    return TRUE;
+}
+
+static void RADEONFinishAccess_CS(PixmapPtr pPix, int index)
+{
+    struct radeon_exa_pixmap_priv *driver_priv;
+
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+    if (!driver_priv)
+        return;
+
+    radeon_bo_unmap(driver_priv->bo);
+    pPix->devPrivate.ptr = NULL;
+}
+
+
+void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_exa_pixmap_priv *new_priv;
+
+    new_priv = xcalloc(1, sizeof(struct radeon_exa_pixmap_priv));
+    if (!new_priv)
+	return NULL;
+
+    if (size == 0)
+	return new_priv;
+
+    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size,
+				align, 0, 0);
+    if (!new_priv->bo) {
+	xfree(new_priv);
+	ErrorF("Failed to alloc memory\n");
+	return NULL;
+    }
+    
+    return new_priv;
+
+}
+
+static void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_exa_pixmap_priv *driver_priv = driverPriv;
+
+    radeon_bo_unref(driver_priv->bo);
+    xfree(driverPriv);
+}
+
+struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_exa_pixmap_priv *driver_priv;
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+    return driver_priv->bo;
+}
+
+void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    struct radeon_exa_pixmap_priv *driver_priv;
+
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+    if (driver_priv) {
+	if (driver_priv->bo)
+	    radeon_bo_unref(driver_priv->bo);
+
+	radeon_bo_ref(bo);
+	driver_priv->bo = bo;
+    }
+}
+
+static Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
+{
+    struct radeon_exa_pixmap_priv *driver_priv;
+
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+
+    if (!driver_priv)
+       return FALSE;
+    if (driver_priv->bo)
+       return TRUE;
+    return FALSE;
+}
+#endif
+
 #define ENTER_DRAW(x) TRACE
 #define LEAVE_DRAW(x) TRACE
 /***********************************************************************/
@@ -332,6 +457,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 #define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
 #define OUT_ACCEL_REG(reg, val)	OUTREG(reg, val)
 #define OUT_ACCEL_REG_F(reg, val) OUTREG(reg, F_TO_DW(val))
+#define OUT_RELOC(x, read, write)            do {} while(0)
 #define FINISH_ACCEL()
 
 #ifdef RENDER
@@ -345,6 +471,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 #undef OUT_ACCEL_REG
 #undef OUT_ACCEL_REG_F
 #undef FINISH_ACCEL
+#undef OUT_RELOC
 
 #ifdef XF86DRI
 
@@ -355,6 +482,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 #define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
 #define OUT_ACCEL_REG(reg, val)	OUT_RING_REG(reg, val)
 #define FINISH_ACCEL()		ADVANCE_RING()
+#define OUT_RELOC(x, read, write) OUT_RING_RELOC(x, read, write)
 
 #define OUT_RING_F(x) OUT_RING(F_TO_DW(x))
 
@@ -523,6 +651,10 @@ RADEONTexOffsetStart(PixmapPtr pPix)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     unsigned long long offset;
+
+    if (exaGetPixmapDriverPrivate(pPix))
+	return -1;
+
     exaMoveInPixmap(pPix);
     ExaOffscreenMarkUsed(pPix);
 

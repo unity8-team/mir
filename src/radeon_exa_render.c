@@ -365,13 +365,14 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     Bool repeat = pPict->repeat && pPict->repeatType != RepeatPad &&
 	!(unit == 0 && (info->accel_state->need_src_tile_x || info->accel_state->need_src_tile_y));
     int i;
+    struct radeon_exa_pixmap_priv *driver_priv;
     ACCEL_PREAMBLE();
 
     txpitch = exaGetPixmapPitch(pPix);
-    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
+    txoffset = 0;
 
-    if ((txoffset & 0x1f) != 0)
-	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
+    CHECK_OFFSET(pPix, 0x1f, "texture");
+
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
 
@@ -426,23 +427,27 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	}
     }
 
-    BEGIN_ACCEL(5);
+    BEGIN_ACCEL_RELOC(5, 1);
     if (unit == 0) {
 	OUT_ACCEL_REG(RADEON_PP_TXFILTER_0, txfilter);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat);
-	OUT_ACCEL_REG(RADEON_PP_TXOFFSET_0, txoffset);
 	OUT_ACCEL_REG(RADEON_PP_TEX_SIZE_0,
 	    (pPix->drawable.width - 1) |
 	    ((pPix->drawable.height - 1) << RADEON_TEX_VSIZE_SHIFT));
 	OUT_ACCEL_REG(RADEON_PP_TEX_PITCH_0, txpitch - 32);
+
+	EMIT_READ_OFFSET(RADEON_PP_TXOFFSET_0, txoffset, pPix);
+	/* emit a texture relocation */
     } else {
 	OUT_ACCEL_REG(RADEON_PP_TXFILTER_1, txfilter);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_1, txformat);
-	OUT_ACCEL_REG(RADEON_PP_TXOFFSET_1, txoffset);
+
 	OUT_ACCEL_REG(RADEON_PP_TEX_SIZE_1,
 	    (pPix->drawable.width - 1) |
 	    ((pPix->drawable.height - 1) << RADEON_TEX_VSIZE_SHIFT));
 	OUT_ACCEL_REG(RADEON_PP_TEX_PITCH_1, txpitch - 32);
+	EMIT_READ_OFFSET(RADEON_PP_TXOFFSET_1, txoffset, pPix);
+	/* emit a texture relocation */
     }
     FINISH_ACCEL();
 
@@ -548,9 +553,13 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 					    PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    uint32_t dst_format, dst_offset, dst_pitch, colorpitch;
+    uint32_t dst_format, dst_pitch, colorpitch;
     uint32_t pp_cntl, blendcntl, cblend, ablend;
     int pixel_shift;
+    struct radeon_exa_pixmap_priv *driver_priv;
+    int retry_count = 0;
+    struct radeon_cs_space_check bos[3];
+    int i, ret;
     ACCEL_PREAMBLE();
 
     TRACE;
@@ -568,23 +577,44 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
-    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     dst_pitch = exaGetPixmapPitch(pDst);
     colorpitch = dst_pitch >> pixel_shift;
     if (RADEONPixmapIsColortiled(pDst))
 	colorpitch |= RADEON_COLOR_TILE_ENABLE;
 
-    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
-    dst_pitch = exaGetPixmapPitch(pDst);
-    if ((dst_offset & 0x0f) != 0)
-	RADEON_FALLBACK(("Bad destination offset 0x%x\n", (int)dst_offset));
+    CHECK_OFFSET(pDst, 0x0f, "destination");
+
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
+    /* switch to 3D before doing buffer space checks as it may flush */
+    RADEON_SWITCH_TO_3D();
+ retry:
+    if (info->cs) {
+      
+	i = 0;
+	radeon_add_pixmap(bos, i++, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	if (pMask)
+	    radeon_add_pixmap(bos, i++, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	radeon_add_pixmap(bos, i++, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+
+	ret = radeon_cs_space_check(info->cs, bos, i);
+	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
+	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
+	}
+	if (ret == RADEON_CS_SPACE_FLUSH) {
+	    radeon_cs_flush_indirect(pScrn);
+	    retry_count++;
+	    if (retry_count == 2)
+	        RADEON_FALLBACK(("Not enough Video RAM for src\n"));
+	    goto retry;
+	}
+    }
+
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, FALSE, TRUE))
 	return FALSE;
-
-    RADEON_SWITCH_TO_3D();
 
     if (!FUNC_NAME(R100TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -598,10 +628,10 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 	info->accel_state->is_transform[1] = FALSE;
     }
 
-    BEGIN_ACCEL(10);
+    BEGIN_ACCEL_RELOC(10, 1);
     OUT_ACCEL_REG(RADEON_PP_CNTL, pp_cntl);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, dst_format | RADEON_ALPHA_BLEND_ENABLE);
-    OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, dst_offset);
+    EMIT_WRITE_OFFSET(RADEON_RB3D_COLOROFFSET, 0, pDst);
     OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, colorpitch);
 
     /* IN operator: Multiply src by mask components or mask alpha.
@@ -705,13 +735,14 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     Bool repeat = pPict->repeat && pPict->repeatType != RepeatPad &&
 	!(unit == 0 && (info->accel_state->need_src_tile_x || info->accel_state->need_src_tile_y));
     int i;
+    struct radeon_exa_pixmap_priv *driver_priv;
     ACCEL_PREAMBLE();
 
     txpitch = exaGetPixmapPitch(pPix);
-    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
 
-    if ((txoffset & 0x1f) != 0)
-	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
+    txoffset = 0;
+    CHECK_OFFSET(pPix, 0x1f, "texture");
+
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
 
@@ -768,7 +799,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	}
     }
 
-    BEGIN_ACCEL(6);
+    BEGIN_ACCEL_RELOC(6, 1);
     if (unit == 0) {
 	OUT_ACCEL_REG(R200_PP_TXFILTER_0, txfilter);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_0, txformat);
@@ -776,7 +807,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	OUT_ACCEL_REG(R200_PP_TXSIZE_0, (pPix->drawable.width - 1) |
 		      ((pPix->drawable.height - 1) << RADEON_TEX_VSIZE_SHIFT));
 	OUT_ACCEL_REG(R200_PP_TXPITCH_0, txpitch - 32);
-	OUT_ACCEL_REG(R200_PP_TXOFFSET_0, txoffset);
+	EMIT_READ_OFFSET(R200_PP_TXOFFSET_0, txoffset, pPix);
     } else {
 	OUT_ACCEL_REG(R200_PP_TXFILTER_1, txfilter);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_1, txformat);
@@ -784,7 +815,8 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	OUT_ACCEL_REG(R200_PP_TXSIZE_1, (pPix->drawable.width - 1) |
 		      ((pPix->drawable.height - 1) << RADEON_TEX_VSIZE_SHIFT));
 	OUT_ACCEL_REG(R200_PP_TXPITCH_1, txpitch - 32);
-	OUT_ACCEL_REG(R200_PP_TXOFFSET_1, txoffset);
+	EMIT_READ_OFFSET(R200_PP_TXOFFSET_1, txoffset, pPix);
+	/* emit a texture relocation */
     }
     FINISH_ACCEL();
 
@@ -878,9 +910,13 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    uint32_t dst_format, dst_offset, dst_pitch;
+    uint32_t dst_format, dst_pitch;
     uint32_t pp_cntl, blendcntl, cblend, ablend, colorpitch;
     int pixel_shift;
+    struct radeon_exa_pixmap_priv *driver_priv;
+    int retry_count = 0;
+    struct radeon_cs_space_check bos[3];
+    int i, ret;
     ACCEL_PREAMBLE();
 
     TRACE;
@@ -898,21 +934,44 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
-    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     dst_pitch = exaGetPixmapPitch(pDst);
     colorpitch = dst_pitch >> pixel_shift;
     if (RADEONPixmapIsColortiled(pDst))
 	colorpitch |= RADEON_COLOR_TILE_ENABLE;
 
-    if ((dst_offset & 0x0f) != 0)
-	RADEON_FALLBACK(("Bad destination offset 0x%x\n", (int)dst_offset));
+    CHECK_OFFSET(pDst, 0xf, "destination");
+
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
+    /* switch to 3D before doing buffer space checks as it may flush */
+    RADEON_SWITCH_TO_3D();
+
+ retry:
+    if (info->cs) {
+      
+	i = 0;
+	radeon_add_pixmap(bos, i++, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	if (pMask)
+	    radeon_add_pixmap(bos, i++, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	radeon_add_pixmap(bos, i++, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+
+	ret = radeon_cs_space_check(info->cs, bos, i);
+	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
+	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
+	}
+	if (ret == RADEON_CS_SPACE_FLUSH) {
+	    radeon_cs_flush_indirect(pScrn);
+	    retry_count++;
+	    if (retry_count == 2)
+	        RADEON_FALLBACK(("Not enough Video RAM for src\n"));
+	    goto retry;
+	}
+    }
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, FALSE, TRUE))
 	return FALSE;
-
-    RADEON_SWITCH_TO_3D();
 
     if (!FUNC_NAME(R200TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -926,11 +985,12 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 	info->accel_state->is_transform[1] = FALSE;
     }
 
-    BEGIN_ACCEL(13);
+    BEGIN_ACCEL_RELOC(13, 1);
 
     OUT_ACCEL_REG(RADEON_PP_CNTL, pp_cntl);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, dst_format | RADEON_ALPHA_BLEND_ENABLE);
-    OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, dst_offset);
+
+    EMIT_WRITE_OFFSET(RADEON_RB3D_COLOROFFSET, 0, pDst);
 
     OUT_ACCEL_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
     if (pMask)
@@ -1004,6 +1064,10 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
 				      int unit,
 				      Bool is_r500)
 {
+    ScreenPtr pScreen = pDstPict->pDrawable->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
@@ -1029,8 +1093,17 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
 	RADEON_FALLBACK(("Unsupported picture format 0x%x\n",
 			 (int)pPict->format));
 
-    if (!RADEONCheckTexturePOT(pPict, unit == 0))
+    if (!RADEONCheckTexturePOT(pPict, unit == 0)) {
+	if (info->cs) {
+    		struct radeon_exa_pixmap_priv *driver_priv;
+		PixmapPtr pPix;
+
+    		pPix = RADEONGetDrawablePixmap(pPict->pDrawable);
+		driver_priv = exaGetPixmapDriverPrivate(pPix);
+		//TODOradeon_bufmgr_gem_force_gtt(driver_priv->bo);
+	}
 	return FALSE;
+    }
 
     if (pPict->filter != PictFilterNearest &&
 	pPict->filter != PictFilterBilinear)
@@ -1062,15 +1135,16 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i, pixel_shift;
+    struct radeon_exa_pixmap_priv *driver_priv;
     ACCEL_PREAMBLE();
 
     TRACE;
 
     txpitch = exaGetPixmapPitch(pPix);
-    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
+    txoffset = 0;
 
-    if ((txoffset & 0x1f) != 0)
-	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
+    CHECK_OFFSET(pPix, 0x1f, "texture");
+
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
 
@@ -1156,13 +1230,15 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    BEGIN_ACCEL(pPict->repeat ? 6 : 7);
+    BEGIN_ACCEL_RELOC(pPict->repeat ? 6 : 7, 1);
     OUT_ACCEL_REG(R300_TX_FILTER0_0 + (unit * 4), txfilter);
     OUT_ACCEL_REG(R300_TX_FILTER1_0 + (unit * 4), 0);
     OUT_ACCEL_REG(R300_TX_FORMAT0_0 + (unit * 4), txformat0);
     OUT_ACCEL_REG(R300_TX_FORMAT1_0 + (unit * 4), txformat1);
     OUT_ACCEL_REG(R300_TX_FORMAT2_0 + (unit * 4), txpitch);
-    OUT_ACCEL_REG(R300_TX_OFFSET_0 + (unit * 4), txoffset);
+
+    EMIT_READ_OFFSET((R300_TX_OFFSET_0 + (unit * 4)), txoffset, pPix);
+
     if (!pPict->repeat)
 	OUT_ACCEL_REG(R300_TX_BORDER_COLOR_0 + (unit * 4), 0);
     FINISH_ACCEL();
@@ -1321,14 +1397,18 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    uint32_t dst_format, dst_offset, dst_pitch;
+    uint32_t dst_format, dst_pitch;
     uint32_t txenable, colorpitch;
     uint32_t blendcntl, output_fmt;
     uint32_t src_color, src_alpha;
     uint32_t mask_color, mask_alpha;
     int pixel_shift;
+    int ret;
+    int retry_count = 0;
+    struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_cs_space_check bos[3];
+    int i;
     ACCEL_PREAMBLE();
-
     TRACE;
 
     if (!R300GetDestFormat(pDstPicture, &dst_format))
@@ -1341,7 +1421,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
-    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     dst_pitch = exaGetPixmapPitch(pDst);
     colorpitch = dst_pitch >> pixel_shift;
 
@@ -1350,15 +1429,40 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     colorpitch |= dst_format;
 
-    if ((dst_offset & 0x0f) != 0)
-	RADEON_FALLBACK(("Bad destination offset 0x%x\n", (int)dst_offset));
+    CHECK_OFFSET(pDst, 0x0f, "destination");
+
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
+    /* have to execute switch before doing buffer sizing check as it flushes */
+    RADEON_SWITCH_TO_3D();
+ retry:
+    if (info->cs) {
+      
+	i = 0;
+	driver_priv = exaGetPixmapDriverPrivate(pSrc);
+	radeon_add_pixmap(bos, i++, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	if (pMask)
+	    radeon_add_pixmap(bos, i++, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	radeon_add_pixmap(bos, i++, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+
+	ret = radeon_cs_space_check(info->cs, bos, i);
+	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
+	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
+	}
+	if (ret == RADEON_CS_SPACE_FLUSH) {
+            radeon_cs_flush_indirect(pScrn);
+	    retry_count++;
+	    if (retry_count == 2)
+	        RADEON_FALLBACK(("Not enough Video RAM - this really shouldn't happen\nm"));
+	    goto retry;
+	}
+    }
+
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, TRUE, FALSE))
 	return FALSE;
-
-    RADEON_SWITCH_TO_3D();
 
     if (!FUNC_NAME(R300TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -1945,9 +2049,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     }
     FINISH_ACCEL();
 
-    BEGIN_ACCEL(3);
-
-    OUT_ACCEL_REG(R300_RB3D_COLOROFFSET0, dst_offset);
+    
+    BEGIN_ACCEL_RELOC(3, 1);
+    EMIT_WRITE_OFFSET(R300_RB3D_COLOROFFSET0, 0, pDst);
     OUT_ACCEL_REG(R300_RB3D_COLORPITCH0, colorpitch);
 
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);

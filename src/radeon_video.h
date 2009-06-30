@@ -120,6 +120,9 @@ typedef struct {
     int drw_x, drw_y;
     int src_x, src_y;
     int vsync;
+
+    struct radeon_bo *src_bo;
+    struct radeon_bo *bicubic_bo;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 
 /* Reference color space transform data */

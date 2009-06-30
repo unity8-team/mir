@@ -74,6 +74,9 @@ FUNC_NAME(RADEONSync)(ScreenPtr pScreen, int marker)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    if (info->cs)
+	    return;
+
     TRACE;
 
     if (info->accel_state->exaMarkerSynced != marker) {
@@ -84,11 +87,60 @@ FUNC_NAME(RADEONSync)(ScreenPtr pScreen, int marker)
     RADEONPTR(pScrn)->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 }
 
+static void FUNC_NAME(Emit2DState)(ScrnInfoPtr pScrn, int op)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    int has_src;
+    ACCEL_PREAMBLE();
+
+    /* don't emit if no operation in progress */
+    if (info->state_2d.op == 0 && op == 0)
+	return;
+
+    has_src = info->state_2d.src_pitch_offset || (info->cs && info->state_2d.src_bo);
+
+    if (has_src) {
+      BEGIN_ACCEL_RELOC(10, 2);
+    } else {
+      BEGIN_ACCEL_RELOC(9, 1);
+    }
+    OUT_ACCEL_REG(RADEON_DEFAULT_SC_BOTTOM_RIGHT, info->state_2d.default_sc_bottom_right);
+    OUT_ACCEL_REG(RADEON_DP_GUI_MASTER_CNTL, info->state_2d.dp_gui_master_cntl);
+    OUT_ACCEL_REG(RADEON_DP_BRUSH_FRGD_CLR, info->state_2d.dp_brush_frgd_clr);
+    OUT_ACCEL_REG(RADEON_DP_BRUSH_BKGD_CLR, info->state_2d.dp_brush_bkgd_clr);
+    OUT_ACCEL_REG(RADEON_DP_SRC_FRGD_CLR,   info->state_2d.dp_src_frgd_clr);
+    OUT_ACCEL_REG(RADEON_DP_SRC_BKGD_CLR,   info->state_2d.dp_src_bkgd_clr);
+    OUT_ACCEL_REG(RADEON_DP_WRITE_MASK, info->state_2d.dp_write_mask);
+    OUT_ACCEL_REG(RADEON_DP_CNTL, info->state_2d.dp_cntl);
+
+    OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, info->state_2d.dst_pitch_offset);
+    if (info->cs)
+	OUT_RELOC(info->state_2d.dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
+
+    if (has_src) {
+	    OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, info->state_2d.src_pitch_offset);
+	    if (info->cs)
+		OUT_RELOC(info->state_2d.src_bo, RADEON_GEM_DOMAIN_GTT|RADEON_GEM_DOMAIN_VRAM, 0);
+	    
+    }
+    FINISH_ACCEL();
+
+    if (op)
+	info->state_2d.op = op;
+    if (info->cs)
+	info->reemit_current2d = FUNC_NAME(Emit2DState);
+}
+
 static Bool
 FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     uint32_t datatype, dst_pitch_offset;
+    struct radeon_exa_pixmap_priv *driver_priv;
+    int ret;
+    int retry_count = 0;
+    struct radeon_cs_space_check bos[1];
+    int i;
     ACCEL_PREAMBLE();
 
     TRACE;
@@ -101,21 +153,54 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	RADEON_FALLBACK(("RADEONGetPixmapOffsetPitch failed\n"));
 
     RADEON_SWITCH_TO_2D();
+ retry:
+    if (info->cs) {
+      
+	i = 0;
+	driver_priv = exaGetPixmapDriverPrivate(pPix);
+	bos[i].bo = driver_priv->bo;
+	bos[i].read_domains = 0;
+	bos[i].write_domain = RADEON_GEM_DOMAIN_VRAM;;
+	bos[i].new_accounted = 0;
+	i++;
 
-    BEGIN_ACCEL(5);
-    OUT_ACCEL_REG(RADEON_DP_GUI_MASTER_CNTL,
-	    RADEON_GMC_DST_PITCH_OFFSET_CNTL |
-	    RADEON_GMC_BRUSH_SOLID_COLOR |
-	    (datatype << 8) |
-	    RADEON_GMC_SRC_DATATYPE_COLOR |
-	    RADEON_ROP[alu].pattern |
-	    RADEON_GMC_CLR_CMP_CNTL_DIS);
-    OUT_ACCEL_REG(RADEON_DP_BRUSH_FRGD_CLR, fg);
-    OUT_ACCEL_REG(RADEON_DP_WRITE_MASK, pm);
-    OUT_ACCEL_REG(RADEON_DP_CNTL,
-	(RADEON_DST_X_LEFT_TO_RIGHT | RADEON_DST_Y_TOP_TO_BOTTOM));
-    OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
-    FINISH_ACCEL();
+	ret = radeon_cs_space_check(info->cs, bos, i);
+	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
+	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
+	}
+	if (ret == RADEON_CS_SPACE_FLUSH) {
+	    radeon_cs_flush_indirect(pScrn);
+	    retry_count++;
+	    if (retry_count == 2)
+	        RADEON_FALLBACK(("Not enough Video RAM for src\n"));
+	    goto retry;
+	}
+    }
+
+
+    info->state_2d.default_sc_bottom_right = (RADEON_DEFAULT_SC_RIGHT_MAX |
+					       RADEON_DEFAULT_SC_BOTTOM_MAX);
+    info->state_2d.dp_brush_bkgd_clr = 0x00000000;
+    info->state_2d.dp_src_frgd_clr = 0xffffffff;
+    info->state_2d.dp_src_bkgd_clr = 0x00000000;
+    info->state_2d.dp_gui_master_cntl = (RADEON_GMC_DST_PITCH_OFFSET_CNTL |
+					  RADEON_GMC_BRUSH_SOLID_COLOR |
+					  (datatype << 8) |
+					  RADEON_GMC_SRC_DATATYPE_COLOR |
+					  RADEON_ROP[alu].pattern |
+					  RADEON_GMC_CLR_CMP_CNTL_DIS);
+    info->state_2d.dp_brush_frgd_clr = fg;
+    info->state_2d.dp_cntl = (RADEON_DST_X_LEFT_TO_RIGHT | RADEON_DST_Y_TOP_TO_BOTTOM);
+    info->state_2d.dp_write_mask = pm;
+    info->state_2d.dst_pitch_offset = dst_pitch_offset;
+    info->state_2d.src_pitch_offset = 0;
+    info->state_2d.src_bo = NULL;
+
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+    if (driver_priv)
+      info->state_2d.dst_bo = driver_priv->bo;
+
+    FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
 
     return TRUE;
 }
@@ -146,6 +231,7 @@ FUNC_NAME(RADEONDone2D)(PixmapPtr pPix)
 
     TRACE;
 
+    info->state_2d.op = 0;
     BEGIN_ACCEL(2);
     OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
     OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
@@ -161,25 +247,28 @@ FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     ACCEL_PREAMBLE();
 
-    RADEON_SWITCH_TO_2D();
+    /* setup 2D state */
+    info->state_2d.dp_gui_master_cntl = (RADEON_GMC_DST_PITCH_OFFSET_CNTL |
+					  RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
+					  RADEON_GMC_BRUSH_NONE |
+					  (datatype << 8) |
+					  RADEON_GMC_SRC_DATATYPE_COLOR |
+					  RADEON_ROP[rop].rop |
+					  RADEON_DP_SRC_SOURCE_MEMORY |
+					  RADEON_GMC_CLR_CMP_CNTL_DIS);
+    info->state_2d.dp_cntl = ((info->accel_state->xdir >= 0 ? RADEON_DST_X_LEFT_TO_RIGHT : 0) |
+			       (info->accel_state->ydir >= 0 ? RADEON_DST_Y_TOP_TO_BOTTOM : 0));
+    info->state_2d.dp_brush_frgd_clr = 0xffffffff;
+    info->state_2d.dp_brush_bkgd_clr = 0x00000000;
+    info->state_2d.dp_src_frgd_clr = 0xffffffff;
+    info->state_2d.dp_src_bkgd_clr = 0x00000000;
+    info->state_2d.dp_write_mask = planemask;
+    info->state_2d.dst_pitch_offset = dst_pitch_offset;
+    info->state_2d.src_pitch_offset = src_pitch_offset;
+    info->state_2d.default_sc_bottom_right =  (RADEON_DEFAULT_SC_RIGHT_MAX
+						| RADEON_DEFAULT_SC_BOTTOM_MAX);
 
-    BEGIN_ACCEL(5);
-    OUT_ACCEL_REG(RADEON_DP_GUI_MASTER_CNTL,
-	RADEON_GMC_DST_PITCH_OFFSET_CNTL |
-	RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
-	RADEON_GMC_BRUSH_NONE |
-	(datatype << 8) |
-	RADEON_GMC_SRC_DATATYPE_COLOR |
-	RADEON_ROP[rop].rop |
-	RADEON_DP_SRC_SOURCE_MEMORY |
-	RADEON_GMC_CLR_CMP_CNTL_DIS);
-    OUT_ACCEL_REG(RADEON_DP_WRITE_MASK, planemask);
-    OUT_ACCEL_REG(RADEON_DP_CNTL,
-	((info->accel_state->xdir >= 0 ? RADEON_DST_X_LEFT_TO_RIGHT : 0) |
-	 (info->accel_state->ydir >= 0 ? RADEON_DST_Y_TOP_TO_BOTTOM : 0)));
-    OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
-    OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, src_pitch_offset);
-    FINISH_ACCEL();
+    FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_COPY);
 }
 
 static Bool
@@ -190,8 +279,41 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     uint32_t datatype, src_pitch_offset, dst_pitch_offset;
-
+    struct radeon_exa_pixmap_priv *driver_priv;
+    int ret;
+    int retry_count = 0;
+    struct radeon_cs_space_check bos[2];
+    int i;
     TRACE;
+
+    RADEON_SWITCH_TO_2D();
+retry:
+    if (info->cs) {
+      
+	driver_priv = exaGetPixmapDriverPrivate(pSrc);
+	info->state_2d.src_bo = driver_priv->bo;
+
+	driver_priv = exaGetPixmapDriverPrivate(pDst);
+	info->state_2d.dst_bo = driver_priv->bo;
+
+	i = 0;
+	radeon_add_pixmap(bos, i++, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	radeon_add_pixmap(bos, i++, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+
+	ret = radeon_cs_space_check(info->cs, bos, i);
+	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
+	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
+	}
+	if (ret == RADEON_CS_SPACE_FLUSH) {
+	    radeon_cs_flush_indirect(pScrn);
+	    retry_count++;
+	    if (retry_count == 2)
+	        RADEON_FALLBACK(("Not enough Video RAM for src\n"));
+	    goto retry;
+	}
+    }
+
 
     info->accel_state->xdir = xdir;
     info->accel_state->ydir = ydir;
@@ -255,6 +377,9 @@ RADEONUploadToScreenCP(PixmapPtr pDst, int x, int y, int w, int h,
     uint32_t	   buf_pitch, dst_pitch_off;
 
     TRACE;
+
+    if (info->cs)
+	return FALSE;
 
     if (bpp < 8)
 	return FALSE;
@@ -458,9 +583,9 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 #endif
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    info->accel_state->exa->PrepareAccess = RADEONPrepareAccess;
-    info->accel_state->exa->FinishAccess = RADEONFinishAccess;
-#endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
+    info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_BE;
+    info->accel_state->exa->FinishAccess = RADEONFinishAccess_BE;
+#endif
 
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
 #ifdef EXA_SUPPORTS_PREPARE_AUX
@@ -472,6 +597,10 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 #endif
     info->accel_state->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
     info->accel_state->exa->pixmapPitchAlign = 64;
+
+    if (info->cs)
+      info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
+
 
 #ifdef RENDER
     if (info->RenderAccel) {
@@ -509,6 +638,19 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 	}
     }
 #endif
+
+#ifdef XF86DRM_MODE
+#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 4)
+    if (info->cs) {
+        info->accel_state->exa->CreatePixmap = RADEONEXACreatePixmap;
+        info->accel_state->exa->DestroyPixmap = RADEONEXADestroyPixmap;
+        info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
+	info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;
+	info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
+    }
+#endif
+#endif
+
 
 #if EXA_VERSION_MAJOR > 2 || (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 3)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting EXA maxPitchBytes\n");

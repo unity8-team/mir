@@ -31,6 +31,7 @@ AM_CONFIG_HEADER([config.h])
 AC_CONFIG_AUX_DIR(.)
 
 AM_INIT_AUTOMAKE([dist-bzip2])
+AC_SYS_LARGEFILE
 
 AM_MAINTAINER_MODE
 
@@ -114,6 +115,22 @@ if test "$DRI" = yes; then
 	if test "$have_damage_h" = yes; then
 		AC_DEFINE(DAMAGE,1,[Use Damage extension])
 	fi
+
+        save_CFLAGS="$CFLAGS"
+        CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $CFLAGS"
+#	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
+	DRM_MODE=no
+#include <stdlib.h>])
+	 if test "x$DRM_MODE" = xyes; then
+		PKG_CHECK_MODULES(LIBDRM_RADEON, [xorg-server >= 1.6 libdrm_radeon],
+		[LIBDRM_RADEON=yes], [LIBDRM_RADEON=no])
+		
+		if test "x$LIBDRM_RADEON" = xyes; then
+			AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
+			AC_DEFINE(DRI2, 1,[Enable DRI2 code])
+		fi
+        fi
+	CFLAGS="$save_CFLAGS"
 fi
 
 save_CFLAGS="$CFLAGS"
@@ -310,6 +327,8 @@ esac
 
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([DRI_CFLAGS])
+AC_SUBST([LIBDRM_RADEON_CFLAGS])
+AC_SUBST([LIBDRM_RADEON_LIBS])
 AC_SUBST([moduledir])
 
 DRIVER_NAME=ati
@@ -336,3 +355,25 @@ AC_OUTPUT([
 	src/Makefile
 	man/Makefile
 ])
+
+dnl
+dnl Output some configuration info for the user
+dnl
+echo ""
+echo "        prefix:              $prefix"
+echo "        exec_prefix:         $exec_prefix"
+echo "        libdir:              $libdir"
+echo "        includedir:          $includedir"
+
+
+echo ""
+echo "        Kernel modesetting:  $DRM_MODE"
+
+echo ""
+echo "        CFLAGS:              $CFLAGS"
+echo "        CXXFLAGS:            $CXXFLAGS"
+echo "        Macros:              $DEFINES"
+
+echo ""
+echo "        Run '${MAKE-make}' to build xf86-video-ati"
+echo ""
