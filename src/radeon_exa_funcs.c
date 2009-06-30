@@ -141,7 +141,6 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     int retry_count = 0;
     struct radeon_cs_space_check bos[1];
     int i;
-    ACCEL_PREAMBLE();
 
     TRACE;
 
@@ -245,7 +244,6 @@ FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
 			       Pixel planemask)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    ACCEL_PREAMBLE();
 
     /* setup 2D state */
     info->state_2d.dp_gui_master_cntl = (RADEON_GMC_DST_PITCH_OFFSET_CNTL |

@@ -436,7 +436,7 @@ static int RADEONDRMGetNumPipes(ScrnInfoPtr pScrn, int *num_pipes)
         return drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_GETPARAM, &np, sizeof(np));
     } else {
         struct drm_radeon_info np2;
-        np2.value = (uint64_t)num_pipes;
+        np2.value = (unsigned long)num_pipes;
         np2.request = RADEON_INFO_NUM_GB_PIPES;
         return drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &np2, sizeof(np2));
     }
