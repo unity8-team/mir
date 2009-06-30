@@ -180,6 +180,9 @@ drmmode_fb_copy(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int dst_id, int src_id,
 	PixmapPtr pspix, pdpix;
 	unsigned w = -1, h = -1;
 
+	if (!src_id || !dst_id)
+		return;
+
 	pspix = drmmode_fb_pixmap(pScrn, src_id, &w, &h);
 	if (!pspix)
 		return;
