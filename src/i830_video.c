@@ -92,7 +92,7 @@ static void I830InitOffscreenImages(ScreenPtr);
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr);
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr);
 static void I830StopVideo(ScrnInfoPtr, pointer, Bool);
-static int I830SetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
+static int I830SetPortAttributeOverlay(ScrnInfoPtr, Atom, INT32, pointer);
 static int I830SetPortAttributeTextured(ScrnInfoPtr, Atom, INT32, pointer);
 static int I830GetPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 static void I830QueryBestSize(ScrnInfoPtr, Bool,
@@ -782,10 +782,24 @@ static uint32_t I830BoundGammaElt (uint32_t elt, uint32_t eltPrev)
 
 static uint32_t I830BoundGamma (uint32_t gamma, uint32_t gammaPrev)
 {
-    return (I830BoundGammaElt (gamma >> 24, gammaPrev >> 24) << 24 |
-	    I830BoundGammaElt (gamma >> 16, gammaPrev >> 16) << 16 |
+    return (I830BoundGammaElt (gamma >> 16, gammaPrev >> 16) << 16 |
 	    I830BoundGammaElt (gamma >>  8, gammaPrev >>  8) <<  8 |
 	    I830BoundGammaElt (gamma      , gammaPrev      ));
+}
+
+static uint32_t I830Gamma5Errata(uint32_t gamma)
+{
+    int i;
+
+    for (i = 0; i < 3; i++) {
+	if ((gamma >> i*8 & 0xff) == 0x80) {
+	    /* According to Intel docs, overlay fails if GAMMA5 is 0x80.
+	     * In this case, change the value to 0x81 */
+	    gamma += 1 << i*8;
+	}
+    }
+
+    return gamma;
 }
 
 static void
@@ -809,6 +823,7 @@ I830UpdateGamma(ScrnInfoPtr pScrn)
     gamma3 = I830BoundGamma (gamma3, gamma2);
     gamma4 = I830BoundGamma (gamma4, gamma3);
     gamma5 = I830BoundGamma (gamma5, gamma4);
+    gamma5 = I830Gamma5Errata(gamma5);
 #if 0
     ErrorF ("Bounded  gamma: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
 	    gamma0, gamma1, gamma2, gamma3, gamma4, gamma5);
@@ -877,7 +892,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
     adapt->GetVideo = NULL;
     adapt->GetStill = NULL;
     adapt->StopVideo = I830StopVideo;
-    adapt->SetPortAttribute = I830SetPortAttribute;
+    adapt->SetPortAttribute = I830SetPortAttributeOverlay;
     adapt->GetPortAttribute = I830GetPortAttribute;
     adapt->QueryBestSize = I830QueryBestSize;
     adapt->PutImage = I830PutImage;
@@ -1083,7 +1098,7 @@ I830SetPortAttributeTextured(ScrnInfoPtr pScrn,
 }
 
 static int
-I830SetPortAttribute(ScrnInfoPtr pScrn,
+I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 		     Atom attribute, INT32 value, pointer data)
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
@@ -2775,7 +2790,7 @@ I830GetSurfaceAttribute(ScrnInfoPtr pScrn, Atom attribute, INT32 * value)
 static int
 I830SetSurfaceAttribute(ScrnInfoPtr pScrn, Atom attribute, INT32 value)
 {
-    return I830SetPortAttribute(pScrn, attribute, value, NULL);
+    return I830SetPortAttributeOverlay(pScrn, attribute, value, NULL);
 }
 
 static int
