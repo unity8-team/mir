@@ -44,6 +44,11 @@ static void uxa_composite_fallback_pict_desc(PicturePtr pict, char *string, int 
 	return;
     }
 
+    if (pict->pDrawable == NULL) {
+	snprintf(string, n, "source-only");
+	return;
+    }
+
     switch (pict->format)
     {
     case PICT_a8r8g8b8:
