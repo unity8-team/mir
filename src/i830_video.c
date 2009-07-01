@@ -101,10 +101,8 @@ static void I830QueryBestSize(ScrnInfoPtr, Bool,
 static int I830PutImage(ScrnInfoPtr, short, short, short, short, short, short,
 			short, short, int, unsigned char *, short, short,
 			Bool, RegionPtr, pointer, DrawablePtr);
-static int I830QueryImageAttributesOverlay(ScrnInfoPtr, int, unsigned short *,
+static int I830QueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 					   unsigned short *, int *, int *);
-static int I830QueryImageAttributesTextured(ScrnInfoPtr, int, unsigned short *,
-					    unsigned short *, int *, int *);
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
@@ -883,7 +881,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
     adapt->GetPortAttribute = I830GetPortAttribute;
     adapt->QueryBestSize = I830QueryBestSize;
     adapt->PutImage = I830PutImage;
-    adapt->QueryImageAttributes = I830QueryImageAttributesOverlay;
+    adapt->QueryImageAttributes = I830QueryImageAttributes;
 
     pPriv->textured = FALSE;
     pPriv->colorKey = pI830->colorKey & ((1 << pScrn->depth) - 1);
@@ -999,7 +997,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
     adapt->GetPortAttribute = I830GetPortAttribute;
     adapt->QueryBestSize = I830QueryBestSize;
     adapt->PutImage = I830PutImage;
-    adapt->QueryImageAttributes = I830QueryImageAttributesTextured;
+    adapt->QueryImageAttributes = I830QueryImageAttributes;
 
     for (i = 0; i < nports; i++) {
 	I830PortPrivPtr pPriv = &portPrivs[i];
@@ -2554,7 +2552,7 @@ static int
 I830QueryImageAttributes(ScrnInfoPtr pScrn,
 			 int id,
 			 unsigned short *w, unsigned short *h,
-			 int *pitches, int *offsets, Bool textured)
+			 int *pitches, int *offsets)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int size, tmp;
@@ -2633,24 +2631,6 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
     }
 
     return size;
-}
-
-static int
-I830QueryImageAttributesOverlay(ScrnInfoPtr pScrn,
-				int id,
-				unsigned short *w, unsigned short *h,
-				int *pitches, int *offsets)
-{
-    return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, FALSE);
-}
-
-static int
-I830QueryImageAttributesTextured(ScrnInfoPtr pScrn,
-				 int id,
-				 unsigned short *w, unsigned short *h,
-				 int *pitches, int *offsets)
-{
-    return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, TRUE);
 }
 
 void
