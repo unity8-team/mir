@@ -1055,8 +1055,7 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 	}
 
 	if (pPriv->buf) {
-	    if (!pPriv->textured)
-		drm_intel_bo_unpin(pPriv->buf);
+	    drm_intel_bo_unpin(pPriv->buf);
 	    drm_intel_bo_unreference(pPriv->buf);
 	    pPriv->buf = NULL;
 	    pPriv->videoStatus = 0;
