@@ -1029,14 +1029,19 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	} else {
 		/* Check that the returned depth is one we support */
 		switch (pScrn->depth) {
-			case 16:
-			case 24:
-				/* OK */
-				break;
-			case 15: /* 15 may get done one day, so leave any code for it in place */
-			default:
-				NVPreInitFail("Given depth (%d) is not supported by this driver\n",
-					pScrn->depth);
+		case 16:
+		case 24:
+			/* OK */
+			break;
+		case 30:
+			/* OK on NV50 KMS */
+			if (!pNv->kms_enable || pNv->Architecture != NV_ARCH_50)
+				NVPreInitFail("Depth 30 supported on G80+KMS only\n");
+			break;
+		case 15: /* 15 may get done one day, so leave any code for it in place */
+		default:
+			NVPreInitFail("Given depth (%d) is not supported by this driver\n",
+				pScrn->depth);
 		}
 	}
 	xf86PrintDepthBpp(pScrn);
@@ -1045,18 +1050,34 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	 * This must happen after pScrn->display has been set because
 	 * xf86SetWeight references it.
 	 */
-	/* The defaults are OK for us */
 	rgb rgbzeros = {0, 0, 0};
 
-	if (!xf86SetWeight(pScrn, rgbzeros, rgbzeros))
-		NVPreInitFail("\n");
+	if (pScrn->depth == 30) {
+		rgb rgbmask;
+
+		rgbmask.red   = 0x000003ff;
+		rgbmask.green = 0x000ffc00;
+		rgbmask.blue  = 0x3ff00000;
+		if (!xf86SetWeight(pScrn, rgbzeros, rgbmask))
+			NVPreInitFail("\n");
+
+		/* xf86SetWeight() seems to think ffs(1) == 0... */
+		pScrn->offset.red--;
+		pScrn->offset.green--;
+		pScrn->offset.blue--;
+	} else {
+		if (!xf86SetWeight(pScrn, rgbzeros, rgbzeros))
+			NVPreInitFail("\n");
+	}
 
 	if (!xf86SetDefaultVisual(pScrn, -1))
 		NVPreInitFail("\n");
+
 	/* We don't support DirectColor */
-	else if (pScrn->defaultVisual != TrueColor)
+	if (pScrn->defaultVisual != TrueColor) {
 		NVPreInitFail("Given default visual (%s) is not supported at depth %d\n",
 			      xf86GetVisualName(pScrn->defaultVisual), pScrn->depth);
+	}
 
 	/* The vgahw module should be loaded here when needed */
 	if (!xf86LoadSubModule(pScrn, "vgahw")) {
@@ -1990,11 +2011,11 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	miClearVisualTypes();
 
 	/* Setup the visuals we support. */
-
 	if (!miSetVisualTypes(pScrn->depth, 
-				miGetDefaultVisualMask(pScrn->depth), 8,
-				pScrn->defaultVisual))
+			      miGetDefaultVisualMask(pScrn->depth),
+			      pScrn->rgbBits, pScrn->defaultVisual))
 		return FALSE;
+
 	if (!miSetPixmapDepths ())
 		return FALSE;
 

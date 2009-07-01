@@ -320,7 +320,7 @@ static inline uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
 
 	if (bpp == 15)
 		bpp = 16;
-	if (bpp == 24)
+	if (bpp == 24 || bpp == 30)
 		bpp = 8;
 
 	/* Alignment requirements taken from the Haiku driver */

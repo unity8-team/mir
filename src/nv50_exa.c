@@ -82,6 +82,7 @@ NV50EXA2DSurfaceFormat(PixmapPtr ppix, uint32_t *fmt)
 	case 15: *fmt = NV50_2D_SRC_FORMAT_15BPP; break;
 	case 16: *fmt = NV50_2D_SRC_FORMAT_16BPP; break;
 	case 24: *fmt = NV50_2D_SRC_FORMAT_24BPP; break;
+	case 30: *fmt = 0xd1; break;
 	case 32: *fmt = NV50_2D_SRC_FORMAT_32BPP; break;
 	default:
 		 NOUVEAU_FALLBACK("Unknown surface format for bpp=%d\n",
@@ -421,6 +422,8 @@ NV50EXACheckRenderTarget(PicturePtr ppict)
 				 ppict->pDrawable->height);
 
 	switch (ppict->format) {
+	case PICT_FORMAT(32, PICT_TYPE_ABGR, 2, 10, 10, 10):
+	case PICT_FORMAT(32, PICT_TYPE_ABGR, 0, 10, 10, 10):
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
 	case PICT_r5g6b5:
@@ -446,6 +449,10 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
 	switch (ppict->format) {
+	case PICT_FORMAT(32, PICT_TYPE_ABGR, 2, 10, 10, 10):
+	case PICT_FORMAT(32, PICT_TYPE_ABGR, 0, 10, 10, 10):
+		format = 0xd1;
+		break;
 	case PICT_a8r8g8b8: format = NV50TCL_RT_FORMAT_32BPP; break;
 	case PICT_x8r8g8b8: format = NV50TCL_RT_FORMAT_24BPP; break;
 	case PICT_r5g6b5  : format = NV50TCL_RT_FORMAT_16BPP; break;
@@ -479,6 +486,8 @@ NV50EXACheckTexture(PicturePtr ppict, int op)
 				 ppict->pDrawable->height);
 
 	switch (ppict->format) {
+	case PICT_FORMAT(32, PICT_TYPE_ABGR, 2, 10, 10, 10):
+	case PICT_FORMAT(32, PICT_TYPE_ABGR, 0, 10, 10, 10):
 	case PICT_a8r8g8b8:
 	case PICT_a8b8g8r8:
 	case PICT_x8r8g8b8:
@@ -532,6 +541,20 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	OUT_RING  (chan, CB_TIC | ((unit * 8) << NV50TCL_CB_ADDR_ID_SHIFT));
 	BEGIN_RING(chan, tesla, NV50TCL_CB_DATA(0) | 0x40000000, 8);
 	switch (ppict->format) {
+	case PICT_FORMAT(32, PICT_TYPE_ABGR, 2, 10, 10, 10):
+		OUT_RING  (chan, NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPR_C2 | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_MAPG_C1 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_FMT_2_10_10_10);
+		break;
+	case PICT_FORMAT(32, PICT_TYPE_ABGR, 0, 10, 10, 10):
+		OUT_RING  (chan, NV50TIC_0_0_MAPA_ONE | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPR_C2 | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_MAPG_C1 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_FMT_2_10_10_10);
+		break;
 	case PICT_a8r8g8b8:
 		OUT_RING  (chan, NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPR_C0 | NV50TIC_0_0_TYPER_UNORM |
