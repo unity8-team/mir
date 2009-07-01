@@ -1,0 +1,26 @@
+commit cec9fc6f6cffce186606f39982d0d78ff7c63bbf
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Jun 30 12:27:59 2009 -0700
+
+    Make KMS set_resource function return TRUE
+    
+    This is what's expected by the server, and allows the EDID for example
+    to be exported in the KMS case.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+diff --git a/src/drmmode_display.c b/src/drmmode_display.c
+index f45d933..d5904ad 100644
+--- a/src/drmmode_display.c
++++ b/src/drmmode_display.c
+@@ -892,8 +892,8 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
+ 	    }
+ 	}
+     }
+-    /* no property found? */
+-    return FALSE;
++
++    return TRUE;
+ }
+ 
+ static const xf86OutputFuncsRec drmmode_output_funcs = {

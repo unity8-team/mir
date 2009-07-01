@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.7.99.1+git20090602.ec2fde7c-0ubuntu5) karmic; urgency=low
+
+  * Add 123_kms_export_edid.patch: Allow EDID to be exported in the KMS
+    case as a randr property.  This should help the display properties applet 
+    list the proper resolutions, and solve some dpi issues.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 01 Jul 2009 19:54:22 -0700
+
 xserver-xorg-video-intel (2:2.7.99.1+git20090602.ec2fde7c-0ubuntu4) karmic; urgency=low
 
   * Add 122_wait_for_vblank_to_sub_border_color.patch: Wait for next
