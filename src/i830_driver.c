@@ -2786,9 +2786,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
    i830_init_bufmgr(pScrn);
 
-   if (!pI830->use_drm_mode)
-       I830SwapPipes(pScrn);
-
    pScrn->fbOffset = pI830->front_buffer->offset;
 
    if (!pI830->use_drm_mode) {
@@ -3077,6 +3074,9 @@ I830EnterVT(int scrnIndex, int flags)
 
    /* Get the hardware into a known state if needed */
    if (!pI830->use_drm_mode) {
+
+       I830SwapPipes(pScrn);
+
        /* Disable outputs */
        for (i = 0; i < xf86_config->num_output; i++) {
 	   xf86OutputPtr   output = xf86_config->output[i];
