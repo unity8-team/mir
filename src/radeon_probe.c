@@ -135,6 +135,7 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
     pScrn->Probe         = RADEONProbe;
 #endif
 
+#ifdef XF86DRM_MODE
     if (kms == 1) {
       pScrn->PreInit       = RADEONPreInit_KMS;
       pScrn->ScreenInit    = RADEONScreenInit_KMS;
@@ -144,7 +145,8 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
       pScrn->LeaveVT       = RADEONLeaveVT_KMS;
       pScrn->FreeScreen    = RADEONFreeScreen_KMS;
       pScrn->ValidMode     = RADEONValidMode;
-    } else {
+    } else 
+#endif {
       pScrn->PreInit       = RADEONPreInit;
       pScrn->ScreenInit    = RADEONScreenInit;
       pScrn->SwitchMode    = RADEONSwitchMode;
