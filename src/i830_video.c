@@ -1887,6 +1887,90 @@ i830_update_polyphase_coeffs(I830OverlayRegPtr	overlay,
 		    N_HORIZ_UV_TAPS);
 }
 
+/*
+ * Calculate horizontal and vertical scaling factors and polyphase
+ * coefficients.
+ */
+
+static Bool
+i830_update_scaling_factors(I830OverlayRegPtr overlay,
+	short src_w, short src_h, short drw_w, short drw_h)
+{
+    int xscaleInt, xscaleFract, yscaleInt, yscaleFract;
+    int xscaleIntUV, xscaleFractUV;
+    int yscaleIntUV, yscaleFractUV;
+    uint32_t newval;
+    Bool scaleChanged = FALSE;
+
+    /*
+     * Y down-scale factor as a multiple of 4096.
+     */
+    xscaleFract = ((src_w - 1) << 12) / drw_w;
+    yscaleFract = ((src_h - 1) << 12) / drw_h;
+
+    /* Calculate the UV scaling factor.
+     * UV is half the size of Y -- YUV420 */
+    xscaleFractUV = xscaleFract / 2;
+    yscaleFractUV = yscaleFract / 2;
+
+    /*
+     * To keep the relative Y and UV ratios exact, round the Y scales
+     * to a multiple of the Y/UV ratio.
+     */
+    xscaleFract = xscaleFractUV * 2;
+    yscaleFract = yscaleFractUV * 2;
+
+    /* Integer (un-multiplied) values. */
+    xscaleInt = xscaleFract >> 12;
+    yscaleInt = yscaleFract >> 12;
+
+    xscaleIntUV = xscaleFractUV >> 12;
+    yscaleIntUV = yscaleFractUV >> 12;
+
+    OVERLAY_DEBUG("xscale: %x.%03x, yscale: %x.%03x\n", xscaleInt,
+		  xscaleFract & 0xFFF, yscaleInt, yscaleFract & 0xFFF);
+    OVERLAY_DEBUG("UV xscale: %x.%03x, UV yscale: %x.%03x\n", xscaleIntUV,
+		  xscaleFractUV & 0xFFF, yscaleIntUV, yscaleFractUV & 0xFFF);
+
+    /* shouldn't get here */
+    if (xscaleInt > 7) {
+	OVERLAY_DEBUG("xscale: bad scale\n");
+	return FALSE;
+    }
+
+    /* shouldn't get here */
+    if (xscaleIntUV > 7) {
+	OVERLAY_DEBUG("xscaleUV: bad scale\n");
+	return FALSE;
+    }
+
+    newval = (xscaleInt << 16) |
+    ((xscaleFract & 0xFFF) << 3) | ((yscaleFract & 0xFFF) << 20);
+    if (newval != overlay->YRGBSCALE) {
+	scaleChanged = TRUE;
+	overlay->YRGBSCALE = newval;
+    }
+
+    newval = (xscaleIntUV << 16) | ((xscaleFractUV & 0xFFF) << 3) |
+    ((yscaleFractUV & 0xFFF) << 20);
+    if (newval != overlay->UVSCALE) {
+	scaleChanged = TRUE;
+	overlay->UVSCALE = newval;
+    }
+
+    newval = yscaleInt << 16 | yscaleIntUV;
+    if (newval != overlay->UVSCALEV) {
+	scaleChanged = TRUE;
+	overlay->UVSCALEV = newval;
+    }
+
+    if (scaleChanged) {
+	i830_update_polyphase_coeffs(overlay, xscaleFract, xscaleFractUV);
+    }
+
+    return scaleChanged;
+}
+
 static void
 i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		   int id, short width, short height,
@@ -2025,89 +2109,8 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		  overlay->DWINPOS, overlay->DWINSZ);
     OVERLAY_DEBUG("dst: %d x %d, src: %d x %d\n", drw_w, drw_h, src_w, src_h);
 
-    /* 
-     * Calculate horizontal and vertical scaling factors and polyphase
-     * coefficients.
-     */
-
-    {
-	int xscaleInt, xscaleFract, yscaleInt, yscaleFract;
-	int xscaleIntUV, xscaleFractUV;
-	int yscaleIntUV, yscaleFractUV;
-	/* UV is half the size of Y -- YUV420 */
-	int uvratio = 2;
-	uint32_t newval;
-
-	/*
-	 * Y down-scale factor as a multiple of 4096.
-	 */
-	xscaleFract = ((src_w - 1) << 12) / drw_w;
-	yscaleFract = ((src_h - 1) << 12) / drw_h;
-
-	/* Calculate the UV scaling factor. */
-	xscaleFractUV = xscaleFract / uvratio;
-	yscaleFractUV = yscaleFract / uvratio;
-
-	/*
-	 * To keep the relative Y and UV ratios exact, round the Y scales
-	 * to a multiple of the Y/UV ratio.
-	 */
-	xscaleFract = xscaleFractUV * uvratio;
-	yscaleFract = yscaleFractUV * uvratio;
-
-	/* Integer (un-multiplied) values. */
-	xscaleInt = xscaleFract >> 12;
-	yscaleInt = yscaleFract >> 12;
-
-	xscaleIntUV = xscaleFractUV >> 12;
-	yscaleIntUV = yscaleFractUV >> 12;
-
-	OVERLAY_DEBUG("xscale: %x.%03x, yscale: %x.%03x\n", xscaleInt,
-		      xscaleFract & 0xFFF, yscaleInt, yscaleFract & 0xFFF);
-	OVERLAY_DEBUG("UV xscale: %x.%03x, UV yscale: %x.%03x\n", xscaleIntUV,
-		      xscaleFractUV & 0xFFF, yscaleIntUV, yscaleFractUV & 0xFFF);
-
-	/* shouldn't get here */
-	if (xscaleInt > 7) {
-	    OVERLAY_DEBUG("xscale: bad scale\n");
-	    return;
-	}
-
-	/* shouldn't get here */
-	if (xscaleIntUV > 7) {
-	    OVERLAY_DEBUG("xscaleUV: bad scale\n");
-	    return;
-	}
-
-	newval = (xscaleInt << 16) |
-	((xscaleFract & 0xFFF) << 3) | ((yscaleFract & 0xFFF) << 20);
-	if (newval != overlay->YRGBSCALE) {
-	    scaleChanged = TRUE;
-	    overlay->YRGBSCALE = newval;
-	}
-
-	newval = (xscaleIntUV << 16) | ((xscaleFractUV & 0xFFF) << 3) |
-	((yscaleFractUV & 0xFFF) << 20);
-	if (newval != overlay->UVSCALE) {
-	    scaleChanged = TRUE;
-	    overlay->UVSCALE = newval;
-	}
-
-	newval = yscaleInt << 16 | yscaleIntUV;
-	if (newval != overlay->UVSCALEV) {
-	    scaleChanged = TRUE;
-	    overlay->UVSCALEV = newval;
-	}
-
-	/* Recalculate coefficients if the scaling changed. */
-
-	/*
-	 * Only Horizontal coefficients so far.
-	 */
-	if (scaleChanged) {
-	    i830_update_polyphase_coeffs(overlay, xscaleFract, xscaleFractUV);
-	}
-    }
+    scaleChanged = i830_update_scaling_factors(overlay,
+	    src_w, src_h, drw_w, drw_h);
 
     OCMD = OVERLAY_ENABLE;
     
