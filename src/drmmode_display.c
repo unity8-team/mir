@@ -382,8 +382,10 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	if (rotate_pixmap)
+	if (rotate_pixmap) {
+		i830_set_pixmap_bo(rotate_pixmap, NULL);
 		FreeScratchPixmapHeader(rotate_pixmap);
+	}
 
 
 	if (data) {

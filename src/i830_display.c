@@ -1966,8 +1966,10 @@ i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
 
-    if (rotate_pixmap)
+    if (rotate_pixmap) {
+	i830_set_pixmap_bo(rotate_pixmap, NULL);
 	FreeScratchPixmapHeader(rotate_pixmap);
+    }
 
     if (data) {
 	/* Be sure to sync acceleration before the memory gets unbound. */
