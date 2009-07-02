@@ -145,7 +145,6 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to allocate accel_state rec!\n");
 	return FALSE;
     }
-    info->accel_state->fifo_slots                 = 0;
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
