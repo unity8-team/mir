@@ -118,13 +118,13 @@ if test "$DRI" = yes; then
 
         save_CFLAGS="$CFLAGS"
         CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $CFLAGS"
-#AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
+	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
 #include <stdlib.h>])
-	DRM_MODE = no
+#	DRM_MODE = no
 	if test "x$DRM_MODE" = xyes; then
 		PKG_CHECK_MODULES(LIBDRM_RADEON, [xorg-server >= 1.6 libdrm_radeon],
 		[LIBDRM_RADEON=yes], [LIBDRM_RADEON=no])
-		
+
 		if test "x$LIBDRM_RADEON" = xyes; then
 			AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
 			AC_DEFINE(RADEON_DRI2, 1,[Enable DRI2 code])
