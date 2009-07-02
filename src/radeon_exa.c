@@ -405,7 +405,8 @@ static void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
     if (!driverPriv)
       return;
 
-    radeon_bo_unref(driver_priv->bo);
+    if (driver_priv->bo)
+	radeon_bo_unref(driver_priv->bo);
     xfree(driverPriv);
 }
 
