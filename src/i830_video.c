@@ -1781,6 +1781,58 @@ i830_swidth (I830Ptr pI830, unsigned int offset,
 }
 
 static void
+i830_update_dst_box_to_crtc_coords(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
+		BoxPtr dstBox)
+{
+    int tmp;
+
+    /* for overlay, we should take it from crtc's screen
+     * coordinate to current crtc's display mode.
+     * yeah, a bit confusing.
+     */
+    switch (crtc->rotation & 0xf) {
+    case RR_Rotate_0:
+	dstBox->x1 -= crtc->x;
+	dstBox->x2 -= crtc->x;
+	dstBox->y1 -= crtc->y;
+	dstBox->y2 -= crtc->y;
+	break;
+    case RR_Rotate_90:
+	tmp = dstBox->x1;
+	dstBox->x1 = dstBox->y1 - crtc->x;
+	dstBox->y1 = pScrn->virtualX - tmp - crtc->y;
+	tmp = dstBox->x2;
+	dstBox->x2 = dstBox->y2 - crtc->x;
+	dstBox->y2 = pScrn->virtualX - tmp - crtc->y;
+	tmp = dstBox->y1;
+	dstBox->y1 = dstBox->y2;
+	dstBox->y2 = tmp;
+	break;
+    case RR_Rotate_180:
+	tmp = dstBox->x1;
+	dstBox->x1 = pScrn->virtualX - dstBox->x2 - crtc->x;
+	dstBox->x2 = pScrn->virtualX - tmp - crtc->x;
+	tmp = dstBox->y1;
+	dstBox->y1 = pScrn->virtualY - dstBox->y2 - crtc->y;
+	dstBox->y2 = pScrn->virtualY - tmp - crtc->y;
+	break;
+    case RR_Rotate_270:
+	tmp = dstBox->x1;
+	dstBox->x1 = pScrn->virtualY - dstBox->y1 - crtc->x;
+	dstBox->y1 = tmp - crtc->y;
+	tmp = dstBox->x2;
+	dstBox->x2 = pScrn->virtualY - dstBox->y2 - crtc->x;
+	dstBox->y2 = tmp - crtc->y;
+	tmp = dstBox->x1;
+	dstBox->x1 = dstBox->x2;
+	dstBox->x2 = tmp;
+	break;
+    }
+
+    return;
+}
+
+static void
 i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		   int id, short width, short height,
 		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
@@ -1824,48 +1876,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     if (!pPriv->overlayOK)
 	return;
 
-    switch (crtc->rotation & 0xf) {
-	/* for overlay, we should take it from crtc's screen
-	 * coordinate to current crtc's display mode.
-	 * yeah, a bit confusing.
-	 */
-    case RR_Rotate_0:
-	dstBox->x1 -= crtc->x;
-	dstBox->x2 -= crtc->x;
-	dstBox->y1 -= crtc->y;
-	dstBox->y2 -= crtc->y;
-	break;
-    case RR_Rotate_90:
-	tmp = dstBox->x1;
-	dstBox->x1 = dstBox->y1 - crtc->x;
-	dstBox->y1 = pScrn->virtualX - tmp - crtc->y;
-	tmp = dstBox->x2;
-	dstBox->x2 = dstBox->y2 - crtc->x;
-	dstBox->y2 = pScrn->virtualX - tmp - crtc->y;
-	tmp = dstBox->y1;
-	dstBox->y1 = dstBox->y2;
-	dstBox->y2 = tmp;
-	break;
-    case RR_Rotate_180:
-	tmp = dstBox->x1;
-	dstBox->x1 = pScrn->virtualX - dstBox->x2 - crtc->x;
-	dstBox->x2 = pScrn->virtualX - tmp - crtc->x;
-	tmp = dstBox->y1;
-	dstBox->y1 = pScrn->virtualY - dstBox->y2 - crtc->y;
-	dstBox->y2 = pScrn->virtualY - tmp - crtc->y;
-	break;
-    case RR_Rotate_270:
-	tmp = dstBox->x1;
-	dstBox->x1 = pScrn->virtualY - dstBox->y1 - crtc->x;
-	dstBox->y1 = tmp - crtc->y;
-	tmp = dstBox->x2;
-	dstBox->x2 = pScrn->virtualY - dstBox->y2 - crtc->x;
-	dstBox->y2 = tmp - crtc->y;
-	tmp = dstBox->x1;
-	dstBox->x1 = dstBox->x2;
-	dstBox->x2 = tmp;
-	break;
-    }
+    i830_update_dst_box_to_crtc_coords(pScrn, crtc, dstBox);
 
     if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	tmp = width;
