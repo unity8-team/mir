@@ -137,6 +137,14 @@ static REF_TRANSFORM trans[2] =
     {1.1643, 0.0, 1.7927, -0.2132, -0.5329, 2.1124, 0.0}  /* BT.709 */
 };
 
+static inline void radeon_add_bo(struct radeon_cs_space_check *bos, int index, struct radeon_bo *bo, int read_domains, int write_domain)
+{
+    bos[index].bo = bo;
+    bos[index].read_domains = read_domains;
+    bos[index].write_domain = write_domain;
+    bos[index].new_accounted = 0;
+}
+
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
 #define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))

@@ -106,39 +106,25 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
  retry:
     if (info->cs) {
-      
 	i = 0;
-	bos[i].bo = pPriv->src_bo;
-	bos[i].read_domains = RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM;
-	bos[i].write_domain = 0;
-	bos[i].new_accounted = 0;
-	i++;
+	radeon_add_bo(bos, i++, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
-	if (pPriv->bicubic_enabled) {
-	    bos[i].bo = pPriv->bicubic_bo;
-	    bos[i].read_domains = RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM;
-	    bos[i].write_domain = 0;
-	    bos[i].new_accounted = 0;
-	    i++;
-	}
+	if (pPriv->bicubic_enabled)
+	    radeon_add_bo(bos, i++, pPriv->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
-	bos[i].bo = driver_priv->bo;
-	bos[i].read_domains = 0;
-	bos[i].write_domain = RADEON_GEM_DOMAIN_VRAM;
-	bos[i].new_accounted = 0;
-	i++;
+	radeon_add_bo(bos, i++, driver_priv->bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	ret = radeon_cs_space_check(info->cs, bos, i);
 	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
-	    ErrorF("Not enough RAM to hw accel composite operation\n");
+	    ErrorF("Not enough RAM to hw accel xv operation\n");
 	    return;
 	}
 	if (ret == RADEON_CS_SPACE_FLUSH) {
 	    radeon_cs_flush_indirect(pScrn);
 	    retry_count++;
 	    if (retry_count == 2) {
-	        ErrorF("Not enough RAM to hw accel composite operation\n");
+	        ErrorF("Not enough RAM to hw accel xv operation\n");
 	        return;
 	    }
 	    goto retry;
@@ -511,8 +497,36 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int ref = pPriv->transform_index;
     float ucscale = 0.25, vcscale = 0.25;
     Bool needux8 = FALSE, needvx8 = FALSE;
-
+    struct radeon_cs_space_check bos[3];
+    int i, ret, retry_count = 0;
     ACCEL_PREAMBLE();
+
+ retry:
+    if (info->cs) {
+	i = 0;
+	radeon_add_bo(bos, i++, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	if (pPriv->bicubic_enabled)
+	    radeon_add_bo(bos, i++, pPriv->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
+	radeon_add_bo(bos, i++, driver_priv->bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	ret = radeon_cs_space_check(info->cs, bos, i);
+	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
+	    ErrorF("Not enough RAM to hw accel xv operation\n");
+	    return;
+	}
+	if (ret == RADEON_CS_SPACE_FLUSH) {
+	    radeon_cs_flush_indirect(pScrn);
+	    retry_count++;
+	    if (retry_count == 2) {
+	        ErrorF("Not enough RAM to hw accel xv operation\n");
+	        return;
+	    }
+	    goto retry;
+	}
+    }
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
@@ -1033,7 +1047,36 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int dstxoff, dstyoff, pixel_shift, vtx_count;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
+    struct radeon_cs_space_check bos[3];
+    int i, ret, retry_count = 0;
     ACCEL_PREAMBLE();
+
+ retry:
+    if (info->cs) {
+	i = 0;
+	radeon_add_bo(bos, i++, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	if (pPriv->bicubic_enabled)
+	    radeon_add_bo(bos, i++, pPriv->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
+	radeon_add_bo(bos, i++, driver_priv->bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	ret = radeon_cs_space_check(info->cs, bos, i);
+	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
+	    ErrorF("Not enough RAM to hw accel xv operation\n");
+	    return;
+	}
+	if (ret == RADEON_CS_SPACE_FLUSH) {
+	    radeon_cs_flush_indirect(pScrn);
+	    retry_count++;
+	    if (retry_count == 2) {
+	        ErrorF("Not enough RAM to hw accel xv operation\n");
+	        return;
+	    }
+	    goto retry;
+	}
+    }
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
@@ -2463,7 +2506,36 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int dstxoff, dstyoff, pixel_shift, vtx_count;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
+    struct radeon_cs_space_check bos[3];
+    int i, ret, retry_count = 0;
     ACCEL_PREAMBLE();
+
+ retry:
+    if (info->cs) {
+	i = 0;
+	radeon_add_bo(bos, i++, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	if (pPriv->bicubic_enabled)
+	    radeon_add_bo(bos, i++, pPriv->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
+	radeon_add_bo(bos, i++, driver_priv->bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	ret = radeon_cs_space_check(info->cs, bos, i);
+	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
+	    ErrorF("Not enough RAM to hw accel xv operation\n");
+	    return;
+	}
+	if (ret == RADEON_CS_SPACE_FLUSH) {
+	    radeon_cs_flush_indirect(pScrn);
+	    retry_count++;
+	    if (retry_count == 2) {
+	        ErrorF("Not enough RAM to hw accel xv operation\n");
+	        return;
+	    }
+	    goto retry;
+	}
+    }
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
