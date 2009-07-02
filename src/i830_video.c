@@ -1833,6 +1833,61 @@ i830_update_dst_box_to_crtc_coords(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 }
 
 static void
+i830_store_coeffs_in_overlay_regs(uint16_t *reg_coeffs, coeffPtr new_coeffs,
+	int max_taps)
+{
+    int i, j, pos;
+
+    for (i = 0; i < N_PHASES; i++) {
+	for (j = 0; j < max_taps; j++) {
+	    pos = i * max_taps + j;
+	    reg_coeffs[pos] = (new_coeffs[pos].sign << 15 |
+				      new_coeffs[pos].exponent << 12 |
+				      new_coeffs[pos].mantissa);
+	}
+    }
+}
+
+static double
+i830_limit_coeff(double coeff)
+{
+    /* Limit to between 1.0 and 3.0. */
+    if (coeff < MIN_CUTOFF_FREQ)
+	coeff = MIN_CUTOFF_FREQ;
+    if (coeff > MAX_CUTOFF_FREQ)
+	coeff = MAX_CUTOFF_FREQ;
+
+    return coeff;
+}
+
+static void
+i830_update_polyphase_coeffs(I830OverlayRegPtr	overlay,
+	int xscaleFract, int xscaleFractUV)
+{
+    /*
+     * Only Horizontal coefficients so far.
+     */
+    double fCutoffY;
+    double fCutoffUV;
+    coeffRec xcoeffY[N_HORIZ_Y_TAPS * N_PHASES];
+    coeffRec xcoeffUV[N_HORIZ_UV_TAPS * N_PHASES];
+
+    fCutoffY = xscaleFract / 4096.0;
+    fCutoffUV = xscaleFractUV / 4096.0;
+
+    fCutoffUV = i830_limit_coeff(fCutoffUV);
+    fCutoffY = i830_limit_coeff(fCutoffY);
+
+    UpdateCoeff(N_HORIZ_Y_TAPS, fCutoffY, TRUE, TRUE, xcoeffY);
+    UpdateCoeff(N_HORIZ_UV_TAPS, fCutoffUV, TRUE, FALSE, xcoeffUV);
+
+    i830_store_coeffs_in_overlay_regs(overlay->Y_HCOEFS, xcoeffY,
+		    N_HORIZ_Y_TAPS);
+    i830_store_coeffs_in_overlay_regs(overlay->UV_HCOEFS, xcoeffUV,
+		    N_HORIZ_UV_TAPS);
+}
+
+static void
 i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		   int id, short width, short height,
 		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
@@ -1982,9 +2037,6 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	/* UV is half the size of Y -- YUV420 */
 	int uvratio = 2;
 	uint32_t newval;
-	coeffRec xcoeffY[N_HORIZ_Y_TAPS * N_PHASES];
-	coeffRec xcoeffUV[N_HORIZ_UV_TAPS * N_PHASES];
-	int i, j, pos;
 
 	/*
 	 * Y down-scale factor as a multiple of 4096.
@@ -2053,41 +2105,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	 * Only Horizontal coefficients so far.
 	 */
 	if (scaleChanged) {
-	    double fCutoffY;
-	    double fCutoffUV;
-
-	    fCutoffY = xscaleFract / 4096.0;
-	    fCutoffUV = xscaleFractUV / 4096.0;
-
-	    /* Limit to between 1.0 and 3.0. */
-	    if (fCutoffY < MIN_CUTOFF_FREQ)
-		fCutoffY = MIN_CUTOFF_FREQ;
-	    if (fCutoffY > MAX_CUTOFF_FREQ)
-		fCutoffY = MAX_CUTOFF_FREQ;
-	    if (fCutoffUV < MIN_CUTOFF_FREQ)
-		fCutoffUV = MIN_CUTOFF_FREQ;
-	    if (fCutoffUV > MAX_CUTOFF_FREQ)
-		fCutoffUV = MAX_CUTOFF_FREQ;
-
-	    UpdateCoeff(N_HORIZ_Y_TAPS, fCutoffY, TRUE, TRUE, xcoeffY);
-	    UpdateCoeff(N_HORIZ_UV_TAPS, fCutoffUV, TRUE, FALSE, xcoeffUV);
-
-	    for (i = 0; i < N_PHASES; i++) {
-		for (j = 0; j < N_HORIZ_Y_TAPS; j++) {
-		    pos = i * N_HORIZ_Y_TAPS + j;
-		    overlay->Y_HCOEFS[pos] = (xcoeffY[pos].sign << 15 |
-					      xcoeffY[pos].exponent << 12 |
-					      xcoeffY[pos].mantissa);
-		}
-	    }
-	    for (i = 0; i < N_PHASES; i++) {
-		for (j = 0; j < N_HORIZ_UV_TAPS; j++) {
-		    pos = i * N_HORIZ_UV_TAPS + j;
-		    overlay->UV_HCOEFS[pos] = (xcoeffUV[pos].sign << 15 |
-					       xcoeffUV[pos].exponent << 12 |
-					       xcoeffUV[pos].mantissa);
-		}
-	    }
+	    i830_update_polyphase_coeffs(overlay, xscaleFract, xscaleFractUV);
 	}
     }
 
