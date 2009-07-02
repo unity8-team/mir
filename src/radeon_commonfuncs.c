@@ -56,6 +56,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     uint32_t gb_tile_config, su_reg_dest, vap_cntl;
+    int size;
     ACCEL_PREAMBLE();
 
     info->accel_state->texW[0] = info->accel_state->texH[0] =
@@ -63,11 +64,13 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
     if (IS_R300_3D || IS_R500_3D) {
 
-	BEGIN_ACCEL(3);
-	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
-	OUT_ACCEL_REG(R300_RB3D_ZCACHE_CTLSTAT, R300_ZC_FLUSH | R300_ZC_FREE);
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
-	FINISH_ACCEL();
+	if (!info->cs) {
+	    BEGIN_ACCEL(3);
+	    OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
+	    OUT_ACCEL_REG(R300_RB3D_ZCACHE_CTLSTAT, R300_ZC_FLUSH | R300_ZC_FREE);
+	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
+	    FINISH_ACCEL();
+	}
 
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
 
@@ -79,20 +82,26 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	case 1: gb_tile_config |= R300_PIPE_COUNT_RV350; break;
 	}
 
-	BEGIN_ACCEL(5);
-	OUT_ACCEL_REG(R300_GB_TILE_CONFIG, gb_tile_config);
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
-	OUT_ACCEL_REG(R300_DST_PIPE_CONFIG, R300_PIPE_AUTO_CONFIG);
-	OUT_ACCEL_REG(R300_GB_SELECT, 0);
-	OUT_ACCEL_REG(R300_GB_ENABLE, 0);
-	FINISH_ACCEL();
+	if (info->dri->pKernelDRMVersion->version_major < 2) {
+	    size = (info->ChipFamily >= CHIP_FAMILY_R420) ? 5 : 4;
+	    BEGIN_ACCEL(size);
+	    OUT_ACCEL_REG(R300_GB_TILE_CONFIG, gb_tile_config);
+	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
+	    if (info->ChipFamily >= CHIP_FAMILY_R420)
+		OUT_ACCEL_REG(R300_DST_PIPE_CONFIG, R300_PIPE_AUTO_CONFIG);
+	    OUT_ACCEL_REG(R300_GB_SELECT, 0);
+	    OUT_ACCEL_REG(R300_GB_ENABLE, 0);
+	    FINISH_ACCEL();
+	}
 
 	if (IS_R500_3D) {
 	    su_reg_dest = ((1 << info->accel_state->num_gb_pipes) - 1);
-	    BEGIN_ACCEL(2);
-	    OUT_ACCEL_REG(R500_SU_REG_DEST, su_reg_dest);
-	    OUT_ACCEL_REG(R500_VAP_INDEX_OFFSET, 0);
-	    FINISH_ACCEL();
+	    if (info->dri->pKernelDRMVersion->version_major < 2) {
+		BEGIN_ACCEL(2);
+		OUT_ACCEL_REG(R500_SU_REG_DEST, su_reg_dest);
+		OUT_ACCEL_REG(R500_VAP_INDEX_OFFSET, 0);
+		FINISH_ACCEL();
+	    }
 	}
 
 	BEGIN_ACCEL(3);
@@ -105,25 +114,30 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	OUT_ACCEL_REG(R300_GB_AA_CONFIG, 0);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
 	OUT_ACCEL_REG(R300_RB3D_ZCACHE_CTLSTAT, R300_ZC_FLUSH | R300_ZC_FREE);
-	OUT_ACCEL_REG(R300_GB_MSPOS0, ((6 << R300_MS_X0_SHIFT) |
-				       (6 << R300_MS_Y0_SHIFT) |
-				       (6 << R300_MS_X1_SHIFT) |
-				       (6 << R300_MS_Y1_SHIFT) |
-				       (6 << R300_MS_X2_SHIFT) |
-				       (6 << R300_MS_Y2_SHIFT) |
-				       (6 << R300_MSBD0_Y_SHIFT) |
-				       (6 << R300_MSBD0_X_SHIFT)));
-	OUT_ACCEL_REG(R300_GB_MSPOS1, ((6 << R300_MS_X3_SHIFT) |
-				       (6 << R300_MS_Y3_SHIFT) |
-				       (6 << R300_MS_X4_SHIFT) |
-				       (6 << R300_MS_Y4_SHIFT) |
-				       (6 << R300_MS_X5_SHIFT) |
-				       (6 << R300_MS_Y5_SHIFT) |
-				       (6 << R300_MSBD1_SHIFT)));
 	FINISH_ACCEL();
 
-	BEGIN_ACCEL(5);
-	OUT_ACCEL_REG(R300_GA_ENHANCE, R300_GA_DEADLOCK_CNTL | R300_GA_FASTSYNC_CNTL);
+	if (info->dri->pKernelDRMVersion->version_major < 2) {
+	    BEGIN_ACCEL(3);
+	    OUT_ACCEL_REG(R300_GB_MSPOS0, ((6 << R300_MS_X0_SHIFT) |
+					   (6 << R300_MS_Y0_SHIFT) |
+					   (6 << R300_MS_X1_SHIFT) |
+					   (6 << R300_MS_Y1_SHIFT) |
+					   (6 << R300_MS_X2_SHIFT) |
+					   (6 << R300_MS_Y2_SHIFT) |
+					   (6 << R300_MSBD0_Y_SHIFT) |
+					   (6 << R300_MSBD0_X_SHIFT)));
+	    OUT_ACCEL_REG(R300_GB_MSPOS1, ((6 << R300_MS_X3_SHIFT) |
+					   (6 << R300_MS_Y3_SHIFT) |
+					   (6 << R300_MS_X4_SHIFT) |
+					   (6 << R300_MS_Y4_SHIFT) |
+					   (6 << R300_MS_X5_SHIFT) |
+					   (6 << R300_MS_Y5_SHIFT) |
+					   (6 << R300_MSBD1_SHIFT)));
+	    OUT_ACCEL_REG(R300_GA_ENHANCE, R300_GA_DEADLOCK_CNTL | R300_GA_FASTSYNC_CNTL);
+	    FINISH_ACCEL();
+	}
+
+	BEGIN_ACCEL(4);
 	OUT_ACCEL_REG(R300_GA_POLY_MODE, R300_FRONT_PTYPE_TRIANGE | R300_BACK_PTYPE_TRIANGE);
 	OUT_ACCEL_REG(R300_GA_ROUND_MODE, (R300_GEOMETRY_ROUND_NEAREST |
 					   R300_COLOR_ROUND_NEAREST));
