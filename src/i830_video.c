@@ -1399,7 +1399,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	if (srcPitch == dstPitch2)
+       /* optimise for the case of no clipping */
+	if (srcPitch == dstPitch2 && srcPitch == w)
 	    memcpy (dst1, src1, srcPitch * h);
 	else
 	    for (i = 0; i < h; i++) {
@@ -1438,7 +1439,11 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     }
 
     /* Copy V data for YV12, or U data for I420 */
-    src2 = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
+    src2 = buf +                            /* start of YUV data */
+                (srcH * srcPitch) +         /* move over Luma plane */
+                ((top * srcPitch) >> 2) +   /* move down from by top lines */
+                    (left >> 1);            /* move left by left pixels */
+
 #if 0
     ErrorF("src2 is %p, offset is %ld\n", src2,
 	   (unsigned long)src2 - (unsigned long)buf);
@@ -1457,7 +1462,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	if (srcPitch2 == dstPitch)
+       /* optimise for the case of no clipping */
+	if (srcPitch2 == dstPitch && srcPitch2 == (w/2))
 	    memcpy (dst2, src2, h/2 * srcPitch2);
 	else
 	    for (i = 0; i < h / 2; i++) {
@@ -1496,8 +1502,11 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     }
 
     /* Copy U data for YV12, or V data for I420 */
-    src3 = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
-    ((top * srcPitch) >> 2) + (left >> 1);
+    src3 = buf +                            /* start of YUV data */
+                (srcH * srcPitch) +         /* move over Luma plane */
+                ((srcH >> 1) * srcPitch2) + /* move over Chroma plane */
+                ((top * srcPitch) >> 2) +   /* move down from by top lines */
+                    (left >> 1);            /* move left by left pixels */
 #if 0
     ErrorF("src3 is %p, offset is %ld\n", src3,
 	   (unsigned long)src3 - (unsigned long)buf);
@@ -1516,7 +1525,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	if (srcPitch2 == dstPitch)
+       /* optimise for the case of no clipping */
+	if (srcPitch2 == dstPitch && srcPitch2 == (w/2))
 	    memcpy (dst3, src3, srcPitch2 * h/2);
 	else
 	    for (i = 0; i < h / 2; i++) {
