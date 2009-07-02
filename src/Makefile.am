@@ -26,7 +26,7 @@
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
-radeon_drv_la_LIBADD =
+radeon_drv_la_LIBADD = $(LIBDRM_RADEON_LIBS)
 
 if DRI
 RADEON_DRI_SRCS = radeon_dri.c
@@ -65,6 +65,10 @@ XMODE_SRCS=\
         modes/xf86Rotate.c \
         modes/xf86DiDGA.c
 
+if XF86DRM_MODE
+RADEON_KMS_SRCS=radeon_dri2.c radeon_kms.c drmmode_display.c
+endif
+
 if USE_EXA
 RADEON_EXA_SOURCES = radeon_exa.c r600_exa.c r6xx_accel.c r600_textured_videofuncs.c r600_shader.c
 endif
@@ -95,7 +99,8 @@ radeon_drv_la_SOURCES = \
 	radeon_textured_video.c radeon_pm.c \
 	radeon_crtc.c radeon_output.c radeon_modes.c radeon_tv.c \
 	$(RADEON_ATOMBIOS_SOURCES) radeon_atombios.c radeon_atomwrapper.c \
-	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES) atombios_output.c atombios_crtc.c
+	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES) atombios_output.c atombios_crtc.c \
+	$(RADEON_KMS_SRCS)
 
 if XMODES
 radeon_drv_la_SOURCES += \

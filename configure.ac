@@ -118,16 +118,16 @@ if test "$DRI" = yes; then
 
         save_CFLAGS="$CFLAGS"
         CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $CFLAGS"
-#	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
-	DRM_MODE=no
+#AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
 #include <stdlib.h>])
-	 if test "x$DRM_MODE" = xyes; then
+	DRM_MODE = no
+	if test "x$DRM_MODE" = xyes; then
 		PKG_CHECK_MODULES(LIBDRM_RADEON, [xorg-server >= 1.6 libdrm_radeon],
 		[LIBDRM_RADEON=yes], [LIBDRM_RADEON=no])
 		
 		if test "x$LIBDRM_RADEON" = xyes; then
 			AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
-			AC_DEFINE(DRI2, 1,[Enable DRI2 code])
+			AC_DEFINE(RADEON_DRI2, 1,[Enable DRI2 code])
 		fi
         fi
 	CFLAGS="$save_CFLAGS"
@@ -253,6 +253,8 @@ AC_SUBST([XMODES_CFLAGS])
 CPPFLAGS="$SAVE_CPPFLAGS"
 
 AM_CONDITIONAL(USE_EXA, test "x$USE_EXA" = xyes)
+
+AM_CONDITIONAL(XF86DRM_MODE, test "x$DRM_MODE" = xyes)
 
 if test "x$XSERVER_LIBPCIACCESS" = xyes; then
     PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.8.0])

@@ -344,7 +344,7 @@ static Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 
     /* if we have more refs than just the BO then flush */
     if (driver_priv->bo->cref > 1)
-      RADEONCPFlushIndirect(pScrn, 0);
+      radeon_cs_flush_indirect(pScrn);
     
     radeon_bo_wait(driver_priv->bo);
 
@@ -387,7 +387,7 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
 	return new_priv;
 
     new_priv->bo = radeon_bo_open(info->bufmgr, 0, size,
-				align, 0, 0);
+				  align, 0, 0);
     if (!new_priv->bo) {
 	xfree(new_priv);
 	ErrorF("Failed to alloc memory\n");
@@ -403,6 +403,9 @@ static void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *driver_priv = driverPriv;
+
+    if (!driverPriv)
+      return;
 
     radeon_bo_unref(driver_priv->bo);
     xfree(driverPriv);

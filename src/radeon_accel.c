@@ -1131,8 +1131,10 @@ void RADEONInit3DEngine(ScrnInfoPtr pScrn)
     if (info->directRenderingEnabled) {
 	drm_radeon_sarea_t *pSAREAPriv;
 
-	pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
-	pSAREAPriv->ctx_owner = DRIGetContext(pScrn->pScreen);
+	if (!info->kms_enabled) {
+	    pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
+	    pSAREAPriv->ctx_owner = DRIGetContext(pScrn->pScreen);
+	}
 	RADEONInit3DEngineCP(pScrn);
     } else
 #endif

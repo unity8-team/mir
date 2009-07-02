@@ -376,7 +376,7 @@ RADEONUploadToScreenCP(PixmapPtr pDst, int x, int y, int w, int h,
 
     TRACE;
 
-    if (info->cs)
+    if (info->kms_enabled)
 	return FALSE;
 
     if (bpp < 8)
@@ -453,6 +453,9 @@ RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
     drmBufPtr scratch;
 
     TRACE;
+
+    if (info->kms_enabled)
+      return FALSE;
 
     /*
      * Try to accelerate download. Use an indirect buffer as scratch space,

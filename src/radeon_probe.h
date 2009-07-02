@@ -615,6 +615,7 @@ typedef struct
     RADEONSaveRec     SavedReg;         /* Original (text) mode              */
 
     void              *MMIO;            /* Map of MMIO region                */
+    int fd;                             /* for sharing across zaphod heads   */
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */
@@ -635,5 +636,15 @@ extern void                 RADEONFreeScreen(int, int);
 extern ModeStatus           RADEONValidMode(int, DisplayModePtr, Bool, int);
 
 extern const OptionInfoRec *RADEONOptionsWeak(void);
+
+#ifdef XF86DRM_MODE
+extern Bool                 RADEONPreInit_KMS(ScrnInfoPtr, int);
+extern Bool                 RADEONScreenInit_KMS(int, ScreenPtr, int, char **);
+extern Bool                 RADEONSwitchMode_KMS(int, DisplayModePtr, int);
+extern void                 RADEONAdjustFrame_KMS(int, int, int, int);
+extern Bool                 RADEONEnterVT_KMS(int, int);
+extern void                 RADEONLeaveVT_KMS(int, int);
+extern void RADEONFreeScreen_KMS(int scrnIndex, int flags);
+#endif
 
 #endif /* _RADEON_PROBE_H_ */

@@ -21,6 +21,20 @@ radeon_legacy_allocate_memory(ScrnInfoPtr pScrn,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t offset = 0;
 
+#ifdef XF86DRM_MODE
+    if (info->cs) {
+	struct radeon_bo *video_bo;
+
+	video_bo = radeon_bo_open(info->bufmgr, 0, size, 4096, 0, 0);
+
+	*mem_struct = video_bo;
+
+	if (!video_bo)
+	    return 0;
+
+	return (uint32_t)-1;
+    }
+#endif
 #ifdef USE_EXA
     if (info->useEXA) {
 	ExaOffscreenArea *area = *mem_struct;
@@ -94,6 +108,14 @@ radeon_legacy_free_memory(ScrnInfoPtr pScrn,
 		   void *mem_struct)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
+
+#ifdef XF86DRM_MODE
+    if (info->cs) {
+        struct radeon_bo *bo = mem_struct;
+	radeon_bo_unref(bo);
+	return;
+    }
+#endif
 #ifdef USE_EXA
     ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
 

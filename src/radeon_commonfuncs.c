@@ -811,6 +811,39 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
 }
 
+#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+void drmmode_wait_for_vline(ScrnInfoPtr pScrn, PixmapPtr pPix,
+			    int crtc, int start, int stop)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    uint32_t offset;
+    drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[crtc]->driver_private;
+    ACCEL_PREAMBLE();
+
+    BEGIN_ACCEL(3);
+
+    if (IS_AVIVO_VARIANT) {
+	uint32_t reg = AVIVO_D1MODE_VLINE_START_END; /* this is just a marker */
+	OUT_ACCEL_REG(reg,
+		      ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
+		       (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
+		       AVIVO_D1MODE_VLINE_INV));
+    } else {
+	OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE, /* another placeholder */
+		      ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
+		      (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
+		      RADEON_CRTC_GUI_TRIG_VLINE_INV));
+    }
+    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
+				      RADEON_ENG_DISPLAY_SELECT_CRTC0));
+
+    OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_NOP, 0));
+    OUT_RING(drmmode_crtc->mode_crtc->crtc_id);
+    FINISH_ACCEL();
+}
+#endif
+
 /* inserts a wait for vline in the command stream */
 void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
 	int crtc, int start, int stop)
@@ -829,22 +862,34 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
     if (!xf86_config->crtc[crtc]->enabled)
 	return;
 
+    if (info->cs) {
+        if (pPix != pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
+	    return;
+    } else {
 #ifdef USE_EXA
-    if (info->useEXA)
-	offset = exaGetPixmapOffset(pPix);
-    else
+	if (info->useEXA)
+	    offset = exaGetPixmapOffset(pPix);
+	else
 #endif
-	offset = pPix->devPrivate.ptr - info->FB;
+	    offset = pPix->devPrivate.ptr - info->FB;
 
-    /* if drawing to front buffer */
-    if (offset != 0)
-	return;
+	/* if drawing to front buffer */
+	if (offset != 0)
+	    return;
+    }
 
     start = max(start, 0);
     stop = min(stop, xf86_config->crtc[crtc]->mode.VDisplay);
 
     if (start > xf86_config->crtc[crtc]->mode.VDisplay)
 	return;
+
+#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+    if (info->kms_enabled) {
+	drmmode_wait_for_vline(pScrn, pPix, crtc, start, stop);
+	return;
+    }
+#endif
 
     BEGIN_ACCEL(2);
 

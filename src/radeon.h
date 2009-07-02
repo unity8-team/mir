@@ -89,6 +89,8 @@
 #ifdef XF86DRM_MODE
 #include "radeon_bo.h"
 #include "radeon_cs.h"
+#include "radeon_dri2.h"
+#include "drmmode_display.h"
 #else
 #include "radeon_dummy_bufmgr.h"
 #endif
@@ -857,6 +859,9 @@ typedef struct {
     RADEONCardType    cardType;            /* Current card is a PCI card */
     struct radeon_cp  *cp;
     struct radeon_dri  *dri;
+#ifdef XF86DRM_MODE
+    struct radeon_dri2  dri2;
+#endif
 #ifdef USE_EXA
     Bool              accelDFS;
 #endif
@@ -972,10 +977,17 @@ typedef struct {
     int can_resize;
     void (*reemit_current2d)(ScrnInfoPtr pScrn, int op); // emit the current 2D state into the IB 
     struct radeon_2d_state state_2d;
+    Bool kms_enabled;
+    struct radeon_bo *front_bo;
 #ifdef XF86DRM_MODE
     struct radeon_bo_manager *bufmgr;
     struct radeon_cs_manager *csm;
     struct radeon_cs *cs;
+
+    struct radeon_bo *cursor_bo[2];
+    uint64_t vram_size;
+    uint64_t gart_size;
+    drmmode_rec drmmode;
 #else
     /* fake bool */
     Bool cs;
@@ -1162,6 +1174,12 @@ extern void RADEONInitMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				      RADEONInfoPtr info);
 extern void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore);
+
+Bool RADEONGetRec(ScrnInfoPtr pScrn);
+void RADEONFreeRec(ScrnInfoPtr pScrn);
+Bool RADEONPreInitVisual(ScrnInfoPtr pScrn);
+Bool RADEONPreInitWeight(ScrnInfoPtr pScrn);
+
 
 /* radeon_pm.c */
 extern void RADEONPMInit(ScrnInfoPtr pScrn);

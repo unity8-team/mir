@@ -340,7 +340,7 @@ RADEONPostInt10Check(ScrnInfoPtr pScrn, void *ptr)
 }
 
 /* Allocate our private RADEONInfoRec */
-static Bool RADEONGetRec(ScrnInfoPtr pScrn)
+Bool RADEONGetRec(ScrnInfoPtr pScrn)
 {
     if (pScrn->driverPrivate) return TRUE;
 
@@ -349,7 +349,7 @@ static Bool RADEONGetRec(ScrnInfoPtr pScrn)
 }
 
 /* Free our private RADEONInfoRec */
-static void RADEONFreeRec(ScrnInfoPtr pScrn)
+void RADEONFreeRec(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info;
     int i;
@@ -1251,7 +1251,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 
 
 /* This is called by RADEONPreInit to set up the default visual */
-static Bool RADEONPreInitVisual(ScrnInfoPtr pScrn)
+Bool RADEONPreInitVisual(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
@@ -1308,7 +1308,7 @@ static Bool RADEONPreInitVisual(ScrnInfoPtr pScrn)
 }
 
 /* This is called by RADEONPreInit to handle all color weight issues */
-static Bool RADEONPreInitWeight(ScrnInfoPtr pScrn)
+Bool RADEONPreInitWeight(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
@@ -2813,6 +2813,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     info->IsSecondary  = FALSE;
     info->IsPrimary = FALSE;
+    info->kms_enabled = FALSE;
 
     info->pEnt         = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
     if (info->pEnt->location.type != BUS_PCI) goto fail;
@@ -5627,7 +5628,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
         RADEONRestoreSurfaces(pScrn, info->ModeReg);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
-    	if (info->cardType == CARD_PCIE &&
+	if (info->cardType == CARD_PCIE &&
 	    info->dri->pKernelDRMVersion->version_minor >= 19 &&
 	    info->FbSecureSize) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -5641,7 +5642,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	    OUTREG(RADEON_SURFACE_CNTL, sctrl);
 #endif
-    	}
+	}
 
 	/* get the DRI back into shape after resume */
 	RADEONDRISetVBlankInterrupt (pScrn, TRUE);
