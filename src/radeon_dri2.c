@@ -156,7 +156,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
         depth_pixmap = pixmap;
     }
     driver_priv = exaGetPixmapDriverPrivate(pixmap);
-    buffers->name = radeon_bo_name_bo(driver_priv->bo);
+    buffers->name = radeon_gem_name_bo(driver_priv->bo);
     buffers->attachment = attachment;
     buffers->pitch = pixmap->devKind;
     buffers->cpp = pixmap->drawable.bitsPerPixel / 8;
