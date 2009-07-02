@@ -146,7 +146,8 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
       pScrn->FreeScreen    = RADEONFreeScreen_KMS;
       pScrn->ValidMode     = RADEONValidMode;
     } else 
-#endif {
+#endif 
+    {
       pScrn->PreInit       = RADEONPreInit;
       pScrn->ScreenInit    = RADEONScreenInit;
       pScrn->SwitchMode    = RADEONSwitchMode;
