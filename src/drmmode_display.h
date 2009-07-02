@@ -35,7 +35,7 @@
 
 typedef struct {
   int fd;
-  int fb_id;
+  unsigned fb_id;
   drmModeResPtr mode_res;
   drmModeFBPtr mode_fb;
   int cpp;
@@ -48,7 +48,7 @@ typedef struct {
     drmModeCrtcPtr mode_crtc;
     struct radeon_bo *cursor_bo;
     struct radeon_bo *rotate_bo;
-    int rotate_fb_id;
+    unsigned rotate_fb_id;
     uint16_t lut_r[256], lut_g[256], lut_b[256];
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 

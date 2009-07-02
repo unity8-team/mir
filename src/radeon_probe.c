@@ -47,6 +47,11 @@
 #include "xf86.h"
 #include "xf86Resources.h"
 
+#ifdef XF86DRM_MODE
+#include "xf86drmMode.h"
+#include "dri.h"
+#endif
+
 #include "radeon_chipset_gen.h"
 
 #include "radeon_pci_chipset_gen.h"

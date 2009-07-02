@@ -334,7 +334,7 @@ static void RADEONFinishAccess_BE(PixmapPtr pPix, int index)
 #ifdef XF86DRM_MODE
 static Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 {
-    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
+    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
     struct radeon_exa_pixmap_priv *driver_priv;
     int ret;
 
@@ -400,8 +400,6 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
 
 static void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *driver_priv = driverPriv;
 
     if (!driverPriv)
@@ -413,8 +411,6 @@ static void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 
 struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *driver_priv;
     driver_priv = exaGetPixmapDriverPrivate(pPix);
     return driver_priv->bo;
@@ -422,9 +418,6 @@ struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
 
 void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
     struct radeon_exa_pixmap_priv *driver_priv;
 
     driver_priv = exaGetPixmapDriverPrivate(pPix);

@@ -40,6 +40,8 @@
 
 #ifdef RADEON_DRI2
 
+#include "radeon_bo_gem.h"
+
 #if DRI2INFOREC_VERSION >= 1
 #define USE_DRI2_1_1_0
 #endif

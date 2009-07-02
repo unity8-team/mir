@@ -831,7 +831,6 @@ void drmmode_wait_for_vline(ScrnInfoPtr pScrn, PixmapPtr pPix,
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    uint32_t offset;
     drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[crtc]->driver_private;
     ACCEL_PREAMBLE();
 

@@ -302,7 +302,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		/* go through all the outputs and force DPMS them back on? */
 		for (i = 0; i < xf86_config->num_output; i++) {
 			xf86OutputPtr output = xf86_config->output[i];
-			drmmode_output_private_ptr drmmode_output;
 
 			if (output->crtc != crtc)
 				continue;
