@@ -284,7 +284,7 @@ void RADEONInitVideo(ScreenPtr pScreen)
     memcpy(newAdaptors, adaptors, num_adaptors * sizeof(XF86VideoAdaptorPtr));
     adaptors = newAdaptors;
 
-    if (!IS_AVIVO_VARIANT) {
+    if (!IS_AVIVO_VARIANT && !info->kms_enabled) {
 	overlayAdaptor = RADEONSetupImageVideo(pScreen);
 	if (overlayAdaptor != NULL) {
 	    adaptors[num_adaptors++] = overlayAdaptor;
