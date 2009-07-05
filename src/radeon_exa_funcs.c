@@ -213,6 +213,17 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 
     TRACE;
 
+#ifdef ACCEL_CP
+    if (info->cs && info->cs->cdw > 15 * 1024) {
+	struct radeon_cs_space_check bos[1];
+
+	radeon_cs_flush_indirect(pScrn);
+	radeon_add_pixmap(bos, 0, pPix, 0, RADEON_GEM_DOMAIN_VRAM);
+	radeon_cs_space_check(info->cs, bos, 1);
+	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
+    }
+#endif
+
     if (info->accel_state->vsync)
 	FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix, RADEONBiggerCrtcArea(pPix), y1, y2);
 
@@ -341,6 +352,21 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
     ACCEL_PREAMBLE();
 
     TRACE;
+
+#ifdef ACCEL_CP
+    if (info->cs && info->cs->cdw > 15 * 1024) {
+	struct radeon_cs_space_check bos[2];
+
+	radeon_cs_flush_indirect(pScrn);
+	bos[0].bo = info->state_2d.src_bo;
+	bos[0].read_domains = RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM;
+	bos[0].write_domain = 0;
+	bos[0].new_accounted = 0;
+	radeon_add_pixmap(bos, 1, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+	radeon_cs_space_check(info->cs, bos, 2);
+	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_COPY);
+    }
+#endif
 
     if (info->accel_state->xdir < 0) {
 	srcX += w - 1;

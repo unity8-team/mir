@@ -667,6 +667,13 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 	return;
     radeon_cs_emit(info->cs);
     radeon_cs_erase(info->cs);
+
+    /* Need to re-initialize 3D state in each CS */
+    info->accel_state->XInited3D = FALSE;
+
+#ifdef USE_EXA
+    info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
+#endif
 #endif
 }
 
