@@ -1193,7 +1193,7 @@ nv_add_encoder(ScrnInfoPtr pScrn, struct dcb_entry *dcbent)
 	nv_encoder->dcb = dcbent;
 	nv_encoder->last_dpms = NV_DPMS_CLEARED;
 	nv_encoder->dithering = pNv->FPDither;
-	if (pNv->fpScaler) /* GPU Scaling */
+	if (pNv->FpScale && pNv->gf4_disp_arch) /* GPU Scaling */
 		nv_encoder->scaling_mode = SCALE_ASPECT;
 	else if (nv_encoder->dcb->type == OUTPUT_LVDS)
 		nv_encoder->scaling_mode = SCALE_NOSCALE;

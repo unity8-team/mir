@@ -55,14 +55,14 @@
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
 
-#include "vgaHW.h"
-
 #include "xf86Cursor.h"
 #include "xf86DDC.h"
 
 #include "region.h"
 
 #include <X11/extensions/randr.h>
+#define DPMS_SERVER
+#include <X11/extensions/dpms.h>
 
 #define NV_DMA_DEBUG 0
 

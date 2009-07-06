@@ -91,7 +91,7 @@ NV50OutputInit(ScrnInfoPtr pScrn, struct dcb_entry *dcbent)
 	output->dithering = (pNv->FPDither || output->type == OUTPUT_LVDS);
 
 	if (output->type == OUTPUT_LVDS || output->type == OUTPUT_TMDS) {
-		if (pNv->fpScaler) /* GPU Scaling */
+		if (pNv->FpScale) /* GPU Scaling */
 			output->scale_mode = SCALE_ASPECT;
 		else if (output->type == OUTPUT_LVDS)
 			output->scale_mode = SCALE_NOSCALE;

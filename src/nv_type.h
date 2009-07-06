@@ -2,7 +2,6 @@
 #define __NV_STRUCT_H__
 
 #include "colormapst.h"
-#include "vgaHW.h"
 #include "xf86Cursor.h"
 #include "xf86int10.h"
 #include "exa.h"
@@ -191,13 +190,6 @@ typedef struct _NVRec {
 
     volatile CARD32 *REGS;
     volatile CARD32 *FB_BAR;
-    //volatile CARD32 *PGRAPH;
-    volatile CARD8 *PCIO0;
-    volatile CARD8 *PCIO1;
-    volatile CARD8 *PVIO0;
-    volatile CARD8 *PVIO1;
-    volatile CARD8 *PDIO0;
-    volatile CARD8 *PDIO1;
 
     uint8_t cur_head;
     ExaDriverPtr	EXADriverPtr;
@@ -210,7 +202,6 @@ typedef struct _NVRec {
     /* I2C / DDC */
     xf86Int10InfoPtr    pInt10;
     unsigned            Int10Mode;
-    I2CBusPtr           I2C;
   void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
     XF86VideoAdaptorPtr	overlayAdaptor;
     XF86VideoAdaptorPtr	blitAdaptor;
@@ -225,9 +216,6 @@ typedef struct _NVRec {
     bool                twoHeads;
     bool		gf4_disp_arch;
     bool                two_reg_pll;
-    Bool                fpScaler;
-    int                 fpWidth;
-    int                 fpHeight;
 
     Bool                LockedUp;
 

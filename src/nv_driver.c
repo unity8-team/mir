@@ -53,8 +53,6 @@ static void    NVCloseDRM(ScrnInfoPtr);
 static Bool    NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
 static void    NVAdjustFrame(int scrnIndex, int x, int y, int flags);
 static void    NVFreeScreen(int scrnIndex, int flags);
-static ModeStatus NVValidMode(int scrnIndex, DisplayModePtr mode,
-			      Bool verbose, int flags);
 
 /* Internally used functions */
 
@@ -237,7 +235,6 @@ NVGetScrnInfoRec(PciChipsets *chips, int chip)
     pScrn->EnterVT          = NVEnterVT;
     pScrn->LeaveVT          = NVLeaveVT;
     pScrn->FreeScreen       = NVFreeScreen;
-    pScrn->ValidMode        = NVValidMode;
 
     return TRUE;
 }
@@ -343,7 +340,6 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 			pScrn->EnterVT          = NVEnterVT;
 			pScrn->LeaveVT          = NVLeaveVT;
 			pScrn->FreeScreen       = NVFreeScreen;
-			pScrn->ValidMode        = NVValidMode;
 
 			return TRUE;
 		}
@@ -635,8 +631,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	NVTakedownDma(pScrn);
 	NVUnmapMem(pScrn);
 
-	vgaHWUnmapMem(pScrn);
-
 	if (!pNv->exa_driver_pixmaps)
 		NVDRICloseScreen(pScrn);
 #ifdef DRI2
@@ -692,9 +686,6 @@ NVFreeScreen(int scrnIndex, int flags)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
-
 	if (!pNv)
 		return;
 
@@ -712,22 +703,6 @@ NVFreeScreen(int scrnIndex, int flags)
 
 	xfree(pScrn->driverPrivate);
 	pScrn->driverPrivate = NULL;
-}
-
-
-/* Checks if a mode is suitable for the selected chipset. */
-
-/* Optional */
-static ModeStatus
-NVValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
-{
-    NVPtr pNv = NVPTR(xf86Screens[scrnIndex]);
-
-    if(pNv->fpWidth && pNv->fpHeight)
-      if((pNv->fpWidth < mode->HDisplay) || (pNv->fpHeight < mode->VDisplay))
-        return (MODE_PANEL);
-
-    return (MODE_OK);
 }
 
 static Bool
@@ -836,7 +811,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	NVPtr pNv;
 	MessageType from;
 	int max_width, max_height;
-	int config_mon_rates = FALSE;
 	int ret, i;
 
 	if (flags & PROBE_DETECT) {
@@ -1056,13 +1030,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	/* The vgahw module should be loaded here when needed */
 	if (!xf86LoadSubModule(pScrn, "vgahw")) {
-		NVPreInitFail("\n");
-	}
-
-	/*
-	 * Allocate a vgaHWRec
-	 */
-	if (!vgaHWGetHWRec(pScrn)) {
 		NVPreInitFail("\n");
 	}
 
@@ -1620,19 +1587,11 @@ static Bool
 NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	vgaHWPtr hwp = VGAHWPTR(pScrn);
 	NVPtr pNv = NVPTR(pScrn);
 	int ret;
 	VisualPtr visual;
 	unsigned char *FBStart;
 	int displayWidth;
-
-	/* Map the VGA memory when the primary video */
-	if (pNv->Primary) {
-		hwp->MapSize = 0x10000;
-		if (!vgaHWMapMem(pScrn))
-			return FALSE;
-	}
 
 	/* Allocate and map memory areas we need */
 	if (!NVMapMem(pScrn))
