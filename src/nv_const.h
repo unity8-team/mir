@@ -13,13 +13,10 @@ typedef enum {
     OPTION_NOACCEL,
     OPTION_SHADOW_FB,
     OPTION_VIDEO_KEY,
-    OPTION_FLAT_PANEL,
     OPTION_FP_DITHER,
     OPTION_FP_SCALE,
-    OPTION_FP_TWEAK,
     OPTION_CMDBUF_LOCATION,
     OPTION_CMDBUF_SIZE,
-    OPTION_RANDR12,
     OPTION_SCALING_MODE,
     OPTION_EXA_PIXMAPS
 } NVOpts;
@@ -33,10 +30,8 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_VIDEO_KEY,		"VideoKey",	OPTV_INTEGER,	{0}, FALSE },
     { OPTION_FP_DITHER, 	"FPDither",	OPTV_BOOLEAN,	{0}, FALSE },
     { OPTION_FP_SCALE,          "FPScale",      OPTV_BOOLEAN,   {0}, FALSE },
-    { OPTION_FP_TWEAK,          "FPTweak",      OPTV_INTEGER,   {0}, FALSE },
     { OPTION_CMDBUF_LOCATION,	"CBLocation",	OPTV_STRING,	{0}, FALSE },
     { OPTION_CMDBUF_SIZE,	"CBSize",	OPTV_INTEGER,	{0}, FALSE },
-    { OPTION_RANDR12,		"Randr12",	OPTV_BOOLEAN,	{0}, FALSE },
     { OPTION_SCALING_MODE,	"ScalingMode",	OPTV_STRING,	{0}, FALSE },
     { OPTION_EXA_PIXMAPS,	"EXAPixmaps",	OPTV_BOOLEAN,	{0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }

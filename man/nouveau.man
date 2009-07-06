@@ -70,17 +70,6 @@ Enable or disable the HW cursor.  Default: on.
 .BI "Option \*qNoAccel\*q \*q" boolean \*q
 Disable or enable acceleration.  Default: acceleration is enabled.
 .TP
-.BI "Option \*qRandR12\*q \*q" boolean \*q
-Disable or enable use of improved mode-setting code.  Default: RandR12 is enabled.
-.TP
-.BI "Option \*qFlatPanel\*q \*q" boolean \*q
-The driver usually can autodetect the presence of a digital flat panel.  In
-the case that this fails, this option can be used to force the driver to 
-treat the attached device as a digital flat panel.  With this 
-driver, a digital flat panel will work only if it was POSTed by the BIOS, 
-that is, the computer must have booted to the panel.
-Default: autodetected.
-.TP
 .BI "Option \*qFPDither\*q \*q" boolean \*q
 Many digital flat panels (particularly ones on laptops) have only 6 bits 
 per component color resolution.
