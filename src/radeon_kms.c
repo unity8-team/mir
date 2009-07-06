@@ -78,6 +78,13 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 	return;
     radeon_cs_emit(info->cs);
     radeon_cs_erase(info->cs);
+
+    if (info->reemit_current2d)
+      info->reemit_current2d(pScrn, 0);
+    if (info->dri2.enabled) {
+      info->accel_state->XInited3D = FALSE;
+      info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
+    }
 }
 
 void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
