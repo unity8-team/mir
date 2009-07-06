@@ -19,9 +19,6 @@ Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
 PixmapPtr NVGetDrawablePixmap(DrawablePtr pDraw);
 void NVAccelFree(ScrnInfoPtr pScrn);
 
-/* in nv_driver.c */
-Bool   NVI2CInit(ScrnInfoPtr pScrn);
-
 /* in nv_dri.c */
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
 Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);

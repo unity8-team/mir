@@ -174,22 +174,8 @@ unsigned int
 nv_window_belongs_to_crtc(ScrnInfoPtr pScrn, int x, int y, int w, int h)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	NVPtr pNv = NVPTR(pScrn);
-	int i;
 	unsigned int mask = 0;
-
-	if (!pNv->randr12_enable) {
-		/*
-		 * Without RandR 1.2, we'll just return which CRTCs
-		 * are active.
-		 */
-		if (pNv->crtc_active[0])
-			mask |= 0x1;
-		else if (pNv->crtc_active[1])
-			mask |= 0x2;
-
-		return mask;
-	}
+	int i;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -623,7 +609,7 @@ NV_set_dimensions(ScrnInfoPtr pScrn, int action_flags, INT32 *xa, INT32 *xb,
 	 * set in the overlay adapter flags) since pScrn->frame{X,Y}1 do not get
 	 * updated. Hence manual clipping against the CRTC dimensions
 	 */
-	if (pNv->randr12_enable && action_flags & USE_OVERLAY) {
+	if (action_flags & USE_OVERLAY) {
 		NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
 		unsigned id = pPriv->overlayCRTC;
 		xf86CrtcPtr crtc = XF86_CRTC_CONFIG_PTR(pScrn)->crtc[id];
@@ -645,21 +631,14 @@ NV_set_dimensions(ScrnInfoPtr pScrn, int action_flags, INT32 *xa, INT32 *xb,
 		return -1;
 
 	if (action_flags & USE_OVERLAY)	{
-		if (!pNv->randr12_enable) {
-			dstBox->x1 -= pScrn->frameX0;
-			dstBox->x2 -= pScrn->frameX0;
-			dstBox->y1 -= pScrn->frameY0;
-			dstBox->y2 -= pScrn->frameY0;
-		} else {
-			xf86CrtcConfigPtr xf86_config =
-				XF86_CRTC_CONFIG_PTR(pScrn);
-			NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
+		xf86CrtcConfigPtr xf86_config =
+			XF86_CRTC_CONFIG_PTR(pScrn);
+		NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
 
-			dstBox->x1 -= xf86_config->crtc[pPriv->overlayCRTC]->x;
-			dstBox->x2 -= xf86_config->crtc[pPriv->overlayCRTC]->x;
-			dstBox->y1 -= xf86_config->crtc[pPriv->overlayCRTC]->y;
-			dstBox->y2 -= xf86_config->crtc[pPriv->overlayCRTC]->y;
-		}
+		dstBox->x1 -= xf86_config->crtc[pPriv->overlayCRTC]->x;
+		dstBox->x2 -= xf86_config->crtc[pPriv->overlayCRTC]->x;
+		dstBox->y1 -= xf86_config->crtc[pPriv->overlayCRTC]->y;
+		dstBox->y2 -= xf86_config->crtc[pPriv->overlayCRTC]->y;
 	}
 
 	/* Convert fixed point to integer, as xf86XVClipVideoHelper probably
@@ -827,7 +806,7 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 	}
 #endif
 
-	if (USING_OVERLAY && pNv->randr12_enable) {
+	if (USING_OVERLAY) {
 		char crtc = nv_window_belongs_to_crtc(pScrn, drw_x, drw_y,
 						      drw_w, drw_h);
 
@@ -1650,10 +1629,7 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 	}
 
 	adapt->type		= XvWindowMask | XvInputMask | XvImageMask;
-	if (pNv->randr12_enable)
-		adapt->flags		= VIDEO_OVERLAID_IMAGES;
-	else
-		adapt->flags		= VIDEO_OVERLAID_IMAGES | VIDEO_CLIP_TO_VIEWPORT;
+	adapt->flags		= VIDEO_OVERLAID_IMAGES;
 	adapt->name		= "NV Video Overlay";
 	adapt->nEncodings	= 1;
 	adapt->pEncodings	= &DummyEncoding;
@@ -1811,13 +1787,6 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 		overlayAdaptor->name = "NV Video Overlay with Composite";
 	}
 	#endif
-
-	if (pNv->randr12_enable) {
-	    	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Xv: Randr12 is enabled, using overlay with smart "
-			   "blitter fallback and automatic CRTC switching\n");
-	}
-
 
 	return overlayAdaptor;
 }

@@ -42,25 +42,17 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 		    int x2, int y2, short width, short height,
 		    short src_w, short src_h, short drw_w, short drw_h,
 		    RegionPtr clipBoxes)
-{                       
-	NVPtr         pNv    = NVPTR(pScrn);
-	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
+	NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
+	xf86CrtcPtr crtc = xf86_config->crtc[pPriv->overlayCRTC];
 
 	/*This may not work with NV04 overlay according to rivatv source*/
-	if (!pNv->randr12_enable) {
-		if (pScrn->currentMode->Flags & V_DBLSCAN) {
-			dstBox->y1 <<= 1;
-			dstBox->y2 <<= 1;
-			drw_h <<= 1;
-		}
-	} else {
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		xf86CrtcPtr crtc = xf86_config->crtc[pPriv->overlayCRTC];
-		if (crtc->mode.Flags & V_DBLSCAN) {
-			dstBox->y1 <<= 1;
-			dstBox->y2 <<= 1;
-			drw_h <<= 1;
-		}
+	if (crtc->mode.Flags & V_DBLSCAN) {
+		dstBox->y1 <<= 1;
+		dstBox->y2 <<= 1;
+		drw_h <<= 1;
 	}
 
         /* paint the color key */

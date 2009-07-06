@@ -246,7 +246,6 @@ typedef struct _NVRec {
     drmVersionPtr       pLibDRMVersion;
     drmVersionPtr       pKernelDRMVersion;
 
-	Bool randr12_enable;
 	Bool kms_enable;
 
 	I2CBusPtr           pI2CBus[DCB_MAX_NUM_I2C_ENTRIES];

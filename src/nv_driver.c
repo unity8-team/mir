@@ -62,7 +62,6 @@ static Bool	NVMapMem(ScrnInfoPtr pScrn);
 static Bool	NVUnmapMem(ScrnInfoPtr pScrn);
 static void	NVSave(ScrnInfoPtr pScrn);
 static void	NVRestore(ScrnInfoPtr pScrn);
-static Bool	NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
 
 #ifdef XSERVER_LIBPCIACCESS
 
@@ -455,12 +454,8 @@ Bool
 NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->randr12_enable)
-		return xf86SetSingleMode(pScrn, mode, RR_Rotate_0);
-
-	return NVModeInit(xf86Screens[scrnIndex], mode);
+	return xf86SetSingleMode(pScrn, mode, RR_Rotate_0);
 }
 
 /*
@@ -476,18 +471,12 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 
 	if (pNv->kms_enable) {
 		drmmode_adjust_frame(pScrn, x, y, flags);
-	} else
-	if (pNv->randr12_enable) {
+	} else {
 		xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
 		xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
 
 		if (crtc && crtc->enabled)
 			NVCrtcSetBase(crtc, x, y);
-	} else {
-		int startAddr;
-		startAddr = (((y*pScrn->displayWidth)+x)*(pScrn->bitsPerPixel/8));
-		startAddr += pNv->FB->offset;
-		NVSetStartAddress(pNv, startAddr);
 	}
 }
 
@@ -561,16 +550,10 @@ NVEnterVT(int scrnIndex, int flags)
 		}
 	}
 
-	if (!pNv->randr12_enable) {
-		if (!NVModeInit(pScrn, pScrn->currentMode))
-			return FALSE;
-		NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-	} else {
-		pNv->allow_dpms = FALSE;
-		if (!xf86SetDesiredModes(pScrn))
-			return FALSE;
-		pNv->allow_dpms = TRUE;
-	}
+	pNv->allow_dpms = FALSE;
+	if (!xf86SetDesiredModes(pScrn))
+		return FALSE;
+	pNv->allow_dpms = TRUE;
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
 		NV10WriteOverlayParameters(pScrn);
@@ -661,8 +644,8 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		nouveau_dri2_fini(pScreen);
 #endif
 
-	if (pNv->randr12_enable)
-		xf86_cursors_fini(pScreen);
+	xf86_cursors_fini(pScreen);
+
 	if (pNv->ShadowPtr) {
 		xfree(pNv->ShadowPtr);
 		pNv->ShadowPtr = NULL;
@@ -745,13 +728,6 @@ NVValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
         return (MODE_PANEL);
 
     return (MODE_OK);
-}
-
-Bool NVI2CInit(ScrnInfoPtr pScrn)
-{
-	if (!NVPTR(pScrn)->randr12_enable)
-		return NVDACi2cInit(pScrn);
-	return TRUE;
 }
 
 static Bool
@@ -1105,13 +1081,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	from = X_DEFAULT;
 
-	pNv->randr12_enable = true;
-	if (pNv->Architecture != NV_ARCH_50 && !pNv->kms_enable &&
-	    !xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, TRUE))
-		pNv->randr12_enable = false;
-	xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n",
-		   pNv->randr12_enable ? "en" : "dis");
-
 	pNv->HWCursor = TRUE;
 	/*
 	 * The preferred method is to use the "hw cursor" option as a tri-state
@@ -1125,8 +1094,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		from = X_CONFIG;
 		pNv->HWCursor = FALSE;
 	}
-	if (!pNv->randr12_enable)
-		pNv->HWCursor = FALSE;
 	xf86DrvMsg(pScrn->scrnIndex, from, "Using %s cursor\n",
 		pNv->HWCursor ? "HW" : "SW");
 
@@ -1164,14 +1131,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		pNv->videoKey =  (1 << pScrn->offset.red) | 
 					(1 << pScrn->offset.green) |
 		(((pScrn->mask.blue >> pScrn->offset.blue) - 1) << pScrn->offset.blue);
-	}
-
-	/* Things happen on a per output basis for a randr-1.2 driver. */
-	if (xf86GetOptValBool(pNv->Options, OPTION_FLAT_PANEL, &(pNv->FlatPanel)) && !pNv->randr12_enable) {
-		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "forcing %s usage\n",
-			pNv->FlatPanel ? "DFP" : "CRTC");
-	} else {
-		pNv->FlatPanel = -1; /* autodetect later */
 	}
 
 	pNv->FPDither = FALSE;
@@ -1247,30 +1206,17 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			NVPreInitFail("Kernel modesetting failed to initialize\n");
 	} else
 #endif
-	if (pNv->randr12_enable) {
-		/* Allocate an xf86CrtcConfig */
-		xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
-		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
-	}
 
-	if (!pNv->randr12_enable) {
-		if ((pScrn->monitor->nHsync == 0) && 
-			(pScrn->monitor->nVrefresh == 0)) {
-
-			config_mon_rates = FALSE;
-		} else {
-			config_mon_rates = TRUE;
-		}
-	}
+	/* Allocate an xf86CrtcConfig */
+	xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
+	xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
 
 	NVCommonSetup(pScrn);
 
-	if (pNv->randr12_enable && !pNv->kms_enable) {
+	if (!pNv->kms_enable) {
 		if (pNv->Architecture == NV_ARCH_50)
 			if (!NV50DispPreInit(pScrn))
 				NVPreInitFail("\n");
-
-		NVI2CInit(pScrn);
 
 		/* This is the internal system, not the randr-1.2 ones. */
 		if (pNv->Architecture == NV_ARCH_50) {
@@ -1369,45 +1315,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 #endif
 
-	if (pNv->randr12_enable) {
-		pScrn->displayWidth = nv_pitch_align(pNv, pScrn->virtualX, pScrn->depth);
-	} else {
-		/*
-		 * xf86ValidateModes will check that the mode HTotal and VTotal values
-		 * don't exceed the chipset's limit if pScrn->maxHValue and
-		 * pScrn->maxVValue are set.  Since our NVValidMode() already takes
-		 * care of this, we don't worry about setting them here.
-		 */
-		i = xf86ValidateModes(pScrn, pScrn->monitor->Modes,
-					pScrn->display->modes, clockRanges,
-					NULL, 256, max_width,
-					512, 128, max_height,
-					pScrn->display->virtualX,
-					pScrn->display->virtualY,
-					pNv->VRAMPhysicalSize / 2,
-					LOOKUP_BEST_REFRESH);
-
-		if (i == -1) {
-			NVPreInitFail("\n");
-		}
-
-		/* Prune the modes marked as invalid */
-		xf86PruneDriverModes(pScrn);
-
-		/*
-		 * Set the CRTC parameters for all of the modes based on the type
-		 * of mode, and the chipset's interlace requirements.
-		 *
-		 * Calling this is required if the mode->Crtc* values are used by the
-		 * driver and if the driver doesn't provide code to set them.  They
-		 * are not pre-initialised at all.
-		 */
-		xf86SetCrtcForModes(pScrn, 0);
-
-		if (pScrn->modes == NULL)
-			NVPreInitFail("No valid modes found\n");
-	}
-
+	pScrn->displayWidth = nv_pitch_align(pNv, pScrn->virtualX, pScrn->depth);
 	/* Set the current mode to the first in the list */
 	pScrn->currentMode = pScrn->modes;
 
@@ -1692,58 +1600,6 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 
 
 /*
- * Initialise a new mode. 
- */
-
-static Bool
-NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
-{
-    vgaHWPtr hwp = VGAHWPTR(pScrn);
-    vgaRegPtr vgaReg;
-    NVPtr pNv = NVPTR(pScrn);
-    NVRegPtr nvReg;
-
-    /* Initialise the ModeReg values */
-    if (!vgaHWInit(pScrn, mode))
-	return FALSE;
-    pScrn->vtSema = TRUE;
-
-    vgaReg = &hwp->ModeReg;
-    nvReg = &pNv->ModeReg;
-
-    if(!NVDACInit(pScrn, mode))
-        return FALSE;
-
-    if (pNv->twoHeads)
-        nvWriteCurVGA(pNv, NV_CIO_CRE_44, nvReg->crtcOwner);
-
-    /* Program the registers */
-    vgaHWProtect(pScrn, TRUE);
-
-    NVDACRestore(pScrn, vgaReg, nvReg, FALSE);
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* turn on LFB swapping */
-    {
-	unsigned char tmp;
-
-	tmp = nvReadCurVGA(pNv, NV_CIO_CRE_RCR);
-	tmp |= (1 << 7);
-	nvWriteCurVGA(pNv, NV_CIO_CRE_RCR, tmp);
-    }
-#endif
-
-    if (!pNv->NoAccel)
-		NVAccelCommonInit(pScrn);
-
-    vgaHWProtect(pScrn, FALSE);
-
-    pScrn->currentMode = mode;
-
-    return TRUE;
-}
-
-/*
  * Restore the initial (text) mode.
  */
 static void 
@@ -1753,32 +1609,18 @@ NVRestore(ScrnInfoPtr pScrn)
 
 	NVLockVgaCrtcs(pNv, false);
 
-	if (pNv->randr12_enable) {
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		int i;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring encoders\n");
-		for (i = 0; i < pNv->vbios->dcb->entries; i++)
-			nv_encoder_restore(pScrn, &pNv->encoders[i]);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring encoders\n");
+	for (i = 0; i < pNv->vbios->dcb->entries; i++)
+		nv_encoder_restore(pScrn, &pNv->encoders[i]);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring crtcs\n");
-		for (i = 0; i < xf86_config->num_crtc; i++)
-			xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring crtcs\n");
+	for (i = 0; i < xf86_config->num_crtc; i++)
+		xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
 
-		nouveau_hw_save_vga_fonts(pScrn, 0);
-	} else {
-		vgaHWPtr hwp = VGAHWPTR(pScrn);
-		vgaRegPtr vgaReg = &hwp->SavedReg;
-		NVRegPtr nvReg = &pNv->SavedReg;
-
-		if (pNv->twoHeads)
-			nvWriteCurVGA(pNv, NV_CIO_CRE_44, pNv->crtc_active[1] * 0x3);
-
-		/* Only restore text mode fonts/text for the primary card */
-		vgaHWProtect(pScrn, TRUE);
-		NVDACRestore(pScrn, vgaReg, nvReg, pNv->Primary);
-		vgaHWProtect(pScrn, FALSE);
-	}
+	nouveau_hw_save_vga_fonts(pScrn, 0);
 
 	if (pNv->twoHeads) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring CRTC_OWNER to %d.\n", pNv->vtOWNER);
@@ -1842,101 +1684,6 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	}
 }
 
-static void NVBacklightEnable(NVPtr pNv,  Bool on)
-{
-    /* This is done differently on each laptop.  Here we
-       define the ones we know for sure. */
-
-#if defined(__powerpc__)
-    if((pNv->Chipset & 0xffff == 0x0179) ||
-       (pNv->Chipset & 0xffff == 0x0189) ||
-       (pNv->Chipset & 0xffff == 0x0329))
-    {
-       /* NV17,18,34 Apple iMac, iBook, PowerBook */
-      CARD32 tmp_pmc, tmp_pcrt;
-      tmp_pmc = nvReadMC(pNv, NV_PBUS_DEBUG_DUALHEAD_CTL) & 0x7FFFFFFF;
-      tmp_pcrt = NVReadCRTC(pNv, 0, NV_PCRTC_GPIO_EXT) & 0xFFFFFFFC;
-      if(on) {
-          tmp_pmc |= (1 << 31);
-          tmp_pcrt |= 0x1;
-      }
-      nvWriteMC(pNv, NV_PBUS_DEBUG_DUALHEAD_CTL, tmp_pmc);
-      NVWriteCRTC(pNv, 0, NV_PCRTC_GPIO_EXT, tmp_pcrt);
-    }
-#endif
-    
-    if(pNv->LVDS) {
-       if(pNv->twoHeads && ((pNv->Chipset & 0x0ff0) != CHIPSET_NV11)) {
-           nvWriteMC(pNv, 0x130C, on ? 3 : 7);
-       }
-    } else {
-       CARD32 fpcontrol;
-
-       fpcontrol = nvReadCurRAMDAC(pNv, NV_PRAMDAC_FP_TG_CONTROL) & 0xCfffffCC;
-
-       /* cut the TMDS output */
-       if(on) fpcontrol |= pNv->fpSyncs;
-       else fpcontrol |= 0x20000022;
-
-       nvWriteCurRAMDAC(pNv, NV_PRAMDAC_FP_TG_CONTROL, fpcontrol);
-    }
-}
-
-static void
-NVDPMSSetLCD(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
-{
-  NVPtr pNv = NVPTR(pScrn);
-
-  if (!pScrn->vtSema) return;
-
-  vgaHWDPMSSet(pScrn, PowerManagementMode, flags);
-
-  switch (PowerManagementMode) {
-  case DPMSModeStandby:  /* HSync: Off, VSync: On */
-  case DPMSModeSuspend:  /* HSync: On, VSync: Off */
-  case DPMSModeOff:      /* HSync: Off, VSync: Off */
-    NVBacklightEnable(pNv, 0);
-    break;
-  case DPMSModeOn:       /* HSync: On, VSync: On */
-    NVBacklightEnable(pNv, 1);
-  default:
-    break;
-  }
-}
-
-
-static void
-NVDPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
-{
-  unsigned char crtc1A;
-  vgaHWPtr hwp = VGAHWPTR(pScrn);
-
-  if (!pScrn->vtSema) return;
-
-  crtc1A = hwp->readCrtc(hwp, 0x1A) & ~0xC0;
-
-  switch (PowerManagementMode) {
-  case DPMSModeStandby:  /* HSync: Off, VSync: On */
-    crtc1A |= 0x80;
-    break;
-  case DPMSModeSuspend:  /* HSync: On, VSync: Off */
-    crtc1A |= 0x40;
-    break;
-  case DPMSModeOff:      /* HSync: Off, VSync: Off */
-    crtc1A |= 0xC0;
-    break;
-  case DPMSModeOn:       /* HSync: On, VSync: On */
-  default:
-    break;
-  }
-
-  /* vgaHWDPMSSet will merely cut the dac output */
-  vgaHWDPMSSet(pScrn, PowerManagementMode, flags);
-
-  hwp->writeCrtc(hwp, 0x1A, crtc1A);
-}
-
-
 /* Mandatory */
 
 /* This gets called at the start of each server generation */
@@ -1979,16 +1726,14 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			return FALSE;
 	}
 
-	if (pNv->randr12_enable) {
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		int i;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
 
-		/* need to point to new screen on server regeneration */
-		for (i = 0; i < xf86_config->num_crtc; i++)
-			xf86_config->crtc[i]->scrn = pScrn;
-		for (i = 0; i < xf86_config->num_output; i++)
-			xf86_config->output[i]->scrn = pScrn;
-	}
+	/* need to point to new screen on server regeneration */
+	for (i = 0; i < xf86_config->num_crtc; i++)
+		xf86_config->crtc[i]->scrn = pScrn;
+	for (i = 0; i < xf86_config->num_output; i++)
+		xf86_config->output[i]->scrn = pScrn;
 
 	if (!pNv->kms_enable)
 		NVSave(pScrn);
@@ -2150,18 +1895,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!NVEnterVT(pScrn->scrnIndex, 0))
 		return FALSE;
 
-	if (pNv->randr12_enable) {
-		xf86DPMSInit(pScreen, xf86DPMSSet, 0);
+	xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
-		if (!xf86CrtcScreenInit(pScreen))
-			return FALSE;
-	} else {
-		if(pNv->FlatPanel) {
-			xf86DPMSInit(pScreen, NVDPMSSetLCD, 0);
-		} else {
-			xf86DPMSInit(pScreen, NVDPMSSet, 0);
-		}
-	}
+	if (!xf86CrtcScreenInit(pScreen))
+		return FALSE;
 
 	/* Initialise default colourmap */
 	if (!miCreateDefColormap(pScreen))
@@ -2171,16 +1908,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 * Initialize colormap layer.
 	 * Must follow initialization of the default colormap 
 	 */
-	if (!pNv->randr12_enable) {
-		if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
-					NULL, CMAP_RELOAD_ON_MODE_SWITCH |
-					CMAP_PALETTED_TRUECOLOR))
-			return FALSE;
-	} else {
-		if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
-					 NULL, CMAP_PALETTED_TRUECOLOR))
-			return FALSE;
-	}
+	if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
+				 NULL, CMAP_PALETTED_TRUECOLOR))
+		return FALSE;
 
 	pScreen->SaveScreen = NVSaveScreen;
 
@@ -2203,9 +1933,6 @@ NVSaveScreen(ScreenPtr pScreen, int mode)
 	bool on = xf86IsUnblank(mode);
 	int i;
 
-	if (!pNv->randr12_enable)
-		return vgaHWSaveScreen(pScreen, mode);
-
 	if (pScrn->vtSema && pNv->Architecture < NV_ARCH_50) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
@@ -2223,33 +1950,22 @@ NVSaveScreen(ScreenPtr pScreen, int mode)
 static void
 NVSave(ScrnInfoPtr pScrn)
 {
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	NVPtr pNv = NVPTR(pScrn);
+	int i;
 
 	if (pNv->Architecture == NV_ARCH_50)
 		return;
 
 	NVLockVgaCrtcs(pNv, false);
 
-	if (pNv->randr12_enable) {
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		int i;
+	nouveau_hw_save_vga_fonts(pScrn, 1);
 
-		nouveau_hw_save_vga_fonts(pScrn, 1);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Saving crtcs\n");
+	for (i = 0; i < xf86_config->num_crtc; i++)
+		xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Saving crtcs\n");
-		for (i = 0; i < xf86_config->num_crtc; i++)
-			xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Saving encoders\n");
-		for (i = 0; i < pNv->vbios->dcb->entries; i++)
-			nv_encoder_save(pScrn, &pNv->encoders[i]);
-	} else {
-		vgaHWPtr pVga = VGAHWPTR(pScrn);
-		vgaRegPtr vgaReg = &pVga->SavedReg;
-		NVRegPtr nvReg = &pNv->SavedReg;
-		if (pNv->twoHeads)
-			nvWriteCurVGA(pNv, NV_CIO_CRE_44, pNv->crtc_active[1] * 0x3);
-
-		NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
-	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Saving encoders\n");
+	for (i = 0; i < pNv->vbios->dcb->entries; i++)
+		nv_encoder_save(pScrn, &pNv->encoders[i]);
 }

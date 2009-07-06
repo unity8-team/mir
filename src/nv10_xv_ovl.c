@@ -69,21 +69,13 @@ NV10PutOverlayImage(ScrnInfoPtr pScrn,
 	NVPtr         pNv    = NVPTR(pScrn);
 	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
 	int           buffer = pPriv->currentBuffer;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86CrtcPtr crtc = xf86_config->crtc[pPriv->overlayCRTC];
 
-	if (!pNv->randr12_enable) {
-		if (pScrn->currentMode->Flags & V_DBLSCAN) {
-			dstBox->y1 <<= 1;
-			dstBox->y2 <<= 1;
-			drw_h <<= 1;
-		}
-	} else {
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		xf86CrtcPtr crtc = xf86_config->crtc[pPriv->overlayCRTC];
-		if (crtc->mode.Flags & V_DBLSCAN) {
-			dstBox->y1 <<= 1;
-			dstBox->y2 <<= 1;
-			drw_h <<= 1;
-		}
+	if (crtc->mode.Flags & V_DBLSCAN) {
+		dstBox->y1 <<= 1;
+		dstBox->y2 <<= 1;
+		drw_h <<= 1;
 	}
 
 	/* paint the color key */
