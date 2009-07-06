@@ -82,12 +82,6 @@
 #define Set8Bits(value) ((value)&0xff)
 
 /* NV50 */
-typedef enum Head {
-	HEAD0 = 0,
-	HEAD1
-} Head;
-
-/* NV50 */
 typedef enum ORNum {
 	DAC0 = 0,
 	DAC1 = 1,
@@ -97,48 +91,8 @@ typedef enum ORNum {
 	SOR2 = 2,
 } ORNum;
 
-typedef struct _riva_hw_state
-{
-	uint32_t bpp;
-	uint32_t width;
-	uint32_t height;
-	uint32_t interlace;
-	uint32_t repaint0;
-	uint32_t repaint1;
-	uint32_t screen;
-	uint32_t scale;
-	uint32_t dither;
-	uint32_t extra;
-	uint32_t fifo;
-	uint32_t pixel;
-	uint32_t horiz;
-	int arbitration0;
-	int arbitration1;
-	CARD32 pll;
-	CARD32 pllB;
-	uint32_t vpll;
-	uint32_t vpll2;
-	uint32_t vpllB;
-	uint32_t vpll2B;
-	uint32_t pllsel;
-	uint32_t general;
-	uint32_t crtcOwner;
-	uint32_t head;
-	uint32_t head2;
-	uint32_t cursorConfig;
-	uint32_t cursor0;
-	uint32_t cursor1;
-	uint32_t cursor2;
-	uint32_t timingH;
-	uint32_t timingV;
-	uint32_t displayV;
-	uint32_t crtcSync;
-} RIVA_HW_STATE, *NVRegPtr;
-
 typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
-    RIVA_HW_STATE       SavedReg;
-    RIVA_HW_STATE       ModeReg;
     struct nouveau_mode_state	saved_regs;
     struct nouveau_mode_state	set_state;
     uint32_t saved_vga_font[4][16384];
@@ -183,9 +137,6 @@ typedef struct _NVRec {
     Bool                ShadowFB;
     unsigned char *     ShadowPtr;
     int                 ShadowPitch;
-    CARD32              MinVClockFreqKHz;
-    CARD32              MaxVClockFreqKHz;
-    CARD32              CrystalFreqKHz;
     CARD32              RamAmountKBytes;
 
     volatile CARD32 *REGS;
@@ -210,7 +161,6 @@ typedef struct _NVRec {
     Bool                FPDither;
     int                 Mobile;
 	int         vtOWNER;
-	Bool		crtc_active[2];
     OptionInfoPtr	Options;
     bool                alphaCursor;
     bool                twoHeads;
@@ -241,15 +191,6 @@ typedef struct _NVRec {
 	nouveauOutputPtr output; /* this a linked list. */
 	/* Assume a connector can exist for each i2c bus. */
 	nouveauConnectorPtr connector[DCB_MAX_NUM_I2C_ENTRIES];
-
-	struct {
-		ORNum dac;
-		ORNum sor;
-	} i2cMap[4];
-	struct {
-		Bool  present;
-		ORNum or;
-	} lvds;
 
 	/* DRM interface */
 	struct nouveau_device *dev;

@@ -65,12 +65,6 @@ void nouveau_wfb_setup_wrap(ReadMemoryProcPtr *, WriteMemoryProcPtr *,
 void nouveau_wfb_finish_wrap(DrawablePtr);
 void nouveau_wfb_init();
 
-/* in nv_hw.c */
-void NVCalcStateExt(ScrnInfoPtr,NVRegPtr,int,int,int,int,int,int);
-void NVLoadStateExt(ScrnInfoPtr pScrn,NVRegPtr);
-void NVUnloadStateExt(NVPtr,NVRegPtr);
-void NVSetStartAddress(NVPtr,CARD32);
-
 /* in nv_shadow.c */
 void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 

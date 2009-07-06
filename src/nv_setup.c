@@ -44,10 +44,6 @@ static void nv4GetConfig (NVPtr pNv)
 			pNv->RamAmountKBytes = 1024 * 16;
 			break;
 		}
-
-	pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x00000040) ? 14318 : 13500;
-	pNv->MinVClockFreqKHz = 12000;
-	pNv->MaxVClockFreqKHz = 350000;
 }
 
 static void nv10GetConfig(ScrnInfoPtr pScrn)
@@ -70,14 +66,6 @@ static void nv10GetConfig(ScrnInfoPtr pScrn)
 
 	if (pNv->RamAmountKBytes > 256*1024)
 		pNv->RamAmountKBytes = 256*1024;
-
-	pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 6)) ? 14318 : 13500;
-	if (pNv->gf4_disp_arch)
-		if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 22))
-			pNv->CrystalFreqKHz = 27000;
-
-	pNv->MinVClockFreqKHz = 12000;
-	pNv->MaxVClockFreqKHz = pNv->two_reg_pll ? 400000 : 350000;
 }
 
 void
