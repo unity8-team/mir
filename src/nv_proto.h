@@ -29,16 +29,6 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn);
 Bool nouveau_dri2_init(ScreenPtr pScreen);
 void nouveau_dri2_fini(ScreenPtr pScreen);
 
-/* in nv_dac.c */
-Bool   NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
-void   NVDACSave(ScrnInfoPtr pScrn, vgaRegPtr vgaReg,
-                 NVRegPtr nvReg, Bool saveFonts);
-void   NVDACRestore(ScrnInfoPtr pScrn, vgaRegPtr vgaReg,
-                    NVRegPtr nvReg, Bool restoreFonts);
-void   NVDACLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
-                        LOCO *colors, VisualPtr pVisual );
-Bool   NVDACi2cInit(ScrnInfoPtr pScrn);
-
 /* in nouveau_xv.c */
 void NVInitVideo(ScreenPtr);
 void NVTakedownVideo(ScrnInfoPtr);
