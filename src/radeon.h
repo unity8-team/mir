@@ -672,15 +672,9 @@ struct radeon_accel_state {
 #define EXA_ENGINEMODE_2D      1
 #define EXA_ENGINEMODE_3D      2
 
-    int               composite_op;
-    PicturePtr        dst_pic;
-    PicturePtr        msk_pic;
-    PicturePtr        src_pic;
-    PixmapPtr         dst_pix;
-    PixmapPtr         msk_pix;
-    PixmapPtr         src_pix;
     Bool              is_transform[2];
     PictTransform     *transform[2];
+    Bool              has_mask;
     /* Whether we are tiling horizontally and vertically */
     Bool              need_src_tile_x;
     Bool              need_src_tile_y;
@@ -1519,10 +1513,8 @@ do {									\
 	uint32_t flush = 0;                                             \
 	switch (info->accel_state->engineMode) {			\
 	case EXA_ENGINEMODE_UNKNOWN:					\
-	    flush = 1;                                                  \
-	    break;							\
 	case EXA_ENGINEMODE_3D:						\
-	    flush = info->cs == NULL || info->cs->cdw > 15 * 1024;      \
+	    flush = 1;                                                  \
 	case EXA_ENGINEMODE_2D:						\
 	    break;							\
 	}								\
@@ -1540,10 +1532,8 @@ do {									\
 	uint32_t flush = 0;						\
 	switch (info->accel_state->engineMode) {			\
 	case EXA_ENGINEMODE_UNKNOWN:					\
-	    flush = 1;                                                  \
-	    break;							\
 	case EXA_ENGINEMODE_2D:						\
-	    flush = info->cs == NULL || info->cs->cdw > 15 * 1024;      \
+	    flush = 1;                                                  \
 	case EXA_ENGINEMODE_3D:						\
 	    break;							\
 	}								\
@@ -1552,9 +1542,8 @@ do {									\
 	        radeon_cs_flush_indirect(pScrn);			\
 	    else if (info->directRenderingEnabled)				\
 	        RADEONCPFlushIndirect(pScrn, 1);                        \
-	}                                                               \
-	if (!info->accel_state->XInited3D)				\
 	    RADEONInit3DEngine(pScrn);                                  \
+	}                                                               \
         info->accel_state->engineMode = EXA_ENGINEMODE_3D;              \
 } while (0);
 #else

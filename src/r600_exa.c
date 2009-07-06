@@ -1166,7 +1166,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     }
 
     if (unit == 0) {
-	if (!accel_state->msk_pic) {
+	if (!accel_state->has_mask) {
 	    if (PICT_FORMAT_RGB(pPict->format) == 0) {
 		pix_r = SQ_SEL_0;
 		pix_g = SQ_SEL_0;
@@ -1397,7 +1397,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     /* return FALSE; */
 
     if (pMask) {
-	accel_state->msk_pic = pMaskPicture;
+	accel_state->has_mask = TRUE;
 	if (pMaskPicture->componentAlpha) {
 	    accel_state->component_alpha = TRUE;
 	    if (R600BlendOp[op].src_alpha)
@@ -1409,7 +1409,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	    accel_state->src_alpha = FALSE;
 	}
     } else {
-	accel_state->msk_pic = NULL;
+	accel_state->has_mask = FALSE;
 	accel_state->component_alpha = FALSE;
 	accel_state->src_alpha = FALSE;
     }
@@ -1598,7 +1598,7 @@ static void R600Composite(PixmapPtr pDst,
     srcBottomRight.x = IntToxFixed(srcX + w);
     srcBottomRight.y = IntToxFixed(srcY + h);
 
-    if (accel_state->msk_pic) {
+    if (accel_state->has_mask) {
 	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
 
 	if (((accel_state->vb_index + 3) * 24) > (accel_state->ib->total / 2)) {
@@ -1693,7 +1693,7 @@ static void R600DoneComposite(PixmapPtr pDst)
 
 
     /* Vertex buffer setup */
-    if (accel_state->msk_pic) {
+    if (accel_state->has_mask) {
 	accel_state->vb_size = accel_state->vb_index * 24;
 	vtx_res.id              = SQ_VTX_RESOURCE_vs;
 	vtx_res.vtx_size_dw     = 24 / 4;
