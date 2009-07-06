@@ -216,25 +216,18 @@ typedef struct _NVRec {
     XF86VideoAdaptorPtr	blitAdaptor;
     XF86VideoAdaptorPtr	textureAdaptor[2];
     int			videoKey;
-    int			FlatPanel;
     Bool                FPDither;
     int                 Mobile;
-    Bool                Television;
 	int         vtOWNER;
 	Bool		crtc_active[2];
     OptionInfoPtr	Options;
     bool                alphaCursor;
-    unsigned char       DDCBase;
     bool                twoHeads;
     bool		gf4_disp_arch;
     bool                two_reg_pll;
     Bool                fpScaler;
     int                 fpWidth;
     int                 fpHeight;
-    CARD32              fpSyncs;
-    Bool                usePanelTweak;
-    int                 PanelTweak;
-    Bool                LVDS;
 
     Bool                LockedUp;
 

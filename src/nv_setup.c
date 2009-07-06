@@ -366,8 +366,6 @@ NVCommonSetup(ScrnInfoPtr pScrn)
         break;
     }
 
-	pNv->Television = FALSE;
-
 	if (pNv->twoHeads) {
 		pNv->vtOWNER = nouveau_hw_get_current_head(pScrn);
 

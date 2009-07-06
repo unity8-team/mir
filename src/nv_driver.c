@@ -835,7 +835,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 {
 	NVPtr pNv;
 	MessageType from;
-	ClockRangePtr clockRanges;
 	int max_width, max_height;
 	int config_mon_rates = FALSE;
 	int ret, i;
@@ -1137,13 +1136,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (xf86GetOptValBool(pNv->Options, OPTION_FP_DITHER, &(pNv->FPDither))) 
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "enabling flat panel dither\n");
 
-	if (xf86GetOptValInteger(pNv->Options, OPTION_FP_TWEAK, 
-						&pNv->PanelTweak)) {
-		pNv->usePanelTweak = TRUE;
-	} else {
-		pNv->usePanelTweak = FALSE;
-	}
-
 	if (pNv->pEnt->device->MemBase != 0) {
 		/* Require that the config file value matches one of the PCI values. */
 		if (!xf86CheckPciMemBase(pNv->PciInfo, pNv->pEnt->device->MemBase)) {
@@ -1257,64 +1249,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86SetGamma(pScrn, gammazeros))
 		NVPreInitFail("\n");
 
-	/*
-	 * Setup the ClockRanges, which describe what clock ranges are available,
-	 * and what sort of modes they can be used for.
-	 */
-
-	clockRanges = xnfcalloc(sizeof(ClockRange), 1);
-	clockRanges->next = NULL;
-	clockRanges->minClock = pNv->MinVClockFreqKHz;
-	clockRanges->maxClock = pNv->MaxVClockFreqKHz;
-	clockRanges->clockIndex = -1;		/* programmable */
-	clockRanges->doubleScanAllowed = TRUE;
-	if ((pNv->Architecture == NV_ARCH_20) ||
-		((pNv->Architecture == NV_ARCH_10) && 
-		((pNv->Chipset & 0x0ff0) != CHIPSET_NV10) &&
-		((pNv->Chipset & 0x0ff0) != CHIPSET_NV15))) {
-		/* HW is broken */
-		clockRanges->interlaceAllowed = FALSE;
-	} else {
-		clockRanges->interlaceAllowed = TRUE;
-	}
-
-	if(pNv->FlatPanel == 1) {
-		clockRanges->interlaceAllowed = FALSE;
-		clockRanges->doubleScanAllowed = FALSE;
-	}
-
-#ifdef M_T_DRIVER
-	/* If DFP, add a modeline corresponding to its panel size */
-	if (pNv->FlatPanel && !pNv->Television && pNv->fpWidth && pNv->fpHeight) {
-		DisplayModePtr Mode;
-
-		Mode = xnfcalloc(1, sizeof(DisplayModeRec));
-		Mode = xf86CVTMode(pNv->fpWidth, pNv->fpHeight, 60.00, TRUE, FALSE);
-		Mode->type = M_T_DRIVER;
-		pScrn->monitor->Modes = xf86ModesAdd(pScrn->monitor->Modes, Mode);
-
-		if (!config_mon_rates) {
-			if (!Mode->HSync)
-				Mode->HSync = ((float) Mode->Clock ) / ((float) Mode->HTotal);
-			if (!Mode->VRefresh)
-				Mode->VRefresh = (1000.0 * ((float) Mode->Clock)) /
-							((float) (Mode->HTotal * Mode->VTotal));
-
-			if (Mode->HSync < pScrn->monitor->hsync[0].lo)
-				pScrn->monitor->hsync[0].lo = Mode->HSync;
-			if (Mode->HSync > pScrn->monitor->hsync[0].hi)
-				pScrn->monitor->hsync[0].hi = Mode->HSync;
-			if (Mode->VRefresh < pScrn->monitor->vrefresh[0].lo)
-				pScrn->monitor->vrefresh[0].lo = Mode->VRefresh;
-			if (Mode->VRefresh > pScrn->monitor->vrefresh[0].hi)
-				pScrn->monitor->vrefresh[0].hi = Mode->VRefresh;
-
-			pScrn->monitor->nHsync = 1;
-			pScrn->monitor->nVrefresh = 1;
-		}
-	}
-#endif
-
 	pScrn->displayWidth = nv_pitch_align(pNv, pScrn->virtualX, pScrn->depth);
 	/* Set the current mode to the first in the list */
 	pScrn->currentMode = pScrn->modes;
@@ -1324,11 +1258,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	/* Set display resolution */
 	xf86SetDpi(pScrn, 0, 0);
-
-	/*
-	 * XXX This should be taken into account in some way in the mode valdation
-	 * section.
-	 */
 
 	if (pNv->wfb_enabled) {
 		if (xf86LoadSubModule(pScrn, "wfb") == NULL)
