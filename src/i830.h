@@ -839,6 +839,8 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 	return FALSE;
     if (IS_IGD(pI830))
 	return FALSE;
+    if (IS_IGDNG(pI830))
+	return FALSE;
     /* fbc depends on tiled surface. And we don't support tiled
      * front buffer with unaccelerated.
      */
