@@ -55,7 +55,7 @@ static inline void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 }
 
 static inline void radeon_ddx_cs_start(ScrnInfoPtr pScrn, int n,
-				       const char *file, const char *func, int line);
+				       const char *file, const char *func, int line)
 {
 }
 
