@@ -58,8 +58,9 @@ static Bool	NVUnmapMem(ScrnInfoPtr pScrn);
 static void	NVSave(ScrnInfoPtr pScrn);
 static void	NVRestore(ScrnInfoPtr pScrn);
 
-#define NOUVEAU_PCI_DEVICE(_vendor_id, _device_id) \
-	{ (_vendor_id), (_device_id), PCI_MATCH_ANY, PCI_MATCH_ANY, 0x00030000, 0x00ffffff, 0 }
+#define NOUVEAU_PCI_DEVICE(_vendor_id, _device_id)                             \
+	{ (_vendor_id), (_device_id), PCI_MATCH_ANY, PCI_MATCH_ANY,            \
+	  0x00030000, 0x00ffffff, 0 }
 
 static const struct pci_id_match nouveau_device_match[] = {
 	NOUVEAU_PCI_DEVICE(PCI_VENDOR_NVIDIA, PCI_MATCH_ANY),
@@ -258,7 +259,7 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 	volatile uint32_t *regs = NULL;
 
 	/* Temporary mapping to discover the architecture */
-	pci_device_map_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, 0,
+	pci_device_map_range(dev, dev->regions[0].base_addr, 0x90000, 0,
 			     (void *) &regs);
 
 	uint8_t architecture = NVGetArchitecture(regs);
@@ -275,7 +276,8 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 		 * to avoid list duplication */
 		/* AGP bridge chips need their bridge chip id to be detected */
 		PciChipsets NVChipsets[] = {
-			{ pci_id, PCI_DEV_PCI_ID(dev), RES_SHARED_VGA },
+			{ pci_id, (dev->vendor_id << 16) | dev->device_id,
+				  RES_SHARED_VGA },
 			{ -1, -1, RES_UNDEFINED }
 		};
 
@@ -722,7 +724,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	pNv->Primary = xf86IsPrimaryPci(pNv->PciInfo);
 
 	volatile uint32_t *regs = NULL;
-	pci_device_map_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0),
+	pci_device_map_range(pNv->PciInfo, pNv->PciInfo->regions[0].base_addr,
 			     0x90000, 0, (void *)&regs);
 	pNv->Chipset = NVGetPCIID(regs) & 0xffff;
 	pNv->NVArch = NVGetArchitecture(regs);
@@ -954,8 +956,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		pNv->VRAMPhysical = pNv->pEnt->device->MemBase;
 		from = X_CONFIG;
 	} else {
-		if (PCI_DEV_MEM_BASE(pNv->PciInfo, 1) != 0) {
-			pNv->VRAMPhysical = PCI_DEV_MEM_BASE(pNv->PciInfo, 1) & 0xff800000;
+		if (pNv->PciInfo->regions[1].base_addr != 0) {
+			pNv->VRAMPhysical = pNv->PciInfo->regions[1].base_addr & 0xff800000;
 			from = X_PROBED;
 		} else {
 			NVPreInitFail("No valid FB address in PCI config space\n");
@@ -974,8 +976,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		pNv->IOAddress = pNv->pEnt->device->IOBase;
 		from = X_CONFIG;
 	} else {
-		if (PCI_DEV_MEM_BASE(pNv->PciInfo, 0) != 0) {
-			pNv->IOAddress = PCI_DEV_MEM_BASE(pNv->PciInfo, 0) & 0xffffc000;
+		if (pNv->PciInfo->regions[0].base_addr != 0) {
+			pNv->IOAddress = pNv->PciInfo->regions[0].base_addr & 0xffffc000;
 			from = X_PROBED;
 		} else {
 			NVPreInitFail("No valid MMIO address in PCI config space\n");

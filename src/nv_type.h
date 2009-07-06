@@ -17,8 +17,6 @@
 #error "This driver requires a DRI-enabled X server"
 #endif
 
-#include "nv_pcicompat.h"
-
 #include "nouveau_bios.h"
 
 #include "nouveau_ms.h"
@@ -132,7 +130,7 @@ typedef struct _NVRec {
     Bool                ShadowFB;
     unsigned char *     ShadowPtr;
     int                 ShadowPitch;
-    CARD32              RamAmountKBytes;
+    uint32_t            RamAmountKBytes;
 
     volatile CARD32 *REGS;
     volatile CARD32 *FB_BAR;

@@ -50,6 +50,18 @@ static void nv10GetConfig(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t implementation = pNv->Chipset & 0x0ff0;
+	struct pci_device *dev = NULL;
+	uint32_t data;
+
+	if (implementation == CHIPSET_NFORCE ||
+	    implementation == CHIPSET_NFORCE2) {
+		dev = pci_device_find_by_slot(0, 0, 0, 1);
+		if (!dev) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "couldn't find bridge device\n");
+			return;
+		}
+	}
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	if (!(nvReadMC(pNv, 0x0004) & 0x01000001))
@@ -57,12 +69,16 @@ static void nv10GetConfig(ScrnInfoPtr pScrn)
 			   "Card is in big endian mode, something is very wrong !\n");
 #endif
 
-	if (implementation == CHIPSET_NFORCE)
-		pNv->RamAmountKBytes = (((PCI_SLOT_READ_LONG(1, 0x7c) >> 6) & 31) + 1) * 1024;
-	else if (implementation == CHIPSET_NFORCE2)
-		pNv->RamAmountKBytes = (((PCI_SLOT_READ_LONG(1, 0x84) >> 4) & 127) + 1) * 1024;
-	else
-		pNv->RamAmountKBytes = (nvReadFB(pNv, NV_PFB_CSTATUS) & 0xFFF00000) >> 10;
+	if (implementation == CHIPSET_NFORCE) {
+		pci_device_cfg_read_u32(dev, &data, 0x7c);
+		pNv->RamAmountKBytes = (((data >> 6) & 31) + 1) * 1024;
+	} else if (implementation == CHIPSET_NFORCE2) {
+		pci_device_cfg_read_u32(dev, &data, 0x84);
+		pNv->RamAmountKBytes = (((data >> 4) & 127) + 1) * 1024;
+	} else {
+		pNv->RamAmountKBytes =
+			(nvReadFB(pNv, NV_PFB_CSTATUS) & 0xFFF00000) >> 10;
+	}
 
 	if (pNv->RamAmountKBytes > 256*1024)
 		pNv->RamAmountKBytes = 256*1024;

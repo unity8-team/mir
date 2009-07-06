@@ -506,13 +506,24 @@ int nouveau_hw_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)
 	struct nouveau_pll_vals pllvals;
 
 	if (plltype == MPLL && (pNv->Chipset & 0x0ff0) == CHIPSET_NFORCE) {
-		uint32_t mpllP = (PCI_SLOT_READ_LONG(3, 0x6c) >> 8) & 0xf;
+		struct pci_device *dev = pci_device_find_by_slot(0, 0, 0, 3);
+		uint32_t mpllP;
+
+		pci_device_cfg_read_u32(dev, &mpllP, 0x6c);
+		mpllP = (mpllP >> 8) & 0xf;
 
 		if (!mpllP)
 			mpllP = 4;
 		return 400000 / mpllP;
-	} else if (plltype == MPLL && (pNv->Chipset & 0xff0) == CHIPSET_NFORCE2)
-		return PCI_SLOT_READ_LONG(5, 0x4c) / 1000;
+	} else
+	if (plltype == MPLL && (pNv->Chipset & 0xff0) == CHIPSET_NFORCE2) {
+		struct pci_device *dev = pci_device_find_by_slot(0, 0, 0, 5);
+		uint32_t data;
+
+		pci_device_cfg_read_u32(dev, &data, 0x4c);
+
+		return data / 1000;
+	}
 
 	nouveau_hw_get_pllvals(pScrn, plltype, &pllvals);
 

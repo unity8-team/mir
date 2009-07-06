@@ -346,8 +346,13 @@ void nv4_10UpdateArbitrationSettings(ScrnInfoPtr pScrn, int VClk, int bpp, int *
 	sim_data.enable_mp = false;
 	if ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE ||
 	    (pNv->Chipset & 0xffff) == CHIPSET_NFORCE2) {
+		struct pci_device *dev = pci_device_find_by_slot(0, 0, 0, 1);
+		uint32_t data;
+
+		pci_device_cfg_read_u32(dev, &data, 0x7c);
+
 		sim_data.enable_video = false;
-		sim_data.memory_type = (PCI_SLOT_READ_LONG(1, 0x7c) >> 12) & 1;
+		sim_data.memory_type = (data >> 12) & 1;
 		sim_data.memory_width = 64;
 		sim_data.mem_latency = 3;
 		sim_data.mem_page_miss = 10;
