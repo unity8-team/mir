@@ -138,9 +138,6 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     uint32_t datatype, dst_pitch_offset;
     struct radeon_exa_pixmap_priv *driver_priv;
     int ret;
-    int retry_count = 0;
-    struct radeon_cs_space_check bos[1];
-    int i;
 
     TRACE;
 
@@ -152,28 +149,17 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	RADEON_FALLBACK(("RADEONGetPixmapOffsetPitch failed\n"));
 
     RADEON_SWITCH_TO_2D();
- retry:
+
     if (info->cs) {
       
-	i = 0;
-	driver_priv = exaGetPixmapDriverPrivate(pPix);
-	bos[i].bo = driver_priv->bo;
-	bos[i].read_domains = 0;
-	bos[i].write_domain = RADEON_GEM_DOMAIN_VRAM;;
-	bos[i].new_accounted = 0;
-	i++;
+	radeon_cs_space_reset_bos(info->cs);
 
-	ret = radeon_cs_space_check(info->cs, bos, i);
-	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
-	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
-	}
-	if (ret == RADEON_CS_SPACE_FLUSH) {
-	    radeon_cs_flush_indirect(pScrn);
-	    retry_count++;
-	    if (retry_count == 2)
-	        RADEON_FALLBACK(("Not enough Video RAM for src\n"));
-	    goto retry;
-	}
+	driver_priv = exaGetPixmapDriverPrivate(pPix);
+	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
+
+	ret = radeon_cs_space_check(info->cs);
+	if (ret)
+	    RADEON_FALLBACK(("Not enough RAM to hw accel solid operation\n"));
     }
 
 
@@ -279,39 +265,26 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
     uint32_t datatype, src_pitch_offset, dst_pitch_offset;
     struct radeon_exa_pixmap_priv *driver_priv;
     int ret;
-    int retry_count = 0;
-    struct radeon_cs_space_check bos[2];
-    int i;
     TRACE;
 
     RADEON_SWITCH_TO_2D();
-retry:
+
     if (info->cs) {
       
+	radeon_cs_space_reset_bos(info->cs);
+
 	driver_priv = exaGetPixmapDriverPrivate(pSrc);
+	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 	info->state_2d.src_bo = driver_priv->bo;
 
 	driver_priv = exaGetPixmapDriverPrivate(pDst);
+	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
 	info->state_2d.dst_bo = driver_priv->bo;
 
-	i = 0;
-	radeon_add_pixmap(bos, i++, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-
-	radeon_add_pixmap(bos, i++, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs, bos, i);
-	if (ret == RADEON_CS_SPACE_OP_TO_BIG) {
-	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
-	}
-	if (ret == RADEON_CS_SPACE_FLUSH) {
-	    radeon_cs_flush_indirect(pScrn);
-	    retry_count++;
-	    if (retry_count == 2)
-	        RADEON_FALLBACK(("Not enough Video RAM for src\n"));
-	    goto retry;
-	}
+	ret = radeon_cs_space_check(info->cs);
+	if (ret)
+	    RADEON_FALLBACK(("Not enough RAM to hw accel copy operation\n"));
     }
-
 
     info->accel_state->xdir = xdir;
     info->accel_state->ydir = ydir;

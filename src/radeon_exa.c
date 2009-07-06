@@ -120,13 +120,11 @@ static __inline__ uint32_t F_TO_DW(float val)
     return tmp.l;
 }
 
-static inline void radeon_add_pixmap(struct radeon_cs_space_check *bos, int index, PixmapPtr pPix, int read_domains, int write_domain)
+static inline void radeon_add_pixmap(struct radeon_cs *cs, PixmapPtr pPix, int read_domains, int write_domain)
 {
     struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
-    bos[index].bo = driver_priv->bo;
-    bos[index].read_domains = read_domains;
-    bos[index].write_domain = write_domain;
-    bos[index].new_accounted = 0;
+
+    radeon_cs_space_add_persistent_bo(cs, driver_priv->bo, read_domains, write_domain);
 }
 
 /* Assumes that depth 15 and 16 can be used as depth 16, which is okay since we
@@ -344,7 +342,7 @@ static Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 
     /* if we have more refs than just the BO then flush */
     if (driver_priv->bo->cref > 1)
-      radeon_cs_flush_indirect(pScrn);
+        radeon_cs_flush_indirect(pScrn);
     
     radeon_bo_wait(driver_priv->bo);
 

@@ -658,18 +658,6 @@ int RADEONCPStop(ScrnInfoPtr pScrn, RADEONInfoPtr info)
 
 #define RADEON_IB_RESERVE (16 * sizeof(uint32_t))
 
-void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
-{
-#ifdef XF86DRM_MODE
-    RADEONInfoPtr  info = RADEONPTR(pScrn);
-
-    if (!info->cs->cdw)
-	return;
-    radeon_cs_emit(info->cs);
-    radeon_cs_erase(info->cs);
-#endif
-}
-
 /* Get an indirect buffer for the CP 2D acceleration commands  */
 drmBufPtr RADEONCPGetBuffer(ScrnInfoPtr pScrn)
 {

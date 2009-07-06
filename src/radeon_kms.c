@@ -70,6 +70,34 @@ const OptionInfoRec RADEONOptions_KMS[] = {
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
+void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+
+    if (!info->cs->cdw)
+	return;
+    radeon_cs_emit(info->cs);
+    radeon_cs_erase(info->cs);
+}
+
+void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
+			 int n, const char *file,
+			 const char *func, int line)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    int ret;
+
+    if (info->cs->cdw + n > info->cs->ndw) {
+	radeon_cs_flush_indirect(pScrn);
+	ret = radeon_cs_space_check(info->cs);
+	if (ret)
+	    ErrorF("space check failed in DDX CS start %s:%s:%d\n",
+		   file, func, line);
+    }
+    radeon_cs_begin(info->cs, n, file, func, line);
+}
+
+
 extern _X_EXPORT int gRADEONEntityIndex;
 
 static int getRADEONEntityIndex(void)
@@ -532,6 +560,7 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     }
 
     radeon_cs_set_limit(info->cs, RADEON_GEM_DOMAIN_GTT, info->gart_size);
+    radeon_cs_space_set_flush(info->cs, (void(*)(void *))radeon_cs_flush_indirect, pScrn); 
 
     radeon_setup_kernel_mem(pScreen);
     front_ptr = info->front_bo->ptr;

@@ -39,19 +39,24 @@ static inline struct radeon_bo *radeon_bo_unref(struct radeon_bo *bo) {return NU
 static inline void radeon_bo_unmap(struct radeon_bo *bo) {return;}
 static inline int radeon_bo_wait(struct radeon_bo *bo) {return 0;}
 
-
-struct radeon_cs_space_check {
-  struct radeon_bo *bo;
-  int read_domains;
-  int write_domain;
-  int new_accounted;
-};
-
-static inline int radeon_cs_space_check(Bool cs, struct radeon_cs_space_check *bos, int num)
+static inline int radeon_cs_space_add_persistent_bo(Bool cs, struct radeon_bo *bo,
+						    uint32_t read_domains, uint32_t write_domain)
 {
   return 0;
 }
-#define RADEON_CS_SPACE_OP_TO_BIG 0
-#define RADEON_CS_SPACE_FLUSH 1
+
+static inline int radeon_cs_space_check(Bool cs)
+{
+  return 0;
+}
+
+static inline void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
+{
+}
+
+static inline void radeon_ddx_cs_start(ScrnInfoPtr pScrn, int n,
+				       const char *file, const char *func, int line);
+{
+}
 
 #endif

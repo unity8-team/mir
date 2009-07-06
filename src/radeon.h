@@ -1069,7 +1069,6 @@ extern void RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries);
 #ifdef XF86DRI
 extern drmBufPtr RADEONCPGetBuffer(ScrnInfoPtr pScrn);
 extern void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
-extern void radeon_cs_flush_indirect(ScrnInfoPtr pScrn);
 extern void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
 extern int RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
 #  ifdef USE_XAA
@@ -1266,6 +1265,12 @@ extern void
 radeon_legacy_free_memory(ScrnInfoPtr pScrn,
 		          void *mem_struct);
 
+#ifdef XF86DRM_MODE
+extern void radeon_cs_flush_indirect(ScrnInfoPtr pScrn);
+extern void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
+				int num, const char *file,
+				const char *func, int line);
+#endif
 struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix);
 void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo);
 
@@ -1355,7 +1360,7 @@ do {									\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
 		   "BEGIN_RING(%d) in %s\n", (unsigned int)n, __FUNCTION__);\
     }									\
-    if (info->cs) radeon_cs_begin(info->cs, n, __FILE__, __func__, __LINE__); else { \
+    if (info->cs) { radeon_ddx_cs_start(pScrn, n, __FILE__, __func__, __LINE__); } else { \
       if (++info->cp->dma_begin_count != 1) {				\
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
 		   "BEGIN_RING without end at %s:%d\n",			\
