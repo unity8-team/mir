@@ -74,18 +74,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	uint16_t implementation = pNv->Chipset & 0x0ff0;
  
-#ifndef XSERVER_LIBPCIACCESS
-	pNv->REGS = xf86MapPciMem(pScrn->scrnIndex, 
-			VIDMEM_MMIO | VIDMEM_READSIDEEFFECT, 
-			pNv->PciTag, pNv->IOAddress, 0x01000000);
-	pNv->FB_BAR = xf86MapPciMem(pScrn->scrnIndex,
-			VIDMEM_MMIO | VIDMEM_READSIDEEFFECT,
-			pNv->PciTag, pNv->VRAMPhysical, 0x10000);
-#else
 	/* 0x01000000 is the size */
 	pci_device_map_range(pNv->PciInfo, pNv->IOAddress, 0x01000000, PCI_DEV_MAP_FLAG_WRITABLE, (void *)&pNv->REGS);
 	pci_device_map_range(pNv->PciInfo, pNv->VRAMPhysical, 0x10000, PCI_DEV_MAP_FLAG_WRITABLE, (void *)&pNv->FB_BAR);
-#endif /* XSERVER_LIBPCIACCESS */
 
 	pNv->alphaCursor = (pNv->NVArch >= 0x11);
 

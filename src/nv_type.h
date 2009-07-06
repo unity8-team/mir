@@ -98,12 +98,7 @@ typedef struct _NVRec {
     uint32_t saved_vga_font[4][16384];
     uint32_t              Architecture;
     EntityInfoPtr       pEnt;
-#ifndef XSERVER_LIBPCIACCESS
-	pciVideoPtr	PciInfo;
-	PCITAG		PciTag;
-#else
 	struct pci_device *PciInfo;
-#endif /* XSERVER_LIBPCIACCESS */
     int                 Chipset;
     int                 NVArch;
     Bool                Primary;

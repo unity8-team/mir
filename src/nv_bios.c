@@ -180,11 +180,7 @@ out:
 
 static void load_vbios_pci(NVPtr pNv, uint8_t *data)
 {
-#if XSERVER_LIBPCIACCESS
 	pci_device_read_rom(pNv->PciInfo, data);
-#else
-	xf86ReadPciBIOS(0, pNv->PciTag, 0, data, NV_PROM_SIZE);
-#endif
 }
 
 struct methods {
