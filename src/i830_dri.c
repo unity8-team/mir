@@ -415,16 +415,22 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     info.driverName = IS_I965G(pI830) ? "i965" : "i915";
     info.deviceName = p;
 
-#ifdef USE_DRI2_1_1_0
+#if DRI2INFOREC_VERSION >= 3
+    info.version = 3;
+    info.CreateBuffer = I830DRI2CreateBuffer;
+    info.DestroyBuffer = I830DRI2DestroyBuffer;
+#else
+# ifdef USE_DRI2_1_1_0
     info.version = 2;
     info.CreateBuffers = NULL;
     info.DestroyBuffers = NULL;
     info.CreateBuffer = I830DRI2CreateBuffer;
     info.DestroyBuffer = I830DRI2DestroyBuffer;
-#else
+# else
     info.version = 1;
     info.CreateBuffers = I830DRI2CreateBuffers;
     info.DestroyBuffers = I830DRI2DestroyBuffers;
+# endif
 #endif
 
     info.CopyRegion = I830DRI2CopyRegion;
