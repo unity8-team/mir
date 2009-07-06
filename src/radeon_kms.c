@@ -73,11 +73,16 @@ const OptionInfoRec RADEONOptions_KMS[] = {
 void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    int ret;
 
     if (!info->cs->cdw)
 	return;
     radeon_cs_emit(info->cs);
     radeon_cs_erase(info->cs);
+
+    ret = radeon_cs_space_check(info->cs);
+    if (ret)
+      ErrorF("space check failed in flush\n");
 
     if (info->reemit_current2d)
       info->reemit_current2d(pScrn, 0);
@@ -92,14 +97,10 @@ void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
 			 const char *func, int line)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    int ret;
 
     if (info->cs->cdw + n > info->cs->ndw) {
 	radeon_cs_flush_indirect(pScrn);
-	ret = radeon_cs_space_check(info->cs);
-	if (ret)
-	    ErrorF("space check failed in DDX CS start %s:%s:%d\n",
-		   file, func, line);
+
     }
     radeon_cs_begin(info->cs, n, file, func, line);
 }
