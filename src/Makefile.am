@@ -169,4 +169,6 @@ EXTRA_DIST = \
 	radeon_pci_device_match_gen.h \
 	pcidb/ati_pciids.csv \
 	pcidb/parse_pci_ids.pl \
-	radeon_atombios.h
+	radeon_atombios.h \
+	radeon_dri2.h \
+	drmmode_display.h
