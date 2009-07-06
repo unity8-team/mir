@@ -161,24 +161,24 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 
 #else
 
-static DRI2BufferPtr
+static DRI2Buffer2Ptr
 I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 		     unsigned int format)
 {
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    DRI2BufferPtr buffers;
+    DRI2Buffer2Ptr buffer;
     dri_bo *bo;
     I830DRI2BufferPrivatePtr privates;
     PixmapPtr pPixmap;
 
-    buffers = xcalloc(1, sizeof *buffers);
-    if (buffers == NULL)
+    buffer = xcalloc(1, sizeof *buffer);
+    if (buffer == NULL)
 	return NULL;
     privates = xcalloc(1, sizeof *privates);
     if (privates == NULL) {
-	xfree(buffers);
+	xfree(buffer);
 	return NULL;
     }
 
@@ -217,21 +217,21 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
     }
 
 
-    buffers->attachment = attachment;
-    buffers->pitch = pPixmap->devKind;
-    buffers->cpp = pPixmap->drawable.bitsPerPixel / 8;
-    buffers->driverPrivate = privates;
-    buffers->format = format;
-    buffers->flags = 0; /* not tiled */
+    buffer->attachment = attachment;
+    buffer->pitch = pPixmap->devKind;
+    buffer->cpp = pPixmap->drawable.bitsPerPixel / 8;
+    buffer->driverPrivate = privates;
+    buffer->format = format;
+    buffer->flags = 0; /* not tiled */
     privates->pPixmap = pPixmap;
     privates->attachment = attachment;
 
     bo = i830_get_pixmap_bo (pPixmap);
-    if (dri_bo_flink(bo, &buffers->name) != 0) {
+    if (dri_bo_flink(bo, &buffer->name) != 0) {
 	/* failed to name buffer */
     }
 
-    return buffers;
+    return buffer;
 }
 
 #endif
@@ -261,7 +261,7 @@ I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
 #else
 
 static void
-I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2BufferPtr buffer)
+I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2Buffer2Ptr buffer)
 {
     if (buffer) {
 	I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
