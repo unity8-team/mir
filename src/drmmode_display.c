@@ -278,9 +278,11 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 	fb_id = drmmode->fb_id;
-	if (drmmode_crtc->rotate_fb_id)
+	if (drmmode_crtc->rotate_fb_id) {
 		fb_id = drmmode_crtc->rotate_fb_id;
-	else
+		x = 0;
+		y = 0;
+	} else
 	if (fb_id != drmmode_crtc->mode_crtc->buffer_id &&
 	    pNv->exa_driver_pixmaps) {
 		drmmode_fb_copy(pScrn, drmmode, fb_id,
