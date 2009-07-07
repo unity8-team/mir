@@ -926,6 +926,7 @@ i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	i830_memory *new_front, *old_front;
 	Bool	    tiled;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
+	pointer	    data = NULL;
 
 	scrn->displayWidth = i830_pad_drawable_width(width, i830->cpp);
 	tiled = i830_tiled_width(i830, &scrn->displayWidth, i830->cpp);
@@ -945,9 +946,15 @@ i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	i830_set_pixmap_bo(screen->GetScreenPixmap(screen),
 			   new_front->bo);
 	scrn->fbOffset = i830->front_buffer->offset;
+	if (!new_front->bo)
+	    data = i830->FbBase + scrn->fbOffset;
 	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
 				   width, height, -1, -1, scrn->displayWidth * i830->cpp,
-				   NULL);
+				   data);
+	/* ick. xf86EnableDisableFBAccess smashes the screen pixmap devPrivate,
+	 * so update the value it uses
+	 */
+	scrn->pixmapPrivate.ptr = data;
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
 		   i830->front_buffer->offset);
 	i830_set_new_crtc_bo(scrn);
