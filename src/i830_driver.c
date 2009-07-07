@@ -1482,7 +1482,7 @@ static void
 i830_close_drm_master(ScrnInfoPtr scrn)
 {
     I830Ptr i830 = I830PTR(scrn);
-    if (i830->drmSubFD > 0) {
+    if (i830 && i830->drmSubFD > 0) {
 	drmClose(i830->drmSubFD);
 	i830->drmSubFD = -1;
     }
