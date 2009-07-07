@@ -308,7 +308,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     dri2_info.CreateBuffers = radeon_dri2_create_buffers;
     dri2_info.DestroyBuffers = radeon_dri2_destroy_buffers;
 #else
-    dri2_info.version = 2;
+    dri2_info.version = DRI2INFOREC_VERSION;
     dri2_info.CreateBuffer = radeon_dri2_create_buffer;
     dri2_info.DestroyBuffer = radeon_dri2_destroy_buffer;
 #endif
