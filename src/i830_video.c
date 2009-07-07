@@ -112,19 +112,11 @@ static Atom xvSyncToVblank;
 
 /* Limits for the overlay/textured video source sizes.  The documented hardware
  * limits are 2048x2048 or better for overlay and both of our textured video
- * implementations.  However, we run into the bigrequests limit of (currently)
- * 4MB, which even the planar format's 2048*2048*1.5 bytes is larger than.
- * Conveniently, the HD resolution, even in packed format, takes
- * (1920*1088*2) bytes, which is just shy of 4MB.  Additionally, on the 830
- * and 845, larger sizes resulted in the card hanging, so we keep the limits
- * lower there.
- *
- * While the HD resolution is actually 1920x1080, we increase our advertised
- * size to 1088 because some software wants to send an image aligned to
- * 16-pixel boundaries.
+ * implementations.  Additionally, on the 830 and 845, larger sizes resulted in
+ * the card hanging, so we keep the limits lower there.
  */
-#define IMAGE_MAX_WIDTH		1920
-#define IMAGE_MAX_HEIGHT	1088
+#define IMAGE_MAX_WIDTH		2048
+#define IMAGE_MAX_HEIGHT	2048
 #define IMAGE_MAX_WIDTH_LEGACY	1024
 #define IMAGE_MAX_HEIGHT_LEGACY	1088
 
