@@ -1543,8 +1543,10 @@ do {									\
 	uint32_t flush = 0;						\
 	switch (info->accel_state->engineMode) {			\
 	case EXA_ENGINEMODE_UNKNOWN:					\
-	case EXA_ENGINEMODE_2D:						\
 	    flush = 1;                                                  \
+	    break;							\
+	case EXA_ENGINEMODE_2D:						\
+	    flush = !info->cs || info->cs->cdw > 15 * 1024;		\
 	case EXA_ENGINEMODE_3D:						\
 	    break;							\
 	}								\
