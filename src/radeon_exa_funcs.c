@@ -368,9 +368,6 @@ RADEONUploadToScreenCP(PixmapPtr pDst, int x, int y, int w, int h,
 
     TRACE;
 
-    if (info->kms_enabled)
-	return FALSE;
-
     if (bpp < 8)
 	return FALSE;
 
@@ -445,9 +442,6 @@ RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
     drmBufPtr scratch;
 
     TRACE;
-
-    if (info->kms_enabled)
-      return FALSE;
 
     /*
      * Try to accelerate download. Use an indirect buffer as scratch space,
@@ -570,9 +564,11 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     info->accel_state->exa->MarkSync = FUNC_NAME(RADEONMarkSync);
     info->accel_state->exa->WaitMarker = FUNC_NAME(RADEONSync);
 #ifdef ACCEL_CP
-    info->accel_state->exa->UploadToScreen = RADEONUploadToScreenCP;
-    if (info->accelDFS)
-	info->accel_state->exa->DownloadFromScreen = RADEONDownloadFromScreenCP;
+    if (!info->kms_enabled) {
+	info->accel_state->exa->UploadToScreen = RADEONUploadToScreenCP;
+	if (info->accelDFS)
+	    info->accel_state->exa->DownloadFromScreen = RADEONDownloadFromScreenCP;
+    }
 #endif
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
