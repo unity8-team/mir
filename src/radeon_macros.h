@@ -169,7 +169,7 @@ do {									\
     if (!info->cs) {			       \
 	uint32_t _pix_offset = radeonGetPixmapOffset(pPix);	\
 	if ((_pix_offset & mask) != 0)					\
-	    RADEON_FALLBACK(("Bad %s offset 0x%x\n", type, (int)pix_offset)); \
+	    RADEON_FALLBACK(("Bad %s offset 0x%x\n", type, (int)_pix_offset)); \
     }									\
     } while(0)
 
