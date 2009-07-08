@@ -2116,7 +2116,11 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
 
 #ifdef ACCEL_CP
-    if (info->cs && info->cs->cdw > 15 * 1024) {
+    if (info->cs
+#ifdef XF86DRM_MODE
+	&& info->cs->cdw > 15 * 1024
+#endif
+	) {
 	FUNC_NAME(RadeonDoneComposite)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
 	info->accel_state->exa->PrepareComposite(info->accel_state->composite_op,

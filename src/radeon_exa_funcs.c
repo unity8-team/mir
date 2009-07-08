@@ -218,7 +218,11 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     TRACE;
 
 #ifdef ACCEL_CP
-    if (info->cs && info->cs->cdw > 15 * 1024) {
+    if (info->cs
+#ifdef XF86DRM_MODE
+	&& info->cs->cdw > 15 * 1024
+#endif
+	) {
 	FUNC_NAME(RADEONDone2D)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
 	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
@@ -327,7 +331,11 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
     TRACE;
 
 #ifdef ACCEL_CP
-    if (info->cs && info->cs->cdw > 15 * 1024) {
+    if (info->cs
+#ifdef XF86DRM_MODE
+	&& info->cs->cdw > 15 * 1024
+#endif
+	) {
 	FUNC_NAME(RADEONDone2D)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
 	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_COPY);
