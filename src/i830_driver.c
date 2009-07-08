@@ -1460,6 +1460,7 @@ i830_open_drm_master(ScrnInfoPtr scrn)
     sv.drm_di_major = 1;
     sv.drm_di_minor = 1;
     sv.drm_dd_major = -1;
+    sv.drm_dd_minor = -1;
     err = drmSetInterfaceVersion(i830->drmSubFD, &sv);
     if (err != 0) {
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
