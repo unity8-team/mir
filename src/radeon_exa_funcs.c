@@ -131,6 +131,22 @@ static void FUNC_NAME(Emit2DState)(ScrnInfoPtr pScrn, int op)
 	info->reemit_current2d = FUNC_NAME(Emit2DState);
 }
 
+static void
+FUNC_NAME(RADEONDone2D)(PixmapPtr pPix)
+{
+    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
+    ACCEL_PREAMBLE();
+
+    TRACE;
+
+    info->state_2d.op = 0;
+    BEGIN_ACCEL(2);
+    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
+    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
+                  RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
+    FINISH_ACCEL();
+}
+
 static Bool
 FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 {
@@ -185,6 +201,8 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (driver_priv)
       info->state_2d.dst_bo = driver_priv->bo;
 
+    info->accel_state->dst_pix = pPix;
+
     FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
 
     return TRUE;
@@ -199,28 +217,20 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 
     TRACE;
 
+#ifdef ACCEL_CP
+    if (info->cs && info->cs->cdw > 15 * 1024) {
+	FUNC_NAME(RADEONDone2D)(info->accel_state->dst_pix);
+	radeon_cs_flush_indirect(pScrn);
+	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
+    }
+#endif
+
     if (info->accel_state->vsync)
 	FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix, RADEONBiggerCrtcArea(pPix), y1, y2);
 
     BEGIN_ACCEL(2);
     OUT_ACCEL_REG(RADEON_DST_Y_X, (y1 << 16) | x1);
     OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, ((y2 - y1) << 16) | (x2 - x1));
-    FINISH_ACCEL();
-}
-
-static void
-FUNC_NAME(RADEONDone2D)(PixmapPtr pPix)
-{
-    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    ACCEL_PREAMBLE();
-
-    TRACE;
-
-    info->state_2d.op = 0;
-    BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-                  RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
     FINISH_ACCEL();
 }
 
@@ -288,6 +298,7 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 
     info->accel_state->xdir = xdir;
     info->accel_state->ydir = ydir;
+    info->accel_state->dst_pix = pDst;
 
     if (pDst->drawable.bitsPerPixel == 24)
 	RADEON_FALLBACK(("24bpp unsupported"));
@@ -314,6 +325,14 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
     ACCEL_PREAMBLE();
 
     TRACE;
+
+#ifdef ACCEL_CP
+    if (info->cs && info->cs->cdw > 15 * 1024) {
+	FUNC_NAME(RADEONDone2D)(info->accel_state->dst_pix);
+	radeon_cs_flush_indirect(pScrn);
+	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_COPY);
+    }
+#endif
 
     if (info->accel_state->xdir < 0) {
 	srcX += w - 1;

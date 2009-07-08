@@ -542,6 +542,45 @@ static Bool R100CheckComposite(int op, PicturePtr pSrcPicture,
 
     return TRUE;
 }
+
+static Bool
+RADEONPrepareCompositeCS(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
+			    PicturePtr pDstPicture, PixmapPtr pSrc, PixmapPtr pMask,
+			    PixmapPtr pDst)
+{
+    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
+
+    info->accel_state->composite_op = op;
+    info->accel_state->dst_pic = pDstPicture;
+    info->accel_state->msk_pic = pMaskPicture;
+    info->accel_state->src_pic = pSrcPicture;
+    info->accel_state->dst_pix = pDst;
+    info->accel_state->msk_pix = pMask;
+    info->accel_state->src_pix = pSrc;
+
+#ifdef XF86DRM_MODE
+    if (info->cs) {
+	int ret;
+
+	radeon_cs_space_reset_bos(info->cs);
+
+	radeon_add_pixmap(info->cs, pSrc,
+			  RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	if (pMask)
+	    radeon_add_pixmap(info->cs, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+
+	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+
+	ret = radeon_cs_space_check(info->cs);
+	if (ret)
+	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
+    }
+#endif
+
+    return TRUE;
+}
+
 #endif /* ONLY_ONCE */
 
 static Bool FUNC_NAME(R100PrepareComposite)(int op,
@@ -557,7 +596,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     uint32_t pp_cntl, blendcntl, cblend, ablend;
     int pixel_shift;
     struct radeon_exa_pixmap_priv *driver_priv;
-    int ret;
     ACCEL_PREAMBLE();
 
     TRACE;
@@ -567,11 +605,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 
     if (pDstPicture->format == PICT_a8 && RadeonBlendOp[op].dst_alpha)
 	RADEON_FALLBACK(("Can't dst alpha blend A8\n"));
-
-    if (pMask)
-	info->accel_state->has_mask = TRUE;
-    else
-	info->accel_state->has_mask = FALSE;
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
@@ -585,27 +618,14 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
-    /* switch to 3D before doing buffer space checks as it may flush */
-    RADEON_SWITCH_TO_3D();
-
-    if (info->cs) {
-	radeon_cs_space_reset_bos(info->cs);
-
-	radeon_add_pixmap(info->cs, pSrc,
-			  RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-
-	if (pMask)
-	    radeon_add_pixmap(info->cs, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-
-	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs);
-	if (ret)
-	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
-    }
-
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, FALSE, TRUE))
 	return FALSE;
+
+    RADEONPrepareCompositeCS(op, pSrcPicture, pMaskPicture, pDstPicture,
+			     pSrc, pMask, pDst);
+
+    /* switch to 3D after doing buffer space checks as the latter may flush */
+    RADEON_SWITCH_TO_3D();
 
     if (!FUNC_NAME(R100TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -905,7 +925,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     uint32_t pp_cntl, blendcntl, cblend, ablend, colorpitch;
     int pixel_shift;
     struct radeon_exa_pixmap_priv *driver_priv;
-    int ret;
     ACCEL_PREAMBLE();
 
     TRACE;
@@ -915,11 +934,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     if (pDstPicture->format == PICT_a8 && RadeonBlendOp[op].dst_alpha)
 	RADEON_FALLBACK(("Can't dst alpha blend A8\n"));
-
-    if (pMask)
-	info->accel_state->has_mask = TRUE;
-    else
-	info->accel_state->has_mask = FALSE;
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
@@ -933,25 +947,14 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
-    /* switch to 3D before doing buffer space checks as it may flush */
-    RADEON_SWITCH_TO_3D();
-
-    if (info->cs) {
-	radeon_cs_space_reset_bos(info->cs);
-        radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-
-	if (pMask)
-	    radeon_add_pixmap(info->cs, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-
-	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs);
-	if (ret)
- 	  RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
-    }
-
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, FALSE, TRUE))
 	return FALSE;
+
+    RADEONPrepareCompositeCS(op, pSrcPicture, pMaskPicture, pDstPicture,
+			     pSrc, pMask, pDst);
+
+    /* switch to 3D after doing buffer space checks as it may flush */
+    RADEON_SWITCH_TO_3D();
 
     if (!FUNC_NAME(R200TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -1145,7 +1148,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     txformat1 = R300TexFormats[i].card_fmt;
 
     if (IS_R300_3D) {
-	if ((unit == 0) && info->accel_state->has_mask)
+	if ((unit == 0) && info->accel_state->msk_pic)
 	    txformat1 |= R300_TX_FORMAT_CACHE_HALF_REGION_0;
 	else if (unit == 1)
 	    txformat1 |= R300_TX_FORMAT_CACHE_HALF_REGION_1;
@@ -1383,18 +1386,12 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     uint32_t src_color, src_alpha;
     uint32_t mask_color, mask_alpha;
     int pixel_shift;
-    int ret;
     struct radeon_exa_pixmap_priv *driver_priv;
     ACCEL_PREAMBLE();
     TRACE;
 
     if (!R300GetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
-
-    if (pMask)
-	info->accel_state->has_mask = TRUE;
-    else
-	info->accel_state->has_mask = FALSE;
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
@@ -1411,25 +1408,14 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
-    /* have to execute switch before doing buffer sizing check as it flushes */
-    RADEON_SWITCH_TO_3D();
-
-    if (info->cs) {
-      	radeon_cs_space_reset_bos(info->cs);
-	radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-
-	if (pMask)
-	  radeon_add_pixmap(info->cs, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-
-	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
-
-	ret = radeon_cs_space_check(info->cs);
-	if (ret)
-	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
-    }
-
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, TRUE, FALSE))
 	return FALSE;
+
+    RADEONPrepareCompositeCS(op, pSrcPicture, pMaskPicture, pDstPicture,
+			     pSrc, pMask, pDst);
+
+    /* have to execute switch after doing buffer sizing check as the latter flushes */
+    RADEON_SWITCH_TO_3D();
 
     if (!FUNC_NAME(R300TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -2027,13 +2013,32 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     FINISH_ACCEL();
 
     BEGIN_ACCEL(1);
-    if (info->accel_state->has_mask)
+    if (pMask)
 	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, 6);
     else
 	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, 4);
     FINISH_ACCEL();
 
     return TRUE;
+}
+
+static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
+{
+    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
+    ACCEL_PREAMBLE();
+
+    ENTER_DRAW(0);
+
+    if (IS_R300_3D || IS_R500_3D) {
+	BEGIN_ACCEL(3);
+	OUT_ACCEL_REG(R300_SC_CLIP_RULE, 0xAAAA);
+	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
+    } else
+	BEGIN_ACCEL(1);
+    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
+    FINISH_ACCEL();
+
+    LEAVE_DRAW(0);
 }
 
 
@@ -2110,6 +2115,20 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
     /* ErrorF("RadeonComposite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
 
+#ifdef ACCEL_CP
+    if (info->cs && info->cs->cdw > 15 * 1024) {
+	FUNC_NAME(RadeonDoneComposite)(info->accel_state->dst_pix);
+	radeon_cs_flush_indirect(pScrn);
+	info->accel_state->exa->PrepareComposite(info->accel_state->composite_op,
+						 info->accel_state->dst_pic,
+						 info->accel_state->msk_pic,
+						 info->accel_state->src_pic,
+						 info->accel_state->dst_pix,
+						 info->accel_state->msk_pix,
+						 info->accel_state->src_pix);
+    }
+#endif
+
     srcTopLeft.x     = IntToxFixed(srcX);
     srcTopLeft.y     = IntToxFixed(srcY);
     srcTopRight.x    = IntToxFixed(srcX + w);
@@ -2128,7 +2147,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	}
     }
 
-    if (info->accel_state->has_mask) {
+    if (info->accel_state->msk_pic) {
 	maskTopLeft.x     = IntToxFixed(maskX);
 	maskTopLeft.y     = IntToxFixed(maskY);
 	maskTopRight.x    = IntToxFixed(maskX + w);
@@ -2159,7 +2178,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	BEGIN_RING(3 * vtx_count + 3);
 	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
 			    3 * vtx_count + 1));
-	if (info->accel_state->has_mask)
+	if (info->accel_state->msk_pic)
 	    OUT_RING(RADEON_CP_VC_FRMT_XY |
 		     RADEON_CP_VC_FRMT_ST0 |
 		     RADEON_CP_VC_FRMT_ST1);
@@ -2209,7 +2228,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 
 #endif
 
-    if (info->accel_state->has_mask) {
+    if (info->accel_state->msk_pic) {
 	if (IS_R300_3D || IS_R500_3D) {
 	    VTX_OUT_MASK((float)dstX,                                      (float)dstY,
 			 xFixedToFloat(srcTopLeft.x) / info->accel_state->texW[0],      xFixedToFloat(srcTopLeft.y) / info->accel_state->texH[0],
@@ -2315,25 +2334,6 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	tileMaskY += h;
 	tileDstY += h;
     }
-}
-
-static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
-{
-    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    ACCEL_PREAMBLE();
-
-    ENTER_DRAW(0);
-
-    if (IS_R300_3D || IS_R500_3D) {
-	BEGIN_ACCEL(3);
-	OUT_ACCEL_REG(R300_SC_CLIP_RULE, 0xAAAA);
-	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
-    } else
-	BEGIN_ACCEL(1);
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
-    FINISH_ACCEL();
-
-    LEAVE_DRAW(0);
 }
 
 #undef ONLY_ONCE
