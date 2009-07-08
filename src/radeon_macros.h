@@ -176,7 +176,7 @@ do {									\
 #define EMIT_OFFSET(reg, value, pPix, rd, wd) do {		\
     if (info->cs) {						\
 	driver_priv = exaGetPixmapDriverPrivate(pPix);		\
-	OUT_ACCEL_REG((reg), 0);				\
+	OUT_ACCEL_REG((reg), (value));				\
 	OUT_RELOC(driver_priv->bo, (rd), (wd));			\
     } else {							\
 	uint32_t _pix_offset;					\
