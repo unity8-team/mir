@@ -100,10 +100,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     int dstxoff, dstyoff, pixel_shift, vtx_count;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
-    int ret;
     ACCEL_PREAMBLE();
 
+#ifdef XF86DRM_MODE
     if (info->cs) {
+	int ret;
+
 	radeon_cs_space_reset_bos(info->cs);
         radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
@@ -119,6 +121,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    return;
 	}
     }
+#endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
@@ -486,10 +489,12 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int ref = pPriv->transform_index;
     float ucscale = 0.25, vcscale = 0.25;
     Bool needux8 = FALSE, needvx8 = FALSE;
-    int ret;
     ACCEL_PREAMBLE();
 
+#ifdef XF86DRM_MODE
     if (info->cs) {
+	int ret;
+
 	radeon_cs_space_reset_bos(info->cs);
         radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
@@ -505,6 +510,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    return;
 	}
     }
+#endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
@@ -1025,10 +1031,12 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int dstxoff, dstyoff, pixel_shift, vtx_count;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
-    int ret;
     ACCEL_PREAMBLE();
 
+#ifdef XF86DRM_MODE
     if (info->cs) {
+	int ret;
+
 	radeon_cs_space_reset_bos(info->cs);
 	radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
@@ -1044,6 +1052,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    return;
 	}
     }
+#endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
@@ -2473,10 +2482,12 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int dstxoff, dstyoff, pixel_shift, vtx_count;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
-    int ret;
     ACCEL_PREAMBLE();
 
+#ifdef XF86DRM_MODE
     if (info->cs) {
+	int ret;
+
 	radeon_cs_space_reset_bos(info->cs);
 	radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
@@ -2492,6 +2503,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    return;
 	}
     }
+#endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 

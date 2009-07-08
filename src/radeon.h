@@ -1519,6 +1519,13 @@ do {									\
 #endif /* XF86DRI */
 
 #if defined(XF86DRI) && defined(USE_EXA)
+
+#ifdef XF86DRM_MODE
+#define CS_FULL(cs) ((cs)->cdw > 15 * 1024)
+#else
+#define CS_FULL(cs) FALSE
+#endif
+
 #define RADEON_SWITCH_TO_2D()						\
 do {									\
 	uint32_t flush = 0;                                             \
@@ -1537,7 +1544,7 @@ do {									\
 	}								\
         info->accel_state->engineMode = EXA_ENGINEMODE_2D;              \
 } while (0);
-# ifdef XF86DRM_MODE
+
 #define RADEON_SWITCH_TO_3D()						\
 do {									\
 	uint32_t flush = 0;						\
@@ -1546,7 +1553,7 @@ do {									\
 	    flush = 1;                                                  \
 	    break;							\
 	case EXA_ENGINEMODE_2D:						\
-	    flush = !info->cs || info->cs->cdw > 15 * 1024;		\
+	    flush = !info->cs || CS_FULL(info->cs);			\
 	case EXA_ENGINEMODE_3D:						\
 	    break;							\
 	}								\
@@ -1560,29 +1567,6 @@ do {									\
 	    RADEONInit3DEngine(pScrn);                                  \
         info->accel_state->engineMode = EXA_ENGINEMODE_3D;              \
 } while (0);
-# else
-#define RADEON_SWITCH_TO_3D()						\
-do {									\
-	uint32_t flush = 0;						\
-	switch (info->accel_state->engineMode) {			\
-	case EXA_ENGINEMODE_UNKNOWN:					\
-	case EXA_ENGINEMODE_2D:						\
-	    flush = 1;                                                  \
-	    break;							\
-	case EXA_ENGINEMODE_3D:						\
-	    break;							\
-	}								\
-	if (flush) {							\
-	    if (info->cs)						\
-		radeon_cs_flush_indirect(pScrn);			\
-	    else if (info->directRenderingEnabled)			\
-		RADEONCPFlushIndirect(pScrn, 1);                        \
-	}                                                               \
-	if (!info->accel_state->XInited3D)				\
-	    RADEONInit3DEngine(pScrn);                                  \
-	info->accel_state->engineMode = EXA_ENGINEMODE_3D;              \
-} while (0);
-# endif
 #else
 #define RADEON_SWITCH_TO_2D()
 #define RADEON_SWITCH_TO_3D()

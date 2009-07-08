@@ -152,8 +152,6 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     uint32_t datatype, dst_pitch_offset;
-    struct radeon_exa_pixmap_priv *driver_priv;
-    int ret;
 
     TRACE;
 
@@ -166,7 +164,10 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
     RADEON_SWITCH_TO_2D();
 
+#ifdef XF86DRM_MODE
     if (info->cs) {
+	struct radeon_exa_pixmap_priv *driver_priv;
+	int ret;
       
 	radeon_cs_space_reset_bos(info->cs);
 
@@ -176,8 +177,12 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	ret = radeon_cs_space_check(info->cs);
 	if (ret)
 	    RADEON_FALLBACK(("Not enough RAM to hw accel solid operation\n"));
-    }
 
+	driver_priv = exaGetPixmapDriverPrivate(pPix);
+	if (driver_priv)
+	    info->state_2d.dst_bo = driver_priv->bo;
+    }
+#endif
 
     info->state_2d.default_sc_bottom_right = (RADEON_DEFAULT_SC_RIGHT_MAX |
 					       RADEON_DEFAULT_SC_BOTTOM_MAX);
@@ -197,10 +202,6 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     info->state_2d.src_pitch_offset = 0;
     info->state_2d.src_bo = NULL;
 
-    driver_priv = exaGetPixmapDriverPrivate(pPix);
-    if (driver_priv)
-      info->state_2d.dst_bo = driver_priv->bo;
-
     info->accel_state->dst_pix = pPix;
 
     FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
@@ -217,12 +218,8 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 
     TRACE;
 
-#ifdef ACCEL_CP
-    if (info->cs
-#ifdef XF86DRM_MODE
-	&& info->cs->cdw > 15 * 1024
-#endif
-	) {
+#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+    if (info->cs && CS_FULL(info->cs)) {
 	FUNC_NAME(RADEONDone2D)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
 	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
@@ -277,13 +274,14 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     uint32_t datatype, src_pitch_offset, dst_pitch_offset;
-    struct radeon_exa_pixmap_priv *driver_priv;
-    int ret;
     TRACE;
 
     RADEON_SWITCH_TO_2D();
 
+#ifdef XF86DRM_MODE
     if (info->cs) {
+	struct radeon_exa_pixmap_priv *driver_priv;
+	int ret;
       
 	radeon_cs_space_reset_bos(info->cs);
 
@@ -299,6 +297,7 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 	if (ret)
 	    RADEON_FALLBACK(("Not enough RAM to hw accel copy operation\n"));
     }
+#endif
 
     info->accel_state->xdir = xdir;
     info->accel_state->ydir = ydir;
@@ -330,12 +329,8 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 
     TRACE;
 
-#ifdef ACCEL_CP
-    if (info->cs
-#ifdef XF86DRM_MODE
-	&& info->cs->cdw > 15 * 1024
-#endif
-	) {
+#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+    if (info->cs && CS_FULL(info->cs)) {
 	FUNC_NAME(RADEONDone2D)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
 	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_COPY);

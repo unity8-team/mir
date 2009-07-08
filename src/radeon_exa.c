@@ -120,12 +120,18 @@ static __inline__ uint32_t F_TO_DW(float val)
     return tmp.l;
 }
 
+
+#ifdef XF86DRM_MODE
+
 static inline void radeon_add_pixmap(struct radeon_cs *cs, PixmapPtr pPix, int read_domains, int write_domain)
 {
     struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
 
     radeon_cs_space_add_persistent_bo(cs, driver_priv->bo, read_domains, write_domain);
 }
+
+#endif /* XF86DRM_MODE */
+
 
 /* Assumes that depth 15 and 16 can be used as depth 16, which is okay since we
  * require src and dest datatypes to be equal.
