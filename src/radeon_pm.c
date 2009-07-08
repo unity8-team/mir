@@ -38,6 +38,8 @@
 #include "radeon_macros.h"
 #include "radeon_atombios.h"
 
+#include "ati_pciids_gen.h"
+
 /* 10 khz */
 static uint32_t calc_eng_mem_clock(ScrnInfoPtr pScrn,
 				   uint32_t req_clock,
@@ -627,6 +629,15 @@ RADEONSetPCIELanes(ScrnInfoPtr pScrn, int lanes)
     uint32_t link_width_cntl, mask, target_reg;
 
     if (info->IsIGP)
+	return;
+
+    /* don't change lanes on multi-gpu cards for now */
+    if ((info->Chipset == PCI_CHIP_RV770_9441) ||
+	(info->Chipset == PCI_CHIP_RV770_9443) ||
+	(info->Chipset == PCI_CHIP_RV770_944B) ||
+	(info->Chipset == PCI_CHIP_RV670_9506) ||
+	(info->Chipset == PCI_CHIP_RV670_9509) ||
+	(info->Chipset == PCI_CHIP_RV670_950F))
 	return;
 
     RADEONWaitForIdleMMIO(pScrn);
