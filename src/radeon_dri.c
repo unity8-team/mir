@@ -789,6 +789,8 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     { PCI_VENDOR_VIA,0x3189,    PCI_VENDOR_ATI,0x5960,  0x1462,0x0380,           4 },
     /* VIA VT8377 Host Bridge / RV280 Needs AGPMode 4 (ati ML) */
     { PCI_VENDOR_VIA,0x3189,    PCI_VENDOR_ATI,0x5964,  0x148c,0x2073,           4 },
+    /* VIA VT8377 Host Bridge / RV280 Needs AGPMode 4 (fdo #12544) */
+    { PCI_VENDOR_VIA,0x3189,    PCI_VENDOR_ATI,0x5964,  0x1043,0xc008,           4 },
 
     /* ATI Host Bridge / RV280 [M9+] Needs AGPMode 1 (phoronix forum) */
     { PCI_VENDOR_ATI,0xcbb2,    PCI_VENDOR_ATI,0x5c61,  PCI_VENDOR_SONY,0x8175,  1 },
