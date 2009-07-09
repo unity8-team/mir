@@ -1,3 +1,28 @@
+Snapshot 2.7.99.901 (2009-06-10)
+--------------------------------
+This is the first release candidate in preparation for the upcoming
+2.8.0 release. Most critical bugs should be fixed, but some major
+bugs may still be present. We will appreciate any feedback we can
+get from testing of this snapshot to improve the 2.8.0 release.
+
+Some of the major fixes in this snapshot include:
+
+	* Several fixes for intermittent GPU hangs/crashes, (some of
+	  which already appeared in the 2.7.1 release)
+
+	* Fix to avoid X crash when viewing large images in browser
+
+	* Fix X server failure when running old (non-GEM) kernel
+
+	* Fixes for SDVO LVDS mode detection
+
+	* Fix major performance regression of trapezoid rendering
+          compared to XAA/EXA
+
+	* New support for tear-free video when using KMS
+
+	* New support for tear-free DRI2 CopyRegion
+
 Snapshot 2.7.99.1 (2009-04-28)
 ------------------------------
 This is a development snapshot very early in the process toward

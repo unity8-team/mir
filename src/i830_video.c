@@ -92,7 +92,7 @@ static void I830InitOffscreenImages(ScreenPtr);
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr);
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr);
 static void I830StopVideo(ScrnInfoPtr, pointer, Bool);
-static int I830SetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
+static int I830SetPortAttributeOverlay(ScrnInfoPtr, Atom, INT32, pointer);
 static int I830SetPortAttributeTextured(ScrnInfoPtr, Atom, INT32, pointer);
 static int I830GetPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 static void I830QueryBestSize(ScrnInfoPtr, Bool,
@@ -101,10 +101,8 @@ static void I830QueryBestSize(ScrnInfoPtr, Bool,
 static int I830PutImage(ScrnInfoPtr, short, short, short, short, short, short,
 			short, short, int, unsigned char *, short, short,
 			Bool, RegionPtr, pointer, DrawablePtr);
-static int I830QueryImageAttributesOverlay(ScrnInfoPtr, int, unsigned short *,
+static int I830QueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 					   unsigned short *, int *, int *);
-static int I830QueryImageAttributesTextured(ScrnInfoPtr, int, unsigned short *,
-					    unsigned short *, int *, int *);
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
@@ -784,10 +782,24 @@ static uint32_t I830BoundGammaElt (uint32_t elt, uint32_t eltPrev)
 
 static uint32_t I830BoundGamma (uint32_t gamma, uint32_t gammaPrev)
 {
-    return (I830BoundGammaElt (gamma >> 24, gammaPrev >> 24) << 24 |
-	    I830BoundGammaElt (gamma >> 16, gammaPrev >> 16) << 16 |
+    return (I830BoundGammaElt (gamma >> 16, gammaPrev >> 16) << 16 |
 	    I830BoundGammaElt (gamma >>  8, gammaPrev >>  8) <<  8 |
 	    I830BoundGammaElt (gamma      , gammaPrev      ));
+}
+
+static uint32_t I830Gamma5Errata(uint32_t gamma)
+{
+    int i;
+
+    for (i = 0; i < 3; i++) {
+	if ((gamma >> i*8 & 0xff) == 0x80) {
+	    /* According to Intel docs, overlay fails if GAMMA5 is 0x80.
+	     * In this case, change the value to 0x81 */
+	    gamma += 1 << i*8;
+	}
+    }
+
+    return gamma;
 }
 
 static void
@@ -811,6 +823,7 @@ I830UpdateGamma(ScrnInfoPtr pScrn)
     gamma3 = I830BoundGamma (gamma3, gamma2);
     gamma4 = I830BoundGamma (gamma4, gamma3);
     gamma5 = I830BoundGamma (gamma5, gamma4);
+    gamma5 = I830Gamma5Errata(gamma5);
 #if 0
     ErrorF ("Bounded  gamma: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
 	    gamma0, gamma1, gamma2, gamma3, gamma4, gamma5);
@@ -879,11 +892,11 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
     adapt->GetVideo = NULL;
     adapt->GetStill = NULL;
     adapt->StopVideo = I830StopVideo;
-    adapt->SetPortAttribute = I830SetPortAttribute;
+    adapt->SetPortAttribute = I830SetPortAttributeOverlay;
     adapt->GetPortAttribute = I830GetPortAttribute;
     adapt->QueryBestSize = I830QueryBestSize;
     adapt->PutImage = I830PutImage;
-    adapt->QueryImageAttributes = I830QueryImageAttributesOverlay;
+    adapt->QueryImageAttributes = I830QueryImageAttributes;
 
     pPriv->textured = FALSE;
     pPriv->colorKey = pI830->colorKey & ((1 << pScrn->depth) - 1);
@@ -999,7 +1012,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
     adapt->GetPortAttribute = I830GetPortAttribute;
     adapt->QueryBestSize = I830QueryBestSize;
     adapt->PutImage = I830PutImage;
-    adapt->QueryImageAttributes = I830QueryImageAttributesTextured;
+    adapt->QueryImageAttributes = I830QueryImageAttributes;
 
     for (i = 0; i < nports; i++) {
 	I830PortPrivPtr pPriv = &portPrivs[i];
@@ -1042,8 +1055,7 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 	}
 
 	if (pPriv->buf) {
-	    if (!pPriv->textured)
-		drm_intel_bo_unpin(pPriv->buf);
+	    drm_intel_bo_unpin(pPriv->buf);
 	    drm_intel_bo_unreference(pPriv->buf);
 	    pPriv->buf = NULL;
 	    pPriv->videoStatus = 0;
@@ -1085,7 +1097,7 @@ I830SetPortAttributeTextured(ScrnInfoPtr pScrn,
 }
 
 static int
-I830SetPortAttribute(ScrnInfoPtr pScrn,
+I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 		     Atom attribute, INT32 value, pointer data)
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
@@ -1387,7 +1399,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	if (srcPitch == dstPitch2)
+       /* optimise for the case of no clipping */
+	if (srcPitch == dstPitch2 && srcPitch == w)
 	    memcpy (dst1, src1, srcPitch * h);
 	else
 	    for (i = 0; i < h; i++) {
@@ -1426,7 +1439,11 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     }
 
     /* Copy V data for YV12, or U data for I420 */
-    src2 = buf + (srcH * srcPitch) + ((top * srcPitch) >> 2) + (left >> 1);
+    src2 = buf +                            /* start of YUV data */
+                (srcH * srcPitch) +         /* move over Luma plane */
+                ((top * srcPitch) >> 2) +   /* move down from by top lines */
+                    (left >> 1);            /* move left by left pixels */
+
 #if 0
     ErrorF("src2 is %p, offset is %ld\n", src2,
 	   (unsigned long)src2 - (unsigned long)buf);
@@ -1445,7 +1462,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	if (srcPitch2 == dstPitch)
+       /* optimise for the case of no clipping */
+	if (srcPitch2 == dstPitch && srcPitch2 == (w/2))
 	    memcpy (dst2, src2, h/2 * srcPitch2);
 	else
 	    for (i = 0; i < h / 2; i++) {
@@ -1484,8 +1502,11 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     }
 
     /* Copy U data for YV12, or V data for I420 */
-    src3 = buf + (srcH * srcPitch) + ((srcH >> 1) * srcPitch2) +
-    ((top * srcPitch) >> 2) + (left >> 1);
+    src3 = buf +                            /* start of YUV data */
+                (srcH * srcPitch) +         /* move over Luma plane */
+                ((srcH >> 1) * srcPitch2) + /* move over Chroma plane */
+                ((top * srcPitch) >> 2) +   /* move down from by top lines */
+                    (left >> 1);            /* move left by left pixels */
 #if 0
     ErrorF("src3 is %p, offset is %ld\n", src3,
 	   (unsigned long)src3 - (unsigned long)buf);
@@ -1504,7 +1525,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	if (srcPitch2 == dstPitch)
+       /* optimise for the case of no clipping */
+	if (srcPitch2 == dstPitch && srcPitch2 == (w/2))
 	    memcpy (dst3, src3, srcPitch2 * h/2);
 	else
 	    for (i = 0; i < h / 2; i++) {
@@ -1734,6 +1756,11 @@ i830_covering_crtc (ScrnInfoPtr pScrn,
     for (c = 0; c < xf86_config->num_crtc; c++)
     {
 	crtc = xf86_config->crtc[c];
+
+	/* If the CRTC is off, treat it as not covering */
+	if (!i830_crtc_on(crtc))
+	    continue;
+
 	i830_crtc_box (crtc, &crtc_box);
 	i830_box_intersect (&cover_box, &crtc_box, box);
 	coverage = i830_box_area (&cover_box);
@@ -1761,6 +1788,197 @@ i830_swidth (I830Ptr pI830, unsigned int offset,
 	swidth <<= 1;
     swidth -= 1;
     return swidth << 2;
+}
+
+static void
+i830_update_dst_box_to_crtc_coords(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
+		BoxPtr dstBox)
+{
+    int tmp;
+
+    /* for overlay, we should take it from crtc's screen
+     * coordinate to current crtc's display mode.
+     * yeah, a bit confusing.
+     */
+    switch (crtc->rotation & 0xf) {
+    case RR_Rotate_0:
+	dstBox->x1 -= crtc->x;
+	dstBox->x2 -= crtc->x;
+	dstBox->y1 -= crtc->y;
+	dstBox->y2 -= crtc->y;
+	break;
+    case RR_Rotate_90:
+	tmp = dstBox->x1;
+	dstBox->x1 = dstBox->y1 - crtc->x;
+	dstBox->y1 = pScrn->virtualX - tmp - crtc->y;
+	tmp = dstBox->x2;
+	dstBox->x2 = dstBox->y2 - crtc->x;
+	dstBox->y2 = pScrn->virtualX - tmp - crtc->y;
+	tmp = dstBox->y1;
+	dstBox->y1 = dstBox->y2;
+	dstBox->y2 = tmp;
+	break;
+    case RR_Rotate_180:
+	tmp = dstBox->x1;
+	dstBox->x1 = pScrn->virtualX - dstBox->x2 - crtc->x;
+	dstBox->x2 = pScrn->virtualX - tmp - crtc->x;
+	tmp = dstBox->y1;
+	dstBox->y1 = pScrn->virtualY - dstBox->y2 - crtc->y;
+	dstBox->y2 = pScrn->virtualY - tmp - crtc->y;
+	break;
+    case RR_Rotate_270:
+	tmp = dstBox->x1;
+	dstBox->x1 = pScrn->virtualY - dstBox->y1 - crtc->x;
+	dstBox->y1 = tmp - crtc->y;
+	tmp = dstBox->x2;
+	dstBox->x2 = pScrn->virtualY - dstBox->y2 - crtc->x;
+	dstBox->y2 = tmp - crtc->y;
+	tmp = dstBox->x1;
+	dstBox->x1 = dstBox->x2;
+	dstBox->x2 = tmp;
+	break;
+    }
+
+    return;
+}
+
+static void
+i830_store_coeffs_in_overlay_regs(uint16_t *reg_coeffs, coeffPtr new_coeffs,
+	int max_taps)
+{
+    int i, j, pos;
+
+    for (i = 0; i < N_PHASES; i++) {
+	for (j = 0; j < max_taps; j++) {
+	    pos = i * max_taps + j;
+	    reg_coeffs[pos] = (new_coeffs[pos].sign << 15 |
+				      new_coeffs[pos].exponent << 12 |
+				      new_coeffs[pos].mantissa);
+	}
+    }
+}
+
+static double
+i830_limit_coeff(double coeff)
+{
+    /* Limit to between 1.0 and 3.0. */
+    if (coeff < MIN_CUTOFF_FREQ)
+	coeff = MIN_CUTOFF_FREQ;
+    if (coeff > MAX_CUTOFF_FREQ)
+	coeff = MAX_CUTOFF_FREQ;
+
+    return coeff;
+}
+
+static void
+i830_update_polyphase_coeffs(I830OverlayRegPtr	overlay,
+	int xscaleFract, int xscaleFractUV)
+{
+    /*
+     * Only Horizontal coefficients so far.
+     */
+    double fCutoffY;
+    double fCutoffUV;
+    coeffRec xcoeffY[N_HORIZ_Y_TAPS * N_PHASES];
+    coeffRec xcoeffUV[N_HORIZ_UV_TAPS * N_PHASES];
+
+    fCutoffY = xscaleFract / 4096.0;
+    fCutoffUV = xscaleFractUV / 4096.0;
+
+    fCutoffUV = i830_limit_coeff(fCutoffUV);
+    fCutoffY = i830_limit_coeff(fCutoffY);
+
+    UpdateCoeff(N_HORIZ_Y_TAPS, fCutoffY, TRUE, TRUE, xcoeffY);
+    UpdateCoeff(N_HORIZ_UV_TAPS, fCutoffUV, TRUE, FALSE, xcoeffUV);
+
+    i830_store_coeffs_in_overlay_regs(overlay->Y_HCOEFS, xcoeffY,
+		    N_HORIZ_Y_TAPS);
+    i830_store_coeffs_in_overlay_regs(overlay->UV_HCOEFS, xcoeffUV,
+		    N_HORIZ_UV_TAPS);
+}
+
+/*
+ * Calculate horizontal and vertical scaling factors and polyphase
+ * coefficients.
+ */
+
+static Bool
+i830_update_scaling_factors(I830OverlayRegPtr overlay,
+	short src_w, short src_h, short drw_w, short drw_h)
+{
+    int xscaleInt, xscaleFract, yscaleInt, yscaleFract;
+    int xscaleIntUV, xscaleFractUV;
+    int yscaleIntUV, yscaleFractUV;
+    uint32_t newval;
+    Bool scaleChanged = FALSE;
+
+    /*
+     * Y down-scale factor as a multiple of 4096.
+     */
+    xscaleFract = ((src_w - 1) << 12) / drw_w;
+    yscaleFract = ((src_h - 1) << 12) / drw_h;
+
+    /* Calculate the UV scaling factor.
+     * UV is half the size of Y -- YUV420 */
+    xscaleFractUV = xscaleFract / 2;
+    yscaleFractUV = yscaleFract / 2;
+
+    /*
+     * To keep the relative Y and UV ratios exact, round the Y scales
+     * to a multiple of the Y/UV ratio.
+     */
+    xscaleFract = xscaleFractUV * 2;
+    yscaleFract = yscaleFractUV * 2;
+
+    /* Integer (un-multiplied) values. */
+    xscaleInt = xscaleFract >> 12;
+    yscaleInt = yscaleFract >> 12;
+
+    xscaleIntUV = xscaleFractUV >> 12;
+    yscaleIntUV = yscaleFractUV >> 12;
+
+    OVERLAY_DEBUG("xscale: %x.%03x, yscale: %x.%03x\n", xscaleInt,
+		  xscaleFract & 0xFFF, yscaleInt, yscaleFract & 0xFFF);
+    OVERLAY_DEBUG("UV xscale: %x.%03x, UV yscale: %x.%03x\n", xscaleIntUV,
+		  xscaleFractUV & 0xFFF, yscaleIntUV, yscaleFractUV & 0xFFF);
+
+    /* shouldn't get here */
+    if (xscaleInt > 7) {
+	OVERLAY_DEBUG("xscale: bad scale\n");
+	return FALSE;
+    }
+
+    /* shouldn't get here */
+    if (xscaleIntUV > 7) {
+	OVERLAY_DEBUG("xscaleUV: bad scale\n");
+	return FALSE;
+    }
+
+    newval = (xscaleInt << 16) |
+    ((xscaleFract & 0xFFF) << 3) | ((yscaleFract & 0xFFF) << 20);
+    if (newval != overlay->YRGBSCALE) {
+	scaleChanged = TRUE;
+	overlay->YRGBSCALE = newval;
+    }
+
+    newval = (xscaleIntUV << 16) | ((xscaleFractUV & 0xFFF) << 3) |
+    ((yscaleFractUV & 0xFFF) << 20);
+    if (newval != overlay->UVSCALE) {
+	scaleChanged = TRUE;
+	overlay->UVSCALE = newval;
+    }
+
+    newval = yscaleInt << 16 | yscaleIntUV;
+    if (newval != overlay->UVSCALEV) {
+	scaleChanged = TRUE;
+	overlay->UVSCALEV = newval;
+    }
+
+    if (scaleChanged) {
+	i830_update_polyphase_coeffs(overlay, xscaleFract, xscaleFractUV);
+    }
+
+    return scaleChanged;
 }
 
 static void
@@ -1807,48 +2025,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     if (!pPriv->overlayOK)
 	return;
 
-    switch (crtc->rotation & 0xf) {
-	/* for overlay, we should take it from crtc's screen
-	 * coordinate to current crtc's display mode.
-	 * yeah, a bit confusing.
-	 */
-    case RR_Rotate_0:
-	dstBox->x1 -= crtc->x;
-	dstBox->x2 -= crtc->x;
-	dstBox->y1 -= crtc->y;
-	dstBox->y2 -= crtc->y;
-	break;
-    case RR_Rotate_90:
-	tmp = dstBox->x1;
-	dstBox->x1 = dstBox->y1 - crtc->x;
-	dstBox->y1 = pScrn->virtualX - tmp - crtc->y;
-	tmp = dstBox->x2;
-	dstBox->x2 = dstBox->y2 - crtc->x;
-	dstBox->y2 = pScrn->virtualX - tmp - crtc->y;
-	tmp = dstBox->y1;
-	dstBox->y1 = dstBox->y2;
-	dstBox->y2 = tmp;
-	break;
-    case RR_Rotate_180:
-	tmp = dstBox->x1;
-	dstBox->x1 = pScrn->virtualX - dstBox->x2 - crtc->x;
-	dstBox->x2 = pScrn->virtualX - tmp - crtc->x;
-	tmp = dstBox->y1;
-	dstBox->y1 = pScrn->virtualY - dstBox->y2 - crtc->y;
-	dstBox->y2 = pScrn->virtualY - tmp - crtc->y;
-	break;
-    case RR_Rotate_270:
-	tmp = dstBox->x1;
-	dstBox->x1 = pScrn->virtualY - dstBox->y1 - crtc->x;
-	dstBox->y1 = tmp - crtc->y;
-	tmp = dstBox->x2;
-	dstBox->x2 = pScrn->virtualY - dstBox->y2 - crtc->x;
-	dstBox->y2 = tmp - crtc->y;
-	tmp = dstBox->x1;
-	dstBox->x1 = dstBox->x2;
-	dstBox->x2 = tmp;
-	break;
-    }
+    i830_update_dst_box_to_crtc_coords(pScrn, crtc, dstBox);
 
     if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	tmp = width;
@@ -1942,126 +2119,8 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		  overlay->DWINPOS, overlay->DWINSZ);
     OVERLAY_DEBUG("dst: %d x %d, src: %d x %d\n", drw_w, drw_h, src_w, src_h);
 
-    /* 
-     * Calculate horizontal and vertical scaling factors and polyphase
-     * coefficients.
-     */
-
-    {
-	int xscaleInt, xscaleFract, yscaleInt, yscaleFract;
-	int xscaleIntUV, xscaleFractUV;
-	int yscaleIntUV, yscaleFractUV;
-	/* UV is half the size of Y -- YUV420 */
-	int uvratio = 2;
-	uint32_t newval;
-	coeffRec xcoeffY[N_HORIZ_Y_TAPS * N_PHASES];
-	coeffRec xcoeffUV[N_HORIZ_UV_TAPS * N_PHASES];
-	int i, j, pos;
-
-	/*
-	 * Y down-scale factor as a multiple of 4096.
-	 */
-	xscaleFract = ((src_w - 1) << 12) / drw_w;
-	yscaleFract = ((src_h - 1) << 12) / drw_h;
-
-	/* Calculate the UV scaling factor. */
-	xscaleFractUV = xscaleFract / uvratio;
-	yscaleFractUV = yscaleFract / uvratio;
-
-	/*
-	 * To keep the relative Y and UV ratios exact, round the Y scales
-	 * to a multiple of the Y/UV ratio.
-	 */
-	xscaleFract = xscaleFractUV * uvratio;
-	yscaleFract = yscaleFractUV * uvratio;
-
-	/* Integer (un-multiplied) values. */
-	xscaleInt = xscaleFract >> 12;
-	yscaleInt = yscaleFract >> 12;
-
-	xscaleIntUV = xscaleFractUV >> 12;
-	yscaleIntUV = yscaleFractUV >> 12;
-
-	OVERLAY_DEBUG("xscale: %x.%03x, yscale: %x.%03x\n", xscaleInt,
-		      xscaleFract & 0xFFF, yscaleInt, yscaleFract & 0xFFF);
-	OVERLAY_DEBUG("UV xscale: %x.%03x, UV yscale: %x.%03x\n", xscaleIntUV,
-		      xscaleFractUV & 0xFFF, yscaleIntUV, yscaleFractUV & 0xFFF);
-
-	/* shouldn't get here */
-	if (xscaleInt > 7) {
-	    OVERLAY_DEBUG("xscale: bad scale\n");
-	    return;
-	}
-
-	/* shouldn't get here */
-	if (xscaleIntUV > 7) {
-	    OVERLAY_DEBUG("xscaleUV: bad scale\n");
-	    return;
-	}
-
-	newval = (xscaleInt << 16) |
-	((xscaleFract & 0xFFF) << 3) | ((yscaleFract & 0xFFF) << 20);
-	if (newval != overlay->YRGBSCALE) {
-	    scaleChanged = TRUE;
-	    overlay->YRGBSCALE = newval;
-	}
-
-	newval = (xscaleIntUV << 16) | ((xscaleFractUV & 0xFFF) << 3) |
-	((yscaleFractUV & 0xFFF) << 20);
-	if (newval != overlay->UVSCALE) {
-	    scaleChanged = TRUE;
-	    overlay->UVSCALE = newval;
-	}
-
-	newval = yscaleInt << 16 | yscaleIntUV;
-	if (newval != overlay->UVSCALEV) {
-	    scaleChanged = TRUE;
-	    overlay->UVSCALEV = newval;
-	}
-
-	/* Recalculate coefficients if the scaling changed. */
-
-	/*
-	 * Only Horizontal coefficients so far.
-	 */
-	if (scaleChanged) {
-	    double fCutoffY;
-	    double fCutoffUV;
-
-	    fCutoffY = xscaleFract / 4096.0;
-	    fCutoffUV = xscaleFractUV / 4096.0;
-
-	    /* Limit to between 1.0 and 3.0. */
-	    if (fCutoffY < MIN_CUTOFF_FREQ)
-		fCutoffY = MIN_CUTOFF_FREQ;
-	    if (fCutoffY > MAX_CUTOFF_FREQ)
-		fCutoffY = MAX_CUTOFF_FREQ;
-	    if (fCutoffUV < MIN_CUTOFF_FREQ)
-		fCutoffUV = MIN_CUTOFF_FREQ;
-	    if (fCutoffUV > MAX_CUTOFF_FREQ)
-		fCutoffUV = MAX_CUTOFF_FREQ;
-
-	    UpdateCoeff(N_HORIZ_Y_TAPS, fCutoffY, TRUE, TRUE, xcoeffY);
-	    UpdateCoeff(N_HORIZ_UV_TAPS, fCutoffUV, TRUE, FALSE, xcoeffUV);
-
-	    for (i = 0; i < N_PHASES; i++) {
-		for (j = 0; j < N_HORIZ_Y_TAPS; j++) {
-		    pos = i * N_HORIZ_Y_TAPS + j;
-		    overlay->Y_HCOEFS[pos] = (xcoeffY[pos].sign << 15 |
-					      xcoeffY[pos].exponent << 12 |
-					      xcoeffY[pos].mantissa);
-		}
-	    }
-	    for (i = 0; i < N_PHASES; i++) {
-		for (j = 0; j < N_HORIZ_UV_TAPS; j++) {
-		    pos = i * N_HORIZ_UV_TAPS + j;
-		    overlay->UV_HCOEFS[pos] = (xcoeffUV[pos].sign << 15 |
-					       xcoeffUV[pos].exponent << 12 |
-					       xcoeffUV[pos].mantissa);
-		}
-	    }
-	}
-    }
+    scaleChanged = i830_update_scaling_factors(overlay,
+	    src_w, src_h, drw_w, drw_h);
 
     OCMD = OVERLAY_ENABLE;
     
@@ -2216,7 +2275,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
     ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
     I830OverlayRegPtr overlay;
-    PixmapPtr pPixmap;
+    PixmapPtr pPixmap = get_drawable_pixmap(pDraw);;
     INT32 x1, x2, y1, y2;
     int srcPitch = 0, srcPitch2 = 0, dstPitch, destId;
     int dstPitch2 = 0;
@@ -2467,12 +2526,6 @@ I830PutImage(ScrnInfoPtr pScrn,
 	break;
     }
 
-    if (pDraw->type == DRAWABLE_WINDOW) {
-	pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr)pDraw);
-    } else {
-	pPixmap = (PixmapPtr)pDraw;
-    }
-
     if (!pPriv->textured) {
 	i830_display_video(pScrn, crtc, destId, width, height, dstPitch,
 			   x1, y1, x2, y2, &dstBox, src_w, src_h,
@@ -2497,14 +2550,8 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    int y1, y2;
 	    int pipe = -1, event, load_scan_lines_pipe;
 
-	    if (pPixmap == pScreen->GetScreenPixmap(pScreen)) {
-		if (pI830->use_drm_mode)
-		    pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
-		else {
-		    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-		    pipe = intel_crtc->pipe;
-		}
-	    }
+	    if (pixmap_is_scanout(pPixmap))
+		pipe = i830_crtc_to_pipe(crtc);
 
 	    if (pipe >= 0) {
 		if (pipe == 0) {
@@ -2561,7 +2608,7 @@ static int
 I830QueryImageAttributes(ScrnInfoPtr pScrn,
 			 int id,
 			 unsigned short *w, unsigned short *h,
-			 int *pitches, int *offsets, Bool textured)
+			 int *pitches, int *offsets)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int size, tmp;
@@ -2640,24 +2687,6 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
     }
 
     return size;
-}
-
-static int
-I830QueryImageAttributesOverlay(ScrnInfoPtr pScrn,
-				int id,
-				unsigned short *w, unsigned short *h,
-				int *pitches, int *offsets)
-{
-    return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, FALSE);
-}
-
-static int
-I830QueryImageAttributesTextured(ScrnInfoPtr pScrn,
-				 int id,
-				 unsigned short *w, unsigned short *h,
-				 int *pitches, int *offsets)
-{
-    return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, TRUE);
 }
 
 void
@@ -2802,7 +2831,7 @@ I830GetSurfaceAttribute(ScrnInfoPtr pScrn, Atom attribute, INT32 * value)
 static int
 I830SetSurfaceAttribute(ScrnInfoPtr pScrn, Atom attribute, INT32 value)
 {
-    return I830SetPortAttribute(pScrn, attribute, value, NULL);
+    return I830SetPortAttributeOverlay(pScrn, attribute, value, NULL);
 }
 
 static int

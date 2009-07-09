@@ -135,7 +135,7 @@ intel_batch_init(ScrnInfoPtr pScrn)
 
     intel_next_batch(pScrn);
 
-    if (pI830->directRenderingType <= DRI_NONE) {
+    if (!pI830->have_gem) {
 	if (IS_I830(pI830) || IS_845G(pI830)) {
 	    intel_bufmgr_fake_set_exec_callback(pI830->bufmgr,
 						intel_nondrm_exec_i830,

@@ -128,18 +128,42 @@ DEBUGSTRING(i830_debug_dspcntr)
 {
     char *enabled = val & DISPLAY_PLANE_ENABLE ? "enabled" : "disabled";
     char plane = val & DISPPLANE_SEL_PIPE_B ? 'B' : 'A';
-    return XNFprintf("%s, pipe %c", enabled, plane);
+    if (IS_IGDNG(pI830))
+	return XNFprintf("%s", enabled);
+    else
+	return XNFprintf("%s, pipe %c", enabled, plane);
 }
 
 DEBUGSTRING(i830_debug_pipeconf)
 {
     char *enabled = val & PIPEACONF_ENABLE ? "enabled" : "disabled";
     char *bit30;
+    char *bpc = NULL;
     if (IS_I965G(pI830))
 	bit30 = val & I965_PIPECONF_ACTIVE ? "active" : "inactive";
     else
 	bit30 = val & PIPEACONF_DOUBLE_WIDE ? "double-wide" : "single-wide";
-    return XNFprintf("%s, %s", enabled, bit30);
+
+    if (IS_IGDNG(pI830)) {
+	switch (val & (7<<5)) {
+	    case PIPECONF_8BPP:
+		bpc = "8bpc";
+		break;
+	    case PIPECONF_10BPP:
+		bpc = "10bpc";
+		break;
+	    case PIPECONF_6BPP:
+		bpc = "6bpc";
+		break;
+	    case PIPECONF_12BPP:
+		bpc = "12bpc";
+		break;
+	}
+    }
+    if (IS_IGDNG(pI830))
+	return XNFprintf("%s, %s, %s", enabled, bit30, bpc);
+    else
+	return XNFprintf("%s, %s", enabled, bit30);
 }
 
 DEBUGSTRING(i830_debug_pipestat)
@@ -387,8 +411,12 @@ DEBUGSTRING(i830_debug_adpa)
     char hsync = (val & ADPA_HSYNC_ACTIVE_HIGH) ? '+' : '-';
     char vsync = (val & ADPA_VSYNC_ACTIVE_HIGH) ? '+' : '-';
 
-    return XNFprintf("%s, pipe %c, %chsync, %cvsync",
-		     enable, pipe, hsync, vsync);
+    if (IS_IGDNG(pI830))
+	return XNFprintf("%s, transcoder %c, %chsync, %cvsync",
+		enable, pipe, hsync, vsync);
+    else
+	return XNFprintf("%s, pipe %c, %chsync, %cvsync",
+		enable, pipe, hsync, vsync);
 }
 
 DEBUGSTRING(i830_debug_lvds)
@@ -580,12 +608,14 @@ DEBUGSTRING(i810_debug_965_fence_end)
 #define DEFINEREG2(reg, func) \
 	{ reg, #reg, func, 0 }
 
-static struct i830SnapshotRec {
+struct i830SnapshotRec {
     int reg;
     char *name;
     char *(*debug_output)(I830Ptr pI830, int reg, uint32_t val);
     uint32_t val;
-} i830_snapshot[] = {
+};
+
+static struct i830SnapshotRec i830_snapshot[] = {
     DEFINEREG2(DCC, i830_debug_dcc),
     DEFINEREG2(CHDECMISC, i830_debug_chdecmisc),
     DEFINEREG_16BIT(C0DRB0),
@@ -820,8 +850,501 @@ static struct i830SnapshotRec {
     DEFINEFENCE_965(14),
     DEFINEFENCE_965(15),
 };
-#undef DEFINEREG
 #define NUM_I830_SNAPSHOTREGS (sizeof(i830_snapshot) / sizeof(i830_snapshot[0]))
+
+DEBUGSTRING(igdng_debug_rr_hw_ctl)
+{
+    return XNFprintf("low %d, high %d", val & RR_HW_LOW_POWER_FRAMES_MASK,
+	    (val & RR_HW_HIGH_POWER_FRAMES_MASK) >> 8 );
+}
+
+DEBUGSTRING(igdng_debug_m_tu)
+{
+    return XNFprintf("TU %d, val 0x%x %d", (val >> 25) + 1, val & 0xffffff, val & 0xffffff);
+}
+
+DEBUGSTRING(igdng_debug_n)
+{
+    return XNFprintf("val 0x%x %d", val & 0xffffff, val & 0xffffff);
+}
+
+DEBUGSTRING(igdng_debug_fdi_tx_ctl)
+{
+    char *train = NULL, *voltage = NULL, *pre_emphasis = NULL, *portw = NULL;
+
+    switch (val & FDI_LINK_TRAIN_NONE) {
+	case FDI_LINK_TRAIN_PATTERN_1:
+	    train = "pattern_1";
+	    break;
+	case FDI_LINK_TRAIN_PATTERN_2:
+	    train = "pattern_2";
+	    break;
+	case FDI_LINK_TRAIN_PATTERN_IDLE:
+	    train = "pattern_idle";
+	    break;
+	case FDI_LINK_TRAIN_NONE:
+	    train = "not train";
+	    break;
+    }
+
+    switch (val & (7<<25)) {
+	case FDI_LINK_TRAIN_VOLTAGE_0_4V:
+	    voltage = "0.4V";
+	    break;
+	case FDI_LINK_TRAIN_VOLTAGE_0_6V:
+	    voltage = "0.6V";
+	    break;
+	case FDI_LINK_TRAIN_VOLTAGE_0_8V:
+	    voltage = "0.8V";
+	    break;
+	case FDI_LINK_TRAIN_VOLTAGE_1_2V:
+	    voltage = "1.2V";
+	    break;
+	default:
+	    voltage = "reserved";
+    }
+
+    switch (val & (7<<22)) {
+	case FDI_LINK_TRAIN_PRE_EMPHASIS_NONE:
+	    pre_emphasis = "none";
+	    break;
+	case FDI_LINK_TRAIN_PRE_EMPHASIS_1_5X:
+	    pre_emphasis = "1.5x";
+	    break;
+	case FDI_LINK_TRAIN_PRE_EMPHASIS_2X:
+	    pre_emphasis = "2x";
+	    break;
+	case FDI_LINK_TRAIN_PRE_EMPHASIS_3X:
+	    pre_emphasis = "3x";
+	    break;
+	default:
+	    pre_emphasis = "reserved";
+    }
+
+    switch (val & (7<<19)) {
+	case FDI_DP_PORT_WIDTH_X1:
+	    portw = "X1";
+	    break;
+	case FDI_DP_PORT_WIDTH_X2:
+	    portw = "X2";
+	    break;
+	case FDI_DP_PORT_WIDTH_X3:
+	    portw = "X3";
+	    break;
+	case FDI_DP_PORT_WIDTH_X4:
+	    portw = "X4";
+	    break;
+    }
+
+    return XNFprintf("%s, train pattern %s, voltage swing %s,"
+	    "pre-emphasis %s, port width %s, enhanced framing %s, FDI PLL %s, scrambing %s, master mode %s",
+	    val & FDI_TX_ENABLE ? "enable" : "disable",
+	    train, voltage, pre_emphasis, portw,
+	    val & FDI_TX_ENHANCE_FRAME_ENABLE ? "enable" : "disable",
+	    val & FDI_TX_PLL_ENABLE ? "enable" : "disable",
+	    val & (1 << 7) ? "disable" : "enable",
+	    val & (1 << 0) ? "enable" : "disable");
+}
+
+DEBUGSTRING(igdng_debug_fdi_rx_ctl)
+{
+    char *train = NULL, *portw = NULL, *bpc = NULL;
+
+    switch (val & FDI_LINK_TRAIN_NONE) {
+	case FDI_LINK_TRAIN_PATTERN_1:
+	    train = "pattern_1";
+	    break;
+	case FDI_LINK_TRAIN_PATTERN_2:
+	    train = "pattern_2";
+	    break;
+	case FDI_LINK_TRAIN_PATTERN_IDLE:
+	    train = "pattern_idle";
+	    break;
+	case FDI_LINK_TRAIN_NONE:
+	    train = "not train";
+	    break;
+    }
+
+    switch (val & (7<<19)) {
+	case FDI_DP_PORT_WIDTH_X1:
+	    portw = "X1";
+	    break;
+	case FDI_DP_PORT_WIDTH_X2:
+	    portw = "X2";
+	    break;
+	case FDI_DP_PORT_WIDTH_X3:
+	    portw = "X3";
+	    break;
+	case FDI_DP_PORT_WIDTH_X4:
+	    portw = "X4";
+	    break;
+    }
+
+    switch (val & (7<<16)) {
+	case FDI_8BPC:
+	    bpc = "8bpc";
+	    break;
+	case FDI_10BPC:
+	    bpc = "10bpc";
+	    break;
+	case FDI_6BPC:
+	    bpc = "6bpc";
+	    break;
+	case FDI_12BPC:
+	    bpc = "12bpc";
+	    break;
+    }
+
+    return XNFprintf("%s, train pattern %s, port width %s, %s,"
+	    "link_reverse_strap_overwrite %s, dmi_link_reverse %s, FDI PLL %s,"
+	    "FS ecc %s, FE ecc %s, FS err report %s, FE err report %s,"
+	    "scrambing %s, enhanced framing %s, %s",
+	    val & FDI_RX_ENABLE ? "enable" : "disable",
+	    train, portw, bpc,
+	    val & FDI_LINK_REVERSE_OVERWRITE ? "yes" : "no",
+	    val & FDI_DMI_LINK_REVERSE_MASK ? "yes" : "no",
+	    val & FDI_RX_PLL_ENABLE ? "enable" : "disable",
+	    val & FDI_FS_ERR_CORRECT_ENABLE ? "enable" : "disable",
+	    val & FDI_FE_ERR_CORRECT_ENABLE ? "enable" : "disable",
+	    val & FDI_FS_ERR_REPORT_ENABLE ? "enable" : "disable",
+	    val & FDI_FE_ERR_REPORT_ENABLE ? "enable" : "disable",
+	    val & (1 << 7) ? "disable" : "enable",
+	    val & FDI_RX_ENHANCE_FRAME_ENABLE ? "enable" : "disable",
+	    val & FDI_SEL_PCDCLK ? "PCDClk" : "RawClk");
+}
+
+DEBUGSTRING(igdng_debug_dspstride)
+{
+    return XNFprintf("%d", val >> 6);
+}
+
+DEBUGSTRING(igdng_debug_pch_dpll)
+{
+    char *enable = val & DPLL_VCO_ENABLE ? "enable" : "disable";
+    char *highspeed = val & DPLL_DVO_HIGH_SPEED ? "yes" : "no";
+    char *mode = NULL;
+    char *p2 = NULL;
+    int fpa0_p1, fpa1_p1;
+    char *refclk = NULL;
+    int sdvo_mul;
+
+    if ((val & DPLLB_MODE_LVDS) == DPLLB_MODE_LVDS) {
+	mode = "LVDS";
+	if (val & DPLLB_LVDS_P2_CLOCK_DIV_7)
+	    p2 = "Div 7";
+	else
+	    p2 = "Div 14";
+    } else if ((val & DPLLB_MODE_LVDS) == DPLLB_MODE_DAC_SERIAL) {
+	mode = "Non-LVDS";
+	if (val & DPLL_DAC_SERIAL_P2_CLOCK_DIV_5)
+	    p2 = "Div 5";
+	else
+	    p2 = "Div 10";
+    }
+    fpa0_p1 = ffs((val & DPLL_FPA01_P1_POST_DIV_MASK) >> 16);
+    fpa1_p1 = ffs((val & DPLL_FPA1_P1_POST_DIV_MASK));
+
+    switch (val & PLL_REF_INPUT_MASK) {
+	case PLL_REF_INPUT_DREFCLK:
+	    refclk = "default 120Mhz";
+	    break;
+	case PLL_REF_INPUT_SUPER_SSC:
+	    refclk = "SuperSSC 120Mhz";
+	    break;
+	case PLL_REF_INPUT_TVCLKINBC:
+	    refclk = "SDVO TVClkIn";
+	    break;
+	case PLLB_REF_INPUT_SPREADSPECTRUMIN:
+	    refclk = "SSC";
+	    break;
+	case PLL_REF_INPUT_DMICLK:
+	    refclk = "DMI RefCLK";
+	    break;
+    }
+
+    sdvo_mul = ((val & PLL_REF_SDVO_HDMI_MULTIPLIER_MASK) >> 9) + 1;
+
+    return XNFprintf("%s, sdvo high speed %s, mode %s, p2 %s, "
+	    "FPA0 P1 %d, FPA1 P1 %d, refclk %s, sdvo/hdmi mul %d",
+	    enable, highspeed, mode, p2, fpa0_p1, fpa1_p1, refclk, sdvo_mul);
+}
+
+DEBUGSTRING(igdng_debug_dref_ctl)
+{
+    char *cpu_source;
+    char *ssc_source = val & DREF_SSC_SOURCE_ENABLE ? "enable" : "disable";
+    char *nonspread_source = val & DREF_NONSPREAD_SOURCE_ENABLE ? "enable":"disable";
+    char *superspread_source = val & DREF_SUPERSPREAD_SOURCE_ENABLE ? "enable":"disable";
+    char *ssc4_mode = val & DREF_SSC4_CENTERSPREAD ? "centerspread" : "downspread";
+    char *ssc1 = val & DREF_SSC1_ENABLE ? "enable" : "disable";
+    char *ssc4 = val & DREF_SSC4_ENABLE ? "enable" : "disable";
+
+    switch (val & DREF_CPU_SOURCE_OUTPUT_NONSPREAD) {
+	case DREF_CPU_SOURCE_OUTPUT_DISABLE:
+	    cpu_source = "disable";
+	    break;
+	case DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD:
+	    cpu_source = "downspread";
+	    break;
+	case DREF_CPU_SOURCE_OUTPUT_NONSPREAD:
+	    cpu_source = "nonspread";
+	    break;
+	default:
+	    cpu_source = "reserved";
+    }
+    return XNFprintf("cpu source %s, ssc_source %s, nonspread_source %s, "
+	    "superspread_source %s, ssc4_mode %s, ssc1 %s, ssc4 %s",
+	    cpu_source, ssc_source, nonspread_source, superspread_source,
+	    ssc4_mode, ssc1, ssc4);
+}
+
+DEBUGSTRING(igdng_debug_rawclk_freq)
+{
+    char *tp1 = NULL, *tp2 = NULL;
+
+    switch (val & FDL_TP1_TIMER_MASK) {
+	case 0:
+	    tp1 = "0.5us";
+	    break;
+	case (1 << 12):
+	    tp1 = "1.0us";
+	    break;
+	case (2 << 12):
+	    tp1 = "2.0us";
+	    break;
+	case (3 << 12):
+	    tp1 = "4.0us";
+	    break;
+    }
+    switch (val & FDL_TP2_TIMER_MASK) {
+	case 0:
+	    tp2 = "1.5us";
+	    break;
+	case (1 << 10):
+	    tp2 = "3.0us";
+	    break;
+	case (2 << 10):
+	    tp2 = "6.0us";
+	    break;
+	case (3 << 10):
+	    tp2 = "12.0us";
+	    break;
+    }
+    return XNFprintf("FDL_TP1 timer %s, FDL_TP2 timer %s, freq %d",
+	    tp1, tp2, val & RAWCLK_FREQ_MASK);
+
+}
+
+DEBUGSTRING(igdng_debug_fdi_rx_misc)
+{
+    return XNFprintf("FDI Delay %d", val & ((1 << 13) - 1));
+}
+
+DEBUGSTRING(igdng_debug_transconf)
+{
+    return XNFprintf("%s, %s",
+	    val & TRANS_ENABLE ? "enable" : "disable",
+	    val & TRANS_STATE_ENABLE ? "active" : "inactive");
+}
+
+DEBUGSTRING(igdng_debug_panel_fitting)
+{
+    char *vadapt = NULL, *filter_sel = NULL;
+
+    switch (val & (3 << 25)) {
+	case 0:
+	    vadapt = "least";
+	    break;
+	case (1<<25):
+	    vadapt = "moderate";
+	    break;
+	case (2<<25):
+	    vadapt = "reserved";
+	    break;
+	case (3<<25):
+	    vadapt = "most";
+	    break;
+    }
+
+    switch (val & (3 << 23)) {
+	case 0:
+	    filter_sel = "programmed";
+	    break;
+	case (1<<25):
+	    filter_sel = "hardcoded";
+	    break;
+	case (2<<25):
+	    filter_sel = "edge_enhance";
+	    break;
+	case (3<<25):
+	    filter_sel = "edge_soften";
+	    break;
+    }
+
+    return XNFprintf("%s, auto_scale %s, auto_scale_cal %s, v_filter %s, vadapt %s, mode %s, filter_sel %s,"
+	    "chroma pre-filter %s, vert3tap %s, v_inter_invert %s",
+	    val & PF_ENABLE ? "enable" : "disable",
+	    val & (1 << 30) ? "no" : "yes",
+	    val & (1 << 29) ? "yes" : "no",
+	    val & (1 << 28) ? "bypass" : "enable",
+	    val & (1 << 27) ? "enable" : "disable",
+	    vadapt, filter_sel,
+	    val & (1 << 22) ? "enable" : "disable",
+	    val & (1 << 21) ? "force" : "auto",
+	    val & (1 << 20) ? "field 0" : "field 1");
+}
+
+static struct i830SnapshotRec igdng_snapshot[] = {
+    DEFINEREG2(CPU_VGACNTRL, i830_debug_vgacntrl),
+    DEFINEREG(DIGITAL_PORT_HOTPLUG_CNTRL),
+
+    DEFINEREG2(RR_HW_CTL, igdng_debug_rr_hw_ctl),
+
+    DEFINEREG(FDI_PLL_BIOS_0),
+    DEFINEREG(FDI_PLL_BIOS_1),
+    DEFINEREG(FDI_PLL_BIOS_2),
+
+    DEFINEREG(DISPLAY_PORT_PLL_BIOS_0),
+    DEFINEREG(DISPLAY_PORT_PLL_BIOS_1),
+    DEFINEREG(DISPLAY_PORT_PLL_BIOS_2),
+
+    DEFINEREG(FDI_PLL_FREQ_CTL),
+
+    DEFINEREG2(PIPEACONF, i830_debug_pipeconf),
+
+    DEFINEREG2(HTOTAL_A, i830_debug_hvtotal),
+    DEFINEREG2(HBLANK_A, i830_debug_hvsyncblank),
+    DEFINEREG2(HSYNC_A, i830_debug_hvsyncblank),
+    DEFINEREG2(VTOTAL_A, i830_debug_hvtotal),
+    DEFINEREG2(VBLANK_A, i830_debug_hvsyncblank),
+    DEFINEREG2(VSYNC_A, i830_debug_hvsyncblank),
+    DEFINEREG(VSYNCSHIFT_A),
+    DEFINEREG2(PIPEASRC, i830_debug_yxminus1),
+
+    DEFINEREG2(PIPEA_DATA_M1, igdng_debug_m_tu),
+    DEFINEREG2(PIPEA_DATA_N1, igdng_debug_n),
+    DEFINEREG2(PIPEA_DATA_M2, igdng_debug_m_tu),
+    DEFINEREG2(PIPEA_DATA_N2, igdng_debug_n),
+
+    DEFINEREG2(PIPEA_LINK_M1, igdng_debug_n),
+    DEFINEREG2(PIPEA_LINK_N1, igdng_debug_n),
+    DEFINEREG2(PIPEA_LINK_M2, igdng_debug_n),
+    DEFINEREG2(PIPEA_LINK_N2, igdng_debug_n),
+
+    DEFINEREG2(DSPACNTR, i830_debug_dspcntr),
+    DEFINEREG(DSPABASE),
+    DEFINEREG2(DSPASTRIDE, igdng_debug_dspstride),
+    DEFINEREG(DSPASURF),
+    DEFINEREG2(DSPATILEOFF, i830_debug_xy),
+
+    DEFINEREG2(PIPEBCONF, i830_debug_pipeconf),
+
+    DEFINEREG2(HTOTAL_B, i830_debug_hvtotal),
+    DEFINEREG2(HBLANK_B, i830_debug_hvsyncblank),
+    DEFINEREG2(HSYNC_B, i830_debug_hvsyncblank),
+    DEFINEREG2(VTOTAL_B, i830_debug_hvtotal),
+    DEFINEREG2(VBLANK_B, i830_debug_hvsyncblank),
+    DEFINEREG2(VSYNC_B, i830_debug_hvsyncblank),
+    DEFINEREG(VSYNCSHIFT_B),
+
+    DEFINEREG2(DSPBCNTR, i830_debug_dspcntr),
+    DEFINEREG(DSPBBASE),
+    DEFINEREG2(DSPBSTRIDE, igdng_debug_dspstride),
+    DEFINEREG(DSPBSURF),
+    DEFINEREG2(DSPBTILEOFF, i830_debug_xy),
+
+    DEFINEREG2(PIPEBSRC, i830_debug_yxminus1),
+
+    DEFINEREG2(PIPEB_DATA_M1, igdng_debug_m_tu),
+    DEFINEREG2(PIPEB_DATA_N1, igdng_debug_n),
+    DEFINEREG2(PIPEB_DATA_M2, igdng_debug_m_tu),
+    DEFINEREG2(PIPEB_DATA_N2, igdng_debug_n),
+
+    DEFINEREG2(PIPEB_LINK_M1, igdng_debug_n),
+    DEFINEREG2(PIPEB_LINK_N1, igdng_debug_n),
+    DEFINEREG2(PIPEB_LINK_M2, igdng_debug_n),
+    DEFINEREG2(PIPEB_LINK_N2, igdng_debug_n),
+
+    DEFINEREG2(PFA_CTRL_1, igdng_debug_panel_fitting),
+    DEFINEREG2(PFB_CTRL_1, igdng_debug_panel_fitting),
+
+    /* PCH */
+
+    DEFINEREG2(PCH_DREF_CONTROL, igdng_debug_dref_ctl),
+    DEFINEREG2(PCH_RAWCLK_FREQ, igdng_debug_rawclk_freq),
+    DEFINEREG(PCH_DPLL_TMR_CFG),
+    DEFINEREG(PCH_SSC4_PARMS),
+    DEFINEREG(PCH_SSC4_AUX_PARMS),
+
+    DEFINEREG2(PCH_DPLL_A, igdng_debug_pch_dpll),
+    DEFINEREG2(PCH_DPLL_B, igdng_debug_pch_dpll),
+    DEFINEREG2(PCH_FPA0, i830_debug_fp),
+    DEFINEREG2(PCH_FPA1, i830_debug_fp),
+    DEFINEREG2(PCH_FPB0, i830_debug_fp),
+    DEFINEREG2(PCH_FPB1, i830_debug_fp),
+
+    DEFINEREG2(TRANS_HTOTAL_A, i830_debug_hvtotal),
+    DEFINEREG2(TRANS_HBLANK_A, i830_debug_hvsyncblank),
+    DEFINEREG2(TRANS_HSYNC_A, i830_debug_hvsyncblank),
+    DEFINEREG2(TRANS_VTOTAL_A, i830_debug_hvtotal),
+    DEFINEREG2(TRANS_VBLANK_A, i830_debug_hvsyncblank),
+    DEFINEREG2(TRANS_VSYNC_A, i830_debug_hvsyncblank),
+
+    DEFINEREG2(TRANSA_DATA_M1, igdng_debug_m_tu),
+    DEFINEREG2(TRANSA_DATA_N1, igdng_debug_n),
+    DEFINEREG2(TRANSA_DATA_M2, igdng_debug_m_tu),
+    DEFINEREG2(TRANSA_DATA_N2, igdng_debug_n),
+    DEFINEREG2(TRANSA_DP_LINK_M1, igdng_debug_n),
+    DEFINEREG2(TRANSA_DP_LINK_N1, igdng_debug_n),
+    DEFINEREG2(TRANSA_DP_LINK_M2, igdng_debug_n),
+    DEFINEREG2(TRANSA_DP_LINK_N2, igdng_debug_n),
+
+    DEFINEREG2(TRANS_HTOTAL_B, i830_debug_hvtotal),
+    DEFINEREG2(TRANS_HBLANK_B, i830_debug_hvsyncblank),
+    DEFINEREG2(TRANS_HSYNC_B, i830_debug_hvsyncblank),
+    DEFINEREG2(TRANS_VTOTAL_B, i830_debug_hvtotal),
+    DEFINEREG2(TRANS_VBLANK_B, i830_debug_hvsyncblank),
+    DEFINEREG2(TRANS_VSYNC_B, i830_debug_hvsyncblank),
+
+    DEFINEREG2(TRANSB_DATA_M1, igdng_debug_m_tu),
+    DEFINEREG2(TRANSB_DATA_N1, igdng_debug_n),
+    DEFINEREG2(TRANSB_DATA_M2, igdng_debug_m_tu),
+    DEFINEREG2(TRANSB_DATA_N2, igdng_debug_n),
+    DEFINEREG2(TRANSB_DP_LINK_M1, igdng_debug_n),
+    DEFINEREG2(TRANSB_DP_LINK_N1, igdng_debug_n),
+    DEFINEREG2(TRANSB_DP_LINK_M2, igdng_debug_n),
+    DEFINEREG2(TRANSB_DP_LINK_N2, igdng_debug_n),
+
+    DEFINEREG2(TRANSACONF, igdng_debug_transconf),
+    DEFINEREG2(TRANSBCONF, igdng_debug_transconf),
+
+    DEFINEREG2(FDI_TXA_CTL, igdng_debug_fdi_tx_ctl),
+    DEFINEREG2(FDI_TXB_CTL, igdng_debug_fdi_tx_ctl),
+    DEFINEREG2(FDI_RXA_CTL, igdng_debug_fdi_rx_ctl),
+    DEFINEREG2(FDI_RXB_CTL, igdng_debug_fdi_rx_ctl),
+
+    DEFINEREG2(FDI_RXA_MISC, igdng_debug_fdi_rx_misc),
+    DEFINEREG2(FDI_RXB_MISC, igdng_debug_fdi_rx_misc),
+    DEFINEREG(FDI_RXA_TUSIZE1),
+    DEFINEREG(FDI_RXA_TUSIZE2),
+    DEFINEREG(FDI_RXB_TUSIZE1),
+    DEFINEREG(FDI_RXB_TUSIZE2),
+
+    DEFINEREG(FDI_PLL_CTL_1),
+    DEFINEREG(FDI_PLL_CTL_2),
+
+    DEFINEREG(FDI_RXA_IIR),
+    DEFINEREG(FDI_RXA_IMR),
+    DEFINEREG(FDI_RXB_IIR),
+    DEFINEREG(FDI_RXB_IMR),
+
+    DEFINEREG2(PCH_ADPA, i830_debug_adpa),
+    DEFINEREG(HDMIB),
+    DEFINEREG(HDMIC),
+    DEFINEREG(HDMID),
+};
+#define NUM_IGDNG_SNAPSHOTREGS (sizeof(igdng_snapshot) / sizeof(igdng_snapshot[0]))
+#undef DEFINEREG
 
 #ifndef REG_DUMPER
 void i830TakeRegSnapshot(ScrnInfoPtr pScrn)
@@ -829,8 +1352,49 @@ void i830TakeRegSnapshot(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
 
-    for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
-	i830_snapshot[i].val = INREG(i830_snapshot[i].reg);
+    if (IS_IGDNG(pI830)) {
+	for (i = 0; i < NUM_IGDNG_SNAPSHOTREGS; i++) {
+	    igdng_snapshot[i].val = INREG(igdng_snapshot[i].reg);
+	}
+    } else {
+	for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
+	    i830_snapshot[i].val = INREG(i830_snapshot[i].reg);
+	}
+    }
+}
+
+static void IGDNGCompareRegsToSnapshot(ScrnInfoPtr pScrn, char *where)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Comparing regs from server start up to %s\n", where);
+    for (i = 0; i < NUM_IGDNG_SNAPSHOTREGS; i++) {
+	uint32_t val = INREG(igdng_snapshot[i].reg);
+	if (igdng_snapshot[i].val == val)
+	    continue;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Register 0x%x (%s) changed from 0x%08x to 0x%08x\n",
+		   igdng_snapshot[i].reg, igdng_snapshot[i].name,
+		   (int)igdng_snapshot[i].val, (int)val);
+
+	if (igdng_snapshot[i].debug_output != NULL) {
+	    char *before, *after;
+
+	    before = igdng_snapshot[i].debug_output(pI830,
+						   igdng_snapshot[i].reg,
+						   igdng_snapshot[i].val);
+	    after = igdng_snapshot[i].debug_output(pI830,
+						  igdng_snapshot[i].reg,
+						  val);
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "%s before: %s\n", igdng_snapshot[i].name, before);
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "%s after: %s\n", igdng_snapshot[i].name, after);
+
+	}
     }
 }
 
@@ -839,6 +1403,10 @@ void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn, char *where)
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
 
+    if (IS_IGDNG(pI830)) {
+	IGDNGCompareRegsToSnapshot(pScrn, where);
+	return;
+    }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Comparing regs from server start up to %s\n", where);
     for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
@@ -913,6 +1481,31 @@ static void i830DumpAR(ScrnInfoPtr pScrn)
 }
 #endif
 
+static void IGDNGDumpRegs (ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i;
+
+    xf86DrvMsg (pScrn->scrnIndex, X_INFO, "DumpRegsBegin\n");
+    for (i = 0; i < NUM_IGDNG_SNAPSHOTREGS; i++) {
+	uint32_t val = INREG(igdng_snapshot[i].reg);
+
+	if (igdng_snapshot[i].debug_output != NULL) {
+	    char *debug = igdng_snapshot[i].debug_output(pI830,
+							igdng_snapshot[i].reg,
+							val);
+	    if (debug != NULL) {
+		xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%20.20s: 0x%08x (%s)\n",
+			    igdng_snapshot[i].name, (unsigned int)val, debug);
+		xfree(debug);
+	    }
+	} else {
+	    xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%20.20s: 0x%08x\n",
+			igdng_snapshot[i].name, (unsigned int)val);
+	}
+    }
+}
+
 void i830DumpRegs (ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -928,6 +1521,10 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     int crt;
 #endif
 
+    if (IS_IGDNG(pI830)) {
+	IGDNGDumpRegs(pScrn);
+	return;
+    }
     xf86DrvMsg (pScrn->scrnIndex, X_INFO, "DumpRegsBegin\n");
     for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
 	uint32_t val = INREG(i830_snapshot[i].reg);

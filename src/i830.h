@@ -328,7 +328,12 @@ enum dri_type {
     DRI_NONE,
     DRI_DRI2
 };
-
+struct sdvo_device_mapping {
+   uint8_t dvo_port;
+   uint8_t slave_addr;
+   uint8_t dvo_wiring;
+   uint8_t initialized;
+};
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *GTTBase;
@@ -409,12 +414,14 @@ typedef struct _I830Rec {
 
    Bool tiling;
    Bool fb_compression;
+   Bool swapbuffers_wait;
 
    Bool CursorNeedsPhysical;
 
    int Chipset;
    unsigned long LinearAddr;
    unsigned long MMIOAddr;
+   unsigned int MMIOSize;
    IOADDRESS ioBase;
    EntityInfoPtr pEnt;
    struct pci_device *PciInfo;
@@ -498,6 +505,7 @@ typedef struct _I830Rec {
    int lvds_ssc_freq; /* in MHz */
    Bool lvds_dither;
    DisplayModePtr lvds_fixed_mode;
+   DisplayModePtr sdvo_lvds_fixed_mode;
    Bool skip_panel_detect;
    Bool integrated_lvds; /* LVDS config from driver feature BDB */
 
@@ -606,6 +614,7 @@ typedef struct _I830Rec {
 
     /** User option to print acceleration fallback info to the server log. */
    Bool fallback_debug;
+   struct sdvo_device_mapping sdvo_mappings[2];
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -682,7 +691,10 @@ void I830DRI2CloseScreen(ScreenPtr pScreen);
 
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
+extern int drmmode_output_dpms_status(xf86OutputPtr output);
 
+extern Bool i830_crtc_on(xf86CrtcPtr crtc);
+extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,
@@ -944,5 +956,24 @@ i830_debug_sync(ScrnInfoPtr scrn)
 {
 }
 #endif
+
+static inline PixmapPtr
+get_drawable_pixmap(DrawablePtr drawable)
+{
+    ScreenPtr screen = drawable->pScreen;
+
+    if (drawable->type == DRAWABLE_PIXMAP)
+	return (PixmapPtr)drawable;
+    else
+	return screen->GetWindowPixmap((WindowPtr)drawable);
+}
+
+static inline Bool
+pixmap_is_scanout(PixmapPtr pixmap)
+{
+    ScreenPtr screen = pixmap->drawable.pScreen;
+
+    return pixmap == screen->GetScreenPixmap(screen);
+}
 
 #endif /* _I830_H_ */

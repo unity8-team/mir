@@ -118,6 +118,8 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {PCI_CHIP_G41_G,		"G41"},
+   {PCI_CHIP_IGDNG_D_G,		"IGDNG_D"},
+   {PCI_CHIP_IGDNG_M_G,		"IGDNG_M"},
    {-1,				NULL}
 };
 
@@ -148,6 +150,8 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
    {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
+   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,		RES_SHARED_VGA},
+   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,		RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -167,6 +171,7 @@ typedef enum {
    OPTION_LVDS24BITMODE,
    OPTION_FBC,
    OPTION_TILING,
+   OPTION_SWAPBUFFERS_WAIT,
    OPTION_LVDSFIXEDMODE,
    OPTION_FORCEENABLEPIPEA,
 #ifdef INTEL_XVMC
@@ -185,6 +190,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_LVDS24BITMODE, "LVDS24Bit",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_LVDSFIXEDMODE, "LVDSFixedMode", OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
 #ifdef INTEL_XVMC
@@ -324,7 +330,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    range = gtt_size + 4;
 
    /* new 4 series hardware has seperate GTT stolen with GFX stolen */
-   if (IS_G4X(pI830) || IS_IGD(pI830))
+   if (IS_G4X(pI830) || IS_IGD(pI830) || IS_IGDNG(pI830))
        range = 4;
 
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
@@ -421,7 +427,7 @@ I830MapMMIO(ScrnInfoPtr pScrn)
    device = pI830->PciInfo;
    err = pci_device_map_range (device,
 			       pI830->MMIOAddr,
-			       I810_REG_SIZE,
+			       pI830->MMIOSize,
 			       PCI_DEV_MAP_FLAG_WRITABLE,
 			       (void **) &pI830->MMIOBase);
    if (err) 
@@ -440,7 +446,7 @@ I830MapMMIO(ScrnInfoPtr pScrn)
 
       if (IS_I965G(pI830)) 
       {
-	 if (IS_G4X(pI830)) {
+	 if (IS_G4X(pI830) || IS_IGDNG(pI830)) {
 	     gttaddr = pI830->MMIOAddr + MB(2);
 	     pI830->GTTMapSize = MB(2);
 	 } else {
@@ -504,7 +510,7 @@ I830UnmapMMIO(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   pci_device_unmap_range (pI830->PciInfo, pI830->MMIOBase, I810_REG_SIZE);
+   pci_device_unmap_range (pI830->PciInfo, pI830->MMIOBase, pI830->MMIOSize);
    pI830->MMIOBase = NULL;
 
    if (IS_I9XX(pI830)) {
@@ -1006,14 +1012,13 @@ static Bool i830_kernel_mode_enabled(ScrnInfoPtr pScrn)
     busIdString = DRICreatePCIBusID(PciInfo);
 
     ret = drmCheckModesettingSupported(busIdString);
-    if (ret)
-	if (xf86LoadKernelModule("i915")) {
+    if (ret) {
+	if (xf86LoadKernelModule("i915"))
 	    ret = drmCheckModesettingSupported(busIdString);
-
-	    /* Be nice to the user and load fbcon too */
-	    if (!ret)
-		(void) xf86LoadKernelModule("fbcon");
-	}
+    }
+    /* Be nice to the user and load fbcon too */
+    if (!ret)
+	(void) xf86LoadKernelModule("fbcon");
     xfree(busIdString);
     if (ret)
 	return FALSE;
@@ -1135,6 +1140,12 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
     case PCI_CHIP_G41_G:
 	chipname = "G41";
 	break;
+    case PCI_CHIP_IGDNG_D_G:
+	chipname = "IGDNG_D";
+	break;
+    case PCI_CHIP_IGDNG_M_G:
+	chipname = "IGDNG_M";
+	break;
    default:
 	chipname = "unknown chipset";
 	break;
@@ -1208,6 +1219,7 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
     if (pI830->pEnt->device->IOBase != 0) {
 	pI830->MMIOAddr = pI830->pEnt->device->IOBase;
 	from = X_CONFIG;
+	pI830->MMIOSize = I810_REG_SIZE;
     } else {
 	pI830->MMIOAddr = I810_MEMBASE (pI830->PciInfo, mmio_bar);
 	if (pI830->MMIOAddr == 0) {
@@ -1216,10 +1228,11 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	    PreInitCleanup(pScrn);
 	    return FALSE;
 	}
+	pI830->MMIOSize = pI830->PciInfo->regions[mmio_bar].size;
     }
 
-    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
-	       (unsigned long)pI830->MMIOAddr);
+    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX size %u\n",
+	       (unsigned long)pI830->MMIOAddr, pI830->MMIOSize);
 
     /* Now figure out mapsize on 8xx chips */
     if (IS_I830(pI830) || IS_845G(pI830)) {
@@ -1426,7 +1439,8 @@ i830_open_drm_master(ScrnInfoPtr scrn)
     if (i830->drmSubFD == -1) {
 	xfree(busid);
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-		   "[drm] Failed to open DRM device for %s\n", busid);
+		   "[drm] Failed to open DRM device for %s: %s\n", busid,
+		   strerror(errno));
 	return FALSE;
     }
 
@@ -1441,6 +1455,8 @@ i830_open_drm_master(ScrnInfoPtr scrn)
     sv.drm_dd_major = -1;
     err = drmSetInterfaceVersion(i830->drmSubFD, &sv);
     if (err != 0) {
+	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		   "[drm] failed to set drm interface version.\n");
 	drmClose(i830->drmSubFD);
 	i830->drmSubFD = -1;
 	return FALSE;
@@ -1580,7 +1596,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    pI830->PciInfo = xf86GetPciInfoForEntity(pI830->pEnt->index);
 
-   i830_open_drm_master(pScrn);
+   if (!i830_open_drm_master(pScrn))
+       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to become DRM master.\n");
+
 
    if (xf86RegisterResources(pI830->pEnt->index, NULL, ResNone)) {
       PreInitCleanup(pScrn);
@@ -1629,14 +1647,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!i830_detect_chipset(pScrn))
        return FALSE;
 
-   if (i830_bios_init(pScrn))
-       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		  "VBIOS initialization failed.\n");
-
    if (pI830->use_drm_mode) {
        if (!I830DrmModeInit(pScrn))
 	   return FALSE;
    } else {
+       if (i830_bios_init(pScrn))
+	   xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		      "VBIOS initialization failed.\n");
       I830PreInitCrtcConfig(pScrn);
       if (!I830AccelMethodInit(pScrn))
          return FALSE;
@@ -2442,6 +2459,50 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
    }
 }
 
+Bool i830_crtc_on(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (pI830->use_drm_mode) {
+	int i, active_outputs = 0;
+
+	/* Kernel manages CRTC status based out output config */
+	for (i = 0; i < xf86_config->num_output; i++) {
+	    xf86OutputPtr output = xf86_config->output[i];
+	    if (output->crtc == crtc &&
+		drmmode_output_dpms_status(output) == DPMSModeOn)
+		active_outputs++;
+	}
+
+	if (active_outputs)
+	    return TRUE;
+	return FALSE;
+    } else {
+	I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+
+	if (intel_crtc->dpms_mode == DPMSModeOn)
+	    return TRUE;
+	return FALSE;
+    }
+}
+
+int i830_crtc_to_pipe(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    int pipe;
+
+    if (pI830->use_drm_mode) {
+	pipe = drmmode_get_pipe_from_crtc_id(pI830->bufmgr, crtc);
+    } else {
+	I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+	pipe = intel_crtc->pipe;
+    }
+
+    return pipe;
+}
 
 static void
 I830AdjustMemory(ScreenPtr pScreen)
@@ -2651,10 +2712,23 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        pI830->fb_compression = FALSE;
    }
 
+   /* SwapBuffers delays to avoid tearing */
+   pI830->swapbuffers_wait = TRUE;
+
+   /* Allow user override if they set a value */
+   if (xf86IsOptionSet(pI830->Options, OPTION_SWAPBUFFERS_WAIT)) {
+       if (xf86ReturnOptValBool(pI830->Options, OPTION_SWAPBUFFERS_WAIT, FALSE))
+	   pI830->swapbuffers_wait = TRUE;
+       else
+	   pI830->swapbuffers_wait = FALSE;
+   }
+
    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Framebuffer compression %sabled\n",
 	      pI830->fb_compression ? "en" : "dis");
    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Tiling %sabled\n", pI830->tiling ?
 	      "en" : "dis");
+   xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "SwapBuffers wait %sabled\n",
+	      pI830->swapbuffers_wait ? "en" : "dis");
 
    pI830->last_3d = LAST_3D_OTHER;
    pI830->overlayOn = FALSE;
@@ -2711,9 +2785,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       }
    }
    i830_init_bufmgr(pScrn);
-
-   if (!pI830->use_drm_mode)
-       I830SwapPipes(pScrn);
 
    pScrn->fbOffset = pI830->front_buffer->offset;
 
@@ -2816,8 +2887,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef INTEL_XVMC
     pI830->XvMCEnabled = FALSE;
-    from =  xf86GetOptValBool(pI830->Options, OPTION_XVMC,
-			      &pI830->XvMCEnabled) ? X_CONFIG : X_DEFAULT;
+    from = ((pI830->directRenderingType == DRI_DRI2) &&
+            xf86GetOptValBool(pI830->Options, OPTION_XVMC,
+                              &pI830->XvMCEnabled) ? X_CONFIG : X_DEFAULT);
     xf86DrvMsg(pScrn->scrnIndex, from, "Intel XvMC decoder %sabled\n",
 	       pI830->XvMCEnabled ? "en" : "dis");
 #endif
@@ -3002,6 +3074,9 @@ I830EnterVT(int scrnIndex, int flags)
 
    /* Get the hardware into a known state if needed */
    if (!pI830->use_drm_mode) {
+
+       I830SwapPipes(pScrn);
+
        /* Disable outputs */
        for (i = 0; i < xf86_config->num_output; i++) {
 	   xf86OutputPtr   output = xf86_config->output[i];

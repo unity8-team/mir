@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (IS_G4X(pI830))
+	if (IS_G4X(pI830) || IS_IGDNG(pI830))
 		gtt = (unsigned char *)(pI830->mmio + MB(2));
 	else if (IS_I965G(pI830))
 		gtt = (unsigned char *)(pI830->mmio + KB(512));
