@@ -202,7 +202,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem == NULL || mem->bound)
 	return TRUE;
 
-    if (mem->bo != NULL) {
+    if (mem->bo != NULL && !pI830->use_drm_mode) {
 	if (dri_bo_pin(mem->bo, mem->alignment) != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to pin %s: %s\n",
@@ -249,7 +249,7 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	!pI830->kernel_exec_fencing)
 	i830_clear_tiling(pScrn, mem->fence_nr);
 
-    if (mem->bo != NULL) {
+    if (mem->bo != NULL && !pI830->use_drm_mode) {
 	if (dri_bo_unpin(mem->bo) == 0) {
 	    mem->bound = FALSE;
 	    /* Give buffer obviously wrong offset/end until it's re-pinned. */

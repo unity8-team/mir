@@ -65,8 +65,8 @@ struct hwmc_buffer
 
 struct _intel_xvmc_common {
     unsigned int type;
-    unsigned int sarea_size;
     struct hwmc_buffer batchbuffer;
+    unsigned int kernel_exec_fencing:1;
 };
 
 /* Intel private XvMC command to DDX driver */
@@ -77,7 +77,7 @@ struct intel_xvmc_command {
     unsigned int subPicNo;
     unsigned int flags;
     unsigned int real_id;
-    unsigned int surf_offset;
+    uint32_t handle;
     unsigned int pad[5];
 };
 
@@ -100,6 +100,7 @@ struct intel_xvmc_driver {
 extern struct intel_xvmc_driver *xvmc_driver;
 extern struct intel_xvmc_driver i915_xvmc_driver;
 extern struct intel_xvmc_driver i965_xvmc_driver;
+extern struct intel_xvmc_driver vld_xvmc_driver;
 
 extern Bool intel_xvmc_probe(ScrnInfoPtr);
 extern Bool intel_xvmc_driver_init(ScreenPtr, XF86VideoAdaptorPtr);

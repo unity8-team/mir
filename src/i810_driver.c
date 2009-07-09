@@ -138,6 +138,8 @@ static const struct pci_id_match intel_device_match[] = {
    INTEL_DEVICE_MATCH (PCI_CHIP_G45_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_G41_G, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_D_G, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_M_G, 0 ),
     { 0, 0, 0 },
 };
 
@@ -189,6 +191,8 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {PCI_CHIP_G41_G,		"G41"},
+   {PCI_CHIP_IGDNG_D_G,		"IGDNG_D"},
+   {PCI_CHIP_IGDNG_M_G,		"IGDNG_M"},
    {-1,				NULL}
 };
 
@@ -225,6 +229,8 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
    {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
+   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,	RES_SHARED_VGA},
+   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 

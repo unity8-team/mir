@@ -1,3 +1,60 @@
+xserver-xorg-video-intel (2:2.7.99.901+git20090702.74227141-0ubuntu1) karmic; urgency=low
+
+  [Robert Hooker]
+  * Update to git 20090702 (master branch) up to commit 74227141
+   - Treat disabled CRTCs as "not covering" for scanline wait purposes.
+     Fixes problems returning from a dpms off state.
+     (LP: #390917, #383973, #390633, #385448, #388357)
+   - Add an xorg.conf option to control swapbuffers behavior.
+   - Set hot plug interrupt to detect HDMI output.
+   - Add a pipe-a quirk for Dell mini
+     (LP: #395306)
+   - Add a pipe-a quirk for thinkpad x30
+     (LP: #304614)
+   - Reenable XvMC support in UXA. Now includes vld support.
+   - Fix EDID for LVDS output device to add the default modes in UMS.
+     (LP: #385832)
+   - Export EDID when using KMS, so Display options shows info correctly
+     (LP: #395140)
+   - Fixes for SDVO LVDS mode detection.
+   - Fix major performance regression of trapezoid rendering in UXA.
+   - Fixes for hangs when GL compositing is used with multiple monitors
+     with different refresh rates.
+   - Support for new IGDNG devices.
+   - Only get the VBIOS in non-KMS mode
+   - Add a few error messages for DRM initialization
+   - Don't try to pin buffers in KMS mode
+   - Fix 945GM VT switch in UMS
+   - Clear the bo on the rotate scratch pixmap (Fixes problems with rotation)
+   - uxa: Fix segfault on source-only picture usage with FallbackDebug.
+   - Various XvMC fixes.
+  * Merge with Debian experimental.  Remaining Ubuntu changes:
+   - Add lpia architecture
+  * Drop patches since they're already upstream:
+    - 110_quirk_hp_mini.patch  
+    - 117_quirk_thinkpad_x30.patch 
+    - 118_pixmap_inline_funcs.patch
+    - 119_fix_drawable_abuse.patch 
+    - 120_fix_dri2_vblank_syncing_segfault.patch
+    - 121_dont_change_blank_sync_width.patch      
+    - 122_wait_for_vblank_to_sub_border_color.patch     
+    - 123_kms_export_edid.patch                       
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 09 Jul 2009 14:02:45 -0700
+
+xserver-xorg-video-intel (2:2.7.99.901-2) experimental; urgency=low
+
+  * Pull upstream fix for xvmc build.
+  * Update build-depends, and reenable xvmc.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 11 Jun 2009 18:52:10 +0200
+
+xserver-xorg-video-intel (2:2.7.99.901-1) experimental; urgency=low
+
+  * New upstream release candidate.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 11 Jun 2009 08:18:49 +0200
+
 xserver-xorg-video-intel (2:2.7.99.1+git20090602.ec2fde7c-0ubuntu5) karmic; urgency=low
 
   * Add 123_kms_export_edid.patch: Allow EDID to be exported in the KMS

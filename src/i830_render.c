@@ -250,9 +250,9 @@ i8xx_get_card_format(PicturePtr pPict)
 	    i++)
     {
 	if (i830_tex_formats[i].fmt == pPict->format)
-	    break;
+	    return i830_tex_formats[i].card_fmt;
     }
-    return i830_tex_formats[i].card_fmt;
+    FatalError("Unsupported format type %d\n", pPict->format);
 }
 
 static Bool

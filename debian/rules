@@ -32,7 +32,7 @@ endif
 # kbd_drv.a isn't phenomenally useful; kbd_drv.so more so
 confflags += --disable-static
 
-configure: $(STAMP_DIR)/patch
+configure:
 	dh_testdir
 	autoreconf -vfi
 
