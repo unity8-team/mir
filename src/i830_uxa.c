@@ -638,7 +638,7 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	 * Note that size should fit in 32 bits.  We throw out >32767x32767x4,
 	 * and pitch alignment could get us up to 32768x32767x4.
 	 */
-	if (sizeof(unsigned int) == 4 &&
+	if (sizeof(unsigned long) == 4 &&
 	    size > (unsigned int)(1024 * 1024 * 1024))
 	{
 	    fbDestroyPixmap (pixmap);
