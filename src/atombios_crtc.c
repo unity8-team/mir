@@ -693,7 +693,8 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
 	uint32_t mc_init_misc_lat_timer = 0;
 	if (info->ChipFamily == CHIP_FAMILY_RV515)
 	    mc_init_misc_lat_timer = INMC(pScrn, RV515_MC_INIT_MISC_LAT_TIMER);
-	else if (info->ChipFamily == CHIP_FAMILY_RS690)
+	else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+		 (info->ChipFamily == CHIP_FAMILY_RS740))
 	    mc_init_misc_lat_timer = INMC(pScrn, RS690_MC_INIT_MISC_LAT_TIMER);
 
 	mc_init_misc_lat_timer &= ~(R300_MC_DISP1R_INIT_LAT_MASK << R300_MC_DISP1R_INIT_LAT_SHIFT);
@@ -706,7 +707,8 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
 
 	if (info->ChipFamily == CHIP_FAMILY_RV515)
 	    OUTMC(pScrn, RV515_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
-	else if (info->ChipFamily == CHIP_FAMILY_RS690)
+	else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+		 (info->ChipFamily == CHIP_FAMILY_RS740))
 	    OUTMC(pScrn, RS690_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
     }
 
