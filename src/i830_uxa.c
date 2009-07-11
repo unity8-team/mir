@@ -477,13 +477,12 @@ static Bool
 i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 {
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
+    ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+
+    intel_batch_flush(scrn, FALSE);
 
     if (bo) {
-	ScreenPtr screen = pixmap->drawable.pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
-	
-	intel_batch_flush(scrn, FALSE);
 
 	/* No VT sema or GEM?  No GTT mapping. */
 	if (!scrn->vtSema || !i830->have_gem) {
@@ -517,7 +516,9 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
 	    pixmap->devPrivate.ptr = i830->FbBase + bo->offset;
 	}
-    }
+    } else
+	i830_wait_ring_idle(scrn);
+
     return TRUE;
 }
 
