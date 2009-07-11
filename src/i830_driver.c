@@ -2674,8 +2674,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!pI830->use_drm_mode)
        I830MapMMIO(pScrn);
 
-   /* Need FB mapped to set up the fake bufmgr if we end up doing that
-    * in i830_memory_init() -> i830_allocator_init().
+   /* Need FB mapped to access non-GEM objects like
+    * a UMS frame buffer, or the fake bufmgr.
     */
    if (!pI830->use_drm_mode) {
       if (!I830MapMem(pScrn))
@@ -2700,10 +2700,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 return FALSE;
    if (!miSetPixmapDepths())
       return FALSE;
-
-   i830_init_bufmgr(pScrn);
-
-   pScrn->fbOffset = pI830->front_buffer->offset;
 
    if (!pI830->use_drm_mode) {
        vgaHWSetMmioFuncs(hwp, pI830->MMIOBase, 0);
