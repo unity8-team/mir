@@ -1056,12 +1056,9 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), pI830->front_buffer->bo);
-	scrn->fbOffset = pI830->front_buffer->offset;
 
 	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
 				   width, height, -1, -1, pitch * pI830->cpp, NULL);
-	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
-		   pI830->front_buffer->offset);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
