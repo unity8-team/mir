@@ -1301,12 +1301,10 @@ I830PreInitCrtcConfig(ScrnInfoPtr pScrn)
     xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, max_height);
 }
 
-static Bool
-I830AccelMethodInit(ScrnInfoPtr pScrn)
+static void
+i830_check_dri_option(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int i, num_pipe;
-
     pI830->directRenderingType = DRI_NONE;
     if (!xf86ReturnOptValBool(pI830->Options, OPTION_DRI, TRUE))
 	pI830->directRenderingType = DRI_DISABLED;
@@ -1316,6 +1314,13 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 		"runs only at depths 16 and 24.\n");
 	pI830->directRenderingType = DRI_DISABLED;
     }
+}
+
+static Bool
+i830_user_modesetting_init(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i, num_pipe;
 
     I830MapMMIO(pScrn);
 
@@ -1442,7 +1447,6 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
-    pI830->directRenderingType = DRI_NONE;
     pI830->have_gem = TRUE;
 
     i830_init_bufmgr(pScrn);
@@ -1587,6 +1591,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!i830_detect_chipset(pScrn))
        return FALSE;
 
+   i830_check_dri_option(pScrn);
+
    if (pI830->use_drm_mode) {
        if (!I830DrmModeInit(pScrn))
 	   return FALSE;
@@ -1595,7 +1601,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	   xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		      "VBIOS initialization failed.\n");
       I830PreInitCrtcConfig(pScrn);
-      if (!I830AccelMethodInit(pScrn))
+      if (!i830_user_modesetting_init(pScrn))
          return FALSE;
    }
 
