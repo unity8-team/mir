@@ -199,10 +199,11 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (mem == NULL || mem->bound)
+    if (mem == NULL || mem->bound || pI830->use_drm_mode)
 	return TRUE;
 
-    if (mem->bo != NULL && !pI830->use_drm_mode) {
+    if (pI830->have_gem && mem->bo != NULL) {
+
 	if (dri_bo_pin(mem->bo, mem->alignment) != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to pin %s: %s\n",
@@ -213,9 +214,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	mem->bound = TRUE;
 	mem->offset = mem->bo->offset;
 	mem->end = mem->offset + mem->size;
-    }
-
-    if (!mem->bound) {
+    } else {
 	if (!pI830->gtt_acquired)
 	    return TRUE;
 
@@ -228,8 +227,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	mem->bound = TRUE;
     }
 
-    if (mem->tiling != TILE_NONE && !pI830->use_drm_mode &&
-	!pI830->kernel_exec_fencing) {
+    if (mem->tiling != TILE_NONE && !pI830->kernel_exec_fencing) {
 	mem->fence_nr = i830_set_tiling(pScrn, mem->offset, mem->pitch,
 					mem->allocated_size, mem->tiling);
     }
@@ -1114,7 +1112,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 	return NULL;
     }
 
-    if (!pI830->use_drm_mode && pI830->FbBase && front_buffer->bound)
+    if (pI830->FbBase && front_buffer->bound)
 	memset (pI830->FbBase + front_buffer->offset, 0, size);
 
     i830_set_max_gtt_map_size(pScrn);
