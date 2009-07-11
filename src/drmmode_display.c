@@ -329,8 +329,6 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
-	drm_intel_gem_bo_map_gtt(drmmode_crtc->rotate_bo);
-
 	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
 			   crtc->scrn->bitsPerPixel, rotate_pitch,
 			   drmmode_crtc->rotate_bo->handle,
@@ -341,7 +339,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
-	return drmmode_crtc->rotate_bo->virtual;
+	return drmmode_crtc->rotate_bo;
 }
 
 static PixmapPtr
@@ -353,8 +351,14 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	unsigned long rotate_pitch;
 	PixmapPtr rotate_pixmap;
 
-	if (!data)
+	if (!data) {
 		data = drmmode_crtc_shadow_allocate (crtc, width, height);
+		if (!data) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Couldn't allocate shadow pixmap for rotated CRTC\n");
+			return NULL;
+		}
+	}
 
 	rotate_pitch =
 		i830_pad_drawable_width(width, drmmode->cpp) * drmmode->cpp;
@@ -363,11 +367,12 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 					       pScrn->depth,
 					       pScrn->bitsPerPixel,
 					       rotate_pitch,
-					       data);
+					       NULL);
 
 	if (rotate_pixmap == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
+		return NULL;
 	}
 
 	if (drmmode_crtc->rotate_bo)
@@ -393,7 +398,6 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 		 * unbound. */
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
-		drm_intel_gem_bo_unmap_gtt(drmmode_crtc->rotate_bo);
 		dri_bo_unreference(drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_bo = NULL;
 	}

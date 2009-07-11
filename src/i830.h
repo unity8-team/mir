@@ -317,12 +317,6 @@ enum backlight_control {
     BCM_KERNEL,
 };
 
-typedef enum accel_method {
-    ACCEL_UNINIT = 0,
-    ACCEL_NONE,
-    ACCEL_UXA
-} accel_method_t;
-
 enum dri_type {
     DRI_DISABLED,
     DRI_NONE,
@@ -431,7 +425,6 @@ typedef struct _I830Rec {
 
    Bool fence_used[FENCE_NEW_NR];
 
-   accel_method_t accel;
    CloseScreenProcPtr CloseScreen;
 
    void (*batch_flush_notify)(ScrnInfoPtr pScrn);
@@ -827,8 +820,7 @@ i830_wait_ring_idle(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->accel != ACCEL_NONE)
-       I830WaitLpRing(pScrn, pI830->ring.mem->size - 8, 0);
+   I830WaitLpRing(pScrn, pI830->ring.mem->size - 8, 0);
 }
 
 static inline int i830_fb_compression_supported(I830Ptr pI830)
@@ -841,10 +833,9 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 	return FALSE;
     if (IS_IGDNG(pI830))
 	return FALSE;
-    /* fbc depends on tiled surface. And we don't support tiled
-     * front buffer with unaccelerated.
+    /* fbc depends on tiled surface.
      */
-    if (!pI830->tiling || (IS_I965G(pI830) && pI830->accel == ACCEL_NONE))
+    if (!pI830->tiling)
 	return FALSE;
     /* We have not gotten FBC to work consistently on 965GM. Our best
      * working theory right now is that FBC simply isn't reliable on

@@ -452,30 +452,19 @@ i830_transform_is_affine (PictTransformPtr t)
 dri_bo *
 i830_get_pixmap_bo(PixmapPtr pixmap)
 {
-    ScreenPtr screen = pixmap->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-    I830Ptr i830 = I830PTR(scrn);
-
-    if (i830->accel == ACCEL_UXA)
-	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
-    else
-	return NULL;
+    return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
 }
 
 void
 i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-    I830Ptr i830 = I830PTR(pScrn);
     dri_bo  *old_bo = i830_get_pixmap_bo (pixmap);
 
     if (old_bo)
 	dri_bo_unreference (old_bo);
-    if (i830->accel == ACCEL_UXA) {
-	if (bo != NULL)
-	    dri_bo_reference(bo);
-	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
-    }
+    if (bo != NULL)
+	dri_bo_reference(bo);
+    dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
 }
 
 static void
@@ -698,10 +687,9 @@ i830_uxa_init (ScreenPtr pScreen)
 	return FALSE;
 
     i830->uxa_driver = uxa_driver_alloc();
-    if (i830->uxa_driver == NULL) {
-	i830->accel = ACCEL_NONE;
+    if (i830->uxa_driver == NULL)
 	return FALSE;
-    }
+
     memset(i830->uxa_driver, 0, sizeof(*i830->uxa_driver));
 
     i830->bufferOffset = 0;
@@ -743,10 +731,9 @@ i830_uxa_init (ScreenPtr pScreen)
     i830->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
 
     if(!uxa_driver_init(pScreen, i830->uxa_driver)) {
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		   "UXA initialization failed\n");
 	xfree(i830->uxa_driver);
-	i830->accel = ACCEL_NONE;
 	return FALSE;
     }
 

@@ -445,15 +445,14 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size)
 		struct drm_i915_gem_init init;
 		int ret;
 
-		if (pI830->accel == ACCEL_UXA) {
-		    sp.param = I915_SETPARAM_NUM_USED_FENCES;
-		    sp.value = 0; /* kernel gets them all */
+		sp.param = I915_SETPARAM_NUM_USED_FENCES;
+		sp.value = 0; /* kernel gets them all */
 
-		    ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_SETPARAM,
-					  &sp, sizeof(sp));
-		    if (ret == 0)
-			pI830->kernel_exec_fencing = TRUE;
-		}
+		ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_SETPARAM,
+				      &sp, sizeof(sp));
+		if (ret == 0)
+		    pI830->kernel_exec_fencing = TRUE;
+
 		init.gtt_start = pI830->memory_manager->offset;
 		init.gtt_end = pI830->memory_manager->offset +
 		    pI830->memory_manager->size;
@@ -954,7 +953,7 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->accel == ACCEL_NONE || pI830->memory_manager || pI830->ring.mem != NULL)
+    if (pI830->memory_manager || pI830->ring.mem != NULL)
 	return TRUE;
 
     /* We don't have any mechanism in the DRM yet to alert it that we've moved
@@ -1264,7 +1263,8 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	}
 
 	/* Allocate the ring buffer first, so it ends up in stolen mem. */
-	i830_allocate_ringbuffer(pScrn);
+	if (!i830_allocate_ringbuffer(pScrn))
+	    return FALSE;
     }
 
     if (pI830->fb_compression)

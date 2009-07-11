@@ -373,11 +373,6 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     int dri2_minor = 0;
 #endif
 
-    if (pI830->accel != ACCEL_UXA) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires UXA\n");
-	return FALSE;
-    }
-
 #ifdef USE_DRI2_1_1_0
     if (xf86LoaderCheckSymbol("DRI2Version")) {
 	DRI2Version(& dri2_major, & dri2_minor);
