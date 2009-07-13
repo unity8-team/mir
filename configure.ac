@@ -70,6 +70,12 @@ AC_ARG_ENABLE(exa,
               [EXA="$enableval"],
               [EXA=yes])
 
+AC_ARG_ENABLE(kms,
+              AC_HELP_STRING([--disable-kms],
+                             [Disable KMS support [[default=enabled]]]),
+              [DRM_MODE="$enableval"],
+              [DRM_MODE=yes])
+
 AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE],
                                           [Path to X server source tree]),
                            [ XSERVER_SOURCE="$withval" ],
@@ -125,17 +131,20 @@ if test "$DRI" = yes; then
 
         save_CFLAGS="$CFLAGS"
         CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $CFLAGS"
-	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
+	AM_CONDITIONAL(DRM_MODE, test x$DRM_MODE = xyes)
+	if test "$DRM_MODE" = yes; then
+	   	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
 #include <stdlib.h>])
-	if test "x$DRM_MODE" = xyes; then
-		PKG_CHECK_MODULES(LIBDRM_RADEON, [xorg-server >= 1.6 libdrm_radeon],
-		[LIBDRM_RADEON=yes], [LIBDRM_RADEON=no])
+		if test "x$DRM_MODE" = xyes; then
+		   	PKG_CHECK_MODULES(LIBDRM_RADEON, [xorg-server >= 1.6 libdrm_radeon],
+			[LIBDRM_RADEON=yes], [LIBDRM_RADEON=no])
 
-		if test "x$LIBDRM_RADEON" = xyes; then
-			AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
-			AC_DEFINE(RADEON_DRI2, 1,[Enable DRI2 code])
-		fi
-        fi
+			if test "x$LIBDRM_RADEON" = xyes; then
+			   	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
+				AC_DEFINE(RADEON_DRI2, 1,[Enable DRI2 code])
+			fi
+        	fi
+	fi
 	CFLAGS="$save_CFLAGS"
 fi
 
