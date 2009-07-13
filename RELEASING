@@ -37,7 +37,7 @@ The process for releasing a new tarball is as follows:
 
 	At the very least, add the release notes from the NEWS file.
 
-	The message is generated as xf86-video-inte-<version>.announce
+	The message is generated as xf86-video-intel-<version>.announce
 
 	For snapshots and release candidates, mail to:
 
