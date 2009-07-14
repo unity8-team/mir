@@ -1257,6 +1257,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	if ((pipe == 0) && (pI830->quirk_flag & QUIRK_PIPEA_FORCE))
 	    disable_pipe = FALSE;
 	i830_crtc_disable(crtc, disable_pipe);
+	intel_crtc->enabled = FALSE;
 	break;
     }
 
@@ -1965,8 +1966,10 @@ i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
 
-    if (rotate_pixmap)
+    if (rotate_pixmap) {
+	i830_set_pixmap_bo(rotate_pixmap, NULL);
 	FreeScratchPixmapHeader(rotate_pixmap);
+    }
 
     if (data) {
 	/* Be sure to sync acceleration before the memory gets unbound. */

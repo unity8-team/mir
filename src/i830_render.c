@@ -250,9 +250,9 @@ i8xx_get_card_format(PicturePtr pPict)
 	    i++)
     {
 	if (i830_tex_formats[i].fmt == pPict->format)
-	    break;
+	    return i830_tex_formats[i].card_fmt;
     }
-    return i830_tex_formats[i].card_fmt;
+    FatalError("Unsupported format type %d\n", pPict->format);
 }
 
 static Bool
@@ -285,7 +285,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	wrap_mode = TEXCOORDMODE_MIRROR;
 	break;
     default:
-	FatalError("Unkown repeat type %d\n", pPict->repeatType);
+	FatalError("Unknown repeat type %d\n", pPict->repeatType);
     }
 
     switch (pPict->filter) {

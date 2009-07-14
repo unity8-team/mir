@@ -135,7 +135,7 @@ intel_batch_init(ScrnInfoPtr pScrn)
 
     intel_next_batch(pScrn);
 
-    if (pI830->directRenderingType <= DRI_NONE) {
+    if (!pI830->have_gem) {
 	if (IS_I830(pI830) || IS_845G(pI830)) {
 	    intel_bufmgr_fake_set_exec_callback(pI830->bufmgr,
 						intel_nondrm_exec_i830,
@@ -179,7 +179,7 @@ intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
 	return;
 
     /* If we're not using GEM, then emit a flush after each batch buffer */
-    if (pI830->memory_manager == NULL && !flushed) {
+    if (!pI830->have_gem && !flushed) {
 	int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
 	if (IS_I965G(pI830))
@@ -219,7 +219,7 @@ intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
      * blockhandler.  We could set this less often, but it's probably not worth
      * the work.
      */
-    if (pI830->memory_manager != NULL)
+    if (pI830->have_gem)
 	pI830->need_mi_flush = TRUE;
 
     if (pI830->batch_flush_notify)

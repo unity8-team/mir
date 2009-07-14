@@ -103,10 +103,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
     pDepthPixmap = NULL;
     for (i = 0; i < count; i++) {
 	if (attachments[i] == DRI2BufferFrontLeft) {
-	    if (pDraw->type == DRAWABLE_PIXMAP)
-		pPixmap = (PixmapPtr) pDraw;
-	    else
-		pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
+	    pPixmap = get_drawable_pixmap(pDraw);
 	    pPixmap->refcnt++;
 	} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 	    pPixmap = pDepthPixmap;
@@ -164,32 +161,29 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 
 #else
 
-static DRI2BufferPtr
+static DRI2Buffer2Ptr
 I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 		     unsigned int format)
 {
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    DRI2BufferPtr buffers;
+    DRI2Buffer2Ptr buffer;
     dri_bo *bo;
     I830DRI2BufferPrivatePtr privates;
     PixmapPtr pPixmap;
 
-    buffers = xcalloc(1, sizeof *buffers);
-    if (buffers == NULL)
+    buffer = xcalloc(1, sizeof *buffer);
+    if (buffer == NULL)
 	return NULL;
     privates = xcalloc(1, sizeof *privates);
     if (privates == NULL) {
-	xfree(buffers);
+	xfree(buffer);
 	return NULL;
     }
 
     if (attachment == DRI2BufferFrontLeft) {
-	if (pDraw->type == DRAWABLE_PIXMAP)
-	    pPixmap = (PixmapPtr) pDraw;
-	else
-	    pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
+	pPixmap = get_drawable_pixmap(pDraw);
 	pPixmap->refcnt++;
     } else {
 	unsigned int hint = 0;
@@ -223,21 +217,21 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
     }
 
 
-    buffers->attachment = attachment;
-    buffers->pitch = pPixmap->devKind;
-    buffers->cpp = pPixmap->drawable.bitsPerPixel / 8;
-    buffers->driverPrivate = privates;
-    buffers->format = format;
-    buffers->flags = 0; /* not tiled */
+    buffer->attachment = attachment;
+    buffer->pitch = pPixmap->devKind;
+    buffer->cpp = pPixmap->drawable.bitsPerPixel / 8;
+    buffer->driverPrivate = privates;
+    buffer->format = format;
+    buffer->flags = 0; /* not tiled */
     privates->pPixmap = pPixmap;
     privates->attachment = attachment;
 
     bo = i830_get_pixmap_bo (pPixmap);
-    if (dri_bo_flink(bo, &buffers->name) != 0) {
+    if (dri_bo_flink(bo, &buffer->name) != 0) {
 	/* failed to name buffer */
     }
 
-    return buffers;
+    return buffer;
 }
 
 #endif
@@ -267,7 +261,7 @@ I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
 #else
 
 static void
-I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2BufferPtr buffer)
+I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2Buffer2Ptr buffer)
 {
     if (buffer) {
 	I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
@@ -291,10 +285,10 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    PixmapPtr pSrcPixmap = (srcPrivate->attachment == DRI2BufferFrontLeft)
-	? (PixmapPtr) pDraw : srcPrivate->pPixmap;
-    PixmapPtr pDstPixmap = (dstPrivate->attachment == DRI2BufferFrontLeft)
-	? (PixmapPtr) pDraw : dstPrivate->pPixmap;
+    DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
+	? pDraw : &srcPrivate->pPixmap->drawable;
+    DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
+	? pDraw : &dstPrivate->pPixmap->drawable;
     RegionPtr pCopyClip;
     GCPtr pGC;
 
@@ -302,8 +296,49 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
     pCopyClip = REGION_CREATE(pScreen, NULL, 0);
     REGION_COPY(pScreen, pCopyClip, pRegion);
     (*pGC->funcs->ChangeClip) (pGC, CT_REGION, pCopyClip, 0);
-    ValidateGC(&pDstPixmap->drawable, pGC);
-    (*pGC->ops->CopyArea)(&pSrcPixmap->drawable, &pDstPixmap->drawable,
+    ValidateGC(dst, pGC);
+
+    /* Wait for the scanline to be outside the region to be copied */
+    if (pixmap_is_scanout(get_drawable_pixmap(dst)) && pI830->swapbuffers_wait) {
+	BoxPtr box;
+	BoxRec crtcbox;
+	int y1, y2;
+	int pipe = -1, event, load_scan_lines_pipe;
+	xf86CrtcPtr crtc;
+
+	box = REGION_EXTENTS(unused, pGC->pCompositeClip);
+	crtc = i830_covering_crtc(pScrn, box, NULL, &crtcbox);
+
+	/* Make sure the CRTC is valid and this is the real front buffer */
+	if (crtc != NULL && !crtc->rotatedData) {
+	    pipe = i830_crtc_to_pipe(crtc);
+
+	    if (pipe == 0) {
+		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+		load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
+	    } else {
+		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+		load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+	    }
+
+	    /* Make sure we don't wait for a scanline that will never occur */
+	    y1 = (crtcbox.y1 <= box->y1) ? box->y1 - crtcbox.y1 : 0;
+	    y2 = (box->y2 <= crtcbox.y2) ?
+		box->y2 - crtcbox.y1 : crtcbox.y2 - crtcbox.y1;
+
+	    BEGIN_BATCH(5);
+	    /* The documentation says that the LOAD_SCAN_LINES command
+	     * always comes in pairs. Don't ask me why. */
+	    OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+	    OUT_BATCH((y1 << 16) | y2);
+	    OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+	    OUT_BATCH((y1 << 16) | y2);
+	    OUT_BATCH(MI_WAIT_FOR_EVENT | event);
+	    ADVANCE_BATCH();
+	}
+    }
+
+    (*pGC->ops->CopyArea)(src, dst,
 			  pGC, 0, 0, pDraw->width, pDraw->height, 0, 0);
     FreeScratchGC(pGC);
 
@@ -329,7 +364,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     DRI2InfoRec info;
-    char *p, buf[64];
+    char *p;
     int i;
     struct stat sbuf;
     dev_t d;
@@ -337,11 +372,6 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     int dri2_major = 1;
     int dri2_minor = 0;
 #endif
-
-    if (pI830->accel != ACCEL_UXA) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires UXA\n");
-	return FALSE;
-    }
 
 #ifdef USE_DRI2_1_1_0
     if (xf86LoaderCheckSymbol("DRI2Version")) {
@@ -355,36 +385,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     }
 #endif
 
-    sprintf(buf, "pci:%04x:%02x:%02x.%d",
-	    pI830->PciInfo->domain,
-	    pI830->PciInfo->bus,
-	    pI830->PciInfo->dev,
-	    pI830->PciInfo->func);
-
-    /* Use the already opened (master) fd from modesetting */
-    if (pI830->use_drm_mode) {
-	info.fd = pI830->drmSubFD;
-    } else {
-	info.fd = drmOpen("i915", buf);
-	drmSetVersion sv;
-	int err;
-
-	/* Check that what we opened was a master or a master-capable FD,
-	 * by setting the version of the interface we'll use to talk to it.
-	 * (see DRIOpenDRMMaster() in DRI1)
-	 */
-	sv.drm_di_major = 1;
-	sv.drm_di_minor = 1;
-	sv.drm_dd_major = -1;
-	err = drmSetInterfaceVersion(info.fd, &sv);
-	if (err != 0)
-	    return FALSE;
-    }
-
-    if (info.fd < 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to open DRM device\n");
-	return FALSE;
-    }
+    info.fd = pI830->drmSubFD;
 
     /* The whole drmOpen thing is a fiasco and we need to find a way
      * back to just using open(2).  For now, however, lets just make
@@ -409,21 +410,25 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     info.driverName = IS_I965G(pI830) ? "i965" : "i915";
     info.deviceName = p;
 
-#ifdef USE_DRI2_1_1_0
+#if DRI2INFOREC_VERSION >= 3
+    info.version = 3;
+    info.CreateBuffer = I830DRI2CreateBuffer;
+    info.DestroyBuffer = I830DRI2DestroyBuffer;
+#else
+# ifdef USE_DRI2_1_1_0
     info.version = 2;
     info.CreateBuffers = NULL;
     info.DestroyBuffers = NULL;
     info.CreateBuffer = I830DRI2CreateBuffer;
     info.DestroyBuffer = I830DRI2DestroyBuffer;
-#else
+# else
     info.version = 1;
     info.CreateBuffers = I830DRI2CreateBuffers;
     info.DestroyBuffers = I830DRI2DestroyBuffers;
+# endif
 #endif
 
     info.CopyRegion = I830DRI2CopyRegion;
-
-    pI830->drmSubFD = info.fd;
 
     return DRI2ScreenInit(pScreen, &info);
 }

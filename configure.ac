@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        2.7.99.1,
+        2.7.99.902,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -47,6 +47,15 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 
 AC_CHECK_PROG(gen4asm, [intel-gen4asm], yes, no)
+
+if test x$gen4asm != xno; then
+	intel-gen4asm -g 5 src/render_program/exa_sf.g4a > /dev/null
+
+	if test "$?" !=  "0"; then
+		echo "Error: Require new intel-gen4asm with -g option!"
+		exit 1
+	fi
+fi
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 AC_CHECK_HEADERS(sys/mman.h)
@@ -70,10 +79,18 @@ AC_ARG_ENABLE(video-debug, AC_HELP_STRING([--enable-video-debug],
               [VIDEO_DEBUG="$enableval"],
               [VIDEO_DEBUG=no])
 
-dnl AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
-dnl                                   [Disable XvMC support [[default=auto]]]),
-dnl               [XVMC="$enableval"],
-dnl               [XVMC=auto])
+AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
+				    [Compile with debug support [[default=yes]]]))
+if test "x$enableval" == "xyes" ; then
+	DEBUGFLAGS="-g"
+else
+	DEBUGFLAGS=""
+fi
+
+AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
+                                  [Disable XvMC support [[default=yes]]]),
+              [XVMC="$enableval"],
+              [XVMC=yes])
 
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
@@ -116,6 +133,7 @@ if test x$DRI = xauto; then
         fi
 fi
 AC_MSG_RESULT([$DRI])
+CFLAGS="$save_CFLAGS $DEBUGFLAGS"
 
 PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10])
 
@@ -129,7 +147,7 @@ if test "x$GCC" = "xyes"; then
 	-Wnested-externs -fno-strict-aliasing"
 fi
 
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.6])
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.11])
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
@@ -142,15 +160,8 @@ if test "$VIDEO_DEBUG" = yes; then
 	AC_DEFINE(VIDEO_DEBUG,1,[Enable debug support])
 fi
 
-if test "$XVMC" = auto; then
-	XVMC="$DRI"
-fi
-if test "$XVMC" = yes && test "$DRI" = no; then
-	AC_MSG_ERROR([XvMC can't be enabled without DRI])
-fi
 if test "$XVMC" = yes; then
-	PKG_CHECK_MODULES(XVMCLIB, [xvmc], [XVMC=yes], [XVMC=no])
-	PKG_CHECK_MODULES(XEXT, [xext])
+	PKG_CHECK_MODULES(XVMCLIB, [xvmc xext xfixes dri2proto], [XVMC=yes], [XVMC=no])
 fi
 AC_MSG_CHECKING([whether to include XvMC support])
 AC_MSG_RESULT([$XVMC])
@@ -182,6 +193,9 @@ AC_OUTPUT([
 	uxa/Makefile
 	src/Makefile
 	src/xvmc/Makefile
+	src/xvmc/shader/Makefile
+	src/xvmc/shader/mc/Makefile
+	src/xvmc/shader/vld/Makefile
 	src/bios_reader/Makefile
 	src/ch7017/Makefile
 	src/ch7xxx/Makefile
@@ -190,4 +204,5 @@ AC_OUTPUT([
 	src/sil164/Makefile
 	src/tfp410/Makefile
 	man/Makefile
+	src/render_program/Makefile
 ])

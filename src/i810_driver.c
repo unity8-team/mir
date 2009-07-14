@@ -138,6 +138,8 @@ static const struct pci_id_match intel_device_match[] = {
    INTEL_DEVICE_MATCH (PCI_CHIP_G45_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_G41_G, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_D_G, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_M_G, 0 ),
     { 0, 0, 0 },
 };
 
@@ -189,6 +191,8 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {PCI_CHIP_G41_G,		"G41"},
+   {PCI_CHIP_IGDNG_D_G,		"IGDNG_D"},
+   {PCI_CHIP_IGDNG_M_G,		"IGDNG_M"},
    {-1,				NULL}
 };
 
@@ -225,6 +229,8 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
    {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
+   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,	RES_SHARED_VGA},
+   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -257,145 +263,6 @@ static const OptionInfoRec I810Options[] = {
 };
 /* *INDENT-ON* */
 #endif
-
-const char *I810vgahwSymbols[] = {
-   "vgaHWFreeHWRec",
-   "vgaHWGetHWRec",
-   "vgaHWGetIOBase",
-   "vgaHWGetIndex",
-   "vgaHWInit",
-   "vgaHWLock",
-   "vgaHWMapMem",
-   "vgaHWProtect",
-   "vgaHWRestore",
-   "vgaHWSave",
-   "vgaHWSaveScreen",
-   "vgaHWSetMmioFuncs",
-   "vgaHWUnlock",
-   "vgaHWUnmapMem",
-   NULL
-};
-
-const char *I810fbSymbols[] = {
-   "fbPictureInit",
-   "fbScreenInit",
-   NULL
-};
-
-const char *I810vbeSymbols[] = {
-   "VBEFreeModeInfo",
-   "VBEFreeVBEInfo",
-   "VBEGetModeInfo",
-   "VBEGetModePool",
-   "VBEGetVBEInfo",
-   "VBEGetVBEMode",
-   "VBEInit",
-   "VBEPrintModes",
-   "VBESaveRestore",
-   "VBESetDisplayStart",
-   "VBESetGetDACPaletteFormat",
-   "VBESetGetLogicalScanlineLength",
-   "VBESetGetPaletteData",
-   "VBESetModeNames",
-   "VBESetModeParameters",
-   "VBESetVBEMode",
-   "VBEValidateModes",
-   "vbeDoEDID",
-   "vbeFree",
-   NULL
-};
-
-#ifdef XFree86LOADER
-static const char *vbeOptionalSymbols[] = {
-   "VBEDPMSSet",
-   "VBEGetPixelClock",
-   NULL
-};
-#endif
-
-const char *I810ddcSymbols[] = {
-   "xf86PrintEDID",
-   "xf86SetDDCproperties",
-   NULL
-};
-
-const char *I810xaaSymbols[] = {
-   "XAACreateInfoRec",
-   "XAADestroyInfoRec",
-   "XAAInit",
-   "XAAGetCopyROP",
-   "XAAGetPatternROP",
-   NULL
-};
-
-const char *I810ramdacSymbols[] = {
-   "xf86CreateCursorInfoRec",
-   "xf86DestroyCursorInfoRec",
-   "xf86InitCursor",
-   NULL
-};
-
-const char *I810shadowFBSymbols[] = {
-    "ShadowFBInit",
-    NULL
-};
-
-#ifdef XF86DRI
-const char *I810drmSymbols[] = {
-   "drmAddBufs",
-   "drmAddMap",
-   "drmAgpAcquire",
-   "drmAgpAlloc",
-   "drmAgpBind",
-   "drmAgpEnable",
-   "drmAgpFree",
-   "drmAgpRelease",
-   "drmAgpUnbind",
-   "drmAuthMagic",
-   "drmCommandNone",
-   "drmCommandWrite",
-   "drmCreateContext",
-   "drmCtlInstHandler",
-   "drmCtlUninstHandler",
-   "drmDestroyContext",
-   "drmFreeVersion",
-   "drmGetInterruptFromBusID",
-   "drmGetLibVersion",
-   "drmGetVersion",
-   "drmRmMap",
-#ifdef XSERVER_LIBDRM_MM 
-   "drmMMInit",
-   "drmMMTakedown",
-   "drmMMLock",
-   "drmMMUnlock",
-#endif
-   NULL
-};
-
-
-const char *I810driSymbols[] = {
-   "DRICloseScreen",
-   "DRICreateInfoRec",
-   "DRIGetContext",
-   "DRIDestroyInfoRec",
-   "DRIFinishScreenInit",
-   "DRIGetSAREAPrivate",
-   "DRILock",
-   "DRIQueryVersion",
-   "DRIScreenInit",
-   "DRIUnlock",
-   "GlxSetVisualConfigs",
-   "DRICreatePCIBusID",
-   NULL
-};
-
-#endif /* I830_ONLY */
-
-const char *I810i2cSymbols[] = {
-    "xf86CreateI2CBusRec",
-    "xf86I2CBusInit",
-    NULL
-};
 
 #ifndef I810_DEBUG
 int I810_DEBUG = (0
@@ -455,20 +322,6 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
       xf86AddDriver(&I810, module,
 		    HaveDriverFuncs
 		    );
-
-      /*
-       * Tell the loader about symbols from other modules that this module
-       * might refer to.
-       */
-      LoaderRefSymLists(I810vgahwSymbols,
-			I810fbSymbols, I810xaaSymbols, I810ramdacSymbols,
-#ifdef XF86DRI
-			I810drmSymbols,
-			I810driSymbols,
-#endif
-			I810shadowFBSymbols,
-			I810vbeSymbols, vbeOptionalSymbols,
-			I810ddcSymbols, NULL);
 
       /*
        * The return value must be non-NULL on success even though there
@@ -634,7 +487,6 @@ I810DoDDC(ScrnInfoPtr pScrn, int index)
    }
 
    if (xf86LoadSubModule(pScrn, "vbe") && (pVbe = VBEInit(NULL, index))) {
-      xf86LoaderReqSymLists(I810vbeSymbols, NULL);
       MonInfo = vbeDoEDID(pVbe, NULL);
       xf86PrintEDID(MonInfo);
       xf86SetDDCproperties(pScrn, MonInfo);
@@ -688,8 +540,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    /* The vgahw module should be loaded here when needed */
    if (!xf86LoadSubModule(pScrn, "vgahw"))
       return FALSE;
-
-   xf86LoaderReqSymLists(I810vgahwSymbols, NULL);
 
    /* Allocate a vgaHWRec */
    if (!vgaHWGetHWRec(pScrn))
@@ -781,7 +631,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 	 I810FreeRec(pScrn);
 	 return FALSE;
       }
-      xf86LoaderReqSymLists(I810xaaSymbols, NULL);
    }
    
 #ifdef XF86DRI
@@ -1019,14 +868,12 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
       I810FreeRec(pScrn);
       return FALSE;
    }
-   xf86LoaderReqSymLists(I810fbSymbols, NULL);
 
    if (!xf86ReturnOptValBool(pI810->Options, OPTION_SW_CURSOR, FALSE)) {
       if (!xf86LoadSubModule(pScrn, "ramdac")) {
 	 I810FreeRec(pScrn);
 	 return FALSE;
       }
-      xf86LoaderReqSymLists(I810ramdacSymbols, NULL);
    }
 
    if (xf86GetOptValInteger
@@ -1052,9 +899,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 	 pI810->allowPageFlip = 0;
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
 		    "Couldn't load shadowfb module:\n");
-       }
-       else {
-	 xf86LoaderReqSymLists(I810shadowFBSymbols, NULL);
        }
      }
      
@@ -1087,9 +931,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 #ifdef XF86DRI
    /* Load the dri module if requested. */
    if (xf86ReturnOptValBool(pI810->Options, OPTION_DRI, FALSE)) {
-      if (xf86LoadSubModule(pScrn, "dri")) {
-	 xf86LoaderReqSymLists(I810driSymbols, I810drmSymbols, NULL);
-      }
+      xf86LoadSubModule(pScrn, "dri");
    }
 #endif
 

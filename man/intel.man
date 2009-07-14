@@ -56,11 +56,6 @@ The following driver
 .B Options
 are supported
 .TP
-.BI "Option \*qNoAccel\*q \*q" boolean \*q
-Disable or enable acceleration.
-.IP
-Default: acceleration is enabled.
-.TP
 .BI "Option \*qColorKey\*q \*q" integer \*q
 This sets the default pixel value for the YUV video overlay key.
 .IP
@@ -89,6 +84,16 @@ Default: enabled on supported configurations.
 This option controls whether memory buffers are allocated in tiled mode.  In
 most cases (especially for complex rendering), tiling dramatically improves
 performance.
+.IP
+Default: enabled.
+.TP
+.BI "Option \*qSwapbuffersWait\*q \*q" boolean \*q
+This option controls the behavior of glXSwapBuffers and glXCopySubBufferMESA
+calls by GL applications.  If enabled, the calls will avoid tearing by making
+sure the display scanline is outside of the area to be copied before the copy
+occurs.  If disabled, no scanline synchronization is performed, meaning tearing
+will likely occur.  Note that when enabled, this option can adversely affect
+the framerate of applications that render frames at less than refresh rate.
 .IP
 Default: enabled.
 .TP
@@ -124,6 +129,11 @@ This option specifies the amount of system memory to use for graphics, in KB.
 The default is 8192 if AGP allocable memory is < 128 MB, 16384 if < 192 MB,
 24576 if higher. DRI require at least a value of 16384. Higher values may give
 better 3D performance, at expense of available system memory.
+.TP
+.BI "Option \*qNoAccel\*q \*q" boolean \*q
+Disable or enable acceleration.
+.IP
+Default: acceleration is enabled.
 
 .PP
 The following driver

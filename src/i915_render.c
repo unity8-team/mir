@@ -270,7 +270,7 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	wrap_mode = TEXCOORDMODE_MIRROR;
 	break;
     default:
-	FatalError("Unkown repeat type %d\n", pPict->repeatType);
+	FatalError("Unknown repeat type %d\n", pPict->repeatType);
     }
 
     switch (pPict->filter) {

@@ -199,10 +199,11 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (mem == NULL || mem->bound)
+    if (mem == NULL || mem->bound || pI830->use_drm_mode)
 	return TRUE;
 
-    if (mem->bo != NULL) {
+    if (pI830->have_gem && mem->bo != NULL) {
+
 	if (dri_bo_pin(mem->bo, mem->alignment) != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to pin %s: %s\n",
@@ -213,9 +214,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	mem->bound = TRUE;
 	mem->offset = mem->bo->offset;
 	mem->end = mem->offset + mem->size;
-    }
-
-    if (!mem->bound) {
+    } else {
 	if (!pI830->gtt_acquired)
 	    return TRUE;
 
@@ -228,8 +227,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	mem->bound = TRUE;
     }
 
-    if (mem->tiling != TILE_NONE && !pI830->use_drm_mode &&
-	!pI830->kernel_exec_fencing) {
+    if (mem->tiling != TILE_NONE && !pI830->kernel_exec_fencing) {
 	mem->fence_nr = i830_set_tiling(pScrn, mem->offset, mem->pitch,
 					mem->allocated_size, mem->tiling);
     }
@@ -249,7 +247,7 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	!pI830->kernel_exec_fencing)
 	i830_clear_tiling(pScrn, mem->fence_nr);
 
-    if (mem->bo != NULL) {
+    if (mem->bo != NULL && !pI830->use_drm_mode) {
 	if (dri_bo_unpin(mem->bo) == 0) {
 	    mem->bound = FALSE;
 	    /* Give buffer obviously wrong offset/end until it's re-pinned. */
@@ -334,10 +332,8 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     }
 
     /* Free any allocations in buffer objects */
-    if (pI830->memory_manager) {
-	while (pI830->bo_list != NULL)
-	    i830_free_memory(pScrn, pI830->bo_list);
-    }
+    while (pI830->bo_list != NULL)
+        i830_free_memory(pScrn, pI830->bo_list);
 
     /* Null out the pointers for all the allocations we just freed.  This is
      * kind of gross, but at least it's just one place now.
@@ -364,13 +360,11 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
  * addresses to reference.
  */
 Bool
-i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
+i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *start, *end;
-    struct drm_i915_getparam gp;
     struct drm_i915_setparam sp;
-    int has_gem;
 
     start = xcalloc(1, sizeof(*start));
     if (start == NULL)
@@ -395,36 +389,26 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
     }
 
     start->key = -1;
-    start->offset = offset;
+    start->offset = 0;
     start->end = start->offset;
     start->size = 0;
     start->next = end;
     end->key = -1;
-    end->offset = offset + size;
+    end->offset = size;
     end->end = end->offset;
     end->size = 0;
     end->prev = start;
 
     pI830->memory_list = start;
 
-    has_gem = FALSE;
-
-    if (pI830->directRenderingType >= DRI_DRI2)
-    {
-	has_gem = FALSE;
-	gp.param = I915_PARAM_HAS_GEM;
-	gp.value = &has_gem;
-    
-	(void)drmCommandWriteRead(pI830->drmSubFD, DRM_I915_GETPARAM,
-				  &gp, sizeof(gp));
-    }
-
-    /* Now that we have our manager set up, initialize the kernel MM if
-     * possible, covering almost all of the aperture.  We need libdri interface
-     * 5.4 or newer so we can rely on the lock being held after DRIScreenInit,
-     * rather than after DRIFinishScreenInit.
+    /* Now that we have our manager set up, give the kernel a piece of the
+     * aperture for GEM buffer object mapping. This is only needed for UXA
+     * and/or DRI2 when the kernel hasn't already managed this itself under
+     * KMS.  We need libdri interface5.4 or newer so we can rely on the lock
+     * being held after DRIScreenInit, rather than after DRIFinishScreenInit.
      */
-    if (pI830->directRenderingType == DRI_DRI2 && has_gem) {
+
+    if (!pI830->use_drm_mode) {
 	int mmsize;
 
 	/* Take over all of the graphics aperture minus enough to for
@@ -440,53 +424,49 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	}
 	if (pI830->CursorNeedsPhysical) {
 	    mmsize -= 2 * (ROUND_TO(HWCURSOR_SIZE, GTT_PAGE_SIZE) +
-		    ROUND_TO(HWCURSOR_SIZE_ARGB, GTT_PAGE_SIZE));
+			   ROUND_TO(HWCURSOR_SIZE_ARGB, GTT_PAGE_SIZE));
 	}
 	if (pI830->fb_compression)
 	    mmsize -= MB(6) + ROUND_TO_PAGE(FBC_LL_SIZE + FBC_LL_PAD);
+
 	/* Can't do GEM on stolen memory */
 	mmsize -= pI830->stolen_size;
 
 	/* Create the aperture allocation */
 	pI830->memory_manager =
-	    i830_allocate_aperture(pScrn, "DRI memory manager",
-				   mmsize, 0, GTT_PAGE_SIZE,
-				   ALIGN_BOTH_ENDS | NEED_NON_STOLEN,
-				   TILE_NONE);
+		i830_allocate_aperture(pScrn, "DRI memory manager",
+				       mmsize, 0, GTT_PAGE_SIZE,
+				       ALIGN_BOTH_ENDS | NEED_NON_STOLEN,
+				       TILE_NONE);
 
 	if (pI830->memory_manager != NULL) {
-	    if (!pI830->use_drm_mode) {
-		struct drm_i915_gem_init init;
-		int ret;
+	    struct drm_i915_gem_init init;
+	    int ret;
 
-		if (pI830->accel == ACCEL_UXA) {
-		    sp.param = I915_SETPARAM_NUM_USED_FENCES;
-		    sp.value = 0; /* kernel gets them all */
+	    sp.param = I915_SETPARAM_NUM_USED_FENCES;
+	    sp.value = 0; /* kernel gets them all */
 
-		    ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_SETPARAM,
-					  &sp, sizeof(sp));
-		    if (ret == 0)
-			pI830->kernel_exec_fencing = TRUE;
-		}
-		init.gtt_start = pI830->memory_manager->offset;
-		init.gtt_end = pI830->memory_manager->offset +
-		    pI830->memory_manager->size;
+	    ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_SETPARAM,
+				  &sp, sizeof(sp));
+	    if (ret == 0)
+		pI830->kernel_exec_fencing = TRUE;
+	    init.gtt_start = pI830->memory_manager->offset;
+	    init.gtt_end = pI830->memory_manager->offset + pI830->memory_manager->size;
 
-		/* Tell the kernel to manage it */
-		ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_INIT, &init);
-		if (ret != 0) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			       "Failed to initialize kernel memory manager\n");
-		    i830_free_memory(pScrn, pI830->memory_manager);
-		    pI830->memory_manager = NULL;
-		}
+	    /* Tell the kernel to manage it */
+	    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_INIT, &init);
+	    if (ret == 0) {
+		pI830->have_gem = TRUE;
 		i830_init_bufmgr(pScrn);
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to initialize kernel memory manager\n");
+		i830_free_memory(pScrn, pI830->memory_manager);
+		pI830->memory_manager = NULL;
 	    }
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to allocate space for kernel memory manager\n");
-	    i830_free_memory(pScrn, pI830->memory_manager);
-	    pI830->memory_manager = NULL;
 	}
     }
 
@@ -798,6 +778,9 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	}
     }
 
+    if (flags & DISABLE_REUSE)
+	drm_intel_bo_disable_reuse(mem->bo);
+
     /* Insert new allocation into the list */
     mem->prev = NULL;
     mem->next = pI830->bo_list;
@@ -853,9 +836,15 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 	size = i830_get_fence_size(pI830, size);
 	alignment = i830_get_fence_alignment(pI830, size);
     }
-    if (pI830->use_drm_mode || (pI830->memory_manager &&
-				!(flags & NEED_PHYSICAL_ADDR) &&
-				!(flags & NEED_LIFETIME_FIXED)))
+    /*
+     * Create a kernel buffer object when suitable.
+     * Under KMS, all graphics memory must be managed by the
+     * kernel. Under UMS, we separately reserve space for
+     * a few objects (overlays, power context, cursors, etc).
+     */
+    if (pI830->have_gem &&
+	(pI830->use_drm_mode ||
+	 !(flags & (NEED_PHYSICAL_ADDR|NEED_LIFETIME_FIXED))))
     {
 	return i830_allocate_memory_bo(pScrn, name, size, pitch, alignment, flags, tile_format);
     } else
@@ -928,31 +917,33 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 		   "%s0x%08lx:            end of aperture\n",
 		   prefix, pI830->FbMapSize);
 
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+		   "%sBO memory allocation layout:\n", prefix);
     if (pI830->memory_manager) {
-	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-		       "%sBO memory allocation layout:\n", prefix);
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		       "%s0x%08lx:            start of memory manager\n",
 		       prefix, pI830->memory_manager->offset);
-	for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
-	    char *tile_suffix = "";
+    }
+    for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
+	char *tile_suffix = "";
 
-	    if (mem->tiling == TILE_XMAJOR)
-		tile_suffix = " X tiled";
-	    else if (mem->tiling == TILE_YMAJOR)
-		tile_suffix = " Y tiled";
+	if (mem->tiling == TILE_XMAJOR)
+	    tile_suffix = " X tiled";
+	else if (mem->tiling == TILE_YMAJOR)
+	    tile_suffix = " Y tiled";
 
-	    if (mem->bound) {
-		xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			       "%s0x%08lx-0x%08lx: %s (%ld kB)%s\n", prefix,
-			       mem->offset, mem->end - 1, mem->name,
-			       mem->size / 1024, tile_suffix);
-	    } else {
-		xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
-			       "%sunpinned          : %s (%ld kB)%s\n", prefix,
-			       mem->name, mem->size / 1024, tile_suffix);
-	    }
+	if (mem->bound) {
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+			   "%s0x%08lx-0x%08lx: %s (%ld kB)%s\n", prefix,
+			   mem->offset, mem->end - 1, mem->name,
+			   mem->size / 1024, tile_suffix);
+	} else {
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
+			   "%sunpinned          : %s (%ld kB)%s\n", prefix,
+			   mem->name, mem->size / 1024, tile_suffix);
 	}
+    }
+    if (pI830->memory_manager) {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		       "%s0x%08lx:            end of memory manager\n",
 		       prefix, pI830->memory_manager->end);
@@ -964,7 +955,7 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->accel == ACCEL_NONE || pI830->memory_manager || pI830->ring.mem != NULL)
+    if (pI830->have_gem || pI830->ring.mem != NULL)
 	return TRUE;
 
     /* We don't have any mechanism in the DRM yet to alert it that we've moved
@@ -1068,14 +1059,14 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
-    unsigned long minspace, avail;
+    unsigned long minspace;
     int align;
     long size, fb_height;
     int flags;
     i830_memory *front_buffer = NULL;
     enum tile_format tile_format = TILE_NONE;
 
-    flags = ALLOW_SHARING;
+    flags = ALLOW_SHARING|DISABLE_REUSE;
 
     /* We'll allocate the fb such that the root window will fit regardless of
      * rotation.
@@ -1087,7 +1078,6 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
      * enough for the virtual screen size.
      */
     minspace = pitch * pScrn->virtualY;
-    avail = pScrn->videoRam * 1024;
 
     size = ROUND_TO_PAGE(pitch * fb_height);
 
@@ -1122,8 +1112,10 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 	return NULL;
     }
 
-    if (!pI830->use_drm_mode && pI830->FbBase && front_buffer->bound)
+    if (pI830->FbBase && front_buffer->bound)
 	memset (pI830->FbBase + front_buffer->offset, 0, size);
+
+    i830_set_max_gtt_map_size(pScrn);
 
     return front_buffer;
 }
@@ -1141,6 +1133,8 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 	pI830->CursorNeedsPhysical = FALSE;
 
     flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
+
+    flags |= DISABLE_REUSE;
 
     /* Try to allocate one big blob for our cursor memory.  This works
      * around a limitation in the FreeBSD AGP driver that allows only one
@@ -1271,7 +1265,8 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	}
 
 	/* Allocate the ring buffer first, so it ends up in stolen mem. */
-	i830_allocate_ringbuffer(pScrn);
+	if (!i830_allocate_ringbuffer(pScrn))
+	    return FALSE;
     }
 
     if (pI830->fb_compression)
@@ -1284,7 +1279,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
-    if (pI830->memory_manager == NULL) {
+    if (!pI830->have_gem) {
 	pI830->fake_bufmgr_mem = i830_allocate_memory(pScrn, "fake bufmgr",
 						      MB(8), PITCH_NONE, GTT_PAGE_SIZE, 0,
 						      TILE_NONE);
@@ -1293,6 +1288,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 		       "Failed to allocate fake bufmgr space.\n");
 	    return FALSE;
 	}
+	i830_init_bufmgr(pScrn);
     }
 
     if (!pI830->use_drm_mode)
@@ -1583,6 +1579,7 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
     }
     if (!pI830->use_drm_mode)
 	i830_update_cursor_offsets(pScrn);
+    i830_set_max_gtt_map_size(pScrn);
 
     return TRUE;
 }
@@ -1667,3 +1664,26 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
     return TRUE;
 }
 #endif
+
+void
+i830_set_max_gtt_map_size(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct drm_i915_gem_get_aperture aperture;
+    int ret;
+
+    /* Default low value in case it gets used during server init. */
+    pI830->max_gtt_map_size = 16 * 1024 * 1024;
+
+    if (!pI830->have_gem)
+	return;
+
+    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+    if (ret == 0) {
+	/* Let objects up get bound up to the size where only 2 would fit in
+	 * the aperture, but then leave slop to account for alignment like
+	 * libdrm does.
+	 */
+	pI830->max_gtt_map_size = aperture.aper_available_size * 3 / 4 / 2;
+    }
+}

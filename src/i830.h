@@ -210,7 +210,6 @@ struct _I830DVODriver {
    unsigned int dvo_reg;
    uint32_t gpio;
    int address;
-   const char **symbols;
    I830I2CVidOutputRec *vid_rec;
    void *dev_priv;
    pointer modhandle;
@@ -318,18 +317,17 @@ enum backlight_control {
     BCM_KERNEL,
 };
 
-typedef enum accel_method {
-    ACCEL_UNINIT = 0,
-    ACCEL_NONE,
-    ACCEL_UXA
-} accel_method_t;
-
 enum dri_type {
     DRI_DISABLED,
     DRI_NONE,
     DRI_DRI2
 };
-
+struct sdvo_device_mapping {
+   uint8_t dvo_port;
+   uint8_t slave_addr;
+   uint8_t dvo_wiring;
+   uint8_t initialized;
+};
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *GTTBase;
@@ -405,16 +403,19 @@ typedef struct _I830Rec {
 
    i830_memory *memory_manager;		/**< DRI memory manager aperture */
 
+   Bool have_gem;
    Bool need_mi_flush;
 
    Bool tiling;
    Bool fb_compression;
+   Bool swapbuffers_wait;
 
    Bool CursorNeedsPhysical;
 
    int Chipset;
    unsigned long LinearAddr;
    unsigned long MMIOAddr;
+   unsigned int MMIOSize;
    IOADDRESS ioBase;
    EntityInfoPtr pEnt;
    struct pci_device *PciInfo;
@@ -424,7 +425,6 @@ typedef struct _I830Rec {
 
    Bool fence_used[FENCE_NEW_NR];
 
-   accel_method_t accel;
    CloseScreenProcPtr CloseScreen;
 
    void (*batch_flush_notify)(ScrnInfoPtr pScrn);
@@ -436,6 +436,7 @@ typedef struct _I830Rec {
    int accel_pixmap_offset_alignment;
    int accel_max_x;
    int accel_max_y;
+   int max_gtt_map_size;
 
    I830WriteIndexedByteFunc writeControl;
    I830ReadIndexedByteFunc readControl;
@@ -497,6 +498,7 @@ typedef struct _I830Rec {
    int lvds_ssc_freq; /* in MHz */
    Bool lvds_dither;
    DisplayModePtr lvds_fixed_mode;
+   DisplayModePtr sdvo_lvds_fixed_mode;
    Bool skip_panel_detect;
    Bool integrated_lvds; /* LVDS config from driver feature BDB */
 
@@ -605,6 +607,7 @@ typedef struct _I830Rec {
 
     /** User option to print acceleration fallback info to the server log. */
    Bool fallback_debug;
+   struct sdvo_device_mapping sdvo_mappings[2];
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -662,7 +665,9 @@ extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
 extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
-
+extern xf86CrtcPtr i830_covering_crtc (ScrnInfoPtr pScrn, BoxPtr box,
+				       xf86CrtcPtr desired,
+				       BoxPtr crtc_box_ret);
 int
 i830_crtc_pipe (xf86CrtcPtr crtc);
 
@@ -678,7 +683,11 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
 
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
+extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
+extern int drmmode_output_dpms_status(xf86OutputPtr output);
 
+extern Bool i830_crtc_on(xf86CrtcPtr crtc);
+extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,
@@ -692,8 +701,7 @@ extern void I830SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,
 extern void I830SubsequentSolidFillRect(ScrnInfoPtr pScrn, int x, int y,
 					int w, int h);
 
-Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
-			 unsigned long size);
+Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size);
 void i830_allocator_fini(ScrnInfoPtr pScrn);
 i830_memory * i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 				   unsigned long size, unsigned long pitch,
@@ -747,6 +755,7 @@ Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
 Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
 unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size);
 unsigned long i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format);
+void i830_set_max_gtt_map_size(ScrnInfoPtr pScrn);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
@@ -811,8 +820,7 @@ i830_wait_ring_idle(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->accel != ACCEL_NONE)
-       I830WaitLpRing(pScrn, pI830->ring.mem->size - 8, 0);
+   I830WaitLpRing(pScrn, pI830->ring.mem->size - 8, 0);
 }
 
 static inline int i830_fb_compression_supported(I830Ptr pI830)
@@ -823,10 +831,11 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 	return FALSE;
     if (IS_IGD(pI830))
 	return FALSE;
-    /* fbc depends on tiled surface. And we don't support tiled
-     * front buffer with unaccelerated.
+    if (IS_IGDNG(pI830))
+	return FALSE;
+    /* fbc depends on tiled surface.
      */
-    if (!pI830->tiling || (IS_I965G(pI830) && pI830->accel == ACCEL_NONE))
+    if (!pI830->tiling)
 	return FALSE;
     /* We have not gotten FBC to work consistently on 965GM. Our best
      * working theory right now is that FBC simply isn't reliable on
@@ -901,6 +910,7 @@ extern const int I830CopyROP[16];
 #define NEED_NON_STOLEN			0x00000004
 #define NEED_LIFETIME_FIXED		0x00000008
 #define ALLOW_SHARING			0x00000010
+#define DISABLE_REUSE			0x00000020
 
 /* Chipset registers for VIDEO BIOS memory RW access */
 #define _855_DRAM_RW_CONTROL 0x58
@@ -939,5 +949,24 @@ i830_debug_sync(ScrnInfoPtr scrn)
 {
 }
 #endif
+
+static inline PixmapPtr
+get_drawable_pixmap(DrawablePtr drawable)
+{
+    ScreenPtr screen = drawable->pScreen;
+
+    if (drawable->type == DRAWABLE_PIXMAP)
+	return (PixmapPtr)drawable;
+    else
+	return screen->GetWindowPixmap((WindowPtr)drawable);
+}
+
+static inline Bool
+pixmap_is_scanout(PixmapPtr pixmap)
+{
+    ScreenPtr screen = pixmap->drawable.pScreen;
+
+    return pixmap == screen->GetScreenPixmap(screen);
+}
 
 #endif /* _I830_H_ */

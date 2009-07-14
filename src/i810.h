@@ -266,8 +266,6 @@ typedef struct _I810Rec {
    int  drmMinor;
 } I810Rec;
 
-extern const char *I810vbeSymbols[];
-
 #define I810PTR(p) ((I810Ptr)((p)->driverPrivate))
 
 #define I810_SELECT_FRONT	0

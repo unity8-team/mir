@@ -57,7 +57,7 @@ intel_batch_start_atomic(ScrnInfoPtr pScrn, unsigned int sz)
     I830Ptr pI830 = I830PTR(pScrn);
 
     assert(!pI830->in_batch_atomic);
-    intel_batch_require_space(pScrn, pI830, sz);
+    intel_batch_require_space(pScrn, pI830, sz * 4);
 
     pI830->in_batch_atomic = TRUE;
     pI830->batch_atomic_limit = pI830->batch_used + sz * 4;
@@ -102,9 +102,16 @@ intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap,
 			      uint32_t delta)
 {
     dri_bo *bo = i830_get_pixmap_bo(pPixmap);
+    uint32_t offset;
     assert(pI830->batch_ptr != NULL);
     assert(intel_batch_space(pI830) >= 4);
-    intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
+    if (bo) {
+	intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
+	return;
+    }
+    offset = intel_get_pixmap_offset(pPixmap);
+    *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = offset + delta;
+    pI830->batch_used += 4;
 }
 
 #define OUT_BATCH(dword) intel_batch_emit_dword(pI830, dword)
