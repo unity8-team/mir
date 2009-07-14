@@ -798,6 +798,9 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     /* HP Host Bridge / R300 [FireGL X1] Needs AGPMode 2 (fdo #7770) */
     { PCI_VENDOR_HP,0x122e,    PCI_VENDOR_ATI,0x4e47,  PCI_VENDOR_ATI,0x0152,    2 },
 
+    /* nVidia Host Bridge / R420 [X800 Pro] Needs AGPMode 4 (fdo #22726) */
+    { 0x10de,0x00e1,           PCI_VENDOR_ATI,0x4a49,  PCI_VENDOR_ATI,0x0002,    4 },
+
     { 0, 0, 0, 0, 0, 0, 0 },
 };
 
