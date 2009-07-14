@@ -999,6 +999,10 @@ typedef struct {
     Bool cs;
 #endif
 
+    /* Xv bicubic filtering */
+    struct radeon_bo *bicubic_bo;
+    void             *bicubic_memory;
+    int               bicubic_offset;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\

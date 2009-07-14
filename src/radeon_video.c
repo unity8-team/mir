@@ -1648,10 +1648,6 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
 
   if (pPriv->textured) {
       if (cleanup) {
-	  if (pPriv->bicubic_memory != NULL) {
-	      radeon_legacy_free_memory(pScrn, pPriv->bicubic_memory);
-	      pPriv->bicubic_memory = NULL;
-	  }
 	  if (pPriv->video_memory != NULL) {
 	      radeon_legacy_free_memory(pScrn, pPriv->video_memory);
 	      pPriv->video_memory = NULL;

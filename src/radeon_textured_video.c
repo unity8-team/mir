@@ -332,16 +332,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     /* Bicubic filter loading */
-    if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
-	pPriv->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
-						              &pPriv->bicubic_memory,
-						              sizeof(bicubic_tex_512), 64);
-	pPriv->bicubic_src_offset = pPriv->bicubic_offset;
-	if (pPriv->bicubic_offset == 0)
-		pPriv->bicubic_enabled = FALSE;
-
-	if (info->cs)
-	    pPriv->bicubic_bo = pPriv->bicubic_memory;
+    if (pPriv->bicubic_enabled) {
+	if (info->bicubic_offset == 0)
+	    pPriv->bicubic_enabled = FALSE;
+	pPriv->bicubic_src_offset = info->bicubic_offset;
     }
 
     if (pDraw->type == DRAWABLE_WINDOW)
@@ -375,9 +369,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	int ret;
 	radeon_bo_wait(pPriv->src_bo);
 	ret = radeon_bo_map(pPriv->src_bo, 1);
-	if (ret) 
+	if (ret)
 	    return BadAlloc;
-	
+
 	pPriv->src_addr = pPriv->src_bo->ptr;
     } else {
 	pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset);
@@ -446,27 +440,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 			   pPriv->src_addr + (top * dstPitch),
 			   srcPitch, dstPitch, nlines, width, 2);
 	break;
-    }
-
-    /* Upload bicubic filter tex */
-    if (pPriv->bicubic_enabled) {
-	if (info->ChipFamily < CHIP_FAMILY_R600) {
-	    uint8_t *bicubic_addr;
-	    int ret;
-	    if (info->cs) {
-		radeon_bo_wait(pPriv->bicubic_bo);
-		ret = radeon_bo_map(pPriv->bicubic_bo, 1);
-		if (ret)
-		    return BadAlloc;
-
-		bicubic_addr = pPriv->bicubic_bo->ptr;
-	    } else
-		bicubic_addr = (uint8_t *)(info->FB + pPriv->bicubic_offset);
-
-	    RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_512, bicubic_addr, 1024, 1024, 1, 512, 2);
-	   if (info->cs)
-	       radeon_bo_unmap(pPriv->bicubic_bo);
-	}
     }
 
     /* update cliplist */
@@ -698,6 +671,53 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
     return Success;
 }
 
+static Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr    info = RADEONPTR(pScrn);
+
+    /* Bicubic filter loading */
+    info->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
+							 &info->bicubic_memory,
+							 sizeof(bicubic_tex_512), 64);
+    if (info->bicubic_offset == 0)
+	return FALSE;
+
+    if (info->cs)
+	info->bicubic_bo = info->bicubic_memory;
+
+    /* Upload bicubic filter tex */
+    if (info->ChipFamily < CHIP_FAMILY_R600) {
+	uint8_t *bicubic_addr;
+	int ret;
+	if (info->cs) {
+	    radeon_bo_wait(info->bicubic_bo);
+	    ret = radeon_bo_map(info->bicubic_bo, 1);
+	    if (ret)
+		return FALSE;
+
+	    bicubic_addr = info->bicubic_bo->ptr;
+	} else
+	    bicubic_addr = (uint8_t *)(info->FB + info->bicubic_offset);
+
+	RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_512, bicubic_addr, 1024, 1024, 1, 512, 2);
+	if (info->cs)
+	    radeon_bo_unmap(info->bicubic_bo);
+    }
+    return TRUE;
+}
+
+/* XXX */
+static void radeon_unload_bicubic_texture(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr    info = RADEONPTR(pScrn);
+
+    if (info->bicubic_memory != NULL) {
+	radeon_legacy_free_memory(pScrn, info->bicubic_memory);
+	info->bicubic_memory = NULL;
+    }
+
+}
+
 XF86VideoAdaptorPtr
 RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 {
@@ -794,6 +814,9 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	REGION_NULL(pScreen, &pPriv->clip);
 	adapt->pPortPrivates[i].ptr = (pointer) (pPriv);
     }
+
+    if (IS_R500_3D || IS_R300_3D)
+	radeon_load_bicubic_texture(pScrn);
 
     return adapt;
 }

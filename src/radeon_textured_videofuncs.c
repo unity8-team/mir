@@ -110,7 +110,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
         radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	if (pPriv->bicubic_enabled)
-	    radeon_cs_space_add_persistent_bo(info->cs, pPriv->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
 	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
@@ -499,7 +499,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
         radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	if (pPriv->bicubic_enabled)
-	    radeon_cs_space_add_persistent_bo(info->cs, pPriv->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
 	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
@@ -1041,7 +1041,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	if (pPriv->bicubic_enabled)
-	  radeon_cs_space_add_persistent_bo(info->cs, pPriv->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	  radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
 	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
@@ -1227,7 +1227,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	OUT_ACCEL_REG(R300_TX_FORMAT0_1, txformat0);
 	OUT_ACCEL_REG(R300_TX_FORMAT1_1, txformat1);
 	OUT_ACCEL_REG(R300_TX_FORMAT2_1, txpitch);
-	OUT_TEXTURE_REG(R300_TX_OFFSET_1, bicubic_offset, pPriv->bicubic_bo);
+	OUT_TEXTURE_REG(R300_TX_OFFSET_1, bicubic_offset, info->bicubic_bo);
 	FINISH_ACCEL();
 
 	/* Enable tex 1 */
@@ -2492,7 +2492,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	if (pPriv->bicubic_enabled)
-	    radeon_cs_space_add_persistent_bo(info->cs, pPriv->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	driver_priv = exaGetPixmapDriverPrivate(pPixmap);
 	radeon_cs_space_add_persistent_bo(info->cs, driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);
@@ -2681,7 +2681,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	OUT_ACCEL_REG(R300_TX_FORMAT0_1, txformat0);
 	OUT_ACCEL_REG(R300_TX_FORMAT1_1, txformat1);
 	OUT_ACCEL_REG(R300_TX_FORMAT2_1, txpitch);
-	OUT_TEXTURE_REG(R300_TX_OFFSET_1, bicubic_offset, pPriv->bicubic_bo);
+	OUT_TEXTURE_REG(R300_TX_OFFSET_1, bicubic_offset, info->bicubic_bo);
 	FINISH_ACCEL();
 
 	/* Enable tex 1 */

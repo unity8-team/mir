@@ -94,8 +94,6 @@ typedef struct {
    int           planev_offset;
 
    /* bicubic filtering */
-   void         *bicubic_memory;
-   int           bicubic_offset;
    Bool          bicubic_enabled;
    uint32_t      bicubic_src_offset;
    int           bicubic_state;
@@ -122,7 +120,6 @@ typedef struct {
     int vsync;
 
     struct radeon_bo *src_bo;
-    struct radeon_bo *bicubic_bo;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 
 /* Reference color space transform data */
