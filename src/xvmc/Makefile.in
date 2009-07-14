@@ -35,11 +35,14 @@ host_triplet = @host@
 subdir = src/xvmc
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/dolt.m4 \
+	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
+	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
+	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/m4/shave.m4 \
 	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-mkinstalldirs = $(install_sh) -d
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -62,8 +65,8 @@ libIntelXvMC_la_DEPENDENCIES =
 am_libIntelXvMC_la_OBJECTS = libIntelXvMC_la-intel_xvmc.lo \
 	libIntelXvMC_la-intel_xvmc_dump.lo \
 	libIntelXvMC_la-i915_xvmc.lo libIntelXvMC_la-i965_xvmc.lo \
-	libIntelXvMC_la-intel_batchbuffer.lo \
-	libIntelXvMC_la-xf86dri.lo
+	libIntelXvMC_la-xvmc_vld.lo \
+	libIntelXvMC_la-intel_batchbuffer.lo libIntelXvMC_la-dri2.lo
 libIntelXvMC_la_OBJECTS = $(am_libIntelXvMC_la_OBJECTS)
 libIntelXvMC_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libIntelXvMC_la_CFLAGS) \
@@ -80,13 +83,24 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libI810XvMC_la_SOURCES) $(libIntelXvMC_la_SOURCES)
 DIST_SOURCES = $(libI810XvMC_la_SOURCES) $(libIntelXvMC_la_SOURCES)
+RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
+	html-recursive info-recursive install-data-recursive \
+	install-dvi-recursive install-exec-recursive \
+	install-html-recursive install-info-recursive \
+	install-pdf-recursive install-ps-recursive install-recursive \
+	installcheck-recursive installdirs-recursive pdf-recursive \
+	ps-recursive uninstall-recursive
+RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
+  distclean-recursive maintainer-clean-recursive
 ETAGS = etags
 CTAGS = ctags
+DIST_SUBDIRS = $(SUBDIRS)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 ADMIN_MAN_DIR = @ADMIN_MAN_DIR@
 ADMIN_MAN_SUFFIX = @ADMIN_MAN_SUFFIX@
 AMTAR = @AMTAR@
+AM_MAKEFLAGS = @AM_MAKEFLAGS@
 APP_MAN_DIR = @APP_MAN_DIR@
 APP_MAN_SUFFIX = @APP_MAN_SUFFIX@
 AR = @AR@
@@ -99,6 +113,7 @@ CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
+CXX = @CXX@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
@@ -110,8 +125,6 @@ DRI_CFLAGS = @DRI_CFLAGS@
 DRI_LIBS = @DRI_LIBS@
 DRM_CFLAGS = @DRM_CFLAGS@
 DRM_LIBS = @DRM_LIBS@
-DRM_MODE_CFLAGS = @DRM_MODE_CFLAGS@
-DRM_MODE_LIBS = @DRM_MODE_LIBS@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -119,6 +132,8 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+F77 = @F77@
+FC = @FC@
 FGREP = @FGREP@
 FILE_MAN_DIR = @FILE_MAN_DIR@
 FILE_MAN_SUFFIX = @FILE_MAN_SUFFIX@
@@ -142,6 +157,7 @@ LTCOMPILE = @LTCOMPILE@
 LTCXXCOMPILE = @LTCXXCOMPILE@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
+MAKEFLAGS = @MAKEFLAGS@
 MAKEINFO = @MAKEINFO@
 MAKE_HTML = @MAKE_HTML@
 MAKE_PDF = @MAKE_PDF@
@@ -167,18 +183,15 @@ PCIACCESS_CFLAGS = @PCIACCESS_CFLAGS@
 PCIACCESS_LIBS = @PCIACCESS_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 PS2PDF = @PS2PDF@
+Q = @Q@
 RANLIB = @RANLIB@
 SED = @SED@
-SERVER_1_5_CFLAGS = @SERVER_1_5_CFLAGS@
-SERVER_1_5_LIBS = @SERVER_1_5_LIBS@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+V = @V@
 VERSION = @VERSION@
 WARN_CFLAGS = @WARN_CFLAGS@
-XEXT_CFLAGS = @XEXT_CFLAGS@
-XEXT_LIBS = @XEXT_LIBS@
-XMODES_CFLAGS = @XMODES_CFLAGS@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
 XVMCLIB_CFLAGS = @XVMCLIB_CFLAGS@
@@ -231,6 +244,7 @@ program_transform_name = @program_transform_name@
 psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
+shavedir = @shavedir@
 srcdir = @srcdir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
@@ -238,6 +252,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 @XVMC_TRUE@lib_LTLIBRARIES = libI810XvMC.la libIntelXvMC.la
+SUBDIRS = shader
 libI810XvMC_la_SOURCES = I810XvMC.c \
 			 I810XvMC.h
 
@@ -255,105 +270,22 @@ libIntelXvMC_la_SOURCES = intel_xvmc.c \
         i915_xvmc.h                    \
         i965_xvmc.c                    \
         i965_xvmc.h                    \
+        xvmc_vld.c                     \
+        xvmc_vld.h                     \
         intel_batchbuffer.c            \
         intel_batchbuffer.h            \
-        xf86dri.c                      \
-        xf86dri.h                      \
-        xf86dristr.h
+        dri2.c                         \
+        dri2.h	
 
 libIntelXvMC_la_CFLAGS = @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	@XVMCLIB_CFLAGS@ -I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
 
 libIntelXvMC_la_LDFLAGS = -version-number 1:0:0
-libIntelXvMC_la_LIBADD = @DRI_LIBS@ @DRM_LIBS@ @XVMCLIB_LIBS@ @XEXT_LIBS@ -lpthread
-INTEL_G4A = \
-        dual_prime_igd.g4a              \
-        field_backward_igd.g4a          \
-        field_f_b_igd.g4a               \
-        field_forward_igd.g4a           \
-        frame_backward_igd.g4a          \
-        frame_f_b_igd.g4a               \
-        frame_forward_igd.g4a           \
-        dual_prime.g4a              \
-        field_backward.g4a          \
-        field_f_b.g4a               \
-        field_forward.g4a           \
-        frame_backward.g4a          \
-        frame_f_b.g4a               \
-        frame_forward.g4a           \
-        ipicture.g4a                \
-        null.g4a
-
-INTEL_G4I = \
-        addidct.g4i                              \
-        block_clear.g4i                          \
-        read_frame_x0y0_y.g4i                    \
-        read_frame_x0y1_y.g4i                    \
-        read_frame_x1y0_y.g4i                    \
-        read_frame_x1y1_y.g4i                    \
-        read_frame_x0y0_uv.g4i                   \
-        read_frame_x0y1_uv.g4i                   \
-        read_frame_x1y0_uv.g4i                   \
-        read_frame_x1y1_uv.g4i                   \
-        read_frame_x0y0_y_igd.g4i                    \
-        read_frame_x0y1_y_igd.g4i                    \
-        read_frame_x1y0_y_igd.g4i                    \
-        read_frame_x1y1_y_igd.g4i                    \
-        read_frame_x0y0_uv_igd.g4i                   \
-        read_frame_x0y1_uv_igd.g4i                   \
-        read_frame_x1y0_uv_igd.g4i                   \
-        read_frame_x1y1_uv_igd.g4i                   \
-        motion_frame_y.g4i                       \
-        motion_frame_uv.g4i                      \
-        read_field_x0y0_y.g4i                    \
-        read_field_x0y1_y.g4i                    \
-        read_field_x1y0_y.g4i                    \
-        read_field_x1y1_y.g4i                    \
-        read_field_x0y0_uv.g4i                   \
-        read_field_x0y1_uv.g4i                   \
-        read_field_x1y0_uv.g4i                   \
-        read_field_x1y1_uv.g4i                   \
-        read_field_x0y0_y_igd.g4i                    \
-        read_field_x0y1_y_igd.g4i                    \
-        read_field_x1y0_y_igd.g4i                    \
-        read_field_x1y1_y_igd.g4i                    \
-        read_field_x0y0_uv_igd.g4i                   \
-        read_field_x0y1_uv_igd.g4i                   \
-        read_field_x1y0_uv_igd.g4i                   \
-        read_field_x1y1_uv_igd.g4i                   \
-        motion_field_y.g4i                       \
-        motion_field_uv.g4i
-
-INTEL_G4B = \
-        dual_prime.g4b              \
-        field_backward.g4b          \
-        field_f_b.g4b               \
-        field_forward.g4b           \
-        frame_backward.g4b          \
-        frame_f_b.g4b               \
-        frame_forward.g4b           \
-        dual_prime_igd.g4b              \
-        field_backward_igd.g4b          \
-        field_f_b_igd.g4b               \
-        field_forward_igd.g4b           \
-        frame_backward_igd.g4b          \
-        frame_f_b_igd.g4b               \
-        frame_forward_igd.g4b           \
-        ipicture.g4b                \
-        null.g4b
-
-EXTRA_DIST = \
-        $(INTEL_G4A)    \
-        $(INTEL_G4I)    \
-        $(INTEL_G4B)    
-
-@HAVE_GEN4ASM_TRUE@SUFFIXES = .g4a .g4b
-@HAVE_GEN4ASM_TRUE@BUILT_SOURCES = $(INTEL_G4B)
-all: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) all-am
+libIntelXvMC_la_LIBADD = @DRI_LIBS@ @DRM_LIBS@ @XVMCLIB_LIBS@ -lpthread -ldrm_intel
+all: all-recursive
 
 .SUFFIXES:
-.SUFFIXES: .g4a .g4b .c .lo .o .obj
+.SUFFIXES: .c .lo .o .obj
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -422,12 +354,13 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libI810XvMC_la-I810XvMC.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-dri2.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-i915_xvmc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-i965_xvmc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-intel_batchbuffer.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-intel_xvmc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-intel_xvmc_dump.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-xf86dri.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-xvmc_vld.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -485,6 +418,13 @@ libIntelXvMC_la-i965_xvmc.lo: i965_xvmc.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-i965_xvmc.lo `test -f 'i965_xvmc.c' || echo '$(srcdir)/'`i965_xvmc.c
 
+libIntelXvMC_la-xvmc_vld.lo: xvmc_vld.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-xvmc_vld.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-xvmc_vld.Tpo -c -o libIntelXvMC_la-xvmc_vld.lo `test -f 'xvmc_vld.c' || echo '$(srcdir)/'`xvmc_vld.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libIntelXvMC_la-xvmc_vld.Tpo $(DEPDIR)/libIntelXvMC_la-xvmc_vld.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='xvmc_vld.c' object='libIntelXvMC_la-xvmc_vld.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-xvmc_vld.lo `test -f 'xvmc_vld.c' || echo '$(srcdir)/'`xvmc_vld.c
+
 libIntelXvMC_la-intel_batchbuffer.lo: intel_batchbuffer.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-intel_batchbuffer.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-intel_batchbuffer.Tpo -c -o libIntelXvMC_la-intel_batchbuffer.lo `test -f 'intel_batchbuffer.c' || echo '$(srcdir)/'`intel_batchbuffer.c
 @am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libIntelXvMC_la-intel_batchbuffer.Tpo $(DEPDIR)/libIntelXvMC_la-intel_batchbuffer.Plo
@@ -492,18 +432,88 @@ libIntelXvMC_la-intel_batchbuffer.lo: intel_batchbuffer.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-intel_batchbuffer.lo `test -f 'intel_batchbuffer.c' || echo '$(srcdir)/'`intel_batchbuffer.c
 
-libIntelXvMC_la-xf86dri.lo: xf86dri.c
-@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-xf86dri.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-xf86dri.Tpo -c -o libIntelXvMC_la-xf86dri.lo `test -f 'xf86dri.c' || echo '$(srcdir)/'`xf86dri.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libIntelXvMC_la-xf86dri.Tpo $(DEPDIR)/libIntelXvMC_la-xf86dri.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='xf86dri.c' object='libIntelXvMC_la-xf86dri.lo' libtool=yes @AMDEPBACKSLASH@
+libIntelXvMC_la-dri2.lo: dri2.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-dri2.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-dri2.Tpo -c -o libIntelXvMC_la-dri2.lo `test -f 'dri2.c' || echo '$(srcdir)/'`dri2.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libIntelXvMC_la-dri2.Tpo $(DEPDIR)/libIntelXvMC_la-dri2.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='dri2.c' object='libIntelXvMC_la-dri2.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-xf86dri.lo `test -f 'xf86dri.c' || echo '$(srcdir)/'`xf86dri.c
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-dri2.lo `test -f 'dri2.c' || echo '$(srcdir)/'`dri2.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
 
 clean-libtool:
 	-rm -rf .libs _libs
+
+# This directory's subdirectories are mostly independent; you can cd
+# into them and run `make' without going through this Makefile.
+# To change the values of `make' variables: instead of editing Makefiles,
+# (1) if the variable is set in `config.status', edit `config.status'
+#     (which will cause the Makefiles to be regenerated when you run `make');
+# (2) otherwise, pass the desired values on the `make' command line.
+$(RECURSIVE_TARGETS):
+	@failcom='exit 1'; \
+	for f in x $$MAKEFLAGS; do \
+	  case $$f in \
+	    *=* | --[!k]*);; \
+	    *k*) failcom='fail=yes';; \
+	  esac; \
+	done; \
+	dot_seen=no; \
+	target=`echo $@ | sed s/-recursive//`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    dot_seen=yes; \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
+	  || eval $$failcom; \
+	done; \
+	if test "$$dot_seen" = "no"; then \
+	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
+	fi; test -z "$$fail"
+
+$(RECURSIVE_CLEAN_TARGETS):
+	@failcom='exit 1'; \
+	for f in x $$MAKEFLAGS; do \
+	  case $$f in \
+	    *=* | --[!k]*);; \
+	    *k*) failcom='fail=yes';; \
+	  esac; \
+	done; \
+	dot_seen=no; \
+	case "$@" in \
+	  distclean-* | maintainer-clean-*) list='$(DIST_SUBDIRS)' ;; \
+	  *) list='$(SUBDIRS)' ;; \
+	esac; \
+	rev=''; for subdir in $$list; do \
+	  if test "$$subdir" = "."; then :; else \
+	    rev="$$subdir $$rev"; \
+	  fi; \
+	done; \
+	rev="$$rev ."; \
+	target=`echo $@ | sed s/-recursive//`; \
+	for subdir in $$rev; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
+	  || eval $$failcom; \
+	done && test -z "$$fail"
+tags-recursive:
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  test "$$subdir" = . || (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) tags); \
+	done
+ctags-recursive:
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  test "$$subdir" = . || (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) ctags); \
+	done
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -515,10 +525,23 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	mkid -fID $$unique
 tags: TAGS
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+TAGS: tags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
+	if ($(ETAGS) --etags-include --version) >/dev/null 2>&1; then \
+	  include_option=--etags-include; \
+	  empty_fix=.; \
+	else \
+	  include_option=--include; \
+	  empty_fix=; \
+	fi; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  if test "$$subdir" = .; then :; else \
+	    test ! -f $$subdir/TAGS || \
+	      tags="$$tags $$include_option=$$here/$$subdir/TAGS"; \
+	  fi; \
+	done; \
 	list='$(SOURCES) $(HEADERS)  $(LISP) $(TAGS_FILES)'; \
 	unique=`for i in $$list; do \
 	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
@@ -531,7 +554,7 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	    $$tags $$unique; \
 	fi
 ctags: CTAGS
-CTAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+CTAGS: ctags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	list='$(SOURCES) $(HEADERS)  $(LISP) $(TAGS_FILES)'; \
@@ -578,24 +601,40 @@ distdir: $(DISTFILES)
 	    || exit 1; \
 	  fi; \
 	done
+	list='$(DIST_SUBDIRS)'; for subdir in $$list; do \
+	  if test "$$subdir" = .; then :; else \
+	    test -d "$(distdir)/$$subdir" \
+	    || $(MKDIR_P) "$(distdir)/$$subdir" \
+	    || exit 1; \
+	    distdir=`$(am__cd) $(distdir) && pwd`; \
+	    top_distdir=`$(am__cd) $(top_distdir) && pwd`; \
+	    (cd $$subdir && \
+	      $(MAKE) $(AM_MAKEFLAGS) \
+	        top_distdir="$$top_distdir" \
+	        distdir="$$distdir/$$subdir" \
+		am__remove_distdir=: \
+		am__skip_length_check=: \
+	        distdir) \
+	      || exit 1; \
+	  fi; \
+	done
 check-am: all-am
-check: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) check-am
+check: check-recursive
 all-am: Makefile $(LTLIBRARIES)
-installdirs:
+installdirs: installdirs-recursive
+installdirs-am:
 	for dir in "$(DESTDIR)$(libdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
-install: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) install-am
-install-exec: install-exec-am
-install-data: install-data-am
-uninstall: uninstall-am
+install: install-recursive
+install-exec: install-exec-recursive
+install-data: install-data-recursive
+uninstall: uninstall-recursive
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 
-installcheck: installcheck-am
+installcheck: installcheck-recursive
 install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
 	  install_sh_PROGRAM="$(INSTALL_STRIP_PROGRAM)" INSTALL_STRIP_FLAG=-s \
@@ -611,90 +650,84 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
-@HAVE_GEN4ASM_FALSE@clean-local:
-clean: clean-am
+clean: clean-recursive
 
-clean-am: clean-generic clean-libLTLIBRARIES clean-libtool clean-local \
+clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	mostlyclean-am
 
-distclean: distclean-am
+distclean: distclean-recursive
 	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
 
-dvi: dvi-am
+dvi: dvi-recursive
 
 dvi-am:
 
-html: html-am
+html: html-recursive
 
-info: info-am
+info: info-recursive
 
 info-am:
 
 install-data-am:
 
-install-dvi: install-dvi-am
+install-dvi: install-dvi-recursive
 
 install-exec-am: install-libLTLIBRARIES
 
-install-html: install-html-am
+install-html: install-html-recursive
 
-install-info: install-info-am
+install-info: install-info-recursive
 
 install-man:
 
-install-pdf: install-pdf-am
+install-pdf: install-pdf-recursive
 
-install-ps: install-ps-am
+install-ps: install-ps-recursive
 
 installcheck-am:
 
-maintainer-clean: maintainer-clean-am
+maintainer-clean: maintainer-clean-recursive
 	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
-mostlyclean: mostlyclean-am
+mostlyclean: mostlyclean-recursive
 
 mostlyclean-am: mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool
 
-pdf: pdf-am
+pdf: pdf-recursive
 
 pdf-am:
 
-ps: ps-am
+ps: ps-recursive
 
 ps-am:
 
 uninstall-am: uninstall-libLTLIBRARIES
 
-.MAKE: install-am install-strip
+.MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) install-am \
+	install-strip
 
-.PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libLTLIBRARIES clean-libtool clean-local ctags distclean \
-	distclean-compile distclean-generic distclean-libtool \
-	distclean-tags distdir dvi dvi-am html html-am info info-am \
-	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am \
-	install-libLTLIBRARIES install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags uninstall uninstall-am uninstall-libLTLIBRARIES
+.PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
+	all all-am check check-am clean clean-generic \
+	clean-libLTLIBRARIES clean-libtool ctags ctags-recursive \
+	distclean distclean-compile distclean-generic \
+	distclean-libtool distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am install-data \
+	install-data-am install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-libLTLIBRARIES install-man install-pdf \
+	install-pdf-am install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs installdirs-am \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	pdf pdf-am ps ps-am tags tags-recursive uninstall uninstall-am \
+	uninstall-libLTLIBRARIES
 
-@HAVE_GEN4ASM_TRUE@.g4a.g4b:
-@HAVE_GEN4ASM_TRUE@	m4 $*.g4a > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
-
-@HAVE_GEN4ASM_TRUE@$(INTEL_G4B): $(INTEL_G4I)
-
-@HAVE_GEN4ASM_TRUE@clean-local:
-@HAVE_GEN4ASM_TRUE@	-rm -f $(INTEL_G4B)
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

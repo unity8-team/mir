@@ -390,6 +390,89 @@ static const uint32_t ps_kernel_masknoca_projective_static [][4] = {
 #include "exa_wm_write.g4b"
 };
 
+/* new programs for IGDNG */
+static const uint32_t sf_kernel_static_gen5[][4] = {
+#include "exa_sf.g4b.gen5"
+};
+
+static const uint32_t sf_kernel_mask_static_gen5[][4] = {
+#include "exa_sf_mask.g4b.gen5"
+};
+
+static const uint32_t ps_kernel_nomask_affine_static_gen5 [][4] = {
+#include "exa_wm_xy.g4b.gen5"
+#include "exa_wm_src_affine.g4b.gen5"
+#include "exa_wm_src_sample_argb.g4b.gen5"
+#include "exa_wm_write.g4b.gen5"
+};
+
+static const uint32_t ps_kernel_nomask_projective_static_gen5 [][4] = {
+#include "exa_wm_xy.g4b.gen5"
+#include "exa_wm_src_projective.g4b.gen5"
+#include "exa_wm_src_sample_argb.g4b.gen5"
+#include "exa_wm_write.g4b.gen5"
+};
+
+static const uint32_t ps_kernel_maskca_affine_static_gen5 [][4] = {
+#include "exa_wm_xy.g4b.gen5"
+#include "exa_wm_src_affine.g4b.gen5"
+#include "exa_wm_src_sample_argb.g4b.gen5"
+#include "exa_wm_mask_affine.g4b.gen5"
+#include "exa_wm_mask_sample_argb.g4b.gen5"
+#include "exa_wm_ca.g4b.gen5"
+#include "exa_wm_write.g4b.gen5"
+};
+
+static const uint32_t ps_kernel_maskca_projective_static_gen5 [][4] = {
+#include "exa_wm_xy.g4b.gen5"
+#include "exa_wm_src_projective.g4b.gen5"
+#include "exa_wm_src_sample_argb.g4b.gen5"
+#include "exa_wm_mask_projective.g4b.gen5"
+#include "exa_wm_mask_sample_argb.g4b.gen5"
+#include "exa_wm_ca.g4b.gen5"
+#include "exa_wm_write.g4b.gen5"
+};
+
+static const uint32_t ps_kernel_maskca_srcalpha_affine_static_gen5 [][4] = {
+#include "exa_wm_xy.g4b.gen5"
+#include "exa_wm_src_affine.g4b.gen5"
+#include "exa_wm_src_sample_a.g4b.gen5"
+#include "exa_wm_mask_affine.g4b.gen5"
+#include "exa_wm_mask_sample_argb.g4b.gen5"
+#include "exa_wm_ca_srcalpha.g4b.gen5"
+#include "exa_wm_write.g4b.gen5"
+};
+
+static const uint32_t ps_kernel_maskca_srcalpha_projective_static_gen5 [][4] = {
+#include "exa_wm_xy.g4b.gen5"
+#include "exa_wm_src_projective.g4b.gen5"
+#include "exa_wm_src_sample_a.g4b.gen5"
+#include "exa_wm_mask_projective.g4b.gen5"
+#include "exa_wm_mask_sample_argb.g4b.gen5"
+#include "exa_wm_ca_srcalpha.g4b.gen5"
+#include "exa_wm_write.g4b.gen5"
+};
+
+static const uint32_t ps_kernel_masknoca_affine_static_gen5 [][4] = {
+#include "exa_wm_xy.g4b.gen5"
+#include "exa_wm_src_affine.g4b.gen5"
+#include "exa_wm_src_sample_argb.g4b.gen5"
+#include "exa_wm_mask_affine.g4b.gen5"
+#include "exa_wm_mask_sample_a.g4b.gen5"
+#include "exa_wm_noca.g4b.gen5"
+#include "exa_wm_write.g4b.gen5"
+};
+
+static const uint32_t ps_kernel_masknoca_projective_static_gen5 [][4] = {
+#include "exa_wm_xy.g4b.gen5"
+#include "exa_wm_src_projective.g4b.gen5"
+#include "exa_wm_src_sample_argb.g4b.gen5"
+#include "exa_wm_mask_projective.g4b.gen5"
+#include "exa_wm_mask_sample_a.g4b.gen5"
+#include "exa_wm_noca.g4b.gen5"
+#include "exa_wm_write.g4b.gen5"
+};
+
 #define WM_STATE_DECL(kernel) \
     struct brw_wm_unit_state wm_state_ ## kernel[SAMPLER_STATE_FILTER_COUNT] \
 						[SAMPLER_STATE_EXTEND_COUNT] \
@@ -435,7 +518,9 @@ struct wm_kernel_info {
     void *data;
     unsigned int size;
     Bool has_mask;
-} wm_kernels[] = {
+};
+
+static struct wm_kernel_info wm_kernels[] = {
     KERNEL(WM_KERNEL_NOMASK_AFFINE,
 	   ps_kernel_nomask_affine_static, FALSE),
     KERNEL(WM_KERNEL_NOMASK_PROJECTIVE,
@@ -452,6 +537,25 @@ struct wm_kernel_info {
 	   ps_kernel_masknoca_affine_static, TRUE),
     KERNEL(WM_KERNEL_MASKNOCA_PROJECTIVE,
 	   ps_kernel_masknoca_projective_static, TRUE),
+};
+
+static struct wm_kernel_info wm_kernels_gen5[] = {
+    KERNEL(WM_KERNEL_NOMASK_AFFINE,
+	   ps_kernel_nomask_affine_static_gen5, FALSE),
+    KERNEL(WM_KERNEL_NOMASK_PROJECTIVE,
+	   ps_kernel_nomask_projective_static_gen5, FALSE),
+    KERNEL(WM_KERNEL_MASKCA_AFFINE,
+	   ps_kernel_maskca_affine_static_gen5, TRUE),
+    KERNEL(WM_KERNEL_MASKCA_PROJECTIVE,
+	   ps_kernel_maskca_projective_static_gen5, TRUE),
+    KERNEL(WM_KERNEL_MASKCA_SRCALPHA_AFFINE,
+	   ps_kernel_maskca_srcalpha_affine_static_gen5, TRUE),
+    KERNEL(WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
+	   ps_kernel_maskca_srcalpha_projective_static_gen5, TRUE),
+    KERNEL(WM_KERNEL_MASKNOCA_AFFINE,
+	   ps_kernel_masknoca_affine_static_gen5, TRUE),
+    KERNEL(WM_KERNEL_MASKNOCA_PROJECTIVE,
+	   ps_kernel_masknoca_projective_static_gen5, TRUE),
 };
 #undef KERNEL
 
@@ -768,7 +872,12 @@ gen4_create_wm_state(ScrnInfoPtr scrn,
     wm_state->thread3.dispatch_grf_start_reg = 3; /* must match kernel */
 
     wm_state->wm4.stats_enable = 1;  /* statistic */
-    wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
+    
+    if (IS_IGDNG(pI830))
+        wm_state->wm4.sampler_count = 0; /* hardware requirement */
+    else
+        wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
+
     wm_state->wm4.sampler_state_pointer =
 	intel_emit_reloc(wm_state_bo, offsetof(struct brw_wm_unit_state, wm4),
 			 sampler_bo,
@@ -793,6 +902,12 @@ gen4_create_wm_state(ScrnInfoPtr scrn,
 	wm_state->thread1.binding_table_entry_count = 2; /* 1 tex and fb */
 	wm_state->thread3.urb_entry_read_length = 2;
     }
+
+    /* binding table entry count is only used for prefetching, and it has to 
+     * be set 0 for IGDNG
+     */
+    if (IS_IGDNG(pI830))
+        wm_state->thread1.binding_table_entry_count = 0;
 
     drm_intel_bo_unmap(wm_state_bo);
 
@@ -819,11 +934,15 @@ gen4_create_cc_viewport(ScrnInfoPtr scrn)
 static drm_intel_bo *
 gen4_create_vs_unit_state(ScrnInfoPtr scrn)
 {
+    I830Ptr pI830 = I830PTR(scrn);
     struct brw_vs_unit_state vs_state;
     memset(&vs_state, 0, sizeof(vs_state));
 
     /* Set up the vertex shader to be disabled (passthrough) */
-    vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
+    if (IS_IGDNG(pI830))
+        vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES >> 2; /* hardware requirement */
+    else
+        vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
     vs_state.thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
     vs_state.vs6.vs_enable = 0;
     vs_state.vs6.vert_cache_disable = 1;
@@ -1040,10 +1159,13 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 	ADVANCE_BATCH();
     }
     {
-        BEGIN_BATCH(12);
+        if (IS_IGDNG(pI830))
+            BEGIN_BATCH(14);
+        else
+            BEGIN_BATCH(12);
 
         /* Match Mesa driver setup */
-	if (IS_G4X(pI830))
+	if (IS_G4X(pI830) || IS_IGDNG(pI830))
 	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -1055,15 +1177,28 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 	/* Zero out the two base address registers so all offsets are
 	 * absolute.
 	 */
-	OUT_BATCH(BRW_STATE_BASE_ADDRESS | 4);
-	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
-	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
-	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
-	/* general state max addr, disabled */
-	OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
-	/* media object state max addr, disabled */
-	OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
-
+        if (IS_IGDNG(pI830)) {
+            OUT_BATCH(BRW_STATE_BASE_ADDRESS | 6);
+            OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
+            OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
+            OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
+            OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Instruction base address */
+            /* general state max addr, disabled */
+            OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+            /* media object state max addr, disabled */
+            OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+            /* Instruction max addr, disabled */
+            OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+        } else {
+            OUT_BATCH(BRW_STATE_BASE_ADDRESS | 4);
+            OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
+            OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
+            OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
+            /* general state max addr, disabled */
+            OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+            /* media object state max addr, disabled */
+            OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+        }
 	/* Set system instruction pointer */
 	OUT_BATCH(BRW_STATE_SIP | 0);
 	OUT_RELOC(render_state->sip_kernel_bo,
@@ -1072,12 +1207,16 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 	ADVANCE_BATCH();
     }
     {
+	int pipe_ctrl;        
 	BEGIN_BATCH(26);
 	/* Pipe control */
-	OUT_BATCH(BRW_PIPE_CONTROL |
-		  BRW_PIPE_CONTROL_NOWRITE |
-		  BRW_PIPE_CONTROL_IS_FLUSH |
-		  2);
+        
+	if (IS_IGDNG(pI830))
+            pipe_ctrl = BRW_PIPE_CONTROL_NOWRITE;
+	else
+            pipe_ctrl = BRW_PIPE_CONTROL_NOWRITE | BRW_PIPE_CONTROL_IS_FLUSH;
+
+	OUT_BATCH(BRW_PIPE_CONTROL | pipe_ctrl | 2);
 	OUT_BATCH(0);			       /* Destination address */
 	OUT_BATCH(0);			       /* Immediate data low DW */
 	OUT_BATCH(0);			       /* Immediate data high DW */
@@ -1094,7 +1233,7 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 	/* The drawing rectangle clipping is always on.  Set it to values that
 	 * shouldn't do any clipping.
 	 */
-	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2); /* XXX 3 for BLC or CTG */
+	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);
 	OUT_BATCH(0x00000000);	/* ymin, xmin */
 	OUT_BATCH(DRAW_YMAX(pDst->drawable.height - 1) |
 		  DRAW_XMAX(pDst->drawable.width - 1)); /* ymax, xmax */
@@ -1174,53 +1313,96 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 	    src_format = BRW_SURFACEFORMAT_R32G32B32_FLOAT;
 	    w_component = BRW_VFCOMPONENT_STORE_SRC;
 	}
-	BEGIN_BATCH(pMask?7:5);
-	/* Set up our vertex elements, sourced from the single vertex buffer.
-	 * that will be set up later.
-	 */
-	
-	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * (1 + nelem)) - 1));
+
+        if (IS_IGDNG(pI830)) {
+            BEGIN_BATCH(pMask?9:7);
+	    /*
+	     * The reason to add this extra vertex element in the header is that
+	     * IGDNG has different vertex header definition and origin method to
+	     * set destination element offset doesn't exist anymore, which means
+	     * hardware requires a predefined vertex element layout.
+	     *
+	     * haihao proposed this approach to fill the first vertex element, so
+	     * origin layout for Gen4 doesn't need to change, and origin shader
+	     * programs behavior is also kept.
+	     *
+	     * I think this is not bad. - zhenyu
+	     */
+
+	    OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * (2 + nelem)) - 1));
+	    OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+                      VE0_VALID |
+                      (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+                      (0 << VE0_OFFSET_SHIFT));
+
+	    OUT_BATCH((BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
+        } else {
+            BEGIN_BATCH(pMask?7:5);
+            /* Set up our vertex elements, sourced from the single vertex buffer.
+             * that will be set up later.
+             */
+            OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * (1 + nelem)) - 1));
+        }
+
 	/* x,y */
 	OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 		  VE0_VALID |
 		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		  (0				<< VE0_OFFSET_SHIFT));
-	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_2_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_3_SHIFT) |
-		  (4				<< VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+		  (0                            << VE0_OFFSET_SHIFT));
+
+        if (IS_IGDNG(pI830))
+            OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_2_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_3_SHIFT));
+        else
+            OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_2_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_3_SHIFT) |
+                      (4				<< VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
 	/* u0, v0, w0 */
 	OUT_BATCH((0				<< VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 		  VE0_VALID					     |
 		  (src_format			<< VE0_FORMAT_SHIFT) |
-		  ((2 * 4)			<< VE0_OFFSET_SHIFT)); /* offset vb in bytes */
-	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
-		  (w_component			<< VE1_VFCOMPONENT_2_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_3_SHIFT) |
-		  ((4 + 4)			<< VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
+		  ((2 * 4)                      << VE0_OFFSET_SHIFT)); /* offset vb in bytes */
+
+        if (IS_IGDNG(pI830))
+            OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
+                      (w_component			<< VE1_VFCOMPONENT_2_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_3_SHIFT));
+        else
+            OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
+                      (w_component			<< VE1_VFCOMPONENT_2_SHIFT) |
+                      (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_3_SHIFT) |
+                      ((4 + 4)			<< VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
 	/* u1, v1, w1 */
    	if (pMask) {
 	    OUT_BATCH((0			    << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 		      VE0_VALID							    |
 		      (src_format		    << VE0_FORMAT_SHIFT) |
-		      (((2 + selem) * 4)    	    << VE0_OFFSET_SHIFT));  /* vb offset in bytes */
+		      (((2 + selem) * 4)            << VE0_OFFSET_SHIFT));  /* vb offset in bytes */
 	    
-	    OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_0_SHIFT) |
-		      (BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_1_SHIFT) |
-		      (w_component		    << VE1_VFCOMPONENT_2_SHIFT) |
-		      (BRW_VFCOMPONENT_STORE_1_FLT  << VE1_VFCOMPONENT_3_SHIFT) |
-		      ((4 + 4 + 4)		    << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
+            if (IS_IGDNG(pI830))
+                OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_0_SHIFT) |
+                          (BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_1_SHIFT) |
+                          (w_component		    << VE1_VFCOMPONENT_2_SHIFT) |
+                          (BRW_VFCOMPONENT_STORE_1_FLT  << VE1_VFCOMPONENT_3_SHIFT));
+            else
+                OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_0_SHIFT) |
+                          (BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_1_SHIFT) |
+                          (w_component		    << VE1_VFCOMPONENT_2_SHIFT) |
+                          (BRW_VFCOMPONENT_STORE_1_FLT  << VE1_VFCOMPONENT_3_SHIFT) |
+                          ((4 + 4 + 4)		    << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
    	}
 
 	ADVANCE_BATCH();
     }
-
-#ifdef I830DEBUG
-    ErrorF("try to sync to show any errors...\n");
-    I830Sync(pScrn);
-#endif
 }
 
 /**
@@ -1290,8 +1472,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     surface_state_bo = dri_bo_alloc(pI830->bufmgr, "surface_state",
 				    3 * sizeof (brw_surface_state_padded),
 				    4096);
-    if (dri_bo_map(surface_state_bo, 1) != 0)
+    if (dri_bo_map(surface_state_bo, 1) != 0) {
+	dri_bo_unreference(surface_state_bo);
 	return FALSE;
+    }
     /* Set up the state buffer for the destination surface */
     i965_set_picture_surface_state(surface_state_bo, 0,
 				   pDstPicture, pDst, TRUE);
@@ -1310,6 +1494,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     binding_table_bo = dri_bo_alloc(pI830->bufmgr, "binding_table",
 				    3 * sizeof(uint32_t), 4096);
     if (dri_bo_map (binding_table_bo, 1) != 0) {
+	dri_bo_unreference(binding_table_bo);
 	dri_bo_unreference(surface_state_bo);
 	return FALSE;
     }
@@ -1585,7 +1770,12 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	      VB0_VERTEXDATA |
 	      (render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
     OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, render_state->vb_offset * 4);
-    OUT_BATCH(3);
+
+    if (IS_IGDNG(pI830))
+        OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, render_state->vb_offset * 4 + i * 4);
+    else
+        OUT_BATCH(3);
+
     OUT_BATCH(0); // ignore for VERTEXDATA, but still there
 
     OUT_BATCH(BRW_3DPRIMITIVE |
@@ -1605,10 +1795,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     intel_batch_end_atomic(pScrn);
 
-#ifdef I830DEBUG
-    ErrorF("sync after 3dprimitive\n");
-    I830Sync(pScrn);
-#endif
+    i830_debug_sync(pScrn);
 }
 
 void
@@ -1649,14 +1836,25 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     render_state->vs_state_bo = gen4_create_vs_unit_state(pScrn);
 
     /* Set up the two SF states (one for blending with a mask, one without) */
-    sf_kernel_bo = intel_bo_alloc_for_data(pScrn,
-					   sf_kernel_static,
-					   sizeof(sf_kernel_static),
-					   "sf kernel");
-    sf_kernel_mask_bo = intel_bo_alloc_for_data(pScrn,
-						sf_kernel_mask_static,
-						sizeof(sf_kernel_mask_static),
-						"sf mask kernel");
+    if (IS_IGDNG(pI830)) {
+	sf_kernel_bo = intel_bo_alloc_for_data(pScrn,
+					       sf_kernel_static_gen5,
+					       sizeof(sf_kernel_static_gen5),
+					       "sf kernel gen5");
+	sf_kernel_mask_bo = intel_bo_alloc_for_data(pScrn,
+						    sf_kernel_mask_static_gen5,
+						    sizeof(sf_kernel_mask_static_gen5),
+						    "sf mask kernel");
+    } else {
+	sf_kernel_bo = intel_bo_alloc_for_data(pScrn,
+					       sf_kernel_static,
+					       sizeof(sf_kernel_static),
+					       "sf kernel");
+	sf_kernel_mask_bo = intel_bo_alloc_for_data(pScrn,
+						    sf_kernel_mask_static,
+						    sizeof(sf_kernel_mask_static),
+						    "sf mask kernel");
+    }
     render_state->sf_state_bo = gen4_create_sf_state(pScrn, sf_kernel_bo);
     render_state->sf_mask_state_bo = gen4_create_sf_state(pScrn,
 							  sf_kernel_mask_bo);
@@ -1664,10 +1862,16 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     drm_intel_bo_unreference(sf_kernel_mask_bo);
 
     for (m = 0; m < WM_KERNEL_COUNT; m++) {
-	render_state->wm_kernel_bo[m] =
-	    intel_bo_alloc_for_data(pScrn,
-				    wm_kernels[m].data, wm_kernels[m].size,
-				    "WM kernel");
+	if (IS_IGDNG(pI830))
+	    render_state->wm_kernel_bo[m] =
+		intel_bo_alloc_for_data(pScrn,
+				        wm_kernels_gen5[m].data, wm_kernels_gen5[m].size,
+				        "WM kernel gen5");
+	else
+	    render_state->wm_kernel_bo[m] =
+		intel_bo_alloc_for_data(pScrn,
+				        wm_kernels[m].data, wm_kernels[m].size,
+				        "WM kernel");
     }
 
     /* Set up the WM states: each filter/extend type for source and mask, per
@@ -1687,11 +1891,18 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 						  border_color_bo);
 
 		    for (m = 0; m < WM_KERNEL_COUNT; m++) {
-			render_state->wm_state_bo[m][i][j][k][l] =
-			    gen4_create_wm_state(pScrn,
-						 wm_kernels[m].has_mask,
-						 render_state->wm_kernel_bo[m],
-						 sampler_state_bo);
+			if (IS_IGDNG(pI830))
+			    render_state->wm_state_bo[m][i][j][k][l] =
+				gen4_create_wm_state(pScrn,
+						     wm_kernels_gen5[m].has_mask,
+						     render_state->wm_kernel_bo[m],
+						     sampler_state_bo);
+			else
+			    render_state->wm_state_bo[m][i][j][k][l] =
+				gen4_create_wm_state(pScrn,
+						     wm_kernels[m].has_mask,
+						     render_state->wm_kernel_bo[m],
+						     sampler_state_bo);
 		    }
 		    drm_intel_bo_unreference(sampler_state_bo);
 		}
@@ -1716,35 +1927,28 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
     int i, j, k, l, m;
+    gen4_composite_op *composite_op = &render_state->composite_op;
 
-    if (render_state->vertex_buffer_bo) {
-	dri_bo_unreference (render_state->vertex_buffer_bo);
-	render_state->vertex_buffer_bo = NULL;
-    }
+    drm_intel_bo_unreference(composite_op->binding_table_bo);
+    drm_intel_bo_unreference(render_state->vertex_buffer_bo);
 
     drm_intel_bo_unreference(render_state->vs_state_bo);
-    render_state->vs_state_bo = NULL;
     drm_intel_bo_unreference(render_state->sf_state_bo);
-    render_state->sf_state_bo = NULL;
     drm_intel_bo_unreference(render_state->sf_mask_state_bo);
-    render_state->sf_mask_state_bo = NULL;
 
-    for (i = 0; i < WM_KERNEL_COUNT; i++) {
+    for (i = 0; i < WM_KERNEL_COUNT; i++)
 	drm_intel_bo_unreference(render_state->wm_kernel_bo[i]);
-	render_state->wm_kernel_bo[i] = NULL;
-    }
 
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++)
 	for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++)
 	    for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++)
 		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++)
-		    for (m = 0; m < WM_KERNEL_COUNT; m++) {
+		    for (m = 0; m < WM_KERNEL_COUNT; m++)
 			drm_intel_bo_unreference(render_state->wm_state_bo[m][i][j][k][l]);
-			render_state->wm_state_bo[m][i][j][k][l] = NULL;
-		    }
 
     drm_intel_bo_unreference(render_state->cc_state_bo);
-    render_state->cc_state_bo = NULL;
     drm_intel_bo_unreference(render_state->sip_kernel_bo);
-    render_state->sip_kernel_bo = NULL;
+
+    free(pI830->gen4_render_state);
+    pI830->gen4_render_state = NULL;
 }

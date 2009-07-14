@@ -207,12 +207,8 @@ i830_lvds_set_backlight_legacy(xf86OutputPtr output, int level)
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
-#if XSERVER_LIBPCIACCESS
     pci_device_cfg_write_u8(pI830->PciInfo, level,
 			    LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-    pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, level);
-#endif
 }
 
 static int
@@ -222,11 +218,7 @@ i830_lvds_get_backlight_legacy(xf86OutputPtr output)
     I830Ptr pI830 = I830PTR(pScrn);
     uint8_t lbb;
 
-#if XSERVER_LIBPCIACCESS
     pci_device_cfg_read_u8(pI830->PciInfo, &lbb, LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-    lbb = pciReadByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS);
-#endif
 
     return lbb;
 }
@@ -242,22 +234,14 @@ i830_lvds_set_backlight_combo(xf86OutputPtr output, int level)
     uint32_t blc_pwm_ctl;
     uint8_t lbb;
 
-#if XSERVER_LIBPCIACCESS
     pci_device_cfg_read_u8(pI830->PciInfo, &lbb, LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-    lbb = pciReadByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS);
-#endif
     /*
      * If LBB is zero and we're shooting for a non-zero brightness level,
      * we have to increase LBB by at least 1.
      */
     if (!lbb && level) {
-#if XSERVER_LIBPCIACCESS
 	pci_device_cfg_write_u8(pI830->PciInfo, 1,
 				LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-	pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, 1);
-#endif
     }
 
     /*
@@ -623,6 +607,9 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     float		    horiz_ratio, vert_ratio;
     int left_border = 0, right_border = 0, top_border = 0, bottom_border = 0;
     int i;
+    uint32_t		    hsync_width, vsync_width;
+    uint32_t		    hblank_width, vblank_width;
+    uint32_t		    hsync_pos, vsync_pos;
     Bool border = 0;
 
     for (i = 0; i < xf86_config->num_output; i++) {
@@ -679,6 +666,12 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	pfit_control |= (intel_crtc->pipe << PFIT_PIPE_SHIFT) |
 	    PFIT_FILTER_FUZZY;
 
+    hsync_width = adjusted_mode->CrtcHSyncEnd - adjusted_mode->CrtcHSyncStart;
+    vsync_width = adjusted_mode->CrtcVSyncEnd - adjusted_mode->CrtcVSyncStart;
+    hblank_width = adjusted_mode->CrtcHBlankEnd -
+					adjusted_mode->CrtcHBlankStart;
+    vblank_width = adjusted_mode->CrtcVBlankEnd -
+					adjusted_mode->CrtcVBlankStart;
     /*
      * Deal with panel fitting options.  Figure out how to stretch the image
      * based on its aspect ratio & the current panel fitting mode.
@@ -716,17 +709,34 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 
 	/* Set active & border values */
 	adjusted_mode->CrtcHDisplay = mode->HDisplay;
-	adjusted_mode->CrtcHBlankStart = mode->HDisplay + right_border - 1;
-	adjusted_mode->CrtcHBlankEnd = adjusted_mode->CrtcHTotal -
-	    left_border - 1;
-	adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHBlankStart;
-	adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHBlankEnd;
+	/* keep the horizontal border be even */
+	if (right_border & 1)
+		right_border++;
+	/* use the border directly instead of border minus one */
+	adjusted_mode->CrtcHBlankStart = mode->HDisplay + right_border;
+	/* keep the blank width constant */
+	adjusted_mode->CrtcHBlankEnd = adjusted_mode->CrtcHBlankStart +
+					hblank_width;
+	/* get the hsync start position relative to hblank start */
+	hsync_pos = (hblank_width - hsync_width) / 2;
+	/* keep the hsync width constant and hsync start be even */
+	if (hsync_pos & 1)
+		hsync_pos++;
+	adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHBlankStart +
+						hsync_pos;
+	adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart +
+						hsync_width;
 	adjusted_mode->CrtcVDisplay = mode->VDisplay;
-	adjusted_mode->CrtcVBlankStart = mode->VDisplay + bottom_border - 1;
-	adjusted_mode->CrtcVBlankEnd = adjusted_mode->CrtcVTotal -
-	    top_border - 1;
-	adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVBlankStart;
-	adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVBlankEnd;
+	/* use the border instead of border minus one */
+	adjusted_mode->CrtcVBlankStart = mode->VDisplay + bottom_border;
+	adjusted_mode->CrtcVBlankEnd = adjusted_mode->CrtcVBlankStart +
+						vblank_width;
+	/* get the vsync start position relative to vblank start */
+	vsync_pos = (vblank_width - vsync_width) / 2;
+	adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVBlankStart +
+						vsync_pos;
+	adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart +
+						vsync_width;
 	border = 1;
 	break;
     case FULL_ASPECT:
@@ -774,13 +784,22 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		if (mode->HDisplay & 1) /* odd resolutions */
 		    right_border++;
 
+		/* keep the border be even */
+		if (right_border & 1)
+			right_border++;
 		adjusted_mode->CrtcHDisplay = scaled_width;
-		adjusted_mode->CrtcHBlankStart = scaled_width +
-		    right_border - 1;
-		adjusted_mode->CrtcHBlankEnd = adjusted_mode->CrtcHTotal -
-		    left_border - 1;
-		adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHBlankStart;
-		adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHBlankEnd;
+		adjusted_mode->CrtcHBlankStart = scaled_width + right_border;
+		adjusted_mode->CrtcHBlankEnd = adjusted_mode->CrtcHBlankStart +
+							hblank_width;
+		/* get the hsync start position relative to hblank start */
+		hsync_pos = (hblank_width - hsync_width) / 2;
+		/* keep the hsync start be even */
+		if (hsync_pos & 1)
+			hsync_pos++;
+		adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHBlankStart +
+							hsync_pos;
+		adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart +
+							hsync_width;
 		border = 1;
 	    } else if (panel_ratio < desired_ratio) { /* Letter */
 		unsigned long scaled_height = (float)mode->VDisplay *
@@ -798,12 +817,18 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		    bottom_border++;
 
 		adjusted_mode->CrtcVDisplay = scaled_height;
+		/* use the border instead of border minus one */
 		adjusted_mode->CrtcVBlankStart = scaled_height +
-		    bottom_border - 1;
-		adjusted_mode->CrtcVBlankEnd = adjusted_mode->CrtcVTotal -
-		    top_border - 1;
-		adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVBlankStart;
-		adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVBlankEnd;
+		    bottom_border;
+		/* keep the Vblank width constant */
+		adjusted_mode->CrtcVBlankEnd = adjusted_mode->CrtcVBlankStart +
+							vblank_width;
+		/* get the vsync start position relative to vblank start */
+		vsync_pos = (vblank_width - vsync_width) / 2;
+		adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVBlankStart +
+							vsync_pos;
+		adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVBlankStart +
+							vsync_width;
 		border = 1;
 	    } else { /* Aspects match, let hw scale both directions */
 		pfit_control |= VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |

@@ -416,8 +416,6 @@ static int i915_xvmc_create_context (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
                                   int *num_priv, long **priv )
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    DRIInfoPtr pDRIInfo = pI830->pDRIInfo;
-    I830DRIPtr pI830DRI = pDRIInfo->devPrivate;
     I915XvMCCreateContextRec *contextRec = NULL;
     I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     I915XvMCContextPriv *ctxpriv = NULL;
@@ -490,7 +488,6 @@ static int i915_xvmc_create_context (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 
     /* common context items */
     contextRec->comm.type = xvmc_driver->flag;
-    contextRec->comm.sarea_size = pDRIInfo->SAREASize;
     contextRec->comm.batchbuffer.offset = xvmc_driver->batch->offset;
     contextRec->comm.batchbuffer.size = xvmc_driver->batch->size;
     contextRec->comm.batchbuffer.handle = xvmc_driver->batch_handle;
@@ -515,8 +512,7 @@ static int i915_xvmc_create_context (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     contextRec->corrdata.handle = ctxpriv->corrdata_handle;
     contextRec->corrdata.offset = ctxpriv->mcCorrdata->offset;
     contextRec->corrdata.size = ctxpriv->mcCorrdata->size;
-    contextRec->sarea_priv_offset = sizeof(XF86DRISAREARec);
-    contextRec->deviceID = pI830DRI->deviceID;
+    contextRec->deviceID = DEVICE_ID(pI830->PciInfo);
 
     if (IS_I915G(pI830) || IS_I915GM(pI830)) {
 	contextRec->sis.bus_addr = ctxpriv->mcStaticIndirectState->bus_addr;

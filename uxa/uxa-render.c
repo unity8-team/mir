@@ -44,6 +44,11 @@ static void uxa_composite_fallback_pict_desc(PicturePtr pict, char *string, int 
 	return;
     }
 
+    if (pict->pDrawable == NULL) {
+	snprintf(string, n, "source-only");
+	return;
+    }
+
     switch (pict->format)
     {
     case PICT_a8r8g8b8:
@@ -818,13 +823,8 @@ uxa_create_alpha_picture (ScreenPtr     pScreen,
 	    return 0;
     }
 
-#ifdef SERVER_1_5
     pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height,
 					pPictFormat->depth, 0);
-#else
-    pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height,
-					pPictFormat->depth);
-#endif
     if (!pPixmap)
 	return 0;
     pGC = GetScratchGC (pPixmap->drawable.depth, pScreen);
@@ -902,22 +902,61 @@ uxa_trapezoids (CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	PicturePtr	pPicture;
 	INT16		xDst, yDst;
 	INT16		xRel, yRel;
+	int		width, height, stride;
+	PixmapPtr	pPixmap;
+	GCPtr		pGC;
+	pixman_image_t	*image;
 
 	xDst = traps[0].left.p1.x >> 16;
 	yDst = traps[0].left.p1.y >> 16;
 
+	width = bounds.x2 - bounds.x1;
+	height = bounds.y2 - bounds.y1;
+	stride = (width * BitsPerPixel (maskFormat->depth) + 7) / 8;
+
 	pPicture = uxa_create_alpha_picture (pScreen, pDst, maskFormat,
-	                                  bounds.x2 - bounds.x1,
-	                                  bounds.y2 - bounds.y1);
+					     width, height);
 	if (!pPicture)
 	    return;
 
-	if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
-	    for (; ntrap; ntrap--, traps++)
-		(*ps->RasterizeTrapezoid) (pPicture, traps,
-					   -bounds.x1, -bounds.y1);
-	    uxa_finish_access(pPicture->pDrawable);
+	image = pixman_image_create_bits (pPicture->format,
+					  width, height,
+					  NULL, stride);
+	if (!image) {
+	    FreePicture (pPicture, 0);
+	    return;
 	}
+
+	for (; ntrap; ntrap--, traps++)
+	    pixman_rasterize_trapezoid (image, (pixman_trapezoid_t *) traps,
+					-bounds.x1, -bounds.y1);
+
+	pPixmap = GetScratchPixmapHeader(pScreen, width, height,
+					 maskFormat->depth,
+					 BitsPerPixel (maskFormat->depth),
+					 PixmapBytePad (width, maskFormat->depth),
+					 pixman_image_get_data (image));
+	if (!pPixmap) {
+	    FreePicture (pPicture, 0);
+	    pixman_image_unref (image);
+	    return;
+	}
+
+	pGC = GetScratchGC (pPicture->pDrawable->depth, pScreen);
+	if (!pGC)
+	{
+	    FreeScratchPixmapHeader (pPixmap);
+	    pixman_image_unref (image);
+	    FreePicture (pPicture, 0);
+	    return;
+	}
+
+	(*pGC->ops->CopyArea) (&pPixmap->drawable, pPicture->pDrawable,
+			       pGC, 0, 0, width, height, 0, 0);
+
+	FreeScratchGC (pGC);
+	FreeScratchPixmapHeader (pPixmap);
+	pixman_image_unref (image);
 
 	xRel = bounds.x1 + xSrc - xDst;
 	yRel = bounds.y1 + ySrc - yDst;

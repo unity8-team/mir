@@ -64,6 +64,16 @@
 #endif
 #include "damage.h"
 
+/* Provide substitutes for gcc's __FUNCTION__ on other compilers */
+#if !defined(__GNUC__) && !defined(__FUNCTION__)
+# if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
+#  define __FUNCTION__ __func__
+# else
+#  define __FUNCTION__ ""
+# endif
+#endif
+
+
 /* 1.6 and earlier server compat */
 #ifndef miGetCompositeClip
 #define miCopyRegion fbCopyRegion
@@ -129,10 +139,6 @@ typedef struct {
     CloseScreenProcPtr 		 SavedCloseScreen;
     GetImageProcPtr 		 SavedGetImage;
     GetSpansProcPtr 		 SavedGetSpans;
-#ifndef SERVER_1_5
-    PaintWindowBackgroundProcPtr SavedPaintWindowBackground;
-    PaintWindowBorderProcPtr	 SavedPaintWindowBorder;
-#endif
     CreatePixmapProcPtr 	 SavedCreatePixmap;
     DestroyPixmapProcPtr 	 SavedDestroyPixmap;
     CopyWindowProcPtr 		 SavedCopyWindow;
@@ -171,12 +177,8 @@ extern int uxa_screen_index;
 static inline uxa_screen_t *
 uxa_get_screen(ScreenPtr screen)
 {
-#ifdef SERVER_1_5
     return (uxa_screen_t *)dixLookupPrivate(&screen->devPrivates,
 					    &uxa_screen_index);
-#else
-    return screen->devPrivates[uxa_screen_index].ptr;
-#endif
 }
 
 /** Align an offset to an arbitrary alignment */
