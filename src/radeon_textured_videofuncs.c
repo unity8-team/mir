@@ -1220,7 +1220,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    bicubic_offset = 0;
 	else
 	    bicubic_offset = pPriv->bicubic_src_offset;
-       
+
 	BEGIN_ACCEL_RELOC(6, 1);
 	OUT_ACCEL_REG(R300_TX_FILTER0_1, txfilter);
 	OUT_ACCEL_REG(R300_TX_FILTER1_1, 0);

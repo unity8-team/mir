@@ -336,7 +336,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	pPriv->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
 						              &pPriv->bicubic_memory,
 						              sizeof(bicubic_tex_512), 64);
-	pPriv->bicubic_src_offset = pPriv->bicubic_offset + info->fbLocation + pScrn->fbOffset;
+	pPriv->bicubic_src_offset = pPriv->bicubic_offset;
 	if (pPriv->bicubic_offset == 0)
 		pPriv->bicubic_enabled = FALSE;
 
@@ -458,7 +458,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 		ret = radeon_bo_map(pPriv->bicubic_bo, 1);
 		if (ret)
 		    return BadAlloc;
-		
+
 		bicubic_addr = pPriv->bicubic_bo->ptr;
 	    } else
 		bicubic_addr = (uint8_t *)(info->FB + pPriv->bicubic_offset);
