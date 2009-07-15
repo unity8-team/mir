@@ -2757,7 +2757,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    else if (IS_I9XX(pI830))
        pI830->batch_flush_notify = i915_batch_flush_notify;
    else
-       pI830->batch_flush_notify = NULL;
+       pI830->batch_flush_notify = i830_batch_flush_notify;
 
    miInitializeBackingStore(pScreen);
    xf86SetBackingStore(pScreen);
