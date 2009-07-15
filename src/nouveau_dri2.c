@@ -53,6 +53,71 @@ nouveau_dri2_create_pixmap(ScreenPtr pScreen, DrawablePtr pDraw, bool zeta)
 	return ppix;
 }
 
+#if DRI2INFOREC_VERSION >= 3
+DRI2BufferPtr
+nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
+			   unsigned int format)
+{
+	ScreenPtr pScreen = pDraw->pScreen;
+	DRI2BufferPtr dri2_buf;
+	struct nouveau_dri2_buffer *nv_buf;
+	PixmapPtr ppix;
+
+	dri2_buf = xcalloc(1, sizeof(*dri2_buf));
+	if (!dri2_buf)
+		return NULL;
+
+	nv_buf = xcalloc(1, sizeof(*nv_buf));
+	if (!nv_buf) {
+		xfree(dri2_buf);
+		return NULL;
+	}
+
+	switch (attachment) {
+	case DRI2BufferFrontLeft:
+		if (pDraw->type == DRAWABLE_PIXMAP) {
+			ppix = (PixmapPtr)pDraw;
+		} else {
+			WindowPtr pwin = (WindowPtr)pDraw;
+			ppix = pScreen->GetWindowPixmap(pwin);
+		}
+
+		ppix->refcnt++;
+		break;
+	case DRI2BufferDepth:
+	case DRI2BufferDepthStencil:
+		ppix = nouveau_dri2_create_pixmap(pScreen, pDraw, true);
+		break;
+	default:
+		ppix = nouveau_dri2_create_pixmap(pScreen, pDraw, false);
+		break;
+	}
+
+
+	dri2_buf->attachment = attachment;
+	dri2_buf->pitch = ppix->devKind;
+	dri2_buf->cpp = ppix->drawable.bitsPerPixel / 8;
+	dri2_buf->driverPrivate = nv_buf;
+	dri2_buf->format = format;
+	dri2_buf->flags = 0;
+	nv_buf->pPixmap = ppix;
+
+	nouveau_bo_handle_get(nouveau_pixmap(ppix)->bo, &dri2_buf->name);
+	return dri2_buf;
+}
+
+void
+nouveau_dri2_destroy_buffer(DrawablePtr pDraw, DRI2BufferPtr buf)
+{
+	if (buf) {
+		struct nouveau_dri2_buffer *nvbuf = buf->driverPrivate;
+
+		pDraw->pScreen->DestroyPixmap(nvbuf->pPixmap);
+		xfree(nvbuf);
+		xfree(buf);
+	}
+}
+#else
 DRI2BufferPtr
 nouveau_dri2_create_buffers(DrawablePtr pDraw, unsigned int *attachments,
 			    int count)
@@ -133,6 +198,7 @@ nouveau_dri2_destroy_buffers(DrawablePtr pDraw, DRI2BufferPtr buffers,
 		xfree(buffers);
 	}
 }
+#endif
 
 void
 nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
@@ -195,12 +261,19 @@ nouveau_dri2_init(ScreenPtr pScreen)
 		return FALSE;
 	}
 
-	dri2.version = 1;
 	dri2.fd = nouveau_device(pNv->dev)->fd;
 	dri2.driverName = "nouveau";
 	dri2.deviceName = pNv->drm_device_name;
+
+#if DRI2INFOREC_VERSION >= 3
+	dri2.version = 3;
+	dri2.CreateBuffer = nouveau_dri2_create_buffer;
+	dri2.DestroyBuffer = nouveau_dri2_destroy_buffer;
+#else
+	dri2.version = 1;
 	dri2.CreateBuffers = nouveau_dri2_create_buffers;
 	dri2.DestroyBuffers = nouveau_dri2_destroy_buffers;
+#endif
 	dri2.CopyRegion = nouveau_dri2_copy_region;
 
 	return DRI2ScreenInit(pScreen, &dri2);
