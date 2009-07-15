@@ -1581,6 +1581,9 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 	i830_update_cursor_offsets(pScrn);
     i830_set_max_gtt_map_size(pScrn);
 
+    if (pI830->front_buffer)
+	pScrn->fbOffset = pI830->front_buffer->offset;
+
     return TRUE;
 }
 
