@@ -639,11 +639,11 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 	info->accel_state->is_transform[1] = FALSE;
     }
 
-    BEGIN_ACCEL_RELOC(10, 1);
+    BEGIN_ACCEL_RELOC(10, 2);
     OUT_ACCEL_REG(RADEON_PP_CNTL, pp_cntl);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, dst_format | RADEON_ALPHA_BLEND_ENABLE);
     EMIT_WRITE_OFFSET(RADEON_RB3D_COLOROFFSET, 0, pDst);
-    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, colorpitch);
+    EMIT_COLORPITCH(RADEON_RB3D_COLORPITCH, colorpitch, pDst);
 
     /* IN operator: Multiply src by mask components or mask alpha.
      * BLEND_CTL_ADD is A * B + C.
@@ -968,12 +968,13 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 	info->accel_state->is_transform[1] = FALSE;
     }
 
-    BEGIN_ACCEL_RELOC(13, 1);
+    BEGIN_ACCEL_RELOC(13, 2);
 
     OUT_ACCEL_REG(RADEON_PP_CNTL, pp_cntl);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, dst_format | RADEON_ALPHA_BLEND_ENABLE);
 
     EMIT_WRITE_OFFSET(RADEON_RB3D_COLOROFFSET, 0, pDst);
+    EMIT_COLORPITCH(RADEON_RB3D_COLORPITCH, colorpitch, pDst);
 
     OUT_ACCEL_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
     if (pMask)
@@ -984,7 +985,7 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 	OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
 		      (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
 
-    OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, colorpitch);
+
 
     /* IN operator: Multiply src by mask components or mask alpha.
      * BLEND_CTL_ADD is A * B + C.
@@ -2003,9 +2004,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     FINISH_ACCEL();
 
     
-    BEGIN_ACCEL_RELOC(3, 1);
+    BEGIN_ACCEL_RELOC(3, 2);
     EMIT_WRITE_OFFSET(R300_RB3D_COLOROFFSET0, 0, pDst);
-    OUT_ACCEL_REG(R300_RB3D_COLORPITCH0, colorpitch);
+    EMIT_COLORPITCH(R300_RB3D_COLORPITCH0, colorpitch, pDst);
 
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
     OUT_ACCEL_REG(R300_RB3D_BLENDCNTL, blendcntl | R300_ALPHA_BLEND_ENABLE | R300_READ_ENABLE);

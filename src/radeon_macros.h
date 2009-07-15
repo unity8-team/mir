@@ -196,5 +196,14 @@ do {									\
       OUT_ACCEL_REG((reg), (offset) + info->fbLocation + pScrn->fbOffset);} \
   } while(0)
 
+#define EMIT_COLORPITCH(reg, value, pPix) do {			\
+    if (info->cs) {						\
+	driver_priv = exaGetPixmapDriverPrivate(pPix);			\
+	OUT_ACCEL_REG((reg), value);					\
+	OUT_RELOC(driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);		\
+    } else {								\
+	OUT_ACCEL_REG((reg), value);					\
+    }									\
+}while(0)
 
 #endif
