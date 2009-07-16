@@ -482,8 +482,6 @@ typedef struct _I830Rec {
 
    struct {
       int op;
-      PicturePtr pSrcPicture, pMaskPicture, pDstPicture;
-      PixmapPtr pSrc, pMask, pDst;
       uint32_t dst_format;
       Bool is_nearest;
       Bool needs_emit;
