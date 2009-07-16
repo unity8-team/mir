@@ -96,75 +96,6 @@ wait_3d_idle(ScrnInfoPtr pScrn, drmBufPtr ib)
 
 }
 
-static void
-reset_cb(ScrnInfoPtr pScrn, drmBufPtr ib)
-{
-    int i;
-
-    PACK0(ib, CB_COLOR0_INFO, 8);
-    for (i = 0; i < 8; i++)
-	E32(ib, 0);
-}
-
-static void
-reset_td_samplers(ScrnInfoPtr pScrn, drmBufPtr ib)
-{
-    int i;
-
-    wait_3d_idle(pScrn, ib);
-
-    PACK0(ib, TD_PS_SAMPLER0_BORDER_RED, 4*TD_PS_SAMPLER0_BORDER_RED_num);
-    for (i = 0; i < 4*TD_PS_SAMPLER0_BORDER_RED_num; i++)
-	E32(ib, 0);
-    PACK0(ib, TD_VS_SAMPLER0_BORDER_RED, 4*TD_VS_SAMPLER0_BORDER_RED_num);
-    for (i = 0; i < 4*TD_VS_SAMPLER0_BORDER_RED_num; i++)
-	E32(ib, 0);
-
-    wait_3d_idle(pScrn, ib);
-}
-
-static void
-reset_sampler_const (ScrnInfoPtr pScrn, drmBufPtr ib)
-{
-    int i;
-
-    for (i = 0; i < SQ_TEX_SAMPLER_WORD_all_num; i++) {
-	PACK0(ib, SQ_TEX_SAMPLER_WORD + i * SQ_TEX_SAMPLER_WORD_offset, 3);
-	E32(ib, SQ_TEX_DEPTH_COMPARE_LESSEQUAL << DEPTH_COMPARE_FUNCTION_shift);
-	E32(ib, MAX_LOD_mask);
-	E32(ib, 0);
-    }
-}
-
-static void
-reset_dx9_alu_consts(ScrnInfoPtr pScrn, drmBufPtr ib)
-{
-    int i;
-
-    const int count = SQ_ALU_CONSTANT_all_num * (SQ_ALU_CONSTANT_offset >> 2);
-
-    PACK0(ib, SQ_ALU_CONSTANT, count);
-    for (i = 0; i < count; i++)
-	EFLOAT(ib, 0.0);
-}
-
-static void
-reset_bool_loop_const(ScrnInfoPtr pScrn, drmBufPtr ib)
-{
-    int i;
-
-
-    PACK0(ib, SQ_BOOL_CONST, SQ_BOOL_CONST_all_num);
-    for (i = 0; i < SQ_BOOL_CONST_all_num; i++)
-	E32(ib, 0);
-
-    PACK0(ib, SQ_LOOP_CONST, SQ_LOOP_CONST_all_num);
-
-    for (i = 0; i < SQ_LOOP_CONST_all_num; i++)
-	E32(ib, 0);
-
-}
-
 void
 start_3d(ScrnInfoPtr pScrn, drmBufPtr ib)
 {
@@ -654,10 +585,8 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     memset(&tex_res, 0, sizeof(tex_resource_t));
     memset(&fs_conf, 0, sizeof(shader_config_t));
 
-#if 1
     if (accel_state->XInited3D)
 	return;
-#endif
 
     accel_state->XInited3D = TRUE;
 
@@ -689,11 +618,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 						    (4  << DEPTH_CACHELINE_FREE_shift)	|
 						    0));
     }
-
-    reset_td_samplers(pScrn, ib);
-    reset_dx9_alu_consts(pScrn, ib);
-    reset_bool_loop_const (pScrn, ib);
-    reset_sampler_const (pScrn, ib);
 
     // SQ
     sq_conf.ps_prio = 0;
@@ -854,23 +778,11 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EREG(ib, SX_ALPHA_REF,                        0);
 
     // CB
-    reset_cb(pScrn, ib);
-
     PACK0(ib, CB_BLEND_RED, 4);
     E32(ib, 0x00000000);
     E32(ib, 0x00000000);
     E32(ib, 0x00000000);
     E32(ib, 0x00000000);
-
-    /* CB_COLOR_CONTROL.PER_MRT_BLEND is off */
-    // RV6xx+ have per-MRT blend
-    if (info->ChipFamily > CHIP_FAMILY_R600) {
-	PACK0(ib, CB_BLEND0_CONTROL, CB_BLEND0_CONTROL_num);
-	for (i = 0; i < CB_BLEND0_CONTROL_num; i++)
-	    E32(ib, 0);
-    }
-
-    EREG(ib, CB_BLEND_CONTROL,                    0);
 
     if (info->ChipFamily < CHIP_FAMILY_RV770) {
 	PACK0(ib, CB_FOG_RED, 3);
@@ -879,7 +791,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 	E32(ib, 0x00000000);
     }
 
-    EREG(ib, CB_COLOR_CONTROL,                    0);
     PACK0(ib, CB_CLRCMP_CONTROL, 4);
     E32(ib, 1 << CLRCMP_FCN_SEL_shift);				// CB_CLRCMP_CONTROL: use CLRCMP_FCN_SRC
     E32(ib, 0);							// CB_CLRCMP_SRC
@@ -948,7 +859,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EFLOAT(ib, 0.0f);						// PA_CL_VPORT_YOFFSET
     EFLOAT(ib, 0.0f);						// PA_CL_VPORT_ZSCALE
     EFLOAT(ib, 0.0f);						// PA_CL_VPORT_ZOFFSET
-    EREG(ib, PA_CL_CLIP_CNTL,                     (CLIP_DISABLE_bit | DX_CLIP_SPACE_DEF_bit));
     EREG(ib, PA_CL_VTE_CNTL,                      0);
     EREG(ib, PA_CL_VS_OUT_CNTL,                   0);
     EREG(ib, PA_CL_NANINF_CNTL,                   0);
@@ -957,11 +867,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EFLOAT(ib, 1.0);						// PA_CL_GB_VERT_DISC_ADJ
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_CLIP_ADJ
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_DISC_ADJ
-
-    /* user clipping planes are disabled by default */
-    PACK0(ib, PA_CL_UCP_0_X, 24);
-    for (i = 0; i < 24; i++)
-	EFLOAT(ib, 0.0);
 
     // SU
     EREG(ib, PA_SU_SC_MODE_CNTL,                  FACE_bit);
@@ -984,19 +889,10 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     else
 	EREG(ib, R7xx_SPI_THREAD_GROUPING,        (1 << PS_GROUPING_shift));
 
-    EREG(ib, SPI_INTERP_CONTROL_0,                ((2 << PNT_SPRITE_OVRD_X_shift)		|
-						   (3 << PNT_SPRITE_OVRD_Y_shift)		|
-						   (0 << PNT_SPRITE_OVRD_Z_shift)		|
-						   (1 << PNT_SPRITE_OVRD_W_shift))); /* s,t,0,1 */
     EREG(ib, SPI_INPUT_Z,                         0);
     EREG(ib, SPI_FOG_CNTL,                        0);
     EREG(ib, SPI_FOG_FUNC_SCALE,                  0);
     EREG(ib, SPI_FOG_FUNC_BIAS,                   0);
-
-    PACK0(ib, SPI_VS_OUT_ID_0, SPI_VS_OUT_ID_0_num);
-    for (i = 0; i < SPI_VS_OUT_ID_0_num; i++)		/* identity mapping */
-	E32(ib, 0x03020100 + i*0x04040404);
-    EREG(ib, SPI_VS_OUT_CONFIG,                   0);
 
     // clear FS
     fs_setup(pScrn, ib, &fs_conf);
@@ -1028,24 +924,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EREG(ib, VGT_REUSE_OFF,                       0);
     EREG(ib, VGT_VTX_CNT_EN,                      0);
     EREG(ib, VGT_STRMOUT_BUFFER_EN,               0);
-
-    // clear tex resources - PS
-    for (i = 0; i < 16; i++) {
-	tex_res.id = i;
-	set_tex_resource(pScrn, ib, &tex_res);
-    }
-
-    // clear tex resources - VS
-    for (i = 160; i < 164; i++) {
-	tex_res.id = i;
-	set_tex_resource(pScrn, ib, &tex_res);
-    }
-
-    // clear tex resources - FS
-    for (i = 320; i < 335; i++) {
-	tex_res.id = i;
-	set_tex_resource(pScrn, ib, &tex_res);
-    }
 
 }
 

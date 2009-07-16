@@ -219,7 +219,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 								  (0x03 << DEFAULT_VAL_shift)	|
 								  FLAT_SHADE_bit		|
 								  SEL_CENTROID_bit));
-    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                FLAT_SHADE_ENA_bit | 0);
+    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                FLAT_SHADE_ENA_bit);
 
     /* PS alu constants */
     if (pPix->drawable.bitsPerPixel == 16) {
