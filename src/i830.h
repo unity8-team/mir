@@ -788,6 +788,9 @@ i830_transform_is_affine (PictTransformPtr t);
 
 void i830_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
+				   int maskX, int maskY, int dstX, int dstY,
+				   int w, int h);
 void i830_done_composite(PixmapPtr pDst);
 /* i915_render.c */
 Bool i915_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,

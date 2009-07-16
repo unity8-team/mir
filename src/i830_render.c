@@ -581,14 +581,10 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
     }
 }
 
-/**
- * Do a single rectangle composite operation.
- *
- * This function is shared between i830 and i915 generation code.
- */
 void
-i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
-	       int dstX, int dstY, int w, int h)
+i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
+			      int maskX, int maskY,
+			      int dstX, int dstY, int w, int h)
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
@@ -670,15 +666,6 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     num_floats = 3 * per_vertex;
 
-    intel_batch_start_atomic(pScrn,
-			     58 + /* invarient */
-			     24 + /* setup */
-			     20 + /* 2 * setup_texture */
-			     6 + num_floats /* verts */);
-
-    if (pI830->needs_render_state_emit)
-	i830_emit_composite_state(pScrn);
-
     BEGIN_BATCH(6 + num_floats);
 
     OUT_BATCH(MI_NOOP);
@@ -740,6 +727,32 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     }
 
     ADVANCE_BATCH();
+}
+
+
+/**
+ * Do a single rectangle composite operation.
+ *
+ * This function is shared between i830 and i915 generation code.
+ */
+void
+i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
+	       int dstX, int dstY, int w, int h)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    intel_batch_start_atomic(pScrn,
+			     58 + /* invarient */
+			     24 + /* setup */
+			     20 + /* 2 * setup_texture */
+			     6 + 30 /* verts */);
+
+    if (pI830->needs_render_state_emit)
+	i830_emit_composite_state(pScrn);
+
+    i830_emit_composite_primitive(pDst, srcX, srcY, maskX, maskY, dstX, dstY,
+				  w, h);
 
     intel_batch_end_atomic(pScrn);
 

@@ -556,7 +556,8 @@ i915_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     if (pI830->i915_render_state.needs_emit)
 	i915_emit_composite_setup(pScrn);
 
-    i830_composite(pDst, srcX, srcY, maskX, maskY, dstX, dstY, w, h);
+    i830_emit_composite_primitive(pDst, srcX, srcY, maskX, maskY, dstX, dstY,
+				  w, h);
 
     intel_batch_end_atomic(pScrn);
 }
