@@ -665,9 +665,8 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	rankine = pNv->Nv3D;
 
 	if (!pNv->shader_mem) {
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
-				   NOUVEAU_BO_MAP, 0, 0x1000,
-				   &pNv->shader_mem)) {
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
+				   0, 0x1000, &pNv->shader_mem)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Couldn't alloc fragprog buffer!\n");
 			nouveau_grobj_free(&pNv->Nv3D);
