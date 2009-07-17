@@ -227,7 +227,6 @@ nv50_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src)
 	nv_crtc->crtc->LoadCursor(nv_crtc->crtc, TRUE, (uint32_t *) src);
 }
 
-/* This stuff isn't ready for NOUVEAU_EXA_PIXMAPS, but can be easily ported. */
 static void *
 nv50_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 {
