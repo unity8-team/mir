@@ -1126,22 +1126,20 @@ NVMapMemSW(ScrnInfoPtr pScrn)
 	CLUTOffset[0] = Cursor1Offset + (64 * 64 * 4);
 	CLUTOffset[1] = CLUTOffset[0] + (4 * 1024);
 
-	ret = nouveau_bo_fake(&dev, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+	ret = nouveau_bo_fake(&dev, 0, NOUVEAU_BO_VRAM,
 			      pNv->VRAMSize - (1<<20), pNv->VRAMMap,
 			      &pNv->FB);
 	if (ret)
 		return FALSE;
 	pNv->GART = NULL;
 
-	ret = nouveau_bo_fake(&dev, Cursor0Offset,
-			      NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+	ret = nouveau_bo_fake(&dev, Cursor0Offset, NOUVEAU_BO_VRAM,
 			      64 * 64 * 4, pNv->VRAMMap + Cursor0Offset,
 			      &pNv->Cursor);
 	if (ret)
 		return FALSE;
 
-	ret = nouveau_bo_fake(&dev, Cursor1Offset,
-			      NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+	ret = nouveau_bo_fake(&dev, Cursor1Offset, NOUVEAU_BO_VRAM,
 			      64 * 64 * 4, pNv->VRAMMap + Cursor1Offset,
 			      &pNv->Cursor2);
 	if (ret)
@@ -1152,8 +1150,7 @@ NVMapMemSW(ScrnInfoPtr pScrn)
 			nouveauCrtcPtr crtc = pNv->crtc[i];
 
 			ret = nouveau_bo_fake(&dev, CLUTOffset[i],
-					      NOUVEAU_BO_VRAM |
-					      NOUVEAU_BO_PIN, 0x1000,
+					      NOUVEAU_BO_VRAM, 0x1000,
 					      pNv->VRAMMap + CLUTOffset[i],
 					      &crtc->lut);
 			if (ret)
