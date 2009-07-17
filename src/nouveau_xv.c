@@ -250,8 +250,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 	if (pNv->Architecture >= NV_ARCH_50 && (flags & NOUVEAU_BO_VRAM))
 		flags |= NOUVEAU_BO_TILED;
 
-	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_PIN |
-			     NOUVEAU_BO_MAP, 0, size, pbo);
+	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_MAP, 0, size, pbo);
 	if (ret)
 		return ret;
 
@@ -981,6 +980,14 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 				    &pPriv->video_mem);
 	if (ret)
 		return BadAlloc;
+
+	if (action_flags & USE_OVERLAY) {
+		ret = nouveau_bo_pin(pPriv->video_mem, NOUVEAU_BO_VRAM);
+		if (ret) {
+			nouveau_bo_ref(NULL, &pPriv->video_mem);
+			return BadAlloc;
+		}
+	}
 
 	/* The overlay supports hardware double buffering. We handle this here*/
 	offset = 0;
