@@ -980,9 +980,8 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualY = height;
 	scrn->displayWidth = pitch / (scrn->bitsPerPixel >> 3);
 
-	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP |
-				  NOUVEAU_BO_PIN, 0,
-				  pitch * height, tile_mode, tile_flags,
+	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
+				  0, pitch * height, tile_mode, tile_flags,
 				  &pNv->FB);
 	if (ret)
 		goto fail;
