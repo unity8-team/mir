@@ -1087,12 +1087,18 @@ void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	uint32_t start = (y * pScrn->displayWidth + x) * pScrn->bitsPerPixel / 8;
+	struct nouveau_bo *bo = pNv->FB;
+	uint32_t start;
 
+	if (nv_crtc->bo)
+		nouveau_bo_unpin(nv_crtc->bo);
+	nouveau_bo_pin(bo, NOUVEAU_BO_VRAM);
+	nv_crtc->bo = bo;
+
+	start  = nv_crtc->bo->offset;
+	start += (y * pScrn->displayWidth + x) * pScrn->bitsPerPixel / 8;
 	if (crtc->rotatedData != NULL)
-		start = pNv->FB->offset + nv_crtc->shadow->offset;
-	else
-		start += pNv->FB->offset;
+		start += nv_crtc->shadow->offset;
 
 	start &= ~3;
 	nv_crtc->state->fb_start = start;

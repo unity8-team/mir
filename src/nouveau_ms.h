@@ -128,6 +128,8 @@ struct nouveau_crtc {
 	struct nouveau_crtc_state *state;
 
 	uint32_t cursor_fg, cursor_bg;
+
+	struct nouveau_bo *bo;
 	ExaOffscreenArea *shadow;
 };
 
