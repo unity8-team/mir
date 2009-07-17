@@ -926,11 +926,16 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 
 	if (xf86ReturnOptValBool(pNv->Options, OPTION_EXA_PIXMAPS, FALSE)) {
-		pNv->exa_driver_pixmaps = TRUE;
+		if (pNv->kms_enable) {
+			pNv->exa_driver_pixmaps = TRUE;
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,6,99,0,0)
-		if (pNv->Architecture >= NV_50)
-			pNv->wfb_enabled = TRUE;
+			if (pNv->Architecture >= NV_50)
+				pNv->wfb_enabled = TRUE;
 #endif
+		} else {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "EXAPixmaps support requires KMS\n");
+		}
 	}
 
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
