@@ -104,22 +104,28 @@ nv50_crtc_prepare(xf86CrtcPtr crtc)
 }
 
 static void
-nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, int x, int y)
+nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
+		   DisplayModePtr adjusted_mode, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_mode_set is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
+	struct nouveau_bo *bo;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "nv50_crtc_mode_set is called for %s.\n",
+		   nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
 
 	NVPtr pNv = NVPTR(pScrn);
 
-	/* Maybe move this elsewhere? */
+	bo = pNv->FB;
 	if (crtc->rotatedData) {
-		nv_crtc->crtc->SetFB(nv_crtc->crtc, nv_crtc->shadow);
-		nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, 0, 0);
-	} else {
-		nv_crtc->crtc->SetFB(nv_crtc->crtc, pNv->FB);
-		nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, x, y);
+		bo = nv_crtc->shadow;
+		x = 0;
+		y = 0;
 	}
+
+	nv_crtc->crtc->SetFB(nv_crtc->crtc, bo);
+	nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, x, y);
 	nv_crtc->crtc->ModeSet(nv_crtc->crtc, mode);
 }
 

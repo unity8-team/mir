@@ -244,7 +244,11 @@ NV50CrtcSetClockMode(nouveauCrtcPtr crtc, int clock)
 static void
 NV50CrtcSetFB(nouveauCrtcPtr crtc, struct nouveau_bo * buffer)
 {
+	if (crtc->front_buffer)
+		nouveau_bo_unpin(crtc->front_buffer);
+
 	/* For the moment the actual hardware settings stays in ModeSet(). */
+	nouveau_bo_pin(buffer, NOUVEAU_BO_VRAM);
 	crtc->front_buffer = buffer;
 }
 
