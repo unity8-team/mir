@@ -240,9 +240,10 @@ nv50_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 	pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
 	size = pitch * height;
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM |
 			   NOUVEAU_BO_MAP, 64, size, &nv_crtc->shadow)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for shadow buffer!\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to allocate memory for shadow buffer!\n");
 		return NULL;
 	}
 
