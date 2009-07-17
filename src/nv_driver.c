@@ -1231,8 +1231,8 @@ NVMapMem(ScrnInfoPtr pScrn)
 			   size >> 10);
 	}
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_PIN |
-			   NOUVEAU_BO_MAP, 0, size, &pNv->GART)) {
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_MAP,
+			   0, size, &pNv->GART)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unable to allocate GART memory\n");
 	}
