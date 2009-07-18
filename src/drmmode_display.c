@@ -323,7 +323,9 @@ done:
 		crtc->y = saved_y;
 		crtc->rotation = saved_rotation;
 		crtc->mode = saved_mode;
-	}
+	} else
+		crtc->active = TRUE;
+
 	return ret;
 }
 
