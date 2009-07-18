@@ -42,8 +42,12 @@
 #define NEED_EVENTS
 #include <X11/Xproto.h>
 #ifdef MITSHM
+#ifdef HAVE_XEXTPROTO_71
+#include <X11/extensions/shm.h>
+#else
 #define _XSHM_SERVER_
 #include <X11/extensions/shmstr.h>
+#endif
 #endif
 #include "scrnintstr.h"
 #include "pixmapstr.h"
@@ -321,9 +325,34 @@ uxa_get_image (DrawablePtr pDrawable, int x, int y, int w, int h,
 extern const GCOps uxa_ops;
 
 #ifdef MITSHM
+/* XXX these come from shmint.h, which isn't exported by the server */
+
+#ifdef HAVE_XEXTPROTO_71
+/* Up to xextproto 7.1, these were provided in shmstr.h */
+typedef struct _ShmFuncs {
+    PixmapPtr	(* CreatePixmap)(ScreenPtr pScreen,
+				 int	   width,
+				 int	   height,
+				 int	   depth,
+				 char	   *addr);
+    void	(* PutImage)(DrawablePtr  dst,
+			     GCPtr	  pGC,
+			     int	  depth,
+			     unsigned int format,
+			     int	  w,
+			     int	  h,
+			     int	  sx,
+			     int	  sy,
+			     int	  sw,
+			     int	  sh,
+			     int	  dx,
+			     int	  dy,
+			     char	 *data);
+} ShmFuncs, *ShmFuncsPtr;
+#endif
+
 extern ShmFuncs uxa_shm_funcs;
 
-/* XXX these come from shmint.h, which isn't exported by the server */
 void
 ShmRegisterFuncs(ScreenPtr pScreen, ShmFuncsPtr funcs);
 

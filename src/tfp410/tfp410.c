@@ -39,8 +39,13 @@
 #include "miscstruct.h"
 #include "xf86i2c.h"
 #include "xf86Crtc.h"
+#ifdef HAVE_XEXTPROTO_71
+#include <X11/extensions/dpmsconst.h>
+#else
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
+#endif
+
 
 #include "../i2c_vid.h"
 #include "tfp410.h"
