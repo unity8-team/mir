@@ -445,8 +445,9 @@
 #       define RADEON_CRTC_V_CUTOFF_ACTIVE_EN (1<<5)
 #define RADEON_CRTC_GUI_TRIG_VLINE          0x0218
 #       define RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT  0
-#       define RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT    16
 #       define RADEON_CRTC_GUI_TRIG_VLINE_INV          (1 << 15)
+#       define RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT    16
+#       define RADEON_CRTC_GUI_TRIG_VLINE_STALL        (1 << 30)
 #define RADEON_CRTC_H_SYNC_STRT_WID         0x0204
 #       define RADEON_CRTC_H_SYNC_STRT_PIX        (0x07  <<  0)
 #       define RADEON_CRTC_H_SYNC_STRT_CHAR       (0x3ff <<  3)
