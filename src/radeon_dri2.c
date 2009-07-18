@@ -228,6 +228,8 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     PixmapPtr dst_pixmap;
     RegionPtr copy_clip;
     GCPtr gc;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    Bool vsync;
 
     src_pixmap = src_private->pixmap;
     dst_pixmap = dst_private->pixmap;
@@ -242,8 +244,15 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     REGION_COPY(pScreen, copy_clip, region);
     (*gc->funcs->ChangeClip) (gc, CT_REGION, copy_clip, 0);
     ValidateGC(&dst_pixmap->drawable, gc);
+
+    vsync = info->accel_state->vsync;
+    info->accel_state->vsync = TRUE;
+
     (*gc->ops->CopyArea)(&src_pixmap->drawable, &dst_pixmap->drawable, gc,
                          0, 0, drawable->width, drawable->height, 0, 0);
+
+    info->accel_state->vsync = vsync;
+
     FreeScratchGC(gc);
     radeon_cs_flush_indirect(pScrn);
 }
