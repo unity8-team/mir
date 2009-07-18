@@ -498,6 +498,8 @@ static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
 	info->accel_state->exa = NULL;
     }
 
+    drmDropMaster(info->dri->drmFD);
+
     if (info->cursor) xf86DestroyCursorInfoRec(info->cursor);
     info->cursor = NULL;
 
@@ -735,8 +737,8 @@ Bool RADEONEnterVT_KMS(int scrnIndex, int flags)
 		   "RADEONEnterVT_KMS\n");
 
 
-    ret = ioctl(info->dri->drmFD, DRM_IOCTL_SET_MASTER, NULL);
-    if (ret == -EINVAL)
+    ret = drmSetMaster(info->dri->drmFD);
+    if (ret)
 	ErrorF("Unable to retrieve master\n");
 
     info->accel_state->XInited3D = FALSE;
@@ -762,7 +764,7 @@ void RADEONLeaveVT_KMS(int scrnIndex, int flags)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONLeaveVT_KMS\n");
 
-    ioctl(info->dri->drmFD, DRM_IOCTL_DROP_MASTER, NULL);
+    drmDropMaster(info->dri->drmFD);
 
 #ifdef HAVE_FREE_SHADOW
     xf86RotateFreeShadow(pScrn);
