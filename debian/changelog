@@ -1,3 +1,15 @@
+xserver-xorg-video-intel (2:2.7.99.902+git20090720.bb300738-0ubuntu1) karmic; urgency=low
+
+  * Update to git 20090720 (master branch) up to commit bb300738
+    - Fix intel driver reports Couldn't find PLL settings on i915
+      (LP: #312133)
+    - Fix X freezing on intel 855GM
+      (LP: #370292)
+    - Implement vblank sync'd GL buffer swap
+      (LP: #377090)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 20 Jul 2009 22:05:31 -0700
+
 xserver-xorg-video-intel (2:2.7.99.901+git20090702.74227141-0ubuntu1) karmic; urgency=low
 
   [Robert Hooker]

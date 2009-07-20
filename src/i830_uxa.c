@@ -452,30 +452,19 @@ i830_transform_is_affine (PictTransformPtr t)
 dri_bo *
 i830_get_pixmap_bo(PixmapPtr pixmap)
 {
-    ScreenPtr screen = pixmap->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-    I830Ptr i830 = I830PTR(scrn);
-
-    if (i830->accel == ACCEL_UXA)
-	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
-    else
-	return NULL;
+    return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
 }
 
 void
 i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-    I830Ptr i830 = I830PTR(pScrn);
     dri_bo  *old_bo = i830_get_pixmap_bo (pixmap);
 
     if (old_bo)
 	dri_bo_unreference (old_bo);
-    if (i830->accel == ACCEL_UXA) {
-	if (bo != NULL)
-	    dri_bo_reference(bo);
-	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
-    }
+    if (bo != NULL)
+	dri_bo_reference(bo);
+    dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
 }
 
 static void
@@ -488,13 +477,12 @@ static Bool
 i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 {
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
+    ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+
+    intel_batch_flush(scrn, FALSE);
 
     if (bo) {
-	ScreenPtr screen = pixmap->drawable.pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
-	
-	intel_batch_flush(scrn, FALSE);
 
 	/* No VT sema or GEM?  No GTT mapping. */
 	if (!scrn->vtSema || !i830->have_gem) {
@@ -528,7 +516,9 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
 	    pixmap->devPrivate.ptr = i830->FbBase + bo->offset;
 	}
-    }
+    } else
+	i830_wait_ring_idle(scrn);
+
     return TRUE;
 }
 
@@ -627,6 +617,22 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	     * with drm_intel_bufmgr_check_aperture().
 	     */
 	    size = i830_get_fence_size(i830, stride * h);
+	    assert(size >= stride * h);
+	}
+
+	/* Fail very large allocations on 32-bit systems.  Large BOs will
+	 * tend to hit SW fallbacks frequently, and also will tend to fail
+	 * to successfully map when doing SW fallbacks because we overcommit
+	 * address space for BO access.
+	 *
+	 * Note that size should fit in 32 bits.  We throw out >32767x32767x4,
+	 * and pitch alignment could get us up to 32768x32767x4.
+	 */
+	if (sizeof(unsigned long) == 4 &&
+	    size > (unsigned int)(1024 * 1024 * 1024))
+	{
+	    fbDestroyPixmap (pixmap);
+	    return NullPixmap;
 	}
 
 	bo = drm_intel_bo_alloc_for_render(i830->bufmgr, "pixmap", size, 0);
@@ -682,10 +688,9 @@ i830_uxa_init (ScreenPtr pScreen)
 	return FALSE;
 
     i830->uxa_driver = uxa_driver_alloc();
-    if (i830->uxa_driver == NULL) {
-	i830->accel = ACCEL_NONE;
+    if (i830->uxa_driver == NULL)
 	return FALSE;
-    }
+
     memset(i830->uxa_driver, 0, sizeof(*i830->uxa_driver));
 
     i830->bufferOffset = 0;
@@ -727,10 +732,9 @@ i830_uxa_init (ScreenPtr pScreen)
     i830->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
 
     if(!uxa_driver_init(pScreen, i830->uxa_driver)) {
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		   "UXA initialization failed\n");
 	xfree(i830->uxa_driver);
-	i830->accel = ACCEL_NONE;
 	return FALSE;
     }
 

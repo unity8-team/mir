@@ -136,7 +136,7 @@ I830Sync(ScrnInfoPtr pScrn)
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
 
-   if (pI830->accel == ACCEL_NONE || !pScrn->vtSema || !pI830->batch_bo)
+   if (!pScrn->vtSema || !pI830->batch_bo)
        return;
 
    I830EmitFlush(pScrn);
@@ -236,12 +236,5 @@ I830AccelInit(ScreenPtr pScreen)
     if (pI830->directRenderingType >= DRI_DRI2)
 	pI830->accel_pixmap_pitch_alignment = 512;
 
-    switch (pI830->accel) {
-    case ACCEL_UXA:
-	return i830_uxa_init(pScreen);
-    case ACCEL_UNINIT:
-    case ACCEL_NONE:
-	break;
-    }
-    return FALSE;
+    return i830_uxa_init(pScreen);
 }
