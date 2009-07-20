@@ -317,12 +317,6 @@ enum backlight_control {
     BCM_KERNEL,
 };
 
-typedef enum accel_method {
-    ACCEL_UNINIT = 0,
-    ACCEL_NONE,
-    ACCEL_UXA
-} accel_method_t;
-
 enum dri_type {
     DRI_DISABLED,
     DRI_NONE,
@@ -431,7 +425,6 @@ typedef struct _I830Rec {
 
    Bool fence_used[FENCE_NEW_NR];
 
-   accel_method_t accel;
    CloseScreenProcPtr CloseScreen;
 
    void (*batch_flush_notify)(ScrnInfoPtr pScrn);
@@ -475,14 +468,20 @@ typedef struct _I830Rec {
   /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
    float coord_adjust;
+
+   /* i830 render accel state */
+   PixmapPtr render_src, render_mask, render_dst;
+   PicturePtr render_src_picture, render_mask_picture, render_dst_picture;
+   uint32_t render_dst_format;
+   Bool needs_render_state_emit;
+   uint32_t cblend, ablend, s8_blendctl;
+
    /* i915 render accel state */
    uint32_t mapstate[6];
    uint32_t samplerstate[6];
 
    struct {
       int op;
-      PicturePtr pSrcPicture, pMaskPicture, pDstPicture;
-      PixmapPtr pSrc, pMask, pDst;
       uint32_t dst_format;
       Bool is_nearest;
       Bool needs_emit;
@@ -787,6 +786,9 @@ i830_transform_is_affine (PictTransformPtr t);
 
 void i830_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
+				   int maskX, int maskY, int dstX, int dstY,
+				   int w, int h);
 void i830_done_composite(PixmapPtr pDst);
 /* i915_render.c */
 Bool i915_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
@@ -797,6 +799,7 @@ Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 void i915_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i915_batch_flush_notify(ScrnInfoPtr pScrn);
+void i830_batch_flush_notify(ScrnInfoPtr scrn);
 /* i965_render.c */
 unsigned int gen4_render_state_size(ScrnInfoPtr pScrn);
 void gen4_render_state_init(ScrnInfoPtr pScrn);
@@ -827,8 +830,7 @@ i830_wait_ring_idle(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->accel != ACCEL_NONE)
-       I830WaitLpRing(pScrn, pI830->ring.mem->size - 8, 0);
+   I830WaitLpRing(pScrn, pI830->ring.mem->size - 8, 0);
 }
 
 static inline int i830_fb_compression_supported(I830Ptr pI830)
@@ -839,10 +841,11 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 	return FALSE;
     if (IS_IGD(pI830))
 	return FALSE;
-    /* fbc depends on tiled surface. And we don't support tiled
-     * front buffer with unaccelerated.
+    if (IS_IGDNG(pI830))
+	return FALSE;
+    /* fbc depends on tiled surface.
      */
-    if (!pI830->tiling || (IS_I965G(pI830) && pI830->accel == ACCEL_NONE))
+    if (!pI830->tiling)
 	return FALSE;
     /* We have not gotten FBC to work consistently on 965GM. Our best
      * working theory right now is that FBC simply isn't reliable on

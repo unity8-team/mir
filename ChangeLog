@@ -1,3 +1,324 @@
+commit bb3007384298cb57625ec0b3868dff9b23568f3e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 16 12:56:07 2009 -0700
+
+    Really fix i915 render.  Fail at commit --amend.
+
+commit 8dd7ccf37e2de6d80b556e6d18af244cefc1e417
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 16 11:40:51 2009 -0700
+
+    Fix 915-class Render after the 8xx-class Render fix.
+    
+    The two shared i830_composite.c, so giving i830 atomic batch support
+    triggered anger about starting i830's atomic area while in i915's atomic
+    area.  Instead, split the emit-a-primitive stuff from the state emission.
+
+commit a1e6abb5ca89d699144d10fdc4309b3b78f2f7a9
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jul 15 14:15:10 2009 -0700
+
+    Use batch_start_atomic to fix batchbuffer wrapping problems with 8xx render.
+    
+    Bug #22483.
+
+commit e386e7b14b139f15205e14b173e8222bf38d9e18
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 15 09:43:04 2009 -0700
+
+    Reset framebuffer offset when rebinding aperture (22760).
+    
+    scrn->fbOffset may be changed when binding objects to the aperture during
+    server initialization or VT enter. This was accidentally removed when the
+    NoAlloc option was eliminated.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit b74bf3f9a65af9e72921d4e9028d9d4d023f8bc6
+Author: Barry Scott <barry.scott@onelan.co.uk>
+Date:   Mon Jul 13 16:34:20 2009 -0700
+
+    Fix XV scan line calculation when rotated.
+
+commit 82905c7c0b871a97ec435a765c2ca407903ba595
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jul 13 05:29:49 2009 -0700
+
+    Increment version to 2.7.99.902
+
+commit 925bc6cbd430a00928fac2ef58724dd37c3bc349
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jul 13 05:27:40 2009 -0700
+
+    RELEASING: Fix typo in instructions
+
+commit 67c0afc7b7446a7b98aa7c65043ddba4c7c72b82
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jul 13 05:27:06 2009 -0700
+
+    NEWS: Add notes for 2.7.99.902
+
+commit 34c674dd45879b8ba8395b93b16c8a9e7b848f1f
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sat Jul 11 22:53:42 2009 -0700
+
+    Remove vestiges of NoAccel options from i830_driver.c
+    
+    The enum and OptionInfoRec weren't removed in the initial patch
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 33d6e7a2355dfb8ad324c4fa28ce61c7e051b435
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sat Jul 11 22:53:11 2009 -0700
+
+    intel.man: Mark NoAccel option as i810/i815 only
+    
+    The NoAccel option is not valid for other chips.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit ed8a9a94e1a670ca35311c9ed83d0c479530d41a
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Jul 10 17:13:14 2009 -0700
+
+    i830_uxa_prepare_access: Flush and wait for idle for non-bo pixmaps
+    
+    Without kernel support and explicit knowledge about where in the ring the
+    last rendering operation for a specific pixmap was, we must synchronize with
+    any outstanding rendering before accessing a pixmap which does not have a
+    buffer object.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit cb19ac207b784d814f6f389110fd1b21a0f34e8b
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Jul 10 14:01:02 2009 -0700
+
+    KMS: Keep screen pixmap devPrivate.ptr NULL during init and resize
+    
+    The frame buffer only has a valid address between prepare_access and
+    finish_access calls, so remove all other attempts to compute an address from
+    the driver.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 704b88dd50a7e7e3f362264b86d0401bee8603aa
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 8 13:06:47 2009 -0700
+
+    i830_bind_memory: Under UMS: Bind GEM bos with dri_bo_pin, else through the GART
+    
+    We only need to get static offsets for objects when not running KMS,
+    otherwise the kernel will manage those as needed for us.
+    
+    Binding objects is done in one of two ways. For GEM buffer objects, we use
+    dri_bo_pin. For GART allocated memory, we bind that to the GART.
+
+commit 7b273732f70e91df8b41d5c48e1379271557dd8e
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 8 11:53:13 2009 -0700
+
+    Allocate GTT space for GEM only under UMS
+    
+    GEM requires GTT space to map objects. Under KMS, the kernel driver has
+    already provided all available GTT space to GEM, so the X server need not do
+    anything.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 56bfee8705f5d7d965227013b205dbc4c93e220c
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Jul 10 14:49:20 2009 -0700
+
+    Always set screen pixmap data pointer at init and resize times
+    
+    For non-DRM environments, the screen pixmap will be GART allocated memory
+    and not a libdrm buffer object and so uxa will only use devPrivate.ptr to
+    find the associated memory. Make sure devPrivate.ptr is set each time the
+    framebuffer is allocated so that uxa will be able to draw to it.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 98087a0b966d5dc69faf72719153a2c878ba3de1
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 8 11:47:25 2009 -0700
+
+    Make xorg.conf DRI option work under KMS. Fix name of I830AccelMethodInit
+    
+    KMS mode does not call I830AccelMethodInit as that does the user
+    modesetting initialization (yes, it was misnamed), but that means that the DRI option
+    was ignored. Create a new i830_check_dri_option function to do the option
+    detection, then remove that from I830AccelMethodInit, which is renamed
+    i830_user_modesetting_init to reflect what it actually does.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit d655a3ff423e69c19a5dc07140cbf3caaa32cb86
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 8 18:06:40 2009 -0700
+
+    Remove NoAccel support
+    
+    This removes yet another 'debugging' option that hasn't seen real use in a
+    long time, and wasn't supported under KMS in any case.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 4e4b947f0b13f4a62606ccfd5729d5eb26ca0e92
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 9 15:52:16 2009 -0700
+
+    Remove bad comment about 3DSTATE_DRAWING_RECTANGLE size.
+
+commit 9155cfca75a207bce0fad945f32f0cb33eab8c4e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 9 14:16:07 2009 -0700
+
+    Fix lols in trying to figure out whether this is a 64-bit build.
+    
+    Noticed by:	Michel Dänzer <michel@daenzer.net>
+
+commit 40e7c9505265823786cf730214db84812a5e494e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jul 6 11:54:50 2009 -0700
+
+    Refuse to allocate giant BOs on 32-bit systems.
+    
+    The overcommit of address space combined with these buffers hitting SW
+    fallbacks all the time means that we're probably better off telling the
+    application "no" instead of likely silently failing later.
+    
+    Bug #22601.
+
+commit 6337cd23e692cae789d07f429442c425c18e1d4f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jul 1 15:54:38 2009 -0700
+
+    Initialize the other argument to drmSetInterfaceVersion.
+    
+    The kernel ignores it if dd_major is -1, anyway.
+
+commit 216d939858abc924f2e32c95518f937f29ea018e
+Author: ling.ma@intel.com <ling.ma@intel.com>
+Date:   Tue Jul 7 14:26:02 2009 +0800
+
+    enable sdvo lvds scaling function
+    
+    Currently we implemented basic sdvo lvds function,
+    But except for sdvo lvds fixed mode, we can not switch
+    to other modes, otherwise display get black. The patch
+    intends to work for all modes whose HDisplay and VDisplay
+    are lower than fixed mode.
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit 0402f4f331148084552bd3963dbcb3fb900be8ea
+Author: Simon Farnsworth <simon.farnsworth@onelan.co.uk>
+Date:   Thu Jun 18 12:33:47 2009 +0100
+
+    Raise XV limit to 2048x2048 to match hardware limits.
+    
+    The bigrequests limit isn't present in current X servers (tested using
+    textured video on a 965 with both image and window at 2048x2048 on a
+    1920x1200 display, and image at 2048x2048, window at 1024x1024).
+    
+    Remove the artificial limit, enabling full-screen HD video when
+    rotated.
+
+commit a66357832388ba9db21a4b3bf8311d9d1f1ab308
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Jul 7 14:13:57 2009 -0700
+
+    non-DRI FB resize failed to assign the screen pixmap devPrivate.ptr (22328)
+    
+    When not using DRI, the screen pixmap is not in a bo, and so the usual
+    enable/disable access functions don't adjust the pixmap devPrivate field,
+    leaving it to the frame buffer allocation code to assign this correctly.
+    
+    During mode setting and fb resizing, FB access is disabled, and the
+    screen pixmap devPrivate is stashed away by xf86EnableDisableFBAccess,
+    to be restored when FB access is turned back on. This means that we have to
+    set the pixmap devPrivate.ptr (in case xf86EnableDisableFBAccess doesn't
+    do this), along with storing the address in the scrn->pixmapPrivate field.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    Reviewed-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit c889b34e432198d5410a068eff3089ff5314ac27
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 7 18:05:01 2009 +0100
+
+    Check for a valid I830Ptr before closing master.
+    
+    After failing to become DRM master, the X server dies attempting to close
+    the master fd during free:
+    
+    (EE) intel(0): [drm] failed to set drm interface version.
+    (EE) intel(0): Failed to become DRM master.
+    (EE) intel(0): failed to get resources: Bad file descriptor
+    (EE) intel(0): Kernel modesetting setup failed
+    
+    Backtrace:
+    0: X(xorg_backtrace+0x3b) [0x8133a3b]
+    1: X(xf86SigHandler+0x55) [0x80c7945]
+    2: [0xb805d400]
+    3: /usr/lib/xorg/modules/drivers//intel_drv.so [0xb7b4bfcc]
+    4: X(xf86DeleteScreen+0x6b) [0x80d465b]
+    5: X(InitOutput+0x548) [0x80b0158]
+    6: X(main+0x1cb) [0x807220b]
+    7: /lib/tls/i686/cmov/libc.so.6(__libc_start_main+0xe5) [0xb7d107a5]
+    8: X [0x8071881]
+    Saw signal 11.  Server aborting.
+     ddxSigGiveUp: Closing log
+     ddxSigGiveUp: re-raising 11
+    Segmentation fault
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 705042f497b7b3843c2dcc5c160fb8dfeac1472a
+Author: Keith Packard <keithp@keithp.com>
+Date:   Mon Jul 6 13:49:31 2009 -0700
+
+    Handle DRI2INFOREC version 3
+    
+    This DRI2 version does not support the old CreateBuffers/DestroyBuffers
+    interface anymore.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 2ebc7d32e47b5edd5b776c39f936ed4e053caac2
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu Jul 2 13:13:14 2009 -0700
+
+    Update to multi-API DRI2 interface
+    
+    The DRI2 interface was changed to support both old and new drivers in an
+    API/ABI compatible fashion. This change syncs the intel driver with the new
+    version of the DRI2 API.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit f6f79eb629184366b1355743d601129a526da90c
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Mon Jul 6 11:01:31 2009 +0200
+
+    remove unused shader program
+    
+    This file is not even referenced by any Makefile.am
+    
+    Acked-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 7e722ada533777c5e9ddf44bb4d770bacf8e13bf
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Mon Jul 6 16:25:13 2009 +0800
+
+    Disable FBC on IGDNG
+    
+    Don't make FBC count for memory allocation.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
 commit 74227141923a2f5049592219ab80e8733062a5d9
 Author: Barry Scott <barry.scott@onelan.co.uk>
 Date:   Tue Jun 23 14:14:50 2009 +0100

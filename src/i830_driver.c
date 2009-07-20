@@ -162,7 +162,6 @@ static PciChipsets I830PciChipsets[] = {
  */
 
 typedef enum {
-   OPTION_NOACCEL,
    OPTION_DRI,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
@@ -181,7 +180,6 @@ typedef enum {
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
-   {OPTION_NOACCEL,	"NoAccel",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
@@ -598,49 +596,6 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    }
 }
 
-static void
-i830_update_front_offset(ScrnInfoPtr pScrn)
-{
-   ScreenPtr pScreen = pScrn->pScreen;
-   I830Ptr pI830 = I830PTR(pScrn);
-   int pitch = pScrn->displayWidth * pI830->cpp;
-   pointer data = NULL;
-
-   /* Update buffer locations, which may have changed as a result of
-    * i830_bind_all_memory().
-    */
-   pScrn->fbOffset = pI830->front_buffer->offset;
-
-   if (pI830->starting || pI830->accel == ACCEL_UXA)
-       return;
-
-   /* If we are still in ScreenInit, there is no screen pixmap to be updated
-    * yet.  We'll fix it up at CreateScreenResources.
-    */
-   if (!pI830->have_gem) {
-       data = pI830->FbBase + pScrn->fbOffset; /* default to legacy */
-   } else {
-      dri_bo *bo = pI830->front_buffer->bo;
-
-      if (bo) {
-	  if (pI830->kernel_exec_fencing) {
-	      if (drm_intel_gem_bo_map_gtt(bo))
-		  xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "%s: bo map failed\n",
-			     __FUNCTION__);
-	      data = bo->virtual;
-	  } else {
-	      /* Will already be pinned by bind_all_memory in this case */
-	      drm_intel_gem_bo_start_gtt_access(bo, 1);
-	      data = pI830->FbBase + bo->offset;
-	  }
-      }
-   }
-   if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
-				       pScrn->virtualX, pScrn->virtualY, -1, -1,
-				       pitch, data))
-       FatalError("Couldn't adjust screen pixmap\n");
-}
-
 /**
  * Adjust the screen pixmap for the current location of the front buffer.
  * This is done at EnterVT when buffers are bound as long as the resources
@@ -657,10 +612,7 @@ i830CreateScreenResources(ScreenPtr pScreen)
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
 
-   i830_update_front_offset(pScrn);
-
-   if (pI830->accel == ACCEL_UXA)
-      i830_uxa_create_screen_resources(pScreen);
+   i830_uxa_create_screen_resources(pScreen);
 
    return TRUE;
 }
@@ -945,9 +897,15 @@ i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	i830_set_pixmap_bo(screen->GetScreenPixmap(screen),
 			   new_front->bo);
 	scrn->fbOffset = i830->front_buffer->offset;
+
 	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
 				   width, height, -1, -1, scrn->displayWidth * i830->cpp,
-				   NULL);
+				   i830->FbBase + scrn->fbOffset);
+
+	/* ick. xf86EnableDisableFBAccess smashes the screen pixmap devPrivate,
+	 * so update the value it uses
+	 */
+	scrn->pixmapPrivate.ptr = i830->FbBase + scrn->fbOffset;
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
 		   i830->front_buffer->offset);
 	i830_set_new_crtc_bo(scrn);
@@ -1258,13 +1216,6 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-static const char *accel_name[] = 
-{
-   "unspecified",
-   "no",
-   "UXA",
-};
-
 static Bool
 I830LoadSyms(ScrnInfoPtr pScrn)
 {
@@ -1347,34 +1298,26 @@ I830PreInitCrtcConfig(ScrnInfoPtr pScrn)
     xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, max_height);
 }
 
-static Bool
-I830AccelMethodInit(ScrnInfoPtr pScrn)
+static void
+i830_check_dri_option(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    MessageType from = X_PROBED;
-    int i, num_pipe;
-
-    if (xf86ReturnOptValBool(pI830->Options, OPTION_NOACCEL, FALSE)) {
-	pI830->accel = ACCEL_NONE;
-    } else {
-       pI830->accel = ACCEL_UXA;
-	xf86DrvMsg(pScrn->scrnIndex, from, "Using %s for acceleration\n",
-		   accel_name[pI830->accel]);
-    }
-
     pI830->directRenderingType = DRI_NONE;
     if (!xf86ReturnOptValBool(pI830->Options, OPTION_DRI, TRUE))
 	pI830->directRenderingType = DRI_DISABLED;
 
-    if (pI830->accel == ACCEL_NONE) {
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
-		"needs 2D acceleration.\n");
-	pI830->directRenderingType = DRI_DISABLED;
-    } else if (pScrn->depth != 16 && pScrn->depth != 24) {
+    if (pScrn->depth != 16 && pScrn->depth != 24) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
 		"runs only at depths 16 and 24.\n");
 	pI830->directRenderingType = DRI_DISABLED;
     }
+}
+
+static Bool
+i830_user_modesetting_init(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i, num_pipe;
 
     I830MapMMIO(pScrn);
 
@@ -1453,6 +1396,7 @@ i830_open_drm_master(ScrnInfoPtr scrn)
     sv.drm_di_major = 1;
     sv.drm_di_minor = 1;
     sv.drm_dd_major = -1;
+    sv.drm_dd_minor = -1;
     err = drmSetInterfaceVersion(i830->drmSubFD, &sv);
     if (err != 0) {
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -1482,7 +1426,7 @@ static void
 i830_close_drm_master(ScrnInfoPtr scrn)
 {
     I830Ptr i830 = I830PTR(scrn);
-    if (i830->drmSubFD > 0) {
+    if (i830 && i830->drmSubFD > 0) {
 	drmClose(i830->drmSubFD);
 	i830->drmSubFD = -1;
     }
@@ -1493,8 +1437,6 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    pI830->accel = ACCEL_UXA;
-
     if (drmmode_pre_init(pScrn, pI830->drmSubFD, pI830->cpp) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Kernel modesetting setup failed\n");
@@ -1502,7 +1444,6 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
-    pI830->directRenderingType = DRI_NONE;
     pI830->have_gem = TRUE;
 
     i830_init_bufmgr(pScrn);
@@ -1647,6 +1588,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!i830_detect_chipset(pScrn))
        return FALSE;
 
+   i830_check_dri_option(pScrn);
+
    if (pI830->use_drm_mode) {
        if (!I830DrmModeInit(pScrn))
 	   return FALSE;
@@ -1655,7 +1598,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	   xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		      "VBIOS initialization failed.\n");
       I830PreInitCrtcConfig(pScrn);
-      if (!I830AccelMethodInit(pScrn))
+      if (!i830_user_modesetting_init(pScrn))
          return FALSE;
    }
 
@@ -1672,11 +1615,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       return FALSE;
    }
    pScrn->currentMode = pScrn->modes;
-
-   if (!IS_I965G(pI830) && pScrn->virtualY > 2048) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 2048 vertical lines. disabling acceleration.\n");
-      pI830->accel = ACCEL_NONE;
-   }
 
    /* Set display resolution */
    xf86SetDpi(pScrn, 0, 0);
@@ -1723,19 +1661,17 @@ i830_stop_ring(ScrnInfoPtr pScrn, Bool flush)
 
    DPRINTF(PFX, "ResetState: flush is %s\n", BOOLTOSTRING(flush));
 
-   /* Flush the ring buffer (if enabled), then disable it. */
-   if (pI830->accel != ACCEL_NONE) {
-      temp = INREG(LP_RING + RING_LEN);
-      if (temp & RING_VALID) {
-	 i830_refresh_ring(pScrn);
-	 i830_wait_ring_idle(pScrn);
-      }
-
-      OUTREG(LP_RING + RING_LEN, 0);
-      OUTREG(LP_RING + RING_HEAD, 0);
-      OUTREG(LP_RING + RING_TAIL, 0);
-      OUTREG(LP_RING + RING_START, 0);
+   /* Flush the ring buffer, then disable it. */
+   temp = INREG(LP_RING + RING_LEN);
+   if (temp & RING_VALID) {
+      i830_refresh_ring(pScrn);
+      i830_wait_ring_idle(pScrn);
    }
+
+   OUTREG(LP_RING + RING_LEN, 0);
+   OUTREG(LP_RING + RING_HEAD, 0);
+   OUTREG(LP_RING + RING_TAIL, 0);
+   OUTREG(LP_RING + RING_START, 0);
 }
 
 static void
@@ -1745,9 +1681,6 @@ i830_start_ring(ScrnInfoPtr pScrn)
    unsigned int itemp;
 
    DPRINTF(PFX, "SetRingRegs\n");
-
-   if (pI830->accel == ACCEL_NONE)
-      return;
 
    OUTREG(LP_RING + RING_LEN, 0);
    OUTREG(LP_RING + RING_TAIL, 0);
@@ -2245,9 +2178,6 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->accel == ACCEL_NONE)
-      return;
-
    /* If we've emitted our state since the last clobber by another client,
     * skip it.
     */
@@ -2278,13 +2208,13 @@ I830BlockHandler(int i,
     pI830->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = I830BlockHandler;
 
-    if (pScrn->vtSema && pI830->accel != ACCEL_NONE) {
+    if (pScrn->vtSema) {
        Bool flushed = FALSE;
        /* Emit a flush of the rendering cache, or on the 965 and beyond
 	* rendering results may not hit the framebuffer until significantly
 	* later.
 	*/
-       if (pI830->accel != ACCEL_NONE && (pI830->need_mi_flush || pI830->batch_used))
+       if (pI830->need_mi_flush || pI830->batch_used)
        {
 	  flushed = TRUE;
 	  I830EmitFlush(pScrn);
@@ -2300,8 +2230,7 @@ I830BlockHandler(int i,
        pI830->need_mi_flush = FALSE;
     }
 
-    if (pI830->accel == ACCEL_UXA)
-	i830_uxa_block_handler (pScreen);
+    i830_uxa_block_handler (pScreen);
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
@@ -2743,8 +2672,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!pI830->use_drm_mode)
        I830MapMMIO(pScrn);
 
-   /* Need FB mapped to set up the fake bufmgr if we end up doing that
-    * in i830_memory_init() -> i830_allocator_init().
+   /* Need FB mapped to access non-GEM objects like
+    * a UMS frame buffer, or the fake bufmgr.
     */
    if (!pI830->use_drm_mode) {
       if (!I830MapMem(pScrn))
@@ -2770,24 +2699,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!miSetPixmapDepths())
       return FALSE;
 
-   if (pI830->accel == ACCEL_NONE) {
-      xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Xv is disabled because it "
-		 "needs 2D acceleration.\n");
-      pI830->XvEnabled = FALSE;
-   }
-
-   if (pI830->accel != ACCEL_NONE && !pI830->use_drm_mode) {
-      if (!pI830->have_gem && pI830->ring.mem->size == 0) {
-	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		     "Disabling acceleration because the ring buffer "
-		      "allocation failed.\n");
-	   pI830->accel = ACCEL_NONE;
-      }
-   }
-   i830_init_bufmgr(pScrn);
-
-   pScrn->fbOffset = pI830->front_buffer->offset;
-
    if (!pI830->use_drm_mode) {
        vgaHWSetMmioFuncs(hwp, pI830->MMIOBase, 0);
        vgaHWGetIOBase(hwp);
@@ -2800,6 +2711,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
     if (pScrn->virtualX > pScrn->displayWidth)
 	pScrn->displayWidth = pScrn->virtualX;
+
+   /* If the front buffer is not a BO, we need to
+    * set the initial framebuffer pixmap to point at
+    * it
+    */
+   pScrn->fbOffset = pI830->front_buffer->offset;
 
    DPRINTF(PFX, "assert( if(!fbScreenInit(pScreen, ...) )\n");
    if (!fbScreenInit(pScreen, pI830->FbBase + pScrn->fbOffset, 
@@ -2829,11 +2746,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    xf86DiDGAInit (pScreen, pI830->LinearAddr + pScrn->fbOffset);
 
-   if (pI830->accel != ACCEL_NONE) {
-      if (!I830AccelInit(pScreen)) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Hardware acceleration initialization failed\n");
-      }
+   if (!I830AccelInit(pScreen)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "Hardware acceleration initialization failed\n");
+      return FALSE;
    }
 
    if (IS_I965G(pI830))
@@ -2841,7 +2757,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    else if (IS_I9XX(pI830))
        pI830->batch_flush_notify = i915_batch_flush_notify;
    else
-       pI830->batch_flush_notify = NULL;
+       pI830->batch_flush_notify = i830_batch_flush_notify;
 
    miInitializeBackingStore(pScreen);
    xf86SetBackingStore(pScreen);
@@ -3028,7 +2944,7 @@ I830LeaveVT(int scrnIndex, int flags)
 	 FatalError("DRM_I915_LEAVEVT failed: %s\n", strerror(ret));
    }
 
-   if (pI830->accel == ACCEL_UXA && IS_I965G(pI830))
+   if (IS_I965G(pI830))
       gen4_render_state_cleanup(pScrn);
 
    ret = drmDropMaster(pI830->drmSubFD);
@@ -3113,12 +3029,9 @@ I830EnterVT(int scrnIndex, int flags)
 
    i830_describe_allocations(pScrn, 1, "");
 
-   /* Update the screen pixmap in case the buffer moved */
-   i830_update_front_offset(pScrn);
-
    intel_batch_init(pScrn);
 
-   if (pI830->accel == ACCEL_UXA && IS_I965G(pI830))
+   if (IS_I965G(pI830))
       gen4_render_state_init(pScrn);
 
    if (!pI830->use_drm_mode) {

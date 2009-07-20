@@ -56,11 +56,6 @@ The following driver
 .B Options
 are supported
 .TP
-.BI "Option \*qNoAccel\*q \*q" boolean \*q
-Disable or enable acceleration.
-.IP
-Default: acceleration is enabled.
-.TP
 .BI "Option \*qColorKey\*q \*q" integer \*q
 This sets the default pixel value for the YUV video overlay key.
 .IP
@@ -134,6 +129,11 @@ This option specifies the amount of system memory to use for graphics, in KB.
 The default is 8192 if AGP allocable memory is < 128 MB, 16384 if < 192 MB,
 24576 if higher. DRI require at least a value of 16384. Higher values may give
 better 3D performance, at expense of available system memory.
+.TP
+.BI "Option \*qNoAccel\*q \*q" boolean \*q
+Disable or enable acceleration.
+.IP
+Default: acceleration is enabled.
 
 .PP
 The following driver

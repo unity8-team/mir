@@ -322,6 +322,13 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	i830_get_pixmap_bo(pDst),
     };
 
+    pI830->render_src_picture = pSrcPicture;
+    pI830->render_src = pSrc;
+    pI830->render_mask_picture = pMaskPicture;
+    pI830->render_mask = pMask;
+    pI830->render_dst_picture = pDstPicture;
+    pI830->render_dst = pDst;
+
     i830_exa_check_pitch_3d(pSrc);
     if (pMask)
 	i830_exa_check_pitch_3d(pMask);
@@ -351,12 +358,6 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     }
 
     pI830->i915_render_state.op = op;
-    pI830->i915_render_state.pSrcPicture = pSrcPicture;
-    pI830->i915_render_state.pMaskPicture = pMaskPicture;
-    pI830->i915_render_state.pDstPicture = pDstPicture;
-    pI830->i915_render_state.pSrc = pSrc;
-    pI830->i915_render_state.pMask = pMask;
-    pI830->i915_render_state.pDst = pDst;
     pI830->i915_render_state.needs_emit = TRUE;
 
     return TRUE;
@@ -367,12 +368,12 @@ i915_emit_composite_setup(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int op = pI830->i915_render_state.op;
-    PicturePtr pSrcPicture = pI830->i915_render_state.pSrcPicture;
-    PicturePtr pMaskPicture = pI830->i915_render_state.pMaskPicture;
-    PicturePtr pDstPicture = pI830->i915_render_state.pDstPicture;
-    PixmapPtr pSrc = pI830->i915_render_state.pSrc;
-    PixmapPtr pMask = pI830->i915_render_state.pMask;
-    PixmapPtr pDst = pI830->i915_render_state.pDst;
+    PicturePtr pSrcPicture = pI830->render_src_picture;
+    PicturePtr pMaskPicture = pI830->render_mask_picture;
+    PicturePtr pDstPicture = pI830->render_dst_picture;
+    PixmapPtr pSrc = pI830->render_src;
+    PixmapPtr pMask = pI830->render_mask;
+    PixmapPtr pDst = pI830->render_dst;
     uint32_t dst_format = pI830->i915_render_state.dst_format, dst_pitch;
     uint32_t blendctl;
     int out_reg = FS_OC;
@@ -556,7 +557,8 @@ i915_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     if (pI830->i915_render_state.needs_emit)
 	i915_emit_composite_setup(pScrn);
 
-    i830_composite(pDst, srcX, srcY, maskX, maskY, dstX, dstY, w, h);
+    i830_emit_composite_primitive(pDst, srcX, srcY, maskX, maskY, dstX, dstY,
+				  w, h);
 
     intel_batch_end_atomic(pScrn);
 }

@@ -1233,7 +1233,7 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 	/* The drawing rectangle clipping is always on.  Set it to values that
 	 * shouldn't do any clipping.
 	 */
-	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2); /* XXX 3 for BLC or CTG */
+	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);
 	OUT_BATCH(0x00000000);	/* ymin, xmin */
 	OUT_BATCH(DRAW_YMAX(pDst->drawable.height - 1) |
 		  DRAW_XMAX(pDst->drawable.width - 1)); /* ymax, xmax */

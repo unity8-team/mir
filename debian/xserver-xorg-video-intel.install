@@ -1,0 +1,3 @@
+usr/lib/xorg/modules/drivers/*.so
+usr/lib/libI810XvMC.so*
+usr/lib/libIntelXvMC.so*
