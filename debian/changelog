@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.8.0-0ubuntu1) karmic; urgency=low
+
+  * New upstream release 2.8.0
+  * Disable installation of ChangeLog
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 21 Jul 2009 01:23:22 -0700
+
 xserver-xorg-video-intel (2:2.7.99.902+git20090720.bb300738-0ubuntu1) karmic; urgency=low
 
   * Update to git 20090720 (master branch) up to commit bb300738
