@@ -305,7 +305,6 @@ nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 	return FALSE;
 }
 
-#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
 static void *
 nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			  int usage_hint, int bitsPerPixel)
@@ -376,82 +375,6 @@ nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
 
 	return FALSE;
 }
-#else
-static void *
-nouveau_exa_cp_broken_should_die(ScreenPtr pScreen, int size, int align)
-{
-	struct nouveau_pixmap *nvpix;
-
-	nvpix = xcalloc(1, sizeof(struct nouveau_pixmap));
-	if (!nvpix)
-		return NULL;
-
-	/* Allocate later when we know width/height */
-	nvpix->size = size;
-	return (void *)nvpix;
-}
-
-static Bool
-nouveau_exa_mph_broken_should_die(PixmapPtr ppix, int width, int height,
-				  int depth, int bpp, int devkind, pointer data)
-{
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pixmap *nvpix;
-	uint32_t cpp = ppix->drawable.bitsPerPixel >> 3;
-	uint32_t flags = 0, tile_mode = 0, tile_flags = 0;
-	int ret;
-
-	nvpix = nouveau_pixmap(ppix);
-	if (!nvpix)
-		return FALSE;
-
-	if (data == pNv->FBMap) {
-		if (nouveau_bo_ref(pNv->FB, &nvpix->bo))
-			return FALSE;
-
-		miModifyPixmapHeader(ppix, width, height, depth, bpp, devkind,
-				     data);
-		return TRUE;
-	}
-
-	if (nvpix->bo || !nvpix->size)
-		return FALSE;
-
-	if (cpp) {
-		flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP;
-
-		if (pNv->Architecture >= NV_ARCH_50) {
-			uint32_t th;
-
-			if      (height > 32) tile_mode = 4;
-			else if (height > 16) tile_mode = 3;
-			else if (height >  8) tile_mode = 2;
-			else if (height >  4) tile_mode = 1;
-			else                  tile_mode = 0;
-			tile_flags = 0x7000;
-
-			th = 1 << (tile_mode + 2);
-
-			devkind = ((NOUVEAU_ALIGN(width, 8) * cpp) + 63) & ~63;
-			nvpix->size = devkind * NOUVEAU_ALIGN(height, th);
-		}
-	}
-
-	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, nvpix->size, tile_mode,
-				  tile_flags, &nvpix->bo);
-	if (ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed pixmap creation: %d\n", ret);
-		return FALSE;
-	}
-
-	/* We don't want devPrivate.ptr set at all. */
-	miModifyPixmapHeader(ppix, width, height, depth, bpp, devkind, NULL);
-
-	return TRUE;
-}
-#endif
 
 static void
 nouveau_exa_destroy_pixmap(ScreenPtr pScreen, void *priv)
@@ -646,6 +569,7 @@ nouveau_exa_init(ScreenPtr pScreen)
 	exa->flags |= EXA_SUPPORTS_PREPARE_AUX;
 #endif
 
+#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
 	if (pNv->exa_driver_pixmaps) {
 		exa->flags |= EXA_HANDLES_PIXMAPS;
 		exa->pixmapOffsetAlign = 256;
@@ -654,15 +578,12 @@ nouveau_exa_init(ScreenPtr pScreen)
 		exa->PixmapIsOffscreen = nouveau_exa_pixmap_is_offscreen;
 		exa->PrepareAccess = nouveau_exa_prepare_access;
 		exa->FinishAccess = nouveau_exa_finish_access;
-#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
 		exa->CreatePixmap2 = nouveau_exa_create_pixmap;
-		exa->ModifyPixmapHeader = nouveau_exa_modify_pixmap_header;
-#else
-		exa->CreatePixmap = nouveau_exa_cp_broken_should_die;
-		exa->ModifyPixmapHeader = nouveau_exa_mph_broken_should_die;
-#endif
 		exa->DestroyPixmap = nouveau_exa_destroy_pixmap;
-	} else {
+		exa->ModifyPixmapHeader = nouveau_exa_modify_pixmap_header;
+	} else
+#endif
+	{
 		nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
 		exa->memoryBase = pNv->FB->map;
 		nouveau_bo_unmap(pNv->FB);
