@@ -1,3 +1,51 @@
+Release 2.8.0 (2009-07-20)
+==========================
+We are pleased to present this major release of the xf86-video-intel
+driver. This release is very similar to the 2.7.99.902 release
+candidate but includes a couple of additional bug fixes, (for bugs
+#22760 and @22483).
+
+Compared to the 2.7 releases this driver contains several new features
+and many bug fixes. The driver now depends on X server 1.6 or later,
+and eliminates several obsolete code paths, (XAA and EXA removed in
+favor of UXA, DRI1 support eliminated). The driver certainly will work
+best with an i915 module from a recent kernel (2.6.31) and with
+kernel-modesetting (KMS, specified by loading i915 with the option
+"modeset=1").
+
+New features in 2.8.0 compared to 2.7
+-------------------------------------
+* Remove XAA/EXA/DRI1 and NoAccel, and only support UXA/DRI2 now
+  (requiring xserver 1.6).
+
+* VLD support added into XvMC for Mpeg2, which decreases CPU usage
+  when playing video.
+
+Major fixes in 2.8.0 compared to 2.7
+------------------------------------
+* Fix broken front-buffer rendering
+  https://bugs.freedesktop.org/show_bug.cgi?id=19174
+
+* Fix disabling of XvMC disabled
+  https://bugs.freedesktop.org/show_bug.cgi?id=20790
+
+* Fix broken VT switch on some machines
+  https://bugs.freedesktop.org/show_bug.cgi?id=19578
+
+* Improve performance of trapezoid rendering for UXA
+  https://bugs.freedesktop.org/show_bug.cgi?id=21376
+
+* Vblank sync'd GL buffer swap (fixing video tearing under composite)
+  https://bugs.freedesktop.org/show_bug.cgi?id=20664
+
+* Fix G41 DRM support
+  https://bugs.freedesktop.org/show_bug.cgi?id=21095
+
+* Fix crash on some 8xx
+  https://bugs.freedesktop.org/show_bug.cgi?id=18974
+
+Various fixes for GPU hangs, and more...
+
 Snapshot 2.7.99.902 (2009-07-13)
 --------------------------------
 This is the first release candidate in preparation for the upcoming
