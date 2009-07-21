@@ -515,10 +515,16 @@ nouveau_exa_pixmap_is_onscreen(PixmapPtr ppix)
 {
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	unsigned long offset = exaGetPixmapOffset(ppix);
 
-	if (offset < pNv->EXADriverPtr->offScreenBase)
-		return TRUE;
+	if (pNv->exa_driver_pixmaps) {
+		if (pScrn->pScreen->GetScreenPixmap(pScrn->pScreen) == ppix)
+			return TRUE;
+	} else {
+		unsigned long offset = exaGetPixmapOffset(ppix);
+
+		if (offset < pNv->EXADriverPtr->offScreenBase)
+			return TRUE;
+	}
 
 	return FALSE;
 }
