@@ -45,6 +45,9 @@ AC_CONFIG_AUX_DIR(.)
 
 AM_INIT_AUTOMAKE([dist-bzip2])
 
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES])
+AM_SILENT_RULES([yes])
+
 # Checks for programs.
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
