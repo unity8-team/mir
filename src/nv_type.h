@@ -192,6 +192,7 @@ typedef struct _NVRec {
 	/* GPU context */
 	struct nouveau_channel *chan;
 	struct nouveau_notifier *notify0;
+	struct nouveau_notifier *vblank_sem;
 	struct nouveau_grobj *NvContextSurfaces;
 	struct nouveau_grobj *NvContextBeta1;
 	struct nouveau_grobj *NvContextBeta4;
@@ -205,6 +206,7 @@ typedef struct _NVRec {
 	struct nouveau_grobj *NvImageFromCpu;
 	struct nouveau_grobj *Nv2D;
 	struct nouveau_grobj *Nv3D;
+	struct nouveau_grobj *NvSW;
 	struct nouveau_bo *tesla_scratch;
 	struct nouveau_bo *shader_mem;
 	struct nouveau_bo *xv_filtertable_mem;

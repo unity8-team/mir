@@ -28,7 +28,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *tesla;
+	struct nouveau_grobj *tesla, *nvsw;
 	unsigned class;
 	int i;
 
@@ -47,16 +47,43 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	}
 
 	if (!pNv->Nv3D) {
-		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
+		if (nouveau_grobj_alloc(chan, Nv3D, class, &pNv->Nv3D))
 			return FALSE;
+
+		if (nouveau_grobj_alloc(chan, NvSW, 0x506e, &pNv->NvSW)) {
+			nouveau_grobj_free(&pNv->Nv3D);
+			return FALSE;
+		}
+
+		if (nouveau_notifier_alloc(chan, NvVBlankSem, 1,
+					   &pNv->vblank_sem)) {
+			nouveau_grobj_free(&pNv->NvSW);
+			nouveau_grobj_free(&pNv->Nv3D);
+		}
 
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, 65536,
 				   &pNv->tesla_scratch)) {
+			nouveau_notifier_free(&pNv->vblank_sem);
+			nouveau_grobj_free(&pNv->NvSW);
 			nouveau_grobj_free(&pNv->Nv3D);
 			return FALSE;
 		}
 	}
 	tesla = pNv->Nv3D;
+	nvsw = pNv->NvSW;
+
+	/*XXX: temporary, as a guard against people accidently running an
+	 *     old kernel until interface gets bumped..
+	 */
+	if (pNv->exa_driver_pixmaps) {
+		BEGIN_RING(chan, nvsw, 0x0060, 2);
+		OUT_RING  (chan, pNv->vblank_sem->handle);
+		OUT_RING  (chan, 0);
+		BEGIN_RING(chan, nvsw, 0x018c, 1);
+		OUT_RING  (chan, pNv->vblank_sem->handle);
+		BEGIN_RING(chan, nvsw, 0x0400, 1);
+		OUT_RING  (chan, 0);
+	}
 
 	BEGIN_RING(chan, tesla, 0x1558, 1);
 	OUT_RING  (chan, 1);
