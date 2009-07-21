@@ -332,6 +332,7 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			tile_flags = 0x7000;
 
 			height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
+			width  = NOUVEAU_ALIGN(width, 64);
 		}
 
 		pitch = width * cpp;

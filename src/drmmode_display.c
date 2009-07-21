@@ -371,16 +371,17 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	NVPtr pNv = NVPTR(crtc->scrn);
 	uint32_t tile_mode = 0, tile_flags = 0;
-	int rotate_pitch, ah = height;
+	int rotate_pitch, ah = height, aw = width;
 	int ret;
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		tile_mode = 4;
 		tile_flags = 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
+		aw = NOUVEAU_ALIGN(width, 64);
 	}
 
-	rotate_pitch = NOUVEAU_ALIGN(width * drmmode->cpp, 64);
+	rotate_pitch = NOUVEAU_ALIGN(aw * drmmode->cpp, 64);
 
 	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
 				  rotate_pitch * ah, tile_mode, tile_flags,
@@ -961,11 +962,13 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	pitch = width * (scrn->bitsPerPixel >> 3);
 	if (pNv->Architecture >= NV_ARCH_50) {
 		tile_mode = 4;
 		tile_flags = 0x7a00;
 		height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
+		pitch = NOUVEAU_ALIGN(width, 64) * (scrn->bitsPerPixel >> 3);
+	} else {
+		pitch = width * (scrn->bitsPerPixel >> 3);
 	}
 	pitch = NOUVEAU_ALIGN(pitch, 64);
 
