@@ -351,31 +351,6 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 	return nvpix;
 }
 
-static Bool
-nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
-				 int depth, int bitsPerPixel, int devKind,
-				 pointer pPixData)
-{
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pixmap *nvpix;
-
-	nvpix = nouveau_pixmap(ppix);
-	if (!nvpix)
-		return FALSE;
-
-	if (pPixData == pNv->FBMap) {
-		if (nouveau_bo_ref(pNv->FB, &nvpix->bo))
-			return FALSE;
-
-		miModifyPixmapHeader(ppix, width, height, depth, bitsPerPixel,
-				     devKind, pPixData);
-		return TRUE;
-	}
-
-	return FALSE;
-}
-
 static void
 nouveau_exa_destroy_pixmap(ScreenPtr pScreen, void *priv)
 {
@@ -580,7 +555,6 @@ nouveau_exa_init(ScreenPtr pScreen)
 		exa->FinishAccess = nouveau_exa_finish_access;
 		exa->CreatePixmap2 = nouveau_exa_create_pixmap;
 		exa->DestroyPixmap = nouveau_exa_destroy_pixmap;
-		exa->ModifyPixmapHeader = nouveau_exa_modify_pixmap_header;
 	} else
 #endif
 	{
