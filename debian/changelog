@@ -1,3 +1,53 @@
+xserver-xorg-video-intel (2:2.8.0-1) unstable; urgency=low
+
+  * New upstream release.
+    + Fixes crash at startup if KMS is not used, closes: #537052.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 21 Jul 2009 16:23:39 +0200
+
+xserver-xorg-video-intel (2:2.7.99.902-1) experimental; urgency=low
+
+  * New upstream release candidate.
+    + Fix crash in drm_intel_gem_bo_unreference_locked, closes: #535772.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 14 Jul 2009 00:17:00 +0200
+
+xserver-xorg-video-intel (2:2.7.99.901-2) experimental; urgency=low
+
+  * Pull upstream fix for xvmc build.
+  * Update build-depends, and reenable xvmc.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 11 Jun 2009 18:52:10 +0200
+
+xserver-xorg-video-intel (2:2.7.99.901-1) experimental; urgency=low
+
+  * New upstream release candidate.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 11 Jun 2009 08:18:49 +0200
+
+xserver-xorg-video-intel (2:2.7.99.1-2) experimental; urgency=low
+
+  [ Julien Cristau ]
+  * Pull from upstream git branch 'master', commit 8e942b70.
+  * Bump libdrm-dev build-dep to 2.4.11.
+  * Merge changes from 2:2.7.1-1.
+  * Bump Standards-Version to 3.8.1.
+
+  [ David Nusinow ]
+  * Add README.source
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 28 May 2009 20:10:30 +0200
+
+xserver-xorg-video-intel (2:2.7.99.1-1) experimental; urgency=low
+
+  * New upstream release candidate.
+  * Stop installing libI810XvMC.so and libIntelXvMC.so for now. They are
+    disabled in configure for now because DRI1 is not supported anymore.
+  * Install the upstream NEWS file, closes: #524334, #524336.
+  * Move the -dbg package to section debug.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 29 Apr 2009 19:50:26 +0200
+
 xserver-xorg-video-intel (2:2.7.1-1) unstable; urgency=low
 
   [ Brice Goglin ]

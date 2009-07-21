@@ -72,10 +72,7 @@ int main(int argc, char **argv)
     if (dev->vendor_id != 0x8086)
 	errx(1, "Graphics card is non-intel");
 
-    i830.PciInfo = &i830.pci_info_rec;
-    i830.PciInfo->chipType = dev->device_id;
-
-    i830.pci_dev = dev;
+    i830.PciInfo = dev;
 
     mmio_bar = IS_I9XX((&i830)) ? 0 : 1;
 

@@ -65,10 +65,7 @@ void intel_i830rec_init(I830Ptr pI830)
     if (dev->vendor_id != 0x8086)
 	errx(1, "Graphics card is non-intel");
 
-    pI830->PciInfo = &pI830->pci_info_rec;
-    pI830->PciInfo->chipType = dev->device_id;
-
-    pI830->pci_dev = dev;
+    pI830->PciInfo = dev;
 
     mmio_bar = IS_I9XX(pI830) ? 0 : 1;
 

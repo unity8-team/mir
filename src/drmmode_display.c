@@ -29,9 +29,10 @@
 #include "config.h"
 #endif
 
+#include <errno.h>
+
 #include "xorgVersion.h"
 
-#ifdef XF86DRM_MODE
 #include "i830.h"
 #include "intel_bufmgr.h"
 #include "xf86drmMode.h"
@@ -59,6 +60,10 @@ typedef struct {
     Atom *atoms;
 } drmmode_prop_rec, *drmmode_prop_ptr;
 
+struct fixed_panel_lvds {
+	int hdisplay;
+	int vdisplay;
+};
 typedef struct {
     drmmode_ptr drmmode;
     int output_id;
@@ -67,6 +72,8 @@ typedef struct {
     drmModePropertyBlobPtr edid_blob;
     int num_props;
     drmmode_prop_ptr props;
+    void *private_data;
+    int dpms_mode;
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 static void
@@ -233,6 +240,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		drmmode_output_dpms(output, DPMSModeOn);
 	}
 
+	i830_set_max_gtt_map_size(pScrn);
+
 done:
 	if (!ret) {
 		crtc->x = saved_x;
@@ -320,8 +329,6 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
-	drm_intel_gem_bo_map_gtt(drmmode_crtc->rotate_bo);
-
 	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
 			   crtc->scrn->bitsPerPixel, rotate_pitch,
 			   drmmode_crtc->rotate_bo->handle,
@@ -332,7 +339,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
-	return drmmode_crtc->rotate_bo->virtual;
+	return drmmode_crtc->rotate_bo;
 }
 
 static PixmapPtr
@@ -344,8 +351,14 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	unsigned long rotate_pitch;
 	PixmapPtr rotate_pixmap;
 
-	if (!data)
+	if (!data) {
 		data = drmmode_crtc_shadow_allocate (crtc, width, height);
+		if (!data) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Couldn't allocate shadow pixmap for rotated CRTC\n");
+			return NULL;
+		}
+	}
 
 	rotate_pitch =
 		i830_pad_drawable_width(width, drmmode->cpp) * drmmode->cpp;
@@ -354,11 +367,12 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 					       pScrn->depth,
 					       pScrn->bitsPerPixel,
 					       rotate_pitch,
-					       data);
+					       NULL);
 
 	if (rotate_pixmap == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
+		return NULL;
 	}
 
 	if (drmmode_crtc->rotate_bo)
@@ -373,8 +387,10 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	if (rotate_pixmap)
+	if (rotate_pixmap) {
+		i830_set_pixmap_bo(rotate_pixmap, NULL);
 		FreeScratchPixmapHeader(rotate_pixmap);
+	}
 
 
 	if (data) {
@@ -382,7 +398,6 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 		 * unbound. */
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
-		drm_intel_gem_bo_unmap_gtt(drmmode_crtc->rotate_bo);
 		dri_bo_unreference(drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_bo = NULL;
 	}
@@ -464,7 +479,148 @@ drmmode_output_detect(xf86OutputPtr output)
 static Bool
 drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 {
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	struct fixed_panel_lvds *p_lvds = drmmode_output->private_data;
+
+	/*
+	 * If the connector type is LVDS, we will use the panel limit to
+	 * verfiy whether the mode is valid.
+	 */
+	if ((koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
+		if (pModes->HDisplay > p_lvds->hdisplay ||
+			pModes->VDisplay > p_lvds->vdisplay)
+			return MODE_PANEL;
+		else
+			return MODE_OK;
+	}
 	return MODE_OK;
+}
+
+static void fill_detailed_lvds_block(struct detailed_monitor_section *det_mon,
+					DisplayModePtr mode)
+{
+	struct detailed_timings *timing = &det_mon->section.d_timings;
+
+	det_mon->type = DT;
+	timing->clock = mode->Clock * 1000;
+	timing->h_active = mode->HDisplay;
+	timing->h_blanking = mode->HTotal - mode->HDisplay;
+	timing->v_active = mode->VDisplay;
+	timing->v_blanking = mode->VTotal - mode->VDisplay;
+	timing->h_sync_off = mode->HSyncStart - mode->HDisplay;
+	timing->h_sync_width = mode->HSyncEnd - mode->HSyncStart;
+	timing->v_sync_off = mode->VSyncStart - mode->VDisplay;
+	timing->v_sync_width = mode->VSyncEnd - mode->VSyncStart;
+
+	if (mode->Flags & V_PVSYNC)
+		timing->misc |= 0x02;
+
+	if (mode->Flags & V_PHSYNC)
+		timing->misc |= 0x01;
+}
+
+static int drmmode_output_lvds_edid(xf86OutputPtr output,
+				struct fixed_panel_lvds *p_lvds)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	int i, j;
+	DisplayModePtr pmode;
+	xf86MonPtr	edid_mon;
+	drmModeModeInfo *mode_ptr;
+	struct detailed_monitor_section *det_mon;
+
+	if (output->MonInfo) {
+		/*
+		 * If there exists the EDID, we will either find a DS_RANGES
+		 * or replace a DS_VENDOR block, smashing it into a DS_RANGES
+		 * block with opern refresh to match all the default modes.
+		 */
+		int edid_det_block_num;
+		edid_mon = output->MonInfo;
+		edid_mon->features.msc |= 0x01;
+		j = -1;
+		edid_det_block_num = sizeof(edid_mon->det_mon) /
+					sizeof(edid_mon->det_mon[0]);
+		for (i = 0; i < edid_det_block_num; i++) {
+			if (edid_mon->det_mon[i].type >= DS_VENDOR && j == -1)
+				j = i;
+			if (edid_mon->det_mon[i].type == DS_RANGES) {
+				j = i;
+				break;
+			}
+		}
+		if (j != -1) {
+			struct monitor_ranges	*ranges =
+				&edid_mon->det_mon[j].section.ranges;
+			edid_mon->det_mon[j].type = DS_RANGES;
+			ranges->min_v = 0;
+			ranges->max_v = 200;
+			ranges->min_h = 0;
+			ranges->max_h = 200;
+		}
+		return 0;
+	}
+	/*
+	 * If there is no EDID, we will construct a bogus EDID for LVDS output
+	 * device. This is similar to what we have done in i830_lvds.c
+	 */
+	edid_mon = NULL;
+	edid_mon = xcalloc(1, sizeof(xf86Monitor));
+	if (!edid_mon) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			"Can't allocate memory for edid_mon.\n");
+		return 0;
+	}
+	/* Find the fixed panel mode.
+	 * In theory when there is no EDID, KMS kernel will return only one
+	 * mode. And this can be regarded as fixed lvds panel mode.
+	 * But it will be better to traverse the mode list to get the fixed
+	 * lvds panel mode again as we don't know whether some new modes
+	 * are added for the LVDS output device
+	 */
+	j = 0;
+	for (i = 0; i < koutput->count_modes; i++) {
+		mode_ptr = &koutput->modes[i];
+		if ((mode_ptr->hdisplay == p_lvds->hdisplay) &&
+			(mode_ptr->vdisplay == p_lvds->vdisplay)) {
+			/* find the fixed panel mode */
+			j = i;
+			break;
+		}
+	}
+	pmode = xnfalloc(sizeof(DisplayModeRec));
+	drmmode_ConvertFromKMode(output->scrn, &koutput->modes[j], pmode);
+	/*support DPM, instead of DPMS*/
+	edid_mon->features.dpms |= 0x1;
+	/*defaultly support RGB color display*/
+	edid_mon->features.display_type |= 0x1;
+	/*defaultly display support continuous-freqencey*/
+	edid_mon->features.msc |= 0x1;
+	/*defaultly  the EDID version is 1.4 */
+	edid_mon->ver.version = 1;
+	edid_mon->ver.revision = 4;
+	det_mon = edid_mon->det_mon;
+	if (pmode) {
+		/* now we construct new EDID monitor,
+		 * so filled one detailed timing block
+		 */
+		fill_detailed_lvds_block(det_mon, pmode);
+		/* the filed timing block should be set preferred*/
+		edid_mon->features.msc |= 0x2;
+		det_mon = det_mon + 1;
+	}
+	/* Set wide sync ranges so we get all modes
+	 * handed to valid_mode for checking
+	 */
+	det_mon->type = DS_RANGES;
+	det_mon->section.ranges.min_v = 0;
+	det_mon->section.ranges.max_v = 200;
+	det_mon->section.ranges.min_h = 0;
+	det_mon->section.ranges.max_h = 200;
+	output->MonInfo = edid_mon;
+	return 0;
 }
 
 static DisplayModePtr
@@ -476,6 +632,8 @@ drmmode_output_get_modes(xf86OutputPtr output)
 	int i;
 	DisplayModePtr Modes = NULL, Mode;
 	drmModePropertyPtr props;
+	struct fixed_panel_lvds *p_lvds;
+	drmModeModeInfo *mode_ptr;
 
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
@@ -511,6 +669,28 @@ drmmode_output_get_modes(xf86OutputPtr output)
 		Modes = xf86ModesAdd(Modes, Mode);
 
 	}
+	p_lvds = drmmode_output->private_data;
+	/*
+	 * If the connector type is LVDS, we will traverse the kernel mode to
+	 * get the panel limit.
+	 * If it is incorrect, please fix me.
+	 */
+	if ((koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
+		p_lvds->hdisplay = 0;
+		p_lvds->vdisplay = 0;
+		for (i = 0; i < koutput->count_modes; i++) {
+			mode_ptr = &koutput->modes[i];
+			if ((mode_ptr->hdisplay >= p_lvds->hdisplay) &&
+				(mode_ptr->vdisplay >= p_lvds->vdisplay)) {
+				p_lvds->hdisplay = mode_ptr->hdisplay;
+				p_lvds->vdisplay = mode_ptr->vdisplay;
+			}
+		}
+		if (!p_lvds->hdisplay || !p_lvds->vdisplay)
+			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+				"Incorrect KMS mode.\n");
+		drmmode_output_lvds_edid(output, p_lvds);
+	}
 	return Modes;
 }
 
@@ -528,6 +708,10 @@ drmmode_output_destroy(xf86OutputPtr output)
 	}
 	xfree(drmmode_output->props);
 	drmModeFreeConnector(drmmode_output->mode_output);
+	if (drmmode_output->private_data) {
+		xfree(drmmode_output->private_data);
+		drmmode_output->private_data = NULL;
+	}
 	xfree(drmmode_output);
 	output->driver_private = NULL;
 }
@@ -551,11 +735,20 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
                                 drmmode_output->output_id,
                                 props->prop_id,
                                 mode);
+			drmmode_output->dpms_mode = mode;
                         drmModeFreeProperty(props);
                         return;
 		}
 		drmModeFreeProperty(props);
 	}
+}
+
+int
+drmmode_output_dpms_status(xf86OutputPtr output)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+
+	return drmmode_output->dpms_mode;
 }
 
 static Bool
@@ -705,8 +898,8 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 	    }
 	}
     }
-    /* no property found? */
-    return FALSE;
+
+    return TRUE;
 }
 
 static const xf86OutputFuncsRec drmmode_output_funcs = {
@@ -738,19 +931,19 @@ static int subpixel_conv_table[7] = { 0, SubPixelUnknown,
 				      SubPixelVerticalBGR,
 				      SubPixelNone };
 
-const char *output_names[] = { "None",
-			       "VGA",
-			       "DVI",
-			       "DVI",
-			       "DVI",
-			       "Composite",
-			       "TV",
-			       "LVDS",
-			       "CTV",
-			       "DIN",
-			       "DP",
-			       "HDMI",
-			       "HDMI",
+static const char *output_names[] = { "None",
+				      "VGA",
+				      "DVI",
+				      "DVI",
+				      "DVI",
+				      "Composite",
+				      "TV",
+				      "LVDS",
+				      "CTV",
+				      "DIN",
+				      "DP",
+				      "HDMI",
+				      "HDMI",
 };
 
 
@@ -791,7 +984,19 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		drmModeFreeEncoder(kencoder);
 		return;
 	}
-
+	/*
+	 * If the connector type of the output device is LVDS, we will
+	 * allocate the private_data to store the panel limit.
+	 * For example: hdisplay, vdisplay
+	 */
+	drmmode_output->private_data = NULL;
+	if (koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) {
+		drmmode_output->private_data = xcalloc(
+				sizeof(struct fixed_panel_lvds), 1);
+		if (!drmmode_output->private_data)
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"Can't allocate private memory for LVDS.\n");
+	}
 	drmmode_output->output_id = drmmode->mode_res->connectors[num];
 	drmmode_output->mode_output = koutput;
 	drmmode_output->mode_encoder = kencoder;
@@ -824,9 +1029,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	if (!pI830->can_resize)
-		return FALSE;
-
 	pitch = i830_pad_drawable_width(width, pI830->cpp);
 	tiled = i830_tiled_width(pI830, &pitch, pI830->cpp);
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
@@ -854,12 +1056,9 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), pI830->front_buffer->bo);
-	scrn->fbOffset = pI830->front_buffer->offset;
 
 	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
 				   width, height, -1, -1, pitch * pI830->cpp, NULL);
-	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
-		   pI830->front_buffer->offset);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -896,7 +1095,6 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
 	xf86CrtcConfigPtr   xf86_config;
 	drmmode_ptr drmmode;
 	int i;
@@ -910,8 +1108,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 
 	drmmode->cpp = cpp;
 	drmmode->mode_res = drmModeGetResources(drmmode->fd);
-	if (!drmmode->mode_res)
+	if (!drmmode->mode_res) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "failed to get resources: %s\n", strerror(errno));
 		return FALSE;
+	}
 
 	xf86CrtcSetSizeRange(pScrn, 320, 200, drmmode->mode_res->max_width,
 			     drmmode->mode_res->max_height);
@@ -921,33 +1122,15 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		drmmode_output_init(pScrn, drmmode, i);
 
-	xf86InitialConfiguration(pScrn, pI830->can_resize);
+	xf86InitialConfiguration(pScrn, TRUE);
 
 	return TRUE;
 }
 
-Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData, dri_bo **bo)
+int
+drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc)
 {
-	return FALSE;
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-#if 0
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
-	int i;
-
-	for (i = 0; i < config->num_crtc; i++) {
-		xf86CrtcPtr crtc = config->crtc[i];
-		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-		if (!drmmode_crtc->rotate_bo)
-			continue;
-
-		if (drmmode_crtc->rotate_bo->virtual == pPixData) {
-			*bo = drmmode_crtc->rotate_bo;
-			return TRUE;
-		}
-	}
-	return FALSE;
-#endif
+	return drm_intel_get_pipe_from_crtc_id (bufmgr, drmmode_crtc->mode_crtc->crtc_id);
 }
-
-#endif

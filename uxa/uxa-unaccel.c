@@ -336,24 +336,6 @@ uxa_check_get_spans (DrawablePtr pDrawable,
     }
 }
 
-#ifndef SERVER_1_5
-void
-uxa_check_paint_window (WindowPtr pWin, RegionPtr pRegion, int what)
-{
-    ScreenPtr screen = pWin->drawable.pScreen;
-
-    UXA_FALLBACK(("from %p (%c)\n", pWin,
-		  uxa_drawable_location (&pWin->drawable)));
-    if (uxa_prepare_access (&pWin->drawable, UXA_ACCESS_RW)) {
-	if (uxa_prepare_access_window (pWin)) {
-	    fbPaintWindow (pWin, pRegion, what);
-	    uxa_finish_access_window (pWin);
-	}
-	uxa_finish_access(&pWin->drawable);
-    }
-}
-#endif
-
 void
 uxa_check_composite (CARD8      op,
                    PicturePtr pSrc,

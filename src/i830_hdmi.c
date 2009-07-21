@@ -166,14 +166,22 @@ i830_hdmi_detect(xf86OutputPtr output)
 
     temp = INREG(PORT_HOTPLUG_EN);
 
-    OUTREG(PORT_HOTPLUG_EN,
-	   temp |
-	   HDMIB_HOTPLUG_INT_EN |
-	   HDMIC_HOTPLUG_INT_EN |
-	   HDMID_HOTPLUG_INT_EN);
+    switch (dev_priv->output_reg) {
+    case SDVOB:
+	temp |= HDMIB_HOTPLUG_INT_EN;
+	break;
+    case SDVOC:
+	temp |= HDMIC_HOTPLUG_INT_EN;
+	break;
+    default:
+	return XF86OutputStatusUnknown;
+    }
+
+    OUTREG(PORT_HOTPLUG_EN, temp);
 
     POSTING_READ(PORT_HOTPLUG_EN);
 
+    i830WaitForVblank(pScrn);
     switch (dev_priv->output_reg) {
     case SDVOB:
 	bit = HDMIB_HOTPLUG_INT_STATUS;

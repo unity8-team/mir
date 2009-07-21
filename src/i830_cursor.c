@@ -26,20 +26,6 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_cursor.c,v 1.6 2002/12/18 15:49:01 dawes Exp $ */
-
-/*
- * Reformatted with GNU indent (2.2.8), using the following options:
- *
- *    -bad -bap -c41 -cd0 -ncdb -ci6 -cli0 -cp0 -ncs -d0 -di3 -i3 -ip3 -l78
- *    -lp -npcs -psl -sob -ss -br -ce -sc -hnl
- *
- * This provides a good match with the original i810 code and preferred
- * XFree86 formatting conventions.
- *
- * When editing this driver, please follow the existing formatting, and edit
- * with <TAB> characters expanded at 8-column intervals.
- */
 
 /*
  * Authors:
@@ -136,19 +122,6 @@ I830CursorInit(ScreenPtr pScreen)
 			       HARDWARE_CURSOR_ARGB));
 }
 
-void
-i830_crtc_load_cursor_image (xf86CrtcPtr crtc, unsigned char *src)
-{
-    I830Ptr		pI830 = I830PTR(crtc->scrn);
-    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
-    uint8_t		*pcurs;
-
-    pcurs = pI830->FbBase + intel_crtc->cursor_offset;
-
-    intel_crtc->cursor_is_argb = FALSE;
-    memcpy (pcurs, src, I810_CURSOR_X * I810_CURSOR_Y / 4);
-}
-
 #ifdef ARGB_CURSOR
 void
 i830_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
@@ -174,15 +147,15 @@ i830_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 
     temp = 0;
     if (x < 0) {
-	temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
+	temp |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
 	x = -x;
     }
     if (y < 0) {
-	temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
+	temp |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
 	y = -y;
     }
-    temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
-    temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
+    temp |= x << CURSOR_X_SHIFT;
+    temp |= y << CURSOR_Y_SHIFT;
 
     switch (intel_crtc->pipe) {
     case 0:

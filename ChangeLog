@@ -1,20 +1,1408 @@
-commit ba7d739416796d4045952209a0a0090a78d3978d
+commit 5d50a949b3c5d0ad2bc4cf48ab25da1f707a4f6f
 Author: Carl Worth <cworth@cworth.org>
-Date:   Tue May 12 17:14:11 2009 -0700
+Date:   Mon Jul 20 22:59:37 2009 -0700
 
-    Update version to 2.7.1
-    
-    In preparation for the 2.7.1 maintenance release.
+    Increment version number to 2.8.0 for release.
 
-commit b0ad6ad6698643bfabc6a570c145d457ca70e0f5
+commit b12220bd81f3a0509a3746dac3258e53f3879b23
 Author: Carl Worth <cworth@cworth.org>
-Date:   Tue May 12 17:13:26 2009 -0700
+Date:   Mon Jul 20 22:59:02 2009 -0700
 
-    NEWS: Update release notes for 2.7.1
+    NEWS: Add notes for 2.8.0 release
     
-    Just changing the wording to turn 2.7.0.901 into 2.7.1.
+    Many thanks to Gordon for his notes from http://intellinuxgraphics.org/2009Q2.html
 
-commit ae5b6d8135c7170821db37de0245b0e6b7a87e59
+commit bb3007384298cb57625ec0b3868dff9b23568f3e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 16 12:56:07 2009 -0700
+
+    Really fix i915 render.  Fail at commit --amend.
+
+commit 8dd7ccf37e2de6d80b556e6d18af244cefc1e417
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 16 11:40:51 2009 -0700
+
+    Fix 915-class Render after the 8xx-class Render fix.
+    
+    The two shared i830_composite.c, so giving i830 atomic batch support
+    triggered anger about starting i830's atomic area while in i915's atomic
+    area.  Instead, split the emit-a-primitive stuff from the state emission.
+
+commit a1e6abb5ca89d699144d10fdc4309b3b78f2f7a9
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jul 15 14:15:10 2009 -0700
+
+    Use batch_start_atomic to fix batchbuffer wrapping problems with 8xx render.
+    
+    Bug #22483.
+
+commit e386e7b14b139f15205e14b173e8222bf38d9e18
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 15 09:43:04 2009 -0700
+
+    Reset framebuffer offset when rebinding aperture (22760).
+    
+    scrn->fbOffset may be changed when binding objects to the aperture during
+    server initialization or VT enter. This was accidentally removed when the
+    NoAlloc option was eliminated.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit b74bf3f9a65af9e72921d4e9028d9d4d023f8bc6
+Author: Barry Scott <barry.scott@onelan.co.uk>
+Date:   Mon Jul 13 16:34:20 2009 -0700
+
+    Fix XV scan line calculation when rotated.
+
+commit 82905c7c0b871a97ec435a765c2ca407903ba595
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jul 13 05:29:49 2009 -0700
+
+    Increment version to 2.7.99.902
+
+commit 925bc6cbd430a00928fac2ef58724dd37c3bc349
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jul 13 05:27:40 2009 -0700
+
+    RELEASING: Fix typo in instructions
+
+commit 67c0afc7b7446a7b98aa7c65043ddba4c7c72b82
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jul 13 05:27:06 2009 -0700
+
+    NEWS: Add notes for 2.7.99.902
+
+commit 34c674dd45879b8ba8395b93b16c8a9e7b848f1f
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sat Jul 11 22:53:42 2009 -0700
+
+    Remove vestiges of NoAccel options from i830_driver.c
+    
+    The enum and OptionInfoRec weren't removed in the initial patch
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 33d6e7a2355dfb8ad324c4fa28ce61c7e051b435
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sat Jul 11 22:53:11 2009 -0700
+
+    intel.man: Mark NoAccel option as i810/i815 only
+    
+    The NoAccel option is not valid for other chips.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit ed8a9a94e1a670ca35311c9ed83d0c479530d41a
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Jul 10 17:13:14 2009 -0700
+
+    i830_uxa_prepare_access: Flush and wait for idle for non-bo pixmaps
+    
+    Without kernel support and explicit knowledge about where in the ring the
+    last rendering operation for a specific pixmap was, we must synchronize with
+    any outstanding rendering before accessing a pixmap which does not have a
+    buffer object.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit cb19ac207b784d814f6f389110fd1b21a0f34e8b
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Jul 10 14:01:02 2009 -0700
+
+    KMS: Keep screen pixmap devPrivate.ptr NULL during init and resize
+    
+    The frame buffer only has a valid address between prepare_access and
+    finish_access calls, so remove all other attempts to compute an address from
+    the driver.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 704b88dd50a7e7e3f362264b86d0401bee8603aa
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 8 13:06:47 2009 -0700
+
+    i830_bind_memory: Under UMS: Bind GEM bos with dri_bo_pin, else through the GART
+    
+    We only need to get static offsets for objects when not running KMS,
+    otherwise the kernel will manage those as needed for us.
+    
+    Binding objects is done in one of two ways. For GEM buffer objects, we use
+    dri_bo_pin. For GART allocated memory, we bind that to the GART.
+
+commit 7b273732f70e91df8b41d5c48e1379271557dd8e
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 8 11:53:13 2009 -0700
+
+    Allocate GTT space for GEM only under UMS
+    
+    GEM requires GTT space to map objects. Under KMS, the kernel driver has
+    already provided all available GTT space to GEM, so the X server need not do
+    anything.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 56bfee8705f5d7d965227013b205dbc4c93e220c
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Jul 10 14:49:20 2009 -0700
+
+    Always set screen pixmap data pointer at init and resize times
+    
+    For non-DRM environments, the screen pixmap will be GART allocated memory
+    and not a libdrm buffer object and so uxa will only use devPrivate.ptr to
+    find the associated memory. Make sure devPrivate.ptr is set each time the
+    framebuffer is allocated so that uxa will be able to draw to it.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 98087a0b966d5dc69faf72719153a2c878ba3de1
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 8 11:47:25 2009 -0700
+
+    Make xorg.conf DRI option work under KMS. Fix name of I830AccelMethodInit
+    
+    KMS mode does not call I830AccelMethodInit as that does the user
+    modesetting initialization (yes, it was misnamed), but that means that the DRI option
+    was ignored. Create a new i830_check_dri_option function to do the option
+    detection, then remove that from I830AccelMethodInit, which is renamed
+    i830_user_modesetting_init to reflect what it actually does.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit d655a3ff423e69c19a5dc07140cbf3caaa32cb86
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Jul 8 18:06:40 2009 -0700
+
+    Remove NoAccel support
+    
+    This removes yet another 'debugging' option that hasn't seen real use in a
+    long time, and wasn't supported under KMS in any case.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 4e4b947f0b13f4a62606ccfd5729d5eb26ca0e92
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 9 15:52:16 2009 -0700
+
+    Remove bad comment about 3DSTATE_DRAWING_RECTANGLE size.
+
+commit 9155cfca75a207bce0fad945f32f0cb33eab8c4e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 9 14:16:07 2009 -0700
+
+    Fix lols in trying to figure out whether this is a 64-bit build.
+    
+    Noticed by:	Michel Dänzer <michel@daenzer.net>
+
+commit 40e7c9505265823786cf730214db84812a5e494e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jul 6 11:54:50 2009 -0700
+
+    Refuse to allocate giant BOs on 32-bit systems.
+    
+    The overcommit of address space combined with these buffers hitting SW
+    fallbacks all the time means that we're probably better off telling the
+    application "no" instead of likely silently failing later.
+    
+    Bug #22601.
+
+commit 6337cd23e692cae789d07f429442c425c18e1d4f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jul 1 15:54:38 2009 -0700
+
+    Initialize the other argument to drmSetInterfaceVersion.
+    
+    The kernel ignores it if dd_major is -1, anyway.
+
+commit 216d939858abc924f2e32c95518f937f29ea018e
+Author: ling.ma@intel.com <ling.ma@intel.com>
+Date:   Tue Jul 7 14:26:02 2009 +0800
+
+    enable sdvo lvds scaling function
+    
+    Currently we implemented basic sdvo lvds function,
+    But except for sdvo lvds fixed mode, we can not switch
+    to other modes, otherwise display get black. The patch
+    intends to work for all modes whose HDisplay and VDisplay
+    are lower than fixed mode.
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit 0402f4f331148084552bd3963dbcb3fb900be8ea
+Author: Simon Farnsworth <simon.farnsworth@onelan.co.uk>
+Date:   Thu Jun 18 12:33:47 2009 +0100
+
+    Raise XV limit to 2048x2048 to match hardware limits.
+    
+    The bigrequests limit isn't present in current X servers (tested using
+    textured video on a 965 with both image and window at 2048x2048 on a
+    1920x1200 display, and image at 2048x2048, window at 1024x1024).
+    
+    Remove the artificial limit, enabling full-screen HD video when
+    rotated.
+
+commit a66357832388ba9db21a4b3bf8311d9d1f1ab308
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Jul 7 14:13:57 2009 -0700
+
+    non-DRI FB resize failed to assign the screen pixmap devPrivate.ptr (22328)
+    
+    When not using DRI, the screen pixmap is not in a bo, and so the usual
+    enable/disable access functions don't adjust the pixmap devPrivate field,
+    leaving it to the frame buffer allocation code to assign this correctly.
+    
+    During mode setting and fb resizing, FB access is disabled, and the
+    screen pixmap devPrivate is stashed away by xf86EnableDisableFBAccess,
+    to be restored when FB access is turned back on. This means that we have to
+    set the pixmap devPrivate.ptr (in case xf86EnableDisableFBAccess doesn't
+    do this), along with storing the address in the scrn->pixmapPrivate field.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    Reviewed-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit c889b34e432198d5410a068eff3089ff5314ac27
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 7 18:05:01 2009 +0100
+
+    Check for a valid I830Ptr before closing master.
+    
+    After failing to become DRM master, the X server dies attempting to close
+    the master fd during free:
+    
+    (EE) intel(0): [drm] failed to set drm interface version.
+    (EE) intel(0): Failed to become DRM master.
+    (EE) intel(0): failed to get resources: Bad file descriptor
+    (EE) intel(0): Kernel modesetting setup failed
+    
+    Backtrace:
+    0: X(xorg_backtrace+0x3b) [0x8133a3b]
+    1: X(xf86SigHandler+0x55) [0x80c7945]
+    2: [0xb805d400]
+    3: /usr/lib/xorg/modules/drivers//intel_drv.so [0xb7b4bfcc]
+    4: X(xf86DeleteScreen+0x6b) [0x80d465b]
+    5: X(InitOutput+0x548) [0x80b0158]
+    6: X(main+0x1cb) [0x807220b]
+    7: /lib/tls/i686/cmov/libc.so.6(__libc_start_main+0xe5) [0xb7d107a5]
+    8: X [0x8071881]
+    Saw signal 11.  Server aborting.
+     ddxSigGiveUp: Closing log
+     ddxSigGiveUp: re-raising 11
+    Segmentation fault
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 705042f497b7b3843c2dcc5c160fb8dfeac1472a
+Author: Keith Packard <keithp@keithp.com>
+Date:   Mon Jul 6 13:49:31 2009 -0700
+
+    Handle DRI2INFOREC version 3
+    
+    This DRI2 version does not support the old CreateBuffers/DestroyBuffers
+    interface anymore.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 2ebc7d32e47b5edd5b776c39f936ed4e053caac2
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu Jul 2 13:13:14 2009 -0700
+
+    Update to multi-API DRI2 interface
+    
+    The DRI2 interface was changed to support both old and new drivers in an
+    API/ABI compatible fashion. This change syncs the intel driver with the new
+    version of the DRI2 API.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit f6f79eb629184366b1355743d601129a526da90c
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Mon Jul 6 11:01:31 2009 +0200
+
+    remove unused shader program
+    
+    This file is not even referenced by any Makefile.am
+    
+    Acked-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 7e722ada533777c5e9ddf44bb4d770bacf8e13bf
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Mon Jul 6 16:25:13 2009 +0800
+
+    Disable FBC on IGDNG
+    
+    Don't make FBC count for memory allocation.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 74227141923a2f5049592219ab80e8733062a5d9
+Author: Barry Scott <barry.scott@onelan.co.uk>
+Date:   Tue Jun 23 14:14:50 2009 +0100
+
+    Fix segv for clipped movie window
+    
+    When playing a movie that is clipped on its left and right edges the Xorg
+    server will SEGV sometimes. This is because the intel driver ignores the
+    clipping info when it copies the planes out of the XV data.
+    
+    The check for the optimised copy was wrong to ignore the width required.
+    Which leads to too much data being copied by the memcpy. It the source buffer
+    happens to end exactly on a page boundary the server will SEGV.
+    
+    As we reviewed the code we checked the calculation of src1, src2 and src3.
+    The patch includes additional comments to make it clear what the elements of
+    the calculation are.
+    
+    This bug exists in git head and we also see it in 2.4.1.
+    
+    Barry
+    
+    Reviewed-by: Ian Romanick <ian.d.romanick@intel.com>
+
+commit c1755599db1d9a20954b84ccc07afd892bb6ac9e
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Thu Jul 2 13:04:51 2009 -0700
+
+    Clear the bo on the rotate scratch pixmap
+    
+    Since the scratch pixmap header will be re-used after allocation, we
+    need to clear its bo attachment when we stop using it, otherwise a later
+    user will use a bogus bo.
+    
+    Reviewed-by: Keith Packard <keithp@keithp.com>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 324b4686204feb3a7370eeecaff8ba44635f73ca
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Jul 2 14:15:37 2009 +0200
+
+    Xv i830_display_video splitup: extract i830_update_scaling_factors
+    
+    Just moved the code, no other changes.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit c2410addbfb99fcd7069591d9f387c35ed760522
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Jul 2 14:15:36 2009 +0200
+
+    Xv i830_display_video splitup: extract i830_update_polyphase_coeffs
+    
+    To slightly clean up the implementation of i830_update_polyphase_coeffs,
+    introduce the two small helper functions i830_limit_coeff and
+    i830_store coeffs_in_overlay_regs.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Ian Romanick <ian.d.romanick@intel.com>
+
+commit 795c11c49cf10525f02127a3629d35378d802fa7
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Jul 2 14:15:34 2009 +0200
+
+    Xv i830_display_video splitup: extract i830_update_dst_box_to_crtc_coords
+    
+    Just moved the code ouf of line.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 4100abdf5d208bbcbb4ceabad0572c04221443c9
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Jun 30 13:12:45 2009 +0200
+
+    Xv: kill !textured condition
+    
+    This is in the overlay path and therefore always true.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit b0df0fe91e2b800ed096f369850aa1af4be2f157
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Jun 30 13:12:44 2009 +0200
+
+    Xv overlay: implement GAMMA5 errata
+    
+    - also ensure that the most significant byte is zero
+    - while I was looking at the code, add the Overlay suffix to
+    SetPortAttribute like in the textured case.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 5ef4d3cde1335350d82469ebbaed1b547a59552c
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Jun 30 13:12:43 2009 +0200
+
+    Xv: kill unneeded indirection
+    
+    overlay and textured video have the exact same QueryImageAttributes
+    function.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 1e4784bf26e3c154f5673f7b5add3ef7af3b1474
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jun 30 19:52:36 2009 -0700
+
+    uxa: Fix segfault on source-only picture usage with FallbackDebug.
+    
+    Bug #22107.
+
+commit 7e79fc8aa93df4df37c25cf37ee0ec6c7caca1d9
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Tue Jun 30 15:40:34 2009 +0800
+
+    Fix 945GM VT switch in UMS
+    
+    Bug #19578. We should set private intel_crtc state according
+    to current, as fail to do so pipe A needs active won't be taken
+    care of. Also make sure pipe swap operation always set during
+    VT switch.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 50392ac8234d643c8a99e1753bdb196c0062a891
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon May 18 13:53:33 2009 +0800
+
+    Load fbcon too if kernel mode setting is checked on
+    
+    If i915 module has already been loaded and kms check is true,
+    it would be nice to load fbcon module too.
+    
+    Signed-off-by: Zhenyu Wang <zhenyu.z.wang@intel.com>
+
+commit 058ad9e6ab4a00ff66046d94c2129056011ebee9
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Jun 30 16:02:19 2009 -0700
+
+    Don't try to pin buffers in KMS mode
+    
+    The only things we try to pin in KMS mode are the cursor objects and
+    front buffer, and those are taken care of by the kernel anyway, so we
+    shouldn't even bother trying to pin them (well, not entirely true,
+    XvMC tries to pin as well, but it needs work w/KMS anyway).
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit cec9fc6f6cffce186606f39982d0d78ff7c63bbf
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Jun 30 12:27:59 2009 -0700
+
+    Make KMS set_resource function return TRUE
+    
+    This is what's expected by the server, and allows the EDID for example
+    to be exported in the KMS case.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 53e248af4365232416d2143a791a07c6751f8319
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Jun 30 12:00:28 2009 -0700
+
+    Use DVO timing block instead of fp_timing when parsing LFP data
+    
+    The KMS side was correct, but the UMS patch was broken.  We need to use
+    the DVO timing block of the LFP data to get the timing, not the
+    fp_timing block.
+    
+    Fixes fdo bug #22529.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 362883c2f9a3442f7678e6e815f41b21baaa3f53
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Jun 29 16:26:15 2009 -0700
+
+    Add a few error messages for DRM initialization
+    
+    Makes it easier to see where things go wrong.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit afac333bef4a0ac934f0e4d933dc5053d81ca88c
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Tue Jun 30 11:10:52 2009 +0800
+
+    Remove unused packed yuv sampler shader programs
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 150c9adebc0b502f19c970783f411928e5a5c3b1
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Tue Jun 30 10:42:41 2009 +0800
+
+    Xv: fix domain usage for binding table on i965+ chips
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 7770958e42d60966d95702e75c704e20ae2d90dd
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Tue Jun 30 10:41:26 2009 +0800
+
+    Add XV support on IGDNG
+    
+    This brings necessary change for IGDNG for texture video support
+    from 2D render code.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit f806fe7d675b966680a63406167ce37e4f8a1ae8
+Author: Xiang Haihao <haihao.xiang@intel.com>
+Date:   Thu Jun 25 15:39:32 2009 +0800
+
+    Enable 2D composite on IGDNG
+    
+    This patch enables 2D composite on IGDNG. IGDNG requires
+    new compiled shader programs for Gen5 and some command changes.
+    The most notable is the layout of vertex element has changed,
+    but we tried to keep it as origin to not change shader programs.
+    Also vertex buffer state requires end address of vertex buffer
+    instead of origin max index.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 9fb34012f667e37f480085696ef9c2632d6eb7e1
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Thu Jun 25 15:30:04 2009 +0800
+
+    Add new compiled shader program for IGDNG
+    
+    Also check intel-gen4asm tool here for new -g option, which is
+    required to compile new programs.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 488acc4595bb7f40130afcb8bcb05656ff3ae82c
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Thu Jun 25 14:05:40 2009 +0800
+
+    Move shader programs under its own subdirectory
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 170cae0c8d58fc141de1d8a2f17a4328d39c1263
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Jun 29 12:55:43 2009 -0700
+
+    Only get the VBIOS in non-KMS mode
+    
+    In KMS mode, the kernel takes care of this for us, so don't bother.
+
+commit 6511c082459789cf279e7a4528775a1c821ad8cc
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Jun 29 12:53:51 2009 -0700
+
+    Output error info if we fail to get DRM resources
+    
+    Useful for debugging.
+
+commit 00eb73286c3512a362dce00efdeae740772d0dcd
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Jun 29 09:12:28 2009 -0700
+
+    Use swapbuffers_wait control
+    
+    Commit 1eec83a203c48822400742a1fb184b2cb52c62f7, which added the new
+    SwapbuffersWait option, didn't actually include the code which used it.  So
+    add a test to DRI2's CopyRegion call, only emitting the scanline wait
+    command if the swapbuffers_wait option is set.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit f53b3239dbc0ed723774e386e07ac9d8ce96bb89
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Thu Jun 25 10:22:23 2009 +0800
+
+    Disable XvMC on 915G/GM in KMS
+    
+    These chips require physical address for XvMC surface, which
+    is not available in KMS case. Instead of crashing X, disable it now.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit f0270bbb47baed78a0ff6189ae20d3ac322ec02b
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Wed Jun 24 14:42:08 2009 -0700
+
+    Fix i830_crtc_on to only check outputs associated with the given CRTC
+    
+    Otherwise we may end up returning a false positive if some other output & crtc
+    are on, but not the one in question, again leading to hangs.
+    
+    Reported-by: Eric Anholt <eric@anholt.net>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 5d80e24b5fc6d6028028da6ded35389c08bfce29
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Wed Jun 24 13:12:25 2009 -0700
+
+    Treat disabled CRTCs as "not covering" for scanline wait purposes
+    
+    Now that swapbuffers does a scanline wait to avoid tearing, it's
+    important to take into account the CRTC status to avoid hangs.  If we
+    do a scanline wait when the CRTC is off (due to DPMS for example) we'll
+    hang the GPU.  So add some code to check the CRTC DPMS status to the
+    i830_covering_crtc function, returning NULL if none of the covering
+    CRTCs are actually active.  KMS vs UMS logic is hidden in new i830*
+    functions, cleaning up both DRI2 & video paths a bit.
+    
+    Fixes fdo bug #22383.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 6d025e679a99778496576af9a6a6fa8c043ae811
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Tue Jun 23 09:53:14 2009 -0700
+
+    Harden i830 render in case check_composite didn't throw out bad formats.
+    
+    Fixes a warning in a static analysis program, and the code's a little
+    clearer.
+    
+    Bug #21667
+
+commit 1eec83a203c48822400742a1fb184b2cb52c62f7
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Jun 23 15:05:03 2009 -0700
+
+    Add option to control swapbuffers behavior
+    
+    Until we get triple buffering, we'll want this so users can avoid taking a
+    performance hit on apps that render slower than the refresh rate.
+    
+    Fixes fdo bug #22234.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit bfeeac6de096256fca82244338bb45d53ee53cbc
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Tue Jun 23 11:31:37 2009 +0800
+
+     i915 xvmc, fix fd.o bug #22103
+
+commit 15af8ea6ab6998bbab9f4eeda227565c409da229
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Jun 22 11:11:06 2009 -0700
+
+    Fix LFP data block fetch
+    
+    Apparently the proper way to do this is to use the LFP data pointer block to figure out the LFP data block entry size, then use that plus the panel index to calculate an offset into the LFP data block array.
+    
+    Fixes fdo bug #19450.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 534e73ad4f234a04755917f2bf17ba821c27eb52
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Thu Jun 18 09:46:32 2009 +0800
+
+    Don't change the blank/sync width when calculating scaled modes
+    
+    Don't the change the blank/vsync width while doing LVDS scaled modes.
+    And use the border instead of border minus one.
+    
+    At the same time, make sure the horizontal border and hsync are even for
+    the LVDS that works in dual-channel mode. So both horizontal border and hsync
+    start are also changed to be even, even for the LVDS in single-channel
+    mode.
+    
+    https://bugs.freedesktop.org/show_bug.cgi?id=20951
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit b5cd2130f97591f4a387db1b98c940c30bc6404c
+Author: ling.ma@intel.com <ling.ma@intel.com>
+Date:   Tue Jun 16 16:52:25 2009 +0800
+
+    TV: Set correct voltage level override values
+    
+    We detect TV connect status by setting DAC voltage level override
+    values as 0.7 voltage for DAC_A/B/C. The corresponding 2-bits shold be 0x2,
+    In order correctly to set last bit as 0, at first we must clean it.
+    
+    It fixed freedesktop.org bug #21204
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit a6cdcd9fee0164f79075063fd163d142a55fcbc5
+Author: ling.ma@intel.com <ling.ma@intel.com>
+Date:   Tue Jun 16 16:47:52 2009 +0800
+
+    Set hot plug interrupt to detect HDMI output
+    
+    We detect HDMI output connection status by writing to HOT Plug Interrupt
+    Detect Enable bit in PORT_HOTPLUG_EN. The behavior will generate an specified
+    interrupt, which is caught by audio driver, but during one detection driver
+    set all Detect Enable bits of HDMIB, HDMIC and HDMID, which generate wrong
+    interrupt signals for current output, according to the signals audio driver
+    misunderstand device status. The patch intends to handle corresponding output
+    precisely.
+    
+    It fixed fredesktop bug #21371
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit 6b93afc564a5e74b0eaaa46c95f557449951b3b9
+Author: Bryce Harrington <bryce@bryceharrington.org>
+Date:   Wed May 27 03:40:52 2009 -0700
+
+    add pipe a force quirk for Dell mini
+    
+    Add quirk to solve issue with black screen and hang occuring after closing the
+    lid with attached external monitor, on Dell Mini.
+    
+    Fixes fdo bug #21960.
+    
+    Signed-off-by: Bryce Harrington <bryce@bryceharrington.org>
+
+commit eb09014ce10428bbcab04e155186382975545f0a
+Author: Li Peng <peng.li@intel.com>
+Date:   Tue Jun 16 15:29:57 2009 -0700
+
+    don't wait for vblank on rotated displays
+    
+    We may hang or wait for the wrong line if the display is rotated, so just skip
+    the wait in that case.
+    
+    Fixes fdo bug #22196.
+
+commit 6c56521bdc0443c0656271caaa795feb13bc1d6b
+Author: Bryce Harrington <bryce@bryceharrington.org>
+Date:   Wed May 27 05:18:53 2009 -0700
+
+    pipe-a quirk for thinkpad x30
+    
+    Fixes freeze when closing lid on ThinkPad X30.
+    
+    Fixes FDO bug # 21976.
+    
+    Signed-off-by: Bryce Harrington <bryce@bryceharrington.org>
+
+commit 246cec965958e94babf5377e6f221522b05fb458
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Wed Jun 10 11:17:28 2009 +0800
+
+    Fix EDID for LVDS output device to add the default modes
+    
+    Fix the EDID for the LVDS output device to add the default modes.This is
+    similar to what we have done in UMS mode.
+    a. When there exists the EDID, either find the DS_RANGES block or replace
+    a DS_VENDOR block, smashing it into a DS_RANGES block with open refresh
+    to match all the defaults modes.
+    b. When there is no EDID, we will construct a bogus EDID and add a DS_RANGES
+    block with the open refresh to match all the default modes.
+    
+    http://bugs.freedesktop.org/show_bug.cgi?id=20801
+    http://bugs.freedesktop.org/show_bug.cgi?id=21094
+    http://bugs.freedesktop.org/show_bug.cgi?id=21346
+    http://bugs.freedesktop.org/show_bug.cgi?id=21417
+    http://bugs.freedesktop.org/show_bug.cgi?id=21671
+    
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit 5d1dc7677004d445a7a781decd8c1ef9747c14fb
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Wed Jun 10 11:17:27 2009 +0800
+
+    Get the LVDS panel limit and check whether the given modeline is valid
+    
+    When the connector type is LVDS, it will traverse the mode list returned by
+    KMS kernel to get the LVDS panel limit. Then it will use the panel limit to
+    check whether the given modeline is valid. If the given modeline exceeds
+    the LVDS panel limit, it will be invalid.
+    
+    http://bugs.freedesktop.org/show_bug.cgi?id=20801
+    http://bugs.freedesktop.org/show_bug.cgi?id=21094
+    http://bugs.freedesktop.org/show_bug.cgi?id=21346
+    http://bugs.freedesktop.org/show_bug.cgi?id=21417
+    http://bugs.freedesktop.org/show_bug.cgi?id=21671
+    
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit 115e28639fbf6a1eba636dafac02fadd83036c75
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Wed Jun 10 11:17:26 2009 +0800
+
+    Add the private data for the LVDS connector
+    
+    Add the private data when the connector type is LVDS.
+    We can use the private_data to store the LVDS panel limit.
+    For example: Hdisplay, Vdisplay.
+    
+    http://bugs.freedesktop.org/show_bug.cgi?id=20801
+    http://bugs.freedesktop.org/show_bug.cgi?id=21094
+    http://bugs.freedesktop.org/show_bug.cgi?id=21346
+    http://bugs.freedesktop.org/show_bug.cgi?id=21417
+    http://bugs.freedesktop.org/show_bug.cgi?id=21671
+    
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit 3da549f5b350dd42516e5cb3576f7fefe012d95e
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Wed Jun 10 11:37:03 2009 +0800
+
+    GFX: Initialize the SDVO device based on the valid slave address
+    
+    When the slave address is found for the SDVO port, the SDVO device will
+    be initialzied.
+    When the slave address is not found for the SDVO port, it will return
+    the slave address by using the following flowchart:
+    a. If the SDVO device info is found for another SDVO port, it will return
+    the slave address that is not used. For example: if 0x70 is used, then 0x72
+    is returned.
+    b. If no SDVO device info is found for another SDVO port, it will return
+    0x70 for SDVOB and 0x72 for SDVOC.
+    
+    http://bugs.freedesktop.org/show_bug.cgi?id=20429
+    
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit 51b87b9913ba164d4d5de79e558233915b37a0a5
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Wed Jun 10 11:37:02 2009 +0800
+
+    parse general definition block to get the SDVO device info
+    
+    The general definition block contains the child device tables, which include
+    the child device info. For example: device slave address, device dvo port,
+    device type.
+    We will get the info of SDVO device by parsing the general definition blocks.
+    Only when a valid slave address is found, it is regarded as the SDVO device.
+    And the info of DVO port and slave address is recorded.
+    
+    http://bugs.freedesktop.org/show_bug.cgi?id=20429
+    
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit 6ba148bbd78783f59eed3d898638c39b950dcd89
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Wed Jun 10 11:37:01 2009 +0800
+
+    Dynamically get the number of child device in general definition block
+    
+    The size of general definition block varies on different platform/machines.
+    In such case the number of child device is also different.
+    And it will be better to get the number of child device in general definition
+    block dynamically.
+    
+    The number of child device can be calculated by the following formula:
+    	(block_size - block_header_size) /
+    		sizeof( struct child_device_config)
+    
+    http://bugs.freedesktop.org/show_bug.cgi?id=20429
+    
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit cdbf84f20295c8a78624318aa6fdfff3f5c8ce27
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu Jun 11 13:57:09 2009 -0700
+
+    intel_batch_init: test have_gem, not directRenderingType
+    
+    Under KMS, directRenderingType will get set to DRI_NONE during driver
+    initialization. When the first batch buffer is allocated, as
+    directRenderingType is DRI_NONE, the GEM bufmgr would get trashed as
+    intel_batch_init called a fake-bufmgr specific function.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 6d062e9e9fc4ac92a5dc2941b4ed0251a1dc6e11
+Author: Julien Cristau <jcristau@debian.org>
+Date:   Thu Jun 11 17:15:04 2009 +0200
+
+    Fix xvmc build
+    
+    If we don't find xext.pc, disable xvmc instead of failing configure
+    Also add dependencies on xfixes and dri2proto (src/xvmc/dri2.h includes
+    <X11/extensions/Xfixes.h> and <X11/extensions/dri2tokens.h>).
+
+commit 9d3c3b056c1d4da6ef7afd3f71a5994fad810632
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Jun 10 15:30:45 2009 -0700
+
+    Increment version to 2.7.99.901
+    
+    This is the first release candidate for 2.8.0
+
+commit e2622045155f5aa79bacbec8f81c1231194f3033
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Jun 10 15:30:09 2009 -0700
+
+    NEWS: Summarize new developments for 2.7.99.901
+
+commit e5bfa2702a31566fa94fa75f7289d7cbe9825420
+Author: Lukasz Kurylo <Lukasz.Kurylo@gmail.com>
+Date:   Wed Jun 10 07:55:31 2009 -0700
+
+    DRI2 copyregion: don't wait for scanlines that won't happen
+    
+    In some configurations, it's possible to wait for a scanline outside of
+    a given CRTC range.  Make sure that can't happen to fix multihead cases
+    with dead space.
+    
+    Fixes fdo bug #22203.
+    
+    Signed-off-by: Lukasz Kurylo <Lukasz.Kurylo@gmail.com>
+
+commit cda5561716891484aa6f1c4a234be8d88f17f659
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Jun 10 16:43:30 2009 +0800
+
+      add missing files for previous commit
+
+commit 6d500be3cdecd7617dc6119b58ae273eea478af7
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Jun 10 15:53:24 2009 +0800
+
+      enable MC on g45 for player without vld patch
+
+commit 88da9b48737229b305da4423e9aa43a09ccdcfac
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Wed Jun 10 10:45:51 2009 +0800
+
+    Add new chipset register dumps
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 0d56ef94be0592aec9aa83e4a5e4ff13348640c2
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Fri Jun 5 12:59:07 2009 +0800
+
+    Disable composite on new chipset for now
+    
+    This depends on updated intel-gen4asm be ready for new chip.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 440ccc44f51d3a5d6f46c28cfcc576cad155fbbc
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Fri Jun 5 12:56:04 2009 +0800
+
+    Add new register definitions
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 0d8a9e2c6f58115b9b8449de52e795699ed032af
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Fri Jun 5 12:51:51 2009 +0800
+
+    Update intel_gtt utility for new chipset GTT check
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit fb524caa3e2f1f516717669642bb4b2244f9e7e4
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Mon Jun 8 10:22:14 2009 +0800
+
+    Remove fixed MMIO size
+    
+    Use pci resource size instead, which will get the correct MMIO range.
+    New chipset uses obviously larger MMIO range.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 4f40b33ef4b069b18a6a18406da83a23ca6e1127
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Fri Jun 5 11:57:57 2009 +0800
+
+    Add new chipsets PCI ids
+    
+    Desktop and mobile version of new chipsets are added.
+    Also do memory config like Intel 4 series chipset.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit accdbd23676d812d2345f86d8e3ee62f108841ff
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri May 29 15:34:20 2009 -0700
+
+    UXA: Rasterize trapezoids to system memory, not a pixmap
+    
+    Since we're only doing software rasterization right now, anyway, it
+    makes more sense to just rasterize to system memory and then upload
+    to a pixmap once complete. This avoids expensive read-modify-write
+    cycles.
+    
+    This results in a 2.4x speedup for a real-world test case that's
+    heavy on trapezoids, which is swfdec running on the following file:
+    
+    http://michalevy.com/wp-content/uploads/Giant%20Steps%202007.swf
+    
+    Many thanks to Chris Wilson for his cairo-traces repository and
+    cairo-perf-trace tool which makes it so easy to measure things
+    like this.
+
+commit b5e32c9cf896a0b93d193d797a8e83b4aa4691fb
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri May 1 13:51:39 2009 -0700
+
+    Rename i830_exa.c to i830_uxa.c
+    
+    It was just confusing otherwise, (since the EXA code has all been
+    removed now).
+
+commit ee539e58c3bf39766c560d625f6e4158d419e64e
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Mon Jun 8 21:14:14 2009 -0400
+
+    Fall back to fb pixmaps for backing glyph pictures
+    
+    GEM pads pixmaps to 512 byte stride and backs them with a kernel side
+    buffer objects.  We typically don't render out of glyph pictures, so
+    we're incurring a lot of overhead per glyph by allocating a GEM pixmap
+    per glyph.  By looking at the usage hint, we can fall back to
+    fbCreatePixmap for pixmaps backing glyph pictures, which gives us
+    a nice tight malloced pixmap.  The fast path for text rendering is
+    compositing from the glyph cache pixmap to the destination, which
+    shouldn't be significantly affected.
+    
+    Quick bit of testing:
+    (firefox-20090601)
+        xlib-rgba-before    384512.49:  1.01x
+        xlib-rgba-after     389633.94:  1.00x
+    The difference being within the margin of error for the benchmark.
+    
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+    Tested-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4698b3bd79452ae2066a3d195cf58dd5e30c93f3
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Fri Jun 5 10:43:50 2009 +0800
+
+    xvmc: don't include xf86dri.h
+
+commit 4d9f3a21ab9b2737fe7a5a088c2da1b0c2be7f04
+Merge: b8e360b 52054b6
+Author: root <root@hdmi.sh.intel.com>
+Date:   Thu Jun 4 10:27:41 2009 +0800
+
+    Merge branch 'xvmc-vld'
+
+commit b8e360bf2b77d28559d15a7c0f9c766848eb6ced
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jun 3 10:12:25 2009 +0000
+
+    Fix segfault in DRI2 vblank syncing if the region isn't onscreen.
+    
+    Also, fix some weirdness in the checking for whether the target was the
+    screen.
+
+commit 5901a67fc85ac80fabfa98b78202a388445275c3
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jun 3 10:00:50 2009 +0000
+
+    Fix some drawable abuse in i830_dri.c
+    
+    We were casting pixmaps to drawables even if they weren't pixmaps.  They did
+    happen to work out since we only used the drawable record out of them.
+
+commit 5e48146777921b693c828af9566a77422cc4f85f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jun 3 09:57:10 2009 +0000
+
+    Replace some pixmap-related idioms with inline functions to do so.
+
+commit ea0b00e675281b2914450992501566122f9affe0
+Author: Ma Ling <ling.ma@intel.com>
+Date:   Mon Jun 1 17:13:53 2009 +0800
+
+    Provide mode line from VBT to xorg.
+    
+    If sdvo get modes function can't find modes from EDID,
+    transmit sdvo lvds modes from VBT to xorg.
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit 9e7ee50bea5f65003f1d70cc06d8c1ace1282548
+Author: Ma Ling <ling.ma@intel.com>
+Date:   Mon Jun 1 17:13:22 2009 +0800
+
+    Fetch mode line from VBT, then keep it.
+    
+    Parse SDVO LVDS option section, then ﻿according to panel type
+    fetch fixed mode line from SDVO LVDS ﻿DTDS section .
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit 88f766be008008d76c150e3ac16f09d4ecbb6d53
+Author: Ma Ling <ling.ma@intel.com>
+Date:   Fri May 15 15:22:11 2009 +0800
+
+    Wait doubled regis to be stable for load pipe detection
+    
+    We have two approaches for VGA detections: hot plug detection for 945G onwards
+    and load pipe detection for Pre-945G. load pipe detection will get one free
+    pipe ,and set border color as red and blue, then check CRT status by
+    swf register. Because pipe registers in hires mode are double buffered,
+    once set force border bit in pipeconf register, we have to wait for
+    a vblank until it is effective, otherwise result is unstable.
+    
+    It fixed freedesktop bug #20463
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit 6a635be5ea2b2df9d6b9a8006325244394038474
+Author: Ma Ling <ling.ma@intel.com>
+Date:   Fri May 15 14:01:18 2009 +0800
+
+    Set activation periods as 64 cdclk sync up with KMS
+    
+    We use force CRT detect trigger bit(1 << 3) to detect VGA in hot plug mode,
+    which triggers a CRT hotplug/unplug detection cycle independent of the
+    interrupt enable bit(1 << 9), so keep bit 9.
+    And although spec says CRT_HOTPLUG_ACTIVATION_PERIOD_64(1 << 8) is only useful
+    for mobile platform, it is also required to detect vga on G4x platform correctly.
+    Tested the patch on G45/G43/Q45 platforms with no regressions
+    
+    It fixed freedesktop.org bug #21120 and part of bug #21210.
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit ec2fde7c8250fdc30984f16c8a1d3587d70b0144
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Jun 2 16:42:56 2009 +0100
+
+    Sync DRI2 CopyRegion to vertical retrace
+    
+    Akin to the Xv code, wait for the scanline to be outside the range to be
+    copied by the DRI2 CopyRegion hook.
+    
+    Fixes fdo bug #20664.
+    
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 704771f1c595df481d244a6f074e9f5620d4a720
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Thu May 28 15:03:45 2009 -0400
+
+    Remove useless loader symbol lists.
+
+commit 8e942b70cb9a784b3f1311affd6fc74c4bcf68bb
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu May 21 13:12:52 2009 -0700
+
+    Revert "Rely on BO pixmaps being present in acceleration paths."
+    
+    This reverts commit 4653a7db622ad54a3182d93c81331765d930db34.
+    
+    Eric was getting a little too ambitious about our brave, new world.
+    We do still want the driver to work with old, non-GEM kernels
+    after all.
+
+commit 1a039f4371bec455cad43f0fb7b329f2ee09a974
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 27 17:45:02 2009 -0700
+
+    Fold GEM detection into DRM master open.
+    
+    We don't have anything to do with the DRM unless it's GEM-enabled, unless
+    we were to support GEM-but-not-DRI2, which doesn't seem useful.
+    
+    Compilation fixes by Carl Worth <cworth@cworth.org>
+
+commit a04a51c9bb6066454e0fda3c7897f97dab436358
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 27 17:29:36 2009 -0700
+
+    Open the DRM and keep the handle throughout server startup to finish.
+    
+    This will let us configure the server from start to finish with the
+    most pertinent information available (KMS vs UMS, DRI2 vs non-DRI).  Also,
+    we now close the DRI2 fd at terminate, which we didn't before.
+    
+    This duplicates some code from DRI1 for getting a master FD like I'd done in
+    DRI2, but given that we weren't loading DRI1 ourselves, this is also a
+    bogosity cleanup, and avoids allocating the extra DRI1 private.
+
+commit c3bf8b980134a2761701e4bc18235695a1cb07a4
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu May 21 11:05:01 2009 -0700
+
+    Fix backwards logic on whether to sync to vblank or not.
+    
+    Thanks to Michel Dänzer for catching it.
+
+commit ad2128825ba28551cfef203da017151e2eac32ef
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Wed May 20 12:32:10 2009 -0400
+
+    Only return FALSE when dri_bo_map() fails
+    
+    Small typo in the previous commit.
+
+commit 09beee378cecd1079e7a9fa6eee8f084d680d37e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon May 18 18:01:05 2009 -0700
+
+    Don't do GTT maps on objects bigger than half the available aperture size.
+    
+    The basic problem is that software fallbacks will do single instructions that
+    copy from one GTT-mapped BO into another GTT-mapped BO.  If we can't get both
+    of them bound simultanously, we fault one in, retry the instruction, fault the
+    other in (kicking out #1), retry the instruction, fault #1 back in
+    (kicking out #2), etc.
+    
+    Note that we'll still get into a nasty spot if you do a composite operation
+    with a mask where all 3 are big-but-less-than-half-available-aperture, where
+    you'll thrash.  It at least means you'll make progress, though, since each
+    instruction will only be operating on two BOs at at time, and the situation
+    seems unlikely.
+    
+    Bug #20152 (3/3)
+
+commit 52054b6a4c1ca5117c9750361f71aedd91220c39
+Author: Li Shao Hua <shaohua.li@intel.com>
+Date:   Tue May 19 16:27:32 2009 +0800
+
+     switch XvMC to gem
+
+commit 34660fd2df5d61b77ed7041d32ac29053fc94f5a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri May 15 23:21:05 2009 -0700
+
+    Only sync XV to vblank when drawing to the frontbuffer.
+    
+    This fixes emitting syncs to random pipes with boxes bigger than that
+    pipe's vertical, leading to GPU hangs.
+    
+    Bug #21738
+
+commit b622860429e00d6ab4407980232659c283a8fe8d
+Author: Xiang Hai hao <haihao.xiang@intel.com>
+Date:   Mon May 18 17:12:30 2009 +0800
+
+     DRI2 for XvMC
+
+commit 50c10ededba15dd0c118f1b65756362061491090
+Merge: 13c730e 87332a7
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Mon May 18 17:11:28 2009 +0800
+
+    Merge branch 'master' into xvmc-vld
+
+commit 87332a7cc16af82aa47e07fbf90da3635b071dbf
+Author: Keith Packard <keithp@keithp.com>
+Date:   Mon May 11 13:52:00 2009 -0700
+
+    Use drm_intel_bo_disable_reuse API to flag scanout and cursor buffers
+    
+    Buffers referenced by the kernel for scanout or cursor display should not be
+    reused by the driver. Use the new drm API to disable reuse of these buffers.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit ebe05200df381c0e6ee636f0f83440bfedea9bcb
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Fri May 15 08:50:17 2009 -0700
+
+    Add --enable-debug flag to configure
+    
+    Defaults to enabled.
+
+commit 04772b6c09a88f0483c2a7efc48029967c77b9bc
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu May 14 16:57:11 2009 -0700
+
+    If DRM can't figure out which pipe to sync on, then don't sync at all.
+    
+    Syncing to the wrong pipe can wedge the hardware if the exclusion area is
+    larger than the vtotal
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 128c1c3b7d57b157604788f82bf9fd389839068f
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Apr 29 14:43:56 2009 -0700
+
+    Use libdrm to lookup pipe for tear-free sync of XV
+    
+    Previously, the code was trying to examine a driver_private field,
+    but those fields are only set by the userland-modesetting code so
+    would fail in the case of KMS. This fixes bug #21076:
+    
+    [945GME] [KMS] XV_SYNC_TO_VBLANK does not prevent tearing of xv video
+    https://bugs.freedesktop.org/show_bug.cgi?id=21076
+
+commit 2572fcc6196aff7a2f1095d211fd85d8668647ca
+Author: Wu Fengguang <fengguang.wu@intel.com>
+Date:   Thu Apr 30 19:51:26 2009 +0800
+
+    README: kill an evil dot
+    
+    To make copy and paste a more pleasure.
+    
+    Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit b9462516d18bc57be5f33f57adb6c3e8beede5ff
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue May 12 18:53:27 2009 -0700
+
+    Remove dead "avail" variable from XAA stuff.
+
+commit 1c68bc376a9cb3c0a010c8e28f69a776755c8f64
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Wed May 13 13:19:53 2009 -0700
+
+    Add new have_gem flag
+    
+    Prior to this patch, code that wanted to check whether GEM was present
+    would look at pI830->memory_manager.  This turned out to be occasionally
+    problematic in the KMS case, since memory_manager didn't always get set
+    correctly.  So add a new pI830->have_gem flag to make things clear in
+    the various code paths, and set it after GEM initializes or when KMS is
+    detected.
+    
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+    Tested-by: Magnus Kessler <Magnus.Kessler@gmx.net>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 52367847087206b92f18c40d356d36ab9ee89d39
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu May 7 14:58:02 2009 -0700
+
+    Load i915 and fbcon when checking for KMS
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit ff7494b4c4b1bd8bb6f169402a9edbe9780787bb
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu May 7 14:58:01 2009 -0700
+
+    Add DP link and GMCH M and N registers
+    
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit e54a23bff068416ccbdb75d538dc7dcd40a6c95c
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu May 7 16:35:19 2009 -0700
+
+    Fallback when VT inactive
+    
+    While the VT is inactive, pI830->batch_bo will be NULL, so use that as a
+    simple check for when to not use the accelerator. The alternative is to
+    ignore VT switch and just keep drawing, which would also be fine.
+    
+    Bug #21468.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    [anholt: Removed extra return FALSE -- I830FALLBACK does that.]
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 660bd745c21c56e330d844fe4c8eaae862a77483
+Author: Wu Fengguang <fengguang.wu@intel.com>
+Date:   Thu Apr 30 18:42:18 2009 +0800
+
+    Remove the offset parameter from i830_allocator_init()
+    
+    offset is redundant.  i830_allocator_init() is only called
+    in one place with offset=0.
+    
+    Acked-by: Magnus Kessler <Magnus.Kessler@gmx.net>
+    Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit b1f5cc3349f6811ff4d8dc64cc291788d6726372
 Author: Carl Worth <cworth@cworth.org>
 Date:   Tue May 12 11:45:03 2009 -0700
 
@@ -24,50 +1412,38 @@ Date:   Tue May 12 11:45:03 2009 -0700
     snapshots and release candidates. The intel-gfx list is good for
     that.
 
-commit 2d7ddfe8d52e6d1dfc3d1a3de00940816d2e09ff
-Author: Carl Worth <cworth@cworth.org>
-Date:   Fri May 8 17:14:22 2009 -0700
+commit f16ee218845ec48940ea457b921d34896d80a807
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Sun May 10 16:25:24 2009 -0700
 
-    Increment version number to 2.7.0.901
+    Fix "Unkown" typo in two FatalError messages
     
-    Which means this is the first release candidate in preparation for 2.7.1.
+    Signed-off-by: Alan Coopersmith <alan.coopersmith@sun.com>
 
-commit 9c7213fa7273742d91cd31a6052306043d9da784
-Author: Carl Worth <cworth@cworth.org>
-Date:   Fri May 8 17:13:44 2009 -0700
+commit 8d27247829fe4f55691ce68f9f4b14810fb34b32
+Author: Stijn van Drongelen <tinctorius@gmail.com>
+Date:   Tue May 5 16:37:06 2009 +0200
 
-    NEWS: Add items for 2.7.0.901 release candidate
+    Fix typo in (unused) INTEL_BIOS_32 macro
     
-    There are some nice bug fixes here.
-
-commit ca63a5d4afd8482d280d8d64c58021e568931e27
-Author: Keith Packard <keithp@keithp.com>
-Date:   Fri May 1 11:50:17 2009 -0700
-
-    3D_STATE_VERTEX_BUFFERS takes four 32-bit values, not three.
+    Debian bug#527062 <http://bugs.debian.org/527062>
     
-    The spec says this command takes an extra (mbz) 32-bit value, so let's
-    provide it with one.
-    
-    Signed-off-by: Keith Packard <keithp@keithp.com>
-    (cherry picked from commit ed492131c13715b73c14d328d0668120acb58b40)
+    [jcristau: fix same typo in bios_reader.c]
+    Signed-off-by: Julien Cristau <jcristau@debian.org>
 
-commit 77153d690a3673fdee7bef8e567816b754c43081
-Author: Albert Damen <albrt@gmx.net>
-Date:   Sun Apr 5 16:36:35 2009 +0200
+commit a8a771a853478e5f45f71d0eff3c4d55bf24d0ad
+Author: Arkadiusz Miśkiewicz <arekm@maven.pl>
+Date:   Wed Apr 29 00:21:18 2009 +0200
 
-    Fix crash with XV with large virtual display
+    Restore CFLAGS after tests.
     
-    If a virtual display with width > 2048 is used, the first time
-    an XV buffer is needed will result in a BadAlloc error message,
-    but the next time X would crash.
+    Reverts single line of broken commit e5133a94dc78411eaef324131ea8056aeb81779e.
     
     Signed-off-by: Eric Anholt <eric@anholt.net>
-    (cherry picked from commit d7ca870e1ce251d42e3689a8e1e7d080ab1325fb)
 
-commit efda7c776b95f8634cd6a2fed88d526de80176bc
-Author: Carl Worth <cworth@cworth.org>
-Date:   Wed May 6 09:37:34 2009 -0700
+commit 8255cca2c9092f7ecb798944aa8f03fa3efcfa6c
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 18:34:43 2009 -0700
 
     Split i915 textured video commands to fit into batch buffers.
     
@@ -78,15 +1454,32 @@ Date:   Wed May 6 09:37:34 2009 -0700
     that each batch contains the necessary setup sequence.
     
     Signed-off-by: Keith Packard <keithp@keithp.com>
-    (cherry picked from commit 8255cca2c9092f7ecb798944aa8f03fa3efcfa6c)
-    
-    Conflicts:
-    
-    	src/i915_video.c
 
-commit a066cfb0be6e6b20a27eb4ba17f503f13e65e082
-Author: Carl Worth <cworth@cworth.org>
-Date:   Wed May 6 09:17:46 2009 -0700
+commit e5e0fb846bda3e1757b89e50d5244d28457b9fe3
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 12:26:04 2009 -0700
+
+    Call down to lower CloseScreen before shutting down DRM allocator
+    
+    Lower level functions will destroy objects that are managed by the DRM
+    allocator, so make sure those are done before the allocator shuts down.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit cfb98f3da936907945f48dad4c2345930f7beb60
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 12:23:32 2009 -0700
+
+    Revert "Leave allocator running until lower-level CloseScreens are done"
+    
+    Uh, oops -- the FD used to talk to the kernel is closed before the
+    allocator_fini function is called now.
+    
+    This reverts commit 1872869e6ffcc8e6cab820c508fe5404d7e8ff9c.
+
+commit 11a853bd8e5d907fe7f5bd907453bcdac9032861
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 11:51:13 2009 -0700
 
     Hold reference to video binding table until all rects are painted.
     
@@ -96,13 +1489,40 @@ Date:   Wed May 6 09:17:46 2009 -0700
     reference to the object until all of the boxes are painted and then drop it.
     
     Signed-off-by: Keith Packard <keithp@keithp.com>
-    (cherry picked from commit 11a853bd8e5d907fe7f5bd907453bcdac9032861)
-    
-    Conflicts:
-    
-    	src/i965_video.c
 
-commit 115fc9a7d79da07301b96d9fc5c513d33734d273
+commit ed492131c13715b73c14d328d0668120acb58b40
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 11:50:17 2009 -0700
+
+    3D_STATE_VERTEX_BUFFERS takes four 32-bit values, not three.
+    
+    The spec says this command takes an extra (mbz) 32-bit value, so let's
+    provide it with one.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 66d1536a2ecc7a3d44da4c0dbe6c85aaa4e05791
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 11:48:51 2009 -0700
+
+    Don't bother to enable VF statistics during 965 video playback
+    
+    This was used while bringing up the driver to debug vertext fetches.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 1872869e6ffcc8e6cab820c508fe5404d7e8ff9c
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri May 1 11:46:51 2009 -0700
+
+    Leave allocator running until lower-level CloseScreens are done
+    
+    The lower level close screen functions will free allocated objects, causing
+    a crash if the allocator isn't still available.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 1142353b487c155a31011923fbd08ec67e60f505
 Author: Keith Packard <keithp@keithp.com>
 Date:   Fri May 1 11:44:13 2009 -0700
 
@@ -115,30 +1535,478 @@ Date:   Fri May 1 11:44:13 2009 -0700
     We should figure out what units we want to use and use the same everywhere...
     
     Signed-off-by: Keith Packard <keithp@keithp.com>
-    (cherry picked from commit 1142353b487c155a31011923fbd08ec67e60f505)
 
-commit 296a986e5258e2fd13ec494071b7063bd639cd68
-Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
-Date:   Mon Mar 23 19:19:58 2009 +0800
+commit 8232177a005127a0001af4b14c3beb766958ef11
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu Apr 30 15:30:05 2009 -0700
 
-    KMS: hook up output properties for randr
+    Allow cursors to roam past 2048x2048 limit.
     
-    This gets output properties from kernel, then hook them up
-    for randr. So we can control output properties through randr
-    like in UMS.
+    There's no reason to clip cursor positions to an artificial limit; the
+    hardware cursor limits always mirror the hardware display limits.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 417f3784b7fae8de3559c7607a2de60661a6a448
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Apr 28 20:42:22 2009 -0700
+
+    Add doltlibtool to DISTCLEANFILES
+    
+    Otherwise make distcheck fails.
+
+commit bc9a688476f02233450eb05dfb40acbf337d679b
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Apr 28 20:37:13 2009 -0700
+
+    NEWS: Add notes for 2.7.99.1 snapshot
+
+commit a90cab43209bba52d35b953f3d686a19c154fc43
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Tue Apr 28 13:12:55 2009 -0400
+
+    Remove a handful of pointless comments
+    
+    CVS keywords, comments about how the source was once reformatted,
+    and the ad-hoc changelog comment in in i830_driver.c
+
+commit c231b41f3f3eb3ba9c8436d5fd93a30704ed437c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 21 15:55:01 2009 -0700
+
+    Remove checks for xf86RotateFreeShadow, introduced in server 1.4.
+
+commit e5133a94dc78411eaef324131ea8056aeb81779e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 21 15:49:01 2009 -0700
+
+    unifdef LIBPCIACCESS and XSERVER_LIBPCIACCESS.
+    
+    Depending on new server means these are always present.
+
+commit 4653a7db622ad54a3182d93c81331765d930db34
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 22:05:54 2009 -0700
+
+    Rely on BO pixmaps being present in acceleration paths.
+
+commit 1784efc1f0c74edda8c78fb1b0cdd989f0a088ad
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 18:25:59 2009 -0700
+
+    Remove XF86DRM_MODE.
+    
+    We now depend on server 1.6 and current libdrm, so no need to ifdef it.
+
+commit d82ea4372fb74654eb0f37d996977003473846ed
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 13:20:03 2009 -0700
+
+    Replace I830Sync's irq emit/wait code with bufmgr use.
+    
+    This pre-GEM code was all sorts of broken -- see intel_bufmgr_fake.c for
+    the hoops that must be jumped to use that kernel interface successfully.
+    Yet we continued to use it even with KMS/DRI2/UXA, which may account for
+    some hangs.
+
+commit 612c1f1f1859ce0cef41049d79cc473657d48612
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 16:16:48 2009 -0700
+
+    Remove I830_XV ifdef.
+    
+    The developers of the driver don't ever run or test without XV.  Don't do it.
+
+commit af6892f2b873dd508994d8bbf3d67e719b535e35
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 16:07:05 2009 -0700
+
+    Replace i830WaitSync with just I830Sync(), as nearly all callers had it wrong.
+    
+    People were trying to BEGIN_BATCH()/ADVANCE_BATCH() then i830WaitSync on the
+    results, which wouldn't necessarily wait and lead to various painful bugs,
+    since only EXA called MarkSync and only for certain rendering operations.
+
+commit 393abc15b76804580bfee0760ddbd1fb77e66c02
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 15:58:35 2009 -0700
+
+    Now that video destination pixmaps are always in BOs, no more MarkSync.
+
+commit dc71573292c215f49716f4dc1ebc416c6b172995
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Apr 17 15:13:34 2009 -0700
+
+    Remove can_resize, which is now always true (except when a bug interfered)
+
+commit 96df22740b2cdc4f82a4a36c0f77663105d9337e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Apr 17 15:11:12 2009 -0700
+
+    unifdef I830_USE_UXA.
+    
+    We only have on acceleration architecture now, and you can always build it
+    if you're building the driver.
+
+commit fa81ae1637bfd7b73b43355b78c88a9b84c0393c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Apr 17 14:01:47 2009 -0700
+
+    Remove EXA support.
+    
+    UXA has completely replaced EXA at this point.  UXA is the same rendering
+    core as EXA, but relying on kernel memory management or a fake bufmgr instead
+    of trying to manage memory in the X Server.
+
+commit 1b10745a2528622a32271f64c35fcdb7b7154d11
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Jan 23 08:39:59 2009 -0800
+
+    Remove XAA support.
+    
+    While EXA/UXA aren't completely good replacements (see bugzilla for
+    performance and stability problems), we are pretty sure at this point that
+    it's the right way to go and that having multiple acceleration architectures
+    is getting in the way of producing a stable codebase.
+
+commit 30c226eeb35f034c3ddb881e77454051dc210298
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jan 22 17:54:49 2009 -0800
+
+    Remove DRI1 support.
+    
+    This was blocked on wide distribution of X Server 1.6 (now in the current or
+    next version of major distributions) and solutions for a couple of significant
+    architectural problems (vblank sync and frontbuffer rendering, which we now
+    have code or good plans for).
+    
+    This includes disabling XVMC which is DRI1-only currently.
+
+commit 47591334a183881704a121ae06ebc2fadebe6f73
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Apr 17 13:54:47 2009 -0700
+
+    Remove pre-server-1.5 support.
+
+commit 3187c7698b93f1d0e07798e9c42ca2877d55e055
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 27 14:50:54 2009 -0700
+
+    Fix assert at startup with DRI initialiation failure.
+    
+    In this path, we'd make it to allocator_init -> init_bufmgr without
+    GEM and without FbBase being initialized, leading to assertion failure
+    to catch this mistake.
+    
+    Comedy ensued when trying to move just the MapMem up, leading to the rest
+    of the commit.  Some day (like tomorrow after I rebase intel-cleanup) I'll
+    clean this path up.
+    
+    Tested with 2 X Servers on 2.6.28 (one gets DRI2, one fails successfully),
+    2 UMS X Servers on 2.6.30rc2 (each gets DRI2), and 2 KMS X Servers on
+    2.6.30rc2 (success all around).
+
+commit fbaf13c93511547c563129527797fbef8628652e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 27 16:05:50 2009 -0700
+
+    Don't clear the framebuffer if it isn't currently bound.
+    
+    This segfault can be triggered in non-KMS memory init before the EnterVT,
+    and will happen anyway at EnterVT time.
+
+commit ab878118b9fb46c437a02f824d29f4a206e7fd80
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 27 16:00:05 2009 -0700
+
+    Don't initialize DRI2 if the fd we get is not master-capable.
+
+commit 385ac2197b64574f30620a203e675d8da0e1472f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 27 15:28:21 2009 -0700
+
+    Fix drmSetMaster/DropMaster error messages.
+
+commit 5b05a589efb23b2fc09b06e4271174d922b1ab02
+Author: Pierre Willenbrock <pierre@pirsoft.de>
+Date:   Sat Apr 25 22:58:20 2009 +0200
+
+    format == 0 means "use default" in I830DRI2CreateBuffer
+    
+    Reviewed-by: Ian Romanick <idr@freedesktop.org>
+
+commit e55d943126cdd3eac7dfec5f40e794f89dbf038b
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 27 11:18:07 2009 -0700
+
+    Don't try to do anything for I830Sync when VT switched.
+    
+    Fixes a crash with fake bufmgr and UXA.
+
+commit 9748aa5594a8357754c06dd82108b131260b1a71
+Author: Shuang He <shuang.he@intel.com>
+Date:   Sat Apr 18 11:48:08 2009 +0800
+
+    Free front buffer bo when X exit
+    
+    It's needed when KMS or DRI2 is enabled, or there will be memory leak.
+    Also fixes a segfault at startup with fake bufmgr.
+    
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit b8ca146b060e6f76bf048f1f6cf6ee89d38d015e
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Fri Apr 24 16:03:27 2009 -0700
+
+    Fix UXA to build with Sun compilers (use __func__ instead of __FUNCTION__)
+    
+    Signed-off-by: Alan Coopersmith <alan.coopersmith@sun.com>
+
+commit 5d6f4f6eb7a4dcbe1ce5a134d882e56f958ed2ba
+Author: Ian Romanick <ian.d.romanick@intel.com>
+Date:   Fri Apr 24 12:28:13 2009 -0700
+
+    DRI2: If the SDK supports it, use the DRI2GetBuffersWithFormat interfaces
+    
+    If DRI2INFOREC_VERSION is defined in the server's dri2.h and has a
+    value greater than 1, compile to use the CreateBuffer and
+    DestroyBuffer interfaces.  The format parameter parameter to
+    CreateBuffer is assumed to be the bits-per-pixel of the buffer.
+    
+    Signed-off-by: Ian Romanick <ian.d.romanick@intel.com>
+    Reviewed-by: Kristian Høgsberg <krh@redhat.com>
+
+commit 106e4b44c5af6552cbd079c4ec34def9dcfb168a
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Apr 24 10:55:09 2009 +0800
+
+    SDVO: switch bus once for i2c transfer
+    
+    Before sdvo try to get edid by i2c bus, it must do switch control bus to ddc active state from sdvo only state.
+    However if current state has been ddc active state, redundant switch operation in our driver will cause error-
+    "Unable to write to SDVOCTRL_E for SDVOB Slave 0x70". The patch will do switch control bus only one time during
+    whole edid transmission.
+    
+    It has fixed bug #19937
     
     Signed-off-by: Zhenyu Wang <zhenyu.z.wang@intel.com>
+    Tested-by: Ma Ling <ling.ma@intel.com>
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
 
-commit 300eddb8773344bf073f8f30a9c0a2c4bcdf983f
+commit 8f64837e56b2de0fb8a9100d1a844fd3f18d751c
+Author: Shaohua Li <shaohua.li@intel.com>
+Date:   Mon Feb 23 15:19:25 2009 +0800
+
+    Disable FBC on IGD for UMS
+    
+    It appears the new chip doesn't support FBC currently.
+    
+    Signed-off-by: Shaohua Li<shaohua.li@intel.com>
+    Signed-off-by: Zhenyu Wang <zhenyu.z.wang@intel.com>
+
+commit 7b01aa5cc41620da5bb48f391ff98d9e82572e52
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Apr 22 09:03:21 2009 -0700
+
+    Revert "fix overflow warning on videoRam"
+    
+    This reverts commit 08ebde4715b87867184d42b60762cd774e151f5c, which was
+    apparently untested and broke KMS.
+
+commit ceb3a2eaf9090d67e4dfcbed188125108ceab78d
+Author: Zdenek Kabelac <zdenek.kabelac@gmail.com>
+Date:   Tue Apr 21 18:58:23 2009 -0700
+
+    Remember allocated offscreenImages memory for freeing it in CloseScreen()
+    
+    Signed-off-by: Zdenek Kabelac <zkabelac@redhat.com>
+    [anholt: renamed the member to match the variable name]
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 701c6bef14b5d464847cc42c5ccb66fdeb157f1a
+Author: Zdenek Kabelac <zdenek.kabelac@gmail.com>
+Date:   Tue Apr 21 18:53:07 2009 -0700
+
+    free allocated name inside sdvo_destroy
+    
+    Signed-off-by: Zdenek Kabelac <zkabelac@redhat.com>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit fe71217ca86eb7ae8081bf3e26d30f2002d27691
+Author: Zdenek Kabelac <zdenek.kabelac@gmail.com>
+Date:   Tue Apr 21 18:51:02 2009 -0700
+
+    Unreference allocated bos in i965 render error paths
+    
+    Signed-off-by: Zdenek Kabelac <zkabelac@redhat.com>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit b8b6ca830b1fd6956c76a5417462ca55174cb881
+Author: Zdenek Kabelac <zdenek.kabelac@gmail.com>
+Date:   Tue Apr 21 18:47:03 2009 -0700
+
+    Fix leak of some 965 render state on VT switch.
+    
+    Signed-off-by: Zdenek Kabelac <zkabelac@redhat.com>
+    [anholt: fixed up unneeded != NULL checks]
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit d7ca870e1ce251d42e3689a8e1e7d080ab1325fb
+Author: Albert Damen <albrt@gmx.net>
+Date:   Sun Apr 5 16:36:35 2009 +0200
+
+    Fix crash with XV with large virtual display
+    
+    If a virtual display with width > 2048 is used, the first time
+    an XV buffer is needed will result in a BadAlloc error message,
+    but the next time X would crash.
+    
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 04ed92e3db8d9fcf2a1089ed433ab67bf0969655
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 21 15:17:31 2009 -0700
+
+    Remove dead xoffset/yoffset from pre-randr.
+
+commit ab2c988767aec854d3c1702bee1e5a06bd00870c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Apr 21 14:53:45 2009 -0700
+
+    Remove dead monitor detect debugger.
+    
+    watch xrandr works fine.
+
+commit 928a37041defcca6f57f9452ba62e67524cb4510
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 15:46:11 2009 -0700
+
+    Replace a bunch of #ifdef debug flushing/syncing with a single function.
+    
+    This removes it from a callsite where it would have just resulted in a
+    fatalerror.
+
+commit 1fc93ee184ceefaea9528bb46ae82884c44d9b36
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 14:42:31 2009 -0700
+
+    Staticize a bunch of functions and variables in the driver.
+    
+    This cleans up findstatic.pl output for the i830+ code, which resulted in
+    removing some code.  The only odd part of this commit is the
+    if (0) i830_sdvo_dump() in i830_sdvo.c -- it tells the compiler that the code
+    is used, without using it since we want the code around while debugging.
+    It's also in a likely place to ask for the dump, so I think it's OK.
+
+commit b2d7928f195f6439ecd140e6280b958b8a1f534b
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 14:48:59 2009 -0700
+
+    Use a static inline to replace if (0) to an unused stub function.
+
+commit 093f51646b2f2301c907e14d0ad4b1f80ff60a16
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 14:36:52 2009 -0700
+
+    Remove unused i830_output_type_names
+
+commit c774ef282bfb0c594479bbab3527fe5fda2a8559
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 20 14:29:17 2009 -0700
+
+    Remove dead mono cursor load code.
+
+commit 75c531b9652b3919ddbf51f8eec804e6bdbb2331
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Apr 17 14:03:39 2009 -0700
+
+    Rename EXA rendering functions to UXA, since we're keeping them post-EXA.
+
+commit 40dbba5cf710a6e392afca73965aa48fa3953d1f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Apr 17 15:15:27 2009 -0700
+
+    Remove some dead i830.h struct members.
+
+commit 84f69081abaeef8b05cafb64d3102eb2abdf9a8e
+Author: Julien Cristau <jcristau@debian.org>
+Date:   Thu Apr 16 14:27:15 2009 +0200
+
+    Require xserver 1.3
+    
+    I don't think anyone tests this against an old server anymore.
+    
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 08ebde4715b87867184d42b60762cd774e151f5c
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Apr 20 09:43:09 2009 +0800
+
+    fix overflow warning on videoRam
+    
+    Note that pScrn->videoRam is an 'int'.
+    
+    i830_driver.c: In function ‘I830ScreenInit’:
+    i830_driver.c:3019: warning: overflow in implicit constant conversion
+    
+    Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+
+commit 5a07ab502fe1e58e7e37fe554fb42d8d2c8c53ec
+Author: Ian Romanick <ian.d.romanick@intel.com>
+Date:   Fri Apr 17 20:59:04 2009 -0700
+
+    DRI2: Respect the src and dst parameters of CopyRegion.
+    
+    Signed-off-by: Ian Romanick <ian.d.romanick@intel.com>
+
+commit 2e3b95ed0197971e81ab7509245c899e96859d5b
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Apr 15 18:54:19 2009 -0700
+
+    Increment version to 2.7.99.1
+    
+    This is the number we want for any development snapshots along
+    what will eventually become 2.8.0. (Once we get to 'release
+    candidates' we'll bump this up to 2.7.99.901.)
+
+commit c9e174b31ae3b9a138ae696d563420a841062f57
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Apr 15 18:52:38 2009 -0700
+
+    RELEASING: Note that --with-xserver-source is needed for make distcheck
+    
+    I was always forgetting this without this reminder.
+
+commit 73c3be1aa033e8c5c7ee777eb2fd43c19668fa86
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 18:18:14 2009 -0700
 
     README: Fix typos in chipset list, and point to how_to_report_bug web page
     
     Thanks to Gordon Jin for these suggestions.
-    (cherry picked from commit 73c3be1aa033e8c5c7ee777eb2fd43c19668fa86)
 
-commit e1d336e9885fc4bb219dfc347570bb2ec637ff7d
+commit c51dddb724a79a75491369a4c3e8b7b26231e7ac
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Apr 15 18:07:17 2009 -0700
+
+    AUTHORS: Add Robert Lowery to the authors file
+    
+    Rob got missed from my first scan since one commit lists his name as
+    just 'Rob' and 3 commits don't attribute him as author:
+    
+    	83d304c61ad5fdc58b0a9309dbd1e5a3f6cd9b01
+    	7552d80e367fe38bbc594fe94abd649917fe54d5
+    	6eecef4fed8a21dfdabef42eb69fd150b96167b2
+
+commit 4b5edde5da4b3e955eb2d77004de81e47bec7f69
+Author: Robert Lowery <rlowery@exemail.com.au>
+Date:   Wed Apr 15 18:03:31 2009 -0700
+
+    Fix typo in comment
+    
+    Thanks to Robert Lowery for the sharp eyes on this one.
+
+commit 3fd5a1ecd1d5140ae07ccc279298bcadd515e97f
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 16:44:11 2009 -0700
 
@@ -148,26 +2016,16 @@ Date:   Wed Apr 15 16:44:11 2009 -0700
     
     We're also now using tag names of just <version> rather than
     xf86-video-intel-<version>.
-    (cherry picked from commit 3fd5a1ecd1d5140ae07ccc279298bcadd515e97f)
 
-commit 976ef05ad18d7d798649a0a198c4d88488677f87
+commit e1cace16a6130dcdd93965d2329a349d49200fa6
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 16:33:12 2009 -0700
 
     NEWS: Add note about broken PAT code in some kernels
     
     Hoping to cut off some false bug reports here.
-    (cherry picked from commit e1cace16a6130dcdd93965d2329a349d49200fa6)
 
-commit cff6cf9adc4235af5cc73a47bb272c81635fc8b2
-Author: Carl Worth <cworth@cworth.org>
-Date:   Wed Apr 15 16:20:16 2009 -0700
-
-    Update version to 2.7.0
-    
-    In preparation for new major release.
-
-commit 5fc57441b68a85ca3aaa306c336b242616a99f12
+commit 9ffd1951d1f2fd2f53273d04ea29de050f07af55
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 16:14:44 2009 -0700
 
@@ -175,9 +2033,8 @@ Date:   Wed Apr 15 16:14:44 2009 -0700
     
     These new files don't do us much good if we don't distribute them in
     our releases.
-    (cherry picked from commit 9ffd1951d1f2fd2f53273d04ea29de050f07af55)
 
-commit f3d63d9e4956e64f632fbcf5da76fb7278072cb7
+commit e4cd9de2933ada3e2a4b43552729ae3a370128bf
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 16:14:03 2009 -0700
 
@@ -186,18 +2043,16 @@ Date:   Wed Apr 15 16:14:03 2009 -0700
     It will be nice to have release-notes under revision control, as well
     being able to document issues in an obviously time-sensitive file,
     (as opposed to README where we were documenting some of this previously).
-    (cherry picked from commit e4cd9de2933ada3e2a4b43552729ae3a370128bf)
 
-commit 3fafb28a4323c6897bfe36882857bf89e5d88de8
+commit 506c810f8f3db89048dda9777902f142ffeb86aa
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 16:10:52 2009 -0700
 
     Clarify that the default acceleration is UXA if KMS is available.
     
     Stale documentation considered harmful of course.
-    (cherry picked from commit 506c810f8f3db89048dda9777902f142ffeb86aa)
 
-commit 0f0569b5658fbaf3b84232f13a28f6633a89e9b9
+commit b9716b836cb2b4569c90b81f344932ac668dc5bf
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 15:39:06 2009 -0700
 
@@ -207,9 +2062,8 @@ Date:   Wed Apr 15 15:39:06 2009 -0700
     revision history. We also list some historical authors mentioned in the
     man page, (with code presumably pre-dating the beginning of revision
     history).
-    (cherry picked from commit b9716b836cb2b4569c90b81f344932ac668dc5bf)
 
-commit d94986bcd313486f8018a10729439af0f7e7052d
+commit 8deb3a3709a9aaa549be404566715a01246354d9
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Apr 15 15:38:11 2009 -0700
 
@@ -218,9 +2072,8 @@ Date:   Wed Apr 15 15:38:11 2009 -0700
     This was all very stale, and is better convered in intel.man. We replace
     this with a list of pointers to where to get current information, (man
     page, web site, and mailing list).
-    (cherry picked from commit 8deb3a3709a9aaa549be404566715a01246354d9)
 
-commit 6f48379fb8e5997b4b2098b7df5bed399bc559f6
+commit 9b615a52671aacf34666f90ecfff98651ce6afe2
 Author: Li Peng <peng.li@intel.com>
 Date:   Fri Apr 10 14:39:35 2009 +0800
 
@@ -234,23 +2087,20 @@ Date:   Fri Apr 10 14:39:35 2009 +0800
     
     Acked-by: Jesse Barnes <jbarnes@virtuousgeek.org>
     Signed-off-by: Li Peng <peng.li@intel.com>
-    (cherry picked from commit 9b615a52671aacf34666f90ecfff98651ce6afe2)
 
-commit c8633c82278085917bd6b0d0ea6e8a74eaa6deb4
+commit 053432991c812146f6e7c6f13c6ace55385c825f
 Author: Ma Ling <ling.ma@intel.com>
 Date:   Mon Apr 13 14:27:35 2009 +0800
 
     update manpage for BROADCAST_RGB property
-    (cherry picked from commit 053432991c812146f6e7c6f13c6ace55385c825f)
 
-commit 02c8a1a6e821a7c70c19329bd9ead4f9fcdcfe8a
+commit 62ba7211fe9b6aada125ebfe34cf7161e817ad6b
 Author: Ma Ling <ling.ma@intel.com>
 Date:   Mon Apr 13 14:24:57 2009 +0800
 
     set broadcast RGB mode for integrated HDMI output.
-    (cherry picked from commit 62ba7211fe9b6aada125ebfe34cf7161e817ad6b)
 
-commit 87dcf09b137a26919d36bf0cb659ff95bdb97c9b
+commit 69388953ce889080d5f014123d89bf3eb45f3d8d
 Author: Ma Ling <ling.ma@intel.com>
 Date:   Mon Apr 13 14:23:06 2009 +0800
 
@@ -261,24 +2111,24 @@ Date:   Mon Apr 13 14:23:06 2009 +0800
     they will shows black and whiter clamping, which seriously degrades picture quality.
     The patch will enable the broadcast RGB mode for hdtv according to user's setting.
     It fixed bug #14486
-    (cherry picked from commit 69388953ce889080d5f014123d89bf3eb45f3d8d)
 
-commit 387b5be8e7efdb9aa2cfb8bb64b92fae69241f1b
+commit 6d345c49f693cc5cffaa00b94559d2afcb3a0864
 Author: Carl Worth <cworth@cworth.org>
 Date:   Fri Apr 10 14:07:14 2009 -0700
 
     Add a RELEASING file documenting the release process
     
     Thanks to Jesse Barnes for the original recipe.
-    (cherry picked from commit 6d345c49f693cc5cffaa00b94559d2afcb3a0864)
 
-commit 121bd7ff7cfd9a43fbb61fa56f06ba2d2b55035e
-Author: Carl Worth <cworth@cworth.org>
-Date:   Fri Apr 10 14:08:00 2009 -0700
+commit 7e516b6d24d8c0c6549a9a60fcf487e3a1615020
+Author: Jesse Barnes <jbarnes@jbarnes-acer.(none)>
+Date:   Wed Apr 8 16:38:08 2009 -0700
 
-    Increment version to 2.6.99.903 for release
+    Silence warning in i830_dmi_store_field
+    
+    Just add a dummy ret variable to shut up gcc.
 
-commit ec8ef3b2984cef581ea7fa745a76fe6f97a952dd
+commit 620e97bbd6a811ad69b8ac94df1fe2c9edf65549
 Author: Jesse Barnes <jbarnes@virtuousgeek.org>
 Date:   Wed Apr 8 15:49:00 2009 -0700
 
@@ -301,9 +2151,8 @@ Date:   Wed Apr 8 15:49:00 2009 -0700
     Fixes FDO #21027.
     
     Also happens to fix FDO #21029 (as tested by Carl Worth <cworth@cworth.org).
-    (cherry picked from commit 620e97bbd6a811ad69b8ac94df1fe2c9edf65549)
 
-commit 404fdcc5bc9dd32d39112d8a49a5617dbb886a40
+commit 0a0731c11d10392cdc55ecc04e4e3575c8b3fe57
 Author: Shuang He <shuang.he@intel.com>
 Date:   Tue Apr 7 12:31:07 2009 -0700
 
@@ -313,9 +2162,8 @@ Date:   Tue Apr 7 12:31:07 2009 -0700
     based), we've only been getting tear-free video on one of the two
     pipes. This fixes that bug by using the correct constant for waiting
     on PIPEA.
-    (cherry picked from commit 0a0731c11d10392cdc55ecc04e4e3575c8b3fe57)
 
-commit 7b74b77557aa4100017ef3f9d344fb4071ae8470
+commit 940c2aad4d174b6609bdc49f8c99a4bc37926516
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Apr 6 14:36:33 2009 -0700
 
@@ -327,18 +2175,16 @@ Date:   Mon Apr 6 14:36:33 2009 -0700
     
     This fixes bug #20980 which shows a video spanning two pipes
     being rendered incorrectly.
-    (cherry picked from commit 940c2aad4d174b6609bdc49f8c99a4bc37926516)
 
-commit d8ce818c4e4ca0c348c16ead1b747165bce4bedb
+commit 63b4b5efac936c674dedad8125a8dbac4f000908
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Tue Apr 7 10:53:08 2009 +0800
 
     quirk LVDS on ibase MB890 855GM board
     
     fix bug #19529
-    (cherry picked from commit 63b4b5efac936c674dedad8125a8dbac4f000908)
 
-commit 3e5586cace98f73a9f8403a6446d380899ecbce9
+commit 5d9d9a2e466474a0508a15b294a91507ccb3ccc1
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Apr 6 14:02:08 2009 -0700
 
@@ -347,32 +2193,8 @@ Date:   Mon Apr 6 14:02:08 2009 -0700
     We need to account for a non-zero Y offset for the CRTC. Without
     this, we don't sync to the correct region, so tearing becomes
     visible again.
-    (cherry picked from commit 5d9d9a2e466474a0508a15b294a91507ccb3ccc1)
 
-commit 4e9b75175be791c6098ef79be8e04a8c3baa40f9
-Author: Ma Ling <ling.ma@intel.com>
-Date:   Tue Mar 17 10:33:15 2009 +0800
-
-    Use best PLL timing values for G4X platform
-    
-    construct function to find precise parameters from internal spreadsheet
-    table on G4X platform.
-    
-    Signed-off-by: Ma Ling <ling.ma@intel.com>
-    (cherry picked from commit 7c94227dd4fa2164bebb36234958053bf1d26c12)
-
-commit 3428e2fd4be337359278f7ab1dc0d9945d6fee34
-Author: Ma Ling <ling.ma@intel.com>
-Date:   Tue Mar 17 10:41:02 2009 +0800
-
-    Define documented PLL timing limits for G4X platform
-    
-    These timings on G4X platform were specified by internal spreadsheet from the chipset group.
-    
-    Signed-off-by: Ma Ling <ling.ma@intel.com>
-    (cherry picked from commit 48db5bde9298f1126dfb42f4be8a3d61166abfd8)
-
-commit 3b29eb99259ea7b84bd41bff623b027dbe28ffba
+commit 3d4ee3cac1d63dfdf7b54c8ba577f3b77637499f
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Apr 6 11:31:20 2009 -0700
 
@@ -382,9 +2204,8 @@ Date:   Mon Apr 6 11:31:20 2009 -0700
     for windows that covered more than 25% of the screen. We don't need
     this anymore since the new approach to sync, (WAIT_FOR_SCANLINE_WINDOW),
     is not excessively costly for small windows.
-    (cherry picked from commit 3d4ee3cac1d63dfdf7b54c8ba577f3b77637499f)
 
-commit 5dd2777ce836bdf55b53ed763728705d4d686673
+commit bc3312fd7c03d09a231dfebfe390fe668ad15d1e
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Apr 6 11:16:40 2009 -0700
 
@@ -397,9 +2218,8 @@ Date:   Mon Apr 6 11:16:40 2009 -0700
     while a batch is waiting for a VBLANK that will never occur.
     
     This fixes that GPU hang.
-    (cherry picked from commit bc3312fd7c03d09a231dfebfe390fe668ad15d1e)
 
-commit 5944f5e32511984b11decc0df6074600e1989934
+commit 6cd914ef315036ce8e91c7b6492994353e8ed2d8
 Author: Jesse Barnes <jbarnes@virtuousgeek.org>
 Date:   Fri Apr 3 11:15:18 2009 -0700
 
@@ -410,25 +2230,30 @@ Date:   Fri Apr 3 11:15:18 2009 -0700
     
     Reviewed-by: Eric Anholt <eric@anholt.net>
     Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
-    (cherry picked from commit 6cd914ef315036ce8e91c7b6492994353e8ed2d8)
 
-commit 633c24bc20ed96b1f9ef954bfd722e3ab504ea93
+commit 13c730e003e805e19deee0996b2af30f69e54c4d
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Apr 1 15:12:55 2009 +0800
+
+     fix
+     1.multiple instance
+     2.memory leak
+
+commit fad714c40078d22fff82dc0692a344f66ddf9680
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Wed Apr 1 10:11:35 2009 +0800
 
     SDVO: fix output flag dumping for unknown type
     
     Found by Hugo Jacques <hugo.jacques@verint.com>
-    (cherry picked from commit fad714c40078d22fff82dc0692a344f66ddf9680)
 
-commit 6501f8e5e91f3f87348d590e42a4860fea2cfddc
+commit 00de1757dd5776962bdd4c8968181878c2ebf4c9
 Author: Hugo Jacques <hugo.jacques@verint.com>
 Date:   Wed Apr 1 10:10:05 2009 +0800
 
     SDVO: add composite TV out support
-    (cherry picked from commit 00de1757dd5776962bdd4c8968181878c2ebf4c9)
 
-commit 10b5014c42dc055d9559ee112cc7a017e887d813
+commit 087f72e1f5d7d11b8795ba80a842874f5a9bb01d
 Author: Jesse Barnes <jbarnes@virtuousgeek.org>
 Date:   Tue Mar 31 07:50:10 2009 -0700
 
@@ -441,9 +2266,8 @@ Date:   Tue Mar 31 07:50:10 2009 -0700
     Fixes bug #20943.
     
     Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
-    (cherry picked from commit 087f72e1f5d7d11b8795ba80a842874f5a9bb01d)
 
-commit 26cab64654bdf68095412d0aaba157774d1ca16b
+commit 4f046af760b92c07f59664359453933fb5358e3d
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Tue Mar 31 13:49:44 2009 +0800
 
@@ -451,9 +2275,8 @@ Date:   Tue Mar 31 13:49:44 2009 +0800
     
     Both methods ACPI lid and SWF bit have issues in LVDS detect from
     wider testing. Fallback to origin code.
-    (cherry picked from commit 4f046af760b92c07f59664359453933fb5358e3d)
 
-commit d43016865c670d9281c6b664094fb41a252fbdc0
+commit e964d4e53af3a47de6d09c884be1cc0044d03bea
 Author: Albert Damen <albrt@gmx.net>
 Date:   Mon Mar 30 11:38:02 2009 -0700
 
@@ -473,18 +2296,16 @@ Date:   Mon Mar 30 11:38:02 2009 -0700
     mem->tiling now already gets set via i830_allocate_aperture and some buffers do
     have tiling. Removing that line indeed fixed the performance issue. Now
     sauerbraten runs with 30+ fps and GLBlur runs smoothly.
-    (cherry picked from commit e964d4e53af3a47de6d09c884be1cc0044d03bea)
 
-commit 556391cbce8146eab5e570277245e5881256e9be
+commit 51cf8a453c2bc2e8604bfc41a649e971c1ba5026
 Author: Jesse Barnes <jbarnes@virtuousgeek.org>
 Date:   Mon Mar 30 11:27:56 2009 -0700
 
     Require libdrm 2.4.6 for GTT unmap support
     
     Need the new functions available.
-    (cherry picked from commit 51cf8a453c2bc2e8604bfc41a649e971c1ba5026)
 
-commit f6f59ee2533e786906dc9a32cf7072f2d2796201
+commit 8dabcc40747bfd478f296728741240241698f165
 Author: Jesse Barnes <jbarnes@virtuousgeek.org>
 Date:   Mon Mar 30 09:53:40 2009 -0700
 
@@ -516,9 +2337,8 @@ Date:   Mon Mar 30 09:53:40 2009 -0700
     
     Reviewed-by: Eric Anholt <eric@anholt.net>
     Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
-    (cherry picked from commit 8dabcc40747bfd478f296728741240241698f165)
 
-commit a03feab1b7ce511e1704bee96c83290d1c7b2785
+commit 375b2e40fcb17e94538a75392950e2533c1bb031
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Wed Mar 25 11:13:52 2009 +0800
 
@@ -526,9 +2346,54 @@ Date:   Wed Mar 25 11:13:52 2009 +0800
     
     As wider tests showed that this doesn't work for all VBIOS, so
     disable it for now and reenable it after we get reliable method.
-    (cherry picked from commit 375b2e40fcb17e94538a75392950e2533c1bb031)
 
-commit 767524888840d7e06f6b5d6fa720b21d882d4625
+commit defa6971c6b639ab72d9d4c85c4607d5f852b2b0
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Thu Mar 26 15:24:29 2009 +0800
+
+        enable UV half pixel
+
+commit 69c84f2c8204771b68f40ed64e64657237b54546
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Mar 26 13:52:05 2009 +0800
+
+    gitignore intel_lid
+
+commit fe96e517699e37cc990a14dfb48b9611a02254ed
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Mar 26 10:54:02 2009 +0800
+
+    xvmc: add missed vld g4i sources in Makefile and fix distcheck
+    
+    Don't miss the vld shader programs for dist.
+
+commit 91886f82a1155ca24eb895f77678ea1edfccf9fe
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Mar 26 10:51:05 2009 +0800
+
+    xvmc: move 965 mc media programs to shader/mc directory
+    
+    Also include some missed g4i files in Makefile.am, fix shader build.
+
+commit ebcb64fdc8a45105f529d5e15c335514ecaf1a05
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Mar 25 16:11:33 2009 +0800
+
+      XvMC VLD extension support for G4X
+
+commit e6af995b24767815ab30364385768867e80605c2
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Mar 23 19:19:58 2009 +0800
+
+    KMS: hook up output properties for randr
+    
+    This gets output properties from kernel, then hook them up
+    for randr. So we can control output properties through randr
+    like in UMS.
+    
+    Signed-off-by: Zhenyu Wang <zhenyu.z.wang@intel.com>
+
+commit b5b377806422c9538fa9f846819ad253c1a50846
 Author: Ma, Ling <ling.ma@intel.com>
 Date:   Wed Mar 25 14:39:46 2009 +0800
 
@@ -540,9 +2405,8 @@ Date:   Wed Mar 25 14:39:46 2009 +0800
     reported by Robert Lowery in intel-gfx@lists.freedesktop.org mailing list.
     
     Signed-off-by: Ma Ling <ling.ma@intel.com>
-    (cherry picked from commit b5b377806422c9538fa9f846819ad253c1a50846)
 
-commit 948fa20bd639752af3a6f1b30a0b2b356d0bc9a5
+commit 74d0713e002a9781ed00fdd10eb6f75907ae796c
 Author: Kalev Lember <kalev@smartlink.ee>
 Date:   Fri Mar 20 02:21:41 2009 +0200
 
@@ -551,9 +2415,8 @@ Date:   Fri Mar 20 02:21:41 2009 +0200
     drm_intel_bo_unpin() was called with NULL argument.
     
     Signed-off-by: Kalev Lember <kalev@smartlink.ee>
-    (cherry picked from commit 74d0713e002a9781ed00fdd10eb6f75907ae796c)
 
-commit 79aebcb7f6b7f0bed6cdce34e2e3086dc6bf9b3c
+commit b345b4e6adf00f8b2626e5c2563fc159e2295cc5
 Author: Rémi Cardona <remi@gentoo.org>
 Date:   Fri Nov 14 13:55:52 2008 +0100
 
@@ -561,9 +2424,8 @@ Date:   Fri Nov 14 13:55:52 2008 +0100
     
     The i810 compatibility symlink has been broken since libpciaccess, so just
     let it die.
-    (cherry picked from commit b345b4e6adf00f8b2626e5c2563fc159e2295cc5)
 
-commit 3afc0d100c6897f9d17756043e92a3e6cccc099f
+commit 48b91e066878db63a1558e4cd3e6d12ff9c49197
 Author: Jesse Barnes <jbarnes@virtuousgeek.org>
 Date:   Fri Mar 20 12:33:22 2009 -0700
 
@@ -571,9 +2433,14 @@ Date:   Fri Mar 20 12:33:22 2009 -0700
     
     Don't try to clear fences that were never installed.  Missed this bit in
     the last fix for #20265.
-    (cherry picked from commit 48b91e066878db63a1558e4cd3e6d12ff9c49197)
 
-commit e2465249a90b9aefe6d7a96eb56a51fde54698a0
+commit 28319d60aa2d793c209043c1ce2d38b14c66a4be
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Mar 20 13:14:15 2009 +0800
+
+    Add a lid status test program "intel_lid"
+
+commit 636d252f3b1eac687f7b11952e949c383cb86ed4
 Author: Jesse Barnes <jbarnes@nietzche.localdomain>
 Date:   Thu Mar 19 13:25:29 2009 -0700
 
@@ -594,20 +2461,19 @@ Date:   Thu Mar 19 13:25:29 2009 -0700
     Fixes #20265.
     
     Acked-by: Eric Anholt <eric@anholt.net>
-    (cherry picked from commit 636d252f3b1eac687f7b11952e949c383cb86ed4)
 
-commit 1883d912c75238e73b3662580e08d3455d2efb33
-Author: Kristian Høgsberg <krh@redhat.com>
-Date:   Wed Mar 11 11:10:57 2009 -0400
+commit d92e6158c86d7da873913461ef7e828bd411d8c4
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Mar 19 10:06:03 2009 -0700
 
-    Drop Legacy3D option, only use fixed texture space with non-gem.
+    Revert the rest of the EXA_VERSION_MAJOR bump
     
-    With this change, we always expect the 3D driver to use GEM textures
-    when the 2D driver uses GEM.  When GEM is not available or disabled,
-    we fall back to legacy fixed textures.
-    (cherry picked from commit 73db44e7ac524e84e5f0fda2d60069a9e954ad1b)
+    This was mistakenly added in the unrelated change in revision
+    fe08b81d0f5d6f96e0124e6286bd24aba6e140ad
+    and wasn't completely reverted in the later revision
+    78a60e1b66fe2e8449702dd43d9b062d279af8f1
 
-commit db3675ceaf96342b339026022b1f2c13b5086ad4
+commit 85e6b528582c2397ee9eb2132cd0d05ce12eb43d
 Author: Ma Ling <ling.ma@intel.com>
 Date:   Thu Mar 19 09:10:19 2009 -0700
 
@@ -616,9 +2482,8 @@ Date:   Thu Mar 19 09:10:19 2009 -0700
     All 8xx class chips have the 66/48 split, not just 855.
     
     Fixes #18358.
-    (cherry picked from commit 85e6b528582c2397ee9eb2132cd0d05ce12eb43d)
 
-commit e03403e55ffb11302ffd354e7a5fb1704eb9edbd
+commit bedc894a565ce3c7a50990e3f78953fc2432ad40
 Author: Jesse Barnes <jbarnes@nietzche.localdomain>
 Date:   Wed Mar 18 20:19:44 2009 -0700
 
@@ -629,9 +2494,8 @@ Date:   Wed Mar 18 20:19:44 2009 -0700
     corresponding output(s).
     
     Fixes bug #20573.
-    (cherry picked from commit bedc894a565ce3c7a50990e3f78953fc2432ad40)
 
-commit f76a16d5b1d47430d60d1aa6c5f034c46a8be228
+commit 6deb26ae7bd796e88a5dd90df5f6c35fbc44e798
 Author: Jesse Barnes <jbarnes@virtuousgeek.org>
 Date:   Wed Mar 18 09:36:58 2009 -0700
 
@@ -643,9 +2507,94 @@ Date:   Wed Mar 18 09:36:58 2009 -0700
     configuration, leading to hangs or blank screens at VT switch time.
     
     Fixes bug #19603.
-    (cherry picked from commit 6deb26ae7bd796e88a5dd90df5f6c35fbc44e798)
 
-commit b6b56f6d3710dc31bace15c0a1db1b21e0f2f20c
+commit 7c94227dd4fa2164bebb36234958053bf1d26c12
+Author: Ma Ling <ling.ma@intel.com>
+Date:   Tue Mar 17 10:33:15 2009 +0800
+
+    Use best PLL timing values for G4X platform
+    
+    construct function to find precise parameters from internal spreadsheet
+    table on G4X platform.
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit 48db5bde9298f1126dfb42f4be8a3d61166abfd8
+Author: Ma Ling <ling.ma@intel.com>
+Date:   Tue Mar 17 10:41:02 2009 +0800
+
+    Define documented PLL timing limits for G4X platform
+    
+    These timings on G4X platform were specified by internal spreadsheet from the chipset group.
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+
+commit 78a60e1b66fe2e8449702dd43d9b062d279af8f1
+Author: Keith Packard <keithp@keithp.com>
+Date:   Mon Mar 16 08:41:52 2009 -0700
+
+    Revert EXA_DRIVER_KNOWN_MAJOR bump
+    
+    This was mistakenly added in the unrelated change in revision
+    fe08b81d0f5d6f96e0124e6286bd24aba6e140ad
+
+commit 1a6e70cd98abc63f24f710819961c24601afb59b
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Mar 16 10:19:39 2009 +0800
+
+    TV: fix contrast and saturation for 945G
+    
+    Bug #20670.
+
+commit 4e95327323e3d081b565147f7738eb49c28542bc
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Mar 16 09:30:22 2009 +0800
+
+    TV: force TV as connected with TV_Connector option
+    
+    In order to bypass failure in TV load detect, TV_Connector option
+    will always force TV as connected with user specified connector type.
+
+commit d9dbdb325543bd747cd1bfb3e1142ea6daf2b637
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Mar 13 15:48:40 2009 -0700
+
+    Add shave support, enabled by default.
+    
+    This cuts down build system noise so that warnings are more visible.  The
+    old style output can be reenabled for build system debugging using
+    "make V=1", or --disable-shave at configure time.
+
+commit c3a82106a1a1a94c9e1e465c7dc0d828c1cbf50d
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Mar 13 15:29:45 2009 -0700
+
+    Move contributed m4 (dolt) to a subdirectory so we can include it with others.
+
+commit e0aba04da0323efc079ce0a2b78139c4d0d49fa5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Mar 13 13:37:35 2009 -0700
+
+    Add DCC register dumping.
+
+commit a57814cc13f4287eccaf1906963b80c9205c680c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Mar 13 13:20:35 2009 -0700
+
+    Add dumping of 915 and 945 fence registers.
+    
+    The debug dumper functions can now return NULL to indicate no output, so
+    we get appropriate results on 915, 945, and 965.
+
+commit 8166a7ff5c2c1e3736dd06a8453c4e4d769d8b75
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Mar 13 13:12:33 2009 -0700
+
+    Add PGETBL_CTL to the debug output.
+    
+    It's nice to know when it gets stomped on.
+
+commit fe08b81d0f5d6f96e0124e6286bd24aba6e140ad
 Author: Keith Packard <keithp@keithp.com>
 Date:   Mon Mar 2 07:39:41 2009 -0800
 
@@ -655,42 +2604,16 @@ Date:   Mon Mar 2 07:39:41 2009 -0800
     to move them to the cache pixmap, and lots of reasons to use the accelerator.
     
     Signed-off-by: Keith Packard <keithp@keithp.com>
-    (cherry picked from commit fe08b81d0f5d6f96e0124e6286bd24aba6e140ad)
-    (also includes revert from fe08b81d0f5d6f96e0124e6286bd24aba6e140ad)
-    (and revert from from 78a60e1b66fe2e8449702dd43d9b062d279af8f1)
-    
-    The reverts simply eliminate some unrelated changes accidentally included
-    with the first commit.
 
-commit 238c2c40afd9f8b61479b8640d53f20d52fd7ddf
-Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
-Date:   Mon Mar 16 10:19:39 2009 +0800
-
-    TV: fix contrast and saturation for 945G
-    
-    Bug #20670.
-    (cherry picked from commit 1a6e70cd98abc63f24f710819961c24601afb59b)
-
-commit 14e09995a74b296acda33bb6c833b432075cd873
-Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
-Date:   Mon Mar 16 09:30:22 2009 +0800
-
-    TV: force TV as connected with TV_Connector option
-    
-    In order to bypass failure in TV load detect, TV_Connector option
-    will always force TV as connected with user specified connector type.
-    (cherry picked from commit 4e95327323e3d081b565147f7738eb49c28542bc)
-
-commit 72ab5ee2e1b459772641f3b6e347ef9389f24195
+commit 2026c57cf0a352d9e6f9d208cfb7d4d550614477
 Author: Kalev Lember <kalev@smartlink.ee>
 Date:   Fri Mar 13 21:32:08 2009 +0200
 
     Fix Xv crash with overlay video.
     
     Bug #20585.
-    (cherry picked from commit 2026c57cf0a352d9e6f9d208cfb7d4d550614477)
 
-commit d7e1543a618c54f1baeea7dd1ac54bb37e309fec
+commit 3ef9d85371a97ea5baee0c47787b3bb3cdaf5135
 Author: Jesse Barnes <jbarnes@virtuousgeek.org>
 Date:   Fri Mar 13 12:21:34 2009 -0700
 
@@ -701,9 +2624,8 @@ Date:   Fri Mar 13 12:21:34 2009 -0700
     xorg.conf.
     
     Fixes bug #20620.
-    (cherry picked from commit 3ef9d85371a97ea5baee0c47787b3bb3cdaf5135)
 
-commit e87bcd19a608aa964d6ea43ca5a19aed2efc818d
+commit dc3ff0b514b609448025680778f0e95e1980a5d8
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Thu Mar 12 16:32:02 2009 +0800
 
@@ -716,9 +2638,8 @@ Date:   Thu Mar 12 16:32:02 2009 +0800
     to DDC bus before START. But it's ideal to only issue DDC
     bus switch after STOP, not before every START, which might eliminate
     some complains from SDVO device, that will be another patch later.
-    (cherry picked from commit dc3ff0b514b609448025680778f0e95e1980a5d8)
 
-commit 53b10efdb78c19d73689bff85f8d11863139b8b8
+commit c6b0135d209bdad3dbc641d0e264596eaf6f99d3
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Thu Mar 12 16:31:01 2009 +0800
 
@@ -727,9 +2648,8 @@ Date:   Thu Mar 12 16:31:01 2009 +0800
     For multifunction encoder, forget to reset these values
     will cause wrong output type in later mode setting
     operations.
-    (cherry picked from commit c6b0135d209bdad3dbc641d0e264596eaf6f99d3)
 
-commit 490cb578aef761e3fdd0a559bec36cdab96e6b2a
+commit 28e7f0d71fa09e15a68ab4f0de169474b6235093
 Author: Dan Nicholson <dbn.lists@gmail.com>
 Date:   Tue Mar 10 20:16:03 2009 -0700
 
@@ -740,9 +2660,18 @@ Date:   Tue Mar 10 20:16:03 2009 -0700
     libXvMC, but they're needed for 'make dist'.
     
     Signed-off-by: Dan Nicholson <dbn.lists@gmail.com>
-    (cherry picked from commit 28e7f0d71fa09e15a68ab4f0de169474b6235093)
 
-commit af97292c9df4e5178d5c8742f87ea8123d6e2243
+commit 73db44e7ac524e84e5f0fda2d60069a9e954ad1b
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Wed Mar 11 11:10:57 2009 -0400
+
+    Drop Legacy3D option, only use fixed texture space with non-gem.
+    
+    With this change, we always expect the 3D driver to use GEM textures
+    when the 2D driver uses GEM.  When GEM is not available or disabled,
+    we fall back to legacy fixed textures.
+
+commit 2fcf4fcccfe7cfa1425985d21a144137eca07f4e
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Tue Mar 10 14:21:36 2009 +0800
 
@@ -751,9 +2680,8 @@ Date:   Tue Mar 10 14:21:36 2009 +0800
     We should use preferred input timing's clock for correct
     pixel multiplier setting, otherwise we might get inconsistent
     multiplier setting on pipe and SDVO device for some modes.
-    (cherry picked from commit 2fcf4fcccfe7cfa1425985d21a144137eca07f4e)
 
-commit 419499d622ba10177b760da5324f0507ac146e9a
+commit fb6e00f40f713a87c760fc7603159ed11ea9b0d5
 Author: Eric Anholt <eric@anholt.net>
 Date:   Mon Mar 9 20:06:30 2009 -0700
 
@@ -766,30 +2694,6 @@ Date:   Mon Mar 9 20:06:30 2009 -0700
     much.
     
     Bug #20563.
-    (cherry picked from commit fb6e00f40f713a87c760fc7603159ed11ea9b0d5)
-
-commit 1d19b024dba970e4b24daccb898101f77d5529ff
-Author: Carl Worth <cworth@cworth.org>
-Date:   Tue Mar 10 17:15:54 2009 -0700
-
-    Increment version number to 2.6.99.902
-    
-    This is a version number increment for the new release-candidate
-    tar file. As can be seen in the git history, there are no code
-    changes here. Instead, the incremented version simply captures
-    the fact that unlike .901, the .902 tar file has been built
-    correctly. Specifically, it was built this time on a system with
-    xmvclib present so all the necessary source files for building
-    against xmvclib are now included in the tar file.
-
-commit 4e334ef33c38e2e930958a4b68d79f1860bb9efa
-Author: Carl Worth <cworth@cworth.org>
-Date:   Mon Mar 9 18:27:47 2009 -0700
-
-    Increment version number to 2.6.99.901 for 2.7-rc1
-    
-    It sure seems like a bizarre numbering scheme to me, but it also
-    seems like the x.org way of doing things, (at least for now).
 
 commit dc12c4b3eb297b2f225409eacf1f3cd521453ab6
 Author: Eric Anholt <eric@anholt.net>

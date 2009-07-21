@@ -19,10 +19,13 @@ configure
 configure.lineno
 depcomp
 doltcompile
+doltlibtool
 install-sh
 libtool
 ltmain.sh
 missing
+shave
+shave-libtool
 stamp-h1
 i810.4
 intel.4

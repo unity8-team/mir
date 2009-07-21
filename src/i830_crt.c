@@ -185,7 +185,7 @@ i830_crt_detect_hotplug(xf86OutputPtr output)
 
     hotplug_en = INREG(PORT_HOTPLUG_EN);
 
-    hotplug_en &= ~CRT_HOTPLUG_MASK;
+    hotplug_en &= CRT_FORCE_HOTPLUG_MASK;
 
     /* This starts the detection sequence */
     hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
@@ -193,7 +193,7 @@ i830_crt_detect_hotplug(xf86OutputPtr output)
     /* GM45 requires a longer activation period to reliably
      * detect CRT
      */
-    if (IS_GM45(pI830))
+    if (IS_G4X(pI830))
 	hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
 
     /* Use the default voltage value */
@@ -286,7 +286,8 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     {
 	uint32_t	pipeconf = INREG(pipeconf_reg);
 	OUTREG(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
-	
+        /* Wait for next Vblank to substitue border color for Color info */
+        i830WaitForVblank (pScrn);
 	st00 = pI830->readStandard (pI830, 0x3c2);
 	present = (st00 & (1 << 4)) != 0;
 	OUTREG(pipeconf_reg, pipeconf);

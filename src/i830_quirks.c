@@ -70,12 +70,13 @@ static char *i830_dmi_data[dmi_data_max];
 static void i830_dmi_store_##field(void) \
 {\
     FILE *f = NULL;\
+    int ret;\
     f = fopen(DMIID_FILE(field), "r");\
     if (f == NULL) {\
 	xfree(i830_dmi_data[field]); i830_dmi_data[field] = NULL;\
 	return;\
     }\
-    fread(i830_dmi_data[field], 64, 1, f);\
+    ret = fread(i830_dmi_data[field], 64, 1, f);	\
     fclose(f);\
 }
 
@@ -329,6 +330,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_GM45_GM, 0x103c, 0x30e8, quirk_ignore_tv },
     /* HP Compaq 2730p needs pipe A force quirk (LP: #291555) */
     { PCI_CHIP_GM45_GM, 0x103c, 0x30eb, quirk_pipea_force },
+    /* HP Mini needs pipe A force quirk (LP: #322104) */
+    { PCI_CHIP_I945_GME,0x103c, 0x361a, quirk_pipea_force },
 
     /* Thinkpad R31 needs pipe A force quirk */
     { PCI_CHIP_I830_M, 0x1014, 0x0505, quirk_pipea_force },
@@ -355,6 +358,8 @@ static i830_quirk i830_quirk_list[] = {
 
     { PCI_CHIP_I855_GM, 0x161f, 0x2030, quirk_pfit_safe },
 
+    /* ThinkPad X30 needs pipe A force quirk (LP: #304614) */
+    { PCI_CHIP_I830_M,  0x1014, 0x0513, quirk_pipea_force },
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
 

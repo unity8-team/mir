@@ -43,10 +43,12 @@
 #define INTEL_BIOS_16(_addr)	(bios[_addr] |			\
 				 (bios[_addr + 1] << 8))
 #define INTEL_BIOS_32(_addr)	(bios[_addr] |			\
-				 (bios[_addr + 1] << 8)		\
-				 (bios[_addr + 2] << 16)	\
+				 (bios[_addr + 1] << 8) |	\
+				 (bios[_addr + 2] << 16) |	\
 				 (bios[_addr + 3] << 24))
 
+#define		SLAVE_ADDR1	0x70
+#define		SLAVE_ADDR2	0x72
 static void *
 find_section(struct bdb_header *bdb, int section_id)
 {
@@ -73,6 +75,36 @@ find_section(struct bdb_header *bdb, int section_id)
     return NULL;
 }
 
+static void
+fill_detail_timing_data(DisplayModePtr fixed_mode, unsigned char *timing_ptr)
+{
+    fixed_mode->HDisplay   = _H_ACTIVE(timing_ptr);
+    fixed_mode->VDisplay   = _V_ACTIVE(timing_ptr);
+    fixed_mode->HSyncStart = fixed_mode->HDisplay +
+        _H_SYNC_OFF(timing_ptr);
+    fixed_mode->HSyncEnd   = fixed_mode->HSyncStart +
+        _H_SYNC_WIDTH(timing_ptr);
+    fixed_mode->HTotal     = fixed_mode->HDisplay +
+        _H_BLANK(timing_ptr);
+    fixed_mode->VSyncStart = fixed_mode->VDisplay +
+        _V_SYNC_OFF(timing_ptr);
+    fixed_mode->VSyncEnd   = fixed_mode->VSyncStart +
+        _V_SYNC_WIDTH(timing_ptr);
+    fixed_mode->VTotal     = fixed_mode->VDisplay +
+        _V_BLANK(timing_ptr);
+    fixed_mode->Clock      = _PIXEL_CLOCK(timing_ptr) / 1000;
+    fixed_mode->type       = M_T_PREFERRED;
+
+    /* Some VBTs have bogus h/vtotal values */
+    if (fixed_mode->HSyncEnd > fixed_mode->HTotal)
+        fixed_mode->HTotal = fixed_mode->HSyncEnd + 1;
+    if (fixed_mode->VSyncEnd > fixed_mode->VTotal)
+        fixed_mode->VTotal = fixed_mode->VSyncEnd + 1;
+
+    xf86SetModeDefaultName(fixed_mode);
+
+}
+
 /**
  * Returns the BIOS's fixed panel mode.
  *
@@ -82,13 +114,15 @@ find_section(struct bdb_header *bdb, int section_id)
  * detecting the panel mode is preferable.
  */
 static void
-parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 {
     struct bdb_lvds_options *lvds_options;
     struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
-    int timing_offset;
+    struct bdb_lvds_lfp_data *lvds_data;
+    struct bdb_lvds_lfp_data_entry *entry;
     DisplayModePtr fixed_mode;
     unsigned char *timing_ptr;
+    int lfp_data_size;
 
     /* Defaults if we can't find VBT info */
     pI830->lvds_dither = 0;
@@ -101,13 +135,20 @@ parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
     if (lvds_options->panel_type == 0xff)
 	return;
 
+    lvds_data = find_section(bdb, BDB_LVDS_LFP_DATA);
+    if (!lvds_data) {
+	return;
+    }
+
     lvds_lfp_data_ptrs = find_section(bdb, BDB_LVDS_LFP_DATA_PTRS);
     if (!lvds_lfp_data_ptrs)
 	return;
 
-    timing_offset =
-	lvds_lfp_data_ptrs->ptr[lvds_options->panel_type].dvo_timing_offset;
-    timing_ptr = (unsigned char *)bdb + timing_offset;
+    lfp_data_size = lvds_lfp_data_ptrs->ptr[1].dvo_timing_offset -
+	lvds_lfp_data_ptrs->ptr[0].dvo_timing_offset;
+    entry = (struct bdb_lvds_lfp_data_entry *)((uint8_t *)lvds_data->data +
+					       (lfp_data_size * lvds_options->panel_type));
+    timing_ptr = (unsigned char *)&entry->dvo_timing;
 
     if (pI830->skip_panel_detect)
 	return;
@@ -118,32 +159,43 @@ parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
     /* Since lvds_bdb_2_fp_edid_dtd is just an EDID detailed timing
      * block, pull the contents out using EDID macros.
      */
-    fixed_mode->HDisplay   = _H_ACTIVE(timing_ptr);
-    fixed_mode->VDisplay   = _V_ACTIVE(timing_ptr);
-    fixed_mode->HSyncStart = fixed_mode->HDisplay +
-	_H_SYNC_OFF(timing_ptr);
-    fixed_mode->HSyncEnd   = fixed_mode->HSyncStart +
-	_H_SYNC_WIDTH(timing_ptr);
-    fixed_mode->HTotal     = fixed_mode->HDisplay +
-	_H_BLANK(timing_ptr);
-    fixed_mode->VSyncStart = fixed_mode->VDisplay +
-	_V_SYNC_OFF(timing_ptr);
-    fixed_mode->VSyncEnd   = fixed_mode->VSyncStart +
-	_V_SYNC_WIDTH(timing_ptr);
-    fixed_mode->VTotal     = fixed_mode->VDisplay +
-	_V_BLANK(timing_ptr);
-    fixed_mode->Clock      = _PIXEL_CLOCK(timing_ptr) / 1000;
-    fixed_mode->type       = M_T_PREFERRED;
-
-    /* Some VBTs have bogus h/vtotal values */
-    if (fixed_mode->HSyncEnd > fixed_mode->HTotal)
-	fixed_mode->HTotal = fixed_mode->HSyncEnd + 1;
-    if (fixed_mode->VSyncEnd > fixed_mode->VTotal)
-	fixed_mode->VTotal = fixed_mode->VSyncEnd + 1;
-
-    xf86SetModeDefaultName(fixed_mode);
-
+    fill_detail_timing_data(fixed_mode, timing_ptr);
     pI830->lvds_fixed_mode = fixed_mode;
+}
+
+static void
+parse_sdvo_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+{
+    DisplayModePtr fixed_mode;
+    struct bdb_sdvo_lvds_options *sdvo_lvds_options;
+    unsigned char *timing_ptr;
+
+    pI830->sdvo_lvds_fixed_mode = NULL;
+
+    sdvo_lvds_options = find_section(bdb, BDB_SDVO_LVDS_OPTIONS);
+    if (sdvo_lvds_options == NULL)
+        return;
+
+    timing_ptr = find_section(bdb, BDB_SDVO_PANEL_DTDS);
+    if (timing_ptr == NULL)
+        return;
+
+    fixed_mode = xnfalloc(sizeof(DisplayModeRec));
+    if (fixed_mode == NULL)
+        return;
+
+    memset(fixed_mode, 0, sizeof(*fixed_mode));
+    fill_detail_timing_data(fixed_mode, timing_ptr +
+                        (sdvo_lvds_options->panel_type * DET_TIMING_INFO_LEN));
+    pI830->sdvo_lvds_fixed_mode = fixed_mode;
+
+}
+
+static void
+parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+{
+    parse_integrated_panel_data(pI830, bdb);
+    parse_sdvo_panel_data(pI830, bdb);
 }
 
 static void
@@ -195,6 +247,84 @@ parse_driver_feature(I830Ptr pI830, struct bdb_header *bdb)
 	pI830->integrated_lvds = FALSE;
 }
 
+static
+void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
+{
+    unsigned int block_size;
+    uint16_t *block_ptr;
+    struct bdb_general_definitions *defs;
+    struct child_device_config *child;
+    int i, child_device_num, count;
+    struct sdvo_device_mapping *p_mapping;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
+    if (!defs) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			"can't find the general definition blocks\n");
+	return;
+    }
+    /* Get the block size of general defintion block */
+    block_ptr = (uint16_t *)((char *)defs - 2);
+    block_size = *block_ptr;
+    child_device_num = (block_size - sizeof(*defs)) / sizeof(*child);
+    count = 0;
+
+    for (i = 0; i < child_device_num; i++) {
+	child = &defs->devices[i];
+	if (!child->device_type) {
+		/* skip invalid child device type*/
+		 continue;
+	}
+	if (child->slave_addr == SLAVE_ADDR1 ||
+			child->slave_addr == SLAVE_ADDR2) {
+	    if (child->dvo_port != DEVICE_PORT_DVOB &&
+			child->dvo_port != DEVICE_PORT_DVOC) {
+		/* skip the incorrect sdvo port */
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				"Incorrect SDVO port\n");
+		continue;
+	    }
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"the SDVO device with slave addr %x "
+			"is found on DVO %x port\n",
+			child->slave_addr, child->dvo_port);
+	    /* fill the primary dvo port */
+	    p_mapping = &(pI830->sdvo_mappings[child->dvo_port - 1]);
+	    if (!p_mapping->initialized) {
+		p_mapping->dvo_port = child->dvo_port;
+		p_mapping->dvo_wiring = child->dvo_wiring;
+		p_mapping->initialized = 1;
+		p_mapping->slave_addr = child->slave_addr;
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				"One DVO port is shared by two slave "
+				"address. Maybe it can't be handled\n");
+	    }
+	    /* If there exists the slave2_addr, maybe it is a sdvo
+	     * device that contain multiple inputs. And it can't
+	     * handled by SDVO driver.
+	     * Ignore the dvo mapping of slave2_addr
+	     * of course its mapping info won't be added.
+	     */
+	    if (child->slave2_addr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				"Two DVO ports uses the same slave address."
+				"Maybe it can't be handled by SDVO driver\n");
+	    }
+	    count++;
+	} else {
+	    /* if the slave address is neither 0x70 nor 0x72, skip it. */
+	    continue;
+	}
+    }
+    /* If the count is zero, it indicates that no sdvo device is found */
+    if (!count)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"No SDVO device is found in VBT\n");
+
+    return;
+}
 #define INTEL_VBIOS_SIZE (64 * 1024)	/* XXX */
 
 /**
@@ -218,7 +348,6 @@ i830_bios_init(ScrnInfoPtr pScrn)
     int ret;
     int size;
 
-#if XSERVER_LIBPCIACCESS
     size = pI830->PciInfo->rom_size;
     if (size == 0) {
 	size = INTEL_VBIOS_SIZE;
@@ -226,14 +355,10 @@ i830_bios_init(ScrnInfoPtr pScrn)
 		   "libpciaccess reported 0 rom size, guessing %dkB\n",
 		   size / 1024);
     }
-#else
-    size = INTEL_VBIOS_SIZE;
-#endif
     bios = xalloc(size);
     if (bios == NULL)
 	return -1;
 
-#if XSERVER_LIBPCIACCESS
     ret = pci_device_read_rom (pI830->PciInfo, bios);
     if (ret != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -242,14 +367,6 @@ i830_bios_init(ScrnInfoPtr pScrn)
 	xfree (bios);
 	return -1;
     }
-#else
-    /* xf86ReadPciBIOS returns the length read */
-    ret = xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, size);
-    if (ret <= 0) {
-	xfree (bios);
-	return -1;
-    }
-#endif
 
     vbt_off = INTEL_BIOS_16(0x1a);
     if (vbt_off >= size) {
@@ -274,6 +391,7 @@ i830_bios_init(ScrnInfoPtr pScrn)
     parse_general_features(pI830, bdb);
     parse_panel_data(pI830, bdb);
     parse_driver_feature(pI830, bdb);
+    parse_sdvo_mapping(pScrn, bdb);
 
     xfree(bios);
 
