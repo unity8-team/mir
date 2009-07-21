@@ -1203,17 +1203,25 @@ NVMapMem(ScrnInfoPtr pScrn)
 		size = pNv->VRAMPhysicalSize / 2;
 	}
 
-	if (nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN |
-				NOUVEAU_BO_MAP, 0, size, tile_mode,
-				tile_flags, &pNv->FB)) {
+	if (nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
+				0, size, tile_mode, tile_flags, &pNv->FB)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer memory\n");
 		return FALSE;
 	}
+
+	/* Required to remain pinned, the kernel doesn't track the dodgy
+	 * half-tiledness of this buffer so after resume, when TTM is
+	 * pulling the buffer back in it'll set all the page table flags
+	 * to linear (the buffer was created as such..) and the GPU will
+	 * strongly dislike this.
+	 */
+	if (!pNv->exa_driver_pixmaps && pNv->Architecture >= NV_ARCH_50)
+		nouveau_bo_pin(pNv->FB, NOUVEAU_BO_VRAM);
+
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Allocated %dMiB VRAM for framebuffer + offscreen pixmaps, "
-		   "at offset 0x%X\n",
-		   (uint32_t)(pNv->FB->size >> 20), (uint32_t) pNv->FB->offset);
+		   "Allocated %dMiB VRAM for framebuffer\n",
+		   (uint32_t)(pNv->FB->size >> 20));
 
 	if (pNv->AGPSize) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1227,8 +1235,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	} else {
 		size = (4 << 20) - (1 << 18) ;
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "GART: PCI DMA - using %dKiB\n",
-			   size >> 10);
+			   "GART: PCI DMA - using %dKiB\n", size >> 10);
 	}
 
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_MAP,
