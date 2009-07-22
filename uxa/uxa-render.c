@@ -822,7 +822,8 @@ uxa_create_alpha_picture (ScreenPtr     pScreen,
     }
 
     pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height,
-					pPictFormat->depth, 0);
+					pPictFormat->depth,
+					UXA_CREATE_PIXMAP_FOR_MAP);
     if (!pPixmap)
 	return 0;
     pPicture = CreatePicture (0, &pPixmap->drawable, pPictFormat,
