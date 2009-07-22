@@ -806,9 +806,7 @@ uxa_create_alpha_picture (ScreenPtr     pScreen,
 {
     PixmapPtr	    pPixmap;
     PicturePtr	    pPicture;
-    GCPtr	    pGC;
     int		    error;
-    xRectangle	    rect;
 
     if (width > 32767 || height > 32767)
 	return 0;
@@ -827,19 +825,6 @@ uxa_create_alpha_picture (ScreenPtr     pScreen,
 					pPictFormat->depth, 0);
     if (!pPixmap)
 	return 0;
-    pGC = GetScratchGC (pPixmap->drawable.depth, pScreen);
-    if (!pGC)
-    {
-	(*pScreen->DestroyPixmap) (pPixmap);
-	return 0;
-    }
-    ValidateGC (&pPixmap->drawable, pGC);
-    rect.x = 0;
-    rect.y = 0;
-    rect.width = width;
-    rect.height = height;
-    uxa_check_poly_fill_rect (&pPixmap->drawable, pGC, 1, &rect);
-    FreeScratchGC (pGC);
     pPicture = CreatePicture (0, &pPixmap->drawable, pPictFormat,
 			      0, 0, serverClient, &error);
     (*pScreen->DestroyPixmap) (pPixmap);
@@ -950,6 +935,7 @@ uxa_trapezoids (CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	    FreePicture (pPicture, 0);
 	    return;
 	}
+	ValidateGC (pPicture->pDrawable, pGC);
 
 	(*pGC->ops->CopyArea) (&pPixmap->drawable, pPicture->pDrawable,
 			       pGC, 0, 0, width, height, 0, 0);
@@ -1023,15 +1009,32 @@ uxa_triangles (CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	PicturePtr	pPicture;
 	INT16		xDst, yDst;
 	INT16		xRel, yRel;
-	
+	int width = bounds.x2 - bounds.x1;
+	int height = bounds.y2 - bounds.y1;
+	GCPtr pGC;
+	xRectangle rect;
+
 	xDst = tris[0].p1.x >> 16;
 	yDst = tris[0].p1.y >> 16;
 
 	pPicture = uxa_create_alpha_picture (pScreen, pDst, maskFormat,
-					  bounds.x2 - bounds.x1,
-					  bounds.y2 - bounds.y1);
+					     width, height);
 	if (!pPicture)
 	    return;
+
+	/* Clear the alpha picture to 0. */
+	pGC = GetScratchGC (pPicture->pDrawable->depth, pScreen);
+	if (!pGC) {
+	    FreePicture (pPicture, 0);
+	    return;
+	}
+	ValidateGC (pPicture->pDrawable, pGC);
+	rect.x = 0;
+	rect.y = 0;
+	rect.width = width;
+	rect.height = height;
+	uxa_check_poly_fill_rect (pPicture->pDrawable, pGC, 1, &rect);
+	FreeScratchGC (pGC);
 
 	if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
 	    (*ps->AddTriangles) (pPicture, -bounds.x1, -bounds.y1, ntri, tris);
