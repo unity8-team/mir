@@ -597,14 +597,20 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     {
 	unsigned int size;
 	uint32_t tiling = I915_TILING_NONE;
+	int pitch_align;
+
+	if (usage == INTEL_CREATE_PIXMAP_TILING_X) {
+	    tiling = I915_TILING_X;
+	    pitch_align = 512;
+	} else if (usage == INTEL_CREATE_PIXMAP_TILING_Y) {
+	    tiling = I915_TILING_Y;
+	    pitch_align = 512;
+	} else {
+	    pitch_align = i830->accel_pixmap_pitch_alignment;
+	}
 
 	stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
-			  i830->accel_pixmap_pitch_alignment);
-
-	if (usage == INTEL_CREATE_PIXMAP_TILING_X)
-	    tiling = I915_TILING_X;
-	else if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
-	    tiling = I915_TILING_Y;
+			  pitch_align);
 
 	if (tiling == I915_TILING_NONE) {
 	    size = stride * h;
