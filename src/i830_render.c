@@ -157,11 +157,9 @@ static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
     case PICT_x1r5g5b5:
         *dst_format = COLR_BUF_ARGB1555;
         break;
-	/*
     case PICT_a8:
         *dst_format = COLR_BUF_8BIT;
         break;
-	*/
     case PICT_a4r4g4b4:
     case PICT_x4r4g4b4:
 	*dst_format = COLR_BUF_ARGB4444;
@@ -175,8 +173,8 @@ static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 }
 
 
-static uint32_t i830_get_blend_cntl(int op, PicturePtr pMask,
-				    uint32_t dst_format)
+static Bool i830_get_blend_cntl(ScrnInfoPtr pScrn, int op, PicturePtr pMask,
+				uint32_t dst_format, uint32_t *blendctl)
 {
     uint32_t sblend, dblend;
 
@@ -193,6 +191,14 @@ static uint32_t i830_get_blend_cntl(int op, PicturePtr pMask,
             sblend = BLENDFACTOR_ZERO;
     }
 
+    /* For blending purposes, COLR_BUF_8BIT values show up in the green
+     * channel.  So we can't use the alpha channel.
+     */
+    if (dst_format == PICT_a8 && ((sblend == BLENDFACTOR_DST_ALPHA ||
+				   sblend == BLENDFACTOR_INV_DST_ALPHA))) {
+	I830FALLBACK("Can't do dst alpha blending with PICT_a8 dest.\n");
+    }
+
     /* If the source alpha is being used, then we should only be in a case
      * where the source blend factor is 0, and the source blend value is the
      * mask channels multiplied by the source picture's alpha.
@@ -206,8 +212,10 @@ static uint32_t i830_get_blend_cntl(int op, PicturePtr pMask,
         }
     }
 
-    return (sblend << S8_SRC_BLEND_FACTOR_SHIFT) |
+    *blendctl = (sblend << S8_SRC_BLEND_FACTOR_SHIFT) |
 	(dblend << S8_DST_BLEND_FACTOR_SHIFT);
+
+    return TRUE;
 }
 
 static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
@@ -449,13 +457,15 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		 TB0A_OUTPUT_WRITE_CURRENT;
 
 	/* Get the source picture's channels into TBx_ARG1 */
-	if (pMaskPicture != NULL &&
-	    pMaskPicture->componentAlpha &&
-	    PICT_FORMAT_RGB(pMaskPicture->format) &&
-	    i830_blend_op[op].src_alpha)
+	if ((pMaskPicture != NULL &&
+	     pMaskPicture->componentAlpha &&
+	     PICT_FORMAT_RGB(pMaskPicture->format) &&
+	     i830_blend_op[op].src_alpha) || pDstPicture->format == PICT_a8)
 	{
 	    /* Producing source alpha value, so the first set of channels
-	     * is src.A instead of src.X
+	     * is src.A instead of src.X.  We also do this if the destination
+	     * is a8, in which case src.G is what's written, and the other
+	     * channels are ignored.
 	     */
 	    if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
 		ablend |= TB0A_ARG1_SEL_TEXEL0;
@@ -477,8 +487,9 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	}
 
 	if (pMask) {
-	    if (pMaskPicture->componentAlpha &&
-		PICT_FORMAT_RGB(pMaskPicture->format))
+	    if (pDstPicture->format != PICT_a8 &&
+		(pMaskPicture->componentAlpha &&
+		 PICT_FORMAT_RGB(pMaskPicture->format)))
 	    {
 		cblend |= TB0C_ARG2_SEL_TEXEL1;
 	    } else {
@@ -497,7 +508,10 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	    ablend |= TB0A_ARG2_SEL_ONE;
 	}
 
-	blendctl = i830_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
+	if (!i830_get_blend_cntl(pScrn, op, pMaskPicture, pDstPicture->format,
+				 &blendctl)) {
+	    return FALSE;
+	}
 
 	pI830->cblend = cblend;
 	pI830->ablend = ablend;
