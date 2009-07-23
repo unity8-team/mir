@@ -959,7 +959,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		return TRUE;
 	}
 
-	if (scrn->virtualX == width && scrn->virtualY == height)
+	ppix = screen->GetScreenPixmap(screen);
+	if (nouveau_pixmap_bo(ppix) &&
+	    scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
 	if (pNv->Architecture >= NV_ARCH_50) {
@@ -998,8 +1000,6 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 			   &drmmode->fb_id);
 	if (ret)
 		goto fail;
-
-	ppix = screen->GetScreenPixmap(screen);
 
 	nouveau_bo_ref(pNv->FB, &nouveau_pixmap(ppix)->bo);
 	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
