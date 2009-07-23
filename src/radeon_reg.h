@@ -3549,6 +3549,11 @@
 #	define R520_MEM_NUM_CHANNELS_SHIFT  24
 #	define R520_MC_CHANNEL_SIZE  (1 << 23)
 
+#define RS780_MC_INDEX				0x28f8
+#	define RS780_MC_INDEX_MASK		0x1ff
+#	define RS780_MC_INDEX_WR_EN		(1 << 9)
+#define RS780_MC_DATA				0x28fc
+
 #define R600_RAMCFG				       0x2408
 #       define R600_CHANSIZE                           (1 << 7)
 #       define R600_CHANSIZE_OVERRIDE                  (1 << 10)

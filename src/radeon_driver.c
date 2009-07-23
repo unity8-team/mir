@@ -621,6 +621,12 @@ unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr)
     } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
 	OUTREG(RS600_MC_INDEX, ((addr & RS600_MC_ADDR_MASK) | RS600_MC_IND_CITF_ARB0));
 	data = INREG(RS600_MC_DATA);
+    } else if ((info->ChipFamily == CHIP_FAMILY_RS780) ||
+	       (info->ChipFamily == CHIP_FAMILY_RS880)) {
+	OUTREG(RS780_MC_INDEX, (addr & RS780_MC_INDEX_MASK));
+	data = INREG(RS780_MC_DATA);
+    } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	data = 0;
     } else if (IS_AVIVO_VARIANT) {
 	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0x7f0000);
 	(void)INREG(AVIVO_MC_INDEX);
@@ -657,6 +663,13 @@ void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, uint32_t data)
 				RS600_MC_IND_CITF_ARB0 |
 				RS600_MC_IND_WR_EN));
 	OUTREG(RS600_MC_DATA, data);
+    } else if ((info->ChipFamily == CHIP_FAMILY_RS780) ||
+	       (info->ChipFamily == CHIP_FAMILY_RS880)) {
+	OUTREG(RS780_MC_INDEX, ((addr & RS780_MC_INDEX_MASK) |
+				      RS780_MC_INDEX_WR_EN));
+	OUTREG(RS780_MC_DATA, data);
+    } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	// do nothing
     } else if (IS_AVIVO_VARIANT) {
 	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0xff0000);
 	(void)INREG(AVIVO_MC_INDEX);
