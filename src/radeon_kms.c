@@ -543,7 +543,9 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 			  pScrn->defaultVisual)) return FALSE;
     miSetPixmapDepths ();
 
-    info->directRenderingEnabled = radeon_dri2_screen_init(pScreen);
+    info->directRenderingEnabled = FALSE;
+    if (info->r600_shadow_fb == FALSE)
+        info->directRenderingEnabled = radeon_dri2_screen_init(pScreen);
 
     front_ptr = info->FB;
 
@@ -689,6 +691,8 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 
     if (info->r600_shadow_fb == TRUE) {
         if (!shadowSetup(pScreen)) {
+	    xf86DrvMsg(scrnIndex, X_ERROR,
+		       "Shadowfb initialization failed\n");
             return FALSE;
         }
     }
@@ -811,9 +815,11 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map already initialized\n");
 	return FALSE;
     }
-    info->accel_state->exa = exaDriverAlloc();
-    if (info->accel_state->exa == NULL)
-	return FALSE;
+    if (info->r600_shadow_fb == FALSE) {
+        info->accel_state->exa = exaDriverAlloc();
+        if (info->accel_state->exa == NULL)
+	    return FALSE;
+    }
 
     screen_size = RADEON_ALIGN(pScrn->virtualY, 16) * stride;
     {
@@ -849,6 +855,11 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 
     info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size,
 				    0, RADEON_GEM_DOMAIN_VRAM, 0);
+    if (info->r600_shadow_fb == TRUE) {
+        if (radeon_bo_map(info->front_bo, 1)) {
+	    ErrorF("Failed to map cursor buffer memory\n");
+	}
+    }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Front buffer size: %dK\n", info->front_bo->size/1024);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Remaining VRAM size (used for pixmaps): %dK\n", remain_size_bytes/1024);
