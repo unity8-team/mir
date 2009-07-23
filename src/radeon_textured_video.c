@@ -50,7 +50,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 extern Bool
 R600CopyToVRAM(ScrnInfoPtr pScrn,
 	       char *src, int src_pitch,
-	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_height, int bpp,
+	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_width, uint32_t dst_height, int bpp,
 	       int x, int y, int w, int h);
 
 #define IMAGE_MAX_WIDTH		2048
@@ -203,7 +203,7 @@ R600CopyData(
 
 	R600CopyToVRAM(pScrn,
 		       (char *)src, srcPitch,
-		       dstPitch, dst_mc_addr, h, cpp * 8,
+		       dstPitch, dst_mc_addr, w, h, cpp * 8,
 		       0, 0, w, h);
     } else {
 	if (srcPitch == dstPitch)

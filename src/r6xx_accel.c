@@ -808,11 +808,8 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EREG(ib, CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
 
     // SC
-    set_generic_scissor(pScrn, ib, 0, 0, 8192, 8192);
-    set_screen_scissor(pScrn, ib, 0, 0, 8192, 8192);
     EREG(ib, PA_SC_WINDOW_OFFSET,                 ((0 << WINDOW_X_OFFSET_shift) |
 						   (0 << WINDOW_Y_OFFSET_shift)));
-    set_window_scissor(pScrn, ib, 0, 0, 8192, 8192);
 
     EREG(ib, PA_SC_CLIPRECT_RULE,                 CLIP_RULE_mask);
 

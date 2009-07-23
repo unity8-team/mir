@@ -244,6 +244,10 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
     EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
+    set_generic_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
+    set_screen_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
+    set_window_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
+
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->xv_vs_offset;
 

@@ -136,6 +136,10 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
     EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
+    set_generic_scissor(pScrn, accel_state->ib, 0, 0, pPix->drawable.width, pPix->drawable.height);
+    set_screen_scissor(pScrn, accel_state->ib, 0, 0, pPix->drawable.width, pPix->drawable.height);
+    set_window_scissor(pScrn, accel_state->ib, 0, 0, pPix->drawable.width, pPix->drawable.height);
+
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->solid_vs_offset;
     accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
@@ -351,7 +355,7 @@ R600DoneSolid(PixmapPtr pPix)
 static void
 R600DoPrepareCopy(ScrnInfoPtr pScrn,
 		  int src_pitch, int src_width, int src_height, uint32_t src_offset, int src_bpp,
-		  int dst_pitch, int dst_height, uint32_t dst_offset, int dst_bpp,
+		  int dst_pitch, int dst_width, int dst_height, uint32_t dst_offset, int dst_bpp,
 		  int rop, Pixel planemask)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -378,6 +382,10 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     /* Scissor / viewport */
     EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
     EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
+
+    set_generic_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
+    set_screen_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
+    set_window_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
 
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->copy_vs_offset;
@@ -689,7 +697,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	R600DoPrepareCopy(pScrn,
 			  accel_state->src_pitch[0], pSrc->drawable.width, pSrc->drawable.height,
 			  accel_state->src_mc_addr[0], pSrc->drawable.bitsPerPixel,
-			  accel_state->dst_pitch, pDst->drawable.height,
+			  accel_state->dst_pitch, pDst->drawable.width, pDst->drawable.height,
 			  accel_state->dst_mc_addr, pDst->drawable.bitsPerPixel,
 			  rop, planemask);
 
@@ -738,7 +746,7 @@ R600OverlapCopy(PixmapPtr pDst,
                 if (srcY > dstY ) { /* diagonal up */
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       accel_state->rop, accel_state->planemask);
                     R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, vchunk);
                     R600DoCopy(pScrn);
@@ -748,7 +756,7 @@ R600OverlapCopy(PixmapPtr pDst,
                 } else { /* diagonal down */
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       accel_state->rop, accel_state->planemask);
                     R600AppendCopyVertex(pScrn, srcX, srcY + h - vchunk, dstX, dstY + h - vchunk, w, vchunk);
                     R600DoCopy(pScrn);
@@ -759,7 +767,7 @@ R600OverlapCopy(PixmapPtr pDst,
                 if (srcX > dstX ) { /* diagonal left */
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       accel_state->rop, accel_state->planemask);
                     R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, hchunk, h);
                     R600DoCopy(pScrn);
@@ -769,7 +777,7 @@ R600OverlapCopy(PixmapPtr pDst,
                 } else { /* diagonal right */
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       accel_state->rop, accel_state->planemask);
                     R600AppendCopyVertex(pScrn, srcX + w - hchunk, srcY, dstX + w - hchunk, dstY, hchunk, h);
                     R600DoCopy(pScrn);
@@ -785,7 +793,7 @@ R600OverlapCopy(PixmapPtr pDst,
 		for (i = w; i > 0; i -= hchunk) {
 		    R600DoPrepareCopy(pScrn,
 				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      accel_state->rop, accel_state->planemask);
 		    R600AppendCopyVertex(pScrn, srcX + i - hchunk, srcY, dstX + i - hchunk, dstY, hchunk, h);
 		    R600DoCopy(pScrn);
@@ -795,7 +803,7 @@ R600OverlapCopy(PixmapPtr pDst,
 		for (i = 0; i < w; i += hchunk) {
 		    R600DoPrepareCopy(pScrn,
 				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      accel_state->rop, accel_state->planemask);
 
 		    R600AppendCopyVertex(pScrn, srcX + i, srcY, dstX + i, dstY, hchunk, h);
@@ -808,7 +816,7 @@ R600OverlapCopy(PixmapPtr pDst,
                 for (i = 0; i < h; i += vchunk) {
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       accel_state->rop, accel_state->planemask);
 
                     if (vchunk > h - i) vchunk = h - i;
@@ -820,7 +828,7 @@ R600OverlapCopy(PixmapPtr pDst,
                 for (i = h; i > 0; i -= vchunk) {
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       accel_state->rop, accel_state->planemask);
 
                     if (vchunk > i) vchunk = i;
@@ -832,7 +840,7 @@ R600OverlapCopy(PixmapPtr pDst,
     } else {
 	R600DoPrepareCopy(pScrn,
 			  dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-			  dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+			  dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 			  accel_state->rop, accel_state->planemask);
 
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
@@ -863,13 +871,13 @@ R600Copy(PixmapPtr pDst,
 
 	    R600DoPrepareCopy(pScrn,
 			      pitch, pDst->drawable.width, pDst->drawable.height, orig_offset, pDst->drawable.bitsPerPixel,
-			      pitch,                       pDst->drawable.height, tmp_offset, pDst->drawable.bitsPerPixel,
+			      pitch, pDst->drawable.width, pDst->drawable.height, tmp_offset, pDst->drawable.bitsPerPixel,
 			      accel_state->rop, accel_state->planemask);
 	    R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 	    R600DoCopy(pScrn);
 	    R600DoPrepareCopy(pScrn,
 			      pitch, pDst->drawable.width, pDst->drawable.height, tmp_offset, pDst->drawable.bitsPerPixel,
-			      pitch,                       pDst->drawable.height, orig_offset, pDst->drawable.bitsPerPixel,
+			      pitch, pDst->drawable.width, pDst->drawable.height, orig_offset, pDst->drawable.bitsPerPixel,
 			      accel_state->rop, accel_state->planemask);
 	    R600AppendCopyVertex(pScrn, dstX, dstY, dstX, dstY, w, h);
 	    R600DoCopy(pScrn);
@@ -881,7 +889,7 @@ R600Copy(PixmapPtr pDst,
 
 	R600DoPrepareCopy(pScrn,
 			  pitch, pDst->drawable.width, pDst->drawable.height, offset, pDst->drawable.bitsPerPixel,
-			  pitch,                       pDst->drawable.height, offset, pDst->drawable.bitsPerPixel,
+			  pitch, pDst->drawable.width, pDst->drawable.height, offset, pDst->drawable.bitsPerPixel,
 			  accel_state->rop, accel_state->planemask);
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 	R600DoCopy(pScrn);
@@ -1442,6 +1450,10 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
     EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
+    set_generic_scissor(pScrn, accel_state->ib, 0, 0, pDst->drawable.width, pDst->drawable.height);
+    set_screen_scissor(pScrn, accel_state->ib, 0, 0, pDst->drawable.width, pDst->drawable.height);
+    set_window_scissor(pScrn, accel_state->ib, 0, 0, pDst->drawable.width, pDst->drawable.height);
+
     if (!R600TextureSetup(pSrcPicture, pSrc, 0)) {
 	R600IBDiscard(pScrn, accel_state->ib);
 	return FALSE;
@@ -1740,7 +1752,7 @@ static void R600DoneComposite(PixmapPtr pDst)
 Bool
 R600CopyToVRAM(ScrnInfoPtr pScrn,
 	       char *src, int src_pitch,
-	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_height, int bpp,
+	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_width, uint32_t dst_height, int bpp,
 	       int x, int y, int w, int h)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -1794,7 +1806,7 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
 	/* blit from scratch to vram */
 	R600DoPrepareCopy(pScrn,
 			  scratch_pitch, w, oldhpass, offset, bpp,
-			  dst_pitch, dst_height, dst_mc_addr, bpp,
+			  dst_pitch, dst_width, dst_height, dst_mc_addr, bpp,
 			  3, 0xffffffff);
 	R600AppendCopyVertex(pScrn, 0, 0, x, y, w, oldhpass);
 	R600DoCopy(pScrn);
@@ -1814,12 +1826,11 @@ R600UploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
     uint32_t dst_mc_addr = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
-    uint32_t dst_height = pDst->drawable.height;
     int bpp = pDst->drawable.bitsPerPixel;
 
     return R600CopyToVRAM(pScrn,
 			  src, src_pitch,
-			  dst_pitch, dst_mc_addr, dst_height, bpp,
+			  dst_pitch, dst_mc_addr, pDst->drawable.width, pDst->drawable.height, bpp,
 			  x, y, w, h);
 }
 
@@ -1854,7 +1865,7 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     /* blit from vram to scratch */
     R600DoPrepareCopy(pScrn,
 		      src_pitch, src_width, src_height, src_mc_addr, bpp,
-		      scratch_pitch, hpass, scratch_mc_addr, bpp,
+		      scratch_pitch, src_width, hpass, scratch_mc_addr, bpp,
 		      3, 0xffffffff);
     R600AppendCopyVertex(pScrn, x, y, 0, 0, w, hpass);
     R600DoCopy(pScrn);
@@ -1871,7 +1882,7 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 	    /* blit from vram to scratch */
 	    R600DoPrepareCopy(pScrn,
 			      src_pitch, src_width, src_height, src_mc_addr, bpp,
-			      scratch_pitch, hpass, scratch_mc_addr + scratch_offset, bpp,
+			      scratch_pitch, src_width, hpass, scratch_mc_addr + scratch_offset, bpp,
 			      3, 0xffffffff);
 	    R600AppendCopyVertex(pScrn, x, y, 0, 0, w, hpass);
 	    R600DoCopy(pScrn);
