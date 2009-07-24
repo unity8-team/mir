@@ -171,7 +171,7 @@ void intel_xvmc_fini_batch(ScrnInfoPtr pScrn)
         xvmc_driver->batch_handle = 0;
     }
     if (xvmc_driver->batch) {
-        i830_free_memory(pScrn, xvmc_driver->batch);
+        i830_free_xvmc_buffer(pScrn, xvmc_driver->batch);
         xvmc_driver->batch = NULL;
     }
 }

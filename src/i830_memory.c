@@ -1652,6 +1652,8 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size,
                                int flags)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
+
     *buffer = i830_allocate_memory(pScrn, name, size, PITCH_NONE,
                                    GTT_PAGE_SIZE, flags, TILE_NONE);
 
@@ -1661,11 +1663,31 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
         return FALSE;
     }
 
-    if (!i830_bind_memory(pScrn, *buffer))
-	return FALSE;
+    if (pI830->use_drm_mode && (*buffer)->bo) {
+        if (drm_intel_bo_pin((*buffer)->bo, GTT_PAGE_SIZE)) {
+            i830_free_memory(pScrn, *buffer);
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                       "Failed to bind XvMC buffer bo!\n");
+            return FALSE;
+        }
+
+        (*buffer)->offset = (*buffer)->bo->offset;
+    }
 
     return TRUE;
 }
+
+void
+i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory *buffer)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (pI830->use_drm_mode && buffer->bo)
+        drm_intel_bo_unpin(buffer->bo);
+
+    i830_free_memory(pScrn, buffer);
+}
+
 #endif
 
 void

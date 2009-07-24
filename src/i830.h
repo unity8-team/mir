@@ -726,6 +726,7 @@ void i830_init_bufmgr(ScrnInfoPtr pScrn);
 #ifdef INTEL_XVMC
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
+void i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory *buffer);
 #endif
 extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
 				   int *pitch);
