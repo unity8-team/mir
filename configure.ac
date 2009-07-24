@@ -46,16 +46,7 @@ DOLT
 AC_PROG_CC
 AM_PROG_CC_C_O
 
-AC_CHECK_PROG(gen4asm, [intel-gen4asm], yes, no)
-
-if test x$gen4asm != xno; then
-	intel-gen4asm -g 5 src/render_program/exa_sf.g4a > /dev/null
-
-	if test "$?" !=  "0"; then
-		echo "Error: Require new intel-gen4asm with -g option!"
-		exit 1
-	fi
-fi
+PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.0], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 AC_CHECK_HEADERS(sys/mman.h)
