@@ -391,7 +391,8 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
 	return new_priv;
 
     new_priv->bo = radeon_bo_open(info->bufmgr, 0, size,
-				  align, 0, 0);
+				  align, RADEON_GEM_DOMAIN_VRAM |
+				  RADEON_GEM_DOMAIN_GTT, 0);
     if (!new_priv->bo) {
 	xfree(new_priv);
 	ErrorF("Failed to alloc memory\n");
