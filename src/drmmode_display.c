@@ -947,28 +947,18 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	ErrorF("resize called %d %d\n", width, height);
 
-	if (!pNv->exa_driver_pixmaps) {
-		if (width > scrn->virtualX || height > scrn->virtualY)
-			return FALSE;
-
-		scrn->displayWidth = NOUVEAU_ALIGN(width, 64);
-		return TRUE;
-	}
-
-	ppix = screen->GetScreenPixmap(screen);
-	if (nouveau_pixmap_bo(ppix) &&
-	    scrn->virtualX == width && scrn->virtualY == height)
+	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	if (pNv->Architecture >= NV_ARCH_50) {
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps) {
 		tile_mode = 4;
 		tile_flags = 0x7a00;
 		height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		pitch = NOUVEAU_ALIGN(width, 64) * (scrn->bitsPerPixel >> 3);
 	} else {
-		pitch = width * (scrn->bitsPerPixel >> 3);
+		pitch  = nv_pitch_align(pNv, width, scrn->depth);
+		pitch *= (scrn->bitsPerPixel >> 3);
 	}
-	pitch = NOUVEAU_ALIGN(pitch, 64);
 
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
@@ -996,7 +986,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (ret)
 		goto fail;
 
-	nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
+	ppix = screen->GetScreenPixmap(screen);
+	if (pNv->exa_driver_pixmaps)
+		nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
 	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -1055,7 +1047,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		drmmode_output_init(pScrn, drmmode, i);
 
-	xf86InitialConfiguration(pScrn, NVPTR(pScrn)->exa_driver_pixmaps);
+	xf86InitialConfiguration(pScrn, TRUE);
 
 	return TRUE;
 }
