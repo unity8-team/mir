@@ -944,7 +944,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	uint32_t pitch, old_width, old_height, old_pitch, old_fb_id;
 	struct nouveau_bo *old_bo = NULL;
-	uint32_t tile_mode = 0, tile_flags = 0;
+	uint32_t tile_mode = 0, tile_flags = 0, ah = height;
 	PixmapPtr ppix;
 	int ret, i;
 
@@ -956,7 +956,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps) {
 		tile_mode = 4;
 		tile_flags = (scrn->bitsPerPixel == 16) ? 0x7000 : 0x7a00;
-		height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
+		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		pitch = NOUVEAU_ALIGN(width * (scrn->bitsPerPixel >> 3), 64);
 	} else {
 		pitch  = nv_pitch_align(pNv, width, scrn->depth);
@@ -975,7 +975,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	scrn->displayWidth = pitch / (scrn->bitsPerPixel >> 3);
 
 	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
-				  0, pitch * height, tile_mode, tile_flags,
+				  0, pitch * ah, tile_mode, tile_flags,
 				  &pNv->scanout);
 	if (ret)
 		goto fail;
