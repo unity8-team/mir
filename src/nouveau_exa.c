@@ -575,9 +575,7 @@ nouveau_exa_init(ScreenPtr pScreen)
 	} else
 #endif
 	{
-		nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
-		exa->memoryBase = pNv->offscreen->map;
-		nouveau_bo_unmap(pNv->offscreen);
+		exa->memoryBase = pNv->offscreen_map;
 		exa->memorySize = pNv->offscreen->size;
 		exa->offScreenBase = 0;
 

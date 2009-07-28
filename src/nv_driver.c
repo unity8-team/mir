@@ -1162,6 +1162,10 @@ NVMapMem(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Allocated %dMiB VRAM for offscreen pixmaps\n",
 			   (uint32_t)(pNv->offscreen->size >> 20));
+
+		nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
+		pNv->offscreen_map = pNv->offscreen->map;
+		nouveau_bo_unmap(pNv->offscreen);
 	}
 
 	if (pNv->AGPSize) {
@@ -1446,9 +1450,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	} else {
 		pNv->ShadowPtr = NULL;
 		displayWidth = pScrn->displayWidth;
-		nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
-		FBStart = pNv->offscreen->map;
-		nouveau_bo_unmap(pNv->offscreen);
+		FBStart = pNv->offscreen_map;
 	}
 
 	switch (pScrn->bitsPerPixel) {
@@ -1495,10 +1497,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		fbPictureInit (pScreen, 0, 0);
 
 	xf86SetBlackWhitePixels(pScreen);
-
-	nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
-	pNv->offscreen_map = pNv->offscreen->map;
-	nouveau_bo_unmap(pNv->offscreen);
 
 	if (!pNv->NoAccel) {
 		if (!nouveau_exa_init(pScreen))
