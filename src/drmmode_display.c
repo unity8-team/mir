@@ -953,7 +953,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps) {
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->wfb_enabled) {
 		tile_mode = 4;
 		tile_flags = (scrn->bitsPerPixel == 16) ? 0x7000 : 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));

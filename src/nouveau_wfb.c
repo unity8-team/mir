@@ -125,7 +125,9 @@ void
 nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		       DrawablePtr pDraw)
 {
-	struct nouveau_pixmap *nvpix = NULL;
+	ScreenPtr pScreen = pDraw->pScreen;
+	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
+	struct nouveau_bo *bo = NULL;
 	struct wfb_pixmap *wfb;
 	PixmapPtr ppix = NULL;
 	int wrap, have_tiled = 0;
@@ -134,9 +136,15 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		return;
 
 	ppix = NVGetDrawablePixmap(pDraw);
-	if (ppix)
-		nvpix = nouveau_pixmap(ppix);
-	if (!nvpix || !nvpix->bo) {
+	if (ppix) {
+		if (pNv->exa_driver_pixmaps)
+			bo = nouveau_pixmap_bo(ppix);
+		else
+		if (ppix == pScreen->GetScreenPixmap(pScreen))
+			bo = pNv->scanout;
+	}
+
+	if (!ppix || !bo) {
 		*pRead = nouveau_wfb_rd_linear;
 		*pWrite = nouveau_wfb_wr_linear;
 		return;
@@ -152,13 +160,13 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 
 	wfb->ppix = ppix;
 	wfb->base = (unsigned long)ppix->devPrivate.ptr;
-	wfb->end = wfb->base + nvpix->bo->size;
-	if (!nvpix->bo->tile_flags) {
+	wfb->end = wfb->base + bo->size;
+	if (!bo->tile_flags) {
 		wfb->pitch = 0;
 	} else {
 		wfb->pitch = ppix->devKind;
 		wfb->multiply_factor = (0xFFFFFFFF / wfb->pitch) + 1;
-		wfb->tile_height = nvpix->bo->tile_mode + 2;
+		wfb->tile_height = bo->tile_mode + 2;
 		wfb->horiz_tiles = wfb->pitch / 64;
 		have_tiled = 1;
 	}

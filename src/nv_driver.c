@@ -930,22 +930,20 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			"Using \"Shadow Framebuffer\" - acceleration disabled\n");
 	}
 
+#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
 	if (!pNv->NoAccel &&
 	    xf86ReturnOptValBool(pNv->Options, OPTION_EXA_PIXMAPS, FALSE)) {
-#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
 		if (pNv->kms_enable) {
 			pNv->exa_driver_pixmaps = TRUE;
-			if (pNv->Architecture >= NV_ARCH_50)
-				pNv->wfb_enabled = TRUE;
 		} else {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "EXAPixmaps support requires KMS\n");
 		}
-#else
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Option EXAPixmaps requires newer xserver\n");
-#endif
 	}
+
+	if (pNv->Architecture >= NV_ARCH_50)
+		pNv->wfb_enabled = TRUE;
+#endif
 
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
@@ -1073,7 +1071,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86SetGamma(pScrn, gammazeros))
 		NVPreInitFail("\n");
 
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps) {
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->wfb_enabled) {
 		int cpp = pScrn->bitsPerPixel >> 3;
 		pScrn->displayWidth = pScrn->virtualX * cpp;
 		pScrn->displayWidth = NOUVEAU_ALIGN(pScrn->displayWidth, 64);
@@ -1131,7 +1129,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	pNv->AGPSize=res;
 
 	size = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps) {
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->wfb_enabled) {
 		tile_mode = 4;
 		tile_flags = pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7a00;
 		size *= NOUVEAU_ALIGN(pScrn->virtualY, (1 << (tile_mode + 2)));
@@ -1398,7 +1396,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		else
 			nouveau_dri2_init(pScreen);
 #endif
-
 		/* Init DRM - Alloc FIFO */
 		if (!NVInitDma(pScrn))
 			return FALSE;
