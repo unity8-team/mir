@@ -51,8 +51,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
+#ifndef XSERVER_LIBPCIACCESS
 #include "xf86Resources.h"
 #include "xf86RAC.h"
+#endif
 #include "xf86Priv.h"
 #include "xf86cmap.h"
 #include "compiler.h"
@@ -1541,12 +1543,14 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to become DRM master.\n");
 
 
+#ifndef XSERVER_LIBPCIACCESS
    if (xf86RegisterResources(pI830->pEnt->index, NULL, ResNone)) {
       PreInitCleanup(pScrn);
       return FALSE;
    }
 
    pScrn->racMemFlags = RAC_FB | RAC_COLORMAP;
+#endif
    pScrn->monitor = pScrn->confScreen->monitor;
    pScrn->progClock = TRUE;
    pScrn->rgbBits = 8;
@@ -1632,8 +1636,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
        /*  We won't be using the VGA access after the probe. */
        I830SetMMIOAccess(pI830);
+#ifndef XSERVER_LIBPCIACCESS
        xf86SetOperatingState(resVgaIo, pI830->pEnt->index, ResUnusedOpr);
        xf86SetOperatingState(resVgaMem, pI830->pEnt->index, ResDisableOpr);
+#endif
    }
 
    /* Load the dri2 module if requested. */
