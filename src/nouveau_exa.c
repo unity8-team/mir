@@ -324,7 +324,7 @@ nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
 		return TRUE;
 	else
-	if (drmmode_is_rotate_pixmap(pScrn, ppix->devPrivate.ptr, &bo))
+	if (drmmode_is_rotate_pixmap(ppix, &bo))
 		return TRUE;
 
 	return FALSE;

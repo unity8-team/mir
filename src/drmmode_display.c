@@ -1053,9 +1053,10 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	return TRUE;
 }
 
-Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
-			      struct nouveau_bo **bo)
+Bool
+drmmode_is_rotate_pixmap(PixmapPtr ppix, struct nouveau_bo **bo)
 {
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
 	int i;
 
@@ -1066,7 +1067,7 @@ Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
 		if (!drmmode_crtc->rotate_bo)
 			continue;
 
-		if (drmmode_crtc->rotate_bo_virtual == pPixData) {
+		if (drmmode_crtc->rotate_bo_virtual == ppix->devPrivate.ptr) {
 			*bo = drmmode_crtc->rotate_bo;
 			return TRUE;
 		}

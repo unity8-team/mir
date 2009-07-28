@@ -3,8 +3,7 @@
 
 /* in drmmode_display.c */
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
-Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
-			      struct nouveau_bo **);
+Bool drmmode_is_rotate_pixmap(PixmapPtr, struct nouveau_bo **);
 void drmmode_adjust_frame(ScrnInfoPtr pScrn, int x, int y, int flags);
 
 /* in nouveau_calc.c */
