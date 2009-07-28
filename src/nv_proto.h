@@ -21,7 +21,7 @@ void NVAccelFree(ScrnInfoPtr pScrn);
 
 /* in nv_dri.c */
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
-Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);
+Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn, bool update);
 void NVDRICloseScreen(ScrnInfoPtr pScrn);
 Bool NVDRIGetVersion(ScrnInfoPtr pScrn);
 

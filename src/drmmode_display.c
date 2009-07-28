@@ -1005,6 +1005,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		drmModeRmFB(drmmode->fd, old_fb_id);
 	nouveau_bo_ref(NULL, &old_bo);
 
+	NVDRIFinishScreenInit(scrn, true);
 	return TRUE;
 
  fail:

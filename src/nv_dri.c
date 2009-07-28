@@ -311,7 +311,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
-Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
+Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn, bool update)
 {
 	ScreenPtr      pScreen = screenInfo.screens[pScrn->scrnIndex];
 	NVPtr          pNv = NVPTR(pScrn);
@@ -321,8 +321,10 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	if (!pNv->pDRIInfo)
 		return TRUE;
 
-	if (!DRIFinishScreenInit(pScreen))
-		return FALSE;
+	if (!update) {
+		if (!DRIFinishScreenInit(pScreen))
+			return FALSE;
+	}
 
 	pNOUVEAUDRI 			= (NOUVEAUDRIPtr)pNv->pDRIInfo->devPrivate;
 

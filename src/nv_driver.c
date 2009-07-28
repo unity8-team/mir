@@ -1512,7 +1512,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	xf86SetSilkenMouse(pScreen);
 
 	/* Finish DRI init */
-	if (!NVDRIFinishScreenInit(pScrn)) {
+	if (!NVDRIFinishScreenInit(pScrn, false)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[dri] NVDRIFinishScreenInit failed, disbling DRI\n");
 		NVDRICloseScreen(pScrn);
