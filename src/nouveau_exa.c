@@ -298,6 +298,7 @@ static Bool
 nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 {
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	struct nouveau_bo *bo = NULL;
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->exa_driver_pixmaps) {
@@ -308,6 +309,9 @@ nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 	} else
 	if (ppix->devPrivate.ptr >= pNv->FBMap &&
 	    ppix->devPrivate.ptr < pNv->FBMap + pNv->FB->size)
+		return TRUE;
+	else
+	if (drmmode_is_rotate_pixmap(pScrn, ppix->devPrivate.ptr, &bo))
 		return TRUE;
 
 	return FALSE;
