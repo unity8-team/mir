@@ -966,7 +966,7 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 			"Couldn't allocate shadow memory for rotated CRTC.\n");
 		return NULL;
 	}
-	offset = pNv->FBMap + nv_crtc->shadow->offset;
+	offset = pNv->offscreen_map + nv_crtc->shadow->offset;
 
 	return offset;
 }
@@ -1087,7 +1087,7 @@ void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	struct nouveau_bo *bo = pNv->FB;
+	struct nouveau_bo *bo = pNv->offscreen;
 	uint32_t start;
 
 	if (nv_crtc->bo)

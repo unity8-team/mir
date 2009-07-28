@@ -117,7 +117,7 @@ nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	NVPtr pNv = NVPTR(pScrn);
 
-	bo = pNv->FB;
+	bo = pNv->offscreen;
 	if (crtc->rotatedData) {
 		bo = nv_crtc->shadow;
 		x = 0;

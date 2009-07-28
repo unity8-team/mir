@@ -114,8 +114,8 @@ typedef struct _NVRec {
     unsigned long	AGPSize;
 
     /* Various pinned memory regions */
-    struct nouveau_bo * FB;
-    void *              FBMap;
+    struct nouveau_bo * offscreen;
+    void *              offscreen_map;
     //struct nouveau_bo * FB_old; /* for KMS */
     struct nouveau_bo * shadow[2]; /* for easy acces by exa */
     struct nouveau_bo * Cursor;
@@ -299,7 +299,7 @@ nouveau_pixmap_bo(PixmapPtr ppix)
 		return nvpix ? nvpix->bo : NULL;
 	}
 
-	return pNv->FB;
+	return pNv->offscreen;
 }
 
 static inline unsigned

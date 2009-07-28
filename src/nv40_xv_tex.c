@@ -161,7 +161,7 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 	BEGIN_RING(chan, curie, NV40TCL_TEX_OFFSET(unit), 8);
 	OUT_RELOCl(chan, src, offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	if (unit==0) {
-		OUT_RELOCd(chan, pNv->FB, card_fmt | 
+		OUT_RELOCd(chan, pNv->offscreen, card_fmt |
 				 NV40TCL_TEX_FORMAT_DIMS_1D | 0x8000 |
 				 NV40TCL_TEX_FORMAT_NO_BORDER |
 				 (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
@@ -171,7 +171,8 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 				 NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
 				 NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
 	} else {
-		OUT_RELOCd(chan, pNv->FB, card_fmt | NV40TCL_TEX_FORMAT_LINEAR |
+		OUT_RELOCd(chan, pNv->offscreen, card_fmt |
+				 NV40TCL_TEX_FORMAT_LINEAR |
 				 NV40TCL_TEX_FORMAT_RECT | 0x8000 |
 				 NV40TCL_TEX_FORMAT_DIMS_2D |
 				 NV40TCL_TEX_FORMAT_NO_BORDER |

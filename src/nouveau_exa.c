@@ -307,8 +307,8 @@ nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 		if (nvpix && nvpix->bo)
 			return TRUE;
 	} else
-	if (ppix->devPrivate.ptr >= pNv->FBMap &&
-	    ppix->devPrivate.ptr < pNv->FBMap + pNv->FB->size)
+	if (ppix->devPrivate.ptr >= pNv->offscreen_map &&
+	    ppix->devPrivate.ptr < pNv->offscreen_map + pNv->offscreen->size)
 		return TRUE;
 	else
 	if (drmmode_is_rotate_pixmap(pScrn, ppix->devPrivate.ptr, &bo))
@@ -578,13 +578,13 @@ nouveau_exa_init(ScreenPtr pScreen)
 	} else
 #endif
 	{
-		nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
-		exa->memoryBase = pNv->FB->map;
-		nouveau_bo_unmap(pNv->FB);
+		nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
+		exa->memoryBase = pNv->offscreen->map;
+		nouveau_bo_unmap(pNv->offscreen);
 		exa->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) *
 				     NOUVEAU_ALIGN(pScrn->virtualY, 64) *
 				     (pScrn->bitsPerPixel / 8);
-		exa->memorySize = pNv->FB->size; 
+		exa->memorySize = pNv->offscreen->size;
 
 		if (pNv->Architecture < NV_ARCH_50) {
 			exa->pixmapOffsetAlign = 256; 
@@ -604,7 +604,7 @@ nouveau_exa_init(ScreenPtr pScreen)
 			exa->offScreenBase =
 				NOUVEAU_ALIGN(exa->offScreenBase, 0x10000);
 
-			nouveau_bo_tile(pNv->FB, NOUVEAU_BO_VRAM |
+			nouveau_bo_tile(pNv->offscreen, NOUVEAU_BO_VRAM |
 					NOUVEAU_BO_TILED, exa->offScreenBase,
 					exa->memorySize - exa->offScreenBase);
 		}

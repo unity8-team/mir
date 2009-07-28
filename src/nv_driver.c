@@ -395,10 +395,11 @@ NVEnterVT(int scrnIndex, int flags)
 		/* Clear the framebuffer, we don't want to see garbage
 		 * on-screen up until X decides to draw something
 		 */
-		nouveau_bo_map(pNv->FB, NOUVEAU_BO_WR);
-		memset(pNv->FB->map, 0, NOUVEAU_ALIGN(pScrn->virtualX, 64) *
+		nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_WR);
+		memset(pNv->offscreen->map, 0,
+		       NOUVEAU_ALIGN(pScrn->virtualX, 64) *
 		       pScrn->virtualY * (pScrn->bitsPerPixel >> 3));
-		nouveau_bo_unmap(pNv->FB);
+		nouveau_bo_unmap(pNv->offscreen);
 
 		if (pNv->Architecture == NV_ARCH_50) {
 			if (!NV50AcquireDisplay(pScrn))
@@ -480,7 +481,7 @@ NVCreateScreenResources(ScreenPtr pScreen)
 
 	if (pNv->exa_driver_pixmaps) {
 		ppix = pScreen->GetScreenPixmap(pScreen);
-		nouveau_bo_ref(pNv->FB, &nouveau_pixmap(ppix)->bo);
+		nouveau_bo_ref(pNv->offscreen, &nouveau_pixmap(ppix)->bo);
 	}
 
 	return TRUE;
@@ -1144,7 +1145,7 @@ NVMapMemSW(ScrnInfoPtr pScrn)
 
 	ret = nouveau_bo_fake(&dev, 0, NOUVEAU_BO_VRAM,
 			      pNv->VRAMSize - (1<<20), pNv->VRAMMap,
-			      &pNv->FB);
+			      &pNv->offscreen);
 	if (ret)
 		return FALSE;
 	pNv->GART = NULL;
@@ -1220,7 +1221,8 @@ NVMapMem(ScrnInfoPtr pScrn)
 	}
 
 	if (nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
-				0, size, tile_mode, tile_flags, &pNv->FB)) {
+				0, size, tile_mode, tile_flags,
+				&pNv->offscreen)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer memory\n");
 		return FALSE;
@@ -1233,11 +1235,11 @@ NVMapMem(ScrnInfoPtr pScrn)
 	 * strongly dislike this.
 	 */
 	if (!pNv->exa_driver_pixmaps && pNv->Architecture >= NV_ARCH_50)
-		nouveau_bo_pin(pNv->FB, NOUVEAU_BO_VRAM);
+		nouveau_bo_pin(pNv->offscreen, NOUVEAU_BO_VRAM);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Allocated %dMiB VRAM for framebuffer\n",
-		   (uint32_t)(pNv->FB->size >> 20));
+		   (uint32_t)(pNv->offscreen->size >> 20));
 
 	if (pNv->AGPSize) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1331,7 +1333,7 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 				       pNv->PciInfo->regions[1].size);
 	}
 
-	nouveau_bo_ref(NULL, &pNv->FB);
+	nouveau_bo_ref(NULL, &pNv->offscreen);
 	nouveau_bo_ref(NULL, &pNv->GART);
 	nouveau_bo_ref(NULL, &pNv->Cursor);
 	nouveau_bo_ref(NULL, &pNv->Cursor2);
@@ -1521,9 +1523,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	} else {
 		pNv->ShadowPtr = NULL;
 		displayWidth = pScrn->displayWidth;
-		nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
-		FBStart = pNv->FB->map;
-		nouveau_bo_unmap(pNv->FB);
+		nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
+		FBStart = pNv->offscreen->map;
+		nouveau_bo_unmap(pNv->offscreen);
 	}
 
 	switch (pScrn->bitsPerPixel) {
@@ -1571,9 +1573,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	xf86SetBlackWhitePixels(pScreen);
 
-	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
-	pNv->FBMap = pNv->FB->map;
-	nouveau_bo_unmap(pNv->FB);
+	nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
+	pNv->offscreen_map = pNv->offscreen->map;
+	nouveau_bo_unmap(pNv->offscreen);
 
 	if (!pNv->NoAccel) {
 		if (!nouveau_exa_init(pScreen))
