@@ -45,8 +45,8 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *surf2d;
 	uint32_t class;
 
-	class = (pNv->Architecture >= NV_10) ? NV10_CONTEXT_SURFACES_2D :
-					       NV04_CONTEXT_SURFACES_2D;
+	class = (pNv->Architecture >= NV_ARCH_10) ? NV10_CONTEXT_SURFACES_2D :
+						    NV04_CONTEXT_SURFACES_2D;
 
 	if (!pNv->NvContextSurfaces) {
 		if (nouveau_grobj_alloc(chan, NvContextSurfaces, class,
