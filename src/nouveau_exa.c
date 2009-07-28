@@ -297,9 +297,17 @@ nouveau_exa_finish_access(PixmapPtr ppix, int index)
 static Bool
 nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 {
-	struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
 
-	if (nvpix && nvpix->bo)
+	if (pNv->exa_driver_pixmaps) {
+		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
+
+		if (nvpix && nvpix->bo)
+			return TRUE;
+	} else
+	if (ppix->devPrivate.ptr >= pNv->FBMap &&
+	    ppix->devPrivate.ptr < pNv->FBMap + pNv->FB->size)
 		return TRUE;
 
 	return FALSE;
@@ -551,13 +559,14 @@ nouveau_exa_init(ScreenPtr pScreen)
 	exa->flags |= EXA_SUPPORTS_PREPARE_AUX;
 #endif
 
+	exa->PixmapIsOffscreen = nouveau_exa_pixmap_is_offscreen;
+
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
 	if (pNv->exa_driver_pixmaps) {
 		exa->flags |= EXA_HANDLES_PIXMAPS;
 		exa->pixmapOffsetAlign = 256;
 		exa->pixmapPitchAlign = 64;
 
-		exa->PixmapIsOffscreen = nouveau_exa_pixmap_is_offscreen;
 		exa->PrepareAccess = nouveau_exa_prepare_access;
 		exa->FinishAccess = nouveau_exa_finish_access;
 		exa->CreatePixmap2 = nouveau_exa_create_pixmap;
