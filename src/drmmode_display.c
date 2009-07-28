@@ -229,7 +229,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		ret = drmModeAddFB(drmmode->fd,
 				   pScrn->virtualX, pScrn->virtualY,
 				   pScrn->depth, pScrn->bitsPerPixel,
-				   pitch, pNv->offscreen->handle,
+				   pitch, pNv->scanout->handle,
 				   &drmmode->fb_id);
 		if (ret < 0) {
 			ErrorF("failed to add fb\n");
@@ -974,8 +974,8 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	old_height = scrn->virtualY;
 	old_pitch = scrn->displayWidth;
 	old_fb_id = drmmode->fb_id;
-	nouveau_bo_ref(pNv->offscreen, &old_bo);
-	nouveau_bo_ref(NULL, &pNv->offscreen);
+	nouveau_bo_ref(pNv->scanout, &old_bo);
+	nouveau_bo_ref(NULL, &pNv->scanout);
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
@@ -983,21 +983,20 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
 				  0, pitch * height, tile_mode, tile_flags,
-				  &pNv->offscreen);
+				  &pNv->scanout);
 	if (ret)
 		goto fail;
 
-	nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
-	pNv->offscreen_map = pNv->offscreen->map;
-	nouveau_bo_unmap(pNv->offscreen);
+	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+	nouveau_bo_unmap(pNv->scanout);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
-			   scrn->bitsPerPixel, pitch, pNv->offscreen->handle,
+			   scrn->bitsPerPixel, pitch, pNv->scanout->handle,
 			   &drmmode->fb_id);
 	if (ret)
 		goto fail;
 
-	nouveau_bo_ref(pNv->offscreen, &nouveau_pixmap(ppix)->bo);
+	nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
 	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -1017,7 +1016,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	return TRUE;
 
  fail:
-	nouveau_bo_ref(old_bo, &pNv->offscreen);
+	nouveau_bo_ref(old_bo, &pNv->scanout);
 	scrn->virtualX = old_width;
 	scrn->virtualY = old_height;
 	scrn->displayWidth = old_pitch;

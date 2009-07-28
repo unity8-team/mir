@@ -298,7 +298,9 @@ nouveau_pixmap_bo(PixmapPtr ppix)
 	if (pNv->exa_driver_pixmaps) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 		return nvpix ? nvpix->bo : NULL;
-	}
+	} else
+	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
+		return pNv->scanout;
 
 	return pNv->offscreen;
 }
@@ -309,7 +311,8 @@ nouveau_pixmap_offset(PixmapPtr ppix)
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->exa_driver_pixmaps)
+	if (pNv->exa_driver_pixmaps ||
+	    ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
 		return 0;
 
 	return exaGetPixmapOffset(ppix);

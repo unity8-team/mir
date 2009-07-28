@@ -481,7 +481,7 @@ NVCreateScreenResources(ScreenPtr pScreen)
 
 	if (pNv->exa_driver_pixmaps) {
 		ppix = pScreen->GetScreenPixmap(pScreen);
-		nouveau_bo_ref(pNv->offscreen, &nouveau_pixmap(ppix)->bo);
+		nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
 	}
 
 	return TRUE;
@@ -1149,7 +1149,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 
 		if (pNv->Architecture >= NV_ARCH_50) {
 			tile_mode = 0;
-			tile_flags = 0;
+			tile_flags = 0x7000;
 		}
 
 		ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM |

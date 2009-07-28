@@ -1087,8 +1087,15 @@ void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	struct nouveau_bo *bo = pNv->offscreen;
+	struct nouveau_bo *bo;
 	uint32_t start;
+
+	bo = pNv->scanout;
+	if (crtc->rotatedData != NULL) {
+		bo = pNv->offscreen;
+		x = 0;
+		y = 0;
+	}
 
 	if (nv_crtc->bo)
 		nouveau_bo_unpin(nv_crtc->bo);

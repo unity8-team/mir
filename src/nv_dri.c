@@ -255,10 +255,8 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pDRIInfo->ddxDriverMinorVersion      = NV_MINOR_VERSION;
 	pDRIInfo->ddxDriverPatchVersion      = NV_PATCHLEVEL;
 
-	pDRIInfo->frameBufferSize            = pNv->offscreen->size;
-	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical +
-					       (pNv->offscreen->offset -
-						pNv->dev->vm_vram_base);
+	pDRIInfo->frameBufferSize            = getpagesize();
+	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical;
 	pDRIInfo->frameBufferStride          = pScrn->displayWidth * pScrn->bitsPerPixel/8;
 
 	pDRIInfo->ddxDrawableTableEntry      = 1;
@@ -335,7 +333,7 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	pNOUVEAUDRI->depth		= pScrn->depth;
 	pNOUVEAUDRI->bpp		= pScrn->bitsPerPixel;
 
-	ret = nouveau_bo_handle_get(pNv->offscreen, &pNOUVEAUDRI->front_offset);
+	ret = nouveau_bo_handle_get(pNv->scanout, &pNOUVEAUDRI->front_offset);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[dri] unable to reference front buffer: %d\n", ret);
