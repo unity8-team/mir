@@ -114,6 +114,7 @@ typedef struct _NVRec {
     unsigned long	AGPSize;
 
     /* Various pinned memory regions */
+    struct nouveau_bo * scanout;
     struct nouveau_bo * offscreen;
     void *              offscreen_map;
     //struct nouveau_bo * FB_old; /* for KMS */

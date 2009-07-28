@@ -1114,7 +1114,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	uint64_t res;
 	uint32_t tile_mode = 0, tile_flags = 0;
-	int size;
+	int ret, size;
 
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE, &res);
 	pNv->VRAMSize=res;
@@ -1123,42 +1123,48 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE, &res);
 	pNv->AGPSize=res;
 
-	if (pNv->exa_driver_pixmaps) {
-		uint32_t height = pScrn->virtualY;
-
-		if (pNv->Architecture == NV_ARCH_50 && pNv->kms_enable) {
-			tile_mode = 4;
-			tile_flags = 0x7a00;
-			height = NOUVEAU_ALIGN(height, 64);
-		}
-
-		size = NOUVEAU_ALIGN(pScrn->virtualX, 64);
-		size = size * (pScrn->bitsPerPixel >> 3);
-		size = size * height;
+	size = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps) {
+		tile_mode = 4;
+		tile_flags = 0x7a00;
+		size *= NOUVEAU_ALIGN(pScrn->virtualY, (1 << (tile_mode + 2)));
 	} else {
-		size = pNv->VRAMPhysicalSize / 2;
+		size *= pScrn->virtualY;
 	}
 
-	if (nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
-				0, size, tile_mode, tile_flags,
-				&pNv->offscreen)) {
+	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
+				  0, size, tile_mode, tile_flags,
+				  &pNv->scanout);
+	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to allocate framebuffer memory\n");
+			   "Error allocating scanout buffer: %d\n", ret);
 		return FALSE;
 	}
 
-	/* Required to remain pinned, the kernel doesn't track the dodgy
-	 * half-tiledness of this buffer so after resume, when TTM is
-	 * pulling the buffer back in it'll set all the page table flags
-	 * to linear (the buffer was created as such..) and the GPU will
-	 * strongly dislike this.
-	 */
-	if (!pNv->exa_driver_pixmaps && pNv->Architecture >= NV_ARCH_50)
-		nouveau_bo_pin(pNv->offscreen, NOUVEAU_BO_VRAM);
+	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+	nouveau_bo_unmap(pNv->scanout);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Allocated %dMiB VRAM for framebuffer\n",
-		   (uint32_t)(pNv->offscreen->size >> 20));
+	if (!pNv->exa_driver_pixmaps) {
+		size = (pNv->VRAMPhysicalSize / 2) - size;
+
+		if (pNv->Architecture >= NV_ARCH_50) {
+			tile_mode = 0;
+			tile_flags = 0;
+		}
+
+		ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM |
+					  NOUVEAU_BO_MAP, 0, size, tile_mode,
+					  tile_flags, &pNv->offscreen);
+		if (ret) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Error allocating"
+				   " offscreen pixmap area: %d\n", ret);
+			return FALSE;
+		}
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Allocated %dMiB VRAM for offscreen pixmaps\n",
+			   (uint32_t)(pNv->offscreen->size >> 20));
+	}
 
 	if (pNv->AGPSize) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
