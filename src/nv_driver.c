@@ -276,9 +276,8 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 		 * to avoid list duplication */
 		/* AGP bridge chips need their bridge chip id to be detected */
 		PciChipsets NVChipsets[] = {
-			{ pci_id, (dev->vendor_id << 16) | dev->device_id,
-				  RES_SHARED_VGA },
-			{ -1, -1, RES_UNDEFINED }
+			{ pci_id, (dev->vendor_id << 16) | dev->device_id, NULL },
+			{ -1, -1, NULL }
 		};
 
 		pScrn = xf86ConfigPciEntity(pScrn, 0, entity_num, NVChipsets, 
@@ -805,9 +804,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			   "VESA-HACK: Console VGA mode is 0x%x\n",
 			   pNv->Int10Mode);
 	}
-
-	xf86SetOperatingState(resVgaIo, pNv->pEnt->index, ResUnusedOpr);
-	xf86SetOperatingState(resVgaMem, pNv->pEnt->index, ResDisableOpr);
 
 	/* Set pScrn->monitor */
 	pScrn->monitor = pScrn->confScreen->monitor;
