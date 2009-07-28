@@ -52,6 +52,7 @@ typedef struct {
     drmModeCrtcPtr mode_crtc;
     struct nouveau_bo *cursor;
     struct nouveau_bo *rotate_bo;
+    uint32_t rotate_pitch;
     void *rotate_bo_virtual;
     uint32_t rotate_fb_id;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
@@ -371,21 +372,19 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	NVPtr pNv = NVPTR(crtc->scrn);
 	uint32_t tile_mode = 0, tile_flags = 0;
-	int rotate_pitch, ah = height, aw = width;
-	int ret;
+	int ah = height, ret;
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		tile_mode = 4;
 		tile_flags = 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
-		aw = NOUVEAU_ALIGN(width, 64);
 	}
 
-	rotate_pitch = NOUVEAU_ALIGN(aw * drmmode->cpp, 64);
+	drmmode_crtc->rotate_pitch = NOUVEAU_ALIGN(width * drmmode->cpp, 256);
 
 	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
-				  rotate_pitch * ah, tile_mode, tile_flags,
-				  &drmmode_crtc->rotate_bo);
+				  drmmode_crtc->rotate_pitch * ah, tile_mode,
+				  tile_flags, &drmmode_crtc->rotate_bo);
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow memory for rotated CRTC\n");
@@ -403,7 +402,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	nouveau_bo_unmap(drmmode_crtc->rotate_bo);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
-			   crtc->scrn->bitsPerPixel, rotate_pitch,
+			   crtc->scrn->bitsPerPixel, drmmode_crtc->rotate_pitch,
 			   drmmode_crtc->rotate_bo->handle,
 			   &drmmode_crtc->rotate_fb_id);
 	if (ret) {
@@ -423,20 +422,16 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	unsigned long rotate_pitch;
 	PixmapPtr rotate_pixmap;
 
 	if (!data)
 		data = drmmode_crtc_shadow_allocate (crtc, width, height);
 
-	rotate_pitch = pScrn->displayWidth * drmmode->cpp;
-
 	rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
 					       width, height,
 					       pScrn->depth,
 					       pScrn->bitsPerPixel,
-					       rotate_pitch,
+					       drmmode_crtc->rotate_pitch,
 					       data);
 
 	if (rotate_pixmap == NULL) {
