@@ -53,7 +53,7 @@ typedef struct {
     struct nouveau_bo *cursor;
     struct nouveau_bo *rotate_bo;
     uint32_t rotate_pitch;
-    void *rotate_bo_virtual;
+    PixmapPtr rotate_pixmap;
     uint32_t rotate_fb_id;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
@@ -374,6 +374,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	NVPtr pNv = NVPTR(crtc->scrn);
 	uint32_t tile_mode = 0, tile_flags = 0;
 	int ah = height, ret;
+	void *virtual;
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		tile_mode = 4;
@@ -399,7 +400,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		nouveau_bo_ref(NULL, &drmmode_crtc->rotate_bo);
 		return NULL;
 	}
-	drmmode_crtc->rotate_bo_virtual = drmmode_crtc->rotate_bo->map;
+	virtual = drmmode_crtc->rotate_bo->map;
 	nouveau_bo_unmap(drmmode_crtc->rotate_bo);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
@@ -411,11 +412,10 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 			   "Error adding FB for shadow scanout: %s\n",
 			   strerror(-ret));
 		nouveau_bo_ref(NULL, &drmmode_crtc->rotate_bo);
-		drmmode_crtc->rotate_bo_virtual = NULL;
 		return NULL;
 	}
 
-	return drmmode_crtc->rotate_bo_virtual;
+	return virtual;
 }
 
 static PixmapPtr
@@ -440,15 +440,15 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
 	}
 
-	if (drmmode_crtc->rotate_bo) {
+	if (drmmode_crtc->rotate_bo && NVPTR(pScrn)->exa_driver_pixmaps) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(rotate_pixmap);
 
 		if (nvpix)
 			nouveau_bo_ref(drmmode_crtc->rotate_bo, &nvpix->bo);
 	}
 
-	return rotate_pixmap;
-
+	drmmode_crtc->rotate_pixmap = rotate_pixmap;
+	return drmmode_crtc->rotate_pixmap;
 }
 
 static void
@@ -464,7 +464,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
 		nouveau_bo_ref(NULL, &drmmode_crtc->rotate_bo);
-		drmmode_crtc->rotate_bo_virtual = NULL;
+		drmmode_crtc->rotate_pixmap = NULL;
 	}
 }
 
@@ -1060,6 +1060,9 @@ drmmode_is_rotate_pixmap(PixmapPtr ppix, struct nouveau_bo **bo)
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
 	int i;
 
+	if (!NVPTR(pScrn)->kms_enable)
+		return FALSE;
+
 	for (i = 0; i < config->num_crtc; i++) {
 		xf86CrtcPtr crtc = config->crtc[i];
 		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
@@ -1067,8 +1070,9 @@ drmmode_is_rotate_pixmap(PixmapPtr ppix, struct nouveau_bo **bo)
 		if (!drmmode_crtc->rotate_bo)
 			continue;
 
-		if (drmmode_crtc->rotate_bo_virtual == ppix->devPrivate.ptr) {
-			*bo = drmmode_crtc->rotate_bo;
+		if (drmmode_crtc->rotate_pixmap == ppix) {
+			if (bo)
+				*bo = drmmode_crtc->rotate_bo;
 			return TRUE;
 		}
 	}

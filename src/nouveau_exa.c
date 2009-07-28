@@ -270,6 +270,7 @@ nouveau_exa_prepare_access(PixmapPtr ppix, int index)
 {
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_bo *bo;
 
 	if (pNv->exa_driver_pixmaps) {
 		void *map = nouveau_exa_pixmap_map(ppix);
@@ -285,6 +286,12 @@ nouveau_exa_prepare_access(PixmapPtr ppix, int index)
 		ppix->devPrivate.ptr = pNv->scanout->map;
 		nouveau_bo_unmap(pNv->scanout);
 		return TRUE;
+	} else
+	if (drmmode_is_rotate_pixmap(ppix, &bo)) {
+		nouveau_bo_map(bo, NOUVEAU_BO_RDWR);
+		ppix->devPrivate.ptr = bo->map;
+		nouveau_bo_unmap(bo);
+		return TRUE;
 	}
 
 	return FALSE;
@@ -299,7 +306,8 @@ nouveau_exa_finish_access(PixmapPtr ppix, int index)
 	if (pNv->exa_driver_pixmaps) {
 		nouveau_exa_pixmap_unmap(ppix);
 	} else
-	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen)) {
+	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen) ||
+	    drmmode_is_rotate_pixmap(ppix, NULL)) {
 		ppix->devPrivate.ptr = NULL;
 	}
 }
@@ -308,7 +316,6 @@ static Bool
 nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 {
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	struct nouveau_bo *bo = NULL;
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->exa_driver_pixmaps) {
@@ -324,7 +331,7 @@ nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
 		return TRUE;
 	else
-	if (drmmode_is_rotate_pixmap(ppix, &bo))
+	if (drmmode_is_rotate_pixmap(ppix, NULL))
 		return TRUE;
 
 	return FALSE;
