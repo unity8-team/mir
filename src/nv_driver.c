@@ -1073,7 +1073,16 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86SetGamma(pScrn, gammazeros))
 		NVPreInitFail("\n");
 
-	pScrn->displayWidth = nv_pitch_align(pNv, pScrn->virtualX, pScrn->depth);
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps) {
+		int cpp = pScrn->bitsPerPixel >> 3;
+		pScrn->displayWidth = pScrn->virtualX * cpp;
+		pScrn->displayWidth = NOUVEAU_ALIGN(pScrn->displayWidth, 64);
+		pScrn->displayWidth = pScrn->displayWidth / cpp;
+	} else {
+		pScrn->displayWidth = nv_pitch_align(pNv, pScrn->virtualX,
+						     pScrn->depth);
+	}
+
 	/* Set the current mode to the first in the list */
 	pScrn->currentMode = pScrn->modes;
 
@@ -1124,7 +1133,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	size = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->exa_driver_pixmaps) {
 		tile_mode = 4;
-		tile_flags = 0x7a00;
+		tile_flags = pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7a00;
 		size *= NOUVEAU_ALIGN(pScrn->virtualY, (1 << (tile_mode + 2)));
 	} else {
 		size *= pScrn->virtualY;
