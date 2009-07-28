@@ -690,7 +690,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 {
 	NVPtr pNv;
 	MessageType from;
-	int max_width, max_height;
 	int ret, i;
 
 	if (flags & PROBE_DETECT) {
@@ -1005,17 +1004,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, from, "MMIO registers at 0x%lX\n",
 		(unsigned long)pNv->IOAddress);
 
-	if (pNv->Architecture < NV_ARCH_10) {
-		max_width = (pScrn->bitsPerPixel > 16) ? 2032 : 2048;
-		max_height = 2048;
-	} else if (pNv->Architecture < NV_ARCH_50) {
-		max_width = (pScrn->bitsPerPixel > 16) ? 4080 : 4096;
-		max_height = 4096;
-	} else {
-		max_width = (pScrn->bitsPerPixel > 16) ? 8176 : 8192;
-		max_height = 8192;
-	}
-
 #ifdef XF86DRM_MODE
 	if (pNv->kms_enable){
 		ret = drmmode_pre_init(pScrn, nouveau_device(pNv->dev)->fd,
@@ -1024,10 +1012,24 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			NVPreInitFail("Kernel modesetting failed to initialize\n");
 	} else
 #endif
+	{
+		int max_width, max_height;
 
-	/* Allocate an xf86CrtcConfig */
-	xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
-	xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
+		if (pNv->Architecture < NV_ARCH_10) {
+			max_width = (pScrn->bitsPerPixel > 16) ? 2032 : 2048;
+			max_height = 2048;
+		} else if (pNv->Architecture < NV_ARCH_50) {
+			max_width = (pScrn->bitsPerPixel > 16) ? 4080 : 4096;
+			max_height = 4096;
+		} else {
+			max_width = (pScrn->bitsPerPixel > 16) ? 8176 : 8192;
+			max_height = 8192;
+		}
+
+		/* Allocate an xf86CrtcConfig */
+		xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
+		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
+	}
 
 	NVCommonSetup(pScrn);
 
