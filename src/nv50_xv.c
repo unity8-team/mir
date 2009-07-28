@@ -72,9 +72,9 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	OUT_RELOCh(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	switch (ppix->drawable.depth) {
-	case 32: OUT_RING  (chan, NV50TCL_RT_FORMAT_32BPP); break;
-	case 24: OUT_RING  (chan, NV50TCL_RT_FORMAT_24BPP); break;
-	case 16: OUT_RING  (chan, NV50TCL_RT_FORMAT_16BPP); break;
+	case 32: OUT_RING  (chan, NV50TCL_RT_FORMAT_A8R8G8B8_UNORM); break;
+	case 24: OUT_RING  (chan, NV50TCL_RT_FORMAT_X8R8G8B8_UNORM); break;
+	case 16: OUT_RING  (chan, NV50TCL_RT_FORMAT_R5G6B5_UNORM); break;
 	}
 	OUT_RING  (chan, bo->tile_mode << 4);
 	OUT_RING  (chan, 0);

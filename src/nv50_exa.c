@@ -78,12 +78,12 @@ NV50EXA2DSurfaceFormat(PixmapPtr ppix, uint32_t *fmt)
 	NV50EXA_LOCALS(ppix);
 
 	switch (ppix->drawable.depth) {
-	case 8 : *fmt = NV50_2D_SRC_FORMAT_8BPP; break;
-	case 15: *fmt = NV50_2D_SRC_FORMAT_15BPP; break;
-	case 16: *fmt = NV50_2D_SRC_FORMAT_16BPP; break;
-	case 24: *fmt = NV50_2D_SRC_FORMAT_24BPP; break;
-	case 30: *fmt = 0xd1; break;
-	case 32: *fmt = NV50_2D_SRC_FORMAT_32BPP; break;
+	case 8 : *fmt = NV50_2D_SRC_FORMAT_R8_UNORM; break;
+	case 15: *fmt = NV50_2D_SRC_FORMAT_X1B5G5R5_UNORM; break;
+	case 16: *fmt = NV50_2D_SRC_FORMAT_R5G6B5_UNORM; break;
+	case 24: *fmt = NV50_2D_SRC_FORMAT_X8R8G8B8_UNORM; break;
+	case 30: *fmt = NV50_2D_SRC_FORMAT_A2B10G10R10_UNORM; break;
+	case 32: *fmt = NV50_2D_SRC_FORMAT_A8R8G8B8_UNORM; break;
 	default:
 		 NOUVEAU_FALLBACK("Unknown surface format for bpp=%d\n",
 				  ppix->drawable.depth);
@@ -451,12 +451,12 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 	switch (ppict->format) {
 	case PICT_FORMAT(32, PICT_TYPE_ABGR, 2, 10, 10, 10):
 	case PICT_FORMAT(32, PICT_TYPE_ABGR, 0, 10, 10, 10):
-		format = 0xd1;
+		format = NV50TCL_RT_FORMAT_A2B10G10R10_UNORM;
 		break;
-	case PICT_a8r8g8b8: format = NV50TCL_RT_FORMAT_32BPP; break;
-	case PICT_x8r8g8b8: format = NV50TCL_RT_FORMAT_24BPP; break;
-	case PICT_r5g6b5  : format = NV50TCL_RT_FORMAT_16BPP; break;
-	case PICT_a8      : format = NV50TCL_RT_FORMAT_8BPP; break;
+	case PICT_a8r8g8b8: format = NV50TCL_RT_FORMAT_A8R8G8B8_UNORM; break;
+	case PICT_x8r8g8b8: format = NV50TCL_RT_FORMAT_X8R8G8B8_UNORM; break;
+	case PICT_r5g6b5  : format = NV50TCL_RT_FORMAT_R5G6B5_UNORM; break;
+	case PICT_a8      : format = NV50TCL_RT_FORMAT_R8_UNORM; break;
 	default:
 		NOUVEAU_FALLBACK("invalid picture format\n");
 	}

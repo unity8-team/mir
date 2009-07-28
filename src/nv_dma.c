@@ -67,47 +67,11 @@ void NVSync(ScrnInfoPtr pScrn)
 		NVLockedUp(pScrn);
 }
 
-static void NVInitDmaCB(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	unsigned int cb_location;
-	int cb_size;
-	char *s;
-
-	/* I'm not bothering to check for failures here, the DRM will fall back
-	 * on defaults if anything's wrong (ie. out of AGP, invalid sizes)
-	 */
-	/* WARNING: on ppc at least, putting cmdbuf in MEM_FB results in
-	 * DMA hangs
-	 */
-
-	cb_location = NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI_ACCEPTABLE;
-	if((s = (char *)xf86GetOptValString(pNv->Options, OPTION_CMDBUF_LOCATION))) {
-		if(!xf86NameCmp(s, "AGP"))
-			cb_location = NOUVEAU_MEM_AGP;
-		else if (!xf86NameCmp(s, "VRAM"))
-			cb_location = NOUVEAU_MEM_FB;
-		else if (!xf86NameCmp(s, "PCI"))
-			cb_location = NOUVEAU_MEM_PCI;
-		else
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid value \"%s\" for CBLocation\n", s);
-	}
-	nouveau_device_set_param(pNv->dev, NOUVEAU_SETPARAM_CMDBUF_LOCATION,
-				 cb_location);
-
-	/* CBSize == size of space reserved for *all* FIFOs in MiB */
-	if (xf86GetOptValInteger(pNv->Options, OPTION_CMDBUF_SIZE, &cb_size))
-		nouveau_device_set_param(pNv->dev, NOUVEAU_SETPARAM_CMDBUF_SIZE,
-					 (cb_size << 20));
-}
-
 Bool
 NVInitDma(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int ret;
-
-	NVInitDmaCB(pScrn);
 
 	ret = nouveau_channel_alloc(pNv->dev, NvDmaFB, NvDmaTT, &pNv->chan);
 	if (ret) {
