@@ -146,14 +146,9 @@ static Bool NV10Check_A8plusA8_Feasability(PicturePtr src, PicturePtr msk, Pictu
 }
 
 #if 0
-#define NV10EXAFallbackInfo(X,Y,Z,S,T) NV10EXAFallbackInfo_real(X,Y,Z,S,T)
-#else
-#define NV10EXAFallbackInfo(X,Y,Z,S,T) do { ; } while (0)
-#endif
-
-static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPicture,
-			     PicturePtr pMaskPicture,
-			     PicturePtr pDstPicture)
+static void
+NV10EXAFallbackInfo(char * reason, int op, PicturePtr pSrcPicture,
+		    PicturePtr pMaskPicture, PicturePtr pDstPicture)
 {
 	char out2[4096];
 	char * out = out2;
@@ -273,7 +268,9 @@ static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPictu
 	strcat(out, "\n");
 	xf86DrvMsg(0, X_INFO, "%s", out2);
 }
-
+#else
+#define NV10EXAFallbackInfo(X,Y,Z,S,T) do { ; } while (0)
+#endif
 
 Bool NV10EXACheckComposite(int	op,
 			     PicturePtr pSrcPicture,

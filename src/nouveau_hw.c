@@ -98,7 +98,9 @@ int nouveau_hw_get_current_head(ScrnInfoPtr pScrn)
 	if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
 		cr44 = 0x4;
 	else {
-		bool waslocked, slaved_on_A, tvA, slaved_on_B, tvB;
+		bool slaved_on_A, tvA = false;
+		bool slaved_on_B, tvB = false;
+		bool waslocked;
 
 		waslocked = NVLockVgaCrtcs(pNv, false);
 
