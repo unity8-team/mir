@@ -16,7 +16,6 @@
 /* All drivers should typically include these */
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86Resources.h"
 #define PPC_MMIO_IS_BE
 #include "compiler.h"
 
@@ -37,8 +36,6 @@
 #include "xf86DDC.h"
 
 #include "vbe.h"
-
-#include "xf86RAC.h"
 
 #include "xf86RandR12.h"
 
