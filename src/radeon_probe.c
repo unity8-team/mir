@@ -45,7 +45,9 @@
 #include "atipcirename.h"
 
 #include "xf86.h"
+#ifndef XSERVER_LIBPCIACCESS
 #include "xf86Resources.h"
+#endif
 
 #ifdef XF86DRM_MODE
 #include "xf86drmMode.h"
@@ -55,6 +57,7 @@
 #include "radeon_chipset_gen.h"
 
 #include "radeon_pci_chipset_gen.h"
+
 
 #ifdef XSERVER_LIBPCIACCESS
 #include "radeon_pci_device_match_gen.h"
