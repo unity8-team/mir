@@ -140,6 +140,7 @@ typedef struct _NVRec {
     Bool		exa_driver_pixmaps;
     Bool		wfb_enabled;
     ScreenBlockHandlerProcPtr BlockHandler;
+    CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr  CloseScreen;
     /* Cursor */
 	uint32_t	curImage[256];

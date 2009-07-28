@@ -466,6 +466,25 @@ NVBlockHandler (
 		(*pNv->VideoTimerCallback)(pScrnInfo, currentTime.milliseconds);
 }
 
+static Bool
+NVCreateScreenResources(ScreenPtr pScreen)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	PixmapPtr ppix;
+
+	pScreen->CreateScreenResources = pNv->CreateScreenResources;
+	if (!(*pScreen->CreateScreenResources)(pScreen))
+		return FALSE;
+	pScreen->CreateScreenResources = NVCreateScreenResources;
+
+	if (pNv->exa_driver_pixmaps) {
+		ppix = pScreen->GetScreenPixmap(pScreen);
+		nouveau_bo_ref(pNv->FB, &nouveau_pixmap(ppix)->bo);
+	}
+
+	return TRUE;
+}
 
 /*
  * This is called at the end of each server generation.  It restores the
@@ -1622,6 +1641,13 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
+	/* Wrap the current CloseScreen function */
+	pScreen->SaveScreen = NVSaveScreen;
+	pNv->CloseScreen = pScreen->CloseScreen;
+	pScreen->CloseScreen = NVCloseScreen;
+	pNv->CreateScreenResources = pScreen->CreateScreenResources;
+	pScreen->CreateScreenResources = NVCreateScreenResources;
+
 	if (!xf86CrtcScreenInit(pScreen))
 		return FALSE;
 
@@ -1636,12 +1662,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
 				 NULL, CMAP_PALETTED_TRUECOLOR))
 		return FALSE;
-
-	pScreen->SaveScreen = NVSaveScreen;
-
-	/* Wrap the current CloseScreen function */
-	pNv->CloseScreen = pScreen->CloseScreen;
-	pScreen->CloseScreen = NVCloseScreen;
 
 	/* Report any unused options (only for the first generation) */
 	if (serverGeneration == 1)
