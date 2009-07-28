@@ -798,15 +798,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 #endif
 	}
 
-	/* Attempt to initialise the kernel module, if we fail this we'll
-	 * fallback to limited functionality.
-	 */
-	if (!NVPreInitDRM(pScrn)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
-			   "Failing back to NoAccel mode\n");
-		pNv->NoAccel = TRUE;
-		pNv->ShadowFB = TRUE;
-	}
+	/* Initialise the kernel module */
+	if (!NVPreInitDRM(pScrn))
+		NVPreInitFail("\n");
 
 	/* Save current console video mode */
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->pInt10 && !pNv->kms_enable) {
@@ -1114,78 +1108,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 }
 
 
-/*
- * Map the framebuffer and MMIO memory.
- */
-static Bool
-NVMapMemSW(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	unsigned VRAMReserved, Cursor0Offset, Cursor1Offset, CLUTOffset[2];
-	static struct nouveau_device dev;
-	void *map;
-	int ret, i;
-
-	memset(&dev, 0, sizeof(dev));
-
-	pNv->VRAMSize = pNv->RamAmountKBytes * 1024;
-	VRAMReserved  = pNv->VRAMSize - (1 * 1024 * 1024);
-	pNv->AGPSize = 0;
-	pNv->VRAMPhysical = pNv->PciInfo->regions[1].base_addr;
-	pci_device_map_range(pNv->PciInfo, pNv->VRAMPhysical,
-			     pNv->PciInfo->regions[1].size,
-			     PCI_DEV_MAP_FLAG_WRITABLE |
-			     PCI_DEV_MAP_FLAG_WRITE_COMBINE, &map);
-	pNv->VRAMMap = map;
-
-	Cursor0Offset = VRAMReserved;
-	Cursor1Offset = Cursor0Offset + (64 * 64 * 4);
-	CLUTOffset[0] = Cursor1Offset + (64 * 64 * 4);
-	CLUTOffset[1] = CLUTOffset[0] + (4 * 1024);
-
-	ret = nouveau_bo_fake(&dev, 0, NOUVEAU_BO_VRAM,
-			      pNv->VRAMSize - (1<<20), pNv->VRAMMap,
-			      &pNv->offscreen);
-	if (ret)
-		return FALSE;
-	pNv->GART = NULL;
-
-	ret = nouveau_bo_fake(&dev, Cursor0Offset, NOUVEAU_BO_VRAM,
-			      64 * 64 * 4, pNv->VRAMMap + Cursor0Offset,
-			      &pNv->Cursor);
-	if (ret)
-		return FALSE;
-
-	ret = nouveau_bo_fake(&dev, Cursor1Offset, NOUVEAU_BO_VRAM,
-			      64 * 64 * 4, pNv->VRAMMap + Cursor1Offset,
-			      &pNv->Cursor2);
-	if (ret)
-		return FALSE;
-
-	if (pNv->Architecture == NV_ARCH_50) {
-		for(i = 0; i < 2; i++) {
-			nouveauCrtcPtr crtc = pNv->crtc[i];
-
-			ret = nouveau_bo_fake(&dev, CLUTOffset[i],
-					      NOUVEAU_BO_VRAM, 0x1000,
-					      pNv->VRAMMap + CLUTOffset[i],
-					      &crtc->lut);
-			if (ret)
-				return FALSE;
-
-			/* Copy the last known values. */
-			if (crtc->lut_values_valid) {
-				nouveau_bo_map(crtc->lut, NOUVEAU_BO_WR);
-				memcpy(crtc->lut->map, crtc->lut_values,
-				       4 * 256 * sizeof(uint16_t));
-				nouveau_bo_unmap(crtc->lut);
-			}
-		}
-	}
-
-	return TRUE;
-}
-
 static Bool
 NVMapMem(ScrnInfoPtr pScrn)
 {
@@ -1193,9 +1115,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 	uint64_t res;
 	uint32_t tile_mode = 0, tile_flags = 0;
 	int size;
-
-	if (!pNv->dev)
-		return NVMapMemSW(pScrn);
 
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE, &res);
 	pNv->VRAMSize=res;
