@@ -1267,6 +1267,7 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 				       pNv->PciInfo->regions[1].size);
 	}
 
+	nouveau_bo_ref(NULL, &pNv->scanout);
 	nouveau_bo_ref(NULL, &pNv->offscreen);
 	nouveau_bo_ref(NULL, &pNv->GART);
 	nouveau_bo_ref(NULL, &pNv->Cursor);
