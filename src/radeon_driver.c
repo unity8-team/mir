@@ -2103,6 +2103,12 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 	info->accel_state->has_tcl = TRUE;
     }
 
+    /* if we have shadow fb bail */
+    if (info->r600_shadow_fb) {
+	info->useEXA = FALSE;
+	return TRUE;
+    }
+
     info->useEXA = TRUE;
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
