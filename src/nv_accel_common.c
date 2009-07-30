@@ -544,6 +544,8 @@ void NVAccelFree(ScrnInfoPtr pScrn)
 		return;
 
 	nouveau_notifier_free(&pNv->notify0);
+	nouveau_notifier_free(&pNv->vblank_sem);
+
 	if (pNv->Architecture < NV_ARCH_50) {
 		nouveau_grobj_free(&pNv->NvContextSurfaces);
 		nouveau_grobj_free(&pNv->NvContextBeta1);
@@ -559,6 +561,7 @@ void NVAccelFree(ScrnInfoPtr pScrn)
 		nouveau_grobj_free(&pNv->Nv2D);
 	nouveau_grobj_free(&pNv->NvMemFormat);
 
+	nouveau_grobj_free(&pNv->NvSW);
 	nouveau_grobj_free(&pNv->Nv3D);
 
 	nouveau_bo_ref(NULL, &pNv->tesla_scratch);
