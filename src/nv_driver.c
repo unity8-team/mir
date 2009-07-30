@@ -586,19 +586,73 @@ NVFreeScreen(int scrnIndex, int flags)
 }
 
 static Bool
-nv_xf86crtc_resize(ScrnInfoPtr pScrn, int width, int height)
+nouveau_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
-#if 0
-	do not change virtual* for now, as it breaks multihead server regeneration
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_xf86crtc_resize is called with %dx%d resolution.\n", width, height);
-	pScrn->virtualX = width;
-	pScrn->virtualY = height;
-#endif
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	ScreenPtr screen = screenInfo.screens[scrn->scrnIndex];
+	NVPtr pNv = NVPTR(scrn);
+	uint32_t pitch, old_width, old_height, old_pitch;
+	struct nouveau_bo *old_bo = NULL;
+	uint32_t tile_mode = 0, tile_flags = 0, ah = height;
+	PixmapPtr ppix = screen->GetScreenPixmap(screen);
+	int ret, i;
+
+	ErrorF("resize called %d %d\n", width, height);
+
+	if (scrn->virtualX == width && scrn->virtualY == height)
+		return TRUE;
+
+	pitch  = nv_pitch_align(pNv, width, scrn->depth);
+	ErrorF("w %d h %d p %d\n", width, height, pitch);
+	pitch *= (scrn->bitsPerPixel >> 3);
+
+	old_width = scrn->virtualX;
+	old_height = scrn->virtualY;
+	old_pitch = scrn->displayWidth;
+	nouveau_bo_ref(pNv->scanout, &old_bo);
+	nouveau_bo_ref(NULL, &pNv->scanout);
+
+	scrn->virtualX = width;
+	scrn->virtualY = height;
+	scrn->displayWidth = pitch / (scrn->bitsPerPixel >> 3);
+
+	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
+				  0, pitch * ah, tile_mode, tile_flags,
+				  &pNv->scanout);
+	if (ret)
+		goto fail;
+
+	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+	nouveau_bo_unmap(pNv->scanout);
+
+	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+		if (!crtc->enabled)
+			continue;
+
+		xf86CrtcSetMode(crtc, &crtc->mode, crtc->rotation,
+				crtc->x, crtc->y);
+	}
+
+	nouveau_bo_ref(NULL, &old_bo);
+
+	NVDRIFinishScreenInit(scrn, true);
 	return TRUE;
+
+ fail:
+	nouveau_bo_ref(old_bo, &pNv->scanout);
+	scrn->virtualX = old_width;
+	scrn->virtualY = old_height;
+	scrn->displayWidth = old_pitch;
+
+	return FALSE;
 }
 
 static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
-	nv_xf86crtc_resize
+	nouveau_xf86crtc_resize
 };
 
 #define NVPreInitFail(fmt, args...) do {                                    \
