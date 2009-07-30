@@ -344,9 +344,13 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, tesla, NV50TCL_VIEWPORT_HORIZ, 2);
 	OUT_RING  (chan, 8192 << NV50TCL_VIEWPORT_HORIZ_W_SHIFT);
 	OUT_RING  (chan, 8192 << NV50TCL_VIEWPORT_VERT_H_SHIFT);
+	/* NV50TCL_SCISSOR_VERT_T_SHIFT is wrong, because it was deducted with
+	 * origin lying at the bottom left. This will be changed to _MIN_ and _MAX_
+	 * later, because it is origin dependent.
+	 */
 	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, 8192 << NV50TCL_SCISSOR_HORIZ_R_SHIFT);
-	OUT_RING  (chan, 8192 << NV50TCL_SCISSOR_VERT_B_SHIFT);
+	OUT_RING  (chan, 8192 << NV50TCL_SCISSOR_VERT_T_SHIFT);
 	BEGIN_RING(chan, tesla, NV50TCL_SCREEN_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, 8192 << NV50TCL_SCREEN_SCISSOR_HORIZ_W_SHIFT);
 	OUT_RING  (chan, 8192 << NV50TCL_SCREEN_SCISSOR_VERT_H_SHIFT);

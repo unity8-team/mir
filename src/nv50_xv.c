@@ -264,6 +264,9 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 	X2 = (float)(x2>>16)+(float)(x2&0xFFFF)/(float)0x10000;
 	Y2 = (float)(y2>>16)+(float)(y2&0xFFFF)/(float)0x10000;
 
+	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_ENABLE, 1);
+	OUT_RING  (chan, 1);
+
 	pbox = REGION_RECTS(clipBoxes);
 	nbox = REGION_NUM_RECTS(clipBoxes);
 	while(nbox--) {
@@ -286,17 +289,27 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 					   src_w, src_h);
 		}
 
+		/* NV50TCL_SCISSOR_VERT_T_SHIFT is wrong, because it was deducted with
+		* origin lying at the bottom left. This will be changed to _MIN_ and _MAX_
+		* later, because it is origin dependent.
+		*/
+		BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ, 2);
+		OUT_RING  (chan, sx2 << NV50TCL_SCISSOR_HORIZ_R_SHIFT | sx1);
+		OUT_RING  (chan, sy2 << NV50TCL_SCISSOR_VERT_T_SHIFT | sy1 );
+
 		BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
-		OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_QUADS);
+		OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_TRIANGLES);
 		VTX2s(pNv, tx1, ty1, tx1, ty1, sx1, sy1);
-		VTX2s(pNv, tx2, ty1, tx2, ty1, sx2, sy1);
-		VTX2s(pNv, tx2, ty2, tx2, ty2, sx2, sy2);
-		VTX2s(pNv, tx1, ty2, tx1, ty2, sx1, sy2);
+		VTX2s(pNv, tx2+(tx2-tx1), ty1, tx2+(tx2-tx1), ty1, sx2+(sx2-sx1), sy1);
+		VTX2s(pNv, tx1, ty2+(ty2-ty1), tx1, ty2+(ty2-ty1), sx1, sy2+(sy2-sy1));
 		BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
 		OUT_RING  (chan, 0);
 
 		pbox++;
 	}
+
+	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_ENABLE, 1);
+	OUT_RING  (chan, 0);
 
 	FIRE_RING (chan);
 	return Success;
