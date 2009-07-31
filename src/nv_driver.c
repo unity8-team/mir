@@ -1459,6 +1459,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			pNv->ShadowFB = TRUE;
 			pNv->exa_driver_pixmaps = FALSE;
 			pNv->wfb_enabled = FALSE;
+			pScrn->displayWidth = nv_pitch_align(pNv,
+							     pScrn->virtualX,
+							     pScrn->depth);
 		}
 	}
 
