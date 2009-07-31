@@ -721,7 +721,7 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	ret = nouveau_device_open_existing(&pNv->dev, 1, DRIMasterFD(pScrn), 0);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "[drm] error creating device, setting NoAccel\n");
+			   "[drm] error creating device\n");
 		xfree(bus_id);
 		return FALSE;
 	}
@@ -1209,6 +1209,9 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
 	nouveau_bo_unmap(pNv->scanout);
 
+	if (pNv->NoAccel)
+		goto skip_offscreen_gart;
+
 	if (!pNv->exa_driver_pixmaps) {
 		size = (pNv->VRAMPhysicalSize / 2) - size;
 
@@ -1261,6 +1264,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 			   (unsigned int)(pNv->GART->size >> 20));
 	}
 
+skip_offscreen_gart:
 	/* We don't need to allocate cursors / lut here if we're using
 	 * kernel modesetting
 	 **/
