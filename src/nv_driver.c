@@ -603,7 +603,6 @@ nouveau_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		return TRUE;
 
 	pitch  = nv_pitch_align(pNv, width, scrn->depth);
-	ErrorF("w %d h %d p %d\n", width, height, pitch);
 	pitch *= (scrn->bitsPerPixel >> 3);
 
 	old_width = scrn->virtualX;
@@ -622,9 +621,16 @@ nouveau_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (ret)
 		goto fail;
 
+	if (pNv->ShadowPtr) {
+		xfree(pNv->ShadowPtr);
+		pNv->ShadowPitch = pitch;
+		pNv->ShadowPtr = xalloc(pNv->ShadowPitch * height);
+	}
+
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
 	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch,
-				   pNv->scanout->map);
+				   (!pNv->NoAccel || pNv->ShadowFB) ?
+				   pNv->ShadowPtr : pNv->scanout->map);
 	nouveau_bo_unmap(pNv->scanout);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {

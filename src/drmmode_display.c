@@ -990,11 +990,18 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 	}
 
+	if (pNv->ShadowPtr) {
+		xfree(pNv->ShadowPtr);
+		pNv->ShadowPitch = pitch;
+		pNv->ShadowPtr = xalloc(pNv->ShadowPitch * height);
+	}
+
 	ppix = screen->GetScreenPixmap(screen);
 	if (pNv->exa_driver_pixmaps)
 		nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
 	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch,
-				   pNv->scanout->map);
+				   (!pNv->NoAccel || pNv->ShadowPtr) ?
+				   pNv->ShadowPtr : pNv->scanout->map);
 
 	nouveau_bo_unmap(pNv->scanout);
 
