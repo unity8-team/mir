@@ -27,6 +27,7 @@ Build-Depends:
  libxfixes-dev,
 # end xvmc
  dpkg-dev (>= 1.14.17),
+ quilt,
  automake,
  libtool,
  xutils-dev

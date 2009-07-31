@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.8.0-2) unstable; urgency=low
+
+  [ Julien Cristau ]
+  * Disable UXA render accel on i8xx chips for now.  It currently causes
+    hangs, and doesn't seem likely to get fixed quickly upstream
+    (closes: #527349).
+  * Reenable patch system and bring back quilt build-dep.
+
+ -- Brice Goglin <bgoglin@debian.org>  Fri, 31 Jul 2009 22:44:13 +0200
+
 xserver-xorg-video-intel (2:2.8.0-1) unstable; urgency=low
 
   * New upstream release.
