@@ -264,9 +264,6 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 	X2 = (float)(x2>>16)+(float)(x2&0xFFFF)/(float)0x10000;
 	Y2 = (float)(y2>>16)+(float)(y2&0xFFFF)/(float)0x10000;
 
-	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_ENABLE, 1);
-	OUT_RING  (chan, 1);
-
 	pbox = REGION_RECTS(clipBoxes);
 	nbox = REGION_NUM_RECTS(clipBoxes);
 	while(nbox--) {
@@ -307,9 +304,6 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 
 		pbox++;
 	}
-
-	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_ENABLE, 1);
-	OUT_RING  (chan, 0);
 
 	FIRE_RING (chan);
 	return Success;
