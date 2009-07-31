@@ -995,7 +995,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		}
 	}
 
-	if (pNv->Architecture >= NV_ARCH_50)
+	if (!pNv->NoAccel && pNv->Architecture >= NV_ARCH_50)
 		pNv->wfb_enabled = TRUE;
 #endif
 
