@@ -981,18 +981,22 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
-	nouveau_bo_unmap(pNv->scanout);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
 			   scrn->bitsPerPixel, pitch, pNv->scanout->handle,
 			   &drmmode->fb_id);
-	if (ret)
+	if (ret) {
+		nouveau_bo_unmap(pNv->scanout);
 		goto fail;
+	}
 
 	ppix = screen->GetScreenPixmap(screen);
 	if (pNv->exa_driver_pixmaps)
 		nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
-	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
+	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch,
+				   pNv->scanout->map);
+
+	nouveau_bo_unmap(pNv->scanout);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];

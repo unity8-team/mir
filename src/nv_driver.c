@@ -623,9 +623,9 @@ nouveau_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch,
+				   pNv->scanout->map);
 	nouveau_bo_unmap(pNv->scanout);
-
-	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch, NULL);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
