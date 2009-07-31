@@ -2030,7 +2030,7 @@ NV50SetupTexturedVideo (ScreenPtr pScreen)
 	pPriv->blitter			= FALSE;
 	pPriv->texture			= TRUE;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank		= pNv->exa_driver_pixmaps;
+	pPriv->SyncToVBlank		= TRUE;
 
 	pNv->textureAdaptor[0]		= adapt;
 	return adapt;

@@ -72,18 +72,13 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	tesla = pNv->Nv3D;
 	nvsw = pNv->NvSW;
 
-	/*XXX: temporary, as a guard against people accidently running an
-	 *     old kernel until interface gets bumped..
-	 */
-	if (pNv->exa_driver_pixmaps) {
-		BEGIN_RING(chan, nvsw, 0x0060, 2);
-		OUT_RING  (chan, pNv->vblank_sem->handle);
-		OUT_RING  (chan, 0);
-		BEGIN_RING(chan, nvsw, 0x018c, 1);
-		OUT_RING  (chan, pNv->vblank_sem->handle);
-		BEGIN_RING(chan, nvsw, 0x0400, 1);
-		OUT_RING  (chan, 0);
-	}
+	BEGIN_RING(chan, nvsw, 0x0060, 2);
+	OUT_RING  (chan, pNv->vblank_sem->handle);
+	OUT_RING  (chan, 0);
+	BEGIN_RING(chan, nvsw, 0x018c, 1);
+	OUT_RING  (chan, pNv->vblank_sem->handle);
+	BEGIN_RING(chan, nvsw, 0x0400, 1);
+	OUT_RING  (chan, 0);
 
 	BEGIN_RING(chan, tesla, 0x1558, 1);
 	OUT_RING  (chan, 1);
