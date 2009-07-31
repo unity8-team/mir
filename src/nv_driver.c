@@ -1106,7 +1106,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		} else
 			nv50_output_create(pScrn); /* create randr-1.2 "outputs". */
 
-		if (!xf86InitialConfiguration(pScrn, FALSE))
+		if (!xf86InitialConfiguration(pScrn, TRUE))
 			NVPreInitFail("No valid modes.\n");
 	}
 
