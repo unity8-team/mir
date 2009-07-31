@@ -1440,9 +1440,17 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	unsigned char *FBStart;
 	int displayWidth;
 
-	/* Allocate and map memory areas we need */
-	if (!NVMapMem(pScrn))
-		return FALSE;
+	if (!pNv->NoAccel) {
+		if (!NVInitDma(pScrn) || !NVAccelCommonInit(pScrn)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Error initialising acceleration.  "
+				   "Falling back to NoAccel\n");
+			pNv->NoAccel = TRUE;
+			pNv->ShadowFB = TRUE;
+			pNv->exa_driver_pixmaps = FALSE;
+			pNv->wfb_enabled = FALSE;
+		}
+	}
 
 	if (!pNv->NoAccel) {
 		if (!pNv->exa_driver_pixmaps)
@@ -1451,14 +1459,11 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		else
 			nouveau_dri2_init(pScreen);
 #endif
-		/* Init DRM - Alloc FIFO */
-		if (!NVInitDma(pScrn))
-			return FALSE;
-
-		/* setup graphics objects */
-		if (!NVAccelCommonInit(pScrn))
-			return FALSE;
 	}
+
+	/* Allocate and map memory areas we need */
+	if (!NVMapMem(pScrn))
+		return FALSE;
 
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
