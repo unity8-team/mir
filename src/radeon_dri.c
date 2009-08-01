@@ -775,6 +775,9 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     /* Ali Corp M1671 Super P4 Northbridge / Mobility M6 LY Needs AGPMode 1 (lp #146303)*/
     { 0x10b9,0x1671,           PCI_VENDOR_ATI,0x4c59,   0x103c,0x0027,           1 },
 
+    /* SiS Host Bridge 655 / R420 [Radeon X800] Needs AGPMode 4 (lp #371296) */
+    { 0x1039,0x0655,            PCI_VENDOR_ATI,0x4a4b,  PCI_VENDOR_ATI,0x4422,   4 },
+
     /* ASRock K7VT4A+ AGP 8x / ATI Radeon 9250 AGP Needs AGPMode 4 (lp #133192) */
     { 0x1849,0x3189,            PCI_VENDOR_ATI,0x5960,  0x1787,0x5960,           4 },
 
