@@ -2083,6 +2083,7 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 #if defined(USE_EXA) && defined(USE_XAA)
     char *optstr;
 #endif
+    int maxy = info->FbMapSize / (pScrn->displayWidth * info->CurrentLayout.pixel_bytes);
 
     if (!(info->accel_state = xcalloc(1, sizeof(struct radeon_accel_state)))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to allocate accel_state rec!\n");
@@ -2109,7 +2110,16 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 	return TRUE;
     }
 
-    info->useEXA = TRUE;
+#ifdef XF86DRI
+    if ((!info->directRenderingEnabled) ||
+	(maxy <= pScrn->virtualY * 3) ||
+	(pScrn->videoRam <= 32768))
+	info->useEXA = FALSE;
+    else
+	info->useEXA = TRUE;
+#else
+	info->useEXA = FALSE;
+#endif
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	int errmaj = 0, errmin = 0;
@@ -2119,9 +2129,10 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 #if defined(USE_XAA)
 	optstr = (char *)xf86GetOptValString(info->Options, OPTION_ACCELMETHOD);
 	if (optstr != NULL) {
-	    if (xf86NameCmp(optstr, "EXA") == 0)
+	    if (xf86NameCmp(optstr, "EXA") == 0) {
 		from = X_CONFIG;
-	    else if (xf86NameCmp(optstr, "XAA") == 0) {
+		info->useEXA = TRUE;
+	    } else if (xf86NameCmp(optstr, "XAA") == 0) {
 		from = X_CONFIG;
 		if (info->ChipFamily < CHIP_FAMILY_R600)
 		    info->useEXA = FALSE;
