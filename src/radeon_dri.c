@@ -745,6 +745,8 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     { PCI_VENDOR_INTEL,0x2570,  PCI_VENDOR_ATI,0x4a4e,  PCI_VENDOR_DELL,0x5106,  4 },
     /* Intel 82865G/PE/P DRAM Controller/Host-Hub / RV280 [Radeon 9200 SE] Needs AGPMode 4 (lp #300304) */
     { PCI_VENDOR_INTEL,0x2570,  PCI_VENDOR_ATI,0x5964,  0x148c,0x2073,           4 },
+    /* Intel 82855PM host bridge / Mobility M7 LW Needs AGPMode 4 (lp: #353996) */
+    { PCI_VENDOR_INTEL,0x3340,  PCI_VENDOR_ATI,0x4c57, PCI_VENDOR_IBM,0x0530,    4 },
     /* Intel 82855PM Processor to I/O Controller / Mobility M6 LY Needs AGPMode 1 (deb #467235) */
     { PCI_VENDOR_INTEL,0x3340,  PCI_VENDOR_ATI,0x4c59,  PCI_VENDOR_IBM,0x052f,   1 },
     /* Intel 82855PM host bridge / Mobility 9600 M10 RV350 Needs AGPMode 1 (lp #195051) */
