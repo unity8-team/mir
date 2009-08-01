@@ -671,7 +671,7 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
     return Success;
 }
 
-static Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
+Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr    info = RADEONPTR(pScrn);
 
@@ -706,6 +706,7 @@ static Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+#if 0
 /* XXX */
 static void radeon_unload_bicubic_texture(ScrnInfoPtr pScrn)
 {
@@ -717,6 +718,7 @@ static void radeon_unload_bicubic_texture(ScrnInfoPtr pScrn)
     }
 
 }
+#endif
 
 XF86VideoAdaptorPtr
 RADEONSetupImageTexturedVideo(ScreenPtr pScreen)

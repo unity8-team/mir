@@ -5700,6 +5700,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	DRIUnlock(pScrn->pScreen);
     }
 #endif
+    if (IS_R500_3D || IS_R300_3D)
+	radeon_load_bicubic_texture(pScrn);
 
     return TRUE;
 }
