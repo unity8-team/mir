@@ -1107,4 +1107,28 @@ drmmode_adjust_frame(ScrnInfoPtr scrn, int x, int y, int flags)
 	drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation, x, y);
 }
 
+void
+drmmode_remove_fb(ScrnInfoPtr pScrn)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86CrtcPtr crtc = NULL;
+	drmmode_crtc_private_ptr drmmode_crtc;
+	drmmode_ptr drmmode;
+
+	if (!NVPTR(pScrn)->kms_enable)
+		return;
+
+	if (config)
+		crtc = config->crtc[0];
+	if (!crtc)
+		return;
+
+	drmmode_crtc = crtc->driver_private;
+	drmmode = drmmode_crtc->drmmode;
+
+	if (drmmode->fb_id)
+		drmModeRmFB(drmmode->fd, drmmode->fb_id);
+	drmmode->fb_id = 0;
+}
+
 #endif

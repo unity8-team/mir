@@ -1331,6 +1331,10 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 				       pNv->PciInfo->regions[1].size);
 	}
 
+#ifdef XF86DRM_MODE
+	if (pNv->kms_enable)
+		drmmode_remove_fb(pScrn);
+#endif
 	nouveau_bo_ref(NULL, &pNv->scanout);
 	nouveau_bo_ref(NULL, &pNv->offscreen);
 	nouveau_bo_ref(NULL, &pNv->GART);
