@@ -1242,7 +1242,7 @@ CPU_copy:
 			exaMoveInPixmap(ppix);
 
 			/* check if it made it offscreen */
-			if (ppix == pScreen->GetScreenPixmap(pScreen) ||
+			if (ppix != pScreen->GetScreenPixmap(pScreen) &&
 			    exaGetPixmapOffset(ppix) >=
 			    pNv->EXADriverPtr->memorySize)
 				/* we lost, insufficient space probably */
