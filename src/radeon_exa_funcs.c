@@ -402,14 +402,22 @@ RADEONUploadToScreenCP(PixmapPtr pDst, int x, int y, int w, int h,
 
 /* Emit blit with arbitrary source and destination offsets and pitches */
 static void
-RADEONBlitChunk(ScrnInfoPtr pScrn, uint32_t datatype, uint32_t src_pitch_offset,
-		uint32_t dst_pitch_offset, int srcX, int srcY, int dstX, int dstY,
-		int w, int h)
+RADEONBlitChunk(ScrnInfoPtr pScrn, struct radeon_bo *src_bo,
+                struct radeon_bo *dst_bo, uint32_t datatype,
+                uint32_t src_pitch_offset, uint32_t dst_pitch_offset,
+                int srcX, int srcY, int dstX, int dstY, int w, int h,
+                uint32_t src_domain, uint32_t dst_domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     ACCEL_PREAMBLE();
 
-    BEGIN_ACCEL(6);
+    if (src_bo && dst_bo) {
+        BEGIN_ACCEL_RELOC(6, 2);
+    } else if (src_bo && dst_bo == NULL) {
+        BEGIN_ACCEL_RELOC(6, 1);
+    } else {
+        BEGIN_ACCEL(6);
+    }
     OUT_ACCEL_REG(RADEON_DP_GUI_MASTER_CNTL,
 		  RADEON_GMC_DST_PITCH_OFFSET_CNTL |
 		  RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
@@ -421,7 +429,13 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, uint32_t datatype, uint32_t src_pitch_offset,
 		  RADEON_GMC_CLR_CMP_CNTL_DIS |
 		  RADEON_GMC_WR_MSK_DIS);
     OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, src_pitch_offset);
+    if (src_bo) {
+	OUT_RELOC(src_bo, src_domain, 0);
+    }
     OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
+    if (dst_bo) {
+	OUT_RELOC(dst_bo, 0, dst_domain);
+    }
     OUT_ACCEL_REG(RADEON_SRC_Y_X, (srcY << 16) | srcX);
     OUT_ACCEL_REG(RADEON_DST_Y_X, (dstY << 16) | dstX);
     OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, (h << 16) | w);
@@ -433,6 +447,67 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, uint32_t datatype, uint32_t src_pitch_offset,
     FINISH_ACCEL();
 }
 
+static Bool
+RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
+                           int h, char *dst, int dst_pitch)
+{
+    RINFO_FROM_SCREEN(pSrc->drawable.pScreen);
+    struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *scratch;
+    unsigned size;
+    uint32_t datatype = 0;
+    uint32_t src_pitch_offset;
+    unsigned bpp = pSrc->drawable.bitsPerPixel;
+    uint32_t scratch_pitch = (w * bpp / 8 + 63) & ~63;
+    int r;
+
+    driver_priv = exaGetPixmapDriverPrivate(pSrc);
+    /* if we have more refs than just the BO then flush */
+    if (driver_priv->bo->cref)
+        radeon_cs_flush_indirect(pScrn);
+    radeon_bo_wait(driver_priv->bo);
+    size = scratch_pitch * h;
+    scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
+    if (scratch == NULL) {
+	return FALSE;
+    }
+    radeon_cs_space_reset_bos(info->cs);
+    radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, RADEON_GEM_DOMAIN_GTT);
+    r = radeon_cs_space_check(info->cs);
+    if (r) {
+        r = FALSE;
+        goto out;
+    }
+    RADEONGetDatatypeBpp(pSrc->drawable.bitsPerPixel, &datatype);
+    RADEONGetPixmapOffsetPitch(pSrc, &src_pitch_offset);
+    ACCEL_PREAMBLE();
+    RADEON_SWITCH_TO_2D();
+    RADEONBlitChunk(pScrn, driver_priv->bo, scratch, datatype, src_pitch_offset,
+                    scratch_pitch << 16, x, y, 0, 0, w, h,
+                    RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT,
+                    RADEON_GEM_DOMAIN_GTT);
+    FLUSH_RING();
+
+    radeon_bo_wait(scratch);
+    r = radeon_bo_map(scratch, 0);
+    if (r) {
+        r = FALSE;
+        goto out;
+    }
+    r = TRUE;
+    w *= bpp / 8;
+    size = 0;
+    while (h--) {
+        memcpy(dst, scratch->ptr + size, w);
+        size += scratch_pitch;
+        dst += dst_pitch;
+    }
+    radeon_bo_unmap(scratch);
+out:
+    radeon_bo_unref(scratch);
+    return r;
+}
 
 static Bool
 RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
@@ -466,8 +541,8 @@ RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
 	RADEON_SWITCH_TO_2D();
 
 	/* Kick the first blit as early as possible */
-	RADEONBlitChunk(pScrn, datatype, src_pitch_offset, scratch_pitch_offset,
-			x, y, 0, 0, w, hpass);
+	RADEONBlitChunk(pScrn, NULL, NULL, datatype, src_pitch_offset,
+                        scratch_pitch_offset, x, y, 0, 0, w, hpass, 0, 0);
 	FLUSH_RING();
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -493,8 +568,9 @@ RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
 	    /* Prepare next blit if anything's left */
 	    if (hpass) {
 		scratch_off = scratch->total/2 - scratch_off;
-		RADEONBlitChunk(pScrn, datatype, src_pitch_offset, scratch_pitch_offset + (scratch_off >> 10),
-				x, y, 0, 0, w, hpass);
+		RADEONBlitChunk(pScrn, NULL, NULL, datatype, src_pitch_offset,
+                                scratch_pitch_offset + (scratch_off >> 10),
+				x, y, 0, 0, w, hpass, 0, 0);
 	    }
 
 	    /*
@@ -571,6 +647,8 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 	info->accel_state->exa->UploadToScreen = RADEONUploadToScreenCP;
 	if (info->accelDFS)
 	    info->accel_state->exa->DownloadFromScreen = RADEONDownloadFromScreenCP;
+    } else {
+        info->accel_state->exa->DownloadFromScreen = &RADEONDownloadFromScreenCS;
     }
 #endif
 
