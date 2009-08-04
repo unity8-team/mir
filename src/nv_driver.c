@@ -395,11 +395,9 @@ NVEnterVT(int scrnIndex, int flags)
 		/* Clear the framebuffer, we don't want to see garbage
 		 * on-screen up until X decides to draw something
 		 */
-		nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_WR);
-		memset(pNv->offscreen->map, 0,
-		       NOUVEAU_ALIGN(pScrn->virtualX, 64) *
-		       pScrn->virtualY * (pScrn->bitsPerPixel >> 3));
-		nouveau_bo_unmap(pNv->offscreen);
+		nouveau_bo_map(pNv->scanout, NOUVEAU_BO_WR);
+		memset(pNv->scanout->map, 0, pNv->scanout->size);
+		nouveau_bo_unmap(pNv->scanout);
 
 		if (pNv->Architecture == NV_ARCH_50) {
 			if (!NV50AcquireDisplay(pScrn))
