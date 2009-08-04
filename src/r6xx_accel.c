@@ -128,6 +128,7 @@ sq_setup(ScrnInfoPtr pScrn, drmBufPtr ib, sq_config_t *sq_conf)
     if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
 	(info->ChipFamily == CHIP_FAMILY_RV620) ||
 	(info->ChipFamily == CHIP_FAMILY_RS780) ||
+	(info->ChipFamily == CHIP_FAMILY_RS880) ||
 	(info->ChipFamily == CHIP_FAMILY_RV710))
 	sq_config = 0;						// no VC
     else
@@ -662,6 +663,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     case CHIP_FAMILY_RV610:
     case CHIP_FAMILY_RV620:
     case CHIP_FAMILY_RS780:
+    case CHIP_FAMILY_RS880:
     default:
 	sq_conf.num_ps_gprs = 84;
 	sq_conf.num_vs_gprs = 36;

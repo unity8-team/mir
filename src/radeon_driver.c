@@ -2295,9 +2295,6 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	}
     }
 
-    if (info->ChipFamily == CHIP_FAMILY_RS880)
-	return FALSE;
-
     if (!xf86ReturnOptValBool(info->Options, OPTION_DRI, TRUE)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"Direct rendering forced off\n");
