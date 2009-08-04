@@ -511,10 +511,8 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 	if (!pNv->exa_driver_pixmaps)
 		NVDRICloseScreen(pScrn);
-#ifdef DRI2
 	else
 		nouveau_dri2_fini(pScreen);
-#endif
 
 	xf86_cursors_fini(pScreen);
 
@@ -1470,10 +1468,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!pNv->NoAccel) {
 		if (!pNv->exa_driver_pixmaps)
 			NVDRIScreenInit(pScrn);
-#ifdef DRI2
 		else
 			nouveau_dri2_init(pScreen);
-#endif
 	}
 
 	/* Allocate and map memory areas we need */
