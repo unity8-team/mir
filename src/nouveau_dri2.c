@@ -11,8 +11,15 @@
 
 #if defined(DRI2) && DRI2INFOREC_VERSION >= 3
 struct nouveau_dri2_buffer {
-	PixmapPtr pPixmap;
+	DRI2BufferRec base;
+	PixmapPtr ppix;
 };
+
+static inline struct nouveau_dri2_buffer *
+nouveau_dri2_buffer(DRI2BufferPtr buf)
+{
+	return (struct nouveau_dri2_buffer *)buf;
+}
 
 static PixmapPtr
 nouveau_dri2_create_pixmap(ScreenPtr pScreen, DrawablePtr pDraw, bool zeta)
@@ -60,19 +67,12 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 			   unsigned int format)
 {
 	ScreenPtr pScreen = pDraw->pScreen;
-	DRI2BufferPtr dri2_buf;
-	struct nouveau_dri2_buffer *nv_buf;
+	struct nouveau_dri2_buffer *nvbuf;
 	PixmapPtr ppix;
 
-	dri2_buf = xcalloc(1, sizeof(*dri2_buf));
-	if (!dri2_buf)
+	nvbuf = xcalloc(1, sizeof(*nvbuf));
+	if (!nvbuf)
 		return NULL;
-
-	nv_buf = xcalloc(1, sizeof(*nv_buf));
-	if (!nv_buf) {
-		xfree(dri2_buf);
-		return NULL;
-	}
 
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
@@ -95,35 +95,36 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 	}
 
 
-	dri2_buf->attachment = attachment;
-	dri2_buf->pitch = ppix->devKind;
-	dri2_buf->cpp = ppix->drawable.bitsPerPixel / 8;
-	dri2_buf->driverPrivate = nv_buf;
-	dri2_buf->format = format;
-	dri2_buf->flags = 0;
-	nv_buf->pPixmap = ppix;
+	nvbuf->base.attachment = attachment;
+	nvbuf->base.pitch = ppix->devKind;
+	nvbuf->base.cpp = ppix->drawable.bitsPerPixel / 8;
+	nvbuf->base.driverPrivate = nvbuf;
+	nvbuf->base.format = format;
+	nvbuf->base.flags = 0;
+	nvbuf->ppix = ppix;
 
-	nouveau_bo_handle_get(nouveau_pixmap(ppix)->bo, &dri2_buf->name);
-	return dri2_buf;
+	nouveau_bo_handle_get(nouveau_pixmap(ppix)->bo, &nvbuf->base.name);
+	return &nvbuf->base;
 }
 
 void
 nouveau_dri2_destroy_buffer(DrawablePtr pDraw, DRI2BufferPtr buf)
 {
-	if (buf) {
-		struct nouveau_dri2_buffer *nvbuf = buf->driverPrivate;
+	struct nouveau_dri2_buffer *nvbuf;
 
-		pDraw->pScreen->DestroyPixmap(nvbuf->pPixmap);
-		xfree(nvbuf);
-		xfree(buf);
-	}
+	nvbuf = nouveau_dri2_buffer(buf);
+	if (!nvbuf)
+		return;
+
+	pDraw->pScreen->DestroyPixmap(nvbuf->ppix);
+	xfree(nvbuf);
 }
 
 void
 nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 			 DRI2BufferPtr pDstBuffer, DRI2BufferPtr pSrcBuffer)
 {
-	struct nouveau_dri2_buffer *nvbuf = pSrcBuffer->driverPrivate;
+	struct nouveau_dri2_buffer *nvbuf = nouveau_dri2_buffer(pSrcBuffer);
 	ScreenPtr pScreen = pDraw->pScreen;
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -135,7 +136,7 @@ nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 	REGION_COPY(pScreen, pCopyClip, pRegion);
 	pGC->funcs->ChangeClip(pGC, CT_REGION, pCopyClip, 0);
 	ValidateGC(pDraw, pGC);
-	pGC->ops->CopyArea(&nvbuf->pPixmap->drawable, pDraw, pGC, 0, 0,
+	pGC->ops->CopyArea(&nvbuf->ppix->drawable, pDraw, pGC, 0, 0,
 			   pDraw->width, pDraw->height, 0, 0);
 	FreeScratchGC(pGC);
 
