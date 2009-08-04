@@ -447,6 +447,7 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, struct radeon_bo *src_bo,
     FINISH_ACCEL();
 }
 
+#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
 static Bool
 RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
                            int h, char *dst, int dst_pitch)
@@ -508,6 +509,7 @@ out:
     radeon_bo_unref(scratch);
     return r;
 }
+#endif
 
 static Bool
 RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
@@ -647,9 +649,12 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 	info->accel_state->exa->UploadToScreen = RADEONUploadToScreenCP;
 	if (info->accelDFS)
 	    info->accel_state->exa->DownloadFromScreen = RADEONDownloadFromScreenCP;
-    } else {
+    }
+# if defined(XF86DRM_MODE)
+    else {
         info->accel_state->exa->DownloadFromScreen = &RADEONDownloadFromScreenCS;
     }
+# endif
 #endif
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
