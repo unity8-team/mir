@@ -124,20 +124,29 @@ void
 nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 			 DRI2BufferPtr pDstBuffer, DRI2BufferPtr pSrcBuffer)
 {
-	struct nouveau_dri2_buffer *nvbuf = nouveau_dri2_buffer(pSrcBuffer);
+	struct nouveau_dri2_buffer *src = nouveau_dri2_buffer(pSrcBuffer);
+	struct nouveau_dri2_buffer *dst = nouveau_dri2_buffer(pDstBuffer);
+	PixmapPtr pspix = src->ppix, pdpix = dst->ppix;
 	ScreenPtr pScreen = pDraw->pScreen;
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	RegionPtr pCopyClip;
 	GCPtr pGC;
 
+	if (src->base.attachment == DRI2BufferFrontLeft)
+		pspix = (PixmapPtr)pDraw;
+	if (dst->base.attachment == DRI2BufferFrontLeft)
+		pdpix = (PixmapPtr)pDraw;
+
 	pGC = GetScratchGC(pDraw->depth, pScreen);
 	pCopyClip = REGION_CREATE(pScreen, NULL, 0);
 	REGION_COPY(pScreen, pCopyClip, pRegion);
 	pGC->funcs->ChangeClip(pGC, CT_REGION, pCopyClip, 0);
-	ValidateGC(pDraw, pGC);
-	pGC->ops->CopyArea(&nvbuf->ppix->drawable, pDraw, pGC, 0, 0,
+	ValidateGC(&pdpix->drawable, pGC);
+
+	pGC->ops->CopyArea(&pspix->drawable, &pdpix->drawable, pGC, 0, 0,
 			   pDraw->width, pDraw->height, 0, 0);
+
 	FreeScratchGC(pGC);
 
 	FIRE_RING(pNv->chan);
