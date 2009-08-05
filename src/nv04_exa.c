@@ -321,8 +321,8 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		return FALSE;
 
 	BEGIN_RING(chan, clip, NV01_CONTEXT_CLIP_RECTANGLE_POINT, 2);
-	OUT_RING  (chan, 0x0); 
-	OUT_RING  (chan, 0x7FFF7FFF);
+	OUT_RING  (chan, (y << 16) | x);
+	OUT_RING  (chan, (h << 16) | w);
 	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_OPERATION, 2);
 	OUT_RING  (chan, NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
 	OUT_RING  (chan, ifc_fmt);
