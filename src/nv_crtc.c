@@ -947,12 +947,10 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 	ScreenPtr pScreen = pScrn->pScreen;
 	NVPtr pNv = NVPTR(pScrn);
 	void *offset;
-
-	unsigned long rotate_pitch;
 	int size, align = 64;
 
-	rotate_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
-	size = rotate_pitch * height;
+	nv_crtc->shadow_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
+	size = nv_crtc->shadow_pitch * height;
 
 	assert(nv_crtc->shadow == NULL);
 	if (!pScreen) {
@@ -977,19 +975,17 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 static PixmapPtr
 nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	ScrnInfoPtr pScrn = crtc->scrn;
-	unsigned long rotate_pitch;
 	PixmapPtr rotate_pixmap;
 
 	if (!data)
 		data = crtc->funcs->shadow_allocate (crtc, width, height);
 
-	rotate_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
-
 	rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen, width, height,
 					       pScrn->depth,
 					       pScrn->bitsPerPixel,
-					       rotate_pitch, data);
+					       nv_crtc->shadow_pitch, data);
 	if (rotate_pixmap == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"Couldn't allocate shadow pixmap for rotated CRTC\n");
@@ -1087,11 +1083,14 @@ void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+	struct nouveau_crtc_state *regp = nv_crtc->state;
 	struct nouveau_bo *bo;
-	uint32_t start;
+	uint32_t start, pitch;
 
 	bo = pNv->scanout;
+	pitch = pScrn->displayWidth * (pScrn->bitsPerPixel / 8);
 	if (crtc->rotatedData != NULL) {
+		pitch = nv_crtc->shadow_pitch;
 		bo = pNv->offscreen;
 		x = 0;
 		y = 0;
@@ -1106,6 +1105,12 @@ void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 	start += (y * pScrn->displayWidth + x) * pScrn->bitsPerPixel / 8;
 	if (crtc->rotatedData != NULL)
 		start += nv_crtc->shadow->offset;
+
+	regp->CRTC[NV_CIO_CR_OFFSET_INDEX] = pitch >> 3;
+	regp->CRTC[NV_CIO_CRE_RPC0_INDEX] =
+		XLATE(pitch >> 3, 8, NV_CIO_CRE_RPC0_OFFSET_10_8);
+	crtc_wr_cio_state(crtc, NV_CIO_CRE_RPC0_INDEX);
+	crtc_wr_cio_state(crtc, NV_CIO_CR_OFFSET_INDEX);
 
 	start &= ~3;
 	nv_crtc->state->fb_start = start;

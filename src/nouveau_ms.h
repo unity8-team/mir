@@ -131,6 +131,7 @@ struct nouveau_crtc {
 
 	struct nouveau_bo *bo;
 	ExaOffscreenArea *shadow;
+	unsigned shadow_pitch;
 };
 
 struct nouveau_encoder {
