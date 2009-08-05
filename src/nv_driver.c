@@ -509,15 +509,19 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (pScrn->vtSema) {
-		NVLeaveVT(scrnIndex, 0);
-		pScrn->vtSema = FALSE;
-	}
-
 	if (!pNv->exa_driver_pixmaps)
 		NVDRICloseScreen(pScrn);
 	else
 		nouveau_dri2_fini(pScreen);
+
+	if (pScrn->vtSema) {
+		NVLeaveVT(scrnIndex, 0);
+		pScrn->vtSema = FALSE;
+	}
+	if (pScrn->vtSema) {
+		NVLeaveVT(scrnIndex, 0);
+		pScrn->vtSema = FALSE;
+	}
 
 	NVAccelFree(pScrn);
 	NVTakedownVideo(pScrn);
