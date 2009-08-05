@@ -314,8 +314,19 @@ nv50_crtc_set_origin(xf86CrtcPtr crtc, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
+	nouveauCrtcPtr nvcrtc = nv_crtc->crtc; /* sigh.. */
+	NVPtr pNv = NVPTR(pScrn);
+	uint32_t fb;
 
-	nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, x, y);
+	nvcrtc->SetFB(nvcrtc, pNv->scanout);
+	nvcrtc->SetFBOffset(nvcrtc, x, y);
+	nvcrtc->fb_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
+	fb = nvcrtc->front_buffer->offset - pNv->dev->vm_vram_base;
+
+	NV50CrtcCommand(nvcrtc, NV50_CRTC0_FB_OFFSET, fb >> 8);
+	NV50CrtcCommand(nvcrtc, NV50_CRTC0_FB_PITCH, nvcrtc->fb_pitch | (1<<20));
+	NV50CrtcCommand(nvcrtc, NV50_CRTC0_FB_SIZE, (pScrn->virtualY << 16) |
+						     pScrn->virtualX);
 
 	NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 }
