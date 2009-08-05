@@ -382,8 +382,13 @@ NVEnterVT(int scrnIndex, int flags)
 {
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
+	int ret;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
+
+	ret = drmSetMaster(nouveau_device(pNv->dev)->fd);
+	if (ret)
+		ErrorF("Unable to get master: %d\n", ret);
 
 	if (!pNv->NoAccel)
 		NVAccelCommonInit(pScrn);
@@ -429,10 +434,15 @@ NVLeaveVT(int scrnIndex, int flags)
 {
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
+	int ret;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
 	NVSync(pScrn);
+
+	ret = drmDropMaster(nouveau_device(pNv->dev)->fd);
+	if (ret)
+		ErrorF("Error dropping master: %d\n", ret);
 
 	if (!pNv->kms_enable) {
 		if (pNv->Architecture < NV_ARCH_50)
