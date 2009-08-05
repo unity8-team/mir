@@ -504,15 +504,15 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		pScrn->vtSema = FALSE;
 	}
 
-	NVAccelFree(pScrn);
-	NVTakedownVideo(pScrn);
-	NVTakedownDma(pScrn);
-	NVUnmapMem(pScrn);
-
 	if (!pNv->exa_driver_pixmaps)
 		NVDRICloseScreen(pScrn);
 	else
 		nouveau_dri2_fini(pScreen);
+
+	NVAccelFree(pScrn);
+	NVTakedownVideo(pScrn);
+	NVTakedownDma(pScrn);
+	NVUnmapMem(pScrn);
 
 	xf86_cursors_fini(pScreen);
 
