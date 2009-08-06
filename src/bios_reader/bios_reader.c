@@ -347,7 +347,7 @@ static void dump_lvds_data(void)
 	uint8_t *lfp_data_ptr = (uint8_t *)lvds_data->data + lfp_data_size * i;
 	uint8_t *timing_data = lfp_data_ptr + dvo_offset;
 	struct bdb_lvds_lfp_data_entry *lfp_data =
-			(struct bdb_lvds_flp_data_entry *)lfp_data_ptr;
+			(struct bdb_lvds_lfp_data_entry *)lfp_data_ptr;
 	char marker;
 
 	if (i == panel_type)
