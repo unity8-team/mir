@@ -84,8 +84,8 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
     if (ret)
       ErrorF("space check failed in flush\n");
 
-    if (info->reemit_current2d)
-      info->reemit_current2d(pScrn, 0);
+    if (info->reemit_current2d && info->state_2d.op)
+      info->reemit_current2d(pScrn, info->state_2d.op);
     if (info->dri2.enabled) {
       info->accel_state->XInited3D = FALSE;
       info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
@@ -169,7 +169,6 @@ static void RADEONBlockHandler_KMS(int i, pointer blockData,
     if (info->VideoTimerCallback)
 	(*info->VideoTimerCallback)(pScrn, currentTime.milliseconds);
 
-    info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
     radeon_cs_flush_indirect(pScrn);
 }
 

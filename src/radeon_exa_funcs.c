@@ -222,7 +222,6 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     if (info->cs && CS_FULL(info->cs)) {
 	FUNC_NAME(RADEONDone2D)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
-	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_SOLID);
     }
 #endif
 
@@ -333,7 +332,6 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
     if (info->cs && CS_FULL(info->cs)) {
 	FUNC_NAME(RADEONDone2D)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
-	FUNC_NAME(Emit2DState)(pScrn, RADEON_2D_EXA_COPY);
     }
 #endif
 
