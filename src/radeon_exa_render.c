@@ -968,7 +968,7 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 	info->accel_state->is_transform[1] = FALSE;
     }
 
-    BEGIN_ACCEL_RELOC(13, 2);
+    BEGIN_ACCEL_RELOC(12, 2);
 
     OUT_ACCEL_REG(RADEON_PP_CNTL, pp_cntl);
     OUT_ACCEL_REG(RADEON_RB3D_CNTL, dst_format | RADEON_ALPHA_BLEND_ENABLE);
@@ -1031,7 +1031,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
     OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
 
-    OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
     OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, (((pDst->drawable.width) << RADEON_RE_WIDTH_SHIFT) |
 					   ((pDst->drawable.height) << RADEON_RE_HEIGHT_SHIFT)));
 
