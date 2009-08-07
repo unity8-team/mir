@@ -1190,7 +1190,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	uint64_t res;
 	uint32_t tile_mode = 0, tile_flags = 0;
-	int ret, size;
+	int ret, size, align;
 
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE, &res);
 	pNv->VRAMSize=res;
@@ -1204,12 +1204,22 @@ NVMapMem(ScrnInfoPtr pScrn)
 		tile_mode = 4;
 		tile_flags = pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7a00;
 		size *= NOUVEAU_ALIGN(pScrn->virtualY, (1 << (tile_mode + 2)));
+		align = 4096;
+		/* 0x7a00 has a periodic structure of 24*4096 bytes, align to to that
+		 * as well as the page size. Overallocate memory to avoid corruption of
+		 * other pixmaps.
+		 */
+		if (tile_flags == 0x7a00) {
+			size += 6*4096;
+			align = 2*24*4096;
+		}
 	} else {
 		size *= pScrn->virtualY;
+		align = 256;
 	}
 
 	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
-				  0, size, tile_mode, tile_flags,
+				  align, size, tile_mode, tile_flags,
 				  &pNv->scanout);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
