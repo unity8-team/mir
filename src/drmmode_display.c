@@ -373,7 +373,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	NVPtr pNv = NVPTR(crtc->scrn);
 	uint32_t tile_mode = 0, tile_flags = 0;
-	int ah = height, ret, pitch, size, align;
+	int ah = height, ret, pitch;
 	void *virtual;
 
 	if (pNv->Architecture >= NV_ARCH_50) {
@@ -381,26 +381,14 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		tile_flags = (drmmode->cpp == 2) ? 0x7000 : 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		pitch = NOUVEAU_ALIGN(width * drmmode->cpp, 64);
-		size = pitch * ah;
-		align = 4096;
-		/* 0x7a00 has a periodic structure of 24*4096 bytes, align to to that
-		 * as well as the page size. Overallocate memory to avoid corruption of
-		 * other pixmaps.
-		 */
-		if (tile_flags == 0x7a00) {
-			size += 6*4096;
-			align = 2*24*4096;
-		}
 	} else {
 		pitch  = nv_pitch_align(pNv, width, crtc->scrn->depth);
 		pitch *= drmmode->cpp;
-		size = pitch * ah;
-		align = 256;
 	}
 	drmmode_crtc->rotate_pitch = pitch;
 
-	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, align,
-				  size, tile_mode,
+	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
+				  drmmode_crtc->rotate_pitch * ah, tile_mode,
 				  tile_flags, &drmmode_crtc->rotate_bo);
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
@@ -958,7 +946,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	struct nouveau_bo *old_bo = NULL;
 	uint32_t tile_mode = 0, tile_flags = 0, ah = height;
 	PixmapPtr ppix;
-	int ret, i, size, align;
+	int ret, i;
 
 	ErrorF("resize called %d %d\n", width, height);
 
@@ -970,21 +958,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		tile_flags = (scrn->bitsPerPixel == 16) ? 0x7000 : 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		pitch = NOUVEAU_ALIGN(width * (scrn->bitsPerPixel >> 3), 64);
-		size = pitch * ah;
-		align = 4096;
-		/* 0x7a00 has a periodic structure of 24*4096 bytes, align to to that
-		 * as well as the page size. Overallocate memory to avoid corruption of
-		 * other pixmaps.
-		 */
-		if (tile_flags == 0x7a00) {
-			size += 6*4096;
-			align = 2*24*4096;
-		}
 	} else {
 		pitch  = nv_pitch_align(pNv, width, scrn->depth);
 		pitch *= (scrn->bitsPerPixel >> 3);
-		size = pitch * ah;
-		align = 256;
 	}
 
 	old_width = scrn->virtualX;
@@ -999,7 +975,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	scrn->displayWidth = pitch / (scrn->bitsPerPixel >> 3);
 
 	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
-				  align, size, tile_mode, tile_flags,
+				  0, pitch * ah, tile_mode, tile_flags,
 				  &pNv->scanout);
 	if (ret)
 		goto fail;
