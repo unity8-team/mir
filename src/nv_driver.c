@@ -1002,7 +1002,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
 	if (!pNv->NoAccel &&
-	    xf86ReturnOptValBool(pNv->Options, OPTION_EXA_PIXMAPS, FALSE)) {
+	    xf86ReturnOptValBool(pNv->Options, OPTION_EXA_PIXMAPS, TRUE)) {
 		if (pNv->kms_enable) {
 			pNv->exa_driver_pixmaps = TRUE;
 		} else {
