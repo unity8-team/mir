@@ -447,7 +447,67 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, struct radeon_bo *src_bo,
     FINISH_ACCEL();
 }
 
-#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+#if defined(XF86DRM_MODE)
+static Bool
+RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
+		       char *src, int src_pitch)
+{
+    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
+    struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *scratch;
+    unsigned size;
+    uint32_t datatype = 0;
+    uint32_t dst_pitch_offset;
+    unsigned bpp = pDst->drawable.bitsPerPixel;
+    uint32_t scratch_pitch = (w * bpp / 8 + 63) & ~63;
+    Bool r;
+    int i;
+
+    if (bpp < 8)
+	return FALSE;
+
+    driver_priv = exaGetPixmapDriverPrivate(pDst);
+
+    size = scratch_pitch * h;
+    scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
+    if (scratch == NULL) {
+	return FALSE;
+    }
+    radeon_cs_space_reset_bos(info->cs);
+    radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+    radeon_cs_space_add_persistent_bo(info->cs, scratch, RADEON_GEM_DOMAIN_GTT, 0);
+    r = radeon_cs_space_check(info->cs);
+    if (r) {
+        r = FALSE;
+        goto out;
+    }
+
+    r = radeon_bo_map(scratch, 0);
+    if (r) {
+        r = FALSE;
+        goto out;
+    }
+    r = TRUE;
+    size = w * bpp / 8;
+    for (i = 0; i < h; i++) {
+        memcpy(scratch->ptr + i * scratch_pitch, src, size);
+        src += src_pitch;
+    }
+    radeon_bo_unmap(scratch);
+
+    RADEONGetDatatypeBpp(pDst->drawable.bitsPerPixel, &datatype);
+    RADEONGetPixmapOffsetPitch(pDst, &dst_pitch_offset);
+    ACCEL_PREAMBLE();
+    RADEON_SWITCH_TO_2D();
+    RADEONBlitChunk(pScrn, scratch, driver_priv->bo, datatype, scratch_pitch << 16,
+                    dst_pitch_offset, 0, 0, x, y, w, h,
+                    RADEON_GEM_DOMAIN_GTT, RADEON_GEM_DOMAIN_VRAM);
+
+out:
+    radeon_bo_unref(scratch);
+    return r;
+}
+
 static Bool
 RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
                            int h, char *dst, int dst_pitch)
@@ -460,7 +520,7 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     uint32_t src_pitch_offset;
     unsigned bpp = pSrc->drawable.bitsPerPixel;
     uint32_t scratch_pitch = (w * bpp / 8 + 63) & ~63;
-    int r;
+    Bool r;
 
     driver_priv = exaGetPixmapDriverPrivate(pSrc);
     /* if we have more refs than just the BO then flush */
@@ -652,6 +712,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     }
 # if defined(XF86DRM_MODE)
     else {
+	info->accel_state->exa->UploadToScreen = &RADEONUploadToScreenCS;
         info->accel_state->exa->DownloadFromScreen = &RADEONDownloadFromScreenCS;
     }
 # endif
