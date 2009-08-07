@@ -522,11 +522,11 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     uint32_t scratch_pitch = (w * bpp / 8 + 63) & ~63;
     Bool r;
 
+    if (bpp < 8)
+	return FALSE;
+
     driver_priv = exaGetPixmapDriverPrivate(pSrc);
-    /* if we have more refs than just the BO then flush */
-    if (driver_priv->bo->cref)
-        radeon_cs_flush_indirect(pScrn);
-    radeon_bo_wait(driver_priv->bo);
+
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
