@@ -573,7 +573,7 @@ nouveau_exa_init(ScreenPtr pScreen)
 
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
 	if (pNv->exa_driver_pixmaps) {
-		exa->flags |= EXA_HANDLES_PIXMAPS;
+		exa->flags |= (EXA_HANDLES_PIXMAPS | EXA_MIXED_PIXMAPS);
 		exa->pixmapOffsetAlign = 256;
 		exa->pixmapPitchAlign = 64;
 
