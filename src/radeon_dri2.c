@@ -98,6 +98,7 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
         if (attachments[i] == DRI2BufferDepth) {
             depth_pixmap = pixmap;
         }
+	exaMoveInPixmap(pixmap);
         driver_priv = exaGetPixmapDriverPrivate(pixmap);
 	r = radeon_gem_get_kernel_name(driver_priv->bo, &buffers[i].name);
 	if (r)
@@ -159,6 +160,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     if (attachment == DRI2BufferDepth) {
         depth_pixmap = pixmap;
     }
+    exaMoveInPixmap(pixmap);
     driver_priv = exaGetPixmapDriverPrivate(pixmap);
     r = radeon_gem_get_kernel_name(driver_priv->bo, &buffers->name);
     if (r)
