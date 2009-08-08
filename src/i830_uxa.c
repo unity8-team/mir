@@ -615,6 +615,13 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	if (tiling == I915_TILING_NONE) {
 	    size = stride * h;
 	} else {
+	    int aligned_h = h;
+	    if (tiling == I915_TILING_X)
+		aligned_h = ALIGN(h, 8);
+	    else
+		aligned_h = ALIGN(h, 16);
+	    assert(aligned_h >= h);
+
 	    stride = i830_get_fence_pitch(i830, stride, tiling);
 	    /* Round the object up to the size of the fence it will live in
 	     * if necessary.  We could potentially make the kernel allocate
@@ -622,8 +629,8 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	     * but this is easier and also keeps us out of trouble (as much)
 	     * with drm_intel_bufmgr_check_aperture().
 	     */
-	    size = i830_get_fence_size(i830, stride * h);
-	    assert(size >= stride * h);
+	    size = i830_get_fence_size(i830, stride * aligned_h);
+	    assert(size >= stride * aligned_h);
 	}
 
 	/* Fail very large allocations on 32-bit systems.  Large BOs will
