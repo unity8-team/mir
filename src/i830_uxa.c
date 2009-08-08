@@ -619,7 +619,7 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	    if (tiling == I915_TILING_X)
 		aligned_h = ALIGN(h, 8);
 	    else
-		aligned_h = ALIGN(h, 16);
+		aligned_h = ALIGN(h, 32);
 	    assert(aligned_h >= h);
 
 	    stride = i830_get_fence_pitch(i830, stride, tiling);
