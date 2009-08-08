@@ -145,8 +145,18 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 	}
 
 	if (!ppix || !bo) {
-		*pRead = nouveau_wfb_rd_linear;
-		*pWrite = nouveau_wfb_wr_linear;
+		int i;
+		for (i = 0; i < 6; i++)
+			if (wfb_pixmap[i].ppix && wfb_pixmap[i].pitch)
+				have_tiled = 1;
+
+		if (have_tiled) {
+			*pRead = nouveau_wfb_rd_tiled;
+			*pWrite = nouveau_wfb_wr_tiled;
+		} else {
+			*pRead = nouveau_wfb_rd_linear;
+			*pWrite = nouveau_wfb_wr_linear;
+		}
 		return;
 	}
 
