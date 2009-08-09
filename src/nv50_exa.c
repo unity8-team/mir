@@ -401,7 +401,7 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 					 NV50_2D_SIFC_DATA | 0x40000000, size);
 			OUT_RINGp (chan, p, size);
 
-			p += size * cpp;
+			p += size * 4;
 			count -= size;
 		}
 
