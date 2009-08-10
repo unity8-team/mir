@@ -1389,7 +1389,7 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
     if (!xf86LoaderCheckSymbol("drmAvailable"))        return FALSE;
     if (!xf86LoaderCheckSymbol("DRIQueryVersion")) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "[dri] RADEONDRIGetVersion failed (libdri.a too old)\n"
+		 "[dri] RADEONDRIGetVersion failed (libdri too old)\n"
 		 "[dri] Disabling DRI.\n");
       return FALSE;
     }
@@ -1413,7 +1413,7 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 	info->dri->pLibDRMVersion = drmGetLibVersion(info->dri->drmFD);
     if (info->dri->pLibDRMVersion == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "[dri] RADEONDRIGetVersion failed because libDRM is really "
+		   "[dri] RADEONDRIGetVersion failed because libdrm is really "
 		   "way to old to even get a version number out of it.\n"
 		   "[dri] Disabling DRI.\n");
 	return FALSE;
@@ -1424,7 +1424,7 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "[dri] RADEONDRIGetVersion failed because of a "
 		   "version mismatch.\n"
-		   "[dri] libdrm.a module version is %d.%d.%d but "
+		   "[dri] libdrm module version is %d.%d.%d but "
 		   "version 1.2.x is needed.\n"
 		   "[dri] Disabling DRI.\n",
 		   info->dri->pLibDRMVersion->version_major,
@@ -1488,7 +1488,7 @@ Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "[dri] RADEONDRIGetVersion failed because of a version "
 		   "mismatch.\n"
-		   "[dri] radeon.o kernel module version is %d.%d.%d "
+		   "[dri] radeon kernel module version is %d.%d.%d "
 		   "but version 1.%d.%d or newer is needed.\n"
 		   "[dri] Disabling DRI.\n",
 		   info->dri->pKernelDRMVersion->version_major,
