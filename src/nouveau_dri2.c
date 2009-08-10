@@ -54,6 +54,7 @@ nouveau_dri2_create_pixmap(ScreenPtr pScreen, DrawablePtr pDraw, bool zeta)
 		return NULL;
 	}
 
+	exaMoveInPixmap(ppix);
 	nouveau_bo_ref(bo, &nouveau_pixmap(ppix)->bo);
 	nouveau_bo_ref(NULL, &bo);
 
@@ -83,6 +84,7 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 			ppix = pScreen->GetWindowPixmap(pwin);
 		}
 
+		exaMoveInPixmap(ppix);
 		ppix->refcnt++;
 		break;
 	case DRI2BufferDepth:
