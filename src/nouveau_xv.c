@@ -1236,10 +1236,9 @@ CPU_copy:
 		ppix = NVGetDrawablePixmap(pDraw);
 
 		/* Ensure pixmap is in offscreen memory */
+		exaMoveInPixmap(ppix);
 		if (!pNv->exa_driver_pixmaps) {
 			ScreenPtr pScreen = pScrn->pScreen;
-
-			exaMoveInPixmap(ppix);
 
 			/* check if it made it offscreen */
 			if (ppix != pScreen->GetScreenPixmap(pScreen) &&
@@ -1249,7 +1248,9 @@ CPU_copy:
 				return BadAlloc;
 
 			ExaOffscreenMarkUsed(ppix);
-		}
+		} else
+		if (!exaGetPixmapDriverPrivate(ppix))
+			return BadAlloc;
 
 #ifdef COMPOSITE
 		/* Convert screen coords to pixmap coords */
