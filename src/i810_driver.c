@@ -174,8 +174,8 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
    {PCI_CHIP_I945_GME,		"945GME"},
-   {PCI_CHIP_IGD_GM,		"IGD_GM"},
-   {PCI_CHIP_IGD_G,		"IGD_G"},
+   {PCI_CHIP_IGD_GM,		"Pineview GM"},
+   {PCI_CHIP_IGD_G,		"Pineview G"},
    {PCI_CHIP_I965_G,		"965G"},
    {PCI_CHIP_G35_G,		"G35"},
    {PCI_CHIP_I965_Q,		"965Q"},
@@ -185,13 +185,13 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_G33_G,		"G33"},
    {PCI_CHIP_Q35_G,		"Q35"},
    {PCI_CHIP_Q33_G,		"Q33"},
-   {PCI_CHIP_GM45_GM,		"Mobile Intel® GM45 Express Chipset"},
-   {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
+   {PCI_CHIP_GM45_GM,		"GM45"},
+   {PCI_CHIP_IGD_E_G,		"4 Series"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {PCI_CHIP_G41_G,		"G41"},
-   {PCI_CHIP_IGDNG_D_G,		"IGDNG_D"},
-   {PCI_CHIP_IGDNG_M_G,		"IGDNG_M"},
+   {PCI_CHIP_IGDNG_D_G,		"Clarkdale"},
+   {PCI_CHIP_IGDNG_M_G,		"Arrandale"},
    {-1,				NULL}
 };
 

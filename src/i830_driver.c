@@ -100,8 +100,8 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
    {PCI_CHIP_I945_GME,		"945GME"},
-   {PCI_CHIP_IGD_GM,		"IGD"},
-   {PCI_CHIP_IGD_G,		"IGD"},
+   {PCI_CHIP_IGD_GM,		"Pineview GM"},
+   {PCI_CHIP_IGD_G,		"Pineview G"},
    {PCI_CHIP_I965_G,		"965G"},
    {PCI_CHIP_G35_G,		"G35"},
    {PCI_CHIP_I965_Q,		"965Q"},
@@ -111,13 +111,13 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_G33_G,		"G33"},
    {PCI_CHIP_Q35_G,		"Q35"},
    {PCI_CHIP_Q33_G,		"Q33"},
-   {PCI_CHIP_GM45_GM,		"Mobile Intel® GM45 Express Chipset"},
-   {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
+   {PCI_CHIP_GM45_GM,		"GM45"},
+   {PCI_CHIP_IGD_E_G,		"4 Series"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {PCI_CHIP_G41_G,		"G41"},
-   {PCI_CHIP_IGDNG_D_G,		"IGDNG_D"},
-   {PCI_CHIP_IGDNG_M_G,		"IGDNG_M"},
+   {PCI_CHIP_IGDNG_D_G,		"Clarkdale"},
+   {PCI_CHIP_IGDNG_M_G,		"Arrandale"},
    {-1,				NULL}
 };
 
@@ -1049,10 +1049,10 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	chipname = "945GME";
 	break;
     case PCI_CHIP_IGD_GM:
-	chipname = "IGD";
+	chipname = "Pineview GM";
 	break;
     case PCI_CHIP_IGD_G:
-	chipname = "IGD";
+	chipname = "Pineview G";
 	break;
     case PCI_CHIP_I965_G:
 	chipname = "965G";
@@ -1082,10 +1082,10 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	chipname = "Q33";
 	break;
     case PCI_CHIP_GM45_GM:
-	chipname = "Mobile Intel® GM45 Express Chipset";
+	chipname = "GM45";
 	break;
     case PCI_CHIP_IGD_E_G:
-	chipname = "Intel Integrated Graphics Device";
+	chipname = "4 Series";
 	break;
     case PCI_CHIP_G45_G:
 	chipname = "G45/G43";
@@ -1097,10 +1097,10 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	chipname = "G41";
 	break;
     case PCI_CHIP_IGDNG_D_G:
-	chipname = "IGDNG_D";
+	chipname = "Clarkdale";
 	break;
     case PCI_CHIP_IGDNG_M_G:
-	chipname = "IGDNG_M";
+	chipname = "Arrandale";
 	break;
    default:
 	chipname = "unknown chipset";
