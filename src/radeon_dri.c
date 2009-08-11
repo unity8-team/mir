@@ -777,6 +777,8 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
 
     /* SiS Host Bridge 655 / R420 [Radeon X800] Needs AGPMode 4 (lp #371296) */
     { 0x1039,0x0655,            PCI_VENDOR_ATI,0x4a4b,  PCI_VENDOR_ATI,0x4422,   4 },
+    /* SiS Host Bridge / RV280 Needs AGPMode 4 */
+    { 0x1039,0x0741,            PCI_VENDOR_ATI,0x5964,  0x148c,0x2073,           4 },
 
     /* ASRock K7VT4A+ AGP 8x / ATI Radeon 9250 AGP Needs AGPMode 4 (lp #133192) */
     { 0x1849,0x3189,            PCI_VENDOR_ATI,0x5960,  0x1787,0x5960,           4 },
