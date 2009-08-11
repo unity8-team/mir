@@ -66,12 +66,11 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
     CLEAR (vtx_res);
 
     if (accel_state->vb_index == 0) {
-	R600IBDiscard(pScrn, accel_state->ib);
-	return;
+        R600IBDiscard(pScrn, accel_state->ib);
+        r600_vb_discard(pScrn);
+        return;
     }
 
-    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
-	(accel_state->ib->idx * accel_state->ib->total) + (accel_state->ib->total / 2);
     accel_state->vb_size = accel_state->vb_index * 16;
 
     /* flush vertex cache */
@@ -235,6 +234,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 #endif
 
     accel_state->ib = RADEONCPGetBuffer(pScrn);
+    r600_vb_get(pScrn);
 
     /* Init */
     start_3d(pScrn, accel_state->ib);
@@ -552,22 +552,18 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	}
     }
 
-    accel_state->vb_index = 0;
-
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
 	float *vb;
 
-	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	    R600DoneTexturedVideo(pScrn);
-	    accel_state->vb_index = 0;
-	    accel_state->ib = RADEONCPGetBuffer(pScrn);
-	}
+        if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
+            R600DoneTexturedVideo(pScrn);
+            accel_state->ib = RADEONCPGetBuffer(pScrn);
+            r600_vb_get(pScrn);
+        }
 
-	vb = (pointer)((char*)accel_state->ib->address +
-		       (accel_state->ib->total / 2) +
-		       accel_state->vb_index * 16);
+        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);
 
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;

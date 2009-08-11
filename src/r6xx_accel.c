@@ -979,3 +979,23 @@ draw_auto(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf)
     E32(ib, draw_conf->num_indices);
     E32(ib, draw_conf->vgt_draw_initiator);
 }
+
+void
+r600_vb_get(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+
+    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
+                              (accel_state->ib->idx * accel_state->ib->total) +
+                              (accel_state->ib->total / 2);
+    accel_state->vb_total = (accel_state->ib->total / 2);
+    accel_state->vb_ptr = (pointer)((char*)accel_state->ib->address +
+                                           (accel_state->ib->total / 2));
+    accel_state->vb_index = 0;
+}
+
+void
+r600_vb_discard(ScrnInfoPtr pScrn)
+{
+}

@@ -279,4 +279,9 @@ draw_immd(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf, uint32_t *i
 void
 draw_auto(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf);
 
+void
+r600_vb_get(ScrnInfoPtr pScrn);
+void
+r600_vb_discard(ScrnInfoPtr pScrn);
+
 #endif

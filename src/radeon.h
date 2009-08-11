@@ -692,6 +692,10 @@ struct radeon_accel_state {
 
     drmBufPtr         ib;
     int               vb_index;
+    uint64_t          vb_mc_addr;
+    int               vb_total;
+    void              *vb_ptr;
+    uint32_t          vb_size;
 
     // shader storage
     ExaOffscreenArea  *shaders;
@@ -721,8 +725,6 @@ struct radeon_accel_state {
     uint64_t          vs_mc_addr;
     uint32_t          ps_size;
     uint64_t          ps_mc_addr;
-    uint32_t          vb_size;
-    uint64_t          vb_mc_addr;
 
     // UTS/DFS
     drmBufPtr         scratch;

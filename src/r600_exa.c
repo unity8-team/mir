@@ -126,6 +126,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 #endif
 
     accel_state->ib = RADEONCPGetBuffer(pScrn);
+    r600_vb_get(pScrn);
 
     /* Init */
     start_3d(pScrn, accel_state->ib);
@@ -253,8 +254,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     set_alu_consts(pScrn, accel_state->ib, SQ_ALU_CONSTANT_ps,
 		   sizeof(ps_alu_consts) / SQ_ALU_CONSTANT_offset, ps_alu_consts);
 
-    accel_state->vb_index = 0;
-
 #ifdef SHOW_VERTEXES
     ErrorF("PM: 0x%08x\n", pm);
 #endif
@@ -271,15 +270,13 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     struct radeon_accel_state *accel_state = info->accel_state;
     float *vb;
 
-    if (((accel_state->vb_index + 3) * 8) > (accel_state->ib->total / 2)) {
-	R600DoneSolid(pPix);
-	accel_state->vb_index = 0;
-	accel_state->ib = RADEONCPGetBuffer(pScrn);
+    if (((accel_state->vb_index + 3) * 8) > accel_state->vb_total) {
+        R600DoneSolid(pPix);
+        accel_state->ib = RADEONCPGetBuffer(pScrn);
+        r600_vb_get(pScrn);
     }
 
-    vb = (pointer)((char*)accel_state->ib->address +
-		   (accel_state->ib->total / 2) +
-		   accel_state->vb_index * 8);
+    vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*8);
 
     vb[0] = (float)x1;
     vb[1] = (float)y1;
@@ -307,12 +304,11 @@ R600DoneSolid(PixmapPtr pPix)
     CLEAR (vtx_res);
 
     if (accel_state->vb_index == 0) {
-	R600IBDiscard(pScrn, accel_state->ib);
-	return;
+        R600IBDiscard(pScrn, accel_state->ib);
+        r600_vb_discard(pScrn);
+        return;
     }
 
-    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
-	(accel_state->ib->idx * accel_state->ib->total) + (accel_state->ib->total / 2);
     accel_state->vb_size = accel_state->vb_index * 8;
 
     /* flush vertex cache */
@@ -374,6 +370,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     CLEAR (ps_conf);
 
     accel_state->ib = RADEONCPGetBuffer(pScrn);
+    r600_vb_get(pScrn);
 
     /* Init */
     start_3d(pScrn, accel_state->ib);
@@ -533,9 +530,6 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
 								(0x01 << DEFAULT_VAL_shift)	|
 								SEL_CENTROID_bit));
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
-
-    accel_state->vb_index = 0;
-
 }
 
 static void
@@ -550,12 +544,11 @@ R600DoCopy(ScrnInfoPtr pScrn)
     CLEAR (vtx_res);
 
     if (accel_state->vb_index == 0) {
-	R600IBDiscard(pScrn, accel_state->ib);
-	return;
+        R600IBDiscard(pScrn, accel_state->ib);
+        r600_vb_discard(pScrn);
+        return;
     }
 
-    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
-	(accel_state->ib->idx * accel_state->ib->total) + (accel_state->ib->total / 2);
     accel_state->vb_size = accel_state->vb_index * 16;
 
     /* flush vertex cache */
@@ -605,15 +598,13 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
     struct radeon_accel_state *accel_state = info->accel_state;
     float *vb;
 
-    if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	R600DoCopy(pScrn);
-	accel_state->vb_index = 0;
-	accel_state->ib = RADEONCPGetBuffer(pScrn);
+    if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
+        R600DoCopy(pScrn);
+        accel_state->ib = RADEONCPGetBuffer(pScrn);
+        r600_vb_get(pScrn);
     }
 
-    vb = (pointer)((char*)accel_state->ib->address +
-		   (accel_state->ib->total / 2) +
-		   accel_state->vb_index * 16);
+    vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);
 
     vb[0] = (float)dstX;
     vb[1] = (float)dstY;
@@ -1442,6 +1433,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     CLEAR (ps_conf);
 
     accel_state->ib = RADEONCPGetBuffer(pScrn);
+    r600_vb_get(pScrn);
 
     /* Init */
     start_3d(pScrn, accel_state->ib);
@@ -1457,17 +1449,19 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     set_window_scissor(pScrn, accel_state->ib, 0, 0, pDst->drawable.width, pDst->drawable.height);
 
     if (!R600TextureSetup(pSrcPicture, pSrc, 0)) {
-	R600IBDiscard(pScrn, accel_state->ib);
-	return FALSE;
+        R600IBDiscard(pScrn, accel_state->ib);
+        r600_vb_discard(pScrn);
+        return FALSE;
     }
 
     if (pMask) {
-	if (!R600TextureSetup(pMaskPicture, pMask, 1)) {
-	    R600IBDiscard(pScrn, accel_state->ib);
-	    return FALSE;
-	}
+        if (!R600TextureSetup(pMaskPicture, pMask, 1)) {
+            R600IBDiscard(pScrn, accel_state->ib);
+            r600_vb_discard(pScrn);
+            return FALSE;
+        }
     } else
-	accel_state->is_transform[1] = FALSE;
+        accel_state->is_transform[1] = FALSE;
 
     if (pMask) {
 	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_vs, (1 << 0));
@@ -1583,8 +1577,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 								SEL_CENTROID_bit));
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
 
-    accel_state->vb_index = 0;
-
     return TRUE;
 }
 
@@ -1615,15 +1607,13 @@ static void R600Composite(PixmapPtr pDst,
     if (accel_state->msk_pic) {
 	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
 
-	if (((accel_state->vb_index + 3) * 24) > (accel_state->ib->total / 2)) {
-	    R600DoneComposite(pDst);
-	    accel_state->vb_index = 0;
-	    accel_state->ib = RADEONCPGetBuffer(pScrn);
-	}
+        if (((accel_state->vb_index + 3) * 24) > accel_state->vb_total) {
+            R600DoneComposite(pDst);
+            accel_state->ib = RADEONCPGetBuffer(pScrn);
+            r600_vb_get(pScrn);
+        }
 
-	vb = (pointer)((char*)accel_state->ib->address +
-		       (accel_state->ib->total / 2) +
-		       accel_state->vb_index * 24);
+        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*24);
 
 	maskTopLeft.x     = IntToxFixed(maskX);
 	maskTopLeft.y     = IntToxFixed(maskY);
@@ -1656,15 +1646,13 @@ static void R600Composite(PixmapPtr pDst,
 	vb[17] = xFixedToFloat(maskBottomRight.y);
 
     } else {
-	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	    R600DoneComposite(pDst);
-	    accel_state->vb_index = 0;
-	    accel_state->ib = RADEONCPGetBuffer(pScrn);
-	}
+        if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
+            R600DoneComposite(pDst);
+            accel_state->ib = RADEONCPGetBuffer(pScrn);
+            r600_vb_get(pScrn);
+        }
 
-	vb = (pointer)((char*)accel_state->ib->address +
-		       (accel_state->ib->total / 2) +
-		       accel_state->vb_index * 16);
+        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
@@ -1698,13 +1686,10 @@ static void R600DoneComposite(PixmapPtr pDst)
     CLEAR (vtx_res);
 
     if (accel_state->vb_index == 0) {
-	R600IBDiscard(pScrn, accel_state->ib);
-	return;
+        R600IBDiscard(pScrn, accel_state->ib);
+        r600_vb_discard(pScrn);
+        return;
     }
-
-    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
-	(accel_state->ib->idx * accel_state->ib->total) + (accel_state->ib->total / 2);
-
 
     /* Vertex buffer setup */
     if (accel_state->msk_pic) {
@@ -1817,6 +1802,7 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
     }
 
     R600IBDiscard(pScrn, scratch);
+    r600_vb_discard(pScrn);
 
     return TRUE;
 }
@@ -1902,6 +1888,7 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     }
 
     R600IBDiscard(pScrn, scratch);
+    r600_vb_discard(pScrn);
 
     return TRUE;
 
