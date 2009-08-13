@@ -1783,7 +1783,7 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 	XF86VideoAdaptorPtr  overlayAdaptor = NULL;
 	NVPtr                pNv   = NVPTR(pScrn);
 
-	if (!NVChipsetHasOverlay(pNv))
+	if (pNv->kms_enable || !NVChipsetHasOverlay(pNv))
 		return NULL;
 
 	overlayAdaptor = NVSetupOverlayVideoAdapter(pScreen);
