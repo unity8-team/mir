@@ -1615,7 +1615,6 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 	pPriv->SyncToVBlank		= pNv->WaitVSyncPossible;
 
 	pNv->blitAdaptor		= adapt;
-	xvSyncToVBlank			= MAKE_ATOM("XV_SYNC_TO_VBLANK");
 
 	return adapt;
 }
@@ -1853,7 +1852,7 @@ NV30SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	for(i = 0; i < NUM_TEXTURE_PORTS; i++)
 		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
 
-	if(pNv->WaitVSyncPossible) {
+	if (pNv->WaitVSyncPossible) {
 		adapt->pAttributes = NVTexturedAttributes;
 		adapt->nAttributes = NUM_TEXTURED_ATTRIBUTES;
 	} else {
@@ -1875,12 +1874,12 @@ NV30SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	adapt->QueryImageAttributes	= NVQueryImageAttributes;
 
 	pPriv->videoStatus		= 0;
-	pPriv->grabbedByV4L	= FALSE;
+	pPriv->grabbedByV4L		= FALSE;
 	pPriv->blitter			= FALSE;
 	pPriv->texture			= TRUE;
 	pPriv->bicubic			= bicubic;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank	= pNv->WaitVSyncPossible;
+	pPriv->SyncToVBlank		= pNv->WaitVSyncPossible;
 
 	if (bicubic)
 		pNv->textureAdaptor[1]	= adapt;
@@ -1962,12 +1961,12 @@ NV40SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	adapt->QueryImageAttributes	= NVQueryImageAttributes;
 
 	pPriv->videoStatus		= 0;
-	pPriv->grabbedByV4L	= FALSE;
+	pPriv->grabbedByV4L		= FALSE;
 	pPriv->blitter			= FALSE;
 	pPriv->texture			= TRUE;
 	pPriv->bicubic			= bicubic;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank	= pNv->WaitVSyncPossible;
+	pPriv->SyncToVBlank		= pNv->WaitVSyncPossible;
 
 	if (bicubic)
 		pNv->textureAdaptor[1]	= adapt;
@@ -2014,8 +2013,8 @@ NV50SetupTexturedVideo (ScreenPtr pScreen)
 	for(i = 0; i < NUM_TEXTURE_PORTS; i++)
 		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
 
-	adapt->pAttributes		= NULL;
-	adapt->nAttributes		= 0;
+	adapt->pAttributes		= NVTexturedAttributes;
+	adapt->nAttributes		= NUM_TEXTURED_ATTRIBUTES;
 	adapt->pImages			= NV50TexturedImages;
 	adapt->nImages			= sizeof(NV50TexturedImages) /
 					  sizeof(NV50TexturedImages[0]);
@@ -2069,6 +2068,8 @@ NVInitVideo(ScreenPtr pScreen)
 	 * acceleration is disabled:
 	 */
 	if (pScrn->bitsPerPixel != 8 && !pNv->NoAccel) {
+		xvSyncToVBlank = MAKE_ATOM("XV_SYNC_TO_VBLANK");
+
 		if (pNv->Architecture < NV_ARCH_50) {
 			overlayAdaptor = NVSetupOverlayVideo(pScreen);
 			blitAdaptor    = NVSetupBlitVideo(pScreen);

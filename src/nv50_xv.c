@@ -36,6 +36,8 @@
 #include "nv50_accel.h"
 #include "nv50_texture.h"
 
+extern Atom xvSyncToVBlank, xvSetDefaults;
+
 static Bool
 nv50_xv_check_image_put(PixmapPtr ppix)
 {
@@ -318,13 +320,33 @@ int
 nv50_xv_port_attribute_set(ScrnInfoPtr pScrn, Atom attribute,
 			   INT32 value, pointer data)
 {
-	return BadMatch;
+	NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
+
+	if (attribute == xvSyncToVBlank) {
+		if (value < 0 || value > 1)
+			return BadValue;
+		pPriv->SyncToVBlank = value;
+	} else
+	if (attribute == xvSetDefaults) {
+		pPriv->SyncToVBlank = true;
+	} else
+		return BadMatch;
+
+	return Success;
 }
 
 int
 nv50_xv_port_attribute_get(ScrnInfoPtr pScrn, Atom attribute,
 			   INT32 *value, pointer data)
 {
-	return BadMatch;
+	NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
+
+	if (attribute == xvSyncToVBlank)
+		*value = (pPriv->SyncToVBlank) ? 1 : 0;
+	else
+		return BadMatch;
+
+	return Success;
 }
+
 
