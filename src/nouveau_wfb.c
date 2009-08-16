@@ -130,7 +130,7 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 	struct nouveau_bo *bo = NULL;
 	struct wfb_pixmap *wfb;
 	PixmapPtr ppix = NULL;
-	int wrap, have_tiled = 0;
+	int i, j, have_tiled = 0;
 
 	if (!pRead || !pWrite)
 		return;
@@ -145,7 +145,6 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 	}
 
 	if (!ppix || !bo) {
-		int i;
 		for (i = 0; i < 6; i++)
 			if (wfb_pixmap[i].ppix && wfb_pixmap[i].pitch)
 				have_tiled = 1;
@@ -160,13 +159,21 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		return;
 	}
 
-	wrap = 0;
-	while (wfb_pixmap[wrap].ppix) {
-		if (wfb_pixmap[wrap].pitch)
+	j = -1;
+	for (i = 0; i < 6; i++) {
+		if (!wfb_pixmap[i].ppix && j < 0)
+			j = i;
+
+		if (wfb_pixmap[i].ppix && wfb_pixmap[i].pitch)
 			have_tiled = 1;
-		wrap++;
 	}
-	wfb = &wfb_pixmap[wrap];
+
+	if (j == -1) {
+		ErrorF("We ran out of wfb indices, this is not good.\n");
+		goto out;
+	}
+
+	wfb = &wfb_pixmap[j];
 
 	wfb->ppix = ppix;
 	wfb->base = (unsigned long)ppix->devPrivate.ptr;
@@ -181,6 +188,7 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		have_tiled = 1;
 	}
 
+out:
 	if (have_tiled) {
 		*pRead = nouveau_wfb_rd_tiled;
 		*pWrite = nouveau_wfb_wr_tiled;
