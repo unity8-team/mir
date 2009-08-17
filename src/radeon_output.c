@@ -281,9 +281,6 @@ radeon_ddc_connected(xf86OutputPtr output)
     } else
 	MonType = MT_NONE;
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Output: %s, Detected Monitor Type: %d\n", output->name, MonType);
-
     return MonType;
 }
 
@@ -1013,6 +1010,8 @@ radeon_detect(xf86OutputPtr output)
     }
 
 
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Output: %s, Detected Monitor Type: %d\n", output->name, radeon_output->MonType);
     if (output->MonInfo) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on output: %s ----------------------\n",
 		   output->name);
