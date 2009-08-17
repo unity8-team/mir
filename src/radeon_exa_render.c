@@ -410,8 +410,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    if (repeat) {
-	switch (pPict->repeatType) {
+    switch (pPict->repeatType) {
 	case RepeatNormal:
 	    txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
 	    break;
@@ -422,9 +421,10 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	    txfilter |= RADEON_CLAMP_S_MIRROR | RADEON_CLAMP_T_MIRROR;
 	    break;
 	case RepeatNone:
-	    /* Nothing to do */
+	    /* don't set an illegal clamp mode for rects */
+	    if (txformat & RADEON_TXFORMAT_NON_POWER2)
+		txfilter |= RADEON_CLAMP_S_CLAMP_LAST | RADEON_CLAMP_T_CLAMP_LAST;
 	    break;
-	}
     }
 
     BEGIN_ACCEL_RELOC(5, 1);
@@ -793,8 +793,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    if (repeat) {
-	switch (pPict->repeatType) {
+    switch (pPict->repeatType) {
 	case RepeatNormal:
 	    txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
 	    break;
@@ -805,9 +804,10 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	    txfilter |= R200_CLAMP_S_MIRROR | R200_CLAMP_T_MIRROR;
 	    break;
 	case RepeatNone:
-	    /* Nothing to do */
+	    /* don't set an illegal clamp mode for rect textures */
+	    if (txformat & R200_TXFORMAT_NON_POWER2)
+		txfilter |= R200_CLAMP_S_CLAMP_LAST | R200_CLAMP_T_CLAMP_LAST;
 	    break;
-	}
     }
 
     BEGIN_ACCEL_RELOC(6, 1);
