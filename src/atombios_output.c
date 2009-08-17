@@ -65,6 +65,8 @@ const char *device_name[12] = {
     "DFP5",
 };
 
+static void atombios_set_output_crtc_source(xf86OutputPtr output);
+
 static int
 atombios_output_dac_setup(xf86OutputPtr output, int action)
 {
@@ -1280,6 +1282,9 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 		ErrorF("Output %s enable failed\n",
 		       device_name[radeon_get_device_index(radeon_output->active_device)]);
 	}
+	/* at least for TV atom fails to reassociate the correct crtc source at dpms on */
+	if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
+		atombios_set_output_crtc_source(output);
 	break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
