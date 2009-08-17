@@ -1609,7 +1609,7 @@ atombios_dac_detect(xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONMonitorType MonType = MT_NONE;
     AtomBiosResult ret;
-    uint32_t bios_0_scratch;
+    RADEONSavePtr save = info->ModeReg;
 
     if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
 	if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
@@ -1623,24 +1623,24 @@ atombios_dac_detect(xf86OutputPtr output)
     ret = atom_bios_dac_load_detect(info->atomBIOS, output);
     if (ret == ATOM_SUCCESS) {
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
-	    bios_0_scratch = INREG(R600_BIOS_0_SCRATCH);
+	    save->bios_0_scratch = INREG(R600_BIOS_0_SCRATCH);
 	else
-	    bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);
-	/*ErrorF("DAC connect %08X\n", (unsigned int)bios_0_scratch);*/
+	    save->bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);
+	/*ErrorF("DAC connect %08X\n", (unsigned int)save->bios_0_scratch);*/
 
 	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {
-	    if (bios_0_scratch & ATOM_S0_CRT1_MASK)
+	    if (save->bios_0_scratch & ATOM_S0_CRT1_MASK)
 		MonType = MT_CRT;
 	} else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT) {
-	    if (bios_0_scratch & ATOM_S0_CRT2_MASK)
+	    if (save->bios_0_scratch & ATOM_S0_CRT2_MASK)
 		MonType = MT_CRT;
 	} else if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT) {
-	    if (bios_0_scratch & (ATOM_S0_CV_MASK | ATOM_S0_CV_MASK_A))
+	    if (save->bios_0_scratch & (ATOM_S0_CV_MASK | ATOM_S0_CV_MASK_A))
 		MonType = MT_CV;
 	} else if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
-	    if (bios_0_scratch & (ATOM_S0_TV1_COMPOSITE | ATOM_S0_TV1_COMPOSITE_A))
+	    if (save->bios_0_scratch & (ATOM_S0_TV1_COMPOSITE | ATOM_S0_TV1_COMPOSITE_A))
 		MonType = MT_CTV;
-	    else if (bios_0_scratch & (ATOM_S0_TV1_SVIDEO | ATOM_S0_TV1_SVIDEO_A))
+	    else if (save->bios_0_scratch & (ATOM_S0_TV1_SVIDEO | ATOM_S0_TV1_SVIDEO_A))
 		MonType = MT_STV;
 	}
     }
