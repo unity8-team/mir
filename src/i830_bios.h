@@ -395,6 +395,44 @@ struct vch_bdb_22 {
     struct vch_panel_data   panels[16];
 } __attribute__((packed));
 
+#define BLC_INVERTER_TYPE_NONE 0
+#define BLC_INVERTER_TYPE_I2C 1
+#define BLC_INVERTER_TYPE_PWM 2
+
+#define BLC_GPIO_NONE 0
+#define BLC_GPIO_I2C 1
+#define BLC_GPIO_CRT_DDC 2
+#define BLC_GPIO_DVI_DDC 3
+#define BLC_GPIO_SDVO_I2C 5
+
+struct blc_struct {
+	uint8_t inverter_type:2;
+	uint8_t inverter_polarity:1; /* 1 means inverted (0 = max brightness) */
+	uint8_t gpio_pins:3;
+	uint8_t gmbus_speed:2;
+	uint16_t pwm_freq; /* in Hz */
+	uint8_t min_brightness; /* (0-255) */
+	uint8_t i2c_slave_addr;
+	uint8_t i2c_cmd;
+} __attribute__((packed));
+
+struct bdb_lvds_backlight {
+	uint8_t blcstruct_size;
+	struct blc_struct panels[16];
+} __attribute__((packed));
+
+struct bdb_lvds_power {
+	uint8_t dpst_enabled:1;
+	uint8_t pwr_prefs:3;
+	uint8_t rsvd1:3;
+	uint8_t als_enabled:1;
+	uint16_t als_backlight1;
+	uint16_t als_backlight2;
+	uint16_t als_backlight3;
+	uint16_t als_backlight4;
+	uint16_t als_backlight5;
+} __attribute__((packed));
+
 #define BDB_DRIVER_NO_LVDS	0
 #define BDB_DRIVER_INT_LVDS	1
 #define BDB_DRIVER_SDVO_LVDS	2
