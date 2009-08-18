@@ -571,8 +571,12 @@ drmmode_output_detect(xf86OutputPtr output)
 }
 
 static Bool
-drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
+drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
+	if (mode->type & M_T_DEFAULT)
+		/* Default modes are harmful here. */
+		return MODE_BAD;
+
 	return MODE_OK;
 }
 
@@ -922,13 +926,14 @@ const char *output_names[] = { "None",
 			       "DVI-D",
 			       "DVI-A",
 			       "Composite",
-			       "TV",
+			       "SVIDEO",
 			       "LVDS",
 			       "CTV",
 			       "DIN",
 			       "DP",
 			       "HDMI",
 			       "HDMI",
+			       "TV",
 };
 
 
