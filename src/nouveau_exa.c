@@ -339,12 +339,12 @@ nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 
 static void *
 nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
-			  int usage_hint, int bitsPerPixel)
+			  int usage_hint, int bitsPerPixel, int *new_pitch)
 {
 	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
 	struct nouveau_pixmap *nvpix = xcalloc(1, sizeof(*nvpix));
 	uint32_t flags = NOUVEAU_BO_MAP, tile_mode = 0, tile_flags = 0;
-	int ret, size, cpp = bitsPerPixel >> 3, pitch;
+	int ret, size, cpp = bitsPerPixel >> 3;
 
 	if (!nvpix)
 		return NULL;
@@ -364,15 +364,15 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			tile_flags = 0x7000;
 
 			height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
-			width  = NOUVEAU_ALIGN(width, 64);
 		}
 
-		pitch = width * cpp;
+		*new_pitch = width * cpp;
 	} else {
-		pitch = (width * bitsPerPixel + 7) / 8;
+		*new_pitch = (width * bitsPerPixel + 7) / 8;
 	}
 
-	size  = NOUVEAU_ALIGN(pitch, 64) * height;
+	*new_pitch = NOUVEAU_ALIGN(*new_pitch, 64);
+	size  = *new_pitch * height;
 
 	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, size, tile_mode,
 				  tile_flags, &nvpix->bo);
