@@ -807,7 +807,7 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
 	float consumption_time, consumption_rate;
 	int num_line_pair, request_fifo_depth, lb_request_fifo_depth;
 	int max_req;
-	uint32_t lb_max_req_outstanding;
+	uint32_t lb_max_req_outstanding, priority_cnt;
 	float line_time, active_time, chunk_time;
 	float worst_case_latency, tolerable_latency;
 	float fill_rate;
@@ -1131,16 +1131,21 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
 	else if (priority_mark > priority_mark_max)
 	    priority_mark = priority_mark_max;
 
+	priority_cnt = priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK;
+
+	if (info->DispPriority == 2)
+	    priority_cnt |= AVIVO_DxMODE_PRIORITY_ALWAYS_ON;
+
 	/*ErrorF("priority_mark %d: 0x%x\n", i, priority_mark);*/
 
 	/* Determine which display to program priority mark for */
 	/* FIXME: program DxMODE_PRIORITY_B_CNT for slower sclk */
 	if (i == 0) {
-	    OUTREG(AVIVO_D1MODE_PRIORITY_A_CNT, (priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK));
-	    OUTREG(AVIVO_D1MODE_PRIORITY_B_CNT, (priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK));
+	    OUTREG(AVIVO_D1MODE_PRIORITY_A_CNT, priority_cnt);
+	    OUTREG(AVIVO_D1MODE_PRIORITY_B_CNT, priority_cnt);
 	} else {
-	    OUTREG(AVIVO_D2MODE_PRIORITY_A_CNT, (priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK));
-	    OUTREG(AVIVO_D2MODE_PRIORITY_B_CNT, (priority_mark & AVIVO_DxMODE_PRIORITY_MARK_MASK));
+	    OUTREG(AVIVO_D2MODE_PRIORITY_A_CNT, priority_cnt);
+	    OUTREG(AVIVO_D2MODE_PRIORITY_B_CNT, priority_cnt);
 	}
     }
 
