@@ -29,6 +29,10 @@
 #include "config.h"
 #endif
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <errno.h>
 
 #include "xorgVersion.h"
@@ -74,10 +78,155 @@ typedef struct {
     drmmode_prop_ptr props;
     void *private_data;
     int dpms_mode;
+    char *backlight_iface;
+    int backlight_active_level;
+    int backlight_max;
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 static void
 drmmode_output_dpms(xf86OutputPtr output, int mode);
+
+#define BACKLIGHT_CLASS "/sys/class/backlight"
+
+/*
+ * List of available kernel interfaces in priority order
+ */
+static char *backlight_interfaces[] = {
+    "asus-laptop",
+    "eeepc",
+    "thinkpad_screen",
+    "acpi_video1",
+    "acpi_video0",
+    "fujitsu-laptop",
+    "sony",
+    NULL,
+};
+/*
+ * Must be long enough for BACKLIGHT_CLASS + '/' + longest in above table +
+ * '/' + "max_backlight"
+ */
+#define BACKLIGHT_PATH_LEN 80
+/* Enough for 10 digits of backlight + '\n' + '\0' */
+#define BACKLIGHT_VALUE_LEN 12
+
+static void
+drmmode_backlight_set(xf86OutputPtr output, int level)
+{
+    drmmode_output_private_ptr drmmode_output = output->driver_private;
+    char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+    int fd, len, ret;
+
+    if (level > drmmode_output->backlight_max)
+	level = drmmode_output->backlight_max;
+    if (! drmmode_output->backlight_iface || level < 0)
+	return;
+
+    len = snprintf(val, BACKLIGHT_VALUE_LEN, "%d\n", level);
+    sprintf(path, "%s/%s/brightness",
+	    BACKLIGHT_CLASS, drmmode_output->backlight_iface);
+    fd = open(path, O_RDWR);
+    if (fd == -1) {
+	xf86DrvMsg(output->scrn->scrnIndex, X_ERROR, "failed to open %s for backlight "
+		   "control: %s\n", path, strerror(errno));
+	return;
+    }
+
+    ret = write(fd, val, len);
+    if (ret == -1) {
+	xf86DrvMsg(output->scrn->scrnIndex, X_ERROR, "write to %s for backlight "
+		   "control failed: %s\n", path, strerror(errno));
+    }
+
+    close(fd);
+}
+
+static int
+drmmode_backlight_get(xf86OutputPtr output)
+{
+    drmmode_output_private_ptr drmmode_output = output->driver_private;
+    char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+    int fd, level;
+
+    if (! drmmode_output->backlight_iface)
+	return -1;
+
+    sprintf(path, "%s/%s/actual_brightness",
+	    BACKLIGHT_CLASS, drmmode_output->backlight_iface);
+    fd = open(path, O_RDONLY);
+    if (fd == -1) {
+	xf86DrvMsg(output->scrn->scrnIndex, X_ERROR, "failed to open %s "
+		   "for backlight control: %s\n", path, strerror(errno));
+	return -1;
+    }
+
+    memset(val, 0, sizeof(val));
+    if (read(fd, val, BACKLIGHT_VALUE_LEN) == -1) {
+	close(fd);
+	return -1;
+    }
+
+    close(fd);
+
+    level = atoi(val);
+    if (level > drmmode_output->backlight_max)
+	level = drmmode_output->backlight_max;
+    if (level < 0)
+	level = -1;
+    return level;
+}
+
+static int
+drmmode_backlight_get_max(xf86OutputPtr output)
+{
+    drmmode_output_private_ptr drmmode_output = output->driver_private;
+    char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+    int fd, max = 0;
+
+    sprintf(path, "%s/%s/max_brightness",
+	    BACKLIGHT_CLASS, drmmode_output->backlight_iface);
+    fd = open(path, O_RDONLY);
+    if (fd == -1) {
+	xf86DrvMsg(output->scrn->scrnIndex, X_ERROR, "failed to open %s "
+		   "for backlight control: %s\n", path, strerror(errno));
+	return 0;
+    }
+
+    memset(val, 0, sizeof(val));
+    if (read(fd, val, BACKLIGHT_VALUE_LEN) == -1) {
+	close(fd);
+	return -1;
+    }
+
+    close(fd);
+
+    max = atoi(val);
+    if (max <= 0)
+	max  = -1;
+    return max;
+}
+
+static void
+drmmode_backlight_init(xf86OutputPtr output)
+{
+    drmmode_output_private_ptr drmmode_output = output->driver_private;
+    char path[BACKLIGHT_PATH_LEN];
+    struct stat buf;
+    int i;
+
+    for (i = 0; backlight_interfaces[i] != NULL; i++) {
+	sprintf(path, "%s/%s", BACKLIGHT_CLASS, backlight_interfaces[i]);
+	if (!stat(path, &buf)) {
+	    drmmode_output->backlight_iface = backlight_interfaces[i];
+	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
+		       "found backlight control interface %s\n", path);
+	    drmmode_output->backlight_max = drmmode_backlight_get_max(output);
+	    drmmode_output->backlight_active_level = drmmode_backlight_get(output);
+	    return;
+	}
+    }
+    drmmode_output->backlight_iface = NULL;
+}
+
 
 static void
 drmmode_ConvertFromKMode(ScrnInfoPtr scrn,
@@ -708,8 +857,29 @@ drmmode_output_destroy(xf86OutputPtr output)
 		xfree(drmmode_output->private_data);
 		drmmode_output->private_data = NULL;
 	}
+	if (drmmode_output->backlight_iface)
+		drmmode_backlight_set(output, drmmode_output->backlight_active_level);
 	xfree(drmmode_output);
 	output->driver_private = NULL;
+}
+
+static void
+drmmode_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+
+	if (!drmmode_output->backlight_iface)
+		return;
+
+	if (mode == DPMSModeOn) {
+		/* If we're going from off->on we may need to turn on the backlight. */
+		drmmode_backlight_set(output, drmmode_output->backlight_active_level);
+	} else {
+		/* Only save the current backlight value if we're going from on to off. */
+		if (oldmode == DPMSModeOn)
+			drmmode_output->backlight_active_level = drmmode_backlight_get(output);
+		drmmode_backlight_set(output, 0);
+	}
 }
 
 static void
@@ -731,6 +901,9 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
                                 drmmode_output->output_id,
                                 props->prop_id,
                                 mode);
+			drmmode_output_dpms_backlight(output,
+				drmmode_output->dpms_mode,
+				mode);
 			drmmode_output->dpms_mode = mode;
                         drmModeFreeProperty(props);
                         return;
@@ -762,6 +935,9 @@ drmmode_property_ignore(drmModePropertyPtr prop)
 
     return FALSE;
 }
+
+#define BACKLIGHT_NAME  "BACKLIGHT"
+static Atom backlight_atom;
 
 static void
 drmmode_output_create_resources(xf86OutputPtr output)
@@ -847,6 +1023,35 @@ drmmode_output_create_resources(xf86OutputPtr output)
 	    }
 	}
     }
+
+    if (drmmode_output->backlight_iface) {
+	INT32 data, backlight_range[2];
+	/* Set up the backlight property, which takes effect immediately
+	 * and accepts values only within the backlight_range.
+	 *
+	 * FIXME: there is no get_property yet.
+	 */
+	backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1,
+	    TRUE);
+
+	backlight_range[0] = 0;
+	backlight_range[1] = drmmode_output->backlight_max;
+	err = RRConfigureOutputProperty(output->randr_output, backlight_atom,
+	                                FALSE, TRUE, FALSE, 2, backlight_range);
+	if (err != 0) {
+	    xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+	               "RRConfigureOutputProperty error, %d\n", err);
+	}
+	/* Set the current value of the backlight property */
+	data = drmmode_output->backlight_active_level;
+	err = RRChangeOutputProperty(output->randr_output, backlight_atom,
+	                             XA_INTEGER, 32, PropModeReplace, 1, &data,
+	                             FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+	               "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
 }
 
 static Bool
@@ -856,6 +1061,26 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
     drmmode_output_private_ptr drmmode_output = output->driver_private;
     drmmode_ptr drmmode = drmmode_output->drmmode;
     int i;
+
+    if (property == backlight_atom) {
+	INT32 val;
+
+	if (value->type != XA_INTEGER || value->format != 32 ||
+	    value->size != 1)
+	{
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < 0 || val > drmmode_output->backlight_max)
+	    return FALSE;
+
+	if (val != drmmode_output->backlight_active_level) {
+	    drmmode_backlight_set(output, val);
+	    drmmode_output->backlight_active_level = val;
+	}
+	return TRUE;
+    }
 
     for (i = 0; i < drmmode_output->num_props; i++) {
 	drmmode_prop_ptr p = &drmmode_output->props[i];
@@ -1002,6 +1227,9 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = drmmode_output;
+
+	if (koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS)
+		drmmode_backlight_init(output);
 
 	output->possible_crtcs = kencoder->possible_crtcs;
 	output->possible_clones = kencoder->possible_clones;
