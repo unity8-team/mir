@@ -767,9 +767,37 @@ RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
     OUTREG(AVIVO_DC_LB_MEMORY_SPLIT, dc_lb_memory_split);
 #endif
 
-    // fixme
-    if (info->ChipFamily == CHIP_FAMILY_RS600)
+    /* fixme
+     * Still need to implement the actual watermark calculation
+     * for rs600.  This just allows us to force high display
+     * priority.
+     */
+    if (info->ChipFamily == CHIP_FAMILY_RS600) {
+	if (info->DispPriority == 2) {
+	    uint32_t priority_cnt;
+
+	    if (mode1) {
+		priority_cnt = INREG(AVIVO_D1MODE_PRIORITY_A_CNT);
+		priority_cnt |= AVIVO_DxMODE_PRIORITY_ALWAYS_ON;
+		OUTREG(AVIVO_D1MODE_PRIORITY_A_CNT, priority_cnt);
+
+		priority_cnt = INREG(AVIVO_D1MODE_PRIORITY_B_CNT);
+		priority_cnt |= AVIVO_DxMODE_PRIORITY_ALWAYS_ON;
+		OUTREG(AVIVO_D1MODE_PRIORITY_B_CNT, priority_cnt);
+	    }
+
+	    if (mode2) {
+		priority_cnt = INREG(AVIVO_D2MODE_PRIORITY_A_CNT);
+		priority_cnt |= AVIVO_DxMODE_PRIORITY_ALWAYS_ON;
+		OUTREG(AVIVO_D2MODE_PRIORITY_A_CNT, priority_cnt);
+
+		priority_cnt = INREG(AVIVO_D2MODE_PRIORITY_B_CNT);
+		priority_cnt |= AVIVO_DxMODE_PRIORITY_ALWAYS_ON;
+		OUTREG(AVIVO_D2MODE_PRIORITY_B_CNT, priority_cnt);
+	    }
+	}
 	return;
+    }
 
     /* IGP bandwidth - get from integrated systems table
      * SYSTEM_MEMORY_BANDWIDTH (Mbyte/s) = SYSTEM_MEMORY_CLOCK (MHz) * (1+DDR) * 8 * EFF * Num of channels
