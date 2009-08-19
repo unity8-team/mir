@@ -613,14 +613,17 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 			  pitch_align);
 
 	if (tiling == I915_TILING_NONE) {
-	    size = stride * h;
+	    /* Round the height up so that the GPU's access to a 2x2 aligned
+	     * subspan doesn't address an invalid page offset beyond the
+	     * end of the GTT.
+	     */
+	    size = stride * ALIGN(h, 2);
 	} else {
 	    int aligned_h = h;
 	    if (tiling == I915_TILING_X)
 		aligned_h = ALIGN(h, 8);
 	    else
 		aligned_h = ALIGN(h, 32);
-	    assert(aligned_h >= h);
 
 	    stride = i830_get_fence_pitch(i830, stride, tiling);
 	    /* Round the object up to the size of the fence it will live in
