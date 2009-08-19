@@ -320,6 +320,13 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		drmmode_output_dpms(output, DPMSModeOn);
 	}
 
+	/* Only upload when needed, to avoid unneeded delays. */
+	if (!crtc->active)
+		crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
+					crtc->gamma_blue, crtc->gamma_size);
+
+	crtc->active = TRUE;
+
 done:
 	if (!ret) {
 		crtc->x = saved_x;
