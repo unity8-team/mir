@@ -786,6 +786,9 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
         info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
 	info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;
 	info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
+#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5)
+        info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
+#endif
     }
 #endif
 #endif

@@ -64,6 +64,7 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
     PixmapPtr pixmap, depth_pixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
     int i, r;
+    int flags = 0;
 
     buffers = xcalloc(count, sizeof *buffers);
     if (buffers == NULL) {
@@ -88,11 +89,22 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
             pixmap = depth_pixmap;
             pixmap->refcnt++;
         } else {
-            pixmap = (*pScreen->CreatePixmap)(pScreen,
+	    /* tile the back buffer */
+	    switch(attachments[i]) {
+	    case DRI2BufferBackLeft:
+	    case DRI2BufferBackRight:
+	    case DRI2BufferFakeFrontLeft:
+	    case DRI2BufferFakeFrontRight:
+		flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+		break;
+	    default:
+		flags = 0;
+	    }
+	    pixmap = (*pScreen->CreatePixmap)(pScreen,
                                               drawable->width,
                                               drawable->height,
                                               drawable->depth,
-                                              0);
+                                              flags);
         }
 
         if (attachments[i] == DRI2BufferDepth) {
@@ -126,6 +138,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     PixmapPtr pixmap, depth_pixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
     int r;
+    int flags;
 
     buffers = xcalloc(1, sizeof *buffers);
     if (buffers == NULL) {
@@ -150,11 +163,26 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
         pixmap = depth_pixmap;
         pixmap->refcnt++;
     } else {
+	/* tile the back buffer */
+	switch(attachment) {
+	case DRI2BufferDepth:
+	case DRI2BufferDepthStencil:
+	    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+	    break;
+	case DRI2BufferBackLeft:
+	case DRI2BufferBackRight:
+	case DRI2BufferFakeFrontLeft:
+	case DRI2BufferFakeFrontRight:
+	    flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+	    break;
+	default:
+	    flags = 0;
+	}
         pixmap = (*pScreen->CreatePixmap)(pScreen,
                 drawable->width,
                 drawable->height,
                 (format != 0)?format:drawable->depth,
-                0);
+                flags);
     }
 
     if (attachment == DRI2BufferDepth) {

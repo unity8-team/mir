@@ -1620,4 +1620,9 @@ static __inline__ int radeon_timedout(const struct timeval *endtime)
         now.tv_usec > endtime->tv_usec : now.tv_sec > endtime->tv_sec;
 }
 
+enum {
+    RADEON_CREATE_PIXMAP_TILING_MACRO = 0x10000000,
+    RADEON_CREATE_PIXMAP_TILING_MICRO = 0x20000000,
+};
+
 #endif /* _RADEON_H_ */

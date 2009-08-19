@@ -403,6 +403,60 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
 
 }
 
+void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
+			     int depth, int usage_hint, int bitsPerPixel,
+			     int *new_pitch)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_exa_pixmap_priv *new_priv;
+    int padded_width;
+    uint32_t size;
+    uint32_t tiling = 0;
+    int pixmap_align = 0;
+    
+    if (usage_hint) {
+	if (info->allowColorTiling) {
+    	    if (usage_hint & RADEON_CREATE_PIXMAP_TILING_MACRO)
+ 	   	tiling |= RADEON_TILING_MACRO;
+    	    if (usage_hint & RADEON_CREATE_PIXMAP_TILING_MICRO)
+                tiling |= RADEON_TILING_MICRO;
+	}
+    }
+
+    if (tiling) {
+	height = (height + 15) & ~15;
+	pixmap_align = 255;
+    } else
+	pixmap_align = 63;
+
+    padded_width = ((width * bitsPerPixel + FB_MASK) >> FB_SHIFT) * sizeof(FbBits);
+    padded_width = (padded_width + pixmap_align) & ~pixmap_align;
+    size = height * padded_width;
+
+    new_priv = xcalloc(1, sizeof(struct radeon_exa_pixmap_priv));
+    if (!new_priv)
+	return NULL;
+
+    if (size == 0)
+	return new_priv;
+
+    *new_pitch = padded_width;
+
+    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size,
+				  0, 0, 0);
+    if (!new_priv->bo) {
+	xfree(new_priv);
+	ErrorF("Failed to alloc memory\n");
+	return NULL;
+    }
+
+    if (tiling)
+	radeon_bo_set_tiling(new_priv->bo, tiling, *new_pitch);
+
+    return new_priv;
+}
+
 static void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 {
     struct radeon_exa_pixmap_priv *driver_priv = driverPriv;

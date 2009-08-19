@@ -386,6 +386,11 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (info->IsSecondary)
 	zaphod_mask = 0x2;
 
+    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+                                        OPTION_COLOR_TILING, FALSE);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
+
     bus_id = DRICreatePCIBusID(info->PciInfo);
     if (drmmode_pre_init(pScrn, &info->drmmode, bus_id, "radeon", pScrn->bitsPerPixel / 8, zaphod_mask) == FALSE) {
 	xfree(bus_id);
@@ -860,6 +865,9 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	}
     }
 
+    if (info->allowColorTiling) {
+	radeon_bo_set_tiling(info->front_bo, RADEON_TILING_MACRO, stride);
+    }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Front buffer size: %dK\n", info->front_bo->size/1024);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Remaining VRAM size (used for pixmaps): %dK\n", remain_size_bytes/1024);
 
