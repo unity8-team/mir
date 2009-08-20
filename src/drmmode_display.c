@@ -366,8 +366,11 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 
 	fb_id = drmmode->fb_id;
-	if (drmmode_crtc->rotate_fb_id)
+	if (drmmode_crtc->rotate_fb_id) {
 		fb_id = drmmode_crtc->rotate_fb_id;
+		x = 0;
+		y = 0;
+	}
 	ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			     fb_id, x, y, output_ids, output_count, &kmode);
 	if (ret)
