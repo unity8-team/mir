@@ -30,44 +30,48 @@
 			((c & 0xf8) >> 3 ))		/* Blue     */
 #define TO_ARGB8888(c) (0xff000000 | c)
 
-/* nv04 cursor max dimensions of 32x32 (A1R5G5B5) */
-#define NV04_CURSOR_SIZE 32
-#define NV04_CURSOR_PIXELS (NV04_CURSOR_SIZE * NV04_CURSOR_SIZE)
-
-/* limit nv10 cursors to 64x64 (ARGB8) (we could go to 64x255) */
-#define NV10_CURSOR_SIZE 64
-#define NV10_CURSOR_PIXELS (NV10_CURSOR_SIZE * NV10_CURSOR_SIZE)
-
 #define SOURCE_MASK_INTERLEAVE 32
 #define TRANSPARENT_PIXEL   0
 
-static void
-nv_cursor_convert_cursor(int px, uint32_t *src, uint16_t *dst, int bpp, uint32_t fg, uint32_t bg)
+/*
+ * Convert a source/mask bitmap cursor to an ARGB cursor, clipping or
+ * padding as necessary. source/mask are assumed to be alternated each
+ * SOURCE_MASK_INTERLEAVE bits.
+ */
+void
+nv_cursor_convert_cursor(uint32_t *src, void *dst, int src_stride, int dst_stride,
+			 int bpp, uint32_t fg, uint32_t bg)
 {
+	int width = min(src_stride, dst_stride);
 	uint32_t b, m, pxval;
-	int i, j;
+	int i, j, k;
 
-	for (i = 0; i < px / SOURCE_MASK_INTERLEAVE; i++) {
-		b = *src++;
-		m = *src++;
-		for (j = 0; j < SOURCE_MASK_INTERLEAVE; j++) {
-			pxval = TRANSPARENT_PIXEL;
+	for (i = 0; i < width; i++) {
+		for (j = 0; j < width / SOURCE_MASK_INTERLEAVE; j++) {
+			int src_off = i*src_stride/SOURCE_MASK_INTERLEAVE + j;
+			int dst_off = i*dst_stride + j*SOURCE_MASK_INTERLEAVE;
+
+			b = src[2*src_off];
+			m = src[2*src_off + 1];
+
+			for (k = 0; k < SOURCE_MASK_INTERLEAVE; k++) {
+				pxval = TRANSPARENT_PIXEL;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-			if (m & 0x80000000)
-				pxval = (b & 0x80000000) ? fg : bg;
-			b <<= 1;
-			m <<= 1;
+				if (m & 0x80000000)
+					pxval = (b & 0x80000000) ? fg : bg;
+				b <<= 1;
+				m <<= 1;
 #else
-			if (m & 1)
-				pxval = (b & 1) ? fg : bg;
-			b >>= 1;
-			m >>= 1;
+				if (m & 1)
+					pxval = (b & 1) ? fg : bg;
+				b >>= 1;
+				m >>= 1;
 #endif
-			if (bpp == 32) {
-				*(uint32_t *)dst = pxval;
-				dst += 2;
-			} else
-				*dst++ = pxval;
+				if (bpp == 32)
+					((uint32_t *)dst)[dst_off + k] = pxval;
+				else
+					((uint16_t *)dst)[dst_off + k] = pxval;
+			}
 		}
 	}
 }
@@ -76,14 +80,16 @@ static void nv_cursor_transform_cursor(NVPtr pNv, struct nouveau_crtc *nv_crtc)
 {
 	uint16_t *tmp;
 	struct nouveau_bo *cursor = NULL;
-	int px = pNv->NVArch >= 0x10 ? NV10_CURSOR_PIXELS : NV04_CURSOR_PIXELS;
+	int px = nv_cursor_pixels(pNv);
+	int width = nv_cursor_width(pNv);
 
 	if (!(tmp = xcalloc(px, 4)))
 		return;
 
 	/* convert to colour cursor */
-	nv_cursor_convert_cursor(px, pNv->curImage, tmp, pNv->alphaCursor ? 32 : 16,
-				 nv_crtc->cursor_fg, nv_crtc->cursor_bg);
+	nv_cursor_convert_cursor(pNv->curImage, tmp, width, width,
+				 pNv->alphaCursor ? 32 : 16, nv_crtc->cursor_fg,
+				 nv_crtc->cursor_bg);
 
 	nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
 	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
@@ -126,10 +132,9 @@ void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 {
 	NVPtr pNv = NVPTR(crtc->scrn);
-	int sz = (pNv->NVArch >= 0x10 ? NV10_CURSOR_PIXELS : NV04_CURSOR_PIXELS) / 4;
 
 	/* save copy of image for colour changes */
-	memcpy(pNv->curImage, image, sz);
+	memcpy(pNv->curImage, image, nv_cursor_pixels(pNv) / 4);
 
 	nv_cursor_transform_cursor(pNv, to_nouveau_crtc(crtc));
 }
@@ -151,7 +156,7 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	 * NPM mode needs NV_PCRTC_CURSOR_CONFIG_ALPHA_BLEND set and is what the
 	 * blob uses, however we get given PM cursors so we use PM mode
 	 */
-	for (i = 0; i < NV10_CURSOR_PIXELS; i++) {
+	for (i = 0; i < nv_cursor_pixels(pNv); i++) {
 		/* hw gets unhappy if alpha <= rgb values.  for a PM image "less
 		 * than" shouldn't happen; fix "equal to" case by adding one to
 		 * alpha channel (slightly inaccurate, but so is attempting to
@@ -202,10 +207,10 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 Bool NVCursorInitRandr12(ScreenPtr pScreen)
 {
 	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
-	int size = pNv->NVArch >= 0x10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
+	int width = nv_cursor_width(pNv);
 	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 		    HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
 		    (pNv->alphaCursor ? HARDWARE_CURSOR_ARGB : 0);
 
-	return xf86_cursors_init(pScreen, size, size, flags);
+	return xf86_cursors_init(pScreen, width, width, flags);
 }

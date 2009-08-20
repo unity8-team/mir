@@ -287,6 +287,23 @@ static inline bool NVLockVgaCrtcs(NVPtr pNv, bool lock)
 	return waslocked;
 }
 
+/* nv04 cursor max dimensions of 32x32 (A1R5G5B5) */
+#define NV04_CURSOR_SIZE 32
+/* limit nv10 cursors to 64x64 (ARGB8) (we could go to 64x255) */
+#define NV10_CURSOR_SIZE 64
+
+static inline int nv_cursor_width(NVPtr pNv)
+{
+	return pNv->NVArch >= 0x10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
+}
+
+static inline int nv_cursor_pixels(NVPtr pNv)
+{
+	int width = nv_cursor_width(pNv);
+
+	return width * width;
+}
+
 static inline void nv_fix_nv40_hw_cursor(NVPtr pNv, int head)
 {
 	/* on some nv40 (such as the "true" (in the NV_PFB_BOOT_0 sense) nv40,

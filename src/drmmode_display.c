@@ -338,9 +338,28 @@ done:
 }
 
 static void
+drmmode_reload_cursor_image(xf86CrtcPtr crtc)
+{
+	NVPtr pNv = NVPTR(crtc->scrn);
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	struct nouveau_bo *bo = drmmode_crtc->cursor;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+
+	nouveau_bo_map(bo, NOUVEAU_BO_WR);
+	nv_cursor_convert_cursor(pNv->curImage, bo->map, nv_cursor_width(pNv),
+				 64, 32, config->cursor_fg | (0xff << 24),
+				 config->cursor_bg | (0xff << 24));
+	nouveau_bo_unmap(bo);
+
+	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+			bo->handle, 64, 64);
+}
+
+static void
 drmmode_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg)
 {
-
+	drmmode_reload_cursor_image(crtc);
 }
 
 static void
@@ -350,6 +369,17 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
 	drmModeMoveCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
+}
+
+static void
+drmmode_load_cursor_image (xf86CrtcPtr crtc, CARD8 *image)
+{
+	NVPtr pNv = NVPTR(crtc->scrn);
+
+	/* save copy of image for colour changes */
+	memcpy(pNv->curImage, image, nv_cursor_pixels(pNv)/4);
+
+	drmmode_reload_cursor_image(crtc);
 }
 
 static void
@@ -364,7 +394,7 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 	nouveau_bo_unmap(cursor);
 
 	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			drmmode_crtc->cursor->handle, 64, 64);
+			cursor->handle, 64, 64);
 }
 
 
@@ -516,14 +546,12 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.set_cursor_position = drmmode_set_cursor_position,
 	.show_cursor = drmmode_show_cursor,
 	.hide_cursor = drmmode_hide_cursor,
+	.load_cursor_image = drmmode_load_cursor_image,
 	.load_cursor_argb = drmmode_load_cursor_argb,
 	.shadow_create = drmmode_crtc_shadow_create,
 	.shadow_allocate = drmmode_crtc_shadow_allocate,
 	.shadow_destroy = drmmode_crtc_shadow_destroy,
 	.gamma_set = drmmode_gamma_set,
-#if 0
-	.set_cursor_colors = drmmode_crtc_set_cursor_colors,
-#endif
 	.destroy = NULL, /* XXX */
 };
 
@@ -1203,7 +1231,7 @@ int
 drmmode_cursor_init(ScreenPtr pScreen)
 {
 	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
-	int size = pNv->NVArch >= 0x10 ? 64 : 32;
+	int size = nv_cursor_width(pNv);
 	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 		    HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
 		    (pNv->alphaCursor ? HARDWARE_CURSOR_ARGB : 0) |
