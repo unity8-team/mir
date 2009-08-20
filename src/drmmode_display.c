@@ -357,10 +357,14 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	struct nouveau_bo *cursor = drmmode_crtc->cursor;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
 	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
 	memcpy(cursor->map, image, 64*64*4);
 	nouveau_bo_unmap(cursor);
+
+	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+			drmmode_crtc->cursor->handle, 64, 64);
 }
 
 
