@@ -1623,6 +1623,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 * Must follow software cursor initialization.
 	 */
 	if (pNv->HWCursor) { 
+		if (pNv->kms_enable)
+			ret = drmmode_cursor_init(pScreen);
+		else
 		if (pNv->Architecture < NV_ARCH_50)
 			ret = NVCursorInitRandr12(pScreen);
 		else

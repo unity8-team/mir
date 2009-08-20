@@ -1195,4 +1195,17 @@ drmmode_remove_fb(ScrnInfoPtr pScrn)
 	drmmode->fb_id = 0;
 }
 
+int
+drmmode_cursor_init(ScreenPtr pScreen)
+{
+	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
+	int size = pNv->NVArch >= 0x10 ? 64 : 32;
+	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
+		    HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
+		    (pNv->alphaCursor ? HARDWARE_CURSOR_ARGB : 0) |
+		    HARDWARE_CURSOR_UPDATE_UNHIDDEN;
+
+	return xf86_cursors_init(pScreen, size, size, flags);
+}
+
 #endif

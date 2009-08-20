@@ -6,6 +6,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 Bool drmmode_is_rotate_pixmap(PixmapPtr, struct nouveau_bo **);
 void drmmode_adjust_frame(ScrnInfoPtr pScrn, int x, int y, int flags);
 void drmmode_remove_fb(ScrnInfoPtr pScrn);
+Bool drmmode_cursor_init(ScreenPtr pScreen);
 
 /* in nouveau_calc.c */
 void nouveau_calc_arb(ScrnInfoPtr pScrn, int vclk, int bpp, int *burst, int *lwm);
