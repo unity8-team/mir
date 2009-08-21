@@ -3405,4 +3405,37 @@ typedef enum {
 #define HDMIC	0xe1150
 #define HDMID	0xe1160
 
+#define AUD_CONFIG              0x62000
+#define AUD_DEBUG               0x62010
+#define AUD_VID_DID             0x62020
+#define AUD_RID                 0x62024
+#define AUD_SUBN_CNT            0x62028
+#define AUD_FUNC_GRP            0x62040
+#define AUD_SUBN_CNT2           0x62044
+#define AUD_GRP_CAP             0x62048
+#define AUD_PWRST               0x6204c
+#define AUD_SUPPWR              0x62050
+#define AUD_SID                 0x62054
+#define AUD_OUT_CWCAP           0x62070
+#define AUD_OUT_PCMSIZE         0x62074
+#define AUD_OUT_STR             0x62078
+#define AUD_OUT_DIG_CNVT        0x6207c
+#define AUD_OUT_CH_STR          0x62080
+#define AUD_OUT_STR_DESC        0x62084
+#define AUD_PINW_CAP            0x620a0
+#define AUD_PIN_CAP             0x620a4
+#define AUD_PINW_CONNLNG        0x620a8
+#define AUD_PINW_CONNLST        0x620ac
+#define AUD_PINW_CNTR           0x620b0
+#define AUD_PINW_UNSOLRESP      0x620b8
+#define AUD_CNTL_ST             0x620b4
+#define AUD_PINW_CONFIG         0x620bc
+#define AUD_HDMIW_STATUS        0x620d4
+#define AUD_HDMIW_HDMIEDID      0x6210c
+#define AUD_HDMIW_INFOFR        0x62118
+#define AUD_CONV_CHCNT          0x62120
+#define AUD_CTS_ENABLE          0x62128
+
+#define VIDEO_DIP_CTL           0x61170
+
 #endif /* _I810_REG_H */
