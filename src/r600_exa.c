@@ -39,6 +39,21 @@
 #include "r600_reg.h"
 #include "r600_state.h"
 
+
+#define RADEON_TRACE_FALL 0
+#define RADEON_TRACE_DRAW 0
+
+#if RADEON_TRACE_FALL
+#define RADEON_FALLBACK(x)     		\
+do {					\
+	ErrorF("%s: ", __FUNCTION__);	\
+	ErrorF x;			\
+	return FALSE;			\
+} while (0)
+#else
+#define RADEON_FALLBACK(x) return FALSE
+#endif
+
 extern PixmapPtr
 RADEONGetDrawablePixmap(DrawablePtr pDrawable);
 
@@ -80,6 +95,20 @@ uint32_t RADEON_ROP[16] = {
     RADEON_ROP3_ONE,  /* GXset          */
 };
 
+static Bool R600CheckBPP(int bpp)
+{
+	switch (bpp) {
+	case 8:
+	case 16:
+	case 32:
+		return TRUE;
+	default:
+		break;
+	}
+	return FALSE;
+}
+
+
 static void
 R600DoneSolid(PixmapPtr pPix);
 
@@ -99,20 +128,22 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
 
+    if (pPix->drawable.bitsPerPixel == 24)
+        RADEON_FALLBACK(("24bpp unsupported\n"));
+    if (!R600CheckBPP(pPix->drawable.bitsPerPixel))
+        RADEON_FALLBACK(("R600CheckDatatype failed\n"));
+
     accel_state->dst_mc_addr = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
     accel_state->dst_size = exaGetPixmapPitch(pPix) * pPix->drawable.height;
     accel_state->dst_pitch = exaGetPixmapPitch(pPix) / (pPix->drawable.bitsPerPixel / 8);
 
     /* bad pitch */
     if (accel_state->dst_pitch & 7)
-	return FALSE;
+	RADEON_FALLBACK(("Bad pitch 0x%08x\n", accel_state->dst_pitch));
 
     /* bad offset */
     if (accel_state->dst_mc_addr & 0xff)
-	return FALSE;
-
-    if (pPix->drawable.bitsPerPixel == 24)
-	return FALSE;
+	RADEON_FALLBACK(("Bad offset 0x%08x\n", accel_state->dst_mc_addr));
 
     CLEAR (cb_conf);
     CLEAR (vs_conf);
@@ -634,6 +665,15 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
 
+    if (pSrc->drawable.bitsPerPixel == 24)
+        RADEON_FALLBACK(("24bpp unsupported\n"));
+    if (pDst->drawable.bitsPerPixel == 24)
+        RADEON_FALLBACK(("24bpp unsupported\n"));
+    if (!R600CheckBPP(pSrc->drawable.bitsPerPixel))
+        RADEON_FALLBACK(("R600CheckDatatype src failed\n"));
+    if (!R600CheckBPP(pDst->drawable.bitsPerPixel))
+        RADEON_FALLBACK(("R600CheckDatatype dst failed\n"));
+
     accel_state->dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
     accel_state->src_pitch[0] = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
 
@@ -648,20 +688,16 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 
     /* bad pitch */
     if (accel_state->src_pitch[0] & 7)
-	return FALSE;
+	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_pitch[0]));
     if (accel_state->dst_pitch & 7)
-	return FALSE;
+	RADEON_FALLBACK(("Bad dst pitch 0x%08x\n", accel_state->dst_pitch));
 
     /* bad offset */
     if (accel_state->src_mc_addr[0] & 0xff)
-	return FALSE;
-    if (accel_state->dst_mc_addr & 0xff)
-	return FALSE;
+	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_mc_addr[0]));
 
-    if (pSrc->drawable.bitsPerPixel == 24)
-	return FALSE;
-    if (pDst->drawable.bitsPerPixel == 24)
-	return FALSE;
+    if (accel_state->dst_mc_addr & 0xff)
+	RADEON_FALLBACK(("Bad dst offset 0x%08x\n", accel_state->dst_mc_addr));
 
     /* return FALSE; */
 
@@ -909,19 +945,6 @@ R600DoneCopy(PixmapPtr pDst)
 
 }
 
-#define RADEON_TRACE_FALL 0
-#define RADEON_TRACE_DRAW 0
-
-#if RADEON_TRACE_FALL
-#define RADEON_FALLBACK(x)     		\
-do {					\
-	ErrorF("%s: ", __FUNCTION__);	\
-	ErrorF x;			\
-	return FALSE;			\
-} while (0)
-#else
-#define RADEON_FALLBACK(x) return FALSE
-#endif
 
 #define xFixedToFloat(f) (((float) (f)) / 65536)
 
