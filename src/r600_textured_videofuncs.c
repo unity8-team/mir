@@ -254,8 +254,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 #endif
 
     r600_cp_start(pScrn);
-    if (!r600_vb_get(pScrn))
-	return;
 
     /* Init */
     start_3d(pScrn, accel_state->ib);
@@ -587,8 +585,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
         if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
             R600DoneTexturedVideo(pScrn);
-            accel_state->ib = RADEONCPGetBuffer(pScrn);
-            r600_vb_get(pScrn);
+	    r600_cp_start(pScrn);
         }
 
         vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);

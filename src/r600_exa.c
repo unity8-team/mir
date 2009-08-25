@@ -167,8 +167,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 #endif
 
     r600_cp_start(pScrn);
-    if (!r600_vb_get(pScrn))
-	RADEON_FALLBACK(("Can't get VB\n"));
 
     /* Init */
 #if defined(XF86DRM_MODE)
@@ -325,8 +323,6 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     if (((accel_state->vb_index + 3) * 8) > accel_state->vb_total) {
         R600DoneSolid(pPix);
 	r600_cp_start(pScrn);
-	if (!r600_vb_get(pScrn))
-	    return;
     }
 
     vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*8);
@@ -408,6 +404,7 @@ R600DoneSolid(PixmapPtr pPix)
     accel_state->src_bo[0] = NULL;
     accel_state->src_bo[1] = NULL;
     accel_state->dst_bo = NULL;
+    accel_state->vb_bo = NULL;
 }
 
 static void
@@ -449,8 +446,6 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     accel_state->dst_bo = dst_bo;
 
     r600_cp_start(pScrn);
-    if (!r600_vb_get(pScrn))
-	return;
 
     /* Init */
     start_3d(pScrn, accel_state->ib);
@@ -681,8 +676,6 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
     if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
         R600DoCopy(pScrn);
 	r600_cp_start(pScrn);
-	if (!r600_vb_get(pScrn))
-	    return;
     }
 
     vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);
@@ -1092,6 +1085,7 @@ R600DoneCopy(PixmapPtr pDst)
     accel_state->src_bo[0] = NULL;
     accel_state->src_bo[1] = NULL;
     accel_state->dst_bo = NULL;
+    accel_state->vb_bo = NULL;
 }
 
 
@@ -1627,8 +1621,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     CLEAR (ps_conf);
 
     r600_cp_start(pScrn);
-    if (!r600_vb_get(pScrn))
-	RADEON_FALLBACK(("Can't get VB\n"));
 
     /* Init */
     start_3d(pScrn, accel_state->ib);
@@ -1818,8 +1810,6 @@ static void R600Composite(PixmapPtr pDst,
         if (((accel_state->vb_index + 3) * 24) > accel_state->vb_total) {
             R600DoneComposite(pDst);
 	    r600_cp_start(pScrn);
-	    if (!r600_vb_get(pScrn))
-		return;
         }
 
         vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*24);
@@ -1858,8 +1848,6 @@ static void R600Composite(PixmapPtr pDst,
         if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
             R600DoneComposite(pDst);
 	    r600_cp_start(pScrn);
-	    if (!r600_vb_get(pScrn))
-		return;
         }
 
         vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);
@@ -1954,6 +1942,7 @@ static void R600DoneComposite(PixmapPtr pDst)
     accel_state->src_bo[0] = NULL;
     accel_state->src_bo[1] = NULL;
     accel_state->dst_bo = NULL;
+    accel_state->vb_bo = NULL;
 }
 
 Bool
@@ -2374,6 +2363,11 @@ R600DrawInit(ScreenPtr pScreen)
 
     info->accel_state->XInited3D = FALSE;
     info->accel_state->copy_area = NULL;
+    info->accel_state->src_bo[0] = NULL;
+    info->accel_state->src_bo[1] = NULL;
+    info->accel_state->dst_bo = NULL;
+    info->accel_state->copy_area_bo = NULL;
+    info->accel_state->vb_bo = NULL;
 
     if (!R600AllocShaders(pScrn, pScreen))
 	return FALSE;
