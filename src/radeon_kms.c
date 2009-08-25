@@ -180,7 +180,7 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to allocate accel_state rec!\n");
 	return FALSE;
     }
-
+#if 0
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Using shadowfb for KMS on R600+\n");
@@ -189,7 +189,7 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	    info->r600_shadow_fb = FALSE;
 	return TRUE;
     }
-
+#endif
 
     if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
 	(info->ChipFamily == CHIP_FAMILY_RS200) ||

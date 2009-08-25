@@ -128,6 +128,8 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
 
+    //return FALSE;
+
     if (pPix->drawable.bitsPerPixel == 24)
         RADEON_FALLBACK(("24bpp unsupported\n"));
     if (!R600CheckBPP(pPix->drawable.bitsPerPixel))
@@ -712,6 +714,8 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
+
+    return FALSE;
 
     if (pSrc->drawable.bitsPerPixel == 24)
         RADEON_FALLBACK(("24bpp unsupported\n"));
@@ -1575,6 +1579,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
 
+    return FALSE;
     /* return FALSE; */
 
     if (pDst->drawable.bitsPerPixel < 8 || pSrc->drawable.bitsPerPixel < 8)
