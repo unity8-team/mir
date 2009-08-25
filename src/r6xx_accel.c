@@ -494,7 +494,7 @@ set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res)
     E32(ib, 0);							// 4: n/a
     E32(ib, 0);							// 5: n/a
     E32(ib, SQ_TEX_VTX_VALID_BUFFER << SQ_VTX_CONSTANT_WORD6_0__TYPE_shift);	// 6: TYPE
-    RELOC_BATCH(res->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(res->bo, RADEON_GEM_DOMAIN_GTT, 0);
     END_BATCH();
 }
 
