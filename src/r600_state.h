@@ -188,9 +188,12 @@ do {					\
 	radeon_cs_end(info->cs, __FILE__, __func__, __LINE__);	\
 } while(0)
 #define RELOC_BATCH(bo, rd, wd)					\
-do {								\
-    if (info->cs)							\
-	OUT_RING_RELOC((bo), (rd), (wd));				\
+do {							\
+    if (info->cs) {							\
+	int _ret;							\
+	_ret = radeon_cs_write_reloc(info->cs, (bo), (rd), (wd), 0);	\
+	if (_ret) ErrorF("reloc emit failure %d (%s %d)\n", _ret, __func__, __LINE__); \
+    }									\
 } while(0)
 #define E32(ib, dword)                                                  \
 do {                                                                    \

@@ -352,6 +352,11 @@ R600DoneSolid(PixmapPtr pPix)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
+#ifdef XF86DRM_MODE
+    if (info->cs)
+	radeon_bo_unmap(accel_state->vb_bo);
+#endif
+
     if (accel_state->vb_index == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
@@ -613,6 +618,11 @@ R600DoCopy(ScrnInfoPtr pScrn)
 
     CLEAR (draw_conf);
     CLEAR (vtx_res);
+
+#ifdef XF86DRM_MODE
+    if (info->cs)
+	radeon_bo_unmap(accel_state->vb_bo);
+#endif
 
     if (accel_state->vb_index == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
@@ -1882,6 +1892,11 @@ static void R600DoneComposite(PixmapPtr pDst)
 
     CLEAR (draw_conf);
     CLEAR (vtx_res);
+
+#ifdef XF86DRM_MODE
+    if (info->cs)
+	radeon_bo_unmap(accel_state->vb_bo);
+#endif
 
     if (accel_state->vb_index == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
