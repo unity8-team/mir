@@ -507,6 +507,8 @@ static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
     if (info->cursor) xf86DestroyCursorInfoRec(info->cursor);
     info->cursor = NULL;
 
+    radeon_dri2_close_screen(pScreen);
+
     pScrn->vtSema = FALSE;
     xf86ClearPrimInitDone(info->pEnt->index);
     pScreen->BlockHandler = info->BlockHandler;
@@ -537,6 +539,7 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     int            subPixelOrder = SubPixelUnknown;
     char*          s;
     void *front_ptr;
+    int ret;
 
     pScrn->fbOffset = 0;
 
@@ -547,13 +550,19 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 			  pScrn->defaultVisual)) return FALSE;
     miSetPixmapDepths ();
 
+    ret = drmSetMaster(info->dri->drmFD);
+    if (ret) {
+        ErrorF("Unable to retrieve master\n");
+        return FALSE;
+    }
     info->directRenderingEnabled = FALSE;
     if (info->r600_shadow_fb == FALSE)
         info->directRenderingEnabled = radeon_dri2_screen_init(pScreen);
 
     front_ptr = info->FB;
 
-    info->bufmgr = radeon_bo_manager_gem_ctor(info->dri->drmFD);
+    if (!info->bufmgr)
+        info->bufmgr = radeon_bo_manager_gem_ctor(info->dri->drmFD);
     if (!info->bufmgr) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "failed to initialise GEM buffer manager");
@@ -561,14 +570,16 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     }
     drmmode_set_bufmgr(pScrn, &info->drmmode, info->bufmgr);
 
-    info->csm = radeon_cs_manager_gem_ctor(info->dri->drmFD);
+    if (!info->csm)
+        info->csm = radeon_cs_manager_gem_ctor(info->dri->drmFD);
     if (!info->csm) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "failed to initialise command submission manager");
 	return FALSE;
     }
 
-    info->cs = radeon_cs_create(info->csm, RADEON_BUFFER_SIZE/4);
+    if (!info->cs)
+        info->cs = radeon_cs_create(info->csm, RADEON_BUFFER_SIZE/4);
     if (!info->cs) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "failed to initialise command submission buffer");
@@ -732,6 +743,9 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONScreenInit finished\n");
 
+    info->accel_state->XInited3D = FALSE;
+    info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
+
     return TRUE;
 }
 
@@ -833,19 +847,22 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	cursor_size = RADEON_ALIGN(cursor_size, pagesize);
 	for (c = 0; c < xf86_config->num_crtc; c++) {
 	    /* cursor objects */
-	    info->cursor_bo[c] = radeon_bo_open(info->bufmgr, 0, cursor_size,
-					      0, RADEON_GEM_DOMAIN_VRAM, 0);
-	    if (!info->cursor_bo[c]) {
-		return FALSE;
-	    }
+            if (info->cursor_bo[c] == NULL) {
+                info->cursor_bo[c] = radeon_bo_open(info->bufmgr, 0,
+                                                    cursor_size, 0,
+                                                    RADEON_GEM_DOMAIN_VRAM, 0);
+                if (!info->cursor_bo[c]) {
+                    return FALSE;
+                }
 
-	    if (radeon_bo_map(info->cursor_bo[c], 1)) {
-	      ErrorF("Failed to map cursor buffer memory\n");
-	    }
+                if (radeon_bo_map(info->cursor_bo[c], 1)) {
+                    ErrorF("Failed to map cursor buffer memory\n");
+                }
 
-	    drmmode_set_cursor(pScrn, &info->drmmode, c, info->cursor_bo[c]);
-	    total_size_bytes += cursor_size;
-	}
+                drmmode_set_cursor(pScrn, &info->drmmode, c, info->cursor_bo[c]);
+                total_size_bytes += cursor_size;
+            }
+        }
     }
 
     screen_size = RADEON_ALIGN(screen_size, pagesize);
@@ -857,17 +874,19 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 
     info->dri->textureSize = 0;
 
-    info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size,
-				    0, RADEON_GEM_DOMAIN_VRAM, 0);
-    if (info->r600_shadow_fb == TRUE) {
-        if (radeon_bo_map(info->front_bo, 1)) {
-	    ErrorF("Failed to map cursor buffer memory\n");
-	}
+    if (info->front_bo == NULL) {
+        info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size,
+                                        0, RADEON_GEM_DOMAIN_VRAM, 0);
+        if (info->r600_shadow_fb == TRUE) {
+            if (radeon_bo_map(info->front_bo, 1)) {
+                ErrorF("Failed to map cursor buffer memory\n");
+            }
+        }
+        if (info->allowColorTiling) {
+            radeon_bo_set_tiling(info->front_bo, RADEON_TILING_MACRO, stride);
+        }
     }
 
-    if (info->allowColorTiling) {
-	radeon_bo_set_tiling(info->front_bo, RADEON_TILING_MACRO, stride);
-    }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Front buffer size: %dK\n", info->front_bo->size/1024);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Remaining VRAM size (used for pixmaps): %dK\n", remain_size_bytes/1024);
 
