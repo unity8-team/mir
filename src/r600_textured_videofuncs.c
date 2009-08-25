@@ -241,10 +241,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     set_default_state(pScrn, accel_state->ib);
 
-    /* Scissor / viewport */
-    EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
-    EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
-
     set_generic_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
     set_screen_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
     set_window_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
@@ -473,7 +469,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     /* Render setup */
     EREG(accel_state->ib, CB_SHADER_MASK,                      (0x0f << OUTPUT0_ENABLE_shift));
-    EREG(accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    (0xcc << ROP3_shift)); /* copy */
 
     cb_conf.id = 0;
@@ -505,12 +500,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf);
-
-    EREG(accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
-								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
-								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-    EREG(accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
-								DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
     /* Interpolator setup */
     /* export tex coords from VS */

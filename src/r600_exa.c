@@ -164,10 +164,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
     set_default_state(pScrn, accel_state->ib);
 
-    /* Scissor / viewport */
-    EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
-    EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
-
     set_generic_scissor(pScrn, accel_state->ib, 0, 0, pPix->drawable.width, pPix->drawable.height);
     set_screen_scissor(pScrn, accel_state->ib, 0, 0, pPix->drawable.width, pPix->drawable.height);
     set_window_scissor(pScrn, accel_state->ib, 0, 0, pPix->drawable.width, pPix->drawable.height);
@@ -212,7 +208,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (pm & 0xff000000)
 	pmask |= 8; /* A */
     EREG(accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
-    EREG(accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[alu]);
 
     cb_conf.id = 0;
@@ -233,12 +228,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf);
-
-    EREG(accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
-								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
-								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-    EREG(accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
-								DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
     /* Interpolator setup */
     /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
@@ -408,10 +397,6 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
 
     set_default_state(pScrn, accel_state->ib);
 
-    /* Scissor / viewport */
-    EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
-    EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
-
     set_generic_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
     set_screen_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
     set_window_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
@@ -513,7 +498,6 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     if (planemask & 0xff000000)
 	pmask |= 8; /* A */
     EREG(accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
-    EREG(accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[rop]);
 
     accel_state->dst_size = dst_pitch * dst_height * (dst_bpp/8);
@@ -539,12 +523,6 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf);
-
-    EREG(accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
-								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
-								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-    EREG(accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
-								DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
     /* Interpolator setup */
     /* export tex coord from VS */
@@ -1463,10 +1441,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
     set_default_state(pScrn, accel_state->ib);
 
-    /* Scissor / viewport */
-    EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
-    EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
-
     set_generic_scissor(pScrn, accel_state->ib, 0, 0, pDst->drawable.width, pDst->drawable.height);
     set_screen_scissor(pScrn, accel_state->ib, 0, 0, pDst->drawable.width, pDst->drawable.height);
     set_window_scissor(pScrn, accel_state->ib, 0, 0, pDst->drawable.width, pDst->drawable.height);
@@ -1526,7 +1500,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     ps_setup                    (pScrn, accel_state->ib, &ps_conf);
 
     EREG(accel_state->ib, CB_SHADER_MASK,                      (0xf << OUTPUT0_ENABLE_shift));
-    EREG(accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
 
     blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
 
@@ -1565,12 +1538,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf);
-
-    EREG(accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
-								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
-								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-    EREG(accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
-								DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
     /* Interpolator setup */
     if (pMask) {

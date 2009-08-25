@@ -775,6 +775,11 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 						   (2 << ALPHA_TO_MASK_OFFSET2_shift)	|
 						   (2 << ALPHA_TO_MASK_OFFSET3_shift)));
 
+
+    EREG(ib, DB_SHADER_CONTROL, ((1 << Z_ORDER_shift) | /* EARLY_Z_THEN_LATE_Z */
+				 DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
+
+
     // SX
     EREG(ib, SX_ALPHA_TEST_CONTROL,               0);
     EREG(ib, SX_ALPHA_REF,                        0);
@@ -808,6 +813,8 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 	EFLOAT(ib, 1.0);
     }
     EREG(ib, CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
+    EREG(ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
+
 
     // SC
     EREG(ib, PA_SC_WINDOW_OFFSET,                 ((0 << WINDOW_X_OFFSET_shift) |
@@ -836,6 +843,11 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     else
 	EREG(ib, PA_SC_MODE_CNTL,                 (FORCE_EOV_CNTDWN_ENABLE_bit | FORCE_EOV_REZ_ENABLE_bit |
 						   0x00500000)); /* ? */
+
+    EREG(ib, PA_SU_SC_MODE_CNTL, (FACE_bit |
+				  (POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift) |
+				  (POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
+
 
     EREG(ib, PA_SC_LINE_CNTL,                     0);
     EREG(ib, PA_SC_AA_CONFIG,                     0);
@@ -866,6 +878,10 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EFLOAT(ib, 1.0);						// PA_CL_GB_VERT_DISC_ADJ
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_CLIP_ADJ
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_DISC_ADJ
+
+    /* Scissor / viewport */
+    EREG(ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
+    EREG(ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
     // SU
     EREG(ib, PA_SU_SC_MODE_CNTL,                  FACE_bit);
