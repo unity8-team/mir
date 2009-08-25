@@ -658,7 +658,7 @@ R600DoCopy(ScrnInfoPtr pScrn)
     /* sync dst surface */
     cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
 			accel_state->dst_size, accel_state->dst_mc_addr,
-			accel_state->dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
+			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
     R600CPFlushIndirect(pScrn, accel_state->ib);
 }
