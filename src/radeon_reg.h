@@ -103,28 +103,6 @@
 #define RADEON_ATTRDR                       0x03c1 /* VGA */
 #define RADEON_ATTRDW                       0x03c0 /* VGA */
 #define RADEON_ATTRX                        0x03c0 /* VGA */
-#define RADEON_AUX_SC_CNTL                  0x1660
-#       define RADEON_AUX1_SC_EN            (1 << 0)
-#       define RADEON_AUX1_SC_MODE_OR       (0 << 1)
-#       define RADEON_AUX1_SC_MODE_NAND     (1 << 1)
-#       define RADEON_AUX2_SC_EN            (1 << 2)
-#       define RADEON_AUX2_SC_MODE_OR       (0 << 3)
-#       define RADEON_AUX2_SC_MODE_NAND     (1 << 3)
-#       define RADEON_AUX3_SC_EN            (1 << 4)
-#       define RADEON_AUX3_SC_MODE_OR       (0 << 5)
-#       define RADEON_AUX3_SC_MODE_NAND     (1 << 5)
-#define RADEON_AUX1_SC_BOTTOM               0x1670
-#define RADEON_AUX1_SC_LEFT                 0x1664
-#define RADEON_AUX1_SC_RIGHT                0x1668
-#define RADEON_AUX1_SC_TOP                  0x166c
-#define RADEON_AUX2_SC_BOTTOM               0x1680
-#define RADEON_AUX2_SC_LEFT                 0x1674
-#define RADEON_AUX2_SC_RIGHT                0x1678
-#define RADEON_AUX2_SC_TOP                  0x167c
-#define RADEON_AUX3_SC_BOTTOM               0x1690
-#define RADEON_AUX3_SC_LEFT                 0x1684
-#define RADEON_AUX3_SC_RIGHT                0x1688
-#define RADEON_AUX3_SC_TOP                  0x168c
 #define RADEON_AUX_WINDOW_HORZ_CNTL         0x02d8
 #define RADEON_AUX_WINDOW_VERT_CNTL         0x02dc
 
