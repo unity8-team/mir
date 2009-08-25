@@ -1864,6 +1864,10 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     int wpass = w * (bpp/8);
     drmBufPtr scratch;
 
+    /* RV740 seems to be particularly problematic with small xfers */
+    if ((info->ChipFamily == CHIP_FAMILY_RV740) && (w < 32 || h < 32))
+	return FALSE;
+
     if (src_pitch & 7)
 	return FALSE;
 
