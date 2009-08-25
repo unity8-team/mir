@@ -79,7 +79,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Required Functions: */
 
 static void I810Identify(int flags);
-
+static Bool I810DriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer ptr);
 static Bool intel_pci_probe (DriverPtr		drv,
 			     int		entity_num,
 			     struct pci_device	*dev,
@@ -150,7 +150,7 @@ _X_EXPORT DriverRec I810 = {
    I810AvailableOptions,
    NULL,
    0,
-   NULL,
+   I810DriverFunc,
    intel_device_match,
    intel_pci_probe
 };
@@ -392,6 +392,26 @@ I810AvailableOptions(int chipid, int busid)
 #else
    return I830AvailableOptions(chipid, busid);
 #endif
+}
+
+static Bool
+I810DriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer ptr)
+{
+    xorgHWFlags *flag;
+
+    switch (op) {
+        case GET_REQUIRED_HW_INTERFACES:
+            flag = (CARD32*)ptr;
+#ifdef KMS_ONLY
+            (*flag) = 0;
+#else
+	    (*flag) = HW_IO | HW_MMIO;
+#endif
+            return TRUE;
+        default:
+	    /* Unknown or deprecated function */
+            return FALSE;
+    }
 }
 
 struct pci_device *

@@ -83,6 +83,11 @@ AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
               [XVMC="$enableval"],
               [XVMC=yes])
 
+AC_ARG_ENABLE(kms-only, AC_HELP_STRING([--enable-kms-only],
+                                  [Assume KMS support [[default=no]]]),
+              [KMS_ONLY="$enableval"],
+              [KMS_ONLY=no])
+
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
@@ -164,6 +169,11 @@ AM_CONDITIONAL(XVMC, test x$XVMC = xyes)
 if test "$XVMC" = yes; then
 	AC_DEFINE(ENABLE_XVMC,1,[Enable XvMC support])
     	AC_SUBST([XVMCLIB_CFLAGS])
+fi
+
+AM_CONDITIONAL(KMS_ONLY, test x$KMS_ONLY = xyes)
+if test "$KMS_ONLY" = yes; then
+	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
 fi
 
 AC_SUBST([DRI_CFLAGS])
