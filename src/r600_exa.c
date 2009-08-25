@@ -128,7 +128,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
 
-    //return FALSE;
+    return FALSE;
 
     if (pPix->drawable.bitsPerPixel == 24)
         RADEON_FALLBACK(("24bpp unsupported\n"));

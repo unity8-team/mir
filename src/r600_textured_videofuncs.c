@@ -228,7 +228,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     CLEAR (vs_conf);
     CLEAR (ps_conf);
 
-#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+#if defined(XF86DRM_MODE)
     if (info->cs) {
 	accel_state->dst_mc_addr = 0;
 	accel_state->src_mc_addr[0] = 0;
@@ -269,7 +269,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     set_screen_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
     set_window_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
 
-#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+#if defined(XF86DRM_MODE)
     if (info->cs) {
 	accel_state->vs_mc_addr = accel_state->xv_vs_offset;
 	accel_state->ps_mc_addr = accel_state->xv_ps_offset;
