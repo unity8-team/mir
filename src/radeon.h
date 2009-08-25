@@ -696,9 +696,11 @@ struct radeon_accel_state {
     int               vb_total;
     void              *vb_ptr;
     uint32_t          vb_size;
+    struct radeon_bo  *vb_bo;
 
     // shader storage
     ExaOffscreenArea  *shaders;
+    struct radeon_bo  *shaders_bo;
     uint32_t          solid_vs_offset;
     uint32_t          solid_ps_offset;
     uint32_t          copy_vs_offset;
@@ -710,12 +712,14 @@ struct radeon_accel_state {
     uint32_t          xv_ps_offset;
 
     //size/addr stuff
+    struct radeon_bo  *src_bo[2];
     uint32_t          src_size[2];
     uint64_t          src_mc_addr[2];
     uint32_t          src_pitch[2];
     uint32_t          src_width[2];
     uint32_t          src_height[2];
     uint32_t          src_bpp[2];
+    struct radeon_bo  *dst_bo;
     uint32_t          dst_size;
     uint64_t          dst_mc_addr;
     uint32_t          dst_pitch;
@@ -731,6 +735,7 @@ struct radeon_accel_state {
 
     // copy
     ExaOffscreenArea  *copy_area;
+    struct radeon_bo  *copy_area_bo;
     Bool              same_surface;
     int               rop;
     uint32_t          planemask;

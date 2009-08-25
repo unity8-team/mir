@@ -333,7 +333,9 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
         return FALSE;
     }
 
-    if ( (info->ChipFamily >= CHIP_FAMILY_R300) ) {
+    if ( (info->ChipFamily >= CHIP_FAMILY_R600) ) {
+        dri2_info.driverName = R600_DRIVER_NAME;
+    } else if ( (info->ChipFamily >= CHIP_FAMILY_R300) ) {
         dri2_info.driverName = R300_DRIVER_NAME;
     } else if ( info->ChipFamily >= CHIP_FAMILY_R200 ) {
         dri2_info.driverName = R200_DRIVER_NAME;

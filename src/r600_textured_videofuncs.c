@@ -80,10 +80,12 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS880) ||
 	(info->ChipFamily == CHIP_FAMILY_RV710))
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			    accel_state->vb_size, accel_state->vb_mc_addr);
+			    accel_state->vb_size, accel_state->vb_mc_addr,
+			    accel_state->vb_bo, RADEON_GEM_DOMAIN_GTT, 0);
     else
 	cp_set_surface_sync(pScrn, accel_state->ib, VC_ACTION_ENA_bit,
-			    accel_state->vb_size, accel_state->vb_mc_addr);
+			    accel_state->vb_size, accel_state->vb_mc_addr,
+			    accel_state->vb_bo, RADEON_GEM_DOMAIN_GTT, 0);
 
     /* Vertex buffer setup */
     vtx_res.id              = SQ_VTX_RESOURCE_vs;
@@ -91,6 +93,7 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
     vtx_res.vtx_num_entries = accel_state->vb_size / 4;
     vtx_res.mem_req_size    = 1;
     vtx_res.vb_addr         = accel_state->vb_mc_addr;
+    vtx_res.bo              = accel_state->vb_bo;
     set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
 
     draw_conf.prim_type          = DI_PT_RECTLIST;
@@ -105,9 +108,13 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
 
     /* sync destination surface */
     cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
-			accel_state->dst_size, accel_state->dst_mc_addr);
+			accel_state->dst_size, accel_state->dst_mc_addr,
+			accel_state->dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
     R600CPFlushIndirect(pScrn, accel_state->ib);
+    accel_state->dst_bo = NULL;
+    accel_state->src_bo[0] = NULL;
+    accel_state->src_bo[1] = NULL;
 }
 
 void
@@ -216,6 +223,19 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     CLEAR (vs_conf);
     CLEAR (ps_conf);
 
+#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+    if (info->cs) {
+	accel_state->dst_mc_addr = 0;
+	accel_state->src_mc_addr[0] = 0;
+	accel_state->src_bo[0] = pPriv->src_bo;
+	accel_state->src_bo[1] = NULL;
+	accel_state->dst_bo = radeon_get_pixmap_bo(pPixmap);
+    } else
+#endif
+    {
+	accel_state->dst_mc_addr = exaGetPixmapOffset(pPixmap) + info->fbLocation + pScrn->fbOffset;
+	accel_state->src_mc_addr[0] = pPriv->src_offset + info->fbLocation + pScrn->fbOffset;
+    }
     accel_state->dst_pitch = exaGetPixmapPitch(pPixmap) / (pPixmap->drawable.bitsPerPixel / 8);
     accel_state->src_pitch[0] = pPriv->src_pitch;
 
@@ -233,8 +253,9 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     dstyoff = 0;
 #endif
 
-    accel_state->ib = RADEONCPGetBuffer(pScrn);
-    r600_vb_get(pScrn);
+    r600_cp_start(pScrn);
+    if (!r600_vb_get(pScrn))
+	return;
 
     /* Init */
     start_3d(pScrn, accel_state->ib);
@@ -245,11 +266,18 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     set_screen_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
     set_window_scissor(pScrn, accel_state->ib, 0, 0, pPixmap->drawable.width, pPixmap->drawable.height);
 
-    accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
-	accel_state->xv_vs_offset;
-
-    accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
-	accel_state->xv_ps_offset;
+#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
+    if (info->cs) {
+	accel_state->vs_mc_addr = accel_state->xv_vs_offset;
+	accel_state->ps_mc_addr = accel_state->xv_ps_offset;
+    } else
+#endif
+    {
+	accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
+	    accel_state->xv_vs_offset;
+	accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
+	    accel_state->xv_ps_offset;
+    }
 
     /* PS bool constant */
     switch(pPriv->id) {
@@ -271,16 +299,19 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     /* flush SQ cache */
     cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->vs_size, accel_state->vs_mc_addr);
+			accel_state->vs_size, accel_state->vs_mc_addr,
+			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
     vs_conf.num_gprs            = 2;
     vs_conf.stack_size          = 0;
+    vs_conf.bo                  = accel_state->shaders_bo;
     vs_setup                    (pScrn, accel_state->ib, &vs_conf);
 
     /* flush SQ cache */
     cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->ps_size, accel_state->ps_mc_addr);
+			accel_state->ps_size, accel_state->ps_mc_addr,
+			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
     ps_conf.shader_addr         = accel_state->ps_mc_addr;
     ps_conf.num_gprs            = 3;
@@ -288,6 +319,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     ps_conf.uncached_first_inst = 1;
     ps_conf.clamp_consts        = 0;
     ps_conf.export_mode         = 2;
+    ps_conf.bo                  = accel_state->shaders_bo;
     ps_setup                    (pScrn, accel_state->ib, &ps_conf);
 
     /* PS alu constants */
@@ -298,12 +330,12 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     switch(pPriv->id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	accel_state->src_mc_addr[0] = pPriv->src_offset + info->fbLocation + pScrn->fbOffset;
 	accel_state->src_size[0] = accel_state->src_pitch[0] * pPriv->h;
 
 	/* flush texture cache */
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
-			    accel_state->src_mc_addr[0]);
+			    accel_state->src_mc_addr[0],
+			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
 
 	/* Y texture */
 	tex_res.id                  = 0;
@@ -314,6 +346,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.dim                 = SQ_TEX_DIM_2D;
 	tex_res.base                = accel_state->src_mc_addr[0];
 	tex_res.mip_base            = accel_state->src_mc_addr[0];
+	tex_res.bo                  = accel_state->src_bo[0];
+	tex_res.mip_bo              = accel_state->src_bo[0];
 
 	tex_res.format              = FMT_8;
 	tex_res.dst_sel_x           = SQ_SEL_X; /* Y */
@@ -345,7 +379,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	/* U or V texture */
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			    accel_state->src_size[0] / 4,
-			    accel_state->src_mc_addr[0] + pPriv->planev_offset);
+			    accel_state->src_mc_addr[0] + pPriv->planev_offset,
+			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
 
 	tex_res.id                  = 1;
 	tex_res.format              = FMT_8;
@@ -369,7 +404,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	/* U or V texture */
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			    accel_state->src_size[0] / 4,
-			    accel_state->src_mc_addr[0] + pPriv->planeu_offset);
+			    accel_state->src_mc_addr[0] + pPriv->planeu_offset,
+			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
 
 	tex_res.id                  = 2;
 	tex_res.format              = FMT_8;
@@ -393,12 +429,12 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	accel_state->src_mc_addr[0] = pPriv->src_offset + info->fbLocation + pScrn->fbOffset;
 	accel_state->src_size[0] = accel_state->src_pitch[0] * pPriv->h;
 
 	/* flush texture cache */
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
-			    accel_state->src_mc_addr[0]);
+			    accel_state->src_mc_addr[0],
+			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
 
 	/* Y texture */
 	tex_res.id                  = 0;
@@ -409,6 +445,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.dim                 = SQ_TEX_DIM_2D;
 	tex_res.base                = accel_state->src_mc_addr[0];
 	tex_res.mip_base            = accel_state->src_mc_addr[0];
+	tex_res.bo                  = accel_state->src_bo[0];
+	tex_res.mip_bo              = accel_state->src_bo[0];
 
 	tex_res.format              = FMT_8_8;
 	if (pPriv->id == FOURCC_UYVY)
@@ -474,12 +512,10 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     END_BATCH();
 
     cb_conf.id = 0;
-
-    accel_state->dst_mc_addr = exaGetPixmapOffset(pPixmap) + info->fbLocation + pScrn->fbOffset;
-
     cb_conf.w = accel_state->dst_pitch;
     cb_conf.h = pPixmap->drawable.height;
     cb_conf.base = accel_state->dst_mc_addr;
+    cb_conf.bo = accel_state->dst_bo;
 
     switch (pPixmap->drawable.bitsPerPixel) {
     case 16:

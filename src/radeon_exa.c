@@ -336,7 +336,7 @@ static void RADEONFinishAccess_BE(PixmapPtr pPix, int index)
 #endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
 #ifdef XF86DRM_MODE
-static Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
+Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
     struct radeon_exa_pixmap_priv *driver_priv;
@@ -364,7 +364,7 @@ static Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
     return TRUE;
 }
 
-static void RADEONFinishAccess_CS(PixmapPtr pPix, int index)
+void RADEONFinishAccess_CS(PixmapPtr pPix, int index)
 {
     struct radeon_exa_pixmap_priv *driver_priv;
 
@@ -456,7 +456,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     return new_priv;
 }
 
-static void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
+void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 {
     struct radeon_exa_pixmap_priv *driver_priv = driverPriv;
 
@@ -489,7 +489,7 @@ void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
     }
 }
 
-static Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
+Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix)
 {
     struct radeon_exa_pixmap_priv *driver_priv;
 
