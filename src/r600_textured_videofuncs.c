@@ -468,8 +468,10 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
 
     /* Render setup */
+    BEGIN_BATCH(6);
     EREG(accel_state->ib, CB_SHADER_MASK,                      (0x0f << OUTPUT0_ENABLE_shift));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    (0xcc << ROP3_shift)); /* copy */
+    END_BATCH();
 
     cb_conf.id = 0;
 
@@ -503,6 +505,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     /* Interpolator setup */
     /* export tex coords from VS */
+    BEGIN_BATCH(18);
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
     EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
 
@@ -514,7 +517,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 								(0x03 << DEFAULT_VAL_shift)	|
 								SEL_CENTROID_bit));
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
-
+    END_BATCH();
 
     vs_alu_consts[0] = 1.0 / pPriv->w;
     vs_alu_consts[1] = 1.0 / pPriv->h;

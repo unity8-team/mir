@@ -170,6 +170,9 @@ typedef struct {
     uint32_t num_indices;
 } draw_config_t;
 
+#define BEGIN_BATCH(n) do {} while(0)
+#define END_BATCH() do {} while(0)
+
 #define E32(ib, dword)                                                  \
 do {                                                                    \
     uint32_t *ib_head = (pointer)(char*)(ib)->address;			\

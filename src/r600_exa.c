@@ -207,8 +207,10 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	pmask |= 1; /* R */
     if (pm & 0xff000000)
 	pmask |= 8; /* A */
+    BEGIN_BATCH(6);
     EREG(accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[alu]);
+    END_BATCH();
 
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_pitch;
@@ -231,6 +233,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
     /* Interpolator setup */
     /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
+    BEGIN_BATCH(18);
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, (0 << VS_EXPORT_COUNT_shift));
     EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
 
@@ -245,6 +248,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 								  FLAT_SHADE_bit		|
 								  SEL_CENTROID_bit));
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                FLAT_SHADE_ENA_bit);
+    END_BATCH();
 
     /* PS alu constants */
     if (pPix->drawable.bitsPerPixel == 16) {
@@ -497,8 +501,10 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
 	pmask |= 1; /* R */
     if (planemask & 0xff000000)
 	pmask |= 8; /* A */
+    BEGIN_BATCH(6);
     EREG(accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[rop]);
+    END_BATCH();
 
     accel_state->dst_size = dst_pitch * dst_height * (dst_bpp/8);
     accel_state->dst_mc_addr = dst_offset;
@@ -526,6 +532,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
 
     /* Interpolator setup */
     /* export tex coord from VS */
+    BEGIN_BATCH(18);
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
     EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
 
@@ -539,6 +546,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
 								(0x01 << DEFAULT_VAL_shift)	|
 								SEL_CENTROID_bit));
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
+    END_BATCH();
 }
 
 static void
@@ -1499,6 +1507,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     ps_conf.export_mode         = 2;
     ps_setup                    (pScrn, accel_state->ib, &ps_conf);
 
+    BEGIN_BATCH(12);
     EREG(accel_state->ib, CB_SHADER_MASK,                      (0xf << OUTPUT0_ENABLE_shift));
 
     blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
@@ -1513,6 +1522,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 								    PER_MRT_BLEND_bit));
 	EREG(accel_state->ib, CB_BLEND0_CONTROL,                   blendcntl);
     }
+    END_BATCH();
 
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_pitch;
@@ -1540,6 +1550,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     set_render_target(pScrn, accel_state->ib, &cb_conf);
 
     /* Interpolator setup */
+    BEGIN_BATCH(21);
     if (pMask) {
 	/* export 2 tex coords from VS */
 	EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((2 - 1) << VS_EXPORT_COUNT_shift));
@@ -1566,6 +1577,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 								(0x01 << DEFAULT_VAL_shift)	|
 								SEL_CENTROID_bit));
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
+    END_BATCH();
 
     return TRUE;
 }
