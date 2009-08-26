@@ -1134,18 +1134,20 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 
     flags |= DISABLE_REUSE;
 
-    /* Try to allocate one big blob for our cursor memory.  This works
-     * around a limitation in the FreeBSD AGP driver that allows only one
-     * physical allocation larger than a page, and could allow us
-     * to pack the cursors smaller.
-     */
-    size = xf86_config->num_crtc * (HWCURSOR_SIZE + HWCURSOR_SIZE_ARGB);
+    if (!pI830->use_drm_mode) {
+	/* Try to allocate one big blob for our cursor memory.  This works
+	 * around a limitation in the FreeBSD AGP driver that allows only one
+	 * physical allocation larger than a page, and could allow us
+	 * to pack the cursors smaller.
+	 */
+	size = xf86_config->num_crtc * (HWCURSOR_SIZE + HWCURSOR_SIZE_ARGB);
 
-    pI830->cursor_mem = i830_allocate_memory(pScrn, "HW cursors",
-					     size, PITCH_NONE, GTT_PAGE_SIZE,
-					     flags, TILE_NONE);
-    if (pI830->cursor_mem != NULL)
-	return TRUE;
+	pI830->cursor_mem = i830_allocate_memory(pScrn, "HW cursors",
+						 size, PITCH_NONE, GTT_PAGE_SIZE,
+						 flags, TILE_NONE);
+	if (pI830->cursor_mem != NULL)
+	    return TRUE;
+    }
 
     /*
      * Allocate four separate buffers when the kernel doesn't support
@@ -1154,15 +1156,17 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
      */
     for (i = 0; i < xf86_config->num_crtc; i++)
     {
-	pI830->cursor_mem_classic[i] = i830_allocate_memory (pScrn, 
-							     "Core cursor",
-							     HWCURSOR_SIZE,
-							     PITCH_NONE,
-							     GTT_PAGE_SIZE,
-							     flags,
-							     TILE_NONE);
-	if (!pI830->cursor_mem_classic[i])
-	    return FALSE;
+	if (!pI830->use_drm_mode) {
+	    pI830->cursor_mem_classic[i] = i830_allocate_memory (pScrn,
+								 "Core cursor",
+								 HWCURSOR_SIZE,
+								 PITCH_NONE,
+								 GTT_PAGE_SIZE,
+								 flags,
+								 TILE_NONE);
+	    if (!pI830->cursor_mem_classic[i])
+		return FALSE;
+	}
 	pI830->cursor_mem_argb[i] = i830_allocate_memory (pScrn, "ARGB cursor",
 							  HWCURSOR_SIZE_ARGB,
 							  PITCH_NONE,
@@ -1575,7 +1579,12 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 		FatalError("Couldn't bind memory for BO %s\n", mem->name);
 	}
     }
-    if (!pI830->use_drm_mode)
+    if (pI830->use_drm_mode) {
+	int	i;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	for (i = 0; i < xf86_config->num_crtc; i++)
+	    drmmode_crtc_set_cursor_bo(xf86_config->crtc[i], pI830->cursor_mem_argb[i]->bo);
+    } else
 	i830_update_cursor_offsets(pScrn);
     i830_set_max_gtt_map_size(pScrn);
 

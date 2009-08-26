@@ -421,12 +421,11 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 static void
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	I830Ptr pI830 = I830PTR(pScrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	int ret;
 
 	/* cursor should be mapped already */
-	ret = dri_bo_subdata(pI830->cursor_mem->bo, 0, 64*64*4, image);
+	ret = dri_bo_subdata(drmmode_crtc->cursor, 0, 64*64*4, image);
 	if (ret)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set cursor: %s", strerror(-ret));
@@ -450,11 +449,9 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	I830Ptr pI830 = I830PTR(pScrn);
 
 	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			 pI830->cursor_mem->bo->handle, 64, 64);
+			 drmmode_crtc->cursor->handle, 64, 64);
 }
 
 static void *
@@ -598,6 +595,13 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	crtc->driver_private = drmmode_crtc;
 
 	return;
+}
+
+void
+drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo *cursor)
+{
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_crtc->cursor = cursor;
 }
 
 static xf86OutputStatus
