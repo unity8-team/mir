@@ -131,9 +131,6 @@ static const uint32_t ps_kernel_planar_static_gen5[][4] = {
 #include "exa_wm_write.g4b.gen5"
 };
 
-#define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-
 static uint32_t float_to_uint (float f) {
     union {uint32_t i; float f;} x;
     x.f = f;

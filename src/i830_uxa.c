@@ -597,18 +597,34 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     {
 	unsigned int size;
 	uint32_t tiling = I915_TILING_NONE;
+	int pitch_align;
+
+	if (usage == INTEL_CREATE_PIXMAP_TILING_X) {
+	    tiling = I915_TILING_X;
+	    pitch_align = 512;
+	} else if (usage == INTEL_CREATE_PIXMAP_TILING_Y) {
+	    tiling = I915_TILING_Y;
+	    pitch_align = 512;
+	} else {
+	    pitch_align = i830->accel_pixmap_pitch_alignment;
+	}
 
 	stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
-			  i830->accel_pixmap_pitch_alignment);
-
-	if (usage == INTEL_CREATE_PIXMAP_TILING_X)
-	    tiling = I915_TILING_X;
-	else if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
-	    tiling = I915_TILING_Y;
+			  pitch_align);
 
 	if (tiling == I915_TILING_NONE) {
-	    size = stride * h;
+	    /* Round the height up so that the GPU's access to a 2x2 aligned
+	     * subspan doesn't address an invalid page offset beyond the
+	     * end of the GTT.
+	     */
+	    size = stride * ALIGN(h, 2);
 	} else {
+	    int aligned_h = h;
+	    if (tiling == I915_TILING_X)
+		aligned_h = ALIGN(h, 8);
+	    else
+		aligned_h = ALIGN(h, 32);
+
 	    stride = i830_get_fence_pitch(i830, stride, tiling);
 	    /* Round the object up to the size of the fence it will live in
 	     * if necessary.  We could potentially make the kernel allocate
@@ -616,8 +632,8 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	     * but this is easier and also keeps us out of trouble (as much)
 	     * with drm_intel_bufmgr_check_aperture().
 	     */
-	    size = i830_get_fence_size(i830, stride * h);
-	    assert(size >= stride * h);
+	    size = i830_get_fence_size(i830, stride * aligned_h);
+	    assert(size >= stride * aligned_h);
 	}
 
 	/* Fail very large allocations on 32-bit systems.  Large BOs will

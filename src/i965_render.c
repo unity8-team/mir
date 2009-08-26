@@ -251,8 +251,6 @@ i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 
 }
 
-#define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define BRW_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 
 /* Set up a default static partitioning of the URB, which is supposed to

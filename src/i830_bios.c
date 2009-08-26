@@ -123,6 +123,7 @@ parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
     DisplayModePtr fixed_mode;
     unsigned char *timing_ptr;
     int lfp_data_size;
+    int dvo_offset;
 
     /* Defaults if we can't find VBT info */
     pI830->lvds_dither = 0;
@@ -146,10 +147,11 @@ parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 
     lfp_data_size = lvds_lfp_data_ptrs->ptr[1].dvo_timing_offset -
 	lvds_lfp_data_ptrs->ptr[0].dvo_timing_offset;
+    dvo_offset = lvds_lfp_data_ptrs->ptr[0].dvo_timing_offset -
+			lvds_lfp_data_ptrs->ptr[0].fp_timing_offset;
     entry = (struct bdb_lvds_lfp_data_entry *)((uint8_t *)lvds_data->data +
 					       (lfp_data_size * lvds_options->panel_type));
-    timing_ptr = (unsigned char *)&entry->dvo_timing;
-
+    timing_ptr = (unsigned char *)entry + dvo_offset;
     if (pI830->skip_panel_detect)
 	return;
 

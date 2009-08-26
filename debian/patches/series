@@ -1,0 +1,3 @@
+disable-uxa-render-accel-on-i8xx.patch
+100_8xx_perf_pict_a8.patch
+101_reload_cursors.patch
