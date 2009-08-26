@@ -65,11 +65,6 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-#ifdef XF86DRM_MODE
-    if (info->cs)
-	radeon_bo_unmap(accel_state->vb_bo);
-#endif
-
     if (accel_state->vb_index == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
@@ -117,9 +112,6 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
 			accel_state->dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
     R600CPFlushIndirect(pScrn, accel_state->ib);
-    accel_state->dst_bo = NULL;
-    accel_state->src_bo[0] = NULL;
-    accel_state->src_bo[1] = NULL;
 }
 
 void
@@ -261,6 +253,10 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     r600_cp_start(pScrn);
 
     /* Init */
+#if defined(XF86DRM_MODE)
+    if (info->cs)
+	accel_state->XInited3D = FALSE;
+#endif
     start_3d(pScrn, accel_state->ib);
 
     set_default_state(pScrn, accel_state->ib);

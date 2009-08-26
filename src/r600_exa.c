@@ -352,11 +352,6 @@ R600DoneSolid(PixmapPtr pPix)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-#ifdef XF86DRM_MODE
-    if (info->cs)
-	radeon_bo_unmap(accel_state->vb_bo);
-#endif
-
     if (accel_state->vb_index == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
@@ -405,11 +400,6 @@ R600DoneSolid(PixmapPtr pPix)
 			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
     R600CPFlushIndirect(pScrn, accel_state->ib);
-
-    accel_state->src_bo[0] = NULL;
-    accel_state->src_bo[1] = NULL;
-    accel_state->dst_bo = NULL;
-    accel_state->vb_bo = NULL;
 }
 
 static void
@@ -453,6 +443,10 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     r600_cp_start(pScrn);
 
     /* Init */
+#if defined(XF86DRM_MODE)
+    if (info->cs)
+	accel_state->XInited3D = FALSE;
+#endif
     start_3d(pScrn, accel_state->ib);
 
     set_default_state(pScrn, accel_state->ib);
@@ -618,11 +612,6 @@ R600DoCopy(ScrnInfoPtr pScrn)
 
     CLEAR (draw_conf);
     CLEAR (vtx_res);
-
-#ifdef XF86DRM_MODE
-    if (info->cs)
-	radeon_bo_unmap(accel_state->vb_bo);
-#endif
 
     if (accel_state->vb_index == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
@@ -1092,10 +1081,7 @@ R600DoneCopy(PixmapPtr pDst)
 	    exaOffscreenFree(pDst->drawable.pScreen, accel_state->copy_area);
 	accel_state->copy_area = NULL;
     }
-    accel_state->src_bo[0] = NULL;
-    accel_state->src_bo[1] = NULL;
-    accel_state->dst_bo = NULL;
-    accel_state->vb_bo = NULL;
+
 }
 
 
@@ -1611,6 +1597,8 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     if (info->cs) {
 	accel_state->dst_mc_addr = 0;
 	accel_state->dst_bo = radeon_get_pixmap_bo(pDst);
+	accel_state->src_bo[0] = NULL;
+	accel_state->src_bo[1] = NULL;
     } else
 #endif
 	accel_state->dst_mc_addr = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
@@ -1633,6 +1621,10 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     r600_cp_start(pScrn);
 
     /* Init */
+#if defined(XF86DRM_MODE)
+    if (info->cs)
+	accel_state->XInited3D = FALSE;
+#endif
     start_3d(pScrn, accel_state->ib);
 
     set_default_state(pScrn, accel_state->ib);
@@ -1714,7 +1706,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     ps_conf.bo                  = accel_state->shaders_bo;
     ps_setup                    (pScrn, accel_state->ib, &ps_conf);
 
-    BEGIN_BATCH(12);
+    BEGIN_BATCH(9);
     EREG(accel_state->ib, CB_SHADER_MASK,                      (0xf << OUTPUT0_ENABLE_shift));
 
     blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
@@ -1893,11 +1885,6 @@ static void R600DoneComposite(PixmapPtr pDst)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-#ifdef XF86DRM_MODE
-    if (info->cs)
-	radeon_bo_unmap(accel_state->vb_bo);
-#endif
-
     if (accel_state->vb_index == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
@@ -1954,10 +1941,6 @@ static void R600DoneComposite(PixmapPtr pDst)
 
     R600CPFlushIndirect(pScrn, accel_state->ib);
 
-    accel_state->src_bo[0] = NULL;
-    accel_state->src_bo[1] = NULL;
-    accel_state->dst_bo = NULL;
-    accel_state->vb_bo = NULL;
 }
 
 Bool
