@@ -313,11 +313,23 @@ static void dump_lvds_data(void)
 {
     struct bdb_block *block;
     struct bdb_lvds_lfp_data *lvds_data;
+    struct bdb_lvds_lfp_data_ptrs *ptrs;
     int num_entries;
     int i;
     int hdisplay, hsyncstart, hsyncend, htotal;
     int vdisplay, vsyncstart, vsyncend, vtotal;
     float clock;
+    int lfp_data_size, dvo_offset;
+
+    block = find_section(BDB_LVDS_LFP_DATA_PTRS);
+    if (!block) {
+	printf("No LVDS ptr block\n");
+        return;
+    }
+    ptrs = block->data;
+    lfp_data_size = ptrs->ptr[1].fp_timing_offset - ptrs->ptr[0].fp_timing_offset;
+    dvo_offset = ptrs->ptr[0].dvo_timing_offset - ptrs->ptr[0].fp_timing_offset;
+    free(block);
 
     block = find_section(BDB_LVDS_LFP_DATA);
     if (!block) {
@@ -326,14 +338,16 @@ static void dump_lvds_data(void)
     }
 
     lvds_data = block->data;
-    num_entries = block->size / sizeof(struct bdb_lvds_lfp_data_entry);
+    num_entries = block->size / lfp_data_size;
 
     printf("LVDS panel data block (preferred block marked with '*'):\n");
     printf("  Number of entries: %d\n", num_entries);
 
     for (i = 0; i < num_entries; i++) {
-	struct bdb_lvds_lfp_data_entry *lfp_data = &lvds_data->data[i];
-	uint8_t *timing_data = (uint8_t *)&lfp_data->dvo_timing;
+	uint8_t *lfp_data_ptr = (uint8_t *)lvds_data->data + lfp_data_size * i;
+	uint8_t *timing_data = lfp_data_ptr + dvo_offset;
+	struct bdb_lvds_lfp_data_entry *lfp_data =
+			(struct bdb_lvds_flp_data_entry *)lfp_data_ptr;
 	char marker;
 
 	if (i == panel_type)

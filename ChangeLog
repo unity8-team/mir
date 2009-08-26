@@ -1,3 +1,143 @@
+commit e6105d978a0217219cb2d60a672ae200c70bc68d
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Aug 25 16:56:44 2009 -0700
+
+    Increment version number to 2.8.1 for release.
+
+commit 584cdcb10ce73838e9a96b8f8a390cd0affe2f0e
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Aug 25 16:56:09 2009 -0700
+
+    NEWS: Add notes for 2.8.1
+    
+    An additional 5 patches were proposed at:
+    
+    	http://wiki.x.org/wiki/Intel28Branch
+
+commit 215ee68a5aa1d0f24884cd8bc226959c30c20bd3
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Aug 12 19:29:31 2009 -0700
+
+    Align the height of untiled pixmaps to 2 lines as well.
+    
+    The 965 docs note, and it's probably the case on 915 as well, that the
+    2x2 subspans are read as a unit, even if the bottom row isn't used.  If
+    the address in that bottom row extended beyond the end of the GTT, a
+    fault could occur.
+    
+    Thanks to Chris Wilson for pointing out the problem.
+    (cherry picked from commit 465a4ab416b2e5ad53b96702720331a44fffa2fe)
+
+commit 180a9d160f28087db20e34c838f19ff0a26fabcc
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Aug 5 12:45:16 2009 -0700
+
+    Fix sampler indexes on i965 planar video.
+    
+    We only set up one sampler, because all of our sampling is the same.  By
+    using a non-zero index for the other two samplers, we'd dereference (likely)
+    zeroed data, resulting in using NEAREST filtering.  This was a regression in
+    40671132cb3732728703c6444f4577467fa9223f which incidentally switched from
+    having 6 samplers to 1.
+    
+    Bug #22895, #19856
+    (cherry picked from commit 79b6851148574419389ac8055b0c31b8bdac3ab3)
+
+commit aa1d3f0bfd323126bcb4e11e4e5090fc2850237a
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Fri Jul 24 10:44:20 2009 +0800
+
+    Calculate the DVO relative offset in LVDS data entry to get the DVO timing
+    
+    Now the DVO timing in LVDS data entry is obtained by using the
+    following step:
+        a. get the entry size for every LVDS panel data
+        b. Get the LVDS fp entry for the preferred panel type
+        c. get the DVO timing by using entry->dvo_timing
+    
+        In our driver the entry->dvo_timing is related with the size of
+    lvds_fp_timing. For example: the size is 46.
+    
+        But it seems that the size of lvds_fp_timing varies on the differnt
+    platform. In such case we will get the incorrect DVO timing because of
+    the incorrect DVO offset in LVDS panel data entry.
+    
+    Calculate the DVO timing offset in LVDS data entry to get the DVO timing
+        a. get the DVO timing offset in the LVDS fp data entry by using the
+    pointer definition in LVDS data ptr
+        b. get the LVDS data entry
+        c. get the DVO timing by adding the DVO timing offset to data entry
+    
+    https://bugs.freedesktop.org/show_bug.cgi?id=22787
+    
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+    (cherry picked from commit af45482a52999b52bf41468c458808e30c100e35)
+
+commit 959bf6df0f8d2defae1f7b3084c9e6ed473db9d9
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jul 15 16:38:07 2009 -0700
+
+    Only align DRI2 tiled pixmaps to the DRI2 tiled pixmap alignment requirement.
+    
+    This should save significant amounts of memory for glyph and other small
+    pixmap storage.
+    
+    Bug #21387
+    (cherry picked from commit 6b7728491c3b771bcba2c7ffd75330c0a0b37f44)
+
+commit 154592a855e07889be5ffc8d63ef39ed424c61f6
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Jul 21 12:32:10 2009 -0700
+
+    drmmode_output_get_modes: Replace existing EDID property blob with new one
+    
+    This synchronizes the X EDID data with the kernel EDID data each time the
+    kernel data may have changed. Otherwise, X ends up stuck with the first EDID
+    data it sees, failing to accomodate to different monitors.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit 6f3fc6b20f3daedab02e31f49678d4d2ff0fa7a3)
+
+commit c6627f05c249879e548c0034c6a314d6d45a5f28
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Aug 13 14:02:10 2009 -0700
+
+    Update version to 2.8.0.901
+    
+    This is the version number for release candidate 1 of 2.8.1.
+
+commit c611082fc25b01ebd6d4fc8aca16096685fc58aa
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Aug 13 13:58:02 2009 -0700
+
+    NEWS: Add notes for 2.8.0.901 (2.8.1 rc 1)
+    
+    Just a couple of cherry-picked fixes.
+
+commit b0aa94fb63e8bc4be991f6dcadc66613054b0ddd
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 7 18:05:29 2009 -0700
+
+    Align tiled pixmap height so we don't address beyond the end of our buffers (plus fix)
+    
+    Original alignment patch
+    (cherry picked from commit 222b52ef16895823fbf3a0fc0be4eb23b930ed1b)
+    with subsequent "Fix math in the tiling alignment fix" squashed
+    (cherry picked from commit e8f0763d405a8152c74c28792c52fe12c1d41dd5)
+
+commit 24638652704f66c97a5f093231182868e638da57
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sun Jul 26 13:14:05 2009 -0700
+
+    Allow DRM mode setting to include transformations
+    
+    This removes the explicit transform disabling code in drm_set_mode_major.
+    Without a fixed X server, transforms will still be broken, but even a fixed
+    X server can't work around this driver bug.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit 8084f76d86f048ca5b82da089fffa9665dbbcdd5)
+
 commit 5d50a949b3c5d0ad2bc4cf48ab25da1f707a4f6f
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Jul 20 22:59:37 2009 -0700
