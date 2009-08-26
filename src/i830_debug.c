@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright Â© 2006 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -686,6 +686,9 @@ static struct i830SnapshotRec i830_snapshot[] = {
     DEFINEREG(PIPEA_GMCH_DATA_N),
     DEFINEREG(PIPEA_DP_LINK_M),
     DEFINEREG(PIPEA_DP_LINK_N),
+    DEFINEREG(CURSOR_A_BASE),
+    DEFINEREG(CURSOR_A_CONTROL),
+    DEFINEREG(CURSOR_A_POSITION),
 
     DEFINEREG2(FPA0, i830_debug_fp),
     DEFINEREG2(FPA1, i830_debug_fp),
@@ -714,6 +717,9 @@ static struct i830SnapshotRec i830_snapshot[] = {
     DEFINEREG(PIPEB_GMCH_DATA_N),
     DEFINEREG(PIPEB_DP_LINK_M),
     DEFINEREG(PIPEB_DP_LINK_N),
+    DEFINEREG(CURSOR_B_BASE),
+    DEFINEREG(CURSOR_B_CONTROL),
+    DEFINEREG(CURSOR_B_POSITION),
 
     DEFINEREG2(FPB0, i830_debug_fp),
     DEFINEREG2(FPB1, i830_debug_fp),
