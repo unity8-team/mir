@@ -29,6 +29,7 @@
 
 #include "i830_hwmc.h"
 
+/* i915 hw requires surface to be at least 1KB aligned */
 #define STRIDE(w)               (((w) + 0x3ff) & ~0x3ff)
 #define SIZE_Y420(w, h)         (h * STRIDE(w))
 #define SIZE_UV420(w, h)        ((h >> 1) * STRIDE(w >> 1))
@@ -48,7 +49,6 @@ typedef struct
     struct hwmc_buffer psp;
     struct hwmc_buffer psc;
     struct hwmc_buffer corrdata;/* Correction Data Buffer */
-    unsigned int sarea_priv_offset;
     int deviceID;
 } I915XvMCCreateContextRec;
 

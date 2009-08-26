@@ -27,7 +27,6 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/common.h,v 1.9 2003/09/24 02:43:23 dawes Exp $ */
 
 /*
  * Authors:
@@ -40,7 +39,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _INTEL_COMMON_H_
 
 /* Provide substitutes for gcc's __FUNCTION__ on other compilers */
-#ifndef __GNUC__
+#if !defined(__GNUC__) && !defined(__FUNCTION__)
 # if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
 #  define __FUNCTION__ __func__
 # else
@@ -55,11 +54,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef I830DEBUG
 #define MARKER() ErrorF("\n### %s:%d: >>> %s <<< ###\n\n", \
 			 __FILE__, __LINE__,__FUNCTION__)
-#define DPRINTF I830DPRINTF_stub
+#define DPRINTF I830DPRINTF
 #else /* #ifdef I830DEBUG */
 #define MARKER()
-/* this is a real ugly hack to get the compiler to optimize the debugging statements into oblivion */
-#define DPRINTF if(0) I830DPRINTF_stub
+#define DPRINTF I830DPRINTF_stub
+static inline void
+I830DPRINTF_stub(const char *filename, int line, const char *function,
+		 const char *fmt, ...)
+{
+}
 #endif /* #ifdef I830DEBUG */
 
 #define KB(x) ((x) * 1024)
@@ -79,19 +82,6 @@ extern void I830InitpScrn(ScrnInfoPtr pScrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
 extern int I830EntityIndex;
-extern const char *I810vgahwSymbols[];
-extern const char *I810ramdacSymbols[];
-extern const char *I810int10Symbols[];
-extern const char *I810vbeSymbols[];
-extern const char *I810ddcSymbols[];
-extern const char *I810fbSymbols[];
-extern const char *I810xaaSymbols[];
-extern const char *I810shadowFBSymbols[];
-#ifdef XF86DRI
-extern const char *I810driSymbols[];
-extern const char *I810drmSymbols[];
-#endif
-extern const char *I810i2cSymbols[];
 
 extern void I830DPRINTF_stub(const char *filename, int line,
 			     const char *function, const char *fmt, ...);
@@ -105,21 +95,6 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 #define WaitRingFunc I810WaitLpRing
 #define RecPtr pI810
 #endif
-
-/* BIOS debug macro */
-#define xf86ExecX86int10_wrapper(pInt, pScrn) do {			\
-   ErrorF("Executing (ax == 0x%x) BIOS call at %s:%d\n", pInt->ax, __FILE__, __LINE__);	\
-   if (I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("Checking Error state before execution\n");		\
-      PrintErrorState(pScrn);						\
-   }									\
-   xf86ExecX86int10(pInt);						\
-   if(I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("Checking Error state after execution\n");			\
-      usleep(50000);							\
-      PrintErrorState(pScrn);						\
-   }									\
-} while (0)
 
 static inline void memset_volatile(volatile void *b, int c, size_t len)
 {
@@ -258,6 +233,13 @@ extern int I810_DEBUG;
 #define PCI_CHIP_I945_GME_BRIDGE 0x27AC
 #endif
 
+#ifndef PCI_CHIP_IGD_GM
+#define PCI_CHIP_IGD_GM		0xA011
+#define PCI_CHIP_IGD_GM_BRIDGE	0xA010
+#define PCI_CHIP_IGD_G		0xA001
+#define PCI_CHIP_IGD_G_BRIDGE	0xA000
+#endif
+
 #ifndef PCI_CHIP_G35_G
 #define PCI_CHIP_G35_G		0x2982
 #define PCI_CHIP_G35_G_BRIDGE 	0x2980
@@ -303,26 +285,47 @@ extern int I810_DEBUG;
 #define PCI_CHIP_Q33_G_BRIDGE 	0x29D0
 #endif
 
-#ifndef PCI_CHIP_IGD_GM
-#define PCI_CHIP_IGD_GM		0x2A42
-#define PCI_CHIP_IGD_GM_BRIDGE  0x2A40
+#ifndef PCI_CHIP_GM45_GM
+#define PCI_CHIP_GM45_GM	0x2A42
+#define PCI_CHIP_GM45_BRIDGE    0x2A40
 #endif
 
-#if XSERVER_LIBPCIACCESS
+#ifndef PCI_CHIP_IGD_E_G
+#define PCI_CHIP_IGD_E_G	0x2E02
+#define PCI_CHIP_IGD_E_G_BRIDGE 0x2E00
+#endif
+
+#ifndef PCI_CHIP_G45_G
+#define PCI_CHIP_G45_G		0x2E22
+#define PCI_CHIP_G45_G_BRIDGE	0x2E20
+#endif
+
+#ifndef PCI_CHIP_Q45_G
+#define PCI_CHIP_Q45_G		0x2E12
+#define PCI_CHIP_Q45_G_BRIDGE	0x2E10
+#endif
+
+#ifndef PCI_CHIP_G41_G
+#define PCI_CHIP_G41_G		0x2E32
+#define PCI_CHIP_G41_G_BRIDGE	0x2E30
+#endif
+
+#ifndef PCI_CHIP_IGDNG_D_G
+#define PCI_CHIP_IGDNG_D_G		0x0042
+#define PCI_CHIP_IGDNG_D_G_BRIDGE	0x0040
+#endif
+
+#ifndef PCI_CHIP_IGDNG_M_G
+#define PCI_CHIP_IGDNG_M_G		0x0046
+#define PCI_CHIP_IGDNG_M_G_BRIDGE	0x0044
+#endif
+
 #define I810_MEMBASE(p,n) (p)->regions[(n)].base_addr
 #define VENDOR_ID(p)      (p)->vendor_id
 #define DEVICE_ID(p)      (p)->device_id
 #define SUBVENDOR_ID(p)	  (p)->subvendor_id
 #define SUBSYS_ID(p)      (p)->subdevice_id
 #define CHIP_REVISION(p)  (p)->revision
-#else
-#define I810_MEMBASE(p,n) (p)->memBase[n]
-#define VENDOR_ID(p)      (p)->vendor
-#define DEVICE_ID(p)      (p)->chipType
-#define SUBVENDOR_ID(p)	  (p)->subsysVendor
-#define SUBSYS_ID(p)      (p)->subsysCard
-#define CHIP_REVISION(p)  (p)->chipRev
-#endif
 
 #define IS_I810(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810 ||	\
 			DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810_DC100 || \
@@ -339,19 +342,40 @@ extern int I810_DEBUG;
 #define IS_I915GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I915_GM)
 #define IS_I945G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_G)
 #define IS_I945GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GME)
-#define IS_IGD_GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_GM)
+#define IS_IGDGM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_GM)
+#define IS_IGDG(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_G)
+#define IS_IGD(pI810) (IS_IGDG(pI810) || IS_IGDGM(pI810))
+#define IS_GM45(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_GM45_GM)
+#define IS_G4X(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_E_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G45_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q45_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G41_G || IS_GM45(pI810))
 #define IS_I965GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME)
-#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || IS_IGD_GM(pI810))
+#define IS_965_Q(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q)
+#define IS_IGDNG_D(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGDNG_D_G)
+#define IS_IGDNG_M(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGDNG_M_G)
+#define IS_IGDNG(pI810) (IS_IGDNG_D(pI810) || IS_IGDNG_M(pI810))
+#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || IS_G4X(pI810) || IS_IGDNG(pI810))
 #define IS_G33CLASS(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G33_G ||\
  			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q35_G ||\
- 			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q33_G)
+			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q33_G || \
+			    IS_IGD(pI810))
 #define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810) || IS_G33CLASS(pI810))
+#define IS_I915(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_G33CLASS(pI810))
 
-#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_IGD_GM(pI810))
+#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_GM45(pI810) || IS_IGD(pI810) || IS_IGDNG_M(pI810))
 /* mark chipsets for using gfx VM offset for overlay */
 #define OVERLAY_NOPHYSICAL(pI810) (IS_G33CLASS(pI810) || IS_I965G(pI810))
+/* mark chipsets without overlay hw */
+#define OVERLAY_NOEXIST(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
 /* chipsets require graphics mem for hardware status page */
-#define HWS_NEED_GFX(pI810) (IS_G33CLASS(pI810) || IS_IGD_GM(pI810))
+#define HWS_NEED_GFX(pI810) (!pI810->use_drm_mode && \
+			     (IS_G33CLASS(pI810) ||\
+			      IS_G4X(pI810) || IS_IGDNG(pI810)))
+/* chipsets require status page in non stolen memory */
+#define HWS_NEED_NONSTOLEN(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
+#define SUPPORTS_INTEGRATED_HDMI(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
+/* dsparb controlled by hw only */
+#define DSPARB_HWCONTROL(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
+/* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
+#define SUPPORTS_YTILING(pI810) (IS_I965G(pI830))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))
@@ -371,9 +395,7 @@ extern int I810_DEBUG;
 
 #define PIPE_NAME(n)			('A' + (n))
 
-#if XSERVER_LIBPCIACCESS
 struct pci_device *
 intel_host_bridge (void);
-#endif
-   
+
 #endif /* _INTEL_COMMON_H_ */

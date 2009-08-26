@@ -35,7 +35,7 @@
 struct intel_xvmc_driver *xvmc_driver;
 
 /* set global current driver for xvmc */
-Bool intel_xvmc_set_driver(struct intel_xvmc_driver *d)
+static Bool intel_xvmc_set_driver(struct intel_xvmc_driver *d)
 {
     if (xvmc_driver) {
 	ErrorF("XvMC driver already set!\n");
@@ -55,13 +55,17 @@ Bool intel_xvmc_probe(ScrnInfoPtr pScrn)
     if (!pI830->XvMCEnabled)
 	return FALSE;
 
+    if (pI830->use_drm_mode &&
+	    (IS_I915G(pI830) || IS_I915GM(pI830)))
+	return FALSE;
+
     if (IS_I9XX(pI830)) {
-	if (!IS_I965G(pI830))
+	if (IS_I915(pI830))
 	    ret = intel_xvmc_set_driver(&i915_xvmc_driver);
-	/*
+	else if (IS_G4X(pI830))
+	    ret = intel_xvmc_set_driver(&vld_xvmc_driver);
 	else
 	    ret = intel_xvmc_set_driver(&i965_xvmc_driver);
-	 */
     } else {
 	ErrorF("Your chipset doesn't support XvMC.\n");
 	return FALSE;
@@ -79,6 +83,9 @@ void intel_xvmc_finish(ScrnInfoPtr pScrn)
 Bool intel_xvmc_driver_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct drm_i915_setparam sp;
+    int ret;
 
     if (!xvmc_driver) {
 	ErrorF("Failed to probe XvMC driver.\n");
@@ -89,14 +96,23 @@ Bool intel_xvmc_driver_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
 	ErrorF("XvMC driver initialize failed.\n");
 	return FALSE;
     }
-    return TRUE;
+
+    /* Currently XvMC uses batchbuffer */
+    sp.param = I915_SETPARAM_ALLOW_BATCHBUFFER;
+    sp.value = 1; 
+    ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_SETPARAM,
+                          &sp, sizeof(sp));
+    if (ret == 0)
+        return TRUE;
+    
+    return FALSE;
 }
 
 Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    DRIInfoPtr pDRIInfo = pI830->pDRIInfo;
+    char buf[64];
 
     if (!xvmc_driver)
 	return FALSE;
@@ -113,18 +129,25 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 	return FALSE;
     }
 
+    sprintf(buf, "pci:%04x:%02x:%02x.%d",
+            pI830->PciInfo->domain,
+            pI830->PciInfo->bus,
+            pI830->PciInfo->dev,
+            pI830->PciInfo->func);
+
     xf86XvMCRegisterDRInfo(pScreen, INTEL_XVMC_LIBNAME,
-		    pDRIInfo->busIdString,
-		    INTEL_XVMC_MAJOR, INTEL_XVMC_MINOR, INTEL_XVMC_PATCHLEVEL);
+                           buf,
+                           INTEL_XVMC_MAJOR, INTEL_XVMC_MINOR, INTEL_XVMC_PATCHLEVEL);
     return TRUE;
 }
 
 Bool intel_xvmc_init_batch(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    int size = KB(64);
 
     if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC] batch buffer",
-                                   &(xvmc_driver->batch), 8 * 1024,
+                                   &(xvmc_driver->batch), size,
                                    ALIGN_BOTH_ENDS))
         return FALSE;
 
