@@ -55,8 +55,6 @@ typedef struct _i915XvMCContext {
     unsigned int yStride;
     unsigned int uvStride;
     unsigned short ref;
-    volatile drmI830Sarea *sarea;
-    unsigned int sarea_priv_offset;	        /* Offset in sarea to private part */
     unsigned int depth;
     XvPortID port;		       /* Xv Port ID when displaying */
     int haveXv;                        /* Have I initialized the Xv

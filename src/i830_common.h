@@ -26,7 +26,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_common.h,v 1.1 2002/09/11 00:29:32 dawes Exp $ */
 
 #ifndef _I830_COMMON_H_
 #define _I830_COMMON_H_
@@ -124,14 +123,14 @@ typedef struct {
         unsigned int rotated_tiled;
         unsigned int rotated2_tiled;
 
-	int planeA_x;
-	int planeA_y;
-	int planeA_w;
-	int planeA_h;
-	int planeB_x;
-	int planeB_y;
-	int planeB_w;
-	int planeB_h;
+	int pipeA_x;
+	int pipeA_y;
+	int pipeA_w;
+	int pipeA_h;
+	int pipeB_x;
+	int pipeB_y;
+	int pipeB_w;
+	int pipeB_h;
 
 	/* Triple buffering */
 	drm_handle_t third_handle;

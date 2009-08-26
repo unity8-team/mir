@@ -2,20 +2,11 @@
 
 #include "xorg-server.h"
 
-/* Use Damage extension */
-#undef DAMAGE
-
 /* Enable XvMC support */
 #undef ENABLE_XVMC
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
-
-/* have new FreeShadow API */
-#undef HAVE_FREE_SHADOW
-
-/* Have drm_i915_flip_t and related definitions */
-#undef HAVE_I915_FLIP
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -50,6 +41,10 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #undef NO_MINUS_C_MINUS_O
 
@@ -67,6 +62,9 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
@@ -94,9 +92,3 @@
 
 /* Enable developmental DRI driver support */
 #undef XF86DRI_DEVEL
-
-/* Extended DRI memory management */
-#undef XF86DRI_MM
-
-/* X server has built-in mode code */
-#undef XMODES

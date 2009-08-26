@@ -1,4 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/i810/i830_dri.h,v 1.6 2003/09/28 20:15:59 alanh Exp $ */
 
 #ifndef _I830_DRI_H
 #define _I830_DRI_H
@@ -58,6 +57,5 @@ typedef struct {
    /* Nothing here yet */
    int dummy;
 } I830DRIContextRec, *I830DRIContextPtr;
-
 
 #endif

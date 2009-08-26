@@ -57,8 +57,6 @@ EOF
   exit $SHELL_LIB_USAGE_ERROR
 fi
 
-ARCHITECTURE="$(dpkg --print-installation-architecture)"
-
 if [ "$1" = "reconfigure" ] || [ -n "$DEBCONF_RECONFIGURE" ]; then
   RECONFIGURE="true"
 else
@@ -304,16 +302,6 @@ EOF
     message "cannot search; $dpkg_info_dir does not exist."
   fi
 }
-
-# we require a readlink command or shell function
-if ! which readlink > /dev/null 2>&1; then
-  message "The readlink command was not found.  Please install version" \
-          "1.13.1 or later of the debianutils package."
-  readlink () {
-    # returns what symlink in $1 actually points to
-    perl -e '$l = shift; exit 1 unless -l $l; $r = readlink $l; exit 1 unless $r; print "$r\n"' "$1"
-  }
-fi
 
 check_symlink () {
   # syntax: check_symlink symlink
@@ -716,72 +704,6 @@ run () {
 
   if [ ${retval:-0} -ne 0 ]; then
     observe "command \"$*\" exited with status $retval"
-  fi
-}
-
-register_x_lib_dir_with_ld_so () {
-  # syntax: register_x_lib_dir_with_ld_so
-  #
-  # Configure the dynamic loader ld.so to search /usr/X11R6/lib for shared
-  # libraries.
-  #
-  # Call this function from the postinst script of a package that places a
-  # shared library in /usr/X11R6/lib, before invoking ldconfig.
-
-  local dir ldsoconf
-
-  dir="/usr/X11R6/lib"
-  ldsoconf="/etc/ld.so.conf"
-
-  # is the line not already present?
-  if ! fgrep -qsx "$dir" "$ldsoconf"; then
-    observe "adding $dir directory to $ldsoconf"
-    echo "$dir" >> "$ldsoconf"
-  fi
-}
-
-deregister_x_lib_dir_with_ld_so () {
-  # syntax: deregister_x_lib_dir_with_ld_so
-  #
-  # Configure dynamic loader ld.so to not search /usr/X11R6/lib for shared
-  # libraries, if and only if no shared libaries remain there.
-  #
-  # Call this function from the postrm script of a package that places a shared
-  # library in /usr/X11R6/lib, in the event "$1" is "remove", and before
-  # invoking ldconfig.
-
-  local dir ldsoconf fgrep_status cmp_status
-
-  dir="/usr/X11R6/lib"
-  ldsoconf="/etc/ld.so.conf"
-
-  # is the line present?
-  if fgrep -qsx "$dir" "$ldsoconf"; then
-    # are there any shared objects in the directory?
-    if [ "$(echo "$dir"/lib*.so.*.*)" = "$dir/lib*.so.*.*" ]; then
-      # glob expansion produced nothing, so no shared libraries are present
-      observe "removing $dir directory from $ldsoconf"
-      # rewrite the file (very carefully)
-      set +e
-      fgrep -svx "$dir" "$ldsoconf" > "$ldsoconf.dpkg-tmp"
-      fgrep_status=$?
-      set -e
-      case $fgrep_status in
-        0|1) ;; # we don't actually care if any lines matched or not
-        *) die "error reading \"$ldsoconf\"; fgrep exited with status" \
-          "$fgrep_status" ;;
-      esac
-      set +e
-      cmp -s "$ldsoconf.dpkg-tmp" "$ldsoconf"
-      cmp_status=$?
-      set -e
-      case $cmp_status in
-        0) rm "$ldsoconf.dpkg-tmp" ;; # files are identical
-        1) mv "$ldsoconf.dpkg-tmp" "$ldsoconf" ;; # files differ
-        *) die "error comparing \"$ldsoconf.dpkg-tmp\" to \"$ldsoconf\";" \
-          "cmp exited with status $cmp_status" ;;
-      esac
-    fi
   fi
 }
 

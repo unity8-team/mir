@@ -38,6 +38,7 @@
 #include <string.h>
 #include <assert.h>
 #include <signal.h>
+#include <stdint.h>
 
 #include <xf86drm.h>
 #include "i830_common.h"
@@ -50,13 +51,14 @@
 #include <X11/extensions/Xvlib.h>
 #include <X11/extensions/XvMC.h>
 #include <X11/extensions/XvMClib.h>
+#include <X11/extensions/vldXvMC.h>
 #include <drm_sarea.h>
-
-#include "xf86dri.h"
+#include "i915_drm.h"
+#include "intel_bufmgr.h"
 
 #include "intel_batchbuffer.h"
 
-#define DEBUG 0
+extern int DEBUG;
 
 #define XVMC_ERR(s, arg...)					\
     do {							\
@@ -128,17 +130,17 @@ typedef struct _intel_xvmc_driver {
     int screen;			/* current screen num*/
 
     int fd;			/* drm file handler */
-    drm_handle_t hsarea;	/* DRI open connect */
-    char busID[32];
 
-    unsigned int sarea_size;
-    drmAddress sarea_address;
+    dri_bufmgr      *bufmgr;
+    unsigned int kernel_exec_fencing:1;
 
     struct {
-	unsigned int start_offset;
+	unsigned int init_offset;
 	unsigned int size;
 	unsigned int space;
 	unsigned char *ptr;
+	unsigned char *init_ptr;
+	dri_bo *buf;
     } batch;
 
     struct
@@ -154,9 +156,7 @@ typedef struct _intel_xvmc_driver {
 
     sigset_t sa_mask;
     pthread_mutex_t ctxmutex;
-    int lock;   /* Lightweight lock to avoid locking twice */
     int locked;
-    drmLock *driHwLock;
 
     int num_ctx;
     intel_xvmc_context_ptr ctx_list;
@@ -196,10 +196,23 @@ typedef struct _intel_xvmc_driver {
 
     Status (*get_surface_status)(Display *display, XvMCSurface *surface, int *stat);
 
-    /* XXX more for vld */
+    Status (*begin_surface)(Display *display, XvMCContext *context,
+	    XvMCSurface *target_surface,
+	    XvMCSurface *past_surface,
+	    XvMCSurface *future_surface,
+	    const XvMCMpegControl *control);
+    Status (*load_qmatrix)(Display *display, XvMCContext *context,
+	    	const XvMCQMatrix *qmx);
+    Status (*put_slice)(Display *display, XvMCContext *context,
+	    	unsigned char *slice, int bytes);
+    Status (*put_slice2)(Display *display, XvMCContext *context,
+	    	unsigned char *slice, int bytes, int slice_code);
+    
 } intel_xvmc_driver_t, *intel_xvmc_driver_ptr;
 
 extern struct _intel_xvmc_driver i915_xvmc_mc_driver;
+extern struct _intel_xvmc_driver i965_xvmc_mc_driver;
+extern struct _intel_xvmc_driver xvmc_vld_driver;
 extern struct _intel_xvmc_driver *xvmc_driver;
 
 #define SET_BLOCKED_SIGSET()   do {    \
@@ -248,5 +261,24 @@ static inline const char* intel_xvmc_decoder_string(int flag)
 
 extern intel_xvmc_context_ptr intel_xvmc_find_context(XID id);
 extern intel_xvmc_surface_ptr intel_xvmc_find_surface(XID id);
+
+extern unsigned int mb_bytes_420[64];
+
+/* dump function */
+extern void intel_xvmc_dump_open(void);
+extern void intel_xvmc_dump_close(void);
+extern void intel_xvmc_dump_render(XvMCContext *context, unsigned int picture_structure,
+	    XvMCSurface *target_surface, XvMCSurface *past_surface,
+	    XvMCSurface *future_surface, unsigned int flags,
+	    unsigned int num_macroblocks, unsigned int first_macroblock,
+	    XvMCMacroBlockArray *macroblock_array, XvMCBlockArray *blocks);
+
+
+#define	VFE_GENERIC_MODE	0x0
+#define	VFE_VLD_MODE		0x1
+#define VFE_IS_MODE		0x2
+#define VFE_AVC_MC_MODE		0x4
+#define VFE_AVC_IT_MODE		0x7
+#define VFE_VC1_IT_MODE		0x7
 
 #endif
