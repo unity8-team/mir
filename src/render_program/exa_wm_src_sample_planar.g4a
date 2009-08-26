@@ -52,7 +52,7 @@ send (16) src_msg_ind		/* msg reg index */
 send (16) src_msg_ind		/* msg reg index */
 	src_sample_r<1>UW 	/* readback */
 	g0<8,8,1>UW		/* copy to msg start reg*/
-	sampler (3,2,F)		/* sampler message description, (binding_table,sampler_index,datatype)
+	sampler (3,0,F)		/* sampler message description, (binding_table,sampler_index,datatype)
 				/* here(src->dst) we should use src_sampler and src_surface */
 	mlen 5 rlen 2 { align1 };   /* required message len 5, readback len 8 */
 	
@@ -60,6 +60,6 @@ send (16) src_msg_ind		/* msg reg index */
 send (16) src_msg_ind		/* msg reg index */
 	src_sample_b<1>UW 	/* readback */
 	g0<8,8,1>UW		/* copy to msg start reg*/
-	sampler (5,4,F)		/* sampler message description, (binding_table,sampler_index,datatype)
+	sampler (5,0,F)		/* sampler message description, (binding_table,sampler_index,datatype)
 				/* here(src->dst) we should use src_sampler and src_surface */
 	mlen 5 rlen 2 { align1 };   /* required message len 5, readback len 8 */

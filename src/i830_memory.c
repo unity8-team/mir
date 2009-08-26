@@ -88,8 +88,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_reg.h"
 #include "i915_drm.h"
 
-#define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
-
 /* Our hardware status area is just a single page */
 #define HWSTATUS_PAGE_SIZE GTT_PAGE_SIZE
 #define PWRCTX_SIZE GTT_PAGE_SIZE

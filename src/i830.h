@@ -619,6 +619,8 @@ typedef struct _I830Rec {
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+#define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
+#define MIN(a,b)	((a) < (b) ? (a) : (b))
 
 #define I830_SELECT_FRONT	0
 #define I830_SELECT_BACK	1

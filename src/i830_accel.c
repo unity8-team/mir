@@ -232,9 +232,6 @@ I830AccelInit(ScreenPtr pScreen)
 	pI830->accel_max_x = 2048;
 	pI830->accel_max_y = 2048;
     }
-    /* Bump the pitch so that we can tile any pixmap we create. */
-    if (pI830->directRenderingType >= DRI_DRI2)
-	pI830->accel_pixmap_pitch_alignment = 512;
 
     return i830_uxa_init(pScreen);
 }

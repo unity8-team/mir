@@ -185,9 +185,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->x = x;
 	crtc->y = y;
 	crtc->rotation = rotation;
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,5,99,0,0)
-	crtc->transformPresent = FALSE;
-#endif
 
 	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
 	if (!output_ids) {
@@ -641,8 +638,7 @@ drmmode_output_get_modes(xf86OutputPtr output)
 		if (!props || !(props->flags & DRM_MODE_PROP_BLOB))
 			continue;
 
-		if (!strcmp(props->name, "EDID") &&
-		    drmmode_output->edid_blob == NULL) {
+		if (!strcmp(props->name, "EDID")) {
 			drmModeFreePropertyBlob(drmmode_output->edid_blob);
 			drmmode_output->edid_blob =
 				drmModeGetPropertyBlob(drmmode->fd,
