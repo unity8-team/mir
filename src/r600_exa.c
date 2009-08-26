@@ -128,7 +128,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
 
-    return FALSE;
+    //return FALSE;
 
     if (pPix->drawable.bitsPerPixel == 24)
         RADEON_FALLBACK(("24bpp unsupported\n"));
@@ -707,7 +707,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
 
-    return FALSE;
+    //return FALSE;
 
     if (pSrc->drawable.bitsPerPixel == 24)
         RADEON_FALLBACK(("24bpp unsupported\n"));
@@ -1569,7 +1569,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
 
-    return FALSE;
+    //return FALSE;
     /* return FALSE; */
 
     if (pDst->drawable.bitsPerPixel < 8 || pSrc->drawable.bitsPerPixel < 8)
@@ -2324,6 +2324,17 @@ R600DrawInit(ScreenPtr pScreen)
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
 #ifdef EXA_SUPPORTS_PREPARE_AUX
     info->accel_state->exa->flags |= EXA_SUPPORTS_PREPARE_AUX;
+#endif
+
+#ifdef XF86DRM_MODE
+#ifdef EXA_HANDLES_PIXMAPS
+    if (info->cs) {
+	info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
+//#ifdef EXA_MIXED_PIXMAPS
+//	info->accel_state->exa->flags |= EXA_MIXED_PIXMAPS;
+//#endif
+    }
+#endif
 #endif
     info->accel_state->exa->pixmapOffsetAlign = 256;
     info->accel_state->exa->pixmapPitchAlign = 256;
