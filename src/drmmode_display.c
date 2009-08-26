@@ -391,6 +391,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	i830_set_max_gtt_map_size(pScrn);
 
+	if (pScrn->pScreen)
+		xf86_reload_cursors(pScrn->pScreen);
 done:
 	if (!ret) {
 		crtc->x = saved_x;
