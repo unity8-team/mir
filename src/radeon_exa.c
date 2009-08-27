@@ -390,8 +390,8 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
     if (size == 0)
 	return new_priv;
 
-    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size,
-				  align, 0, 0);
+    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size, align,
+				  RADEON_GEM_DOMAIN_VRAM, 0);
     if (!new_priv->bo) {
 	xfree(new_priv);
 	ErrorF("Failed to alloc memory\n");
@@ -442,8 +442,8 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 
     *new_pitch = padded_width;
 
-    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size,
-				  0, 0, 0);
+    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size, 0,
+				  RADEON_GEM_DOMAIN_VRAM, 0);
     if (!new_priv->bo) {
 	xfree(new_priv);
 	ErrorF("Failed to alloc memory\n");
