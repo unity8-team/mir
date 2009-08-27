@@ -1258,30 +1258,29 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_samp.id                 = unit;
     tex_samp.border_color       = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
 
-    if (pPict->repeat) {
-	switch (pPict->repeatType) {
-	case RepeatNormal:
-	    tex_samp.clamp_x            = SQ_TEX_WRAP;
-	    tex_samp.clamp_y            = SQ_TEX_WRAP;
-	    break;
-	case RepeatPad:
-	    tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
-	    tex_samp.clamp_y            = SQ_TEX_CLAMP_LAST_TEXEL;
-	    break;
-	case RepeatReflect:
-	    tex_samp.clamp_x            = SQ_TEX_MIRROR;
-	    tex_samp.clamp_y            = SQ_TEX_MIRROR;
-	    break;
-	case RepeatNone:
-	    tex_samp.clamp_x            = SQ_TEX_CLAMP_BORDER;
-	    tex_samp.clamp_y            = SQ_TEX_CLAMP_BORDER;
-	    break;
-	default:
-	    RADEON_FALLBACK(("Bad repeat 0x%x\n", pPict->repeatType));
-	}
-    } else {
+    /* Unfortunately we can't rely on the X server doing this for us */
+    if (!pPict->repeat)
+	pPict->repeatType = RepeatNone;
+
+    switch (pPict->repeatType) {
+    case RepeatNormal:
+	tex_samp.clamp_x            = SQ_TEX_WRAP;
+	tex_samp.clamp_y            = SQ_TEX_WRAP;
+	break;
+    case RepeatPad:
+	tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
+	tex_samp.clamp_y            = SQ_TEX_CLAMP_LAST_TEXEL;
+	break;
+    case RepeatReflect:
+	tex_samp.clamp_x            = SQ_TEX_MIRROR;
+	tex_samp.clamp_y            = SQ_TEX_MIRROR;
+	break;
+    case RepeatNone:
 	tex_samp.clamp_x            = SQ_TEX_CLAMP_BORDER;
 	tex_samp.clamp_y            = SQ_TEX_CLAMP_BORDER;
+	break;
+    default:
+	RADEON_FALLBACK(("Bad repeat 0x%x\n", pPict->repeatType));
     }
 
     switch (pPict->filter) {
