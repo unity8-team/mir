@@ -507,33 +507,6 @@ out:
 }
 
 static Bool
-RADEONDownloadFromScreenGTT(PixmapPtr pSrc, int x, int y, int w,
-			    int h, char *dst, int dst_pitch)
-{
-    struct radeon_exa_pixmap_priv *driver_priv;
-    int src_pitch = exaGetPixmapPitch(pSrc);
-    int bpp = pSrc->drawable.bitsPerPixel;
-    int src_offset;
-    int r;
-
-    driver_priv = exaGetPixmapDriverPrivate(pSrc);
-    r = radeon_bo_map(driver_priv->bo, 0);
-    if (r)
-	return FALSE;
-
-    src_offset = (x * bpp / 8) + (y * src_pitch);
-    w *= bpp / 8;
-
-    while (h--) {
-        memcpy(dst, driver_priv->bo->ptr + src_offset, w);
-        src_offset += src_pitch;
-        dst += dst_pitch;
-    }
-    radeon_bo_unmap(driver_priv->bo);
-    return TRUE;
-}
-
-static Bool
 RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
                            int h, char *dst, int dst_pitch)
 {
@@ -542,23 +515,33 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     struct radeon_bo *scratch;
     unsigned size;
     uint32_t datatype = 0;
+    uint32_t src_domain = 0;
     uint32_t src_pitch_offset;
     unsigned bpp = pSrc->drawable.bitsPerPixel;
     uint32_t scratch_pitch = (w * bpp / 8 + 63) & ~63;
     Bool r;
-    uint32_t src_domain;
-    int busy;
 
     if (bpp < 8)
 	return FALSE;
 
     driver_priv = exaGetPixmapDriverPrivate(pSrc);
- 
-    busy = radeon_bo_is_busy(driver_priv->bo, &src_domain);
 
-    if (src_domain == RADEON_GEM_DOMAIN_GTT)
-	return RADEONDownloadFromScreenGTT(pSrc, x, y, w, h,
-					   dst, dst_pitch);
+    /* If we know the BO won't end up in VRAM anyway, don't bother */
+    if (driver_priv->bo->cref > 1) {
+	src_domain = driver_priv->bo->space_accounted & 0xffff;
+	if (!src_domain)
+	    src_domain = driver_priv->bo->space_accounted >> 16;
+
+	if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
+	    (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
+	    src_domain = 0;
+    }
+
+    if (!src_domain)
+	radeon_bo_is_busy(driver_priv->bo, &src_domain);
+
+    if (src_domain != RADEON_GEM_DOMAIN_VRAM)
+	return FALSE;
 
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
