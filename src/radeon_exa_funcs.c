@@ -455,6 +455,7 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     struct radeon_bo *scratch;
     unsigned size;
     uint32_t datatype = 0;
+    uint32_t dst_domain;
     uint32_t dst_pitch_offset;
     unsigned bpp = pDst->drawable.bitsPerPixel;
     uint32_t scratch_pitch = (w * bpp / 8 + 63) & ~63;
@@ -465,6 +466,11 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 	return FALSE;
 
     driver_priv = exaGetPixmapDriverPrivate(pDst);
+
+    /* If we know the BO won't be busy, don't bother */
+    if (driver_priv->bo->cref == 1 &&
+	!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
+	return FALSE;
 
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
