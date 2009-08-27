@@ -91,6 +91,10 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
         } else {
 	    /* tile the back buffer */
 	    switch(attachments[i]) {
+	    case DRI2BufferDepth:
+	    case DRI2BufferDepthStencil:
+		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+		break;
 	    case DRI2BufferBackLeft:
 	    case DRI2BufferBackRight:
 	    case DRI2BufferFakeFrontLeft:
