@@ -367,7 +367,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->src_offset = pPriv->video_offset;
     if (info->cs) {
 	int ret;
-	radeon_bo_wait(pPriv->src_bo);
 	ret = radeon_bo_map(pPriv->src_bo, 1);
 	if (ret)
 	    return BadAlloc;
@@ -690,7 +689,6 @@ Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
 	uint8_t *bicubic_addr;
 	int ret;
 	if (info->cs) {
-	    radeon_bo_wait(info->bicubic_bo);
 	    ret = radeon_bo_map(info->bicubic_bo, 1);
 	    if (ret)
 		return FALSE;

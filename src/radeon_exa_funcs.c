@@ -572,7 +572,6 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
                     RADEON_GEM_DOMAIN_GTT);
     FLUSH_RING();
 
-    radeon_bo_wait(scratch);
     r = radeon_bo_map(scratch, 0);
     if (r) {
         r = FALSE;

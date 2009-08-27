@@ -350,8 +350,6 @@ static Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
     if (driver_priv->bo->cref > 1)
         radeon_cs_flush_indirect(pScrn);
     
-    radeon_bo_wait(driver_priv->bo);
-
     /* flush IB */
     ret = radeon_bo_map(driver_priv->bo, 1);
     if (ret) {
