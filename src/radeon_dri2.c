@@ -275,6 +275,25 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     (*gc->funcs->ChangeClip) (gc, CT_REGION, copy_clip, 0);
     ValidateGC(&dst_pixmap->drawable, gc);
 
+    /* If this is a full buffer swap or frontbuffer flush, throttle on the
+     * previous one
+     */
+    if (dst_private->attachment == DRI2BufferFrontLeft) {
+	if (REGION_NUM_RECTS(region) == 1) {
+	    BoxPtr extents = REGION_EXTENTS(pScreen, region);
+
+	    if (extents->x1 == 0 && extents->y1 == 0 &&
+		extents->x2 == drawable->width &&
+		extents->y2 == drawable->height) {
+		struct radeon_exa_pixmap_priv *exa_priv =
+		    exaGetPixmapDriverPrivate(dst_pixmap);
+
+		if (exa_priv && exa_priv->bo)
+		    radeon_bo_wait(exa_priv->bo);
+	    }
+	}
+    }
+
     vsync = info->accel_state->vsync;
     info->accel_state->vsync = TRUE;
 
