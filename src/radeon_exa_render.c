@@ -233,10 +233,11 @@ static Bool RADEONCheckTexturePOT(PicturePtr pPict, Bool canTile)
 {
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
+    unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
 
-    if (pPict->repeat && pPict->repeatType != RepeatPad &&
+    if ((repeatType == RepeatNormal || repeatType == RepeatReflect) &&
 	((w & (w - 1)) != 0 || (h & (h - 1)) != 0) &&
-	!(pPict->repeatType == RepeatNormal && !pPict->transform && canTile))
+	!(repeatType == RepeatNormal && !pPict->transform && canTile))
 	RADEON_FALLBACK(("NPOT repeating %s unsupported (%dx%d), transform=%d\n",
 			 canTile ? "source" : "mask", w, h, pPict->transform != 0));
 
@@ -280,11 +281,12 @@ static Bool RADEONSetupSourceTile(PicturePtr pPict,
 				  Bool needMatchingPitch)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
+    unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
 
     info->accel_state->need_src_tile_x = info->accel_state->need_src_tile_y = FALSE;
     info->accel_state->src_tile_width = info->accel_state->src_tile_height = 65536; /* "infinite" */
 	    
-    if (pPict->repeat && pPict->repeatType != RepeatPad) {
+    if (repeatType == RepeatNormal || repeatType == RepeatReflect) {
 	Bool badPitch = needMatchingPitch && !RADEONPitchMatches(pPix);
 	
 	int w = pPict->pDrawable->width;
@@ -300,7 +302,7 @@ static Bool RADEONSetupSourceTile(PicturePtr pPict,
 
 	    if ((info->accel_state->need_src_tile_x ||
 		 info->accel_state->need_src_tile_y) &&
-		pPict->repeatType != RepeatNormal)
+		repeatType != RepeatNormal)
 		RADEON_FALLBACK(("Can only tile RepeatNormal at this time\n"));
 
 	    if (!canTile1d)
@@ -362,7 +364,8 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     uint32_t txfilter, txformat, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
-    Bool repeat = pPict->repeat && pPict->repeatType != RepeatPad &&
+    unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
+    Bool repeat = (repeatType == RepeatNormal || repeatType == RepeatReflect) &&
 	!(unit == 0 && (info->accel_state->need_src_tile_x || info->accel_state->need_src_tile_y));
     int i;
     struct radeon_exa_pixmap_priv *driver_priv;
@@ -410,11 +413,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    /* Unfortunately we can't rely on the X server doing this for us */
-    if (!pPict->repeat)
-	pPict->repeatType = RepeatNone;
-
-    switch (pPict->repeatType) {
+    switch (repeatType) {
 	case RepeatNormal:
 	    txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
 	    break;
@@ -747,7 +746,8 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     uint32_t txfilter, txformat, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
-    Bool repeat = pPict->repeat && pPict->repeatType != RepeatPad &&
+    unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
+    Bool repeat = (repeatType == RepeatNormal || repeatType == RepeatReflect) &&
 	!(unit == 0 && (info->accel_state->need_src_tile_x || info->accel_state->need_src_tile_y));
     int i;
     struct radeon_exa_pixmap_priv *driver_priv;
@@ -797,11 +797,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    /* Unfortunately we can't rely on the X server doing this for us */
-    if (!pPict->repeat)
-	pPict->repeatType = RepeatNone;
-
-    switch (pPict->repeatType) {
+    switch (repeatType) {
 	case RepeatNormal:
 	    txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
 	    break;
@@ -1059,6 +1055,7 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
@@ -1108,7 +1105,7 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
      * matter. I have not, however, verified that the X server always does such
      * clipping.
      */
-    if (pPict->transform != 0 && !pPict->repeat && PICT_FORMAT_A(pPict->format) == 0) {
+    if (pPict->transform != 0 && repeatType == RepeatNone && PICT_FORMAT_A(pPict->format) == 0) {
 	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) == 0)))
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
@@ -1126,6 +1123,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i, pixel_shift;
+    unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
     struct radeon_exa_pixmap_priv *driver_priv;
     ACCEL_PREAMBLE();
 
@@ -1179,11 +1177,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     txfilter = (unit << R300_TX_ID_SHIFT);
 
-    /* Unfortunately we can't rely on the X server doing this for us */
-    if (!pPict->repeat)
-	pPict->repeatType = RepeatNone;
-
-    switch (pPict->repeatType) {
+    switch (repeatType) {
     case RepeatNormal:
 	if (unit != 0 || !info->accel_state->need_src_tile_x)
 	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP);
@@ -1221,7 +1215,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    BEGIN_ACCEL_RELOC(pPict->repeat ? 6 : 7, 1);
+    BEGIN_ACCEL_RELOC(repeatType == RepeatNone ? 7 : 6, 1);
     OUT_ACCEL_REG(R300_TX_FILTER0_0 + (unit * 4), txfilter);
     OUT_ACCEL_REG(R300_TX_FILTER1_0 + (unit * 4), 0);
     OUT_ACCEL_REG(R300_TX_FORMAT0_0 + (unit * 4), txformat0);
@@ -1230,7 +1224,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     EMIT_READ_OFFSET((R300_TX_OFFSET_0 + (unit * 4)), txoffset, pPix);
 
-    if (!pPict->repeat)
+    if (repeatType == RepeatNone)
 	OUT_ACCEL_REG(R300_TX_BORDER_COLOR_0 + (unit * 4), 0);
     FINISH_ACCEL();
 

@@ -1062,6 +1062,7 @@ static Bool R600CheckCompositeTexture(PicturePtr pPict,
 {
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
+    unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
     unsigned int i;
     int max_tex_w, max_tex_h;
 
@@ -1092,7 +1093,7 @@ static Bool R600CheckCompositeTexture(PicturePtr pPict,
      * clipping.
      */
     /* FIXME R6xx */
-    if (pPict->transform != 0 && !pPict->repeat && PICT_FORMAT_A(pPict->format) == 0) {
+    if (pPict->transform != 0 && repeatType == RepeatNone && PICT_FORMAT_A(pPict->format) == 0) {
 	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) == 0)))
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
@@ -1108,6 +1109,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     struct radeon_accel_state *accel_state = info->accel_state;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
+    unsigned int repeatType = pPict->repeat ? pPict->repeatType : RepeatNone;
     unsigned int i;
     tex_resource_t  tex_res;
     tex_sampler_t   tex_samp;
@@ -1258,11 +1260,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_samp.id                 = unit;
     tex_samp.border_color       = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
 
-    /* Unfortunately we can't rely on the X server doing this for us */
-    if (!pPict->repeat)
-	pPict->repeatType = RepeatNone;
-
-    switch (pPict->repeatType) {
+    switch (repeatType) {
     case RepeatNormal:
 	tex_samp.clamp_x            = SQ_TEX_WRAP;
 	tex_samp.clamp_y            = SQ_TEX_WRAP;
@@ -1280,7 +1278,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	tex_samp.clamp_y            = SQ_TEX_CLAMP_BORDER;
 	break;
     default:
-	RADEON_FALLBACK(("Bad repeat 0x%x\n", pPict->repeatType));
+	RADEON_FALLBACK(("Bad repeat 0x%x\n", repeatType));
     }
 
     switch (pPict->filter) {
