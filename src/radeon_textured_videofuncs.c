@@ -218,7 +218,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
 	txpitch -= 32;
 
-	BEGIN_ACCEL(23);
+	BEGIN_ACCEL_RELOC(23, 3);
 
 	OUT_ACCEL_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
 					  RADEON_SE_VTX_FMT_ST0 |
@@ -307,7 +307,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	FINISH_ACCEL();
     } else {
 	vtx_count = 4;
-	BEGIN_ACCEL(9);
+	BEGIN_ACCEL_RELOC(9, 1);
 
 	OUT_ACCEL_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
 					  RADEON_SE_VTX_FMT_ST0));
@@ -643,7 +643,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
 	txpitch -= 32;
 
-	BEGIN_ACCEL(36);
+	BEGIN_ACCEL_RELOC(36, 3);
 
 	OUT_ACCEL_REG(RADEON_PP_CNTL,
 		      RADEON_TEX_0_ENABLE | RADEON_TEX_1_ENABLE | RADEON_TEX_2_ENABLE |
@@ -801,7 +801,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     } else {
 	vtx_count = 4;
 
-	BEGIN_ACCEL(24);
+	BEGIN_ACCEL_RELOC(24, 1);
 
 	OUT_ACCEL_REG(RADEON_PP_CNTL,
 		      RADEON_TEX_0_ENABLE |
