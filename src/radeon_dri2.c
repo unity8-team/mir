@@ -46,6 +46,12 @@
 #define USE_DRI2_1_1_0
 #endif
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,6,99,0, 0)
+typedef DRI2BufferPtr BufferPtr;
+#else
+typedef DRI2Buffer2Ptr BufferPtr;
+#endif
+
 struct dri2_buffer_priv {
     PixmapPtr   pixmap;
     unsigned int attachment;
@@ -53,13 +59,13 @@ struct dri2_buffer_priv {
 
 
 #ifndef USE_DRI2_1_1_0
-static DRI2BufferPtr
+static BufferPtr
 radeon_dri2_create_buffers(DrawablePtr drawable,
                            unsigned int *attachments,
                            int count)
 {
     ScreenPtr pScreen = drawable->pScreen;
-    DRI2BufferPtr buffers;
+    BufferPtr buffers;
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
@@ -131,13 +137,13 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
     return buffers;
 }
 #else
-static DRI2BufferPtr
+static BufferPtr
 radeon_dri2_create_buffer(DrawablePtr drawable,
                           unsigned int attachment,
                           unsigned int format)
 {
     ScreenPtr pScreen = drawable->pScreen;
-    DRI2BufferPtr buffers;
+    BufferPtr buffers;
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
@@ -214,7 +220,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 #ifndef USE_DRI2_1_1_0
 static void
 radeon_dri2_destroy_buffers(DrawablePtr drawable,
-                            DRI2BufferPtr buffers,
+                            BufferPtr buffers,
                             int count)
 {
     ScreenPtr pScreen = drawable->pScreen;
@@ -232,7 +238,7 @@ radeon_dri2_destroy_buffers(DrawablePtr drawable,
 }
 #else
 static void
-radeon_dri2_destroy_buffer(DrawablePtr drawable, DRI2BufferPtr buffers)
+radeon_dri2_destroy_buffer(DrawablePtr drawable, BufferPtr buffers)
 {
     if(buffers)
     {
@@ -251,8 +257,8 @@ radeon_dri2_destroy_buffer(DrawablePtr drawable, DRI2BufferPtr buffers)
 static void
 radeon_dri2_copy_region(DrawablePtr drawable,
                         RegionPtr region,
-                        DRI2BufferPtr dest_buffer,
-                        DRI2BufferPtr src_buffer)
+                        BufferPtr dest_buffer,
+                        BufferPtr src_buffer)
 {
     struct dri2_buffer_priv *src_private = src_buffer->driverPrivate;
     struct dri2_buffer_priv *dst_private = dest_buffer->driverPrivate;
