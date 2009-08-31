@@ -2113,8 +2113,6 @@ i830_valid_command (uint32_t cmd)
 	    count = 1;
 	else
 	    count = (cmd & 0xff) + 2;
-	if (pipeline_type <= 3)
-	    return count;
 	if (!_3d_cmds[pipeline_type][opcode][subopcode].name)
 	    return -1;
 	break;
