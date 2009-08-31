@@ -48,9 +48,11 @@ void r600_cs_flush_indirect(ScrnInfoPtr pScrn)
     if (!info->cs->cdw)
 	return;
 
-    if (info->accel_state->vb_bo)
+    if (info->accel_state->vb_bo) {
 	radeon_bo_unmap(info->accel_state->vb_bo);
-    info->accel_state->vb_bo = NULL;
+	radeon_bo_ref(info->accel_state->vb_bo);
+	info->accel_state->vb_bo = NULL;
+    }
 
     radeon_cs_emit(info->cs);
     radeon_cs_erase(info->cs);

@@ -720,6 +720,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 
     accel_state->dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
     accel_state->src_pitch[0] = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
+    accel_state->same_surface = FALSE;
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
@@ -728,11 +729,15 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	accel_state->src_bo[0] = radeon_get_pixmap_bo(pSrc);
 	accel_state->src_bo[1] = NULL;
 	accel_state->dst_bo = radeon_get_pixmap_bo(pDst);
+	if (accel_state->dst_bo == accel_state->src_bo[0])
+	    accel_state->same_surface = TRUE;
     } else
 #endif
     {
 	accel_state->src_mc_addr[0] = exaGetPixmapOffset(pSrc) + info->fbLocation + pScrn->fbOffset;
 	accel_state->dst_mc_addr = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
+	if (exaGetPixmapOffset(pSrc) == exaGetPixmapOffset(pDst))
+	    accel_state->same_surface = TRUE;
     }
 
     accel_state->src_width[0] = pSrc->drawable.width;
@@ -766,9 +771,8 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     accel_state->rop = rop;
     accel_state->planemask = planemask;
 
-    if (exaGetPixmapOffset(pSrc) == exaGetPixmapOffset(pDst)) {
+    if (accel_state->same_surface == TRUE) {
 	unsigned long size = pDst->drawable.height * accel_state->dst_pitch * pDst->drawable.bitsPerPixel/8;
-	accel_state->same_surface = TRUE;
 
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
@@ -802,17 +806,13 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	    }
 	    accel_state->copy_area = exaOffscreenAlloc(pDst->drawable.pScreen, size, 256, TRUE, NULL, NULL);
 	}
-    } else {
-	accel_state->same_surface = FALSE;
-
+    } else
 	R600DoPrepareCopy(pScrn,
 			  accel_state->src_pitch[0], pSrc->drawable.width, pSrc->drawable.height,
 			  accel_state->src_mc_addr[0], accel_state->src_bo[0], pSrc->drawable.bitsPerPixel,
 			  accel_state->dst_pitch, pDst->drawable.width, pDst->drawable.height,
 			  accel_state->dst_mc_addr, accel_state->dst_bo, pDst->drawable.bitsPerPixel,
 			  rop, planemask);
-
-    }
 
     return TRUE;
 }
@@ -853,8 +853,8 @@ R600OverlapCopy(PixmapPtr pDst,
     }
 #endif
 
-    if (is_overlap(srcX, srcX + w, srcY, srcY + h,
-		   dstX, dstX + w, dstY, dstY + h)) {
+    if (is_overlap(srcX, srcX + (w - 1), srcY, srcY + (h - 1),
+		   dstX, dstX + (w - 1), dstY, dstY + (h - 1))) {
         /* Calculate height/width of non-overlapping area */
         hchunk = (srcX < dstX) ? (dstX - srcX) : (srcX - dstX);
         vchunk = (srcY < dstY) ? (dstY - srcY) : (srcY - dstY);
@@ -1008,7 +1008,8 @@ R600Copy(PixmapPtr pDst,
 #endif
 
     if (accel_state->same_surface &&
-	is_overlap(srcX, srcX + w, srcY, srcY + h, dstX, dstX + w, dstY, dstY + h)) {
+	is_overlap(srcX, srcX + (w - 1), srcY, srcY + (h - 1),
+		   dstX, dstX + (w - 1), dstY, dstY + (h - 1))) {
 	if (accel_state->copy_area) {
 	    uint32_t pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
 	    uint32_t orig_offset, tmp_offset;
