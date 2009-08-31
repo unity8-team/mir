@@ -237,7 +237,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		      RADEON_CLAMP_T_CLAMP_LAST |
 		      RADEON_YUV_TO_RGB);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ0);
-	OUT_TEXTURE_REG(R200_PP_TXOFFSET_0, txoffset, pPriv->src_bo);
+	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_0, txoffset, pPriv->src_bo);
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0,
 		      RADEON_COLOR_ARG_A_ZERO |
 		      RADEON_COLOR_ARG_B_ZERO |
@@ -264,7 +264,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		      RADEON_CLAMP_S_CLAMP_LAST |
 		      RADEON_CLAMP_T_CLAMP_LAST);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_1, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ1);
-	OUT_TEXTURE_REG(R200_PP_TXOFFSET_1, txoffset + pPriv->planeu_offset, pPriv->src_bo);
+	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_1, txoffset + pPriv->planeu_offset, pPriv->src_bo);
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_1,
 		      RADEON_COLOR_ARG_A_ZERO |
 		      RADEON_COLOR_ARG_B_ZERO |
@@ -288,7 +288,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		      RADEON_CLAMP_S_CLAMP_LAST |
 		      RADEON_CLAMP_T_CLAMP_LAST);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_2, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ1);
-	OUT_TEXTURE_REG(R200_PP_TXOFFSET_2, txoffset + pPriv->planev_offset, pPriv->src_bo);
+	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_2, txoffset + pPriv->planev_offset, pPriv->src_bo);
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_2,
 		      RADEON_COLOR_ARG_A_ZERO |
 		      RADEON_COLOR_ARG_B_ZERO |
