@@ -882,7 +882,7 @@
 #       define RADEON_FP2_DVO_EN               (1 << 25)
 #       define RADEON_FP2_DVO_RATE_SEL_SDR     (1 << 26)
 #       define R200_FP2_DVO_RATE_SEL_SDR       (1 << 27)
-#       define R300_FP2_DVO_CLOCK_MODE_SINGLE  (1 << 28)
+#       define R200_FP2_DVO_CLOCK_MODE_SINGLE  (1 << 28)
 #       define R300_FP2_DVO_DUAL_CHANNEL_EN    (1 << 29)
 #define RADEON_FP_H_SYNC_STRT_WID           0x02c4
 #define RADEON_FP_H2_SYNC_STRT_WID          0x03c4
