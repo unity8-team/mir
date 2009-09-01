@@ -415,7 +415,10 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     switch (repeatType) {
 	case RepeatNormal:
-	    txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
+	    if (txformat & RADEON_TXFORMAT_NON_POWER2)
+		txfilter |= RADEON_CLAMP_S_CLAMP_LAST | RADEON_CLAMP_T_CLAMP_LAST;
+	    else
+	        txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
 	    break;
 	case RepeatPad:
 	    txfilter |= RADEON_CLAMP_S_CLAMP_LAST | RADEON_CLAMP_T_CLAMP_LAST;
@@ -799,7 +802,10 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     switch (repeatType) {
 	case RepeatNormal:
-	    txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
+	    if (txformat & R200_TXFORMAT_NON_POWER2)
+		txfilter |= R200_CLAMP_S_CLAMP_LAST | R200_CLAMP_T_CLAMP_LAST;
+	    else
+	        txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
 	    break;
 	case RepeatPad:
 	    txfilter |= R200_CLAMP_S_CLAMP_LAST | R200_CLAMP_T_CLAMP_LAST;
