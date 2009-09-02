@@ -2024,7 +2024,9 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 #endif
 
+#ifdef XFreeXDGA
    I810DGAInit(pScreen);
+#endif
 
    if (!xf86InitFBManager(pScreen, &(pI810->FbMemBox))) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
