@@ -2128,12 +2128,12 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	FUNC_NAME(RadeonDoneComposite)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
 	info->accel_state->exa->PrepareComposite(info->accel_state->composite_op,
-						 info->accel_state->dst_pic,
-						 info->accel_state->msk_pic,
 						 info->accel_state->src_pic,
-						 info->accel_state->dst_pix,
+						 info->accel_state->msk_pic,
+						 info->accel_state->dst_pic,
+						 info->accel_state->src_pix,
 						 info->accel_state->msk_pix,
-						 info->accel_state->src_pix);
+						 info->accel_state->dst_pix);
     }
 #endif
 
