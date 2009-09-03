@@ -1344,6 +1344,9 @@ static Bool R600CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     if (op >= (int) (sizeof(R600BlendOp) / sizeof(R600BlendOp[0])))
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
 
+    if (!pSrcPicture->pDrawable)
+	RADEON_FALLBACK(("Solid or gradient pictures not supported yet\n"));
+
     pSrcPixmap = RADEONGetDrawablePixmap(pSrcPicture->pDrawable);
 
     max_tex_w = 8192;

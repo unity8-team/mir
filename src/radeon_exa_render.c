@@ -489,7 +489,7 @@ static Bool R100CheckComposite(int op, PicturePtr pSrcPicture,
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
 
     if (!pSrcPicture->pDrawable)
-	return FALSE;
+	RADEON_FALLBACK(("Solid or gradient pictures not supported yet\n"));
 
     /* r100 limit should be 2048, there are issues with 2048
      * see 197a62704742a4a19736c2637ac92d1dc5ab34ed
@@ -865,7 +865,7 @@ static Bool R200CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
 
     if (!pSrcPicture->pDrawable)
-	return FALSE;
+	RADEON_FALLBACK(("Solid or gradient pictures not supported yet\n"));
 
     /* r200 limit should be 2048, there are issues with 2048
      * see bug 19269
@@ -1314,6 +1314,9 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
+
+    if (!pSrcPicture->pDrawable)
+	RADEON_FALLBACK(("Solid or gradient pictures not supported yet\n"));
 
     pSrcPixmap = RADEONGetDrawablePixmap(pSrcPicture->pDrawable);
 
