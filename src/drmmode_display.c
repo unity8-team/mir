@@ -1036,10 +1036,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
     if (drmmode_output->backlight_iface) {
 	INT32 data, backlight_range[2];
 	/* Set up the backlight property, which takes effect immediately
-	 * and accepts values only within the backlight_range.
-	 *
-	 * FIXME: there is no get_property yet.
-	 */
+	 * and accepts values only within the backlight_range. */
 	backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1,
 	    TRUE);
 
@@ -1131,10 +1128,41 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
     return TRUE;
 }
 
+static Bool
+drmmode_output_get_property(xf86OutputPtr output, Atom property)
+{
+    drmmode_output_private_ptr drmmode_output = output->driver_private;
+    int err;
+
+    if (property == backlight_atom) {
+	INT32 val;
+
+	if (! drmmode_output->backlight_iface)
+	    return FALSE;
+
+	val = drmmode_backlight_get(output);
+	if (val < 0)
+	    return FALSE;
+	err = RRChangeOutputProperty(output->randr_output, backlight_atom,
+	                             XA_INTEGER, 32, PropModeReplace, 1, &val,
+	                             FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+	               "RRChangeOutputProperty error, %d\n", err);
+	    return FALSE;
+	}
+
+	return TRUE;
+    }
+
+    return TRUE;
+}
+
 static const xf86OutputFuncsRec drmmode_output_funcs = {
 	.create_resources = drmmode_output_create_resources,
 #ifdef RANDR_12_INTERFACE
 	.set_property = drmmode_output_set_property,
+	.get_property = drmmode_output_get_property,
 #endif
 	.dpms = drmmode_output_dpms,
 #if 0
