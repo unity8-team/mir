@@ -945,8 +945,9 @@ drmmode_property_ignore(drmModePropertyPtr prop)
     return FALSE;
 }
 
-#define BACKLIGHT_NAME  "BACKLIGHT"
-static Atom backlight_atom;
+#define BACKLIGHT_NAME             "Backlight"
+#define BACKLIGHT_DEPRECATED_NAME  "BACKLIGHT"
+static Atom backlight_atom, backlight_deprecated_atom;
 
 static void
 drmmode_output_create_resources(xf86OutputPtr output)
@@ -1037,8 +1038,9 @@ drmmode_output_create_resources(xf86OutputPtr output)
 	INT32 data, backlight_range[2];
 	/* Set up the backlight property, which takes effect immediately
 	 * and accepts values only within the backlight_range. */
-	backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1,
-	    TRUE);
+	backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1, TRUE);
+	backlight_deprecated_atom = MakeAtom(BACKLIGHT_DEPRECATED_NAME,
+		sizeof(BACKLIGHT_DEPRECATED_NAME) - 1, TRUE);
 
 	backlight_range[0] = 0;
 	backlight_range[1] = drmmode_output->backlight_max;
@@ -1048,9 +1050,22 @@ drmmode_output_create_resources(xf86OutputPtr output)
 	    xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
 	               "RRConfigureOutputProperty error, %d\n", err);
 	}
+	err = RRConfigureOutputProperty(output->randr_output, backlight_deprecated_atom,
+	                                FALSE, TRUE, FALSE, 2, backlight_range);
+	if (err != 0) {
+	    xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+	               "RRConfigureOutputProperty error, %d\n", err);
+	}
 	/* Set the current value of the backlight property */
 	data = drmmode_output->backlight_active_level;
 	err = RRChangeOutputProperty(output->randr_output, backlight_atom,
+	                             XA_INTEGER, 32, PropModeReplace, 1, &data,
+	                             FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+	               "RRChangeOutputProperty error, %d\n", err);
+	}
+	err = RRChangeOutputProperty(output->randr_output, backlight_deprecated_atom,
 	                             XA_INTEGER, 32, PropModeReplace, 1, &data,
 	                             FALSE, TRUE);
 	if (err != 0) {
@@ -1068,7 +1083,7 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
     drmmode_ptr drmmode = drmmode_output->drmmode;
     int i;
 
-    if (property == backlight_atom) {
+    if (property == backlight_atom || property == backlight_deprecated_atom) {
 	INT32 val;
 
 	if (value->type != XA_INTEGER || value->format != 32 ||
@@ -1134,7 +1149,7 @@ drmmode_output_get_property(xf86OutputPtr output, Atom property)
     drmmode_output_private_ptr drmmode_output = output->driver_private;
     int err;
 
-    if (property == backlight_atom) {
+    if (property == backlight_atom || property == backlight_deprecated_atom) {
 	INT32 val;
 
 	if (! drmmode_output->backlight_iface)
@@ -1143,7 +1158,7 @@ drmmode_output_get_property(xf86OutputPtr output, Atom property)
 	val = drmmode_backlight_get(output);
 	if (val < 0)
 	    return FALSE;
-	err = RRChangeOutputProperty(output->randr_output, backlight_atom,
+	err = RRChangeOutputProperty(output->randr_output, property,
 	                             XA_INTEGER, 32, PropModeReplace, 1, &val,
 	                             FALSE, TRUE);
 	if (err != 0) {
