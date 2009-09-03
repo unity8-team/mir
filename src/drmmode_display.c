@@ -882,7 +882,8 @@ drmmode_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode)
 
 	if (mode == DPMSModeOn) {
 		/* If we're going from off->on we may need to turn on the backlight. */
-		drmmode_backlight_set(output, drmmode_output->backlight_active_level);
+		if (oldmode != DPMSModeOn)
+			drmmode_backlight_set(output, drmmode_output->backlight_active_level);
 	} else {
 		/* Only save the current backlight value if we're going from on to off. */
 		if (oldmode == DPMSModeOn)
