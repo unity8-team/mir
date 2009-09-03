@@ -1084,10 +1084,9 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 	if (val < 0 || val > drmmode_output->backlight_max)
 	    return FALSE;
 
-	if (val != drmmode_output->backlight_active_level) {
+	if (drmmode_output->dpms_mode == DPMSModeOn)
 	    drmmode_backlight_set(output, val);
-	    drmmode_output->backlight_active_level = val;
-	}
+	drmmode_output->backlight_active_level = val;
 	return TRUE;
     }
 
