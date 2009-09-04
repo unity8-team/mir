@@ -55,6 +55,7 @@ typedef struct {
     uint32_t rotate_pitch;
     PixmapPtr rotate_pixmap;
     uint32_t rotate_fb_id;
+    Bool cursor_visible;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
@@ -395,8 +396,10 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 	memcpy(cursor->map, image, 64*64*4);
 	nouveau_bo_unmap(cursor);
 
-	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			cursor->handle, 64, 64);
+	if (drmmode_crtc->cursor_visible) {
+		drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+				cursor->handle, 64, 64);
+	}
 }
 
 
@@ -408,6 +411,7 @@ drmmode_hide_cursor (xf86CrtcPtr crtc)
 
 	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			 0, 64, 64);
+	drmmode_crtc->cursor_visible = FALSE;
 }
 
 static void
@@ -418,6 +422,7 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 
 	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			 drmmode_crtc->cursor->handle, 64, 64);
+	drmmode_crtc->cursor_visible = TRUE;
 }
 
 static void *
