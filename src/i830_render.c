@@ -529,14 +529,13 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
     IntelEmitInvarientState(pScrn);
     pI830->last_3d = LAST_3D_RENDER;
 
-    BEGIN_BATCH(24);
+    BEGIN_BATCH(22);
 
     OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
     OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE |
 	      BUF_3D_PITCH(intel_get_pixmap_pitch(pI830->render_dst)));
     OUT_RELOC_PIXMAP(pI830->render_dst,
 		     I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
-    OUT_BATCH(MI_NOOP);
 
     OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
     OUT_BATCH(pI830->render_dst_format);
@@ -550,19 +549,20 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
 
     OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 	      I1_LOAD_S(2) |
-	      I1_LOAD_S(3) | 1);
+	      I1_LOAD_S(3) |
+	      I1_LOAD_S(8) |
+	      2);
     if (pI830->render_mask)
 	vf2 = 2 << 12; /* 2 texture coord sets */
     else
 	vf2 = 1 << 12;
     OUT_BATCH(vf2); /* TEXCOORDFMT_2D */
     OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
-
-    OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
     OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | pI830->s8_blendctl |
 	      S8_ENABLE_COLOR_BUFFER_WRITE);
+
+    OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
+    OUT_BATCH(0);
 
     OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 	      LOAD_TEXTURE_BLEND_STAGE(0)|1);
@@ -745,9 +745,9 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     intel_batch_start_atomic(pScrn,
 			     58 + /* invarient */
-			     24 + /* setup */
+			     22 + /* setup */
 			     20 + /* 2 * setup_texture */
-			     6 + 30 /* verts */);
+			     1 + 30 /* verts */);
 
     if (pI830->needs_render_state_emit)
 	i830_emit_composite_state(pScrn);
