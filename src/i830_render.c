@@ -673,13 +673,7 @@ i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
 
     num_floats = 3 * per_vertex;
 
-    BEGIN_BATCH(6 + num_floats);
-
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_NOOP);
+    BEGIN_BATCH(1 + num_floats);
 
     OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats-1));
     OUT_BATCH_F(pI830->coord_adjust + dstX + w);
