@@ -395,7 +395,6 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool is_affine_src, is_affine_mask;
     Bool is_nearest = FALSE;
 
     pI830->render_src_picture = pSrcPicture;
@@ -424,16 +423,10 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	pI830->scale_units[1][1] = -1;
     }
 
-    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
-    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
-
     if (is_nearest)
 	pI830->coord_adjust = -0.125;
     else
 	pI830->coord_adjust = 0;
-
-    if (!is_affine_src || !is_affine_mask)
-	I830FALLBACK("non-affine transform unsupported on 8xx hardware\n");
 
     {
 	uint32_t cblend, ablend, blendctl;
@@ -602,14 +595,13 @@ i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool is_affine_src, is_affine_mask;
+    Bool is_affine_src, is_affine_mask = TRUE;
     int per_vertex, num_floats;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
 
-    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
-    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
-
     per_vertex = 2; /* dest x/y */
+
+    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
     if (is_affine_src)
     {
 	if (!i830_get_transformed_coordinates(srcX, srcY,
@@ -644,6 +636,7 @@ i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
 	per_vertex += 4;    /* src x/y/z/w */
     }
     if (pI830->render_mask) {
+	is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
 	if (is_affine_mask) {
 	    if (!i830_get_transformed_coordinates(maskX, maskY,
 						  pI830->transform[1],
