@@ -467,7 +467,8 @@ typedef struct _I830Rec {
    float scale_units[2][2];
   /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
-   float coord_adjust;
+   float src_coord_adjust;
+   float mask_coord_adjust;
 
    /* i830 render accel state */
    PixmapPtr render_src, render_mask, render_dst;
@@ -483,7 +484,6 @@ typedef struct _I830Rec {
    struct {
       int op;
       uint32_t dst_format;
-      Bool is_nearest;
       Bool needs_emit;
    } i915_render_state;
 

@@ -138,8 +138,6 @@ static uint32_t i915_get_blend_cntl(int op, PicturePtr pMask,
 
 static Bool i915_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
-
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
@@ -160,10 +158,15 @@ static Bool i915_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 	*dst_format = COLR_BUF_ARGB4444;
 	break;
     default:
-        I830FALLBACK("Unsupported dest format 0x%x\n",
-		     (int)pDstPicture->format);
-    }
+	{
+	    ScrnInfoPtr pScrn;
 
+	    pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	    I830FALLBACK("Unsupported dest format 0x%x\n",
+			 (int)pDstPicture->format);
+	}
+    }
+    *dst_format |= DSTORG_HORT_BIAS (0x8) | DSTORG_VERT_BIAS (0x8);
     return TRUE;
 }
 
@@ -341,16 +344,19 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
 	return FALSE;
 
-    pI830->i915_render_state.is_nearest = FALSE;
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
+
+    pI830->src_coord_adjust = 0;
     if (pSrcPicture->filter == PictFilterNearest)
-	pI830->i915_render_state.is_nearest = TRUE;
+	pI830->src_coord_adjust = 0.375;
     if (pMask != NULL) {
 	if (!i915_texture_setup(pMaskPicture, pMask, 1))
 	    I830FALLBACK("fail to setup mask texture\n");
+
+	pI830->mask_coord_adjust = 0;
 	if (pMaskPicture->filter == PictFilterNearest)
-	    pI830->i915_render_state.is_nearest = TRUE;
+	    pI830->mask_coord_adjust = 0.375;
     } else {
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
@@ -379,7 +385,6 @@ i915_emit_composite_setup(ScrnInfoPtr pScrn)
     int out_reg = FS_OC;
     FS_LOCALS(20);
     Bool is_affine_src, is_affine_mask;
-    Bool is_nearest = pI830->i915_render_state.is_nearest;
 
     pI830->i915_render_state.needs_emit = FALSE;
 
@@ -390,11 +395,6 @@ i915_emit_composite_setup(ScrnInfoPtr pScrn)
 
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
     is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
-
-    if (is_nearest)
-	pI830->coord_adjust = -0.125;
-    else
-	pI830->coord_adjust = 0;
 
     if (pMask == NULL) {
 	BEGIN_BATCH(10);
