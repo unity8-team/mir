@@ -116,6 +116,7 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {PCI_CHIP_G41_G,		"G41"},
+   {PCI_CHIP_B43_G,		"B43"},
    {PCI_CHIP_IGDNG_D_G,		"Clarkdale"},
    {PCI_CHIP_IGDNG_M_G,		"Arrandale"},
    {-1,				NULL}
@@ -148,6 +149,7 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		NULL},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		NULL},
    {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		NULL},
+   {PCI_CHIP_B43_G,		PCI_CHIP_B43_G,		NULL},
    {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,		NULL},
    {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,		NULL},
    {-1,				-1,			NULL}
@@ -1095,6 +1097,9 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	break;
     case PCI_CHIP_G41_G:
 	chipname = "G41";
+	break;
+    case PCI_CHIP_B43_G:
+	chipname = "B43";
 	break;
     case PCI_CHIP_IGDNG_D_G:
 	chipname = "Clarkdale";
