@@ -437,7 +437,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		tile_mode = 4;
-		tile_flags = (drmmode->cpp == 2) ? 0x7000 : 0x7000;
+		tile_flags = (drmmode->cpp == 2) ? 0x7000 : 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		pitch = NOUVEAU_ALIGN(width * drmmode->cpp, 64);
 	} else {
@@ -1058,7 +1058,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->wfb_enabled) {
 		tile_mode = 4;
-		tile_flags = (scrn->bitsPerPixel == 16) ? 0x7000 : 0x7000;
+		tile_flags = (scrn->bitsPerPixel == 16) ? 0x7000 : 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		pitch = NOUVEAU_ALIGN(width * (scrn->bitsPerPixel >> 3), 64);
 	} else {
