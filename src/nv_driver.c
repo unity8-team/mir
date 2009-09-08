@@ -1202,7 +1202,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	size = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->wfb_enabled) {
 		tile_mode = 4;
-		tile_flags = pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7a00;
+		tile_flags = pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7000;
 		size *= NOUVEAU_ALIGN(pScrn->virtualY, (1 << (tile_mode + 2)));
 	} else {
 		size *= pScrn->virtualY;
