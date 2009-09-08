@@ -858,12 +858,6 @@ typedef struct {
     int               pix24bpp;         /* Depth of pixmap for 24bpp fb      */
     Bool              dac6bits;         /* Use 6 bit DAC?                    */
 
-    DGAModePtr        DGAModes;
-    int               numDGAModes;
-    Bool              DGAactive;
-    int               DGAViewportStatus;
-    DGAFunctionRec    DGAFuncs;
-
     RADEONFBLayout    CurrentLayout;
 
 #ifdef XF86DRI
@@ -1150,9 +1144,6 @@ extern void radeon_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
 extern void radeon_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg);
 extern void radeon_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y);
 extern void radeon_crtc_show_cursor(xf86CrtcPtr crtc);
-
-/* radeon_dga.c */
-extern Bool RADEONDGAInit(ScreenPtr pScreen);
 
 #ifdef XF86DRI
 /* radeon_dri.c */

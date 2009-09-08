@@ -3754,9 +3754,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     }
 
     /* DGA setup */
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Initializing DGA\n");
-    RADEONDGAInit(pScreen);
+#ifdef XFreeXDGA
+    xf86DiDGAInit(pScreen, info->LinearAddr + pScrn->fbOffset);
+#endif
 
     /* Init Xv */
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -5879,10 +5879,6 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     if (info->cursor) xf86DestroyCursorInfoRec(info->cursor);
     info->cursor = NULL;
 
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Disposing DGA\n");
-    if (info->DGAModes) xfree(info->DGAModes);
-    info->DGAModes = NULL;
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "Unmapping memory\n");
     RADEONUnmapMem(pScrn);
