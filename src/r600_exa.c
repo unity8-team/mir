@@ -780,8 +780,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 		radeon_bo_unref(accel_state->copy_area_bo);
 		accel_state->copy_area_bo = NULL;
 	    }
-	    accel_state->copy_area_bo = radeon_bo_open(info->bufmgr, 0, size,
-						       4096,
+	    accel_state->copy_area_bo = radeon_bo_open(info->bufmgr, 0, size, 0,
 						       RADEON_GEM_DOMAIN_VRAM,
 						       0);
 	    if (accel_state->copy_area_bo == NULL) {
@@ -789,7 +788,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 		return FALSE;
 	    }
 	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->copy_area_bo,
-					      RADEON_GEM_DOMAIN_VRAM, 0);
+					      0, RADEON_GEM_DOMAIN_VRAM);
 	    if (radeon_cs_space_check(info->cs)) {
 		radeon_bo_unref(accel_state->copy_area_bo);
 		accel_state->copy_area_bo = NULL;
@@ -2157,7 +2156,7 @@ R600AllocShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 #ifdef XF86DRM_MODE
 #if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 4)
     if (info->cs) {
-	accel_state->shaders_bo = radeon_bo_open(info->bufmgr, 0, size, 4096,
+	accel_state->shaders_bo = radeon_bo_open(info->bufmgr, 0, size, 0,
 						 RADEON_GEM_DOMAIN_VRAM, 0);
 	if (accel_state->shaders_bo == NULL) {
 	    ErrorF("Allocating shader failed\n");

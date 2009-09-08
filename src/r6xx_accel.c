@@ -50,8 +50,7 @@ void r600_cs_flush_indirect(ScrnInfoPtr pScrn)
 
     if (info->accel_state->vb_bo) {
 	radeon_bo_unmap(info->accel_state->vb_bo);
-	radeon_bo_ref(info->accel_state->vb_bo);
-	info->accel_state->vb_bo = NULL;
+	info->accel_state->vb_ptr = NULL;
     }
 
     radeon_cs_emit(info->cs);
@@ -1161,15 +1160,17 @@ r600_vb_get(ScrnInfoPtr pScrn)
 	if (accel_state->vb_bo == NULL) {
 	    accel_state->vb_mc_addr = 0;
 	    accel_state->vb_bo = radeon_bo_open(info->bufmgr, 0, 16 * 1024,
-						4096, RADEON_GEM_DOMAIN_GTT, 0);
+						0, RADEON_GEM_DOMAIN_GTT, 0);
 	    if (accel_state->vb_bo == NULL)
 		return FALSE;
+	    accel_state->vb_total = 16 * 1024;
+	}
+	if (!accel_state->vb_ptr) {
 	    ret = radeon_bo_map(accel_state->vb_bo, 1);
 	    if (ret) {
 		FatalError("failed to vb %d\n", ret);
 		return FALSE;
 	    }
-	    accel_state->vb_total = 16 * 1024;
 	    accel_state->vb_ptr = accel_state->vb_bo->ptr;
 	}
     } else
