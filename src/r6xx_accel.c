@@ -39,6 +39,29 @@
 
 #include "radeon_drm.h"
 
+#if defined(XF86DRM_MODE)
+void r600_cs_flush_indirect(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    int ret;
+
+    if (!info->cs->cdw)
+	return;
+
+    if (info->accel_state->vb_bo) {
+	radeon_bo_unmap(info->accel_state->vb_bo);
+	info->accel_state->vb_ptr = NULL;
+    }
+
+    radeon_cs_emit(info->cs);
+    radeon_cs_erase(info->cs);
+
+    ret = radeon_cs_space_check(info->cs);
+    if (ret)
+	ErrorF("space check failed in flush\n");
+}
+#endif
+
 /* Flush the indirect buffer to the kernel for submission to the card */
 void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib)
 {
@@ -47,13 +70,22 @@ void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib)
     int                start  = 0;
     drm_radeon_indirect_t  indirect;
 
+#if defined(XF86DRM_MODE)
+    if (info->cs) {
+	r600_cs_flush_indirect(pScrn);
+	return;
+    }
+#endif
+
     if (!buffer) return;
 
     //xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Flushing buffer %d\n",
     //       buffer->idx);
 
     while (buffer->used & 0x3c){
+	BEGIN_BATCH(1);
         E32(buffer, CP_PACKET2()); /* fill up to multiple of 16 dwords */
+	END_BATCH();
     }
 
     //ErrorF("buffer bytes: %d\n", buffer->used);
@@ -70,6 +102,23 @@ void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib)
 
 void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib)
 {
+#if defined(XF86DRM_MODE)
+    int ret;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    if (info->cs) {
+	if (info->accel_state->vb_bo)
+	    radeon_bo_unmap(info->accel_state->vb_bo);
+	info->accel_state->vb_bo = NULL;
+	if (CS_FULL(info->cs)) {
+	    r600_cs_flush_indirect(pScrn);
+	    return;
+	}
+	radeon_cs_erase(info->cs);
+	ret = radeon_cs_space_check(info->cs);
+	if (ret)
+	    ErrorF("space check failed in flush\n");
+    }
+#endif
     if (!ib) return;
 
     ib->used = 0;
@@ -79,21 +128,26 @@ void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib)
 void
 wait_3d_idle_clean(ScrnInfoPtr pScrn, drmBufPtr ib)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
     //flush caches, don't generate timestamp
+    BEGIN_BATCH(5);
     PACK3(ib, IT_EVENT_WRITE, 1);
     E32(ib, CACHE_FLUSH_AND_INV_EVENT);
     // wait for 3D idle clean
     EREG(ib, WAIT_UNTIL,                          (WAIT_3D_IDLE_bit |
 						   WAIT_3D_IDLECLEAN_bit));
+    END_BATCH();
 }
 
 void
 wait_3d_idle(ScrnInfoPtr pScrn, drmBufPtr ib)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    BEGIN_BATCH(3);
     EREG(ib, WAIT_UNTIL,                          WAIT_3D_IDLE_bit);
-
+    END_BATCH();
 }
 
 void
@@ -102,13 +156,16 @@ start_3d(ScrnInfoPtr pScrn, drmBufPtr ib)
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
     if (info->ChipFamily < CHIP_FAMILY_RV770) {
+	BEGIN_BATCH(5);
 	PACK3(ib, IT_START_3D_CMDBUF, 1);
 	E32(ib, 0);
-    }
+    } else
+	BEGIN_BATCH(3);
 
     PACK3(ib, IT_CONTEXT_CONTROL, 2);
     E32(ib, 0x80000000);
     E32(ib, 0x80000000);
+    END_BATCH();
 
     wait_3d_idle_clean (pScrn, ib);
 }
@@ -158,6 +215,7 @@ sq_setup(ScrnInfoPtr pScrn, drmBufPtr ib, sq_config_t *sq_conf)
     sq_stack_resource_mgmt_2 = ((sq_conf->num_gs_stack_entries << NUM_GS_STACK_ENTRIES_shift) |
 				(sq_conf->num_es_stack_entries << NUM_ES_STACK_ENTRIES_shift));
 
+    BEGIN_BATCH(8);
     PACK0(ib, SQ_CONFIG, 6);
     E32(ib, sq_config);
     E32(ib, sq_gpr_resource_mgmt_1);
@@ -165,7 +223,7 @@ sq_setup(ScrnInfoPtr pScrn, drmBufPtr ib, sq_config_t *sq_conf)
     E32(ib, sq_thread_resource_mgmt);
     E32(ib, sq_stack_resource_mgmt_1);
     E32(ib, sq_stack_resource_mgmt_2);
-
+    END_BATCH();
 }
 
 void
@@ -204,14 +262,19 @@ set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf)
     h = (cb_conf->h + 7) & ~7;
     slice = ((cb_conf->w * h) / 64) - 1;
 
+    BEGIN_BATCH(3 + 2);
     EREG(ib, (CB_COLOR0_BASE + (4 * cb_conf->id)), (cb_conf->base >> 8));
+    RELOC_BATCH(cb_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
 
     // rv6xx workaround
     if ((info->ChipFamily > CHIP_FAMILY_R600) &&
 	(info->ChipFamily < CHIP_FAMILY_RV770)) {
+	BEGIN_BATCH(20);
 	PACK3(ib, IT_SURFACE_BASE_UPDATE, 1);
 	E32(ib, (2 << cb_conf->id));
-    }
+    } else
+	BEGIN_BATCH(18);
 
     // pitch only for ARRAY_LINEAR_GENERAL, other tiling modes require addrlib
     EREG(ib, (CB_COLOR0_SIZE + (4 * cb_conf->id)), ((pitch << PITCH_TILE_MAX_shift)	|
@@ -223,22 +286,28 @@ set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf)
     EREG(ib, (CB_COLOR0_FRAG + (4 * cb_conf->id)), (0     >> 8));	// FMASK per-tile data base/256
     EREG(ib, (CB_COLOR0_MASK + (4 * cb_conf->id)), ((0    << CMASK_BLOCK_MAX_shift)	|
 						    (0    << FMASK_TILE_MAX_shift)));
+    END_BATCH();
 }
 
 void
-cp_set_surface_sync(ScrnInfoPtr pScrn, drmBufPtr ib, uint32_t sync_type, uint32_t size, uint64_t mc_addr)
+cp_set_surface_sync(ScrnInfoPtr pScrn, drmBufPtr ib, uint32_t sync_type, uint32_t size, uint64_t mc_addr,
+		    struct radeon_bo *bo, uint32_t rdomains, uint32_t wdomain)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t cp_coher_size;
     if (size == 0xffffffff)
 	cp_coher_size = 0xffffffff;
     else
 	cp_coher_size = ((size + 255) >> 8);
 
+    BEGIN_BATCH(5 + 2);
     PACK3(ib, IT_SURFACE_SYNC, 4);
     E32(ib, sync_type);
     E32(ib, cp_coher_size);
     E32(ib, (mc_addr >> 8));
     E32(ib, 10); /* poll interval */
+    RELOC_BATCH(bo, rdomains, wdomain);
+    END_BATCH();
 }
 
 /* inserts a wait for vline in the command stream */
@@ -249,6 +318,12 @@ void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
     xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     uint32_t offset;
     RADEONCrtcPrivatePtr radeon_crtc;
+
+    //XXX FIXME
+#if defined(XF86DRM_MODE)
+    if (info->cs)
+	return;
+#endif
 
     if ((crtc < 0) || (crtc > 1))
         return;
@@ -278,6 +353,7 @@ void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
 
     radeon_crtc = xf86_config->crtc[crtc]->driver_private;
 
+    BEGIN_BATCH(10);
     /* set the VLINE range */
     EREG(ib, AVIVO_D1MODE_VLINE_START_END + radeon_crtc->crtc_offset,
          (start << AVIVO_D1MODE_VLINE_START_SHIFT) |
@@ -291,11 +367,13 @@ void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
     E32(ib, 0);                          // Ref value
     E32(ib, AVIVO_D1MODE_VLINE_STAT);    // Mask
     E32(ib, 10);                         // Wait interval
+    END_BATCH();
 }
 
 void
 fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_pgm_resources;
 
     sq_pgm_resources = ((fs_conf->num_gprs << NUM_GPRS_shift) |
@@ -304,14 +382,21 @@ fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf)
     if (fs_conf->dx10_clamp)
 	sq_pgm_resources |= SQ_PGM_RESOURCES_FS__DX10_CLAMP_bit;
 
+    BEGIN_BATCH(3 + 2);
     EREG(ib, SQ_PGM_START_FS, fs_conf->shader_addr >> 8);
+    RELOC_BATCH(fs_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
+
+    BEGIN_BATCH(6);
     EREG(ib, SQ_PGM_RESOURCES_FS, sq_pgm_resources);
     EREG(ib, SQ_PGM_CF_OFFSET_FS, 0);
+    END_BATCH();
 }
 
 void
 vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_pgm_resources;
 
     sq_pgm_resources = ((vs_conf->num_gprs << NUM_GPRS_shift) |
@@ -324,14 +409,21 @@ vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf)
     if (vs_conf->uncached_first_inst)
 	sq_pgm_resources |= UNCACHED_FIRST_INST_bit;
 
+    BEGIN_BATCH(3 + 2);
     EREG(ib, SQ_PGM_START_VS, vs_conf->shader_addr >> 8);
+    RELOC_BATCH(vs_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
+
+    BEGIN_BATCH(6);
     EREG(ib, SQ_PGM_RESOURCES_VS, sq_pgm_resources);
     EREG(ib, SQ_PGM_CF_OFFSET_VS, 0);
+    END_BATCH();
 }
 
 void
 ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_pgm_resources;
 
     sq_pgm_resources = ((ps_conf->num_gprs << NUM_GPRS_shift) |
@@ -346,35 +438,48 @@ ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf)
     if (ps_conf->clamp_consts)
 	sq_pgm_resources |= CLAMP_CONSTS_bit;
 
+    BEGIN_BATCH(3 + 2);
     EREG(ib, SQ_PGM_START_PS, ps_conf->shader_addr >> 8);
+    RELOC_BATCH(ps_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
+
+    BEGIN_BATCH(9);
     EREG(ib, SQ_PGM_RESOURCES_PS, sq_pgm_resources);
     EREG(ib, SQ_PGM_EXPORTS_PS, ps_conf->export_mode);
     EREG(ib, SQ_PGM_CF_OFFSET_PS, 0);
+    END_BATCH();
 }
 
 void
 set_alu_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, float *const_buf)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     int i;
     const int countreg = count * (SQ_ALU_CONSTANT_offset >> 2);
 
+    BEGIN_BATCH(2 + countreg);
     PACK0(ib, SQ_ALU_CONSTANT + offset * SQ_ALU_CONSTANT_offset, countreg);
     for (i = 0; i < countreg; i++)
 	EFLOAT(ib, const_buf[i]);
+    END_BATCH();
 }
 
 void
 set_bool_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, uint32_t val)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     /* bool register order is: ps, vs, gs; one register each
      * 1 bits per bool; 32 bools each for ps, vs, gs.
      */
+    BEGIN_BATCH(3);
     EREG(ib, SQ_BOOL_CONST + offset * SQ_BOOL_CONST_offset, val);
+    END_BATCH();
 }
 
 void
 set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_vtx_constant_word2;
 
     sq_vtx_constant_word2 = ((((res->vb_addr) >> 32) & BASE_ADDRESS_HI_mask) |
@@ -391,6 +496,7 @@ set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res)
     if (res->srf_mode_all)
 	    sq_vtx_constant_word2 |= SQ_VTX_CONSTANT_WORD2_0__SRF_MODE_ALL_bit;
 
+    BEGIN_BATCH(9 + 2);
     PACK0(ib, SQ_VTX_RESOURCE + res->id * SQ_VTX_RESOURCE_offset, 7);
     E32(ib, res->vb_addr & 0xffffffff);				// 0: BASE_ADDRESS
     E32(ib, (res->vtx_num_entries << 2) - 1);			// 1: SIZE
@@ -399,11 +505,14 @@ set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res)
     E32(ib, 0);							// 4: n/a
     E32(ib, 0);							// 5: n/a
     E32(ib, SQ_TEX_VTX_VALID_BUFFER << SQ_VTX_CONSTANT_WORD6_0__TYPE_shift);	// 6: TYPE
+    RELOC_BATCH(res->bo, RADEON_GEM_DOMAIN_GTT, 0);
+    END_BATCH();
 }
 
 void
 set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_tex_resource_word0, sq_tex_resource_word1, sq_tex_resource_word4;
     uint32_t sq_tex_resource_word5, sq_tex_resource_word6;
 
@@ -453,6 +562,7 @@ set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res)
     if (tex_res->interlaced)
 	sq_tex_resource_word6 |= INTERLACED_bit;
 
+    BEGIN_BATCH(9 + 4);
     PACK0(ib, SQ_TEX_RESOURCE + tex_res->id * SQ_TEX_RESOURCE_offset, 7);
     E32(ib, sq_tex_resource_word0);
     E32(ib, sq_tex_resource_word1);
@@ -461,11 +571,15 @@ set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res)
     E32(ib, sq_tex_resource_word4);
     E32(ib, sq_tex_resource_word5);
     E32(ib, sq_tex_resource_word6);
+    RELOC_BATCH(tex_res->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(tex_res->mip_bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
 }
 
 void
 set_tex_sampler (ScrnInfoPtr pScrn, drmBufPtr ib, tex_sampler_t *s)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_tex_sampler_word0, sq_tex_sampler_word1, sq_tex_sampler_word2;
 
     sq_tex_sampler_word0 = ((s->clamp_x       << SQ_TEX_SAMPLER_WORD0_0__CLAMP_X_shift)		|
@@ -505,27 +619,34 @@ set_tex_sampler (ScrnInfoPtr pScrn, drmBufPtr ib, tex_sampler_t *s)
     if (s->type)
 	sq_tex_sampler_word2 |= SQ_TEX_SAMPLER_WORD2_0__TYPE_bit;
 
+    BEGIN_BATCH(5);
     PACK0(ib, SQ_TEX_SAMPLER_WORD + s->id * SQ_TEX_SAMPLER_WORD_offset, 3);
     E32(ib, sq_tex_sampler_word0);
     E32(ib, sq_tex_sampler_word1);
     E32(ib, sq_tex_sampler_word2);
+    END_BATCH();
 }
 
 //XXX deal with clip offsets in clip setup
 void
 set_screen_scissor(ScrnInfoPtr pScrn, drmBufPtr ib, int x1, int y1, int x2, int y2)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    BEGIN_BATCH(6);
     EREG(ib, PA_SC_SCREEN_SCISSOR_TL,              ((x1 << PA_SC_SCREEN_SCISSOR_TL__TL_X_shift) |
 						    (y1 << PA_SC_SCREEN_SCISSOR_TL__TL_Y_shift)));
     EREG(ib, PA_SC_SCREEN_SCISSOR_BR,              ((x2 << PA_SC_SCREEN_SCISSOR_BR__BR_X_shift) |
 						    (y2 << PA_SC_SCREEN_SCISSOR_BR__BR_Y_shift)));
+    END_BATCH();
 }
 
 void
 set_vport_scissor(ScrnInfoPtr pScrn, drmBufPtr ib, int id, int x1, int y1, int x2, int y2)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    BEGIN_BATCH(6);
     EREG(ib, PA_SC_VPORT_SCISSOR_0_TL +
 	 id * PA_SC_VPORT_SCISSOR_0_TL_offset, ((x1 << PA_SC_VPORT_SCISSOR_0_TL__TL_X_shift) |
 						(y1 << PA_SC_VPORT_SCISSOR_0_TL__TL_Y_shift) |
@@ -533,40 +654,50 @@ set_vport_scissor(ScrnInfoPtr pScrn, drmBufPtr ib, int id, int x1, int y1, int x
     EREG(ib, PA_SC_VPORT_SCISSOR_0_BR +
 	 id * PA_SC_VPORT_SCISSOR_0_BR_offset, ((x2 << PA_SC_VPORT_SCISSOR_0_BR__BR_X_shift) |
 						(y2 << PA_SC_VPORT_SCISSOR_0_BR__BR_Y_shift)));
+    END_BATCH();
 }
 
 void
 set_generic_scissor(ScrnInfoPtr pScrn, drmBufPtr ib, int x1, int y1, int x2, int y2)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    BEGIN_BATCH(6);
     EREG(ib, PA_SC_GENERIC_SCISSOR_TL,            ((x1 << PA_SC_GENERIC_SCISSOR_TL__TL_X_shift) |
 						   (y1 << PA_SC_GENERIC_SCISSOR_TL__TL_Y_shift) |
 						   WINDOW_OFFSET_DISABLE_bit));
     EREG(ib, PA_SC_GENERIC_SCISSOR_BR,            ((x2 << PA_SC_GENERIC_SCISSOR_BR__BR_X_shift) |
 						   (y2 << PA_SC_GENERIC_SCISSOR_TL__TL_Y_shift)));
+    END_BATCH();
 }
 
 void
 set_window_scissor(ScrnInfoPtr pScrn, drmBufPtr ib, int x1, int y1, int x2, int y2)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    BEGIN_BATCH(6);
     EREG(ib, PA_SC_WINDOW_SCISSOR_TL,             ((x1 << PA_SC_WINDOW_SCISSOR_TL__TL_X_shift) |
 						   (y1 << PA_SC_WINDOW_SCISSOR_TL__TL_Y_shift) |
 						   WINDOW_OFFSET_DISABLE_bit));
     EREG(ib, PA_SC_WINDOW_SCISSOR_BR,             ((x2 << PA_SC_WINDOW_SCISSOR_BR__BR_X_shift) |
 						   (y2 << PA_SC_WINDOW_SCISSOR_BR__BR_Y_shift)));
+    END_BATCH();
 }
 
 void
 set_clip_rect(ScrnInfoPtr pScrn, drmBufPtr ib, int id, int x1, int y1, int x2, int y2)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    BEGIN_BATCH(6);
     EREG(ib, PA_SC_CLIPRECT_0_TL +
 	 id * PA_SC_CLIPRECT_0_TL_offset,     ((x1 << PA_SC_CLIPRECT_0_TL__TL_X_shift) |
 					       (y1 << PA_SC_CLIPRECT_0_TL__TL_Y_shift)));
     EREG(ib, PA_SC_CLIPRECT_0_BR +
 	 id * PA_SC_CLIPRECT_0_BR_offset,     ((x2 << PA_SC_CLIPRECT_0_BR__BR_X_shift) |
 					       (y2 << PA_SC_CLIPRECT_0_BR__BR_Y_shift)));
+    END_BATCH();
 }
 
 /*
@@ -594,6 +725,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     wait_3d_idle(pScrn, ib);
 
     // ASIC specific setup, see drm
+    BEGIN_BATCH(15);
     if (info->ChipFamily < CHIP_FAMILY_RV770) {
 	EREG(ib, TA_CNTL_AUX,                     (( 3 << GRADIENT_CREDIT_shift)		|
 						   (28 << TD_FIFO_CREDIT_shift)));
@@ -619,6 +751,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 						    (4  << DEPTH_CACHELINE_FREE_shift)	|
 						    0));
     }
+    END_BATCH();
 
     // SQ
     sq_conf.ps_prio = 0;
@@ -744,6 +877,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 
     sq_setup(pScrn, ib, &sq_conf);
 
+    BEGIN_BATCH(59);
     EREG(ib, SQ_VTX_BASE_VTX_LOC,                 0);
     EREG(ib, SQ_VTX_START_INST_LOC,               0);
 
@@ -775,6 +909,11 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 						   (2 << ALPHA_TO_MASK_OFFSET2_shift)	|
 						   (2 << ALPHA_TO_MASK_OFFSET3_shift)));
 
+
+    EREG(ib, DB_SHADER_CONTROL, ((1 << Z_ORDER_shift) | /* EARLY_Z_THEN_LATE_Z */
+				 DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
+
+
     // SX
     EREG(ib, SX_ALPHA_TEST_CONTROL,               0);
     EREG(ib, SX_ALPHA_REF,                        0);
@@ -785,68 +924,86 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     E32(ib, 0x00000000);
     E32(ib, 0x00000000);
     E32(ib, 0x00000000);
+    END_BATCH();
 
     if (info->ChipFamily < CHIP_FAMILY_RV770) {
+	BEGIN_BATCH(11);
 	PACK0(ib, CB_FOG_RED, 3);
 	E32(ib, 0x00000000);
 	E32(ib, 0x00000000);
 	E32(ib, 0x00000000);
+	PACK0(ib, CB_CLEAR_RED, 4);
+	EFLOAT(ib, 1.0);						/* WTF? */
+	EFLOAT(ib, 0.0);
+	EFLOAT(ib, 1.0);
+	EFLOAT(ib, 1.0);
+	END_BATCH();
     }
 
+    BEGIN_BATCH(18);
     PACK0(ib, CB_CLRCMP_CONTROL, 4);
     E32(ib, 1 << CLRCMP_FCN_SEL_shift);				// CB_CLRCMP_CONTROL: use CLRCMP_FCN_SRC
     E32(ib, 0);							// CB_CLRCMP_SRC
     E32(ib, 0);							// CB_CLRCMP_DST
     E32(ib, 0);							// CB_CLRCMP_MSK
 
-
-    if (info->ChipFamily < CHIP_FAMILY_RV770) {
-	PACK0(ib, CB_CLEAR_RED, 4);
-	EFLOAT(ib, 1.0);						/* WTF? */
-	EFLOAT(ib, 0.0);
-	EFLOAT(ib, 1.0);
-	EFLOAT(ib, 1.0);
-    }
     EREG(ib, CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
+    EREG(ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
+
 
     // SC
     EREG(ib, PA_SC_WINDOW_OFFSET,                 ((0 << WINDOW_X_OFFSET_shift) |
 						   (0 << WINDOW_Y_OFFSET_shift)));
 
     EREG(ib, PA_SC_CLIPRECT_RULE,                 CLIP_RULE_mask);
+    END_BATCH();
 
     /* clip boolean is set to always visible -> doesn't matter */
     for (i = 0; i < PA_SC_CLIPRECT_0_TL_num; i++)
 	set_clip_rect (pScrn, ib, i, 0, 0, 8192, 8192);
 
+    BEGIN_BATCH(3);
     if (info->ChipFamily < CHIP_FAMILY_RV770)
 	EREG(ib, R7xx_PA_SC_EDGERULE,             0x00000000);
     else
 	EREG(ib, R7xx_PA_SC_EDGERULE,             0xAAAAAAAA);
+    END_BATCH();
 
     for (i = 0; i < PA_SC_VPORT_SCISSOR_0_TL_num; i++) {
 	set_vport_scissor (pScrn, ib, i, 0, 0, 8192, 8192);
+	BEGIN_BATCH(4);
 	PACK0(ib, PA_SC_VPORT_ZMIN_0 + i * PA_SC_VPORT_ZMIN_0_offset, 2);
 	EFLOAT(ib, 0.0);
 	EFLOAT(ib, 1.0);
+	END_BATCH();
     }
 
+    BEGIN_BATCH(15);
     if (info->ChipFamily < CHIP_FAMILY_RV770)
 	EREG(ib, PA_SC_MODE_CNTL,                 (WALK_ORDER_ENABLE_bit | FORCE_EOV_CNTDWN_ENABLE_bit));
     else
 	EREG(ib, PA_SC_MODE_CNTL,                 (FORCE_EOV_CNTDWN_ENABLE_bit | FORCE_EOV_REZ_ENABLE_bit |
 						   0x00500000)); /* ? */
 
+    EREG(ib, PA_SU_SC_MODE_CNTL, (FACE_bit |
+				  (POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift) |
+				  (POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
+
+
     EREG(ib, PA_SC_LINE_CNTL,                     0);
     EREG(ib, PA_SC_AA_CONFIG,                     0);
     EREG(ib, PA_SC_AA_MASK,                       0xFFFFFFFF);
+    END_BATCH();
 
     //XXX: double check this
     if (info->ChipFamily > CHIP_FAMILY_R600) {
+	BEGIN_BATCH(6);
 	EREG(ib, PA_SC_AA_SAMPLE_LOCS_MCTX,       0);
 	EREG(ib, PA_SC_AA_SAMPLE_LOCS_8S_WD1_M,   0);
+	END_BATCH();
     }
 
+    BEGIN_BATCH(83);
     EREG(ib, PA_SC_LINE_STIPPLE,                  0);
     EREG(ib, PA_SC_MPASS_PS_CNTL,                 0);
 
@@ -866,6 +1023,10 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EFLOAT(ib, 1.0);						// PA_CL_GB_VERT_DISC_ADJ
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_CLIP_ADJ
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_DISC_ADJ
+
+    /* Scissor / viewport */
+    EREG(ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
+    EREG(ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
     // SU
     EREG(ib, PA_SU_SC_MODE_CNTL,                  FACE_bit);
@@ -892,17 +1053,19 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EREG(ib, SPI_FOG_CNTL,                        0);
     EREG(ib, SPI_FOG_FUNC_SCALE,                  0);
     EREG(ib, SPI_FOG_FUNC_BIAS,                   0);
+    END_BATCH();
 
     // clear FS
+    fs_conf.bo = accel_state->shaders_bo;
     fs_setup(pScrn, ib, &fs_conf);
 
     // VGT
+    BEGIN_BATCH(75);
     EREG(ib, VGT_MAX_VTX_INDX,                    2048); /* XXX set to a reasonably large number of indices */
     EREG(ib, VGT_MIN_VTX_INDX,                    0);
     EREG(ib, VGT_INDX_OFFSET,                     0);
     EREG(ib, VGT_INSTANCE_STEP_RATE_0,            0);
     EREG(ib, VGT_INSTANCE_STEP_RATE_1,            0);
-
     EREG(ib, VGT_MULTI_PRIM_IB_RESET_INDX,        0);
     EREG(ib, VGT_OUTPUT_PATH_CNTL,                0);
     EREG(ib, VGT_GS_MODE,                         0);
@@ -923,7 +1086,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EREG(ib, VGT_REUSE_OFF,                       0);
     EREG(ib, VGT_VTX_CNT_EN,                      0);
     EREG(ib, VGT_STRMOUT_BUFFER_EN,               0);
-
+    END_BATCH();
 }
 
 
@@ -934,13 +1097,8 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 void
 draw_immd(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf, uint32_t *indices)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t i, count;
-
-    EREG(ib, VGT_PRIMITIVE_TYPE, draw_conf->prim_type);
-    PACK3(ib, IT_INDEX_TYPE, 1);
-    E32(ib, draw_conf->index_type);
-    PACK3(ib, IT_NUM_INSTANCES, 1);
-    E32(ib, draw_conf->num_instances);
 
     // calculate num of packets
     count = 2;
@@ -948,6 +1106,13 @@ draw_immd(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf, uint32_t *i
 	count += (draw_conf->num_indices + 1) / 2;
     else
 	count += draw_conf->num_indices;
+
+    BEGIN_BATCH(8 + count);
+    EREG(ib, VGT_PRIMITIVE_TYPE, draw_conf->prim_type);
+    PACK3(ib, IT_INDEX_TYPE, 1);
+    E32(ib, draw_conf->index_type);
+    PACK3(ib, IT_NUM_INSTANCES, 1);
+    E32(ib, draw_conf->num_instances);
 
     PACK3(ib, IT_DRAW_INDEX_IMMD, count);
     E32(ib, draw_conf->num_indices);
@@ -964,12 +1129,15 @@ draw_immd(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf, uint32_t *i
 	for (i = 0; i < draw_conf->num_indices; i++)
 	    E32(ib, indices[i]);
     }
+    END_BATCH();
 }
 
 void
 draw_auto(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    BEGIN_BATCH(10);
     EREG(ib, VGT_PRIMITIVE_TYPE, draw_conf->prim_type);
     PACK3(ib, IT_INDEX_TYPE, 1);
     E32(ib, draw_conf->index_type);
@@ -978,24 +1146,89 @@ draw_auto(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf)
     PACK3(ib, IT_DRAW_INDEX_AUTO, 2);
     E32(ib, draw_conf->num_indices);
     E32(ib, draw_conf->vgt_draw_initiator);
+    END_BATCH();
 }
 
-void
+Bool
 r600_vb_get(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-
-    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
-                              (accel_state->ib->idx * accel_state->ib->total) +
-                              (accel_state->ib->total / 2);
-    accel_state->vb_total = (accel_state->ib->total / 2);
-    accel_state->vb_ptr = (pointer)((char*)accel_state->ib->address +
-                                           (accel_state->ib->total / 2));
+#if defined(XF86DRM_MODE)
+    int ret;
+    if (info->cs) {
+	if (accel_state->vb_bo == NULL) {
+	    accel_state->vb_mc_addr = 0;
+	    accel_state->vb_bo = radeon_bo_open(info->bufmgr, 0, 16 * 1024,
+						0, RADEON_GEM_DOMAIN_GTT, 0);
+	    if (accel_state->vb_bo == NULL)
+		return FALSE;
+	    accel_state->vb_total = 16 * 1024;
+	}
+	if (!accel_state->vb_ptr) {
+	    ret = radeon_bo_map(accel_state->vb_bo, 1);
+	    if (ret) {
+		FatalError("failed to vb %d\n", ret);
+		return FALSE;
+	    }
+	    accel_state->vb_ptr = accel_state->vb_bo->ptr;
+	}
+    } else
+#endif
+    {
+	accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
+	    (accel_state->ib->idx*accel_state->ib->total)+
+	    (accel_state->ib->total / 2);
+	accel_state->vb_total = (accel_state->ib->total / 2);
+	accel_state->vb_ptr = (pointer)((char*)accel_state->ib->address +
+					(accel_state->ib->total / 2));
+    }
     accel_state->vb_index = 0;
+    return TRUE;
 }
 
 void
 r600_vb_discard(ScrnInfoPtr pScrn)
 {
+}
+
+int
+r600_cp_start(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+
+#if defined(XF86DRM_MODE)
+    if (info->cs) {
+	if (!r600_vb_get(pScrn))
+	    return -1;
+	radeon_cs_space_reset_bos(info->cs);
+	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
+					  RADEON_GEM_DOMAIN_VRAM, 0);
+	if (accel_state->src_bo[0])
+	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[0],
+					      RADEON_GEM_DOMAIN_VRAM, 0);
+	if (accel_state->src_bo[1])
+	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[1],
+					      RADEON_GEM_DOMAIN_VRAM, 0);
+	if (accel_state->dst_bo)
+	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->dst_bo,
+					      RADEON_GEM_DOMAIN_VRAM, 0);
+	if (accel_state->vb_bo)
+	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->vb_bo,
+					      RADEON_GEM_DOMAIN_GTT, 0);
+	if (accel_state->copy_area_bo)
+	    radeon_cs_space_add_persistent_bo(info->cs,
+					      accel_state->copy_area_bo,
+					      RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_cs_space_check(info->cs);
+    } else
+#endif
+    {
+	accel_state->ib = RADEONCPGetBuffer(pScrn);
+	if (!r600_vb_get(pScrn)) {
+	    return -1;
+	}
+    }
+    return 0;
 }
