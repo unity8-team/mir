@@ -321,7 +321,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    DRI2InfoRec dri2_info;
+    DRI2InfoRec dri2_info = { 0 };
     int fd;
     char *bus_id;
     char *tmp_bus_id;
