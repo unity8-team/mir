@@ -991,13 +991,17 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	drmModeEncoderPtr kencoder;
 	drmmode_output_private_ptr drmmode_output;
 	char name[32];
+	int encoder_id;
 
 	koutput = drmModeGetConnector(drmmode->fd,
 				      drmmode->mode_res->connectors[num]);
 	if (!koutput)
 		return;
 
-	kencoder = drmModeGetEncoder(drmmode->fd, koutput->encoders[0]);
+	encoder_id = koutput->encoder_id;
+	if (!encoder_id)
+		encoder_id = koutput->encoders[0];
+	kencoder = drmModeGetEncoder(drmmode->fd, encoder_id);
 	if (!kencoder) {
 		drmModeFreeConnector(koutput);
 		return;
