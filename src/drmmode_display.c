@@ -613,6 +613,22 @@ drmmode_output_detect(xf86OutputPtr output)
 		status = XF86OutputStatusUnknown;
 		break;
 	}
+
+	if (status != XF86OutputStatusConnected)
+		return status;
+
+	drmmode_output->mode_encoder =
+		drmModeGetEncoder(drmmode->fd,
+				  drmmode_output->mode_output->encoder_id);
+	if (!drmmode_output->mode_encoder) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "Error retrieving encoder %d\n",
+			   drmmode_output->mode_output->encoder_id);
+		return XF86OutputStatusUnknown;
+	}
+
+	output->possible_crtcs = drmmode_output->mode_encoder->possible_crtcs;
+	output->possible_clones = drmmode_output->mode_encoder->possible_clones;
 	return status;
 }
 
