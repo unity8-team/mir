@@ -53,12 +53,22 @@ typedef struct {
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
+    drmModePropertyPtr mode_prop;
+    uint64_t value;
+    int num_atoms; /* if range prop, num_atoms == 1; if enum prop, num_atoms == num_enums + 1 */
+    Atom *atoms;
+} drmmode_prop_rec, *drmmode_prop_ptr;
+
+
+typedef struct {
     drmmode_ptr drmmode;
     int output_id;
     drmModeConnectorPtr mode_output;
     drmModeEncoderPtr mode_encoder;
     drmModePropertyBlobPtr edid_blob;
     int dpms_enum_id;
+    int num_props;
+    drmmode_prop_ptr props;
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 
