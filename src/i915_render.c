@@ -166,7 +166,6 @@ static Bool i915_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 			 (int)pDstPicture->format);
 	}
     }
-    *dst_format |= DSTORG_HORT_BIAS (0x8) | DSTORG_VERT_BIAS (0x8);
     return TRUE;
 }
 
@@ -347,16 +346,17 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
 
+    pI830->dst_coord_adjust = 0;
     pI830->src_coord_adjust = 0;
+    pI830->mask_coord_adjust = 0;
     if (pSrcPicture->filter == PictFilterNearest)
-	pI830->src_coord_adjust = 0.375;
+	pI830->dst_coord_adjust = -0.125;
     if (pMask != NULL) {
 	if (!i915_texture_setup(pMaskPicture, pMask, 1))
 	    I830FALLBACK("fail to setup mask texture\n");
 
-	pI830->mask_coord_adjust = 0;
 	if (pMaskPicture->filter == PictFilterNearest)
-	    pI830->mask_coord_adjust = 0.375;
+	    pI830->dst_coord_adjust = -0.125;
     } else {
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;

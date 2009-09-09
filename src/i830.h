@@ -467,6 +467,7 @@ typedef struct _I830Rec {
    float scale_units[2][2];
   /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
+   float dst_coord_adjust;
    float src_coord_adjust;
    float mask_coord_adjust;
 

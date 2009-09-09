@@ -414,7 +414,9 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     if (!i830_get_dest_format(pDstPicture, &pI830->render_dst_format))
 	return FALSE;
 
+    pI830->dst_coord_adjust = 0;
     pI830->src_coord_adjust = 0;
+    pI830->mask_coord_adjust = 0;
     if (pSrcPicture->filter == PictFilterNearest)
 	pI830->src_coord_adjust = 0.375;
     if (pMask != NULL) {
@@ -707,8 +709,8 @@ i830_emit_composite_primitive(PixmapPtr pDst,
     BEGIN_BATCH(1 + num_floats);
 
     OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats-1));
-    OUT_BATCH_F(dstX + w);
-    OUT_BATCH_F(dstY + h);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstX + w);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstY + h);
     OUT_BATCH_F(src_x[2] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[2] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
@@ -724,8 +726,8 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 	}
     }
 
-    OUT_BATCH_F(dstX);
-    OUT_BATCH_F(dstY + h);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstX);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstY + h);
     OUT_BATCH_F(src_x[1] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[1] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
@@ -741,8 +743,8 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 	}
     }
 
-    OUT_BATCH_F(dstX);
-    OUT_BATCH_F(dstY);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstX);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstY);
     OUT_BATCH_F(src_x[0] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[0] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
