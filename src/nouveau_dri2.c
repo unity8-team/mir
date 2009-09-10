@@ -28,23 +28,24 @@ nouveau_dri2_create_pixmap(ScreenPtr pScreen, DrawablePtr pDraw, bool zeta)
 	NVPtr pNv = NVPTR(pScrn);
 	PixmapPtr ppix;
 	struct nouveau_bo *bo = NULL;
-	uint32_t flags, aw = pDraw->width, ah = pDraw->height, pitch;
-	int ret;
+	uint32_t tile_mode = 0, tile_flags = 0;
+	int ret, aw = pDraw->width, ah = pDraw->height, pitch;
 
-	flags = NOUVEAU_BO_VRAM;
 	if (pNv->Architecture >= NV_ARCH_50) {
-		aw = (aw + 7) & ~7;
-		ah = (ah + 7) & ~7;
+		if      (ah > 32) tile_mode = 4;
+		else if (ah > 16) tile_mode = 3;
+		else if (ah >  8) tile_mode = 2;
+		else if (ah >  4) tile_mode = 1;
+		else              tile_mode = 0;
+		tile_flags = 0x7000;
 
-		flags |= NOUVEAU_BO_TILED;
-		if (zeta)
-			flags |= NOUVEAU_BO_ZTILE;
+		ah = NOUVEAU_ALIGN(ah, 1 << (tile_mode + 2));
 	}
 
 	pitch = NOUVEAU_ALIGN(aw * (pDraw->bitsPerPixel >> 3), 64);
 
-	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_MAP, 0,
-			     pitch * ah, &bo);
+	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
+				  pitch * ah, tile_mode, tile_flags, &bo);
 	if (ret)
 		return NULL;
 
