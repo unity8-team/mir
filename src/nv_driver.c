@@ -1656,6 +1656,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	pScrn->vtSema = TRUE;
 	pScrn->pScreen = pScreen;
+	if (pNv->kms_enable)
+		drmmode_fbcon_copy(pScrn);
+
 	if (!NVEnterVT(pScrn->scrnIndex, 0))
 		return FALSE;
 

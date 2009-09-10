@@ -142,72 +142,76 @@ drmmode_crtc_dpms(xf86CrtcPtr drmmode_crtc, int mode)
 
 }
 
-static PixmapPtr
-drmmode_fb_pixmap(ScrnInfoPtr pScrn, int id, unsigned *w, unsigned *h)
+void
+drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 {
-	ScreenPtr pScreen = pScrn->pScreen;
-	struct nouveau_pixmap *nvpix;
-	NVPtr pNv = NVPTR(pScrn);
-	drmModeFBPtr fb;
-	PixmapPtr ppix;
-	int ret;
-
-	fb = drmModeGetFB(nouveau_device(pNv->dev)->fd, id);
-	if (!fb)
-		return NULL;
-
-	ppix = pScreen->CreatePixmap(pScreen, 0, 0, fb->depth, 0);
-	nvpix = nouveau_pixmap(ppix);
-	if (!nvpix) {
-		pScreen->DestroyPixmap(ppix);
-		drmFree(fb);
-		return NULL;
-	}
-
-	miModifyPixmapHeader(ppix, fb->width, fb->height, fb->depth,
-			     pScrn->bitsPerPixel, fb->pitch, NULL);
-	if (w && h) {
-		if (fb->width < *w)
-			*w = fb->width;
-		if (fb->height < *h)
-			*h = fb->height;
-	}
-
-	ret = nouveau_bo_wrap(pNv->dev, fb->handle, &nvpix->bo);
-	drmFree(fb);
-	if (ret) {
-		pScreen->DestroyPixmap(ppix);
-		return NULL;
-	}
-
-	return ppix;
-}
-
-static void
-drmmode_fb_copy(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int dst_id, int src_id,
-		int x, int y)
-{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
 	NVPtr pNv = NVPTR(pScrn);
 	ExaDriverPtr exa = pNv->EXADriverPtr;
 	PixmapPtr pspix, pdpix;
-	unsigned w = -1, h = -1;
+	drmModeFBPtr fb;
+	unsigned w = pScrn->virtualX, h = pScrn->virtualY;
+	int i, ret, fbcon_id = 0;
 
-	if (!src_id || !dst_id)
+	if (!pNv->exa_driver_pixmaps)
 		return;
 
-	pspix = drmmode_fb_pixmap(pScrn, src_id, &w, &h);
-	if (!pspix)
-		return;
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		drmmode_crtc_private_ptr drmmode_crtc =
+			xf86_config->crtc[i]->driver_private;
 
-	pdpix = drmmode_fb_pixmap(pScrn, dst_id, &w, &h);
-	if (!pdpix) {
-		pScreen->DestroyPixmap(pspix);
+		if (drmmode_crtc->mode_crtc->buffer_id)
+			fbcon_id = drmmode_crtc->mode_crtc->buffer_id;
+	}
+
+	fb = drmModeGetFB(nouveau_device(pNv->dev)->fd, fbcon_id);
+	if (!fb) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to retrieve fbcon fb: id %d\n", fbcon_id);
 		return;
 	}
 
+	if (w > fb->width)
+		w = fb->width;
+	if (h > fb->height)
+		h = fb->height;
+
+	pspix = GetScratchPixmapHeader(pScreen, fb->width, fb->height,
+				       fb->depth, fb->bpp, fb->pitch, NULL);
+	if (!pspix) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to create pixmap for fbcon contents\n");
+		drmFree(fb);
+		return;
+	}
+
+	ret = nouveau_bo_wrap(pNv->dev, fb->handle, &nouveau_pixmap(pspix)->bo);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to retrieve fbcon buffer: handle=0x%08x\n",
+			   fb->handle);
+		pScreen->DestroyPixmap(pspix);
+		drmFree(fb);
+		return;
+	}
+	drmFree(fb);
+
+	pdpix = GetScratchPixmapHeader(pScreen, pScrn->virtualX,
+				       pScrn->virtualY, pScrn->depth,
+				       pScrn->bitsPerPixel,
+				       pScrn->virtualX * pScrn->bitsPerPixel/8,
+				       NULL);
+	if (!pdpix) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to init scanout pixmap for fbcon mirror\n");
+		pScreen->DestroyPixmap(pspix);
+		return;
+	}
+	nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(pdpix)->bo);
+
 	exa->PrepareCopy(pspix, pdpix, 0, 0, GXcopy, ~0);
-	exa->Copy(pdpix, 0, 0, x, y, w, h);
+	exa->Copy(pdpix, 0, 0, 0, 0, w, h);
 	exa->DoneCopy(pdpix);
 	FIRE_RING (pNv->chan);
 
@@ -296,11 +300,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		fb_id = drmmode_crtc->rotate_fb_id;
 		x = 0;
 		y = 0;
-	} else
-	if (fb_id != drmmode_crtc->mode_crtc->buffer_id &&
-	    pNv->exa_driver_pixmaps) {
-		drmmode_fb_copy(pScrn, drmmode, fb_id,
-				drmmode_crtc->mode_crtc->buffer_id, x, y);
 	}
 
 	ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
