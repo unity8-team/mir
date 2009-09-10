@@ -2112,6 +2112,165 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 
 }
 
+#if defined(XF86DRM_MODE)
+static inline void radeon_add_pixmap(struct radeon_cs *cs, PixmapPtr pPix, int read_domains, int write_domain)
+{
+    struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
+
+    radeon_cs_space_add_persistent_bo(cs, driver_priv->bo, read_domains, write_domain);
+}
+
+static Bool
+R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
+		     char *src, int src_pitch)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *scratch;
+    unsigned size;
+    uint32_t dst_domain;
+    int bpp = pDst->drawable.bitsPerPixel;
+    uint32_t scratch_pitch = (w * bpp / 8 + 255) & ~255;
+    uint32_t src_pitch_hw = scratch_pitch / (bpp / 8);
+    uint32_t dst_pitch_hw = exaGetPixmapPitch(pDst) / (bpp / 8);
+    Bool r;
+    int i;
+
+    if (bpp < 8)
+	return FALSE;
+
+    driver_priv = exaGetPixmapDriverPrivate(pDst);
+
+    /* If we know the BO won't be busy, don't bother */
+    if (driver_priv->bo->cref == 1 &&
+	!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
+	return FALSE;
+
+    size = scratch_pitch * h;
+    scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
+    if (scratch == NULL) {
+	return FALSE;
+    }
+    radeon_cs_space_reset_bos(info->cs);
+    radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+    radeon_cs_space_add_persistent_bo(info->cs, scratch, RADEON_GEM_DOMAIN_GTT, 0);
+    r = radeon_cs_space_check(info->cs);
+    if (r) {
+        r = FALSE;
+        goto out;
+    }
+
+    r = radeon_bo_map(scratch, 0);
+    if (r) {
+        r = FALSE;
+        goto out;
+    }
+    r = TRUE;
+    size = w * bpp / 8;
+    for (i = 0; i < h; i++) {
+        memcpy(scratch->ptr + i * scratch_pitch, src, size);
+        src += src_pitch;
+    }
+    radeon_bo_unmap(scratch);
+
+    /* blit from gart to vram */
+    R600DoPrepareCopy(pScrn,
+		      src_pitch_hw, w, h,
+		      0, scratch, bpp,
+		      dst_pitch_hw, pDst->drawable.width, pDst->drawable.height,
+		      0, radeon_get_pixmap_bo(pDst), bpp,
+		      3, 0xffffffff);
+    R600AppendCopyVertex(pScrn, 0, 0, x, y, w, h);
+    R600DoCopy(pScrn);
+
+out:
+    radeon_bo_unref(scratch);
+    return r;
+}
+
+static Bool
+R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
+			 int h, char *dst, int dst_pitch)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pSrc->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *scratch;
+    unsigned size;
+    uint32_t src_domain = 0;
+    int bpp = pSrc->drawable.bitsPerPixel;
+    uint32_t scratch_pitch = (w * bpp / 8 + 255) & ~255;
+    uint32_t dst_pitch_hw = scratch_pitch / (bpp / 8);
+    uint32_t src_pitch_hw = exaGetPixmapPitch(pSrc) / (bpp / 8);
+    Bool r;
+
+    if (bpp < 8)
+	return FALSE;
+
+    driver_priv = exaGetPixmapDriverPrivate(pSrc);
+
+    /* If we know the BO won't end up in VRAM anyway, don't bother */
+    if (driver_priv->bo->cref > 1) {
+	src_domain = driver_priv->bo->space_accounted & 0xffff;
+	if (!src_domain)
+	    src_domain = driver_priv->bo->space_accounted >> 16;
+
+	if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
+	    (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
+	    src_domain = 0;
+    }
+
+    if (!src_domain)
+	radeon_bo_is_busy(driver_priv->bo, &src_domain);
+
+    if (src_domain != RADEON_GEM_DOMAIN_VRAM)
+	return FALSE;
+
+    size = scratch_pitch * h;
+    scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
+    if (scratch == NULL) {
+	return FALSE;
+    }
+    radeon_cs_space_reset_bos(info->cs);
+    radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+    radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, RADEON_GEM_DOMAIN_GTT);
+    r = radeon_cs_space_check(info->cs);
+    if (r) {
+        r = FALSE;
+        goto out;
+    }
+
+    /* blit from vram to gart */
+    R600DoPrepareCopy(pScrn,
+		      src_pitch_hw, pSrc->drawable.width, pSrc->drawable.height,
+		      0, radeon_get_pixmap_bo(pSrc), bpp,
+		      dst_pitch_hw, w, h,
+		      0, scratch, bpp,
+		      3, 0xffffffff);
+    R600AppendCopyVertex(pScrn, x, y, 0, 0, w, h);
+    R600DoCopy(pScrn);
+
+    r = radeon_bo_map(scratch, 0);
+    if (r) {
+        r = FALSE;
+        goto out;
+    }
+    r = TRUE;
+    w *= bpp / 8;
+    size = 0;
+    while (h--) {
+        memcpy(dst, scratch->ptr + size, w);
+        size += scratch_pitch;
+        dst += dst_pitch;
+    }
+    radeon_bo_unmap(scratch);
+out:
+    radeon_bo_unref(scratch);
+    return r;
+}
+#endif
+
 static int
 R600MarkSync(ScreenPtr pScreen)
 {
@@ -2305,8 +2464,8 @@ R600DrawInit(ScreenPtr pScreen)
 	info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
 	info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;
 	info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
-	info->accel_state->exa->UploadToScreen = NULL;
-	info->accel_state->exa->DownloadFromScreen = NULL;
+	info->accel_state->exa->UploadToScreen = R600UploadToScreenCS;
+	info->accel_state->exa->DownloadFromScreen = R600DownloadFromScreenCS;
     } else
 #endif
 #endif
