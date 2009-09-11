@@ -1630,7 +1630,7 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1043) &&
 	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x01da)) {
 	if (info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A)
-	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_I;
     }
 
     /* ASUS HD 3450 board lists the DVI port as HDMI */
@@ -1638,7 +1638,7 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1043) &&
 	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x01e2)) {
 	if (info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A)
-	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_I;
     }
 
     /* some BIOSes seem to report DAC on HDMI - usually this is a board with
