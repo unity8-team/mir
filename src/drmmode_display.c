@@ -215,6 +215,12 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 	exa->DoneCopy(pdpix);
 	FIRE_RING (pNv->chan);
 
+	/* wait for completion before continuing, avoids seeing a momentary
+	 * flash of "corruption" on occasion
+	 */
+	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+	nouveau_bo_unmap(pNv->scanout);
+
 	pScreen->DestroyPixmap(pdpix);
 	pScreen->DestroyPixmap(pspix);
 }
