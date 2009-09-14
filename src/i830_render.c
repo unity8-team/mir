@@ -221,26 +221,8 @@ static Bool i830_get_blend_cntl(ScrnInfoPtr pScrn, int op, PicturePtr pMask,
     return TRUE;
 }
 
-static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
+static Bool i830_check_composite_texture(ScrnInfoPtr pScrn, PicturePtr pPict, int unit)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
-    int w = pPict->pDrawable->width;
-    int h = pPict->pDrawable->height;
-    int i;
-
-    if ((w > 2048) || (h > 2048))
-        I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
-
-    for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
-	 i++)
-    {
-        if (i830_tex_formats[i].fmt == pPict->format)
-            break;
-    }
-    if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
-        I830FALLBACK("Unsupported picture format 0x%x\n",
-		     (int)pPict->format);
-
     if (pPict->repeatType > RepeatReflect)
         I830FALLBACK("Unsupported picture repeat %d\n", pPict->repeatType);
 
@@ -248,6 +230,26 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
         pPict->filter != PictFilterBilinear)
     {
         I830FALLBACK("Unsupported filter 0x%x\n", pPict->filter);
+    }
+
+    if (pPict->pDrawable)
+    {
+	int w, h, i;
+
+	w = pPict->pDrawable->width;
+	h = pPict->pDrawable->height;
+	if ((w > 2048) || (h > 2048))
+	    I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
+
+	for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
+	     i++)
+	{
+	    if (i830_tex_formats[i].fmt == pPict->format)
+		break;
+	}
+	if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
+	    I830FALLBACK("Unsupported picture format 0x%x\n",
+			 (int)pPict->format);
     }
 
     return TRUE;
@@ -380,9 +382,9 @@ i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 			     "alpha and source value blending.\n");
     }
 
-    if (!i830_check_composite_texture(pSrcPicture, 0))
+    if (!i830_check_composite_texture(pScrn, pSrcPicture, 0))
         I830FALLBACK("Check Src picture texture\n");
-    if (pMaskPicture != NULL && !i830_check_composite_texture(pMaskPicture, 1))
+    if (pMaskPicture != NULL && !i830_check_composite_texture(pScrn, pMaskPicture, 1))
         I830FALLBACK("Check Mask picture texture\n");
 
     if (!i830_get_dest_format(pDstPicture, &tmp1))
@@ -396,7 +398,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
 		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
     pI830->render_src_picture = pSrcPicture;
