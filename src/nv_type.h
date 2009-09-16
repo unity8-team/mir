@@ -276,6 +276,8 @@ typedef struct _NVPortPrivRec {
 #define TIMER_MASK      (OFF_TIMER | FREE_TIMER)
 
 /* EXA driver-controlled pixmaps */
+#define NOUVEAU_CREATE_PIXMAP_ZETA 0x10000000
+
 struct nouveau_pixmap {
 	struct nouveau_bo *bo;
 	void *linear;

@@ -361,7 +361,11 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			else if (height >  8) tile_mode = 2;
 			else if (height >  4) tile_mode = 1;
 			else                  tile_mode = 0;
-			tile_flags = 0x7000;
+
+			if (usage_hint == NOUVEAU_CREATE_PIXMAP_ZETA)
+				tile_flags = 0x2800;
+			else
+				tile_flags = 0x7000;
 
 			height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		}

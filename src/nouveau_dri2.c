@@ -21,49 +21,6 @@ nouveau_dri2_buffer(DRI2BufferPtr buf)
 	return (struct nouveau_dri2_buffer *)buf;
 }
 
-static PixmapPtr
-nouveau_dri2_create_pixmap(ScreenPtr pScreen, DrawablePtr pDraw, bool zeta)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	PixmapPtr ppix;
-	struct nouveau_bo *bo = NULL;
-	uint32_t tile_mode = 0, tile_flags = 0;
-	int ret, aw = pDraw->width, ah = pDraw->height, pitch;
-
-	if (pNv->Architecture >= NV_ARCH_50) {
-		if      (ah > 32) tile_mode = 4;
-		else if (ah > 16) tile_mode = 3;
-		else if (ah >  8) tile_mode = 2;
-		else if (ah >  4) tile_mode = 1;
-		else              tile_mode = 0;
-		tile_flags = 0x7000;
-
-		ah = NOUVEAU_ALIGN(ah, 1 << (tile_mode + 2));
-	}
-
-	pitch = NOUVEAU_ALIGN(aw * (pDraw->bitsPerPixel >> 3), 64);
-
-	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
-				  pitch * ah, tile_mode, tile_flags, &bo);
-	if (ret)
-		return NULL;
-
-	ppix = pScreen->CreatePixmap(pScreen, 0, 0, pDraw->depth, 0);
-	if (!ppix) {
-		nouveau_bo_ref(NULL, &bo);
-		return NULL;
-	}
-
-	exaMoveInPixmap(ppix);
-	nouveau_bo_ref(bo, &nouveau_pixmap(ppix)->bo);
-	nouveau_bo_ref(NULL, &bo);
-
-	miModifyPixmapHeader(ppix, pDraw->width, pDraw->height, pDraw->depth,
-			     pScrn->bitsPerPixel, pitch, NULL);
-	return ppix;
-}
-
 DRI2BufferPtr
 nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 			   unsigned int format)
@@ -76,8 +33,7 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 	if (!nvbuf)
 		return NULL;
 
-	switch (attachment) {
-	case DRI2BufferFrontLeft:
+	if (attachment == DRI2BufferFrontLeft) {
 		if (pDraw->type == DRAWABLE_PIXMAP) {
 			ppix = (PixmapPtr)pDraw;
 		} else {
@@ -85,18 +41,20 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 			ppix = pScreen->GetWindowPixmap(pwin);
 		}
 
-		exaMoveInPixmap(ppix);
 		ppix->refcnt++;
-		break;
-	case DRI2BufferDepth:
-	case DRI2BufferDepthStencil:
-		ppix = nouveau_dri2_create_pixmap(pScreen, pDraw, true);
-		break;
-	default:
-		ppix = nouveau_dri2_create_pixmap(pScreen, pDraw, false);
-		break;
+	} else {
+		unsigned int usage_hint = 0;
+
+		if (attachment == DRI2BufferDepth ||
+		    attachment == DRI2BufferDepthStencil)
+			usage_hint = NOUVEAU_CREATE_PIXMAP_ZETA;
+
+		ppix = pScreen->CreatePixmap(pScreen, pDraw->width,
+					     pDraw->height, pDraw->depth,
+					     usage_hint);
 	}
 
+	exaMoveInPixmap(ppix);
 
 	nvbuf->base.attachment = attachment;
 	nvbuf->base.pitch = ppix->devKind;
