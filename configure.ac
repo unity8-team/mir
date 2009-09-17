@@ -146,6 +146,8 @@ if test "$DRI" = yes; then
 			if test "x$LIBDRM_RADEON" = xyes; then
 			   	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
 				AC_DEFINE(RADEON_DRI2, 1,[Enable DRI2 code])
+                        else
+                                DRM_MODE=no
 			fi
         	fi
 	fi
