@@ -793,8 +793,12 @@ drmmode_output_get_modes(xf86OutputPtr output)
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
 		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
-		if (!props || !(props->flags & DRM_MODE_PROP_BLOB))
+		if (!props)
 			continue;
+		if (!(props->flags & DRM_MODE_PROP_BLOB)) {
+			drmModeFreeProperty(props);
+			continue;
+		}
 
 		if (!strcmp(props->name, "EDID")) {
 			drmModeFreePropertyBlob(drmmode_output->edid_blob);
