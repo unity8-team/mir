@@ -3135,9 +3135,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pScreen->CloseScreen = pI830->CloseScreen;
    (*pScreen->CloseScreen) (scrnIndex, pScreen);
 
-   dri_bufmgr_destroy(pI830->bufmgr);
-   pI830->bufmgr = NULL;
-
    if (pI830->directRenderingOpen && pI830->directRenderingType == DRI_DRI2) {
       pI830->directRenderingOpen = FALSE;
       I830DRI2CloseScreen(pScreen);
