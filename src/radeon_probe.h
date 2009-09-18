@@ -341,6 +341,7 @@ struct avivo_state
 
     uint32_t vga1_cntl;
     uint32_t vga2_cntl;
+    uint32_t vga_render_control;
 
     uint32_t crtc_master_en;
     uint32_t crtc_tv_control;
