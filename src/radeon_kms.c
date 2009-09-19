@@ -699,6 +699,11 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 	}
     }
 
+    /* DGA setup */
+#ifdef XFreeXDGA
+    xf86DiDGAInit(pScreen, info->LinearAddr + pScrn->fbOffset);
+#endif
+
     /* Init Xv */
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "Initializing Xv\n");
