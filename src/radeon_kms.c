@@ -701,7 +701,10 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 
     /* DGA setup */
 #ifdef XFreeXDGA
-    xf86DiDGAInit(pScreen, info->LinearAddr + pScrn->fbOffset);
+    /* DGA is dangerous on kms as the base and framebuffer location may change:
+     * http://lists.freedesktop.org/archives/xorg-devel/2009-September/002113.html
+     */
+    /* xf86DiDGAInit(pScreen, info->LinearAddr + pScrn->fbOffset); */
 #endif
 
     /* Init Xv */
