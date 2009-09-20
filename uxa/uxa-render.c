@@ -315,6 +315,68 @@ uxa_try_driver_solid_fill(PicturePtr	pSrc,
     return 1;
 }
 
+/* In order to avoid fallbacks when using an a1 source/mask,
+ * for example with non-antialiased trapezoids, we need to
+ * expand the bitmap into an a8 Picture. We do so by using the generic
+ * composition routines, which while may not be perfect is far faster
+ * than causing a fallback.
+ */
+static PicturePtr
+uxa_picture_from_a1_pixman_image (ScreenPtr pScreen,
+				  pixman_image_t *image)
+{
+    PicturePtr pPicture;
+    PicturePtr pSrc;
+    PixmapPtr pPixmap;
+    int width, height;
+    int error;
+
+    width = pixman_image_get_width (image);
+    height = pixman_image_get_height (image);
+
+    pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height, 8,
+					UXA_CREATE_PIXMAP_FOR_MAP);
+    if (!pPixmap)
+	return 0;
+
+    pPicture = CreatePicture (0, &pPixmap->drawable,
+			      PictureMatchFormat (pScreen, 8, PICT_a8),
+			      0, 0, serverClient, &error);
+    (*pScreen->DestroyPixmap) (pPixmap);
+    if (!pPicture)
+	return 0;
+
+    ValidatePicture (pPicture);
+
+    pPixmap = GetScratchPixmapHeader(pScreen, width, height, 1,
+				     BitsPerPixel (1),
+				     pixman_image_get_stride (image),
+				     pixman_image_get_data (image));
+    if (!pPixmap) {
+	FreePicture (pPicture, 0);
+	return 0;
+    }
+
+    pSrc = CreatePicture (0, &pPixmap->drawable,
+			  PictureMatchFormat (pScreen, 1, PICT_a1),
+			  0, 0, serverClient, &error);
+    FreeScratchPixmapHeader (pPixmap);
+    if (!pPicture) {
+	FreePicture (pPicture, 0);
+	return 0;
+    }
+
+    CompositePicture (PictOpSrc, pSrc, NULL, pPicture,
+		      0, 0,
+		      0, 0,
+		      0, 0,
+		      width, height);
+
+    FreePicture (pSrc, 0);
+
+    return pPicture;
+}
+
 static PicturePtr
 uxa_picture_from_pixman_image (ScreenPtr pScreen,
 			       pixman_image_t *image,
@@ -325,6 +387,9 @@ uxa_picture_from_pixman_image (ScreenPtr pScreen,
     GCPtr pGC;
     int width, height, depth;
     int error;
+
+    if (format == PICT_a1)
+	return uxa_picture_from_a1_pixman_image (pScreen, image);
 
     width = pixman_image_get_width (image);
     height = pixman_image_get_height (image);
@@ -339,6 +404,9 @@ uxa_picture_from_pixman_image (ScreenPtr pScreen,
 			      PictureMatchFormat (pScreen, depth, format),
 			      0, 0, serverClient, &error);
     (*pScreen->DestroyPixmap) (pPixmap);
+    if (!pPicture)
+	return 0;
+
     ValidatePicture (pPicture);
 
     pPixmap = GetScratchPixmapHeader(pScreen, width, height, depth,
