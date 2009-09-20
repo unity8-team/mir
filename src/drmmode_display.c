@@ -200,7 +200,8 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 	pdpix = GetScratchPixmapHeader(pScreen, pScrn->virtualX,
 				       pScrn->virtualY, pScrn->depth,
 				       pScrn->bitsPerPixel,
-				       pScrn->virtualX * pScrn->bitsPerPixel/8,
+				       pScrn->displayWidth *
+				       pScrn->bitsPerPixel / 8,
 				       NULL);
 	if (!pdpix) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
