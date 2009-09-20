@@ -102,14 +102,21 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 AC_HEADER_STDC
 
 if test "$DRI" != no; then
-	AC_CHECK_FILE([${sdkdir}/dri.h],
-                      [have_dri_h="yes"], [have_dri_h="no"])
-	AC_CHECK_FILE([${sdkdir}/sarea.h],
-                      [have_sarea_h="yes"], [have_sarea_h="no"])
-	AC_CHECK_FILE([${sdkdir}/dristruct.h],
-                      [have_dristruct_h="yes"], [have_dristruct_h="no"])
-	AC_CHECK_FILE([${sdkdir}/damage.h],
-                      [have_damage_h="yes"], [have_damage_h="no"])
+	PKG_CHECK_MODULES(DRI, [libdrm >= 2.2 xf86driproto])
+	save_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS"
+	AC_CHECK_HEADER([dri.h],
+                      [have_dri_h="yes"], [have_dri_h="no"],[-])
+	AC_CHECK_HEADER([sarea.h],
+                      [have_sarea_h="yes"], [have_sarea_h="no"],[-])
+	AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[
+#include <xorg-server.h>
+#include <dristruct.h>
+                      ]])],
+                      [have_dristruct_h="yes"], [have_dristruct_h="no"],[-])
+	AC_CHECK_HEADER([damage.h],
+                      [have_damage_h="yes"], [have_damage_h="no"],[-])
+	CPPFLAGS="$save_CPPFLAGS"
 fi
 
 AC_MSG_CHECKING([whether to include DRI support])
@@ -126,7 +133,6 @@ AC_MSG_RESULT([$DRI])
 
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
-	PKG_CHECK_MODULES(DRI, [libdrm >= 2.2 xf86driproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 	if test "$have_damage_h" = yes; then
