@@ -3068,9 +3068,10 @@ typedef enum {
 #define PFB_CTL_1		0x68880
 #define  PF_ENABLE		(1<<31)
 
-/* CPU panel fitter */
-#define PFA_CTRL_1		0x68080
-#define PFB_CTRL_1		0x68880
+#define PFA_WIN_POS		0x68070
+#define PFB_WIN_POS		0x68870
+#define PFA_WIN_SIZE		0x68074
+#define PFB_WIN_SIZE		0x68874
 
 /* legacy palette */
 #define LGC_PALETTE_A		0x4a000
@@ -3404,6 +3405,7 @@ typedef enum {
 
 #define HDMIC	0xe1150
 #define HDMID	0xe1160
+#define PCH_LVDS		0xe1180
 
 #define AUD_CONFIG              0x62000
 #define AUD_DEBUG               0x62010

@@ -1213,6 +1213,17 @@ DEBUGSTRING(igdng_debug_panel_fitting)
 	    val & (1 << 20) ? "field 0" : "field 1");
 }
 
+DEBUGSTRING(igdng_debug_pf_win)
+{
+    int a, b;
+
+    a = (val >> 16) & 0x1fff;
+    b = val & 0xfff;
+
+    return XNFprintf("%d, %d", a, b);
+}
+
+
 static struct i830SnapshotRec igdng_snapshot[] = {
     DEFINEREG2(CPU_VGACNTRL, i830_debug_vgacntrl),
     DEFINEREG(DIGITAL_PORT_HOTPLUG_CNTRL),
@@ -1284,8 +1295,12 @@ static struct i830SnapshotRec igdng_snapshot[] = {
     DEFINEREG2(PIPEB_LINK_M2, igdng_debug_n),
     DEFINEREG2(PIPEB_LINK_N2, igdng_debug_n),
 
-    DEFINEREG2(PFA_CTRL_1, igdng_debug_panel_fitting),
-    DEFINEREG2(PFB_CTRL_1, igdng_debug_panel_fitting),
+    DEFINEREG2(PFA_CTL_1, igdng_debug_panel_fitting),
+    DEFINEREG2(PFB_CTL_1, igdng_debug_panel_fitting),
+    DEFINEREG2(PFA_WIN_POS, igdng_debug_pf_win),
+    DEFINEREG2(PFB_WIN_POS, igdng_debug_pf_win),
+    DEFINEREG2(PFA_WIN_SIZE, igdng_debug_pf_win),
+    DEFINEREG2(PFB_WIN_SIZE, igdng_debug_pf_win),
 
     /* PCH */
 
@@ -1361,6 +1376,7 @@ static struct i830SnapshotRec igdng_snapshot[] = {
     DEFINEREG(HDMIB),
     DEFINEREG(HDMIC),
     DEFINEREG(HDMID),
+    DEFINEREG2(PCH_LVDS, i830_debug_lvds),
 };
 #define NUM_IGDNG_SNAPSHOTREGS (sizeof(igdng_snapshot) / sizeof(igdng_snapshot[0]))
 #undef DEFINEREG
