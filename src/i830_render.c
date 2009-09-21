@@ -390,6 +390,17 @@ i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
     if (!i830_get_dest_format(pDstPicture, &tmp1))
 	I830FALLBACK("Get Color buffer format\n");
 
+    /* There exists some code to handle non-affine transformations for
+     * 8xx, but from what we can tell, it just isn't correct. (An easy
+     * testcase is to run enlightenemt (e17), click the "e", then
+     * "settings", "settings panel", "advanced", "engine", and finally
+     * "XRender" and "Apply". After doing that, moving any window causes
+     * a GPU hang. */
+    if (!i830_transform_is_affine(pSrcPicture->transform) ||
+	!i830_transform_is_affine(pDstPicture->transform) ||
+	(pMaskPicture && !i830_transform_is_affine (pMaskPicture->transform)))
+	I830FALLBACK("Non-affine transformation\n");
+
     return TRUE;
 }
 
