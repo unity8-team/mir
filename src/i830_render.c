@@ -276,11 +276,17 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t format, pitch, filter;
     uint32_t wrap_mode;
+    uint32_t texcoordtype;
 
     pitch = intel_get_pixmap_pitch(pPix);
     pI830->scale_units[unit][0] = pPix->drawable.width;
     pI830->scale_units[unit][1] = pPix->drawable.height;
     pI830->transform[unit] = pPict->transform;
+
+    if (i830_transform_is_affine(pI830->transform[unit]))
+	texcoordtype = TEXCOORDTYPE_CARTESIAN;
+    else
+	texcoordtype = TEXCOORDTYPE_HOMOGENEOUS;
 
     format = i8xx_get_card_format(pPict);
 
@@ -334,7 +340,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	OUT_BATCH(0); /* default color */
 	OUT_BATCH(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
 		  ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
-		  TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL |
+		  texcoordtype | ENABLE_ADDR_V_CNTL |
 		  TEXCOORD_ADDR_V_MODE(wrap_mode) |
 		  ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
 	/* map texel stream */
@@ -537,13 +543,14 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t vf2;
+    uint32_t texcoordfmt = 0;
 
     pI830->needs_render_state_emit = FALSE;
 
     IntelEmitInvarientState(pScrn);
     pI830->last_3d = LAST_3D_RENDER;
 
-    BEGIN_BATCH(22);
+    BEGIN_BATCH(21);
 
     OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
     OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE |
@@ -570,19 +577,17 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
 	vf2 = 2 << 12; /* 2 texture coord sets */
     else
 	vf2 = 1 << 12;
-    OUT_BATCH(vf2); /* TEXCOORDFMT_2D */
+    OUT_BATCH(vf2); /* number of coordinate sets */
     OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
     OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | pI830->s8_blendctl |
 	      S8_ENABLE_COLOR_BUFFER_WRITE);
 
     OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
-    OUT_BATCH(0);
 
     OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 	      LOAD_TEXTURE_BLEND_STAGE(0)|1);
     OUT_BATCH(pI830->cblend);
     OUT_BATCH(pI830->ablend);
-    OUT_BATCH(0);
 
     OUT_BATCH(_3DSTATE_ENABLES_1_CMD | DISABLE_LOGIC_OP |
 	      DISABLE_STENCIL_TEST | DISABLE_DEPTH_BIAS |
@@ -593,6 +598,19 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
 	      DISABLE_STENCIL_WRITE | ENABLE_TEX_CACHE |
 	      DISABLE_DITHER | ENABLE_COLOR_WRITE |
 	      DISABLE_DEPTH_WRITE);
+
+    if (i830_transform_is_affine(pI830->render_src_picture->transform))
+	texcoordfmt |= (TEXCOORDFMT_2D << 0);
+    else
+	texcoordfmt |= (TEXCOORDFMT_3D << 0);
+    if (pI830->render_mask) {
+	if (i830_transform_is_affine(pI830->render_mask_picture->transform))
+	    texcoordfmt |= (TEXCOORDFMT_2D << 2);
+	else
+	    texcoordfmt |= (TEXCOORDFMT_3D << 2);
+    }
+    OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD | texcoordfmt);
+
     ADVANCE_BATCH();
 
     i830_texture_setup(pI830->render_src_picture, pI830->render_src, 0);
@@ -665,7 +683,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 						     &src_w[2]))
 		return;
 
-	    per_vertex += 4;    /* src x/y/z/w */
+	    per_vertex += 3;    /* src x/y/w */
 	}
     }
 
@@ -713,7 +731,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 						     &mask_w[2]))
 		return;
 
-	    per_vertex += 4;	/* mask x/y/z/w */
+	    per_vertex += 3;	/* mask x/y/w */
 	}
     }
 
@@ -727,14 +745,12 @@ i830_emit_composite_primitive(PixmapPtr pDst,
     OUT_BATCH_F(src_x[2] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[2] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
-	OUT_BATCH_F(0.0);
 	OUT_BATCH_F(src_w[2]);
     }
     if (pI830->render_mask) {
 	OUT_BATCH_F(mask_x[2] / pI830->scale_units[1][0]);
 	OUT_BATCH_F(mask_y[2] / pI830->scale_units[1][1]);
 	if (!is_affine_mask) {
-	    OUT_BATCH_F(0.0);
 	    OUT_BATCH_F(mask_w[2]);
 	}
     }
@@ -744,14 +760,12 @@ i830_emit_composite_primitive(PixmapPtr pDst,
     OUT_BATCH_F(src_x[1] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[1] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
-	OUT_BATCH_F(0.0);
 	OUT_BATCH_F(src_w[1]);
     }
     if (pI830->render_mask) {
 	OUT_BATCH_F(mask_x[1] / pI830->scale_units[1][0]);
 	OUT_BATCH_F(mask_y[1] / pI830->scale_units[1][1]);
 	if (!is_affine_mask) {
-	    OUT_BATCH_F(0.0);
 	    OUT_BATCH_F(mask_w[1]);
 	}
     }
@@ -761,14 +775,12 @@ i830_emit_composite_primitive(PixmapPtr pDst,
     OUT_BATCH_F(src_x[0] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[0] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
-	OUT_BATCH_F(0.0);
 	OUT_BATCH_F(src_w[0]);
     }
     if (pI830->render_mask) {
 	OUT_BATCH_F(mask_x[0] / pI830->scale_units[1][0]);
 	OUT_BATCH_F(mask_y[0] / pI830->scale_units[1][1]);
 	if (!is_affine_mask) {
-	    OUT_BATCH_F(0.0);
 	    OUT_BATCH_F(mask_w[0]);
 	}
     }
