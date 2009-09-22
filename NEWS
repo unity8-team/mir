@@ -1,3 +1,44 @@
+Snapshot 2.8.99.902 (2009-09-22)
+================================
+This is expected to be the final release candidate for the upcoming
+2.9.0 release. If there are no serious problems discovered in this
+release candidate then the same code will become 2.9.0 soon. So please
+let us know if you test this release candidate and find any problems.
+
+New features in 2.8.99.902 compared to 2.8
+------------------------------------------
+* Support for the B43 chipset.
+
+Major fixes in 2.8.99.902 compared to 2.8.0
+-------------------------------------------
+* Multiple fixes to make the driver stable for 8xx chipsets, (855GM,
+  865G, etc.). The 2.8 driver series was extremely unstable with many
+  of these chipsets.
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=22904 (and many duplicates)
+  https://bugs.freedesktop.org/show_bug.cgi?id=22947
+
+* Add support for BACKLIGHT property when using kernel modesetting
+  (KMS). This allows backlight adjustment with programs such as
+  "xbacklight -set <percentage>" or "xrandr --set BACKLIGHT <value>".
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=20963
+
+* Fix so that "xrandr --scale" works when using KMS.
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=22893
+
+* Fix segfaults of X server when logging out.
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=20516
+
+* Avoid falling back to software for 1-bit alpha-only masks.
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=23184
+
+* Fix pixel sampling position for 8xx chipsets, (fixes some cairo-test
+  suite failures).
+
 Snapshot 2.8.99.901 (2009-09-09)
 ================================
 This is the first release candidate in preparation for the upcoming
