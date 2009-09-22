@@ -395,8 +395,7 @@ typedef struct _I830Rec {
 #endif
 
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
-   Rotation rotation;
-   void (*PointerMoved)(int, int, int);
+
    CreateScreenResourcesProcPtr    CreateScreenResources;
 
    i830_memory *power_context;

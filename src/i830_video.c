@@ -2751,10 +2751,6 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
 	    return BadAlloc;
     }
 
-    /* What to do when rotated ?? */
-    if (pI830->rotation != RR_Rotate_0)
-	return BadAlloc;
-
     if (!(surface->pitches = xalloc(sizeof(int))))
 	return BadAlloc;
     if (!(surface->offsets = xalloc(sizeof(int)))) {

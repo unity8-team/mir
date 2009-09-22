@@ -1359,9 +1359,6 @@ i830_user_modesetting_init(ScrnInfoPtr pScrn)
     }
     RestoreHWState(pScrn);
 
-    /* XXX This should go away, replaced by xf86Crtc.c support for it */
-    pI830->rotation = RR_Rotate_0;
-
     pI830->stolen_size = I830DetectMemory(pScrn);
 
     return TRUE;
@@ -2133,33 +2130,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
    return TRUE;
 }
 
-static void
-I830PointerMoved(int index, int x, int y)
-{
-   ScrnInfoPtr pScrn = xf86Screens[index];
-   I830Ptr pI830 = I830PTR(pScrn);
-   int newX = x, newY = y;
-
-   switch (pI830->rotation) {
-      case RR_Rotate_0:
-         break;
-      case RR_Rotate_90:
-         newX = y;
-         newY = pScrn->pScreen->width - x - 1;
-         break;
-      case RR_Rotate_180:
-         newX = pScrn->pScreen->width - x - 1;
-         newY = pScrn->pScreen->height - y - 1;
-         break;
-      case RR_Rotate_270:
-         newX = pScrn->pScreen->height - y - 1;
-         newY = x;
-         break;
-   }
-
-   (*pI830->PointerMoved)(index, newX, newY);
-}
-
 /**
  * Intialiazes the hardware for the 3D pipeline use in the 2D driver.
  *
@@ -2830,11 +2800,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Not available\n");
 #endif
 
-
-   /* Wrap pointer motion to flip touch screen around */
-   pI830->PointerMoved = pScrn->PointerMoved;
-   pScrn->PointerMoved = I830PointerMoved;
-
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
@@ -3086,9 +3051,8 @@ static Bool
 I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-   I830Ptr pI830 = I830PTR(pScrn);
 
-   return xf86SetSingleMode (pScrn, mode, pI830->rotation);
+   return xf86SetSingleMode (pScrn, mode, RR_Rotate_0);
 }
 
 static Bool
@@ -3142,7 +3106,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    xf86GARTCloseScreen(scrnIndex);
 
-   pScrn->PointerMoved = pI830->PointerMoved;
    pScrn->vtSema = FALSE;
    pI830->closing = FALSE;
    return TRUE;
