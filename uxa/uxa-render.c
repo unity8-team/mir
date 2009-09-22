@@ -361,7 +361,7 @@ uxa_picture_from_a1_pixman_image (ScreenPtr pScreen,
 			  PictureMatchFormat (pScreen, 1, PICT_a1),
 			  0, 0, serverClient, &error);
     FreeScratchPixmapHeader (pPixmap);
-    if (!pPicture) {
+    if (!pSrc) {
 	FreePicture (pPicture, 0);
 	return 0;
     }
