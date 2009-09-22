@@ -2708,11 +2708,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    xf86SetBlackWhitePixels(pScreen);
 
-#ifdef XFreeXDGA
-   if (!pI830->use_drm_mode)
-       xf86DiDGAInit (pScreen, pI830->LinearAddr + pScrn->fbOffset);
-#endif
-
    if (!I830AccelInit(pScreen)) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Hardware acceleration initialization failed\n");
