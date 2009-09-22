@@ -604,9 +604,9 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
 
 /* Emit the vertices for a single composite rectangle.
  *
- * This function is shared between i830 and i915 generation code.
+ * This function is no longer shared between i830 and i915 generation code.
  */
-void
+static void
 i830_emit_composite_primitive(PixmapPtr pDst,
 			      int srcX, int srcY,
 			      int maskX, int maskY,
