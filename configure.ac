@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        2.7.99.902,
+        2.8.99.902,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -46,16 +46,7 @@ DOLT
 AC_PROG_CC
 AM_PROG_CC_C_O
 
-AC_CHECK_PROG(gen4asm, [intel-gen4asm], yes, no)
-
-if test x$gen4asm != xno; then
-	intel-gen4asm -g 5 src/render_program/exa_sf.g4a > /dev/null
-
-	if test "$?" !=  "0"; then
-		echo "Error: Require new intel-gen4asm with -g option!"
-		exit 1
-	fi
-fi
+PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.0], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 AC_CHECK_HEADERS(sys/mman.h)
@@ -92,6 +83,11 @@ AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
               [XVMC="$enableval"],
               [XVMC=yes])
 
+AC_ARG_ENABLE(kms-only, AC_HELP_STRING([--enable-kms-only],
+                                  [Assume KMS support [[default=no]]]),
+              [KMS_ONLY="$enableval"],
+              [KMS_ONLY=no])
+
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
@@ -101,6 +97,10 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
+                  HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
+                  HAVE_XEXTPROTO_71="no")
+AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 drm_cflags=$(pkg-config --cflags libdrm)
@@ -169,6 +169,11 @@ AM_CONDITIONAL(XVMC, test x$XVMC = xyes)
 if test "$XVMC" = yes; then
 	AC_DEFINE(ENABLE_XVMC,1,[Enable XvMC support])
     	AC_SUBST([XVMCLIB_CFLAGS])
+fi
+
+AM_CONDITIONAL(KMS_ONLY, test x$KMS_ONLY = xyes)
+if test "$KMS_ONLY" = yes; then
+	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
 fi
 
 AC_SUBST([DRI_CFLAGS])

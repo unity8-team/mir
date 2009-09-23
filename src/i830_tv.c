@@ -1819,7 +1819,7 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
 	xfree (dev_priv->tv_format);
 	dev_priv->tv_format = val;
 
-	if (pI830->starting)
+	if (pI830->starting || output->crtc == NULL)
 	    return TRUE;
 
 	/* TV format change will generate new modelines, try

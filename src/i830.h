@@ -395,8 +395,7 @@ typedef struct _I830Rec {
 #endif
 
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
-   Rotation rotation;
-   void (*PointerMoved)(int, int, int);
+
    CreateScreenResourcesProcPtr    CreateScreenResources;
 
    i830_memory *power_context;
@@ -467,17 +466,24 @@ typedef struct _I830Rec {
    float scale_units[2][2];
   /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
-   float coord_adjust;
+   float dst_coord_adjust;
+   float src_coord_adjust;
+   float mask_coord_adjust;
+
+   /* i830 render accel state */
+   PixmapPtr render_src, render_mask, render_dst;
+   PicturePtr render_src_picture, render_mask_picture, render_dst_picture;
+   uint32_t render_dst_format;
+   Bool needs_render_state_emit;
+   uint32_t cblend, ablend, s8_blendctl;
+
    /* i915 render accel state */
    uint32_t mapstate[6];
    uint32_t samplerstate[6];
 
    struct {
       int op;
-      PicturePtr pSrcPicture, pMaskPicture, pDstPicture;
-      PixmapPtr pSrc, pMask, pDst;
       uint32_t dst_format;
-      Bool is_nearest;
       Bool needs_emit;
    } i915_render_state;
 
@@ -613,6 +619,8 @@ typedef struct _I830Rec {
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+#define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
+#define MIN(a,b)	((a) < (b) ? (a) : (b))
 
 #define I830_SELECT_FRONT	0
 #define I830_SELECT_BACK	1
@@ -685,6 +693,8 @@ void I830DRI2CloseScreen(ScreenPtr pScreen);
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
+void
+drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo *cursor);
 
 extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
@@ -720,6 +730,7 @@ void i830_init_bufmgr(ScrnInfoPtr pScrn);
 #ifdef INTEL_XVMC
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
+void i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory *buffer);
 #endif
 extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
 				   int *pitch);
@@ -790,6 +801,7 @@ Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 void i915_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i915_batch_flush_notify(ScrnInfoPtr pScrn);
+void i830_batch_flush_notify(ScrnInfoPtr scrn);
 /* i965_render.c */
 unsigned int gen4_render_state_size(ScrnInfoPtr pScrn);
 void gen4_render_state_init(ScrnInfoPtr pScrn);
