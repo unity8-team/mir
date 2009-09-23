@@ -163,6 +163,39 @@ static void dump_general_features(void)
     free(block);
 }
 
+static void dump_backlight_info(void)
+{
+    struct bdb_block *block;
+    struct bdb_lvds_backlight *backlight;
+    struct blc_struct *blc;
+
+    block = find_section(BDB_LVDS_BACKLIGHT);
+
+    if (!block)
+	return;
+
+    backlight = block->data;
+
+    printf("Backlight info block (len %d):\n", block->size);
+
+    if (sizeof(struct blc_struct) != backlight->blcstruct_size) {
+	printf("\tBacklight struct sizes don't match (expected %d, got %d), skipping\n",
+	       sizeof(struct blc_struct), backlight->blcstruct_size);
+	return;
+    }
+
+    blc = &backlight->panels[panel_type];
+
+    printf("\tInverter type: %d\n", blc->inverter_type);
+    printf("\t     polarity: %d\n", blc->inverter_polarity);
+    printf("\t    GPIO pins: %d\n", blc->gpio_pins);
+    printf("\t  GMBUS speed: %d\n", blc->gmbus_speed);
+    printf("\t     PWM freq: %d\n", blc->pwm_freq);
+    printf("\tMinimum brightness: %d\n", blc->min_brightness);
+    printf("\tI2C slave addr: 0x%02x\n", blc->i2c_slave_addr);
+    printf("\tI2C command: 0x%02x\n", blc->i2c_cmd);
+}
+
 static void dump_general_definitions(void)
 {
     struct bdb_block *block;
@@ -313,11 +346,23 @@ static void dump_lvds_data(void)
 {
     struct bdb_block *block;
     struct bdb_lvds_lfp_data *lvds_data;
+    struct bdb_lvds_lfp_data_ptrs *ptrs;
     int num_entries;
     int i;
     int hdisplay, hsyncstart, hsyncend, htotal;
     int vdisplay, vsyncstart, vsyncend, vtotal;
     float clock;
+    int lfp_data_size, dvo_offset;
+
+    block = find_section(BDB_LVDS_LFP_DATA_PTRS);
+    if (!block) {
+	printf("No LVDS ptr block\n");
+        return;
+    }
+    ptrs = block->data;
+    lfp_data_size = ptrs->ptr[1].fp_timing_offset - ptrs->ptr[0].fp_timing_offset;
+    dvo_offset = ptrs->ptr[0].dvo_timing_offset - ptrs->ptr[0].fp_timing_offset;
+    free(block);
 
     block = find_section(BDB_LVDS_LFP_DATA);
     if (!block) {
@@ -326,14 +371,16 @@ static void dump_lvds_data(void)
     }
 
     lvds_data = block->data;
-    num_entries = block->size / sizeof(struct bdb_lvds_lfp_data_entry);
+    num_entries = block->size / lfp_data_size;
 
     printf("LVDS panel data block (preferred block marked with '*'):\n");
     printf("  Number of entries: %d\n", num_entries);
 
     for (i = 0; i < num_entries; i++) {
-	struct bdb_lvds_lfp_data_entry *lfp_data = &lvds_data->data[i];
-	uint8_t *timing_data = (uint8_t *)&lfp_data->dvo_timing;
+	uint8_t *lfp_data_ptr = (uint8_t *)lvds_data->data + lfp_data_size * i;
+	uint8_t *timing_data = lfp_data_ptr + dvo_offset;
+	struct bdb_lvds_lfp_data_entry *lfp_data =
+			(struct bdb_lvds_lfp_data_entry *)lfp_data_ptr;
 	char marker;
 
 	if (i == panel_type)
@@ -510,6 +557,7 @@ int main(int argc, char **argv)
     dump_lvds_options();
     dump_lvds_data();
     dump_lvds_ptr_data();
+    dump_backlight_info();
 
     dump_driver_feature();
 

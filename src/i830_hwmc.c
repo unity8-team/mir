@@ -62,7 +62,7 @@ Bool intel_xvmc_probe(ScrnInfoPtr pScrn)
     if (IS_I9XX(pI830)) {
 	if (IS_I915(pI830))
 	    ret = intel_xvmc_set_driver(&i915_xvmc_driver);
-	else if (IS_G4X(pI830))
+	else if (IS_G4X(pI830) || IS_IGDNG(pI830))
 	    ret = intel_xvmc_set_driver(&vld_xvmc_driver);
 	else
 	    ret = intel_xvmc_set_driver(&i965_xvmc_driver);
@@ -171,7 +171,7 @@ void intel_xvmc_fini_batch(ScrnInfoPtr pScrn)
         xvmc_driver->batch_handle = 0;
     }
     if (xvmc_driver->batch) {
-        i830_free_memory(pScrn, xvmc_driver->batch);
+        i830_free_xvmc_buffer(pScrn, xvmc_driver->batch);
         xvmc_driver->batch = NULL;
     }
 }

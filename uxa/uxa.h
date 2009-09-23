@@ -505,6 +505,16 @@ typedef struct _UxaDriver {
 
 /** @} */
 
+/** @name UXA CreatePixmap hint flags
+ * @{
+ */
+/**
+ * Flag to hint that the first operation on the pixmap will be a
+ * prepare_access.
+ */
+#define UXA_CREATE_PIXMAP_FOR_MAP	0x20000000
+/** @} */
+
 uxa_driver_t *
 uxa_driver_alloc(void);
 

@@ -1076,29 +1076,31 @@ i830_disable_vga_plane (xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t vgacntrl = INREG(VGACNTRL);
     uint8_t sr01;
 
-    if (vgacntrl & VGA_DISP_DISABLE)
-	return;
-
     /*
-       Set bit 5 of SR01;
-       Wait 30us;
-       */
-    OUTREG8(SRX, 1);
-    sr01 = INREG8(SRX + 1);
-    OUTREG8(SRX + 1, sr01 | (1 << 5));
-    usleep(30);
-    /* disable center mode on 965GM and G4X platform */
-    if (IS_I965GM(pI830) || IS_G4X(pI830))
-        vgacntrl &= ~(3 << 24);
+     * Bug #17235: G4X machine needs following steps
+     * for disable VGA.
+     * - set bit 5 of SR01;
+     * - Wait 30us;
+     * - disable vga plane;
+     * - restore SR01;
+     */
+    if (IS_G4X(pI830)) {
+	OUTREG8(SRX, 1);
+	sr01 = INREG8(SRX + 1);
+	OUTREG8(SRX + 1, sr01 | (1 << 5));
+	usleep(30);
+    }
 
-    vgacntrl |= VGA_DISP_DISABLE;
-
-    OUTREG(VGACNTRL, vgacntrl);
+    OUTREG(VGACNTRL, VGA_DISP_DISABLE);
     i830WaitForVblank(pScrn);
 
+    /* restore SR01 */
+    if (IS_G4X(pI830)) {
+	OUTREG8(SRX, 1);
+	OUTREG8(SRX + 1, sr01);
+    }
 }
 
 static void

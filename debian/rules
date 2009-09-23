@@ -32,7 +32,7 @@ endif
 # kbd_drv.a isn't phenomenally useful; kbd_drv.so more so
 confflags += --disable-static
 
-configure:
+configure: $(STAMP_DIR)/patch
 	dh_testdir
 	autoreconf -vfi
 
@@ -51,7 +51,7 @@ build-stamp: obj-$(DEB_BUILD_GNU_TYPE)/config.status
 	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE)
 	>$@
 
-clean:
+clean: xsfclean
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp
