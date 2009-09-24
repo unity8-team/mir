@@ -951,8 +951,6 @@ typedef struct {
     unsigned long FbFreeStart, FbFreeSize;
     unsigned char*      BIOSCopy;
 
-    Rotation rotation;
-    void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;
 
     /* if no devices are connected at server startup */

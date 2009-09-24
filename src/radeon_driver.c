@@ -3261,33 +3261,6 @@ static void RADEONBlockHandler(int i, pointer blockData,
 }
 
 static void
-RADEONPointerMoved(int index, int x, int y)
-{
-    ScrnInfoPtr pScrn = xf86Screens[index];
-    RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    int newX = x, newY = y;
-
-    switch (info->rotation) {
-    case RR_Rotate_0:
-	break;
-    case RR_Rotate_90:
-	newX = y;
-	newY = pScrn->pScreen->width - x - 1;
-	break;
-    case RR_Rotate_180:
-	newX = pScrn->pScreen->width - x - 1;
-	newY = pScrn->pScreen->height - y - 1;
-	break;
-    case RR_Rotate_270:
-	newX = pScrn->pScreen->height - y - 1;
-	newY = x;
-	break;
-    }
-
-    (*info->PointerMoved)(index, newX, newY);
-}
-
-static void
 RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
@@ -3789,10 +3762,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
    if (!xf86CrtcScreenInit (pScreen))
        return FALSE;
-
-    /* Wrap pointer motion to flip touch screen around */
-    info->PointerMoved = pScrn->PointerMoved;
-    pScrn->PointerMoved = RADEONPointerMoved;
 
     /* Colormap setup */
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
