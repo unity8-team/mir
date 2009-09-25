@@ -82,11 +82,17 @@ static int NV10DstFormat(int ExaFormat)
 
 static Bool NV10CheckTexture(PicturePtr Picture)
 {
-	int w = Picture->pDrawable->width;
-	int h = Picture->pDrawable->height;
+	int w, h;
 
-	if ((w > 2046) || (h>2046))
-		return FALSE;
+	if (!Picture->pDrawable)
+		NOUVEAU_FALLBACK("Solid and gradient pictures unsupported\n");
+
+	w = Picture->pDrawable->width;
+	h = Picture->pDrawable->height;
+
+	if ((w > 2046) || (h > 2046))
+		NOUVEAU_FALLBACK("picture too large, %dx%d\n", w, h);
+
 	if (!NV10TexFormat(Picture->format))
 		return FALSE;
 	if (Picture->filter != PictFilterNearest && Picture->filter != PictFilterBilinear)
@@ -106,7 +112,7 @@ static Bool NV10CheckBuffer(PicturePtr Picture)
 	int w = Picture->pDrawable->width;
 	int h = Picture->pDrawable->height;
 
-	if ((w > 4096) || (h>4096))
+	if ((w > 4096) || (h > 4096))
 		return FALSE;
 	if (Picture->componentAlpha)
 		return FALSE;

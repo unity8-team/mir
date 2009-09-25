@@ -479,6 +479,9 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 static Bool
 NV50EXACheckTexture(PicturePtr ppict, PicturePtr pdpict, int op)
 {
+	if (!ppict->pDrawable)
+		NOUVEAU_FALLBACK("Solid and gradient pictures unsupported\n");
+
 	if (ppict->pDrawable->width > 8192 ||
 	    ppict->pDrawable->height > 8192)
 		NOUVEAU_FALLBACK("texture dimensions exceeded %dx%d\n",

@@ -331,8 +331,13 @@ static Bool
 NV40EXACheckCompositeTexture(PicturePtr pPict)
 {
 	nv_pict_texture_format_t *fmt;
-	int w = pPict->pDrawable->width;
-	int h = pPict->pDrawable->height;
+	int w, h;
+
+	if (!pPict->pDrawable)
+		NOUVEAU_FALLBACK("Solid and gradient pictures unsupported\n");
+
+	w = pPict->pDrawable->width;
+	h = pPict->pDrawable->height;
 
 	if ((w > 4096) || (h > 4096))
 		NOUVEAU_FALLBACK("picture too large, %dx%d\n", w, h);
