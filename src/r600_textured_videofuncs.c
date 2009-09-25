@@ -234,7 +234,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[0],
 					  RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->dst_bo,
-					  0, RADEON_GEM_DOMAIN_VRAM, 0);
+					  0, RADEON_GEM_DOMAIN_VRAM);
 	if (radeon_cs_space_check(info->cs))
 	    return;
     } else
