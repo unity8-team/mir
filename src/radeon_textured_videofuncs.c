@@ -355,14 +355,11 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						    pPriv->drw_x + pPriv->dst_w,
 						    pPriv->drw_y,
 						    pPriv->drw_y + pPriv->dst_h);
-	if (crtc) {
-	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
+	if (crtc)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
-					  radeon_crtc->crtc_id,
+					  crtc,
 					  pPriv->drw_y - crtc->y,
 					  (pPriv->drw_y - crtc->y) + pPriv->dst_h);
-	}
     }
     /*
      * Rendering of the actual polygon is done in two different
@@ -916,14 +913,11 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 						    pPriv->drw_x + pPriv->dst_w,
 						    pPriv->drw_y,
 						    pPriv->drw_y + pPriv->dst_h);
-	if (crtc) {
-	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
+	if (crtc)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
-					  radeon_crtc->crtc_id,
+					  crtc,
 					  pPriv->drw_y - crtc->y,
 					  (pPriv->drw_y - crtc->y) + pPriv->dst_h);
-	}
     }
     /*
      * Rendering of the actual polygon is done in two different
@@ -2290,14 +2284,11 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 						    pPriv->drw_x + pPriv->dst_w,
 						    pPriv->drw_y,
 						    pPriv->drw_y + pPriv->dst_h);
-	if (crtc) {
-	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
+	if (crtc)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
-					  radeon_crtc->crtc_id,
+					  crtc,
 					  pPriv->drw_y - crtc->y,
 					  (pPriv->drw_y - crtc->y) + pPriv->dst_h);
-	}
     }
     /*
      * Rendering of the actual polygon is done in two different
@@ -3867,14 +3858,11 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 						    pPriv->drw_x + pPriv->dst_w,
 						    pPriv->drw_y,
 						    pPriv->drw_y + pPriv->dst_h);
-	if (crtc) {
-	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
+	if (crtc)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
-					  radeon_crtc->crtc_id,
+					  crtc,
 					  pPriv->drw_y - crtc->y,
 					  (pPriv->drw_y - crtc->y) + pPriv->dst_h);
-	}
     }
     /*
      * Rendering of the actual polygon is done in two different

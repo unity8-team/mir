@@ -825,55 +825,21 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
 }
 
-#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
-void drmmode_wait_for_vline(ScrnInfoPtr pScrn, PixmapPtr pPix,
-			    int crtc, int start, int stop)
-{
-    RADEONInfoPtr  info = RADEONPTR(pScrn);
-    xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[crtc]->driver_private;
-    ACCEL_PREAMBLE();
-
-    BEGIN_ACCEL(3);
-
-    if (IS_AVIVO_VARIANT) {
-	uint32_t reg = AVIVO_D1MODE_VLINE_START_END; /* this is just a marker */
-	OUT_ACCEL_REG(reg,
-		      ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
-		       (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
-		       AVIVO_D1MODE_VLINE_INV));
-    } else {
-	OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE, /* another placeholder */
-		      ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
-		      (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
-		      RADEON_CRTC_GUI_TRIG_VLINE_INV |
-		      RADEON_CRTC_GUI_TRIG_VLINE_STALL));
-    }
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
-				      RADEON_ENG_DISPLAY_SELECT_CRTC0));
-
-    OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_NOP, 0));
-    OUT_RING(drmmode_crtc->mode_crtc->crtc_id);
-    FINISH_ACCEL();
-}
-#endif
-
 /* inserts a wait for vline in the command stream */
 void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
-	int crtc, int start, int stop)
+				   xf86CrtcPtr crtc, int start, int stop)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     uint32_t offset;
     ACCEL_PREAMBLE();
 
-    if ((crtc < 0) || (crtc > 1))
+    if (!crtc)
 	return;
 
     if (stop < start)
 	return;
 
-    if (!xf86_config->crtc[crtc]->enabled)
+    if (!crtc->enabled)
 	return;
 
     if (info->cs) {
@@ -893,50 +859,68 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
     }
 
     start = max(start, 0);
-    stop = min(stop, xf86_config->crtc[crtc]->mode.VDisplay);
+    stop = min(stop, crtc->mode.VDisplay);
 
-    if (start > xf86_config->crtc[crtc]->mode.VDisplay)
+    if (start > crtc->mode.VDisplay)
 	return;
 
 #if defined(ACCEL_CP) && defined(XF86DRM_MODE)
-    if (info->kms_enabled) {
-	drmmode_wait_for_vline(pScrn, pPix, crtc, start, stop);
-	return;
-    }
-#endif
+    if (info->cs) {
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-    BEGIN_ACCEL(2);
-
-    if (IS_AVIVO_VARIANT) {
-	RADEONCrtcPrivatePtr radeon_crtc = xf86_config->crtc[crtc]->driver_private;
-
-	OUT_ACCEL_REG(AVIVO_D1MODE_VLINE_START_END + radeon_crtc->crtc_offset,
-		      ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
-		       (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
-		       AVIVO_D1MODE_VLINE_INV));
-    } else {
-	if (crtc == 0)
-	    OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE,
+	BEGIN_ACCEL(3);
+	if (IS_AVIVO_VARIANT) {
+	    OUT_ACCEL_REG(AVIVO_D1MODE_VLINE_START_END, /* this is just a marker */
+			  ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
+			   (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
+			   AVIVO_D1MODE_VLINE_INV));
+	} else {
+	    OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE, /* another placeholder */
 			  ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
 			   (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
 			   RADEON_CRTC_GUI_TRIG_VLINE_INV |
 			   RADEON_CRTC_GUI_TRIG_VLINE_STALL));
-	else
-	    OUT_ACCEL_REG(RADEON_CRTC2_GUI_TRIG_VLINE,
-			  ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
-			   (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
-			   RADEON_CRTC_GUI_TRIG_VLINE_INV |
-			   RADEON_CRTC_GUI_TRIG_VLINE_STALL));
-    }
-
-    if (crtc == 0)
+	}
 	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
 					  RADEON_ENG_DISPLAY_SELECT_CRTC0));
-    else
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
-					  RADEON_ENG_DISPLAY_SELECT_CRTC1));
 
-    FINISH_ACCEL();
+	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_NOP, 0));
+	OUT_RING(drmmode_crtc->mode_crtc->crtc_id);
+	FINISH_ACCEL();
+    } else
+#endif
+    {
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+
+	BEGIN_ACCEL(2);
+	if (IS_AVIVO_VARIANT) {
+	    OUT_ACCEL_REG(AVIVO_D1MODE_VLINE_START_END + radeon_crtc->crtc_offset,
+			  ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
+			   (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
+			   AVIVO_D1MODE_VLINE_INV));
+	} else {
+	    if (radeon_crtc->crtc_id == 0)
+		OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE,
+			      ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
+			       (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
+			       RADEON_CRTC_GUI_TRIG_VLINE_INV |
+			       RADEON_CRTC_GUI_TRIG_VLINE_STALL));
+	    else
+		OUT_ACCEL_REG(RADEON_CRTC2_GUI_TRIG_VLINE,
+			      ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
+			       (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
+			       RADEON_CRTC_GUI_TRIG_VLINE_INV |
+			       RADEON_CRTC_GUI_TRIG_VLINE_STALL));
+	}
+
+	if (radeon_crtc->crtc_id == 0)
+	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
+					      RADEON_ENG_DISPLAY_SELECT_CRTC0));
+	else
+	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
+					      RADEON_ENG_DISPLAY_SELECT_CRTC1));
+	FINISH_ACCEL();
+    }
 }
 
 /* MMIO:

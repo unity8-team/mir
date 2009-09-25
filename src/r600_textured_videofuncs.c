@@ -579,14 +579,11 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 						    pPriv->drw_x + pPriv->dst_w,
 						    pPriv->drw_y,
 						    pPriv->drw_y + pPriv->dst_h);
-	if (crtc) {
-	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
+	if (crtc)
 	    cp_wait_vline_sync(pScrn, accel_state->ib, pPixmap,
-			       radeon_crtc->crtc_id,
+			       crtc,
 			       pPriv->drw_y - crtc->y,
 			       (pPriv->drw_y - crtc->y) + pPriv->dst_h);
-	}
     }
 
     while (nBox--) {

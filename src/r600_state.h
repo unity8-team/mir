@@ -286,7 +286,7 @@ void
 cp_set_surface_sync(ScrnInfoPtr pScrn, drmBufPtr ib, uint32_t sync_type, uint32_t size, uint64_t mc_addr,
 		    struct radeon_bo *bo, uint32_t rdomains, uint32_t wdomain);
 void
-cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix, int crtc, int start, int stop);
+cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix, xf86CrtcPtr crtc, int start, int stop);
 void
 fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf);
 void
