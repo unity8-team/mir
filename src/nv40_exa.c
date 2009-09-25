@@ -328,7 +328,7 @@ NV40_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 }
 
 static Bool
-NV40EXACheckCompositeTexture(PicturePtr pPict)
+NV40EXACheckCompositeTexture(PicturePtr pPict, PicturePtr pdPict, int op)
 {
 	nv_pict_texture_format_t *fmt;
 	int w, h;
@@ -351,6 +351,16 @@ NV40EXACheckCompositeTexture(PicturePtr pPict)
 	    pPict->filter != PictFilterBilinear)
 		NOUVEAU_FALLBACK("filter 0x%x not supported\n", pPict->filter);
 
+	/* Opengl and Render disagree on what should be sampled outside an XRGB 
+	 * texture (with no repeating). Opengl has a hardcoded alpha value of 
+	 * 1.0, while render expects 0.0. We assume that clipping is done for 
+	 * untranformed sources.
+	 */
+	if (NV40PictOp[op].src_alpha && !pPict->repeat &&
+		pPict->transform && (PICT_FORMAT_A(pPict->format) == 0)
+		&& (PICT_FORMAT_A(pdPict->format) != 0))
+		NOUVEAU_FALLBACK("REPEAT_NONE unsupported for XRGB source\n");
+
 	return TRUE;
 }
 
@@ -371,14 +381,14 @@ NV40EXACheckComposite(int op, PicturePtr psPict,
 		NOUVEAU_FALLBACK("dst picture format 0x%08x not supported\n",
 				pdPict->format);
 
-	if (!NV40EXACheckCompositeTexture(psPict))
+	if (!NV40EXACheckCompositeTexture(psPict, pdPict, op))
 		NOUVEAU_FALLBACK("src picture\n");
 	if (pmPict) {
 		if (pmPict->componentAlpha && 
 		    PICT_FORMAT_RGB(pmPict->format) &&
 		    opr->src_alpha && opr->src_card_op != SF(ZERO))
 			NOUVEAU_FALLBACK("mask CA + SA\n");
-		if (!NV40EXACheckCompositeTexture(pmPict))
+		if (!NV40EXACheckCompositeTexture(pmPict, pdPict, op))
 			NOUVEAU_FALLBACK("mask picture\n");
 	}
 
