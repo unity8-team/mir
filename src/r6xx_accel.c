@@ -1203,25 +1203,10 @@ r600_cp_start(ScrnInfoPtr pScrn)
     if (info->cs) {
 	if (!r600_vb_get(pScrn))
 	    return -1;
-	radeon_cs_space_reset_bos(info->cs);
-	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
-					  RADEON_GEM_DOMAIN_VRAM, 0);
-	if (accel_state->src_bo[0])
-	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[0],
-					      RADEON_GEM_DOMAIN_VRAM, 0);
-	if (accel_state->src_bo[1])
-	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[1],
-					      RADEON_GEM_DOMAIN_VRAM, 0);
-	if (accel_state->dst_bo)
-	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->dst_bo,
-					      RADEON_GEM_DOMAIN_VRAM, 0);
 	if (accel_state->vb_bo)
-	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->vb_bo,
-					      RADEON_GEM_DOMAIN_GTT, 0);
-	if (accel_state->copy_area_bo)
-	    radeon_cs_space_add_persistent_bo(info->cs,
-					      accel_state->copy_area_bo,
-					      RADEON_GEM_DOMAIN_VRAM, 0);
+	  radeon_cs_space_add_persistent_bo(info->cs, accel_state->vb_bo,
+					    RADEON_GEM_DOMAIN_GTT, 0);
+
 	radeon_cs_space_check(info->cs);
     } else
 #endif

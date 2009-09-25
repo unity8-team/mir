@@ -108,6 +108,14 @@ static Bool R600CheckBPP(int bpp)
 	return FALSE;
 }
 
+#if defined(XF86DRM_MODE)
+static inline void radeon_add_pixmap(struct radeon_cs *cs, PixmapPtr pPix, int read_domains, int write_domain)
+{
+    struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
+
+    radeon_cs_space_add_persistent_bo(cs, driver_priv->bo, read_domains, write_domain);
+}
+#endif
 
 static void
 R600DoneSolid(PixmapPtr pPix);
@@ -137,6 +145,14 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
+	radeon_cs_space_reset_bos(info->cs);
+	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
+					  RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_add_pixmap(info->cs, pPix, 0, RADEON_GEM_DOMAIN_VRAM);
+	r = radeon_cs_space_check(info->cs);
+	if (r)
+	    RADEON_FALLBACK(("Not enough RAM to hw accel solid operation\n"));
+
 	accel_state->dst_mc_addr = 0;
 	accel_state->dst_bo = radeon_get_pixmap_bo(pPix);
 	accel_state->src_bo[0] = NULL;
@@ -706,7 +722,8 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-
+    int ret;
+    
     //return FALSE;
 
     if (pSrc->drawable.bitsPerPixel == 24)
@@ -758,6 +775,18 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 
     if (accel_state->dst_mc_addr & 0xff)
 	RADEON_FALLBACK(("Bad dst offset 0x%08x\n", accel_state->dst_mc_addr));
+
+
+    if (info->cs) {
+	radeon_cs_space_reset_bos(info->cs);
+	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
+					  RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+	ret = radeon_cs_space_check(info->cs);
+	if (ret)
+	    RADEON_FALLBACK(("Not enough RAM to hw accel copy operation\n"));
+    }
 
     /* return FALSE; */
 
@@ -1261,10 +1290,6 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 #if defined(XF86DRM_MODE)
     if (info->cs) {
 	accel_state->src_mc_addr[unit] = 0;
-	accel_state->src_bo[unit] = radeon_get_pixmap_bo(pPix);
-	radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[unit],
-					  RADEON_GEM_DOMAIN_VRAM, 0);
-	radeon_cs_space_check(info->cs);
     } else
 #endif
 	accel_state->src_mc_addr[unit] = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
@@ -1568,6 +1593,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     uint32_t blendcntl, dst_format;
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
+    int ret;
 
     //return FALSE;
     /* return FALSE; */
@@ -1597,8 +1623,21 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     if (info->cs) {
 	accel_state->dst_mc_addr = 0;
 	accel_state->dst_bo = radeon_get_pixmap_bo(pDst);
-	accel_state->src_bo[0] = NULL;
-	accel_state->src_bo[1] = NULL;
+	accel_state->src_bo[0] = radeon_get_pixmap_bo(pSrc);
+	if (pMask)
+	    accel_state->src_bo[1] = radeon_get_pixmap_bo(pMask);
+
+	radeon_cs_space_reset_bos(info->cs);
+	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
+					  RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_add_pixmap(info->cs, pSrc,
+			  RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	if (pMask)
+	    radeon_add_pixmap(info->cs, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+	ret = radeon_cs_space_check(info->cs);
+	if (ret)
+	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
     } else
 #endif
 	accel_state->dst_mc_addr = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
@@ -2113,12 +2152,6 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 }
 
 #if defined(XF86DRM_MODE)
-static inline void radeon_add_pixmap(struct radeon_cs *cs, PixmapPtr pPix, int read_domains, int write_domain)
-{
-    struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
-
-    radeon_cs_space_add_persistent_bo(cs, driver_priv->bo, read_domains, write_domain);
-}
 
 static Bool
 R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
@@ -2153,6 +2186,8 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 	return FALSE;
     }
     radeon_cs_space_reset_bos(info->cs);
+    radeon_cs_space_add_persistent_bo(info->cs, info->accel_state->shaders_bo,
+				      RADEON_GEM_DOMAIN_VRAM, 0);
     radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
     radeon_cs_space_add_persistent_bo(info->cs, scratch, RADEON_GEM_DOMAIN_GTT, 0);
     r = radeon_cs_space_check(info->cs);
@@ -2233,6 +2268,8 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 	return FALSE;
     }
     radeon_cs_space_reset_bos(info->cs);
+    radeon_cs_space_add_persistent_bo(info->cs, info->accel_state->shaders_bo,
+				      RADEON_GEM_DOMAIN_VRAM, 0);
     radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
     radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, RADEON_GEM_DOMAIN_GTT);
     r = radeon_cs_space_check(info->cs);
