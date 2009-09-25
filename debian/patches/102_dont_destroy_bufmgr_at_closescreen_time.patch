@@ -1,0 +1,31 @@
+From 33f98e4056706f4c30bb4327677ac49e82058231 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Fri, 18 Sep 2009 01:16:02 +0000
+Subject: Don't destroy bufmgr at CloseScreen time
+
+Under KMS, the bufmgr is not initialized at InitOutput time and so it
+won't be re-initialized during server regen. Thus we must leave the
+bufmgr running during regen and cannot destroy it in CloseScreen.
+
+Under UMS, each place the bufmgr is initialized, it checks to see if
+it has already happened. Hence, we can safely leave the bufmgr running
+across server regen for UMS too.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+diff --git a/src/i830_driver.c b/src/i830_driver.c
+index e3e1ed2..2863e45 100644
+--- a/src/i830_driver.c
++++ b/src/i830_driver.c
+@@ -3135,9 +3135,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
+    pScreen->CloseScreen = pI830->CloseScreen;
+    (*pScreen->CloseScreen) (scrnIndex, pScreen);
+ 
+-   dri_bufmgr_destroy(pI830->bufmgr);
+-   pI830->bufmgr = NULL;
+-
+    if (pI830->directRenderingOpen && pI830->directRenderingType == DRI_DRI2) {
+       pI830->directRenderingOpen = FALSE;
+       I830DRI2CloseScreen(pScreen);
+--
+cgit v0.8.2

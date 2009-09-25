@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.8.1-1ubuntu2) karmic; urgency=low
+
+  * Add 102_dont_destroy_bufmgr_at_closescreen_time.patch: Don't destroy
+    bufmgr at CloseScreen time (LP: #428662).
+
+ -- Alberto Milone <alberto.milone@canonical.com>  Fri, 25 Sep 2009 14:53:26 +0200
+
 xserver-xorg-video-intel (2:2.8.1-1ubuntu1) karmic; urgency=low
 
   * Merge with Debian.  Remaining Ubuntu changes:
