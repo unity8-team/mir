@@ -318,12 +318,6 @@ void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     uint32_t offset;
 
-    //XXX FIXME
-#if defined(XF86DRM_MODE)
-    if (info->cs)
-	return;
-#endif
-
     if (!crtc)
         return;
 
@@ -333,7 +327,10 @@ void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
     if (!crtc->enabled)
         return;
 
-    {
+    if (info->cs) {
+        if (pPix != pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
+	    return;
+    } else {
 #ifdef USE_EXA
 	if (info->useEXA)
 	    offset = exaGetPixmapOffset(pPix);
@@ -352,10 +349,34 @@ void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
     if (start > crtc->mode.VDisplay)
         return;
 
+#if defined(XF86DRM_MODE)
+    if (info->cs) {
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	BEGIN_BATCH(11);
+	/* set the VLINE range */
+	EREG(ib, AVIVO_D1MODE_VLINE_START_END, /* this is just a marker */
+	     (start << AVIVO_D1MODE_VLINE_START_SHIFT) |
+	     (stop << AVIVO_D1MODE_VLINE_END_SHIFT));
+
+	/* tell the CP to poll the VLINE state register */
+	PACK3(ib, IT_WAIT_REG_MEM, 6);
+	E32(ib, IT_WAIT_REG | IT_WAIT_EQ);
+	E32(ib, IT_WAIT_ADDR(AVIVO_D1MODE_VLINE_STATUS));
+	E32(ib, 0);
+	E32(ib, 0);                          // Ref value
+	E32(ib, AVIVO_D1MODE_VLINE_STAT);    // Mask
+	E32(ib, 10);                         // Wait interval
+	/* add crtc reloc */
+	PACK3(ib, IT_NOP, 1);
+	E32(ib, drmmode_crtc->mode_crtc->crtc_id);
+	END_BATCH();
+    } else
+#endif
     {
 	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-	BEGIN_BATCH(10);
+	BEGIN_BATCH(9);
 	/* set the VLINE range */
 	EREG(ib, AVIVO_D1MODE_VLINE_START_END + radeon_crtc->crtc_offset,
 	     (start << AVIVO_D1MODE_VLINE_START_SHIFT) |
