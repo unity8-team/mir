@@ -227,6 +227,16 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	accel_state->src_bo[0] = pPriv->src_bo;
 	accel_state->src_bo[1] = NULL;
 	accel_state->dst_bo = radeon_get_pixmap_bo(pPixmap);
+
+	radeon_cs_space_reset_bos(info->cs);
+	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
+					  RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[0],
+					  RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_cs_space_add_persistent_bo(info->cs, accel_state->dst_bo,
+					  RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	if (radeon_cs_space_check(info->cs))
+	    return;
     } else
 #endif
     {

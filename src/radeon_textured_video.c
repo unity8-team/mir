@@ -458,8 +458,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->w = width;
     pPriv->h = height;
 
+#if defined(XF86DRM_MODE)
     if (info->cs)
 	radeon_bo_unmap(pPriv->src_bo);
+#endif
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
 	if (IS_R600_3D)
