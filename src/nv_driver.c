@@ -1012,8 +1012,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 
 	if (!pNv->NoAccel && pNv->kms_enable &&
-	     pNv->Architecture >= NV_ARCH_50)
+	     pNv->Architecture >= NV_ARCH_50) {
 		pNv->wfb_enabled = TRUE;
+		pNv->tiled_scanout = TRUE;
+	}
 #endif
 
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
@@ -1142,7 +1144,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86SetGamma(pScrn, gammazeros))
 		NVPreInitFail("\n");
 
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->wfb_enabled) {
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
 		int cpp = pScrn->bitsPerPixel >> 3;
 		pScrn->displayWidth = pScrn->virtualX * cpp;
 		pScrn->displayWidth = NOUVEAU_ALIGN(pScrn->displayWidth, 64);
@@ -1200,7 +1202,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	pNv->AGPSize=res;
 
 	size = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->wfb_enabled) {
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
 		tile_mode = 4;
 		tile_flags = pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7a00;
 		size *= NOUVEAU_ALIGN(pScrn->virtualY, (1 << (tile_mode + 2)));
@@ -1474,6 +1476,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			pNv->ShadowFB = TRUE;
 			pNv->exa_driver_pixmaps = FALSE;
 			pNv->wfb_enabled = FALSE;
+			pNv->tiled_scanout = FALSE;
 			pScrn->displayWidth = nv_pitch_align(pNv,
 							     pScrn->virtualX,
 							     pScrn->depth);

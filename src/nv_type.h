@@ -140,6 +140,7 @@ typedef struct _NVRec {
     ExaDriverPtr	EXADriverPtr;
     Bool		exa_driver_pixmaps;
     Bool		wfb_enabled;
+    Bool		tiled_scanout;
     ScreenBlockHandlerProcPtr BlockHandler;
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr  CloseScreen;
