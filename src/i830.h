@@ -395,8 +395,7 @@ typedef struct _I830Rec {
 #endif
 
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
-   Rotation rotation;
-   void (*PointerMoved)(int, int, int);
+
    CreateScreenResourcesProcPtr    CreateScreenResources;
 
    i830_memory *power_context;
@@ -467,7 +466,9 @@ typedef struct _I830Rec {
    float scale_units[2][2];
   /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
-   float coord_adjust;
+   float dst_coord_adjust;
+   float src_coord_adjust;
+   float mask_coord_adjust;
 
    /* i830 render accel state */
    PixmapPtr render_src, render_mask, render_dst;
@@ -483,7 +484,6 @@ typedef struct _I830Rec {
    struct {
       int op;
       uint32_t dst_format;
-      Bool is_nearest;
       Bool needs_emit;
    } i915_render_state;
 
@@ -693,6 +693,8 @@ void I830DRI2CloseScreen(ScreenPtr pScreen);
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
+void
+drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo *cursor);
 
 extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
@@ -728,6 +730,7 @@ void i830_init_bufmgr(ScrnInfoPtr pScrn);
 #ifdef INTEL_XVMC
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
+void i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory *buffer);
 #endif
 extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
 				   int *pitch);
@@ -788,9 +791,6 @@ i830_transform_is_affine (PictTransformPtr t);
 
 void i830_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
-void i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
-				   int maskX, int maskY, int dstX, int dstY,
-				   int w, int h);
 void i830_done_composite(PixmapPtr pDst);
 /* i915_render.c */
 Bool i915_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,

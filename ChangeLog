@@ -1,20 +1,531 @@
-commit e6105d978a0217219cb2d60a672ae200c70bc68d
+commit 2841a4cd8c6c64fdf4b2203ab73b57b38a50f651
 Author: Carl Worth <cworth@cworth.org>
-Date:   Tue Aug 25 16:56:44 2009 -0700
+Date:   Mon Sep 28 20:03:11 2009 -0700
 
-    Increment version number to 2.8.1 for release.
+    Increment version to 2.9.0
+    
+    And add a reminder to RELEASING that the incremented version number
+    needs to be committed, (since I forgot to do this with 2.8.99.902).
 
-commit 584cdcb10ce73838e9a96b8f8a390cd0affe2f0e
+commit a790aff4fef7d0c86b7b9c0da4afdc9c0aba6636
 Author: Carl Worth <cworth@cworth.org>
-Date:   Tue Aug 25 16:56:09 2009 -0700
+Date:   Mon Sep 28 20:02:28 2009 -0700
 
-    NEWS: Add notes for 2.8.1
+    NEWS: Add notes for the 2.9.0 release.
     
-    An additional 5 patches were proposed at:
-    
-    	http://wiki.x.org/wiki/Intel28Branch
+    Just renamed notes as from 2.8.99.902.
 
-commit 215ee68a5aa1d0f24884cd8bc226959c30c20bd3
+commit a92bbcc94904684e7709b3ddaad82bc04607af26
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Sep 22 17:08:23 2009 -0700
+
+    Increment version to 2.8.99.902
+
+commit ae00a0923717caec6d0dad94527da26397bd12ce
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Sep 22 15:14:38 2009 -0700
+
+    NEWS: Add notes for 2.8.99.902
+
+commit 7e7db7ac530b5282b0841585959597b54fcc633b
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Mon Aug 17 19:24:03 2009 +0200
+
+    Add new backlight driver "samsung".
+
+commit 7ae1d0dde6cef3437b67dbc21384cb179616a6c0
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Mon Aug 31 13:51:01 2009 +0800
+
+    Skip setting tv format property if output crtc is NULL
+    
+    When TV is not connected and X start, after plugging TV cable again,
+    system will crash because output crtc is NULL. This patch will return,
+    do not handle crtc immediately, meanwhile set value will be effective
+    until user really enable output by xrandr command.
+    
+    Signed-off-by: Ma Ling <ling.ma@intel.com>
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit 02fe9be695f7e209944bd0f7b67950f93619feee
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Tue Sep 22 10:58:38 2009 +0800
+
+    Check whether the DVI-I/D is connected or disconnected based on EDID
+    
+    When the monitor is digital type for SDVO-DVI D, there should exist the EDID. If
+    there is no EDID, it should be detected as disconnected.
+    
+    Signe-off-by: Zhao Yakui <yakui.zhao@intel.com>
+
+commit 762e406d138ac80854b6a23b1078b52f6581f0d8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 22 01:34:37 2009 +0100
+
+    Revert "8xx: Fallback for any non-affine transformation."
+    
+    This reverts commit 505025053d66d415e1c23ac858b9238fa8541d37.
+    
+    In theory, the non-affine paths work -- at least for the stated test case,
+    so re-enable them and avoid the slow work-around.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2cc1f3cb6034dddd65b3781b0cde7dff4ac1e803
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sat Sep 19 17:30:57 2009 -0700
+
+    i8xx: Format projective texture coordinates correctly.
+    
+    Projective texture coordinates must be delivered as TEXCOORDFMT_3D
+    using TEXCOORDTYPE_HOMOGENOUS. This meant selecting the correct type
+    in i830_texture_setup, the correct format in i830_emit_composite_state
+    and sending only 3 coordinates in i830_emit_composite_primitive.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    [ickle: tweaked to fix up a couple of use-before-initialised]
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 00e8de212b46a243f243b437b7eb866315ab89b3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Sep 21 22:14:21 2009 +0100
+
+    Check the correct Picture for error during creation.
+
+commit bd817e2d733dfdb1140874b06595ccd1ef39159b
+Author: Keith Packard <keithp@keithp.com>
+Date:   Mon Sep 21 17:21:17 2009 -0700
+
+    Split i915/i830 composite_emit_primitive into two functions.
+    
+    The i915 and i830 take similar but different data when emitting the
+    primitives, instead of trying to share code here, just split this
+    apart and avoid potentially breaking things later on.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 5e80297d088e8cdbf66d765f7d252dab66c8df86
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Sep 18 21:05:23 2009 -0700
+
+    Remove DGA support from the driver.
+    
+    The xf86DiDGA code required that the scanout buffer always be
+    mappable, stay be at a fixed address in the aperture and have a
+    constant size. With frame buffer resizing, the latter two are no
+    longer true, and with KMS, we'd really prefer to not allow the former.
+    
+    The only option available to the driver is to completely disable DGA
+    as the modes code has internal calls to the xf86DiDGA code when
+    fetching new modes from the hardware.
+    
+    A fix for the DiDGA code will be added to the X server which will
+    automatically initialize DGA for mode switching and input, but not
+    frame buffer access, and not require any driver cooperation.
+    
+    Thus, the correct solution is for the driver to not call xf86DiDGAInit
+    at all. For old servers, this eliminates a potential catastrophic
+    problem where random memory is written by the X server. New servers
+    will get the DIX-based behaviour automatically.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 4758311842a16600287c8f9f77ce0af1a31b9264
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Sep 18 20:59:52 2009 -0700
+
+    Remove vestigial internal rotation which broke KMS DGA/VidMode modesetting.
+    
+    Pre-2.0, the driver supported rotation internally, rather than relying
+    on the X server rotation support. The last piece of this dealt with
+    rotating the mouse coordinates and also tried to preserve rotation
+    across DGA/VidModeExtension modesetting requests.
+    
+    That latter bit of code broke under KMS as the rotation value was
+    never initialized, and when set to zero would create an invalid
+    configuration. This would confuse xrandr which would bail before
+    making any changes, leaving the user without a way to recover.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 505025053d66d415e1c23ac858b9238fa8541d37
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Sep 21 13:50:09 2009 -0700
+
+    8xx: Fallback for any non-affine transformation.
+    
+    There are definitely bugs in the 8xx code dealing with non-affine
+    transformations. Disable that code for now to get things working.
+    
+    Fixes bug #22947 ([855GM, xf86-video-intel-2.8.0] "Freeze" when RENDER extension is being used)
+
+commit b4d29452b929a3ef224d3625e4bc66b787c5edb7
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Mon Sep 21 15:28:09 2009 +0800
+
+    More dumps for Arrandale LVDS
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 57fc09cef28bad2e3e8455b93ef2927118f8a3a3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 20 01:02:39 2009 +0100
+
+    Avoid fallbacks for a1 src/mask
+    
+    Carl Worth did the hard work in identifying that the regression in
+    cairo between X.org 1.6 and 1.7 was caused by cairo sending an a1
+    mask to the server in 1.7 whereas in 1.6 cairo used local fallbacks
+    (as the source was using RepeatPad, which triggers cairo's
+    'buggy_pad_reflect' fallback for X.org 1.6). This was causing the driver
+    to do a fallback to handle the a1 mask instead, which due to the GPU
+    pipeline stall is much more expensive than the equivalent fallback in
+    cairo.
+    
+    Reference:
+      cairo's performance downgrades 4X with server master than server-1.6.
+      https://bugs.freedesktop.org/show_bug.cgi?id=23184
+    
+    The fix is a relatively simple extension of the current
+    uxa_picture_from_pixman_image() to use CompositePicture() instead of
+    CopyArea() when we need to convert to a new format.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 33f98e4056706f4c30bb4327677ac49e82058231
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu Sep 17 18:16:02 2009 -0700
+
+    Don't destroy bufmgr at CloseScreen time
+    
+    Under KMS, the bufmgr is not initialized at InitOutput time and so it
+    won't be re-initialized during server regen. Thus we must leave the
+    bufmgr running during regen and cannot destroy it in CloseScreen.
+    
+    Under UMS, each place the bufmgr is initialized, it checks to see if
+    it has already happened. Hence, we can safely leave the bufmgr running
+    across server regen for UMS too.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit ee9ad853574e3ee1a210db6207b84ecd466e08ee
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu Sep 17 17:57:40 2009 -0700
+
+    Make sure DRM output properties are freed after we're done with them.
+    
+    drmmode_output_get_modes was fetching output properties but only
+    freeing some of them.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit b8c5c996e888485c3a16d645c8490592534a7882
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Sep 15 19:45:47 2009 -0700
+
+    Eliminate cursor flicker
+    
+    We can update the cursor without hiding and showing it.  In fact, doing the
+    hide/show causes noticable flicker when running in KMS mode.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit c2abfa8e54acab61250dba1e435760e3b1499c8c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 4 17:10:25 2009 +0100
+
+    Avoid fallbacks for compositing gradient patterns
+    
+    Currently when asked to composite using a gradient source or mask, we
+    fallback to using fbComposite().  This has the side-effect of causing a
+    readback on the destination surface, stalling the GPU pipeline.  Instead,
+    like uxa_trapezoids(), we can use pixman to fill a scratch pixmap and then
+    copy that to an offscreen pixmap for use with uxa_composite().
+    
+    Speedups on i915:
+    firefox-talos-svg:  710378.14 -> 549262.96:  1.29x speedup
+    
+    No slowdowns.
+    
+    Thanks to Søeren Sandmann Pedersen for spotting the missing
+    ValidatePicture().
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit efbcf29dd1a1ca058b7a2a93f0685102c06c9369
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Sep 9 09:32:48 2009 -0700
+
+    Update version to 2.8.99.901 for snapshot.
+
+commit 54fa27fcd97a6735d8eb6073f5ec7d0d40a7327f
+Author: Carl Worth <cworth@cworth.org>
+Date:   Wed Sep 9 09:27:01 2009 -0700
+
+    NEWS: Add notes for the 2.8.99.901 snapshot
+
+commit 1a77ca74bc829e019a06fe9ad559f013054c27ff
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 9 12:09:05 2009 +0100
+
+    i915: Restore nearest sampling
+    
+    My recent commit [94fc93] to use the pixel centre for sampling with the i830
+    broke the i915. This restores the previous sampling coordinates for the
+    i915 whilst preserving the correct coordinates for i830.
+    
+    Fixes: gnome characters disappear
+           http://bugs.freedesktop.org/show_bug.cgi?id=23803
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ce10b5b6fca086eb4af45c1db28352e06ee4ce0b
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Tue Sep 8 00:56:34 2009 +0800
+
+    Add B43 chipset support
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 94fc93d4e2b88565dca17f72903d8991213c9ee8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 5 09:35:10 2009 +0100
+
+    i830/i915: Set the sample position to the pixel center.
+    
+    And in particular we apply the nearest sample bias separately for
+    src/mask.
+    
+    Fixes cairo/test:
+    	device-offset-scale
+    	finer-grained-fallbacks
+    	mask-transformed-{similar,image}
+    	meta-surface-pattern
+    	pixman-rotate
+    	surface-pattern-big-scale-down
+    	text-transform
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ced0cc8bb28106c18473777bb184872786325e99
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 5 09:05:36 2009 +0100
+
+    i830: Update comments
+    
+    i830_composite() is no longer shared with i915 but
+    i830_emit_composite_primitive() is.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8863706e25a73f68993d946e2f1c1040bae0f9c5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 5 09:03:56 2009 +0100
+
+    i830: Trim composite setup
+    
+    Remove a couple of redundant NOOPs from the setup and correct the required
+    space checking for atomic batch operation.
+
+commit a9b12111f9787950ad6b8f295a70a872c5933c93
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 5 00:57:39 2009 +0100
+
+    i830: remove padding NOOPs from composite
+    
+    Bumps aa10text up from 249k to 260k!
+    
+    These NOOPs have existed uncommented since
+    04d1584737fd0d14e99608a97281fd7b1549ae0e.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9c1bf6d01ca307b7a9b91e181ad7f341862e5e1c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 4 23:31:44 2009 +0100
+
+    i830: do not use stale mask transform
+    
+    Not only were incorrectly falling back if we had non-affine
+    transformations, but we made the decision based on a stale transformation
+    matrix.
+    
+    Related bug 22877:
+       batch_start_atomic horribly breaks performance after a while
+       https://bugs.freedesktop.org/show_bug.cgi?id=22877
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Tested-by: Maximilian Grothusmann <maxi@own-hero.net>
+
+commit e903b3ebad29d943c05ff550940034c3a43e0235
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Thu Sep 3 16:34:08 2009 +0200
+
+    Don't set backlight level if going on->on.
+    
+    Otherwise changed backlight will be reset upon DPMS switch off, because first
+    this function is called with DPMSModeOn.
+
+commit 91f26937c1a3a4f33da86aa6b62ab9b288a54e15
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Tue Aug 18 18:44:38 2009 +0200
+
+    Use "Backlight" as backlight brightness property.
+    
+    BACKLIGHT is now deprecated, though still usable.
+
+commit dbc8944ee9e6755ab11dfc7375c3394f531a49ce
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Tue Aug 18 18:34:45 2009 +0200
+
+    Add get_property support.
+    
+    So far only BACKLIGHT is changed.
+
+commit c18fc7955dc2aec878dd3bea1d51aaecf3f08858
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Tue Aug 18 18:05:45 2009 +0200
+
+    Don't ignore backlight level change to the same level.
+    
+    If set externally to a different level, this would result in a no-op.
+    OTOH if the display is switched off (DPMS) you do not want the change to take
+    place immediately, but rather to be saved and set later when the display is
+    active again.
+
+commit fe7693c94a396b9d17bb66a000178750a432ce3a
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Wed Sep 2 22:57:33 2009 +0800
+
+    Make DGA optional
+    
+    As DGA is optional in xserver, we should check this too instead
+    of always trying to init DGA.
+    
+    Found when update xserver to 6fffcd5825454a7fe58ffbcfb219f007cf38e731,
+    but not update xf86dgaproto, which caused X fails to start.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 5812531e08147576de776b2dd64e7f94c08eb851
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri Jul 31 11:20:23 2009 -0700
+
+    debug: i830_valid_command: Return invalid for subopcodes with no name
+    
+    Previously the code would always return the count, before ever looking
+    into the _3d_cmds table to see if there was actually a valid command.
+    
+    Thanks to Alan Coopersmith who reported that the code was confusing
+    parfait:
+    
+    https://bugs.freedesktop.org/show_bug.cgi?id=21666
+
+commit 7c48c21b22bf5862c5a35bda1635753cc5a7197c
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Thu Aug 27 09:47:12 2009 +0800
+
+      set correct value for indirect access check bound
+
+commit 6361c3b9af39265df9222b1f3b6fb9c4197087c1
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Aug 25 19:23:27 2009 -0700
+
+    Fix SHM functions to work with server after 1.6.0
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 2786a66719a6dbb735eb7c551c412475c30ffa51
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Aug 25 18:35:54 2009 -0700
+
+    KMS: allocate one bo per crtc for cursor
+    
+    The KMS API doesn't provide for sharing a single bo for multiple
+    cursor images, so allocate one bo for each crtc to hold the cursor
+    image. KMS also only supports ARGB cursors, so don't bother to
+    allocate buffers for two color cursors.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit e51126c57132492c664f86981c55b166dbb54c79
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Aug 25 18:34:25 2009 -0700
+
+    Add cursor registers to debug dump output.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 5fa8d04d9c86f343802c05bd3e11c6e733f01b63
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Aug 25 18:33:04 2009 -0700
+
+    Reload cursors as needed when setting new modes.
+    
+    Cursor images may need rotation, or positions updated when new modes
+    are set. The server provides a convenience function,
+    xf86_reload_cursors for precisely this purpose. Just call it after the
+    new mode is set.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 1fc3f467ab3edd405adc569ac7f629077e6ffb9d
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Aug 25 09:46:10 2009 -0700
+
+    Add KMS only build flag
+    
+    Rather than refactoring all our init code only to have it go away when
+    we remove UMS, this patch adds a build time flag to allow the driver to
+    assume KMS support.
+    
+    With this flag active, the driver will not request that I/O or MEM be
+    enabled at probe time, which can allow the server (if other drivers also
+    cooperate) to run as a non-root user.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 5dccd1be3ab80b642ef2022446f5bdc1656ed943
+Author: Wu Fengguang <fengguang.wu@intel.com>
+Date:   Fri Aug 21 14:57:11 2009 +0800
+
+    Add HDMI audio registers
+    
+    Dump some of the audio registers at server startup time.
+    
+    (II) intel(0):           AUD_CONFIG: 0x00000004
+    (II) intel(0):     AUD_HDMIW_STATUS: 0x00000000
+    (II) intel(0):       AUD_CONV_CHCNT: 0x00000000
+    (II) intel(0):        VIDEO_DIP_CTL: 0x20000600
+    (II) intel(0):        AUD_PINW_CNTR: 0x00000040
+    (II) intel(0):          AUD_CNTL_ST: 0x00002000
+    (II) intel(0):          AUD_PIN_CAP: 0x00000094
+    (II) intel(0):         AUD_PINW_CAP: 0x004073bd
+    (II) intel(0):   AUD_PINW_UNSOLRESP: 0x80000008
+    (II) intel(0):     AUD_OUT_DIG_CNVT: 0x00000001
+    (II) intel(0):        AUD_OUT_CWCAP: 0x00006211
+    (II) intel(0):          AUD_GRP_CAP: 0x00000004
+    
+    Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+
+commit 38e97d2366738e83e76c72353b65edb13a9d2c7f
+Author: Wu Fengguang <fengguang.wu@intel.com>
+Date:   Fri Aug 21 11:31:13 2009 +0800
+
+    Add intel_audio reg dumping program
+    
+    It can dump HDMI audio registers for G45.
+    
+    Signed-off-by: "Wang, Zhenyu Z" <zhenyu.z.wang@intel.com>
+    Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+
+commit 6955fc7a74edf6034a292c31a304577c35e925e6
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Thu Aug 20 16:48:58 2009 -0400
+
+    kms: Don't use fb offset when using shadow buffer
+
+commit 465a4ab416b2e5ad53b96702720331a44fffa2fe
 Author: Eric Anholt <eric@anholt.net>
 Date:   Wed Aug 12 19:29:31 2009 -0700
 
@@ -26,9 +537,80 @@ Date:   Wed Aug 12 19:29:31 2009 -0700
     fault could occur.
     
     Thanks to Chris Wilson for pointing out the problem.
-    (cherry picked from commit 465a4ab416b2e5ad53b96702720331a44fffa2fe)
 
-commit 180a9d160f28087db20e34c838f19ff0a26fabcc
+commit a3962e6f74ddd954ae1390d150a347745d7bdb24
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Aug 18 10:56:50 2009 -0700
+
+    Print block length of backlight table
+    
+    For debugging VBIOS dumps
+
+commit 320f21669900f99a7daf8f2294f37be9ad71d05f
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Aug 17 15:19:41 2009 -0700
+
+    Dump LVDS backlight info from bios_reader
+    
+    Add LVDS backlight and power VBT structures and dump from the BIOS reader.
+
+commit a50916530426a662f5ed262892080b860a445da3
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Mon Aug 17 15:53:15 2009 +0200
+
+    Add BACKLIGHT property support in KMS case.
+
+commit 376397c21eb9a7e4ea79d349af41da81c1af861f
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Tue Aug 18 10:01:12 2009 +0800
+
+    Fix VGA plane disabling
+    
+    Only apply on G4X with SR01 bit5 workaround for VGA plane disable, and
+    restore behavior back for other chips to make sure other modes got disabled
+    too.
+    
+    For bug #17235, #19715, #21064, #23178
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 926c7e7d30458078f8185d4e0b9b32b40102b3d5
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Thu Aug 13 13:59:55 2009 +0200
+
+    Add HP Mini 5101 to quirks list.
+
+commit 713820197755ea53003b36a920922c3c525eeeea
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Tue Aug 11 14:50:03 2009 -0400
+
+    Fix the chip names printed in the log to be less obnoxious.
+    
+    Names taken from pci.ids.  Pineview appears to be a platform not a GMCH,
+    so use the G/GM convention to distinguish.
+
+commit e8f0763d405a8152c74c28792c52fe12c1d41dd5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 7 18:24:44 2009 -0700
+
+    Fix math in the tiling alignment fix.
+
+commit 222b52ef16895823fbf3a0fc0be4eb23b930ed1b
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 7 18:05:29 2009 -0700
+
+    Align tiled pixmap height so we don't address beyond the end of our buffers.
+
+commit 62494407e529cfa68529b7267155a12d75418f21
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Thu Aug 6 13:52:54 2009 +0800
+
+    Fix typo in bios_reader for invalid pointer cast
+    
+    Fixed locally for af45482a52999b52bf41468c458808e30c100e35, but pushed
+    wrong commit.
+
+commit 79b6851148574419389ac8055b0c31b8bdac3ab3
 Author: Eric Anholt <eric@anholt.net>
 Date:   Wed Aug 5 12:45:16 2009 -0700
 
@@ -41,9 +623,16 @@ Date:   Wed Aug 5 12:45:16 2009 -0700
     having 6 samplers to 1.
     
     Bug #22895, #19856
-    (cherry picked from commit 79b6851148574419389ac8055b0c31b8bdac3ab3)
 
-commit aa1d3f0bfd323126bcb4e11e4e5090fc2850237a
+commit f4e4c1a8544e264c5a1da02f4e7990a1beecf71e
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Wed Aug 5 15:00:37 2009 +0800
+
+      It seems that indirect data upper bound check in STATE_BASE_ADDRESS
+      is not acting like what bspec told on 965gm.
+      G45+ follow bspec, but we have to set it to a large value for 965gm.
+
+commit af45482a52999b52bf41468c458808e30c100e35
 Author: Zhao Yakui <yakui.zhao@intel.com>
 Date:   Fri Jul 24 10:44:20 2009 +0800
 
@@ -71,61 +660,52 @@ Date:   Fri Jul 24 10:44:20 2009 +0800
     https://bugs.freedesktop.org/show_bug.cgi?id=22787
     
     Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
-    (cherry picked from commit af45482a52999b52bf41468c458808e30c100e35)
 
-commit 959bf6df0f8d2defae1f7b3084c9e6ed473db9d9
-Author: Eric Anholt <eric@anholt.net>
-Date:   Wed Jul 15 16:38:07 2009 -0700
+commit 50e2a6734de43a135aa91cd6e6fb5147e15ce315
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Tue Jul 28 18:26:25 2009 +1000
 
-    Only align DRI2 tiled pixmaps to the DRI2 tiled pixmap alignment requirement.
+    intel: drop RES_SHARED_VGA not needed anymore
+
+commit f3387310f312a4a9e1d691974834c3d290c2fa32
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Tue Jul 28 18:27:10 2009 +1000
+
+    xserver: fix up for stable build
     
-    This should save significant amounts of memory for glyph and other small
-    pixmap storage.
+    reported by Arkadiusz Miskiewicz <arekm@maven.pl>
+
+commit 9bc0096f9de4b85ca6d6a5db109e49c4364bcee7
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Tue Jul 28 13:55:39 2009 +1000
+
+    intel: since driver depends on newer server don't need to wrap this
     
-    Bug #21387
-    (cherry picked from commit 6b7728491c3b771bcba2c7ffd75330c0a0b37f44)
+    drop resource/RAC interactions
 
-commit 154592a855e07889be5ffc8d63ef39ed424c61f6
-Author: Keith Packard <keithp@keithp.com>
-Date:   Tue Jul 21 12:32:10 2009 -0700
+commit 9a3b568d62a0b48f4a42ea5377740b2df1af432a
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Tue Jul 28 13:32:30 2009 +1000
 
-    drmmode_output_get_modes: Replace existing EDID property blob with new one
+    intel: update for resources/RAC API removal
+
+commit 3418c6c16b108e45f67f3c868d28932266f7a0bc
+Author: Krzysztof Halasa <khc@pm.waw.pl>
+Date:   Tue Jul 28 10:47:44 2009 +0800
+
+    h/v bias in 3DSTATE_DEST_BUFFER_VARIABLES is 4-bits wide
     
-    This synchronizes the X EDID data with the kernel EDID data each time the
-    kernel data may have changed. Otherwise, X ends up stuck with the first EDID
-    data it sees, failing to accomodate to different monitors.
+    Fixes bug #22370
+
+commit 378445738494663f2ee1615598d4c77b870745af
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Tue Jul 28 10:10:13 2009 +1000
+
+    intel: remove unneeded includes
     
-    Signed-off-by: Keith Packard <keithp@keithp.com>
-    (cherry picked from commit 6f3fc6b20f3daedab02e31f49678d4d2ff0fa7a3)
+    none of these need the resource includes
 
-commit c6627f05c249879e548c0034c6a314d6d45a5f28
-Author: Carl Worth <cworth@cworth.org>
-Date:   Thu Aug 13 14:02:10 2009 -0700
-
-    Update version to 2.8.0.901
-    
-    This is the version number for release candidate 1 of 2.8.1.
-
-commit c611082fc25b01ebd6d4fc8aca16096685fc58aa
-Author: Carl Worth <cworth@cworth.org>
-Date:   Thu Aug 13 13:58:02 2009 -0700
-
-    NEWS: Add notes for 2.8.0.901 (2.8.1 rc 1)
-    
-    Just a couple of cherry-picked fixes.
-
-commit b0aa94fb63e8bc4be991f6dcadc66613054b0ddd
-Author: Eric Anholt <eric@anholt.net>
-Date:   Fri Aug 7 18:05:29 2009 -0700
-
-    Align tiled pixmap height so we don't address beyond the end of our buffers (plus fix)
-    
-    Original alignment patch
-    (cherry picked from commit 222b52ef16895823fbf3a0fc0be4eb23b930ed1b)
-    with subsequent "Fix math in the tiling alignment fix" squashed
-    (cherry picked from commit e8f0763d405a8152c74c28792c52fe12c1d41dd5)
-
-commit 24638652704f66c97a5f093231182868e638da57
+commit 8084f76d86f048ca5b82da089fffa9665dbbcdd5
 Author: Keith Packard <keithp@keithp.com>
 Date:   Sun Jul 26 13:14:05 2009 -0700
 
@@ -136,7 +716,98 @@ Date:   Sun Jul 26 13:14:05 2009 -0700
     X server can't work around this driver bug.
     
     Signed-off-by: Keith Packard <keithp@keithp.com>
-    (cherry picked from commit 8084f76d86f048ca5b82da089fffa9665dbbcdd5)
+
+commit 9a45ace207199eb40e95dc6d2670b3096e66ecd9
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Thu Jul 23 11:09:53 2009 +0800
+
+    XvMC: enable XvMC/XvMC-VLD on IGDNG
+
+commit 043b4a866ab51acffc52d2d71db3475007747571
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Thu Jul 23 11:07:13 2009 +0800
+
+    add compiled shader programs for XvMC/XvMC-VLD on IGDNG
+
+commit 7684adaa370e8b0bd22e6e7dd1d5fa05f6142bab
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Thu Jul 23 10:57:22 2009 +0800
+
+    Check the version of intel-gen4asm tool in configure.ac
+
+commit 7dc95b4f1dfecbeb7e9f4a0c35fda32d020be8fe
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Fri Jul 24 10:39:05 2009 +0800
+
+    XvMC: pin XvMC buffers under KMS.
+    
+    Under KMS, the buffer allocated by i830_allocate_memory
+    isn't pinned anymore. However currently 915 XvMC needs
+    static offsets.
+    
+    Fixes bug #22872
+
+commit 12c5aeca7a3db92d3522d00f5daf338d522e2176
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 16 13:34:09 2009 -0700
+
+    8xx render: Add limited support for a8 dests.
+    
+    This improves aa10text performance from 74k to 569k on my 855 laptop.
+    This also causes my 865 to hang on aa10text like it does on rgb10text,
+    thanks to actually hitting render accel.
+
+commit 6b7728491c3b771bcba2c7ffd75330c0a0b37f44
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jul 15 16:38:07 2009 -0700
+
+    Only align DRI2 tiled pixmaps to the DRI2 tiled pixmap alignment requirement.
+    
+    This should save significant amounts of memory for glyph and other small
+    pixmap storage.
+    
+    Bug #21387
+
+commit 22f7cbc32b70a89d55c79bbea39fb10c50a310ec
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 9 23:56:22 2009 -0700
+
+    uxa: Tell the driver when we're just going to immediately map the pixmap.
+    
+    This lets the driver allocate a nice idle buffer object instead of a
+    busy one, reducing runtime of firefox-20090601 on my G45 from 50.7 (+/- .41%)
+    to 48.4 (+/- 1.1%).
+
+commit 5ef3db45e059df136162584d00d4b0b511456a33
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jul 9 19:24:38 2009 -0700
+
+    uxa: Skip fill of temporary alpha picture that just gets copied over.
+    
+    This was needed when we were doing the mask computations in this pixmap,
+    but now they're done in a temporary and then uploaded later.
+    
+    This reduces runtime of firefox-20090601 from 52.6 (+/- .96%) to 50.7
+    (+/- .41%) seconds on my G45.
+
+commit 6f3fc6b20f3daedab02e31f49678d4d2ff0fa7a3
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Jul 21 12:32:10 2009 -0700
+
+    drmmode_output_get_modes: Replace existing EDID property blob with new one
+    
+    This synchronizes the X EDID data with the kernel EDID data each time the
+    kernel data may have changed. Otherwise, X ends up stuck with the first EDID
+    data it sees, failing to accomodate to different monitors.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 840a787a191b31ece5068e10daed04bee70bb1a2
+Merge: 0a4c4c5 5d50a94
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jul 20 23:00:06 2009 -0700
+
+    Merge branch '2.8'
 
 commit 5d50a949b3c5d0ad2bc4cf48ab25da1f707a4f6f
 Author: Carl Worth <cworth@cworth.org>
@@ -151,6 +822,31 @@ Date:   Mon Jul 20 22:59:02 2009 -0700
     NEWS: Add notes for 2.8.0 release
     
     Many thanks to Gordon for his notes from http://intellinuxgraphics.org/2009Q2.html
+
+commit 0a4c4c5fe8ebad2dd13f5770bd90a194eebb2890
+Author: Peter Hutterer <peter.hutterer@who-t.net>
+Date:   Thu Jul 16 11:40:15 2009 +1000
+
+    Update to xextproto 7.1 support.
+    
+    DPMS header was split into dpms.h (client) and dpmsconst.h (server). Drivers
+    need to include dpmsconst.h if xextproto 7.1 is available.
+    
+    SHM is now shm.h instead of shmstr. Requires definition of ShmFuncs that's
+    not exported by the server.
+    
+    Signed-off-by: Peter Hutterer <peter.hutterer@who-t.net>
+
+commit 57c7cbade9556e7b21867e61353f0928fd553616
+Author: Owain Ainsworth <zerooa@googlemail.com>
+Date:   Thu Jul 16 20:38:43 2009 +0100
+
+    accessing a pixmap if prepare_access fails is verboten.
+    
+    Don't do it, treat this the same as every other prepare access call in uxa.
+    
+    Reviewed-by: Keith Packard <keithp@keithp.com>
+    Signed-off-by: Owain Ainsworth <zerooa@googlemail.com>
 
 commit bb3007384298cb57625ec0b3868dff9b23568f3e
 Author: Eric Anholt <eric@anholt.net>

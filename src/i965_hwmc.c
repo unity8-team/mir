@@ -73,6 +73,7 @@ static int create_context(ScrnInfoPtr pScrn,
 
     private_context->is_g4x = IS_G4X(I830);
     private_context->is_965_q = IS_965_Q(I830);
+    private_context->is_igdng = IS_IGDNG(I830);
     private_context->comm.kernel_exec_fencing = I830->kernel_exec_fencing;
     private_context->comm.type = xvmc_driver->flag;
 

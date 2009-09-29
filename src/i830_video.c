@@ -56,7 +56,6 @@
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86Resources.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -2751,10 +2750,6 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
 	if ((w > IMAGE_MAX_WIDTH) || (h > IMAGE_MAX_HEIGHT))
 	    return BadAlloc;
     }
-
-    /* What to do when rotated ?? */
-    if (pI830->rotation != RR_Rotate_0)
-	return BadAlloc;
 
     if (!(surface->pitches = xalloc(sizeof(int))))
 	return BadAlloc;

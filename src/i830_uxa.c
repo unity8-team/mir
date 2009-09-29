@@ -651,7 +651,10 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	    return NullPixmap;
 	}
 
-	bo = drm_intel_bo_alloc_for_render(i830->bufmgr, "pixmap", size, 0);
+	if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
+	    bo = drm_intel_bo_alloc(i830->bufmgr, "pixmap", size, 0);
+	else
+	    bo = drm_intel_bo_alloc_for_render(i830->bufmgr, "pixmap", size, 0);
 	if (!bo) {
 	    fbDestroyPixmap (pixmap);
 	    return NullPixmap;
