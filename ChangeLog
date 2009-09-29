@@ -1,3 +1,26 @@
+commit 2841a4cd8c6c64fdf4b2203ab73b57b38a50f651
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Sep 28 20:03:11 2009 -0700
+
+    Increment version to 2.9.0
+    
+    And add a reminder to RELEASING that the incremented version number
+    needs to be committed, (since I forgot to do this with 2.8.99.902).
+
+commit a790aff4fef7d0c86b7b9c0da4afdc9c0aba6636
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Sep 28 20:02:28 2009 -0700
+
+    NEWS: Add notes for the 2.9.0 release.
+    
+    Just renamed notes as from 2.8.99.902.
+
+commit a92bbcc94904684e7709b3ddaad82bc04607af26
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Sep 22 17:08:23 2009 -0700
+
+    Increment version to 2.8.99.902
+
 commit ae00a0923717caec6d0dad94527da26397bd12ce
 Author: Carl Worth <cworth@cworth.org>
 Date:   Tue Sep 22 15:14:38 2009 -0700
