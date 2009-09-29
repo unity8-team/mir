@@ -38,15 +38,25 @@ INTEL_G4B = ipicture.g4b	\
 	    field_backward.g4b  \
 	    field_f_b.g4b
 
+INTEL_G4B_GEN5 = ipicture.g4b.gen5	\
+	    lib.g4b.gen5		\
+	    frame_forward.g4b.gen5	\
+	    frame_backward.g4b.gen5	\
+	    frame_f_b.g4b.gen5		\
+	    field_forward.g4b.gen5	\
+	    field_backward.g4b.gen5  	\
+	    field_f_b.g4b.gen5
+
 EXTRA_DIST = $(INTEL_G4I)	\
 	     $(INTEL_G4A)       \
-	     $(INTEL_G4B)    
+	     $(INTEL_G4B)    	\
+	     $(INTEL_G4B_GEN5)
 
 if HAVE_GEN4ASM
 
 SUFFIXES = .g4a .g4b
 .g4a.g4b:
-	m4 $*.g4a > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
+	m4 $*.g4a > $*.g4m && intel-gen4asm -o $@ $*.g4m && intel-gen4asm -g 5 -o $@.gen5 $*.g4m && rm $*.g4m
 
 $(INTEL_G4B): $(INTEL_G4I)
 
@@ -54,4 +64,5 @@ BUILT_SOURCES= $(INTEL_G4B)
 
 clean-local:
 	-rm -f $(INTEL_G4B)
+	-rm -f $(INTEL_G4B_GEN5)
 endif    

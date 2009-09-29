@@ -51,8 +51,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86Resources.h"
-#include "xf86RAC.h"
 #include "xf86Priv.h"
 #include "xf86cmap.h"
 #include "compiler.h"
@@ -102,8 +100,8 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
    {PCI_CHIP_I945_GME,		"945GME"},
-   {PCI_CHIP_IGD_GM,		"IGD"},
-   {PCI_CHIP_IGD_G,		"IGD"},
+   {PCI_CHIP_IGD_GM,		"Pineview GM"},
+   {PCI_CHIP_IGD_G,		"Pineview G"},
    {PCI_CHIP_I965_G,		"965G"},
    {PCI_CHIP_G35_G,		"G35"},
    {PCI_CHIP_I965_Q,		"965Q"},
@@ -113,46 +111,48 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_G33_G,		"G33"},
    {PCI_CHIP_Q35_G,		"Q35"},
    {PCI_CHIP_Q33_G,		"Q33"},
-   {PCI_CHIP_GM45_GM,		"Mobile Intel® GM45 Express Chipset"},
-   {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
+   {PCI_CHIP_GM45_GM,		"GM45"},
+   {PCI_CHIP_IGD_E_G,		"4 Series"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {PCI_CHIP_G41_G,		"G41"},
-   {PCI_CHIP_IGDNG_D_G,		"IGDNG_D"},
-   {PCI_CHIP_IGDNG_M_G,		"IGDNG_M"},
+   {PCI_CHIP_B43_G,		"B43"},
+   {PCI_CHIP_IGDNG_D_G,		"Clarkdale"},
+   {PCI_CHIP_IGDNG_M_G,		"Arrandale"},
    {-1,				NULL}
 };
 
 static PciChipsets I830PciChipsets[] = {
-   {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	RES_SHARED_VGA},
-   {PCI_CHIP_845_G,		PCI_CHIP_845_G,		RES_SHARED_VGA},
-   {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	RES_SHARED_VGA},
-   {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	RES_SHARED_VGA},
-   {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	RES_SHARED_VGA},
-   {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	RES_SHARED_VGA},
-   {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	RES_SHARED_VGA},
-   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_IGD_G,		PCI_CHIP_IGD_G,		RES_SHARED_VGA},
-   {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	RES_SHARED_VGA},
-   {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		RES_SHARED_VGA},
-   {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
-   {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
-   {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	RES_SHARED_VGA},
-   {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
-   {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
-   {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
-   {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	RES_SHARED_VGA},
-   {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
-   {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
-   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
-   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,		RES_SHARED_VGA},
-   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,		RES_SHARED_VGA},
-   {-1,				-1,			RES_UNDEFINED}
+   {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	NULL},
+   {PCI_CHIP_845_G,		PCI_CHIP_845_G,		NULL},
+   {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	NULL},
+   {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	NULL},
+   {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	NULL},
+   {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	NULL},
+   {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	NULL},
+   {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	NULL},
+   {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	NULL},
+   {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	NULL},
+   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	NULL},
+   {PCI_CHIP_IGD_G,		PCI_CHIP_IGD_G,		NULL},
+   {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	NULL},
+   {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		NULL},
+   {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	NULL},
+   {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	NULL},
+   {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	NULL},
+   {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	NULL},
+   {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		NULL},
+   {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		NULL},
+   {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		NULL},
+   {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	NULL},
+   {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	NULL},
+   {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		NULL},
+   {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		NULL},
+   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		NULL},
+   {PCI_CHIP_B43_G,		PCI_CHIP_B43_G,		NULL},
+   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,		NULL},
+   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,		NULL},
+   {-1,				-1,			NULL}
 };
 
 /*
@@ -1051,10 +1051,10 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	chipname = "945GME";
 	break;
     case PCI_CHIP_IGD_GM:
-	chipname = "IGD";
+	chipname = "Pineview GM";
 	break;
     case PCI_CHIP_IGD_G:
-	chipname = "IGD";
+	chipname = "Pineview G";
 	break;
     case PCI_CHIP_I965_G:
 	chipname = "965G";
@@ -1084,10 +1084,10 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	chipname = "Q33";
 	break;
     case PCI_CHIP_GM45_GM:
-	chipname = "Mobile Intel® GM45 Express Chipset";
+	chipname = "GM45";
 	break;
     case PCI_CHIP_IGD_E_G:
-	chipname = "Intel Integrated Graphics Device";
+	chipname = "4 Series";
 	break;
     case PCI_CHIP_G45_G:
 	chipname = "G45/G43";
@@ -1098,11 +1098,14 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
     case PCI_CHIP_G41_G:
 	chipname = "G41";
 	break;
+    case PCI_CHIP_B43_G:
+	chipname = "B43";
+	break;
     case PCI_CHIP_IGDNG_D_G:
-	chipname = "IGDNG_D";
+	chipname = "Clarkdale";
 	break;
     case PCI_CHIP_IGDNG_M_G:
-	chipname = "IGDNG_M";
+	chipname = "Arrandale";
 	break;
    default:
 	chipname = "unknown chipset";
@@ -1356,9 +1359,6 @@ i830_user_modesetting_init(ScrnInfoPtr pScrn)
     }
     RestoreHWState(pScrn);
 
-    /* XXX This should go away, replaced by xf86Crtc.c support for it */
-    pI830->rotation = RR_Rotate_0;
-
     pI830->stolen_size = I830DetectMemory(pScrn);
 
     return TRUE;
@@ -1540,13 +1540,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!i830_open_drm_master(pScrn))
        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to become DRM master.\n");
 
-
-   if (xf86RegisterResources(pI830->pEnt->index, NULL, ResNone)) {
-      PreInitCleanup(pScrn);
-      return FALSE;
-   }
-
-   pScrn->racMemFlags = RAC_FB | RAC_COLORMAP;
    pScrn->monitor = pScrn->confScreen->monitor;
    pScrn->progClock = TRUE;
    pScrn->rgbBits = 8;
@@ -1632,8 +1625,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
        /*  We won't be using the VGA access after the probe. */
        I830SetMMIOAccess(pI830);
-       xf86SetOperatingState(resVgaIo, pI830->pEnt->index, ResUnusedOpr);
-       xf86SetOperatingState(resVgaMem, pI830->pEnt->index, ResDisableOpr);
    }
 
    /* Load the dri2 module if requested. */
@@ -2137,33 +2128,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
    vgaHWLock(hwp);
 
    return TRUE;
-}
-
-static void
-I830PointerMoved(int index, int x, int y)
-{
-   ScrnInfoPtr pScrn = xf86Screens[index];
-   I830Ptr pI830 = I830PTR(pScrn);
-   int newX = x, newY = y;
-
-   switch (pI830->rotation) {
-      case RR_Rotate_0:
-         break;
-      case RR_Rotate_90:
-         newX = y;
-         newY = pScrn->pScreen->width - x - 1;
-         break;
-      case RR_Rotate_180:
-         newX = pScrn->pScreen->width - x - 1;
-         newY = pScrn->pScreen->height - y - 1;
-         break;
-      case RR_Rotate_270:
-         newX = pScrn->pScreen->height - y - 1;
-         newY = x;
-         break;
-   }
-
-   (*pI830->PointerMoved)(index, newX, newY);
 }
 
 /**
@@ -2744,8 +2708,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    xf86SetBlackWhitePixels(pScreen);
 
-   xf86DiDGAInit (pScreen, pI830->LinearAddr + pScrn->fbOffset);
-
    if (!I830AccelInit(pScreen)) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Hardware acceleration initialization failed\n");
@@ -2832,11 +2794,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #else
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Not available\n");
 #endif
-
-
-   /* Wrap pointer motion to flip touch screen around */
-   pI830->PointerMoved = pScrn->PointerMoved;
-   pScrn->PointerMoved = I830PointerMoved;
 
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
@@ -3089,9 +3046,8 @@ static Bool
 I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-   I830Ptr pI830 = I830PTR(pScrn);
 
-   return xf86SetSingleMode (pScrn, mode, pI830->rotation);
+   return xf86SetSingleMode (pScrn, mode, RR_Rotate_0);
 }
 
 static Bool
@@ -3138,9 +3094,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    pScreen->CloseScreen = pI830->CloseScreen;
    (*pScreen->CloseScreen) (scrnIndex, pScreen);
 
-   dri_bufmgr_destroy(pI830->bufmgr);
-   pI830->bufmgr = NULL;
-
    if (pI830->directRenderingOpen && pI830->directRenderingType == DRI_DRI2) {
       pI830->directRenderingOpen = FALSE;
       I830DRI2CloseScreen(pScreen);
@@ -3148,7 +3101,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    xf86GARTCloseScreen(scrnIndex);
 
-   pScrn->PointerMoved = pI830->PointerMoved;
    pScrn->vtSema = FALSE;
    pI830->closing = FALSE;
    return TRUE;

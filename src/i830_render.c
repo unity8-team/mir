@@ -143,8 +143,6 @@ static struct formatinfo i830_tex_formats[] = {
 
 static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
-
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
@@ -157,26 +155,29 @@ static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
     case PICT_x1r5g5b5:
         *dst_format = COLR_BUF_ARGB1555;
         break;
-	/*
     case PICT_a8:
         *dst_format = COLR_BUF_8BIT;
         break;
-	*/
     case PICT_a4r4g4b4:
     case PICT_x4r4g4b4:
 	*dst_format = COLR_BUF_ARGB4444;
 	break;
     default:
-        I830FALLBACK("Unsupported dest format 0x%x\n",
-		     (int)pDstPicture->format);
-    }
+	{
+	    ScrnInfoPtr pScrn;
 
+	    pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	    I830FALLBACK("Unsupported dest format 0x%x\n",
+			 (int)pDstPicture->format);
+	}
+    }
+    *dst_format |= DSTORG_HORT_BIAS (0x8) | DSTORG_VERT_BIAS (0x8);
     return TRUE;
 }
 
 
-static uint32_t i830_get_blend_cntl(int op, PicturePtr pMask,
-				    uint32_t dst_format)
+static Bool i830_get_blend_cntl(ScrnInfoPtr pScrn, int op, PicturePtr pMask,
+				uint32_t dst_format, uint32_t *blendctl)
 {
     uint32_t sblend, dblend;
 
@@ -193,6 +194,14 @@ static uint32_t i830_get_blend_cntl(int op, PicturePtr pMask,
             sblend = BLENDFACTOR_ZERO;
     }
 
+    /* For blending purposes, COLR_BUF_8BIT values show up in the green
+     * channel.  So we can't use the alpha channel.
+     */
+    if (dst_format == PICT_a8 && ((sblend == BLENDFACTOR_DST_ALPHA ||
+				   sblend == BLENDFACTOR_INV_DST_ALPHA))) {
+	I830FALLBACK("Can't do dst alpha blending with PICT_a8 dest.\n");
+    }
+
     /* If the source alpha is being used, then we should only be in a case
      * where the source blend factor is 0, and the source blend value is the
      * mask channels multiplied by the source picture's alpha.
@@ -206,30 +215,14 @@ static uint32_t i830_get_blend_cntl(int op, PicturePtr pMask,
         }
     }
 
-    return (sblend << S8_SRC_BLEND_FACTOR_SHIFT) |
+    *blendctl = (sblend << S8_SRC_BLEND_FACTOR_SHIFT) |
 	(dblend << S8_DST_BLEND_FACTOR_SHIFT);
+
+    return TRUE;
 }
 
-static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
+static Bool i830_check_composite_texture(ScrnInfoPtr pScrn, PicturePtr pPict, int unit)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
-    int w = pPict->pDrawable->width;
-    int h = pPict->pDrawable->height;
-    int i;
-
-    if ((w > 2048) || (h > 2048))
-        I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
-
-    for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
-	 i++)
-    {
-        if (i830_tex_formats[i].fmt == pPict->format)
-            break;
-    }
-    if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
-        I830FALLBACK("Unsupported picture format 0x%x\n",
-		     (int)pPict->format);
-
     if (pPict->repeatType > RepeatReflect)
         I830FALLBACK("Unsupported picture repeat %d\n", pPict->repeatType);
 
@@ -237,6 +230,26 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
         pPict->filter != PictFilterBilinear)
     {
         I830FALLBACK("Unsupported filter 0x%x\n", pPict->filter);
+    }
+
+    if (pPict->pDrawable)
+    {
+	int w, h, i;
+
+	w = pPict->pDrawable->width;
+	h = pPict->pDrawable->height;
+	if ((w > 2048) || (h > 2048))
+	    I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
+
+	for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
+	     i++)
+	{
+	    if (i830_tex_formats[i].fmt == pPict->format)
+		break;
+	}
+	if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
+	    I830FALLBACK("Unsupported picture format 0x%x\n",
+			 (int)pPict->format);
     }
 
     return TRUE;
@@ -263,11 +276,17 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t format, pitch, filter;
     uint32_t wrap_mode;
+    uint32_t texcoordtype;
 
     pitch = intel_get_pixmap_pitch(pPix);
     pI830->scale_units[unit][0] = pPix->drawable.width;
     pI830->scale_units[unit][1] = pPix->drawable.height;
     pI830->transform[unit] = pPict->transform;
+
+    if (i830_transform_is_affine(pI830->transform[unit]))
+	texcoordtype = TEXCOORDTYPE_CARTESIAN;
+    else
+	texcoordtype = TEXCOORDTYPE_HOMOGENEOUS;
 
     format = i8xx_get_card_format(pPict);
 
@@ -321,7 +340,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	OUT_BATCH(0); /* default color */
 	OUT_BATCH(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
 		  ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
-		  TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL |
+		  texcoordtype | ENABLE_ADDR_V_CNTL |
 		  TEXCOORD_ADDR_V_MODE(wrap_mode) |
 		  ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
 	/* map texel stream */
@@ -369,9 +388,9 @@ i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 			     "alpha and source value blending.\n");
     }
 
-    if (!i830_check_composite_texture(pSrcPicture, 0))
+    if (!i830_check_composite_texture(pScrn, pSrcPicture, 0))
         I830FALLBACK("Check Src picture texture\n");
-    if (pMaskPicture != NULL && !i830_check_composite_texture(pMaskPicture, 1))
+    if (pMaskPicture != NULL && !i830_check_composite_texture(pScrn, pMaskPicture, 1))
         I830FALLBACK("Check Mask picture texture\n");
 
     if (!i830_get_dest_format(pDstPicture, &tmp1))
@@ -385,10 +404,8 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
 		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool is_affine_src, is_affine_mask;
-    Bool is_nearest = FALSE;
 
     pI830->render_src_picture = pSrcPicture;
     pI830->render_src = pSrc;
@@ -405,27 +422,20 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     if (!i830_get_dest_format(pDstPicture, &pI830->render_dst_format))
 	return FALSE;
 
+    pI830->dst_coord_adjust = 0;
+    pI830->src_coord_adjust = 0;
+    pI830->mask_coord_adjust = 0;
     if (pSrcPicture->filter == PictFilterNearest)
-	is_nearest = TRUE;
+	pI830->src_coord_adjust = 0.375;
     if (pMask != NULL) {
+	pI830->mask_coord_adjust = 0;
 	if (pMaskPicture->filter == PictFilterNearest)
-	    is_nearest = TRUE;
+	    pI830->mask_coord_adjust = 0.375;
     } else {
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
     }
-
-    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
-    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
-
-    if (is_nearest)
-	pI830->coord_adjust = -0.125;
-    else
-	pI830->coord_adjust = 0;
-
-    if (!is_affine_src || !is_affine_mask)
-	I830FALLBACK("non-affine transform unsupported on 8xx hardware\n");
 
     {
 	uint32_t cblend, ablend, blendctl;
@@ -449,13 +459,15 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		 TB0A_OUTPUT_WRITE_CURRENT;
 
 	/* Get the source picture's channels into TBx_ARG1 */
-	if (pMaskPicture != NULL &&
-	    pMaskPicture->componentAlpha &&
-	    PICT_FORMAT_RGB(pMaskPicture->format) &&
-	    i830_blend_op[op].src_alpha)
+	if ((pMaskPicture != NULL &&
+	     pMaskPicture->componentAlpha &&
+	     PICT_FORMAT_RGB(pMaskPicture->format) &&
+	     i830_blend_op[op].src_alpha) || pDstPicture->format == PICT_a8)
 	{
 	    /* Producing source alpha value, so the first set of channels
-	     * is src.A instead of src.X
+	     * is src.A instead of src.X.  We also do this if the destination
+	     * is a8, in which case src.G is what's written, and the other
+	     * channels are ignored.
 	     */
 	    if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
 		ablend |= TB0A_ARG1_SEL_TEXEL0;
@@ -477,8 +489,9 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	}
 
 	if (pMask) {
-	    if (pMaskPicture->componentAlpha &&
-		PICT_FORMAT_RGB(pMaskPicture->format))
+	    if (pDstPicture->format != PICT_a8 &&
+		(pMaskPicture->componentAlpha &&
+		 PICT_FORMAT_RGB(pMaskPicture->format)))
 	    {
 		cblend |= TB0C_ARG2_SEL_TEXEL1;
 	    } else {
@@ -497,7 +510,10 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	    ablend |= TB0A_ARG2_SEL_ONE;
 	}
 
-	blendctl = i830_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
+	if (!i830_get_blend_cntl(pScrn, op, pMaskPicture, pDstPicture->format,
+				 &blendctl)) {
+	    return FALSE;
+	}
 
 	pI830->cblend = cblend;
 	pI830->ablend = ablend;
@@ -516,20 +532,20 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t vf2;
+    uint32_t texcoordfmt = 0;
 
     pI830->needs_render_state_emit = FALSE;
 
     IntelEmitInvarientState(pScrn);
     pI830->last_3d = LAST_3D_RENDER;
 
-    BEGIN_BATCH(24);
+    BEGIN_BATCH(21);
 
     OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
     OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE |
 	      BUF_3D_PITCH(intel_get_pixmap_pitch(pI830->render_dst)));
     OUT_RELOC_PIXMAP(pI830->render_dst,
 		     I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
-    OUT_BATCH(MI_NOOP);
 
     OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
     OUT_BATCH(pI830->render_dst_format);
@@ -543,25 +559,24 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
 
     OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 	      I1_LOAD_S(2) |
-	      I1_LOAD_S(3) | 1);
+	      I1_LOAD_S(3) |
+	      I1_LOAD_S(8) |
+	      2);
     if (pI830->render_mask)
 	vf2 = 2 << 12; /* 2 texture coord sets */
     else
 	vf2 = 1 << 12;
-    OUT_BATCH(vf2); /* TEXCOORDFMT_2D */
+    OUT_BATCH(vf2); /* number of coordinate sets */
     OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
-
-    OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
     OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | pI830->s8_blendctl |
 	      S8_ENABLE_COLOR_BUFFER_WRITE);
+
+    OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
 
     OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 	      LOAD_TEXTURE_BLEND_STAGE(0)|1);
     OUT_BATCH(pI830->cblend);
     OUT_BATCH(pI830->ablend);
-    OUT_BATCH(0);
 
     OUT_BATCH(_3DSTATE_ENABLES_1_CMD | DISABLE_LOGIC_OP |
 	      DISABLE_STENCIL_TEST | DISABLE_DEPTH_BIAS |
@@ -572,6 +587,19 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
 	      DISABLE_STENCIL_WRITE | ENABLE_TEX_CACHE |
 	      DISABLE_DITHER | ENABLE_COLOR_WRITE |
 	      DISABLE_DEPTH_WRITE);
+
+    if (i830_transform_is_affine(pI830->render_src_picture->transform))
+	texcoordfmt |= (TEXCOORDFMT_2D << 0);
+    else
+	texcoordfmt |= (TEXCOORDFMT_3D << 0);
+    if (pI830->render_mask) {
+	if (i830_transform_is_affine(pI830->render_mask_picture->transform))
+	    texcoordfmt |= (TEXCOORDFMT_2D << 2);
+	else
+	    texcoordfmt |= (TEXCOORDFMT_3D << 2);
+    }
+    OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD | texcoordfmt);
+
     ADVANCE_BATCH();
 
     i830_texture_setup(pI830->render_src_picture, pI830->render_src, 0);
@@ -581,147 +609,167 @@ i830_emit_composite_state(ScrnInfoPtr pScrn)
     }
 }
 
-void
-i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
+/* Emit the vertices for a single composite rectangle.
+ *
+ * This function is no longer shared between i830 and i915 generation code.
+ */
+static void
+i830_emit_composite_primitive(PixmapPtr pDst,
+			      int srcX, int srcY,
 			      int maskX, int maskY,
-			      int dstX, int dstY, int w, int h)
+			      int dstX, int dstY,
+			      int w, int h)
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    Bool is_affine_src, is_affine_mask;
+    Bool is_affine_src, is_affine_mask = TRUE;
     int per_vertex, num_floats;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
 
-    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
-    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
-
     per_vertex = 2; /* dest x/y */
-    if (is_affine_src)
+
     {
-	if (!i830_get_transformed_coordinates(srcX, srcY,
-					      pI830->transform[0],
-					      &src_x[0], &src_y[0]))
-	    return;
-	if (!i830_get_transformed_coordinates(srcX, srcY + h,
-					      pI830->transform[0],
-					      &src_x[1], &src_y[1]))
-	    return;
-	if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
-					      pI830->transform[0],
-					      &src_x[2], &src_y[2]))
-	    return;
-	per_vertex += 2;    /* src x/y */
-    } else {
-	if (!i830_get_transformed_coordinates_3d(srcX, srcY,
-						 pI830->transform[0],
-						 &src_x[0], &src_y[0],
-						 &src_w[0]))
-	    return;
-	if (!i830_get_transformed_coordinates_3d(srcX, srcY + h,
-						 pI830->transform[0],
-						 &src_x[1], &src_y[1],
-						 &src_w[1]))
-	    return;
-	if (!i830_get_transformed_coordinates_3d(srcX + w, srcY + h,
-						 pI830->transform[0],
-						 &src_x[2], &src_y[2],
-						 &src_w[2]))
-	    return;
-	per_vertex += 4;    /* src x/y/z/w */
+	float x = srcX + pI830->src_coord_adjust;
+	float y = srcY + pI830->src_coord_adjust;
+
+	is_affine_src = i830_transform_is_affine (pI830->transform[0]);
+	if (is_affine_src) {
+	    if (!i830_get_transformed_coordinates(x, y,
+						  pI830->transform[0],
+						  &src_x[0], &src_y[0]))
+		return;
+
+	    if (!i830_get_transformed_coordinates(x, y + h,
+						  pI830->transform[0],
+						  &src_x[1], &src_y[1]))
+		return;
+
+	    if (!i830_get_transformed_coordinates(x + w, y + h,
+						  pI830->transform[0],
+						  &src_x[2], &src_y[2]))
+		return;
+
+	    per_vertex += 2;    /* src x/y */
+	} else {
+	    if (!i830_get_transformed_coordinates_3d(x, y,
+						     pI830->transform[0],
+						     &src_x[0],
+						     &src_y[0],
+						     &src_w[0]))
+		return;
+
+	    if (!i830_get_transformed_coordinates_3d(x, y + h,
+						     pI830->transform[0],
+						     &src_x[1],
+						     &src_y[1],
+						     &src_w[1]))
+		return;
+
+	    if (!i830_get_transformed_coordinates_3d(x + w, y + h,
+						     pI830->transform[0],
+						     &src_x[2],
+						     &src_y[2],
+						     &src_w[2]))
+		return;
+
+	    per_vertex += 3;    /* src x/y/w */
+	}
     }
+
     if (pI830->render_mask) {
+	float x = maskX + pI830->mask_coord_adjust;
+	float y = maskY + pI830->mask_coord_adjust;
+
+	is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
 	if (is_affine_mask) {
-	    if (!i830_get_transformed_coordinates(maskX, maskY,
+	    if (!i830_get_transformed_coordinates(x, y,
 						  pI830->transform[1],
 						  &mask_x[0], &mask_y[0]))
 		return;
-	    if (!i830_get_transformed_coordinates(maskX, maskY + h,
+
+	    if (!i830_get_transformed_coordinates(x, y + h,
 						  pI830->transform[1],
 						  &mask_x[1], &mask_y[1]))
 		return;
-	    if (!i830_get_transformed_coordinates(maskX + w, maskY + h,
+
+	    if (!i830_get_transformed_coordinates(x + w, y + h,
 						  pI830->transform[1],
 						  &mask_x[2], &mask_y[2]))
 		return;
+
 	    per_vertex += 2;	/* mask x/y */
 	} else {
-	    if (!i830_get_transformed_coordinates_3d(maskX, maskY,
+	    if (!i830_get_transformed_coordinates_3d(x, y,
 						     pI830->transform[1],
-						     &mask_x[0], &mask_y[0],
+						     &mask_x[0],
+						     &mask_y[0],
 						     &mask_w[0]))
 		return;
-	    if (!i830_get_transformed_coordinates_3d(maskX, maskY + h,
+
+	    if (!i830_get_transformed_coordinates_3d(x, y + h,
 						     pI830->transform[1],
-						     &mask_x[1], &mask_y[1],
+						     &mask_x[1],
+						     &mask_y[1],
 						     &mask_w[1]))
 		return;
-	    if (!i830_get_transformed_coordinates_3d(maskX + w, maskY + h,
+
+	    if (!i830_get_transformed_coordinates_3d(x + w, y + h,
 						     pI830->transform[1],
-						     &mask_x[2], &mask_y[2],
+						     &mask_x[2],
+						     &mask_y[2],
 						     &mask_w[2]))
 		return;
-	    per_vertex += 4;	/* mask x/y/z/w */
+
+	    per_vertex += 3;	/* mask x/y/w */
 	}
     }
 
     num_floats = 3 * per_vertex;
 
-    BEGIN_BATCH(6 + num_floats);
-
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_NOOP);
+    BEGIN_BATCH(1 + num_floats);
 
     OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats-1));
-    OUT_BATCH_F(pI830->coord_adjust + dstX + w);
-    OUT_BATCH_F(pI830->coord_adjust + dstY + h);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstX + w);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstY + h);
     OUT_BATCH_F(src_x[2] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[2] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
-	OUT_BATCH_F(0.0);
 	OUT_BATCH_F(src_w[2]);
     }
     if (pI830->render_mask) {
 	OUT_BATCH_F(mask_x[2] / pI830->scale_units[1][0]);
 	OUT_BATCH_F(mask_y[2] / pI830->scale_units[1][1]);
 	if (!is_affine_mask) {
-	    OUT_BATCH_F(0.0);
 	    OUT_BATCH_F(mask_w[2]);
 	}
     }
 
-    OUT_BATCH_F(pI830->coord_adjust + dstX);
-    OUT_BATCH_F(pI830->coord_adjust + dstY + h);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstX);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstY + h);
     OUT_BATCH_F(src_x[1] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[1] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
-	OUT_BATCH_F(0.0);
 	OUT_BATCH_F(src_w[1]);
     }
     if (pI830->render_mask) {
 	OUT_BATCH_F(mask_x[1] / pI830->scale_units[1][0]);
 	OUT_BATCH_F(mask_y[1] / pI830->scale_units[1][1]);
 	if (!is_affine_mask) {
-	    OUT_BATCH_F(0.0);
 	    OUT_BATCH_F(mask_w[1]);
 	}
     }
 
-    OUT_BATCH_F(pI830->coord_adjust + dstX);
-    OUT_BATCH_F(pI830->coord_adjust + dstY);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstX);
+    OUT_BATCH_F(pI830->dst_coord_adjust + dstY);
     OUT_BATCH_F(src_x[0] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[0] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
-	OUT_BATCH_F(0.0);
 	OUT_BATCH_F(src_w[0]);
     }
     if (pI830->render_mask) {
 	OUT_BATCH_F(mask_x[0] / pI830->scale_units[1][0]);
 	OUT_BATCH_F(mask_y[0] / pI830->scale_units[1][1]);
 	if (!is_affine_mask) {
-	    OUT_BATCH_F(0.0);
 	    OUT_BATCH_F(mask_w[0]);
 	}
     }
@@ -732,8 +780,6 @@ i830_emit_composite_primitive(PixmapPtr pDst, int srcX, int srcY,
 
 /**
  * Do a single rectangle composite operation.
- *
- * This function is shared between i830 and i915 generation code.
  */
 void
 i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
@@ -744,9 +790,9 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     intel_batch_start_atomic(pScrn,
 			     58 + /* invarient */
-			     24 + /* setup */
+			     22 + /* setup */
 			     20 + /* 2 * setup_texture */
-			     6 + 30 /* verts */);
+			     1 + 30 /* verts */);
 
     if (pI830->needs_render_state_emit)
 	i830_emit_composite_state(pScrn);

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright Â© 2006 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -686,6 +686,9 @@ static struct i830SnapshotRec i830_snapshot[] = {
     DEFINEREG(PIPEA_GMCH_DATA_N),
     DEFINEREG(PIPEA_DP_LINK_M),
     DEFINEREG(PIPEA_DP_LINK_N),
+    DEFINEREG(CURSOR_A_BASE),
+    DEFINEREG(CURSOR_A_CONTROL),
+    DEFINEREG(CURSOR_A_POSITION),
 
     DEFINEREG2(FPA0, i830_debug_fp),
     DEFINEREG2(FPA1, i830_debug_fp),
@@ -714,6 +717,9 @@ static struct i830SnapshotRec i830_snapshot[] = {
     DEFINEREG(PIPEB_GMCH_DATA_N),
     DEFINEREG(PIPEB_DP_LINK_M),
     DEFINEREG(PIPEB_DP_LINK_N),
+    DEFINEREG(CURSOR_B_BASE),
+    DEFINEREG(CURSOR_B_CONTROL),
+    DEFINEREG(CURSOR_B_POSITION),
 
     DEFINEREG2(FPB0, i830_debug_fp),
     DEFINEREG2(FPB1, i830_debug_fp),
@@ -806,6 +812,19 @@ static struct i830SnapshotRec i830_snapshot[] = {
     DEFINEREG(DPD_AUX_CH_DATA3),
     DEFINEREG(DPD_AUX_CH_DATA4),
     DEFINEREG(DPD_AUX_CH_DATA5),
+
+    DEFINEREG(AUD_CONFIG),
+    DEFINEREG(AUD_HDMIW_STATUS),
+    DEFINEREG(AUD_CONV_CHCNT),
+    DEFINEREG(VIDEO_DIP_CTL),
+    DEFINEREG(AUD_PINW_CNTR),
+    DEFINEREG(AUD_CNTL_ST),
+    DEFINEREG(AUD_PIN_CAP),
+    DEFINEREG(AUD_PINW_CAP),
+    DEFINEREG(AUD_PINW_UNSOLRESP),
+    DEFINEREG(AUD_OUT_DIG_CNVT),
+    DEFINEREG(AUD_OUT_CWCAP),
+    DEFINEREG(AUD_GRP_CAP),
 
 #define DEFINEFENCE_915(i) \
 	{ FENCE+i*4, "FENCE  " #i, i810_debug_915_fence, 0 }
@@ -1194,6 +1213,17 @@ DEBUGSTRING(igdng_debug_panel_fitting)
 	    val & (1 << 20) ? "field 0" : "field 1");
 }
 
+DEBUGSTRING(igdng_debug_pf_win)
+{
+    int a, b;
+
+    a = (val >> 16) & 0x1fff;
+    b = val & 0xfff;
+
+    return XNFprintf("%d, %d", a, b);
+}
+
+
 static struct i830SnapshotRec igdng_snapshot[] = {
     DEFINEREG2(CPU_VGACNTRL, i830_debug_vgacntrl),
     DEFINEREG(DIGITAL_PORT_HOTPLUG_CNTRL),
@@ -1265,8 +1295,12 @@ static struct i830SnapshotRec igdng_snapshot[] = {
     DEFINEREG2(PIPEB_LINK_M2, igdng_debug_n),
     DEFINEREG2(PIPEB_LINK_N2, igdng_debug_n),
 
-    DEFINEREG2(PFA_CTRL_1, igdng_debug_panel_fitting),
-    DEFINEREG2(PFB_CTRL_1, igdng_debug_panel_fitting),
+    DEFINEREG2(PFA_CTL_1, igdng_debug_panel_fitting),
+    DEFINEREG2(PFB_CTL_1, igdng_debug_panel_fitting),
+    DEFINEREG2(PFA_WIN_POS, igdng_debug_pf_win),
+    DEFINEREG2(PFB_WIN_POS, igdng_debug_pf_win),
+    DEFINEREG2(PFA_WIN_SIZE, igdng_debug_pf_win),
+    DEFINEREG2(PFB_WIN_SIZE, igdng_debug_pf_win),
 
     /* PCH */
 
@@ -1342,6 +1376,7 @@ static struct i830SnapshotRec igdng_snapshot[] = {
     DEFINEREG(HDMIB),
     DEFINEREG(HDMIC),
     DEFINEREG(HDMID),
+    DEFINEREG2(PCH_LVDS, i830_debug_lvds),
 };
 #define NUM_IGDNG_SNAPSHOTREGS (sizeof(igdng_snapshot) / sizeof(igdng_snapshot[0]))
 #undef DEFINEREG
@@ -2094,8 +2129,6 @@ i830_valid_command (uint32_t cmd)
 	    count = 1;
 	else
 	    count = (cmd & 0xff) + 2;
-	if (pipeline_type <= 3)
-	    return count;
 	if (!_3d_cmds[pipeline_type][opcode][subopcode].name)
 	    return -1;
 	break;

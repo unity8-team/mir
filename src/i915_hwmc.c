@@ -32,7 +32,6 @@
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86Resources.h"
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -368,32 +367,32 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *c
 static void i915_free_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpriv)
 {
     if (ctxpriv->mcStaticIndirectState) {
-        i830_free_memory(pScrn, ctxpriv->mcStaticIndirectState);
+        i830_free_xvmc_buffer(pScrn, ctxpriv->mcStaticIndirectState);
         ctxpriv->mcStaticIndirectState = NULL;
     }
 
     if (ctxpriv->mcSamplerState) {
-        i830_free_memory(pScrn, ctxpriv->mcSamplerState);
+        i830_free_xvmc_buffer(pScrn, ctxpriv->mcSamplerState);
         ctxpriv->mcSamplerState = NULL;
     }
 
     if (ctxpriv->mcMapState) {
-        i830_free_memory(pScrn, ctxpriv->mcMapState);
+        i830_free_xvmc_buffer(pScrn, ctxpriv->mcMapState);
         ctxpriv->mcMapState = NULL;
     }
 
     if (ctxpriv->mcPixelShaderProgram) {
-        i830_free_memory(pScrn, ctxpriv->mcPixelShaderProgram);
+        i830_free_xvmc_buffer(pScrn, ctxpriv->mcPixelShaderProgram);
         ctxpriv->mcPixelShaderProgram = NULL;
     }
 
     if (ctxpriv->mcPixelShaderConstants) {
-        i830_free_memory(pScrn, ctxpriv->mcPixelShaderConstants);
+        i830_free_xvmc_buffer(pScrn, ctxpriv->mcPixelShaderConstants);
         ctxpriv->mcPixelShaderConstants = NULL;
     }
 
     if (ctxpriv->mcCorrdata) {
-        i830_free_memory(pScrn, ctxpriv->mcCorrdata);
+        i830_free_xvmc_buffer(pScrn, ctxpriv->mcCorrdata);
         ctxpriv->mcCorrdata = NULL;
     }
 
@@ -606,7 +605,7 @@ static int i915_xvmc_create_surface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
                   (drmAddress)&sfpriv->surface_handle) < 0) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[drm] drmAddMap(surface_handle) failed!\n");
-        i830_free_memory(pScrn, sfpriv->surface);
+        i830_free_xvmc_buffer(pScrn, sfpriv->surface);
         xfree(sfpriv);
         xfree(*priv);
         *priv = NULL;
@@ -694,7 +693,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
                   (drmAddress)&sfpriv->surface_handle) < 0) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "[drm] drmAddMap(surface_handle) failed!\n");
-        i830_free_memory(pScrn, sfpriv->surface);
+        i830_free_xvmc_buffer(pScrn, sfpriv->surface);
         xfree(sfpriv);
         xfree(*priv);
         *priv = NULL;
@@ -744,7 +743,7 @@ static void i915_xvmc_destroy_surface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
         if (pXvMC->surfaces[i] == pSurf->surface_id) {
             drmRmMap(pI830->drmSubFD, pXvMC->sfprivs[i]->surface_handle);
-            i830_free_memory(pScrn, pXvMC->sfprivs[i]->surface);
+            i830_free_xvmc_buffer(pScrn, pXvMC->sfprivs[i]->surface);
             xfree(pXvMC->sfprivs[i]);
             pXvMC->nsurfaces--;
             pXvMC->sfprivs[i] = 0;
@@ -766,7 +765,7 @@ static void i915_xvmc_destroy_subpict (ScrnInfoPtr pScrn,
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
         if (pXvMC->surfaces[i] == pSubp->subpicture_id) {
             drmRmMap(pI830->drmSubFD, pXvMC->sfprivs[i]->surface_handle);
-            i830_free_memory(pScrn, pXvMC->sfprivs[i]->surface);
+            i830_free_xvmc_buffer(pScrn, pXvMC->sfprivs[i]->surface);
             xfree(pXvMC->sfprivs[i]);
             pXvMC->nsurfaces--;
             pXvMC->sfprivs[i] = 0;

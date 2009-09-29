@@ -111,6 +111,32 @@ static uint32_t field_f_b_kernel[][4] = {
    #include "shader/vld/field_f_b.g4b"
 };
 
+/* on IGDNG */
+static uint32_t lib_kernel_gen5[][4] = {
+   #include "shader/vld/lib.g4b.gen5"
+};
+static uint32_t ipicture_kernel_gen5[][4] = {
+   #include "shader/vld/ipicture.g4b.gen5"
+};
+static uint32_t frame_forward_kernel_gen5[][4] = {
+   #include "shader/vld/frame_forward.g4b.gen5"
+};
+static uint32_t frame_backward_kernel_gen5[][4] = {
+   #include "shader/vld/frame_backward.g4b.gen5"
+};
+static uint32_t frame_f_b_kernel_gen5[][4] = {
+   #include "shader/vld/frame_f_b.g4b.gen5"
+};
+static uint32_t field_forward_kernel_gen5[][4] = {
+   #include "shader/vld/field_forward.g4b.gen5"
+};
+static uint32_t field_backward_kernel_gen5[][4] = {
+   #include "shader/vld/field_backward.g4b.gen5"
+};
+static uint32_t field_f_b_kernel_gen5[][4] = {
+   #include "shader/vld/field_f_b.g4b.gen5"
+};
+
 /*kernels for mc mode*/
 static uint32_t lib_kernel_idct[][4] = {
    #include "shader/mc/lib_igd.g4b"
@@ -137,10 +163,37 @@ static uint32_t field_f_b_kernel_idct[][4] = {
    #include "shader/mc/field_f_b_igd.g4b"
 };
 
+/* on IGDNG */
+static uint32_t lib_kernel_idct_gen5[][4] = {
+   #include "shader/mc/lib_igd.g4b.gen5"
+};
+static uint32_t ipicture_kernel_idct_gen5[][4] = {
+   #include "shader/mc/ipicture_igd.g4b.gen5"
+};
+static uint32_t frame_forward_kernel_idct_gen5[][4] = {
+   #include "shader/mc/frame_forward_igd.g4b.gen5"
+};
+static uint32_t frame_backward_kernel_idct_gen5[][4] = {
+   #include "shader/mc/frame_backward_igd.g4b.gen5"
+};
+static uint32_t frame_f_b_kernel_idct_gen5[][4] = {
+   #include "shader/mc/frame_f_b_igd.g4b.gen5"
+};
+static uint32_t field_forward_kernel_idct_gen5[][4] = {
+   #include "shader/mc/field_forward_igd.g4b.gen5"
+};
+static uint32_t field_backward_kernel_idct_gen5[][4] = {
+   #include "shader/mc/field_backward_igd.g4b.gen5"
+};
+static uint32_t field_f_b_kernel_idct_gen5[][4] = {
+   #include "shader/mc/field_f_b_igd.g4b.gen5"
+};
+
 struct media_kernel {
    uint32_t (*bin)[4];
    int size;
-}media_kernels[] = {
+};
+static struct media_kernel media_kernels[] = {
 	/*kernels for vld mode*/
     {ipicture_kernel, sizeof(ipicture_kernel)},
     {frame_forward_kernel, sizeof(frame_forward_kernel)},
@@ -159,6 +212,27 @@ struct media_kernel {
     {field_backward_kernel_idct, sizeof(field_backward_kernel_idct)},
     {field_f_b_kernel_idct, sizeof(field_f_b_kernel_idct)},
     {lib_kernel_idct, sizeof(lib_kernel_idct)}
+};
+
+static struct media_kernel media_gen5_kernels[] = {
+	/*kernels for vld mode*/
+    {ipicture_kernel_gen5, sizeof(ipicture_kernel_gen5)},
+    {frame_forward_kernel_gen5, sizeof(frame_forward_kernel_gen5)},
+    {frame_backward_kernel_gen5, sizeof(frame_backward_kernel_gen5)},
+    {frame_f_b_kernel_gen5, sizeof(frame_f_b_kernel_gen5)},
+    {field_forward_kernel_gen5, sizeof(field_forward_kernel_gen5)},
+    {field_backward_kernel_gen5, sizeof(field_backward_kernel_gen5)},
+    {field_f_b_kernel_gen5, sizeof(field_f_b_kernel_gen5)},
+    {lib_kernel_gen5, sizeof(lib_kernel_gen5)},
+	/*kernels for mc mode*/
+    {ipicture_kernel_idct_gen5, sizeof(ipicture_kernel_idct_gen5)},
+    {frame_forward_kernel_idct_gen5, sizeof(frame_forward_kernel_idct_gen5)},
+    {frame_backward_kernel_idct_gen5, sizeof(frame_backward_kernel_idct_gen5)},
+    {frame_f_b_kernel_idct_gen5, sizeof(frame_f_b_kernel_idct_gen5)},
+    {field_forward_kernel_idct_gen5, sizeof(field_forward_kernel_idct_gen5)},
+    {field_backward_kernel_idct_gen5, sizeof(field_backward_kernel_idct_gen5)},
+    {field_f_b_kernel_idct_gen5, sizeof(field_f_b_kernel_idct_gen5)},
+    {lib_kernel_idct_gen5, sizeof(lib_kernel_idct_gen5)}
 };
 
 #define MEDIA_KERNEL_NUM (sizeof(media_kernels)/sizeof(media_kernels[0]))
@@ -346,21 +420,33 @@ static Status interface_descriptor()
     return Success;
 }
 
-static int setup_media_kernels()
+static int setup_media_kernels(struct i965_xvmc_context *i965_ctx)
 {
     int i;
 
+    assert(MEDIA_KERNEL_NUM == sizeof(media_gen5_kernels) / sizeof(media_gen5_kernels[0]));
+
     for (i = 0; i < MEDIA_KERNEL_NUM; i++) {
-        media_state.vfe_state.interface.kernels[i].bo =
+        if (i965_ctx->is_igdng)
+            media_state.vfe_state.interface.kernels[i].bo =
 		drm_intel_bo_alloc(xvmc_driver->bufmgr, "kernel",
-			media_kernels[i].size, 0x1000);
+                                   media_gen5_kernels[i].size, 0x1000);
+        else
+            media_state.vfe_state.interface.kernels[i].bo = 
+                drm_intel_bo_alloc(xvmc_driver->bufmgr, "kernels",
+                                   media_kernels[i].size, 0x1000);
+
         if (!media_state.vfe_state.interface.kernels[i].bo)
             goto out;
     }
 
     for (i = 0; i < MEDIA_KERNEL_NUM; i++) {
         dri_bo *bo = media_state.vfe_state.interface.kernels[i].bo;
-        drm_intel_bo_subdata(bo, 0, media_kernels[i].size, media_kernels[i].bin);
+
+        if (i965_ctx->is_igdng)
+            drm_intel_bo_subdata(bo, 0, media_gen5_kernels[i].size, media_gen5_kernels[i].bin);
+        else
+            drm_intel_bo_subdata(bo, 0, media_kernels[i].size, media_kernels[i].bin);
     }
     return 0;
 out:
@@ -433,7 +519,7 @@ static Status create_context(Display *display, XvMCContext *context,
     if (alloc_object(&media_state))
         return BadAlloc;
 
-    if (setup_media_kernels())
+    if (setup_media_kernels(i965_ctx))
         return BadAlloc;
     return Success;
 }
@@ -658,19 +744,32 @@ static Status put_slice(Display *display, XvMCContext *context,
     return Success;
 }
 
-static void state_base_address()
+static void state_base_address(struct i965_xvmc_context *i965_ctx)
 {
     BATCH_LOCALS;
-    BEGIN_BATCH(6);
-    OUT_BATCH(BRW_STATE_BASE_ADDRESS|4);
-    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
-    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
-    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
-    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
-    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
-    ADVANCE_BATCH();
-}
 
+    if (i965_ctx->is_igdng) {
+        BEGIN_BATCH(8);
+        OUT_BATCH(BRW_STATE_BASE_ADDRESS|6);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        ADVANCE_BATCH();
+    } else {
+        BEGIN_BATCH(6);
+        OUT_BATCH(BRW_STATE_BASE_ADDRESS|4);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+        ADVANCE_BATCH();
+    }
+}
 static void pipeline_select()
 {
     BATCH_LOCALS;
@@ -834,7 +933,7 @@ static Status put_slice2(Display *display, XvMCContext *context,
 
     intel_ctx = intel_xvmc_find_context(context->context_id);
     LOCK_HARDWARE(intel_ctx->hw_context);
-    state_base_address();
+    state_base_address(i965_ctx);
     pipeline_select();
     media_state_pointers(VFE_VLD_MODE);
     urb_layout();	
@@ -884,6 +983,7 @@ static Status render_surface(Display *display,
     unsigned short *block_ptr;
     int i, j;
     int block_offset = 0;
+    struct i965_xvmc_context *i965_ctx;
 
     intel_ctx = intel_xvmc_find_context(context->context_id);
     if (!intel_ctx) {
@@ -891,6 +991,7 @@ static Status render_surface(Display *display,
 	return BadValue;
     }
 
+    i965_ctx = (struct i965_xvmc_context *)context->privData;
     priv_target = target_surface->privData;
     priv_past = past_surface?past_surface->privData:NULL;
     priv_future = future_surface?future_surface->privData:NULL;
@@ -975,7 +1076,7 @@ static Status render_surface(Display *display,
     }
 
     LOCK_HARDWARE(intel_ctx->hw_context);
-    state_base_address();
+    state_base_address(i965_ctx);
     flush();	
     pipeline_select();
     urb_layout();	

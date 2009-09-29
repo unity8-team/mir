@@ -55,9 +55,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86Resources.h"
-#include "xf86RAC.h"
 #include "xf86cmap.h"
+
 #include "compiler.h"
 #include "mibstore.h"
 #include "vgaHW.h"
@@ -80,7 +79,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Required Functions: */
 
 static void I810Identify(int flags);
-
+static Bool I810DriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer ptr);
 static Bool intel_pci_probe (DriverPtr		drv,
 			     int		entity_num,
 			     struct pci_device	*dev,
@@ -138,6 +137,7 @@ static const struct pci_id_match intel_device_match[] = {
    INTEL_DEVICE_MATCH (PCI_CHIP_G45_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_G41_G, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_B43_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_D_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_M_G, 0 ),
     { 0, 0, 0 },
@@ -151,7 +151,7 @@ _X_EXPORT DriverRec I810 = {
    I810AvailableOptions,
    NULL,
    0,
-   NULL,
+   I810DriverFunc,
    intel_device_match,
    intel_pci_probe
 };
@@ -175,8 +175,8 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
    {PCI_CHIP_I945_GME,		"945GME"},
-   {PCI_CHIP_IGD_GM,		"IGD_GM"},
-   {PCI_CHIP_IGD_G,		"IGD_G"},
+   {PCI_CHIP_IGD_GM,		"Pineview GM"},
+   {PCI_CHIP_IGD_G,		"Pineview G"},
    {PCI_CHIP_I965_G,		"965G"},
    {PCI_CHIP_G35_G,		"G35"},
    {PCI_CHIP_I965_Q,		"965Q"},
@@ -186,52 +186,54 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_G33_G,		"G33"},
    {PCI_CHIP_Q35_G,		"Q35"},
    {PCI_CHIP_Q33_G,		"Q33"},
-   {PCI_CHIP_GM45_GM,		"Mobile Intel® GM45 Express Chipset"},
-   {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
+   {PCI_CHIP_GM45_GM,		"GM45"},
+   {PCI_CHIP_IGD_E_G,		"4 Series"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {PCI_CHIP_G41_G,		"G41"},
-   {PCI_CHIP_IGDNG_D_G,		"IGDNG_D"},
-   {PCI_CHIP_IGDNG_M_G,		"IGDNG_M"},
+   {PCI_CHIP_B43_G,		"B43"},
+   {PCI_CHIP_IGDNG_D_G,		"Clarkdale"},
+   {PCI_CHIP_IGDNG_M_G,		"Arrandale"},
    {-1,				NULL}
 };
 
 static PciChipsets I810PciChipsets[] = {
 #ifndef I830_ONLY
-   {PCI_CHIP_I810,		PCI_CHIP_I810,		RES_SHARED_VGA},
-   {PCI_CHIP_I810_DC100,	PCI_CHIP_I810_DC100,	RES_SHARED_VGA},
-   {PCI_CHIP_I810_E,		PCI_CHIP_I810_E,	RES_SHARED_VGA},
-   {PCI_CHIP_I815,		PCI_CHIP_I815,		RES_SHARED_VGA},
+   {PCI_CHIP_I810,		PCI_CHIP_I810,		NULL},
+   {PCI_CHIP_I810_DC100,	PCI_CHIP_I810_DC100,	NULL},
+   {PCI_CHIP_I810_E,		PCI_CHIP_I810_E,	NULL},
+   {PCI_CHIP_I815,		PCI_CHIP_I815,		NULL},
 #endif
-   {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	RES_SHARED_VGA},
-   {PCI_CHIP_845_G,		PCI_CHIP_845_G,		RES_SHARED_VGA},
-   {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	RES_SHARED_VGA},
-   {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	RES_SHARED_VGA},
-   {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	RES_SHARED_VGA},
-   {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	RES_SHARED_VGA},
-   {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	RES_SHARED_VGA},
-   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_IGD_G,		PCI_CHIP_IGD_G,		RES_SHARED_VGA},
-   {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	RES_SHARED_VGA},
-   {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		RES_SHARED_VGA},
-   {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
-   {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
-   {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	RES_SHARED_VGA},
-   {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
-   {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
-   {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
-   {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	RES_SHARED_VGA},
-   {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	RES_SHARED_VGA},
-   {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
-   {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
-   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
-   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,	RES_SHARED_VGA},
-   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,	RES_SHARED_VGA},
-   {-1,				-1, RES_UNDEFINED }
+   {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	NULL},
+   {PCI_CHIP_845_G,		PCI_CHIP_845_G,		NULL},
+   {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	NULL},
+   {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	NULL},
+   {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	NULL},
+   {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	NULL},
+   {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	NULL},
+   {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	NULL},
+   {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	NULL},
+   {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	NULL},
+   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	NULL},
+   {PCI_CHIP_IGD_G,		PCI_CHIP_IGD_G,		NULL},
+   {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	NULL},
+   {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		NULL},
+   {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	NULL},
+   {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	NULL},
+   {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	NULL},
+   {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	NULL},
+   {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		NULL},
+   {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		NULL},
+   {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		NULL},
+   {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	NULL},
+   {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	NULL},
+   {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		NULL},
+   {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		NULL},
+   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		NULL},
+   {PCI_CHIP_B43_G,		PCI_CHIP_B43_G,		NULL},
+   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,	NULL},
+   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,	NULL},
+   {-1,				-1, NULL }
 };
 
 #ifndef I830_ONLY
@@ -395,6 +397,26 @@ I810AvailableOptions(int chipid, int busid)
 #endif
 }
 
+static Bool
+I810DriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer ptr)
+{
+    xorgHWFlags *flag;
+
+    switch (op) {
+        case GET_REQUIRED_HW_INTERFACES:
+            flag = (CARD32*)ptr;
+#ifdef KMS_ONLY
+            (*flag) = 0;
+#else
+	    (*flag) = HW_IO | HW_MMIO;
+#endif
+            return TRUE;
+        default:
+	    /* Unknown or deprecated function */
+            return FALSE;
+    }
+}
+
 struct pci_device *
 intel_host_bridge (void)
 {
@@ -548,10 +570,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    pI810->ioBase = hwp->PIOOffset;
 
    pI810->PciInfo = xf86GetPciInfoForEntity(pI810->pEnt->index);
-
-   if (xf86RegisterResources(pI810->pEnt->index, NULL, ResNone))
-      return FALSE;
-   pScrn->racMemFlags = RAC_FB | RAC_COLORMAP;
 
    /* Set pScrn->monitor */
    pScrn->monitor = pScrn->confScreen->monitor;
@@ -937,9 +955,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 
    /*  We won't be using the VGA access after the probe */
    I810SetMMIOAccess(pI810);
-   xf86SetOperatingState(resVgaIo, pI810->pEnt->index, ResUnusedOpr);
-   xf86SetOperatingState(resVgaMem, pI810->pEnt->index, ResDisableOpr);
-
    return TRUE;
 }
 
@@ -2012,7 +2027,9 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 #endif
 
+#ifdef XFreeXDGA
    I810DGAInit(pScreen);
+#endif
 
    if (!xf86InitFBManager(pScreen, &(pI810->FbMemBox))) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
