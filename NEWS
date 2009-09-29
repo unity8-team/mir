@@ -1,16 +1,16 @@
-Snapshot 2.8.99.902 (2009-09-22)
-================================
-This is expected to be the final release candidate for the upcoming
-2.9.0 release. If there are no serious problems discovered in this
-release candidate then the same code will become 2.9.0 soon. So please
-let us know if you test this release candidate and find any problems.
+Release 2.9.0 (2009-09-28)
+==========================
+We are pleased to announce the 2.9.0 release of the xf86-video-intel
+driver. (If you have been following along at home, this release is
+identical to the 2.8.99.902 release candidate other than the version
+number).
 
-New features in 2.8.99.902 compared to 2.8
-------------------------------------------
+New features in 2.9 compared to 2.8
+-----------------------------------
 * Support for the B43 chipset.
 
-Major fixes in 2.8.99.902 compared to 2.8.0
--------------------------------------------
+Major fixes in 2.9.0 compared to 2.8.0
+--------------------------------------
 * Multiple fixes to make the driver stable for 8xx chipsets, (855GM,
   865G, etc.). The 2.8 driver series was extremely unstable with many
   of these chipsets.
