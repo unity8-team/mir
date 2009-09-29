@@ -1542,12 +1542,17 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		pNv->ShadowPtr = xalloc(pNv->ShadowPitch * pScrn->virtualY);
 		displayWidth = pNv->ShadowPitch / (pScrn->bitsPerPixel >> 3);
 		FBStart = pNv->ShadowPtr;
-	} else {
+	} else
+	if (pNv->NoAccel) {
 		pNv->ShadowPtr = NULL;
 		displayWidth = pScrn->displayWidth;
 		nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
 		FBStart = pNv->scanout->map;
 		nouveau_bo_unmap(pNv->scanout);
+	} else {
+		pNv->ShadowPtr = NULL;
+		displayWidth = pScrn->displayWidth;
+		FBStart = NULL;
 	}
 
 	switch (pScrn->bitsPerPixel) {
