@@ -172,6 +172,24 @@ static void RADEONBlockHandler_KMS(int i, pointer blockData,
     radeon_cs_flush_indirect(pScrn);
 }
 
+static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct drm_radeon_info ginfo;
+    int r;
+    uint32_t tmp;
+
+    memset(&ginfo, 0, sizeof(ginfo));
+    ginfo.request = 0x3;
+    ginfo.value = (uint64_t)&tmp;
+    r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+    if (r)
+        return FALSE;
+    if (tmp)
+        return TRUE;
+    return FALSE;
+}
+
 static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
@@ -180,16 +198,14 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to allocate accel_state rec!\n");
 	return FALSE;
     }
-#if 0
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+    if (!RADEONIsAccelWorking(pScrn)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Using shadowfb for KMS on R600+\n");
+		   "GPU accel not working, using shadowfb for KMS\n");
 	info->r600_shadow_fb = TRUE;
 	if (!xf86LoadSubModule(pScrn, "shadow"))
 	    info->r600_shadow_fb = FALSE;
 	return TRUE;
     }
-#endif
 
     if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
 	(info->ChipFamily == CHIP_FAMILY_RS200) ||
@@ -421,12 +437,12 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		       mminfo.gart_size, mminfo.vram_size, mminfo.vram_visible);
 	}
     }
-
+#if 0
     if (info->ChipFamily < CHIP_FAMILY_R600) {
 	info->useEXA = TRUE;
 	info->directRenderingEnabled = TRUE;
     }
-
+#endif
     RADEONSetPitch(pScrn);
 
     /* Set display resolution */
@@ -663,6 +679,10 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 		   "Direct rendering disabled\n");
     }
 
+    if (info->r600_shadow_fb) {
+        xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
+        info->accelOn = FALSE;
+    } else {
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "Initializing Acceleration\n");
@@ -678,6 +698,7 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     } else {
 	xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
 	info->accelOn = FALSE;
+    }
     }
 
     /* Init DPMS */
@@ -706,11 +727,12 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
      */
     /* xf86DiDGAInit(pScreen, info->LinearAddr + pScrn->fbOffset); */
 #endif
-
-    /* Init Xv */
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Initializing Xv\n");
-    RADEONInitVideo(pScreen);
+    if (info->r600_shadow_fb == FALSE) {
+        /* Init Xv */
+        xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+                       "Initializing Xv\n");
+        RADEONInitVideo(pScreen);
+    }
 
     if (info->r600_shadow_fb == TRUE) {
         if (!shadowSetup(pScreen)) {
@@ -770,7 +792,6 @@ Bool RADEONEnterVT_KMS(int scrnIndex, int flags)
     ret = drmSetMaster(info->dri->drmFD);
     if (ret)
 	ErrorF("Unable to retrieve master\n");
-
     info->accel_state->XInited3D = FALSE;
     info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 

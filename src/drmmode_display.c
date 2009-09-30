@@ -183,7 +183,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	int i;
 	int pitch = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
 
-	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	if (info->accelOn == FALSE)
 		return;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
