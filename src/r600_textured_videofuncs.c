@@ -224,7 +224,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     if (info->cs) {
 	accel_state->dst_mc_addr = 0;
 	accel_state->src_mc_addr[0] = 0;
-	accel_state->src_bo[0] = pPriv->src_bo;
+	accel_state->src_bo[0] = pPriv->src_bo[pPriv->currentBuffer];
 	accel_state->src_bo[1] = NULL;
 	accel_state->dst_bo = radeon_get_pixmap_bo(pPixmap);
 

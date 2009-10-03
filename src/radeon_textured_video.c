@@ -319,16 +319,19 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
 	    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
 								&pPriv->video_memory,
-								size * 2, 256);
+								size, 256);
 	else
 	    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
 								&pPriv->video_memory,
-								size * 2, 64);
+								size, 64);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
 
-	if (info->cs)
-	    pPriv->src_bo = pPriv->video_memory;
+	if (info->cs) {
+	    pPriv->src_bo[0] = pPriv->video_memory;
+	    radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
+					  info->ChipFamily >= CHIP_FAMILY_R600 ? 256 : 64);
+	}
     }
 
     /* Bicubic filter loading */
@@ -366,14 +369,21 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     pPriv->src_offset = pPriv->video_offset;
     if (info->cs) {
+	struct radeon_bo *src_bo;
 	int ret;
-	ret = radeon_bo_map(pPriv->src_bo, 1);
+
+	pPriv->currentBuffer ^= 1;
+
+	src_bo = pPriv->src_bo[pPriv->currentBuffer];
+
+	ret = radeon_bo_map(src_bo, 1);
 	if (ret)
 	    return BadAlloc;
 
-	pPriv->src_addr = pPriv->src_bo->ptr;
+	pPriv->src_addr = src_bo->ptr;
     } else {
 	pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset);
+	RADEONWaitForIdleMMIO(pScrn);
     }
     pPriv->src_pitch = dstPitch;
 
@@ -460,7 +470,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
 #if defined(XF86DRM_MODE)
     if (info->cs)
-	radeon_bo_unmap(pPriv->src_bo);
+	radeon_bo_unmap(pPriv->src_bo[pPriv->currentBuffer]);
 #endif
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {

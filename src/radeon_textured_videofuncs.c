@@ -93,6 +93,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *src_bo = pPriv->src_bo[pPriv->currentBuffer];
     uint32_t txformat, txsize, txpitch, txoffset;
     uint32_t dst_pitch, dst_format;
     uint32_t colorpitch;
@@ -107,7 +108,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	int ret;
 
 	radeon_cs_space_reset_bos(info->cs);
-        radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+        radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	if (pPriv->bicubic_enabled)
 	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
@@ -237,7 +238,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		      RADEON_CLAMP_T_CLAMP_LAST |
 		      RADEON_YUV_TO_RGB);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ0);
-	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_0, txoffset, pPriv->src_bo);
+	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_0, txoffset, src_bo);
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0,
 		      RADEON_COLOR_ARG_A_ZERO |
 		      RADEON_COLOR_ARG_B_ZERO |
@@ -264,7 +265,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		      RADEON_CLAMP_S_CLAMP_LAST |
 		      RADEON_CLAMP_T_CLAMP_LAST);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_1, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ1);
-	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_1, txoffset + pPriv->planeu_offset, pPriv->src_bo);
+	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_1, txoffset + pPriv->planeu_offset, src_bo);
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_1,
 		      RADEON_COLOR_ARG_A_ZERO |
 		      RADEON_COLOR_ARG_B_ZERO |
@@ -288,7 +289,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		      RADEON_CLAMP_S_CLAMP_LAST |
 		      RADEON_CLAMP_T_CLAMP_LAST);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_2, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ1);
-	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_2, txoffset + pPriv->planev_offset, pPriv->src_bo);
+	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_2, txoffset + pPriv->planev_offset, src_bo);
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_2,
 		      RADEON_COLOR_ARG_A_ZERO |
 		      RADEON_COLOR_ARG_B_ZERO |
@@ -321,7 +322,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		      RADEON_CLAMP_T_CLAMP_LAST |
 		      RADEON_YUV_TO_RGB);
 	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ0);
-	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_0, txoffset, pPriv->src_bo);
+	OUT_TEXTURE_REG(RADEON_PP_TXOFFSET_0, txoffset, src_bo);
 	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0,
 		      RADEON_COLOR_ARG_A_ZERO |
 		      RADEON_COLOR_ARG_B_ZERO |
@@ -468,6 +469,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *src_bo = pPriv->src_bo[pPriv->currentBuffer];
     uint32_t txformat;
     uint32_t txfilter, txsize, txpitch, txoffset;
     uint32_t dst_pitch, dst_format;
@@ -493,7 +495,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	int ret;
 
 	radeon_cs_space_reset_bos(info->cs);
-        radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+        radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	if (pPriv->bicubic_enabled)
 	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
@@ -660,21 +662,21 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		      (pPriv->w - 1) |
 		      ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
 	OUT_ACCEL_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
-	OUT_TEXTURE_REG(R200_PP_TXOFFSET_0, txoffset, pPriv->src_bo);
+	OUT_TEXTURE_REG(R200_PP_TXOFFSET_0, txoffset, src_bo);
 
 	OUT_ACCEL_REG(R200_PP_TXFILTER_1, txfilter);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_1, txformat | R200_TXFORMAT_ST_ROUTE_STQ1);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_X_1, 0);
 	OUT_ACCEL_REG(R200_PP_TXSIZE_1, txsize);
 	OUT_ACCEL_REG(R200_PP_TXPITCH_1, txpitch);
-	OUT_TEXTURE_REG(R200_PP_TXOFFSET_1, txoffset + pPriv->planeu_offset, pPriv->src_bo);
+	OUT_TEXTURE_REG(R200_PP_TXOFFSET_1, txoffset + pPriv->planeu_offset, src_bo);
 
 	OUT_ACCEL_REG(R200_PP_TXFILTER_2, txfilter);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_2, txformat | R200_TXFORMAT_ST_ROUTE_STQ1);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_X_2, 0);
 	OUT_ACCEL_REG(R200_PP_TXSIZE_2, txsize);
 	OUT_ACCEL_REG(R200_PP_TXPITCH_2, txpitch);
-	OUT_TEXTURE_REG(R200_PP_TXOFFSET_2, txoffset + pPriv->planev_offset, pPriv->src_bo);
+	OUT_TEXTURE_REG(R200_PP_TXOFFSET_2, txoffset + pPriv->planev_offset, src_bo);
 
 	/* similar to r300 code. Note the big problem is that hardware constants
 	 * are 8 bits only, representing 0.0-1.0. We can get that up (using bias
@@ -816,7 +818,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		      (pPriv->w - 1) |
 		      ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
 	OUT_ACCEL_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
-	OUT_TEXTURE_REG(R200_PP_TXOFFSET_0, txoffset, pPriv->src_bo);
+	OUT_TEXTURE_REG(R200_PP_TXOFFSET_0, txoffset, src_bo);
 
 	/* MAD temp1 / 2, const0.a * 2, temp0.ggg, -const0.rgb */
 	OUT_ACCEL_REG(R200_PP_TXCBLEND_0,
@@ -1017,6 +1019,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *src_bo = pPriv->src_bo[pPriv->currentBuffer];
     uint32_t txfilter, txformat0, txformat1, txoffset, txpitch;
     uint32_t dst_pitch, dst_format;
     uint32_t txenable, colorpitch, bicubic_offset;
@@ -1032,7 +1035,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	int ret;
 
 	radeon_cs_space_reset_bos(info->cs);
-	radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	if (pPriv->bicubic_enabled)
 	  radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
@@ -1161,7 +1164,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     else
 	OUT_ACCEL_REG(R300_TX_FORMAT1_0, txformat1);
     OUT_ACCEL_REG(R300_TX_FORMAT2_0, txpitch);
-    OUT_TEXTURE_REG(R300_TX_OFFSET_0, txoffset, pPriv->src_bo);
+    OUT_TEXTURE_REG(R300_TX_OFFSET_0, txoffset, src_bo);
     FINISH_ACCEL();
 
     txenable = R300_TEX_0_ENABLE;
@@ -1183,13 +1186,13 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	OUT_ACCEL_REG(R300_TX_FORMAT0_1, txformat0);
 	OUT_ACCEL_REG(R300_TX_FORMAT1_1, R300_TX_FORMAT_X8 | R300_TX_FORMAT_CACHE_FOURTH_REGION_2);
 	OUT_ACCEL_REG(R300_TX_FORMAT2_1, txpitch);
-	OUT_TEXTURE_REG(R300_TX_OFFSET_1, txoffset + pPriv->planeu_offset, pPriv->src_bo);
+	OUT_TEXTURE_REG(R300_TX_OFFSET_1, txoffset + pPriv->planeu_offset, src_bo);
 	OUT_ACCEL_REG(R300_TX_FILTER0_2, txfilter | (2 << R300_TX_ID_SHIFT));
 	OUT_ACCEL_REG(R300_TX_FILTER1_2, 0);
 	OUT_ACCEL_REG(R300_TX_FORMAT0_2, txformat0);
 	OUT_ACCEL_REG(R300_TX_FORMAT1_2, R300_TX_FORMAT_X8 | R300_TX_FORMAT_CACHE_FOURTH_REGION_3);
 	OUT_ACCEL_REG(R300_TX_FORMAT2_2, txpitch);
-	OUT_TEXTURE_REG(R300_TX_OFFSET_2, txoffset + pPriv->planev_offset, pPriv->src_bo);
+	OUT_TEXTURE_REG(R300_TX_OFFSET_2, txoffset + pPriv->planev_offset, src_bo);
 	FINISH_ACCEL();
 	txenable |= R300_TEX_1_ENABLE | R300_TEX_2_ENABLE;
     }
@@ -2465,6 +2468,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
+    struct radeon_bo *src_bo = pPriv->src_bo[pPriv->currentBuffer];
     uint32_t txfilter, txformat0, txformat1, txoffset, txpitch;
     uint32_t dst_pitch, dst_format;
     uint32_t txenable, colorpitch, bicubic_offset;
@@ -2480,7 +2484,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	int ret;
 
 	radeon_cs_space_reset_bos(info->cs);
-	radeon_cs_space_add_persistent_bo(info->cs, pPriv->src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
+	radeon_cs_space_add_persistent_bo(info->cs, src_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
 
 	if (pPriv->bicubic_enabled)
 	    radeon_cs_space_add_persistent_bo(info->cs, info->bicubic_bo, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
@@ -2612,7 +2616,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     OUT_ACCEL_REG(R300_TX_FORMAT0_0, txformat0);
     OUT_ACCEL_REG(R300_TX_FORMAT1_0, txformat1);
     OUT_ACCEL_REG(R300_TX_FORMAT2_0, txpitch);
-    OUT_TEXTURE_REG(R300_TX_OFFSET_0, txoffset, pPriv->src_bo);
+    OUT_TEXTURE_REG(R300_TX_OFFSET_0, txoffset, src_bo);
     FINISH_ACCEL();
 
     txenable = R300_TEX_0_ENABLE;
