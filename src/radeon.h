@@ -687,6 +687,9 @@ struct radeon_accel_state {
     /* Size of tiles ... set to 65536x65536 if not tiling in that direction */
     Bool              src_tile_width;
     Bool              src_tile_height;
+    uint32_t          *draw_header;
+    unsigned          vtx_count;
+    unsigned          num_vtx;
 
     Bool              vsync;
 

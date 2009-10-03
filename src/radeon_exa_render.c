@@ -2041,6 +2041,16 @@ static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
     ENTER_DRAW(0);
 
     if (IS_R300_3D || IS_R500_3D) {
+	if (info->accel_state->draw_header) {
+		info->accel_state->draw_header[0] = CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
+							       info->accel_state->num_vtx *
+							       info->accel_state->vtx_count);
+		info->accel_state->draw_header[1] = RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
+		    RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+		    (info->accel_state->num_vtx << RADEON_CP_VC_CNTL_NUM_SHIFT);
+		info->accel_state->draw_header = NULL;
+	}
+
 	BEGIN_ACCEL(3);
 	OUT_ACCEL_REG(R300_SC_CLIP_RULE, 0xAAAA);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
@@ -2126,8 +2136,10 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
     /* ErrorF("RadeonComposite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
 
-#if defined(ACCEL_CP) && defined(XF86DRM_MODE)
-    if (info->cs && CS_FULL(info->cs)) {
+#if defined(ACCEL_CP)
+    if ((info->cs && CS_FULL(info->cs)) ||
+	(!info->cs && (info->cp->indirectBuffer->used + 4 * 32) >
+	 info->cp->indirectBuffer->total)) {
 	FUNC_NAME(RadeonDoneComposite)(info->accel_state->dst_pix);
 	radeon_cs_flush_indirect(pScrn);
 	info->accel_state->exa->PrepareComposite(info->accel_state->composite_op,
@@ -2202,12 +2214,26 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
 		 (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
     } else if (IS_R300_3D || IS_R500_3D) {
-	BEGIN_RING(4 * vtx_count + 4);
-	OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
-			    4 * vtx_count));
-	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
-		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
-		 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	if (!info->accel_state->draw_header) {
+	    BEGIN_RING(2);
+
+	    if (info->cs)
+		info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
+	    else
+		info->accel_state->draw_header = __head;
+	    info->accel_state->num_vtx = 0;
+	    info->accel_state->vtx_count = vtx_count;
+
+	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
+				4 * vtx_count));
+	    OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
+		     RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+		     (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	    ADVANCE_RING();
+	}
+
+	info->accel_state->num_vtx += 4;
+	BEGIN_RING(4 * vtx_count);
     } else {
 	BEGIN_RING(3 * vtx_count + 2);
 	OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
@@ -2266,10 +2292,6 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	VTX_OUT((float)(dstX + w),                                (float)dstY,
 		xFixedToFloat(srcTopRight.x) / info->accel_state->texW[0],     xFixedToFloat(srcTopRight.y) / info->accel_state->texH[0]);
     }
-
-    if (IS_R300_3D || IS_R500_3D)
-	/* flushing is pipelined, free/finish is not */
-	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
 
 #ifdef ACCEL_CP
     ADVANCE_RING();
