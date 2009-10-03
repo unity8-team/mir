@@ -181,7 +181,7 @@ static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
 
     memset(&ginfo, 0, sizeof(ginfo));
     ginfo.request = 0x3;
-    ginfo.value = (uint64_t)&tmp;
+    ginfo.value = (uintptr_t)&tmp;
     r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
     if (r)
         return FALSE;
@@ -434,7 +434,9 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	    info->gart_size = mminfo.gart_size;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "mem size init: gart size :%llx vram size: s:%llx visible:%llx\n",
-		       mminfo.gart_size, mminfo.vram_size, mminfo.vram_visible);
+		       (unsigned long long)mminfo.gart_size,
+		       (unsigned long long)mminfo.vram_size,
+		       (unsigned long long)mminfo.vram_visible);
 	}
     }
 #if 0
