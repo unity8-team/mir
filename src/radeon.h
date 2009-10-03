@@ -1532,9 +1532,13 @@ do {									\
 	uint32_t flush = 0;                                             \
 	switch (info->accel_state->engineMode) {			\
 	case EXA_ENGINEMODE_UNKNOWN:					\
-	case EXA_ENGINEMODE_3D:						\
 	    flush = 1;                                                  \
+	    break;							\
+	case EXA_ENGINEMODE_3D:						\
+	    flush = !info->cs || CS_FULL(info->cs);			\
+	    break;							\
 	case EXA_ENGINEMODE_2D:						\
+	    flush = info->cs && CS_FULL(info->cs);			\
 	    break;							\
 	}								\
 	if (flush) {							\
@@ -1555,7 +1559,9 @@ do {									\
 	    break;							\
 	case EXA_ENGINEMODE_2D:						\
 	    flush = !info->cs || CS_FULL(info->cs);			\
+	    break;							\
 	case EXA_ENGINEMODE_3D:						\
+	    flush = info->cs && CS_FULL(info->cs);			\
 	    break;							\
 	}								\
 	if (flush) {							\
