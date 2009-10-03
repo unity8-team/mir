@@ -915,6 +915,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	int screen_size;
 	int cpp = info->CurrentLayout.pixel_bytes;
 	struct radeon_bo *front_bo;
+	uint32_t tiling_flags = 0;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
@@ -947,6 +948,22 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size, 0, RADEON_GEM_DOMAIN_VRAM, 0);
 	if (!info->front_bo)
 		goto fail;
+
+	if (info->allowColorTiling)
+	    tiling_flags |= RADEON_TILING_MACRO;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	switch (cpp) {
+	case 4:
+	    tiling_flags |= RADEON_TILING_SWAP_32BIT;
+	    break;
+	case 2:
+	    tiling_flags |= RADEON_TILING_SWAP_16BIT;
+	    break;
+	}
+#endif
+	if (tiling_flags)
+	    radeon_bo_set_tiling(info->front_bo,
+				 tiling_flags | RADEON_TILING_SURFACE, pitch * cpp);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
 			   scrn->bitsPerPixel, pitch * cpp,

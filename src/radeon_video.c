@@ -2198,36 +2198,37 @@ RADEONCopyData(
     else
 #endif /* XF86DRI */
     {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	unsigned char *RADEONMMIO = info->MMIO;
-	unsigned int swapper = info->ModeReg->surface_cntl &
-		~(RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP |
-		  RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP);
+	int swap = RADEON_HOST_DATA_SWAP_NONE;
 
-	switch(bpp) {
-	case 2:
-	    swapper |= RADEON_NONSURF_AP0_SWP_16BPP
-		    |  RADEON_NONSURF_AP1_SWP_16BPP;
-	    break;
-	case 4:
-	    swapper |= RADEON_NONSURF_AP0_SWP_32BPP
-		    |  RADEON_NONSURF_AP1_SWP_32BPP;
-	    break;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	if (info->kms_enabled) {
+	    switch(bpp) {
+	    case 2:
+		swap = RADEON_HOST_DATA_SWAP_16BIT;
+		break;
+	    case 4:
+		swap = RADEON_HOST_DATA_SWAP_32BIT;
+		break;
+	    }
+	} else if (bpp != pScrn->bitsPerPixel) {
+	    if (bpp == 8)
+		swap = RADEON_HOST_DATA_SWAP_32BIT;
+	    else
+		swap = RADEON_HOST_DATA_SWAP_HDW;
 	}
-	OUTREG(RADEON_SURFACE_CNTL, swapper);
 #endif
+
 	w *= bpp;
 
-	while (h--) {
-	    memcpy(dst, src, w);
-	    src += srcPitch;
-	    dst += dstPitch;
+	if (dstPitch == w && dstPitch == srcPitch)
+	    RADEONCopySwap(dst, src, h * dstPitch, swap);
+	else {
+	    while (h--) {
+		RADEONCopySwap(dst, src, w, swap);
+		src += srcPitch;
+		dst += dstPitch;
+	    }
 	}
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	/* restore byte swapping */
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
-#endif
     }
 }
 
@@ -2282,9 +2283,10 @@ RADEONCopyRGB24Data(
     {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	unsigned char *RADEONMMIO = info->MMIO;
-	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg->surface_cntl
-				   | RADEON_NONSURF_AP0_SWP_32BPP)
-				  & ~RADEON_NONSURF_AP0_SWP_16BPP);
+
+	if (!info->kms_enabled)
+	    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl &
+		   ~(RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP0_SWP_32BPP));
 #endif
 
 	for (j = 0; j < h; j++) {
@@ -2292,13 +2294,15 @@ RADEONCopyRGB24Data(
 	    sptr = src + j * srcPitch;
 
 	    for (i = 0; i < w; i++, sptr += 3) {
-		dptr[i] = (sptr[2] << 16) | (sptr[1] << 8) | sptr[0];
+		dptr[i] = cpu_to_le32((sptr[2] << 16) | (sptr[1] << 8) | sptr[0]);
 	    }
 	}
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-	/* restore byte swapping */
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
+	if (!info->kms_enabled) {
+	    /* restore byte swapping */
+	    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
+	}
 #endif
     }
 }
@@ -2377,9 +2381,10 @@ RADEONCopyMungedData(
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	unsigned char *RADEONMMIO = info->MMIO;
-	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg->surface_cntl
-				   | RADEON_NONSURF_AP0_SWP_32BPP)
-				  & ~RADEON_NONSURF_AP0_SWP_16BPP);
+
+	if (!info->kms_enabled)
+	    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl &
+		   ~(RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP0_SWP_32BPP));
 #endif
 
 	w /= 2;
@@ -2391,16 +2396,16 @@ RADEONCopyMungedData(
 	    i = w;
 	    while( i > 4 )
 	    {
-		dst[0] = s1[0] | (s1[1] << 16) | (s3[0] << 8) | (s2[0] << 24);
-		dst[1] = s1[2] | (s1[3] << 16) | (s3[1] << 8) | (s2[1] << 24);
-		dst[2] = s1[4] | (s1[5] << 16) | (s3[2] << 8) | (s2[2] << 24);
-		dst[3] = s1[6] | (s1[7] << 16) | (s3[3] << 8) | (s2[3] << 24);
+		dst[0] = cpu_to_le32(s1[0] | (s1[1] << 16) | (s3[0] << 8) | (s2[0] << 24));
+		dst[1] = cpu_to_le32(s1[2] | (s1[3] << 16) | (s3[1] << 8) | (s2[1] << 24));
+		dst[2] = cpu_to_le32(s1[4] | (s1[5] << 16) | (s3[2] << 8) | (s2[2] << 24));
+		dst[3] = cpu_to_le32(s1[6] | (s1[7] << 16) | (s3[3] << 8) | (s2[3] << 24));
 		dst += 4; s2 += 4; s3 += 4; s1 += 8;
 		i -= 4;
 	    }
 	    while( i-- )
 	    {
-		dst[0] = s1[0] | (s1[1] << 16) | (s3[0] << 8) | (s2[0] << 24);
+		dst[0] = cpu_to_le32(s1[0] | (s1[1] << 16) | (s3[0] << 8) | (s2[0] << 24));
 		dst++; s2++; s3++;
 		s1 += 2;
 	    }
@@ -2414,8 +2419,10 @@ RADEONCopyMungedData(
 	    }	
 	}
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-	/* restore byte swapping */
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
+	if (!info->kms_enabled) {
+	    /* restore byte swapping */
+	    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
+	}
 #endif
     }
 }

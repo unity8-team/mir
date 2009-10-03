@@ -887,6 +887,11 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
                     return FALSE;
                 }
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+		radeon_bo_set_tiling(info->cursor_bo[c], RADEON_TILING_SWAP_32BIT |
+				     RADEON_TILING_SURFACE, stride);
+#endif
+
                 if (radeon_bo_map(info->cursor_bo[c], 1)) {
                     ErrorF("Failed to map cursor buffer memory\n");
                 }
@@ -907,6 +912,8 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     info->dri->textureSize = 0;
 
     if (info->front_bo == NULL) {
+	uint32_t tiling_flags = 0;
+
         info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size,
                                         0, RADEON_GEM_DOMAIN_VRAM, 0);
         if (info->r600_shadow_fb == TRUE) {
@@ -915,8 +922,22 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
             }
         }
         if (info->allowColorTiling) {
-            radeon_bo_set_tiling(info->front_bo, RADEON_TILING_MACRO, stride);
+	    tiling_flags |= RADEON_TILING_MACRO;
         }
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	switch (cpp) {
+	case 4:
+	    tiling_flags |= RADEON_TILING_SWAP_32BIT;
+	    break;
+	case 2:
+	    tiling_flags |= RADEON_TILING_SWAP_16BIT;
+	    break;
+	}
+#endif
+	if (tiling_flags) {
+            radeon_bo_set_tiling(info->front_bo,
+				 tiling_flags | RADEON_TILING_SURFACE, stride);
+	}
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Front buffer size: %dK\n", info->front_bo->size/1024);

@@ -463,6 +463,7 @@ typedef struct _atomBiosHandle *atomBiosHandlePtr;
 struct radeon_exa_pixmap_priv {
     struct radeon_bo *bo;
     int flags;
+    Bool bo_mapped;
 };
 
 typedef struct {

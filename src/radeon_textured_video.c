@@ -709,7 +709,13 @@ Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
 	} else
 	    bicubic_addr = (uint8_t *)(info->FB + info->bicubic_offset);
 
-	RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_512, bicubic_addr, 1024, 1024, 1, 512, 2);
+	RADEONCopySwap(bicubic_addr, (uint8_t *)bicubic_tex_512, 1024,
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+		       RADEON_HOST_DATA_SWAP_16BIT
+#else
+		       RADEON_HOST_DATA_SWAP_NONE
+#endif
+);
 	if (info->cs)
 	    radeon_bo_unmap(info->bicubic_bo);
     }

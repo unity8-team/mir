@@ -339,9 +339,17 @@ static void RADEONFinishAccess_BE(PixmapPtr pPix, int index)
 #ifdef XF86DRM_MODE
 Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+    ScreenPtr pScreen = pPix->drawable.pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     struct radeon_exa_pixmap_priv *driver_priv;
     int ret;
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* May need to handle byte swapping in DownloadFrom/UploadToScreen */
+    if (pPix->drawable.bitsPerPixel > 8 &&
+	pPix != pScreen->GetScreenPixmap(pScreen))
+	return FALSE;
+#endif
 
     driver_priv = exaGetPixmapDriverPrivate(pPix);
     if (!driver_priv)
@@ -357,6 +365,7 @@ Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
       FatalError("failed to map pixmap %d\n", ret);
       return FALSE;
     }
+    driver_priv->bo_mapped = TRUE;
 
     pPix->devPrivate.ptr = driver_priv->bo->ptr;
 
@@ -368,7 +377,7 @@ void RADEONFinishAccess_CS(PixmapPtr pPix, int index)
     struct radeon_exa_pixmap_priv *driver_priv;
 
     driver_priv = exaGetPixmapDriverPrivate(pPix);
-    if (!driver_priv)
+    if (!driver_priv || !driver_priv->bo_mapped)
         return;
 
     radeon_bo_unmap(driver_priv->bo);
