@@ -136,8 +136,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
 
-    //return FALSE;
-
     if (pPix->drawable.bitsPerPixel == 24)
         RADEON_FALLBACK(("24bpp unsupported\n"));
     if (!R600CheckBPP(pPix->drawable.bitsPerPixel))
@@ -723,8 +721,6 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
     int ret;
-    
-    //return FALSE;
 
     if (pSrc->drawable.bitsPerPixel == 24)
         RADEON_FALLBACK(("24bpp unsupported\n"));
@@ -1161,6 +1157,10 @@ static struct formatinfo R600TexFormats[] = {
     {PICT_x8r8g8b8,	FMT_8_8_8_8},
     {PICT_a8b8g8r8,	FMT_8_8_8_8},
     {PICT_x8b8g8r8,	FMT_8_8_8_8},
+#ifdef PICT_TYPE_BGRA
+    {PICT_b8g8r8a8,	FMT_8_8_8_8},
+    {PICT_b8g8r8x8,	FMT_8_8_8_8},
+#endif
     {PICT_r5g6b5,	FMT_5_6_5},
     {PICT_a1r5g5b5,	FMT_1_5_5_5},
     {PICT_x1r5g5b5,     FMT_1_5_5_5},
@@ -1204,6 +1204,12 @@ static Bool R600GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
+    case PICT_a8b8g8r8:
+    case PICT_x8b8g8r8:
+#ifdef PICT_TYPE_BGRA
+    case PICT_b8g8r8a8:
+    case PICT_b8g8r8x8:
+#endif
 	*dst_format = COLOR_8_8_8_8;
 	break;
     case PICT_r5g6b5:
@@ -1349,6 +1355,20 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	pix_b = SQ_SEL_Z; /* B */
 	pix_a = SQ_SEL_1; /* A */
 	break;
+#ifdef PICT_TYPE_BGRA
+    case PICT_b8g8r8a8:
+	pix_r = SQ_SEL_Y; /* R */
+	pix_g = SQ_SEL_Z; /* G */
+	pix_b = SQ_SEL_W; /* B */
+	pix_a = SQ_SEL_X; /* A */
+	break;
+    case PICT_b8g8r8x8:
+	pix_r = SQ_SEL_Y; /* R */
+	pix_g = SQ_SEL_Z; /* G */
+	pix_b = SQ_SEL_W; /* B */
+	pix_a = SQ_SEL_1; /* A */
+	break;
+#endif
     case PICT_x1r5g5b5:
     case PICT_x8r8g8b8:
     case PICT_r5g6b5:
@@ -1595,7 +1615,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     shader_config_t vs_conf, ps_conf;
     int ret;
 
-    //return FALSE;
     /* return FALSE; */
 
     if (pDst->drawable.bitsPerPixel < 8 || pSrc->drawable.bitsPerPixel < 8)
@@ -1777,6 +1796,16 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     default:
 	cb_conf.comp_swap = 1; /* ARGB */
 	break;
+    case PICT_a8b8g8r8:
+    case PICT_x8b8g8r8:
+	cb_conf.comp_swap = 0; /* ABGR */
+	break;
+#ifdef PICT_TYPE_BGRA
+    case PICT_b8g8r8a8:
+    case PICT_b8g8r8x8:
+	cb_conf.comp_swap = 3; /* BGRA */
+	break;
+#endif
     case PICT_r5g6b5:
 	cb_conf.comp_swap = 2; /* RGB */
 	break;
