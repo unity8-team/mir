@@ -2237,9 +2237,11 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	if (!info->accel_state->draw_header) {
 	    BEGIN_RING(2);
 
+#ifdef XF86DRM_MODE
 	    if (info->cs)
 		info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
 	    else
+#endif
 		info->accel_state->draw_header = __head;
 	    info->accel_state->num_vtx = 0;
 	    info->accel_state->vtx_count = vtx_count;
