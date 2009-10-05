@@ -387,7 +387,6 @@ typedef struct _I830Rec {
    int batch_atomic_limit;
 
    /* For Xvideo */
-   i830_memory *overlay_regs;
    Bool use_drmmode_overlay;
 #ifdef INTEL_XVMC
    /* For XvMC */

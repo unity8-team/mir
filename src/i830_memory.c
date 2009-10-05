@@ -342,7 +342,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
 	pI830->cursor_mem_argb[p] = NULL;
     }
     pI830->front_buffer = NULL;
-    pI830->overlay_regs = NULL;
     pI830->power_context = NULL;
     pI830->ring.mem = NULL;
     pI830->fake_bufmgr_mem = NULL;
@@ -974,44 +973,6 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-/**
- * Allocate space for overlay registers.
- */
-static Bool
-i830_allocate_overlay(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    int flags = 0;
-
-    /* Only allocate if overlay is going to be enabled. */
-    if (!pI830->XvEnabled)
-	return TRUE;
-
-    if (OVERLAY_NOEXIST(pI830))
-	return TRUE;
-
-    if (!OVERLAY_NOPHYSICAL(pI830)) {
-	if (pI830->use_drm_mode)
-            return TRUE;
-	flags |= NEED_PHYSICAL_ADDR;
-    }
-
-    pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
-					       OVERLAY_SIZE, PITCH_NONE, GTT_PAGE_SIZE,
-					       flags, TILE_NONE);
-    if (pI830->overlay_regs == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Failed to allocate Overlay register space.\n");
-	/* This failure isn't fatal. */
-    }
-
-    if (flags & NEED_PHYSICAL_ADDR)
-	if (pI830->use_drm_mode)
-	    ; /* need physical addr */
-
-    return TRUE;
-}
-
 static Bool
 IsTileable(ScrnInfoPtr pScrn, int pitch)
 {
@@ -1292,9 +1253,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	}
 	i830_init_bufmgr(pScrn);
     }
-
-    if (!pI830->use_drm_mode)
-	i830_allocate_overlay(pScrn);
 
     pI830->front_buffer = i830_allocate_framebuffer(pScrn);
     if (pI830->front_buffer == NULL)

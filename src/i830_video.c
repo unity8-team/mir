@@ -124,75 +124,6 @@ static Atom xvSyncToVblank;
 #define OVERLAY_DEBUG if (0) ErrorF
 #endif
 
-/*
- * OCMD - Overlay Command Register
- */
-#define OCMD_REGISTER		0x30168
-#define MIRROR_MODE		(0x3<<17)
-#define MIRROR_HORIZONTAL	(0x1<<17)
-#define MIRROR_VERTICAL		(0x2<<17)
-#define MIRROR_BOTH		(0x3<<17)
-#define OV_BYTE_ORDER		(0x3<<14)
-#define UV_SWAP			(0x1<<14)
-#define Y_SWAP			(0x2<<14)
-#define Y_AND_UV_SWAP		(0x3<<14)
-#define SOURCE_FORMAT		(0xf<<10)
-#define RGB_888			(0x1<<10)
-#define	RGB_555			(0x2<<10)
-#define	RGB_565			(0x3<<10)
-#define	YUV_422			(0x8<<10)
-#define	YUV_411			(0x9<<10)
-#define	YUV_420			(0xc<<10)
-#define	YUV_422_PLANAR		(0xd<<10)
-#define	YUV_410			(0xe<<10)
-#define TVSYNC_FLIP_PARITY	(0x1<<9)
-#define TVSYNC_FLIP_ENABLE	(0x1<<7)
-#define BUF_TYPE		(0x1<<5)
-#define BUF_TYPE_FRAME		(0x0<<5)
-#define BUF_TYPE_FIELD		(0x1<<5)
-#define TEST_MODE		(0x1<<4)
-#define BUFFER_SELECT		(0x3<<2)
-#define BUFFER0			(0x0<<2)
-#define BUFFER1			(0x1<<2)
-#define FIELD_SELECT		(0x1<<1)
-#define FIELD0			(0x0<<1)
-#define FIELD1			(0x1<<1)
-#define OVERLAY_ENABLE		0x1
-
-#define OFC_UPDATE		0x1
-
-/* OCONFIG register */
-#define CC_OUT_8BIT		(0x1<<3)
-#define OVERLAY_PIPE_MASK	(0x1<<18)		
-#define OVERLAY_PIPE_A		(0x0<<18)		
-#define OVERLAY_PIPE_B		(0x1<<18)		
-#define GAMMA2_ENBL		(0x1<<16)
-#define CSC_MODE_BT709		(0x1<<5)
-#define CSC_MODE_BT601		(0x0<<5)
-#define THREE_LINE_BUFFERS	(0x1<<0)
-#define TWO_LINE_BUFFERS	(0x0<<0)
-
-/* DCLRKM register */
-#define DEST_KEY_ENABLE		(0x1<<31)
-
-/* Polyphase filter coefficients */
-#define N_HORIZ_Y_TAPS		5
-#define N_VERT_Y_TAPS		3
-#define N_HORIZ_UV_TAPS		3
-#define N_VERT_UV_TAPS		3
-#define N_PHASES		17
-#define MAX_TAPS		5
-
-/* Filter cutoff frequency limits. */
-#define MIN_CUTOFF_FREQ		1.0
-#define MAX_CUTOFF_FREQ		3.0
-
-#define RGB16ToColorKey(c) \
-(((c & 0xF800) << 8) | ((c & 0x07E0) << 5) | ((c & 0x001F) << 3))
-
-#define RGB15ToColorKey(c) \
-(((c & 0x7c00) << 9) | ((c & 0x03E0) << 6) | ((c & 0x001F) << 3))
-
 /* client libraries expect an encoding */
 static XF86VideoEncodingRec DummyEncoding[1] = {
     {
@@ -274,64 +205,6 @@ static XF86ImageRec Images[NUM_IMAGES] = {
 #endif
 };
 
-typedef struct {
-    uint32_t OBUF_0Y;
-    uint32_t OBUF_1Y;
-    uint32_t OBUF_0U;
-    uint32_t OBUF_0V;
-    uint32_t OBUF_1U;
-    uint32_t OBUF_1V;
-    uint32_t OSTRIDE;
-    uint32_t YRGB_VPH;
-    uint32_t UV_VPH;
-    uint32_t HORZ_PH;
-    uint32_t INIT_PHS;
-    uint32_t DWINPOS;
-    uint32_t DWINSZ;
-    uint32_t SWIDTH;
-    uint32_t SWIDTHSW;
-    uint32_t SHEIGHT;
-    uint32_t YRGBSCALE;
-    uint32_t UVSCALE;
-    uint32_t OCLRC0;
-    uint32_t OCLRC1;
-    uint32_t DCLRKV;
-    uint32_t DCLRKM;
-    uint32_t SCLRKVH;
-    uint32_t SCLRKVL;
-    uint32_t SCLRKEN;
-    uint32_t OCONFIG;
-    uint32_t OCMD;
-    uint32_t RESERVED1;			/* 0x6C */
-    uint32_t OSTART_0Y; 		/* for i965 */
-    uint32_t OSTART_1Y;		/* for i965 */
-    uint32_t OSTART_0U;
-    uint32_t OSTART_0V;
-    uint32_t OSTART_1U;
-    uint32_t OSTART_1V;
-    uint32_t OTILEOFF_0Y;
-    uint32_t OTILEOFF_1Y;
-    uint32_t OTILEOFF_0U;
-    uint32_t OTILEOFF_0V;
-    uint32_t OTILEOFF_1U;
-    uint32_t OTILEOFF_1V;
-    uint32_t FASTHSCALE;			/* 0xA0 */
-    uint32_t UVSCALEV;			/* 0xA4 */
-
-    uint32_t RESERVEDC[(0x200 - 0xA8) / 4];		   /* 0xA8 - 0x1FC */
-    uint16_t Y_VCOEFS[N_VERT_Y_TAPS * N_PHASES];		   /* 0x200 */
-    uint16_t RESERVEDD[0x100 / 2 - N_VERT_Y_TAPS * N_PHASES];
-    uint16_t Y_HCOEFS[N_HORIZ_Y_TAPS * N_PHASES];		   /* 0x300 */
-    uint16_t RESERVEDE[0x200 / 2 - N_HORIZ_Y_TAPS * N_PHASES];
-    uint16_t UV_VCOEFS[N_VERT_UV_TAPS * N_PHASES];		   /* 0x500 */
-    uint16_t RESERVEDF[0x100 / 2 - N_VERT_UV_TAPS * N_PHASES];
-    uint16_t UV_HCOEFS[N_HORIZ_UV_TAPS * N_PHASES];	   /* 0x600 */
-    uint16_t RESERVEDG[0x100 / 2 - N_HORIZ_UV_TAPS * N_PHASES];
-} I830OverlayRegRec, *I830OverlayRegPtr;
-
-#define I830OVERLAYREG(pI830) ((I830OverlayRegPtr)\
-			       ((pI830)->FbBase + \
-				(pI830)->overlay_regs->offset))
 #if VIDEO_DEBUG
 static void
 CompareOverlay(I830Ptr pI830, uint32_t * overlay, int size)
@@ -352,9 +225,6 @@ CompareOverlay(I830Ptr pI830, uint32_t * overlay, int size)
 	OVERLAY_DEBUG("CompareOverlay: no differences\n");
 }
 #endif
-
-static void
-I830SetOneLineModeRatio(ScrnInfoPtr pScrn);
 
 /* kernel modesetting overlay functions */
 static Bool
@@ -500,188 +370,6 @@ drmmode_overlay_put_image(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 #endif
 }
 
-static void
-i830_overlay_switch_to_crtc (ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
-{
-    I830Ptr		pI830 = I830PTR(pScrn);
-    I830PortPrivPtr	pPriv = GET_PORT_PRIVATE(pScrn);
-    I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
-    int			pipeconf_reg = intel_crtc->pipe == 0 ? PIPEACONF : PIPEBCONF;
-
-    /* overlay can't be used on pipe with double wide, and pipe must be enabled. */
-    if ((!IS_I965G(pI830) && (INREG(pipeconf_reg) & PIPEACONF_DOUBLE_WIDE))
-	    || (intel_crtc->dpms_mode == DPMSModeOff))
-	pPriv->overlayOK = FALSE;
-    else
-	pPriv->overlayOK = TRUE;
-
-    if (!pPriv->overlayOK)
-	return;
-
-    /* Check we have an LFP connected */
-    if (i830PipeHasType(crtc, I830_OUTPUT_LVDS)) 
-    {
-
-	int	vtotal_reg = intel_crtc->pipe == 0 ? VTOTAL_A : VTOTAL_B;
-	uint32_t size = intel_crtc->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
-	uint32_t active;
-	uint32_t hsize, vsize;
-
-	hsize = (size >> 16) & 0x7FF;
-	vsize = size & 0x7FF;
-	active = INREG(vtotal_reg) & 0x7FF;
-
-	if (vsize < active && hsize > 1024)
-	    I830SetOneLineModeRatio(pScrn);
-
-	if (pPriv->scaleRatio & 0xFFFE0000) 
-	{
-	    /* Possible bogus ratio, using in-accurate fallback */
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Bogus panel fit register, Xvideo positioning may not "
-		       "be accurate.\n");
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Using fallback ratio - was 0x%x, now 0x%x\n",
-		       pPriv->scaleRatio,
-		       (int)(((float)active * 65536)/(float)vsize));
-
-	    pPriv->scaleRatio = (int)(((float)active * 65536) / (float)vsize);
-	}
-    }
-}
-
-/*
- * This is more or less the correct way to initalise, update, and shut down
- * the overlay.
- *
- * XXX Need to make sure that the overlay engine is cleanly shutdown in
- * all modes of server exit.
- */
-
-static void
-i830_overlay_on(ScrnInfoPtr pScrn)
-{
-    I830Ptr		pI830 = I830PTR(pScrn);
-    I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
-    I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-    Bool		deactivate = FALSE;
-    
-    if (pI830->overlayOn)
-	return;
-
-    /*
-     * On I830, if pipe A is off when the overlayis enabled, it will fail to
-     * turn on and blank the entire screen or lock up the ring. Light up pipe
-     * A in this case to provide a clock for the overlay hardware
-     */
-    if (pPriv->current_crtc && i830_crtc_pipe (pPriv->current_crtc) != 0)
-	deactivate = i830_pipe_a_require_activate (pScrn);
-
-    overlay->OCMD &= ~OVERLAY_ENABLE;
-    BEGIN_BATCH(6);
-    OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_ON);
-    if (OVERLAY_NOPHYSICAL(pI830))
-	OUT_BATCH(pI830->overlay_regs->offset | OFC_UPDATE);
-    else
-	OUT_BATCH(pI830->overlay_regs->bus_addr | OFC_UPDATE);
-    /* Wait for the overlay to light up before attempting to use it */
-    OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-    OUT_BATCH(MI_NOOP);
-    ADVANCE_BATCH();
-    I830Sync(pScrn);
-    
-    /*
-     * If we turned pipe A on up above, turn it
-     * back off
-     */
-    if (deactivate)
-	i830_pipe_a_require_deactivate (pScrn);
-
-    OVERLAY_DEBUG("overlay_on\n");
-    pI830->overlayOn = TRUE;
-
-    overlay->OCMD |= OVERLAY_ENABLE;
-}
-
-static void
-i830_overlay_continue(ScrnInfoPtr pScrn, Bool update_filter)
-{
-    I830Ptr		pI830 = I830PTR(pScrn);
-    uint32_t		flip_addr;
-    I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
-
-    if (!pI830->overlayOn)
-	return;
-
-    if (OVERLAY_NOPHYSICAL(pI830))
-	flip_addr = pI830->overlay_regs->offset;
-    else
-	flip_addr = pI830->overlay_regs->bus_addr;
-    if (update_filter)
-	flip_addr |= OFC_UPDATE;
-    OVERLAY_DEBUG ("overlay_continue cmd 0x%08x  -> 0x%08x sta 0x%08x\n",
-		   overlay->OCMD, INREG(OCMD_REGISTER), INREG(DOVSTA));
-    BEGIN_BATCH(4);
-    OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE);
-    OUT_BATCH(MI_NOOP);
-    OUT_BATCH(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
-    OUT_BATCH(flip_addr);
-    ADVANCE_BATCH();
-    OVERLAY_DEBUG("overlay_continue\n");
-
-    I830Sync(pScrn);
-}
-
-static void
-i830_overlay_off(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
-
-    if (!pI830->overlayOn)
-	return;
-
-    /*
-     * Wait for overlay to go idle. This has to be
-     * separated from the turning off state by a Sync
-     * to ensure the overlay will not read OCMD early and
-     * disable the overlay before the commands here are
-     * executed
-     */
-    {
-	BEGIN_BATCH(2);
-	OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	OUT_BATCH(MI_NOOP);
-	ADVANCE_BATCH();
-	I830Sync(pScrn);
-    }
-    
-    /*
-     * Turn overlay off
-     */
-    {
-	overlay->OCMD &= ~OVERLAY_ENABLE;
-	OVERLAY_DEBUG ("overlay_off cmd 0x%08x -> 0x%08x sta 0x%08x\n",
-		       overlay->OCMD, INREG(OCMD_REGISTER), INREG(DOVSTA));
-	BEGIN_BATCH(6);
-	OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE);
-	OUT_BATCH(MI_NOOP);
-	OUT_BATCH(MI_OVERLAY_FLIP | MI_OVERLAY_FLIP_CONTINUE);
-	if (OVERLAY_NOPHYSICAL(pI830))
-	    OUT_BATCH(pI830->overlay_regs->offset);
-	else
-	    OUT_BATCH(pI830->overlay_regs->bus_addr);
-	OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	OUT_BATCH(MI_NOOP);
-	ADVANCE_BATCH();
-	I830Sync(pScrn);
-    }
-    pI830->overlayOn = FALSE;
-    OVERLAY_DEBUG("overlay_off\n");
-}
-
 void
 I830InitVideo(ScreenPtr pScreen)
 {
@@ -692,20 +380,6 @@ I830InitVideo(ScreenPtr pScreen)
     int num_adaptors;
 #ifdef INTEL_XVMC
     Bool xvmc_status = FALSE;
-#endif
-
-#if 0
-    {
-	I830OverlayRegRec tmp;
-
-	ErrorF("sizeof I830OverlayRegRec is 0x%x\n", sizeof(I830OverlayRegRec));
-	ErrorF("Reserved C, D, E, F, G are %x, %x, %x, %x, %x\n",
-	       (unsigned long)&(tmp.RESERVEDC[0]) - (unsigned long)&tmp,
-	       (unsigned long)&(tmp.RESERVEDD[0]) - (unsigned long)&tmp,
-	       (unsigned long)&(tmp.RESERVEDE[0]) - (unsigned long)&tmp,
-	       (unsigned long)&(tmp.RESERVEDF[0]) - (unsigned long)&tmp,
-	       (unsigned long)&(tmp.RESERVEDG[0]) - (unsigned long)&tmp);
-    }
 #endif
 
     num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
@@ -744,8 +418,7 @@ I830InitVideo(ScreenPtr pScreen)
     if (!OVERLAY_NOEXIST(pI830) && pScrn->bitsPerPixel != 8)
     {
 	pI830->use_drmmode_overlay = drmmode_has_overlay(pScrn);
-	if ((!pI830->use_drm_mode  && pI830->overlay_regs != NULL)
-		|| pI830->use_drmmode_overlay) {
+	if (pI830->use_drmmode_overlay) {
 	    overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
 	    if (overlayAdaptor != NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
@@ -787,191 +460,11 @@ I830InitVideo(ScreenPtr pScreen)
     xfree(adaptors);
 }
 
-static void
-I830ResetVideo(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-    I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
-
-    OVERLAY_DEBUG("I830ResetVideo: base: %p, offset: 0x%lx, obase: %p\n",
-		  pI830->FbBase, pI830->overlay_regs->offset, overlay);
-    /*
-     * Default to maximum image size in YV12
-     */
-
-    memset(overlay, 0, sizeof(*overlay));
-    overlay->YRGB_VPH = 0;
-    overlay->UV_VPH = 0;
-    overlay->HORZ_PH = 0;
-    overlay->INIT_PHS = 0;
-    overlay->DWINPOS = 0;
-    overlay->DWINSZ = 0;
-    overlay->SWIDTH = 0;
-    overlay->SWIDTHSW = 0;
-    overlay->SHEIGHT = 0;
-    overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
-    overlay->OCLRC1 = pPriv->saturation;
-#if 0
-    overlay->AWINPOS = 0;
-    overlay->AWINSZ = 0;
-#endif
-    overlay->FASTHSCALE = 0;
-
-    /*
-     * Enable destination color keying
-     */
-    switch (pScrn->depth) {
-    case 8:
-	overlay->DCLRKV = 0;
-	overlay->DCLRKM = 0xffffff | DEST_KEY_ENABLE;
-	break;
-    case 15:
-	overlay->DCLRKV = RGB15ToColorKey(pPriv->colorKey);
-	overlay->DCLRKM = 0x070707 | DEST_KEY_ENABLE;
-	break;
-    case 16:
-	overlay->DCLRKV = RGB16ToColorKey(pPriv->colorKey);
-	overlay->DCLRKM = 0x070307 | DEST_KEY_ENABLE;
-	break;
-    default:
-	overlay->DCLRKV = pPriv->colorKey;
-	overlay->DCLRKM = DEST_KEY_ENABLE;
-	break;
-    }
-
-    overlay->SCLRKVH = 0;
-    overlay->SCLRKVL = 0;
-    overlay->SCLRKEN = 0;		/* source color key disable */
-    overlay->OCONFIG = CC_OUT_8BIT;
-    if (IS_I965GM(pI830))
-	overlay->OCONFIG |= CSC_MODE_BT709;
-
-    /*
-     * Select which pipe the overlay is enabled on.
-     */
-    overlay->OCONFIG &= ~OVERLAY_PIPE_MASK;
-    if (i830_crtc_pipe (pPriv->current_crtc) == 0)
-	overlay->OCONFIG |= OVERLAY_PIPE_A;
-    else 
-	overlay->OCONFIG |= OVERLAY_PIPE_B;
-
-#if 0
-    /* 
-     * XXX DUMP REGISTER CODE !!!
-     * This allows us to dump the complete i845 registers and compare
-     * with warm boot situations before we upload our first copy.
-     */
-    {
-	int i;
-	for (i = 0x30000; i < 0x31000; i += 4)
-	    ErrorF("0x%x 0x%" PRIx32 "\n", i, INREG(i));
-    }
-#endif
-}
-
 #define PFIT_CONTROLS 0x61230
 #define PFIT_AUTOVSCALE_MASK 0x200
 #define PFIT_ON_MASK 0x80000000
 #define PFIT_AUTOSCALE_RATIO 0x61238
 #define PFIT_PROGRAMMED_SCALE_RATIO 0x61234
-
-static void
-I830SetOneLineModeRatio(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-    uint32_t panelFitControl = INREG(PFIT_CONTROLS);
-    int vertScale;
-
-    pPriv->scaleRatio = 0x10000;
-
-    if (panelFitControl & PFIT_ON_MASK) {
-	if (panelFitControl & PFIT_AUTOVSCALE_MASK) {
-	    vertScale = INREG(PFIT_AUTOSCALE_RATIO) >> 16;
-	} else {
-	    vertScale = INREG(PFIT_PROGRAMMED_SCALE_RATIO) >> 16;
-	}
-
-	if (vertScale != 0)
-	    pPriv->scaleRatio = ((double) 0x10000 / (double)vertScale) * 0x10000;
-
-	pPriv->oneLineMode = TRUE;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Enabling Xvideo one-line mode\n");
-    }
-
-    if (pPriv->scaleRatio == 0x10000)
-	pPriv->oneLineMode = FALSE;
-}
-
-static uint32_t I830BoundGammaElt (uint32_t elt, uint32_t eltPrev)
-{
-    elt &= 0xff;
-    eltPrev &= 0xff;
-    if (elt < eltPrev)
-	elt = eltPrev;
-    else if ((elt - eltPrev) > 0x7e)
-	elt = eltPrev + 0x7e;
-    return elt;
-}
-
-static uint32_t I830BoundGamma (uint32_t gamma, uint32_t gammaPrev)
-{
-    return (I830BoundGammaElt (gamma >> 16, gammaPrev >> 16) << 16 |
-	    I830BoundGammaElt (gamma >>  8, gammaPrev >>  8) <<  8 |
-	    I830BoundGammaElt (gamma      , gammaPrev      ));
-}
-
-static uint32_t I830Gamma5Errata(uint32_t gamma)
-{
-    int i;
-
-    for (i = 0; i < 3; i++) {
-	if ((gamma >> i*8 & 0xff) == 0x80) {
-	    /* According to Intel docs, overlay fails if GAMMA5 is 0x80.
-	     * In this case, change the value to 0x81 */
-	    gamma += 1 << i*8;
-	}
-    }
-
-    return gamma;
-}
-
-static void
-I830UpdateGamma(ScrnInfoPtr pScrn)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-    uint32_t gamma0 = pPriv->gamma0;
-    uint32_t gamma1 = pPriv->gamma1;
-    uint32_t gamma2 = pPriv->gamma2;
-    uint32_t gamma3 = pPriv->gamma3;
-    uint32_t gamma4 = pPriv->gamma4;
-    uint32_t gamma5 = pPriv->gamma5;
-
-#if 0
-    ErrorF ("Original gamma: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
-	    gamma0, gamma1, gamma2, gamma3, gamma4, gamma5);
-#endif
-    gamma1 = I830BoundGamma (gamma1, gamma0);
-    gamma2 = I830BoundGamma (gamma2, gamma1);
-    gamma3 = I830BoundGamma (gamma3, gamma2);
-    gamma4 = I830BoundGamma (gamma4, gamma3);
-    gamma5 = I830BoundGamma (gamma5, gamma4);
-    gamma5 = I830Gamma5Errata(gamma5);
-#if 0
-    ErrorF ("Bounded  gamma: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
-	    gamma0, gamma1, gamma2, gamma3, gamma4, gamma5);
-#endif
-
-    OUTREG(OGAMC5, gamma5);
-    OUTREG(OGAMC4, gamma4);
-    OUTREG(OGAMC3, gamma3);
-    OUTREG(OGAMC2, gamma2);
-    OUTREG(OGAMC1, gamma1);
-    OUTREG(OGAMC0, gamma0);
-}
 
 static XF86VideoAdaptorPtr
 I830SetupImageVideoOverlay(ScreenPtr pScreen)
@@ -1089,12 +582,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	xvGamma5 = MAKE_ATOM("XV_GAMMA5");
     }
 
-    if (pI830->use_drmmode_overlay)
-	drmmode_overlay_update_attrs(pScrn);
-    else {
-	I830ResetVideo(pScrn);
-	I830UpdateGamma(pScrn);
-    }
+    drmmode_overlay_update_attrs(pScrn);
 
     return adapt;
 }
@@ -1193,16 +681,9 @@ i830_free_video_buffers(I830PortPrivPtr pPriv)
 }
 
 static void
-ums_overlay_off(ScrnInfoPtr pScrn)
-{
-    i830_overlay_off (pScrn);
-}
-
-static void
 I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
-    I830Ptr pI830 = I830PTR(pScrn);
 
     if (pPriv->textured)
 	return;
@@ -1212,12 +693,8 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
     REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 
     if (shutdown) {
-	if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
-	    if (pI830->use_drmmode_overlay)
-		drmmode_overlay_off(pScrn);
-	    else
-		ums_overlay_off(pScrn);
-	}
+	if (pPriv->videoStatus & CLIENT_VIDEO_ON)
+	    drmmode_overlay_off(pScrn);
 
 	i830_free_video_buffers(pPriv);
 	pPriv->videoStatus = 0;
@@ -1254,35 +731,6 @@ I830SetPortAttributeTextured(ScrnInfoPtr pScrn,
     } else {
 	return BadMatch;
     }
-}
-
-static void
-ums_overlay_update_attrs(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830OverlayRegPtr overlay;
-
-    overlay = I830OVERLAYREG(pI830);
-
-    overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
-    overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
-    overlay->OCLRC1 = pPriv->saturation;
-
-    switch (pScrn->depth) {
-    case 16:
-	overlay->DCLRKV = RGB16ToColorKey(pPriv->colorKey);
-	break;
-    case 15:
-	overlay->DCLRKV = RGB15ToColorKey(pPriv->colorKey);
-	break;
-    default:
-	overlay->DCLRKV = pPriv->colorKey;
-	break;
-    }
-
-    I830UpdateGamma(pScrn);
-
-    i830_overlay_continue(pScrn, FALSE);
 }
 
 static int
@@ -1345,10 +793,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 	OVERLAY_DEBUG("GAMMA\n");
     }
 
-    if (pI830->use_drmmode_overlay)
-	drmmode_overlay_update_attrs(pScrn);
-    else
-	ums_overlay_update_attrs(pScrn, pPriv);
+    drmmode_overlay_update_attrs(pScrn);
 
     if (attribute == xvColorKey)
 	REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
@@ -1638,130 +1083,6 @@ typedef struct {
     uint8_t exponent;
 } coeffRec, *coeffPtr;
 
-static Bool
-SetCoeffRegs(double *coeff, int mantSize, coeffPtr pCoeff, int pos)
-{
-    int maxVal, icoeff, res;
-    int sign;
-    double c;
-
-    sign = 0;
-    maxVal = 1 << mantSize;
-    c = *coeff;
-    if (c < 0.0) {
-	sign = 1;
-	c = -c;
-    }
-
-    res = 12 - mantSize;
-    if ((icoeff = (int)(c * 4 * maxVal + 0.5)) < maxVal) {
-	pCoeff[pos].exponent = 3;
-	pCoeff[pos].mantissa = icoeff << res;
-	*coeff = (double)icoeff / (double)(4 * maxVal);
-    } else if ((icoeff = (int)(c * 2 * maxVal + 0.5)) < maxVal) {
-	pCoeff[pos].exponent = 2;
-	pCoeff[pos].mantissa = icoeff << res;
-	*coeff = (double)icoeff / (double)(2 * maxVal);
-    } else if ((icoeff = (int)(c * maxVal + 0.5)) < maxVal) {
-	pCoeff[pos].exponent = 1;
-	pCoeff[pos].mantissa = icoeff << res;
-	*coeff = (double)icoeff / (double)(maxVal);
-    } else if ((icoeff = (int)(c * maxVal * 0.5 + 0.5)) < maxVal) {
-	pCoeff[pos].exponent = 0;
-	pCoeff[pos].mantissa = icoeff << res;
-	*coeff = (double)icoeff / (double)(maxVal / 2);
-    } else {
-	/* Coeff out of range */
-	return FALSE;
-    }
-
-    pCoeff[pos].sign = sign;
-    if (sign)
-	*coeff = -(*coeff);
-    return TRUE;
-}
-
-static void
-UpdateCoeff(int taps, double fCutoff, Bool isHoriz, Bool isY, coeffPtr pCoeff)
-{
-    int i, j, j1, num, pos, mantSize;
-    double pi = 3.1415926535, val, sinc, window, sum;
-    double rawCoeff[MAX_TAPS * 32], coeffs[N_PHASES][MAX_TAPS];
-    double diff;
-    int tapAdjust[MAX_TAPS], tap2Fix;
-    Bool isVertAndUV;
-
-    if (isHoriz)
-	mantSize = 7;
-    else
-	mantSize = 6;
-
-    isVertAndUV = !isHoriz && !isY;
-    num = taps * 16;
-    for (i = 0; i < num  * 2; i++) {
-	val = (1.0 / fCutoff) * taps * pi * (i - num) / (2 * num);
-	if (val == 0.0)
-	    sinc = 1.0;
-	else
-	    sinc = sin(val) / val;
-
-	/* Hamming window */
-	window = (0.5 - 0.5 * cos(i * pi / num));
-	rawCoeff[i] = sinc * window;
-    }
-
-    for (i = 0; i < N_PHASES; i++) {
-	/* Normalise the coefficients. */
-	sum = 0.0;
-	for (j = 0; j < taps; j++) {
-	    pos = i + j * 32;
-	    sum += rawCoeff[pos];
-	}
-	for (j = 0; j < taps; j++) {
-	    pos = i + j * 32;
-	    coeffs[i][j] = rawCoeff[pos] / sum;
-	}
-
-	/* Set the register values. */
-	for (j = 0; j < taps; j++) {
-	    pos = j + i * taps;
-	    if ((j == (taps - 1) / 2) && !isVertAndUV)
-		SetCoeffRegs(&coeffs[i][j], mantSize + 2, pCoeff, pos);
-	    else
-		SetCoeffRegs(&coeffs[i][j], mantSize, pCoeff, pos);
-	}
-
-	tapAdjust[0] = (taps - 1) / 2;
-	for (j = 1, j1 = 1; j <= tapAdjust[0]; j++, j1++) {
-	    tapAdjust[j1] = tapAdjust[0] - j;
-	    tapAdjust[++j1] = tapAdjust[0] + j;
-	}
-
-	/* Adjust the coefficients. */
-	sum = 0.0;
-	for (j = 0; j < taps; j++)
-	    sum += coeffs[i][j];
-	if (sum != 1.0) {
-	    for (j1 = 0; j1 < taps; j1++) {
-		tap2Fix = tapAdjust[j1];
-		diff = 1.0 - sum;
-		coeffs[i][tap2Fix] += diff;
-		pos = tap2Fix + i * taps;
-		if ((tap2Fix == (taps - 1) / 2) && !isVertAndUV)
-		    SetCoeffRegs(&coeffs[i][tap2Fix], mantSize + 2, pCoeff, pos);
-		else
-		    SetCoeffRegs(&coeffs[i][tap2Fix], mantSize, pCoeff, pos);
-
-		sum = 0.0;
-		for (j = 0; j < taps; j++)
-		    sum += coeffs[i][j];
-		if (sum == 1.0)
-		    break;
-	    }
-	}
-    }
-}
-
 static void
 i830_box_intersect (BoxPtr dest, BoxPtr a, BoxPtr b)
 {
@@ -1843,52 +1164,6 @@ i830_covering_crtc (ScrnInfoPtr pScrn,
     return best_crtc;
 }
 
-static int
-i830_swidth (I830Ptr pI830, unsigned int offset,
-	     unsigned int width, unsigned int mask, int shift)
-{
-    int	swidth = ((offset + width + mask) >> shift) - (offset >> shift);
-    if (IS_I9XX(pI830))
-	swidth <<= 1;
-    swidth -= 1;
-    return swidth << 2;
-}
-
-static void
-i830_calc_src_regs(I830Ptr pI830, int planar, short width, short height,
-	uint32_t *swidth_out, uint32_t *swidthsw_out, uint32_t *sheigth_out)
-{
-    unsigned int	mask, shift, offsety, offsetu;
-    unsigned int	swidth, swidthy, swidthuv;
-    I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-
-    if (IS_I9XX(pI830)) {
-	shift = 6;
-	mask = 0x3f;
-    } else {
-	shift = 5;
-	mask = 0x1f;
-    }
-
-    offsety = pPriv->YBufOffset;
-    offsetu = pPriv->UBufOffset;
-
-    if (planar) {
-	*swidth_out = width | ((width/2 & 0x7ff) << 16);
-	swidthy  = i830_swidth (pI830, offsety, width, mask, shift);
-	swidthuv = i830_swidth (pI830, offsetu, width/2, mask, shift);
-	*swidthsw_out = (swidthy) | (swidthuv << 16);
-	*sheigth_out = height | ((height / 2) << 16);
-    } else {
-	*swidth_out = width;
-	swidth = i830_swidth (pI830, offsety, width << 1, mask, shift);
-	*swidthsw_out = swidth;
-	*sheigth_out = height;
-    }
-
-    return;
-}
-
 static void
 i830_update_dst_box_to_crtc_coords(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		BoxPtr dstBox)
@@ -1941,172 +1216,6 @@ i830_update_dst_box_to_crtc_coords(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     return;
 }
 
-static void
-i830_store_coeffs_in_overlay_regs(uint16_t *reg_coeffs, coeffPtr new_coeffs,
-	int max_taps)
-{
-    int i, j, pos;
-
-    for (i = 0; i < N_PHASES; i++) {
-	for (j = 0; j < max_taps; j++) {
-	    pos = i * max_taps + j;
-	    reg_coeffs[pos] = (new_coeffs[pos].sign << 15 |
-				      new_coeffs[pos].exponent << 12 |
-				      new_coeffs[pos].mantissa);
-	}
-    }
-}
-
-static uint32_t
-i830_overlay_cmd(int id, int planar)
-{
-    uint32_t OCMD = OVERLAY_ENABLE;
-
-    if (planar) {
-	OVERLAY_DEBUG("YUV420\n");
-	OCMD &= ~SOURCE_FORMAT;
-	OCMD &= ~OV_BYTE_ORDER;
-	OCMD |= YUV_420;
-    } else {
-	OVERLAY_DEBUG("YUV422\n");
-	OCMD &= ~SOURCE_FORMAT;
-	OCMD |= YUV_422;
-	OCMD &= ~OV_BYTE_ORDER;
-	if (id == FOURCC_UYVY)
-	    OCMD |= Y_SWAP;
-    }
-
-    OCMD &= ~(BUFFER_SELECT | FIELD_SELECT);
-    OCMD |= BUFFER0;
-
-    OVERLAY_DEBUG("OCMD is 0x%x\n", OCMD);
-
-    return OCMD;
-}
-
-static double
-i830_limit_coeff(double coeff)
-{
-    /* Limit to between 1.0 and 3.0. */
-    if (coeff < MIN_CUTOFF_FREQ)
-	coeff = MIN_CUTOFF_FREQ;
-    if (coeff > MAX_CUTOFF_FREQ)
-	coeff = MAX_CUTOFF_FREQ;
-
-    return coeff;
-}
-
-static void
-i830_update_polyphase_coeffs(I830OverlayRegPtr	overlay,
-	int xscaleFract, int xscaleFractUV)
-{
-    /*
-     * Only Horizontal coefficients so far.
-     */
-    double fCutoffY;
-    double fCutoffUV;
-    coeffRec xcoeffY[N_HORIZ_Y_TAPS * N_PHASES];
-    coeffRec xcoeffUV[N_HORIZ_UV_TAPS * N_PHASES];
-
-    fCutoffY = xscaleFract / 4096.0;
-    fCutoffUV = xscaleFractUV / 4096.0;
-
-    fCutoffUV = i830_limit_coeff(fCutoffUV);
-    fCutoffY = i830_limit_coeff(fCutoffY);
-
-    UpdateCoeff(N_HORIZ_Y_TAPS, fCutoffY, TRUE, TRUE, xcoeffY);
-    UpdateCoeff(N_HORIZ_UV_TAPS, fCutoffUV, TRUE, FALSE, xcoeffUV);
-
-    i830_store_coeffs_in_overlay_regs(overlay->Y_HCOEFS, xcoeffY,
-		    N_HORIZ_Y_TAPS);
-    i830_store_coeffs_in_overlay_regs(overlay->UV_HCOEFS, xcoeffUV,
-		    N_HORIZ_UV_TAPS);
-}
-
-/*
- * Calculate horizontal and vertical scaling factors and polyphase
- * coefficients.
- */
-
-static Bool
-i830_update_scaling_factors(I830OverlayRegPtr overlay,
-	short src_w, short src_h, short drw_w, short drw_h)
-{
-    int xscaleInt, xscaleFract, yscaleInt, yscaleFract;
-    int xscaleIntUV, xscaleFractUV;
-    int yscaleIntUV, yscaleFractUV;
-    uint32_t newval;
-    Bool scaleChanged = FALSE;
-
-    /*
-     * Y down-scale factor as a multiple of 4096.
-     */
-    xscaleFract = ((src_w - 1) << 12) / drw_w;
-    yscaleFract = ((src_h - 1) << 12) / drw_h;
-
-    /* Calculate the UV scaling factor.
-     * UV is half the size of Y -- YUV420 */
-    xscaleFractUV = xscaleFract / 2;
-    yscaleFractUV = yscaleFract / 2;
-
-    /*
-     * To keep the relative Y and UV ratios exact, round the Y scales
-     * to a multiple of the Y/UV ratio.
-     */
-    xscaleFract = xscaleFractUV * 2;
-    yscaleFract = yscaleFractUV * 2;
-
-    /* Integer (un-multiplied) values. */
-    xscaleInt = xscaleFract >> 12;
-    yscaleInt = yscaleFract >> 12;
-
-    xscaleIntUV = xscaleFractUV >> 12;
-    yscaleIntUV = yscaleFractUV >> 12;
-
-    OVERLAY_DEBUG("xscale: %x.%03x, yscale: %x.%03x\n", xscaleInt,
-		  xscaleFract & 0xFFF, yscaleInt, yscaleFract & 0xFFF);
-    OVERLAY_DEBUG("UV xscale: %x.%03x, UV yscale: %x.%03x\n", xscaleIntUV,
-		  xscaleFractUV & 0xFFF, yscaleIntUV, yscaleFractUV & 0xFFF);
-
-    /* shouldn't get here */
-    if (xscaleInt > 7) {
-	OVERLAY_DEBUG("xscale: bad scale\n");
-	return FALSE;
-    }
-
-    /* shouldn't get here */
-    if (xscaleIntUV > 7) {
-	OVERLAY_DEBUG("xscaleUV: bad scale\n");
-	return FALSE;
-    }
-
-    newval = (xscaleInt << 16) |
-    ((xscaleFract & 0xFFF) << 3) | ((yscaleFract & 0xFFF) << 20);
-    if (newval != overlay->YRGBSCALE) {
-	scaleChanged = TRUE;
-	overlay->YRGBSCALE = newval;
-    }
-
-    newval = (xscaleIntUV << 16) | ((xscaleFractUV & 0xFFF) << 3) |
-    ((yscaleFractUV & 0xFFF) << 20);
-    if (newval != overlay->UVSCALE) {
-	scaleChanged = TRUE;
-	overlay->UVSCALE = newval;
-    }
-
-    newval = yscaleInt << 16 | yscaleIntUV;
-    if (newval != overlay->UVSCALEV) {
-	scaleChanged = TRUE;
-	overlay->UVSCALEV = newval;
-    }
-
-    if (scaleChanged) {
-	i830_update_polyphase_coeffs(overlay, xscaleFract, xscaleFractUV);
-    }
-
-    return scaleChanged;
-}
-
 int
 is_planar_fourcc(int id)
 {
@@ -2137,112 +1246,6 @@ xvmc_passthrough(int id, Rotation rotation)
 }
 
 static Bool
-ums_overlay_put_image(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
-		   int id, short width, short height,
-		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
-		   short src_w, short src_h, short drw_w, short drw_h)
-{
-    I830Ptr		pI830 = I830PTR(pScrn);
-    I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-    I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
-    int			planar;
-    uint32_t		swidth, swidthsw, sheigth;
-    Bool		scaleChanged;
-    drm_intel_bo	*tmp_buf;
-
-    if (crtc != pPriv->current_crtc)
-    {
-	/* this may adjust pPriv->oneLineMode */
-	i830_overlay_switch_to_crtc (pScrn, crtc);
-	if (pPriv->overlayOK) {
-	    pPriv->current_crtc = crtc;
-	    I830ResetVideo (pScrn);
-	}
-    }
-
-    if (!pPriv->overlayOK)
-	return TRUE;
-
-    if (pPriv->oneLineMode) {
-	/* change the coordinates with panel fitting active */
-	dstBox->y1 = (((dstBox->y1 - 1) * pPriv->scaleRatio) >> 16) + 1;
-	dstBox->y2 = ((dstBox->y2 * pPriv->scaleRatio) >> 16) + 1;
-
-	/* Now, alter the height, so we scale to the correct size */
-	drw_h = ((drw_h * pPriv->scaleRatio) >> 16) + 1;
-    }
-
-    planar = is_planar_fourcc(id);
-
-    i830_calc_src_regs(pI830, planar, width, height,
-	    &swidth, &swidthsw, &sheigth);
-
-    overlay->SWIDTH = swidth;
-    overlay->SWIDTHSW = swidthsw;
-    overlay->SHEIGHT = sheigth;
-
-    overlay->DWINPOS = (dstBox->y1 << 16) | dstBox->x1;
-
-    overlay->DWINSZ = (((dstBox->y2 - dstBox->y1) << 16) |
-		       (dstBox->x2 - dstBox->x1));
-
-    OVERLAY_DEBUG("dstBox: x1: %d, y1: %d, x2: %d, y2: %d\n",
-		  dstBox->x1, dstBox->y1, dstBox->x2, dstBox->y2);
-
-    /* buffer locations */
-    if (xvmc_passthrough(id, pPriv->rotation)) {
-	overlay->OBUF_0Y = pPriv->YBufOffset;
-	overlay->OBUF_0U = pPriv->UBufOffset;
-	overlay->OBUF_0V = pPriv->VBufOffset;
-    } else {
-	if (drm_intel_bo_pin(pPriv->buf, GTT_PAGE_SIZE) != 0)
-	    return FALSE;
-	overlay->OBUF_0Y = pPriv->YBufOffset + pPriv->buf->offset;
-	overlay->OBUF_0U = pPriv->UBufOffset + pPriv->buf->offset;
-	overlay->OBUF_0V = pPriv->VBufOffset + pPriv->buf->offset;
-    }
-
-    OVERLAY_DEBUG("pos: 0x%x, size: 0x%x\n",
-		  overlay->DWINPOS, overlay->DWINSZ);
-    OVERLAY_DEBUG("dst: %d x %d, src: %d x %d\n", drw_w, drw_h, src_w, src_h);
-
-    scaleChanged = i830_update_scaling_factors(overlay,
-	    src_w, src_h, drw_w, drw_h);
-
-    if (planar) {
-#if 0
-	/* set UV vertical phase to -0.25 */
-	overlay->UV_VPH = 0x30003000;
-#endif
-	overlay->OSTRIDE = (dstPitch * 2) | (dstPitch << 16);
-	OVERLAY_DEBUG("UV stride is %d, Y stride is %d\n",
-		      dstPitch, dstPitch * 2);
-    } else
-	overlay->OSTRIDE = dstPitch;
-
-    overlay->OCMD = i830_overlay_cmd(id, planar);
-
-    /* make sure the overlay is on */
-    i830_overlay_on (pScrn);
-    /* and show this frame */
-    i830_overlay_continue (pScrn, scaleChanged);
-
-    if (xvmc_passthrough(id, pPriv->rotation))
-	return TRUE;
-
-    /* unpin the old buffer and exchange buffers */
-    if (pPriv->oldBuf_pinned) {
-	drm_intel_bo_unpin(pPriv->oldBuf);
-    }
-    tmp_buf = pPriv->buf;
-    pPriv->buf = pPriv->oldBuf;
-    pPriv->oldBuf = tmp_buf;
-    pPriv->oldBuf_pinned = TRUE;
-
-    return TRUE;
-}
-
-static Bool
 i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		   int id, short width, short height,
 		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
@@ -2265,10 +1268,7 @@ i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     if (!crtc)
     {
 	pPriv->current_crtc = NULL;
-	if (pI830->use_drmmode_overlay)
-	    drmmode_overlay_off(pScrn);
-	else
-	    ums_overlay_off(pScrn);
+	drmmode_overlay_off(pScrn);
 
 	return TRUE;
     }
@@ -2287,12 +1287,9 @@ i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	src_h = tmp;
     }
 
-    if (pI830->use_drmmode_overlay)
-	return drmmode_overlay_put_image(pScrn, crtc, id, width, height, dstPitch,
-		x1, y1, x2, y2, dstBox, src_w, src_h, drw_w, drw_h);
-    else
-	return ums_overlay_put_image(pScrn, crtc, id, width, height, dstPitch,
-		x1, y1, x2, y2, dstBox, src_w, src_h, drw_w, drw_h);
+    return drmmode_overlay_put_image(pScrn, crtc, id, width, height, dstPitch,
+				     x1, y1, x2, y2, dstBox,
+				     src_w, src_h, drw_w, drw_h);
 }
 
 static Bool
@@ -2801,10 +1798,7 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 		/* Turn off the overlay */
 		OVERLAY_DEBUG("BLOCKHANDLER\n");
 
-		if (pI830->use_drmmode_overlay)
-		    drmmode_overlay_off(pScrn);
-		else
-		    ums_overlay_off (pScrn);
+		drmmode_overlay_off(pScrn);
 
 		pPriv->videoStatus = FREE_TIMER;
 		pPriv->freeTime = now + FREE_DELAY;
