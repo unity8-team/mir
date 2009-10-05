@@ -32,6 +32,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 /* X and server generic header files */
 #include "xf86.h"
@@ -215,6 +216,60 @@ monitor_is_digital(xf86MonPtr MonInfo)
     return (MonInfo->rawData[0x14] & 0x80) != 0;
 }
 
+static void
+RADEONGetHardCodedEDIDFromFile(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    char *EDIDlist = (char *)xf86GetOptValString(info->Options, OPTION_CUSTOM_EDID);
+
+    radeon_output->custom_edid = FALSE;
+    radeon_output->custom_mon = NULL;
+
+    if (EDIDlist != NULL) {
+	unsigned char edid[128];
+	char *name = output->name;
+	char *outputEDID = strstr(EDIDlist, name);
+
+	if (outputEDID != NULL) {
+	    char *end;
+	    int fd;
+
+	    outputEDID += strlen(name) + 1;
+	    end = strstr(outputEDID, ";");
+	    if (end != NULL)
+		*end = 0;
+
+	    fd = open (outputEDID, O_RDONLY);
+	    if (fd >= 0) {
+		read(fd, edid, 128);
+		close(fd);
+		if (edid[1] == 0xff) {
+		    radeon_output->custom_mon = xf86InterpretEDID(output->scrn->scrnIndex, edid);
+		    radeon_output->custom_edid = TRUE;
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			       "Successfully read Custom EDID data for output %s from %s.\n",
+			       name, outputEDID);
+		} else {
+		    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			       "Custom EDID data for %s read from %s was invalid.\n",
+			       name, outputEDID);
+		}
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Could not read custom EDID for output %s from file %s.\n",
+			   name, outputEDID);
+	    }
+	} else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Could not find EDID file name for output %s; using auto detection.\n",
+		       name);
+	}
+    }
+}
+
+
 static RADEONMonitorType
 radeon_ddc_connected(xf86OutputPtr output)
 {
@@ -224,7 +279,10 @@ radeon_ddc_connected(xf86OutputPtr output)
     xf86MonPtr MonInfo = NULL;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    if (radeon_output->pI2CBus) {
+    if (radeon_output->custom_edid) {
+	MonInfo = xnfcalloc(sizeof(xf86Monitor), 1);
+	*MonInfo = *radeon_output->custom_mon;
+    } else if (radeon_output->pI2CBus) {
 	if (info->get_hardcoded_edid_from_bios)
 	    MonInfo = RADEONGetHardCodedEDIDFromBIOS(output);
 	if (MonInfo == NULL) {
@@ -2802,6 +2860,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	xf86OutputPtr output = xf86_config->output[i];
 
 	output->possible_clones = radeon_output_clones(pScrn, output);
+	RADEONGetHardCodedEDIDFromFile(output);
     }
 
     return TRUE;

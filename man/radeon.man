@@ -302,6 +302,34 @@ for monitor detection. This is different from NoDDC option.
 The default value is
 .B off.
 .TP 
+.BI "Option \*qCustomEDID\*q \*q" string \*q
+Forces the X driver to use the EDID data specified in a file rather
+than the display's EDID. Also overrides DDC monitor detection.
+.br
+You may specify a semicolon separated list of output name and filename pairs.
+The output name is something like "VGA-0" or "DVI-0";
+consult the Xorg log for the supported output names of any given system.
+.br
+The file must contain a raw 128-byte EDID block, as captured by
+.B
+get-edid.
+.br
+For example:
+.B
+Option \*qCustomEDID\*q \*qVGA-0:/tmp/edid1.bin; DVI-0:/tmp/edid2.bin\*q
+will assign the EDID from the file /tmp/edid1.bin to the output device
+VGA-0, and the EDID from the file /tmp/edid2.bin to the output device
+DVI-0.
+.br
+Note that a output name must always be specified,
+even if only one EDID is specified.
+.br
+.B
+Caution:
+Specifying an EDID that doesn't exactly match your display may
+damage your hardware, as it allows the driver to specify timings beyond
+the capabilities of your display. Use with care.
+.TP 
 .BI "Option \*qPanelSize\*q \*q" "string" \*q
 Should only be used when driver cannot detect the correct panel size.
 Apply to both desktop (TMDS) and laptop (LVDS) digital panels.

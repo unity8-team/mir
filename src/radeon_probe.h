@@ -261,6 +261,9 @@ typedef struct _RADEONOutputPrivateRec {
     I2CBusPtr         pI2CBus;
     RADEONI2CBusRec   ddc_i2c;
     Bool shared_ddc;
+
+    Bool custom_edid;
+    xf86MonPtr custom_mon;
     // router info
     // HDP info
 
