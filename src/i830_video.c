@@ -86,8 +86,6 @@
 
 #define TIMER_MASK      (OFF_TIMER | FREE_TIMER)
 
-static void I830InitOffscreenImages(ScreenPtr);
-
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr);
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr);
 static void I830StopVideo(ScrnInfoPtr, pointer, Bool);
@@ -608,7 +606,6 @@ I830InitVideo(ScreenPtr pScreen)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to set up overlay video\n");
 	}
-	I830InitOffscreenImages(pScreen);
     }
 
     if (overlayAdaptor && pI830->XvPreferOverlay)
@@ -2637,192 +2634,6 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 	    }
 	}
     }
-}
-
-/***************************************************************************
- * Offscreen Images
- ***************************************************************************/
-
-typedef struct {
-    Bool isOn;
-} OffscreenPrivRec, *OffscreenPrivPtr;
-
-static int
-I830AllocateSurface(ScrnInfoPtr pScrn,
-		    int id,
-		    unsigned short w,
-		    unsigned short h, XF86SurfacePtr surface)
-{
-    int pitch, fbpitch, size;
-    OffscreenPrivPtr pPriv;
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    OVERLAY_DEBUG("I830AllocateSurface\n");
-
-    if (IS_845G(pI830) || IS_I830(pI830)) {
-	if ((w > IMAGE_MAX_WIDTH_LEGACY) || (h > IMAGE_MAX_HEIGHT_LEGACY))
-	    return BadAlloc;
-    } else {
-	if ((w > IMAGE_MAX_WIDTH) || (h > IMAGE_MAX_HEIGHT))
-	    return BadAlloc;
-    }
-
-    if (!(surface->pitches = xalloc(sizeof(int))))
-	return BadAlloc;
-    if (!(surface->offsets = xalloc(sizeof(int)))) {
-	xfree(surface->pitches);
-	return BadAlloc;
-    }
-    if (!(pPriv = xalloc(sizeof(OffscreenPrivRec)))) {
-	xfree(surface->pitches);
-	xfree(surface->offsets);
-	return BadAlloc;
-    }
-
-    w = (w + 1) & ~1;
-    pitch = ((w << 1) + 15) & ~15;
-    fbpitch = pI830->cpp * pScrn->displayWidth;
-    size = pitch * h;
-
-    surface->width = w;
-    surface->height = h;
-
-    pPriv->isOn = FALSE;
-
-    surface->pScrn = pScrn;
-    surface->id = id;
-    surface->pitches[0] = pitch;
-    surface->offsets[0] = 0;
-    surface->devPrivate.ptr = (pointer) pPriv;
-
-    return Success;
-}
-
-static int
-I830StopSurface(XF86SurfacePtr surface)
-{
-    OffscreenPrivPtr pPriv = (OffscreenPrivPtr) surface->devPrivate.ptr;
-    ScrnInfoPtr pScrn = surface->pScrn;
-
-    if (pPriv->isOn) {
-	OVERLAY_DEBUG("StopSurface\n");
-
-	i830_overlay_off (pScrn);
-
-	pPriv->isOn = FALSE;
-    }
-
-    return Success;
-}
-
-static int
-I830FreeSurface(XF86SurfacePtr surface)
-{
-    I830StopSurface(surface);
-    xfree(surface->pitches);
-    xfree(surface->offsets);
-    xfree(surface->devPrivate.ptr);
-
-    return Success;
-}
-
-static int
-I830GetSurfaceAttribute(ScrnInfoPtr pScrn, Atom attribute, INT32 * value)
-{
-    return I830GetPortAttribute(pScrn, attribute, value, NULL);
-}
-
-static int
-I830SetSurfaceAttribute(ScrnInfoPtr pScrn, Atom attribute, INT32 value)
-{
-    return I830SetPortAttributeOverlay(pScrn, attribute, value, NULL);
-}
-
-static int
-I830DisplaySurface(XF86SurfacePtr surface,
-		   short src_x, short src_y,
-		   short drw_x, short drw_y,
-		   short src_w, short src_h,
-		   short drw_w, short drw_h, RegionPtr clipBoxes)
-{
-    OffscreenPrivPtr pPriv = (OffscreenPrivPtr) surface->devPrivate.ptr;
-    ScrnInfoPtr pScrn = surface->pScrn;
-    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-    I830PortPrivPtr pI830Priv = GET_PORT_PRIVATE(pScrn);
-    INT32 x1, y1, x2, y2;
-    BoxRec dstBox;
-    xf86CrtcPtr crtc;
-
-    OVERLAY_DEBUG("I830DisplaySurface\n");
-
-    x1 = src_x;
-    x2 = src_x + src_w;
-    y1 = src_y;
-    y2 = src_y + src_h;
-
-    dstBox.x1 = drw_x;
-    dstBox.x2 = drw_x + drw_w;
-    dstBox.y1 = drw_y;
-    dstBox.y2 = drw_y + drw_h;
-
-    if (!i830_clip_video_helper (pScrn, pI830Priv, &crtc, &dstBox,
-				 &x1, &x2, &y1, &y2, clipBoxes,
-				 surface->width, surface->height))
-	return Success;
-
-    /* fixup pointers */
-    pI830Priv->YBufOffset = surface->offsets[0];
-
-    i830_display_overlay(pScrn, crtc, surface->id, surface->width, surface->height,
-		     surface->pitches[0], x1, y1, x2, y2, &dstBox,
-		     src_w, src_h, drw_w, drw_h);
-
-    i830_fill_colorkey (pScreen, pI830Priv->colorKey, clipBoxes);
-
-    pPriv->isOn = TRUE;
-    /* we've prempted the XvImage stream so set its free timer */
-    if (pI830Priv->videoStatus & CLIENT_VIDEO_ON) {
-	REGION_EMPTY(pScrn->pScreen, &pI830Priv->clip);
-	UpdateCurrentTime();
-	pI830Priv->videoStatus = FREE_TIMER;
-	pI830Priv->freeTime = currentTime.milliseconds + FREE_DELAY;
-    }
-
-    return Success;
-}
-
-static void
-I830InitOffscreenImages(ScreenPtr pScreen)
-{
-    XF86OffscreenImagePtr offscreenImages;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    if (!(offscreenImages = xalloc(sizeof(XF86OffscreenImageRec)))) {
-	return;
-    }
-
-    pI830->offscreenImages = offscreenImages;
-
-    offscreenImages[0].image = &Images[0];
-    offscreenImages[0].flags = VIDEO_OVERLAID_IMAGES /*| VIDEO_CLIP_TO_VIEWPORT*/;
-    offscreenImages[0].alloc_surface = I830AllocateSurface;
-    offscreenImages[0].free_surface = I830FreeSurface;
-    offscreenImages[0].display = I830DisplaySurface;
-    offscreenImages[0].stop = I830StopSurface;
-    offscreenImages[0].setAttribute = I830SetSurfaceAttribute;
-    offscreenImages[0].getAttribute = I830GetSurfaceAttribute;
-    if (IS_845G(pI830) || IS_I830(pI830)) {
-	offscreenImages[0].max_width = IMAGE_MAX_WIDTH_LEGACY;
-	offscreenImages[0].max_height = IMAGE_MAX_HEIGHT_LEGACY;
-    } else {
-	offscreenImages[0].max_width = IMAGE_MAX_WIDTH;
-	offscreenImages[0].max_height = IMAGE_MAX_HEIGHT; 
-    }
-    offscreenImages[0].num_attributes = 1;
-    offscreenImages[0].attributes = Attributes;
-
-    xf86XVRegisterOffscreenImages(pScreen, offscreenImages, 1);
 }
 
 void
