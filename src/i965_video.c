@@ -1242,7 +1242,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     drm_intel_bo_unreference(bind_bo);
 
 #if WATCH_STATS
-    i830_dump_error_state(pScrn);
+    /* i830_dump_error_state(pScrn); */
 #endif
 }
 

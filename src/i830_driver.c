@@ -2992,11 +2992,6 @@ I830EnterVT(int scrnIndex, int flags)
       gen4_render_state_init(pScrn);
 
    if (!pI830->use_drm_mode) {
-       if (i830_check_error_state(pScrn)) {
-	   xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		      "Existing errors found in hardware state.\n");
-       }
-
        /* Re-set up the ring. */
        if (!pI830->have_gem) {
 	   i830_stop_ring(pScrn, FALSE);

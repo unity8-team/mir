@@ -105,10 +105,6 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
       } else if (now - start > timeout_millis) {
 	 ErrorF("Error in I830WaitLpRing(), timeout for %d seconds\n",
 		timeout_millis/1000);
-	 if (IS_I965G(pI830))
-	     i965_dump_error_state(pScrn);
-	 else
-	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
 	 pI830->uxa_driver = NULL;
 	 FatalError("lockup\n");
