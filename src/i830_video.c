@@ -2157,6 +2157,72 @@ i830_fill_colorkey (ScreenPtr pScreen, uint32_t key, RegionPtr clipboxes)
    FreeScratchGC (gc);
 }
 
+static void
+i830_dst_pitch_and_size(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, short width,
+	short height, int *dstPitch, int *dstPitch2, int *size, int id)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int pitchAlignMask;
+
+    /* Only needs to be DWORD-aligned for textured on i915, but overlay has
+     * stricter requirements.
+     */
+    if (pPriv->textured) {
+	pitchAlignMask = 3;
+#ifdef INTEL_XVMC
+	/* for i915 xvmc, hw requires at least 1kb aligned surface */
+	if ((id == FOURCC_XVMC) && IS_I915(pI830))
+	    pitchAlignMask = 0x3ff;
+#endif
+    } else {
+	if (IS_I965G(pI830))
+	    pitchAlignMask = 255;
+	else
+	    pitchAlignMask = 63;
+    }
+
+    /* Determine the desired destination pitch (representing the chroma's pitch,
+     * in the planar case.
+     */
+    switch (id) {
+    case FOURCC_YV12:
+    case FOURCC_I420:
+	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+	    *dstPitch = ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
+	    *size = *dstPitch * width * 3;
+	} else {
+	    *dstPitch = ((width / 2) + pitchAlignMask) & ~pitchAlignMask;
+	    *size = *dstPitch * height * 3;
+	}
+	break;
+    case FOURCC_UYVY:
+    case FOURCC_YUY2:
+
+	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+	    *dstPitch = ((height << 1) + pitchAlignMask) & ~pitchAlignMask;
+	    *size = *dstPitch * width;
+	} else {
+	    *dstPitch = ((width << 1) + pitchAlignMask) & ~pitchAlignMask;
+	    *size = *dstPitch * height;
+	}
+	break;
+#ifdef INTEL_XVMC
+    case FOURCC_XVMC:
+	*dstPitch = ((width / 2) + pitchAlignMask ) & ~pitchAlignMask;
+	*dstPitch2 = (width + pitchAlignMask ) & ~pitchAlignMask;
+	*size = 0;
+	break;
+#endif
+    default:
+	*dstPitch = 0;
+	*size = 0;
+	break;
+    }
+#if 0
+    ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, *dstPitch, size);
+#endif
+}
+
 /*
  * The source rectangle of the video is defined by (src_x, src_y, src_w, src_h).
  * The dest rectangle of the video is defined by (drw_x, drw_y, drw_w, drw_h).
@@ -2191,7 +2257,6 @@ I830PutImage(ScrnInfoPtr pScrn,
     int dstPitch2 = 0;
     int top, left, npixels, nlines, size;
     BoxRec dstBox;
-    int pitchAlignMask;
     int alloc_size;
     xf86CrtcPtr	crtc;
 
@@ -2253,63 +2318,8 @@ I830PutImage(ScrnInfoPtr pScrn,
 	srcPitch = width << 1;
     }
 
-    /* Only needs to be DWORD-aligned for textured on i915, but overlay has
-     * stricter requirements.
-     */
-    if (pPriv->textured) {
-	pitchAlignMask = 3;
-#ifdef INTEL_XVMC
-	/* for i915 xvmc, hw requires at least 1kb aligned surface */
-	if ((id == FOURCC_XVMC) && IS_I915(pI830))
-	    pitchAlignMask = 0x3ff;
-#endif
-    } else {
-	if (IS_I965G(pI830))
-	    pitchAlignMask = 255;
-	else
-	    pitchAlignMask = 63;
-    }
-
-    /* Determine the desired destination pitch (representing the chroma's pitch,
-     * in the planar case.
-     */
-    switch (id) {
-    case FOURCC_YV12:
-    case FOURCC_I420:
-	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-	    dstPitch = ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
-	    size = dstPitch * width * 3;
-	} else {
-	    dstPitch = ((width / 2) + pitchAlignMask) & ~pitchAlignMask;
-	    size = dstPitch * height * 3;
-	}
-	break;
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
-
-	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-	    dstPitch = ((height << 1) + pitchAlignMask) & ~pitchAlignMask;
-	    size = dstPitch * width;
-	} else {
-	    dstPitch = ((width << 1) + pitchAlignMask) & ~pitchAlignMask;
-	    size = dstPitch * height;
-	}
-	break;
-#ifdef INTEL_XVMC
-    case FOURCC_XVMC:
-	dstPitch = ((width / 2) + pitchAlignMask ) & ~pitchAlignMask;
-	dstPitch2 = (width + pitchAlignMask ) & ~pitchAlignMask;
-	size = 0;
-	break;
-#endif
-    default:
-	dstPitch = 0;
-	size = 0;
-	break;
-    }
-#if 0
-    ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, dstPitch, size);
-#endif
+    i830_dst_pitch_and_size(pScrn, pPriv, width, height, &dstPitch, &dstPitch2,
+	    &size, id);
 
     alloc_size = size;
     if (pPriv->doubleBuffer)
