@@ -2157,6 +2157,48 @@ i830_fill_colorkey (ScreenPtr pScreen, uint32_t key, RegionPtr clipboxes)
    FreeScratchGC (gc);
 }
 
+static Bool
+i830_setup_video_buffer(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+	int alloc_size, int id)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    /* Free the current buffer if we're going to have to reallocate */
+    if (pPriv->buf && pPriv->buf->size < alloc_size) {
+	if (!pPriv->textured)
+	    drm_intel_bo_unpin(pPriv->buf);
+	drm_intel_bo_unreference(pPriv->buf);
+	pPriv->buf = NULL;
+    }
+
+#ifdef INTEL_XVMC
+    if (id == FOURCC_XVMC &&
+        pPriv->rotation == RR_Rotate_0) {
+        if (pPriv->buf) {
+            assert(pPriv->textured);
+            drm_intel_bo_unreference(pPriv->buf);
+            pPriv->buf = NULL;
+        }
+    } else {
+#endif
+        if (pPriv->buf == NULL) {
+            pPriv->buf = drm_intel_bo_alloc(pI830->bufmgr,
+                                         "xv buffer", alloc_size, 4096);
+            if (pPriv->buf == NULL)
+                return FALSE;
+            if (!pPriv->textured && drm_intel_bo_pin(pPriv->buf, 4096) != 0) {
+                drm_intel_bo_unreference(pPriv->buf);
+                pPriv->buf = NULL;
+                xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                           "Failed to pin xv buffer\n");
+                return FALSE;
+            }
+        }
+#ifdef INTEL_XVMC
+    }
+#endif
+    return TRUE;
+}
+
 static void
 i830_dst_pitch_and_size(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, short width,
 	short height, int *dstPitch, int *dstPitch2, int *size, int id)
@@ -2325,40 +2367,8 @@ I830PutImage(ScrnInfoPtr pScrn,
     if (pPriv->doubleBuffer)
 	alloc_size *= 2;
 
-    /* Free the current buffer if we're going to have to reallocate */
-    if (pPriv->buf && pPriv->buf->size < alloc_size) {
-	if (!pPriv->textured)
-	    drm_intel_bo_unpin(pPriv->buf);
-	drm_intel_bo_unreference(pPriv->buf);
-	pPriv->buf = NULL;
-    }
-
-#ifdef INTEL_XVMC
-    if (id == FOURCC_XVMC && 
-        pPriv->rotation == RR_Rotate_0) {
-        if (pPriv->buf) {
-            assert(pPriv->textured);
-            drm_intel_bo_unreference(pPriv->buf);
-            pPriv->buf = NULL;
-        }
-    } else {
-#endif
-        if (pPriv->buf == NULL) {
-            pPriv->buf = drm_intel_bo_alloc(pI830->bufmgr,
-                                         "xv buffer", alloc_size, 4096);
-            if (pPriv->buf == NULL)
-                return BadAlloc;
-            if (!pPriv->textured && drm_intel_bo_pin(pPriv->buf, 4096) != 0) {
-                drm_intel_bo_unreference(pPriv->buf);
-                pPriv->buf = NULL;
-                xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                           "Failed to pin xv buffer\n");
-                return BadAlloc;
-            }
-        }
-#ifdef INTEL_XVMC
-    }
-#endif
+    if (!i830_setup_video_buffer(pScrn, pPriv, alloc_size, id))
+	return BadAlloc;
 
     /* fixup pointers */
 #ifdef INTEL_XVMC
