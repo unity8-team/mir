@@ -28,13 +28,9 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86_OSproc.h"
 
 typedef struct {
-   uint32_t YBuf0offset;
-   uint32_t UBuf0offset;
-   uint32_t VBuf0offset;
-
-   uint32_t YBuf1offset;
-   uint32_t UBuf1offset;
-   uint32_t VBuf1offset;
+   uint32_t YBufOffset;
+   uint32_t UBufOffset;
+   uint32_t VBufOffset;
 
    unsigned char currentBuf;
 

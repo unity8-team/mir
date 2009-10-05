@@ -158,9 +158,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_BATCH(_3DSTATE_MAP_STATE | 3);
       OUT_BATCH(0x00000001);	/* texture map #1 */
       if (pPriv->buf)
-          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->YBuf0offset);
+          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->YBufOffset);
       else
-          OUT_BATCH(pPriv->YBuf0offset);
+          OUT_BATCH(pPriv->YBufOffset);
 
       ms3 = MAPSURF_422 | MS3_USE_FENCE_REGS;
       switch (id) {
@@ -270,9 +270,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_BATCH(0x00000007);
 
       if (pPriv->buf)
-          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->YBuf0offset);
+          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->YBufOffset);
       else
-          OUT_BATCH(pPriv->YBuf0offset);
+          OUT_BATCH(pPriv->YBufOffset);
 
       ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
@@ -287,9 +287,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	  OUT_BATCH(((video_pitch * 2 / 4) - 1) << MS4_PITCH_SHIFT);
 
       if (pPriv->buf)
-          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->UBuf0offset);
+          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->UBufOffset);
       else
-          OUT_BATCH(pPriv->UBuf0offset);
+          OUT_BATCH(pPriv->UBufOffset);
 
       ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
@@ -298,9 +298,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_BATCH(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
 
       if (pPriv->buf)
-          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->VBuf0offset);
+          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->VBufOffset);
       else
-          OUT_BATCH(pPriv->VBuf0offset);
+          OUT_BATCH(pPriv->VBufOffset);
 
       ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;

@@ -997,12 +997,12 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     ErrorF ("INST_PM 0x%08x\n", INREG(INST_PM));
 #endif
 
-    src_surf_base[0] = pPriv->YBuf0offset;
-    src_surf_base[1] = pPriv->YBuf0offset;
-    src_surf_base[2] = pPriv->VBuf0offset;
-    src_surf_base[3] = pPriv->VBuf0offset;
-    src_surf_base[4] = pPriv->UBuf0offset;
-    src_surf_base[5] = pPriv->UBuf0offset;
+    src_surf_base[0] = pPriv->YBufOffset;
+    src_surf_base[1] = pPriv->YBufOffset;
+    src_surf_base[2] = pPriv->VBufOffset;
+    src_surf_base[3] = pPriv->VBufOffset;
+    src_surf_base[4] = pPriv->UBufOffset;
+    src_surf_base[5] = pPriv->UBufOffset;
 #if 0
     ErrorF ("base 0 0x%x base 1 0x%x base 2 0x%x\n",
 	    src_surf_base[0], src_surf_base[1], src_surf_base[2]);
