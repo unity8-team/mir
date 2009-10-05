@@ -2265,6 +2265,90 @@ i830_dst_pitch_and_size(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, short width,
 #endif
 }
 
+static Bool
+i830_copy_video_data(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+	     short width, short height, int *dstPitch, int *dstPitch2,
+	     INT32 x1, INT32 y1, INT32 x2, INT32 y2,
+	     int id, unsigned char *buf)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int srcPitch = 0, srcPitch2 = 0;
+    int top, left, npixels, nlines, size;
+    int alloc_size;
+
+    if (is_planar_fourcc(id)) {
+	srcPitch = (width + 0x3) & ~0x3;
+	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
+    } else {
+	srcPitch = width << 1;
+    }
+
+    i830_dst_pitch_and_size(pScrn, pPriv, width, height, dstPitch, dstPitch2,
+	    &size, id);
+
+    alloc_size = size;
+    if (pPriv->doubleBuffer)
+	alloc_size *= 2;
+
+    if (!i830_setup_video_buffer(pScrn, pPriv, alloc_size, id))
+	return FALSE;
+
+    /* fixup pointers */
+#ifdef INTEL_XVMC
+    if (id == FOURCC_XVMC && IS_I915(pI830)) {
+	pPriv->YBufOffset = (uint32_t)((uintptr_t)buf);
+	pPriv->VBufOffset = pPriv->YBufOffset + (*dstPitch2 * height);
+	pPriv->UBufOffset = pPriv->VBufOffset + (*dstPitch * height / 2);
+    } else {
+#endif
+	if (pPriv->textured)
+	    pPriv->YBufOffset = 0;
+	else
+	    pPriv->YBufOffset = pPriv->buf->offset;
+
+	/* switch buffers if double buffered */
+	if (!pPriv->textured && pPriv->doubleBuffer) {
+	    if (pPriv->currentBuf == 0)
+		pPriv->currentBuf = 1;
+	    else
+		pPriv->currentBuf = 0;
+
+	    pPriv->YBufOffset += size*pPriv->currentBuf;
+	}
+
+	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+	    pPriv->UBufOffset = pPriv->YBufOffset + (*dstPitch * 2 * width);
+	    pPriv->VBufOffset = pPriv->UBufOffset + (*dstPitch * width / 2);
+	} else {
+	    pPriv->UBufOffset = pPriv->YBufOffset + (*dstPitch * 2 * height);
+	    pPriv->VBufOffset = pPriv->UBufOffset + (*dstPitch * height / 2);
+	}
+#ifdef INTEL_XVMC
+    }
+#endif
+
+    /* copy data */
+    top = y1 >> 16;
+    left = (x1 >> 16) & ~1;
+    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
+
+    if (is_planar_fourcc(id)) {
+	if (id != FOURCC_XVMC
+		|| pPriv->rotation != RR_Rotate_0) {
+	    top &= ~1;
+	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+	    I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, *dstPitch,
+		    height, top, left, nlines, npixels, id);
+	}
+    } else {
+	nlines = ((y2 + 0xffff) >> 16) - top;
+	I830CopyPackedData(pScrn, pPriv, buf, srcPitch, *dstPitch, top, left,
+			   nlines, npixels);
+    }
+
+    return TRUE;
+}
+
 /*
  * The source rectangle of the video is defined by (src_x, src_y, src_w, src_h).
  * The dest rectangle of the video is defined by (drw_x, drw_y, drw_w, drw_h).
@@ -2295,11 +2379,9 @@ I830PutImage(ScrnInfoPtr pScrn,
     I830OverlayRegPtr overlay;
     PixmapPtr pPixmap = get_drawable_pixmap(pDraw);;
     INT32 x1, x2, y1, y2;
-    int srcPitch = 0, srcPitch2 = 0, dstPitch;
+    int dstPitch;
     int dstPitch2 = 0;
-    int top, left, npixels, nlines, size;
     BoxRec dstBox;
-    int alloc_size;
     xf86CrtcPtr	crtc;
 
     if (pPriv->textured)
@@ -2353,75 +2435,11 @@ I830PutImage(ScrnInfoPtr pScrn,
 	}
      }
 
-    if (is_planar_fourcc(id)) {
-	srcPitch = (width + 0x3) & ~0x3;
-	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
-    } else {
-	srcPitch = width << 1;
-    }
-
-    i830_dst_pitch_and_size(pScrn, pPriv, width, height, &dstPitch, &dstPitch2,
-	    &size, id);
-
-    alloc_size = size;
-    if (pPriv->doubleBuffer)
-	alloc_size *= 2;
-
-    if (!i830_setup_video_buffer(pScrn, pPriv, alloc_size, id))
+    if (!i830_copy_video_data(pScrn, pPriv, width, height,
+		&dstPitch, &dstPitch2,
+		x1, y1, x2, y2, id, buf))
 	return BadAlloc;
 
-    /* fixup pointers */
-#ifdef INTEL_XVMC
-    if (id == FOURCC_XVMC && IS_I915(pI830)) {
-	pPriv->YBufOffset = (uint32_t)((uintptr_t)buf);
-	pPriv->VBufOffset = pPriv->YBufOffset + (dstPitch2 * height);
-	pPriv->UBufOffset = pPriv->VBufOffset + (dstPitch * height / 2);
-    } else {
-#endif
-	if (pPriv->textured)
-	    pPriv->YBufOffset = 0;
-	else
-	    pPriv->YBufOffset = pPriv->buf->offset;
-
-	/* switch buffers if double buffered */
-	if (!pPriv->textured && pPriv->doubleBuffer) {
-	    if (pPriv->currentBuf == 0)
-		pPriv->currentBuf = 1;
-	    else
-		pPriv->currentBuf = 0;
-
-	    pPriv->YBufOffset += size*pPriv->currentBuf;
-	}
-
-	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-	    pPriv->UBufOffset = pPriv->YBufOffset + (dstPitch * 2 * width);
-	    pPriv->VBufOffset = pPriv->UBufOffset + (dstPitch * width / 2);
-	} else {
-	    pPriv->UBufOffset = pPriv->YBufOffset + (dstPitch * 2 * height);
-	    pPriv->VBufOffset = pPriv->UBufOffset + (dstPitch * height / 2);
-	}
-#ifdef INTEL_XVMC
-    }
-#endif
-
-    /* copy data */
-    top = y1 >> 16;
-    left = (x1 >> 16) & ~1;
-    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
-
-    if (is_planar_fourcc(id)) {
-	if (id != FOURCC_XVMC
-		|| pPriv->rotation != RR_Rotate_0) {
-	    top &= ~1;
-	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	    I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
-		    height, top, left, nlines, npixels, id);
-	}
-    } else {
-	nlines = ((y2 + 0xffff) >> 16) - top;
-	I830CopyPackedData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
-			   nlines, npixels);
-    }
 
     if (!pPriv->textured) {
 	i830_display_overlay(pScrn, crtc, id, width, height, dstPitch,
