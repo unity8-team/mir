@@ -1805,23 +1805,6 @@ i830_update_dst_box_to_crtc_coords(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     return;
 }
 
-static int
-is_planar_fourcc(int id)
-{
-    switch (id) {
-    case FOURCC_YV12:
-    case FOURCC_I420:
-#ifdef INTEL_XVMC
-    case FOURCC_XVMC:
-#endif
-	return 1;
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
-    default:
-	return 0;
-    }
-}
-
 static void
 i830_store_coeffs_in_overlay_regs(uint16_t *reg_coeffs, coeffPtr new_coeffs,
 	int max_taps)
@@ -1989,6 +1972,25 @@ i830_update_scaling_factors(I830OverlayRegPtr overlay,
     }
 
     return scaleChanged;
+}
+
+int
+is_planar_fourcc(int id)
+{
+    switch (id) {
+    case FOURCC_YV12:
+    case FOURCC_I420:
+#ifdef INTEL_XVMC
+    case FOURCC_XVMC:
+#endif
+	return 1;
+    case FOURCC_UYVY:
+    case FOURCC_YUY2:
+	return 0;
+    default:
+	ErrorF("Unknown format 0x%x\n", id);
+	return 0;
+    }
 }
 
 static void
@@ -2278,23 +2280,11 @@ I830PutImage(ScrnInfoPtr pScrn,
      }
 
     destId = id;
-    switch (id) {
-    case FOURCC_YV12:
-    case FOURCC_I420:
+    if (is_planar_fourcc(id)) {
 	srcPitch = (width + 0x3) & ~0x3;
 	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
-	break;
-#ifdef INTEL_XVMC
-    case FOURCC_XVMC:
-	srcPitch = (width + 0x3) & ~0x3;
-	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
-	break;
-#endif
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
-    default:
+    } else {
 	srcPitch = width << 1;
-	break;
     }
 
     /* Only needs to be DWORD-aligned for textured on i915, but overlay has
@@ -2438,33 +2428,18 @@ I830PutImage(ScrnInfoPtr pScrn,
     left = (x1 >> 16) & ~1;
     npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
-    switch (id) {
-    case FOURCC_YV12:
-    case FOURCC_I420:
-	top &= ~1;
-	nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
-	    	       height, top, left, nlines, npixels, id);
-	break;
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
-	nlines = ((y2 + 0xffff) >> 16) - top;
-	I830CopyPackedData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
-			   nlines, npixels);
-	break;
-#ifdef INTEL_XVMC
-    case FOURCC_XVMC:
-	if (pPriv->rotation != RR_Rotate_0) {
+    if (is_planar_fourcc(id)) {
+	if (id != FOURCC_XVMC
+		|| pPriv->rotation != RR_Rotate_0) {
 	    top &= ~1;
 	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 	    I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
 		    height, top, left, nlines, npixels, id);
 	}
-
-	break;
-#endif
-    default:
-	break;
+    } else {
+	nlines = ((y2 + 0xffff) >> 16) - top;
+	I830CopyPackedData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
+			   nlines, npixels);
     }
 
     if (!pPriv->textured) {

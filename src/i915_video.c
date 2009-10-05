@@ -53,26 +53,11 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    int nbox_total = REGION_NUM_RECTS(dstRegion);
    int nbox_this_time;
    int dxo, dyo, pix_xoff, pix_yoff;
-   Bool planar;
 
 #if 0
    ErrorF("I915DisplayVideo: %dx%d (pitch %d)\n", width, height,
 	  video_pitch);
 #endif
-
-   switch (id) {
-   case FOURCC_UYVY:
-   case FOURCC_YUY2:
-      planar = FALSE;
-      break;
-   case FOURCC_YV12:
-   case FOURCC_I420:
-      planar = TRUE;
-      break;
-   default:
-      ErrorF("Unknown format 0x%x\n", id);
-      return;
-   }
 
 #define BYTES_FOR_BOXES(n)	((200 + (n) * 20) * 4)
 #define BOXES_IN_BYTES(s)	((((s)/4) - 200) / 20)
@@ -147,7 +132,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RELOC_PIXMAP(pPixmap, I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
    ADVANCE_BATCH();
 
-   if (!planar) {
+   if (!is_planar_fourcc(id)) {
       FS_LOCALS(10);
 
       BEGIN_BATCH(16);
