@@ -183,8 +183,15 @@ static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
     ginfo.request = 0x3;
     ginfo.value = (uintptr_t)&tmp;
     r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
-    if (r)
+    if (r) {
+        /* If kernel is too old before 2.6.32 than assume accel is working */
+        if (r == -EINVAL) {
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Kernel too old missing accel "
+                       "information, assuming accel is working\n");
+            return TRUE;
+        }
         return FALSE;
+    }
     if (tmp)
         return TRUE;
     return FALSE;
@@ -439,12 +446,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		       (unsigned long long)mminfo.vram_visible);
 	}
     }
-#if 0
-    if (info->ChipFamily < CHIP_FAMILY_R600) {
-	info->useEXA = TRUE;
-	info->directRenderingEnabled = TRUE;
-    }
-#endif
     RADEONSetPitch(pScrn);
 
     /* Set display resolution */
