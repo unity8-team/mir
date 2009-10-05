@@ -942,8 +942,8 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	xvGamma5 = MAKE_ATOM("XV_GAMMA5");
     }
 
+    /* XXX These two access the overlay regs, dont call with drmmode */
     I830ResetVideo(pScrn);
-
     I830UpdateGamma(pScrn);
 
     return adapt;
@@ -1043,6 +1043,12 @@ i830_free_video_buffers(I830PortPrivPtr pPriv)
 }
 
 static void
+ums_overlay_off(ScrnInfoPtr pScrn)
+{
+    i830_overlay_off (pScrn);
+}
+
+static void
 I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
@@ -1056,7 +1062,7 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 
     if (shutdown) {
 	if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
-	    i830_overlay_off(pScrn);
+	    ums_overlay_off(pScrn);
 	}
 
 	i830_free_video_buffers(pPriv);
@@ -1089,12 +1095,40 @@ I830SetPortAttributeTextured(ScrnInfoPtr pScrn,
     } else if (attribute == xvSyncToVblank) {
         if ((value < -1) || (value > 1))
             return BadValue;
-        
         pPriv->SyncToVblank = value;
         return Success;
     } else {
 	return BadMatch;
     }
+}
+
+static void
+ums_overlay_update_attrs(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830OverlayRegPtr overlay;
+
+    overlay = I830OVERLAYREG(pI830);
+
+    overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
+    overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
+    overlay->OCLRC1 = pPriv->saturation;
+
+    switch (pScrn->depth) {
+    case 16:
+	overlay->DCLRKV = RGB16ToColorKey(pPriv->colorKey);
+	break;
+    case 15:
+	overlay->DCLRKV = RGB15ToColorKey(pPriv->colorKey);
+	break;
+    default:
+	overlay->DCLRKV = pPriv->colorKey;
+	break;
+    }
+
+    I830UpdateGamma(pScrn);
+
+    i830_overlay_continue(pScrn, FALSE);
 }
 
 static int
@@ -1103,30 +1137,21 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
     I830Ptr pI830 = I830PTR(pScrn);
-    I830OverlayRegPtr overlay;
-
-    overlay = I830OVERLAYREG(pI830);
 
     if (attribute == xvBrightness) {
 	if ((value < -128) || (value > 127))
 	    return BadValue;
 	pPriv->brightness = value;
-	overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
 	OVERLAY_DEBUG("BRIGHTNESS\n");
-	i830_overlay_continue (pScrn, FALSE);
     } else if (attribute == xvContrast) {
 	if ((value < 0) || (value > 255))
 	    return BadValue;
 	pPriv->contrast = value;
-	overlay->OCLRC0 = (pPriv->contrast << 18) | (pPriv->brightness & 0xff);
 	OVERLAY_DEBUG("CONTRAST\n");
-	i830_overlay_continue (pScrn, FALSE);
     } else if (attribute == xvSaturation) {
 	if ((value < 0) || (value > 1023))
 	    return BadValue;
 	pPriv->saturation = value;
-	overlay->OCLRC1 = pPriv->saturation;
-	i830_overlay_continue (pScrn, FALSE);
     } else if (attribute == xvPipe) {
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	if ((value < -1) || (value > xf86_config->num_crtc))
@@ -1139,7 +1164,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 	 * Leave this to be updated at the next frame
 	 */
     } else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
-	pPriv->gamma0 = value; 
+	pPriv->gamma0 = value;
     } else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
 	pPriv->gamma1 = value;
     } else if (attribute == xvGamma2 && (IS_I9XX(pI830))) {
@@ -1152,20 +1177,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 	pPriv->gamma5 = value;
     } else if (attribute == xvColorKey) {
 	pPriv->colorKey = value;
-	switch (pScrn->depth) {
-	case 16:
-	    overlay->DCLRKV = RGB16ToColorKey(pPriv->colorKey);
-	    break;
-	case 15:
-	    overlay->DCLRKV = RGB15ToColorKey(pPriv->colorKey);
-	    break;
-	default:
-	    overlay->DCLRKV = pPriv->colorKey;
-	    break;
-	}
 	OVERLAY_DEBUG("COLORKEY\n");
-	i830_overlay_continue (pScrn, FALSE);
-	REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
     } else
 	return BadMatch;
 
@@ -1177,8 +1189,12 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 	 attribute == xvGamma4 ||
 	 attribute == xvGamma5) && (IS_I9XX(pI830))) {
 	OVERLAY_DEBUG("GAMMA\n");
-	I830UpdateGamma(pScrn);
     }
+
+    ums_overlay_update_attrs(pScrn, pPriv);
+
+    if (attribute == xvColorKey)
+	REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 
     return Success;
 }
@@ -1964,7 +1980,7 @@ xvmc_passthrough(int id, Rotation rotation)
 }
 
 static Bool
-i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
+ums_overlay_put_image(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		   int id, short width, short height,
 		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
 		   short src_w, short src_h, short drw_w, short drw_h)
@@ -1974,29 +1990,12 @@ i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
     int			planar;
     uint32_t		swidth, swidthsw, sheigth;
-    int			tmp;
     Bool		scaleChanged;
     drm_intel_bo	*tmp_buf;
 
-    OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
-		  dstPitch);
-
-#if VIDEO_DEBUG
-    CompareOverlay(pI830, (uint32_t *) overlay, 0x100);
-#endif
-    
-    /*
-     * If the video isn't visible on any CRTC, turn it off
-     */
-    if (!crtc)
-    {
-	pPriv->current_crtc = NULL;
-	i830_overlay_off (pScrn);
-	return TRUE;
-    }
-    
     if (crtc != pPriv->current_crtc)
     {
+	/* this may adjust pPriv->oneLineMode */
 	i830_overlay_switch_to_crtc (pScrn, crtc);
 	if (pPriv->overlayOK) {
 	    pPriv->current_crtc = crtc;
@@ -2006,20 +2005,6 @@ i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 
     if (!pPriv->overlayOK)
 	return TRUE;
-
-    i830_update_dst_box_to_crtc_coords(pScrn, crtc, dstBox);
-
-    if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-	tmp = width;
-	width = height;
-	height = tmp;
-	tmp = drw_w;
-	drw_w = drw_h;
-	drw_h = tmp;
-	tmp = src_w;
-	src_w = src_h;
-	src_h = tmp;
-    }
 
     if (pPriv->oneLineMode) {
 	/* change the coordinates with panel fitting active */
@@ -2098,6 +2083,51 @@ i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     pPriv->oldBuf_pinned = TRUE;
 
     return TRUE;
+}
+
+static Bool
+i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
+		   int id, short width, short height,
+		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
+		   short src_w, short src_h, short drw_w, short drw_h)
+{
+    I830Ptr		pI830 = I830PTR(pScrn);
+    I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
+    int			tmp;
+
+    OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
+		  dstPitch);
+
+#if VIDEO_DEBUG
+    CompareOverlay(pI830, (uint32_t *) overlay, 0x100);
+#endif
+
+    /*
+     * If the video isn't visible on any CRTC, turn it off
+     */
+    if (!crtc)
+    {
+	pPriv->current_crtc = NULL;
+	ums_overlay_off(pScrn);
+	return TRUE;
+    }
+
+    i830_update_dst_box_to_crtc_coords(pScrn, crtc, dstBox);
+
+    if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+	tmp = width;
+	width = height;
+	height = tmp;
+	tmp = drw_w;
+	drw_w = drw_h;
+	drw_h = tmp;
+	tmp = src_w;
+	src_w = src_h;
+	src_h = tmp;
+    }
+
+    return ums_overlay_put_image(pScrn, crtc, id, width, height, dstPitch,
+	    x1, y1, x2, y2, dstBox, src_w, src_h, drw_w, drw_h);
 }
 
 static Bool
@@ -2606,7 +2636,7 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 		/* Turn off the overlay */
 		OVERLAY_DEBUG("BLOCKHANDLER\n");
 
-		i830_overlay_off (pScrn);
+		ums_overlay_off (pScrn);
 
 		pPriv->videoStatus = FREE_TIMER;
 		pPriv->freeTime = now + FREE_DELAY;
