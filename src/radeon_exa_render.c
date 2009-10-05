@@ -2060,17 +2060,35 @@ static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
 
     ENTER_DRAW(0);
 
-    if (IS_R300_3D || IS_R500_3D) {
-	if (info->accel_state->draw_header) {
-		info->accel_state->draw_header[0] = CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
-							       info->accel_state->num_vtx *
-							       info->accel_state->vtx_count);
-		info->accel_state->draw_header[1] = RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
-		    RADEON_CP_VC_CNTL_PRIM_WALK_RING |
-		    (info->accel_state->num_vtx << RADEON_CP_VC_CNTL_NUM_SHIFT);
-		info->accel_state->draw_header = NULL;
+    if (info->accel_state->draw_header) {
+	if (info->ChipFamily < CHIP_FAMILY_R200) {
+	    info->accel_state->draw_header[0] = CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
+							   info->accel_state->num_vtx *
+							   info->accel_state->vtx_count + 1);
+	    info->accel_state->draw_header[2] = (RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
+						 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+						 RADEON_CP_VC_CNTL_MAOS_ENABLE |
+						 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
+						 (info->accel_state->num_vtx << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	} else if (IS_R300_3D || IS_R500_3D) {
+	    info->accel_state->draw_header[0] = CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
+							   info->accel_state->num_vtx *
+							   info->accel_state->vtx_count);
+	    info->accel_state->draw_header[1] = (RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
+						 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+						 (info->accel_state->num_vtx << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	} else {
+	    info->accel_state->draw_header[0] = CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
+							   info->accel_state->num_vtx *
+							   info->accel_state->vtx_count);
+	    info->accel_state->draw_header[1] = (RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
+						 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+						 (info->accel_state->num_vtx << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	}
+	info->accel_state->draw_header = NULL;
+    }
 
+    if (IS_R300_3D || IS_R500_3D) {
 	BEGIN_ACCEL(3);
 	OUT_ACCEL_REG(R300_SC_CLIP_RULE, 0xAAAA);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
@@ -2218,21 +2236,37 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 
 #ifdef ACCEL_CP
     if (info->ChipFamily < CHIP_FAMILY_R200) {
-	BEGIN_RING(3 * vtx_count + 3);
-	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
-			    3 * vtx_count + 1));
-	if (info->accel_state->msk_pic)
-	    OUT_RING(RADEON_CP_VC_FRMT_XY |
-		     RADEON_CP_VC_FRMT_ST0 |
-		     RADEON_CP_VC_FRMT_ST1);
-	else
-	    OUT_RING(RADEON_CP_VC_FRMT_XY |
-		     RADEON_CP_VC_FRMT_ST0);
-	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
-		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
-		 RADEON_CP_VC_CNTL_MAOS_ENABLE |
-		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
-		 (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	if (!info->accel_state->draw_header) {
+	    BEGIN_RING(3);
+
+#ifdef XF86DRM_MODE
+	    if (info->cs)
+		info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
+	    else
+#endif
+		info->accel_state->draw_header = __head;
+	    info->accel_state->num_vtx = 0;
+	    info->accel_state->vtx_count = vtx_count;
+
+	    OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
+				3 * vtx_count + 1));
+	    if (info->accel_state->msk_pic)
+		OUT_RING(RADEON_CP_VC_FRMT_XY |
+			 RADEON_CP_VC_FRMT_ST0 |
+			 RADEON_CP_VC_FRMT_ST1);
+	    else
+		OUT_RING(RADEON_CP_VC_FRMT_XY |
+			 RADEON_CP_VC_FRMT_ST0);
+	    OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
+		     RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+		     RADEON_CP_VC_CNTL_MAOS_ENABLE |
+		     RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
+		     (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	    ADVANCE_RING();
+	}
+
+	info->accel_state->num_vtx += 3;
+	BEGIN_RING(3 * vtx_count);
     } else if (IS_R300_3D || IS_R500_3D) {
 	if (!info->accel_state->draw_header) {
 	    BEGIN_RING(2);
@@ -2257,12 +2291,28 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	info->accel_state->num_vtx += 4;
 	BEGIN_RING(4 * vtx_count);
     } else {
-	BEGIN_RING(3 * vtx_count + 2);
-	OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
-			    3 * vtx_count));
-	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
-		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
-		 (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	if (!info->accel_state->draw_header) {
+	    BEGIN_RING(2);
+
+#ifdef XF86DRM_MODE
+	    if (info->cs)
+		info->accel_state->draw_header = info->cs->packets + info->cs->cdw;
+	    else
+#endif
+		info->accel_state->draw_header = __head;
+	    info->accel_state->num_vtx = 0;
+	    info->accel_state->vtx_count = vtx_count;
+
+	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
+				3 * vtx_count));
+	    OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
+		     RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+		     (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	    ADVANCE_RING();
+	}
+
+	info->accel_state->num_vtx += 3;
+	BEGIN_RING(3 * vtx_count);
     }
 
 #else /* ACCEL_CP */
