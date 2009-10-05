@@ -1349,6 +1349,55 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	drm_intel_bo_unmap(pPriv->buf);
 }
 
+static void i830_memcpy_plane(unsigned char *dst, unsigned char *src,
+		int height, int width,
+		int dstPitch, int srcPitch, Rotation rotation)
+{
+    int i, j = 0;
+    unsigned char *s;
+
+    switch (rotation) {
+    case RR_Rotate_0:
+	/* optimise for the case of no clipping */
+	if (srcPitch == dstPitch && srcPitch == width)
+	    memcpy (dst, src, srcPitch * height);
+	else
+	    for (i = 0; i < height; i++) {
+		memcpy(dst, src, width);
+		src += srcPitch;
+		dst += dstPitch;
+	    }
+	break;
+    case RR_Rotate_90:
+	for (i = 0; i < height; i++) {
+	    s = src;
+	    for (j = 0; j < width; j++) {
+		dst[(i) + ((width - j - 1) * dstPitch)] = *s++;
+	    }
+	    src += srcPitch;
+	}
+	break;
+    case RR_Rotate_180:
+	for (i = 0; i < height; i++) {
+	    s = src;
+	    for (j = 0; j < width; j++) {
+		dst[(width - j - 1) + ((height - i - 1) * dstPitch)] = *s++;
+	    }
+	    src += srcPitch;
+	}
+	break;
+    case RR_Rotate_270:
+	for (i = 0; i < height; i++) {
+	    s = src;
+	    for (j = 0; j < width; j++) {
+		dst[(height - i - 1) + (j * dstPitch)] = *s++;
+	    }
+	    src += srcPitch;
+	}
+	break;
+    }
+}
+
 static void
 I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		   unsigned char *buf, int srcPitch,
@@ -1356,9 +1405,7 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		   int h, int w, int id)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    int i, j = 0;
     unsigned char *src1, *src2, *src3, *dst_base, *dst1, *dst2, *dst3;
-    unsigned char *s;
     int dstPitch2 = dstPitch << 1;
 
 #if 0
@@ -1388,46 +1435,7 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     else
 	dst1 = dst_base + pPriv->YBuf1offset;
 
-    switch (pPriv->rotation) {
-    case RR_Rotate_0:
-       /* optimise for the case of no clipping */
-	if (srcPitch == dstPitch2 && srcPitch == w)
-	    memcpy (dst1, src1, srcPitch * h);
-	else
-	    for (i = 0; i < h; i++) {
-		memcpy(dst1, src1, w);
-		src1 += srcPitch;
-		dst1 += dstPitch2;
-	    }
-	break;
-    case RR_Rotate_90:
-	for (i = 0; i < h; i++) {
-	    s = src1;
-	    for (j = 0; j < w; j++) {
-		dst1[(i) + ((w - j - 1) * dstPitch2)] = *s++;
-	    }
-	    src1 += srcPitch;
-	}
-	break;
-    case RR_Rotate_180:
-	for (i = 0; i < h; i++) {
-	    s = src1;
-	    for (j = 0; j < w; j++) {
-		dst1[(w - j - 1) + ((h - i - 1) * dstPitch2)] = *s++;
-	    }
-	    src1 += srcPitch;
-	}
-	break;
-    case RR_Rotate_270:
-	for (i = 0; i < h; i++) {
-	    s = src1;
-	    for (j = 0; j < w; j++) {
-		dst1[(h - i - 1) + (j * dstPitch2)] = *s++;
-	    }
-	    src1 += srcPitch;
-	}
-	break;
-    }
+    i830_memcpy_plane(dst1, src1, h, w, dstPitch2, srcPitch, pPriv->rotation);
 
     /* Copy V data for YV12, or U data for I420 */
     src2 = buf +                            /* start of YUV data */
@@ -1451,46 +1459,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	    dst2 = dst_base + pPriv->VBuf1offset;
     }
 
-    switch (pPriv->rotation) {
-    case RR_Rotate_0:
-       /* optimise for the case of no clipping */
-	if (srcPitch2 == dstPitch && srcPitch2 == (w/2))
-	    memcpy (dst2, src2, h/2 * srcPitch2);
-	else
-	    for (i = 0; i < h / 2; i++) {
-		memcpy(dst2, src2, w / 2);
-		src2 += srcPitch2;
-		dst2 += dstPitch;
-	    }
-	break;
-    case RR_Rotate_90:
-	for (i = 0; i < (h/2); i++) {
-	    s = src2;
-	    for (j = 0; j < (w/2); j++) {
-		dst2[(i) + (((w/2) - j - 1) * (dstPitch))] = *s++;
-	    }
-	    src2 += srcPitch2;
-	}
-	break;
-    case RR_Rotate_180:
-	for (i = 0; i < (h/2); i++) {
-	    s = src2;
-	    for (j = 0; j < (w/2); j++) {
-		dst2[((w/2) - j - 1) + (((h/2) - i - 1) * dstPitch)] = *s++;
-	    }
-	    src2 += srcPitch2;
-	}
-	break;
-    case RR_Rotate_270:
-	for (i = 0; i < (h/2); i++) {
-	    s = src2;
-	    for (j = 0; j < (w/2); j++) {
-		dst2[((h/2) - i - 1) + (j * dstPitch)] = *s++;
-	    }
-	    src2 += srcPitch2;
-	}
-	break;
-    }
+    i830_memcpy_plane(dst2, src2, h/2, w/2,
+		    dstPitch, srcPitch2, pPriv->rotation);
 
     /* Copy U data for YV12, or V data for I420 */
     src3 = buf +                            /* start of YUV data */
@@ -1514,46 +1484,8 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	    dst3 = dst_base + pPriv->UBuf1offset;
     }
 
-    switch (pPriv->rotation) {
-    case RR_Rotate_0:
-       /* optimise for the case of no clipping */
-	if (srcPitch2 == dstPitch && srcPitch2 == (w/2))
-	    memcpy (dst3, src3, srcPitch2 * h/2);
-	else
-	    for (i = 0; i < h / 2; i++) {
-		memcpy(dst3, src3, w / 2);
-		src3 += srcPitch2;
-		dst3 += dstPitch;
-	    }
-	break;
-    case RR_Rotate_90:
-	for (i = 0; i < (h/2); i++) {
-	    s = src3;
-	    for (j = 0; j < (w/2); j++) {
-		dst3[(i) + (((w/2) - j - 1) * (dstPitch))] = *s++;
-	    }
-	    src3 += srcPitch2;
-	}
-	break;
-    case RR_Rotate_180:
-	for (i = 0; i < (h/2); i++) {
-	    s = src3;
-	    for (j = 0; j < (w/2); j++) {
-		dst3[((w/2) - j - 1) + (((h/2) - i - 1) * dstPitch)] = *s++;
-	    }
-	    src3 += srcPitch2;
-	}
-	break;
-    case RR_Rotate_270:
-	for (i = 0; i < (h/2); i++) {
-	    s = src3;
-	    for (j = 0; j < (w/2); j++) {
-		dst3[((h/2) - i - 1) + (j * dstPitch)] = *s++;
-	    }
-	    src3 += srcPitch2;
-	}
-	break;
-    }
+    i830_memcpy_plane(dst3, src3, h/2, w/2,
+		    dstPitch, srcPitch2, pPriv->rotation);
 
     if (pPriv->textured)
 	drm_intel_bo_unmap(pPriv->buf);
