@@ -156,16 +156,19 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 		return NULL;
 	}
 
-	pixmap = GetScratchPixmapHeader(pScreen,
-					fbcon->width, fbcon->height,
-					fbcon->depth, fbcon->bpp,
-					fbcon->pitch, NULL);
-	if (pixmap == NULL) {
+	pixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, fbcon->depth, 0);
+	if (!pixmap) 
+		return NULL;
+
+	if (!(*pScreen->ModifyPixmapHeader)(pixmap, fbcon->width, fbcon->height,
+					   fbcon->depth, fbcon->bpp,
+					   fbcon->pitch, NULL)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate pixmap fbcon contents\n");
 		return NULL;
 	}
-
+	
+	exaMoveInPixmap(pixmap);
 	radeon_set_pixmap_bo(pixmap, bo);
 
 	radeon_bo_unref(bo);
@@ -199,10 +202,17 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	if (!src)
 		return;
 
-	dst = GetScratchPixmapHeader(pScreen,
-				     pScrn->virtualX, pScrn->virtualY,
-				     pScrn->depth, pScrn->bitsPerPixel,
-				     pitch, NULL);
+	dst = (*pScreen->CreatePixmap)(pScreen, 0, 0, pScrn->depth, 0);
+	if (!dst)
+		goto out_free_src;
+
+	if (!(*pScreen->ModifyPixmapHeader)(dst, pScrn->virtualX,
+					    pScrn->virtualY, pScrn->depth,
+					    pScrn->bitsPerPixel, pitch,
+					    NULL))
+		goto out_free_dst;
+
+	exaMoveInPixmap(dst);
 	radeon_set_pixmap_bo(dst, info->front_bo);
 	info->accel_state->exa->PrepareCopy (src, dst,
 					     -1, -1, GXcopy, FB_ALLONES);
@@ -210,8 +220,9 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 				      pScrn->virtualX, pScrn->virtualY);
 	info->accel_state->exa->DoneCopy (dst);
 	radeon_cs_flush_indirect(pScrn);
-
+ out_free_dst:
 	(*pScreen->DestroyPixmap)(dst);
+ out_free_src:
 	(*pScreen->DestroyPixmap)(src);
 
 }
