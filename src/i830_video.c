@@ -1906,6 +1906,36 @@ i830_store_coeffs_in_overlay_regs(uint16_t *reg_coeffs, coeffPtr new_coeffs,
     }
 }
 
+static uint32_t
+i830_overlay_cmd(int id, int planar, unsigned char currentBuf)
+{
+    uint32_t OCMD = OVERLAY_ENABLE;
+
+    if (planar) {
+	OVERLAY_DEBUG("YUV420\n");
+	OCMD &= ~SOURCE_FORMAT;
+	OCMD &= ~OV_BYTE_ORDER;
+	OCMD |= YUV_420;
+    } else {
+	OVERLAY_DEBUG("YUV422\n");
+	OCMD &= ~SOURCE_FORMAT;
+	OCMD |= YUV_422;
+	OCMD &= ~OV_BYTE_ORDER;
+	if (id == FOURCC_UYVY)
+	    OCMD |= Y_SWAP;
+    }
+
+    OCMD &= ~(BUFFER_SELECT | FIELD_SELECT);
+    if (currentBuf == 0)
+	OCMD |= BUFFER0;
+    else
+	OCMD |= BUFFER1;
+
+    OVERLAY_DEBUG("OCMD is 0x%x\n", OCMD);
+
+    return OCMD;
+}
+
 static double
 i830_limit_coeff(double coeff)
 {
@@ -2041,7 +2071,6 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     int			planar;
     uint32_t		swidth, swidthsw, sheigth;
     int			tmp;
-    uint32_t		OCMD;
     Bool		scaleChanged = FALSE;
 
     OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
@@ -2130,46 +2159,18 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     scaleChanged = i830_update_scaling_factors(overlay,
 	    src_w, src_h, drw_w, drw_h);
 
-    OCMD = OVERLAY_ENABLE;
-    
-    switch (id) {
-    case FOURCC_YV12:
-    case FOURCC_I420:
-#ifdef INTEL_XVMC
-    case FOURCC_XVMC:
-#endif
-	OVERLAY_DEBUG("YUV420\n");
+    if (planar) {
 #if 0
 	/* set UV vertical phase to -0.25 */
 	overlay->UV_VPH = 0x30003000;
 #endif
+	overlay->OSTRIDE = (dstPitch * 2) | (dstPitch << 16);
 	OVERLAY_DEBUG("UV stride is %d, Y stride is %d\n",
 		      dstPitch, dstPitch * 2);
-	overlay->OSTRIDE = (dstPitch * 2) | (dstPitch << 16);
-	OCMD &= ~SOURCE_FORMAT;
-	OCMD &= ~OV_BYTE_ORDER;
-	OCMD |= YUV_420;
-	break;
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
-	OVERLAY_DEBUG("YUV422\n");
+    } else
 	overlay->OSTRIDE = dstPitch;
-	OCMD &= ~SOURCE_FORMAT;
-	OCMD |= YUV_422;
-	OCMD &= ~OV_BYTE_ORDER;
-	if (id == FOURCC_UYVY)
-	    OCMD |= Y_SWAP;
-	break;
-    }
 
-    OCMD &= ~(BUFFER_SELECT | FIELD_SELECT);
-    if (pPriv->currentBuf == 0)
-	OCMD |= BUFFER0;
-    else
-	OCMD |= BUFFER1;
-
-    overlay->OCMD = OCMD;
-    OVERLAY_DEBUG("OCMD is 0x%x\n", OCMD);
+    overlay->OCMD = i830_overlay_cmd(id, planar, pPriv->currentBuf);
 
     /* make sure the overlay is on */
     i830_overlay_on (pScrn);
