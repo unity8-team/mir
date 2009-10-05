@@ -32,14 +32,11 @@ typedef struct {
    uint32_t UBufOffset;
    uint32_t VBufOffset;
 
-   unsigned char currentBuf;
-
    int brightness;
    int contrast;
    int saturation;
    xf86CrtcPtr current_crtc;
    xf86CrtcPtr desired_crtc;
-   int doubleBuffer;
 
    RegionRec clip;
    uint32_t colorKey;
@@ -54,7 +51,10 @@ typedef struct {
    uint32_t videoStatus;
    Time offTime;
    Time freeTime;
-   drm_intel_bo *buf; /** YUV data buffer */
+   /** YUV data buffers */
+   drm_intel_bo *buf; /* current buffer to draw into */
+   drm_intel_bo *oldBuf; /* old buffer, may be in use by the overlay hw */
+   Bool oldBuf_pinned; /* only actually pinned when in use by the overlay hw */
 
    Bool overlayOK;
    int oneLineMode;
