@@ -1962,6 +1962,16 @@ is_planar_fourcc(int id)
     }
 }
 
+static int
+xvmc_passthrough(int id, Rotation rotation)
+{
+#ifdef INTEL_XVMC
+    return id == FOURCC_XVMC && rotation == RR_Rotate_0;
+#else
+    return 0;
+#endif
+}
+
 static void
 i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		   int id, short width, short height,
@@ -2205,16 +2215,13 @@ i830_setup_video_buffer(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	pPriv->buf = NULL;
     }
 
-#ifdef INTEL_XVMC
-    if (id == FOURCC_XVMC &&
-        pPriv->rotation == RR_Rotate_0) {
+    if (xvmc_passthrough(id, pPriv->rotation)) {
         if (pPriv->buf) {
             assert(pPriv->textured);
             drm_intel_bo_unreference(pPriv->buf);
             pPriv->buf = NULL;
         }
     } else {
-#endif
         if (pPriv->buf == NULL) {
             pPriv->buf = drm_intel_bo_alloc(pI830->bufmgr,
                                          "xv buffer", alloc_size, 4096);
@@ -2228,9 +2235,8 @@ i830_setup_video_buffer(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
                 return FALSE;
             }
         }
-#ifdef INTEL_XVMC
     }
-#endif
+
     return TRUE;
 }
 
@@ -2368,8 +2374,7 @@ i830_copy_video_data(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
     if (is_planar_fourcc(id)) {
-	if (id != FOURCC_XVMC
-		|| pPriv->rotation != RR_Rotate_0) {
+	if (!xvmc_passthrough(id, pPriv->rotation)) {
 	    top &= ~1;
 	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 	    I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, *dstPitch,
@@ -2485,13 +2490,11 @@ I830PutImage(ScrnInfoPtr pScrn,
         }
 
         if (IS_I965G(pI830)) {
-#ifdef INTEL_XVMC
-            if (id == FOURCC_XVMC && pPriv->rotation == RR_Rotate_0) {
+            if (xvmc_passthrough(id, pPriv->rotation)) {
                 pPriv->YBufOffset = buf -  pI830->FbBase;
                 pPriv->UBufOffset = pPriv->YBufOffset + height*width;
                 pPriv->VBufOffset = pPriv->UBufOffset + height*width/4;
             }
-#endif
             I965DisplayVideoTextured(pScrn, pPriv, id, clipBoxes, width, height,
                                      dstPitch, x1, y1, x2, y2,
                                      src_w, src_h, drw_w, drw_h, pPixmap);
