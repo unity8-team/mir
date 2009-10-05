@@ -286,7 +286,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (!xf86CrtcRotate(crtc)) {
 			goto done;
 		}
-
+		crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
+				       crtc->gamma_blue, crtc->gamma_size);
+		
 		drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 		fb_id = drmmode->fb_id;
@@ -1143,88 +1145,5 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 			return FALSE;
 	}
 	return TRUE;
-}
-
-static void drmmode_load_palette(ScrnInfoPtr pScrn, int numColors,
-                                 int *indices, LOCO *colors, VisualPtr pVisual)
-{
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    uint16_t       lut_r[256], lut_g[256], lut_b[256];
-    int index, j, i;
-    int c;
-
-    for (c = 0; c < xf86_config->num_crtc; c++) {
-        xf86CrtcPtr crtc = xf86_config->crtc[c];
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-        for (i = 0 ; i < 256; i++) {
-            lut_r[i] = drmmode_crtc->lut_r[i] << 6;
-            lut_g[i] = drmmode_crtc->lut_g[i] << 6;
-            lut_b[i] = drmmode_crtc->lut_b[i] << 6;
-        }
-
-        switch(pScrn->depth) {
-        case 15:
-            for (i = 0; i < numColors; i++) {
-                index = indices[i];
-                for (j = 0; j < 8; j++) {
-                    lut_r[index * 8 + j] = colors[index].red << 6;
-                    lut_g[index * 8 + j] = colors[index].green << 6;
-                    lut_b[index * 8 + j] = colors[index].blue << 6;
-                }
-            }
-         break;
-         case 16:
-             for (i = 0; i < numColors; i++) {
-                 index = indices[i];
-
-                  if (i <= 31) {
-                      for (j = 0; j < 8; j++) {
-                          lut_r[index * 8 + j] = colors[index].red << 6;
-                          lut_b[index * 8 + j] = colors[index].blue << 6;
-                      }
-                  }
-
-                  for (j = 0; j < 4; j++) {
-                      lut_g[index * 4 + j] = colors[index].green << 6;
-                  }
-              }
-	  break;
-          default:
-              for (i = 0; i < numColors; i++) {
-                  index = indices[i];
-                  lut_r[index] = colors[index].red << 6;
-                  lut_g[index] = colors[index].green << 6;
-                  lut_b[index] = colors[index].blue << 6;
-              }
-              break;
-          }
-
-    /* Make the change through RandR */
-#ifdef RANDR_12_INTERFACE
-        if (crtc->randr_crtc)
-            RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
-        else
-#endif
-            crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
-     }
-}
-
-Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
-{
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-                  "Initializing kms color map\n");
-    if (!miCreateDefColormap(pScreen))
-        return FALSE;
-    /* all radeons support 10 bit CLUTs */
-    if (!xf86HandleColormaps(pScreen, 256, 10,
-                             drmmode_load_palette, NULL,
-                             CMAP_PALETTED_TRUECOLOR
-#if 0 /* This option messes up text mode! (eich@suse.de) */
-                             | CMAP_LOAD_EVEN_IF_OFFSCREEN
-#endif
-                             | CMAP_RELOAD_ON_MODE_SWITCH))
-         return FALSE;
-    return TRUE;
 }
 #endif

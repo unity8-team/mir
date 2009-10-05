@@ -766,8 +766,8 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 //    info->PointerMoved = pScrn->PointerMoved;
 //    pScrn->PointerMoved = RADEONPointerMoved;
 
-    if (!drmmode_setup_colormap(pScreen, pScrn))
-	return FALSE;
+    if (!miCreateDefColormap(pScreen))
+        return FALSE;
 
    /* Note unused options */
     if (serverGeneration == 1)
