@@ -1782,6 +1782,46 @@ i830_swidth (I830Ptr pI830, unsigned int offset,
 }
 
 static void
+i830_calc_src_regs(I830Ptr pI830, int planar, short width, short height,
+	uint32_t *swidth_out, uint32_t *swidthsw_out, uint32_t *sheigth_out)
+{
+    unsigned int	mask, shift, offsety, offsetu;
+    unsigned int	swidth, swidthy, swidthuv;
+    I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
+
+    if (IS_I9XX(pI830)) {
+	shift = 6;
+	mask = 0x3f;
+    } else {
+	shift = 5;
+	mask = 0x1f;
+    }
+
+    if (pPriv->currentBuf == 0) {
+	offsety = pPriv->YBuf0offset;
+	offsetu = pPriv->UBuf0offset;
+    } else {
+	offsety = pPriv->YBuf1offset;
+	offsetu = pPriv->UBuf1offset;
+    }
+
+    if (planar) {
+	*swidth_out = width | ((width/2 & 0x7ff) << 16);
+	swidthy  = i830_swidth (pI830, offsety, width, mask, shift);
+	swidthuv = i830_swidth (pI830, offsetu, width/2, mask, shift);
+	*swidthsw_out = (swidthy) | (swidthuv << 16);
+	*sheigth_out = height | ((height / 2) << 16);
+    } else {
+	*swidth_out = width;
+	swidth = i830_swidth (pI830, offsety, width << 1, mask, shift);
+	*swidthsw_out = swidth;
+	*sheigth_out = height;
+    }
+
+    return;
+}
+
+static void
 i830_update_dst_box_to_crtc_coords(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		BoxPtr dstBox)
 {
@@ -1831,6 +1871,23 @@ i830_update_dst_box_to_crtc_coords(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     }
 
     return;
+}
+
+static int
+is_planar_fourcc(int id)
+{
+    switch (id) {
+    case FOURCC_YV12:
+    case FOURCC_I420:
+#ifdef INTEL_XVMC
+    case FOURCC_XVMC:
+#endif
+	return 1;
+    case FOURCC_UYVY:
+    case FOURCC_YUY2:
+    default:
+	return 0;
+    }
 }
 
 static void
@@ -1981,8 +2038,8 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     I830Ptr		pI830 = I830PTR(pScrn);
     I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
     I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
-    unsigned int	swidth, swidthy, swidthuv;
-    unsigned int	mask, shift, offsety, offsetu;
+    int			planar;
+    uint32_t		swidth, swidthsw, sheigth;
     int			tmp;
     uint32_t		OCMD;
     Bool		scaleChanged = FALSE;
@@ -2039,54 +2096,14 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	drw_h = ((drw_h * pPriv->scaleRatio) >> 16) + 1;
     }
 
-    if (IS_I9XX(pI830)) {
-	shift = 6;
-	mask = 0x3f;
-    } else {
-	shift = 5;
-	mask = 0x1f;
-    }
+    planar = is_planar_fourcc(id);
 
-    if (pPriv->currentBuf == 0) {
-	offsety = pPriv->YBuf0offset;
-	offsetu = pPriv->UBuf0offset;
-    } else {
-	offsety = pPriv->YBuf1offset;
-	offsetu = pPriv->UBuf1offset;
-    }
+    i830_calc_src_regs(pI830, planar, width, height,
+	    &swidth, &swidthsw, &sheigth);
 
-    switch (id) {
-    case FOURCC_YV12:
-    case FOURCC_I420:
-	overlay->SWIDTH = width | ((width/2 & 0x7ff) << 16);
-	swidthy  = i830_swidth (pI830, offsety, width, mask, shift);
-	swidthuv = i830_swidth (pI830, offsetu, width/2, mask, shift);
-	overlay->SWIDTHSW = (swidthy) | (swidthuv << 16);
-	overlay->SHEIGHT = height | ((height / 2) << 16);
-	break;
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
-    default:
-	overlay->SWIDTH = width;
-	swidth = ((offsety + (width << 1) + mask) >> shift) -
-	(offsety >> shift);
-
-	if (IS_I9XX(pI830))
-	    swidth <<= 1;
-
-	swidth -= 1;
-
-	swidth <<= 2;
-	
-	OVERLAY_DEBUG("swidthsw is old %d new %d\n",
-		      swidth,
-		      i830_swidth (pI830, offsety, width << 1,
-				   mask, shift));
-
-	overlay->SWIDTHSW = swidth;
-	overlay->SHEIGHT = height;
-	break;
-    }
+    overlay->SWIDTH = swidth;
+    overlay->SWIDTHSW = swidthsw;
+    overlay->SHEIGHT = sheigth;
 
     overlay->DWINPOS = (dstBox->y1 << 16) | dstBox->x1;
 
