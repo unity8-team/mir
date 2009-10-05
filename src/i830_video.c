@@ -2157,6 +2157,44 @@ i830_fill_colorkey (ScreenPtr pScreen, uint32_t key, RegionPtr clipboxes)
    FreeScratchGC (gc);
 }
 
+static void
+i830_wait_for_scanline(ScrnInfoPtr pScrn, PixmapPtr pPixmap,
+	xf86CrtcPtr crtc, RegionPtr clipBoxes)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    BoxPtr box;
+    pixman_box16_t box_in_crtc_coordinates;
+    int pipe = -1, event, load_scan_lines_pipe;
+
+    if (pixmap_is_scanout(pPixmap))
+	pipe = i830_crtc_to_pipe(crtc);
+
+    if (pipe >= 0) {
+	if (pipe == 0) {
+	    event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+	    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
+	} else {
+	    event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+	    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+	}
+
+	box = REGION_EXTENTS(unused, clipBoxes);
+	box_in_crtc_coordinates = *box;
+	if (crtc->transform_in_use)
+	    pixman_f_transform_bounds (&crtc->f_framebuffer_to_crtc, &box_in_crtc_coordinates);
+
+	BEGIN_BATCH(5);
+	/* The documentation says that the LOAD_SCAN_LINES command
+	 * always comes in pairs. Don't ask me why. */
+	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+	OUT_BATCH((box_in_crtc_coordinates.y1 << 16) | box_in_crtc_coordinates.y2);
+	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
+	OUT_BATCH((box_in_crtc_coordinates.y1 << 16) | box_in_crtc_coordinates.y2);
+	OUT_BATCH(MI_WAIT_FOR_EVENT | event);
+	ADVANCE_BATCH();
+    }
+}
+
 static Bool
 i830_setup_video_buffer(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	int alloc_size, int id)
@@ -2452,46 +2490,8 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    i830_fill_colorkey (pScreen, pPriv->colorKey, clipBoxes);
 	}
     } else {
-        Bool sync = TRUE;
-        
-        if (crtc == NULL) {
-            sync = FALSE;
-        } else if (pPriv->SyncToVblank == 0) {
-            sync = FALSE;
-        }
-
-        if (sync) {
-	    BoxPtr box;
-	    pixman_box16_t box_in_crtc_coordinates;
-	    int pipe = -1, event, load_scan_lines_pipe;
-
-	    if (pixmap_is_scanout(pPixmap))
-		pipe = i830_crtc_to_pipe(crtc);
-
-	    if (pipe >= 0) {
-		if (pipe == 0) {
-		    event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-		    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
-		} else {
-		    event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-		    load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
-		}
-
-		box = REGION_EXTENTS(unused, clipBoxes);
-		box_in_crtc_coordinates = *box;
-		if (crtc->transform_in_use)
-		    pixman_f_transform_bounds (&crtc->f_framebuffer_to_crtc, &box_in_crtc_coordinates);
-
-		BEGIN_BATCH(5);
-		/* The documentation says that the LOAD_SCAN_LINES command
-		 * always comes in pairs. Don't ask me why. */
-		OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
-		OUT_BATCH((box_in_crtc_coordinates.y1 << 16) | box_in_crtc_coordinates.y2);
-		OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
-		OUT_BATCH((box_in_crtc_coordinates.y1 << 16) | box_in_crtc_coordinates.y2);
-		OUT_BATCH(MI_WAIT_FOR_EVENT | event);
-		ADVANCE_BATCH();
-	    }
+        if (crtc && pPriv->SyncToVblank != 0) {
+	    i830_wait_for_scanline(pScrn, pPixmap, crtc, clipBoxes);
         }
 
         if (IS_I965G(pI830)) {
