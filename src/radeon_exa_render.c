@@ -2179,7 +2179,10 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 	(!info->cs && (info->cp->indirectBuffer->used + 4 * 32) >
 	 info->cp->indirectBuffer->total)) {
 	FUNC_NAME(RadeonDoneComposite)(info->accel_state->dst_pix);
-	radeon_cs_flush_indirect(pScrn);
+	if (info->cs)
+	    radeon_cs_flush_indirect(pScrn);
+	else
+	    RADEONCPFlushIndirect(pScrn, 1);
 	info->accel_state->exa->PrepareComposite(info->accel_state->composite_op,
 						 info->accel_state->src_pic,
 						 info->accel_state->msk_pic,
