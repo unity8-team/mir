@@ -356,6 +356,150 @@ CompareOverlay(I830Ptr pI830, uint32_t * overlay, int size)
 static void
 I830SetOneLineModeRatio(ScrnInfoPtr pScrn);
 
+/* kernel modesetting overlay functions */
+static Bool
+drmmode_has_overlay(ScrnInfoPtr pScrn)
+{
+#ifdef DRM_MODE_OVERLAY_LANDED
+    I830Ptr p830 = I830PTR(pScrn);
+    struct drm_i915_getparam gp;
+    int has_overlay = 0;
+
+    gp.param = I915_PARAM_HAS_OVERLAY;
+    gp.value = &has_overlay;
+    drmCommandWriteRead(p830->drmSubFD, DRM_I915_GETPARAM,
+			      &gp, sizeof(gp));
+
+    return has_overlay ? TRUE : FALSE;
+#else
+    return FALSE;
+#endif
+}
+
+static void
+drmmode_overlay_update_attrs(ScrnInfoPtr pScrn)
+{
+#ifdef DRM_MODE_OVERLAY_LANDED
+    I830Ptr p830 = I830PTR(pScrn);
+    I830PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
+    struct drm_intel_overlay_attrs attrs;
+    int ret;
+
+    attrs.flags = I915_OVERLAY_UPDATE_ATTRS;
+    attrs.brightness = pPriv->brightness;
+    attrs.contrast = pPriv->contrast;
+    attrs.saturation = pPriv->saturation;
+    attrs.color_key = pPriv->colorKey;
+    attrs.gamma0 = pPriv->gamma0;
+    attrs.gamma1 = pPriv->gamma1;
+    attrs.gamma2 = pPriv->gamma2;
+    attrs.gamma3 = pPriv->gamma3;
+    attrs.gamma4 = pPriv->gamma4;
+    attrs.gamma5 = pPriv->gamma5;
+
+    ret = drmCommandWriteRead(p830->drmSubFD, DRM_I915_OVERLAY_ATTRS,
+			      &attrs, sizeof(attrs));
+
+    if (ret != 0)
+	    OVERLAY_DEBUG("overlay attrs ioctl failed: %i\n", ret);
+#endif
+}
+
+static void
+drmmode_overlay_off(ScrnInfoPtr pScrn)
+{
+#ifdef DRM_MODE_OVERLAY_LANDED
+    I830Ptr p830 = I830PTR(pScrn);
+    struct drm_intel_overlay_put_image request;
+    int ret;
+
+    request.flags = 0;
+
+    ret = drmCommandWrite(p830->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
+			      &request, sizeof(request));
+
+    if (ret != 0)
+	    OVERLAY_DEBUG("overlay switch-off ioctl failed: %i\n", ret);
+#endif
+}
+
+static Bool
+drmmode_overlay_put_image(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
+		   int id, short width, short height,
+		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
+		   short src_w, short src_h, short drw_w, short drw_h)
+{
+#ifdef DRM_MODE_OVERLAY_LANDED
+    I830Ptr p830 = I830PTR(pScrn);
+    I830PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
+    struct drm_intel_overlay_put_image request;
+    int ret;
+    int planar = is_planar_fourcc(id);
+    float scale;
+
+    request.flags = I915_OVERLAY_ENABLE;
+
+    request.bo_handle = pPriv->buf->handle;
+    if (planar) {
+	    request.stride_Y = dstPitch*2;
+	    request.stride_UV = dstPitch;
+    } else {
+	    request.stride_Y = dstPitch;
+	    request.stride_UV = 0;
+    }
+    request.offset_Y = pPriv->YBufOffset;
+    request.offset_U = pPriv->UBufOffset;
+    request.offset_V = pPriv->VBufOffset;
+    OVERLAY_DEBUG("off_Y: %i, off_U: %i, off_V: %i\n", request.offset_Y,
+		    request.offset_U, request.offset_V);
+
+    request.crtc_id = drmmode_crtc_id(crtc);
+    request.dst_x = dstBox->x1;
+    request.dst_y = dstBox->y1;
+    request.dst_width = dstBox->x2 - dstBox->x1;
+    request.dst_height = dstBox->y2 - dstBox->y1;
+
+    request.src_width = width;
+    request.src_height = height;
+    /* adjust src dimensions */
+    if (request.dst_height > 1) {
+	scale = ((float) request.dst_height - 1) / ((float) drw_h - 1);
+	request.src_scan_height = src_h * scale;
+    } else
+	request.src_scan_height = 1;
+
+    if (request.dst_width > 1) {
+	scale = ((float) request.dst_width - 1) / ((float) drw_w - 1);
+	request.src_scan_width = src_w * scale;
+    } else
+	request.src_scan_width = 1;
+
+    if (planar) {
+	request.flags |= I915_OVERLAY_YUV_PLANAR | I915_OVERLAY_YUV420;
+    } else {
+	request.flags |= I915_OVERLAY_YUV_PACKED | I915_OVERLAY_YUV422;
+	if (id == FOURCC_UYVY)
+	    request.flags |= I915_OVERLAY_Y_SWAP;
+    }
+
+    ret = drmCommandWrite(p830->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
+			      &request, sizeof(request));
+
+    /* drop the newly displaying buffer right away */
+    drm_intel_bo_disable_reuse(pPriv->buf);
+    drm_intel_bo_unreference(pPriv->buf);
+    pPriv->buf = NULL;
+
+    if (ret != 0) {
+	OVERLAY_DEBUG("overlay put-image ioctl failed: %i\n", ret);
+	return FALSE;
+    } else
+	return TRUE;
+#else
+    return FALSE;
+#endif
+}
+
 static void
 i830_overlay_switch_to_crtc (ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
 {
@@ -597,15 +741,18 @@ I830InitVideo(ScreenPtr pScreen)
     }
 
     /* Set up overlay video if we can do it at this depth. */
-    if (!OVERLAY_NOEXIST(pI830) && pScrn->bitsPerPixel != 8 &&
-	!pI830->use_drm_mode && pI830->overlay_regs != NULL)
+    if (!OVERLAY_NOEXIST(pI830) && pScrn->bitsPerPixel != 8)
     {
-	overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
-	if (overlayAdaptor != NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
-	} else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to set up overlay video\n");
+	pI830->use_drmmode_overlay = drmmode_has_overlay(pScrn);
+	if ((!pI830->use_drm_mode  && pI830->overlay_regs != NULL)
+		|| pI830->use_drmmode_overlay) {
+	    overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
+	    if (overlayAdaptor != NULL) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to set up overlay video\n");
+	    }
 	}
     }
 
@@ -942,9 +1089,12 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	xvGamma5 = MAKE_ATOM("XV_GAMMA5");
     }
 
-    /* XXX These two access the overlay regs, dont call with drmmode */
-    I830ResetVideo(pScrn);
-    I830UpdateGamma(pScrn);
+    if (pI830->use_drmmode_overlay)
+	drmmode_overlay_update_attrs(pScrn);
+    else {
+	I830ResetVideo(pScrn);
+	I830UpdateGamma(pScrn);
+    }
 
     return adapt;
 }
@@ -1052,6 +1202,7 @@ static void
 I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
+    I830Ptr pI830 = I830PTR(pScrn);
 
     if (pPriv->textured)
 	return;
@@ -1062,7 +1213,10 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 
     if (shutdown) {
 	if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
-	    ums_overlay_off(pScrn);
+	    if (pI830->use_drmmode_overlay)
+		drmmode_overlay_off(pScrn);
+	    else
+		ums_overlay_off(pScrn);
 	}
 
 	i830_free_video_buffers(pPriv);
@@ -1191,7 +1345,10 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 	OVERLAY_DEBUG("GAMMA\n");
     }
 
-    ums_overlay_update_attrs(pScrn, pPriv);
+    if (pI830->use_drmmode_overlay)
+	drmmode_overlay_update_attrs(pScrn);
+    else
+	ums_overlay_update_attrs(pScrn, pPriv);
 
     if (attribute == xvColorKey)
 	REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
@@ -2108,7 +2265,11 @@ i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     if (!crtc)
     {
 	pPriv->current_crtc = NULL;
-	ums_overlay_off(pScrn);
+	if (pI830->use_drmmode_overlay)
+	    drmmode_overlay_off(pScrn);
+	else
+	    ums_overlay_off(pScrn);
+
 	return TRUE;
     }
 
@@ -2126,8 +2287,12 @@ i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	src_h = tmp;
     }
 
-    return ums_overlay_put_image(pScrn, crtc, id, width, height, dstPitch,
-	    x1, y1, x2, y2, dstBox, src_w, src_h, drw_w, drw_h);
+    if (pI830->use_drmmode_overlay)
+	return drmmode_overlay_put_image(pScrn, crtc, id, width, height, dstPitch,
+		x1, y1, x2, y2, dstBox, src_w, src_h, drw_w, drw_h);
+    else
+	return ums_overlay_put_image(pScrn, crtc, id, width, height, dstPitch,
+		x1, y1, x2, y2, dstBox, src_w, src_h, drw_w, drw_h);
 }
 
 static Bool
@@ -2636,7 +2801,10 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 		/* Turn off the overlay */
 		OVERLAY_DEBUG("BLOCKHANDLER\n");
 
-		ums_overlay_off (pScrn);
+		if (pI830->use_drmmode_overlay)
+		    drmmode_overlay_off(pScrn);
+		else
+		    ums_overlay_off (pScrn);
 
 		pPriv->videoStatus = FREE_TIMER;
 		pPriv->freeTime = now + FREE_DELAY;

@@ -3088,8 +3088,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    i830_allocator_fini(pScrn);
 
    i965_free_video(pScrn);
-   free(pI830->offscreenImages);
-   pI830->offscreenImages = NULL;
 
    pScreen->CloseScreen = pI830->CloseScreen;
    (*pScreen->CloseScreen) (scrnIndex, pScreen);
