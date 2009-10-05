@@ -2060,7 +2060,7 @@ i830_update_scaling_factors(I830OverlayRegPtr overlay,
 }
 
 static void
-i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
+i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		   int id, short width, short height,
 		   int dstPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
 		   short src_w, short src_h, short drw_w, short drw_h)
@@ -2071,7 +2071,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     int			planar;
     uint32_t		swidth, swidthsw, sheigth;
     int			tmp;
-    Bool		scaleChanged = FALSE;
+    Bool		scaleChanged;
 
     OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 		  dstPitch);
@@ -2536,7 +2536,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     }
 
     if (!pPriv->textured) {
-	i830_display_video(pScrn, crtc, destId, width, height, dstPitch,
+	i830_display_overlay(pScrn, crtc, destId, width, height, dstPitch,
 			   x1, y1, x2, y2, &dstBox, src_w, src_h,
 			   drw_w, drw_h);
 	
@@ -2881,7 +2881,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
     if (!pI830Priv->textured && pI830->overlayOn && pI830Priv->doubleBuffer)
 	pI830Priv->currentBuf = !((INREG(DOVSTA) & OC_BUF) >> 20);
 
-    i830_display_video(pScrn, crtc, surface->id, surface->width, surface->height,
+    i830_display_overlay(pScrn, crtc, surface->id, surface->width, surface->height,
 		     surface->pitches[0], x1, y1, x2, y2, &dstBox,
 		     src_w, src_h, drw_w, drw_h);
 
