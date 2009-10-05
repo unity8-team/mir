@@ -2414,18 +2414,12 @@ I830PutImage(ScrnInfoPtr pScrn,
     I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
     ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-    I830OverlayRegPtr overlay;
     PixmapPtr pPixmap = get_drawable_pixmap(pDraw);;
     INT32 x1, x2, y1, y2;
     int dstPitch;
     int dstPitch2 = 0;
     BoxRec dstBox;
     xf86CrtcPtr	crtc;
-
-    if (pPriv->textured)
-	overlay = NULL;
-    else
-	overlay = I830OVERLAYREG(pI830);
 
 #if 0
     ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
@@ -2462,7 +2456,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 				width, height))
 	return Success;
 
-     if (!pPriv->textured) {
+    if (!pPriv->textured) {
 	 /* texture video handles rotation differently. */
 	if (crtc)
 	    pPriv->rotation = crtc->rotation;
@@ -2471,13 +2465,12 @@ I830PutImage(ScrnInfoPtr pScrn,
 		    "Fail to clip video to any crtc!\n");
 	    return Success;
 	}
-     }
+    }
 
     if (!i830_copy_video_data(pScrn, pPriv, width, height,
 		&dstPitch, &dstPitch2,
 		x1, y1, x2, y2, id, buf))
 	return BadAlloc;
-
 
     if (!pPriv->textured) {
 	i830_display_overlay(pScrn, crtc, id, width, height, dstPitch,
@@ -2510,8 +2503,7 @@ I830PutImage(ScrnInfoPtr pScrn,
                                      dstPitch, dstPitch2, x1, y1, x2, y2,
                                      src_w, src_h, drw_w, drw_h, pPixmap);
         }
-    }
-    if (pPriv->textured) {
+
 	DamageDamageRegion(pDraw, clipBoxes);
     }
 
