@@ -2187,7 +2187,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     I830OverlayRegPtr overlay;
     PixmapPtr pPixmap = get_drawable_pixmap(pDraw);;
     INT32 x1, x2, y1, y2;
-    int srcPitch = 0, srcPitch2 = 0, dstPitch, destId;
+    int srcPitch = 0, srcPitch2 = 0, dstPitch;
     int dstPitch2 = 0;
     int top, left, npixels, nlines, size;
     BoxRec dstBox;
@@ -2246,7 +2246,6 @@ I830PutImage(ScrnInfoPtr pScrn,
 	}
      }
 
-    destId = id;
     if (is_planar_fourcc(id)) {
 	srcPitch = (width + 0x3) & ~0x3;
 	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
@@ -2274,7 +2273,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     /* Determine the desired destination pitch (representing the chroma's pitch,
      * in the planar case.
      */
-    switch (destId) {
+    switch (id) {
     case FOURCC_YV12:
     case FOURCC_I420:
 	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
@@ -2357,7 +2356,6 @@ I830PutImage(ScrnInfoPtr pScrn,
 	pPriv->YBufOffset = (uint32_t)((uintptr_t)buf);
 	pPriv->VBufOffset = pPriv->YBufOffset + (dstPitch2 * height);
 	pPriv->UBufOffset = pPriv->VBufOffset + (dstPitch * height / 2);
-	destId = FOURCC_YV12;
     } else {
 #endif
 	if (pPriv->textured)
@@ -2406,7 +2404,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     }
 
     if (!pPriv->textured) {
-	i830_display_overlay(pScrn, crtc, destId, width, height, dstPitch,
+	i830_display_overlay(pScrn, crtc, id, width, height, dstPitch,
 			   x1, y1, x2, y2, &dstBox, src_w, src_h,
 			   drw_w, drw_h);
 	
@@ -2466,11 +2464,11 @@ I830PutImage(ScrnInfoPtr pScrn,
                 pPriv->VBufOffset = pPriv->UBufOffset + height*width/4;
             }
 #endif
-            I965DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
+            I965DisplayVideoTextured(pScrn, pPriv, id, clipBoxes, width, height,
                                      dstPitch, x1, y1, x2, y2,
                                      src_w, src_h, drw_w, drw_h, pPixmap);
         } else {
-            I915DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
+            I915DisplayVideoTextured(pScrn, pPriv, id, clipBoxes, width, height,
                                      dstPitch, dstPitch2, x1, y1, x2, y2,
                                      src_w, src_h, drw_w, drw_h, pPixmap);
         }
