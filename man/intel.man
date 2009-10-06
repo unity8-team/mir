@@ -156,12 +156,6 @@ have options for selecting adaptors.
 .IP
 Default: Textured video adaptor is preferred.
 .TP
-.BI "Option \*qModeDebug\*q \*q" boolean \*q
-Enable printing of additional debugging information about modesetting to
-the server log.
-.IP
-Default: Disabled
-.TP
 .BI "Option \*qFallbackDebug\*q \*q" boolean \*q
 Enable printing of debugging information on acceleration fallbacks to the
 server log.

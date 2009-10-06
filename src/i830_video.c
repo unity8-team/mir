@@ -1667,7 +1667,8 @@ I830PutImage(ScrnInfoPtr pScrn,
 
         if (IS_I965G(pI830)) {
             if (xvmc_passthrough(id, pPriv->rotation)) {
-                pPriv->YBufOffset = buf -  pI830->FbBase;
+		/* XXX: KMS */
+                pPriv->YBufOffset = (uintptr_t)buf;
                 pPriv->UBufOffset = pPriv->YBufOffset + height*width;
                 pPriv->VBufOffset = pPriv->UBufOffset + height*width/4;
             }
@@ -1809,34 +1810,5 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 		pPriv->videoStatus = 0;
 	    }
 	}
-    }
-}
-
-void
-i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
-{
-    ScrnInfoPtr pScrn = crtc->scrn;
-    I830Ptr pI830 = I830PTR(pScrn);
-    I830PortPrivPtr pPriv;
-
-    /* no overlay */
-    if (pI830->adaptor == NULL)
-	return;
-
-    pPriv = GET_PORT_PRIVATE(pScrn);
-
-    if (crtc != pPriv->current_crtc)
-	return;
-
-    /* Check if it's the crtc the overlay is off */
-    if (!on) {
-	/* We stop the video when mode switching, so we don't lock up
-	 * the engine. The overlayOK will determine whether we can re-enable
-	 * with the current video on completion of the mode switch.
-	 */
-	I830StopVideo(pScrn, pPriv, TRUE);
-	pPriv->current_crtc = NULL;
-	pPriv->overlayOK = FALSE;
-	pPriv->oneLineMode = FALSE;
     }
 }

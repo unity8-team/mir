@@ -513,6 +513,8 @@ static int i915_xvmc_create_context (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     contextRec->corrdata.size = ctxpriv->mcCorrdata->size;
     contextRec->deviceID = DEVICE_ID(pI830->PciInfo);
 
+    /* XXX: KMS */
+#if 0
     if (IS_I915G(pI830) || IS_I915GM(pI830)) {
 	contextRec->sis.bus_addr = ctxpriv->mcStaticIndirectState->bus_addr;
 	contextRec->ssb.bus_addr = ctxpriv->mcSamplerState->bus_addr;
@@ -520,6 +522,7 @@ static int i915_xvmc_create_context (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 	contextRec->psp.bus_addr = ctxpriv->mcPixelShaderProgram->bus_addr;
 	contextRec->psc.bus_addr = ctxpriv->mcPixelShaderConstants->bus_addr;
     }
+#endif
 
     pXvMC->ncontexts++;
     pXvMC->contexts[i] = pContext->context_id;

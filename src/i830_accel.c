@@ -50,78 +50,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 unsigned long
-intel_get_pixmap_offset(PixmapPtr pPix)
-{
-    ScreenPtr pScreen = pPix->drawable.pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    return (unsigned long)pPix->devPrivate.ptr - (unsigned long)pI830->FbBase;
-}
-
-unsigned long
 intel_get_pixmap_pitch(PixmapPtr pPix)
 {
     return (unsigned long)pPix->devKind;
-}
-
-int
-I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-   I830RingBuffer *ring = &pI830->ring;
-   int iters = 0;
-   unsigned int start = 0;
-   unsigned int now = 0;
-   int last_head = 0;
-   unsigned int first = 0;
-
-   /* If your system hasn't moved the head pointer in 2 seconds, I'm going to
-    * call it crashed.
-    */
-   if (timeout_millis == 0)
-      timeout_millis = 2000;
-
-   if (I810_DEBUG & DEBUG_VERBOSE_ACCEL) {
-      ErrorF("I830WaitLpRing %d\n", n);
-      first = GetTimeInMillis();
-   }
-
-   while (ring->space < n) {
-      ring->head = INREG(LP_RING + RING_HEAD) & I830_HEAD_MASK;
-      ring->space = ring->head - (ring->tail + 8);
-
-      if (ring->space < 0)
-	 ring->space += ring->mem->size;
-
-      iters++;
-      now = GetTimeInMillis();
-      if (start == 0 || now < start || ring->head != last_head) {
-	 if (I810_DEBUG & DEBUG_VERBOSE_ACCEL)
-	    if (now > start)
-	       ErrorF("space: %d wanted %d\n", ring->space, n);
-	 start = now;
-	 last_head = ring->head;
-      } else if (now - start > timeout_millis) {
-	 ErrorF("Error in I830WaitLpRing(), timeout for %d seconds\n",
-		timeout_millis/1000);
-	 ErrorF("space: %d wanted %d\n", ring->space, n);
-	 pI830->uxa_driver = NULL;
-	 FatalError("lockup\n");
-      }
-
-      DELAY(10);
-   }
-
-   if (I810_DEBUG & DEBUG_VERBOSE_ACCEL) {
-      now = GetTimeInMillis();
-      if (now - first) {
-	 ErrorF("Elapsed %u ms\n", now - first);
-	 ErrorF("space: %d wanted %d\n", ring->space, n);
-      }
-   }
-
-   return iters;
 }
 
 void

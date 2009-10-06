@@ -1071,10 +1071,7 @@ i965_set_picture_surface_state(dri_bo *ss_bo, int ss_index,
     local_ss.ss0.vert_line_stride_ofs = 0;
     local_ss.ss0.mipmap_layout_mode = 0;
     local_ss.ss0.render_cache_read_mode = 0;
-    if (pixmap_bo != NULL)
-	local_ss.ss1.base_addr = pixmap_bo->offset;
-    else
-	local_ss.ss1.base_addr = intel_get_pixmap_offset(pPixmap);
+    local_ss.ss1.base_addr = pixmap_bo->offset;
 
     local_ss.ss2.mip_count = 0;
     local_ss.ss2.render_target_rotation = 0;

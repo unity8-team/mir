@@ -370,13 +370,6 @@ extern int I810_DEBUG;
 #define OVERLAY_NOPHYSICAL(pI810) (IS_G33CLASS(pI810) || IS_I965G(pI810))
 /* mark chipsets without overlay hw */
 #define OVERLAY_NOEXIST(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
-/* chipsets require graphics mem for hardware status page */
-#define HWS_NEED_GFX(pI810) (!pI810->use_drm_mode && \
-			     (IS_G33CLASS(pI810) ||\
-			      IS_G4X(pI810) || IS_IGDNG(pI810)))
-/* chipsets require status page in non stolen memory */
-#define HWS_NEED_NONSTOLEN(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
-#define SUPPORTS_INTEGRATED_HDMI(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */

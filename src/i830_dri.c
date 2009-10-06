@@ -126,8 +126,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 		break;
 	    }
 
-	    if (!pI830->tiling ||
-		(!IS_I965G(pI830) && !pI830->kernel_exec_fencing))
+	    if (!pI830->tiling)
 		hint = 0;
 
 	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
@@ -204,8 +203,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 	    break;
 	}
 
-	if (!pI830->tiling ||
-	    (!IS_I965G(pI830) && !pI830->kernel_exec_fencing))
+	if (!pI830->tiling)
 	    hint = 0;
 
 	pPixmap = (*pScreen->CreatePixmap)(pScreen,

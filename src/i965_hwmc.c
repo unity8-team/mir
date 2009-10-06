@@ -74,7 +74,7 @@ static int create_context(ScrnInfoPtr pScrn,
     private_context->is_g4x = IS_G4X(I830);
     private_context->is_965_q = IS_965_Q(I830);
     private_context->is_igdng = IS_IGDNG(I830);
-    private_context->comm.kernel_exec_fencing = I830->kernel_exec_fencing;
+    private_context->comm.kernel_exec_fencing = 1;
     private_context->comm.type = xvmc_driver->flag;
 
     *num_privates = sizeof(*private_context)/sizeof(CARD32);
@@ -164,7 +164,10 @@ static int put_image(ScrnInfoPtr pScrn,
 	if (id == FOURCC_XVMC) {
             bo = intel_bo_gem_create_from_name(pI830->bufmgr, "surface", cmd->handle);
             dri_bo_pin(bo, 0x1000);
+	/* XXX: KMS */
+#if 0
 	    buf = pI830->FbBase + bo->offset;
+#endif
 	}
 	XvPutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
 		drw_w, drw_h, id, buf, width, height, sync, clipBoxes,

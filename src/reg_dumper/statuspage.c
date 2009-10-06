@@ -39,6 +39,9 @@
 #include "reg_dumper.h"
 #include "../i810_reg.h"
 
+#define HWS_NEED_GFX(pI810) ((IS_G33CLASS(pI810) ||\
+			      IS_G4X(pI810) || IS_IGDNG(pI810)))
+
 int main(int argc, char **argv)
 {
     I830Rec i830;

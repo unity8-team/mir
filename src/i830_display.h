@@ -32,7 +32,6 @@ void i830PipeSetBase(xf86CrtcPtr crtc, int x, int y);
 void i830WaitForVblank(ScrnInfoPtr pScrn);
 void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
 void i830_set_new_crtc_bo(ScrnInfoPtr pScrn);
-void i830_crtc_disable(xf86CrtcPtr crtc, Bool disable_pipe);
 
 xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output, DisplayModePtr mode, int *dpms_mode);
 void i830ReleaseLoadDetectPipe(xf86OutputPtr output, int dpms_mode);

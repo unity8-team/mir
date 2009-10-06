@@ -91,34 +91,20 @@ static int uxa_pixmap_index;
 Bool
 i830_pixmap_tiled(PixmapPtr pPixmap)
 {
-    ScreenPtr pScreen = pPixmap->drawable.pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-    unsigned long offset;
     dri_bo *bo;
+    uint32_t tiling_mode, swizzle_mode;
+    int ret;
 
     bo = i830_get_pixmap_bo(pPixmap);
-    if (bo != NULL) {
-	uint32_t tiling_mode, swizzle_mode;
-	int ret;
+    assert(bo != NULL);
 
-	ret = drm_intel_bo_get_tiling(bo, &tiling_mode, &swizzle_mode);
-	if (ret != 0) {
-	    FatalError("Couldn't get tiling on bo %p: %s\n",
-		       bo, strerror(-ret));
-	}
-
-	return tiling_mode != I915_TILING_NONE;
+    ret = drm_intel_bo_get_tiling(bo, &tiling_mode, &swizzle_mode);
+    if (ret != 0) {
+	FatalError("Couldn't get tiling on bo %p: %s\n",
+		   bo, strerror(-ret));
     }
 
-    offset = intel_get_pixmap_offset(pPixmap);
-    if (offset == pI830->front_buffer->offset &&
-	pI830->front_buffer->tiling != TILE_NONE)
-    {
-	return TRUE;
-    }
-
-    return FALSE;
+    return tiling_mode != I915_TILING_NONE;
 }
 
 Bool
@@ -478,46 +464,35 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 {
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
     ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
 
     intel_batch_flush(scrn, FALSE);
 
-    if (bo) {
-	I830Ptr i830 = I830PTR(scrn);
+    /* No VT sema or GEM?  No GTT mapping. */
+    if (!scrn->vtSema) {
+	if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
+	    return FALSE;
+	pixmap->devPrivate.ptr = bo->virtual;
+	return TRUE;
+    }
 
-	/* No VT sema or GEM?  No GTT mapping. */
-	if (!scrn->vtSema || !i830->have_gem) {
-	    if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
-		return FALSE;
-	    pixmap->devPrivate.ptr = bo->virtual;
-	    return TRUE;
+    /* Kernel manages fences at GTT map/fault time */
+    if (bo->size < i830->max_gtt_map_size) {
+	if (drm_intel_gem_bo_map_gtt(bo)) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "%s: bo map failed\n",
+		       __FUNCTION__);
+	    return FALSE;
 	}
-
-	/* Kernel manages fences at GTT map/fault time */
-	if (i830->kernel_exec_fencing) {
-	    if (bo->size < i830->max_gtt_map_size) {
-		if (drm_intel_gem_bo_map_gtt(bo)) {
-		    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			       "%s: bo map failed\n",
-			       __FUNCTION__);
-		    return FALSE;
-		}
-	    } else {
-		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0) {
-		    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			       "%s: bo map failed\n",
-			       __FUNCTION__);
-		    return FALSE;
-		}
-	    }
-	    pixmap->devPrivate.ptr = bo->virtual;
-	} else { /* or not... */
-	    if (drm_intel_bo_pin(bo, 4096) != 0)
+    } else {
+	if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "%s: bo map failed\n",
+		       __FUNCTION__);
 		return FALSE;
-	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
-	    pixmap->devPrivate.ptr = i830->FbBase + bo->offset;
 	}
-    } else
-	i830_wait_ring_idle(scrn);
+    }
+    pixmap->devPrivate.ptr = bo->virtual;
 
     return TRUE;
 }
@@ -535,19 +510,16 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	if (bo == i830->front_buffer->bo)
 	    i830->need_flush = TRUE;
 
-	if (!scrn->vtSema || !i830->have_gem) {
+	if (!scrn->vtSema) {
 	    dri_bo_unmap(bo);
 	    pixmap->devPrivate.ptr = NULL;
 	    return;
 	}
 
-	if (i830->kernel_exec_fencing)
-	    if (bo->size < i830->max_gtt_map_size)
-		drm_intel_gem_bo_unmap_gtt(bo);
-	    else
-		dri_bo_unmap(bo);
+	if (bo->size < i830->max_gtt_map_size)
+	    drm_intel_gem_bo_unmap_gtt(bo);
 	else
-	    drm_intel_bo_unpin(bo);
+	    dri_bo_unmap(bo);
 	pixmap->devPrivate.ptr = NULL;
     }
 }

@@ -39,68 +39,6 @@
 #include "i830_ring.h"
 #include "i915_drm.h"
 
-static int
-intel_nondrm_exec(dri_bo *bo, unsigned int used, void *priv)
-{
-    ScrnInfoPtr pScrn = priv;
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    BEGIN_LP_RING(4);
-    OUT_RING(MI_BATCH_BUFFER_START | (2 << 6));
-    OUT_RING(bo->offset);
-    OUT_RING(MI_NOOP);
-    OUT_RING(MI_NOOP);
-    ADVANCE_LP_RING();
-
-    return 0;
-}
-
-static int
-intel_nondrm_exec_i830(dri_bo *bo, unsigned int used, void *priv)
-{
-    ScrnInfoPtr pScrn = priv;
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    BEGIN_LP_RING(4);
-    OUT_RING(MI_BATCH_BUFFER);
-    OUT_RING(bo->offset);
-    OUT_RING(bo->offset + pI830->batch_used - 4);
-    OUT_RING(MI_NOOP);
-    ADVANCE_LP_RING();
-
-    return 0;
-}
-
-/**
- * Creates a fence value representing a request to be passed.
- *
- * Stub implementation that should be avoided when DRM functions are available.
- */
-static unsigned int
-intel_nondrm_emit(void *priv)
-{
-    static unsigned int fence = 0;
-
-    /* Match DRM in not using half the range. The fake bufmgr relies on this. */
-    if (++fence >= 0x8000000)
-	fence = 1;
-
-    return fence;
-}
-
-/**
- * Waits on a fence representing a request to be passed.
- *
- * Stub implementation that should be avoided when DRM functions are available.
- */
-static void
-intel_nondrm_wait(unsigned int fence, void *priv)
-{
-    ScrnInfoPtr pScrn = priv;
-
-    i830_wait_ring_idle(pScrn);
-}
-
 static void
 intel_next_batch(ScrnInfoPtr pScrn)
 {
@@ -134,22 +72,6 @@ intel_batch_init(ScrnInfoPtr pScrn)
     pI830->batch_emitting = 0;
 
     intel_next_batch(pScrn);
-
-    if (!pI830->have_gem) {
-	if (IS_I830(pI830) || IS_845G(pI830)) {
-	    intel_bufmgr_fake_set_exec_callback(pI830->bufmgr,
-						intel_nondrm_exec_i830,
-						pScrn);
-	} else {
-	    intel_bufmgr_fake_set_exec_callback(pI830->bufmgr,
-						intel_nondrm_exec,
-						pScrn);
-	}
-	intel_bufmgr_fake_set_fence_callback(pI830->bufmgr,
-					     intel_nondrm_emit,
-					     intel_nondrm_wait,
-					     pScrn);
-    }
 }
 
 void
@@ -178,17 +100,6 @@ intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
     if (pI830->batch_used == 0)
 	return;
 
-    /* If we're not using GEM, then emit a flush after each batch buffer */
-    if (!pI830->have_gem && !flushed) {
-	int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-
-	if (IS_I965G(pI830))
-	    flags = 0;
-
-	*(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = MI_FLUSH | flags;
-	pI830->batch_used += 4;
-    }
-	
     /* Emit a padding dword if we aren't going to be quad-word aligned. */
     if ((pI830->batch_used & 4) == 0) {
 	*(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = MI_NOOP;
@@ -219,8 +130,7 @@ intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
      * blockhandler.  We could set this less often, but it's probably not worth
      * the work.
      */
-    if (pI830->have_gem)
-	pI830->need_mi_flush = TRUE;
+    pI830->need_mi_flush = TRUE;
 
     if (pI830->batch_flush_notify)
 	pI830->batch_flush_notify (pScrn);
