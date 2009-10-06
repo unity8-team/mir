@@ -226,7 +226,7 @@ static void LegacySetClockGating(ScrnInfoPtr pScrn, Bool enable)
 			R300_PIXCLK_TRANS_ALWAYS_ONb      |
 			R300_PIXCLK_TVO_ALWAYS_ONb        |
 			R300_P2G2CLK_ALWAYS_ONb           |
-			R300_P2G2CLK_ALWAYS_ONb);
+			R300_P2G2CLK_DAC_ALWAYS_ONb);
 		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmp);
 	    } else if (info->ChipFamily >= CHIP_FAMILY_RV350) {
 		tmp = INPLL(pScrn, R300_SCLK_CNTL2);
@@ -273,7 +273,7 @@ static void LegacySetClockGating(ScrnInfoPtr pScrn, Bool enable)
 			R300_PIXCLK_TRANS_ALWAYS_ONb      |
 			R300_PIXCLK_TVO_ALWAYS_ONb        |
 			R300_P2G2CLK_ALWAYS_ONb           |
-			R300_P2G2CLK_ALWAYS_ONb);
+			R300_P2G2CLK_DAC_ALWAYS_ONb);
 		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmp);
 
 		tmp = INPLL(pScrn, RADEON_MCLK_MISC);
@@ -454,8 +454,8 @@ static void LegacySetClockGating(ScrnInfoPtr pScrn, Bool enable)
 		     RADEON_PIXCLK_TMDS_ALWAYS_ONb     |
 		     R300_PIXCLK_TRANS_ALWAYS_ONb      |
 		     R300_PIXCLK_TVO_ALWAYS_ONb        |
-		     R300_P2G2CLK_ALWAYS_ONb            |
 		     R300_P2G2CLK_ALWAYS_ONb           |
+		     R300_P2G2CLK_DAC_ALWAYS_ONb       |
 		     R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF);
 	    OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmp);
 	} else if (info->ChipFamily >= CHIP_FAMILY_RV350) {
@@ -507,8 +507,8 @@ static void LegacySetClockGating(ScrnInfoPtr pScrn, Bool enable)
 		     RADEON_PIXCLK_TMDS_ALWAYS_ONb     |
 		     R300_PIXCLK_TRANS_ALWAYS_ONb      |
 		     R300_PIXCLK_TVO_ALWAYS_ONb        |
-		     R300_P2G2CLK_ALWAYS_ONb            |
 		     R300_P2G2CLK_ALWAYS_ONb           |
+		     R300_P2G2CLK_DAC_ALWAYS_ONb       |
 		     R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF);
 	    OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmp);
 	}  else {

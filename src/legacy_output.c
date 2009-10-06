@@ -1521,7 +1521,7 @@ RADEONInitTvDacCntl(xf86OutputPtr output, RADEONSavePtr save)
 			       R420_TV_DAC_DACADJ_MASK |
 			       R420_TV_DAC_RDACPD |
 			       R420_TV_DAC_GDACPD |
-			       R420_TV_DAC_GDACPD |
+			       R420_TV_DAC_BDACPD |
 			       R420_TV_DAC_TVENABLE);
     } else {
 	save->tv_dac_cntl = info->SavedReg->tv_dac_cntl &
@@ -1530,7 +1530,7 @@ RADEONInitTvDacCntl(xf86OutputPtr output, RADEONSavePtr save)
 			       RADEON_TV_DAC_DACADJ_MASK |
 			       RADEON_TV_DAC_RDACPD |
 			       RADEON_TV_DAC_GDACPD |
-			       RADEON_TV_DAC_GDACPD);
+			       RADEON_TV_DAC_BDACPD);
     }
 
     save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK |
