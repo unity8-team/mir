@@ -456,7 +456,7 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 	case PICT_a8r8g8b8: format = NV50TCL_RT_FORMAT_A8R8G8B8_UNORM; break;
 	case PICT_x8r8g8b8: format = NV50TCL_RT_FORMAT_X8R8G8B8_UNORM; break;
 	case PICT_r5g6b5  : format = NV50TCL_RT_FORMAT_R5G6B5_UNORM; break;
-	case PICT_a8      : format = NV50TCL_RT_FORMAT_R8_UNORM; break;
+	case PICT_a8      : format = NV50TCL_RT_FORMAT_A8_UNORM; break;
 	default:
 		NOUVEAU_FALLBACK("invalid picture format\n");
 	}
@@ -694,17 +694,10 @@ NV50EXABlend(PixmapPtr ppix, PicturePtr ppict, int op, int component_alpha)
 			else
 			if (sblend == BF(ONE_MINUS_DST_ALPHA))
 				sblend = BF(ZERO);
-		} else
-		if (ppict->format == PICT_a8) {
-			if (sblend == BF(DST_ALPHA))
-				sblend = BF(DST_COLOR);
-			else
-			if (sblend == BF(ONE_MINUS_DST_ALPHA))
-				sblend = BF(ONE_MINUS_DST_COLOR);
 		}
 	}
 
-	if (b->src_alpha && (component_alpha || ppict->format == PICT_a8)) {
+	if (b->src_alpha && component_alpha) {
 		if (dblend == BF(SRC_ALPHA))
 			dblend = BF(SRC_COLOR);
 		else
