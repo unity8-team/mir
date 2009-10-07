@@ -172,6 +172,11 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 		return;
 	}
 
+	if (fb->depth != pScrn->depth) {
+		drmFree(fb);
+		return;
+	}
+
 	if (w > fb->width)
 		w = fb->width;
 	if (h > fb->height)
