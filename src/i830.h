@@ -95,14 +95,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 typedef struct _I830Rec *I830Ptr;
 
-typedef void (*I830WriteIndexedByteFunc) (I830Ptr pI830, IOADDRESS addr,
-					  uint8_t index, uint8_t value);
-typedef uint8_t(*I830ReadIndexedByteFunc) (I830Ptr pI830, IOADDRESS addr,
-					   uint8_t index);
-typedef void (*I830WriteByteFunc) (I830Ptr pI830, IOADDRESS addr,
-				   uint8_t value);
-typedef uint8_t(*I830ReadByteFunc) (I830Ptr pI830, IOADDRESS addr);
-
 enum tile_format {
 	TILE_NONE,
 	TILE_XMAJOR,
@@ -306,83 +298,6 @@ typedef struct _I830Rec {
 
 	/* Driver phase/state information */
 	Bool suspended;
-
-	uint32_t saveDSPARB;
-	uint32_t saveDSPACNTR;
-	uint32_t saveDSPBCNTR;
-	uint32_t savePIPEACONF;
-	uint32_t savePIPEBCONF;
-	uint32_t savePIPEASRC;
-	uint32_t savePIPEBSRC;
-	uint32_t saveFPA0;
-	uint32_t saveFPA1;
-	uint32_t saveDPLL_A;
-	uint32_t saveDPLL_A_MD;
-	uint32_t saveHTOTAL_A;
-	uint32_t saveHBLANK_A;
-	uint32_t saveHSYNC_A;
-	uint32_t saveVTOTAL_A;
-	uint32_t saveVBLANK_A;
-	uint32_t saveVSYNC_A;
-	uint32_t saveBCLRPAT_A;
-	uint32_t saveDSPASTRIDE;
-	uint32_t saveDSPASIZE;
-	uint32_t saveDSPAPOS;
-	uint32_t saveDSPABASE;
-	uint32_t saveDSPASURF;
-	uint32_t saveDSPATILEOFF;
-	uint32_t saveFPB0;
-	uint32_t saveFPB1;
-	uint32_t saveDPLL_B;
-	uint32_t saveDPLL_B_MD;
-	uint32_t saveHTOTAL_B;
-	uint32_t saveHBLANK_B;
-	uint32_t saveHSYNC_B;
-	uint32_t saveVTOTAL_B;
-	uint32_t saveVBLANK_B;
-	uint32_t saveVSYNC_B;
-	uint32_t saveBCLRPAT_B;
-	uint32_t saveDSPBSTRIDE;
-	uint32_t saveDSPBSIZE;
-	uint32_t saveDSPBPOS;
-	uint32_t saveDSPBBASE;
-	uint32_t saveDSPBSURF;
-	uint32_t saveDSPBTILEOFF;
-	uint32_t saveVCLK_DIVISOR_VGA0;
-	uint32_t saveVCLK_DIVISOR_VGA1;
-	uint32_t saveVCLK_POST_DIV;
-	uint32_t saveVGACNTRL;
-	uint32_t saveCURSOR_A_CONTROL;
-	uint32_t saveCURSOR_A_BASE;
-	uint32_t saveCURSOR_A_POSITION;
-	uint32_t saveCURSOR_B_CONTROL;
-	uint32_t saveCURSOR_B_BASE;
-	uint32_t saveCURSOR_B_POSITION;
-	uint32_t saveADPA;
-	uint32_t saveLVDS;
-	uint32_t saveDVOA;
-	uint32_t saveDVOB;
-	uint32_t saveDVOC;
-	uint32_t savePP_ON;
-	uint32_t savePP_OFF;
-	uint32_t savePP_CONTROL;
-	uint32_t savePP_DIVISOR;
-	uint32_t savePFIT_CONTROL;
-	uint32_t savePaletteA[256];
-	uint32_t savePaletteB[256];
-	uint32_t saveSWF[17];
-	uint32_t saveBLC_PWM_CTL;
-	uint32_t saveBLC_PWM_CTL2;
-	uint32_t saveFBC_CFB_BASE;
-	uint32_t saveFBC_LL_BASE;
-	uint32_t saveFBC_CONTROL2;
-	uint32_t saveFBC_CONTROL;
-	uint32_t saveFBC_FENCE_OFF;
-	uint32_t saveRENCLK_GATE_D1;
-	uint32_t saveRENCLK_GATE_D2;
-	uint32_t saveDSPCLK_GATE_D;
-	uint32_t saveRAMCLK_GATE_D;
-	uint32_t savePWRCTXA;
 
 	enum last_3d last_3d;
 
