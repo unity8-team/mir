@@ -1,6 +1,5 @@
 noinst_PROGRAMS = intel_reg_dumper \
 	intel_gtt \
-	intel_stepping \
 	intel_statuspage \
 	intel_hotplug \
 	intel_lid \
@@ -22,9 +21,6 @@ intel_hotplug_SOURCES = \
 	reg_dumper.h \
 	xprintf.c
 
-intel_stepping_SOURCES = \
-	stepping.c
-
 intel_statuspage_SOURCES = \
 	statuspage.c \
 	reg_dumper.h \
@@ -43,7 +39,6 @@ intel_audio_SOURCES = \
 intel_hotplug_LDADD = $(PCIACCESS_LIBS)
 intel_reg_dumper_LDADD = $(PCIACCESS_LIBS)
 intel_gtt_LDADD = $(PCIACCESS_LIBS)
-intel_stepping_LDADD = $(PCIACCESS_LIBS)
 intel_statuspage_LDADD = $(PCIACCESS_LIBS)
 intel_lid_LDADD = $(PCIACCESS_LIBS)
 intel_audio_LDADD = $(PCIACCESS_LIBS)
