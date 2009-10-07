@@ -449,7 +449,7 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 					       pScrn->depth,
 					       pScrn->bitsPerPixel,
 					       rotate_pitch,
-					       data);
+					       NULL);
 
 	if (rotate_pixmap == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
