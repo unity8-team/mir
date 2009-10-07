@@ -20,8 +20,7 @@ intel_gtt_SOURCES = \
 intel_hotplug_SOURCES = \
 	hotplug.c \
 	reg_dumper.h \
-	xprintf.c \
-	../i830_debug.c
+	xprintf.c
 
 intel_stepping_SOURCES = \
 	stepping.c

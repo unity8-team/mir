@@ -124,24 +124,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-
-void xf86DrvMsg(int scrnIndex, int severity, const char *format, ...)
-{
-	va_list va;
-
-	switch (severity) {
-	case X_INFO:
-		printf("(II): ");
-		break;
-	case X_WARNING:
-		printf("(WW): ");
-		break;
-	case X_ERROR:
-		printf("(EE): ");
-		break;
-	}
-
-	va_start(va, format);
-	vprintf(format, va);
-	va_end(va);
-}
