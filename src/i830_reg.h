@@ -523,7 +523,7 @@
 #define VFT0_XYZW_MASK          (7<<1)
 
 /* _3DSTATE_VERTEX_FORMAT_2, p206 */
-#define _3DSTATE_VFT1_CMD	(CMD_3D|(0x0a<<24))
+#define _3DSTATE_VERTEX_FORMAT_2_CMD	(CMD_3D|(0x0a<<24))
 #define VFT1_TEX7_FMT(x)	((x)<<14)
 #define VFT1_TEX6_FMT(x)	((x)<<12)
 #define VFT1_TEX5_FMT(x)	((x)<<10)

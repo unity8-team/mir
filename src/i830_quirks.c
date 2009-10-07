@@ -332,6 +332,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_GM45_GM, 0x103c, 0x30eb, quirk_pipea_force },
     /* HP Mini needs pipe A force quirk (LP: #322104) */
     { PCI_CHIP_I945_GME,0x103c, 0x361a, quirk_pipea_force },
+    /* HP Mini 5101 needs pipe A force quirk */
+    { PCI_CHIP_I945_GME,0x103c, 0x3632, quirk_pipea_force },
 
     /* Thinkpad R31 needs pipe A force quirk */
     { PCI_CHIP_I830_M, 0x1014, 0x0505, quirk_pipea_force },

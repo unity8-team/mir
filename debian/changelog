@@ -1,10 +1,44 @@
-xserver-xorg-video-intel (2:2.8.1-1ubuntu3) karmic; urgency=low
+xserver-xorg-video-intel (2:2.9.0-1ubuntu1) karmic; urgency=low
 
-  * Add 103_eliminate_cursor_flicker.patch and
-    104_kms_allocate_one_bo_per_crtc_for_cursor.patch: Prevent the mouse
-    cursor from flickering during animations (LP: #418703).
+  [Tormod Volden]
+  * Merge with Debian. Remaining Ubuntu changes:
+    + debian/control: Add lpia architecture
+  * Drop patches now included upstream:
+    + 100_8xx_perf_pict_a8.patch
+    + 101_reload_cursors.patch
+    + 102_dont_destroy_bufmgr_at_closescreen_time.patch
+  * Ubuntu bugs fixed in this release:
+    + Calculate the DVO relative offset in LVDS data entry to get the DVO
+      timing.  Fixes black screen at boot on i855 due to not finding LVDS
+      modes.
+      (LP: #410455)
+    + Fix brightness by enabling BACKLIGHT property for KMS.
+      (LP: #397617)
 
- -- Alberto Milone <alberto.milone@canonical.com>  Mon, 05 Oct 2009 11:24:37 +0200
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 07 Oct 2009 20:09:54 -0700
+
+xserver-xorg-video-intel (2:2.9.0-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 29 Sep 2009 07:16:54 +0200
+
+xserver-xorg-video-intel (2:2.8.99.902-1) experimental; urgency=low
+
+  * New upstream release candidate.
+    + Fix crash on server regen, closes: #543326.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 23 Sep 2009 01:03:49 +0200
+
+xserver-xorg-video-intel (2:2.8.1-2) unstable; urgency=low
+
+  * Re-enable render accel on 8xx.  The major problem turned out to be related
+    to agp chipset flushing (see #541307), so hopefully this should work now.
+  * Add missing xsfclean dependency to debian/rules clean.
+  * Bump Standards-Version to 3.8.3 (no changes).
+  * Mention intel_reg_dumper in the debug package's long description.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 17 Sep 2009 20:55:47 +0200
 
 xserver-xorg-video-intel (2:2.8.1-1ubuntu2) karmic; urgency=low
 

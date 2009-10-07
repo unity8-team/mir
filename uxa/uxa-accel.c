@@ -1,7 +1,7 @@
 /*
- * Copyright © 2001 Keith Packard
+ * Copyright Â® 2001 Keith Packard
  *
- * Partly based on code that is Copyright © The XFree86 Project Inc.
+ * Partly based on code that is Copyright Â® The XFree86 Project Inc.
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -23,7 +23,7 @@
  *
  * Authors:
  *    Eric Anholt <eric@anholt.net>
- *    Michel Dänzer <michel@tungstengraphics.com>
+ *    Michel DÃ¤nzer <michel@tungstengraphics.com>
  *
  */
 
@@ -216,6 +216,8 @@ uxa_do_put_image (DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 
 #ifdef MITSHM
 
+#include "xorgVersion.h"
+
 static Bool
 uxa_do_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
 		 unsigned int format, int w, int h, int sx, int sy, int sw,
@@ -251,6 +253,8 @@ uxa_do_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
     return FALSE;
 }
 
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,5,99,0,0)
+
 /* The actual ShmPutImage isn't wrapped by the damage layer, so we need to
  * inform any interested parties of the damage incurred to the drawable.
  *
@@ -271,6 +275,9 @@ uxa_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, unsigned int form
 	uxa_finish_access(pDrawable);
     }
 }
+#else
+#define uxa_shm_put_image NULL
+#endif
 
 ShmFuncs uxa_shm_funcs = { NULL, uxa_shm_put_image };
 

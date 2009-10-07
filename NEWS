@@ -1,35 +1,57 @@
-Release 2.8.0 (2009-08-25)
-============================
-We are pleased to announce this 2.8.1 maintenance release of the
-xf86-video-intel driver. This snapshot contains a few, hand-picked
-fixes since the 2.8.0 release. Several of the bugs fixed can manifest
-themselves as "random" crashing or hanging of the GPU, (so effectively
-the interactive session). We recommend that all users/distributors of
-2.8.0 upgrade to 2.8.1.
+Release 2.9.0 (2009-09-28)
+==========================
+We are pleased to announce the 2.9.0 release of the xf86-video-intel
+driver. (If you have been following along at home, this release is
+identical to the 2.8.99.902 release candidate other than the version
+number).
 
-New fixes in 2.8.1 compared to 2.8.0
-------------------------------------
-Bug numbers are relative to bugs.freedesktop.org unless otherwise
-mentioned.
+New features in 2.9 compared to 2.8
+-----------------------------------
+* Support for the B43 chipset.
 
-* Allow DRM mode setting to include transformations (also requires a
-  fix in the X server---available in xserver 1.6.3)
+Major fixes in 2.9.0 compared to 2.8.0
+--------------------------------------
+* Multiple fixes to make the driver stable for 8xx chipsets, (855GM,
+  865G, etc.). The 2.8 driver series was extremely unstable with many
+  of these chipsets.
 
-* Align tiled pixmap height so we don't address beyond the end of our
-  buffers.
+  https://bugs.freedesktop.org/show_bug.cgi?id=22904 (and many duplicates)
+  https://bugs.freedesktop.org/show_bug.cgi?id=22947
 
-* Align the height of untiled pixmaps to 2 lines as well.
+* Add support for BACKLIGHT property when using kernel modesetting
+  (KMS). This allows backlight adjustment with programs such as
+  "xbacklight -set <percentage>" or "xrandr --set BACKLIGHT <value>".
 
-* Replace existing EDID property blob with new one
+  https://bugs.freedesktop.org/show_bug.cgi?id=20963
 
-* Only align DRI2 tiled pixmaps to the DRI2 tiled pixmap alignment
-  requirement (fixes bug #21387).
+* Fix so that "xrandr --scale" works when using KMS.
 
-* Calculate the DVO relative offset in LVDS data entry to get the DVO
-  timing (fixes bug #22787 and Debian bug #538148).
+  https://bugs.freedesktop.org/show_bug.cgi?id=22893
 
-* Fix sampler indexes on i965 planar video, (fixes bugs #22895 and
-  #19856).
+* Fix segfaults of X server when logging out.
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=20516
+
+* Avoid falling back to software for 1-bit alpha-only masks.
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=23184
+
+* Fix pixel sampling position for 8xx chipsets, (fixes some cairo-test
+  suite failures).
+
+Snapshot 2.8.99.901 (2009-09-09)
+================================
+This is the first release candidate in preparation for the upcoming
+2.9.0 release. We will appreciate any feedback we can get from testing
+of this snapshot to improve the 2.9.0 release.
+
+See the commit log for changes in this release, and developers, please
+provide me summaries for any major features in this release that you
+think should appear in NEWS and in the 2.9.0 release notes.
+
+Note: We are still investigating failures with 865G chipsets, (these
+failures existed in the 2.8 series as well). We are hoping to fix
+these failures before the 2.9.0 release.
 
 Release 2.8.0 (2009-07-20)
 ==========================

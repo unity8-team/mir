@@ -24,4 +24,5 @@ struct i965_xvmc_context {
     struct 	i965_xvmc_surface *surfaces[I965_MAX_SURFACES];
     unsigned    int is_g4x:1;
     unsigned    int is_965_q:1;
+    unsigned    int is_igdng:1;   
 };

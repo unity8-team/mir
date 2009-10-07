@@ -1,6 +1,0 @@
-disable-uxa-render-accel-on-i8xx.patch
-100_8xx_perf_pict_a8.patch
-101_reload_cursors.patch
-102_dont_destroy_bufmgr_at_closescreen_time.patch
-103_eliminate_cursor_flicker.patch
-104_kms_allocate_one_bo_per_crtc_for_cursor.patch

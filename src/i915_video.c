@@ -136,8 +136,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       format = COLR_BUF_ARGB8888 | DEPTH_FRMT_24_FIXED_8_OTHER;
 
    OUT_BATCH(LOD_PRECLAMP_OGL |
-	     DSTORG_HORT_BIAS(0x80) |
-	     DSTORG_VERT_BIAS(0x80) |
+	     DSTORG_HORT_BIAS(0x8) |
+	     DSTORG_VERT_BIAS(0x8) |
 	     format);
 
    /* front buffer, pitch, offset */
