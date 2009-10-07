@@ -333,11 +333,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
 
 #if XF86_CRTC_VERSION >= 3
-	/* Only upload when needed, to avoid unneeded delays. */
-	if (!crtc->active)
-		crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
-					crtc->gamma_blue, crtc->gamma_size);
-
+	crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
+			       crtc->gamma_blue, crtc->gamma_size);
 	crtc->active = TRUE;
 #endif
 
