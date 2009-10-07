@@ -172,18 +172,18 @@ atombios_crtc_dpms(xf86CrtcPtr crtc, int mode)
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     switch (mode) {
     case DPMSModeOn:
+	atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
 	if (IS_DCE3_VARIANT)
 	    atombios_enable_crtc_memreq(info->atomBIOS, radeon_crtc->crtc_id, 1);
-	atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
 	atombios_blank_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
 	break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
 	atombios_blank_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
-	atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
 	if (IS_DCE3_VARIANT)
 	    atombios_enable_crtc_memreq(info->atomBIOS, radeon_crtc->crtc_id, 0);
+	atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
 	break;
     }
 }

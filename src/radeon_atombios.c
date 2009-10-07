@@ -2146,15 +2146,15 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_
     switch(crev) {
     case 1:
 	tv_info = atomDataPtr->AnalogTV_Info.AnalogTV_Info;
-	
+
 	if (index > MAX_SUPPORTED_TV_TIMING)
 	    return FALSE;
-	
+
 	crtc_timing->usH_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
 	crtc_timing->usH_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Disp);
 	crtc_timing->usH_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart);
 	crtc_timing->usH_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncWidth);
-	
+
 	crtc_timing->usV_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Total);
 	crtc_timing->usV_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Disp);
 	crtc_timing->usV_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart);
