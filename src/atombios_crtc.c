@@ -269,7 +269,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     PIXEL_CLOCK_PARAMETERS_V2 *spc2_ptr;
     PIXEL_CLOCK_PARAMETERS_V3 *spc3_ptr;
-    xf86OutputPtr output;
+    xf86OutputPtr output = NULL;
     RADEONOutputPrivatePtr radeon_output = NULL;
     radeon_encoder_ptr radeon_encoder = NULL;
     int pll_flags = 0;
@@ -320,8 +320,47 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
     }
 
-    RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
-    sclock = temp;
+    if (IS_DCE3_VARIANT) {
+	ADJUST_DISPLAY_PLL_PS_ALLOCATION adjust_pll_param;
+
+	/* Can't really do cloning easily on DCE3 cards */
+	for (i = 0; i < xf86_config->num_output; i++) {
+	    output = xf86_config->output[i];
+	    if (output->crtc == crtc) {
+		radeon_output = output->driver_private;
+		radeon_encoder = radeon_get_encoder(output);
+		break;
+	    }
+	}
+
+	if (radeon_output == NULL) {
+	    xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR, "No output assigned to crtc!\n");
+	    return;
+	}
+
+	if (radeon_encoder == NULL) {
+	    xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR, "No encoder assigned to output!\n");
+	    return;
+	}
+
+	memset(&adjust_pll_param, 0, sizeof(adjust_pll_param));
+	adjust_pll_param.usPixelClock = cpu_to_le16(sclock / 10);
+	adjust_pll_param.ucTransmitterID = radeon_encoder->encoder_id;
+	adjust_pll_param.ucEncodeMode = atombios_get_encoder_mode(output);
+
+	data.exec.index = GetIndexIntoMasterTable(COMMAND, AdjustDisplayPll);
+	data.exec.dataSpace = (void *)&space;
+	data.exec.pspace = &adjust_pll_param;
+
+	ErrorF("before %d\n", adjust_pll_param.usPixelClock);
+	if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	    sclock = le16_to_cpu(adjust_pll_param.usPixelClock) * 10;
+	}
+	ErrorF("after %d\n", adjust_pll_param.usPixelClock);
+    }
+
+    RADEONComputePLL(&info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
+    sclock = temp; /* 10 khz */
 
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 	       "crtc(%d) Clock: mode %d, PLL %lu\n",
@@ -330,26 +369,6 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	       "crtc(%d) PLL  : refdiv %u, fbdiv 0x%X(%u), fracfbdiv %u, pdiv %u\n",
 	       radeon_crtc->crtc_id, (unsigned int)ref_div, (unsigned int)fb_div,
 	       (unsigned int)fb_div, (unsigned int)frac_fb_div, (unsigned int)post_div);
-
-    /* Can't really do cloning easily on DCE3 cards */
-    for (i = 0; i < xf86_config->num_output; i++) {
-	output = xf86_config->output[i];
-	if (output->crtc == crtc) {
-	    radeon_output = output->driver_private;
-	    radeon_encoder = radeon_get_encoder(output);
-	    break;
-	}
-    }
-
-    if (radeon_output == NULL) {
-	xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR, "No output assigned to crtc!\n");
-	return;
-    }
-
-    if (radeon_encoder == NULL) {
-	xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR, "No encoder assigned to output!\n");
-	return;
-    }
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 
@@ -360,7 +379,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	case 1:
 	case 2:
 	    spc2_ptr = (PIXEL_CLOCK_PARAMETERS_V2*)&spc_param.sPCLKInput;
-	    spc2_ptr->usPixelClock = cpu_to_le16(sclock);
+	    spc2_ptr->usPixelClock = cpu_to_le16(mode->Clock / 10);
 	    spc2_ptr->usRefDiv = cpu_to_le16(ref_div);
 	    spc2_ptr->usFbDiv = cpu_to_le16(fb_div);
 	    spc2_ptr->ucFracFbDiv = frac_fb_div;
@@ -372,7 +391,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    break;
 	case 3:
 	    spc3_ptr = (PIXEL_CLOCK_PARAMETERS_V3*)&spc_param.sPCLKInput;
-	    spc3_ptr->usPixelClock = cpu_to_le16(sclock);
+	    spc3_ptr->usPixelClock = cpu_to_le16(mode->Clock / 10);
 	    spc3_ptr->usRefDiv = cpu_to_le16(ref_div);
 	    spc3_ptr->usFbDiv = cpu_to_le16(fb_div);
 	    spc3_ptr->ucFracFbDiv = frac_fb_div;
@@ -634,7 +653,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
 	switch (radeon_crtc->crtc_id) {
 	case 0:
-	    ErrorF("init crtc1\n");
 	    crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL) & 0xfffff0ff;
 	    crtc_gen_cntl |= (format << 8);
 	    OUTREG(RADEON_CRTC_GEN_CNTL, crtc_gen_cntl);
