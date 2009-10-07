@@ -57,13 +57,13 @@ int main(int argc, char **argv)
 	else if (IS_I965G(pI830))
 		gtt = (unsigned char *)(pI830->mmio + KB(512));
 	else {
-		/* 915/945 chips has GTT range in bar 3*/
+		/* 915/945 chips has GTT range in bar 3 */
 		int err = 0;
-		err = pci_device_map_range (pI830->PciInfo,
-				pI830->PciInfo->regions[3].base_addr,
-				pI830->PciInfo->regions[3].size,
-				PCI_DEV_MAP_FLAG_WRITABLE,
-				(void **)&gtt);
+		err = pci_device_map_range(pI830->PciInfo,
+					   pI830->PciInfo->regions[3].base_addr,
+					   pI830->PciInfo->regions[3].size,
+					   PCI_DEV_MAP_FLAG_WRITABLE,
+					   (void **)&gtt);
 		if (err != 0) {
 			fprintf(stderr, "mapping GTT bar failed\n");
 			exit(1);
@@ -105,8 +105,7 @@ int main(int argc, char **argv)
 		}
 		if (constant_length > 0) {
 			printf("0x%08x - 0x%08x: constant 0x%08x\n",
-			       start, end - KB(4),
-			       start_pte);
+			       start, end - KB(4), start_pte);
 			start = end - KB(4);
 			continue;
 		}

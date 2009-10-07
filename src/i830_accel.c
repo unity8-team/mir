@@ -49,54 +49,49 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_ring.h"
 #include "i915_drm.h"
 
-unsigned long
-intel_get_pixmap_pitch(PixmapPtr pPix)
+unsigned long intel_get_pixmap_pitch(PixmapPtr pPix)
 {
-    return (unsigned long)pPix->devKind;
+	return (unsigned long)pPix->devKind;
 }
 
-void
-I830Sync(ScrnInfoPtr pScrn)
+void I830Sync(ScrnInfoPtr pScrn)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
+	I830Ptr pI830 = I830PTR(pScrn);
 
-   if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
-      ErrorF("I830Sync\n");
+	if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
+		ErrorF("I830Sync\n");
 
-   if (!pScrn->vtSema || !pI830->batch_bo)
-       return;
+	if (!pScrn->vtSema || !pI830->batch_bo)
+		return;
 
-   I830EmitFlush(pScrn);
+	I830EmitFlush(pScrn);
 
-   intel_batch_flush(pScrn, TRUE);
-   intel_batch_wait_last(pScrn);
+	intel_batch_flush(pScrn, TRUE);
+	intel_batch_wait_last(pScrn);
 }
 
-void
-I830EmitFlush(ScrnInfoPtr pScrn)
+void I830EmitFlush(ScrnInfoPtr pScrn)
 {
-   I830Ptr pI830 = I830PTR(pScrn);
-   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+	I830Ptr pI830 = I830PTR(pScrn);
+	int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
-   if (IS_I965G(pI830))
-      flags = 0;
+	if (IS_I965G(pI830))
+		flags = 0;
 
-   {
-       BEGIN_BATCH(1);
-       OUT_BATCH(MI_FLUSH | flags);
-       ADVANCE_BATCH();
-   }
+	{
+		BEGIN_BATCH(1);
+		OUT_BATCH(MI_FLUSH | flags);
+		ADVANCE_BATCH();
+	}
 }
-
 
 #if (ALWAYS_SYNC || ALWAYS_FLUSH)
-void
-i830_debug_sync(ScrnInfoPtr scrn)
+void i830_debug_sync(ScrnInfoPtr scrn)
 {
-    if (ALWAYS_SYNC)
-	I830Sync(scrn);
-    else
-	intel_batch_flush(scrn, FALSE);
+	if (ALWAYS_SYNC)
+		I830Sync(scrn);
+	else
+		intel_batch_flush(scrn, FALSE);
 }
 #endif
 
@@ -104,61 +99,60 @@ i830_debug_sync(ScrnInfoPtr scrn)
  * from the FbInit() function in the SVGA driver, or before ScreenInit
  * in a monolithic server.
  */
-Bool
-I830AccelInit(ScreenPtr pScreen)
+Bool I830AccelInit(ScreenPtr pScreen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	I830Ptr pI830 = I830PTR(pScrn);
 
-    /* Limits are described in the BLT engine chapter under Graphics Data Size
-     * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
-     * 3DSTATE_DRAWING_RECTANGLE, 3DSTATE_MAP_INFO, and 3DSTATE_MAP_INFO.
-     *
-     * i845 through i965 limits 2D rendering to 65536 lines and pitch of 32768.
-     *
-     * i965 limits 3D surface to (2*element size)-aligned offset if un-tiled.
-     * i965 limits 3D surface to 4kB-aligned offset if tiled.
-     * i965 limits 3D surfaces to w,h of ?,8192.
-     * i965 limits 3D surface to pitch of 1B - 128kB.
-     * i965 limits 3D surface pitch alignment to 1 or 2 times the element size.
-     * i965 limits 3D surface pitch alignment to 512B if tiled.
-     * i965 limits 3D destination drawing rect to w,h of 8192,8192.
-     *
-     * i915 limits 3D textures to 4B-aligned offset if un-tiled.
-     * i915 limits 3D textures to ~4kB-aligned offset if tiled.
-     * i915 limits 3D textures to width,height of 2048,2048.
-     * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
-     * i915 limits 3D destination to ~4kB-aligned offset if tiled.
-     * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
-     * i915 limits 3D destination to pitch 64B-aligned if used with depth.
-     * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
-     * i915 limits 3D destination to POT aligned pitch if tiled.
-     * i915 limits 3D destination drawing rect to w,h of 2048,2048.
-     *
-     * i845 limits 3D textures to 4B-aligned offset if un-tiled.
-     * i845 limits 3D textures to ~4kB-aligned offset if tiled.
-     * i845 limits 3D textures to width,height of 2048,2048.
-     * i845 limits 3D textures to pitch of 4B - 8kB, in dwords.
-     * i845 limits 3D destination to 4B-aligned offset if un-tiled.
-     * i845 limits 3D destination to ~4kB-aligned offset if tiled.
-     * i845 limits 3D destination to pitch of 8B - 8kB, in dwords.
-     * i845 limits 3D destination drawing rect to w,h of 2048,2048.
-     *
-     * For the tiled issues, the only tiled buffer we draw to should be
-     * the front, which will have an appropriate pitch/offset already set up,
-     * so UXA doesn't need to worry.
-     */
-    if (IS_I965G(pI830)) {
-	pI830->accel_pixmap_offset_alignment = 4 * 2;
-	pI830->accel_pixmap_pitch_alignment = 64;
-	pI830->accel_max_x = 8192;
-	pI830->accel_max_y = 8192;
-    } else {
-	pI830->accel_pixmap_offset_alignment = 4;
-	pI830->accel_pixmap_pitch_alignment = 64;
-	pI830->accel_max_x = 2048;
-	pI830->accel_max_y = 2048;
-    }
+	/* Limits are described in the BLT engine chapter under Graphics Data Size
+	 * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
+	 * 3DSTATE_DRAWING_RECTANGLE, 3DSTATE_MAP_INFO, and 3DSTATE_MAP_INFO.
+	 *
+	 * i845 through i965 limits 2D rendering to 65536 lines and pitch of 32768.
+	 *
+	 * i965 limits 3D surface to (2*element size)-aligned offset if un-tiled.
+	 * i965 limits 3D surface to 4kB-aligned offset if tiled.
+	 * i965 limits 3D surfaces to w,h of ?,8192.
+	 * i965 limits 3D surface to pitch of 1B - 128kB.
+	 * i965 limits 3D surface pitch alignment to 1 or 2 times the element size.
+	 * i965 limits 3D surface pitch alignment to 512B if tiled.
+	 * i965 limits 3D destination drawing rect to w,h of 8192,8192.
+	 *
+	 * i915 limits 3D textures to 4B-aligned offset if un-tiled.
+	 * i915 limits 3D textures to ~4kB-aligned offset if tiled.
+	 * i915 limits 3D textures to width,height of 2048,2048.
+	 * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
+	 * i915 limits 3D destination to ~4kB-aligned offset if tiled.
+	 * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
+	 * i915 limits 3D destination to pitch 64B-aligned if used with depth.
+	 * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
+	 * i915 limits 3D destination to POT aligned pitch if tiled.
+	 * i915 limits 3D destination drawing rect to w,h of 2048,2048.
+	 *
+	 * i845 limits 3D textures to 4B-aligned offset if un-tiled.
+	 * i845 limits 3D textures to ~4kB-aligned offset if tiled.
+	 * i845 limits 3D textures to width,height of 2048,2048.
+	 * i845 limits 3D textures to pitch of 4B - 8kB, in dwords.
+	 * i845 limits 3D destination to 4B-aligned offset if un-tiled.
+	 * i845 limits 3D destination to ~4kB-aligned offset if tiled.
+	 * i845 limits 3D destination to pitch of 8B - 8kB, in dwords.
+	 * i845 limits 3D destination drawing rect to w,h of 2048,2048.
+	 *
+	 * For the tiled issues, the only tiled buffer we draw to should be
+	 * the front, which will have an appropriate pitch/offset already set up,
+	 * so UXA doesn't need to worry.
+	 */
+	if (IS_I965G(pI830)) {
+		pI830->accel_pixmap_offset_alignment = 4 * 2;
+		pI830->accel_pixmap_pitch_alignment = 64;
+		pI830->accel_max_x = 8192;
+		pI830->accel_max_y = 8192;
+	} else {
+		pI830->accel_pixmap_offset_alignment = 4;
+		pI830->accel_pixmap_pitch_alignment = 64;
+		pI830->accel_max_x = 2048;
+		pI830->accel_max_y = 2048;
+	}
 
-    return i830_uxa_init(pScreen);
+	return i830_uxa_init(pScreen);
 }

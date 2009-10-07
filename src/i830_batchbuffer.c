@@ -39,113 +39,113 @@
 #include "i830_ring.h"
 #include "i915_drm.h"
 
-static void
-intel_next_batch(ScrnInfoPtr pScrn)
+static void intel_next_batch(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+	I830Ptr pI830 = I830PTR(pScrn);
 
-    /* The 865 has issues with larger-than-page-sized batch buffers. */
-    if (IS_I865G(pI830))
-	pI830->batch_bo = dri_bo_alloc(pI830->bufmgr, "batch", 4096, 4096);
-    else
-	pI830->batch_bo = dri_bo_alloc(pI830->bufmgr, "batch", 4096 * 4, 4096);
+	/* The 865 has issues with larger-than-page-sized batch buffers. */
+	if (IS_I865G(pI830))
+		pI830->batch_bo =
+		    dri_bo_alloc(pI830->bufmgr, "batch", 4096, 4096);
+	else
+		pI830->batch_bo =
+		    dri_bo_alloc(pI830->bufmgr, "batch", 4096 * 4, 4096);
 
-    if (dri_bo_map(pI830->batch_bo, 1) != 0)
-	FatalError("Failed to map batchbuffer: %s\n", strerror(errno));
+	if (dri_bo_map(pI830->batch_bo, 1) != 0)
+		FatalError("Failed to map batchbuffer: %s\n", strerror(errno));
 
-    pI830->batch_used = 0;
-    pI830->batch_ptr = pI830->batch_bo->virtual;
+	pI830->batch_used = 0;
+	pI830->batch_ptr = pI830->batch_bo->virtual;
 
-    /* If we are using DRI2, we don't know when another client has executed,
-     * so we have to reinitialize our 3D state per batch.
-     */
-    if (pI830->directRenderingType == DRI_DRI2)
-	pI830->last_3d = LAST_3D_OTHER;
+	/* If we are using DRI2, we don't know when another client has executed,
+	 * so we have to reinitialize our 3D state per batch.
+	 */
+	if (pI830->directRenderingType == DRI_DRI2)
+		pI830->last_3d = LAST_3D_OTHER;
 }
 
-void
-intel_batch_init(ScrnInfoPtr pScrn)
+void intel_batch_init(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+	I830Ptr pI830 = I830PTR(pScrn);
 
-    pI830->batch_emit_start = 0;
-    pI830->batch_emitting = 0;
+	pI830->batch_emit_start = 0;
+	pI830->batch_emitting = 0;
 
-    intel_next_batch(pScrn);
+	intel_next_batch(pScrn);
 }
 
-void
-intel_batch_teardown(ScrnInfoPtr pScrn)
+void intel_batch_teardown(ScrnInfoPtr pScrn)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
+	I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->batch_ptr != NULL) {
+	if (pI830->batch_ptr != NULL) {
+		dri_bo_unmap(pI830->batch_bo);
+		pI830->batch_ptr = NULL;
+
+		dri_bo_unreference(pI830->batch_bo);
+		pI830->batch_bo = NULL;
+
+		dri_bo_unreference(pI830->last_batch_bo);
+		pI830->last_batch_bo = NULL;
+	}
+}
+
+void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
+{
+	I830Ptr pI830 = I830PTR(pScrn);
+	int ret;
+
+	if (pI830->batch_used == 0)
+		return;
+
+	/* Emit a padding dword if we aren't going to be quad-word aligned. */
+	if ((pI830->batch_used & 4) == 0) {
+		*(uint32_t *) (pI830->batch_ptr + pI830->batch_used) = MI_NOOP;
+		pI830->batch_used += 4;
+	}
+
+	/* Mark the end of the batchbuffer. */
+	*(uint32_t *) (pI830->batch_ptr + pI830->batch_used) =
+	    MI_BATCH_BUFFER_END;
+	pI830->batch_used += 4;
+
 	dri_bo_unmap(pI830->batch_bo);
 	pI830->batch_ptr = NULL;
 
-	dri_bo_unreference(pI830->batch_bo);
+	ret =
+	    dri_bo_exec(pI830->batch_bo, pI830->batch_used, NULL, 0,
+			0xffffffff);
+	if (ret != 0)
+		FatalError("Failed to submit batchbuffer: %s\n",
+			   strerror(-ret));
+
+	/* Save a ref to the last batch emitted, which we use for syncing
+	 * in debug code.
+	 */
+	dri_bo_unreference(pI830->last_batch_bo);
+	pI830->last_batch_bo = pI830->batch_bo;
 	pI830->batch_bo = NULL;
 
-	dri_bo_unreference(pI830->last_batch_bo);
-	pI830->last_batch_bo = NULL;
-    }
-}
+	intel_next_batch(pScrn);
 
-void
-intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    int ret;
+	/* Mark that we need to flush whatever potential rendering we've done in the
+	 * blockhandler.  We could set this less often, but it's probably not worth
+	 * the work.
+	 */
+	pI830->need_mi_flush = TRUE;
 
-    if (pI830->batch_used == 0)
-	return;
-
-    /* Emit a padding dword if we aren't going to be quad-word aligned. */
-    if ((pI830->batch_used & 4) == 0) {
-	*(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = MI_NOOP;
-	pI830->batch_used += 4;
-    }
-
-    /* Mark the end of the batchbuffer. */
-    *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = MI_BATCH_BUFFER_END;
-    pI830->batch_used += 4;
-
-    dri_bo_unmap(pI830->batch_bo);
-    pI830->batch_ptr = NULL;
-
-    ret = dri_bo_exec(pI830->batch_bo, pI830->batch_used, NULL, 0, 0xffffffff);
-    if (ret != 0)
-	FatalError("Failed to submit batchbuffer: %s\n", strerror(-ret));
-
-    /* Save a ref to the last batch emitted, which we use for syncing
-     * in debug code.
-     */
-    dri_bo_unreference(pI830->last_batch_bo);
-    pI830->last_batch_bo = pI830->batch_bo;
-    pI830->batch_bo = NULL;
-
-    intel_next_batch(pScrn);
-
-    /* Mark that we need to flush whatever potential rendering we've done in the
-     * blockhandler.  We could set this less often, but it's probably not worth
-     * the work.
-     */
-    pI830->need_mi_flush = TRUE;
-
-    if (pI830->batch_flush_notify)
-	pI830->batch_flush_notify (pScrn);
+	if (pI830->batch_flush_notify)
+		pI830->batch_flush_notify(pScrn);
 }
 
 /** Waits on the last emitted batchbuffer to be completed. */
-void
-intel_batch_wait_last(ScrnInfoPtr scrn)
+void intel_batch_wait_last(ScrnInfoPtr scrn)
 {
-    I830Ptr pI830 = I830PTR(scrn);
+	I830Ptr pI830 = I830PTR(scrn);
 
-    /* Map it CPU write, which guarantees it's done.  This is a completely
-     * non performance path, so we don't need anything better.
-     */
-    drm_intel_bo_map(pI830->last_batch_bo, TRUE);
-    drm_intel_bo_unmap(pI830->last_batch_bo);
+	/* Map it CPU write, which guarantees it's done.  This is a completely
+	 * non performance path, so we don't need anything better.
+	 */
+	drm_intel_bo_map(pI830->last_batch_bo, TRUE);
+	drm_intel_bo_unmap(pI830->last_batch_bo);
 }
-

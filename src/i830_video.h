@@ -28,41 +28,41 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86_OSproc.h"
 
 typedef struct {
-   uint32_t YBufOffset;
-   uint32_t UBufOffset;
-   uint32_t VBufOffset;
+	uint32_t YBufOffset;
+	uint32_t UBufOffset;
+	uint32_t VBufOffset;
 
-   int brightness;
-   int contrast;
-   int saturation;
-   xf86CrtcPtr current_crtc;
-   xf86CrtcPtr desired_crtc;
+	int brightness;
+	int contrast;
+	int saturation;
+	xf86CrtcPtr current_crtc;
+	xf86CrtcPtr desired_crtc;
 
-   RegionRec clip;
-   uint32_t colorKey;
+	RegionRec clip;
+	uint32_t colorKey;
 
-   uint32_t gamma0;
-   uint32_t gamma1;
-   uint32_t gamma2;
-   uint32_t gamma3;
-   uint32_t gamma4;
-   uint32_t gamma5;
+	uint32_t gamma0;
+	uint32_t gamma1;
+	uint32_t gamma2;
+	uint32_t gamma3;
+	uint32_t gamma4;
+	uint32_t gamma5;
 
-   uint32_t videoStatus;
-   Time offTime;
-   Time freeTime;
+	uint32_t videoStatus;
+	Time offTime;
+	Time freeTime;
    /** YUV data buffers */
-   drm_intel_bo *buf; /* current buffer to draw into */
-   drm_intel_bo *oldBuf; /* old buffer, may be in use by the overlay hw */
-   Bool oldBuf_pinned; /* only actually pinned when in use by the overlay hw */
+	drm_intel_bo *buf;	/* current buffer to draw into */
+	drm_intel_bo *oldBuf;	/* old buffer, may be in use by the overlay hw */
+	Bool oldBuf_pinned;	/* only actually pinned when in use by the overlay hw */
 
-   Bool overlayOK;
-   int oneLineMode;
-   int scaleRatio;
-   Bool textured;
-   Rotation rotation; /* should remove I830->rotation later*/
+	Bool overlayOK;
+	int oneLineMode;
+	int scaleRatio;
+	Bool textured;
+	Rotation rotation;	/* should remove I830->rotation later */
 
-   int SyncToVblank; /* -1: auto, 0: off, 1: on */
+	int SyncToVblank;	/* -1: auto, 0: off, 1: on */
 } I830PortPrivRec, *I830PortPrivPtr;
 
 #define GET_PORT_PRIVATE(pScrn) \
@@ -73,16 +73,14 @@ void I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      short height, int video_pitch, int video_pitch2,
 			      int x1, int y1, int x2, int y2,
 			      short src_w, short src_h,
-			      short drw_w, short drw_h,
-			      PixmapPtr pPixmap);
+			      short drw_w, short drw_h, PixmapPtr pPixmap);
 
 void I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      int id, RegionPtr dstRegion, short width,
 			      short height, int video_pitch,
 			      int x1, int y1, int x2, int y2,
 			      short src_w, short src_h,
-			      short drw_w, short drw_h,
-			      PixmapPtr pPixmap);
+			      short drw_w, short drw_h, PixmapPtr pPixmap);
 
 void I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 			   pointer pReadmask);

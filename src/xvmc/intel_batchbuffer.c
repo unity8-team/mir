@@ -48,142 +48,144 @@
 #include "brw_defines.h"
 #include "brw_structs.h"
 #define MI_BATCH_BUFFER_END     (0xA << 23)
-#define BATCH_SIZE 8*1024 /* one bo is allocated each time, so the size can be small */
+#define BATCH_SIZE 8*1024	/* one bo is allocated each time, so the size can be small */
 static int intelEmitIrqLocked(void)
 {
-   drmI830IrqEmit ie;
-   int ret, seq;
+	drmI830IrqEmit ie;
+	int ret, seq;
 
-   ie.irq_seq = &seq;
-   ret = drmCommandWriteRead(xvmc_driver->fd, DRM_I830_IRQ_EMIT,
-                             &ie, sizeof(ie));
+	ie.irq_seq = &seq;
+	ret = drmCommandWriteRead(xvmc_driver->fd, DRM_I830_IRQ_EMIT,
+				  &ie, sizeof(ie));
 
-   if ( ret ) {
-      fprintf(stderr, "%s: drmI830IrqEmit: %d\n", __FUNCTION__, ret);
-      exit(1);
-   }
+	if (ret) {
+		fprintf(stderr, "%s: drmI830IrqEmit: %d\n", __FUNCTION__, ret);
+		exit(1);
+	}
 
-   return seq;
+	return seq;
 }
 
 static void intelWaitIrq(int seq)
 {
-   int ret;
-   drmI830IrqWait iw;
+	int ret;
+	drmI830IrqWait iw;
 
-   iw.irq_seq = seq;
+	iw.irq_seq = seq;
 
-   do {
-      ret = drmCommandWrite(xvmc_driver->fd, DRM_I830_IRQ_WAIT, &iw, sizeof(iw) );
-   } while (ret == -EAGAIN || ret == -EINTR);
+	do {
+		ret =
+		    drmCommandWrite(xvmc_driver->fd, DRM_I830_IRQ_WAIT, &iw,
+				    sizeof(iw));
+	} while (ret == -EAGAIN || ret == -EINTR);
 
-   if (ret) {
-      fprintf(stderr, "%s: drmI830IrqWait: %d\n", __FUNCTION__, ret);
-      exit(1);
-   }
+	if (ret) {
+		fprintf(stderr, "%s: drmI830IrqWait: %d\n", __FUNCTION__, ret);
+		exit(1);
+	}
 }
 
 static void i965_end_batch(void)
 {
-    unsigned int size = xvmc_driver->batch.ptr - 
-	xvmc_driver->batch.init_ptr;
-    if ((size & 4) == 0) {
-	*(unsigned int*)xvmc_driver->batch.ptr = 0;
+	unsigned int size = xvmc_driver->batch.ptr -
+	    xvmc_driver->batch.init_ptr;
+	if ((size & 4) == 0) {
+		*(unsigned int *)xvmc_driver->batch.ptr = 0;
+		xvmc_driver->batch.ptr += 4;
+	}
+	*(unsigned int *)xvmc_driver->batch.ptr = MI_BATCH_BUFFER_END;
 	xvmc_driver->batch.ptr += 4;
-    }
-    *(unsigned int*)xvmc_driver->batch.ptr = MI_BATCH_BUFFER_END;
-    xvmc_driver->batch.ptr += 4;
 }
 
 Bool intelInitBatchBuffer(void)
 {
-    int i;
+	int i;
 
-    if((xvmc_driver->batch.buf = 
-		drm_intel_bo_alloc(xvmc_driver->bufmgr, 
-		    "batch buffer", BATCH_SIZE, 0x1000)) == NULL) {
-	fprintf(stderr, "unable to alloc batch buffer\n");
-	return False;
-    }
+	if ((xvmc_driver->batch.buf =
+	     drm_intel_bo_alloc(xvmc_driver->bufmgr,
+				"batch buffer", BATCH_SIZE, 0x1000)) == NULL) {
+		fprintf(stderr, "unable to alloc batch buffer\n");
+		return False;
+	}
 
-    if (xvmc_driver->kernel_exec_fencing)
-        drm_intel_gem_bo_map_gtt(xvmc_driver->batch.buf);
-    else
-        drm_intel_bo_map(xvmc_driver->batch.buf, 1);
+	if (xvmc_driver->kernel_exec_fencing)
+		drm_intel_gem_bo_map_gtt(xvmc_driver->batch.buf);
+	else
+		drm_intel_bo_map(xvmc_driver->batch.buf, 1);
 
-    xvmc_driver->batch.init_ptr = xvmc_driver->batch.buf->virtual;
-    xvmc_driver->batch.size = BATCH_SIZE;
-    xvmc_driver->batch.space = BATCH_SIZE;
-    xvmc_driver->batch.ptr = xvmc_driver->batch.init_ptr;
-    return True;
+	xvmc_driver->batch.init_ptr = xvmc_driver->batch.buf->virtual;
+	xvmc_driver->batch.size = BATCH_SIZE;
+	xvmc_driver->batch.space = BATCH_SIZE;
+	xvmc_driver->batch.ptr = xvmc_driver->batch.init_ptr;
+	return True;
 }
 
 void intelFiniBatchBuffer(void)
 {
-    if (xvmc_driver->kernel_exec_fencing)
-        drm_intel_gem_bo_unmap_gtt(xvmc_driver->batch.buf);
-    else
-        drm_intel_bo_unmap(xvmc_driver->batch.buf);
+	if (xvmc_driver->kernel_exec_fencing)
+		drm_intel_gem_bo_unmap_gtt(xvmc_driver->batch.buf);
+	else
+		drm_intel_bo_unmap(xvmc_driver->batch.buf);
 
-    drm_intel_bo_unreference(xvmc_driver->batch.buf);
+	drm_intel_bo_unreference(xvmc_driver->batch.buf);
 }
 
-
-void intelFlushBatch(Bool refill )
+void intelFlushBatch(Bool refill)
 {
-    i965_end_batch();
+	i965_end_batch();
 
-    if (xvmc_driver->kernel_exec_fencing)
-        drm_intel_gem_bo_unmap_gtt(xvmc_driver->batch.buf);
-    else
-        drm_intel_bo_unmap(xvmc_driver->batch.buf);
+	if (xvmc_driver->kernel_exec_fencing)
+		drm_intel_gem_bo_unmap_gtt(xvmc_driver->batch.buf);
+	else
+		drm_intel_bo_unmap(xvmc_driver->batch.buf);
 
-    drm_intel_bo_exec(xvmc_driver->batch.buf, 
-	    xvmc_driver->batch.ptr - xvmc_driver->batch.init_ptr,
-	    0, 0, 0);
+	drm_intel_bo_exec(xvmc_driver->batch.buf,
+			  xvmc_driver->batch.ptr - xvmc_driver->batch.init_ptr,
+			  0, 0, 0);
 
-    if (xvmc_driver == &i915_xvmc_mc_driver)
-	    dri_bo_wait_rendering(xvmc_driver->batch.buf);
+	if (xvmc_driver == &i915_xvmc_mc_driver)
+		dri_bo_wait_rendering(xvmc_driver->batch.buf);
 
-    drm_intel_bo_unreference(xvmc_driver->batch.buf);
-    if((xvmc_driver->batch.buf = 
-		drm_intel_bo_alloc(xvmc_driver->bufmgr, 
-		    "batch buffer", BATCH_SIZE, 0x1000)) == NULL) {
-	fprintf(stderr, "unable to alloc batch buffer\n");
-    }
+	drm_intel_bo_unreference(xvmc_driver->batch.buf);
+	if ((xvmc_driver->batch.buf =
+	     drm_intel_bo_alloc(xvmc_driver->bufmgr,
+				"batch buffer", BATCH_SIZE, 0x1000)) == NULL) {
+		fprintf(stderr, "unable to alloc batch buffer\n");
+	}
 
-    if (xvmc_driver->kernel_exec_fencing)
-        drm_intel_gem_bo_map_gtt(xvmc_driver->batch.buf);
-    else
-        drm_intel_bo_map(xvmc_driver->batch.buf, 1);
+	if (xvmc_driver->kernel_exec_fencing)
+		drm_intel_gem_bo_map_gtt(xvmc_driver->batch.buf);
+	else
+		drm_intel_bo_map(xvmc_driver->batch.buf, 1);
 
-    xvmc_driver->batch.init_ptr = xvmc_driver->batch.buf->virtual;
-    xvmc_driver->batch.size = BATCH_SIZE;
-    xvmc_driver->batch.space = BATCH_SIZE;
-    xvmc_driver->batch.ptr = xvmc_driver->batch.init_ptr;
+	xvmc_driver->batch.init_ptr = xvmc_driver->batch.buf->virtual;
+	xvmc_driver->batch.size = BATCH_SIZE;
+	xvmc_driver->batch.space = BATCH_SIZE;
+	xvmc_driver->batch.ptr = xvmc_driver->batch.init_ptr;
 }
 
 void intelBatchbufferRequireSpace(int size)
 {
-    assert(xvmc_driver->batch.ptr - xvmc_driver->batch.init_ptr + size <
-        xvmc_driver->batch.size - 8);
-    if (xvmc_driver->batch.ptr - xvmc_driver->batch.init_ptr + size 
-	    >= xvmc_driver->batch.size - 8) 
-	intelFlushBatch(1);
+	assert(xvmc_driver->batch.ptr - xvmc_driver->batch.init_ptr + size <
+	       xvmc_driver->batch.size - 8);
+	if (xvmc_driver->batch.ptr - xvmc_driver->batch.init_ptr + size
+	    >= xvmc_driver->batch.size - 8)
+		intelFlushBatch(1);
 }
 
 void intelBatchbufferData(const void *data, unsigned bytes, unsigned flags)
 {
-   intelBatchbufferRequireSpace(bytes);
-   memcpy(xvmc_driver->batch.ptr, data, bytes);
-   xvmc_driver->batch.ptr += bytes;
-   xvmc_driver->batch.space -= bytes;
+	intelBatchbufferRequireSpace(bytes);
+	memcpy(xvmc_driver->batch.ptr, data, bytes);
+	xvmc_driver->batch.ptr += bytes;
+	xvmc_driver->batch.space -= bytes;
 }
 
-void intel_batch_emit_reloc(dri_bo *bo, uint32_t read_domain,
-	uint32_t write_domain, uint32_t delta, unsigned char *ptr)
+void intel_batch_emit_reloc(dri_bo * bo, uint32_t read_domain,
+			    uint32_t write_domain, uint32_t delta,
+			    unsigned char *ptr)
 {
-    drm_intel_bo_emit_reloc(xvmc_driver->batch.buf, 
-	    ptr - xvmc_driver->batch.init_ptr, bo, delta,
-	    read_domain, write_domain);
+	drm_intel_bo_emit_reloc(xvmc_driver->batch.buf,
+				ptr - xvmc_driver->batch.init_ptr, bo, delta,
+				read_domain, write_domain);
 }

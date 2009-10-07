@@ -47,20 +47,20 @@ typedef char Bool;
 #define X_ERROR 2
 
 typedef struct _i830 {
-    /* Fields in common with the real pI830 */
-    struct pci_device *PciInfo;
-    Bool use_drm_mode;
+	/* Fields in common with the real pI830 */
+	struct pci_device *PciInfo;
+	Bool use_drm_mode;
 
-    /* Fields used for setting up reg_dumper */
-    volatile unsigned char *mmio;
+	/* Fields used for setting up reg_dumper */
+	volatile unsigned char *mmio;
 } I830Rec, *I830Ptr;
 
 typedef struct _scrn {
-    /* Fields in common with the real pScrn */
-    int scrnIndex;
+	/* Fields in common with the real pScrn */
+	int scrnIndex;
 
-    /* Fields used for setting up reg_dumper */
-    I830Ptr pI830;
+	/* Fields used for setting up reg_dumper */
+	I830Ptr pI830;
 } ScrnInfoRec, *ScrnInfoPtr;
 
 #define I830PTR(pScrn) (pScrn->pI830)

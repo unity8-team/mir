@@ -73,12 +73,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "uxa.h"
 Bool i830_uxa_init(ScreenPtr pScreen);
 void i830_uxa_create_screen_resources(ScreenPtr pScreen);
-void i830_uxa_block_handler (ScreenPtr pScreen);
-Bool i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo **bo_table,
+void i830_uxa_block_handler(ScreenPtr pScreen);
+Bool i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo ** bo_table,
 			     int num_bos);
 
-dri_bo *i830_get_pixmap_bo (PixmapPtr pixmap);
-void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo);
+dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap);
+void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo);
 
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
@@ -95,18 +95,18 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 typedef struct _I830Rec *I830Ptr;
 
-typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
-                                         uint8_t index, uint8_t value);
-typedef uint8_t(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
-					  uint8_t index);
-typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr,
-				  uint8_t value);
-typedef uint8_t(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
+typedef void (*I830WriteIndexedByteFunc) (I830Ptr pI830, IOADDRESS addr,
+					  uint8_t index, uint8_t value);
+typedef uint8_t(*I830ReadIndexedByteFunc) (I830Ptr pI830, IOADDRESS addr,
+					   uint8_t index);
+typedef void (*I830WriteByteFunc) (I830Ptr pI830, IOADDRESS addr,
+				   uint8_t value);
+typedef uint8_t(*I830ReadByteFunc) (I830Ptr pI830, IOADDRESS addr);
 
 enum tile_format {
-    TILE_NONE,
-    TILE_XMAJOR,
-    TILE_YMAJOR
+	TILE_NONE,
+	TILE_XMAJOR,
+	TILE_YMAJOR
 };
 
 #define PITCH_NONE 0
@@ -114,280 +114,282 @@ enum tile_format {
 /** Record of a linear allocation in the aperture. */
 typedef struct _i830_memory i830_memory;
 struct _i830_memory {
-    /** Offset of the allocation in card VM */
-    unsigned long offset;
-    /** End of the allocation in card VM */
-    unsigned long end;
-    /**
-     * Requested size of the allocation: doesn't count padding.
-     *
-     * Any bound memory will cover offset to (offset + size).
-     */
-    unsigned long size;
+	/** Offset of the allocation in card VM */
+	unsigned long offset;
+	/** End of the allocation in card VM */
+	unsigned long end;
+	/**
+	 * Requested size of the allocation: doesn't count padding.
+	 *
+	 * Any bound memory will cover offset to (offset + size).
+	 */
+	unsigned long size;
 
-    enum tile_format tiling;
-    /** Pitch value in bytes for tiled surfaces */
-    unsigned int pitch;
+	enum tile_format tiling;
+	/** Pitch value in bytes for tiled surfaces */
+	unsigned int pitch;
 
-    /** Description of the allocation, for logging */
-    char *name;
+	/** Description of the allocation, for logging */
+	char *name;
 
-    /** @{
-     * Memory allocator linked list pointers
-     */
-    i830_memory *next;
-    i830_memory *prev;
-    /** @} */
+	/** @{
+	 * Memory allocator linked list pointers
+	 */
+	i830_memory *next;
+	i830_memory *prev;
+	/** @} */
 
-    dri_bo *bo;
-    uint32_t alignment;
-    uint32_t gem_name;
+	dri_bo *bo;
+	uint32_t alignment;
+	uint32_t gem_name;
 };
 
 typedef struct _I830CrtcPrivateRec {
-    int			    pipe;
-    int			    plane;
+	int pipe;
+	int plane;
 
-    Bool    		    enabled;
-    
-    int			    dpms_mode;
-    
-    int			    x, y;
+	Bool enabled;
 
-    /* Lookup table values to be set when the CRTC is enabled */
-    uint8_t lut_r[256], lut_g[256], lut_b[256];
+	int dpms_mode;
+
+	int x, y;
+
+	/* Lookup table values to be set when the CRTC is enabled */
+	uint8_t lut_r[256], lut_g[256], lut_b[256];
 } I830CrtcPrivateRec, *I830CrtcPrivatePtr;
 
 #define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
 
 /** enumeration of 3d consumers so some can maintain invariant state. */
 enum last_3d {
-    LAST_3D_OTHER,
-    LAST_3D_VIDEO,
-    LAST_3D_RENDER,
-    LAST_3D_ROTATION
+	LAST_3D_OTHER,
+	LAST_3D_VIDEO,
+	LAST_3D_RENDER,
+	LAST_3D_ROTATION
 };
 
 enum dri_type {
-    DRI_DISABLED,
-    DRI_NONE,
-    DRI_DRI2
+	DRI_DISABLED,
+	DRI_NONE,
+	DRI_DRI2
 };
 
 typedef struct _I830Rec {
-   unsigned char *MMIOBase;
-   int cpp;
+	unsigned char *MMIOBase;
+	int cpp;
 
-   unsigned int bufferOffset;		/* for I830SelectBuffer */
+	unsigned int bufferOffset;	/* for I830SelectBuffer */
 
-   /* These are set in PreInit and never changed. */
-   long FbMapSize;
-   long GTTMapSize;
+	/* These are set in PreInit and never changed. */
+	long FbMapSize;
+	long GTTMapSize;
 
-   /**
-    * Linked list of video memory allocations.  The head and tail are
-    * dummy entries that bound the allocation area.
-    */
-   i830_memory *memory_list;
-   /** Linked list of buffer object memory allocations */
-   i830_memory *bo_list;
+	/**
+	 * Linked list of video memory allocations.  The head and tail are
+	 * dummy entries that bound the allocation area.
+	 */
+	i830_memory *memory_list;
+	/** Linked list of buffer object memory allocations */
+	i830_memory *bo_list;
 
-   i830_memory *front_buffer;
-   /* One big buffer for all cursors for kernels that support this */
-   i830_memory *cursor_mem_argb[2];
+	i830_memory *front_buffer;
+	/* One big buffer for all cursors for kernels that support this */
+	i830_memory *cursor_mem_argb[2];
 
-   dri_bufmgr *bufmgr;
+	dri_bufmgr *bufmgr;
 
-   uint8_t *batch_ptr;
-   /** Byte offset in batch_ptr for the next dword to be emitted. */
-   unsigned int batch_used;
-   /** Position in batch_ptr at the start of the current BEGIN_BATCH */
-   unsigned int batch_emit_start;
-   /** Number of bytes to be emitted in the current BEGIN_BATCH. */
-   uint32_t batch_emitting;
-   dri_bo *batch_bo;
-   dri_bo *last_batch_bo;
-   /** Whether we're in a section of code that can't tolerate flushing */
-   Bool in_batch_atomic;
-   /** Ending batch_used that was verified by i830_start_batch_atomic() */
-   int batch_atomic_limit;
+	uint8_t *batch_ptr;
+	/** Byte offset in batch_ptr for the next dword to be emitted. */
+	unsigned int batch_used;
+	/** Position in batch_ptr at the start of the current BEGIN_BATCH */
+	unsigned int batch_emit_start;
+	/** Number of bytes to be emitted in the current BEGIN_BATCH. */
+	uint32_t batch_emitting;
+	dri_bo *batch_bo;
+	dri_bo *last_batch_bo;
+	/** Whether we're in a section of code that can't tolerate flushing */
+	Bool in_batch_atomic;
+	/** Ending batch_used that was verified by i830_start_batch_atomic() */
+	int batch_atomic_limit;
 
-   /* For Xvideo */
-   Bool use_drmmode_overlay;
+	/* For Xvideo */
+	Bool use_drmmode_overlay;
 #ifdef INTEL_XVMC
-   /* For XvMC */
-   Bool XvMCEnabled;
+	/* For XvMC */
+	Bool XvMCEnabled;
 #endif
 
-   CreateScreenResourcesProcPtr    CreateScreenResources;
+	CreateScreenResourcesProcPtr CreateScreenResources;
 
-   Bool need_mi_flush;
+	Bool need_mi_flush;
 
-   Bool tiling;
-   Bool swapbuffers_wait;
+	Bool tiling;
+	Bool swapbuffers_wait;
 
-   int Chipset;
-   unsigned long LinearAddr;
-   EntityInfoPtr pEnt;
-   struct pci_device *PciInfo;
-   uint8_t variant;
+	int Chipset;
+	unsigned long LinearAddr;
+	EntityInfoPtr pEnt;
+	struct pci_device *PciInfo;
+	uint8_t variant;
 
-   unsigned int BR[20];
+	unsigned int BR[20];
 
-   CloseScreenProcPtr CloseScreen;
+	CloseScreenProcPtr CloseScreen;
 
-   void (*batch_flush_notify)(ScrnInfoPtr pScrn);
+	void (*batch_flush_notify) (ScrnInfoPtr pScrn);
 
-   uxa_driver_t *uxa_driver;
-   Bool need_flush;
-   PixmapPtr pSrcPixmap;
-   int accel_pixmap_pitch_alignment;
-   int accel_pixmap_offset_alignment;
-   int accel_max_x;
-   int accel_max_y;
-   int max_gtt_map_size;
+	uxa_driver_t *uxa_driver;
+	Bool need_flush;
+	PixmapPtr pSrcPixmap;
+	int accel_pixmap_pitch_alignment;
+	int accel_pixmap_offset_alignment;
+	int accel_max_x;
+	int accel_max_y;
+	int max_gtt_map_size;
 
-   Bool XvDisabled;			/* Xv disabled in PreInit. */
-   Bool XvEnabled;			/* Xv enabled for this generation. */
-   Bool XvPreferOverlay;
+	Bool XvDisabled;	/* Xv disabled in PreInit. */
+	Bool XvEnabled;		/* Xv enabled for this generation. */
+	Bool XvPreferOverlay;
 
-   int colorKey;
-   XF86VideoAdaptorPtr adaptor;
-   ScreenBlockHandlerProcPtr BlockHandler;
-   Bool overlayOn;
+	int colorKey;
+	XF86VideoAdaptorPtr adaptor;
+	ScreenBlockHandlerProcPtr BlockHandler;
+	Bool overlayOn;
 
-   struct {
-      drm_intel_bo *gen4_vs_bo;
-      drm_intel_bo *gen4_sf_bo;
-      drm_intel_bo *gen4_wm_packed_bo;
-      drm_intel_bo *gen4_wm_planar_bo;
-      drm_intel_bo *gen4_cc_bo;
-      drm_intel_bo *gen4_cc_vp_bo;
-      drm_intel_bo *gen4_sampler_bo;
-      drm_intel_bo *gen4_sip_kernel_bo;
-   } video;
+	struct {
+		drm_intel_bo *gen4_vs_bo;
+		drm_intel_bo *gen4_sf_bo;
+		drm_intel_bo *gen4_wm_packed_bo;
+		drm_intel_bo *gen4_wm_planar_bo;
+		drm_intel_bo *gen4_cc_bo;
+		drm_intel_bo *gen4_cc_vp_bo;
+		drm_intel_bo *gen4_sampler_bo;
+		drm_intel_bo *gen4_sip_kernel_bo;
+	} video;
 
-   /* Render accel state */
-   float scale_units[2][2];
-  /** Transform pointers for src/mask, or NULL if identity */
-   PictTransform *transform[2];
-   float dst_coord_adjust;
-   float src_coord_adjust;
-   float mask_coord_adjust;
+	/* Render accel state */
+	float scale_units[2][2];
+	/** Transform pointers for src/mask, or NULL if identity */
+	PictTransform *transform[2];
+	float dst_coord_adjust;
+	float src_coord_adjust;
+	float mask_coord_adjust;
 
-   /* i830 render accel state */
-   PixmapPtr render_src, render_mask, render_dst;
-   PicturePtr render_src_picture, render_mask_picture, render_dst_picture;
-   uint32_t render_dst_format;
-   Bool needs_render_state_emit;
-   uint32_t cblend, ablend, s8_blendctl;
+	/* i830 render accel state */
+	PixmapPtr render_src, render_mask, render_dst;
+	PicturePtr render_src_picture, render_mask_picture, render_dst_picture;
+	uint32_t render_dst_format;
+	Bool needs_render_state_emit;
+	uint32_t cblend, ablend, s8_blendctl;
 
-   /* i915 render accel state */
-   uint32_t mapstate[6];
-   uint32_t samplerstate[6];
+	/* i915 render accel state */
+	uint32_t mapstate[6];
+	uint32_t samplerstate[6];
 
-   struct {
-      int op;
-      uint32_t dst_format;
-      Bool needs_emit;
-   } i915_render_state;
+	struct {
+		int op;
+		uint32_t dst_format;
+		Bool needs_emit;
+	} i915_render_state;
 
-   /* 965 render acceleration state */
-   struct gen4_render_state *gen4_render_state;
+	/* 965 render acceleration state */
+	struct gen4_render_state *gen4_render_state;
 
-   enum dri_type directRenderingType;	/* DRI enabled this generation. */
+	enum dri_type directRenderingType;	/* DRI enabled this generation. */
 
-   Bool directRenderingOpen;
-   int drmSubFD;
-   char deviceName[64];
+	Bool directRenderingOpen;
+	int drmSubFD;
+	char deviceName[64];
 
-   /* Broken-out options. */
-   OptionInfoPtr Options;
+	/* Broken-out options. */
+	OptionInfoPtr Options;
 
-   /* Driver phase/state information */
-   Bool suspended;
+	/* Driver phase/state information */
+	Bool suspended;
 
-   uint32_t saveDSPARB;
-   uint32_t saveDSPACNTR;
-   uint32_t saveDSPBCNTR;
-   uint32_t savePIPEACONF;
-   uint32_t savePIPEBCONF;
-   uint32_t savePIPEASRC;
-   uint32_t savePIPEBSRC;
-   uint32_t saveFPA0;
-   uint32_t saveFPA1;
-   uint32_t saveDPLL_A;
-   uint32_t saveDPLL_A_MD;
-   uint32_t saveHTOTAL_A;
-   uint32_t saveHBLANK_A;
-   uint32_t saveHSYNC_A;
-   uint32_t saveVTOTAL_A;
-   uint32_t saveVBLANK_A;
-   uint32_t saveVSYNC_A;
-   uint32_t saveBCLRPAT_A;
-   uint32_t saveDSPASTRIDE;
-   uint32_t saveDSPASIZE;
-   uint32_t saveDSPAPOS;
-   uint32_t saveDSPABASE;
-   uint32_t saveDSPASURF;
-   uint32_t saveDSPATILEOFF;
-   uint32_t saveFPB0;
-   uint32_t saveFPB1;
-   uint32_t saveDPLL_B;
-   uint32_t saveDPLL_B_MD;
-   uint32_t saveHTOTAL_B;
-   uint32_t saveHBLANK_B;
-   uint32_t saveHSYNC_B;
-   uint32_t saveVTOTAL_B;
-   uint32_t saveVBLANK_B;
-   uint32_t saveVSYNC_B;
-   uint32_t saveBCLRPAT_B;
-   uint32_t saveDSPBSTRIDE;
-   uint32_t saveDSPBSIZE;
-   uint32_t saveDSPBPOS;
-   uint32_t saveDSPBBASE;
-   uint32_t saveDSPBSURF;
-   uint32_t saveDSPBTILEOFF;
-   uint32_t saveVCLK_DIVISOR_VGA0;
-   uint32_t saveVCLK_DIVISOR_VGA1;
-   uint32_t saveVCLK_POST_DIV;
-   uint32_t saveVGACNTRL;
-   uint32_t saveCURSOR_A_CONTROL;
-   uint32_t saveCURSOR_A_BASE;
-   uint32_t saveCURSOR_A_POSITION;
-   uint32_t saveCURSOR_B_CONTROL;
-   uint32_t saveCURSOR_B_BASE;
-   uint32_t saveCURSOR_B_POSITION;
-   uint32_t saveADPA;
-   uint32_t saveLVDS;
-   uint32_t saveDVOA;
-   uint32_t saveDVOB;
-   uint32_t saveDVOC;
-   uint32_t savePP_ON;
-   uint32_t savePP_OFF;
-   uint32_t savePP_CONTROL;
-   uint32_t savePP_DIVISOR;
-   uint32_t savePFIT_CONTROL;
-   uint32_t savePaletteA[256];
-   uint32_t savePaletteB[256];
-   uint32_t saveSWF[17];
-   uint32_t saveBLC_PWM_CTL;
-   uint32_t saveBLC_PWM_CTL2;
-   uint32_t saveFBC_CFB_BASE;
-   uint32_t saveFBC_LL_BASE;
-   uint32_t saveFBC_CONTROL2;
-   uint32_t saveFBC_CONTROL;
-   uint32_t saveFBC_FENCE_OFF;
-   uint32_t saveRENCLK_GATE_D1;
-   uint32_t saveRENCLK_GATE_D2;
-   uint32_t saveDSPCLK_GATE_D;
-   uint32_t saveRAMCLK_GATE_D;
-   uint32_t savePWRCTXA;
+	uint32_t saveDSPARB;
+	uint32_t saveDSPACNTR;
+	uint32_t saveDSPBCNTR;
+	uint32_t savePIPEACONF;
+	uint32_t savePIPEBCONF;
+	uint32_t savePIPEASRC;
+	uint32_t savePIPEBSRC;
+	uint32_t saveFPA0;
+	uint32_t saveFPA1;
+	uint32_t saveDPLL_A;
+	uint32_t saveDPLL_A_MD;
+	uint32_t saveHTOTAL_A;
+	uint32_t saveHBLANK_A;
+	uint32_t saveHSYNC_A;
+	uint32_t saveVTOTAL_A;
+	uint32_t saveVBLANK_A;
+	uint32_t saveVSYNC_A;
+	uint32_t saveBCLRPAT_A;
+	uint32_t saveDSPASTRIDE;
+	uint32_t saveDSPASIZE;
+	uint32_t saveDSPAPOS;
+	uint32_t saveDSPABASE;
+	uint32_t saveDSPASURF;
+	uint32_t saveDSPATILEOFF;
+	uint32_t saveFPB0;
+	uint32_t saveFPB1;
+	uint32_t saveDPLL_B;
+	uint32_t saveDPLL_B_MD;
+	uint32_t saveHTOTAL_B;
+	uint32_t saveHBLANK_B;
+	uint32_t saveHSYNC_B;
+	uint32_t saveVTOTAL_B;
+	uint32_t saveVBLANK_B;
+	uint32_t saveVSYNC_B;
+	uint32_t saveBCLRPAT_B;
+	uint32_t saveDSPBSTRIDE;
+	uint32_t saveDSPBSIZE;
+	uint32_t saveDSPBPOS;
+	uint32_t saveDSPBBASE;
+	uint32_t saveDSPBSURF;
+	uint32_t saveDSPBTILEOFF;
+	uint32_t saveVCLK_DIVISOR_VGA0;
+	uint32_t saveVCLK_DIVISOR_VGA1;
+	uint32_t saveVCLK_POST_DIV;
+	uint32_t saveVGACNTRL;
+	uint32_t saveCURSOR_A_CONTROL;
+	uint32_t saveCURSOR_A_BASE;
+	uint32_t saveCURSOR_A_POSITION;
+	uint32_t saveCURSOR_B_CONTROL;
+	uint32_t saveCURSOR_B_BASE;
+	uint32_t saveCURSOR_B_POSITION;
+	uint32_t saveADPA;
+	uint32_t saveLVDS;
+	uint32_t saveDVOA;
+	uint32_t saveDVOB;
+	uint32_t saveDVOC;
+	uint32_t savePP_ON;
+	uint32_t savePP_OFF;
+	uint32_t savePP_CONTROL;
+	uint32_t savePP_DIVISOR;
+	uint32_t savePFIT_CONTROL;
+	uint32_t savePaletteA[256];
+	uint32_t savePaletteB[256];
+	uint32_t saveSWF[17];
+	uint32_t saveBLC_PWM_CTL;
+	uint32_t saveBLC_PWM_CTL2;
+	uint32_t saveFBC_CFB_BASE;
+	uint32_t saveFBC_LL_BASE;
+	uint32_t saveFBC_CONTROL2;
+	uint32_t saveFBC_CONTROL;
+	uint32_t saveFBC_FENCE_OFF;
+	uint32_t saveRENCLK_GATE_D1;
+	uint32_t saveRENCLK_GATE_D2;
+	uint32_t saveDSPCLK_GATE_D;
+	uint32_t saveRAMCLK_GATE_D;
+	uint32_t savePWRCTXA;
 
-   enum last_3d last_3d;
+	enum last_3d last_3d;
 
-    /** User option to print acceleration fallback info to the server log. */
-   Bool fallback_debug;
+	/**
+	 * User option to print acceleration fallback info to the server log.
+	 */
+	Bool fallback_debug;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -410,9 +412,8 @@ extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
 extern void I830InitVideo(ScreenPtr pScreen);
-extern xf86CrtcPtr i830_covering_crtc (ScrnInfoPtr pScrn, BoxPtr box,
-				       xf86CrtcPtr desired,
-				       BoxPtr crtc_box_ret);
+extern xf86CrtcPtr i830_covering_crtc(ScrnInfoPtr pScrn, BoxPtr box,
+				      xf86CrtcPtr desired, BoxPtr crtc_box_ret);
 
 extern xf86CrtcPtr i830_pipe_to_crtc(ScrnInfoPtr pScrn, int pipe);
 
@@ -420,11 +421,11 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
 
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
-extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
+extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
+					 xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
 extern int drmmode_crtc_id(xf86CrtcPtr crtc);
-void
-drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo *cursor);
+void drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo * cursor);
 
 extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
@@ -432,38 +433,37 @@ extern Bool I830AccelInit(ScreenPtr pScreen);
 
 Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size);
 void i830_allocator_fini(ScrnInfoPtr pScrn);
-i830_memory * i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
-				   unsigned long size, unsigned long pitch,
-				   unsigned long alignment, int flags,
-				   enum tile_format tile_format);
+i830_memory *i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
+				  unsigned long size, unsigned long pitch,
+				  unsigned long alignment, int flags,
+				  enum tile_format tile_format);
 void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr pScrn);
 void i830_free_3d_memory(ScrnInfoPtr pScrn);
-void i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem);
+void i830_free_memory(ScrnInfoPtr pScrn, i830_memory * mem);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
 void i830_init_bufmgr(ScrnInfoPtr pScrn);
 #ifdef INTEL_XVMC
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
-                               i830_memory **buffer, unsigned long size, int flags);
-void i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory *buffer);
+			       i830_memory ** buffer, unsigned long size,
+			       int flags);
+void i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory * buffer);
 #endif
 
-Bool
-i830_tiled_width(I830Ptr i830, int *width, int cpp);
+Bool i830_tiled_width(I830Ptr i830, int *width, int cpp);
 
-int
-i830_pad_drawable_width(int width, int cpp);
+int i830_pad_drawable_width(int width, int cpp);
 
 /* i830_memory.c */
 Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
 unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size);
-unsigned long i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format);
+unsigned long i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch,
+				   int format);
 void i830_set_max_gtt_map_size(ScrnInfoPtr pScrn);
 
-i830_memory *
-i830_allocate_framebuffer(ScrnInfoPtr pScrn);
+i830_memory *i830_allocate_framebuffer(ScrnInfoPtr pScrn);
 
 /* i830_render.c */
 Bool i830_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
@@ -471,8 +471,7 @@ Bool i830_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 Bool i830_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			    PicturePtr pDst, PixmapPtr pSrcPixmap,
 			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
-Bool
-i830_transform_is_affine (PictTransformPtr t);
+Bool i830_transform_is_affine(PictTransformPtr t);
 
 void i830_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
@@ -499,8 +498,7 @@ Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 void i965_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
-void
-i965_batch_flush_notify(ScrnInfoPtr pScrn);
+void i965_batch_flush_notify(ScrnInfoPtr pScrn);
 
 Bool
 i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
@@ -541,29 +539,30 @@ Bool i830_pixmap_tiled(PixmapPtr p);
  * If only we'd done this before settling on the library API.
  */
 static inline uint32_t
-intel_emit_reloc(drm_intel_bo *bo, uint32_t offset,
-		 drm_intel_bo *target_bo, uint32_t target_offset,
+intel_emit_reloc(drm_intel_bo * bo, uint32_t offset,
+		 drm_intel_bo * target_bo, uint32_t target_offset,
 		 uint32_t read_domains, uint32_t write_domain)
 {
-    drm_intel_bo_emit_reloc(bo, offset, target_bo, target_offset,
-			    read_domains, write_domain);
+	drm_intel_bo_emit_reloc(bo, offset, target_bo, target_offset,
+				read_domains, write_domain);
 
-    return target_bo->offset + target_offset;
+	return target_bo->offset + target_offset;
 }
 
-static inline drm_intel_bo *
-intel_bo_alloc_for_data(ScrnInfoPtr scrn, void *data, unsigned int size,
-			char *name)
+static inline drm_intel_bo *intel_bo_alloc_for_data(ScrnInfoPtr scrn,
+						    void *data,
+						    unsigned int size,
+						    char *name)
 {
-    I830Ptr pI830 = I830PTR(scrn);
-    drm_intel_bo *bo;
+	I830Ptr pI830 = I830PTR(scrn);
+	drm_intel_bo *bo;
 
-    bo = drm_intel_bo_alloc(pI830->bufmgr, name, size, 4096);
-    if (!bo)
-	return NULL;
-    drm_intel_bo_subdata(bo, 0, size, data);
+	bo = drm_intel_bo_alloc(pI830->bufmgr, name, size, 4096);
+	if (!bo)
+		return NULL;
+	drm_intel_bo_subdata(bo, 0, size, data);
 
-    return bo;
+	return bo;
 }
 
 extern const int I830PatternROP[16];
@@ -582,37 +581,33 @@ extern const int I830CopyROP[16];
  * Compare to CREATE_PIXMAP_USAGE_* in the server.
  */
 enum {
-    INTEL_CREATE_PIXMAP_TILING_X = 0x10000000,
-    INTEL_CREATE_PIXMAP_TILING_Y,
+	INTEL_CREATE_PIXMAP_TILING_X = 0x10000000,
+	INTEL_CREATE_PIXMAP_TILING_Y,
 };
 
 #if (ALWAYS_FLUSH | ALWAYS_SYNC)
-void
-i830_debug_sync(ScrnInfoPtr scrn);
+void i830_debug_sync(ScrnInfoPtr scrn);
 #else
-static inline void
-i830_debug_sync(ScrnInfoPtr scrn)
+static inline void i830_debug_sync(ScrnInfoPtr scrn)
 {
 }
 #endif
 
-static inline PixmapPtr
-get_drawable_pixmap(DrawablePtr drawable)
+static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 {
-    ScreenPtr screen = drawable->pScreen;
+	ScreenPtr screen = drawable->pScreen;
 
-    if (drawable->type == DRAWABLE_PIXMAP)
-	return (PixmapPtr)drawable;
-    else
-	return screen->GetWindowPixmap((WindowPtr)drawable);
+	if (drawable->type == DRAWABLE_PIXMAP)
+		return (PixmapPtr) drawable;
+	else
+		return screen->GetWindowPixmap((WindowPtr) drawable);
 }
 
-static inline Bool
-pixmap_is_scanout(PixmapPtr pixmap)
+static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 {
-    ScreenPtr screen = pixmap->drawable.pScreen;
+	ScreenPtr screen = pixmap->drawable.pScreen;
 
-    return pixmap == screen->GetScreenPixmap(screen);
+	return pixmap == screen->GetScreenPixmap(screen);
 }
 
 #endif /* _I830_H_ */
