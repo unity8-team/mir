@@ -189,33 +189,48 @@ atombios_crtc_dpms(xf86CrtcPtr crtc, int mode)
 }
 
 static AtomBiosResult
-atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_param)
+atombios_set_crtc_timing(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     AtomBiosArgRec data;
     unsigned char *space;
-    SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION conv_param;
+    uint16_t misc = 0;
+    SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION param;
+    memset(&param, 0, sizeof(param));
 
-    conv_param.usH_Total		= cpu_to_le16(crtc_param->usH_Total);
-    conv_param.usH_Disp			= cpu_to_le16(crtc_param->usH_Disp);
-    conv_param.usH_SyncStart		= cpu_to_le16(crtc_param->usH_SyncStart);
-    conv_param.usH_SyncWidth		= cpu_to_le16(crtc_param->usH_SyncWidth);
-    conv_param.usV_Total		= cpu_to_le16(crtc_param->usV_Total);
-    conv_param.usV_Disp			= cpu_to_le16(crtc_param->usV_Disp);
-    conv_param.usV_SyncStart		= cpu_to_le16(crtc_param->usV_SyncStart);
-    conv_param.usV_SyncWidth		= cpu_to_le16(crtc_param->usV_SyncWidth);
-    conv_param.susModeMiscInfo.usAccess = cpu_to_le16(crtc_param->susModeMiscInfo.usAccess);
-    conv_param.ucCRTC			= crtc_param->ucCRTC;
-    conv_param.ucOverscanRight		= crtc_param->ucOverscanRight;
-    conv_param.ucOverscanLeft		= crtc_param->ucOverscanLeft;
-    conv_param.ucOverscanBottom		= crtc_param->ucOverscanBottom;
-    conv_param.ucOverscanTop		= crtc_param->ucOverscanTop;
-    conv_param.ucReserved		= crtc_param->ucReserved;
+    param.usH_Total		= cpu_to_le16(mode->CrtcHTotal);
+    param.usH_Disp		= cpu_to_le16(mode->CrtcHDisplay);
+    param.usH_SyncStart		= cpu_to_le16(mode->CrtcHSyncStart);
+    param.usH_SyncWidth		= cpu_to_le16(mode->CrtcHSyncEnd - mode->CrtcHSyncStart);
+    param.usV_Total		= cpu_to_le16(mode->CrtcVTotal);
+    param.usV_Disp		= cpu_to_le16(mode->CrtcVDisplay);
+    param.usV_SyncStart		= cpu_to_le16(mode->CrtcVSyncStart);
+    param.usV_SyncWidth		= cpu_to_le16(mode->CrtcVSyncEnd - mode->CrtcVSyncStart);
+
+    if (mode->Flags & V_NVSYNC)
+	misc |= ATOM_VSYNC_POLARITY;
+
+    if (mode->Flags & V_NHSYNC)
+	misc |= ATOM_HSYNC_POLARITY;
+
+    if (mode->Flags & V_CSYNC)
+	misc |= ATOM_COMPOSITESYNC;
+
+    if (mode->Flags & V_INTERLACE)
+	misc |= ATOM_INTERLACE;
+
+    if (mode->Flags & V_DBLSCAN)
+	misc |= ATOM_DOUBLE_CLOCK_MODE;
+
+    param.susModeMiscInfo.usAccess      = cpu_to_le16(misc);
+    param.ucCRTC			= radeon_crtc->crtc_id;
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, SetCRTC_Timing);
     data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &conv_param;
+    data.exec.pspace = &param;
 
-    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Set CRTC Timing success\n");
 	return ATOM_SUCCESS ;
     }
@@ -225,28 +240,48 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
 }
 
 static AtomBiosResult
-atombios_set_crtc_dtd_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_USING_DTD_TIMING_PARAMETERS *crtc_param)
+atombios_set_crtc_dtd_timing(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     AtomBiosArgRec data;
     unsigned char *space;
-    SET_CRTC_USING_DTD_TIMING_PARAMETERS conv_param;
+    uint16_t misc = 0;
+    SET_CRTC_USING_DTD_TIMING_PARAMETERS param;
+    memset(&param, 0, sizeof(param));
 
-    conv_param.usH_Size        = cpu_to_le16(crtc_param->usH_Size);
-    conv_param.usH_Blanking_Time= cpu_to_le16(crtc_param->usH_Blanking_Time);
-    conv_param.usV_Size        = cpu_to_le16(crtc_param->usV_Size);
-    conv_param.usV_Blanking_Time= cpu_to_le16(crtc_param->usV_Blanking_Time);
-    conv_param.usH_SyncOffset= cpu_to_le16(crtc_param->usH_SyncOffset);
-    conv_param.usH_SyncWidth= cpu_to_le16(crtc_param->usH_SyncWidth);
-    conv_param.usV_SyncOffset= cpu_to_le16(crtc_param->usV_SyncOffset);
-    conv_param.usV_SyncWidth= cpu_to_le16(crtc_param->usV_SyncWidth);
-    conv_param.susModeMiscInfo.usAccess = cpu_to_le16(crtc_param->susModeMiscInfo.usAccess);
-    conv_param.ucCRTC= crtc_param->ucCRTC;
+    param.usH_Size          = cpu_to_le16(mode->CrtcHDisplay);
+    param.usH_Blanking_Time = cpu_to_le16(mode->CrtcHBlankEnd - mode->CrtcHDisplay);
+    param.usV_Size          = cpu_to_le16(mode->CrtcVDisplay);
+    param.usV_Blanking_Time = cpu_to_le16(mode->CrtcVBlankEnd - mode->CrtcVDisplay);
+    param.usH_SyncOffset    = cpu_to_le16(mode->CrtcHSyncStart - mode->CrtcHDisplay);
+    param.usH_SyncWidth     = cpu_to_le16(mode->CrtcHSyncEnd - mode->CrtcHSyncStart);
+    param.usV_SyncOffset    = cpu_to_le16(mode->CrtcVSyncStart - mode->CrtcVDisplay);
+    param.usV_SyncWidth     = cpu_to_le16(mode->CrtcVSyncEnd - mode->CrtcVSyncStart);
+
+    if (mode->Flags & V_NVSYNC)
+	misc |= ATOM_VSYNC_POLARITY;
+
+    if (mode->Flags & V_NHSYNC)
+	misc |= ATOM_HSYNC_POLARITY;
+
+    if (mode->Flags & V_CSYNC)
+	misc |= ATOM_COMPOSITESYNC;
+
+    if (mode->Flags & V_INTERLACE)
+	misc |= ATOM_INTERLACE;
+
+    if (mode->Flags & V_DBLSCAN)
+	misc |= ATOM_DOUBLE_CLOCK_MODE;
+
+    param.susModeMiscInfo.usAccess = cpu_to_le16(misc);
+    param.ucCRTC= radeon_crtc->crtc_id;
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, SetCRTC_UsingDTDTiming);
     data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &conv_param;
+    data.exec.pspace = &param;
 
-    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Set DTD CRTC Timing success\n");
 	return ATOM_SUCCESS ;
     }
@@ -435,104 +470,13 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long fb_location = crtc->scrn->fbOffset + info->fbLocation;
-    int need_tv_timings = 0;
-    int i, ret;
-    SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
-    SET_CRTC_USING_DTD_TIMING_PARAMETERS crtc_dtd_timing;
     Bool tilingChanged = FALSE;
-    memset(&crtc_timing, 0, sizeof(crtc_timing));
-    memset(&crtc_dtd_timing, 0, sizeof(crtc_dtd_timing));
 
     if (info->allowColorTiling) {
         radeon_crtc->can_tile = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
 	tilingChanged = RADEONSetTiling(pScrn);
-    }
-
-    for (i = 0; i < xf86_config->num_output; i++) {
-	xf86OutputPtr output = xf86_config->output[i];
-	RADEONOutputPrivatePtr radeon_output = output->driver_private;
-	radeon_tvout_ptr tvout = &radeon_output->tvout;
-
-	if (output->crtc == crtc) {
-	    if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
-		if (tvout->tvStd == TV_STD_NTSC ||
-		    tvout->tvStd == TV_STD_NTSC_J ||
-		    tvout->tvStd == TV_STD_PAL_M)
-		    need_tv_timings = 1;
-		else
-		    need_tv_timings = 2;
-
-	    }
-	}
-    }
-
-    crtc_timing.ucCRTC = radeon_crtc->crtc_id;
-    if (need_tv_timings) {
-	ret = RADEONATOMGetTVTimings(pScrn, need_tv_timings - 1, &crtc_timing, &adjusted_mode->Clock);
-	if (ret == FALSE) {
-	    need_tv_timings = 0;
-	}
-    }
-
-    if (!need_tv_timings) {
-	crtc_timing.usH_Total = adjusted_mode->CrtcHTotal;
-	crtc_timing.usH_Disp = adjusted_mode->CrtcHDisplay;
-	crtc_timing.usH_SyncStart = adjusted_mode->CrtcHSyncStart;
-	crtc_timing.usH_SyncWidth = adjusted_mode->CrtcHSyncEnd - adjusted_mode->CrtcHSyncStart;
-
-	crtc_timing.usV_Total = adjusted_mode->CrtcVTotal;
-	crtc_timing.usV_Disp = adjusted_mode->CrtcVDisplay;
-	crtc_timing.usV_SyncStart = adjusted_mode->CrtcVSyncStart;
-	crtc_timing.usV_SyncWidth = adjusted_mode->CrtcVSyncEnd - adjusted_mode->CrtcVSyncStart;
-
-	if (adjusted_mode->Flags & V_NVSYNC)
-	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
-
-	if (adjusted_mode->Flags & V_NHSYNC)
-	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
-
-	if (adjusted_mode->Flags & V_CSYNC)
-	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_COMPOSITESYNC;
-
-	if (adjusted_mode->Flags & V_INTERLACE)
-	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_INTERLACE;
-
-	if (adjusted_mode->Flags & V_DBLSCAN)
-	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
-
-	if (!IS_AVIVO_VARIANT && (radeon_crtc->crtc_id == 0)) {
-	    crtc_dtd_timing.ucCRTC = radeon_crtc->crtc_id;
-	    crtc_dtd_timing.usH_Size = adjusted_mode->CrtcHDisplay;
-	    crtc_dtd_timing.usV_Size = adjusted_mode->CrtcVDisplay;
-	    crtc_dtd_timing.usH_Blanking_Time = adjusted_mode->CrtcHBlankEnd - adjusted_mode->CrtcHDisplay;
-	    crtc_dtd_timing.usV_Blanking_Time = adjusted_mode->CrtcVBlankEnd - adjusted_mode->CrtcVDisplay;
-	    crtc_dtd_timing.usH_SyncOffset = adjusted_mode->CrtcHSyncStart - adjusted_mode->CrtcHDisplay;
-	    crtc_dtd_timing.usV_SyncOffset = adjusted_mode->CrtcVSyncStart - adjusted_mode->CrtcVDisplay;
-	    crtc_dtd_timing.usH_SyncWidth = adjusted_mode->CrtcHSyncEnd - adjusted_mode->CrtcHSyncStart;
-	    crtc_dtd_timing.usV_SyncWidth = adjusted_mode->CrtcVSyncEnd - adjusted_mode->CrtcVSyncStart;
-	    ErrorF("%d %d %d %d %d %d %d %d\n", crtc_dtd_timing.usH_Size, crtc_dtd_timing.usH_SyncOffset,
-		   crtc_dtd_timing.usH_SyncWidth, crtc_dtd_timing.usH_Blanking_Time,
-		   crtc_dtd_timing.usV_Size, crtc_dtd_timing.usV_SyncOffset,
-		   crtc_dtd_timing.usV_SyncWidth, crtc_dtd_timing.usV_Blanking_Time);
-
-	    if (adjusted_mode->Flags & V_NVSYNC)
-		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
-
-	    if (adjusted_mode->Flags & V_NHSYNC)
-		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
-
-	    if (adjusted_mode->Flags & V_CSYNC)
-		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_COMPOSITESYNC;
-
-	    if (adjusted_mode->Flags & V_INTERLACE)
-		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_INTERLACE;
-
-	    if (adjusted_mode->Flags & V_DBLSCAN)
-		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
-	}
     }
 
     ErrorF("Mode %dx%d - %d %d %d\n", adjusted_mode->CrtcHDisplay, adjusted_mode->CrtcVDisplay,
@@ -542,9 +486,9 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
 
     atombios_crtc_set_pll(crtc, adjusted_mode);
-    atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
+    atombios_set_crtc_timing(crtc, adjusted_mode);
     if (!IS_AVIVO_VARIANT && (radeon_crtc->crtc_id == 0))
-	atombios_set_crtc_dtd_timing(info->atomBIOS, &crtc_dtd_timing);
+	atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
 
     if (IS_AVIVO_VARIANT) {
 	uint32_t fb_format;

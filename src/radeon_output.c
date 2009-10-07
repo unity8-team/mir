@@ -575,6 +575,20 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + 2;
     }
 
+    if (IS_AVIVO_VARIANT || info->r4xx_atom) {
+	if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
+	    radeon_tvout_ptr tvout = &radeon_output->tvout;
+	    ScrnInfoPtr pScrn = output->scrn;
+
+	    if (tvout->tvStd == TV_STD_NTSC ||
+		tvout->tvStd == TV_STD_NTSC_J ||
+		tvout->tvStd == TV_STD_PAL_M)
+		RADEONATOMGetTVTimings(pScrn, 0, adjusted_mode);
+	    else
+		RADEONATOMGetTVTimings(pScrn, 1, adjusted_mode);
+	}
+    }
+
     return TRUE;
 }
 
