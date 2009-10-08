@@ -351,6 +351,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->active = TRUE;
 #endif
 
+	xf86_reload_cursors(crtc->scrn->pScreen);
+
 done:
 	if (!ret) {
 		crtc->x = saved_x;
