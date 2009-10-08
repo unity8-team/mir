@@ -78,7 +78,7 @@ I830DPRINTF_stub(const char *filename, int line, const char *function,
 #ifndef REG_DUMPER
 /* I830 hooks for the I810 driver setup/probe. */
 extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
-extern void I830InitpScrn(ScrnInfoPtr pScrn);
+extern void intel_init_scrn(ScrnInfoPtr scrn);
 
 /* Symbol lists shared by the i810 and i830 parts. */
 extern int I830EntityIndex;

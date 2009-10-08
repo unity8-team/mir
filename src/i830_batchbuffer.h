@@ -32,10 +32,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define BATCH_RESERVED		16
 
-void intel_batch_init(ScrnInfoPtr pScrn);
-void intel_batch_teardown(ScrnInfoPtr pScrn);
-void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed);
-void intel_batch_wait_last(ScrnInfoPtr pScrn);
+void intel_batch_init(ScrnInfoPtr scrn);
+void intel_batch_teardown(ScrnInfoPtr scrn);
+void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed);
+void intel_batch_wait_last(ScrnInfoPtr scrn);
 
 static inline int intel_batch_space(intel_screen_private *intel)
 {
@@ -43,27 +43,27 @@ static inline int intel_batch_space(intel_screen_private *intel)
 }
 
 static inline void
-intel_batch_require_space(ScrnInfoPtr pScrn, intel_screen_private *intel, GLuint sz)
+intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, GLuint sz)
 {
 	assert(sz < intel->batch_bo->size - 8);
 	if (intel_batch_space(intel) < sz)
-		intel_batch_flush(pScrn, FALSE);
+		intel_batch_flush(scrn, FALSE);
 }
 
-static inline void intel_batch_start_atomic(ScrnInfoPtr pScrn, unsigned int sz)
+static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	assert(!intel->in_batch_atomic);
-	intel_batch_require_space(pScrn, intel, sz * 4);
+	intel_batch_require_space(scrn, intel, sz * 4);
 
 	intel->in_batch_atomic = TRUE;
 	intel->batch_atomic_limit = intel->batch_used + sz * 4;
 }
 
-static inline void intel_batch_end_atomic(ScrnInfoPtr pScrn)
+static inline void intel_batch_end_atomic(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	assert(intel->in_batch_atomic);
 	assert(intel->batch_used <= intel->batch_atomic_limit);
@@ -127,7 +127,7 @@ do {									\
 	if (intel->batch_emitting != 0)					\
 		FatalError("%s: BEGIN_BATCH called without closing "	\
 			   "ADVANCE_BATCH\n", __FUNCTION__);		\
-	intel_batch_require_space(pScrn, intel, (n) * 4);		\
+	intel_batch_require_space(scrn, intel, (n) * 4);		\
 	intel->batch_emitting = (n) * 4;				\
 	intel->batch_emit_start = intel->batch_used;			\
 } while (0)
@@ -151,7 +151,7 @@ do {									\
 	if ((intel->batch_emitting > 8) &&				\
 	    (I810_DEBUG & DEBUG_ALWAYS_SYNC)) {				\
 		/* Note: not actually syncing, just flushing each batch. */ \
-		intel_batch_flush(pScrn, FALSE);			\
+		intel_batch_flush(scrn, FALSE);			\
 	}								\
 	intel->batch_emitting = 0;					\
 } while (0)

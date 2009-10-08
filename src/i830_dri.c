@@ -83,8 +83,8 @@ static DRI2BufferPtr
 I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 {
 	ScreenPtr pScreen = pDraw->pScreen;
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2BufferPtr buffers;
 	dri_bo *bo;
 	int i;
@@ -164,8 +164,8 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 		     unsigned int format)
 {
 	ScreenPtr pScreen = pDraw->pScreen;
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2Buffer2Ptr buffer;
 	dri_bo *bo;
 	I830DRI2BufferPrivatePtr privates;
@@ -277,8 +277,8 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	I830DRI2BufferPrivatePtr srcPrivate = pSrcBuffer->driverPrivate;
 	I830DRI2BufferPrivatePtr dstPrivate = pDstBuffer->driverPrivate;
 	ScreenPtr pScreen = pDraw->pScreen;
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
 	    ? pDraw : &srcPrivate->pPixmap->drawable;
 	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
@@ -302,7 +302,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 		xf86CrtcPtr crtc;
 
 		box = REGION_EXTENTS(unused, pGC->pCompositeClip);
-		crtc = i830_covering_crtc(pScrn, box, NULL, &crtcbox);
+		crtc = i830_covering_crtc(scrn, box, NULL, &crtcbox);
 
 		/* Make sure the CRTC is valid and this is the real front buffer */
 		if (crtc != NULL && !crtc->rotatedData) {
@@ -345,14 +345,14 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	 * rendering results may not hit the framebuffer until significantly
 	 * later.
 	 */
-	I830EmitFlush(pScrn);
+	I830EmitFlush(scrn);
 	intel->need_mi_flush = FALSE;
 
 	/* We can't rely on getting into the block handler before the DRI
 	 * client gets to run again so flush now. */
-	intel_batch_flush(pScrn, TRUE);
+	intel_batch_flush(scrn, TRUE);
 #if ALWAYS_SYNC
-	I830Sync(pScrn);
+	I830Sync(scrn);
 #endif
 	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 
@@ -360,8 +360,8 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 
 Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2InfoRec info;
 	char *p;
 	int i;
@@ -378,7 +378,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 	}
 
 	if (dri2_minor < 1) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "DRI2 requires DRI2 module version 1.1.0 or later\n");
 		return FALSE;
 	}
@@ -401,7 +401,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 			break;
 	}
 	if (i == DRM_MAX_MINOR) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "DRI2: failed to open drm device\n");
 		return FALSE;
 	}
@@ -434,8 +434,8 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 
 void I830DRI2CloseScreen(ScreenPtr pScreen)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	DRI2CloseScreen(pScreen);
 	intel->directRenderingType = DRI_NONE;

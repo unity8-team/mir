@@ -491,7 +491,7 @@ struct bdb_sdvo_lvds_options {
 } __attribute__ ((packed));
 
 #ifndef REG_DUMPER
-int i830_bios_init(ScrnInfoPtr pScrn);
+int i830_bios_init(ScrnInfoPtr scrn);
 #endif
 
 /*

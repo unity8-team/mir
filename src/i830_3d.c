@@ -34,9 +34,9 @@
 
 #include "i830_reg.h"
 
-void I830EmitInvarientState(ScrnInfoPtr pScrn)
+void I830EmitInvarientState(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	BEGIN_BATCH(58);
 

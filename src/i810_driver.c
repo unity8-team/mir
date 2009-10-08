@@ -476,7 +476,7 @@ static Bool intel_pci_probe (DriverPtr		driver,
 	    break;
 #endif
 	default:
-	    I830InitpScrn(scrn);
+	    intel_init_scrn(scrn);
 	    break;
 	}
     }

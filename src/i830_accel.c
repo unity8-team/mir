@@ -53,25 +53,25 @@ unsigned long intel_get_pixmap_pitch(PixmapPtr pPix)
 	return (unsigned long)pPix->devKind;
 }
 
-void I830Sync(ScrnInfoPtr pScrn)
+void I830Sync(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
 		ErrorF("I830Sync\n");
 
-	if (!pScrn->vtSema || !intel->batch_bo)
+	if (!scrn->vtSema || !intel->batch_bo)
 		return;
 
-	I830EmitFlush(pScrn);
+	I830EmitFlush(scrn);
 
-	intel_batch_flush(pScrn, TRUE);
-	intel_batch_wait_last(pScrn);
+	intel_batch_flush(scrn, TRUE);
+	intel_batch_wait_last(scrn);
 }
 
-void I830EmitFlush(ScrnInfoPtr pScrn)
+void I830EmitFlush(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
 	if (IS_I965G(intel))
@@ -100,8 +100,8 @@ void i830_debug_sync(ScrnInfoPtr scrn)
  */
 Bool I830AccelInit(ScreenPtr pScreen)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Limits are described in the BLT engine chapter under Graphics Data Size
 	 * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,

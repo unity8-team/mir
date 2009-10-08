@@ -207,17 +207,17 @@ static void cleanupI915XvMC(I915XvMCPtr xvmc)
 	}
 }
 
-static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
+static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 				  I915XvMCContextPriv * ctxpriv)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcStaticIndirectState->offset +
 				      intel->LinearAddr),
 		      ctxpriv->mcStaticIndirectState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->sis_handle) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(sis_handle) failed!\n");
 		return FALSE;
 	}
@@ -227,7 +227,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 				      intel->LinearAddr),
 		      ctxpriv->mcSamplerState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->ssb_handle) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(ssb_handle) failed!\n");
 		return FALSE;
 	}
@@ -237,7 +237,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 				      intel->LinearAddr),
 		      ctxpriv->mcMapState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->msb_handle) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(msb_handle) failed!\n");
 		return FALSE;
 	}
@@ -247,7 +247,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 				      intel->LinearAddr),
 		      ctxpriv->mcPixelShaderProgram->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->psp_handle) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(psp_handle) failed!\n");
 		return FALSE;
 	}
@@ -257,7 +257,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 				      intel->LinearAddr),
 		      ctxpriv->mcPixelShaderConstants->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->psc_handle) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(psc_handle) failed!\n");
 		return FALSE;
 	}
@@ -267,7 +267,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 				      intel->LinearAddr),
 		      ctxpriv->mcCorrdata->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->corrdata_handle) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(corrdata_handle) failed!\n");
 		return FALSE;
 	}
@@ -275,10 +275,10 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 	return TRUE;
 }
 
-static void i915_unmap_xvmc_buffers(ScrnInfoPtr pScrn,
+static void i915_unmap_xvmc_buffers(ScrnInfoPtr scrn,
 				    I915XvMCContextPriv * ctxpriv)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (ctxpriv->sis_handle) {
 		drmRmMap(intel->drmSubFD, ctxpriv->sis_handle);
@@ -312,88 +312,88 @@ static void i915_unmap_xvmc_buffers(ScrnInfoPtr pScrn,
 
 }
 
-static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn,
+static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr scrn,
 				       I915XvMCContextPriv * ctxpriv)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int flags = ALIGN_BOTH_ENDS;
 
 	/* on 915G/GM, load indirect can only use physical address...sigh */
 	if (IS_I915G(intel) || IS_I915GM(intel))
 		flags |= NEED_PHYSICAL_ADDR;
 
-	if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Static Indirect State",
+	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC]Static Indirect State",
 				       &(ctxpriv->mcStaticIndirectState),
 				       4 * 1024, flags)) {
 		return FALSE;
 	}
 
-	if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Sampler State",
+	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC]Sampler State",
 				       &(ctxpriv->mcSamplerState), 4 * 1024,
 				       flags)) {
 		return FALSE;
 	}
 
-	if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Map State",
+	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC]Map State",
 				       &(ctxpriv->mcMapState), 4 * 1024,
 				       flags)) {
 		return FALSE;
 	}
 
-	if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Pixel Shader Program",
+	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC]Pixel Shader Program",
 				       &(ctxpriv->mcPixelShaderProgram),
 				       4 * 1024, flags)) {
 		return FALSE;
 	}
 
-	if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Pixel Shader Constants",
+	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC]Pixel Shader Constants",
 				       &(ctxpriv->mcPixelShaderConstants),
 				       4 * 1024, flags)) {
 		return FALSE;
 	}
 
-	if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Correction Data Buffer",
+	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC]Correction Data Buffer",
 				       &(ctxpriv->mcCorrdata), 512 * 1024,
 				       ALIGN_BOTH_ENDS)) {
 		return FALSE;
 	}
 
 	if (1)
-		i830_describe_allocations(pScrn, 1, "i915_mc: ");
+		i830_describe_allocations(scrn, 1, "i915_mc: ");
 
 	return TRUE;
 }
 
-static void i915_free_xvmc_buffers(ScrnInfoPtr pScrn,
+static void i915_free_xvmc_buffers(ScrnInfoPtr scrn,
 				   I915XvMCContextPriv * ctxpriv)
 {
 	if (ctxpriv->mcStaticIndirectState) {
-		i830_free_xvmc_buffer(pScrn, ctxpriv->mcStaticIndirectState);
+		i830_free_xvmc_buffer(scrn, ctxpriv->mcStaticIndirectState);
 		ctxpriv->mcStaticIndirectState = NULL;
 	}
 
 	if (ctxpriv->mcSamplerState) {
-		i830_free_xvmc_buffer(pScrn, ctxpriv->mcSamplerState);
+		i830_free_xvmc_buffer(scrn, ctxpriv->mcSamplerState);
 		ctxpriv->mcSamplerState = NULL;
 	}
 
 	if (ctxpriv->mcMapState) {
-		i830_free_xvmc_buffer(pScrn, ctxpriv->mcMapState);
+		i830_free_xvmc_buffer(scrn, ctxpriv->mcMapState);
 		ctxpriv->mcMapState = NULL;
 	}
 
 	if (ctxpriv->mcPixelShaderProgram) {
-		i830_free_xvmc_buffer(pScrn, ctxpriv->mcPixelShaderProgram);
+		i830_free_xvmc_buffer(scrn, ctxpriv->mcPixelShaderProgram);
 		ctxpriv->mcPixelShaderProgram = NULL;
 	}
 
 	if (ctxpriv->mcPixelShaderConstants) {
-		i830_free_xvmc_buffer(pScrn, ctxpriv->mcPixelShaderConstants);
+		i830_free_xvmc_buffer(scrn, ctxpriv->mcPixelShaderConstants);
 		ctxpriv->mcPixelShaderConstants = NULL;
 	}
 
 	if (ctxpriv->mcCorrdata) {
-		i830_free_xvmc_buffer(pScrn, ctxpriv->mcCorrdata);
+		i830_free_xvmc_buffer(scrn, ctxpriv->mcCorrdata);
 		ctxpriv->mcCorrdata = NULL;
 	}
 
@@ -412,10 +412,10 @@ static void i915_free_xvmc_buffers(ScrnInfoPtr pScrn,
  *
  **************************************************************************/
 
-static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
+static int i915_xvmc_create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 				    int *num_priv, long **priv)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	I915XvMCCreateContextRec *contextRec = NULL;
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	I915XvMCContextPriv *ctxpriv = NULL;
@@ -425,7 +425,7 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 	*num_priv = 0;
 
 	if (!intel->XvMCEnabled) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: XvMC disabled!\n");
 		return BadAlloc;
 	}
@@ -437,7 +437,7 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 
 	if (i == I915_XVMC_MAX_CONTEXTS ||
 	    pXvMC->ncontexts >= I915_XVMC_MAX_CONTEXTS) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: Out of contexts.\n");
 		return BadAlloc;
 	}
@@ -458,7 +458,7 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 	    (I915XvMCContextPriv *) xcalloc(1, sizeof(I915XvMCContextPriv));
 
 	if (!ctxpriv) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: Unable to allocate memory!\n");
 		xfree(*priv);
 		*priv = NULL;
@@ -466,8 +466,8 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 		return BadAlloc;
 	}
 
-	if (!i915_allocate_xvmc_buffers(pScrn, ctxpriv)) {
-		i915_free_xvmc_buffers(pScrn, ctxpriv);
+	if (!i915_allocate_xvmc_buffers(scrn, ctxpriv)) {
+		i915_free_xvmc_buffers(scrn, ctxpriv);
 		xfree(ctxpriv);
 		ctxpriv = NULL;
 		xfree(*priv);
@@ -476,9 +476,9 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 		return BadAlloc;
 	}
 
-	if (!i915_map_xvmc_buffers(pScrn, ctxpriv)) {
-		i915_unmap_xvmc_buffers(pScrn, ctxpriv);
-		i915_free_xvmc_buffers(pScrn, ctxpriv);
+	if (!i915_map_xvmc_buffers(scrn, ctxpriv)) {
+		i915_unmap_xvmc_buffers(scrn, ctxpriv);
+		i915_free_xvmc_buffers(scrn, ctxpriv);
 		xfree(ctxpriv);
 		ctxpriv = NULL;
 		xfree(*priv);
@@ -536,10 +536,10 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 	return Success;
 }
 
-static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
+static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 				    int *num_priv, long **priv)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	I915XvMCSurfacePriv *sfpriv = NULL;
 	I915XvMCCreateSurfaceRec *surfaceRec = NULL;
@@ -548,7 +548,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 	unsigned long bufsize;
 
 	if (!intel->XvMCEnabled) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: XvMC disabled!\n");
 		return BadAlloc;
 	}
@@ -563,7 +563,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 
 	if (srfno == I915_XVMC_MAX_SURFACES ||
 	    pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: Too many surfaces !\n");
 		return BadAlloc;
 	}
@@ -572,7 +572,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 	surfaceRec = (I915XvMCCreateSurfaceRec *) * priv;
 
 	if (!*priv) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915:Unable to allocate surface priv ret memory!\n");
 		return BadAlloc;
 	}
@@ -582,7 +582,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 	    (I915XvMCSurfacePriv *) xcalloc(1, sizeof(I915XvMCSurfacePriv));
 
 	if (!sfpriv) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: Unable to allocate surface priv memory!\n");
 		xfree(*priv);
 		*priv = NULL;
@@ -593,10 +593,10 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 	ctx = pSurf->context;
 	bufsize = SIZE_YUV420(ctx->width, ctx->height);
 
-	if (!i830_allocate_xvmc_buffer(pScrn, "XvMC surface",
+	if (!i830_allocate_xvmc_buffer(scrn, "XvMC surface",
 				       &(sfpriv->surface), bufsize,
 				       ALIGN_BOTH_ENDS)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915 : Failed to allocate XvMC surface space!\n");
 		xfree(sfpriv);
 		xfree(*priv);
@@ -606,15 +606,15 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 	}
 
 	if (0)
-		i830_describe_allocations(pScrn, 1, "");
+		i830_describe_allocations(scrn, 1, "");
 
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (sfpriv->surface->offset +
 				      intel->LinearAddr), sfpriv->surface->size,
 		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(surface_handle) failed!\n");
-		i830_free_xvmc_buffer(pScrn, sfpriv->surface);
+		i830_free_xvmc_buffer(scrn, sfpriv->surface);
 		xfree(sfpriv);
 		xfree(*priv);
 		*priv = NULL;
@@ -634,10 +634,10 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 	return Success;
 }
 
-static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
+static int i915_xvmc_create_subpict(ScrnInfoPtr scrn, XvMCSubpicturePtr pSubp,
 				    int *num_priv, long **priv)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	I915XvMCSurfacePriv *sfpriv = NULL;
 	I915XvMCCreateSurfaceRec *surfaceRec = NULL;
@@ -655,7 +655,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 
 	if (srfno == I915_XVMC_MAX_SURFACES ||
 	    pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: Too many surfaces !\n");
 		return BadAlloc;
 	}
@@ -664,7 +664,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 	surfaceRec = (I915XvMCCreateSurfaceRec *) * priv;
 
 	if (!*priv) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: Unable to allocate memory!\n");
 		return BadAlloc;
 	}
@@ -674,7 +674,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 	    (I915XvMCSurfacePriv *) xcalloc(1, sizeof(I915XvMCSurfacePriv));
 
 	if (!sfpriv) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: Unable to allocate memory!\n");
 		xfree(*priv);
 		*priv = NULL;
@@ -685,10 +685,10 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 	ctx = pSubp->context;
 	bufsize = SIZE_XX44(ctx->width, ctx->height);
 
-	if (!i830_allocate_xvmc_buffer(pScrn, "XvMC surface",
+	if (!i830_allocate_xvmc_buffer(scrn, "XvMC surface",
 				       &(sfpriv->surface), bufsize,
 				       ALIGN_BOTH_ENDS)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] I915XvMCCreateSurface: Failed to allocate XvMC surface space!\n");
 		xfree(sfpriv);
 		xfree(*priv);
@@ -701,9 +701,9 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 		      (drm_handle_t) (sfpriv->surface->offset +
 				      intel->LinearAddr), sfpriv->surface->size,
 		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(surface_handle) failed!\n");
-		i830_free_xvmc_buffer(pScrn, sfpriv->surface);
+		i830_free_xvmc_buffer(scrn, sfpriv->surface);
 		xfree(sfpriv);
 		xfree(*priv);
 		*priv = NULL;
@@ -723,7 +723,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 	return Success;
 }
 
-static void i915_xvmc_destroy_context(ScrnInfoPtr pScrn,
+static void i915_xvmc_destroy_context(ScrnInfoPtr scrn,
 				      XvMCContextPtr pContext)
 {
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
@@ -731,8 +731,8 @@ static void i915_xvmc_destroy_context(ScrnInfoPtr pScrn,
 
 	for (i = 0; i < I915_XVMC_MAX_CONTEXTS; i++) {
 		if (pXvMC->contexts[i] == pContext->context_id) {
-			i915_unmap_xvmc_buffers(pScrn, pXvMC->ctxprivs[i]);
-			i915_free_xvmc_buffers(pScrn, pXvMC->ctxprivs[i]);
+			i915_unmap_xvmc_buffers(scrn, pXvMC->ctxprivs[i]);
+			i915_free_xvmc_buffers(scrn, pXvMC->ctxprivs[i]);
 			xfree(pXvMC->ctxprivs[i]);
 			pXvMC->ctxprivs[i] = 0;
 			pXvMC->ncontexts--;
@@ -744,9 +744,9 @@ static void i915_xvmc_destroy_context(ScrnInfoPtr pScrn,
 	return;
 }
 
-static void i915_xvmc_destroy_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
+static void i915_xvmc_destroy_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	int i;
 
@@ -754,7 +754,7 @@ static void i915_xvmc_destroy_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 		if (pXvMC->surfaces[i] == pSurf->surface_id) {
 			drmRmMap(intel->drmSubFD,
 				 pXvMC->sfprivs[i]->surface_handle);
-			i830_free_xvmc_buffer(pScrn,
+			i830_free_xvmc_buffer(scrn,
 					      pXvMC->sfprivs[i]->surface);
 			xfree(pXvMC->sfprivs[i]);
 			pXvMC->nsurfaces--;
@@ -767,10 +767,10 @@ static void i915_xvmc_destroy_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 	return;
 }
 
-static void i915_xvmc_destroy_subpict(ScrnInfoPtr pScrn,
+static void i915_xvmc_destroy_subpict(ScrnInfoPtr scrn,
 				      XvMCSubpicturePtr pSubp)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	int i;
 
@@ -778,7 +778,7 @@ static void i915_xvmc_destroy_subpict(ScrnInfoPtr pScrn,
 		if (pXvMC->surfaces[i] == pSubp->subpicture_id) {
 			drmRmMap(intel->drmSubFD,
 				 pXvMC->sfprivs[i]->surface_handle);
-			i830_free_xvmc_buffer(pScrn,
+			i830_free_xvmc_buffer(scrn,
 					      pXvMC->sfprivs[i]->surface);
 			xfree(pXvMC->sfprivs[i]);
 			pXvMC->nsurfaces--;
@@ -791,7 +791,7 @@ static void i915_xvmc_destroy_subpict(ScrnInfoPtr pScrn,
 	return;
 }
 
-static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
+static int i915_xvmc_put_image(ScrnInfoPtr scrn,
 			       short src_x, short src_y,
 			       short drw_x, short drw_y, short src_w,
 			       short src_h, short drw_w, short drw_h,
@@ -809,7 +809,7 @@ static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
 			if ((xvmc_cmd->srfNo >= I915_XVMC_MAX_SURFACES) ||
 			    !pXvMC->surfaces[xvmc_cmd->srfNo] ||
 			    !pXvMC->sfprivs[xvmc_cmd->srfNo]) {
-				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 					   "[XvMC] i915 put image: Invalid parameters!\n");
 				return 1;
 			}
@@ -825,25 +825,25 @@ static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
 	}
 
 	ret =
-	    pXvMC->savePutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
+	    pXvMC->savePutImage(scrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
 				drw_w, drw_h, id, buf, width, height, sync,
 				clipBoxes, data, pDraw);
 	return ret;
 }
 
-static Bool i915_xvmc_init(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
+static Bool i915_xvmc_init(ScrnInfoPtr scrn, XF86VideoAdaptorPtr XvAdapt)
 {
 	I915XvMCPtr pXvMC;
 
 	pXvMC = (I915XvMCPtr) xcalloc(1, sizeof(I915XvMC));
 	if (!pXvMC) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "[XvMC] alloc driver private failed!\n");
 		return FALSE;
 	}
 	xvmc_driver->devPrivate = (void *)pXvMC;
-	if (!intel_xvmc_init_batch(pScrn)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	if (!intel_xvmc_init_batch(scrn)) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "[XvMC] fail to init batch buffer\n");
 		xfree(pXvMC);
 		return FALSE;
@@ -856,12 +856,12 @@ static Bool i915_xvmc_init(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
 	return TRUE;
 }
 
-static void i915_xvmc_fini(ScrnInfoPtr pScrn)
+static void i915_xvmc_fini(ScrnInfoPtr scrn)
 {
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 
 	cleanupI915XvMC(pXvMC);
-	intel_xvmc_fini_batch(pScrn);
+	intel_xvmc_fini_batch(scrn);
 	xfree(xvmc_driver->devPrivate);
 }
 

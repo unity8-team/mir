@@ -40,14 +40,14 @@
 #include "i915_3d.h"
 
 void
-I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
+I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			 RegionPtr dstRegion,
 			 short width, short height, int video_pitch,
 			 int video_pitch2, int x1, int y1, int x2, int y2,
 			 short src_w, short src_h, short drw_w, short drw_h,
 			 PixmapPtr pPixmap)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, ms3, s5;
 	BoxPtr pbox = REGION_RECTS(dstRegion);
 	int nbox_total = REGION_NUM_RECTS(dstRegion);
@@ -69,9 +69,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			nbox_this_time = BOXES_IN_BYTES(BATCH_BYTES(intel));
 		nbox_total -= nbox_this_time;
 
-		intel_batch_start_atomic(pScrn, 200 + 20 * nbox_this_time);
+		intel_batch_start_atomic(scrn, 200 + 20 * nbox_this_time);
 
-		IntelEmitInvarientState(pScrn);
+		IntelEmitInvarientState(scrn);
 		intel->last_3d = LAST_3D_VIDEO;
 
 		BEGIN_BATCH(20);
@@ -453,6 +453,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			ADVANCE_BATCH();
 		}
 
-		intel_batch_end_atomic(pScrn);
+		intel_batch_end_atomic(scrn);
 	}
 }

@@ -34,9 +34,9 @@
 
 #include "i915_reg.h"
 
-void I915EmitInvarientState(ScrnInfoPtr pScrn)
+void I915EmitInvarientState(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	BEGIN_BATCH(24);
 

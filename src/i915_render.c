@@ -158,9 +158,9 @@ static Bool i915_get_dest_format(PicturePtr pDstPicture, uint32_t * dst_format)
 		break;
 	default:
 		{
-			ScrnInfoPtr pScrn;
+			ScrnInfoPtr scrn;
 
-			pScrn =
+			scrn =
 			    xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
 			I830FALLBACK("Unsupported dest format 0x%x\n",
 				     (int)pDstPicture->format);
@@ -169,7 +169,7 @@ static Bool i915_get_dest_format(PicturePtr pDstPicture, uint32_t * dst_format)
 	return TRUE;
 }
 
-static Bool i915_check_composite_texture(ScrnInfoPtr pScrn, PicturePtr pPict,
+static Bool i915_check_composite_texture(ScrnInfoPtr scrn, PicturePtr pPict,
 					 int unit)
 {
 	if (pPict->repeatType > RepeatReflect)
@@ -206,7 +206,7 @@ Bool
 i915_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		     PicturePtr pDstPicture)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
 	uint32_t tmp1;
 
 	/* Check for unsupported compositing operations. */
@@ -225,10 +225,10 @@ i915_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 				     "blending.\n");
 	}
 
-	if (!i915_check_composite_texture(pScrn, pSrcPicture, 0))
+	if (!i915_check_composite_texture(scrn, pSrcPicture, 0))
 		I830FALLBACK("Check Src picture texture\n");
 	if (pMaskPicture != NULL
-	    && !i915_check_composite_texture(pScrn, pMaskPicture, 1))
+	    && !i915_check_composite_texture(scrn, pMaskPicture, 1))
 		I830FALLBACK("Check Mask picture texture\n");
 
 	if (!i915_get_dest_format(pDstPicture, &tmp1))
@@ -239,8 +239,8 @@ i915_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 
 static Bool i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, pitch, filter;
 	int w, h, i;
 	uint32_t wrap_mode;
@@ -320,8 +320,8 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
 		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
 		i830_get_pixmap_bo(pSrc),
@@ -345,7 +345,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 				  &intel->i915_render_state.dst_format))
 		return FALSE;
 
-	if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
+	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
 	if (!i915_texture_setup(pSrcPicture, pSrc, 0))
@@ -374,9 +374,9 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	return TRUE;
 }
 
-static void i915_emit_composite_setup(ScrnInfoPtr pScrn)
+static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int op = intel->i915_render_state.op;
 	PicturePtr pSrcPicture = intel->render_src_picture;
 	PicturePtr pMaskPicture = intel->render_mask_picture;
@@ -392,7 +392,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr pScrn)
 
 	intel->i915_render_state.needs_emit = FALSE;
 
-	IntelEmitInvarientState(pScrn);
+	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
 
 	dst_pitch = intel_get_pixmap_pitch(pDst);
@@ -570,8 +570,8 @@ i915_emit_composite_primitive(PixmapPtr pDst,
 			      int maskX, int maskY,
 			      int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	Bool is_affine_src, is_affine_mask = TRUE;
 	int per_vertex, num_floats;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
@@ -755,23 +755,23 @@ void
 i915_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	       int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	intel_batch_start_atomic(pScrn, 150);
+	intel_batch_start_atomic(scrn, 150);
 
 	if (intel->i915_render_state.needs_emit)
-		i915_emit_composite_setup(pScrn);
+		i915_emit_composite_setup(scrn);
 
 	i915_emit_composite_primitive(pDst, srcX, srcY, maskX, maskY, dstX,
 				      dstY, w, h);
 
-	intel_batch_end_atomic(pScrn);
+	intel_batch_end_atomic(scrn);
 }
 
-void i915_batch_flush_notify(ScrnInfoPtr pScrn)
+void i915_batch_flush_notify(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	intel->i915_render_state.needs_emit = TRUE;
 }

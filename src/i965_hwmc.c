@@ -50,12 +50,12 @@
 
 static PutImageFuncPtr XvPutImage;
 
-static int create_context(ScrnInfoPtr pScrn,
+static int create_context(ScrnInfoPtr scrn,
 			  XvMCContextPtr context, int *num_privates,
 			  CARD32 ** private)
 {
 	struct i965_xvmc_context *private_context, *context_dup;
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	unsigned int blocknum =
 	    (((context->width + 15) / 16) * ((context->height + 15) / 16));
@@ -85,14 +85,14 @@ static int create_context(ScrnInfoPtr pScrn,
 	return Success;
 }
 
-static void destroy_context(ScrnInfoPtr pScrn, XvMCContextPtr context)
+static void destroy_context(ScrnInfoPtr scrn, XvMCContextPtr context)
 {
 	struct i965_xvmc_context *private_context;
 	private_context = context->driver_priv;
 	Xfree(private_context);
 }
 
-static int create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr surface,
+static int create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface,
 			  int *num_priv, CARD32 ** priv)
 {
 	XvMCContextPtr ctx = surface->context;
@@ -131,7 +131,7 @@ static int create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr surface,
 	return Success;
 }
 
-static void destory_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr surface)
+static void destory_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface)
 {
 	XvMCContextPtr ctx = surface->context;
 	struct i965_xvmc_surface *priv_surface = surface->driver_priv;
@@ -140,17 +140,17 @@ static void destory_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr surface)
 	Xfree(priv_surface);
 }
 
-static int create_subpicture(ScrnInfoPtr pScrn, XvMCSubpicturePtr subpicture,
+static int create_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture,
 			     int *num_priv, CARD32 ** priv)
 {
 	return Success;
 }
 
-static void destroy_subpicture(ScrnInfoPtr pScrn, XvMCSubpicturePtr subpicture)
+static void destroy_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture)
 {
 }
 
-static int put_image(ScrnInfoPtr pScrn,
+static int put_image(ScrnInfoPtr scrn,
 		     short src_x, short src_y,
 		     short drw_x, short drw_y, short src_w,
 		     short src_h, short drw_w, short drw_h,
@@ -158,7 +158,7 @@ static int put_image(ScrnInfoPtr pScrn,
 		     short height, Bool sync, RegionPtr clipBoxes, pointer data,
 		     DrawablePtr pDraw)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_xvmc_command *cmd = (struct intel_xvmc_command *)buf;
 	dri_bo *bo;
 
@@ -171,7 +171,7 @@ static int put_image(ScrnInfoPtr pScrn,
 		buf = intel->FbBase + bo->offset;
 #endif
 	}
-	XvPutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
+	XvPutImage(scrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
 		   drw_w, drw_h, id, buf, width, height, sync, clipBoxes,
 		   data, pDraw);
 

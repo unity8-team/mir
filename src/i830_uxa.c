@@ -105,17 +105,17 @@ Bool i830_pixmap_tiled(PixmapPtr pPixmap)
 }
 
 Bool
-i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo ** bo_table,
+i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			int num_bos)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel->batch_bo == NULL)
 		I830FALLBACK("VT inactive\n");
 
 	bo_table[0] = intel->batch_bo;
 	if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0) {
-		intel_batch_flush(pScrn, FALSE);
+		intel_batch_flush(scrn, FALSE);
 		bo_table[0] = intel->batch_bo;
 		if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) !=
 		    0)
@@ -131,8 +131,8 @@ static unsigned long i830_pixmap_pitch(PixmapPtr pixmap)
 
 static int i830_pixmap_pitch_is_aligned(PixmapPtr pixmap)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	return i830_pixmap_pitch(pixmap) %
 	    intel->accel_pixmap_pitch_alignment == 0;
@@ -144,8 +144,8 @@ static int i830_pixmap_pitch_is_aligned(PixmapPtr pixmap)
 static Bool
 i830_uxa_prepare_solid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned long pitch;
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
@@ -168,7 +168,7 @@ i830_uxa_prepare_solid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	if (!i830_pixmap_pitch_is_aligned(pPixmap))
 		I830FALLBACK("pixmap pitch not aligned");
 
-	if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
+	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
 	intel->BR[13] = (I830PatternROP[alu] & 0xff) << 16;
@@ -190,8 +190,8 @@ i830_uxa_prepare_solid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 
 static void i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned long pitch;
 	uint32_t cmd;
 
@@ -226,9 +226,9 @@ static void i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 
 static void i830_uxa_done_solid(PixmapPtr pPixmap)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 
-	i830_debug_sync(pScrn);
+	i830_debug_sync(scrn);
 }
 
 /**
@@ -239,8 +239,8 @@ static Bool
 i830_uxa_prepare_copy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 		      int ydir, int alu, Pixel planemask)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
 		i830_get_pixmap_bo(pSrcPixmap),
@@ -253,7 +253,7 @@ i830_uxa_prepare_copy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 	if (pDstPixmap->drawable.bitsPerPixel < 8)
 		I830FALLBACK("under 8bpp pixmaps unsupported\n");
 
-	if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
+	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
 	i830_exa_check_pitch_2d(pSrcPixmap);
@@ -280,8 +280,8 @@ static void
 i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	      int dst_y1, int w, int h)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t cmd;
 	int dst_x2, dst_y2;
 	unsigned int dst_pitch, src_pitch;
@@ -334,9 +334,9 @@ i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 
 static void i830_uxa_done_copy(PixmapPtr pDstPixmap)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
 
-	i830_debug_sync(pScrn);
+	i830_debug_sync(scrn);
 }
 
 /**
@@ -346,9 +346,9 @@ static void i830_uxa_done_copy(PixmapPtr pDstPixmap)
  */
 void i830_done_composite(PixmapPtr pDst)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
 
-	i830_debug_sync(pScrn);
+	i830_debug_sync(scrn);
 }
 
 #define xFixedToFloat(val) \

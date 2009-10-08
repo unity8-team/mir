@@ -39,9 +39,9 @@
 #include "i830_ring.h"
 #include "i915_drm.h"
 
-static void intel_next_batch(ScrnInfoPtr pScrn)
+static void intel_next_batch(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* The 865 has issues with larger-than-page-sized batch buffers. */
 	if (IS_I865G(intel))
@@ -64,19 +64,19 @@ static void intel_next_batch(ScrnInfoPtr pScrn)
 		intel->last_3d = LAST_3D_OTHER;
 }
 
-void intel_batch_init(ScrnInfoPtr pScrn)
+void intel_batch_init(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	intel->batch_emit_start = 0;
 	intel->batch_emitting = 0;
 
-	intel_next_batch(pScrn);
+	intel_next_batch(scrn);
 }
 
-void intel_batch_teardown(ScrnInfoPtr pScrn)
+void intel_batch_teardown(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel->batch_ptr != NULL) {
 		dri_bo_unmap(intel->batch_bo);
@@ -90,9 +90,9 @@ void intel_batch_teardown(ScrnInfoPtr pScrn)
 	}
 }
 
-void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
+void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
 	if (intel->batch_used == 0)
@@ -126,7 +126,7 @@ void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
 	intel->last_batch_bo = intel->batch_bo;
 	intel->batch_bo = NULL;
 
-	intel_next_batch(pScrn);
+	intel_next_batch(scrn);
 
 	/* Mark that we need to flush whatever potential rendering we've done in the
 	 * blockhandler.  We could set this less often, but it's probably not worth
@@ -135,7 +135,7 @@ void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
 	intel->need_mi_flush = TRUE;
 
 	if (intel->batch_flush_notify)
-		intel->batch_flush_notify(pScrn);
+		intel->batch_flush_notify(scrn);
 }
 
 /** Waits on the last emitted batchbuffer to be completed. */

@@ -164,9 +164,9 @@ static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t * dst_format)
 		break;
 	default:
 		{
-			ScrnInfoPtr pScrn;
+			ScrnInfoPtr scrn;
 
-			pScrn =
+			scrn =
 			    xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
 			I830FALLBACK("Unsupported dest format 0x%x\n",
 				     (int)pDstPicture->format);
@@ -176,7 +176,7 @@ static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t * dst_format)
 	return TRUE;
 }
 
-static Bool i830_get_blend_cntl(ScrnInfoPtr pScrn, int op, PicturePtr pMask,
+static Bool i830_get_blend_cntl(ScrnInfoPtr scrn, int op, PicturePtr pMask,
 				uint32_t dst_format, uint32_t * blendctl)
 {
 	uint32_t sblend, dblend;
@@ -222,7 +222,7 @@ static Bool i830_get_blend_cntl(ScrnInfoPtr pScrn, int op, PicturePtr pMask,
 	return TRUE;
 }
 
-static Bool i830_check_composite_texture(ScrnInfoPtr pScrn, PicturePtr pPict,
+static Bool i830_check_composite_texture(ScrnInfoPtr scrn, PicturePtr pPict,
 					 int unit)
 {
 	if (pPict->repeatType > RepeatReflect)
@@ -270,8 +270,8 @@ static uint32_t i8xx_get_card_format(PicturePtr pPict)
 static void i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 {
 
-	ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, pitch, filter;
 	uint32_t wrap_mode;
 	uint32_t texcoordtype;
@@ -371,7 +371,7 @@ Bool
 i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		     PicturePtr pDstPicture)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
 	uint32_t tmp1;
 
 	/* Check for unsupported compositing operations. */
@@ -391,10 +391,10 @@ i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 			     "alpha and source value blending.\n");
 	}
 
-	if (!i830_check_composite_texture(pScrn, pSrcPicture, 0))
+	if (!i830_check_composite_texture(scrn, pSrcPicture, 0))
 		I830FALLBACK("Check Src picture texture\n");
 	if (pMaskPicture != NULL
-	    && !i830_check_composite_texture(pScrn, pMaskPicture, 1))
+	    && !i830_check_composite_texture(scrn, pMaskPicture, 1))
 		I830FALLBACK("Check Mask picture texture\n");
 
 	if (!i830_get_dest_format(pDstPicture, &tmp1))
@@ -408,8 +408,8 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
 		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	intel->render_src_picture = pSrcPicture;
 	intel->render_src = pSrc;
@@ -518,7 +518,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		}
 
 		if (!i830_get_blend_cntl
-		    (pScrn, op, pMaskPicture, pDstPicture->format, &blendctl)) {
+		    (scrn, op, pMaskPicture, pDstPicture->format, &blendctl)) {
 			return FALSE;
 		}
 
@@ -527,22 +527,22 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		intel->s8_blendctl = blendctl;
 	}
 
-	i830_debug_sync(pScrn);
+	i830_debug_sync(scrn);
 
 	intel->needs_render_state_emit = TRUE;
 
 	return TRUE;
 }
 
-static void i830_emit_composite_state(ScrnInfoPtr pScrn)
+static void i830_emit_composite_state(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t vf2;
 	uint32_t texcoordfmt = 0;
 
 	intel->needs_render_state_emit = FALSE;
 
-	IntelEmitInvarientState(pScrn);
+	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
 
 	BEGIN_BATCH(21);
@@ -622,8 +622,8 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 			      int maskX, int maskY,
 			      int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	Bool is_affine_src, is_affine_mask = TRUE;
 	int per_vertex, num_floats;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
@@ -804,23 +804,23 @@ void
 i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	       int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	intel_batch_start_atomic(pScrn, 58 +	/* invarient */
+	intel_batch_start_atomic(scrn, 58 +	/* invarient */
 				 22 +	/* setup */
 				 20 +	/* 2 * setup_texture */
 				 1 + 30 /* verts */ );
 
 	if (intel->needs_render_state_emit)
-		i830_emit_composite_state(pScrn);
+		i830_emit_composite_state(scrn);
 
 	i830_emit_composite_primitive(pDst, srcX, srcY, maskX, maskY, dstX,
 				      dstY, w, h);
 
-	intel_batch_end_atomic(pScrn);
+	intel_batch_end_atomic(scrn);
 
-	i830_debug_sync(pScrn);
+	i830_debug_sync(scrn);
 }
 
 void i830_batch_flush_notify(ScrnInfoPtr scrn)

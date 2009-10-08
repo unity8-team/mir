@@ -74,7 +74,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 Bool i830_uxa_init(ScreenPtr pScreen);
 void i830_uxa_create_screen_resources(ScreenPtr pScreen);
 void i830_uxa_block_handler(ScreenPtr pScreen);
-Bool i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo ** bo_table,
+Bool i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			     int num_bos);
 
 dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap);
@@ -226,7 +226,7 @@ typedef struct intel_screen_private {
 
 	CloseScreenProcPtr CloseScreen;
 
-	void (*batch_flush_notify) (ScrnInfoPtr pScrn);
+	void (*batch_flush_notify) (ScrnInfoPtr scrn);
 
 	uxa_driver_t *uxa_driver;
 	Bool need_flush;
@@ -321,23 +321,23 @@ unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
 #include "i830_batchbuffer.h"
 
 /* I830 specific functions */
-extern void I830Sync(ScrnInfoPtr pScrn);
-extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
-extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
-extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
+extern void I830Sync(ScrnInfoPtr scrn);
+extern void IntelEmitInvarientState(ScrnInfoPtr scrn);
+extern void I830EmitInvarientState(ScrnInfoPtr scrn);
+extern void I915EmitInvarientState(ScrnInfoPtr scrn);
 
-extern void I830EmitFlush(ScrnInfoPtr pScrn);
+extern void I830EmitFlush(ScrnInfoPtr scrn);
 
 extern void I830InitVideo(ScreenPtr pScreen);
-extern xf86CrtcPtr i830_covering_crtc(ScrnInfoPtr pScrn, BoxPtr box,
+extern xf86CrtcPtr i830_covering_crtc(ScrnInfoPtr scrn, BoxPtr box,
 				      xf86CrtcPtr desired, BoxPtr crtc_box_ret);
 
-extern xf86CrtcPtr i830_pipe_to_crtc(ScrnInfoPtr pScrn, int pipe);
+extern xf86CrtcPtr i830_pipe_to_crtc(ScrnInfoPtr scrn, int pipe);
 
 Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
 
-extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
+extern Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
 					 xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
@@ -348,25 +348,25 @@ extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 
-Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size);
-void i830_allocator_fini(ScrnInfoPtr pScrn);
-i830_memory *i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
+Bool i830_allocator_init(ScrnInfoPtr scrn, unsigned long size);
+void i830_allocator_fini(ScrnInfoPtr scrn);
+i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 				  unsigned long size, unsigned long pitch,
 				  unsigned long alignment, int flags,
 				  enum tile_format tile_format);
-void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
+void i830_describe_allocations(ScrnInfoPtr scrn, int verbosity,
 			       const char *prefix);
-void i830_reset_allocations(ScrnInfoPtr pScrn);
-void i830_free_3d_memory(ScrnInfoPtr pScrn);
-void i830_free_memory(ScrnInfoPtr pScrn, i830_memory * mem);
-Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
-Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
-void i830_init_bufmgr(ScrnInfoPtr pScrn);
+void i830_reset_allocations(ScrnInfoPtr scrn);
+void i830_free_3d_memory(ScrnInfoPtr scrn);
+void i830_free_memory(ScrnInfoPtr scrn, i830_memory * mem);
+Bool i830_allocate_2d_memory(ScrnInfoPtr scrn);
+Bool i830_allocate_3d_memory(ScrnInfoPtr scrn);
+void i830_init_bufmgr(ScrnInfoPtr scrn);
 #ifdef INTEL_XVMC
-Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
+Bool i830_allocate_xvmc_buffer(ScrnInfoPtr scrn, const char *name,
 			       i830_memory ** buffer, unsigned long size,
 			       int flags);
-void i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory * buffer);
+void i830_free_xvmc_buffer(ScrnInfoPtr scrn, i830_memory * buffer);
 #endif
 
 Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
@@ -374,13 +374,13 @@ Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
 int i830_pad_drawable_width(int width, int cpp);
 
 /* i830_memory.c */
-Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
+Bool i830_bind_all_memory(ScrnInfoPtr scrn);
 unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   int format);
-void i830_set_max_gtt_map_size(ScrnInfoPtr pScrn);
+void i830_set_max_gtt_map_size(ScrnInfoPtr scrn);
 
-i830_memory *i830_allocate_framebuffer(ScrnInfoPtr pScrn);
+i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn);
 
 /* i830_render.c */
 Bool i830_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
@@ -401,12 +401,12 @@ Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
 void i915_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
-void i915_batch_flush_notify(ScrnInfoPtr pScrn);
+void i915_batch_flush_notify(ScrnInfoPtr scrn);
 void i830_batch_flush_notify(ScrnInfoPtr scrn);
 /* i965_render.c */
-unsigned int gen4_render_state_size(ScrnInfoPtr pScrn);
-void gen4_render_state_init(ScrnInfoPtr pScrn);
-void gen4_render_state_cleanup(ScrnInfoPtr pScrn);
+unsigned int gen4_render_state_size(ScrnInfoPtr scrn);
+void gen4_render_state_init(ScrnInfoPtr scrn);
+void gen4_render_state_cleanup(ScrnInfoPtr scrn);
 Bool i965_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			  PicturePtr pDst);
 Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
@@ -415,7 +415,7 @@ Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 void i965_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
-void i965_batch_flush_notify(ScrnInfoPtr pScrn);
+void i965_batch_flush_notify(ScrnInfoPtr scrn);
 
 Bool
 i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
@@ -429,8 +429,8 @@ void i830_enter_render(ScrnInfoPtr);
 
 #define I830FALLBACK(s, arg...)				\
 do {							\
-    if (intel_get_screen_private(pScrn)->fallback_debug) { \
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,		\
+    if (intel_get_screen_private(scrn)->fallback_debug) { \
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,		\
 		   "fallback: " s "\n", ##arg);	\
     }							\
     return FALSE;					\

@@ -76,12 +76,12 @@ do {									\
 	FatalError("%s: BEGIN_LP_RING called without closing "		\
 		   "ADVANCE_LP_RING\n", __FUNCTION__);			\
     if ((n) > 2 && (I810_DEBUG&DEBUG_ALWAYS_SYNC))			\
-	i830_wait_ring_idle(pScrn);					\
+	i830_wait_ring_idle(scrn);					\
     intel->ring_emitting = (n) * 4;					\
     if ((n) & 1)							\
 	intel->ring_emitting += 4;					\
     if (intel->ring.space < intel->ring_emitting)			\
-	WaitRingFunc(pScrn, intel->ring_emitting, 0);			\
+	WaitRingFunc(scrn, intel->ring_emitting, 0);			\
     intel->ring_next = intel->ring.tail;				\
     if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
 	ErrorF( "BEGIN_LP_RING %d in %s\n", n, FUNCTION_NAME);		\

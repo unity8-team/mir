@@ -242,7 +242,7 @@ static void parse_driver_feature(intel_screen_private *intel, struct bdb_header 
 }
 
 static
-void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
+void parse_sdvo_mapping(ScrnInfoPtr scrn, struct bdb_header *bdb)
 {
 	unsigned int block_size;
 	uint16_t *block_ptr;
@@ -250,11 +250,11 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
 	struct child_device_config *child;
 	int i, child_device_num, count;
 	struct sdvo_device_mapping *p_mapping;
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!defs) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "can't find the general definition blocks\n");
 		return;
 	}
@@ -275,11 +275,11 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
 			if (child->dvo_port != DEVICE_PORT_DVOB &&
 			    child->dvo_port != DEVICE_PORT_DVOC) {
 				/* skip the incorrect sdvo port */
-				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 					   "Incorrect SDVO port\n");
 				continue;
 			}
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			xf86DrvMsg(scrn->scrnIndex, X_INFO,
 				   "the SDVO device with slave addr %x "
 				   "is found on DVO %x port\n",
 				   child->slave_addr, child->dvo_port);
@@ -292,7 +292,7 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
 				p_mapping->initialized = 1;
 				p_mapping->slave_addr = child->slave_addr;
 			} else {
-				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 					   "One DVO port is shared by two slave "
 					   "address. Maybe it can't be handled\n");
 			}
@@ -303,7 +303,7 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
 			 * of course its mapping info won't be added.
 			 */
 			if (child->slave2_addr) {
-				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 					   "Two DVO ports uses the same slave address."
 					   "Maybe it can't be handled by SDVO driver\n");
 			}
@@ -315,7 +315,7 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
 	}
 	/* If the count is zero, it indicates that no sdvo device is found */
 	if (!count)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "No SDVO device is found in VBT\n");
 
 	return;
@@ -333,9 +333,9 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
  *
  * Returns 0 on success, nonzero on failure.
  */
-int i830_bios_init(ScrnInfoPtr pScrn)
+int i830_bios_init(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct vbt_header *vbt;
 	struct bdb_header *bdb;
 	int vbt_off, bdb_off;
@@ -346,7 +346,7 @@ int i830_bios_init(ScrnInfoPtr pScrn)
 	size = intel->PciInfo->rom_size;
 	if (size == 0) {
 		size = INTEL_VBIOS_SIZE;
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "libpciaccess reported 0 rom size, guessing %dkB\n",
 			   size / 1024);
 	}
@@ -356,7 +356,7 @@ int i830_bios_init(ScrnInfoPtr pScrn)
 
 	ret = pci_device_read_rom(intel->PciInfo, bios);
 	if (ret != 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "libpciaccess failed to read %dkB video BIOS: %s\n",
 			   size / 1024, strerror(-ret));
 		xfree(bios);
@@ -365,7 +365,7 @@ int i830_bios_init(ScrnInfoPtr pScrn)
 
 	vbt_off = INTEL_BIOS_16(0x1a);
 	if (vbt_off >= size) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad VBT offset: 0x%x\n",
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Bad VBT offset: 0x%x\n",
 			   vbt_off);
 		xfree(bios);
 		return -1;
@@ -374,7 +374,7 @@ int i830_bios_init(ScrnInfoPtr pScrn)
 	vbt = (struct vbt_header *)(bios + vbt_off);
 
 	if (memcmp(vbt->signature, "$VBT", 4) != 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad VBT signature\n");
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Bad VBT signature\n");
 		xfree(bios);
 		return -1;
 	}
@@ -386,7 +386,7 @@ int i830_bios_init(ScrnInfoPtr pScrn)
 	parse_general_features(intel, bdb);
 	parse_panel_data(intel, bdb);
 	parse_driver_feature(intel, bdb);
-	parse_sdvo_mapping(pScrn, bdb);
+	parse_sdvo_mapping(scrn, bdb);
 
 	xfree(bios);
 
