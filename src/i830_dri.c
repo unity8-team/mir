@@ -80,9 +80,10 @@ typedef struct {
 
 #ifndef USE_DRI2_1_1_0
 static DRI2BufferPtr
-I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
+I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
+		      int count)
 {
-	ScreenPtr pScreen = pDraw->pScreen;
+	ScreenPtr pScreen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2BufferPtr buffers;
@@ -103,7 +104,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	pDepthPixmap = NULL;
 	for (i = 0; i < count; i++) {
 		if (attachments[i] == DRI2BufferFrontLeft) {
-			pixmap = get_drawable_pixmap(pDraw);
+			pixmap = get_drawable_pixmap(drawable);
 			pixmap->refcnt++;
 		} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 			pixmap = pDepthPixmap;
@@ -130,9 +131,10 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 				hint = 0;
 
 			pixmap = (*pScreen->CreatePixmap) (pScreen,
-							    pDraw->width,
-							    pDraw->height,
-							    pDraw->depth, hint);
+							    drawable->width,
+							    drawable->height,
+							    drawable->depth,
+							   hint);
 
 		}
 
@@ -160,10 +162,10 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 #else
 
 static DRI2Buffer2Ptr
-I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
+I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		     unsigned int format)
 {
-	ScreenPtr pScreen = pDraw->pScreen;
+	ScreenPtr pScreen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2Buffer2Ptr buffer;
@@ -181,7 +183,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 	}
 
 	if (attachment == DRI2BufferFrontLeft) {
-		pixmap = get_drawable_pixmap(pDraw);
+		pixmap = get_drawable_pixmap(drawable);
 		pixmap->refcnt++;
 	} else {
 		unsigned int hint = 0;
@@ -206,10 +208,10 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 			hint = 0;
 
 		pixmap = (*pScreen->CreatePixmap) (pScreen,
-						    pDraw->width,
-						    pDraw->height,
+						    drawable->width,
+						    drawable->height,
 						    (format !=
-						     0) ? format : pDraw->depth,
+						     0) ? format : drawable->depth,
 						    hint);
 
 	}
@@ -236,9 +238,9 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 #ifndef USE_DRI2_1_1_0
 
 static void
-I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
+I830DRI2DestroyBuffers(DrawablePtr drawable, DRI2BufferPtr buffers, int count)
 {
-	ScreenPtr pScreen = pDraw->pScreen;
+	ScreenPtr pScreen = drawable->pScreen;
 	I830DRI2BufferPrivatePtr private;
 	int i;
 
@@ -255,11 +257,11 @@ I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
 
 #else
 
-static void I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2Buffer2Ptr buffer)
+static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 {
 	if (buffer) {
 		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
-		ScreenPtr pScreen = pDraw->pScreen;
+		ScreenPtr pScreen = drawable->pScreen;
 
 		(*pScreen->DestroyPixmap) (private->pixmap);
 
@@ -271,22 +273,22 @@ static void I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2Buffer2Ptr buffer)
 #endif
 
 static void
-I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
+I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		   DRI2BufferPtr destBuffer, DRI2BufferPtr sourceBuffer)
 {
 	I830DRI2BufferPrivatePtr srcPrivate = sourceBuffer->driverPrivate;
 	I830DRI2BufferPrivatePtr dstPrivate = destBuffer->driverPrivate;
-	ScreenPtr pScreen = pDraw->pScreen;
+	ScreenPtr pScreen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
-	    ? pDraw : &srcPrivate->pixmap->drawable;
+	    ? drawable : &srcPrivate->pixmap->drawable;
 	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
-	    ? pDraw : &dstPrivate->pixmap->drawable;
+	    ? drawable : &dstPrivate->pixmap->drawable;
 	RegionPtr pCopyClip;
 	GCPtr pGC;
 
-	pGC = GetScratchGC(pDraw->depth, pScreen);
+	pGC = GetScratchGC(drawable->depth, pScreen);
 	pCopyClip = REGION_CREATE(pScreen, NULL, 0);
 	REGION_COPY(pScreen, pCopyClip, pRegion);
 	(*pGC->funcs->ChangeClip) (pGC, CT_REGION, pCopyClip, 0);
@@ -338,7 +340,10 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	}
 
 	(*pGC->ops->CopyArea) (src, dst,
-			       pGC, 0, 0, pDraw->width, pDraw->height, 0, 0);
+			       pGC,
+			       0, 0,
+			       drawable->width, drawable->height,
+			       0, 0);
 	FreeScratchGC(pGC);
 
 	/* Emit a flush of the rendering cache, or on the 965 and beyond

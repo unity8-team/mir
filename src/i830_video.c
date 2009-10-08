@@ -1588,7 +1588,7 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
  * (which we always are).
  * clipBoxes is the clipping region in screen space.
  * data is a pointer to our port private.
- * pDraw is a Drawable, which might not be the screen in the case of
+ * drawable is some Drawable, which might not be the screen in the case of
  * compositing.  It's a new argument to the function in the 1.1 server.
  */
 static int
@@ -1599,12 +1599,13 @@ I830PutImage(ScrnInfoPtr scrn,
 	     short drw_w, short drw_h,
 	     int id, unsigned char *buf,
 	     short width, short height,
-	     Bool sync, RegionPtr clipBoxes, pointer data, DrawablePtr pDraw)
+	     Bool sync, RegionPtr clipBoxes, pointer data,
+	     DrawablePtr drawable)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
 	ScreenPtr pScreen = screenInfo.screens[scrn->scrnIndex];
-	PixmapPtr pixmap = get_drawable_pixmap(pDraw);;
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	INT32 x1, x2, y1, y2;
 	int dstPitch;
 	int dstPitch2 = 0;
@@ -1699,7 +1700,7 @@ I830PutImage(ScrnInfoPtr scrn,
 						 pixmap);
 		}
 
-		DamageDamageRegion(pDraw, clipBoxes);
+		DamageDamageRegion(drawable, clipBoxes);
 	}
 
 	adaptor_priv->videoStatus = CLIENT_VIDEO_ON;
