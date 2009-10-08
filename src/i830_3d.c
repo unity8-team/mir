@@ -36,7 +36,7 @@
 
 void I830EmitInvarientState(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	BEGIN_BATCH(58);
 

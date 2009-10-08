@@ -271,17 +271,17 @@ static void i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 {
 
 	ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	uint32_t format, pitch, filter;
 	uint32_t wrap_mode;
 	uint32_t texcoordtype;
 
 	pitch = intel_get_pixmap_pitch(pPix);
-	pI830->scale_units[unit][0] = pPix->drawable.width;
-	pI830->scale_units[unit][1] = pPix->drawable.height;
-	pI830->transform[unit] = pPict->transform;
+	intel->scale_units[unit][0] = pPix->drawable.width;
+	intel->scale_units[unit][1] = pPix->drawable.height;
+	intel->transform[unit] = pPict->transform;
 
-	if (i830_transform_is_affine(pI830->transform[unit]))
+	if (i830_transform_is_affine(intel->transform[unit]))
 		texcoordtype = TEXCOORDTYPE_CARTESIAN;
 	else
 		texcoordtype = TEXCOORDTYPE_HOMOGENEOUS;
@@ -409,36 +409,36 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	pI830->render_src_picture = pSrcPicture;
-	pI830->render_src = pSrc;
-	pI830->render_mask_picture = pMaskPicture;
-	pI830->render_mask = pMask;
-	pI830->render_dst_picture = pDstPicture;
-	pI830->render_dst = pDst;
+	intel->render_src_picture = pSrcPicture;
+	intel->render_src = pSrc;
+	intel->render_mask_picture = pMaskPicture;
+	intel->render_mask = pMask;
+	intel->render_dst_picture = pDstPicture;
+	intel->render_dst = pDst;
 
 	i830_exa_check_pitch_3d(pSrc);
 	if (pMask)
 		i830_exa_check_pitch_3d(pMask);
 	i830_exa_check_pitch_3d(pDst);
 
-	if (!i830_get_dest_format(pDstPicture, &pI830->render_dst_format))
+	if (!i830_get_dest_format(pDstPicture, &intel->render_dst_format))
 		return FALSE;
 
-	pI830->dst_coord_adjust = 0;
-	pI830->src_coord_adjust = 0;
-	pI830->mask_coord_adjust = 0;
+	intel->dst_coord_adjust = 0;
+	intel->src_coord_adjust = 0;
+	intel->mask_coord_adjust = 0;
 	if (pSrcPicture->filter == PictFilterNearest)
-		pI830->src_coord_adjust = 0.375;
+		intel->src_coord_adjust = 0.375;
 	if (pMask != NULL) {
-		pI830->mask_coord_adjust = 0;
+		intel->mask_coord_adjust = 0;
 		if (pMaskPicture->filter == PictFilterNearest)
-			pI830->mask_coord_adjust = 0.375;
+			intel->mask_coord_adjust = 0.375;
 	} else {
-		pI830->transform[1] = NULL;
-		pI830->scale_units[1][0] = -1;
-		pI830->scale_units[1][1] = -1;
+		intel->transform[1] = NULL;
+		intel->scale_units[1][0] = -1;
+		intel->scale_units[1][1] = -1;
 	}
 
 	{
@@ -522,64 +522,64 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 			return FALSE;
 		}
 
-		pI830->cblend = cblend;
-		pI830->ablend = ablend;
-		pI830->s8_blendctl = blendctl;
+		intel->cblend = cblend;
+		intel->ablend = ablend;
+		intel->s8_blendctl = blendctl;
 	}
 
 	i830_debug_sync(pScrn);
 
-	pI830->needs_render_state_emit = TRUE;
+	intel->needs_render_state_emit = TRUE;
 
 	return TRUE;
 }
 
 static void i830_emit_composite_state(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	uint32_t vf2;
 	uint32_t texcoordfmt = 0;
 
-	pI830->needs_render_state_emit = FALSE;
+	intel->needs_render_state_emit = FALSE;
 
 	IntelEmitInvarientState(pScrn);
-	pI830->last_3d = LAST_3D_RENDER;
+	intel->last_3d = LAST_3D_RENDER;
 
 	BEGIN_BATCH(21);
 
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 	OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
-		  BUF_3D_PITCH(intel_get_pixmap_pitch(pI830->render_dst)));
-	OUT_RELOC_PIXMAP(pI830->render_dst,
+		  BUF_3D_PITCH(intel_get_pixmap_pitch(intel->render_dst)));
+	OUT_RELOC_PIXMAP(intel->render_dst,
 			 I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
 
 	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
-	OUT_BATCH(pI830->render_dst_format);
+	OUT_BATCH(intel->render_dst_format);
 
 	OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
 	OUT_BATCH(0);
 	OUT_BATCH(0);		/* ymin, xmin */
-	OUT_BATCH(DRAW_YMAX(pI830->render_dst->drawable.height - 1) |
-		  DRAW_XMAX(pI830->render_dst->drawable.width - 1));
+	OUT_BATCH(DRAW_YMAX(intel->render_dst->drawable.height - 1) |
+		  DRAW_XMAX(intel->render_dst->drawable.width - 1));
 	OUT_BATCH(0);		/* yorig, xorig */
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
-	if (pI830->render_mask)
+	if (intel->render_mask)
 		vf2 = 2 << 12;	/* 2 texture coord sets */
 	else
 		vf2 = 1 << 12;
 	OUT_BATCH(vf2);		/* number of coordinate sets */
 	OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
-	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | pI830->
+	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | intel->
 		  s8_blendctl | S8_ENABLE_COLOR_BUFFER_WRITE);
 
 	OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
-	OUT_BATCH(pI830->cblend);
-	OUT_BATCH(pI830->ablend);
+	OUT_BATCH(intel->cblend);
+	OUT_BATCH(intel->ablend);
 
 	OUT_BATCH(_3DSTATE_ENABLES_1_CMD | DISABLE_LOGIC_OP |
 		  DISABLE_STENCIL_TEST | DISABLE_DEPTH_BIAS |
@@ -590,13 +590,13 @@ static void i830_emit_composite_state(ScrnInfoPtr pScrn)
 		  DISABLE_STENCIL_WRITE | ENABLE_TEX_CACHE |
 		  DISABLE_DITHER | ENABLE_COLOR_WRITE | DISABLE_DEPTH_WRITE);
 
-	if (i830_transform_is_affine(pI830->render_src_picture->transform))
+	if (i830_transform_is_affine(intel->render_src_picture->transform))
 		texcoordfmt |= (TEXCOORDFMT_2D << 0);
 	else
 		texcoordfmt |= (TEXCOORDFMT_3D << 0);
-	if (pI830->render_mask) {
+	if (intel->render_mask) {
 		if (i830_transform_is_affine
-		    (pI830->render_mask_picture->transform))
+		    (intel->render_mask_picture->transform))
 			texcoordfmt |= (TEXCOORDFMT_2D << 2);
 		else
 			texcoordfmt |= (TEXCOORDFMT_3D << 2);
@@ -605,10 +605,10 @@ static void i830_emit_composite_state(ScrnInfoPtr pScrn)
 
 	ADVANCE_BATCH();
 
-	i830_texture_setup(pI830->render_src_picture, pI830->render_src, 0);
-	if (pI830->render_mask) {
-		i830_texture_setup(pI830->render_mask_picture,
-				   pI830->render_mask, 1);
+	i830_texture_setup(intel->render_src_picture, intel->render_src, 0);
+	if (intel->render_mask) {
+		i830_texture_setup(intel->render_mask_picture,
+				   intel->render_mask, 1);
 	}
 }
 
@@ -623,7 +623,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 			      int dstX, int dstY, int w, int h)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	Bool is_affine_src, is_affine_mask = TRUE;
 	int per_vertex, num_floats;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
@@ -631,27 +631,27 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 	per_vertex = 2;		/* dest x/y */
 
 	{
-		float x = srcX + pI830->src_coord_adjust;
-		float y = srcY + pI830->src_coord_adjust;
+		float x = srcX + intel->src_coord_adjust;
+		float y = srcY + intel->src_coord_adjust;
 
-		is_affine_src = i830_transform_is_affine(pI830->transform[0]);
+		is_affine_src = i830_transform_is_affine(intel->transform[0]);
 		if (is_affine_src) {
 			if (!i830_get_transformed_coordinates(x, y,
-							      pI830->
+							      intel->
 							      transform[0],
 							      &src_x[0],
 							      &src_y[0]))
 				return;
 
 			if (!i830_get_transformed_coordinates(x, y + h,
-							      pI830->
+							      intel->
 							      transform[0],
 							      &src_x[1],
 							      &src_y[1]))
 				return;
 
 			if (!i830_get_transformed_coordinates(x + w, y + h,
-							      pI830->
+							      intel->
 							      transform[0],
 							      &src_x[2],
 							      &src_y[2]))
@@ -660,7 +660,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 			per_vertex += 2;	/* src x/y */
 		} else {
 			if (!i830_get_transformed_coordinates_3d(x, y,
-								 pI830->
+								 intel->
 								 transform[0],
 								 &src_x[0],
 								 &src_y[0],
@@ -668,7 +668,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 				return;
 
 			if (!i830_get_transformed_coordinates_3d(x, y + h,
-								 pI830->
+								 intel->
 								 transform[0],
 								 &src_x[1],
 								 &src_y[1],
@@ -676,7 +676,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 				return;
 
 			if (!i830_get_transformed_coordinates_3d(x + w, y + h,
-								 pI830->
+								 intel->
 								 transform[0],
 								 &src_x[2],
 								 &src_y[2],
@@ -687,28 +687,28 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 		}
 	}
 
-	if (pI830->render_mask) {
-		float x = maskX + pI830->mask_coord_adjust;
-		float y = maskY + pI830->mask_coord_adjust;
+	if (intel->render_mask) {
+		float x = maskX + intel->mask_coord_adjust;
+		float y = maskY + intel->mask_coord_adjust;
 
-		is_affine_mask = i830_transform_is_affine(pI830->transform[1]);
+		is_affine_mask = i830_transform_is_affine(intel->transform[1]);
 		if (is_affine_mask) {
 			if (!i830_get_transformed_coordinates(x, y,
-							      pI830->
+							      intel->
 							      transform[1],
 							      &mask_x[0],
 							      &mask_y[0]))
 				return;
 
 			if (!i830_get_transformed_coordinates(x, y + h,
-							      pI830->
+							      intel->
 							      transform[1],
 							      &mask_x[1],
 							      &mask_y[1]))
 				return;
 
 			if (!i830_get_transformed_coordinates(x + w, y + h,
-							      pI830->
+							      intel->
 							      transform[1],
 							      &mask_x[2],
 							      &mask_y[2]))
@@ -717,7 +717,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 			per_vertex += 2;	/* mask x/y */
 		} else {
 			if (!i830_get_transformed_coordinates_3d(x, y,
-								 pI830->
+								 intel->
 								 transform[1],
 								 &mask_x[0],
 								 &mask_y[0],
@@ -725,7 +725,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 				return;
 
 			if (!i830_get_transformed_coordinates_3d(x, y + h,
-								 pI830->
+								 intel->
 								 transform[1],
 								 &mask_x[1],
 								 &mask_y[1],
@@ -733,7 +733,7 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 				return;
 
 			if (!i830_get_transformed_coordinates_3d(x + w, y + h,
-								 pI830->
+								 intel->
 								 transform[1],
 								 &mask_x[2],
 								 &mask_y[2],
@@ -749,46 +749,46 @@ i830_emit_composite_primitive(PixmapPtr pDst,
 	BEGIN_BATCH(1 + num_floats);
 
 	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats - 1));
-	OUT_BATCH_F(pI830->dst_coord_adjust + dstX + w);
-	OUT_BATCH_F(pI830->dst_coord_adjust + dstY + h);
-	OUT_BATCH_F(src_x[2] / pI830->scale_units[0][0]);
-	OUT_BATCH_F(src_y[2] / pI830->scale_units[0][1]);
+	OUT_BATCH_F(intel->dst_coord_adjust + dstX + w);
+	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
+	OUT_BATCH_F(src_x[2] / intel->scale_units[0][0]);
+	OUT_BATCH_F(src_y[2] / intel->scale_units[0][1]);
 	if (!is_affine_src) {
 		OUT_BATCH_F(src_w[2]);
 	}
-	if (pI830->render_mask) {
-		OUT_BATCH_F(mask_x[2] / pI830->scale_units[1][0]);
-		OUT_BATCH_F(mask_y[2] / pI830->scale_units[1][1]);
+	if (intel->render_mask) {
+		OUT_BATCH_F(mask_x[2] / intel->scale_units[1][0]);
+		OUT_BATCH_F(mask_y[2] / intel->scale_units[1][1]);
 		if (!is_affine_mask) {
 			OUT_BATCH_F(mask_w[2]);
 		}
 	}
 
-	OUT_BATCH_F(pI830->dst_coord_adjust + dstX);
-	OUT_BATCH_F(pI830->dst_coord_adjust + dstY + h);
-	OUT_BATCH_F(src_x[1] / pI830->scale_units[0][0]);
-	OUT_BATCH_F(src_y[1] / pI830->scale_units[0][1]);
+	OUT_BATCH_F(intel->dst_coord_adjust + dstX);
+	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
+	OUT_BATCH_F(src_x[1] / intel->scale_units[0][0]);
+	OUT_BATCH_F(src_y[1] / intel->scale_units[0][1]);
 	if (!is_affine_src) {
 		OUT_BATCH_F(src_w[1]);
 	}
-	if (pI830->render_mask) {
-		OUT_BATCH_F(mask_x[1] / pI830->scale_units[1][0]);
-		OUT_BATCH_F(mask_y[1] / pI830->scale_units[1][1]);
+	if (intel->render_mask) {
+		OUT_BATCH_F(mask_x[1] / intel->scale_units[1][0]);
+		OUT_BATCH_F(mask_y[1] / intel->scale_units[1][1]);
 		if (!is_affine_mask) {
 			OUT_BATCH_F(mask_w[1]);
 		}
 	}
 
-	OUT_BATCH_F(pI830->dst_coord_adjust + dstX);
-	OUT_BATCH_F(pI830->dst_coord_adjust + dstY);
-	OUT_BATCH_F(src_x[0] / pI830->scale_units[0][0]);
-	OUT_BATCH_F(src_y[0] / pI830->scale_units[0][1]);
+	OUT_BATCH_F(intel->dst_coord_adjust + dstX);
+	OUT_BATCH_F(intel->dst_coord_adjust + dstY);
+	OUT_BATCH_F(src_x[0] / intel->scale_units[0][0]);
+	OUT_BATCH_F(src_y[0] / intel->scale_units[0][1]);
 	if (!is_affine_src) {
 		OUT_BATCH_F(src_w[0]);
 	}
-	if (pI830->render_mask) {
-		OUT_BATCH_F(mask_x[0] / pI830->scale_units[1][0]);
-		OUT_BATCH_F(mask_y[0] / pI830->scale_units[1][1]);
+	if (intel->render_mask) {
+		OUT_BATCH_F(mask_x[0] / intel->scale_units[1][0]);
+		OUT_BATCH_F(mask_y[0] / intel->scale_units[1][1]);
 		if (!is_affine_mask) {
 			OUT_BATCH_F(mask_w[0]);
 		}
@@ -805,14 +805,14 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	       int dstX, int dstY, int w, int h)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	intel_batch_start_atomic(pScrn, 58 +	/* invarient */
 				 22 +	/* setup */
 				 20 +	/* 2 * setup_texture */
 				 1 + 30 /* verts */ );
 
-	if (pI830->needs_render_state_emit)
+	if (intel->needs_render_state_emit)
 		i830_emit_composite_state(pScrn);
 
 	i830_emit_composite_primitive(pDst, srcX, srcY, maskX, maskY, dstX,
@@ -825,7 +825,7 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 void i830_batch_flush_notify(ScrnInfoPtr scrn)
 {
-	I830Ptr i830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	i830->needs_render_state_emit = TRUE;
+	intel->needs_render_state_emit = TRUE;
 }

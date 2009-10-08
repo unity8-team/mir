@@ -93,8 +93,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #define ALWAYS_SYNC 0
 #define ALWAYS_FLUSH 0
 
-typedef struct _I830Rec *I830Ptr;
-
 enum tile_format {
 	TILE_NONE,
 	TILE_XMAJOR,
@@ -166,7 +164,7 @@ enum dri_type {
 	DRI_DRI2
 };
 
-typedef struct _I830Rec {
+typedef struct intel_screen_private {
 	unsigned char *MMIOBase;
 	int cpp;
 
@@ -305,9 +303,13 @@ typedef struct _I830Rec {
 	 * User option to print acceleration fallback info to the server log.
 	 */
 	Bool fallback_debug;
-} I830Rec;
+} intel_screen_private;
 
-#define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
+static inline intel_screen_private *
+intel_get_screen_private(ScrnInfoPtr scrn)
+{
+	return (intel_screen_private *)(scrn->driverPrivate);
+}
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
@@ -367,14 +369,14 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 void i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory * buffer);
 #endif
 
-Bool i830_tiled_width(I830Ptr i830, int *width, int cpp);
+Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
 
 int i830_pad_drawable_width(int width, int cpp);
 
 /* i830_memory.c */
 Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
-unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size);
-unsigned long i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch,
+unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
+unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   int format);
 void i830_set_max_gtt_map_size(ScrnInfoPtr pScrn);
 
@@ -427,7 +429,7 @@ void i830_enter_render(ScrnInfoPtr);
 
 #define I830FALLBACK(s, arg...)				\
 do {							\
-    if (I830PTR(pScrn)->fallback_debug) {		\
+    if (intel_get_screen_private(pScrn)->fallback_debug) { \
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,		\
 		   "fallback: " s "\n", ##arg);	\
     }							\
@@ -469,10 +471,10 @@ static inline drm_intel_bo *intel_bo_alloc_for_data(ScrnInfoPtr scrn,
 						    unsigned int size,
 						    char *name)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo;
 
-	bo = drm_intel_bo_alloc(pI830->bufmgr, name, size, 4096);
+	bo = drm_intel_bo_alloc(intel->bufmgr, name, size, 4096);
 	if (!bo)
 		return NULL;
 	drm_intel_bo_subdata(bo, 0, size, data);

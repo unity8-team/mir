@@ -47,7 +47,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 short src_w, short src_h, short drw_w, short drw_h,
 			 PixmapPtr pPixmap)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	uint32_t format, ms3, s5;
 	BoxPtr pbox = REGION_RECTS(dstRegion);
 	int nbox_total = REGION_NUM_RECTS(dstRegion);
@@ -65,14 +65,14 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
 	while (nbox_total) {
 		nbox_this_time = nbox_total;
-		if (BYTES_FOR_BOXES(nbox_this_time) > BATCH_BYTES(pI830))
-			nbox_this_time = BOXES_IN_BYTES(BATCH_BYTES(pI830));
+		if (BYTES_FOR_BOXES(nbox_this_time) > BATCH_BYTES(intel))
+			nbox_this_time = BOXES_IN_BYTES(BATCH_BYTES(intel));
 		nbox_total -= nbox_this_time;
 
 		intel_batch_start_atomic(pScrn, 200 + 20 * nbox_this_time);
 
 		IntelEmitInvarientState(pScrn);
-		pI830->last_3d = LAST_3D_VIDEO;
+		intel->last_3d = LAST_3D_VIDEO;
 
 		BEGIN_BATCH(20);
 
@@ -105,7 +105,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 		OUT_BATCH((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
 			  S4_CULLMODE_NONE | S4_VFMT_XY);
 		s5 = 0x0;
-		if (pI830->cpp == 2)
+		if (intel->cpp == 2)
 			s5 |= S5_COLOR_DITHER_ENABLE;
 		OUT_BATCH(s5);	/* S5 - enable bits */
 		OUT_BATCH((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
@@ -117,7 +117,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 		OUT_BATCH(0x00000000);
 
 		OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
-		if (pI830->cpp == 2)
+		if (intel->cpp == 2)
 			format = COLR_BUF_RGB565;
 		else
 			format =

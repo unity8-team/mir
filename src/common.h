@@ -89,7 +89,7 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 #ifdef _I830_H_
 #define PrintErrorState i830_dump_error_state
 #define WaitRingFunc I830WaitLpRing
-#define RecPtr pI830
+#define RecPtr intel
 #else
 #define PrintErrorState I810PrintErrorState
 #define WaitRingFunc I810WaitLpRing
@@ -373,7 +373,7 @@ extern int I810_DEBUG;
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
-#define SUPPORTS_YTILING(pI810) (IS_I965G(pI830))
+#define SUPPORTS_YTILING(pI810) (IS_I965G(intel))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))

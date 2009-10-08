@@ -55,12 +55,12 @@ unsigned long intel_get_pixmap_pitch(PixmapPtr pPix)
 
 void I830Sync(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
 		ErrorF("I830Sync\n");
 
-	if (!pScrn->vtSema || !pI830->batch_bo)
+	if (!pScrn->vtSema || !intel->batch_bo)
 		return;
 
 	I830EmitFlush(pScrn);
@@ -71,10 +71,10 @@ void I830Sync(ScrnInfoPtr pScrn)
 
 void I830EmitFlush(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
-	if (IS_I965G(pI830))
+	if (IS_I965G(intel))
 		flags = 0;
 
 	{
@@ -101,7 +101,7 @@ void i830_debug_sync(ScrnInfoPtr scrn)
 Bool I830AccelInit(ScreenPtr pScreen)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	/* Limits are described in the BLT engine chapter under Graphics Data Size
 	 * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
@@ -141,16 +141,16 @@ Bool I830AccelInit(ScreenPtr pScreen)
 	 * the front, which will have an appropriate pitch/offset already set up,
 	 * so UXA doesn't need to worry.
 	 */
-	if (IS_I965G(pI830)) {
-		pI830->accel_pixmap_offset_alignment = 4 * 2;
-		pI830->accel_pixmap_pitch_alignment = 64;
-		pI830->accel_max_x = 8192;
-		pI830->accel_max_y = 8192;
+	if (IS_I965G(intel)) {
+		intel->accel_pixmap_offset_alignment = 4 * 2;
+		intel->accel_pixmap_pitch_alignment = 64;
+		intel->accel_max_x = 8192;
+		intel->accel_max_y = 8192;
 	} else {
-		pI830->accel_pixmap_offset_alignment = 4;
-		pI830->accel_pixmap_pitch_alignment = 64;
-		pI830->accel_max_x = 2048;
-		pI830->accel_max_y = 2048;
+		intel->accel_pixmap_offset_alignment = 4;
+		intel->accel_pixmap_pitch_alignment = 64;
+		intel->accel_max_x = 2048;
+		intel->accel_max_y = 2048;
 	}
 
 	return i830_uxa_init(pScreen);

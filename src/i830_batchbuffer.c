@@ -41,79 +41,79 @@
 
 static void intel_next_batch(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	/* The 865 has issues with larger-than-page-sized batch buffers. */
-	if (IS_I865G(pI830))
-		pI830->batch_bo =
-		    dri_bo_alloc(pI830->bufmgr, "batch", 4096, 4096);
+	if (IS_I865G(intel))
+		intel->batch_bo =
+		    dri_bo_alloc(intel->bufmgr, "batch", 4096, 4096);
 	else
-		pI830->batch_bo =
-		    dri_bo_alloc(pI830->bufmgr, "batch", 4096 * 4, 4096);
+		intel->batch_bo =
+		    dri_bo_alloc(intel->bufmgr, "batch", 4096 * 4, 4096);
 
-	if (dri_bo_map(pI830->batch_bo, 1) != 0)
+	if (dri_bo_map(intel->batch_bo, 1) != 0)
 		FatalError("Failed to map batchbuffer: %s\n", strerror(errno));
 
-	pI830->batch_used = 0;
-	pI830->batch_ptr = pI830->batch_bo->virtual;
+	intel->batch_used = 0;
+	intel->batch_ptr = intel->batch_bo->virtual;
 
 	/* If we are using DRI2, we don't know when another client has executed,
 	 * so we have to reinitialize our 3D state per batch.
 	 */
-	if (pI830->directRenderingType == DRI_DRI2)
-		pI830->last_3d = LAST_3D_OTHER;
+	if (intel->directRenderingType == DRI_DRI2)
+		intel->last_3d = LAST_3D_OTHER;
 }
 
 void intel_batch_init(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	pI830->batch_emit_start = 0;
-	pI830->batch_emitting = 0;
+	intel->batch_emit_start = 0;
+	intel->batch_emitting = 0;
 
 	intel_next_batch(pScrn);
 }
 
 void intel_batch_teardown(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	if (pI830->batch_ptr != NULL) {
-		dri_bo_unmap(pI830->batch_bo);
-		pI830->batch_ptr = NULL;
+	if (intel->batch_ptr != NULL) {
+		dri_bo_unmap(intel->batch_bo);
+		intel->batch_ptr = NULL;
 
-		dri_bo_unreference(pI830->batch_bo);
-		pI830->batch_bo = NULL;
+		dri_bo_unreference(intel->batch_bo);
+		intel->batch_bo = NULL;
 
-		dri_bo_unreference(pI830->last_batch_bo);
-		pI830->last_batch_bo = NULL;
+		dri_bo_unreference(intel->last_batch_bo);
+		intel->last_batch_bo = NULL;
 	}
 }
 
 void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int ret;
 
-	if (pI830->batch_used == 0)
+	if (intel->batch_used == 0)
 		return;
 
 	/* Emit a padding dword if we aren't going to be quad-word aligned. */
-	if ((pI830->batch_used & 4) == 0) {
-		*(uint32_t *) (pI830->batch_ptr + pI830->batch_used) = MI_NOOP;
-		pI830->batch_used += 4;
+	if ((intel->batch_used & 4) == 0) {
+		*(uint32_t *) (intel->batch_ptr + intel->batch_used) = MI_NOOP;
+		intel->batch_used += 4;
 	}
 
 	/* Mark the end of the batchbuffer. */
-	*(uint32_t *) (pI830->batch_ptr + pI830->batch_used) =
+	*(uint32_t *) (intel->batch_ptr + intel->batch_used) =
 	    MI_BATCH_BUFFER_END;
-	pI830->batch_used += 4;
+	intel->batch_used += 4;
 
-	dri_bo_unmap(pI830->batch_bo);
-	pI830->batch_ptr = NULL;
+	dri_bo_unmap(intel->batch_bo);
+	intel->batch_ptr = NULL;
 
 	ret =
-	    dri_bo_exec(pI830->batch_bo, pI830->batch_used, NULL, 0,
+	    dri_bo_exec(intel->batch_bo, intel->batch_used, NULL, 0,
 			0xffffffff);
 	if (ret != 0)
 		FatalError("Failed to submit batchbuffer: %s\n",
@@ -122,9 +122,9 @@ void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
 	/* Save a ref to the last batch emitted, which we use for syncing
 	 * in debug code.
 	 */
-	dri_bo_unreference(pI830->last_batch_bo);
-	pI830->last_batch_bo = pI830->batch_bo;
-	pI830->batch_bo = NULL;
+	dri_bo_unreference(intel->last_batch_bo);
+	intel->last_batch_bo = intel->batch_bo;
+	intel->batch_bo = NULL;
 
 	intel_next_batch(pScrn);
 
@@ -132,20 +132,20 @@ void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
 	 * blockhandler.  We could set this less often, but it's probably not worth
 	 * the work.
 	 */
-	pI830->need_mi_flush = TRUE;
+	intel->need_mi_flush = TRUE;
 
-	if (pI830->batch_flush_notify)
-		pI830->batch_flush_notify(pScrn);
+	if (intel->batch_flush_notify)
+		intel->batch_flush_notify(pScrn);
 }
 
 /** Waits on the last emitted batchbuffer to be completed. */
 void intel_batch_wait_last(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Map it CPU write, which guarantees it's done.  This is a completely
 	 * non performance path, so we don't need anything better.
 	 */
-	drm_intel_bo_map(pI830->last_batch_bo, TRUE);
-	drm_intel_bo_unmap(pI830->last_batch_bo);
+	drm_intel_bo_map(intel->last_batch_bo, TRUE);
+	drm_intel_bo_unmap(intel->last_batch_bo);
 }

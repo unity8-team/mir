@@ -55,7 +55,7 @@ static int create_context(ScrnInfoPtr pScrn,
 			  CARD32 ** private)
 {
 	struct i965_xvmc_context *private_context, *context_dup;
-	I830Ptr I830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	unsigned int blocknum =
 	    (((context->width + 15) / 16) * ((context->height + 15) / 16));
@@ -71,9 +71,9 @@ static int create_context(ScrnInfoPtr pScrn,
 		return BadAlloc;
 	}
 
-	private_context->is_g4x = IS_G4X(I830);
-	private_context->is_965_q = IS_965_Q(I830);
-	private_context->is_igdng = IS_IGDNG(I830);
+	private_context->is_g4x = IS_G4X(intel);
+	private_context->is_965_q = IS_965_Q(intel);
+	private_context->is_igdng = IS_IGDNG(intel);
 	private_context->comm.kernel_exec_fencing = 1;
 	private_context->comm.type = xvmc_driver->flag;
 
@@ -158,17 +158,17 @@ static int put_image(ScrnInfoPtr pScrn,
 		     short height, Bool sync, RegionPtr clipBoxes, pointer data,
 		     DrawablePtr pDraw)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	struct intel_xvmc_command *cmd = (struct intel_xvmc_command *)buf;
 	dri_bo *bo;
 
 	if (id == FOURCC_XVMC) {
-		bo = intel_bo_gem_create_from_name(pI830->bufmgr, "surface",
+		bo = intel_bo_gem_create_from_name(intel->bufmgr, "surface",
 						   cmd->handle);
 		dri_bo_pin(bo, 0x1000);
 		/* XXX: KMS */
 #if 0
-		buf = pI830->FbBase + bo->offset;
+		buf = intel->FbBase + bo->offset;
 #endif
 	}
 	XvPutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,

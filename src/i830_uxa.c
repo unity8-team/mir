@@ -108,15 +108,15 @@ Bool
 i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo ** bo_table,
 			int num_bos)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	if (pI830->batch_bo == NULL)
+	if (intel->batch_bo == NULL)
 		I830FALLBACK("VT inactive\n");
 
-	bo_table[0] = pI830->batch_bo;
+	bo_table[0] = intel->batch_bo;
 	if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0) {
 		intel_batch_flush(pScrn, FALSE);
-		bo_table[0] = pI830->batch_bo;
+		bo_table[0] = intel->batch_bo;
 		if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) !=
 		    0)
 			I830FALLBACK("Couldn't get aperture space for BOs\n");
@@ -132,10 +132,10 @@ static unsigned long i830_pixmap_pitch(PixmapPtr pixmap)
 static int i830_pixmap_pitch_is_aligned(PixmapPtr pixmap)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	return i830_pixmap_pitch(pixmap) %
-	    pI830->accel_pixmap_pitch_alignment == 0;
+	    intel->accel_pixmap_pitch_alignment == 0;
 }
 
 /**
@@ -145,7 +145,7 @@ static Bool
 i830_uxa_prepare_solid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	unsigned long pitch;
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
@@ -171,27 +171,27 @@ i830_uxa_prepare_solid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
-	pI830->BR[13] = (I830PatternROP[alu] & 0xff) << 16;
+	intel->BR[13] = (I830PatternROP[alu] & 0xff) << 16;
 	switch (pPixmap->drawable.bitsPerPixel) {
 	case 8:
 		break;
 	case 16:
 		/* RGB565 */
-		pI830->BR[13] |= (1 << 24);
+		intel->BR[13] |= (1 << 24);
 		break;
 	case 32:
 		/* RGB8888 */
-		pI830->BR[13] |= ((1 << 24) | (1 << 25));
+		intel->BR[13] |= ((1 << 24) | (1 << 25));
 		break;
 	}
-	pI830->BR[16] = fg;
+	intel->BR[16] = fg;
 	return TRUE;
 }
 
 static void i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	unsigned long pitch;
 	uint32_t cmd;
 
@@ -206,7 +206,7 @@ static void i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 			cmd |=
 			    XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
 
-		if (IS_I965G(pI830) && i830_pixmap_tiled(pPixmap)) {
+		if (IS_I965G(intel) && i830_pixmap_tiled(pPixmap)) {
 			assert((pitch % 512) == 0);
 			pitch >>= 2;
 			cmd |= XY_COLOR_BLT_TILED;
@@ -214,12 +214,12 @@ static void i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 
 		OUT_BATCH(cmd);
 
-		OUT_BATCH(pI830->BR[13] | pitch);
+		OUT_BATCH(intel->BR[13] | pitch);
 		OUT_BATCH((y1 << 16) | (x1 & 0xffff));
 		OUT_BATCH((y2 << 16) | (x2 & 0xffff));
 		OUT_RELOC_PIXMAP(pPixmap, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
-		OUT_BATCH(pI830->BR[16]);
+		OUT_BATCH(intel->BR[16]);
 		ADVANCE_BATCH();
 	}
 }
@@ -240,7 +240,7 @@ i830_uxa_prepare_copy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 		      int ydir, int alu, Pixel planemask)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
 		i830_get_pixmap_bo(pSrcPixmap),
@@ -259,18 +259,18 @@ i830_uxa_prepare_copy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 	i830_exa_check_pitch_2d(pSrcPixmap);
 	i830_exa_check_pitch_2d(pDstPixmap);
 
-	pI830->pSrcPixmap = pSrcPixmap;
+	intel->pSrcPixmap = pSrcPixmap;
 
-	pI830->BR[13] = I830CopyROP[alu] << 16;
+	intel->BR[13] = I830CopyROP[alu] << 16;
 
 	switch (pSrcPixmap->drawable.bitsPerPixel) {
 	case 8:
 		break;
 	case 16:
-		pI830->BR[13] |= (1 << 24);
+		intel->BR[13] |= (1 << 24);
 		break;
 	case 32:
-		pI830->BR[13] |= ((1 << 25) | (1 << 24));
+		intel->BR[13] |= ((1 << 25) | (1 << 24));
 		break;
 	}
 	return TRUE;
@@ -281,7 +281,7 @@ i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	      int dst_y1, int w, int h)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	uint32_t cmd;
 	int dst_x2, dst_y2;
 	unsigned int dst_pitch, src_pitch;
@@ -290,7 +290,7 @@ i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	dst_y2 = dst_y1 + h;
 
 	dst_pitch = i830_pixmap_pitch(pDstPixmap);
-	src_pitch = i830_pixmap_pitch(pI830->pSrcPixmap);
+	src_pitch = i830_pixmap_pitch(intel->pSrcPixmap);
 
 	{
 		BEGIN_BATCH(8);
@@ -302,14 +302,14 @@ i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 			    XY_SRC_COPY_BLT_WRITE_ALPHA |
 			    XY_SRC_COPY_BLT_WRITE_RGB;
 
-		if (IS_I965G(pI830)) {
+		if (IS_I965G(intel)) {
 			if (i830_pixmap_tiled(pDstPixmap)) {
 				assert((dst_pitch % 512) == 0);
 				dst_pitch >>= 2;
 				cmd |= XY_SRC_COPY_BLT_DST_TILED;
 			}
 
-			if (i830_pixmap_tiled(pI830->pSrcPixmap)) {
+			if (i830_pixmap_tiled(intel->pSrcPixmap)) {
 				assert((src_pitch % 512) == 0);
 				src_pitch >>= 2;
 				cmd |= XY_SRC_COPY_BLT_SRC_TILED;
@@ -318,14 +318,14 @@ i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 
 		OUT_BATCH(cmd);
 
-		OUT_BATCH(pI830->BR[13] | dst_pitch);
+		OUT_BATCH(intel->BR[13] | dst_pitch);
 		OUT_BATCH((dst_y1 << 16) | (dst_x1 & 0xffff));
 		OUT_BATCH((dst_y2 << 16) | (dst_x2 & 0xffff));
 		OUT_RELOC_PIXMAP(pDstPixmap, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
 		OUT_BATCH((src_y1 << 16) | (src_x1 & 0xffff));
 		OUT_BATCH(src_pitch);
-		OUT_RELOC_PIXMAP(pI830->pSrcPixmap, I915_GEM_DOMAIN_RENDER, 0,
+		OUT_RELOC_PIXMAP(intel->pSrcPixmap, I915_GEM_DOMAIN_RENDER, 0,
 				 0);
 
 		ADVANCE_BATCH();
@@ -457,7 +457,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 {
 	dri_bo *bo = i830_get_pixmap_bo(pixmap);
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-	I830Ptr i830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	intel_batch_flush(scrn, FALSE);
 
@@ -470,7 +470,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	}
 
 	/* Kernel manages fences at GTT map/fault time */
-	if (bo->size < i830->max_gtt_map_size) {
+	if (bo->size < intel->max_gtt_map_size) {
 		if (drm_intel_gem_bo_map_gtt(bo)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "%s: bo map failed\n", __FUNCTION__);
@@ -495,10 +495,10 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 	if (bo) {
 		ScreenPtr screen = pixmap->drawable.pScreen;
 		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-		I830Ptr i830 = I830PTR(scrn);
+		intel_screen_private *intel = intel_get_screen_private(scrn);
 
-		if (bo == i830->front_buffer->bo)
-			i830->need_flush = TRUE;
+		if (bo == intel->front_buffer->bo)
+			intel->need_flush = TRUE;
 
 		if (!scrn->vtSema) {
 			dri_bo_unmap(bo);
@@ -506,7 +506,7 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 			return;
 		}
 
-		if (bo->size < i830->max_gtt_map_size)
+		if (bo->size < intel->max_gtt_map_size)
 			drm_intel_gem_bo_unmap_gtt(bo);
 		else
 			dri_bo_unmap(bo);
@@ -517,11 +517,11 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 void i830_uxa_block_handler(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	I830Ptr i830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (i830->need_flush) {
-		dri_bo_wait_rendering(i830->front_buffer->bo);
-		i830->need_flush = FALSE;
+	if (intel->need_flush) {
+		dri_bo_wait_rendering(intel->front_buffer->bo);
+		intel->need_flush = FALSE;
 	}
 }
 
@@ -541,7 +541,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		       unsigned usage)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	I830Ptr i830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo;
 	int stride;
 	PixmapPtr pixmap;
@@ -566,7 +566,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			tiling = I915_TILING_Y;
 			pitch_align = 512;
 		} else {
-			pitch_align = i830->accel_pixmap_pitch_alignment;
+			pitch_align = intel->accel_pixmap_pitch_alignment;
 		}
 
 		stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
@@ -585,14 +585,14 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			else
 				aligned_h = ALIGN(h, 32);
 
-			stride = i830_get_fence_pitch(i830, stride, tiling);
+			stride = i830_get_fence_pitch(intel, stride, tiling);
 			/* Round the object up to the size of the fence it will live in
 			 * if necessary.  We could potentially make the kernel allocate
 			 * a larger aperture space and just bind the subset of pages in,
 			 * but this is easier and also keeps us out of trouble (as much)
 			 * with drm_intel_bufmgr_check_aperture().
 			 */
-			size = i830_get_fence_size(i830, stride * aligned_h);
+			size = i830_get_fence_size(intel, stride * aligned_h);
 			assert(size >= stride * aligned_h);
 		}
 
@@ -611,10 +611,10 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		}
 
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
-			bo = drm_intel_bo_alloc(i830->bufmgr, "pixmap", size,
+			bo = drm_intel_bo_alloc(intel->bufmgr, "pixmap", size,
 						0);
 		else
-			bo = drm_intel_bo_alloc_for_render(i830->bufmgr,
+			bo = drm_intel_bo_alloc_for_render(intel->bufmgr,
 							   "pixmap", size, 0);
 		if (!bo) {
 			fbDestroyPixmap(pixmap);
@@ -647,8 +647,8 @@ static Bool i830_uxa_destroy_pixmap(PixmapPtr pixmap)
 void i830_uxa_create_screen_resources(ScreenPtr pScreen)
 {
 	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
-	I830Ptr i830 = I830PTR(scrn);
-	dri_bo *bo = i830->front_buffer->bo;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	dri_bo *bo = intel->front_buffer->bo;
 
 	if (bo != NULL) {
 		PixmapPtr pixmap = pScreen->GetScreenPixmap(pScreen);
@@ -660,65 +660,65 @@ void i830_uxa_create_screen_resources(ScreenPtr pScreen)
 Bool i830_uxa_init(ScreenPtr pScreen)
 {
 	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
-	I830Ptr i830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (!dixRequestPrivate(&uxa_pixmap_index, 0))
 		return FALSE;
 
-	i830->uxa_driver = uxa_driver_alloc();
-	if (i830->uxa_driver == NULL)
+	intel->uxa_driver = uxa_driver_alloc();
+	if (intel->uxa_driver == NULL)
 		return FALSE;
 
-	memset(i830->uxa_driver, 0, sizeof(*i830->uxa_driver));
+	memset(intel->uxa_driver, 0, sizeof(*intel->uxa_driver));
 
-	i830->bufferOffset = 0;
-	i830->uxa_driver->uxa_major = 1;
-	i830->uxa_driver->uxa_minor = 0;
+	intel->bufferOffset = 0;
+	intel->uxa_driver->uxa_major = 1;
+	intel->uxa_driver->uxa_minor = 0;
 
 	/* Solid fill */
-	i830->uxa_driver->prepare_solid = i830_uxa_prepare_solid;
-	i830->uxa_driver->solid = i830_uxa_solid;
-	i830->uxa_driver->done_solid = i830_uxa_done_solid;
+	intel->uxa_driver->prepare_solid = i830_uxa_prepare_solid;
+	intel->uxa_driver->solid = i830_uxa_solid;
+	intel->uxa_driver->done_solid = i830_uxa_done_solid;
 
 	/* Copy */
-	i830->uxa_driver->prepare_copy = i830_uxa_prepare_copy;
-	i830->uxa_driver->copy = i830_uxa_copy;
-	i830->uxa_driver->done_copy = i830_uxa_done_copy;
+	intel->uxa_driver->prepare_copy = i830_uxa_prepare_copy;
+	intel->uxa_driver->copy = i830_uxa_copy;
+	intel->uxa_driver->done_copy = i830_uxa_done_copy;
 
 	/* Composite */
-	if (!IS_I9XX(i830)) {
-		i830->uxa_driver->check_composite = i830_check_composite;
-		i830->uxa_driver->prepare_composite = i830_prepare_composite;
-		i830->uxa_driver->composite = i830_composite;
-		i830->uxa_driver->done_composite = i830_done_composite;
-	} else if (IS_I915G(i830) || IS_I915GM(i830) ||
-		   IS_I945G(i830) || IS_I945GM(i830) || IS_G33CLASS(i830)) {
-		i830->uxa_driver->check_composite = i915_check_composite;
-		i830->uxa_driver->prepare_composite = i915_prepare_composite;
-		i830->uxa_driver->composite = i915_composite;
-		i830->uxa_driver->done_composite = i830_done_composite;
+	if (!IS_I9XX(intel)) {
+		intel->uxa_driver->check_composite = i830_check_composite;
+		intel->uxa_driver->prepare_composite = i830_prepare_composite;
+		intel->uxa_driver->composite = i830_composite;
+		intel->uxa_driver->done_composite = i830_done_composite;
+	} else if (IS_I915G(intel) || IS_I915GM(intel) ||
+		   IS_I945G(intel) || IS_I945GM(intel) || IS_G33CLASS(intel)) {
+		intel->uxa_driver->check_composite = i915_check_composite;
+		intel->uxa_driver->prepare_composite = i915_prepare_composite;
+		intel->uxa_driver->composite = i915_composite;
+		intel->uxa_driver->done_composite = i830_done_composite;
 	} else {
-		i830->uxa_driver->check_composite = i965_check_composite;
-		i830->uxa_driver->prepare_composite = i965_prepare_composite;
-		i830->uxa_driver->composite = i965_composite;
-		i830->uxa_driver->done_composite = i830_done_composite;
+		intel->uxa_driver->check_composite = i965_check_composite;
+		intel->uxa_driver->prepare_composite = i965_prepare_composite;
+		intel->uxa_driver->composite = i965_composite;
+		intel->uxa_driver->done_composite = i830_done_composite;
 	}
 
-	i830->uxa_driver->prepare_access = i830_uxa_prepare_access;
-	i830->uxa_driver->finish_access = i830_uxa_finish_access;
-	i830->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
+	intel->uxa_driver->prepare_access = i830_uxa_prepare_access;
+	intel->uxa_driver->finish_access = i830_uxa_finish_access;
+	intel->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
 
-	if (!uxa_driver_init(pScreen, i830->uxa_driver)) {
+	if (!uxa_driver_init(pScreen, intel->uxa_driver)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "UXA initialization failed\n");
-		xfree(i830->uxa_driver);
+		xfree(intel->uxa_driver);
 		return FALSE;
 	}
 
 	pScreen->CreatePixmap = i830_uxa_create_pixmap;
 	pScreen->DestroyPixmap = i830_uxa_destroy_pixmap;
 
-	uxa_set_fallback_debug(pScreen, i830->fallback_debug);
+	uxa_set_fallback_debug(pScreen, intel->fallback_debug);
 
 	return TRUE;
 }

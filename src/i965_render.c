@@ -630,11 +630,11 @@ struct gen4_render_state {
 static drm_intel_bo *gen4_create_sf_state(ScrnInfoPtr scrn,
 					  drm_intel_bo * kernel_bo)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_sf_unit_state *sf_state;
 	drm_intel_bo *sf_state_bo;
 
-	sf_state_bo = drm_intel_bo_alloc(pI830->bufmgr, "gen4 SF state",
+	sf_state_bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 SF state",
 					 sizeof(*sf_state), 4096);
 	drm_intel_bo_map(sf_state_bo, TRUE);
 	sf_state = sf_state_bo->virtual;
@@ -772,12 +772,12 @@ static drm_intel_bo *gen4_create_sampler_state(ScrnInfoPtr scrn,
 					       mask_extend,
 					       drm_intel_bo * border_color_bo)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *sampler_state_bo;
 	struct brw_sampler_state *sampler_state;
 
 	sampler_state_bo =
-	    drm_intel_bo_alloc(pI830->bufmgr, "gen4 sampler state",
+	    drm_intel_bo_alloc(intel->bufmgr, "gen4 sampler state",
 			       sizeof(struct brw_sampler_state) * 2, 4096);
 	drm_intel_bo_map(sampler_state_bo, TRUE);
 	sampler_state = sampler_state_bo->virtual;
@@ -840,11 +840,11 @@ static drm_intel_bo *gen4_create_wm_state(ScrnInfoPtr scrn,
 					  drm_intel_bo * kernel_bo,
 					  drm_intel_bo * sampler_bo)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_wm_unit_state *wm_state;
 	drm_intel_bo *wm_state_bo;
 
-	wm_state_bo = drm_intel_bo_alloc(pI830->bufmgr, "gen4 WM state",
+	wm_state_bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 WM state",
 					 sizeof(*wm_state), 4096);
 	drm_intel_bo_map(wm_state_bo, TRUE);
 	wm_state = wm_state_bo->virtual;
@@ -872,7 +872,7 @@ static drm_intel_bo *gen4_create_wm_state(ScrnInfoPtr scrn,
 
 	wm_state->wm4.stats_enable = 1;	/* statistic */
 
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		wm_state->wm4.sampler_count = 0;	/* hardware requirement */
 	else
 		wm_state->wm4.sampler_count = 1;	/* 1-4 samplers used */
@@ -906,7 +906,7 @@ static drm_intel_bo *gen4_create_wm_state(ScrnInfoPtr scrn,
 	/* binding table entry count is only used for prefetching, and it has to
 	 * be set 0 for IGDNG
 	 */
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		wm_state->thread1.binding_table_entry_count = 0;
 
 	drm_intel_bo_unmap(wm_state_bo);
@@ -916,14 +916,14 @@ static drm_intel_bo *gen4_create_wm_state(ScrnInfoPtr scrn,
 
 static drm_intel_bo *gen4_create_cc_viewport(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo;
 	struct brw_cc_viewport cc_viewport;
 
 	cc_viewport.min_depth = -1.e35;
 	cc_viewport.max_depth = 1.e35;
 
-	bo = drm_intel_bo_alloc(pI830->bufmgr, "gen4 render unit state",
+	bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 render unit state",
 				sizeof(cc_viewport), 4096);
 	drm_intel_bo_subdata(bo, 0, sizeof(cc_viewport), &cc_viewport);
 
@@ -932,12 +932,12 @@ static drm_intel_bo *gen4_create_cc_viewport(ScrnInfoPtr scrn)
 
 static drm_intel_bo *gen4_create_vs_unit_state(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_vs_unit_state vs_state;
 	memset(&vs_state, 0, sizeof(vs_state));
 
 	/* Set up the vertex shader to be disabled (passthrough) */
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES >> 2;	/* hardware requirement */
 	else
 		vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
@@ -955,14 +955,14 @@ static drm_intel_bo *gen4_create_vs_unit_state(ScrnInfoPtr scrn)
  */
 static drm_intel_bo *gen4_create_cc_unit_state(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_cc_unit_state *cc_state;
 	drm_intel_bo *cc_state_bo, *cc_vp_bo;
 	int i, j;
 
 	cc_vp_bo = gen4_create_cc_viewport(scrn);
 
-	cc_state_bo = drm_intel_bo_alloc(pI830->bufmgr, "gen4 CC state",
+	cc_state_bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 CC state",
 					 sizeof(*cc_state), 4096);
 	drm_intel_bo_map(cc_state_bo, TRUE);
 	cc_state = cc_state_bo->virtual;
@@ -1096,8 +1096,8 @@ i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
 
 static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct gen4_render_state *render_state = pI830->gen4_render_state;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	int op = composite_op->op;
 	PicturePtr pMaskPicture = composite_op->mask_picture;
@@ -1120,7 +1120,7 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 	render_state->needs_state_emit = FALSE;
 
 	IntelEmitInvarientState(pScrn);
-	pI830->last_3d = LAST_3D_RENDER;
+	intel->last_3d = LAST_3D_RENDER;
 
 	urb_vs_start = 0;
 	urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -1148,13 +1148,13 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 		ADVANCE_BATCH();
 	}
 	{
-		if (IS_IGDNG(pI830))
+		if (IS_IGDNG(intel))
 			BEGIN_BATCH(14);
 		else
 			BEGIN_BATCH(12);
 
 		/* Match Mesa driver setup */
-		if (IS_G4X(pI830) || IS_IGDNG(pI830))
+		if (IS_G4X(intel) || IS_IGDNG(intel))
 			OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 		else
 			OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -1166,7 +1166,7 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 		/* Zero out the two base address registers so all offsets are
 		 * absolute.
 		 */
-		if (IS_IGDNG(pI830)) {
+		if (IS_IGDNG(intel)) {
 			OUT_BATCH(BRW_STATE_BASE_ADDRESS | 6);
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Surface state base address */
@@ -1200,7 +1200,7 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 		BEGIN_BATCH(26);
 		/* Pipe control */
 
-		if (IS_IGDNG(pI830))
+		if (IS_IGDNG(intel))
 			pipe_ctrl = BRW_PIPE_CONTROL_NOWRITE;
 		else
 			pipe_ctrl =
@@ -1309,7 +1309,7 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 			w_component = BRW_VFCOMPONENT_STORE_SRC;
 		}
 
-		if (IS_IGDNG(pI830)) {
+		if (IS_IGDNG(intel)) {
 			BEGIN_BATCH(pMask ? 9 : 7);
 			/*
 			 * The reason to add this extra vertex element in the header is that
@@ -1354,7 +1354,7 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 			  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 			  (0 << VE0_OFFSET_SHIFT));
 
-		if (IS_IGDNG(pI830))
+		if (IS_IGDNG(intel))
 			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
 				   VE1_VFCOMPONENT_0_SHIFT) |
 				  (BRW_VFCOMPONENT_STORE_SRC <<
@@ -1376,7 +1376,7 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 		/* u0, v0, w0 */
 		OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID | (src_format << VE0_FORMAT_SHIFT) | ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
 
-		if (IS_IGDNG(pI830))
+		if (IS_IGDNG(intel))
 			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
 				   VE1_VFCOMPONENT_0_SHIFT) |
 				  (BRW_VFCOMPONENT_STORE_SRC <<
@@ -1390,7 +1390,7 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
 		if (pMask) {
 			OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID | (src_format << VE0_FORMAT_SHIFT) | (((2 + selem) * 4) << VE0_OFFSET_SHIFT));	/* vb offset in bytes */
 
-			if (IS_IGDNG(pI830))
+			if (IS_IGDNG(intel))
 				OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
 					   VE1_VFCOMPONENT_0_SHIFT) |
 					  (BRW_VFCOMPONENT_STORE_SRC <<
@@ -1413,11 +1413,11 @@ static void i965_emit_composite_state(ScrnInfoPtr pScrn)
  */
 static Bool i965_composite_check_aperture(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct gen4_render_state *render_state = pI830->gen4_render_state;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	drm_intel_bo *bo_table[] = {
-		pI830->batch_bo,
+		intel->batch_bo,
 		composite_op->binding_table_bo,
 		render_state->vertex_buffer_bo,
 		render_state->vs_state_bo,
@@ -1442,8 +1442,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct gen4_render_state *render_state = pI830->gen4_render_state;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	uint32_t *binding_table;
 	drm_intel_bo *binding_table_bo, *surface_state_bo;
@@ -1472,7 +1472,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	}
 
 	/* Set up the surface states. */
-	surface_state_bo = dri_bo_alloc(pI830->bufmgr, "surface_state",
+	surface_state_bo = dri_bo_alloc(intel->bufmgr, "surface_state",
 					3 * sizeof(brw_surface_state_padded),
 					4096);
 	if (dri_bo_map(surface_state_bo, 1) != 0) {
@@ -1493,7 +1493,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	dri_bo_unmap(surface_state_bo);
 
 	/* Set up the binding table of surface indices to surface state. */
-	binding_table_bo = dri_bo_alloc(pI830->bufmgr, "binding_table",
+	binding_table_bo = dri_bo_alloc(intel->bufmgr, "binding_table",
 					3 * sizeof(uint32_t), 4096);
 	if (dri_bo_map(binding_table_bo, 1) != 0) {
 		dri_bo_unreference(binding_table_bo);
@@ -1544,22 +1544,22 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	composite_op->src_filter =
 	    sampler_state_filter_from_picture(pSrcPicture->filter);
 
-	pI830->scale_units[0][0] = pSrc->drawable.width;
-	pI830->scale_units[0][1] = pSrc->drawable.height;
+	intel->scale_units[0][0] = pSrc->drawable.width;
+	intel->scale_units[0][1] = pSrc->drawable.height;
 
-	pI830->transform[0] = pSrcPicture->transform;
-	composite_op->is_affine = i830_transform_is_affine(pI830->transform[0]);
+	intel->transform[0] = pSrcPicture->transform;
+	composite_op->is_affine = i830_transform_is_affine(intel->transform[0]);
 
 	if (!pMask) {
-		pI830->transform[1] = NULL;
-		pI830->scale_units[1][0] = -1;
-		pI830->scale_units[1][1] = -1;
+		intel->transform[1] = NULL;
+		intel->scale_units[1][0] = -1;
+		intel->scale_units[1][1] = -1;
 	} else {
-		pI830->transform[1] = pMaskPicture->transform;
-		pI830->scale_units[1][0] = pMask->drawable.width;
-		pI830->scale_units[1][1] = pMask->drawable.height;
+		intel->transform[1] = pMaskPicture->transform;
+		intel->scale_units[1][0] = pMask->drawable.width;
+		intel->scale_units[1][1] = pMask->drawable.height;
 		composite_op->is_affine |=
-		    i830_transform_is_affine(pI830->transform[1]);
+		    i830_transform_is_affine(intel->transform[1]);
 	}
 
 	if (pMask) {
@@ -1609,8 +1609,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
 static drm_intel_bo *i965_get_vb_space(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct gen4_render_state *render_state = pI830->gen4_render_state;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	struct gen4_render_state *render_state = intel->gen4_render_state;
 
 	/* If the vertex buffer is too full, then we free the old and a new one
 	 * gets made.
@@ -1624,7 +1624,7 @@ static drm_intel_bo *i965_get_vb_space(ScrnInfoPtr pScrn)
 	/* Alloc a new vertex buffer if necessary. */
 	if (render_state->vertex_buffer_bo == NULL) {
 		render_state->vertex_buffer_bo =
-		    drm_intel_bo_alloc(pI830->bufmgr, "vb",
+		    drm_intel_bo_alloc(intel->bufmgr, "vb",
 				       sizeof(gen4_vertex_buffer), 4096);
 		render_state->vb_offset = 0;
 	}
@@ -1638,8 +1638,8 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	       int dstX, int dstY, int w, int h)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct gen4_render_state *render_state = pI830->gen4_render_state;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	struct gen4_render_state *render_state = intel->gen4_render_state;
 	Bool has_mask;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
 	int i;
@@ -1649,70 +1649,70 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 	if (is_affine) {
 		if (!i830_get_transformed_coordinates(srcX, srcY,
-						      pI830->transform[0],
+						      intel->transform[0],
 						      &src_x[0], &src_y[0]))
 			return;
 		if (!i830_get_transformed_coordinates(srcX, srcY + h,
-						      pI830->transform[0],
+						      intel->transform[0],
 						      &src_x[1], &src_y[1]))
 			return;
 		if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
-						      pI830->transform[0],
+						      intel->transform[0],
 						      &src_x[2], &src_y[2]))
 			return;
 	} else {
 		if (!i830_get_transformed_coordinates_3d(srcX, srcY,
-							 pI830->transform[0],
+							 intel->transform[0],
 							 &src_x[0], &src_y[0],
 							 &src_w[0]))
 			return;
 		if (!i830_get_transformed_coordinates_3d(srcX, srcY + h,
-							 pI830->transform[0],
+							 intel->transform[0],
 							 &src_x[1], &src_y[1],
 							 &src_w[1]))
 			return;
 		if (!i830_get_transformed_coordinates_3d(srcX + w, srcY + h,
-							 pI830->transform[0],
+							 intel->transform[0],
 							 &src_x[2], &src_y[2],
 							 &src_w[2]))
 			return;
 	}
 
-	if (pI830->scale_units[1][0] == -1 || pI830->scale_units[1][1] == -1) {
+	if (intel->scale_units[1][0] == -1 || intel->scale_units[1][1] == -1) {
 		has_mask = FALSE;
 	} else {
 		has_mask = TRUE;
 		if (is_affine) {
 			if (!i830_get_transformed_coordinates(maskX, maskY,
-							      pI830->
+							      intel->
 							      transform[1],
 							      &mask_x[0],
 							      &mask_y[0]))
 				return;
 			if (!i830_get_transformed_coordinates(maskX, maskY + h,
-							      pI830->
+							      intel->
 							      transform[1],
 							      &mask_x[1],
 							      &mask_y[1]))
 				return;
 			if (!i830_get_transformed_coordinates
-			    (maskX + w, maskY + h, pI830->transform[1],
+			    (maskX + w, maskY + h, intel->transform[1],
 			     &mask_x[2], &mask_y[2]))
 				return;
 		} else {
 			if (!i830_get_transformed_coordinates_3d(maskX, maskY,
-								 pI830->
+								 intel->
 								 transform[1],
 								 &mask_x[0],
 								 &mask_y[0],
 								 &mask_w[0]))
 				return;
 			if (!i830_get_transformed_coordinates_3d
-			    (maskX, maskY + h, pI830->transform[1], &mask_x[1],
+			    (maskX, maskY + h, intel->transform[1], &mask_x[1],
 			     &mask_y[1], &mask_w[1]))
 				return;
 			if (!i830_get_transformed_coordinates_3d
-			    (maskX + w, maskY + h, pI830->transform[1],
+			    (maskX + w, maskY + h, intel->transform[1],
 			     &mask_x[2], &mask_y[2], &mask_w[2]))
 				return;
 		}
@@ -1725,13 +1725,13 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	/* rect (x2,y2) */
 	vb[i++] = (float)(dstX + w);
 	vb[i++] = (float)(dstY + h);
-	vb[i++] = src_x[2] / pI830->scale_units[0][0];
-	vb[i++] = src_y[2] / pI830->scale_units[0][1];
+	vb[i++] = src_x[2] / intel->scale_units[0][0];
+	vb[i++] = src_y[2] / intel->scale_units[0][1];
 	if (!is_affine)
 		vb[i++] = src_w[2];
 	if (has_mask) {
-		vb[i++] = mask_x[2] / pI830->scale_units[1][0];
-		vb[i++] = mask_y[2] / pI830->scale_units[1][1];
+		vb[i++] = mask_x[2] / intel->scale_units[1][0];
+		vb[i++] = mask_y[2] / intel->scale_units[1][1];
 		if (!is_affine)
 			vb[i++] = mask_w[2];
 	}
@@ -1739,13 +1739,13 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	/* rect (x1,y2) */
 	vb[i++] = (float)dstX;
 	vb[i++] = (float)(dstY + h);
-	vb[i++] = src_x[1] / pI830->scale_units[0][0];
-	vb[i++] = src_y[1] / pI830->scale_units[0][1];
+	vb[i++] = src_x[1] / intel->scale_units[0][0];
+	vb[i++] = src_y[1] / intel->scale_units[0][1];
 	if (!is_affine)
 		vb[i++] = src_w[1];
 	if (has_mask) {
-		vb[i++] = mask_x[1] / pI830->scale_units[1][0];
-		vb[i++] = mask_y[1] / pI830->scale_units[1][1];
+		vb[i++] = mask_x[1] / intel->scale_units[1][0];
+		vb[i++] = mask_y[1] / intel->scale_units[1][1];
 		if (!is_affine)
 			vb[i++] = mask_w[1];
 	}
@@ -1753,13 +1753,13 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	/* rect (x1,y1) */
 	vb[i++] = (float)dstX;
 	vb[i++] = (float)dstY;
-	vb[i++] = src_x[0] / pI830->scale_units[0][0];
-	vb[i++] = src_y[0] / pI830->scale_units[0][1];
+	vb[i++] = src_x[0] / intel->scale_units[0][0];
+	vb[i++] = src_y[0] / intel->scale_units[0][1];
 	if (!is_affine)
 		vb[i++] = src_w[0];
 	if (has_mask) {
-		vb[i++] = mask_x[0] / pI830->scale_units[1][0];
-		vb[i++] = mask_y[0] / pI830->scale_units[1][1];
+		vb[i++] = mask_x[0] / intel->scale_units[1][0];
+		vb[i++] = mask_y[0] / intel->scale_units[1][1];
 		if (!is_affine)
 			vb[i++] = mask_w[0];
 	}
@@ -1783,7 +1783,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
 		  render_state->vb_offset * 4);
 
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
 			  render_state->vb_offset * 4 + i * 4);
 	else
@@ -1810,8 +1810,8 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 void i965_batch_flush_notify(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct gen4_render_state *render_state = pI830->gen4_render_state;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	struct gen4_render_state *render_state = intel->gen4_render_state;
 
 	/* Once a batch is emitted, we never want to map again any buffer
 	 * object being referenced by that batch, (which would be very
@@ -1829,22 +1829,22 @@ void i965_batch_flush_notify(ScrnInfoPtr pScrn)
  */
 void gen4_render_state_init(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	struct gen4_render_state *render_state;
 	int i, j, k, l, m;
 	drm_intel_bo *sf_kernel_bo, *sf_kernel_mask_bo;
 	drm_intel_bo *border_color_bo;
 
-	if (pI830->gen4_render_state == NULL)
-		pI830->gen4_render_state = calloc(sizeof(*render_state), 1);
+	if (intel->gen4_render_state == NULL)
+		intel->gen4_render_state = calloc(sizeof(*render_state), 1);
 
-	render_state = pI830->gen4_render_state;
+	render_state = intel->gen4_render_state;
 	render_state->vb_offset = 0;
 
 	render_state->vs_state_bo = gen4_create_vs_unit_state(pScrn);
 
 	/* Set up the two SF states (one for blending with a mask, one without) */
-	if (IS_IGDNG(pI830)) {
+	if (IS_IGDNG(intel)) {
 		sf_kernel_bo = intel_bo_alloc_for_data(pScrn,
 						       sf_kernel_static_gen5,
 						       sizeof
@@ -1872,7 +1872,7 @@ void gen4_render_state_init(ScrnInfoPtr pScrn)
 	drm_intel_bo_unreference(sf_kernel_mask_bo);
 
 	for (m = 0; m < WM_KERNEL_COUNT; m++) {
-		if (IS_IGDNG(pI830))
+		if (IS_IGDNG(intel))
 			render_state->wm_kernel_bo[m] =
 			    intel_bo_alloc_for_data(pScrn,
 						    wm_kernels_gen5[m].data,
@@ -1903,7 +1903,7 @@ void gen4_render_state_init(ScrnInfoPtr pScrn)
 								      border_color_bo);
 
 					for (m = 0; m < WM_KERNEL_COUNT; m++) {
-						if (IS_IGDNG(pI830))
+						if (IS_IGDNG(intel))
 							render_state->
 							    wm_state_bo[m][i][j]
 							    [k][l] =
@@ -1947,8 +1947,8 @@ void gen4_render_state_init(ScrnInfoPtr pScrn)
  */
 void gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct gen4_render_state *render_state = pI830->gen4_render_state;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	struct gen4_render_state *render_state = intel->gen4_render_state;
 	int i, j, k, l, m;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 
@@ -1975,6 +1975,6 @@ void gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 	drm_intel_bo_unreference(render_state->cc_state_bo);
 	drm_intel_bo_unreference(render_state->sip_kernel_bo);
 
-	free(pI830->gen4_render_state);
-	pI830->gen4_render_state = NULL;
+	free(intel->gen4_render_state);
+	intel->gen4_render_state = NULL;
 }

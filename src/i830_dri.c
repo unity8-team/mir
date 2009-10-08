@@ -84,7 +84,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 {
 	ScreenPtr pScreen = pDraw->pScreen;
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	DRI2BufferPtr buffers;
 	dri_bo *bo;
 	int i;
@@ -113,7 +113,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 
 			switch (attachments[i]) {
 			case DRI2BufferDepth:
-				if (SUPPORTS_YTILING(pI830))
+				if (SUPPORTS_YTILING(intel))
 					hint = INTEL_CREATE_PIXMAP_TILING_Y;
 				else
 					hint = INTEL_CREATE_PIXMAP_TILING_X;
@@ -126,7 +126,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 				break;
 			}
 
-			if (!pI830->tiling)
+			if (!intel->tiling)
 				hint = 0;
 
 			pPixmap = (*pScreen->CreatePixmap) (pScreen,
@@ -165,7 +165,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 {
 	ScreenPtr pScreen = pDraw->pScreen;
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	DRI2Buffer2Ptr buffer;
 	dri_bo *bo;
 	I830DRI2BufferPrivatePtr privates;
@@ -189,7 +189,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 		switch (attachment) {
 		case DRI2BufferDepth:
 		case DRI2BufferDepthStencil:
-			if (SUPPORTS_YTILING(pI830))
+			if (SUPPORTS_YTILING(intel))
 				hint = INTEL_CREATE_PIXMAP_TILING_Y;
 			else
 				hint = INTEL_CREATE_PIXMAP_TILING_X;
@@ -202,7 +202,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 			break;
 		}
 
-		if (!pI830->tiling)
+		if (!intel->tiling)
 			hint = 0;
 
 		pPixmap = (*pScreen->CreatePixmap) (pScreen,
@@ -278,7 +278,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	I830DRI2BufferPrivatePtr dstPrivate = pDstBuffer->driverPrivate;
 	ScreenPtr pScreen = pDraw->pScreen;
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
 	    ? pDraw : &srcPrivate->pPixmap->drawable;
 	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
@@ -294,7 +294,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 
 	/* Wait for the scanline to be outside the region to be copied */
 	if (pixmap_is_scanout(get_drawable_pixmap(dst))
-	    && pI830->swapbuffers_wait) {
+	    && intel->swapbuffers_wait) {
 		BoxPtr box;
 		BoxRec crtcbox;
 		int y1, y2;
@@ -346,7 +346,7 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	 * later.
 	 */
 	I830EmitFlush(pScrn);
-	pI830->need_mi_flush = FALSE;
+	intel->need_mi_flush = FALSE;
 
 	/* We can't rely on getting into the block handler before the DRI
 	 * client gets to run again so flush now. */
@@ -354,14 +354,14 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 #if ALWAYS_SYNC
 	I830Sync(pScrn);
 #endif
-	drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);
+	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 
 }
 
 Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	DRI2InfoRec info;
 	char *p;
 	int i;
@@ -384,7 +384,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 	}
 #endif
 
-	info.fd = pI830->drmSubFD;
+	info.fd = intel->drmSubFD;
 
 	/* The whole drmOpen thing is a fiasco and we need to find a way
 	 * back to just using open(2).  For now, however, lets just make
@@ -394,7 +394,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 	fstat(info.fd, &sbuf);
 	d = sbuf.st_rdev;
 
-	p = pI830->deviceName;
+	p = intel->deviceName;
 	for (i = 0; i < DRM_MAX_MINOR; i++) {
 		sprintf(p, DRM_DEV_NAME, DRM_DIR_NAME, i);
 		if (stat(p, &sbuf) == 0 && sbuf.st_rdev == d)
@@ -406,7 +406,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 		return FALSE;
 	}
 
-	info.driverName = IS_I965G(pI830) ? "i965" : "i915";
+	info.driverName = IS_I965G(intel) ? "i965" : "i915";
 	info.deviceName = p;
 
 #if DRI2INFOREC_VERSION >= 3
@@ -435,8 +435,8 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 void I830DRI2CloseScreen(ScreenPtr pScreen)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	DRI2CloseScreen(pScreen);
-	pI830->directRenderingType = DRI_NONE;
+	intel->directRenderingType = DRI_NONE;
 }

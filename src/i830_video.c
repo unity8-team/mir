@@ -205,7 +205,7 @@ static XF86ImageRec Images[NUM_IMAGES] = {
 };
 
 #if VIDEO_DEBUG
-static void CompareOverlay(I830Ptr pI830, uint32_t * overlay, int size)
+static void CompareOverlay(intel_screen_private *intel, uint32_t * overlay, int size)
 {
 	int i;
 	uint32_t val;
@@ -229,7 +229,7 @@ static void CompareOverlay(I830Ptr pI830, uint32_t * overlay, int size)
 static Bool drmmode_has_overlay(ScrnInfoPtr pScrn)
 {
 #ifdef DRM_MODE_OVERLAY_LANDED
-	I830Ptr p830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	struct drm_i915_getparam gp;
 	int has_overlay = 0;
 
@@ -246,7 +246,7 @@ static Bool drmmode_has_overlay(ScrnInfoPtr pScrn)
 static void drmmode_overlay_update_attrs(ScrnInfoPtr pScrn)
 {
 #ifdef DRM_MODE_OVERLAY_LANDED
-	I830Ptr p830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I830PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
 	struct drm_intel_overlay_attrs attrs;
 	int ret;
@@ -274,7 +274,7 @@ static void drmmode_overlay_update_attrs(ScrnInfoPtr pScrn)
 static void drmmode_overlay_off(ScrnInfoPtr pScrn)
 {
 #ifdef DRM_MODE_OVERLAY_LANDED
-	I830Ptr p830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	struct drm_intel_overlay_put_image request;
 	int ret;
 
@@ -296,7 +296,7 @@ drmmode_overlay_put_image(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 			  short drw_h)
 {
 #ifdef DRM_MODE_OVERLAY_LANDED
-	I830Ptr p830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I830PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
 	struct drm_intel_overlay_put_image request;
 	int ret;
@@ -369,7 +369,7 @@ drmmode_overlay_put_image(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 void I830InitVideo(ScreenPtr pScreen)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
 	int num_adaptors;
@@ -399,8 +399,8 @@ void I830InitVideo(ScreenPtr pScreen)
 	/* Set up textured video if we can do it at this depth and we are on
 	 * supported hardware.
 	 */
-	if (pScrn->bitsPerPixel >= 16 && (IS_I9XX(pI830) || IS_I965G(pI830)) &&
-	    !(!IS_I965G(pI830) && pScrn->displayWidth > 2048)) {
+	if (pScrn->bitsPerPixel >= 16 && (IS_I9XX(intel) || IS_I965G(intel)) &&
+	    !(!IS_I965G(intel) && pScrn->displayWidth > 2048)) {
 		texturedAdaptor = I830SetupImageVideoTextured(pScreen);
 		if (texturedAdaptor != NULL) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -412,9 +412,9 @@ void I830InitVideo(ScreenPtr pScreen)
 	}
 
 	/* Set up overlay video if we can do it at this depth. */
-	if (!OVERLAY_NOEXIST(pI830) && pScrn->bitsPerPixel != 8) {
-		pI830->use_drmmode_overlay = drmmode_has_overlay(pScrn);
-		if (pI830->use_drmmode_overlay) {
+	if (!OVERLAY_NOEXIST(intel) && pScrn->bitsPerPixel != 8) {
+		intel->use_drmmode_overlay = drmmode_has_overlay(pScrn);
+		if (intel->use_drmmode_overlay) {
 			overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
 			if (overlayAdaptor != NULL) {
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -426,13 +426,13 @@ void I830InitVideo(ScreenPtr pScreen)
 		}
 	}
 
-	if (overlayAdaptor && pI830->XvPreferOverlay)
+	if (overlayAdaptor && intel->XvPreferOverlay)
 		adaptors[num_adaptors++] = overlayAdaptor;
 
 	if (texturedAdaptor)
 		adaptors[num_adaptors++] = texturedAdaptor;
 
-	if (overlayAdaptor && !pI830->XvPreferOverlay)
+	if (overlayAdaptor && !intel->XvPreferOverlay)
 		adaptors[num_adaptors++] = overlayAdaptor;
 
 #ifdef INTEL_XVMC
@@ -448,7 +448,7 @@ void I830InitVideo(ScreenPtr pScreen)
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Disabling Xv because no adaptors could be initialized.\n");
-		pI830->XvEnabled = FALSE;
+		intel->XvEnabled = FALSE;
 	}
 
 #ifdef INTEL_XVMC
@@ -467,7 +467,7 @@ void I830InitVideo(ScreenPtr pScreen)
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	XF86VideoAdaptorPtr adapt;
 	I830PortPrivPtr pPriv;
 	XF86AttributePtr att;
@@ -484,7 +484,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	adapt->nEncodings = 1;
 	adapt->pEncodings = DummyEncoding;
 	/* update the DummyEncoding for these two chipsets */
-	if (IS_845G(pI830) || IS_I830(pI830)) {
+	if (IS_845G(intel) || IS_I830(intel)) {
 		adapt->pEncodings->width = IMAGE_MAX_WIDTH_LEGACY;
 		adapt->pEncodings->height = IMAGE_MAX_HEIGHT_LEGACY;
 	}
@@ -498,7 +498,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	adapt->pPortPrivates[0].ptr = (pointer) (pPriv);
 	adapt->nAttributes = NUM_ATTRIBUTES;
 	adapt->nAttributes += CLONE_ATTRIBUTES;
-	if (IS_I9XX(pI830))
+	if (IS_I9XX(intel))
 		adapt->nAttributes += GAMMA_ATTRIBUTES;	/* has gamma */
 	adapt->pAttributes =
 	    xnfalloc(sizeof(XF86AttributeRec) * adapt->nAttributes);
@@ -510,7 +510,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	memcpy((char *)att, (char *)CloneAttributes,
 	       sizeof(XF86AttributeRec) * CLONE_ATTRIBUTES);
 	att += CLONE_ATTRIBUTES;
-	if (IS_I9XX(pI830)) {
+	if (IS_I9XX(intel)) {
 		memcpy((char *)att, (char *)GammaAttributes,
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
 		att += GAMMA_ATTRIBUTES;
@@ -529,7 +529,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	adapt->QueryImageAttributes = I830QueryImageAttributes;
 
 	pPriv->textured = FALSE;
-	pPriv->colorKey = pI830->colorKey & ((1 << pScrn->depth) - 1);
+	pPriv->colorKey = intel->colorKey & ((1 << pScrn->depth) - 1);
 	pPriv->videoStatus = 0;
 	pPriv->brightness = -19;	/* (255/219) * -16 */
 	pPriv->contrast = 75;	/* 255/219 * 64 */
@@ -551,7 +551,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	/* gotta uninit this someplace */
 	REGION_NULL(pScreen, &pPriv->clip);
 
-	pI830->adaptor = adapt;
+	intel->adaptor = adapt;
 
 	/* With LFP's we need to detect whether we're in One Line Mode, which
 	 * essentially means a resolution greater than 1024x768, and fix up
@@ -574,7 +574,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	/* Allow the pipe to be switched from pipe A to B when in clone mode */
 	xvPipe = MAKE_ATOM("XV_PIPE");
 
-	if (IS_I9XX(pI830)) {
+	if (IS_I9XX(intel)) {
 		xvGamma0 = MAKE_ATOM("XV_GAMMA0");
 		xvGamma1 = MAKE_ATOM("XV_GAMMA1");
 		xvGamma2 = MAKE_ATOM("XV_GAMMA2");
@@ -736,7 +736,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 			    Atom attribute, INT32 value, pointer data)
 {
 	I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	if (attribute == xvBrightness) {
 		if ((value < -128) || (value > 127))
@@ -763,17 +763,17 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 		/*
 		 * Leave this to be updated at the next frame
 		 */
-	} else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma0 && (IS_I9XX(intel))) {
 		pPriv->gamma0 = value;
-	} else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma1 && (IS_I9XX(intel))) {
 		pPriv->gamma1 = value;
-	} else if (attribute == xvGamma2 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma2 && (IS_I9XX(intel))) {
 		pPriv->gamma2 = value;
-	} else if (attribute == xvGamma3 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma3 && (IS_I9XX(intel))) {
 		pPriv->gamma3 = value;
-	} else if (attribute == xvGamma4 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma4 && (IS_I9XX(intel))) {
 		pPriv->gamma4 = value;
-	} else if (attribute == xvGamma5 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma5 && (IS_I9XX(intel))) {
 		pPriv->gamma5 = value;
 	} else if (attribute == xvColorKey) {
 		pPriv->colorKey = value;
@@ -787,7 +787,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr pScrn,
 	     attribute == xvGamma2 ||
 	     attribute == xvGamma3 ||
 	     attribute == xvGamma4 ||
-	     attribute == xvGamma5) && (IS_I9XX(pI830))) {
+	     attribute == xvGamma5) && (IS_I9XX(intel))) {
 		OVERLAY_DEBUG("GAMMA\n");
 	}
 
@@ -803,7 +803,7 @@ static int
 I830GetPortAttribute(ScrnInfoPtr pScrn,
 		     Atom attribute, INT32 * value, pointer data)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
 
 	if (attribute == xvBrightness) {
@@ -821,17 +821,17 @@ I830GetPortAttribute(ScrnInfoPtr pScrn,
 		if (c == xf86_config->num_crtc)
 			c = -1;
 		*value = c;
-	} else if (attribute == xvGamma0 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma0 && (IS_I9XX(intel))) {
 		*value = pPriv->gamma0;
-	} else if (attribute == xvGamma1 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma1 && (IS_I9XX(intel))) {
 		*value = pPriv->gamma1;
-	} else if (attribute == xvGamma2 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma2 && (IS_I9XX(intel))) {
 		*value = pPriv->gamma2;
-	} else if (attribute == xvGamma3 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma3 && (IS_I9XX(intel))) {
 		*value = pPriv->gamma3;
-	} else if (attribute == xvGamma4 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma4 && (IS_I9XX(intel))) {
 		*value = pPriv->gamma4;
-	} else if (attribute == xvGamma5 && (IS_I9XX(pI830))) {
+	} else if (attribute == xvGamma5 && (IS_I9XX(intel))) {
 		*value = pPriv->gamma5;
 	} else if (attribute == xvColorKey) {
 		*value = pPriv->colorKey;
@@ -1254,15 +1254,15 @@ i830_display_overlay(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 		     BoxPtr dstBox, short src_w, short src_h, short drw_w,
 		     short drw_h)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
-	I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	I830PortPrivPtr pPriv = intel->adaptor->pPortPrivates[0].ptr;
 	int tmp;
 
 	OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 		      dstPitch);
 
 #if VIDEO_DEBUG
-	CompareOverlay(pI830, (uint32_t *) overlay, 0x100);
+	CompareOverlay(intel, (uint32_t *) overlay, 0x100);
 #endif
 
 	/*
@@ -1372,7 +1372,7 @@ static void
 i830_wait_for_scanline(ScrnInfoPtr pScrn, PixmapPtr pPixmap,
 		       xf86CrtcPtr crtc, RegionPtr clipBoxes)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	BoxPtr box;
 	pixman_box16_t box_in_crtc_coordinates;
 	int pipe = -1, event, load_scan_lines_pipe;
@@ -1413,7 +1413,7 @@ static Bool
 i830_setup_video_buffer(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			int alloc_size, int id)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	/* Free the current buffer if we're going to have to reallocate */
 	if (pPriv->buf && pPriv->buf->size < alloc_size) {
 		drm_intel_bo_unreference(pPriv->buf);
@@ -1424,7 +1424,7 @@ i830_setup_video_buffer(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		i830_free_video_buffers(pPriv);
 	} else {
 		if (pPriv->buf == NULL) {
-			pPriv->buf = drm_intel_bo_alloc(pI830->bufmgr,
+			pPriv->buf = drm_intel_bo_alloc(intel->bufmgr,
 							"xv buffer", alloc_size,
 							4096);
 			if (pPriv->buf == NULL)
@@ -1440,7 +1440,7 @@ i830_dst_pitch_and_size(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, short width,
 			short height, int *dstPitch, int *dstPitch2, int *size,
 			int id)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int pitchAlignMask;
 
 	/* Only needs to be DWORD-aligned for textured on i915, but overlay has
@@ -1450,11 +1450,11 @@ i830_dst_pitch_and_size(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, short width,
 		pitchAlignMask = 3;
 #ifdef INTEL_XVMC
 		/* for i915 xvmc, hw requires at least 1kb aligned surface */
-		if ((id == FOURCC_XVMC) && IS_I915(pI830))
+		if ((id == FOURCC_XVMC) && IS_I915(intel))
 			pitchAlignMask = 0x3ff;
 #endif
 	} else {
-		if (IS_I965G(pI830))
+		if (IS_I965G(intel))
 			pitchAlignMask = 255;
 		else
 			pitchAlignMask = 63;
@@ -1513,7 +1513,7 @@ i830_copy_video_data(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		     INT32 x1, INT32 y1, INT32 x2, INT32 y2,
 		     int id, unsigned char *buf)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int srcPitch = 0, srcPitch2 = 0;
 	int top, left, npixels, nlines, size;
 
@@ -1532,7 +1532,7 @@ i830_copy_video_data(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
 	/* fixup pointers */
 #ifdef INTEL_XVMC
-	if (id == FOURCC_XVMC && IS_I915(pI830)) {
+	if (id == FOURCC_XVMC && IS_I915(intel)) {
 		pPriv->YBufOffset = (uint32_t) ((uintptr_t) buf);
 		pPriv->VBufOffset = pPriv->YBufOffset + (*dstPitch2 * height);
 		pPriv->UBufOffset =
@@ -1601,7 +1601,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 	     short width, short height,
 	     Bool sync, RegionPtr clipBoxes, pointer data, DrawablePtr pDraw)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
 	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
 	PixmapPtr pPixmap = get_drawable_pixmap(pDraw);;
@@ -1678,7 +1678,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 			i830_wait_for_scanline(pScrn, pPixmap, crtc, clipBoxes);
 		}
 
-		if (IS_I965G(pI830)) {
+		if (IS_I965G(intel)) {
 			if (xvmc_passthrough(id, pPriv->rotation)) {
 				/* XXX: KMS */
 				pPriv->YBufOffset = (uintptr_t) buf;
@@ -1713,14 +1713,14 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 			 unsigned short *w, unsigned short *h,
 			 int *pitches, int *offsets)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int size, tmp;
 
 #if 0
 	ErrorF("I830QueryImageAttributes: w is %d, h is %d\n", *w, *h);
 #endif
 
-	if (IS_845G(pI830) || IS_I830(pI830)) {
+	if (IS_845G(intel) || IS_I830(intel)) {
 		if (*w > IMAGE_MAX_WIDTH_LEGACY)
 			*w = IMAGE_MAX_WIDTH_LEGACY;
 		if (*h > IMAGE_MAX_HEIGHT_LEGACY)
@@ -1798,11 +1798,11 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 		      pointer pReadmask)
 {
 	ScrnInfoPtr pScrn = xf86Screens[i];
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I830PortPrivPtr pPriv;
 
 	/* no overlay */
-	if (pI830->adaptor == NULL)
+	if (intel->adaptor == NULL)
 		return;
 
 	pPriv = GET_PORT_PRIVATE(pScrn);

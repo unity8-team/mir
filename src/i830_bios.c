@@ -108,7 +108,7 @@ fill_detail_timing_data(DisplayModePtr fixed_mode, unsigned char *timing_ptr)
  * offsets, such that this parsing fails.  Thus, almost any other method for
  * detecting the panel mode is preferable.
  */
-static void parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+static void parse_integrated_panel_data(intel_screen_private *intel, struct bdb_header *bdb)
 {
 	struct bdb_lvds_options *lvds_options;
 	struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
@@ -120,13 +120,13 @@ static void parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 	int dvo_offset;
 
 	/* Defaults if we can't find VBT info */
-	pI830->lvds_dither = 0;
+	intel->lvds_dither = 0;
 
 	lvds_options = find_section(bdb, BDB_LVDS_OPTIONS);
 	if (!lvds_options)
 		return;
 
-	pI830->lvds_dither = lvds_options->pixel_dither;
+	intel->lvds_dither = lvds_options->pixel_dither;
 	if (lvds_options->panel_type == 0xff)
 		return;
 
@@ -147,7 +147,7 @@ static void parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 						   (lfp_data_size *
 						    lvds_options->panel_type));
 	timing_ptr = (unsigned char *)entry + dvo_offset;
-	if (pI830->skip_panel_detect)
+	if (intel->skip_panel_detect)
 		return;
 
 	fixed_mode = xnfalloc(sizeof(DisplayModeRec));
@@ -157,16 +157,16 @@ static void parse_integrated_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 	 * block, pull the contents out using EDID macros.
 	 */
 	fill_detail_timing_data(fixed_mode, timing_ptr);
-	pI830->lvds_fixed_mode = fixed_mode;
+	intel->lvds_fixed_mode = fixed_mode;
 }
 
-static void parse_sdvo_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+static void parse_sdvo_panel_data(intel_screen_private *intel, struct bdb_header *bdb)
 {
 	DisplayModePtr fixed_mode;
 	struct bdb_sdvo_lvds_options *sdvo_lvds_options;
 	unsigned char *timing_ptr;
 
-	pI830->sdvo_lvds_fixed_mode = NULL;
+	intel->sdvo_lvds_fixed_mode = NULL;
 
 	sdvo_lvds_options = find_section(bdb, BDB_SDVO_LVDS_OPTIONS);
 	if (sdvo_lvds_options == NULL)
@@ -184,47 +184,47 @@ static void parse_sdvo_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 	fill_detail_timing_data(fixed_mode, timing_ptr +
 				(sdvo_lvds_options->panel_type *
 				 DET_TIMING_INFO_LEN));
-	pI830->sdvo_lvds_fixed_mode = fixed_mode;
+	intel->sdvo_lvds_fixed_mode = fixed_mode;
 
 }
 
-static void parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+static void parse_panel_data(intel_screen_private *intel, struct bdb_header *bdb)
 {
-	parse_integrated_panel_data(pI830, bdb);
-	parse_sdvo_panel_data(pI830, bdb);
+	parse_integrated_panel_data(intel, bdb);
+	parse_sdvo_panel_data(intel, bdb);
 }
 
-static void parse_general_features(I830Ptr pI830, struct bdb_header *bdb)
+static void parse_general_features(intel_screen_private *intel, struct bdb_header *bdb)
 {
 	struct bdb_general_features *general;
 
 	/* Set sensible defaults in case we can't find the general block */
-	pI830->tv_present = 1;
+	intel->tv_present = 1;
 
 	general = find_section(bdb, BDB_GENERAL_FEATURES);
 	if (!general)
 		return;
 
-	pI830->tv_present = general->int_tv_support;
-	pI830->lvds_use_ssc = general->enable_ssc;
-	if (pI830->lvds_use_ssc) {
-		if (IS_I85X(pI830))
-			pI830->lvds_ssc_freq = general->ssc_freq ? 66 : 48;
+	intel->tv_present = general->int_tv_support;
+	intel->lvds_use_ssc = general->enable_ssc;
+	if (intel->lvds_use_ssc) {
+		if (IS_I85X(intel))
+			intel->lvds_ssc_freq = general->ssc_freq ? 66 : 48;
 		else
-			pI830->lvds_ssc_freq = general->ssc_freq ? 100 : 96;
+			intel->lvds_ssc_freq = general->ssc_freq ? 100 : 96;
 	}
 }
 
-static void parse_driver_feature(I830Ptr pI830, struct bdb_header *bdb)
+static void parse_driver_feature(intel_screen_private *intel, struct bdb_header *bdb)
 {
 	struct bdb_driver_feature *feature;
 
 	/* For mobile chip, set default as true */
-	if (IS_MOBILE(pI830) && !IS_I830(pI830))
-		pI830->integrated_lvds = TRUE;
+	if (IS_MOBILE(intel) && !IS_I830(intel))
+		intel->integrated_lvds = TRUE;
 
 	/* skip pre-9xx chips which is broken to parse this block. */
-	if (!IS_I9XX(pI830))
+	if (!IS_I9XX(intel))
 		return;
 
 	/* XXX Disable this parsing, as it looks doesn't work for all
@@ -238,7 +238,7 @@ static void parse_driver_feature(I830Ptr pI830, struct bdb_header *bdb)
 		return;
 
 	if (feature->lvds_config != BDB_DRIVER_INT_LVDS)
-		pI830->integrated_lvds = FALSE;
+		intel->integrated_lvds = FALSE;
 }
 
 static
@@ -250,7 +250,7 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
 	struct child_device_config *child;
 	int i, child_device_num, count;
 	struct sdvo_device_mapping *p_mapping;
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!defs) {
@@ -285,7 +285,7 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
 				   child->slave_addr, child->dvo_port);
 			/* fill the primary dvo port */
 			p_mapping =
-			    &(pI830->sdvo_mappings[child->dvo_port - 1]);
+			    &(intel->sdvo_mappings[child->dvo_port - 1]);
 			if (!p_mapping->initialized) {
 				p_mapping->dvo_port = child->dvo_port;
 				p_mapping->dvo_wiring = child->dvo_wiring;
@@ -335,7 +335,7 @@ void parse_sdvo_mapping(ScrnInfoPtr pScrn, struct bdb_header *bdb)
  */
 int i830_bios_init(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	struct vbt_header *vbt;
 	struct bdb_header *bdb;
 	int vbt_off, bdb_off;
@@ -343,7 +343,7 @@ int i830_bios_init(ScrnInfoPtr pScrn)
 	int ret;
 	int size;
 
-	size = pI830->PciInfo->rom_size;
+	size = intel->PciInfo->rom_size;
 	if (size == 0) {
 		size = INTEL_VBIOS_SIZE;
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -354,7 +354,7 @@ int i830_bios_init(ScrnInfoPtr pScrn)
 	if (bios == NULL)
 		return -1;
 
-	ret = pci_device_read_rom(pI830->PciInfo, bios);
+	ret = pci_device_read_rom(intel->PciInfo, bios);
 	if (ret != 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "libpciaccess failed to read %dkB video BIOS: %s\n",
@@ -383,9 +383,9 @@ int i830_bios_init(ScrnInfoPtr pScrn)
 	bdb_off = vbt_off + vbt->bdb_offset;
 	bdb = (struct bdb_header *)(bios + bdb_off);
 
-	parse_general_features(pI830, bdb);
-	parse_panel_data(pI830, bdb);
-	parse_driver_feature(pI830, bdb);
+	parse_general_features(intel, bdb);
+	parse_panel_data(intel, bdb);
+	parse_driver_feature(intel, bdb);
 	parse_sdvo_mapping(pScrn, bdb);
 
 	xfree(bios);

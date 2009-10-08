@@ -210,11 +210,11 @@ static void cleanupI915XvMC(I915XvMCPtr xvmc)
 static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 				  I915XvMCContextPriv * ctxpriv)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	if (drmAddMap(pI830->drmSubFD,
+	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcStaticIndirectState->offset +
-				      pI830->LinearAddr),
+				      intel->LinearAddr),
 		      ctxpriv->mcStaticIndirectState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->sis_handle) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -222,9 +222,9 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 		return FALSE;
 	}
 
-	if (drmAddMap(pI830->drmSubFD,
+	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcSamplerState->offset +
-				      pI830->LinearAddr),
+				      intel->LinearAddr),
 		      ctxpriv->mcSamplerState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->ssb_handle) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -232,9 +232,9 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 		return FALSE;
 	}
 
-	if (drmAddMap(pI830->drmSubFD,
+	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcMapState->offset +
-				      pI830->LinearAddr),
+				      intel->LinearAddr),
 		      ctxpriv->mcMapState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->msb_handle) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -242,9 +242,9 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 		return FALSE;
 	}
 
-	if (drmAddMap(pI830->drmSubFD,
+	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcPixelShaderProgram->offset +
-				      pI830->LinearAddr),
+				      intel->LinearAddr),
 		      ctxpriv->mcPixelShaderProgram->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->psp_handle) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -252,9 +252,9 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 		return FALSE;
 	}
 
-	if (drmAddMap(pI830->drmSubFD,
+	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcPixelShaderConstants->offset +
-				      pI830->LinearAddr),
+				      intel->LinearAddr),
 		      ctxpriv->mcPixelShaderConstants->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->psc_handle) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -262,9 +262,9 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 		return FALSE;
 	}
 
-	if (drmAddMap(pI830->drmSubFD,
+	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcCorrdata->offset +
-				      pI830->LinearAddr),
+				      intel->LinearAddr),
 		      ctxpriv->mcCorrdata->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->corrdata_handle) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -278,35 +278,35 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn,
 static void i915_unmap_xvmc_buffers(ScrnInfoPtr pScrn,
 				    I915XvMCContextPriv * ctxpriv)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	if (ctxpriv->sis_handle) {
-		drmRmMap(pI830->drmSubFD, ctxpriv->sis_handle);
+		drmRmMap(intel->drmSubFD, ctxpriv->sis_handle);
 		ctxpriv->sis_handle = 0;
 	}
 
 	if (ctxpriv->ssb_handle) {
-		drmRmMap(pI830->drmSubFD, ctxpriv->ssb_handle);
+		drmRmMap(intel->drmSubFD, ctxpriv->ssb_handle);
 		ctxpriv->ssb_handle = 0;
 	}
 
 	if (ctxpriv->msb_handle) {
-		drmRmMap(pI830->drmSubFD, ctxpriv->msb_handle);
+		drmRmMap(intel->drmSubFD, ctxpriv->msb_handle);
 		ctxpriv->msb_handle = 0;
 	}
 
 	if (ctxpriv->psp_handle) {
-		drmRmMap(pI830->drmSubFD, ctxpriv->psp_handle);
+		drmRmMap(intel->drmSubFD, ctxpriv->psp_handle);
 		ctxpriv->psp_handle = 0;
 	}
 
 	if (ctxpriv->psc_handle) {
-		drmRmMap(pI830->drmSubFD, ctxpriv->psc_handle);
+		drmRmMap(intel->drmSubFD, ctxpriv->psc_handle);
 		ctxpriv->psc_handle = 0;
 	}
 
 	if (ctxpriv->corrdata_handle) {
-		drmRmMap(pI830->drmSubFD, ctxpriv->corrdata_handle);
+		drmRmMap(intel->drmSubFD, ctxpriv->corrdata_handle);
 		ctxpriv->corrdata_handle = 0;
 	}
 
@@ -315,11 +315,11 @@ static void i915_unmap_xvmc_buffers(ScrnInfoPtr pScrn,
 static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn,
 				       I915XvMCContextPriv * ctxpriv)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int flags = ALIGN_BOTH_ENDS;
 
 	/* on 915G/GM, load indirect can only use physical address...sigh */
-	if (IS_I915G(pI830) || IS_I915GM(pI830))
+	if (IS_I915G(intel) || IS_I915GM(intel))
 		flags |= NEED_PHYSICAL_ADDR;
 
 	if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]Static Indirect State",
@@ -415,7 +415,7 @@ static void i915_free_xvmc_buffers(ScrnInfoPtr pScrn,
 static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 				    int *num_priv, long **priv)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I915XvMCCreateContextRec *contextRec = NULL;
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	I915XvMCContextPriv *ctxpriv = NULL;
@@ -424,7 +424,7 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 	*priv = NULL;
 	*num_priv = 0;
 
-	if (!pI830->XvMCEnabled) {
+	if (!intel->XvMCEnabled) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: XvMC disabled!\n");
 		return BadAlloc;
@@ -513,11 +513,11 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 	contextRec->corrdata.handle = ctxpriv->corrdata_handle;
 	contextRec->corrdata.offset = ctxpriv->mcCorrdata->offset;
 	contextRec->corrdata.size = ctxpriv->mcCorrdata->size;
-	contextRec->deviceID = DEVICE_ID(pI830->PciInfo);
+	contextRec->deviceID = DEVICE_ID(intel->PciInfo);
 
 	/* XXX: KMS */
 #if 0
-	if (IS_I915G(pI830) || IS_I915GM(pI830)) {
+	if (IS_I915G(intel) || IS_I915GM(intel)) {
 		contextRec->sis.bus_addr =
 		    ctxpriv->mcStaticIndirectState->bus_addr;
 		contextRec->ssb.bus_addr = ctxpriv->mcSamplerState->bus_addr;
@@ -539,7 +539,7 @@ static int i915_xvmc_create_context(ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 				    int *num_priv, long **priv)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	I915XvMCSurfacePriv *sfpriv = NULL;
 	I915XvMCCreateSurfaceRec *surfaceRec = NULL;
@@ -547,7 +547,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 	unsigned int srfno;
 	unsigned long bufsize;
 
-	if (!pI830->XvMCEnabled) {
+	if (!intel->XvMCEnabled) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915: XvMC disabled!\n");
 		return BadAlloc;
@@ -608,9 +608,9 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 	if (0)
 		i830_describe_allocations(pScrn, 1, "");
 
-	if (drmAddMap(pI830->drmSubFD,
+	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (sfpriv->surface->offset +
-				      pI830->LinearAddr), sfpriv->surface->size,
+				      intel->LinearAddr), sfpriv->surface->size,
 		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(surface_handle) failed!\n");
@@ -637,7 +637,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 				    int *num_priv, long **priv)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	I915XvMCSurfacePriv *sfpriv = NULL;
 	I915XvMCCreateSurfaceRec *surfaceRec = NULL;
@@ -697,9 +697,9 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 		return BadAlloc;
 	}
 
-	if (drmAddMap(pI830->drmSubFD,
+	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (sfpriv->surface->offset +
-				      pI830->LinearAddr), sfpriv->surface->size,
+				      intel->LinearAddr), sfpriv->surface->size,
 		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(surface_handle) failed!\n");
@@ -746,13 +746,13 @@ static void i915_xvmc_destroy_context(ScrnInfoPtr pScrn,
 
 static void i915_xvmc_destroy_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	int i;
 
 	for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
 		if (pXvMC->surfaces[i] == pSurf->surface_id) {
-			drmRmMap(pI830->drmSubFD,
+			drmRmMap(intel->drmSubFD,
 				 pXvMC->sfprivs[i]->surface_handle);
 			i830_free_xvmc_buffer(pScrn,
 					      pXvMC->sfprivs[i]->surface);
@@ -770,13 +770,13 @@ static void i915_xvmc_destroy_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 static void i915_xvmc_destroy_subpict(ScrnInfoPtr pScrn,
 				      XvMCSubpicturePtr pSubp)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
 	int i;
 
 	for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
 		if (pXvMC->surfaces[i] == pSubp->subpicture_id) {
-			drmRmMap(pI830->drmSubFD,
+			drmRmMap(intel->drmSubFD,
 				 pXvMC->sfprivs[i]->surface_handle);
 			i830_free_xvmc_buffer(pScrn,
 					      pXvMC->sfprivs[i]->surface);

@@ -157,7 +157,7 @@ static struct {
 
 static void brw_debug(ScrnInfoPtr pScrn, char *when)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int i;
 	uint32_t v;
 
@@ -178,7 +178,7 @@ static void brw_debug(ScrnInfoPtr pScrn, char *when)
 static void i965_pre_draw_debug(ScrnInfoPtr scrn)
 {
 #if 0
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 #endif
 
 #if 0
@@ -229,7 +229,7 @@ static void i965_pre_draw_debug(ScrnInfoPtr scrn)
 static void i965_post_draw_debug(ScrnInfoPtr scrn)
 {
 #if 0
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 #endif
 
 #if 0
@@ -340,12 +340,12 @@ static void i965_post_draw_debug(ScrnInfoPtr scrn)
 #define URB_CS_ENTRY_SIZE     0
 
 static int
-intel_alloc_and_map(I830Ptr i830, char *name, int size,
+intel_alloc_and_map(intel_screen_private *intel, char *name, int size,
 		    drm_intel_bo ** bop, void *virtualp)
 {
 	drm_intel_bo *bo;
 
-	bo = drm_intel_bo_alloc(i830->bufmgr, name, size, 4096);
+	bo = drm_intel_bo_alloc(intel->bufmgr, name, size, 4096);
 	if (!bo)
 		return -1;
 	if (drm_intel_bo_map(bo, TRUE) != 0) {
@@ -361,19 +361,19 @@ intel_alloc_and_map(I830Ptr i830, char *name, int size,
 static drm_intel_bo *i965_create_dst_surface_state(ScrnInfoPtr scrn,
 						   PixmapPtr pixmap)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_surface_state *dest_surf_state;
 	drm_intel_bo *pixmap_bo = i830_get_pixmap_bo(pixmap);
 	drm_intel_bo *surf_bo;
 
-	if (intel_alloc_and_map(pI830, "textured video surface state", 4096,
+	if (intel_alloc_and_map(intel, "textured video surface state", 4096,
 				&surf_bo, &dest_surf_state) != 0)
 		return NULL;
 
 	dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
 	dest_surf_state->ss0.data_return_format =
 	    BRW_SURFACERETURNFORMAT_FLOAT32;
-	if (pI830->cpp == 2) {
+	if (intel->cpp == 2) {
 		dest_surf_state->ss0.surface_format =
 		    BRW_SURFACEFORMAT_B5G6R5_UNORM;
 	} else {
@@ -414,11 +414,11 @@ static drm_intel_bo *i965_create_src_surface_state(ScrnInfoPtr scrn,
 						   int src_pitch,
 						   uint32_t src_surf_format)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *surface_bo;
 	struct brw_surface_state *src_surf_state;
 
-	if (intel_alloc_and_map(pI830, "textured video surface state", 4096,
+	if (intel_alloc_and_map(intel, "textured video surface state", 4096,
 				&surface_bo, &src_surf_state) != 0)
 		return NULL;
 
@@ -459,14 +459,14 @@ static drm_intel_bo *i965_create_binding_table(ScrnInfoPtr scrn,
 					       drm_intel_bo ** surf_bos,
 					       int n_surf)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bind_bo;
 	uint32_t *binding_table;
 	int i;
 
 	/* Set up a binding table for our surfaces.  Only the PS will use it */
 
-	if (intel_alloc_and_map(pI830, "textured video binding table", 4096,
+	if (intel_alloc_and_map(intel, "textured video binding table", 4096,
 				&bind_bo, &binding_table) != 0)
 		return NULL;
 
@@ -481,11 +481,11 @@ static drm_intel_bo *i965_create_binding_table(ScrnInfoPtr scrn,
 
 static drm_intel_bo *i965_create_sampler_state(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *sampler_bo;
 	struct brw_sampler_state *sampler_state;
 
-	if (intel_alloc_and_map(pI830, "textured video sampler state", 4096,
+	if (intel_alloc_and_map(intel, "textured video sampler state", 4096,
 				&sampler_bo, &sampler_state) != 0)
 		return NULL;
 
@@ -501,16 +501,16 @@ static drm_intel_bo *i965_create_sampler_state(ScrnInfoPtr scrn)
 
 static drm_intel_bo *i965_create_vs_state(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *vs_bo;
 	struct brw_vs_unit_state *vs_state;
 
-	if (intel_alloc_and_map(pI830, "textured video vs state", 4096,
+	if (intel_alloc_and_map(intel, "textured video vs state", 4096,
 				&vs_bo, &vs_state) != 0)
 		return NULL;
 
 	/* Set up the vertex shader to be disabled (passthrough) */
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES >> 2;
 	else
 		vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
@@ -526,10 +526,10 @@ static drm_intel_bo *i965_create_program(ScrnInfoPtr scrn,
 					 const uint32_t * program,
 					 unsigned int program_size)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *prog_bo;
 
-	prog_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video program",
+	prog_bo = drm_intel_bo_alloc(intel->bufmgr, "textured video program",
 				     program_size, 4096);
 	if (!prog_bo)
 		return NULL;
@@ -541,11 +541,11 @@ static drm_intel_bo *i965_create_program(ScrnInfoPtr scrn,
 
 static drm_intel_bo *i965_create_sf_state(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *sf_bo, *kernel_bo;
 	struct brw_sf_unit_state *sf_state;
 
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		kernel_bo =
 		    i965_create_program(scrn, &sf_kernel_static_gen5[0][0],
 					sizeof(sf_kernel_static_gen5));
@@ -556,7 +556,7 @@ static drm_intel_bo *i965_create_sf_state(ScrnInfoPtr scrn)
 	if (!kernel_bo)
 		return NULL;
 
-	if (intel_alloc_and_map(pI830, "textured video sf state", 4096,
+	if (intel_alloc_and_map(intel, "textured video sf state", 4096,
 				&sf_bo, &sf_state) != 0) {
 		drm_intel_bo_unreference(kernel_bo);
 		return NULL;
@@ -605,12 +605,12 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 					  drm_intel_bo * sampler_bo,
 					  Bool is_packed)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *wm_bo, *kernel_bo;
 	struct brw_wm_unit_state *wm_state;
 
 	if (is_packed) {
-		if (IS_IGDNG(pI830))
+		if (IS_IGDNG(intel))
 			kernel_bo =
 			    i965_create_program(scrn,
 						&ps_kernel_packed_static_gen5[0]
@@ -624,7 +624,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 						sizeof
 						(ps_kernel_packed_static));
 	} else {
-		if (IS_IGDNG(pI830))
+		if (IS_IGDNG(intel))
 			kernel_bo =
 			    i965_create_program(scrn,
 						&ps_kernel_planar_static_gen5[0]
@@ -642,7 +642,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 		return NULL;
 
 	if (intel_alloc_and_map
-	    (pI830, "textured video wm state", sizeof(*wm_state), &wm_bo,
+	    (intel, "textured video wm state", sizeof(*wm_state), &wm_bo,
 	     &wm_state)) {
 		drm_intel_bo_unreference(kernel_bo);
 		return NULL;
@@ -662,7 +662,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 	/* binding table entry count is only used for prefetching, and it has to
 	 * be set 0 for IGDNG
 	 */
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		wm_state->thread1.binding_table_entry_count = 0;
 
 	/* Though we never use the scratch space in our WM kernel, it has to be
@@ -680,7 +680,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 	    intel_emit_reloc(wm_bo, offsetof(struct brw_wm_unit_state, wm4),
 			     sampler_bo, 0,
 			     I915_GEM_DOMAIN_INSTRUCTION, 0) >> 5;
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		wm_state->wm4.sampler_count = 0;
 	else
 		wm_state->wm4.sampler_count = 1;	/* 1-4 samplers used */
@@ -698,11 +698,11 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 
 static drm_intel_bo *i965_create_cc_vp_state(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *cc_vp_bo;
 	struct brw_cc_viewport *cc_viewport;
 
-	if (intel_alloc_and_map(pI830, "textured video cc viewport", 4096,
+	if (intel_alloc_and_map(intel, "textured video cc viewport", 4096,
 				&cc_vp_bo, &cc_viewport) != 0)
 		return NULL;
 
@@ -715,7 +715,7 @@ static drm_intel_bo *i965_create_cc_vp_state(ScrnInfoPtr scrn)
 
 static drm_intel_bo *i965_create_cc_state(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *cc_bo, *cc_vp_bo;
 	struct brw_cc_unit_state *cc_state;
 
@@ -724,7 +724,7 @@ static drm_intel_bo *i965_create_cc_state(ScrnInfoPtr scrn)
 		return NULL;
 
 	if (intel_alloc_and_map
-	    (pI830, "textured video cc state", sizeof(*cc_state), &cc_bo,
+	    (intel, "textured video cc state", sizeof(*cc_state), &cc_bo,
 	     &cc_state) != 0) {
 		drm_intel_bo_unreference(cc_vp_bo);
 		return NULL;
@@ -757,7 +757,7 @@ static drm_intel_bo *i965_create_cc_state(ScrnInfoPtr scrn)
 static void
 i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo * bind_bo, int n_src_surf)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int urb_vs_start, urb_vs_size;
 	int urb_gs_start, urb_gs_size;
 	int urb_clip_start, urb_clip_size;
@@ -766,7 +766,7 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo * bind_bo, int n_src_surf)
 	int pipe_ctl;
 
 	IntelEmitInvarientState(pScrn);
-	pI830->last_3d = LAST_3D_VIDEO;
+	intel->last_3d = LAST_3D_VIDEO;
 
 	urb_vs_start = 0;
 	urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -787,12 +787,12 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo * bind_bo, int n_src_surf)
 	ADVANCE_BATCH();
 
 	/* brw_debug (pScrn, "before base address modify"); */
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		BEGIN_BATCH(14);
 	else
 		BEGIN_BATCH(12);
 	/* Match Mesa driver setup */
-	if (IS_G4X(pI830) || IS_IGDNG(pI830))
+	if (IS_G4X(intel) || IS_IGDNG(intel))
 		OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 		OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -805,7 +805,7 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo * bind_bo, int n_src_surf)
 	/* Zero out the two base address registers so all offsets are
 	 * absolute
 	 */
-	if (IS_IGDNG(pI830)) {
+	if (IS_IGDNG(intel)) {
 		OUT_BATCH(BRW_STATE_BASE_ADDRESS | 6);
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Surface state base address */
@@ -831,7 +831,7 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo * bind_bo, int n_src_surf)
 	/* Set system instruction pointer */
 	OUT_BATCH(BRW_STATE_SIP | 0);
 	/* system instruction pointer */
-	OUT_RELOC(pI830->video.gen4_sip_kernel_bo,
+	OUT_RELOC(intel->video.gen4_sip_kernel_bo,
 		  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 
 	OUT_BATCH(MI_NOOP);
@@ -839,7 +839,7 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo * bind_bo, int n_src_surf)
 
 	/* brw_debug (pScrn, "after base address modify"); */
 
-	if (IS_IGDNG(pI830))
+	if (IS_IGDNG(intel))
 		pipe_ctl = BRW_PIPE_CONTROL_NOWRITE;
 	else
 		pipe_ctl = BRW_PIPE_CONTROL_NOWRITE | BRW_PIPE_CONTROL_IS_FLUSH;
@@ -885,19 +885,19 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo * bind_bo, int n_src_surf)
 
 	/* Set the pointers to the 3d pipeline state */
 	OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-	OUT_RELOC(pI830->video.gen4_vs_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+	OUT_RELOC(intel->video.gen4_vs_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 	/* disable GS, resulting in passthrough */
 	OUT_BATCH(BRW_GS_DISABLE);
 	/* disable CLIP, resulting in passthrough */
 	OUT_BATCH(BRW_CLIP_DISABLE);
-	OUT_RELOC(pI830->video.gen4_sf_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+	OUT_RELOC(intel->video.gen4_sf_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 	if (n_src_surf == 1)
-		OUT_RELOC(pI830->video.gen4_wm_packed_bo,
+		OUT_RELOC(intel->video.gen4_wm_packed_bo,
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 	else
-		OUT_RELOC(pI830->video.gen4_wm_planar_bo,
+		OUT_RELOC(intel->video.gen4_wm_planar_bo,
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-	OUT_RELOC(pI830->video.gen4_cc_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+	OUT_RELOC(intel->video.gen4_cc_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 
 	/* URB fence */
 	OUT_BATCH(BRW_URB_FENCE |
@@ -916,7 +916,7 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo * bind_bo, int n_src_surf)
 
 	/* Set up our vertex elements, sourced from the single vertex buffer. */
 
-	if (IS_IGDNG(pI830)) {
+	if (IS_IGDNG(intel)) {
 		OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | 3);
 		/* offset 0: X,Y -> {X, Y, 1.0, 1.0} */
 		OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
@@ -984,7 +984,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 short src_w, short src_h,
 			 short drw_w, short drw_h, PixmapPtr pPixmap)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	BoxPtr pbox;
 	int nbox, dxo, dyo, pix_xoff, pix_yoff;
 	float src_scale_x, src_scale_y;
@@ -1087,55 +1087,55 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	if (!bind_bo)
 		return;
 
-	if (pI830->video.gen4_sampler_bo == NULL)
-		pI830->video.gen4_sampler_bo = i965_create_sampler_state(pScrn);
-	if (pI830->video.gen4_sip_kernel_bo == NULL) {
-		pI830->video.gen4_sip_kernel_bo =
+	if (intel->video.gen4_sampler_bo == NULL)
+		intel->video.gen4_sampler_bo = i965_create_sampler_state(pScrn);
+	if (intel->video.gen4_sip_kernel_bo == NULL) {
+		intel->video.gen4_sip_kernel_bo =
 		    i965_create_program(pScrn, &sip_kernel_static[0][0],
 					sizeof(sip_kernel_static));
-		if (!pI830->video.gen4_sip_kernel_bo) {
+		if (!intel->video.gen4_sip_kernel_bo) {
 			drm_intel_bo_unreference(bind_bo);
 			return;
 		}
 	}
 
-	if (pI830->video.gen4_vs_bo == NULL) {
-		pI830->video.gen4_vs_bo = i965_create_vs_state(pScrn);
-		if (!pI830->video.gen4_vs_bo) {
+	if (intel->video.gen4_vs_bo == NULL) {
+		intel->video.gen4_vs_bo = i965_create_vs_state(pScrn);
+		if (!intel->video.gen4_vs_bo) {
 			drm_intel_bo_unreference(bind_bo);
 			return;
 		}
 	}
-	if (pI830->video.gen4_sf_bo == NULL) {
-		pI830->video.gen4_sf_bo = i965_create_sf_state(pScrn);
-		if (!pI830->video.gen4_sf_bo) {
+	if (intel->video.gen4_sf_bo == NULL) {
+		intel->video.gen4_sf_bo = i965_create_sf_state(pScrn);
+		if (!intel->video.gen4_sf_bo) {
 			drm_intel_bo_unreference(bind_bo);
 			return;
 		}
 	}
-	if (pI830->video.gen4_wm_packed_bo == NULL) {
-		pI830->video.gen4_wm_packed_bo =
-		    i965_create_wm_state(pScrn, pI830->video.gen4_sampler_bo,
+	if (intel->video.gen4_wm_packed_bo == NULL) {
+		intel->video.gen4_wm_packed_bo =
+		    i965_create_wm_state(pScrn, intel->video.gen4_sampler_bo,
 					 TRUE);
-		if (!pI830->video.gen4_wm_packed_bo) {
+		if (!intel->video.gen4_wm_packed_bo) {
 			drm_intel_bo_unreference(bind_bo);
 			return;
 		}
 	}
 
-	if (pI830->video.gen4_wm_planar_bo == NULL) {
-		pI830->video.gen4_wm_planar_bo =
-		    i965_create_wm_state(pScrn, pI830->video.gen4_sampler_bo,
+	if (intel->video.gen4_wm_planar_bo == NULL) {
+		intel->video.gen4_wm_planar_bo =
+		    i965_create_wm_state(pScrn, intel->video.gen4_sampler_bo,
 					 FALSE);
-		if (!pI830->video.gen4_wm_planar_bo) {
+		if (!intel->video.gen4_wm_planar_bo) {
 			drm_intel_bo_unreference(bind_bo);
 			return;
 		}
 	}
 
-	if (pI830->video.gen4_cc_bo == NULL) {
-		pI830->video.gen4_cc_bo = i965_create_cc_state(pScrn);
-		if (!pI830->video.gen4_cc_bo) {
+	if (intel->video.gen4_cc_bo == NULL) {
+		intel->video.gen4_cc_bo = i965_create_cc_state(pScrn);
+		if (!intel->video.gen4_cc_bo) {
 			drm_intel_bo_unreference(bind_bo);
 			return;
 		}
@@ -1171,20 +1171,20 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 		float *vb;
 		drm_intel_bo *bo_table[] = {
 			NULL,	/* vb_bo */
-			pI830->batch_bo,
+			intel->batch_bo,
 			bind_bo,
-			pI830->video.gen4_sampler_bo,
-			pI830->video.gen4_sip_kernel_bo,
-			pI830->video.gen4_vs_bo,
-			pI830->video.gen4_sf_bo,
-			pI830->video.gen4_wm_packed_bo,
-			pI830->video.gen4_wm_planar_bo,
-			pI830->video.gen4_cc_bo,
+			intel->video.gen4_sampler_bo,
+			intel->video.gen4_sip_kernel_bo,
+			intel->video.gen4_vs_bo,
+			intel->video.gen4_sf_bo,
+			intel->video.gen4_wm_packed_bo,
+			intel->video.gen4_wm_planar_bo,
+			intel->video.gen4_cc_bo,
 		};
 
 		pbox++;
 
-		if (intel_alloc_and_map(pI830, "textured video vb", 4096,
+		if (intel_alloc_and_map(intel, "textured video vb", 4096,
 					&vb_bo, &vb) != 0)
 			break;
 		bo_table[0] = vb_bo;
@@ -1207,7 +1207,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
 		drm_intel_bo_unmap(vb_bo);
 
-		if (!IS_IGDNG(pI830))
+		if (!IS_IGDNG(intel))
 			i965_pre_draw_debug(pScrn);
 
 		/* If this command won't fit in the current batch, flush.
@@ -1230,7 +1230,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 		OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 			  VB0_VERTEXDATA | ((4 * 4) << VB0_BUFFER_PITCH_SHIFT));
 		OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
-		if (IS_IGDNG(pI830))
+		if (IS_IGDNG(intel))
 			OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
 				  (vb_bo->offset + i) * 4);
 		else
@@ -1251,7 +1251,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
 		drm_intel_bo_unreference(vb_bo);
 
-		if (!IS_IGDNG(pI830))
+		if (!IS_IGDNG(intel))
 			i965_post_draw_debug(pScrn);
 
 	}
@@ -1266,22 +1266,22 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
 void i965_free_video(ScrnInfoPtr scrn)
 {
-	I830Ptr pI830 = I830PTR(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	drm_intel_bo_unreference(pI830->video.gen4_vs_bo);
-	pI830->video.gen4_vs_bo = NULL;
-	drm_intel_bo_unreference(pI830->video.gen4_sf_bo);
-	pI830->video.gen4_sf_bo = NULL;
-	drm_intel_bo_unreference(pI830->video.gen4_cc_bo);
-	pI830->video.gen4_cc_bo = NULL;
-	drm_intel_bo_unreference(pI830->video.gen4_wm_packed_bo);
-	pI830->video.gen4_wm_packed_bo = NULL;
-	drm_intel_bo_unreference(pI830->video.gen4_wm_planar_bo);
-	pI830->video.gen4_wm_planar_bo = NULL;
-	drm_intel_bo_unreference(pI830->video.gen4_cc_vp_bo);
-	pI830->video.gen4_cc_vp_bo = NULL;
-	drm_intel_bo_unreference(pI830->video.gen4_sampler_bo);
-	pI830->video.gen4_sampler_bo = NULL;
-	drm_intel_bo_unreference(pI830->video.gen4_sip_kernel_bo);
-	pI830->video.gen4_sip_kernel_bo = NULL;
+	drm_intel_bo_unreference(intel->video.gen4_vs_bo);
+	intel->video.gen4_vs_bo = NULL;
+	drm_intel_bo_unreference(intel->video.gen4_sf_bo);
+	intel->video.gen4_sf_bo = NULL;
+	drm_intel_bo_unreference(intel->video.gen4_cc_bo);
+	intel->video.gen4_cc_bo = NULL;
+	drm_intel_bo_unreference(intel->video.gen4_wm_packed_bo);
+	intel->video.gen4_wm_packed_bo = NULL;
+	drm_intel_bo_unreference(intel->video.gen4_wm_planar_bo);
+	intel->video.gen4_wm_planar_bo = NULL;
+	drm_intel_bo_unreference(intel->video.gen4_cc_vp_bo);
+	intel->video.gen4_cc_vp_bo = NULL;
+	drm_intel_bo_unreference(intel->video.gen4_sampler_bo);
+	intel->video.gen4_sampler_bo = NULL;
+	drm_intel_bo_unreference(intel->video.gen4_sip_kernel_bo);
+	intel->video.gen4_sip_kernel_bo = NULL;
 }

@@ -58,7 +58,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *     only)
  *
  * The user may request a specific amount of memory to be used
- * (pI830->pEnt->videoRam != 0), in which case allocations have to fit within
+ * (intel->pEnt->videoRam != 0), in which case allocations have to fit within
  * that much aperture.  If not, the individual allocations will be
  * automatically sized, and will be fit within the maximum aperture size.
  * Only the actual memory used (not alignment padding) will get actual AGP
@@ -94,19 +94,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
  * Returns the fence size for a tiled area of the given size.
  */
-unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size)
+unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size)
 {
 	unsigned long i;
 	unsigned long start;
 
-	if (IS_I965G(pI830)) {
+	if (IS_I965G(intel)) {
 		/* The 965 can have fences at any page boundary. */
 		return ALIGN(size, GTT_PAGE_SIZE);
 	} else {
 		/* Align the size to a power of two greater than the smallest fence
 		 * size.
 		 */
-		if (IS_I9XX(pI830))
+		if (IS_I9XX(intel))
 			start = MB(1);
 		else
 			start = KB(512);
@@ -122,7 +122,7 @@ unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size)
  * calculate that here.
  */
 unsigned long
-i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format)
+i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch, int format)
 {
 	unsigned long i;
 	unsigned long tile_width = (format == I915_TILING_Y) ? 128 : 512;
@@ -131,7 +131,7 @@ i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format)
 		return pitch;
 
 	/* 965 is flexible */
-	if (IS_I965G(pI830))
+	if (IS_I965G(intel))
 		return ROUND_TO(pitch, tile_width);
 
 	/* Pre-965 needs power of two tile width */
@@ -144,29 +144,29 @@ i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format)
  * On some chips, pitch width has to be a power of two tile width, so
  * calculate that here.
  */
-static unsigned long i830_get_fence_alignment(I830Ptr pI830, unsigned long size)
+static unsigned long i830_get_fence_alignment(intel_screen_private *intel, unsigned long size)
 {
-	if (IS_I965G(pI830))
+	if (IS_I965G(intel))
 		return 4096;
 	else
-		return i830_get_fence_size(pI830, size);
+		return i830_get_fence_size(intel, size);
 }
 
 static Bool
 i830_check_display_stride(ScrnInfoPtr pScrn, int stride, Bool tiling)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int limit = KB(32);
 
 	/* 8xx spec has always 8K limit, but tests show larger limit in
 	   non-tiling mode, which makes large monitor work. */
-	if ((IS_845G(pI830) || IS_I85X(pI830)) && tiling)
+	if ((IS_845G(intel) || IS_I85X(intel)) && tiling)
 		limit = KB(8);
 
-	if (IS_I915(pI830) && tiling)
+	if (IS_I915(intel) && tiling)
 		limit = KB(8);
 
-	if (IS_I965G(pI830) && tiling)
+	if (IS_I965G(intel) && tiling)
 		limit = KB(16);
 
 	if (stride <= limit)
@@ -181,10 +181,10 @@ void i830_free_memory(ScrnInfoPtr pScrn, i830_memory * mem)
 		return;
 
 	if (mem->bo != NULL) {
-		I830Ptr pI830 = I830PTR(pScrn);
+		intel_screen_private *intel = intel_get_screen_private(pScrn);
 		dri_bo_unreference(mem->bo);
-		if (pI830->bo_list == mem) {
-			pI830->bo_list = mem->next;
+		if (intel->bo_list == mem) {
+			intel->bo_list = mem->next;
 			if (mem->next)
 				mem->next->prev = NULL;
 		} else {
@@ -212,27 +212,27 @@ void i830_free_memory(ScrnInfoPtr pScrn, i830_memory * mem)
  */
 void i830_reset_allocations(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	int p;
 
 	/* While there is any memory between the start and end markers, free it. */
-	while (pI830->memory_list->next->next != NULL) {
-		i830_memory *mem = pI830->memory_list->next;
+	while (intel->memory_list->next->next != NULL) {
+		i830_memory *mem = intel->memory_list->next;
 
 		i830_free_memory(pScrn, mem);
 	}
 
 	/* Free any allocations in buffer objects */
-	while (pI830->bo_list != NULL)
-		i830_free_memory(pScrn, pI830->bo_list);
+	while (intel->bo_list != NULL)
+		i830_free_memory(pScrn, intel->bo_list);
 
 	/* Null out the pointers for all the allocations we just freed.  This is
 	 * kind of gross, but at least it's just one place now.
 	 */
 	for (p = 0; p < 2; p++)
-		pI830->cursor_mem_argb[p] = NULL;
+		intel->cursor_mem_argb[p] = NULL;
 
-	pI830->front_buffer = NULL;
+	intel->front_buffer = NULL;
 }
 
 /**
@@ -246,7 +246,7 @@ void i830_reset_allocations(ScrnInfoPtr pScrn)
  */
 Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	i830_memory *start, *end;
 
 	start = xcalloc(1, sizeof(*start));
@@ -280,22 +280,22 @@ Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long size)
 	end->size = 0;
 	end->prev = start;
 
-	pI830->memory_list = start;
+	intel->memory_list = start;
 
 	return TRUE;
 }
 
 void i830_allocator_fini(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	/* Free most of the allocations */
 	i830_reset_allocations(pScrn);
 
 	/* Free the start/end markers */
-	free(pI830->memory_list->next);
-	free(pI830->memory_list);
-	pI830->memory_list = NULL;
+	free(intel->memory_list->next);
+	free(intel->memory_list);
+	intel->memory_list = NULL;
 }
 
 static i830_memory *i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
@@ -304,7 +304,7 @@ static i830_memory *i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 					    unsigned long align, int flags,
 					    enum tile_format tile_format)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	i830_memory *mem;
 	uint32_t bo_tiling_mode = I915_TILING_NONE;
 	int ret;
@@ -313,7 +313,7 @@ static i830_memory *i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 
 	/* Only allocate page-sized increments. */
 	size = ALIGN(size, GTT_PAGE_SIZE);
-	align = i830_get_fence_alignment(pI830, size);
+	align = i830_get_fence_alignment(intel, size);
 
 	mem = xcalloc(1, sizeof(*mem));
 	if (mem == NULL)
@@ -325,7 +325,7 @@ static i830_memory *i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 		return NULL;
 	}
 
-	mem->bo = dri_bo_alloc(pI830->bufmgr, name, size, align);
+	mem->bo = dri_bo_alloc(intel->bufmgr, name, size, align);
 
 	if (!mem->bo) {
 		xfree(mem->name);
@@ -369,10 +369,10 @@ static i830_memory *i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 
 	/* Insert new allocation into the list */
 	mem->prev = NULL;
-	mem->next = pI830->bo_list;
-	if (pI830->bo_list != NULL)
-		pI830->bo_list->prev = mem;
-	pI830->bo_list = mem;
+	mem->next = intel->bo_list;
+	if (intel->bo_list != NULL)
+		intel->bo_list->prev = mem;
+	intel->bo_list = mem;
 
 	return mem;
 }
@@ -401,7 +401,7 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 				  enum tile_format tile_format)
 {
 	i830_memory *mem;
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	/* Manage tile alignment and size constraints */
 	if (tile_format != TILE_NONE) {
@@ -409,7 +409,7 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 		size = ALIGN(size, GTT_PAGE_SIZE);
 
 		/* Check for maximum tiled region size */
-		if (IS_I9XX(pI830)) {
+		if (IS_I9XX(intel)) {
 			if (size > MB(128))
 				return NULL;
 		} else {
@@ -418,8 +418,8 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 		}
 
 		/* round to size necessary for the fence register to work */
-		size = i830_get_fence_size(pI830, size);
-		alignment = i830_get_fence_alignment(pI830, size);
+		size = i830_get_fence_size(intel, size);
+		alignment = i830_get_fence_alignment(intel, size);
 	}
 
 	return i830_allocate_memory_bo(pScrn, name, size,
@@ -431,16 +431,16 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 void
 i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	i830_memory *mem;
 
-	if (pI830->memory_list == NULL) {
+	if (intel->memory_list == NULL) {
 		xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 			       "%sMemory allocator not initialized\n", prefix);
 		return;
 	}
 
-	if (pI830->memory_list->next->next == NULL) {
+	if (intel->memory_list->next->next == NULL) {
 		xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 			       "%sNo memory allocations\n", prefix);
 		return;
@@ -449,7 +449,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		       "%sFixed memory allocation layout:\n", prefix);
 
-	for (mem = pI830->memory_list->next; mem->next != NULL; mem = mem->next) {
+	for (mem = intel->memory_list->next; mem->next != NULL; mem = mem->next) {
 		char phys_suffix[32] = "";
 		char *tile_suffix = "";
 
@@ -465,11 +465,11 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 	}
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		       "%s0x%08lx:            end of aperture\n",
-		       prefix, pI830->FbMapSize);
+		       prefix, intel->FbMapSize);
 
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		       "%sBO memory allocation layout:\n", prefix);
-	for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
+	for (mem = intel->bo_list; mem != NULL; mem = mem->next) {
 		char *tile_suffix = "";
 
 		if (mem->tiling == TILE_XMAJOR)
@@ -485,9 +485,9 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 
 static Bool IsTileable(ScrnInfoPtr pScrn, int pitch)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	if (IS_I965G(pI830)) {
+	if (IS_I965G(intel)) {
 		if (pitch / 512 * 512 == pitch && pitch <= KB(128))
 			return TRUE;
 		else
@@ -501,7 +501,7 @@ static Bool IsTileable(ScrnInfoPtr pScrn, int pitch)
 	switch (pitch) {
 	case 128:
 	case 256:
-		if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
+		if (IS_I945G(intel) || IS_I945GM(intel) || IS_G33CLASS(intel))
 			return TRUE;
 		else
 			return FALSE;
@@ -524,8 +524,8 @@ static Bool IsTileable(ScrnInfoPtr pScrn, int pitch)
  */
 i830_memory *i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
-	unsigned int pitch = pScrn->displayWidth * pI830->cpp;
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
+	unsigned int pitch = pScrn->displayWidth * intel->cpp;
 	unsigned long minspace;
 	int align;
 	long size, fb_height;
@@ -548,7 +548,7 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 
 	size = ROUND_TO_PAGE(pitch * fb_height);
 
-	if (pI830->tiling)
+	if (intel->tiling)
 		tile_format = TILE_XMAJOR;
 
 	if (!IsTileable(pScrn, pitch))
@@ -564,7 +564,7 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 	/* Attempt to allocate it tiled first if we have page flipping on. */
 	if (tile_format != TILE_NONE) {
 		/* XXX: probably not the case on 965 */
-		if (IS_I9XX(pI830))
+		if (IS_I9XX(intel))
 			align = MB(1);
 		else
 			align = KB(512);
@@ -586,7 +586,7 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 
 static Bool i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
@@ -596,12 +596,12 @@ static Bool i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 	 * bail back to software cursors everywhere
 	 */
 	for (i = 0; i < xf86_config->num_crtc; i++) {
-		pI830->cursor_mem_argb[i] =
+		intel->cursor_mem_argb[i] =
 		    i830_allocate_memory(pScrn, "ARGB cursor",
 					 HWCURSOR_SIZE_ARGB, PITCH_NONE,
 					 GTT_PAGE_SIZE, DISABLE_REUSE,
 					 TILE_NONE);
-		if (!pI830->cursor_mem_argb[i])
+		if (!intel->cursor_mem_argb[i])
 			return FALSE;
 
 	}
@@ -614,7 +614,7 @@ static Bool i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
  */
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
 	/* Next, allocate other fixed-size allocations we have. */
 	if (!i830_allocate_cursor_buffers(pScrn)) {
@@ -623,8 +623,8 @@ Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	pI830->front_buffer = i830_allocate_framebuffer(pScrn);
-	if (pI830->front_buffer == NULL)
+	intel->front_buffer = i830_allocate_framebuffer(pScrn);
+	if (intel->front_buffer == NULL)
 		return FALSE;
 
 	return TRUE;
@@ -634,26 +634,26 @@ Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn)
  * Called at EnterVT to grab the AGP GART and bind our allocations.
  *
  * In zaphod mode, this will walk the list trying to bind twice, since each
- * pI830 points to the same allocation list, but the bind_memory will just
+ * intel points to the same allocation list, but the bind_memory will just
  * no-op then.
  */
 Bool i830_bind_all_memory(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	if (pI830->memory_list == NULL)
+	if (intel->memory_list == NULL)
 		return TRUE;
 
 	int i;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	for (i = 0; i < xf86_config->num_crtc; i++)
 		drmmode_crtc_set_cursor_bo(xf86_config->crtc[i],
-					   pI830->cursor_mem_argb[i]->bo);
+					   intel->cursor_mem_argb[i]->bo);
 
 	i830_set_max_gtt_map_size(pScrn);
 
-	if (pI830->front_buffer)
-		pScrn->fbOffset = pI830->front_buffer->offset;
+	if (intel->front_buffer)
+		pScrn->fbOffset = intel->front_buffer->offset;
 
 	return TRUE;
 }
@@ -701,21 +701,21 @@ void i830_free_xvmc_buffer(ScrnInfoPtr pScrn, i830_memory * buffer)
 
 void i830_set_max_gtt_map_size(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 	struct drm_i915_gem_get_aperture aperture;
 	int ret;
 
 	/* Default low value in case it gets used during server init. */
-	pI830->max_gtt_map_size = 16 * 1024 * 1024;
+	intel->max_gtt_map_size = 16 * 1024 * 1024;
 
 	ret =
-	    ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+	    ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
 	if (ret == 0) {
 		/* Let objects up get bound up to the size where only 2 would fit in
 		 * the aperture, but then leave slop to account for alignment like
 		 * libdrm does.
 		 */
-		pI830->max_gtt_map_size =
+		intel->max_gtt_map_size =
 		    aperture.aper_available_size * 3 / 4 / 2;
 	}
 }

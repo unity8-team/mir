@@ -37,79 +37,79 @@ void intel_batch_teardown(ScrnInfoPtr pScrn);
 void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed);
 void intel_batch_wait_last(ScrnInfoPtr pScrn);
 
-static inline int intel_batch_space(I830Ptr pI830)
+static inline int intel_batch_space(intel_screen_private *intel)
 {
-	return (pI830->batch_bo->size - BATCH_RESERVED) - (pI830->batch_used);
+	return (intel->batch_bo->size - BATCH_RESERVED) - (intel->batch_used);
 }
 
 static inline void
-intel_batch_require_space(ScrnInfoPtr pScrn, I830Ptr pI830, GLuint sz)
+intel_batch_require_space(ScrnInfoPtr pScrn, intel_screen_private *intel, GLuint sz)
 {
-	assert(sz < pI830->batch_bo->size - 8);
-	if (intel_batch_space(pI830) < sz)
+	assert(sz < intel->batch_bo->size - 8);
+	if (intel_batch_space(intel) < sz)
 		intel_batch_flush(pScrn, FALSE);
 }
 
 static inline void intel_batch_start_atomic(ScrnInfoPtr pScrn, unsigned int sz)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	assert(!pI830->in_batch_atomic);
-	intel_batch_require_space(pScrn, pI830, sz * 4);
+	assert(!intel->in_batch_atomic);
+	intel_batch_require_space(pScrn, intel, sz * 4);
 
-	pI830->in_batch_atomic = TRUE;
-	pI830->batch_atomic_limit = pI830->batch_used + sz * 4;
+	intel->in_batch_atomic = TRUE;
+	intel->batch_atomic_limit = intel->batch_used + sz * 4;
 }
 
 static inline void intel_batch_end_atomic(ScrnInfoPtr pScrn)
 {
-	I830Ptr pI830 = I830PTR(pScrn);
+	intel_screen_private *intel = intel_get_screen_private(pScrn);
 
-	assert(pI830->in_batch_atomic);
-	assert(pI830->batch_used <= pI830->batch_atomic_limit);
-	pI830->in_batch_atomic = FALSE;
+	assert(intel->in_batch_atomic);
+	assert(intel->batch_used <= intel->batch_atomic_limit);
+	intel->in_batch_atomic = FALSE;
 }
 
-static inline void intel_batch_emit_dword(I830Ptr pI830, uint32_t dword)
+static inline void intel_batch_emit_dword(intel_screen_private *intel, uint32_t dword)
 {
-	assert(pI830->batch_ptr != NULL);
-	assert(intel_batch_space(pI830) >= 4);
-	*(uint32_t *) (pI830->batch_ptr + pI830->batch_used) = dword;
-	pI830->batch_used += 4;
+	assert(intel->batch_ptr != NULL);
+	assert(intel_batch_space(intel) >= 4);
+	*(uint32_t *) (intel->batch_ptr + intel->batch_used) = dword;
+	intel->batch_used += 4;
 }
 
 static inline void
-intel_batch_emit_reloc(I830Ptr pI830,
+intel_batch_emit_reloc(intel_screen_private *intel,
 		       dri_bo * bo,
 		       uint32_t read_domains,
 		       uint32_t write_domains, uint32_t delta)
 {
-	assert(intel_batch_space(pI830) >= 4);
-	*(uint32_t *) (pI830->batch_ptr + pI830->batch_used) =
+	assert(intel_batch_space(intel) >= 4);
+	*(uint32_t *) (intel->batch_ptr + intel->batch_used) =
 	    bo->offset + delta;
-	dri_bo_emit_reloc(pI830->batch_bo, read_domains, write_domains, delta,
-			  pI830->batch_used, bo);
-	pI830->batch_used += 4;
+	dri_bo_emit_reloc(intel->batch_bo, read_domains, write_domains, delta,
+			  intel->batch_used, bo);
+	intel->batch_used += 4;
 }
 
 static inline void
-intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap,
+intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pPixmap,
 			      uint32_t read_domains, uint32_t write_domain,
 			      uint32_t delta)
 {
 	dri_bo *bo = i830_get_pixmap_bo(pPixmap);
-	assert(pI830->batch_ptr != NULL);
-	assert(intel_batch_space(pI830) >= 4);
-	intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
+	assert(intel->batch_ptr != NULL);
+	assert(intel_batch_space(intel) >= 4);
+	intel_batch_emit_reloc(intel, bo, read_domains, write_domain, delta);
 }
 
-#define OUT_BATCH(dword) intel_batch_emit_dword(pI830, dword)
+#define OUT_BATCH(dword) intel_batch_emit_dword(intel, dword)
 
 #define OUT_RELOC(bo, read_domains, write_domains, delta) \
-	intel_batch_emit_reloc (pI830, bo, read_domains, write_domains, delta)
+	intel_batch_emit_reloc (intel, bo, read_domains, write_domains, delta)
 
 #define OUT_RELOC_PIXMAP(pPixmap, reads, write, delta)	\
-	intel_batch_emit_reloc_pixmap(pI830, pPixmap, reads, write, delta)
+	intel_batch_emit_reloc_pixmap(intel, pPixmap, reads, write, delta)
 
 union intfloat {
 	float f;
@@ -124,36 +124,36 @@ union intfloat {
 
 #define BEGIN_BATCH(n)							\
 do {									\
-	if (pI830->batch_emitting != 0)					\
+	if (intel->batch_emitting != 0)					\
 		FatalError("%s: BEGIN_BATCH called without closing "	\
 			   "ADVANCE_BATCH\n", __FUNCTION__);		\
-	intel_batch_require_space(pScrn, pI830, (n) * 4);		\
-	pI830->batch_emitting = (n) * 4;				\
-	pI830->batch_emit_start = pI830->batch_used;			\
+	intel_batch_require_space(pScrn, intel, (n) * 4);		\
+	intel->batch_emitting = (n) * 4;				\
+	intel->batch_emit_start = intel->batch_used;			\
 } while (0)
 
 #define ADVANCE_BATCH() do {						\
-	if (pI830->batch_emitting == 0)					\
+	if (intel->batch_emitting == 0)					\
 		FatalError("%s: ADVANCE_BATCH called with no matching "	\
 			   "BEGIN_BATCH\n", __FUNCTION__);		\
-	if (pI830->batch_used >						\
-	    pI830->batch_emit_start + pI830->batch_emitting)		\
+	if (intel->batch_used >						\
+	    intel->batch_emit_start + intel->batch_emitting)		\
 		FatalError("%s: ADVANCE_BATCH: exceeded allocation %d/%d\n ", \
 			   __FUNCTION__,				\
-			   pI830->batch_used - pI830->batch_emit_start,	\
-			   pI830->batch_emitting);			\
-	if (pI830->batch_used < pI830->batch_emit_start +		\
-	    pI830->batch_emitting)					\
+			   intel->batch_used - intel->batch_emit_start,	\
+			   intel->batch_emitting);			\
+	if (intel->batch_used < intel->batch_emit_start +		\
+	    intel->batch_emitting)					\
 		FatalError("%s: ADVANCE_BATCH: under-used allocation %d/%d\n ", \
 			   __FUNCTION__,				\
-			   pI830->batch_used - pI830->batch_emit_start,	\
-			   pI830->batch_emitting);			\
-	if ((pI830->batch_emitting > 8) &&				\
+			   intel->batch_used - intel->batch_emit_start,	\
+			   intel->batch_emitting);			\
+	if ((intel->batch_emitting > 8) &&				\
 	    (I810_DEBUG & DEBUG_ALWAYS_SYNC)) {				\
 		/* Note: not actually syncing, just flushing each batch. */ \
 		intel_batch_flush(pScrn, FALSE);			\
 	}								\
-	pI830->batch_emitting = 0;					\
+	intel->batch_emitting = 0;					\
 } while (0)
 
 #endif /* _INTEL_BATCHBUFFER_H */
