@@ -117,7 +117,7 @@ static struct formatinfo i965_tex_formats[] = {
 	{PICT_a8, BRW_SURFACEFORMAT_A8_UNORM},
 };
 
-static void i965_get_blend_cntl(int op, PicturePtr pMask, uint32_t dst_format,
+static void i965_get_blend_cntl(int op, PicturePtr mask, uint32_t dst_format,
 				uint32_t * sblend, uint32_t * dblend)
 {
 
@@ -138,7 +138,7 @@ static void i965_get_blend_cntl(int op, PicturePtr pMask, uint32_t dst_format,
 	 * the source blend factor is 0, and the source blend value is the mask
 	 * channels multiplied by the source picture's alpha.
 	 */
-	if (pMask && pMask->componentAlpha && PICT_FORMAT_RGB(pMask->format)
+	if (mask && mask->componentAlpha && PICT_FORMAT_RGB(mask->format)
 	    && i965_blend_op[op].src_alpha) {
 		if (*dblend == BRW_BLENDFACTOR_SRC_ALPHA) {
 			*dblend = BRW_BLENDFACTOR_SRC_COLOR;
@@ -149,11 +149,11 @@ static void i965_get_blend_cntl(int op, PicturePtr pMask, uint32_t dst_format,
 
 }
 
-static Bool i965_get_dest_format(PicturePtr pDstPicture, uint32_t * dst_format)
+static Bool i965_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 
-	switch (pDstPicture->format) {
+	switch (dest_picture->format) {
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
 		*dst_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
@@ -176,59 +176,59 @@ static Bool i965_get_dest_format(PicturePtr pDstPicture, uint32_t * dst_format)
 		break;
 	default:
 		I830FALLBACK("Unsupported dest format 0x%x\n",
-			     (int)pDstPicture->format);
+			     (int)dest_picture->format);
 	}
 
 	return TRUE;
 }
 
-static Bool i965_check_composite_texture(ScrnInfoPtr scrn, PicturePtr pPict,
+static Bool i965_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 					 int unit)
 {
-	if (pPict->repeatType > RepeatReflect)
+	if (picture->repeatType > RepeatReflect)
 		I830FALLBACK("extended repeat (%d) not supported\n",
-			     pPict->repeatType);
+			     picture->repeatType);
 
-	if (pPict->filter != PictFilterNearest &&
-	    pPict->filter != PictFilterBilinear) {
-		I830FALLBACK("Unsupported filter 0x%x\n", pPict->filter);
+	if (picture->filter != PictFilterNearest &&
+	    picture->filter != PictFilterBilinear) {
+		I830FALLBACK("Unsupported filter 0x%x\n", picture->filter);
 	}
 
-	if (pPict->pDrawable) {
+	if (picture->pDrawable) {
 		int w, h, i;
 
-		w = pPict->pDrawable->width;
-		h = pPict->pDrawable->height;
+		w = picture->pDrawable->width;
+		h = picture->pDrawable->height;
 		if ((w > 8192) || (h > 8192))
 			I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
 
 		for (i = 0;
 		     i < sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]);
 		     i++) {
-			if (i965_tex_formats[i].fmt == pPict->format)
+			if (i965_tex_formats[i].fmt == picture->format)
 				break;
 		}
 		if (i == sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]))
 			I830FALLBACK("Unsupported picture format 0x%x\n",
-				     (int)pPict->format);
+				     (int)picture->format);
 	}
 
 	return TRUE;
 }
 
 Bool
-i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		     PicturePtr pDstPicture)
+i965_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
+		     PicturePtr dest_picture)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	uint32_t tmp1;
 
 	/* Check for unsupported compositing operations. */
 	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0]))
 		I830FALLBACK("Unsupported Composite op 0x%x\n", op);
 
-	if (pMaskPicture && pMaskPicture->componentAlpha &&
-	    PICT_FORMAT_RGB(pMaskPicture->format)) {
+	if (mask_picture && mask_picture->componentAlpha &&
+	    PICT_FORMAT_RGB(mask_picture->format)) {
 		/* Check if it's component alpha that relies on a source alpha and on
 		 * the source value.  We can only get one of those into the single
 		 * source value that we get to blend with.
@@ -241,13 +241,13 @@ i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		}
 	}
 
-	if (!i965_check_composite_texture(scrn, pSrcPicture, 0))
+	if (!i965_check_composite_texture(scrn, source_picture, 0))
 		I830FALLBACK("Check Src picture texture\n");
-	if (pMaskPicture != NULL
-	    && !i965_check_composite_texture(scrn, pMaskPicture, 1))
+	if (mask_picture != NULL
+	    && !i965_check_composite_texture(scrn, mask_picture, 1))
 		I830FALLBACK("Check Mask picture texture\n");
 
-	if (!i965_get_dest_format(pDstPicture, &tmp1))
+	if (!i965_get_dest_format(dest_picture, &tmp1))
 		I830FALLBACK("Get Color buffer format\n");
 
 	return TRUE;
@@ -973,13 +973,13 @@ static drm_intel_bo *gen4_create_cc_unit_state(ScrnInfoPtr scrn)
 	return cc_state_bo;
 }
 
-static uint32_t i965_get_card_format(PicturePtr pPict)
+static uint32_t i965_get_card_format(PicturePtr picture)
 {
 	int i;
 
 	for (i = 0; i < sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]);
 	     i++) {
-		if (i965_tex_formats[i].fmt == pPict->format)
+		if (i965_tex_formats[i].fmt == picture->format)
 			break;
 	}
 	assert(i != sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]));
@@ -1021,7 +1021,7 @@ static sampler_state_extend_t sampler_state_extend_from_picture(int repeat_type)
  */
 static void
 i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
-			       PicturePtr pPicture, PixmapPtr pPixmap,
+			       PicturePtr picture, PixmapPtr pPixmap,
 			       Bool is_dst)
 {
 	struct brw_surface_state_padded *ss;
@@ -1039,11 +1039,11 @@ i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
 		uint32_t dst_format = 0;
 		Bool ret = TRUE;
 
-		ret = i965_get_dest_format(pPicture, &dst_format);
+		ret = i965_get_dest_format(picture, &dst_format);
 		assert(ret == TRUE);
 		local_ss.ss0.surface_format = dst_format;
 	} else {
-		local_ss.ss0.surface_format = i965_get_card_format(pPicture);
+		local_ss.ss0.surface_format = i965_get_card_format(picture);
 	}
 
 	local_ss.ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
@@ -1092,10 +1092,10 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	int op = composite_op->op;
-	PicturePtr pMaskPicture = intel->render_mask_picture;
-	PicturePtr pDstPicture = intel->render_dest_picture;
-	PixmapPtr pMask = intel->render_mask;
-	PixmapPtr pDst = intel->render_dest;
+	PicturePtr mask_picture = intel->render_mask_picture;
+	PicturePtr dest_picture = intel->render_dest_picture;
+	PixmapPtr mask = intel->render_mask;
+	PixmapPtr dest = intel->render_dest;
 	sampler_state_filter_t src_filter = composite_op->src_filter;
 	sampler_state_filter_t mask_filter = composite_op->mask_filter;
 	sampler_state_extend_t src_extend = composite_op->src_extend;
@@ -1125,7 +1125,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	urb_cs_start = urb_sf_start + urb_sf_size;
 	urb_cs_size = URB_CS_ENTRIES * URB_CS_ENTRY_SIZE;
 
-	i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
+	i965_get_blend_cntl(op, mask_picture, dest_picture->format,
 			    &src_blend, &dst_blend);
 
 	/* Begin the long sequence of commands needed to set up the 3D
@@ -1218,7 +1218,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		 */
 		OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);
 		OUT_BATCH(0x00000000);	/* ymin, xmin */
-		OUT_BATCH(DRAW_YMAX(pDst->drawable.height - 1) | DRAW_XMAX(pDst->drawable.width - 1));	/* ymax, xmax */
+		OUT_BATCH(DRAW_YMAX(dest->drawable.height - 1) | DRAW_XMAX(dest->drawable.width - 1));	/* ymax, xmax */
 		OUT_BATCH(0x00000000);	/* yorigin, xorigin */
 
 		/* skip the depth buffer */
@@ -1232,7 +1232,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 		OUT_BATCH(BRW_GS_DISABLE);	/* disable GS, resulting in passthrough */
 		OUT_BATCH(BRW_CLIP_DISABLE);	/* disable CLIP, resulting in passthrough */
-		if (pMask) {
+		if (mask) {
 			OUT_RELOC(render_state->sf_mask_state_bo,
 				  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 		} else {
@@ -1281,7 +1281,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		/*
 		 * number of extra parameters per vertex
 		 */
-		int nelem = pMask ? 2 : 1;
+		int nelem = mask ? 2 : 1;
 		/*
 		 * size of extra parameters:
 		 *  3 for homogenous (xyzw)
@@ -1302,7 +1302,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		}
 
 		if (IS_IGDNG(intel)) {
-			BEGIN_BATCH(pMask ? 9 : 7);
+			BEGIN_BATCH(mask ? 9 : 7);
 			/*
 			 * The reason to add this extra vertex element in the header is that
 			 * IGDNG has different vertex header definition and origin method to
@@ -1332,7 +1332,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 				  (BRW_VFCOMPONENT_STORE_0 <<
 				   VE1_VFCOMPONENT_3_SHIFT));
 		} else {
-			BEGIN_BATCH(pMask ? 7 : 5);
+			BEGIN_BATCH(mask ? 7 : 5);
 			/* Set up our vertex elements, sourced from the single vertex buffer.
 			 * that will be set up later.
 			 */
@@ -1379,7 +1379,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		else
 			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) | (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) | (w_component << VE1_VFCOMPONENT_2_SHIFT) | (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) | ((4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
 		/* u1, v1, w1 */
-		if (pMask) {
+		if (mask) {
 			OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID | (src_format << VE0_FORMAT_SHIFT) | (((2 + selem) * 4) << VE0_OFFSET_SHIFT));	/* vb offset in bytes */
 
 			if (IS_IGDNG(intel))
@@ -1429,11 +1429,11 @@ static Bool i965_composite_check_aperture(ScrnInfoPtr scrn)
 }
 
 Bool
-i965_prepare_composite(int op, PicturePtr pSrcPicture,
-		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
-		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
+i965_prepare_composite(int op, PicturePtr source_picture,
+		       PicturePtr mask_picture, PicturePtr dest_picture,
+		       PixmapPtr source, PixmapPtr mask, PixmapPtr dest)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
@@ -1441,23 +1441,23 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	drm_intel_bo *binding_table_bo, *surface_state_bo;
 
 	if (composite_op->src_filter < 0)
-		I830FALLBACK("Bad src filter 0x%x\n", pSrcPicture->filter);
+		I830FALLBACK("Bad src filter 0x%x\n", source_picture->filter);
 	composite_op->src_extend =
-	    sampler_state_extend_from_picture(pSrcPicture->repeatType);
+	    sampler_state_extend_from_picture(source_picture->repeatType);
 	if (composite_op->src_extend < 0)
-		I830FALLBACK("Bad src repeat 0x%x\n", pSrcPicture->repeatType);
+		I830FALLBACK("Bad src repeat 0x%x\n", source_picture->repeatType);
 
-	if (pMaskPicture) {
+	if (mask_picture) {
 		composite_op->mask_filter =
-		    sampler_state_filter_from_picture(pMaskPicture->filter);
+		    sampler_state_filter_from_picture(mask_picture->filter);
 		if (composite_op->mask_filter < 0)
 			I830FALLBACK("Bad mask filter 0x%x\n",
-				     pMaskPicture->filter);
+				     mask_picture->filter);
 		composite_op->mask_extend =
-		    sampler_state_extend_from_picture(pMaskPicture->repeatType);
+		    sampler_state_extend_from_picture(mask_picture->repeatType);
 		if (composite_op->mask_extend < 0)
 			I830FALLBACK("Bad mask repeat 0x%x\n",
-				     pMaskPicture->repeatType);
+				     mask_picture->repeatType);
 	} else {
 		composite_op->mask_filter = SAMPLER_STATE_FILTER_NEAREST;
 		composite_op->mask_extend = SAMPLER_STATE_EXTEND_NONE;
@@ -1473,14 +1473,14 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	}
 	/* Set up the state buffer for the destination surface */
 	i965_set_picture_surface_state(surface_state_bo, 0,
-				       pDstPicture, pDst, TRUE);
+				       dest_picture, dest, TRUE);
 	/* Set up the source surface state buffer */
 	i965_set_picture_surface_state(surface_state_bo, 1,
-				       pSrcPicture, pSrc, FALSE);
-	if (pMask) {
+				       source_picture, source, FALSE);
+	if (mask) {
 		/* Set up the mask surface state buffer */
 		i965_set_picture_surface_state(surface_state_bo, 2,
-					       pMaskPicture, pMask, FALSE);
+					       mask_picture, mask, FALSE);
 	}
 	dri_bo_unmap(surface_state_bo);
 
@@ -1508,7 +1508,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 					    sizeof(brw_surface_state_padded),
 					    I915_GEM_DOMAIN_INSTRUCTION, 0);
 
-	if (pMask) {
+	if (mask) {
 		binding_table[2] = intel_emit_reloc(binding_table_bo,
 						    2 * sizeof(uint32_t),
 						    surface_state_bo,
@@ -1525,38 +1525,38 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	drm_intel_bo_unreference(surface_state_bo);
 
 	composite_op->op = op;
-	intel->render_source_picture = pSrcPicture;
-	intel->render_mask_picture = pMaskPicture;
-	intel->render_dest_picture = pDstPicture;
-	intel->render_source = pSrc;
-	intel->render_mask = pMask;
-	intel->render_dest = pDst;
+	intel->render_source_picture = source_picture;
+	intel->render_mask_picture = mask_picture;
+	intel->render_dest_picture = dest_picture;
+	intel->render_source = source;
+	intel->render_mask = mask;
+	intel->render_dest = dest;
 	drm_intel_bo_unreference(composite_op->binding_table_bo);
 	composite_op->binding_table_bo = binding_table_bo;
 	composite_op->src_filter =
-	    sampler_state_filter_from_picture(pSrcPicture->filter);
+	    sampler_state_filter_from_picture(source_picture->filter);
 
-	intel->scale_units[0][0] = pSrc->drawable.width;
-	intel->scale_units[0][1] = pSrc->drawable.height;
+	intel->scale_units[0][0] = source->drawable.width;
+	intel->scale_units[0][1] = source->drawable.height;
 
-	intel->transform[0] = pSrcPicture->transform;
+	intel->transform[0] = source_picture->transform;
 	composite_op->is_affine = i830_transform_is_affine(intel->transform[0]);
 
-	if (!pMask) {
+	if (!mask) {
 		intel->transform[1] = NULL;
 		intel->scale_units[1][0] = -1;
 		intel->scale_units[1][1] = -1;
 	} else {
-		intel->transform[1] = pMaskPicture->transform;
-		intel->scale_units[1][0] = pMask->drawable.width;
-		intel->scale_units[1][1] = pMask->drawable.height;
+		intel->transform[1] = mask_picture->transform;
+		intel->scale_units[1][0] = mask->drawable.width;
+		intel->scale_units[1][1] = mask->drawable.height;
 		composite_op->is_affine |=
 		    i830_transform_is_affine(intel->transform[1]);
 	}
 
-	if (pMask) {
-		if (pMaskPicture->componentAlpha &&
-		    PICT_FORMAT_RGB(pMaskPicture->format)) {
+	if (mask) {
+		if (mask_picture->componentAlpha &&
+		    PICT_FORMAT_RGB(mask_picture->format)) {
 			if (i965_blend_op[op].src_alpha) {
 				if (composite_op->is_affine)
 					composite_op->wm_kernel =
@@ -1626,10 +1626,10 @@ static drm_intel_bo *i965_get_vb_space(ScrnInfoPtr scrn)
 }
 
 void
-i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
+i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	       int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	Bool has_mask;

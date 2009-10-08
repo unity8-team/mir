@@ -272,10 +272,10 @@ static void I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2Buffer2Ptr buffer)
 
 static void
 I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
-		   DRI2BufferPtr pDstBuffer, DRI2BufferPtr pSrcBuffer)
+		   DRI2BufferPtr destBuffer, DRI2BufferPtr sourceBuffer)
 {
-	I830DRI2BufferPrivatePtr srcPrivate = pSrcBuffer->driverPrivate;
-	I830DRI2BufferPrivatePtr dstPrivate = pDstBuffer->driverPrivate;
+	I830DRI2BufferPrivatePtr srcPrivate = sourceBuffer->driverPrivate;
+	I830DRI2BufferPrivatePtr dstPrivate = destBuffer->driverPrivate;
 	ScreenPtr pScreen = pDraw->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);

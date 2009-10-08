@@ -230,7 +230,6 @@ typedef struct intel_screen_private {
 
 	uxa_driver_t *uxa_driver;
 	Bool need_flush;
-	PixmapPtr pSrcPixmap;
 	int accel_pixmap_pitch_alignment;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
@@ -383,23 +382,23 @@ void i830_set_max_gtt_map_size(ScrnInfoPtr scrn);
 i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn);
 
 /* i830_render.c */
-Bool i830_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
-			  PicturePtr pDst);
-Bool i830_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
-			    PicturePtr pDst, PixmapPtr pSrcPixmap,
-			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+Bool i830_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
+			  PicturePtr dest);
+Bool i830_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
+			    PicturePtr dest, PixmapPtr sourcecPixmap,
+			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
 Bool i830_transform_is_affine(PictTransformPtr t);
 
-void i830_composite(PixmapPtr pDst, int srcX, int srcY,
+void i830_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
-void i830_done_composite(PixmapPtr pDst);
+void i830_done_composite(PixmapPtr dest);
 /* i915_render.c */
-Bool i915_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
-			  PicturePtr pDst);
-Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
-			    PicturePtr pDst, PixmapPtr pSrcPixmap,
-			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
-void i915_composite(PixmapPtr pDst, int srcX, int srcY,
+Bool i915_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
+			  PicturePtr dest);
+Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
+			    PicturePtr dest, PixmapPtr sourcecPixmap,
+			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
+void i915_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i915_batch_flush_notify(ScrnInfoPtr scrn);
 void i830_batch_flush_notify(ScrnInfoPtr scrn);
@@ -407,12 +406,12 @@ void i830_batch_flush_notify(ScrnInfoPtr scrn);
 unsigned int gen4_render_state_size(ScrnInfoPtr scrn);
 void gen4_render_state_init(ScrnInfoPtr scrn);
 void gen4_render_state_cleanup(ScrnInfoPtr scrn);
-Bool i965_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
-			  PicturePtr pDst);
-Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
-			    PicturePtr pDst, PixmapPtr pSrcPixmap,
-			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
-void i965_composite(PixmapPtr pDst, int srcX, int srcY,
+Bool i965_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
+			  PicturePtr dest);
+Bool i965_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
+			    PicturePtr dest, PixmapPtr sourcecPixmap,
+			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
+void i965_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
 void i965_batch_flush_notify(ScrnInfoPtr scrn);

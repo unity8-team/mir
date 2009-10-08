@@ -141,9 +141,9 @@ static struct formatinfo i830_tex_formats[] = {
 	{PICT_a8, MT_8BIT_A8},
 };
 
-static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t * dst_format)
+static Bool i830_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 {
-	switch (pDstPicture->format) {
+	switch (dest_picture->format) {
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
 		*dst_format = COLR_BUF_ARGB8888;
@@ -167,16 +167,16 @@ static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t * dst_format)
 			ScrnInfoPtr scrn;
 
 			scrn =
-			    xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+			    xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 			I830FALLBACK("Unsupported dest format 0x%x\n",
-				     (int)pDstPicture->format);
+				     (int)dest_picture->format);
 		}
 	}
 	*dst_format |= DSTORG_HORT_BIAS(0x8) | DSTORG_VERT_BIAS(0x8);
 	return TRUE;
 }
 
-static Bool i830_get_blend_cntl(ScrnInfoPtr scrn, int op, PicturePtr pMask,
+static Bool i830_get_blend_cntl(ScrnInfoPtr scrn, int op, PicturePtr mask,
 				uint32_t dst_format, uint32_t * blendctl)
 {
 	uint32_t sblend, dblend;
@@ -207,7 +207,7 @@ static Bool i830_get_blend_cntl(ScrnInfoPtr scrn, int op, PicturePtr pMask,
 	 * where the source blend factor is 0, and the source blend value is the
 	 * mask channels multiplied by the source picture's alpha.
 	 */
-	if (pMask && pMask->componentAlpha && PICT_FORMAT_RGB(pMask->format)
+	if (mask && mask->componentAlpha && PICT_FORMAT_RGB(mask->format)
 	    && i830_blend_op[op].src_alpha) {
 		if (dblend == BLENDFACTOR_SRC_ALPHA) {
 			dblend = BLENDFACTOR_SRC_COLR;
@@ -222,55 +222,55 @@ static Bool i830_get_blend_cntl(ScrnInfoPtr scrn, int op, PicturePtr pMask,
 	return TRUE;
 }
 
-static Bool i830_check_composite_texture(ScrnInfoPtr scrn, PicturePtr pPict,
+static Bool i830_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 					 int unit)
 {
-	if (pPict->repeatType > RepeatReflect)
+	if (picture->repeatType > RepeatReflect)
 		I830FALLBACK("Unsupported picture repeat %d\n",
-			     pPict->repeatType);
+			     picture->repeatType);
 
-	if (pPict->filter != PictFilterNearest &&
-	    pPict->filter != PictFilterBilinear) {
-		I830FALLBACK("Unsupported filter 0x%x\n", pPict->filter);
+	if (picture->filter != PictFilterNearest &&
+	    picture->filter != PictFilterBilinear) {
+		I830FALLBACK("Unsupported filter 0x%x\n", picture->filter);
 	}
 
-	if (pPict->pDrawable) {
+	if (picture->pDrawable) {
 		int w, h, i;
 
-		w = pPict->pDrawable->width;
-		h = pPict->pDrawable->height;
+		w = picture->pDrawable->width;
+		h = picture->pDrawable->height;
 		if ((w > 2048) || (h > 2048))
 			I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
 
 		for (i = 0;
 		     i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
 		     i++) {
-			if (i830_tex_formats[i].fmt == pPict->format)
+			if (i830_tex_formats[i].fmt == picture->format)
 				break;
 		}
 		if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
 			I830FALLBACK("Unsupported picture format 0x%x\n",
-				     (int)pPict->format);
+				     (int)picture->format);
 	}
 
 	return TRUE;
 }
 
-static uint32_t i8xx_get_card_format(PicturePtr pPict)
+static uint32_t i8xx_get_card_format(PicturePtr picture)
 {
 	int i;
 	for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
 	     i++) {
-		if (i830_tex_formats[i].fmt == pPict->format)
+		if (i830_tex_formats[i].fmt == picture->format)
 			return i830_tex_formats[i].card_fmt;
 	}
-	FatalError("Unsupported format type %d\n", pPict->format);
+	FatalError("Unsupported format type %d\n", picture->format);
 }
 
-static void i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
+static void i830_texture_setup(PicturePtr picture, PixmapPtr pPix, int unit)
 {
 
-	ScrnInfoPtr scrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, pitch, filter;
 	uint32_t wrap_mode;
@@ -279,16 +279,16 @@ static void i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	pitch = intel_get_pixmap_pitch(pPix);
 	intel->scale_units[unit][0] = pPix->drawable.width;
 	intel->scale_units[unit][1] = pPix->drawable.height;
-	intel->transform[unit] = pPict->transform;
+	intel->transform[unit] = picture->transform;
 
 	if (i830_transform_is_affine(intel->transform[unit]))
 		texcoordtype = TEXCOORDTYPE_CARTESIAN;
 	else
 		texcoordtype = TEXCOORDTYPE_HOMOGENEOUS;
 
-	format = i8xx_get_card_format(pPict);
+	format = i8xx_get_card_format(picture);
 
-	switch (pPict->repeatType) {
+	switch (picture->repeatType) {
 	case RepeatNone:
 		wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
 		break;
@@ -302,10 +302,10 @@ static void i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 		wrap_mode = TEXCOORDMODE_MIRROR;
 		break;
 	default:
-		FatalError("Unknown repeat type %d\n", pPict->repeatType);
+		FatalError("Unknown repeat type %d\n", picture->repeatType);
 	}
 
-	switch (pPict->filter) {
+	switch (picture->filter) {
 	case PictFilterNearest:
 		filter = ((FILTER_NEAREST << TM0S3_MAG_FILTER_SHIFT) |
 			  (FILTER_NEAREST << TM0S3_MIN_FILTER_SHIFT));
@@ -316,7 +316,7 @@ static void i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 		break;
 	default:
 		filter = 0;
-		FatalError("Bad filter 0x%x\n", pPict->filter);
+		FatalError("Bad filter 0x%x\n", picture->filter);
 	}
 	filter |= (MIPFILTER_NONE << TM0S3_MIP_FILTER_SHIFT);
 
@@ -368,18 +368,18 @@ static void i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 }
 
 Bool
-i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
-		     PicturePtr pDstPicture)
+i830_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
+		     PicturePtr dest_picture)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	uint32_t tmp1;
 
 	/* Check for unsupported compositing operations. */
 	if (op >= sizeof(i830_blend_op) / sizeof(i830_blend_op[0]))
 		I830FALLBACK("Unsupported Composite op 0x%x\n", op);
 
-	if (pMaskPicture != NULL && pMaskPicture->componentAlpha &&
-	    PICT_FORMAT_RGB(pMaskPicture->format)) {
+	if (mask_picture != NULL && mask_picture->componentAlpha &&
+	    PICT_FORMAT_RGB(mask_picture->format)) {
 		/* Check if it's component alpha that relies on a source alpha and on
 		 * the source value.  We can only get one of those into the single
 		 * source value that we get to blend with.
@@ -391,49 +391,49 @@ i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 			     "alpha and source value blending.\n");
 	}
 
-	if (!i830_check_composite_texture(scrn, pSrcPicture, 0))
+	if (!i830_check_composite_texture(scrn, source_picture, 0))
 		I830FALLBACK("Check Src picture texture\n");
-	if (pMaskPicture != NULL
-	    && !i830_check_composite_texture(scrn, pMaskPicture, 1))
+	if (mask_picture != NULL
+	    && !i830_check_composite_texture(scrn, mask_picture, 1))
 		I830FALLBACK("Check Mask picture texture\n");
 
-	if (!i830_get_dest_format(pDstPicture, &tmp1))
+	if (!i830_get_dest_format(dest_picture, &tmp1))
 		I830FALLBACK("Get Color buffer format\n");
 
 	return TRUE;
 }
 
 Bool
-i830_prepare_composite(int op, PicturePtr pSrcPicture,
-		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
-		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
+i830_prepare_composite(int op, PicturePtr source_picture,
+		       PicturePtr mask_picture, PicturePtr dest_picture,
+		       PixmapPtr source, PixmapPtr mask, PixmapPtr dest)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	intel->render_source_picture = pSrcPicture;
-	intel->render_source = pSrc;
-	intel->render_mask_picture = pMaskPicture;
-	intel->render_mask = pMask;
-	intel->render_dest_picture = pDstPicture;
-	intel->render_dest = pDst;
+	intel->render_source_picture = source_picture;
+	intel->render_source = source;
+	intel->render_mask_picture = mask_picture;
+	intel->render_mask = mask;
+	intel->render_dest_picture = dest_picture;
+	intel->render_dest = dest;
 
-	i830_exa_check_pitch_3d(pSrc);
-	if (pMask)
-		i830_exa_check_pitch_3d(pMask);
-	i830_exa_check_pitch_3d(pDst);
+	i830_exa_check_pitch_3d(source);
+	if (mask)
+		i830_exa_check_pitch_3d(mask);
+	i830_exa_check_pitch_3d(dest);
 
-	if (!i830_get_dest_format(pDstPicture, &intel->render_dest_format))
+	if (!i830_get_dest_format(dest_picture, &intel->render_dest_format))
 		return FALSE;
 
 	intel->dst_coord_adjust = 0;
 	intel->src_coord_adjust = 0;
 	intel->mask_coord_adjust = 0;
-	if (pSrcPicture->filter == PictFilterNearest)
+	if (source_picture->filter == PictFilterNearest)
 		intel->src_coord_adjust = 0.375;
-	if (pMask != NULL) {
+	if (mask != NULL) {
 		intel->mask_coord_adjust = 0;
-		if (pMaskPicture->filter == PictFilterNearest)
+		if (mask_picture->filter == PictFilterNearest)
 			intel->mask_coord_adjust = 0.375;
 	} else {
 		intel->transform[1] = NULL;
@@ -465,17 +465,17 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		    TB0A_OUTPUT_WRITE_CURRENT;
 
 		/* Get the source picture's channels into TBx_ARG1 */
-		if ((pMaskPicture != NULL &&
-		     pMaskPicture->componentAlpha &&
-		     PICT_FORMAT_RGB(pMaskPicture->format) &&
+		if ((mask_picture != NULL &&
+		     mask_picture->componentAlpha &&
+		     PICT_FORMAT_RGB(mask_picture->format) &&
 		     i830_blend_op[op].src_alpha)
-		    || pDstPicture->format == PICT_a8) {
+		    || dest_picture->format == PICT_a8) {
 			/* Producing source alpha value, so the first set of channels
 			 * is src.A instead of src.X.  We also do this if the destination
 			 * is a8, in which case src.G is what's written, and the other
 			 * channels are ignored.
 			 */
-			if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
+			if (PICT_FORMAT_A(source_picture->format) != 0) {
 				ablend |= TB0A_ARG1_SEL_TEXEL0;
 				cblend |=
 				    TB0C_ARG1_SEL_TEXEL0 |
@@ -485,30 +485,30 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 				cblend |= TB0C_ARG1_SEL_ONE;
 			}
 		} else {
-			if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
+			if (PICT_FORMAT_A(source_picture->format) != 0) {
 				ablend |= TB0A_ARG1_SEL_TEXEL0;
 			} else {
 				ablend |= TB0A_ARG1_SEL_ONE;
 			}
-			if (PICT_FORMAT_RGB(pSrcPicture->format) != 0)
+			if (PICT_FORMAT_RGB(source_picture->format) != 0)
 				cblend |= TB0C_ARG1_SEL_TEXEL0;
 			else
 				cblend |= TB0C_ARG1_SEL_ONE | TB0C_ARG1_INVERT;	/* 0.0 */
 		}
 
-		if (pMask) {
-			if (pDstPicture->format != PICT_a8 &&
-			    (pMaskPicture->componentAlpha &&
-			     PICT_FORMAT_RGB(pMaskPicture->format))) {
+		if (mask) {
+			if (dest_picture->format != PICT_a8 &&
+			    (mask_picture->componentAlpha &&
+			     PICT_FORMAT_RGB(mask_picture->format))) {
 				cblend |= TB0C_ARG2_SEL_TEXEL1;
 			} else {
-				if (PICT_FORMAT_A(pMaskPicture->format) != 0)
+				if (PICT_FORMAT_A(mask_picture->format) != 0)
 					cblend |= TB0C_ARG2_SEL_TEXEL1 |
 					    TB0C_ARG2_REPLICATE_ALPHA;
 				else
 					cblend |= TB0C_ARG2_SEL_ONE;
 			}
-			if (PICT_FORMAT_A(pMaskPicture->format) != 0)
+			if (PICT_FORMAT_A(mask_picture->format) != 0)
 				ablend |= TB0A_ARG2_SEL_TEXEL1;
 			else
 				ablend |= TB0A_ARG2_SEL_ONE;
@@ -518,7 +518,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 		}
 
 		if (!i830_get_blend_cntl
-		    (scrn, op, pMaskPicture, pDstPicture->format, &blendctl)) {
+		    (scrn, op, mask_picture, dest_picture->format, &blendctl)) {
 			return FALSE;
 		}
 
@@ -617,12 +617,12 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
  * This function is no longer shared between i830 and i915 generation code.
  */
 static void
-i830_emit_composite_primitive(PixmapPtr pDst,
+i830_emit_composite_primitive(PixmapPtr dest,
 			      int srcX, int srcY,
 			      int maskX, int maskY,
 			      int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	Bool is_affine_src, is_affine_mask = TRUE;
 	int per_vertex, num_floats;
@@ -801,10 +801,10 @@ i830_emit_composite_primitive(PixmapPtr pDst,
  * Do a single rectangle composite operation.
  */
 void
-i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
+i830_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	       int dstX, int dstY, int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	intel_batch_start_atomic(scrn, 58 +	/* invarient */
@@ -815,7 +815,7 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	if (intel->needs_render_state_emit)
 		i830_emit_composite_state(scrn);
 
-	i830_emit_composite_primitive(pDst, srcX, srcY, maskX, maskY, dstX,
+	i830_emit_composite_primitive(dest, srcX, srcY, maskX, maskY, dstX,
 				      dstY, w, h);
 
 	intel_batch_end_atomic(scrn);

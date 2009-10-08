@@ -236,34 +236,34 @@ static void i830_uxa_done_solid(PixmapPtr pPixmap)
  *   - support planemask using FULL_BLT_CMD?
  */
 static Bool
-i830_uxa_prepare_copy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
+i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		      int ydir, int alu, Pixel planemask)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
-		i830_get_pixmap_bo(pSrcPixmap),
-		i830_get_pixmap_bo(pDstPixmap),
+		i830_get_pixmap_bo(source),
+		i830_get_pixmap_bo(dest),
 	};
 
-	if (!UXA_PM_IS_SOLID(&pSrcPixmap->drawable, planemask))
+	if (!UXA_PM_IS_SOLID(&source->drawable, planemask))
 		I830FALLBACK("planemask is not solid");
 
-	if (pDstPixmap->drawable.bitsPerPixel < 8)
+	if (dest->drawable.bitsPerPixel < 8)
 		I830FALLBACK("under 8bpp pixmaps unsupported\n");
 
 	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
-	i830_exa_check_pitch_2d(pSrcPixmap);
-	i830_exa_check_pitch_2d(pDstPixmap);
+	i830_exa_check_pitch_2d(source);
+	i830_exa_check_pitch_2d(dest);
 
-	intel->pSrcPixmap = pSrcPixmap;
+	intel->render_source = source;
 
 	intel->BR[13] = I830CopyROP[alu] << 16;
 
-	switch (pSrcPixmap->drawable.bitsPerPixel) {
+	switch (source->drawable.bitsPerPixel) {
 	case 8:
 		break;
 	case 16:
@@ -277,10 +277,10 @@ i830_uxa_prepare_copy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 }
 
 static void
-i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
+i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	      int dst_y1, int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t cmd;
 	int dst_x2, dst_y2;
@@ -289,27 +289,27 @@ i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	dst_x2 = dst_x1 + w;
 	dst_y2 = dst_y1 + h;
 
-	dst_pitch = i830_pixmap_pitch(pDstPixmap);
-	src_pitch = i830_pixmap_pitch(intel->pSrcPixmap);
+	dst_pitch = i830_pixmap_pitch(dest);
+	src_pitch = i830_pixmap_pitch(intel->render_source);
 
 	{
 		BEGIN_BATCH(8);
 
 		cmd = XY_SRC_COPY_BLT_CMD;
 
-		if (pDstPixmap->drawable.bitsPerPixel == 32)
+		if (dest->drawable.bitsPerPixel == 32)
 			cmd |=
 			    XY_SRC_COPY_BLT_WRITE_ALPHA |
 			    XY_SRC_COPY_BLT_WRITE_RGB;
 
 		if (IS_I965G(intel)) {
-			if (i830_pixmap_tiled(pDstPixmap)) {
+			if (i830_pixmap_tiled(dest)) {
 				assert((dst_pitch % 512) == 0);
 				dst_pitch >>= 2;
 				cmd |= XY_SRC_COPY_BLT_DST_TILED;
 			}
 
-			if (i830_pixmap_tiled(intel->pSrcPixmap)) {
+			if (i830_pixmap_tiled(intel->render_source)) {
 				assert((src_pitch % 512) == 0);
 				src_pitch >>= 2;
 				cmd |= XY_SRC_COPY_BLT_SRC_TILED;
@@ -321,20 +321,20 @@ i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 		OUT_BATCH(intel->BR[13] | dst_pitch);
 		OUT_BATCH((dst_y1 << 16) | (dst_x1 & 0xffff));
 		OUT_BATCH((dst_y2 << 16) | (dst_x2 & 0xffff));
-		OUT_RELOC_PIXMAP(pDstPixmap, I915_GEM_DOMAIN_RENDER,
+		OUT_RELOC_PIXMAP(dest, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
 		OUT_BATCH((src_y1 << 16) | (src_x1 & 0xffff));
 		OUT_BATCH(src_pitch);
-		OUT_RELOC_PIXMAP(intel->pSrcPixmap, I915_GEM_DOMAIN_RENDER, 0,
+		OUT_RELOC_PIXMAP(intel->render_source, I915_GEM_DOMAIN_RENDER, 0,
 				 0);
 
 		ADVANCE_BATCH();
 	}
 }
 
-static void i830_uxa_done_copy(PixmapPtr pDstPixmap)
+static void i830_uxa_done_copy(PixmapPtr dest)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 
 	i830_debug_sync(scrn);
 }
@@ -344,9 +344,9 @@ static void i830_uxa_done_copy(PixmapPtr pDstPixmap)
  *
  * This is shared between i830 through i965.
  */
-void i830_done_composite(PixmapPtr pDst)
+void i830_done_composite(PixmapPtr dest)
 {
-	ScrnInfoPtr scrn = xf86Screens[pDst->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 
 	i830_debug_sync(scrn);
 }
