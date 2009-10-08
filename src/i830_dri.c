@@ -286,13 +286,13 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
 	    ? drawable : &dstPrivate->pixmap->drawable;
 	RegionPtr pCopyClip;
-	GCPtr pGC;
+	GCPtr gc;
 
-	pGC = GetScratchGC(drawable->depth, pScreen);
+	gc = GetScratchGC(drawable->depth, pScreen);
 	pCopyClip = REGION_CREATE(pScreen, NULL, 0);
 	REGION_COPY(pScreen, pCopyClip, pRegion);
-	(*pGC->funcs->ChangeClip) (pGC, CT_REGION, pCopyClip, 0);
-	ValidateGC(dst, pGC);
+	(*gc->funcs->ChangeClip) (gc, CT_REGION, pCopyClip, 0);
+	ValidateGC(dst, gc);
 
 	/* Wait for the scanline to be outside the region to be copied */
 	if (pixmap_is_scanout(get_drawable_pixmap(dst))
@@ -303,7 +303,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		int pipe = -1, event, load_scan_lines_pipe;
 		xf86CrtcPtr crtc;
 
-		box = REGION_EXTENTS(unused, pGC->pCompositeClip);
+		box = REGION_EXTENTS(unused, gc->pCompositeClip);
 		crtc = i830_covering_crtc(scrn, box, NULL, &crtcbox);
 
 		/* Make sure the CRTC is valid and this is the real front buffer */
@@ -339,12 +339,12 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		}
 	}
 
-	(*pGC->ops->CopyArea) (src, dst,
-			       pGC,
+	(*gc->ops->CopyArea) (src, dst,
+			       gc,
 			       0, 0,
 			       drawable->width, drawable->height,
 			       0, 0);
-	FreeScratchGC(pGC);
+	FreeScratchGC(gc);
 
 	/* Emit a flush of the rendering cache, or on the 965 and beyond
 	 * rendering results may not hit the framebuffer until significantly
