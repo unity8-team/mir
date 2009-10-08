@@ -122,12 +122,13 @@ unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long siz
  * calculate that here.
  */
 unsigned long
-i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch, int format)
+i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
+		     uint32_t tiling_mode)
 {
 	unsigned long i;
-	unsigned long tile_width = (format == I915_TILING_Y) ? 128 : 512;
+	unsigned long tile_width = (tiling_mode == I915_TILING_Y) ? 128 : 512;
 
-	if (format == TILE_NONE)
+	if (tiling_mode == I915_TILING_NONE)
 		return pitch;
 
 	/* 965 is flexible */
@@ -138,18 +139,6 @@ i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch, int forma
 	for (i = tile_width; i < pitch; i <<= 1) ;
 
 	return i;
-}
-
-/**
- * On some chips, pitch width has to be a power of two tile width, so
- * calculate that here.
- */
-static unsigned long i830_get_fence_alignment(intel_screen_private *intel, unsigned long size)
-{
-	if (IS_I965G(intel))
-		return 4096;
-	else
-		return i830_get_fence_size(intel, size);
 }
 
 static Bool
@@ -298,85 +287,6 @@ void i830_allocator_fini(ScrnInfoPtr scrn)
 	intel->memory_list = NULL;
 }
 
-static i830_memory *i830_allocate_memory_bo(ScrnInfoPtr scrn, const char *name,
-					    unsigned long size,
-					    unsigned long pitch,
-					    unsigned long align, int flags,
-					    enum tile_format tile_format)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	i830_memory *mem;
-	uint32_t bo_tiling_mode = I915_TILING_NONE;
-	int ret;
-
-	assert((flags & NEED_PHYSICAL_ADDR) == 0);
-
-	/* Only allocate page-sized increments. */
-	size = ALIGN(size, GTT_PAGE_SIZE);
-	align = i830_get_fence_alignment(intel, size);
-
-	mem = xcalloc(1, sizeof(*mem));
-	if (mem == NULL)
-		return NULL;
-
-	mem->name = xstrdup(name);
-	if (mem->name == NULL) {
-		xfree(mem);
-		return NULL;
-	}
-
-	mem->bo = dri_bo_alloc(intel->bufmgr, name, size, align);
-
-	if (!mem->bo) {
-		xfree(mem->name);
-		xfree(mem);
-		return NULL;
-	}
-
-	/* Give buffer obviously wrong offset/end until it's pinned. */
-	mem->offset = -1;
-	mem->end = -1;
-	mem->size = size;
-	mem->alignment = align;
-	mem->tiling = tile_format;
-	mem->pitch = pitch;
-
-	switch (tile_format) {
-	case TILE_XMAJOR:
-		bo_tiling_mode = I915_TILING_X;
-		break;
-	case TILE_YMAJOR:
-		bo_tiling_mode = I915_TILING_Y;
-		break;
-	case TILE_NONE:
-	default:
-		bo_tiling_mode = I915_TILING_NONE;
-		break;
-	}
-
-	ret = drm_intel_bo_set_tiling(mem->bo, &bo_tiling_mode, pitch);
-	if (ret != 0
-	    || (bo_tiling_mode == I915_TILING_NONE
-		&& tile_format != TILE_NONE)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to set tiling on %s: %s\n", mem->name,
-			   ret == 0 ? "rejected by kernel" : strerror(errno));
-		mem->tiling = TILE_NONE;
-	}
-
-	if (flags & DISABLE_REUSE)
-		drm_intel_bo_disable_reuse(mem->bo);
-
-	/* Insert new allocation into the list */
-	mem->prev = NULL;
-	mem->next = intel->bo_list;
-	if (intel->bo_list != NULL)
-		intel->bo_list->prev = mem;
-	intel->bo_list = mem;
-
-	return mem;
-}
-
 /* Allocates video memory at the given size, pitch, alignment and tile format.
  *
  * The memory will be bound automatically when the driver is in control of the
@@ -387,8 +297,6 @@ static i830_memory *i830_allocate_memory_bo(ScrnInfoPtr scrn, const char *name,
  * flags:
  * - NEED_PHYSICAL_ADDR: Allocates the memory physically contiguous, and return
  *   the bus address for that memory.
- * - ALIGN_BOTH_ENDS: after choosing the alignment, align the end offset to
- *   @alignment as well.
  * - NEED_NON-STOLEN: don't allow any part of the memory allocation to lie
  *   within stolen memory
  * - NEED_LIFETIME_FIXED: don't allow the buffer object to move throughout
@@ -397,14 +305,15 @@ static i830_memory *i830_allocate_memory_bo(ScrnInfoPtr scrn, const char *name,
  */
 i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 				  unsigned long size, unsigned long pitch,
-				  unsigned long alignment, int flags,
-				  enum tile_format tile_format)
+				  int flags, uint32_t tiling_mode)
 {
 	i830_memory *mem;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	uint32_t requested_tiling_mode = tiling_mode;
+	int ret;
 
 	/* Manage tile alignment and size constraints */
-	if (tile_format != TILE_NONE) {
+	if (tiling_mode != I915_TILING_NONE) {
 		/* Only allocate page-sized increments. */
 		size = ALIGN(size, GTT_PAGE_SIZE);
 
@@ -419,11 +328,54 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 
 		/* round to size necessary for the fence register to work */
 		size = i830_get_fence_size(intel, size);
-		alignment = i830_get_fence_alignment(intel, size);
 	}
 
-	return i830_allocate_memory_bo(scrn, name, size,
-				       pitch, alignment, flags, tile_format);
+	assert((flags & NEED_PHYSICAL_ADDR) == 0);
+
+	/* Only allocate page-sized increments. */
+	size = ALIGN(size, GTT_PAGE_SIZE);
+
+	mem = xcalloc(1, sizeof(*mem));
+	if (mem == NULL)
+		return NULL;
+
+	mem->name = xstrdup(name);
+	if (mem->name == NULL) {
+		xfree(mem);
+		return NULL;
+	}
+
+	mem->bo = dri_bo_alloc(intel->bufmgr, name, size, GTT_PAGE_SIZE);
+
+	if (!mem->bo) {
+		xfree(mem->name);
+		xfree(mem);
+		return NULL;
+	}
+
+	/* Give buffer obviously wrong offset/end until it's pinned. */
+	mem->offset = -1;
+	mem->end = -1;
+	mem->size = size;
+	mem->pitch = pitch;
+
+	ret = drm_intel_bo_set_tiling(mem->bo, &tiling_mode, pitch);
+	if (ret != 0 || tiling_mode != requested_tiling_mode) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Failed to set tiling on %s: %s\n", mem->name,
+			   ret == 0 ? "rejected by kernel" : strerror(errno));
+	}
+	mem->tiling_mode = tiling_mode;
+
+	if (flags & DISABLE_REUSE)
+		drm_intel_bo_disable_reuse(mem->bo);
+
+	/* Insert new allocation into the list */
+	mem->prev = NULL;
+	mem->next = intel->bo_list;
+	if (intel->bo_list != NULL)
+		intel->bo_list->prev = mem;
+	intel->bo_list = mem;
 
 	return mem;
 }
@@ -453,9 +405,9 @@ i830_describe_allocations(ScrnInfoPtr scrn, int verbosity, const char *prefix)
 		char phys_suffix[32] = "";
 		char *tile_suffix = "";
 
-		if (mem->tiling == TILE_XMAJOR)
+		if (mem->tiling_mode == I915_TILING_X)
 			tile_suffix = " X tiled";
-		else if (mem->tiling == TILE_YMAJOR)
+		else if (mem->tiling_mode == I915_TILING_Y)
 			tile_suffix = " Y tiled";
 
 		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
@@ -472,9 +424,9 @@ i830_describe_allocations(ScrnInfoPtr scrn, int verbosity, const char *prefix)
 	for (mem = intel->bo_list; mem != NULL; mem = mem->next) {
 		char *tile_suffix = "";
 
-		if (mem->tiling == TILE_XMAJOR)
+		if (mem->tiling_mode == I915_TILING_X)
 			tile_suffix = " X tiled";
-		else if (mem->tiling == TILE_YMAJOR)
+		else if (mem->tiling_mode == I915_TILING_Y)
 			tile_suffix = " Y tiled";
 
 		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
@@ -527,11 +479,10 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned int pitch = scrn->displayWidth * intel->cpp;
 	unsigned long minspace;
-	int align;
 	long size, fb_height;
 	int flags;
 	i830_memory *front_buffer = NULL;
-	enum tile_format tile_format = TILE_NONE;
+	uint32_t tiling_mode;
 
 	flags = ALLOW_SHARING | DISABLE_REUSE;
 
@@ -548,30 +499,21 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 
 	size = ROUND_TO_PAGE(pitch * fb_height);
 
-	if (intel->tiling)
-		tile_format = TILE_XMAJOR;
+	if (intel->tiling && IsTileable(scrn, pitch))
+		tiling_mode = I915_TILING_X;
+	else
+		tiling_mode = I915_TILING_NONE;
 
-	if (!IsTileable(scrn, pitch))
-		tile_format = TILE_NONE;
-
-	if (!i830_check_display_stride(scrn, pitch, tile_format != TILE_NONE)) {
+	if (!i830_check_display_stride(scrn, pitch,
+				       tiling_mode != I915_TILING_NONE)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Front buffer stride %d kB "
 			   "exceed display limit\n", pitch / 1024);
 		return NULL;
 	}
 
-	/* Attempt to allocate it tiled first if we have page flipping on. */
-	if (tile_format != TILE_NONE) {
-		/* XXX: probably not the case on 965 */
-		if (IS_I9XX(intel))
-			align = MB(1);
-		else
-			align = KB(512);
-	} else
-		align = KB(64);
 	front_buffer = i830_allocate_memory(scrn, "front buffer", size,
-					    pitch, align, flags, tile_format);
+					    pitch, flags, tiling_mode);
 
 	if (front_buffer == NULL) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -599,8 +541,7 @@ static Bool i830_allocate_cursor_buffers(ScrnInfoPtr scrn)
 		intel->cursor_mem_argb[i] =
 		    i830_allocate_memory(scrn, "ARGB cursor",
 					 HWCURSOR_SIZE_ARGB, PITCH_NONE,
-					 GTT_PAGE_SIZE, DISABLE_REUSE,
-					 TILE_NONE);
+					 DISABLE_REUSE, I915_TILING_NONE);
 		if (!intel->cursor_mem_argb[i])
 			return FALSE;
 
@@ -667,7 +608,7 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr scrn, const char *name,
 			       int flags)
 {
 	*buffer = i830_allocate_memory(scrn, name, size, PITCH_NONE,
-				       GTT_PAGE_SIZE, flags, TILE_NONE);
+				       flags, I915_TILING_NONE);
 
 	if (!*buffer) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,

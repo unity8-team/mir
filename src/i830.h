@@ -93,12 +93,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #define ALWAYS_SYNC 0
 #define ALWAYS_FLUSH 0
 
-enum tile_format {
-	TILE_NONE,
-	TILE_XMAJOR,
-	TILE_YMAJOR
-};
-
 #define PITCH_NONE 0
 
 /** Record of a linear allocation in the aperture. */
@@ -115,7 +109,7 @@ struct _i830_memory {
 	 */
 	unsigned long size;
 
-	enum tile_format tiling;
+	uint32_t tiling_mode;
 	/** Pitch value in bytes for tiled surfaces */
 	unsigned int pitch;
 
@@ -130,7 +124,6 @@ struct _i830_memory {
 	/** @} */
 
 	dri_bo *bo;
-	uint32_t alignment;
 	uint32_t gem_name;
 };
 
@@ -351,8 +344,7 @@ Bool i830_allocator_init(ScrnInfoPtr scrn, unsigned long size);
 void i830_allocator_fini(ScrnInfoPtr scrn);
 i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 				  unsigned long size, unsigned long pitch,
-				  unsigned long alignment, int flags,
-				  enum tile_format tile_format);
+				  int flags, uint32_t tile_format);
 void i830_describe_allocations(ScrnInfoPtr scrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr scrn);
@@ -376,7 +368,7 @@ int i830_pad_drawable_width(int width, int cpp);
 Bool i830_bind_all_memory(ScrnInfoPtr scrn);
 unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
-				   int format);
+				   uint32_t tiling_mode);
 void i830_set_max_gtt_map_size(ScrnInfoPtr scrn);
 
 i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn);
@@ -486,7 +478,6 @@ extern const int I830CopyROP[16];
 
 /* Flags for memory allocation function */
 #define NEED_PHYSICAL_ADDR		0x00000001
-#define ALIGN_BOTH_ENDS			0x00000002
 #define ALLOW_SHARING			0x00000010
 #define DISABLE_REUSE			0x00000020
 

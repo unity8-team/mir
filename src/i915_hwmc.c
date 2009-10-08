@@ -316,7 +316,7 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr scrn,
 				       I915XvMCContextPriv * ctxpriv)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int flags = ALIGN_BOTH_ENDS;
+	int flags = 0;
 
 	/* on 915G/GM, load indirect can only use physical address...sigh */
 	if (IS_I915G(intel) || IS_I915GM(intel))
@@ -354,7 +354,7 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr scrn,
 
 	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC]Correction Data Buffer",
 				       &(ctxpriv->mcCorrdata), 512 * 1024,
-				       ALIGN_BOTH_ENDS)) {
+				       0)) {
 		return FALSE;
 	}
 
@@ -595,7 +595,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 
 	if (!i830_allocate_xvmc_buffer(scrn, "XvMC surface",
 				       &(sfpriv->surface), bufsize,
-				       ALIGN_BOTH_ENDS)) {
+				       0)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] i915 : Failed to allocate XvMC surface space!\n");
 		xfree(sfpriv);
@@ -687,7 +687,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr scrn, XvMCSubpicturePtr pSubp,
 
 	if (!i830_allocate_xvmc_buffer(scrn, "XvMC surface",
 				       &(sfpriv->surface), bufsize,
-				       ALIGN_BOTH_ENDS)) {
+				       0)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[XvMC] I915XvMCCreateSurface: Failed to allocate XvMC surface space!\n");
 		xfree(sfpriv);

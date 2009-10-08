@@ -147,7 +147,7 @@ Bool intel_xvmc_init_batch(ScrnInfoPtr scrn)
 
 	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC] batch buffer",
 				       &(xvmc_driver->batch), size,
-				       ALIGN_BOTH_ENDS))
+				       0))
 		return FALSE;
 
 	if (drmAddMap(intel->drmSubFD,
