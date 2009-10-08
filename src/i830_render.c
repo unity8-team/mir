@@ -411,19 +411,19 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	ScrnInfoPtr scrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	intel->render_src_picture = pSrcPicture;
-	intel->render_src = pSrc;
+	intel->render_source_picture = pSrcPicture;
+	intel->render_source = pSrc;
 	intel->render_mask_picture = pMaskPicture;
 	intel->render_mask = pMask;
-	intel->render_dst_picture = pDstPicture;
-	intel->render_dst = pDst;
+	intel->render_dest_picture = pDstPicture;
+	intel->render_dest = pDst;
 
 	i830_exa_check_pitch_3d(pSrc);
 	if (pMask)
 		i830_exa_check_pitch_3d(pMask);
 	i830_exa_check_pitch_3d(pDst);
 
-	if (!i830_get_dest_format(pDstPicture, &intel->render_dst_format))
+	if (!i830_get_dest_format(pDstPicture, &intel->render_dest_format))
 		return FALSE;
 
 	intel->dst_coord_adjust = 0;
@@ -549,18 +549,18 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
 
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 	OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
-		  BUF_3D_PITCH(intel_get_pixmap_pitch(intel->render_dst)));
-	OUT_RELOC_PIXMAP(intel->render_dst,
+		  BUF_3D_PITCH(intel_get_pixmap_pitch(intel->render_dest)));
+	OUT_RELOC_PIXMAP(intel->render_dest,
 			 I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
 
 	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
-	OUT_BATCH(intel->render_dst_format);
+	OUT_BATCH(intel->render_dest_format);
 
 	OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
 	OUT_BATCH(0);
 	OUT_BATCH(0);		/* ymin, xmin */
-	OUT_BATCH(DRAW_YMAX(intel->render_dst->drawable.height - 1) |
-		  DRAW_XMAX(intel->render_dst->drawable.width - 1));
+	OUT_BATCH(DRAW_YMAX(intel->render_dest->drawable.height - 1) |
+		  DRAW_XMAX(intel->render_dest->drawable.width - 1));
 	OUT_BATCH(0);		/* yorig, xorig */
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
@@ -590,7 +590,7 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
 		  DISABLE_STENCIL_WRITE | ENABLE_TEX_CACHE |
 		  DISABLE_DITHER | ENABLE_COLOR_WRITE | DISABLE_DEPTH_WRITE);
 
-	if (i830_transform_is_affine(intel->render_src_picture->transform))
+	if (i830_transform_is_affine(intel->render_source_picture->transform))
 		texcoordfmt |= (TEXCOORDFMT_2D << 0);
 	else
 		texcoordfmt |= (TEXCOORDFMT_3D << 0);
@@ -605,7 +605,7 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
 
 	ADVANCE_BATCH();
 
-	i830_texture_setup(intel->render_src_picture, intel->render_src, 0);
+	i830_texture_setup(intel->render_source_picture, intel->render_source, 0);
 	if (intel->render_mask) {
 		i830_texture_setup(intel->render_mask_picture,
 				   intel->render_mask, 1);

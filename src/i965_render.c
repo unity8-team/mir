@@ -581,12 +581,6 @@ typedef float gen4_vertex_buffer[VERTEX_BUFFER_SIZE];
 
 typedef struct gen4_composite_op {
 	int op;
-	PicturePtr source_picture;
-	PicturePtr mask_picture;
-	PicturePtr dest_picture;
-	PixmapPtr source;
-	PixmapPtr mask;
-	PixmapPtr dest;
 	drm_intel_bo *binding_table_bo;
 	sampler_state_filter_t src_filter;
 	sampler_state_filter_t mask_filter;
@@ -616,8 +610,6 @@ struct gen4_render_state {
 
 	int vb_offset;
 	int vertex_size;
-
-	Bool needs_state_emit;
 };
 
 /**
@@ -1100,10 +1092,10 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	int op = composite_op->op;
-	PicturePtr pMaskPicture = composite_op->mask_picture;
-	PicturePtr pDstPicture = composite_op->dest_picture;
-	PixmapPtr pMask = composite_op->mask;
-	PixmapPtr pDst = composite_op->dest;
+	PicturePtr pMaskPicture = intel->render_mask_picture;
+	PicturePtr pDstPicture = intel->render_dest_picture;
+	PixmapPtr pMask = intel->render_mask;
+	PixmapPtr pDst = intel->render_dest;
 	sampler_state_filter_t src_filter = composite_op->src_filter;
 	sampler_state_filter_t mask_filter = composite_op->mask_filter;
 	sampler_state_extend_t src_extend = composite_op->src_extend;
@@ -1117,7 +1109,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	uint32_t src_blend, dst_blend;
 	dri_bo *binding_table_bo = composite_op->binding_table_bo;
 
-	render_state->needs_state_emit = FALSE;
+	intel->needs_render_state_emit = FALSE;
 
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
@@ -1533,12 +1525,12 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	drm_intel_bo_unreference(surface_state_bo);
 
 	composite_op->op = op;
-	composite_op->source_picture = pSrcPicture;
-	composite_op->mask_picture = pMaskPicture;
-	composite_op->dest_picture = pDstPicture;
-	composite_op->source = pSrc;
-	composite_op->mask = pMask;
-	composite_op->dest = pDst;
+	intel->render_source_picture = pSrcPicture;
+	intel->render_mask_picture = pMaskPicture;
+	intel->render_dest_picture = pDstPicture;
+	intel->render_source = pSrc;
+	intel->render_mask = pMask;
+	intel->render_dest = pDst;
 	drm_intel_bo_unreference(composite_op->binding_table_bo);
 	composite_op->binding_table_bo = binding_table_bo;
 	composite_op->src_filter =
@@ -1602,7 +1594,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 			    ("Couldn't fit render operation in aperture\n");
 	}
 
-	render_state->needs_state_emit = TRUE;
+	intel->needs_render_state_emit = TRUE;
 
 	return TRUE;
 }
@@ -1770,7 +1762,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 		intel_batch_flush(scrn, FALSE);
 
 	intel_batch_start_atomic(scrn, 200);
-	if (render_state->needs_state_emit)
+	if (intel->needs_render_state_emit)
 		i965_emit_composite_state(scrn);
 
 	BEGIN_BATCH(12);
@@ -1821,7 +1813,7 @@ void i965_batch_flush_notify(ScrnInfoPtr scrn)
 		render_state->vertex_buffer_bo = NULL;
 	}
 
-	render_state->needs_state_emit = TRUE;
+	intel->needs_render_state_emit = TRUE;
 }
 
 /**

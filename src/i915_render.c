@@ -329,12 +329,12 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 		i830_get_pixmap_bo(pDst),
 	};
 
-	intel->render_src_picture = pSrcPicture;
-	intel->render_src = pSrc;
+	intel->render_source_picture = pSrcPicture;
+	intel->render_source = pSrc;
 	intel->render_mask_picture = pMaskPicture;
 	intel->render_mask = pMask;
-	intel->render_dst_picture = pDstPicture;
-	intel->render_dst = pDst;
+	intel->render_dest_picture = pDstPicture;
+	intel->render_dest = pDst;
 
 	i830_exa_check_pitch_3d(pSrc);
 	if (pMask)
@@ -369,7 +369,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	}
 
 	intel->i915_render_state.op = op;
-	intel->i915_render_state.needs_emit = TRUE;
+	intel->needs_render_state_emit = TRUE;
 
 	return TRUE;
 }
@@ -378,19 +378,19 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int op = intel->i915_render_state.op;
-	PicturePtr pSrcPicture = intel->render_src_picture;
+	PicturePtr pSrcPicture = intel->render_source_picture;
 	PicturePtr pMaskPicture = intel->render_mask_picture;
-	PicturePtr pDstPicture = intel->render_dst_picture;
-	PixmapPtr pSrc = intel->render_src;
+	PicturePtr pDstPicture = intel->render_dest_picture;
+	PixmapPtr pSrc = intel->render_source;
 	PixmapPtr pMask = intel->render_mask;
-	PixmapPtr pDst = intel->render_dst;
+	PixmapPtr pDst = intel->render_dest;
 	uint32_t dst_format = intel->i915_render_state.dst_format, dst_pitch;
 	uint32_t blendctl;
 	int out_reg = FS_OC;
 	FS_LOCALS(20);
 	Bool is_affine_src, is_affine_mask;
 
-	intel->i915_render_state.needs_emit = FALSE;
+	intel->needs_render_state_emit = FALSE;
 
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
@@ -760,7 +760,7 @@ i915_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
 	intel_batch_start_atomic(scrn, 150);
 
-	if (intel->i915_render_state.needs_emit)
+	if (intel->needs_render_state_emit)
 		i915_emit_composite_setup(scrn);
 
 	i915_emit_composite_primitive(pDst, srcX, srcY, maskX, maskY, dstX,
@@ -773,5 +773,5 @@ void i915_batch_flush_notify(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	intel->i915_render_state.needs_emit = TRUE;
+	intel->needs_render_state_emit = TRUE;
 }

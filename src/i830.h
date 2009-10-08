@@ -265,11 +265,12 @@ typedef struct intel_screen_private {
 	float src_coord_adjust;
 	float mask_coord_adjust;
 
-	/* i830 render accel state */
-	PixmapPtr render_src, render_mask, render_dst;
-	PicturePtr render_src_picture, render_mask_picture, render_dst_picture;
-	uint32_t render_dst_format;
+	PixmapPtr render_source, render_mask, render_dest;
+	PicturePtr render_source_picture, render_mask_picture, render_dest_picture;
 	Bool needs_render_state_emit;
+
+	/* i830 render accel state */
+	uint32_t render_dest_format;
 	uint32_t cblend, ablend, s8_blendctl;
 
 	/* i915 render accel state */
@@ -279,7 +280,6 @@ typedef struct intel_screen_private {
 	struct {
 		int op;
 		uint32_t dst_format;
-		Bool needs_emit;
 	} i915_render_state;
 
 	/* 965 render acceleration state */
