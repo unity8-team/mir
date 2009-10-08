@@ -366,9 +366,9 @@ drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 #endif
 }
 
-void I830InitVideo(ScreenPtr pScreen)
+void I830InitVideo(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
@@ -401,7 +401,7 @@ void I830InitVideo(ScreenPtr pScreen)
 	 */
 	if (scrn->bitsPerPixel >= 16 && (IS_I9XX(intel) || IS_I965G(intel)) &&
 	    !(!IS_I965G(intel) && scrn->displayWidth > 2048)) {
-		texturedAdaptor = I830SetupImageVideoTextured(pScreen);
+		texturedAdaptor = I830SetupImageVideoTextured(screen);
 		if (texturedAdaptor != NULL) {
 			xf86DrvMsg(scrn->scrnIndex, X_INFO,
 				   "Set up textured video\n");
@@ -415,7 +415,7 @@ void I830InitVideo(ScreenPtr pScreen)
 	if (!OVERLAY_NOEXIST(intel) && scrn->bitsPerPixel != 8) {
 		intel->use_drmmode_overlay = drmmode_has_overlay(scrn);
 		if (intel->use_drmmode_overlay) {
-			overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
+			overlayAdaptor = I830SetupImageVideoOverlay(screen);
 			if (overlayAdaptor != NULL) {
 				xf86DrvMsg(scrn->scrnIndex, X_INFO,
 					   "Set up overlay video\n");
@@ -439,12 +439,12 @@ void I830InitVideo(ScreenPtr pScreen)
 	if (intel_xvmc_probe(scrn)) {
 		if (texturedAdaptor)
 			xvmc_status =
-			    intel_xvmc_driver_init(pScreen, texturedAdaptor);
+			    intel_xvmc_driver_init(screen, texturedAdaptor);
 	}
 #endif
 
 	if (num_adaptors) {
-		xf86XVScreenInit(pScreen, adaptors, num_adaptors);
+		xf86XVScreenInit(screen, adaptors, num_adaptors);
 	} else {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Disabling Xv because no adaptors could be initialized.\n");
@@ -453,7 +453,7 @@ void I830InitVideo(ScreenPtr pScreen)
 
 #ifdef INTEL_XVMC
 	if (xvmc_status)
-		intel_xvmc_screen_init(pScreen);
+		intel_xvmc_screen_init(screen);
 #endif
 	xfree(adaptors);
 }
@@ -464,9 +464,9 @@ void I830InitVideo(ScreenPtr pScreen)
 #define PFIT_AUTOSCALE_RATIO 0x61238
 #define PFIT_PROGRAMMED_SCALE_RATIO 0x61234
 
-static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
+static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr adapt;
 	intel_adaptor_private *adaptor_priv;
@@ -549,7 +549,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	adaptor_priv->rotation = RR_Rotate_0;
 
 	/* gotta uninit this someplace */
-	REGION_NULL(pScreen, &adaptor_priv->clip);
+	REGION_NULL(screen, &adaptor_priv->clip);
 
 	intel->adaptor = adapt;
 
@@ -588,7 +588,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr pScreen)
 	return adapt;
 }
 
-static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr pScreen)
+static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 {
 	XF86VideoAdaptorPtr adapt;
 	XF86AttributePtr attrs;
@@ -653,7 +653,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr pScreen)
 		adaptor_priv->SyncToVblank = 1;
 
 		/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
-		REGION_NULL(pScreen, &adaptor_priv->clip);
+		REGION_NULL(screen, &adaptor_priv->clip);
 
 		adapt->pPortPrivates[i].ptr = (pointer) (adaptor_priv);
 	}
@@ -1320,9 +1320,9 @@ i830_clip_video_helper(ScrnInfoPtr scrn,
 
 		/* For textured video, we don't actually want to clip at all. */
 		if (crtc && !adaptor_priv->textured) {
-			REGION_INIT(pScreen, &crtc_region_local, &crtc_box, 1);
+			REGION_INIT(screen, &crtc_region_local, &crtc_box, 1);
 			crtc_region = &crtc_region_local;
-			REGION_INTERSECT(pScreen, crtc_region, crtc_region,
+			REGION_INTERSECT(screen, crtc_region, crtc_region,
 					 reg);
 		}
 		*crtc_ret = crtc;
@@ -1330,24 +1330,24 @@ i830_clip_video_helper(ScrnInfoPtr scrn,
 	ret = xf86XVClipVideoHelper(dst, xa, xb, ya, yb,
 				    crtc_region, width, height);
 	if (crtc_region != reg)
-		REGION_UNINIT(pScreen, &crtc_region_local);
+		REGION_UNINIT(screen, &crtc_region_local);
 	return ret;
 }
 
 static void
-i830_fill_colorkey(ScreenPtr pScreen, uint32_t key, RegionPtr clipboxes)
+i830_fill_colorkey(ScreenPtr screen, uint32_t key, RegionPtr clipboxes)
 {
-	DrawablePtr root = &WindowTable[pScreen->myNum]->drawable;
+	DrawablePtr root = &WindowTable[screen->myNum]->drawable;
 	XID pval[2];
 	BoxPtr pbox = REGION_RECTS(clipboxes);
 	int i, nbox = REGION_NUM_RECTS(clipboxes);
 	xRectangle *rects;
 	GCPtr gc;
 
-	if (!xf86Screens[pScreen->myNum]->vtSema)
+	if (!xf86Screens[screen->myNum]->vtSema)
 		return;
 
-	gc = GetScratchGC(root->depth, pScreen);
+	gc = GetScratchGC(root->depth, screen);
 	pval[0] = key;
 	pval[1] = IncludeInferiors;
 	(void)ChangeGC(gc, GCForeground | GCSubwindowMode, pval);
@@ -1604,7 +1604,7 @@ I830PutImage(ScrnInfoPtr scrn,
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
-	ScreenPtr pScreen = screenInfo.screens[scrn->scrnIndex];
+	ScreenPtr screen = screenInfo.screens[scrn->scrnIndex];
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	INT32 x1, x2, y1, y2;
 	int dstPitch;
@@ -1672,7 +1672,7 @@ I830PutImage(ScrnInfoPtr scrn,
 		/* update cliplist */
 		if (!REGION_EQUAL(scrn->pScreen, &adaptor_priv->clip, clipBoxes)) {
 			REGION_COPY(scrn->pScreen, &adaptor_priv->clip, clipBoxes);
-			i830_fill_colorkey(pScreen, adaptor_priv->colorKey, clipBoxes);
+			i830_fill_colorkey(screen, adaptor_priv->colorKey, clipBoxes);
 		}
 	} else {
 		if (crtc && adaptor_priv->SyncToVblank != 0) {

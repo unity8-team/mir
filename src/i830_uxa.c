@@ -644,22 +644,22 @@ static Bool i830_uxa_destroy_pixmap(PixmapPtr pixmap)
 	return TRUE;
 }
 
-void i830_uxa_create_screen_resources(ScreenPtr pScreen)
+void i830_uxa_create_screen_resources(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo = intel->front_buffer->bo;
 
 	if (bo != NULL) {
-		PixmapPtr pixmap = pScreen->GetScreenPixmap(pScreen);
+		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
 		i830_uxa_set_pixmap_bo(pixmap, bo);
 		dri_bo_reference(bo);
 	}
 }
 
-Bool i830_uxa_init(ScreenPtr pScreen)
+Bool i830_uxa_init(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (!dixRequestPrivate(&uxa_pixmap_index, 0))
@@ -708,17 +708,17 @@ Bool i830_uxa_init(ScreenPtr pScreen)
 	intel->uxa_driver->finish_access = i830_uxa_finish_access;
 	intel->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
 
-	if (!uxa_driver_init(pScreen, intel->uxa_driver)) {
+	if (!uxa_driver_init(screen, intel->uxa_driver)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "UXA initialization failed\n");
 		xfree(intel->uxa_driver);
 		return FALSE;
 	}
 
-	pScreen->CreatePixmap = i830_uxa_create_pixmap;
-	pScreen->DestroyPixmap = i830_uxa_destroy_pixmap;
+	screen->CreatePixmap = i830_uxa_create_pixmap;
+	screen->DestroyPixmap = i830_uxa_destroy_pixmap;
 
-	uxa_set_fallback_debug(pScreen, intel->fallback_debug);
+	uxa_set_fallback_debug(screen, intel->fallback_debug);
 
 	return TRUE;
 }

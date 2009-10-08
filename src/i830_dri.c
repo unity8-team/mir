@@ -83,8 +83,8 @@ static DRI2BufferPtr
 I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		      int count)
 {
-	ScreenPtr pScreen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScreenPtr screen = drawable->screen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2BufferPtr buffers;
 	dri_bo *bo;
@@ -130,11 +130,11 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 			if (!intel->tiling)
 				hint = 0;
 
-			pixmap = (*pScreen->CreatePixmap) (pScreen,
-							    drawable->width,
-							    drawable->height,
-							    drawable->depth,
-							   hint);
+			pixmap = screen->CreatePixmap(screen,
+						      drawable->width,
+						      drawable->height,
+						      drawable->depth,
+						      hint);
 
 		}
 
@@ -165,8 +165,8 @@ static DRI2Buffer2Ptr
 I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		     unsigned int format)
 {
-	ScreenPtr pScreen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScreenPtr screen = drawable->pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2Buffer2Ptr buffer;
 	dri_bo *bo;
@@ -207,12 +207,12 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		if (!intel->tiling)
 			hint = 0;
 
-		pixmap = (*pScreen->CreatePixmap) (pScreen,
-						    drawable->width,
-						    drawable->height,
-						    (format !=
-						     0) ? format : drawable->depth,
-						    hint);
+		pixmap = screen->CreatePixmap(screen,
+					      drawable->width,
+					      drawable->height,
+					      (format != 0) ? format :
+							      drawable->depth,
+					      hint);
 
 	}
 
@@ -240,13 +240,13 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 static void
 I830DRI2DestroyBuffers(DrawablePtr drawable, DRI2BufferPtr buffers, int count)
 {
-	ScreenPtr pScreen = drawable->pScreen;
+	ScreenPtr screen = drawable->pScreen;
 	I830DRI2BufferPrivatePtr private;
 	int i;
 
 	for (i = 0; i < count; i++) {
 		private = buffers[i].driverPrivate;
-		(*pScreen->DestroyPixmap) (private->pixmap);
+		screen->DestroyPixmap(private->pixmap);
 	}
 
 	if (buffers) {
@@ -261,9 +261,9 @@ static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 {
 	if (buffer) {
 		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
-		ScreenPtr pScreen = drawable->pScreen;
+		ScreenPtr screen = drawable->pScreen;
 
-		(*pScreen->DestroyPixmap) (private->pixmap);
+		screen->DestroyPixmap(private->pixmap);
 
 		xfree(private);
 		xfree(buffer);
@@ -278,8 +278,8 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 {
 	I830DRI2BufferPrivatePtr srcPrivate = sourceBuffer->driverPrivate;
 	I830DRI2BufferPrivatePtr dstPrivate = destBuffer->driverPrivate;
-	ScreenPtr pScreen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScreenPtr screen = drawable->pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
 	    ? drawable : &srcPrivate->pixmap->drawable;
@@ -288,9 +288,9 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	RegionPtr pCopyClip;
 	GCPtr gc;
 
-	gc = GetScratchGC(drawable->depth, pScreen);
-	pCopyClip = REGION_CREATE(pScreen, NULL, 0);
-	REGION_COPY(pScreen, pCopyClip, pRegion);
+	gc = GetScratchGC(drawable->depth, screen);
+	pCopyClip = REGION_CREATE(screen, NULL, 0);
+	REGION_COPY(screen, pCopyClip, pRegion);
 	(*gc->funcs->ChangeClip) (gc, CT_REGION, pCopyClip, 0);
 	ValidateGC(dst, gc);
 
@@ -363,9 +363,9 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 
 }
 
-Bool I830DRI2ScreenInit(ScreenPtr pScreen)
+Bool I830DRI2ScreenInit(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2InfoRec info;
 	char *p;
@@ -434,14 +434,14 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 
 	info.CopyRegion = I830DRI2CopyRegion;
 
-	return DRI2ScreenInit(pScreen, &info);
+	return DRI2ScreenInit(screen, &info);
 }
 
-void I830DRI2CloseScreen(ScreenPtr pScreen)
+void I830DRI2CloseScreen(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	DRI2CloseScreen(pScreen);
+	DRI2CloseScreen(screen);
 	intel->directRenderingType = DRI_NONE;
 }

@@ -189,11 +189,11 @@ static OptionInfoRec I830Options[] = {
 /* *INDENT-ON* */
 
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
-static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
+static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen);
 static Bool I830EnterVT(int scrnIndex, int flags);
 
 /* temporary */
-extern void xf86SetCursor(ScreenPtr pScreen, CursorPtr pCurs, int x, int y);
+extern void xf86SetCursor(ScreenPtr screen, CursorPtr pCurs, int x, int y);
 
 #ifdef I830DEBUG
 void
@@ -329,16 +329,16 @@ I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
  * have already been created, but the first EnterVT happens before
  * CreateScreenResources.
  */
-static Bool i830CreateScreenResources(ScreenPtr pScreen)
+static Bool i830CreateScreenResources(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	pScreen->CreateScreenResources = intel->CreateScreenResources;
-	if (!(*pScreen->CreateScreenResources) (pScreen))
+	screen->CreateScreenResources = intel->CreateScreenResources;
+	if (!(*screen->CreateScreenResources) (screen))
 		return FALSE;
 
-	i830_uxa_create_screen_resources(pScreen);
+	i830_uxa_create_screen_resources(screen);
 
 	return TRUE;
 }
@@ -950,16 +950,16 @@ void IntelEmitInvarientState(ScrnInfoPtr scrn)
 static void
 I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 {
-	ScreenPtr pScreen = screenInfo.screens[i];
+	ScreenPtr screen = screenInfo.screens[i];
 	ScrnInfoPtr scrn = xf86Screens[i];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	pScreen->BlockHandler = intel->BlockHandler;
+	screen->BlockHandler = intel->BlockHandler;
 
-	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+	(*screen->BlockHandler) (i, blockData, pTimeout, pReadmask);
 
-	intel->BlockHandler = pScreen->BlockHandler;
-	pScreen->BlockHandler = I830BlockHandler;
+	intel->BlockHandler = screen->BlockHandler;
+	screen->BlockHandler = I830BlockHandler;
 
 	if (scrn->vtSema) {
 		Bool flushed = FALSE;
@@ -981,7 +981,7 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 		intel->need_mi_flush = FALSE;
 	}
 
-	i830_uxa_block_handler(pScreen);
+	i830_uxa_block_handler(screen);
 
 	I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
@@ -1145,9 +1145,9 @@ int i830_crtc_to_pipe(xf86CrtcPtr crtc)
 }
 
 static Bool
-I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];;
 	intel_screen_private *intel = intel_get_screen_private(scrn);;
 	VisualPtr visual;
 	MessageType from;
@@ -1204,7 +1204,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef DRI2
 	if (intel->directRenderingType == DRI_NONE
-	    && I830DRI2ScreenInit(pScreen))
+	    && I830DRI2ScreenInit(screen))
 		intel->directRenderingType = DRI_DRI2;
 #endif
 
@@ -1272,8 +1272,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 */
 	scrn->fbOffset = intel->front_buffer->offset;
 
-	DPRINTF(PFX, "assert( if(!fbScreenInit(pScreen, ...) )\n");
-	if (!fbScreenInit(pScreen, NULL,
+	DPRINTF(PFX, "assert( if(!fbScreenInit(screen, ...) )\n");
+	if (!fbScreenInit(screen, NULL,
 			  scrn->virtualX, scrn->virtualY,
 			  scrn->xDpi, scrn->yDpi,
 			  scrn->displayWidth, scrn->bitsPerPixel))
@@ -1281,8 +1281,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	if (scrn->bitsPerPixel > 8) {
 		/* Fixup RGB ordering */
-		visual = pScreen->visuals + pScreen->numVisuals;
-		while (--visual >= pScreen->visuals) {
+		visual = screen->visuals + screen->numVisuals;
+		while (--visual >= screen->visuals) {
 			if ((visual->class | DynamicClass) == DirectColor) {
 				visual->offsetRed = scrn->offset.red;
 				visual->offsetGreen = scrn->offset.green;
@@ -1294,11 +1294,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		}
 	}
 
-	fbPictureInit(pScreen, NULL, 0);
+	fbPictureInit(screen, NULL, 0);
 
-	xf86SetBlackWhitePixels(pScreen);
+	xf86SetBlackWhitePixels(screen);
 
-	if (!I830AccelInit(pScreen)) {
+	if (!I830AccelInit(screen)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware acceleration initialization failed\n");
 		return FALSE;
@@ -1311,14 +1311,14 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	else
 		intel->batch_flush_notify = i830_batch_flush_notify;
 
-	miInitializeBackingStore(pScreen);
-	xf86SetBackingStore(pScreen);
-	xf86SetSilkenMouse(pScreen);
-	miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
+	miInitializeBackingStore(screen);
+	xf86SetBackingStore(screen);
+	xf86SetSilkenMouse(screen);
+	miDCInitialize(screen, xf86GetPointerScreenFuncs());
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
 
-	if (!xf86_cursors_init(pScreen, I810_CURSOR_X, I810_CURSOR_Y,
+	if (!xf86_cursors_init(screen, I810_CURSOR_X, I810_CURSOR_Y,
 			       (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 				HARDWARE_CURSOR_BIT_ORDER_MSBFIRST |
 				HARDWARE_CURSOR_INVERT_MASK |
@@ -1338,30 +1338,30 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!I830EnterVT(scrnIndex, 0))
 		return FALSE;
 
-	intel->BlockHandler = pScreen->BlockHandler;
-	pScreen->BlockHandler = I830BlockHandler;
+	intel->BlockHandler = screen->BlockHandler;
+	screen->BlockHandler = I830BlockHandler;
 
-	pScreen->SaveScreen = xf86SaveScreen;
-	intel->CloseScreen = pScreen->CloseScreen;
-	pScreen->CloseScreen = I830CloseScreen;
-	intel->CreateScreenResources = pScreen->CreateScreenResources;
-	pScreen->CreateScreenResources = i830CreateScreenResources;
+	screen->SaveScreen = xf86SaveScreen;
+	intel->CloseScreen = screen->CloseScreen;
+	screen->CloseScreen = I830CloseScreen;
+	intel->CreateScreenResources = screen->CreateScreenResources;
+	screen->CreateScreenResources = i830CreateScreenResources;
 
-	if (!xf86CrtcScreenInit(pScreen))
+	if (!xf86CrtcScreenInit(screen))
 		return FALSE;
 
-	DPRINTF(PFX, "assert( if(!miCreateDefColormap(pScreen)) )\n");
-	if (!miCreateDefColormap(pScreen))
+	DPRINTF(PFX, "assert( if(!miCreateDefColormap(screen)) )\n");
+	if (!miCreateDefColormap(screen))
 		return FALSE;
 
-	DPRINTF(PFX, "assert( if(!xf86HandleColormaps(pScreen, ...)) )\n");
-	if (!xf86HandleColormaps(pScreen, 256, 8, I830LoadPalette, NULL,
+	DPRINTF(PFX, "assert( if(!xf86HandleColormaps(screen, ...)) )\n");
+	if (!xf86HandleColormaps(screen, 256, 8, I830LoadPalette, NULL,
 				 CMAP_RELOAD_ON_MODE_SWITCH |
 				 CMAP_PALETTED_TRUECOLOR)) {
 		return FALSE;
 	}
 
-	xf86DPMSInit(pScreen, xf86DPMSSet, 0);
+	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 #ifdef INTEL_XVMC
 	intel->XvMCEnabled = FALSE;
@@ -1373,7 +1373,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #endif
 	/* Init video */
 	if (intel->XvEnabled)
-		I830InitVideo(pScreen);
+		I830InitVideo(screen);
 
 	/* Setup 3D engine, needed for rotation too */
 	IntelEmitInvarientState(scrn);
@@ -1503,7 +1503,7 @@ static Bool I830SwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	return xf86SetSingleMode(scrn, mode, RR_Rotate_0);
 }
 
-static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
+static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -1513,29 +1513,29 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 	}
 
 	if (intel->uxa_driver) {
-		uxa_driver_fini(pScreen);
+		uxa_driver_fini(screen);
 		xfree(intel->uxa_driver);
 		intel->uxa_driver = NULL;
 	}
 	if (intel->front_buffer) {
-		i830_set_pixmap_bo(pScreen->GetScreenPixmap(pScreen), NULL);
+		i830_set_pixmap_bo(screen->GetScreenPixmap(screen), NULL);
 		i830_free_memory(scrn, intel->front_buffer);
 		intel->front_buffer = NULL;
 	}
 
-	xf86_cursors_fini(pScreen);
+	xf86_cursors_fini(screen);
 
 	i830_allocator_fini(scrn);
 
 	i965_free_video(scrn);
 
-	pScreen->CloseScreen = intel->CloseScreen;
-	(*pScreen->CloseScreen) (scrnIndex, pScreen);
+	screen->CloseScreen = intel->CloseScreen;
+	(*screen->CloseScreen) (scrnIndex, screen);
 
 	if (intel->directRenderingOpen
 	    && intel->directRenderingType == DRI_DRI2) {
 		intel->directRenderingOpen = FALSE;
-		I830DRI2CloseScreen(pScreen);
+		I830DRI2CloseScreen(screen);
 	}
 
 	xf86GARTCloseScreen(scrnIndex);
