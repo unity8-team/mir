@@ -267,7 +267,7 @@ static uint32_t i8xx_get_card_format(PicturePtr picture)
 	FatalError("Unsupported format type %d\n", picture->format);
 }
 
-static void i830_texture_setup(PicturePtr picture, PixmapPtr pPix, int unit)
+static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 {
 
 	ScrnInfoPtr scrn = xf86Screens[picture->pDrawable->pScreen->myNum];
@@ -276,9 +276,9 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pPix, int unit)
 	uint32_t wrap_mode;
 	uint32_t texcoordtype;
 
-	pitch = intel_get_pixmap_pitch(pPix);
-	intel->scale_units[unit][0] = pPix->drawable.width;
-	intel->scale_units[unit][1] = pPix->drawable.height;
+	pitch = intel_get_pixmap_pitch(pixmap);
+	intel->scale_units[unit][0] = pixmap->drawable.width;
+	intel->scale_units[unit][1] = pixmap->drawable.height;
 	intel->transform[unit] = picture->transform;
 
 	if (i830_transform_is_affine(intel->transform[unit]))
@@ -321,9 +321,9 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pPix, int unit)
 	filter |= (MIPFILTER_NONE << TM0S3_MIP_FILTER_SHIFT);
 
 	{
-		if (pPix->drawable.bitsPerPixel == 8)
+		if (pixmap->drawable.bitsPerPixel == 8)
 			format |= MAPSURF_8BIT;
-		else if (pPix->drawable.bitsPerPixel == 16)
+		else if (pixmap->drawable.bitsPerPixel == 16)
 			format |= MAPSURF_16BIT;
 		else
 			format |= MAPSURF_32BIT;
@@ -331,10 +331,10 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pPix, int unit)
 		BEGIN_BATCH(10);
 		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 			  LOAD_TEXTURE_MAP(unit) | 4);
-		OUT_RELOC_PIXMAP(pPix, I915_GEM_DOMAIN_SAMPLER, 0,
+		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_SAMPLER, 0,
 				 TM0S0_USE_FENCE);
-		OUT_BATCH(((pPix->drawable.height -
-			    1) << TM0S1_HEIGHT_SHIFT) | ((pPix->drawable.width -
+		OUT_BATCH(((pixmap->drawable.height -
+			    1) << TM0S1_HEIGHT_SHIFT) | ((pixmap->drawable.width -
 							  1) <<
 							 TM0S1_WIDTH_SHIFT) |
 			  format);

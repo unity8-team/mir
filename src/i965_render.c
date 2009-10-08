@@ -1021,12 +1021,12 @@ static sampler_state_extend_t sampler_state_extend_from_picture(int repeat_type)
  */
 static void
 i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
-			       PicturePtr picture, PixmapPtr pPixmap,
+			       PicturePtr picture, PixmapPtr pixmap,
 			       Bool is_dst)
 {
 	struct brw_surface_state_padded *ss;
 	struct brw_surface_state local_ss;
-	dri_bo *pixmap_bo = i830_get_pixmap_bo(pPixmap);
+	dri_bo *pixmap_bo = i830_get_pixmap_bo(pixmap);
 
 	ss = (struct brw_surface_state_padded *)ss_bo->virtual + ss_index;
 
@@ -1060,11 +1060,11 @@ i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
 
 	local_ss.ss2.mip_count = 0;
 	local_ss.ss2.render_target_rotation = 0;
-	local_ss.ss2.height = pPixmap->drawable.height - 1;
-	local_ss.ss2.width = pPixmap->drawable.width - 1;
-	local_ss.ss3.pitch = intel_get_pixmap_pitch(pPixmap) - 1;
+	local_ss.ss2.height = pixmap->drawable.height - 1;
+	local_ss.ss2.width = pixmap->drawable.width - 1;
+	local_ss.ss3.pitch = intel_get_pixmap_pitch(pixmap) - 1;
 	local_ss.ss3.tile_walk = 0;	/* Tiled X */
-	local_ss.ss3.tiled_surface = i830_pixmap_tiled(pPixmap) ? 1 : 0;
+	local_ss.ss3.tiled_surface = i830_pixmap_tiled(pixmap) ? 1 : 0;
 
 	memcpy(ss, &local_ss, sizeof(local_ss));
 

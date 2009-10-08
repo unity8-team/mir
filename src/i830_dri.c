@@ -74,7 +74,7 @@ extern XF86ModuleData dri2ModuleData;
 #endif
 
 typedef struct {
-	PixmapPtr pPixmap;
+	PixmapPtr pixmap;
 	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
@@ -89,7 +89,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	dri_bo *bo;
 	int i;
 	I830DRI2BufferPrivatePtr privates;
-	PixmapPtr pPixmap, pDepthPixmap;
+	PixmapPtr pixmap, pDepthPixmap;
 
 	buffers = xcalloc(count, sizeof *buffers);
 	if (buffers == NULL)
@@ -103,11 +103,11 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	pDepthPixmap = NULL;
 	for (i = 0; i < count; i++) {
 		if (attachments[i] == DRI2BufferFrontLeft) {
-			pPixmap = get_drawable_pixmap(pDraw);
-			pPixmap->refcnt++;
+			pixmap = get_drawable_pixmap(pDraw);
+			pixmap->refcnt++;
 		} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
-			pPixmap = pDepthPixmap;
-			pPixmap->refcnt++;
+			pixmap = pDepthPixmap;
+			pixmap->refcnt++;
 		} else {
 			unsigned int hint = 0;
 
@@ -129,7 +129,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 			if (!intel->tiling)
 				hint = 0;
 
-			pPixmap = (*pScreen->CreatePixmap) (pScreen,
+			pixmap = (*pScreen->CreatePixmap) (pScreen,
 							    pDraw->width,
 							    pDraw->height,
 							    pDraw->depth, hint);
@@ -137,17 +137,17 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 		}
 
 		if (attachments[i] == DRI2BufferDepth)
-			pDepthPixmap = pPixmap;
+			pDepthPixmap = pixmap;
 
 		buffers[i].attachment = attachments[i];
-		buffers[i].pitch = pPixmap->devKind;
-		buffers[i].cpp = pPixmap->drawable.bitsPerPixel / 8;
+		buffers[i].pitch = pixmap->devKind;
+		buffers[i].cpp = pixmap->drawable.bitsPerPixel / 8;
 		buffers[i].driverPrivate = &privates[i];
 		buffers[i].flags = 0;	/* not tiled */
-		privates[i].pPixmap = pPixmap;
+		privates[i].pixmap = pixmap;
 		privates[i].attachment = attachments[i];
 
-		bo = i830_get_pixmap_bo(pPixmap);
+		bo = i830_get_pixmap_bo(pixmap);
 		if (dri_bo_flink(bo, &buffers[i].name) != 0) {
 			/* failed to name buffer */
 		}
@@ -169,7 +169,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 	DRI2Buffer2Ptr buffer;
 	dri_bo *bo;
 	I830DRI2BufferPrivatePtr privates;
-	PixmapPtr pPixmap;
+	PixmapPtr pixmap;
 
 	buffer = xcalloc(1, sizeof *buffer);
 	if (buffer == NULL)
@@ -181,8 +181,8 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 	}
 
 	if (attachment == DRI2BufferFrontLeft) {
-		pPixmap = get_drawable_pixmap(pDraw);
-		pPixmap->refcnt++;
+		pixmap = get_drawable_pixmap(pDraw);
+		pixmap->refcnt++;
 	} else {
 		unsigned int hint = 0;
 
@@ -205,7 +205,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 		if (!intel->tiling)
 			hint = 0;
 
-		pPixmap = (*pScreen->CreatePixmap) (pScreen,
+		pixmap = (*pScreen->CreatePixmap) (pScreen,
 						    pDraw->width,
 						    pDraw->height,
 						    (format !=
@@ -215,15 +215,15 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 	}
 
 	buffer->attachment = attachment;
-	buffer->pitch = pPixmap->devKind;
-	buffer->cpp = pPixmap->drawable.bitsPerPixel / 8;
+	buffer->pitch = pixmap->devKind;
+	buffer->cpp = pixmap->drawable.bitsPerPixel / 8;
 	buffer->driverPrivate = privates;
 	buffer->format = format;
 	buffer->flags = 0;	/* not tiled */
-	privates->pPixmap = pPixmap;
+	privates->pixmap = pixmap;
 	privates->attachment = attachment;
 
-	bo = i830_get_pixmap_bo(pPixmap);
+	bo = i830_get_pixmap_bo(pixmap);
 	if (dri_bo_flink(bo, &buffer->name) != 0) {
 		/* failed to name buffer */
 	}
@@ -244,7 +244,7 @@ I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
 
 	for (i = 0; i < count; i++) {
 		private = buffers[i].driverPrivate;
-		(*pScreen->DestroyPixmap) (private->pPixmap);
+		(*pScreen->DestroyPixmap) (private->pixmap);
 	}
 
 	if (buffers) {
@@ -261,7 +261,7 @@ static void I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2Buffer2Ptr buffer)
 		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
 		ScreenPtr pScreen = pDraw->pScreen;
 
-		(*pScreen->DestroyPixmap) (private->pPixmap);
+		(*pScreen->DestroyPixmap) (private->pixmap);
 
 		xfree(private);
 		xfree(buffer);
@@ -280,9 +280,9 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
-	    ? pDraw : &srcPrivate->pPixmap->drawable;
+	    ? pDraw : &srcPrivate->pixmap->drawable;
 	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
-	    ? pDraw : &dstPrivate->pPixmap->drawable;
+	    ? pDraw : &dstPrivate->pixmap->drawable;
 	RegionPtr pCopyClip;
 	GCPtr pGC;
 

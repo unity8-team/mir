@@ -982,7 +982,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			 short width, short height, int video_pitch,
 			 int x1, int y1, int x2, int y2,
 			 short src_w, short src_h,
-			 short drw_w, short drw_h, PixmapPtr pPixmap)
+			 short drw_w, short drw_h, PixmapPtr pixmap)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	BoxPtr pbox;
@@ -1054,7 +1054,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 	 */
 
 	/* Upload kernels */
-	surf_bos[0] = i965_create_dst_surface_state(scrn, pPixmap);
+	surf_bos[0] = i965_create_dst_surface_state(scrn, pixmap);
 	if (!surf_bos[0])
 		return;
 
@@ -1145,8 +1145,8 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 	 * coordinates) to the backing pixmap.
 	 */
 #ifdef COMPOSITE
-	pix_xoff = -pPixmap->screen_x + pPixmap->drawable.x;
-	pix_yoff = -pPixmap->screen_y + pPixmap->drawable.y;
+	pix_xoff = -pixmap->screen_x + pixmap->drawable.x;
+	pix_yoff = -pixmap->screen_y + pixmap->drawable.y;
 #else
 	pix_xoff = 0;
 	pix_yoff = 0;

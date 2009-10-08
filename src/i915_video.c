@@ -45,7 +45,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			 short width, short height, int video_pitch,
 			 int video_pitch2, int x1, int y1, int x2, int y2,
 			 short src_w, short src_h, short drw_w, short drw_h,
-			 PixmapPtr pPixmap)
+			 PixmapPtr pixmap)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, ms3, s5;
@@ -83,12 +83,12 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 
 		/* draw rect -- just clipping */
 		OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
-		OUT_BATCH(DRAW_DITHER_OFS_X(pPixmap->drawable.x & 3) |
-			  DRAW_DITHER_OFS_Y(pPixmap->drawable.y & 3));
+		OUT_BATCH(DRAW_DITHER_OFS_X(pixmap->drawable.x & 3) |
+			  DRAW_DITHER_OFS_Y(pixmap->drawable.y & 3));
 		OUT_BATCH(0x00000000);	/* ymin, xmin */
 		/* ymax, xmax */
-		OUT_BATCH((pPixmap->drawable.width - 1) |
-			  (pPixmap->drawable.height - 1) << 16);
+		OUT_BATCH((pixmap->drawable.width - 1) |
+			  (pixmap->drawable.height - 1) << 16);
 		OUT_BATCH(0x00000000);	/* yorigin, xorigin */
 		OUT_BATCH(MI_NOOP);
 
@@ -130,8 +130,8 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 		/* front buffer, pitch, offset */
 		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 		OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
-			  BUF_3D_PITCH(intel_get_pixmap_pitch(pPixmap)));
-		OUT_RELOC_PIXMAP(pPixmap, I915_GEM_DOMAIN_RENDER,
+			  BUF_3D_PITCH(intel_get_pixmap_pitch(pixmap)));
+		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
 		ADVANCE_BATCH();
 
@@ -396,8 +396,8 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 		 * (in screen coordinates) to the backing pixmap.
 		 */
 #ifdef COMPOSITE
-		pix_xoff = -pPixmap->screen_x + pPixmap->drawable.x;
-		pix_yoff = -pPixmap->screen_y + pPixmap->drawable.y;
+		pix_xoff = -pixmap->screen_x + pixmap->drawable.x;
+		pix_yoff = -pixmap->screen_y + pixmap->drawable.y;
 #else
 		pix_xoff = 0;
 		pix_yoff = 0;

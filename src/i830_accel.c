@@ -48,9 +48,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_ring.h"
 #include "i915_drm.h"
 
-unsigned long intel_get_pixmap_pitch(PixmapPtr pPix)
+unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap)
 {
-	return (unsigned long)pPix->devKind;
+	return (unsigned long)pixmap->devKind;
 }
 
 void I830Sync(ScrnInfoPtr scrn)

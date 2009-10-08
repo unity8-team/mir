@@ -93,11 +93,11 @@ intel_batch_emit_reloc(intel_screen_private *intel,
 }
 
 static inline void
-intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pPixmap,
+intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 			      uint32_t read_domains, uint32_t write_domain,
 			      uint32_t delta)
 {
-	dri_bo *bo = i830_get_pixmap_bo(pPixmap);
+	dri_bo *bo = i830_get_pixmap_bo(pixmap);
 	assert(intel->batch_ptr != NULL);
 	assert(intel_batch_space(intel) >= 4);
 	intel_batch_emit_reloc(intel, bo, read_domains, write_domain, delta);
@@ -108,8 +108,8 @@ intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pPixmap,
 #define OUT_RELOC(bo, read_domains, write_domains, delta) \
 	intel_batch_emit_reloc (intel, bo, read_domains, write_domains, delta)
 
-#define OUT_RELOC_PIXMAP(pPixmap, reads, write, delta)	\
-	intel_batch_emit_reloc_pixmap(intel, pPixmap, reads, write, delta)
+#define OUT_RELOC_PIXMAP(pixmap, reads, write, delta)	\
+	intel_batch_emit_reloc_pixmap(intel, pixmap, reads, write, delta)
 
 union intfloat {
 	float f;

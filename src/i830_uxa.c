@@ -86,13 +86,13 @@ static int uxa_pixmap_index;
  * buffer.  At the point where we are tiling some pixmaps managed by the
  * general allocator, we should move this to using pixmap privates.
  */
-Bool i830_pixmap_tiled(PixmapPtr pPixmap)
+Bool i830_pixmap_tiled(PixmapPtr pixmap)
 {
 	dri_bo *bo;
 	uint32_t tiling_mode, swizzle_mode;
 	int ret;
 
-	bo = i830_get_pixmap_bo(pPixmap);
+	bo = i830_get_pixmap_bo(pixmap);
 	assert(bo != NULL);
 
 	ret = drm_intel_bo_get_tiling(bo, &tiling_mode, &swizzle_mode);
@@ -142,37 +142,37 @@ static int i830_pixmap_pitch_is_aligned(PixmapPtr pixmap)
  * Sets up hardware state for a series of solid fills.
  */
 static Bool
-i830_uxa_prepare_solid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
+i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 {
-	ScrnInfoPtr scrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned long pitch;
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
-		i830_get_pixmap_bo(pPixmap),
+		i830_get_pixmap_bo(pixmap),
 	};
 
-	if (!UXA_PM_IS_SOLID(&pPixmap->drawable, planemask))
+	if (!UXA_PM_IS_SOLID(&pixmap->drawable, planemask))
 		I830FALLBACK("planemask is not solid");
 
-	if (pPixmap->drawable.bitsPerPixel == 24)
+	if (pixmap->drawable.bitsPerPixel == 24)
 		I830FALLBACK("solid 24bpp unsupported!\n");
 
-	if (pPixmap->drawable.bitsPerPixel < 8)
+	if (pixmap->drawable.bitsPerPixel < 8)
 		I830FALLBACK("under 8bpp pixmaps unsupported\n");
 
-	i830_exa_check_pitch_2d(pPixmap);
+	i830_exa_check_pitch_2d(pixmap);
 
-	pitch = i830_pixmap_pitch(pPixmap);
+	pitch = i830_pixmap_pitch(pixmap);
 
-	if (!i830_pixmap_pitch_is_aligned(pPixmap))
+	if (!i830_pixmap_pitch_is_aligned(pixmap))
 		I830FALLBACK("pixmap pitch not aligned");
 
 	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
 	intel->BR[13] = (I830PatternROP[alu] & 0xff) << 16;
-	switch (pPixmap->drawable.bitsPerPixel) {
+	switch (pixmap->drawable.bitsPerPixel) {
 	case 8:
 		break;
 	case 16:
@@ -188,25 +188,25 @@ i830_uxa_prepare_solid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	return TRUE;
 }
 
-static void i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
+static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 {
-	ScrnInfoPtr scrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned long pitch;
 	uint32_t cmd;
 
-	pitch = i830_pixmap_pitch(pPixmap);
+	pitch = i830_pixmap_pitch(pixmap);
 
 	{
 		BEGIN_BATCH(6);
 
 		cmd = XY_COLOR_BLT_CMD;
 
-		if (pPixmap->drawable.bitsPerPixel == 32)
+		if (pixmap->drawable.bitsPerPixel == 32)
 			cmd |=
 			    XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
 
-		if (IS_I965G(intel) && i830_pixmap_tiled(pPixmap)) {
+		if (IS_I965G(intel) && i830_pixmap_tiled(pixmap)) {
 			assert((pitch % 512) == 0);
 			pitch >>= 2;
 			cmd |= XY_COLOR_BLT_TILED;
@@ -217,16 +217,16 @@ static void i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 		OUT_BATCH(intel->BR[13] | pitch);
 		OUT_BATCH((y1 << 16) | (x1 & 0xffff));
 		OUT_BATCH((y2 << 16) | (x2 & 0xffff));
-		OUT_RELOC_PIXMAP(pPixmap, I915_GEM_DOMAIN_RENDER,
+		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
 		OUT_BATCH(intel->BR[16]);
 		ADVANCE_BATCH();
 	}
 }
 
-static void i830_uxa_done_solid(PixmapPtr pPixmap)
+static void i830_uxa_done_solid(PixmapPtr pixmap)
 {
-	ScrnInfoPtr scrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 
 	i830_debug_sync(scrn);
 }

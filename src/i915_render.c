@@ -237,7 +237,7 @@ i915_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 	return TRUE;
 }
 
-static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pPix, int unit)
+static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 {
 	ScrnInfoPtr scrn = xf86Screens[picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -245,11 +245,11 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pPix, int unit)
 	int w, h, i;
 	uint32_t wrap_mode;
 
-	pitch = intel_get_pixmap_pitch(pPix);
+	pitch = intel_get_pixmap_pitch(pixmap);
 	w = picture->pDrawable->width;
 	h = picture->pDrawable->height;
-	intel->scale_units[unit][0] = pPix->drawable.width;
-	intel->scale_units[unit][1] = pPix->drawable.height;
+	intel->scale_units[unit][0] = pixmap->drawable.width;
+	intel->scale_units[unit][1] = pixmap->drawable.height;
 
 	for (i = 0; i < sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]);
 	     i++) {
@@ -295,8 +295,8 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pPix, int unit)
 	intel->mapstate[unit * 3 + 0] = 0;
 	intel->mapstate[unit * 3 + 1] = format |
 	    MS3_USE_FENCE_REGS |
-	    ((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
-	    ((pPix->drawable.width - 1) << MS3_WIDTH_SHIFT);
+	    ((pixmap->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
+	    ((pixmap->drawable.width - 1) << MS3_WIDTH_SHIFT);
 	intel->mapstate[unit * 3 + 2] = ((pitch / 4) - 1) << MS4_PITCH_SHIFT;
 
 	intel->samplerstate[unit * 3 + 0] = (MIPFILTER_NONE <<

@@ -1369,7 +1369,7 @@ i830_fill_colorkey(ScreenPtr pScreen, uint32_t key, RegionPtr clipboxes)
 }
 
 static void
-i830_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pPixmap,
+i830_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 		       xf86CrtcPtr crtc, RegionPtr clipBoxes)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -1377,7 +1377,7 @@ i830_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pPixmap,
 	pixman_box16_t box_in_crtc_coordinates;
 	int pipe = -1, event, load_scan_lines_pipe;
 
-	if (pixmap_is_scanout(pPixmap))
+	if (pixmap_is_scanout(pixmap))
 		pipe = i830_crtc_to_pipe(crtc);
 
 	if (pipe >= 0) {
@@ -1604,7 +1604,7 @@ I830PutImage(ScrnInfoPtr scrn,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
 	ScreenPtr pScreen = screenInfo.screens[scrn->scrnIndex];
-	PixmapPtr pPixmap = get_drawable_pixmap(pDraw);;
+	PixmapPtr pixmap = get_drawable_pixmap(pDraw);;
 	INT32 x1, x2, y1, y2;
 	int dstPitch;
 	int dstPitch2 = 0;
@@ -1675,7 +1675,7 @@ I830PutImage(ScrnInfoPtr scrn,
 		}
 	} else {
 		if (crtc && pPriv->SyncToVblank != 0) {
-			i830_wait_for_scanline(scrn, pPixmap, crtc, clipBoxes);
+			i830_wait_for_scanline(scrn, pixmap, crtc, clipBoxes);
 		}
 
 		if (IS_I965G(intel)) {
@@ -1690,13 +1690,13 @@ I830PutImage(ScrnInfoPtr scrn,
 			I965DisplayVideoTextured(scrn, pPriv, id, clipBoxes,
 						 width, height, dstPitch, x1,
 						 y1, x2, y2, src_w, src_h,
-						 drw_w, drw_h, pPixmap);
+						 drw_w, drw_h, pixmap);
 		} else {
 			I915DisplayVideoTextured(scrn, pPriv, id, clipBoxes,
 						 width, height, dstPitch,
 						 dstPitch2, x1, y1, x2, y2,
 						 src_w, src_h, drw_w, drw_h,
-						 pPixmap);
+						 pixmap);
 		}
 
 		DamageDamageRegion(pDraw, clipBoxes);

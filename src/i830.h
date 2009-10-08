@@ -314,7 +314,7 @@ intel_get_screen_private(ScrnInfoPtr scrn)
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
 
-unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
+unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap);
 
 /* Batchbuffer support macros and functions */
 #include "i830_batchbuffer.h"
