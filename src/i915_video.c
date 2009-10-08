@@ -40,7 +40,8 @@
 #include "i915_3d.h"
 
 void
-I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
+I915DisplayVideoTextured(ScrnInfoPtr scrn,
+			 intel_adaptor_private *adaptor_priv, int id,
 			 RegionPtr dstRegion,
 			 short width, short height, int video_pitch,
 			 int video_pitch2, int x1, int y1, int x2, int y2,
@@ -142,8 +143,8 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
 			OUT_BATCH(0x0000001);	/* constant 0 */
 			/* constant 0: brightness/contrast */
-			OUT_BATCH_F(pPriv->brightness / 128.0);
-			OUT_BATCH_F(pPriv->contrast / 255.0);
+			OUT_BATCH_F(adaptor_priv->brightness / 128.0);
+			OUT_BATCH_F(adaptor_priv->contrast / 255.0);
 			OUT_BATCH_F(0.0);
 			OUT_BATCH_F(0.0);
 
@@ -162,11 +163,12 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 
 			OUT_BATCH(_3DSTATE_MAP_STATE | 3);
 			OUT_BATCH(0x00000001);	/* texture map #1 */
-			if (pPriv->buf)
-				OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER,
-					  0, pPriv->YBufOffset);
+			if (adaptor_priv->buf)
+				OUT_RELOC(adaptor_priv->buf,
+					  I915_GEM_DOMAIN_SAMPLER, 0,
+					  adaptor_priv->YBufOffset);
 			else
-				OUT_BATCH(pPriv->YBufOffset);
+				OUT_BATCH(adaptor_priv->YBufOffset);
 
 			ms3 = MAPSURF_422 | MS3_USE_FENCE_REGS;
 			switch (id) {
@@ -188,7 +190,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			i915_fs_dcl(FS_S0);
 			i915_fs_dcl(FS_T0);
 			i915_fs_texld(FS_OC, FS_S0, FS_T0);
-			if (pPriv->brightness != 0) {
+			if (adaptor_priv->brightness != 0) {
 				i915_fs_add(FS_OC,
 					    i915_fs_operand_reg(FS_OC),
 					    i915_fs_operand(FS_C0, X, X, X,
@@ -242,8 +244,8 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			OUT_BATCH_F(0.0);
 			OUT_BATCH_F(0.0);
 			/* constant 4: brightness/contrast */
-			OUT_BATCH_F(pPriv->brightness / 128.0);
-			OUT_BATCH_F(pPriv->contrast / 255.0);
+			OUT_BATCH_F(adaptor_priv->brightness / 128.0);
+			OUT_BATCH_F(adaptor_priv->contrast / 255.0);
 			OUT_BATCH_F(0.0);
 			OUT_BATCH_F(0.0);
 
@@ -283,11 +285,12 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			OUT_BATCH(_3DSTATE_MAP_STATE | 9);
 			OUT_BATCH(0x00000007);
 
-			if (pPriv->buf)
-				OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER,
-					  0, pPriv->YBufOffset);
+			if (adaptor_priv->buf)
+				OUT_RELOC(adaptor_priv->buf,
+					  I915_GEM_DOMAIN_SAMPLER, 0,
+					  adaptor_priv->YBufOffset);
 			else
-				OUT_BATCH(pPriv->YBufOffset);
+				OUT_BATCH(adaptor_priv->YBufOffset);
 
 			ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
 			ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
@@ -304,11 +307,12 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 				OUT_BATCH(((video_pitch * 2 / 4) -
 					   1) << MS4_PITCH_SHIFT);
 
-			if (pPriv->buf)
-				OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER,
-					  0, pPriv->UBufOffset);
+			if (adaptor_priv->buf)
+				OUT_RELOC(adaptor_priv->buf,
+					  I915_GEM_DOMAIN_SAMPLER, 0,
+					  adaptor_priv->UBufOffset);
 			else
-				OUT_BATCH(pPriv->UBufOffset);
+				OUT_BATCH(adaptor_priv->UBufOffset);
 
 			ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
 			ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
@@ -316,11 +320,12 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			OUT_BATCH(ms3);
 			OUT_BATCH(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
 
-			if (pPriv->buf)
-				OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER,
-					  0, pPriv->VBufOffset);
+			if (adaptor_priv->buf)
+				OUT_RELOC(adaptor_priv->buf,
+					  I915_GEM_DOMAIN_SAMPLER, 0,
+					  adaptor_priv->VBufOffset);
 			else
-				OUT_BATCH(pPriv->VBufOffset);
+				OUT_BATCH(adaptor_priv->VBufOffset);
 
 			ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
 			ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
@@ -375,7 +380,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 			i915_fs_mov_masked(FS_OC, MASK_W,
 					   i915_fs_operand_one());
 
-			if (pPriv->brightness != 0) {
+			if (adaptor_priv->brightness != 0) {
 				i915_fs_add(FS_OC,
 					    i915_fs_operand_reg(FS_OC),
 					    i915_fs_operand(FS_C4, X, X, X,

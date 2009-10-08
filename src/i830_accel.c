@@ -98,9 +98,9 @@ void i830_debug_sync(ScrnInfoPtr scrn)
  * from the FbInit() function in the SVGA driver, or before ScreenInit
  * in a monolithic server.
  */
-Bool I830AccelInit(ScreenPtr pScreen)
+Bool I830AccelInit(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Limits are described in the BLT engine chapter under Graphics Data Size
@@ -153,5 +153,5 @@ Bool I830AccelInit(ScreenPtr pScreen)
 		intel->accel_max_y = 2048;
 	}
 
-	return i830_uxa_init(pScreen);
+	return i830_uxa_init(screen);
 }

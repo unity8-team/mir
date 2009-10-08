@@ -977,7 +977,8 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 }
 
 void
-I965DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
+I965DisplayVideoTextured(ScrnInfoPtr scrn,
+			 intel_adaptor_private *adaptor_priv, int id,
 			 RegionPtr dstRegion,
 			 short width, short height, int video_pitch,
 			 int x1, int y1, int x2, int y2,
@@ -1008,12 +1009,12 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 	ErrorF("INST_PM 0x%08x\n", INREG(INST_PM));
 #endif
 
-	src_surf_base[0] = pPriv->YBufOffset;
-	src_surf_base[1] = pPriv->YBufOffset;
-	src_surf_base[2] = pPriv->VBufOffset;
-	src_surf_base[3] = pPriv->VBufOffset;
-	src_surf_base[4] = pPriv->UBufOffset;
-	src_surf_base[5] = pPriv->UBufOffset;
+	src_surf_base[0] = adaptor_priv->YBufOffset;
+	src_surf_base[1] = adaptor_priv->YBufOffset;
+	src_surf_base[2] = adaptor_priv->VBufOffset;
+	src_surf_base[3] = adaptor_priv->VBufOffset;
+	src_surf_base[4] = adaptor_priv->UBufOffset;
+	src_surf_base[5] = adaptor_priv->UBufOffset;
 #if 0
 	ErrorF("base 0 0x%x base 1 0x%x base 2 0x%x\n",
 	       src_surf_base[0], src_surf_base[1], src_surf_base[2]);
@@ -1059,18 +1060,14 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv, int id,
 		return;
 
 	for (src_surf = 0; src_surf < n_src_surf; src_surf++) {
-		drm_intel_bo *surf_bo = i965_create_src_surface_state(scrn,
-								      pPriv->
-								      buf,
-								      src_surf_base
-								      [src_surf],
-								      src_width
-								      [src_surf],
-								      src_height
-								      [src_surf],
-								      src_pitch
-								      [src_surf],
-								      src_surf_format);
+		drm_intel_bo *surf_bo =
+			i965_create_src_surface_state(scrn,
+						      adaptor_priv->buf,
+						      src_surf_base[src_surf],
+						      src_width[src_surf],
+						      src_height[src_surf],
+						      src_pitch[src_surf],
+						      src_surf_format);
 		if (!surf_bo) {
 			int q;
 			for (q = 0; q < src_surf + 1; q++)

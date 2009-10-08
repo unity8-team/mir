@@ -63,19 +63,24 @@ typedef struct {
 	Rotation rotation;	/* should remove intel->rotation later */
 
 	int SyncToVblank;	/* -1: auto, 0: off, 1: on */
-} I830PortPrivRec, *I830PortPrivPtr;
+} intel_adaptor_private;
 
-#define GET_PORT_PRIVATE(scrn) \
-   (I830PortPrivPtr)((intel_get_screen_private(scrn))->adaptor->pPortPrivates[0].ptr)
+static inline intel_adaptor_private *
+intel_get_adaptor_private(ScrnInfoPtr scrn)
+{
+	return intel_get_screen_private(scrn)->adaptor->pPortPrivates[0].ptr;
+}
 
-void I915DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv,
+void I915DisplayVideoTextured(ScrnInfoPtr scrn,
+			      intel_adaptor_private *adaptor_priv,
 			      int id, RegionPtr dstRegion, short width,
 			      short height, int video_pitch, int video_pitch2,
 			      int x1, int y1, int x2, int y2,
 			      short src_w, short src_h,
 			      short drw_w, short drw_h, PixmapPtr pixmap);
 
-void I965DisplayVideoTextured(ScrnInfoPtr scrn, I830PortPrivPtr pPriv,
+void I965DisplayVideoTextured(ScrnInfoPtr scrn,
+			      intel_adaptor_private *adaptor_priv,
 			      int id, RegionPtr dstRegion, short width,
 			      short height, int video_pitch,
 			      int x1, int y1, int x2, int y2,
