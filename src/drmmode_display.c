@@ -79,6 +79,23 @@ typedef struct {
 
 static void drmmode_output_dpms(xf86OutputPtr output, int mode);
 
+static PixmapPtr
+drmmode_pixmap_wrap(ScreenPtr pScreen, int width, int height, int depth,
+		    int bpp, int pitch, struct nouveau_bo *bo)
+{
+	PixmapPtr ppix;
+
+	ppix = pScreen->CreatePixmap(pScreen, 0, 0, depth, 0);
+	if (!ppix)
+		return NULL;
+
+	pScreen->ModifyPixmapHeader(ppix, width, height, depth, bpp,
+				    pitch, NULL);
+	nouveau_bo_ref(bo, &nouveau_pixmap(ppix)->bo);
+
+	return ppix;
+}
+
 static void
 drmmode_ConvertFromKMode(ScrnInfoPtr scrn, drmModeModeInfo *kmode,
 			 DisplayModePtr	mode)
@@ -146,9 +163,9 @@ void
 drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	ScreenPtr pScreen = pScrn->pScreen;
 	NVPtr pNv = NVPTR(pScrn);
 	ExaDriverPtr exa = pNv->EXADriverPtr;
+	struct nouveau_bo *bo = NULL;
 	PixmapPtr pspix, pdpix;
 	drmModeFBPtr fb;
 	unsigned w = pScrn->virtualX, h = pScrn->virtualY;
@@ -182,39 +199,35 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 	if (h > fb->height)
 		h = fb->height;
 
-	pspix = GetScratchPixmapHeader(pScreen, fb->width, fb->height,
-				       fb->depth, fb->bpp, fb->pitch, NULL);
-	if (!pspix) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Failed to create pixmap for fbcon contents\n");
-		drmFree(fb);
-		return;
-	}
-
-	ret = nouveau_bo_wrap(pNv->dev, fb->handle, &nouveau_pixmap(pspix)->bo);
+	ret = nouveau_bo_wrap(pNv->dev, fb->handle, &bo);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Failed to retrieve fbcon buffer: handle=0x%08x\n",
 			   fb->handle);
-		pScreen->DestroyPixmap(pspix);
 		drmFree(fb);
 		return;
 	}
-	drmFree(fb);
 
-	pdpix = GetScratchPixmapHeader(pScreen, pScrn->virtualX,
-				       pScrn->virtualY, pScrn->depth,
-				       pScrn->bitsPerPixel,
-				       pScrn->displayWidth *
-				       pScrn->bitsPerPixel / 8,
-				       NULL);
+	pspix = drmmode_pixmap_wrap(pScrn->pScreen, fb->width, fb->height,
+				    fb->depth, fb->bpp, fb->pitch, bo);
+	nouveau_bo_ref(NULL, &bo);
+	drmFree(fb);
+	if (!pspix) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to create pixmap for fbcon contents\n");
+		return;
+	}
+
+	pdpix = drmmode_pixmap_wrap(pScrn->pScreen, pScrn->virtualX,
+				    pScrn->virtualY, pScrn->depth,
+				    pScrn->bitsPerPixel, pScrn->displayWidth *
+				    pScrn->bitsPerPixel / 8, pNv->scanout);
 	if (!pdpix) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Failed to init scanout pixmap for fbcon mirror\n");
-		pScreen->DestroyPixmap(pspix);
+		pScrn->pScreen->DestroyPixmap(pspix);
 		return;
 	}
-	nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(pdpix)->bo);
 
 	exa->PrepareCopy(pspix, pdpix, 0, 0, GXcopy, ~0);
 	exa->Copy(pdpix, 0, 0, 0, 0, w, h);
@@ -227,8 +240,8 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
 	nouveau_bo_unmap(pNv->scanout);
 
-	pScreen->DestroyPixmap(pdpix);
-	pScreen->DestroyPixmap(pspix);
+	pScrn->pScreen->DestroyPixmap(pdpix);
+	pScrn->pScreen->DestroyPixmap(pspix);
 }
 
 static Bool
@@ -498,24 +511,10 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	if (!data)
 		data = drmmode_crtc_shadow_allocate (crtc, width, height);
 
-	rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
-					       width, height,
-					       pScrn->depth,
-					       pScrn->bitsPerPixel,
-					       drmmode_crtc->rotate_pitch,
-					       data);
-
-	if (rotate_pixmap == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
-	}
-
-	if (drmmode_crtc->rotate_bo && NVPTR(pScrn)->exa_driver_pixmaps) {
-		struct nouveau_pixmap *nvpix = nouveau_pixmap(rotate_pixmap);
-
-		if (nvpix)
-			nouveau_bo_ref(drmmode_crtc->rotate_bo, &nvpix->bo);
-	}
+	rotate_pixmap = drmmode_pixmap_wrap(pScrn->pScreen, width, height,
+					    pScrn->depth, pScrn->bitsPerPixel,
+					    drmmode_crtc->rotate_pitch,
+					    drmmode_crtc->rotate_bo);
 
 	drmmode_crtc->rotate_pixmap = rotate_pixmap;
 	return drmmode_crtc->rotate_pixmap;
