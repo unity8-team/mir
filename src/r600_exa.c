@@ -807,7 +807,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     if (accel_state->dst_mc_addr & 0xff)
 	RADEON_FALLBACK(("Bad dst offset 0x%08x\n", accel_state->dst_mc_addr));
 
-
+#if defined(XF86DRM_MODE)
     if (info->cs) {
 	radeon_cs_space_reset_bos(info->cs);
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
@@ -818,6 +818,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	if (ret)
 	    RADEON_FALLBACK(("Not enough RAM to hw accel copy operation\n"));
     }
+#endif
 
     /* return FALSE; */
 
