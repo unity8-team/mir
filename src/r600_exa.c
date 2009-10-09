@@ -284,7 +284,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (pm & 0xff000000)
 	pmask |= 8; /* A */
     BEGIN_BATCH(6);
-    EREG(accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
+    EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[alu]);
     END_BATCH();
 
@@ -611,7 +611,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     if (planemask & 0xff000000)
 	pmask |= 8; /* A */
     BEGIN_BATCH(6);
-    EREG(accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
+    EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[rop]);
     END_BATCH();
 
@@ -1801,7 +1801,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     ps_setup                    (pScrn, accel_state->ib, &ps_conf);
 
     BEGIN_BATCH(9);
-    EREG(accel_state->ib, CB_SHADER_MASK,                      (0xf << OUTPUT0_ENABLE_shift));
+    EREG(accel_state->ib, CB_TARGET_MASK,                      (0xf << TARGET0_ENABLE_shift));
 
     blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
 

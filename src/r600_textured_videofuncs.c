@@ -516,7 +516,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     /* Render setup */
     BEGIN_BATCH(6);
-    EREG(accel_state->ib, CB_SHADER_MASK,                      (0x0f << OUTPUT0_ENABLE_shift));
+    EREG(accel_state->ib, CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
     EREG(accel_state->ib, CB_COLOR_CONTROL,                    (0xcc << ROP3_shift)); /* copy */
     END_BATCH();
 

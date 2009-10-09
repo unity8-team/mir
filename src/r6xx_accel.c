@@ -971,7 +971,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     E32(ib, 0);							// CB_CLRCMP_DST
     E32(ib, 0);							// CB_CLRCMP_MSK
 
-    EREG(ib, CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
+    EREG(ib, CB_SHADER_MASK,                      (0xf << OUTPUT0_ENABLE_shift));
     EREG(ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
 
 
