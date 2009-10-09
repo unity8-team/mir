@@ -330,7 +330,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		}
 	}
 
-
+	if (pScrn->pScreen)
+		xf86_reload_cursors(pScrn->pScreen);
 
 done:
 	if (!ret) {
