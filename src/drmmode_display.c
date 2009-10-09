@@ -48,6 +48,34 @@
 #include <X11/extensions/dpms.h>
 #endif
 
+static PixmapPtr drmmode_create_bo_pixmap(ScreenPtr pScreen,
+					  int width, int height,
+					  int depth, int bpp,
+					  int pitch, struct radeon_bo *bo)
+{
+	PixmapPtr pixmap;
+
+	pixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, depth, 0);
+	if (!pixmap)
+		return NULL;
+
+	if (!(*pScreen->ModifyPixmapHeader)(pixmap, width, height,
+					    depth, bpp, pitch, NULL)) {
+		return NULL;
+	}
+
+	exaMoveInPixmap(pixmap);
+	radeon_set_pixmap_bo(pixmap, bo);
+
+	return pixmap;
+}
+
+static void drmmode_destroy_bo_pixmap(PixmapPtr pixmap)
+{
+	ScreenPtr pScreen = pixmap->drawable.pScreen;
+
+	(*pScreen->DestroyPixmap)(pixmap);
+}
 
 static void
 drmmode_ConvertFromKMode(ScrnInfoPtr	scrn,
@@ -156,20 +184,11 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 		return NULL;
 	}
 
-	pixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, fbcon->depth, 0);
+	pixmap = drmmode_create_bo_pixmap(pScreen, fbcon->width, fbcon->height,
+					  fbcon->depth, fbcon->bpp,
+					  fbcon->pitch, bo);
 	if (!pixmap) 
 		return NULL;
-
-	if (!(*pScreen->ModifyPixmapHeader)(pixmap, fbcon->width, fbcon->height,
-					   fbcon->depth, fbcon->bpp,
-					   fbcon->pitch, NULL)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Couldn't allocate pixmap fbcon contents\n");
-		return NULL;
-	}
-	
-	exaMoveInPixmap(pixmap);
-	radeon_set_pixmap_bo(pixmap, bo);
 
 	radeon_bo_unref(bo);
 	drmModeFreeFB(fbcon);
@@ -202,28 +221,23 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	if (!src)
 		return;
 
-	dst = (*pScreen->CreatePixmap)(pScreen, 0, 0, pScrn->depth, 0);
+	dst = drmmode_create_bo_pixmap(pScreen, pScrn->virtualX,
+				       pScrn->virtualY, pScrn->depth,
+				       pScrn->bitsPerPixel, pitch,
+				       info->front_bo);
 	if (!dst)
 		goto out_free_src;
 
-	if (!(*pScreen->ModifyPixmapHeader)(dst, pScrn->virtualX,
-					    pScrn->virtualY, pScrn->depth,
-					    pScrn->bitsPerPixel, pitch,
-					    NULL))
-		goto out_free_dst;
-
-	exaMoveInPixmap(dst);
-	radeon_set_pixmap_bo(dst, info->front_bo);
 	info->accel_state->exa->PrepareCopy (src, dst,
 					     -1, -1, GXcopy, FB_ALLONES);
 	info->accel_state->exa->Copy (dst, 0, 0, 0, 0,
 				      pScrn->virtualX, pScrn->virtualY);
 	info->accel_state->exa->DoneCopy (dst);
 	radeon_cs_flush_indirect(pScrn);
- out_free_dst:
-	(*pScreen->DestroyPixmap)(dst);
+
+	drmmode_destroy_bo_pixmap(dst);
  out_free_src:
-	(*pScreen->DestroyPixmap)(src);
+	drmmode_destroy_bo_pixmap(src);
 
 }
 
@@ -445,20 +459,16 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 
 	rotate_pitch = RADEON_ALIGN(width, 63) * drmmode->cpp;
 
-	rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
-					       width, height,
-					       pScrn->depth,
-					       pScrn->bitsPerPixel,
-					       rotate_pitch,
-					       NULL);
-
+	rotate_pixmap = drmmode_create_bo_pixmap(pScrn->pScreen,
+						 width, height,
+						 pScrn->depth,
+						 pScrn->bitsPerPixel,
+						 rotate_pitch,
+						 drmmode_crtc->rotate_bo);
 	if (rotate_pixmap == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
 	}
-
-	if (drmmode_crtc->rotate_bo)
-		radeon_set_pixmap_bo(rotate_pixmap, drmmode_crtc->rotate_bo);
 	return rotate_pixmap;
 
 }
@@ -470,7 +480,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
 	if (rotate_pixmap)
-	    FreeScratchPixmapHeader(rotate_pixmap);
+		drmmode_destroy_bo_pixmap(rotate_pixmap);
 
 	if (data) {
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
