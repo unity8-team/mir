@@ -95,6 +95,43 @@ uint32_t RADEON_ROP[16] = {
     RADEON_ROP3_ONE,  /* GXset          */
 };
 
+static Bool R600ValidPM(uint32_t pm, int bpp)
+{
+    uint8_t r, g, b, a;
+    Bool ret = FALSE;
+
+    switch (bpp) {
+    case 8:
+	a = pm & 0xff;
+	if ((a == 0) || (a == 0xff))
+	    ret = TRUE;
+	break;
+    case 16:
+	r = (pm >> 11) & 0x1f;
+	g = (pm >> 5) & 0x3f;
+	b = (pm >> 0) & 0x1f;
+	if (((r == 0) || (r == 0x1f)) &&
+	    ((g == 0) || (g == 0x3f)) &&
+	    ((b == 0) || (b == 0x1f)))
+	    ret = TRUE;
+	break;
+    case 32:
+	a = (pm >> 24) & 0xff;
+	r = (pm >> 16) & 0xff;
+	g = (pm >> 8) & 0xff;
+	b = (pm >> 0) & 0xff;
+	if (((a == 0) || (a == 0xff)) &&
+	    ((r == 0) || (r == 0xff)) &&
+	    ((g == 0) || (g == 0xff)) &&
+	    ((b == 0) || (b == 0xff)))
+	    ret = TRUE;
+	break;
+    default:
+	break;
+    }
+    return ret;
+}
+
 static Bool R600CheckBPP(int bpp)
 {
 	switch (bpp) {
@@ -136,10 +173,10 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
 
-    if (pPix->drawable.bitsPerPixel == 24)
-        RADEON_FALLBACK(("24bpp unsupported\n"));
     if (!R600CheckBPP(pPix->drawable.bitsPerPixel))
-        RADEON_FALLBACK(("R600CheckDatatype failed\n"));
+	RADEON_FALLBACK(("R600CheckDatatype failed\n"));
+    if (!R600ValidPM(pm, pPix->drawable.bitsPerPixel))
+	RADEON_FALLBACK(("invalid planemask\n"));
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
@@ -722,14 +759,12 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     struct radeon_accel_state *accel_state = info->accel_state;
     int ret;
 
-    if (pSrc->drawable.bitsPerPixel == 24)
-        RADEON_FALLBACK(("24bpp unsupported\n"));
-    if (pDst->drawable.bitsPerPixel == 24)
-        RADEON_FALLBACK(("24bpp unsupported\n"));
     if (!R600CheckBPP(pSrc->drawable.bitsPerPixel))
-        RADEON_FALLBACK(("R600CheckDatatype src failed\n"));
+	RADEON_FALLBACK(("R600CheckDatatype src failed\n"));
     if (!R600CheckBPP(pDst->drawable.bitsPerPixel))
-        RADEON_FALLBACK(("R600CheckDatatype dst failed\n"));
+	RADEON_FALLBACK(("R600CheckDatatype dst failed\n"));
+    if (!R600ValidPM(planemask, pDst->drawable.bitsPerPixel))
+	RADEON_FALLBACK(("Invalid planemask\n"));
 
     accel_state->dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
     accel_state->src_pitch[0] = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
