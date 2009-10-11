@@ -145,10 +145,6 @@ static Bool NV10CheckBuffer(PicturePtr Picture)
 
 static Bool NV10CheckPictOp(int op)
 {
-	if ( op == PictOpAtopReverse ) /*this op doesn't work*/
-		{
-		return FALSE;
-		}
 	if ( op >= PictOpSaturate )
 		{ /*we do no saturate, disjoint, conjoint, though we could do e.g. DisjointClear which really is Clear*/
 		return FALSE;
@@ -575,10 +571,21 @@ static void NV10SetPictOp(NVPtr pNv,int op)
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celcius = pNv->Nv3D;
 	struct nv10_pictop *nv10_op = &NV10PictOp[op];
+	int src_factor = nv10_op->src;
+	int dst_factor = nv10_op->dst;
+
+	if (src_factor == SF(ONE_MINUS_DST_ALPHA) &&
+	    !PICT_FORMAT_A(pNv->pdpict->format))
+		/* ONE_MINUS_DST_ALPHA doesn't always do the right thing for
+		 * framebuffers without alpha channel. But it's the same as
+		 * ZERO in that case.
+		 */
+		src_factor = SF(ZERO);
+
 
 	BEGIN_RING(chan, celcius, NV10TCL_BLEND_FUNC_SRC, 2);
-	OUT_RING  (chan, nv10_op->src);
-	OUT_RING  (chan, nv10_op->dst);
+	OUT_RING  (chan, src_factor);
+	OUT_RING  (chan, dst_factor);
 	BEGIN_RING(chan, celcius, NV10TCL_BLEND_FUNC_ENABLE, 1);
 	OUT_RING  (chan, 1);
 }
