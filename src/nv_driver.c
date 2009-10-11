@@ -1419,6 +1419,8 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 					lut_b[index * 8 + j] = colors[index].blue << 8;
 				}
 			}
+			break;
+
 		case 16:
 			for (i = 0; i < numColors; i++) {
 				index = indices[i];
@@ -1434,6 +1436,8 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 					lut_g[index * 4 + j] = colors[index].green << 8;
 				}
 			}
+			break;
+
 		default:
 			for (i = 0; i < numColors; i++) {
 				index = indices[i];
