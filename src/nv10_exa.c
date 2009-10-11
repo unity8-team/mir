@@ -61,6 +61,22 @@ static struct nv10_pictop {
 	{ SF(ONE),		   DF(ONE) },		      /* Add */
 };
 
+static inline bool needs_src_alpha(int op)
+{
+	return NV10PictOp[op].dst == DF(ONE_MINUS_SRC_ALPHA)
+		|| NV10PictOp[op].dst == DF(SRC_ALPHA);
+}
+
+static inline bool needs_src(int op)
+{
+	return NV10PictOp[op].src != DF(ZERO);
+}
+
+static inline bool effective_component_alpha(PicturePtr mask)
+{
+	return mask && mask->componentAlpha && PICT_FORMAT_RGB(mask->format);
+}
+
 static int NV10TexFormat(int ExaFormat)
 {
 	struct {int exa;int hw;} tex_format[] =
@@ -119,8 +135,6 @@ static Bool NV10CheckTexture(PicturePtr Picture)
 		return FALSE;
 	if (Picture->filter != PictFilterNearest && Picture->filter != PictFilterBilinear)
 		return FALSE;
-	if (Picture->componentAlpha)
-		return FALSE;
 	/* we cannot repeat on NV10 because NPOT textures do not support this. unfortunately. */
 	if (Picture->repeat != RepeatNone)
 		/* we can repeat 1x1 textures */
@@ -135,8 +149,6 @@ static Bool NV10CheckBuffer(PicturePtr Picture)
 	int h = Picture->pDrawable->height;
 
 	if ((w > 4096) || (h > 4096))
-		return FALSE;
-	if (Picture->componentAlpha)
 		return FALSE;
 	if (!NV10DstFormat(Picture->format))
 		return FALSE;
@@ -287,6 +299,8 @@ NV10EXAFallbackInfo(char * reason, int op, PicturePtr pSrcPicture,
 		sprintf(out, "(%dx%d) ", pMaskPicture->pDrawable->width, pMaskPicture->pDrawable->height);
 		if ( pMaskPicture->repeat != RepeatNone )
 			strcat(out, "R ");
+		if ( pMaskPicture->componentAlpha )
+			strcat(out, "C ");
 		out+=strlen(out);
 	}
 	strcat(out, "\n");
@@ -318,19 +332,28 @@ Bool NV10EXACheckComposite(int	op,
 		NV10EXAFallbackInfo("dst", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
 		}
-		
+
 	if (!NV10CheckTexture(pSrcPicture))
 		{
 		NV10EXAFallbackInfo("src", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
 		}
-		
-	if ((pMaskPicture) &&(!NV10CheckTexture(pMaskPicture)))
-		{
-		NV10EXAFallbackInfo("mask", op, pSrcPicture, pMaskPicture, pDstPicture);
-		return FALSE;
+
+	if (pMaskPicture) {
+		if (!NV10CheckTexture(pMaskPicture)) {
+			NV10EXAFallbackInfo("mask", op, pSrcPicture,
+					    pMaskPicture, pDstPicture);
+			return FALSE;
 		}
-		
+
+		if (effective_component_alpha(pMaskPicture) &&
+		    needs_src(op) && needs_src_alpha(op)) {
+			NV10EXAFallbackInfo("ca-mask", op, pSrcPicture,
+					    pMaskPicture, pDstPicture);
+			return FALSE;
+		}
+	}
+
 	NV10EXAFallbackInfo("Accelerating", op, pSrcPicture, pMaskPicture, pDstPicture);
 	return TRUE;
 }
@@ -503,15 +526,44 @@ Final combiner uses default setup
 	else
 		rc0_in_alpha |= RC_IN_ONE(ALPHA, B);
 
-	if (PICT_FORMAT_RGB(src->format))
-		rc0_in_rgb |= NV10TCL_RC_IN_RGB_A_INPUT_TEXTURE0_ARB
-			| NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_RGB;
-
-	if (mask && PICT_FORMAT_A(mask->format))
+	if (effective_component_alpha(mask)) {
 		rc0_in_rgb |= NV10TCL_RC_IN_RGB_B_INPUT_TEXTURE1_ARB
-			| NV10TCL_RC_IN_RGB_B_COMPONENT_USAGE_ALPHA;
-	else
-		rc0_in_rgb |= RC_IN_ONE(RGB, B);
+			| NV10TCL_RC_IN_RGB_B_COMPONENT_USAGE_RGB;
+
+		if (!needs_src_alpha(pNv->alu)) {
+			/*
+			 * The alpha channels won't be used for blending. Drop
+			 * them, as our pixels only have 4 components...
+			 * output_i = src_i * mask_i
+			 */
+			if (PICT_FORMAT_RGB(src->format))
+				rc0_in_rgb |= NV10TCL_RC_IN_RGB_A_INPUT_TEXTURE0_ARB
+					| NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_RGB;
+
+		} else {
+			/*
+			 * The RGB channels won't be used for blending. Drop
+			 * them.
+			 * output_i = src_alpha * mask_i
+			 */
+			if (PICT_FORMAT_A(src->format))
+				rc0_in_rgb |= NV10TCL_RC_IN_RGB_A_INPUT_TEXTURE0_ARB
+					| NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_ALPHA;
+			else
+				rc0_in_rgb |= RC_IN_ONE(RGB, A);
+		}
+
+	} else {
+		if (PICT_FORMAT_RGB(src->format))
+			rc0_in_rgb |= NV10TCL_RC_IN_RGB_A_INPUT_TEXTURE0_ARB
+				| NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_RGB;
+
+		if (mask && PICT_FORMAT_A(mask->format))
+			rc0_in_rgb |= NV10TCL_RC_IN_RGB_B_INPUT_TEXTURE1_ARB
+				| NV10TCL_RC_IN_RGB_B_COMPONENT_USAGE_ALPHA;
+		else
+			rc0_in_rgb |= RC_IN_ONE(RGB, B);
+	}
 
 	BEGIN_RING(chan, celcius, NV10TCL_RC_IN_ALPHA(0), 1);
 	OUT_RING  (chan, rc0_in_alpha);
@@ -582,6 +634,12 @@ static void NV10SetPictOp(NVPtr pNv,int op)
 		 */
 		src_factor = SF(ZERO);
 
+	if (effective_component_alpha(pNv->pmpict)) {
+		if (dst_factor == DF(SRC_ALPHA))
+			dst_factor = DF(SRC_COLOR);
+		else if (dst_factor == DF(ONE_MINUS_SRC_ALPHA))
+			dst_factor = DF(ONE_MINUS_SRC_COLOR);
+	}
 
 	BEGIN_RING(chan, celcius, NV10TCL_BLEND_FUNC_SRC, 2);
 	OUT_RING  (chan, src_factor);
