@@ -39,6 +39,28 @@ typedef struct nv10_exa_state {
 } nv10_exa_state_t;
 static nv10_exa_state_t state;
 
+#define SF(x) NV10TCL_BLEND_FUNC_SRC_##x
+#define DF(x) NV10TCL_BLEND_FUNC_DST_##x
+
+static struct nv10_pictop {
+	int src;
+	int dst;
+} NV10PictOp [] = {
+	{ SF(ZERO),		   DF(ZERO) },		      /* Clear */
+	{ SF(ONE),		   DF(ZERO) },		      /* Src */
+	{ SF(ZERO),		   DF(ONE) },		      /* Dst */
+	{ SF(ONE),		   DF(ONE_MINUS_SRC_ALPHA) }, /* Over */
+	{ SF(ONE_MINUS_DST_ALPHA), DF(ONE) },		      /* OverReverse */
+	{ SF(DST_ALPHA),	   DF(ZERO) },                /* In */
+	{ SF(ZERO),		   DF(SRC_ALPHA) },           /* InReverse */
+	{ SF(ONE_MINUS_DST_ALPHA), DF(ZERO) },		      /* Out */
+	{ SF(ZERO),		   DF(ONE_MINUS_SRC_ALPHA) }, /* OutReverse */
+	{ SF(DST_ALPHA),	   DF(ONE_MINUS_SRC_ALPHA) }, /* Atop */
+	{ SF(ONE_MINUS_DST_ALPHA), DF(SRC_ALPHA) },	      /* AtopReverse */
+	{ SF(ONE_MINUS_DST_ALPHA), DF(ONE_MINUS_SRC_ALPHA) }, /* Xor */
+	{ SF(ONE),		   DF(ONE) },		      /* Add */
+};
+
 static int NV10TexFormat(int ExaFormat)
 {
 	struct {int exa;int hw;} tex_format[] =
@@ -443,10 +465,16 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	OUT_RING  (chan, 0);
 }
 
+#define RC_IN_ONE(chan, input)						\
+	(NV10TCL_RC_IN_##chan##_##input##_INPUT_ZERO			\
+	 | NV10TCL_RC_IN_##chan##_##input##_COMPONENT_USAGE_##chan	\
+	 | NV10TCL_RC_IN_##chan##_##input##_MAPPING_UNSIGNED_INVERT_NV)
+
 static void NV10SetRegCombs(NVPtr pNv, PicturePtr src, PicturePtr mask)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celcius = pNv->Nv3D;
+	unsigned int rc0_in_alpha = 0, rc0_in_rgb = 0;
 
 /*This can be a bit difficult to understand at first glance.
 Reg combiners are described here:
@@ -467,65 +495,32 @@ RC 1s are unused
 Final combiner uses default setup
 	
 */
-
-unsigned int rc0_in_alpha = 0, rc0_in_rgb = 0;
-unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
-unsigned int color0 = 0, color1 = 0;
-#define A_ALPHA_ZERO (NV10TCL_RC_IN_ALPHA_A_INPUT_ZERO | NV10TCL_RC_IN_ALPHA_A_COMPONENT_USAGE_ALPHA)
-#define B_ALPHA_ZERO (NV10TCL_RC_IN_ALPHA_B_INPUT_ZERO | NV10TCL_RC_IN_ALPHA_B_COMPONENT_USAGE_ALPHA)
-#define C_ALPHA_ZERO (NV10TCL_RC_IN_ALPHA_C_INPUT_ZERO | NV10TCL_RC_IN_ALPHA_C_COMPONENT_USAGE_ALPHA)
-#define D_ALPHA_ZERO (NV10TCL_RC_IN_ALPHA_D_INPUT_ZERO | NV10TCL_RC_IN_ALPHA_D_COMPONENT_USAGE_ALPHA)
-	
-#define A_ALPHA_ONE (A_ALPHA_ZERO | (NV10TCL_RC_IN_ALPHA_A_MAPPING_UNSIGNED_INVERT_NV))
-#define B_ALPHA_ONE (B_ALPHA_ZERO | (NV10TCL_RC_IN_ALPHA_B_MAPPING_UNSIGNED_INVERT_NV))
-#define C_ALPHA_ONE (C_ALPHA_ZERO | (NV10TCL_RC_IN_ALPHA_C_MAPPING_UNSIGNED_INVERT_NV))
-#define D_ALPHA_ONE (D_ALPHA_ZERO | (NV10TCL_RC_IN_ALPHA_D_MAPPING_UNSIGNED_INVERT_NV))
-
-#define A_RGB_ZERO (NV10TCL_RC_IN_RGB_A_INPUT_ZERO | NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_RGB)
-#define B_RGB_ZERO (NV10TCL_RC_IN_RGB_B_INPUT_ZERO | NV10TCL_RC_IN_RGB_B_COMPONENT_USAGE_RGB)
-#define C_RGB_ZERO (NV10TCL_RC_IN_RGB_C_INPUT_ZERO | NV10TCL_RC_IN_RGB_C_COMPONENT_USAGE_RGB)
-#define D_RGB_ZERO (NV10TCL_RC_IN_RGB_D_INPUT_ZERO | NV10TCL_RC_IN_RGB_D_COMPONENT_USAGE_RGB)
-
-#define A_RGB_ONE (A_RGB_ZERO | NV10TCL_RC_IN_RGB_A_MAPPING_UNSIGNED_INVERT_NV)
-#define B_RGB_ONE (B_RGB_ZERO | NV10TCL_RC_IN_RGB_B_MAPPING_UNSIGNED_INVERT_NV)
-#define C_RGB_ONE (C_RGB_ZERO | NV10TCL_RC_IN_RGB_C_MAPPING_UNSIGNED_INVERT_NV)
-#define D_RGB_ONE (D_RGB_ZERO | NV10TCL_RC_IN_RGB_D_MAPPING_UNSIGNED_INVERT_NV)
-
-	rc0_in_alpha |= C_ALPHA_ZERO | D_ALPHA_ZERO;
-	if (src->format == PICT_x8r8g8b8)
-		rc0_in_alpha |= A_ALPHA_ONE;
+	if (PICT_FORMAT_A(src->format))
+		rc0_in_alpha |= NV10TCL_RC_IN_ALPHA_A_INPUT_TEXTURE0_ARB
+			| NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_ALPHA;
 	else
-		rc0_in_alpha |= 0x18000000;
+		rc0_in_alpha |= RC_IN_ONE(ALPHA, A);
 
-	if ( ! mask ) 
-		rc0_in_alpha |= B_ALPHA_ONE;
-	else 
-		if ( mask->format == PICT_x8r8g8b8 )  /*no alpha? ignore it*/
-			rc0_in_alpha |= B_ALPHA_ONE;
-		else
-			rc0_in_alpha |= 0x00190000; /*B = a_1*/
+	if (mask && PICT_FORMAT_A(mask->format))
+		rc0_in_alpha |= NV10TCL_RC_IN_RGB_B_INPUT_TEXTURE1_ARB
+			| NV10TCL_RC_IN_RGB_B_COMPONENT_USAGE_ALPHA;
+	else
+		rc0_in_alpha |= RC_IN_ONE(ALPHA, B);
 
-	rc0_in_rgb |=  C_RGB_ZERO | D_RGB_ZERO;
-	if (src->format == PICT_a8 )
-		rc0_in_rgb |= A_RGB_ZERO;
-	else 
-		rc0_in_rgb |= 0x08000000; /*A = rgb_0*/
+	if (PICT_FORMAT_RGB(src->format))
+		rc0_in_rgb |= NV10TCL_RC_IN_RGB_A_INPUT_TEXTURE0_ARB
+			| NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_RGB;
 
-	if ( ! mask )
-		rc0_in_rgb |= B_RGB_ONE;
-	else 
-		if (  mask->format == PICT_x8r8g8b8 )  /*no alpha? ignore it*/
-			rc0_in_rgb |= B_RGB_ONE;
-		else
-			rc0_in_rgb |= 0x00190000; /*B = a_1*/
-		
-	BEGIN_RING(chan, celcius, NV10TCL_RC_IN_ALPHA(0), 6);
+	if (mask && PICT_FORMAT_A(mask->format))
+		rc0_in_rgb |= NV10TCL_RC_IN_RGB_B_INPUT_TEXTURE1_ARB
+			| NV10TCL_RC_IN_RGB_B_COMPONENT_USAGE_ALPHA;
+	else
+		rc0_in_rgb |= RC_IN_ONE(RGB, B);
+
+	BEGIN_RING(chan, celcius, NV10TCL_RC_IN_ALPHA(0), 1);
 	OUT_RING  (chan, rc0_in_alpha);
-	OUT_RING  (chan, rc1_in_alpha);
+	BEGIN_RING(chan, celcius, NV10TCL_RC_IN_RGB(0), 1);
 	OUT_RING  (chan, rc0_in_rgb);
-	OUT_RING  (chan, rc1_in_rgb);
-	OUT_RING  (chan, color0); /*COLOR 0*/
-	OUT_RING  (chan, color1); /*COLOR 1*/
 }
 
 static void NV10SetRegCombs_A8plusA8(NVPtr pNv, int pass, int mask_out_bytes)
@@ -533,76 +528,57 @@ static void NV10SetRegCombs_A8plusA8(NVPtr pNv, int pass, int mask_out_bytes)
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celcius = pNv->Nv3D;
 	unsigned int rc0_in_alpha = 0, rc0_in_rgb = 0;
-	unsigned int rc1_in_alpha = 0, rc1_in_rgb = 0;
 	unsigned int color0 = 0, color1 = 0;
 
-	if ( pass == 1)
-		{
-		if ( mask_out_bytes & 1 )
-			rc0_in_alpha = A_ALPHA_ZERO | B_ALPHA_ZERO | C_ALPHA_ZERO | D_ALPHA_ZERO;
-		else rc0_in_alpha = 0x19000000 | B_ALPHA_ONE | C_ALPHA_ZERO | D_ALPHA_ZERO;
-		
-		rc0_in_rgb = C_RGB_ZERO | D_RGB_ZERO;
-		
-		if ( mask_out_bytes & 2 )
-			rc0_in_rgb |= A_RGB_ZERO | B_RGB_ZERO;
-		else rc0_in_rgb |= 0x18000000 | 0x00010000;
-		
-		color0 = 0x00ff0000; /*R = 1 G = 0 B = 0*/
-		}
-	else {
-		rc0_in_alpha = A_ALPHA_ZERO | B_ALPHA_ZERO | C_ALPHA_ZERO | D_ALPHA_ZERO;
-		
-		rc0_in_rgb = 0;
-		
-		
-		
-		if ( mask_out_bytes & 8 )
-			rc0_in_rgb |= A_RGB_ZERO | B_RGB_ZERO;
-		else  rc0_in_rgb |= 0x18000000 | 0x00010000; /*A = a_0, B= cst color 0*/
-		
-		color0 = 0x000000ff; 
-		
-		if ( mask_out_bytes & 4)
-			rc0_in_rgb |= C_RGB_ZERO | D_RGB_ZERO;
-		else rc0_in_rgb |= 0x1900 | 0x02; /*C = a_1, D = cst color 1*/
-			
-		color1 = 0x0000ff00; /*R = 0, G = 1, B = 0*/
-		}
+	if (pass == 1) {
+		if (~mask_out_bytes & 1)
+			rc0_in_alpha |= NV10TCL_RC_IN_ALPHA_A_INPUT_TEXTURE1_ARB
+				| NV10TCL_RC_IN_ALPHA_A_COMPONENT_USAGE_ALPHA
+				| RC_IN_ONE(ALPHA, B);
 
-	BEGIN_RING(chan, celcius, NV10TCL_RC_IN_ALPHA(0), 6);
+		if (~mask_out_bytes & 2)
+			rc0_in_rgb |= NV10TCL_RC_IN_RGB_A_INPUT_TEXTURE0_ARB
+				| NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_ALPHA
+				| NV10TCL_RC_IN_RGB_B_INPUT_CONSTANT_COLOR0_NV
+				| NV10TCL_RC_IN_RGB_B_COMPONENT_USAGE_RGB;
+
+		color0 = 0x00ff0000; /*R = 1 G = 0 B = 0*/
+	} else {
+		if (~mask_out_bytes & 8)
+			rc0_in_rgb |= NV10TCL_RC_IN_RGB_A_INPUT_TEXTURE0_ARB
+				| NV10TCL_RC_IN_RGB_A_COMPONENT_USAGE_ALPHA
+				| NV10TCL_RC_IN_RGB_B_INPUT_CONSTANT_COLOR0_NV
+				| NV10TCL_RC_IN_RGB_B_COMPONENT_USAGE_RGB;
+
+		color0 = 0x000000ff;
+
+		if (~mask_out_bytes & 4)
+			rc0_in_rgb |= NV10TCL_RC_IN_RGB_C_INPUT_TEXTURE1_ARB
+				| NV10TCL_RC_IN_RGB_C_COMPONENT_USAGE_ALPHA
+				| NV10TCL_RC_IN_RGB_D_INPUT_CONSTANT_COLOR1_NV
+				| NV10TCL_RC_IN_RGB_D_COMPONENT_USAGE_RGB;
+
+		color1 = 0x0000ff00; /*R = 0, G = 1, B = 0*/
+	}
+
+	BEGIN_RING(chan, celcius, NV10TCL_RC_IN_ALPHA(0), 1);
 	OUT_RING  (chan, rc0_in_alpha);
-	OUT_RING  (chan, rc1_in_alpha);
+	BEGIN_RING(chan, celcius, NV10TCL_RC_IN_RGB(0), 1);
 	OUT_RING  (chan, rc0_in_rgb);
-	OUT_RING  (chan, rc1_in_rgb);
-	OUT_RING  (chan, color0); /*COLOR 0*/
-	OUT_RING  (chan, color1); /*COLOR 1*/
+	BEGIN_RING(chan, celcius, NV10TCL_RC_COLOR(0), 2);
+	OUT_RING  (chan, color0);
+	OUT_RING  (chan, color1);
 }
 
 static void NV10SetPictOp(NVPtr pNv,int op)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celcius = pNv->Nv3D;
-	struct {int src;int dst;} pictops[] =
-	{
-		{0x0000,0x0000}, /* PictOpClear */
-		{0x0001,0x0000}, /* PictOpSrc */
-		{0x0000,0x0001}, /* PictOpDst */
-		{0x0001,0x0303}, /* PictOpOver */
-		{0x0305,0x0001}, /* PictOpOverReverse */
-		{0x0304,0x0000}, /* PictOpIn */
-		{0x0000,0x0302}, /* PictOpInReverse */
-		{0x0305,0x0000}, /* PictOpOut */
-		{0x0000,0x0303}, /* PictOpOutReverse */
-		{0x0304,0x0303}, /* PictOpAtop */
-		{0x0305,0x0302}, /* PictOpAtopReverse - DOES NOT WORK*/
-		{0x0305,0x0303}, /* PictOpXor */
-		{0x0001,0x0001}, /* PictOpAdd */
-	};
-	
+	struct nv10_pictop *nv10_op = &NV10PictOp[op];
+
 	BEGIN_RING(chan, celcius, NV10TCL_BLEND_FUNC_SRC, 2);
-	OUT_RING  (chan, pictops[op].src);
-	OUT_RING  (chan, pictops[op].dst);
+	OUT_RING  (chan, nv10_op->src);
+	OUT_RING  (chan, nv10_op->dst);
 	BEGIN_RING(chan, celcius, NV10TCL_BLEND_FUNC_ENABLE, 1);
 	OUT_RING  (chan, 1);
 }
@@ -631,19 +607,27 @@ Bool NV10EXAPrepareComposite(int op,
 
 	WAIT_RING(chan, 128);
 
-	if (NV10Check_A8plusA8_Feasability(pSrcPicture,pMaskPicture,pDstPicture,op))
-		{
-		state.have_mask = FALSE;
+	state.is_a8_plus_a8 = FALSE;
+	state.have_mask=(pMaskPicture!=NULL);
+
+	pNv->alu = op;
+	pNv->pspict = pSrcPicture;
+	pNv->pmpict = pMaskPicture;
+	pNv->pdpict = pDstPicture;
+	pNv->pspix = pSrc;
+	pNv->pmpix = pMask;
+	pNv->pdpix = pDst;
+	chan->flush_notify = NV10StateCompositeReemit;
+
+	if (NV10Check_A8plusA8_Feasability(pSrcPicture,pMaskPicture,pDstPicture,op)) {
 		state.is_a8_plus_a8 = TRUE;
 		NV10SetBuffer(pNv,pDstPicture,pDst);
 		NV10SetPictOp(pNv, op);
 		NV10SetTexture(pNv, 0, pSrcPicture, pSrc);
 		NV10SetTexture(pNv, 1, pSrcPicture, pSrc);
 		return TRUE;
-		}
-	
-	state.is_a8_plus_a8 = FALSE;
-		
+	}
+
 	/* Set dst format */
 	NV10SetBuffer(pNv,pDstPicture,pDst);
 
@@ -659,16 +643,6 @@ Bool NV10EXAPrepareComposite(int op,
 	/* Set PictOp */
 	NV10SetPictOp(pNv, op);
 
-
-	pNv->alu = op;
-	pNv->pspict = pSrcPicture;
-	pNv->pmpict = pMaskPicture;
-	pNv->pdpict = pDstPicture;
-	pNv->pspix = pSrc;
-	pNv->pmpix = pMask;
-	pNv->pdpix = pDst;
-	chan->flush_notify = NV10StateCompositeReemit;
-	state.have_mask=(pMaskPicture!=NULL);
 	return TRUE;
 }
 
@@ -995,6 +969,13 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0x207);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, celcius, NV10TCL_TX_ENABLE(0), 2);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
+	BEGIN_RING(chan, celcius, NV10TCL_RC_IN_ALPHA(0), 6);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, celcius, NV10TCL_RC_OUT_ALPHA(0), 6);
