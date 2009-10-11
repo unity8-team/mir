@@ -518,10 +518,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		NVLeaveVT(scrnIndex, 0);
 		pScrn->vtSema = FALSE;
 	}
-	if (pScrn->vtSema) {
-		NVLeaveVT(scrnIndex, 0);
-		pScrn->vtSema = FALSE;
-	}
 
 	NVAccelFree(pScrn);
 	NVTakedownVideo(pScrn);
