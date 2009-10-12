@@ -302,6 +302,38 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 	return 1;
 }
 
+static PicturePtr
+uxa_picture_for_pixman_format(ScreenPtr pScreen,
+			      pixman_format_code_t format,
+			      int width, int height)
+{
+	PicturePtr pPicture;
+	PixmapPtr pPixmap;
+	int error;
+
+	if (format == PIXMAN_a1)
+		format = PIXMAN_a8;
+
+	pPixmap = (*pScreen->CreatePixmap)(pScreen, width, height,
+					   PIXMAN_FORMAT_DEPTH(format),
+					   UXA_CREATE_PIXMAP_FOR_MAP);
+	if (!pPixmap)
+		return 0;
+
+	pPicture = CreatePicture(0, &pPixmap->drawable,
+				 PictureMatchFormat(pScreen,
+						    PIXMAN_FORMAT_DEPTH(format),
+						    format),
+				 0, 0, serverClient, &error);
+	(*pScreen->DestroyPixmap) (pPixmap);
+	if (!pPicture)
+		return 0;
+
+	ValidatePicture(pPicture);
+
+	return pPicture;
+}
+
 /* In order to avoid fallbacks when using an a1 source/mask,
  * for example with non-antialiased trapezoids, we need to
  * expand the bitmap into an a8 Picture. We do so by using the generic
@@ -320,22 +352,12 @@ uxa_picture_from_a1_pixman_image(ScreenPtr pScreen, pixman_image_t * image)
 	width = pixman_image_get_width(image);
 	height = pixman_image_get_height(image);
 
-	pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height, 8,
-					    UXA_CREATE_PIXMAP_FOR_MAP);
-	if (!pPixmap)
-		return 0;
-
-	pPicture = CreatePicture(0, &pPixmap->drawable,
-				 PictureMatchFormat(pScreen, 8, PICT_a8),
-				 0, 0, serverClient, &error);
-	(*pScreen->DestroyPixmap) (pPixmap);
+	pPicture = uxa_picture_for_pixman_format (pScreen, PIXMAN_a1,
+						  width, height);
 	if (!pPicture)
 		return 0;
 
-	ValidatePicture(pPicture);
-
-	pPixmap = GetScratchPixmapHeader(pScreen, width, height, 1,
-					 BitsPerPixel(1),
+	pPixmap = GetScratchPixmapHeader(pScreen, width, height, 1, 1,
 					 pixman_image_get_stride(image),
 					 pixman_image_get_data(image));
 	if (!pPixmap) {
@@ -352,8 +374,17 @@ uxa_picture_from_a1_pixman_image(ScreenPtr pScreen, pixman_image_t * image)
 		return 0;
 	}
 
-	CompositePicture(PictOpSrc, pSrc, NULL, pPicture,
-			 0, 0, 0, 0, 0, 0, width, height);
+	ValidatePicture(pSrc);
+
+	/* force the fallback path */
+	if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
+		fbComposite(PictOpSrc, pSrc, NULL, pPicture,
+			    0, 0, 0, 0, 0, 0, width, height);
+		uxa_finish_access(pPicture->pDrawable);
+	} else {
+		FreePicture(pPicture, 0);
+		pPicture = 0;
+	}
 
 	FreePicture(pSrc, 0);
 	FreeScratchPixmapHeader(pPixmap);
@@ -369,32 +400,22 @@ uxa_picture_from_pixman_image(ScreenPtr pScreen,
 	PicturePtr pPicture;
 	PixmapPtr pPixmap;
 	GCPtr pGC;
-	int width, height, depth;
-	int error;
+	int width, height;
 
 	if (format == PICT_a1)
 		return uxa_picture_from_a1_pixman_image(pScreen, image);
 
 	width = pixman_image_get_width(image);
 	height = pixman_image_get_height(image);
-	depth = pixman_image_get_depth(image);
 
-	pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height, depth,
-					    UXA_CREATE_PIXMAP_FOR_MAP);
-	if (!pPixmap)
-		return 0;
-
-	pPicture = CreatePicture(0, &pPixmap->drawable,
-				 PictureMatchFormat(pScreen, depth, format),
-				 0, 0, serverClient, &error);
-	(*pScreen->DestroyPixmap) (pPixmap);
+	pPicture = uxa_picture_for_pixman_format(pScreen, format,
+						 width, height);
 	if (!pPicture)
 		return 0;
 
-	ValidatePicture(pPicture);
-
-	pPixmap = GetScratchPixmapHeader(pScreen, width, height, depth,
-					 BitsPerPixel(depth),
+	pPixmap = GetScratchPixmapHeader(pScreen, width, height,
+					 PIXMAN_FORMAT_DEPTH(format),
+					 PIXMAN_FORMAT_BPP(format),
 					 pixman_image_get_stride(image),
 					 pixman_image_get_data(image));
 	if (!pPixmap) {
@@ -402,7 +423,7 @@ uxa_picture_from_pixman_image(ScreenPtr pScreen,
 		return 0;
 	}
 
-	pGC = GetScratchGC(depth, pScreen);
+	pGC = GetScratchGC(PIXMAN_FORMAT_DEPTH(format), pScreen);
 	if (!pGC) {
 		FreeScratchPixmapHeader(pPixmap);
 		FreePicture(pPicture, 0);
@@ -419,39 +440,24 @@ uxa_picture_from_pixman_image(ScreenPtr pScreen,
 	return pPicture;
 }
 
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC (1,6,99,1,0)
-#define IMAGE_FROM_PICT(P) image_from_pict(P, 0)
-#else
-#define IMAGE_FROM_PICT(P) image_from_pict(P, 0, 0)
-#endif
-
 static PicturePtr
 uxa_acquire_pattern(ScreenPtr pScreen,
-		    PicturePtr pPict,
+		    PicturePtr pSrc,
 		    pixman_format_code_t format,
 		    INT16 x, INT16 y, CARD16 width, CARD16 height)
 {
-	pixman_image_t *source, *image;
+	PicturePtr pDst;
 
-	source = IMAGE_FROM_PICT(pPict);
-	if (!source)
-		return 0;
-
-	image = pixman_image_create_bits(format, width, height, NULL, 0);
-	if (!image) {
-		pixman_image_unref(source);
+	pDst = uxa_picture_for_pixman_format(pScreen, format, width, height);
+	if (uxa_prepare_access(pDst->pDrawable, UXA_ACCESS_RW)) {
+		fbComposite(PictOpSrc, pSrc, NULL, pDst,
+			    x, y, 0, 0, 0, 0, width, height);
+		uxa_finish_access(pDst->pDrawable);
+		return pDst;
+	} else {
+		FreePicture(pDst, 0);
 		return 0;
 	}
-
-	pixman_image_composite(PIXMAN_OP_SRC,
-			       source, NULL, image,
-			       x, y, 0, 0, 0, 0, width, height);
-	pixman_image_unref(source);
-
-	pPict = uxa_picture_from_pixman_image(pScreen, image, format);
-	pixman_image_unref(image);
-
-	return pPict;
 }
 
 static PicturePtr
@@ -1108,12 +1114,11 @@ uxa_trapezoids(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 		xDst = traps[0].left.p1.x >> 16;
 		yDst = traps[0].left.p1.y >> 16;
 
-		width = bounds.x2 - bounds.x1;
+		width  = bounds.x2 - bounds.x1;
 		height = bounds.y2 - bounds.y1;
 
-		format =
-		    maskFormat->
-		    format | (BitsPerPixel(maskFormat->depth) << 24);
+		format = maskFormat->format |
+			(BitsPerPixel(maskFormat->depth) << 24);
 		image =
 		    pixman_image_create_bits(format, width, height, NULL, 0);
 		if (!image)
@@ -1133,8 +1138,10 @@ uxa_trapezoids(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 		xRel = bounds.x1 + xSrc - xDst;
 		yRel = bounds.y1 + ySrc - yDst;
 		CompositePicture(op, pSrc, pPicture, pDst,
-				 xRel, yRel, 0, 0, bounds.x1, bounds.y1,
-				 bounds.x2 - bounds.x1, bounds.y2 - bounds.y1);
+				 xRel, yRel,
+				 0, 0,
+				 bounds.x1, bounds.y1,
+				 width, height);
 		FreePicture(pPicture, 0);
 	} else {
 		if (pDst->polyEdge == PolyEdgeSharp)
