@@ -83,7 +83,7 @@ static DRI2BufferPtr
 I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		      int count)
 {
-	ScreenPtr screen = drawable->screen;
+	ScreenPtr screen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2BufferPtr buffers;
