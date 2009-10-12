@@ -363,6 +363,11 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		goto done;
 #endif
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,7,0,0,0)
+	crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
+			       crtc->gamma_blue, crtc->gamma_size);
+#endif
+
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 
