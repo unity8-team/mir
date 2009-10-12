@@ -297,7 +297,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
+    int index;
     uint32_t sclock = mode->Clock;
     uint32_t ref_div = 0, fb_div = 0, frac_fb_div = 0, post_div = 0;
     int major, minor, i;
@@ -309,7 +309,6 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     radeon_encoder_ptr radeon_encoder = NULL;
     int pll_flags = 0;
     uint32_t temp;
-
     void *ptr;
     AtomBiosArgRec data;
     unsigned char *space;
@@ -357,6 +356,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 
     if (IS_DCE3_VARIANT) {
 	ADJUST_DISPLAY_PLL_PS_ALLOCATION adjust_pll_param;
+	index = GetIndexIntoMasterTable(COMMAND, AdjustDisplayPll);
 
 	/* Can't really do cloning easily on DCE3 cards */
 	for (i = 0; i < xf86_config->num_output; i++) {
@@ -383,7 +383,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	adjust_pll_param.ucTransmitterID = radeon_encoder->encoder_id;
 	adjust_pll_param.ucEncodeMode = atombios_get_encoder_mode(output);
 
-	data.exec.index = GetIndexIntoMasterTable(COMMAND, AdjustDisplayPll);
+	data.exec.index = index;
 	data.exec.dataSpace = (void *)&space;
 	data.exec.pspace = &adjust_pll_param;
 
@@ -405,6 +405,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	       radeon_crtc->crtc_id, (unsigned int)ref_div, (unsigned int)fb_div,
 	       (unsigned int)fb_div, (unsigned int)frac_fb_div, (unsigned int)post_div);
 
+    index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 
     /*ErrorF("table is %d %d\n", major, minor);*/
@@ -448,7 +449,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	exit(-1);
     }
 
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
+    data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = ptr;
 
