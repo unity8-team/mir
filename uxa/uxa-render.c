@@ -346,8 +346,8 @@ uxa_picture_from_a1_pixman_image(ScreenPtr pScreen, pixman_image_t * image)
 	pSrc = CreatePicture(0, &pPixmap->drawable,
 			     PictureMatchFormat(pScreen, 1, PICT_a1),
 			     0, 0, serverClient, &error);
-	FreeScratchPixmapHeader(pPixmap);
 	if (!pSrc) {
+		FreeScratchPixmapHeader(pPixmap);
 		FreePicture(pPicture, 0);
 		return 0;
 	}
@@ -356,6 +356,7 @@ uxa_picture_from_a1_pixman_image(ScreenPtr pScreen, pixman_image_t * image)
 			 0, 0, 0, 0, 0, 0, width, height);
 
 	FreePicture(pSrc, 0);
+	FreeScratchPixmapHeader(pPixmap);
 
 	return pPicture;
 }
