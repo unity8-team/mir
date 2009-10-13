@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.9.0-1ubuntu2) karmic; urgency=low
+
+  * Add 100_drop_fb_from_crtc.patch.  Fixes lockup with black screen on
+    logout of KDE with KMS enabled.  Patch zeroes out the framebuffer id
+    to clean up on screen closure.  Cherrypick from upstream.
+    (LP: #432521)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 13 Oct 2009 11:31:29 -0700
+
 xserver-xorg-video-intel (2:2.9.0-1ubuntu1) karmic; urgency=low
 
   [Tormod Volden]
