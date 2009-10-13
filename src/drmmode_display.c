@@ -1429,3 +1429,18 @@ drmmode_crtc_id(xf86CrtcPtr crtc)
 
 	return drmmode_crtc->mode_crtc->crtc_id;
 }
+
+void drmmode_closefb(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr xf86_config;
+	drmmode_crtc_private_ptr drmmode_crtc;
+	drmmode_ptr drmmode;
+
+	xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+
+	drmmode_crtc = xf86_config->crtc[0]->driver_private;
+	drmmode = drmmode_crtc->drmmode;
+
+	drmModeRmFB(drmmode->fd, drmmode->fb_id);
+	drmmode->fb_id = 0;
+}

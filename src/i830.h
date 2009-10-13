@@ -330,6 +330,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
 
 extern Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp);
+extern void drmmode_closefb(ScrnInfoPtr scrn);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
 					 xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);

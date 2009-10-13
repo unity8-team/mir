@@ -1519,6 +1519,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	}
 	if (intel->front_buffer) {
 		i830_set_pixmap_bo(screen->GetScreenPixmap(screen), NULL);
+		drmmode_closefb(scrn);
 		i830_free_memory(scrn, intel->front_buffer);
 		intel->front_buffer = NULL;
 	}
