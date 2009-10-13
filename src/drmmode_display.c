@@ -1148,6 +1148,7 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		    return TRUE;
 		}
 	    }
+	    return FALSE;
 	}
     }
 
