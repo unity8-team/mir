@@ -538,15 +538,16 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
     {15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
-#define NUM_ATTRIBUTES 1
+#define NUM_ATTRIBUTES 2
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {XvSettable | XvGettable, -1, 1, "XV_CRTC"},
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R200 6
+#define NUM_ATTRIBUTES_R200 7
 
 static XF86AttributeRec Attributes_r200[NUM_ATTRIBUTES_R200+1] =
 {
@@ -556,10 +557,11 @@ static XF86AttributeRec Attributes_r200[NUM_ATTRIBUTES_R200+1] =
     {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
     {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
     {XvSettable | XvGettable, 0, 1, "XV_COLORSPACE"},
+    {XvSettable | XvGettable, -1, 1, "XV_CRTC"},
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R300 8
+#define NUM_ATTRIBUTES_R300 9
 
 static XF86AttributeRec Attributes_r300[NUM_ATTRIBUTES_R300+1] =
 {
@@ -571,10 +573,11 @@ static XF86AttributeRec Attributes_r300[NUM_ATTRIBUTES_R300+1] =
     {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
     {XvSettable | XvGettable, 100, 10000, "XV_GAMMA"},
     {XvSettable | XvGettable, 0, 1, "XV_COLORSPACE"},
+    {XvSettable | XvGettable, -1, 1, "XV_CRTC"},
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R500 7
+#define NUM_ATTRIBUTES_R500 8
 
 static XF86AttributeRec Attributes_r500[NUM_ATTRIBUTES_R500+1] =
 {
@@ -585,10 +588,11 @@ static XF86AttributeRec Attributes_r500[NUM_ATTRIBUTES_R500+1] =
     {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
     {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
     {XvSettable | XvGettable, 0, 1, "XV_COLORSPACE"},
+    {XvSettable | XvGettable, -1, 1, "XV_CRTC"},
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R600 6
+#define NUM_ATTRIBUTES_R600 7
 
 static XF86AttributeRec Attributes_r600[NUM_ATTRIBUTES_R600+1] =
 {
@@ -598,6 +602,7 @@ static XF86AttributeRec Attributes_r600[NUM_ATTRIBUTES_R600+1] =
     {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
     {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
     {XvSettable | XvGettable, 0, 1, "XV_COLORSPACE"},
+    {XvSettable | XvGettable, -1, 1, "XV_CRTC"},
     {0, 0, 0, NULL}
 };
 
@@ -605,6 +610,7 @@ static Atom xvBicubic;
 static Atom xvVSync;
 static Atom xvBrightness, xvContrast, xvSaturation, xvHue;
 static Atom xvGamma, xvColorspace;
+static Atom xvCRTC;
 
 #define NUM_IMAGES 4
 
@@ -643,7 +649,16 @@ RADEONGetTexPortAttribute(ScrnInfoPtr  pScrn,
 	*value = pPriv->gamma;
     else if(attribute == xvColorspace)
 	*value = pPriv->transform_index;
-    else
+    else if(attribute == xvCRTC) {
+	int		c;
+	xf86CrtcConfigPtr	xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	for (c = 0; c < xf86_config->num_crtc; c++)
+	    if (xf86_config->crtc[c] == pPriv->desired_crtc)
+		break;
+	if (c == xf86_config->num_crtc)
+	    c = -1;
+	*value = c;
+    } else
 	return BadMatch;
 
     return Success;
@@ -676,7 +691,15 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
 	pPriv->gamma = ClipValue (value, 100, 10000);
     else if(attribute == xvColorspace)
 	pPriv->transform_index = ClipValue (value, 0, 1);
-    else
+    else if(attribute == xvCRTC) {
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	if ((value < -1) || (value > xf86_config->num_crtc))
+	    return BadValue;
+	if (value < 0)
+	    pPriv->desired_crtc = NULL;
+	else
+	    pPriv->desired_crtc = xf86_config->crtc[value];
+    } else
 	return BadMatch;
 
     return Success;
@@ -759,6 +782,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     xvHue             = MAKE_ATOM("XV_HUE");
     xvGamma           = MAKE_ATOM("XV_GAMMA");
     xvColorspace      = MAKE_ATOM("XV_COLORSPACE");
+    xvCRTC            = MAKE_ATOM("XV_CRTC");
 
     adapt->type = XvWindowMask | XvInputMask | XvImageMask;
     adapt->flags = 0;
@@ -827,6 +851,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->hue = 0;
 	pPriv->gamma = 1000;
 	pPriv->transform_index = 0;
+	pPriv->desired_crtc = NULL;
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);

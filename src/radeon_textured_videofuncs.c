@@ -351,11 +351,15 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     FINISH_ACCEL();
 
     if (pPriv->vsync) {
-	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
-						    pPriv->drw_x,
-						    pPriv->drw_x + pPriv->dst_w,
-						    pPriv->drw_y,
-						    pPriv->drw_y + pPriv->dst_h);
+	xf86CrtcPtr crtc;
+	if (pPriv->desired_crtc)
+	    crtc = pPriv->desired_crtc;
+	else
+	    crtc = radeon_xv_pick_best_crtc(pScrn,
+					    pPriv->drw_x,
+					    pPriv->drw_x + pPriv->dst_w,
+					    pPriv->drw_y,
+					    pPriv->drw_y + pPriv->dst_h);
 	if (crtc)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
 					  crtc,
@@ -910,11 +914,15 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     FINISH_ACCEL();
 
     if (pPriv->vsync) {
-	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
-						    pPriv->drw_x,
-						    pPriv->drw_x + pPriv->dst_w,
-						    pPriv->drw_y,
-						    pPriv->drw_y + pPriv->dst_h);
+	xf86CrtcPtr crtc;
+	if (pPriv->desired_crtc)
+	    crtc = pPriv->desired_crtc;
+	else
+	    crtc = radeon_xv_pick_best_crtc(pScrn,
+					    pPriv->drw_x,
+					    pPriv->drw_x + pPriv->dst_w,
+					    pPriv->drw_y,
+					    pPriv->drw_y + pPriv->dst_h);
 	if (crtc)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
 					  crtc,
@@ -2282,11 +2290,15 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     FINISH_ACCEL();
 
     if (pPriv->vsync) {
-	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
-						    pPriv->drw_x,
-						    pPriv->drw_x + pPriv->dst_w,
-						    pPriv->drw_y,
-						    pPriv->drw_y + pPriv->dst_h);
+	xf86CrtcPtr crtc;
+	if (pPriv->desired_crtc)
+	    crtc = pPriv->desired_crtc;
+	else
+	    crtc = radeon_xv_pick_best_crtc(pScrn,
+					    pPriv->drw_x,
+					    pPriv->drw_x + pPriv->dst_w,
+					    pPriv->drw_y,
+					    pPriv->drw_y + pPriv->dst_h);
 	if (crtc)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
 					  crtc,
@@ -3857,11 +3869,15 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     FINISH_ACCEL();
 
     if (pPriv->vsync) {
-	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
-						    pPriv->drw_x,
-						    pPriv->drw_x + pPriv->dst_w,
-						    pPriv->drw_y,
-						    pPriv->drw_y + pPriv->dst_h);
+	xf86CrtcPtr crtc;
+	if (pPriv->desired_crtc)
+	    crtc = pPriv->desired_crtc;
+	else
+	    crtc = radeon_xv_pick_best_crtc(pScrn,
+					    pPriv->drw_x,
+					    pPriv->drw_x + pPriv->dst_w,
+					    pPriv->drw_y,
+					    pPriv->drw_y + pPriv->dst_h);
 	if (crtc)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
 					  crtc,

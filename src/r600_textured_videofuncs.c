@@ -574,11 +574,15 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		   sizeof(vs_alu_consts) / SQ_ALU_CONSTANT_offset, vs_alu_consts);
 
     if (pPriv->vsync) {
-	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
-						    pPriv->drw_x,
-						    pPriv->drw_x + pPriv->dst_w,
-						    pPriv->drw_y,
-						    pPriv->drw_y + pPriv->dst_h);
+	xf86CrtcPtr crtc;
+	if (pPriv->desired_crtc)
+	    crtc = pPriv->desired_crtc;
+	else
+	    crtc = radeon_xv_pick_best_crtc(pScrn,
+					    pPriv->drw_x,
+					    pPriv->drw_x + pPriv->dst_w,
+					    pPriv->drw_y,
+					    pPriv->drw_y + pPriv->dst_h);
 	if (crtc)
 	    cp_wait_vline_sync(pScrn, accel_state->ib, pPixmap,
 			       crtc,
