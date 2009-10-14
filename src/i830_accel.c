@@ -87,8 +87,11 @@ void I830EmitFlush(ScrnInfoPtr scrn)
 void i830_debug_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+
 	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
 		intel_batch_flush(scrn, FALSE);
+	else if (intel->debug_flush & DEBUG_FLUSH_CACHES)
+		I830EmitFlush(scrn);
 }
 
 /* The following function sets up the supported acceleration. Call it
