@@ -84,15 +84,12 @@ void I830EmitFlush(ScrnInfoPtr scrn)
 	}
 }
 
-#if (ALWAYS_SYNC || ALWAYS_FLUSH)
-void i830_debug_sync(ScrnInfoPtr scrn)
+void i830_debug_flush(ScrnInfoPtr scrn)
 {
-	if (ALWAYS_SYNC)
-		I830Sync(scrn);
-	else
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
 		intel_batch_flush(scrn, FALSE);
 }
-#endif
 
 /* The following function sets up the supported acceleration. Call it
  * from the FbInit() function in the SVGA driver, or before ScreenInit

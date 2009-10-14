@@ -228,7 +228,7 @@ static void i830_uxa_done_solid(PixmapPtr pixmap)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 
-	i830_debug_sync(scrn);
+	i830_debug_flush(scrn);
 }
 
 /**
@@ -336,7 +336,7 @@ static void i830_uxa_done_copy(PixmapPtr dest)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 
-	i830_debug_sync(scrn);
+	i830_debug_flush(scrn);
 }
 
 /**
@@ -348,7 +348,7 @@ void i830_done_composite(PixmapPtr dest)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 
-	i830_debug_sync(scrn);
+	i830_debug_flush(scrn);
 }
 
 #define xFixedToFloat(val) \

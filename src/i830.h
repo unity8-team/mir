@@ -295,7 +295,15 @@ typedef struct intel_screen_private {
 	 * User option to print acceleration fallback info to the server log.
 	 */
 	Bool fallback_debug;
+	unsigned debug_flush;
 } intel_screen_private;
+
+enum {
+	DEBUG_FLUSH_BATCHES = 0x1,
+	DEBUG_FLUSH_CACHES = 0x2,
+	DEBUG_FLUSH_WAIT = 0x4,
+};
+
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -493,13 +501,7 @@ enum {
 	INTEL_CREATE_PIXMAP_TILING_Y,
 };
 
-#if (ALWAYS_FLUSH | ALWAYS_SYNC)
-void i830_debug_sync(ScrnInfoPtr scrn);
-#else
-static inline void i830_debug_sync(ScrnInfoPtr scrn)
-{
-}
-#endif
+void i830_debug_flush(ScrnInfoPtr scrn);
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 {

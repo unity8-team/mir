@@ -1259,6 +1259,8 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 #if WATCH_STATS
 	/* i830_dump_error_state(scrn); */
 #endif
+
+	i830_debug_flush(scrn);
 }
 
 void i965_free_video(ScrnInfoPtr scrn)

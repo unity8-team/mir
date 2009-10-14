@@ -98,6 +98,17 @@ void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed)
 	if (intel->batch_used == 0)
 		return;
 
+	if (intel->debug_flush & DEBUG_FLUSH_CACHES) {
+		int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+
+		if (IS_I965G(intel))
+			flags = 0;
+
+		*(uint32_t *) (intel->batch_ptr + intel->batch_used) =
+			MI_FLUSH | flags;
+		intel->batch_used += 4;
+	}
+
 	/* Emit a padding dword if we aren't going to be quad-word aligned. */
 	if ((intel->batch_used & 4) == 0) {
 		*(uint32_t *) (intel->batch_ptr + intel->batch_used) = MI_NOOP;
@@ -133,6 +144,9 @@ void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed)
 	 * the work.
 	 */
 	intel->need_mi_flush = TRUE;
+
+	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
+		intel_batch_wait_last(scrn);
 
 	if (intel->batch_flush_notify)
 		intel->batch_flush_notify(scrn);

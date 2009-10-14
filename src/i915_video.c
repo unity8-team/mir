@@ -460,4 +460,6 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 
 		intel_batch_end_atomic(scrn);
 	}
+
+	i830_debug_flush(scrn);
 }

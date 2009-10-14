@@ -527,8 +527,6 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 		intel->s8_blendctl = blendctl;
 	}
 
-	i830_debug_sync(scrn);
-
 	intel->needs_render_state_emit = TRUE;
 
 	return TRUE;
@@ -819,8 +817,6 @@ i830_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 				      dstY, w, h);
 
 	intel_batch_end_atomic(scrn);
-
-	i830_debug_sync(scrn);
 }
 
 void i830_batch_flush_notify(ScrnInfoPtr scrn)

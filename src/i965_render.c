@@ -1796,8 +1796,6 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	drm_intel_bo_unreference(vb_bo);
 
 	intel_batch_end_atomic(scrn);
-
-	i830_debug_sync(scrn);
 }
 
 void i965_batch_flush_notify(ScrnInfoPtr scrn)

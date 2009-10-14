@@ -171,6 +171,9 @@ typedef enum {
    OPTION_XVMC,
 #endif
    OPTION_PREFER_OVERLAY,
+   OPTION_DEBUG_FLUSH_BATCHES,
+   OPTION_DEBUG_FLUSH_CACHES,
+   OPTION_DEBUG_WAIT,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -184,6 +187,9 @@ static OptionInfoRec I830Options[] = {
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
    {OPTION_PREFER_OVERLAY, "XvPreferOverlay", OPTV_BOOLEAN, {0}, FALSE},
+   {OPTION_DEBUG_FLUSH_BATCHES, "DebugFlushBatches", OPTV_BOOLEAN, {0}, FALSE},
+   {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
+   {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -664,6 +670,23 @@ static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
 	intel->fallback_debug = xf86ReturnOptValBool(intel->Options,
 						     OPTION_FALLBACKDEBUG,
 						     FALSE);
+
+	intel->debug_flush = 0;
+
+	if (xf86ReturnOptValBool(intel->Options,
+				 OPTION_DEBUG_FLUSH_BATCHES,
+				 FALSE))
+		intel->debug_flush |= DEBUG_FLUSH_BATCHES;
+
+	if (xf86ReturnOptValBool(intel->Options,
+				 OPTION_DEBUG_FLUSH_CACHES,
+				 FALSE))
+		intel->debug_flush |= DEBUG_FLUSH_CACHES;
+
+	if (xf86ReturnOptValBool(intel->Options,
+				 OPTION_DEBUG_WAIT,
+				 FALSE))
+		intel->debug_flush |= DEBUG_FLUSH_WAIT;
 
 	return TRUE;
 }
