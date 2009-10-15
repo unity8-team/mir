@@ -1387,7 +1387,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 #ifdef INTEL_XVMC
-	intel->XvMCEnabled = FALSE;
+	if (IS_I965G(intel))
+		intel->XvMCEnabled = TRUE;
 	from = ((intel->directRenderingType == DRI_DRI2) &&
 		xf86GetOptValBool(intel->Options, OPTION_XVMC,
 				  &intel->XvMCEnabled) ? X_CONFIG : X_DEFAULT);
