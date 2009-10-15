@@ -140,17 +140,13 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] = {
 	{15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
-#define CLONE_ATTRIBUTES 1
-static XF86AttributeRec CloneAttributes[CLONE_ATTRIBUTES] = {
-	{XvSettable | XvGettable, -1, 1, "XV_PIPE"}
-};
-
-#define NUM_ATTRIBUTES 4
+#define NUM_ATTRIBUTES 5
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
 	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
-	{XvSettable | XvGettable, 0, 1023, "XV_SATURATION"}
+	{XvSettable | XvGettable, 0, 1023, "XV_SATURATION"},
+	{XvSettable | XvGettable, -1, 1, "XV_PIPE"}
 };
 
 #define NUM_TEXTURED_ATTRIBUTES 3
@@ -390,18 +386,16 @@ void I830InitVideo(ScreenPtr screen)
 		}
 	}
 
-	/* Set up overlay video if we can do it at this depth. */
-	if (!OVERLAY_NOEXIST(intel) && scrn->bitsPerPixel != 8) {
-		intel->use_drmmode_overlay = drmmode_has_overlay(scrn);
-		if (intel->use_drmmode_overlay) {
-			overlayAdaptor = I830SetupImageVideoOverlay(screen);
-			if (overlayAdaptor != NULL) {
-				xf86DrvMsg(scrn->scrnIndex, X_INFO,
-					   "Set up overlay video\n");
-			} else {
-				xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-					   "Failed to set up overlay video\n");
-			}
+	/* Set up overlay video if it is available */
+	intel->use_drmmode_overlay = drmmode_has_overlay(scrn);
+	if (intel->use_drmmode_overlay) {
+		overlayAdaptor = I830SetupImageVideoOverlay(screen);
+		if (overlayAdaptor != NULL) {
+			xf86DrvMsg(scrn->scrnIndex, X_INFO,
+				   "Set up overlay video\n");
+		} else {
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+				   "Failed to set up overlay video\n");
 		}
 	}
 
@@ -470,7 +464,6 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 
 	adapt->pPortPrivates[0].ptr = (pointer) (adaptor_priv);
 	adapt->nAttributes = NUM_ATTRIBUTES;
-	adapt->nAttributes += CLONE_ATTRIBUTES;
 	if (IS_I9XX(intel))
 		adapt->nAttributes += GAMMA_ATTRIBUTES;	/* has gamma */
 	adapt->pAttributes =
@@ -480,9 +473,6 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	memcpy((char *)att, (char *)Attributes,
 	       sizeof(XF86AttributeRec) * NUM_ATTRIBUTES);
 	att += NUM_ATTRIBUTES;
-	memcpy((char *)att, (char *)CloneAttributes,
-	       sizeof(XF86AttributeRec) * CLONE_ATTRIBUTES);
-	att += CLONE_ATTRIBUTES;
 	if (IS_I9XX(intel)) {
 		memcpy((char *)att, (char *)GammaAttributes,
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
