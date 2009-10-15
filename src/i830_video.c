@@ -887,13 +887,13 @@ I830CopyPackedData(intel_adaptor_private *adaptor_priv,
 				dst[(((h - i) * 2) - 3) + (j * dstPitch)] =
 				    src[(j * 2) + 1 + (i * srcPitch)];
 				dst[(((h - i) * 2) - 3) +
-				    ((j - 1) * dstPitch)] =
+				    ((j + 1) * dstPitch)] =
 				    src[(j * 2) + 1 + ((i + 1) * srcPitch)];
 				/* Copy V */
 				dst[(((h - i) * 2) - 1) + (j * dstPitch)] =
 				    src[(j * 2) + 3 + (i * srcPitch)];
 				dst[(((h - i) * 2) - 1) +
-				    ((j - 1) * dstPitch)] =
+				    ((j + 1) * dstPitch)] =
 				    src[(j * 2) + 3 + ((i + 1) * srcPitch)];
 			}
 		}
