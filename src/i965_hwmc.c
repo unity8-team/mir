@@ -48,7 +48,7 @@
 #define XVMC_VLD  0x00020000
 #endif
 
-static PutImageFuncPtr XvPutImage;
+static PutImageFuncPtr savedXvPutImage;
 
 static int create_context(ScrnInfoPtr scrn,
 			  XvMCContextPtr context, int *num_privates,
@@ -156,36 +156,26 @@ static int put_image(ScrnInfoPtr scrn,
 		     short src_h, short drw_w, short drw_h,
 		     int id, unsigned char *buf, short width,
 		     short height, Bool sync, RegionPtr clipBoxes, pointer data,
-		     DrawablePtr pDraw)
+		     DrawablePtr drawable)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_xvmc_command *cmd = (struct intel_xvmc_command *)buf;
-	dri_bo *bo;
 
 	if (id == FOURCC_XVMC) {
-		bo = intel_bo_gem_create_from_name(intel->bufmgr, "surface",
-						   cmd->handle);
-		dri_bo_pin(bo, 0x1000);
-		/* XXX: KMS */
-#if 0
-		buf = intel->FbBase + bo->offset;
-#endif
+		/* Pass the GEM object name through the pointer arg. */
+		buf = (void *)(uintptr_t)cmd->handle;
 	}
-	XvPutImage(scrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
-		   drw_w, drw_h, id, buf, width, height, sync, clipBoxes,
-		   data, pDraw);
 
-	if (id == FOURCC_XVMC) {
-		dri_bo_unpin(bo);
-		dri_bo_unreference(bo);
-	}
+	savedXvPutImage(scrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
+			drw_w, drw_h, id, buf,
+			width, height, sync, clipBoxes,
+			data, drawable);
 
 	return Success;
 }
 
 static Bool init(ScrnInfoPtr screen_info, XF86VideoAdaptorPtr adaptor)
 {
-	XvPutImage = adaptor->PutImage;
+	savedXvPutImage = adaptor->PutImage;
 	adaptor->PutImage = put_image;
 
 	return TRUE;

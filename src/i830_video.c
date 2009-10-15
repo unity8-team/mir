@@ -1165,10 +1165,10 @@ int is_planar_fourcc(int id)
 	}
 }
 
-static int xvmc_passthrough(int id, Rotation rotation)
+static int xvmc_passthrough(int id)
 {
 #ifdef INTEL_XVMC
-	return id == FOURCC_XVMC && rotation == RR_Rotate_0;
+	return id == FOURCC_XVMC;
 #else
 	return 0;
 #endif
@@ -1331,17 +1331,24 @@ i830_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 
 static Bool
 i830_setup_video_buffer(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
-			int alloc_size, int id)
+			int alloc_size, int id, unsigned char *buf)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+
 	/* Free the current buffer if we're going to have to reallocate */
 	if (adaptor_priv->buf && adaptor_priv->buf->size < alloc_size) {
 		drm_intel_bo_unreference(adaptor_priv->buf);
 		adaptor_priv->buf = NULL;
 	}
 
-	if (xvmc_passthrough(id, adaptor_priv->rotation)) {
+	if (xvmc_passthrough(id)) {
 		i830_free_video_buffers(adaptor_priv);
+		if (IS_I965G(intel)) {
+			adaptor_priv->buf =
+				drm_intel_bo_gem_create_from_name(intel->bufmgr,
+								  "xvmc surface",
+								  (uintptr_t)buf);
+		}
 	} else {
 		if (adaptor_priv->buf == NULL) {
 			adaptor_priv->buf = drm_intel_bo_alloc(intel->bufmgr,
@@ -1447,7 +1454,7 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 	i830_dst_pitch_and_size(scrn, adaptor_priv, width, height, dstPitch,
 				dstPitch2, &size, id);
 
-	if (!i830_setup_video_buffer(scrn, adaptor_priv, size, id))
+	if (!i830_setup_video_buffer(scrn, adaptor_priv, size, id, buf))
 		return FALSE;
 
 	/* fixup pointers */
@@ -1482,7 +1489,7 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 	npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
 	if (is_planar_fourcc(id)) {
-		if (!xvmc_passthrough(id, adaptor_priv->rotation)) {
+		if (!xvmc_passthrough(id)) {
 			top &= ~1;
 			nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 			I830CopyPlanarData(adaptor_priv, buf, srcPitch, srcPitch2,
@@ -1600,14 +1607,6 @@ I830PutImage(ScrnInfoPtr scrn,
 		}
 
 		if (IS_I965G(intel)) {
-			if (xvmc_passthrough(id, adaptor_priv->rotation)) {
-				/* XXX: KMS */
-				adaptor_priv->YBufOffset = (uintptr_t) buf;
-				adaptor_priv->UBufOffset =
-				    adaptor_priv->YBufOffset + height * width;
-				adaptor_priv->VBufOffset =
-				    adaptor_priv->UBufOffset + height * width / 4;
-			}
 			I965DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
 						 width, height, dstPitch, x1,
 						 y1, x2, y2, src_w, src_h,
