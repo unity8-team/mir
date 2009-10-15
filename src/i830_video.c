@@ -214,7 +214,7 @@ static Bool drmmode_has_overlay(ScrnInfoPtr scrn)
 
 	gp.param = I915_PARAM_HAS_OVERLAY;
 	gp.value = &has_overlay;
-	drmCommandWriteRead(p830->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
+	drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
 
 	return has_overlay ? TRUE : FALSE;
 #else
@@ -226,7 +226,7 @@ static void drmmode_overlay_update_attrs(ScrnInfoPtr scrn)
 {
 #ifdef DRM_MODE_OVERLAY_LANDED
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	intel_adaptor_private *adaptor_priv = GET_PORT_PRIVATE(scrn);
+	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(scrn);
 	struct drm_intel_overlay_attrs attrs;
 	int ret;
 
@@ -242,7 +242,7 @@ static void drmmode_overlay_update_attrs(ScrnInfoPtr scrn)
 	attrs.gamma4 = adaptor_priv->gamma4;
 	attrs.gamma5 = adaptor_priv->gamma5;
 
-	ret = drmCommandWriteRead(p830->drmSubFD, DRM_I915_OVERLAY_ATTRS,
+	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
 				  &attrs, sizeof(attrs));
 
 	if (ret != 0)
@@ -259,7 +259,7 @@ static void drmmode_overlay_off(ScrnInfoPtr scrn)
 
 	request.flags = 0;
 
-	ret = drmCommandWrite(p830->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
+	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
 			      &request, sizeof(request));
 
 	if (ret != 0)
@@ -276,7 +276,7 @@ drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 {
 #ifdef DRM_MODE_OVERLAY_LANDED
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	intel_adaptor_private *adaptor_priv = GET_PORT_PRIVATE(scrn);
+	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(scrn);
 	struct drm_intel_overlay_put_image request;
 	int ret;
 	int planar = is_planar_fourcc(id);
@@ -327,7 +327,7 @@ drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 			request.flags |= I915_OVERLAY_Y_SWAP;
 	}
 
-	ret = drmCommandWrite(p830->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
+	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
 			      &request, sizeof(request));
 
 	/* drop the newly displaying buffer right away */
