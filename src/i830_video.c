@@ -204,27 +204,6 @@ static XF86ImageRec Images[NUM_IMAGES] = {
 #endif
 };
 
-#if VIDEO_DEBUG
-static void CompareOverlay(intel_screen_private *intel, uint32_t * overlay, int size)
-{
-	int i;
-	uint32_t val;
-	int bad = 0;
-
-	for (i = 0; i < size; i += 4) {
-		val = INREG(0x30100 + i);
-		if (val != overlay[i / 4]) {
-			OVERLAY_DEBUG
-			    ("0x%05x value doesn't match (0x%lx != 0x%lx)\n",
-			     0x30100 + i, val, overlay[i / 4]);
-			bad++;
-		}
-	}
-	if (!bad)
-		OVERLAY_DEBUG("CompareOverlay: no differences\n");
-}
-#endif
-
 /* kernel modesetting overlay functions */
 static Bool drmmode_has_overlay(ScrnInfoPtr scrn)
 {
@@ -458,12 +437,6 @@ void I830InitVideo(ScreenPtr screen)
 	xfree(adaptors);
 }
 
-#define PFIT_CONTROLS 0x61230
-#define PFIT_AUTOVSCALE_MASK 0x200
-#define PFIT_ON_MASK 0x80000000
-#define PFIT_AUTOSCALE_RATIO 0x61238
-#define PFIT_PROGRAMMED_SCALE_RATIO 0x61234
-
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
@@ -534,11 +507,8 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	adaptor_priv->brightness = -19;	/* (255/219) * -16 */
 	adaptor_priv->contrast = 75;	/* 255/219 * 64 */
 	adaptor_priv->saturation = 146;	/* 128/112 * 128 */
-	adaptor_priv->current_crtc = NULL;
 	adaptor_priv->desired_crtc = NULL;
 	adaptor_priv->buf = NULL;
-	adaptor_priv->oldBuf = NULL;
-	adaptor_priv->oldBuf_pinned = FALSE;
 	adaptor_priv->gamma5 = 0xc0c0c0;
 	adaptor_priv->gamma4 = 0x808080;
 	adaptor_priv->gamma3 = 0x404040;
@@ -552,19 +522,6 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	REGION_NULL(screen, &adaptor_priv->clip);
 
 	intel->adaptor = adapt;
-
-	/* With LFP's we need to detect whether we're in One Line Mode, which
-	 * essentially means a resolution greater than 1024x768, and fix up
-	 * the scaler accordingly. */
-	adaptor_priv->scaleRatio = 0x10000;
-	adaptor_priv->oneLineMode = FALSE;
-
-	/*
-	 * Initialise adaptor_priv->overlayOK.  Set it to TRUE here so that a
-	 * warning will be generated if i830_crtc_dpms_video() sets it to
-	 * FALSE during mode setup.
-	 */
-	adaptor_priv->overlayOK = TRUE;
 
 	xvColorKey = MAKE_ATOM("XV_COLORKEY");
 	xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
@@ -646,8 +603,6 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 		adaptor_priv->textured = TRUE;
 		adaptor_priv->videoStatus = 0;
 		adaptor_priv->buf = NULL;
-		adaptor_priv->oldBuf = NULL;
-		adaptor_priv->oldBuf_pinned = FALSE;
 
 		adaptor_priv->rotation = RR_Rotate_0;
 		adaptor_priv->SyncToVblank = 1;
@@ -668,14 +623,6 @@ static void i830_free_video_buffers(intel_adaptor_private *adaptor_priv)
 	if (adaptor_priv->buf) {
 		drm_intel_bo_unreference(adaptor_priv->buf);
 		adaptor_priv->buf = NULL;
-	}
-
-	if (adaptor_priv->oldBuf) {
-		if (adaptor_priv->oldBuf_pinned)
-			drm_intel_bo_unpin(adaptor_priv->oldBuf);
-		drm_intel_bo_unreference(adaptor_priv->oldBuf);
-		adaptor_priv->oldBuf = NULL;
-		adaptor_priv->oldBuf_pinned = FALSE;
 	}
 }
 
@@ -760,9 +707,6 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 			adaptor_priv->desired_crtc = NULL;
 		else
 			adaptor_priv->desired_crtc = xf86_config->crtc[value];
-		/*
-		 * Leave this to be updated at the next frame
-		 */
 	} else if (attribute == xvGamma0 && (IS_I9XX(intel))) {
 		adaptor_priv->gamma0 = value;
 	} else if (attribute == xvGamma1 && (IS_I9XX(intel))) {
@@ -781,7 +725,6 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 	} else
 		return BadMatch;
 
-	/* Ensure that the overlay is off, ready for updating */
 	if ((attribute == xvGamma0 ||
 	     attribute == xvGamma1 ||
 	     attribute == xvGamma2 ||
@@ -1089,12 +1032,6 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	drm_intel_bo_unmap(adaptor_priv->buf);
 }
 
-typedef struct {
-	uint8_t sign;
-	uint16_t mantissa;
-	uint8_t exponent;
-} coeffRec, *coeffPtr;
-
 static void i830_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
 {
 	dest->x1 = a->x1 > b->x1 ? a->x1 : b->x1;
@@ -1254,22 +1191,15 @@ i830_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 		     BoxPtr dstBox, short src_w, short src_h, short drw_w,
 		     short drw_h)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	intel_adaptor_private *adaptor_priv = intel->adaptor->pPortPrivates[0].ptr;
 	int tmp;
 
 	OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 		      dstPitch);
 
-#if VIDEO_DEBUG
-	CompareOverlay(intel, (uint32_t *) overlay, 0x100);
-#endif
-
 	/*
 	 * If the video isn't visible on any CRTC, turn it off
 	 */
 	if (!crtc) {
-		adaptor_priv->current_crtc = NULL;
 		drmmode_overlay_off(scrn);
 
 		return TRUE;
