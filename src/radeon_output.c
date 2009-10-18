@@ -260,26 +260,20 @@ RADEONGetHardCodedEDIDFromFile(xf86OutputPtr output)
 			       "Successfully read Custom EDID data for output %s from %s.\n",
 			       name, outputEDID);
 		    if (command != NULL) {
-		      if (!strcmp(command, "digital")) {
-			struct edid_version *v = &radeon_output->custom_mon->ver;
-			struct disp_features *r = &radeon_output->custom_mon->features;
-			r->input_type = 1;
-			if (v->revision == 2 || v->revision == 3) {
-			  // Nothing to do
-			} else if (v->revision >= 4) {
-			  r->input_interface = 1; // Using DVI by default
-			  r->input_bpc = 2; // 8 bits per channes by default
+			if (!strcmp(command, "digital")) {
+			    radeon_output->custom_mon->rawData[0x14] |= 0x80;
+			    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				       "Forcing digital output for output %s.\n", name);
+			} else if (!strcmp(command, "analog")) {
+			    radeon_output->custom_mon->rawData[0x14] &= ~0x80;
+			    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				       "Forcing analog output for output %s.\n", name);
+			} else {
+			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				       "Unknown custom EDID command: '%s'.\n",
+				       command);
 			}
-			radeon_output->custom_mon->rawData[0x14] |=  0x80;
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "Forcing digital output for output %s.\n", name);
-		      } else {
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-				   "Unknown custom EDID command: '%s'.\n",
-				   command);
-		      }
 		    }
-
 		} else {
 		    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			       "Custom EDID data for %s read from %s was invalid.\n",
