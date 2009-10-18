@@ -888,8 +888,6 @@ static void nv_crtc_unlock(xf86CrtcPtr crtc)
 {
 }
 
-#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
-
 static void
 nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 					int size)
@@ -901,34 +899,10 @@ nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 
 	rgbs = (struct rgb *)nv_crtc->state->DAC;
 
-	switch (crtc->scrn->depth) {
-	case 15:
-		/* R5G5B5 */
-		/* spread 5 bits per colour (32 colours) over 256 (per colour) registers */
-		for (i = 0; i < 32; i++) {
-			rgbs[DEPTH_SHIFT(i, 5)].r = red[i] >> 8;
-			rgbs[DEPTH_SHIFT(i, 5)].g = green[i] >> 8;
-			rgbs[DEPTH_SHIFT(i, 5)].b = blue[i] >> 8;
-		}
-		break;
-	case 16:
-		/* R5G6B5 */
-		for (i = 0; i < 64; i++) {
-			/* set 64 regs for green's 6 bits of colour */
-			rgbs[DEPTH_SHIFT(i, 6)].g = green[i] >> 8;
-			if (i < 32) {
-				rgbs[DEPTH_SHIFT(i, 5)].r = red[i] >> 8;
-				rgbs[DEPTH_SHIFT(i, 5)].b = blue[i] >> 8;
-			}
-		}
-		break;
-	default:
-		/* R8G8B8 */
-		for (i = 0; i < 256; i++) {
-			rgbs[i].r = red[i] >> 8;
-			rgbs[i].g = green[i] >> 8;
-			rgbs[i].b = blue[i] >> 8;
-		}
+	for (i = 0; i < 256; i++) {
+		rgbs[i].r = red[i] >> 8;
+		rgbs[i].g = green[i] >> 8;
+		rgbs[i].b = blue[i] >> 8;
 	}
 
 	nouveau_hw_load_state_palette(pNv, nv_crtc->head, &pNv->set_state);
