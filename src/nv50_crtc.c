@@ -455,46 +455,18 @@ NV50CrtcLoadCursor(nouveauCrtcPtr crtc, Bool argb, uint32_t *src)
  * The indices are a bit strange, but i'll assume it's correct (taken from nv).
  * The LUT resolution seems to be 14 bits on NV50 as opposed to the 8 bits of previous hardware.
  */
-#define NV50_LUT_INDEX(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
 static void
 NV50CrtcGammaSet(nouveauCrtcPtr crtc, uint16_t *red, uint16_t *green, uint16_t *blue, int size)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	uint32_t i;
+
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcGammaSet is called for %s.\n", crtc->index ? "CRTC1" : "CRTC0");
-	uint32_t index, i;
 
-	switch (pScrn->depth) {
-	case 15:
-		/* R5G5B5 */
-		for (i = 0; i < 32; i++) {
-			index = NV50_LUT_INDEX(i, 5);
-			crtc->lut_values[index].red = red[i] >> 2;
-			crtc->lut_values[index].green = green[i] >> 2;
-			crtc->lut_values[index].blue = blue[i] >> 2;
-		}
-		break;
-	case 16:
-		/* R5G6B5 */
-		for (i = 0; i < 32; i++) {
-			index = NV50_LUT_INDEX(i, 5);
-			crtc->lut_values[index].red = red[i] >> 2;
-			crtc->lut_values[index].blue = blue[i] >> 2;
-		}
-
-		/* Green has an extra bit. */
-		for (i = 0; i < 64; i++) {
-			index = NV50_LUT_INDEX(i, 6);
-			crtc->lut_values[index].green = green[i] >> 2;
-		}
-		break;
-	default:
-		/* R8G8B8 */
-		for (i = 0; i < 256; i++) {
-			crtc->lut_values[i].red = red[i] >> 2;
-			crtc->lut_values[i].green = green[i] >> 2;
-			crtc->lut_values[i].blue = blue[i] >> 2;
-		}
-		break;
+	for (i = 0; i < 256; i++) {
+		crtc->lut_values[i].red = red[i] >> 2;
+		crtc->lut_values[i].green = green[i] >> 2;
+		crtc->lut_values[i].blue = blue[i] >> 2;
 	}
 
 	crtc->lut_values_valid = true;
