@@ -25,7 +25,11 @@
  *
  */
 #include "intel_xvmc.h"
-#include "dri2.h"
+#include <xcb/xcb.h>
+#include <xcb/xcb_aux.h>
+#include <xcb/dri2.h>
+#include <X11/Xlib-xcb.h>
+#include <X11/extensions/dri2tokens.h>
 
 /* global */
 struct _intel_xvmc_driver *xvmc_driver = NULL;
@@ -235,6 +239,77 @@ intel_xvmc_surface_ptr intel_xvmc_find_surface(XID id)
 	return NULL;
 }
 
+static int
+dri2_connect(Display *display)
+{
+	xcb_dri2_query_version_cookie_t query_version_cookie;
+	xcb_dri2_query_version_reply_t *query_version_reply;
+	xcb_dri2_connect_cookie_t connect_cookie;
+	xcb_dri2_connect_reply_t *connect_reply;
+	xcb_dri2_authenticate_cookie_t auth_cookie;
+	xcb_dri2_authenticate_reply_t *auth_reply;
+	xcb_screen_t *root;
+	xcb_connection_t *c = XGetXCBConnection(display);
+	drm_magic_t magic;
+	const xcb_query_extension_reply_t *dri2_reply;
+	char *device_name;
+	int len;
+
+	root = xcb_aux_get_screen(c, DefaultScreen(display));
+
+	dri2_reply = xcb_get_extension_data(c, &xcb_dri2_id);
+
+	if (!dri2_reply) {
+		XVMC_ERR("DRI2 required");
+		return BadValue;
+	}
+
+	/* Query the extension and make our first use of it at the same time. */
+	query_version_cookie = xcb_dri2_query_version(c, 1, 0);
+	connect_cookie = xcb_dri2_connect(c, root->root, DRI2DriverDRI);
+
+	query_version_reply =
+		xcb_dri2_query_version_reply(c, query_version_cookie, NULL);
+	connect_reply = xcb_dri2_connect_reply(c, connect_cookie, NULL);
+
+	if (!query_version_reply) {
+		XVMC_ERR("DRI2 required");
+		return BadValue;
+	}
+	free(query_version_reply);
+
+	len = xcb_dri2_connect_device_name_length(connect_reply);
+	device_name = malloc(len + 1);
+	if (!device_name) {
+		XVMC_ERR("malloc failure");
+		return BadAlloc;
+	}
+	strncpy(device_name, xcb_dri2_connect_device_name(connect_reply), len);
+	device_name[len] = 0;
+	xvmc_driver->fd = open(device_name, O_RDWR);
+	free(device_name);
+	free(connect_reply);
+	if (xvmc_driver->fd < 0) {
+		XVMC_ERR("Failed to open drm device: %s\n", strerror(errno));
+		return BadValue;
+	}
+
+	if (drmGetMagic(xvmc_driver->fd, &magic)) {
+		XVMC_ERR("Failed to get magic\n");
+		return BadValue;
+	}
+
+	auth_cookie = xcb_dri2_authenticate(c, root->root, magic);
+	auth_reply = xcb_dri2_authenticate_reply(c, auth_cookie, NULL);
+	if (!auth_reply) {
+		XVMC_ERR("Failed to authenticate magic %d\n", magic);
+		return BadValue;
+	}
+	free(auth_reply);
+
+	return Success;
+}
+
 /*
 * Function: XvMCCreateContext
 * Description: Create a XvMC context for the given surface parameters.
@@ -258,7 +333,6 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 	Status ret;
 	CARD32 *priv_data = NULL;
 	struct _intel_xvmc_common *comm;
-	drm_magic_t magic;
 	int major, minor;
 	int error_base;
 	int event_base;
@@ -295,6 +369,7 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 		XVMC_ERR("XvMCExtension is not available!");
 		return BadValue;
 	}
+
 	ret = XvMCQueryVersion(display, &major, &minor);
 	if (ret) {
 		XVMC_ERR
@@ -360,56 +435,12 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 	ret = Success;
 	xvmc_driver->fd = -1;
 
-	do {
-		if (!DRI2QueryExtension(display, &event_base, &error_base)) {
-			ret = BadValue;
-			break;
-		}
-
-		if (!DRI2QueryVersion(display, &major, &minor)) {
-			ret = BadValue;
-			break;
-		}
-
-		if (!DRI2Connect(display, RootWindow(display, screen),
-				 &driverName, &deviceName)) {
-			ret = BadValue;
-			break;
-		}
-
-		xvmc_driver->fd = open(deviceName, O_RDWR);
-
-		if (xvmc_driver->fd < 0) {
-			XVMC_ERR("Failed to open drm device: %s\n",
-				 strerror(errno));
-			ret = BadValue;
-			break;
-		}
-
-		if (drmGetMagic(xvmc_driver->fd, &magic)) {
-			XVMC_ERR("Failed to get magic\n");
-			ret = BadValue;
-			break;
-		}
-
-		if (!DRI2Authenticate
-		    (display, RootWindow(display, screen), magic)) {
-			XVMC_ERR("Failed to authenticate magic %d\n", magic);
-			ret = BadValue;
-			break;
-		}
-	} while (0);
-
-	XFree(driverName);
-	XFree(deviceName);
-
+	ret = dri2_connect(display);
 	if (ret != Success) {
 		XFree(priv_data);
 		context->privData = NULL;
-
 		if (xvmc_driver->fd >= 0)
 			close(xvmc_driver->fd);
-
 		xvmc_driver = NULL;
 		return ret;
 	}
