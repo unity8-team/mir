@@ -275,6 +275,9 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, DisplayModePtr mode);
 extern void
 RADEONATOMGetIGPInfo(ScrnInfoPtr pScrn);
 
+extern Bool
+RADEONGetATOMClockInfo(ScrnInfoPtr pScrn);
+
 extern uint32_t
 radeon_get_device_index(uint32_t device_support);
 extern radeon_encoder_ptr

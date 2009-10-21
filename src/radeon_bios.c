@@ -995,30 +995,7 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 	return FALSE;
     } else {
 	if (info->IsAtomBios) {
-	    pll_info_block = RADEON_BIOS16 (info->MasterDataStart + 12);
-
-	    pll->reference_freq = RADEON_BIOS16 (pll_info_block + 82);
-	    pll->reference_div = 0; /* Need to derive from existing setting
-					or use a new algorithm to calculate
-					from min_input and max_input
-				     */
-	    pll->pll_out_min = RADEON_BIOS16 (pll_info_block + 78);
-	    pll->pll_out_max = RADEON_BIOS32 (pll_info_block + 32);
-
-	    if (pll->pll_out_min == 0) {
-		if (IS_AVIVO_VARIANT)
-		    pll->pll_out_min = 64800;
-		else
-		    pll->pll_out_min = 20000;
-	    }
-
-	    pll->pll_in_min = RADEON_BIOS16 (pll_info_block + 74);
-	    pll->pll_in_max = RADEON_BIOS16 (pll_info_block + 76);
-
-	    pll->xclk = RADEON_BIOS16 (pll_info_block + 72);
-
-	    info->sclk = RADEON_BIOS32(pll_info_block + 8) / 100.0;
-	    info->mclk = RADEON_BIOS32(pll_info_block + 12) / 100.0;
+	    return RADEONGetATOMClockInfo(pScrn);
 	} else {
 	    int rev;
 

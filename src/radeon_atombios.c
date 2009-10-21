@@ -2127,6 +2127,53 @@ RADEONGetATOMTVInfo(xf86OutputPtr output)
 }
 
 Bool
+RADEONGetATOMClockInfo(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    RADEONPLLPtr pll = &info->pll;
+    atomDataTablesPtr atomDataPtr;
+    uint8_t crev, frev;
+
+    atomDataPtr = info->atomBIOS->atomDataPtr;
+    if (!rhdAtomGetTableRevisionAndSize(
+	    (ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->FirmwareInfo.base),
+	    &crev,&frev,NULL)) {
+	return FALSE;
+    }
+
+    switch(crev) {
+    case 1:
+	info->sclk = le32_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo->ulDefaultEngineClock) / 100.0;
+	info->mclk = le32_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo->ulDefaultMemoryClock) / 100.0;
+	pll->xclk = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo->usMaxPixelClock);
+	pll->pll_in_min = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo->usMinPixelClockPLL_Input);
+	pll->pll_in_max = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo->usMaxPixelClockPLL_Input);
+	pll->pll_out_min = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo->usMinPixelClockPLL_Output);
+	pll->pll_out_max = le32_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo->ulMaxPixelClockPLL_Output);
+	pll->reference_freq = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo->usReferenceClock);
+	break;
+    case 2:
+    case 3:
+    case 4:
+    default:
+	info->sclk = le32_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_1_2->ulDefaultEngineClock) / 100.0;
+	info->mclk = le32_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_1_2->ulDefaultMemoryClock) / 100.0;
+	pll->xclk = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_1_2->usMaxPixelClock);
+	pll->pll_in_min = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_1_2->usMinPixelClockPLL_Input);
+	pll->pll_in_max = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_1_2->usMaxPixelClockPLL_Input);
+	pll->pll_out_min = le32_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_1_2->ulMinPixelClockPLL_Output);
+	pll->pll_out_max = le32_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_1_2->ulMaxPixelClockPLL_Output);
+	pll->reference_freq = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_1_2->usReferenceClock);
+	break;
+    }
+    pll->reference_div = 0;
+    if (pll->pll_out_min == 0)
+	pll->pll_out_min = 64800;
+
+    return TRUE;
+}
+
+Bool
 RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, DisplayModePtr mode)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
