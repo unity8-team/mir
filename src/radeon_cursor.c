@@ -106,6 +106,12 @@ avivo_setup_cursor(xf86CrtcPtr crtc, Bool enable)
     OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset, (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
 
     if (enable) {
+	if (info->ChipFamily >= CHIP_FAMILY_RV770) {
+	    if (radeon_crtc->crtc_id)
+		OUTREG(R700_D2CUR_SURFACE_ADDRESS_HIGH, 0);
+	    else
+		OUTREG(R700_D1CUR_SURFACE_ADDRESS_HIGH, 0);
+	}
 	OUTREG(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
 	       info->fbLocation + radeon_crtc->cursor_offset + pScrn->fbOffset);
 	OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,

@@ -536,6 +536,15 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	    fb_location = fb_location + (char *)crtc->rotatedData - (char *)info->FB;
 	}
 
+	if (info->ChipFamily >= CHIP_FAMILY_RV770) {
+	    if (radeon_crtc->crtc_id) {
+		OUTREG(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
+		OUTREG(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
+	    } else {
+		OUTREG(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
+		OUTREG(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
+	    }
+	}
 	OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
