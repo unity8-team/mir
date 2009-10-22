@@ -30,6 +30,7 @@
 #include "xf86_OSproc.h"
 
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "radeon_atombios.h"
 #include "radeon_atomwrapper.h"
 #include "radeon_probe.h"
@@ -2646,9 +2647,16 @@ CailReadATIRegister(VOID* CAIL, UINT32 idx)
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = pRADEONEnt->MMIO;
     UINT32 ret;
+    UINT32 mm_reg = idx << 2;
     CAILFUNC(CAIL);
 
-    ret  =  INREG(idx << 2);
+    if (mm_reg < 0x10000)
+	ret = INREG(mm_reg);
+    else {
+	OUTREG(RADEON_MM_INDEX, mm_reg);
+	ret = INREG(RADEON_MM_DATA);
+    }
+
     /*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx << 2,ret));*/
     return ret;
 }
@@ -2659,9 +2667,16 @@ CailWriteATIRegister(VOID *CAIL, UINT32 idx, UINT32 data)
     ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = pRADEONEnt->MMIO;
+    UINT32 mm_reg = idx << 2;
     CAILFUNC(CAIL);
 
-    OUTREG(idx << 2,data);
+    if (mm_reg < 0x10000)
+	OUTREG(mm_reg, data);
+    else {
+	OUTREG(RADEON_MM_INDEX, mm_reg);
+	OUTREG(RADEON_MM_DATA, data);
+    }
+
     /*DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx << 2,data));*/
 }
 
