@@ -41,9 +41,19 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 		class = 0x8297;
 		break;
 	case 0xa0:
-	default:
-		class = 0x8397;
+		switch (pNv->NVArch) {
+		case 0xa0:
+		case 0xaa:
+		case 0xac:
+			class = 0x8397;
+			break;
+		default:
+			class = 0x8597;
+			break;
+		}
 		break;
+	default:
+		return FALSE;
 	}
 
 	if (!pNv->Nv3D) {
