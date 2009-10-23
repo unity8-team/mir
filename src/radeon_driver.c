@@ -1403,6 +1403,18 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     if (aper_size > mem_size)
 	mem_size = aper_size;
 
+    /* don't map the whole FB in the internal address space.
+     * we don't currently use fb space larger than the aperture
+     * size and on cards with more than 512 MB of vram, this can overflow
+     * the internal top of gart calculation on some systems.
+     * Limit it to cards with more than 512 MB as this causes problems
+     * on some other cards due to the way the ddx and drm set up the
+     * internal memory map.
+     * See fdo bug 24301.
+     */
+    if (mem_size > 0x20000000)
+	mem_size = aper_size;
+
 #ifdef XF86DRI
     /* Apply memory map limitation if using an old DRI */
     if (info->directRenderingEnabled && !info->dri->newMemoryMap) {
