@@ -411,6 +411,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     info->allowColorTiling = xf86ReturnOptValBool(info->Options,
                                         OPTION_COLOR_TILING, FALSE);
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Color tiling is not yet supported on R600/R700\n");
+	    info->allowColorTiling = FALSE;
+    }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
 
