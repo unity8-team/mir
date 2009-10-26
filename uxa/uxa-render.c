@@ -449,6 +449,8 @@ uxa_acquire_pattern(ScreenPtr pScreen,
 	PicturePtr pDst;
 
 	pDst = uxa_picture_for_pixman_format(pScreen, format, width, height);
+	if (!pDst)
+		return 0;
 	if (uxa_prepare_access(pDst->pDrawable, UXA_ACCESS_RW)) {
 		fbComposite(PictOpSrc, pSrc, NULL, pDst,
 			    x, y, 0, 0, 0, 0, width, height);
