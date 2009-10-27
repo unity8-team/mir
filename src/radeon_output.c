@@ -2634,14 +2634,19 @@ radeon_output_clones (ScrnInfoPtr pScrn, xf86OutputPtr output)
     int			index_mask = 0;
 
     /* DIG routing gets problematic */
-    if (IS_DCE32_VARIANT)
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
 	return index_mask;
 
     /* LVDS is too wacky */
     if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT))
 	return index_mask;
 
+    /* TV requires very specific timing */
     if (radeon_output->devices & (ATOM_DEVICE_TV_SUPPORT))
+	return index_mask;
+
+    /* DVO requires 2x ppll clocks depending on the tmds chip */
+    if (radeon_output->devices & (ATOM_DEVICE_DFP2_SUPPORT))
 	return index_mask;
 
     for (o = 0; o < config->num_output; o++) {

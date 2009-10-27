@@ -324,6 +324,16 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	else
 	    pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
 
+	for (i = 0; i < xf86_config->num_output; i++) {
+	    xf86OutputPtr output = xf86_config->output[i];
+	    if (output->crtc == crtc) {
+		radeon_encoder = radeon_get_encoder(output);
+		/* DVO seems to want 2x pixel clock */
+		if (radeon_encoder && (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1))
+		    sclock *= 2;
+	    }
+	}
+
 	/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
 	if (radeon_crtc->crtc_id == 0) {
 	    temp = INREG(AVIVO_P1PLL_INT_SS_CNTL);
