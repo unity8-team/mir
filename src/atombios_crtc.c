@@ -328,8 +328,11 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    xf86OutputPtr output = xf86_config->output[i];
 	    if (output->crtc == crtc) {
 		radeon_encoder = radeon_get_encoder(output);
-		/* DVO seems to want 2x pixel clock */
-		if (radeon_encoder && (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1))
+		/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
+		/* AdjustDisplayPll handles this on DCE3.x */
+		if (radeon_encoder &&
+		    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1) &&
+		    !IS_DCE3_VARIANT)
 		    sclock *= 2;
 	    }
 	}
