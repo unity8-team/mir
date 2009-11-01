@@ -1470,8 +1470,10 @@ atombios_apply_output_quirks(xf86OutputPtr output, DisplayModePtr mode)
     }
 
     /* set scaler clears this on some chips */
-    if (IS_AVIVO_VARIANT && (mode->Flags & V_INTERLACE))
-	OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, AVIVO_D1MODE_INTERLEAVE_EN);
+    if (!(radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT))) {
+	if (IS_AVIVO_VARIANT && (mode->Flags & V_INTERLACE))
+	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, AVIVO_D1MODE_INTERLEAVE_EN);
+    }
 }
 
 void

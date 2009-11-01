@@ -489,7 +489,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     Bool tilingChanged = FALSE;
 
     if (info->allowColorTiling) {
-        radeon_crtc->can_tile = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
+	radeon_crtc->can_tile = (mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
 	tilingChanged = RADEONSetTiling(pScrn);
     }
 
@@ -584,7 +584,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (mode->HDisplay << 16) | mode->VDisplay);
 
-	if (adjusted_mode->Flags & V_INTERLACE)
+	if (mode->Flags & V_INTERLACE)
 	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
 		   AVIVO_D1MODE_INTERLEAVE_EN);
 	else
