@@ -26,6 +26,7 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 			   unsigned int format)
 {
 	ScreenPtr pScreen = pDraw->pScreen;
+	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
 	struct nouveau_dri2_buffer *nvbuf;
 	PixmapPtr ppix;
 
@@ -54,7 +55,9 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 					     usage_hint);
 	}
 
+	pNv->exa_force_cp = TRUE;
 	exaMoveInPixmap(ppix);
+	pNv->exa_force_cp = FALSE;
 
 	nvbuf->base.attachment = attachment;
 	nvbuf->base.pitch = ppix->devKind;

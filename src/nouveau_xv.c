@@ -1236,7 +1236,10 @@ CPU_copy:
 		ppix = NVGetDrawablePixmap(pDraw);
 
 		/* Ensure pixmap is in offscreen memory */
+		pNv->exa_force_cp = TRUE;
 		exaMoveInPixmap(ppix);
+		pNv->exa_force_cp = FALSE;
+
 		if (!pNv->exa_driver_pixmaps) {
 			ScreenPtr pScreen = pScrn->pScreen;
 

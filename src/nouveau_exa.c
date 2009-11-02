@@ -342,15 +342,20 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			  int usage_hint, int bitsPerPixel, int *new_pitch)
 {
 	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
-	struct nouveau_pixmap *nvpix = xcalloc(1, sizeof(*nvpix));
+	struct nouveau_pixmap *nvpix;
 	uint32_t flags = NOUVEAU_BO_MAP, tile_mode = 0, tile_flags = 0;
 	int ret, size, cpp = bitsPerPixel >> 3;
 
-	if (!nvpix)
+	if (!width || !height)
+		return xcalloc(1, sizeof(*nvpix));
+
+	if (!pNv->exa_force_cp &&
+	     pNv->dev->vm_vram_size <= 32*1024*1024)
 		return NULL;
 
-	if (!width || !height)
-		return nvpix;
+	nvpix = xcalloc(1, sizeof(*nvpix));
+	if (!nvpix)
+		return NULL;
 
 	if (cpp) {
 		flags |= NOUVEAU_BO_VRAM;
