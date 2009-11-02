@@ -30,7 +30,7 @@
 
 typedef struct nv10_exa_state {
 	Bool have_mask;
-	Bool is_a8_plus_a8; /*as known as is_extremely_dirty :)*/
+	Bool is_a8_plus_a8;
 	struct {
 		PictTransformPtr transform;
 		float width;
@@ -90,9 +90,8 @@ static int NV10TexFormat(int ExaFormat)
 	};
 
 	int i;
-	for(i=0;i<sizeof(tex_format)/sizeof(tex_format[0]);i++)
-	{
-		if(tex_format[i].exa==ExaFormat)
+	for (i = 0; i < sizeof(tex_format) / sizeof(tex_format[0]); i++) {
+		if (tex_format[i].exa == ExaFormat)
 			return tex_format[i].hw;
 	}
 
@@ -109,9 +108,8 @@ static int NV10DstFormat(int ExaFormat)
 	};
 
 	int i;
-	for(i=0;i<sizeof(dst_format)/sizeof(dst_format[0]);i++)
-	{
-		if(dst_format[i].exa==ExaFormat)
+	for (i = 0; i < sizeof(dst_format) / sizeof(dst_format[0]); i++) {
+		if (dst_format[i].exa == ExaFormat)
 			return dst_format[i].hw;
 	}
 
@@ -157,126 +155,120 @@ static Bool NV10CheckBuffer(PicturePtr Picture)
 
 static Bool NV10CheckPictOp(int op)
 {
-	if ( op >= PictOpSaturate )
-		{ /*we do no saturate, disjoint, conjoint, though we could do e.g. DisjointClear which really is Clear*/
+	if (op >= PictOpSaturate) {
+		/*we do no saturate, disjoint, conjoint, though we could do e.g. DisjointClear which really is Clear */
 		return FALSE;
-		}
+	}
 	return TRUE;
-}	
+}
 
 /* Check if the current operation is a doable A8 + A8 */
 /* A8 destination is a special case, because we do it by having the card think 
 it's ARGB. For now we support PictOpAdd which is the only important op for this dst format, 
 and without transformation or funny things.*/
-static Bool NV10Check_A8plusA8_Feasability(PicturePtr src, PicturePtr msk, PicturePtr dst, int op)  
+static Bool NV10Check_A8plusA8_Feasability(PicturePtr src, PicturePtr msk, PicturePtr dst, int op)
 {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    return FALSE;
+	return FALSE;
 #endif
-    if ((!msk) && 	(src->format == PICT_a8) && (dst->format == PICT_a8) && (!src->transform) && 
-	    (op == PictOpAdd) && (src->repeat == RepeatNone))
-	{
-	return TRUE;
+	if ((!msk) && (src->format == PICT_a8) && (dst->format == PICT_a8) && (!src->transform) &&
+	    (op == PictOpAdd) && (src->repeat == RepeatNone)) {
+		return TRUE;
 	}
-    return FALSE;
+	return FALSE;
 }
 
 #if 0
-static void
-NV10EXAFallbackInfo(char * reason, int op, PicturePtr pSrcPicture,
-		    PicturePtr pMaskPicture, PicturePtr pDstPicture)
+static void NV10EXAFallbackInfo(char *reason, int op, PicturePtr pSrcPicture,
+				PicturePtr pMaskPicture, PicturePtr pDstPicture)
 {
 	char out2[4096];
-	char * out = out2;
+	char *out = out2;
 	sprintf(out, "%s  ", reason);
 	out = out + strlen(out);
-	switch ( op )
-		{
-		case PictOpClear:
-			sprintf(out, "PictOpClear ");
-			break;
-		case PictOpSrc:
-			sprintf(out, "PictOpSrc ");
-			break;
-		case PictOpDst:
-			sprintf(out, "PictOpDst ");
-			break;
-		case PictOpOver:
-			sprintf(out, "PictOpOver ");
-			break;
-		case PictOpOutReverse:
-			sprintf(out, "PictOpOutReverse ");
-			break;
-		case PictOpAdd:
-			sprintf(out, "PictOpAdd ");
-			break;
-		default :
-			sprintf(out, "PictOp%d ", op);
-		}
+	switch (op) {
+	case PictOpClear:
+		sprintf(out, "PictOpClear ");
+		break;
+	case PictOpSrc:
+		sprintf(out, "PictOpSrc ");
+		break;
+	case PictOpDst:
+		sprintf(out, "PictOpDst ");
+		break;
+	case PictOpOver:
+		sprintf(out, "PictOpOver ");
+		break;
+	case PictOpOutReverse:
+		sprintf(out, "PictOpOutReverse ");
+		break;
+	case PictOpAdd:
+		sprintf(out, "PictOpAdd ");
+		break;
+	default:
+		sprintf(out, "PictOp%d ", op);
+	}
 	out = out + strlen(out);
-	switch ( pSrcPicture->format )
-		{
-		case PICT_a8r8g8b8:
-			sprintf(out, "A8R8G8B8 ");
-			break;
-		case PICT_x8r8g8b8:
-			sprintf(out, "X8R8G8B8 ");
-			break;
-		case PICT_x8b8g8r8:
-			sprintf(out, "X8B8G8R8 ");
-			break;
-		case PICT_r5g6b5:
-			sprintf(out, "R5G6B5 ");
-			break;
-		case PICT_a8:
-			sprintf(out, "A8 ");
-			break;
-		case PICT_a1:
-			sprintf(out, "A1 ");
-			break;
-		default:
-			sprintf(out, "%x ", pSrcPicture->format);
-		}
-	out+=strlen(out);
+	switch (pSrcPicture->format) {
+	case PICT_a8r8g8b8:
+		sprintf(out, "A8R8G8B8 ");
+		break;
+	case PICT_x8r8g8b8:
+		sprintf(out, "X8R8G8B8 ");
+		break;
+	case PICT_x8b8g8r8:
+		sprintf(out, "X8B8G8R8 ");
+		break;
+	case PICT_r5g6b5:
+		sprintf(out, "R5G6B5 ");
+		break;
+	case PICT_a8:
+		sprintf(out, "A8 ");
+		break;
+	case PICT_a1:
+		sprintf(out, "A1 ");
+		break;
+	default:
+		sprintf(out, "%x ", pSrcPicture->format);
+	}
+	out += strlen(out);
 	sprintf(out, "(%dx%d) ", pSrcPicture->pDrawable->width, pSrcPicture->pDrawable->height);
-	if ( pSrcPicture->repeat != RepeatNone )
+	if (pSrcPicture->repeat != RepeatNone)
 		strcat(out, "R ");
 	strcat(out, "-> ");
-	out+=strlen(out);
-	
-	switch ( pDstPicture->format )
-		{
-		case PICT_a8r8g8b8:
-			sprintf(out, "A8R8G8B8 ");
-			break;
-		case PICT_x8r8g8b8:
-			sprintf(out, "X8R8G8B8  ");
-			break;
-		case PICT_x8b8g8r8:
-			sprintf(out, "X8B8G8R8  ");
-			break;
-		case PICT_r5g6b5:
-			sprintf(out, "R5G6B5 ");
-			break;
-		case PICT_a8:
-			sprintf(out, "A8  ");
-			break;
-		case PICT_a1:
-			sprintf(out, "A1  ");
-			break;
-		default:
-			sprintf(out, "%x  ", pDstPicture->format);
-		}
-	out+=strlen(out);
+	out += strlen(out);
+
+	switch (pDstPicture->format) {
+	case PICT_a8r8g8b8:
+		sprintf(out, "A8R8G8B8 ");
+		break;
+	case PICT_x8r8g8b8:
+		sprintf(out, "X8R8G8B8  ");
+		break;
+	case PICT_x8b8g8r8:
+		sprintf(out, "X8B8G8R8  ");
+		break;
+	case PICT_r5g6b5:
+		sprintf(out, "R5G6B5 ");
+		break;
+	case PICT_a8:
+		sprintf(out, "A8  ");
+		break;
+	case PICT_a1:
+		sprintf(out, "A1  ");
+		break;
+	default:
+		sprintf(out, "%x  ", pDstPicture->format);
+	}
+	out += strlen(out);
 	sprintf(out, "(%dx%d) ", pDstPicture->pDrawable->width, pDstPicture->pDrawable->height);
-	if ( pDstPicture->repeat != RepeatNone )
+	if (pDstPicture->repeat != RepeatNone)
 		strcat(out, "R ");
-	out+=strlen(out);
-	if ( !pMaskPicture ) 
+	out += strlen(out);
+	if (!pMaskPicture)
 		sprintf(out, "& NONE");
 	else {
-	switch ( pMaskPicture->format )
-		{
+		switch (pMaskPicture->format) {
 		case PICT_a8r8g8b8:
 			sprintf(out, "& A8R8G8B8 ");
 			break;
@@ -295,13 +287,13 @@ NV10EXAFallbackInfo(char * reason, int op, PicturePtr pSrcPicture,
 		default:
 			sprintf(out, "& %x  ", pMaskPicture->format);
 		}
-		out+=strlen(out);
+		out += strlen(out);
 		sprintf(out, "(%dx%d) ", pMaskPicture->pDrawable->width, pMaskPicture->pDrawable->height);
-		if ( pMaskPicture->repeat != RepeatNone )
+		if (pMaskPicture->repeat != RepeatNone)
 			strcat(out, "R ");
-		if ( pMaskPicture->componentAlpha )
+		if (pMaskPicture->componentAlpha)
 			strcat(out, "C ");
-		out+=strlen(out);
+		out += strlen(out);
 	}
 	strcat(out, "\n");
 	xf86DrvMsg(0, X_INFO, "%s", out2);
@@ -310,34 +302,30 @@ NV10EXAFallbackInfo(char * reason, int op, PicturePtr pSrcPicture,
 #define NV10EXAFallbackInfo(X,Y,Z,S,T) do { ; } while (0)
 #endif
 
-Bool NV10EXACheckComposite(int	op,
-			     PicturePtr pSrcPicture,
-			     PicturePtr pMaskPicture,
-			     PicturePtr pDstPicture)
+Bool NV10EXACheckComposite(int op,
+			PicturePtr pSrcPicture,
+			PicturePtr pMaskPicture,
+			PicturePtr pDstPicture)
 {
-	
-	if (NV10Check_A8plusA8_Feasability(pSrcPicture,pMaskPicture,pDstPicture,op))
-		{
+
+	if (NV10Check_A8plusA8_Feasability(pSrcPicture, pMaskPicture, pDstPicture, op)) {
 		NV10EXAFallbackInfo("Hackelerating", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return TRUE;
-		}
+	}
 
-	if (!NV10CheckPictOp(op))
-		{
+	if (!NV10CheckPictOp(op)) {
 		NV10EXAFallbackInfo("pictop", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
-		}
-	if (!NV10CheckBuffer(pDstPicture)) 
-		{
+	}
+	if (!NV10CheckBuffer(pDstPicture)) {
 		NV10EXAFallbackInfo("dst", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
-		}
+	}
 
-	if (!NV10CheckTexture(pSrcPicture))
-		{
+	if (!NV10CheckTexture(pSrcPicture)) {
 		NV10EXAFallbackInfo("src", op, pSrcPicture, pMaskPicture, pDstPicture);
 		return FALSE;
-		}
+	}
 
 	if (pMaskPicture) {
 		if (!NV10CheckTexture(pMaskPicture)) {
@@ -358,7 +346,7 @@ Bool NV10EXACheckComposite(int	op,
 	return TRUE;
 }
 
-static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
+static void NV10SetTexture(NVPtr pNv, int unit, PicturePtr Pict, PixmapPtr pixmap)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
@@ -375,7 +363,7 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 			(1<<12) | /* lod == 1 */
 			0x51 /* UNK */;
 
-	BEGIN_RING(chan, celsius, NV10TCL_TX_OFFSET(unit), 1 );
+	BEGIN_RING(chan, celsius, NV10TCL_TX_OFFSET(unit), 1);
 	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 
 	/* if repeat is set we're always handling a 1x1 texture with ARGB/XRGB destination, 
@@ -388,12 +376,11 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 			txfmt |= 0x280; /* R5G6B5 */
 		else
 			txfmt |= 0x300; /* ARGB format */
-	}
-	else
-	{
-		if (pNv->Architecture == NV_ARCH_20 && Pict->format == PICT_a8 )
+	} else {
+		if (pNv->Architecture == NV_ARCH_20 && Pict->format == PICT_a8)
 			txfmt |= 0xd80;
-		else txfmt |= NV10TexFormat(Pict->format);
+		else
+			txfmt |= NV10TexFormat(Pict->format);
 		w = Pict->pDrawable->width;
 		/* NPOT_SIZE expects an even number for width, we can round up uneven
 		* numbers here because EXA always gives 64 byte aligned pixmaps
@@ -428,7 +415,7 @@ static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 	state.unit[unit].transform	= Pict->transform;
 }
 
-static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
+static void NV10SetBuffer(NVPtr pNv, PicturePtr Pict, PixmapPtr pixmap)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
@@ -441,18 +428,17 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	int h = 2048;
 
 	BEGIN_RING(chan, celsius, NV10TCL_RT_FORMAT, 4);
-	if ( state.is_a8_plus_a8 )
-		{ /*A8 + A8 hack*/
+	if (state.is_a8_plus_a8) {
+		/*A8 + A8 hack */
 		OUT_RING  (chan, NV10DstFormat(PICT_a8r8g8b8));
-		}
-	else {
+	} else {
 		OUT_RING  (chan, NV10DstFormat(Pict->format));
-		}
-	
+	}
+
 	OUT_RING  (chan, ((uint32_t)exaGetPixmapPitch(pixmap) << 16) |(uint32_t)exaGetPixmapPitch(pixmap));
 	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_RING  (chan, 0);
-		
+
 	BEGIN_RING(chan, celsius, NV10TCL_RT_HORIZ, 2);
 	OUT_RING  (chan, (w<<16)|x);
 	OUT_RING  (chan, (h<<16)|y);
@@ -618,7 +604,7 @@ static void NV10SetRegCombs_A8plusA8(NVPtr pNv, int pass, int mask_out_bytes)
 	OUT_RING  (chan, color1);
 }
 
-static void NV10SetPictOp(NVPtr pNv,int op)
+static void NV10SetPictOp(NVPtr pNv, int op)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
@@ -684,9 +670,9 @@ Bool NV10EXAPrepareComposite(int op,
 	pNv->pdpix = pDst;
 	chan->flush_notify = NV10StateCompositeReemit;
 
-	if (NV10Check_A8plusA8_Feasability(pSrcPicture,pMaskPicture,pDstPicture,op)) {
+	if (NV10Check_A8plusA8_Feasability(pSrcPicture, pMaskPicture, pDstPicture, op)) {
 		state.is_a8_plus_a8 = TRUE;
-		NV10SetBuffer(pNv,pDstPicture,pDst);
+		NV10SetBuffer(pNv, pDstPicture, pDst);
 		NV10SetPictOp(pNv, op);
 		NV10SetTexture(pNv, 0, pSrcPicture, pSrc);
 		NV10SetTexture(pNv, 1, pSrcPicture, pSrc);
@@ -694,14 +680,14 @@ Bool NV10EXAPrepareComposite(int op,
 	}
 
 	/* Set dst format */
-	NV10SetBuffer(pNv,pDstPicture,pDst);
+	NV10SetBuffer(pNv, pDstPicture, pDst);
 
 	/* Set src format */
-	NV10SetTexture(pNv,0,pSrcPicture,pSrc);
+	NV10SetTexture(pNv, 0, pSrcPicture, pSrc);
 
 	/* Set mask format */
 	if (pMaskPicture)
-		NV10SetTexture(pNv,1,pMaskPicture,pMask);
+		NV10SetTexture(pNv, 1, pMaskPicture, pMask);
 
 	NV10SetRegCombs(pNv, pSrcPicture, pMaskPicture);
 
@@ -711,7 +697,7 @@ Bool NV10EXAPrepareComposite(int op,
 	return TRUE;
 }
 
-static inline void NV10Vertex(NVPtr pNv,float vx,float vy,float tx,float ty)
+static inline void NV10Vertex(NVPtr pNv, float vx, float vy, float tx, float ty)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
@@ -725,7 +711,7 @@ static inline void NV10Vertex(NVPtr pNv,float vx,float vy,float tx,float ty)
 	OUT_RINGf (chan, 0.f);
 }
 
-static inline void NV10MVertex(NVPtr pNv,float vx,float vy,float t0x,float t0y,float t1x,float t1y)
+static inline void NV10MVertex(NVPtr pNv, float vx, float vy, float t0x, float t0y, float t1x, float t1y)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
@@ -802,8 +788,7 @@ void NV10EXAComposite(PixmapPtr pDst,
 			      state.unit[0].width,
 			      state.unit[0].height, &sX3, &sY3);
 
-	if ( state.is_a8_plus_a8 )
-		{
+	if (state.is_a8_plus_a8) {
 		/*We do A8 + A8 in 2-pass : setup the source texture as A8 twice, 
 			with different tex coords, do B and G on first pass
 		Then setup again and do R and A on second pass
@@ -811,63 +796,58 @@ void NV10EXAComposite(PixmapPtr pDst,
 		int part_pos_dX = 0;
 		int part_pos_sX = 0;
 		int mask_out_bytes = 0;
-		
-		part_pos_dX = (dstX &~ 3) >> 2; /*we start at the 4byte boundary to the left of the image*/
-		part_pos_sX = sX0 + (dstX &~ 3) - dstX; 
+
+		part_pos_dX = (dstX & ~3) >> 2;	/*we start at the 4byte boundary to the left of the image */
+		part_pos_sX = sX0 + (dstX & ~3) - dstX;
 
 		/*xf86DrvMsg(0, X_INFO, "drawing - srcX %f dstX %d w %d\n", sX0, dstX, width);*/
-		for ( ; part_pos_dX <= (((dstX + width) &~ 3) >> 2); part_pos_sX += 4, part_pos_dX ++ )
-			{
+		for (; part_pos_dX <= (((dstX + width) & ~3) >> 2); part_pos_sX += 4, part_pos_dX++) {
 			mask_out_bytes = 0;
-			if ( part_pos_dX == (dstX &~ 3) >> 2  ) /*then we're slightly on the left of the image, bytes to mask out*/
-				{
+			if (part_pos_dX == (dstX & ~3) >> 2) {
+				/*we're slightly on the left of the image, bytes to mask out */
 				/*xf86DrvMsg(0, X_INFO, "on left border...\n");*/
-				switch ( dstX - (dstX &~ 3) ) /*mask out the extra pixels on the left*/
-					{
-					case 4: 
-						mask_out_bytes |= 1 << 0;
-					case 3: 
-						mask_out_bytes |= 1 << 1;
-					case 2:
-						mask_out_bytes |= 1 << 2;
-					case 1: 
-						mask_out_bytes |= 1 << 3;
-					case 0:
-						break;
-					}
-					
-				/*mask out extra pixels on the right, in case the picture never touches an alignment marker*/
-				switch ( width + (dstX & 3) )
-					{
-					case 0:
-						mask_out_bytes |= 1 << 3;
-					case 1:
-						mask_out_bytes |= 1 << 2;
-					case 2:
-						mask_out_bytes |= 1 << 1;
-					case 3:
-						mask_out_bytes |= 1 << 0;
-					default : break;
-					}
+				switch (dstX - (dstX & ~3)) {	/*mask out the extra pixels on the left */
+				case 4:
+					mask_out_bytes |= 1 << 0;
+				case 3:
+					mask_out_bytes |= 1 << 1;
+				case 2:
+					mask_out_bytes |= 1 << 2;
+				case 1:
+					mask_out_bytes |= 1 << 3;
+				case 0:
+					break;
 				}
-			else if ( part_pos_dX == (((dstX + width) &~ 3) >> 2) ) 
-				{
-				/*xf86DrvMsg(0, X_INFO, "on right border...\n");*/
-				switch (4 - ((dstX + width) & 3))
-					{
-					case 4:
-						mask_out_bytes |= 1 << 3;
-					case 3: 
-						mask_out_bytes |= 1 << 2;
-					case 2: 
-						mask_out_bytes |= 1 << 1;
-					case 1:
-						mask_out_bytes |= 1 << 0;
-					case 0:
-						break;
-					}
+
+				/*mask out extra pixels on the right, in case the picture never touches an alignment marker */
+				switch (width + (dstX & 3)) {
+				case 0:
+					mask_out_bytes |= 1 << 3;
+				case 1:
+					mask_out_bytes |= 1 << 2;
+				case 2:
+					mask_out_bytes |= 1 << 1;
+				case 3:
+					mask_out_bytes |= 1 << 0;
+				default:
+					break;
 				}
-				
+			} else if (part_pos_dX == (((dstX + width) & ~3) >> 2)) {
+				/*xf86DrvMsg(0, X_INFO, "on right border...\n"); */
+				switch (4 - ((dstX + width) & 3)) {
+				case 4:
+					mask_out_bytes |= 1 << 3;
+				case 3:
+					mask_out_bytes |= 1 << 2;
+				case 2:
+					mask_out_bytes |= 1 << 1;
+				case 1:
+					mask_out_bytes |= 1 << 0;
+				case 0:
+					break;
+				}
+			}
+
 			/*Pass number 0*/
 			
 			NV10SetRegCombs_A8plusA8(pNv, 0, mask_out_bytes);
@@ -883,7 +863,7 @@ void NV10EXAComposite(PixmapPtr pDst,
 			OUT_RING  (chan, NV10TCL_VERTEX_BEGIN_END_STOP);
 			
 			/*Pass number 1*/
-			
+
 			NV10SetRegCombs_A8plusA8(pNv, 1, mask_out_bytes);
 			BEGIN_RING(chan, celsius, NV10TCL_VERTEX_BEGIN_END, 1);
 			OUT_RING  (chan, NV10TCL_VERTEX_BEGIN_END_QUADS);		
@@ -897,8 +877,7 @@ void NV10EXAComposite(PixmapPtr pDst,
 			OUT_RING  (chan, NV10TCL_VERTEX_BEGIN_END_STOP);
 			
 			}
-		}
-	else if (state.have_mask) {
+	} else if (state.have_mask) {
 		NV10EXATransformCoord(state.unit[1].transform, maskX, maskY,
 				      state.unit[1].width,
 				      state.unit[1].height, &mX0, &mY0);
@@ -929,7 +908,7 @@ void NV10EXAComposite(PixmapPtr pDst,
 	OUT_RING  (chan, NV10TCL_VERTEX_BEGIN_END_STOP);
 }
 
-void NV10EXADoneComposite (PixmapPtr pDst)
+void NV10EXADoneComposite(PixmapPtr pDst)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -938,9 +917,7 @@ void NV10EXADoneComposite (PixmapPtr pDst)
 	chan->flush_notify = NULL;
 }
 
-
-Bool
-NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
+Bool NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
@@ -949,15 +926,14 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	int i;
 
 	chipset = (nvReadMC(pNv, NV_PMC_BOOT_0) >> 20) & 0xff;
-	if (	((chipset & 0xf0) != NV_ARCH_10) &&
-		((chipset & 0xf0) != NV_ARCH_20) )
+	if (((chipset & 0xf0) != NV_ARCH_10) && ((chipset & 0xf0) != NV_ARCH_20))
 		return FALSE;
 
 	if (chipset >= 0x20 || chipset == 0x1a)
 		class = NV11TCL;
-	else if (chipset>=0x17)
+	else if (chipset >= 0x17)
 		class = NV17TCL;
-	else if (chipset>=0x11)
+	else if (chipset >= 0x11)
 		class = NV11TCL;
 	else
 		class = NV10TCL;
@@ -991,7 +967,7 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, celsius, NV10TCL_VIEWPORT_CLIP_VERT(0), 1);
 	OUT_RING  (chan, (0x7ff<<16)|0x800);
 
-	for (i=1;i<8;i++) {
+	for (i = 1; i < 8; i++) {
 		BEGIN_RING(chan, celsius, NV10TCL_VIEWPORT_CLIP_HORIZ(i), 1);
 		OUT_RING  (chan, 0);
 		BEGIN_RING(chan, celsius, NV10TCL_VIEWPORT_CLIP_VERT(i), 1);
@@ -1118,7 +1094,7 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, celsius, NV10TCL_CULL_FACE_ENABLE, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, celsius, NV10TCL_TX_GEN_S(0), 8);
-	for (i=0;i<8;i++) {
+	for (i = 0; i < 8; i++) {
 		OUT_RING  (chan, 0);
 	}
 	BEGIN_RING(chan, celsius, NV10TCL_FOG_EQUATION_CONSTANT, 3);
@@ -1171,7 +1147,3 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 
 	return TRUE;
 }
-
-
-
-
