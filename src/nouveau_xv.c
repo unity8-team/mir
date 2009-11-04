@@ -1100,6 +1100,9 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 		nouveau_bo_unmap(destination_buffer);
 
+		if (MARK_RING(chan, 64, 4))
+			return FALSE;
+
 		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
 		OUT_RING  (chan, pNv->chan->gart->handle);
@@ -1126,11 +1129,15 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 			BEGIN_RING(chan, m2mf,
 				   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-			OUT_RELOCl(chan, destination_buffer, line_len * nlines,
-				   NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-			OUT_RELOCl(chan, pPriv->video_mem,
-				   offset + uv_offset,
-				   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+			if (OUT_RELOCl(chan, destination_buffer,
+				       line_len * nlines,
+				       NOUVEAU_BO_GART | NOUVEAU_BO_RD) ||
+			    OUT_RELOCl(chan, pPriv->video_mem,
+				       offset + uv_offset,
+				       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
+				MARK_UNDO(chan);
+				return BadAlloc;
+			}
 			OUT_RING  (chan, line_len);
 			OUT_RING  (chan, dstPitch);
 			OUT_RING  (chan, line_len);
@@ -1141,10 +1148,13 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RELOCl(chan, destination_buffer, 0,
-			   NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-		OUT_RELOCl(chan, pPriv->video_mem, offset,
-			   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+		if (OUT_RELOCl(chan, destination_buffer, 0,
+			       NOUVEAU_BO_GART | NOUVEAU_BO_RD) ||
+		    OUT_RELOCl(chan, pPriv->video_mem, offset,
+			       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
+			MARK_UNDO(chan);
+			return BadAlloc;
+		}
 		OUT_RING  (chan, line_len);
 		OUT_RING  (chan, dstPitch);
 		OUT_RING  (chan, line_len);
