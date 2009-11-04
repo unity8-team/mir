@@ -651,10 +651,10 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
 		cpu_to_le16(dp_link_clock_for_mode_clock(clock));
 	    disp_data.v2.acConfig.fDPConnector = 1;
 	} else if (clock > 165000) {
-	    disp_data.v2.usPixelClock = cpu_to_le16((clock * 10 * 2) / 100);
+	    disp_data.v2.usPixelClock = cpu_to_le16((clock / 2) / 10);
 	    disp_data.v2.acConfig.fDualLinkConnector = 1;
 	} else {
-	    disp_data.v2.usPixelClock = cpu_to_le16((clock * 10 * 4) / 100);
+	    disp_data.v2.usPixelClock = cpu_to_le16(clock / 10);
 	}
 	if (dig_block)
 	    disp_data.v2.acConfig.ucEncoderSel = 1;
@@ -687,8 +687,10 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
 	if (radeon_output->MonType == MT_DP)
 	    disp_data.v1.usPixelClock =
 		cpu_to_le16(dp_link_clock_for_mode_clock(clock));
+	else if (clock > 165000)
+	    disp_data.v1.usPixelClock = cpu_to_le16((clock / 2) / 10);
 	else
-	    disp_data.v1.usPixelClock = cpu_to_le16((clock) / 10);
+	    disp_data.v1.usPixelClock = cpu_to_le16(clock / 10);
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
