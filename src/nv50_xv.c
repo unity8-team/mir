@@ -56,7 +56,7 @@ nv50_xv_check_image_put(PixmapPtr ppix)
 	return TRUE;
 }
 
-static void
+static Bool
 nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 		   int packed_y, int uv, int src_w, int src_h)
 {
@@ -69,10 +69,15 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	const unsigned shd_flags = NOUVEAU_BO_RD | NOUVEAU_BO_VRAM;
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
 
-	WAIT_RING (chan, 256);
+	if (MARK_RING(chan, 256, 16))
+		return FALSE;
+
 	BEGIN_RING(chan, tesla, NV50TCL_RT_ADDRESS_HIGH(0), 5);
-	OUT_RELOCh(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	if (OUT_RELOCh(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
+	    OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	switch (ppix->drawable.depth) {
 	case 32: OUT_RING  (chan, NV50TCL_RT_FORMAT_A8R8G8B8_UNORM); break;
 	case 24: OUT_RING  (chan, NV50TCL_RT_FORMAT_X8R8G8B8_UNORM); break;
@@ -90,12 +95,18 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	OUT_RING  (chan, 0);
 
 	BEGIN_RING(chan, tesla, NV50TCL_TIC_ADDRESS_HIGH, 3);
-	OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
-	OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
+	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
+	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, 0x00000800);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
-	OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
-	OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
+	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
+	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, (CB_TIC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TIC);
@@ -106,59 +117,89 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8);
-	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C1 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPR_C0 | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8);
-	OUT_RELOCl(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCl(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w >> 1);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | (src_h >> 1));
 	OUT_RING  (chan, 0x03000000);
-	OUT_RELOCh(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCh(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	} else {
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8);
-	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPR_C1 | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8_8_8);
-	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, (src_w >> 1));
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	}
 
 	BEGIN_RING(chan, tesla, NV50TCL_TSC_ADDRESS_HIGH, 3);
-	OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
-	OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
+	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
+	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, 0x00000000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
-	OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
-	OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
+	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
+	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	OUT_RING  (chan, (CB_TSC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TSC);
@@ -189,11 +230,17 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	OUT_RING  (chan, 0x00000000);
 
 	BEGIN_RING(chan, tesla, NV50TCL_VP_ADDRESS_HIGH, 2);
-	OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags);
-	OUT_RELOCl(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags);
+	if (OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags) ||
+	    OUT_RELOCl(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	BEGIN_RING(chan, tesla, NV50TCL_FP_ADDRESS_HIGH, 2);
-	OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags);
-	OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags);
+	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags) ||
+	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 	BEGIN_RING(chan, tesla, NV50TCL_FP_START_ID, 1);
 	OUT_RING  (chan, PFP_NV12);
 
@@ -205,6 +252,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	BEGIN_RING(chan, tesla, 0x1458, 1);
 	OUT_RING  (chan, 0x203);
 
+	return TRUE;
 }
 
 static void
@@ -252,7 +300,8 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 
 	if (!nv50_xv_check_image_put(ppix))
 		return BadMatch;
-	nv50_xv_state_emit(ppix, id, src, packed_y, uv, width, height);
+	if (!nv50_xv_state_emit(ppix, id, src, packed_y, uv, width, height))
+		return BadAlloc;
 
 	if (pPriv->SyncToVBlank) {
 		NV50EmitWaitForVBlank(ppix, dstBox->x1, dstBox->y1,
@@ -284,8 +333,9 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		ty2 = ty2 / height;
 
 		if (AVAIL_RING(chan) < 64) {
-			nv50_xv_state_emit(ppix, id, src, packed_y, uv,
-					   src_w, src_h);
+			if (!nv50_xv_state_emit(ppix, id, src, packed_y, uv,
+						src_w, src_h))
+				return BadAlloc;
 		}
 
 		/* NV50TCL_SCISSOR_VERT_T_SHIFT is wrong, because it was deducted with
