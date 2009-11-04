@@ -275,6 +275,7 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 
 	if (!NV30GetSurfaceFormat(ppix, &dst_format)) {
 		ErrorF("No surface format, bad.\n");
+		return BadImplementation;
 	}
 
 #ifdef COMPOSITE
