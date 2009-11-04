@@ -81,7 +81,7 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	struct nouveau_grobj *rect = pNv->NvRectangle;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pPixmap);
 	unsigned delta = nouveau_pixmap_offset(pPixmap);
-	unsigned int fmt, pitch, color;
+	unsigned int fmt, pitch, fmt2 = NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8;
 
 	WAIT_RING(chan, 64);
 
@@ -102,13 +102,12 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	pitch = exaGetPixmapPitch(pPixmap);
 
 	if (pPixmap->drawable.bitsPerPixel == 16) {
-		/* convert to 32bpp */
-		uint32_t r =  (fg&0x1F)          * 255 / 31;
-		uint32_t g = ((fg&0x7E0) >> 5)   * 255 / 63;
-		uint32_t b = ((fg&0xF100) >> 11) * 255 / 31;
-		color = b<<16 | g<<8 | r;
-	} else 
-		color = fg;
+		if (pPixmap->drawable.depth == 16) {
+			fmt2 = NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A16R5G6B5;
+		} else if (pPixmap->drawable.depth == 15) {
+			fmt2 = NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_X16A1R5G5B5;
+		}
+	}
 
 	/* When SURFACE_FORMAT_A8R8G8B8 is used with GDI_RECTANGLE_TEXT, the 
 	 * alpha channel gets forced to 0xFF for some reason.  We're using 
@@ -124,9 +123,9 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
-	OUT_RING  (chan, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8);
+	OUT_RING  (chan, fmt2);
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
-	OUT_RING (chan, color);
+	OUT_RING (chan, fg);
 
 	pNv->pdpix = pPixmap;
 	pNv->alu = alu;

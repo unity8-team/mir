@@ -117,7 +117,10 @@ NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret)
 		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_X8R8G8B8_Z8R8G8B8;
 		break;
 	case 16:
-		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_R5G6B5;
+		if (pPix->drawable.depth == 16)
+			*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_R5G6B5;
+		else
+			*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_X1R5G5B5_Z1R5G5B5;
 		break;
 	case 8:
 		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_Y8;
