@@ -157,30 +157,34 @@ NV30VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 	}
 
 	BEGIN_RING(chan, rankine, NV34TCL_TX_OFFSET(unit), 8);
-	OUT_RELOCl(chan, src, offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCl(chan, src, offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD))
+		return FALSE;
+
 	if (unit == 0) {
-		OUT_RELOCd(chan, src, NV34TCL_TX_FORMAT_DIMS_1D | card_fmt |
-				 (1 << 16) |
-				 (log2i(width) <<
-				  NV34TCL_TX_FORMAT_BASE_SIZE_U_SHIFT) |
-				 (log2i(height) <<
-				  NV34TCL_TX_FORMAT_BASE_SIZE_V_SHIFT) |
-				 8 /* no idea */,
-				 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
-				 NV34TCL_TX_FORMAT_DMA0, 0);
+		if (OUT_RELOCd(chan, src, NV34TCL_TX_FORMAT_DIMS_1D |
+			       card_fmt | (1 << 16) |
+			       (log2i(width) <<
+				NV34TCL_TX_FORMAT_BASE_SIZE_U_SHIFT) |
+			       (log2i(height) <<
+				NV34TCL_TX_FORMAT_BASE_SIZE_V_SHIFT) |
+			       8 /* no idea */,
+			       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
+			       NV34TCL_TX_FORMAT_DMA0, 0))
+			return FALSE;
 		OUT_RING  (chan, NV34TCL_TX_WRAP_S_REPEAT |
 				 NV34TCL_TX_WRAP_T_CLAMP_TO_EDGE |
 				 NV34TCL_TX_WRAP_R_CLAMP_TO_EDGE);
 	} else {
-		OUT_RELOCd(chan, src, NV34TCL_TX_FORMAT_DIMS_2D | card_fmt |
-				 (1 << 16) |
-				 (log2i(width) <<
-				  NV34TCL_TX_FORMAT_BASE_SIZE_U_SHIFT) |
-				 (log2i(height) <<
-				  NV34TCL_TX_FORMAT_BASE_SIZE_V_SHIFT) |
-				 8 /* no idea */,
-				 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
-				 NV34TCL_TX_FORMAT_DMA0, 0);
+		if (OUT_RELOCd(chan, src, NV34TCL_TX_FORMAT_DIMS_2D |
+			       card_fmt | (1 << 16) |
+			       (log2i(width) <<
+				NV34TCL_TX_FORMAT_BASE_SIZE_U_SHIFT) |
+			       (log2i(height) <<
+				NV34TCL_TX_FORMAT_BASE_SIZE_V_SHIFT) |
+			       8 /* no idea */,
+			       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
+			       NV34TCL_TX_FORMAT_DMA0, 0))
+			return FALSE;
 		OUT_RING  (chan, NV34TCL_TX_WRAP_S_CLAMP_TO_EDGE |
 				 NV34TCL_TX_WRAP_T_CLAMP_TO_EDGE |
 				 NV34TCL_TX_WRAP_R_CLAMP_TO_EDGE);
@@ -281,6 +285,9 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	pbox = REGION_RECTS(clipBoxes);
 	nbox = REGION_NUM_RECTS(clipBoxes);
 
+	if (MARK_RING(chan, 128, 1 + 1 + 3))
+		return BadImplementation;
+
 	/* Disable blending */
 	BEGIN_RING(chan, rankine, NV34TCL_BLEND_FUNC_ENABLE, 1);
 	OUT_RING  (chan, 0);
@@ -292,7 +299,10 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 			 dst_format);
 	OUT_RING  (chan, (exaGetPixmapPitch(ppix) << 16) |
 			  exaGetPixmapPitch(ppix));
-	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
+		MARK_UNDO(chan);
+		return BadImplementation;
+	}
 
 	if (pNv->NVArch == 0x30) {
 		int x = 0;
@@ -316,18 +326,30 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	OUT_RING  (chan, NV34TCL_TX_UNITS_ENABLE_TX0 |
 			 NV34TCL_TX_UNITS_ENABLE_TX1);
 
-	NV30VideoTexture(pScrn, pNv->xv_filtertable_mem, 0, TABLE_SIZE, 1, 0 , 0);
-	NV30VideoTexture(pScrn, src, src_offset, src_w, src_h, src_pitch, 1);
+	if (!NV30VideoTexture(pScrn, pNv->xv_filtertable_mem, 0, TABLE_SIZE,
+			      1, 0 , 0) ||
+	    !NV30VideoTexture(pScrn, src, src_offset, src_w, src_h,
+		    	      src_pitch, 1)) {
+		MARK_UNDO(chan);
+		return BadImplementation;
+	}
+
 	/* We've got NV12 format, which means half width and half height texture of chroma channels. */
-	NV30VideoTexture(pScrn, src, src_offset2, src_w/2, src_h/2, src_pitch, 2);
+	if (!NV30VideoTexture(pScrn, src, src_offset2, src_w/2, src_h/2,
+			      src_pitch, 2)) {
+		MARK_UNDO(chan);
+		return BadImplementation;
+	}
 
 	BEGIN_RING(chan, rankine, NV34TCL_TX_ENABLE(3), 1);
 	OUT_RING  (chan, 0x0);
 
-	if (pPriv->bicubic)
-		NV30_LoadFragProg(pScrn, &nv30_fp_yv12_bicubic);
-	else
-		NV30_LoadFragProg(pScrn, &nv30_fp_yv12_bilinear);
+	if (!NV30_LoadFragProg(pScrn, pPriv->bicubic ?
+			       &nv30_fp_yv12_bicubic :
+			       &nv30_fp_yv12_bilinear)) {
+		MARK_UNDO(chan);
+		return BadImplementation;
+	}
 
 	/* Just before rendering we wait for vblank in the non-composited case. */
 	if (pPriv->SyncToVBlank && !redirected) {
