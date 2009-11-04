@@ -79,11 +79,17 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		if (line_count > 2047)
 			line_count = 2047;
 
-		WAIT_RING (chan, 32);
+		if (MARK_RING(chan, 32, 6))
+			return FALSE;
+
 		BEGIN_RING(chan, m2mf, 0x184, 2);
-		OUT_RELOCo(chan, bo, NOUVEAU_BO_GART | NOUVEAU_BO_VRAM |
-				 NOUVEAU_BO_RD);
-		OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+		if (OUT_RELOCo(chan, bo, NOUVEAU_BO_GART | NOUVEAU_BO_VRAM |
+			       NOUVEAU_BO_RD) ||
+		    OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART |
+			       NOUVEAU_BO_WR)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
 
 		if (pNv->Architecture >= NV_ARCH_50) {
 			if (!linear) {
@@ -104,17 +110,24 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 			OUT_RING  (chan, 1);
 
 			BEGIN_RING(chan, m2mf, 0x238, 2);
-			OUT_RELOCh(chan, bo, src_offset, NOUVEAU_BO_GART |
-					 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-			OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
-					 NOUVEAU_BO_WR);
+			if (OUT_RELOCh(chan, bo, src_offset, NOUVEAU_BO_GART |
+				       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
+			    OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
+				       NOUVEAU_BO_WR)) {
+				MARK_UNDO(chan);
+				return FALSE;
+			}
 		}
 
 		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RELOCl(chan, bo, src_offset, NOUVEAU_BO_GART |
-				 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-		OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+		if (OUT_RELOCl(chan, bo, src_offset, NOUVEAU_BO_GART |
+			       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
+		    OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO_GART |
+			       NOUVEAU_BO_WR)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
 		OUT_RING  (chan, src_pitch);
 		OUT_RING  (chan, line_len);
 		OUT_RING  (chan, line_len);
@@ -122,7 +135,10 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		OUT_RING  (chan, (1<<8)|1);
 		OUT_RING  (chan, 0);
 
-		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD);
+		if (nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
 		src = pNv->GART->map;
 		if (dst_pitch == line_len) {
 			memcpy(dst, src, dst_pitch * line_count);
@@ -183,7 +199,8 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			line_count = 2047;
 
 		/* Upload to GART */
-		nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR);
+		if (nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR))
+			return FALSE;
 		dst = pNv->GART->map;
 		if (src_pitch == line_len) {
 			memcpy(dst, src, src_pitch * line_count);
@@ -197,11 +214,17 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		}
 		nouveau_bo_unmap(pNv->GART);
 
-		WAIT_RING (chan, 32);
+		if (MARK_RING(chan, 32, 6))
+			return FALSE;
+
 		BEGIN_RING(chan, m2mf, 0x184, 2);
-		OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-		OUT_RELOCo(chan, bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
-				 NOUVEAU_BO_WR);
+		if (OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART |
+			       NOUVEAU_BO_RD) ||
+		    OUT_RELOCo(chan, bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
+			       NOUVEAU_BO_WR)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
 
 		if (pNv->Architecture >= NV_ARCH_50) {
 			BEGIN_RING(chan, m2mf, 0x0200, 1);
@@ -222,24 +245,32 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			}
 
 			BEGIN_RING(chan, m2mf, 0x0238, 2);
-			OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
-				   NOUVEAU_BO_RD);
-			OUT_RELOCh(chan, bo, dst_offset, NOUVEAU_BO_VRAM |
-					 NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+			if (OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
+				       NOUVEAU_BO_RD) ||
+			    OUT_RELOCh(chan, bo, dst_offset, NOUVEAU_BO_VRAM |
+				       NOUVEAU_BO_GART | NOUVEAU_BO_WR)) {
+				MARK_UNDO(chan);
+				return FALSE;
+			}
 		}
 
 		/* DMA to VRAM */
 		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-		OUT_RELOCl(chan, bo, dst_offset, NOUVEAU_BO_VRAM |
-				 NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+		if (OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO_GART |
+			       NOUVEAU_BO_RD) ||
+		    OUT_RELOCl(chan, bo, dst_offset, NOUVEAU_BO_VRAM |
+			       NOUVEAU_BO_GART | NOUVEAU_BO_WR)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
 		OUT_RING  (chan, line_len);
 		OUT_RING  (chan, dst_pitch);
 		OUT_RING  (chan, line_len);
 		OUT_RING  (chan, line_count);
 		OUT_RING  (chan, (1<<8)|1);
 		OUT_RING  (chan, 0);
+		FIRE_RING (chan);
 
 		if (linear)
 			dst_offset += line_count * dst_pitch;
