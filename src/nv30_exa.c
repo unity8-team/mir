@@ -322,7 +322,8 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 		card_filter = 1;
 
 	BEGIN_RING(chan, rankine, NV34TCL_TX_OFFSET(unit), 8);
-	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD))
+		return FALSE;
 
 	OUT_RING  (chan, NV34TCL_TX_FORMAT_DIMS_2D |
 			(fmt->card_fmt << NV34TCL_TX_FORMAT_FORMAT_SHIFT) |
@@ -373,7 +374,8 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 	BEGIN_RING(chan, rankine, NV34TCL_RT_FORMAT, 3);
 	OUT_RING  (chan, fmt->card_fmt); /* format */
 	OUT_RING  (chan, pitch << 16 | pitch);
-	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
+		return FALSE;
 
 	return TRUE;
 }
@@ -476,7 +478,8 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	int fpid = NV30EXA_FPID_PASS_COL0;
 	NV30EXA_STATE;
 
-	WAIT_RING(chan, 128);
+	if (MARK_RING(chan, 128, 1 + 1 + 2))
+		return FALSE;
 
 	blend = NV30_GetPictOpRec(op);
 
@@ -484,8 +487,11 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 			(pmPict && pmPict->componentAlpha &&
 			 PICT_FORMAT_RGB(pmPict->format)));
 
-	NV30_SetupSurface(pScrn, pdPix, pdPict);
-	NV30EXATexture(pScrn, psPix, psPict, 0);
+	if (!NV30_SetupSurface(pScrn, pdPix, pdPict) ||
+	    !NV30EXATexture(pScrn, psPix, psPict, 0)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 
 #if 0
 #define printformat(f) ErrorF("(%xh %s %dbpp A%dR%dG%dB%d)",f,(f>>16)&0xf==2?"ARGB":"ABGR",(f>>24),(f&0xf000)>>12,(f&0xf00)>>8,(f&0xf0)>>4,f&0xf)
@@ -502,7 +508,10 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 #endif
 
 	if (pmPict) {
-		NV30EXATexture(pScrn, pmPix, pmPict, 1);
+		if (!NV30EXATexture(pScrn, pmPix, pmPict, 1)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
 
 		if (pmPict->componentAlpha && PICT_FORMAT_RGB(pmPict->format)) {
 			if (blend->src_alpha)
@@ -520,10 +529,11 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 		state->have_mask = FALSE;
 	}
 
-	if (pdPict->format == PICT_a8)
-		NV30_LoadFragProg(pScrn, nv40_fp_map_a8[fpid]);
-	else
-		NV30_LoadFragProg(pScrn, nv40_fp_map[fpid]);
+	if (!NV30_LoadFragProg(pScrn, (pdPict->format == PICT_a8) ?
+			       nv40_fp_map_a8[fpid] : nv40_fp_map[fpid])) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 
 	BEGIN_RING(chan, rankine, 0x23c, 1);
 	OUT_RING  (chan, pmPict?3:1);

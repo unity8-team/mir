@@ -65,7 +65,7 @@ void NV40_UploadVtxProg(NVPtr pNv, nv_shader_t *shader, int *hw_id)
 	}
 }
 
-void
+Bool
 NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -73,11 +73,11 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	struct nouveau_grobj *rankine = pNv->Nv3D;
 
 	BEGIN_RING(chan, rankine, NV34TCL_FP_ACTIVE_PROGRAM, 1);
-	OUT_RELOC (chan, pNv->shader_mem, shader->hw_id, NOUVEAU_BO_VRAM |
-		   NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
-		   NV34TCL_FP_ACTIVE_PROGRAM_DMA0,
-		   NV34TCL_FP_ACTIVE_PROGRAM_DMA1);
-
+	if (OUT_RELOC(chan, pNv->shader_mem, shader->hw_id, NOUVEAU_BO_VRAM |
+		      NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
+		      NV34TCL_FP_ACTIVE_PROGRAM_DMA0,
+		      NV34TCL_FP_ACTIVE_PROGRAM_DMA1))
+		return FALSE;
 	BEGIN_RING(chan, rankine, NV34TCL_FP_REG_CONTROL, 1);
 	OUT_RING  (chan, (1 << 16)| 0xf);
 	BEGIN_RING(chan, rankine, NV34TCL_MULTISAMPLE_CONTROL, 1);
@@ -85,6 +85,8 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 
 	BEGIN_RING(chan, rankine, NV34TCL_FP_CONTROL,1);
 	OUT_RING  (chan, (shader->card_priv.NV30FP.num_regs-1)/2);
+
+	return TRUE;
 }
 
 void
@@ -102,7 +104,7 @@ NV40_LoadVtxProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	OUT_RING  (chan, shader->card_priv.NV30VP.vp_out_reg);
 }
 
-void
+Bool
 NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -110,13 +112,16 @@ NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	struct nouveau_grobj *curie = pNv->Nv3D;
 
 	BEGIN_RING(chan, curie, NV40TCL_FP_ADDRESS, 1);
-	OUT_RELOC (chan, pNv->shader_mem, shader->hw_id, NOUVEAU_BO_VRAM |
-			 NOUVEAU_BO_GART | NOUVEAU_BO_RD | NOUVEAU_BO_LOW |
-			 NOUVEAU_BO_OR,
-			 NV40TCL_FP_ADDRESS_DMA0, NV40TCL_FP_ADDRESS_DMA1);
+	if (OUT_RELOC(chan, pNv->shader_mem, shader->hw_id, NOUVEAU_BO_VRAM |
+		      NOUVEAU_BO_GART | NOUVEAU_BO_RD | NOUVEAU_BO_LOW |
+		      NOUVEAU_BO_OR,
+		      NV40TCL_FP_ADDRESS_DMA0, NV40TCL_FP_ADDRESS_DMA1))
+		return FALSE;
 	BEGIN_RING(chan, curie, NV40TCL_FP_CONTROL, 1);
 	OUT_RING  (chan, shader->card_priv.NV30FP.num_regs <<
 			 NV40TCL_FP_CONTROL_TEMP_COUNT_SHIFT);
+
+	return TRUE;
 }
 
 /*******************************************************************************
