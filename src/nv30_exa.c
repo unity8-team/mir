@@ -64,6 +64,7 @@ NV30SurfaceFormat[] = {
 	{ PICT_x8b8g8r8	, 0x14f },
 	{ PICT_r5g6b5	, 0x143 },
 	{ PICT_a8       , 0x149 },
+	{ PICT_x1r5g5b5	, 0x142 },
 };
 
 static nv_pict_surface_format_t *
@@ -123,18 +124,21 @@ NV30EXAHackupA8Shaders(ScrnInfoPtr pScrn)
 }
 
 /* should be in nouveau_reg.h at some point.. */
-#define NV34TCL_TX_SWIZZLE_UNIT_S0_X_SHIFT	14
 #define NV34TCL_TX_SWIZZLE_UNIT_S0_X_ZERO	 0
 #define NV34TCL_TX_SWIZZLE_UNIT_S0_X_ONE	 1
 #define NV34TCL_TX_SWIZZLE_UNIT_S0_X_S1		 2
+
+#define NV34TCL_TX_SWIZZLE_UNIT_S0_X_SHIFT	14
 #define NV34TCL_TX_SWIZZLE_UNIT_S0_Y_SHIFT	12
 #define NV34TCL_TX_SWIZZLE_UNIT_S0_Z_SHIFT	10
 #define NV34TCL_TX_SWIZZLE_UNIT_S0_W_SHIFT	 8
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_X_SHIFT	 6
+
 #define NV34TCL_TX_SWIZZLE_UNIT_S1_X_X		 3
 #define NV34TCL_TX_SWIZZLE_UNIT_S1_X_Y		 2
 #define NV34TCL_TX_SWIZZLE_UNIT_S1_X_Z		 1
 #define NV34TCL_TX_SWIZZLE_UNIT_S1_X_W		 0
+
+#define NV34TCL_TX_SWIZZLE_UNIT_S1_X_SHIFT	 6
 #define NV34TCL_TX_SWIZZLE_UNIT_S1_Y_SHIFT	 4
 #define NV34TCL_TX_SWIZZLE_UNIT_S1_Z_SHIFT	 2
 #define NV34TCL_TX_SWIZZLE_UNIT_S1_W_SHIFT	 0
@@ -159,11 +163,21 @@ NV30TextureFormat[] = {
 	_(a8b8g8r8, 0x12,   S1,   S1,   S1,   S1, Z, Y, X, W),
 	_(x8r8g8b8, 0x12,   S1,   S1,   S1,  ONE, X, Y, Z, W),
 	_(x8b8g8r8, 0x12,   S1,   S1,   S1,  ONE, Z, Y, X, W),
+
 	_(a1r5g5b5, 0x10,   S1,   S1,   S1,   S1, X, Y, Z, W),
 	_(x1r5g5b5, 0x10,   S1,   S1,   S1,  ONE, X, Y, Z, W),
+	_(a1b5g5r5, 0x10,   S1,   S1,   S1,   S1, Z, Y, X, W),
+	_(x1b5g5r5, 0x10,   S1,   S1,   S1,  ONE, Z, Y, X, W),
+
 	_(x4r4g4b4, 0x1d,   S1,   S1,   S1,  ONE, X, Y, Z, W),
 	_(a4r4g4b4, 0x1d,   S1,   S1,   S1,   S1, X, Y, Z, W),
+	_(x4b4g4r4, 0x1d,   S1,   S1,   S1,  ONE, Z, Y, X, W),
+	_(a4b4g4r4, 0x1d,   S1,   S1,   S1,   S1, Z, Y, X, W),
+
 	_(      a8, 0x1b, ZERO, ZERO, ZERO,   S1, X, X, X, X),
+
+	_(  r5g6b5, 0x11,   S1,   S1,   S1,  ONE, X, Y, Z, W),
+	_(  b5g6r5, 0x11,   S1,   S1,   S1,  ONE, Z, Y, X, W),
 };
 
 
