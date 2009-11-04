@@ -1326,9 +1326,12 @@ CPU_copy:
 		if (ret != Success)
 			return ret;
 	} else {
-		NVPutBlitImage(pScrn, pPriv->video_mem, offset, id, dstPitch,
-			       &dstBox, 0, 0, xb, yb, npixels, nlines,
-			       src_w, src_h, drw_w, drw_h, clipBoxes, ppix);
+		ret = NVPutBlitImage(pScrn, pPriv->video_mem, offset, id,
+				     dstPitch, &dstBox, 0, 0, xb, yb, npixels,
+				     nlines, src_w, src_h, drw_w, drw_h,
+				     clipBoxes, ppix);
+		if (ret != Success)
+			return ret;
 	}
 
 #ifdef COMPOSITE

@@ -127,7 +127,7 @@ int NV04GetOverlayPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 void NV04StopOverlay(ScrnInfoPtr);
 
 /* in nv04_video_blitter.c */
-void NVPutBlitImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int, BoxPtr,
+Bool NVPutBlitImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int, BoxPtr,
 		    int, int, int, int, short, short, short, short, short,
 		    short, RegionPtr, PixmapPtr);
 int NVSetBlitPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
