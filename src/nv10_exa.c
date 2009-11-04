@@ -346,7 +346,7 @@ Bool NV10EXACheckComposite(int op,
 	return TRUE;
 }
 
-static void NV10SetTexture(NVPtr pNv, int unit, PicturePtr Pict, PixmapPtr pixmap)
+static Bool NV10SetTexture(NVPtr pNv, int unit, PicturePtr Pict, PixmapPtr pixmap)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
@@ -364,7 +364,8 @@ static void NV10SetTexture(NVPtr pNv, int unit, PicturePtr Pict, PixmapPtr pixma
 			0x51 /* UNK */;
 
 	BEGIN_RING(chan, celsius, NV10TCL_TX_OFFSET(unit), 1);
-	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD))
+		return FALSE;
 
 	/* if repeat is set we're always handling a 1x1 texture with ARGB/XRGB destination, 
 	in that case we change the format	to use the POT (swizzled) matching format */
@@ -413,9 +414,10 @@ static void NV10SetTexture(NVPtr pNv, int unit, PicturePtr Pict, PixmapPtr pixma
 	state.unit[unit].width		= (float)pixmap->drawable.width;
 	state.unit[unit].height		= (float)pixmap->drawable.height;
 	state.unit[unit].transform	= Pict->transform;
+	return TRUE;
 }
 
-static void NV10SetBuffer(NVPtr pNv, PicturePtr Pict, PixmapPtr pixmap)
+static Bool NV10SetBuffer(NVPtr pNv, PicturePtr Pict, PixmapPtr pixmap)
 {
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
@@ -436,7 +438,8 @@ static void NV10SetBuffer(NVPtr pNv, PicturePtr Pict, PixmapPtr pixmap)
 	}
 
 	OUT_RING  (chan, ((uint32_t)exaGetPixmapPitch(pixmap) << 16) |(uint32_t)exaGetPixmapPitch(pixmap));
-	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
+		return FALSE;
 	OUT_RING  (chan, 0);
 
 	BEGIN_RING(chan, celsius, NV10TCL_RT_HORIZ, 2);
@@ -468,6 +471,8 @@ static void NV10SetBuffer(NVPtr pNv, PicturePtr Pict, PixmapPtr pixmap)
 	OUT_RINGf (chan, -2048.0);
 	OUT_RINGf (chan, 0);
 	OUT_RING  (chan, 0);
+
+	return TRUE;
 }
 
 #define RC_IN_ONE(chan, input)						\
@@ -656,7 +661,8 @@ Bool NV10EXAPrepareComposite(int op,
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
 
-	WAIT_RING(chan, 128);
+	if (MARK_RING(chan, 128, 3))
+		return FALSE;
 
 	state.is_a8_plus_a8 = FALSE;
 	state.have_mask=(pMaskPicture!=NULL);
@@ -672,22 +678,35 @@ Bool NV10EXAPrepareComposite(int op,
 
 	if (NV10Check_A8plusA8_Feasability(pSrcPicture, pMaskPicture, pDstPicture, op)) {
 		state.is_a8_plus_a8 = TRUE;
-		NV10SetBuffer(pNv, pDstPicture, pDst);
+		if (!NV10SetBuffer(pNv, pDstPicture, pDst) ||
+		    !NV10SetTexture(pNv, 0, pSrcPicture, pSrc) ||
+		    !NV10SetTexture(pNv, 1, pSrcPicture, pSrc)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
 		NV10SetPictOp(pNv, op);
-		NV10SetTexture(pNv, 0, pSrcPicture, pSrc);
-		NV10SetTexture(pNv, 1, pSrcPicture, pSrc);
 		return TRUE;
 	}
 
 	/* Set dst format */
-	NV10SetBuffer(pNv, pDstPicture, pDst);
+	if (!NV10SetBuffer(pNv, pDstPicture, pDst)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 
 	/* Set src format */
-	NV10SetTexture(pNv, 0, pSrcPicture, pSrc);
+	if (!NV10SetTexture(pNv, 0, pSrcPicture, pSrc)) {
+		MARK_UNDO(chan);
+		return FALSE;
+	}
 
 	/* Set mask format */
-	if (pMaskPicture)
-		NV10SetTexture(pNv, 1, pMaskPicture, pMask);
+	if (pMaskPicture) {
+		if (!NV10SetTexture(pNv, 1, pMaskPicture, pMask)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
+	}
 
 	NV10SetRegCombs(pNv, pSrcPicture, pMaskPicture);
 
