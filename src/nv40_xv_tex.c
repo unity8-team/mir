@@ -275,6 +275,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 
 	if (!NV40GetSurfaceFormat(ppix, &dst_format)) {
 		ErrorF("No surface format, bad.\n");
+		return BadImplementation;
 	}
 
 #ifdef COMPOSITE
