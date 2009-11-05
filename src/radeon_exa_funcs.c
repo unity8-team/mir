@@ -512,7 +512,9 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
         goto out;
     }
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
 copy:
+#endif
     r = radeon_bo_map(scratch, 0);
     if (r) {
         r = FALSE;
@@ -628,7 +630,9 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
                     RADEON_GEM_DOMAIN_GTT);
     FLUSH_RING();
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
 copy:
+#endif
     r = radeon_bo_map(scratch, 0);
     if (r) {
         r = FALSE;
