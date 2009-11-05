@@ -646,15 +646,19 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
     disp_data.v1.ucAction = action;
 
     if (IS_DCE32_VARIANT) {
-	if (radeon_output->MonType == MT_DP) {
-	    disp_data.v2.usPixelClock =
-		cpu_to_le16(dp_link_clock_for_mode_clock(clock));
-	    disp_data.v2.acConfig.fDPConnector = 1;
-	} else if (clock > 165000) {
-	    disp_data.v2.usPixelClock = cpu_to_le16((clock / 2) / 10);
-	    disp_data.v2.acConfig.fDualLinkConnector = 1;
+	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
+	    disp_data.v2.usInitInfo = radeon_output->connector_object_id;
 	} else {
-	    disp_data.v2.usPixelClock = cpu_to_le16(clock / 10);
+	    if (radeon_output->MonType == MT_DP) {
+		disp_data.v2.usPixelClock =
+		    cpu_to_le16(dp_link_clock_for_mode_clock(clock));
+		disp_data.v2.acConfig.fDPConnector = 1;
+	    } else if (clock > 165000) {
+		disp_data.v2.usPixelClock = cpu_to_le16((clock / 2) / 10);
+		disp_data.v2.acConfig.fDualLinkConnector = 1;
+	    } else {
+		disp_data.v2.usPixelClock = cpu_to_le16(clock / 10);
+	    }
 	}
 	if (dig_block)
 	    disp_data.v2.acConfig.ucEncoderSel = 1;
@@ -684,13 +688,17 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
     } else {
 	disp_data.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
 
-	if (radeon_output->MonType == MT_DP)
-	    disp_data.v1.usPixelClock =
-		cpu_to_le16(dp_link_clock_for_mode_clock(clock));
-	else if (clock > 165000)
-	    disp_data.v1.usPixelClock = cpu_to_le16((clock / 2) / 10);
-	else
-	    disp_data.v1.usPixelClock = cpu_to_le16(clock / 10);
+	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
+	    disp_data.v1.usInitInfo = radeon_output->connector_object_id;
+	} else {
+	    if (radeon_output->MonType == MT_DP)
+		disp_data.v1.usPixelClock =
+		    cpu_to_le16(dp_link_clock_for_mode_clock(clock));
+	    else if (clock > 165000)
+		disp_data.v1.usPixelClock = cpu_to_le16((clock / 2) / 10);
+	    else
+		disp_data.v1.usPixelClock = cpu_to_le16(clock / 10);
+	}
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
@@ -1488,7 +1496,7 @@ atombios_output_mode_set(xf86OutputPtr output,
     radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     if (radeon_encoder == NULL)
-        return;
+	return;
 
     radeon_output->pixel_clock = adjusted_mode->Clock;
     radeon_output->dig_block = radeon_crtc->crtc_id;
@@ -1520,6 +1528,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 
 	/* setup and enable the encoder and transmitter */
 	atombios_output_dig_encoder_setup(output, ATOM_ENABLE);
+	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_INIT);
 	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_SETUP);
 	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE);
 	break;

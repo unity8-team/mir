@@ -239,6 +239,7 @@ typedef struct {
     Bool load_detection;
     Bool linkb;
     uint16_t connector_object;
+    uint16_t connector_object_id;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -254,6 +255,7 @@ typedef struct _RADEONOutputPrivateRec {
     Bool linkb;
 
     RADEONConnectorType ConnectorType;
+    uint16_t connector_object_id;
     RADEONDviType DVIType;
     RADEONMonitorType MonType;
 

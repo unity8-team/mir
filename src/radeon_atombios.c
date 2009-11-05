@@ -1873,10 +1873,13 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 
 		    ct = (slot_config  >> 16) & 0xff;
 		    info->BiosConnector[i].ConnectorType = object_connector_convert[ct];
+		    info->BiosConnector[i].connector_object_id = ct;
 		    info->BiosConnector[i].igp_lane_info = slot_config & 0xffff;
 		}
-	    } else
+	    } else {
 		info->BiosConnector[i].ConnectorType = object_connector_convert[con_obj_id];
+		info->BiosConnector[i].connector_object_id = con_obj_id;
+	    }
 
 	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_NONE) {
 		info->BiosConnector[i].valid = FALSE;
