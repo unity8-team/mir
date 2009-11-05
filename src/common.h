@@ -366,12 +366,6 @@ extern int I810_DEBUG;
 #define IS_I915(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_G33CLASS(pI810))
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_GM45(pI810) || IS_IGD(pI810) || IS_IGDNG_M(pI810))
-/* mark chipsets for using gfx VM offset for overlay */
-#define OVERLAY_NOPHYSICAL(pI810) (IS_G33CLASS(pI810) || IS_I965G(pI810))
-/* mark chipsets without overlay hw */
-#define OVERLAY_NOEXIST(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
-/* dsparb controlled by hw only */
-#define DSPARB_HWCONTROL(pI810) (IS_G4X(pI810) || IS_IGDNG(pI810))
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
 #define SUPPORTS_YTILING(pI810) (IS_I965G(intel))
 
@@ -385,7 +379,6 @@ extern int I810_DEBUG;
 #define MAX_SCRATCH_BUFFER_SIZE		KB(64)
 #define HWCURSOR_SIZE			GTT_PAGE_SIZE
 #define HWCURSOR_SIZE_ARGB		GTT_PAGE_SIZE * 4
-#define OVERLAY_SIZE			GTT_PAGE_SIZE
 
 /* Use a 64x64 HW cursor */
 #define I810_CURSOR_X			64
