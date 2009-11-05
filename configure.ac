@@ -111,16 +111,6 @@ AM_CONDITIONAL(DRI, test x$DRI = xyes)
 AC_MSG_CHECKING([whether to include DRI support])
 AC_MSG_RESULT([$DRI])
 
-dnl Use lots of warning flags with GCC
-
-WARN_CFLAGS=""
-
-if test "x$GCC" = "xyes"; then
-	WARN_CFLAGS="-Wall -Wpointer-arith -Wstrict-prototypes \
-	-Wmissing-prototypes -Wmissing-declarations \
-	-Wnested-externs -fno-strict-aliasing"
-fi
-
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
 if test "$VIDEO_DEBUG" = yes; then
 	AC_DEFINE(VIDEO_DEBUG,1,[Enable debug support])
@@ -145,7 +135,6 @@ if test "$KMS_ONLY" = yes; then
 fi
 
 AC_SUBST([XORG_CFLAGS])
-AC_SUBST([WARN_CFLAGS])
 AC_SUBST([moduledir])
 
 DRIVER_NAME=intel
