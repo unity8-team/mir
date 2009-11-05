@@ -91,13 +91,14 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.11])
+PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
 PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
                   HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
                   HAVE_XEXTPROTO_71="no")
 AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
-drm_cflags=$(pkg-config --cflags libdrm)
 
 # Checks for libraries.
 
@@ -105,8 +106,8 @@ drm_cflags=$(pkg-config --cflags libdrm)
 AC_HEADER_STDC
 
 save_CFLAGS="$CFLAGS"
-CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $drm_cflags"
-CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $drm_cflags"
+CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
+CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
 AC_MSG_CHECKING([whether to include DRI support])
 if test x$DRI != xno; then
         AC_CHECK_FILE([${sdkdir}/dri.h],
@@ -129,8 +130,6 @@ fi
 AC_MSG_RESULT([$DRI])
 CFLAGS="$save_CFLAGS $DEBUGFLAGS"
 
-PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10])
-
 dnl Use lots of warning flags with GCC
 
 WARN_CFLAGS=""
@@ -141,7 +140,6 @@ if test "x$GCC" = "xyes"; then
 	-Wnested-externs -fno-strict-aliasing"
 fi
 
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.11])
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
