@@ -158,6 +158,9 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 	if (IS_I965G(intel) && tiling)
 		limit = KB(16);
 
+	if (IS_IGDNG(intel) && tiling)
+		limit = KB(32);
+
 	if (stride <= limit)
 		return TRUE;
 	else
