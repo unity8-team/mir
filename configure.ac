@@ -43,6 +43,7 @@ AM_PROG_CC_C_O
 PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.0], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
+AC_HEADER_STDC
 AC_CHECK_HEADERS(sys/mman.h)
 AC_CHECK_FUNCS(mprotect)
 
@@ -99,11 +100,6 @@ PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
 AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
-
-# Checks for libraries.
-
-# Checks for header files.
-AC_HEADER_STDC
 
 save_CFLAGS="$CFLAGS"
 CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
