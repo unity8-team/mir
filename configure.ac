@@ -87,7 +87,7 @@ AC_ARG_ENABLE(kms-only, AC_HELP_STRING([--enable-kms-only],
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
-XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
+XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11 xf86driproto glproto)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
@@ -101,30 +101,15 @@ AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
-save_CFLAGS="$CFLAGS"
-CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
-CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
-AC_MSG_CHECKING([whether to include DRI support])
 if test x$DRI != xno; then
-        AC_CHECK_FILE([${sdkdir}/dri.h],
-                      [have_dri_h="yes"], [have_dri_h="no"])
-        AC_CHECK_FILE([${sdkdir}/sarea.h],
-                      [have_sarea_h="yes"], [have_sarea_h="no"])
-        AC_CHECK_FILE([${sdkdir}/dristruct.h],
-                      [have_dristruct_h="yes"], [have_dristruct_h="no"])
+	AC_CHECK_FILES([${sdkdir}/dri.h ${sdkdir}/sarea.h ${sdkdir}/dristruct.h],
+	               [DRI="yes"
+	                AC_DEFINE(HAVE_DRI,1,[Enable DRI driver support])],
+	               [DRI="no"])
 fi
+AM_CONDITIONAL(DRI, test x$DRI = xyes)
 AC_MSG_CHECKING([whether to include DRI support])
-if test x$DRI = xauto; then
-        if test "$have_dri_h" = yes -a \
-                "$have_sarea_h" = yes -a \
-                "$have_dristruct_h" = yes; then
-                DRI="yes"
-        else
-                DRI="no"
-        fi
-fi
 AC_MSG_RESULT([$DRI])
-CFLAGS="$save_CFLAGS $DEBUGFLAGS"
 
 dnl Use lots of warning flags with GCC
 
@@ -134,13 +119,6 @@ if test "x$GCC" = "xyes"; then
 	WARN_CFLAGS="-Wall -Wpointer-arith -Wstrict-prototypes \
 	-Wmissing-prototypes -Wmissing-declarations \
 	-Wnested-externs -fno-strict-aliasing"
-fi
-
-AM_CONDITIONAL(DRI, test x$DRI = xyes)
-if test "$DRI" = yes; then
-        PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
-        AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
-        AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 fi
 
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
@@ -166,7 +144,6 @@ if test "$KMS_ONLY" = yes; then
 	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
 fi
 
-AC_SUBST([DRI_CFLAGS])
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([WARN_CFLAGS])
 AC_SUBST([moduledir])

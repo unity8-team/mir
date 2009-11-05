@@ -26,7 +26,7 @@ SUBDIRS = xvmc bios_reader reg_dumper render_program
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
-AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ \
 	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa -I$(top_srcdir)/src/render_program
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
@@ -99,8 +99,6 @@ EXTRA_DIST = 		\
 if DRI
 intel_drv_la_SOURCES += \
 	$(INTEL_DRI_SRCS)
-intel_drv_la_LIBADD += \
-	$(DRI_LIBS)
 endif
 
 if XVMC
