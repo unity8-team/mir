@@ -905,10 +905,11 @@ drmmode_output_get_property(xf86OutputPtr output, Atom property)
 	uint32_t value;
 	int err, i;
 
-	drmModeFreeConnector(drmmode_output->mode_output);
-
-	drmmode_output->mode_output =
-		drmModeGetConnector(drmmode->fd, drmmode_output->output_id);
+	if (output->scrn->vtSema) {
+		drmModeFreeConnector(drmmode_output->mode_output);
+		drmmode_output->mode_output =
+			drmModeGetConnector(drmmode->fd, drmmode_output->output_id);
+	}
 
 	for (i = 0; i < drmmode_output->num_props; i++) {
 		drmmode_prop_ptr p = &drmmode_output->props[i];
