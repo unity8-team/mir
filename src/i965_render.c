@@ -175,8 +175,9 @@ static Bool i965_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 		*dst_format = BRW_SURFACEFORMAT_B4G4R4A4_UNORM;
 		break;
 	default:
-		I830FALLBACK("Unsupported dest format 0x%x\n",
-			     (int)dest_picture->format);
+		intel_debug_fallback(scrn, "Unsupported dest format 0x%x\n",
+				     (int)dest_picture->format);
+		return FALSE;
 	}
 
 	return TRUE;
@@ -185,13 +186,18 @@ static Bool i965_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 static Bool i965_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 					 int unit)
 {
-	if (picture->repeatType > RepeatReflect)
-		I830FALLBACK("extended repeat (%d) not supported\n",
-			     picture->repeatType);
+	if (picture->repeatType > RepeatReflect) {
+		intel_debug_fallback(scrn,
+				     "extended repeat (%d) not supported\n",
+				     picture->repeatType);
+		return FALSE;
+	}
 
 	if (picture->filter != PictFilterNearest &&
 	    picture->filter != PictFilterBilinear) {
-		I830FALLBACK("Unsupported filter 0x%x\n", picture->filter);
+		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
+				     picture->filter);
+		return FALSE;
 	}
 
 	if (picture->pDrawable) {
@@ -199,8 +205,12 @@ static Bool i965_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 
 		w = picture->pDrawable->width;
 		h = picture->pDrawable->height;
-		if ((w > 8192) || (h > 8192))
-			I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
+		if ((w > 8192) || (h > 8192)) {
+			intel_debug_fallback(scrn,
+					     "Picture w/h too large (%dx%d)\n",
+					     w, h);
+			return FALSE;
+		}
 
 		for (i = 0;
 		     i < sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]);
@@ -209,8 +219,13 @@ static Bool i965_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 				break;
 		}
 		if (i == sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]))
-			I830FALLBACK("Unsupported picture format 0x%x\n",
-				     (int)picture->format);
+		{
+			intel_debug_fallback(scrn,
+					     "Unsupported picture format "
+					     "0x%x\n",
+					     (int)picture->format);
+			return FALSE;
+		}
 	}
 
 	return TRUE;
@@ -224,8 +239,11 @@ i965_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 	uint32_t tmp1;
 
 	/* Check for unsupported compositing operations. */
-	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0]))
-		I830FALLBACK("Unsupported Composite op 0x%x\n", op);
+	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0])) {
+		intel_debug_fallback(scrn,
+				     "Unsupported Composite op 0x%x\n", op);
+		return FALSE;
+	}
 
 	if (mask_picture && mask_picture->componentAlpha &&
 	    PICT_FORMAT_RGB(mask_picture->format)) {
@@ -235,20 +253,28 @@ i965_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 		 */
 		if (i965_blend_op[op].src_alpha &&
 		    (i965_blend_op[op].src_blend != BRW_BLENDFACTOR_ZERO)) {
-			I830FALLBACK
-			    ("Component alpha not supported with source "
-			     "alpha and source value blending.\n");
+			intel_debug_fallback(scrn,
+					     "Component alpha not supported "
+					     "with source alpha and source "
+					     "value blending.\n");
+			return FALSE;
 		}
 	}
 
-	if (!i965_check_composite_texture(scrn, source_picture, 0))
-		I830FALLBACK("Check Src picture texture\n");
+	if (!i965_check_composite_texture(scrn, source_picture, 0)) {
+		intel_debug_fallback(scrn, "Check Src picture texture\n");
+		return FALSE;
+	}
 	if (mask_picture != NULL
-	    && !i965_check_composite_texture(scrn, mask_picture, 1))
-		I830FALLBACK("Check Mask picture texture\n");
+	    && !i965_check_composite_texture(scrn, mask_picture, 1)) {
+		intel_debug_fallback(scrn, "Check Mask picture texture\n");
+		return FALSE;
+	}
 
-	if (!i965_get_dest_format(dest_picture, &tmp1))
-		I830FALLBACK("Get Color buffer format\n");
+	if (!i965_get_dest_format(dest_picture, &tmp1)) {
+		intel_debug_fallback(scrn, "Get Color buffer format\n");
+		return FALSE;
+	}
 
 	return TRUE;
 
@@ -1440,24 +1466,34 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	uint32_t *binding_table;
 	drm_intel_bo *binding_table_bo, *surface_state_bo;
 
-	if (composite_op->src_filter < 0)
-		I830FALLBACK("Bad src filter 0x%x\n", source_picture->filter);
+	if (composite_op->src_filter < 0) {
+		intel_debug_fallback(scrn, "Bad src filter 0x%x\n",
+				     source_picture->filter);
+		return FALSE;
+	}
 	composite_op->src_extend =
 	    sampler_state_extend_from_picture(source_picture->repeatType);
-	if (composite_op->src_extend < 0)
-		I830FALLBACK("Bad src repeat 0x%x\n", source_picture->repeatType);
+	if (composite_op->src_extend < 0) {
+		intel_debug_fallback(scrn, "Bad src repeat 0x%x\n",
+				     source_picture->repeatType);
+		return FALSE;
+	}
 
 	if (mask_picture) {
 		composite_op->mask_filter =
 		    sampler_state_filter_from_picture(mask_picture->filter);
-		if (composite_op->mask_filter < 0)
-			I830FALLBACK("Bad mask filter 0x%x\n",
-				     mask_picture->filter);
+		if (composite_op->mask_filter < 0) {
+			intel_debug_fallback(scrn, "Bad mask filter 0x%x\n",
+					     mask_picture->filter);
+			return FALSE;
+		}
 		composite_op->mask_extend =
 		    sampler_state_extend_from_picture(mask_picture->repeatType);
-		if (composite_op->mask_extend < 0)
-			I830FALLBACK("Bad mask repeat 0x%x\n",
-				     mask_picture->repeatType);
+		if (composite_op->mask_extend < 0) {
+			intel_debug_fallback(scrn, "Bad mask repeat 0x%x\n",
+					     mask_picture->repeatType);
+			return FALSE;
+		}
 	} else {
 		composite_op->mask_filter = SAMPLER_STATE_FILTER_NEAREST;
 		composite_op->mask_extend = SAMPLER_STATE_EXTEND_NONE;
@@ -1589,9 +1625,12 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 
 	if (!i965_composite_check_aperture(scrn)) {
 		intel_batch_flush(scrn, FALSE);
-		if (!i965_composite_check_aperture(scrn))
-			I830FALLBACK
-			    ("Couldn't fit render operation in aperture\n");
+		if (!i965_composite_check_aperture(scrn)) {
+			intel_debug_fallback(scrn,
+					     "Couldn't fit render operation "
+					     "in aperture\n");
+			return FALSE;
+		}
 	}
 
 	intel->needs_render_state_emit = TRUE;

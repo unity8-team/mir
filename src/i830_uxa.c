@@ -110,16 +110,21 @@ i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (intel->batch_bo == NULL)
-		I830FALLBACK("VT inactive\n");
+	if (intel->batch_bo == NULL) {
+		intel_debug_fallback(scrn, "VT inactive\n");
+		return FALSE;
+	}
 
 	bo_table[0] = intel->batch_bo;
 	if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0) {
 		intel_batch_flush(scrn, FALSE);
 		bo_table[0] = intel->batch_bo;
 		if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) !=
-		    0)
-			I830FALLBACK("Couldn't get aperture space for BOs\n");
+		    0) {
+			intel_debug_fallback(scrn, "Couldn't get aperture "
+					    "space for BOs\n");
+			return FALSE;
+		}
 	}
 	return TRUE;
 }
@@ -152,21 +157,30 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 		i830_get_pixmap_bo(pixmap),
 	};
 
-	if (!UXA_PM_IS_SOLID(&pixmap->drawable, planemask))
-		I830FALLBACK("planemask is not solid");
+	if (!UXA_PM_IS_SOLID(&pixmap->drawable, planemask)) {
+		intel_debug_fallback(scrn, "planemask is not solid\n");
+		return FALSE;
+	}
 
-	if (pixmap->drawable.bitsPerPixel == 24)
-		I830FALLBACK("solid 24bpp unsupported!\n");
+	if (pixmap->drawable.bitsPerPixel == 24) {
+		intel_debug_fallback(scrn, "solid 24bpp unsupported!\n");
+		return FALSE;
+	}
 
-	if (pixmap->drawable.bitsPerPixel < 8)
-		I830FALLBACK("under 8bpp pixmaps unsupported\n");
+	if (pixmap->drawable.bitsPerPixel < 8) {
+		intel_debug_fallback(scrn, "under 8bpp pixmaps unsupported\n");
+		return FALSE;
+	}
 
-	i830_exa_check_pitch_2d(pixmap);
+	if (!intel_check_pitch_2d(pixmap))
+		return FALSE;
 
 	pitch = i830_pixmap_pitch(pixmap);
 
-	if (!i830_pixmap_pitch_is_aligned(pixmap))
-		I830FALLBACK("pixmap pitch not aligned");
+	if (!i830_pixmap_pitch_is_aligned(pixmap)) {
+		intel_debug_fallback(scrn, "pixmap pitch not aligned");
+		return FALSE;
+	}
 
 	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
@@ -247,17 +261,23 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		i830_get_pixmap_bo(dest),
 	};
 
-	if (!UXA_PM_IS_SOLID(&source->drawable, planemask))
-		I830FALLBACK("planemask is not solid");
+	if (!UXA_PM_IS_SOLID(&source->drawable, planemask)) {
+		intel_debug_fallback(scrn, "planemask is not solid");
+		return FALSE;
+	}
 
-	if (dest->drawable.bitsPerPixel < 8)
-		I830FALLBACK("under 8bpp pixmaps unsupported\n");
+	if (dest->drawable.bitsPerPixel < 8) {
+		intel_debug_fallback(scrn, "under 8bpp pixmaps unsupported\n");
+		return FALSE;
+	}
 
 	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
-	i830_exa_check_pitch_2d(source);
-	i830_exa_check_pitch_2d(dest);
+	if (!intel_check_pitch_2d(source))
+		return FALSE;
+	if (!intel_check_pitch_2d(dest))
+		return FALSE;
 
 	intel->render_source = source;
 

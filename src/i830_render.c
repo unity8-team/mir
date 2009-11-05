@@ -143,6 +143,8 @@ static struct formatinfo i830_tex_formats[] = {
 
 static Bool i830_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 {
+	ScrnInfoPtr scrn;
+
 	switch (dest_picture->format) {
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
@@ -163,14 +165,10 @@ static Bool i830_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 		*dst_format = COLR_BUF_ARGB4444;
 		break;
 	default:
-		{
-			ScrnInfoPtr scrn;
-
-			scrn =
-			    xf86Screens[dest_picture->pDrawable->pScreen->myNum];
-			I830FALLBACK("Unsupported dest format 0x%x\n",
+		scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+		intel_debug_fallback(scrn, "Unsupported dest format 0x%x\n",
 				     (int)dest_picture->format);
-		}
+		return FALSE;
 	}
 	*dst_format |= DSTORG_HORT_BIAS(0x8) | DSTORG_VERT_BIAS(0x8);
 	return TRUE;
@@ -225,13 +223,17 @@ static Bool i830_get_blend_cntl(ScrnInfoPtr scrn, int op, PicturePtr mask,
 static Bool i830_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 					 int unit)
 {
-	if (picture->repeatType > RepeatReflect)
-		I830FALLBACK("Unsupported picture repeat %d\n",
+	if (picture->repeatType > RepeatReflect) {
+		intel_debug_fallback(scrn, "Unsupported picture repeat %d\n",
 			     picture->repeatType);
+		return FALSE;
+	}
 
 	if (picture->filter != PictFilterNearest &&
 	    picture->filter != PictFilterBilinear) {
-		I830FALLBACK("Unsupported filter 0x%x\n", picture->filter);
+		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
+				     picture->filter);
+		return FALSE;
 	}
 
 	if (picture->pDrawable) {
@@ -239,8 +241,12 @@ static Bool i830_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 
 		w = picture->pDrawable->width;
 		h = picture->pDrawable->height;
-		if ((w > 2048) || (h > 2048))
-			I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
+		if ((w > 2048) || (h > 2048)) {
+			intel_debug_fallback(scrn,
+					     "Picture w/h too large (%dx%d)\n",
+					     w, h);
+			return FALSE;
+		}
 
 		for (i = 0;
 		     i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
@@ -249,8 +255,12 @@ static Bool i830_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 				break;
 		}
 		if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
-			I830FALLBACK("Unsupported picture format 0x%x\n",
-				     (int)picture->format);
+		{
+			intel_debug_fallback(scrn, "Unsupported picture format "
+					     "0x%x\n",
+					     (int)picture->format);
+			return FALSE;
+		}
 	}
 
 	return TRUE;
@@ -375,8 +385,11 @@ i830_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 	uint32_t tmp1;
 
 	/* Check for unsupported compositing operations. */
-	if (op >= sizeof(i830_blend_op) / sizeof(i830_blend_op[0]))
-		I830FALLBACK("Unsupported Composite op 0x%x\n", op);
+	if (op >= sizeof(i830_blend_op) / sizeof(i830_blend_op[0])) {
+		intel_debug_fallback(scrn, "Unsupported Composite op 0x%x\n",
+				     op);
+		return FALSE;
+	}
 
 	if (mask_picture != NULL && mask_picture->componentAlpha &&
 	    PICT_FORMAT_RGB(mask_picture->format)) {
@@ -391,14 +404,20 @@ i830_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 			     "alpha and source value blending.\n");
 	}
 
-	if (!i830_check_composite_texture(scrn, source_picture, 0))
-		I830FALLBACK("Check Src picture texture\n");
+	if (!i830_check_composite_texture(scrn, source_picture, 0)) {
+		intel_debug_fallback(scrn, "Check Src picture texture\n");
+		return FALSE;
+	}
 	if (mask_picture != NULL
-	    && !i830_check_composite_texture(scrn, mask_picture, 1))
-		I830FALLBACK("Check Mask picture texture\n");
+	    && !i830_check_composite_texture(scrn, mask_picture, 1)) {
+		intel_debug_fallback(scrn, "Check Mask picture texture\n");
+		return FALSE;
+	}
 
-	if (!i830_get_dest_format(dest_picture, &tmp1))
-		I830FALLBACK("Get Color buffer format\n");
+	if (!i830_get_dest_format(dest_picture, &tmp1)) {
+		intel_debug_fallback(scrn, "Get Color buffer format\n");
+		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -418,10 +437,14 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 	intel->render_dest_picture = dest_picture;
 	intel->render_dest = dest;
 
-	i830_exa_check_pitch_3d(source);
-	if (mask)
-		i830_exa_check_pitch_3d(mask);
-	i830_exa_check_pitch_3d(dest);
+	if (!intel_check_pitch_3d(source))
+		return FALSE;
+	if (mask) {
+		if (!intel_check_pitch_3d(mask))
+			return FALSE;
+	}
+	if (!intel_check_pitch_3d(dest))
+		return FALSE;
 
 	if (!i830_get_dest_format(dest_picture, &intel->render_dest_format))
 		return FALSE;

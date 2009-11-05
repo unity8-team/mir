@@ -137,6 +137,8 @@ static uint32_t i915_get_blend_cntl(int op, PicturePtr mask,
 
 static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 {
+	ScrnInfoPtr scrn;
+
 	switch (dest_picture->format) {
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
@@ -157,14 +159,11 @@ static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 		*dst_format = COLR_BUF_ARGB4444;
 		break;
 	default:
-		{
-			ScrnInfoPtr scrn;
-
-			scrn =
-			    xf86Screens[dest_picture->pDrawable->pScreen->myNum];
-			I830FALLBACK("Unsupported dest format 0x%x\n",
+		scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+		intel_debug_fallback(scrn,
+				     "Unsupported dest format 0x%x\n",
 				     (int)dest_picture->format);
-		}
+		return FALSE;
 	}
 	return TRUE;
 }
@@ -172,21 +171,30 @@ static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 static Bool i915_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 					 int unit)
 {
-	if (picture->repeatType > RepeatReflect)
-		I830FALLBACK("Unsupported picture repeat %d\n",
+	if (picture->repeatType > RepeatReflect) {
+		intel_debug_fallback(scrn, "Unsupported picture repeat %d\n",
 			     picture->repeatType);
+		return FALSE;
+	}
 
 	if (picture->filter != PictFilterNearest &&
-	    picture->filter != PictFilterBilinear)
-		I830FALLBACK("Unsupported filter 0x%x\n", picture->filter);
+	    picture->filter != PictFilterBilinear) {
+		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
+				     picture->filter);
+		return FALSE;
+	}
 
 	if (picture->pDrawable) {
 		int w, h, i;
 
 		w = picture->pDrawable->width;
 		h = picture->pDrawable->height;
-		if ((w > 2048) || (h > 2048))
-			I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
+		if ((w > 2048) || (h > 2048)) {
+			intel_debug_fallback(scrn,
+					     "Picture w/h too large (%dx%d)\n",
+					     w, h);
+			return FALSE;
+		}
 
 		for (i = 0;
 		     i < sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]);
@@ -195,8 +203,12 @@ static Bool i915_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
 				break;
 		}
 		if (i == sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]))
-			I830FALLBACK("Unsupported picture format 0x%x\n",
-				     (int)picture->format);
+		{
+			intel_debug_fallback(scrn, "Unsupported picture format "
+					     "0x%x\n",
+					     (int)picture->format);
+			return FALSE;
+		}
 	}
 
 	return TRUE;
@@ -210,8 +222,11 @@ i915_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 	uint32_t tmp1;
 
 	/* Check for unsupported compositing operations. */
-	if (op >= sizeof(i915_blend_op) / sizeof(i915_blend_op[0]))
-		I830FALLBACK("Unsupported Composite op 0x%x\n", op);
+	if (op >= sizeof(i915_blend_op) / sizeof(i915_blend_op[0])) {
+		intel_debug_fallback(scrn, "Unsupported Composite op 0x%x\n",
+				     op);
+		return FALSE;
+	}
 	if (mask_picture != NULL && mask_picture->componentAlpha &&
 	    PICT_FORMAT_RGB(mask_picture->format)) {
 		/* Check if it's component alpha that relies on a source alpha
@@ -219,20 +234,29 @@ i915_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 		 * into the single source value that we get to blend with.
 		 */
 		if (i915_blend_op[op].src_alpha &&
-		    (i915_blend_op[op].src_blend != BLENDFACT_ZERO))
-			I830FALLBACK("Component alpha not supported with "
-				     "source alpha and source value "
-				     "blending.\n");
+		    (i915_blend_op[op].src_blend != BLENDFACT_ZERO)) {
+			intel_debug_fallback(scrn,
+					     "Component alpha not supported "
+					     "with source alpha and source "
+					     "value blending.\n");
+			return FALSE;
+		}
 	}
 
-	if (!i915_check_composite_texture(scrn, source_picture, 0))
-		I830FALLBACK("Check Src picture texture\n");
+	if (!i915_check_composite_texture(scrn, source_picture, 0)) {
+		intel_debug_fallback(scrn, "Check Src picture texture\n");
+		return FALSE;
+	}
 	if (mask_picture != NULL
-	    && !i915_check_composite_texture(scrn, mask_picture, 1))
-		I830FALLBACK("Check Mask picture texture\n");
+	    && !i915_check_composite_texture(scrn, mask_picture, 1)) {
+		intel_debug_fallback(scrn, "Check Mask picture texture\n");
+		return FALSE;
+	}
 
-	if (!i915_get_dest_format(dest_picture, &tmp1))
-		I830FALLBACK("Get Color buffer format\n");
+	if (!i915_get_dest_format(dest_picture, &tmp1)) {
+		intel_debug_fallback(scrn, "Get Color buffer format\n");
+		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -256,8 +280,10 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 		if (i915_tex_formats[i].fmt == picture->format)
 			break;
 	}
-	if (i == sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]))
-		I830FALLBACK("unknown texture format\n");
+	if (i == sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0])) {
+		intel_debug_fallback(scrn, "unknown texture format\n");
+		return FALSE;
+	}
 	format = i915_tex_formats[i].card_fmt;
 
 	switch (picture->repeatType) {
@@ -288,7 +314,9 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 		break;
 	default:
 		filter = 0;
-		I830FALLBACK("Bad filter 0x%x\n", picture->filter);
+		intel_debug_fallback(scrn, "Bad filter 0x%x\n",
+				     picture->filter);
+		return FALSE;
 	}
 
 	/* offset filled in at emit time */
@@ -336,10 +364,14 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	intel->render_dest_picture = dest_picture;
 	intel->render_dest = dest;
 
-	i830_exa_check_pitch_3d(source);
-	if (mask)
-		i830_exa_check_pitch_3d(mask);
-	i830_exa_check_pitch_3d(dest);
+	if (!intel_check_pitch_3d(source))
+		return FALSE;
+	if (mask) {
+		if (!intel_check_pitch_3d(mask))
+			return FALSE;
+	}
+	if (!intel_check_pitch_3d(dest))
+		return FALSE;
 
 	if (!i915_get_dest_format(dest_picture,
 				  &intel->i915_render_state.dst_format))
@@ -348,8 +380,10 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
-	if (!i915_texture_setup(source_picture, source, 0))
-		I830FALLBACK("fail to setup src texture\n");
+	if (!i915_texture_setup(source_picture, source, 0)) {
+		intel_debug_fallback(scrn, "fail to setup src texture\n");
+		return FALSE;
+	}
 
 	intel->dst_coord_adjust = 0;
 	intel->src_coord_adjust = 0;
@@ -357,8 +391,11 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	if (source_picture->filter == PictFilterNearest)
 		intel->dst_coord_adjust = -0.125;
 	if (mask != NULL) {
-		if (!i915_texture_setup(mask_picture, mask, 1))
-			I830FALLBACK("fail to setup mask texture\n");
+		if (!i915_texture_setup(mask_picture, mask, 1)) {
+			intel_debug_fallback(scrn,
+					     "fail to setup mask texture\n");
+			return FALSE;
+		}
 
 		if (mask_picture->filter == PictFilterNearest)
 			intel->dst_coord_adjust = -0.125;

@@ -423,27 +423,46 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 
 void i830_enter_render(ScrnInfoPtr);
 
-#define I830FALLBACK(s, arg...)				\
-do {							\
-    if (intel_get_screen_private(scrn)->fallback_debug) { \
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,		\
-		   "fallback: " s "\n", ##arg);	\
-    }							\
-    return FALSE;					\
-} while(0)
+static inline void
+intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	va_list ap;
+
+	va_start(ap, format);
+	if (intel->fallback_debug) {
+		xf86DrvMsg(scrn->scrnIndex, X_INFO, "fallback: ");
+		LogVMessageVerb(X_INFO, 1, format, ap);
+	}
+	va_end(ap);
+}
 
 Bool i830_pixmap_tiled(PixmapPtr p);
 
-#define i830_exa_check_pitch_2d(p) do {\
-    uint32_t pitch = intel_get_pixmap_pitch(p);\
-    if (pitch > KB(32)) I830FALLBACK("pitch exceeds 2d limit 32K\n");\
-} while(0)
+static inline Bool
+intel_check_pitch_2d(PixmapPtr pixmap)
+{
+	uint32_t pitch = intel_get_pixmap_pitch(pixmap);
+	if (pitch > KB(32)) {
+		ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+		intel_debug_fallback(scrn, "pitch exceeds 2d limit 32K\n");
+		return FALSE;
+	}
+	return TRUE;
+}
 
 /* For pre-965 chip only, as they have 8KB limit for 3D */
-#define i830_exa_check_pitch_3d(p) do {\
-    uint32_t pitch = intel_get_pixmap_pitch(p);\
-    if (pitch > KB(8)) I830FALLBACK("pitch exceeds 3d limit 8K\n");\
-} while(0)
+static inline Bool
+intel_check_pitch_3d(PixmapPtr pixmap)
+{
+	uint32_t pitch = intel_get_pixmap_pitch(pixmap);
+	if (pitch > KB(8)) {
+		ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+		intel_debug_fallback(scrn, "pitch exceeds 3d limit 8K\n");
+		return FALSE;
+	}
+	return TRUE;
+}
 
 /**
  * Little wrapper around drm_intel_bo_reloc to return the initial value you
