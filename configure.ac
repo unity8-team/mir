@@ -65,14 +65,6 @@ AC_ARG_ENABLE(video-debug, AC_HELP_STRING([--enable-video-debug],
               [VIDEO_DEBUG="$enableval"],
               [VIDEO_DEBUG=no])
 
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
-				    [Compile with debug support [[default=yes]]]))
-if test "x$enableval" == "xyes" ; then
-	DEBUGFLAGS="-g"
-else
-	DEBUGFLAGS=""
-fi
-
 AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
                                   [Disable XvMC support [[default=yes]]]),
               [XVMC="$enableval"],
@@ -126,7 +118,6 @@ AC_MSG_RESULT([$XVMC])
 AM_CONDITIONAL(XVMC, test x$XVMC = xyes)
 if test "$XVMC" = yes; then
 	AC_DEFINE(ENABLE_XVMC,1,[Enable XvMC support])
-    	AC_SUBST([XVMCLIB_CFLAGS])
 fi
 
 AM_CONDITIONAL(KMS_ONLY, test x$KMS_ONLY = xyes)
@@ -134,11 +125,9 @@ if test "$KMS_ONLY" = yes; then
 	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
 fi
 
-AC_SUBST([XORG_CFLAGS])
-AC_SUBST([moduledir])
-
 DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
+AC_SUBST([moduledir])
 
 m4_ifndef([XORG_MACROS_VERSION], [AC_FATAL([must install xorg-macros 1.3 or later before running autoconf/autogen])])
 XORG_MACROS_VERSION(1.3)
