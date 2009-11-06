@@ -52,7 +52,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xorg-server.h"
 #include <pciaccess.h>
 
-#ifdef HAVE_DRI
+#ifdef XF86DRI
 #include "xf86drm.h"
 #include "sarea.h"
 #define _XF86DRI_SERVER_
@@ -229,9 +229,9 @@ typedef struct _I810Rec {
    I810ReadByteFunc readStandard;
 
    Bool directRenderingDisabled;        /* DRI disabled in PreInit */
-   Bool directRenderingEnabled;		/* false if HAVE_DRI not defined. */
+   Bool directRenderingEnabled;		/* false if XF86DRI not defined. */
 
-#ifdef HAVE_DRI
+#ifdef XF86DRI
    int LockHeld;
    DRIInfoPtr pDRIInfo;
    int drmSubFD;
@@ -272,7 +272,7 @@ typedef struct _I810Rec {
 #define I810_SELECT_BACK	1
 #define I810_SELECT_DEPTH	2
 
-#ifdef HAVE_DRI
+#ifdef XF86DRI
 extern Bool I810DRIScreenInit(ScreenPtr pScreen);
 extern void I810DRICloseScreen(ScreenPtr pScreen);
 extern Bool I810DRIFinishScreenInit(ScreenPtr pScreen);
