@@ -197,8 +197,9 @@ static Bool i830_get_blend_cntl(ScrnInfoPtr scrn, int op, PicturePtr mask,
 	 */
 	if (dst_format == PICT_a8 && ((sblend == BLENDFACTOR_DST_ALPHA ||
 				       sblend == BLENDFACTOR_INV_DST_ALPHA))) {
-		I830FALLBACK
-		    ("Can't do dst alpha blending with PICT_a8 dest.\n");
+		intel_debug_fallback(scrn, "Can't do dst alpha blending with "
+				     "PICT_a8 dest.\n");
+		return FALSE;
 	}
 
 	/* If the source alpha is being used, then we should only be in a case
@@ -398,10 +399,12 @@ i830_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 		 * source value that we get to blend with.
 		 */
 		if (i830_blend_op[op].src_alpha &&
-		    (i830_blend_op[op].src_blend != BLENDFACTOR_ZERO))
-			I830FALLBACK
-			    ("Component alpha not supported with source "
-			     "alpha and source value blending.\n");
+		    (i830_blend_op[op].src_blend != BLENDFACTOR_ZERO)) {
+			intel_debug_fallback(scrn, "Component alpha not "
+					     "supported with source alpha and "
+					     "source value blending.\n");
+			return FALSE;
+		}
 	}
 
 	if (!i830_check_composite_texture(scrn, source_picture, 0)) {
