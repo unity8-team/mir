@@ -2000,6 +2000,11 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     if (info->cardType == CARD_PCIE && info->IsIGP)
 	info->cardType = CARD_PCI;
 
+    /* some rs4xx cards report as agp */
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480))
+	info->cardType = CARD_PCI;
+
     if ((info->ChipFamily >= CHIP_FAMILY_R600) && info->IsIGP)
 	info->cardType = CARD_PCIE;
 
@@ -2013,7 +2018,13 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forced into AGP mode\n");
 	} else if ((strcmp(s, "PCI") == 0) ||
 		   (strcmp(s, "PCIE") == 0)) {
-	    if (info->ChipFamily >= CHIP_FAMILY_RV380) {
+	    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+		(info->ChipFamily == CHIP_FAMILY_RS480) ||
+		(info->ChipFamily == CHIP_FAMILY_RS690) ||
+		(info->ChipFamily == CHIP_FAMILY_RS740)) {
+		info->cardType = CARD_PCI;
+		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forced into PCI mode\n");
+	    } else if (info->ChipFamily >= CHIP_FAMILY_RV380) {
 		info->cardType = CARD_PCIE;
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forced into PCI Express mode\n");
 	    } else {
