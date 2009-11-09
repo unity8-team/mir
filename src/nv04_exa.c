@@ -209,10 +209,16 @@ NV04EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
 			MARK_UNDO(chan);
 			return FALSE;
 		}
+
+		BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_SURFACE, 1);
+		OUT_RING  (chan, pNv->NvContextSurfaces->handle);
 		BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_OPERATION, 1);
 		OUT_RING  (chan, 1); /* ROP_AND */
+
 		NV04EXASetROP(pScrn, alu, planemask);
 	} else {
+		BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_SURFACE, 1);
+		OUT_RING  (chan, pNv->NvContextSurfaces->handle);
 		BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_OPERATION, 1);
 		OUT_RING  (chan, 3); /* SRCCOPY */
 	}
