@@ -135,6 +135,9 @@ static uint32_t i915_get_blend_cntl(int op, PicturePtr mask,
 	    (dblend << S6_CBUF_DST_BLEND_FACT_SHIFT);
 }
 
+#define DSTORG_HORT_BIAS(x)             ((x)<<20)
+#define DSTORG_VERT_BIAS(x)             ((x)<<16)
+
 static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 {
 	ScrnInfoPtr scrn;
@@ -165,6 +168,7 @@ static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 				     (int)dest_picture->format);
 		return FALSE;
 	}
+	*dst_format |= DSTORG_HORT_BIAS(0x8) | DSTORG_VERT_BIAS(0x8);
 	return TRUE;
 }
 
@@ -416,7 +420,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 		}
 
 		if (source_picture->filter == PictFilterNearest)
-			intel->dst_coord_adjust = -0.125;
+			intel->src_coord_adjust = 0.375;
 	}
 
 	if (mask != NULL) {
@@ -428,7 +432,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 			}
 
 			if (mask_picture->filter == PictFilterNearest)
-				intel->dst_coord_adjust = -0.125;
+				intel->mask_coord_adjust = 0.375;
 		}
 	}
 
