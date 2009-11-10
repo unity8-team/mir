@@ -420,8 +420,8 @@ do {									\
  */
 #define FS_LOCALS(x)							\
     uint32_t _shader_buf[(x) * 3];					\
-    int _max_shader_commands = x;					\
-    int _cur_shader_commands
+    unsigned int _max_shader_commands = x;				\
+    unsigned int _cur_shader_commands
 
 #define FS_BEGIN()							\
 do {									\
@@ -430,12 +430,13 @@ do {									\
 
 #define FS_OUT(_shaderop)						\
 do {									\
+    if (_cur_shader_commands >= _max_shader_commands)			\
+	 FatalError("fragment shader command buffer exceeded (%d)\n",	\
+		    _cur_shader_commands);				\
     _shader_buf[_cur_shader_commands * 3 + 0] = _shaderop.ui[0];	\
     _shader_buf[_cur_shader_commands * 3 + 1] = _shaderop.ui[1];	\
     _shader_buf[_cur_shader_commands * 3 + 2] = _shaderop.ui[2];	\
-    if (++_cur_shader_commands > _max_shader_commands)			\
-	 FatalError("fragment shader command buffer exceeded (%d)\n",	\
-		    _cur_shader_commands);				\
+    ++_cur_shader_commands;						\
 } while (0)
 
 #define FS_END()							\
