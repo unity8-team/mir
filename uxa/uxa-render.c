@@ -147,6 +147,8 @@ uxa_get_pixel_from_rgba(CARD32 * pixel,
 	gbits = PICT_FORMAT_G(format);
 	bbits = PICT_FORMAT_B(format);
 	abits = PICT_FORMAT_A(format);
+	if (abits == 0)
+	    abits = PICT_FORMAT_BPP(format) - (rbits+gbits+bbits);
 
 	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_ARGB) {
 		bshift = 0;
