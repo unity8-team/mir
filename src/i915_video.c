@@ -75,7 +75,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		IntelEmitInvarientState(scrn);
 		intel->last_3d = LAST_3D_VIDEO;
 
-		BEGIN_BATCH(20);
+		ATOMIC_BATCH(20);
 
 		/* flush map & render cache */
 		OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE |
@@ -139,7 +139,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		if (!is_planar_fourcc(id)) {
 			FS_LOCALS(10);
 
-			BEGIN_BATCH(16);
+			ATOMIC_BATCH(16);
 			OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
 			OUT_BATCH(0x0000001);	/* constant 0 */
 			/* constant 0: brightness/contrast */
@@ -200,7 +200,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		} else {
 			FS_LOCALS(16);
 
-			BEGIN_BATCH(22 + 11 + 11);
+			ATOMIC_BATCH(22 + 11 + 11);
 			/* For the planar formats, we set up three samplers --
 			 * one for each plane, in a Y8 format.  Because I
 			 * couldn't get the special PLANAR_TO_PACKED
@@ -390,7 +390,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		}
 
 		{
-			BEGIN_BATCH(2);
+			ATOMIC_BATCH(2);
 			OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE |
 				  MI_INVALIDATE_MAP_CACHE);
 			OUT_BATCH(0x00000000);
@@ -423,7 +423,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			src_scale_x = ((float)src_w / width) / drw_w;
 			src_scale_y = ((float)src_h / height) / drw_h;
 
-			BEGIN_BATCH(8 + 12);
+			ATOMIC_BATCH(8 + 12);
 			OUT_BATCH(MI_NOOP);
 			OUT_BATCH(MI_NOOP);
 			OUT_BATCH(MI_NOOP);

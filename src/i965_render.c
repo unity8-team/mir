@@ -1158,7 +1158,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	 * rendering pipe
 	 */
 	{
-		BEGIN_BATCH(2);
+		ATOMIC_BATCH(2);
 		OUT_BATCH(MI_FLUSH |
 			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
 			  BRW_MI_GLOBAL_SNAPSHOT_RESET);
@@ -1167,9 +1167,9 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	}
 	{
 		if (IS_IGDNG(intel))
-			BEGIN_BATCH(14);
+			ATOMIC_BATCH(14);
 		else
-			BEGIN_BATCH(12);
+			ATOMIC_BATCH(12);
 
 		/* Match Mesa driver setup */
 		if (IS_G4X(intel) || IS_IGDNG(intel))
@@ -1215,7 +1215,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	}
 	{
 		int pipe_ctrl;
-		BEGIN_BATCH(26);
+		ATOMIC_BATCH(26);
 		/* Pipe control */
 
 		if (IS_IGDNG(intel))
@@ -1328,7 +1328,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		}
 
 		if (IS_IGDNG(intel)) {
-			BEGIN_BATCH(mask ? 9 : 7);
+			ATOMIC_BATCH(mask ? 9 : 7);
 			/*
 			 * The reason to add this extra vertex element in the header is that
 			 * IGDNG has different vertex header definition and origin method to
@@ -1358,7 +1358,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 				  (BRW_VFCOMPONENT_STORE_0 <<
 				   VE1_VFCOMPONENT_3_SHIFT));
 		} else {
-			BEGIN_BATCH(mask ? 7 : 5);
+			ATOMIC_BATCH(mask ? 7 : 5);
 			/* Set up our vertex elements, sourced from the single vertex buffer.
 			 * that will be set up later.
 			 */
@@ -1804,7 +1804,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	if (intel->needs_render_state_emit)
 		i965_emit_composite_state(scrn);
 
-	BEGIN_BATCH(12);
+	ATOMIC_BATCH(12);
 	OUT_BATCH(MI_FLUSH);
 	/* Set up the pointer to our (single) vertex buffer */
 	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);

@@ -38,7 +38,7 @@ void I915EmitInvarientState(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	BEGIN_BATCH(24);
+	ATOMIC_BATCH(24);
 
 	OUT_BATCH(_3DSTATE_AA_CMD |
 		  AA_LINE_ECAAR_WIDTH_ENABLE |

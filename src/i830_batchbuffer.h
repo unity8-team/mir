@@ -127,7 +127,20 @@ do {									\
 	if (intel->batch_emitting != 0)					\
 		FatalError("%s: BEGIN_BATCH called without closing "	\
 			   "ADVANCE_BATCH\n", __FUNCTION__);		\
+	assert(!intel->in_batch_atomic);				\
 	intel_batch_require_space(scrn, intel, (n) * 4);		\
+	intel->batch_emitting = (n) * 4;				\
+	intel->batch_emit_start = intel->batch_used;			\
+} while (0)
+
+/* special-case variant for when we have preallocated space */
+#define ATOMIC_BATCH(n)							\
+do {									\
+	if (intel->batch_emitting != 0)					\
+		FatalError("%s: ATOMIC_BATCH called without closing "	\
+			   "ADVANCE_BATCH\n", __FUNCTION__);		\
+	assert(intel->in_batch_atomic);					\
+	assert(intel->batch_used + (n) * 4 <= intel->batch_atomic_limit); \
 	intel->batch_emitting = (n) * 4;				\
 	intel->batch_emit_start = intel->batch_used;			\
 } while (0)

@@ -95,6 +95,8 @@ void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
+	assert (!intel->in_batch_atomic);
+
 	if (intel->batch_used == 0)
 		return;
 

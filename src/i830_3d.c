@@ -38,7 +38,7 @@ void I830EmitInvarientState(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	BEGIN_BATCH(58);
+	ATOMIC_BATCH(58);
 
 	OUT_BATCH(_3DSTATE_MAP_CUBE | MAP_UNIT(0));
 	OUT_BATCH(_3DSTATE_MAP_CUBE | MAP_UNIT(1));

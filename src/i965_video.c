@@ -779,7 +779,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 	urb_cs_start = urb_sf_start + urb_sf_size;
 	urb_cs_size = URB_CS_ENTRIES * URB_CS_ENTRY_SIZE;
 
-	BEGIN_BATCH(2);
+	ATOMIC_BATCH(2);
 	OUT_BATCH(MI_FLUSH |
 		  MI_STATE_INSTRUCTION_CACHE_FLUSH |
 		  BRW_MI_GLOBAL_SNAPSHOT_RESET);
@@ -788,9 +788,9 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 
 	/* brw_debug (scrn, "before base address modify"); */
 	if (IS_IGDNG(intel))
-		BEGIN_BATCH(14);
+		ATOMIC_BATCH(14);
 	else
-		BEGIN_BATCH(12);
+		ATOMIC_BATCH(12);
 	/* Match Mesa driver setup */
 	if (IS_G4X(intel) || IS_IGDNG(intel))
 		OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -844,7 +844,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 	else
 		pipe_ctl = BRW_PIPE_CONTROL_NOWRITE | BRW_PIPE_CONTROL_IS_FLUSH;
 
-	BEGIN_BATCH(38);
+	ATOMIC_BATCH(38);
 
 	OUT_BATCH(MI_NOOP);
 
@@ -1220,7 +1220,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 
 		i965_emit_video_setup(scrn, bind_bo, n_src_surf);
 
-		BEGIN_BATCH(12);
+		ATOMIC_BATCH(12);
 		/* Set up the pointer to our vertex buffer */
 		OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
 		/* four 32-bit floats per vertex */

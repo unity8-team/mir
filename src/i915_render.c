@@ -438,7 +438,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	is_affine_mask = i830_transform_is_affine(intel->transform[1]);
 
 	if (mask == NULL) {
-		BEGIN_BATCH(10);
+		ATOMIC_BATCH(10);
 		OUT_BATCH(_3DSTATE_MAP_STATE | 3);
 		OUT_BATCH(0x00000001);	/* map 0 */
 		OUT_RELOC_PIXMAP(source, I915_GEM_DOMAIN_SAMPLER, 0, 0);
@@ -452,7 +452,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		OUT_BATCH(intel->samplerstate[2]);
 		ADVANCE_BATCH();
 	} else {
-		BEGIN_BATCH(16);
+		ATOMIC_BATCH(16);
 		OUT_BATCH(_3DSTATE_MAP_STATE | 6);
 		OUT_BATCH(0x00000003);	/* map 0,1 */
 		OUT_RELOC_PIXMAP(source, I915_GEM_DOMAIN_SAMPLER, 0, 0);
@@ -475,7 +475,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	{
 		uint32_t ss2;
 
-		BEGIN_BATCH(16);
+		ATOMIC_BATCH(16);
 		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 		OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
 			  BUF_3D_PITCH(dst_pitch));
@@ -731,7 +731,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 	num_floats = 3 * per_vertex;
 
-	BEGIN_BATCH(1 + num_floats);
+	ATOMIC_BATCH(1 + num_floats);
 
 	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats - 1));
 	OUT_BATCH_F(intel->dst_coord_adjust + dstX + w);

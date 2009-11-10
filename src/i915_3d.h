@@ -441,7 +441,7 @@ do {									\
 #define FS_END()							\
 do {									\
     int _i, _pad = (_cur_shader_commands & 0x1) ? 0 : 1;		\
-    BEGIN_BATCH(_cur_shader_commands * 3 + 1 + _pad);			\
+    ATOMIC_BATCH(_cur_shader_commands * 3 + 1 + _pad);			\
     OUT_BATCH(_3DSTATE_PIXEL_SHADER_PROGRAM |				\
 	     (_cur_shader_commands * 3 - 1));				\
     for (_i = 0; _i < _cur_shader_commands * 3; _i++)			\

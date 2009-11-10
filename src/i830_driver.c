@@ -1399,9 +1399,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	if (intel->XvEnabled)
 		I830InitVideo(screen);
 
-	/* Setup 3D engine, needed for rotation too */
-	IntelEmitInvarientState(scrn);
-
 #if defined(DRI2)
 	switch (intel->directRenderingType) {
 	case DRI_DRI2:
@@ -1513,9 +1510,8 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 	if (!xf86SetDesiredModes(scrn))
 		return FALSE;
 
-	/* Mark 3D state as being clobbered and setup the basics */
+	/* Mark all state as being clobbered. */
 	intel->last_3d = LAST_3D_OTHER;
-	IntelEmitInvarientState(scrn);
 
 	return TRUE;
 }

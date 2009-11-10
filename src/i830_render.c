@@ -339,7 +339,7 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 		else
 			format |= MAPSURF_32BIT;
 
-		BEGIN_BATCH(10);
+		ATOMIC_BATCH(10);
 		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 			  LOAD_TEXTURE_MAP(unit) | 4);
 		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_SAMPLER, 0,
@@ -569,7 +569,7 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
 
-	BEGIN_BATCH(21);
+	ATOMIC_BATCH(21);
 
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 	OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
@@ -770,7 +770,7 @@ i830_emit_composite_primitive(PixmapPtr dest,
 
 	num_floats = 3 * per_vertex;
 
-	BEGIN_BATCH(1 + num_floats);
+	ATOMIC_BATCH(1 + num_floats);
 
 	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats - 1));
 	OUT_BATCH_F(intel->dst_coord_adjust + dstX + w);
