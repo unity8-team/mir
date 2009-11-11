@@ -533,6 +533,11 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 	info->BiosConnector[index].ddc_i2c.get_data_reg = RADEON_LCD_GPIO_Y_REG;
     }
 
+    /* R3xx+ chips don't have GPIO_CRT2_DDC gpio pad */
+    if ((IS_R300_VARIANT) &&
+	info->BiosConnector[index].ddc_i2c.mask_clk_reg == RADEON_GPIO_CRT2_DDC)
+	info->BiosConnector[index].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
+
     /* Certain IBM chipset RN50s have a BIOS reporting two VGAs,
        one with VGA DDC and one with CRT2 DDC. - kill the CRT2 DDC one */
     if (info->Chipset == PCI_CHIP_RN50_515E &&
@@ -1301,7 +1306,6 @@ RADEONLookupI2CBlock(ScrnInfoPtr pScrn, int id)
 	for (i = 0; i < blocks; i++) {
 	    int i2c_id = RADEON_BIOS8(offset + 3 + (i * 5) + 0);
 	    if (id == i2c_id) {
-		int reg = RADEON_BIOS16(offset + 3 + (i * 5) + 1) * 4;
 		int clock_shift = RADEON_BIOS8(offset + 3 + (i * 5) + 3);
 		int data_shift = RADEON_BIOS8(offset + 3 + (i * 5) + 4);
 
@@ -1313,14 +1317,14 @@ RADEONLookupI2CBlock(ScrnInfoPtr pScrn, int id)
 		i2c.put_data_mask = (1 << data_shift);
 		i2c.get_clk_mask = (1 << clock_shift);
 		i2c.get_data_mask = (1 << data_shift);
-		i2c.mask_clk_reg = reg;
-		i2c.mask_data_reg = reg;
-		i2c.a_clk_reg = reg;
-		i2c.a_data_reg = reg;
-		i2c.put_clk_reg = reg;
-		i2c.put_data_reg = reg;
-		i2c.get_clk_reg = reg;
-		i2c.get_data_reg = reg;
+		i2c.mask_clk_reg = RADEON_GPIOPAD_MASK;
+		i2c.mask_data_reg = RADEON_GPIOPAD_MASK;
+		i2c.a_clk_reg = RADEON_GPIOPAD_A;
+		i2c.a_data_reg = RADEON_GPIOPAD_A;
+		i2c.put_clk_reg = RADEON_GPIOPAD_EN;
+		i2c.put_data_reg = RADEON_GPIOPAD_EN;
+		i2c.get_clk_reg = RADEON_LCD_GPIO_Y_REG;
+		i2c.get_data_reg = RADEON_LCD_GPIO_Y_REG;
 		i2c.valid = TRUE;
 		break;
 	    }
@@ -1384,6 +1388,10 @@ Bool RADEONGetExtTMDSInfoFromBIOS (ScrnInfoPtr pScrn, radeon_dvo_ptr dvo)
 		    }
 		}
 	    }
+	} else {
+	    dvo->dvo_i2c_slave_addr = 0x70;
+	    dvo->dvo_i2c = RADEONLookupI2CBlock(pScrn, 136);
+	    info->ext_tmds_chip = RADEON_SIL_164;
 	}
     } else {
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x58);
@@ -1402,9 +1410,12 @@ Bool RADEONGetExtTMDSInfoFromBIOS (ScrnInfoPtr pScrn, radeon_dvo_ptr dvo)
 		dvo->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	    else if (gpio_reg == 3)
 		dvo->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
-	    else if (gpio_reg == 4)
-		dvo->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
-	    else if (gpio_reg == 5) {
+	    else if (gpio_reg == 4) {
+		if (IS_R300_VARIANT)
+		    dvo->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
+		else
+		    dvo->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
+	    } else if (gpio_reg == 5) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "unsupported MM gpio_reg\n");
 		return FALSE;
