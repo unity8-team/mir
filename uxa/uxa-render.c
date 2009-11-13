@@ -230,6 +230,27 @@ uxa_get_rgba_from_pixel(CARD32 pixel,
 	return TRUE;
 }
 
+int
+uxa_get_color_for_pixmap (PixmapPtr	 pixmap,
+			  CARD32	 src_format,
+			  CARD32	 dst_format,
+			  CARD32	*pixel)
+{
+	CARD16 red, green, blue, alpha;
+
+	*pixel = uxa_get_pixmap_first_pixel(pixmap);
+
+	if (!uxa_get_rgba_from_pixel(*pixel, &red, &green, &blue, &alpha,
+				     src_format))
+		return 0;
+
+	if (!uxa_get_pixel_from_rgba(pixel, red, green, blue, alpha,
+				     dst_format))
+		return 0;
+
+	return 1;
+}
+
 static int
 uxa_try_driver_solid_fill(PicturePtr pSrc,
 			  PicturePtr pDst,
@@ -244,7 +265,6 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 	int dst_off_x, dst_off_y;
 	PixmapPtr pSrcPix, pDstPix;
 	CARD32 pixel;
-	CARD16 red, green, blue, alpha;
 
 	pDstPix = uxa_get_drawable_pixmap(pDst->pDrawable);
 	pSrcPix = uxa_get_drawable_pixmap(pSrc->pDrawable);
@@ -264,21 +284,12 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 
 	REGION_TRANSLATE(pScreen, &region, dst_off_x, dst_off_y);
 
-	pixel = uxa_get_pixmap_first_pixel(pSrcPix);
-
 	if (!uxa_pixmap_is_offscreen(pDstPix)) {
 		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
 		return 0;
 	}
 
-	if (!uxa_get_rgba_from_pixel(pixel, &red, &green, &blue, &alpha,
-				     pSrc->format)) {
-		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
-		return -1;
-	}
-
-	if (!uxa_get_pixel_from_rgba(&pixel, red, green, blue, alpha,
-				     pDst->format)) {
+	if (! uxa_get_color_for_pixmap (pSrcPix, pSrc->format, pDst->format, &pixel)) {
 		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
 		return -1;
 	}

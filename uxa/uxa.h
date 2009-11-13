@@ -521,6 +521,12 @@ void uxa_driver_fini(ScreenPtr pScreen);
 
 CARD32 uxa_get_pixmap_first_pixel(PixmapPtr pPixmap);
 
+Bool
+uxa_get_color_for_pixmap (PixmapPtr	 pixmap,
+			  CARD32	 src_format,
+			  CARD32	 dst_format,
+			  CARD32	*pixel);
+
 void uxa_set_fallback_debug(ScreenPtr screen, Bool enable);
 
 /**

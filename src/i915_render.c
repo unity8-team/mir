@@ -375,10 +375,22 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	    source_picture->pDrawable->width == 1 &&
 	    source_picture->pDrawable->height == 1 &&
 	    source_picture->repeat;
-	if (intel->render_source_is_solid)
-		intel->render_source_solid = uxa_get_pixmap_first_pixel(source);
-	else if (!intel_check_pitch_3d(source))
+
+	if (intel->render_source_is_solid) {
+	    if (! uxa_get_color_for_pixmap (source,
+					    source_picture->format,
+					    PICT_a8r8g8b8,
+					    &intel->render_source_solid))
 		return FALSE;
+
+	    /* route alpha to the green channel when using a8 targets */
+	    if (dest_picture->format == PICT_a8) {
+		intel->render_source_solid >>= 24;
+		intel->render_source_solid *= 0x01010101;
+	    }
+	} else if (!intel_check_pitch_3d(source))
+		return FALSE;
+
 
 	intel->render_mask_is_solid = TRUE; /* mask == NULL => opaque */
 	if (mask) {
@@ -387,9 +399,19 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 		mask_picture->pDrawable->width == 1 &&
 		mask_picture->pDrawable->height == 1 &&
 		mask_picture->repeat;
-	    if (intel->render_mask_is_solid)
-		    intel->render_mask_solid = uxa_get_pixmap_first_pixel(mask);
-	    else if (!intel_check_pitch_3d(mask))
+	    if (intel->render_mask_is_solid) {
+		if (! uxa_get_color_for_pixmap (mask,
+						mask_picture->format,
+						PICT_a8r8g8b8,
+						&intel->render_mask_solid))
+		    return FALSE;
+
+		/* route alpha to the green channel when using a8 targets */
+		if (dest_picture->format == PICT_a8) {
+		    intel->render_mask_solid >>= 24;
+		    intel->render_mask_solid *= 0x01010101;
+		}
+	    } else if (!intel_check_pitch_3d(mask))
 		    return FALSE;
 	}
 
