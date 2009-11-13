@@ -856,7 +856,8 @@ uxa_composite(CARD8 op,
 		goto composite;
 
 	/* Remove repeat in source if useless */
-	if (pSrc->repeat && !pSrc->transform && xSrc >= 0 &&
+	if (pSrc->repeat && (pSrc->pDrawable->width > 1 || pSrc->pDrawable->height > 1 ) &&
+	    !pSrc->transform && xSrc >= 0 &&
 	    (xSrc + width) <= pSrc->pDrawable->width && ySrc >= 0 &&
 	    (ySrc + height) <= pSrc->pDrawable->height)
 		pSrc->repeat = 0;
@@ -872,8 +873,9 @@ uxa_composite(CARD8 op,
 			&& pSrc->format == pDst->format
 			&& (pSrc->format == PICT_x8r8g8b8
 			    || pSrc->format == PICT_x8b8g8r8))) {
-			if (pSrc->pDrawable->width == 1
-			    && pSrc->pDrawable->height == 1 && pSrc->repeat) {
+			if (pSrc->pDrawable->width == 1 &&
+			    pSrc->pDrawable->height == 1 &&
+			    pSrc->repeat) {
 				ret =
 				    uxa_try_driver_solid_fill(pSrc, pDst, xSrc,
 							      ySrc, xDst, yDst,
@@ -964,6 +966,7 @@ uxa_composite(CARD8 op,
 composite:
 	/* Remove repeat in mask if useless */
 	if (pMask && pMask->repeat && !pMask->transform && pMask->pDrawable &&
+	    (pMask->pDrawable->width > 1 || pMask->pDrawable->height > 1) &&
 	    xMask >= 0 && (xMask + width) <= pMask->pDrawable->width &&
 	    yMask >= 0 && (yMask + height) <= pMask->pDrawable->height)
 		pMask->repeat = 0;
