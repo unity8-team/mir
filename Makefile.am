@@ -22,4 +22,9 @@ AUTOMAKE_OPTIONS = foreign
 
 SUBDIRS = uxa src man
 
-EXTRA_DIST = README AUTHORS NEWS
+.PHONY: ChangeLog
+
+ChangeLog:
+	$(CHANGELOG_CMD)
+
+dist-hook: ChangeLog
