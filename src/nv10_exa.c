@@ -930,7 +930,7 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0);
 	OUT_RINGf (chan, 65536.0);
 
-	BEGIN_RING(chan, celsius, NV10TCL_VIEWPORT_SCALE_X, 4);
+	BEGIN_RING(chan, celsius, NV10TCL_VIEWPORT_TRANSLATE_X, 4);
 	OUT_RINGf (chan, -2048.0);
 	OUT_RINGf (chan, -2048.0);
 	OUT_RINGf (chan, 0);
