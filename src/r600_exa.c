@@ -1901,23 +1901,11 @@ static void R600Composite(PixmapPtr pDst,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
     float *vb;
-    xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
 
     /* ErrorF("R600Composite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
 
-    srcTopLeft.x     = IntToxFixed(srcX);
-    srcTopLeft.y     = IntToxFixed(srcY);
-    srcTopRight.x    = IntToxFixed(srcX + w);
-    srcTopRight.y    = IntToxFixed(srcY);
-    srcBottomLeft.x  = IntToxFixed(srcX);
-    srcBottomLeft.y  = IntToxFixed(srcY + h);
-    srcBottomRight.x = IntToxFixed(srcX + w);
-    srcBottomRight.y = IntToxFixed(srcY + h);
-
     if (accel_state->msk_pic) {
-	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
-
         if (((accel_state->vb_index + 3) * 24) > accel_state->vb_total) {
             R600DoneComposite(pDst);
 	    r600_cp_start(pScrn);
@@ -1925,35 +1913,26 @@ static void R600Composite(PixmapPtr pDst,
 
         vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*24);
 
-	maskTopLeft.x     = IntToxFixed(maskX);
-	maskTopLeft.y     = IntToxFixed(maskY);
-	maskTopRight.x    = IntToxFixed(maskX + w);
-	maskTopRight.y    = IntToxFixed(maskY);
-	maskBottomLeft.x  = IntToxFixed(maskX);
-	maskBottomLeft.y  = IntToxFixed(maskY + h);
-	maskBottomRight.x = IntToxFixed(maskX + w);
-	maskBottomRight.y = IntToxFixed(maskY + h);
-
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
-	vb[2] = xFixedToFloat(srcTopLeft.x);
-	vb[3] = xFixedToFloat(srcTopLeft.y);
-	vb[4] = xFixedToFloat(maskTopLeft.x);
-	vb[5] = xFixedToFloat(maskTopLeft.y);
+	vb[2] = (float)srcX;
+	vb[3] = (float)srcY;
+	vb[4] = (float)maskX;
+	vb[5] = (float)maskY;
 
 	vb[6] = (float)dstX;
 	vb[7] = (float)(dstY + h);
-	vb[8] = xFixedToFloat(srcBottomLeft.x);
-	vb[9] = xFixedToFloat(srcBottomLeft.y);
-	vb[10] = xFixedToFloat(maskBottomLeft.x);
-	vb[11] = xFixedToFloat(maskBottomLeft.y);
+	vb[8] = (float)srcX;
+	vb[9] = (float)(srcY + h);
+	vb[10] = (float)maskX;
+	vb[11] = (float)(maskY + h);
 
 	vb[12] = (float)(dstX + w);
 	vb[13] = (float)(dstY + h);
-	vb[14] = xFixedToFloat(srcBottomRight.x);
-	vb[15] = xFixedToFloat(srcBottomRight.y);
-	vb[16] = xFixedToFloat(maskBottomRight.x);
-	vb[17] = xFixedToFloat(maskBottomRight.y);
+	vb[14] = (float)(srcX + w);
+	vb[15] = (float)(srcY + h);
+	vb[16] = (float)(maskX + w);
+	vb[17] = (float)(maskY + h);
 
     } else {
         if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
@@ -1965,18 +1944,18 @@ static void R600Composite(PixmapPtr pDst,
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
-	vb[2] = xFixedToFloat(srcTopLeft.x);
-	vb[3] = xFixedToFloat(srcTopLeft.y);
+	vb[2] = (float)srcX;
+	vb[3] = (float)srcY;
 
 	vb[4] = (float)dstX;
 	vb[5] = (float)(dstY + h);
-	vb[6] = xFixedToFloat(srcBottomLeft.x);
-	vb[7] = xFixedToFloat(srcBottomLeft.y);
+	vb[6] = (float)srcX;
+	vb[7] = (float)(srcY + h);
 
 	vb[8] = (float)(dstX + w);
 	vb[9] = (float)(dstY + h);
-	vb[10] = xFixedToFloat(srcBottomRight.x);
-	vb[11] = xFixedToFloat(srcBottomRight.y);
+	vb[10] = (float)(srcX + w);
+	vb[11] = (float)(srcY + h);
     }
 
     accel_state->vb_index += 3;
