@@ -106,9 +106,9 @@ int R600_solid_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 DST_SEL_Z(SQ_SEL_0),
 				 DST_SEL_W(SQ_SEL_1),
 				 USE_CONST_FIELDS(0),
-				 DATA_FORMAT(FMT_32_32_FLOAT), /* xxx */
-				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), /* xxx */
-				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), /* xxx */
+				 DATA_FORMAT(FMT_32_32_FLOAT),
+				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
+				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
 			     ENDIAN_SWAP(ENDIAN_NONE),
@@ -336,9 +336,9 @@ int R600_copy_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 DST_SEL_Z(SQ_SEL_0),
 				 DST_SEL_W(SQ_SEL_1),
 				 USE_CONST_FIELDS(0),
-				 DATA_FORMAT(FMT_32_32_FLOAT), /* xxx */
-				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), /* xxx */
-				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), /* xxx */
+				 DATA_FORMAT(FMT_32_32_FLOAT),
+				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
+				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
 			     ENDIAN_SWAP(ENDIAN_NONE),
@@ -361,9 +361,9 @@ int R600_copy_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 DST_SEL_Z(SQ_SEL_0),
 				 DST_SEL_W(SQ_SEL_1),
 				 USE_CONST_FIELDS(0),
-				 DATA_FORMAT(FMT_32_32_FLOAT), /* xxx */
-				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), /* xxx */
-				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), /* xxx */
+				 DATA_FORMAT(FMT_32_32_FLOAT),
+				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
+				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(8),
 			     ENDIAN_SWAP(ENDIAN_NONE),
@@ -592,7 +592,7 @@ int R600_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_SEL_W(SQ_SEL_1),
                                  USE_CONST_FIELDS(0),
                                  DATA_FORMAT(FMT_32_32_FLOAT),
-                                 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM),
+                                 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
                                  FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
                                  SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
@@ -617,7 +617,7 @@ int R600_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  DST_SEL_W(SQ_SEL_1),
                                  USE_CONST_FIELDS(0),
                                  DATA_FORMAT(FMT_32_32_FLOAT),
-                                 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM),
+                                 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
                                  FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
                                  SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(8),
@@ -1817,9 +1817,9 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 DST_SEL_Z(SQ_SEL_0),
 				 DST_SEL_W(SQ_SEL_1),
 				 USE_CONST_FIELDS(0),
-				 DATA_FORMAT(FMT_32_32_FLOAT), /* xxx */
-				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), /* xxx */
-				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), /* xxx */
+				 DATA_FORMAT(FMT_32_32_FLOAT),
+				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
+				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
 			     ENDIAN_SWAP(ENDIAN_NONE),
@@ -1842,9 +1842,9 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 DST_SEL_Z(SQ_SEL_1),
 				 DST_SEL_W(SQ_SEL_0),
 				 USE_CONST_FIELDS(0),
-				 DATA_FORMAT(FMT_32_32_FLOAT), /* xxx */
-				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), /* xxx */
-				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), /* xxx */
+				 DATA_FORMAT(FMT_32_32_FLOAT),
+				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
+				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(8),
 			     ENDIAN_SWAP(ENDIAN_NONE),
@@ -1867,9 +1867,9 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 DST_SEL_Z(SQ_SEL_1),
 				 DST_SEL_W(SQ_SEL_0),
 				 USE_CONST_FIELDS(0),
-				 DATA_FORMAT(FMT_32_32_FLOAT), /* xxx */
-				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), /* xxx */
-				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), /* xxx */
+				 DATA_FORMAT(FMT_32_32_FLOAT),
+				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
+				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(16),
 			     ENDIAN_SWAP(ENDIAN_NONE),
@@ -2117,9 +2117,9 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 DST_SEL_Z(SQ_SEL_0),
 				 DST_SEL_W(SQ_SEL_1),
 				 USE_CONST_FIELDS(0),
-				 DATA_FORMAT(FMT_32_32_FLOAT), /* xxx */
-				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), /* xxx */
-				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), /* xxx */
+				 DATA_FORMAT(FMT_32_32_FLOAT),
+				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
+				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
 			     ENDIAN_SWAP(ENDIAN_NONE),
@@ -2142,9 +2142,9 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 DST_SEL_Z(SQ_SEL_1),
 				 DST_SEL_W(SQ_SEL_0),
 				 USE_CONST_FIELDS(0),
-				 DATA_FORMAT(FMT_32_32_FLOAT), /* xxx */
-				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), /* xxx */
-				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), /* xxx */
+				 DATA_FORMAT(FMT_32_32_FLOAT),
+				 NUM_FORMAT_ALL(SQ_NUM_FORMAT_SCALED),
+				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(8),
 			     ENDIAN_SWAP(ENDIAN_NONE),
