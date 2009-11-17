@@ -951,12 +951,17 @@ uint32_t find_clones(ScrnInfoPtr scrn, xf86OutputPtr output)
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	int index_mask = 0;
 
+	if (drmmode_output->enc_clone_mask == 0)
+		return index_mask;
+
 	for (i = 0; i < xf86_config->num_output; i++) {
 		clone_output = xf86_config->output[i];
 		clone_drmout = clone_output->driver_private;
 		if (output == clone_output)
 			continue;
 		
+		if (clone_drmout->enc_mask == 0)
+			continue;
 		if (drmmode_output->enc_clone_mask == clone_drmout->enc_mask)
 			index_mask |= (1 << i);
 	}
