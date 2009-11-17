@@ -356,9 +356,11 @@ radeon_ddc_connected(xf86OutputPtr output)
 	    break;
 	}
 
-	if (MonType != MT_NONE)
+	if (MonType != MT_NONE) {
 	    if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
 		xf86OutputSetEDID(output, MonInfo);
+	} else
+	    xfree(MonInfo);
     } else
 	MonType = MT_NONE;
 
