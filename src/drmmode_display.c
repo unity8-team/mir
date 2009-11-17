@@ -618,8 +618,12 @@ drmmode_output_destroy(xf86OutputPtr output)
 	if (drmmode_output->edid_blob)
 		drmModeFreePropertyBlob(drmmode_output->edid_blob);
 	for (i = 0; i < drmmode_output->num_props; i++) {
-	    drmModeFreeProperty(drmmode_output->props[i].mode_prop);
-	    xfree(drmmode_output->props[i].atoms);
+		drmModeFreeProperty(drmmode_output->props[i].mode_prop);
+		xfree(drmmode_output->props[i].atoms);
+	}
+	for (i = 0; i < drmmode_output->mode_output->count_encoders; i++) {
+		drmModeFreeEncoder(drmmode_output->mode_encoders[i]);
+		xfree(drmmode_output->mode_encoders);
 	}
 	xfree(drmmode_output->props);
 	drmModeFreeConnector(drmmode_output->mode_output);
@@ -847,7 +851,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 {
 	xf86OutputPtr output;
 	drmModeConnectorPtr koutput;
-	drmModeEncoderPtr kencoder;
+	drmModeEncoderPtr *kencoders = NULL;
 	drmmode_output_private_ptr drmmode_output;
 	drmModePropertyPtr props;
 	char name[32];
@@ -857,10 +861,16 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	if (!koutput)
 		return;
 
-	kencoder = drmModeGetEncoder(drmmode->fd, koutput->encoders[0]);
-	if (!kencoder) {
-		drmModeFreeConnector(koutput);
-		return;
+	kencoders = xcalloc(sizeof(drmModeEncoderPtr), koutput->count_encoders);
+	if (!kencoders) {
+		goto out_free_encoders;
+	}
+		
+	for (i = 0; i < koutput->count_encoders; i++) {
+		kencoders[i] = drmModeGetEncoder(drmmode->fd, koutput->encoders[i]);
+		if (!kencoders[i]) {
+			goto out_free_encoders;
+		}
 	}
 
 	/* need to do smart conversion here for compat with non-kms ATI driver */
@@ -884,31 +894,31 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 
 	output = xf86OutputCreate (pScrn, &drmmode_output_funcs, name);
 	if (!output) {
-		drmModeFreeEncoder(kencoder);
-		drmModeFreeConnector(koutput);
-		return;
+		goto out_free_encoders;
 	}
 
 	drmmode_output = xcalloc(sizeof(drmmode_output_private_rec), 1);
 	if (!drmmode_output) {
 		xf86OutputDestroy(output);
-		drmModeFreeConnector(koutput);
-		drmModeFreeEncoder(kencoder);
-		return;
+		goto out_free_encoders;
 	}
 
 	drmmode_output->output_id = drmmode->mode_res->connectors[num];
 	drmmode_output->mode_output = koutput;
-	drmmode_output->mode_encoder = kencoder;
+	drmmode_output->mode_encoders = kencoders;
 	drmmode_output->drmmode = drmmode;
 	output->mm_width = koutput->mmWidth;
 	output->mm_height = koutput->mmHeight;
 
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = drmmode_output;
-
-	output->possible_crtcs = kencoder->possible_crtcs;
-	output->possible_clones = kencoder->possible_clones;
+	
+	output->possible_crtcs = 0xf;
+	for (i = 0; i < koutput->count_encoders; i++) {
+		output->possible_crtcs &= kencoders[i]->possible_crtcs;
+	}
+	/* work out the possible clones later */
+	output->possible_clones = 0;
 
 	for (i = 0; i < koutput->count_props; i++) {
 		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
@@ -923,6 +933,66 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	}
 
 	return;
+out_free_encoders:
+	if (kencoders){
+		for (i = 0; i < koutput->count_encoders; i++)
+			drmModeFreeEncoder(kencoders[i]);
+		xfree(kencoders);
+	}
+	drmModeFreeConnector(koutput);
+	
+}
+
+uint32_t find_clones(ScrnInfoPtr scrn, xf86OutputPtr output)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private, clone_drmout;
+	int i;
+	xf86OutputPtr clone_output;
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	int index_mask = 0;
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		clone_output = xf86_config->output[i];
+		clone_drmout = clone_output->driver_private;
+		if (output == clone_output)
+			continue;
+		
+		if (drmmode_output->enc_clone_mask == clone_drmout->enc_mask)
+			index_mask |= (1 << i);
+	}
+	return index_mask;
+}
+
+
+static void
+drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode)
+{
+	int i, j;
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		drmmode_output_private_ptr drmmode_output;
+
+		drmmode_output = output->driver_private;
+		drmmode_output->enc_clone_mask = 0xff;
+		/* and all the possible encoder clones for this output together */
+		for (j = 0; j < drmmode_output->mode_output->count_encoders; j++)
+		{
+			int k;
+			for (k = 0; k < drmmode->mode_res->count_encoders; k++) {
+				if (drmmode->mode_res->encoders[k] == drmmode_output->mode_encoders[j]->encoder_id)
+					drmmode_output->enc_mask |= (1 << k);
+			}
+
+			drmmode_output->enc_clone_mask &= drmmode_output->mode_encoders[j]->possible_clones;
+		}
+	}
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		output->possible_clones = find_clones(scrn, output);
+	}
 }
 
 static Bool
@@ -1080,6 +1150,9 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId, char 
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		if (zaphod_mask & (1 << i))
 			drmmode_output_init(pScrn, drmmode, i);
+
+	/* workout clones */
+	drmmode_clones_init(pScrn, drmmode);
 
 	xf86InitialConfiguration(pScrn, TRUE);
 

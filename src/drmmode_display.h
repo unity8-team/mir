@@ -64,11 +64,13 @@ typedef struct {
     drmmode_ptr drmmode;
     int output_id;
     drmModeConnectorPtr mode_output;
-    drmModeEncoderPtr mode_encoder;
+    drmModeEncoderPtr *mode_encoders;
     drmModePropertyBlobPtr edid_blob;
     int dpms_enum_id;
     int num_props;
     drmmode_prop_ptr props;
+    int enc_mask;
+    int enc_clone_mask;
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 
