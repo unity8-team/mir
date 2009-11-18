@@ -240,6 +240,7 @@ typedef struct {
     Bool linkb;
     uint16_t connector_object;
     uint16_t connector_object_id;
+    uint8_t ucI2cId;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -284,6 +285,18 @@ typedef struct _RADEONOutputPrivateRec {
     int dig_block;
 
     int pixel_clock;
+
+    // DP - special DP I2C bus
+    I2CBusPtr dp_pI2CBus;
+    char dp_bus_name[20];
+    uint32_t dp_i2c_addr, dp_i2c_running;
+    uint8_t dpcp8[8];
+    uint8_t ucI2cId;
+    int dp_lane_count;
+    int dp_link_bw;
+    int dp_clock;
+#define DP_LINK_CONFIGURATION_SIZE 9
+    uint8_t dp_link_configuration[DP_LINK_CONFIGURATION_SIZE];
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {

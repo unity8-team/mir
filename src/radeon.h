@@ -1190,6 +1190,10 @@ void RADEONFreeRec(ScrnInfoPtr pScrn);
 Bool RADEONPreInitVisual(ScrnInfoPtr pScrn);
 Bool RADEONPreInitWeight(ScrnInfoPtr pScrn);
 
+extern Bool RADEON_DP_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr,
+			      char *name, xf86OutputPtr output);
+extern void RADEON_DP_GetDPCP(xf86OutputPtr output);
+extern int RADEON_DP_GetSinkType(xf86OutputPtr output);
 
 /* radeon_pm.c */
 extern void RADEONPMInit(ScrnInfoPtr pScrn);

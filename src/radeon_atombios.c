@@ -1576,8 +1576,10 @@ rhdAtomParseI2CRecord(ScrnInfoPtr pScrn, atomBiosHandlePtr handle,
 		      ATOM_I2C_RECORD *Record, int i)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
+    uint8_t *temp = &Record->sucI2cId;
 
     info->BiosConnector[i].i2c_line_mux = Record->sucI2cId.bfI2C_LineMux;
+    info->BiosConnector[i].ucI2cId = *temp;
     return RADEONLookupGPIOLineForDDC(pScrn, Record->sucI2cId.bfI2C_LineMux);
 }
 
