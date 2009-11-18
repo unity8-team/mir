@@ -503,6 +503,28 @@ dp_link_clock_for_mode_clock(int mode_clock)
     return 0;
 }
 
+/*
+ * DIG Encoder/Transmitter Setup
+ *
+ * DCE 3.0/3.1
+ * - 2 DIG transmitter blocks. UNIPHY (links A and B) and LVTMA.
+ * Supports up to 3 digital outputs
+ * - 2 DIG encoder blocks.
+ * DIG1 can drive UNIPHY link A or link B
+ * DIG2 can drive UNIPHY link B or LVTMA
+ *
+ * DCE 3.2
+ * - 3 DIG transmitter blocks. UNIPHY0/1/2 (links A and B).
+ * Supports up to 5 digital outputs
+ * - 2 DIG encoder blocks.
+ * DIG1/2 can drive UNIPHY0/1/2 link A or link B
+ *
+ * Routing
+ * crtc -> dig encoder -> UNIPHY/LVTMA (1 or 2 links)
+ * Examples:
+ * crtc0 -> dig2 -> LVTMA links A+B
+ * crtc1 -> dig1 -> UNIPHY0 link B
+ */
 static int
 atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
 {
@@ -530,6 +552,9 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
     } else {
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	    /* doesn't really matter which dig encoder we pick as long as it's
+	     * not already in use
+	     */
 	    if (radeon_output->linkb)
 		index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
 	    else
@@ -537,6 +562,7 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
 	    num = 1;
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+	    /* Only dig2 encoder can drive LVTMA */
 	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
 	    num = 2;
 	    break;
@@ -574,26 +600,18 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
     disp_data.ucEncoderMode = atombios_get_encoder_mode(output);
 
     if (disp_data.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
-	if (radeon_output->linkb)
-	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
-	else
-	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
-
 	if (dp_link_clock_for_mode_clock(clock) == 27000)
 	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
-
 	disp_data.ucLaneNum = dp_lanes_for_mode_clock(clock);
-    } else if (clock > 165000) {
-	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA_B;
+    } else if (clock > 165000)
 	disp_data.ucLaneNum = 8;
-    } else {
-	if (radeon_output->linkb)
-	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
-	else
-	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
-
+    else
 	disp_data.ucLaneNum = 4;
-    }
+
+    if (radeon_output->linkb)
+	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
+    else
+	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
 
     data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
@@ -615,7 +633,7 @@ union dig_transmitter_control {
 };
 
 static int
-atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
+atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t lane_num, uint8_t lane_set)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
@@ -653,6 +671,9 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
     if (IS_DCE32_VARIANT) {
 	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
 	    disp_data.v2.usInitInfo = radeon_output->connector_object_id;
+	} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
+	    disp_data.v2.asMode.ucLaneSel = lane_num;
+	    disp_data.v2.asMode.ucLaneSet = lane_set;
 	} else {
 	    if (radeon_output->MonType == MT_DP) {
 		disp_data.v2.usPixelClock =
@@ -667,6 +688,9 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
 	}
 	if (dig_block)
 	    disp_data.v2.acConfig.ucEncoderSel = 1;
+
+	if (radeon_output->linkb)
+	    disp_data.v2.acConfig.ucLinkSel = 1;
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
@@ -697,6 +721,9 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
 
 	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
 	    disp_data.v1.usInitInfo = radeon_output->connector_object_id;
+	} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
+	    disp_data.v2.asMode.ucLaneSel = lane_num;
+	    disp_data.v2.asMode.ucLaneSet = lane_set;
 	} else {
 	    if (radeon_output->MonType == MT_DP)
 		disp_data.v1.usPixelClock =
@@ -709,21 +736,20 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	    /* doesn't really matter which dig encoder we pick as long as it's
+	     * not already in use
+	     */
 	    if (radeon_output->linkb)
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
 	    else
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 	    if (info->IsIGP) {
 		if (clock > 165000) {
-		    disp_data.v1.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
-					      ATOM_TRANSMITTER_CONFIG_LINKA_B);
-
 		    if (radeon_output->igp_lane_info & 0x3)
 			disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
 		    else if (radeon_output->igp_lane_info & 0xc)
 			disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
 		} else {
-		    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
 		    if (radeon_output->igp_lane_info & 0x1)
 			disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
 		    else if (radeon_output->igp_lane_info & 0x2)
@@ -733,35 +759,19 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action)
 		    else if (radeon_output->igp_lane_info & 0x8)
 			disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
 		}
-	    } else {
-		if (clock > 165000)
-		    disp_data.v1.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
-					      ATOM_TRANSMITTER_CONFIG_LINKA_B |
-					      ATOM_TRANSMITTER_CONFIG_LANE_0_7);
-		else {
-		    /* XXX */
-		    if (radeon_output->linkb)
-			disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-		    else
-			disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-		}
 	    }
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+	    /* Only dig2 encoder can drive LVTMA */
 	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
-	    if (clock > 165000)
-		disp_data.v1.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
-					  ATOM_TRANSMITTER_CONFIG_LINKA_B |
-					  ATOM_TRANSMITTER_CONFIG_LANE_0_7);
-	    else {
-		/* XXX */
-		if (radeon_output->linkb)
-		    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-		else
-		    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-	    }
 	    break;
 	}
+	if (clock > 165000)
+	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_8LANE_LINK;
+	if (radeon_output->linkb)
+	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB;
+	else
+	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
 
 	if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT)) {
 	    if (radeon_output->coherent_mode &&
@@ -1288,7 +1298,7 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     case DPMSModeOn:
 	radeon_encoder->devices |= radeon_output->active_device;
 	if (is_dig)
-	    atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT);
+	    atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
 	else {
 	    disp_data.ucAction = ATOM_ENABLE;
 	    data.exec.index = index;
@@ -1312,7 +1322,7 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	radeon_encoder->devices &= ~(radeon_output->active_device);
 	if (!radeon_encoder->devices) {
 	    if (is_dig)
-		atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_DISABLE_OUTPUT);
+		atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_DISABLE_OUTPUT, 0, 0);
 	    else {
 		disp_data.ucAction = ATOM_DISABLE;
 		data.exec.index = index;
@@ -1420,10 +1430,18 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 			crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
 		    else
 			crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
-		} else
-		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
+		} else {
+		    /* doesn't really matter which dig encoder we pick as long as it's
+		     * not already in use
+		     */
+		    if (radeon_output->linkb)
+			crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+		    else
+			crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
+		}
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+		/* Only dig2 encoder can drive LVTMA */
 		crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
@@ -1533,14 +1551,14 @@ atombios_output_mode_set(xf86OutputPtr output,
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 	/* disable encoder and transmitter */
-	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_DISABLE);
+	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
 	atombios_output_dig_encoder_setup(output, ATOM_DISABLE);
 
 	/* setup and enable the encoder and transmitter */
 	atombios_output_dig_encoder_setup(output, ATOM_ENABLE);
-	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_INIT);
-	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_SETUP);
-	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE);
+	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_INIT, 0, 0);
+	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_SETUP, 0, 0);
+	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
 	if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT && radeon_output->MonType == MT_DP) {
 	    do_displayport_dance(output, mode, adjusted_mode);
 	}
@@ -1788,21 +1806,27 @@ static inline int atom_dp_get_encoder_id(xf86OutputPtr output)
 {
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int ret = 0;
     if (IS_DCE32_VARIANT) {
 	if (radeon_output->dig_block)
-	    return ATOM_DP_CONFIG_DIG2_ENCODER;
+	    ret |= ATOM_DP_CONFIG_DIG2_ENCODER;
 	else
-	    return ATOM_DP_CONFIG_DIG1_ENCODER;
+	    ret |= ATOM_DP_CONFIG_DIG1_ENCODER;
+	if (radeon_output->linkb)
+	    ret |= ATOM_DP_CONFIG_LINK_B;
+	else
+	    ret |= ATOM_DP_CONFIG_LINK_A;
     } else {
 	if (radeon_output->linkb)
-	    return ATOM_DP_CONFIG_DIG2_ENCODER;
+	    ret |= ATOM_DP_CONFIG_DIG2_ENCODER | ATOM_DP_CONFIG_LINK_B;
 	else
-	    return ATOM_DP_CONFIG_DIG1_ENCODER;
+	    ret |= ATOM_DP_CONFIG_DIG1_ENCODER | ATOM_DP_CONFIG_LINK_A;
     }
+    return ret;
 }
 
 Bool
-RADEONProcessAuxCH(xf86OutputPtr output, char *req_bytes, int num_bytes,
+RADEONProcessAuxCH(xf86OutputPtr output, uint8_t *req_bytes, uint8_t num_bytes,
 		   uint8_t *read_byte, uint8_t read_buf_len, uint8_t delay)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -1854,8 +1878,7 @@ RADEONProcessAuxCH(xf86OutputPtr output, char *req_bytes, int num_bytes,
 static int
 RADEONDPEncoderService(xf86OutputPtr output, int action, uint8_t ucconfig, uint8_t lane_num)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    RADEONInfoPtr info = RADEONPTR(output->scrn);
     DP_ENCODER_SERVICE_PARAMETERS args;
     AtomBiosArgRec data;
     unsigned char *space;
@@ -1883,100 +1906,6 @@ int RADEON_DP_GetSinkType(xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     return RADEONDPEncoderService(output, ATOM_DP_ACTION_GET_SINK_TYPE, radeon_output->ucI2cId, 0);
-}
-
-static int
-RADEON_DP_DigTransmitterSetup_VSEMPH(xf86OutputPtr output, uint8_t lane_num, uint8_t lane_set)
-{
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
-    union dig_transmitter_control disp_data;
-    AtomBiosArgRec data;
-    unsigned char *space;
-    int clock = radeon_output->pixel_clock;
-    int dig_block = radeon_output->dig_block;
-    int num = 0;
-    int index = 0;
-    int major, minor;
-
-    if (radeon_encoder == NULL)
-        return ATOM_NOT_IMPLEMENTED;
-
-    memset(&disp_data, 0, sizeof(disp_data));
-
-    if (IS_DCE32_VARIANT)
-	index = GetIndexIntoMasterTable(COMMAND, UNIPHYTransmitterControl);
-    else {
-	switch (radeon_encoder->encoder_id) {
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-	    if (radeon_output->linkb)
-		index = GetIndexIntoMasterTable(COMMAND, DIG2TransmitterControl);
-	    else
-		index = GetIndexIntoMasterTable(COMMAND, DIG1TransmitterControl);
-	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-	    index = GetIndexIntoMasterTable(COMMAND, DIG2TransmitterControl);
-	    break;
-	}
-    }
-
-    atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
-
-    disp_data.v1.ucAction = ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH;
-
-    disp_data.v1.asMode.ucLaneSel = lane_num;
-    disp_data.v1.asMode.ucLaneSet = lane_set;
-
-    if (IS_DCE32_VARIANT) {
-	disp_data.v2.acConfig.fDPConnector = 1;
-
-	if (dig_block)
-	    disp_data.v2.acConfig.ucEncoderSel = 1;
-
-	switch (radeon_encoder->encoder_id) {
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-	    disp_data.v2.acConfig.ucTransmitterSel = 0;
-	    num = 0;
-	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-	    disp_data.v2.acConfig.ucTransmitterSel = 1;
-	    num = 1;
-	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-	    disp_data.v2.acConfig.ucTransmitterSel = 2;
-	    num = 2;
-	    break;
-	}
-    } else {
-	switch (radeon_encoder->encoder_id) {
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-	    if (radeon_output->linkb)
-		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
-	    else
-		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
-	    break;
-	    if (info->IsIGP) {
-	    } else {
-
-	    }
-	}
-    }
-    data.exec.index = index;
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
-
-    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	if (IS_DCE32_VARIANT)
-	    ErrorF("Output UNIPHY%d transmitter VSEMPH setup success\n", num);
-	else
-	   ErrorF("Output DIG%d transmitter VSEMPH setup success\n", num);
-	return ATOM_SUCCESS;
-    }
-
-    ErrorF("Output DIG%d transmitter VSEMPH setup failed\n", num);
-    return ATOM_NOT_IMPLEMENTED;
-
 }
 
 static Bool atom_dp_aux_native_write(xf86OutputPtr output, uint16_t address,
@@ -2019,7 +1948,7 @@ static Bool atom_dp_aux_native_read(xf86OutputPtr output, uint16_t address,
     msg[3] = (dp_msg_len) << 4;
     msg[3] |= expected_bytes - 1;
 
-    ErrorF("reading %02x %02x %02x, %d\n", msg[0], msg[1], msg[3], expected_bytes, dp_msg_len);
+    ErrorF("reading %02x %02x %02x, %d, %d\n", msg[0], msg[1], msg[3], expected_bytes, dp_msg_len);
     ret = RADEONProcessAuxCH(output, msg, msg_len, read_p, expected_bytes, delay);
     return ret;
 }
@@ -2113,7 +2042,6 @@ atom_dp_i2c_address(I2CDevPtr dev, I2CSlaveAddr addr)
     I2CBusPtr bus = dev->pI2CBus;
     xf86OutputPtr output = bus->DriverPrivate.ptr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    ScrnInfoPtr scrn = output->scrn;
     int ret;
 
     radeon_output->dp_i2c_addr = addr;
@@ -2125,10 +2053,11 @@ atom_dp_i2c_address(I2CDevPtr dev, I2CSlaveAddr addr)
 
     return ret;
 }
-static void
-atom_dp_i2c_start(I2CDevPtr dev)
+static Bool
+atom_dp_i2c_start(I2CBusPtr bus, int timeout)
 {
     ErrorF("%s\n", __func__);
+    return TRUE;
 }
 
 static void
@@ -2137,7 +2066,7 @@ atom_dp_i2c_stop(I2CDevPtr dev)
     I2CBusPtr bus = dev->pI2CBus;
     xf86OutputPtr output = bus->DriverPrivate.ptr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    ScrnInfoPtr scrn = output->scrn;
+
     if (radeon_output->dp_i2c_running)
 	atom_dp_aux_i2c_transaction(output, radeon_output->dp_i2c_addr,
 				    dp_aux_i2c_stop, 0, NULL);
@@ -2151,7 +2080,6 @@ atom_dp_i2c_put_byte(I2CDevPtr dev, I2CByte byte)
     I2CBusPtr bus = dev->pI2CBus;
     xf86OutputPtr output = bus->DriverPrivate.ptr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    ScrnInfoPtr scrn = output->scrn;
     Bool ret;
 
     ret = (atom_dp_aux_i2c_transaction(output, radeon_output->dp_i2c_addr,
@@ -2165,7 +2093,6 @@ atom_dp_i2c_get_byte(I2CDevPtr dev, I2CByte *byte_ret, Bool last)
     I2CBusPtr bus = dev->pI2CBus;
     xf86OutputPtr output = bus->DriverPrivate.ptr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    ScrnInfoPtr scrn = output->scrn;
     Bool ret;
 
     ret = (atom_dp_aux_i2c_transaction(output, radeon_output->dp_i2c_addr,
@@ -2268,7 +2195,6 @@ static Bool
 atom_dp_get_link_status(xf86OutputPtr output,
 			  uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     ScrnInfoPtr pScrn = output->scrn;
     int ret;
     ret = atom_dp_aux_native_read(output, DP_LANE0_1_STATUS, 100,
@@ -2350,9 +2276,9 @@ static void dp_set_training(xf86OutputPtr output, uint8_t training)
 static Bool
 atom_dp_set_link_train(xf86OutputPtr output, uint8_t dp_train_pat, uint8_t train_set[4])
 {
-    int ret;
-    int enc_id = atom_dp_get_encoder_id(output);
-    int i;
+    //int ret;
+    //int enc_id = atom_dp_get_encoder_id(output);
+    //int i;
     /* set DP encoder training start */
 
     xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
@@ -2368,7 +2294,7 @@ atom_dp_set_link_train(xf86OutputPtr output, uint8_t dp_train_pat, uint8_t train
 
 static void dp_set_power(xf86OutputPtr output, uint8_t power_state)
 {
-    uint8_t pstate;
+    //uint8_t pstate;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     if (radeon_output->dpcp8[0] >= 0x11) {
@@ -2383,7 +2309,6 @@ dp_get_adjust_train(xf86OutputPtr output,
 		      uint8_t train_set[4])
 {
     ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
     uint8_t v = 0;
     uint8_t p = 0;
     int lane;
@@ -2470,8 +2395,6 @@ static int radeon_dp_link_required(int pixel_clock)
 
 static Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int lane_count, clock;
     int max_lane_count = radeon_dp_max_lane_count(output);
@@ -2515,7 +2438,7 @@ static void dp_update_dpvs_emph(xf86OutputPtr output, uint8_t train_set[4])
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int i;
     for (i = 0; i < radeon_output->dp_lane_count; i++)
-	RADEON_DP_DigTransmitterSetup_VSEMPH(output, i, train_set[i]);
+	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH, i, train_set[i]);
 
     atom_dp_aux_native_write(output, DP_TRAINING_LANE0_SET, radeon_output->dp_lane_count, train_set);
 }
@@ -2523,7 +2446,6 @@ static void dp_update_dpvs_emph(xf86OutputPtr output, uint8_t train_set[4])
 static void do_displayport_dance(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int num_lane = dp_lanes_for_mode_clock(mode->Clock);
     int dp_clock = dp_link_clock_for_mode_clock(mode->Clock);
