@@ -1,36 +1,80 @@
-*~
-*.la
-*.lo
-.#*
-.deps
-.libs
-Makefile
-Makefile.in
+#
+#		X.Org module default exclusion patterns
+#		The next section if for module specific patterns
+#
+#	Do not edit the following section
+# 	GNU Build System (Autotools)
 aclocal.m4
-ati.4
-ati.4x
-autom4te.cache
+autom4te.cache/
+autoscan.log
+ChangeLog
 compile
 config.guess
 config.h
 config.h.in
 config.log
+config-ml.in
+config.py
 config.status
+config.status.lineno
 config.sub
 configure
-configure.lineno
-cscope.files
-cscope.out
+configure.scan
 depcomp
+.deps/
+INSTALL
 install-sh
+.libs/
 libtool
+libtool.m4
 ltmain.sh
+lt~obsolete.m4
+ltoptions.m4
+ltsugar.m4
+ltversion.m4
+Makefile
+Makefile.in
+mdate-sh
 missing
-r128.4
-r128.4x
-radeon.4
-radeon.4x
-stamp-h1
-*cscope*
+mkinstalldirs
+*.pc
+py-compile
+stamp-h?
+symlink-tree
+texinfo.tex
+ylwrap
+
+#	Do not edit the following section
+# 	Edit Compile Debug Document Distribute
+*~
+*.[0-9]
+*.[0-9]x
+*.bak
+*.bin
+core
+*.dll
+*.exe
+*-ISO*.bdf
+*-JIS*.bdf
+*-KOI8*.bdf
+*.kld
+*.ko
+*.ko.cmd
+*.lai
+*.l[oa]
+*.[oa]
+*.obj
+*.patch
+*.so
+*.pcf.gz
+*.pdb
+*.tar.bz2
+*.tar.gz
+#
+#		Add & Override patterns for xf86-video-ati 
+#
+#		Edit the following section as needed
+# For example, !report.pc overrides *.pc. See 'man gitignore'
+# 
 shave
 shave-libtool
