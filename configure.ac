@@ -29,9 +29,11 @@ AC_INIT([xf86-video-ati],
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_CONFIG_HEADER([config.h])
 
-# Require xorg-macros: XORG_RELEASE_VERSION XORG_CHANGELOG
-m4_ifndef([XORG_MACROS_VERSION], [AC_FATAL([must install xorg-macros 1.2 or later before running autoconf/autogen])])
-XORG_MACROS_VERSION(1.2)
+# Require xorg-macros: XORG_DEFAULT_OPTIONS
+m4_ifndef([XORG_MACROS_VERSION], 
+          [m4_fatal([must install xorg-macros 1.3 or later before running autoconf/autogen])])
+XORG_MACROS_VERSION(1.3)
+XORG_DEFAULT_OPTIONS
 
 AC_CONFIG_AUX_DIR(.)
 
@@ -363,10 +365,7 @@ AC_SUBST([moduledir])
 DRIVER_NAME=ati
 AC_SUBST([DRIVER_NAME])
 
-XORG_MANPAGE_SECTIONS
-XORG_RELEASE_VERSION
 XORG_CHECK_LINUXDOC
-XORG_CHANGELOG
 
 AC_MSG_NOTICE(
 [The atimisc sub-driver has been split out to xf86-video-mach64:]
