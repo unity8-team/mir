@@ -344,12 +344,17 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	FINISH_ACCEL();
     }
 
-    BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
-    OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, (((pPixmap->drawable.width) << RADEON_RE_WIDTH_SHIFT) |
-					   ((pPixmap->drawable.height) << RADEON_RE_HEIGHT_SHIFT)));
-    FINISH_ACCEL();
+    {
+      int scissor_w, scissor_h;
+      scissor_w = MIN(pPixmap->drawable.width, 2047);
+      scissor_h = MIN(pPixmap->drawable.height, 2047);
 
+      BEGIN_ACCEL(2);
+      OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
+      OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, ((scissor_w << RADEON_RE_WIDTH_SHIFT) |
+					     (scissor_h << RADEON_RE_HEIGHT_SHIFT)));
+      FINISH_ACCEL();
+    }
     if (pPriv->vsync) {
 	xf86CrtcPtr crtc;
 	if (pPriv->desired_crtc)
@@ -907,10 +912,15 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	FINISH_ACCEL();
     }
 
-    BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
-    OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, (((pPixmap->drawable.width) << RADEON_RE_WIDTH_SHIFT) |
-					   ((pPixmap->drawable.height) << RADEON_RE_HEIGHT_SHIFT)));
+    {
+      int scissor_w, scissor_h;
+      scissor_w = MIN(pPixmap->drawable.width, 2047);
+      scissor_h = MIN(pPixmap->drawable.height, 2047);
+      BEGIN_ACCEL(2);
+      OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
+      OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, ((scissor_w << RADEON_RE_WIDTH_SHIFT) |
+					     (scissor_h << RADEON_RE_HEIGHT_SHIFT)));
+    }
     FINISH_ACCEL();
 
     if (pPriv->vsync) {
