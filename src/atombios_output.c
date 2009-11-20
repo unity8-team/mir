@@ -2010,7 +2010,7 @@ void RADEON_DP_GetDPCP(xf86OutputPtr output)
 		ErrorF("%02x ", radeon_output->dpcp8[i]);
 	    ErrorF("\n");
 	}
-	ret = atom_dp_aux_native_read(output, 0x100, 0, 2, msg);
+	ret = atom_dp_aux_native_read(output, DP_LINK_BW_SET, 0, 2, msg);
 	if (ret) {
 	    ErrorF("0x200: %02x %02x\n", msg[0], msg[1]);
 	}
@@ -2492,7 +2492,7 @@ static void do_displayport_dance(xf86OutputPtr output, DisplayModePtr mode, Disp
     int enc_id = atom_dp_get_encoder_id(output);
     Bool clock_recovery;
     uint8_t link_status[DP_LINK_STATUS_SIZE];
-    uint8_t tries, voltage;
+    uint8_t tries, voltage, ss_cntl;
     uint8_t train_set[4];
     Bool ret;
     int i;
@@ -2522,8 +2522,13 @@ static void do_displayport_dance(xf86OutputPtr output, DisplayModePtr mode, Disp
 
     ErrorF("atom_dp_aux_native_write - link rate / num /framing\n");
     /* write link rate / num / eh framing */
-    atom_dp_aux_native_write(output, 0x100, 2,
+    atom_dp_aux_native_write(output, DP_LINK_BW_SET, 2,
 			     radeon_output->dp_link_configuration);
+
+    /* write ss cntl */
+    ss_cntl = 0;
+    atom_dp_aux_native_write(output, DP_DOWNSPREAD_CTRL, 1,
+			     &ss_cntl);
 
     ErrorF("RADEONDPEncoderService - ATOM_DP_ACTION_TRAINING_START\n");
     /* start local training start */
