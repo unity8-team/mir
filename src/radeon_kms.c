@@ -946,13 +946,31 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Front buffer size: %dK\n", info->front_bo->size/1024);
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Remaining VRAM size (used for pixmaps): %dK\n", remain_size_bytes/1024);
-
-    /* set the emit limit at 90% of VRAM */
-    remain_size_bytes = (remain_size_bytes / 10) * 9;
-
-    radeon_cs_set_limit(info->cs, RADEON_GEM_DOMAIN_VRAM, remain_size_bytes);
+    radeon_kms_update_vram_limit(pScrn, screen_size);
     return TRUE;
 }
+
+void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    int remain_size_bytes;
+    int total_size_bytes;
+    int c;
+
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	if (info->cursor_bo[c] != NULL) {
+	    total_size_bytes += (64 * 4 * 64);
+	}
+    }
+
+    total_size_bytes += new_fb_size;
+    remain_size_bytes = info->vram_size - new_fb_size;
+    remain_size_bytes = (remain_size_bytes / 10) * 9;
+    radeon_cs_set_limit(info->cs, RADEON_GEM_DOMAIN_VRAM, remain_size_bytes);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VRAM usage limit set to %dK\n", remain_size_bytes / 1024);
+}
+
 
 #endif

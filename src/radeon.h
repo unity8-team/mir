@@ -1282,6 +1282,7 @@ extern void radeon_cs_flush_indirect(ScrnInfoPtr pScrn);
 extern void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
 				int num, const char *file,
 				const char *func, int line);
+void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size);
 #endif
 struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix);
 void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo);

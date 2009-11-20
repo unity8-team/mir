@@ -1095,6 +1095,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (old_front)
 		radeon_bo_unref(old_front);
 
+	radeon_kms_update_vram_limit(scrn, screen_size);
 	return TRUE;
 
  fail:
