@@ -2551,7 +2551,7 @@ static void do_displayport_dance(xf86OutputPtr output, DisplayModePtr mode, Disp
     for (;;) {
       	usleep(100);
 	ErrorF("atom_dp_get_link_status\n");
-	if (!atom_dp_get_link_status(output, link_status))
+	if (atom_dp_get_link_status(output, link_status))
 	    break;
 
 	ErrorF("dp_clock_recovery_ok\n");
