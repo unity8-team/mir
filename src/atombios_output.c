@@ -1890,7 +1890,7 @@ RADEONProcessAuxCH(xf86OutputPtr output, uint8_t *req_bytes, uint8_t num_bytes,
     args.lpDataOut = 16;
     args.ucDataOutLen = 0;
     args.ucChannelID = radeon_output->ucI2cId;
-    args.ucDelay = delay;
+    args.ucDelay = delay / 10; /* 10 usec */
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, ProcessAuxChannelTransaction);
     data.exec.dataSpace = (void *)&space;
@@ -2498,6 +2498,13 @@ static void do_displayport_dance(xf86OutputPtr output, DisplayModePtr mode, Disp
     int i;
     Bool channel_eq;
 
+    /* see if the link is trained */
+    if (atom_dp_get_link_status(output, link_status)) {
+	ErrorF("XXXXXXXXXXXXXXXXXX\n");
+	if (dp_channel_eq_ok(link_status, radeon_output->dp_lane_count))
+	    return;
+    }
+
     ErrorF("Doing displayport DANCE lanes:%d %d\n", num_lane, dp_clock);
 
     ret = radeon_dp_mode_fixup(output, mode, adjusted_mode);
@@ -2551,7 +2558,7 @@ static void do_displayport_dance(xf86OutputPtr output, DisplayModePtr mode, Disp
     for (;;) {
       	usleep(100);
 	ErrorF("atom_dp_get_link_status\n");
-	if (atom_dp_get_link_status(output, link_status))
+	if (!atom_dp_get_link_status(output, link_status))
 	    break;
 
 	ErrorF("dp_clock_recovery_ok\n");
