@@ -382,6 +382,12 @@ typedef enum {
 	(info->ChipFamily == CHIP_FAMILY_RV560)  ||  \
 	(info->ChipFamily == CHIP_FAMILY_RV570))
 
+#define IS_R400_3D ((info->ChipFamily == CHIP_FAMILY_R420)  ||  \
+	(info->ChipFamily == CHIP_FAMILY_RV410) ||  \
+	(info->ChipFamily == CHIP_FAMILY_RS690) ||  \
+	(info->ChipFamily == CHIP_FAMILY_RS600) ||  \
+	(info->ChipFamily == CHIP_FAMILY_RS740))
+
 #define IS_R300_3D ((info->ChipFamily == CHIP_FAMILY_R300)  ||  \
 	(info->ChipFamily == CHIP_FAMILY_RV350) ||  \
 	(info->ChipFamily == CHIP_FAMILY_R350)  ||  \

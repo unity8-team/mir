@@ -387,7 +387,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
      *     We render a single, large triangle and use the scissor
      *     functionality to restrict it to the desired rectangle.
      *     Due to guardband limits on r3xx/r4xx, we can only use
-     *     the single triangle up to 4021 pixels; above that we
+     *     the single triangle up to 2560/4021 pixels; above that we
      *     render as a quad.
      */
 
@@ -955,7 +955,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
      *     We render a single, large triangle and use the scissor
      *     functionality to restrict it to the desired rectangle.
      *     Due to guardband limits on r3xx/r4xx, we can only use
-     *     the single triangle up to 4021 pixels; above that we
+     *     the single triangle up to 2560/4021 pixels; above that we
      *     render as a quad.
      */
 
@@ -2331,7 +2331,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
      *     We render a single, large triangle and use the scissor
      *     functionality to restrict it to the desired rectangle.
      *     Due to guardband limits on r3xx/r4xx, we can only use
-     *     the single triangle up to 4021 pixels; above that we
+     *     the single triangle up to 2560/4021 pixels; above that we
      *     render as a quad.
      */
 
@@ -2359,8 +2359,13 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	ErrorF("src: %d, %d, %d, %d\n", srcX, srcY, srcw, srch);
 #endif
 
-	if ((dstw+dsth) > 4021)
-	    use_quad = TRUE;
+	if (IS_R400_3D) {
+	    if ((dstw+dsth) > 4021)
+		use_quad = TRUE;
+	} else {
+	    if ((dstw+dsth) > 2560)
+		use_quad = TRUE;
+	}
 	/*
 	 * Set up the scissor area to that of the output size.
 	 */

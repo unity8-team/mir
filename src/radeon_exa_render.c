@@ -1348,8 +1348,13 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     } else {
 	max_tex_w = 2048;
 	max_tex_h = 2048;
-	max_dst_w = 4021;
-	max_dst_h = 4021;
+	if (IS_R400_3D) {
+	    max_dst_w = 4021;
+	    max_dst_h = 4021;
+	} else {
+	    max_dst_w = 2560;
+	    max_dst_h = 2560;
+	}
     }
 
     if (pSrcPixmap->drawable.width > max_tex_w ||
