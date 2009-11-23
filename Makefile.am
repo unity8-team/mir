@@ -20,6 +20,7 @@
 
 
 SUBDIRS = uxa src man
+MAINTAINERCLEANFILES = ChangeLog INSTALL
 
 .PHONY: ChangeLog INSTALL
 
