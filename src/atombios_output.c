@@ -1484,6 +1484,18 @@ atombios_apply_output_quirks(xf86OutputPtr output, DisplayModePtr mode)
 	if (IS_AVIVO_VARIANT && (mode->Flags & V_INTERLACE))
 	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, AVIVO_D1MODE_INTERLEAVE_EN);
     }
+
+    if (IS_DCE32_VARIANT && (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT))) {
+	radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
+	if (radeon_encoder == NULL)
+	    return;
+	/* XXX: need to sort out why transmitter control table sometimes sets this to a
+	 * different golden value.
+	 */
+	if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_UNIPHY2) {
+	    OUTREG(0x7ec4, 0x00824002);
+	}
+    }
 }
 
 void
