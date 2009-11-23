@@ -458,9 +458,9 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	if (info->exa_low_vram_threshhold_mb < 0 ||
 	    info->exa_low_vram_threshhold_mb > (info->vram_size * 1024 * 1024)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Illegal Low VRAM limit selected %d, total %lld\n",
+		       "Illegal Low VRAM limit selected %d, total %u\n",
 		       info->exa_low_vram_threshhold_mb,
-		       info->vram_size / (1024*1024));
+		       (unsigned int)(info->vram_size / (1024*1024)));
 	    info->exa_low_vram_threshhold_mb = 32;
 	}
     }
