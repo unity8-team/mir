@@ -391,11 +391,13 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *new_priv;
 
+#ifdef EXA_MIXED_PIXMAPS
     if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
         if (size != 0 && !info->exa_force_create &&
 	    info->vram_size <= (info->exa_low_vram_threshhold_mb*1024*1024))
             return NULL;
     }
+#endif
 	    
     new_priv = xcalloc(1, sizeof(struct radeon_exa_pixmap_priv));
     if (!new_priv)
@@ -428,11 +430,13 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     uint32_t tiling = 0;
     int pixmap_align = 0;
 
+#ifdef EXA_MIXED_PIXMAPS
     if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
 	if (width != 0 && height != 0 && !info->exa_force_create &&
 	    info->vram_size <= (info->exa_low_vram_threshhold_mb*1024*1024))
             return NULL;
     }
+#endif
 
     if (usage_hint) {
 	if (info->allowColorTiling) {
