@@ -606,6 +606,15 @@ The default is
 This option enables modesetting on R/RV4xx chips using atombios.
 The default is
 .B off.
+.TP 
+.BI "Option \*qEXALowVRAM\*q \*q" integer \*q
+(KMS Only) Under kernel modesetting to avoid thrashing pixmaps in/out
+of VRAM on low memory cards, we set a threshhold for the amount of VRAM
+a GPU should have before we start using VRAM to accelerate pixmaps that
+aren't required to be used by the GPU. Value is in MB. This shouldn't
+really be changed apart from testing.
+The default is
+.B 32.
 
 .SH TEXTURED VIDEO ATTRIBUTES
 The driver supports the following X11 Xv attributes for Textured Video.

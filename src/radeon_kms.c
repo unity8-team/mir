@@ -67,6 +67,7 @@ const OptionInfoRec RADEONOptions_KMS[] = {
     { OPTION_DRI,            "DRI",       	 OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_TVSTD,          "TVStandard",         OPTV_STRING,  {0}, FALSE },
     { OPTION_EXA_VSYNC,         "EXAVSync",        OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_EXA_LOW_VRAM,   "EXALowVRAM",	OPTV_INTEGER,   {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -450,6 +451,20 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		       (unsigned long long)mminfo.vram_visible);
 	}
     }
+
+    info->exa_low_vram_threshhold_mb = 32;
+    if (xf86GetOptValInteger(info->Options, OPTION_EXA_LOW_VRAM,
+			     &(info->exa_low_vram_threshhold_mb))) {
+	if (info->exa_low_vram_threshhold_mb < 0 ||
+	    info->exa_low_vram_threshhold_mb > (info->vram_size * 1024 * 1024)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Illegal Low VRAM limit selected %d, total %lld\n",
+		       info->exa_low_vram_threshhold_mb,
+		       info->vram_size / (1024*1024));
+	    info->exa_low_vram_threshhold_mb = 32;
+	}
+    }
+    
     RADEONSetPitch(pScrn);
 
     /* Set display resolution */

@@ -349,7 +349,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 #ifdef USE_EXA
     if (info->useEXA) {
 	/* Force the pixmap into framebuffer so we can draw to it. */
+	info->exa_force_create = TRUE;
 	exaMoveInPixmap(pPriv->pPixmap);
+	info->exa_force_create = FALSE;
     }
 #endif
 

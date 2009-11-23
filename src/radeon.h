@@ -173,6 +173,7 @@ typedef enum {
     OPTION_PCIAPER_SIZE,
 #ifdef USE_EXA
     OPTION_ACCEL_DFS,
+    OPTION_EXA_LOW_VRAM,
 #endif
 #endif
     OPTION_IGNORE_EDID,
@@ -894,6 +895,7 @@ typedef struct {
     Bool              accelOn;
     Bool              useEXA;
 #ifdef USE_EXA
+    Bool              exa_force_create;
     XF86ModReqInfo    exaReq;
 #endif
 #ifdef USE_XAA
@@ -1004,6 +1006,7 @@ typedef struct {
     uint64_t vram_size;
     uint64_t gart_size;
     drmmode_rec drmmode;
+    int exa_low_vram_threshhold_mb;
 #else
     /* fake bool */
     Bool cs;

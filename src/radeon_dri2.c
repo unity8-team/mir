@@ -65,6 +65,8 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
                            int count)
 {
     ScreenPtr pScreen = drawable->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     BufferPtr buffers;
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
@@ -120,7 +122,9 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
         if (attachments[i] == DRI2BufferDepth) {
             depth_pixmap = pixmap;
         }
+	info->exa_force_create = TRUE;
 	exaMoveInPixmap(pixmap);
+	info->exa_force_create = FALSE;
         driver_priv = exaGetPixmapDriverPrivate(pixmap);
 	r = radeon_gem_get_kernel_name(driver_priv->bo, &buffers[i].name);
 	if (r)
@@ -143,6 +147,8 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
                           unsigned int format)
 {
     ScreenPtr pScreen = drawable->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     BufferPtr buffers;
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
@@ -198,7 +204,9 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     if (attachment == DRI2BufferDepth) {
         depth_pixmap = pixmap;
     }
+    info->exa_force_create = TRUE;
     exaMoveInPixmap(pixmap);
+    info->exa_force_create = FALSE;
     driver_priv = exaGetPixmapDriverPrivate(pixmap);
     r = radeon_gem_get_kernel_name(driver_priv->bo, &buffers->name);
     if (r)
