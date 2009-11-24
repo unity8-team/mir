@@ -39,29 +39,6 @@
 
 #include "radeon_drm.h"
 
-#if defined(XF86DRM_MODE)
-void r600_cs_flush_indirect(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    int ret;
-
-    if (!info->cs->cdw)
-	return;
-
-    if (info->accel_state->vb_ptr) {
-	radeon_bo_unmap(info->accel_state->vb_bo);
-	info->accel_state->vb_ptr = NULL;
-    }
-
-    radeon_cs_emit(info->cs);
-    radeon_cs_erase(info->cs);
-
-    ret = radeon_cs_space_check(info->cs);
-    if (ret)
-	ErrorF("space check failed in flush\n");
-}
-#endif
-
 /* Flush the indirect buffer to the kernel for submission to the card */
 void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib)
 {
@@ -72,7 +49,7 @@ void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib)
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
-	r600_cs_flush_indirect(pScrn);
+	radeon_cs_flush_indirect(pScrn);
 	return;
     }
 #endif
@@ -111,7 +88,7 @@ void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib)
 	    info->accel_state->vb_ptr = NULL;
         }
 	if (CS_FULL(info->cs)) {
-	    r600_cs_flush_indirect(pScrn);
+	    radeon_cs_flush_indirect(pScrn);
 	    return;
 	}
 	radeon_cs_erase(info->cs);
