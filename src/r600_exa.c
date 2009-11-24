@@ -2575,9 +2575,9 @@ R600DrawInit(ScreenPtr pScreen)
 #ifdef EXA_HANDLES_PIXMAPS
     if (info->cs) {
 	info->accel_state->exa->flags |= EXA_HANDLES_PIXMAPS;
-//#ifdef EXA_MIXED_PIXMAPS
-//	info->accel_state->exa->flags |= EXA_MIXED_PIXMAPS;
-//#endif
+#ifdef EXA_MIXED_PIXMAPS
+	info->accel_state->exa->flags |= EXA_MIXED_PIXMAPS;
+#endif
     }
 #endif
 #endif
