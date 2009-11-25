@@ -326,6 +326,8 @@ void
 r600_vb_discard(ScrnInfoPtr pScrn);
 int
 r600_cp_start(ScrnInfoPtr pScrn);
+void
+r600_finish_op(ScrnInfoPtr pScrn);
 
 extern Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index);
 extern void RADEONFinishAccess_CS(PixmapPtr pPix, int index);

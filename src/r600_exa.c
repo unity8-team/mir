@@ -220,10 +220,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     r600_cp_start(pScrn);
 
     /* Init */
-#if defined(XF86DRM_MODE)
-    if (info->cs)
-	accel_state->XInited3D = FALSE;
-#endif
     start_3d(pScrn, accel_state->ib);
 
     set_default_state(pScrn, accel_state->ib);
@@ -454,9 +450,7 @@ R600DoneSolid(PixmapPtr pPix)
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
-    accel_state->vb_start_op = 0;
-
-    R600CPFlushIndirect(pScrn, accel_state->ib);
+    r600_finish_op(pScrn);
 }
 
 static void
@@ -500,10 +494,6 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     r600_cp_start(pScrn);
 
     /* Init */
-#if defined(XF86DRM_MODE)
-    if (info->cs)
-	accel_state->XInited3D = FALSE;
-#endif
     start_3d(pScrn, accel_state->ib);
 
     set_default_state(pScrn, accel_state->ib);
@@ -720,8 +710,7 @@ R600DoCopy(ScrnInfoPtr pScrn)
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
-    accel_state->vb_start_op = 0;
-    R600CPFlushIndirect(pScrn, accel_state->ib);
+    r600_finish_op(pScrn);
 }
 
 static void
@@ -858,7 +847,6 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 						       RADEON_GEM_DOMAIN_VRAM,
 						       0);
 	    if (accel_state->copy_area_bo == NULL) {
-		R600IBDiscard(pScrn, accel_state->ib);
 		return FALSE;
 	    }
 	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->copy_area_bo,
@@ -866,7 +854,6 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	    if (radeon_cs_space_check(info->cs)) {
 		radeon_bo_unref(accel_state->copy_area_bo);
 		accel_state->copy_area_bo = NULL;
-		R600IBDiscard(pScrn, accel_state->ib);
 		return FALSE;
 	    }
 	    accel_state->copy_area = (void*)accel_state->copy_area_bo;
@@ -1733,10 +1720,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     r600_cp_start(pScrn);
 
     /* Init */
-#if defined(XF86DRM_MODE)
-    if (info->cs)
-	accel_state->XInited3D = FALSE;
-#endif
     start_3d(pScrn, accel_state->ib);
 
     set_default_state(pScrn, accel_state->ib);
@@ -2049,8 +2032,7 @@ static void R600DoneComposite(PixmapPtr pDst)
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
-    accel_state->vb_start_op = 0;
-    R600CPFlushIndirect(pScrn, accel_state->ib);
+    r600_finish_op(pScrn);
 }
 
 Bool

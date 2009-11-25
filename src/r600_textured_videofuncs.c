@@ -112,8 +112,7 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
-    accel_state->vb_start_op = 0;
-    R600CPFlushIndirect(pScrn, accel_state->ib);
+    r600_finish_op(pScrn);
 }
 
 void

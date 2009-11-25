@@ -83,6 +83,12 @@ void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib)
     int ret;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     if (info->cs) {
+	if (info->accel_state->ib_reset_op) {
+	    /* if we have data just reset the CS and ignore the operation */
+	    info->cs->cdw = info->accel_state->ib_reset_op;
+	    info->accel_state->ib_reset_op = 0;
+	    return;
+	}
 	if (info->accel_state->vb_ptr) {
 	    radeon_bo_unmap(info->accel_state->vb_bo);
 	    info->accel_state->vb_ptr = NULL;
@@ -1203,6 +1209,10 @@ r600_cp_start(ScrnInfoPtr pScrn)
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
+
+	if (CS_FULL(info->cs)) {
+	    radeon_cs_flush_indirect(pScrn);
+	}
 	if (!r600_vb_get(pScrn))
 	    return -1;
 	if (accel_state->vb_bo)
@@ -1210,6 +1220,7 @@ r600_cp_start(ScrnInfoPtr pScrn)
 					    RADEON_GEM_DOMAIN_GTT, 0);
 
 	radeon_cs_space_check(info->cs);
+	accel_state->ib_reset_op = info->cs->cdw;
     } else
 #endif
     {
@@ -1219,4 +1230,15 @@ r600_cp_start(ScrnInfoPtr pScrn)
 	}
     }
     return 0;
+}
+
+void r600_finish_op(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+    
+    accel_state->vb_start_op = 0;
+    accel_state->ib_reset_op = 0;
+
+    R600CPFlushIndirect(pScrn, accel_state->ib);
 }

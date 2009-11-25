@@ -710,6 +710,8 @@ struct radeon_accel_state {
     uint32_t          vb_size;
     struct radeon_bo  *vb_bo;
     uint32_t          vb_start_op;
+    /* where to discard IB from if we cancel operation */
+    uint32_t          ib_reset_op;
 
     // shader storage
     ExaOffscreenArea  *shaders;
