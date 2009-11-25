@@ -1240,5 +1240,6 @@ void r600_finish_op(ScrnInfoPtr pScrn)
     accel_state->vb_start_op = 0;
     accel_state->ib_reset_op = 0;
 
-    R600CPFlushIndirect(pScrn, accel_state->ib);
+    if (!info->cs)
+        R600CPFlushIndirect(pScrn, accel_state->ib);
 }
