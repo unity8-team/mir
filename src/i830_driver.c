@@ -3079,6 +3079,8 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    }
    if (pI830->front_buffer) {
 	i830_set_pixmap_bo(pScreen->GetScreenPixmap(pScreen), NULL);
+	if (pI830->use_drm_mode)
+	    drmmode_closefb(pScrn);
 	i830_free_memory(pScrn, pI830->front_buffer);
 	pI830->front_buffer = NULL;
    }
