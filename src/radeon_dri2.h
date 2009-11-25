@@ -30,7 +30,7 @@
 struct radeon_dri2 {
     int         drm_fd;
     Bool        enabled;
-    char        device_name[64];
+    char	*device_name;
 };
 
 #ifdef RADEON_DRI2

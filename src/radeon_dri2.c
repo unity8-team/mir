@@ -330,45 +330,13 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     DRI2InfoRec dri2_info = { 0 };
-    int fd;
-    char *bus_id;
-    char *tmp_bus_id;
-    int cmp;
-    int i;
 
     if (!info->useEXA) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires EXA\n");
         return FALSE;
     }
 
-    /* The whole drmOpen thing is a fiasco and we need to find a way
-     * back to just using open(2).  For now, however, lets just make
-     * things worse with even more ad hoc directory walking code to
-     * discover the device file name. */
-    bus_id = DRICreatePCIBusID(info->PciInfo);
-    for (i = 0; i < DRM_MAX_MINOR; i++) {
-        sprintf(info->dri2.device_name, DRM_DEV_NAME, DRM_DIR_NAME, i);
-        fd = open(info->dri2.device_name, O_RDWR);
-        if (fd < 0)
-            continue;
-
-        tmp_bus_id = drmGetBusid(fd);
-        close(fd);
-        if (tmp_bus_id == NULL)
-            continue;
-
-        cmp = strcmp(tmp_bus_id, bus_id);
-        drmFree(tmp_bus_id);
-        if (cmp == 0)
-            break;
-    }
-    xfree(bus_id);
-
-    if (i == DRM_MAX_MINOR) {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                   "DRI2: failed to open drm device\n");
-        return FALSE;
-    }
+    info->dri2.device_name = drmGetDeviceNameFromFd(info->dri2.drm_fd);
 
     if ( (info->ChipFamily >= CHIP_FAMILY_R600) ) {
         dri2_info.driverName = R600_DRIVER_NAME;
@@ -397,7 +365,11 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 
 void radeon_dri2_close_screen(ScreenPtr pScreen)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
     DRI2CloseScreen(pScreen);
+    drmFree(info->dri2.device_name);
 }
 
 #endif
