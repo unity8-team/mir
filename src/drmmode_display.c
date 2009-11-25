@@ -204,6 +204,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	int crtc_id = 0;
 	int i;
 	int pitch = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
+	Bool ret;
 
 	if (info->accelOn == FALSE)
 		return;
@@ -228,8 +229,10 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	if (!dst)
 		goto out_free_src;
 
-	info->accel_state->exa->PrepareCopy (src, dst,
-					     -1, -1, GXcopy, FB_ALLONES);
+	ret = info->accel_state->exa->PrepareCopy (src, dst,
+						   -1, -1, GXcopy, FB_ALLONES);
+	if (!ret)
+	  goto out_free_src;
 	info->accel_state->exa->Copy (dst, 0, 0, 0, 0,
 				      pScrn->virtualX, pScrn->virtualY);
 	info->accel_state->exa->DoneCopy (dst);
