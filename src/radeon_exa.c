@@ -394,7 +394,7 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
 #ifdef EXA_MIXED_PIXMAPS
     if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
         if (size != 0 && !info->exa_force_create &&
-	    info->vram_size <= (info->exa_low_vram_threshhold_mb*1024*1024))
+	    info->exa_pixmaps == FALSE)
             return NULL;
     }
 #endif
@@ -433,7 +433,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 #ifdef EXA_MIXED_PIXMAPS
     if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
 	if (width != 0 && height != 0 && !info->exa_force_create &&
-	    info->vram_size <= (info->exa_low_vram_threshhold_mb*1024*1024))
+	    info->exa_pixmaps == FALSE)
             return NULL;
     }
 #endif
