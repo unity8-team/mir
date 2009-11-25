@@ -65,13 +65,13 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-    if (accel_state->vb_index == 0) {
+    if (accel_state->vb_offset == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
         return;
     }
 
-    accel_state->vb_size = accel_state->vb_index * 16;
+    accel_state->vb_size = accel_state->vb_offset;
 
     /* flush vertex cache */
     if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
@@ -88,11 +88,12 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
 			    accel_state->vb_bo, RADEON_GEM_DOMAIN_GTT, 0);
 
     /* Vertex buffer setup */
+    accel_state->vb_size -= accel_state->vb_start_op;
     vtx_res.id              = SQ_VTX_RESOURCE_vs;
     vtx_res.vtx_size_dw     = 16 / 4;
     vtx_res.vtx_num_entries = accel_state->vb_size / 4;
     vtx_res.mem_req_size    = 1;
-    vtx_res.vb_addr         = accel_state->vb_mc_addr;
+    vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
     vtx_res.bo              = accel_state->vb_bo;
     set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
 
@@ -111,6 +112,7 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
 
+    accel_state->vb_start_op = 0;
     R600CPFlushIndirect(pScrn, accel_state->ib);
 }
 
@@ -564,6 +566,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
     END_BATCH();
 
+    accel_state->vb_start_op = accel_state->vb_offset;
+
     vs_alu_consts[0] = 1.0 / pPriv->w;
     vs_alu_consts[1] = 1.0 / pPriv->h;
     vs_alu_consts[2] = 0.0;
@@ -595,12 +599,14 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	int dstX, dstY, dstw, dsth;
 	float *vb;
 
-        if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
+        if ((accel_state->vb_offset + (3 * 16)) > accel_state->vb_total) {
             R600DoneTexturedVideo(pScrn);
+	    if (info->cs)
+	        radeon_cs_flush_indirect(pScrn);
 	    r600_cp_start(pScrn);
         }
 
-        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);
+        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_offset);
 
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
@@ -632,7 +638,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	vb[10] = (float)(srcX + srcw);
 	vb[11] = (float)(srcY + srch);
 
-	accel_state->vb_index += 3;
+	accel_state->vb_offset += 3 * 16;
 
 	pBox++;
     }

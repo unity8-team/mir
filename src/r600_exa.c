@@ -359,6 +359,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     ErrorF("PM: 0x%08x\n", pm);
 #endif
 
+    accel_state->vb_start_op = accel_state->vb_offset;
     return TRUE;
 }
 
@@ -371,12 +372,14 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     struct radeon_accel_state *accel_state = info->accel_state;
     float *vb;
 
-    if (((accel_state->vb_index + 3) * 8) > accel_state->vb_total) {
+    if ((accel_state->vb_offset + (3 * 8)) > accel_state->vb_total) {
         R600DoneSolid(pPix);
+	if (info->cs)
+	    radeon_cs_flush_indirect(pScrn);
 	r600_cp_start(pScrn);
     }
 
-    vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*8);
+    vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_offset);
 
     vb[0] = (float)x1;
     vb[1] = (float)y1;
@@ -387,7 +390,7 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     vb[4] = (float)x2;
     vb[5] = (float)y2;
 
-    accel_state->vb_index += 3;
+    accel_state->vb_offset += (3*8);
 
 }
 
@@ -403,13 +406,13 @@ R600DoneSolid(PixmapPtr pPix)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-    if (accel_state->vb_index == 0) {
+    if (accel_state->vb_offset == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
         return;
     }
 
-    accel_state->vb_size = accel_state->vb_index * 8;
+    accel_state->vb_size = accel_state->vb_offset;
 
     /* flush vertex cache */
     if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
@@ -426,11 +429,12 @@ R600DoneSolid(PixmapPtr pPix)
 			    accel_state->vb_bo, RADEON_GEM_DOMAIN_GTT, 0);
 
     /* Vertex buffer setup */
+    accel_state->vb_size -= accel_state->vb_start_op;
     vtx_res.id              = SQ_VTX_RESOURCE_vs;
     vtx_res.vtx_size_dw     = 8 / 4;
     vtx_res.vtx_num_entries = accel_state->vb_size / 4;
     vtx_res.mem_req_size    = 1;
-    vtx_res.vb_addr         = accel_state->vb_mc_addr;
+    vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
     vtx_res.bo              = accel_state->vb_bo;
     set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
 
@@ -449,6 +453,8 @@ R600DoneSolid(PixmapPtr pPix)
     cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
+
+    accel_state->vb_start_op = 0;
 
     R600CPFlushIndirect(pScrn, accel_state->ib);
 }
@@ -651,6 +657,8 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
 								SEL_CENTROID_bit));
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
     END_BATCH();
+
+    accel_state->vb_start_op = accel_state->vb_offset;
 }
 
 static void
@@ -664,13 +672,13 @@ R600DoCopy(ScrnInfoPtr pScrn)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-    if (accel_state->vb_index == 0) {
+    if (accel_state->vb_offset == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
         return;
     }
 
-    accel_state->vb_size = accel_state->vb_index * 16;
+    accel_state->vb_size = accel_state->vb_offset;
 
     /* flush vertex cache */
     if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
@@ -687,11 +695,13 @@ R600DoCopy(ScrnInfoPtr pScrn)
 			    accel_state->vb_bo, RADEON_GEM_DOMAIN_GTT, 0);
 
     /* Vertex buffer setup */
+    accel_state->vb_size -= accel_state->vb_start_op;
+
     vtx_res.id              = SQ_VTX_RESOURCE_vs;
     vtx_res.vtx_size_dw     = 16 / 4;
     vtx_res.vtx_num_entries = accel_state->vb_size / 4;
     vtx_res.mem_req_size    = 1;
-    vtx_res.vb_addr         = accel_state->vb_mc_addr;
+    vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
     vtx_res.bo              = accel_state->vb_bo;
     set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
 
@@ -710,6 +720,7 @@ R600DoCopy(ScrnInfoPtr pScrn)
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
+    accel_state->vb_start_op = 0;
     R600CPFlushIndirect(pScrn, accel_state->ib);
 }
 
@@ -723,12 +734,14 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
     struct radeon_accel_state *accel_state = info->accel_state;
     float *vb;
 
-    if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
+    if ((accel_state->vb_offset + (3 * 16)) > accel_state->vb_total) {
         R600DoCopy(pScrn);
+	if (info->cs)
+	    radeon_cs_flush_indirect(pScrn);
 	r600_cp_start(pScrn);
     }
 
-    vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);
+    vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_offset);
 
     vb[0] = (float)dstX;
     vb[1] = (float)dstY;
@@ -745,7 +758,7 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
     vb[10] = (float)(srcX + w);
     vb[11] = (float)(srcY + h);
 
-    accel_state->vb_index += 3;
+    accel_state->vb_offset += (3 * 16);
 }
 
 static Bool
@@ -1888,6 +1901,8 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
     END_BATCH();
 
+    accel_state->vb_start_op = accel_state->vb_offset;
+
     return TRUE;
 }
 
@@ -1906,12 +1921,14 @@ static void R600Composite(PixmapPtr pDst,
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
 
     if (accel_state->msk_pic) {
-        if (((accel_state->vb_index + 3) * 24) > accel_state->vb_total) {
+        if ((accel_state->vb_offset + (3 * 24)) > accel_state->vb_total) {
             R600DoneComposite(pDst);
+	     if (info->cs)
+	         radeon_cs_flush_indirect(pScrn);
 	    r600_cp_start(pScrn);
         }
 
-        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*24);
+        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_offset);
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
@@ -1934,13 +1951,16 @@ static void R600Composite(PixmapPtr pDst,
 	vb[16] = (float)(maskX + w);
 	vb[17] = (float)(maskY + h);
 
+	accel_state->vb_offset += 3 * 24;
     } else {
-        if (((accel_state->vb_index + 3) * 16) > accel_state->vb_total) {
+        if ((accel_state->vb_offset + (3 * 16)) > accel_state->vb_total) {
             R600DoneComposite(pDst);
+	    if (info->cs)
+	        radeon_cs_flush_indirect(pScrn);
 	    r600_cp_start(pScrn);
         }
 
-        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_index*16);
+        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_offset);
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
@@ -1956,9 +1976,10 @@ static void R600Composite(PixmapPtr pDst,
 	vb[9] = (float)(dstY + h);
 	vb[10] = (float)(srcX + w);
 	vb[11] = (float)(srcY + h);
+	accel_state->vb_offset += 3 * 16;
+
     }
 
-    accel_state->vb_index += 3;
 
 }
 
@@ -1973,30 +1994,13 @@ static void R600DoneComposite(PixmapPtr pDst)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-    if (accel_state->vb_index == 0) {
+    if (accel_state->vb_offset == 0) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
         return;
     }
 
-    /* Vertex buffer setup */
-    if (accel_state->msk_pic) {
-	accel_state->vb_size = accel_state->vb_index * 24;
-	vtx_res.id              = SQ_VTX_RESOURCE_vs;
-	vtx_res.vtx_size_dw     = 24 / 4;
-	vtx_res.vtx_num_entries = accel_state->vb_size / 4;
-	vtx_res.mem_req_size    = 1;
-	vtx_res.vb_addr         = accel_state->vb_mc_addr;
-	vtx_res.bo              = accel_state->vb_bo;
-    } else {
-	accel_state->vb_size = accel_state->vb_index * 16;
-	vtx_res.id              = SQ_VTX_RESOURCE_vs;
-	vtx_res.vtx_size_dw     = 16 / 4;
-	vtx_res.vtx_num_entries = accel_state->vb_size / 4;
-	vtx_res.mem_req_size    = 1;
-	vtx_res.vb_addr         = accel_state->vb_mc_addr;
-	vtx_res.bo              = accel_state->vb_bo;
-    }
+    accel_state->vb_size = accel_state->vb_offset;
     /* flush vertex cache */
     if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
 	(info->ChipFamily == CHIP_FAMILY_RV620) ||
@@ -2011,6 +2015,24 @@ static void R600DoneComposite(PixmapPtr pDst)
 			    accel_state->vb_size, accel_state->vb_mc_addr,
 			    accel_state->vb_bo, RADEON_GEM_DOMAIN_GTT, 0);
 
+    accel_state->vb_size -= accel_state->vb_start_op;
+
+    /* Vertex buffer setup */
+    if (accel_state->msk_pic) {
+	vtx_res.id              = SQ_VTX_RESOURCE_vs;
+	vtx_res.vtx_size_dw     = 24 / 4;
+	vtx_res.vtx_num_entries = accel_state->vb_size / 4;
+	vtx_res.mem_req_size    = 1;
+	vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
+	vtx_res.bo              = accel_state->vb_bo;
+    } else {
+	vtx_res.id              = SQ_VTX_RESOURCE_vs;
+	vtx_res.vtx_size_dw     = 16 / 4;
+	vtx_res.vtx_num_entries = accel_state->vb_size / 4;
+	vtx_res.mem_req_size    = 1;
+	vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
+	vtx_res.bo              = accel_state->vb_bo;
+    }
     set_vtx_resource(pScrn, accel_state->ib, &vtx_res);
 
     draw_conf.prim_type          = DI_PT_RECTLIST;
@@ -2027,8 +2049,8 @@ static void R600DoneComposite(PixmapPtr pDst)
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
 
+    accel_state->vb_start_op = 0;
     R600CPFlushIndirect(pScrn, accel_state->ib);
-
 }
 
 Bool
@@ -2336,6 +2358,9 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 		      3, 0xffffffff);
     R600AppendCopyVertex(pScrn, x, y, 0, 0, w, h);
     R600DoCopy(pScrn);
+    
+    if (info->cs)
+	radeon_cs_flush_indirect(pScrn);
 
     r = radeon_bo_map(scratch, 0);
     if (r) {

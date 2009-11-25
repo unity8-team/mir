@@ -703,12 +703,13 @@ struct radeon_accel_state {
     Bool              vsync;
 
     drmBufPtr         ib;
-    int               vb_index;
+    int               vb_offset;
     uint64_t          vb_mc_addr;
     int               vb_total;
     void              *vb_ptr;
     uint32_t          vb_size;
     struct radeon_bo  *vb_bo;
+    uint32_t          vb_start_op;
 
     // shader storage
     ExaOffscreenArea  *shaders;

@@ -86,6 +86,8 @@ void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib)
 	if (info->accel_state->vb_ptr) {
 	    radeon_bo_unmap(info->accel_state->vb_bo);
 	    info->accel_state->vb_ptr = NULL;
+	    info->accel_state->vb_offset = 0;
+	    info->accel_state->vb_start_op = 0;
         }
 	if (CS_FULL(info->cs)) {
 	    radeon_cs_flush_indirect(pScrn);
@@ -1183,8 +1185,8 @@ r600_vb_get(ScrnInfoPtr pScrn)
 	accel_state->vb_total = (accel_state->ib->total / 2);
 	accel_state->vb_ptr = (pointer)((char*)accel_state->ib->address +
 					(accel_state->ib->total / 2));
+	accel_state->vb_offset = 0;
     }
-    accel_state->vb_index = 0;
     return TRUE;
 }
 

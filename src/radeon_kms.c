@@ -80,8 +80,10 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 	return;
 
     if (info->accel_state->vb_ptr) {
-	radeon_bo_unmap(info->accel_state->vb_bo);
-	info->accel_state->vb_ptr = NULL;
+      radeon_bo_unmap(info->accel_state->vb_bo);
+      info->accel_state->vb_ptr = NULL;
+      info->accel_state->vb_start_op = 0;
+      info->accel_state->vb_offset = 0;
     }
 
     radeon_cs_emit(info->cs);
