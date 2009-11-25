@@ -264,10 +264,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     r600_cp_start(pScrn);
 
     /* Init */
-#if defined(XF86DRM_MODE)
-    if (info->cs)
-	accel_state->XInited3D = FALSE;
-#endif
     start_3d(pScrn, accel_state->ib);
 
     set_default_state(pScrn, accel_state->ib);
