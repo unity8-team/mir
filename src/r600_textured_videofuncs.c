@@ -65,7 +65,7 @@ R600DoneTexturedVideo(ScrnInfoPtr pScrn)
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-    if (accel_state->vb_offset == 0) {
+    if (accel_state->vb_offset == accel_state->vb_start_op) {
         R600IBDiscard(pScrn, accel_state->ib);
         r600_vb_discard(pScrn);
         return;
