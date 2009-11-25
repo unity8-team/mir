@@ -2548,10 +2548,11 @@ static void do_displayport_dance(xf86OutputPtr output)
     RADEONDPEncoderService(output, ATOM_DP_ACTION_TRAINING_PATTERN_SEL, enc_id, 0);
 
     ErrorF("dp_update_dpvs_emph\n");
-    dp_update_dpvs_emph(output, train_set);
     usleep(400);
     ErrorF("dp_set_training - DP_TRAINING_PATTERN_1\n");
     dp_set_training(output, DP_TRAINING_PATTERN_1);
+
+    dp_update_dpvs_emph(output, train_set);
 
     ErrorF("start loop 1\n");
     /* loop around doing configuration reads and DP encoder setups */
