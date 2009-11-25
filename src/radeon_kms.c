@@ -543,6 +543,9 @@ static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONCloseScreen\n");
 
+    if (info->cs)
+      radeon_cs_flush_indirect(pScrn);
+
     if (info->accel_state->exa) {
 	exaDriverFini(pScreen);
 	xfree(info->accel_state->exa);
