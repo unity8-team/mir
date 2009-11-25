@@ -65,7 +65,7 @@ const char *device_name[12] = {
     "DFP5",
 };
 
-static void do_displayport_dance(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode);
+static void do_displayport_dance(xf86OutputPtr output);
 
 static void atombios_set_output_crtc_source(xf86OutputPtr output);
 
@@ -1337,8 +1337,12 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     switch (mode) {
     case DPMSModeOn:
 	radeon_encoder->devices |= radeon_output->active_device;
-	if (is_dig)
+	if (is_dig) {
 	    atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
+	    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT && radeon_output->MonType == MT_DP) {
+	      do_displayport_dance(output);
+	    }
+	}
 	else {
 	    disp_data.ucAction = ATOM_ENABLE;
 	    data.exec.index = index;
@@ -1599,9 +1603,6 @@ atombios_output_mode_set(xf86OutputPtr output,
 	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_INIT, 0, 0);
 	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_SETUP, 0, 0);
 	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
-	if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT && radeon_output->MonType == MT_DP) {
-	    do_displayport_dance(output, mode, adjusted_mode);
-	}
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DDI:
 	atombios_output_ddia_setup(output, ATOM_ENABLE);
@@ -2433,7 +2434,7 @@ static int radeon_dp_link_required(int pixel_clock)
     return pixel_clock * 3;
 }
 
-static Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int lane_count, clock;
@@ -2461,7 +2462,7 @@ static Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, Disp
     return FALSE;
 }
 
-static void radeon_dp_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+static void radeon_dp_mode_set(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     memset(radeon_output->dp_link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
@@ -2483,41 +2484,43 @@ static void dp_update_dpvs_emph(xf86OutputPtr output, uint8_t train_set[4])
     atom_dp_aux_native_write(output, DP_TRAINING_LANE0_SET, radeon_output->dp_lane_count, train_set);
 }
 
-static void do_displayport_dance(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+static void do_displayport_dance(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int num_lane = dp_lanes_for_mode_clock(radeon_output, mode->Clock);
-    int dp_clock = dp_link_clock_for_mode_clock(radeon_output, mode->Clock);
+    int num_lane = radeon_output->dp_lane_count;
     int enc_id = atom_dp_get_encoder_id(output);
     Bool clock_recovery;
     uint8_t link_status[DP_LINK_STATUS_SIZE];
     uint8_t tries, voltage, ss_cntl;
     uint8_t train_set[4];
-    Bool ret;
     int i;
     Bool channel_eq;
 
+
     /* see if the link is trained */
+#if 0
     if (atom_dp_get_link_status(output, link_status)) {
 	ErrorF("XXXXXXXXXXXXXXXXXX\n");
 	if (dp_channel_eq_ok(link_status, radeon_output->dp_lane_count))
 	    return;
     }
+#endif
 
-    ErrorF("Doing displayport DANCE lanes:%d %d\n", num_lane, dp_clock);
+    ErrorF("Doing displayport DANCE lanes:%d\n", num_lane);
 
+#if 0
     ret = radeon_dp_mode_fixup(output, mode, adjusted_mode);
     if (ret == FALSE) {
 	ErrorF("Doing displayport DANCE failed to fixup\n");
 	return;
     }
-
+#endif
     memset(train_set, 0, 4);
 
     ErrorF("radeon_dp_mode_set\n");
     /* set up link configuration */
-    radeon_dp_mode_set(output, mode, adjusted_mode);
+    radeon_dp_mode_set(output);
 
     ErrorF("dp_set_power\n");
     /* power up to D0 */

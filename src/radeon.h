@@ -1250,6 +1250,7 @@ extern void RADEONSetOutputType(ScrnInfoPtr pScrn,
 extern Bool RADEONSetupConnectors(ScrnInfoPtr pScrn);
 extern Bool RADEONI2CDoLock(xf86OutputPtr output, I2CBusPtr b, Bool lock_state);
 
+extern Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode);
 
 /* radeon_tv.c */
 extern void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);

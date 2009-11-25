@@ -669,6 +669,9 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	}
     }
 
+    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT && radeon_output->MonType == MT_DP) {
+      radeon_dp_mode_fixup(output, mode, adjusted_mode);
+    }
     return TRUE;
 }
 
