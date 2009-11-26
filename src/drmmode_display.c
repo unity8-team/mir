@@ -1120,7 +1120,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch,
 				   (!pNv->NoAccel || pNv->ShadowPtr) ?
 				   pNv->ShadowPtr : pNv->scanout->map);
-
+	scrn->pixmapPrivate.ptr = ppix->devPrivate.ptr;
 	nouveau_bo_unmap(pNv->scanout);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
