@@ -171,8 +171,13 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 	unsigned w = pScrn->virtualX, h = pScrn->virtualY;
 	int i, ret, fbcon_id = 0;
 
-	if (!pNv->exa_driver_pixmaps)
+	if (!pNv->exa_driver_pixmaps) {
+		if (nouveau_bo_map(pNv->scanout, NOUVEAU_BO_WR))
+			return;
+		memset(pNv->scanout->map, 0x00, pNv->scanout->size);
+		nouveau_bo_unmap(pNv->scanout);
 		return;
+	}
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		drmmode_crtc_private_ptr drmmode_crtc =
