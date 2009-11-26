@@ -154,7 +154,7 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 	if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
 	    ErrorF("  TV1: %s\n", encoder_name[info->encoders[ATOM_DEVICE_TV1_INDEX]->encoder_id]);
 	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
-	    ErrorF("  CV: %s\n", encoder_name[info->encoders[ATOM_DEVICE_CRT1_INDEX]->encoder_id]);
+	    ErrorF("  CV: %s\n", encoder_name[info->encoders[ATOM_DEVICE_CV_INDEX]->encoder_id]);
 	ErrorF("  DDC reg: 0x%x\n",(unsigned int)radeon_output->ddc_i2c.mask_clk_reg);
     }
 
