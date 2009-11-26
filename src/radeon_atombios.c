@@ -901,6 +901,7 @@ rhdAtomCVGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
     DisplayModePtr  new        = NULL;
     DisplayModePtr  first      = NULL;
     int i;
+    uint16_t size;
 
     data->modes = NULL;
 
@@ -908,12 +909,11 @@ rhdAtomCVGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
 
     if (!rhdAtomGetTableRevisionAndSize(
 	    (ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->ComponentVideoInfo.base),
-	    &frev,&crev,NULL)) {
+	    &crev,&frev,&size)) {
 	return ATOM_FAILED;
     }
 
     switch (frev) {
-
 	case 1:
 	    switch (func) {
 		case ATOMBIOS_GET_CV_MODES:
@@ -947,6 +947,11 @@ rhdAtomCVGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
 	    switch (func) {
 		case ATOMBIOS_GET_CV_MODES:
 		    for (i = 0; i < MAX_SUPPORTED_CV_STANDARDS; i++) {
+		        /* my rv730 table has only room for one mode */
+		        if ((void *)&atomDataPtr->ComponentVideoInfo.ComponentVideoInfo_v21->aModeTimings[i] -
+			    atomDataPtr->ComponentVideoInfo.base > size)
+			    break;
+
 			new = rhdAtomDTDTimings(handle,
 						&atomDataPtr->ComponentVideoInfo
 						.ComponentVideoInfo_v21->aModeTimings[i]);
