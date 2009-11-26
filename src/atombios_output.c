@@ -1256,19 +1256,22 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DAC1:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
-	if (!IS_DCE3_VARIANT) {
+	if (IS_DCE32_VARIANT)
+	    index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
+	else {
 	    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
 		index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
 	    else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
 		index = GetIndexIntoMasterTable(COMMAND, CV1OutputControl);
 	    else
 		index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
-	}  else
-	    index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
+	}
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DAC2:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
-	if (!IS_DCE3_VARIANT) {
+	if (IS_DCE32_VARIANT)
+	    index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
+	else {
 	    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
 		index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
 	    else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
@@ -1276,8 +1279,6 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	    else
 		index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
 	}
-	else
-	    index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
 	break;
     }
 
