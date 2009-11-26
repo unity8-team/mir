@@ -1,3 +1,21 @@
+xserver-xorg-video-intel (2:2.9.0-1ubuntu4) lucid; urgency=low
+
+  [Matt Zimmerman]
+  * debian/apport-gpu-error-intel.py, debian/xserver-xorg-video-intel.udev:
+    Add apport script to collect debug information on GPU hangs
+  * rules: Install udev rule to run the script when the kernel detects hung GPU
+  * control: Add intel-gpu-tools to Recommends for use by the above
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 26 Nov 2009 00:53:06 -0800
+
+xserver-xorg-video-intel (2:2.9.0-1ubuntu3) lucid; urgency=low
+
+  * Add 101_copy-fb.patch: Adds feature to driver so Xserver can draw
+    root windows with no background.  This enables smooth boot with
+    Plymouth.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 23 Nov 2009 14:29:44 -0800
+
 xserver-xorg-video-intel (2:2.9.0-1ubuntu2) karmic; urgency=low
 
   * Add 100_drop_fb_from_crtc.patch.  Fixes lockup with black screen on
