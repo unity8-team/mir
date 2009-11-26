@@ -1020,11 +1020,13 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	int cpp = info->CurrentLayout.pixel_bytes;
 	struct radeon_bo *front_bo;
 	uint32_t tiling_flags = 0;
+	PixmapPtr ppix = screen->GetScreenPixmap(screen);
+	void *fb_shadow;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	front_bo = radeon_get_pixmap_bo(screen->GetScreenPixmap(screen));
+	front_bo = info->front_bo;
 	radeon_cs_flush_indirect(scrn);
 
 	if (front_bo)
@@ -1076,9 +1078,23 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (ret)
 		goto fail;
 
-	radeon_set_pixmap_bo(screen->GetScreenPixmap(screen), info->front_bo);
-	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
-				   width, height, -1, -1, pitch * cpp, NULL);
+	if (!info->r600_shadow_fb) {
+		radeon_set_pixmap_bo(screen->GetScreenPixmap(screen), info->front_bo);
+		screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
+					   width, height, -1, -1, pitch * cpp, NULL);
+	} else {
+		if (radeon_bo_map(info->front_bo, 1))
+			goto fail;
+		fb_shadow = xcalloc(1, screen_size);
+		if (fb_shadow == NULL)
+			goto fail;
+		xfree(info->fb_shadow);
+		info->fb_shadow = fb_shadow;
+		screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
+					   width, height, -1, -1, pitch * cpp,
+					   info->fb_shadow);
+	}
+	scrn->pixmapPrivate.ptr = ppix->devPrivate.ptr;
 
 	//	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
 	//		   info->front_bo-);
