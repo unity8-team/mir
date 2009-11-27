@@ -57,62 +57,7 @@ static REF_TRANSFORM trans[2] =
 static void
 R600DoneTexturedVideo(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-    draw_config_t   draw_conf;
-    vtx_resource_t  vtx_res;
-
-    CLEAR (draw_conf);
-    CLEAR (vtx_res);
-
-    if (accel_state->vb_offset == accel_state->vb_start_op) {
-        R600IBDiscard(pScrn, accel_state->ib);
-        r600_vb_discard(pScrn);
-        return;
-    }
-
-    accel_state->vb_size = accel_state->vb_offset;
-
-    /* flush vertex cache */
-    if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
-	(info->ChipFamily == CHIP_FAMILY_RV620) ||
-	(info->ChipFamily == CHIP_FAMILY_RS780) ||
-	(info->ChipFamily == CHIP_FAMILY_RS880) ||
-	(info->ChipFamily == CHIP_FAMILY_RV710))
-	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			    accel_state->vb_size, accel_state->vb_mc_addr,
-			    accel_state->vb_bo, RADEON_GEM_DOMAIN_GTT, 0);
-    else
-	cp_set_surface_sync(pScrn, accel_state->ib, VC_ACTION_ENA_bit,
-			    accel_state->vb_size, accel_state->vb_mc_addr,
-			    accel_state->vb_bo, RADEON_GEM_DOMAIN_GTT, 0);
-
-    /* Vertex buffer setup */
-    accel_state->vb_size -= accel_state->vb_start_op;
-    vtx_res.id              = SQ_VTX_RESOURCE_vs;
-    vtx_res.vtx_size_dw     = 16 / 4;
-    vtx_res.vtx_num_entries = accel_state->vb_size / 4;
-    vtx_res.mem_req_size    = 1;
-    vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
-    vtx_res.bo              = accel_state->vb_bo;
-    set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
-
-    draw_conf.prim_type          = DI_PT_RECTLIST;
-    draw_conf.vgt_draw_initiator = DI_SRC_SEL_AUTO_INDEX;
-    draw_conf.num_instances      = 1;
-    draw_conf.num_indices        = vtx_res.vtx_num_entries / vtx_res.vtx_size_dw;
-    draw_conf.index_type         = DI_INDEX_SIZE_16_BIT;
-
-    draw_auto(pScrn, accel_state->ib, &draw_conf);
-
-    wait_3d_idle_clean(pScrn, accel_state->ib);
-
-    /* sync destination surface */
-    cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
-			accel_state->dst_size, accel_state->dst_mc_addr,
-			accel_state->dst_bo, 0, RADEON_GEM_DOMAIN_VRAM);
-
-    r600_finish_op(pScrn);
+    r600_finish_op(pScrn, 16);
 }
 
 void
@@ -262,9 +207,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 #endif
 
     r600_cp_start(pScrn);
-
-    /* Init */
-    start_3d(pScrn, accel_state->ib);
 
     set_default_state(pScrn, accel_state->ib);
 
@@ -561,8 +503,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
     END_BATCH();
 
-    accel_state->vb_start_op = accel_state->vb_offset;
-
     vs_alu_consts[0] = 1.0 / pPriv->w;
     vs_alu_consts[1] = 1.0 / pPriv->h;
     vs_alu_consts[2] = 0.0;
@@ -594,14 +534,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	int dstX, dstY, dstw, dsth;
 	float *vb;
 
-        if ((accel_state->vb_offset + (3 * 16)) > accel_state->vb_total) {
-            R600DoneTexturedVideo(pScrn);
-	    if (info->cs)
-	        radeon_cs_flush_indirect(pScrn);
-	    r600_cp_start(pScrn);
-        }
-
-        vb = (pointer)((char*)accel_state->vb_ptr+accel_state->vb_offset);
+	vb = r600_vb_space(pScrn, 16);
 
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
@@ -633,7 +566,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	vb[10] = (float)(srcX + srcw);
 	vb[11] = (float)(srcY + srch);
 
-	accel_state->vb_offset += 3 * 16;
+	r600_vb_update(accel_state, 16);
 
 	pBox++;
     }

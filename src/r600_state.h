@@ -326,8 +326,7 @@ void
 r600_vb_discard(ScrnInfoPtr pScrn);
 int
 r600_cp_start(ScrnInfoPtr pScrn);
-void
-r600_finish_op(ScrnInfoPtr pScrn);
+void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size);
 
 extern Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index);
 extern void RADEONFinishAccess_CS(PixmapPtr pPix, int index);
@@ -335,5 +334,26 @@ extern void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align);
 extern void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv);
 extern struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix);
 extern Bool RADEONEXAPixmapIsOffscreen(PixmapPtr pPix);
+
+
+static inline float *
+r600_vb_space(ScrnInfoPtr pScrn, int vert_size)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+    float *vb;
+
+    if ((accel_state->vb_offset + (3 * vert_size)) > accel_state->vb_total) {
+	r600_finish_op(pScrn, vert_size);
+	if (info->cs)
+	    radeon_cs_flush_indirect(pScrn);
+	r600_cp_start(pScrn);
+    }
+    vb = (pointer)((char *)accel_state->vb_ptr + accel_state->vb_offset);
+    return vb;
+}
+
+#define r600_vb_update(accel_state, vert_size) do { (accel_state)->vb_offset += (3 * (vert_size)); } while(0)
+
 
 #endif

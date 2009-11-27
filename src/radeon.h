@@ -708,7 +708,8 @@ struct radeon_accel_state {
     int               vb_total;
     void              *vb_ptr;
     uint32_t          vb_size;
-    struct radeon_bo  *vb_bo;
+    struct radeon_bo  *vb_bo[2];
+    int               vb_bo_index;
     uint32_t          vb_start_op;
     /* where to discard IB from if we cancel operation */
     uint32_t          ib_reset_op;

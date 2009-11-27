@@ -39,6 +39,16 @@
 
 #include "radeon_drm.h"
 
+/* we try and batch operations together under KMS -
+   but it doesn't work yet without misrendering */
+#define KMS_MULTI_OP 0
+
+#if KMS_MULTI_OP
+#define VBO_SIZE (16*1024)
+#else
+#define VBO_SIZE (4*1024)
+#endif
+
 /* Flush the indirect buffer to the kernel for submission to the card */
 void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib)
 {
@@ -90,7 +100,7 @@ void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib)
 	    return;
 	}
 	if (info->accel_state->vb_ptr) {
-	    radeon_bo_unmap(info->accel_state->vb_bo);
+	    radeon_bo_unmap(info->accel_state->vb_bo[info->accel_state->vb_bo_index]);
 	    info->accel_state->vb_ptr = NULL;
 	    info->accel_state->vb_offset = 0;
 	    info->accel_state->vb_start_op = 0;
@@ -723,15 +733,15 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
 
-    memset(&tex_res, 0, sizeof(tex_resource_t));
-    memset(&fs_conf, 0, sizeof(shader_config_t));
-
     if (accel_state->XInited3D)
 	return;
 
+    memset(&tex_res, 0, sizeof(tex_resource_t));
+    memset(&fs_conf, 0, sizeof(shader_config_t));
+
     accel_state->XInited3D = TRUE;
 
-    wait_3d_idle(pScrn, ib);
+    start_3d(pScrn, accel_state->ib);
 
     // ASIC specific setup, see drm
     BEGIN_BATCH(15);
@@ -1166,21 +1176,29 @@ r600_vb_get(ScrnInfoPtr pScrn)
 #if defined(XF86DRM_MODE)
     int ret;
     if (info->cs) {
-	if (accel_state->vb_bo == NULL) {
-	    accel_state->vb_mc_addr = 0;
-	    accel_state->vb_bo = radeon_bo_open(info->bufmgr, 0, 16 * 1024,
+	if (accel_state->vb_bo[0] == NULL) {
+	    accel_state->vb_bo[0] = radeon_bo_open(info->bufmgr, 0, VBO_SIZE,
 						0, RADEON_GEM_DOMAIN_GTT, 0);
-	    if (accel_state->vb_bo == NULL)
+	    if (accel_state->vb_bo[0] == NULL)
 		return FALSE;
-	    accel_state->vb_total = 16 * 1024;
+	    accel_state->vb_mc_addr = 0;
+	    accel_state->vb_total = VBO_SIZE;
+	    accel_state->vb_bo_index = 1;
+	}
+	if (accel_state->vb_bo[1] == NULL) {
+	    accel_state->vb_bo[1] = radeon_bo_open(info->bufmgr, 0, VBO_SIZE,
+						   0, RADEON_GEM_DOMAIN_GTT, 0);
+	    if (accel_state->vb_bo[1] == NULL)
+		return FALSE;
 	}
 	if (!accel_state->vb_ptr) {
-	    ret = radeon_bo_map(accel_state->vb_bo, 1);
+	    accel_state->vb_bo_index = !(accel_state->vb_bo_index);
+	    ret = radeon_bo_map(accel_state->vb_bo[accel_state->vb_bo_index], 1);
 	    if (ret) {
 		FatalError("failed to vb %d\n", ret);
 		return FALSE;
 	    }
-	    accel_state->vb_ptr = accel_state->vb_bo->ptr;
+	    accel_state->vb_ptr = accel_state->vb_bo[accel_state->vb_bo_index]->ptr;
 	}
     } else
 #endif
@@ -1215,12 +1233,13 @@ r600_cp_start(ScrnInfoPtr pScrn)
 	}
 	if (!r600_vb_get(pScrn))
 	    return -1;
-	if (accel_state->vb_bo)
-	  radeon_cs_space_add_persistent_bo(info->cs, accel_state->vb_bo,
+	if (accel_state->vb_bo[accel_state->vb_bo_index])
+	  radeon_cs_space_add_persistent_bo(info->cs, accel_state->vb_bo[accel_state->vb_bo_index],
 					    RADEON_GEM_DOMAIN_GTT, 0);
 
 	radeon_cs_space_check(info->cs);
 	accel_state->ib_reset_op = info->cs->cdw;
+	accel_state->vb_start_op = accel_state->vb_offset;
     } else
 #endif
     {
@@ -1232,13 +1251,70 @@ r600_cp_start(ScrnInfoPtr pScrn)
     return 0;
 }
 
-void r600_finish_op(ScrnInfoPtr pScrn)
+void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
+    draw_config_t   draw_conf;
+    vtx_resource_t  vtx_res;
     
+    CLEAR (draw_conf);
+    CLEAR (vtx_res);
+
+    if (accel_state->vb_offset == accel_state->vb_start_op) {
+        R600IBDiscard(pScrn, accel_state->ib);
+	r600_vb_discard(pScrn);
+	return;
+    }
+
+    /* flush vertex cache */
+    if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
+	(info->ChipFamily == CHIP_FAMILY_RV620) ||
+	(info->ChipFamily == CHIP_FAMILY_RS780) ||
+	(info->ChipFamily == CHIP_FAMILY_RS880) ||
+	(info->ChipFamily == CHIP_FAMILY_RV710))
+	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
+			    accel_state->vb_offset, accel_state->vb_mc_addr,
+			    accel_state->vb_bo[accel_state->vb_bo_index],
+			    RADEON_GEM_DOMAIN_GTT, 0);
+    else
+	cp_set_surface_sync(pScrn, accel_state->ib, VC_ACTION_ENA_bit,
+			    accel_state->vb_offset, accel_state->vb_mc_addr,
+			    accel_state->vb_bo[accel_state->vb_bo_index],
+			    RADEON_GEM_DOMAIN_GTT, 0);
+
+    /* Vertex buffer setup */
+    accel_state->vb_size = accel_state->vb_offset - accel_state->vb_start_op;
+    vtx_res.id              = SQ_VTX_RESOURCE_vs;
+    vtx_res.vtx_size_dw     = vtx_size / 4;
+    vtx_res.vtx_num_entries = accel_state->vb_size / 4;
+    vtx_res.mem_req_size    = 1;
+    vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
+    vtx_res.bo              = accel_state->vb_bo[accel_state->vb_bo_index];
+    set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
+
+    /* Draw */
+    draw_conf.prim_type          = DI_PT_RECTLIST;
+    draw_conf.vgt_draw_initiator = DI_SRC_SEL_AUTO_INDEX;
+    draw_conf.num_instances      = 1;
+    draw_conf.num_indices        = vtx_res.vtx_num_entries / vtx_res.vtx_size_dw;
+    draw_conf.index_type         = DI_INDEX_SIZE_16_BIT;
+
+    draw_auto(pScrn, accel_state->ib, &draw_conf);
+
+    wait_3d_idle_clean(pScrn, accel_state->ib);
+
+    /* sync dst surface */
+    cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
+			accel_state->dst_size, accel_state->dst_mc_addr,
+			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
+
     accel_state->vb_start_op = 0;
     accel_state->ib_reset_op = 0;
 
-    R600CPFlushIndirect(pScrn, accel_state->ib);
+#if KMS_MULTI_OP
+    if (!info->cs)
+#endif
+	R600CPFlushIndirect(pScrn, accel_state->ib);
 }
+
