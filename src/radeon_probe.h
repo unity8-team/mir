@@ -286,17 +286,16 @@ typedef struct _RADEONOutputPrivateRec {
 
     int pixel_clock;
 
-    // DP - special DP I2C bus
+    /* DP - aux bus*/
     I2CBusPtr dp_pI2CBus;
-    char dp_bus_name[20];
-    uint32_t dp_i2c_addr, dp_i2c_running;
-    uint8_t dpcp8[8];
     uint8_t ucI2cId;
+    char dp_bus_name[20];
+    uint32_t dp_i2c_addr;
+    Bool dp_i2c_running;
+    /* DP - general config */
+    uint8_t dpcd[8];
     int dp_lane_count;
-    int dp_link_bw;
     int dp_clock;
-#define DP_LINK_CONFIGURATION_SIZE 9
-    uint8_t dp_link_configuration[DP_LINK_CONFIGURATION_SIZE];
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {

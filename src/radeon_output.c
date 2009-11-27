@@ -371,7 +371,7 @@ radeon_ddc_connected(xf86OutputPtr output)
 
 	    if (ret == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
 		MonType = MT_DP;
-		RADEON_DP_GetDPCP(output);
+		RADEON_DP_GetDPCD(output);
 	    } else
 		MonType = MT_DFP;
 	    break;

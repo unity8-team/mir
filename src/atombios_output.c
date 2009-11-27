@@ -65,7 +65,7 @@ const char *device_name[12] = {
     "DFP5",
 };
 
-static void do_displayport_dance(xf86OutputPtr output);
+static void do_displayport_link_train(xf86OutputPtr output);
 
 static void atombios_set_output_crtc_source(xf86OutputPtr output);
 
@@ -485,7 +485,7 @@ dp_lanes_for_mode_clock(RADEONOutputPrivatePtr radeon_output,
 			int mode_clock)
 {
     int i;
-    int max_link_bw = radeon_output->dpcp8[1];
+    int max_link_bw = radeon_output->dpcd[1];
 
     switch (max_link_bw) {
     case DP_LINK_BW_1_62:
@@ -525,7 +525,7 @@ dp_link_clock_for_mode_clock(RADEONOutputPrivatePtr radeon_output,
 			     int mode_clock)
 {
     int i;
-    int max_link_bw = radeon_output->dpcp8[1];
+    int max_link_bw = radeon_output->dpcd[1];
 
     switch (max_link_bw) {
     case DP_LINK_BW_1_62:
@@ -1340,7 +1340,7 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	if (is_dig) {
 	    atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
 	    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT && radeon_output->MonType == MT_DP) {
-	      do_displayport_dance(output);
+	      do_displayport_link_train(output);
 	    }
 	}
 	else {
@@ -1738,32 +1738,32 @@ atombios_dac_detect(xf86OutputPtr output)
     return MonType;
 }
 
-#define AUX_NATIVE_WRITE 0x8
-#define AUX_NATIVE_READ 0x9
+#define AUX_NATIVE_WRITE                    0x8
+#define AUX_NATIVE_READ                     0x9
 
-#define AUX_I2C_WRITE 0x0
-#define AUX_I2C_READ 0x1
-#define AUX_I2C_STATUS 0x2
-#define AUX_I2C_MOT 0x4
+#define AUX_I2C_WRITE                       0x0
+#define AUX_I2C_READ                        0x1
+#define AUX_I2C_STATUS                      0x2
+#define AUX_I2C_MOT                         0x4
 
-#define DP_DPCP_REV 0x0
-#define DP_MAX_LINK_RATE 0x1
-#define DP_MAX_LANE_COUNT 0x2
-#define DP_MAX_DOWNSPREAD 0x3
-#define DP_NORP 0x4
-#define DP_DOWNSTREAMPORT_PRESENT 0x5
-#define DP_MAIN_LINK_CHANNEL_CONFIG 0x6
-#define DP_DP11_DOWNSTREAM_PORT_COUNT 0x7
+#define DP_DPCD_REV                         0x0
+#define DP_MAX_LINK_RATE                    0x1
+#define DP_MAX_LANE_COUNT                   0x2
+#define DP_MAX_DOWNSPREAD                   0x3
+#define DP_NORP                             0x4
+#define DP_DOWNSTREAMPORT_PRESENT           0x5
+#define DP_MAIN_LINK_CHANNEL_CONFIG         0x6
+#define DP_DP11_DOWNSTREAM_PORT_COUNT       0x7
 
 /* from intel i830_dp.h */
-#define DP_LINK_BW_SET          0x100
+#define DP_LINK_BW_SET                      0x100
 //# define DP_LINK_BW_1_62                    0x06
 //# define DP_LINK_BW_2_7                     0x0a
-#define DP_LANE_COUNT_SET       0x101
+#define DP_LANE_COUNT_SET                   0x101
 # define DP_LANE_COUNT_MASK                 0x0f
 # define DP_LANE_COUNT_ENHANCED_FRAME_EN    (1 << 7)
 
-#define DP_TRAINING_PATTERN_SET 0x102
+#define DP_TRAINING_PATTERN_SET             0x102
 
 # define DP_TRAINING_PATTERN_DISABLE        0
 # define DP_TRAINING_PATTERN_1              1
@@ -1838,7 +1838,8 @@ atombios_dac_detect(xf86OutputPtr output)
 #define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 #define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
 
-#define DP_LINK_STATUS_SIZE 6
+#define DP_LINK_STATUS_SIZE                 6
+#define DP_LINK_CONFIGURATION_SIZE          9
 
 #define DP_SET_POWER_D0  0x1
 #define DP_SET_POWER_D3  0x2
@@ -1963,7 +1964,8 @@ static Bool atom_dp_aux_native_write(xf86OutputPtr output, uint16_t address,
     dp_msg_len += send_bytes;
     msg[3] = (dp_msg_len << 4)| (send_bytes - 1);
 
-    ErrorF("writing %02x %02x %02x, %d, %d\n", msg[0], msg[1], msg[3], send_bytes, dp_msg_len);
+    if (0)
+	ErrorF("writing %02x %02x %02x, %d, %d\n", msg[0], msg[1], msg[3], send_bytes, dp_msg_len);
     if (send_bytes > 16)
 	return FALSE;
 
@@ -1989,37 +1991,36 @@ static Bool atom_dp_aux_native_read(xf86OutputPtr output, uint16_t address,
     msg[3] = (dp_msg_len) << 4;
     msg[3] |= expected_bytes - 1;
 
-    ErrorF("reading %02x %02x %02x, %d, %d\n", msg[0], msg[1], msg[3], expected_bytes, dp_msg_len);
+    if (0)
+	ErrorF("reading %02x %02x %02x, %d, %d\n", msg[0], msg[1], msg[3], expected_bytes, dp_msg_len);
     ret = RADEONProcessAuxCH(output, msg, msg_len, read_p, expected_bytes, delay);
     return ret;
 }
 
-/* fill out the DPCP structure */
-void RADEON_DP_GetDPCP(xf86OutputPtr output)
+/* fill out the DPCD structure */
+void RADEON_DP_GetDPCD(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     uint8_t msg[25];
     int ret;
 
-    ret = atom_dp_aux_native_read(output, DP_DPCP_REV, 0, 8, msg);
+    ret = atom_dp_aux_native_read(output, DP_DPCD_REV, 0, 8, msg);
     if (ret) {
-	memcpy(radeon_output->dpcp8, msg, 8);
-	{
+	memcpy(radeon_output->dpcd, msg, 8);
+	if (0) {
 	    int i;
-	    ErrorF("DPCP: ");
+	    ErrorF("DPCD: ");
 	    for (i = 0; i < 8; i++)
-		ErrorF("%02x ", radeon_output->dpcp8[i]);
+		ErrorF("%02x ", radeon_output->dpcd[i]);
 	    ErrorF("\n");
 	}
 	ret = atom_dp_aux_native_read(output, DP_LINK_BW_SET, 0, 2, msg);
-	if (ret) {
+	if (0) {
 	    ErrorF("0x200: %02x %02x\n", msg[0], msg[1]);
 	}
 	return;
     }
-    radeon_output->dpcp8[0] = 0;
-
-
+    radeon_output->dpcd[0] = 0;
     return;
 }
 
@@ -2283,9 +2284,6 @@ static char     *voltage_names[] = {
 static char     *pre_emph_names[] = {
         "0dB", "3.5dB", "6dB", "9.5dB"
 };
-static char     *link_train_names[] = {
-        "pattern 1", "pattern 2", "idle", "off"
-};
 
 /*
  * These are source-specific values; current Intel hardware supports
@@ -2314,31 +2312,11 @@ static void dp_set_training(xf86OutputPtr output, uint8_t training)
     atom_dp_aux_native_write(output, DP_TRAINING_PATTERN_SET, 1, &training);
 }
 
-static Bool
-atom_dp_set_link_train(xf86OutputPtr output, uint8_t dp_train_pat, uint8_t train_set[4])
-{
-    //int ret;
-    //int enc_id = atom_dp_get_encoder_id(output);
-    //int i;
-    /* set DP encoder training start */
-
-    xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-	       "Training  trying link voltage %x pre-emphasis\n", train_set[0]);
-
-    usleep(400);
-
-    /* set DP encoder training start */
-    dp_set_training(output, dp_train_pat);
-
-    return TRUE;
-}
-
 static void dp_set_power(xf86OutputPtr output, uint8_t power_state)
 {
-    //uint8_t pstate;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    if (radeon_output->dpcp8[0] >= 0x11) {
+    if (radeon_output->dpcd[0] >= 0x11) {
 	atom_dp_aux_native_write(output, 0x600, 1, &power_state);
     }
 }
@@ -2358,7 +2336,7 @@ dp_get_adjust_train(xf86OutputPtr output,
 	uint8_t this_v = dp_get_adjust_request_voltage(link_status, lane);
 	uint8_t this_p = dp_get_adjust_request_pre_emphasis(link_status, lane);
 
-	if  (1) {
+	if (0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "requested signal parameters: lane %d voltage %s pre_emph %s\n",
 		       lane,
@@ -2377,7 +2355,7 @@ dp_get_adjust_train(xf86OutputPtr output,
     if (p >= dp_pre_emphasis_max(v))
 	p = dp_pre_emphasis_max(v) | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
-    if (1) {
+    if (0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "using signal parameters: voltage %s pre_emph %s\n",
 		   voltage_names[(v & DP_TRAIN_VOLTAGE_SWING_MASK) >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
@@ -2392,8 +2370,8 @@ static int radeon_dp_max_lane_count(xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int max_lane_count = 4;
 
-    if (radeon_output->dpcp8[0] >= 0x11) {
-	max_lane_count = radeon_output->dpcp8[2] & 0x1f;
+    if (radeon_output->dpcd[0] >= 0x11) {
+	max_lane_count = radeon_output->dpcd[2] & 0x1f;
 	switch(max_lane_count) {
 	case 1: case 2: case 4:
 	    break;
@@ -2407,7 +2385,7 @@ static int radeon_dp_max_lane_count(xf86OutputPtr output)
 static int radeon_dp_max_link_bw(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int max_link_bw = radeon_output->dpcp8[1];
+    int max_link_bw = radeon_output->dpcd[1];
     switch(max_link_bw) {
     case DP_LINK_BW_1_62:
     case DP_LINK_BW_2_7:
@@ -2447,31 +2425,18 @@ Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayMode
 	    int link_avail = radeon_dp_link_clock(bws[clock]) * lane_count;
 
 	    if (radeon_dp_link_required(mode->Clock) <= link_avail) {
-		radeon_output->dp_link_bw = bws[clock];
 		radeon_output->dp_lane_count = lane_count;
-		radeon_output->dp_clock = radeon_dp_link_clock(radeon_output->dp_link_bw);
-		if (1)
+		radeon_output->dp_clock = radeon_dp_link_clock(bws[clock]);
+		if (0)
 			xf86DrvMsg(0, X_INFO,
-				   "link_bw %d lane_count %d clock %d\n",
-				   radeon_output->dp_link_bw, radeon_output->dp_lane_count,
+				   "lane_count %d clock %d\n",
+				   radeon_output->dp_lane_count,
 				   radeon_output->dp_clock);
 		return TRUE;
 	    }
 	}
     }
     return FALSE;
-}
-
-static void radeon_dp_mode_set(xf86OutputPtr output)
-{
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    memset(radeon_output->dp_link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
-    radeon_output->dp_link_configuration[0] = radeon_output->dp_link_bw;
-    radeon_output->dp_link_configuration[1] = radeon_output->dp_lane_count;
-
-    if (radeon_output->dpcp8[0] >= 0x11) {
-	radeon_output->dp_link_configuration[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
-    }
 }
 
 static void dp_update_dpvs_emph(xf86OutputPtr output, uint8_t train_set[4])
@@ -2484,11 +2449,10 @@ static void dp_update_dpvs_emph(xf86OutputPtr output, uint8_t train_set[4])
     atom_dp_aux_native_write(output, DP_TRAINING_LANE0_SET, radeon_output->dp_lane_count, train_set);
 }
 
-static void do_displayport_dance(xf86OutputPtr output)
+static void do_displayport_link_train(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int num_lane = radeon_output->dp_lane_count;
     int enc_id = atom_dp_get_encoder_id(output);
     Bool clock_recovery;
     uint8_t link_status[DP_LINK_STATUS_SIZE];
@@ -2496,77 +2460,56 @@ static void do_displayport_dance(xf86OutputPtr output)
     uint8_t train_set[4];
     int i;
     Bool channel_eq;
+    uint8_t dp_link_configuration[DP_LINK_CONFIGURATION_SIZE];
 
-
-    /* see if the link is trained */
-#if 0
-    if (atom_dp_get_link_status(output, link_status)) {
-	ErrorF("XXXXXXXXXXXXXXXXXX\n");
-	if (dp_channel_eq_ok(link_status, radeon_output->dp_lane_count))
-	    return;
-    }
-#endif
-
-    ErrorF("Doing displayport DANCE lanes:%d\n", num_lane);
-
-#if 0
-    ret = radeon_dp_mode_fixup(output, mode, adjusted_mode);
-    if (ret == FALSE) {
-	ErrorF("Doing displayport DANCE failed to fixup\n");
-	return;
-    }
-#endif
     memset(train_set, 0, 4);
 
-    ErrorF("radeon_dp_mode_set\n");
     /* set up link configuration */
-    radeon_dp_mode_set(output);
+    memset(dp_link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
 
-    ErrorF("dp_set_power\n");
+    if (radeon_output->dp_clock == 270000)
+	dp_link_configuration[0] = DP_LINK_BW_2_7;
+    else
+	dp_link_configuration[0] = DP_LINK_BW_1_62;
+    dp_link_configuration[1] = radeon_output->dp_lane_count;
+
+    if (radeon_output->dpcd[0] >= 0x11) {
+	dp_link_configuration[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+    }
+
     /* power up to D0 */
     dp_set_power(output, DP_SET_POWER_D0);
 
-    ErrorF("dp_set_training\n");
     /* disable training */
     dp_set_training(output, DP_TRAINING_PATTERN_DISABLE);
 
-    ErrorF("atom_dp_aux_native_write - link rate / num /framing\n");
     /* write link rate / num / eh framing */
     atom_dp_aux_native_write(output, DP_LINK_BW_SET, 2,
-			     radeon_output->dp_link_configuration);
+			     dp_link_configuration);
 
     /* write ss cntl */
     ss_cntl = 0;
     atom_dp_aux_native_write(output, DP_DOWNSPREAD_CTRL, 1,
 			     &ss_cntl);
 
-    ErrorF("RADEONDPEncoderService - ATOM_DP_ACTION_TRAINING_START\n");
     /* start local training start */
     RADEONDPEncoderService(output, ATOM_DP_ACTION_TRAINING_START, enc_id, 0);
-
-    ErrorF("RADEONDPEncoderService - ATOM_DP_ACTION_TRAINING_PATTERN_SEL\n");
     RADEONDPEncoderService(output, ATOM_DP_ACTION_TRAINING_PATTERN_SEL, enc_id, 0);
 
-    ErrorF("dp_update_dpvs_emph\n");
     usleep(400);
-    ErrorF("dp_set_training - DP_TRAINING_PATTERN_1\n");
     dp_set_training(output, DP_TRAINING_PATTERN_1);
-
     dp_update_dpvs_emph(output, train_set);
 
-    ErrorF("start loop 1\n");
     /* loop around doing configuration reads and DP encoder setups */
     clock_recovery = FALSE;
     tries = 0;
     voltage = 0xff;
     for (;;) {
       	usleep(100);
-	ErrorF("atom_dp_get_link_status\n");
 	if (!atom_dp_get_link_status(output, link_status))
 	    break;
 
-	ErrorF("dp_clock_recovery_ok\n");
-	if (dp_clock_recovery_ok(link_status, num_lane)) {
+	if (dp_clock_recovery_ok(link_status, radeon_output->dp_lane_count)) {
 	    clock_recovery = TRUE;
 	    break;
 	}
@@ -2593,40 +2536,26 @@ static void do_displayport_dance(xf86OutputPtr output)
 
 	voltage = train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 
-	ErrorF("dp_get_adjust_train\n");
         dp_get_adjust_train(output, link_status, radeon_output->dp_lane_count, train_set);
-	ErrorF("dp_update_dpvs_emph\n");
 	dp_update_dpvs_emph(output, train_set);
 
     }
-    ErrorF("end loop 1\n");
+
     if (!clock_recovery)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "clock recovery failed\n");
-    else if (1)
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "clock recovery at voltage %d pre-emphasis %d\n",
-                   train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
-                   (train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK) >>
-                   DP_TRAIN_PRE_EMPHASIS_SHIFT);
 
     /* channel equalization */
     tries = 0;
     channel_eq = FALSE;
-    ErrorF("dp_set_training - DP_TRAINING_PATTERN_2\n");
     dp_set_training(output, DP_TRAINING_PATTERN_2);
-    ErrorF("RADEONDPEncoderService - ATOM_DP_ACTION_TRAINING_PATTERN_SEL\n");
     RADEONDPEncoderService(output, ATOM_DP_ACTION_TRAINING_PATTERN_SEL, enc_id, 1);
 
-    ErrorF("start loop 2\n");
     for (;;) {
-
 	usleep(400);
-	ErrorF("atom_dp_get_link_status\n");
 	if (!atom_dp_get_link_status(output, link_status))
 	    break;
 
-	ErrorF("dp_channel_eq_ok\n");
 	if (dp_channel_eq_ok(link_status, radeon_output->dp_lane_count)) {
 	    channel_eq = TRUE;
 	    break;
@@ -2640,27 +2569,17 @@ static void do_displayport_dance(xf86OutputPtr output)
 	}
 
 	/* Compute new train_set as requested by target */
-	ErrorF("dp_get_adjust_train\n");
         dp_get_adjust_train(output, link_status, radeon_output->dp_lane_count, train_set);
-	ErrorF("dp_update_dpvs_emph\n");
 	dp_update_dpvs_emph(output, train_set);
 
 	++tries;
     }
-    ErrorF("end loop 2\n");
+
     if (!channel_eq)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "channel eq failed\n");
-    else if (1) //pI830->debug_modes)
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "channel eq at voltage %d pre-emphasis %d\n",
-		   train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
-		   (train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK)
-		   >> DP_TRAIN_PRE_EMPHASIS_SHIFT);
 
-    ErrorF("dp_set_training - DP_TRAINING_PATTERN_DISABLE\n");
     dp_set_training(output, DP_TRAINING_PATTERN_DISABLE);
-    ErrorF("RADEONDPEncoderService - ATOM_DP_ACTION_TRAINING_COMPLETE\n");
     RADEONDPEncoderService(output, ATOM_DP_ACTION_TRAINING_COMPLETE, enc_id, 0);
 
 }
