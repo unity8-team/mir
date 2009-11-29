@@ -77,6 +77,87 @@ void i830_uxa_block_handler(ScreenPtr pScreen);
 Bool i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			     int num_bos);
 
+/* classic doubly-link circular list */
+struct list {
+	struct list *next, *prev;
+};
+
+static void
+list_init(struct list *list)
+{
+	list->next = list->prev = list;
+}
+
+static inline void
+__list_add(struct list *entry,
+	    struct list *prev,
+	    struct list *next)
+{
+	next->prev = entry;
+	entry->next = next;
+	entry->prev = prev;
+	prev->next = entry;
+}
+
+static inline void
+list_add(struct list *entry, struct list *head)
+{
+	__list_add(entry, head, head->next);
+}
+
+static inline void
+__list_del(struct list *prev, struct list *next)
+{
+	next->prev = prev;
+	prev->next = next;
+}
+
+static inline void
+list_del(struct list *entry)
+{
+	__list_del(entry->prev, entry->next);
+	list_init(entry);
+}
+
+static inline Bool
+list_is_empty(struct list *head)
+{
+	return head->next == head;
+}
+
+#ifndef container_of
+#define container_of(ptr, type, member) \
+	(type *)((char *)(ptr) - (char *) &((type *)0)->member)
+#endif
+
+#define list_entry(ptr, type, member) \
+	container_of(ptr, type, member)
+
+#define list_first_entry(ptr, type, member) \
+	list_entry((ptr)->next, type, member)
+
+struct intel_pixmap {
+	dri_bo *bo;
+	uint32_t tiling;
+	uint32_t flush_write_domain;
+	uint32_t flush_read_domains;
+	uint32_t batch_write_domain;
+	uint32_t batch_read_domains;
+	struct list flush, batch;
+};
+
+struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap);
+
+static inline Bool i830_uxa_pixmap_is_dirty(PixmapPtr pixmap)
+{
+	return i830_get_pixmap_intel(pixmap)->flush_write_domain != 0;
+}
+
+static inline Bool i830_pixmap_tiled(PixmapPtr pixmap)
+{
+	return i830_get_pixmap_intel(pixmap)->tiling != I915_TILING_NONE;
+}
+
 dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap);
 void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo);
 
@@ -194,6 +275,8 @@ typedef struct intel_screen_private {
 	Bool in_batch_atomic;
 	/** Ending batch_used that was verified by i830_start_batch_atomic() */
 	int batch_atomic_limit;
+	struct list batch_pixmaps;
+	struct list flush_pixmaps;
 
 	/* For Xvideo */
 	Bool use_drmmode_overlay;

@@ -79,31 +79,6 @@ const int I830PatternROP[16] = {
 
 static int uxa_pixmap_index;
 
-/**
- * Returns whether a given pixmap is tiled or not.
- *
- * Currently, we only have one pixmap that might be tiled, which is the front
- * buffer.  At the point where we are tiling some pixmaps managed by the
- * general allocator, we should move this to using pixmap privates.
- */
-Bool i830_pixmap_tiled(PixmapPtr pixmap)
-{
-	dri_bo *bo;
-	uint32_t tiling_mode, swizzle_mode;
-	int ret;
-
-	bo = i830_get_pixmap_bo(pixmap);
-	assert(bo != NULL);
-
-	ret = drm_intel_bo_get_tiling(bo, &tiling_mode, &swizzle_mode);
-	if (ret != 0) {
-		FatalError("Couldn't get tiling on bo %p: %s\n",
-			   bo, strerror(-ret));
-	}
-
-	return tiling_mode != I915_TILING_NONE;
-}
-
 Bool
 i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			int num_bos)
@@ -141,6 +116,62 @@ static int i830_pixmap_pitch_is_aligned(PixmapPtr pixmap)
 
 	return i830_pixmap_pitch(pixmap) %
 	    intel->accel_pixmap_pitch_alignment == 0;
+}
+
+static unsigned int
+i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
+			     int w, int h,
+			     uint32_t *tiling,
+			     int *stride)
+{
+	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	int pitch_align;
+	int size;
+
+	if (*tiling != I915_TILING_NONE) {
+		/* First check whether tiling is necessary. */
+		pitch_align = intel->accel_pixmap_pitch_alignment;
+		size = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
+				pitch_align) * ALIGN (h, 2);
+		if (size < 4096)
+			*tiling = I915_TILING_NONE;
+	}
+
+	if (*tiling == I915_TILING_NONE) {
+		pitch_align = intel->accel_pixmap_pitch_alignment;
+	} else {
+		pitch_align = 512;
+	}
+
+	*stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
+			   pitch_align);
+
+	if (*tiling == I915_TILING_NONE) {
+		/* Round the height up so that the GPU's access to a 2x2 aligned
+		 * subspan doesn't address an invalid page offset beyond the
+		 * end of the GTT.
+		 */
+		size = *stride * ALIGN(h, 2);
+	} else {
+		int aligned_h = h;
+		if (*tiling == I915_TILING_X)
+			aligned_h = ALIGN(h, 8);
+		else
+			aligned_h = ALIGN(h, 32);
+
+		*stride = i830_get_fence_pitch(intel, *stride, *tiling);
+		/* Round the object up to the size of the fence it will live in
+		 * if necessary.  We could potentially make the kernel allocate
+		 * a larger aperture space and just bind the subset of pages in,
+		 * but this is easier and also keeps us out of trouble (as much)
+		 * with drm_intel_bufmgr_check_aperture().
+		 */
+		size = i830_get_fence_size(intel, *stride * aligned_h);
+		assert(size >= *stride * aligned_h);
+	}
+
+	return size;
 }
 
 /**
@@ -452,25 +483,71 @@ Bool i830_transform_is_affine(PictTransformPtr t)
 	return t->matrix[2][0] == 0 && t->matrix[2][1] == 0;
 }
 
-dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap)
+struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap)
 {
 	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
 }
 
-void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
+static void i830_uxa_set_pixmap_intel(PixmapPtr pixmap, struct intel_pixmap *intel)
 {
-	dri_bo *old_bo = i830_get_pixmap_bo(pixmap);
-
-	if (old_bo)
-		dri_bo_unreference(old_bo);
-	if (bo != NULL)
-		dri_bo_reference(bo);
-	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
+	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, intel);
 }
 
-static void i830_uxa_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
+dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap)
 {
-	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
+	struct intel_pixmap *intel;
+
+	intel = i830_get_pixmap_intel(pixmap);
+	if (intel == NULL)
+		return NULL;
+
+	return intel->bo;
+}
+
+void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
+{
+	struct intel_pixmap *priv;
+
+	priv = i830_get_pixmap_intel(pixmap);
+
+	if (priv != NULL) {
+		dri_bo_unreference(priv->bo);
+
+		priv->flush_read_domains = priv->flush_write_domain = 0;
+		priv->batch_read_domains = priv->batch_write_domain = 0;
+		list_del(&priv->batch);
+		list_del(&priv->flush);
+	}
+
+	if (bo != NULL) {
+		uint32_t swizzle_mode;
+		int ret;
+
+		if (priv == NULL) {
+			priv = xcalloc(1, sizeof (struct intel_pixmap));
+			if (priv == NULL)
+				goto BAIL;
+		}
+
+		dri_bo_reference(bo);
+		priv->bo = bo;
+
+		ret = drm_intel_bo_get_tiling(bo,
+					      &priv->tiling,
+					      &swizzle_mode);
+		if (ret != 0) {
+			FatalError("Couldn't get tiling on bo %p: %s\n",
+				   bo, strerror(-ret));
+		}
+	} else {
+		if (priv != NULL) {
+			xfree(priv);
+			priv = NULL;
+		}
+	}
+
+  BAIL:
+	i830_uxa_set_pixmap_intel(pixmap, priv);
 }
 
 static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
@@ -562,8 +639,6 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	dri_bo *bo;
-	int stride;
 	PixmapPtr pixmap;
 
 	if (w > 32767 || h > 32767)
@@ -575,46 +650,25 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	pixmap = fbCreatePixmap(screen, 0, 0, depth, usage);
 
 	if (w && h) {
+		struct intel_pixmap *priv;
 		unsigned int size;
-		uint32_t tiling = I915_TILING_NONE;
-		int pitch_align;
+		int stride;
 
-		if (usage == INTEL_CREATE_PIXMAP_TILING_X) {
-			tiling = I915_TILING_X;
-			pitch_align = 512;
-		} else if (usage == INTEL_CREATE_PIXMAP_TILING_Y) {
-			tiling = I915_TILING_Y;
-			pitch_align = 512;
-		} else {
-			pitch_align = intel->accel_pixmap_pitch_alignment;
+		priv = xcalloc(1, sizeof (struct intel_pixmap));
+		if (priv == NULL) {
+			fbDestroyPixmap(pixmap);
+			return NullPixmap;
 		}
 
-		stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
-				  pitch_align);
+		if (usage == INTEL_CREATE_PIXMAP_TILING_X)
+			priv->tiling = I915_TILING_X;
+		else if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
+			priv->tiling = I915_TILING_Y;
+		else
+			priv->tiling = I915_TILING_NONE;
 
-		if (tiling == I915_TILING_NONE) {
-			/* Round the height up so that the GPU's access to a 2x2 aligned
-			 * subspan doesn't address an invalid page offset beyond the
-			 * end of the GTT.
-			 */
-			size = stride * ALIGN(h, 2);
-		} else {
-			int aligned_h = h;
-			if (tiling == I915_TILING_X)
-				aligned_h = ALIGN(h, 8);
-			else
-				aligned_h = ALIGN(h, 32);
-
-			stride = i830_get_fence_pitch(intel, stride, tiling);
-			/* Round the object up to the size of the fence it will live in
-			 * if necessary.  We could potentially make the kernel allocate
-			 * a larger aperture space and just bind the subset of pages in,
-			 * but this is easier and also keeps us out of trouble (as much)
-			 * with drm_intel_bufmgr_check_aperture().
-			 */
-			size = i830_get_fence_size(intel, stride * aligned_h);
-			assert(size >= stride * aligned_h);
-		}
+		size = i830_uxa_pixmap_compute_size(pixmap, w, h,
+						    &priv->tiling, &stride);
 
 		/* Fail very large allocations on 32-bit systems.  Large BOs will
 		 * tend to hit SW fallbacks frequently, and also will tend to fail
@@ -626,27 +680,34 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		 */
 		if (sizeof(unsigned long) == 4 &&
 		    size > (unsigned int)(1024 * 1024 * 1024)) {
+			xfree(priv);
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
 		}
 
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
-			bo = drm_intel_bo_alloc(intel->bufmgr, "pixmap", size,
-						0);
+			priv->bo = drm_intel_bo_alloc(intel->bufmgr,
+						      "pixmap", size, 0);
 		else
-			bo = drm_intel_bo_alloc_for_render(intel->bufmgr,
-							   "pixmap", size, 0);
-		if (!bo) {
+			priv->bo = drm_intel_bo_alloc_for_render(intel->bufmgr,
+								 "pixmap",
+								 size, 0);
+		if (!priv->bo) {
+			xfree(priv);
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
 		}
 
-		if (tiling != I915_TILING_NONE)
-			drm_intel_bo_set_tiling(bo, &tiling, stride);
+		if (priv->tiling != I915_TILING_NONE)
+			drm_intel_bo_set_tiling(priv->bo,
+						&priv->tiling,
+						stride);
 
 		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 
-		i830_uxa_set_pixmap_bo(pixmap, bo);
+		list_init(&priv->batch);
+		list_init(&priv->flush);
+		i830_uxa_set_pixmap_intel(pixmap, priv);
 	}
 
 	return pixmap;
@@ -654,15 +715,12 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 static Bool i830_uxa_destroy_pixmap(PixmapPtr pixmap)
 {
-	if (pixmap->refcnt == 1) {
-		dri_bo *bo = i830_get_pixmap_bo(pixmap);
-
-		if (bo)
-			dri_bo_unreference(bo);
-	}
+	if (pixmap->refcnt == 1)
+		i830_set_pixmap_bo(pixmap, NULL);
 	fbDestroyPixmap(pixmap);
 	return TRUE;
 }
+
 
 void i830_uxa_create_screen_resources(ScreenPtr screen)
 {
@@ -672,8 +730,7 @@ void i830_uxa_create_screen_resources(ScreenPtr screen)
 
 	if (bo != NULL) {
 		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-		i830_uxa_set_pixmap_bo(pixmap, bo);
-		dri_bo_reference(bo);
+		i830_set_pixmap_bo(pixmap, bo);
 	}
 }
 

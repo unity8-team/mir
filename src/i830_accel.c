@@ -63,35 +63,16 @@ void I830Sync(ScrnInfoPtr scrn)
 	if (!scrn->vtSema || !intel->batch_bo)
 		return;
 
-	I830EmitFlush(scrn);
-
 	intel_batch_flush(scrn, TRUE);
 	intel_batch_wait_last(scrn);
-}
-
-void I830EmitFlush(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-
-	if (IS_I965G(intel))
-		flags = 0;
-
-	{
-		BEGIN_BATCH(1);
-		OUT_BATCH(MI_FLUSH | flags);
-		ADVANCE_BATCH();
-	}
 }
 
 void i830_debug_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
+	if (intel->debug_flush & (DEBUG_FLUSH_BATCHES | DEBUG_FLUSH_CACHES))
 		intel_batch_flush(scrn, FALSE);
-	else if (intel->debug_flush & DEBUG_FLUSH_CACHES)
-		I830EmitFlush(scrn);
 }
 
 /* The following function sets up the supported acceleration. Call it

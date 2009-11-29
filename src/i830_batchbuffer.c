@@ -90,17 +90,45 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 	}
 }
 
-void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed)
+void intel_batch_pipelined_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int ret;
+	int flags;
 
 	assert (!intel->in_batch_atomic);
 
 	if (intel->batch_used == 0)
 		return;
 
-	if (intel->debug_flush & DEBUG_FLUSH_CACHES) {
+	/* Big hammer, look to the pipelined flushes in future. */
+	flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+	if (IS_I965G(intel))
+		flags = 0;
+
+	BEGIN_BATCH(1);
+	OUT_BATCH(MI_FLUSH | flags);
+	ADVANCE_BATCH();
+
+	while (!list_is_empty(&intel->flush_pixmaps)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->flush_pixmaps,
+					 struct intel_pixmap,
+					 flush);
+
+		entry->flush_read_domains = entry->flush_write_domain = 0;
+		list_del(&entry->flush);
+	}
+}
+
+void intel_batch_flush(ScrnInfoPtr scrn, Bool flush)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	int ret;
+
+	assert (!intel->in_batch_atomic);
+
+	if (flush || intel->debug_flush & DEBUG_FLUSH_CACHES) {
 		int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
 		if (IS_I965G(intel))
@@ -110,6 +138,9 @@ void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed)
 			MI_FLUSH | flags;
 		intel->batch_used += 4;
 	}
+
+	if (intel->batch_used == 0)
+		return;
 
 	/* Emit a padding dword if we aren't going to be quad-word aligned. */
 	if ((intel->batch_used & 4) == 0) {
@@ -131,6 +162,27 @@ void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed)
 	if (ret != 0)
 		FatalError("Failed to submit batchbuffer: %s\n",
 			   strerror(-ret));
+
+	while (!list_is_empty(&intel->batch_pixmaps)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->batch_pixmaps,
+					 struct intel_pixmap,
+					 batch);
+
+		entry->batch_read_domains = entry->batch_write_domain = 0;
+		list_del(&entry->batch);
+	}
+	while (!list_is_empty(&intel->flush_pixmaps)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->flush_pixmaps,
+					 struct intel_pixmap,
+					 flush);
+
+		entry->flush_read_domains = entry->flush_write_domain = 0;
+		list_del(&entry->flush);
+	}
 
 	/* Save a ref to the last batch emitted, which we use for syncing
 	 * in debug code.

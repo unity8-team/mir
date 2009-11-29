@@ -349,12 +349,10 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	/* Emit a flush of the rendering cache, or on the 965 and beyond
 	 * rendering results may not hit the framebuffer until significantly
 	 * later.
-	 */
-	I830EmitFlush(scrn);
-	intel->need_mi_flush = FALSE;
-
-	/* We can't rely on getting into the block handler before the DRI
+	 *
+	 * We can't rely on getting into the block handler before the DRI
 	 * client gets to run again so flush now. */
+	intel->need_mi_flush = FALSE;
 	intel_batch_flush(scrn, TRUE);
 #if ALWAYS_SYNC
 	I830Sync(scrn);

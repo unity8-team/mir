@@ -985,20 +985,19 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 	screen->BlockHandler = I830BlockHandler;
 
 	if (scrn->vtSema) {
-		Bool flushed = FALSE;
+		Bool flush = FALSE;
+
 		/* Emit a flush of the rendering cache, or on the 965 and beyond
 		 * rendering results may not hit the framebuffer until significantly
 		 * later.
 		 */
-		if (intel->need_mi_flush || intel->batch_used) {
-			flushed = TRUE;
-			I830EmitFlush(scrn);
-		}
+		if (intel->need_mi_flush || intel->batch_used)
+			flush = TRUE;
 
 		/* Flush the batch, so that any rendering is executed in a timely
 		 * fashion.
 		 */
-		intel_batch_flush(scrn, flushed);
+		intel_batch_flush(scrn, flush);
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 
 		intel->need_mi_flush = FALSE;
@@ -1138,6 +1137,9 @@ void i830_init_bufmgr(ScrnInfoPtr scrn)
 
 	intel->bufmgr = intel_bufmgr_gem_init(intel->drmSubFD, batch_size);
 	intel_bufmgr_gem_enable_reuse(intel->bufmgr);
+
+	list_init(&intel->batch_pixmaps);
+	list_init(&intel->flush_pixmaps);
 }
 
 Bool i830_crtc_on(xf86CrtcPtr crtc)

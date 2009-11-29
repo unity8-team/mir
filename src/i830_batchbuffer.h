@@ -32,9 +32,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define BATCH_RESERVED		16
 
+
 void intel_batch_init(ScrnInfoPtr scrn);
 void intel_batch_teardown(ScrnInfoPtr scrn);
-void intel_batch_flush(ScrnInfoPtr scrn, Bool flushed);
+void intel_batch_pipelined_flush(ScrnInfoPtr scrn);
+void intel_batch_flush(ScrnInfoPtr scrn, Bool flush);
 void intel_batch_wait_last(ScrnInfoPtr scrn);
 
 static inline int intel_batch_space(intel_screen_private *intel)
@@ -93,14 +95,41 @@ intel_batch_emit_reloc(intel_screen_private *intel,
 }
 
 static inline void
+intel_batch_mark_pixmap_domains(intel_screen_private *intel,
+				struct intel_pixmap *priv,
+				uint32_t read_domains, uint32_t write_domain)
+{
+	assert (read_domains);
+	assert (write_domain == 0 || write_domain == read_domains);
+	assert (write_domain == 0 ||
+		priv->flush_write_domain == 0 ||
+		priv->flush_write_domain == write_domain);
+
+	priv->flush_read_domains |= read_domains;
+	priv->batch_read_domains |= read_domains;
+	priv->flush_write_domain |= write_domain;
+	priv->batch_write_domain |= write_domain;
+	if (list_is_empty(&priv->batch))
+		list_add(&priv->batch, &intel->batch_pixmaps);
+	if (list_is_empty(&priv->flush))
+		list_add(&priv->flush, &intel->flush_pixmaps);
+}
+
+static inline void
 intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 			      uint32_t read_domains, uint32_t write_domain,
 			      uint32_t delta)
 {
-	dri_bo *bo = i830_get_pixmap_bo(pixmap);
+	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
+
 	assert(intel->batch_ptr != NULL);
 	assert(intel_batch_space(intel) >= 4);
-	intel_batch_emit_reloc(intel, bo, read_domains, write_domain, delta);
+
+	intel_batch_mark_pixmap_domains(intel, priv, read_domains, write_domain);
+
+	intel_batch_emit_reloc(intel, priv->bo,
+			       read_domains, write_domain,
+			       delta);
 }
 
 #define OUT_BATCH(dword) intel_batch_emit_dword(intel, dword)

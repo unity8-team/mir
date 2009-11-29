@@ -1046,13 +1046,14 @@ static sampler_state_extend_t sampler_state_extend_from_picture(int repeat_type)
  * picture in the given surface state buffer.
  */
 static void
-i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
+i965_set_picture_surface_state(intel_screen_private *intel,
+			       dri_bo * ss_bo, int ss_index,
 			       PicturePtr picture, PixmapPtr pixmap,
 			       Bool is_dst)
 {
 	struct brw_surface_state_padded *ss;
 	struct brw_surface_state local_ss;
-	dri_bo *pixmap_bo = i830_get_pixmap_bo(pixmap);
+	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
 
 	ss = (struct brw_surface_state_padded *)ss_bo->virtual + ss_index;
 
@@ -1082,7 +1083,7 @@ i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
 	local_ss.ss0.vert_line_stride_ofs = 0;
 	local_ss.ss0.mipmap_layout_mode = 0;
 	local_ss.ss0.render_cache_read_mode = 0;
-	local_ss.ss1.base_addr = pixmap_bo->offset;
+	local_ss.ss1.base_addr = priv->bo->offset;
 
 	local_ss.ss2.mip_count = 0;
 	local_ss.ss2.render_target_rotation = 0;
@@ -1094,7 +1095,7 @@ i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
 
 	memcpy(ss, &local_ss, sizeof(local_ss));
 
-	if (pixmap_bo != NULL) {
+	if (priv->bo != NULL) {
 		uint32_t write_domain, read_domains;
 
 		if (is_dst) {
@@ -1104,11 +1105,13 @@ i965_set_picture_surface_state(dri_bo * ss_bo, int ss_index,
 			write_domain = 0;
 			read_domains = I915_GEM_DOMAIN_SAMPLER;
 		}
+
+		intel_batch_mark_pixmap_domains(intel, priv, read_domains, write_domain);
 		dri_bo_emit_reloc(ss_bo, read_domains, write_domain,
 				  0,
 				  ss_index * sizeof(*ss) +
 				  offsetof(struct brw_surface_state, ss1),
-				  pixmap_bo);
+				  priv->bo);
 	}
 }
 
@@ -1508,14 +1511,14 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 		return FALSE;
 	}
 	/* Set up the state buffer for the destination surface */
-	i965_set_picture_surface_state(surface_state_bo, 0,
+	i965_set_picture_surface_state(intel, surface_state_bo, 0,
 				       dest_picture, dest, TRUE);
 	/* Set up the source surface state buffer */
-	i965_set_picture_surface_state(surface_state_bo, 1,
+	i965_set_picture_surface_state(intel, surface_state_bo, 1,
 				       source_picture, source, FALSE);
 	if (mask) {
 		/* Set up the mask surface state buffer */
-		i965_set_picture_surface_state(surface_state_bo, 2,
+		i965_set_picture_surface_state(intel, surface_state_bo, 2,
 					       mask_picture, mask, FALSE);
 	}
 	dri_bo_unmap(surface_state_bo);
