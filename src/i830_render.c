@@ -553,6 +553,10 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 		intel->s8_blendctl = blendctl;
 	}
 
+	if(i830_uxa_pixmap_is_dirty(source) ||
+	   (mask && i830_uxa_pixmap_is_dirty(mask)))
+		intel_batch_pipelined_flush(scrn);
+
 	intel->needs_render_state_emit = TRUE;
 
 	return TRUE;

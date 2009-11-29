@@ -310,6 +310,9 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 	if (!intel_check_pitch_2d(dest))
 		return FALSE;
 
+	if(i830_uxa_pixmap_is_dirty(source))
+		intel_batch_pipelined_flush(scrn);
+
 	intel->render_source = source;
 
 	intel->BR[13] = I830CopyROP[alu] << 16;
@@ -372,11 +375,14 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 		OUT_BATCH(intel->BR[13] | dst_pitch);
 		OUT_BATCH((dst_y1 << 16) | (dst_x1 & 0xffff));
 		OUT_BATCH((dst_y2 << 16) | (dst_x2 & 0xffff));
-		OUT_RELOC_PIXMAP(dest, I915_GEM_DOMAIN_RENDER,
-				 I915_GEM_DOMAIN_RENDER, 0);
+		OUT_RELOC_PIXMAP(dest,
+				 I915_GEM_DOMAIN_RENDER,
+				 I915_GEM_DOMAIN_RENDER,
+				 0);
 		OUT_BATCH((src_y1 << 16) | (src_x1 & 0xffff));
 		OUT_BATCH(src_pitch);
-		OUT_RELOC_PIXMAP(intel->render_source, I915_GEM_DOMAIN_RENDER, 0,
+		OUT_RELOC_PIXMAP(intel->render_source,
+				 I915_GEM_DOMAIN_RENDER, 0,
 				 0);
 
 		ADVANCE_BATCH();
