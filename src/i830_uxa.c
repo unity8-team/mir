@@ -558,22 +558,20 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 {
-	dri_bo *bo = i830_get_pixmap_bo(pixmap);
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
+	dri_bo *bo = priv->bo;
 
-	intel_batch_flush(scrn, FALSE);
+	if (!list_is_empty(&priv->batch) &&
+	    (access == UXA_ACCESS_RW || priv->batch_write_domain))
+		intel_batch_flush(scrn, TRUE);
 
 	/* No VT sema or GEM?  No GTT mapping. */
 	if (!scrn->vtSema) {
 		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
 			return FALSE;
-		pixmap->devPrivate.ptr = bo->virtual;
-		return TRUE;
-	}
-
-	/* Kernel manages fences at GTT map/fault time */
-	if (bo->size < intel->max_gtt_map_size) {
+	} else if (bo->size < intel->max_gtt_map_size) {
 		if (drm_intel_gem_bo_map_gtt(bo)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "%s: bo map failed\n", __FUNCTION__);
@@ -587,6 +585,18 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 		}
 	}
 	pixmap->devPrivate.ptr = bo->virtual;
+
+	/* This acts as a synchronisation point. */
+	while (!list_is_empty(&intel->flush_pixmaps)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->flush_pixmaps,
+					 struct intel_pixmap,
+					 flush);
+
+		entry->flush_read_domains = entry->flush_write_domain = 0;
+		list_del(&entry->flush);
+	}
 
 	return TRUE;
 }
