@@ -363,6 +363,7 @@ uxa_glyph_cache_upload_glyph(ScreenPtr pScreen,
 	PicturePtr pGlyphPicture = GlyphPicture(pGlyph)[pScreen->myNum];
 	PixmapPtr pGlyphPixmap = (PixmapPtr) pGlyphPicture->pDrawable;
 	PixmapPtr pCachePixmap = (PixmapPtr) cache->picture->pDrawable;
+	PixmapPtr scratch;
 	GCPtr pGC;
 
 	/* UploadToScreen only works if bpp match */
@@ -372,12 +373,35 @@ uxa_glyph_cache_upload_glyph(ScreenPtr pScreen,
 
 	pGC = GetScratchGC(pCachePixmap->drawable.depth, pScreen);
 	ValidateGC(&pCachePixmap->drawable, pGC);
-	(void)uxa_copy_area(&pGlyphPixmap->drawable,
+
+	/* Create a temporary bo to stream the updates to the cache */
+	scratch = (*pScreen->CreatePixmap)(pScreen,
+					   pGlyph->info.width,
+					   pGlyph->info.height,
+					   pGlyphPixmap->drawable.depth,
+					   UXA_CREATE_PIXMAP_FOR_MAP);
+	if (scratch) {
+		(void)uxa_copy_area(&pGlyphPixmap->drawable,
+				    &scratch->drawable,
+				    pGC,
+				    0, 0,
+				    pGlyph->info.width, pGlyph->info.height,
+				    0, 0);
+	} else {
+		scratch = pGlyphPixmap;
+	}
+
+	(void)uxa_copy_area(&scratch->drawable,
 			    &pCachePixmap->drawable,
 			    pGC,
 			    0, 0, pGlyph->info.width, pGlyph->info.height,
 			    CACHE_X(pos), CACHE_Y(pos));
+
+	if (scratch != pGlyphPixmap)
+		(*pScreen->DestroyPixmap)(scratch);
+
 	FreeScratchGC(pGC);
+
 	return TRUE;
 }
 
