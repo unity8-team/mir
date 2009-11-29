@@ -584,12 +584,12 @@ Bool i830_allocate_2d_memory(ScrnInfoPtr scrn)
 Bool i830_bind_all_memory(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	int i;
 
 	if (intel->memory_list == NULL)
 		return TRUE;
 
-	int i;
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	for (i = 0; i < xf86_config->num_crtc; i++)
 		drmmode_crtc_set_cursor_bo(xf86_config->crtc[i],
 					   intel->cursor_mem_argb[i]->bo);
