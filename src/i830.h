@@ -369,7 +369,7 @@ typedef struct intel_screen_private {
 
 	Bool directRenderingOpen;
 	int drmSubFD;
-	char deviceName[64];
+	char *deviceName;
 
 	/* Broken-out options. */
 	OptionInfoPtr Options;
