@@ -625,7 +625,6 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    int ret;
 
     if (!R600CheckBPP(pSrc->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("R600CheckDatatype src failed\n"));
@@ -677,6 +676,8 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
+	int ret;
+
 	radeon_cs_space_reset_bos(info->cs);
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
 					  RADEON_GEM_DOMAIN_VRAM, 0);
@@ -1520,7 +1521,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     uint32_t blendcntl, dst_format;
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
-    int ret;
 
     /* return FALSE; */
 
@@ -1547,6 +1547,8 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
+	int ret;
+
 	accel_state->dst_mc_addr = 0;
 	accel_state->dst_bo = radeon_get_pixmap_bo(pDst);
 	accel_state->src_bo[0] = radeon_get_pixmap_bo(pSrc);
