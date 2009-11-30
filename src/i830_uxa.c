@@ -627,6 +627,164 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 	}
 }
 
+static Bool
+i830_uxa_pixmap_swap_bo_with_image(PixmapPtr pixmap,
+				   char *src, int src_pitch)
+{
+	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv;
+	dri_bo *bo;
+	uint32_t tiling = I915_TILING_X;
+	int stride;
+	int w = pixmap->drawable.width;
+	int h = pixmap->drawable.height;
+
+	priv = i830_get_pixmap_intel(pixmap);
+
+	if (priv->batch_read_domains || drm_intel_bo_busy(priv->bo)) {
+		unsigned int size;
+
+		size = i830_uxa_pixmap_compute_size (pixmap, w, h,
+						     &tiling, &stride);
+		if (size > intel->max_gtt_map_size)
+			return FALSE;
+
+		bo = drm_intel_bo_alloc(intel->bufmgr, "pixmap", size, 0);
+		if (bo == NULL)
+			return FALSE;
+
+		if (tiling != I915_TILING_NONE)
+			drm_intel_bo_set_tiling(bo, &tiling, stride);
+
+		dri_bo_unreference(priv->bo);
+		priv->bo = bo;
+		priv->tiling = tiling;
+		priv->batch_read_domains = priv->batch_write_domain = 0;
+		priv->flush_read_domains = priv->flush_write_domain = 0;
+		list_del(&priv->batch);
+		list_del(&priv->flush);
+		pixmap->drawable.pScreen->ModifyPixmapHeader(pixmap,
+							     w, h,
+							     0, 0,
+							     stride, NULL);
+	} else {
+		bo = priv->bo;
+		stride = i830_pixmap_pitch(pixmap);
+	}
+
+	if (drm_intel_gem_bo_map_gtt(bo)) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "%s: bo map failed\n", __FUNCTION__);
+		return FALSE;
+	}
+
+	if (src_pitch == stride) {
+		memcpy (bo->virtual, src, src_pitch * h);
+	} else {
+		char *dst = bo->virtual;
+
+		w *= pixmap->drawable.bitsPerPixel/8;
+		while (h--) {
+			memcpy (dst, src, w);
+			src += src_pitch;
+			dst += stride;
+		}
+	}
+
+	drm_intel_gem_bo_unmap_gtt(bo);
+
+	return TRUE;
+}
+
+static Bool i830_uxa_put_image(PixmapPtr pixmap,
+			       int x, int y,
+			       int w, int h,
+			       char *src, int src_pitch)
+{
+	ScreenPtr screen = pixmap->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	PixmapPtr scratch;
+	struct intel_pixmap *priv;
+	Bool scratch_pixmap;
+	GCPtr gc;
+	Bool ret;
+
+	if (x == 0 && y == 0 &&
+	    w == pixmap->drawable.width &&
+	    h == pixmap->drawable.height)
+	{
+		/* Replace GPU hot bo with new CPU data. */
+		return i830_uxa_pixmap_swap_bo_with_image(pixmap,
+							  src, src_pitch);
+	}
+
+	priv = i830_get_pixmap_intel(pixmap);
+	if (priv->batch_read_domains || drm_intel_bo_busy(priv->bo)) {
+		dri_bo *bo;
+		int stride;
+
+		/* Partial replacement, copy incoming image to a bo and blit. */
+		scratch = (*screen->CreatePixmap)(screen, w, h,
+						  pixmap->drawable.depth,
+						  UXA_CREATE_PIXMAP_FOR_MAP);
+		if (!scratch)
+			return FALSE;
+
+		bo = i830_get_pixmap_bo(scratch);
+		if (drm_intel_gem_bo_map_gtt(bo)) {
+			(*screen->DestroyPixmap) (scratch);
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s: bo map failed\n", __FUNCTION__);
+			return FALSE;
+		}
+
+		stride = i830_pixmap_pitch(scratch);
+		if (src_pitch == stride) {
+			memcpy (bo->virtual, src, stride * h);
+		} else {
+			char *dst = bo->virtual;
+			int row_length = w * pixmap->drawable.bitsPerPixel/8;
+			int num_rows = h;
+			while (num_rows--) {
+				memcpy (dst, src, row_length);
+				src += src_pitch;
+				dst += stride;
+			}
+		}
+
+		drm_intel_gem_bo_unmap_gtt(bo);
+		scratch_pixmap = FALSE;
+	} else {
+		/* bo is not busy so can be mapped without a stall, upload in-place. */
+		scratch = GetScratchPixmapHeader(screen, w, h,
+						 pixmap->drawable.depth,
+						 pixmap->drawable.bitsPerPixel,
+						 src_pitch, src);
+		scratch_pixmap = TRUE;
+	}
+
+	ret = FALSE;
+	gc = GetScratchGC(pixmap->drawable.depth, screen);
+	if (gc) {
+		ValidateGC(&pixmap->drawable, gc);
+
+		(*gc->ops->CopyArea)(&scratch->drawable,
+				     &pixmap->drawable,
+				     gc, 0, 0, w, h, x, y);
+
+		FreeScratchGC(gc);
+		ret = TRUE;
+	}
+
+	if (scratch_pixmap)
+		FreeScratchPixmapHeader(scratch);
+	else
+		(*screen->DestroyPixmap)(scratch);
+
+	return ret;
+}
+
 void i830_uxa_block_handler(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
@@ -796,6 +954,9 @@ Bool i830_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->composite = i965_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
 	}
+
+	/* PutImage */
+	intel->uxa_driver->put_image = i830_uxa_put_image;
 
 	intel->uxa_driver->prepare_access = i830_uxa_prepare_access;
 	intel->uxa_driver->finish_access = i830_uxa_finish_access;
