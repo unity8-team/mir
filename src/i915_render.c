@@ -382,12 +382,6 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 					    PICT_a8r8g8b8,
 					    &intel->render_source_solid))
 		return FALSE;
-
-	    /* route alpha to the green channel when using a8 targets */
-	    if (dest_picture->format == PICT_a8) {
-		intel->render_source_solid >>= 24;
-		intel->render_source_solid *= 0x01010101;
-	    }
 	} else if (!intel_check_pitch_3d(source))
 		return FALSE;
 
@@ -405,12 +399,6 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 						PICT_a8r8g8b8,
 						&intel->render_mask_solid))
 		    return FALSE;
-
-		/* route alpha to the green channel when using a8 targets */
-		if (dest_picture->format == PICT_a8) {
-		    intel->render_mask_solid >>= 24;
-		    intel->render_mask_solid *= 0x01010101;
-		}
 	    } else if (!intel_check_pitch_3d(mask))
 		    return FALSE;
 	}
