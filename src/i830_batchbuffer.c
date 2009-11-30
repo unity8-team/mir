@@ -128,7 +128,7 @@ void intel_batch_flush(ScrnInfoPtr scrn, Bool flush)
 
 	assert (!intel->in_batch_atomic);
 
-	if (flush || intel->debug_flush & DEBUG_FLUSH_CACHES) {
+	if (flush) {
 		int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
 		if (IS_I965G(intel))

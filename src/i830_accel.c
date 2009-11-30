@@ -71,7 +71,10 @@ void i830_debug_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (intel->debug_flush & (DEBUG_FLUSH_BATCHES | DEBUG_FLUSH_CACHES))
+	if (intel->debug_flush & DEBUG_FLUSH_CACHES)
+		intel_batch_pipelined_flush(scrn);
+
+	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
 		intel_batch_flush(scrn, FALSE);
 }
 
