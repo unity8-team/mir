@@ -39,6 +39,8 @@
 #include "i830_ring.h"
 #include "i915_drm.h"
 
+#define DUMP_BATCHBUFFERS NULL /* "/tmp/i915-batchbuffers.dump" */
+
 static void intel_next_batch(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -152,6 +154,14 @@ void intel_batch_flush(ScrnInfoPtr scrn, Bool flush)
 	*(uint32_t *) (intel->batch_ptr + intel->batch_used) =
 	    MI_BATCH_BUFFER_END;
 	intel->batch_used += 4;
+
+	if (DUMP_BATCHBUFFERS) {
+	    FILE *file = fopen(DUMP_BATCHBUFFERS, "a");
+	    if (file) {
+		fwrite (intel->batch_ptr, intel->batch_used, 1, file);
+		fclose(file);
+	    }
+	}
 
 	dri_bo_unmap(intel->batch_bo);
 	intel->batch_ptr = NULL;
