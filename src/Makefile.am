@@ -55,7 +55,6 @@ intel_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
          common.h \
-	 i2c_vid.h \
          i810_accel.c \
          i810_common.h \
          i810_cursor.c \
