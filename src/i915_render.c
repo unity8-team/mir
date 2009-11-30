@@ -641,15 +641,15 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		if (! is_solid_mask) {
 		    /* Load the mask_picture texel */
 		    if (is_affine_mask) {
-			i915_fs_texld(FS_R1, FS_S0, FS_T0 + t);
+			i915_fs_texld(FS_R1, FS_S0 + t, FS_T0 + t);
 		    } else {
-			i915_fs_texldp(FS_R1, FS_S0, FS_T0 + t);
+			i915_fs_texldp(FS_R1, FS_S0 + t, FS_T0 + t);
 		    }
 		    /* If the texture lacks an alpha channel, force the alpha to 1.
 		     */
 		    if (PICT_FORMAT_A(mask_picture->format) == 0)
 			i915_fs_mov_masked(FS_R1, MASK_W,
-				i915_fs_operand_one());
+					   i915_fs_operand_one());
 
 		    mask_reg = FS_R1;
 		}
