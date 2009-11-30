@@ -656,15 +656,17 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 			PICT_FORMAT_RGB(mask_picture->format)) {
 		    if (i915_blend_op[op].src_alpha) {
 			i915_fs_mul(out_reg,
-				i915_fs_operand(src_reg, W, W, W, W),
-				i915_fs_operand_reg(mask_reg));
+				    i915_fs_operand(src_reg, W, W, W, W),
+				    i915_fs_operand_reg(mask_reg));
 		    } else {
-			i915_fs_mul(out_reg, i915_fs_operand_reg(src_reg),
-				i915_fs_operand_reg(mask_reg));
+			    i915_fs_mul(out_reg,
+					i915_fs_operand_reg(src_reg),
+					i915_fs_operand_reg(mask_reg));
 		    }
 		} else {
-		    i915_fs_mul(out_reg, i915_fs_operand_reg(src_reg),
-			    i915_fs_operand(mask_reg, W, W, W, W));
+		    i915_fs_mul(out_reg,
+				i915_fs_operand_reg(src_reg),
+				i915_fs_operand(mask_reg, W, W, W, W));
 		}
 	    }
 	    if (dst_format == COLR_BUF_8BIT)
