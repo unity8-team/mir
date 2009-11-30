@@ -530,6 +530,9 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 			priv = xcalloc(1, sizeof (struct intel_pixmap));
 			if (priv == NULL)
 				goto BAIL;
+
+			list_init(&priv->batch);
+			list_init(&priv->flush);
 		}
 
 		dri_bo_reference(bo);
