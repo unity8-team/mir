@@ -158,7 +158,7 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 	new->VSyncEnd   = new->VSyncStart + native_mode->VSyncWidth;
 
 	new->Clock      = native_mode->DotClock;
-	new->Flags      = 0;
+	new->Flags      = native_mode->Flags;
 
 	if (new) {
 	    new->type       = M_T_DRIVER | M_T_PREFERRED;

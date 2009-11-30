@@ -1980,6 +1980,7 @@ RADEONGetATOMLVDSInfo(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds)
     radeon_native_mode_ptr native_mode = &lvds->native_mode;
     atomDataTablesPtr atomDataPtr;
     uint8_t crev, frev;
+    uint16_t misc;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
 
@@ -2000,6 +2001,17 @@ RADEONGetATOMLVDSInfo(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds)
 	native_mode->VBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVBlanking_Time);
 	native_mode->VOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVSyncOffset);
 	native_mode->VSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVSyncWidth);
+	misc = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.susModeMiscInfo.usAccess);
+	if (misc & ATOM_VSYNC_POLARITY)
+	    native_mode->Flags |= V_NVSYNC;
+	if (misc & ATOM_HSYNC_POLARITY)
+	    native_mode->Flags |= V_NHSYNC;
+	if (misc & ATOM_COMPOSITESYNC)
+	    native_mode->Flags |= V_CSYNC;
+	if (misc & ATOM_INTERLACE)
+	    native_mode->Flags |= V_INTERLACE;
+	if (misc & ATOM_DOUBLE_CLOCK_MODE)
+	    native_mode->Flags |= V_DBLSCAN;
 	lvds->PanelPwrDly = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->usOffDelayInMs);
 	lvds->lvds_misc   =  atomDataPtr->LVDS_Info.LVDS_Info->ucLVDS_Misc;
 	lvds->lvds_ss_id  =  atomDataPtr->LVDS_Info.LVDS_Info->ucSS_Id;
@@ -2014,6 +2026,17 @@ RADEONGetATOMLVDSInfo(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds)
 	native_mode->VBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVBlanking_Time);
 	native_mode->VOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVSyncOffset);
 	native_mode->VSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVSyncWidth);
+	misc = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.susModeMiscInfo.usAccess);
+	if (misc & ATOM_VSYNC_POLARITY)
+	    native_mode->Flags |= V_NVSYNC;
+	if (misc & ATOM_HSYNC_POLARITY)
+	    native_mode->Flags |= V_NHSYNC;
+	if (misc & ATOM_COMPOSITESYNC)
+	    native_mode->Flags |= V_CSYNC;
+	if (misc & ATOM_INTERLACE)
+	    native_mode->Flags |= V_INTERLACE;
+	if (misc & ATOM_DOUBLE_CLOCK_MODE)
+	    native_mode->Flags |= V_DBLSCAN;
 	lvds->PanelPwrDly = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->usOffDelayInMs);
 	lvds->lvds_misc   =  atomDataPtr->LVDS_Info.LVDS_Info_v12->ucLVDS_Misc;
 	lvds->lvds_ss_id  =  atomDataPtr->LVDS_Info.LVDS_Info_v12->ucSS_Id;
