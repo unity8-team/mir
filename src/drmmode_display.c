@@ -396,6 +396,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
 
 	i830_set_max_gtt_map_size(scrn);
+	i830_set_max_tiling_size(scrn);
 
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);

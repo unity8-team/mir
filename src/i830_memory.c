@@ -525,6 +525,7 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 	}
 
 	i830_set_max_gtt_map_size(scrn);
+	i830_set_max_tiling_size(scrn);
 
 	return front_buffer;
 }
@@ -595,6 +596,7 @@ Bool i830_bind_all_memory(ScrnInfoPtr scrn)
 					   intel->cursor_mem_argb[i]->bo);
 
 	i830_set_max_gtt_map_size(scrn);
+	i830_set_max_tiling_size(scrn);
 
 	if (intel->front_buffer)
 		scrn->fbOffset = intel->front_buffer->offset;
@@ -661,5 +663,26 @@ void i830_set_max_gtt_map_size(ScrnInfoPtr scrn)
 		 */
 		intel->max_gtt_map_size =
 		    aperture.aper_available_size * 3 / 4 / 2;
+	}
+}
+
+void i830_set_max_tiling_size(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct drm_i915_gem_get_aperture aperture;
+	int ret;
+
+	/* Default low value in case it gets used during server init. */
+	intel->max_tiling_size = 4 * 1024 * 1024;
+
+	ret =
+	    ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+	if (ret == 0) {
+		/* Let objects be tiled up to the size where only 4 would fit in
+		 * the aperture, presuming worst case alignment.
+		 */
+		intel->max_tiling_size = aperture.aper_available_size / 4;
+		if (!IS_I965G(intel))
+			intel->max_tiling_size /= 2;
 	}
 }

@@ -311,6 +311,7 @@ typedef struct intel_screen_private {
 	int accel_max_x;
 	int accel_max_y;
 	int max_gtt_map_size;
+	int max_tiling_size;
 
 	Bool XvDisabled;	/* Xv disabled in PreInit. */
 	Bool XvEnabled;		/* Xv enabled for this generation. */
@@ -467,6 +468,7 @@ unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long siz
 unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   uint32_t tiling_mode);
 void i830_set_max_gtt_map_size(ScrnInfoPtr scrn);
+void i830_set_max_tiling_size(ScrnInfoPtr scrn);
 
 i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn);
 

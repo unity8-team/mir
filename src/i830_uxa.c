@@ -138,6 +138,7 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 			*tiling = I915_TILING_NONE;
 	}
 
+  repeat:
 	if (*tiling == I915_TILING_NONE) {
 		pitch_align = intel->accel_pixmap_pitch_alignment;
 	} else {
@@ -169,6 +170,11 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		 */
 		size = i830_get_fence_size(intel, *stride * aligned_h);
 		assert(size >= *stride * aligned_h);
+	}
+
+	if (*tiling != I915_TILING_NONE && size > intel->max_tiling_size) {
+		*tiling = I915_TILING_NONE;
+		goto repeat;
 	}
 
 	return size;
