@@ -310,9 +310,6 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 	if (!intel_check_pitch_2d(dest))
 		return FALSE;
 
-	if(i830_uxa_pixmap_is_dirty(source))
-		intel_batch_pipelined_flush(scrn);
-
 	intel->render_source = source;
 
 	intel->BR[13] = I830CopyROP[alu] << 16;
