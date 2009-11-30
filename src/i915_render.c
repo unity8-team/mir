@@ -35,6 +35,8 @@
 #include "i915_reg.h"
 #include "i915_3d.h"
 
+#define PIXEL_CENTRE_SAMPLE 0
+
 struct formatinfo {
 	int fmt;
 	uint32_t card_fmt;
@@ -168,7 +170,9 @@ static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 				     (int)dest_picture->format);
 		return FALSE;
 	}
+#if PIXEL_CENTRE_SAMPLE
 	*dst_format |= DSTORG_HORT_BIAS(0x8) | DSTORG_VERT_BIAS(0x8);
+#endif
 	return TRUE;
 }
 
@@ -429,8 +433,13 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 			return FALSE;
 		}
 
-		if (source_picture->filter == PictFilterNearest)
+		if (source_picture->filter == PictFilterNearest) {
+#if PIXEL_CENTRE_SAMPLE
 			intel->src_coord_adjust = 0.375;
+#else
+			intel->dst_coord_adjust = -0.125;
+#endif
+		}
 	}
 
 	if (mask != NULL) {
@@ -441,8 +450,13 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 				return FALSE;
 			}
 
-			if (mask_picture->filter == PictFilterNearest)
-				intel->mask_coord_adjust = 0.375;
+			if (mask_picture->filter == PictFilterNearest) {
+#if PIXEL_CENTRE_SAMPLE
+			    intel->mask_coord_adjust = 0.375;
+#else
+			    intel->dst_coord_adjust = -0.125;
+#endif
+			}
 		}
 	}
 
