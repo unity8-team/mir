@@ -50,7 +50,6 @@ INTEL_XVMC_SRCS = \
          i965_hwmc.c \
          i965_hwmc.h
 
-
 intel_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
@@ -93,7 +92,9 @@ intel_drv_la_SOURCES = \
 EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
 	$(INTEL_DRI_SRCS) \
-	$(INTEL_XVMC_SRCS)
+	$(INTEL_XVMC_SRCS) \
+	i830_bios.h \
+	i830_display.h
 
 if DRI
 intel_drv_la_SOURCES += \
