@@ -1,3 +1,13 @@
+Snapshot 2.9.99.901 (2009-11-30)
+================================
+This is the first release candidate in preparation for the upcoming
+2.10.0 release. We will appreciate any feedback we can get from
+testing of this snapshot to improve the 2.10.0 release.
+
+See the commit log for changes in this release, and developers, please
+provide me summaries for any major features in this release that you
+think should appear in NEWS and in the 2.10.0 release notes.
+
 Release 2.9.0 (2009-09-28)
 ==========================
 We are pleased to announce the 2.9.0 release of the xf86-video-intel
