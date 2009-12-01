@@ -592,18 +592,6 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	}
 	pixmap->devPrivate.ptr = bo->virtual;
 
-	/* This acts as a synchronisation point. */
-	while (!list_is_empty(&intel->flush_pixmaps)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->flush_pixmaps,
-					 struct intel_pixmap,
-					 flush);
-
-		entry->flush_read_domains = entry->flush_write_domain = 0;
-		list_del(&entry->flush);
-	}
-
 	return TRUE;
 }
 
