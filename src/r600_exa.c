@@ -38,7 +38,7 @@
 #include "r600_shader.h"
 #include "r600_reg.h"
 #include "r600_state.h"
-
+#include "radeon_vbo.h"
 
 #define RADEON_TRACE_FALL 0
 #define RADEON_TRACE_DRAW 0
@@ -217,6 +217,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	   pPix->drawable.bitsPerPixel, exaGetPixmapPitch(pPix));
 #endif
 
+    radeon_vbo_check(pScrn, 16);
     r600_cp_start(pScrn);
 
     set_default_state(pScrn, accel_state->ib);
@@ -360,11 +361,9 @@ static void
 R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
     float *vb;
 
-    vb = r600_vb_space(pScrn, 8);
+    vb = radeon_vbo_space(pScrn, 8);
 
     vb[0] = (float)x1;
     vb[1] = (float)y1;
@@ -375,7 +374,7 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     vb[4] = (float)x2;
     vb[5] = (float)y2;
 
-    r600_vb_update(accel_state, 8);
+    radeon_vbo_commit(pScrn);
 }
 
 static void
@@ -424,6 +423,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     accel_state->dst_bpp = dst_bpp;
     accel_state->dst_bo = dst_bo;
 
+    radeon_vbo_check(pScrn, 16);
     r600_cp_start(pScrn);
 
     set_default_state(pScrn, accel_state->ib);
@@ -592,11 +592,9 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
 		     int dstX, int dstY,
 		     int w, int h)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
     float *vb;
 
-    vb = r600_vb_space(pScrn, 16);
+    vb = radeon_vbo_space(pScrn, 16);
 
     vb[0] = (float)dstX;
     vb[1] = (float)dstY;
@@ -613,7 +611,7 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
     vb[10] = (float)(srcX + w);
     vb[11] = (float)(srcY + h);
 
-    r600_vb_update(accel_state, 16);
+    radeon_vbo_commit(pScrn);
 }
 
 static Bool
@@ -1585,6 +1583,11 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     CLEAR (vs_conf);
     CLEAR (ps_conf);
 
+    if (pMask)
+        radeon_vbo_check(pScrn, 24);
+    else
+        radeon_vbo_check(pScrn, 16);
+
     r600_cp_start(pScrn);
 
     set_default_state(pScrn, accel_state->ib);
@@ -1768,7 +1771,7 @@ static void R600Composite(PixmapPtr pDst,
 
     if (accel_state->msk_pic) {
 
-	vb = r600_vb_space(pScrn, 24);
+	vb = radeon_vbo_space(pScrn, 24);
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
@@ -1791,10 +1794,11 @@ static void R600Composite(PixmapPtr pDst,
 	vb[16] = (float)(maskX + w);
 	vb[17] = (float)(maskY + h);
 
-	r600_vb_update(accel_state, 24);
+	radeon_vbo_commit(pScrn);
+		       
     } else {
 
-	vb = r600_vb_space(pScrn, 16);
+	vb = radeon_vbo_space(pScrn, 16);
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
@@ -1811,7 +1815,7 @@ static void R600Composite(PixmapPtr pDst,
 	vb[10] = (float)(srcX + w);
 	vb[11] = (float)(srcY + h);
 
-	r600_vb_update(accel_state, 16);
+	radeon_vbo_commit(pScrn);
     }
 
 
@@ -2422,8 +2426,11 @@ R600DrawInit(ScreenPtr pScreen)
     info->accel_state->src_bo[1] = NULL;
     info->accel_state->dst_bo = NULL;
     info->accel_state->copy_area_bo = NULL;
-    info->accel_state->vb_bo[0] = NULL;
-    info->accel_state->vb_bo[1] = NULL;
+    info->accel_state->vb_start_op = -1;
+
+#ifdef XF86DRM_MODE
+    radeon_vbo_init_lists(pScrn);
+#endif
 
     if (!R600AllocShaders(pScrn, pScreen))
 	return FALSE;

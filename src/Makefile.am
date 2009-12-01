@@ -66,7 +66,7 @@ XMODE_SRCS=\
         modes/xf86DiDGA.c
 
 if XF86DRM_MODE
-RADEON_KMS_SRCS=radeon_dri2.c radeon_kms.c drmmode_display.c
+RADEON_KMS_SRCS=radeon_dri2.c radeon_kms.c drmmode_display.c radeon_vbo.c
 endif
 
 if USE_EXA

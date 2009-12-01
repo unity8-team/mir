@@ -100,6 +100,7 @@
 #include "picturestr.h"
 #endif
 
+#include "simple_list.h"
 #include "atipcirename.h"
 
 #ifndef MAX
@@ -652,6 +653,14 @@ struct radeon_dri {
 };
 #endif
 
+#define DMA_BO_FREE_TIME 1000
+
+struct radeon_dma_bo {
+    struct radeon_dma_bo *next, *prev;
+    struct radeon_bo  *bo;
+    int expire_counter;
+};
+
 struct radeon_accel_state {
     /* common accel data */
     int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
@@ -708,11 +717,17 @@ struct radeon_accel_state {
     int               vb_total;
     void              *vb_ptr;
     uint32_t          vb_size;
-    struct radeon_bo  *vb_bo[2];
-    int               vb_bo_index;
-    uint32_t          vb_start_op;
+    uint32_t          vb_op_vert_size;
+    int32_t           vb_start_op;
     /* where to discard IB from if we cancel operation */
     uint32_t          ib_reset_op;
+    struct radeon_bo *vb_bo;
+#ifdef XF86DRM_MODE
+    struct radeon_dma_bo bo_free;
+    struct radeon_dma_bo bo_wait;
+    struct radeon_dma_bo bo_reserved;
+    Bool use_vbos;
+#endif
 
     // shader storage
     ExaOffscreenArea  *shaders;

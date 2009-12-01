@@ -41,7 +41,6 @@
 #include "atipciids.h"
 
 
-
 #ifdef XF86DRM_MODE
 
 #include "radeon_chipset_gen.h"
@@ -52,6 +51,8 @@
 
 #include "radeon_bo_gem.h"
 #include "radeon_cs_gem.h"
+#include "radeon_vbo.h"
+
 static Bool radeon_setup_kernel_mem(ScreenPtr pScreen);
 
 const OptionInfoRec RADEONOptions_KMS[] = {
@@ -74,31 +75,41 @@ const OptionInfoRec RADEONOptions_KMS[] = {
 void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
     int ret;
 
     if (!info->cs->cdw)
 	return;
 
-    if (info->accel_state->vb_ptr) {
-      radeon_bo_unmap(info->accel_state->vb_bo[info->accel_state->vb_bo_index]);
+    if (info->accel_state->vb_ptr)
       info->accel_state->vb_ptr = NULL;
-      info->accel_state->vb_start_op = 0;
-      info->accel_state->vb_offset = 0;
+
+    /* release the current VBO so we don't block on mapping it later */
+    if (info->accel_state->vb_offset && info->accel_state->vb_bo) {
+        radeon_vbo_put(pScrn);
+        info->accel_state->vb_start_op = -1;
     }
 
     radeon_cs_emit(info->cs);
     radeon_cs_erase(info->cs);
 
-    ret = radeon_cs_space_check(info->cs);
+    if (accel_state->use_vbos)
+        radeon_vbo_flush_bos(pScrn);
+
+    ret = radeon_cs_space_check_with_bo(info->cs,
+					accel_state->vb_bo,
+					RADEON_GEM_DOMAIN_GTT, 0);
     if (ret)
       ErrorF("space check failed in flush\n");
 
     if (info->reemit_current2d && info->state_2d.op)
-      info->reemit_current2d(pScrn, info->state_2d.op);
+        info->reemit_current2d(pScrn, info->state_2d.op);
+
     if (info->dri2.enabled) {
-      info->accel_state->XInited3D = FALSE;
-      info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
+        info->accel_state->XInited3D = FALSE;
+        info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
     }
+
 }
 
 void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
@@ -547,6 +558,9 @@ static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
 	xfree(info->accel_state->exa);
 	info->accel_state->exa = NULL;
     }
+
+    if (info->accel_state->use_vbos)
+        radeon_vbo_free_lists(pScrn);
 
     drmDropMaster(info->dri->drmFD);
 

@@ -45,6 +45,8 @@
 
 #include "damage.h"
 
+#include "radeon_vbo.h"
+
 /* Parameters for ITU-R BT.601 and ITU-R BT.709 colour spaces
    note the difference to the parameters used in overlay are due
    to 10bit vs. float calcs */
@@ -206,6 +208,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     dstyoff = 0;
 #endif
 
+    radeon_vbo_check(pScrn, 16);
     r600_cp_start(pScrn);
 
     set_default_state(pScrn, accel_state->ib);
@@ -534,7 +537,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	int dstX, dstY, dstw, dsth;
 	float *vb;
 
-	vb = r600_vb_space(pScrn, 16);
 
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
@@ -551,6 +553,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
 
+	vb = radeon_vbo_space(pScrn, 16);
+
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
 	vb[2] = (float)srcX;
@@ -566,7 +570,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	vb[10] = (float)(srcX + srcw);
 	vb[11] = (float)(srcY + srch);
 
-	r600_vb_update(accel_state, 16);
+	radeon_vbo_commit(pScrn);
 
 	pBox++;
     }
