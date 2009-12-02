@@ -863,6 +863,9 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     if (IS_R500_3D || IS_R300_3D)
 	radeon_load_bicubic_texture(pScrn);
 
+    info->xv_max_width = adapt->pEncodings->width;
+    info->xv_max_height = adapt->pEncodings->height;
+
     return adapt;
 }
 

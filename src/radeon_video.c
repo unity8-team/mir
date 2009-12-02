@@ -1511,6 +1511,8 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 	RADEONVIP_init(pScrn, pPriv);
 
     info->adaptor = adapt;
+    info->xv_max_width = 2048;
+    info->xv_max_height = 2048;
 
 	if(!xf86LoadSubModule(pScrn,"theatre_detect")) 
 	{
@@ -3077,10 +3079,11 @@ RADEONQueryImageAttributes(
     unsigned short *w, unsigned short *h,
     int *pitches, int *offsets
 ){
+    const RADEONInfoRec * const info = RADEONPTR(pScrn);
     int size, tmp;
 
-    if(*w > 2048) *w = 2048;
-    if(*h > 2048) *h = 2048;
+    if(*w > info->xv_max_width) *w = info->xv_max_width;
+    if(*h > info->xv_max_height) *h = info->xv_max_height;
 
     *w = (*w + 1) & ~1;
     if(offsets) offsets[0] = 0;

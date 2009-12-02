@@ -949,6 +949,8 @@ typedef struct {
     uint16_t video_decoder_type;
     int overlay_scaler_buffer_width;
     int ecp_div;
+    unsigned int xv_max_width;
+    unsigned int xv_max_height;
 
     /* general */
     Bool              showCache;
