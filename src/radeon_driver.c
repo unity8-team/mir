@@ -1176,20 +1176,21 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
     if (RADEONGetClockInfoFromBIOS(pScrn)) {
 	if (pll->reference_div < 2) {
 	    /* retrive it from register setting for fitting into current PLL algorithm.
-	       We'll probably need a new routine to calculate the best ref_div from BIOS 
-	       provided min_input_pll and max_input_pll 
+	       We'll probably need a new routine to calculate the best ref_div from BIOS
+	       provided min_input_pll and max_input_pll
 	    */
-	    uint32_t tmp;
-	    tmp = INPLL(pScrn, RADEON_PPLL_REF_DIV);
-	    if (IS_R300_VARIANT ||
-		(info->ChipFamily == CHIP_FAMILY_RS300) ||
-		(info->ChipFamily == CHIP_FAMILY_RS400) ||
-		(info->ChipFamily == CHIP_FAMILY_RS480)) {
-		pll->reference_div = (tmp & R300_PPLL_REF_DIV_ACC_MASK) >> R300_PPLL_REF_DIV_ACC_SHIFT;
-	    } else {
-		pll->reference_div = tmp & RADEON_PPLL_REF_DIV_MASK;
+	    if (!IS_AVIVO_VARIANT) {
+		uint32_t tmp;
+		tmp = INPLL(pScrn, RADEON_PPLL_REF_DIV);
+		if (IS_R300_VARIANT ||
+		    (info->ChipFamily == CHIP_FAMILY_RS300) ||
+		    (info->ChipFamily == CHIP_FAMILY_RS400) ||
+		    (info->ChipFamily == CHIP_FAMILY_RS480)) {
+		    pll->reference_div = (tmp & R300_PPLL_REF_DIV_ACC_MASK) >> R300_PPLL_REF_DIV_ACC_SHIFT;
+		} else {
+		    pll->reference_div = tmp & RADEON_PPLL_REF_DIV_MASK;
+		}
 	    }
-
 	    if (pll->reference_div < 2) pll->reference_div = 12;
 	}
     } else {
