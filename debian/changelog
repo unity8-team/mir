@@ -1,8 +1,20 @@
-xserver-xorg-video-intel (2:2.9.0-1+exp1) experimental; urgency=low
+xserver-xorg-video-intel (2:2.9.1-1+exp1) experimental; urgency=low
 
-  * Build against xserver 1.7 RC.
+  [ Julien Cristau ]
+  * Enable kernel mode setting by default on linux (closes: #555906).
 
- -- Julien Cristau <jcristau@debian.org>  Tue, 29 Sep 2009 21:51:48 +0200
+  [ Brice Goglin ]
+  * Build against xserver 1.7.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 02 Dec 2009 15:50:17 +0100
+
+xserver-xorg-video-intel (2:2.9.1-1) unstable; urgency=medium
+
+  * New upstream bugfix release (closes: #508005).
+    + reverts change from 2.9.0 that broke DVI detection for some people
+      (closes: #548045)
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 25 Nov 2009 16:32:29 +0100
 
 xserver-xorg-video-intel (2:2.9.0-1) unstable; urgency=low
 

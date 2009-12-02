@@ -363,6 +363,11 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		goto done;
 #endif
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,7,0,0,0)
+	crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
+			       crtc->gamma_blue, crtc->gamma_size);
+#endif
+
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 
@@ -1414,4 +1419,19 @@ drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
 	return drm_intel_get_pipe_from_crtc_id (bufmgr, drmmode_crtc->mode_crtc->crtc_id);
+}
+
+void drmmode_closefb(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr xf86_config;
+	drmmode_crtc_private_ptr drmmode_crtc;
+	drmmode_ptr drmmode;
+
+	xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+
+	drmmode_crtc = xf86_config->crtc[0]->driver_private;
+	drmmode = drmmode_crtc->drmmode;
+
+	drmModeRmFB(drmmode->fd, drmmode->fb_id);
+	drmmode->fb_id = 0;
 }
