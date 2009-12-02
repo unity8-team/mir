@@ -58,7 +58,7 @@ void I830Sync(ScrnInfoPtr scrn)
 	if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
 		ErrorF("I830Sync\n");
 
-	if (!scrn->vtSema || !intel->batch_bo)
+	if (!scrn->vtSema || !intel->batch_bo || !intel->batch_ptr)
 		return;
 
 	intel_batch_flush(scrn, TRUE);
