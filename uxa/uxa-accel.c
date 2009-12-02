@@ -128,7 +128,6 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	int nbox;
 	int xoff, yoff;
 	int bpp = pDrawable->bitsPerPixel;
-	Bool access_prepared = FALSE;
 
 	/* Don't bother with under 8bpp, XYPixmaps. */
 	if (format != ZPixmap || bpp < 8)
@@ -183,12 +182,8 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 			int dstBpp;
 			int dstXoff, dstYoff;
 
-			if (!access_prepared) {
-				if (!uxa_prepare_access
-				    (pDrawable, UXA_ACCESS_RW))
-					return FALSE;
-				access_prepared = TRUE;
-			}
+			if (!uxa_prepare_access(pDrawable, UXA_ACCESS_RW))
+				return FALSE;
 
 			fbGetStipDrawable(pDrawable, dst, dst_stride, dstBpp,
 					  dstXoff, dstYoff);
@@ -200,11 +195,11 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 				  dst + (y1 + dstYoff) * dst_stride, dst_stride,
 				  (x1 + dstXoff) * dstBpp, (x2 - x1) * dstBpp,
 				  y2 - y1, GXcopy, FB_ALLONES, dstBpp);
+
+			uxa_finish_access(pDrawable);
 		}
 	}
 
-	if (access_prepared)
-		uxa_finish_access(pDrawable);
 
 	return TRUE;
 }
@@ -236,8 +231,11 @@ uxa_do_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
 		if (!pPixmap)
 			return FALSE;
 
-		if (!uxa_prepare_access(pDrawable, UXA_ACCESS_RW))
+		if (!uxa_prepare_access(pDrawable, UXA_ACCESS_RW)) {
+			FreeScratchPixmapHeader(pPixmap);
 			return FALSE;
+		}
+
 		fbCopyArea((DrawablePtr) pPixmap, pDrawable, pGC, sx, sy, sw,
 			   sh, dx, dy);
 		uxa_finish_access(pDrawable);
