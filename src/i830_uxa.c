@@ -38,6 +38,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 #include <string.h>
 #include <sys/mman.h>
+#include <errno.h>
 
 const int I830CopyROP[16] = {
 	ROP_0,			/* GXclear */
@@ -574,22 +575,24 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 		intel_batch_flush(scrn, TRUE);
 
 	/* No VT sema or GEM?  No GTT mapping. */
-	if (!scrn->vtSema) {
-		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
-			return FALSE;
-	} else if (bo->size < intel->max_gtt_map_size) {
-		if (drm_intel_gem_bo_map_gtt(bo)) {
+	if (!scrn->vtSema || bo->size > intel->max_gtt_map_size) {
+		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: bo map failed\n", __FUNCTION__);
+				   "%s: bo map failed: %d [%s]\n",
+				   __FUNCTION__,
+				   errno, strerror(errno));
 			return FALSE;
 		}
 	} else {
-		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0) {
+		if (drm_intel_gem_bo_map_gtt(bo)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: bo map failed\n", __FUNCTION__);
+				   "%s: gtt bo map failed: %d [%s]\n",
+				   __FUNCTION__,
+				   errno, strerror(errno));
 			return FALSE;
 		}
 	}
+
 	pixmap->devPrivate.ptr = bo->virtual;
 
 	return TRUE;
@@ -607,16 +610,11 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 		if (bo == intel->front_buffer->bo)
 			intel->need_flush = TRUE;
 
-		if (!scrn->vtSema) {
+		if (!scrn->vtSema || bo->size > intel->max_gtt_map_size)
 			dri_bo_unmap(bo);
-			pixmap->devPrivate.ptr = NULL;
-			return;
-		}
-
-		if (bo->size < intel->max_gtt_map_size)
-			drm_intel_gem_bo_unmap_gtt(bo);
 		else
-			dri_bo_unmap(bo);
+			drm_intel_gem_bo_unmap_gtt(bo);
+
 		pixmap->devPrivate.ptr = NULL;
 	}
 }
