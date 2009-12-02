@@ -160,7 +160,9 @@ void intel_batch_flush(ScrnInfoPtr scrn)
 	    dri_bo_exec(intel->batch_bo, intel->batch_used, NULL, 0,
 			0xffffffff);
 	if (ret != 0)
-		FatalError("Failed to submit batchbuffer: %s\n",
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Failed to submit batch buffer, expect rendering corruption "
+			   "or even a frozen display: %s.\n",
 			   strerror(-ret));
 
 	while (!list_is_empty(&intel->batch_pixmaps)) {
