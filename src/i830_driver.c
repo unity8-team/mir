@@ -997,7 +997,8 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 		/* Flush the batch, so that any rendering is executed in a timely
 		 * fashion.
 		 */
-		intel_batch_flush(scrn, flush);
+		if (flush)
+			intel_batch_pipelined_flush(scrn);
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 
 		intel->need_mi_flush = FALSE;

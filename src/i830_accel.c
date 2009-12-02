@@ -51,20 +51,6 @@ unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap)
 	return (unsigned long)pixmap->devKind;
 }
 
-void intel_sync(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
-		ErrorF("I830Sync\n");
-
-	if (!scrn->vtSema || !intel->batch_bo || !intel->batch_ptr)
-		return;
-
-	intel_batch_flush(scrn, TRUE);
-	intel_batch_wait_last(scrn);
-}
-
 void i830_debug_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -73,7 +59,7 @@ void i830_debug_flush(ScrnInfoPtr scrn)
 		intel_batch_pipelined_flush(scrn);
 
 	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
-		intel_batch_flush(scrn, FALSE);
+		intel_batch_flush(scrn);
 }
 
 /* The following function sets up the supported acceleration. Call it

@@ -124,23 +124,12 @@ void intel_batch_pipelined_flush(ScrnInfoPtr scrn)
 	}
 }
 
-void intel_batch_flush(ScrnInfoPtr scrn, Bool flush)
+void intel_batch_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
 	assert (!intel->in_batch_atomic);
-
-	if (flush) {
-		int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-
-		if (IS_I965G(intel))
-			flags = 0;
-
-		*(uint32_t *) (intel->batch_ptr + intel->batch_used) =
-			MI_FLUSH | flags;
-		intel->batch_used += 4;
-	}
 
 	if (intel->batch_used == 0)
 		return;
@@ -227,4 +216,27 @@ void intel_batch_wait_last(ScrnInfoPtr scrn)
 	 */
 	drm_intel_bo_map(intel->last_batch_bo, TRUE);
 	drm_intel_bo_unmap(intel->last_batch_bo);
+}
+
+void intel_sync(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	int flags;
+
+	if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
+		ErrorF("I830Sync\n");
+
+	if (!scrn->vtSema || !intel->batch_bo || !intel->batch_ptr)
+		return;
+
+	flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+	if (IS_I965G(intel))
+		flags = 0;
+
+	BEGIN_BATCH(1);
+	OUT_BATCH(flags);
+	ADVANCE_BATCH();
+
+	intel_batch_flush(scrn);
+	intel_batch_wait_last(scrn);
 }

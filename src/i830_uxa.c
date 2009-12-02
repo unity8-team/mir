@@ -93,7 +93,7 @@ i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 
 	bo_table[0] = intel->batch_bo;
 	if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0) {
-		intel_batch_flush(scrn, FALSE);
+		intel_batch_flush(scrn);
 		bo_table[0] = intel->batch_bo;
 		if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) !=
 		    0) {
@@ -573,7 +573,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 	if (!list_is_empty(&priv->batch) &&
 	    (access == UXA_ACCESS_RW || priv->batch_write_domain))
-		intel_batch_flush(scrn, FALSE);
+		intel_batch_flush(scrn);
 
 	/* No VT sema or GEM?  No GTT mapping. */
 	if (!scrn->vtSema || bo->size > intel->max_gtt_map_size) {
