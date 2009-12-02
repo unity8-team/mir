@@ -573,7 +573,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 	if (!list_is_empty(&priv->batch) &&
 	    (access == UXA_ACCESS_RW || priv->batch_write_domain))
-		intel_batch_flush(scrn, TRUE);
+		intel_batch_flush(scrn, FALSE);
 
 	/* No VT sema or GEM?  No GTT mapping. */
 	if (!scrn->vtSema || bo->size > intel->max_gtt_map_size) {
