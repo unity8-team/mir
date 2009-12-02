@@ -353,11 +353,10 @@ uxa_check_composite(CARD8 op,
 		    PicturePtr pSrc,
 		    PicturePtr pMask,
 		    PicturePtr pDst,
-		    INT16 xSrc,
-		    INT16 ySrc,
-		    INT16 xMask,
-		    INT16 yMask,
-		    INT16 xDst, INT16 yDst, CARD16 width, CARD16 height)
+		    INT16 xSrc, INT16 ySrc,
+		    INT16 xMask, INT16 yMask,
+		    INT16 xDst, INT16 yDst,
+		    CARD16 width, CARD16 height)
 {
 	ScreenPtr screen = pDst->pDrawable->pScreen;
 
@@ -369,14 +368,11 @@ uxa_check_composite(CARD8 op,
 			if (!pMask || pMask->pDrawable == NULL ||
 			    uxa_prepare_access(pMask->pDrawable, UXA_ACCESS_RO))
 			{
-				fbComposite(op,
-					    pSrc,
-					    pMask,
-					    pDst,
-					    xSrc,
-					    ySrc,
-					    xMask,
-					    yMask, xDst, yDst, width, height);
+				fbComposite(op, pSrc, pMask, pDst,
+					    xSrc, ySrc,
+					    xMask, yMask,
+					    xDst, yDst,
+					    width, height);
 				if (pMask && pMask->pDrawable != NULL)
 					uxa_finish_access(pMask->pDrawable);
 			}
