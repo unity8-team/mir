@@ -1218,6 +1218,10 @@ void RADEONFreeRec(ScrnInfoPtr pScrn);
 Bool RADEONPreInitVisual(ScrnInfoPtr pScrn);
 Bool RADEONPreInitWeight(ScrnInfoPtr pScrn);
 
+extern Bool RADEON_DP_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr,
+			      char *name, xf86OutputPtr output);
+extern void RADEON_DP_GetDPCD(xf86OutputPtr output);
+extern int RADEON_DP_GetSinkType(xf86OutputPtr output);
 
 /* radeon_pm.c */
 extern void RADEONPMInit(ScrnInfoPtr pScrn);
@@ -1274,6 +1278,7 @@ extern void RADEONSetOutputType(ScrnInfoPtr pScrn,
 extern Bool RADEONSetupConnectors(ScrnInfoPtr pScrn);
 extern Bool RADEONI2CDoLock(xf86OutputPtr output, I2CBusPtr b, Bool lock_state);
 
+extern Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode);
 
 /* radeon_tv.c */
 extern void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);

@@ -301,10 +301,13 @@ radeon_ddc_connected(xf86OutputPtr output)
     RADEONMonitorType MonType = MT_NONE;
     xf86MonPtr MonInfo = NULL;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int ret;
 
     if (radeon_output->custom_edid) {
 	MonInfo = xnfcalloc(sizeof(xf86Monitor), 1);
 	*MonInfo = *radeon_output->custom_mon;
+    } else if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) {
+	MonInfo = xf86OutputGetEDID(output, radeon_output->dp_pI2CBus);
     } else if (radeon_output->pI2CBus) {
 	if (info->get_hardcoded_edid_from_bios)
 	    MonInfo = RADEONGetHardCodedEDIDFromBIOS(output);
@@ -364,7 +367,13 @@ radeon_ddc_connected(xf86OutputPtr output)
 	     * XXX wrong. need to infer based on whether we got DDC from I2C
 	     * or AUXCH.
 	     */
-	    MonType = MT_DFP;
+	    ret = RADEON_DP_GetSinkType(output);
+
+	    if (ret == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+		MonType = MT_DP;
+		RADEON_DP_GetDPCD(output);
+	    } else
+		MonType = MT_DFP;
 	    break;
 	case CONNECTOR_HDMI_TYPE_B:
 	case CONNECTOR_DVI_I:
@@ -660,6 +669,9 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	}
     }
 
+    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT && radeon_output->MonType == MT_DP) {
+      radeon_dp_mode_fixup(output, mode, adjusted_mode);
+    }
     return TRUE;
 }
 
@@ -2070,6 +2082,13 @@ void RADEONInitConnector(xf86OutputPtr output)
     if (radeon_output->devices & (ATOM_DEVICE_DFP_SUPPORT))
 	radeon_output->coherent_mode = TRUE;
 
+    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) {
+	strcpy(radeon_output->dp_bus_name, output->name);
+	strcat(radeon_output->dp_bus_name, "-DP");
+	RADEON_DP_I2CInit(pScrn, &radeon_output->dp_pI2CBus, radeon_output->dp_bus_name, output);
+	RADEON_DP_GetSinkType(output);
+    }
+
     if (radeon_output->ddc_i2c.valid)
 	RADEONI2CInit(pScrn, &radeon_output->pI2CBus, output->name, &radeon_output->ddc_i2c);
 
@@ -2909,6 +2928,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->linkb = info->BiosConnector[i].linkb;
 	    radeon_output->connector_id = info->BiosConnector[i].connector_object;
 	    radeon_output->connector_object_id = info->BiosConnector[i].connector_object_id;
+	    radeon_output->ucI2cId = info->BiosConnector[i].ucI2cId;
 
 	    /* Technically HDMI-B is a glorfied DL DVI so the bios is correct,
 	     * but this can be confusing to users when it comes to output names,
