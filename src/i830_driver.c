@@ -428,7 +428,7 @@ static Bool i830_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "Allocate new frame buffer %dx%d stride %d\n", width,
 			   height, scrn->displayWidth);
-		I830Sync(scrn);
+		intel_sync(scrn);
 		i830WaitForVblank(scrn);
 		new_front = i830_allocate_framebuffer(scrn);
 		if (!new_front) {
@@ -456,7 +456,7 @@ static Bool i830_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 			   "New front buffer at 0x%lx\n",
 			   intel->front_buffer->offset);
 		i830_set_new_crtc_bo(scrn);
-		I830Sync(scrn);
+		intel_sync(scrn);
 		i830WaitForVblank(scrn);
 		i830_free_memory(scrn, old_front);
 	}
@@ -1462,7 +1462,7 @@ static void I830LeaveVT(int scrnIndex, int flags)
 
 	xf86_hide_cursors(scrn);
 
-	I830Sync(scrn);
+	intel_sync(scrn);
 
 	intel_batch_teardown(scrn);
 

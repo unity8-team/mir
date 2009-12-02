@@ -161,7 +161,7 @@ static void brw_debug(ScrnInfoPtr scrn, char *when)
 	int i;
 	uint32_t v;
 
-	I830Sync(scrn);
+	intel_sync(scrn);
 	ErrorF("brw_debug: %s\n", when);
 	for (i = 0; svg_ctl_bits[i].name; i++) {
 		OUTREG(BRW_SVG_CTL, svg_ctl_bits[i].svg_ctl);

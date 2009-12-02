@@ -410,7 +410,6 @@ unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap);
 #include "i830_batchbuffer.h"
 
 /* I830 specific functions */
-extern void I830Sync(ScrnInfoPtr scrn);
 extern void IntelEmitInvarientState(ScrnInfoPtr scrn);
 extern void I830EmitInvarientState(ScrnInfoPtr scrn);
 extern void I915EmitInvarientState(ScrnInfoPtr scrn);
@@ -516,6 +515,8 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 				    float *x_out, float *y_out, float *z_out);
 
 void i830_enter_render(ScrnInfoPtr);
+
+extern void intel_sync(ScrnInfoPtr scrn);
 
 static inline void
 intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)

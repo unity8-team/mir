@@ -354,7 +354,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	intel->need_mi_flush = FALSE;
 	intel_batch_flush(scrn, TRUE);
 #if ALWAYS_SYNC
-	I830Sync(scrn);
+	intel_sync(scrn);
 #endif
 	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 

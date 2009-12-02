@@ -51,7 +51,7 @@ unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap)
 	return (unsigned long)pixmap->devKind;
 }
 
-void I830Sync(ScrnInfoPtr scrn)
+void intel_sync(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
