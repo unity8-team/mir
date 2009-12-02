@@ -32,7 +32,6 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <errno.h>
 
 #include "xf86.h"
 #include "i830.h"
@@ -44,6 +43,7 @@
 static void intel_next_batch(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	int ret;
 
 	/* The 865 has issues with larger-than-page-sized batch buffers. */
 	if (IS_I865G(intel))
@@ -53,8 +53,9 @@ static void intel_next_batch(ScrnInfoPtr scrn)
 		intel->batch_bo =
 		    dri_bo_alloc(intel->bufmgr, "batch", 4096 * 4, 4096);
 
-	if (dri_bo_map(intel->batch_bo, 1) != 0)
-		FatalError("Failed to map batchbuffer: %s\n", strerror(errno));
+	ret = dri_bo_map(intel->batch_bo, 1);
+	if (ret != 0)
+		FatalError("Failed to map batchbuffer: %s\n", strerror(-ret));
 
 	intel->batch_used = 0;
 	intel->batch_ptr = intel->batch_bo->virtual;

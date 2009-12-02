@@ -31,7 +31,6 @@
 #include <X11/extensions/Xv.h>
 #include <X11/extensions/XvMC.h>
 #include <fourcc.h>
-#include <errno.h>
 
 #include "i830.h"
 #include "i830_dri.h"

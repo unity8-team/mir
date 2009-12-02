@@ -569,6 +569,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
 	dri_bo *bo = priv->bo;
+	int ret;
 
 	if (!list_is_empty(&priv->batch) &&
 	    (access == UXA_ACCESS_RW || priv->batch_write_domain))
@@ -576,19 +577,21 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 	/* No VT sema or GEM?  No GTT mapping. */
 	if (!scrn->vtSema || bo->size > intel->max_gtt_map_size) {
-		if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0) {
+		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
+		if (ret != 0) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: bo map failed: %d [%s]\n",
+				   "%s: bo map failed: %s\n",
 				   __FUNCTION__,
-				   errno, strerror(errno));
+				   strerror(-ret));
 			return FALSE;
 		}
 	} else {
-		if (drm_intel_gem_bo_map_gtt(bo)) {
+		ret = drm_intel_gem_bo_map_gtt(bo);
+		if (ret != 0) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: gtt bo map failed: %d [%s]\n",
+				   "%s: gtt bo map failed: %s\n",
 				   __FUNCTION__,
-				   errno, strerror(errno));
+				   strerror(-ret));
 			return FALSE;
 		}
 	}

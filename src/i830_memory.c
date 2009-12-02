@@ -77,7 +77,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <assert.h>
 #include <inttypes.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -366,7 +365,7 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 	if (ret != 0 || tiling_mode != requested_tiling_mode) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to set tiling on %s: %s\n", mem->name,
-			   ret == 0 ? "rejected by kernel" : strerror(errno));
+			   ret == 0 ? "rejected by kernel" : strerror(-ret));
 	}
 	mem->tiling_mode = tiling_mode;
 
