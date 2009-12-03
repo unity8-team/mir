@@ -149,9 +149,14 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0x00000033);
 	BEGIN_RING(chan, tesla, NV50TCL_VP_REG_ALLOC_RESULT, 1);
 	OUT_RING  (chan, 6);
-	BEGIN_RING(chan, tesla, NV50TCL_VP_RESULT_MAP_SIZE, 2);
-	OUT_RING  (chan, 8);
-	OUT_RING  (chan, 0); /* NV50TCL_VP_REG_ALLOC_TEMP */
+	if (tesla->grclass != 0x8597) {
+		BEGIN_RING(chan, tesla, NV50TCL_VP_RESULT_MAP_SIZE, 2);
+		OUT_RING  (chan, 8);
+		OUT_RING  (chan, 0); /* NV50TCL_VP_REG_ALLOC_TEMP */
+	} else {
+		BEGIN_RING(chan, tesla, NV50TCL_VP_RESULT_MAP_SIZE, 1);
+		OUT_RING  (chan, 8);
+	}
 	BEGIN_RING(chan, tesla, NV50TCL_VP_START_ID, 1);
 	OUT_RING  (chan, 0);
 
