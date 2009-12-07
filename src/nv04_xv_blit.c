@@ -87,7 +87,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
         if (!NVAccelGetCtxSurf2DFormatFromPixmap(ppix, &dst_format))
 		return BadImplementation;
 
-	if (MARK_RING(chan, 64, 3))
+	if (MARK_RING(chan, 64, 4))
 		return BadImplementation;
 
         BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
@@ -150,6 +150,10 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                 OUT_RING  (chan, src_format);
         }
 
+
+	BEGIN_RING(chan, sifm, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
+	OUT_RELOCo(chan, src, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
+			      NOUVEAU_BO_RD);
         while (nbox--) {
                 BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
                 OUT_RING  (chan, 0);
@@ -167,8 +171,8 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                 BEGIN_RING(chan, sifm, NV04_SCALED_IMAGE_FROM_MEMORY_SIZE, 4);
                 OUT_RING  (chan, (height << 16) | width);
                 OUT_RING  (chan, src_pitch);
-		if (OUT_RELOCl(chan, src, src_offset,
-			       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+		if (OUT_RELOCl(chan, src, src_offset, NOUVEAU_BO_VRAM |
+			       NOUVEAU_BO_GART | NOUVEAU_BO_RD)) {
 			MARK_UNDO(chan);
 			return BadImplementation;
 		}

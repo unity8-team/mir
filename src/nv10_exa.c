@@ -375,6 +375,7 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 	struct nouveau_grobj *celsius = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pixmap);
 	unsigned delta = nouveau_pixmap_offset(pixmap);
+	unsigned tex_reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
 	long w = pict->pDrawable->width,
 	     h = pict->pDrawable->height;
 	unsigned int txfmt =
@@ -383,10 +384,10 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 		log2i(w) << 20 | log2i(h) << 16 |
 		1 << 12 | /* lod == 1 */
 		get_tex_format(pict) |
-		0x51 /* UNK */;
+		0x50 /* UNK */;
 
 	BEGIN_RING(chan, celsius, NV10TCL_TX_OFFSET(unit), 1);
-	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD))
+	if (OUT_RELOCl(chan, bo, delta, tex_reloc))
 		return FALSE;
 
 	if (pict->repeat == RepeatNone) {
@@ -406,7 +407,9 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 	}
 
 	BEGIN_RING(chan, celsius, NV10TCL_TX_FORMAT(unit), 1 );
-	OUT_RING  (chan, txfmt);
+	if (OUT_RELOCd(chan, bo, txfmt, tex_reloc | NOUVEAU_BO_OR,
+		       NV10TCL_TX_FORMAT_DMA0, NV10TCL_TX_FORMAT_DMA1))
+		return FALSE;
 
 	BEGIN_RING(chan, celsius, NV10TCL_TX_ENABLE(unit), 1 );
 	OUT_RING  (chan, NV10TCL_TX_ENABLE_ENABLE);
@@ -587,7 +590,7 @@ NV10EXAPrepareComposite(int op,
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
 
-	if (MARK_RING(chan, 128, 3))
+	if (MARK_RING(chan, 128, 5))
 		return FALSE;
 
 	pNv->alu = op;

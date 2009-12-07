@@ -133,7 +133,7 @@ NV30VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *rankine = pNv->Nv3D;
-
+	uint32_t tex_reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
 	uint32_t card_fmt = 0;
 	uint32_t card_swz = 0;
 
@@ -157,7 +157,7 @@ NV30VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 	}
 
 	BEGIN_RING(chan, rankine, NV34TCL_TX_OFFSET(unit), 8);
-	if (OUT_RELOCl(chan, src, offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD))
+	if (OUT_RELOCl(chan, src, offset, tex_reloc))
 		return FALSE;
 
 	if (unit == 0) {
@@ -167,9 +167,8 @@ NV30VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 				NV34TCL_TX_FORMAT_BASE_SIZE_U_SHIFT) |
 			       (log2i(height) <<
 				NV34TCL_TX_FORMAT_BASE_SIZE_V_SHIFT) |
-			       8 /* no idea */,
-			       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
-			       NV34TCL_TX_FORMAT_DMA0, 0))
+			       8 /* no idea */, tex_reloc | NOUVEAU_BO_OR,
+			       NV34TCL_TX_FORMAT_DMA0, NV34TCL_TX_FORMAT_DMA1))
 			return FALSE;
 		OUT_RING  (chan, NV34TCL_TX_WRAP_S_REPEAT |
 				 NV34TCL_TX_WRAP_T_CLAMP_TO_EDGE |
@@ -181,9 +180,8 @@ NV30VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 				NV34TCL_TX_FORMAT_BASE_SIZE_U_SHIFT) |
 			       (log2i(height) <<
 				NV34TCL_TX_FORMAT_BASE_SIZE_V_SHIFT) |
-			       8 /* no idea */,
-			       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
-			       NV34TCL_TX_FORMAT_DMA0, 0))
+			       8 /* no idea */, tex_reloc | NOUVEAU_BO_OR,
+			       NV34TCL_TX_FORMAT_DMA0, NV34TCL_TX_FORMAT_DMA1))
 			return FALSE;
 		OUT_RING  (chan, NV34TCL_TX_WRAP_S_CLAMP_TO_EDGE |
 				 NV34TCL_TX_WRAP_T_CLAMP_TO_EDGE |

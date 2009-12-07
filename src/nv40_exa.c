@@ -240,6 +240,7 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	struct nouveau_grobj *curie = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pPix);
 	unsigned delta = nouveau_pixmap_offset(pPix);
+	unsigned tex_reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
 	nv_pict_texture_format_t *fmt;
 	NV40EXA_STATE;
 
@@ -248,13 +249,12 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 		return FALSE;
 
 	BEGIN_RING(chan, curie, NV40TCL_TEX_OFFSET(unit), 8);
-	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
-					NOUVEAU_BO_RD) ||
+	if (OUT_RELOCl(chan, bo, delta, tex_reloc) ||
 	    OUT_RELOCd(chan, bo, fmt->card_fmt | NV40TCL_TEX_FORMAT_LINEAR |
 		       NV40TCL_TEX_FORMAT_DIMS_2D | 0x8000 |
 		       NV40TCL_TEX_FORMAT_NO_BORDER |
 		       (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD,
+		       tex_reloc | NOUVEAU_BO_OR,
 		       NV40TCL_TEX_FORMAT_DMA0, NV40TCL_TEX_FORMAT_DMA1))
 		return FALSE;
 
