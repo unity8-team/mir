@@ -351,8 +351,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	 *
 	 * We can't rely on getting into the block handler before the DRI
 	 * client gets to run again so flush now. */
-	intel->need_mi_flush = FALSE;
-	intel_batch_flush(scrn);
+	intel_batch_submit(scrn);
 #if ALWAYS_SYNC
 	intel_sync(scrn);
 #endif

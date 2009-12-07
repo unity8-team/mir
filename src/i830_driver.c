@@ -985,24 +985,20 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 	screen->BlockHandler = I830BlockHandler;
 
 	if (scrn->vtSema) {
-		Bool flush = FALSE;
-
 		/* Emit a flush of the rendering cache, or on the 965 and beyond
 		 * rendering results may not hit the framebuffer until significantly
 		 * later.
+		 *
+		 * XXX Under KMS this is only required because tfp does not have
+		 * the appropriate synchronisation points, so that outstanding updates
+		 * to the pixmap are flushed prior to use as a texture. The framebuffer
+		 * should be handled by the kernel domain management...
 		 */
-		if (intel->need_mi_flush || intel->batch_used)
-			flush = TRUE;
+		if (intel->need_mi_flush || !list_is_empty(&intel->flush_pixmaps))
+			intel_batch_emit_flush(scrn);
 
-		/* Flush the batch, so that any rendering is executed in a timely
-		 * fashion.
-		 */
-		if (flush)
-			intel_batch_pipelined_flush(scrn);
-		intel_batch_flush(scrn);
+		intel_batch_submit(scrn);
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
-
-		intel->need_mi_flush = FALSE;
 	}
 
 	i830_uxa_block_handler(screen);

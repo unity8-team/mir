@@ -464,7 +464,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 
 	if(i830_uxa_pixmap_is_dirty(source) ||
 	   (mask && i830_uxa_pixmap_is_dirty(mask)))
-		intel_batch_pipelined_flush(scrn);
+		intel_batch_emit_flush(scrn);
 
 	intel->needs_render_state_emit = TRUE;
 

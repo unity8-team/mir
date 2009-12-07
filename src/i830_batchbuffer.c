@@ -93,15 +93,12 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 	}
 }
 
-void intel_batch_pipelined_flush(ScrnInfoPtr scrn)
+void intel_batch_emit_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int flags;
 
 	assert (!intel->in_batch_atomic);
-
-	if (intel->batch_used == 0)
-		return;
 
 	/* Big hammer, look to the pipelined flushes in future. */
 	flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
@@ -122,9 +119,11 @@ void intel_batch_pipelined_flush(ScrnInfoPtr scrn)
 		entry->flush_read_domains = entry->flush_write_domain = 0;
 		list_del(&entry->flush);
 	}
+
+	intel->need_mi_flush = FALSE;
 }
 
-void intel_batch_flush(ScrnInfoPtr scrn)
+void intel_batch_submit(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
@@ -175,6 +174,12 @@ void intel_batch_flush(ScrnInfoPtr scrn)
 		entry->batch_read_domains = entry->batch_write_domain = 0;
 		list_del(&entry->batch);
 	}
+
+	/* Mark that we need to flush whatever potential rendering we've done in the
+	 * blockhandler.  We could set this less often, but it's probably not worth
+	 * the work.
+	 */
+	intel->need_mi_flush = !list_is_empty(&intel->flush_pixmaps);
 	while (!list_is_empty(&intel->flush_pixmaps)) {
 		struct intel_pixmap *entry;
 
@@ -195,11 +200,6 @@ void intel_batch_flush(ScrnInfoPtr scrn)
 
 	intel_next_batch(scrn);
 
-	/* Mark that we need to flush whatever potential rendering we've done in the
-	 * blockhandler.  We could set this less often, but it's probably not worth
-	 * the work.
-	 */
-	intel->need_mi_flush = TRUE;
 
 	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
 		intel_batch_wait_last(scrn);
@@ -223,7 +223,6 @@ void intel_batch_wait_last(ScrnInfoPtr scrn)
 void intel_sync(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int flags;
 
 	if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
 		ErrorF("I830Sync\n");
@@ -231,14 +230,7 @@ void intel_sync(ScrnInfoPtr scrn)
 	if (!scrn->vtSema || !intel->batch_bo || !intel->batch_ptr)
 		return;
 
-	flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-	if (IS_I965G(intel))
-		flags = 0;
-
-	BEGIN_BATCH(1);
-	OUT_BATCH(flags);
-	ADVANCE_BATCH();
-
-	intel_batch_flush(scrn);
+	intel_batch_emit_flush(scrn);
+	intel_batch_submit(scrn);
 	intel_batch_wait_last(scrn);
 }
