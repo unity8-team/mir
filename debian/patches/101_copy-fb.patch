@@ -1,7 +1,7 @@
-diff --git a/src/drmmode_display.c b/src/drmmode_display.c
-index e8a6c01..a4a494a 100644
---- a/src/drmmode_display.c
-+++ b/src/drmmode_display.c
+Index: xserver-xorg-video-intel-2.9.1/src/drmmode_display.c
+===================================================================
+--- xserver-xorg-video-intel-2.9.1.orig/src/drmmode_display.c	2009-10-26 13:48:05.000000000 +0200
++++ xserver-xorg-video-intel-2.9.1/src/drmmode_display.c	2009-12-07 16:17:51.000000000 +0200
 @@ -35,6 +35,8 @@
  #include <unistd.h>
  #include <errno.h>
@@ -11,7 +11,7 @@ index e8a6c01..a4a494a 100644
  #include "xorgVersion.h"
  
  #include "i830.h"
-@@ -905,6 +907,13 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
+@@ -910,6 +912,13 @@
  	drmmode_ptr drmmode = drmmode_output->drmmode;
  	int i;
  	drmModePropertyPtr props;
@@ -25,7 +25,7 @@ index e8a6c01..a4a494a 100644
  
  	for (i = 0; i < koutput->count_props; i++) {
  		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
-@@ -1405,6 +1414,8 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
+@@ -1410,6 +1419,8 @@
  
  	xf86InitialConfiguration(pScrn, TRUE);
  
@@ -34,9 +34,9 @@ index e8a6c01..a4a494a 100644
  	return TRUE;
  }
  
-@@ -1415,3 +1426,97 @@ drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc)
- 
- 	return drm_intel_get_pipe_from_crtc_id (bufmgr, drmmode_crtc->mode_crtc->crtc_id);
+@@ -1435,3 +1446,97 @@
+ 	drmModeRmFB(drmmode->fd, drmmode->fb_id);
+ 	drmmode->fb_id = 0;
  }
 +
 +static PixmapPtr
@@ -132,11 +132,11 @@ index e8a6c01..a4a494a 100644
 +	(*pScreen->DestroyPixmap)(src);
 +	(*pScreen->DestroyPixmap)(dst);
 +}
-diff --git a/src/i830.h b/src/i830.h
-index 009641a..7d173aa 100644
---- a/src/i830.h
-+++ b/src/i830.h
-@@ -695,6 +695,7 @@ extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr c
+Index: xserver-xorg-video-intel-2.9.1/src/i830.h
+===================================================================
+--- xserver-xorg-video-intel-2.9.1.orig/src/i830.h	2009-10-26 13:48:05.000000000 +0200
++++ xserver-xorg-video-intel-2.9.1/src/i830.h	2009-12-07 16:17:51.000000000 +0200
+@@ -696,6 +696,7 @@
  extern int drmmode_output_dpms_status(xf86OutputPtr output);
  void
  drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo *cursor);
@@ -144,11 +144,11 @@ index 009641a..7d173aa 100644
  
  extern Bool i830_crtc_on(xf86CrtcPtr crtc);
  extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
-diff --git a/src/i830_driver.c b/src/i830_driver.c
-index 316a1fa..2c6f8ee 100644
---- a/src/i830_driver.c
-+++ b/src/i830_driver.c
-@@ -3014,6 +3014,8 @@ I830EnterVT(int scrnIndex, int flags)
+Index: xserver-xorg-video-intel-2.9.1/src/i830_driver.c
+===================================================================
+--- xserver-xorg-video-intel-2.9.1.orig/src/i830_driver.c	2009-10-26 13:48:05.000000000 +0200
++++ xserver-xorg-video-intel-2.9.1/src/i830_driver.c	2009-12-07 16:17:51.000000000 +0200
+@@ -3014,6 +3014,8 @@
         /* Clear the framebuffer */
         memset(pI830->FbBase + pScrn->fbOffset, 0,
  	      pScrn->virtualY * pScrn->displayWidth * pI830->cpp);

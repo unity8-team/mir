@@ -1,3 +1,75 @@
+commit 9acf10762b5f3d3b1b33ea07792a936a25e45010
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Oct 26 04:53:13 2009 -0700
+
+    Update version to 2.9.1
+
+commit 61c89e56f361fa860f18985137d6bf53f48c16ac
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Oct 26 04:51:58 2009 -0700
+
+    NEWS: Add notes for the 2.9.1 release.
+    
+    Thanks to everyone for providing nice descriptions of the bug fixe at:
+    
+    http://wiki.x.org/wiki/Intel29Branch
+
+commit 8e4fc7d3ba0baa6b680c685429060cb62a08f89f
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Oct 26 04:40:51 2009 -0700
+
+    Revert "Check whether the DVI-I/D is connected or disconnected based on EDID"
+    
+    This reverts commit 02fe9be695f7e209944bd0f7b67950f93619feee  as it
+    was causing regressions detecting DVI monitors for several people.
+    
+    See:
+    
+    	http://bugs.freedesktop.org/show_bug.cgi?id=24458
+    	http://bugs.freedesktop.org/show_bug.cgi?id=24458
+    	http://bugs.freedesktop.org/show_bug.cgi?id=24458)
+
+commit 22b85d0198508a13273ab58fd5fa3a127880a0be
+Author: Albert Damen <albrt@gmx.net>
+Date:   Wed Oct 7 21:55:42 2009 +0200
+
+    Drop frontbuffer from crtc in I830CloseScreen
+    
+    By dropping the frontbuffer from the crtc, the new frontbuffer
+    can be properly added to the crtc when the xserver is reset.
+    
+    Signed-off-by: Albert Damen <albrt@gmx.net>
+    (cherry picked from commit fcc2ee48b866b81c79315ff10189b56fc201539d)
+    
+    Fixes https://bugs.freedesktop.org/show_bug.cgi?id=24383
+
+commit 7ccf084b7a281d8aa877f91401d3df7192da408c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Oct 12 14:33:08 2009 +0100
+
+    uxa: Free the ScratchPixmapHeader after its associated Picture
+    
+    Fixes: http://bugs.freedesktop.org/show_bug.cgi?id=24459
+    Intel Driver > 2.8: Cairo rendering bug, triggered in QtCurve GTK engine
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    (cherry picked from commit 7e8f32d0a7279dce1976f87612833d9092554cfe)
+
+commit f858cbe246c5d3a788ae25551b49142c5cc91f1a
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Fri Oct 9 14:16:06 2009 +1000
+
+    drmmode: with 1.7 server, set mode major doesn't get gamma setup.
+    
+    Noticed this on Fedora, where 1.7 server does gamma via the randr
+    codepaths however kms doesn't have this call which happens in the
+    non set_mode_major path.
+    
+    probably should be backported to released drivers.
+    
+    Signed-off-by: Dave Airlie <airlied@redhat.com>
+    (cherry picked from commit 8a77877f9c2c6a8a1308bc1a3be9e7ad88bc7f49)
+
 commit 2841a4cd8c6c64fdf4b2203ab73b57b38a50f651
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Sep 28 20:03:11 2009 -0700

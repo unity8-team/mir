@@ -1,3 +1,26 @@
+Release 2.9.1 (2009-10-26)
+==========================
+We are pleased to announce a maintenance release (2.9.1) of the
+xf86-video-intel driver. This release comes one month after 2.9.0 and
+consists only of a few, hand-picked bug fixes since that release.
+
+Complete list of fixes in 2.9.1 compared to 2.9.0
+-------------------------------------------------
+ * Fix corruption and artifacts due to wrong colors in the colormap
+   with X server 1.7
+
+ * Fix incorrect rendering, such as missing scrollbar arrows in some
+   themes (http://bugs.freedesktop.org/show_bug.cgi?id=24459)
+
+ * Fix black screen when X server is reset
+   (https://bugs.freedesktop.org/show_bug.cgi?id=24383)
+
+ * Fix regressions detecting DVI monitors
+
+   http://bugs.freedesktop.org/show_bug.cgi?id=24255
+   http://bugs.freedesktop.org/show_bug.cgi?id=24282
+   http://bugs.freedesktop.org/show_bug.cgi?id=24458
+
 Release 2.9.0 (2009-09-28)
 ==========================
 We are pleased to announce the 2.9.0 release of the xf86-video-intel
