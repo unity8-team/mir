@@ -454,6 +454,93 @@ uxa_picture_from_pixman_image(ScreenPtr pScreen,
 }
 
 static PicturePtr
+uxa_create_solid(ScreenPtr screen, uint32_t color)
+{
+	PixmapPtr pixmap;
+	PicturePtr picture;
+	uint32_t repeat = RepeatNormal;
+	int error = 0;
+
+	pixmap = (*screen->CreatePixmap)(screen, 1, 1, 32,
+					 UXA_CREATE_PIXMAP_FOR_MAP);
+	if (!pixmap)
+		return 0;
+
+	if (!uxa_prepare_access((DrawablePtr)pixmap, UXA_ACCESS_RW)) {
+		(*screen->DestroyPixmap)(pixmap);
+		return 0;
+	}
+	*((uint32_t *)pixmap->devPrivate.ptr) = color;
+	uxa_finish_access((DrawablePtr)pixmap);
+
+	picture = CreatePicture(0, &pixmap->drawable,
+				PictureMatchFormat(screen, 32, PICT_a8r8g8b8),
+				CPRepeat, &repeat, serverClient, &error);
+	(*screen->DestroyPixmap)(pixmap);
+
+	return picture;
+}
+
+static PicturePtr
+uxa_acquire_solid(ScreenPtr screen, SourcePict *source)
+{
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+	PictSolidFill *solid = &source->solidFill;
+	PicturePtr picture;
+	int i;
+
+	if ((solid->color >> 24) == 0) {
+		if (!uxa_screen->solid_clear) {
+			uxa_screen->solid_clear = uxa_create_solid(screen, 0);
+			if (!uxa_screen->solid_clear)
+				return 0;
+		}
+		picture = uxa_screen->solid_clear;
+		goto DONE;
+	} else if (solid->color == 0xff000000) {
+		if (!uxa_screen->solid_black) {
+			uxa_screen->solid_black = uxa_create_solid(screen, 0xff000000);
+			if (!uxa_screen->solid_black)
+				return 0;
+		}
+		picture = uxa_screen->solid_black;
+		goto DONE;
+	} else if (solid->color == 0xffffffff) {
+		if (!uxa_screen->solid_white) {
+			uxa_screen->solid_white = uxa_create_solid(screen, 0xffffffff);
+			if (!uxa_screen->solid_white)
+				return 0;
+		}
+		picture = uxa_screen->solid_white;
+		goto DONE;
+	}
+
+	for (i = 0; i < uxa_screen->solid_cache_size; i++) {
+		if (uxa_screen->solid_cache[i].color == solid->color) {
+			picture = uxa_screen->solid_cache[i].picture;
+			goto DONE;
+		}
+	}
+
+	picture = uxa_create_solid(screen, solid->color);
+	if (!picture)
+		return 0;
+
+	if (uxa_screen->solid_cache_size == UXA_NUM_SOLID_CACHE) {
+		i = rand() % UXA_NUM_SOLID_CACHE;
+		FreePicture(uxa_screen->solid_cache[i].picture, 0);
+	} else
+		uxa_screen->solid_cache_size++;
+
+	uxa_screen->solid_cache[i].picture = picture;
+	uxa_screen->solid_cache[i].color = solid->color;
+
+DONE:
+	picture->refcnt++;
+	return picture;
+}
+
+static PicturePtr
 uxa_acquire_pattern(ScreenPtr pScreen,
 		    PicturePtr pSrc,
 		    pixman_format_code_t format,
@@ -461,9 +548,16 @@ uxa_acquire_pattern(ScreenPtr pScreen,
 {
 	PicturePtr pDst;
 
+	if (pSrc->pSourcePict) {
+		SourcePict *source = pSrc->pSourcePict;
+		if (source->type == SourcePictTypeSolidFill)
+			return uxa_acquire_solid (pScreen, source);
+	}
+
 	pDst = uxa_picture_for_pixman_format(pScreen, format, width, height);
 	if (!pDst)
 		return 0;
+
 	if (uxa_prepare_access(pDst->pDrawable, UXA_ACCESS_RW)) {
 		fbComposite(PictOpSrc, pSrc, NULL, pDst,
 			    x, y, 0, 0, 0, 0, width, height);

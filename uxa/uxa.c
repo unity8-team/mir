@@ -361,6 +361,16 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 #ifdef RENDER
 	PictureScreenPtr ps = GetPictureScreenIfSet(pScreen);
 #endif
+	int n;
+
+	if (uxa_screen->solid_clear)
+		FreePicture(uxa_screen->solid_clear, 0);
+	if (uxa_screen->solid_black)
+		FreePicture(uxa_screen->solid_black, 0);
+	if (uxa_screen->solid_white)
+		FreePicture(uxa_screen->solid_white, 0);
+	for (n = 0; n < uxa_screen->solid_cache_size; n++)
+		FreePicture(uxa_screen->solid_cache[n].picture, 0);
 
 	uxa_glyphs_fini(pScreen);
 
@@ -466,6 +476,11 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	uxa_screen->info = uxa_driver;
 
 	dixSetPrivate(&screen->devPrivates, &uxa_screen_index, uxa_screen);
+
+	uxa_screen->solid_cache_size = 0;
+	uxa_screen->solid_clear = 0;
+	uxa_screen->solid_black = 0;
+	uxa_screen->solid_white = 0;
 
 //    exaDDXDriverInit(screen);
 

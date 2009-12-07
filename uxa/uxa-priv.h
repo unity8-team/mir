@@ -135,6 +135,13 @@ typedef struct {
 
 #define UXA_NUM_GLYPH_CACHES 4
 
+typedef struct {
+	uint32_t color;
+	PicturePtr picture;
+} uxa_solid_cache_t;
+
+#define UXA_NUM_SOLID_CACHE 16
+
 typedef void (*EnableDisableFBAccessProcPtr) (int, Bool);
 typedef struct {
 	uxa_driver_t *info;
@@ -162,6 +169,10 @@ typedef struct {
 	unsigned offScreenCounter;
 
 	uxa_glyph_cache_t glyphCaches[UXA_NUM_GLYPH_CACHES];
+
+	PicturePtr solid_clear, solid_black, solid_white;
+	uxa_solid_cache_t solid_cache[UXA_NUM_SOLID_CACHE];
+	int solid_cache_size;
 } uxa_screen_t;
 
 /*
