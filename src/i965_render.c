@@ -1589,7 +1589,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 		intel->transform[1] = mask_picture->transform;
 		intel->scale_units[1][0] = mask->drawable.width;
 		intel->scale_units[1][1] = mask->drawable.height;
-		composite_op->is_affine |=
+		composite_op->is_affine &=
 		    i830_transform_is_affine(intel->transform[1]);
 	}
 
