@@ -75,7 +75,7 @@ static inline void intel_batch_end_atomic(ScrnInfoPtr scrn)
 static inline void intel_batch_emit_dword(intel_screen_private *intel, uint32_t dword)
 {
 	assert(intel->batch_ptr != NULL);
-	assert(intel_batch_space(intel) >= 4);
+	assert(intel->batch_emitting);
 	*(uint32_t *) (intel->batch_ptr + intel->batch_used) = dword;
 	intel->batch_used += 4;
 }
