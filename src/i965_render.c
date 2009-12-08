@@ -1682,7 +1682,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
 	int i;
 	drm_intel_bo *vb_bo;
-	float vb[18];
+	float vb[24]; /* 3 * (2 dst + 3 src + 3 mask) */
 	Bool is_affine = render_state->composite_op.is_affine;
 
 	if (is_affine) {
@@ -1801,7 +1801,6 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 		if (!is_affine)
 			vb[i++] = mask_w[0];
 	}
-	assert(i <= VERTEX_BUFFER_SIZE);
 	drm_intel_bo_subdata(vb_bo, render_state->vb_offset * 4, i * 4, vb);
 
 	if (!i965_composite_check_aperture(scrn))
