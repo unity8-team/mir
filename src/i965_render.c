@@ -1469,6 +1469,8 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	uint32_t *binding_table;
 	drm_intel_bo *binding_table_bo, *surface_state_bo;
 
+	composite_op->src_filter =
+	    sampler_state_filter_from_picture(source_picture->filter);
 	if (composite_op->src_filter < 0) {
 		intel_debug_fallback(scrn, "Bad src filter 0x%x\n",
 				     source_picture->filter);
@@ -1572,8 +1574,6 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	intel->render_dest = dest;
 	drm_intel_bo_unreference(composite_op->binding_table_bo);
 	composite_op->binding_table_bo = binding_table_bo;
-	composite_op->src_filter =
-	    sampler_state_filter_from_picture(source_picture->filter);
 
 	intel->scale_units[0][0] = source->drawable.width;
 	intel->scale_units[0][1] = source->drawable.height;
