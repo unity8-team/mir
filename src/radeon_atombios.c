@@ -2204,14 +2204,17 @@ RADEONGetATOMClockInfo(ScrnInfoPtr pScrn)
     if (pll->pll_out_min == 0)
 	pll->pll_out_min = 64800;
 
+
     /* limiting the range is a good thing in most cases
      * as it limits the number of matching pll combinations,
      * however, some duallink DVI monitors seem to prefer combinations that
      * would be limited by this.  This may need to be revisited
      * per chip family.
      */
-    if (pll->pll_out_min > 64800)
-	pll->pll_out_min = 64800;
+    if (!xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, TRUE)) {
+	if (pll->pll_out_min > 64800)
+	    pll->pll_out_min = 64800;
+    }
 
     return TRUE;
 }

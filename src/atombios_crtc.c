@@ -407,7 +407,13 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	ErrorF("after %d\n", adjust_pll_param.usPixelClock);
     }
 
-    RADEONComputePLL(&info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
+    if (IS_AVIVO_VARIANT) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, TRUE))
+	    RADEONComputePLL_AVIVO(&info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
+	else
+	    RADEONComputePLL(&info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
+    } else
+	RADEONComputePLL(&info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
     sclock = temp; /* 10 khz */
 
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,

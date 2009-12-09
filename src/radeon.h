@@ -222,7 +222,8 @@ typedef enum {
     OPTION_ATOM_TVOUT,
     OPTION_R4XX_ATOM,
     OPTION_FORCE_LOW_POWER,
-    OPTION_DYNAMIC_PM
+    OPTION_DYNAMIC_PM,
+    OPTION_NEW_PLL
 } RADEONOpts;
 
 
@@ -1164,6 +1165,14 @@ extern void RADEONComputePLL(RADEONPLLPtr pll, unsigned long freq,
 			     uint32_t *chosen_frac_feedback_div,
 			     uint32_t *chosen_reference_div,
 			     uint32_t *chosen_post_div, int flags);
+extern void RADEONComputePLL_AVIVO(RADEONPLLPtr pll,
+				   unsigned long freq,
+				   uint32_t *chosen_dot_clock_freq,
+				   uint32_t *chosen_feedback_div,
+				   uint32_t *chosen_frac_feedback_div,
+				   uint32_t *chosen_reference_div,
+				   uint32_t *chosen_post_div,
+				   int flags);
 extern DisplayModePtr RADEONCrtcFindClosestMode(xf86CrtcPtr crtc,
 						DisplayModePtr pMode);
 extern void RADEONUnblank(ScrnInfoPtr pScrn);

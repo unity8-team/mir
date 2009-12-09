@@ -301,6 +301,81 @@ RADEONComputePLL(RADEONPLLPtr pll,
 
 }
 
+void
+RADEONComputePLL_AVIVO(RADEONPLLPtr pll,
+		       unsigned long freq,
+		       uint32_t *chosen_dot_clock_freq,
+		       uint32_t *chosen_feedback_div,
+		       uint32_t *chosen_frac_feedback_div,
+		       uint32_t *chosen_reference_div,
+		       uint32_t *chosen_post_div,
+		       int flags)
+{
+    float m, n, frac_n, p, f_vco, f_pclk, best_freq;
+    float pll_out_max = pll->pll_out_max;
+    float pll_out_min = pll->pll_out_min;
+    float reference_freq = pll->reference_freq;
+    float pll_in_max = pll->pll_in_max;
+    float pll_in_min = pll->pll_in_min;
+    float ffreq = freq / 10;
+    float error = 100;
+
+    ErrorF("ffreq: %f\n", ffreq * 10);
+
+    /* 1 - max p */
+    p = floor(pll_out_max / ffreq);
+
+    /* 2 - min m */
+    m = ceil(reference_freq / pll_in_max);
+
+    while (error > 0.25) {
+	/* 3 - n */
+	n = (ffreq / reference_freq) * m * p;
+
+	/* 4 - vco out freq */
+	f_vco = (n / m) * reference_freq;
+
+	/* 5 - pclk freq */
+	f_pclk = f_vco / p;
+
+	/* 6 - error */
+	error = (abs(f_pclk - ffreq) / f_pclk) * 100;
+
+	best_freq = reference_freq * (n / (m * p));
+
+	/* min error 0.25% */
+	if (error < 0.25)
+	    break;
+
+	/* 7 - check m */
+	m++;
+	if ((reference_freq / m) >= pll_in_min)
+	    continue;
+
+	/* 8 - check p */
+	m = ceil(reference_freq / pll_in_max);
+	p--;
+	if ((p * ffreq) >= pll_out_min)
+	    continue;
+	else
+	    FatalError("Couldn't find valid PLL dividers\n");
+    }
+
+    frac_n = (n - (int)n) * 10;
+
+    ErrorF("best_freq: %u\n", (unsigned int)best_freq * 10);
+    ErrorF("best_feedback_div: %d.%d\n", (int)n, (int)frac_n);
+    ErrorF("best_ref_div: %d\n", (int)m);
+    ErrorF("best_post_div: %d\n", (int)p);
+
+    *chosen_dot_clock_freq = best_freq;
+    *chosen_feedback_div = (uint32_t)n;
+    *chosen_frac_feedback_div = (uint32_t)frac_n;
+    *chosen_reference_div = (uint32_t)m;
+    *chosen_post_div = (uint32_t)p;
+
+}
+
 static void
 radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode, int x, int y)
