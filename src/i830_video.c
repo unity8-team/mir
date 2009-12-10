@@ -1428,7 +1428,9 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 		     INT32 x1, INT32 y1, INT32 x2, INT32 y2,
 		     int id, unsigned char *buf)
 {
+#ifdef INTEL_XVMC
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+#endif
 	int srcPitch = 0, srcPitch2 = 0;
 	int top, left, npixels, nlines, size;
 
