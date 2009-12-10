@@ -389,15 +389,4 @@ extern int I810_DEBUG;
 struct pci_device *
 intel_host_bridge (void);
 
-/**
- * Hints to CreatePixmap to tell the driver how the pixmap is going to be
- * used.
- *
- * Compare to CREATE_PIXMAP_USAGE_* in the server.
- */
-enum {
-	INTEL_CREATE_PIXMAP_TILING_X = 0x10000000,
-	INTEL_CREATE_PIXMAP_TILING_Y,
-};
-
 #endif /* _INTEL_COMMON_H_ */

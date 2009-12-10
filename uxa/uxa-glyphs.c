@@ -47,7 +47,6 @@
 #include <stdlib.h>
 
 #include "uxa-priv.h"
-#include "../src/common.h"
 
 #include "mipict.h"
 
@@ -190,8 +189,7 @@ static Bool uxa_realize_glyph_caches(ScreenPtr pScreen, unsigned int format)
 
 	pPixmap = (*pScreen->CreatePixmap) (pScreen,
 					    CACHE_PICTURE_WIDTH,
-					    height, depth,
-					    INTEL_CREATE_PIXMAP_TILING_X);
+					    height, depth, 0);
 	if (!pPixmap)
 		return FALSE;
 
