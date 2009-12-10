@@ -203,7 +203,6 @@ static XF86ImageRec Images[NUM_IMAGES] = {
 /* kernel modesetting overlay functions */
 static Bool drmmode_has_overlay(ScrnInfoPtr scrn)
 {
-#ifdef DRM_MODE_OVERLAY_LANDED
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_i915_getparam gp;
 	int has_overlay = 0;
@@ -213,14 +212,10 @@ static Bool drmmode_has_overlay(ScrnInfoPtr scrn)
 	drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
 
 	return has_overlay ? TRUE : FALSE;
-#else
-	return FALSE;
-#endif
 }
 
 static void drmmode_overlay_update_attrs(ScrnInfoPtr scrn)
 {
-#ifdef DRM_MODE_OVERLAY_LANDED
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(scrn);
 	struct drm_intel_overlay_attrs attrs;
@@ -243,12 +238,10 @@ static void drmmode_overlay_update_attrs(ScrnInfoPtr scrn)
 
 	if (ret != 0)
 		OVERLAY_DEBUG("overlay attrs ioctl failed: %i\n", ret);
-#endif
 }
 
 static void drmmode_overlay_off(ScrnInfoPtr scrn)
 {
-#ifdef DRM_MODE_OVERLAY_LANDED
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_intel_overlay_put_image request;
 	int ret;
@@ -260,7 +253,6 @@ static void drmmode_overlay_off(ScrnInfoPtr scrn)
 
 	if (ret != 0)
 		OVERLAY_DEBUG("overlay switch-off ioctl failed: %i\n", ret);
-#endif
 }
 
 static Bool
@@ -270,7 +262,6 @@ drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 			  BoxPtr dstBox, short src_w, short src_h, short drw_w,
 			  short drw_h)
 {
-#ifdef DRM_MODE_OVERLAY_LANDED
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(scrn);
 	struct drm_intel_overlay_put_image request;
@@ -336,9 +327,6 @@ drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 		return FALSE;
 	} else
 		return TRUE;
-#else
-	return FALSE;
-#endif
 }
 
 void I830InitVideo(ScreenPtr screen)
