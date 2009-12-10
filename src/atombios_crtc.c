@@ -481,6 +481,158 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     return;
 }
 
+static void avivo_set_base_format(xf86CrtcPtr crtc,
+				  DisplayModePtr mode,
+				  DisplayModePtr adjusted_mode,
+				  int x, int y)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned long fb_location = crtc->scrn->fbOffset + info->fbLocation;
+    uint32_t fb_format;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    uint32_t fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
+#endif
+
+    switch (crtc->scrn->bitsPerPixel) {
+    case 15:
+	fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_ARGB1555;
+	break;
+    case 16:
+	fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
+#endif
+	break;
+    case 24:
+    case 32:
+	fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_32BPP | AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
+#endif
+	break;
+    default:
+	FatalError("Unsupported screen depth: %d\n", xf86GetDepth());
+    }
+
+    if (info->tilingEnabled && (crtc->rotatedData == NULL)) {
+	fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
+    }
+
+    if (radeon_crtc->crtc_id == 0)
+	OUTREG(AVIVO_D1VGA_CONTROL, 0);
+    else
+	OUTREG(AVIVO_D2VGA_CONTROL, 0);
+
+    /* setup fb format and location
+     */
+    if (crtc->rotatedData != NULL) {
+	/* x/y offset is already included */
+	x = 0;
+	y = 0;
+	fb_location = fb_location + (char *)crtc->rotatedData - (char *)info->FB;
+    }
+
+    if (info->ChipFamily >= CHIP_FAMILY_RV770) {
+	if (radeon_crtc->crtc_id) {
+	    OUTREG(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
+	    OUTREG(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
+	} else {
+	    OUTREG(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
+	    OUTREG(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
+	}
+    }
+    OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
+    OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
+    OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	OUTREG(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
+#endif
+
+    OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
+    OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
+    OUTREG(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, 0);
+    OUTREG(AVIVO_D1GRPH_Y_START + radeon_crtc->crtc_offset, 0);
+    OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, info->virtualX);
+    OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, info->virtualY);
+    OUTREG(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
+	   crtc->scrn->displayWidth);
+    OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
+
+    OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset, mode->VDisplay);
+    x &= ~3;
+    y &= ~1;
+    OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
+    OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
+	   (mode->HDisplay << 16) | mode->VDisplay);
+
+    if (mode->Flags & V_INTERLACE)
+	OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
+	       AVIVO_D1MODE_INTERLEAVE_EN);
+    else
+	OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
+}
+
+static void legacy_set_base_format(xf86CrtcPtr crtc,
+				   DisplayModePtr mode,
+				   DisplayModePtr adjusted_mode,
+				   int x, int y)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    int format = 0;
+    uint32_t crtc_gen_cntl, crtc2_gen_cntl, crtc_pitch;
+
+    RADEONInitCommonRegisters(info->ModeReg, info);
+    RADEONInitSurfaceCntl(crtc, info->ModeReg);
+    RADEONRestoreCommonRegisters(pScrn, info->ModeReg);
+
+    switch (info->CurrentLayout.pixel_code) {
+    case 4:  format = 1; break;
+    case 8:  format = 2; break;
+    case 15: format = 3; break;      /*  555 */
+    case 16: format = 4; break;      /*  565 */
+    case 24: format = 5; break;      /*  RGB */
+    case 32: format = 6; break;      /* xRGB */
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Unsupported pixel depth (%d)\n",
+		   info->CurrentLayout.bitsPerPixel);
+    }
+
+    crtc_pitch  = (((pScrn->displayWidth * pScrn->bitsPerPixel) +
+		    ((pScrn->bitsPerPixel * 8) -1)) /
+		       (pScrn->bitsPerPixel * 8));
+    crtc_pitch |= crtc_pitch << 16;
+
+    switch (radeon_crtc->crtc_id) {
+    case 0:
+	crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL) & 0xfffff0ff;
+	crtc_gen_cntl |= (format << 8);
+	OUTREG(RADEON_CRTC_GEN_CNTL, crtc_gen_cntl);
+	OUTREG(RADEON_CRTC_PITCH, crtc_pitch);
+	RADEONInitCrtcBase(crtc, info->ModeReg, x, y);
+	RADEONRestoreCrtcBase(pScrn, info->ModeReg);
+	break;
+    case 1:
+	crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL) & 0xfffff0ff;
+	crtc2_gen_cntl |= (format << 8);
+	OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+	OUTREG(RADEON_CRTC2_PITCH, crtc_pitch);
+	RADEONInitCrtc2Base(crtc, info->ModeReg, x, y);
+	RADEONRestoreCrtc2Base(pScrn, info->ModeReg);
+	OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   INREG(RADEON_CRTC2_H_SYNC_STRT_WID));
+	OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   INREG(RADEON_CRTC2_V_SYNC_STRT_WID));
+	break;
+    }
+}
+
 void
 atombios_crtc_mode_set(xf86CrtcPtr crtc,
 		       DisplayModePtr mode,
@@ -490,8 +642,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned long fb_location = crtc->scrn->fbOffset + info->fbLocation;
     Bool tilingChanged = FALSE;
 
     if (info->allowColorTiling) {
@@ -510,141 +660,10 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     if (!IS_AVIVO_VARIANT && (radeon_crtc->crtc_id == 0))
 	atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
 
-    if (IS_AVIVO_VARIANT) {
-	uint32_t fb_format;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	uint32_t fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
-#endif
-
-	switch (crtc->scrn->bitsPerPixel) {
-	case 15:
-	    fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_ARGB1555;
-	    break;
-	case 16:
-	    fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	    fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
-#endif
-	    break;
-	case 24:
-	case 32:
-	    fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_32BPP | AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	    fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
-#endif
-	    break;
-	default:
-	    FatalError("Unsupported screen depth: %d\n", xf86GetDepth());
-	}
-
-	if (info->tilingEnabled && (crtc->rotatedData == NULL)) {
-	    fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
-	}
-
-	if (radeon_crtc->crtc_id == 0)
-	    OUTREG(AVIVO_D1VGA_CONTROL, 0);
-	else
-	    OUTREG(AVIVO_D2VGA_CONTROL, 0);
-
-	/* setup fb format and location
-	 */
-	if (crtc->rotatedData != NULL) {
-	    /* x/y offset is already included */
-	    x = 0;
-	    y = 0;
-	    fb_location = fb_location + (char *)crtc->rotatedData - (char *)info->FB;
-	}
-
-	if (info->ChipFamily >= CHIP_FAMILY_RV770) {
-	    if (radeon_crtc->crtc_id) {
-		OUTREG(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
-		OUTREG(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
-	    } else {
-		OUTREG(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
-		OUTREG(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
-	    }
-	}
-	OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
-	OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
-	OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	if (info->ChipFamily >= CHIP_FAMILY_R600)
-	    OUTREG(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
-#endif
-
-	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
-	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
-	OUTREG(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, 0);
-	OUTREG(AVIVO_D1GRPH_Y_START + radeon_crtc->crtc_offset, 0);
-	OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, info->virtualX);
-	OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, info->virtualY);
-	OUTREG(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
-	       crtc->scrn->displayWidth);
-	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
-
-	OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset, mode->VDisplay);
-	x &= ~3;
-	y &= ~1;
-	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
-	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
-	       (mode->HDisplay << 16) | mode->VDisplay);
-
-	if (mode->Flags & V_INTERLACE)
-	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
-		   AVIVO_D1MODE_INTERLEAVE_EN);
-	else
-	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
-		   0);
-    } else {
-	int format = 0;
-	uint32_t crtc_gen_cntl, crtc2_gen_cntl, crtc_pitch;
-
-
-	RADEONInitCommonRegisters(info->ModeReg, info);
-	RADEONInitSurfaceCntl(crtc, info->ModeReg);
-	ErrorF("restore common\n");
-	RADEONRestoreCommonRegisters(pScrn, info->ModeReg);
-
-	switch (info->CurrentLayout.pixel_code) {
-	case 4:  format = 1; break;
-	case 8:  format = 2; break;
-	case 15: format = 3; break;      /*  555 */
-	case 16: format = 4; break;      /*  565 */
-	case 24: format = 5; break;      /*  RGB */
-	case 32: format = 6; break;      /* xRGB */
-	default:
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Unsupported pixel depth (%d)\n",
-		       info->CurrentLayout.bitsPerPixel);
-	}
-
-	crtc_pitch  = (((pScrn->displayWidth * pScrn->bitsPerPixel) +
-			((pScrn->bitsPerPixel * 8) -1)) /
-		       (pScrn->bitsPerPixel * 8));
-	crtc_pitch |= crtc_pitch << 16;
-
-	switch (radeon_crtc->crtc_id) {
-	case 0:
-	    crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL) & 0xfffff0ff;
-	    crtc_gen_cntl |= (format << 8);
-	    OUTREG(RADEON_CRTC_GEN_CNTL, crtc_gen_cntl);
-	    OUTREG(RADEON_CRTC_PITCH, crtc_pitch);
-	    RADEONInitCrtcBase(crtc, info->ModeReg, x, y);
-	    RADEONRestoreCrtcBase(pScrn, info->ModeReg);
-	    break;
-	case 1:
-	    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL) & 0xfffff0ff;
-	    crtc2_gen_cntl |= (format << 8);
-	    OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
-	    OUTREG(RADEON_CRTC2_PITCH, crtc_pitch);
-	    RADEONInitCrtc2Base(crtc, info->ModeReg, x, y);
-	    RADEONRestoreCrtc2Base(pScrn, info->ModeReg);
-	    OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   INREG(RADEON_CRTC2_H_SYNC_STRT_WID));
-	    OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   INREG(RADEON_CRTC2_V_SYNC_STRT_WID));
-	    break;
-	}
-    }
+    if (IS_AVIVO_VARIANT)
+	avivo_set_base_format(crtc, mode, adjusted_mode, x, y);
+    else
+	legacy_set_base_format(crtc, mode, adjusted_mode, x, y);
 
     if (info->DispPriority)
 	RADEONInitDispBandwidth(pScrn);
