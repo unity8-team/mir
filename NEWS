@@ -1,3 +1,62 @@
+Work-in-progress release notes for the next release (which will be 2.10.0)
+==========================================================================
+New requirements of 2.10 compared to 2.9
+----------------------------------------
+ * Linux kernel with kernel-modesetting (KMS)
+
+   All user-modesetting code has now been removed from the driver.
+   We highly recommend kernel version 2.6.32 or later.
+
+ * Libdrm >= 2.4.16
+
+New features in 2.10 compared to 2.9
+------------------------------------
+ * New driver debugging options available in xorg.conf
+   (DebugFlushBatches, DebugFlushCaches, DebugWait). See "man intel"
+   for more details.
+
+ * Video overlay support with KMS. This currently requires Linux
+   2.6.33, but a backport to 2.6.32 is available here:
+
+   http://gitorious.org/daniel-s-linux-stuff/linux-kernel/commits/intel-kms-overlay-for-2.6.32
+
+Notable fixes in 2.10 compared to 2.9
+-----------------------------------
+ * Fix crash when XRenderComposite is called with a -1 value for
+   width/height, (crash at login when using compiz).
+
+   http://bugs.freedesktop.org/show_bug.cgi?id=24724
+
+ * Fix to support larger extended desktops, (such as a 2560x1600 plus a
+   1920x1200 monitor).
+
+ * i915: Fix texture sample coordinates, (was causing gray border around
+   images).
+
+   https://bugs.freedesktop.org/show_bug.cgi?id=21523
+
+ * Fix glyph corruption due to insufficient cache flushing:
+
+   https://bugs.freedesktop.org/show_bug.cgi?id=24315
+
+Several other correctness and performance fixes are also included.
+
+[Developers, please provide me summaries for any additional features
+of this release that you think should appear in NEWS and in the 2.10.0
+release notes.
+
+Snapshot 2.9.99.902 (2009-12-10)
+================================
+This is the second release candidate in preparation for the upcoming
+2.10.0 release. We will appreciate any feedback we can get from
+testing of this snapshot to improve the 2.10.0 release.
+
+Compared to the previous snapshot, this snapshot now correctly
+verifies that libdrm 2.4.16 (or newer) is available. The previous
+snapshot also required libdrm 2.4.16 for correct functionality, but
+neglected to notify the user of this at configure, compile, or install
+time and would instead simply fail to run.
+
 Snapshot 2.9.99.901 (2009-11-30)
 ================================
 This is the first release candidate in preparation for the upcoming
@@ -7,11 +66,6 @@ testing of this snapshot to improve the 2.10.0 release.
 With this snapshot, the xf86-video-intel driver requires kernel
 modesetting (KMS) as all of the user modesetting (UMS) support has
 been removed from the driver.
-
-See the commit log for further changes in this release, and
-developers, please provide me summaries for any major features in this
-release that you think should appear in NEWS and in the 2.10.0 release
-notes.
 
 Release 2.9.0 (2009-09-28)
 ==========================
