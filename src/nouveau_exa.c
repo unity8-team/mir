@@ -421,6 +421,15 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 		return NULL;
 	}
 
+	/* We need to be sure we actually have space for this pixmap. */
+	ret = nouveau_bo_map(nvpix->bo, NOUVEAU_BO_RDWR);
+	if (ret) {
+		nouveau_bo_ref(NULL, &nvpix->bo);
+		xfree(nvpix);
+		return NULL;
+	}
+	nouveau_bo_unmap(nvpix->bo);
+
 	return nvpix;
 }
 
