@@ -912,6 +912,11 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 			      ? RADEON_CRTC_INTERLACE_EN
 			      : 0));
 
+    /* 200M freezes on VT switch sometimes if CRTC is disabled */
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480))
+	save->crtc_gen_cntl |= RADEON_CRTC_EN;
+
     save->crtc_ext_cntl |= (RADEON_XCRT_CNT_EN|
 			    RADEON_CRTC_VSYNC_DIS |
 			    RADEON_CRTC_HSYNC_DIS |
@@ -1161,6 +1166,11 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 			     | ((mode->Flags & V_INTERLACE)
 				? RADEON_CRTC2_INTERLACE_EN
 				: 0));
+
+    /* 200M freezes on VT switch sometimes if CRTC is disabled */
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480))
+	save->crtc2_gen_cntl |= RADEON_CRTC2_EN;
 
     save->disp2_merge_cntl = info->SavedReg->disp2_merge_cntl;
     save->disp2_merge_cntl &= ~(RADEON_DISP2_RGB_OFFSET_EN);
