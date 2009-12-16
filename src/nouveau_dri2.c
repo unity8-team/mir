@@ -44,11 +44,11 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 
 		ppix->refcnt++;
 	} else {
-		unsigned int usage_hint = 0;
+		unsigned int usage_hint = NOUVEAU_CREATE_PIXMAP_TILED;
 
 		if (attachment == DRI2BufferDepth ||
 		    attachment == DRI2BufferDepthStencil)
-			usage_hint = NOUVEAU_CREATE_PIXMAP_ZETA;
+			usage_hint |= NOUVEAU_CREATE_PIXMAP_ZETA;
 
 		ppix = pScreen->CreatePixmap(pScreen, pDraw->width,
 					     pDraw->height, pDraw->depth,
