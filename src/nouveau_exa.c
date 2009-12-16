@@ -57,7 +57,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	unsigned line_len = w * cpp;
 	unsigned src_pitch = 0, linear = 0;
 
-	if (!nouveau_exa_pixmap_is_tiled(pspix)) {
+	if (!nv50_style_tiled_pixmap(pspix)) {
 		linear     = 1;
 		src_pitch  = exaGetPixmapPitch(pspix);
 		src_offset += (y * src_pitch) + (x * cpp);
@@ -175,7 +175,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	unsigned line_len = w * cpp;
 	unsigned dst_pitch = 0, linear = 0;
 
-	if (!nouveau_exa_pixmap_is_tiled(pdpix)) {
+	if (!nv50_style_tiled_pixmap(pdpix)) {
 		linear     = 1;
 		dst_pitch  = exaGetPixmapPitch(pdpix);
 		dst_offset += (y * dst_pitch) + (x * cpp);
@@ -390,6 +390,7 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 
 	if (cpp) {
 		flags |= NOUVEAU_BO_VRAM;
+		*new_pitch = width * cpp;
 
 		if (pNv->Architecture >= NV_ARCH_50) {
 			if      (height > 32) tile_mode = 4;
@@ -398,15 +399,22 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			else if (height >  4) tile_mode = 1;
 			else                  tile_mode = 0;
 
-			if (usage_hint == NOUVEAU_CREATE_PIXMAP_ZETA)
+			if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
 				tile_flags = 0x2800;
 			else
 				tile_flags = 0x7000;
 
 			height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
-		}
+		} else {
+			if (usage_hint & NOUVEAU_CREATE_PIXMAP_TILED) {
+				int pitch_align =
+					pNv->NVArch >= 0x40 ? 1024 : 256;
 
-		*new_pitch = width * cpp;
+				*new_pitch = NOUVEAU_ALIGN(*new_pitch,
+							   pitch_align);
+				tile_mode = *new_pitch;
+			}
+		}
 	} else {
 		*new_pitch = (width * bitsPerPixel + 7) / 8;
 	}
@@ -446,12 +454,13 @@ nouveau_exa_destroy_pixmap(ScreenPtr pScreen, void *priv)
 }
 
 bool
-nouveau_exa_pixmap_is_tiled(PixmapPtr ppix)
+nv50_style_tiled_pixmap(PixmapPtr ppix)
 {
-	if (!nouveau_pixmap_bo(ppix)->tile_flags)
-		return false;
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
 
-	return true;
+	return pNv->Architecture == NV_ARCH_50 &&
+		nouveau_pixmap_bo(ppix)->tile_flags;
 }
 
 static void *
@@ -462,7 +471,7 @@ nouveau_exa_pixmap_map(PixmapPtr ppix)
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 	unsigned delta = nouveau_pixmap_offset(ppix);
 
-	if (bo->tile_flags && !pNv->wfb_enabled) {
+	if (nv50_style_tiled_pixmap(ppix) && !pNv->wfb_enabled) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
 		nvpix->map_refcount++;
@@ -490,7 +499,7 @@ nouveau_exa_pixmap_unmap(PixmapPtr ppix)
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 
-	if (bo->tile_flags && !pNv->wfb_enabled) {
+	if (nv50_style_tiled_pixmap(ppix) && !pNv->wfb_enabled) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
 		if (--nvpix->map_refcount)

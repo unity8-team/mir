@@ -50,7 +50,7 @@ nv50_xv_check_image_put(PixmapPtr ppix)
 		return FALSE;
 	}
 
-	if (!nouveau_exa_pixmap_is_tiled(ppix))
+	if (!nv50_style_tiled_pixmap(ppix))
 		return FALSE;
 
 	return TRUE;

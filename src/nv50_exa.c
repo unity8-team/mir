@@ -119,7 +119,7 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 	bo_flags  = NOUVEAU_BO_VRAM;
 	bo_flags |= is_src ? NOUVEAU_BO_RD : NOUVEAU_BO_WR;
 
-	if (!nouveau_exa_pixmap_is_tiled(ppix)) {
+	if (!nv50_style_tiled_pixmap(ppix)) {
 		BEGIN_RING(chan, eng2d, mthd, 2);
 		OUT_RING  (chan, fmt);
 		OUT_RING  (chan, 1);
@@ -465,7 +465,7 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 	unsigned format;
 
 	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
-	if (!nouveau_exa_pixmap_is_tiled(ppix))
+	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
 	switch (ppict->format) {
@@ -553,7 +553,7 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
 
 	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
-	if (!nouveau_exa_pixmap_is_tiled(ppix))
+	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
 	BEGIN_RING(chan, tesla, NV50TCL_TIC_ADDRESS_HIGH, 3);

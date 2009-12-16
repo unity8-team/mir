@@ -61,7 +61,7 @@ void  NVTakedownDma(ScrnInfoPtr pScrn);
 /* in nouveau_exa.c */
 Bool nouveau_exa_init(ScreenPtr pScreen);
 Bool nouveau_exa_pixmap_is_onscreen(PixmapPtr pPixmap);
-bool nouveau_exa_pixmap_is_tiled(PixmapPtr ppix);
+bool nv50_style_tiled_pixmap(PixmapPtr ppix);
 
 /* in nouveau_wfb.c */
 void nouveau_wfb_setup_wrap(ReadMemoryProcPtr *, WriteMemoryProcPtr *,
