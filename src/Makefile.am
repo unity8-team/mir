@@ -155,6 +155,7 @@ EXTRA_DIST = \
 	radeon_commonfuncs.c \
 	radeon_dri.h \
 	radeon_drm.h \
+	radeon_dummy_bufmgr.h \
 	radeon_exa_render.c \
 	radeon_exa_funcs.c \
 	radeon.h \
@@ -162,9 +163,11 @@ EXTRA_DIST = \
 	radeon_probe.h \
 	radeon_reg.h \
 	radeon_version.h \
+	radeon_vbo.h \
 	radeon_video.h \
 	radeon_tv.h \
-        radeon_atomwrapper.h \
+	radeon_atomwrapper.h \
+	simple_list.h \
 	theatre200.h \
 	theatre_detect.h \
 	theatre.h \
