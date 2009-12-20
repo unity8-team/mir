@@ -484,7 +484,7 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 #endif
 
     /* If we know the BO won't be busy, don't bother */
-    if (driver_priv->bo->cref == 1 &&
+    if (!radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs) &&
 	!radeon_bo_is_busy(driver_priv->bo, &dst_domain)) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* Can't return FALSE here if we need to swap bytes */
@@ -582,11 +582,8 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 #endif
 
     /* If we know the BO won't end up in VRAM anyway, don't bother */
-    if (driver_priv->bo->cref > 1) {
-	src_domain = driver_priv->bo->space_accounted & 0xffff;
-	if (!src_domain)
-	    src_domain = driver_priv->bo->space_accounted >> 16;
-
+    if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
+	src_domain = radeon_bo_get_src_domain(driver_priv->bo);
 	if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
 	    (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
 	    src_domain = 0;

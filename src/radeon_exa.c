@@ -341,6 +341,7 @@ Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 {
     ScreenPtr pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *driver_priv;
     int ret;
 
@@ -356,7 +357,7 @@ Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
       return FALSE;
 
     /* if we have more refs than just the BO then flush */
-    if (driver_priv->bo->cref > 1)
+    if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs))
         radeon_cs_flush_indirect(pScrn);
     
     /* flush IB */

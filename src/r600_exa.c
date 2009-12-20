@@ -2027,7 +2027,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     driver_priv = exaGetPixmapDriverPrivate(pDst);
 
     /* If we know the BO won't be busy, don't bother */
-    if (driver_priv->bo->cref == 1 &&
+    if (!radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs) &&
 	!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
 	return FALSE;
 
@@ -2097,11 +2097,8 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     driver_priv = exaGetPixmapDriverPrivate(pSrc);
 
     /* If we know the BO won't end up in VRAM anyway, don't bother */
-    if (driver_priv->bo->cref > 1) {
-	src_domain = driver_priv->bo->space_accounted & 0xffff;
-	if (!src_domain)
-	    src_domain = driver_priv->bo->space_accounted >> 16;
-
+    if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
+	src_domain = radeon_bo_get_src_domain(driver_priv->bo);
 	if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
 	    (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
 	    src_domain = 0;
