@@ -42,8 +42,6 @@ AC_SYS_LARGEFILE
 
 AM_MAINTAINER_MODE
 
-AC_CONFIG_FILES([shave shave-libtool])
-
 # Checks for programs.
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
@@ -378,8 +376,6 @@ AC_MSG_NOTICE(
 [    git://anongit.freedesktop.org/git/xorg/driver/xf86-video-r128]
 [Please install that driver as well for rage128-based cards.]
 )
-
-SHAVE_INIT(.,enable)
 
 AC_OUTPUT([
 	Makefile
