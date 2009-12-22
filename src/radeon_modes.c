@@ -169,6 +169,20 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Added native panel mode: %dx%d\n",
 		   native_mode->PanelXRes, native_mode->PanelYRes);
+    } else if (native_mode->PanelXRes != 0 &&
+	       native_mode->PanelYRes != 0) {
+
+	new = xf86CVTMode(native_mode->PanelXRes, native_mode->PanelYRes, 60.0, TRUE, FALSE);
+
+	if (new) {
+	    new->type       = M_T_DRIVER | M_T_PREFERRED;
+
+	    new->next       = NULL;
+	    new->prev       = NULL;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Added native panel mode using CVT: %dx%d\n",
+		   native_mode->PanelXRes, native_mode->PanelYRes);
     }
 
     return new;
