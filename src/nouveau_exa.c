@@ -82,7 +82,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		if (MARK_RING(chan, 32, 6))
 			return FALSE;
 
-		BEGIN_RING(chan, m2mf, 0x184, 2);
+		BEGIN_RING(chan, m2mf, NV04_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
 		if (OUT_RELOCo(chan, bo, NOUVEAU_BO_GART | NOUVEAU_BO_VRAM |
 			       NOUVEAU_BO_RD) ||
 		    OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART |
@@ -93,7 +93,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 
 		if (pNv->Architecture >= NV_ARCH_50) {
 			if (!linear) {
-				BEGIN_RING(chan, m2mf, 0x0200, 7);
+				BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_IN, 7);
 				OUT_RING  (chan, 0);
 				OUT_RING  (chan, bo->tile_mode << 4);
 				OUT_RING  (chan, pspix->drawable.width * cpp);
@@ -102,14 +102,14 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 				OUT_RING  (chan, 0);
 				OUT_RING  (chan, (y << 16) | (x * cpp));
 			} else {
-				BEGIN_RING(chan, m2mf, 0x0200, 1);
+				BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_IN, 1);
 				OUT_RING  (chan, 1);
 			}
 
-			BEGIN_RING(chan, m2mf, 0x021c, 1);
+			BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_OUT, 1);
 			OUT_RING  (chan, 1);
 
-			BEGIN_RING(chan, m2mf, 0x238, 2);
+			BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN_HIGH, 2);
 			if (OUT_RELOCh(chan, bo, src_offset, NOUVEAU_BO_GART |
 				       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
 			    OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
@@ -217,7 +217,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		if (MARK_RING(chan, 32, 6))
 			return FALSE;
 
-		BEGIN_RING(chan, m2mf, 0x184, 2);
+		BEGIN_RING(chan, m2mf, NV04_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
 		if (OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART |
 			       NOUVEAU_BO_RD) ||
 		    OUT_RELOCo(chan, bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
@@ -227,11 +227,11 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		}
 
 		if (pNv->Architecture >= NV_ARCH_50) {
-			BEGIN_RING(chan, m2mf, 0x0200, 1);
+			BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_IN, 1);
 			OUT_RING  (chan, 1);
 
 			if (!linear) {
-				BEGIN_RING(chan, m2mf, 0x021c, 7);
+				BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_OUT, 7);
 				OUT_RING  (chan, 0);
 				OUT_RING  (chan, bo->tile_mode << 4);
 				OUT_RING  (chan, pdpix->drawable.width * cpp);
@@ -240,11 +240,11 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 				OUT_RING  (chan, 0);
 				OUT_RING  (chan, (y << 16) | (x * cpp));
 			} else {
-				BEGIN_RING(chan, m2mf, 0x021c, 1);
+				BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_OUT, 1);
 				OUT_RING  (chan, 1);
 			}
 
-			BEGIN_RING(chan, m2mf, 0x0238, 2);
+			BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN_HIGH, 2);
 			if (OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
 				       NOUVEAU_BO_RD) ||
 			    OUT_RELOCh(chan, bo, dst_offset, NOUVEAU_BO_VRAM |

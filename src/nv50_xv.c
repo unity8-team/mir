@@ -88,7 +88,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	BEGIN_RING(chan, tesla, NV50TCL_RT_HORIZ(0), 2);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, ppix->drawable.height);
-	BEGIN_RING(chan, tesla, 0x1224, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_RT_ARRAY_MODE, 1);
 	OUT_RING  (chan, 1);
 
 	BEGIN_RING(chan, tesla, NV50TCL_BLEND_ENABLE(0), 1);
@@ -247,9 +247,9 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	BEGIN_RING(chan, tesla, 0x1334, 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, tesla, 0x1458, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_BIND_TIC(2), 1);
 	OUT_RING  (chan, 1);
-	BEGIN_RING(chan, tesla, 0x1458, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_BIND_TIC(2), 1);
 	OUT_RING  (chan, 0x203);
 
 	return TRUE;
@@ -342,9 +342,9 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		* origin lying at the bottom left. This will be changed to _MIN_ and _MAX_
 		* later, because it is origin dependent.
 		*/
-		BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ, 2);
-		OUT_RING  (chan, sx2 << NV50TCL_SCISSOR_HORIZ_R_SHIFT | sx1);
-		OUT_RING  (chan, sy2 << NV50TCL_SCISSOR_VERT_T_SHIFT | sy1 );
+		BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ(0), 2);
+		OUT_RING  (chan, sx2 << NV50TCL_SCISSOR_HORIZ_MAX_SHIFT | sx1);
+		OUT_RING  (chan, sy2 << NV50TCL_SCISSOR_VERT_MAX_SHIFT | sy1 );
 
 		BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
 		OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_TRIANGLES);

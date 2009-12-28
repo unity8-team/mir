@@ -79,7 +79,7 @@ NV50EXA2DSurfaceFormat(PixmapPtr ppix, uint32_t *fmt)
 
 	switch (ppix->drawable.depth) {
 	case 8 : *fmt = NV50_2D_SRC_FORMAT_R8_UNORM; break;
-	case 15: *fmt = NV50_2D_SRC_FORMAT_X1B5G5R5_UNORM; break;
+	case 15: *fmt = NV50_2D_SRC_FORMAT_X1R5G5B5_UNORM; break;
 	case 16: *fmt = NV50_2D_SRC_FORMAT_R5G6B5_UNORM; break;
 	case 24: *fmt = NV50_2D_SRC_FORMAT_X8R8G8B8_UNORM; break;
 	case 30: *fmt = NV50_2D_SRC_FORMAT_A2B10G10R10_UNORM; break;
@@ -240,8 +240,8 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 
 	NV50EXASetROP(pdpix, alu, planemask);
 
-	BEGIN_RING(chan, eng2d, 0x580, 3);
-	OUT_RING  (chan, 4);
+	BEGIN_RING(chan, eng2d, NV50_2D_DRAW_SHAPE, 3);
+	OUT_RING  (chan, NV50_2D_DRAW_SHAPE_RECTANGLES);
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, fg);
 
@@ -259,7 +259,7 @@ NV50EXASolid(PixmapPtr pdpix, int x1, int y1, int x2, int y2)
 	NV50EXA_LOCALS(pdpix);
 
 	WAIT_RING (chan, 5);
-	BEGIN_RING(chan, eng2d, NV50_2D_RECT_X1, 4);
+	BEGIN_RING(chan, eng2d, NV50_2D_DRAW_POINT32_X(0), 4);
 	OUT_RING  (chan, x1);
 	OUT_RING  (chan, y1);
 	OUT_RING  (chan, x2);
@@ -391,7 +391,7 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 
 	BEGIN_RING(chan, eng2d, NV50_2D_OPERATION, 1);
 	OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
-	BEGIN_RING(chan, eng2d, NV50_2D_SIFC_UNK0800, 2);
+	BEGIN_RING(chan, eng2d, NV50_2D_SIFC_BITMAP_ENABLE, 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, sifc_fmt);
 	BEGIN_RING(chan, eng2d, NV50_2D_SIFC_WIDTH, 10);
@@ -491,7 +491,7 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 	BEGIN_RING(chan, tesla, NV50TCL_RT_HORIZ(0), 2);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, ppix->drawable.height);
-	BEGIN_RING(chan, tesla, 0x1224, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_RT_ARRAY_MODE, 1);
 	OUT_RING  (chan, 0x00000001);
 
 	return TRUE;
@@ -861,9 +861,9 @@ NV50EXAPrepareComposite(int op,
 	BEGIN_RING(chan, tesla, 0x1334, 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, tesla, 0x1458, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_BIND_TIC(2), 1);
 	OUT_RING  (chan, 1);
-	BEGIN_RING(chan, tesla, 0x1458, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_BIND_TIC(2), 1);
 	OUT_RING  (chan, 0x203);
 
 	pNv->alu = op;
@@ -906,7 +906,7 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 	float sX0, sX1, sX2, sY0, sY1, sY2;
 
 	WAIT_RING (chan, 64);
-	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ, 2);
+	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ(0), 2);
 	OUT_RING  (chan, (dx + w) << 16 | dx);
 	OUT_RING  (chan, (dy + h) << 16 | dy);
 	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);

@@ -1109,10 +1109,10 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 		OUT_RING  (chan, pNv->chan->vram->handle);
 
 		if (pNv->Architecture >= NV_ARCH_50) {
-			BEGIN_RING(chan, m2mf, 0x0200, 1);
+			BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_IN, 1);
 			OUT_RING  (chan, 1);
 
-			BEGIN_RING(chan, m2mf, 0x021c, 7);
+			BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_OUT, 7);
 			OUT_RING  (chan, 0);
 			OUT_RING  (chan, destination_buffer->tile_mode << 4);
 			OUT_RING  (chan, dstPitch);

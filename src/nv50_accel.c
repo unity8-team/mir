@@ -34,21 +34,21 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 
 	switch (pNv->NVArch & 0xf0) {
 	case 0x50:
-		class = 0x5097;
+		class = NV50TCL;
 		break;
 	case 0x80:
 	case 0x90:
-		class = 0x8297;
+		class = NV84TCL;
 		break;
 	case 0xa0:
 		switch (pNv->NVArch) {
 		case 0xa0:
 		case 0xaa:
 		case 0xac:
-			class = 0x8397;
+			class = NVA0TCL;
 			break;
 		default:
-			class = 0x8597;
+			class = NVA8TCL;
 			break;
 		}
 		break;
@@ -93,17 +93,17 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, nvsw, 0x0400, 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, tesla, 0x1558, 1);
-	OUT_RING  (chan, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_COND_MODE, 1);
+	OUT_RING  (chan, NV50TCL_COND_MODE_ALWAYS);
 	BEGIN_RING(chan, tesla, NV50TCL_DMA_NOTIFY, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_RING(chan, tesla, NV50TCL_DMA_UNK0(0), NV50TCL_DMA_UNK0__SIZE);
-	for (i = 0; i < NV50TCL_DMA_UNK0__SIZE; i++)
+	BEGIN_RING(chan, tesla, NV50TCL_DMA_ZETA, 11);
+	for (i = 0; i < 11; i++)
 		OUT_RING  (chan, pNv->chan->vram->handle);
-	BEGIN_RING(chan, tesla, NV50TCL_DMA_UNK1(0), NV50TCL_DMA_UNK1__SIZE);
-	for (i = 0; i < NV50TCL_DMA_UNK1__SIZE; i++)
+	BEGIN_RING(chan, tesla, NV50TCL_DMA_COLOR(0), NV50TCL_DMA_COLOR__SIZE);
+	for (i = 0; i < NV50TCL_DMA_COLOR__SIZE; i++)
 		OUT_RING  (chan, pNv->chan->vram->handle);
-	BEGIN_RING(chan, tesla, 0x121c, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_RT_CONTROL, 1);
 	OUT_RING  (chan, 1);
 
 	BEGIN_RING(chan, tesla, NV50TCL_VIEWPORT_TRANSFORM_EN, 1);
@@ -111,11 +111,10 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, tesla, 0x0f90, 1);
 	OUT_RING  (chan, 1);
 
-	BEGIN_RING(chan, tesla, 0x1234, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_LINKED_TSC, 1);
 	OUT_RING  (chan, 1);
 
-	/*XXX: NFI - gets the oddball 0x1458 method working "properly" */
-	BEGIN_RING(chan, tesla, 0x13bc, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_TEX_LIMITS(2), 1);
 	OUT_RING  (chan, 0x54);
 
 	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
@@ -368,19 +367,19 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0x08040404);
 	OUT_RING  (chan, 0x00000008); /* NV50TCL_FP_REG_ALLOC_TEMP */
 
-	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_ENABLE, 1);
+	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_ENABLE(0), 1);
 	OUT_RING  (chan, 1);
 
-	BEGIN_RING(chan, tesla, NV50TCL_VIEWPORT_HORIZ, 2);
+	BEGIN_RING(chan, tesla, NV50TCL_VIEWPORT_HORIZ(0), 2);
 	OUT_RING  (chan, 8192 << NV50TCL_VIEWPORT_HORIZ_W_SHIFT);
 	OUT_RING  (chan, 8192 << NV50TCL_VIEWPORT_VERT_H_SHIFT);
 	/* NV50TCL_SCISSOR_VERT_T_SHIFT is wrong, because it was deducted with
 	 * origin lying at the bottom left. This will be changed to _MIN_ and _MAX_
 	 * later, because it is origin dependent.
 	 */
-	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ, 2);
-	OUT_RING  (chan, 8192 << NV50TCL_SCISSOR_HORIZ_R_SHIFT);
-	OUT_RING  (chan, 8192 << NV50TCL_SCISSOR_VERT_T_SHIFT);
+	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ(0), 2);
+	OUT_RING  (chan, 8192 << NV50TCL_SCISSOR_HORIZ_MAX_SHIFT);
+	OUT_RING  (chan, 8192 << NV50TCL_SCISSOR_VERT_MAX_SHIFT);
 	BEGIN_RING(chan, tesla, NV50TCL_SCREEN_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, 8192 << NV50TCL_SCREEN_SCISSOR_HORIZ_W_SHIFT);
 	OUT_RING  (chan, 8192 << NV50TCL_SCREEN_SCISSOR_VERT_H_SHIFT);
