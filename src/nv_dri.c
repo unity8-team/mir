@@ -247,8 +247,12 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	drm_page_size = getpagesize();
 	if (!(pDRIInfo = DRICreateInfoRec())) return FALSE;
 
+	if (pNv->Architecture >= NV_ARCH_30)
+		pDRIInfo->clientDriverName = "nouveau";
+	else
+		pDRIInfo->clientDriverName = "nouveau_vieux";
+
 	pDRIInfo->drmDriverName              = "nouveau";
-	pDRIInfo->clientDriverName           = "nouveau";
 	pDRIInfo->busIdString                = DRICreatePCIBusID(pNv->PciInfo);
 
 	pDRIInfo->ddxDriverMajorVersion      = NV_MAJOR_VERSION;
