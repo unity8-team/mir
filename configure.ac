@@ -97,7 +97,7 @@ PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
                   HAVE_XEXTPROTO_71="no")
 AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 
-sdkdir=$(pkg-config --variable=sdkdir xorg-server)
+sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
 
 save_CFLAGS="$CFLAGS"
 CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
