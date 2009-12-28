@@ -468,18 +468,18 @@ setup_render_target(NVPtr pNv, PicturePtr pict, PixmapPtr pixmap)
 #define RC_IN_ONE(input)						\
 	(NV10TCL_RC_IN_RGB_##input##_INPUT_ZERO |			\
 	 NV10TCL_RC_IN_RGB_##input##_COMPONENT_USAGE_ALPHA |		\
-	 NV10TCL_RC_IN_RGB_##input##_MAPPING_UNSIGNED_INVERT_NV)
+	 NV10TCL_RC_IN_RGB_##input##_MAPPING_UNSIGNED_INVERT)
 
 /* Bind the combiner variable <input> to the specified channel from
  * the texture unit <unit>. */
 #define RC_IN_TEX(input, chan, unit)					\
-	(NV10TCL_RC_IN_RGB_##input##_INPUT_TEXTURE##unit##_ARB |	\
+	(NV10TCL_RC_IN_RGB_##input##_INPUT_TEXTURE##unit |		\
 	 NV10TCL_RC_IN_RGB_##input##_COMPONENT_USAGE_##chan)
 
 /* Bind the combiner variable <input> to the specified channel from
  * the constant color <unit>. */
 #define RC_IN_COLOR(input, chan, unit)					\
-	(NV10TCL_RC_IN_RGB_##input##_INPUT_CONSTANT_COLOR##unit##_NV | \
+	(NV10TCL_RC_IN_RGB_##input##_INPUT_CONSTANT_COLOR##unit |	\
 	 NV10TCL_RC_IN_RGB_##input##_COMPONENT_USAGE_##chan)
 
 static void
