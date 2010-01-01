@@ -41,10 +41,11 @@ extern Atom xvSyncToVBlank, xvSetDefaults;
 static Bool
 nv50_xv_check_image_put(PixmapPtr ppix)
 {
-	switch (ppix->drawable.depth) {
+	switch (ppix->drawable.bitsPerPixel) {
 	case 32:
 	case 24:
 	case 16:
+	case 15:
 		break;
 	default:
 		return FALSE;
@@ -78,10 +79,11 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	switch (ppix->drawable.depth) {
+	switch (ppix->drawable.bitsPerPixel) {
 	case 32: OUT_RING  (chan, NV50TCL_RT_FORMAT_A8R8G8B8_UNORM); break;
 	case 24: OUT_RING  (chan, NV50TCL_RT_FORMAT_X8R8G8B8_UNORM); break;
 	case 16: OUT_RING  (chan, NV50TCL_RT_FORMAT_R5G6B5_UNORM); break;
+	case 15: OUT_RING  (chan, NV50TCL_RT_FORMAT_X1R5G5B5_UNORM); break;
 	}
 	OUT_RING  (chan, bo->tile_mode << 4);
 	OUT_RING  (chan, 0);

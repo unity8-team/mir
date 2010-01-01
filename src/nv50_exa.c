@@ -77,7 +77,7 @@ NV50EXA2DSurfaceFormat(PixmapPtr ppix, uint32_t *fmt)
 {
 	NV50EXA_LOCALS(ppix);
 
-	switch (ppix->drawable.depth) {
+	switch (ppix->drawable.bitsPerPixel) {
 	case 8 : *fmt = NV50_2D_SRC_FORMAT_R8_UNORM; break;
 	case 15: *fmt = NV50_2D_SRC_FORMAT_X1R5G5B5_UNORM; break;
 	case 16: *fmt = NV50_2D_SRC_FORMAT_R5G6B5_UNORM; break;
@@ -86,7 +86,7 @@ NV50EXA2DSurfaceFormat(PixmapPtr ppix, uint32_t *fmt)
 	case 32: *fmt = NV50_2D_SRC_FORMAT_A8R8G8B8_UNORM; break;
 	default:
 		 NOUVEAU_FALLBACK("Unknown surface format for bpp=%d\n",
-				  ppix->drawable.depth);
+				  ppix->drawable.bitsPerPixel);
 		 return FALSE;
 	}
 
@@ -179,7 +179,7 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	}
 
 	BEGIN_RING(chan, eng2d, NV50_2D_PATTERN_FORMAT, 2);
-	switch (pdpix->drawable.depth) {
+	switch (pdpix->drawable.bitsPerPixel) {
 		case  8: OUT_RING  (chan, 3); break;
 		case 15: OUT_RING  (chan, 1); break;
 		case 16: OUT_RING  (chan, 0); break;
