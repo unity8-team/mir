@@ -85,9 +85,6 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	if (MARK_RING(chan, 512, 32))
 		return FALSE;
 
-	BEGIN_RING(chan, nvsw, 0x0060, 2);
-	OUT_RING  (chan, pNv->vblank_sem->handle);
-	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, nvsw, 0x018c, 1);
 	OUT_RING  (chan, pNv->vblank_sem->handle);
 	BEGIN_RING(chan, nvsw, 0x0400, 1);
