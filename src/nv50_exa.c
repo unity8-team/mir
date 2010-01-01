@@ -417,8 +417,7 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 			int size = count > 1792 ? 1792 : count;
 
 			WAIT_RING (chan, size + 1);
-			BEGIN_RING(chan, eng2d,
-					 NV50_2D_SIFC_DATA | 0x40000000, size);
+			BEGIN_RING_NI(chan, eng2d, NV50_2D_SIFC_DATA, size);
 			OUT_RINGp (chan, p, size);
 
 			p += size * 4;
@@ -599,7 +598,7 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	OUT_RING  (chan, (CB_TIC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TIC | ((unit * 8) << NV50TCL_CB_ADDR_ID_SHIFT));
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DATA(0) | 0x40000000, 8);
+	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 8);
 
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
@@ -692,7 +691,7 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	OUT_RING  (chan, (CB_TSC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TSC | ((unit * 8) << NV50TCL_CB_ADDR_ID_SHIFT));
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DATA(0) | 0x40000000, 8);
+	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 8);
 	if (ppict->repeat) {
 		switch (ppict->repeatType) {
 		case RepeatPad:

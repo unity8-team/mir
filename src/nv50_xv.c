@@ -112,7 +112,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	OUT_RING  (chan, (CB_TIC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TIC);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DATA(0) | 0x40000000, 16);
+	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 16);
 	if (id == FOURCC_YV12 || id == FOURCC_I420) {
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
@@ -205,7 +205,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	OUT_RING  (chan, (CB_TSC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TSC);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DATA(0) | 0x40000000, 16);
+	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 16);
 	OUT_RING  (chan, NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
 			 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
 			 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
