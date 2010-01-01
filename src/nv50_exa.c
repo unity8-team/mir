@@ -571,9 +571,6 @@ NV50EXACheckTexture(PicturePtr ppict, PicturePtr pdpict, int op)
 	return TRUE;
 }
 
-#define NV50TIC_0_0_FMT_1_5_5_5                                     0x00000014
-#define NV50TIC_0_0_FMT_4_4_4_4                                     0x00000012
-
 #define _(X1,X2,X3,X4,FMT) (NV50TIC_0_0_TYPER_UNORM | NV50TIC_0_0_TYPEG_UNORM | NV50TIC_0_0_TYPEB_UNORM | NV50TIC_0_0_TYPEA_UNORM | \
 			    NV50TIC_0_0_MAP##X1 | NV50TIC_0_0_MAP##X2 | NV50TIC_0_0_MAP##X3 | NV50TIC_0_0_MAP##X4 | \
 			    NV50TIC_0_0_FMT_##FMT)
@@ -606,67 +603,67 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 8_8_8_8));
-		break;
-	case PICT_a8b8g8r8:
 		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 8_8_8_8));
 		break;
-	case PICT_x8r8g8b8:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 8_8_8_8));
+	case PICT_a8b8g8r8:
+		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 8_8_8_8));
 		break;
-	case PICT_x8b8g8r8:
+	case PICT_x8r8g8b8:
 		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 8_8_8_8));
 		break;
+	case PICT_x8b8g8r8:
+		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 8_8_8_8));
+		break;
 	case PICT_r5g6b5:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 5_6_5));
-		break;
-	case PICT_a8:
-		OUT_RING(chan, _(A_C0, R_ZERO, G_ZERO, B_ZERO, 8));
-		break;
-	case PICT_x1r5g5b5:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 1_5_5_5));
-		break;
-	case PICT_x1b5g5r5:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 1_5_5_5));
-		break;
-	case PICT_a1r5g5b5:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 1_5_5_5));
-		break;
-	case PICT_a1b5g5r5:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 1_5_5_5));
-		break;
-	case PICT_b5g6r5:
 		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 5_6_5));
 		break;
+	case PICT_a8:
+		OUT_RING(chan, _(A_C0, B_ZERO, G_ZERO, R_ZERO, 8));
+		break;
+	case PICT_x1r5g5b5:
+		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 1_5_5_5));
+		break;
+	case PICT_x1b5g5r5:
+		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 1_5_5_5));
+		break;
+	case PICT_a1r5g5b5:
+		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 1_5_5_5));
+		break;
+	case PICT_a1b5g5r5:
+		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 1_5_5_5));
+		break;
+	case PICT_b5g6r5:
+		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 5_6_5));
+		break;
 	case PICT_b8g8r8x8:
-		OUT_RING(chan, _(A_ONE, B_C1, G_C2, R_C3, 8_8_8_8));
+		OUT_RING(chan, _(A_ONE, R_C1, G_C2, B_C3, 8_8_8_8));
 		break;
 	case PICT_b8g8r8a8:
-		OUT_RING(chan, _(A_C0, B_C1, G_C2, R_C3, 8_8_8_8));
+		OUT_RING(chan, _(A_C0, R_C1, G_C2, B_C3, 8_8_8_8));
 		break;
 	case PICT_a2b10g10r10:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 2_10_10_10));
-		break;
-	case PICT_x2b10g10r10:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 2_10_10_10));
-		break;
-	case PICT_x2r10g10b10:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 2_10_10_10));
-		break;
-	case PICT_a2r10g10b10:
 		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 2_10_10_10));
 		break;
-	case PICT_x4r4g4b4:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 4_4_4_4));
+	case PICT_x2b10g10r10:
+		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 2_10_10_10));
 		break;
-	case PICT_x4b4g4r4:
+	case PICT_x2r10g10b10:
+		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 2_10_10_10));
+		break;
+	case PICT_a2r10g10b10:
+		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 2_10_10_10));
+		break;
+	case PICT_x4r4g4b4:
 		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_ONE, 4_4_4_4));
 		break;
+	case PICT_x4b4g4r4:
+		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_ONE, 4_4_4_4));
+		break;
 	case PICT_a4r4g4b4:
-		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 4_4_4_4));
+		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 4_4_4_4));
 		break;
 	case PICT_a4b4g4r4:
-		OUT_RING(chan, _(B_C0, G_C1, R_C2, A_C3, 4_4_4_4));
+		OUT_RING(chan, _(R_C0, G_C1, B_C2, A_C3, 4_4_4_4));
 		break;
 	default:
 		NOUVEAU_FALLBACK("invalid picture format, this SHOULD NOT HAPPEN. Expect trouble.\n");
