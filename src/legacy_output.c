@@ -912,6 +912,11 @@ legacy_output_dpms(xf86OutputPtr output, int mode)
 	    ErrorF("enable LVDS\n");
 	    tmp = INREG(RADEON_LVDS_GEN_CNTL);
 	    tmp |= (RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
+#if defined(__powerpc__)
+	    /* not sure if this is needed on non-Macs */
+	    if (info->MacModel)
+		tmp |= RADEON_LVDS_BL_MOD_EN;
+#endif
 	    tmp &= ~(RADEON_LVDS_DISPLAY_DIS);
 	    usleep (lvds->PanelPwrDly * 1000);
 	    OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
@@ -1001,10 +1006,24 @@ legacy_output_dpms(xf86OutputPtr output, int mode)
 			*/
 			OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
 		    }
-		    tmp = INREG(RADEON_LVDS_GEN_CNTL);
-		    tmp |= RADEON_LVDS_DISPLAY_DIS;
-		    tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
-		    OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
+#if defined(__powerpc__)
+		    /* not sure if this is needed on non-Macs */
+		    if (info->MacModel) {
+			tmp = INREG(RADEON_LVDS_GEN_CNTL);
+			tmp |= RADEON_LVDS_DISPLAY_DIS;
+			tmp &= ~RADEON_LVDS_BL_MOD_EN;
+			OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
+			usleep(100);
+			tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_EN);
+			OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
+		    } else
+#endif
+		    {
+			tmp = INREG(RADEON_LVDS_GEN_CNTL);
+			tmp |= RADEON_LVDS_DISPLAY_DIS;
+			tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
+			OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
+		    }
 		    save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
 		    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
 		    if (info->IsMobility || info->IsIGP) {
