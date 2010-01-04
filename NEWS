@@ -1,5 +1,5 @@
-Work-in-progress release notes for the next release (which will be 2.10.0)
-==========================================================================
+Release 1.10.0 (2010-01-04)
+===========================
 New requirements of 2.10 compared to 2.9
 ----------------------------------------
  * Linux kernel with kernel-modesetting (KMS)
@@ -30,10 +30,6 @@ Notable fixes in 2.10 compared to 2.9
  * Fix to support larger extended desktops, (such as a 2560x1600 plus a
    1920x1200 monitor).
 
- * i915: Fix texture sample coordinates, (was causing gray border around
-   images).
-
-   https://bugs.freedesktop.org/show_bug.cgi?id=21523
 
  * Fix glyph corruption due to insufficient cache flushing:
 
@@ -41,9 +37,10 @@ Notable fixes in 2.10 compared to 2.9
 
 Several other correctness and performance fixes are also included.
 
-[Developers, please provide me summaries for any additional features
-of this release that you think should appear in NEWS and in the 2.10.0
-release notes.
+Note: The driver code of the 2.10.0 release is identical to that of
+the 2.9.99.901 release candidate. The only changes in 2.10.0 compared
+to 2.9.99.902 are a minor change to the configure script, and some
+small updates to the documentation.
 
 Snapshot 2.9.99.902 (2009-12-10)
 ================================
