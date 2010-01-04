@@ -223,8 +223,8 @@ On some system, the kernel may provide a backlight control driver.  In that case
 .RE
 
 .PP
-.B PANEL_FITTING
-- control LCD panel fitting
+.B scaling mode
+- control LCD panel scaling mode
 .TP 2
 By default, the driver will attempt to upscale resolutions smaller than the LCD's native size while preserving the aspect ratio.  Other modes are available however:
 .RS
