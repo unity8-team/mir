@@ -199,30 +199,6 @@ Low Voltage Differential Signalling output (typically a laptop LCD panel).  Avai
 By adjusting the BACKLIGHT property, the brightness on the LVDS output can be adjusted.  In some cases, this property may be unavailable (for example if your platform uses an external microcontroller to control the backlight).
 
 .PP
-.B BACKLIGHT_CONTROL
-- method used to control backlight
-.TP 2
-The driver will attempt to automatically detect the backlight control method for your platform.  If this fails however, you can select another method which may allow you to control your backlight.  Available methods include:
-.RS
-.PP
-.B native
-.TP 4
-Intel chipsets include backlight control registers, which on some platforms may be wired to control the backlight directly.  This method uses those registers.
-.PP
-.B legacy
-.TP 4
-The legacy backlight control registers exist in PCI configuration space, and have fewer available backlight levels than the native registers.  However, some platforms are wired this way and so need to use this method.
-.PP
-.B combo
-.TP 4
-This method attempts to use the native registers where possible, resorting to the legacy, configuration space registers only to enable the backlight if needed.  On platforms that have both wired this can be a good choice as it allows the fine grained backlight control of the native interface.
-.PP
-.B kernel
-.TP 4
-On some system, the kernel may provide a backlight control driver.  In that case, using the kernel interfaces is preferable, as the same driver may respond to hotkey events or external APIs.
-.RE
-
-.PP
 .B scaling mode
 - control LCD panel scaling mode
 .TP 2
