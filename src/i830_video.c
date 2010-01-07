@@ -1355,22 +1355,12 @@ i830_setup_video_buffer(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 		adaptor_priv->buf = NULL;
 	}
 
-	if (xvmc_passthrough(id)) {
-		i830_free_video_buffers(adaptor_priv);
-		if (IS_I965G(intel)) {
-			adaptor_priv->buf =
-				drm_intel_bo_gem_create_from_name(intel->bufmgr,
-								  "xvmc surface",
-								  (uintptr_t)buf);
-		}
-	} else {
-		if (adaptor_priv->buf == NULL) {
-			adaptor_priv->buf = drm_intel_bo_alloc(intel->bufmgr,
-							"xv buffer", alloc_size,
-							4096);
-			if (adaptor_priv->buf == NULL)
-				return FALSE;
-		}
+	if (adaptor_priv->buf == NULL) {
+		adaptor_priv->buf = drm_intel_bo_alloc(intel->bufmgr,
+						"xv buffer", alloc_size,
+						4096);
+		if (adaptor_priv->buf == NULL)
+			return FALSE;
 	}
 
 	return TRUE;
@@ -1389,11 +1379,6 @@ i830_dst_pitch_and_size(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, s
 	 */
 	if (adaptor_priv->textured) {
 		pitchAlignMask = 3;
-#ifdef INTEL_XVMC
-		/* for i915 xvmc, hw requires at least 1kb aligned surface */
-		if ((id == FOURCC_XVMC) && IS_I915(intel))
-			pitchAlignMask = 0x3ff;
-#endif
 	} else {
 		if (IS_I965G(intel))
 			pitchAlignMask = 255;
@@ -1471,38 +1456,25 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 		return FALSE;
 
 	/* fixup pointers */
-#ifdef INTEL_XVMC
-	if (id == FOURCC_XVMC && IS_I915(intel)) {
-		adaptor_priv->YBufOffset = (uint32_t) ((uintptr_t) buf);
-		adaptor_priv->VBufOffset = adaptor_priv->YBufOffset + (*dstPitch2 * height);
-		adaptor_priv->UBufOffset =
-		    adaptor_priv->VBufOffset + (*dstPitch * height / 2);
-	} else {
-#endif
-		adaptor_priv->YBufOffset = 0;
+	adaptor_priv->YBufOffset = 0;
 
-		if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-			adaptor_priv->UBufOffset =
-			    adaptor_priv->YBufOffset + (*dstPitch * 2 * width);
-			adaptor_priv->VBufOffset =
-			    adaptor_priv->UBufOffset + (*dstPitch * width / 2);
-		} else {
-			adaptor_priv->UBufOffset =
-			    adaptor_priv->YBufOffset + (*dstPitch * 2 * height);
-			adaptor_priv->VBufOffset =
-			    adaptor_priv->UBufOffset + (*dstPitch * height / 2);
-		}
-#ifdef INTEL_XVMC
+	if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+		adaptor_priv->UBufOffset =
+		    adaptor_priv->YBufOffset + (*dstPitch * 2 * width);
+		adaptor_priv->VBufOffset =
+		    adaptor_priv->UBufOffset + (*dstPitch * width / 2);
+	} else {
+		adaptor_priv->UBufOffset =
+		    adaptor_priv->YBufOffset + (*dstPitch * 2 * height);
+		adaptor_priv->VBufOffset =
+		    adaptor_priv->UBufOffset + (*dstPitch * height / 2);
 	}
-#endif
 
 	/* copy data */
 	if (is_planar_fourcc(id)) {
-		if (!xvmc_passthrough(id)) {
-			I830CopyPlanarData(adaptor_priv, buf, srcPitch, srcPitch2,
-					   *dstPitch, height, top, left, nlines,
-					   npixels, id);
-		}
+		I830CopyPlanarData(adaptor_priv, buf, srcPitch, srcPitch2,
+				   *dstPitch, height, top, left, nlines,
+				   npixels, id);
 	} else {
 		I830CopyPackedData(adaptor_priv, buf, srcPitch, *dstPitch, top, left,
 				   nlines, npixels);
@@ -1561,10 +1533,24 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 				    width, height))
 		return Success;
 
-	if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
-				  &dstPitch, &dstPitch2,
-				  top, left, npixels, nlines, id, buf))
-		return BadAlloc;
+	if (xvmc_passthrough(id)) {
+		i830_free_video_buffers(adaptor_priv);
+		if (IS_I965G(intel)) {
+			adaptor_priv->buf =
+				drm_intel_bo_gem_create_from_name(intel->bufmgr,
+								  "xvmc surface",
+								  (uintptr_t)buf);
+		} else {
+			/* XXX: i915 is not support and needs some serious care.
+			 * grep for KMS in i915_hwmc.c */
+			return BadAlloc;
+		}
+	} else {
+		if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
+					  &dstPitch, &dstPitch2,
+					  top, left, npixels, nlines, id, buf))
+			return BadAlloc;
+	}
 
 	if (crtc && adaptor_priv->SyncToVblank != 0) {
 		i830_wait_for_scanline(scrn, pixmap, crtc, clipBoxes);
