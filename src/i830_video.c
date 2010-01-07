@@ -1218,26 +1218,25 @@ i830_clip_video_helper(ScrnInfoPtr scrn,
 	Bool ret;
 	RegionRec crtc_region_local;
 	RegionPtr crtc_region = reg;
+	BoxRec crtc_box;
 
 	/*
 	 * For overlay video, compute the relevant CRTC and
 	 * clip video to that
 	 */
-	if (crtc_ret) {
-		BoxRec crtc_box;
-		xf86CrtcPtr crtc = i830_covering_crtc(scrn, dst,
-						      adaptor_priv->desired_crtc,
-						      &crtc_box);
+	xf86CrtcPtr crtc = i830_covering_crtc(scrn, dst,
+					      adaptor_priv->desired_crtc,
+					      &crtc_box);
 
-		/* For textured video, we don't actually want to clip at all. */
-		if (crtc && !adaptor_priv->textured) {
-			REGION_INIT(screen, &crtc_region_local, &crtc_box, 1);
-			crtc_region = &crtc_region_local;
-			REGION_INTERSECT(screen, crtc_region, crtc_region,
-					 reg);
-		}
-		*crtc_ret = crtc;
+	/* For textured video, we don't actually want to clip at all. */
+	if (crtc && !adaptor_priv->textured) {
+		REGION_INIT(screen, &crtc_region_local, &crtc_box, 1);
+		crtc_region = &crtc_region_local;
+		REGION_INTERSECT(screen, crtc_region, crtc_region,
+				 reg);
 	}
+	*crtc_ret = crtc;
+
 	ret = xf86XVClipVideoHelper(dst, xa, xb, ya, yb,
 				    crtc_region, width, height);
 	if (crtc_region != reg)
