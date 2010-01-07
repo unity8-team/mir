@@ -1427,14 +1427,11 @@ i830_dst_pitch_and_size(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, s
 static Bool
 i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 		     short width, short height, int *dstPitch, int *dstPitch2,
-		     INT32 x1, INT32 y1, INT32 x2, INT32 y2,
+		     int top, int left, int npixels, int nlines,
 		     int id, unsigned char *buf)
 {
-#ifdef INTEL_XVMC
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-#endif
 	int srcPitch = 0, srcPitch2 = 0;
-	int top, left, npixels, nlines, size;
+	int size;
 
 	if (is_planar_fourcc(id)) {
 		srcPitch = (width + 0x3) & ~0x3;
@@ -1476,20 +1473,13 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 #endif
 
 	/* copy data */
-	top = y1 >> 16;
-	left = (x1 >> 16) & ~1;
-	npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
-
 	if (is_planar_fourcc(id)) {
 		if (!xvmc_passthrough(id)) {
-			top &= ~1;
-			nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 			I830CopyPlanarData(adaptor_priv, buf, srcPitch, srcPitch2,
 					   *dstPitch, height, top, left, nlines,
 					   npixels, id);
 		}
 	} else {
-		nlines = ((y2 + 0xffff) >> 16) - top;
 		I830CopyPackedData(adaptor_priv, buf, srcPitch, *dstPitch, top, left,
 				   nlines, npixels);
 	}
@@ -1529,6 +1519,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 	int dstPitch2 = 0;
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
+	int top, left, npixels, nlines;
 
 #if 0
 	ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
@@ -1554,9 +1545,18 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 				    width, height))
 		return Success;
 
+	top = y1 >> 16;
+	left = (x1 >> 16) & ~1;
+	npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
+	if (is_planar_fourcc(id)) {
+		top &= ~1;
+		nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+	} else
+		nlines = ((y2 + 0xffff) >> 16) - top;
+
 	if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
 				  &dstPitch, &dstPitch2,
-				  x1, y1, x2, y2, id, buf))
+				  top, left, npixels, nlines, id, buf))
 		return BadAlloc;
 
 	if (crtc && adaptor_priv->SyncToVblank != 0) {
@@ -1599,6 +1599,7 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 	int dstPitch2 = 0;
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
+	int top, left, npixels, nlines;
 
 #if 0
 	ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
@@ -1642,9 +1643,18 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 		return Success;
 	}
 
+	top = y1 >> 16;
+	left = (x1 >> 16) & ~1;
+	npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
+	if (is_planar_fourcc(id)) {
+		top &= ~1;
+		nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+	} else
+		nlines = ((y2 + 0xffff) >> 16) - top;
+
 	if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
 				  &dstPitch, &dstPitch2,
-				  x1, y1, x2, y2, id, buf))
+				  top, left, npixels, nlines, id, buf))
 		return BadAlloc;
 
 	if (!i830_display_overlay
