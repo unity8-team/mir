@@ -169,7 +169,13 @@ static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA5"}
 };
 
+#ifdef INTEL_XVMC
 #define NUM_IMAGES 5
+#define XVMC_IMAGE 1
+#else
+#define NUM_IMAGES 4
+#define XVMC_IMAGE 0
+#endif
 
 static XF86ImageRec Images[NUM_IMAGES] = {
 	XVIMAGE_YUY2,
@@ -469,7 +475,8 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 		       sizeof(XF86AttributeRec) * GAMMA_ATTRIBUTES);
 		att += GAMMA_ATTRIBUTES;
 	}
-	adapt->nImages = NUM_IMAGES;
+	adapt->nImages = NUM_IMAGES - XVMC_IMAGE;
+
 	adapt->pImages = Images;
 	adapt->PutVideo = NULL;
 	adapt->PutStill = NULL;
@@ -528,6 +535,8 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 {
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr adapt;
 	XF86AttributePtr attrs;
 	intel_adaptor_private *adaptor_privs;
@@ -565,7 +574,11 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 	adapt->pAttributes = attrs;
 	memcpy(attrs, TexturedAttributes,
 	       nAttributes * sizeof(XF86AttributeRec));
-	adapt->nImages = NUM_IMAGES;
+	if (IS_I915(intel))
+		adapt->nImages = NUM_IMAGES - XVMC_IMAGE;
+	else
+		adapt->nImages = NUM_IMAGES;
+
 	adapt->pImages = Images;
 	adapt->PutVideo = NULL;
 	adapt->PutStill = NULL;
