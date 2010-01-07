@@ -261,7 +261,7 @@ static void drmmode_overlay_off(ScrnInfoPtr scrn)
 static Bool
 drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 			  int id, short width, short height,
-			  int dstPitch, int x1, int y1, int x2, int y2,
+			  int dstPitch,
 			  BoxPtr dstBox, short src_w, short src_h, short drw_w,
 			  short drw_h)
 {
@@ -1168,7 +1168,7 @@ static int xvmc_passthrough(int id)
 static Bool
 i830_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 		     int id, short width, short height,
-		     int dstPitch, int x1, int y1, int x2, int y2,
+		     int dstPitch,
 		     BoxPtr dstBox, short src_w, short src_h, short drw_w,
 		     short drw_h)
 {
@@ -1201,7 +1201,7 @@ i830_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 	}
 
 	return drmmode_overlay_put_image(scrn, crtc, id, width, height,
-					 dstPitch, x1, y1, x2, y2, dstBox,
+					 dstPitch, dstBox,
 					 src_w, src_h, drw_w, drw_h);
 }
 
@@ -1565,13 +1565,13 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 
 	if (IS_I965G(intel)) {
 		I965DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
-					 width, height, dstPitch, x1,
-					 y1, x2, y2, src_w, src_h,
+					 width, height, dstPitch,
+					 src_w, src_h,
 					 drw_w, drw_h, pixmap);
 	} else {
 		I915DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
 					 width, height, dstPitch,
-					 dstPitch2, x1, y1, x2, y2,
+					 dstPitch2,
 					 src_w, src_h, drw_w, drw_h,
 					 pixmap);
 	}
@@ -1648,7 +1648,7 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 		return BadAlloc;
 
 	if (!i830_display_overlay
-	    (scrn, crtc, id, width, height, dstPitch, x1, y1, x2, y2,
+	    (scrn, crtc, id, width, height, dstPitch,
 	     &dstBox, src_w, src_h, drw_w, drw_h))
 		return BadAlloc;
 
