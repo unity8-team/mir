@@ -306,7 +306,8 @@ radeon_ddc_connected(xf86OutputPtr output)
     if (radeon_output->custom_edid) {
 	MonInfo = xnfcalloc(sizeof(xf86Monitor), 1);
 	*MonInfo = *radeon_output->custom_mon;
-    } else if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) {
+    } else if ((radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) ||
+	       (radeon_output->ConnectorType == CONNECTOR_EDP)) {
 	MonInfo = xf86OutputGetEDID(output, radeon_output->dp_pI2CBus);
     } else if (radeon_output->pI2CBus) {
 	if (info->get_hardcoded_edid_from_bios)
@@ -363,6 +364,7 @@ radeon_ddc_connected(xf86OutputPtr output)
 		MonType = MT_DFP;
 	    break;
 	case CONNECTOR_DISPLAY_PORT:
+	case CONNECTOR_EDP:
 	    /*
 	     * XXX wrong. need to infer based on whether we got DDC from I2C
 	     * or AUXCH.
@@ -540,6 +542,9 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT)
 	    return MODE_CLOCK_HIGH;
 
+	if (radeon_output->ConnectorType == CONNECTOR_EDP)
+	    return MODE_CLOCK_HIGH;
+
 	/* XXX some HDMI can do better than 165MHz on a link */
 	if (radeon_output->ConnectorType == CONNECTOR_HDMI_TYPE_A)
 	    return MODE_CLOCK_HIGH;
@@ -669,7 +674,9 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	}
     }
 
-    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT && radeon_output->MonType == MT_DP) {
+    if (((radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) ||
+	 (radeon_output->ConnectorType == CONNECTOR_EDP)) &&
+	(radeon_output->MonType == MT_DP)) {
       radeon_dp_mode_fixup(output, mode, adjusted_mode);
     }
     return TRUE;
@@ -1230,6 +1237,7 @@ radeon_detect(xf86OutputPtr output)
             radeon_output->MonType = MT_CV;
 	    break;
 	case CONNECTOR_DISPLAY_PORT:
+	case CONNECTOR_EDP:
 	    radeon_output->MonType = MT_DP;
 	    break;
 	}
@@ -2089,6 +2097,13 @@ void RADEONInitConnector(xf86OutputPtr output)
 	RADEON_DP_GetSinkType(output);
     }
 
+    if (radeon_output->ConnectorType == CONNECTOR_EDP) {
+	strcpy(radeon_output->dp_bus_name, output->name);
+	strcat(radeon_output->dp_bus_name, "-eDP");
+	RADEON_DP_I2CInit(pScrn, &radeon_output->dp_pI2CBus, radeon_output->dp_bus_name, output);
+	RADEON_DP_GetSinkType(output);
+    }
+
     if (radeon_output->ddc_i2c.valid)
 	RADEONI2CInit(pScrn, &radeon_output->pI2CBus, output->name, &radeon_output->ddc_i2c);
 
@@ -2754,6 +2769,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     int num_dvi = 0;
     int num_hdmi = 0;
     int num_dp = 0;
+    int num_edp = 0;
 
     /* We first get the information about all connectors from BIOS.
      * This is how the card is phyiscally wired up.
@@ -2902,6 +2918,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		num_hdmi++;
 	    } else if (conntype == CONNECTOR_DISPLAY_PORT) {
 		num_dp++;
+	    } else if (conntype == CONNECTOR_EDP) {
+		num_edp++;
 	    }
 	}
     }
@@ -2945,6 +2963,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		output = RADEONOutputCreate(pScrn, "HDMI-%d", --num_hdmi);
 	    } else if (conntype == CONNECTOR_DISPLAY_PORT) {
 		output = RADEONOutputCreate(pScrn, "DisplayPort-%d", --num_dp);
+	    } else if (conntype == CONNECTOR_EDP) {
+		output = RADEONOutputCreate(pScrn, "eDP-%d", --num_edp);
 	    } else {
 		output = RADEONOutputCreate(pScrn,
 					    ConnectorTypeName[conntype], 0);

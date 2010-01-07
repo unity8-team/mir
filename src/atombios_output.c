@@ -446,6 +446,7 @@ atombios_get_encoder_mode(xf86OutputPtr output)
 	return ATOM_ENCODER_MODE_LVDS;
 	break;
     case CONNECTOR_DISPLAY_PORT:
+    case CONNECTOR_EDP:
 	if (radeon_output->MonType == MT_DP)
 	    return ATOM_ENCODER_MODE_DP;
 	else
@@ -1347,7 +1348,9 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	radeon_encoder->devices |= radeon_output->active_device;
 	if (is_dig) {
 	    atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
-	    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT && radeon_output->MonType == MT_DP) {
+	    if (((radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) ||
+		 (radeon_output->ConnectorType == CONNECTOR_EDP)) &&
+		(radeon_output->MonType == MT_DP)) {
 	      do_displayport_link_train(output);
 	    }
 	}

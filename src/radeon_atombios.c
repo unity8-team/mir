@@ -1453,6 +1453,8 @@ const int object_connector_convert[] =
       CONNECTOR_NONE,
       CONNECTOR_NONE,
       CONNECTOR_DISPLAY_PORT,
+      CONNECTOR_EDP,
+      CONNECTOR_NONE,
     };
 
 xf86MonPtr radeon_atom_get_edid(xf86OutputPtr output)
