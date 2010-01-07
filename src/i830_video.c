@@ -1210,22 +1210,36 @@ i830_clip_video_helper(ScrnInfoPtr scrn,
 		       intel_adaptor_private *adaptor_priv,
 		       xf86CrtcPtr * crtc_ret,
 		       BoxPtr dst,
-		       INT32 * xa,
-		       INT32 * xb,
-		       INT32 * ya,
-		       INT32 * yb, RegionPtr reg, INT32 width, INT32 height)
+		       short src_x, short src_y,
+		       short drw_x, short drw_y,
+		       short src_w, short src_h,
+		       short drw_w, short drw_h,
+		       int id,
+		       int *top, int* left, int* npixels, int *nlines,
+		       RegionPtr reg, INT32 width, INT32 height)
 {
 	Bool ret;
 	RegionRec crtc_region_local;
 	RegionPtr crtc_region = reg;
 	BoxRec crtc_box;
+	INT32 x1, x2, y1, y2;
+	xf86CrtcPtr crtc;
+
+	x1 = src_x;
+	x2 = src_x + src_w;
+	y1 = src_y;
+	y2 = src_y + src_h;
+
+	dst->x1 = drw_x;
+	dst->x2 = drw_x + drw_w;
+	dst->y1 = drw_y;
+	dst->y2 = drw_y + drw_h;
 
 	/*
 	 * For overlay video, compute the relevant CRTC and
 	 * clip video to that
 	 */
-	xf86CrtcPtr crtc = i830_covering_crtc(scrn, dst,
-					      adaptor_priv->desired_crtc,
+	crtc = i830_covering_crtc(scrn, dst, adaptor_priv->desired_crtc,
 					      &crtc_box);
 
 	/* For textured video, we don't actually want to clip at all. */
@@ -1237,10 +1251,20 @@ i830_clip_video_helper(ScrnInfoPtr scrn,
 	}
 	*crtc_ret = crtc;
 
-	ret = xf86XVClipVideoHelper(dst, xa, xb, ya, yb,
+	ret = xf86XVClipVideoHelper(dst, &x1, &x2, &y1, &y2,
 				    crtc_region, width, height);
 	if (crtc_region != reg)
 		REGION_UNINIT(screen, &crtc_region_local);
+
+	*top = y1 >> 16;
+	*left = (x1 >> 16) & ~1;
+	*npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - *left;
+	if (is_planar_fourcc(id)) {
+		*top &= ~1;
+		*nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - *top;
+	} else
+		*nlines = ((y2 + 0xffff) >> 16) - *top;
+
 	return ret;
 }
 
@@ -1514,7 +1538,6 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	INT32 x1, x2, y1, y2;
 	int dstPitch;
 	int dstPitch2 = 0;
 	BoxRec dstBox;
@@ -1527,32 +1550,16 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 	       drw_y, drw_w, drw_h, width, height);
 #endif
 
-	/* Clip */
-	x1 = src_x;
-	x2 = src_x + src_w;
-	y1 = src_y;
-	y2 = src_y + src_h;
-
-	dstBox.x1 = drw_x;
-	dstBox.x2 = drw_x + drw_w;
-	dstBox.y1 = drw_y;
-	dstBox.y2 = drw_y + drw_h;
-
 	if (!i830_clip_video_helper(scrn,
 				    adaptor_priv,
 				    &crtc,
-				    &dstBox, &x1, &x2, &y1, &y2, clipBoxes,
+				    &dstBox,
+				    src_x, src_y, drw_x, drw_y,
+				    src_w, src_h, drw_w, drw_h,
+				    id,
+				    &top, &left, &npixels, &nlines, clipBoxes,
 				    width, height))
 		return Success;
-
-	top = y1 >> 16;
-	left = (x1 >> 16) & ~1;
-	npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
-	if (is_planar_fourcc(id)) {
-		top &= ~1;
-		nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	} else
-		nlines = ((y2 + 0xffff) >> 16) - top;
 
 	if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
 				  &dstPitch, &dstPitch2,
@@ -1594,7 +1601,6 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 {
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
 	ScreenPtr screen = screenInfo.screens[scrn->scrnIndex];
-	INT32 x1, x2, y1, y2;
 	int dstPitch;
 	int dstPitch2 = 0;
 	BoxRec dstBox;
@@ -1616,21 +1622,14 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 	if (src_h >= (drw_h * 8))
 		drw_h = src_h / 7;
 
-	/* Clip */
-	x1 = src_x;
-	x2 = src_x + src_w;
-	y1 = src_y;
-	y2 = src_y + src_h;
-
-	dstBox.x1 = drw_x;
-	dstBox.x2 = drw_x + drw_w;
-	dstBox.y1 = drw_y;
-	dstBox.y2 = drw_y + drw_h;
-
 	if (!i830_clip_video_helper(scrn,
 				    adaptor_priv,
 				    &crtc,
-				    &dstBox, &x1, &x2, &y1, &y2, clipBoxes,
+				    &dstBox,
+				    src_x, src_y, drw_x, drw_y,
+				    src_w, src_h, drw_w, drw_h,
+				    id,
+				    &top, &left, &npixels, &nlines, clipBoxes,
 				    width, height))
 		return Success;
 
@@ -1642,15 +1641,6 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 			   "Fail to clip video to any crtc!\n");
 		return Success;
 	}
-
-	top = y1 >> 16;
-	left = (x1 >> 16) & ~1;
-	npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
-	if (is_planar_fourcc(id)) {
-		top &= ~1;
-		nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	} else
-		nlines = ((y2 + 0xffff) >> 16) - top;
 
 	if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
 				  &dstPitch, &dstPitch2,
