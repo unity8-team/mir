@@ -47,6 +47,7 @@ typedef struct {
 	uint32_t gamma4;
 	uint32_t gamma5;
 
+	/* only used by the overlay */
 	uint32_t videoStatus;
 	Time offTime;
 	Time freeTime;
