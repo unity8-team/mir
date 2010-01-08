@@ -599,17 +599,6 @@ extern const int I830CopyROP[16];
 #define ALLOW_SHARING			0x00000010
 #define DISABLE_REUSE			0x00000020
 
-/**
- * Hints to CreatePixmap to tell the driver how the pixmap is going to be
- * used.
- *
- * Compare to CREATE_PIXMAP_USAGE_* in the server.
- */
-enum {
-	INTEL_CREATE_PIXMAP_TILING_X = 0x10000000,
-	INTEL_CREATE_PIXMAP_TILING_Y,
-};
-
 void i830_debug_flush(ScrnInfoPtr scrn);
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
