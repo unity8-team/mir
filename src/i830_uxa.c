@@ -575,8 +575,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	    (access == UXA_ACCESS_RW || priv->batch_write_domain))
 		intel_batch_submit(scrn);
 
-	/* No VT sema or GEM?  No GTT mapping. */
-	if (!scrn->vtSema || bo->size > intel->max_gtt_map_size) {
+	if (bo->size > intel->max_gtt_map_size) {
 		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
 		if (ret != 0) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -604,22 +603,19 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 static void i830_uxa_finish_access(PixmapPtr pixmap)
 {
 	dri_bo *bo = i830_get_pixmap_bo(pixmap);
+	ScreenPtr screen = pixmap->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (bo) {
-		ScreenPtr screen = pixmap->drawable.pScreen;
-		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-		intel_screen_private *intel = intel_get_screen_private(scrn);
+	if (bo == intel->front_buffer->bo)
+		intel->need_flush = TRUE;
 
-		if (bo == intel->front_buffer->bo)
-			intel->need_flush = TRUE;
+	if (bo->size > intel->max_gtt_map_size)
+		dri_bo_unmap(bo);
+	else
+		drm_intel_gem_bo_unmap_gtt(bo);
 
-		if (!scrn->vtSema || bo->size > intel->max_gtt_map_size)
-			dri_bo_unmap(bo);
-		else
-			drm_intel_gem_bo_unmap_gtt(bo);
-
-		pixmap->devPrivate.ptr = NULL;
-	}
+	pixmap->devPrivate.ptr = NULL;
 }
 
 static Bool
