@@ -80,6 +80,20 @@ static inline void intel_batch_emit_dword(intel_screen_private *intel, uint32_t 
 	intel->batch_used += 4;
 }
 
+static inline void intel_batch_align(intel_screen_private *intel, uint32_t align)
+{
+	uint32_t delta;
+
+	assert(intel->batch_ptr != NULL);
+	assert(align);
+
+	if ((delta = intel->batch_used & (align - 1))) {
+		delta = align - delta;
+		memset (intel->batch_ptr + intel->batch_used, 0, delta);
+		intel->batch_used += delta;
+	}
+}
+
 static inline void
 intel_batch_emit_reloc(intel_screen_private *intel,
 		       dri_bo * bo,
@@ -132,6 +146,7 @@ intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 			       delta);
 }
 
+#define ALIGN_BATCH(align) intel_batch_align(intel, align);
 #define OUT_BATCH(dword) intel_batch_emit_dword(intel, dword)
 
 #define OUT_RELOC(bo, read_domains, write_domains, delta) \

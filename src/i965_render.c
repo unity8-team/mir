@@ -1160,14 +1160,13 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	/* Begin the long sequence of commands needed to set up the 3D
 	 * rendering pipe
 	 */
-	{
-		ATOMIC_BATCH(2);
-		OUT_BATCH(MI_FLUSH |
-			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
-			  BRW_MI_GLOBAL_SNAPSHOT_RESET);
-		OUT_BATCH(MI_NOOP);
-		ADVANCE_BATCH();
-	}
+
+	/* URB fence. Erratum (Vol 1a, p32): URB_FENCE must not cross a
+	 * cache-line (64 bytes). Start by aligning this sequence of ops to
+	 * a cache-line...
+	 */
+	ALIGN_BATCH(64);
+
 	{
 		if (IS_IGDNG(intel))
 			ATOMIC_BATCH(14);
@@ -1175,6 +1174,9 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			ATOMIC_BATCH(12);
 
 		/* Match Mesa driver setup */
+		OUT_BATCH(MI_FLUSH |
+			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
+			  BRW_MI_GLOBAL_SNAPSHOT_RESET);
 		if (IS_G4X(intel) || IS_IGDNG(intel))
 			OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 		else
@@ -1213,9 +1215,9 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		OUT_BATCH(BRW_STATE_SIP | 0);
 		OUT_RELOC(render_state->sip_kernel_bo,
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-		OUT_BATCH(MI_NOOP);
 		ADVANCE_BATCH();
 	}
+
 	{
 		int pipe_ctrl;
 		ATOMIC_BATCH(26);
@@ -1279,7 +1281,16 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			  offsetof(struct gen4_cc_unit_state,
 				   cc_state[src_blend][dst_blend]));
 
-		/* URB fence */
+		/* URB fence. Erratum (Vol 1a, p32): URB_FENCE must not cross a
+		 * cache-line (64 bytes).
+		 *
+		 * 21 preceding dwords since start of section: 84 bytes.
+		 * 12 bytes for URB_FENCE, implies that the end-of-instruction
+		 * does not cross the cache-line boundary...
+		 *
+		 * A total of 33 or 35 dwords since alignment: 132, 140 bytes.
+		 * Again, the URB_FENCE will not cross a cache-line.
+		 */
 		OUT_BATCH(BRW_URB_FENCE |
 			  UF0_CS_REALLOC |
 			  UF0_SF_REALLOC |
