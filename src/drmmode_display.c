@@ -847,6 +847,8 @@ const char *output_names[] = { "None",
 			       "DP",
 			       "HDMI",
 			       "HDMI",
+			       "TV",
+			       "eDP"
 };
 
 static void
