@@ -466,8 +466,7 @@ Bool i830_bind_all_memory(ScrnInfoPtr scrn);
 unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   uint32_t tiling_mode);
-void i830_set_max_gtt_map_size(ScrnInfoPtr scrn);
-void i830_set_max_tiling_size(ScrnInfoPtr scrn);
+void i830_set_gem_max_sizes(ScrnInfoPtr scrn);
 
 i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn);
 

@@ -523,8 +523,7 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 		return NULL;
 	}
 
-	i830_set_max_gtt_map_size(scrn);
-	i830_set_max_tiling_size(scrn);
+	i830_set_gem_max_sizes(scrn);
 
 	return front_buffer;
 }
@@ -594,8 +593,7 @@ Bool i830_bind_all_memory(ScrnInfoPtr scrn)
 		drmmode_crtc_set_cursor_bo(xf86_config->crtc[i],
 					   intel->cursor_mem_argb[i]->bo);
 
-	i830_set_max_gtt_map_size(scrn);
-	i830_set_max_tiling_size(scrn);
+	i830_set_gem_max_sizes(scrn);
 
 	if (intel->front_buffer)
 		scrn->fbOffset = intel->front_buffer->offset;
@@ -644,7 +642,7 @@ void i830_free_xvmc_buffer(ScrnInfoPtr scrn, i830_memory * buffer)
 
 #endif
 
-void i830_set_max_gtt_map_size(ScrnInfoPtr scrn)
+static void i830_set_max_gtt_map_size(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_i915_gem_get_aperture aperture;
@@ -665,7 +663,7 @@ void i830_set_max_gtt_map_size(ScrnInfoPtr scrn)
 	}
 }
 
-void i830_set_max_tiling_size(ScrnInfoPtr scrn)
+static void i830_set_max_tiling_size(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_i915_gem_get_aperture aperture;
@@ -684,4 +682,10 @@ void i830_set_max_tiling_size(ScrnInfoPtr scrn)
 		if (!IS_I965G(intel))
 			intel->max_tiling_size /= 2;
 	}
+}
+
+void i830_set_gem_max_sizes(ScrnInfoPtr scrn)
+{
+	i830_set_max_gtt_map_size(scrn);
+	i830_set_max_tiling_size(scrn);
 }
