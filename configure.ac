@@ -22,18 +22,18 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-nouveau],
-        0.0.10,
+        0.0.15,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-nouveau)
 
 AC_DEFINE_UNQUOTED([NV_MAJOR_VERSION],
-                   [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]\)\.[[0-9]]\.[[0-9]]/\1/')],
+                   [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]*\)\.[[0-9]]*\.[[0-9]]*/\1/')],
                    [Major version])
 AC_DEFINE_UNQUOTED([NV_MINOR_VERSION],
-                   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.\([[0-9]]\)\.[[0-9]]/\1/')],
+                   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]*\.\([[0-9]]*\)\.[[0-9]]*/\1/')],
                    [Minor version])
 AC_DEFINE_UNQUOTED([NV_PATCHLEVEL],
-                   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]\.[[0-9]]\.\([[0-9]]\)/\1/')],
+                   [$(echo $PACKAGE_VERSION | sed -e 's/^[[0-9]]*\.[[0-9]]*\.\([[0-9]]*\)/\1/')],
                    [Patch version])
 AC_DEFINE_UNQUOTED([NV_DRIVER_DATE],
                    [$(echo -n \";git log |head -3|tail -1|tr -d '\n';echo -n \")],
@@ -95,25 +95,6 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <stdio.h> ]], [[ ]])],
 
 # needed for the next test
 CFLAGS="$CFLAGS $XORG_CFLAGS"
-
-AC_MSG_CHECKING(for DRM modesetting)
-AC_ARG_WITH(
-	kms,
-	[  --with-kms=yes,no       compile with drm modesetting support (default: auto)],
-	kms="$withval",
-	kms="yes")
-AC_MSG_RESULT($kms)
-
-if test "x$kms" = xyes; then
-	AC_CHECK_HEADER([xf86drmMode.h],[kms=yes],[kms=no],
-		[#include <stdint.h>
-		 #include <stdlib.h> ]
-	)
-fi
-
-if test "x$kms" = xyes; then
-	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
-fi
 
 AC_SUBST([CFLAGS])
 AC_SUBST([moduledir])

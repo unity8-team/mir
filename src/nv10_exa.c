@@ -725,18 +725,18 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius;
-	uint32_t class = 0, chipset;
+	uint32_t class = 0;
 	int i;
 
-	chipset = (nvReadMC(pNv, NV_PMC_BOOT_0) >> 20) & 0xff;
-	if (((chipset & 0xf0) != NV_ARCH_10) && ((chipset & 0xf0) != NV_ARCH_20))
+	if (((pNv->NVArch & 0xf0) != NV_ARCH_10) &&
+	    ((pNv->NVArch & 0xf0) != NV_ARCH_20))
 		return FALSE;
 
-	if (chipset >= 0x20 || chipset == 0x1a)
+	if (pNv->NVArch >= 0x20 || pNv->NVArch == 0x1a)
 		class = NV11TCL;
-	else if (chipset >= 0x17)
+	else if (pNv->NVArch >= 0x17)
 		class = NV17TCL;
-	else if (chipset >= 0x11)
+	else if (pNv->NVArch >= 0x11)
 		class = NV11TCL;
 	else
 		class = NV10TCL;

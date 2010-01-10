@@ -43,9 +43,10 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 		    short src_w, short src_h, short drw_w, short drw_h,
 		    RegionPtr clipBoxes)
 {
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	NVPtr pNv = NVPTR(pScrn);
 	NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
+#if NVOVL_SUPPORT
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	xf86CrtcPtr crtc = xf86_config->crtc[pPriv->overlayCRTC];
 
 	/*This may not work with NV04 overlay according to rivatv source*/
@@ -103,6 +104,7 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
         nvWriteVIDEO(pNv, NV_PVIDEO_OVERLAY, 0x111);
 
         nvWriteVIDEO(pNv, NV_PVIDEO_SU_STATE, (nvReadVIDEO(pNv, NV_PVIDEO_SU_STATE) ^ (1 << 16)));
+#endif
 
         pPriv->videoStatus = CLIENT_VIDEO_ON;
 }
@@ -183,11 +185,13 @@ NV04GetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 void
 NV04StopOverlay (ScrnInfoPtr pScrn)
 {
+#ifdef NVOVL_SUPPORT
     NVPtr pNv = NVPTR(pScrn);
 
     nvWriteVIDEO(pNv, NV_PVIDEO_OVERLAY, nvReadVIDEO(pNv, NV_PVIDEO_OVERLAY) &~ 0x1);
     nvWriteVIDEO(pNv, NV_PVIDEO_OE_STATE, 0);
     nvWriteVIDEO(pNv, NV_PVIDEO_SU_STATE, 0);
     nvWriteVIDEO(pNv, NV_PVIDEO_RM_STATE, 0);
+#endif
 }
 

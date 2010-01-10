@@ -285,12 +285,13 @@ NVFreeOverlayMemory(ScrnInfoPtr pScrn)
 	NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
 
 	NVFreePortMemory(pScrn, pPriv);
-
+#if NVOVL_SUPPORT
 	/* "power cycle" the overlay */
 	nvWriteMC(pNv, NV_PMC_ENABLE,
 		  (nvReadMC(pNv, NV_PMC_ENABLE) & 0xEFFFFFFF));
 	nvWriteMC(pNv, NV_PMC_ENABLE,
 		  (nvReadMC(pNv, NV_PMC_ENABLE) | 0x10000000));
+#endif
 }
 
 /**
@@ -805,6 +806,7 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 	}
 #endif
 
+#ifdef NVOVL_SUPPORT
 	if (USING_OVERLAY) {
 		char crtc = nv_window_belongs_to_crtc(pScrn, drw_x, drw_y,
 						      drw_w, drw_h);
@@ -845,6 +847,7 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 						 ->rotation != RR_Rotate_0)
 			*action_flags &= ~USE_OVERLAY;
 	}
+#endif
 
 	/* At this point the adapter we're going to use is _known_.
 	 * You cannot change it now.
@@ -991,6 +994,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 	/* The overlay supports hardware double buffering. We handle this here*/
 	offset = 0;
+#ifdef NVOVL_SUPPORT
 	if (pPriv->doubleBuffer) {
 		int mask = 1 << (pPriv->currentBuffer << 2);
 
@@ -1004,6 +1008,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 				offset += newFBSize >> 1;
 		}
 	}
+#endif
 
 	/* Now we take a decision regarding the way we send the data to the
 	 * card.
@@ -1601,7 +1606,7 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 	for(i = 0; i < NUM_BLIT_PORTS; i++)
 		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
 
-	if(pNv->WaitVSyncPossible) {
+	if (pNv->NVArch >= 0x11) {
 		adapt->pAttributes = NVBlitAttributes;
 		adapt->nAttributes = NUM_BLIT_ATTRIBUTES;
 	} else {
@@ -1628,7 +1633,7 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 	pPriv->texture			= FALSE;
 	pPriv->bicubic			= FALSE;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank		= pNv->WaitVSyncPossible;
+	pPriv->SyncToVBlank		= (pNv->NVArch >= 0x11);
 
 	pNv->blitAdaptor		= adapt;
 
@@ -1771,7 +1776,7 @@ NVChipsetHasOverlay(NVPtr pNv)
 	case NV_ARCH_30:
 		return TRUE;
 	case NV_ARCH_40:
-		if ((pNv->Chipset & 0xfff0) == CHIPSET_NV40)
+		if (pNv->NVArch == 0x40)
 			return TRUE;
 		break;
 	default:
@@ -1798,7 +1803,7 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 	XF86VideoAdaptorPtr  overlayAdaptor = NULL;
 	NVPtr                pNv   = NVPTR(pScrn);
 
-	if (pNv->kms_enable || !NVChipsetHasOverlay(pNv))
+	if (1 /*pNv->kms_enable*/ || !NVChipsetHasOverlay(pNv))
 		return NULL;
 
 	overlayAdaptor = NVSetupOverlayVideoAdapter(pScreen);
@@ -1868,14 +1873,8 @@ NV30SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	for(i = 0; i < NUM_TEXTURE_PORTS; i++)
 		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
 
-	if (pNv->WaitVSyncPossible) {
-		adapt->pAttributes = NVTexturedAttributes;
-		adapt->nAttributes = NUM_TEXTURED_ATTRIBUTES;
-	} else {
-		adapt->pAttributes = NULL;
-		adapt->nAttributes = 0;
-	}
-
+	adapt->pAttributes		= NVTexturedAttributes;
+	adapt->nAttributes		= NUM_TEXTURED_ATTRIBUTES;
 	adapt->pImages			= NV30TexturedImages;
 	adapt->nImages			= NUM_FORMAT_TEXTURED;
 	adapt->PutVideo			= NULL;
@@ -1895,7 +1894,7 @@ NV30SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	pPriv->texture			= TRUE;
 	pPriv->bicubic			= bicubic;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank		= pNv->WaitVSyncPossible;
+	pPriv->SyncToVBlank		= TRUE;
 
 	if (bicubic)
 		pNv->textureAdaptor[1]	= adapt;
@@ -1955,14 +1954,8 @@ NV40SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	for(i = 0; i < NUM_TEXTURE_PORTS; i++)
 		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
 
-	if(pNv->WaitVSyncPossible) {
-		adapt->pAttributes = NVTexturedAttributes;
-		adapt->nAttributes = NUM_TEXTURED_ATTRIBUTES;
-	} else {
-		adapt->pAttributes = NULL;
-		adapt->nAttributes = 0;
-	}
-
+	adapt->pAttributes		= NVTexturedAttributes;
+	adapt->nAttributes		= NUM_TEXTURED_ATTRIBUTES;
 	adapt->pImages			= NV40TexturedImages;
 	adapt->nImages			= NUM_FORMAT_TEXTURED;
 	adapt->PutVideo			= NULL;
@@ -1982,7 +1975,7 @@ NV40SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	pPriv->texture			= TRUE;
 	pPriv->bicubic			= bicubic;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank		= pNv->WaitVSyncPossible;
+	pPriv->SyncToVBlank		= TRUE;
 
 	if (bicubic)
 		pNv->textureAdaptor[1]	= adapt;

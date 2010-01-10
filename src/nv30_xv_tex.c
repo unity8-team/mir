@@ -430,15 +430,14 @@ NV30SetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
                        INT32 value, pointer data)
 {
         NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
-        NVPtr           pNv = NVPTR(pScrn);
 
-        if ((attribute == xvSyncToVBlank) && pNv->WaitVSyncPossible) {
+        if (attribute == xvSyncToVBlank) {
                 if ((value < 0) || (value > 1))
                         return BadValue;
                 pPriv->SyncToVBlank = value;
         } else
         if (attribute == xvSetDefaults) {
-                pPriv->SyncToVBlank = pNv->WaitVSyncPossible;
+                pPriv->SyncToVBlank = TRUE;
         } else
                 return BadMatch;
 

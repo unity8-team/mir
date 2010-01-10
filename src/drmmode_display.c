@@ -33,7 +33,6 @@
 
 #include "xorgVersion.h"
 
-#ifdef XF86DRM_MODE
 #include "nv_include.h"
 #include "xf86drmMode.h"
 #include "X11/Xatom.h"
@@ -368,6 +367,52 @@ done:
 	return ret;
 }
 
+#define SOURCE_MASK_INTERLEAVE 32
+#define TRANSPARENT_PIXEL   0
+
+/*
+ * Convert a source/mask bitmap cursor to an ARGB cursor, clipping or
+ * padding as necessary. source/mask are assumed to be alternated each
+ * SOURCE_MASK_INTERLEAVE bits.
+ */
+void
+nv_cursor_convert_cursor(uint32_t *src, void *dst, int src_stride, int dst_stride,
+			 int bpp, uint32_t fg, uint32_t bg)
+{
+	int width = min(src_stride, dst_stride);
+	uint32_t b, m, pxval;
+	int i, j, k;
+
+	for (i = 0; i < width; i++) {
+		for (j = 0; j < width / SOURCE_MASK_INTERLEAVE; j++) {
+			int src_off = i*src_stride/SOURCE_MASK_INTERLEAVE + j;
+			int dst_off = i*dst_stride + j*SOURCE_MASK_INTERLEAVE;
+
+			b = src[2*src_off];
+			m = src[2*src_off + 1];
+
+			for (k = 0; k < SOURCE_MASK_INTERLEAVE; k++) {
+				pxval = TRANSPARENT_PIXEL;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+				if (m & 0x80000000)
+					pxval = (b & 0x80000000) ? fg : bg;
+				b <<= 1;
+				m <<= 1;
+#else
+				if (m & 1)
+					pxval = (b & 1) ? fg : bg;
+				b >>= 1;
+				m >>= 1;
+#endif
+				if (bpp == 32)
+					((uint32_t *)dst)[dst_off + k] = pxval;
+				else
+					((uint16_t *)dst)[dst_off + k] = pxval;
+			}
+		}
+	}
+}
+
 static void
 drmmode_reload_cursor_image(xf86CrtcPtr crtc)
 {
@@ -429,7 +474,6 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 				cursor->handle, 64, 64);
 	}
 }
-
 
 static void
 drmmode_hide_cursor (xf86CrtcPtr crtc)
@@ -1196,9 +1240,6 @@ drmmode_is_rotate_pixmap(PixmapPtr ppix, struct nouveau_bo **bo)
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
 	int i;
 
-	if (!NVPTR(pScrn)->kms_enable)
-		return FALSE;
-
 	for (i = 0; i < config->num_crtc; i++) {
 		xf86CrtcPtr crtc = config->crtc[i];
 		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
@@ -1237,9 +1278,6 @@ drmmode_remove_fb(ScrnInfoPtr pScrn)
 	drmmode_crtc_private_ptr drmmode_crtc;
 	drmmode_ptr drmmode;
 
-	if (!NVPTR(pScrn)->kms_enable)
-		return;
-
 	if (config)
 		crtc = config->crtc[0];
 	if (!crtc)
@@ -1260,10 +1298,9 @@ drmmode_cursor_init(ScreenPtr pScreen)
 	int size = nv_cursor_width(pNv);
 	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 		    HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
-		    (pNv->alphaCursor ? HARDWARE_CURSOR_ARGB : 0) |
+		    (pNv->NVArch >= 0x11 ? HARDWARE_CURSOR_ARGB : 0) |
 		    HARDWARE_CURSOR_UPDATE_UNHIDDEN;
 
 	return xf86_cursors_init(pScreen, size, size, flags);
 }
 
-#endif

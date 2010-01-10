@@ -29,17 +29,11 @@ nouveau_drv_la_LDFLAGS = -module -avoid-version @LIBDRM_NOUVEAU_LIBS@
 nouveau_drv_ladir = @moduledir@/drivers
 
 nouveau_drv_la_SOURCES = \
-			 nouveau_bios.h \
-			 nouveau_calc.c \
-			 nouveau_hw.c nouveau_hw.h \
 			 nouveau_local.h \
-			 nouveau_ms.h \
 			 nouveau_exa.c nouveau_xv.c nouveau_dri2.c \
 			 nouveau_wfb.c \
 			 nv_accel_common.c \
-			 nv_bios.c \
 			 nv_const.h \
-			 nv_cursor.c \
 			 nv_dma.c \
 			 nv_dma.h \
 			 nv_dri.c \
@@ -49,13 +43,8 @@ nouveau_drv_la_SOURCES = \
 			 nv_dripriv.h \
 			 nv_local.h \
 			 nv_proto.h \
-			 nvreg.h \
-			 nv_setup.c \
 			 nv_shadow.c \
 			 nv_type.h \
-			 nv_crtc.c \
-			 nv_output.c \
-			 nv_i2c.c \
 			 nv04_exa.c \
 			 nv04_xv_ovl.c \
 			 nv04_xv_blit.c \
@@ -68,23 +57,9 @@ nouveau_drv_la_SOURCES = \
 			 nv40_exa.c \
 			 nv40_xv_tex.c \
 			 nv50_accel.c nv50_accel.h \
-			 nv50_cursor.c \
-			 nv50_crtc.c \
-			 nv50_dac.c \
-			 nv50_display.c \
 			 nv50_exa.c \
-			 nv50_output.c \
-			 nv50_sor.c \
-			 nv50_randr.c \
-			 nv50_randr.h \
-			 nv50_connector.c \
 			 nv50_xv.c \
 			 nv50_texture.h \
-			 nv50reg.h \
-			 nouveau_crtc.h \
-			 nouveau_output.h \
-			 nouveau_connector.h \
-			 nouveau_modeset.h \
 			 drmmode_display.c \
 			 vl_hwmc.c \
 			 vl_hwmc.h

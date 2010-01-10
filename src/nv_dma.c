@@ -23,7 +23,6 @@
 
 #include <errno.h>
 #include "nv_include.h"
-#include "nvreg.h"
 
 static void
 NVLockedUp(ScrnInfoPtr pScrn)

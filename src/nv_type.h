@@ -17,14 +17,6 @@
 #error "This driver requires a DRI-enabled X server"
 #endif
 
-#include "nouveau_bios.h"
-
-#include "nouveau_ms.h"
-
-#include "nouveau_crtc.h"
-#include "nouveau_connector.h"
-#include "nouveau_output.h"
-
 #define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
 #define NV_ARCH_10  0x10
@@ -69,74 +61,31 @@
 #define CHIPSET_C512     0x03D0
 #define CHIPSET_G73_BRIDGED 0x02E0
 
-
-#undef SetBit /* some input related header also includes a macro called SetBit, which gives a lot of warnings. */
-#define BITMASK(t,b) (((unsigned)(1U << (((t)-(b)+1)))-1)  << (b))
-#define MASKEXPAND(mask) BITMASK(1?mask,0?mask)
-#define SetBF(mask,value) ((value) << (0?mask))
-#define GetBF(var,mask) (((unsigned)((var) & MASKEXPAND(mask))) >> (0?mask) )
-#define SetBitField(value,from,to) SetBF(to, GetBF(value,from))
-#define SetBit(n) (1<<(n))
-#define Set8Bits(value) ((value)&0xff)
-
 /* NV50 */
-typedef enum ORNum {
-	DAC0 = 0,
-	DAC1 = 1,
-	DAC2 = 2,
-	SOR0 = 0,
-	SOR1 = 1,
-	SOR2 = 2,
-} ORNum;
-
 typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
-    struct nouveau_mode_state	saved_regs;
-    struct nouveau_mode_state	set_state;
-    uint32_t saved_vga_font[4][16384];
     uint32_t              Architecture;
     EntityInfoPtr       pEnt;
 	struct pci_device *PciInfo;
     int                 Chipset;
     int                 NVArch;
     Bool                Primary;
-    CARD32              IOAddress;
 
     /* VRAM physical address */
     unsigned long	VRAMPhysical;
-    /* Size of VRAM BAR */
-    unsigned long	VRAMPhysicalSize;
-    /* Accesible VRAM size (by the GPU) */
-    unsigned long	VRAMSize;
-    /* Mapped VRAM BAR */
-    void *              VRAMMap;
-    /* Accessible AGP size */
-    unsigned long	AGPSize;
 
     /* Various pinned memory regions */
     struct nouveau_bo * scanout;
     struct nouveau_bo * offscreen;
     void *              offscreen_map;
-    //struct nouveau_bo * FB_old; /* for KMS */
-    struct nouveau_bo * shadow[2]; /* for easy acces by exa */
-    struct nouveau_bo * Cursor;
-    struct nouveau_bo * Cursor2;
     struct nouveau_bo * GART;
 
-    struct nvbios	VBIOS;
-    struct nouveau_bios_info	*vbios;
     Bool                NoAccel;
     Bool                HWCursor;
-    Bool                FpScale;
     Bool                ShadowFB;
     unsigned char *     ShadowPtr;
     int                 ShadowPitch;
-    uint32_t            RamAmountKBytes;
 
-    volatile CARD32 *REGS;
-    volatile CARD32 *FB_BAR;
-
-    uint8_t cur_head;
     ExaDriverPtr	EXADriverPtr;
     Bool		exa_driver_pixmaps;
     Bool                exa_force_cp;
@@ -146,48 +95,24 @@ typedef struct _NVRec {
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr  CloseScreen;
     /* Cursor */
-	uint32_t	curImage[256];
-    /* I2C / DDC */
-    xf86Int10InfoPtr    pInt10;
-    unsigned            Int10Mode;
-  void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
+    uint32_t		curImage[256];
+    void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
     XF86VideoAdaptorPtr	overlayAdaptor;
     XF86VideoAdaptorPtr	blitAdaptor;
     XF86VideoAdaptorPtr	textureAdaptor[2];
     int			videoKey;
-    Bool                FPDither;
-    int                 Mobile;
-	int         vtOWNER;
     OptionInfoPtr	Options;
-    bool                alphaCursor;
-    bool                twoHeads;
-    bool		gf4_disp_arch;
-    bool                two_reg_pll;
 
     Bool                LockedUp;
 
     CARD32              currentRop;
 
-    Bool                WaitVSyncPossible;
-    Bool                BlendingPossible;
     DRIInfoPtr          pDRIInfo;
     drmVersionPtr       pLibDRMVersion;
     drmVersionPtr       pKernelDRMVersion;
 
-	Bool kms_enable;
-
-	I2CBusPtr           pI2CBus[DCB_MAX_NUM_I2C_ENTRIES];
-	struct nouveau_encoder *encoders;
-
-#ifdef XF86DRM_MODE
 	void *drmmode; /* for KMS */
 	Bool allow_dpms;
-#endif
-
-	nouveauCrtcPtr crtc[2];
-	nouveauOutputPtr output; /* this a linked list. */
-	/* Assume a connector can exist for each i2c bus. */
-	nouveauConnectorPtr connector[DCB_MAX_NUM_I2C_ENTRIES];
 
 	/* DRM interface */
 	struct nouveau_device *dev;
@@ -227,15 +152,6 @@ typedef struct _NVRec {
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
-
-#define nvReadCurVGA(pNv, reg) NVReadVgaCrtc(pNv, pNv->cur_head, reg)
-#define nvWriteCurVGA(pNv, reg, val) NVWriteVgaCrtc(pNv, pNv->cur_head, reg, val)
-
-#define nvReadCurRAMDAC(pNv, reg) NVReadRAMDAC(pNv, pNv->cur_head, reg)
-#define nvWriteCurRAMDAC(pNv, reg, val) NVWriteRAMDAC(pNv, pNv->cur_head, reg, val)
-
-#define nvReadCurCRTC(pNv, reg) NVReadCRTC(pNv, pNv->cur_head, reg)
-#define nvWriteCurCRTC(pNv, reg, val) NVWriteCRTC(pNv, pNv->cur_head, reg, val)
 
 typedef struct _NVPortPrivRec {
 	short		brightness;
@@ -327,6 +243,42 @@ nouveau_pixmap_offset(PixmapPtr ppix)
 		return 0;
 
 	return exaGetPixmapOffset(ppix);
+}
+
+static inline uint32_t
+ nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
+{
+	int mask;
+
+	if (bpp == 15)
+	        bpp = 16;
+	if (bpp == 24 || bpp == 30)
+	        bpp = 8;
+
+	/* Alignment requirements taken from the Haiku driver */
+	if (pNv->Architecture == NV_ARCH_04)
+	        mask = 128 / bpp - 1;
+	else
+	        mask = 512 / bpp - 1;
+
+	return (width + mask) & ~mask;
+}
+
+/* nv04 cursor max dimensions of 32x32 (A1R5G5B5) */
+#define NV04_CURSOR_SIZE 32
+/* limit nv10 cursors to 64x64 (ARGB8) (we could go to 64x255) */
+#define NV10_CURSOR_SIZE 64
+
+static inline int nv_cursor_width(NVPtr pNv)
+{
+	return pNv->NVArch >= 0x10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
+}
+
+static inline int nv_cursor_pixels(NVPtr pNv)
+{
+	int width = nv_cursor_width(pNv);
+
+	return width * width;
 }
 
 #endif /* __NV_STRUCT_H__ */

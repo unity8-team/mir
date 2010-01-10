@@ -36,6 +36,8 @@
 
 #define FOURCC_RGB 0x0000003
 
+#define VSYNC_POSSIBLE (pNv->NVArch >= 0x11)
+
 extern Atom xvSetDefaults, xvSyncToVBlank;
 
 /**
@@ -139,7 +141,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                         NVWaitVSync(pScrn, 1);
         }
 
-        if(pNv->BlendingPossible) {
+        if ((pNv->Chipset & 0xffff) > CHIPSET_NV04) {
                 BEGIN_RING(chan, sifm,
 				 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
                 OUT_RING  (chan, src_format);
@@ -214,13 +216,13 @@ NVSetBlitPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
         NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
         NVPtr           pNv = NVPTR(pScrn);
 
-        if ((attribute == xvSyncToVBlank) && pNv->WaitVSyncPossible) {
+        if ((attribute == xvSyncToVBlank) && VSYNC_POSSIBLE) {
                 if ((value < 0) || (value > 1))
                         return BadValue;
                 pPriv->SyncToVBlank = value;
         } else
         if (attribute == xvSetDefaults) {
-                pPriv->SyncToVBlank = pNv->WaitVSyncPossible;
+                pPriv->SyncToVBlank = VSYNC_POSSIBLE;
         } else
                 return BadMatch;
 

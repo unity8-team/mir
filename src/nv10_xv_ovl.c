@@ -68,6 +68,7 @@ NV10PutOverlayImage(ScrnInfoPtr pScrn,
 {
 	NVPtr         pNv    = NVPTR(pScrn);
 	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
+#ifdef NVOVL_SUPPORT
 	int           buffer = pPriv->currentBuffer;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	xf86CrtcPtr crtc = xf86_config->crtc[pPriv->overlayCRTC];
@@ -125,6 +126,7 @@ NV10PutOverlayImage(ScrnInfoPtr pScrn,
         nvWriteVIDEO(pNv, NV_PVIDEO_FORMAT(buffer), dstPitch);
         nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 0);
         nvWriteVIDEO(pNv, NV_PVIDEO_BUFFER, buffer ? 0x10 :  0x1);
+#endif
 
         pPriv->videoStatus = CLIENT_VIDEO_ON;
 }
@@ -148,7 +150,6 @@ NV10SetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
                           INT32 value, pointer data)
 {
         NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
-        NVPtr         pNv   = NVPTR(pScrn);
 
         if (attribute == xvBrightness) {
                 if ((value < -512) || (value > 512))
@@ -193,7 +194,10 @@ NV10SetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
         if (attribute == xvSetDefaults) {
                 NVSetPortDefaults(pScrn, pPriv);
         } else
+#ifdef NVOVL_SUPPORT
         if ( attribute == xvOnCRTCNb) {
+		NVPtr pNv = NVPTR(pScrn);
+
                 if ((value < 0) || (value > 1))
                         return BadValue;
                 pPriv->overlayCRTC = value;
@@ -202,6 +206,7 @@ NV10SetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
                 NVWriteCRTC(pNv, !value, NV_PCRTC_ENGINE_CTRL,
 			    NVReadCRTC(pNv, !value, NV_PCRTC_ENGINE_CTRL) & ~NV_CRTC_FSEL_OVERLAY);
         } else
+#endif
                 return BadMatch;
 
         NV10WriteOverlayParameters(pScrn);
@@ -255,8 +260,10 @@ NV10GetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 void
 NV10StopOverlay (ScrnInfoPtr pScrn)
 {
+#ifdef NVOVL_SUPPORT
     NVPtr pNv = NVPTR(pScrn);
     nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
+#endif
 }
 
 /** 
@@ -281,6 +288,7 @@ NV10WriteOverlayParameters (ScrnInfoPtr pScrn)
     if (satCosine < -1024)
 	satCosine = -1024;
 
+#ifdef NVOVL_SUPPORT
     nvWriteVIDEO(pNv, NV_PVIDEO_LUMINANCE(0), (pPriv->brightness << 16) |
 	    pPriv->contrast);
     nvWriteVIDEO(pNv, NV_PVIDEO_LUMINANCE(1), (pPriv->brightness << 16) |
@@ -290,6 +298,6 @@ NV10WriteOverlayParameters (ScrnInfoPtr pScrn)
     nvWriteVIDEO(pNv, NV_PVIDEO_CHROMINANCE(1), (satSine << 16) |
 	    (satCosine & 0xffff));
     nvWriteVIDEO(pNv, NV_PVIDEO_COLOR_KEY, pPriv->colorKey);
-
+#endif
 }
 

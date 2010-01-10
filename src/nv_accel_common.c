@@ -261,7 +261,7 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *blit;
 	uint32_t class;
 
-	class = (pNv->WaitVSyncPossible) ? NV12_IMAGE_BLIT : NV04_IMAGE_BLIT;
+	class = (pNv->NVArch > 0x11) ? NV12_IMAGE_BLIT : NV04_IMAGE_BLIT;
 
 	if (!pNv->NvImageBlit) {
 		if (nouveau_grobj_alloc(chan, NvImageBlit, class,
@@ -283,7 +283,7 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_OPERATION, 1);
 	OUT_RING  (chan, NV04_IMAGE_BLIT_OPERATION_ROP_AND);
 
-	if (pNv->WaitVSyncPossible) {
+	if (blit->grclass == NV12_IMAGE_BLIT) {
 		BEGIN_RING(chan, blit, 0x0120, 3);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, 1);
