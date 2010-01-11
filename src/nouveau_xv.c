@@ -869,7 +869,7 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 	if (USING_OVERLAY && (pNv->Architecture == NV_ARCH_10 ||
 			      pNv->Architecture == NV_ARCH_20)) {
 		/* No YV12 overlay on NV10, 11, 15, 20, NFORCE */
-		switch (pNv->NVArch) {
+		switch (pNv->dev->chipset) {
 		case 0x10:
 		case 0x11:
 		case 0x15:
@@ -1608,7 +1608,7 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 	for(i = 0; i < NUM_BLIT_PORTS; i++)
 		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
 
-	if (pNv->NVArch >= 0x11) {
+	if (pNv->dev->chipset >= 0x11) {
 		adapt->pAttributes = NVBlitAttributes;
 		adapt->nAttributes = NUM_BLIT_ATTRIBUTES;
 	} else {
@@ -1635,7 +1635,7 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 	pPriv->texture			= FALSE;
 	pPriv->bicubic			= FALSE;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank		= (pNv->NVArch >= 0x11);
+	pPriv->SyncToVBlank		= (pNv->dev->chipset >= 0x11);
 
 	pNv->blitAdaptor		= adapt;
 
@@ -1778,7 +1778,7 @@ NVChipsetHasOverlay(NVPtr pNv)
 	case NV_ARCH_30:
 		return TRUE;
 	case NV_ARCH_40:
-		if (pNv->NVArch == 0x40)
+		if (pNv->dev->chipset == 0x40)
 			return TRUE;
 		break;
 	default:

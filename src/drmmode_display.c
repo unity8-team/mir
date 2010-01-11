@@ -1297,7 +1297,7 @@ drmmode_cursor_init(ScreenPtr pScreen)
 	int size = nv_cursor_width(pNv);
 	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 		    HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
-		    (pNv->NVArch >= 0x11 ? HARDWARE_CURSOR_ARGB : 0) |
+		    (pNv->dev->chipset >= 0x11 ? HARDWARE_CURSOR_ARGB : 0) |
 		    HARDWARE_CURSOR_UPDATE_UNHIDDEN;
 
 	return xf86_cursors_init(pScreen, size, size, flags);

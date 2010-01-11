@@ -612,8 +612,8 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	if (!nv40_fp_map_a8[0])
 		NV40EXAHackupA8Shaders(pScrn);
 
-	chipset = pNv->NVArch;
-	if ( (chipset & 0xf0) == NV_ARCH_40) {
+	chipset = pNv->dev->chipset;
+	if ((chipset & 0xf0) == NV_ARCH_40) {
 		chipset &= 0xf;
 		if (NV40TCL_CHIPSET_4X_MASK & (1<<chipset))
 			class = NV40TCL;

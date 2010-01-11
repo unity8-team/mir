@@ -261,7 +261,7 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *blit;
 	uint32_t class;
 
-	class = (pNv->NVArch > 0x11) ? NV12_IMAGE_BLIT : NV04_IMAGE_BLIT;
+	class = (pNv->dev->chipset > 0x11) ? NV12_IMAGE_BLIT : NV04_IMAGE_BLIT;
 
 	if (!pNv->NvImageBlit) {
 		if (nouveau_grobj_alloc(chan, NvImageBlit, class,

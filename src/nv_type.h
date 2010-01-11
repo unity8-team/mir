@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "nouveau_drm.h"
+#include "nouveau_device.h"
 #include "xf86Crtc.h"
 #else
 #error "This driver requires a DRI-enabled X server"
@@ -31,7 +32,6 @@ typedef struct _NVRec {
     uint32_t              Architecture;
     EntityInfoPtr       pEnt;
 	struct pci_device *PciInfo;
-    int                 NVArch;
     Bool                Primary;
 
     /* Various pinned memory regions */
@@ -231,7 +231,7 @@ static inline uint32_t
 
 static inline int nv_cursor_width(NVPtr pNv)
 {
-	return pNv->NVArch >= 0x10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
+	return pNv->dev->chipset >= 0x10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
 }
 
 static inline int nv_cursor_pixels(NVPtr pNv)

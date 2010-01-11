@@ -303,7 +303,7 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 		return BadImplementation;
 	}
 
-	if (pNv->NVArch == 0x30) {
+	if (pNv->dev->chipset == 0x30) {
 		int x = 0;
 		int y = 0;
 		int w = ppix->drawable.x + ppix->drawable.width;
@@ -395,7 +395,7 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
 	OUT_RING  (chan, NV34TCL_VERTEX_BEGIN_END_STOP);
 
-	if (pNv->NVArch == 0x30) {
+	if (pNv->dev->chipset == 0x30) {
 		BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_HORIZ, 2);
 		OUT_RING  (chan, 4096 << 16);
 		OUT_RING  (chan, 4096 << 16);

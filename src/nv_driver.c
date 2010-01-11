@@ -625,6 +625,7 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 Bool
 NVPreInit(ScrnInfoPtr pScrn, int flags)
 {
+	struct nouveau_device *dev;
 	NVPtr pNv;
 	MessageType from;
 	int ret, i;
@@ -678,46 +679,41 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	pNv->PciInfo = xf86GetPciInfoForEntity(pNv->pEnt->index);
 	pNv->Primary = xf86IsPrimaryPci(pNv->PciInfo);
 
-	volatile uint32_t *regs = NULL;
-	pci_device_map_range(pNv->PciInfo, pNv->PciInfo->regions[0].base_addr,
-			     0x90000, 0, (void *)&regs);
-	pNv->NVArch = NVGetArchitecture(regs);
-	pci_device_unmap_range(pNv->PciInfo, (void *) regs, 0x90000);
-
-	pScrn->chipset = malloc(sizeof(char) * 25);
-	sprintf(pScrn->chipset, "NVIDIA NV%02X", pNv->NVArch);
-
-	if(!pScrn->chipset) {
-		pScrn->chipset = "Unknown NVIDIA";
-	}
-
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Chipset: \"%s\"\n", pScrn->chipset);
-
-	/* The highest architecture currently supported is NV5x */
-	if (pNv->NVArch >= 0x80) {
-		pNv->Architecture =  NV_ARCH_50;
-	} else if (pNv->NVArch >= 0x60) {
-		pNv->Architecture =  NV_ARCH_40;
-	} else if (pNv->NVArch >= 0x50) {
-		pNv->Architecture =  NV_ARCH_50;
-	} else if (pNv->NVArch >= 0x40) {
-		pNv->Architecture =  NV_ARCH_40;
-	} else if (pNv->NVArch >= 0x30) {
-		pNv->Architecture = NV_ARCH_30;
-	} else if (pNv->NVArch >= 0x20) {
-		pNv->Architecture = NV_ARCH_20;
-	} else if (pNv->NVArch >= 0x10) {
-		pNv->Architecture = NV_ARCH_10;
-	} else if (pNv->NVArch >= 0x04) {
-		pNv->Architecture = NV_ARCH_04;
-	/*  The lowest architecture currently supported is NV04 */
-	} else {
-		return FALSE;
-	}
-
 	/* Initialise the kernel module */
 	if (!NVPreInitDRM(pScrn))
 		NVPreInitFail("\n");
+	dev = pNv->dev;
+
+	pScrn->chipset = malloc(sizeof(char) * 25);
+	sprintf(pScrn->chipset, "NVIDIA NV%02x", dev->chipset);
+	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Chipset: \"%s\"\n", pScrn->chipset);
+
+	switch (dev->chipset & 0xf0) {
+	case 0x00:
+		pNv->Architecture = NV_ARCH_04;
+		break;
+	case 0x10:
+		pNv->Architecture = NV_ARCH_10;
+		break;
+	case 0x20:
+		pNv->Architecture = NV_ARCH_20;
+		break;
+	case 0x30:
+		pNv->Architecture = NV_ARCH_30;
+		break;
+	case 0x40:
+	case 0x60:
+		pNv->Architecture = NV_ARCH_40;
+		break;
+	case 0x50:
+	case 0x80:
+	case 0x90:
+	case 0xa0:
+		pNv->Architecture = NV_ARCH_50;
+		break;
+	default:
+		return FALSE;
+	}
 
 	/* Set pScrn->monitor */
 	pScrn->monitor = pScrn->confScreen->monitor;

@@ -32,7 +32,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	unsigned class;
 	int i;
 
-	switch (pNv->NVArch & 0xf0) {
+	switch (pNv->dev->chipset & 0xf0) {
 	case 0x50:
 		class = NV50TCL;
 		break;
@@ -41,7 +41,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 		class = NV84TCL;
 		break;
 	case 0xa0:
-		switch (pNv->NVArch) {
+		switch (pNv->dev->chipset) {
 		case 0xa0:
 		case 0xaa:
 		case 0xac:

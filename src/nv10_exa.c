@@ -728,15 +728,15 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	uint32_t class = 0;
 	int i;
 
-	if (((pNv->NVArch & 0xf0) != NV_ARCH_10) &&
-	    ((pNv->NVArch & 0xf0) != NV_ARCH_20))
+	if (((pNv->dev->chipset & 0xf0) != NV_ARCH_10) &&
+	    ((pNv->dev->chipset & 0xf0) != NV_ARCH_20))
 		return FALSE;
 
-	if (pNv->NVArch >= 0x20 || pNv->NVArch == 0x1a)
+	if (pNv->dev->chipset >= 0x20 || pNv->dev->chipset == 0x1a)
 		class = NV11TCL;
-	else if (pNv->NVArch >= 0x17)
+	else if (pNv->dev->chipset >= 0x17)
 		class = NV17TCL;
-	else if (pNv->NVArch >= 0x11)
+	else if (pNv->dev->chipset >= 0x11)
 		class = NV11TCL;
 	else
 		class = NV10TCL;
