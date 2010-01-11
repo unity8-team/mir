@@ -681,7 +681,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	volatile uint32_t *regs = NULL;
 	pci_device_map_range(pNv->PciInfo, pNv->PciInfo->regions[0].base_addr,
 			     0x90000, 0, (void *)&regs);
-	pNv->Chipset = NVGetPCIID(regs) & 0xffff;
 	pNv->NVArch = NVGetArchitecture(regs);
 	pci_device_unmap_range(pNv->PciInfo, (void *) regs, 0x90000);
 
@@ -691,16 +690,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if(!pScrn->chipset) {
 		pScrn->chipset = "Unknown NVIDIA";
 	}
-
-	/*
-	* This shouldn't happen because such problems should be caught in
-	* NVProbe(), but check it just in case.
-	*/
-	if (pScrn->chipset == NULL)
-		NVPreInitFail("ChipID 0x%04X is not recognised\n", pNv->Chipset);
-
-	if (pNv->NVArch < 0x04)
-		NVPreInitFail("Chipset \"%s\" is not recognised\n", pScrn->chipset);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Chipset: \"%s\"\n", pScrn->chipset);
 

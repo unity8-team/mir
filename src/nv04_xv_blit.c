@@ -141,7 +141,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                         NVWaitVSync(pScrn, 1);
         }
 
-        if ((pNv->Chipset & 0xffff) > CHIPSET_NV04) {
+        if (pNv->NVArch >= 0x05) {
                 BEGIN_RING(chan, sifm,
 				 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
                 OUT_RING  (chan, src_format);

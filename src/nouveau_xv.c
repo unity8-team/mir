@@ -869,12 +869,12 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 	if (USING_OVERLAY && (pNv->Architecture == NV_ARCH_10 ||
 			      pNv->Architecture == NV_ARCH_20)) {
 		/* No YV12 overlay on NV10, 11, 15, 20, NFORCE */
-		switch (pNv->Chipset & 0xfff0) {
-		case CHIPSET_NV10:
-		case CHIPSET_NV11:
-		case CHIPSET_NV15:
-		case CHIPSET_NFORCE: /*XXX: unsure about nforce*/
-		case CHIPSET_NV20:
+		switch (pNv->NVArch) {
+		case 0x10:
+		case 0x11:
+		case 0x15:
+		case 0x1a: /*XXX: unsure about nforce */
+		case 0x20:
 			*action_flags |= CONVERT_TO_YUY2;
 			break;
 		default:

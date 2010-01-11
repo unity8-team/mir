@@ -25,49 +25,12 @@
 #define NV_ARCH_40  0x40
 #define NV_ARCH_50  0x50
 
-#define CHIPSET_NV03     0x0010
-#define CHIPSET_NV04     0x0020
-#define CHIPSET_NV10     0x0100
-#define CHIPSET_NV11     0x0110
-#define CHIPSET_NV15     0x0150
-#define CHIPSET_NV17     0x0170
-#define CHIPSET_NV18     0x0180
-#define CHIPSET_NFORCE   0x01A0
-#define CHIPSET_NFORCE2  0x01F0
-#define CHIPSET_NV20     0x0200
-#define CHIPSET_NV25     0x0250
-#define CHIPSET_NV28     0x0280
-#define CHIPSET_NV30     0x0300
-#define CHIPSET_NV31     0x0310
-#define CHIPSET_NV34     0x0320
-#define CHIPSET_NV35     0x0330
-#define CHIPSET_NV36     0x0340
-#define CHIPSET_NV40     0x0040
-#define CHIPSET_NV41     0x00C0
-#define CHIPSET_NV43     0x0140
-#define CHIPSET_NV44     0x0160
-#define CHIPSET_NV44A    0x0220
-#define CHIPSET_NV45     0x0210
-#define CHIPSET_NV50     0x0190
-#define CHIPSET_NV84     0x0400
-#define CHIPSET_MISC_BRIDGED  0x00F0
-#define CHIPSET_G70      0x0090
-#define CHIPSET_G71      0x0290
-#define CHIPSET_G72      0x01D0
-#define CHIPSET_G73      0x0390
-// integrated GeForces (6100, 6150)
-#define CHIPSET_C51      0x0240
-// variant of C51, seems based on a G70 design
-#define CHIPSET_C512     0x03D0
-#define CHIPSET_G73_BRIDGED 0x02E0
-
 /* NV50 */
 typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
     uint32_t              Architecture;
     EntityInfoPtr       pEnt;
 	struct pci_device *PciInfo;
-    int                 Chipset;
     int                 NVArch;
     Bool                Primary;
 
