@@ -290,79 +290,31 @@ nouveau_exa_mark_sync(ScreenPtr pScreen)
 static void
 nouveau_exa_wait_marker(ScreenPtr pScreen, int marker)
 {
-	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
-	
-	if (!pNv->exa_driver_pixmaps)
-		NVSync(xf86Screens[pScreen->myNum]);
 }
 
 static Bool
 nouveau_exa_prepare_access(PixmapPtr ppix, int index)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_bo *bo;
+	void *map = nouveau_exa_pixmap_map(ppix);
+	if (!map)
+		return FALSE;
 
-	if (pNv->exa_driver_pixmaps) {
-		void *map = nouveau_exa_pixmap_map(ppix);
-
-		if (!map)
-			return FALSE;
-
-		ppix->devPrivate.ptr = map;
-		return TRUE;
-	} else
-	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen)) {
-		nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
-		ppix->devPrivate.ptr = pNv->scanout->map;
-		nouveau_bo_unmap(pNv->scanout);
-		return TRUE;
-	} else
-	if (drmmode_is_rotate_pixmap(ppix, &bo)) {
-		nouveau_bo_map(bo, NOUVEAU_BO_RDWR);
-		ppix->devPrivate.ptr = bo->map;
-		nouveau_bo_unmap(bo);
-		return TRUE;
-	}
-
-	return FALSE;
+	ppix->devPrivate.ptr = map;
+	return TRUE;
 }
 
 static void
 nouveau_exa_finish_access(PixmapPtr ppix, int index)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (pNv->exa_driver_pixmaps) {
-		nouveau_exa_pixmap_unmap(ppix);
-	} else
-	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen) ||
-	    drmmode_is_rotate_pixmap(ppix, NULL)) {
-		ppix->devPrivate.ptr = NULL;
-	}
+	nouveau_exa_pixmap_unmap(ppix);
 }
 
 static Bool
 nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
-	if (pNv->exa_driver_pixmaps) {
-		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
-
-		if (nvpix && nvpix->bo)
-			return TRUE;
-	} else
-	if (ppix->devPrivate.ptr >= pNv->offscreen_map &&
-	    ppix->devPrivate.ptr < pNv->offscreen_map + pNv->offscreen->size)
-		return TRUE;
-	else
-	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
-		return TRUE;
-	else
-	if (drmmode_is_rotate_pixmap(ppix, NULL))
+	if (nvpix && nvpix->bo)
 		return TRUE;
 
 	return FALSE;
@@ -620,41 +572,12 @@ nouveau_exa_init(ScreenPtr pScreen)
 	exa->PrepareAccess = nouveau_exa_prepare_access;
 	exa->FinishAccess = nouveau_exa_finish_access;
 
-#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
-	if (pNv->exa_driver_pixmaps) {
-		exa->flags |= (EXA_HANDLES_PIXMAPS | EXA_MIXED_PIXMAPS);
-		exa->pixmapOffsetAlign = 256;
-		exa->pixmapPitchAlign = 64;
+	exa->flags |= (EXA_HANDLES_PIXMAPS | EXA_MIXED_PIXMAPS);
+	exa->pixmapOffsetAlign = 256;
+	exa->pixmapPitchAlign = 64;
 
-		exa->CreatePixmap2 = nouveau_exa_create_pixmap;
-		exa->DestroyPixmap = nouveau_exa_destroy_pixmap;
-	} else
-#endif
-	{
-		exa->memoryBase = pNv->offscreen_map;
-		exa->memorySize = pNv->offscreen->size;
-		exa->offScreenBase = 0;
-
-		if (pNv->Architecture < NV_ARCH_50) {
-			exa->pixmapOffsetAlign = 256;
-		} else {
-			/* Workaround some corruption issues caused by exa's
-			 * offscreen memory allocation no understanding G8x/G9x
-			 * memory layout.  This is terrible, but it should
-			 * prevent all but the most unlikely cases from
-			 * occuring.
-			 *
-			 * See http://nouveau.freedesktop.org/wiki/NV50Support
-			 * for a far better fix until driver pixmaps are ready
-			 * to be used.
-			 */
-			exa->pixmapOffsetAlign = 65536;
-			exa->flags |= EXA_OFFSCREEN_ALIGN_POT;
-			exa->offScreenBase =
-				NOUVEAU_ALIGN(exa->offScreenBase, 0x10000);
-		}
-		exa->pixmapPitchAlign = 64;
-	}
+	exa->CreatePixmap2 = nouveau_exa_create_pixmap;
+	exa->DestroyPixmap = nouveau_exa_destroy_pixmap;
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		exa->maxX = 8192;

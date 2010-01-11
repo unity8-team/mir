@@ -47,7 +47,6 @@ typedef struct _NVRec {
     int                 ShadowPitch;
 
     ExaDriverPtr	EXADriverPtr;
-    Bool		exa_driver_pixmaps;
     Bool                exa_force_cp;
     Bool		wfb_enabled;
     Bool		tiled_scanout;
@@ -174,39 +173,19 @@ Bool drmmode_is_rotate_pixmap(PixmapPtr, struct nouveau_bo **);
 static inline struct nouveau_bo *
 nouveau_pixmap_bo(PixmapPtr ppix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_bo *bo;
+	struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
-	if (pNv->exa_driver_pixmaps) {
-		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
-		return nvpix ? nvpix->bo : NULL;
-	} else
-	if (ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen))
-		return pNv->scanout;
-	else
-	if (drmmode_is_rotate_pixmap(ppix, &bo))
-		return bo;
-
-	return pNv->offscreen;
+	return nvpix ? nvpix->bo : NULL;
 }
 
 static inline unsigned
 nouveau_pixmap_offset(PixmapPtr ppix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (pNv->exa_driver_pixmaps ||
-	    ppix == pScrn->pScreen->GetScreenPixmap(pScrn->pScreen) ||
-	    drmmode_is_rotate_pixmap(ppix, NULL))
-		return 0;
-
-	return exaGetPixmapOffset(ppix);
+	return 0;
 }
 
 static inline uint32_t
- nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
+nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
 {
 	int mask;
 

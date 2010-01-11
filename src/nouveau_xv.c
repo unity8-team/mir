@@ -1257,18 +1257,6 @@ CPU_copy:
 		exaMoveInPixmap(ppix);
 		pNv->exa_force_cp = FALSE;
 
-		if (!pNv->exa_driver_pixmaps) {
-			ScreenPtr pScreen = pScrn->pScreen;
-
-			/* check if it made it offscreen */
-			if (ppix != pScreen->GetScreenPixmap(pScreen) &&
-			    exaGetPixmapOffset(ppix) >=
-			    pNv->EXADriverPtr->memorySize)
-				/* we lost, insufficient space probably */
-				return BadAlloc;
-
-			ExaOffscreenMarkUsed(ppix);
-		} else
 		if (!exaGetPixmapDriverPrivate(ppix))
 			return BadAlloc;
 

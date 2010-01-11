@@ -125,8 +125,6 @@ void
 nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		       DrawablePtr pDraw)
 {
-	ScreenPtr pScreen = pDraw->pScreen;
-	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
 	struct nouveau_bo *bo = NULL;
 	struct wfb_pixmap *wfb;
 	PixmapPtr ppix = NULL;
@@ -136,13 +134,8 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		return;
 
 	ppix = NVGetDrawablePixmap(pDraw);
-	if (ppix) {
-		if (pNv->exa_driver_pixmaps)
-			bo = nouveau_pixmap_bo(ppix);
-		else
-		if (ppix == pScreen->GetScreenPixmap(pScreen))
-			bo = pNv->scanout;
-	}
+	if (ppix)
+		bo = nouveau_pixmap_bo(ppix);
 
 	if (!ppix || !bo) {
 		for (i = 0; i < 6; i++)

@@ -170,7 +170,7 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 	unsigned w = pScrn->virtualX, h = pScrn->virtualY;
 	int i, ret, fbcon_id = 0;
 
-	if (!pNv->exa_driver_pixmaps) {
+	if (pNv->NoAccel) {
 		if (nouveau_bo_map(pNv->scanout, NOUVEAU_BO_WR))
 			return;
 		memset(pNv->scanout->map, 0x00, pNv->scanout->size);
@@ -1163,7 +1163,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	}
 
 	ppix = screen->GetScreenPixmap(screen);
-	if (pNv->exa_driver_pixmaps)
+	if (!pNv->NoAccel)
 		nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
 	screen->ModifyPixmapHeader(ppix, width, height, -1, -1, pitch,
 				   (!pNv->NoAccel || pNv->ShadowPtr) ?

@@ -417,7 +417,7 @@ NVCreateScreenResources(ScreenPtr pScreen)
 		return FALSE;
 	pScreen->CreateScreenResources = NVCreateScreenResources;
 
-	if (pNv->exa_driver_pixmaps) {
+	if (!pNv->NoAccel) {
 		ppix = pScreen->GetScreenPixmap(pScreen);
 		nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
 	}
@@ -824,17 +824,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			"Using \"Shadow Framebuffer\" - acceleration disabled\n");
 	}
 
-#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5) || EXA_VERSION_MAJOR > 2
-	if (!pNv->NoAccel &&
-	    xf86ReturnOptValBool(pNv->Options, OPTION_EXA_PIXMAPS, TRUE)) {
-		pNv->exa_driver_pixmaps = TRUE;
-	}
-
 	if (!pNv->NoAccel && pNv->Architecture >= NV_ARCH_50) {
 		pNv->wfb_enabled = TRUE;
 		pNv->tiled_scanout = TRUE;
 	}
-#endif
 
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
@@ -932,33 +925,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 
 	if (pNv->NoAccel)
 		return TRUE;
-
-	if (!pNv->exa_driver_pixmaps) {
-		size = (dev->vm_vram_size / 2) - size;
-
-		if (pNv->Architecture >= NV_ARCH_50) {
-			tile_mode = 0;
-			tile_flags = 0x7000;
-		}
-
-		ret = nouveau_bo_new_tile(dev, NOUVEAU_BO_VRAM |
-					  NOUVEAU_BO_MAP, 0, size, tile_mode,
-					  tile_flags, &pNv->offscreen);
-		if (ret) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Error allocating"
-				   " offscreen pixmap area: %d\n", ret);
-			return FALSE;
-		}
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Allocated %dMiB VRAM for offscreen pixmaps\n",
-			   (uint32_t)(pNv->offscreen->size >> 20));
-
-		nouveau_bo_map(pNv->offscreen, NOUVEAU_BO_RDWR);
-		pNv->offscreen_map = pNv->offscreen->map;
-		nouveau_bo_unmap(pNv->offscreen);
-	}
-
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "GART: %dMiB available\n",
 		   (unsigned int)(dev->vm_gart_size >> 20));
@@ -1077,7 +1043,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				   "Falling back to NoAccel\n");
 			pNv->NoAccel = TRUE;
 			pNv->ShadowFB = TRUE;
-			pNv->exa_driver_pixmaps = FALSE;
 			pNv->wfb_enabled = FALSE;
 			pNv->tiled_scanout = FALSE;
 			pScrn->displayWidth = nv_pitch_align(pNv,
@@ -1086,7 +1051,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		}
 	}
 
-	if (!pNv->NoAccel && pNv->exa_driver_pixmaps)
+	if (!pNv->NoAccel)
 		nouveau_dri2_init(pScreen);
 
 	/* Allocate and map memory areas we need */
