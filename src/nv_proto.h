@@ -16,12 +16,6 @@ Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
 PixmapPtr NVGetDrawablePixmap(DrawablePtr pDraw);
 void NVAccelFree(ScrnInfoPtr pScrn);
 
-/* in nv_dri.c */
-Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
-Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn, bool update);
-void NVDRICloseScreen(ScrnInfoPtr pScrn);
-Bool NVDRIGetVersion(ScrnInfoPtr pScrn);
-
 /* in nouveau_dri2.c */
 Bool nouveau_dri2_init(ScreenPtr pScreen);
 void nouveau_dri2_fini(ScreenPtr pScreen);

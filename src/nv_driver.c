@@ -439,10 +439,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (!pNv->exa_driver_pixmaps)
-		NVDRICloseScreen(pScrn);
-	else
-		nouveau_dri2_fini(pScreen);
+	nouveau_dri2_fini(pScreen);
 
 	if (pScrn->vtSema) {
 		NVLeaveVT(scrnIndex, 0);
@@ -523,6 +520,40 @@ NVCloseDRM(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	nouveau_device_close(&pNv->dev);
+}
+
+static Bool
+NVDRIGetVersion(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	int errmaj, errmin;
+	pointer ret;
+
+	ret = LoadSubModule(pScrn->module, "dri", NULL, NULL, NULL,
+			    NULL, &errmaj, &errmin);
+	if (!ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"error %d\n", errmaj);
+		LoaderErrorMsg(pScrn->name, "dri", errmaj, errmin);
+	}
+
+	if (!ret && errmaj != LDR_ONCEONLY)
+		return FALSE;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loaded DRI module\n");
+
+	/* Check the lib version */
+	if (xf86LoaderCheckSymbol("drmGetLibVersion"))
+		pNv->pLibDRMVersion = drmGetLibVersion(0);
+	if (pNv->pLibDRMVersion == NULL) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		"NVDRIGetVersion failed because libDRM is really "
+		"way to old to even get a version number out of it.\n"
+		"[dri] Disabling DRI.\n");
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 static Bool
@@ -1074,12 +1105,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		}
 	}
 
-	if (!pNv->NoAccel) {
-		if (!pNv->exa_driver_pixmaps)
-			NVDRIScreenInit(pScrn);
-		else
-			nouveau_dri2_init(pScreen);
-	}
+	if (!pNv->NoAccel && pNv->exa_driver_pixmaps)
+		nouveau_dri2_init(pScreen);
 
 	/* Allocate and map memory areas we need */
 	if (!NVMapMem(pScrn))
@@ -1194,13 +1221,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	miInitializeBackingStore(pScreen);
 	xf86SetBackingStore(pScreen);
 	xf86SetSilkenMouse(pScreen);
-
-	/* Finish DRI init */
-	if (!NVDRIFinishScreenInit(pScrn, false)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "[dri] NVDRIFinishScreenInit failed, disbling DRI\n");
-		NVDRICloseScreen(pScrn);
-	}
 
 	/* 
 	 * Initialize software cursor.
