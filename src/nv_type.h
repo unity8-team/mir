@@ -169,7 +169,6 @@ nouveau_pixmap(PixmapPtr ppix)
 	return (struct nouveau_pixmap *)exaGetPixmapDriverPrivate(ppix);
 }
 
-Bool drmmode_is_rotate_pixmap(PixmapPtr, struct nouveau_bo **);
 static inline struct nouveau_bo *
 nouveau_pixmap_bo(PixmapPtr ppix)
 {
