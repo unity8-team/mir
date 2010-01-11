@@ -71,9 +71,6 @@ typedef struct _NVRec {
     int                 NVArch;
     Bool                Primary;
 
-    /* VRAM physical address */
-    unsigned long	VRAMPhysical;
-
     /* Various pinned memory regions */
     struct nouveau_bo * scanout;
     struct nouveau_bo * offscreen;

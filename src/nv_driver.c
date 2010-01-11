@@ -921,12 +921,8 @@ NVMapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_device *dev = pNv->dev;
-	uint64_t res;
 	uint32_t tile_mode = 0, tile_flags = 0;
 	int ret, size;
-
-	nouveau_device_get_param(dev, NOUVEAU_GETPARAM_FB_PHYSICAL, &res);
-	pNv->VRAMPhysical=res;
 
 	size = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
@@ -1244,7 +1240,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (pNv->ShadowFB)
 		ShadowFBInit(pScreen, NVRefreshArea);
 
-	pScrn->memPhysBase = pNv->VRAMPhysical;
 	pScrn->fbOffset = 0;
 
 	NVInitVideo(pScreen);
