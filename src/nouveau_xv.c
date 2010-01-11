@@ -984,6 +984,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 	if (ret)
 		return BadAlloc;
 
+#ifdef NVOVL_SUPPORT
 	if (action_flags & USE_OVERLAY) {
 		ret = nouveau_bo_pin(pPriv->video_mem, NOUVEAU_BO_VRAM);
 		if (ret) {
@@ -991,6 +992,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 			return BadAlloc;
 		}
 	}
+#endif
 
 	/* The overlay supports hardware double buffering. We handle this here*/
 	offset = 0;
