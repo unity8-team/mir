@@ -545,6 +545,10 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 
     /* single link DVI check */
     if (pMode->Clock > 165000 && radeon_output->MonType == MT_DFP) {
+	/* clocks over 135 MHz have heat issues with DVI on RV100 */
+	if ((info->ChipFamily == CHIP_FAMILY_RV100) && (pMode->Clock > 135000))
+	    return MODE_CLOCK_HIGH;
+
 	/* DP->DVI converter */
 	if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT)
 	    return MODE_CLOCK_HIGH;
