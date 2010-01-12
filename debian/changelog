@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.9.1-1ubuntu2) lucid; urgency=low
+
+  * Drop xserver-xorg-video-intel-dbg.install: intel_reg_dumper is now
+    provided by the intel-gpu-tools package.
+  * xserver-xorg-video-intel.install: Install apport-gpu-error-intel.py
+    to /usr/share/apport/
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 12 Jan 2010 02:52:41 -0800
+
 xserver-xorg-video-intel (2:2.9.1-1ubuntu1) lucid; urgency=low
 
   * Merge from debian testing.  Remaining changes:
