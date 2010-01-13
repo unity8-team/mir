@@ -669,8 +669,24 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 * If we get here, target_msc has already passed or we don't have one,
 	 * so we queue an event that will satisfy the divisor/remainderequation.
 	 */
-	if ((vbl.reply.sequence % divisor) == remainder)
-		return FALSE;
+	if ((vbl.reply.sequence % divisor) == remainder) {
+	    BoxRec	    box;
+	    RegionRec	    region;
+
+	    box.x1 = 0;
+	    box.y1 = 0;
+	    box.x2 = draw->width;
+	    box.y2 = draw->height;
+	    REGION_INIT(pScreen, &region, &box, 0);
+
+	    I830DRI2CopyRegion(draw, &region, front, back);
+
+	    DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func,
+			     data);
+	    if (swap_info)
+		xfree(swap_info);
+	    return TRUE;
+	}
 
 	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 	if (pipe > 0)
