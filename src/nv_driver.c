@@ -194,110 +194,99 @@ NVIdentify(int flags)
     }
 }
 
-/* This returns architecture in hexdecimal, so NV40 is 0x40 */
-static int NVGetArchitecture(volatile uint32_t *regs)
+static Bool
+NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
+	   intptr_t match_data)
 {
-	int architecture = 0;
-
-	/* We're dealing with >=NV10 */
-	if ((regs[0] & 0x0f000000) > 0 )
-		/* Bit 27-20 contain the architecture in hex */
-		architecture = (regs[0] & 0xff00000) >> 20;
-	/* NV04 or NV05 */
-	else if ((regs[0] & 0xff00fff0) == 0x20004000)
-		architecture = 0x04;
-
-	return architecture;
-}
-
-/* Reading the pci_id from the card registers is the most reliable way */
-static uint32_t NVGetPCIID(volatile uint32_t *regs)
-{
-	int architecture = NVGetArchitecture(regs);
-	uint32_t pci_id;
-
-	/* Dealing with an unknown or unsupported card */
-	if (architecture == 0)
-		return 0;
-
-	if (architecture >= 0x40)
-		pci_id = regs[0x88000/4];
-	else
-		pci_id = regs[0x1800/4];
-
-	/* A pci-id can be inverted, we must correct this */
-	if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA)
-		pci_id = (PCI_VENDOR_NVIDIA << 16) | (pci_id >> 16);
-	else if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA_SGS)
-		pci_id = (PCI_VENDOR_NVIDIA_SGS << 16) | (pci_id >> 16);
-	/* Checking endian issues */
-	else {
-		/* PCI_VENDOR_NVIDIA = 0x10DE */
-		if ((pci_id & (0xffff << 16)) == (0xDE10 << 16)) /* wrong endian */
-			pci_id = (PCI_VENDOR_NVIDIA << 16) | ((pci_id << 8) & 0x0000ff00) |
-				((pci_id >> 8) & 0x000000ff);
-		/* PCI_VENDOR_NVIDIA_SGS = 0x12D2 */
-		else if ((pci_id & (0xffff << 16)) == (0xD212 << 16)) /* wrong endian */
-			pci_id = (PCI_VENDOR_NVIDIA_SGS << 16) | ((pci_id << 8) & 0x0000ff00) |
-				((pci_id >> 8) & 0x000000ff);
-	}
-
-	return pci_id;
-}
-
-static Bool NVPciProbe (	DriverPtr 		drv,
-				int 			entity_num,
-				struct pci_device	*dev,
-				intptr_t		match_data	)
-{
+	PciChipsets NVChipsets[] = {
+		{ pci_dev->device_id,
+		  (pci_dev->vendor_id << 16) | pci_dev->device_id, NULL },
+		{ -1, -1, NULL }
+	};
+	struct nouveau_device *dev = NULL;
 	ScrnInfoPtr pScrn = NULL;
+	drmVersion *version;
+	int chipset, ret;
+	char *busid;
 
-	volatile uint32_t *regs = NULL;
+	if (!xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
+		xf86DrvMsg(-1, X_ERROR, "[drm] No DRICreatePCIBusID symbol\n");
+		return FALSE;
+	}
+	busid = DRICreatePCIBusID(pci_dev);
 
-	/* Temporary mapping to discover the architecture */
-	pci_device_map_range(dev, dev->regions[0].base_addr, 0x90000, 0,
-			     (void *) &regs);
-
-	uint8_t architecture = NVGetArchitecture(regs);
-
-	CARD32 pci_id = NVGetPCIID(regs);
-
-	pci_device_unmap_range(dev, (void *) regs, 0x90000);
-
-	/* Currently NV04 up to NVAA is known. */
-	/* Using 0xAF as upper bound for some margin. */
-	if (architecture >= 0x04 && architecture <= 0xAF) {
-
-		/* At this stage the pci_id should be ok, so we generate this
-		 * to avoid list duplication */
-		/* AGP bridge chips need their bridge chip id to be detected */
-		PciChipsets NVChipsets[] = {
-			{ pci_id, (dev->vendor_id << 16) | dev->device_id, NULL },
-			{ -1, -1, NULL }
-		};
-
-		pScrn = xf86ConfigPciEntity(pScrn, 0, entity_num, NVChipsets, 
-						NULL, NULL, NULL, NULL, NULL);
-
-		if (pScrn != NULL) {
-			pScrn->driverVersion    = NV_VERSION;
-			pScrn->driverName       = NV_DRIVER_NAME;
-			pScrn->name             = NV_NAME;
-
-			pScrn->Probe            = NULL;
-			pScrn->PreInit          = NVPreInit;
-			pScrn->ScreenInit       = NVScreenInit;
-			pScrn->SwitchMode       = NVSwitchMode;
-			pScrn->AdjustFrame      = NVAdjustFrame;
-			pScrn->EnterVT          = NVEnterVT;
-			pScrn->LeaveVT          = NVLeaveVT;
-			pScrn->FreeScreen       = NVFreeScreen;
-
-			return TRUE;
-		}
+	ret = nouveau_device_open(&dev, busid);
+	if (ret) {
+		xf86DrvMsg(-1, X_ERROR, "[drm] failed to open device\n");
+		xfree(busid);
+		return FALSE;
 	}
 
-	return FALSE;
+	/* Check the version reported by the kernel module.  In theory we
+	 * shouldn't have to do this, as libdrm_nouveau will do its own checks.
+	 * But, we're currently using the kernel patchlevel to also version
+	 * the DRI interface.
+	 */
+	version = drmGetVersion(nouveau_device(dev)->fd);
+	xf86DrvMsg(-1, X_INFO, "[drm] nouveau interface version: %d.%d.%d\n",
+		   version->version_major, version->version_minor,
+		   version->version_patchlevel);
+
+	ret = !(version->version_patchlevel == NOUVEAU_DRM_HEADER_PATCHLEVEL);
+	drmFree(version);
+	if (ret) {
+		xf86DrvMsg(-1, X_ERROR,
+			   "[drm] wrong version, expecting 0.0.%d\n",
+			   NOUVEAU_DRM_HEADER_PATCHLEVEL);
+		return FALSE;
+	}
+
+	chipset = dev->chipset;
+	nouveau_device_close(&dev);
+
+	ret = drmCheckModesettingSupported(busid);
+	xfree(busid);
+	if (ret) {
+		xf86DrvMsg(-1, X_ERROR, "[drm] KMS not enabled\n");
+		return FALSE;
+	}
+
+	switch (chipset & 0xf0) {
+	case 0x00:
+	case 0x10:
+	case 0x20:
+	case 0x30:
+	case 0x40:
+	case 0x60:
+	case 0x50:
+	case 0x80:
+	case 0x90:
+	case 0xa0:
+		break;
+	default:
+		xf86DrvMsg(-1, X_ERROR, "Unknown chipset: NV%02x\n", chipset);
+		return FALSE;
+	}
+
+	pScrn = xf86ConfigPciEntity(pScrn, 0, entity_num, NVChipsets,
+				    NULL, NULL, NULL, NULL, NULL);
+	if (!pScrn)
+		return FALSE;
+
+	pScrn->driverVersion    = NV_VERSION;
+	pScrn->driverName       = NV_DRIVER_NAME;
+	pScrn->name             = NV_NAME;
+
+	pScrn->Probe            = NULL;
+	pScrn->PreInit          = NVPreInit;
+	pScrn->ScreenInit       = NVScreenInit;
+	pScrn->SwitchMode       = NVSwitchMode;
+	pScrn->AdjustFrame      = NVAdjustFrame;
+	pScrn->EnterVT          = NVEnterVT;
+	pScrn->LeaveVT          = NVLeaveVT;
+	pScrn->FreeScreen       = NVFreeScreen;
+
+	return TRUE;
 }
 
 #define MAX_CHIPS MAXSCREENS
@@ -560,7 +549,6 @@ static Bool
 NVPreInitDRM(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	drmVersion *version;
 	char *bus_id;
 	int ret;
 
@@ -570,30 +558,10 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	/* Load the kernel module, and open the DRM */
 	bus_id = DRICreatePCIBusID(pNv->PciInfo);
 	ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, bus_id, "nouveau");
+	xfree(bus_id);
 	if (!ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] error opening the drm\n");
-		xfree(bus_id);
-		return FALSE;
-	}
-
-	/* Check the version reported by the kernel module.  In theory we
-	 * shouldn't have to do this, as libdrm_nouveau will do its own checks.
-	 * But, we're currently using the kernel patchlevel to also version
-	 * the DRI interface.
-	 */
-	version = drmGetVersion(DRIMasterFD(pScrn));
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "[drm] nouveau interface version: %d.%d.%d\n",
-		   version->version_major, version->version_minor,
-		   version->version_patchlevel);
-
-	ret = !(version->version_patchlevel == NOUVEAU_DRM_HEADER_PATCHLEVEL);
-	drmFree(version);
-	if (ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "[drm] wrong version, expecting 0.0.%d\n",
-			   NOUVEAU_DRM_HEADER_PATCHLEVEL);
 		xfree(bus_id);
 		return FALSE;
 	}
@@ -603,20 +571,8 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] error creating device\n");
-		xfree(bus_id);
 		return FALSE;
 	}
-
-	/* Check if KMS is enabled before we do anything, we don't want to
-	 * go stomping on registers behind its back
-	 */
-	if (drmCheckModesettingSupported(bus_id)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "[drm] kernel modesetting not available\n");
-		xfree(bus_id);
-		return FALSE;
-	}
-	xfree(bus_id);
 
 	return TRUE;
 }
