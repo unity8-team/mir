@@ -49,10 +49,9 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pspix);
-	unsigned src_offset = nouveau_pixmap_offset(pspix);
 	unsigned cpp = pspix->drawable.bitsPerPixel / 8;
 	unsigned line_len = w * cpp;
-	unsigned src_pitch = 0, linear = 0;
+	unsigned src_offset = 0, src_pitch = 0, linear = 0;
 
 	if (!nv50_style_tiled_pixmap(pspix)) {
 		linear     = 1;
@@ -167,10 +166,9 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pdpix);
-	unsigned dst_offset = nouveau_pixmap_offset(pdpix);
 	unsigned cpp = pdpix->drawable.bitsPerPixel / 8;
 	unsigned line_len = w * cpp;
-	unsigned dst_pitch = 0, linear = 0;
+	unsigned dst_offset = 0, dst_pitch = 0, linear = 0;
 
 	if (!nv50_style_tiled_pixmap(pdpix)) {
 		linear     = 1;

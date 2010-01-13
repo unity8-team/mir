@@ -176,12 +176,6 @@ nouveau_pixmap_bo(PixmapPtr ppix)
 	return nvpix ? nvpix->bo : NULL;
 }
 
-static inline unsigned
-nouveau_pixmap_offset(PixmapPtr ppix)
-{
-	return 0;
-}
-
 static inline uint32_t
 nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
 {

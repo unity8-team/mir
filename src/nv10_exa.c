@@ -374,7 +374,6 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pixmap);
-	unsigned delta = nouveau_pixmap_offset(pixmap);
 	unsigned tex_reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
 	long w = pict->pDrawable->width,
 	     h = pict->pDrawable->height;
@@ -387,7 +386,7 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 		0x50 /* UNK */;
 
 	BEGIN_RING(chan, celsius, NV10TCL_TX_OFFSET(unit), 1);
-	if (OUT_RELOCl(chan, bo, delta, tex_reloc))
+	if (OUT_RELOCl(chan, bo, 0, tex_reloc))
 		return FALSE;
 
 	if (pict->repeat == RepeatNone) {
@@ -431,7 +430,6 @@ setup_render_target(NVPtr pNv, PicturePtr pict, PixmapPtr pixmap)
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *celsius = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pixmap);
-	unsigned delta = nouveau_pixmap_offset(pixmap);
 
 	BEGIN_RING(chan, celsius, NV10TCL_RT_FORMAT, 2);
 	OUT_RING  (chan, get_rt_format(pict));
@@ -439,7 +437,7 @@ setup_render_target(NVPtr pNv, PicturePtr pict, PixmapPtr pixmap)
 			  exaGetPixmapPitch(pixmap)));
 
 	BEGIN_RING(chan, celsius, NV10TCL_COLOR_OFFSET, 1);
-	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
+	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
 		return FALSE;
 
 	return TRUE;

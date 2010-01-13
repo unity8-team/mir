@@ -262,7 +262,6 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *curie = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-	unsigned delta = nouveau_pixmap_offset(ppix);
 	Bool redirected = FALSE;
 	float X1, X2, Y1, Y2;
 	BoxPtr pbox;
@@ -300,7 +299,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	OUT_RING  (chan, NV40TCL_RT_FORMAT_TYPE_LINEAR |
 			 NV40TCL_RT_FORMAT_ZETA_Z24S8 | dst_format);
 	OUT_RING  (chan, exaGetPixmapPitch(ppix));
-	if (OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
+	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
 		MARK_UNDO(chan);
 		return BadImplementation;
 	}
