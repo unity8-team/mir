@@ -160,7 +160,6 @@ struct nouveau_pixmap {
 	struct nouveau_bo *bo;
 	void *linear;
 	unsigned size;
-	int map_refcount;
 };
 
 static inline struct nouveau_pixmap *

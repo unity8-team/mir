@@ -23,9 +23,6 @@
 #include "nv_include.h"
 #include "exa.h"
 
-static void *nouveau_exa_pixmap_map(PixmapPtr);
-static void nouveau_exa_pixmap_unmap(PixmapPtr);
-
 static inline Bool
 NVAccelMemcpyRect(char *dst, const char *src, int height, int dst_pitch,
 		  int src_pitch, int line_len)
@@ -295,29 +292,26 @@ nouveau_exa_wait_marker(ScreenPtr pScreen, int marker)
 static Bool
 nouveau_exa_prepare_access(PixmapPtr ppix, int index)
 {
-	void *map = nouveau_exa_pixmap_map(ppix);
-	if (!map)
-		return FALSE;
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 
-	ppix->devPrivate.ptr = map;
+	if (nouveau_bo_map(bo, NOUVEAU_BO_RDWR))
+		return FALSE;
+	ppix->devPrivate.ptr = bo->map;
 	return TRUE;
 }
 
 static void
 nouveau_exa_finish_access(PixmapPtr ppix, int index)
 {
-	nouveau_exa_pixmap_unmap(ppix);
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+
+	nouveau_bo_unmap(bo);
 }
 
 static Bool
 nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
 {
-	struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
-
-	if (nvpix && nvpix->bo)
-		return TRUE;
-
-	return FALSE;
+	return nouveau_pixmap_bo(ppix) != NULL;
 }
 
 static void *
@@ -406,65 +400,13 @@ nv50_style_tiled_pixmap(PixmapPtr ppix)
 		nouveau_pixmap_bo(ppix)->tile_flags;
 }
 
-static void *
-nouveau_exa_pixmap_map(PixmapPtr ppix)
-{
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-	unsigned delta = nouveau_pixmap_offset(ppix);
-
-	if (nv50_style_tiled_pixmap(ppix) && !pNv->wfb_enabled) {
-		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
-
-		nvpix->map_refcount++;
-		if (nvpix->linear)
-			return nvpix->linear;
-
-		nvpix->linear = xcalloc(1, ppix->devKind * ppix->drawable.height);
-
-		NVAccelDownloadM2MF(ppix, 0, 0, ppix->drawable.width,
-				    ppix->drawable.height, nvpix->linear,
-				    ppix->devKind);
-
-		nouveau_bo_map(bo, NOUVEAU_BO_RDWR);
-		return nvpix->linear;
-	}
-
-	nouveau_bo_map(bo, NOUVEAU_BO_RDWR);
-	return bo->map + delta;
-}
-
-static void
-nouveau_exa_pixmap_unmap(PixmapPtr ppix)
-{
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-
-	if (nv50_style_tiled_pixmap(ppix) && !pNv->wfb_enabled) {
-		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
-
-		if (--nvpix->map_refcount)
-			return;
-
-		NVAccelUploadM2MF(ppix, 0, 0, ppix->drawable.width,
-				  ppix->drawable.height, nvpix->linear,
-				  ppix->devKind);
-
-		xfree(nvpix->linear);
-		nvpix->linear = NULL;
-	}
-
-	nouveau_bo_unmap(bo);
-}
-
 static Bool
 nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 				 char *dst, int dst_pitch)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pspix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_bo *bo;
 	int src_pitch, cpp, offset;
 	const char *src;
 	Bool ret;
@@ -478,12 +420,12 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 			return TRUE;
 	}
 
-	src = nouveau_exa_pixmap_map(pspix);
-	if (!src)
+	bo = nouveau_pixmap_bo(pspix);
+	if (nouveau_bo_map(bo, NOUVEAU_BO_RD))
 		return FALSE;
-	src += offset;
+	src = (char *)bo->map + offset;
 	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
-	nouveau_exa_pixmap_unmap(pspix);
+	nouveau_bo_unmap(bo);
 	return ret;
 }
 
@@ -493,6 +435,7 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pdpix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_bo *bo;
 	int dst_pitch, cpp;
 	char *dst;
 	Bool ret;
@@ -527,12 +470,12 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 	}
 
 	/* fallback to memcpy-based transfer */
-	dst = nouveau_exa_pixmap_map(pdpix);
-	if (!dst)
+	bo = nouveau_pixmap_bo(pdpix);
+	if (nouveau_bo_map(bo, NOUVEAU_BO_WR))
 		return FALSE;
-	dst += (y * dst_pitch) + (x * cpp);
+	dst = (char *)bo->map + (y * dst_pitch) + (x * cpp);
 	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
-	nouveau_exa_pixmap_unmap(pdpix);
+	nouveau_bo_unmap(bo);
 	return ret;
 }
 
