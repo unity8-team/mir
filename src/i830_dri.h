@@ -2,6 +2,7 @@
 #ifndef _I830_DRI_H
 #define _I830_DRI_H
 
+#include "xorg-server.h"
 #include "xf86drm.h"
 #include "i830_common.h"
 
@@ -57,5 +58,10 @@ typedef struct {
 	/* Nothing here yet */
 	int dummy;
 } I830DRIContextRec, *I830DRIContextPtr;
+
+typedef struct {
+    PixmapPtr pixmap;
+    unsigned int attachment;
+} I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
 #endif

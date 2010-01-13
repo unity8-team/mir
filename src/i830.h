@@ -65,6 +65,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sarea.h"
 #define _XF86DRI_SERVER_
 #include "dri.h"
+#include "dri2.h"
 #include "GL/glxint.h"
 #include "i830_dri.h"
 #include "intel_bufmgr.h"
@@ -287,6 +288,8 @@ typedef struct intel_screen_private {
 
 	CreateScreenResourcesProcPtr CreateScreenResources;
 
+	Bool shadow_present;
+
 	Bool need_mi_flush;
 
 	Bool tiling;
@@ -372,6 +375,8 @@ typedef struct intel_screen_private {
 	int drmSubFD;
 	char *deviceName;
 
+	Bool use_pageflipping;
+
 	/* Broken-out options. */
 	OptionInfoPtr Options;
 
@@ -393,6 +398,11 @@ enum {
 	DEBUG_FLUSH_WAIT = 0x4,
 };
 
+extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
+extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
+extern int drmmode_output_dpms_status(xf86OutputPtr output);
+extern Bool drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front,
+				dri_bo *old_front, void *data);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -424,6 +434,10 @@ extern xf86CrtcPtr i830_pipe_to_crtc(ScrnInfoPtr scrn, int pipe);
 
 Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
+void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
+			       unsigned int tv_usec, void *user_data);
+void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
+			      unsigned int tv_usec, void *user_data);
 
 extern Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp);
 extern void drmmode_closefb(ScrnInfoPtr scrn);

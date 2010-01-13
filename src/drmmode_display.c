@@ -34,6 +34,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <poll.h>
 
 #include "xorgVersion.h"
 
@@ -47,6 +48,11 @@ typedef struct {
     uint32_t fb_id;
     drmModeResPtr mode_res;
     int cpp;
+    
+    drmEventContext event_context;
+    void *event_data;
+    int old_fb_id;
+    int flip_count;
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
@@ -500,6 +506,7 @@ static PixmapPtr
 drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
 	ScrnInfoPtr scrn = crtc->scrn;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	unsigned long rotate_pitch;
@@ -532,12 +539,16 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	if (drmmode_crtc->rotate_bo)
 		i830_set_pixmap_bo(rotate_pixmap, drmmode_crtc->rotate_bo);
 
+	intel->shadow_present = TRUE;
+
 	return rotate_pixmap;
 }
 
 static void
 drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 {
+	ScrnInfoPtr scrn = crtc->scrn;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
@@ -555,6 +566,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 		dri_bo_unreference(drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_bo = NULL;
 	}
+	intel->shadow_present = FALSE;
 }
 
 static void
@@ -1376,15 +1388,119 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	return FALSE;
 }
 
+Bool
+drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, dri_bo *old_front,
+		    void *data)
+{
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[0]->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	unsigned int pitch = scrn->displayWidth * intel->cpp;
+	int i, old_fb_id;
+	unsigned int crtc_id;
+
+	/*
+	 * Create a new handle for the back buffer
+	 */
+	old_fb_id = drmmode->fb_id;
+	if (drmModeAddFB(drmmode->fd, scrn->virtualX, scrn->virtualY,
+			 scrn->depth, scrn->bitsPerPixel, pitch,
+			 new_front->handle, &drmmode->fb_id))
+		goto error_out;
+
+	/*
+	 * Queue flips on all enabled CRTCs
+	 * Note that if/when we get per-CRTC buffers, we'll have to update this.
+	 * Right now it assumes a single shared fb across all CRTCs, with the
+	 * kernel fixing up the offset of each CRTC as necessary.
+	 *
+	 * Also, flips queued on disabled or incorrectly configured displays
+	 * may never complete; this is a configuration error.
+	 */
+	for (i = 0; i < config->num_crtc; i++) {
+		xf86CrtcPtr crtc = config->crtc[i];
+
+		if (!crtc->enabled)
+			continue;
+
+		drmmode_crtc = crtc->driver_private;
+		crtc_id = drmmode_crtc->mode_crtc->crtc_id;
+		drmmode->event_data = data;
+		drmmode->flip_count++;
+		if (drmModePageFlip(drmmode->fd, crtc_id, drmmode->fb_id,
+				    DRM_MODE_PAGE_FLIP_EVENT, drmmode)) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "flip queue failed: %s\n", strerror(errno));
+			goto error_undo;
+		}
+	}
+
+	dri_bo_pin(new_front, 0);
+	dri_bo_unpin(new_front);
+
+	scrn->fbOffset = new_front->offset;
+	intel->front_buffer->bo = new_front;
+	intel->front_buffer->offset = new_front->offset;
+	drmmode->old_fb_id = old_fb_id;
+
+	return TRUE;
+
+error_undo:
+	drmModeRmFB(drmmode->fd, drmmode->fb_id);
+	drmmode->fb_id = old_fb_id;
+
+error_out:
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "Page flip failed: %s\n",
+		   strerror(errno));
+	return FALSE;
+}
+
 static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 	drmmode_xf86crtc_resize
 };
 
+static void
+drmmode_vblank_handler(int fd, unsigned int frame, unsigned int tv_sec,
+		       unsigned int tv_usec, void *event_data)
+{
+	I830DRI2FrameEventHandler(frame, tv_sec, tv_usec, event_data);
+}
+
+static void
+drmmode_page_flip_handler(int fd, unsigned int frame, unsigned int tv_sec,
+			  unsigned int tv_usec, void *event_data)
+{
+	drmmode_ptr drmmode = event_data;
+
+	drmmode->flip_count--;
+	if (drmmode->flip_count > 0)
+		return;
+
+	drmModeRmFB(drmmode->fd, drmmode->old_fb_id);
+
+	I830DRI2FlipEventHandler(frame, tv_sec, tv_usec, drmmode->event_data);
+}
+
+static void
+drm_wakeup_handler(pointer data, int err, pointer p)
+{
+    drmmode_ptr drmmode = data;
+    fd_set *read_mask = p;
+
+    if (err >= 0 && FD_ISSET(drmmode->fd, read_mask))
+	drmHandleEvent(drmmode->fd, &drmmode->event_context);
+}
+
 Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 {
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	xf86CrtcConfigPtr   xf86_config;
+	struct drm_i915_getparam gp;
 	drmmode_ptr drmmode;
-	int i;
+	unsigned int i;
+	int has_flipping = 0;
 
 	drmmode = xnfalloc(sizeof *drmmode);
 	drmmode->fd = fd;
@@ -1410,6 +1526,23 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 		drmmode_output_init(scrn, drmmode, i);
 
 	xf86InitialConfiguration(scrn, TRUE);
+
+	gp.param = I915_PARAM_HAS_PAGEFLIPPING;
+	gp.value = &has_flipping;
+	(void)drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp,
+				  sizeof(gp));
+	if (has_flipping) {
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "Kernel page flipping support detected, enabling\n");
+		intel->use_pageflipping = TRUE;
+		drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
+		drmmode->event_context.vblank_handler = drmmode_vblank_handler;
+		drmmode->event_context.page_flip_handler =
+		    drmmode_page_flip_handler;
+		AddGeneralSocket(fd);
+		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+					       drm_wakeup_handler, drmmode);
+	}
 
 	return TRUE;
 }
