@@ -308,7 +308,11 @@ radeon_ddc_connected(xf86OutputPtr output)
 	*MonInfo = *radeon_output->custom_mon;
     } else if ((radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) ||
 	       (radeon_output->ConnectorType == CONNECTOR_EDP)) {
-	MonInfo = xf86OutputGetEDID(output, radeon_output->dp_pI2CBus);
+	ret = RADEON_DP_GetSinkType(output);
+	if (ret == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
+	    ret == CONNECTOR_OBJECT_ID_eDP) {
+		MonInfo = xf86OutputGetEDID(output, radeon_output->dp_pI2CBus);
+	}
 	if (MonInfo == NULL) {
 	    if (radeon_output->pI2CBus) {
 		RADEONI2CDoLock(output, radeon_output->pI2CBus, TRUE);
