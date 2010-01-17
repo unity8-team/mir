@@ -1282,40 +1282,6 @@ i830_clip_video_helper(ScrnInfoPtr scrn,
 }
 
 static void
-i830_fill_colorkey(ScreenPtr screen, uint32_t key, RegionPtr clipboxes)
-{
-	DrawablePtr root = &WindowTable[screen->myNum]->drawable;
-	XID pval[2];
-	BoxPtr pbox = REGION_RECTS(clipboxes);
-	int i, nbox = REGION_NUM_RECTS(clipboxes);
-	xRectangle *rects;
-	GCPtr gc;
-
-	if (!xf86Screens[screen->myNum]->vtSema)
-		return;
-
-	gc = GetScratchGC(root->depth, screen);
-	pval[0] = key;
-	pval[1] = IncludeInferiors;
-	(void)ChangeGC(gc, GCForeground | GCSubwindowMode, pval);
-	ValidateGC(root, gc);
-
-	rects = xalloc(nbox * sizeof(xRectangle));
-
-	for (i = 0; i < nbox; i++, pbox++) {
-		rects[i].x = pbox->x1;
-		rects[i].y = pbox->y1;
-		rects[i].width = pbox->x2 - pbox->x1;
-		rects[i].height = pbox->y2 - pbox->y1;
-	}
-
-	(*gc->ops->PolyFillRect) (root, gc, nbox, rects);
-
-	xfree(rects);
-	FreeScratchGC(gc);
-}
-
-static void
 i830_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 		       xf86CrtcPtr crtc, RegionPtr clipBoxes)
 {
@@ -1599,7 +1565,6 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 	     DrawablePtr drawable)
 {
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
-	ScreenPtr screen = screenInfo.screens[scrn->scrnIndex];
 	int dstPitch;
 	int dstPitch2 = 0;
 	BoxRec dstBox;
@@ -1654,7 +1619,9 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 	/* update cliplist */
 	if (!REGION_EQUAL(scrn->pScreen, &adaptor_priv->clip, clipBoxes)) {
 		REGION_COPY(scrn->pScreen, &adaptor_priv->clip, clipBoxes);
-		i830_fill_colorkey(screen, adaptor_priv->colorKey, clipBoxes);
+		xf86XVFillKeyHelperDrawable(drawable,
+					    adaptor_priv->colorKey,
+					    clipBoxes);
 	}
 
 	adaptor_priv->videoStatus = CLIENT_VIDEO_ON;
