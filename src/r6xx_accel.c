@@ -261,21 +261,31 @@ set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf)
 
     // rv6xx workaround
     if ((info->ChipFamily > CHIP_FAMILY_R600) &&
-	(info->ChipFamily < CHIP_FAMILY_RV770)) {
-	BEGIN_BATCH(20);
-	PACK3(ib, IT_SURFACE_BASE_UPDATE, 1);
-	E32(ib, (2 << cb_conf->id));
-    } else
-	BEGIN_BATCH(18);
-
+        (info->ChipFamily < CHIP_FAMILY_RV770)) {
+        BEGIN_BATCH(2);
+        PACK3(ib, IT_SURFACE_BASE_UPDATE, 1);
+        E32(ib, (2 << cb_conf->id));
+        END_BATCH();
+    }
+    /* Set CMASK & TILE buffer to the offset of color buffer as
+     * we don't use those this shouldn't cause any issue and we
+     * then have a valid cmd stream
+     */
+    BEGIN_BATCH(3 + 2);
+    EREG(ib, (CB_COLOR0_TILE + (4 * cb_conf->id)), (0     >> 8));	// CMASK per-tile data base/256
+    RELOC_BATCH(cb_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
+    BEGIN_BATCH(3 + 2);
+    EREG(ib, (CB_COLOR0_FRAG + (4 * cb_conf->id)), (0     >> 8));	// FMASK per-tile data base/256
+    RELOC_BATCH(cb_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
+    BEGIN_BATCH(12);
     // pitch only for ARRAY_LINEAR_GENERAL, other tiling modes require addrlib
     EREG(ib, (CB_COLOR0_SIZE + (4 * cb_conf->id)), ((pitch << PITCH_TILE_MAX_shift)	|
 						    (slice << SLICE_TILE_MAX_shift)));
     EREG(ib, (CB_COLOR0_VIEW + (4 * cb_conf->id)), ((0    << SLICE_START_shift)		|
 						    (0    << SLICE_MAX_shift)));
     EREG(ib, (CB_COLOR0_INFO + (4 * cb_conf->id)), cb_color_info);
-    EREG(ib, (CB_COLOR0_TILE + (4 * cb_conf->id)), (0     >> 8));	// CMASK per-tile data base/256
-    EREG(ib, (CB_COLOR0_FRAG + (4 * cb_conf->id)), (0     >> 8));	// FMASK per-tile data base/256
     EREG(ib, (CB_COLOR0_MASK + (4 * cb_conf->id)), ((0    << CMASK_BLOCK_MAX_shift)	|
 						    (0    << FMASK_TILE_MAX_shift)));
     END_BATCH();
