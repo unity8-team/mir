@@ -140,7 +140,6 @@ if test "$DRI" = yes; then
 
         save_CFLAGS="$CFLAGS"
         CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $CFLAGS"
-	AM_CONDITIONAL(DRM_MODE, test x$DRM_MODE = xyes)
 	if test "$DRM_MODE" = yes; then
 	   	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include <stdint.h>
 #include <stdlib.h>])
@@ -157,7 +156,10 @@ if test "$DRI" = yes; then
         	fi
 	fi
 	CFLAGS="$save_CFLAGS"
+else
+	DRM_MODE=no
 fi
+AM_CONDITIONAL(DRM_MODE, test x$DRM_MODE = xyes)
 
 save_CFLAGS="$CFLAGS"
 CFLAGS="$XORG_CFLAGS"
