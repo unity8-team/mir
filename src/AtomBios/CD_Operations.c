@@ -300,6 +300,9 @@ VOID PutDataWS(PARSER_TEMP_DATA STACK_BASED * pParserTempData)
 	    case WS_ATTRIBUTES_C:
 		pParserTempData->AttributesData=(UINT16)pParserTempData->DestData32;
 		break;
+	    case WS_REGPTR_C:
+		pParserTempData->CurrentRegBlock=(UINT16)pParserTempData->DestData32;
+		break;
 	}
 
 }
@@ -390,6 +393,8 @@ UINT32 GetParametersWS(PARSER_TEMP_DATA STACK_BASED *	pParserTempData)
 		return pParserTempData->CurrentFB_Window;
 	    case WS_ATTRIBUTES_C:
 		return pParserTempData->AttributesData;
+	    case WS_REGPTR_C:
+		return (UINT32)pParserTempData->CurrentRegBlock;
 	}
     return 0;
 
@@ -502,7 +507,7 @@ VOID ProcessMask(PARSER_TEMP_DATA STACK_BASED * pParserTempData)
 
     pParserTempData->DestData32=GetDestination[pParserTempData->ParametersType.Destination](pParserTempData);
     pParserTempData->SourceData32=GetParametersDirect(pParserTempData);
-    pParserTempData->Index=GetParametersDirect(pParserTempData);
+    pParserTempData->Index=GetSource[pParserTempData->ParametersType.Source](pParserTempData);
     pParserTempData->SourceData32 <<= DestinationAlignmentShift[pParserTempData->CD_Mask.DestAlignment];
     pParserTempData->SourceData32 |= ~(AlignmentMask[pParserTempData->CD_Mask.SrcAlignment] << DestinationAlignmentShift[pParserTempData->CD_Mask.DestAlignment]);
     pParserTempData->DestData32   &= pParserTempData->SourceData32;
