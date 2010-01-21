@@ -239,6 +239,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 		      struct nouveau_bo **pbo)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	uint32_t tile_flags;
 	int ret;
 
 	if (*pbo) {
@@ -247,10 +248,12 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 		nouveau_bo_ref(NULL, pbo);
 	}
 
+	tile_flags = 0;
 	if (pNv->Architecture >= NV_ARCH_50 && (flags & NOUVEAU_BO_VRAM))
-		flags |= NOUVEAU_BO_TILED;
+		tile_flags = 0x7000;
 
-	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_MAP, 0, size, pbo);
+	ret = nouveau_bo_new_tile(pNv->dev, flags | NOUVEAU_BO_MAP, 0,
+				  size, 0, tile_flags, pbo);
 	if (ret)
 		return ret;
 
