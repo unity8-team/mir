@@ -38,8 +38,6 @@ nouveau_drv_la_SOURCES = \
 			 nv_dma.h \
 			 nv_driver.c \
 			 nv_include.h \
-			 nv_dripriv.h \
-			 nv_local.h \
 			 nv_proto.h \
 			 nv_shadow.c \
 			 nv_type.h \

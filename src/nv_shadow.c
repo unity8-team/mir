@@ -20,7 +20,6 @@
  * SOFTWARE.
  */
 
-#include "nv_local.h"
 #include "nv_include.h"
 #include "nv_type.h"
 #include "shadowfb.h"
