@@ -316,21 +316,16 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     if (pPriv->video_memory == NULL) {
-	if (info->ChipFamily >= CHIP_FAMILY_R600)
-	    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
-								&pPriv->video_memory,
-								size, 256);
-	else
-	    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
-								&pPriv->video_memory,
-								size, 64);
+	pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
+							    &pPriv->video_memory,
+							    size, hw_align + 1);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
 
 	if (info->cs) {
 	    pPriv->src_bo[0] = pPriv->video_memory;
 	    radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
-					  info->ChipFamily >= CHIP_FAMILY_R600 ? 256 : 64);
+					  hw_align + 1);
 	}
     }
 
