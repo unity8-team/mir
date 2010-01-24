@@ -968,14 +968,11 @@ uxa_composite(CARD8 op,
 	if (uxa_screen->swappedOut)
 		goto fallback;
 
-	if (pSrc->pDrawable == NULL || (pMask && pMask->pDrawable == NULL))
-		goto composite;
-
 	/* Remove repeat in source if useless */
-	if (pSrc->repeat && (pSrc->pDrawable->width > 1 || pSrc->pDrawable->height > 1 ) &&
-	    !pSrc->transform && xSrc >= 0 &&
-	    (xSrc + width) <= pSrc->pDrawable->width && ySrc >= 0 &&
-	    (ySrc + height) <= pSrc->pDrawable->height)
+	if (pSrc->pDrawable && pSrc->repeat && !pSrc->transform &&
+	    (pSrc->pDrawable->width > 1 || pSrc->pDrawable->height > 1) &&
+	    xSrc >= 0 && (xSrc + width) <= pSrc->pDrawable->width &&
+	    ySrc >= 0 && (ySrc + height) <= pSrc->pDrawable->height)
 		pSrc->repeat = 0;
 
 	if (!pMask) {
@@ -1079,7 +1076,6 @@ uxa_composite(CARD8 op,
 		}
 	}
 
-composite:
 	/* Remove repeat in mask if useless */
 	if (pMask && pMask->repeat && !pMask->transform && pMask->pDrawable &&
 	    (pMask->pDrawable->width > 1 || pMask->pDrawable->height > 1) &&
