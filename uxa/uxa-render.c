@@ -80,16 +80,21 @@ static void uxa_composite_fallback_pict_desc(PicturePtr pict, char *string,
 	snprintf(size, 20, "%dx%d%s", pict->pDrawable->width,
 		 pict->pDrawable->height, pict->repeat ? " R" : "");
 
-	snprintf(string, n, "%p:%c fmt %s (%s)", pict->pDrawable, loc, format,
-		 size);
+	snprintf(string, n, "%p:%c fmt %s (%s)%s",
+		 pict->pDrawable, loc, format, size,
+		 pict->alphaMap ? " with alpha map" :"");
 }
 
 static void
-uxa_print_composite_fallback(CARD8 op,
+uxa_print_composite_fallback(const char *func, CARD8 op,
 			     PicturePtr pSrc, PicturePtr pMask, PicturePtr pDst)
 {
+	uxa_screen_t *uxa_screen = uxa_get_screen(pDst->pDrawable->pScreen);
 	char sop[20];
 	char srcdesc[40], maskdesc[40], dstdesc[40];
+
+	if (! uxa_screen->fallback_debug)
+		return;
 
 	switch (op) {
 	case PictOpSrc:
@@ -107,11 +112,14 @@ uxa_print_composite_fallback(CARD8 op,
 	uxa_composite_fallback_pict_desc(pMask, maskdesc, 40);
 	uxa_composite_fallback_pict_desc(pDst, dstdesc, 40);
 
-	ErrorF("Composite fallback: op %s, \n"
-	       "                    src  %s, \n"
-	       "                    mask %s, \n"
-	       "                    dst  %s, \n",
-	       sop, srcdesc, maskdesc, dstdesc);
+	ErrorF("Composite fallback at %s:\n"
+	       "  op   %s, \n"
+	       "  src  %s, \n"
+	       "  mask %s, \n"
+	       "  dst  %s, \n"
+	       "  screen %s\n",
+	       func, sop, srcdesc, maskdesc, dstdesc,
+	       uxa_screen->swappedOut ? "swapped out" : "normal");
 }
 
 Bool uxa_op_reads_destination(CARD8 op)
@@ -704,6 +712,9 @@ uxa_composite_rects(CARD8 op,
 	ValidatePicture(pDst);
 
 	if (uxa_try_driver_composite_rects(op, pSrc, pDst, nrect, rects) != 1) {
+		uxa_print_composite_fallback("uxa_composite_rects",
+					     op, pSrc, NULL, pDst);
+
 		n = nrect;
 		r = rects;
 		while (n--) {
@@ -1115,8 +1126,8 @@ composite:
 	}
 
 fallback:
-	if (uxa_screen->fallback_debug)
-		uxa_print_composite_fallback(op, pSrc, pMask, pDst);
+	uxa_print_composite_fallback("uxa_composite",
+				     op, pSrc, pMask, pDst);
 
 	uxa_check_composite(op, pSrc, pMask, pDst, xSrc, ySrc,
 			    xMask, yMask, xDst, yDst, width, height);
