@@ -271,16 +271,19 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 	BoxPtr pbox;
 	int nbox;
 	int dst_off_x, dst_off_y;
-	PixmapPtr pSrcPix, pDstPix;
+	PixmapPtr pSrcPix = NULL, pDstPix;
 	CARD32 pixel;
 
 	pDstPix = uxa_get_drawable_pixmap(pDst->pDrawable);
-	pSrcPix = uxa_get_drawable_pixmap(pSrc->pDrawable);
 
 	xDst += pDst->pDrawable->x;
 	yDst += pDst->pDrawable->y;
-	xSrc += pSrc->pDrawable->x;
-	ySrc += pSrc->pDrawable->y;
+
+	if (pSrc->pDrawable) {
+		pSrcPix = uxa_get_drawable_pixmap(pSrc->pDrawable);
+		xSrc += pSrc->pDrawable->x;
+		ySrc += pSrc->pDrawable->y;
+	}
 
 	if (!miComputeCompositeRegion(&region, pSrc, NULL, pDst,
 				      xSrc, ySrc, 0, 0, xDst, yDst,
@@ -297,9 +300,21 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 		return 0;
 	}
 
-	if (! uxa_get_color_for_pixmap (pSrcPix, pSrc->format, pDst->format, &pixel)) {
-		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
-		return -1;
+	if (pSrcPix) {
+		if (! uxa_get_color_for_pixmap (pSrcPix, pSrc->format, pDst->format, &pixel)) {
+			REGION_UNINIT(pDst->pDrawable->pScreen, &region);
+			return -1;
+		}
+	} else {
+		SourcePict *source = pSrc->pSourcePict;
+		PictSolidFill *solid = &source->solidFill;
+
+		if (source == NULL || source->type != SourcePictTypeSolidFill) {
+			REGION_UNINIT(pDst->pDrawable->pScreen, &region);
+			return -1;
+		}
+
+		pixel = solid->color;
 	}
 
 	if (!(*uxa_screen->info->prepare_solid)
@@ -949,6 +964,32 @@ uxa_try_magic_two_pass_composite_helper(CARD8 op,
 	return 1;
 }
 
+static int
+compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
+{
+	if (op == PictOpSrc) {
+		if (src->format == dst->format)
+			return 1;
+
+		if (src->format == PICT_a8r8g8b8 && dst->format == PICT_x8r8g8b8)
+			return 1;
+
+		if (src->format == PICT_a8b8g8r8 && dst->format == PICT_x8b8g8r8)
+			return 1;
+	} else if (op == PictOpOver) {
+		if (src->alphaMap || dst->alphaMap)
+			return 0;
+
+		if (src->format == dst->format)
+			return 1;
+
+		if (src->format == PICT_x8r8g8b8 || src->format == PICT_x8b8g8r8)
+			return 1;
+	}
+
+	return 0;
+}
+
 void
 uxa_composite(CARD8 op,
 	      PicturePtr pSrc,
@@ -976,27 +1017,29 @@ uxa_composite(CARD8 op,
 		pSrc->repeat = 0;
 
 	if (!pMask) {
-		if ((op == PictOpSrc &&
-		     ((pSrc->format == pDst->format) ||
-		      (pSrc->format == PICT_a8r8g8b8
-		       && pDst->format == PICT_x8r8g8b8)
-		      || (pSrc->format == PICT_a8b8g8r8
-			  && pDst->format == PICT_x8b8g8r8)))
-		    || (op == PictOpOver && !pSrc->alphaMap && !pDst->alphaMap
-			&& pSrc->format == pDst->format
-			&& (pSrc->format == PICT_x8r8g8b8
-			    || pSrc->format == PICT_x8b8g8r8))) {
+		if (pSrc->pDrawable == NULL) {
+			if (pSrc->pSourcePict) {
+				SourcePict *source = pSrc->pSourcePict;
+				if (source->type == SourcePictTypeSolidFill) {
+					ret = uxa_try_driver_solid_fill(pSrc, pDst,
+									xSrc, ySrc,
+									xDst, yDst,
+									width, height);
+					if (ret == 1)
+						goto done;
+				}
+			}
+		} else if (compatible_formats (op, pDst, pSrc)) {
 			if (pSrc->pDrawable->width == 1 &&
 			    pSrc->pDrawable->height == 1 &&
 			    pSrc->repeat) {
-				ret =
-				    uxa_try_driver_solid_fill(pSrc, pDst, xSrc,
-							      ySrc, xDst, yDst,
-							      width, height);
+				ret = uxa_try_driver_solid_fill(pSrc, pDst,
+								xSrc, ySrc,
+								xDst, yDst,
+								width, height);
 				if (ret == 1)
 					goto done;
-			} else if (pSrc->pDrawable != NULL &&
-				   !pSrc->repeat && !pSrc->transform) {
+			} else if (!pSrc->repeat && !pSrc->transform) {
 				xDst += pDst->pDrawable->x;
 				yDst += pDst->pDrawable->y;
 				xSrc += pSrc->pDrawable->x;
@@ -1016,8 +1059,7 @@ uxa_composite(CARD8 op,
 				REGION_UNINIT(pDst->pDrawable->pScreen,
 					      &region);
 				goto done;
-			} else if (pSrc->pDrawable != NULL &&
-				   pSrc->pDrawable->type == DRAWABLE_PIXMAP &&
+			} else if (pSrc->pDrawable->type == DRAWABLE_PIXMAP &&
 				   !pSrc->transform &&
 				   pSrc->repeatType == RepeatNormal) {
 				DDXPointRec patOrg;
@@ -1027,16 +1069,12 @@ uxa_composite(CARD8 op,
 				 */
 				if (uxa_screen->info->prepare_composite
 				    && !pSrc->alphaMap && !pDst->alphaMap) {
-					ret =
-					    uxa_try_driver_composite(op, pSrc,
-								     pMask,
-								     pDst, xSrc,
-								     ySrc,
-								     xMask,
-								     yMask,
-								     xDst, yDst,
-								     width,
-								     height);
+					ret = uxa_try_driver_composite(op, pSrc,
+								       pMask, pDst,
+								       xSrc, ySrc,
+								       xMask, yMask,
+								       xDst, yDst,
+								       width, height);
 					if (ret == 1)
 						goto done;
 				}
@@ -1060,12 +1098,11 @@ uxa_composite(CARD8 op,
 				patOrg.x = xDst - xSrc;
 				patOrg.y = yDst - ySrc;
 
-				ret =
-				    uxa_fill_region_tiled(pDst->pDrawable,
-							  &region,
-							  (PixmapPtr) pSrc->
-							  pDrawable, &patOrg,
-							  FB_ALLONES, GXcopy);
+				ret = uxa_fill_region_tiled(pDst->pDrawable,
+							    &region,
+							    (PixmapPtr) pSrc->
+							    pDrawable, &patOrg,
+							    FB_ALLONES, GXcopy);
 
 				REGION_UNINIT(pDst->pDrawable->pScreen,
 					      &region);
