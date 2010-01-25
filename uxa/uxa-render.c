@@ -146,17 +146,20 @@ uxa_get_pixel_from_rgba(CARD32 * pixel,
 	int rbits, bbits, gbits, abits;
 	int rshift, bshift, gshift, ashift;
 
-	*pixel = 0;
-
-	if (!PICT_FORMAT_COLOR(format))
-		return FALSE;
-
 	rbits = PICT_FORMAT_R(format);
 	gbits = PICT_FORMAT_G(format);
 	bbits = PICT_FORMAT_B(format);
 	abits = PICT_FORMAT_A(format);
 	if (abits == 0)
 	    abits = PICT_FORMAT_BPP(format) - (rbits+gbits+bbits);
+
+	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_A) {
+		*pixel = alpha >> (16 - abits);
+		return TRUE;
+	}
+
+	if (!PICT_FORMAT_COLOR(format))
+		return FALSE;
 
 	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_ARGB) {
 		bshift = 0;
@@ -170,6 +173,7 @@ uxa_get_pixel_from_rgba(CARD32 * pixel,
 		ashift = bshift + bbits;
 	}
 
+	*pixel = 0;
 	*pixel |= (blue >> (16 - bbits)) << bshift;
 	*pixel |= (red >> (16 - rbits)) << rshift;
 	*pixel |= (green >> (16 - gbits)) << gshift;
@@ -187,43 +191,53 @@ uxa_get_rgba_from_pixel(CARD32 pixel,
 	int rbits, bbits, gbits, abits;
 	int rshift, bshift, gshift, ashift;
 
-	if (!PICT_FORMAT_COLOR(format))
-		return FALSE;
-
 	rbits = PICT_FORMAT_R(format);
 	gbits = PICT_FORMAT_G(format);
 	bbits = PICT_FORMAT_B(format);
 	abits = PICT_FORMAT_A(format);
 
-	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_ARGB) {
+	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_A) {
+		rshift = gshift = bshift = ashift = 0;
+        } else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_ARGB) {
 		bshift = 0;
 		gshift = bbits;
 		rshift = gshift + gbits;
 		ashift = rshift + rbits;
-	} else {		/* PICT_TYPE_ABGR */
+        } else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_ABGR) {
 		rshift = 0;
 		gshift = rbits;
 		bshift = gshift + gbits;
 		ashift = bshift + bbits;
+	} else {
+		return FALSE;
 	}
 
-	*red = ((pixel >> rshift) & ((1 << rbits) - 1)) << (16 - rbits);
-	while (rbits < 16) {
-		*red |= *red >> rbits;
-		rbits <<= 1;
-	}
+	if (rbits) {
+		*red = ((pixel >> rshift) & ((1 << rbits) - 1)) << (16 - rbits);
+		while (rbits < 16) {
+			*red |= *red >> rbits;
+			rbits <<= 1;
+		}
+	} else
+		*red = 0;
 
-	*green = ((pixel >> gshift) & ((1 << gbits) - 1)) << (16 - gbits);
-	while (gbits < 16) {
-		*green |= *green >> gbits;
-		gbits <<= 1;
-	}
+	if (gbits) {
+		*green = ((pixel >> gshift) & ((1 << gbits) - 1)) << (16 - gbits);
+		while (gbits < 16) {
+			*green |= *green >> gbits;
+			gbits <<= 1;
+		}
+	} else
+		*green = 0;
 
-	*blue = ((pixel >> bshift) & ((1 << bbits) - 1)) << (16 - bbits);
-	while (bbits < 16) {
-		*blue |= *blue >> bbits;
-		bbits <<= 1;
-	}
+	if (bbits) {
+		*blue = ((pixel >> bshift) & ((1 << bbits) - 1)) << (16 - bbits);
+		while (bbits < 16) {
+			*blue |= *blue >> bbits;
+			bbits <<= 1;
+		}
+	} else
+		*blue = 0;
 
 	if (abits) {
 		*alpha =
