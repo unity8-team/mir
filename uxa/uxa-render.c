@@ -238,7 +238,7 @@ uxa_get_rgba_from_pixel(CARD32 pixel,
 	return TRUE;
 }
 
-int
+Bool
 uxa_get_color_for_pixmap (PixmapPtr	 pixmap,
 			  CARD32	 src_format,
 			  CARD32	 dst_format,
@@ -250,13 +250,13 @@ uxa_get_color_for_pixmap (PixmapPtr	 pixmap,
 
 	if (!uxa_get_rgba_from_pixel(*pixel, &red, &green, &blue, &alpha,
 				     src_format))
-		return 0;
+		return FALSE;
 
 	if (!uxa_get_pixel_from_rgba(pixel, red, green, blue, alpha,
 				     dst_format))
-		return 0;
+		return FALSE;
 
-	return 1;
+	return TRUE;
 }
 
 static int
