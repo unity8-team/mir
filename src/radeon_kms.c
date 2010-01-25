@@ -225,9 +225,11 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to allocate accel_state rec!\n");
 	return FALSE;
     }
-    if (!RADEONIsAccelWorking(pScrn)) {
+
+    if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE) ||
+	(!RADEONIsAccelWorking(pScrn))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "GPU accel not working, using shadowfb for KMS\n");
+		   "GPU accel disabled or not working, using shadowfb for KMS\n");
 	info->r600_shadow_fb = TRUE;
 	if (!xf86LoadSubModule(pScrn, "shadow"))
 	    info->r600_shadow_fb = FALSE;
@@ -725,10 +727,9 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     }
 
     if (info->r600_shadow_fb) {
-        xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
-        info->accelOn = FALSE;
+	xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
+	info->accelOn = FALSE;
     } else {
-    if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "Initializing Acceleration\n");
 	if (RADEONAccelInit(pScreen)) {
@@ -740,10 +741,6 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
 	    xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
 	    info->accelOn = FALSE;
 	}
-    } else {
-	xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
-	info->accelOn = FALSE;
-    }
     }
 
     /* Init DPMS */
