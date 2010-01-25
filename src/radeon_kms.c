@@ -473,7 +473,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     info->exa_pixmaps = xf86ReturnOptValBool(info->Options,
                                              OPTION_EXA_PIXMAPS, 
-					     (info->vram_size > (32 * 1024 * 1024)));
+					     ((info->vram_size > (32 * 1024 * 1024) &&
+					      info->RenderAccel)));
     if (info->exa_pixmaps)
     	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"EXA: Driver will allow EXA pixmaps in VRAM\n");
