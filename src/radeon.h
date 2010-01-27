@@ -277,10 +277,12 @@ typedef struct {
 #define RADEON_PLL_PREFER_HIGH_POST_DIV (1 << 9)
 #define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
 #define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
+#define RADEON_PLL_USE_POST_DIV    (1 << 12)
 
 typedef struct {
-    uint16_t          reference_freq;
-    uint16_t          reference_div;
+    uint32_t          reference_freq;
+    uint32_t          reference_div;
+    uint32_t          post_div;
     uint32_t          pll_in_min;
     uint32_t          pll_in_max;
     uint32_t          pll_out_min;

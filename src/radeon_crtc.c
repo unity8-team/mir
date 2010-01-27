@@ -144,6 +144,8 @@ RADEONComputePLL(RADEONPLLPtr pll,
 {
     uint32_t min_ref_div = pll->min_ref_div;
     uint32_t max_ref_div = pll->max_ref_div;
+    uint32_t min_post_div = pll->min_post_div;
+    uint32_t max_post_div = pll->max_post_div;
     uint32_t min_fractional_feed_div = 0;
     uint32_t max_fractional_feed_div = 0;
     uint32_t best_vco = pll->best_vco;
@@ -174,12 +176,15 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	}
     }
 
+    if (flags & RADEON_PLL_USE_POST_DIV)
+	min_post_div = max_post_div = pll->post_div;
+
     if (flags & RADEON_PLL_USE_FRAC_FB_DIV) {
 	min_fractional_feed_div = pll->min_frac_feedback_div;
 	max_fractional_feed_div = pll->max_frac_feedback_div;
     }
 
-    for (post_div = pll->min_post_div; post_div <= pll->max_post_div; ++post_div) {
+    for (post_div = min_post_div; post_div <= max_post_div; ++post_div) {
 	uint32_t ref_div;
 
 	if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
