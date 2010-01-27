@@ -2691,13 +2691,14 @@ UINT32
 CailReadATIRegister(VOID* CAIL, UINT32 idx)
 {
     ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = pRADEONEnt->MMIO;
     UINT32 ret;
     UINT32 mm_reg = idx << 2;
     CAILFUNC(CAIL);
 
-    if (mm_reg < 0x10000)
+    if (mm_reg < info->MMIOSize)
 	ret = INREG(mm_reg);
     else {
 	OUTREG(RADEON_MM_INDEX, mm_reg);
@@ -2712,12 +2713,13 @@ VOID
 CailWriteATIRegister(VOID *CAIL, UINT32 idx, UINT32 data)
 {
     ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = pRADEONEnt->MMIO;
     UINT32 mm_reg = idx << 2;
     CAILFUNC(CAIL);
 
-    if (mm_reg < 0x10000)
+    if (mm_reg < info->MMIOSize)
 	OUTREG(mm_reg, data);
     else {
 	OUTREG(RADEON_MM_INDEX, mm_reg);
