@@ -994,8 +994,8 @@ compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
 		if (src->alphaMap || dst->alphaMap)
 			return 0;
 
-		if (src->format == dst->format)
-			return 1;
+		if (src->format != dst->format)
+			return 0;
 
 		if (src->format == PICT_x8r8g8b8 || src->format == PICT_x8b8g8r8)
 			return 1;
