@@ -4020,6 +4020,9 @@
 #define AVIVO_GPIO_2                        0x7e50
 #define AVIVO_GPIO_3                        0x7e60
 
+#define AVIVO_DC_GPIO_HPD_MASK              0x7e90
+#define AVIVO_DC_GPIO_HPD_A                 0x7e94
+#define AVIVO_DC_GPIO_HPD_EN                0x7e98
 #define AVIVO_DC_GPIO_HPD_Y                 0x7e9c
 
 #define AVIVO_I2C_STATUS					0x7d30
