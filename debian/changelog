@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.9.1-1ubuntu3) lucid; urgency=low
+
+  * debian/rules: Need to create usr/share/apport before installing into
+    it.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 27 Jan 2010 17:31:24 -0800
+
 xserver-xorg-video-intel (2:2.9.1-1ubuntu2) lucid; urgency=low
 
   * Drop xserver-xorg-video-intel-dbg.install: intel_reg_dumper is now
