@@ -574,9 +574,8 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
     DIG_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
-    int index = 0, major, minor, num = 0;
+    int index = 0, major, minor;
     int clock = radeon_output->pixel_clock;
-    int dig_block = radeon_output->dig_block;
 
     if (radeon_encoder == NULL)
 	return ATOM_NOT_IMPLEMENTED;
@@ -584,27 +583,24 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
     memset(&disp_data,0, sizeof(disp_data));
 
     if (IS_DCE32_VARIANT) {
-	if (dig_block)
+	if (radeon_output->dig_encoder)
 	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
 	else
 	    index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
-	num = dig_block + 1;
     } else {
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	    /* doesn't really matter which dig encoder we pick as long as it's
 	     * not already in use
 	     */
-	    if (dig_block)
+	    if (radeon_output->dig_encoder)
 		index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
 	    else
 		index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
-	    num = 1;
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 	    /* Only dig2 encoder can drive LVTMA */
 	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-	    num = 2;
 	    break;
 	}
     }
@@ -658,11 +654,11 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DIG%d encoder setup success\n", num);
+	ErrorF("Output DIG%d encoder setup success\n", radeon_output->dig_encoder);
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output DIG%d setup failed\n", num);
+    ErrorF("Output DIG%d setup failed\n", radeon_output->dig_encoder);
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -684,7 +680,6 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
     int index = 0, num = 0;
     int major, minor;
     int clock = radeon_output->pixel_clock;
-    int dig_block = radeon_output->dig_block;
 
     if (radeon_encoder == NULL)
         return ATOM_NOT_IMPLEMENTED;
@@ -726,7 +721,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 		disp_data.v2.usPixelClock = cpu_to_le16(clock / 10);
 	    }
 	}
-	if (dig_block)
+	if (radeon_output->dig_encoder)
 	    disp_data.v2.acConfig.ucEncoderSel = 1;
 
 	if (radeon_output->linkb)
@@ -750,11 +745,8 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	if (radeon_output->MonType == MT_DP)
 	    disp_data.v2.acConfig.fCoherentMode = 1; /* DP requires coherent */
 	else if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT)) {
-	    if (radeon_output->coherent_mode) {
+	    if (radeon_output->coherent_mode)
 		disp_data.v2.acConfig.fCoherentMode = 1;
-		xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "UNIPHY%d transmitter: Coherent Mode enabled\n",disp_data.v2.acConfig.ucTransmitterSel);
-	    } else
-		xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "UNIPHY%d transmitter: Coherent Mode disabled\n",disp_data.v2.acConfig.ucTransmitterSel);
 	}
     } else {
 	disp_data.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
@@ -779,7 +771,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	    /* doesn't really matter which dig encoder we pick as long as it's
 	     * not already in use
 	     */
-	    if (radeon_output->dig_block)
+	    if (radeon_output->dig_encoder)
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
 	    else
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
@@ -816,14 +808,8 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	if (radeon_output->MonType == MT_DP)
 	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;  /* DP requires coherent */
 	else if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT)) {
-	    if (radeon_output->coherent_mode) {
+	    if (radeon_output->coherent_mode)
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
-		xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-			"DIG%d transmitter: Coherent Mode enabled\n", num);
-	    } else {
-		xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-			"DIG%d transmitter: Coherent Mode disabled\n", num);
-	    }
 	}
     }
 
@@ -1480,20 +1466,10 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-		if (IS_DCE32_VARIANT) {
-		    if (radeon_crtc->crtc_id)
-			crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
-		    else
-			crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
-		} else {
-		    /* doesn't really matter which dig encoder we pick as long as it's
-		     * not already in use
-		     */
-		    if (radeon_output->dig_block)
-			crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
-		    else
-			crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
-		}
+		if (radeon_output->dig_encoder)
+		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+		else
+		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		/* Only dig2 encoder can drive LVTMA */
@@ -1582,7 +1558,7 @@ atombios_apply_output_quirks(xf86OutputPtr output, DisplayModePtr mode)
 }
 
 static void
-atombios_pick_dig_block(xf86OutputPtr output)
+atombios_pick_dig_encoder(xf86OutputPtr output)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -1600,7 +1576,7 @@ atombios_pick_dig_block(xf86OutputPtr output)
 
     if (IS_DCE32_VARIANT) {
         RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
-        radeon_output->dig_block = radeon_crtc->crtc_id;
+        radeon_output->dig_encoder = radeon_crtc->crtc_id;
         return;
     }
 
@@ -1614,20 +1590,20 @@ atombios_pick_dig_block(xf86OutputPtr output)
 
         if (output == test && radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA)
             is_lvtma = TRUE;
-        if (output != test && (radeon_test->dig_block >= 0))
-            dig_enc_use_mask |= (1 << radeon_test->dig_block);
+        if (output != test && (radeon_test->dig_encoder >= 0))
+            dig_enc_use_mask |= (1 << radeon_test->dig_encoder);
 
     }
     if (is_lvtma) {
         if (dig_enc_use_mask & 0x2)
             ErrorF("Need digital encoder 2 for LVTMA and it isn't free - stealing\n");
-        radeon_output->dig_block = 1;
+        radeon_output->dig_encoder = 1;
         return;
     }
     if (!(dig_enc_use_mask & 1))
-        radeon_output->dig_block = 0;
+        radeon_output->dig_encoder = 0;
     else
-        radeon_output->dig_block = 1;
+        radeon_output->dig_encoder = 1;
 }
 void
 atombios_output_mode_set(xf86OutputPtr output,
@@ -1641,7 +1617,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 	return;
 
     radeon_output->pixel_clock = adjusted_mode->Clock;
-    atombios_pick_dig_block(output);
+    atombios_pick_dig_encoder(output);
     atombios_output_overscan_setup(output, mode, adjusted_mode);
     atombios_output_scaler_setup(output);
     atombios_set_output_crtc_source(output);
@@ -1918,7 +1894,7 @@ static inline int atom_dp_get_encoder_id(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int ret = 0;
-    if (radeon_output->dig_block)
+    if (radeon_output->dig_encoder)
         ret |= ATOM_DP_CONFIG_DIG2_ENCODER;
     else
         ret |= ATOM_DP_CONFIG_DIG1_ENCODER;

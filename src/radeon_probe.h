@@ -283,7 +283,7 @@ typedef struct _RADEONOutputPrivateRec {
 
     /* dce 3.x dig block */
     int igp_lane_info;
-    int dig_block;
+    int dig_encoder;
 
     int pixel_clock;
 

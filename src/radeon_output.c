@@ -2961,7 +2961,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->shared_ddc = info->BiosConnector[i].shared_ddc;
 	    radeon_output->load_detection = info->BiosConnector[i].load_detection;
 	    radeon_output->linkb = info->BiosConnector[i].linkb;
-	    radeon_output->dig_block = -1;
+	    radeon_output->dig_encoder = -1;
 	    radeon_output->connector_id = info->BiosConnector[i].connector_object;
 	    radeon_output->connector_object_id = info->BiosConnector[i].connector_object_id;
 	    radeon_output->ucI2cId = info->BiosConnector[i].ucI2cId;
