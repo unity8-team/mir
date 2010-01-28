@@ -595,7 +595,7 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
 	    /* doesn't really matter which dig encoder we pick as long as it's
 	     * not already in use
 	     */
-	    if (radeon_output->linkb)
+	    if (dig_block)
 		index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
 	    else
 		index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
@@ -779,7 +779,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	    /* doesn't really matter which dig encoder we pick as long as it's
 	     * not already in use
 	     */
-	    if (radeon_output->linkb)
+	    if (radeon_output->dig_block)
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
 	    else
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
@@ -1489,7 +1489,7 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 		    /* doesn't really matter which dig encoder we pick as long as it's
 		     * not already in use
 		     */
-		    if (radeon_output->linkb)
+		    if (radeon_output->dig_block)
 			crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
 		    else
 			crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
@@ -1581,20 +1581,67 @@ atombios_apply_output_quirks(xf86OutputPtr output, DisplayModePtr mode)
     }
 }
 
+static void
+atombios_pick_dig_block(xf86OutputPtr output)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(output->scrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    Bool is_lvtma = FALSE;
+    int i, mode;
+    uint32_t dig_enc_use_mask = 0;
+
+    /* non digital encoders don't need a dig block */
+    mode = atombios_get_encoder_mode(output);
+    if (mode == ATOM_ENCODER_MODE_CRT ||
+        mode == ATOM_ENCODER_MODE_TV ||
+        mode == ATOM_ENCODER_MODE_CV)
+        return;
+
+    if (IS_DCE32_VARIANT) {
+        RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
+        radeon_output->dig_block = radeon_crtc->crtc_id;
+        return;
+    }
+
+    for (i = 0; i < xf86_config->num_output; i++) {
+        xf86OutputPtr test = xf86_config->output[i];
+        radeon_encoder_ptr radeon_encoder = radeon_get_encoder(test);
+        RADEONOutputPrivatePtr radeon_test = test->driver_private;
+
+        if (!radeon_encoder || !test->crtc)
+            continue;
+
+        if (output == test && radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA)
+            is_lvtma = TRUE;
+        if (output != test && (radeon_test->dig_block >= 0))
+            dig_enc_use_mask |= (1 << radeon_test->dig_block);
+
+    }
+    if (is_lvtma) {
+        if (dig_enc_use_mask & 0x2)
+            ErrorF("Need digital encoder 2 for LVTMA and it isn't free - stealing\n");
+        radeon_output->dig_block = 1;
+        return;
+    }
+    if (!(dig_enc_use_mask & 1))
+        radeon_output->dig_block = 0;
+    else
+        radeon_output->dig_block = 1;
+}
 void
 atombios_output_mode_set(xf86OutputPtr output,
 			 DisplayModePtr mode,
 			 DisplayModePtr adjusted_mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
     radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     if (radeon_encoder == NULL)
 	return;
 
     radeon_output->pixel_clock = adjusted_mode->Clock;
-    radeon_output->dig_block = radeon_crtc->crtc_id;
+    atombios_pick_dig_block(output);
     atombios_output_overscan_setup(output, mode, adjusted_mode);
     atombios_output_scaler_setup(output);
     atombios_set_output_crtc_source(output);
@@ -1869,24 +1916,16 @@ atombios_dac_detect(xf86OutputPtr output)
 
 static inline int atom_dp_get_encoder_id(xf86OutputPtr output)
 {
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int ret = 0;
-    if (IS_DCE32_VARIANT) {
-	if (radeon_output->dig_block)
-	    ret |= ATOM_DP_CONFIG_DIG2_ENCODER;
-	else
-	    ret |= ATOM_DP_CONFIG_DIG1_ENCODER;
-	if (radeon_output->linkb)
-	    ret |= ATOM_DP_CONFIG_LINK_B;
-	else
-	    ret |= ATOM_DP_CONFIG_LINK_A;
-    } else {
-	if (radeon_output->linkb)
-	    ret |= ATOM_DP_CONFIG_DIG2_ENCODER | ATOM_DP_CONFIG_LINK_B;
-	else
-	    ret |= ATOM_DP_CONFIG_DIG1_ENCODER | ATOM_DP_CONFIG_LINK_A;
-    }
+    if (radeon_output->dig_block)
+        ret |= ATOM_DP_CONFIG_DIG2_ENCODER;
+    else
+        ret |= ATOM_DP_CONFIG_DIG1_ENCODER;
+    if (radeon_output->linkb)
+        ret |= ATOM_DP_CONFIG_LINK_B;
+    else
+        ret |= ATOM_DP_CONFIG_LINK_A;
     return ret;
 }
 
