@@ -582,28 +582,10 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int action)
 
     memset(&disp_data,0, sizeof(disp_data));
 
-    if (IS_DCE32_VARIANT) {
-	if (radeon_output->dig_encoder)
-	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-	else
-	    index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
-    } else {
-	switch (radeon_encoder->encoder_id) {
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-	    /* doesn't really matter which dig encoder we pick as long as it's
-	     * not already in use
-	     */
-	    if (radeon_output->dig_encoder)
-		index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-	    else
-		index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
-	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-	    /* Only dig2 encoder can drive LVTMA */
-	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-	    break;
-	}
-    }
+    if (radeon_output->dig_encoder)
+        index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
+    else
+        index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 
@@ -766,15 +748,13 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 		disp_data.v1.usPixelClock = cpu_to_le16(clock / 10);
 	}
 
+	if (radeon_output->dig_encoder)
+	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
+	else
+	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
+
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-	    /* doesn't really matter which dig encoder we pick as long as it's
-	     * not already in use
-	     */
-	    if (radeon_output->dig_encoder)
-		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
-	    else
-		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 	    if (info->IsIGP) {
 		if (clock > 165000) {
 		    if (radeon_output->igp_lane_info & 0x3)
@@ -792,10 +772,6 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 			disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
 		}
 	    }
-	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-	    /* Only dig2 encoder can drive LVTMA */
-	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
 	    break;
 	}
 	if (clock > 165000)
@@ -1466,14 +1442,11 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		if (radeon_output->dig_encoder)
 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
 		else
 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
-		break;
-	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-		/* Only dig2 encoder can drive LVTMA */
-		crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
 		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
