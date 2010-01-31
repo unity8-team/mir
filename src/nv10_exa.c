@@ -864,7 +864,7 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, celsius, NV10TCL_LIGHT_MODEL, 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10TCL_COLOR_CONTROL, 1);
+	BEGIN_RING(chan, celsius, NV10TCL_SEPARATE_SPECULAR_ENABLE, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, celsius, NV10TCL_ENABLED_LIGHTS, 1);
 	OUT_RING  (chan, 0);
