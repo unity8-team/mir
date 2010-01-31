@@ -166,6 +166,12 @@ nouveau_dri2_init(ScreenPtr pScreen)
 	dri2.CreateBuffer = nouveau_dri2_create_buffer;
 	dri2.DestroyBuffer = nouveau_dri2_destroy_buffer;
 	dri2.CopyRegion = nouveau_dri2_copy_region;
+#if DRI2INFOREC_VERSION >= 4
+	dri2.ScheduleSwap = NULL;
+	dri2.ScheduleWaitMSC = NULL;
+	dri2.GetMSC = NULL;
+	dri2.numDrivers = 0;
+#endif
 
 	return DRI2ScreenInit(pScreen, &dri2);
 }
