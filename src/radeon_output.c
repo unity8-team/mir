@@ -920,6 +920,10 @@ radeon_bios_output_crtc(xf86OutputPtr output)
     xf86CrtcPtr crtc = output->crtc;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
+    /* no need to update crtc routing scratch regs on DCE4 */
+    if (IS_DCE4_VARIANT)
+	return;
+
     if (info->IsAtomBios) {
 	if (radeon_output->active_device & ATOM_DEVICE_TV1_SUPPORT) {
 	    save->bios_3_scratch &= ~ATOM_S3_TV1_CRTC_ACTIVE;
@@ -2992,10 +2996,14 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		return FALSE;
 	    }
 	    output->driver_private = radeon_output;
-	    output->possible_crtcs = 1;
-	    /* crtc2 can drive LVDS, it just doesn't have RMX */
-	    if (!(radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)))
-		output->possible_crtcs |= 2;
+	    if (IS_DCE4_VARIANT) {
+		output->possible_crtcs = 0x3f;
+	    } else {
+		output->possible_crtcs = 1;
+		/* crtc2 can drive LVDS, it just doesn't have RMX */
+		if (!(radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)))
+		    output->possible_crtcs |= 2;
+	    }
 
 	    /* we can clone the DACs, and probably TV-out,
 	       but I'm not sure it's worth the trouble */

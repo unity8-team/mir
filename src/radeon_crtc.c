@@ -681,6 +681,10 @@ RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     int pixel_bytes1 = info->CurrentLayout.pixel_bytes;
     int pixel_bytes2 = info->CurrentLayout.pixel_bytes;
 
+    /* XXX fix me */
+    if (IS_DCE4_VARIANT)
+	return;
+
     if (xf86_config->num_crtc == 2) {
 	if (xf86_config->crtc[1]->enabled &&
 	    xf86_config->crtc[0]->enabled) {
@@ -713,6 +717,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    int i;
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	radeon_crtc_funcs.shadow_create = radeon_crtc_shadow_create;
@@ -759,12 +764,59 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 
 	pRADEONEnt->pCrtc[1]->driver_private = pRADEONEnt->Controller[1];
 	pRADEONEnt->Controller[1]->crtc_id = 1;
-	pRADEONEnt->Controller[1]->crtc_offset = AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL;
+	if (IS_DCE4_VARIANT)
+	    pRADEONEnt->Controller[1]->crtc_offset = EVERGREEN_CRTC1_REGISTER_OFFSET;
+	else
+	    pRADEONEnt->Controller[1]->crtc_offset = AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL;
 	pRADEONEnt->Controller[1]->initialized = FALSE;
 	if (info->allowColorTiling)
 	    pRADEONEnt->Controller[1]->can_tile = 1;
 	else
 	    pRADEONEnt->Controller[1]->can_tile = 0;
+    }
+
+    /* 6 crtcs on DCE4 chips */
+    if (IS_DCE4_VARIANT && ((mask & 3) == 3)) {
+	for (i = 2; i < RADEON_MAX_CRTC; i++) {
+	    pRADEONEnt->pCrtc[i] = xf86CrtcCreate(pScrn, &radeon_crtc_funcs);
+	    if (!pRADEONEnt->pCrtc[i])
+		return FALSE;
+
+	    pRADEONEnt->Controller[i] = xnfcalloc(sizeof(RADEONCrtcPrivateRec), 1);
+	    if (!pRADEONEnt->Controller[i])
+	    {
+		xfree(pRADEONEnt->Controller[i]);
+		return FALSE;
+	    }
+
+	    pRADEONEnt->pCrtc[i]->driver_private = pRADEONEnt->Controller[i];
+	    pRADEONEnt->Controller[i]->crtc_id = i;
+	    switch (i) {
+	    case 0:
+		pRADEONEnt->Controller[i]->crtc_offset = EVERGREEN_CRTC0_REGISTER_OFFSET;
+		break;
+	    case 1:
+		pRADEONEnt->Controller[i]->crtc_offset = EVERGREEN_CRTC1_REGISTER_OFFSET;
+		break;
+	    case 2:
+		pRADEONEnt->Controller[i]->crtc_offset = EVERGREEN_CRTC2_REGISTER_OFFSET;
+		break;
+	    case 3:
+		pRADEONEnt->Controller[i]->crtc_offset = EVERGREEN_CRTC3_REGISTER_OFFSET;
+		break;
+	    case 4:
+		pRADEONEnt->Controller[i]->crtc_offset = EVERGREEN_CRTC4_REGISTER_OFFSET;
+		break;
+	    case 5:
+		pRADEONEnt->Controller[i]->crtc_offset = EVERGREEN_CRTC5_REGISTER_OFFSET;
+		break;
+	    }
+	    pRADEONEnt->Controller[i]->initialized = FALSE;
+	    if (info->allowColorTiling)
+		pRADEONEnt->Controller[i]->can_tile = 1;
+	    else
+		pRADEONEnt->Controller[i]->can_tile = 0;
+	}
     }
 
     return TRUE;

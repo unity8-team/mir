@@ -52,7 +52,7 @@
 
 extern DriverRec RADEON;
 
-#define RADEON_MAX_CRTC 2
+#define RADEON_MAX_CRTC 6
 #define RADEON_MAX_BIOS_CONNECTOR 16
 
 typedef enum

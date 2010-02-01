@@ -741,7 +741,12 @@ static Bool radeon_get_mc_idle(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+    if (info->ChipFamily >= CHIP_FAMILY_CEDAR) {
+	if (INREG(R600_SRBM_STATUS) & 0x1f00)
+	    return FALSE;
+	else
+	    return TRUE;
+    } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	if (INREG(R600_SRBM_STATUS) & 0x3f00)
 	    return FALSE;
 	else
@@ -787,6 +792,7 @@ static void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
+    /* evergreen is same as r7xx */
     if (info->ChipFamily >= CHIP_FAMILY_RV770) {
 	if (mask & LOC_FB)
 	    OUTREG(R700_MC_VM_FB_LOCATION, fb_loc);
@@ -837,6 +843,7 @@ static void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_t
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
+    /* evergreen is same as r7xx */
     if (info->ChipFamily >= CHIP_FAMILY_RV770) {
 	if (mask & LOC_FB)
 	    *fb_loc = INREG(R700_MC_VM_FB_LOCATION);
@@ -1389,7 +1396,12 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     /* We shouldn't use info->videoRam here which might have been clipped
      * but the real video RAM instead
      */
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+    if (info->ChipFamily >= CHIP_FAMILY_CEDAR) {
+	/* size in MB on evergreen */
+	/* XXX watch for overflow!!! */
+	mem_size = INREG(R600_CONFIG_MEMSIZE) * 1024 * 1024;
+	aper_size = INREG(R600_CONFIG_APER_SIZE) * 1024 * 1024;
+    } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	mem_size = INREG(R600_CONFIG_MEMSIZE);
 	aper_size = INREG(R600_CONFIG_APER_SIZE);
     } else {
@@ -1609,7 +1621,10 @@ static uint32_t RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
     uint32_t	   aper_size;
     unsigned char  byte;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
+    if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
+	/* size in MB */
+	aper_size = INREG(R600_CONFIG_APER_SIZE) * 1024;
+    else if (info->ChipFamily >= CHIP_FAMILY_R600)
 	aper_size = INREG(R600_CONFIG_APER_SIZE) / 1024;
     else
 	aper_size = INREG(RADEON_CONFIG_APER_SIZE) / 1024;
@@ -1671,7 +1686,7 @@ static uint32_t RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
      */
     if (INREG(RADEON_HOST_PATH_CNTL) & RADEON_HDP_APER_CNTL)
         return aper_size * 2;
-    
+
     return aper_size;
 }
 
@@ -1692,7 +1707,11 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
 
 	OUTREG(RADEON_CONFIG_MEMSIZE, pScrn->videoRam * 1024);
     } else {
-	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
+	    /* R600_CONFIG_MEMSIZE is MB on evergreen */
+	    /* XXX watch for overflow!!! */
+	    pScrn->videoRam = INREG(R600_CONFIG_MEMSIZE) * 1024;
+	else if (info->ChipFamily >= CHIP_FAMILY_R600)
 	    pScrn->videoRam = INREG(R600_CONFIG_MEMSIZE) / 1024;
 	else {
 	    /* Read VRAM size from card */
@@ -2306,6 +2325,12 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     }
     if (info->IsSecondary)
         return FALSE;
+
+    if (info->ChipFamily >= CHIP_FAMILY_CEDAR) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "No DRI yet on Evergreen\n");
+	return FALSE;
+    }
 
     if (info->Chipset == PCI_CHIP_RN50_515E ||
 	info->Chipset == PCI_CHIP_RN50_5969) {
@@ -3834,8 +3859,75 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	       "  MC_AGP_LOCATION  : 0x%08x\n",
 	       (unsigned)restore->mc_agp_location);
 
-    if (IS_AVIVO_VARIANT) {
+    if (IS_DCE4_VARIANT) {
+	if (mc_fb_loc != restore->mc_fb_location ||
+	    mc_agp_loc != restore->mc_agp_location) {
+	    uint32_t tmp;
 
+	    //XXX
+	    //RADEONWaitForIdleMMIO(pScrn);
+
+            /* disable VGA rendering core */
+    	    OUTREG(AVIVO_VGA_RENDER_CONTROL, INREG(AVIVO_VGA_RENDER_CONTROL) & ~AVIVO_VGA_VSTATUS_CNTL_MASK);
+	    OUTREG(AVIVO_D1VGA_CONTROL, INREG(AVIVO_D1VGA_CONTROL) & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
+	    OUTREG(AVIVO_D2VGA_CONTROL, INREG(AVIVO_D2VGA_CONTROL) & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
+	    OUTREG(EVERGREEN_D3VGA_CONTROL, INREG(EVERGREEN_D3VGA_CONTROL) & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
+	    OUTREG(EVERGREEN_D4VGA_CONTROL, INREG(EVERGREEN_D4VGA_CONTROL) & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
+	    OUTREG(EVERGREEN_D5VGA_CONTROL, INREG(EVERGREEN_D5VGA_CONTROL) & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
+	    OUTREG(EVERGREEN_D6VGA_CONTROL, INREG(EVERGREEN_D6VGA_CONTROL) & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
+
+	    /* Stop display & memory access */
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET);
+	    OUTREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET, tmp & ~EVERGREEN_CRTC_MASTER_EN);
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET);
+
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET);
+	    OUTREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET, tmp & ~EVERGREEN_CRTC_MASTER_EN);
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET);
+
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET);
+	    OUTREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET, tmp & ~EVERGREEN_CRTC_MASTER_EN);
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET);
+
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET);
+	    OUTREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET, tmp & ~EVERGREEN_CRTC_MASTER_EN);
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET);
+
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET);
+	    OUTREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET, tmp & ~EVERGREEN_CRTC_MASTER_EN);
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET);
+
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET);
+	    OUTREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET, tmp & ~EVERGREEN_CRTC_MASTER_EN);
+	    tmp = INREG(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET);
+
+	    usleep(10000);
+	    timeout = 0;
+	    while (!(radeon_get_mc_idle(pScrn))) {
+		if (++timeout > 1000000) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "Timeout trying to update memory controller settings !\n");
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "You will probably crash now ... \n");
+		    /* Nothing we can do except maybe try to kill the server,
+		     * let's wait 2 seconds to leave the above message a chance
+		     * to maybe hit the disk and continue trying to setup despite
+		     * the MC being non-idle
+		     */
+		    usleep(2000000);
+		}
+		usleep(10);
+	    }
+
+	    radeon_write_mc_fb_agp_location(pScrn, LOC_FB | LOC_AGP,
+					    restore->mc_fb_location,
+					    restore->mc_agp_location,
+					    restore->mc_agp_location_hi);
+
+	    OUTREG(R600_HDP_NONSURFACE_BASE, (restore->mc_fb_location << 16) & 0xff0000);
+
+	}
+    } else if (IS_AVIVO_VARIANT) {
 	if (mc_fb_loc != restore->mc_fb_location ||
 	    mc_agp_loc != restore->mc_agp_location) {
 	    uint32_t tmp;
@@ -5164,7 +5256,10 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     }
 #endif
 
-    if (IS_AVIVO_VARIANT) {
+    if (IS_DCE4_VARIANT) {
+	RADEONSaveMemMapRegisters(pScrn, save);
+	//XXX
+    } else if (IS_AVIVO_VARIANT) {
 	RADEONSaveMemMapRegisters(pScrn, save);
 	avivo_save(pScrn, save);
     } else {
@@ -5214,7 +5309,10 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 
     RADEONBlank(pScrn);
 
-    if (IS_AVIVO_VARIANT) {
+    if (IS_DCE4_VARIANT) {
+	RADEONRestoreMemMapRegisters(pScrn, restore);
+	//XXX
+    } else if (IS_AVIVO_VARIANT) {
 	RADEONRestoreMemMapRegisters(pScrn, restore);
 	avivo_restore(pScrn, restore);
     } else {
