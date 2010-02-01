@@ -110,22 +110,22 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                      (dstBox->x2 - dstBox->x1);
         dst_point = (dstBox->y1 << 16) | dstBox->x1;
 
-        src_pitch |= (NV04_SCALED_IMAGE_FROM_MEMORY_FORMAT_ORIGIN_CENTER |
-                      NV04_SCALED_IMAGE_FROM_MEMORY_FORMAT_FILTER_BILINEAR);
+        src_pitch |= (NV03_SCALED_IMAGE_FROM_MEMORY_FORMAT_ORIGIN_CENTER |
+                      NV03_SCALED_IMAGE_FROM_MEMORY_FORMAT_FILTER_BILINEAR);
         src_point = ((y1 << 4) & 0xffff0000) | (x1 >> 12);
 
         switch(id) {
         case FOURCC_RGB:
                 src_format =
-                        NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_X8R8G8B8;
+                        NV03_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_X8R8G8B8;
                 break;
         case FOURCC_UYVY:
                 src_format =
-                        NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_YB8V8YA8U8;
+                        NV03_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_YB8V8YA8U8;
                 break;
         default:
                 src_format =
-                        NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_V8YB8U8YA8;
+                        NV03_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT_V8YB8U8YA8;
                 break;
         }
 
@@ -142,17 +142,17 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 
         if (pNv->dev->chipset >= 0x05) {
                 BEGIN_RING(chan, sifm,
-				 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
+				 NV03_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
                 OUT_RING  (chan, src_format);
-                OUT_RING  (chan, NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
+                OUT_RING  (chan, NV03_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
         } else {
                 BEGIN_RING(chan, sifm,
-				 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 1);
+				 NV03_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 1);
                 OUT_RING  (chan, src_format);
         }
 
 
-	BEGIN_RING(chan, sifm, NV04_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
+	BEGIN_RING(chan, sifm, NV03_SCALED_IMAGE_FROM_MEMORY_DMA_IMAGE, 1);
 	OUT_RELOCo(chan, src, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
 			      NOUVEAU_BO_RD);
         while (nbox--) {
@@ -160,7 +160,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                 OUT_RING  (chan, 0);
 
                 BEGIN_RING(chan, sifm,
-				 NV04_SCALED_IMAGE_FROM_MEMORY_CLIP_POINT, 6);
+				 NV03_SCALED_IMAGE_FROM_MEMORY_CLIP_POINT, 6);
                 OUT_RING  (chan, (pbox->y1 << 16) | pbox->x1);
                 OUT_RING  (chan, ((pbox->y2 - pbox->y1) << 16) |
                                  (pbox->x2 - pbox->x1));
@@ -169,7 +169,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                 OUT_RING  (chan, dsdx);
                 OUT_RING  (chan, dtdy);
 
-                BEGIN_RING(chan, sifm, NV04_SCALED_IMAGE_FROM_MEMORY_SIZE, 4);
+                BEGIN_RING(chan, sifm, NV03_SCALED_IMAGE_FROM_MEMORY_SIZE, 4);
                 OUT_RING  (chan, (height << 16) | width);
                 OUT_RING  (chan, src_pitch);
 		if (OUT_RELOCl(chan, src, src_offset, NOUVEAU_BO_VRAM |

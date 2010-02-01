@@ -270,18 +270,18 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	}
 	blit = pNv->NvImageBlit;
 
-	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_COLOR_KEY, 1);
+	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_COLOR_KEY, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_SURFACE, 1);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
-	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_CLIP_RECTANGLE, 3);
+	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_CLIP_RECTANGLE, 3);
 	OUT_RING  (chan, chan->nullobj->handle);
 	OUT_RING  (chan, pNv->NvImagePattern->handle);
 	OUT_RING  (chan, pNv->NvRop->handle);
-	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_OPERATION, 1);
-	OUT_RING  (chan, NV04_IMAGE_BLIT_OPERATION_ROP_AND);
+	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_OPERATION, 1);
+	OUT_RING  (chan, NV01_IMAGE_BLIT_OPERATION_ROP_AND);
 
 	if (blit->grclass == NV12_IMAGE_BLIT) {
 		BEGIN_RING(chan, blit, 0x0120, 3);
@@ -324,7 +324,7 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 	sifm = pNv->NvScaledImage;
 
 	BEGIN_RING(chan, sifm,
-			 NV04_SCALED_IMAGE_FROM_MEMORY_DMA_NOTIFY, 7);
+			 NV03_SCALED_IMAGE_FROM_MEMORY_DMA_NOTIFY, 7);
 	OUT_RING  (chan, pNv->notify0->handle);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, chan->nullobj->handle);
@@ -334,11 +334,11 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
 	if (pNv->Architecture>=NV_ARCH_10) {
 	BEGIN_RING(chan, sifm,
-			 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION, 1);
-	OUT_RING  (chan, NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION_DITHER);
+			 NV05_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION, 1);
+	OUT_RING  (chan, NV05_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION_DITHER);
 	}
-	BEGIN_RING(chan, sifm, NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION, 1);
-	OUT_RING  (chan, NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
+	BEGIN_RING(chan, sifm, NV03_SCALED_IMAGE_FROM_MEMORY_OPERATION, 1);
+	OUT_RING  (chan, NV03_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
 
 	return TRUE;
 }
@@ -433,10 +433,10 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 	if (pNv->Architecture >= NV_ARCH_10) {
 		BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_BETA1, 1);
 		OUT_RING  (chan, chan->nullobj->handle);
-		BEGIN_RING(chan, ifc, NV05_IMAGE_FROM_CPU_BETA4, 1);
+		BEGIN_RING(chan, ifc, NV04_IMAGE_FROM_CPU_BETA4, 1);
 		OUT_RING  (chan, chan->nullobj->handle);
 	}
-	BEGIN_RING(chan, ifc, NV05_IMAGE_FROM_CPU_SURFACE, 1);
+	BEGIN_RING(chan, ifc, NV04_IMAGE_FROM_CPU_SURFACE, 1);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
 	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_OPERATION, 1);
 	OUT_RING  (chan, NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
