@@ -414,35 +414,56 @@ radeon_crtc_load_lut(xf86CrtcPtr crtc)
     if (!crtc->enabled)
 	return;
 
-    if (IS_AVIVO_VARIANT) {
-	OUTREG(AVIVO_DC_LUTA_CONTROL + radeon_crtc->crtc_offset, 0);
+    if (IS_DCE4_VARIANT) {
+	OUTREG(EVERGREEN_DC_LUT_CONTROL + radeon_crtc->crtc_offset, 0);
 
-	OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
-	OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_GREEN + radeon_crtc->crtc_offset, 0);
-	OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_RED + radeon_crtc->crtc_offset, 0);
+	OUTREG(EVERGREEN_DC_LUT_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
+	OUTREG(EVERGREEN_DC_LUT_BLACK_OFFSET_GREEN + radeon_crtc->crtc_offset, 0);
+	OUTREG(EVERGREEN_DC_LUT_BLACK_OFFSET_RED + radeon_crtc->crtc_offset, 0);
 
-	OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_BLUE + radeon_crtc->crtc_offset, 0x0000ffff);
-	OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_GREEN + radeon_crtc->crtc_offset, 0x0000ffff);
-	OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_RED + radeon_crtc->crtc_offset, 0x0000ffff);
-    }
+	OUTREG(EVERGREEN_DC_LUT_WHITE_OFFSET_BLUE + radeon_crtc->crtc_offset, 0x0000ffff);
+	OUTREG(EVERGREEN_DC_LUT_WHITE_OFFSET_GREEN + radeon_crtc->crtc_offset, 0x0000ffff);
+	OUTREG(EVERGREEN_DC_LUT_WHITE_OFFSET_RED + radeon_crtc->crtc_offset, 0x0000ffff);
 
-    PAL_SELECT(radeon_crtc->crtc_id);
+	OUTREG(EVERGREEN_DC_LUT_RW_MODE + radeon_crtc->crtc_offset, 0);
+	OUTREG(EVERGREEN_DC_LUT_WRITE_EN_MASK + radeon_crtc->crtc_offset, 0x00000007);
 
-    if (IS_AVIVO_VARIANT) {
-	OUTREG(AVIVO_DC_LUT_RW_MODE, 0);
-	OUTREG(AVIVO_DC_LUT_WRITE_EN_MASK, 0x0000003f);
-    }
+	for (i = 0; i < 256; i++) {
+	    OUTREG(EVERGREEN_DC_LUT_RW_INDEX + radeon_crtc->crtc_offset, i);
+	    OUTREG(EVERGREEN_DC_LUT_30_COLOR + radeon_crtc->crtc_offset,
+		   (((radeon_crtc->lut_r[i]) << 20) |
+		    ((radeon_crtc->lut_g[i]) << 10) |
+		    (radeon_crtc->lut_b[i])));
+	}
+    } else {
+	if (IS_AVIVO_VARIANT) {
+	    OUTREG(AVIVO_DC_LUTA_CONTROL + radeon_crtc->crtc_offset, 0);
 
-    for (i = 0; i < 256; i++) {
-	OUTPAL(i, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
-    }
+	    OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
+	    OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_GREEN + radeon_crtc->crtc_offset, 0);
+	    OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_RED + radeon_crtc->crtc_offset, 0);
 
-    if (IS_AVIVO_VARIANT) {
-	OUTREG(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset, radeon_crtc->crtc_id);
+	    OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_BLUE + radeon_crtc->crtc_offset, 0x0000ffff);
+	    OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_GREEN + radeon_crtc->crtc_offset, 0x0000ffff);
+	    OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_RED + radeon_crtc->crtc_offset, 0x0000ffff);
+	}
+
+	PAL_SELECT(radeon_crtc->crtc_id);
+
+	if (IS_AVIVO_VARIANT) {
+	    OUTREG(AVIVO_DC_LUT_RW_MODE, 0);
+	    OUTREG(AVIVO_DC_LUT_WRITE_EN_MASK, 0x0000003f);
+	}
+
+	for (i = 0; i < 256; i++) {
+	    OUTPAL(i, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
+	}
+
+	if (IS_AVIVO_VARIANT)
+	    OUTREG(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset, radeon_crtc->crtc_id);
     }
 
 }
-
 
 static void
 radeon_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
