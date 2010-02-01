@@ -481,6 +481,107 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     return;
 }
 
+static void evergreen_set_base_format(xf86CrtcPtr crtc,
+				      DisplayModePtr mode,
+				      DisplayModePtr adjusted_mode,
+				      int x, int y)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    unsigned long fb_location = crtc->scrn->fbOffset + info->fbLocation;
+    uint32_t fb_format;
+    uint32_t fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
+
+    switch (crtc->scrn->bitsPerPixel) {
+    case 15:
+	fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
+		     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB1555));
+	break;
+    case 16:
+	fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
+		     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB565));
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
+	break;
+    case 24:
+    case 32:
+	fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
+		     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB8888));
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
+	break;
+    default:
+	FatalError("Unsupported screen depth: %d\n", xf86GetDepth());
+    }
+
+    switch (radeon_crtc->crtc_id) {
+    case 0:
+    default:
+	OUTREG(AVIVO_D1VGA_CONTROL, 0);
+	break;
+    case 1:
+	OUTREG(AVIVO_D2VGA_CONTROL, 0);
+	break;
+    case 2:
+	OUTREG(EVERGREEN_D3VGA_CONTROL, 0);
+	break;
+    case 3:
+	OUTREG(EVERGREEN_D4VGA_CONTROL, 0);
+	break;
+    case 4:
+	OUTREG(EVERGREEN_D5VGA_CONTROL, 0);
+	break;
+    case 5:
+	OUTREG(EVERGREEN_D6VGA_CONTROL, 0);
+	break;
+    }
+
+    /* setup fb format and location
+     */
+    if (crtc->rotatedData != NULL) {
+	/* x/y offset is already included */
+	x = 0;
+	y = 0;
+	fb_location = fb_location + (char *)crtc->rotatedData - (char *)info->FB;
+    }
+
+
+    OUTREG(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset, 0);
+    OUTREG(EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset, 0);
+    OUTREG(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
+	   fb_location & EVERGREEN_GRPH_SURFACE_ADDRESS_MASK);
+    OUTREG(EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
+	   fb_location & EVERGREEN_GRPH_SURFACE_ADDRESS_MASK);
+    OUTREG(EVERGREEN_GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
+    OUTREG(EVERGREEN_GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
+
+    OUTREG(EVERGREEN_GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
+    OUTREG(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
+    OUTREG(EVERGREEN_GRPH_X_START + radeon_crtc->crtc_offset, 0);
+    OUTREG(EVERGREEN_GRPH_Y_START + radeon_crtc->crtc_offset, 0);
+    OUTREG(EVERGREEN_GRPH_X_END + radeon_crtc->crtc_offset, info->virtualX);
+    OUTREG(EVERGREEN_GRPH_Y_END + radeon_crtc->crtc_offset, info->virtualY);
+    OUTREG(EVERGREEN_GRPH_PITCH + radeon_crtc->crtc_offset,
+	   crtc->scrn->displayWidth);
+    OUTREG(EVERGREEN_GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
+
+    OUTREG(EVERGREEN_DESKTOP_HEIGHT + radeon_crtc->crtc_offset, mode->VDisplay);
+    x &= ~3;
+    y &= ~1;
+    OUTREG(EVERGREEN_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
+    OUTREG(EVERGREEN_VIEWPORT_SIZE + radeon_crtc->crtc_offset, (mode->HDisplay << 16) | mode->VDisplay);
+
+    if (adjusted_mode->Flags & V_INTERLACE)
+	OUTREG(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset, EVERGREEN_INTERLEAVE_EN);
+    else
+	OUTREG(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
+
+}
+
 static void avivo_set_base_format(xf86CrtcPtr crtc,
 				  DisplayModePtr mode,
 				  DisplayModePtr adjusted_mode,
@@ -660,7 +761,9 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     if (!IS_AVIVO_VARIANT && (radeon_crtc->crtc_id == 0))
 	atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
 
-    if (IS_AVIVO_VARIANT)
+    if (IS_DCE4_VARIANT)
+	evergreen_set_base_format(crtc, mode, adjusted_mode, x, y);
+    else if (IS_AVIVO_VARIANT)
 	avivo_set_base_format(crtc, mode, adjusted_mode, x, y);
     else
 	legacy_set_base_format(crtc, mode, adjusted_mode, x, y);
