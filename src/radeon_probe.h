@@ -163,6 +163,7 @@ typedef struct _RADEONCrtcPrivateRec {
     Bool scaler_enabled;
     float vsc;
     float hsc;
+    int pll_id;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct _radeon_encoder {
@@ -299,6 +300,7 @@ typedef struct _RADEONOutputPrivateRec {
     int dp_lane_count;
     int dp_clock;
     uint8_t hpd_id;
+    int pll_id;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {

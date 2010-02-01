@@ -773,6 +773,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 	    pRADEONEnt->Controller[0]->can_tile = 1;
 	else
 	    pRADEONEnt->Controller[0]->can_tile = 0;
+	pRADEONEnt->Controller[0]->pll_id = -1;
     }
 
     if (mask & 2) {
@@ -801,6 +802,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 	    pRADEONEnt->Controller[1]->can_tile = 1;
 	else
 	    pRADEONEnt->Controller[1]->can_tile = 0;
+	pRADEONEnt->Controller[1]->pll_id = -1;
     }
 
     /* 6 crtcs on DCE4 chips */
@@ -844,6 +846,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 		pRADEONEnt->Controller[i]->can_tile = 1;
 	    else
 		pRADEONEnt->Controller[i]->can_tile = 0;
+	    pRADEONEnt->Controller[i]->pll_id = -1;
 	}
     }
 
