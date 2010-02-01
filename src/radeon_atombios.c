@@ -1590,6 +1590,69 @@ rhdAtomParseI2CRecord(ScrnInfoPtr pScrn, atomBiosHandlePtr handle,
     return RADEONLookupGPIOLineForDDC(pScrn, Record->sucI2cId.bfI2C_LineMux);
 }
 
+static uint8_t
+radeon_lookup_hpd_id(ScrnInfoPtr pScrn, ATOM_HPD_INT_RECORD *record)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    unsigned short size;
+    uint8_t hpd = 0;
+    int i, num_indices;
+    struct _ATOM_GPIO_PIN_LUT *gpio_info;
+    ATOM_GPIO_PIN_ASSIGNMENT *pin;
+    atomDataTablesPtr atomDataPtr;
+    uint8_t crev, frev;
+    uint32_t reg;
+
+    atomDataPtr = info->atomBIOS->atomDataPtr;
+
+    if (!rhdAtomGetTableRevisionAndSize(
+	    &(atomDataPtr->GPIO_Pin_LUT->sHeader),
+	    &crev,&frev,&size)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No GPIO Pin Table found!\n");
+	return hpd;
+    }
+
+    num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) / sizeof(ATOM_GPIO_PIN_ASSIGNMENT);
+
+    if (IS_DCE4_VARIANT)
+	reg = EVERGREEN_DC_GPIO_HPD_A;
+    else
+	reg = AVIVO_DC_GPIO_HPD_A;
+
+    gpio_info = atomDataPtr->GPIO_Pin_LUT;
+    for (i = 0; i < num_indices; i++) {
+	pin = &gpio_info->asGPIO_Pin[i];
+	if (record->ucHPDIntGPIOID == pin->ucGPIO_ID) {
+	    if ((pin->usGpioPin_AIndex * 4) == reg) {
+		switch (pin->ucGpioPinBitShift) {
+		case 0:
+		default:
+		    hpd = 0;
+		    break;
+		case 8:
+		    hpd = 1;
+		    break;
+		case 16:
+		    hpd = 2;
+		    break;
+		case 24:
+		    hpd = 3;
+		    break;
+		case 26:
+		    hpd = 4;
+		    break;
+		case 28:
+		    hpd = 5;
+		    break;
+		}
+		break;
+	    }
+	}
+    }
+
+    return hpd;
+}
+
 static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
@@ -1935,6 +1998,9 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 							  (ATOM_I2C_RECORD *)Record, j);
 				break;
 			    case ATOM_HPD_INT_RECORD_TYPE:
+				info->BiosConnector[i].hpd_id =
+				    radeon_lookup_hpd_id(pScrn,
+							 (ATOM_HPD_INT_RECORD *)Record);
 				break;
 			    case ATOM_CONNECTOR_DEVICE_TAG_RECORD_TYPE:
 				break;

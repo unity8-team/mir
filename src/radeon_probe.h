@@ -242,6 +242,7 @@ typedef struct {
     uint16_t connector_object;
     uint16_t connector_object_id;
     uint8_t ucI2cId;
+    uint8_t hpd_id;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -297,6 +298,7 @@ typedef struct _RADEONOutputPrivateRec {
     uint8_t dpcd[8];
     int dp_lane_count;
     int dp_clock;
+    uint8_t hpd_id;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {

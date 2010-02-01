@@ -2969,6 +2969,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->connector_id = info->BiosConnector[i].connector_object;
 	    radeon_output->connector_object_id = info->BiosConnector[i].connector_object_id;
 	    radeon_output->ucI2cId = info->BiosConnector[i].ucI2cId;
+	    radeon_output->hpd_id = info->BiosConnector[i].hpd_id;
 
 	    /* Technically HDMI-B is a glorfied DL DVI so the bios is correct,
 	     * but this can be confusing to users when it comes to output names,
