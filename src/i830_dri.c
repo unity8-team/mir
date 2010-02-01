@@ -865,6 +865,9 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	int dri2_major = 1;
 	int dri2_minor = 0;
 #endif
+#if DRI2INFOREC_VERSION >= 4
+	const char *driverNames[1];
+#endif
 
 #ifdef USE_DRI2_1_1_0
 	if (xf86LoaderCheckSymbol("DRI2Version")) {
@@ -879,6 +882,7 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 #endif
 
 	intel->deviceName = drmGetDeviceNameFromFd(intel->drmSubFD);
+	memset(&info, '\0', sizeof(info));
 	info.fd = intel->drmSubFD;
 	info.driverName = IS_I965G(intel) ? "i965" : "i915";
 	info.deviceName = intel->deviceName;
@@ -907,6 +911,9 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	info.ScheduleSwap = I830DRI2ScheduleSwap;
 	info.GetMSC = I830DRI2GetMSC;
 	info.ScheduleWaitMSC = I830DRI2ScheduleWaitMSC;
+	info.numDrivers = 1;
+	info.driverNames = driverNames;
+	driverNames[0] = info.driverName;
 #endif
 
 	return DRI2ScreenInit(screen, &info);
