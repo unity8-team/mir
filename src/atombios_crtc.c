@@ -668,7 +668,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    spc5_ptr->usPixelClock = cpu_to_le16(mode->Clock / 10);
 	    spc5_ptr->ucRefDiv = ref_div;
 	    spc5_ptr->usFbDiv = cpu_to_le16(fb_div);
-	    spc5_ptr->ulFbDivDecFrac = cpu_to_le32(frac_fb_div);
+	    spc5_ptr->ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
 	    spc5_ptr->ucPostDiv = post_div;
 	    spc5_ptr->ucPpll = radeon_crtc->pll_id;
 	    spc5_ptr->ucMiscInfo = 0; //HDMI depth
