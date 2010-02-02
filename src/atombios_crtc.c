@@ -581,7 +581,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 		adp3_ptr->sInput.ucTransmitterID = radeon_encoder->encoder_id;
 		adp3_ptr->sInput.ucEncodeMode = atombios_get_encoder_mode(output);
 		adp3_ptr->sInput.ucDispPllConfig = 0;
-		if (radeon_output->coherent_mode)
+		if (radeon_output->coherent_mode || (adp3_ptr->sInput.ucEncodeMode == ATOM_ENCODER_MODE_DP))
 		    adp3_ptr->sInput.ucDispPllConfig |= DISPPLL_CONFIG_COHERENT_MODE;
 		if (sclock > 165000)
 		    adp3_ptr->sInput.ucDispPllConfig |= DISPPLL_CONFIG_DUAL_LINK;
