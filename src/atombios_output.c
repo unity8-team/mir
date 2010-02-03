@@ -1417,7 +1417,9 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	    if (((radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) ||
 		 (radeon_output->ConnectorType == CONNECTOR_EDP)) &&
 		(radeon_output->MonType == MT_DP)) {
-	      do_displayport_link_train(output);
+		do_displayport_link_train(output);
+		if (IS_DCE4_VARIANT)
+		    atombios_dce4_output_dig_encoder_setup(output, ATOM_ENCODER_CMD_DP_VIDEO_ON);
 	    }
 	}
 	else {
@@ -1442,9 +1444,15 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     case DPMSModeOff:
 	radeon_encoder->devices &= ~(radeon_output->active_device);
 	if (!radeon_encoder->devices) {
-	    if (is_dig)
+	    if (is_dig) {
+		if (((radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT) ||
+		     (radeon_output->ConnectorType == CONNECTOR_EDP)) &&
+		    (radeon_output->MonType == MT_DP)) {
+		    if (IS_DCE4_VARIANT)
+			atombios_dce4_output_dig_encoder_setup(output, ATOM_ENCODER_CMD_DP_VIDEO_OFF);
+		}
 		atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_DISABLE_OUTPUT, 0, 0);
-	    else {
+	    } else {
 		disp_data.ucAction = ATOM_DISABLE;
 		data.exec.index = index;
 		data.exec.dataSpace = (void *)&space;
