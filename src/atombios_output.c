@@ -762,11 +762,14 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	if (radeon_output->linkb)
 	    disp_data.v3.acConfig.ucLinkSel = 1;
 
-	//if (radeon_output->dig_encoder)
-	// disp_data.v2.acConfig.ucEncoderSel = 1;
+	if (radeon_output->dig_encoder & 1)
+	    disp_data.v2.acConfig.ucEncoderSel = 1;
 
-	// select the PLL
-	disp_data.v3.acConfig.ucRefClkSource = radeon_output->pll_id;
+	// select the PLL for the UNIPHY
+	if (radeon_output->MonType == MT_DP)
+	    disp_data.v3.acConfig.ucRefClkSource = 2; /* ext clk */
+	else
+	    disp_data.v3.acConfig.ucRefClkSource = radeon_output->pll_id;
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:

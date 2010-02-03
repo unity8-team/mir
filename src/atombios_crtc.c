@@ -324,9 +324,11 @@ atombios_pick_pll(xf86CrtcPtr crtc)
 		}
 	    }
 	}
-	/* All DP ports need to use the same PPLL */
+	/* DP clock comes from DCPLL, DP PHY CLK comes from ext source
+	 * setting ATOM_PPLL_INVALID skips the PPLL programming for DP
+	 */
 	if (is_dp)
-	    radeon_crtc->pll_id = ATOM_PPLL2;
+	    radeon_crtc->pll_id = ATOM_PPLL_INVALID;
 	else if (!(pll_use_mask & 1))
 	    radeon_crtc->pll_id = ATOM_PPLL1;
 	else
