@@ -324,12 +324,13 @@ atombios_pick_pll(xf86CrtcPtr crtc)
 		}
 	    }
 	}
+	/* All DP ports need to use the same PPLL */
 	if (is_dp)
-	    radeon_crtc->pll_id = 2;
+	    radeon_crtc->pll_id = ATOM_PPLL2;
 	else if (!(pll_use_mask & 1))
-	    radeon_crtc->pll_id = 0;
+	    radeon_crtc->pll_id = ATOM_PPLL1;
 	else
-	    radeon_crtc->pll_id = 1;
+	    radeon_crtc->pll_id = ATOM_PPLL2;
     } else
 	radeon_crtc->pll_id = radeon_crtc->crtc_id;
 
@@ -388,6 +389,7 @@ atombios_crtc_set_dcpll(xf86CrtcPtr crtc)
 	switch(minor) {
 	case 5:
 	    args.ucCRTC = ATOM_CRTC_INVALID;
+	    /* XXX: get this from the firmwareinfo table */
 	    args.usPixelClock = 60000; // 600 Mhz
 	    args.ucPostDiv = info->pll.pll_out_max / 60000;
 	    if (info->pll.reference_freq == 10000) {
@@ -452,9 +454,6 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     AtomBiosArgRec data;
     unsigned char *space;
 
-    if (IS_DCE4_VARIANT)
-	atombios_crtc_set_dcpll(crtc);
-
     memset(&spc_param, 0, sizeof(spc_param));
     if (IS_AVIVO_VARIANT) {
 	if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
@@ -482,12 +481,15 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
 	if (IS_DCE4_VARIANT) {
 	    /* XXX 6 crtcs, but only 2 plls */
-	    if (radeon_crtc->crtc_id == 0) {
+	    switch (radeon_crtc->pll_id) {
+	    case ATOM_PPLL1:
 		temp = INREG(EVERGREEN_P1PLL_SS_CNTL);
 		OUTREG(EVERGREEN_P1PLL_SS_CNTL, temp & ~EVERGREEN_PxPLL_SS_EN);
-	    } else {
+		break;
+	    case ATOM_PPLL2:
 		temp = INREG(EVERGREEN_P2PLL_SS_CNTL);
 		OUTREG(EVERGREEN_P2PLL_SS_CNTL, temp & ~EVERGREEN_PxPLL_SS_EN);
+		break;
 	    }
 	} else {
 	    if (radeon_crtc->crtc_id == 0) {
@@ -531,11 +533,6 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    if (output->crtc == crtc) {
 		radeon_output = output->driver_private;
 		radeon_encoder = radeon_get_encoder(output);
-		/* no need to set pll for DP */
-		if (IS_DCE4_VARIANT) {
-		    if (atombios_get_encoder_mode(output) == ATOM_ENCODER_MODE_DP)
-			return;
-		}
 		break;
 	    }
 	}
@@ -973,6 +970,8 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     RADEONInitMemMapRegisters(pScrn, info->ModeReg, info);
     RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
 
+    if (IS_DCE4_VARIANT)
+	atombios_crtc_set_dcpll(crtc);
     atombios_pick_pll(crtc);
     atombios_crtc_set_pll(crtc, adjusted_mode);
     if (IS_DCE4_VARIANT)
