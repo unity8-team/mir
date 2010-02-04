@@ -364,8 +364,6 @@ AC_SUBST([moduledir])
 DRIVER_NAME=ati
 AC_SUBST([DRIVER_NAME])
 
-XORG_CHECK_LINUXDOC
-
 AC_MSG_NOTICE(
 [The atimisc sub-driver has been split out to xf86-video-mach64:]
 [    git://anongit.freedesktop.org/git/xorg/driver/xf86-video-mach64]
