@@ -759,11 +759,10 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	else
 	    disp_data.v3.ucLaneNum = 4;
 
-	if (radeon_output->linkb)
+	if (radeon_output->linkb) {
 	    disp_data.v3.acConfig.ucLinkSel = 1;
-
-	if (radeon_output->dig_encoder & 1)
 	    disp_data.v2.acConfig.ucEncoderSel = 1;
+	}
 
 	// select the PLL for the UNIPHY
 	if (radeon_output->MonType == MT_DP)
