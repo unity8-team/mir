@@ -159,7 +159,6 @@ start_3d(ScrnInfoPtr pScrn, drmBufPtr ib)
     E32(ib, 0x80000000);
     END_BATCH();
 
-    wait_3d_idle_clean (pScrn, ib);
 }
 
 /*
@@ -1279,14 +1278,13 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 
     draw_auto(pScrn, accel_state->ib, &draw_conf);
 
+    /* XXX drm should handle this in fence submit */
     wait_3d_idle_clean(pScrn, accel_state->ib);
 
     /* sync dst surface */
     cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
 			accel_state->dst_size, accel_state->dst_mc_addr,
 			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
-    wait_3d_idle_clean(pScrn, accel_state->ib);
 
     accel_state->vb_start_op = -1;
     accel_state->ib_reset_op = 0;
