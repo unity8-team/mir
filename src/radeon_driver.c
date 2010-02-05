@@ -772,6 +772,12 @@ static Bool radeon_get_mc_idle(ScrnInfoPtr pScrn)
 	    return TRUE;
 	else
 	    return FALSE;
+    } else if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	       (info->ChipFamily == CHIP_FAMILY_RS480)) {
+	if (INREG(RADEON_MC_STATUS) & RADEON_MC_IDLE)
+	    return TRUE;
+	else
+	    return FALSE;
     } else if (IS_R300_VARIANT) {
 	if (INREG(RADEON_MC_STATUS) & R300_MC_IDLE)
 	    return TRUE;
