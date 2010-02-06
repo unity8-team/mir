@@ -159,8 +159,6 @@ DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
 AC_SUBST([moduledir])
 
-XORG_CHECK_LINUXDOC
-
 AC_OUTPUT([
 	Makefile
 	uxa/Makefile
