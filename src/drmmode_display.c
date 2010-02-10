@@ -159,8 +159,9 @@ drmmode_crtc_dpms(xf86CrtcPtr drmmode_crtc, int mode)
 }
 
 void
-drmmode_fbcon_copy(ScrnInfoPtr pScrn)
+drmmode_fbcon_copy(ScreenPtr pScreen)
 {
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	NVPtr pNv = NVPTR(pScrn);
 	ExaDriverPtr exa = pNv->EXADriverPtr;
@@ -212,7 +213,7 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 		return;
 	}
 
-	pspix = drmmode_pixmap_wrap(pScrn->pScreen, fb->width, fb->height,
+	pspix = drmmode_pixmap_wrap(pScreen, fb->width, fb->height,
 				    fb->depth, fb->bpp, fb->pitch, bo);
 	nouveau_bo_ref(NULL, &bo);
 	drmFree(fb);
@@ -222,14 +223,14 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 		return;
 	}
 
-	pdpix = drmmode_pixmap_wrap(pScrn->pScreen, pScrn->virtualX,
+	pdpix = drmmode_pixmap_wrap(pScreen, pScrn->virtualX,
 				    pScrn->virtualY, pScrn->depth,
 				    pScrn->bitsPerPixel, pScrn->displayWidth *
 				    pScrn->bitsPerPixel / 8, pNv->scanout);
 	if (!pdpix) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Failed to init scanout pixmap for fbcon mirror\n");
-		pScrn->pScreen->DestroyPixmap(pspix);
+		pScreen->DestroyPixmap(pspix);
 		return;
 	}
 
@@ -244,8 +245,8 @@ drmmode_fbcon_copy(ScrnInfoPtr pScrn)
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
 	nouveau_bo_unmap(pNv->scanout);
 
-	pScrn->pScreen->DestroyPixmap(pdpix);
-	pScrn->pScreen->DestroyPixmap(pspix);
+	pScreen->DestroyPixmap(pdpix);
+	pScreen->DestroyPixmap(pspix);
 }
 
 static Bool

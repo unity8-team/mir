@@ -1142,12 +1142,12 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	pNv->BlockHandler = pScreen->BlockHandler;
 	pScreen->BlockHandler = NVBlockHandler;
 
-	pScrn->vtSema = TRUE;
-	pScrn->pScreen = pScreen;
-	drmmode_fbcon_copy(pScrn);
+	drmmode_fbcon_copy(pScreen);
 
 	if (!NVEnterVT(pScrn->scrnIndex, 0))
 		return FALSE;
+	pScrn->vtSema = TRUE;
+	pScrn->pScreen = pScreen;
 
 	xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
