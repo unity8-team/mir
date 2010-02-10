@@ -257,9 +257,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	int saved_x, saved_y;
-	Rotation saved_rotation;
-	DisplayModeRec saved_mode;
 	uint32_t *output_ids;
 	int output_count = 0;
 	int ret = TRUE;
@@ -282,22 +279,12 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		}
 	}
 
-	saved_mode = crtc->mode;
-	saved_x = crtc->x;
-	saved_y = crtc->y;
-	saved_rotation = crtc->rotation;
-
-	crtc->mode = *mode;
-	crtc->x = x;
-	crtc->y = y;
-	crtc->rotation = rotation;
-	crtc->transformPresent = FALSE;
+	if (!xf86CrtcRotate(crtc))
+		return FALSE;
 
 	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
-	if (!output_ids) {
-		ret = FALSE;
-		goto done;
-	}
+	if (!output_ids)
+		return FALSE;
 
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
@@ -312,9 +299,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		output_count++;
 	}
 
-	if (!xf86CrtcRotate(crtc))
-		goto done;
-
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 	fb_id = drmmode->fb_id;
@@ -326,11 +310,13 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			     fb_id, x, y, output_ids, output_count, &kmode);
-	if (ret)
+	xfree(output_ids);
+
+	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s", strerror(-ret));
-	else
-		ret = TRUE;
+		return FALSE;
+	}
 
 	/* Work around some xserver stupidity */
 	for (i = 0; i < xf86_config->num_output; i++) {
@@ -344,18 +330,10 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
 			       crtc->gamma_blue, crtc->gamma_size);
-	crtc->active = TRUE;
 
 	xf86_reload_cursors(crtc->scrn->pScreen);
 
-done:
-	if (!ret) {
-		crtc->x = saved_x;
-		crtc->y = saved_y;
-		crtc->rotation = saved_rotation;
-		crtc->mode = saved_mode;
-	}
-	return ret;
+	return TRUE;
 }
 
 static void
