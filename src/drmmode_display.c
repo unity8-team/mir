@@ -367,77 +367,6 @@ done:
 	return ret;
 }
 
-#define SOURCE_MASK_INTERLEAVE 32
-#define TRANSPARENT_PIXEL   0
-
-/*
- * Convert a source/mask bitmap cursor to an ARGB cursor, clipping or
- * padding as necessary. source/mask are assumed to be alternated each
- * SOURCE_MASK_INTERLEAVE bits.
- */
-void
-nv_cursor_convert_cursor(uint32_t *src, void *dst, int src_stride, int dst_stride,
-			 int bpp, uint32_t fg, uint32_t bg)
-{
-	int width = min(src_stride, dst_stride);
-	uint32_t b, m, pxval;
-	int i, j, k;
-
-	for (i = 0; i < width; i++) {
-		for (j = 0; j < width / SOURCE_MASK_INTERLEAVE; j++) {
-			int src_off = i*src_stride/SOURCE_MASK_INTERLEAVE + j;
-			int dst_off = i*dst_stride + j*SOURCE_MASK_INTERLEAVE;
-
-			b = src[2*src_off];
-			m = src[2*src_off + 1];
-
-			for (k = 0; k < SOURCE_MASK_INTERLEAVE; k++) {
-				pxval = TRANSPARENT_PIXEL;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-				if (m & 0x80000000)
-					pxval = (b & 0x80000000) ? fg : bg;
-				b <<= 1;
-				m <<= 1;
-#else
-				if (m & 1)
-					pxval = (b & 1) ? fg : bg;
-				b >>= 1;
-				m >>= 1;
-#endif
-				if (bpp == 32)
-					((uint32_t *)dst)[dst_off + k] = pxval;
-				else
-					((uint16_t *)dst)[dst_off + k] = pxval;
-			}
-		}
-	}
-}
-
-static void
-drmmode_reload_cursor_image(xf86CrtcPtr crtc)
-{
-	NVPtr pNv = NVPTR(crtc->scrn);
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	struct nouveau_bo *bo = drmmode_crtc->cursor;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-
-	nouveau_bo_map(bo, NOUVEAU_BO_WR);
-	nv_cursor_convert_cursor(pNv->curImage, bo->map, nv_cursor_width(pNv),
-				 64, 32, config->cursor_fg | (0xff << 24),
-				 config->cursor_bg | (0xff << 24));
-	nouveau_bo_unmap(bo);
-
-	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			bo->handle, 64, 64);
-}
-
-static void
-drmmode_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg)
-{
-	drmmode_reload_cursor_image(crtc);
-}
-
 static void
 drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 {
@@ -448,30 +377,32 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 }
 
 static void
-drmmode_load_cursor_image (xf86CrtcPtr crtc, CARD8 *image)
+convert_cursor(CARD32 *dst, CARD32 *src, int dw, int sw)
 {
-	NVPtr pNv = NVPTR(crtc->scrn);
+	int i, j;
 
-	/* save copy of image for colour changes */
-	memcpy(pNv->curImage, image, nv_cursor_pixels(pNv)/4);
-
-	drmmode_reload_cursor_image(crtc);
+	for (j = 0;  j < sw; j++) {
+		for (i = 0; i < sw; i++) {
+			dst[j * dw + i] = src[j * sw + i];
+		}
+	}
 }
 
 static void
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
+	NVPtr pNv = NVPTR(crtc->scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	struct nouveau_bo *cursor = drmmode_crtc->cursor;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
 	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-	memcpy(cursor->map, image, 64*64*4);
+	convert_cursor(cursor->map, image, 64, nv_cursor_width(pNv));
 	nouveau_bo_unmap(cursor);
 
 	if (drmmode_crtc->cursor_visible) {
 		drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-				cursor->handle, 64, 64);
+				 cursor->handle, 64, 64);
 	}
 }
 
@@ -607,11 +538,9 @@ drmmode_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.dpms = drmmode_crtc_dpms,
 	.set_mode_major = drmmode_set_mode_major,
-	.set_cursor_colors = drmmode_set_cursor_colors,
 	.set_cursor_position = drmmode_set_cursor_position,
 	.show_cursor = drmmode_show_cursor,
 	.hide_cursor = drmmode_hide_cursor,
-	.load_cursor_image = drmmode_load_cursor_image,
 	.load_cursor_argb = drmmode_load_cursor_argb,
 	.shadow_create = drmmode_crtc_shadow_create,
 	.shadow_allocate = drmmode_crtc_shadow_allocate,

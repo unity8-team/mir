@@ -53,8 +53,6 @@ typedef struct _NVRec {
     ScreenBlockHandlerProcPtr BlockHandler;
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr  CloseScreen;
-    /* Cursor */
-    uint32_t		curImage[256];
     void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
     XF86VideoAdaptorPtr	overlayAdaptor;
     XF86VideoAdaptorPtr	blitAdaptor;
@@ -203,13 +201,6 @@ nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
 static inline int nv_cursor_width(NVPtr pNv)
 {
 	return pNv->dev->chipset >= 0x10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
-}
-
-static inline int nv_cursor_pixels(NVPtr pNv)
-{
-	int width = nv_cursor_width(pNv);
-
-	return width * width;
 }
 
 #endif /* __NV_STRUCT_H__ */
