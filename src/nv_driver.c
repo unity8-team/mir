@@ -315,8 +315,6 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 /*
  * This is called when VT switching back to the X server.  Its job is
  * to reinitialise the video mode.
- *
- * We may wish to unmap video/MMIO memory too.
  */
 
 /* Mandatory */
@@ -333,9 +331,6 @@ NVEnterVT(int scrnIndex, int flags)
 	if (ret)
 		ErrorF("Unable to get master: %d\n", ret);
 
-	if (!pNv->NoAccel)
-		NVAccelCommonInit(pScrn);
-
 	pNv->allow_dpms = FALSE;
 	if (!xf86SetDesiredModes(pScrn))
 		return FALSE;
@@ -350,8 +345,6 @@ NVEnterVT(int scrnIndex, int flags)
 /*
  * This is called when VT switching away from the X server.  Its job is
  * to restore the previous (text) mode.
- *
- * We may wish to remap video/MMIO memory too.
  */
 
 /* Mandatory */
@@ -595,12 +588,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		i = pEnt->index;
 		xfree(pEnt);
 
-		if (xf86LoadSubModule(pScrn, "vbe")) {
-			vbeInfoPtr pVbe = VBEInit(NULL, i);
-			ConfiguredMonitor = vbeDoEDID(pVbe, NULL);
-			vbeFree(pVbe);
-		}
-
 		return TRUE;
 	}
 
@@ -731,11 +718,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (pScrn->defaultVisual != TrueColor) {
 		NVPreInitFail("Given default visual (%s) is not supported at depth %d\n",
 			      xf86GetVisualName(pScrn->defaultVisual), pScrn->depth);
-	}
-
-	/* The vgahw module should be loaded here when needed */
-	if (!xf86LoadSubModule(pScrn, "vgahw")) {
-		NVPreInitFail("\n");
 	}
 
 	/* We use a programmable clock */
@@ -905,7 +887,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 }
 
 /*
- * Unmap the framebuffer and MMIO memory.
+ * Unmap the framebuffer and offscreen memory.
  */
 
 static Bool
