@@ -291,9 +291,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->x = x;
 	crtc->y = y;
 	crtc->rotation = rotation;
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,5,99,0,0)
 	crtc->transformPresent = FALSE;
-#endif
 
 	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
 	if (!output_ids) {
@@ -314,13 +312,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		output_count++;
 	}
 
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,5,99,0,0)
-	if (!xf86CrtcRotate(crtc, mode, rotation))
-		goto done;
-#else
 	if (!xf86CrtcRotate(crtc))
 		goto done;
-#endif
 
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
@@ -349,11 +342,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		drmmode_output_dpms(output, DPMSModeOn);
 	}
 
-#if XF86_CRTC_VERSION >= 3
 	crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
 			       crtc->gamma_blue, crtc->gamma_size);
 	crtc->active = TRUE;
-#endif
 
 	xf86_reload_cursors(crtc->scrn->pScreen);
 
@@ -546,7 +537,6 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.shadow_allocate = drmmode_crtc_shadow_allocate,
 	.shadow_destroy = drmmode_crtc_shadow_destroy,
 	.gamma_set = drmmode_gamma_set,
-	.destroy = NULL, /* XXX */
 };
 
 
@@ -873,7 +863,6 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 	return TRUE;
 }
 
-#ifdef RANDR_13_INTERFACE
 static Bool
 drmmode_output_get_property(xf86OutputPtr output, Atom property)
 {
@@ -922,28 +911,15 @@ drmmode_output_get_property(xf86OutputPtr output, Atom property)
 
 	return FALSE;
 }
-#endif
 
 static const xf86OutputFuncsRec drmmode_output_funcs = {
 	.create_resources = drmmode_output_create_resources,
 	.dpms = drmmode_output_dpms,
-#if 0
-
-	.save = drmmode_crt_save,
-	.restore = drmmode_crt_restore,
-	.mode_fixup = drmmode_crt_mode_fixup,
-	.prepare = drmmode_output_prepare,
-	.mode_set = drmmode_crt_mode_set,
-	.commit = drmmode_output_commit,
-#endif
 	.detect = drmmode_output_detect,
 	.mode_valid = drmmode_output_mode_valid,
-
 	.get_modes = drmmode_output_get_modes,
 	.set_property = drmmode_output_set_property,
-#ifdef RANDR_13_INTERFACE
 	.get_property = drmmode_output_get_property,
-#endif
 	.destroy = drmmode_output_destroy
 };
 
