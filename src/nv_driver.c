@@ -502,6 +502,7 @@ NVCloseDRM(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	nouveau_device_close(&pNv->dev);
+	drmFree(pNv->drm_device_name);
 }
 
 static Bool
@@ -555,7 +556,6 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	if (!ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] error opening the drm\n");
-		xfree(bus_id);
 		return FALSE;
 	}
 
@@ -566,6 +566,8 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 			   "[drm] error creating device\n");
 		return FALSE;
 	}
+
+	pNv->drm_device_name = drmGetDeviceNameFromFd(DRIMasterFD(pScrn));
 
 	return TRUE;
 }

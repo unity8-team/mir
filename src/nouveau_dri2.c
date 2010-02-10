@@ -122,37 +122,6 @@ nouveau_dri2_init(ScreenPtr pScreen)
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	DRI2InfoRec dri2;
-	char *bus_id, *tmp_bus_id;
-	int cmp, i, fd;
-
-	/* The whole drmOpen thing is a fiasco and we need to find a way
-	 * back to just using open(2).  For now, however, lets just make
-	 * things worse with even more ad hoc directory walking code to
-	 * discover the device file name. */
-	bus_id = DRICreatePCIBusID(pNv->PciInfo);
-	for (i = 0; i < DRM_MAX_MINOR; i++) {
-		sprintf(pNv->drm_device_name, DRM_DEV_NAME, DRM_DIR_NAME, i);
-		fd = open(pNv->drm_device_name, O_RDWR);
-		if (fd < 0)
-			continue;
-
-		tmp_bus_id = drmGetBusid(fd);
-		close(fd);
-		if (tmp_bus_id == NULL)
-			continue;
-
-		cmp = strcmp(tmp_bus_id, bus_id);
-		drmFree(tmp_bus_id);
-		if (cmp == 0)
-			break;
-	}
-	xfree(bus_id);
-
-	if (i == DRM_MAX_MINOR) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "DRI2: failed to open drm device\n");
-		return FALSE;
-	}
 
 	if (pNv->Architecture >= NV_ARCH_30)
 		dri2.driverName = "nouveau";
