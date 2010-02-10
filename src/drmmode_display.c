@@ -489,6 +489,8 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
+	drm_intel_bo_disable_reuse(drmmode_crtc->rotate_bo);
+
 	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
 			   crtc->scrn->bitsPerPixel, rotate_pitch,
 			   drmmode_crtc->rotate_bo->handle,
