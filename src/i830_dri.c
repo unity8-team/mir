@@ -322,32 +322,56 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		int y1, y2;
 		int pipe = -1, event, load_scan_lines_pipe;
 		xf86CrtcPtr crtc;
+		Bool full_height = FALSE;
 
 		box = REGION_EXTENTS(unused, gc->pCompositeClip);
 		crtc = i830_covering_crtc(scrn, box, NULL, &crtcbox);
 
-		/* Make sure the CRTC is valid and this is the real front buffer */
+		/*
+		 * Make sure the CRTC is valid and this is the real front
+		 * buffer
+		 */
 		if (crtc != NULL && !crtc->rotatedData) {
 			pipe = i830_crtc_to_pipe(crtc);
+
+			/*
+			 * Make sure we don't wait for a scanline that will
+			 * never occur
+			 */
+			y1 = (crtcbox.y1 <= box->y1) ? box->y1 - crtcbox.y1 : 0;
+			y2 = (box->y2 <= crtcbox.y2) ?
+			    box->y2 - crtcbox.y1 : crtcbox.y2 - crtcbox.y1;
+
+			if (y1 == 0 && y2 == (crtcbox.y2 - crtcbox.y1))
+			    full_height = TRUE;
+
+			/*
+			 * Pre-965 doesn't have SVBLANK, so we need a bit
+			 * of extra time for the blitter to start up and
+			 * do its job for a full height blit
+			 */
+			if (full_height && !IS_I965G(intel))
+			    y2 -= 2;
 
 			if (pipe == 0) {
 				event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
 				load_scan_lines_pipe =
 				    MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
+				if (full_height && IS_I965G(intel))
+				    event = MI_WAIT_FOR_PIPEA_SVBLANK;
 			} else {
 				event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 				load_scan_lines_pipe =
 				    MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+				if (full_height && IS_I965G(intel))
+				    event = MI_WAIT_FOR_PIPEB_SVBLANK;
 			}
 
-			/* Make sure we don't wait for a scanline that will never occur */
-			y1 = (crtcbox.y1 <= box->y1) ? box->y1 - crtcbox.y1 : 0;
-			y2 = (box->y2 <= crtcbox.y2) ?
-			    box->y2 - crtcbox.y1 : crtcbox.y2 - crtcbox.y1;
-
 			BEGIN_BATCH(5);
-			/* The documentation says that the LOAD_SCAN_LINES command
-			 * always comes in pairs. Don't ask me why. */
+			/*
+			 * The documentation says that the LOAD_SCAN_LINES
+			 * command always comes in pairs. Don't ask me why.
+			 */
 			OUT_BATCH(MI_LOAD_SCAN_LINES_INCL |
 				  load_scan_lines_pipe);
 			OUT_BATCH((y1 << 16) | y2);
