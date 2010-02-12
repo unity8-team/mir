@@ -140,10 +140,6 @@ typedef struct tagREF_TRANSFORM
 #define RTFContrast(a)   (1.0 + ((a)*1.0)/1000.0)
 #define RTFHue(a)   (((a)*3.1416)/1000.0)
 
-xf86CrtcPtr
-radeon_xv_pick_best_crtc(ScrnInfoPtr pScrn,
-			 int x1, int x2, int y1, int y2);
-
 void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONResetI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 

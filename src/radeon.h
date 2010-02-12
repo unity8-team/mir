@@ -1319,6 +1319,8 @@ extern void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode);
 extern void RADEONInitVideo(ScreenPtr pScreen);
 extern void RADEONResetVideo(ScrnInfoPtr pScrn);
 extern Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn);
+extern xf86CrtcPtr radeon_pick_best_crtc(ScrnInfoPtr pScrn,
+					 int x1, int x2, int y1, int y2);
 
 /* radeon_legacy_memory.c */
 extern uint32_t

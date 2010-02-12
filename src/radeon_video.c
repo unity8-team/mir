@@ -136,8 +136,8 @@ radeon_box_area(BoxPtr box)
 }
 
 xf86CrtcPtr
-radeon_xv_pick_best_crtc(ScrnInfoPtr pScrn,
-			 int x1, int x2, int y1, int y2)
+radeon_pick_best_crtc(ScrnInfoPtr pScrn,
+		      int x1, int x2, int y1, int y2)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int			coverage, best_coverage, c;
