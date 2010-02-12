@@ -784,6 +784,10 @@ struct radeon_accel_state {
     // composite
     Bool              component_alpha;
     Bool              src_alpha;
+    // vline
+    xf86CrtcPtr       vline_crtc;
+    int               vline_y1;
+    int               vline_y2;
 #endif
 
 #ifdef USE_XAA
