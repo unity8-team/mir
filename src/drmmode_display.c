@@ -652,9 +652,6 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 	drmmode_ptr drmmode = drmmode_output->drmmode;
 	int mode_id = -1, i;
 
-	if (!NVPTR(output->scrn)->allow_dpms)
-		return;
-
 	for (i = 0; i < koutput->count_props; i++) {
 		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
 		if (props && (props->flags && DRM_MODE_PROP_ENUM)) {

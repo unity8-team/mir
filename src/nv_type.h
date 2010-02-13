@@ -69,7 +69,6 @@ typedef struct _NVRec {
     drmVersionPtr       pKernelDRMVersion;
 
 	void *drmmode; /* for KMS */
-	Bool allow_dpms;
 
 	/* DRM interface */
 	struct nouveau_device *dev;

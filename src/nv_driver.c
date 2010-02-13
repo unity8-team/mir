@@ -331,10 +331,8 @@ NVEnterVT(int scrnIndex, int flags)
 	if (ret)
 		ErrorF("Unable to get master: %d\n", ret);
 
-	pNv->allow_dpms = FALSE;
 	if (!xf86SetDesiredModes(pScrn))
 		return FALSE;
-	pNv->allow_dpms = TRUE;
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
 		NV10WriteOverlayParameters(pScrn);
