@@ -980,7 +980,7 @@ void RADEONCopySwap(uint8_t *dst, uint8_t *src, unsigned int size, int swap)
 	}
     }
     if (src != dst)
-	    memmove(dst, src, size);
+	memcpy(dst, src, size);
 }
 
 /* Copies a single pass worth of data for a hostdata blit set up by
