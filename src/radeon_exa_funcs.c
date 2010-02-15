@@ -227,7 +227,7 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 
     if (info->accel_state->vsync)
 	FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix,
-				      radeon_pick_best_crtc(pScrn, x1, y1, x2, y2),
+				      radeon_pick_best_crtc(pScrn, x1, x2, y1, y2),
 				      y1, y2);
 
     BEGIN_ACCEL(2);
@@ -348,7 +348,7 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 
     if (info->accel_state->vsync)
 	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst,
-				      radeon_pick_best_crtc(pScrn, dstX, dstY, dstX + w, dstY + h),
+				      radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
 				      dstY, dstY + h);
 
     BEGIN_ACCEL(3);
@@ -386,7 +386,7 @@ RADEONUploadToScreenCP(PixmapPtr pDst, int x, int y, int w, int h,
 
 	if (info->accel_state->vsync)
 	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst,
-					  radeon_pick_best_crtc(pScrn, x, y, x + w, y + h),
+					  radeon_pick_best_crtc(pScrn, x, x + w, y, y + h),
 					  y, y + h);
 
 	while ((buf = RADEONHostDataBlit(pScrn,

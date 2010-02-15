@@ -2256,7 +2256,7 @@ static void FUNC_NAME(RadeonCompositeTile)(ScrnInfoPtr pScrn,
 
     if (info->accel_state->vsync)
 	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst,
-				      radeon_pick_best_crtc(pScrn, dstX, dstY, dstX + w, dstY + h),
+				      radeon_pick_best_crtc(pScrn, dstX, dstX + w, dstY, dstY + h),
 				      dstY, dstY + h);
 
 #ifdef ACCEL_CP
