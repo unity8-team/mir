@@ -2950,7 +2950,7 @@ RADEONPutImage(
    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn, &pPriv->video_memory,
 						       (pPriv->doubleBuffer ?
 						       (new_size * 2) : new_size), 64,
-						       RADEON_GEM_DOMAIN_GTT);
+						       RADEON_GEM_DOMAIN_VRAM);
    if (pPriv->video_offset == 0)
       return BadAlloc;
 
@@ -3181,7 +3181,7 @@ RADEONAllocateSurface(
     size = pitch * h;
 
     offset = radeon_legacy_allocate_memory(pScrn, &surface_memory, size, 64,
-		    RADEON_GEM_DOMAIN_GTT);
+		    RADEON_GEM_DOMAIN_VRAM);
     if (offset == 0)
 	return BadAlloc;
 
