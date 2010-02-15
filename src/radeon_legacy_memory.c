@@ -15,7 +15,8 @@ uint32_t
 radeon_legacy_allocate_memory(ScrnInfoPtr pScrn,
 		       void **mem_struct,
 		       int size,
-		       int align)
+		       int align,
+		       int domain)
 {
     ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -25,7 +26,7 @@ radeon_legacy_allocate_memory(ScrnInfoPtr pScrn,
     if (info->cs) {
 	struct radeon_bo *video_bo;
 
-	video_bo = radeon_bo_open(info->bufmgr, 0, size, 4096, 0, 0);
+	video_bo = radeon_bo_open(info->bufmgr, 0, size, 4096, domain, 0);
 
 	*mem_struct = video_bo;
 

@@ -564,7 +564,8 @@ radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
      * setter for offscreen area locking in EXA currently.  So, we just
      * allocate offscreen memory and fake up a pixmap header for it.
      */
-    rotate_offset = radeon_legacy_allocate_memory(pScrn, &radeon_crtc->crtc_rotate_mem, size, align);
+    rotate_offset = radeon_legacy_allocate_memory(pScrn, &radeon_crtc->crtc_rotate_mem,
+		    size, align, RADEON_GEM_DOMAIN_VRAM);
     if (rotate_offset == 0)
 	return NULL;
 

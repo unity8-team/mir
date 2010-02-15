@@ -420,7 +420,8 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 	    int align = IS_AVIVO_VARIANT ? 4096 : 256;
 
 	    radeon_crtc->cursor_offset =
-		radeon_legacy_allocate_memory(pScrn, &radeon_crtc->cursor_mem, size_bytes, align);
+		radeon_legacy_allocate_memory(pScrn, &radeon_crtc->cursor_mem,
+				size_bytes, align, RADEON_GEM_DOMAIN_VRAM);
 
 	    if (radeon_crtc->cursor_offset == 0)
 		return FALSE;

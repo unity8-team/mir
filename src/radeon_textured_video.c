@@ -318,14 +318,16 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     if (pPriv->video_memory == NULL) {
 	pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
 							    &pPriv->video_memory,
-							    size, hw_align + 1);
+							    size, hw_align + 1,
+							    RADEON_GEM_DOMAIN_GTT);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
 
 	if (info->cs) {
 	    pPriv->src_bo[0] = pPriv->video_memory;
 	    radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
-					  hw_align + 1);
+					  hw_align + 1,
+					  RADEON_GEM_DOMAIN_GTT);
 	}
     }
 
@@ -709,7 +711,8 @@ Bool radeon_load_bicubic_texture(ScrnInfoPtr pScrn)
     /* Bicubic filter loading */
     info->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
 							 &info->bicubic_memory,
-							 sizeof(bicubic_tex_512), 64);
+							 sizeof(bicubic_tex_512), 64,
+							 RADEON_GEM_DOMAIN_VRAM);
     if (info->bicubic_offset == 0)
 	return FALSE;
 

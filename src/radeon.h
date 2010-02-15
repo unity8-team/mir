@@ -1331,7 +1331,8 @@ extern uint32_t
 radeon_legacy_allocate_memory(ScrnInfoPtr pScrn,
 			      void **mem_struct,
 			      int size,
-			      int align);
+			      int align,
+			      int domain);
 extern void
 radeon_legacy_free_memory(ScrnInfoPtr pScrn,
 		          void *mem_struct);
