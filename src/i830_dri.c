@@ -269,29 +269,6 @@ static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 
 #endif
 
-static int
-I830DRI2DrawablePipe(DrawablePtr pDraw)
-{
-    ScreenPtr pScreen = pDraw->pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    BoxRec box, crtcbox;
-    xf86CrtcPtr crtc;
-    int pipe = -1;
-
-    box.x1 = pDraw->x;
-    box.y1 = pDraw->y;
-    box.x2 = box.x1 + pDraw->width;
-    box.y2 = box.y1 + pDraw->height;
-
-    crtc = i830_covering_crtc(pScrn, &box, NULL, &crtcbox);
-
-    /* Make sure the CRTC is valid and this is the real front buffer */
-    if (crtc != NULL && !crtc->rotatedData)
-	pipe = i830_crtc_to_pipe(crtc);
-
-    return pipe;
-}
-
 static void
 I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		   DRI2BufferPtr destBuffer, DRI2BufferPtr sourceBuffer)
@@ -424,6 +401,29 @@ typedef struct _DRI2FrameEvent {
     DRI2BufferPtr	front;
     DRI2BufferPtr	back;
 } DRI2FrameEventRec, *DRI2FrameEventPtr;
+
+static int
+I830DRI2DrawablePipe(DrawablePtr pDraw)
+{
+    ScreenPtr pScreen = pDraw->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    BoxRec box, crtcbox;
+    xf86CrtcPtr crtc;
+    int pipe = -1;
+
+    box.x1 = pDraw->x;
+    box.y1 = pDraw->y;
+    box.x2 = box.x1 + pDraw->width;
+    box.y2 = box.y1 + pDraw->height;
+
+    crtc = i830_covering_crtc(pScrn, &box, NULL, &crtcbox);
+
+    /* Make sure the CRTC is valid and this is the real front buffer */
+    if (crtc != NULL && !crtc->rotatedData)
+	pipe = i830_crtc_to_pipe(crtc);
+
+    return pipe;
+}
 
 static void
 I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
