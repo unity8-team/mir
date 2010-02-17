@@ -223,7 +223,8 @@ typedef enum {
     OPTION_R4XX_ATOM,
     OPTION_FORCE_LOW_POWER,
     OPTION_DYNAMIC_PM,
-    OPTION_NEW_PLL
+    OPTION_NEW_PLL,
+    OPTION_ZAPHOD_HEADS
 } RADEONOpts;
 
 
@@ -1236,6 +1237,9 @@ extern void RADEONInitMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				      RADEONInfoPtr info);
 extern void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore);
+extern Bool
+RADEONZaphodStringMatches(ScrnInfoPtr pScrn, Bool is_primary,
+			  const char *s, char *output_name);
 
 Bool RADEONGetRec(ScrnInfoPtr pScrn);
 void RADEONFreeRec(ScrnInfoPtr pScrn);

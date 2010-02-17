@@ -854,6 +854,7 @@ const char *output_names[] = { "None",
 static void
 drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 {
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 	xf86OutputPtr output;
 	drmModeConnectorPtr koutput;
 	drmModeEncoderPtr *kencoders = NULL;
@@ -861,6 +862,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	drmModePropertyPtr props;
 	char name[32];
 	int i;
+	const char *s;
 
 	koutput = drmModeGetConnector(drmmode->fd, drmmode->mode_res->connectors[num]);
 	if (!koutput)
@@ -870,7 +872,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	if (!kencoders) {
 		goto out_free_encoders;
 	}
-		
+
 	for (i = 0; i < koutput->count_encoders; i++) {
 		kencoders[i] = drmModeGetEncoder(drmmode->fd, koutput->encoders[i]);
 		if (!kencoders[i]) {
@@ -895,6 +897,11 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	    }
 	} else {
 	    snprintf(name, 32, "%s-%d", output_names[koutput->connector_type], koutput->connector_type_id - 1);
+	}
+
+	if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS))) {
+		if (!RADEONZaphodStringMatches(pScrn, info->IsPrimary, s, name))
+		    goto out_free_encoders;
 	}
 
 	output = xf86OutputCreate (pScrn, &drmmode_output_funcs, name);

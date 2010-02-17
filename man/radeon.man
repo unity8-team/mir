@@ -614,6 +614,16 @@ to determine whether to allow EXA to use VRAM for non-essential pixmaps.
 This option allows us to override the heurisitc.
 The default is
 .B on with > 32MB VRAM, off with < 32MB.
+.TP
+.BI "Option \*qZaphodHeads\*q \*q" string \*q
+Specify the randr outputs to use with zaphod mode. If you do not specify
+an outputs, the driver will pick them automatically.
+.br
+For example:
+.B
+Option \*qZaphodHeads\*q \*qLVDS,VGA-0\*q
+will assign xrandr output LVDS to the first instance of the driver and
+VGA-0 to the second instance.
 
 .SH TEXTURED VIDEO ATTRIBUTES
 The driver supports the following X11 Xv attributes for Textured Video.

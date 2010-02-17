@@ -66,9 +66,10 @@ const OptionInfoRec RADEONOptions_KMS[] = {
     { OPTION_SUBPIXEL_ORDER, "SubPixelOrder",    OPTV_ANYSTR,  {0}, FALSE },
     { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
     { OPTION_DRI,            "DRI",       	 OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_TVSTD,          "TVStandard",         OPTV_STRING,  {0}, FALSE },
-    { OPTION_EXA_VSYNC,         "EXAVSync",        OPTV_BOOLEAN, {0}, FALSE },
-    { OPTION_EXA_PIXMAPS,   "EXAPixmaps",	OPTV_BOOLEAN,   {0}, FALSE },
+    { OPTION_TVSTD,          "TVStandard",       OPTV_STRING,  {0}, FALSE },
+    { OPTION_EXA_VSYNC,      "EXAVSync",         OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_EXA_PIXMAPS,    "EXAPixmaps",	 OPTV_BOOLEAN,   {0}, FALSE },
+    { OPTION_ZAPHOD_HEADS,   "ZaphodHeads",      OPTV_STRING,  {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -369,6 +370,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     int zaphod_mask = 0;
     char *bus_id;
     Gamma  zeros = { 0.0, 0.0, 0.0 };
+    const char *s;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONPreInit_KMS\n");
@@ -430,6 +432,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	zaphod_mask = 0xd;
     if (info->IsSecondary)
 	zaphod_mask = 0x2;
+    if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS)))
+	zaphod_mask = 0xf;
 
     info->allowColorTiling = xf86ReturnOptValBool(info->Options,
                                         OPTION_COLOR_TILING, FALSE);

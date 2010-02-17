@@ -206,6 +206,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_FORCE_LOW_POWER,	"ForceLowPowerMode", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DYNAMIC_PM,	"DynamicPM",       OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_NEW_PLL,	        "NewPLL",        OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_ZAPHOD_HEADS,      "ZaphodHeads",     OPTV_STRING,  {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -2786,19 +2787,69 @@ RADEONPreInitBIOS(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     return TRUE;
 }
 
+Bool
+RADEONZaphodStringMatches(ScrnInfoPtr pScrn, Bool is_primary,
+			  const char *s, char *output_name)
+{
+    int i = 0, second = 0;
+    char s1[20], s2[20];
+
+    do {
+	switch(*s) {
+	case ',':
+	    s1[i] = '\0';
+	    i = 0;
+	    second = 1;
+	    break;
+	case ' ':
+	case '\t':
+	case '\n':
+	case '\r':
+	    break;
+	default:
+	    if (second)
+		s2[i] = *s;
+	    else
+		s1[i] = *s;
+	    i++;
+	    break;
+	}
+    } while(*s++);
+    s2[i] = '\0';
+
+    if (is_primary) {
+	if (strcmp(s1, output_name) == 0)
+	    return TRUE;
+    } else {
+	if (strcmp(s2, output_name) == 0)
+	    return TRUE;
+    }
+
+    return FALSE;
+}
+
 static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int o;
+    char *s;
 
-    if (info->IsPrimary) {
-	xf86OutputDestroy(config->output[0]);
-	while(config->num_output > 1) {
-	    xf86OutputDestroy(config->output[1]);
+    if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS))) {
+	for (o = 0; o < config->num_output; o++) {
+	    if (!RADEONZaphodStringMatches(pScrn, info->IsPrimary, s, config->output[o]->name))
+		xf86OutputDestroy(config->output[o]);
 	}
     } else {
-	while(config->num_output > 1) {
-	    xf86OutputDestroy(config->output[1]);
+	if (info->IsPrimary) {
+	    xf86OutputDestroy(config->output[0]);
+	    while(config->num_output > 1) {
+		xf86OutputDestroy(config->output[1]);
+	    }
+	} else {
+	    while(config->num_output > 1) {
+		xf86OutputDestroy(config->output[1]);
+	    }
 	}
     }
 }
