@@ -109,6 +109,10 @@ void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib)
 	ret = radeon_cs_space_check(info->cs);
 	if (ret)
 	    ErrorF("space check failed in flush\n");
+	if (info->dri2.enabled) {
+		info->accel_state->XInited3D = FALSE;
+		info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
+	}
     }
 #endif
     if (!ib) return;
