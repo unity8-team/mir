@@ -231,15 +231,7 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	xf86DrvMsg(-1, X_INFO, "[drm] nouveau interface version: %d.%d.%d\n",
 		   version->version_major, version->version_minor,
 		   version->version_patchlevel);
-
-	ret = !(version->version_patchlevel == NOUVEAU_DRM_HEADER_PATCHLEVEL);
 	drmFree(version);
-	if (ret) {
-		xf86DrvMsg(-1, X_ERROR,
-			   "[drm] wrong version, expecting 0.0.%d\n",
-			   NOUVEAU_DRM_HEADER_PATCHLEVEL);
-		return FALSE;
-	}
 
 	chipset = dev->chipset;
 	nouveau_device_close(&dev);

@@ -11,7 +11,6 @@
 #include "dri.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include "nouveau_drm.h"
 #include "nouveau_device.h"
 #include "xf86Crtc.h"
 #else
