@@ -1667,6 +1667,16 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
+    /* RS600 board lists the DVI port as HDMI */
+    if ((info->Chipset == PCI_CHIP_RS600_7941) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1849) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x7941)) {
+	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) &&
+	    (info->BiosConnector[index].devices & ATOM_DEVICE_DFP3_SUPPORT)) {
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
+	}
+    }
+
     /* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
     if ((info->Chipset == PCI_CHIP_RS600_7941) &&
 	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x147b) &&
