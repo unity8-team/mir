@@ -326,7 +326,6 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 			  (FILTER_LINEAR << TM0S3_MIN_FILTER_SHIFT));
 		break;
 	default:
-		filter = 0;
 		FatalError("Bad filter 0x%x\n", picture->filter);
 	}
 	filter |= (MIPFILTER_NONE << TM0S3_MIP_FILTER_SHIFT);

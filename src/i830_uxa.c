@@ -156,7 +156,7 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		 */
 		size = *stride * ALIGN(h, 2);
 	} else {
-		int aligned_h = h;
+		int aligned_h;
 		if (*tiling == I915_TILING_X)
 			aligned_h = ALIGN(h, 8);
 		else
@@ -189,7 +189,6 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	unsigned long pitch;
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
 		i830_get_pixmap_bo(pixmap),
@@ -212,8 +211,6 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 
 	if (!intel_check_pitch_2d(pixmap))
 		return FALSE;
-
-	pitch = i830_pixmap_pitch(pixmap);
 
 	if (!i830_pixmap_pitch_is_aligned(pixmap)) {
 		intel_debug_fallback(scrn, "pixmap pitch not aligned");

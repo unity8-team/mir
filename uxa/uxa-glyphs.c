@@ -743,7 +743,6 @@ uxa_glyphs(CARD8 op,
 	   INT16 xSrc,
 	   INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 {
-	PicturePtr pPicture;
 	PixmapPtr pMaskPixmap = 0;
 	PicturePtr pMask;
 	ScreenPtr pScreen = pDst->pDrawable->pScreen;
@@ -837,7 +836,6 @@ uxa_glyphs(CARD8 op,
 		n = list->len;
 		while (n--) {
 			glyph = *glyphs++;
-			pPicture = GlyphPicture(glyph)[pScreen->myNum];
 
 			if (glyph->info.width > 0 && glyph->info.height > 0 &&
 			    uxa_buffer_glyph(pScreen, &buffer, glyph, x,

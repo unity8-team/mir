@@ -445,7 +445,6 @@ static Bool intel_pci_probe (DriverPtr		driver,
 			     intptr_t		match_data)
 {
     ScrnInfoPtr	    scrn = NULL;
-    EntityInfoPtr   entity;
 
     scrn = xf86ConfigPciEntity (scrn, 0, entity_num, I810PciChipsets,
 				NULL,
@@ -457,8 +456,6 @@ static Bool intel_pci_probe (DriverPtr		driver,
 	scrn->name = I810_NAME;
 	scrn->Probe = NULL;
 
-	entity = xf86GetEntityInfo (entity_num);
-	
 	switch (DEVICE_ID(device)) {
 #ifndef I830_ONLY
 	case PCI_CHIP_I810:
@@ -825,7 +822,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
       }
       if (!pI810->MaxClock)
 	 pI810->MaxClock = pI810->pEnt->device->dacSpeeds[0];
-      from = X_CONFIG;
    } else {
       switch (pScrn->bitsPerPixel) {
       case 8:
@@ -961,16 +957,9 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
 static Bool
 I810MapMMIO(ScrnInfoPtr pScrn)
 {
-   int mmioFlags;
    I810Ptr pI810 = I810PTR(pScrn);
    struct pci_device *const device = pI810->PciInfo;
    int err;
-
-#if !defined(__alpha__)
-   mmioFlags = VIDMEM_MMIO | VIDMEM_READSIDEEFFECT;
-#else
-   mmioFlags = VIDMEM_MMIO | VIDMEM_READSIDEEFFECT | VIDMEM_SPARSE;
-#endif
 
    err = pci_device_map_range (device,
 			       pI810->MMIOAddr,
@@ -1456,7 +1445,7 @@ I810CalcVCLK(ScrnInfoPtr pScrn, double freq)
    I810Ptr pI810 = I810PTR(pScrn);
    I810RegPtr i810Reg = &pI810->ModeReg;
    int m, n, p;
-   double f_out, f_best;
+   double f_out;
    double f_err;
    double f_vco;
    int m_best = 0, n_best = 0, p_best = 0;
@@ -1484,7 +1473,6 @@ I810CalcVCLK(ScrnInfoPtr pScrn, double freq)
       if (fabs(f_err) < err_max) {
 	 m_best = m;
 	 n_best = n;
-	 f_best = f_out;
 	 err_best = f_err;
       }
    } while ((fabs(f_err) >= err_target) &&
@@ -1685,12 +1673,10 @@ static void
 I810LoadPalette15(ScrnInfoPtr pScrn, int numColors, int *indices,
 		  LOCO * colors, VisualPtr pVisual)
 {
-   I810Ptr pI810;
    vgaHWPtr hwp;
    int i, j, index;
    unsigned char r, g, b;
 
-   pI810 = I810PTR(pScrn);
    hwp = VGAHWPTR(pScrn);
 
    for (i = 0; i < numColors; i++) {
@@ -1711,12 +1697,10 @@ static void
 I810LoadPalette16(ScrnInfoPtr pScrn, int numColors, int *indices,
 		  LOCO * colors, VisualPtr pVisual)
 {
-   I810Ptr pI810;
    vgaHWPtr hwp;
    int i, index;
    unsigned char r, g, b;
 
-   pI810 = I810PTR(pScrn);
    hwp = VGAHWPTR(pScrn);
 
    /* Load all four entries in each of the 64 color ranges.  -jens */
@@ -1777,12 +1761,10 @@ static void
 I810LoadPalette24(ScrnInfoPtr pScrn, int numColors, int *indices,
 		  LOCO * colors, VisualPtr pVisual)
 {
-   I810Ptr pI810;
    vgaHWPtr hwp;
    int i, index;
    unsigned char r, g, b;
 
-   pI810 = I810PTR(pScrn);
    hwp = VGAHWPTR(pScrn);
 
    for (i = 0; i < numColors; i++) {
@@ -1908,7 +1890,6 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    vgaHWPtr hwp;
    I810Ptr pI810;
    VisualPtr visual;
-   MessageType driFrom = X_DEFAULT;
 
    pScrn = xf86Screens[pScreen->myNum];
    pI810 = I810PTR(pScrn);
@@ -1957,8 +1938,6 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    
    if (pI810->directRenderingEnabled==TRUE)
      pI810->directRenderingEnabled = I810DRIScreenInit(pScreen);
-   else
-     driFrom = X_CONFIG;
 
 #else
    pI810->directRenderingEnabled = FALSE;
@@ -2014,7 +1993,6 @@ I810ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #ifdef XF86DRI
    if (pI810->LpRing->mem.Start == 0 && pI810->directRenderingEnabled) {
       pI810->directRenderingEnabled = FALSE;
-      driFrom = X_PROBED;
       I810DRICloseScreen(pScreen);
    }
 

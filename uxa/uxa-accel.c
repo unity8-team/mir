@@ -122,7 +122,7 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 		 int w, int h, int format, char *bits, int src_stride)
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDrawable->pScreen);
-	PixmapPtr pPix = uxa_get_drawable_pixmap(pDrawable);
+	PixmapPtr pPix;
 	RegionPtr pClip;
 	BoxPtr pbox;
 	int nbox;

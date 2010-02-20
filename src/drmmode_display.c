@@ -1322,7 +1322,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	i830_memory *old_front = NULL;
-	Bool	    tiled, ret;
+	Bool	    ret;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
 	uint32_t    old_fb_id;
 	int	    i, pitch, old_width, old_height, old_pitch;
@@ -1331,7 +1331,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		return TRUE;
 
 	pitch = i830_pad_drawable_width(width, intel->cpp);
-	tiled = i830_tiled_width(intel, &pitch, intel->cpp);
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "Allocate new frame buffer %dx%d stride %d\n",
 		   width, height, pitch);
@@ -1498,7 +1497,6 @@ drm_wakeup_handler(pointer data, int err, pointer p)
 Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	xf86CrtcConfigPtr   xf86_config;
 	struct drm_i915_getparam gp;
 	drmmode_ptr drmmode;
 	unsigned int i;
@@ -1509,7 +1507,6 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 	drmmode->fb_id = 0;
 
 	xf86CrtcConfigInit(scrn, &drmmode_xf86crtc_config_funcs);
-	xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 
 	drmmode->cpp = cpp;
 	drmmode->mode_res = drmModeGetResources(drmmode->fd);

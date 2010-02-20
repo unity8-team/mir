@@ -480,7 +480,6 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned int pitch = scrn->displayWidth * intel->cpp;
-	unsigned long minspace;
 	long size, fb_height;
 	int flags;
 	i830_memory *front_buffer = NULL;
@@ -492,12 +491,6 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 	 * rotation.
 	 */
 	fb_height = scrn->virtualY;
-
-	/* Calculate how much framebuffer memory to allocate.  For the
-	 * initial allocation, calculate a reasonable minimum.  This is
-	 * enough for the virtual screen size.
-	 */
-	minspace = pitch * scrn->virtualY;
 
 	size = ROUND_TO_PAGE(pitch * fb_height);
 

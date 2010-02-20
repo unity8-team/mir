@@ -232,24 +232,19 @@ const OptionInfoRec *I830AvailableOptions(int chipid, int busid)
 
 static Bool I830GetRec(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel;
-
 	if (scrn->driverPrivate)
 		return TRUE;
-	intel = scrn->driverPrivate = xnfcalloc(sizeof(intel_screen_private), 1);
+	scrn->driverPrivate = xnfcalloc(sizeof(intel_screen_private), 1);
+
 	return TRUE;
 }
 
 static void I830FreeRec(ScrnInfoPtr scrn)
 {
-	intel_screen_private *intel;
-
 	if (!scrn)
 		return;
 	if (!scrn->driverPrivate)
 		return;
-
-	intel = intel_get_screen_private(scrn);
 
 	xfree(scrn->driverPrivate);
 	scrn->driverPrivate = NULL;
