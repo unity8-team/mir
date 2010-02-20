@@ -18,7 +18,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SUBDIRS = xvmc bios_reader render_program
+SUBDIRS = xvmc render_program
 
 # this is obnoxious:
 # -module lets us name the module exactly how we want

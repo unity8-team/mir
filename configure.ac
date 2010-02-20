@@ -167,7 +167,6 @@ AC_OUTPUT([
 	src/xvmc/shader/Makefile
 	src/xvmc/shader/mc/Makefile
 	src/xvmc/shader/vld/Makefile
-	src/bios_reader/Makefile
 	man/Makefile
 	src/render_program/Makefile
 ])
