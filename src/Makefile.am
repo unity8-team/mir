@@ -92,8 +92,7 @@ intel_drv_la_SOURCES = \
 EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
 	$(INTEL_DRI_SRCS) \
-	$(INTEL_XVMC_SRCS) \
-	i830_display.h
+	$(INTEL_XVMC_SRCS)
 
 if DRI
 intel_drv_la_SOURCES += \

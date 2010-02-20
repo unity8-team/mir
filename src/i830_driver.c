@@ -67,7 +67,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <X11/extensions/Xv.h>
 #include "shadow.h"
 #include "i830.h"
-#include "i830_display.h"
 #include "i830_video.h"
 #if HAVE_SYS_MMAN_H && HAVE_MPROTECT
 #include <sys/mman.h>
