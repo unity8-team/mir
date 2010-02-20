@@ -1127,35 +1127,18 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	 * actual memory allocation, so alignment and things will cause less than
 	 * VideoRam to be actually used.
 	 */
-	if (intel->pEnt->device->videoRam == 0) {
-		from = X_DEFAULT;
-		scrn->videoRam = intel->FbMapSize / KB(1);
-	} else {
-#if 0
-		from = X_CONFIG;
-		scrn->videoRam = intel->pEnt->device->videoRam;
-#else
-		/* Disable VideoRam configuration, at least for now.  Previously,
-		 * VideoRam was necessary to avoid overly low limits on allocated
-		 * memory, so users created larger, yet still small, fixed allocation
-		 * limits in their config files.  Now, the driver wants to allocate more,
-		 * and the old intention of the VideoRam lines that had been entered is
-		 * obsolete.
-		 */
-		from = X_DEFAULT;
-		scrn->videoRam = intel->FbMapSize / KB(1);
-
+	scrn->videoRam = intel->FbMapSize / KB(1);
+	if (intel->pEnt->device->videoRam != 0) {
 		if (scrn->videoRam != intel->pEnt->device->videoRam) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "VideoRam configuration found, which is no longer "
-				   "recommended.\n");
+				   "VideoRam configuration found, which is no "
+				   "longer used.\n");
 			xf86DrvMsg(scrn->scrnIndex, X_INFO,
-				   "Continuing with default %dkB VideoRam instead of %d "
-				   "kB.\n",
+				   "Continuing with (ignored) %dkB VideoRam "
+				   "instead of %d kB.\n",
 				   scrn->videoRam,
 				   intel->pEnt->device->videoRam);
 		}
-#endif
 	}
 
 	scrn->videoRam = device->regions[fb_bar].size / 1024;
