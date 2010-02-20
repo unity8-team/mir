@@ -1103,7 +1103,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	VisualPtr visual;
+#ifdef INTEL_XVMC
 	MessageType from;
+#endif
 	struct pci_device *const device = intel->PciInfo;
 	int fb_bar = IS_I9XX(intel) ? 2 : 0;
 
