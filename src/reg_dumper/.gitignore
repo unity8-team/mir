@@ -1,7 +1,0 @@
-#		Add & Override for this directory and it's subdirectories
-intel_audio
-intel_gtt
-intel_hotplug
-intel_reg_dumper
-intel_statuspage
-intel_lid
