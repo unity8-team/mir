@@ -1,25 +1,11 @@
 noinst_PROGRAMS = \
-	intel_gtt \
-	intel_hotplug \
-	intel_lid
-
-intel_gtt_SOURCES = \
-	gtt.c \
-	reg_dumper.h \
-	util.c
+	intel_hotplug
 
 intel_hotplug_SOURCES = \
 	hotplug.c \
 	reg_dumper.h
 
-intel_lid_SOURCES = \
-	lid.c \
-	reg_dumper.h \
-	util.c
-
 intel_hotplug_LDADD = $(PCIACCESS_LIBS)
-intel_gtt_LDADD = $(PCIACCESS_LIBS)
-intel_lid_LDADD = $(PCIACCESS_LIBS)
 
 AM_CFLAGS = $(PCIACCESS_CFLAGS) $(CWARNFLAGS) \
 	-I$(srcdir)/.. -DREG_DUMPER
