@@ -77,7 +77,6 @@ intel_drv_la_SOURCES = \
          i830_video.c \
          i830_video.h \
 	 i830_reg.h \
-         i830_ring.h \
 	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \

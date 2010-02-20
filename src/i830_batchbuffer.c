@@ -35,7 +35,6 @@
 
 #include "xf86.h"
 #include "i830.h"
-#include "i830_ring.h"
 #include "i915_drm.h"
 
 #define DUMP_BATCHBUFFERS NULL /* "/tmp/i915-batchbuffers.dump" */
