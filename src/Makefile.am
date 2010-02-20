@@ -39,8 +39,7 @@ INTEL_DRI_SRCS = \
          i810_dri.c \
          i810_dri.h \
          i830_dri.c \
-         i810_hwmc.c \
-         i830_dri.h
+         i810_hwmc.c
 
 INTEL_XVMC_SRCS = \
 	 i830_hwmc.h \
@@ -70,7 +69,6 @@ intel_drv_la_SOURCES = \
          i830_accel.c \
          i830_batchbuffer.c \
          i830_batchbuffer.h \
-         i830_common.h \
          i830_driver.c \
          i830.h \
          i830_memory.c \

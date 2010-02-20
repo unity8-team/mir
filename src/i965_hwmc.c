@@ -33,7 +33,6 @@
 #include <fourcc.h>
 
 #include "i830.h"
-#include "i830_dri.h"
 #define _INTEL_XVMC_SERVER_
 #include "i830_hwmc.h"
 #include "i965_hwmc.h"

@@ -67,7 +67,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dri.h"
 #include "dri2.h"
 #include "GL/glxint.h"
-#include "i830_dri.h"
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
 

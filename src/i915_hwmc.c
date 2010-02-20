@@ -39,7 +39,6 @@
 #include "regionstr.h"
 
 #include "i830.h"
-#include "i830_dri.h"
 #include "i830_video.h"
 #include "xf86xv.h"
 #include "xf86xvmc.h"

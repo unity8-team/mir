@@ -61,7 +61,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "GL/glxtokens.h"
 
 #include "i830.h"
-#include "i830_dri.h"
 
 #include "i915_drm.h"
 
@@ -74,6 +73,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 extern XF86ModuleData dri2ModuleData;
 #endif
+
+typedef struct {
+    PixmapPtr pixmap;
+    unsigned int attachment;
+} I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
 #ifndef USE_DRI2_1_1_0
 static DRI2BufferPtr
