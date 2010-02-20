@@ -10,8 +10,7 @@ intel_gtt_SOURCES = \
 
 intel_hotplug_SOURCES = \
 	hotplug.c \
-	reg_dumper.h \
-	xprintf.c
+	reg_dumper.h
 
 intel_lid_SOURCES = \
 	lid.c \
