@@ -93,7 +93,6 @@ EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
 	$(INTEL_DRI_SRCS) \
 	$(INTEL_XVMC_SRCS) \
-	i830_bios.h \
 	i830_display.h
 
 if DRI
