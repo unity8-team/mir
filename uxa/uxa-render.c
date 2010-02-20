@@ -860,8 +860,10 @@ uxa_try_driver_composite(CARD8 op,
 	nbox = REGION_NUM_RECTS(&region);
 	pbox = REGION_RECTS(&region);
 
-	xMask = xMask + mask_off_x - xDst - dst_off_x;
-	yMask = yMask + mask_off_y - yDst - dst_off_y;
+	if (pMask) {
+		xMask = xMask + mask_off_x - xDst - dst_off_x;
+		yMask = yMask + mask_off_y - yDst - dst_off_y;
+	}
 
 	xSrc = xSrc + src_off_x - xDst - dst_off_x;
 	ySrc = ySrc + src_off_y - yDst - dst_off_y;
