@@ -460,11 +460,13 @@ RADEONComputePLL(ScrnInfoPtr pScrn,
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
     if (IS_AVIVO_VARIANT) {
-	if (xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, TRUE))
+	if (xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, TRUE)) {
+	    /* to match previous behavior */
+	    flags |= RADEON_PLL_USE_FRAC_FB_DIV;
 	    RADEONComputePLL_new(pll, freq, chosen_dot_clock_freq,
 				 chosen_feedback_div, chosen_frac_feedback_div,
 				 chosen_reference_div, chosen_post_div, flags);
-	else
+	} else
 	    RADEONComputePLL_old(pll, freq, chosen_dot_clock_freq,
 				 chosen_feedback_div, chosen_frac_feedback_div,
 				 chosen_reference_div, chosen_post_div, flags);
