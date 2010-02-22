@@ -1173,20 +1173,13 @@ extern void radeon_crtc_load_lut(xf86CrtcPtr crtc);
 extern void radeon_crtc_modeset_ioctl(xf86CrtcPtr crtc, Bool post);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask);
 extern void RADEONBlank(ScrnInfoPtr pScrn);
-extern void RADEONComputePLL(RADEONPLLPtr pll, unsigned long freq,
+extern void RADEONComputePLL(ScrnInfoPtr pScrn,
+			     RADEONPLLPtr pll, unsigned long freq,
 			     uint32_t *chosen_dot_clock_freq,
 			     uint32_t *chosen_feedback_div,
 			     uint32_t *chosen_frac_feedback_div,
 			     uint32_t *chosen_reference_div,
 			     uint32_t *chosen_post_div, int flags);
-extern void RADEONComputePLL_AVIVO(RADEONPLLPtr pll,
-				   unsigned long freq,
-				   uint32_t *chosen_dot_clock_freq,
-				   uint32_t *chosen_feedback_div,
-				   uint32_t *chosen_frac_feedback_div,
-				   uint32_t *chosen_reference_div,
-				   uint32_t *chosen_post_div,
-				   int flags);
 extern DisplayModePtr RADEONCrtcFindClosestMode(xf86CrtcPtr crtc,
 						DisplayModePtr pMode);
 extern void RADEONUnblank(ScrnInfoPtr pScrn);

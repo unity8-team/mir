@@ -132,15 +132,15 @@ static uint32_t RADEONDiv(CARD64 n, uint32_t d)
     return (n + (d / 2)) / d;
 }
 
-void
-RADEONComputePLL(RADEONPLLPtr pll,
-		 unsigned long freq,
-		 uint32_t *chosen_dot_clock_freq,
-		 uint32_t *chosen_feedback_div,
-		 uint32_t *chosen_frac_feedback_div,
-		 uint32_t *chosen_reference_div,
-		 uint32_t *chosen_post_div,
-		 int flags)
+static void
+RADEONComputePLL_old(RADEONPLLPtr pll,
+		     unsigned long freq,
+		     uint32_t *chosen_dot_clock_freq,
+		     uint32_t *chosen_feedback_div,
+		     uint32_t *chosen_frac_feedback_div,
+		     uint32_t *chosen_reference_div,
+		     uint32_t *chosen_post_div,
+		     int flags)
 {
     uint32_t min_ref_div = pll->min_ref_div;
     uint32_t max_ref_div = pll->max_ref_div;
@@ -306,79 +306,178 @@ RADEONComputePLL(RADEONPLLPtr pll,
 
 }
 
-void
-RADEONComputePLL_AVIVO(RADEONPLLPtr pll,
-		       unsigned long freq,
-		       uint32_t *chosen_dot_clock_freq,
-		       uint32_t *chosen_feedback_div,
-		       uint32_t *chosen_frac_feedback_div,
-		       uint32_t *chosen_reference_div,
-		       uint32_t *chosen_post_div,
-		       int flags)
+static Bool
+calc_fb_div(RADEONPLLPtr pll,
+            unsigned long freq,
+            int flags,
+            int post_div,
+	    int ref_div,
+            int *fb_div,
+            int *fb_div_frac)
 {
-    float m, n, frac_n, p, f_vco, f_pclk, best_freq;
-    float pll_out_max = pll->pll_out_max;
-    float pll_out_min = pll->pll_out_min;
-    float reference_freq = pll->reference_freq;
-    float pll_in_max = pll->pll_in_max;
-    float pll_in_min = pll->pll_in_min;
     float ffreq = freq / 10;
-    float error = 100;
+    float vco_freq = ffreq * post_div;
+    float feedback_divider = vco_freq * ref_div / pll->reference_freq;
 
-    ErrorF("ffreq: %f\n", ffreq * 10);
+    if (flags & RADEON_PLL_USE_FRAC_FB_DIV) {
+        feedback_divider = floor((feedback_divider * 10.0) + 0.5) * 0.1;
 
-    /* 1 - max p */
-    p = floor(pll_out_max / ffreq);
+	*fb_div = floor(feedback_divider);
+        *fb_div_frac = fmod(feedback_divider, 1.0) * 10.0;
 
-    /* 2 - min m */
-    m = ceil(reference_freq / pll_in_max);
+    } else {
+        *fb_div = floor(feedback_divider + 0.5);
+        *fb_div_frac = 0;
+    }
+    if ((*fb_div < pll->min_feedback_div) || (*fb_div > pll->max_feedback_div))
+        return FALSE;
+    else
+        return TRUE;
+}
 
-    while (error > 0.25) {
-	/* 3 - n */
-	n = (ffreq / reference_freq) * m * p;
+static Bool
+calc_fb_ref_div(RADEONPLLPtr pll,
+                unsigned long freq,
+                int flags,
+                int post_div,
+                int *fb_div,
+                int *fb_div_frac,
+                int *ref_div)
+{
+    float ffreq = freq / 10;
+    float max_error = ffreq * 0.0025;
+    float vco, error, pll_out;
 
-	/* 4 - vco out freq */
-	f_vco = (n / m) * reference_freq;
+    for ((*ref_div) = pll->min_ref_div; (*ref_div) < pll->max_ref_div; ++(*ref_div)) {
+        if (calc_fb_div(pll, freq, flags, post_div, (*ref_div), fb_div, fb_div_frac)) {
+            vco = pll->reference_freq * ((*fb_div) + ((*fb_div_frac) * 0.1)) / (*ref_div);
 
-	/* 5 - pclk freq */
-	f_pclk = f_vco / p;
+            if ((vco < pll->pll_out_min) || (vco > pll->pll_out_max))
+                continue;
 
-	/* 6 - error */
-	error = (abs(f_pclk - ffreq) / f_pclk) * 100;
+            pll_out = vco / post_div;
 
-	best_freq = reference_freq * (n / (m * p));
+            error = pll_out - ffreq;
+            if ((fabs(error) <= max_error) && (error >= 0))
+                return TRUE;
+        }
+    }
+    return FALSE;
+}
 
-	/* min error 0.25% */
-	if (error < 0.25)
-	    break;
+static void
+RADEONComputePLL_new(RADEONPLLPtr pll,
+		     unsigned long freq,
+		     uint32_t *chosen_dot_clock_freq,
+		     uint32_t *chosen_feedback_div,
+		     uint32_t *chosen_frac_feedback_div,
+		     uint32_t *chosen_reference_div,
+		     uint32_t *chosen_post_div,
+		     int flags)
+{
+    float ffreq = freq / 10;
+    float vco_frequency;
+    int fb_div = 0, fb_div_frac = 0, post_div = 0, ref_div = 0;
+    uint32_t best_freq = 0;
 
-	/* 7 - check m */
-	m++;
-	if ((reference_freq / m) >= pll_in_min)
-	    continue;
+    if (flags & RADEON_PLL_USE_POST_DIV) {
+        post_div = pll->post_div;
+        if ((post_div < pll->min_post_div) || (post_div > pll->max_post_div))
+            goto done;
+        vco_frequency = ffreq * post_div;
+        if ((vco_frequency < pll->pll_out_min) || (vco_frequency > pll->pll_out_max))
+            goto done;
 
-	/* 8 - check p */
-	m = ceil(reference_freq / pll_in_max);
-	p--;
-	if ((p * ffreq) >= pll_out_min)
-	    continue;
-	else
-	    FatalError("Couldn't find valid PLL dividers\n");
+        if (flags & RADEON_PLL_USE_REF_DIV) {
+            ref_div = pll->reference_div;
+            if ((ref_div < pll->min_ref_div) || (ref_div > pll->max_ref_div))
+                goto done;
+            if (!calc_fb_div(pll, freq, flags, post_div, ref_div, &fb_div, &fb_div_frac))
+                goto done;
+        }
+    } else {
+	for (post_div = pll->max_post_div; post_div >= pll->min_post_div; --post_div) {
+	    if (flags & RADEON_PLL_LEGACY) {
+		if ((post_div == 5) ||
+		    (post_div == 7) ||
+		    (post_div == 9) ||
+		    (post_div == 10) ||
+		    (post_div == 11))
+		    continue;
+	    }
+	    if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
+		continue;
+
+	    vco_frequency = ffreq * post_div;
+	    if ((vco_frequency < pll->pll_out_min) || (vco_frequency > pll->pll_out_max))
+		continue;
+	    if (flags & RADEON_PLL_USE_REF_DIV) {
+		ref_div = pll->reference_div;
+		if ((ref_div < pll->min_ref_div) || (ref_div > pll->max_ref_div))
+		    goto done;
+		if (calc_fb_div(pll, freq, flags, post_div, ref_div, &fb_div, &fb_div_frac))
+		    break;
+	    } else {
+		if (calc_fb_ref_div(pll, freq, flags, post_div, &fb_div, &fb_div_frac, &ref_div))
+		    break;
+	    }
+	}
     }
 
-    frac_n = (n - (int)n) * 10;
+    best_freq = pll->reference_freq * 10 * fb_div;
+    best_freq += pll->reference_freq * fb_div_frac;
+    best_freq = best_freq / (ref_div * post_div);
 
-    ErrorF("best_freq: %u\n", (unsigned int)best_freq * 10);
-    ErrorF("best_feedback_div: %d.%d\n", (int)n, (int)frac_n);
-    ErrorF("best_ref_div: %d\n", (int)m);
-    ErrorF("best_post_div: %d\n", (int)p);
+    ErrorF("best_freq: %u\n", (unsigned int)best_freq);
+    ErrorF("best_feedback_div: %u\n", (unsigned int)fb_div);
+    ErrorF("best_frac_feedback_div: %u\n", (unsigned int)fb_div_frac);
+    ErrorF("best_ref_div: %u\n", (unsigned int)ref_div);
+    ErrorF("best_post_div: %u\n", (unsigned int)post_div);
+
+done:
+    if (best_freq == 0)
+	FatalError("Couldn't find valid PLL dividers\n");
 
     *chosen_dot_clock_freq = best_freq;
-    *chosen_feedback_div = (uint32_t)n;
-    *chosen_frac_feedback_div = (uint32_t)frac_n;
-    *chosen_reference_div = (uint32_t)m;
-    *chosen_post_div = (uint32_t)p;
+    *chosen_feedback_div = fb_div;
+    *chosen_frac_feedback_div = fb_div_frac;
+    *chosen_reference_div = ref_div;
+    *chosen_post_div = post_div;
 
+}
+
+void
+RADEONComputePLL(ScrnInfoPtr pScrn,
+		 RADEONPLLPtr pll,
+		 unsigned long freq,
+		 uint32_t *chosen_dot_clock_freq,
+		 uint32_t *chosen_feedback_div,
+		 uint32_t *chosen_frac_feedback_div,
+		 uint32_t *chosen_reference_div,
+		 uint32_t *chosen_post_div,
+		 int flags)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    if (IS_AVIVO_VARIANT) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, TRUE))
+	    RADEONComputePLL_new(pll, freq, chosen_dot_clock_freq,
+				 chosen_feedback_div, chosen_frac_feedback_div,
+				 chosen_reference_div, chosen_post_div, flags);
+	else
+	    RADEONComputePLL_old(pll, freq, chosen_dot_clock_freq,
+				 chosen_feedback_div, chosen_frac_feedback_div,
+				 chosen_reference_div, chosen_post_div, flags);
+    } else {
+	if (xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, FALSE))
+	    RADEONComputePLL_new(pll, freq, chosen_dot_clock_freq,
+				 chosen_feedback_div, chosen_frac_feedback_div,
+				 chosen_reference_div, chosen_post_div, flags);
+	else
+	    RADEONComputePLL_old(pll, freq, chosen_dot_clock_freq,
+				 chosen_feedback_div, chosen_frac_feedback_div,
+				 chosen_reference_div, chosen_post_div, flags);
+    }
 }
 
 static void

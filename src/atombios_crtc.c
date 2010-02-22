@@ -437,7 +437,8 @@ static void
 atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
     unsigned char *RADEONMMIO = info->MMIO;
     int index;
@@ -613,13 +614,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	}
     }
 
-    if (IS_AVIVO_VARIANT) {
-	if (xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, TRUE))
-	    RADEONComputePLL_AVIVO(&info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
-	else
-	    RADEONComputePLL(&info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
-    } else
-	RADEONComputePLL(&info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
+    RADEONComputePLL(pScrn, &info->pll, sclock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
     sclock = temp; /* 10 khz */
 
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,

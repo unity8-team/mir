@@ -1223,7 +1223,7 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
        return;
     }
 
-    RADEONComputePLL(pll, mode->Clock, &freq, &feedback_div, &frac_fb_div, &reference_div, &post_divider, flags);
+    RADEONComputePLL(pScrn, pll, mode->Clock, &freq, &feedback_div, &frac_fb_div, &reference_div, &post_divider, flags);
 
     for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
 	if (post_div->divider == post_divider)
@@ -1303,7 +1303,7 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
        return;
     }
 
-    RADEONComputePLL(pll, mode->Clock, &freq, &feedback_div, &frac_fb_div, &reference_div, &post_divider, flags);
+    RADEONComputePLL(pScrn, pll, mode->Clock, &freq, &feedback_div, &frac_fb_div, &reference_div, &post_divider, flags);
 
     for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
 	if (post_div->divider == post_divider)
