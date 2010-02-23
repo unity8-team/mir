@@ -427,14 +427,20 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (!radeon_alloc_dri(pScrn))
 	return FALSE;
 
-    zaphod_mask = 0xf;
-    if (info->IsPrimary)
-	zaphod_mask = 0xd;
-    if (info->IsSecondary)
-	zaphod_mask = 0x2;
-    if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS)))
-	zaphod_mask = 0xf;
-
+    /* crtc low bits - output high bits */
+    zaphod_mask = 0xff;
+    if (info->IsPrimary) {
+	if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS)))
+	    zaphod_mask = 0xfd;
+	else
+	    zaphod_mask = 0xdd;
+    }
+    if (info->IsSecondary) {
+	if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS)))
+	    zaphod_mask = 0xf2;
+	else
+	    zaphod_mask = 0x22;
+    }
     info->allowColorTiling = xf86ReturnOptValBool(info->Options,
                                         OPTION_COLOR_TILING, FALSE);
     if (info->ChipFamily >= CHIP_FAMILY_R600) {

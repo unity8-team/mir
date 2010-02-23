@@ -1178,11 +1178,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId, char 
 
 	xf86CrtcSetSizeRange(pScrn, 320, 200, drmmode->mode_res->max_width, drmmode->mode_res->max_height);
 	for (i = 0; i < drmmode->mode_res->count_crtcs; i++)
-		if (zaphod_mask & (1 << i))
+		if ((zaphod_mask & 0xf) & (1 << i))
 			drmmode_crtc_init(pScrn, drmmode, i);
 
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
-		if (zaphod_mask & (1 << i))
+		if (((zaphod_mask >> 4) & 0xf) & (1 << i))
 			drmmode_output_init(pScrn, drmmode, i);
 
 	/* workout clones */
