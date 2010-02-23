@@ -2832,22 +2832,29 @@ static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+    xf86OutputPtr output;
     int o;
     char *s;
 
     if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS))) {
 	for (o = 0; o < config->num_output; o++) {
-	    if (!RADEONZaphodStringMatches(pScrn, info->IsPrimary, s, config->output[o]->name))
-		xf86OutputDestroy(config->output[o]);
+	    if (RADEONZaphodStringMatches(pScrn, info->IsPrimary, s, config->output[o]->name))
+		output = config->output[o];
+	}
+	while (config->num_output > 1) {
+	    if (config->output[0] != output)
+		xf86OutputDestroy(config->output[0]);
+	    else if (config->output[1] != output)
+		xf86OutputDestroy(config->output[1]);
 	}
     } else {
 	if (info->IsPrimary) {
 	    xf86OutputDestroy(config->output[0]);
-	    while(config->num_output > 1) {
+	    while (config->num_output > 1) {
 		xf86OutputDestroy(config->output[1]);
 	    }
 	} else {
-	    while(config->num_output > 1) {
+	    while (config->num_output > 1) {
 		xf86OutputDestroy(config->output[1]);
 	    }
 	}
@@ -2862,12 +2869,14 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
     int mask;
     int found = 0;
 
-    if (!info->IsPrimary && !info->IsSecondary)
-	mask = 3;
-    else if (info->IsPrimary)
+    if (info->IsPrimary)
 	mask = 1;
-    else
+    else if (info->IsSecondary)
 	mask = 2;
+    else
+	mask = 3;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mask: %d\n", mask);
 
     if (!RADEONAllocateControllers(pScrn, mask))
 	return FALSE;
@@ -3160,9 +3169,6 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitControllers(pScrn))
        goto fail;
-
-
-    ErrorF("before xf86InitialConfiguration\n");
 
     if (!xf86InitialConfiguration (pScrn, FALSE))
    {

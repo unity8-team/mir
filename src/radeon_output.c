@@ -2736,6 +2736,10 @@ radeon_output_clones (ScrnInfoPtr pScrn, xf86OutputPtr output)
     int			o;
     int			index_mask = 0;
 
+    /* no cloning with zaphod */
+    if (info->IsPrimary || info->IsSecondary)
+	return index_mask;
+
     /* DIG routing gets problematic */
     if (info->ChipFamily >= CHIP_FAMILY_R600)
 	return index_mask;
