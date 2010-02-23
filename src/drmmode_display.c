@@ -922,7 +922,7 @@ const char *output_names[] = { "None",
 			       "TV",
 			       "eDP",
 };
-
+#define NUM_OUTPUT_NAMES (sizeof(output_names) / sizeof(output_names[0]))
 
 static void
 drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
@@ -944,8 +944,13 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		return;
 	}
 
-	snprintf(name, 32, "%s-%d", output_names[koutput->connector_type],
-		 koutput->connector_type_id);
+	if (koutput->connector_type > NUM_OUTPUT_NAMES)
+		snprintf(name, 32, "Unknown%d-%d", koutput->connector_type,
+			 koutput->connector_type_id);
+	else
+		snprintf(name, 32, "%s-%d",
+			 output_names[koutput->connector_type],
+			 koutput->connector_type_id);
 
 	output = xf86OutputCreate (pScrn, &drmmode_output_funcs, name);
 	if (!output) {
