@@ -325,6 +325,11 @@ extern int I810_DEBUG;
 #define PCI_CHIP_IGDNG_M_G_BRIDGE	0x0044
 #endif
 
+#ifndef PCI_CHIP_SANDYBRIDGE
+#define PCI_CHIP_SANDYBRIDGE		0x0102
+#define PCI_CHIP_SANDYBRIDGE_BRIDGE	0x0100
+#endif
+
 #define I810_MEMBASE(p,n) (p)->regions[(n)].base_addr
 #define VENDOR_ID(p)      (p)->vendor_id
 #define DEVICE_ID(p)      (p)->device_id
@@ -357,13 +362,30 @@ extern int I810_DEBUG;
 #define IS_IGDNG_D(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGDNG_D_G)
 #define IS_IGDNG_M(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGDNG_M_G)
 #define IS_IGDNG(pI810) (IS_IGDNG_D(pI810) || IS_IGDNG_M(pI810))
-#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || IS_G4X(pI810) || IS_IGDNG(pI810))
+#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || \
+			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || \
+			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || \
+			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || \
+			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || \
+			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || \
+			 IS_G4X(pI810) || \
+			 IS_IGDNG(pI810) || \
+			 IS_GEN6(pI810))
 #define IS_G33CLASS(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G33_G ||\
  			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q35_G ||\
 			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q33_G || \
 			    IS_IGD(pI810))
-#define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810) || IS_G33CLASS(pI810))
+
+#define IS_I9XX(pI810) (IS_I915G(pI810) ||			\
+			IS_I915GM(pI810) ||			\
+			IS_I945G(pI810) ||			\
+			IS_I945GM(pI810) ||			\
+			IS_I965G(pI810) ||			\
+			IS_G33CLASS(pI810))
+
 #define IS_I915(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_G33CLASS(pI810))
+
+#define IS_GEN6(pI810) ((pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE)
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_GM45(pI810) || IS_IGD(pI810) || IS_IGDNG_M(pI810))
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */

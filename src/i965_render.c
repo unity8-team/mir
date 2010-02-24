@@ -236,7 +236,13 @@ i965_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 		     PicturePtr dest_picture)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t tmp1;
+
+	if (IS_GEN6(intel)) {
+		intel_debug_fallback(scrn, "Unsupported hardware\n");
+		return FALSE;
+	}
 
 	/* Check for unsupported compositing operations. */
 	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0])) {

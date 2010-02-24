@@ -140,6 +140,7 @@ static const struct pci_id_match intel_device_match[] = {
    INTEL_DEVICE_MATCH (PCI_CHIP_B43_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_D_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_M_G, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE, 0 ),
     { 0, 0, 0 },
 };
 

@@ -194,6 +194,12 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 		i830_get_pixmap_bo(pixmap),
 	};
 
+	if (IS_GEN6(intel)) {
+		intel_debug_fallback(scrn,
+				     "Sandybridge BLT engine not supported\n");
+		return FALSE;
+	}
+
 	if (!UXA_PM_IS_SOLID(&pixmap->drawable, planemask)) {
 		intel_debug_fallback(scrn, "planemask is not solid\n");
 		return FALSE;
@@ -295,6 +301,12 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		i830_get_pixmap_bo(source),
 		i830_get_pixmap_bo(dest),
 	};
+
+	if (IS_GEN6(intel)) {
+		intel_debug_fallback(scrn,
+				     "Sandybridge BLT engine not supported\n");
+		return FALSE;
+	}
 
 	if (!UXA_PM_IS_SOLID(&source->drawable, planemask)) {
 		intel_debug_fallback(scrn, "planemask is not solid");
