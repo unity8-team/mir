@@ -944,7 +944,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		return;
 	}
 
-	if (koutput->connector_type > NUM_OUTPUT_NAMES)
+	if (koutput->connector_type >= NUM_OUTPUT_NAMES)
 		snprintf(name, 32, "Unknown%d-%d", koutput->connector_type,
 			 koutput->connector_type_id);
 	else
