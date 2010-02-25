@@ -75,8 +75,8 @@ extern XF86ModuleData dri2ModuleData;
 #endif
 
 typedef struct {
-    PixmapPtr pixmap;
-    unsigned int attachment;
+	PixmapPtr pixmap;
+	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
 #ifndef USE_DRI2_1_1_0
@@ -388,45 +388,45 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 #if DRI2INFOREC_VERSION >= 4
 
 enum DRI2FrameEventType {
-    DRI2_SWAP,
-    DRI2_FLIP,
-    DRI2_WAITMSC,
+	DRI2_SWAP,
+	DRI2_FLIP,
+	DRI2_WAITMSC,
 };
 
 typedef struct _DRI2FrameEvent {
-    DrawablePtr		pDraw;
-    ClientPtr		client;
-    enum DRI2FrameEventType type;
-    int			frame;
+	DrawablePtr pDraw;
+	ClientPtr client;
+	enum DRI2FrameEventType type;
+	int frame;
 
-    /* for swaps & flips only */
-    DRI2SwapEventPtr	event_complete;
-    void		*event_data;
-    DRI2BufferPtr	front;
-    DRI2BufferPtr	back;
+	/* for swaps & flips only */
+	DRI2SwapEventPtr event_complete;
+	void *event_data;
+	DRI2BufferPtr front;
+	DRI2BufferPtr back;
 } DRI2FrameEventRec, *DRI2FrameEventPtr;
 
 static int
 I830DRI2DrawablePipe(DrawablePtr pDraw)
 {
-    ScreenPtr pScreen = pDraw->pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    BoxRec box, crtcbox;
-    xf86CrtcPtr crtc;
-    int pipe = -1;
+	ScreenPtr pScreen = pDraw->pScreen;
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	BoxRec box, crtcbox;
+	xf86CrtcPtr crtc;
+	int pipe = -1;
 
-    box.x1 = pDraw->x;
-    box.y1 = pDraw->y;
-    box.x2 = box.x1 + pDraw->width;
-    box.y2 = box.y1 + pDraw->height;
+	box.x1 = pDraw->x;
+	box.y1 = pDraw->y;
+	box.x2 = box.x1 + pDraw->width;
+	box.y2 = box.y1 + pDraw->height;
 
-    crtc = i830_covering_crtc(pScrn, &box, NULL, &crtcbox);
+	crtc = i830_covering_crtc(pScrn, &box, NULL, &crtcbox);
 
-    /* Make sure the CRTC is valid and this is the real front buffer */
-    if (crtc != NULL && !crtc->rotatedData)
-	pipe = i830_crtc_to_pipe(crtc);
+	/* Make sure the CRTC is valid and this is the real front buffer */
+	if (crtc != NULL && !crtc->rotatedData)
+		pipe = i830_crtc_to_pipe(crtc);
 
-    return pipe;
+	return pipe;
 }
 
 static void
@@ -504,82 +504,86 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 			       unsigned int tv_usec, void *event_data)
 {
-    DRI2FrameEventPtr event = event_data;
-    DrawablePtr pDraw = event->pDraw;
-    ScreenPtr screen = pDraw->pScreen;
-    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-    intel_screen_private *intel = intel_get_screen_private(scrn);
+	DRI2FrameEventPtr event = event_data;
+	DrawablePtr pDraw = event->pDraw;
+	ScreenPtr screen = pDraw->pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-    switch (event->type) {
-    case DRI2_FLIP:
-	/* If we can still flip... */
-	if (DRI2CanFlip(pDraw) && !intel->shadow_present &&
-	    intel->use_pageflipping &&
-	    I830DRI2ScheduleFlip(event->client, pDraw, event->front,
-				 event->back, event->event_complete,
-				 event->event_data)) {
-	    break;
+	switch (event->type) {
+	case DRI2_FLIP:
+		/* If we can still flip... */
+		if (DRI2CanFlip(pDraw) && !intel->shadow_present &&
+		    intel->use_pageflipping &&
+		    I830DRI2ScheduleFlip(event->client, pDraw, event->front,
+					 event->back, event->event_complete,
+					 event->event_data)) {
+			break;
+		}
+		/* else fall through to exchange/blit */
+	case DRI2_SWAP: {
+		int swap_type;
+
+		if (DRI2CanExchange(pDraw)) {
+			I830DRI2ExchangeBuffers(pDraw,
+						event->front, event->back);
+			swap_type = DRI2_EXCHANGE_COMPLETE;
+		} else {
+			BoxRec	    box;
+			RegionRec	    region;
+
+			box.x1 = 0;
+			box.y1 = 0;
+			box.x2 = pDraw->width;
+			box.y2 = pDraw->height;
+			REGION_INIT(pScreen, &region, &box, 0);
+
+			I830DRI2CopyRegion(pDraw,
+					   &region, event->front, event->back);
+			swap_type = DRI2_BLIT_COMPLETE;
 	}
-	/* else fall through to exchange/blit */
-    case DRI2_SWAP: {
-	int swap_type;
-
-	if (DRI2CanExchange(pDraw)) {
-	    I830DRI2ExchangeBuffers(pDraw, event->front, event->back);
-	    swap_type = DRI2_EXCHANGE_COMPLETE;
-	} else {
-	    BoxRec	    box;
-	    RegionRec	    region;
-
-	    box.x1 = 0;
-	    box.y1 = 0;
-	    box.x2 = pDraw->width;
-	    box.y2 = pDraw->height;
-	    REGION_INIT(pScreen, &region, &box, 0);
-
-	    I830DRI2CopyRegion(pDraw, &region, event->front, event->back);
-	    swap_type = DRI2_BLIT_COMPLETE;
+		DRI2SwapComplete(event->client, pDraw, frame, tv_sec, tv_usec,
+				 swap_type,
+				 event->event_complete, event->event_data);
+		break;
 	}
-	DRI2SwapComplete(event->client, pDraw, frame, tv_sec, tv_usec,
-			 swap_type, event->event_complete, event->event_data);
-	break;
-    }
-    case DRI2_WAITMSC:
-	DRI2WaitMSCComplete(event->client, pDraw, frame, tv_sec, tv_usec);
-	break;
-    default:
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "%s: unknown vblank event received\n", __func__);
-	/* Unknown type */
-	break;
-    }
+	case DRI2_WAITMSC:
+		DRI2WaitMSCComplete(event->client, pDraw,
+				    frame, tv_sec, tv_usec);
+		break;
+	default:
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "%s: unknown vblank event received\n", __func__);
+		/* Unknown type */
+		break;
+	}
 
-    xfree(event);
+	xfree(event);
 }
 
 void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 			      unsigned int tv_usec, void *event_data)
 {
-    DRI2FrameEventPtr flip = event_data;
-    DrawablePtr pDraw = flip->pDraw;
-    ScreenPtr screen = pDraw->pScreen;
-    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	DRI2FrameEventPtr flip = event_data;
+	DrawablePtr pDraw = flip->pDraw;
+	ScreenPtr screen = pDraw->pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 
-    /* We assume our flips arrive in order, so we don't check the frame */
-    switch (flip->type) {
-    case DRI2_SWAP:
-	DRI2SwapComplete(flip->client, pDraw, frame, tv_sec, tv_usec,
-			 DRI2_FLIP_COMPLETE, flip->event_complete,
-			 flip->event_data);
+	/* We assume our flips arrive in order, so we don't check the frame */
+	switch (flip->type) {
+	case DRI2_SWAP:
+		DRI2SwapComplete(flip->client, pDraw, frame, tv_sec, tv_usec,
+				 DRI2_FLIP_COMPLETE, flip->event_complete,
+				 flip->event_data);
 	break;
-    default:
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "%s: unknown vblank event received\n", __func__);
-	/* Unknown type */
-	break;
-    }
+	default:
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "%s: unknown vblank event received\n", __func__);
+		/* Unknown type */
+		break;
+	}
 
-    xfree(flip);
+	xfree(flip);
 }
 
 /*
@@ -698,22 +702,22 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 * so we queue an event that will satisfy the divisor/remainderequation.
 	 */
 	if ((vbl.reply.sequence % divisor) == remainder) {
-	    BoxRec	    box;
-	    RegionRec	    region;
+		BoxRec box;
+		RegionRec region;
 
-	    box.x1 = 0;
-	    box.y1 = 0;
-	    box.x2 = draw->width;
-	    box.y2 = draw->height;
-	    REGION_INIT(pScreen, &region, &box, 0);
+		box.x1 = 0;
+		box.y1 = 0;
+		box.x2 = draw->width;
+		box.y2 = draw->height;
+		REGION_INIT(pScreen, &region, &box, 0);
 
-	    I830DRI2CopyRegion(draw, &region, front, back);
+		I830DRI2CopyRegion(draw, &region, front, back);
 
-	    DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func,
-			     data);
-	    if (swap_info)
-		xfree(swap_info);
-	    return TRUE;
+		DRI2SwapComplete(client, draw, 0, 0, 0,
+				 DRI2_BLIT_COMPLETE, func, data);
+		if (swap_info)
+			xfree(swap_info);
+		return TRUE;
 	}
 
 	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
@@ -753,35 +757,35 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 static int
 I830DRI2GetMSC(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 {
-    ScreenPtr screen = draw->pScreen;
-    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-    intel_screen_private *intel = intel_get_screen_private(scrn);
-    drmVBlank vbl;
-    int ret, pipe = I830DRI2DrawablePipe(draw);
+	ScreenPtr screen = draw->pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	drmVBlank vbl;
+	int ret, pipe = I830DRI2DrawablePipe(draw);
 
-    /* Drawable not displayed, make up a value */
-    if (pipe == -1) {
-	*ust = 0;
-	*msc = 0;
+	/* Drawable not displayed, make up a value */
+	if (pipe == -1) {
+		*ust = 0;
+		*msc = 0;
+		return TRUE;
+	}
+
+	vbl.request.type = DRM_VBLANK_RELATIVE;
+	if (pipe > 0)
+		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.sequence = 0;
+
+	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
+	if (ret) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "get vblank counter failed: %s\n", strerror(errno));
+		return FALSE;
+	}
+
+	*ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
+	*msc = vbl.reply.sequence;
+
 	return TRUE;
-    }
-
-    vbl.request.type = DRM_VBLANK_RELATIVE;
-    if (pipe > 0)
-	vbl.request.type |= DRM_VBLANK_SECONDARY;
-    vbl.request.sequence = 0;
-
-    ret = drmWaitVBlank(intel->drmSubFD, &vbl);
-    if (ret) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "get vblank counter failed: %s\n", strerror(errno));
-	return FALSE;
-    }
-
-    *ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
-    *msc = vbl.reply.sequence;
-
-    return TRUE;
 }
 
 /*
@@ -794,93 +798,93 @@ static int
 I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 			CARD64 divisor, CARD64 remainder)
 {
-    ScreenPtr screen = draw->pScreen;
-    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-    intel_screen_private *intel = intel_get_screen_private(scrn);
-    DRI2FrameEventPtr wait_info;
-    drmVBlank vbl;
-    int ret, pipe = I830DRI2DrawablePipe(draw);
+	ScreenPtr screen = draw->pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	DRI2FrameEventPtr wait_info;
+	drmVBlank vbl;
+	int ret, pipe = I830DRI2DrawablePipe(draw);
 
-    /* Drawable not visible, return immediately */
-    if (pipe == -1) {
-	DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
-	return TRUE;
-    }
+	/* Drawable not visible, return immediately */
+	if (pipe == -1) {
+		DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
+		return TRUE;
+	}
 
-    wait_info = xcalloc(1, sizeof(DRI2FrameEventRec));
-    if (!wait_info) {
-	DRI2WaitMSCComplete(client, draw, 0, 0, 0);
-	return TRUE;
-    }
+	wait_info = xcalloc(1, sizeof(DRI2FrameEventRec));
+	if (!wait_info) {
+		DRI2WaitMSCComplete(client, draw, 0, 0, 0);
+		return TRUE;
+	}
 
-    wait_info->pDraw = draw;
-    wait_info->client = client;
-    wait_info->type = DRI2_WAITMSC;
+	wait_info->pDraw = draw;
+	wait_info->client = client;
+	wait_info->type = DRI2_WAITMSC;
 
-    /* Get current count */
-    vbl.request.type = DRM_VBLANK_RELATIVE;
-    if (pipe > 0)
-	vbl.request.type |= DRM_VBLANK_SECONDARY;
-    vbl.request.sequence = 0;
-    ret = drmWaitVBlank(intel->drmSubFD, &vbl);
-    if (ret) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "get vblank counter failed: %s\n", strerror(errno));
-	return FALSE;
-    }
+	/* Get current count */
+	vbl.request.type = DRM_VBLANK_RELATIVE;
+	if (pipe > 0)
+		vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.sequence = 0;
+	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
+	if (ret) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "get vblank counter failed: %s\n", strerror(errno));
+		return FALSE;
+	}
 
-    /*
-     * If divisor is zero, we just need to make sure target_msc passes
-     * before waking up the client.
-     */
-    if (divisor == 0) {
+	/*
+	 * If divisor is zero, we just need to make sure target_msc passes
+	 * before waking up the client.
+	 */
+	if (divisor == 0) {
+		vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
+		if (pipe > 0)
+			vbl.request.type |= DRM_VBLANK_SECONDARY;
+		vbl.request.sequence = target_msc;
+		vbl.request.signal = (unsigned long)wait_info;
+		ret = drmWaitVBlank(intel->drmSubFD, &vbl);
+		if (ret) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "get vblank counter failed: %s\n", strerror(errno));
+			return FALSE;
+		}
+
+		wait_info->frame = vbl.reply.sequence;
+		DRI2BlockClient(client, draw);
+		return TRUE;
+	}
+
+	/*
+	 * If we get here, target_msc has already passed or we don't have one,
+	 * so we queue an event that will satisfy the divisor/remainder equation.
+	 */
 	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 	if (pipe > 0)
-	    vbl.request.type |= DRM_VBLANK_SECONDARY;
-	vbl.request.sequence = target_msc;
+		vbl.request.type |= DRM_VBLANK_SECONDARY;
+
+	/*
+	 * If we have no remainder and the condition isn't satisified, it means
+	 * we've passed the last point where seq % divisor == remainder, so we need
+	 * to wait for the next time that will happen.
+	 */
+	if (((vbl.reply.sequence % divisor) != remainder) && !remainder)
+		vbl.request.sequence += divisor;
+
+	vbl.request.sequence = vbl.reply.sequence - (vbl.reply.sequence % divisor) +
+		remainder;
 	vbl.request.signal = (unsigned long)wait_info;
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
-	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		       "get vblank counter failed: %s\n", strerror(errno));
-	    return FALSE;
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "get vblank counter failed: %s\n", strerror(errno));
+		return FALSE;
 	}
 
 	wait_info->frame = vbl.reply.sequence;
 	DRI2BlockClient(client, draw);
+
 	return TRUE;
-    }
-
-    /*
-     * If we get here, target_msc has already passed or we don't have one,
-     * so we queue an event that will satisfy the divisor/remainder equation.
-     */
-    vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-    if (pipe > 0)
-	vbl.request.type |= DRM_VBLANK_SECONDARY;
-
-    /*
-     * If we have no remainder and the condition isn't satisified, it means
-     * we've passed the last point where seq % divisor == remainder, so we need
-     * to wait for the next time that will happen.
-     */
-    if (((vbl.reply.sequence % divisor) != remainder) && !remainder)
-	vbl.request.sequence += divisor;
-
-    vbl.request.sequence = vbl.reply.sequence - (vbl.reply.sequence % divisor) +
-	remainder;
-    vbl.request.signal = (unsigned long)wait_info;
-    ret = drmWaitVBlank(intel->drmSubFD, &vbl);
-    if (ret) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "get vblank counter failed: %s\n", strerror(errno));
-	return FALSE;
-    }
-
-    wait_info->frame = vbl.reply.sequence;
-    DRI2BlockClient(client, draw);
-
-    return TRUE;
 }
 #endif
 
