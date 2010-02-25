@@ -394,7 +394,7 @@ enum DRI2FrameEventType {
 };
 
 typedef struct _DRI2FrameEvent {
-	DrawablePtr pDraw;
+	XID drawable_id;
 	ClientPtr client;
 	enum DRI2FrameEventType type;
 	int frame;
@@ -472,7 +472,7 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	if (!flip_info)
 	    return FALSE;
 
-	flip_info->pDraw = draw;
+	flip_info->drawable_id = draw->id;
 	flip_info->client = client;
 	flip_info->type = DRI2_SWAP;
 	flip_info->event_complete = func;
@@ -505,17 +505,29 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 			       unsigned int tv_usec, void *event_data)
 {
 	DRI2FrameEventPtr event = event_data;
-	DrawablePtr pDraw = event->pDraw;
-	ScreenPtr screen = pDraw->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
+	DrawablePtr drawable;
+	ScreenPtr screen;
+	ScrnInfoPtr scrn;
+	intel_screen_private *intel;
+	int status;
+
+	status = dixLookupDrawable(&drawable, event->drawable_id, serverClient,
+				   M_ANY, DixWriteAccess);
+	if (status != Success) {
+		xfree(event);
+		return;
+	}
+
+	screen = drawable->pScreen;
+	scrn = xf86Screens[screen->myNum];
+	intel = intel_get_screen_private(scrn);
 
 	switch (event->type) {
 	case DRI2_FLIP:
 		/* If we can still flip... */
-		if (DRI2CanFlip(pDraw) && !intel->shadow_present &&
+		if (DRI2CanFlip(drawable) && !intel->shadow_present &&
 		    intel->use_pageflipping &&
-		    I830DRI2ScheduleFlip(event->client, pDraw, event->front,
+		    I830DRI2ScheduleFlip(event->client, drawable, event->front,
 					 event->back, event->event_complete,
 					 event->event_data)) {
 			break;
@@ -524,8 +536,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 	case DRI2_SWAP: {
 		int swap_type;
 
-		if (DRI2CanExchange(pDraw)) {
-			I830DRI2ExchangeBuffers(pDraw,
+		if (DRI2CanExchange(drawable)) {
+			I830DRI2ExchangeBuffers(drawable,
 						event->front, event->back);
 			swap_type = DRI2_EXCHANGE_COMPLETE;
 		} else {
@@ -534,21 +546,21 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 
 			box.x1 = 0;
 			box.y1 = 0;
-			box.x2 = pDraw->width;
-			box.y2 = pDraw->height;
+			box.x2 = drawable->width;
+			box.y2 = drawable->height;
 			REGION_INIT(pScreen, &region, &box, 0);
 
-			I830DRI2CopyRegion(pDraw,
+			I830DRI2CopyRegion(drawable,
 					   &region, event->front, event->back);
 			swap_type = DRI2_BLIT_COMPLETE;
 	}
-		DRI2SwapComplete(event->client, pDraw, frame, tv_sec, tv_usec,
+		DRI2SwapComplete(event->client, drawable, frame, tv_sec, tv_usec,
 				 swap_type,
 				 event->event_complete, event->event_data);
 		break;
 	}
 	case DRI2_WAITMSC:
-		DRI2WaitMSCComplete(event->client, pDraw,
+		DRI2WaitMSCComplete(event->client, drawable,
 				    frame, tv_sec, tv_usec);
 		break;
 	default:
@@ -565,14 +577,25 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 			      unsigned int tv_usec, void *event_data)
 {
 	DRI2FrameEventPtr flip = event_data;
-	DrawablePtr pDraw = flip->pDraw;
-	ScreenPtr screen = pDraw->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	DrawablePtr drawable;
+	ScreenPtr screen;
+	ScrnInfoPtr scrn;
+	int status;
+
+	status = dixLookupDrawable(&drawable, flip->drawable_id, serverClient,
+				     M_ANY, DixWriteAccess);
+	if (status != Success) {
+		xfree(flip);
+		return;
+	}
+
+	screen = drawable->pScreen;
+	scrn = xf86Screens[screen->myNum];
 
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip->type) {
 	case DRI2_SWAP:
-		DRI2SwapComplete(flip->client, pDraw, frame, tv_sec, tv_usec,
+		DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
 				 DRI2_FLIP_COMPLETE, flip->event_complete,
 				 flip->event_data);
 	break;
@@ -641,7 +664,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	    return TRUE;
 	}
 
-	swap_info->pDraw = draw;
+	swap_info->drawable_id = draw->id;
 	swap_info->client = client;
 	swap_info->event_complete = func;
 	swap_info->event_data = data;
@@ -817,7 +840,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		return TRUE;
 	}
 
-	wait_info->pDraw = draw;
+	wait_info->drawable_id = draw->id;
 	wait_info->client = client;
 	wait_info->type = DRI2_WAITMSC;
 
