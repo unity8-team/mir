@@ -183,13 +183,9 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
         pPriv = xf86GetEntityPrivate(pEnt->index,
                                      gRADEONEntityIndex);
 
+	xf86SetEntityInstanceForScreen(pScrn, pEnt->index, xf86GetNumEntityInstances(pEnt->index) - 1);
+
         if (!pPriv->ptr) {
-            int j;
-            int instance = xf86GetNumEntityInstances(pEnt->index);
-
-            for (j = 0; j < instance; j++)
-                xf86SetEntityInstanceForScreen(pScrn, pEnt->index, j);
-
             pPriv->ptr = xnfcalloc(sizeof(RADEONEntRec), 1);
             pRADEONEnt = pPriv->ptr;
             pRADEONEnt->HasSecondary = FALSE;
