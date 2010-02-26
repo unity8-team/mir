@@ -646,7 +646,7 @@ radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     unsigned long rotate_pitch;
     unsigned long rotate_offset;
-    int align = 4096, size;
+    int size;
     int cpp = pScrn->bitsPerPixel / 8;
 
     /* No rotation without accel */
@@ -666,7 +666,7 @@ radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
      * allocate offscreen memory and fake up a pixmap header for it.
      */
     rotate_offset = radeon_legacy_allocate_memory(pScrn, &radeon_crtc->crtc_rotate_mem,
-		    size, align, RADEON_GEM_DOMAIN_VRAM);
+		    size, RADEON_GPU_PAGE_SIZE, RADEON_GEM_DOMAIN_VRAM);
     if (rotate_offset == 0)
 	return NULL;
 

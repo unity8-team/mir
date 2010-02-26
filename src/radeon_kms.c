@@ -892,7 +892,6 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     int screen_size;
     int stride = pScrn->displayWidth * cpp;
     int total_size_bytes = 0, remain_size_bytes;
-    int pagesize = 4096;
 
     if (info->accel_state->exa != NULL) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map already initialized\n");
@@ -909,7 +908,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	int cursor_size = 64 * 4 * 64;
 	int c;
 
-	cursor_size = RADEON_ALIGN(cursor_size, pagesize);
+	cursor_size = RADEON_ALIGN(cursor_size, RADEON_GPU_PAGE_SIZE);
 	for (c = 0; c < xf86_config->num_crtc; c++) {
 	    /* cursor objects */
             if (info->cursor_bo[c] == NULL) {
@@ -935,7 +934,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
         }
     }
 
-    screen_size = RADEON_ALIGN(screen_size, pagesize);
+    screen_size = RADEON_ALIGN(screen_size, RADEON_GPU_PAGE_SIZE);
     /* keep area front front buffer - but don't allocate it yet */
     total_size_bytes += screen_size;
 

@@ -234,7 +234,8 @@ typedef enum {
 #define RADEON_VSYNC_TIMEOUT	20000 /* Maximum wait for VSYNC (in usecs) */
 
 /* Buffer are aligned on 4096 byte boundaries */
-#define RADEON_BUFFER_ALIGN 0x00000fff
+#define RADEON_GPU_PAGE_SIZE 4096
+#define RADEON_BUFFER_ALIGN (RADEON_GPU_PAGE_SIZE - 1)
 #define RADEON_VBIOS_SIZE 0x00010000
 #define RADEON_USE_RMX 0x80000000 /* mode flag for using RMX
 				   * Need to comfirm this is not used

@@ -1157,11 +1157,11 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      * Might need that for non-XF86DRI too?
      */
     if (info->allowColorTiling) {
-	bufferSize = (((pScrn->virtualY + 15) & ~15) * width_bytes
-		      + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
+	bufferSize = RADEON_ALIGN(((pScrn->virtualY + 15) & ~15) * width_bytes,
+		      RADEON_GPU_PAGE_SIZE);
     } else {
-        bufferSize = (pScrn->virtualY * width_bytes
-		      + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
+        bufferSize = RADEON_ALIGN(pScrn->virtualY * width_bytes,
+		      RADEON_GPU_PAGE_SIZE);
     }
 
     /* Due to tiling, the Z buffer pitch must be a multiple of 32 pixels,
@@ -1169,8 +1169,8 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      * but not necessarily otherwise, and its height a multiple of 16 lines.
      */
     info->dri->depthPitch = (pScrn->displayWidth + 31) & ~31;
-    depthSize = ((((pScrn->virtualY + 15) & ~15) * info->dri->depthPitch
-		  * depthCpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+    depthSize = RADEON_ALIGN(((pScrn->virtualY + 15) & ~15) * info->dri->depthPitch
+		  * depthCpp, RADEON_GPU_PAGE_SIZE);
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Using %d MB GART aperture\n", info->dri->gartSize);
@@ -1277,25 +1277,22 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     }
     else {
 	/* Reserve space for textures */
-	info->dri->textureOffset = ((info->FbMapSize - info->dri->textureSize +
-				     RADEON_BUFFER_ALIGN) &
-				    ~(uint32_t)RADEON_BUFFER_ALIGN);
+	info->dri->textureOffset = RADEON_ALIGN(info->FbMapSize - info->dri->textureSize,
+				     RADEON_GPU_PAGE_SIZE);
     }
 
     /* Reserve space for the shared depth
      * buffer.
      */
-    info->dri->depthOffset = ((info->dri->textureOffset - depthSize +
-			       RADEON_BUFFER_ALIGN) &
-			      ~(uint32_t)RADEON_BUFFER_ALIGN);
+    info->dri->depthOffset = RADEON_ALIGN(info->dri->textureOffset - depthSize,
+			       RADEON_GPU_PAGE_SIZE);
 
     /* Reserve space for the shared back buffer */
     if (info->dri->noBackBuffer) {
        info->dri->backOffset = info->dri->depthOffset;
     } else {
-       info->dri->backOffset = ((info->dri->depthOffset - bufferSize +
-				 RADEON_BUFFER_ALIGN) &
-				~(uint32_t)RADEON_BUFFER_ALIGN);
+       info->dri->backOffset = RADEON_ALIGN(info->dri->depthOffset - bufferSize,
+				 RADEON_GPU_PAGE_SIZE);
     }
 
     info->dri->backY = info->dri->backOffset / width_bytes;

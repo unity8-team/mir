@@ -232,7 +232,7 @@ static Bool RADEONPrepareAccess_BE(PixmapPtr pPix, int index)
      * surface. We need to align the size first
      */
     size = exaGetPixmapSize(pPix);
-    size = (size + RADEON_BUFFER_ALIGN) & ~(RADEON_BUFFER_ALIGN);
+    size = RADEON_ALIGN(size, RADEON_GPU_PAGE_SIZE);
 
     /* Set surface to tiling disabled with appropriate swapper */
     switch (bpp) {
@@ -635,7 +635,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	 * offscreen locations does.
 	 */
 	info->dri->backPitch = pScrn->displayWidth;
-	next = RADEON_ALIGN(info->accel_state->exa->offScreenBase, RADEON_BUFFER_ALIGN);
+	next = RADEON_ALIGN(info->accel_state->exa->offScreenBase, RADEON_GPU_PAGE_SIZE);
 	if (!info->dri->noBackBuffer &&
 	    next + screen_size <= info->accel_state->exa->memorySize)
 	{
@@ -651,7 +651,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	 */
 	info->dri->depthPitch = RADEON_ALIGN(pScrn->displayWidth, 32);
 	depth_size = RADEON_ALIGN(pScrn->virtualY, 16) * info->dri->depthPitch * depthCpp;
-	next = RADEON_ALIGN(info->accel_state->exa->offScreenBase, RADEON_BUFFER_ALIGN);
+	next = RADEON_ALIGN(info->accel_state->exa->offScreenBase, RADEON_GPU_PAGE_SIZE);
 	if (next + depth_size <= info->accel_state->exa->memorySize)
 	{
 	    info->dri->depthOffset = next;

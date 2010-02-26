@@ -4276,8 +4276,8 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     int cpp = info->CurrentLayout.pixel_bytes;
     /* depth/front/back pitch must be identical (and the same as displayWidth) */
     int width_bytes = pScrn->displayWidth * cpp;
-    int bufferSize = ((((pScrn->virtualY + 15) & ~15) * width_bytes
-        + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+    int bufferSize = RADEON_ALIGN(((pScrn->virtualY + 15) & ~15) * width_bytes,
+        RADEON_GPU_PAGE_SIZE);
     unsigned int color_pattern, swap_pattern;
 
     if (!info->allowColorTiling)
@@ -4309,8 +4309,8 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	int retvalue;
 	int depthCpp = (info->dri->depthBits - 8) / 4;
 	int depth_width_bytes = pScrn->displayWidth * depthCpp;
-	int depthBufferSize = ((((pScrn->virtualY + 15) & ~15) * depth_width_bytes
-				+ RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+	int depthBufferSize = RADEON_ALIGN(((pScrn->virtualY + 15) & ~15) * depth_width_bytes,
+				RADEON_GPU_PAGE_SIZE);
 	unsigned int depth_pattern;
 
 	drmsurffree.address = info->dri->frontOffset;

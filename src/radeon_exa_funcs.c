@@ -820,7 +820,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     /* The 2D engine supports overlapping memory areas */
     info->accel_state->exa->flags |= EXA_SUPPORTS_OFFSCREEN_OVERLAPS;
 #endif
-    info->accel_state->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
+    info->accel_state->exa->pixmapOffsetAlign = RADEON_GPU_PAGE_SIZE;
     info->accel_state->exa->pixmapPitchAlign = 64;
 
 #ifdef EXA_HANDLES_PIXMAPS
