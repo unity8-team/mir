@@ -1876,19 +1876,24 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     case PCI_CHIP_RV100_QY:
     case PCI_CHIP_RV100_QZ:
 	/* DELL triple-head configuration. */
-	if ((PCI_SUB_VENDOR_ID(info->PciInfo) == PCI_VENDOR_DELL) &&
-	    ((PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016c) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016d) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016e) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016f) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0170) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x017d) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x017e) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0183) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x018a) ||
-	     (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x019a))) {
+	if (((PCI_SUB_VENDOR_ID(info->PciInfo) == PCI_VENDOR_DELL) &&
+	     ((PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016c) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016d) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016e) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016f) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0170) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x017d) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x017e) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0183) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x018a) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x019a) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x01b1) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x01b2) ||
+	      (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0205))) ||
+           ((PCI_SUB_VENDOR_ID(info->PciInfo) == PCI_VENDOR_HP) &&
+              (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x31fb))) {
 	    info->IsDellServer = TRUE;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "DELL server detected, force to special setup\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "DELL/HP server detected, force to special setup\n");
 	}
 	break;
     case PCI_CHIP_RS482_5974:
