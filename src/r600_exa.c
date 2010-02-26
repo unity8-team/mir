@@ -2015,9 +2015,11 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     drmBufPtr scratch;
     struct radeon_bo *bo = NULL;
 
-    /* RV740 seems to be particularly problematic with small xfers */
-    if ((info->ChipFamily == CHIP_FAMILY_RV740) && (w < 32 || h < 32))
-	return FALSE;
+    /* bad pipe setup in drm prior to 1.32 */
+    if (info->dri->pKernelDRMVersion->version_minor < 32) {
+	    if ((info->ChipFamily == CHIP_FAMILY_RV740) && (w < 32 || h < 32))
+		    return FALSE;
+    }
 
     if (src_pitch & 7)
 	return FALSE;
