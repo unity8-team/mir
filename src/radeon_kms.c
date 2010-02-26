@@ -367,10 +367,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     RADEONInfoPtr     info;
     RADEONEntPtr pRADEONEnt;
     DevUnion* pPriv;
-    int zaphod_mask = 0;
     char *bus_id;
     Gamma  zeros = { 0.0, 0.0, 0.0 };
-    const char *s;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONPreInit_KMS\n");
@@ -427,20 +425,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (!radeon_alloc_dri(pScrn))
 	return FALSE;
 
-    /* crtc low bits - output high bits */
-    zaphod_mask = 0xff;
-    if (info->IsPrimary) {
-	if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS)))
-	    zaphod_mask = 0xfd;
-	else
-	    zaphod_mask = 0xdd;
-    }
-    if (info->IsSecondary) {
-	if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS)))
-	    zaphod_mask = 0xf2;
-	else
-	    zaphod_mask = 0x22;
-    }
     info->allowColorTiling = xf86ReturnOptValBool(info->Options,
                                         OPTION_COLOR_TILING, FALSE);
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -451,7 +435,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
 
     bus_id = DRICreatePCIBusID(info->PciInfo);
-    if (drmmode_pre_init(pScrn, &info->drmmode, bus_id, "radeon", pScrn->bitsPerPixel / 8, zaphod_mask) == FALSE) {
+    if (drmmode_pre_init(pScrn, &info->drmmode, bus_id, "radeon", pScrn->bitsPerPixel / 8) == FALSE) {
 	xfree(bus_id);
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
 	goto fail;

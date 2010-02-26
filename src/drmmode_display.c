@@ -899,9 +899,16 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	    snprintf(name, 32, "%s-%d", output_names[koutput->connector_type], koutput->connector_type_id - 1);
 	}
 
-	if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS))) {
-		if (!RADEONZaphodStringMatches(pScrn, s, name))
-		    goto out_free_encoders;
+	if (xf86IsEntityShared(pScrn->entityList[0])) {
+		if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS))) {
+			if (!RADEONZaphodStringMatches(pScrn, s, name))
+				goto out_free_encoders;
+		} else {
+			if (info->IsPrimary && (num != 0))
+				goto out_free_encoders;
+			else if (info->IsSecondary && (num != 1))
+				goto out_free_encoders;
+		}
 	}
 
 	output = xf86OutputCreate (pScrn, &drmmode_output_funcs, name);
@@ -1143,7 +1150,7 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 };
 
 
-Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId, char *driver_name, int cpp, int zaphod_mask)
+Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId, char *driver_name, int cpp)
 {
 	xf86CrtcConfigPtr   xf86_config;
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
@@ -1178,12 +1185,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId, char 
 
 	xf86CrtcSetSizeRange(pScrn, 320, 200, drmmode->mode_res->max_width, drmmode->mode_res->max_height);
 	for (i = 0; i < drmmode->mode_res->count_crtcs; i++)
-		if ((zaphod_mask & 0xf) & (1 << i))
+		if (!xf86IsEntityShared(pScrn->entityList[0]) || pScrn->confScreen->device->screen == i)
 			drmmode_crtc_init(pScrn, drmmode, i);
 
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
-		if (((zaphod_mask >> 4) & 0xf) & (1 << i))
-			drmmode_output_init(pScrn, drmmode, i);
+		drmmode_output_init(pScrn, drmmode, i);
 
 	/* workout clones */
 	drmmode_clones_init(pScrn, drmmode);
