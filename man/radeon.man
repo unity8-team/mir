@@ -616,14 +616,14 @@ The default is
 .B on with > 32MB VRAM, off with < 32MB.
 .TP
 .BI "Option \*qZaphodHeads\*q \*q" string \*q
-Specify the randr outputs to use with zaphod mode. If you do not specify
-an outputs, the driver will pick them automatically.
+Specify the randr output(s) to use with zaphod mode for a particular driver
+instance.  If you use this option you most use this option for all instances
+of the driver.
 .br
 For example:
 .B
 Option \*qZaphodHeads\*q \*qLVDS,VGA-0\*q
-will assign xrandr output LVDS to the first instance of the driver and
-VGA-0 to the second instance.
+will assign xrandr outputs LVDS and VGA-0 to this instance of the driver.
 
 .SH TEXTURED VIDEO ATTRIBUTES
 The driver supports the following X11 Xv attributes for Textured Video.

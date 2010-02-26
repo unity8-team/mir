@@ -1231,8 +1231,7 @@ extern void RADEONInitMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 extern void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore);
 extern Bool
-RADEONZaphodStringMatches(ScrnInfoPtr pScrn, Bool is_primary,
-			  const char *s, char *output_name);
+RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name);
 
 Bool RADEONGetRec(ScrnInfoPtr pScrn);
 void RADEONFreeRec(ScrnInfoPtr pScrn);

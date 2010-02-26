@@ -900,7 +900,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	}
 
 	if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS))) {
-		if (!RADEONZaphodStringMatches(pScrn, info->IsPrimary, s, name))
+		if (!RADEONZaphodStringMatches(pScrn, s, name))
 		    goto out_free_encoders;
 	}
 

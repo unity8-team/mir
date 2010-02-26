@@ -2788,18 +2788,18 @@ RADEONPreInitBIOS(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 }
 
 Bool
-RADEONZaphodStringMatches(ScrnInfoPtr pScrn, Bool is_primary,
-			  const char *s, char *output_name)
+RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
 {
-    int i = 0, second = 0;
-    char s1[20], s2[20];
+    int i = 0;
+    char s1[20];
 
     do {
 	switch(*s) {
 	case ',':
 	    s1[i] = '\0';
 	    i = 0;
-	    second = 1;
+	    if (strcmp(s1, output_name) == 0)
+		return TRUE;
 	    break;
 	case ' ':
 	case '\t':
@@ -2807,23 +2807,15 @@ RADEONZaphodStringMatches(ScrnInfoPtr pScrn, Bool is_primary,
 	case '\r':
 	    break;
 	default:
-	    if (second)
-		s2[i] = *s;
-	    else
-		s1[i] = *s;
+	    s1[i] = *s;
 	    i++;
 	    break;
 	}
     } while(*s++);
-    s2[i] = '\0';
 
-    if (is_primary) {
-	if (strcmp(s1, output_name) == 0)
-	    return TRUE;
-    } else {
-	if (strcmp(s2, output_name) == 0)
-	    return TRUE;
-    }
+    s1[i] = '\0';
+    if (strcmp(s1, output_name) == 0)
+	return TRUE;
 
     return FALSE;
 }
@@ -2832,20 +2824,13 @@ static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-    xf86OutputPtr output;
     int o;
     char *s;
 
     if ((s = xf86GetOptValString(info->Options, OPTION_ZAPHOD_HEADS))) {
-	for (o = 0; o < config->num_output; o++) {
-	    if (RADEONZaphodStringMatches(pScrn, info->IsPrimary, s, config->output[o]->name))
-		output = config->output[o];
-	}
-	while (config->num_output > 1) {
-	    if (config->output[0] != output)
-		xf86OutputDestroy(config->output[0]);
-	    else if (config->output[1] != output)
-		xf86OutputDestroy(config->output[1]);
+	for (o = config->num_output; o > 0; o--) {
+	    if (!RADEONZaphodStringMatches(pScrn, s, config->output[o - 1]->name))
+		xf86OutputDestroy(config->output[o - 1]);
 	}
     } else {
 	if (info->IsPrimary) {
