@@ -263,7 +263,7 @@ static Bool RADEONPitchMatches(PixmapPtr pPix)
     int h = pPix->drawable.height;
     uint32_t txpitch = exaGetPixmapPitch(pPix);
 
-    if (h > 1 && ((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch)
+    if (h > 1 && (RADEON_ALIGN(w * pPix->drawable.bitsPerPixel / 8, 32)) != txpitch)
 	return FALSE;
 
     return TRUE;

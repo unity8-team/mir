@@ -216,7 +216,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	txsize = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
 		  (((((pPriv->h + 1 ) >> 1) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
-	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
+	txpitch = RADEON_ALIGN(pPriv->src_pitch >> 1, 64);
 	txpitch -= 32;
 
 	BEGIN_ACCEL_RELOC(23, 3);
@@ -648,7 +648,7 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	txsize = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
 		  (((((pPriv->h + 1 ) >> 1) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
-	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
+	txpitch = RADEON_ALIGN(pPriv->src_pitch >> 1, 64);
 	txpitch -= 32;
 
 	BEGIN_ACCEL_RELOC(36, 3);
@@ -1191,7 +1191,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	txformat0 = ((((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
 		     (((((pPriv->h + 1 ) >> 1 ) - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
 		     R300_TXPITCH_EN);
-	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
+	txpitch = RADEON_ALIGN(pPriv->src_pitch >> 1, 64);
 	txpitch -= 1;
 	txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
 		    R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |
@@ -2652,7 +2652,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	txformat0 = ((((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
 		     (((((pPriv->h + 1 ) >> 1 ) - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
 		     R300_TXPITCH_EN);
-	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
+	txpitch = RADEON_ALIGN(pPriv->src_pitch >> 1, 64);
 	txpitch -= 1;
 	txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
 		    R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |

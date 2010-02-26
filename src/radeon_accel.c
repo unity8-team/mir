@@ -768,7 +768,7 @@ void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
 	info->cp->indirectStart  = 0;
     } else {
 	/* Start on a double word boundary */
-	info->cp->indirectStart  = buffer->used = (buffer->used + 7) & ~7;
+	info->cp->indirectStart  = buffer->used = RADEON_ALIGN(buffer->used, 8);
 	if (RADEON_VERBOSE) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "   Starting at %d\n",
 		       info->cp->indirectStart);
@@ -867,11 +867,11 @@ RADEONHostDataBlit(
 	break;
     case 2:
 	format = RADEON_GMC_DST_16BPP;
-	*bufPitch = 2 * ((w + 1) & ~1);
+	*bufPitch = 2 * RADEON_ALIGN(w, 2);
 	break;
     case 1:
 	format = RADEON_GMC_DST_8BPP_CI;
-	*bufPitch = (w + 3) & ~3;
+	*bufPitch = RADEON_ALIGN(w, 4);
 	break;
     default:
 	xf86DrvMsg( pScrn->scrnIndex, X_ERROR,
@@ -1157,7 +1157,7 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      * Might need that for non-XF86DRI too?
      */
     if (info->allowColorTiling) {
-	bufferSize = RADEON_ALIGN(((pScrn->virtualY + 15) & ~15) * width_bytes,
+	bufferSize = RADEON_ALIGN((RADEON_ALIGN(pScrn->virtualY, 16)) * width_bytes,
 		      RADEON_GPU_PAGE_SIZE);
     } else {
         bufferSize = RADEON_ALIGN(pScrn->virtualY * width_bytes,
@@ -1168,8 +1168,8 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      * which is always the case if color tiling is used due to color pitch
      * but not necessarily otherwise, and its height a multiple of 16 lines.
      */
-    info->dri->depthPitch = (pScrn->displayWidth + 31) & ~31;
-    depthSize = RADEON_ALIGN(((pScrn->virtualY + 15) & ~15) * info->dri->depthPitch
+    info->dri->depthPitch = RADEON_ALIGN(pScrn->displayWidth, 32);
+    depthSize = RADEON_ALIGN((RADEON_ALIGN(pScrn->virtualY, 16)) * info->dri->depthPitch
 		  * depthCpp, RADEON_GPU_PAGE_SIZE);
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1324,7 +1324,7 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
 	if ((fbarea = xf86AllocateOffscreenArea(pScreen,
 						pScrn->displayWidth,
 						info->allowColorTiling ? 
-						((pScrn->virtualY + 15) & ~15)
+						(RADEON_ALIGN(pScrn->virtualY, 16))
 						- pScrn->virtualY + 2 : 2,
 						0, NULL, NULL,
 						NULL))) {
@@ -1432,7 +1432,7 @@ RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen)
 	if ((fbarea = xf86AllocateOffscreenArea(pScreen,
 						pScrn->displayWidth,
 						info->allowColorTiling ? 
-						((pScrn->virtualY + 15) & ~15)
+						(RADEON_ALIGN(pScrn->virtualY, 16))
 						- pScrn->virtualY + 2 : 2,
 						0, NULL, NULL,
 						NULL))) {

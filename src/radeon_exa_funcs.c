@@ -466,7 +466,7 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     uint32_t dst_domain;
     uint32_t dst_pitch_offset;
     unsigned bpp = pDst->drawable.bitsPerPixel;
-    uint32_t scratch_pitch = (w * bpp / 8 + 63) & ~63;
+    uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 64);
     uint32_t swap = RADEON_HOST_DATA_SWAP_NONE;
     Bool r;
     int i;
@@ -565,7 +565,7 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     uint32_t src_domain = 0;
     uint32_t src_pitch_offset;
     unsigned bpp = pSrc->drawable.bitsPerPixel;
-    uint32_t scratch_pitch = (w * bpp / 8 + 63) & ~63;
+    uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 64);
     uint32_t swap = RADEON_HOST_DATA_SWAP_NONE;
     Bool r;
 
@@ -667,7 +667,7 @@ RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
     RINFO_FROM_SCREEN(pSrc->drawable.pScreen);
     uint8_t	  *src	     = info->FB + exaGetPixmapOffset(pSrc);
     int		   bpp	     = pSrc->drawable.bitsPerPixel;
-    uint32_t datatype, src_pitch_offset, scratch_pitch = (w * bpp/8 + 63) & ~63, scratch_off = 0;
+    uint32_t datatype, src_pitch_offset, scratch_pitch = RADEON_ALIGN(w * bpp / 8, 64), scratch_off = 0;
     drmBufPtr scratch;
 
     TRACE;

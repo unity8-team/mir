@@ -425,7 +425,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	int ret;
 	unsigned long rotate_pitch;
 
-	width = RADEON_ALIGN(width, 63);
+	width = RADEON_ALIGN(width, 64);
 	rotate_pitch = width * drmmode->cpp;
 
 	size = rotate_pitch * height;
@@ -460,7 +460,7 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	if (!data)
 		data = drmmode_crtc_shadow_allocate (crtc, width, height);
 
-	rotate_pitch = RADEON_ALIGN(width, 63) * drmmode->cpp;
+	rotate_pitch = RADEON_ALIGN(width, 64) * drmmode->cpp;
 
 	rotate_pixmap = drmmode_create_bo_pixmap(pScrn->pScreen,
 						 width, height,
@@ -1048,7 +1048,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (front_bo)
 		radeon_bo_wait(front_bo);
 
-	pitch = RADEON_ALIGN(width, 63);
+	pitch = RADEON_ALIGN(width, 64);
 	height = RADEON_ALIGN(height, 16);
 
 	screen_size = pitch * height * cpp;

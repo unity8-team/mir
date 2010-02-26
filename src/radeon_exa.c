@@ -401,7 +401,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     int padded_width;
     uint32_t size;
     uint32_t tiling = 0;
-    int pixmap_align = 0;
+    int pixmap_align;
 
 #ifdef EXA_MIXED_PIXMAPS
     if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
@@ -421,13 +421,13 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     }
 
     if (tiling) {
-	height = (height + 15) & ~15;
-	pixmap_align = 255;
+	height = RADEON_ALIGN(height, 16);
+	pixmap_align = 256;
     } else
-	pixmap_align = 63;
+	pixmap_align = 64;
 
     padded_width = ((width * bitsPerPixel + FB_MASK) >> FB_SHIFT) * sizeof(FbBits);
-    padded_width = (padded_width + pixmap_align) & ~pixmap_align;
+    padded_width = RADEON_ALIGN(padded_width, pixmap_align);
     size = height * padded_width;
 
     new_priv = xcalloc(1, sizeof(struct radeon_exa_pixmap_priv));

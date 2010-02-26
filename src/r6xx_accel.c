@@ -254,7 +254,7 @@ set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf)
 	cb_color_info |= SOURCE_FORMAT_bit;
 
     pitch = (cb_conf->w / 8) - 1;
-    h = (cb_conf->h + 7) & ~7;
+    h = RADEON_ALIGN(cb_conf->h, 8);
     slice = ((cb_conf->w * h) / 64) - 1;
 
     BEGIN_BATCH(3 + 2);

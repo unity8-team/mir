@@ -67,18 +67,18 @@ void RADEONSetPitch (ScrnInfoPtr pScrn)
     /* FIXME: May need to validate line pitch here */
     if (info->ChipFamily < CHIP_FAMILY_R600) {
 	switch (pScrn->depth / 8) {
-	case 1: pitch_mask = align_large ? 255 : 127;
+	case 1: pitch_mask = align_large ? 256 : 128;
 	    break;
-	case 2: pitch_mask = align_large ? 127 : 31;
+	case 2: pitch_mask = align_large ? 128 : 32;
 	    break;
 	case 3:
-	case 4: pitch_mask = align_large ? 63 : 15;
+	case 4: pitch_mask = align_large ? 64 : 16;
 	    break;
 	}
     } else
-	pitch_mask = 255; /* r6xx/r7xx need 256B alignment for accel */
+	pitch_mask = 256; /* r6xx/r7xx need 256B alignment for accel */
 
-    dummy = (pScrn->virtualX + pitch_mask) & ~pitch_mask;
+    dummy = RADEON_ALIGN(pScrn->virtualX, pitch_mask);
     pScrn->displayWidth = dummy;
     info->CurrentLayout.displayWidth = pScrn->displayWidth;
 

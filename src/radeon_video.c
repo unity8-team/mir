@@ -2906,7 +2906,7 @@ RADEONPutImage(
    case FOURCC_RGB16:
    case FOURCC_RGBT16:
 	dstPitch = width * 2;
-	srcPitch = (width * 2 + 3) & ~3;
+	srcPitch = RADEON_ALIGN(width * 2, 4);
 	break;
    case FOURCC_YV12:
    case FOURCC_I420:
@@ -2917,12 +2917,12 @@ RADEONPutImage(
 	    /* need 16bytes alignment for u,v plane, so 2 times that for width
 	       but blitter needs 64bytes alignment. 128byte is a waste but dstpitch
 	       for uv planes needs to be dstpitch yplane >> 1 for now. */
-	    dstPitch = ((width + 127) & ~127);
-	    srcPitch = (width + 3) & ~3;
+	    dstPitch = (RADEON_ALIGN(width, 128));
+	    srcPitch = RADEON_ALIGN(width, 4);
 	}
 	else {
 	    dstPitch = width * 2;
-	    srcPitch = (width + 3) & ~3;
+	    srcPitch = RADEON_ALIGN(width, 4);
 	    idconv = FOURCC_YUY2;
 	}
 	break;
@@ -2937,15 +2937,15 @@ RADEONPutImage(
 #ifdef XF86DRI
    if (info->directRenderingEnabled && info->DMAForXv) {
        /* The upload blit only supports multiples of 64 bytes */
-       dstPitch = (dstPitch + 63) & ~63;
+       dstPitch = RADEON_ALIGN(dstPitch, 64);
    } else
 #endif
        /* The overlay only supports multiples of 16 bytes */
-       dstPitch = (dstPitch + 15) & ~15;
+       dstPitch = RADEON_ALIGN(dstPitch, 16);
 
    new_size = dstPitch * height;
    if (idconv == FOURCC_YV12 || id == FOURCC_I420) {
-      new_size += (dstPitch >> 1) * ((height + 1) & ~1);
+      new_size += (dstPitch >> 1) * (RADEON_ALIGN(height, 2));
    }
    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn, &pPriv->video_memory,
 						       (pPriv->doubleBuffer ?
@@ -2959,7 +2959,7 @@ RADEONPutImage(
     /* copy data */
    top = ya >> 16;
    left = (xa >> 16) & ~1;
-   npixels = ((((xb + 0xffff) >> 16) + 1) & ~1) - left;
+   npixels = (RADEON_ALIGN((xb + 0xffff) >> 16, 2)) - left;
 
    offset = (pPriv->video_offset) + (top * dstPitch);
 
@@ -2981,9 +2981,9 @@ RADEONPutImage(
 	    /* meh. Such a mess just for someone who wants to watch half the video clipped */
 	    top &= ~1;
 	    /* odd number of pixels? That may not work correctly */
-	    srcPitch2 = ((width >> 1) + 3) & ~3;
+	    srcPitch2 = RADEON_ALIGN(width >> 1, 4);
 	    /* odd number of lines? Maybe... */
-	    s2offset = srcPitch * ((height + 1) & ~1);
+	    s2offset = srcPitch * (RADEON_ALIGN(height, 2));
 	    s3offset = s2offset + srcPitch2 * ((height + 1) >> 1);
 	    s2offset += (top >> 1) * srcPitch2 + (left >> 1);
 	    s3offset += (top >> 1) * srcPitch2 + (left >> 1);
@@ -3006,7 +3006,7 @@ RADEONPutImage(
 	}
 	else {
 	    s2offset = srcPitch * height;
-	    srcPitch2 = ((width >> 1) + 3) & ~3;
+	    srcPitch2 = RADEON_ALIGN(width >> 1, 4);
 	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
 	    top &= ~1;
 	    dst_start += left << 1;
@@ -3018,7 +3018,7 @@ RADEONPutImage(
 		s2offset = s3offset;
 		s3offset = tmp;
 	    }
-	    nlines = ((((yb + 0xffff) >> 16) + 1) & ~1) - top;
+	    nlines = (RADEON_ALIGN((yb + 0xffff) >> 16, 2)) - top;
 	    RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
 				 buf + s2offset, buf + s3offset, dst_start,
 				 srcPitch, srcPitch2, dstPitch, nlines, npixels);
@@ -3086,18 +3086,18 @@ RADEONQueryImageAttributes(
     if(*w > info->xv_max_width) *w = info->xv_max_width;
     if(*h > info->xv_max_height) *h = info->xv_max_height;
 
-    *w = (*w + 1) & ~1;
+    *w = RADEON_ALIGN(*w, 2);
     if(offsets) offsets[0] = 0;
 
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	*h = (*h + 1) & ~1;
-	size = (*w + 3) & ~3;
+	*h = RADEON_ALIGN(*h, 2);
+	size = RADEON_ALIGN(*w, 4);
 	if(pitches) pitches[0] = size;
 	size *= *h;
 	if(offsets) offsets[1] = size;
-	tmp = ((*w >> 1) + 3) & ~3;
+	tmp = RADEON_ALIGN(*w >> 1, 4);
 	if(pitches) pitches[1] = pitches[2] = tmp;
 	tmp *= (*h >> 1);
 	size += tmp;
@@ -3176,8 +3176,8 @@ RADEONAllocateSurface(
     if((w > 1024) || (h > 1024))
 	return BadAlloc;
 
-    w = (w + 1) & ~1;
-    pitch = ((w << 1) + 15) & ~15;
+    w = RADEON_ALIGN(w, 2);
+    pitch = RADEON_ALIGN(w << 1, 16);
     size = pitch * h;
 
     offset = radeon_legacy_allocate_memory(pScrn, &surface_memory, size, 64,
@@ -3493,21 +3493,21 @@ RADEONPutVideo(
    case FOURCC_YV12:
    case FOURCC_I420:
         top &= ~1;
-        dstPitch = ((width << 1) + 15) & ~15;
-        srcPitch = (width + 3) & ~3;
+        dstPitch = RADEON_ALIGN(width << 1, 16);
+        srcPitch = RADEON_ALIGN(width, 4);
         s2offset = srcPitch * height;
-        srcPitch2 = ((width >> 1) + 3) & ~3;
+        srcPitch2 = RADEON_ALIGN(width >> 1, 4);
         s3offset = (srcPitch2 * (height >> 1)) + s2offset;
         break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
-        dstPitch = ((width<<1) + 15) & ~15;
+        dstPitch = RADEON_ALIGN(width<<1, 16);
         srcPitch = (width<<1);
         break;
    }
 #else
-   dstPitch = ((width<<1) + 15) & ~15;
+   dstPitch = RADEON_ALIGN(width << 1, 16);
    srcPitch = (width<<1);
 #endif
 
@@ -3535,20 +3535,20 @@ RADEONPutVideo(
    switch(pPriv->overlay_deinterlacing_method){
         case METHOD_BOB:
         case METHOD_SINGLE:
-           offset1 = (pPriv->video_offset + 0xf) & (~0xf);
-           offset2 = (pPriv->video_offset + new_size + 0xf) & (~0xf);
+           offset1 = RADEON_ALIGN(pPriv->video_offset, 0x10);
+           offset2 = RADEON_ALIGN(pPriv->video_offset + new_size, 0x10);
            offset3 = offset1;
            offset4 = offset2;
            break;
         case METHOD_WEAVE:
-           offset1 = (pPriv->video_offset + 0xf) & (~0xf);
+           offset1 = RADEON_ALIGN(pPriv->video_offset, 0x10);
            offset2 = offset1+dstPitch;
-           offset3 = (pPriv->video_offset + 2 * new_size + 0xf) & (~0xf);
+           offset3 = RADEON_ALIGN(pPriv->video_offset + 2 * new_size, 0x10);
            offset4 = offset3+dstPitch;
            break;
         default:
-           offset1 = (pPriv->video_offset + 0xf) & (~0xf);
-           offset2 = (pPriv->video_offset + new_size + 0xf) & (~0xf);
+           offset1 = RADEON_ALIGN(pPriv->video_offset, 0x10);
+           offset2 = RADEON_ALIGN(pPriv->video_offset + new_size, 0x10);
            offset3 = offset1;
            offset4 = offset2;
         }
@@ -3571,7 +3571,7 @@ RADEONPutVideo(
             vbi_end = 20;
         }
 
-        vbi_offset0 = (pPriv->video_offset + mult * new_size * bpp + 0xf) & (~0xf);
+        vbi_offset0 = RADEON_ALIGN(pPriv->video_offset + mult * new_size * bpp, 0x10);
         vbi_offset1 = vbi_offset0 + dstPitch*20;
         OUTREG(RADEON_CAP0_VBI0_OFFSET, vbi_offset0+display_base);
         OUTREG(RADEON_CAP0_VBI1_OFFSET, vbi_offset1+display_base);

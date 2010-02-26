@@ -827,7 +827,7 @@ FUNC_NAME(RADEONSubsequentScanlineCPUToScreenColorExpandFill)(ScrnInfoPtr
     OUT_ACCEL_REG(RADEON_SC_BOTTOM_RIGHT,  ((y+h) << 16) | ((x+w) & 0xffff));
     OUT_ACCEL_REG(RADEON_DST_Y_X,          (y << 16)     | (x & 0xffff));
     /* Have to pad the width here and use clipping engine */
-    OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, (h << 16)     | ((w + 31) & ~31));
+    OUT_ACCEL_REG(RADEON_DST_HEIGHT_WIDTH, (h << 16)     | RADEON_ALIGN(w, 32));
 
     FINISH_ACCEL();
 
@@ -836,7 +836,7 @@ FUNC_NAME(RADEONSubsequentScanlineCPUToScreenColorExpandFill)(ScrnInfoPtr
     info->accel_state->scanline_x      = x;
     info->accel_state->scanline_y      = y;
     /* Have to pad the width here and use clipping engine */
-    info->accel_state->scanline_w      = (w + 31) & ~31;
+    info->accel_state->scanline_w      = RADEON_ALIGN(w, 32);
     info->accel_state->scanline_h      = h;
 
     info->accel_state->scanline_x1clip = x + skipleft;

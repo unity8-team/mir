@@ -1916,7 +1916,7 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t scratch_mc_addr;
     int wpass = w * (bpp/8);
-    int scratch_pitch_bytes = (wpass + 255) & ~255;
+    int scratch_pitch_bytes = RADEON_ALIGN(wpass, 256);
     uint32_t scratch_pitch = scratch_pitch_bytes / (bpp / 8);
     int scratch_offset = 0, hpass, temph;
     char *dst;
@@ -2008,7 +2008,7 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     uint32_t src_height = pSrc->drawable.height;
     int bpp = pSrc->drawable.bitsPerPixel;
     uint32_t scratch_mc_addr;
-    int scratch_pitch_bytes = (dst_pitch + 255) & ~255;
+    int scratch_pitch_bytes = RADEON_ALIGN(dst_pitch, 256);
     int scratch_offset = 0, hpass;
     uint32_t scratch_pitch = scratch_pitch_bytes / (bpp / 8);
     int wpass = w * (bpp/8);
@@ -2089,7 +2089,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     unsigned size;
     uint32_t dst_domain;
     int bpp = pDst->drawable.bitsPerPixel;
-    uint32_t scratch_pitch = (w * bpp / 8 + 255) & ~255;
+    uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 256);
     uint32_t src_pitch_hw = scratch_pitch / (bpp / 8);
     uint32_t dst_pitch_hw = exaGetPixmapPitch(pDst) / (bpp / 8);
     Bool r;
@@ -2163,7 +2163,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     unsigned size;
     uint32_t src_domain = 0;
     int bpp = pSrc->drawable.bitsPerPixel;
-    uint32_t scratch_pitch = (w * bpp / 8 + 255) & ~255;
+    uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 256);
     uint32_t dst_pitch_hw = scratch_pitch / (bpp / 8);
     uint32_t src_pitch_hw = exaGetPixmapPitch(pSrc) / (bpp / 8);
     Bool r;
