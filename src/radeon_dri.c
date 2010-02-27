@@ -51,7 +51,6 @@
 #include "radeon_dri.h"
 #include "radeon_version.h"
 
-#include "atipciids.h"
 
 				/* X and server generic header files */
 #include "xf86.h"
@@ -62,6 +61,8 @@
 #define _XF86DRI_SERVER_
 #include "GL/glxtokens.h"
 #include "sarea.h"
+
+#include "atipciids.h"
 
 static size_t radeon_drm_page_size;
 
