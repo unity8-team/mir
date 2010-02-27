@@ -672,29 +672,6 @@ drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 	return MODE_OK;
 }
 
-static void fill_detailed_lvds_block(struct detailed_monitor_section *det_mon,
-					DisplayModePtr mode)
-{
-	struct detailed_timings *timing = &det_mon->section.d_timings;
-
-	det_mon->type = DT;
-	timing->clock = mode->Clock * 1000;
-	timing->h_active = mode->HDisplay;
-	timing->h_blanking = mode->HTotal - mode->HDisplay;
-	timing->v_active = mode->VDisplay;
-	timing->v_blanking = mode->VTotal - mode->VDisplay;
-	timing->h_sync_off = mode->HSyncStart - mode->HDisplay;
-	timing->h_sync_width = mode->HSyncEnd - mode->HSyncStart;
-	timing->v_sync_off = mode->VSyncStart - mode->VDisplay;
-	timing->v_sync_width = mode->VSyncEnd - mode->VSyncStart;
-
-	if (mode->Flags & V_PVSYNC)
-		timing->misc |= 0x02;
-
-	if (mode->Flags & V_PHSYNC)
-		timing->misc |= 0x01;
-}
-
 static DisplayModePtr
 drmmode_output_lvds_edid(xf86OutputPtr output, DisplayModePtr modes)
 {
