@@ -1,3 +1,25 @@
+Snapshot 2.10.901 (2010-02-26)
+==============================
+The most significant new feature of this release is support for new
+DRI2 APIs, allowing page flipping to occur for swaps that are
+full-screen and not rotated.
+
+Some significant bug fixes
+--------------------------
+* Avoid fallback due to failing to extract pixel value from an
+  alpha-only solid, (this fix eliminated 1 second from Mobilin boot
+  time).
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=26189
+
+* Handle full-height blits without tearing in CopyRegion
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=22475
+
+Several other fixes and cleanups are included as well, (including the
+removal of stale utility code that is now maintained in the separate
+intel-gpu-tools module).
+
 Release 2.10.0 (2010-01-04)
 ===========================
 New requirements of 2.10 compared to 2.9
