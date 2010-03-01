@@ -1,3 +1,23 @@
+xserver-xorg-video-intel (2:2.9.1-1ubuntu8) lucid; urgency=low
+
+  * debian/apport-gpu-error-intel.py:
+    + Set the default title for freeze reports to "GPU lockup"
+    + Determine the chipset, and prepend it to the title
+    + Calculate a signature of the dump so we can more easily identify
+      dupe freezes.  Append to the title.
+    + Include i915_error_state if it exists
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 01 Mar 2010 13:28:56 -0800
+
+xserver-xorg-video-intel (2:2.9.1-1ubuntu7) lucid; urgency=low
+
+  * debian/apport-gpu-error-intel.py:
+    + Add Xorg.0.log and other useful information to capture
+    + s/pr/report/g for consistency with xorg apport script
+    + Tag as a freeze bug
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Sat, 27 Feb 2010 11:38:41 -0800
+
 xserver-xorg-video-intel (2:2.9.1-1ubuntu6) lucid; urgency=low
 
   * debian/xserver-xorg-video-intel.udev: Fix typo
