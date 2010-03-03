@@ -20,11 +20,14 @@ pci_devices = [
     { 'name':'i865',        're':'(8086:2572|82865G)' },
     { 'name':'i915g',       're':'(8086:2582)' },
     { 'name':'i915gm',      're':'(8086:2592|915GM)' },
+    { 'name':'e7221',       're':'(8086:258a)' },
     { 'name':'i945g',       're':'(8086:2772|945G[ \/]|82945G[ \/])' },
     { 'name':'i945gm',      're':'(8086:27a2|945GM[ \/]|82945GM[ \/])' },
     { 'name':'i945gme',     're':'(8086:27ae|945GME|82945GME)' },
     { 'name':'IGDg',        're':'(8086:a001)' },
     { 'name':'IGDgm',       're':'(8086:a011)' },
+    { 'name':'pineviewg',   're':'(8086:a001)' },
+    { 'name':'pineviewgm',  're':'(8086:a011)' },
     { 'name':'i946gz',      're':'(8086:2972|82946GZ)' },
     { 'name':'g35',         're':'(8086:2982|82G35)' },
     { 'name':'i965q',       're':'(8086:2992|Q965)' },
@@ -39,7 +42,11 @@ pci_devices = [
     { 'name':'q45',         're':'(8086:2e12)' },
     { 'name':'g45',         're':'(8086:2e22)' },
     { 'name':'g41',         're':'(8086:2e32)' },
+    { 'name':'b43',         're':'(8086:2e42)' },
     { 'name':'clarkdale',   're':'(8086:0042)' },
+    { 'name':'arrandale',   're':'(8086:0046)' },
+    { 'name':'sandybridge', 're':'(8086:0102)' },
+    { 'name':'sandybridgem','re':'(8086:0106)' },
     ]
 for device in pci_devices:
     device['rc'] = re.compile(device['re'], re.IGNORECASE)
@@ -85,7 +92,7 @@ def main(argv=None):
     report.add_os_info()
     report.add_proc_info()
     report.add_user_info()
-    attach_hardware(report)
+
     report['PciDisplay'] = pci_devices(PCI_DISPLAY)
     report['IntelGpuDump'] = command_output(['intel_gpu_dump'])
     report['DumpSignature'] = get_dump_signature(report['IntelGpuDump'])
