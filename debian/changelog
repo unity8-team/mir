@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.9.1-1ubuntu10) lucid; urgency=low
+
+  * debian/apport-gpu-error-intel.py:
+    + check_ignored() can be called only after ExecutablePath is defined
+      (LP: #530650)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 03 Mar 2010 14:11:32 -0800
+
 xserver-xorg-video-intel (2:2.9.1-1ubuntu9) lucid; urgency=low
 
   * debian/apport-gpu-error-intel.py:

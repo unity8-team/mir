@@ -83,23 +83,22 @@ def main(argv=None):
     report.setdefault('Tags', '')
     report.setdefault('Title', 'GPU lockup')
 
-    report['Package'] = 'xserver-xorg-video-intel'
-    report['Tags'] += ' freeze'
-
-    if report.check_ignored():
-        return 0
-
     report.add_os_info()
     report.add_proc_info()
     report.add_user_info()
 
-    report['PciDisplay'] = pci_devices(PCI_DISPLAY)
+    if report.check_ignored():
+        return 0
+
+    report['Package'] = 'xserver-xorg-video-intel'
+    report['Tags'] += ' freeze'
+    report['Lspci'] = command_output(['lspci', '-vvnn'])
     report['IntelGpuDump'] = command_output(['intel_gpu_dump'])
     report['DumpSignature'] = get_dump_signature(report['IntelGpuDump'])
-    report['Chipset'] = get_pci_device(report['PciDisplay'])
+    report['Chipset'] = get_pci_device(report['Lspci'])
     if report['Chipset']:
         report['Title'] = "[%s] GPU lockup" %(report['Chipset'])
-    if report['DumpSign']:
+    if report['DumpSignature']:
         report['Title'] += " " + report['DumpSignature']
 
     attach_hardware(report)
