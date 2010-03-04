@@ -102,7 +102,7 @@ typedef struct _i915XvMCSurface {
 	unsigned int uvStride;
 	unsigned int width;	/* Dimensions */
 	unsigned int height;
-	intel_xvmc_drm_map_t srf;
+	drm_intel_bo *bo;
 	i915XvMCContext *privContext;
 	i915XvMCSubpicture *privSubPic;	/* Subpicture to be blended when
 					 * displaying. NULL if none. */

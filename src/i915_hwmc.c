@@ -797,6 +797,7 @@ static int i915_xvmc_put_image(ScrnInfoPtr scrn,
 	int ret;
 
 	if (FOURCC_XVMC == id) {
+#if 0
 		switch (xvmc_cmd->command) {
 		case INTEL_XVMC_COMMAND_DISPLAY:
 			if ((xvmc_cmd->srfNo >= I915_XVMC_MAX_SURFACES) ||
@@ -815,6 +816,9 @@ static int i915_xvmc_put_image(ScrnInfoPtr scrn,
 		default:
 			return 0;
 		}
+#endif
+		/* Pass the GEM object name through the pointer arg. */
+		buf = (void *)(uintptr_t)xvmc_cmd->handle;
 	}
 
 	ret =

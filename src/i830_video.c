@@ -1512,22 +1512,16 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		i830_setup_dst_params(scrn, adaptor_priv, width, height,
 				&dstPitch, &dstPitch2, &size, id);
 
-		if (IS_I965G(intel)) {
-			adaptor_priv->buf =
-				drm_intel_bo_gem_create_from_name(intel->bufmgr,
-								  "xvmc surface",
-								  (uintptr_t)buf);
-		} else {
-			if (IS_I915G(intel) || IS_I915GM(intel)) {
-				/* XXX: i915 is not support and needs some
-				 * serious care.  grep for KMS in i915_hwmc.c */
-				return BadAlloc;
-			}
-			/* fixup pointers */
-			adaptor_priv->YBufOffset += (uint32_t) buf;
-			adaptor_priv->UBufOffset += (uint32_t) buf;
-			adaptor_priv->VBufOffset += (uint32_t) buf;
+		if (IS_I915G(intel) || IS_I915GM(intel)) {
+			/* XXX: i915 is not support and needs some
+			 * serious care.  grep for KMS in i915_hwmc.c */
+			return BadAlloc;
 		}
+
+		adaptor_priv->buf =
+			drm_intel_bo_gem_create_from_name(intel->bufmgr,
+							  "xvmc surface",
+							  (uintptr_t)buf);
 	} else {
 		if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
 					  &dstPitch, &dstPitch2,
