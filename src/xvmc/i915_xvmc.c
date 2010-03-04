@@ -380,13 +380,22 @@ static void i915_mc_one_time_state_emit(XvMCContext * context)
 	ADVANCE_BATCH();
 }
 
-static void i915_mc_static_indirect_state_init(XvMCContext * context)
+static void i915_mc_static_indirect_state_set(XvMCContext * context,
+					      XvMCSurface * dest,
+					      unsigned int picture_structure,
+					      unsigned int flags,
+					      unsigned int picture_coding_type)
 {
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
-	struct i915_mc_static_indirect_state_buffer *buffer_info =
-	    (struct i915_mc_static_indirect_state_buffer *)pI915XvMC->sis.map;
+	i915XvMCSurface *pI915Surface = (i915XvMCSurface *) dest->privData;
+	struct i915_mc_static_indirect_state_buffer *buffer_info;
+	unsigned int w = dest->width;
+
+	drm_intel_gem_bo_map_gtt(pI915XvMC->sis_bo);
+	buffer_info = pI915XvMC->sis_bo->virtual;
 
 	memset(buffer_info, 0, sizeof(*buffer_info));
+
 	/* dest Y */
 	buffer_info->dest_y.dw0.type = CMD_3D;
 	buffer_info->dest_y.dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
@@ -396,6 +405,8 @@ static void i915_mc_static_indirect_state_init(XvMCContext * context)
 	buffer_info->dest_y.dw1.fence_regs = 0;	/* disabled *//* FIXME: tiled y for performance */
 	buffer_info->dest_y.dw1.tiled_surface = 0;	/* linear */
 	buffer_info->dest_y.dw1.walk = TILEWALK_XMAJOR;
+	buffer_info->dest_y.dw1.pitch = (pI915Surface->yStride >> 2);	/* in DWords */
+	buffer_info->dest_y.dw2.base_address = (YOFFSET(pI915Surface) >> 2);	/* starting DWORD address */
 
 	/* dest U */
 	buffer_info->dest_u.dw0.type = CMD_3D;
@@ -406,6 +417,8 @@ static void i915_mc_static_indirect_state_init(XvMCContext * context)
 	buffer_info->dest_u.dw1.fence_regs = 0;
 	buffer_info->dest_u.dw1.tiled_surface = 0;
 	buffer_info->dest_u.dw1.walk = TILEWALK_XMAJOR;
+	buffer_info->dest_u.dw1.pitch = (pI915Surface->uvStride >> 2);	/* in DWords */
+	buffer_info->dest_u.dw2.base_address = (UOFFSET(pI915Surface) >> 2);	/* starting DWORD address */
 
 	/* dest V */
 	buffer_info->dest_v.dw0.type = CMD_3D;
@@ -416,7 +429,10 @@ static void i915_mc_static_indirect_state_init(XvMCContext * context)
 	buffer_info->dest_v.dw1.fence_regs = 0;
 	buffer_info->dest_v.dw1.tiled_surface = 0;
 	buffer_info->dest_v.dw1.walk = TILEWALK_XMAJOR;
+	buffer_info->dest_v.dw1.pitch = (pI915Surface->uvStride >> 2);	/* in Dwords */
+	buffer_info->dest_v.dw2.base_address = (VOFFSET(pI915Surface) >> 2);	/* starting DWORD address */
 
+	/* Dest buffer parameters */
 	buffer_info->dest_buf.dw0.type = CMD_3D;
 	buffer_info->dest_buf.dw0.opcode = OPC_3DSTATE_DEST_BUFFER_VARIABLES;
 	buffer_info->dest_buf.dw0.length = 0;
@@ -425,7 +441,17 @@ static void i915_mc_static_indirect_state_init(XvMCContext * context)
 	buffer_info->dest_buf.dw1.color_fmt = COLORBUFFER_8BIT;
 	buffer_info->dest_buf.dw1.v_ls = 0;	/* fill later */
 	buffer_info->dest_buf.dw1.v_ls_offset = 0;	/* fill later */
+	if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
+		;
+	} else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_TOP_FIELD) {
+		buffer_info->dest_buf.dw1.v_ls = 1;
+	} else if ((picture_structure & XVMC_FRAME_PICTURE) ==
+		   XVMC_BOTTOM_FIELD) {
+		buffer_info->dest_buf.dw1.v_ls = 1;
+		buffer_info->dest_buf.dw1.v_ls_offset = 1;
+	}
 
+	/* MPEG buffer parameters */
 	buffer_info->dest_buf_mpeg.dw0.type = CMD_3D;
 	buffer_info->dest_buf_mpeg.dw0.opcode =
 	    OPC_3DSTATE_DEST_BUFFER_VARIABLES_MPEG;
@@ -439,48 +465,6 @@ static void i915_mc_static_indirect_state_init(XvMCContext * context)
 
 	buffer_info->dest_buf_mpeg.dw1.v_subsample_factor = MC_SUB_1V;
 	buffer_info->dest_buf_mpeg.dw1.h_subsample_factor = MC_SUB_1H;
-
-	buffer_info->corr.dw0.type = CMD_3D;
-	buffer_info->corr.dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
-	buffer_info->corr.dw0.length = 1;
-	buffer_info->corr.dw1.aux_id = 0;
-	buffer_info->corr.dw1.buffer_id = BUFFERID_MC_INTRA_CORR;
-	buffer_info->corr.dw1.aux_id = 0;
-	buffer_info->corr.dw1.fence_regs = 0;
-	buffer_info->corr.dw1.tiled_surface = 0;
-	buffer_info->corr.dw1.walk = 0;
-	buffer_info->corr.dw1.pitch = 0;
-	buffer_info->corr.dw2.base_address = (pI915XvMC->corrdata.offset >> 2);	/* starting DWORD address */
-}
-
-static void i915_mc_static_indirect_state_set(XvMCContext * context,
-					      XvMCSurface * dest,
-					      unsigned int picture_structure,
-					      unsigned int flags,
-					      unsigned int picture_coding_type)
-{
-	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
-	i915XvMCSurface *pI915Surface = (i915XvMCSurface *) dest->privData;
-	struct i915_mc_static_indirect_state_buffer *buffer_info =
-	    (struct i915_mc_static_indirect_state_buffer *)pI915XvMC->sis.map;
-	unsigned int w = dest->width;
-
-	buffer_info->dest_y.dw1.pitch = (pI915Surface->yStride >> 2);	/* in DWords */
-	buffer_info->dest_y.dw2.base_address = (YOFFSET(pI915Surface) >> 2);	/* starting DWORD address */
-	buffer_info->dest_u.dw1.pitch = (pI915Surface->uvStride >> 2);	/* in DWords */
-	buffer_info->dest_u.dw2.base_address = (UOFFSET(pI915Surface) >> 2);	/* starting DWORD address */
-	buffer_info->dest_v.dw1.pitch = (pI915Surface->uvStride >> 2);	/* in Dwords */
-	buffer_info->dest_v.dw2.base_address = (VOFFSET(pI915Surface) >> 2);	/* starting DWORD address */
-
-	if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
-		;
-	} else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_TOP_FIELD) {
-		buffer_info->dest_buf.dw1.v_ls = 1;
-	} else if ((picture_structure & XVMC_FRAME_PICTURE) ==
-		   XVMC_BOTTOM_FIELD) {
-		buffer_info->dest_buf.dw1.v_ls = 1;
-		buffer_info->dest_buf.dw1.v_ls_offset = 1;
-	}
 
 	if (picture_structure & XVMC_FRAME_PICTURE) {
 		;
@@ -499,6 +483,20 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	buffer_info->dest_buf_mpeg.dw1.picture_width = (dest->width >> 4);	/* in macroblocks */
 	buffer_info->dest_buf_mpeg.dw2.picture_coding_type =
 	    picture_coding_type;
+
+	buffer_info->corr.dw0.type = CMD_3D;
+	buffer_info->corr.dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
+	buffer_info->corr.dw0.length = 1;
+	buffer_info->corr.dw1.aux_id = 0;
+	buffer_info->corr.dw1.buffer_id = BUFFERID_MC_INTRA_CORR;
+	buffer_info->corr.dw1.aux_id = 0;
+	buffer_info->corr.dw1.fence_regs = 0;
+	buffer_info->corr.dw1.tiled_surface = 0;
+	buffer_info->corr.dw1.walk = 0;
+	buffer_info->corr.dw1.pitch = 0;
+	buffer_info->corr.dw2.base_address = (pI915XvMC->corrdata.offset >> 2);	/* starting DWORD address */
+
+	drm_intel_gem_bo_unmap_gtt(pI915XvMC->sis_bo);
 }
 
 static void i915_mc_map_state_init(XvMCContext * context)
@@ -657,7 +655,6 @@ static void i915_flush(int map, int render)
 static void i915_mc_load_indirect_render_emit(XvMCContext * context)
 {
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
-	sis_state *sis;
 	msb_state *msb;
 	int mem_select;
 	uint32_t load_indirect, buffer_address;
@@ -678,11 +675,8 @@ static void i915_mc_load_indirect_render_emit(XvMCContext * context)
 	OUT_BATCH(load_indirect);
 
 	/* Static Indirect state buffer (dest buffer info) */
-	if (mem_select)
-		buffer_address = pI915XvMC->sis.offset;
-	else
-		buffer_address = pI915XvMC->sis.bus_addr;
-	OUT_BATCH(buffer_address | STATE_VALID | STATE_FORCE);
+	OUT_RELOC(pI915XvMC->sis_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+			STATE_VALID | STATE_FORCE);
 	OUT_BATCH(16);	/* 4 * 3 + 2 + 3 - 1 */
 
 	/* Map state buffer (reference buffer info) */
@@ -832,13 +826,6 @@ static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext * context,
 static int i915_xvmc_map_buffers(i915XvMCContext * pI915XvMC)
 {
 	if (drmMap(xvmc_driver->fd,
-		   pI915XvMC->sis.handle,
-		   pI915XvMC->sis.size,
-		   (drmAddress *) & pI915XvMC->sis.map) != 0) {
-		return 0;
-	}
-
-	if (drmMap(xvmc_driver->fd,
 		   pI915XvMC->msb.handle,
 		   pI915XvMC->msb.size,
 		   (drmAddress *) & pI915XvMC->msb.map) != 0) {
@@ -857,11 +844,6 @@ static int i915_xvmc_map_buffers(i915XvMCContext * pI915XvMC)
 
 static void i915_xvmc_unmap_buffers(i915XvMCContext * pI915XvMC)
 {
-	if (pI915XvMC->sis.map) {
-		drmUnmap(pI915XvMC->sis.map, pI915XvMC->sis.size);
-		pI915XvMC->sis.map = NULL;
-	}
-
 	if (pI915XvMC->msb.map) {
 		drmUnmap(pI915XvMC->msb.map, pI915XvMC->msb.size);
 		pI915XvMC->msb.map = NULL;
@@ -955,16 +937,12 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	tmpComm = (I915XvMCCreateContextRec *) priv_data;
 	pI915XvMC->ctxno = tmpComm->ctxno;
 	pI915XvMC->deviceID = tmpComm->deviceID;
-	pI915XvMC->sis.handle = tmpComm->sis.handle;
-	pI915XvMC->sis.offset = tmpComm->sis.offset;
-	pI915XvMC->sis.size = tmpComm->sis.size;
 	pI915XvMC->msb.handle = tmpComm->msb.handle;
 	pI915XvMC->msb.offset = tmpComm->msb.offset;
 	pI915XvMC->msb.size = tmpComm->msb.size;
 
 	if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
 	    pI915XvMC->deviceID == PCI_CHIP_I915_GM) {
-		pI915XvMC->sis.bus_addr = tmpComm->sis.bus_addr;
 		pI915XvMC->msb.bus_addr = tmpComm->msb.bus_addr;
 	}
 
@@ -992,8 +970,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 
 	/* pre-init state buffers */
 	i915_mc_one_time_context_init(context);
-
-	i915_mc_static_indirect_state_init(context);
 
 	i915_mc_map_state_init(context);
 
@@ -1115,6 +1091,23 @@ static int i915_xvmc_mc_destroy_surface(Display * display,
 	return Success;
 }
 
+static int i915_xvmc_alloc_render_state_buffers(i915XvMCContext *pI915XvMC)
+{
+	pI915XvMC->sis_bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+					       "sis",
+					       GTT_PAGE_SIZE,
+					       GTT_PAGE_SIZE);
+	if (!pI915XvMC->sis_bo)
+		return 0;
+
+	return 1;
+}
+
+static void i915_xvmc_free_render_state_buffers(i915XvMCContext *pI915XvMC)
+{
+	drm_intel_bo_unreference(pI915XvMC->sis_bo);
+}
+
 static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 				       unsigned int picture_structure,
 				       XvMCSurface * target_surface,
@@ -1170,6 +1163,9 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 
 	if (!(privTarget = target_surface->privData))
 		return XvMCBadSurface;
+
+	if (!i915_xvmc_alloc_render_state_buffers(pI915XvMC))
+		return BadAlloc;
 
 	if (context->surface_type_id >= SURFACE_TYPE_MAX) {
 		XVMC_ERR("Unsupprted surface_type_id %d.",
@@ -1328,6 +1324,8 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	}
 
 	intelFlushBatch(TRUE);
+
+	i915_xvmc_free_render_state_buffers(pI915XvMC);
 
 	UNLOCK_HARDWARE(intel_ctx->hw_context);
 	return 0;

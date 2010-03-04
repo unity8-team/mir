@@ -65,7 +65,7 @@ typedef struct _i915XvMCContext {
 	void *drawHash;
 	int deviceID;
 
-	intel_xvmc_drm_map_t sis;
+	drm_intel_bo *sis_bo;
 	intel_xvmc_drm_map_t msb;
 	drm_intel_bo *ssb_bo;
 	drm_intel_bo *psp_bo;
