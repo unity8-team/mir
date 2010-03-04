@@ -375,61 +375,6 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 	return mem;
 }
 
-void
-i830_describe_allocations(ScrnInfoPtr scrn, int verbosity, const char *prefix)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	i830_memory *mem;
-
-	if (intel->memory_list == NULL) {
-		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
-			       "%sMemory allocator not initialized\n", prefix);
-		return;
-	}
-
-	if (intel->memory_list->next->next == NULL) {
-		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
-			       "%sNo memory allocations\n", prefix);
-		return;
-	}
-
-	xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
-		       "%sFixed memory allocation layout:\n", prefix);
-
-	for (mem = intel->memory_list->next; mem->next != NULL; mem = mem->next) {
-		char phys_suffix[32] = "";
-		char *tile_suffix = "";
-
-		if (mem->tiling_mode == I915_TILING_X)
-			tile_suffix = " X tiled";
-		else if (mem->tiling_mode == I915_TILING_Y)
-			tile_suffix = " Y tiled";
-
-		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
-			       "%s0x%08lx: %s (%ld kB%s)%s\n", prefix,
-			       mem->bo->offset, mem->name,
-			       mem->size / 1024, phys_suffix, tile_suffix);
-	}
-	xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
-		       "%s0x%08lx:            end of aperture\n",
-		       prefix, intel->FbMapSize);
-
-	xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
-		       "%sBO memory allocation layout:\n", prefix);
-	for (mem = intel->bo_list; mem != NULL; mem = mem->next) {
-		char *tile_suffix = "";
-
-		if (mem->tiling_mode == I915_TILING_X)
-			tile_suffix = " X tiled";
-		else if (mem->tiling_mode == I915_TILING_Y)
-			tile_suffix = " Y tiled";
-
-		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
-			       "%sunpinned          : %s (%ld kB)%s\n", prefix,
-			       mem->name, mem->size / 1024, tile_suffix);
-	}
-}
-
 static Bool IsTileable(ScrnInfoPtr scrn, int pitch)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);

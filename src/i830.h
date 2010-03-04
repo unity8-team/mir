@@ -451,8 +451,6 @@ void i830_allocator_fini(ScrnInfoPtr scrn);
 i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 				  unsigned long size, unsigned long pitch,
 				  int flags, uint32_t tile_format);
-void i830_describe_allocations(ScrnInfoPtr scrn, int verbosity,
-			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr scrn);
 void i830_free_3d_memory(ScrnInfoPtr scrn);
 void i830_free_memory(ScrnInfoPtr scrn, i830_memory * mem);

@@ -357,9 +357,6 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr scrn,
 		return FALSE;
 	}
 
-	if (1)
-		i830_describe_allocations(scrn, 1, "i915_mc: ");
-
 	return TRUE;
 }
 
@@ -603,9 +600,6 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 		*num_priv = 0;
 		return BadAlloc;
 	}
-
-	if (0)
-		i830_describe_allocations(scrn, 1, "");
 
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (sfpriv->surface->bo->offset +

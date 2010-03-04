@@ -1413,8 +1413,6 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 	if (!i830_bind_all_memory(scrn))
 		return FALSE;
 
-	i830_describe_allocations(scrn, 1, "");
-
 	intel_batch_init(scrn);
 
 	if (IS_I965G(intel))
