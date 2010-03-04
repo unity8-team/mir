@@ -731,11 +731,8 @@ static Status render_surface(Display * display,
 	}
 
 	if (media_state.indirect_data.bo) {
-		if (xvmc_driver->kernel_exec_fencing)
-			drm_intel_gem_bo_unmap_gtt(media_state.
-						   indirect_data.bo);
-		else
-			drm_intel_bo_unmap(media_state.indirect_data.bo);
+		drm_intel_gem_bo_unmap_gtt(media_state.
+					   indirect_data.bo);
 
 		drm_intel_bo_unreference(media_state.indirect_data.bo);
 	}
@@ -755,10 +752,7 @@ static Status render_surface(Display * display,
 	interface_descriptor(&media_state);
 	vfe_state(&media_state);
 
-	if (xvmc_driver->kernel_exec_fencing)
-		drm_intel_gem_bo_map_gtt(media_state.indirect_data.bo);
-	else
-		drm_intel_bo_map(media_state.indirect_data.bo, 1);
+	drm_intel_gem_bo_map_gtt(media_state.indirect_data.bo);
 
 	block_ptr = media_state.indirect_data.bo->virtual;
 	for (i = first_macroblock; i < num_macroblocks + first_macroblock; i++) {

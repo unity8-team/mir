@@ -1010,10 +1010,7 @@ static Status put_slice2(Display * display, XvMCContext * context,
 	q_scale_code = bit_buf >> 27;
 
 	if (media_state.slice_data.bo) {
-		if (xvmc_driver->kernel_exec_fencing)
-			drm_intel_gem_bo_unmap_gtt(media_state.slice_data.bo);
-		else
-			drm_intel_bo_unmap(media_state.slice_data.bo);
+		drm_intel_gem_bo_unmap_gtt(media_state.slice_data.bo);
 
 		drm_intel_bo_unreference(media_state.slice_data.bo);
 	}
@@ -1022,10 +1019,7 @@ static Status put_slice2(Display * display, XvMCContext * context,
 						       VLD_MAX_SLICE_SIZE, 64);
 	if (!media_state.slice_data.bo)
 		return BadAlloc;
-	if (xvmc_driver->kernel_exec_fencing)
-		drm_intel_gem_bo_map_gtt(media_state.slice_data.bo);
-	else
-		drm_intel_bo_map(media_state.slice_data.bo, 1);
+	drm_intel_gem_bo_map_gtt(media_state.slice_data.bo);
 
 	memcpy(media_state.slice_data.bo->virtual, slice, nbytes);
 
@@ -1110,10 +1104,7 @@ static Status render_surface(Display * display,
 		return ret;
 
 	if (media_state.mb_data.bo) {
-		if (xvmc_driver->kernel_exec_fencing)
-			drm_intel_gem_bo_unmap_gtt(media_state.mb_data.bo);
-		else
-			drm_intel_bo_unmap(media_state.mb_data.bo);
+		drm_intel_gem_bo_unmap_gtt(media_state.mb_data.bo);
 
 		drm_intel_bo_unreference(media_state.mb_data.bo);
 	}
@@ -1125,10 +1116,7 @@ static Status render_surface(Display * display,
 						    surface_size, 64);
 	if (!media_state.mb_data.bo)
 		return BadAlloc;
-	if (xvmc_driver->kernel_exec_fencing)
-		drm_intel_gem_bo_map_gtt(media_state.mb_data.bo);
-	else
-		drm_intel_bo_map(media_state.mb_data.bo, 1);
+	drm_intel_gem_bo_map_gtt(media_state.mb_data.bo);
 
 	block_ptr = media_state.mb_data.bo->virtual;
 	unsigned short *mb_block_ptr;

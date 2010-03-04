@@ -421,8 +421,6 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 
 	XVMC_INFO("decoder type is %s", intel_xvmc_decoder_string(comm->type));
 
-	xvmc_driver->kernel_exec_fencing = comm->kernel_exec_fencing;
-
 	/* assign local ctx info */
 	intel_ctx = intel_xvmc_new_context(display);
 	if (!intel_ctx) {

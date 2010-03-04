@@ -131,7 +131,6 @@ typedef struct _intel_xvmc_driver {
 	int fd;			/* drm file handler */
 
 	dri_bufmgr *bufmgr;
-	unsigned int kernel_exec_fencing:1;
 
 	struct {
 		unsigned int init_offset;
