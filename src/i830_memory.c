@@ -275,8 +275,6 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 		return NULL;
 	}
 
-	mem->pitch = pitch;
-
 	ret = drm_intel_bo_set_tiling(mem->bo, &tiling_mode, pitch);
 	if (ret != 0 || tiling_mode != requested_tiling_mode) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,

@@ -179,9 +179,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 /** Record of a linear allocation in the aperture. */
 typedef struct _i830_memory i830_memory;
 struct _i830_memory {
-	/** Pitch value in bytes for tiled surfaces */
-	unsigned int pitch;
-
 	/** Description of the allocation, for logging */
 	char *name;
 
