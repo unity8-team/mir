@@ -1562,7 +1562,6 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 	     DrawablePtr drawable)
 {
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
-	ScreenPtr screen = screenInfo.screens[scrn->scrnIndex];
 	int dstPitch, dstPitch2;
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
