@@ -87,9 +87,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_reg.h"
 #include "i915_drm.h"
 
-/* Our hardware status area is just a single page */
-#define HWSTATUS_PAGE_SIZE GTT_PAGE_SIZE
-
 /**
  * Returns the fence size for a tiled area of the given size.
  */
@@ -168,34 +165,27 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 
 void i830_free_memory(ScrnInfoPtr scrn, i830_memory * mem)
 {
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
 	if (mem == NULL)
 		return;
 
-	if (mem->bo != NULL) {
-		intel_screen_private *intel = intel_get_screen_private(scrn);
-		dri_bo_unreference(mem->bo);
-		if (intel->bo_list == mem) {
-			intel->bo_list = mem->next;
-			if (mem->next)
-				mem->next->prev = NULL;
-		} else {
-			if (mem->prev)
-				mem->prev->next = mem->next;
-			if (mem->next)
-				mem->next->prev = mem->prev;
-		}
-		xfree(mem->name);
-		xfree(mem);
-		return;
-	}
-	/* Disconnect from the list of allocations */
-	if (mem->prev != NULL)
-		mem->prev->next = mem->next;
-	if (mem->next != NULL)
-		mem->next->prev = mem->prev;
+	assert(mem->bo != NULL);
 
+	dri_bo_unreference(mem->bo);
+	if (intel->bo_list == mem) {
+		intel->bo_list = mem->next;
+		if (mem->next)
+			mem->next->prev = NULL;
+	} else {
+		if (mem->prev)
+			mem->prev->next = mem->next;
+		if (mem->next)
+			mem->next->prev = mem->prev;
+	}
 	xfree(mem->name);
 	xfree(mem);
+	return;
 }
 
 /* Resets the state of the aperture allocator, freeing all memory that had
