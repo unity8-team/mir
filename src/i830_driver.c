@@ -1390,15 +1390,9 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 
 	ret = drmSetMaster(intel->drmSubFD);
 	if (ret) {
-		if (errno == EINVAL) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "drmSetMaster failed: 2.6.29 or newer kernel required for "
-				   "multi-server DRI\n");
-		} else {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "drmSetMaster failed: %s\n",
-				   strerror(errno));
-		}
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "drmSetMaster failed: %s\n",
+			   strerror(errno));
 	}
 
 	if (!i830_reinit_memory(scrn))
