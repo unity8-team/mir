@@ -153,7 +153,7 @@ Bool intel_xvmc_init_batch(ScrnInfoPtr scrn)
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (xvmc_driver->batch->bo->offset +
 				      intel->LinearAddr),
-		      xvmc_driver->batch->size, DRM_AGP, 0,
+		      xvmc_driver->batch->bo->size, DRM_AGP, 0,
 		      &xvmc_driver->batch_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(batchbuffer_handle) failed!\n");

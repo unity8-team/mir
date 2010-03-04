@@ -275,7 +275,6 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 		return NULL;
 	}
 
-	mem->size = size;
 	mem->pitch = pitch;
 
 	ret = drm_intel_bo_set_tiling(mem->bo, &tiling_mode, pitch);

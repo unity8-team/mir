@@ -214,7 +214,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcStaticIndirectState->bo->offset +
 				      intel->LinearAddr),
-		      ctxpriv->mcStaticIndirectState->size, DRM_AGP, 0,
+		      ctxpriv->mcStaticIndirectState->bo->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->sis_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(sis_handle) failed!\n");
@@ -224,7 +224,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcSamplerState->bo->offset +
 				      intel->LinearAddr),
-		      ctxpriv->mcSamplerState->size, DRM_AGP, 0,
+		      ctxpriv->mcSamplerState->bo->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->ssb_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(ssb_handle) failed!\n");
@@ -234,7 +234,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcMapState->bo->offset +
 				      intel->LinearAddr),
-		      ctxpriv->mcMapState->size, DRM_AGP, 0,
+		      ctxpriv->mcMapState->bo->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->msb_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(msb_handle) failed!\n");
@@ -244,7 +244,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcPixelShaderProgram->bo->offset +
 				      intel->LinearAddr),
-		      ctxpriv->mcPixelShaderProgram->size, DRM_AGP, 0,
+		      ctxpriv->mcPixelShaderProgram->bo->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->psp_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(psp_handle) failed!\n");
@@ -254,7 +254,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcPixelShaderConstants->bo->offset +
 				      intel->LinearAddr),
-		      ctxpriv->mcPixelShaderConstants->size, DRM_AGP, 0,
+		      ctxpriv->mcPixelShaderConstants->bo->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->psc_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(psc_handle) failed!\n");
@@ -264,7 +264,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (ctxpriv->mcCorrdata->bo->offset +
 				      intel->LinearAddr),
-		      ctxpriv->mcCorrdata->size, DRM_AGP, 0,
+		      ctxpriv->mcCorrdata->bo->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->corrdata_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(corrdata_handle) failed!\n");
@@ -486,29 +486,29 @@ static int i915_xvmc_create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 	/* common context items */
 	contextRec->comm.type = xvmc_driver->flag;
 	contextRec->comm.batchbuffer.offset = xvmc_driver->batch->bo->offset;
-	contextRec->comm.batchbuffer.size = xvmc_driver->batch->size;
+	contextRec->comm.batchbuffer.size = xvmc_driver->batch->bo->size;
 	contextRec->comm.batchbuffer.handle = xvmc_driver->batch_handle;
 
 	/* i915 private context */
 	contextRec->ctxno = i;
 	contextRec->sis.handle = ctxpriv->sis_handle;
 	contextRec->sis.offset = ctxpriv->mcStaticIndirectState->bo->offset;
-	contextRec->sis.size = ctxpriv->mcStaticIndirectState->size;
+	contextRec->sis.size = ctxpriv->mcStaticIndirectState->bo->size;
 	contextRec->ssb.handle = ctxpriv->ssb_handle;
 	contextRec->ssb.offset = ctxpriv->mcSamplerState->bo->offset;
-	contextRec->ssb.size = ctxpriv->mcSamplerState->size;
+	contextRec->ssb.size = ctxpriv->mcSamplerState->bo->size;
 	contextRec->msb.handle = ctxpriv->msb_handle;
 	contextRec->msb.offset = ctxpriv->mcMapState->bo->offset;
-	contextRec->msb.size = ctxpriv->mcMapState->size;
+	contextRec->msb.size = ctxpriv->mcMapState->bo->size;
 	contextRec->psp.handle = ctxpriv->psp_handle;
 	contextRec->psp.offset = ctxpriv->mcPixelShaderProgram->bo->offset;
-	contextRec->psp.size = ctxpriv->mcPixelShaderProgram->size;
+	contextRec->psp.size = ctxpriv->mcPixelShaderProgram->bo->size;
 	contextRec->psc.handle = ctxpriv->psc_handle;
 	contextRec->psc.offset = ctxpriv->mcPixelShaderConstants->bo->offset;
-	contextRec->psc.size = ctxpriv->mcPixelShaderConstants->size;
+	contextRec->psc.size = ctxpriv->mcPixelShaderConstants->bo->size;
 	contextRec->corrdata.handle = ctxpriv->corrdata_handle;
 	contextRec->corrdata.offset = ctxpriv->mcCorrdata->bo->offset;
-	contextRec->corrdata.size = ctxpriv->mcCorrdata->size;
+	contextRec->corrdata.size = ctxpriv->mcCorrdata->bo->size;
 	contextRec->deviceID = DEVICE_ID(intel->PciInfo);
 
 	/* XXX: KMS */
@@ -603,7 +603,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (sfpriv->surface->bo->offset +
-				      intel->LinearAddr), sfpriv->surface->size,
+				      intel->LinearAddr), sfpriv->surface->bo->size,
 		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(surface_handle) failed!\n");
@@ -618,7 +618,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 	surfaceRec->srfno = srfno;
 	surfaceRec->srf.handle = sfpriv->surface_handle;
 	surfaceRec->srf.offset = sfpriv->surface->bo->offset;
-	surfaceRec->srf.size = sfpriv->surface->size;
+	surfaceRec->srf.size = sfpriv->surface->bo->size;
 
 	pXvMC->surfaces[srfno] = pSurf->surface_id;
 	pXvMC->sfprivs[srfno] = sfpriv;
@@ -692,7 +692,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr scrn, XvMCSubpicturePtr pSubp,
 
 	if (drmAddMap(intel->drmSubFD,
 		      (drm_handle_t) (sfpriv->surface->bo->offset +
-				      intel->LinearAddr), sfpriv->surface->size,
+				      intel->LinearAddr), sfpriv->surface->bo->size,
 		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] drmAddMap(surface_handle) failed!\n");
@@ -707,7 +707,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr scrn, XvMCSubpicturePtr pSubp,
 	surfaceRec->srfno = srfno;
 	surfaceRec->srf.handle = sfpriv->surface_handle;
 	surfaceRec->srf.offset = sfpriv->surface->bo->offset;
-	surfaceRec->srf.size = sfpriv->surface->size;
+	surfaceRec->srf.size = sfpriv->surface->bo->size;
 
 	pXvMC->sfprivs[srfno] = sfpriv;
 	pXvMC->surfaces[srfno] = pSubp->subpicture_id;
