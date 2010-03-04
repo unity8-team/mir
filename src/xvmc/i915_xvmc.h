@@ -43,6 +43,7 @@
 #define PCI_CHIP_Q35_G                  0x29B2
 #define PCI_CHIP_Q33_G                  0x29D2
 
+#define CORRDATA_SIZE			128*GTT_PAGE_SIZE
 /*
  * i915XvMCContext:
  *	Private Context data referenced via the privData
@@ -70,7 +71,7 @@ typedef struct _i915XvMCContext {
 	drm_intel_bo *ssb_bo;
 	drm_intel_bo *psp_bo;
 	drm_intel_bo *psc_bo;
-	intel_xvmc_drm_map_t corrdata;
+	drm_intel_bo *corrdata_bo;
 } i915XvMCContext;
 
 /*

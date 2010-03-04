@@ -494,7 +494,11 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	buffer_info->corr.dw1.tiled_surface = 0;
 	buffer_info->corr.dw1.walk = 0;
 	buffer_info->corr.dw1.pitch = 0;
-	buffer_info->corr.dw2.base_address = (pI915XvMC->corrdata.offset >> 2);	/* starting DWORD address */
+	buffer_info->corr.dw2.base_address = pI915XvMC->corrdata_bo->offset >> 2;	/* starting DWORD address */
+	drm_intel_bo_emit_reloc(pI915XvMC->sis_bo,
+				offsetof(typeof(*buffer_info),corr.dw2),
+				pI915XvMC->corrdata_bo, 0,
+				I915_GEM_DOMAIN_RENDER, 0);
 
 	drm_intel_gem_bo_unmap_gtt(pI915XvMC->sis_bo);
 }
@@ -814,26 +818,6 @@ static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext * context,
 	intelBatchbufferData(&macroblock_2fbmv, sizeof(macroblock_2fbmv), 0);
 }
 
-static int i915_xvmc_map_buffers(i915XvMCContext * pI915XvMC)
-{
-	if (drmMap(xvmc_driver->fd,
-		   pI915XvMC->corrdata.handle,
-		   pI915XvMC->corrdata.size,
-		   (drmAddress *) & pI915XvMC->corrdata.map) != 0) {
-		return 0;
-	}
-
-	return 1;
-}
-
-static void i915_xvmc_unmap_buffers(i915XvMCContext * pI915XvMC)
-{
-	if (pI915XvMC->corrdata.map) {
-		drmUnmap(pI915XvMC->corrdata.map, pI915XvMC->corrdata.size);
-		pI915XvMC->corrdata.map = NULL;
-	}
-}
-
 static int i915_xvmc_alloc_one_time_buffers(i915XvMCContext *pI915XvMC)
 {
 	pI915XvMC->ssb_bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
@@ -878,7 +862,6 @@ static void i915_release_resource(Display * display, XvMCContext * context)
 		return;
 
 	pI915XvMC->ref--;
-	i915_xvmc_unmap_buffers(pI915XvMC);
 	i915_xvmc_free_one_time_buffers(pI915XvMC);
 
 	free(pI915XvMC);
@@ -917,19 +900,12 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	pI915XvMC->ctxno = tmpComm->ctxno;
 	pI915XvMC->deviceID = tmpComm->deviceID;
 
-	pI915XvMC->corrdata.handle = tmpComm->corrdata.handle;
-	pI915XvMC->corrdata.offset = tmpComm->corrdata.offset;
-	pI915XvMC->corrdata.size = tmpComm->corrdata.size;
-
 	/* Must free the private data we were passed from X */
 	XFree(priv_data);
 	priv_data = NULL;
 
 	if (!i915_xvmc_alloc_one_time_buffers(pI915XvMC))
 		goto free_one_time_buffers;
-
-	if (!i915_xvmc_map_buffers(pI915XvMC)) 
-		goto unmap_buffers;
 
 	/* Initialize private context values */
 	pI915XvMC->yStride = STRIDE(context->width);
@@ -944,8 +920,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 
 	return Success;
 
-unmap_buffers:
-	i915_xvmc_unmap_buffers(pI915XvMC);
 free_one_time_buffers:
 	i915_xvmc_free_one_time_buffers(pI915XvMC);
 	free(pI915XvMC);
@@ -1076,6 +1050,13 @@ static int i915_xvmc_alloc_render_state_buffers(i915XvMCContext *pI915XvMC)
 	if (!pI915XvMC->msb_bo)
 		return 0;
 
+	pI915XvMC->corrdata_bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+					       "corrdata",
+					       CORRDATA_SIZE,
+					       GTT_PAGE_SIZE);
+	if (!pI915XvMC->corrdata_bo)
+		return 0;
+
 	return 1;
 }
 
@@ -1083,6 +1064,7 @@ static void i915_xvmc_free_render_state_buffers(i915XvMCContext *pI915XvMC)
 {
 	drm_intel_bo_unreference(pI915XvMC->sis_bo);
 	drm_intel_bo_unreference(pI915XvMC->msb_bo);
+	drm_intel_bo_unreference(pI915XvMC->corrdata_bo);
 }
 
 static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
@@ -1186,7 +1168,8 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	}
 
 	LOCK_HARDWARE(intel_ctx->hw_context);
-	corrdata_ptr = pI915XvMC->corrdata.map;
+	drm_intel_gem_bo_map_gtt(pI915XvMC->corrdata_bo);
+	corrdata_ptr = pI915XvMC->corrdata_bo->virtual;
 	corrdata_size = 0;
 
 	for (i = first_macroblock; i < (num_macroblocks + first_macroblock);
@@ -1221,13 +1204,15 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 
 		corrdata_size += bspm;
 
-		if (corrdata_size > pI915XvMC->corrdata.size) {
+		if (corrdata_size > CORRDATA_SIZE) {
 			XVMC_ERR("correction data buffer overflow.");
 			break;
 		}
 		memcpy(corrdata_ptr, block_ptr, bspm);
 		corrdata_ptr += bspm;
 	}
+
+	drm_intel_gem_bo_unmap_gtt(pI915XvMC->corrdata_bo);
 
 	i915_flush(1, 0);
 	// i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_DIS | BLOCK_SSB
