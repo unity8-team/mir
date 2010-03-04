@@ -1029,7 +1029,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	pI915XvMC->uvStride = STRIDE(context->width >> 1);
 	pI915XvMC->haveXv = 0;
 	pI915XvMC->dual_prime = 0;
-	pI915XvMC->last_flip = 0;
 	pI915XvMC->port = context->port;
 	pI915XvMC->ref = 1;
 
@@ -1093,8 +1092,6 @@ static Status i915_xvmc_mc_create_surface(Display * display,
 	}
 
 	/* Initialize private values */
-	pI915Surface->last_render = 0;
-	pI915Surface->last_flip = 0;
 	pI915Surface->yStride = pI915XvMC->yStride;
 	pI915Surface->uvStride = pI915XvMC->uvStride;
 	pI915Surface->width = context->width;
@@ -1143,9 +1140,6 @@ static int i915_xvmc_mc_destroy_surface(Display * display,
 
 	if (!(pI915XvMC = pI915Surface->privContext))
 		return XvMCBadSurface;
-
-	if (pI915Surface->last_flip)
-		XvMCSyncSurface(display, surface);
 
 	if (pI915Surface->srf.map)
 		drmUnmap(pI915Surface->srf.map, pI915Surface->srf.size);
@@ -1370,8 +1364,6 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	}
 
 	intelFlushBatch(TRUE);
-	xvmc_driver->last_render = xvmc_driver->alloc.irq_emitted;
-	privTarget->last_render = xvmc_driver->last_render;
 
 	UNLOCK_HARDWARE(intel_ctx->hw_context);
 	return 0;
@@ -1426,32 +1418,6 @@ static int i915_xvmc_mc_get_surface_status(Display * display,
 	if (!(pI915XvMC = pI915Surface->privContext))
 		return XvMCBadSurface;
 
-	PPTHREAD_MUTEX_LOCK();
-	if (pI915Surface->last_flip) {
-		/* This can not happen */
-		if (pI915XvMC->last_flip < pI915Surface->last_flip) {
-			XVMC_ERR
-			    ("Context last flip is less than surface last flip.");
-			PPTHREAD_MUTEX_UNLOCK();
-			return BadValue;
-		}
-
-		/*
-		   If the context has 2 or more flips after this surface it
-		   cannot be displaying. Don't bother to check.
-		 */
-		if (!(pI915XvMC->last_flip > (pI915Surface->last_flip + 1))) {
-			/*
-			   If this surface was the last flipped it is either displaying
-			   or about to be so don't bother checking.
-			 */
-			if (pI915XvMC->last_flip == pI915Surface->last_flip) {
-				*stat |= XVMC_DISPLAYING;
-			}
-		}
-	}
-
-	PPTHREAD_MUTEX_UNLOCK();
 	return 0;
 }
 

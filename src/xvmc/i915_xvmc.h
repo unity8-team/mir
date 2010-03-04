@@ -50,7 +50,6 @@
  */
 typedef struct _i915XvMCContext {
 	unsigned int ctxno;
-	unsigned int last_flip;
 	unsigned int dual_prime;	/* Flag to identify when dual prime is in use. */
 	unsigned int yStride;
 	unsigned int uvStride;
@@ -82,8 +81,6 @@ typedef struct _i915XvMCContext {
  */
 typedef struct _i915XvMCSubpicture {
 	unsigned int srfNo;
-	unsigned int last_render;
-	unsigned int last_flip;
 	unsigned int pitch;
 	unsigned char palette[3][16];
 	intel_xvmc_drm_map_t srf;
@@ -100,8 +97,6 @@ typedef struct _i915XvMCSubpicture {
  */
 typedef struct _i915XvMCSurface {
 	unsigned int srfNo;	/* XvMC private surface numbers */
-	unsigned int last_render;
-	unsigned int last_flip;
 	unsigned int yStride;	/* Stride of YUV420 Y component. */
 	unsigned int uvStride;
 	unsigned int width;	/* Dimensions */

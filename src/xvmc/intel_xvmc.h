@@ -149,7 +149,6 @@ typedef struct _intel_xvmc_driver {
 		unsigned int irq_emitted;
 	} alloc;
 	intel_xvmc_drm_map_t batchbuffer;
-	unsigned int last_render;
 
 	sigset_t sa_mask;
 	pthread_mutex_t ctxmutex;
