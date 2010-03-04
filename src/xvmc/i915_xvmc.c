@@ -103,9 +103,6 @@ static void i915_mc_one_time_context_init(XvMCContext * context)
 	struct i915_3dstate_pixel_shader_program *pixel_shader_program;
 	struct i915_3dstate_pixel_shader_constants *pixel_shader_constants;
 
-	/* pixel shader static state */
-	pixel_shader_program =
-	    (struct i915_3dstate_pixel_shader_program *)pI915XvMC->psp.map;
 	/* pixel shader contant static state */
 	pixel_shader_constants =
 	    (struct i915_3dstate_pixel_shader_constants *)pI915XvMC->psc.map;
@@ -169,6 +166,10 @@ static void i915_mc_one_time_context_init(XvMCContext * context)
 	sampler_state->sampler1.ts2.default_color = 0;
 
 	drm_intel_gem_bo_unmap_gtt(pI915XvMC->ssb_bo);
+
+	/* pixel shader static state */
+	drm_intel_gem_bo_map_gtt(pI915XvMC->psp_bo);
+	pixel_shader_program = pI915XvMC->psp_bo->virtual;
 
 	memset(pixel_shader_program, 0, sizeof(*pixel_shader_program));
 	pixel_shader_program->shader0.type = CMD_3D;
@@ -311,6 +312,8 @@ static void i915_mc_one_time_context_init(XvMCContext * context)
 			A0_DEST_CHANNEL_ALL, A0_DEST_SATURATE, src0, src1,
 			src2);
 
+	drm_intel_gem_bo_unmap_gtt(pI915XvMC->psp_bo);
+
 	memset(pixel_shader_constants, 0, sizeof(*pixel_shader_constants));
 	pixel_shader_constants->dw0.type = CMD_3D;
 	pixel_shader_constants->dw0.opcode = OPC_3DSTATE_PIXEL_SHADER_CONSTANTS;
@@ -374,12 +377,8 @@ static void i915_mc_one_time_state_emit(XvMCContext * context)
 	OUT_BATCH(7);	/* 8 - 1 */
 
 	/* Pixel shader program buffer */
-	if (mem_select)
-		buffer_address = pI915XvMC->psp.offset;
-	else
-		buffer_address = pI915XvMC->psp.bus_addr;
-
-	OUT_BATCH(STATE_VALID | STATE_FORCE | buffer_address);
+	OUT_RELOC(pI915XvMC->psp_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+			STATE_VALID | STATE_FORCE);
 	OUT_BATCH(66);	/* 4 + 16 + 16 + 31 - 1 */
 
 	/* Pixel shader constant buffer */
@@ -873,13 +872,6 @@ static int i915_xvmc_map_buffers(i915XvMCContext * pI915XvMC)
 	}
 
 	if (drmMap(xvmc_driver->fd,
-		   pI915XvMC->psp.handle,
-		   pI915XvMC->psp.size,
-		   (drmAddress *) & pI915XvMC->psp.map) != 0) {
-		return 0;
-	}
-
-	if (drmMap(xvmc_driver->fd,
 		   pI915XvMC->psc.handle,
 		   pI915XvMC->psc.size,
 		   (drmAddress *) & pI915XvMC->psc.map) != 0) {
@@ -908,11 +900,6 @@ static void i915_xvmc_unmap_buffers(i915XvMCContext * pI915XvMC)
 		pI915XvMC->msb.map = NULL;
 	}
 
-	if (pI915XvMC->psp.map) {
-		drmUnmap(pI915XvMC->psp.map, pI915XvMC->psp.size);
-		pI915XvMC->psp.map = NULL;
-	}
-
 	if (pI915XvMC->psc.map) {
 		drmUnmap(pI915XvMC->psc.map, pI915XvMC->psc.size);
 		pI915XvMC->psc.map = NULL;
@@ -933,12 +920,20 @@ static int i915_xvmc_alloc_one_time_buffers(i915XvMCContext *pI915XvMC)
 	if (!pI915XvMC->ssb_bo)
 		return 0;
 
+	pI915XvMC->psp_bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+					       "psp",
+					       GTT_PAGE_SIZE,
+					       GTT_PAGE_SIZE);
+	if (!pI915XvMC->psp_bo)
+		return 0;
+
 	return 1;
 }
 
 static void i915_xvmc_free_one_time_buffers(i915XvMCContext *pI915XvMC)
 {
 	drm_intel_bo_unreference(pI915XvMC->ssb_bo);
+	drm_intel_bo_unreference(pI915XvMC->psp_bo);
 }
 
 /*
@@ -996,9 +991,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	pI915XvMC->msb.handle = tmpComm->msb.handle;
 	pI915XvMC->msb.offset = tmpComm->msb.offset;
 	pI915XvMC->msb.size = tmpComm->msb.size;
-	pI915XvMC->psp.handle = tmpComm->psp.handle;
-	pI915XvMC->psp.offset = tmpComm->psp.offset;
-	pI915XvMC->psp.size = tmpComm->psp.size;
 	pI915XvMC->psc.handle = tmpComm->psc.handle;
 	pI915XvMC->psc.offset = tmpComm->psc.offset;
 	pI915XvMC->psc.size = tmpComm->psc.size;
@@ -1007,7 +999,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	    pI915XvMC->deviceID == PCI_CHIP_I915_GM) {
 		pI915XvMC->sis.bus_addr = tmpComm->sis.bus_addr;
 		pI915XvMC->msb.bus_addr = tmpComm->msb.bus_addr;
-		pI915XvMC->psp.bus_addr = tmpComm->psp.bus_addr;
 		pI915XvMC->psc.bus_addr = tmpComm->psc.bus_addr;
 	}
 
