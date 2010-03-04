@@ -704,14 +704,14 @@ static Bool I830DrmModeInit(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
+	i830_init_bufmgr(scrn);
+
 	if (drmmode_pre_init(scrn, intel->drmSubFD, intel->cpp) == FALSE) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Kernel modesetting setup failed\n");
 		PreInitCleanup(scrn);
 		return FALSE;
 	}
-
-	i830_init_bufmgr(scrn);
 
 	return TRUE;
 }

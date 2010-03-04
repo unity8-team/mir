@@ -234,8 +234,6 @@ typedef struct intel_screen_private {
 	long GTTMapSize;
 
 	drm_intel_bo *front_buffer;
-	/* One big buffer for all cursors for kernels that support this */
-	drm_intel_bo *cursor_mem_argb[2];
 
 	dri_bufmgr *bufmgr;
 
@@ -421,7 +419,6 @@ extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
 					 xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
 extern int drmmode_crtc_id(xf86CrtcPtr crtc);
-void drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo * cursor);
 
 extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);

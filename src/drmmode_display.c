@@ -582,6 +582,15 @@ drmmode_crtc_gamma_set(xf86CrtcPtr crtc,
 			    size, red, green, blue);
 }
 
+static void
+drmmode_crtc_destroy(xf86CrtcPtr crtc)
+{
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	drm_intel_bo_unreference(drmmode_crtc->cursor);
+	drmmode_crtc->cursor = NULL;
+}
+
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.dpms = drmmode_crtc_dpms,
 	.set_mode_major = drmmode_set_mode_major,
@@ -594,13 +603,14 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.shadow_allocate = drmmode_crtc_shadow_allocate,
 	.shadow_destroy = drmmode_crtc_shadow_destroy,
 	.gamma_set = drmmode_crtc_gamma_set,
-	.destroy = NULL, /* XXX */
+	.destroy = drmmode_crtc_destroy,
 };
 
 
 static void
 drmmode_crtc_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, int num)
 {
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	xf86CrtcPtr crtc;
 	drmmode_crtc_private_ptr drmmode_crtc;
 
@@ -614,14 +624,12 @@ drmmode_crtc_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, int num)
 	drmmode_crtc->drmmode = drmmode;
 	crtc->driver_private = drmmode_crtc;
 
-	return;
-}
+	drmmode_crtc->cursor = drm_intel_bo_alloc(intel->bufmgr, "ARGB cursor",
+						  HWCURSOR_SIZE_ARGB,
+						  GTT_PAGE_SIZE);
+	drm_intel_bo_disable_reuse(drmmode_crtc->cursor);
 
-void
-drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo *cursor)
-{
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_crtc->cursor = cursor;
+	return;
 }
 
 static xf86OutputStatus

@@ -169,16 +169,10 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 void i830_reset_allocations(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int p;
 
 	/* Null out the pointers for all the allocations we just freed.  This is
 	 * kind of gross, but at least it's just one place now.
 	 */
-	for (p = 0; p < 2; p++) {
-		drm_intel_bo_unreference(intel->cursor_mem_argb[p]);
-		intel->cursor_mem_argb[p] = NULL;
-	}
-
 	drm_intel_bo_unreference(intel->front_buffer);
 	intel->front_buffer = NULL;
 }
@@ -282,38 +276,13 @@ drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 	return front_buffer;
 }
 
-static Bool i830_allocate_cursor_buffers(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	int i;
-
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-		intel->cursor_mem_argb[i] =
-			drm_intel_bo_alloc(intel->bufmgr, "ARGB cursor",
-					 HWCURSOR_SIZE_ARGB, GTT_PAGE_SIZE);
-
-		if (!intel->cursor_mem_argb[i])
-			return FALSE;
-
-		drm_intel_bo_disable_reuse(intel->cursor_mem_argb[i]);
-	}
-	return TRUE;
-}
-
 /*
- * Allocate memory for 2D operation.  This includes the (front) framebuffer,
- * and HW cursor.
+ * Allocate memory for 2D operation.  This includes only the (front)
+ * framebuffer now.
  */
 Bool i830_allocate_2d_memory(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (!i830_allocate_cursor_buffers(scrn)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to allocate HW cursor space.\n");
-		return FALSE;
-	}
 
 	intel->front_buffer = i830_allocate_framebuffer(scrn);
 	if (intel->front_buffer == NULL)
@@ -323,18 +292,11 @@ Bool i830_allocate_2d_memory(ScrnInfoPtr scrn)
 }
 
 /**
- * Called at EnterVT to reinit memory related stuff. Also reinits the drmmode
- * cursors.
+ * Called at EnterVT to reinit memory related stuff..
  */
 Bool i830_reinit_memory(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	int i;
-
-	for (i = 0; i < xf86_config->num_crtc; i++)
-		drmmode_crtc_set_cursor_bo(xf86_config->crtc[i],
-					   intel->cursor_mem_argb[i]);
 
 	i830_set_gem_max_sizes(scrn);
 
