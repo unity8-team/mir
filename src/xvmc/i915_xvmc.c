@@ -679,19 +679,6 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	drm_intel_gem_bo_unmap_gtt(pI915XvMC->msb_bo);
 }
 
-static void i915_flush(int map, int render)
-{
-	struct i915_mi_flush mi_flush;
-
-	memset(&mi_flush, 0, sizeof(mi_flush));
-	mi_flush.dw0.type = CMD_MI;
-	mi_flush.dw0.opcode = OPC_MI_FLUSH;
-	mi_flush.dw0.map_cache_invalidate = map;
-	mi_flush.dw0.render_cache_flush_inhibit = render;
-
-	intelBatchbufferData(&mi_flush, sizeof(mi_flush), 0);
-}
-
 static void i915_mc_load_indirect_render_emit(XvMCContext * context)
 {
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
@@ -1250,7 +1237,6 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 
 	drm_intel_gem_bo_unmap_gtt(pI915XvMC->corrdata_bo);
 
-	i915_flush(1, 0);
 	// i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_DIS | BLOCK_SSB
 	// | BLOCK_MSB | BLOCK_PSP | BLOCK_PSC);
 

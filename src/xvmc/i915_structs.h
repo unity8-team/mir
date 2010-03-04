@@ -30,24 +30,6 @@
 
 #include <stdint.h>
 
-/* MI_INSTRUCTION */
-#define CMD_MI          0x00
-
-#define OPC_MI_FLUSH                            (0x04)
-
-struct i915_mi_flush {
-	struct {
-		unsigned map_cache_invalidate:1;
-		unsigned pad0:1;
-		unsigned render_cache_flush_inhibit:1;
-		unsigned scene_count:1;
-		unsigned end_scene:1;
-		unsigned pad1:18;
-		unsigned opcode:6;
-		unsigned type:3;
-	} dw0;
-};
-
 /* BLT */
 #define CMD_2D          0x02
 #define OPC_COLOR_BLT                           (0x40)
