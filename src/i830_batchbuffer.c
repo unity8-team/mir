@@ -59,11 +59,10 @@ static void intel_next_batch(ScrnInfoPtr scrn)
 	intel->batch_used = 0;
 	intel->batch_ptr = intel->batch_bo->virtual;
 
-	/* If we are using DRI2, we don't know when another client has executed,
-	 * so we have to reinitialize our 3D state per batch.
+	/* We don't know when another client has executed, so we have
+	 * to reinitialize our 3D state per batch.
 	 */
-	if (intel->directRenderingType == DRI_DRI2)
-		intel->last_3d = LAST_3D_OTHER;
+	intel->last_3d = LAST_3D_OTHER;
 }
 
 void intel_batch_init(ScrnInfoPtr scrn)

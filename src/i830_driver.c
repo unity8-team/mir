@@ -1401,9 +1401,6 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 	if (!xf86SetDesiredModes(scrn))
 		return FALSE;
 
-	/* Mark all state as being clobbered. */
-	intel->last_3d = LAST_3D_OTHER;
-
 	return TRUE;
 }
 
