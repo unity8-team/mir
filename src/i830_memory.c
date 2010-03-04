@@ -163,31 +163,6 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 		return FALSE;
 }
 
-static void i830_free_memory(ScrnInfoPtr scrn, i830_memory * mem)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (mem == NULL)
-		return;
-
-	assert(mem->bo != NULL);
-
-	dri_bo_unreference(mem->bo);
-	if (intel->bo_list == mem) {
-		intel->bo_list = mem->next;
-		if (mem->next)
-			mem->next->prev = NULL;
-	} else {
-		if (mem->prev)
-			mem->prev->next = mem->next;
-		if (mem->next)
-			mem->next->prev = mem->prev;
-	}
-	xfree(mem->name);
-	xfree(mem);
-	return;
-}
-
 /* Resets the state of the aperture allocator, freeing all memory that had
  * been allocated.
  */
@@ -195,10 +170,6 @@ void i830_reset_allocations(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int p;
-
-	/* Free any allocations in buffer objects */
-	while (intel->bo_list != NULL)
-		i830_free_memory(scrn, intel->bo_list);
 
 	/* Null out the pointers for all the allocations we just freed.  This is
 	 * kind of gross, but at least it's just one place now.
@@ -210,92 +181,6 @@ void i830_reset_allocations(ScrnInfoPtr scrn)
 
 	drm_intel_bo_unreference(intel->front_buffer);
 	intel->front_buffer = NULL;
-}
-
-/* Allocates video memory at the given size, pitch, alignment and tile format.
- *
- * The memory will be bound automatically when the driver is in control of the
- * VT.  When the kernel memory manager is available and compatible with flags
- * (that is, flags doesn't say that the allocation must include a physical
- * address), that will be used for the allocation.
- *
- * flags:
- * - NEED_PHYSICAL_ADDR: Allocates the memory physically contiguous, and return
- *   the bus address for that memory.
- * - NEED_NON-STOLEN: don't allow any part of the memory allocation to lie
- *   within stolen memory
- * - NEED_LIFETIME_FIXED: don't allow the buffer object to move throughout
- *   the entire Screen lifetime.  This means not using buffer objects, which
- *   get their offsets chosen at each EnterVT time.
- */
-static i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
-				  unsigned long size, unsigned long pitch,
-				  int flags, uint32_t tiling_mode)
-{
-	i830_memory *mem;
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	uint32_t requested_tiling_mode = tiling_mode;
-	int ret;
-
-	/* Manage tile alignment and size constraints */
-	if (tiling_mode != I915_TILING_NONE) {
-		/* Only allocate page-sized increments. */
-		size = ALIGN(size, GTT_PAGE_SIZE);
-
-		/* Check for maximum tiled region size */
-		if (IS_I9XX(intel)) {
-			if (size > MB(128))
-				return NULL;
-		} else {
-			if (size > MB(64))
-				return NULL;
-		}
-
-		/* round to size necessary for the fence register to work */
-		size = i830_get_fence_size(intel, size);
-	}
-
-	assert((flags & NEED_PHYSICAL_ADDR) == 0);
-
-	/* Only allocate page-sized increments. */
-	size = ALIGN(size, GTT_PAGE_SIZE);
-
-	mem = xcalloc(1, sizeof(*mem));
-	if (mem == NULL)
-		return NULL;
-
-	mem->name = xstrdup(name);
-	if (mem->name == NULL) {
-		xfree(mem);
-		return NULL;
-	}
-
-	mem->bo = dri_bo_alloc(intel->bufmgr, name, size, GTT_PAGE_SIZE);
-
-	if (!mem->bo) {
-		xfree(mem->name);
-		xfree(mem);
-		return NULL;
-	}
-
-	ret = drm_intel_bo_set_tiling(mem->bo, &tiling_mode, pitch);
-	if (ret != 0 || tiling_mode != requested_tiling_mode) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to set tiling on %s: %s\n", mem->name,
-			   ret == 0 ? "rejected by kernel" : strerror(-ret));
-	}
-
-	if (flags & DISABLE_REUSE)
-		drm_intel_bo_disable_reuse(mem->bo);
-
-	/* Insert new allocation into the list */
-	mem->prev = NULL;
-	mem->next = intel->bo_list;
-	if (intel->bo_list != NULL)
-		intel->bo_list->prev = mem;
-	intel->bo_list = mem;
-
-	return mem;
 }
 
 static Bool IsTileable(ScrnInfoPtr scrn, int pitch)
@@ -458,45 +343,6 @@ Bool i830_reinit_memory(ScrnInfoPtr scrn)
 
 	return TRUE;
 }
-
-#ifdef INTEL_XVMC
-/*
- * Allocate memory for MC compensation
- */
-Bool i830_allocate_xvmc_buffer(ScrnInfoPtr scrn, const char *name,
-			       i830_memory ** buffer, unsigned long size,
-			       int flags)
-{
-	*buffer = i830_allocate_memory(scrn, name, size, PITCH_NONE,
-				       flags, I915_TILING_NONE);
-
-	if (!*buffer) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to allocate memory for %s.\n", name);
-		return FALSE;
-	}
-
-	if ((*buffer)->bo) {
-		if (drm_intel_bo_pin((*buffer)->bo, GTT_PAGE_SIZE)) {
-			i830_free_memory(scrn, *buffer);
-			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-				   "Failed to bind XvMC buffer bo!\n");
-			return FALSE;
-		}
-	}
-
-	return TRUE;
-}
-
-void i830_free_xvmc_buffer(ScrnInfoPtr scrn, i830_memory * buffer)
-{
-	if (buffer->bo)
-		drm_intel_bo_unpin(buffer->bo);
-
-	i830_free_memory(scrn, buffer);
-}
-
-#endif
 
 static void i830_set_max_gtt_map_size(ScrnInfoPtr scrn)
 {

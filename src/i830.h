@@ -233,9 +233,6 @@ typedef struct intel_screen_private {
 	long FbMapSize;
 	long GTTMapSize;
 
-	/** Linked list of buffer object memory allocations */
-	i830_memory *bo_list;
-
 	drm_intel_bo *front_buffer;
 	/* One big buffer for all cursors for kernels that support this */
 	drm_intel_bo *cursor_mem_argb[2];
@@ -433,12 +430,6 @@ extern Bool I830AccelInit(ScreenPtr pScreen);
 void i830_reset_allocations(ScrnInfoPtr scrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr scrn);
 void i830_init_bufmgr(ScrnInfoPtr scrn);
-#ifdef INTEL_XVMC
-Bool i830_allocate_xvmc_buffer(ScrnInfoPtr scrn, const char *name,
-			       i830_memory ** buffer, unsigned long size,
-			       int flags);
-void i830_free_xvmc_buffer(ScrnInfoPtr scrn, i830_memory * buffer);
-#endif
 
 Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
 
