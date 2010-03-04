@@ -432,7 +432,6 @@ Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
 int i830_pad_drawable_width(int width, int cpp);
 
 /* i830_memory.c */
-Bool i830_reinit_memory(ScrnInfoPtr scrn);
 unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   uint32_t tiling_mode);

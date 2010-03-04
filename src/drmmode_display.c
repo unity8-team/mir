@@ -1368,7 +1368,6 @@ drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, dri_bo *old_front,
 	dri_bo_pin(new_front, 0);
 	dri_bo_unpin(new_front);
 
-	scrn->fbOffset = new_front->offset;
 	intel->front_buffer = new_front;
 	drmmode->old_fb_id = old_fb_id;
 

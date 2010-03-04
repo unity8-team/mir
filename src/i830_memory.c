@@ -276,21 +276,6 @@ drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 	return front_buffer;
 }
 
-/**
- * Called at EnterVT to reinit memory related stuff..
- */
-Bool i830_reinit_memory(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	i830_set_gem_max_sizes(scrn);
-
-	if (intel->front_buffer)
-		scrn->fbOffset = intel->front_buffer->offset;
-
-	return TRUE;
-}
-
 static void i830_set_max_gtt_map_size(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
