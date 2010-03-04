@@ -206,13 +206,6 @@ void i830_reset_allocations(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int p;
 
-	/* While there is any memory between the start and end markers, free it. */
-	while (intel->memory_list->next->next != NULL) {
-		i830_memory *mem = intel->memory_list->next;
-
-		i830_free_memory(scrn, mem);
-	}
-
 	/* Free any allocations in buffer objects */
 	while (intel->bo_list != NULL)
 		i830_free_memory(scrn, intel->bo_list);
@@ -224,65 +217,6 @@ void i830_reset_allocations(ScrnInfoPtr scrn)
 		intel->cursor_mem_argb[p] = NULL;
 
 	intel->front_buffer = NULL;
-}
-
-/**
- * Initialize's the driver's video memory allocator to allocate in the
- * given range.
- *
- * This sets up the kernel memory manager to manage as much of the memory
- * as we think it can, while leaving enough to us to fulfill our non-GEM
- * static allocations.  Some of these exist because of the need for physical
- * addresses to reference.
- */
-Bool i830_allocator_init(ScrnInfoPtr scrn, unsigned long size)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	i830_memory *start, *end;
-
-	start = xcalloc(1, sizeof(*start));
-	if (start == NULL)
-		return FALSE;
-	start->name = xstrdup("start marker");
-	if (start->name == NULL) {
-		xfree(start);
-		return FALSE;
-	}
-	end = xcalloc(1, sizeof(*end));
-	if (end == NULL) {
-		xfree(start->name);
-		xfree(start);
-		return FALSE;
-	}
-	end->name = xstrdup("end marker");
-	if (end->name == NULL) {
-		xfree(start->name);
-		xfree(start);
-		xfree(end);
-		return FALSE;
-	}
-
-	start->size = 0;
-	start->next = end;
-	end->size = 0;
-	end->prev = start;
-
-	intel->memory_list = start;
-
-	return TRUE;
-}
-
-void i830_allocator_fini(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	/* Free most of the allocations */
-	i830_reset_allocations(scrn);
-
-	/* Free the start/end markers */
-	free(intel->memory_list->next);
-	free(intel->memory_list);
-	intel->memory_list = NULL;
 }
 
 /* Allocates video memory at the given size, pitch, alignment and tile format.
@@ -516,9 +450,6 @@ Bool i830_bind_all_memory(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	int i;
-
-	if (intel->memory_list == NULL)
-		return TRUE;
 
 	for (i = 0; i < xf86_config->num_crtc; i++)
 		drmmode_crtc_set_cursor_bo(xf86_config->crtc[i],

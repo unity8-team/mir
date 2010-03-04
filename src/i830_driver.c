@@ -1016,13 +1016,6 @@ static Bool i830_memory_init(ScrnInfoPtr scrn)
 	Bool tiled = FALSE;
 
 	tiled = i830_tiled_width(intel, &scrn->displayWidth, intel->cpp);
-	/* Set up our video memory allocator for the chosen videoRam */
-	if (!i830_allocator_init(scrn, scrn->videoRam * KB(1))) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Couldn't initialize video memory allocator\n");
-		PreInitCleanup(scrn);
-		return FALSE;
-	}
 
 	xf86DrvMsg(scrn->scrnIndex,
 		   intel->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
@@ -1457,7 +1450,8 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	xf86_cursors_fini(screen);
 
-	i830_allocator_fini(scrn);
+	/* Free most of the allocations */
+	i830_reset_allocations(scrn);
 
 	i965_free_video(scrn);
 

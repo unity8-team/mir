@@ -244,11 +244,6 @@ typedef struct intel_screen_private {
 	long FbMapSize;
 	long GTTMapSize;
 
-	/**
-	 * Linked list of video memory allocations.  The head and tail are
-	 * dummy entries that bound the allocation area.
-	 */
-	i830_memory *memory_list;
 	/** Linked list of buffer object memory allocations */
 	i830_memory *bo_list;
 
@@ -446,8 +441,6 @@ extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 
-Bool i830_allocator_init(ScrnInfoPtr scrn, unsigned long size);
-void i830_allocator_fini(ScrnInfoPtr scrn);
 i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 				  unsigned long size, unsigned long pitch,
 				  int flags, uint32_t tile_format);
