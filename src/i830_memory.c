@@ -203,8 +203,10 @@ void i830_reset_allocations(ScrnInfoPtr scrn)
 	/* Null out the pointers for all the allocations we just freed.  This is
 	 * kind of gross, but at least it's just one place now.
 	 */
-	for (p = 0; p < 2; p++)
+	for (p = 0; p < 2; p++) {
+		drm_intel_bo_unreference(intel->cursor_mem_argb[p]);
 		intel->cursor_mem_argb[p] = NULL;
+	}
 
 	intel->front_buffer = NULL;
 }
@@ -385,32 +387,27 @@ static Bool i830_allocate_cursor_buffers(ScrnInfoPtr scrn)
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	int i;
 
-	/*
-	 * Allocate four separate buffers when the kernel doesn't support
-	 * large allocations as on Linux. If any of these fail, just
-	 * bail back to software cursors everywhere
-	 */
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		intel->cursor_mem_argb[i] =
-		    i830_allocate_memory(scrn, "ARGB cursor",
-					 HWCURSOR_SIZE_ARGB, PITCH_NONE,
-					 DISABLE_REUSE, I915_TILING_NONE);
+			drm_intel_bo_alloc(intel->bufmgr, "ARGB cursor",
+					 HWCURSOR_SIZE_ARGB, GTT_PAGE_SIZE);
+
 		if (!intel->cursor_mem_argb[i])
 			return FALSE;
 
+		drm_intel_bo_disable_reuse(intel->cursor_mem_argb[i]);
 	}
 	return TRUE;
 }
 
 /*
  * Allocate memory for 2D operation.  This includes the (front) framebuffer,
- * ring buffer, scratch memory, HW cursor.
+ * and HW cursor.
  */
 Bool i830_allocate_2d_memory(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	/* Next, allocate other fixed-size allocations we have. */
 	if (!i830_allocate_cursor_buffers(scrn)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to allocate HW cursor space.\n");
@@ -436,7 +433,7 @@ Bool i830_reinit_memory(ScrnInfoPtr scrn)
 
 	for (i = 0; i < xf86_config->num_crtc; i++)
 		drmmode_crtc_set_cursor_bo(xf86_config->crtc[i],
-					   intel->cursor_mem_argb[i]->bo);
+					   intel->cursor_mem_argb[i]);
 
 	i830_set_gem_max_sizes(scrn);
 

@@ -238,7 +238,7 @@ typedef struct intel_screen_private {
 
 	i830_memory *front_buffer;
 	/* One big buffer for all cursors for kernels that support this */
-	i830_memory *cursor_mem_argb[2];
+	drm_intel_bo *cursor_mem_argb[2];
 
 	dri_bufmgr *bufmgr;
 
