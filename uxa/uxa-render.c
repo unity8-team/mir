@@ -495,7 +495,7 @@ uxa_create_solid(ScreenPtr screen, uint32_t color)
 {
 	PixmapPtr pixmap;
 	PicturePtr picture;
-	uint32_t repeat = RepeatNormal;
+	XID repeat = RepeatNormal;
 	int error = 0;
 
 	pixmap = (*screen->CreatePixmap)(screen, 1, 1, 32,
