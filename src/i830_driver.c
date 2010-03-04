@@ -987,17 +987,17 @@ static Bool i830_try_memory_allocation(ScrnInfoPtr scrn)
 		   "Attempting memory allocation with %stiled buffers.\n",
 		   tiled ? "" : "un");
 
-	if (!i830_allocate_2d_memory(scrn))
-		goto failed;
+	intel->front_buffer = i830_allocate_framebuffer(scrn);
+	if (!intel->front_buffer) {
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "%siled allocation failed.\n",
+			   tiled ? "T" : "Unt");
+		return FALSE;
+	}
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "%siled allocation successful.\n",
 		   tiled ? "T" : "Unt");
 	return TRUE;
-
-failed:
-	xf86DrvMsg(scrn->scrnIndex, X_INFO, "%siled allocation failed.\n",
-		   tiled ? "T" : "Unt");
-	return FALSE;
 }
 
 /*

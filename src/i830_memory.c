@@ -276,21 +276,6 @@ drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 	return front_buffer;
 }
 
-/*
- * Allocate memory for 2D operation.  This includes only the (front)
- * framebuffer now.
- */
-Bool i830_allocate_2d_memory(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	intel->front_buffer = i830_allocate_framebuffer(scrn);
-	if (intel->front_buffer == NULL)
-		return FALSE;
-
-	return TRUE;
-}
-
 /**
  * Called at EnterVT to reinit memory related stuff..
  */

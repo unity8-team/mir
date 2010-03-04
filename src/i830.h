@@ -425,7 +425,6 @@ extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 
 void i830_reset_allocations(ScrnInfoPtr scrn);
-Bool i830_allocate_2d_memory(ScrnInfoPtr scrn);
 void i830_init_bufmgr(ScrnInfoPtr scrn);
 
 Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
