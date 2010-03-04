@@ -139,39 +139,3 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 			       INTEL_XVMC_PATCHLEVEL);
 	return TRUE;
 }
-
-Bool intel_xvmc_init_batch(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int size = KB(64);
-
-	if (!i830_allocate_xvmc_buffer(scrn, "[XvMC] batch buffer",
-				       &(xvmc_driver->batch), size,
-				       0))
-		return FALSE;
-
-	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (xvmc_driver->batch->bo->offset +
-				      intel->LinearAddr),
-		      xvmc_driver->batch->bo->size, DRM_AGP, 0,
-		      &xvmc_driver->batch_handle) < 0) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[drm] drmAddMap(batchbuffer_handle) failed!\n");
-		return FALSE;
-	}
-	return TRUE;
-}
-
-void intel_xvmc_fini_batch(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (xvmc_driver->batch_handle) {
-		drmRmMap(intel->drmSubFD, xvmc_driver->batch_handle);
-		xvmc_driver->batch_handle = 0;
-	}
-	if (xvmc_driver->batch) {
-		i830_free_xvmc_buffer(scrn, xvmc_driver->batch);
-		xvmc_driver->batch = NULL;
-	}
-}

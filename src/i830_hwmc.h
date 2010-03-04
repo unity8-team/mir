@@ -64,8 +64,6 @@ struct hwmc_buffer {
 
 struct _intel_xvmc_common {
 	unsigned int type;
-	struct hwmc_buffer batchbuffer;
-	unsigned int kernel_exec_fencing:1;
 };
 
 /* Intel private XvMC command to DDX driver */
@@ -87,9 +85,6 @@ struct intel_xvmc_driver {
 	char *name;
 	XF86MCAdaptorPtr adaptor;
 	unsigned int flag;
-	i830_memory *batch;
-	drm_handle_t batch_handle;
-
 	/* more items for xvmv surface manage? */
 	 Bool(*init) (ScrnInfoPtr, XF86VideoAdaptorPtr);
 	void (*fini) (ScrnInfoPtr);
@@ -105,9 +100,6 @@ extern Bool intel_xvmc_probe(ScrnInfoPtr);
 extern Bool intel_xvmc_driver_init(ScreenPtr, XF86VideoAdaptorPtr);
 extern Bool intel_xvmc_screen_init(ScreenPtr);
 extern void intel_xvmc_finish(ScrnInfoPtr);
-extern int intel_xvmc_put_image_size(ScrnInfoPtr);
-extern Bool intel_xvmc_init_batch(ScrnInfoPtr);
-extern void intel_xvmc_fini_batch(ScrnInfoPtr);
 #endif
 
 #endif

@@ -284,13 +284,6 @@ static Bool i915_xvmc_init(ScrnInfoPtr scrn, XF86VideoAdaptorPtr XvAdapt)
 		return FALSE;
 	}
 	xvmc_driver->devPrivate = (void *)pXvMC;
-	if (!intel_xvmc_init_batch(scrn)) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "[XvMC] fail to init batch buffer\n");
-		xfree(pXvMC);
-		return FALSE;
-	}
-
 	/* set up wrappers */
 	pXvMC->savePutImage = XvAdapt->PutImage;
 	XvAdapt->PutImage = i915_xvmc_put_image;
@@ -299,7 +292,6 @@ static Bool i915_xvmc_init(ScrnInfoPtr scrn, XF86VideoAdaptorPtr XvAdapt)
 
 static void i915_xvmc_fini(ScrnInfoPtr scrn)
 {
-	intel_xvmc_fini_batch(scrn);
 	xfree(xvmc_driver->devPrivate);
 }
 

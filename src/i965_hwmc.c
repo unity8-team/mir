@@ -72,7 +72,6 @@ static int create_context(ScrnInfoPtr scrn,
 	private_context->is_g4x = IS_G4X(intel);
 	private_context->is_965_q = IS_965_Q(intel);
 	private_context->is_igdng = IS_IGDNG(intel);
-	private_context->comm.kernel_exec_fencing = 1;
 	private_context->comm.type = xvmc_driver->flag;
 
 	*num_privates = sizeof(*private_context) / sizeof(CARD32);
