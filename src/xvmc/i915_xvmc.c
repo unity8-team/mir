@@ -90,11 +90,6 @@ static void i915_emit_batch(void *data, int size, int flag)
 	intelBatchbufferData(data, size, flag);
 }
 
-/* one time context initialization buffer */
-static uint32_t *one_time_load_state_imm1;
-static uint32_t *one_time_load_indirect;
-static int one_time_load_state_imm1_size, one_time_load_indirect_size;
-
 /* load indirect buffer for mc rendering */
 static uint32_t *mc_render_load_indirect;
 static int mc_render_load_indirect_size;
@@ -324,122 +319,77 @@ static void i915_mc_one_time_context_init(XvMCContext * context)
 
 }
 
-static void i915_mc_one_time_state_init(XvMCContext * context)
+static void i915_mc_one_time_state_emit(XvMCContext * context)
 {
-	struct s3_dword *s3 = NULL;
-	struct s6_dword *s6 = NULL;
-	dis_state *dis = NULL;
-	ssb_state *ssb = NULL;
-	psp_state *psp = NULL;
-	psc_state *psc = NULL;
+	uint32_t buffer_address;
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
-	struct i915_3dstate_load_state_immediate_1 *load_state_immediate_1;
-	struct i915_3dstate_load_indirect *load_indirect;
+	uint32_t load_state_immediate_1, load_indirect, s3_dword, s6_dword;
 	int mem_select;
+	BATCH_LOCALS;
 
 	/* 3DSTATE_LOAD_STATE_IMMEDIATE_1 */
-	one_time_load_state_imm1_size =
-	    sizeof(*load_state_immediate_1) + sizeof(*s3) + sizeof(*s6);
-	one_time_load_state_imm1 = calloc(1, one_time_load_state_imm1_size);
-	load_state_immediate_1 = (struct i915_3dstate_load_state_immediate_1 *)
-	    one_time_load_state_imm1;
-	load_state_immediate_1->dw0.type = CMD_3D;
-	load_state_immediate_1->dw0.opcode = OPC_3DSTATE_LOAD_STATE_IMMEDIATE_1;
-	load_state_immediate_1->dw0.load_s3 = 1;
-	load_state_immediate_1->dw0.load_s6 = 1;
-	load_state_immediate_1->dw0.length =
-	    (one_time_load_state_imm1_size >> 2) - 2;
+	BEGIN_BATCH(3 + 8);
+	load_state_immediate_1 = OP_3D_LOAD_STATE_IMMEDIATE_1;
+	load_state_immediate_1 |= OP_3D_LOAD_STATE_IMM_LOAD_S3;
+	load_state_immediate_1 |= OP_3D_LOAD_STATE_IMM_LOAD_S6;
+	load_state_immediate_1 |= 3 - 2; /* length */
+	OUT_BATCH(load_state_immediate_1);
 
-	s3 = (struct s3_dword *)(++load_state_immediate_1);
-	s3->set0_pcd = 1;
-	s3->set1_pcd = 1;
-	s3->set2_pcd = 1;
-	s3->set3_pcd = 1;
-	s3->set4_pcd = 1;
-	s3->set5_pcd = 1;
-	s3->set6_pcd = 1;
-	s3->set7_pcd = 1;
+	s3_dword = S3_SET0_PCD | S3_SET1_PCD |
+		   S3_SET2_PCD | S3_SET3_PCD |
+		   S3_SET4_PCD | S3_SET5_PCD |
+		   S3_SET6_PCD | S3_SET7_PCD;
+	OUT_BATCH(s3_dword);
 
-	s6 = (struct s6_dword *)(++s3);
-	s6->alpha_test_enable = 0;
-	s6->alpha_test_function = 0;
-	s6->alpha_reference_value = 0;
-	s6->depth_test_enable = 1;
-	s6->depth_test_function = 0;
-	s6->color_buffer_blend = 0;
-	s6->color_blend_function = 0;
-	s6->src_blend_factor = 1;
-	s6->dest_blend_factor = 1;
-	s6->depth_buffer_write = 0;
-	s6->color_buffer_write = 1;
-	s6->triangle_pv = 0;
+	s6_dword = S6_COLOR_BUFFER_WRITE | S6_DEPTH_TEST_ENABLE;
+	s6_dword |= 1 << S6_SRC_BLEND_FACTOR_SHIFT;
+	s6_dword |= 1 << S6_DST_BLEND_FACTOR_SHIFT;
+	OUT_BATCH(s6_dword);
 
 	/* 3DSTATE_LOAD_INDIRECT */
-	one_time_load_indirect_size =
-	    sizeof(*load_indirect) + sizeof(*dis) + sizeof(*ssb) +
-	    sizeof(*psp) + sizeof(*psc);
-	one_time_load_indirect = calloc(1, one_time_load_indirect_size);
-	load_indirect =
-	    (struct i915_3dstate_load_indirect *)one_time_load_indirect;
-	load_indirect->dw0.type = CMD_3D;
-	load_indirect->dw0.opcode = OPC_3DSTATE_LOAD_INDIRECT;
-	load_indirect->dw0.block_mask =
-	    BLOCK_DIS | BLOCK_SSB | BLOCK_PSP | BLOCK_PSC;
-	load_indirect->dw0.length = (one_time_load_indirect_size >> 2) - 2;
+	load_indirect = OP_3D_LOAD_INDIRECT;
+	load_indirect |= (BLOCK_DIS | BLOCK_SSB | BLOCK_PSP | BLOCK_PSC)
+				<< BLOCK_MASK_SHIFT;
+	load_indirect |= 8 - 2; /* length */
 
 	if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
 	    pI915XvMC->deviceID == PCI_CHIP_I915_GM)
 		mem_select = 0;	/* use physical address */
-	else
+	else {
+		load_indirect |= OP_3D_LOAD_INDIRECT_GFX_ADDR;
 		mem_select = 1;	/* use gfx address */
+	}
 
-	load_indirect->dw0.mem_select = mem_select;
+	OUT_BATCH(load_indirect);
 
 	/* Dynamic indirect state buffer */
-	dis = (dis_state *) (++load_indirect);
-	dis->dw0.valid = 0;
-	dis->dw0.reset = 0;
-	dis->dw0.buffer_address = 0;
+	OUT_BATCH(0); /* no dynamic indirect state */
 
 	/* Sample state buffer */
-	ssb = (ssb_state *) (++dis);
-	ssb->dw0.valid = 1;
-	ssb->dw0.force = 1;
-	ssb->dw1.length = 7;	/* 8 - 1 */
-
 	if (mem_select)
-		ssb->dw0.buffer_address = (pI915XvMC->ssb.offset >> 2);
+		buffer_address = pI915XvMC->ssb.offset;
 	else
-		ssb->dw0.buffer_address = (pI915XvMC->ssb.bus_addr >> 2);
+		buffer_address = pI915XvMC->ssb.bus_addr;
+	OUT_BATCH(STATE_VALID | STATE_FORCE | buffer_address);
+	OUT_BATCH(7);	/* 8 - 1 */
 
 	/* Pixel shader program buffer */
-	psp = (psp_state *) (++ssb);
-	psp->dw0.valid = 1;
-	psp->dw0.force = 1;
-	psp->dw1.length = 66;	/* 4 + 16 + 16 + 31 - 1 */
-
 	if (mem_select)
-		psp->dw0.buffer_address = (pI915XvMC->psp.offset >> 2);
+		buffer_address = pI915XvMC->psp.offset;
 	else
-		psp->dw0.buffer_address = (pI915XvMC->psp.bus_addr >> 2);
+		buffer_address = pI915XvMC->psp.bus_addr;
+
+	OUT_BATCH(STATE_VALID | STATE_FORCE | buffer_address);
+	OUT_BATCH(66);	/* 4 + 16 + 16 + 31 - 1 */
 
 	/* Pixel shader constant buffer */
-	psc = (psc_state *) (++psp);
-	psc->dw0.valid = 1;
-	psc->dw0.force = 1;
-	psc->dw1.length = 5;	/* 6 - 1 */
-
 	if (mem_select)
-		psc->dw0.buffer_address = (pI915XvMC->psc.offset >> 2);
+		buffer_address = pI915XvMC->psc.offset;
 	else
-		psc->dw0.buffer_address = (pI915XvMC->psc.bus_addr >> 2);
-}
-
-static void i915_mc_one_time_state_emit(void)
-{
-	i915_emit_batch(one_time_load_state_imm1, one_time_load_state_imm1_size,
-			0);
-	i915_emit_batch(one_time_load_indirect, one_time_load_indirect_size, 0);
+		buffer_address = pI915XvMC->psc.bus_addr;
+	OUT_BATCH(STATE_VALID | STATE_FORCE | buffer_address);
+	OUT_BATCH(5);	/* 6 - 1 */
+	ADVANCE_BATCH();
 }
 
 static void i915_mc_static_indirect_state_init(XvMCContext * context)
@@ -1085,7 +1035,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 
 	/* pre-init state buffers */
 	i915_mc_one_time_context_init(context);
-	i915_mc_one_time_state_init(context);
 
 	i915_mc_static_indirect_state_init(context);
 
@@ -1106,8 +1055,6 @@ static int i915_xvmc_mc_destroy_context(Display * display,
 	/* Pass Control to the X server to destroy the drm_context_t */
 	i915_release_resource(display, context);
 
-	free(one_time_load_state_imm1);
-	free(one_time_load_indirect);
 	free(mc_render_load_indirect);
 	return Success;
 }
@@ -1355,7 +1302,7 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	// i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_DIS | BLOCK_SSB
 	// | BLOCK_MSB | BLOCK_PSP | BLOCK_PSC);
 
-	i915_mc_one_time_state_emit();
+	i915_mc_one_time_state_emit(context);
 
 	i915_mc_static_indirect_state_set(context, target_surface,
 					  picture_structure, flags,
