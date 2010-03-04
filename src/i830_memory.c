@@ -439,13 +439,10 @@ Bool i830_allocate_2d_memory(ScrnInfoPtr scrn)
 }
 
 /**
- * Called at EnterVT to grab the AGP GART and bind our allocations.
- *
- * In zaphod mode, this will walk the list trying to bind twice, since each
- * intel points to the same allocation list, but the bind_memory will just
- * no-op then.
+ * Called at EnterVT to reinit memory related stuff. Also reinits the drmmode
+ * cursors.
  */
-Bool i830_bind_all_memory(ScrnInfoPtr scrn)
+Bool i830_reinit_memory(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);

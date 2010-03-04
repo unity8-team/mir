@@ -1403,7 +1403,7 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 		}
 	}
 
-	if (!i830_bind_all_memory(scrn))
+	if (!i830_reinit_memory(scrn))
 		return FALSE;
 
 	intel_batch_init(scrn);
