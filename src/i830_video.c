@@ -574,7 +574,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 	adapt->pAttributes = attrs;
 	memcpy(attrs, TexturedAttributes,
 	       nAttributes * sizeof(XF86AttributeRec));
-	if (IS_I915(intel))
+	if (IS_I915G(intel) || IS_I915GM(intel))
 		adapt->nImages = NUM_IMAGES - XVMC_IMAGE;
 	else
 		adapt->nImages = NUM_IMAGES;
@@ -1346,7 +1346,7 @@ i830_setup_video_buffer(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 }
 
 static void
-i830_dst_pitch_and_size(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, short width,
+i830_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, short width,
 			short height, int *dstPitch, int *dstPitch2, int *size,
 			int id)
 {
@@ -1410,6 +1410,20 @@ i830_dst_pitch_and_size(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, s
 	ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, *dstPitch,
 	       size);
 #endif
+
+	adaptor_priv->YBufOffset = 0;
+
+	if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+		adaptor_priv->UBufOffset =
+		    adaptor_priv->YBufOffset + (*dstPitch * 2 * width);
+		adaptor_priv->VBufOffset =
+		    adaptor_priv->UBufOffset + (*dstPitch * width / 2);
+	} else {
+		adaptor_priv->UBufOffset =
+		    adaptor_priv->YBufOffset + (*dstPitch * 2 * height);
+		adaptor_priv->VBufOffset =
+		    adaptor_priv->UBufOffset + (*dstPitch * height / 2);
+	}
 }
 
 static Bool
@@ -1428,26 +1442,11 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 		srcPitch = width << 1;
 	}
 
-	i830_dst_pitch_and_size(scrn, adaptor_priv, width, height, dstPitch,
+	i830_setup_dst_params(scrn, adaptor_priv, width, height, dstPitch,
 				dstPitch2, &size, id);
 
 	if (!i830_setup_video_buffer(scrn, adaptor_priv, size, id, buf))
 		return FALSE;
-
-	/* fixup pointers */
-	adaptor_priv->YBufOffset = 0;
-
-	if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-		adaptor_priv->UBufOffset =
-		    adaptor_priv->YBufOffset + (*dstPitch * 2 * width);
-		adaptor_priv->VBufOffset =
-		    adaptor_priv->UBufOffset + (*dstPitch * width / 2);
-	} else {
-		adaptor_priv->UBufOffset =
-		    adaptor_priv->YBufOffset + (*dstPitch * 2 * height);
-		adaptor_priv->VBufOffset =
-		    adaptor_priv->UBufOffset + (*dstPitch * height / 2);
-	}
 
 	/* copy data */
 	if (is_planar_fourcc(id)) {
@@ -1513,16 +1512,27 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		return Success;
 
 	if (xvmc_passthrough(id)) {
+		int size;
 		i830_free_video_buffers(adaptor_priv);
+
+		i830_setup_dst_params(scrn, adaptor_priv, width, height, &dstPitch,
+				&dstPitch2, &size, id);
+
 		if (IS_I965G(intel)) {
 			adaptor_priv->buf =
 				drm_intel_bo_gem_create_from_name(intel->bufmgr,
 								  "xvmc surface",
 								  (uintptr_t)buf);
 		} else {
-			/* XXX: i915 is not support and needs some serious care.
-			 * grep for KMS in i915_hwmc.c */
-			return BadAlloc;
+			if (IS_I915G(intel) || IS_I915GM(intel)) {
+				/* XXX: i915 is not support and needs some
+				 * serious care.  grep for KMS in i915_hwmc.c */
+				return BadAlloc;
+			}
+			/* fixup pointers */
+			adaptor_priv->YBufOffset += (uint32_t) buf;
+			adaptor_priv->UBufOffset += (uint32_t) buf;
+			adaptor_priv->VBufOffset += (uint32_t) buf;
 		}
 	} else {
 		if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
