@@ -975,23 +975,11 @@ static Status i915_xvmc_mc_create_surface(Display * display,
 {
 	i915XvMCContext *pI915XvMC;
 	i915XvMCSurface *pI915Surface;
-	I915XvMCCreateSurfaceRec *tmpComm = NULL;
 
 	if (!(pI915XvMC = context->privData))
 		return XvMCBadContext;
 
 	XVMC_DBG("%s\n", __FUNCTION__);
-
-	if (priv_count != (sizeof(I915XvMCCreateSurfaceRec) >> 2)) {
-		XVMC_ERR
-		    ("_xvmc_create_surface() returned incorrect data size!");
-		XVMC_INFO("\tExpected %d, got %d",
-			  (int)(sizeof(I915XvMCCreateSurfaceRec) >> 2),
-			  priv_count);
-		_xvmc_destroy_surface(display, surface);
-		XFree(priv_data);
-		return BadAlloc;
-	}
 
 	PPTHREAD_MUTEX_LOCK();
 	surface->privData = (i915XvMCSurface *) malloc(sizeof(i915XvMCSurface));
@@ -1009,11 +997,10 @@ static Status i915_xvmc_mc_create_surface(Display * display,
 	pI915Surface->privContext = pI915XvMC;
 	pI915Surface->privSubPic = NULL;
 
-	tmpComm = (I915XvMCCreateSurfaceRec *) priv_data;
-
 	pI915Surface->bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
 					      "surface",
-					      tmpComm->srf.size,
+					      SIZE_YUV420(context->width,
+						          context->height),
 					      GTT_PAGE_SIZE);
 
 	/* X may still use this buffer when XVMC is already done with it. */

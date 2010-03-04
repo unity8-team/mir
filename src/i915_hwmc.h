@@ -44,9 +44,4 @@ typedef struct {
 	int deviceID;
 } I915XvMCCreateContextRec;
 
-typedef struct {
-	unsigned int srfno;
-	struct hwmc_buffer srf;
-} I915XvMCCreateSurfaceRec;
-
 #endif /* _I915_HWMC_H */

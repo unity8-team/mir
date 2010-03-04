@@ -60,16 +60,7 @@
 #define I915_XVMC_MAX_CONTEXTS 4
 #define I915_XVMC_MAX_SURFACES 20
 
-typedef struct _I915XvMCSurfacePriv {
-	i830_memory *surface;
-	unsigned long offsets[I915_XVMC_MAX_BUFFERS];
-	drm_handle_t surface_handle;
-} I915XvMCSurfacePriv;
-
 typedef struct _I915XvMC {
-	XID surfaces[I915_XVMC_MAX_SURFACES];
-	I915XvMCSurfacePriv *sfprivs[I915_XVMC_MAX_SURFACES];
-	int nsurfaces;
 	PutImageFuncPtr savePutImage;
 } I915XvMC, *I915XvMCPtr;
 
@@ -149,33 +140,6 @@ static void i915_check_context_size(XvMCContextPtr ctx)
 }
 
 /*
- * Init and clean up the screen private parts of XvMC.
- */
-static void initI915XvMC(I915XvMCPtr xvmc)
-{
-	unsigned int i;
-
-	for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
-		xvmc->surfaces[i] = 0;
-		xvmc->sfprivs[i] = NULL;
-	}
-	xvmc->nsurfaces = 0;
-}
-
-static void cleanupI915XvMC(I915XvMCPtr xvmc)
-{
-	int i;
-
-	for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
-		xvmc->surfaces[i] = 0;
-		if (xvmc->sfprivs[i]) {
-			xfree(xvmc->sfprivs[i]);
-			xvmc->sfprivs[i] = NULL;
-		}
-	}
-}
-
-/*
  *  i915_xvmc_create_context
  *
  *  Some info about the private data:
@@ -226,12 +190,6 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 				    int *num_priv, long **priv)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
-	I915XvMCSurfacePriv *sfpriv = NULL;
-	I915XvMCCreateSurfaceRec *surfaceRec = NULL;
-	XvMCContextPtr ctx = NULL;
-	unsigned int srfno;
-	unsigned long bufsize;
 
 	if (!intel->XvMCEnabled) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -242,166 +200,14 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 	*priv = NULL;
 	*num_priv = 0;
 
-	for (srfno = 0; srfno < I915_XVMC_MAX_SURFACES; ++srfno) {
-		if (!pXvMC->surfaces[srfno])
-			break;
-	}
-
-	if (srfno == I915_XVMC_MAX_SURFACES ||
-	    pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915: Too many surfaces !\n");
-		return BadAlloc;
-	}
-
-	*priv = xcalloc(1, sizeof(I915XvMCCreateSurfaceRec));
-	surfaceRec = (I915XvMCCreateSurfaceRec *) * priv;
-
-	if (!*priv) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915:Unable to allocate surface priv ret memory!\n");
-		return BadAlloc;
-	}
-
-	*num_priv = sizeof(I915XvMCCreateSurfaceRec) >> 2;
-	sfpriv =
-	    (I915XvMCSurfacePriv *) xcalloc(1, sizeof(I915XvMCSurfacePriv));
-
-	if (!sfpriv) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915: Unable to allocate surface priv memory!\n");
-		xfree(*priv);
-		*priv = NULL;
-		*num_priv = 0;
-		return BadAlloc;
-	}
-
-	ctx = pSurf->context;
-	bufsize = SIZE_YUV420(ctx->width, ctx->height);
-
-	if (!i830_allocate_xvmc_buffer(scrn, "XvMC surface",
-				       &(sfpriv->surface), bufsize,
-				       0)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915 : Failed to allocate XvMC surface space!\n");
-		xfree(sfpriv);
-		xfree(*priv);
-		*priv = NULL;
-		*num_priv = 0;
-		return BadAlloc;
-	}
-
-	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (sfpriv->surface->bo->offset +
-				      intel->LinearAddr), sfpriv->surface->bo->size,
-		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[drm] drmAddMap(surface_handle) failed!\n");
-		i830_free_xvmc_buffer(scrn, sfpriv->surface);
-		xfree(sfpriv);
-		xfree(*priv);
-		*priv = NULL;
-		*num_priv = 0;
-		return BadAlloc;
-	}
-
-	surfaceRec->srfno = srfno;
-	surfaceRec->srf.handle = sfpriv->surface_handle;
-	surfaceRec->srf.offset = sfpriv->surface->bo->offset;
-	surfaceRec->srf.size = sfpriv->surface->bo->size;
-
-	pXvMC->surfaces[srfno] = pSurf->surface_id;
-	pXvMC->sfprivs[srfno] = sfpriv;
-	pXvMC->nsurfaces++;
-
 	return Success;
 }
 
 static int i915_xvmc_create_subpict(ScrnInfoPtr scrn, XvMCSubpicturePtr pSubp,
 				    int *num_priv, long **priv)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
-	I915XvMCSurfacePriv *sfpriv = NULL;
-	I915XvMCCreateSurfaceRec *surfaceRec = NULL;
-	XvMCContextPtr ctx = NULL;
-	unsigned int srfno;
-	unsigned int bufsize;
-
 	*priv = NULL;
 	*num_priv = 0;
-
-	for (srfno = 0; srfno < I915_XVMC_MAX_SURFACES; ++srfno) {
-		if (!pXvMC->surfaces[srfno])
-			break;
-	}
-
-	if (srfno == I915_XVMC_MAX_SURFACES ||
-	    pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915: Too many surfaces !\n");
-		return BadAlloc;
-	}
-
-	*priv = xcalloc(1, sizeof(I915XvMCCreateSurfaceRec));
-	surfaceRec = (I915XvMCCreateSurfaceRec *) * priv;
-
-	if (!*priv) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915: Unable to allocate memory!\n");
-		return BadAlloc;
-	}
-
-	*num_priv = sizeof(I915XvMCCreateSurfaceRec) >> 2;
-	sfpriv =
-	    (I915XvMCSurfacePriv *) xcalloc(1, sizeof(I915XvMCSurfacePriv));
-
-	if (!sfpriv) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915: Unable to allocate memory!\n");
-		xfree(*priv);
-		*priv = NULL;
-		*num_priv = 0;
-		return BadAlloc;
-	}
-
-	ctx = pSubp->context;
-	bufsize = SIZE_XX44(ctx->width, ctx->height);
-
-	if (!i830_allocate_xvmc_buffer(scrn, "XvMC surface",
-				       &(sfpriv->surface), bufsize,
-				       0)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] I915XvMCCreateSurface: Failed to allocate XvMC surface space!\n");
-		xfree(sfpriv);
-		xfree(*priv);
-		*priv = NULL;
-		*num_priv = 0;
-		return BadAlloc;
-	}
-
-	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (sfpriv->surface->bo->offset +
-				      intel->LinearAddr), sfpriv->surface->bo->size,
-		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[drm] drmAddMap(surface_handle) failed!\n");
-		i830_free_xvmc_buffer(scrn, sfpriv->surface);
-		xfree(sfpriv);
-		xfree(*priv);
-		*priv = NULL;
-		*num_priv = 0;
-		return BadAlloc;
-	}
-
-	surfaceRec->srfno = srfno;
-	surfaceRec->srf.handle = sfpriv->surface_handle;
-	surfaceRec->srf.offset = sfpriv->surface->bo->offset;
-	surfaceRec->srf.size = sfpriv->surface->bo->size;
-
-	pXvMC->sfprivs[srfno] = sfpriv;
-	pXvMC->surfaces[srfno] = pSubp->subpicture_id;
-	pXvMC->nsurfaces++;
 
 	return Success;
 }
@@ -414,48 +220,12 @@ static void i915_xvmc_destroy_context(ScrnInfoPtr scrn,
 
 static void i915_xvmc_destroy_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
-	int i;
-
-	for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
-		if (pXvMC->surfaces[i] == pSurf->surface_id) {
-			drmRmMap(intel->drmSubFD,
-				 pXvMC->sfprivs[i]->surface_handle);
-			i830_free_xvmc_buffer(scrn,
-					      pXvMC->sfprivs[i]->surface);
-			xfree(pXvMC->sfprivs[i]);
-			pXvMC->nsurfaces--;
-			pXvMC->sfprivs[i] = 0;
-			pXvMC->surfaces[i] = 0;
-			return;
-		}
-	}
-
 	return;
 }
 
 static void i915_xvmc_destroy_subpict(ScrnInfoPtr scrn,
 				      XvMCSubpicturePtr pSubp)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
-	int i;
-
-	for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
-		if (pXvMC->surfaces[i] == pSubp->subpicture_id) {
-			drmRmMap(intel->drmSubFD,
-				 pXvMC->sfprivs[i]->surface_handle);
-			i830_free_xvmc_buffer(scrn,
-					      pXvMC->sfprivs[i]->surface);
-			xfree(pXvMC->sfprivs[i]);
-			pXvMC->nsurfaces--;
-			pXvMC->sfprivs[i] = 0;
-			pXvMC->surfaces[i] = 0;
-			return;
-		}
-	}
-
 	return;
 }
 
@@ -520,7 +290,6 @@ static Bool i915_xvmc_init(ScrnInfoPtr scrn, XF86VideoAdaptorPtr XvAdapt)
 		xfree(pXvMC);
 		return FALSE;
 	}
-	initI915XvMC(pXvMC);
 
 	/* set up wrappers */
 	pXvMC->savePutImage = XvAdapt->PutImage;
@@ -530,9 +299,6 @@ static Bool i915_xvmc_init(ScrnInfoPtr scrn, XF86VideoAdaptorPtr XvAdapt)
 
 static void i915_xvmc_fini(ScrnInfoPtr scrn)
 {
-	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
-
-	cleanupI915XvMC(pXvMC);
 	intel_xvmc_fini_batch(scrn);
 	xfree(xvmc_driver->devPrivate);
 }
