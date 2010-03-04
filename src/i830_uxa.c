@@ -616,7 +616,7 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (bo == intel->front_buffer->bo)
+	if (bo == intel->front_buffer)
 		intel->need_flush = TRUE;
 
 	if (bo->size > intel->max_gtt_map_size)
@@ -791,7 +791,7 @@ void i830_uxa_block_handler(ScreenPtr screen)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel->need_flush) {
-		dri_bo_wait_rendering(intel->front_buffer->bo);
+		dri_bo_wait_rendering(intel->front_buffer);
 		intel->need_flush = FALSE;
 	}
 }
@@ -900,7 +900,7 @@ void i830_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	dri_bo *bo = intel->front_buffer->bo;
+	dri_bo *bo = intel->front_buffer;
 
 	if (bo != NULL) {
 		PixmapPtr pixmap = screen->GetScreenPixmap(screen);

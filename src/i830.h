@@ -236,7 +236,7 @@ typedef struct intel_screen_private {
 	/** Linked list of buffer object memory allocations */
 	i830_memory *bo_list;
 
-	i830_memory *front_buffer;
+	drm_intel_bo *front_buffer;
 	/* One big buffer for all cursors for kernels that support this */
 	drm_intel_bo *cursor_mem_argb[2];
 
@@ -457,7 +457,7 @@ unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pi
 				   uint32_t tiling_mode);
 void i830_set_gem_max_sizes(ScrnInfoPtr scrn);
 
-i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn);
+drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn);
 
 /* i830_render.c */
 Bool i830_check_composite(int op, PicturePtr sourcec, PicturePtr mask,

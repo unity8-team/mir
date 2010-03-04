@@ -324,7 +324,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		ret = drmModeAddFB(drmmode->fd,
 				   scrn->virtualX, scrn->virtualY,
 				   scrn->depth, scrn->bitsPerPixel,
-				   pitch, intel->front_buffer->bo->handle,
+				   pitch, intel->front_buffer->handle,
 				   &drmmode->fb_id);
 		if (ret < 0) {
 			ErrorF("failed to add fb\n");
@@ -1240,7 +1240,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		    drmmode_crtc = xf86_config->crtc[0]->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	i830_memory *old_front = NULL;
+	drm_intel_bo *old_front = NULL;
 	Bool	    ret;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
 	uint32_t    old_fb_id;
@@ -1269,12 +1269,12 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
 			   scrn->bitsPerPixel, pitch * intel->cpp,
-			   intel->front_buffer->bo->handle,
+			   intel->front_buffer->handle,
 			   &drmmode->fb_id);
 	if (ret)
 		goto fail;
 
-	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), intel->front_buffer->bo);
+	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), intel->front_buffer);
 
 	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
 				   width, height, -1, -1, pitch * intel->cpp, NULL);
@@ -1292,13 +1292,13 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (old_fb_id)
 		drmModeRmFB(drmmode->fd, old_fb_id);
 	if (old_front)
-		i830_free_memory(scrn, old_front);
+		drm_intel_bo_unreference(old_front);
 
 	return TRUE;
 
  fail:
 	if (intel->front_buffer)
-		i830_free_memory(scrn, intel->front_buffer);
+		drm_intel_bo_unreference(intel->front_buffer);
 	intel->front_buffer = old_front;
 	scrn->virtualX = old_width;
 	scrn->virtualY = old_height;
@@ -1361,7 +1361,7 @@ drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, dri_bo *old_front,
 	dri_bo_unpin(new_front);
 
 	scrn->fbOffset = new_front->offset;
-	intel->front_buffer->bo = new_front;
+	intel->front_buffer = new_front;
 	drmmode->old_fb_id = old_fb_id;
 
 	return TRUE;

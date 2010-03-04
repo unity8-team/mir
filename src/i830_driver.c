@@ -1199,7 +1199,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	 * set the initial framebuffer pixmap to point at
 	 * it
 	 */
-	scrn->fbOffset = intel->front_buffer->bo->offset;
+	scrn->fbOffset = intel->front_buffer->offset;
 
 	DPRINTF(PFX, "assert( if(!fbScreenInit(screen, ...) )\n");
 	if (!fbScreenInit(screen, NULL,
@@ -1444,7 +1444,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	if (intel->front_buffer) {
 		i830_set_pixmap_bo(screen->GetScreenPixmap(screen), NULL);
 		drmmode_closefb(scrn);
-		i830_free_memory(scrn, intel->front_buffer);
+		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
 	}
 

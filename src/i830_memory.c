@@ -208,6 +208,7 @@ void i830_reset_allocations(ScrnInfoPtr scrn)
 		intel->cursor_mem_argb[p] = NULL;
 	}
 
+	drm_intel_bo_unreference(intel->front_buffer);
 	intel->front_buffer = NULL;
 }
 
@@ -336,14 +337,14 @@ static Bool IsTileable(ScrnInfoPtr scrn, int pitch)
  * Used once for each X screen, so once with RandR 1.2 and twice with classic
  * dualhead.
  */
-i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn)
+drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned int pitch = scrn->displayWidth * intel->cpp;
 	long size, fb_height;
-	int flags;
-	i830_memory *front_buffer = NULL;
-	uint32_t tiling_mode;
+	int flags, ret;
+	drm_intel_bo *front_buffer = NULL;
+	uint32_t tiling_mode, requested_tiling_mode;
 
 	flags = ALLOW_SHARING | DISABLE_REUSE;
 
@@ -367,14 +368,29 @@ i830_memory *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 		return NULL;
 	}
 
-	front_buffer = i830_allocate_memory(scrn, "front buffer", size,
-					    pitch, flags, tiling_mode);
+	if (tiling_mode != I915_TILING_NONE) {
+		/* round to size necessary for the fence register to work */
+		size = i830_get_fence_size(intel, size);
+	}
+
+	front_buffer = drm_intel_bo_alloc(intel->bufmgr, "front buffer",
+					  size, GTT_PAGE_SIZE);
 
 	if (front_buffer == NULL) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer.\n");
 		return NULL;
 	}
+
+	requested_tiling_mode = tiling_mode;
+	ret = drm_intel_bo_set_tiling(front_buffer, &tiling_mode, pitch);
+	if (ret != 0 || tiling_mode != requested_tiling_mode) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Failed to set tiling on frontbuffer: %s\n",
+			   ret == 0 ? "rejected by kernel" : strerror(-ret));
+	}
+
+	drm_intel_bo_disable_reuse(front_buffer);
 
 	i830_set_gem_max_sizes(scrn);
 
@@ -438,7 +454,7 @@ Bool i830_reinit_memory(ScrnInfoPtr scrn)
 	i830_set_gem_max_sizes(scrn);
 
 	if (intel->front_buffer)
-		scrn->fbOffset = intel->front_buffer->bo->offset;
+		scrn->fbOffset = intel->front_buffer->offset;
 
 	return TRUE;
 }
