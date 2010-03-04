@@ -163,7 +163,7 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 		return FALSE;
 }
 
-void i830_free_memory(ScrnInfoPtr scrn, i830_memory * mem)
+static void i830_free_memory(ScrnInfoPtr scrn, i830_memory * mem)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
@@ -228,7 +228,7 @@ void i830_reset_allocations(ScrnInfoPtr scrn)
  *   the entire Screen lifetime.  This means not using buffer objects, which
  *   get their offsets chosen at each EnterVT time.
  */
-i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
+static i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 				  unsigned long size, unsigned long pitch,
 				  int flags, uint32_t tiling_mode)
 {

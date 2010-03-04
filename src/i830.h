@@ -430,14 +430,8 @@ extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 
-i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
-				  unsigned long size, unsigned long pitch,
-				  int flags, uint32_t tile_format);
 void i830_reset_allocations(ScrnInfoPtr scrn);
-void i830_free_3d_memory(ScrnInfoPtr scrn);
-void i830_free_memory(ScrnInfoPtr scrn, i830_memory * mem);
 Bool i830_allocate_2d_memory(ScrnInfoPtr scrn);
-Bool i830_allocate_3d_memory(ScrnInfoPtr scrn);
 void i830_init_bufmgr(ScrnInfoPtr scrn);
 #ifdef INTEL_XVMC
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr scrn, const char *name,
