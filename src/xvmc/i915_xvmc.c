@@ -499,14 +499,17 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	drm_intel_gem_bo_unmap_gtt(pI915XvMC->sis_bo);
 }
 
-static void i915_mc_map_state_init(XvMCContext * context)
+static void i915_mc_map_state_set(XvMCContext * context,
+				  i915XvMCSurface * privPast,
+				  i915XvMCSurface * privFuture)
 {
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
+	struct i915_mc_map_state *map_state;
 	unsigned int w = context->width;
 	unsigned int h = context->height;
-	struct i915_mc_map_state *map_state;
 
-	map_state = (struct i915_mc_map_state *)pI915XvMC->msb.map;
+	drm_intel_gem_bo_map_gtt(pI915XvMC->msb_bo);
+	map_state = pI915XvMC->msb_bo->virtual;
 
 	memset(map_state, 0, sizeof(*map_state));
 
@@ -530,6 +533,8 @@ static void i915_mc_map_state_init(XvMCContext * context)
 	map_state->y_forward.tm2.depth = 0;
 	map_state->y_forward.tm2.max_lod = 0;
 	map_state->y_forward.tm2.cube_face = 0;
+	map_state->y_forward.tm0.base_address = (YOFFSET(privPast) >> 2);
+	map_state->y_forward.tm2.pitch = (privPast->yStride >> 2) - 1;	/* in DWords - 1 */
 
 	/* Y Backward (Future) */
 	map_state->y_backward.tm0.v_ls_offset = 0;
@@ -544,6 +549,8 @@ static void i915_mc_map_state_init(XvMCContext * context)
 	map_state->y_backward.tm2.depth = 0;
 	map_state->y_backward.tm2.max_lod = 0;
 	map_state->y_backward.tm2.cube_face = 0;
+	map_state->y_backward.tm0.base_address = (YOFFSET(privFuture) >> 2);
+	map_state->y_backward.tm2.pitch = (privFuture->yStride >> 2) - 1;
 
 	/* 3DSATE_MAP_STATE: U */
 	map_state->u_map.dw0.type = CMD_3D;
@@ -565,6 +572,8 @@ static void i915_mc_map_state_init(XvMCContext * context)
 	map_state->u_forward.tm2.depth = 0;
 	map_state->u_forward.tm2.max_lod = 0;
 	map_state->u_forward.tm2.cube_face = 0;
+	map_state->u_forward.tm0.base_address = (UOFFSET(privPast) >> 2);
+	map_state->u_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;	/* in DWords - 1 */
 
 	/* U Backward */
 	map_state->u_backward.tm0.v_ls_offset = 0;
@@ -579,6 +588,9 @@ static void i915_mc_map_state_init(XvMCContext * context)
 	map_state->u_backward.tm2.depth = 0;
 	map_state->u_backward.tm2.max_lod = 0;
 	map_state->u_backward.tm2.cube_face = 0;
+	map_state->u_backward.tm0.base_address = (UOFFSET(privFuture) >> 2);
+	map_state->u_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
+
 
 	/* 3DSATE_MAP_STATE: V */
 	map_state->v_map.dw0.type = CMD_3D;
@@ -600,6 +612,8 @@ static void i915_mc_map_state_init(XvMCContext * context)
 	map_state->v_forward.tm2.depth = 0;
 	map_state->v_forward.tm2.max_lod = 0;
 	map_state->v_forward.tm2.cube_face = 0;
+	map_state->v_forward.tm0.base_address = (VOFFSET(privPast) >> 2);
+	map_state->v_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;	/* in DWords - 1 */
 
 	/* V Backward */
 	map_state->v_backward.tm0.v_ls_offset = 0;
@@ -614,29 +628,10 @@ static void i915_mc_map_state_init(XvMCContext * context)
 	map_state->v_backward.tm2.depth = 0;
 	map_state->v_backward.tm2.max_lod = 0;
 	map_state->v_backward.tm2.cube_face = 0;
-}
-
-static void i915_mc_map_state_set(XvMCContext * context,
-				  i915XvMCSurface * privPast,
-				  i915XvMCSurface * privFuture)
-{
-	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
-	struct i915_mc_map_state *map_state;
-
-	map_state = (struct i915_mc_map_state *)pI915XvMC->msb.map;
-
-	map_state->y_forward.tm0.base_address = (YOFFSET(privPast) >> 2);
-	map_state->y_forward.tm2.pitch = (privPast->yStride >> 2) - 1;	/* in DWords - 1 */
-	map_state->y_backward.tm0.base_address = (YOFFSET(privFuture) >> 2);
-	map_state->y_backward.tm2.pitch = (privFuture->yStride >> 2) - 1;
-	map_state->u_forward.tm0.base_address = (UOFFSET(privPast) >> 2);
-	map_state->u_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;	/* in DWords - 1 */
-	map_state->u_backward.tm0.base_address = (UOFFSET(privFuture) >> 2);
-	map_state->u_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
-	map_state->v_forward.tm0.base_address = (VOFFSET(privPast) >> 2);
-	map_state->v_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;	/* in DWords - 1 */
 	map_state->v_backward.tm0.base_address = (VOFFSET(privFuture) >> 2);
 	map_state->v_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
+
+	drm_intel_gem_bo_unmap_gtt(pI915XvMC->msb_bo);
 }
 
 static void i915_flush(int map, int render)
@@ -655,7 +650,6 @@ static void i915_flush(int map, int render)
 static void i915_mc_load_indirect_render_emit(XvMCContext * context)
 {
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
-	msb_state *msb;
 	int mem_select;
 	uint32_t load_indirect, buffer_address;
 	BATCH_LOCALS;
@@ -680,11 +674,8 @@ static void i915_mc_load_indirect_render_emit(XvMCContext * context)
 	OUT_BATCH(16);	/* 4 * 3 + 2 + 3 - 1 */
 
 	/* Map state buffer (reference buffer info) */
-	if (mem_select)
-		buffer_address = pI915XvMC->msb.offset;
-	else
-		buffer_address = pI915XvMC->msb.bus_addr;
-	OUT_BATCH(buffer_address | STATE_VALID | STATE_FORCE);
+	OUT_RELOC(pI915XvMC->msb_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+			STATE_VALID | STATE_FORCE);
 	OUT_BATCH(23);	/* 3 * 8 - 1 */
 	ADVANCE_BATCH();
 }
@@ -826,13 +817,6 @@ static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext * context,
 static int i915_xvmc_map_buffers(i915XvMCContext * pI915XvMC)
 {
 	if (drmMap(xvmc_driver->fd,
-		   pI915XvMC->msb.handle,
-		   pI915XvMC->msb.size,
-		   (drmAddress *) & pI915XvMC->msb.map) != 0) {
-		return -1;
-	}
-
-	if (drmMap(xvmc_driver->fd,
 		   pI915XvMC->corrdata.handle,
 		   pI915XvMC->corrdata.size,
 		   (drmAddress *) & pI915XvMC->corrdata.map) != 0) {
@@ -844,11 +828,6 @@ static int i915_xvmc_map_buffers(i915XvMCContext * pI915XvMC)
 
 static void i915_xvmc_unmap_buffers(i915XvMCContext * pI915XvMC)
 {
-	if (pI915XvMC->msb.map) {
-		drmUnmap(pI915XvMC->msb.map, pI915XvMC->msb.size);
-		pI915XvMC->msb.map = NULL;
-	}
-
 	if (pI915XvMC->corrdata.map) {
 		drmUnmap(pI915XvMC->corrdata.map, pI915XvMC->corrdata.size);
 		pI915XvMC->corrdata.map = NULL;
@@ -937,14 +916,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	tmpComm = (I915XvMCCreateContextRec *) priv_data;
 	pI915XvMC->ctxno = tmpComm->ctxno;
 	pI915XvMC->deviceID = tmpComm->deviceID;
-	pI915XvMC->msb.handle = tmpComm->msb.handle;
-	pI915XvMC->msb.offset = tmpComm->msb.offset;
-	pI915XvMC->msb.size = tmpComm->msb.size;
-
-	if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-	    pI915XvMC->deviceID == PCI_CHIP_I915_GM) {
-		pI915XvMC->msb.bus_addr = tmpComm->msb.bus_addr;
-	}
 
 	pI915XvMC->corrdata.handle = tmpComm->corrdata.handle;
 	pI915XvMC->corrdata.offset = tmpComm->corrdata.offset;
@@ -970,8 +941,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 
 	/* pre-init state buffers */
 	i915_mc_one_time_context_init(context);
-
-	i915_mc_map_state_init(context);
 
 	return Success;
 
@@ -1100,12 +1069,20 @@ static int i915_xvmc_alloc_render_state_buffers(i915XvMCContext *pI915XvMC)
 	if (!pI915XvMC->sis_bo)
 		return 0;
 
+	pI915XvMC->msb_bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+					       "msb",
+					       GTT_PAGE_SIZE,
+					       GTT_PAGE_SIZE);
+	if (!pI915XvMC->msb_bo)
+		return 0;
+
 	return 1;
 }
 
 static void i915_xvmc_free_render_state_buffers(i915XvMCContext *pI915XvMC)
 {
 	drm_intel_bo_unreference(pI915XvMC->sis_bo);
+	drm_intel_bo_unreference(pI915XvMC->msb_bo);
 }
 
 static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
