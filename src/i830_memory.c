@@ -263,11 +263,9 @@ Bool i830_allocator_init(ScrnInfoPtr scrn, unsigned long size)
 	}
 
 	start->offset = 0;
-	start->end = start->offset;
 	start->size = 0;
 	start->next = end;
 	end->offset = size;
-	end->end = end->offset;
 	end->size = 0;
 	end->prev = start;
 
@@ -357,7 +355,6 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 
 	/* Give buffer obviously wrong offset/end until it's pinned. */
 	mem->offset = -1;
-	mem->end = -1;
 	mem->size = size;
 	mem->pitch = pitch;
 
@@ -413,8 +410,8 @@ i830_describe_allocations(ScrnInfoPtr scrn, int verbosity, const char *prefix)
 			tile_suffix = " Y tiled";
 
 		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
-			       "%s0x%08lx-0x%08lx: %s (%ld kB%s)%s\n", prefix,
-			       mem->offset, mem->end - 1, mem->name,
+			       "%s0x%08lx: %s (%ld kB%s)%s\n", prefix,
+			       mem->offset, mem->name,
 			       mem->size / 1024, phys_suffix, tile_suffix);
 	}
 	xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,

@@ -181,8 +181,6 @@ typedef struct _i830_memory i830_memory;
 struct _i830_memory {
 	/** Offset of the allocation in card VM */
 	unsigned long offset;
-	/** End of the allocation in card VM */
-	unsigned long end;
 	/**
 	 * Requested size of the allocation: doesn't count padding.
 	 *
@@ -204,7 +202,7 @@ struct _i830_memory {
 	i830_memory *prev;
 	/** @} */
 
-	dri_bo *bo;
+	drm_intel_bo *bo;
 	uint32_t gem_name;
 };
 
