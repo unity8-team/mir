@@ -59,6 +59,8 @@
 
 extern int DEBUG;
 
+#define GTT_PAGE_SIZE 4*1024
+
 #define XVMC_ERR(s, arg...)					\
     do {							\
 	fprintf(stderr, "[intel_xvmc] err: " s "\n", ##arg);	\

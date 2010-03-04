@@ -67,7 +67,7 @@ typedef struct _i915XvMCContext {
 
 	intel_xvmc_drm_map_t sis;
 	intel_xvmc_drm_map_t msb;
-	intel_xvmc_drm_map_t ssb;
+	drm_intel_bo *ssb_bo;
 	intel_xvmc_drm_map_t psp;
 	intel_xvmc_drm_map_t psc;
 	intel_xvmc_drm_map_t corrdata;
