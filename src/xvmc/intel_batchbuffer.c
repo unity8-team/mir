@@ -99,9 +99,6 @@ void intelFlushBatch(Bool refill)
 			  xvmc_driver->batch.ptr - xvmc_driver->batch.init_ptr,
 			  0, 0, 0);
 
-	if (xvmc_driver == &i915_xvmc_mc_driver)
-		dri_bo_wait_rendering(xvmc_driver->batch.buf);
-
 	drm_intel_bo_unreference(xvmc_driver->batch.buf);
 	if ((xvmc_driver->batch.buf =
 	     drm_intel_bo_alloc(xvmc_driver->bufmgr,
