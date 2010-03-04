@@ -1228,7 +1228,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 		OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
 		if (IS_IGDNG(intel))
 			OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
-				  (vb_bo->offset + i) * 4);
+				  i * 4);
 		else
 			OUT_BATCH(3);	/* four corners to our rectangle */
 		OUT_BATCH(0);	/* reserved */
