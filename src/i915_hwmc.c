@@ -231,26 +231,6 @@ static int i915_xvmc_put_image(ScrnInfoPtr scrn,
 	int ret;
 
 	if (FOURCC_XVMC == id) {
-#if 0
-		switch (xvmc_cmd->command) {
-		case INTEL_XVMC_COMMAND_DISPLAY:
-			if ((xvmc_cmd->srfNo >= I915_XVMC_MAX_SURFACES) ||
-			    !pXvMC->surfaces[xvmc_cmd->srfNo] ||
-			    !pXvMC->sfprivs[xvmc_cmd->srfNo]) {
-				xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-					   "[XvMC] i915 put image: Invalid parameters!\n");
-				return 1;
-			}
-
-			/* use char *buf to hold our surface offset...hacky! */
-			buf =
-			    (unsigned char *)pXvMC->sfprivs[xvmc_cmd->srfNo]->
-			    surface->bo->offset;
-			break;
-		default:
-			return 0;
-		}
-#endif
 		/* Pass the GEM object name through the pointer arg. */
 		buf = (void *)(uintptr_t)xvmc_cmd->handle;
 	}
@@ -295,10 +275,6 @@ static XF86MCAdaptorRec pAdapt = {
 	.name = "Intel(R) Textured Video",
 	.num_surfaces = ARRAY_SIZE(ppSI),
 	.surfaces = ppSI,
-#if 0
-	.num_subpictures = ARRARY_SIZE(i915_subpicture_list),
-	.subpictures = i915_subpicture_list,
-#endif
 	.num_subpictures = 0,
 	.subpictures = NULL,
 	.CreateContext =
