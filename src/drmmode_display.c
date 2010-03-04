@@ -1362,7 +1362,6 @@ drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, dri_bo *old_front,
 
 	scrn->fbOffset = new_front->offset;
 	intel->front_buffer->bo = new_front;
-	intel->front_buffer->offset = new_front->offset;
 	drmmode->old_fb_id = old_fb_id;
 
 	return TRUE;

@@ -179,8 +179,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 /** Record of a linear allocation in the aperture. */
 typedef struct _i830_memory i830_memory;
 struct _i830_memory {
-	/** Offset of the allocation in card VM */
-	unsigned long offset;
 	/**
 	 * Requested size of the allocation: doesn't count padding.
 	 *

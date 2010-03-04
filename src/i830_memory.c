@@ -262,10 +262,8 @@ Bool i830_allocator_init(ScrnInfoPtr scrn, unsigned long size)
 		return FALSE;
 	}
 
-	start->offset = 0;
 	start->size = 0;
 	start->next = end;
-	end->offset = size;
 	end->size = 0;
 	end->prev = start;
 
@@ -353,8 +351,6 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 		return NULL;
 	}
 
-	/* Give buffer obviously wrong offset/end until it's pinned. */
-	mem->offset = -1;
 	mem->size = size;
 	mem->pitch = pitch;
 
@@ -411,7 +407,7 @@ i830_describe_allocations(ScrnInfoPtr scrn, int verbosity, const char *prefix)
 
 		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
 			       "%s0x%08lx: %s (%ld kB%s)%s\n", prefix,
-			       mem->offset, mem->name,
+			       mem->bo->offset, mem->name,
 			       mem->size / 1024, phys_suffix, tile_suffix);
 	}
 	xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, verbosity,
@@ -586,7 +582,7 @@ Bool i830_bind_all_memory(ScrnInfoPtr scrn)
 	i830_set_gem_max_sizes(scrn);
 
 	if (intel->front_buffer)
-		scrn->fbOffset = intel->front_buffer->offset;
+		scrn->fbOffset = intel->front_buffer->bo->offset;
 
 	return TRUE;
 }
@@ -615,8 +611,6 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr scrn, const char *name,
 				   "Failed to bind XvMC buffer bo!\n");
 			return FALSE;
 		}
-
-		(*buffer)->offset = (*buffer)->bo->offset;
 	}
 
 	return TRUE;

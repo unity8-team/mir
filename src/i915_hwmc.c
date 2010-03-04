@@ -212,7 +212,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (ctxpriv->mcStaticIndirectState->offset +
+		      (drm_handle_t) (ctxpriv->mcStaticIndirectState->bo->offset +
 				      intel->LinearAddr),
 		      ctxpriv->mcStaticIndirectState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->sis_handle) < 0) {
@@ -222,7 +222,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	}
 
 	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (ctxpriv->mcSamplerState->offset +
+		      (drm_handle_t) (ctxpriv->mcSamplerState->bo->offset +
 				      intel->LinearAddr),
 		      ctxpriv->mcSamplerState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->ssb_handle) < 0) {
@@ -232,7 +232,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	}
 
 	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (ctxpriv->mcMapState->offset +
+		      (drm_handle_t) (ctxpriv->mcMapState->bo->offset +
 				      intel->LinearAddr),
 		      ctxpriv->mcMapState->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->msb_handle) < 0) {
@@ -242,7 +242,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	}
 
 	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (ctxpriv->mcPixelShaderProgram->offset +
+		      (drm_handle_t) (ctxpriv->mcPixelShaderProgram->bo->offset +
 				      intel->LinearAddr),
 		      ctxpriv->mcPixelShaderProgram->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->psp_handle) < 0) {
@@ -252,7 +252,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	}
 
 	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (ctxpriv->mcPixelShaderConstants->offset +
+		      (drm_handle_t) (ctxpriv->mcPixelShaderConstants->bo->offset +
 				      intel->LinearAddr),
 		      ctxpriv->mcPixelShaderConstants->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->psc_handle) < 0) {
@@ -262,7 +262,7 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr scrn,
 	}
 
 	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (ctxpriv->mcCorrdata->offset +
+		      (drm_handle_t) (ctxpriv->mcCorrdata->bo->offset +
 				      intel->LinearAddr),
 		      ctxpriv->mcCorrdata->size, DRM_AGP, 0,
 		      (drmAddress) & ctxpriv->corrdata_handle) < 0) {
@@ -488,29 +488,29 @@ static int i915_xvmc_create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 
 	/* common context items */
 	contextRec->comm.type = xvmc_driver->flag;
-	contextRec->comm.batchbuffer.offset = xvmc_driver->batch->offset;
+	contextRec->comm.batchbuffer.offset = xvmc_driver->batch->bo->offset;
 	contextRec->comm.batchbuffer.size = xvmc_driver->batch->size;
 	contextRec->comm.batchbuffer.handle = xvmc_driver->batch_handle;
 
 	/* i915 private context */
 	contextRec->ctxno = i;
 	contextRec->sis.handle = ctxpriv->sis_handle;
-	contextRec->sis.offset = ctxpriv->mcStaticIndirectState->offset;
+	contextRec->sis.offset = ctxpriv->mcStaticIndirectState->bo->offset;
 	contextRec->sis.size = ctxpriv->mcStaticIndirectState->size;
 	contextRec->ssb.handle = ctxpriv->ssb_handle;
-	contextRec->ssb.offset = ctxpriv->mcSamplerState->offset;
+	contextRec->ssb.offset = ctxpriv->mcSamplerState->bo->offset;
 	contextRec->ssb.size = ctxpriv->mcSamplerState->size;
 	contextRec->msb.handle = ctxpriv->msb_handle;
-	contextRec->msb.offset = ctxpriv->mcMapState->offset;
+	contextRec->msb.offset = ctxpriv->mcMapState->bo->offset;
 	contextRec->msb.size = ctxpriv->mcMapState->size;
 	contextRec->psp.handle = ctxpriv->psp_handle;
-	contextRec->psp.offset = ctxpriv->mcPixelShaderProgram->offset;
+	contextRec->psp.offset = ctxpriv->mcPixelShaderProgram->bo->offset;
 	contextRec->psp.size = ctxpriv->mcPixelShaderProgram->size;
 	contextRec->psc.handle = ctxpriv->psc_handle;
-	contextRec->psc.offset = ctxpriv->mcPixelShaderConstants->offset;
+	contextRec->psc.offset = ctxpriv->mcPixelShaderConstants->bo->offset;
 	contextRec->psc.size = ctxpriv->mcPixelShaderConstants->size;
 	contextRec->corrdata.handle = ctxpriv->corrdata_handle;
-	contextRec->corrdata.offset = ctxpriv->mcCorrdata->offset;
+	contextRec->corrdata.offset = ctxpriv->mcCorrdata->bo->offset;
 	contextRec->corrdata.size = ctxpriv->mcCorrdata->size;
 	contextRec->deviceID = DEVICE_ID(intel->PciInfo);
 
@@ -608,7 +608,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 		i830_describe_allocations(scrn, 1, "");
 
 	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (sfpriv->surface->offset +
+		      (drm_handle_t) (sfpriv->surface->bo->offset +
 				      intel->LinearAddr), sfpriv->surface->size,
 		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -623,7 +623,7 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 
 	surfaceRec->srfno = srfno;
 	surfaceRec->srf.handle = sfpriv->surface_handle;
-	surfaceRec->srf.offset = sfpriv->surface->offset;
+	surfaceRec->srf.offset = sfpriv->surface->bo->offset;
 	surfaceRec->srf.size = sfpriv->surface->size;
 
 	pXvMC->surfaces[srfno] = pSurf->surface_id;
@@ -697,7 +697,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr scrn, XvMCSubpicturePtr pSubp,
 	}
 
 	if (drmAddMap(intel->drmSubFD,
-		      (drm_handle_t) (sfpriv->surface->offset +
+		      (drm_handle_t) (sfpriv->surface->bo->offset +
 				      intel->LinearAddr), sfpriv->surface->size,
 		      DRM_AGP, 0, (drmAddress) & sfpriv->surface_handle) < 0) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -712,7 +712,7 @@ static int i915_xvmc_create_subpict(ScrnInfoPtr scrn, XvMCSubpicturePtr pSubp,
 
 	surfaceRec->srfno = srfno;
 	surfaceRec->srf.handle = sfpriv->surface_handle;
-	surfaceRec->srf.offset = sfpriv->surface->offset;
+	surfaceRec->srf.offset = sfpriv->surface->bo->offset;
 	surfaceRec->srf.size = sfpriv->surface->size;
 
 	pXvMC->sfprivs[srfno] = sfpriv;
@@ -816,7 +816,7 @@ static int i915_xvmc_put_image(ScrnInfoPtr scrn,
 			/* use char *buf to hold our surface offset...hacky! */
 			buf =
 			    (unsigned char *)pXvMC->sfprivs[xvmc_cmd->srfNo]->
-			    surface->offset;
+			    surface->bo->offset;
 			break;
 		default:
 			return 0;
