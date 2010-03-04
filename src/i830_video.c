@@ -267,7 +267,7 @@ static void drmmode_overlay_off(ScrnInfoPtr scrn)
 static Bool
 drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 			  int id, short width, short height,
-			  int dstPitch,
+			  int dstPitch, int dstPitch2,
 			  BoxPtr dstBox, short src_w, short src_h, short drw_w,
 			  short drw_h)
 {
@@ -282,7 +282,7 @@ drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 
 	request.bo_handle = adaptor_priv->buf->handle;
 	if (planar) {
-		request.stride_Y = dstPitch * 2;
+		request.stride_Y = dstPitch2;
 		request.stride_UV = dstPitch;
 	} else {
 		request.stride_Y = dstPitch;
@@ -959,12 +959,12 @@ static void i830_memcpy_plane(unsigned char *dst, unsigned char *src,
 
 static void
 I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
-		   unsigned char *buf, int srcPitch,
-		   int srcPitch2, int dstPitch, int srcH, int top, int left,
+		   unsigned char *buf, int srcPitch, int srcPitch2,
+		   int dstPitch, int dstPitch2,
+		   int srcH, int top, int left,
 		   int h, int w, int id)
 {
 	unsigned char *src1, *src2, *src3, *dst_base, *dst1, *dst2, *dst3;
-	int dstPitch2 = dstPitch << 1;
 
 #if 0
 	ErrorF("I830CopyPlanarData: srcPitch %d, srcPitch %d, dstPitch %d\n"
@@ -1181,7 +1181,7 @@ static int xvmc_passthrough(int id)
 static Bool
 i830_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 		     int id, short width, short height,
-		     int dstPitch,
+		     int dstPitch, int dstPitch2,
 		     BoxPtr dstBox, short src_w, short src_h, short drw_w,
 		     short drw_h)
 {
@@ -1214,7 +1214,7 @@ i830_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 	}
 
 	return drmmode_overlay_put_image(scrn, crtc, id, width, height,
-					 dstPitch, dstBox,
+					 dstPitch, dstPitch2, dstBox,
 					 src_w, src_h, drw_w, drw_h);
 }
 
@@ -1362,28 +1362,33 @@ i830_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sho
 		if (IS_I965G(intel))
 			pitchAlignMask = 255;
 		else
-			pitchAlignMask = 63;
+			pitchAlignMask = 255;
 	}
+
+#if INTEL_XVMC
+	/* for i915 xvmc, hw requires 1kb aligned surfaces */
+	if ((id == FOURCC_XVMC) && IS_I915(intel))
+		pitchAlignMask = 0x3ff;
+#endif
 
 	/* Determine the desired destination pitch (representing the chroma's pitch,
 	 * in the planar case.
 	 */
-	switch (id) {
-	case FOURCC_YV12:
-	case FOURCC_I420:
+	if (is_planar_fourcc(id)) {
 		if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 			*dstPitch =
 			    ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
+			*dstPitch2 =
+			    (height + pitchAlignMask) & ~pitchAlignMask;
 			*size = *dstPitch * width * 3;
 		} else {
 			*dstPitch =
 			    ((width / 2) + pitchAlignMask) & ~pitchAlignMask;
+			*dstPitch2 =
+			    (width + pitchAlignMask) & ~pitchAlignMask;
 			*size = *dstPitch * height * 3;
 		}
-		break;
-	case FOURCC_UYVY:
-	case FOURCC_YUY2:
-
+	} else {
 		if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 			*dstPitch =
 			    ((height << 1) + pitchAlignMask) & ~pitchAlignMask;
@@ -1393,18 +1398,7 @@ i830_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sho
 			    ((width << 1) + pitchAlignMask) & ~pitchAlignMask;
 			*size = *dstPitch * height;
 		}
-		break;
-#ifdef INTEL_XVMC
-	case FOURCC_XVMC:
-		*dstPitch = ((width / 2) + pitchAlignMask) & ~pitchAlignMask;
-		*dstPitch2 = (width + pitchAlignMask) & ~pitchAlignMask;
-		*size = 0;
-		break;
-#endif
-	default:
-		*dstPitch = 0;
-		*size = 0;
-		break;
+		*dstPitch2 = 0;
 	}
 #if 0
 	ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, *dstPitch,
@@ -1415,12 +1409,12 @@ i830_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sho
 
 	if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 		adaptor_priv->UBufOffset =
-		    adaptor_priv->YBufOffset + (*dstPitch * 2 * width);
+		    adaptor_priv->YBufOffset + (*dstPitch2 * width);
 		adaptor_priv->VBufOffset =
 		    adaptor_priv->UBufOffset + (*dstPitch * width / 2);
 	} else {
 		adaptor_priv->UBufOffset =
-		    adaptor_priv->YBufOffset + (*dstPitch * 2 * height);
+		    adaptor_priv->YBufOffset + (*dstPitch2 * height);
 		adaptor_priv->VBufOffset =
 		    adaptor_priv->UBufOffset + (*dstPitch * height / 2);
 	}
@@ -1451,7 +1445,8 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 	/* copy data */
 	if (is_planar_fourcc(id)) {
 		I830CopyPlanarData(adaptor_priv, buf, srcPitch, srcPitch2,
-				   *dstPitch, height, top, left, nlines,
+				   *dstPitch, *dstPitch2,
+				   height, top, left, nlines,
 				   npixels, id);
 	} else {
 		I830CopyPackedData(adaptor_priv, buf, srcPitch, *dstPitch, top, left,
@@ -1488,8 +1483,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	int dstPitch;
-	int dstPitch2 = 0;
+	int dstPitch, dstPitch2;
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
 	int top, left, npixels, nlines;
@@ -1515,8 +1509,8 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		int size;
 		i830_free_video_buffers(adaptor_priv);
 
-		i830_setup_dst_params(scrn, adaptor_priv, width, height, &dstPitch,
-				&dstPitch2, &size, id);
+		i830_setup_dst_params(scrn, adaptor_priv, width, height,
+				&dstPitch, &dstPitch2, &size, id);
 
 		if (IS_I965G(intel)) {
 			adaptor_priv->buf =
@@ -1552,8 +1546,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 					 drw_w, drw_h, pixmap);
 	} else {
 		I915DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
-					 width, height, dstPitch,
-					 dstPitch2,
+					 width, height, dstPitch, dstPitch2,
 					 src_w, src_h, drw_w, drw_h,
 					 pixmap);
 	}
@@ -1575,8 +1568,8 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 	     DrawablePtr drawable)
 {
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
-	int dstPitch;
-	int dstPitch2 = 0;
+	ScreenPtr screen = screenInfo.screens[scrn->scrnIndex];
+	int dstPitch, dstPitch2;
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
 	int top, left, npixels, nlines;
@@ -1622,7 +1615,7 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 		return BadAlloc;
 
 	if (!i830_display_overlay
-	    (scrn, crtc, id, width, height, dstPitch,
+	    (scrn, crtc, id, width, height, dstPitch, dstPitch2,
 	     &dstBox, src_w, src_h, drw_w, drw_h))
 		return BadAlloc;
 
