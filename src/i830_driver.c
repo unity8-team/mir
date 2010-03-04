@@ -1182,6 +1182,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	i830_fixup_mtrrs(scrn);
 
+	intel_batch_init(scrn);
+
+	if (IS_I965G(intel))
+		gen4_render_state_init(scrn);
+
 	miClearVisualTypes();
 	if (!miSetVisualTypes(scrn->depth,
 			      miGetDefaultVisualMask(scrn->depth),
@@ -1366,13 +1371,6 @@ static void I830LeaveVT(int scrnIndex, int flags)
 
 	xf86_hide_cursors(scrn);
 
-	intel_sync(scrn);
-
-	intel_batch_teardown(scrn);
-
-	if (IS_I965G(intel))
-		gen4_render_state_cleanup(scrn);
-
 	ret = drmDropMaster(intel->drmSubFD);
 	if (ret)
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1405,11 +1403,6 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 
 	if (!i830_reinit_memory(scrn))
 		return FALSE;
-
-	intel_batch_init(scrn);
-
-	if (IS_I965G(intel))
-		gen4_render_state_init(scrn);
 
 	if (!xf86SetDesiredModes(scrn))
 		return FALSE;
@@ -1447,6 +1440,13 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
 	}
+
+	intel_sync(scrn);
+
+	intel_batch_teardown(scrn);
+
+	if (IS_I965G(intel))
+		gen4_render_state_cleanup(scrn);
 
 	xf86_cursors_fini(screen);
 
