@@ -1432,8 +1432,6 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		intel->front_buffer = NULL;
 	}
 
-	intel_sync(scrn);
-
 	intel_batch_teardown(scrn);
 
 	if (IS_I965G(intel))
