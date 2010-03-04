@@ -925,7 +925,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	pI915XvMC = (i915XvMCContext *) context->privData;
 
 	tmpComm = (I915XvMCCreateContextRec *) priv_data;
-	pI915XvMC->ctxno = tmpComm->ctxno;
 	pI915XvMC->deviceID = tmpComm->deviceID;
 
 	/* Must free the private data we were passed from X */
