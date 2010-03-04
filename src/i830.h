@@ -186,7 +186,6 @@ struct _i830_memory {
 	 */
 	unsigned long size;
 
-	uint32_t tiling_mode;
 	/** Pitch value in bytes for tiled surfaces */
 	unsigned int pitch;
 

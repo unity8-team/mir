@@ -284,7 +284,6 @@ i830_memory *i830_allocate_memory(ScrnInfoPtr scrn, const char *name,
 			   "Failed to set tiling on %s: %s\n", mem->name,
 			   ret == 0 ? "rejected by kernel" : strerror(-ret));
 	}
-	mem->tiling_mode = tiling_mode;
 
 	if (flags & DISABLE_REUSE)
 		drm_intel_bo_disable_reuse(mem->bo);
