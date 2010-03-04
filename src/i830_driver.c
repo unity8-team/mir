@@ -1200,12 +1200,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	if (scrn->virtualX > scrn->displayWidth)
 		scrn->displayWidth = scrn->virtualX;
 
-	/* If the front buffer is not a BO, we need to
-	 * set the initial framebuffer pixmap to point at
-	 * it
-	 */
-	scrn->fbOffset = intel->front_buffer->offset;
-
 	DPRINTF(PFX, "assert( if(!fbScreenInit(screen, ...) )\n");
 	if (!fbScreenInit(screen, NULL,
 			  scrn->virtualX, scrn->virtualY,
