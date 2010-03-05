@@ -835,6 +835,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	DRI2FrameEventPtr wait_info;
 	drmVBlank vbl;
 	int ret, pipe = I830DRI2DrawablePipe(draw);
+	CARD64 current_msc;
 
 	/* Drawable not visible, return immediately */
 	if (pipe == -1) {
@@ -864,9 +865,12 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		return FALSE;
 	}
 
+	current_msc = vbl.reply.sequence;
+
 	/*
-	 * If divisor is zero, we just need to make sure target_msc passes
-	 * before waking up the client.
+	 * If divisor is zero, or current_msc is smaller than target_msc,
+	 * we just need to make sure target_msc passes  before waking up the
+	 * client.
 	 */
 	if (divisor == 0) {
 		vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
@@ -895,15 +899,13 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 
 	/*
-	 * If we have no remainder and the condition isn't satisified, it means
-	 * we've passed the last point where seq % divisor == remainder, so we need
-	 * to wait for the next time that will happen.
+	 * If the calculated  remainder and the condition isn't satisified, it
+	 * means we've passed the last point where seq % divisor == remainder,
+	 * so we need to wait for the next time that will happen.
 	 */
-	if (((vbl.reply.sequence % divisor) != remainder) && !remainder)
+	if ((current_msc % divisor) != remainder)
 		vbl.request.sequence += divisor;
 
-	vbl.request.sequence = vbl.reply.sequence - (vbl.reply.sequence % divisor) +
-		remainder;
 	vbl.request.signal = (unsigned long)wait_info;
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
