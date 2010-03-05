@@ -156,11 +156,17 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 	ret =
 	    dri_bo_exec(intel->batch_bo, intel->batch_used, NULL, 0,
 			0xffffffff);
-	if (ret != 0)
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to submit batch buffer, expect rendering corruption "
-			   "or even a frozen display: %s.\n",
-			   strerror(-ret));
+	if (ret != 0) {
+		static int once;
+
+		if (!once) {
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+				   "Failed to submit batch buffer, expect rendering corruption "
+				   "or even a frozen display: %s.\n",
+				   strerror(-ret));
+			once = 1;
+		}
+	}
 
 	while (!list_is_empty(&intel->batch_pixmaps)) {
 		struct intel_pixmap *entry;
