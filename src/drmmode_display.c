@@ -187,6 +187,9 @@ drmmode_fbcon_copy(ScreenPtr pScreen)
 			fbcon_id = drmmode_crtc->mode_crtc->buffer_id;
 	}
 
+	if (!fbcon_id)
+		return;
+
 	fb = drmModeGetFB(nouveau_device(pNv->dev)->fd, fbcon_id);
 	if (!fb) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
