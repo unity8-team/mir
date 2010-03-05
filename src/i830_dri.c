@@ -641,28 +641,14 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	int ret, pipe = I830DRI2DrawablePipe(draw), flip = 0;
 	DRI2FrameEventPtr swap_info;
 	enum DRI2FrameEventType swap_type = DRI2_SWAP;
+	BoxRec box;
+	RegionRec region;
 
 	swap_info = xcalloc(1, sizeof(DRI2FrameEventRec));
 
 	/* Drawable not displayed... just complete the swap */
-	if (pipe == -1 || !swap_info) {
-	    BoxRec	    box;
-	    RegionRec	    region;
-
-	    box.x1 = 0;
-	    box.y1 = 0;
-	    box.x2 = draw->width;
-	    box.y2 = draw->height;
-	    REGION_INIT(pScreen, &region, &box, 0);
-
-	    I830DRI2CopyRegion(draw, &region, front, back);
-
-	    DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func,
-			     data);
-	    if (swap_info)
-		xfree(swap_info);
-	    return TRUE;
-	}
+	if (pipe == -1 || !swap_info)
+	    goto blit_fallback;
 
 	swap_info->drawable_id = draw->id;
 	swap_info->client = client;
@@ -681,7 +667,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "first get vblank counter failed: %s\n",
 			   strerror(errno));
-		return FALSE;
+		goto blit_fallback;
 	}
 
 	/* Flips need to be submitted one frame before */
@@ -692,6 +678,13 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	}
 
 	swap_info->type = swap_type;
+
+	if ((*target_msc != 1) && (*target_msc > vbl.reply.sequence) &&
+	    ((*target_msc - vbl.reply.sequence) > 100))
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "vblank event >100 frames away: cur %ld, target %ld\n",
+		       (unsigned long)vbl.reply.sequence,
+		       (unsigned long)*target_msc);
 
 	/*
 	 * If divisor is zero, we just need to make sure target_msc passes
@@ -711,7 +704,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "divisor 0 get vblank counter failed: %s\n",
 				   strerror(errno));
-			return FALSE;
+			goto blit_fallback;
 		}
 
 		*target_msc = vbl.reply.sequence;
@@ -764,12 +757,27 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "final get vblank counter failed: %s\n",
 			   strerror(errno));
-		return FALSE;
+		goto blit_fallback;
 	}
 
 	*target_msc = vbl.reply.sequence;
 	swap_info->frame = *target_msc;
 
+	return TRUE;
+
+blit_fallback:
+	box.x1 = 0;
+	box.y1 = 0;
+	box.x2 = draw->width;
+	box.y2 = draw->height;
+	REGION_INIT(pScreen, &region, &box, 0);
+
+	I830DRI2CopyRegion(draw, &region, front, back);
+
+	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
+	if (swap_info)
+	    xfree(swap_info);
+	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
 }
 
