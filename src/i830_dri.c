@@ -641,6 +641,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	int ret, pipe = I830DRI2DrawablePipe(draw), flip = 0;
 	DRI2FrameEventPtr swap_info;
 	enum DRI2FrameEventType swap_type = DRI2_SWAP;
+	CARD64 current_msc;
 	BoxRec box;
 	RegionRec region;
 
@@ -670,6 +671,8 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		goto blit_fallback;
 	}
 
+	current_msc = vbl.reply.sequence;
+
 	/* Flips need to be submitted one frame before */
 	if (DRI2CanFlip(draw) && !intel->shadow_present &&
 	    intel->use_pageflipping) {
@@ -679,6 +682,13 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	swap_info->type = swap_type;
 
+	/* Correct target_msc by 'flip' if swap_type == DRI2_FLIP.
+	 * Do it early, so handling of different timing constraints
+	 * for divisor, remainder and msc vs. target_msc works.
+	 */
+	if (*target_msc > 0)
+		*target_msc -= flip;
+
 	if ((*target_msc != 1) && (*target_msc > vbl.reply.sequence) &&
 	    ((*target_msc - vbl.reply.sequence) > 100))
 	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -687,17 +697,32 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		       (unsigned long)*target_msc);
 
 	/*
-	 * If divisor is zero, we just need to make sure target_msc passes
-	 * before waking up the client.
+	 * If divisor is zero, or current_msc is smaller than target_msc
+	 * we just need to make sure target_msc passes before initiating
+	 * the swap.
 	 */
-	if (divisor == 0) {
-		vbl.request.type = DRM_VBLANK_NEXTONMISS |
-		    DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
+	if (divisor == 0 || current_msc < *target_msc) {
+		vbl.request.type =  DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 		if (pipe > 0)
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
 
+		/* If non-pageflipping, but blitting/exchanging, we need to use
+		 * DRM_VBLANK_NEXTONMISS to avoid unreliable timestamping later
+		 * on.
+		 */
+		if (flip == 0)
+			vbl.request.type |= DRM_VBLANK_NEXTONMISS;
+		if (pipe > 0)
+			vbl.request.type |= DRM_VBLANK_SECONDARY;
+
+		/* If target_msc already reached or passed, set it to
+		 * current_msc to ensure we return a reasonable value back
+		 * to the caller. This makes swap_interval logic more robust.
+		 */
+		if (current_msc >= *target_msc)
+			*target_msc = current_msc;
+
 		vbl.request.sequence = *target_msc;
-		vbl.request.sequence -= flip;
 		vbl.request.signal = (unsigned long)swap_info;
 		ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 		if (ret) {
@@ -707,7 +732,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 			goto blit_fallback;
 		}
 
-		*target_msc = vbl.reply.sequence;
+		*target_msc = vbl.reply.sequence + flip;
 		swap_info->frame = *target_msc;
 
 		return TRUE;
@@ -715,42 +740,35 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	/*
 	 * If we get here, target_msc has already passed or we don't have one,
-	 * so we queue an event that will satisfy the divisor/remainderequation.
+	 * and we need to queue an event that will satisfy the divisor/remainder
+	 * equation.
 	 */
-	if ((vbl.reply.sequence % divisor) == remainder) {
-		BoxRec box;
-		RegionRec region;
-
-		box.x1 = 0;
-		box.y1 = 0;
-		box.x2 = draw->width;
-		box.y2 = draw->height;
-		REGION_INIT(pScreen, &region, &box, 0);
-
-		I830DRI2CopyRegion(draw, &region, front, back);
-
-		DRI2SwapComplete(client, draw, 0, 0, 0,
-				 DRI2_BLIT_COMPLETE, func, data);
-		if (swap_info)
-			xfree(swap_info);
-		return TRUE;
-	}
-
 	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
+	if (flip == 0)
+		vbl.request.type |= DRM_VBLANK_NEXTONMISS;
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 
+	vbl.request.sequence = current_msc - (current_msc % divisor) +
+		remainder;
+
 	/*
-	 * If we have no remainder, and the test above failed, it means we've
-	 * passed the last point where seq % divisor == remainder, so we need
-	 * to wait for the next time that will happen.
+	 * If the calculated deadline vbl.request.sequence is smaller than
+	 * or equal to current_msc, it means we've passed the last point
+	 * when effective onset frame seq could satisfy
+	 * seq % divisor == remainder, so we need to wait for the next time
+	 * this will happen.
+
+	 * This comparison takes the 1 frame swap delay in pageflipping mode
+	 * into account, as well as a potential DRM_VBLANK_NEXTONMISS delay
+	 * if we are blitting/exchanging instead of flipping.
 	 */
-	if (!remainder)
+	if (vbl.request.sequence <= current_msc)
 		vbl.request.sequence += divisor;
 
-	vbl.request.sequence = vbl.reply.sequence -
-	    (vbl.reply.sequence % divisor) + remainder;
+	/* Account for 1 frame extra pageflip delay if flip > 0 */
 	vbl.request.sequence -= flip;
+
 	vbl.request.signal = (unsigned long)swap_info;
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
@@ -760,7 +778,8 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		goto blit_fallback;
 	}
 
-	*target_msc = vbl.reply.sequence;
+	/* Adjust returned value for 1 fame pageflip offset of flip > 0 */
+	*target_msc = vbl.reply.sequence + flip;
 	swap_info->frame = *target_msc;
 
 	return TRUE;
