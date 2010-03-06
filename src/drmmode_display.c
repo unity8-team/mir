@@ -701,7 +701,11 @@ drmmode_output_lvds_edid(xf86OutputPtr output, DisplayModePtr modes)
 	max_vrefresh = max(max_vrefresh, 60.0);
 	max_vrefresh *= (1 + SYNC_TOLERANCE);
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,6,99,0,0)
 	m = xf86GetDefaultModes();
+#else
+	m = xf86GetDefaultModes(0,0);
+#endif
 
 	xf86ValidateModesSize(output->scrn, m, max_x, max_y, 0);
 
