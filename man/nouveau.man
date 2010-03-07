@@ -70,22 +70,6 @@ Enable or disable the HW cursor.  Default: on.
 .BI "Option \*qNoAccel\*q \*q" boolean \*q
 Disable or enable acceleration.  Default: acceleration is enabled.
 .TP
-.BI "Option \*qFPDither\*q \*q" boolean \*q
-Many digital flat panels (particularly ones on laptops) have only 6 bits 
-per component color resolution.
-This option tells the driver to dither from 8 bits per component to 6 before
-the flat panel truncates it. 
-Default: off.
-.TP
-.BI "Option \*qFPScale\*q \*q" boolean \*q 
-Supported only on GeForce4 and newer chips, this option
-tells to the driver to scale lower resolutions up to the flat panel's native
-resolution.  Default: on.
-.TP 
-.BI "Option \*qScalingMode\*q \*q" string \*q 
-Only for the randr-1.2 driver, this allows to set the DFP scaling mode.
-The options are "fullscreen", "aspect", "noscale" and "panel". Default: "aspect".
-.TP
 .BI "Option \*qShadowFB\*q \*q" boolean \*q
 Enable or disable use of the shadow framebuffer layer.  Default: off.
 .SH "SEE ALSO"

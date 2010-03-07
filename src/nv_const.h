@@ -13,7 +13,6 @@ typedef enum {
     OPTION_NOACCEL,
     OPTION_SHADOW_FB,
     OPTION_VIDEO_KEY,
-    OPTION_EXA_PIXMAPS
 } NVOpts;
 
 
@@ -23,7 +22,6 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_NOACCEL,           "NoAccel",      OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_SHADOW_FB,         "ShadowFB",     OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_VIDEO_KEY,		"VideoKey",	OPTV_INTEGER,	{0}, FALSE },
-    { OPTION_EXA_PIXMAPS,	"EXAPixmaps",	OPTV_BOOLEAN,	{0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
 };
 
