@@ -553,7 +553,7 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 			I830DRI2CopyRegion(drawable,
 					   &region, event->front, event->back);
 			swap_type = DRI2_BLIT_COMPLETE;
-	}
+		}
 		DRI2SwapComplete(event->client, drawable, frame, tv_sec, tv_usec,
 				 swap_type,
 				 event->event_complete, event->event_data);
