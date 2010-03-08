@@ -862,16 +862,12 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	remainder &= 0xffffffff;
 
 	/* Drawable not visible, return immediately */
-	if (pipe == -1) {
-		DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
-		return TRUE;
-	}
+	if (pipe == -1)
+		goto out_complete;
 
 	wait_info = xcalloc(1, sizeof(DRI2FrameEventRec));
-	if (!wait_info) {
-		DRI2WaitMSCComplete(client, draw, 0, 0, 0);
-		return TRUE;
-	}
+	if (!wait_info)
+		goto out_complete;
 
 	wait_info->drawable_id = draw->id;
 	wait_info->client = client;
@@ -886,7 +882,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "get vblank counter failed: %s\n", strerror(errno));
-		return FALSE;
+		goto out_complete;
 	}
 
 	current_msc = vbl.reply.sequence;
@@ -914,7 +910,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		if (ret) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "get vblank counter failed: %s\n", strerror(errno));
-			return FALSE;
+			goto out_complete;
 		}
 
 		wait_info->frame = vbl.reply.sequence;
@@ -947,12 +943,16 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "get vblank counter failed: %s\n", strerror(errno));
-		return FALSE;
+		goto out_complete;
 	}
 
 	wait_info->frame = vbl.reply.sequence;
 	DRI2BlockClient(client, draw);
 
+	return TRUE;
+
+out_complete:
+	DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
 	return TRUE;
 }
 #endif
