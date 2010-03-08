@@ -885,6 +885,14 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	 * client.
 	 */
 	if (divisor == 0 || current_msc < target_msc) {
+		/* If target_msc already reached or passed, set it to
+		 * current_msc to ensure we return a reasonable value back
+		 * to the caller. This keeps the client from continually
+		 * sending us MSC targets from the past by forcibly updating
+		 * their count on this call.
+		 */
+		if (current_msc >= target_msc)
+			target_msc = current_msc;
 		vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 		if (pipe > 0)
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
@@ -919,7 +927,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	 * seq % divisor == remainder, so we need to wait for the next time
 	 * that will happen.
 	 */
-	if ((current_msc % divisor) > remainder)
+	if ((current_msc % divisor) >= remainder)
 	    vbl.request.sequence += divisor;
 
 	vbl.request.signal = (unsigned long)wait_info;
