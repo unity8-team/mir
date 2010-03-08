@@ -645,6 +645,12 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	BoxRec box;
 	RegionRec region;
 
+	/* Truncate to match kernel interfaces; means occasional overflow
+	 * misses, but that's generally not a big deal */
+	*target_msc &= 0xffffffff;
+	divisor &= 0xffffffff;
+	remainder &= 0xffffffff;
+
 	swap_info = xcalloc(1, sizeof(DRI2FrameEventRec));
 
 	/* Drawable not displayed... just complete the swap */
@@ -848,6 +854,12 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	drmVBlank vbl;
 	int ret, pipe = I830DRI2DrawablePipe(draw);
 	CARD64 current_msc;
+
+	/* Truncate to match kernel interfaces; means occasional overflow
+	 * misses, but that's generally not a big deal */
+	target_msc &= 0xffffffff;
+	divisor &= 0xffffffff;
+	remainder &= 0xffffffff;
 
 	/* Drawable not visible, return immediately */
 	if (pipe == -1) {
