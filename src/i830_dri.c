@@ -689,13 +689,6 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	if (*target_msc > 0)
 		*target_msc -= flip;
 
-	if ((*target_msc != 1) && (*target_msc > vbl.reply.sequence) &&
-	    ((*target_msc - vbl.reply.sequence) > 100))
-	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		       "vblank event >100 frames away: cur %ld, target %ld\n",
-		       (unsigned long)vbl.reply.sequence,
-		       (unsigned long)*target_msc);
-
 	/*
 	 * If divisor is zero, or current_msc is smaller than target_msc
 	 * we just need to make sure target_msc passes before initiating
@@ -891,7 +884,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	 * we just need to make sure target_msc passes  before waking up the
 	 * client.
 	 */
-	if (divisor == 0) {
+	if (divisor == 0 || current_msc < target_msc) {
 		vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 		if (pipe > 0)
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
@@ -917,13 +910,17 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 
+	vbl.request.sequence = current_msc - (current_msc % divisor) +
+	    remainder;
+
 	/*
-	 * If the calculated  remainder and the condition isn't satisified, it
-	 * means we've passed the last point where seq % divisor == remainder,
-	 * so we need to wait for the next time that will happen.
+	 * If calculated remainder is larger than requested remainder,
+	 * it means we've passed the last point where
+	 * seq % divisor == remainder, so we need to wait for the next time
+	 * that will happen.
 	 */
-	if ((current_msc % divisor) != remainder)
-		vbl.request.sequence += divisor;
+	if ((current_msc % divisor) > remainder)
+	    vbl.request.sequence += divisor;
 
 	vbl.request.signal = (unsigned long)wait_info;
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
