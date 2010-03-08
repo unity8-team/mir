@@ -1262,6 +1262,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		return TRUE;
 
 	pitch = i830_pad_drawable_width(width, intel->cpp);
+	i830_tiled_width(intel, &pitch, intel->cpp);
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "Allocate new frame buffer %dx%d stride %d\n",
 		   width, height, pitch);
