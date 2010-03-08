@@ -82,7 +82,6 @@ AC_ARG_ENABLE(kms-only, AC_HELP_STRING([--enable-kms-only],
               [KMS_ONLY=no])
 
 # Checks for extensions
-XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
 XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
