@@ -31,9 +31,9 @@
 #include "i915_structs.h"
 #include "i915_program.h"
 
-#define UOFFSET(surface)        (SIZE_Y420(surface->width, surface->height) + \
+#define UOFFSET(surface)        (SIZE_Y420(surface->width, surface->height))
+#define VOFFSET(surface)        (SIZE_Y420(surface->width, surface->height) + \
                                  SIZE_UV420(surface->width, surface->height))
-#define VOFFSET(surface)        (SIZE_Y420(surface->width, surface->height))
 
 typedef union {
 	int16_t component[2];
