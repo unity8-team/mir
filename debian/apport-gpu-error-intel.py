@@ -87,9 +87,6 @@ def main(argv=None):
     report.add_proc_info()
     report.add_user_info()
 
-    if report.check_ignored():
-        return 0
-
     report['Package'] = 'xserver-xorg-video-intel'
     report['Tags'] += ' freeze'
     report['Lspci'] = command_output(['lspci', '-vvnn'])

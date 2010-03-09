@@ -31,7 +31,6 @@ endif
 
 # kbd_drv.a isn't phenomenally useful; kbd_drv.so more so
 confflags += --disable-static
-confflags += --enable-kms-only
 
 configure: $(STAMP_DIR)/patch
 	dh_testdir
