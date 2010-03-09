@@ -1515,9 +1515,10 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     atomDataTablesPtr atomDataPtr;
-    ATOM_GPIO_I2C_ASSIGMENT gpio;
+    ATOM_GPIO_I2C_ASSIGMENT *gpio;
     RADEONI2CBusRec i2c;
     uint8_t crev, frev;
+    int i;
 
     memset(&i2c, 0, sizeof(RADEONI2CBusRec));
     i2c.valid = FALSE;
@@ -1531,48 +1532,53 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
 	return i2c;
     }
 
-    gpio = atomDataPtr->GPIO_I2C_Info->asGPIO_Info[id];
-    i2c.mask_clk_reg = le16_to_cpu(gpio.usClkMaskRegisterIndex) * 4;
-    i2c.mask_data_reg = le16_to_cpu(gpio.usDataMaskRegisterIndex) * 4;
-    i2c.put_clk_reg = le16_to_cpu(gpio.usClkEnRegisterIndex) * 4;
-    i2c.put_data_reg = le16_to_cpu(gpio.usDataEnRegisterIndex) * 4;
-    i2c.get_clk_reg = le16_to_cpu(gpio.usClkY_RegisterIndex) * 4;
-    i2c.get_data_reg = le16_to_cpu(gpio.usDataY_RegisterIndex) * 4;
-    i2c.a_clk_reg = le16_to_cpu(gpio.usClkA_RegisterIndex) * 4;
-    i2c.a_data_reg = le16_to_cpu(gpio.usDataA_RegisterIndex) * 4;
-    i2c.mask_clk_mask = (1 << gpio.ucClkMaskShift);
-    i2c.mask_data_mask = (1 << gpio.ucDataMaskShift);
-    i2c.put_clk_mask = (1 << gpio.ucClkEnShift);
-    i2c.put_data_mask = (1 << gpio.ucDataEnShift);
-    i2c.get_clk_mask = (1 << gpio.ucClkY_Shift);
-    i2c.get_data_mask = (1 <<  gpio.ucDataY_Shift);
-    i2c.a_clk_mask = (1 << gpio.ucClkA_Shift);
-    i2c.a_data_mask = (1 <<  gpio.ucDataA_Shift);
-    i2c.hw_line = gpio.sucI2cId.sbfAccess.bfI2C_LineMux;
-    i2c.hw_capable = gpio.sucI2cId.sbfAccess.bfHW_Capable;
-    i2c.valid = TRUE;
+    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+	    gpio = &atomDataPtr->GPIO_I2C_Info->asGPIO_Info[i];
+	    if (gpio->sucI2cId.ucAccess == id) {
+		    i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
+		    i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
+		    i2c.put_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
+		    i2c.put_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
+		    i2c.get_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
+		    i2c.get_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
+		    i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
+		    i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
+		    i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
+		    i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
+		    i2c.put_clk_mask = (1 << gpio->ucClkEnShift);
+		    i2c.put_data_mask = (1 << gpio->ucDataEnShift);
+		    i2c.get_clk_mask = (1 << gpio->ucClkY_Shift);
+		    i2c.get_data_mask = (1 <<  gpio->ucDataY_Shift);
+		    i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
+		    i2c.a_data_mask = (1 <<  gpio->ucDataA_Shift);
+		    i2c.hw_line = gpio->sucI2cId.ucAccess;
+		    i2c.hw_capable = gpio->sucI2cId.sbfAccess.bfHW_Capable;
+		    i2c.valid = TRUE;
+		    break;
+	    }
+    }
 
 #if 0
     ErrorF("id: %d\n", id);
-    ErrorF("hw capable: %d\n", gpio.sucI2cId.sbfAccess.bfHW_Capable);
-    ErrorF("hw engine id: %d\n", gpio.sucI2cId.sbfAccess.bfHW_EngineID);
-    ErrorF("line mux %d\n", gpio.sucI2cId.sbfAccess.bfI2C_LineMux);
-    ErrorF("mask_clk_reg: 0x%x\n", gpio.usClkMaskRegisterIndex * 4);
-    ErrorF("mask_data_reg: 0x%x\n", gpio.usDataMaskRegisterIndex * 4);
-    ErrorF("put_clk_reg: 0x%x\n", gpio.usClkEnRegisterIndex * 4);
-    ErrorF("put_data_reg: 0x%x\n", gpio.usDataEnRegisterIndex * 4);
-    ErrorF("get_clk_reg: 0x%x\n", gpio.usClkY_RegisterIndex * 4);
-    ErrorF("get_data_reg: 0x%x\n", gpio.usDataY_RegisterIndex * 4);
-    ErrorF("a_clk_reg: 0x%x\n", gpio.usClkA_RegisterIndex * 4);
-    ErrorF("a_data_reg: 0x%x\n", gpio.usDataA_RegisterIndex * 4);
-    ErrorF("mask_clk_mask: %d\n", gpio.ucClkMaskShift);
-    ErrorF("mask_data_mask: %d\n", gpio.ucDataMaskShift);
-    ErrorF("put_clk_mask: %d\n", gpio.ucClkEnShift);
-    ErrorF("put_data_mask: %d\n", gpio.ucDataEnShift);
-    ErrorF("get_clk_mask: %d\n", gpio.ucClkY_Shift);
-    ErrorF("get_data_mask: %d\n", gpio.ucDataY_Shift);
-    ErrorF("a_clk_mask: %d\n", gpio.ucClkA_Shift);
-    ErrorF("a_data_mask: %d\n", gpio.ucDataA_Shift);
+    ErrorF("hw capable: %d\n", gpio->sucI2cId.sbfAccess.bfHW_Capable);
+    ErrorF("hw engine id: %d\n", gpio->sucI2cId.sbfAccess.bfHW_EngineID);
+    ErrorF("line mux %d\n", gpio->sucI2cId.sbfAccess.bfI2C_LineMux);
+    ErrorF("mask_clk_reg: 0x%x\n", gpio->usClkMaskRegisterIndex * 4);
+    ErrorF("mask_data_reg: 0x%x\n", gpio->usDataMaskRegisterIndex * 4);
+    ErrorF("put_clk_reg: 0x%x\n", gpio->usClkEnRegisterIndex * 4);
+    ErrorF("put_data_reg: 0x%x\n", gpio->usDataEnRegisterIndex * 4);
+    ErrorF("get_clk_reg: 0x%x\n", gpio->usClkY_RegisterIndex * 4);
+    ErrorF("get_data_reg: 0x%x\n", gpio->usDataY_RegisterIndex * 4);
+    ErrorF("a_clk_reg: 0x%x\n", gpio->usClkA_RegisterIndex * 4);
+    ErrorF("a_data_reg: 0x%x\n", gpio->usDataA_RegisterIndex * 4);
+    ErrorF("mask_clk_mask: %d\n", gpio->ucClkMaskShift);
+    ErrorF("mask_data_mask: %d\n", gpio->ucDataMaskShift);
+    ErrorF("put_clk_mask: %d\n", gpio->ucClkEnShift);
+    ErrorF("put_data_mask: %d\n", gpio->ucDataEnShift);
+    ErrorF("get_clk_mask: %d\n", gpio->ucClkY_Shift);
+    ErrorF("get_data_mask: %d\n", gpio->ucDataY_Shift);
+    ErrorF("a_clk_mask: %d\n", gpio->ucClkA_Shift);
+    ErrorF("a_data_mask: %d\n", gpio->ucDataA_Shift);
 #endif
 
     return i2c;
@@ -1585,9 +1591,9 @@ rhdAtomParseI2CRecord(ScrnInfoPtr pScrn, atomBiosHandlePtr handle,
     RADEONInfoPtr info = RADEONPTR (pScrn);
     uint8_t *temp = &Record->sucI2cId;
 
-    info->BiosConnector[i].i2c_line_mux = Record->sucI2cId.bfI2C_LineMux;
+    info->BiosConnector[i].i2c_line_mux = *temp;
     info->BiosConnector[i].ucI2cId = *temp;
-    return RADEONLookupGPIOLineForDDC(pScrn, Record->sucI2cId.bfI2C_LineMux);
+    return RADEONLookupGPIOLineForDDC(pScrn, *temp);
 }
 
 static uint8_t
@@ -2518,7 +2524,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	info->BiosConnector[i].valid = TRUE;
 	info->BiosConnector[i].load_detection = TRUE;
 	info->BiosConnector[i].shared_ddc = FALSE;
-	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
+	info->BiosConnector[i].output_id = ci.sucI2cId.ucAccess;
 	info->BiosConnector[i].devices = (1 << i);
 	info->BiosConnector[i].ConnectorType = ci.sucConnectorInfo.sbfAccess.bfConnectorType;
 
@@ -2532,21 +2538,9 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    (i == ATOM_DEVICE_TV2_INDEX) ||
 	    (i == ATOM_DEVICE_CV_INDEX))
 	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
-	else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
-		 (info->ChipFamily == CHIP_FAMILY_RS740)) {
-	    /* IGP DFP ports sometimes use non-standard gpio entries */
-	    if ((i == ATOM_DEVICE_DFP2_INDEX) && (ci.sucI2cId.sbfAccess.bfI2C_LineMux == 2))
-		info->BiosConnector[i].ddc_i2c =
-		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
-	    else if ((i == ATOM_DEVICE_DFP3_INDEX) && (ci.sucI2cId.sbfAccess.bfI2C_LineMux == 1))
-		info->BiosConnector[i].ddc_i2c =
-		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
-	    else
-		info->BiosConnector[i].ddc_i2c =
-		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
-	} else
+	else
 	    info->BiosConnector[i].ddc_i2c =
-		RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
+		RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.ucAccess);
 
 	if (!radeon_add_encoder(pScrn,
 			   radeon_get_encoder_id_from_supported_device(pScrn, (1 << i),
