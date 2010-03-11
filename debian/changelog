@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.9.1-1ubuntu13) lucid; urgency=low
+
+  * debian/apport-gpu-error-intel.py:
+    + 8 characters worth of the dump signature is sufficient for dupe
+      identification
+    + Identify error code from PGTBL_ER or ESR if non-zero
+    + Mention machine type in title if available
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 11 Mar 2010 16:19:43 -0800
+
 xserver-xorg-video-intel (2:2.9.1-1ubuntu12) lucid; urgency=low
 
   * debian/rules:  Dropping the --enable-kms-only flag from revision

@@ -3,6 +3,7 @@
 import os
 import os.path
 import sys
+import re
 import hashlib
 
 from apport.hookutils import *
@@ -68,7 +69,14 @@ def get_dump_signature(text):
         return None
     m = hashlib.md5()
     m.update(text)
-    return m.hexdigest()
+    errmsg = m.hexdigest()[:8]
+    for k in ["PGTBL_ER", "ESR"]:
+        regex = re.compile(k+": 0x(\d+)")
+        match = regex.search(text)
+        if match and match.group(1) != "00000000":
+            errmsg += " (%s: 0x%s)" %(k, match.group(1))
+            break
+    return errmsg
 
 def main(argv=None):
     if argv is None:
@@ -97,6 +105,8 @@ def main(argv=None):
         report['Title'] = "[%s] GPU lockup" %(report['Chipset'])
     if report['DumpSignature']:
         report['Title'] += " " + report['DumpSignature']
+    if report['MachineType']:
+        report['Title'] += " on " + report['MachineType']
 
     attach_hardware(report)
     attach_related_packages(report, ["xserver-xorg", "libdrm2", "xserver-xorg-video-intel"])
