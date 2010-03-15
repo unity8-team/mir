@@ -2866,8 +2866,6 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
     else
 	mask = 3;
 
-    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mask: %d\n", mask);
-
     if (!RADEONAllocateControllers(pScrn, mask))
 	return FALSE;
 
