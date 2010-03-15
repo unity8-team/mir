@@ -257,7 +257,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     vs_conf.num_gprs            = 2;
     vs_conf.stack_size          = 0;
     vs_conf.bo                  = accel_state->shaders_bo;
-    vs_setup                    (pScrn, accel_state->ib, &vs_conf);
+    vs_setup                    (pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* flush SQ cache */
     cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
@@ -271,7 +271,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     ps_conf.clamp_consts        = 0;
     ps_conf.export_mode         = 2;
     ps_conf.bo                  = accel_state->shaders_bo;
-    ps_setup                    (pScrn, accel_state->ib, &ps_conf);
+    ps_setup                    (pScrn, accel_state->ib, &ps_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* PS alu constants */
     set_alu_consts(pScrn, accel_state->ib, SQ_ALU_CONSTANT_ps,
@@ -286,7 +286,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	/* flush texture cache */
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
 			    accel_state->src_mc_addr[0],
-			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
+			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
 
 	/* Y texture */
 	tex_res.id                  = 0;
@@ -311,7 +311,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.last_level          = 0;
 	tex_res.perf_modulation     = 0;
 	tex_res.interlaced          = 0;
-	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
 
 	/* Y sampler */
 	tex_samp.id                 = 0;
@@ -331,7 +331,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			    accel_state->src_size[0] / 4,
 			    accel_state->src_mc_addr[0] + pPriv->planev_offset,
-			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
+			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
 
 	tex_res.id                  = 1;
 	tex_res.format              = FMT_8;
@@ -346,7 +346,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	tex_res.base                = accel_state->src_mc_addr[0] + pPriv->planev_offset;
 	tex_res.mip_base            = accel_state->src_mc_addr[0] + pPriv->planev_offset;
-	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
 
 	/* U or V sampler */
 	tex_samp.id                 = 1;
@@ -356,7 +356,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			    accel_state->src_size[0] / 4,
 			    accel_state->src_mc_addr[0] + pPriv->planeu_offset,
-			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
+			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
 
 	tex_res.id                  = 2;
 	tex_res.format              = FMT_8;
@@ -371,7 +371,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	tex_res.base                = accel_state->src_mc_addr[0] + pPriv->planeu_offset;
 	tex_res.mip_base            = accel_state->src_mc_addr[0] + pPriv->planeu_offset;
-	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
 
 	/* UV sampler */
 	tex_samp.id                 = 2;
@@ -385,7 +385,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	/* flush texture cache */
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
 			    accel_state->src_mc_addr[0],
-			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
+			    accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
 
 	/* Y texture */
 	tex_res.id                  = 0;
@@ -413,7 +413,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.last_level          = 0;
 	tex_res.perf_modulation     = 0;
 	tex_res.interlaced          = 0;
-	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
 
 	/* Y sampler */
 	tex_samp.id                 = 0;
@@ -448,7 +448,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	tex_res.base                = accel_state->src_mc_addr[0];
 	tex_res.mip_base            = accel_state->src_mc_addr[0];
-	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
 
 	/* UV sampler */
 	tex_samp.id                 = 1;
@@ -488,7 +488,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* Interpolator setup */
     /* export tex coords from VS */

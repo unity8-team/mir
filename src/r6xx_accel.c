@@ -222,7 +222,7 @@ sq_setup(ScrnInfoPtr pScrn, drmBufPtr ib, sq_config_t *sq_conf)
 }
 
 void
-set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf)
+set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf, uint32_t domain)
 {
     uint32_t cb_color_info;
     int pitch, slice, h;
@@ -259,7 +259,7 @@ set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf)
 
     BEGIN_BATCH(3 + 2);
     EREG(ib, (CB_COLOR0_BASE + (4 * cb_conf->id)), (cb_conf->base >> 8));
-    RELOC_BATCH(cb_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(cb_conf->bo, 0, domain);
     END_BATCH();
 
     // rv6xx workaround
@@ -276,11 +276,11 @@ set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf)
      */
     BEGIN_BATCH(3 + 2);
     EREG(ib, (CB_COLOR0_TILE + (4 * cb_conf->id)), (0     >> 8));	// CMASK per-tile data base/256
-    RELOC_BATCH(cb_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(cb_conf->bo, 0, domain);
     END_BATCH();
     BEGIN_BATCH(3 + 2);
     EREG(ib, (CB_COLOR0_FRAG + (4 * cb_conf->id)), (0     >> 8));	// FMASK per-tile data base/256
-    RELOC_BATCH(cb_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(cb_conf->bo, 0, domain);
     END_BATCH();
     BEGIN_BATCH(12);
     // pitch only for ARRAY_LINEAR_GENERAL, other tiling modes require addrlib
@@ -399,7 +399,7 @@ void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
 }
 
 void
-fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf)
+fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf, uint32_t domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_pgm_resources;
@@ -412,7 +412,7 @@ fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf)
 
     BEGIN_BATCH(3 + 2);
     EREG(ib, SQ_PGM_START_FS, fs_conf->shader_addr >> 8);
-    RELOC_BATCH(fs_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(fs_conf->bo, domain, 0);
     END_BATCH();
 
     BEGIN_BATCH(6);
@@ -422,7 +422,7 @@ fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf)
 }
 
 void
-vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf)
+vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf, uint32_t domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_pgm_resources;
@@ -439,7 +439,7 @@ vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf)
 
     BEGIN_BATCH(3 + 2);
     EREG(ib, SQ_PGM_START_VS, vs_conf->shader_addr >> 8);
-    RELOC_BATCH(vs_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(vs_conf->bo, domain, 0);
     END_BATCH();
 
     BEGIN_BATCH(6);
@@ -449,7 +449,7 @@ vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf)
 }
 
 void
-ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf)
+ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf, uint32_t domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_pgm_resources;
@@ -468,7 +468,7 @@ ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf)
 
     BEGIN_BATCH(3 + 2);
     EREG(ib, SQ_PGM_START_PS, ps_conf->shader_addr >> 8);
-    RELOC_BATCH(ps_conf->bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(ps_conf->bo, domain, 0);
     END_BATCH();
 
     BEGIN_BATCH(9);
@@ -505,7 +505,7 @@ set_bool_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, uint32_t val)
 }
 
 void
-set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res)
+set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res, uint32_t domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_vtx_constant_word2;
@@ -533,12 +533,12 @@ set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res)
     E32(ib, 0);							// 4: n/a
     E32(ib, 0);							// 5: n/a
     E32(ib, SQ_TEX_VTX_VALID_BUFFER << SQ_VTX_CONSTANT_WORD6_0__TYPE_shift);	// 6: TYPE
-    RELOC_BATCH(res->bo, RADEON_GEM_DOMAIN_GTT, 0);
+    RELOC_BATCH(res->bo, domain, 0);
     END_BATCH();
 }
 
 void
-set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res)
+set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res, uint32_t domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     uint32_t sq_tex_resource_word0, sq_tex_resource_word1, sq_tex_resource_word4;
@@ -599,8 +599,8 @@ set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res)
     E32(ib, sq_tex_resource_word4);
     E32(ib, sq_tex_resource_word5);
     E32(ib, sq_tex_resource_word6);
-    RELOC_BATCH(tex_res->bo, RADEON_GEM_DOMAIN_VRAM, 0);
-    RELOC_BATCH(tex_res->mip_bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    RELOC_BATCH(tex_res->bo, domain, 0);
+    RELOC_BATCH(tex_res->mip_bo, domain, 0);
     END_BATCH();
 }
 
@@ -1085,7 +1085,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 
     // clear FS
     fs_conf.bo = accel_state->shaders_bo;
-    fs_setup(pScrn, ib, &fs_conf);
+    fs_setup(pScrn, ib, &fs_conf, RADEON_GEM_DOMAIN_VRAM);
 
     // VGT
     BEGIN_BATCH(75);
@@ -1271,7 +1271,7 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
     vtx_res.mem_req_size    = 1;
     vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
     vtx_res.bo              = accel_state->vb_bo;
-    set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
+    set_vtx_resource        (pScrn, accel_state->ib, &vtx_res, RADEON_GEM_DOMAIN_GTT);
 
     /* Draw */
     draw_conf.prim_type          = DI_PT_RECTLIST;
@@ -1288,7 +1288,7 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
     /* sync dst surface */
     cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
 			accel_state->dst_size, accel_state->dst_mc_addr,
-			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM, 0);
+			accel_state->dst_bo, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
 
     accel_state->vb_start_op = -1;
     accel_state->ib_reset_op = 0;

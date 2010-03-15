@@ -281,26 +281,26 @@ wait_3d_idle(ScrnInfoPtr pScrn, drmBufPtr ib);
 void
 start_3d(ScrnInfoPtr pScrn, drmBufPtr ib);
 void
-set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf);
+set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf, uint32_t domain);
 void
 cp_set_surface_sync(ScrnInfoPtr pScrn, drmBufPtr ib, uint32_t sync_type, uint32_t size, uint64_t mc_addr,
 		    struct radeon_bo *bo, uint32_t rdomains, uint32_t wdomain);
 void
 cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix, xf86CrtcPtr crtc, int start, int stop);
 void
-fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf);
+fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf, uint32_t domain);
 void
-vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf);
+vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf, uint32_t domain);
 void
-ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf);
+ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf, uint32_t domain);
 void
 set_alu_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, float *const_buf);
 void
 set_bool_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, uint32_t val);
 void
-set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res);
+set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res, uint32_t domain);
 void
-set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res);
+set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res, uint32_t domain);
 void
 set_tex_sampler (ScrnInfoPtr pScrn, drmBufPtr ib, tex_sampler_t *s);
 void

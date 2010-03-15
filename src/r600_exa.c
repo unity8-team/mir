@@ -276,7 +276,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     vs_conf.num_gprs            = 2;
     vs_conf.stack_size          = 0;
     vs_conf.bo                  = accel_state->shaders_bo;
-    vs_setup                    (pScrn, accel_state->ib, &vs_conf);
+    vs_setup                    (pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* flush SQ cache */
     cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
@@ -290,7 +290,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     ps_conf.clamp_consts        = 0;
     ps_conf.export_mode         = 2;
     ps_conf.bo                  = accel_state->shaders_bo;
-    ps_setup                    (pScrn, accel_state->ib, &ps_conf);
+    ps_setup                    (pScrn, accel_state->ib, &ps_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* Render setup */
     if (pm & 0x000000ff)
@@ -324,7 +324,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* Interpolator setup */
     /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
@@ -498,7 +498,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     vs_conf.num_gprs            = 2;
     vs_conf.stack_size          = 0;
     vs_conf.bo                  = accel_state->shaders_bo;
-    vs_setup                    (pScrn, accel_state->ib, &vs_conf);
+    vs_setup                    (pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* flush SQ cache */
     cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
@@ -512,12 +512,12 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     ps_conf.clamp_consts        = 0;
     ps_conf.export_mode         = 2;
     ps_conf.bo                  = accel_state->shaders_bo;
-    ps_setup                    (pScrn, accel_state->ib, &ps_conf);
+    ps_setup                    (pScrn, accel_state->ib, &ps_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* flush texture cache */
     cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			accel_state->src_size[0], accel_state->src_mc_addr[0],
-			accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM, 0);
+			accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
 
     /* Texture */
     tex_res.id                  = 0;
@@ -554,7 +554,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
-    set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+    set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
 
     tex_samp.id                 = 0;
     tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
@@ -598,7 +598,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
 
     /* Interpolator setup */
     /* export tex coord from VS */
@@ -1281,7 +1281,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     /* flush texture cache */
     cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			accel_state->src_size[unit], accel_state->src_mc_addr[unit],
-			accel_state->src_bo[unit], RADEON_GEM_DOMAIN_VRAM, 0);
+			accel_state->src_bo[unit], RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
 
     /* Texture */
     tex_res.id                  = unit;
@@ -1414,7 +1414,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
-    set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+    set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
 
     tex_samp.id                 = unit;
     tex_samp.border_color       = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
@@ -1715,7 +1715,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     vs_conf.num_gprs            = 3;
     vs_conf.stack_size          = 1;
     vs_conf.bo                  = accel_state->shaders_bo;
-    vs_setup                    (pScrn, accel_state->ib, &vs_conf);
+    vs_setup                    (pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* flush SQ cache */
     cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
@@ -1729,7 +1729,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     ps_conf.clamp_consts        = 0;
     ps_conf.export_mode         = 2;
     ps_conf.bo                  = accel_state->shaders_bo;
-    ps_setup                    (pScrn, accel_state->ib, &ps_conf);
+    ps_setup                    (pScrn, accel_state->ib, &ps_conf, RADEON_GEM_DOMAIN_VRAM);
 
     BEGIN_BATCH(9);
     EREG(accel_state->ib, CB_TARGET_MASK,                      (0xf << TARGET0_ENABLE_shift));
@@ -1782,7 +1782,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, RADEON_GEM_DOMAIN_VRAM);
 
     /* Interpolator setup */
     BEGIN_BATCH(21);
