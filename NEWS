@@ -1,3 +1,30 @@
+Snapshot 2.10.902 (2010-03-15)
+==============================
+Some significant bug fixes
+--------------------------
+Fix video color problems due to YUV plane ordering issue. This fixed a
+regression that showed up recently (only in these release candidates).
+
+Fix recent regression leading to corruption under compiz:
+
+  https://bugs.freedesktop.org/show_bug.cgi?id=26814
+
+Further DRI2 improvements/fixes from Mario Kleiner and Jesse Barnes,
+(including support for SwapBuffers request with divisor != 0).
+
+Fix build against X server 1.6 branch.
+
+Avoid flooding logs after an error occurs.
+
+And dramatic code cleanups
+--------------------------
+Eric Anholt removed several cases of old, useless code, (conditions
+that could not occur now that we require KMS, etc.).
+
+Daniel Vetter eliminated piles of code by modernizing the XvMC
+memory-management and completely removing the old i830_memory
+allocator (i830_allocate_memory, i830_free_memory), etc.
+
 Snapshot 2.10.901 (2010-02-26)
 ==============================
 The most significant new feature of this release is support for new
