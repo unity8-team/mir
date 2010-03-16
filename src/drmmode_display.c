@@ -844,7 +844,7 @@ const char *output_names[] = { "None",
 			       "LVDS",
 			       "CTV",
 			       "DIN",
-			       "DP",
+			       "DisplayPort",
 			       "HDMI",
 			       "HDMI",
 			       "TV",
@@ -889,6 +889,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	    case DRM_MODE_CONNECTOR_DVIA:
 	    case DRM_MODE_CONNECTOR_HDMIA:
 	    case DRM_MODE_CONNECTOR_HDMIB:
+	    case DRM_MODE_CONNECTOR_DisplayPort:
 		snprintf(name, 32, "%s-%d", output_names[koutput->connector_type], koutput->connector_type_id - 1);
 		break;
 	    default:
