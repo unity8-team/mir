@@ -68,6 +68,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 	const unsigned shd_flags = NOUVEAU_BO_RD | NOUVEAU_BO_VRAM;
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
+	uint32_t mode = 0xd0005000 | (src->tile_mode << 22);
 
 	if (MARK_RING(chan, 256, 16))
 		return FALSE;
@@ -118,74 +119,66 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_FMT_8);
-	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
+	    OUT_RELOC (chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
+		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	if (OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
+	OUT_RING  (chan, 0x00000000);
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C1 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_FMT_8_8);
-	if (OUT_RELOCl(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+	if (OUT_RELOCl(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
+	    OUT_RELOC (chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
+		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w >> 1);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | (src_h >> 1));
 	OUT_RING  (chan, 0x03000000);
-	if (OUT_RELOCh(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
+	OUT_RING  (chan, 0x00000000);
 	} else {
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_FMT_8_8);
-	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
+	    OUT_RELOC (chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
+		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	if (OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
+	OUT_RING  (chan, 0x00000000);
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPB_C1 | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_FMT_8_8_8_8);
-	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
+	if (OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
+	    OUT_RELOC (chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
+		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	OUT_RING  (chan, 0xd0005000 | (src->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, (src_w >> 1));
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	if (OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
+	OUT_RING  (chan, 0x00000000);
 	}
 
 	BEGIN_RING(chan, tesla, NV50TCL_TSC_ADDRESS_HIGH, 3);

@@ -598,6 +598,7 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	NV50EXA_LOCALS(ppix);
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
+	uint32_t mode;
 
 	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
 	if (!nv50_style_tiled_pixmap(ppix))
@@ -686,15 +687,16 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	}
 #undef _
 
-	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD))
+	mode = 0xd0005000 | (bo->tile_mode << 22);
+	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
+	    OUT_RELOCd(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD |
+		       NOUVEAU_BO_HIGH | NOUVEAU_BO_OR, mode, mode))
 		return FALSE;
-	OUT_RING  (chan, 0xd0005000 | (bo->tile_mode << 22));
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | ppix->drawable.height);
 	OUT_RING  (chan, 0x03000000);
-	if (OUT_RELOCh(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD))
-		return FALSE;
+	OUT_RING  (chan, 0x00000000);
 
 	BEGIN_RING(chan, tesla, NV50TCL_TSC_ADDRESS_HIGH, 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
