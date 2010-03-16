@@ -10,11 +10,17 @@ INTEL_G4I = addidct.g4i               \
 	    motion_frame_uv.g4i       \
 	    motion_frame_y.g4i        \
 	    read_field_x0y0_uv.g4i    \
+	    read_field_x0y1_uv.g4i    \
+	    read_field_x1y0_uv.g4i    \
+	    read_field_x1y1_uv.g4i    \
 	    read_field_x0y0_y.g4i     \
 	    read_field_x0y1_y.g4i     \
 	    read_field_x1y0_y.g4i     \
 	    read_field_x1y1_y.g4i     \
 	    read_frame_x0y0_uv.g4i    \
+	    read_frame_x0y1_uv.g4i    \
+	    read_frame_x1y0_uv.g4i    \
+	    read_frame_x1y1_uv.g4i    \
 	    read_frame_x0y0_y.g4i     \
 	    read_frame_x0y1_y.g4i     \
 	    read_frame_x1y0_y.g4i     \

@@ -7,7 +7,7 @@ SUBDIRS = shader
 libI810XvMC_la_SOURCES = I810XvMC.c \
 			 I810XvMC.h
 
-libI810XvMC_la_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
+libI810XvMC_la_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	-I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
 libI810XvMC_la_LDFLAGS = -version-number 1:0:0
 libI810XvMC_la_LIBADD = @DRI_LIBS@ @DRM_LIBS@ @XVMCLIB_LIBS@
@@ -24,9 +24,7 @@ libIntelXvMC_la_SOURCES = intel_xvmc.c \
         xvmc_vld.c                     \
         xvmc_vld.h                     \
         intel_batchbuffer.c            \
-        intel_batchbuffer.h            \
-        dri2.c                         \
-        dri2.h	
+        intel_batchbuffer.h
 
 libIntelXvMC_la_CFLAGS = @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	@XVMCLIB_CFLAGS@ -I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
