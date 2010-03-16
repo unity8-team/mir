@@ -491,43 +491,23 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 			 * is a8, in which case src.G is what's written, and the other
 			 * channels are ignored.
 			 */
-			if (PICT_FORMAT_A(source_picture->format) != 0) {
-				ablend |= TB0A_ARG1_SEL_TEXEL0;
-				cblend |=
-				    TB0C_ARG1_SEL_TEXEL0 |
-				    TB0C_ARG1_REPLICATE_ALPHA;
-			} else {
-				ablend |= TB0A_ARG1_SEL_ONE;
-				cblend |= TB0C_ARG1_SEL_ONE;
-			}
+			ablend |= TB0A_ARG1_SEL_TEXEL0;
+			cblend |= TB0C_ARG1_SEL_TEXEL0 | TB0C_ARG1_REPLICATE_ALPHA;
 		} else {
-			if (PICT_FORMAT_A(source_picture->format) != 0) {
-				ablend |= TB0A_ARG1_SEL_TEXEL0;
-			} else {
-				ablend |= TB0A_ARG1_SEL_ONE;
-			}
 			if (PICT_FORMAT_RGB(source_picture->format) != 0)
 				cblend |= TB0C_ARG1_SEL_TEXEL0;
 			else
 				cblend |= TB0C_ARG1_SEL_ONE | TB0C_ARG1_INVERT;	/* 0.0 */
+			ablend |= TB0A_ARG1_SEL_TEXEL0;
 		}
 
 		if (mask) {
-			if (dest_picture->format != PICT_a8 &&
-			    (mask_picture->componentAlpha &&
-			     PICT_FORMAT_RGB(mask_picture->format))) {
-				cblend |= TB0C_ARG2_SEL_TEXEL1;
-			} else {
-				if (PICT_FORMAT_A(mask_picture->format) != 0)
-					cblend |= TB0C_ARG2_SEL_TEXEL1 |
-					    TB0C_ARG2_REPLICATE_ALPHA;
-				else
-					cblend |= TB0C_ARG2_SEL_ONE;
-			}
-			if (PICT_FORMAT_A(mask_picture->format) != 0)
-				ablend |= TB0A_ARG2_SEL_TEXEL1;
-			else
-				ablend |= TB0A_ARG2_SEL_ONE;
+			cblend |= TB0C_ARG2_SEL_TEXEL1;
+			if (dest_picture->format == PICT_a8 ||
+			    ! mask_picture->componentAlpha ||
+			    ! PICT_FORMAT_RGB(mask_picture->format))
+				cblend |= TB0C_ARG2_REPLICATE_ALPHA;
+			ablend |= TB0A_ARG2_SEL_TEXEL1;
 		} else {
 			cblend |= TB0C_ARG2_SEL_ONE;
 			ablend |= TB0A_ARG2_SEL_ONE;

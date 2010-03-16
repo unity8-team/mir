@@ -262,13 +262,15 @@ uxa_get_color_for_pixmap (PixmapPtr	 pixmap,
 
 	*pixel = uxa_get_pixmap_first_pixel(pixmap);
 
-	if (!uxa_get_rgba_from_pixel(*pixel, &red, &green, &blue, &alpha,
-				     src_format))
+	if (src_format != dst_format) {
+	    if (!uxa_get_rgba_from_pixel(*pixel, &red, &green, &blue, &alpha,
+					 src_format))
 		return FALSE;
 
-	if (!uxa_get_pixel_from_rgba(pixel, red, green, blue, alpha,
-				     dst_format))
+	    if (!uxa_get_pixel_from_rgba(pixel, red, green, blue, alpha,
+					 dst_format))
 		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -364,6 +366,10 @@ uxa_picture_for_pixman_format(ScreenPtr pScreen,
 	if (format == PIXMAN_a1)
 		format = PIXMAN_a8;
 
+	/* fill alpha if unset */
+	if (PIXMAN_FORMAT_A(format) == 0)
+	    format = PIXMAN_a8r8g8b8;
+
 	pPixmap = (*pScreen->CreatePixmap)(pScreen, width, height,
 					   PIXMAN_FORMAT_DEPTH(format),
 					   UXA_CREATE_PIXMAP_FOR_MAP);
@@ -384,64 +390,6 @@ uxa_picture_for_pixman_format(ScreenPtr pScreen,
 	return pPicture;
 }
 
-/* In order to avoid fallbacks when using an a1 source/mask,
- * for example with non-antialiased trapezoids, we need to
- * expand the bitmap into an a8 Picture. We do so by using the generic
- * composition routines, which while may not be perfect is far faster
- * than causing a fallback.
- */
-static PicturePtr
-uxa_picture_from_a1_pixman_image(ScreenPtr pScreen, pixman_image_t * image)
-{
-	PicturePtr pPicture;
-	PicturePtr pSrc;
-	PixmapPtr pPixmap;
-	int width, height;
-	int error;
-
-	width = pixman_image_get_width(image);
-	height = pixman_image_get_height(image);
-
-	pPicture = uxa_picture_for_pixman_format (pScreen, PIXMAN_a1,
-						  width, height);
-	if (!pPicture)
-		return 0;
-
-	pPixmap = GetScratchPixmapHeader(pScreen, width, height, 1, 1,
-					 pixman_image_get_stride(image),
-					 pixman_image_get_data(image));
-	if (!pPixmap) {
-		FreePicture(pPicture, 0);
-		return 0;
-	}
-
-	pSrc = CreatePicture(0, &pPixmap->drawable,
-			     PictureMatchFormat(pScreen, 1, PICT_a1),
-			     0, 0, serverClient, &error);
-	if (!pSrc) {
-		FreeScratchPixmapHeader(pPixmap);
-		FreePicture(pPicture, 0);
-		return 0;
-	}
-
-	ValidatePicture(pSrc);
-
-	/* force the fallback path */
-	if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
-		fbComposite(PictOpSrc, pSrc, NULL, pPicture,
-			    0, 0, 0, 0, 0, 0, width, height);
-		uxa_finish_access(pPicture->pDrawable);
-	} else {
-		FreePicture(pPicture, 0);
-		pPicture = 0;
-	}
-
-	FreePicture(pSrc, 0);
-	FreeScratchPixmapHeader(pPixmap);
-
-	return pPicture;
-}
-
 static PicturePtr
 uxa_picture_from_pixman_image(ScreenPtr pScreen,
 			      pixman_image_t * image,
@@ -449,11 +397,7 @@ uxa_picture_from_pixman_image(ScreenPtr pScreen,
 {
 	PicturePtr pPicture;
 	PixmapPtr pPixmap;
-	GCPtr pGC;
 	int width, height;
-
-	if (format == PICT_a1)
-		return uxa_picture_from_a1_pixman_image(pScreen, image);
 
 	width = pixman_image_get_width(image);
 	height = pixman_image_get_height(image);
@@ -473,18 +417,45 @@ uxa_picture_from_pixman_image(ScreenPtr pScreen,
 		return 0;
 	}
 
-	pGC = GetScratchGC(PIXMAN_FORMAT_DEPTH(format), pScreen);
-	if (!pGC) {
+	if (((pPicture->pDrawable->depth << 24) | pPicture->format) == format) {
+	    GCPtr pGC;
+
+	    pGC = GetScratchGC(PIXMAN_FORMAT_DEPTH(format), pScreen);
+	    if (!pGC) {
 		FreeScratchPixmapHeader(pPixmap);
 		FreePicture(pPicture, 0);
 		return 0;
+	    }
+	    ValidateGC(pPicture->pDrawable, pGC);
+
+	    (*pGC->ops->CopyArea) (&pPixmap->drawable, pPicture->pDrawable,
+				   pGC, 0, 0, width, height, 0, 0);
+
+	    FreeScratchGC(pGC);
+	} else {
+	    PicturePtr pSrc;
+	    int error;
+
+	    pSrc = CreatePicture(0, &pPixmap->drawable,
+				 PictureMatchFormat(pScreen,
+						    PIXMAN_FORMAT_DEPTH(format),
+						    format),
+				 0, 0, serverClient, &error);
+	    if (!pSrc) {
+		FreeScratchPixmapHeader(pPixmap);
+		FreePicture(pPicture, 0);
+		return 0;
+	    }
+	    ValidatePicture(pSrc);
+
+	    if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
+		fbComposite(PictOpSrc, pSrc, NULL, pPicture,
+			    0, 0, 0, 0, 0, 0, width, height);
+		uxa_finish_access(pPicture->pDrawable);
+	    }
+
+	    FreePicture(pSrc, 0);
 	}
-	ValidateGC(pPicture->pDrawable, pGC);
-
-	(*pGC->ops->CopyArea) (&pPixmap->drawable, pPicture->pDrawable,
-			       pGC, 0, 0, width, height, 0, 0);
-
-	FreeScratchGC(pGC);
 	FreeScratchPixmapHeader(pPixmap);
 
 	return pPicture;
