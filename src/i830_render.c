@@ -451,16 +451,7 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 	if (!i830_get_dest_format(dest_picture, &intel->render_dest_format))
 		return FALSE;
 
-	intel->dst_coord_adjust = 0;
-	intel->src_coord_adjust = 0;
-	intel->mask_coord_adjust = 0;
-	if (source_picture->filter == PictFilterNearest)
-		intel->src_coord_adjust = 0.375;
-	if (mask != NULL) {
-		intel->mask_coord_adjust = 0;
-		if (mask_picture->filter == PictFilterNearest)
-			intel->mask_coord_adjust = 0.375;
-	} else {
+	if (mask) {
 		intel->transform[1] = NULL;
 		intel->scale_units[1][0] = -1;
 		intel->scale_units[1][1] = -1;
@@ -658,8 +649,7 @@ i830_emit_composite_primitive(PixmapPtr dest,
 	per_vertex = 2;		/* dest x/y */
 
 	{
-		float x = srcX + intel->src_coord_adjust;
-		float y = srcY + intel->src_coord_adjust;
+		float x = srcX, y = srcY;
 
 		is_affine_src = i830_transform_is_affine(intel->transform[0]);
 		if (is_affine_src) {
@@ -715,8 +705,7 @@ i830_emit_composite_primitive(PixmapPtr dest,
 	}
 
 	if (intel->render_mask) {
-		float x = maskX + intel->mask_coord_adjust;
-		float y = maskY + intel->mask_coord_adjust;
+		float x = maskX, y = maskY;
 
 		is_affine_mask = i830_transform_is_affine(intel->transform[1]);
 		if (is_affine_mask) {
@@ -776,8 +765,8 @@ i830_emit_composite_primitive(PixmapPtr dest,
 	ATOMIC_BATCH(1 + num_floats);
 
 	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats - 1));
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX + w);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
+	OUT_BATCH_F(dstX + w);
+	OUT_BATCH_F(dstY + h);
 	OUT_BATCH_F(src_x[2] / intel->scale_units[0][0]);
 	OUT_BATCH_F(src_y[2] / intel->scale_units[0][1]);
 	if (!is_affine_src) {
@@ -791,8 +780,8 @@ i830_emit_composite_primitive(PixmapPtr dest,
 		}
 	}
 
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
+	OUT_BATCH_F(dstX);
+	OUT_BATCH_F(dstY + h);
 	OUT_BATCH_F(src_x[1] / intel->scale_units[0][0]);
 	OUT_BATCH_F(src_y[1] / intel->scale_units[0][1]);
 	if (!is_affine_src) {
@@ -806,8 +795,8 @@ i830_emit_composite_primitive(PixmapPtr dest,
 		}
 	}
 
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY);
+	OUT_BATCH_F(dstX);
+	OUT_BATCH_F(dstY);
 	OUT_BATCH_F(src_x[0] / intel->scale_units[0][0]);
 	OUT_BATCH_F(src_y[0] / intel->scale_units[0][1]);
 	if (!is_affine_src) {
