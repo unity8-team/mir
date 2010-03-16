@@ -18,7 +18,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 reg_dumper render_program
+SUBDIRS = xvmc render_program
 
 # this is obnoxious:
 # -module lets us name the module exactly how we want
@@ -26,7 +26,7 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 reg_dumper render_pr
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
-AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
+AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa -I$(top_srcdir)/src/render_program
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
@@ -39,8 +39,7 @@ INTEL_DRI_SRCS = \
          i810_dri.c \
          i810_dri.h \
          i830_dri.c \
-         i810_hwmc.c \
-         i830_dri.h
+         i810_hwmc.c
 
 INTEL_XVMC_SRCS = \
 	 i830_hwmc.h \
@@ -50,12 +49,10 @@ INTEL_XVMC_SRCS = \
          i965_hwmc.c \
          i965_hwmc.h
 
-
 intel_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
          common.h \
-	 i2c_vid.h \
          i810_accel.c \
          i810_common.h \
          i810_cursor.c \
@@ -70,35 +67,14 @@ intel_drv_la_SOURCES = \
          i810_wmark.c \
 	 i830_3d.c \
          i830_accel.c \
-         i830_bios.c \
-         i830_bios.h \
          i830_batchbuffer.c \
          i830_batchbuffer.h \
-         i830_common.h \
-	 i830_crt.c \
-         i830_cursor.c \
-	 i830_debug.c \
-	 i830_debug.h \
-	 i830_display.c \
-	 i830_display.h \
-         i830_quirks.c \
          i830_driver.c \
-	 i830_dvo.c \
          i830.h \
-	 i830_hdmi.c \
-         i830_i2c.c \
-         i830_io.c \
-	 i830_lvds.c \
          i830_memory.c \
-         i830_modes.c \
          i830_video.c \
          i830_video.h \
 	 i830_reg.h \
-         i830_ring.h \
-	 i830_sdvo.c \
-	 i830_sdvo.h \
-	 i830_sdvo_regs.h \
-	 i830_tv.c \
 	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \

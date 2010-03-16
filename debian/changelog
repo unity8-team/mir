@@ -1,3 +1,28 @@
+xserver-xorg-video-intel (2:2.10.902-1) experimental; urgency=low
+
+  [ Julien Cristau ]
+  * Rename the build directory to not include DEB_BUILD_GNU_TYPE for no
+    good reason.  Thanks, Colin Watson!
+  * Remove myself from Uploaders
+
+  [ Brice Goglin ]
+  * New upstream release candidate, closes: #567829.
+    + User mode-setting is not supported anymore.
+  * Bump xutils-dev build dependency for new util-macros.
+  * Bump libdrm build dependency to 2.4.18-3 for latest i915 drm headers.
+  * Build depend on libx11-xcb-dev, libxcb-aux0-dev and libxcb-dri2-0-dev
+    for XVMC.
+  * Recommends intel-gpu-tools since intel_reg_dumper is not provided
+    by xserver-xorg-video-intel-dbg anymore.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 16 Mar 2010 20:53:53 +0100
+
+xserver-xorg-video-intel (2:2.9.1-2) unstable; urgency=low
+
+  * Upload to unstable.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 07 Jan 2010 20:53:45 +0000
+
 xserver-xorg-video-intel (2:2.9.1-1+exp1) experimental; urgency=low
 
   [ Julien Cristau ]

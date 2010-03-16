@@ -1,35 +1,2442 @@
-commit 9acf10762b5f3d3b1b33ea07792a936a25e45010
+commit 753914acc31947df8e9f2fa3b9c39de745098709
 Author: Carl Worth <cworth@cworth.org>
-Date:   Mon Oct 26 04:53:13 2009 -0700
+Date:   Mon Mar 15 17:32:57 2010 -0700
 
-    Update version to 2.9.1
+    Bump version to 2.10.902
+    
+    For the imminent 2.10.902 snapshot release.
 
-commit 61c89e56f361fa860f18985137d6bf53f48c16ac
+commit 185196cb010cb8426ca929a9dc3f028ec9b383db
 Author: Carl Worth <cworth@cworth.org>
-Date:   Mon Oct 26 04:51:58 2009 -0700
+Date:   Mon Mar 15 17:32:20 2010 -0700
 
-    NEWS: Add notes for the 2.9.1 release.
+    NEWS: Add notes for the 2.10.902 snapshot.
     
-    Thanks to everyone for providing nice descriptions of the bug fixe at:
-    
-    http://wiki.x.org/wiki/Intel29Branch
+    Which I'm about to push out.
 
-commit 8e4fc7d3ba0baa6b680c685429060cb62a08f89f
+commit 318aa9ed799197810e2039dbe3ec51559dcc888c
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 8 23:22:53 2010 +0100
+
+    i915 XvMC: fixup colors
+    
+    My cleanup accidently created a inconsistency in the YUV plane ordering.
+    I think we can safely assume that I'm colorblind ;)
+    
+    As Carl Worth rightly pointed out, this change deserves a more elaborate
+    explanation:
+    
+    For Xv planar formats, the three planes are stored consecutively in
+    memory, ordered Y U V. Now for some totally odd reason (= none at all),
+    i915 xvmc stored it in Y V U order. Right after the release of 2.10, with
+    commit "Xv: consolidate xmvc passthrough handling" I've inadvertently
+    broken xvmc support (which started this whole odyssey into xvmc). When
+    fixing stuff up, I neglected this special plane ordering and simply
+    assumed it to be the same as Xv and dropped that special case for i915 in
+    src/i830_video.c. This patch completes the change to standard YUV plane
+    ordering by making the corresponding change in src/xvmc/i915_xvmc.c.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 68629b63740fb6e62c258b8a46669e77660fa4e4
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Mar 8 15:42:39 2010 -0800
+
+    DRI2: make WaitMSC error handling more consistent with ScheduleSwap
+    
+    Just make it mirror ScheduleSwap: complete the wait on any error
+    condition so as not to crash the client if the kernel is misbehaving.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 6df74e61afb7831ebf3fbab8782f46ddccbe262b
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Mar 8 15:33:20 2010 -0800
+
+    DRI2: truncate OML values to 32 bits
+    
+    We can only handle 32 bit values unless we totally virtualize the count,
+    since the kernel only handles 32 bits itself.  Rather than adding all
+    that overhead, just tolerate the occasional missed event everytime the
+    counter runs over.
+    
+    Reported-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit c66d57080dc034aa7877f47612065e388bbc38a2
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Mar 8 15:26:24 2010 -0800
+
+    DRI2: more WaitMSC fixes
+    
+    A couple more niggles: make sure we return a target_msc that at least
+    matches the current count; this is a little more friendly to clients
+    that missed an event.  Also check for >= when calculating the remainder
+    so we'll catch the *next* vblank event when the calculation is
+    satisfied, rather than the current one as might happen at times.
+    
+    Reported-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 7845c6ade82085488192bd76729d92fb7b534cc0
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Mar 8 15:19:14 2010 -0800
+
+    DRI2: fixup stray curly brace
+    
+    Got left in the wrong column after the last cleanup.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 9656d329e4df28cfe138b657d04e5136bc794ce2
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Mar 8 14:34:04 2010 -0800
+
+    Put back the pitch alignment for new framebuffers.
+    
+    I confused a dead assignment with dead code, because one of the args
+    to the function was an outvalue.  Fixes corruption under compiz.
+    
+    Bug #26814.
+
+commit b71ca26a026a356763c51c763bcdd8024fc4a783
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Mar 8 11:27:42 2010 -0800
+
+    DRI2: fixup ScheduleWaitMSC similarly to ScheduleSwap
+    
+    My merge of Mario's patch for this was botched.  Fix it up so that OML
+    waits work correctly, and remove a bogus warning from ScheduleSwap.
+    
+    Reported-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 06b54e089eb21736e6d4f6462bbfca987be0c5cc
+Author: Matt Turner <mattst88@gmail.com>
+Date:   Sun Mar 7 14:27:27 2010 -0500
+
+    Don't check for Xinerama.
+    
+    It doesn't seem to be used anywhere, so don't require it.
+    
+    CC: Eric Anholt <eric@anholt.net>
+    CC: Jesse Barnes <jbarnes@virtuousgeek.org>
+    Signed-off-by: Matt Turner <mattst88@gmail.com>
+
+commit 8ece6cf5afa1bb0d8d9328696422f42f3c3adbd6
+Author: Robert Hooker <sarvatt@ubuntu.com>
+Date:   Sat Mar 6 14:09:12 2010 -0500
+
+    Fix build against xserver 1.6 branch.
+    
+    Signed-off-by: Robert Hooker <sarvatt@ubuntu.com>
+    Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1cd556420277f103c47ade422f3ec8f8efb2d282
+Author: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+Date:   Fri Mar 5 12:32:18 2010 -0800
+
+    DRI2: handle target_msc, divisor and remainder properly in DRI2ScheduleSwap
+    
+    The current code in I830DRI2ScheduleSwap() only schedules the correct
+    vblank events for the case divisor == 0, i.e., the simple
+    glXSwapBuffers() case.
+    
+    In a glXSwapBuffersMscOML() request, divisor can be > 0, which would go
+    wrong.
+    
+    This modified code should handle target_msc, divisor, remainder and the
+    different cases defined in the OML_sync_control extension correctly for
+    the divisor > 0 case.
+    
+    It also tries to make sure that the effective framecount of swap
+    satisfies all constraints, taking the 1 frame delay in pageflipping mode
+    and possible delays in blitting/exchange mode due to
+    DRM_VBLANK_NEXTONMISS into account.
+    
+    The swap_interval logic in the X-Servers DRI2SwapBuffers() call expects
+    the returned swap_target from the DDX to be reasonably accurate,
+    otherwise implementation of swap_interval for the glXSwapBuffers() as
+    defined in the SGI_swap_interval extension may become unreliable.
+    
+    For non-pageflipped mode, the returned swap_target is always correct due
+    to the adjustments done by drmWaitVBlank(), as DRM_VBLANK_NEXTONMISS is
+    set.
+    
+    In pageflipped mode, DRM_VBLANK_NEXTONMISS can't be used without severe
+    impact on performance, so the code in I830DRI2ScheduleSwap() must make
+    manual adjustments to the returned vbl.reply.sequence number.
+    
+    This patch adds the needed adjustments.
+    
+    Signed-off-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+
+commit 13119ffc034a3e9d6c76339d4fedc62bb3b41257
+Author: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+Date:   Fri Mar 5 11:33:45 2010 -0800
+
+    DRI2: make MSC waits handle specific target_mscs and divisor/remainders
+    
+    Previous code only handled divisor == 0 case correctly. This should
+    honor a given target_msc for the divisor > 0 case and handle the
+    (msc % divisor) == remainder constraint correctly.
+    
+    Signed-off-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+
+commit b6e0b92f398823629ba8a1ea8f5e62fbf959e725
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Thu Mar 4 10:07:26 2010 -0800
+
+    DRI2: handle offscreen drawables better at swap time
+    
+    If a drawable isn't visible due to DPMS or redirection, we'll just blit
+    it rather than schedule a swap event.  However, we didn't reset the
+    target_msc, so the swap target we receive from the server could get out
+    of sync with the vblank count of the drawable's display.  So at DPMS on
+    time, the swap target would be the last good vblank count plus some
+    large number (since the swaps won't have been throttled).
+    
+    Solve this by zeroing out the swap target like we should when we fall
+    back to a blit.  Also make the kernel error cases more friendly by
+    making them fall back to blits too.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 54ac4e2df987b72529a523ffbde357bec27e3658
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Mar 4 21:34:52 2010 +0000
+
+    Rate limit batch buffer error.
+    
+    Once we hit this error it's unlikely that we're coming back - so don't
+    flood the logs with redundant information.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 066d9b64ee243e0d255d7e12c2134951eef4ade7
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Mar 4 20:50:20 2010 +0100
+
+    i915 XvMC: kill dead code
+    
+    This kills one wip remnant from my i830_memory cleanup and the last
+    remainings of the subpicture support.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 7b7c724da97f358f5d2d4d4dae75cfc85bde2c62
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 4 10:29:09 2010 -0800
+
+    Remove remaining fbOffset setting.
+    
+    In the long long ago, fbOffset was used for DGA.  The server now has
+    only one reference to fbOffset, a leftover setting of it in fbdevhw.
+    We can safely ignore it now, which is good since we weren't updating
+    it in other places where the front buffer offset could change.
+
+commit 15026d64d3c0d8ad96e0a73fcae3103d1c41fd46
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 4 10:28:09 2010 -0800
+
+    Remove a piece of fbOffset cruft from non-DRM support.
+
+commit e8e615289213ba1704e402b923c51ce9d196f06f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 4 10:27:51 2010 -0800
+
+    Remove i830_allocate_2d_memory() now that it only called one function.
+
+commit e37b562083aa3293e0c009171724a3f122d8a32d
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 4 10:23:12 2010 -0800
+
+    Init CRTC cursors with CRTC setup instead of i830_memory.
+
+commit a36bdaba6136054ae7c67943ca0215cfd177bc5b
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 4 09:47:10 2010 -0800
+
+    Remove intel_sync() at teardown time.
+    
+    The kernel's still running after we're gone.  This didn't matter.
+
+commit 4ada6d7a856a941b834871ff8a7c5505ff26ae23
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 4 09:32:42 2010 -0800
+
+    Remove 3D state clobber on EnterVT, and always clobber at batch start.
+    
+    We know that it's clobbered at each batchbuffer, anyway.  And even if
+    this server isn't running DRI2, it can still be clobbered at batch
+    start in the KMS world.
+
+commit d92d42303e5ca9f4208ed97823ad8f691121370f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 4 09:31:56 2010 -0800
+
+    Remove pre-2.6.29 error message handling since we require KMS.
+
+commit faecd155c49229499e29815eb6e79662ed33ddd5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Mar 4 09:31:15 2010 -0800
+
+    Move batch and 965 render state setup/teardown to screen init/close.
+    
+    Whether we're VT switched or not shouldn't impact rendering.
+
+commit 74e2b69a317cc728b00e675c18d2976987407aec
 Author: Carl Worth <cworth@cworth.org>
-Date:   Mon Oct 26 04:40:51 2009 -0700
+Date:   Thu Mar 4 09:51:03 2010 -0800
 
-    Revert "Check whether the DVI-I/D is connected or disconnected based on EDID"
+    i915_hwmc: Remove dead code.
     
-    This reverts commit 02fe9be695f7e209944bd0f7b67950f93619feee  as it
-    was causing regressions detecting DVI monitors for several people.
-    
-    See:
-    
-    	http://bugs.freedesktop.org/show_bug.cgi?id=24458
-    	http://bugs.freedesktop.org/show_bug.cgi?id=24458
-    	http://bugs.freedesktop.org/show_bug.cgi?id=24458)
+    Daniel recently identified this code as unneeded (with an #if 0).
+    Here we take the next step and remove it entirely.
 
-commit 22b85d0198508a13273ab58fd5fa3a127880a0be
+commit 1cc35a8ba403ad95b67caff46b803db1edea5ad3
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Mar 4 09:46:33 2010 -0800
+
+    uxa: Fix type mismatch to avoid compiler warning.
+    
+    The code was using uint32_t where an XID (currently an unsigned long)
+    was specified in the prototype. Use XID to avoid both the warning and
+    any potential problem.
+
+commit 1d6537ec57535183638c62e3099bc79786c682ca
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Mar 4 09:39:28 2010 -0800
+
+    i830_video: Remove unused variable.
+    
+    Certainly just a little leftover from the recent rewrites.
+
+commit 57c0043b9a519da5c9af29019ef632716782bda2
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:33 2010 +0100
+
+    Xv: fixup relocation in i965_video.c
+    
+    The previous code made no sense, (multiplying an offset by 4 is
+    meaningless). It could have onlt worked with the offset being
+    fortuitously 0.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit e606be463f6359fd017791a8d4d85059831a5d41
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:28 2010 +0100
+
+    i830_memory: rip out the remainings of the old allocator
+    
+    Yeah!
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 371be65fb74789250dbb1e332e46416d931da321
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:27 2010 +0100
+
+    XvMC: kill the pinned batchbuffer in the ddx code
+    
+    It's been unused for quite a while.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit d5a20c81ab76129a1e0bcefecd9c4a10b5040af4
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:26 2010 +0100
+
+    i915 XvMC: kill pinned surface buffer in the ddx code
+    
+    Like with the per context stuff, also drop the now artificial limit
+    on surfaces. Again, with that gone, a lot of code can be deleted.
+    
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit e6eb257ad32b393fb67c506943d8ece98b9a8061
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:25 2010 +0100
+
+    i915 XvMC: kill pinned per-context buffers in the ddx code
+    
+    There's now not a reason anymore to limit the number of active contexts.
+    So kill this accounting, too.
+    
+    With that all gone, per-context state in the ddx is nil, so rip out
+    all associated code.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 47ae1181f6cfd2ab64cd5c8535289fdaa2a9fd9c
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:24 2010 +0100
+
+    i915 XvMC: don't stall the cpu anymore
+    
+    Proper bo management ensures that the cpu doesn't step on buffers
+    used by the gpu. Drop the now unnecessary synchronization.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 9bba123c5f0f081562306c152e70221fc5041a3b
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:23 2010 +0100
+
+    i915 XvMC: drop superflous MI_FLUSH
+    
+    Cache coherency is now fully under the control of gem.
+    
+    For lack of hw documentation, I had to find out the correct cache
+    placements by trial and error:
+    
+    Backward and forward surfaces: I915_GEM_DOMAIN_RENDER
+    Correlation data:              I915_GEM_DOMAIN_SAMPLER
+    
+    Changing any of them leads to visual corruptions, so I think these
+    are the correct ones.
+    
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit b11623f20e303ae1d90d4a6bf0d5d73970b4e9bf
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:22 2010 +0100
+
+    i915 XvMC: switch surfaces to drm_intel_bo
+    
+    Now the last user of the fixed buffers provided by the ddx is gone!
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit b7f79bfd40db3ed17d7a79750d007b57d7ed157a
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:21 2010 +0100
+
+    i915 XvMC: switch corrdata buffer to drm_intel_bo
+    
+    It works!
+    
+    v2: Correlation data needs to be in the render cache!
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 62846d88d41f1bbbd16a6e700ca611656fa20f61
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:20 2010 +0100
+
+    i915 XvMC: switch msb to drm_intel_bo
+    
+    Like for the static indirect state buffer.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit d27955c697e1768559957da8d61087644befd285
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:19 2010 +0100
+
+    i915 XvMC: switch sis to drm_intel_bo
+    
+    I've decided to allocate a new buffer for every render command, to
+    prevent stalling for the gpu. libdrm bo reuse should take care of
+    not wasting memory in case the buffer is not busy.
+    
+    Also always emit the full state, it's not worth it to complicate
+    the code over a few stores to wc memory.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 3203c66fbf04c55adba760e97c9fa1feb9e55f8d
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:18 2010 +0100
+
+    i915 XvMC: switch load_indirect_render_emit to batchbuffer macros
+    
+    Like with one_time_state_emit, this preps for relocatable bo's.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit d30decae6a9db585f2d2589ae2c3d9e1f9acd33d
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:17 2010 +0100
+
+    i915 XvMC: switch psc to drm_intel_bo
+    
+    Like with the sampler state buffer.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit b543c355f4fdcb64deb198765d9b8b86f7c234c2
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:16 2010 +0100
+
+    i915 XvMC: switch psp to drm_intel_bo
+    
+    Like with the sampler state buffer.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 18c364084ce5495ffdfea38c17c1297d555c6c54
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:15 2010 +0100
+
+    i915 XvMC: switch ssb to drm_intel_bo
+    
+    This also starts to kill the last remnants of the support for
+    physical addresses for the indirect state buffers. With gem this
+    would need kernel support (in the form of a new reloc type in
+    execbuf2).
+    
+    This does not change the ABI between ddx and client libIntelXvMC.
+    I've decided to do this in one swoop when all the buffer rework is
+    done.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit fc9e44f01910eb9fd43def9b2ac531b0742d8b4e
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:14 2010 +0100
+
+    i915 XvMC: kill last_flip and last_render
+    
+    Seems to be a remnant from i810 XvMC support. last_flip is always 0,
+    so serves no real purpose anymore. Kill it and the associated code.
+    
+    With last_flip gone, last_render also lost its purpose. Kill it, too.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 04aa38a639fefcd00acb485f36ab18c2083ed1bb
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:13 2010 +0100
+
+    i915 XvMC: switch one_time_state_emit to batchbuffer macros
+    
+    This is in preparation for real relocatable drm_bo's instead
+    of memory at a fixed address. By switching to the batchbuffer
+    macros (like i965 xvmc) we can use the nice OUT_RELOC macro.
+    
+    Also align the code more with coding-style elsewhere, i.e. bitops
+    instead of bitfield structures. The bitfield structures are
+    quite a mess to work with the batchbuffer macros, so they were
+    getting in the way, anyway.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 24d787335a0c319b8d9243ea1f2726575cf73b2b
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:12 2010 +0100
+
+    XvMC: kill dead code in i915_xvmc.c
+    
+    WIP code that hasn't changed for over two years is unlikely to
+    suddenly start progressing. Drop it. After all, git can easily
+    resurect it in cases it's needed.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 13266b152ae35ed54984844e3282cbdf20dc2e32
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 21:53:11 2010 +0100
+
+    XvMC: kill i830_memory in 965 class xvmc
+    
+    Yes, this breaks binary compat of the struct passed around between
+    X ddx and the client libXvMC. But we always ship both, so they should
+    not get out of sync.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit d39d822cf887a861b37cee92c0b59533370ded2f
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:44 2010 +0100
+
+    i830_memory: hide as much of the old memory allocator as possible
+    
+    The only user left of this stuff is the xvmc support.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit 65267d4bfbf19942beab72858333c6ee3c719223
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:43 2010 +0100
+
+    i830_memory: switch frontbuffer to drm_intel_bo
+    
+    Yet another user of i830_memory gone for good.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit 06f147dc04629a8a1534703be570e7f25e41cdd9
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:42 2010 +0100
+
+    i830_memory: switch cursors to drm_intel_bo
+    
+    Minus one user of i830_memory, some more to go.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit 23d12e3b088f38d25e83d6501d553d98be442d49
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:41 2010 +0100
+
+    i830_memory: kill field "pitch"
+    
+    Totally unused.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit 2fb8feeb56fae364380ffd91749eeb69fb461cff
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:40 2010 +0100
+
+    i830_memory: rip out field "size"
+    
+    Use the one in the drm bo instead.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit 4d4d763b3d96e2cac99a0b7b03ad9bcaf4465c61
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:39 2010 +0100
+
+    i830_memory: kill field "tiling_mode"
+    
+    Totally unused.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit d0800d098739d5e8ea94be9c5ed2f7a8a86c06dc
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:38 2010 +0100
+
+    i830_memory: no memory allocations without a bo!
+    
+    Kill the corresponding !bo path in i830_free_memory.
+    
+    Also kill another remnant of the pre-kms era in the same file, while I
+    was looking at the code.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit 086c0e25cac1d3dd0a37def8b5cb82c1c6279edf
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:37 2010 +0100
+
+    i830_memory: rename i830_bind_all_memory to reflect code reality
+    
+    It doesn't bind anything anymore, but does a few random things.
+    Give it a hopefully vague enough name to cover all cases ;)
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit 2a989aa057cee74154419fd0a4911ba1e95582cf
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:36 2010 +0100
+
+    i830_memory: rip out the old video memory allocator
+    
+    Besides the debug stuff the went away in the previous patch,
+    this stuff was totally unused ...
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit bf83b9a10254966cb73b24e08954154d4296dac3
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:35 2010 +0100
+
+    i830_memory: kill i830_desribe_allocations
+    
+    Totally useless debug function from the pre-gem era. No point
+    to occasionally spam Xorg.log with a bogus "No memory allocations"
+    message.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit ff8a1e1cf728eeae848f6284bb4272193dfa918b
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:34 2010 +0100
+
+    i830_memory: rip out field "offset"
+    
+    Use the one in the drm bo instead.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit e18ffceb142a9e18968900dd526a2d50fab72900
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 2 09:22:32 2010 +0100
+
+    i830_memory: rip out field "end"
+    
+    It's a left-over from the non-gem era and no longer used at all.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit 5018fd3097d77a5f31af4cb27e39daa37557b64e
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 1 22:57:40 2010 +0100
+
+    libIntelXvMC: kill ums leftovers
+    
+    On i965 class hw, kernel_exec_fencing was 1 always, anyway. And on
+    i945, this patch kills a memory leak (dunno how, but it does).
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit cb06aa32d433f54affe87da2cf964f0308d3c258
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 1 22:57:39 2010 +0100
+
+    Xv: fixup XvMC on i915
+    
+    I've accidentally broken i915 xvmc due to alignment constrains that
+    break my assumption that Y-pitch == UV-pitch*2. Fix this up by consistenly
+    using dstPitch2 for the Y-pitch. This also unifies the dst pitch
+    computation slightly, now that the i915 xvmc special case is gone.
+    
+    Bugzilla: http://bugs.freedesktop.org/show_bug.cgi?id=25949
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    
+    (Minor edit to support compilation without INTEL_XVMC defined by
+    Carl Worth <cworth@cworth.org>)
+
+commit 80f2a1f3b5e477a12899ea2251aebcfa62689943
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 1 22:57:38 2010 +0100
+
+    Xv: fixup YUV plane offset for xvmc case
+    
+    In my previous cleanup I've inadvertedly dropped the offset adjustment
+    code for the xvmc passthrough case. Fix this up.
+    
+    Also reimplement that ugly hack I've accidently killed to keep i915 class
+    xvmc a tad bit longer on life support.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Tested-by: xunx.fang@intel.com
+
+commit a0ee9c3d9c72962c8d513ec8c43dd4a21e316947
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri Feb 26 17:05:45 2010 -0800
+
+    Update version number to 2.10.901
+    
+    In order to make a new snapshot.
+
+commit 63b8e890a134e5fc8242b655115491a3905ad0ff
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri Feb 26 17:05:06 2010 -0800
+
+    NEWS: Add notes for the 2.10.901 snapshot.
+    
+    From skimming the git lot since 2.10.0.
+
+commit d5409303128f5c9ba940ab564ff407a82eabc597
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri Feb 26 16:12:50 2010 -0800
+
+    Remove dead code: fill_detailed_lvds_block
+    
+    All callers of this function were recently removed, so it can join
+    them in the bit bucket.
+
+commit 7d0e6ff4dadcf243b1006ce6f85bd06c5f4e4908
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Wed Dec 2 12:05:52 2009 -0500
+
+    kms: Fix LVDS mode list construction.
+    
+    Rather than mangle the EDID block and hope the server does the right
+    thing, just build a sensible mode list up front.  Do this for LVDS where
+    there is no EDID or where it does not claim to be continuous-frequency
+    (since in the latter case, the server will add reasonable modes for us).
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+
+commit 1730af4437530ab7f6fe6ca74b16efb4a843b3ae
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Feb 25 17:12:49 2010 -0800
+
+    NEWS: Fix typo (we just released 2.10 *not* 1.10)
+    
+    Sigh. Every version number that must be typed manually will eventually
+    be typed incorrectly at some release. (I think that's Owne Taylor's
+    Law)
+
+commit 529bf185fbcb9f7705b315a5106054ee25c1c77f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Feb 24 17:54:13 2010 -0800
+
+    In frame event handling, track drawable id instead of drawable pointer.
+    
+    Windows aren't refcounted, so if the event came in after the window
+    was destroyed, we'd dereference garbage and segfault.
+
+commit 633c7033170b0e9b468dbee444b94922f6c30940
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Feb 24 17:40:30 2010 -0800
+
+    Fix up a bunch of inconsistent 4-space indentation in i830_dri.c
+
+commit 9291828a569a01ed4a6ef71f530b93f8a54c84aa
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Jan 15 12:51:50 2010 -0800
+
+    Add new mobile Sandybridge PCI IDs.
+
+commit 3c71f98b9e5262675e61fafb317d0c35e62a873f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 22 16:55:02 2009 -0700
+
+    Add initial defines and probing for Sandybridge
+
+commit c2c670ef18755cf5c878edf8a6b7d1617f54fe73
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:54:48 2010 -0500
+
+    Remove more DRI1 dead code.
+
+commit b320449f75adf912e06832dacc0b861ce26353bd
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:44:11 2010 -0500
+
+    Remove dead i830_ring.h.
+
+commit 6d48b26098691d772a8de001c89a05b2442ef3b5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:27:55 2010 -0500
+
+    Remove dead i830_display.h.
+
+commit 4126f73051aa73defcf342c81aa0fc9062f83f90
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:25:47 2010 -0500
+
+    Remove dead i830_bios.h.
+
+commit ca173c1eaf0e28f7fa138b1965f5e768b3add895
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:24:00 2010 -0500
+
+    Remove the last tool now that it's been moved to gpu_tools.
+
+commit 6da7cda5830817b0c977ed4767a9432748f12b09
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:21:47 2010 -0500
+
+    Remove swf_dumper.  We have intel_mmio_read in gpu_tools to do this.
+
+commit 71c613c8475909e58fc491131bf9c10f4b047b16
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:20:33 2010 -0500
+
+    Remove bios_reader now that it's moved to gpu_tools.
+
+commit 7ada4eb3836f58a72f1c5b6b8139030fab9b7d63
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:18:23 2010 -0500
+
+    Remove intel_hotplug tool now that it won't work with KMS.
+    
+    We'd want to put something like it in sysfs or something if we wanted
+    this tool to exist again.
+
+commit 3284aacfe095f6260eee5ed126685d0638626a29
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:14:12 2010 -0500
+
+    Remove dead i830_bios.c.
+    
+    Things that used it are now either in the kernel or stashed off in
+    gpu_tools.
+
+commit 761d386a940081688b9b599c7a5b0270abfc5138
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:13:25 2010 -0500
+
+    Remove intel_gtt and intel_lid now that they're in gpu_tools.
+
+commit 6199af00cb47df6347ecd72ff7f6c86a564cec57
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:06:18 2010 -0500
+
+    Remove xprintf.c from the old "I can't believe it's not an X Server" tools.
+
+commit cba8e3136a100ba274f48c78df5b23fa8960fa16
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:04:51 2010 -0500
+
+    Remove intel_statuspage, now that we have /debug/dri/0/i915_gem_hws
+
+commit 40f5f72e30003993bfe298cd634d4f3f56148d4a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:01:30 2010 -0500
+
+    Remove dead main.c from reg_dumper/
+
+commit 0c5e4a65f5d0f8d41c6bcb4c6978054f40064494
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 12:00:56 2010 -0500
+
+    Delete the audio dumping tool now that it lives in gpu_tools.
+
+commit 6bdab841766c8d9febaa23cb01a7bbc9edfae471
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 11:21:40 2010 -0500
+
+    uxa: Skip adjusting mask coordinates when no mask is present.
+    
+    Quiets clang warnings about garbage variable usage.
+
+commit a86869e6c3131b83a2ad529bc313270a9f45f5bd
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 08:15:30 2010 -0800
+
+    Fix an unused variable warning for !INTEL_XVMC.
+
+commit ec5deb2bcbf828c3c47488eb77461c26cab38ed6
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 08:11:00 2010 -0800
+
+    Remove dead assignments noticed by clang.
+
+commit a4180eabfa00c256494ed09aa336a17605c49a8a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 08:10:17 2010 -0800
+
+    Remove stale junk in VideoRam setup, noticed by clang.
+
+commit 03657d4a698e0a25ab3863a15ad4c8b9d64dbb9a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Feb 19 08:03:44 2010 -0800
+
+    Remove dead UMS CRTC resize code.
+
+commit 1c3aaad09d6ef207fba748ad4ef4575a26ab2e5c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Feb 17 17:48:32 2010 +0000
+
+    dri2: Silence the compiler for an unused function with proto < 4
+    
+    Move the unused function into the #if DRI2INFOREC_VERSION >= 4 block.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 00e7312dc45e54cd4547a943897a524639cb0b38
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Thu Feb 11 09:46:12 2010 -0800
+
+    DRI2: handle full height blits without tearing in CopyRegion
+    
+    On 965 and up, if we detect a full height blit, we should just wait for
+    vblank, rather than try to do a scanline wait for the whole display.
+    
+    On pre-965, doing a scanline wait followed by a blit works, but in the
+    full height case we need to give the blitter time to start up, so we
+    wait until the bottom line of the blit minus 2 padding scanlines to
+    accommodate.
+    
+    Fixes FDO bug #22475.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit f0d760bfd71e2b2b40d2b250cd84b4626492ba47
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Wed Feb 10 11:24:46 2010 -0800
+
+    Disable bo reuse on shadow framebuffer
+    
+    This keeps us from trying to set tiling on it while pinned, which also
+    keeps us from trying to unpin it in the kernel, causing an error.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 41784e15d39c29af5a87fe8d0982bd1b0be3562d
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Fri Jan 29 15:54:16 2010 -0500
+
+    config: remove dead LINUXDOC macro usage
+    
+    This module does not generate LINUXDOC documentation.
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 6610bcbac51c9ac970128012f0d4566d8cfba000
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Fri Feb 5 17:18:50 2010 -0800
+
+    DRI2: only use version 4 APIs if kernel support exists
+    
+    Check for page flipping support before enabling flip and vblank event
+    support needed for the new DRI2 APIs.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 1a76fa5574e8e8f88ac3518a4e4494e1af301dc1
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Jan 29 23:28:46 2010 -0800
+
+    Initialize DRI2 info rec version 4 list of driver names
+    
+    With DRI2 supporting multiple subsystems, the video driver must
+    initialize the list of driver names instead of just passing the single
+    driver name used by Mesa. Without this, the X server will fail to
+    initialize DRI2 as the numDrivers field in this structure will be
+    uninitialized.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 918151a7955c26174db80b775205f6ffb4f44ab6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 27 20:33:08 2010 +0000
+
+    uxa: Fix compatible_formats() for OVER
+    
+    In separating the boolean logic out into a separate function, dc6522dd,
+    I reversed the sense of one particular test:
+    
+      src->format == dst->format
+    
+    The OVER optimisation is only valid if the src and dst formats match,
+    but not always.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 197cb08a2d54cabbfe97454d7db85cfe1f5f27ba
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 25 15:15:04 2010 +0000
+
+    Extract pixel value for all formats to avoid hitting fallbacks.
+    
+    On failing to extract the pixel value for an alpha-only solid we
+    actually triggered a fallback. Since this path is commonly hitting
+    whilst fading in images, for example cairo_paint_with_alpha(), the
+    fallback was detected during the Moblin boot sequence where it was
+    adding a second to the overall boot time.
+    
+    See
+      fallback intel: Moblin startup is hitting a composite fallback, costing
+                      a ton of performance
+      https://bugs.freedesktop.org/show_bug.cgi?id=26189
+    
+    Based on the initial patch by Arjan van de Van.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5f93d019dc6311dd16b6792ffb60dbfc45ef3d08
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 25 15:47:11 2010 +0000
+
+    uxa: Adjust uxa_get_color_for_pixmap to match prototype
+    
+    The prototype says this function returns a Bool and not just an int, so
+    be pedantic and return TRUE/FALSE.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dc6522dd491831f3843606e3ed57cc01fe2c804c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 24 09:37:23 2010 +0000
+
+    uxa: Protect against a potential NULL src->Drawable reference
+    
+    One of the convoluted if branches dereferenced Drawable when it is
+    potentially NULL. Avoid this by explicitly handling the NULL Drawable
+    cases earlier, and enabling solid fills for solid sources.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 31bbd7f919f4f1f545dd49861c15e60561c075cb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 24 09:04:16 2010 +0000
+
+    uxa/uxa-render: Always remove useless repeats during composite.
+    
+    I added a jump if there was no src or mask Drawable, but we do actually
+    need to check for useless src repeats even if we have a source-only
+    mask.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 326fe00df4160fbc3513ddbedfec90bdb2d7101b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 24 09:02:05 2010 +0000
+
+    uxa: Increase amount of composite fallback verbage
+    
+    The fallback log for http://bugs.freedesktop.org/show_bug.cgi?id=26189
+    does not actually state the reason why we actually fallback. This is
+    possibly because we need to fallback for reasons other than the
+    operation cannot be performed in hardware -- such as using an alpha map
+    or the screen is swapped out, so add this information to the fallback
+    log.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 93cd943d41c646c794b8cb5a960d8f0805e15395
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Jan 15 12:53:47 2010 -0800
+
+    intel: Use the compositing-aware colorkey filler instead of homebrew fail.
+    
+    Of course, it's still fail since you can't correctly composite
+    colorkey overlay, but at least this doesn't spam colorkey to the root
+    window.
+    
+    Tested-by: Daniel Vetter <daniel@ffwll.ch>
+
+commit 6e61de896b42cffe1af6b0384cb69265d3d121a1
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Fri Jan 15 15:51:28 2010 -0800
+
+    Update Sun license notices to current X.Org standard form
+    
+    Signed-off-by: Alan Coopersmith <alan.coopersmith@sun.com>
+
+commit 96f45c66eed2631eba98ae416c3afdf540fa5c34
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Wed Jan 13 13:20:43 2010 -0500
+
+    DRI2: if the swap condition is satisfied, complete it immediately
+    
+    If we get to the point where we check the divisor/remainder equation and
+    it's satisfied, we should complete the swap immediately.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 51c75906329a4727e37c8d1f64f257ea9602caa2
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Fri May 1 14:52:26 2009 -0700
+
+    DRI2: support new DRI2 APIs
+    
+    The new interfaces allow for improved buffer swap, and support for the
+    SGI_swap_control, SGI_video_sync and OML_sync_control GLX extensions.
+    
+    The Intel implementation allows page flipping to occur for swaps that
+    are full screen and not rotated.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 4902f546be19e3d5bb47f6c75e2199dc4856c0f4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 13 10:44:12 2009 +0000
+
+    i965: Ensure that URB_FENCE is aligned to 64-bytes
+    
+    The PRM (Vol 1, p32) specifies that the URB_FENCE command must not cross
+    a cache-line boundary (64-bytes) in order to workaround a silicon issue.
+    Ensure that it does not by inserting an alignment point before the atomic
+    section.
+    
+    This is a slightly too large hammer, but the easiest method to work with
+    the current BEGIN_BATCH/ADVANCE_BATCH protections.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 83626aba357ffb4dd7931daaf163c1dd1d08f9d3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 29 21:39:41 2009 +0000
+
+    uxa-glyphs: Enable TILING_X on glyph caches.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 50e07da8094c8c8c593b6eb8c41fc42444851d04
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 13 09:35:36 2009 +0000
+
+    i830: Do not use vtSema when chosing mapping type.
+    
+    The mapping type to use is determined by the tiling of the underlying
+    object, not by whether or not not we control the vt. This was a
+    left-over wart that was intended to mean that we had GEM and so could
+    use GTT mappings.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7a2b7cfab5cdef277f0feb838683422d9fcb0db3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 13 09:33:45 2009 +0000
+
+    Consolidate determining maximum sizes for use with GEM
+    
+    Add a small wrapper function so that the callsites need only call the
+    single function when checking the available aperture size for
+    determining the maximum viable size for operations. This will allow us
+    to easily extend this set in the future by only needing to adding the
+    check to a single location.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 229d23fb18d696fb7ad476ce335be14ec9811bd3
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Dec 1 14:32:34 2009 +0100
+
+    Xv: don't enable XVMC port on unsupported configs
+    
+    This just makes it _really_ clear, what's supported. No other changes.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit ce7ba18f577cc9aedddaff303dbc9662a276b4cf
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Dec 1 14:32:33 2009 +0100
+
+    Xv: consolidate xmvc passthrough handling
+    
+    It's now all in I830PutImageTextured. Also kill some leftovers
+    from XVMC-on-overlay support and ums-XVMC-on-i915 support. Plus
+    a small comment as a reminder for where to add i915 xvmc support
+    back in.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 1ac7c94083a3266e2d5dd932709118436074dd00
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Dec 1 14:32:32 2009 +0100
+
+    Xv: hide ugly semantics in i830_clip_video_helper
+    
+    I'm still curious as to why fixed-point semantics are necessary
+    for this generic XV helper function that's been causing all this.
+    Can modern X really run on hw without floating-point support?
+    
+    Anyway, the ugliness is now all nicely under the carpet (in
+    i830_clip_video_helper).
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 31f13fa8a0d4cd28067de37d0d31d23e8200d0ff
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Dec 1 14:32:31 2009 +0100
+
+    Xv: move users of x1, x2, y1, y2 to PutImage
+    
+    After this there are no other external users of these strange variables,
+    so we can nicely hide them somewhere in the next changeset.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit ce6526b9b4df304ccd83a0a02a95621300dbaed3
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Dec 1 14:32:30 2009 +0100
+
+    Xv: kill unnecessary parameters for hw PutImage functions
+    
+    This is the first part of my small crusade to rip out x1, x2, y1, y2
+    from I830PutImage*. These variables have strange semantics (they
+    change from simple integers to fixed-point values somewhere in
+    the middle) and don't really seem to be what we actually need.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit cf74caaa91667457bba3583b216dfc157d09f39e
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Dec 1 14:32:29 2009 +0100
+
+    Xv: kill an unnecessary if
+    
+    We always pass a non-null pointer for crtc_ret, no point to check
+    for this.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit d8353c737b5b8077f499461b1e6c78f09544d226
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Dec 1 14:32:28 2009 +0100
+
+    Xv: split up I830PutImage into textured and !textured case
+    
+    This wasn't making much sense anymore, and further cleanups will
+    make this even more apparent. This change just makes two copies of
+    I830PutImage and kills the not-applicable if-clauses in both
+    versions.
+    
+    There is one small functional change in here: The textured video
+    path doesn't munch around with adaptor_priv->videoStatus anymore,
+    which is only used by the overlay. This could prevent the overlay
+    from being switched off if someone would use textured video at the
+    same time.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 091035146463bf1aa6674bff6947d04fc620c18f
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jan 4 14:20:11 2010 -0800
+
+    configure.ac: Bump version to 2.10.0.
+    
+    In preparation for the 2.10.0 release.
+
+commit 01f7d0307b3f5f085e383ff85026757de9cda359
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jan 4 14:19:17 2010 -0800
+
+    NEWS: Add final release notes for the 2.10.0 release.
+    
+    Mentioning that it's functionally identical to our most recent release
+    candidate.
+
+commit e966bca3a9143cff37beb54359bea13c9f693b44
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Tue Dec 29 21:49:49 2009 -0800
+
+    Take note for Pineview support in README and manpage
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 6137791e9f1a4778afabbbc06de3da68648ae258
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jan 4 14:08:24 2010 -0800
+
+    man page: Remove section describing BACKLIGHT_CONTROL property.
+    
+    This apparently no longer exists in a KMS world, so remove it from the
+    documentation.
+
+commit 7f36a439249cc2101d8985de5e95af652e5b984b
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jan 4 14:07:24 2010 -0800
+
+    man page: Rename PANEL_FITTING to "scaling mode".
+    
+    The old UMS name was PANEL_FITTING while the new KMS name is "scaling mode".
+    
+    Fixes bug #25606.
+
+commit a6fb71e6e26fb31f4cd10fad2d3a87d9114a649a
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jan 4 14:05:27 2010 -0800
+
+    man page: Add additional indentation for some output configuration options.
+    
+    The BACKLIGHT_CONTROL and PANEL_FITTING options appear in a list, and
+    then each contain a sub-list of sub-options. Use indentation to make
+    this structure more apparent to the reader.
+
+commit 25a6c8dfae240143309b14cc32ebac6008c3a378
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Tue Dec 15 21:46:48 2009 -0500
+
+    configure.ac: use backticks rather than $() for cmd subs
+    
+    Use "$PKG_CONFIG" rather than hard coded "pkg-config"
+    
+    Acked-by: Dan Nicholson <dbn.lists@gmail.com>
+    Acked-by: Daniel Stone <daniel@fooishbar.org>
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 2c142e421e859406b5aff16ba18624150269fc06
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Dec 10 15:25:44 2009 -0800
+
+    Update version to 2.9.99.902.
+    
+    For the second release-candidate snapshot in preparation for 2.10.
+
+commit 8ecf70ea553083cbc26928dc3973c8f6f8b3d9d0
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Dec 10 15:17:57 2009 -0800
+
+    NEWS: Add notes for 2.9.99.902 (and preliminary notes for 2.10)
+    
+    This comes from my cursory glance over the commit log from 2.9.1
+    to master.
+
+commit 88b2209a7526a7c7f3b3a2d491d48bd0d5d56e04
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Dec 10 14:52:46 2009 -0800
+
+    Document the DebugFlushBatches, DebugFlushCaches, and DebugWait options.
+    
+    These were added in 3c0815abf28744e215bea286e71d935cd486955a . The
+    documentation added here comes straight from that commit message.
+
+commit 8d6faf7dc546bda64e11bf6dea7f3c997f07f887
+Author: Tobias Doerffel <tobias.doerffel@gmail.com>
+Date:   Wed Dec 9 09:57:20 2009 +0100
+
+    Fix compiler warning in i830_copy_video_data() if XvMC is disabled
+    
+    The variable "intel" is unused when building i830_video.c without XvMC
+    support which results in a compiler warning:
+    
+      i830_video.c: In function 'i830_copy_video_data':
+      i830_video.c:1443: warning: unused variable `intel'
+    
+    Trivial fix via #ifdef.
+
+commit bd81734465912d79d6320a6fb021ce43d258b906
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Dec 8 15:27:41 2009 +0100
+
+    Xv: enable drmmode overlay
+    
+    Now that libdrm 2.4.16 is released (and already required) we can
+    unconditionally enable this.
+    
+    Please add something like this to the release-notes/NEWS file:
+    
+    * Overlay support for kernel modesetting. This needs at least kernel
+      v2.6.33 to work. A backport to 2.6.32 is available at:
+    
+      http://gitorious.org/daniel-s-linux-stuff/linux-kernel/commits/intel-kms-overlay-for-2.6.32
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 37f631d669c165c4fb56ccd7a6fc0a432f453b52
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 10 08:50:16 2009 +0000
+
+    Revert "uxa-glyphs: Enable TILING_X on glyph caches."
+    
+    This reverts commit 3f11bbec420080151406c203af292e55177e77d1.
+    
+    For unknown reasons, enabling tiling for the glyph cache is causing
+    glyph corruption both across suspend and resume and VT switching, on a
+    wide range of chipsets (reports include both i8xx and gm45)
+    
+    This strongly suggests that we are handling tiling, or updates to tiled
+    buffers, incorrectly across i915_gem_idle(). However, until we can find
+    the root cause, we want to fix this regression before the next stable
+    release, so simply revert this patch. :(
+    
+    Fixes:
+      [Bug 25406] fonts garbled after resuming from suspend since 6729b508
+      http://bugs.freedesktop.org/show_bug.cgi?id=25406
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 093bb9ebe69760975a3fcf2322db950312e6c2d7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 8 23:45:28 2009 +0000
+
+    i965: Only use the affine kernels if both src and mask are affine
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0cf04ea4d736f7d7848f33b772d88a0f1b6678b1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 8 23:44:45 2009 +0000
+
+    i965: Set src_filter before testing.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 417ad2712edcbca635eb5eeff0d11cdb16c069ed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 8 23:43:57 2009 +0000
+
+    Assert that we only call OUT_BATCH() inside a BATCH
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 47416b1eea09b238a997636d35998d71e0d18161
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 8 13:47:07 2009 +0000
+
+    i965: Maximum number of vertices per composite is 24, not 18
+    
+    Beware the potential buffer overflow.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c1afc831c8fe4cbececee7dfa23506a6746c2425
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 7 21:27:56 2009 +0000
+
+    uxa: Cache solid fills.
+    
+    Maintain a small cache of pixmaps to hold SolidFill pictures. Currently
+    we create a pixmap the size of the damaged region and fill that using
+    pixman before downloading it to the GPU and compositing. Needless to say
+    this is extremely expensive compared to simply emitting the solid
+    colour. To mitigate this cost, we maintain a small cache of 1x1R
+    pictures which is recognised by the driver as being a solid, but at the
+    very least is maintained as a GPU ready pixmap.
+    
+    This gives a good boost to cairo-xcb (which uses solid fills) on a gm45:
+    
+    Before:
+      gnome-terminal-vim: 41.9s
+    After:
+      gnome-terminal-vim: 31.7s
+    
+    Compare with using a cache of 1x1R pixmaps in cairo-xcb:
+      gnome-terminal-vim: 31.6s
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cd475bad23c02130d11c49882c11261c9f0d4ef1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 7 11:09:14 2009 +0000
+
+    batch: Ensure we send a MI_FLUSH in the block handler for TFP
+    
+    This should restore the previous level of synchronisation between
+    textures and pixmaps, but *does not* guarantee that a texture will be
+    flushed before use. tfp should be fixed so that the ddx can submit the
+    batch if required to flush the pixmap.
+    
+    A side-effect of this patch is to rename intel_batch_flush() to
+    intel_batch_submit() to reduce the confusion of executing a batch buffer
+    with that of emitting a MI_FLUSH.
+    
+    Should fix the remaining rendering corruption involving tfp [inc compiz]:
+    
+      Bug 25431 [i915 bisected] piglit/texturing_tfp regressed
+      http://bugs.freedesktop.org/show_bug.cgi?id=25431
+    
+      Bug 25481 Wrong cursor format and cursor blink rate with compiz enabled
+      http://bugs.freedesktop.org/show_bug.cgi?id=25481
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 415aab474edd1425034981306718afd8506445f1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 4 09:02:36 2009 +0000
+
+    intel: And remember to flush the batch...
+    
+    In commit 98e11210
+    
+      Remove flush parameter from intel_batch_flush()
+    
+    Maxi spotted that I had broken screen updating. It appears in my haste
+    to eliminate the extra parameter I removed a call to intel_batch_flush()
+    when throttling, i.e. when pushing the updates to the screen before
+    idling.
+    
+    Should fix:
+    
+      Bug 25409 [bisected] rendering corruption since a938673e
+      https://bugs.freedesktop.org/show_bug.cgi?id=25409
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8438372dcc9d15c7b708332cfcb3a1c16a2c5cf2
+Author: Kristian Høgsberg <krh@bitplanet.net>
+Date:   Thu Dec 3 14:39:43 2009 -0500
+
+    Require libdrm 2.4.16
+    
+    Needed for drmGetDeviceNameFromFd().
+
+commit c439207ec0cc16d7d9f523598fcdebf7cec893e2
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Wed Dec 2 14:43:17 2009 -0800
+
+    Update man page to reflect currently available options
+    
+    Many have been removed or are obsolete now that UMS is gone.  And some
+    are only available on i810/i815 or i830+, so move them to the
+    appropriate section.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit a938673ee84d51ef655c37dfa7bbc5c35334cd28
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 2 20:51:53 2009 +0000
+
+    batch: Downgrade batch submission from a FatalError.
+    
+    If we wedge the GPU then we will return -EIO for the current batch and
+    then attempt to reset the GPU. Meanwhile the X server detects the error,
+    throws a FatalError and to all intents and purposes appears to crash to
+    the user - whereas before it often just appeared to momentarily freeze.
+    Of course, on older hardware the server remains frozen until we can find
+    a way to reset those GPUs at runtime.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 98e11210367c950e3f932419d2a4722cf971885d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 2 20:48:37 2009 +0000
+
+    Remove flush parameter from intel_batch_flush()
+    
+    There is only a single caller that wishes to forcibly append a flush
+    into the batch: intel_sync(). So move the logic there.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 57336c26f1fb90d43851ddcf78539585b67d86d9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 2 20:42:41 2009 +0000
+
+    Rename I830Sync() to intel_sync()
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 370157f4932cf9067ba81c8bd5a311aff610882b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 2 20:28:49 2009 +0000
+
+    batch: Avoid flushing a NULL batch
+    
+    During shutdown from a FatalError during batchbuffer submission, it is
+    possible for the batch_ptr to be NULL, so we must be careful not to
+    append a flush on this error path.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ad68881b670aabf8dbfd3b954e8796f91260579d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 2 14:14:39 2009 +0000
+
+    uxa_check_composite: Minor whitespace.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 49d2ccab2a82083110fe796636f3f91ba8c31237
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 2 14:13:43 2009 +0000
+
+    uxa_prepare_access() don't force a flush.
+    
+    Only the kernel knows whether the mapping requires a flush, so do not
+    preempt it.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b68d3646f1fdfe012c16741958c7a62136a9b5aa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 2 14:12:19 2009 +0000
+
+    Review use of errno after libdrm call
+    
+    Since drm may not actually set the appropriate errno after a failure, we
+    must use the return code instead when determining the cause of failure.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0ff4d42a42b9e537b083343ee7dcc41cb41ae7cf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 2 12:12:07 2009 +0000
+
+    uxa: Review uxa_prepare_access() to remove potential nesting
+    
+    Around a call to uxa_put_image() it is possible to mix both accelerated
+    and fallback paths, with the fallback code making the presumed
+    optimisation of only trying to call uxa_prepare_access() once. This
+    fails if the accelerated path also uses prepare/finish access on the
+    same drawable and then later fallback to the fallback path. This can
+    happen currently if an error is reported whilst attempting to accelerate
+    PutImage.
+    
+      #0  memcpy () at ../sysdeps/x86_64/memcpy.S:162
+      #1  0x00007ffff43ce4bd in fbBlt (srcLine=<value optimized out>, srcStride=40, srcX=<value optimized out>, dstLine=0xffffffffffffffff, dstStride=64, dstX=0, width=<value optimized out>, height=8, alu=3, pm=4294967295, bpp=8, reverse=0, upsidedown=0) at fbblt.c:93
+      #2  0x00007ffff43ce740 in fbBltStip (src=0xffffffffffffffff, srcStride=156555204, srcX=34, dst=0xfffffffc, dstStride=64, dstX=40, width=304, height=8, alu=3, pm=4294967295, bpp=8) at fbblt.c:944
+      #3  0x00007ffff4c32c53 in uxa_do_put_image (pDrawable=0x246aa410, pGC=0x2c0a4f0, depth=8, x=0, y=0, w=38, h=8, leftPad=0, format=2, bits=0x954d7c4 "") at uxa-accel.c:196 #4  uxa_do_shm_put_image (pDrawable=0x246aa410, pGC=0x2c0a4f0, depth=8, x=0, y=0, w=38, h=8, leftPad=0, format=2, bits=0x954d7c4 "") at uxa-accel.c:223
+      #5  uxa_put_image (pDrawable=0x246aa410, pGC=0x2c0a4f0, depth=8, x=0, y=0, w=38, h=8, leftPad=0, format=2, bits=0x954d7c4 "") at uxa-accel.c:289
+      #6  0x00000000004d574f in damagePutImage (pDrawable=0x246aa410, pGC=0x2c0a4f0, depth=8, x=0, y=0, w=38, h=8, leftPad=0, format=2, pImage=0x954d7c4 "") at damage.c:905
+      #7  0x00000000004287db in ProcPutImage (client=0x47ca72d0) at dispatch.c:2073
+      #8  0x000000000042bd94 in Dispatch () at dispatch.c:445
+      #9  0x000000000042513a in main (argc=4, argv=0x7fffffffe2a8, envp=<value optimized out>) at main.c:285
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6be26cae8379f973d9ca27e0d5371d16618e4f7b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 1 16:13:25 2009 +0000
+
+    i830: Simplify prepare_access / finish_access
+    
+    Reduce the 3 conditions into the 2 distinct cases. This has the
+    secondary benefit of also distinguishing between the reported errors.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 637f003b047e426901cab6b1fe3a0924bcb9a38a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 1 13:20:20 2009 +0000
+
+    uxa: Don't treat prepare_access as a flush synchronisation point.
+    
+    The kernel will only emit a flush iff the buffer is currently owned by
+    the GPU. Instead of presuming that the kernel must emit a flush, it is
+    safer to assume that it does not and so cannot mapping the buffer on to
+    the CPU as a synchronisation point. The most obvious counter-example is
+    when we map the same buffer twice without using it in a batch.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cd5a9568ce0a541f030c27cdae529fe18e5f0437
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Nov 30 20:17:04 2009 -0800
+
+    Add i830_bios.h and i830_display.h to EXTRA_DIST.
+    
+    These files have been dropped from the generated tar file since the
+    removal of UMS support. However, the bios_reader code still includes
+    these, so "make distcheck" fails unless these are distributed.
+    
+    There's probably a cleaner fix possible, but this at least fixes the
+    build so that the snapshot can be pushed out.
+
+commit 5bdac72a5c3f68ab6d9f7f2f1dfa6e5b78f04e57
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Nov 30 20:16:19 2009 -0800
+
+    NEWS: Note that the driver now has a hard dependency on KMS.
+    
+    Since the UMS code has all been removed.
+
+commit 813a910d7e4cc1c3deec0dcb1b536f8af337993a
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Nov 30 19:48:05 2009 -0800
+
+    configure.ac: Bump version to 2.9.99.901.
+    
+    In preparation for a new snapshot.
+
+commit b62c72913a85895a60268a49eed1c136f63f160d
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Nov 30 19:46:59 2009 -0800
+
+    NEWS: Add generic notes for the 2.9.99.901 snapshot.
+    
+    We plan to collect real release notes before the 2.10.0 release.
+
+commit 00aa4f7a45a318af5b651f9f3928e9da4443233a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 20:50:31 2009 +0000
+
+    uxa: Limit maximum size of tiled objects
+    
+    On older chipsets (i.e. pre-i965) tiling is very restrictive and imposes
+    severe size and alignment constraints. Combine that with relatively
+    small apertures and it is very easy to create a batch buffer that
+    cannot be mapped into the aperture (but would otherwise fit based purely
+    on total object size). To prevent this we need to not use tiling for large
+    buffers (the very same buffers where tiling would be of most benefit!).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8dd1c9eca02fb8da0c51f6fa4a38eb5e5ff41855
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Sun Nov 22 17:13:02 2009 -0500
+
+    video-intel: remove i2c_vid.h from src/Makefile.am
+    
+    make dist failed due to missing i2c_vid.h
+    Commit b9b159c49854d8d9d2207946bb583537bb0d48d6 Remove UMS support.
+    The above commit did not remove this header file from the makefile.
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 6729b508c44bfca0b0dbef238a8732adbed6d4c9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 16:52:10 2009 +0000
+
+    uxa: Initialise lists for private pixmap structure.
+    
+    When updating a buffer object for the framebuffer, we may need to
+    allocate a fresh pixmap private structure, for example if the pixmap is
+    replaced due to resize. When doing so it is then imperative to
+    initialise the circularly linked lists correctly.
+    
+    Should fix the fault:
+      #0  i830_set_pixmap_bo (pixmap=0x24ab380, bo=0x24ab780) at i830_uxa.c:524
+      #1  0x00007f8615c629fd in drmmode_xf86crtc_resize (scrn=0x247a320, width=1280, height=800) at drmmode_display.c:1345
+      #2  0x000000000051246c in xf86RandR12ScreenSetSize (pScreen=0x24824f0, width=<value optimized out>, height=<value optimized
+     out>, mmWidth=<value optimized out>, mmHeight=<value optimized out>) at xf86RandR12.c:709
+      #3  0x0000000000512aa8 in xf86RandR12CreateScreenResources (pScreen=<value optimized out>) at xf86RandR12.c:839
+      #4  0x0000000000514ec0 in xf86CrtcCreateScreenResources (screen=0x24824f0) at xf86Crtc.c:727
+      #5  0x0000000000424fb3 in main (argc=<value optimized out>, argv=<value optimized out>, envp=<value optimized out>) at main.c:215
+    as reported by 'buscher'.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 85fe41126e83b35954dc2066eb103e0555e207a4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 15:57:42 2009 +0000
+
+    uxa: Remove cache flush for copy
+    
+    As the copy uses the 2D blitter, it uses the render cache so the source
+    should not require flushing if it has previously been used as a
+    destination.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2d434eed09936328a52cb942450a95aedc3eac63
+Author: Kristian Høgsberg <krh@bitplanet.net>
+Date:   Mon Nov 30 10:27:42 2009 -0500
+
+    Use new drmGetDeviceNameFromFd() for mapping to drm device name
+    
+    Should have been in libdrm to begin with.
+
+commit cfcabc45140d19bfbfa4737c0a11cdbb042d11eb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 13:58:30 2009 +0000
+
+    i915: Disable centre-point sampling.
+    
+    I still have no idea how this is triggering failures, but it is. So
+    revert until the problem is solved.
+    
+    Should fix once again:
+    
+      Bug 23803 [bisected i915] gnome characters disappear
+      http://bugs.freedesktop.org/show_bug.cgi?id=23803
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8f8b6bd03d275379918777eaf7f63c0157b7ed9d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 14:03:40 2009 +0000
+
+    i915: Whitespace
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 47916ea9d351f0ce6dc34713d6c164b0032f9830
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 13:58:06 2009 +0000
+
+    debug: Enable dumping of batchbuffer [compile-time only]
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b118a52cd1a006321571967bd5f6c2a9e674de3a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 11:03:32 2009 +0000
+
+    i915: Remove routing of alpha channel to green.
+    
+    This modification is redundant since the routing is done in the blend
+    unit anyway.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5e04ded2bce4c135b57d391f5f4e24e030103e61
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 10:57:04 2009 +0000
+
+    i915: Fix missing texture offset for mask.
+    
+    In commit e581ceb, I modified the shader generation to accommodate mixed
+    textures and solids but missed applying the new computed sampler for the
+    mask.
+    
+    References:
+    
+      Bug 23803 [bisected i915] gnome characters disappear
+      http://bugs.freedesktop.org/show_bug.cgi?id=23803
+    
+      Bug 25031 rendering and color corruption since 14109abf
+      http://bugs.freedesktop.org/show_bug.cgi?id=25031
+    
+      Bug 25047 [945GM bisected] rendercheck/repeat/triangles regressed
+      http://bugs.freedesktop.org/show_bug.cgi?id=25047
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a8ea20100de5be45699e71eb6ba67bef546ad0cd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 10:13:18 2009 +0000
+
+    debug: Don't always flush the batch when emitting a debugging flush
+    
+    I incorrectly changed the logic in 285f286 and caused the batch to
+    always be flushed when debugging, instead of merely inserting a MI_FLUSH
+    between operations.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c10850c63f9f88fbf08135bc4dcef1e5a2c71ee6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 30 09:07:57 2009 +0000
+
+    overlay: Fix build after 646b4a9483
+    
+    The compile cleanup was not without fault... Apparently I don't have
+    XVMC enabled anymore and so missed that this variable is actually used.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3f11bbec420080151406c203af292e55177e77d1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 29 21:39:41 2009 +0000
+
+    uxa-glyphs: Enable TILING_X on glyph caches.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 19d8c0cf50e98909c533ebfce3a0dd3f72b755c1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 29 21:16:49 2009 +0000
+
+    uxa: PutImage acceleration
+    
+    Avoid waiting on dirty buffer object by streaming the upload to a fresh,
+    non-GPU hot buffer and blitting to the destination.
+    
+    This should help to redress the regression reported in bug 18075:
+    
+      [UXA] XPutImage performance regression
+      https://bugs.freedesktop.org/show_bug.cgi?id=18075
+    
+    Using the particular synthetic benchmark in question on a g45:
+    
+    Before:
+       9542.910448 Ops/s; put composition (!); 15x15
+       5623.271889 Ops/s; put composition (!); 75x75
+       1685.520362 Ops/s; put composition (!); 250x250
+    
+    After:
+      40173.865300 Ops/s; put composition (!); 15x15
+      28670.280612 Ops/s; put composition (!); 75x75
+       4794.368601 Ops/s; put composition (!); 250x250
+    
+    which while not stellar performance is at least an improvement. As
+    anticipated this has little impact on the non-fallback RENDER paths, for
+    instance the current cairo-xlib backend is unaffected by this change.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f7540f06090753cba1190aa9e8cdea05a9512077
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 29 21:12:07 2009 +0000
+
+    Only flush batch during prepare access if it may modify the pixmap.
+    
+    As we track when a pixmap is active inside a batch buffer, we can avoid
+    unnecessary flushes of the batch when mapping a pixmap back to the CPU.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9a2c18fb92659d57741bfdcacbe4f69aab361532
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 29 21:07:45 2009 +0000
+
+    batch: Emit a 'pipelined' flush when using a dirty source.
+    
+    Ensure that the render caches and texture caches are appropriately
+    flushed when switching a pixmap from a target to a source.
+    
+    This should fix bug 24315,
+      [855GM] Rendering corruption in text (usually)
+      https://bugs.freedesktop.org/show_bug.cgi?id=24315
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 285f286597df5af13ac3f3d366f2fc9d0468dafa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 29 22:42:03 2009 +0000
+
+    batch: Track pixmap domains.
+    
+    In order to detect when we require cache flushes we need to track which
+    domains the pixmap currently belongs to. So to do so we create a device
+    private structure to hold the extra information and hook it up.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2c3aee2b570dadd9270a08d8ff675d07ac405e33
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 29 20:53:35 2009 +0000
+
+    uxa-glyphs: Stream uploads via temporary bo
+    
+    Avoid mapping the glyph cache back to the cpu by allocating temporary
+    buffer objects to store the glyph pixmap and blit to the cache.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 646b4a9483c01509a7324cc05eaadb72bc940c6d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 29 10:53:36 2009 +0000
+
+    Cleanup a few compiler warnings.
+    
+    Simple warnings for unused variables and C99-style declarations.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 917f9bb2435ba36bb99ef4d4f7b380d7f265e862
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Mon Nov 23 09:25:05 2009 -0500
+
+    Makefile.am: add ChangeLog and INSTALL on MAINTAINERCLEANFILES
+    
+    Now that the INSTALL file is generated.
+    Allows running make maintainer-clean.
+
+commit eda2bb26783f7e9ef1ae659265930308378206e1
+Author: Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+Date:   Fri Nov 20 01:52:05 2009 +0100
+
+    Makefile.am: Add missing .g4i to be included in the tar file.
+    
+    Apparently Debian packages were having to manually add these files
+    back in. Distribute them in the first place like we meant to.
+
+commit c5e86453c3ae3709933779a9dd609bbaebe21e8e
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Wed Oct 28 14:41:41 2009 -0400
+
+    INSTALL, NEWS, README or AUTHORS files are missing/incorrect #24206
+    
+    Automake 'foreign' option is specified in configure.ac.
+    Remove from Makefile.am
+
+commit 12c4a22dd0b4de92a9c3d9e0baab029292f118f0
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Wed Oct 28 14:09:09 2009 -0400
+
+    INSTALL, NEWS, README or AUTHORS files are missing/incorrect #24206
+    
+    Add missing INSTALL file. Use standard GNU file on building tarball
+    README may have been updated
+    Remove AUTHORS file as it is empty and no content available yet.
+    Remove NEWS file as it is empty and no content available yet.
+
+commit ad4030932490f848c8ac21ba5a7a8d734994ed15
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Mon Oct 26 12:54:21 2009 -0400
+
+    Several driver modules do not have a ChangeLog target in Makefile.am #23814
+    
+    The git generated ChangeLog replaces the hand written one.
+    Update configure.ac to xorg-macros level 1.3.
+    Use XORG_DEFAULT_OPTIONS which replaces four XORG_* macros
+    Update Makefile.am to add ChangeLog target if missing
+    Remove ChangeLog from EXTRA_DIST or *CLEAN variables
+    This is a pre-req for the INSTALL_CMD
+
+commit bb994ce018ae6c3e3c5548ae7439cfc5e9aa4554
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Thu Oct 22 13:02:04 2009 -0400
+
+    .gitignore: use common defaults with custom section # 24239
+    
+    Using common defaults will reduce errors and maintenance.
+    Only the very small or inexistent custom section need periodic maintenance
+    when the structure of the component changes. Do not edit defaults.
+
+commit 67bbda0bddae3e0d39bc8deb7378f467aedfd0e3
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Thu Oct 22 12:34:17 2009 -0400
+
+    .gitignore: use common defaults with custom section # 24239
+    
+    Using common defaults will reduce errors and maintenance.
+    Only the very small or inexistent custom section need periodic maintenance
+    when the structure of the component changes. Do not edit defaults.
+
+commit c180baf43b8a0e407448018f3a7e42491cf974ae
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 13 19:35:23 2009 +0000
+
+    i915: Derive the correct target color from the pixmap by checking its format
+    
+    Particularly noting to route alpha to the green channel when blending
+    with a8 destinations.
+    
+    Fixes:
+    
+      rendercheck/repeat/triangles regressed
+      http://bugs.freedesktop.org/show_bug.cgi?id=25047
+    
+    introduced with commit 14109a.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e9064eacb0ad8867e320597453facbb3c376522c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 13 18:35:44 2009 +0000
+
+    uxa: Do not remove repeat from solids for 1x1 composites.
+    
+    Or else we hit the buggy 1x1 source path and trigger:
+    
+      rendercheck/mcoords regressed
+      http://bugs.freedesktop.org/show_bug.cgi?id=25046
+    
+    caused by the recent commit e581ceb.
+
+commit 14109abf285866ad4cd99d0cd16b0954a0a73a62
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 10 11:17:23 2009 +0000
+
+    i915: Fix texture sampling coordinates.
+    
+    RENDER specifies that texels should sampled from the pixel centre. This
+    corrects a number of failures in the cairo test suite and a few
+    off-by-one bug reports.
+    
+      Grey border around images
+      https://bugs.freedesktop.org/show_bug.cgi?id=21523
+    
+    Note that the earlier attempt to fix this was subverted by the buggy use
+    of 1x1R textures for solid sources -- which caused the majority of text
+    to disappear.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e581ceb7381e29ecc1a172597d258824f6a1d2d3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 10 11:14:23 2009 +0000
+
+    i915: Use the color channels to pass along solid sources and masks.
+    
+    Instead of allocating and utilising the texture samplers for 1x1R
+    solid sources and masks we can simply use the default diffuse and
+    specular colour channels and adjust the fragment shader appropriately.
+    The big advantage is the reduction in size of batches which should give
+    a good boost to glyph performance, irrespective of the additional boost
+    from using simpler shaders.
+    
+    However, the motivating factor behind the switch is that our use of 1x1
+    textures turns out to be buggy...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 33cabbfca6acb5149e26f87a538a7cb79f00cad2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 10 11:09:52 2009 +0000
+
+    i915: Check for overflow before overflowing.
+    
+    As the immediate victim of the overflow would be to overwrite the maximum
+    permissible value, the test was optimistic.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 67af5a99253b1295f8dc09b28863eb7dc8b59e1d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 10 11:05:20 2009 +0000
+
+    Check that batch buffers are atomic.
+    
+    Since batch buffers are rarely emitted by themselves but as part of a
+    sequence of state and vertices, the whole sequence is emitted atomically.
+    
+    Here we just enforce that batches are marked as being part of an atomic
+    sequence as appropriate.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 998d6b3d8c549086fbc8a9f0e309694b23398d8d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 10 11:00:43 2009 +0000
+
+    uxa: Force alpha bits to fill remaining bits
+    
+    In the case of x8r8g8b8 and similar where the alpha channel is ignored,
+    but should be interpreted as being 1, then it is convenient if those bits
+    are set appropriately in the colour. In order to do so for these formats,
+    where PIXMAN_FORMAT_A() returns 0 we need to compute the alpha channel
+    width as the remaining bits instead.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dbb68168dc909ab2ec1d935322c3fd8581e666f1
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Nov 5 15:40:20 2009 -0800
+
+    Revert "configure: make --disable-dri work even if the server supports DRI"
+    
+    This reverts commit a851139c2141f6da370186148f2836e18b2acf83.
+    It broke the build, and I don't see why we should be supporting this
+    anyway.
+    
+    Conflicts:
+    
+    	configure.ac
+    	src/Makefile.am
+
+commit 4c8e783d84d2c14c8a1638b6a12307c0164d3e31
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Oct 21 13:30:38 2009 -0700
+
+    Fix "Remove flow-control macros for fallbacks in the 2D driver."
+    
+    I guess this is the sort of failure due to rebase-happiness that makes
+    Linus yell at us for rebasing.
+
+commit d0e08fe611681fcc840d1b9ee8d49acdf50f7e58
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Oct 26 13:15:24 2009 +0000
+
+    Kill some more #defines only needed for User-Modesetting
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 8ff2a6496413e6b12fad9352f4bd9b6736bda56c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Oct 21 13:30:38 2009 -0700
+
+    Remove flow-control macros for fallbacks in the 2D driver.
+    
+    It's poor style, and has confused new developers.
+
+commit c87585229b36790f883b9b8954ed061e00624df6
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Thu Nov 5 13:33:55 2009 -0800
+
+    Increase stride limit for IGDNG
+    
+    It can go up to 32k.  Upping this lets me use my 2560x1600 and 1920x1200
+    monitors in an extended desktop configuration.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit cbcfb711747e3637f20145aed00ac3d6256d0d1d
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Wed Oct 28 13:12:46 2009 +0100
+
+    configure: drop some more cruft
+    
+    DEBUGFLAGS wasn't used anywhere and the configure switch is useless.
+    "CFLAGS=-g ./configure" does the same thing and actually works.
+    
+    PKG_CHECK_MODULES already calls AC_SUBST, no need to do it twice.
+    
+    Signed-off-by: Rémi Cardona <remi@gentoo.org>
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3c0a43b24cc7540cc139beca0ec2e4c202ff5593
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Wed Oct 28 13:01:32 2009 +0100
+
+    configure: use CWARNFLAGS from xorg-macros.m4
+    
+    Signed-off-by: Rémi Cardona <remi@gentoo.org>
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a851139c2141f6da370186148f2836e18b2acf83
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Wed Oct 28 12:37:38 2009 +0100
+
+    configure: make --disable-dri work even if the server supports DRI
+    
+    XF86DRI is defined by the SDK so not defining it here just breaks the
+    build. Define HAVE_DRI instead to avoid collisions.
+    
+    Note: DRI2 is still enabled/disabled entirely by SDK defines.
+    
+    Signed-off-by: Rémi Cardona <remi@gentoo.org>
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 07e0b2cff6107d6c86096c7da4e31b0c976794d5
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Wed Oct 28 11:45:55 2009 +0100
+
+    configure: group system header checks at the top
+    
+    Signed-off-by: Rémi Cardona <remi@gentoo.org>
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0401a4c3143c5b94875cb4c66c94a0d247c32da5
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Wed Oct 28 11:42:41 2009 +0100
+
+    configure: check for libdrm and libpciaccess earlier
+    
+    Signed-off-by: Rémi Cardona <remi@gentoo.org>
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 10946118dd3a63f1375a1bfde0b2f0542a93c1c2
+Author: Albert Damen <albrt@gmx.net>
+Date:   Sun Oct 25 18:02:07 2009 +0100
+
+    Fix crash in uxa_acquire_pattern when pDst is NULL
+    
+    This avoids a crash when an XRenderComposite call is made with a
+    -1 value for width/height, (which apparently compiz's gtk-window-
+    decorator likes to do). Fixes bug:
+    
+    	X crashes in uxa_acquire_pattern when logging in (gdm)
+    	http://bugs.freedesktop.org/show_bug.cgi?id=24724
+    
+    Signed-off-by: Albert Damen <albrt@gmx.net>
+    Reviewed-by: Carl Worth <cworth@cworth.org>
+
+commit 751e0a3e4576bbf4bffa56bbd6d4de28f10db98e
+Author: Thomas Arnhold <thomas@arnhold.org>
+Date:   Mon Oct 19 11:35:30 2009 -0700
+
+    Fix 64-bit compiler warnings in intel_xvmc_dump_render().
+    
+    Bug #24396.
+
+commit 3e8f2eae3a586aa29be4858698e666e0ec778cea
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 15 13:48:56 2009 -0700
+
+    XVMC: Use XCB DRI2 instead of cargo-culting our own copy of Xlib stuff. (v2)
+    
+    v2: Incorporate comments from Jamey on device name handling and extension
+    detection.
+
+commit 38ab403d7a1c461c8ac65a056bee2dd5c7f2f58e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 15 11:39:32 2009 -0700
+
+    Enable XVMC by default on gen4.
+
+commit f171069608bf174d920921fa102b8619794ed272
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Mon Sep 28 18:35:57 2009 +0800
+
+    i965 XvMC cleanup
+    
+    Remove bo pin for surface buffer access, and remove access
+    attempt for possible unmapped framebuffer. Using xv buffer
+    pointer to pass current xvmc surface bo handler, which is
+    assigned to src image bo and handle that the same way as in Xv.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+    [anholt: Fixed up for conflict against the XV rework.  Not tested, because
+    both mplayer and xine segfault with XVMC currently.]
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit aaedeffe00d9414bb03723dbc30b4938a07ce5fa
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Oct 14 18:09:08 2009 +0200
+
+    Xv overlay: fix planar YUV copy for right rotated crtcs
+    
+    While copying and rotating the buffer, array access was out of bounds when
+    rotated to the right (RR_Rotate_270).  My buffer handling changes probably
+    made this bug much more likely to actually result in a SIGSEGV.
+    
+    I've checked the logs and the bug exists since rotation has been supported,
+    i.e.  this looks like a candidate for cherry-picking for all supported
+    releases.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 703e3326bb41528cc57c0d25003707df209fc714
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Oct 14 15:56:55 2009 +0200
+
+    Xv overlay: further cleanups
+    
+    Kill some unnecessary stuff. Small code changes, but no functional ones.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 1c2aedfce9e6a7561347e873d125b6889dee7941
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Oct 14 15:56:54 2009 +0200
+
+    Xv: fixup the disabled drmmode overlay code
+    
+    This code didn't survive the global renaming of vars to saner names.
+    Fix it up.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 909990f40a437cbd7026a10e32af1ea120f4c2a7
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Oct 14 15:56:53 2009 +0200
+
+    Xv overlay: remove some more dead stuff from ums overlay support
+    
+    Mostly unused definitions and variables, but also some strange ums
+    debug code. Also kill some now obsolete comments.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 86bc23ab5da34137c82250395c68aa92ecd88a24
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 14 12:04:40 2009 +0100
+
+    debug: Enable cache flushing after every operation
+    
+    If DEBUG_FLUSH_CACHES is enabled then emit a MI_FLUSH after every
+    rendering operation. This is intended to 'fix' cases where we are
+    missing a required flush in the middle of a sequence of operations, such
+    as switching between 2D to 3D and render to sampler.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3c0815abf28744e215bea286e71d935cd486955a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 14 11:29:21 2009 +0100
+
+    conf: Add debugging flush options
+    
+    Make the following options available via xorg.conf:
+      Section "Driver"
+        Option "DebugFlushBatches" "1" # Flush the batch buffer after every
+                                       # single operation;
+    
+        Option "DebugFlushCaches" "1" # Include a MI_FLUSH at the end of every
+                                      # batch buffer to force data to be
+                                      # flushed out of cache and into memory
+                                      # before the completion of the batch.
+    
+        Option "DebugWait" "1" # Wait for the completion of every batch buffer
+                               # before continuing, i.e. perform synchronous
+                               # rendering.
+      EndSection
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2f134b84445d2d0bfe3d81276bc7f6648df062ee
+Author: Zhao Yakui <yakui.zhao@intel.com>
+Date:   Wed Sep 30 07:31:57 2009 +0000
+
+    Return failure when the enum-type output property values are not found
+    
+    Failure to do so causes xrandr to report incorrect property values.
+    
+    Signed-off-by: Zhao Yakui <yakui.zhao@intel.com>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit fcc2ee48b866b81c79315ff10189b56fc201539d
 Author: Albert Damen <albrt@gmx.net>
 Date:   Wed Oct 7 21:55:42 2009 +0200
 
@@ -39,23 +2446,8 @@ Date:   Wed Oct 7 21:55:42 2009 +0200
     can be properly added to the crtc when the xserver is reset.
     
     Signed-off-by: Albert Damen <albrt@gmx.net>
-    (cherry picked from commit fcc2ee48b866b81c79315ff10189b56fc201539d)
-    
-    Fixes https://bugs.freedesktop.org/show_bug.cgi?id=24383
 
-commit 7ccf084b7a281d8aa877f91401d3df7192da408c
-Author: Chris Wilson <chris@chris-wilson.co.uk>
-Date:   Mon Oct 12 14:33:08 2009 +0100
-
-    uxa: Free the ScratchPixmapHeader after its associated Picture
-    
-    Fixes: http://bugs.freedesktop.org/show_bug.cgi?id=24459
-    Intel Driver > 2.8: Cairo rendering bug, triggered in QtCurve GTK engine
-    
-    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-    (cherry picked from commit 7e8f32d0a7279dce1976f87612833d9092554cfe)
-
-commit f858cbe246c5d3a788ae25551b49142c5cc91f1a
+commit 8a77877f9c2c6a8a1308bc1a3be9e7ad88bc7f49
 Author: Dave Airlie <airlied@redhat.com>
 Date:   Fri Oct 9 14:16:06 2009 +1000
 
@@ -68,7 +2460,468 @@ Date:   Fri Oct 9 14:16:06 2009 +1000
     probably should be backported to released drivers.
     
     Signed-off-by: Dave Airlie <airlied@redhat.com>
-    (cherry picked from commit 8a77877f9c2c6a8a1308bc1a3be9e7ad88bc7f49)
+
+commit d8c7678ddadce89ca7fc0edd1b4d9ed3d959e687
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Oct 12 14:02:12 2009 -0700
+
+    DRI2 compat build fix: it's drawable->pScreen not drawable->screen
+    
+    Fallout from the conversion; DRI2 compat path was broken.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit b37ac9d317ae537d993922976f87072040b04d04
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Oct 12 14:31:06 2009 +0100
+
+    uxa: Refactor create Picture for pixman format
+    
+    Pull the common methods for creating a Picture given a pixman format
+    into its own method, and tidy the surrounding code. The benefit is that
+    we can now composite directly to the Picture and so save an intermediate
+    copy when creating patterns for gradients.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7e8f32d0a7279dce1976f87612833d9092554cfe
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Oct 12 14:33:08 2009 +0100
+
+    uxa: Free the ScratchPixmapHeader after its associated Picture
+    
+    Fixes: http://bugs.freedesktop.org/show_bug.cgi?id=24459
+    Intel Driver > 2.8: Cairo rendering bug, triggered in QtCurve GTK engine
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1556c62e0336ea2fef866722ee44d2d188e318f3
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 8 17:34:13 2009 -0700
+
+    Replace dolt and shave with relying on current autotools.
+
+commit 8b2d2ff0d026eea445a071102a62d782f3bbec78
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Oct 7 16:12:25 2009 -0700
+
+    Clean up more i830_memory.c madness.
+    
+    It was cooking up insane alignment values for buffers that new libdrm was
+    justifiably complaining about, but it turns out we don't need the alignment
+    values anywhere because the only case they're needed, they're computed
+    entirely by the kernel.  Also, the XVMC code was passing a completely unused
+    flag in.
+
+commit d525a0e993a59e118ab1e8519b3d73465f8f0169
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 19:05:24 2009 -0700
+
+    Rename pScreen to screen.
+
+commit b6262dcd2754f7e87f27979dcad145133ee3b945
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 19:00:41 2009 -0700
+
+    Rename pGC to gc.
+
+commit fdcfeb822d15cbfe6fccceab002b75458dca3264
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 18:57:22 2009 -0700
+
+    Rename pDraw to plain old drawable.
+
+commit 7bbf4ac7137ed0e4ec0a75806a396c12f102e779
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 18:50:54 2009 -0700
+
+    Rename the xv pPriv to adaptor_priv to reflect whose private it is.
+
+commit f309d475241260cf60567100511d5f7c6c487a29
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 18:38:53 2009 -0700
+
+    Call pPixmaps plain old pixmaps.
+
+commit da0f6616ad63f1581cf91a98104e5287aa44e7ce
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 18:37:05 2009 -0700
+
+    de-pCamelHungarian the Render pictures and pixmaps.
+
+commit 050a141b7bc94b459061615124b7686a9c331e01
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 18:30:57 2009 -0700
+
+    Share several render fields between render implementations.
+    
+    Also, start settling on the cairo naming for things: source, mask, and dest.
+
+commit af27a3a0a5645c6f41f583611bd0f2559dc7cb2f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 18:24:50 2009 -0700
+
+    Rename the xf86 screen private from pScrn to scrn.
+
+commit cc5d3ba3c331c3b1becf2d19277b24144bf34cfa
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 18:02:38 2009 -0700
+
+    Rename the screen private from I830Ptr pI830 to intel_screen_private *intel.
+    
+    This is the beginning of the campaign to remove some of the absurd use of
+    Hungarian in the driver.  Not that I don't like Hungarian, but I don't need
+    to know that pI830 is a pPointer.
+
+commit 03e8e64f8669263e3cecb79ea57d5a26c0eaee3f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 7 22:15:37 2009 +0100
+
+    Complete the removal of UMS build support
+    
+    Eric missed removing the now dead references to the deleted subdirectories
+    in configure.ac with commit b9b159c
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5e44a0fa4209523bee56f513a2029869f96a710a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 18:08:51 2009 -0700
+
+    Remove more dead UMS code.
+
+commit 6a716a25abc84f1c7f766fd3bfa1c2aac91e6ae7
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 17:58:32 2009 -0700
+
+    Remove the reg_dumper code, now that it's been moved to intel_gpu_tools.
+
+commit e9aff787a55d684e3b9c6d5ea8ac2926be952280
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 17:53:59 2009 -0700
+
+    Remove the stepping debug app, replaced by version in intel_gpu_tools.
+
+commit 71b9cdaa86bb9d3deb44f32f47771c33898253c2
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 17:53:21 2009 -0700
+
+    Trim down the hotplug debug app.
+
+commit e95eb483e210def0814bc61fc36d672145da7dff
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 17:51:09 2009 -0700
+
+    Remove intel_idle, replaced by intel_gpu_top in intel_gpu_tools.
+
+commit 8ae0e44e42db645abe6d385f561260d2ae4a1960
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Oct 6 16:30:08 2009 -0700
+
+    Move to kernel coding style.
+    
+    We've talked about doing this since the start of the project, putting it off
+    until "some convenient time".  Just after removing a third of the driver seems
+    like a convenient time, when backporting's probably not happening much anyway.
+
+commit b9b159c49854d8d9d2207946bb583537bb0d48d6
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Sep 30 16:29:53 2009 -0700
+
+    Remove UMS support.
+    
+    At this point, the only remaining feature regressions should be the lack of
+    overlay support (about to land), and the need to update the XVMC code to work
+    in the presence of KMS.
+    
+    Acked-by: Keith Packard <keithp@keithp.com> (in principle)
+    Acked-by: Carl Worth <cworth@cworth.org> (in principle)
+
+commit d26f4c493721dbb2e2cbf4efcf8d37228d1b1f3b
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 5 13:31:31 2009 -0700
+
+    Remove UMS overlay support.
+    
+    The replacement code is now landed, and the rest of UMS is about to disappear.
+
+commit 33c488e83676d26e69145ea615f75ca52768f400
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 5 10:38:05 2009 -0700
+
+    Remove error state dumping code.
+    
+    This is replaced by intel_gpu_dump, and would no longer be used once UMS is
+    gone.
+
+commit 2370af32fe31bed8e5715639023635bdb3b83b1b
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:47 2009 +0200
+
+    Implement drmmode overlay
+    
+    This does not restore the overlay on EnterVT/disable it on LeaveVT.
+    Does not look like this is necessary.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    [anholt: Hacked in avoiding the actual kernel calls with
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 99230864050ea2f26c2412c4c87c50947fc3cbe1
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:46 2009 +0200
+
+    Xv: introduce an overlay hal
+    
+    This is the last preparatory step for overlay support with drmmode.
+    Safe two (specially marked) function calls in the setup code, all
+    hw accessing code goes now through these three new functions with
+    the ums_overlay prefix.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit bb04e184fdc55325a362ebf291e16a7c112a5f1d
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:45 2009 +0200
+
+    Xv: rework overlay buffer management
+    
+    The basic idea is to only pin the buffer into the gtt when
+    the overlay hw is actually using it. This results in a few changes:
+    
+    - Unify data copied/buffer handling with textured video. Now offsets
+      are always buffer relative and we just use drm_bo_map to access a
+      buffer.
+    - Implement double buffering using two bo's. This is necessary because
+      we can't pin the same buffer to the gtt and map it as normal memory.
+    - Kill XV_DOUBLE_BUFFER. With the above changes, overlay video is always
+      doubel buffered.
+    
+    There is still the XvMC passthrough case, which makes the code slightly
+    ugly. Unfortunately we can't get at the bo behind this buffer.
+    
+    Changes since the last review-round:
+    - Don't overallocate by a factor of 2.
+    - Prevent possible use-after-free issue.
+    
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 60462eb5b5c1931beecc1ed2d32f91090f64174c
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:44 2009 +0200
+
+    Xv: create xvmc_passthrough helper
+    
+    This way all thes strange special cases make much more sense.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 71276dff9415322f75792a46c1a1cc0b900588b9
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:43 2009 +0200
+
+    Xv: scrap overlay offscreen pixmap support
+    
+    The code looks like it's been bitrotting since being copied over
+    from the i810 driver. Furthermore painting rgb pixmaps with the overlay
+    engine is in these days of modern compositing X an absolute no-go. And
+    textured video doesn't support it neither, so its likely never ever
+    used by applications.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 99afdf985fa9f763fda4bc49ccd8111960a4ae0f
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:42 2009 +0200
+
+    Xv: small cleanups in I830PutImage
+    
+    - scrap unused variable overlay
+    - scrap an superflous if and attach the code to the preceeding else
+    - tiny layout fix.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit d598456f1fe013c250530730c57ad720d38cde3a
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:41 2009 +0200
+
+    Xv I830PutImage splitup: extract i830_wait_for scanline
+    
+    Also scrap the unecessary variable sync in I830PutImage and the
+    accompanying obfuscated logic.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 2ba03fa78197d1cb10d6401ad02cfe9edd2623b3
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:40 2009 +0200
+
+    Xv I830PutImage splitup: extract i830_copy_video_data
+    
+    Just moves the code and passes back allocation failures.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 81fc74cc4ce81b9be8b9ba3bcacf1284c47ce80c
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:39 2009 +0200
+
+    Xv I830PutImage splitup: extract i830_setup_video_buffer
+    
+    Just move the code and pass back allocation failures.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 0bf4cc5130482ee0f3924f34e37fa5fc988119b3
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:38 2009 +0200
+
+    Xv I830PutImage splitup: extract i830_dst_pitch_and_size
+    
+    Just moves the code.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit c20ef591931b5efc5745d00c06f296c89cf32745
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:37 2009 +0200
+
+    Xv: kill destId in I830PutImage
+    
+    It's only used to remember that XvMC has ỲV12 as output. is_planar_fourcc
+    already takes care of that in all necessary cases.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 5ce944994d57176d0ddf6f6d7c7779fdfcf39cb8
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:36 2009 +0200
+
+    Xv: kill hw double buffering logic
+    
+    The idea for the hw double buffering support is to program two fixed
+    buffers and then only switch buffers in the OCMD register. But the driver
+    as-is always programs the new buffer address (in both register sets
+    when double buffered). Therefore we gain nothing by using this hw
+    capability. Scrap the software support for it.
+    
+    When double buffered, we now allocate just a buffer of size 2*size and
+    switch between the two parts purely in software.
+    
+    To make reviewing this easier, I'll shortly explain the differences of how
+    double-buffering (i.e. tear-free video) is achieved before and after this
+    change:
+    
+    - When double buffer, allocate a buffer twice the size (unchanged).
+    - Depending upon the currently shown buffer-half, copy the new frame into
+      the other buffer-half. In the old code this is done by using the right
+      set of buffer offsets, either *Buf0Offset or *Buf1Offset. The new code
+      simply programs the offset for the right buffer-half into the single set
+      of offsets. The end-result is unchanged.
+    
+    Now the big difference in hw-programming:
+    
+    Old: Programm new buffer offset into both sets of _hw_ buffer offset
+    registers. Depending upon the current _sw_ buffer, select the _hw_ buffer
+    and program this into the OCMD register. This just complicates matters
+    unnecessarly.
+    
+    New: Just always use the hw buffer 0.
+    
+    And then it's again the same story in both old and new code:
+    
+    - Execute an overlay flip (MI_OVERLAY_FLIP) to read in the contents of the
+      hw registers into the shadow hw registers (which are actually being used
+      by the overlay, not the ones we write stuff into). This is synchronized
+      with the respective crtc vblank by the hw.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 232418d72ee967a81e39481b9f2ee379cb685458
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:35 2009 +0200
+
+    Xv: use is_planar_fourcc helper some more
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 219b14310efe49aff5d3d9023d2ba440c9f702c1
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:34 2009 +0200
+
+    Xv: introduce planar memcpy helper
+    
+    Reduced 3 copies of the same code to one.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit b90171f16652d1145fb80a63919f76a804a94cef
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:33 2009 +0200
+
+    Xv: rename i830_display_video to i830_display_overlay
+    
+    This function only programs the overlay and is never called for textured
+    video. Make this obvious.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 857e40a6e00db72401717da3ed79edbf65db31d4
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:32 2009 +0200
+
+    Xv i830_display_video splitup: extract i830_overlay_cmd
+    
+    This slightly moves around (and simplifies) the OSTRIDE reg programming,
+    too.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
+
+commit 50d70e644ea0574752d0fe160ce8d873653c913b
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Aug 11 16:06:31 2009 +0200
+
+    Xv i830_display_video splitup: extract i830_calc_src_regs
+    
+    Also introduce an is_planar_fourcc helper. I'll use that one later.
+    
+    In i830_display_video this changeset moves the XVMC case (previously
+    obscured as the default case) around. I've figured this default case
+    does not make sense, here's why:
+    
+    XvMC is everywhere else handled as a planar format (e.g. in the register
+    programming a few lines down). Furthermore the id variable gets mapped
+    to FOURCC_YV12 if IS_I915(pI830) is true in I830PutImage. There's a
+    second caller in the offscreen overlay support code.  But I think that
+    code is bitrotten and not reliable as an information source.
+    
+    So we have a different behaviour only for id=FOURCC_XVMC and i965 class
+    hw (i830 class doesn't have xvmc). I've crawled through various
+    sources/intel documentations. Finally in the textured video implemention
+    for i965 class hw (src/i965_video.c) I've found a switch statement that
+    puts XVMC into the same case as I420 and YV12. So also in i965 class hw
+    xvmc uses a planar format.
+    
+    In conclusion I claim that this code was bogus and XvMC on i965 class hw
+    over Xv overlay was most likely broken.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Signed-off-by: Eric Anholt <eric@anholt.net>
 
 commit 2841a4cd8c6c64fdf4b2203ab73b57b38a50f651
 Author: Carl Worth <cworth@cworth.org>

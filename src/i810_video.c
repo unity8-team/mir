@@ -1085,7 +1085,7 @@ I810PutImage(
     if(!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes)) {
 	REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
 	/* draw these */
-	xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
+	xf86XVFillKeyHelperDrawable(pDraw, pPriv->colorKey, clipBoxes);
     }
 
     I810DisplayVideo(pScrn, id, width, height, dstPitch, 
@@ -1206,7 +1206,7 @@ I810AllocateSurface(
     XF86SurfacePtr surface
 ){
     FBLinearPtr linear;
-    int pitch, fbpitch, size, bpp;
+    int pitch, size, bpp;
     OffscreenPrivPtr pPriv;
     I810Ptr pI810 = I810PTR(pScrn);
 
@@ -1216,7 +1216,6 @@ I810AllocateSurface(
     w = (w + 1) & ~1;
     pitch = ((w << 1) + 15) & ~15;
     bpp = pScrn->bitsPerPixel >> 3;
-    fbpitch = bpp * pScrn->displayWidth;
     size = ((pitch * h) + bpp - 1) / bpp;
 
     if(!(linear = I810AllocateMemory(pScrn, NULL, size)))
