@@ -70,7 +70,7 @@ def get_dump_signature(text):
     m = hashlib.md5()
     m.update(text)
     errmsg = m.hexdigest()[:8]
-    for k in ["PGTBL_ER", "ESR"]:
+    for k in ["EIR", "PGTBL_ER"]:
         regex = re.compile(k+": 0x(\d+)")
         match = regex.search(text)
         if match and match.group(1) != "00000000":
@@ -99,13 +99,15 @@ def main(argv=None):
     report['Tags'] += ' freeze'
     report['Lspci'] = command_output(['lspci', '-vvnn'])
     report['IntelGpuDump'] = command_output(['intel_gpu_dump'])
-    report['DumpSignature'] = get_dump_signature(report['IntelGpuDump'])
-    report['Chipset'] = get_pci_device(report['Lspci'])
-    if report['Chipset']:
+    chipset = get_pci_device(report['Lspci'])
+    if chipset:
+        report['Chipset'] = chipset
         report['Title'] = "[%s] GPU lockup" %(report['Chipset'])
-    if report['DumpSignature']:
+    dump_signature = get_dump_signature(report['IntelGpuDump'])
+    if dump_signature:
+        report['DumpSignature'] = dump_signature
         report['Title'] += " " + report['DumpSignature']
-    if report['MachineType']:
+    if 'MachineType' in report and report['MachineType']:
         report['Title'] += " on " + report['MachineType']
 
     attach_hardware(report)
