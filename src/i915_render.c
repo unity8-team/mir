@@ -504,7 +504,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	tex_count += ! is_solid_src;
 	tex_count += mask && ! is_solid_mask;
 
-	t = 16;
+	t = 15;
 	if (tex_count)
 	    t += 6 * tex_count + 4;
 	if (is_solid_src)
