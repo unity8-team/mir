@@ -362,12 +362,67 @@ static Bool radeon_alloc_dri(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    struct pci_device *dev = info->PciInfo;
+    char *busid;
+    drmSetVersion sv;
+    int err;
+
+    if (pRADEONEnt->fd) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   " reusing fd for second head\n");
+
+	info->dri2.drm_fd = pRADEONEnt->fd;
+	goto out;
+    }
+
+    busid = XNFprintf("pci:%04x:%02x:%02x.%d",
+		      dev->domain, dev->bus, dev->dev, dev->func);
+
+    info->dri2.drm_fd = drmOpen("radeon", busid);
+    if (info->dri2.drm_fd == -1) {
+
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "[drm] Failed to open DRM device for %s: %s\n",
+		   busid, strerror(errno));
+	xfree(busid);
+	return FALSE;
+    }
+    xfree(busid);
+
+    /* Check that what we opened was a master or a master-capable FD,
+     * by setting the version of the interface we'll use to talk to it.
+     * (see DRIOpenDRMMaster() in DRI1)
+     */
+    sv.drm_di_major = 1;
+    sv.drm_di_minor = 1;
+    sv.drm_dd_major = -1;
+    sv.drm_dd_minor = -1;
+    err = drmSetInterfaceVersion(info->dri2.drm_fd, &sv);
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "[drm] failed to set drm interface version.\n");
+	drmClose(info->dri2.drm_fd);
+	info->dri2.drm_fd = -1;
+
+	return FALSE;
+    }
+
+    pRADEONEnt->fd = info->dri2.drm_fd;
+ out:
+    info->drmmode.fd = info->dri2.drm_fd;
+    info->dri->drmFD = info->dri2.drm_fd;
+    return TRUE;
+}
+
 Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 {
     RADEONInfoPtr     info;
     RADEONEntPtr pRADEONEnt;
     DevUnion* pPriv;
-    char *bus_id;
     Gamma  zeros = { 0.0, 0.0, 0.0 };
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -434,17 +489,16 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
 
-    bus_id = DRICreatePCIBusID(info->PciInfo);
-    if (drmmode_pre_init(pScrn, &info->drmmode, bus_id, "radeon", pScrn->bitsPerPixel / 8) == FALSE) {
-	xfree(bus_id);
+    if (radeon_open_drm_master(pScrn) == FALSE) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
+	goto fail;
+    }
+    if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
 	goto fail;
     }
 
-    info->dri->drmFD = info->drmmode.fd;
-    info->dri2.drm_fd = info->drmmode.fd;
     info->dri2.enabled = FALSE;
-    xfree(bus_id);
     info->dri->pKernelDRMVersion = drmGetVersion(info->dri->drmFD);
     if (info->dri->pKernelDRMVersion == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

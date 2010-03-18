@@ -1151,31 +1151,11 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 };
 
 
-Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId, char *driver_name, int cpp)
+Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 {
 	xf86CrtcConfigPtr   xf86_config;
-	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	int i;
-	Bool ret;
 
-	/* Create a bus Id */
-	/* Low level DRM open */
-	if (!pRADEONEnt->fd) {
-		ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, busId, driver_name);
-		if (!ret) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "[dri] DRIGetVersion failed to open the DRM\n"
-				   "[dri] Disabling DRI.\n");
-			return FALSE;
-		}
-
-		drmmode->fd = DRIMasterFD(pScrn);
-		pRADEONEnt->fd = drmmode->fd;
-	} else {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				" reusing fd for second head\n");
-		drmmode->fd = pRADEONEnt->fd;
-	}
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
 	xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
