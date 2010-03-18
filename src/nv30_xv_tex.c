@@ -143,11 +143,11 @@ NV30VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 		card_swz = SWIZZLE(S1, S1, S1, S1, X, Y, Z, W);
 		break;
 		case 1:
-		card_fmt = NV34TCL_TX_FORMAT_FORMAT_A8_RECT2;
+		card_fmt = NV34TCL_TX_FORMAT_FORMAT_A8_RECT;
 		card_swz = SWIZZLE(S1, S1, S1, S1, X, X, X, X);
 		break;
 		case 2:
-		card_fmt = NV34TCL_TX_FORMAT_FORMAT_L8A8_RECT;
+		card_fmt = NV34TCL_TX_FORMAT_FORMAT_A8L8_RECT;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 		card_swz = SWIZZLE(S1, S1, S1, S1, Z, W, X, Y); /* x = V, y = U */
 #else
