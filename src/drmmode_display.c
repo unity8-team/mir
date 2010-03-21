@@ -1435,3 +1435,12 @@ void drmmode_closefb(ScrnInfoPtr scrn)
 	drmModeRmFB(drmmode->fd, drmmode->fb_id);
 	drmmode->fb_id = 0;
 }
+
+/* for the drmmode overlay */
+int
+drmmode_crtc_id(xf86CrtcPtr crtc)
+{
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	return drmmode_crtc->mode_crtc->crtc_id;
+}

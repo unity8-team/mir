@@ -28,22 +28,15 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86_OSproc.h"
 
 typedef struct {
-   uint32_t YBuf0offset;
-   uint32_t UBuf0offset;
-   uint32_t VBuf0offset;
-
-   uint32_t YBuf1offset;
-   uint32_t UBuf1offset;
-   uint32_t VBuf1offset;
-
-   unsigned char currentBuf;
+   uint32_t YBufOffset;
+   uint32_t UBufOffset;
+   uint32_t VBufOffset;
 
    int brightness;
    int contrast;
    int saturation;
    xf86CrtcPtr current_crtc;
    xf86CrtcPtr desired_crtc;
-   int doubleBuffer;
 
    RegionRec clip;
    uint32_t colorKey;
@@ -58,7 +51,10 @@ typedef struct {
    uint32_t videoStatus;
    Time offTime;
    Time freeTime;
-   drm_intel_bo *buf; /** YUV data buffer */
+   /** YUV data buffers */
+   drm_intel_bo *buf; /* current buffer to draw into */
+   drm_intel_bo *oldBuf; /* old buffer, may be in use by the overlay hw */
+   Bool oldBuf_pinned; /* only actually pinned when in use by the overlay hw */
 
    Bool overlayOK;
    int oneLineMode;
@@ -91,3 +87,5 @@ void I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 void I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 			   pointer pReadmask);
 void i965_free_video(ScrnInfoPtr scrn);
+
+int is_planar_fourcc(int id);

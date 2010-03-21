@@ -997,37 +997,18 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     ErrorF ("INST_PM 0x%08x\n", INREG(INST_PM));
 #endif
 
-    src_surf_base[0] = pPriv->YBuf0offset;
-    src_surf_base[1] = pPriv->YBuf0offset;
-    src_surf_base[2] = pPriv->VBuf0offset;
-    src_surf_base[3] = pPriv->VBuf0offset;
-    src_surf_base[4] = pPriv->UBuf0offset;
-    src_surf_base[5] = pPriv->UBuf0offset;
+    src_surf_base[0] = pPriv->YBufOffset;
+    src_surf_base[1] = pPriv->YBufOffset;
+    src_surf_base[2] = pPriv->VBufOffset;
+    src_surf_base[3] = pPriv->VBufOffset;
+    src_surf_base[4] = pPriv->UBufOffset;
+    src_surf_base[5] = pPriv->UBufOffset;
 #if 0
     ErrorF ("base 0 0x%x base 1 0x%x base 2 0x%x\n",
 	    src_surf_base[0], src_surf_base[1], src_surf_base[2]);
 #endif
     
-    switch (id) {
-    case FOURCC_UYVY:
-	src_surf_format = BRW_SURFACEFORMAT_YCRCB_SWAPY;
-	n_src_surf = 1;
-	src_width[0] = width;
-	src_height[0] = height;
-	src_pitch[0] = video_pitch;
-	break;
-    case FOURCC_YUY2:
-	src_surf_format = BRW_SURFACEFORMAT_YCRCB_NORMAL;
-	src_width[0] = width;
-	src_height[0] = height;
-	src_pitch[0] = video_pitch;
-	n_src_surf = 1;
-	break;
-#ifdef INTEL_XVMC
-    case FOURCC_XVMC:
-#endif
-    case FOURCC_I420:
-    case FOURCC_YV12:
+    if (is_planar_fourcc(id)) {
 	src_surf_format = BRW_SURFACEFORMAT_R8_UNORM;
 	src_width[1] = src_width[0] = width;
 	src_height[1] = src_height[0] = height;
@@ -1036,10 +1017,17 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	src_height[4] = src_height[5] = src_height[2] = src_height[3] = height / 2;
 	src_pitch[4] = src_pitch[5] = src_pitch[2] = src_pitch[3] = video_pitch;
 	n_src_surf = 6;
-	break;
-    default:
-	return;
-    }    
+    } else {
+	if (id == FOURCC_UYVY)
+	    src_surf_format = BRW_SURFACEFORMAT_YCRCB_SWAPY;
+	else
+	    src_surf_format = BRW_SURFACEFORMAT_YCRCB_NORMAL;
+
+	src_width[0] = width;
+	src_height[0] = height;
+	src_pitch[0] = video_pitch;
+	n_src_surf = 1;
+    }
 
 #if 0
     ErrorF("dst surf:      0x%08x\n", state_base_offset + dest_surf_offset);

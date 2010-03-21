@@ -388,7 +388,7 @@ typedef struct _I830Rec {
 
    /* For Xvideo */
    i830_memory *overlay_regs;
-   void *offscreenImages;          /**< remembered memory block for release */
+   Bool use_drmmode_overlay;
 #ifdef INTEL_XVMC
    /* For XvMC */
    Bool XvMCEnabled;
@@ -694,6 +694,7 @@ extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
 extern void drmmode_closefb(ScrnInfoPtr scrn);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
+extern int drmmode_crtc_id(xf86CrtcPtr crtc);
 void
 drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo *cursor);
 
