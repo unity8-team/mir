@@ -817,6 +817,7 @@ drmmode_output_destroy(xf86OutputPtr output)
 	}
 	xfree(drmmode_output->props);
 	drmModeFreeConnector(drmmode_output->mode_output);
+	drmmode_output->mode_output = NULL;
 	if (drmmode_output->private_data) {
 		xfree(drmmode_output->private_data);
 		drmmode_output->private_data = NULL;
