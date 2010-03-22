@@ -207,7 +207,8 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	radeon_cs_space_reset_bos(info->cs);
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
 					  RADEON_GEM_DOMAIN_VRAM, 0);
-	radeon_add_pixmap(info->cs, pPix, 0, RADEON_GEM_DOMAIN_VRAM);
+	accel_state->dst_domain = RADEON_GEM_DOMAIN_VRAM;
+	radeon_add_pixmap(info->cs, pPix, 0, accel_state->dst_domain);
 	r = radeon_cs_space_check(info->cs);
 	if (r)
 	    RADEON_FALLBACK(("Not enough RAM to hw accel solid operation\n"));
@@ -324,7 +325,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf, RADEON_GEM_DOMAIN_VRAM);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_domain);
 
     /* Interpolator setup */
     /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
@@ -429,8 +430,10 @@ static void
 R600DoPrepareCopy(ScrnInfoPtr pScrn,
 		  int src_pitch, int src_width, int src_height,
 		  uint32_t src_offset, struct radeon_bo *src_bo, int src_bpp,
+		  uint32_t src_domain,
 		  int dst_pitch, int dst_width, int dst_height,
 		  uint32_t dst_offset, struct radeon_bo *dst_bo, int dst_bpp,
+		  uint32_t dst_domain,
 		  int rop, Pixel planemask)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -454,6 +457,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     accel_state->src_height[0] = src_height;
     accel_state->src_bpp[0] = src_bpp;
     accel_state->src_bo[0] = src_bo;
+    accel_state->src_domain[0] = src_domain;
     accel_state->src_bo[1] = NULL;
 
     accel_state->dst_size = dst_pitch * dst_height * (dst_bpp/8);
@@ -462,6 +466,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     accel_state->dst_height = dst_height;
     accel_state->dst_bpp = dst_bpp;
     accel_state->dst_bo = dst_bo;
+    accel_state->dst_domain = dst_domain;
 
     radeon_vbo_check(pScrn, 16);
     r600_cp_start(pScrn);
@@ -517,7 +522,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     /* flush texture cache */
     cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			accel_state->src_size[0], accel_state->src_mc_addr[0],
-			accel_state->src_bo[0], RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
+			accel_state->src_bo[0], accel_state->src_domain[0], 0);
 
     /* Texture */
     tex_res.id                  = 0;
@@ -554,7 +559,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
-    set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
+    set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_domain[0]);
 
     tex_samp.id                 = 0;
     tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
@@ -598,7 +603,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_domain);
 
     /* Interpolator setup */
     /* export tex coord from VS */
@@ -735,8 +740,10 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	radeon_cs_space_reset_bos(info->cs);
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
 					  RADEON_GEM_DOMAIN_VRAM, 0);
-	radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+	accel_state->src_domain[0] = RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM;
+	radeon_add_pixmap(info->cs, pSrc, accel_state->src_domain[0], 0);
+	accel_state->dst_domain = RADEON_GEM_DOMAIN_VRAM;
+	radeon_add_pixmap(info->cs, pDst, 0, accel_state->dst_domain);
 	ret = radeon_cs_space_check(info->cs);
 	if (ret)
 	    RADEON_FALLBACK(("Not enough RAM to hw accel copy operation\n"));
@@ -791,8 +798,10 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	R600DoPrepareCopy(pScrn,
 			  accel_state->src_pitch[0], pSrc->drawable.width, pSrc->drawable.height,
 			  accel_state->src_mc_addr[0], accel_state->src_bo[0], pSrc->drawable.bitsPerPixel,
+			  accel_state->src_domain[0],
 			  accel_state->dst_pitch, pDst->drawable.width, pDst->drawable.height,
 			  accel_state->dst_mc_addr, accel_state->dst_bo, pDst->drawable.bitsPerPixel,
+			  accel_state->dst_domain,
 			  rop, planemask);
 
     if (accel_state->vsync)
@@ -853,8 +862,10 @@ R600OverlapCopy(PixmapPtr pDst,
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->src_domain[0],
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->dst_domain,
                                       accel_state->rop, accel_state->planemask);
                     R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, vchunk);
                     R600DoCopyVline(pDst);
@@ -865,8 +876,10 @@ R600OverlapCopy(PixmapPtr pDst,
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->src_domain[0],
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->dst_domain,
                                       accel_state->rop, accel_state->planemask);
                     R600AppendCopyVertex(pScrn, srcX, srcY + h - vchunk, dstX, dstY + h - vchunk, w, vchunk);
                     R600DoCopyVline(pDst);
@@ -878,8 +891,10 @@ R600OverlapCopy(PixmapPtr pDst,
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->src_domain[0],
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->dst_domain,
                                       accel_state->rop, accel_state->planemask);
                     R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, hchunk, h);
                     R600DoCopyVline(pDst);
@@ -890,8 +905,10 @@ R600OverlapCopy(PixmapPtr pDst,
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->src_domain[0],
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->dst_domain,
                                       accel_state->rop, accel_state->planemask);
                     R600AppendCopyVertex(pScrn, srcX + w - hchunk, srcY, dstX + w - hchunk, dstY, hchunk, h);
                     R600DoCopyVline(pDst);
@@ -908,8 +925,10 @@ R600OverlapCopy(PixmapPtr pDst,
 		    R600DoPrepareCopy(pScrn,
 				      dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->src_domain[0],
 				      dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->dst_domain,
 				      accel_state->rop, accel_state->planemask);
 		    R600AppendCopyVertex(pScrn, srcX + i - hchunk, srcY, dstX + i - hchunk, dstY, hchunk, h);
 		    R600DoCopyVline(pDst);
@@ -920,8 +939,10 @@ R600OverlapCopy(PixmapPtr pDst,
 		    R600DoPrepareCopy(pScrn,
 				      dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->src_domain[0],
 				      dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->dst_domain,
 				      accel_state->rop, accel_state->planemask);
 
 		    R600AppendCopyVertex(pScrn, srcX + i, srcY, dstX + i, dstY, hchunk, h);
@@ -935,8 +956,10 @@ R600OverlapCopy(PixmapPtr pDst,
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->src_domain[0],
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->dst_domain,
                                       accel_state->rop, accel_state->planemask);
 
                     if (vchunk > h - i) vchunk = h - i;
@@ -949,8 +972,10 @@ R600OverlapCopy(PixmapPtr pDst,
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->src_domain[0],
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height,
 				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+				      accel_state->dst_domain,
                                       accel_state->rop, accel_state->planemask);
 
                     if (vchunk > i) vchunk = i;
@@ -963,8 +988,10 @@ R600OverlapCopy(PixmapPtr pDst,
 	R600DoPrepareCopy(pScrn,
 			  dst_pitch, pDst->drawable.width, pDst->drawable.height,
 			  dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+			  accel_state->src_domain[0],
 			  dst_pitch, pDst->drawable.width, pDst->drawable.height,
 			  dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
+			  accel_state->dst_domain,
 			  accel_state->rop, accel_state->planemask);
 
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
@@ -1014,16 +1041,20 @@ R600Copy(PixmapPtr pDst,
 	    R600DoPrepareCopy(pScrn,
 			      pitch, pDst->drawable.width, pDst->drawable.height,
 			      orig_offset, bo, pDst->drawable.bitsPerPixel,
+			      accel_state->src_domain[0],
 			      pitch, pDst->drawable.width, pDst->drawable.height,
 			      tmp_offset, accel_state->copy_area_bo, pDst->drawable.bitsPerPixel,
+			      RADEON_GEM_DOMAIN_VRAM,
 			      accel_state->rop, accel_state->planemask);
 	    R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 	    R600DoCopy(pScrn);
 	    R600DoPrepareCopy(pScrn,
 			      pitch, pDst->drawable.width, pDst->drawable.height,
 			      tmp_offset, accel_state->copy_area_bo, pDst->drawable.bitsPerPixel,
+			      RADEON_GEM_DOMAIN_VRAM,
 			      pitch, pDst->drawable.width, pDst->drawable.height,
 			      orig_offset, bo, pDst->drawable.bitsPerPixel,
+			      accel_state->dst_domain,
 			      accel_state->rop, accel_state->planemask);
 	    R600AppendCopyVertex(pScrn, dstX, dstY, dstX, dstY, w, h);
 	    R600DoCopyVline(pDst);
@@ -1043,8 +1074,10 @@ R600Copy(PixmapPtr pDst,
 	R600DoPrepareCopy(pScrn,
 			  pitch, pDst->drawable.width, pDst->drawable.height,
 			  offset, bo, pDst->drawable.bitsPerPixel,
+			  accel_state->src_domain[0],
 			  pitch, pDst->drawable.width, pDst->drawable.height,
 			  offset, bo, pDst->drawable.bitsPerPixel,
+			  accel_state->dst_domain,
 			  accel_state->rop, accel_state->planemask);
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 	R600DoCopyVline(pDst);
@@ -1281,7 +1314,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     /* flush texture cache */
     cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			accel_state->src_size[unit], accel_state->src_mc_addr[unit],
-			accel_state->src_bo[unit], RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT, 0);
+			accel_state->src_bo[unit], accel_state->src_domain[unit], 0);
 
     /* Texture */
     tex_res.id                  = unit;
@@ -1414,7 +1447,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
-    set_tex_resource            (pScrn, accel_state->ib, &tex_res, RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT);
+    set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_domain[unit]);
 
     tex_samp.id                 = unit;
     tex_samp.border_color       = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
@@ -1618,11 +1651,16 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	radeon_cs_space_reset_bos(info->cs);
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
 					  RADEON_GEM_DOMAIN_VRAM, 0);
+
+	accel_state->src_domain[0] = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
 	radeon_add_pixmap(info->cs, pSrc,
-			  RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-	if (pMask)
-	    radeon_add_pixmap(info->cs, pMask, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-	radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
+			  accel_state->src_domain[0], 0);
+	if (pMask) {
+	    accel_state->src_domain[1] = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
+	    radeon_add_pixmap(info->cs, pMask, accel_state->src_domain[1], 0);
+	}
+	accel_state->dst_domain = RADEON_GEM_DOMAIN_VRAM;
+	radeon_add_pixmap(info->cs, pDst, 0, accel_state->dst_domain);
 	ret = radeon_cs_space_check(info->cs);
 	if (ret)
 	    RADEON_FALLBACK(("Not enough RAM to hw accel composite operation\n"));
@@ -1782,7 +1820,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf, RADEON_GEM_DOMAIN_VRAM);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_domain);
 
     /* Interpolator setup */
     BEGIN_BATCH(21);
@@ -1966,8 +2004,10 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
 	R600DoPrepareCopy(pScrn,
 			  scratch_pitch, w, oldhpass,
 			  offset, bo, bpp,
+			  RADEON_GEM_DOMAIN_GTT,
 			  dst_pitch, dst_width, dst_height,
 			  dst_mc_addr, bo, bpp,
+			  RADEON_GEM_DOMAIN_VRAM,
 			  3, 0xffffffff);
 	R600AppendCopyVertex(pScrn, 0, 0, x, y, w, oldhpass);
 	R600DoCopy(pScrn);
@@ -2035,8 +2075,10 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     R600DoPrepareCopy(pScrn,
 		      src_pitch, src_width, src_height,
 		      src_mc_addr, bo, bpp,
+		      RADEON_GEM_DOMAIN_VRAM,
 		      scratch_pitch, src_width, hpass,
 		      scratch_mc_addr, bo, bpp,
+		      RADEON_GEM_DOMAIN_GTT,
 		      3, 0xffffffff);
     R600AppendCopyVertex(pScrn, x, y, 0, 0, w, hpass);
     R600DoCopy(pScrn);
@@ -2054,8 +2096,10 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 	    R600DoPrepareCopy(pScrn,
 			      src_pitch, src_width, src_height,
 			      src_mc_addr, bo, bpp,
+			      RADEON_GEM_DOMAIN_VRAM,
 			      scratch_pitch, src_width, hpass,
 			      scratch_mc_addr + scratch_offset, bo, bpp,
+			      RADEON_GEM_DOMAIN_GTT,
 			      3, 0xffffffff);
 	    R600AppendCopyVertex(pScrn, x, y, 0, 0, w, hpass);
 	    R600DoCopy(pScrn);
@@ -2086,6 +2130,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
     struct radeon_exa_pixmap_priv *driver_priv;
     struct radeon_bo *scratch;
     unsigned size;
@@ -2115,8 +2160,10 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     radeon_cs_space_reset_bos(info->cs);
     radeon_cs_space_add_persistent_bo(info->cs, info->accel_state->shaders_bo,
 				      RADEON_GEM_DOMAIN_VRAM, 0);
-    radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
-    radeon_cs_space_add_persistent_bo(info->cs, scratch, RADEON_GEM_DOMAIN_GTT, 0);
+    accel_state->src_domain[0] = RADEON_GEM_DOMAIN_VRAM;
+    accel_state->dst_domain = RADEON_GEM_DOMAIN_GTT;
+    radeon_add_pixmap(info->cs, pDst, 0, accel_state->dst_domain);
+    radeon_cs_space_add_persistent_bo(info->cs, scratch, accel_state->src_domain[0], 0);
     r = radeon_cs_space_check(info->cs);
     if (r) {
         r = FALSE;
@@ -2143,8 +2190,10 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     R600DoPrepareCopy(pScrn,
 		      src_pitch_hw, w, h,
 		      0, scratch, bpp,
+		      accel_state->src_domain[0],
 		      dst_pitch_hw, pDst->drawable.width, pDst->drawable.height,
 		      0, radeon_get_pixmap_bo(pDst), bpp,
+		      accel_state->dst_domain,
 		      3, 0xffffffff);
     R600AppendCopyVertex(pScrn, 0, 0, x, y, w, h);
     R600DoCopyVline(pDst);
@@ -2160,6 +2209,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrc->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
     struct radeon_exa_pixmap_priv *driver_priv;
     struct radeon_bo *scratch;
     unsigned size;
@@ -2197,8 +2247,10 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     radeon_cs_space_reset_bos(info->cs);
     radeon_cs_space_add_persistent_bo(info->cs, info->accel_state->shaders_bo,
 				      RADEON_GEM_DOMAIN_VRAM, 0);
-    radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
-    radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, RADEON_GEM_DOMAIN_GTT);
+    accel_state->src_domain[0] = RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM;
+    radeon_add_pixmap(info->cs, pSrc, info->accel_state->src_domain[0], 0);
+    accel_state->dst_domain = RADEON_GEM_DOMAIN_GTT;
+    radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, accel_state->dst_domain);
     r = radeon_cs_space_check(info->cs);
     if (r) {
         r = FALSE;
@@ -2209,8 +2261,10 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     R600DoPrepareCopy(pScrn,
 		      src_pitch_hw, pSrc->drawable.width, pSrc->drawable.height,
 		      0, radeon_get_pixmap_bo(pSrc), bpp,
+		      accel_state->src_domain[0],
 		      dst_pitch_hw, w, h,
 		      0, scratch, bpp,
+		      accel_state->dst_domain,
 		      3, 0xffffffff);
     R600AppendCopyVertex(pScrn, x, y, 0, 0, w, h);
     R600DoCopy(pScrn);
