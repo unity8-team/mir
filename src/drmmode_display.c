@@ -1464,6 +1464,7 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "Kernel page flipping support detected, enabling\n");
 		intel->use_pageflipping = TRUE;
+		drmmode->flip_count = 0;
 		drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
 		drmmode->event_context.vblank_handler = drmmode_vblank_handler;
 		drmmode->event_context.page_flip_handler =
