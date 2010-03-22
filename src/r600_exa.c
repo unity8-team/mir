@@ -463,19 +463,23 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     accel_state->dst_size = dst_pitch * dst_height * (dst_bpp/8);
     accel_state->dst_mc_addr = dst_offset;
     accel_state->dst_pitch = dst_pitch;
+    accel_state->dst_width = dst_width;
     accel_state->dst_height = dst_height;
     accel_state->dst_bpp = dst_bpp;
     accel_state->dst_bo = dst_bo;
     accel_state->dst_domain = dst_domain;
+
+    accel_state->rop = rop;
+    accel_state->planemask = planemask;
 
     radeon_vbo_check(pScrn, 16);
     r600_cp_start(pScrn);
 
     set_default_state(pScrn, accel_state->ib);
 
-    set_generic_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
-    set_screen_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
-    set_window_scissor(pScrn, accel_state->ib, 0, 0, dst_width, dst_height);
+    set_generic_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
+    set_screen_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
+    set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
@@ -573,28 +577,28 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
 
 
     /* Render setup */
-    if (planemask & 0x000000ff)
+    if (accel_state->planemask & 0x000000ff)
 	pmask |= 4; /* B */
-    if (planemask & 0x0000ff00)
+    if (accel_state->planemask & 0x0000ff00)
 	pmask |= 2; /* G */
-    if (planemask & 0x00ff0000)
+    if (accel_state->planemask & 0x00ff0000)
 	pmask |= 1; /* R */
-    if (planemask & 0xff000000)
+    if (accel_state->planemask & 0xff000000)
 	pmask |= 8; /* A */
     BEGIN_BATCH(6);
     EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
-    EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[rop]);
+    EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[accel_state->rop]);
     END_BATCH();
 
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_pitch;
-    cb_conf.h = dst_height;
+    cb_conf.h = accel_state->dst_height;
     cb_conf.base = accel_state->dst_mc_addr;
     cb_conf.bo = accel_state->dst_bo;
-    if (dst_bpp == 8) {
+    if (accel_state->dst_bpp == 8) {
 	cb_conf.format = COLOR_8;
 	cb_conf.comp_swap = 3; /* A */
-    } else if (dst_bpp == 16) {
+    } else if (accel_state->dst_bpp == 16) {
 	cb_conf.format = COLOR_5_6_5;
 	cb_conf.comp_swap = 2; /* RGB */
     } else {

@@ -767,6 +767,7 @@ struct radeon_accel_state {
     uint32_t          dst_size;
     uint64_t          dst_mc_addr;
     uint32_t          dst_pitch;
+    uint32_t          dst_width;
     uint32_t          dst_height;
     uint32_t          dst_bpp;
     uint32_t          dst_domain;
