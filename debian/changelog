@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.9.1-1ubuntu17) lucid; urgency=low
+
+  * debian/apport-gpu-error-intel.py:
+    + Disable freeze hook.  We've got ample bug reports now which should
+      cover the range of bugs people are seeing, and the script is mostly
+      capturing dupes now.  We might re-enable it later once these bugs
+      are sorted out, if we want more data.
+      (LP: #533945)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 23 Mar 2010 16:20:18 -0700
+
 xserver-xorg-video-intel (2:2.9.1-1ubuntu16) lucid; urgency=low
 
   * debian/apport-gpu-error-intel.py:

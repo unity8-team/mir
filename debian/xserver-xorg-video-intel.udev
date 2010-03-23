@@ -6,4 +6,5 @@
 #   initial error has ERROR=1, the pre-reset event has RESET=1 and the
 #   post-reset event has ERROR=0.
 
-SUBSYSTEM=="drm", ACTION=="change", ENV{ERROR}=="1", RUN+="/usr/share/apport/apport-gpu-error-intel.py"
+# Disable freeze hook.
+#SUBSYSTEM=="drm", ACTION=="change", ENV{ERROR}=="1", RUN+="/usr/share/apport/apport-gpu-error-intel.py"
