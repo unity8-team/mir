@@ -328,6 +328,20 @@ int
 r600_cp_start(ScrnInfoPtr pScrn);
 void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size);
 
+Bool
+R600SetAccelState(ScrnInfoPtr pScrn,
+		  int src_pitch0, int src_width0, int src_height0,
+		  uint32_t src_offset0, struct radeon_bo *src_bo0, int src_bpp0,
+		  uint32_t src_domain0,
+		  int src_pitch1, int src_width1, int src_height1,
+		  uint32_t src_offset1, struct radeon_bo *src_bo1, int src_bpp1,
+		  uint32_t src_domain1,
+		  int dst_pitch, int dst_width, int dst_height,
+		  uint32_t dst_offset, struct radeon_bo *dst_bo, int dst_bpp,
+		  uint32_t dst_domain,
+		  uint32_t vs_offset, uint32_t ps_offset,
+		  int rop, Pixel planemask);
+
 extern Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index);
 extern void RADEONFinishAccess_CS(PixmapPtr pPix, int index);
 extern void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align);
