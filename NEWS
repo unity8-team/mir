@@ -1,3 +1,33 @@
+Snapshot 2.10.903 (2010-03-22)
+==============================
+Some notable bug fixes
+----------------------
+* Fix unpredictable results in page-flipping code due to access of an
+  uninitialized variable.
+
+* Two fixes that address a number of long-outstanding failures in the
+  cairo test suite:
+
+    Remove coord-adjust for nearest centre-sampling.
+
+    Fill alpha on xrgb images. Closes:
+
+	Bug 17933 - x8r8g8b8 doesn't sample alpha=0 outside surface bounds
+	http://bugs.freedesktop.org/show_bug.cgi?id=17933
+
+* Fix a regression introduced in 2.10.902:
+
+    Fatal server error:
+    i915_emit_composite_setup: ADVANCE_BATCH:
+    under-used allocation 100/104
+
+	Bug 21723 [i915 bisected] rendering makes X crash
+	http://bugs.freedesktop.org/show_bug.cgi?id=27123
+
+Other minor fixes (avoid trying to print an error message with a freed
+string, set a variable to NULL after freeing), and documentation
+updates are also included.
+
 Snapshot 2.10.902 (2010-03-15)
 ==============================
 Some significant bug fixes

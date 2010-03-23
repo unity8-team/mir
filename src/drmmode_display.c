@@ -817,6 +817,7 @@ drmmode_output_destroy(xf86OutputPtr output)
 	}
 	xfree(drmmode_output->props);
 	drmModeFreeConnector(drmmode_output->mode_output);
+	drmmode_output->mode_output = NULL;
 	if (drmmode_output->private_data) {
 		xfree(drmmode_output->private_data);
 		drmmode_output->private_data = NULL;
@@ -1464,6 +1465,7 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "Kernel page flipping support detected, enabling\n");
 		intel->use_pageflipping = TRUE;
+		drmmode->flip_count = 0;
 		drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
 		drmmode->event_context.vblank_handler = drmmode_vblank_handler;
 		drmmode->event_context.page_flip_handler =

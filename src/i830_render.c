@@ -451,16 +451,7 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 	if (!i830_get_dest_format(dest_picture, &intel->render_dest_format))
 		return FALSE;
 
-	intel->dst_coord_adjust = 0;
-	intel->src_coord_adjust = 0;
-	intel->mask_coord_adjust = 0;
-	if (source_picture->filter == PictFilterNearest)
-		intel->src_coord_adjust = 0.375;
-	if (mask != NULL) {
-		intel->mask_coord_adjust = 0;
-		if (mask_picture->filter == PictFilterNearest)
-			intel->mask_coord_adjust = 0.375;
-	} else {
+	if (mask) {
 		intel->transform[1] = NULL;
 		intel->scale_units[1][0] = -1;
 		intel->scale_units[1][1] = -1;
@@ -500,43 +491,23 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 			 * is a8, in which case src.G is what's written, and the other
 			 * channels are ignored.
 			 */
-			if (PICT_FORMAT_A(source_picture->format) != 0) {
-				ablend |= TB0A_ARG1_SEL_TEXEL0;
-				cblend |=
-				    TB0C_ARG1_SEL_TEXEL0 |
-				    TB0C_ARG1_REPLICATE_ALPHA;
-			} else {
-				ablend |= TB0A_ARG1_SEL_ONE;
-				cblend |= TB0C_ARG1_SEL_ONE;
-			}
+			ablend |= TB0A_ARG1_SEL_TEXEL0;
+			cblend |= TB0C_ARG1_SEL_TEXEL0 | TB0C_ARG1_REPLICATE_ALPHA;
 		} else {
-			if (PICT_FORMAT_A(source_picture->format) != 0) {
-				ablend |= TB0A_ARG1_SEL_TEXEL0;
-			} else {
-				ablend |= TB0A_ARG1_SEL_ONE;
-			}
 			if (PICT_FORMAT_RGB(source_picture->format) != 0)
 				cblend |= TB0C_ARG1_SEL_TEXEL0;
 			else
 				cblend |= TB0C_ARG1_SEL_ONE | TB0C_ARG1_INVERT;	/* 0.0 */
+			ablend |= TB0A_ARG1_SEL_TEXEL0;
 		}
 
 		if (mask) {
-			if (dest_picture->format != PICT_a8 &&
-			    (mask_picture->componentAlpha &&
-			     PICT_FORMAT_RGB(mask_picture->format))) {
-				cblend |= TB0C_ARG2_SEL_TEXEL1;
-			} else {
-				if (PICT_FORMAT_A(mask_picture->format) != 0)
-					cblend |= TB0C_ARG2_SEL_TEXEL1 |
-					    TB0C_ARG2_REPLICATE_ALPHA;
-				else
-					cblend |= TB0C_ARG2_SEL_ONE;
-			}
-			if (PICT_FORMAT_A(mask_picture->format) != 0)
-				ablend |= TB0A_ARG2_SEL_TEXEL1;
-			else
-				ablend |= TB0A_ARG2_SEL_ONE;
+			cblend |= TB0C_ARG2_SEL_TEXEL1;
+			if (dest_picture->format == PICT_a8 ||
+			    ! mask_picture->componentAlpha ||
+			    ! PICT_FORMAT_RGB(mask_picture->format))
+				cblend |= TB0C_ARG2_REPLICATE_ALPHA;
+			ablend |= TB0A_ARG2_SEL_TEXEL1;
 		} else {
 			cblend |= TB0C_ARG2_SEL_ONE;
 			ablend |= TB0A_ARG2_SEL_ONE;
@@ -658,8 +629,7 @@ i830_emit_composite_primitive(PixmapPtr dest,
 	per_vertex = 2;		/* dest x/y */
 
 	{
-		float x = srcX + intel->src_coord_adjust;
-		float y = srcY + intel->src_coord_adjust;
+		float x = srcX, y = srcY;
 
 		is_affine_src = i830_transform_is_affine(intel->transform[0]);
 		if (is_affine_src) {
@@ -715,8 +685,7 @@ i830_emit_composite_primitive(PixmapPtr dest,
 	}
 
 	if (intel->render_mask) {
-		float x = maskX + intel->mask_coord_adjust;
-		float y = maskY + intel->mask_coord_adjust;
+		float x = maskX, y = maskY;
 
 		is_affine_mask = i830_transform_is_affine(intel->transform[1]);
 		if (is_affine_mask) {
@@ -776,8 +745,8 @@ i830_emit_composite_primitive(PixmapPtr dest,
 	ATOMIC_BATCH(1 + num_floats);
 
 	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats - 1));
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX + w);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
+	OUT_BATCH_F(dstX + w);
+	OUT_BATCH_F(dstY + h);
 	OUT_BATCH_F(src_x[2] / intel->scale_units[0][0]);
 	OUT_BATCH_F(src_y[2] / intel->scale_units[0][1]);
 	if (!is_affine_src) {
@@ -791,8 +760,8 @@ i830_emit_composite_primitive(PixmapPtr dest,
 		}
 	}
 
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
+	OUT_BATCH_F(dstX);
+	OUT_BATCH_F(dstY + h);
 	OUT_BATCH_F(src_x[1] / intel->scale_units[0][0]);
 	OUT_BATCH_F(src_y[1] / intel->scale_units[0][1]);
 	if (!is_affine_src) {
@@ -806,8 +775,8 @@ i830_emit_composite_primitive(PixmapPtr dest,
 		}
 	}
 
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY);
+	OUT_BATCH_F(dstX);
+	OUT_BATCH_F(dstY);
 	OUT_BATCH_F(src_x[0] / intel->scale_units[0][0]);
 	OUT_BATCH_F(src_y[0] / intel->scale_units[0][1]);
 	if (!is_affine_src) {

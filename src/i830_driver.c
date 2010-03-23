@@ -649,10 +649,10 @@ static Bool i830_open_drm_master(ScrnInfoPtr scrn)
 
 	intel->drmSubFD = drmOpen("i915", busid);
 	if (intel->drmSubFD == -1) {
-		xfree(busid);
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
 			   busid, strerror(errno));
+		xfree(busid);
 		return FALSE;
 	}
 

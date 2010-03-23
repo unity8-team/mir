@@ -385,8 +385,9 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 					    source_picture->format,
 					    PICT_a8r8g8b8,
 					    &intel->render_source_solid))
-		return FALSE;
-	} else if (!intel_check_pitch_3d(source))
+		intel->render_source_is_solid = FALSE;
+	}
+	if (!intel->render_source_is_solid && !intel_check_pitch_3d(source))
 		return FALSE;
 
 
@@ -402,8 +403,9 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 						mask_picture->format,
 						PICT_a8r8g8b8,
 						&intel->render_mask_solid))
-		    return FALSE;
-	    } else if (!intel_check_pitch_3d(mask))
+		    intel->render_mask_is_solid = FALSE;
+	    }
+	    if (!intel->render_mask_is_solid && !intel_check_pitch_3d(mask))
 		    return FALSE;
 	}
 
@@ -475,7 +477,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int op = intel->i915_render_state.op;
-	PicturePtr source_picture = intel->render_source_picture;
 	PicturePtr mask_picture = intel->render_mask_picture;
 	PicturePtr dest_picture = intel->render_dest_picture;
 	PixmapPtr mask = intel->render_mask;
@@ -503,7 +504,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	tex_count += ! is_solid_src;
 	tex_count += mask && ! is_solid_mask;
 
-	t = 16;
+	t = 15;
 	if (tex_count)
 	    t += 6 * tex_count + 4;
 	if (is_solid_src)
@@ -589,7 +590,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		OUT_BATCH(0x00000000);
 	}
 
-	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
 
 	{
@@ -629,10 +629,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		    i915_fs_texldp(FS_R0, FS_S0, FS_T0);
 		}
 
-		/* If the texture lacks an alpha channel, force the alpha to 1. */
-		if (PICT_FORMAT_A(source_picture->format) == 0)
-		    i915_fs_mov_masked(FS_R0, MASK_W, i915_fs_operand_one());
-
 		src_reg = FS_R0;
 	    }
 
@@ -647,11 +643,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		    } else {
 			i915_fs_texldp(FS_R1, FS_S0 + t, FS_T0 + t);
 		    }
-		    /* If the texture lacks an alpha channel, force the alpha to 1.
-		     */
-		    if (PICT_FORMAT_A(mask_picture->format) == 0)
-			i915_fs_mov_masked(FS_R1, MASK_W,
-					   i915_fs_operand_one());
 
 		    mask_reg = FS_R1;
 		}
