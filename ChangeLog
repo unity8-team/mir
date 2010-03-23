@@ -1,3 +1,117 @@
+commit 9c037f61a490c96f9095f7ff3fecbf41f5efe9f7
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Mar 22 15:23:04 2010 -0700
+
+    Update version to 2.10.903
+    
+    For today's snapshot.
+
+commit 11142cffe4bc81e1ce465ea725fcaef024130082
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Mar 22 15:22:28 2010 -0700
+
+    NEWS: Add notes for 2.10.903
+    
+    For today's snapshot.
+
+commit f206816154fd44e61b0bdeaab1aa4c5359c3b70a
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Mar 22 14:14:46 2010 -0700
+
+    man: Update list of available 'sclaing mode' property values.
+    
+    Include the names from the current kernel driver along with accurate
+    descriptions of each. Indicate how to use the values with:
+    
+    	xrandr --output output --set property value
+    
+    and point the user to "xrandr --prop" for an accurate list of
+    currently available values.
+    
+    Closes bug:
+    
+    	xf86-video-intel manpage needs update for KMS xrandr properties
+    	http://bugs.freedesktop.org/show_bug.cgi?id=25606
+
+commit d1dfab6b1649214177435629d8e85239dbe44d89
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Wed Mar 17 15:13:51 2010 +0100
+
+    Clear drmmode_output->mode_output in drmmode_output_destroy().
+
+commit 10cd04a84bcb6313903fc23b2d7791658ebc6b8e
+Author: Li Peng <peng.li@linux.intel.com>
+Date:   Sat Mar 20 00:21:48 2010 +0800
+
+    Initialize flip_count before using it
+    
+    Otherwise it would be a random value and drmmode_page_flip_handler()
+    won't have a chance to call I830DRI2FlipEventHandler() and indicate
+    a full page flip is complete.
+    
+    Signed-off-by: Li Peng <peng.li@intel.com>
+
+commit 3d4b3f257fbbb69c6f236d9803abe54a90d7d434
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Thu Mar 18 12:48:39 2010 +1000
+
+    intel: free bus id in error path after printing it out.
+    
+    the error message prints out a freed string, spotted during
+    code reappropriation to radeon driver.
+    
+    Signed-off-by: Dave Airlie <airlied@redhat.com>
+
+commit 31d5f84bb4416ef92abd97264d52cdab7a184687
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 17 09:11:05 2010 +0000
+
+    i915: Correct preamble for emit_composite
+    
+    Fixes:
+    http://bugs.freedesktop.org/show_bug.cgi?id=27123
+    
+    Fatal server error:
+    i915_emit_composite_setup: ADVANCE_BATCH: under-used allocation 100/104
+    
+    Introduced with commit d6b7f96fde1add92fd11f5a75869ae6fc688bf77.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d6b7f96fde1add92fd11f5a75869ae6fc688bf77
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Mar 6 15:49:04 2010 +0000
+
+    Fill alpha on xrgb images.
+    
+    Do not try to fixup the alpha in the ff/shaders as this has the
+    side-effect of overriding the alpha value of the border color, causing
+    images to be padded with black rather than transparent. This can
+    generate large and obnoxious visual artefacts.
+    
+    Fixes:
+    
+      Bug 17933 - x8r8g8b8 doesn't sample alpha=0 outside surface bounds
+      http://bugs.freedesktop.org/show_bug.cgi?id=17933
+    
+    and many related cairo test suite failures.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 910fd171a00227025abc8bcc286a740f5bae895b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Mar 5 14:32:13 2010 +0000
+
+    i830: Remove coord-adjust for nearest centre-sampling.
+    
+    Fixes a number of cairo test suite failures.
+    
+    Also affects:
+      Bug 16917 - Blur on y-axis also when only x-axis is scaled bilinear
+      http://bugs.freedesktop.org/show_bug.cgi?id=16917
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 753914acc31947df8e9f2fa3b9c39de745098709
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Mar 15 17:32:57 2010 -0700

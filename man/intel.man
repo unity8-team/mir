@@ -183,10 +183,20 @@ Default: Disabled.
 On 830M and better chipsets, the driver supports runtime configuration of
 detected outputs.  You can use the
 .B xrandr
-tool to control outputs on the command line.  Each output listed below may have
-one or more properties associated with it (like a binary EDID block if one is
-found).  Some outputs have unique properties which are described below.  See the "MULTIHEAD CONFIGURATIONS" section below for additional information.
+tool to control outputs on the command line as follows:
 
+.RS
+.B xrandr \-\-output
+.I output
+.B \-\-set
+.I property value
+.RE
+
+Note that you may need to quote property and value arguments that contain spaces.
+Each output listed below may have one or more properties associated
+with it (like a binary EDID block if one is found).  Some outputs have
+unique properties which are described below.  See the "MULTIHEAD
+CONFIGURATIONS" section below for additional information.
 .SS "VGA"
 VGA output port (typically exposed via an HD15 connector).
 
@@ -203,22 +213,26 @@ By adjusting the BACKLIGHT property, the brightness on the LVDS output can be ad
 .B scaling mode
 - control LCD panel scaling mode
 .TP 2
-By default, the driver will attempt to upscale resolutions smaller than the LCD's native size while preserving the aspect ratio.  Other modes are available however:
+When the currently selected display mode differs from the native panel resolution, various scaling options are available. These include
 .RS
 .PP
-.B center
+.B Center
 .TP 4
-Simply center the image on-screen, without scaling.
+Simply center the image on-screen without scaling. This is the only scaling mode that guarantees a one-to-one correspondence between native and displayed pixels, but some portions of the panel may be unused (so-called "letterboxing").
 .PP
-.B full_aspect
+.B Full aspect
 .TP 4
-The default mode.  Try to upscale the image to the screen size, while preserving aspect ratio.  May result in letterboxing or pillar-boxing with some resolutions.
+Scale the image as much as possible while preserving aspect ratio. Pixels may not be displayed one-to-one (there may be some blurriness). Some portions of the panel may be unused if the aspect ratio of the selected mode does not match that of the panel.
 .PP
-.B full
+.B Full
 .TP 4
-Upscale the image to the native screen size without regard to aspect ratio.  In this mode, the full screen image may appear distorted in some resolutions.
+Scale the image to the panel size without regard to aspect ratio. This is the only mode which guarantees that every pixel of the panel will be used. But the displayed image may be distorted by stretching either horizontally or vertically, and pixels may not be displayed one-to-one (there may be some blurriness).
 .RE
 
+The precise names of these options may differ depending on the kernel
+video driver, (but the functionality should be similar). See the output of
+.B xrandr \-\-prop
+for a list of currently available scaling modes.
 .SS "TV"
 Integrated TV output.  Available properties include:
 

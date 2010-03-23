@@ -237,6 +237,8 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 	case 32:
 		/* RGB8888 */
 		intel->BR[13] |= ((1 << 24) | (1 << 25));
+		if (pixmap->drawable.depth == 24)
+		    fg |= 0xff000000;
 		break;
 	}
 	intel->BR[16] = fg;
@@ -709,6 +711,33 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 	Bool scratch_pixmap;
 	GCPtr gc;
 	Bool ret;
+
+	if (pixmap->drawable.depth == 24) {
+	    /* fill alpha channel */
+	    pixman_image_t *src_image, *dst_image;
+
+	    src_image = pixman_image_create_bits (PIXMAN_x8r8g8b8,
+						  w, h,
+						  (uint32_t *) src, src_pitch);
+
+	    dst_image = pixman_image_create_bits (PIXMAN_a8r8g8b8,
+						  w, h,
+						  (uint32_t *) src, src_pitch);
+
+	    if (src_image && dst_image)
+		pixman_image_composite (PictOpSrc,
+					src_image, NULL, dst_image,
+					0, 0,
+					0, 0,
+					0, 0,
+					w, h);
+
+	    if (src_image)
+		pixman_image_unref (src_image);
+
+	    if (dst_image)
+		pixman_image_unref (dst_image);
+	}
 
 	if (x == 0 && y == 0 &&
 	    w == pixmap->drawable.width &&
