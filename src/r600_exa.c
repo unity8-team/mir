@@ -778,9 +778,9 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	    accel_state->copy_area_bo = radeon_bo_open(info->bufmgr, 0, size, 0,
 						       RADEON_GEM_DOMAIN_VRAM,
 						       0);
-	    if (accel_state->copy_area_bo == NULL) {
-		return FALSE;
-	    }
+	    if (accel_state->copy_area_bo == NULL)
+		RADEON_FALLBACK(("temp copy surface alloc failed\n"));
+
 	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->copy_area_bo,
 					      0, RADEON_GEM_DOMAIN_VRAM);
 	    if (radeon_cs_space_check(info->cs)) {
@@ -797,6 +797,8 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 		accel_state->copy_area = NULL;
 	    }
 	    accel_state->copy_area = exaOffscreenAlloc(pDst->drawable.pScreen, size, 256, TRUE, NULL, NULL);
+	    if (!accel_state->copy_area)
+		RADEON_FALLBACK(("temp copy surface alloc failed\n"));
 	}
     } else
 	R600DoPrepareCopy(pScrn,
@@ -812,195 +814,6 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	R600VlineHelperClear(pScrn);
 
     return TRUE;
-}
-
-static Bool
-is_overlap(int sx1, int sx2, int sy1, int sy2, int dx1, int dx2, int dy1, int dy2)
-{
-    if (((sx1 >= dx1) && (sx1 <= dx2) && (sy1 >= dy1) && (sy1 <= dy2)) || /* TL x1, y1 */
-	((sx2 >= dx1) && (sx2 <= dx2) && (sy1 >= dy1) && (sy1 <= dy2)) || /* TR x2, y1 */
-	((sx1 >= dx1) && (sx1 <= dx2) && (sy2 >= dy1) && (sy2 <= dy2)) || /* BL x1, y2 */
-	((sx2 >= dx1) && (sx2 <= dx2) && (sy2 >= dy1) && (sy2 <= dy2)))   /* BR x2, y2 */
-	return TRUE;
-    else
-	return FALSE;
-}
-
-static void
-R600OverlapCopy(PixmapPtr pDst,
-		int srcX, int srcY,
-		int dstX, int dstY,
-		int w, int h)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-    uint32_t dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
-    uint32_t dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
-    int i, hchunk, vchunk;
-    struct radeon_bo *dst_bo = NULL;
-
-#if defined(XF86DRM_MODE)
-    if (info->cs) {
-	dst_offset = 0;
-	dst_bo = radeon_get_pixmap_bo(pDst);
-	radeon_cs_space_add_persistent_bo(info->cs, dst_bo,
-					  RADEON_GEM_DOMAIN_VRAM, 0);
-	radeon_cs_space_check(info->cs);
-    }
-#endif
-
-    if (is_overlap(srcX, srcX + (w - 1), srcY, srcY + (h - 1),
-		   dstX, dstX + (w - 1), dstY, dstY + (h - 1))) {
-        /* Calculate height/width of non-overlapping area */
-        hchunk = (srcX < dstX) ? (dstX - srcX) : (srcX - dstX);
-        vchunk = (srcY < dstY) ? (dstY - srcY) : (srcY - dstY);
-
-        /* Diagonally offset overlap is reduced to either horizontal or vertical offset-only
-         * by copying a part of the  non-overlapping portion, then adjusting coordinates
-         * Choose horizontal vs vertical to minimize the total number of copy operations
-         */
-        if (vchunk != 0 && hchunk != 0) { /* diagonal */
-            if ((w / hchunk) <= (h / vchunk)) { /* reduce to horizontal  */
-                if (srcY > dstY ) { /* diagonal up */
-                    R600DoPrepareCopy(pScrn,
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->src_domain[0],
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->dst_domain,
-                                      accel_state->rop, accel_state->planemask);
-                    R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, vchunk);
-                    R600DoCopyVline(pDst);
-
-                    srcY = srcY + vchunk;
-                    dstY = dstY + vchunk;
-                } else { /* diagonal down */
-                    R600DoPrepareCopy(pScrn,
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->src_domain[0],
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->dst_domain,
-                                      accel_state->rop, accel_state->planemask);
-                    R600AppendCopyVertex(pScrn, srcX, srcY + h - vchunk, dstX, dstY + h - vchunk, w, vchunk);
-                    R600DoCopyVline(pDst);
-                }
-                h = h - vchunk;
-                vchunk = 0;
-            } else { /* reduce to vertical */
-                if (srcX > dstX ) { /* diagonal left */
-                    R600DoPrepareCopy(pScrn,
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->src_domain[0],
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->dst_domain,
-                                      accel_state->rop, accel_state->planemask);
-                    R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, hchunk, h);
-                    R600DoCopyVline(pDst);
-
-                    srcX = srcX + hchunk;
-                    dstX = dstX + hchunk;
-                } else { /* diagonal right */
-                    R600DoPrepareCopy(pScrn,
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->src_domain[0],
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->dst_domain,
-                                      accel_state->rop, accel_state->planemask);
-                    R600AppendCopyVertex(pScrn, srcX + w - hchunk, srcY, dstX + w - hchunk, dstY, hchunk, h);
-                    R600DoCopyVline(pDst);
-                }
-                w = w - hchunk;
-                hchunk = 0;
-            }
-        }
-
-	if (vchunk == 0) { /* left/right */
-	    if (srcX < dstX) { /* right */
-		/* copy right to left */
-		for (i = w; i > 0; i -= hchunk) {
-		    R600DoPrepareCopy(pScrn,
-				      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->src_domain[0],
-				      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->dst_domain,
-				      accel_state->rop, accel_state->planemask);
-		    R600AppendCopyVertex(pScrn, srcX + i - hchunk, srcY, dstX + i - hchunk, dstY, hchunk, h);
-		    R600DoCopyVline(pDst);
-		}
-	    } else { /* left */
-		/* copy left to right */
-		for (i = 0; i < w; i += hchunk) {
-		    R600DoPrepareCopy(pScrn,
-				      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->src_domain[0],
-				      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->dst_domain,
-				      accel_state->rop, accel_state->planemask);
-
-		    R600AppendCopyVertex(pScrn, srcX + i, srcY, dstX + i, dstY, hchunk, h);
-		    R600DoCopyVline(pDst);
-		}
-	    }
-	} else { /* up/down */
-	    if (srcY > dstY) { /* up */
-		/* copy top to bottom */
-                for (i = 0; i < h; i += vchunk) {
-                    R600DoPrepareCopy(pScrn,
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->src_domain[0],
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->dst_domain,
-                                      accel_state->rop, accel_state->planemask);
-
-                    if (vchunk > h - i) vchunk = h - i;
-                    R600AppendCopyVertex(pScrn, srcX, srcY + i, dstX, dstY + i, w, vchunk);
-                    R600DoCopyVline(pDst);
-                }
-	    } else { /* down */
-		/* copy bottom to top */
-                for (i = h; i > 0; i -= vchunk) {
-                    R600DoPrepareCopy(pScrn,
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->src_domain[0],
-                                      dst_pitch, pDst->drawable.width, pDst->drawable.height,
-				      dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-				      accel_state->dst_domain,
-                                      accel_state->rop, accel_state->planemask);
-
-                    if (vchunk > i) vchunk = i;
-                    R600AppendCopyVertex(pScrn, srcX, srcY + i - vchunk, dstX, dstY + i - vchunk, w, vchunk);
-                    R600DoCopyVline(pDst);
-                }
-            }
-	}
-    } else {
-	R600DoPrepareCopy(pScrn,
-			  dst_pitch, pDst->drawable.width, pDst->drawable.height,
-			  dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-			  accel_state->src_domain[0],
-			  dst_pitch, pDst->drawable.width, pDst->drawable.height,
-			  dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-			  accel_state->dst_domain,
-			  accel_state->rop, accel_state->planemask);
-
-	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
-	R600DoCopyVline(pDst);
-    }
 }
 
 static void
@@ -1025,69 +838,42 @@ R600Copy(PixmapPtr pDst,
 	bo = radeon_get_pixmap_bo(pDst);
 #endif
 
-    if (accel_state->same_surface &&
-	is_overlap(srcX, srcX + (w - 1), srcY, srcY + (h - 1),
-		   dstX, dstX + (w - 1), dstY, dstY + (h - 1))) {
-	if (accel_state->copy_area) {
-	    uint32_t pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
-	    uint32_t orig_offset, tmp_offset;
-
-#if defined(XF86DRM_MODE)
-	    if (info->cs) {
-		tmp_offset = 0;
-		orig_offset = 0;
-	    } else
-#endif
-	    {
-		tmp_offset = accel_state->copy_area->offset + info->fbLocation + pScrn->fbOffset;
-		orig_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
-	    }
-	    R600DoPrepareCopy(pScrn,
-			      pitch, pDst->drawable.width, pDst->drawable.height,
-			      orig_offset, bo, pDst->drawable.bitsPerPixel,
-			      accel_state->src_domain[0],
-			      pitch, pDst->drawable.width, pDst->drawable.height,
-			      tmp_offset, accel_state->copy_area_bo, pDst->drawable.bitsPerPixel,
-			      RADEON_GEM_DOMAIN_VRAM,
-			      accel_state->rop, accel_state->planemask);
-	    R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
-	    R600DoCopy(pScrn);
-	    R600DoPrepareCopy(pScrn,
-			      pitch, pDst->drawable.width, pDst->drawable.height,
-			      tmp_offset, accel_state->copy_area_bo, pDst->drawable.bitsPerPixel,
-			      RADEON_GEM_DOMAIN_VRAM,
-			      pitch, pDst->drawable.width, pDst->drawable.height,
-			      orig_offset, bo, pDst->drawable.bitsPerPixel,
-			      accel_state->dst_domain,
-			      accel_state->rop, accel_state->planemask);
-	    R600AppendCopyVertex(pScrn, dstX, dstY, dstX, dstY, w, h);
-	    R600DoCopyVline(pDst);
-	} else
-	    R600OverlapCopy(pDst, srcX, srcY, dstX, dstY, w, h);
-    } else if (accel_state->same_surface) {
+    if (accel_state->same_surface && accel_state->copy_area) {
 	uint32_t pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
-	uint32_t offset;
+	uint32_t orig_offset, tmp_offset;
 
 #if defined(XF86DRM_MODE)
-	    if (info->cs)
-		offset = 0;
-	    else
+	if (info->cs) {
+	    tmp_offset = 0;
+	    orig_offset = 0;
+	} else
 #endif
-		offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
-
+	{
+	    tmp_offset = accel_state->copy_area->offset + info->fbLocation + pScrn->fbOffset;
+	    orig_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
+	}
 	R600DoPrepareCopy(pScrn,
 			  pitch, pDst->drawable.width, pDst->drawable.height,
-			  offset, bo, pDst->drawable.bitsPerPixel,
+			  orig_offset, bo, pDst->drawable.bitsPerPixel,
 			  accel_state->src_domain[0],
 			  pitch, pDst->drawable.width, pDst->drawable.height,
-			  offset, bo, pDst->drawable.bitsPerPixel,
-			  accel_state->dst_domain,
+			  tmp_offset, accel_state->copy_area_bo, pDst->drawable.bitsPerPixel,
+			  RADEON_GEM_DOMAIN_VRAM,
 			  accel_state->rop, accel_state->planemask);
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
+	R600DoCopy(pScrn);
+	R600DoPrepareCopy(pScrn,
+			  pitch, pDst->drawable.width, pDst->drawable.height,
+			  tmp_offset, accel_state->copy_area_bo, pDst->drawable.bitsPerPixel,
+			  RADEON_GEM_DOMAIN_VRAM,
+			  pitch, pDst->drawable.width, pDst->drawable.height,
+			  orig_offset, bo, pDst->drawable.bitsPerPixel,
+			  accel_state->dst_domain,
+			  accel_state->rop, accel_state->planemask);
+	R600AppendCopyVertex(pScrn, dstX, dstY, dstX, dstY, w, h);
 	R600DoCopyVline(pDst);
-    } else {
+    } else
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
-    }
 
 }
 
