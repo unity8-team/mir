@@ -135,8 +135,20 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		pitch_align = intel->accel_pixmap_pitch_alignment;
 		size = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
 				pitch_align) * ALIGN (h, 2);
-		if (size < 4096)
+		if (!IS_I965G(intel)) {
+			/* Older hardware requires fences to be pot size
+			 * aligned with a minimum of 1 MiB, so causes
+			 * massive overallocation for small textures.
+			 */
+			if (size < 1024*1024/2)
+				*tiling = I915_TILING_NONE;
+		} else if (size <= 4096) {
+			/* Disable tiling beneath a page size, we will not see
+			 * any benefit from reducing TLB misses and instead
+			 * just incur extra cost when we require a fence.
+			 */
 			*tiling = I915_TILING_NONE;
+		}
 	}
 
   repeat:
@@ -863,11 +875,14 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			return NullPixmap;
 		}
 
-		if (usage == INTEL_CREATE_PIXMAP_TILING_X)
-			priv->tiling = I915_TILING_X;
-		else if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
+		/* Always attempt to tile, compute_size() will remove the
+		 * tiling for pixmaps that are either too large or too small
+		 * to be effectively tiled.
+		 */
+		priv->tiling = I915_TILING_X;
+		if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
 			priv->tiling = I915_TILING_Y;
-		else
+		if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
 			priv->tiling = I915_TILING_NONE;
 
 		size = i830_uxa_pixmap_compute_size(pixmap, w, h,
