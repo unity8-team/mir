@@ -264,6 +264,15 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	unsigned long pitch;
 	uint32_t cmd;
 
+	if (x1 < 0)
+		x1 = 0;
+	if (y1 < 0)
+		y1 = 0;
+	if (x2 > pixmap->drawable.width)
+		x2 = pixmap->drawable.width;
+	if (y2 > pixmap->drawable.height)
+		y2 = pixmap->drawable.height;
+
 	pitch = i830_pixmap_pitch(pixmap);
 
 	{
