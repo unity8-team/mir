@@ -977,6 +977,21 @@ compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
 	return 0;
 }
 
+static int
+drawable_contains (DrawablePtr drawable, int x1, int y1, int x2, int y2)
+{
+	if (x1 < 0 || y1 < 0)
+		return FALSE;
+
+	if (x2 > drawable->width)
+		return FALSE;
+
+	if (y2 > drawable->height)
+		return FALSE;
+
+	return TRUE;
+}
+
 void
 uxa_composite(CARD8 op,
 	      PicturePtr pSrc,
@@ -1026,7 +1041,8 @@ uxa_composite(CARD8 op,
 								width, height);
 				if (ret == 1)
 					goto done;
-			} else if (!pSrc->repeat && !pSrc->transform) {
+			} else if (!pSrc->repeat && !pSrc->transform &&
+				   drawable_contains(pSrc->pDrawable, xSrc, ySrc, xSrc + width, ySrc + height)) {
 				xDst += pDst->pDrawable->x;
 				yDst += pDst->pDrawable->y;
 				xSrc += pSrc->pDrawable->x;
