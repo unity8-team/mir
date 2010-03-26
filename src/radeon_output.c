@@ -181,6 +181,10 @@ radeon_set_active_device(xf86OutputPtr output)
 	    radeon_output->active_device = ATOM_DEVICE_DFP4_SUPPORT;
 	else if (radeon_output->devices & ATOM_DEVICE_DFP5_SUPPORT)
 	    radeon_output->active_device = ATOM_DEVICE_DFP5_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_LCD1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_LCD2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_LCD2_SUPPORT;
 	break;
     case MT_CRT:
 	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
@@ -383,7 +387,8 @@ radeon_ddc_connected(xf86OutputPtr output)
 	     */
 	    ret = RADEON_DP_GetSinkType(output);
 
-	    if (ret == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+	    if ((ret == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
+		(ret == CONNECTOR_OBJECT_ID_eDP)) {
 		MonType = MT_DP;
 		RADEON_DP_GetDPCD(output);
 	    } else
