@@ -446,12 +446,17 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 	back->name = tmp;
 
 	/* Swap pixmap bos */
+
+	/* Hold a ref on the front so the set calls below don't destroy it */
 	dri_bo_reference(i830_get_pixmap_bo(front_priv->pixmap));
 
 	tmp_bo = i830_get_pixmap_bo(front_priv->pixmap);
 	i830_set_pixmap_bo(front_priv->pixmap,
 			   i830_get_pixmap_bo(back_priv->pixmap));
 	i830_set_pixmap_bo(back_priv->pixmap, tmp_bo); /* should be screen */
+
+	/* Release our ref, the last set should have bumped it */
+	dri_bo_unreference(tmp_bo);
 }
 
 /*
