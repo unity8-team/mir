@@ -86,7 +86,7 @@ const char *encoder_name[34] = {
     "INTERNAL_UNIPHY2",
 };
 
-const char *ConnectorTypeName[17] = {
+const char *ConnectorTypeName[18] = {
   "None",
   "VGA",
   "DVI-I",
@@ -103,6 +103,7 @@ const char *ConnectorTypeName[17] = {
   "Unsupported",
   "DIN",
   "DisplayPort",
+  "eDP",
   "Unsupported"
 };
 
