@@ -262,7 +262,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *curie = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
-	Bool redirected = FALSE;
+	Bool redirected = FALSE, bicubic = pPriv->bicubic;
 	float X1, X2, Y1, Y2;
 	BoxPtr pbox;
 	int nbox;
@@ -322,7 +322,11 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	}
 
 	NV40_LoadVtxProg(pScrn, &nv40_vp_video);
-	if (!NV40_LoadFragProg(pScrn, pPriv->bicubic ?
+
+	if (drw_w / 2 < src_w || drw_h / 2 < src_h)
+		bicubic = FALSE;
+
+	if (!NV40_LoadFragProg(pScrn, bicubic ?
 			       &nv40_fp_yv12_bicubic :
 			       &nv30_fp_yv12_bilinear)) {
 		MARK_UNDO(chan);
