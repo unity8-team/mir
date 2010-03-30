@@ -135,8 +135,20 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		pitch_align = intel->accel_pixmap_pitch_alignment;
 		size = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
 				pitch_align) * ALIGN (h, 2);
-		if (size < 4096)
+		if (!IS_I965G(intel)) {
+			/* Older hardware requires fences to be pot size
+			 * aligned with a minimum of 1 MiB, so causes
+			 * massive overallocation for small textures.
+			 */
+			if (size < 1024*1024/2)
+				*tiling = I915_TILING_NONE;
+		} else if (size <= 4096) {
+			/* Disable tiling beneath a page size, we will not see
+			 * any benefit from reducing TLB misses and instead
+			 * just incur extra cost when we require a fence.
+			 */
 			*tiling = I915_TILING_NONE;
+		}
 	}
 
   repeat:
@@ -251,6 +263,15 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	unsigned long pitch;
 	uint32_t cmd;
+
+	if (x1 < 0)
+		x1 = 0;
+	if (y1 < 0)
+		y1 = 0;
+	if (x2 > pixmap->drawable.width)
+		x2 = pixmap->drawable.width;
+	if (y2 > pixmap->drawable.height)
+		y2 = pixmap->drawable.height;
 
 	pitch = i830_pixmap_pitch(pixmap);
 
@@ -629,6 +650,54 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 	pixmap->devPrivate.ptr = NULL;
 }
 
+static Bool i830_bo_put_image(PixmapPtr pixmap, dri_bo *bo, char *src, int src_pitch, int w, int h)
+{
+	int stride = i830_pixmap_pitch(pixmap);
+
+	/* fill alpha channel */
+	if (pixmap->drawable.depth == 24) {
+		pixman_image_t *src_image, *dst_image;
+
+		src_image = pixman_image_create_bits (PIXMAN_x8r8g8b8,
+						      w, h,
+						      (uint32_t *) src, src_pitch);
+
+		dst_image = pixman_image_create_bits (PIXMAN_a8r8g8b8,
+						      w, h,
+						      (uint32_t *) bo->virtual, stride);
+
+		if (src_image && dst_image)
+			pixman_image_composite (PictOpSrc,
+						src_image, NULL, dst_image,
+						0, 0,
+						0, 0,
+						0, 0,
+						w, h);
+
+		if (src_image)
+			pixman_image_unref (src_image);
+
+		if (dst_image)
+			pixman_image_unref (dst_image);
+
+		if (src_image == NULL || dst_image == NULL)
+			return FALSE;
+	} else if (src_pitch == stride) {
+		memcpy (bo->virtual, src, stride * h);
+	} else {
+		char *dst = bo->virtual;
+		int row_length = w * pixmap->drawable.bitsPerPixel/8;
+		int num_rows = h;
+		while (num_rows--) {
+			memcpy (dst, src, row_length);
+			src += src_pitch;
+			dst += stride;
+		}
+	}
+
+	return TRUE;
+}
+
 static Bool
 i830_uxa_pixmap_swap_bo_with_image(PixmapPtr pixmap,
 				   char *src, int src_pitch)
@@ -641,6 +710,7 @@ i830_uxa_pixmap_swap_bo_with_image(PixmapPtr pixmap,
 	int stride;
 	int w = pixmap->drawable.width;
 	int h = pixmap->drawable.height;
+	Bool ret;
 
 	priv = i830_get_pixmap_intel(pixmap);
 
@@ -681,22 +751,11 @@ i830_uxa_pixmap_swap_bo_with_image(PixmapPtr pixmap,
 		return FALSE;
 	}
 
-	if (src_pitch == stride) {
-		memcpy (bo->virtual, src, src_pitch * h);
-	} else {
-		char *dst = bo->virtual;
-
-		w *= pixmap->drawable.bitsPerPixel/8;
-		while (h--) {
-			memcpy (dst, src, w);
-			src += src_pitch;
-			dst += stride;
-		}
-	}
+	ret = i830_bo_put_image(pixmap, bo, src, src_pitch, w, h);
 
 	drm_intel_gem_bo_unmap_gtt(bo);
 
-	return TRUE;
+	return ret;
 }
 
 static Bool i830_uxa_put_image(PixmapPtr pixmap,
@@ -712,33 +771,6 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 	GCPtr gc;
 	Bool ret;
 
-	if (pixmap->drawable.depth == 24) {
-	    /* fill alpha channel */
-	    pixman_image_t *src_image, *dst_image;
-
-	    src_image = pixman_image_create_bits (PIXMAN_x8r8g8b8,
-						  w, h,
-						  (uint32_t *) src, src_pitch);
-
-	    dst_image = pixman_image_create_bits (PIXMAN_a8r8g8b8,
-						  w, h,
-						  (uint32_t *) src, src_pitch);
-
-	    if (src_image && dst_image)
-		pixman_image_composite (PictOpSrc,
-					src_image, NULL, dst_image,
-					0, 0,
-					0, 0,
-					0, 0,
-					w, h);
-
-	    if (src_image)
-		pixman_image_unref (src_image);
-
-	    if (dst_image)
-		pixman_image_unref (dst_image);
-	}
-
 	if (x == 0 && y == 0 &&
 	    w == pixmap->drawable.width &&
 	    h == pixmap->drawable.height)
@@ -749,9 +781,10 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 	}
 
 	priv = i830_get_pixmap_intel(pixmap);
-	if (priv->batch_read_domains || drm_intel_bo_busy(priv->bo)) {
+	if (priv->batch_read_domains ||
+	    drm_intel_bo_busy(priv->bo) ||
+	    pixmap->drawable.depth == 24) {
 		dri_bo *bo;
-		int stride;
 
 		/* Partial replacement, copy incoming image to a bo and blit. */
 		scratch = (*screen->CreatePixmap)(screen, w, h,
@@ -768,22 +801,15 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 			return FALSE;
 		}
 
-		stride = i830_pixmap_pitch(scratch);
-		if (src_pitch == stride) {
-			memcpy (bo->virtual, src, stride * h);
-		} else {
-			char *dst = bo->virtual;
-			int row_length = w * pixmap->drawable.bitsPerPixel/8;
-			int num_rows = h;
-			while (num_rows--) {
-				memcpy (dst, src, row_length);
-				src += src_pitch;
-				dst += stride;
-			}
-		}
+		ret = i830_bo_put_image(scratch, bo, src, src_pitch, w, h);
 
 		drm_intel_gem_bo_unmap_gtt(bo);
 		scratch_pixmap = FALSE;
+
+		if (!ret) {
+			(*screen->DestroyPixmap) (scratch);
+			return FALSE;
+		}
 	} else {
 		/* bo is not busy so can be mapped without a stall, upload in-place. */
 		scratch = GetScratchPixmapHeader(screen, w, h,
@@ -863,11 +889,14 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			return NullPixmap;
 		}
 
-		if (usage == INTEL_CREATE_PIXMAP_TILING_X)
-			priv->tiling = I915_TILING_X;
-		else if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
+		/* Always attempt to tile, compute_size() will remove the
+		 * tiling for pixmaps that are either too large or too small
+		 * to be effectively tiled.
+		 */
+		priv->tiling = I915_TILING_X;
+		if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
 			priv->tiling = I915_TILING_Y;
-		else
+		if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
 			priv->tiling = I915_TILING_NONE;
 
 		size = i830_uxa_pixmap_compute_size(pixmap, w, h,
