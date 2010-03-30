@@ -1,3 +1,20 @@
+xserver-xorg-video-intel (2:2.9.1-1ubuntu18) lucid; urgency=low
+
+  * Add 102_avoid_flushing_null.patch: Cherrypick from upstream to I830.
+    During shutdown from a FatalError during batchbuffer submission, it is
+    possible for the batch_ptr to be NULL, so we must be careful not to
+    append a flush on this error path.
+  * Add 103_check_for_overflow.patch: Cherrypick from upstream to I915.
+    Check for overflow before overflowing.  As the immediate victim of the
+    overflow would be to overwrite the maximum permissible value, the test
+    was optimistic.
+  * Add 104_fail_when_prop_values_gone.patch: Cherrypick from upstream to
+    drmmode_display.  Return failure when the enum-type output property
+    values are not found Failure to do so causes xrandr to report
+    incorrect property values.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 30 Mar 2010 17:36:27 -0700
+
 xserver-xorg-video-intel (2:2.9.1-1ubuntu17) lucid; urgency=low
 
   * debian/apport-gpu-error-intel.py:
