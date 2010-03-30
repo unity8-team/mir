@@ -1,3 +1,120 @@
+commit 440b4d207b730112169827d0b90b46596659b504
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Mar 29 11:20:20 2010 -0700
+
+    Increase version to 2.11.0
+    
+    In preparation for release.
+
+commit 1119c4523889ddedecf1722f0e9a2e4a7ad326b2
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Mar 29 11:19:31 2010 -0700
+
+    NEWS: Add release notes for the 2.11.0 release.
+    
+    Hurrah! We made it.
+
+commit df3b26847914557eb3c9c70732d91169b1936d77
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Fri Mar 26 10:44:55 2010 -0700
+
+    DRI2: release our private front buffer ref when buffer swapping
+    
+    Pauli pointed out that we take a ref on the front buffer when exchanging
+    but forget to release it.  The ref is necessary since the set functions
+    will drop refs as necessary, but once we set the front buffer to point
+    at the back pixmap, we ned to release our private ref again, or we'll
+    leak buffers.
+    
+    Reported-by: Pauli Nieminen <suokkos@gmail.com>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 362a49e71fc41541b6dc121660d98e29da4b14e8
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Thu Mar 25 10:07:41 2010 -0400
+
+    uxa make: remove unused XORG_INCS and DIX_CFLAGS variables
+    
+    Most likely copied from xserver makefile.
+    
+    Acked-by: Dan Nicholson <dbn.lists@gmail.com>
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 0d1ac4da5288a621d0493cb109fcd1e040e6c5a7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Mar 25 09:12:09 2010 +0000
+
+    uxa: Perform the xrgb -> argb conversion not inplace
+    
+    After reports of segmentation faults caused by
+    d6b7f96fde1add92fd11f5a75869ae6fc688bf77 and vmware, the most obvious
+    cause would be illegally writing to the src data when performing the alpha
+    fill inline. So force the image upload to go via a fresh buffer whenever
+    we need to modify the incoming data.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Reported-and-tested-by: Jeff Chua <jeff.chua.linux@gmail.com>
+
+commit 0c47195ca805881e3fbd5b9224be5c930feeeb8c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 24 17:37:39 2010 +0000
+
+    i830: Clip solid fills to surface.
+    
+    There is a reasonable surfeit of evidence to support this error,
+    for instance: http://bugs.freedesktop.org/attachment.cgi?id=34417
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5537079c29a56133446f1874d24d9e6516825edb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 24 14:59:20 2010 +0000
+
+    uxa: After filling the alpha channel xrgb src is compatible with argb dst.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 90a971c60769781f53827b469a9be3aab14cf71c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 24 14:50:45 2010 +0000
+
+    uxa: Only reduce a composite to a BLT if it is wholly contained
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2eec53d0b9232970fe3d03ce6c8940ebeea44bee
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 23 17:28:22 2010 +0000
+
+    uxa: Default to using TILING_X for pixmaps.
+    
+    On memory constrained hardware, tiling is vital for good performance as
+    it minimizes cache misses.  The downside is that for older hardware
+    (which often suffers from the lack of bandwidth) requires the use of
+    fences for many operations, which are in short supply and so may cause
+    shorter batchbuffers. However our batch buffers are typically short and
+    so this is unlikely to be a concern and not affect the performance wins.
+    
+    A quick bit of testing suggests the effect is inconclusive on
+    firefox/i945:
+                      linear            tiled
+      xcb             205.470           206.219
+      xcb-render-0.0  404.704           388.413
+      xlib            166.410           170.805
+    
+    A secondary effect of the patch is to workaround a G31 specific hang
+    when attempting to use linear 2048x2048 surfaces. Bonus!
+    
+    Fixes:
+      Bug 25375 - Performance issue using texture from pixmap (tfp) glx extension on 945
+      http://bugs.freedesktop.org/show_bug.cgi?id=25375
+    
+      Bug 27100 - GPU Hung copying a 2048x1152 pixmap
+      http://bugs.freedesktop.org/show_bug.cgi?id=27100
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Tested-by: John <jvinla@gmail.com>
+
 commit 9c037f61a490c96f9095f7ff3fecbf41f5efe9f7
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Mar 22 15:23:04 2010 -0700

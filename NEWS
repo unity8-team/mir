@@ -1,3 +1,43 @@
+Release 2.11.0 (2010-03-29)
+===========================
+New in 2.11: DRI2 and page flipping
+-----------------------------------
+The most significant new feature of this release is support for new
+DRI2 APIs, allowing page flipping to occur for swaps that are
+full-screen and not rotated.
+
+Performance improvements in 2.11 compared to 2.10
+-------------------------------------------------
+Dramatically improved performance of large pixmaps on
+memory-constrained hardware, (such as 945), by using tiling.
+Note that this fix is new since the most recent release
+candidate for this release (2.10.903).
+
+    https://bugs.freedesktop.org/show_bug.cgi?id=25375
+
+Elimination of software fallback with alpha-only pixmap (a fix which
+eliminated a full second from the Moblin boot time):
+
+    https://bugs.freedesktop.org/show_bug.cgi?id=26189
+
+Notable bug fixes in 2.11 compared to 2.10
+------------------------------------------
+Fix for undesired black borders on some images, (caued several
+problems with firefox):
+
+    http://bugs.freedesktop.org/show_bug.cgi?id=17933
+
+And other fixes to provide more conformance with existing
+software-rendering, (as measures by the cairo test suite), such as the
+sampling location for nearest-neighbor sampling.
+
+Other changes
+-------------
+Eric Anholt and Daniel Vetter both removed large piles of old and
+useless code now that the driver requires kernel modesetting
+(KMS). This continues to reduce the mainteance burden of the driver,
+making it easier to isolate and fix bugs.
+
 Snapshot 2.10.903 (2010-03-22)
 ==============================
 Some notable bug fixes
