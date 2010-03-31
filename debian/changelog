@@ -1,3 +1,62 @@
+xserver-xorg-video-intel (2:2.9.1-3ubuntu1) lucid; urgency=low
+
+  * Merge with Debian.
+    - Backport KMS video overlay from upstream 2.10 (lp: #395932)
+  * Remaining Ubuntu changes:
+    - debian/apport-gpu-error-intel.py, debian/xserver-xorg-video-intel.udev:
+      Add apport script to collect debug information on GPU hangs
+    - rules: Install udev rule to run the script when the kernel detects hung GPU
+    - control: Add intel-gpu-tools to Recommends for use by the above
+    - 101_copy-fb.patch: Adds feature to driver so Xserver can draw
+      root windows with no background.  This enables smooth boot with
+      Plymouth.
+    - Drop xserver-xorg-video-intel-dbg.install: intel_reg_dumper is now
+      provided by the intel-gpu-tools package.
+    - apport-gpu-error-intel.py, xserver-xorg-video-intel.install,
+      xserver-xorg-video-intel.udev: Add apport hook to catch X freeze bugs
+    - 102_avoid_flushing_null.patch: Cherrypick from upstream to I830.
+    - 103_check_for_overflow.patch: Cherrypick from upstream to I915.
+    - 104_fail_when_prop_values_gone.patch: Cherrypick from upstream to
+      drmmode_display.
+  * Reduce libdrm-dev requirement to 2.6.18
+  * Add 105_free_after_printing.patch: Cherrypick from upstream.
+    Avoid printing a just-freed string if the DRM device could not be opened.
+  * Add 106_initialize_drmmode_output.patch: Cherrypick from upstream.
+    Clear mode_output during output destroy.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 31 Mar 2010 14:36:51 -0700
+
+xserver-xorg-video-intel (2:2.9.1-3) unstable; urgency=low
+
+  [ Julien Cristau ]
+  * Rename the build directory to not include DEB_BUILD_GNU_TYPE for no
+    good reason.  Thanks, Colin Watson!
+  * Remove myself from Uploaders
+  * Add a NEWS.Debian entry about KMS.
+  * Backport KMS video overlay from upstream 2.10 (closes: #565328).
+  * Bump libdrm-dev build-dep for the above.
+
+  [ Brice Goglin ]
+  * Bump Standards-Version to 3.8.4, no changes.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sun, 21 Mar 2010 10:25:27 +0100
+
+xserver-xorg-video-intel (2:2.9.1-2) unstable; urgency=low
+
+  * Upload to unstable.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 07 Jan 2010 20:53:45 +0000
+
+xserver-xorg-video-intel (2:2.9.1-1+exp1) experimental; urgency=low
+
+  [ Julien Cristau ]
+  * Enable kernel mode setting by default on linux (closes: #555906).
+
+  [ Brice Goglin ]
+  * Build against xserver 1.7.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 02 Dec 2009 15:50:17 +0100
+
 xserver-xorg-video-intel (2:2.9.1-1ubuntu18) lucid; urgency=low
 
   * Add 102_avoid_flushing_null.patch: Cherrypick from upstream to I830.

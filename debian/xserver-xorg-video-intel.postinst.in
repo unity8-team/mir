@@ -1,0 +1,21 @@
+#!/bin/sh
+
+set -e
+
+THIS_SCRIPT=postinst
+THIS_PACKAGE=xserver-xorg-video-intel
+
+#INCLUDE_SHELL_LIB#
+
+case "$1" in
+  abort-upgrade)
+  if dpkg --compare-versions "$2" lt-nl 2:2.9.1; then
+    # failed downgrading to a version without kms
+    remove_conffile_rollback /etc/modprobe.d/i915-kms.conf
+  fi
+  ;;
+esac
+
+#DEBHELPER#
+
+# vim:set ai et sw=2 ts=2 tw=80:

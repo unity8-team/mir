@@ -53,26 +53,11 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    int nbox_total = REGION_NUM_RECTS(dstRegion);
    int nbox_this_time;
    int dxo, dyo, pix_xoff, pix_yoff;
-   Bool planar;
 
 #if 0
    ErrorF("I915DisplayVideo: %dx%d (pitch %d)\n", width, height,
 	  video_pitch);
 #endif
-
-   switch (id) {
-   case FOURCC_UYVY:
-   case FOURCC_YUY2:
-      planar = FALSE;
-      break;
-   case FOURCC_YV12:
-   case FOURCC_I420:
-      planar = TRUE;
-      break;
-   default:
-      ErrorF("Unknown format 0x%x\n", id);
-      return;
-   }
 
 #define BYTES_FOR_BOXES(n)	((200 + (n) * 20) * 4)
 #define BOXES_IN_BYTES(s)	((((s)/4) - 200) / 20)
@@ -147,7 +132,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_RELOC_PIXMAP(pPixmap, I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
    ADVANCE_BATCH();
 
-   if (!planar) {
+   if (!is_planar_fourcc(id)) {
       FS_LOCALS(10);
 
       BEGIN_BATCH(16);
@@ -173,9 +158,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_BATCH(_3DSTATE_MAP_STATE | 3);
       OUT_BATCH(0x00000001);	/* texture map #1 */
       if (pPriv->buf)
-          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->YBuf0offset);
+          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->YBufOffset);
       else
-          OUT_BATCH(pPriv->YBuf0offset);
+          OUT_BATCH(pPriv->YBufOffset);
 
       ms3 = MAPSURF_422 | MS3_USE_FENCE_REGS;
       switch (id) {
@@ -285,9 +270,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_BATCH(0x00000007);
 
       if (pPriv->buf)
-          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->YBuf0offset);
+          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->YBufOffset);
       else
-          OUT_BATCH(pPriv->YBuf0offset);
+          OUT_BATCH(pPriv->YBufOffset);
 
       ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
@@ -302,9 +287,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	  OUT_BATCH(((video_pitch * 2 / 4) - 1) << MS4_PITCH_SHIFT);
 
       if (pPriv->buf)
-          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->UBuf0offset);
+          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->UBufOffset);
       else
-          OUT_BATCH(pPriv->UBuf0offset);
+          OUT_BATCH(pPriv->UBufOffset);
 
       ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
@@ -313,9 +298,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_BATCH(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
 
       if (pPriv->buf)
-          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->VBuf0offset);
+          OUT_RELOC(pPriv->buf, I915_GEM_DOMAIN_SAMPLER, 0, pPriv->VBufOffset);
       else
-          OUT_BATCH(pPriv->VBuf0offset);
+          OUT_BATCH(pPriv->VBufOffset);
 
       ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;

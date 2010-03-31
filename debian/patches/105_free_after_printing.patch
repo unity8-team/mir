@@ -1,0 +1,26 @@
+From 3d4b3f257fbbb69c6f236d9803abe54a90d7d434 Mon Sep 17 00:00:00 2001
+From: Dave Airlie <airlied@redhat.com>
+Date: Thu, 18 Mar 2010 02:48:39 +0000
+Subject: intel: free bus id in error path after printing it out.
+
+the error message prints out a freed string, spotted during
+code reappropriation to radeon driver.
+
+Signed-off-by: Dave Airlie <airlied@redhat.com>
+Backported to 2.9.1: Bryce Harrington <bryce@canonical.com>
+---
+diff -Nurp xserver-xorg-video-intel-2.9.1-patched/src/i830_driver.c xserver-xorg-video-intel-2.9.1-working/src/i830_driver.c
+--- xserver-xorg-video-intel-2.9.1-patched/src/i830_driver.c	2010-03-31 14:33:10.000000000 -0700
++++ xserver-xorg-video-intel-2.9.1-working/src/i830_driver.c	2010-03-31 14:34:04.000000000 -0700
+@@ -1380,10 +1380,10 @@ i830_open_drm_master(ScrnInfoPtr scrn)
+ 
+     i830->drmSubFD = drmOpen("i915", busid);
+     if (i830->drmSubFD == -1) {
+-	xfree(busid);
+ 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+ 		   "[drm] Failed to open DRM device for %s: %s\n", busid,
+ 		   strerror(errno));
++	xfree(busid);
+ 	return FALSE;
+     }
+ 
