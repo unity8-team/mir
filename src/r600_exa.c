@@ -171,15 +171,9 @@ static Bool R600CheckBPP(int bpp)
 
 Bool
 R600SetAccelState(ScrnInfoPtr pScrn,
-		  int src_pitch0, int src_width0, int src_height0,
-		  uint32_t src_offset0, struct radeon_bo *src_bo0, int src_bpp0,
-		  uint32_t src_domain0,
-		  int src_pitch1, int src_width1, int src_height1,
-		  uint32_t src_offset1, struct radeon_bo *src_bo1, int src_bpp1,
-		  uint32_t src_domain1,
-		  int dst_pitch, int dst_width, int dst_height,
-		  uint32_t dst_offset, struct radeon_bo *dst_bo, int dst_bpp,
-		  uint32_t dst_domain,
+		  struct accel_object *src0,
+		  struct accel_object *src1,
+		  struct accel_object *dst,
 		  uint32_t vs_offset, uint32_t ps_offset,
 		  int rop, Pixel planemask)
 {
@@ -187,32 +181,56 @@ R600SetAccelState(ScrnInfoPtr pScrn,
     struct radeon_accel_state *accel_state = info->accel_state;
     int ret;
 
-    accel_state->src_size[0] = src_pitch0 * src_height0 * (src_bpp0/8);
-    accel_state->src_mc_addr[0] = src_offset0;
-    accel_state->src_pitch[0] = src_pitch0;
-    accel_state->src_width[0] = src_width0;
-    accel_state->src_height[0] = src_height0;
-    accel_state->src_bpp[0] = src_bpp0;
-    accel_state->src_bo[0] = src_bo0;
-    accel_state->src_domain[0] = src_domain0;
+    if (src0) {
+	accel_state->src_size[0] = src0->pitch * src0->height * (src0->bpp/8);
+	accel_state->src_mc_addr[0] = src0->offset;
+	accel_state->src_pitch[0] = src0->pitch;
+	accel_state->src_width[0] = src0->width;
+	accel_state->src_height[0] = src0->height;
+	accel_state->src_bpp[0] = src0->bpp;
+	accel_state->src_bo[0] = src0->bo;
+	accel_state->src_domain[0] = src0->domain;
+    } else {
+	accel_state->src_size[0] = accel_state->src_mc_addr[0] =
+	    accel_state->src_pitch[0] = accel_state->src_width[0] =
+	    accel_state->src_bpp[0] = 0;
+	accel_state->src_bo[0] = NULL;
+	accel_state->src_domain[0] = 0;
+    }
 
-    accel_state->src_size[1] = src_pitch1 * src_height1 * (src_bpp1/8);
-    accel_state->src_mc_addr[1] = src_offset1;
-    accel_state->src_pitch[1] = src_pitch1;
-    accel_state->src_width[1] = src_width1;
-    accel_state->src_height[1] = src_height1;
-    accel_state->src_bpp[1] = src_bpp1;
-    accel_state->src_bo[1] = src_bo1;
-    accel_state->src_domain[1] = src_domain1;
+    if (src1) {
+	accel_state->src_size[1] = src1->pitch * src1->height * (src1->bpp/8);
+	accel_state->src_mc_addr[1] = src1->offset;
+	accel_state->src_pitch[1] = src1->pitch;
+	accel_state->src_width[1] = src1->width;
+	accel_state->src_height[1] = src1->height;
+	accel_state->src_bpp[1] = src1->bpp;
+	accel_state->src_bo[1] = src1->bo;
+	accel_state->src_domain[1] = src1->domain;
+    } else {
+	accel_state->src_size[1] = accel_state->src_mc_addr[1] =
+	    accel_state->src_pitch[1] = accel_state->src_width[1] =
+	    accel_state->src_bpp[1] = 0;
+	accel_state->src_bo[1] = NULL;
+	accel_state->src_domain[1] = 0;
+    }
 
-    accel_state->dst_size = dst_pitch * dst_height * (dst_bpp/8);
-    accel_state->dst_mc_addr = dst_offset;
-    accel_state->dst_pitch = dst_pitch;
-    accel_state->dst_width = dst_width;
-    accel_state->dst_height = dst_height;
-    accel_state->dst_bpp = dst_bpp;
-    accel_state->dst_bo = dst_bo;
-    accel_state->dst_domain = dst_domain;
+    if (dst) {
+	accel_state->dst_size = dst->pitch * dst->height * (dst->bpp/8);
+	accel_state->dst_mc_addr = dst->offset;
+	accel_state->dst_pitch = dst->pitch;
+	accel_state->dst_width = dst->width;
+	accel_state->dst_height = dst->height;
+	accel_state->dst_bpp = dst->bpp;
+	accel_state->dst_bo = dst->bo;
+	accel_state->dst_domain = dst->domain;
+    } else {
+	accel_state->dst_size = accel_state->dst_mc_addr =
+	    accel_state->dst_pitch = accel_state->dst_width =
+	    accel_state->dst_bpp = 0;
+	accel_state->dst_bo = NULL;
+	accel_state->dst_domain = 0;
+    }
 
     accel_state->rop = rop;
     accel_state->planemask = planemask;
@@ -303,6 +321,8 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     float ps_alu_consts[4];
     uint32_t dst_offset, dst_pitch;
     struct radeon_bo *dst_bo = NULL;
+    struct accel_object dst;
+
 
     if (!R600CheckBPP(pPix->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("R600CheckDatatype failed\n"));
@@ -318,16 +338,19 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	dst_offset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
     dst_pitch = exaGetPixmapPitch(pPix) / (pPix->drawable.bitsPerPixel / 8);
 
+
+    dst.pitch = dst_pitch;
+    dst.width = pPix->drawable.width;
+    dst.height = pPix->drawable.height;
+    dst.offset = dst_offset;
+    dst.bo = dst_bo;
+    dst.bpp = pPix->drawable.bitsPerPixel;
+    dst.domain = RADEON_GEM_DOMAIN_VRAM;
+	
     if (!R600SetAccelState(pScrn,
-			   0, 0, 0,
-			   0, NULL, 0,
-			   0,
-			   0, 0, 0,
-			   0, NULL, 0,
-			   0,
-			   dst_pitch, pPix->drawable.width, pPix->drawable.height,
-			   dst_offset, dst_bo, pPix->drawable.bitsPerPixel,
-			   RADEON_GEM_DOMAIN_VRAM,
+			   NULL,
+			   NULL,
+			   &dst,
 			   accel_state->solid_vs_offset, accel_state->solid_ps_offset,
 			   alu, pm))
 	return FALSE;
@@ -723,6 +746,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     uint32_t src_offset, dst_offset;
     struct radeon_bo *dst_bo = NULL;
     struct radeon_bo *src_bo = NULL;
+    struct accel_object src_obj, dst_obj;
 
     if (!R600CheckBPP(pSrc->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("R600CheckDatatype src failed\n"));
@@ -752,16 +776,26 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	    accel_state->same_surface = TRUE;
     }
 
+    src_obj.pitch = src_pitch;
+    src_obj.width = pSrc->drawable.width;
+    src_obj.height = pSrc->drawable.height;
+    src_obj.offset = src_offset;
+    src_obj.bpp = pSrc->drawable.bitsPerPixel;
+    src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
+    src_obj.bo = src_bo;
+    
+    dst_obj.pitch = dst_pitch;
+    dst_obj.width = pDst->drawable.width;
+    dst_obj.height = pDst->drawable.height;
+    dst_obj.offset = dst_offset;
+    dst_obj.bo = dst_bo;
+    dst_obj.bpp = pDst->drawable.bitsPerPixel;
+    dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+
     if (!R600SetAccelState(pScrn,
-			   src_pitch, pSrc->drawable.width, pSrc->drawable.height,
-			   src_offset, src_bo, pSrc->drawable.bitsPerPixel,
-			   RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT,
-			   0, 0, 0,
-			   0, NULL, 0,
-			   0,
-			   dst_pitch, pDst->drawable.width, pDst->drawable.height,
-			   dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-			   RADEON_GEM_DOMAIN_VRAM,
+			   &src_obj,
+			   NULL,
+			   &dst_obj,
 			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
 			   rop, planemask))
 	return FALSE;
@@ -1385,6 +1419,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     struct radeon_bo *src_bo = NULL;
     struct radeon_bo *mask_bo = NULL;
     struct radeon_bo *dst_bo = NULL;
+    struct accel_object src_obj, mask_obj, dst_obj;
 
     if (pDst->drawable.bitsPerPixel < 8 || pSrc->drawable.bitsPerPixel < 8)
 	return FALSE;
@@ -1404,6 +1439,22 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     src_pitch = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
     dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
 
+    src_obj.pitch = src_pitch;
+    src_obj.width = pSrc->drawable.width;
+    src_obj.height = pSrc->drawable.height;
+    src_obj.offset = src_offset;
+    src_obj.bpp = pSrc->drawable.bitsPerPixel;
+    src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
+    src_obj.bo = src_bo;
+
+    dst_obj.pitch = dst_pitch;
+    dst_obj.width = pDst->drawable.width;
+    dst_obj.height = pDst->drawable.height;
+    dst_obj.offset = dst_offset;
+    dst_obj.bpp = pDst->drawable.bitsPerPixel;
+    dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+    dst_obj.bo = dst_bo;
+
     if (pMask) {
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
@@ -1413,16 +1464,19 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 #endif
 	    mask_offset = exaGetPixmapOffset(pMask) + info->fbLocation + pScrn->fbOffset;
 	mask_pitch = exaGetPixmapPitch(pMask) / (pMask->drawable.bitsPerPixel / 8);
+
+	mask_obj.pitch = mask_pitch;
+	mask_obj.width = pMask->drawable.width;
+	mask_obj.height = pMask->drawable.height;
+	mask_obj.offset = mask_offset;
+	mask_obj.bpp = pMask->drawable.bitsPerPixel;
+	mask_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
+	mask_obj.bo = mask_bo;
+
 	if (!R600SetAccelState(pScrn,
-			       src_pitch, pSrc->drawable.width, pSrc->drawable.height,
-			       src_offset, src_bo, pSrc->drawable.bitsPerPixel,
-			       RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT,
-			       mask_pitch, pMask->drawable.width, pMask->drawable.height,
-			       mask_offset, mask_bo, pMask->drawable.bitsPerPixel,
-			       RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT,
-			       dst_pitch, pDst->drawable.width, pDst->drawable.height,
-			       dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-			       RADEON_GEM_DOMAIN_VRAM,
+			       &src_obj,
+			       &mask_obj,
+			       &dst_obj,
 			       accel_state->comp_vs_offset, accel_state->comp_mask_ps_offset,
 			       3, 0xffffffff))
 	    return FALSE;
@@ -1440,15 +1494,9 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	}
     } else {
 	if (!R600SetAccelState(pScrn,
-			       src_pitch, pSrc->drawable.width, pSrc->drawable.height,
-			       src_offset, src_bo, pSrc->drawable.bitsPerPixel,
-			       RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT,
-			       0, 0, 0,
-			       0, NULL, 0,
-			       0,
-			       dst_pitch, pDst->drawable.width, pDst->drawable.height,
-			       dst_offset, dst_bo, pDst->drawable.bitsPerPixel,
-			       RADEON_GEM_DOMAIN_VRAM,
+			       &src_obj,
+			       NULL,
+			       &dst_obj,
 			       accel_state->comp_vs_offset, accel_state->comp_ps_offset,
 			       3, 0xffffffff))
 	    return FALSE;
@@ -1716,6 +1764,7 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
     int scratch_offset = 0, hpass, temph;
     char *dst;
     drmBufPtr scratch;
+    struct accel_object scratch_obj, dst_obj;
 
     if (dst_pitch & 7)
 	return FALSE;
@@ -1731,16 +1780,26 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
     temph = hpass = min(h, scratch->total/2 / scratch_pitch_bytes);
     dst = (char *)scratch->address;
 
+    scratch_obj.pitch = scratch_pitch;
+    scratch_obj.width = w;
+    scratch_obj.height = hpass;
+    scratch_obj.offset = scratch_mc_addr;
+    scratch_obj.bpp = bpp;
+    scratch_obj.domain = RADEON_GEM_DOMAIN_GTT;
+    scratch_obj.bo = NULL;
+
+    dst_obj.pitch = dst_pitch;
+    dst_obj.width = dst_width;
+    dst_obj.height = dst_height;
+    dst_obj.offset = dst_mc_addr;
+    dst_obj.bo = NULL;
+    dst_obj.bpp = bpp;
+    dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+
     if (!R600SetAccelState(pScrn,
-			   scratch_pitch, w, hpass,
-			   scratch_mc_addr, NULL, bpp,
-			   RADEON_GEM_DOMAIN_GTT,
-			   0, 0, 0,
-			   0, NULL, 0,
-			   0,
-			   dst_pitch, dst_width, dst_height,
-			   dst_mc_addr, NULL, bpp,
-			   RADEON_GEM_DOMAIN_VRAM,
+			   &scratch_obj,
+			   NULL,
+			   &dst_obj,
 			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
 			   3, 0xffffffff))
 	return FALSE;
@@ -1819,6 +1878,7 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     uint32_t scratch_pitch = scratch_pitch_bytes / (bpp / 8);
     int wpass = w * (bpp/8);
     drmBufPtr scratch;
+    struct accel_object scratch_obj, src_obj;
 
     /* bad pipe setup in drm prior to 1.32 */
     if (info->dri->pKernelDRMVersion->version_minor < 32) {
@@ -1836,16 +1896,26 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     scratch_mc_addr = info->gartLocation + info->dri->bufStart + (scratch->idx * scratch->total);
     hpass = min(h, scratch->total/2 / scratch_pitch_bytes);
 
+    src_obj.pitch = src_pitch;
+    src_obj.width = src_width;
+    src_obj.height = src_height;
+    src_obj.offset = src_mc_addr;
+    src_obj.bo = NULL;
+    src_obj.bpp = bpp;
+    src_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+
+    scratch_obj.pitch = scratch_pitch;
+    scratch_obj.width = src_width;
+    scratch_obj.height = hpass;
+    scratch_obj.offset = scratch_mc_addr;
+    scratch_obj.bpp = bpp;
+    scratch_obj.domain = RADEON_GEM_DOMAIN_GTT;
+    scratch_obj.bo = NULL;
+
     if (!R600SetAccelState(pScrn,
-			   src_pitch, src_width, src_height,
-			   src_mc_addr, NULL, bpp,
-			   RADEON_GEM_DOMAIN_VRAM,
-			   0, 0, 0,
-			   0, NULL, 0,
-			   0,
-			   scratch_pitch, src_width, hpass,
-			   scratch_mc_addr, NULL, bpp,
-			   RADEON_GEM_DOMAIN_GTT,
+			   &src_obj,
+			   NULL,
+			   &scratch_obj,
 			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
 			   3, 0xffffffff))
 	return FALSE;
@@ -1908,6 +1978,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     uint32_t dst_pitch_hw = exaGetPixmapPitch(pDst) / (bpp / 8);
     Bool r;
     int i;
+    struct accel_object src_obj, dst_obj;
 
     if (bpp < 8)
 	return FALSE;
@@ -1925,16 +1996,26 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 	return FALSE;
     }
 
+    src_obj.pitch = src_pitch_hw;
+    src_obj.width = w;
+    src_obj.height = h;
+    src_obj.offset = 0;
+    src_obj.bpp = bpp;
+    src_obj.domain = RADEON_GEM_DOMAIN_GTT;
+    src_obj.bo = scratch;
+
+    dst_obj.pitch = dst_pitch_hw;
+    dst_obj.width = pDst->drawable.width;
+    dst_obj.height = pDst->drawable.height;
+    dst_obj.offset = 0;
+    dst_obj.bpp = bpp;
+    dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+    dst_obj.bo = radeon_get_pixmap_bo(pDst);
+
     if (!R600SetAccelState(pScrn,
-			   src_pitch_hw, w, h,
-			   0, scratch, bpp,
-			   RADEON_GEM_DOMAIN_GTT,
-			   0, 0, 0,
-			   0, NULL, 0,
-			   0,
-			   dst_pitch_hw, pDst->drawable.width, pDst->drawable.height,
-			   0, radeon_get_pixmap_bo(pDst), bpp,
-			   RADEON_GEM_DOMAIN_VRAM,
+			   &src_obj,
+			   NULL,
+			   &dst_obj,
 			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
 			   3, 0xffffffff)) {
         r = FALSE;
@@ -1983,6 +2064,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     uint32_t dst_pitch_hw = scratch_pitch / (bpp / 8);
     uint32_t src_pitch_hw = exaGetPixmapPitch(pSrc) / (bpp / 8);
     Bool r;
+    struct accel_object src_obj, dst_obj;
 
     if (bpp < 8)
 	return FALSE;
@@ -2020,16 +2102,27 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
         r = FALSE;
         goto out;
     }
+
+    src_obj.pitch = src_pitch_hw;
+    src_obj.width = pSrc->drawable.width;
+    src_obj.height = pSrc->drawable.height;
+    src_obj.offset = 0;
+    src_obj.bpp = bpp;
+    src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
+    src_obj.bo = radeon_get_pixmap_bo(pSrc);
+    
+    dst_obj.pitch = dst_pitch_hw;
+    dst_obj.width = w;
+    dst_obj.height = h;
+    dst_obj.offset = 0;
+    dst_obj.bo = scratch;
+    dst_obj.bpp = bpp;
+    dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
+
     if (!R600SetAccelState(pScrn,
-			   src_pitch_hw, pSrc->drawable.width, pSrc->drawable.height,
-			   0, radeon_get_pixmap_bo(pSrc), bpp,
-			   RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM,
-			   0, 0, 0,
-			   0, NULL, 0,
-			   0,
-			   dst_pitch_hw, w, h,
-			   0, scratch, bpp,
-			   RADEON_GEM_DOMAIN_GTT,
+			   &src_obj,
+			   NULL,
+			   &dst_obj,
 			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
 			   3, 0xffffffff)) {
         r = FALSE;

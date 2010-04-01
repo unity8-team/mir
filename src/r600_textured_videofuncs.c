@@ -67,6 +67,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     int dstxoff, dstyoff;
     uint32_t src_offset, dst_offset, dst_pitch;
     struct radeon_bo *dst_bo = NULL;
+    struct accel_object src_obj, dst_obj;
     cb_config_t     cb_conf;
     tex_resource_t  tex_res;
     tex_sampler_t   tex_samp;
@@ -177,16 +178,26 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
     dst_pitch = exaGetPixmapPitch(pPixmap) / (pPixmap->drawable.bitsPerPixel / 8);
 
+    src_obj.pitch = pPriv->src_pitch;
+    src_obj.width = pPriv->w;
+    src_obj.height = pPriv->h;
+    src_obj.offset = src_offset;
+    src_obj.bpp = 16;
+    src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
+    src_obj.bo = pPriv->src_bo[pPriv->currentBuffer];
+    
+    dst_obj.pitch = dst_pitch;
+    dst_obj.width = pPixmap->drawable.width;
+    dst_obj.height = pPixmap->drawable.height;
+    dst_obj.offset = dst_offset;
+    dst_obj.bo = dst_bo;
+    dst_obj.bpp = pPixmap->drawable.bitsPerPixel;
+    dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+
     if (!R600SetAccelState(pScrn,
-			   pPriv->src_pitch, pPriv->w, pPriv->h,
-			   src_offset, pPriv->src_bo[pPriv->currentBuffer], 16,
-			   RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT,
-			   0, 0, 0,
-			   0, NULL, 0,
-			   0,
-			   dst_pitch, pPixmap->drawable.width, pPixmap->drawable.height,
-			   dst_offset, dst_bo, pPixmap->drawable.bitsPerPixel,
-			   RADEON_GEM_DOMAIN_VRAM,
+			   &src_obj,
+			   NULL,
+			   &dst_obj,
 			   accel_state->xv_vs_offset, accel_state->xv_ps_offset,
 			   3, 0xffffffff))
 	return;
