@@ -319,10 +319,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     int pmask = 0;
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
-    uint32_t dst_offset, dst_pitch;
-    struct radeon_bo *dst_bo = NULL;
     struct accel_object dst;
-
 
     if (!R600CheckBPP(pPix->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("R600CheckDatatype failed\n"));
@@ -331,19 +328,18 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
-	dst_offset = 0;
-	dst_bo = radeon_get_pixmap_bo(pPix);
+	dst.offset = 0;
+	dst.bo = radeon_get_pixmap_bo(pPix);
     } else
 #endif
-	dst_offset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
-    dst_pitch = exaGetPixmapPitch(pPix) / (pPix->drawable.bitsPerPixel / 8);
+    {
+	dst.offset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
+	dst.bo = NULL;
+    }
 
-
-    dst.pitch = dst_pitch;
+    dst.pitch = exaGetPixmapPitch(pPix) / (pPix->drawable.bitsPerPixel / 8);
     dst.width = pPix->drawable.width;
     dst.height = pPix->drawable.height;
-    dst.offset = dst_offset;
-    dst.bo = dst_bo;
     dst.bpp = pPix->drawable.bitsPerPixel;
     dst.domain = RADEON_GEM_DOMAIN_VRAM;
 	
@@ -742,10 +738,6 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    uint32_t src_pitch, dst_pitch;
-    uint32_t src_offset, dst_offset;
-    struct radeon_bo *dst_bo = NULL;
-    struct radeon_bo *src_bo = NULL;
     struct accel_object src_obj, dst_obj;
 
     if (!R600CheckBPP(pSrc->drawable.bitsPerPixel))
@@ -755,40 +747,37 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     if (!R600ValidPM(planemask, pDst->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("Invalid planemask\n"));
 
-    dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
-    src_pitch = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
+    dst_obj.pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
+    src_obj.pitch = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
+
     accel_state->same_surface = FALSE;
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
-	src_offset = 0;
-	dst_offset = 0;
-	src_bo = radeon_get_pixmap_bo(pSrc);
-	dst_bo = radeon_get_pixmap_bo(pDst);
+	src_obj.offset = 0;
+	dst_obj.offset = 0;
+	src_obj.bo = radeon_get_pixmap_bo(pSrc);
+	dst_obj.bo = radeon_get_pixmap_bo(pDst);
 	if (radeon_get_pixmap_bo(pSrc) == radeon_get_pixmap_bo(pDst))
 	    accel_state->same_surface = TRUE;
     } else
 #endif
     {
-	src_offset = exaGetPixmapOffset(pSrc) + info->fbLocation + pScrn->fbOffset;
-	dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
+	src_obj.offset = exaGetPixmapOffset(pSrc) + info->fbLocation + pScrn->fbOffset;
+	dst_obj.offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
 	if (exaGetPixmapOffset(pSrc) == exaGetPixmapOffset(pDst))
 	    accel_state->same_surface = TRUE;
+	src_obj.bo = NULL;
+	dst_obj.bo = NULL;
     }
 
-    src_obj.pitch = src_pitch;
     src_obj.width = pSrc->drawable.width;
     src_obj.height = pSrc->drawable.height;
-    src_obj.offset = src_offset;
     src_obj.bpp = pSrc->drawable.bitsPerPixel;
     src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
-    src_obj.bo = src_bo;
     
-    dst_obj.pitch = dst_pitch;
     dst_obj.width = pDst->drawable.width;
     dst_obj.height = pDst->drawable.height;
-    dst_obj.offset = dst_offset;
-    dst_obj.bo = dst_bo;
     dst_obj.bpp = pDst->drawable.bitsPerPixel;
     dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
 
@@ -1414,11 +1403,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     uint32_t blendcntl, dst_format;
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
-    uint32_t src_pitch, mask_pitch, dst_pitch;
-    uint32_t src_offset, mask_offset, dst_offset;
-    struct radeon_bo *src_bo = NULL;
-    struct radeon_bo *mask_bo = NULL;
-    struct radeon_bo *dst_bo = NULL;
     struct accel_object src_obj, mask_obj, dst_obj;
 
     if (pDst->drawable.bitsPerPixel < 8 || pSrc->drawable.bitsPerPixel < 8)
@@ -1426,52 +1410,48 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
-	src_offset = 0;
-	dst_offset = 0;
-	src_bo = radeon_get_pixmap_bo(pSrc);
-	dst_bo = radeon_get_pixmap_bo(pDst);
+	src_obj.offset = 0;
+	dst_obj.offset = 0;
+	src_obj.bo = radeon_get_pixmap_bo(pSrc);
+	dst_obj.bo = radeon_get_pixmap_bo(pDst);
     } else
 #endif
     {
-	src_offset = exaGetPixmapOffset(pSrc) + info->fbLocation + pScrn->fbOffset;
-	dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
+	src_obj.offset = exaGetPixmapOffset(pSrc) + info->fbLocation + pScrn->fbOffset;
+	dst_obj.offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
+	src_obj.bo = NULL;
+	dst_obj.bo = NULL;
     }
-    src_pitch = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
-    dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
+    src_obj.pitch = exaGetPixmapPitch(pSrc) / (pSrc->drawable.bitsPerPixel / 8);
+    dst_obj.pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
 
-    src_obj.pitch = src_pitch;
     src_obj.width = pSrc->drawable.width;
     src_obj.height = pSrc->drawable.height;
-    src_obj.offset = src_offset;
     src_obj.bpp = pSrc->drawable.bitsPerPixel;
     src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
-    src_obj.bo = src_bo;
 
-    dst_obj.pitch = dst_pitch;
     dst_obj.width = pDst->drawable.width;
     dst_obj.height = pDst->drawable.height;
-    dst_obj.offset = dst_offset;
     dst_obj.bpp = pDst->drawable.bitsPerPixel;
     dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
-    dst_obj.bo = dst_bo;
 
     if (pMask) {
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
-	    mask_offset = 0;
-	    mask_bo = radeon_get_pixmap_bo(pMask);
-	} else
+	    mask_obj.offset = 0;
+	    mask_obj.bo = radeon_get_pixmap_bo(pMask);
+	} else 
 #endif
-	    mask_offset = exaGetPixmapOffset(pMask) + info->fbLocation + pScrn->fbOffset;
-	mask_pitch = exaGetPixmapPitch(pMask) / (pMask->drawable.bitsPerPixel / 8);
+	{
+	    mask_obj.offset = exaGetPixmapOffset(pMask) + info->fbLocation + pScrn->fbOffset;
+	    mask_obj.bo = NULL;
+	}
+	mask_obj.pitch = exaGetPixmapPitch(pMask) / (pMask->drawable.bitsPerPixel / 8);
 
-	mask_obj.pitch = mask_pitch;
 	mask_obj.width = pMask->drawable.width;
 	mask_obj.height = pMask->drawable.height;
-	mask_obj.offset = mask_offset;
 	mask_obj.bpp = pMask->drawable.bitsPerPixel;
 	mask_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
-	mask_obj.bo = mask_bo;
 
 	if (!R600SetAccelState(pScrn,
 			       &src_obj,
