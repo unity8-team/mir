@@ -328,21 +328,11 @@ int
 r600_cp_start(ScrnInfoPtr pScrn);
 void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size);
 
-struct accel_object {
-    uint32_t pitch;
-    uint32_t width;
-    uint32_t height;
-    uint32_t offset;
-    int bpp;
-    uint32_t domain;
-    struct radeon_bo *bo;
-};
-
 Bool
 R600SetAccelState(ScrnInfoPtr pScrn,
-		  struct accel_object *src0,
-		  struct accel_object *src1,
-		  struct accel_object *dst,
+		  struct r600_accel_object *src0,
+		  struct r600_accel_object *src1,
+		  struct r600_accel_object *dst,
 		  uint32_t vs_offset, uint32_t ps_offset,
 		  int rop, Pixel planemask);
 

@@ -673,6 +673,16 @@ struct radeon_dma_bo {
     int expire_counter;
 };
 
+struct r600_accel_object {
+    uint32_t pitch;
+    uint32_t width;
+    uint32_t height;
+    uint32_t offset;
+    int bpp;
+    uint32_t domain;
+    struct radeon_bo *bo;
+};
+
 struct radeon_accel_state {
     /* common accel data */
     int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
@@ -755,22 +765,11 @@ struct radeon_accel_state {
     uint32_t          xv_ps_offset;
 
     //size/addr stuff
-    struct radeon_bo  *src_bo[2];
+    struct r600_accel_object src_obj[2];
+    struct r600_accel_object dst_obj;
     uint32_t          src_size[2];
-    uint64_t          src_mc_addr[2];
-    uint32_t          src_pitch[2];
-    uint32_t          src_width[2];
-    uint32_t          src_height[2];
-    uint32_t          src_bpp[2];
-    uint32_t          src_domain[2];
-    struct radeon_bo  *dst_bo;
     uint32_t          dst_size;
-    uint64_t          dst_mc_addr;
-    uint32_t          dst_pitch;
-    uint32_t          dst_width;
-    uint32_t          dst_height;
-    uint32_t          dst_bpp;
-    uint32_t          dst_domain;
+
     uint32_t          vs_size;
     uint64_t          vs_mc_addr;
     uint32_t          ps_size;

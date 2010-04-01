@@ -1287,8 +1287,8 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 
     /* sync dst surface */
     cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
-			accel_state->dst_size, accel_state->dst_mc_addr,
-			accel_state->dst_bo, 0, accel_state->dst_domain);
+			accel_state->dst_size, accel_state->dst_obj.offset,
+			accel_state->dst_obj.bo, 0, accel_state->dst_obj.domain);
 
     accel_state->vb_start_op = -1;
     accel_state->ib_reset_op = 0;

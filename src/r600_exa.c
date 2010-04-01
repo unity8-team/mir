@@ -171,9 +171,9 @@ static Bool R600CheckBPP(int bpp)
 
 Bool
 R600SetAccelState(ScrnInfoPtr pScrn,
-		  struct accel_object *src0,
-		  struct accel_object *src1,
-		  struct accel_object *dst,
+		  struct r600_accel_object *src0,
+		  struct r600_accel_object *src1,
+		  struct r600_accel_object *dst,
 		  uint32_t vs_offset, uint32_t ps_offset,
 		  int rop, Pixel planemask)
 {
@@ -182,80 +182,53 @@ R600SetAccelState(ScrnInfoPtr pScrn,
     int ret;
 
     if (src0) {
+	memcpy(&accel_state->src_obj[0], src0, sizeof(struct r600_accel_object));
 	accel_state->src_size[0] = src0->pitch * src0->height * (src0->bpp/8);
-	accel_state->src_mc_addr[0] = src0->offset;
-	accel_state->src_pitch[0] = src0->pitch;
-	accel_state->src_width[0] = src0->width;
-	accel_state->src_height[0] = src0->height;
-	accel_state->src_bpp[0] = src0->bpp;
-	accel_state->src_bo[0] = src0->bo;
-	accel_state->src_domain[0] = src0->domain;
     } else {
-	accel_state->src_size[0] = accel_state->src_mc_addr[0] =
-	    accel_state->src_pitch[0] = accel_state->src_width[0] =
-	    accel_state->src_bpp[0] = 0;
-	accel_state->src_bo[0] = NULL;
-	accel_state->src_domain[0] = 0;
+	memset(&accel_state->src_obj[0], 0, sizeof(struct r600_accel_object));
+	accel_state->src_size[0] = 0;
     }
 
     if (src1) {
+	memcpy(&accel_state->src_obj[1], src1, sizeof(struct r600_accel_object));
 	accel_state->src_size[1] = src1->pitch * src1->height * (src1->bpp/8);
-	accel_state->src_mc_addr[1] = src1->offset;
-	accel_state->src_pitch[1] = src1->pitch;
-	accel_state->src_width[1] = src1->width;
-	accel_state->src_height[1] = src1->height;
-	accel_state->src_bpp[1] = src1->bpp;
-	accel_state->src_bo[1] = src1->bo;
-	accel_state->src_domain[1] = src1->domain;
     } else {
-	accel_state->src_size[1] = accel_state->src_mc_addr[1] =
-	    accel_state->src_pitch[1] = accel_state->src_width[1] =
-	    accel_state->src_bpp[1] = 0;
-	accel_state->src_bo[1] = NULL;
-	accel_state->src_domain[1] = 0;
+	memset(&accel_state->src_obj[1], 0, sizeof(struct r600_accel_object));
+	accel_state->src_size[1] = 0;
     }
 
     if (dst) {
+	memcpy(&accel_state->dst_obj, dst, sizeof(struct r600_accel_object));
 	accel_state->dst_size = dst->pitch * dst->height * (dst->bpp/8);
-	accel_state->dst_mc_addr = dst->offset;
-	accel_state->dst_pitch = dst->pitch;
-	accel_state->dst_width = dst->width;
-	accel_state->dst_height = dst->height;
-	accel_state->dst_bpp = dst->bpp;
-	accel_state->dst_bo = dst->bo;
-	accel_state->dst_domain = dst->domain;
     } else {
-	accel_state->dst_size = accel_state->dst_mc_addr =
-	    accel_state->dst_pitch = accel_state->dst_width =
-	    accel_state->dst_bpp = 0;
-	accel_state->dst_bo = NULL;
-	accel_state->dst_domain = 0;
+	memset(&accel_state->dst_obj, 0, sizeof(struct r600_accel_object));
+	accel_state->dst_size = 0;
     }
 
     accel_state->rop = rop;
     accel_state->planemask = planemask;
 
     /* bad pitch */
-    if (accel_state->src_pitch[0] & 7)
-	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_pitch[0]));
+    if (accel_state->src_obj[0].pitch & 7)
+	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[0].pitch));
 
     /* bad offset */
-    if (accel_state->src_mc_addr[0] & 0xff)
-	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_mc_addr[0]));
+    if (accel_state->src_obj[0].offset & 0xff)
+	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_obj[0].offset));
 
     /* bad pitch */
-    if (accel_state->src_pitch[1] & 7)
-	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_pitch[1]));
+    if (accel_state->src_obj[1].pitch & 7)
+	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[1].pitch));
 
     /* bad offset */
-    if (accel_state->src_mc_addr[1] & 0xff)
-	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_mc_addr[1]));
+    if (accel_state->src_obj[1].offset & 0xff)
+	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_obj[1].offset));
 
-    if (accel_state->dst_pitch & 7)
-	RADEON_FALLBACK(("Bad dst pitch 0x%08x\n", accel_state->dst_pitch));
+    if (accel_state->dst_obj.pitch & 7)
+	RADEON_FALLBACK(("Bad dst pitch 0x%08x\n", accel_state->dst_obj.pitch));
 
-    if (accel_state->dst_mc_addr & 0xff)
-	RADEON_FALLBACK(("Bad dst offset 0x%08x\n", accel_state->dst_mc_addr));
+    if (accel_state->dst_obj.offset & 0xff)
+	RADEON_FALLBACK(("Bad dst offset 0x%08x\n", accel_state->dst_obj.offset));
 
     accel_state->vs_size = 512;
     accel_state->ps_size = 512;
@@ -267,15 +240,15 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	radeon_cs_space_reset_bos(info->cs);
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
 					  RADEON_GEM_DOMAIN_VRAM, 0);
-	if (accel_state->src_bo[0])
-	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[0],
-					      accel_state->src_domain[0], 0);
-	if (accel_state->src_bo[1])
-	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_bo[1],
-					      accel_state->src_domain[1], 0);
-	if (accel_state->dst_bo)
-	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->dst_bo,
-					      0, accel_state->dst_domain);
+	if (accel_state->src_obj[0].bo)
+	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_obj[0].bo,
+					      accel_state->src_obj[0].domain, 0);
+	if (accel_state->src_obj[1].bo)
+	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_obj[1].bo,
+					      accel_state->src_obj[1].domain, 0);
+	if (accel_state->dst_obj.bo)
+	    radeon_cs_space_add_persistent_bo(info->cs, accel_state->dst_obj.bo,
+					      0, accel_state->dst_obj.domain);
 	ret = radeon_cs_space_check(info->cs);
 	if (ret)
 	    RADEON_FALLBACK(("Not enough RAM to hw accel operation\n"));
@@ -319,7 +292,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     int pmask = 0;
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
-    struct accel_object dst;
+    struct r600_accel_object dst;
 
     if (!R600CheckBPP(pPix->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("R600CheckDatatype failed\n"));
@@ -360,9 +333,9 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
     set_default_state(pScrn, accel_state->ib);
 
-    set_generic_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
-    set_screen_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
-    set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
+    set_generic_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    set_screen_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
 
     /* Shader */
 
@@ -406,15 +379,15 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     END_BATCH();
 
     cb_conf.id = 0;
-    cb_conf.w = accel_state->dst_pitch;
-    cb_conf.h = accel_state->dst_height;
-    cb_conf.base = accel_state->dst_mc_addr;
-    cb_conf.bo = accel_state->dst_bo;
+    cb_conf.w = accel_state->dst_obj.pitch;
+    cb_conf.h = accel_state->dst_obj.height;
+    cb_conf.base = accel_state->dst_obj.offset;
+    cb_conf.bo = accel_state->dst_obj.bo;
 
-    if (accel_state->dst_bpp == 8) {
+    if (accel_state->dst_obj.bpp == 8) {
 	cb_conf.format = COLOR_8;
 	cb_conf.comp_swap = 3; /* A */
-    } else if (accel_state->dst_bpp == 16) {
+    } else if (accel_state->dst_obj.bpp == 16) {
 	cb_conf.format = COLOR_5_6_5;
 	cb_conf.comp_swap = 2; /* RGB */
     } else {
@@ -423,7 +396,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_domain);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     /* Interpolator setup */
     /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
@@ -445,7 +418,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     END_BATCH();
 
     /* PS alu constants */
-    if (accel_state->dst_bpp == 16) {
+    if (accel_state->dst_obj.bpp == 16) {
 	r = (fg >> 11) & 0x1f;
 	g = (fg >> 5) & 0x3f;
 	b = (fg >> 0) & 0x1f;
@@ -453,7 +426,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	ps_alu_consts[1] = (float)g / 63; /* G */
 	ps_alu_consts[2] = (float)b / 31; /* B */
 	ps_alu_consts[3] = 1.0; /* A */
-    } else if (accel_state->dst_bpp == 8) {
+    } else if (accel_state->dst_obj.bpp == 8) {
 	a = (fg >> 0) & 0xff;
 	ps_alu_consts[0] = 0.0; /* R */
 	ps_alu_consts[1] = 0.0; /* G */
@@ -542,9 +515,9 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
 
     set_default_state(pScrn, accel_state->ib);
 
-    set_generic_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
-    set_screen_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
-    set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
+    set_generic_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    set_screen_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
 
     /* Shader */
 
@@ -575,27 +548,27 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
 
     /* flush texture cache */
     cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			accel_state->src_size[0], accel_state->src_mc_addr[0],
-			accel_state->src_bo[0], accel_state->src_domain[0], 0);
+			accel_state->src_size[0], accel_state->src_obj[0].offset,
+			accel_state->src_obj[0].bo, accel_state->src_obj[0].domain, 0);
 
     /* Texture */
     tex_res.id                  = 0;
-    tex_res.w                   = accel_state->src_width[0];
-    tex_res.h                   = accel_state->src_height[0];
-    tex_res.pitch               = accel_state->src_pitch[0];
+    tex_res.w                   = accel_state->src_obj[0].width;
+    tex_res.h                   = accel_state->src_obj[0].height;
+    tex_res.pitch               = accel_state->src_obj[0].pitch;
     tex_res.depth               = 0;
     tex_res.dim                 = SQ_TEX_DIM_2D;
-    tex_res.base                = accel_state->src_mc_addr[0];
-    tex_res.mip_base            = accel_state->src_mc_addr[0];
-    tex_res.bo                  = accel_state->src_bo[0];
-    tex_res.mip_bo              = accel_state->src_bo[0];
-    if (accel_state->src_bpp[0] == 8) {
+    tex_res.base                = accel_state->src_obj[0].offset;
+    tex_res.mip_base            = accel_state->src_obj[0].offset;
+    tex_res.bo                  = accel_state->src_obj[0].bo;
+    tex_res.mip_bo              = accel_state->src_obj[0].bo;
+    if (accel_state->src_obj[0].bpp == 8) {
 	tex_res.format              = FMT_8;
 	tex_res.dst_sel_x           = SQ_SEL_1; /* R */
 	tex_res.dst_sel_y           = SQ_SEL_1; /* G */
 	tex_res.dst_sel_z           = SQ_SEL_1; /* B */
 	tex_res.dst_sel_w           = SQ_SEL_X; /* A */
-    } else if (accel_state->src_bpp[0] == 16) {
+    } else if (accel_state->src_obj[0].bpp == 16) {
 	tex_res.format              = FMT_5_6_5;
 	tex_res.dst_sel_x           = SQ_SEL_Z; /* R */
 	tex_res.dst_sel_y           = SQ_SEL_Y; /* G */
@@ -613,7 +586,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
-    set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_domain[0]);
+    set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
     tex_samp.id                 = 0;
     tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
@@ -641,14 +614,14 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     END_BATCH();
 
     cb_conf.id = 0;
-    cb_conf.w = accel_state->dst_pitch;
-    cb_conf.h = accel_state->dst_height;
-    cb_conf.base = accel_state->dst_mc_addr;
-    cb_conf.bo = accel_state->dst_bo;
-    if (accel_state->dst_bpp == 8) {
+    cb_conf.w = accel_state->dst_obj.pitch;
+    cb_conf.h = accel_state->dst_obj.height;
+    cb_conf.base = accel_state->dst_obj.offset;
+    cb_conf.bo = accel_state->dst_obj.bo;
+    if (accel_state->dst_obj.bpp == 8) {
 	cb_conf.format = COLOR_8;
 	cb_conf.comp_swap = 3; /* A */
-    } else if (accel_state->dst_bpp == 16) {
+    } else if (accel_state->dst_obj.bpp == 16) {
 	cb_conf.format = COLOR_5_6_5;
 	cb_conf.comp_swap = 2; /* RGB */
     } else {
@@ -657,7 +630,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_domain);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     /* Interpolator setup */
     /* export tex coord from VS */
@@ -738,7 +711,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    struct accel_object src_obj, dst_obj;
+    struct r600_accel_object src_obj, dst_obj;
 
     if (!R600CheckBPP(pSrc->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("R600CheckDatatype src failed\n"));
@@ -790,7 +763,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	return FALSE;
 
     if (accel_state->same_surface == TRUE) {
-	unsigned long size = pDst->drawable.height * accel_state->dst_pitch * pDst->drawable.bitsPerPixel/8;
+	unsigned long size = pDst->drawable.height * accel_state->dst_obj.pitch * pDst->drawable.bitsPerPixel/8;
 
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
@@ -850,9 +823,9 @@ R600Copy(PixmapPtr pDst,
 
     if (accel_state->same_surface && accel_state->copy_area) {
 	uint32_t orig_offset, tmp_offset;
-	uint32_t orig_dst_domain = accel_state->dst_domain;
-	uint32_t orig_src_domain = accel_state->src_domain[0];
-	struct radeon_bo *orig_bo = accel_state->dst_bo;
+	uint32_t orig_dst_domain = accel_state->dst_obj.domain;
+	uint32_t orig_src_domain = accel_state->src_obj[0].domain;
+	struct radeon_bo *orig_bo = accel_state->dst_obj.bo;
 
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
@@ -866,28 +839,28 @@ R600Copy(PixmapPtr pDst,
 	}
 
 	/* src to tmp */
-	accel_state->dst_domain = RADEON_GEM_DOMAIN_VRAM;
-	accel_state->dst_bo = accel_state->copy_area_bo;
-	accel_state->dst_mc_addr = tmp_offset;
+	accel_state->dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
+	accel_state->dst_obj.bo = accel_state->copy_area_bo;
+	accel_state->dst_obj.offset = tmp_offset;
 	R600DoPrepareCopy(pScrn);
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 	R600DoCopy(pScrn);
 
 	/* tmp to dst */
-	accel_state->src_domain[0] = RADEON_GEM_DOMAIN_VRAM;
-	accel_state->src_bo[0] = accel_state->copy_area_bo;
-	accel_state->src_mc_addr[0] = tmp_offset;
-	accel_state->dst_domain = orig_dst_domain;
-	accel_state->dst_bo = orig_bo;
-	accel_state->dst_mc_addr = orig_offset;
+	accel_state->src_obj[0].domain = RADEON_GEM_DOMAIN_VRAM;
+	accel_state->src_obj[0].bo = accel_state->copy_area_bo;
+	accel_state->src_obj[0].offset = tmp_offset;
+	accel_state->dst_obj.domain = orig_dst_domain;
+	accel_state->dst_obj.bo = orig_bo;
+	accel_state->dst_obj.offset = orig_offset;
 	R600DoPrepareCopy(pScrn);
 	R600AppendCopyVertex(pScrn, dstX, dstY, dstX, dstY, w, h);
 	R600DoCopyVline(pDst);
 
 	/* restore state */
-	accel_state->src_domain[0] = orig_src_domain;
-	accel_state->src_bo[0] = orig_bo;
-	accel_state->src_mc_addr[0] = orig_offset;
+	accel_state->src_obj[0].domain = orig_src_domain;
+	accel_state->src_obj[0].bo = orig_bo;
+	accel_state->src_obj[0].offset = orig_offset;
     } else
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 
@@ -1102,21 +1075,21 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 
     /* flush texture cache */
     cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			accel_state->src_size[unit], accel_state->src_mc_addr[unit],
-			accel_state->src_bo[unit], accel_state->src_domain[unit], 0);
+			accel_state->src_size[unit], accel_state->src_obj[unit].offset,
+			accel_state->src_obj[unit].bo, accel_state->src_obj[unit].domain, 0);
 
     /* Texture */
     tex_res.id                  = unit;
     tex_res.w                   = w;
     tex_res.h                   = h;
-    tex_res.pitch               = accel_state->src_pitch[unit];
+    tex_res.pitch               = accel_state->src_obj[unit].pitch;
     tex_res.depth               = 0;
     tex_res.dim                 = SQ_TEX_DIM_2D;
-    tex_res.base                = accel_state->src_mc_addr[unit];
-    tex_res.mip_base            = accel_state->src_mc_addr[unit];
+    tex_res.base                = accel_state->src_obj[unit].offset;
+    tex_res.mip_base            = accel_state->src_obj[unit].offset;
     tex_res.format              = R600TexFormats[i].card_fmt;
-    tex_res.bo                  = accel_state->src_bo[unit];
-    tex_res.mip_bo              = accel_state->src_bo[unit];
+    tex_res.bo                  = accel_state->src_obj[unit].bo;
+    tex_res.mip_bo              = accel_state->src_obj[unit].bo;
     tex_res.request_size        = 1;
 
     /* component swizzles */
@@ -1236,7 +1209,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
-    set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_domain[unit]);
+    set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_obj[unit].domain);
 
     tex_samp.id                 = unit;
     tex_samp.border_color       = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
@@ -1403,7 +1376,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     uint32_t blendcntl, dst_format;
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
-    struct accel_object src_obj, mask_obj, dst_obj;
+    struct r600_accel_object src_obj, mask_obj, dst_obj;
 
     if (pDst->drawable.bitsPerPixel < 8 || pSrc->drawable.bitsPerPixel < 8)
 	return FALSE;
@@ -1502,9 +1475,9 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
     set_default_state(pScrn, accel_state->ib);
 
-    set_generic_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
-    set_screen_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
-    set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_width, accel_state->dst_height);
+    set_generic_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    set_screen_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
 
     if (!R600TextureSetup(pSrcPicture, pSrc, 0)) {
         R600IBDiscard(pScrn, accel_state->ib);
@@ -1571,11 +1544,11 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     END_BATCH();
 
     cb_conf.id = 0;
-    cb_conf.w = accel_state->dst_pitch;
-    cb_conf.h = accel_state->dst_height;
-    cb_conf.base = accel_state->dst_mc_addr;
+    cb_conf.w = accel_state->dst_obj.pitch;
+    cb_conf.h = accel_state->dst_obj.height;
+    cb_conf.base = accel_state->dst_obj.offset;
     cb_conf.format = dst_format;
-    cb_conf.bo = accel_state->dst_bo;
+    cb_conf.bo = accel_state->dst_obj.bo;
 
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
@@ -1604,7 +1577,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_domain);
+    set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     /* Interpolator setup */
     BEGIN_BATCH(21);
@@ -1744,7 +1717,7 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
     int scratch_offset = 0, hpass, temph;
     char *dst;
     drmBufPtr scratch;
-    struct accel_object scratch_obj, dst_obj;
+    struct r600_accel_object scratch_obj, dst_obj;
 
     if (dst_pitch & 7)
 	return FALSE;
@@ -1810,8 +1783,8 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
 	    }
 	}
 	/* blit from scratch to vram */
-	info->accel_state->src_height[0] = oldhpass;
-	info->accel_state->src_mc_addr[0] = offset;
+	info->accel_state->src_obj[0].height = oldhpass;
+	info->accel_state->src_obj[0].offset = offset;
 	R600DoPrepareCopy(pScrn);
 	R600AppendCopyVertex(pScrn, 0, 0, x, y, w, oldhpass);
 	R600DoCopy(pScrn);
@@ -1858,7 +1831,7 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     uint32_t scratch_pitch = scratch_pitch_bytes / (bpp / 8);
     int wpass = w * (bpp/8);
     drmBufPtr scratch;
-    struct accel_object scratch_obj, src_obj;
+    struct r600_accel_object scratch_obj, src_obj;
 
     /* bad pipe setup in drm prior to 1.32 */
     if (info->dri->pKernelDRMVersion->version_minor < 32) {
@@ -1915,8 +1888,8 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 	if (hpass) {
 	    scratch_offset = scratch->total/2 - scratch_offset;
 	    /* blit from vram to scratch */
-	    info->accel_state->dst_height = hpass;
-	    info->accel_state->dst_mc_addr = scratch_mc_addr + scratch_offset;
+	    info->accel_state->dst_obj.height = hpass;
+	    info->accel_state->dst_obj.offset = scratch_mc_addr + scratch_offset;
 	    R600DoPrepareCopy(pScrn);
 	    R600AppendCopyVertex(pScrn, x, y, 0, 0, w, hpass);
 	    R600DoCopy(pScrn);
@@ -1958,7 +1931,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     uint32_t dst_pitch_hw = exaGetPixmapPitch(pDst) / (bpp / 8);
     Bool r;
     int i;
-    struct accel_object src_obj, dst_obj;
+    struct r600_accel_object src_obj, dst_obj;
 
     if (bpp < 8)
 	return FALSE;
@@ -2044,7 +2017,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     uint32_t dst_pitch_hw = scratch_pitch / (bpp / 8);
     uint32_t src_pitch_hw = exaGetPixmapPitch(pSrc) / (bpp / 8);
     Bool r;
-    struct accel_object src_obj, dst_obj;
+    struct r600_accel_object src_obj, dst_obj;
 
     if (bpp < 8)
 	return FALSE;
@@ -2073,10 +2046,10 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     radeon_cs_space_reset_bos(info->cs);
     radeon_cs_space_add_persistent_bo(info->cs, info->accel_state->shaders_bo,
 				      RADEON_GEM_DOMAIN_VRAM, 0);
-    accel_state->src_domain[0] = RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM;
-    radeon_add_pixmap(info->cs, pSrc, info->accel_state->src_domain[0], 0);
-    accel_state->dst_domain = RADEON_GEM_DOMAIN_GTT;
-    radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, accel_state->dst_domain);
+    accel_state->src_obj[0].domain = RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM;
+    radeon_add_pixmap(info->cs, pSrc, info->accel_state->src_obj[0].domain, 0);
+    accel_state->dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
+    radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, accel_state->dst_obj.domain);
     r = radeon_cs_space_check(info->cs);
     if (r) {
         r = FALSE;
@@ -2401,9 +2374,9 @@ R600DrawInit(ScreenPtr pScreen)
 
     info->accel_state->XInited3D = FALSE;
     info->accel_state->copy_area = NULL;
-    info->accel_state->src_bo[0] = NULL;
-    info->accel_state->src_bo[1] = NULL;
-    info->accel_state->dst_bo = NULL;
+    info->accel_state->src_obj[0].bo = NULL;
+    info->accel_state->src_obj[1].bo = NULL;
+    info->accel_state->dst_obj.bo = NULL;
     info->accel_state->copy_area_bo = NULL;
     info->accel_state->vb_start_op = -1;
     R600VlineHelperClear(pScrn);
