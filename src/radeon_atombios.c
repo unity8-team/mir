@@ -1518,7 +1518,8 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
     ATOM_GPIO_I2C_ASSIGMENT *gpio;
     RADEONI2CBusRec i2c;
     uint8_t crev, frev;
-    int i;
+    unsigned short size;
+    int i, num_indices;
 
     memset(&i2c, 0, sizeof(RADEONI2CBusRec));
     i2c.valid = FALSE;
@@ -1527,12 +1528,15 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
 
     if (!rhdAtomGetTableRevisionAndSize(
 	    &(atomDataPtr->GPIO_I2C_Info->sHeader),
-	    &crev,&frev,NULL)) {
+	    &crev,&frev,&size)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No GPIO Info Table found!\n");
 	return i2c;
     }
 
-    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+    num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+	    sizeof(ATOM_GPIO_I2C_ASSIGMENT);
+
+    for (i = 0; i < num_indices; i++) {
 	    gpio = &atomDataPtr->GPIO_I2C_Info->asGPIO_Info[i];
 	    if (gpio->sucI2cId.ucAccess == id) {
 		    i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
