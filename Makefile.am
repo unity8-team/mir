@@ -21,7 +21,7 @@
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = src man
 
-EXTRA_DIST = README.NV1 ChangeLog
+EXTRA_DIST = ChangeLog
 
 # Always regenerate the changelog
 CLEANFILES = ChangeLog

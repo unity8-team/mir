@@ -39,6 +39,7 @@ nouveau_drv_la_SOURCES = \
 			 nv_driver.c \
 			 nv_include.h \
 			 nv_proto.h \
+			 nv_rop.h \
 			 nv_shadow.c \
 			 nv_type.h \
 			 nv04_exa.c \
