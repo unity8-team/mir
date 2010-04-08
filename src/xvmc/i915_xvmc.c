@@ -984,7 +984,7 @@ static Status i915_xvmc_mc_create_surface(Display * display,
 	XVMC_DBG("%s\n", __FUNCTION__);
 
 	PPTHREAD_MUTEX_LOCK();
-	surface->privData = (i915XvMCSurface *) malloc(sizeof(i915XvMCSurface));
+	surface->privData = (i915XvMCSurface *) calloc(1, sizeof(i915XvMCSurface));
 
 	if (!(pI915Surface = surface->privData)) {
 		PPTHREAD_MUTEX_UNLOCK();

@@ -97,6 +97,7 @@ typedef struct _i915XvMCSubpicture {
  *  structure.
  */
 typedef struct _i915XvMCSurface {
+	struct intel_xvmc_surface comm;
 	unsigned int srfNo;	/* XvMC private surface numbers */
 	unsigned int yStride;	/* Stride of YUV420 Y component. */
 	unsigned int uvStride;

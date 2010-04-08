@@ -108,15 +108,14 @@ typedef struct _intel_xvmc_context {
 	struct _intel_xvmc_context *next;
 } intel_xvmc_context_t, *intel_xvmc_context_ptr;
 
-typedef struct _intel_xvmc_surface {
-	XvMCSurface *surface;
+struct intel_xvmc_surface {
 	XvImage *image;
 	GC gc;
 	Bool gc_init;
 	Drawable last_draw;
 	uint32_t gem_handle;
-	struct _intel_xvmc_surface *next;
-} intel_xvmc_surface_t, *intel_xvmc_surface_ptr;
+};
+typedef struct intel_xvmc_surface *intel_xvmc_surface_ptr;
 
 typedef struct _intel_xvmc_drm_map {
 	drm_handle_t handle;
@@ -159,7 +158,7 @@ typedef struct _intel_xvmc_driver {
 	int num_ctx;
 	intel_xvmc_context_ptr ctx_list;
 	int num_surf;
-	intel_xvmc_surface_ptr surf_list;
+	struct intel_xvmc_surface * surf_list;
 
 	void *private;
 

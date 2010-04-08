@@ -182,63 +182,6 @@ intel_xvmc_context_ptr intel_xvmc_find_context(XID id)
 	return NULL;
 }
 
-static intel_xvmc_surface_ptr intel_xvmc_new_surface(Display * dpy)
-{
-	intel_xvmc_surface_ptr ret;
-
-	ret = (intel_xvmc_surface_ptr) calloc(1, sizeof(intel_xvmc_surface_t));
-	if (!ret)
-		return NULL;
-
-	if (!xvmc_driver->surf_list)
-		ret->next = NULL;
-	else
-		ret->next = xvmc_driver->surf_list;
-	xvmc_driver->surf_list = ret;
-	xvmc_driver->num_surf++;
-
-	ret->image = NULL;
-	ret->gc_init = FALSE;
-
-	return ret;
-
-}
-
-static void intel_xvmc_free_surface(XID id)
-{
-	intel_xvmc_surface_ptr p = xvmc_driver->surf_list;
-	intel_xvmc_surface_ptr pre = p;
-
-	while (p) {
-		if (p->surface && p->surface->surface_id == id) {
-			if (p == xvmc_driver->surf_list)
-				xvmc_driver->surf_list = p->next;
-			else
-				pre->next = p->next;
-			break;
-		}
-		pre = p;
-		p = p->next;
-	}
-
-	if (p) {
-		free(p);
-		xvmc_driver->num_surf--;
-	}
-}
-
-intel_xvmc_surface_ptr intel_xvmc_find_surface(XID id)
-{
-	intel_xvmc_surface_ptr p = xvmc_driver->surf_list;
-
-	while (p) {
-		if (p->surface && p->surface->surface_id == id)
-			return p;
-		p = p->next;
-	}
-	return NULL;
-}
-
 static int
 dri2_connect(Display *display)
 {
@@ -534,26 +477,10 @@ _X_EXPORT Status XvMCCreateSurface(Display * display, XvMCContext * context,
 	if (!surface)
 		return XvMCBadSurface;
 
-	intel_surf = intel_xvmc_new_surface(display);
-	if (!intel_surf)
-		return BadAlloc;
-	intel_surf->surface = surface;
-
 	if ((ret = _xvmc_create_surface(display, context, surface,
 					&priv_count, &priv_data))) {
 		XVMC_ERR("Unable to create XvMCSurface.");
 		return ret;
-	}
-
-	intel_surf->image = XvCreateImage(display, context->port,
-					  FOURCC_XVMC,
-					  (char *) &intel_surf->gem_handle,
-					  surface->width, surface->height);
-	if (!intel_surf->image) {
-		XVMC_ERR("Can't create XvImage for surface\n");
-		_xvmc_destroy_surface(display, surface);
-		intel_xvmc_free_surface(surface->surface_id);
-		return BadAlloc;
 	}
 
 	ret =
@@ -562,6 +489,18 @@ _X_EXPORT Status XvMCCreateSurface(Display * display, XvMCContext * context,
 	if (ret) {
 		XVMC_ERR("create surface failed\n");
 		return ret;
+	}
+
+	intel_surf = surface->privData;
+
+	intel_surf->image = XvCreateImage(display, context->port,
+					  FOURCC_XVMC,
+					  (char *) &intel_surf->gem_handle,
+					  surface->width, surface->height);
+	if (!intel_surf->image) {
+		XVMC_ERR("Can't create XvImage for surface\n");
+		_xvmc_destroy_surface(display, surface);
+		return BadAlloc;
 	}
 
 	return Success;
@@ -577,14 +516,13 @@ _X_EXPORT Status XvMCDestroySurface(Display * display, XvMCSurface * surface)
 	if (!display || !surface)
 		return XvMCBadSurface;
 
-	intel_surf = intel_xvmc_find_surface(surface->surface_id);
+	intel_surf = surface->privData;
 	if (!intel_surf)
 		return XvMCBadSurface;
 
 	XFree(intel_surf->image);
 	if (intel_surf->gc_init)
 		XFreeGC(display, intel_surf->gc);
-	intel_xvmc_free_surface(surface->surface_id);
 
 	(xvmc_driver->destroy_surface) (display, surface);
 
@@ -768,7 +706,7 @@ _X_EXPORT Status XvMCPutSurface(Display * display, XvMCSurface * surface,
 		return XvMCBadSurface;
 
 	intel_ctx = intel_xvmc_find_context(surface->context_id);
-	intel_surf = intel_xvmc_find_surface(surface->surface_id);
+	intel_surf = surface->privData;
 	if (!intel_ctx || !intel_surf)
 		return XvMCBadSurface;
 	context = intel_ctx->context;
@@ -781,7 +719,6 @@ _X_EXPORT Status XvMCPutSurface(Display * display, XvMCSurface * surface,
 		intel_surf->gc = XCreateGC(display, draw, 0, NULL);
 	}
 	intel_surf->last_draw = draw;
-	/* fill intel_surf->data */
 	ret = (xvmc_driver->put_surface) (display, surface, draw, srcx, srcy,
 					  srcw, srch, destx, desty, destw,
 					  desth, flags,
