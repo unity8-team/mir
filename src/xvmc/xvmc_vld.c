@@ -24,7 +24,7 @@
  *    Zou Nan hai <nanhai.zou@intel.com>
  */
 #include "xvmc_vld.h"
-#include "i965_hwmc.h"
+#include "i830_hwmc.h"
 #include "i810_reg.h"
 #include "brw_defines.h"
 #include "brw_structs.h"
@@ -488,7 +488,7 @@ static Status interface_descriptor()
 	return Success;
 }
 
-static int setup_media_kernels(struct i965_xvmc_context *i965_ctx)
+static int setup_media_kernels(struct intel_xvmc_hw_context *ctx)
 {
 	int i;
 
@@ -496,7 +496,7 @@ static int setup_media_kernels(struct i965_xvmc_context *i965_ctx)
 	       sizeof(media_gen5_kernels) / sizeof(media_gen5_kernels[0]));
 
 	for (i = 0; i < MEDIA_KERNEL_NUM; i++) {
-		if (i965_ctx->is_igdng)
+		if (ctx->i965.is_igdng)
 			media_state.vfe_state.interface.kernels[i].bo =
 			    drm_intel_bo_alloc(xvmc_driver->bufmgr, "kernel",
 					       media_gen5_kernels[i].size,
@@ -513,7 +513,7 @@ static int setup_media_kernels(struct i965_xvmc_context *i965_ctx)
 	for (i = 0; i < MEDIA_KERNEL_NUM; i++) {
 		dri_bo *bo = media_state.vfe_state.interface.kernels[i].bo;
 
-		if (i965_ctx->is_igdng)
+		if (ctx->i965.is_igdng)
 			drm_intel_bo_subdata(bo, 0, media_gen5_kernels[i].size,
 					     media_gen5_kernels[i].bin);
 		else
@@ -594,14 +594,14 @@ static Status cs_init(int interface_offset)
 static Status create_context(Display * display, XvMCContext * context,
 			     int priv_count, CARD32 * priv_data)
 {
-	struct i965_xvmc_context *i965_ctx;
-	i965_ctx = (struct i965_xvmc_context *)priv_data;
+	struct intel_xvmc_hw_context *ctx;
+	ctx = (struct intel_xvmc_hw_context *)priv_data;
 	context->privData = priv_data;
 
 	if (alloc_object(&media_state))
 		return BadAlloc;
 
-	if (setup_media_kernels(i965_ctx))
+	if (setup_media_kernels(ctx))
 		return BadAlloc;
 	return Success;
 }
@@ -848,11 +848,11 @@ static Status put_slice(Display * display, XvMCContext * context,
 	return Success;
 }
 
-static void state_base_address(struct i965_xvmc_context *i965_ctx)
+static void state_base_address(struct intel_xvmc_hw_context *ctx)
 {
 	BATCH_LOCALS;
 
-	if (i965_ctx->is_igdng) {
+	if (ctx->i965.is_igdng) {
 		BEGIN_BATCH(8);
 		OUT_BATCH(BRW_STATE_BASE_ADDRESS | 6);
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
@@ -1005,10 +1005,10 @@ static Status put_slice2(Display * display, XvMCContext * context,
 {
 	unsigned int bit_buf;
 	intel_xvmc_context_ptr intel_ctx;
-	struct i965_xvmc_context *i965_ctx;
+	struct intel_xvmc_hw_context *ctx;
 	int q_scale_code, mb_row;
 
-	i965_ctx = (struct i965_xvmc_context *)context->privData;
+	ctx = (struct intel_xvmc_hw_context *)context->privData;
 	mb_row = *(slice - 1) - 1;
 	bit_buf =
 	    (slice[0] << 24) | (slice[1] << 16) | (slice[2] << 8) | (slice[3]);
@@ -1031,7 +1031,7 @@ static Status put_slice2(Display * display, XvMCContext * context,
 
 	intel_ctx = intel_xvmc_find_context(context->context_id);
 	LOCK_HARDWARE(intel_ctx->hw_context);
-	state_base_address(i965_ctx);
+	state_base_address(ctx);
 	pipeline_select();
 	media_state_pointers(VFE_VLD_MODE);
 	urb_layout();
@@ -1079,7 +1079,7 @@ static Status render_surface(Display * display,
 	unsigned short *block_ptr;
 	int i, j;
 	int block_offset = 0;
-	struct i965_xvmc_context *i965_ctx;
+	struct intel_xvmc_hw_context *ctx;
 
 	intel_ctx = intel_xvmc_find_context(context->context_id);
 	if (!intel_ctx) {
@@ -1087,7 +1087,7 @@ static Status render_surface(Display * display,
 		return BadValue;
 	}
 
-	i965_ctx = (struct i965_xvmc_context *)context->privData;
+	ctx = (struct intel_xvmc_hw_context *)context->privData;
 	priv_target = target_surface->privData;
 	priv_past = past_surface ? past_surface->privData : NULL;
 	priv_future = future_surface ? future_surface->privData : NULL;
@@ -1170,7 +1170,7 @@ static Status render_surface(Display * display,
 	}
 
 	LOCK_HARDWARE(intel_ctx->hw_context);
-	state_base_address(i965_ctx);
+	state_base_address(ctx);
 	flush();
 	pipeline_select();
 	urb_layout();

@@ -32,7 +32,6 @@
 #include "i830.h"
 #include "intel_bufmgr.h"
 #include "i830_hwmc.h"
-#include "i965_hwmc.h"
 
 #include <X11/extensions/Xv.h>
 #include <X11/extensions/XvMC.h>
@@ -145,40 +144,6 @@ static XF86MCSurfaceInfoPtr ppSI[2] = {
 	(XF86MCSurfaceInfoPtr) & i915_YV12_mpg1_surface
 };
 
-/*
- *  i915_xvmc_create_context
- *
- *  Some info about the private data:
- *
- *  Set *num_priv to the number of 32bit words that make up the size of
- *  of the data that priv will point to.
- *
- *  *priv = (long *) xcalloc (elements, sizeof(element))
- *  *num_priv = (elements * sizeof(element)) >> 2;
- *
- **************************************************************************/
-
-static int i915_xvmc_create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
-				    int *num_priv, long **priv)
-{
-	struct intel_xvmc_hw_context *contextRec;
-
-	*priv = xcalloc(1, sizeof(struct intel_xvmc_hw_context));
-	contextRec = (struct intel_xvmc_hw_context *) *priv;
-	if (!contextRec) {
-		*num_priv = 0;
-		return BadAlloc;
-	}
-
-	*num_priv = sizeof(struct intel_xvmc_hw_context) >> 2;
-
-	contextRec->type = xvmc_driver->flag;
-	/* i915 private context */
-	contextRec->i915.use_phys_addr = 0;
-
-	return Success;
-}
-
 static int create_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture,
 			     int *num_priv, CARD32 ** priv)
 {
@@ -199,6 +164,34 @@ static void destroy_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface)
 {
 }
 
+static int create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
+				    int *num_priv, CARD32 **priv)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_xvmc_hw_context *contextRec;
+
+	*priv = xcalloc(1, sizeof(struct intel_xvmc_hw_context));
+	contextRec = (struct intel_xvmc_hw_context *) *priv;
+	if (!contextRec) {
+		*num_priv = 0;
+		return BadAlloc;
+	}
+
+	*num_priv = sizeof(struct intel_xvmc_hw_context) >> 2;
+
+	contextRec->type = xvmc_driver->flag;
+	if (contextRec->type == XVMC_I915_MPEG2_MC) {
+		/* i915 private context */
+		contextRec->i915.use_phys_addr = 0;
+	} else {
+		contextRec->i965.is_g4x = IS_G4X(intel);
+		contextRec->i965.is_965_q = IS_965_Q(intel);
+		contextRec->i965.is_igdng = IS_IGDNG(intel);
+	}
+
+	return Success;
+}
+
 static void destroy_context(ScrnInfoPtr scrn, XvMCContextPtr context)
 {
 }
@@ -216,8 +209,7 @@ static XF86MCAdaptorRec pAdapt = {
 	.surfaces = ppSI,
 	.num_subpictures = 0,
 	.subpictures = NULL,
-	.CreateContext =
-	    (xf86XvMCCreateContextProcPtr) i915_xvmc_create_context,
+	.CreateContext = create_context,
 	.DestroyContext = destroy_context,
 	.CreateSurface = create_surface,
 	.DestroySurface = destroy_surface,
@@ -235,33 +227,6 @@ struct intel_xvmc_driver i915_xvmc_driver = {
 #ifndef XVMC_VLD
 #define XVMC_VLD  0x00020000
 #endif
-
-static int create_context(ScrnInfoPtr scrn,
-			  XvMCContextPtr context, int *num_privates,
-			  CARD32 ** private)
-{
-	struct i965_xvmc_context *private_context;
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	unsigned int blocknum =
-	    (((context->width + 15) / 16) * ((context->height + 15) / 16));
-	unsigned int blocksize = 6 * blocknum * 64 * sizeof(short);
-	blocksize = (blocksize + 4095) & (~4095);
-	if ((private_context = Xcalloc(sizeof(*private_context))) == NULL) {
-		ErrorF("XVMC Can not allocate private context\n");
-		return BadAlloc;
-	}
-
-	private_context->is_g4x = IS_G4X(intel);
-	private_context->is_965_q = IS_965_Q(intel);
-	private_context->is_igdng = IS_IGDNG(intel);
-	private_context->comm.type = xvmc_driver->flag;
-
-	*num_privates = sizeof(*private_context) / sizeof(CARD32);
-	*private = (CARD32 *) private_context;
-
-	return Success;
-}
 
 static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
 	FOURCC_YV12,

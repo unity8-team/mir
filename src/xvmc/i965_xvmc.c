@@ -29,7 +29,7 @@
 #include "brw_defines.h"
 #include "brw_structs.h"
 #include "intel_batchbuffer.h"
-#include "i965_hwmc.h"
+#include "i830_hwmc.h"
 #define BATCH_STRUCT(x) intelBatchbufferData(&x, sizeof(x), 0)
 #define URB_SIZE     256	/* XXX */
 
@@ -903,12 +903,12 @@ static Status get_surface_status(Display * display,
 static Status create_context(Display * display, XvMCContext * context,
 			     int priv_count, CARD32 * priv_data)
 {
-	struct i965_xvmc_context *i965_ctx;
-	i965_ctx = (struct i965_xvmc_context *)priv_data;
-	context->privData = i965_ctx;
+	struct intel_xvmc_hw_context *ctx;
+	ctx = (struct intel_xvmc_hw_context *)priv_data;
+	context->privData = ctx;
 
-	media_state.is_g4x = i965_ctx->is_g4x;
-	media_state.is_965_q = i965_ctx->is_965_q;
+	media_state.is_g4x = ctx->i965.is_g4x;
+	media_state.is_965_q = ctx->i965.is_965_q;
 
 	if (alloc_object(&media_state))
 		return BadAlloc;

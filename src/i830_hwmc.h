@@ -68,6 +68,11 @@ struct intel_xvmc_hw_context {
 		struct {
 			unsigned int use_phys_addr : 1;
 		} i915;
+		struct {
+			unsigned int is_g4x:1;
+			unsigned int is_965_q:1;
+			unsigned int is_igdng:1;
+		} i965;
 	};
 };
 
