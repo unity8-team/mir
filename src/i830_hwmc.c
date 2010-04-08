@@ -114,10 +114,6 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 /* i915 hwmc support */
 #define _INTEL_XVMC_SERVER_
 
-#define I915_XVMC_MAX_BUFFERS 2
-#define I915_XVMC_MAX_CONTEXTS 4
-#define I915_XVMC_MAX_SURFACES 20
-
 static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface = {
 	SURFACE_TYPE_MPEG2_MPML,
 	XVMC_CHROMA_FORMAT_420,
@@ -337,49 +333,11 @@ static void destroy_context(ScrnInfoPtr scrn, XvMCContextPtr context)
 static int create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface,
 			  int *num_priv, CARD32 ** priv)
 {
-	XvMCContextPtr ctx = surface->context;
-
-	struct i965_xvmc_surface *priv_surface, *surface_dup;
-	struct i965_xvmc_context *priv_ctx = ctx->driver_priv;
-	int i;
-	for (i = 0; i < I965_MAX_SURFACES; i++) {
-		if (priv_ctx->surfaces[i] == NULL) {
-			priv_surface = Xcalloc(sizeof(*priv_surface));
-			if (priv_surface == NULL)
-				return BadAlloc;
-			surface_dup = Xcalloc(sizeof(*priv_surface));
-			if (surface_dup == NULL)
-				return BadAlloc;
-
-			priv_surface->no = i;
-			priv_surface->handle = priv_surface;
-			priv_surface->w = ctx->width;
-			priv_surface->h = ctx->height;
-			priv_ctx->surfaces[i] = surface->driver_priv
-			    = priv_surface;
-			memcpy(surface_dup, priv_surface,
-			       sizeof(*priv_surface));
-			*num_priv = sizeof(*priv_surface) / sizeof(CARD32);
-			*priv = (CARD32 *) surface_dup;
-			break;
-		}
-	}
-
-	if (i >= I965_MAX_SURFACES) {
-		ErrorF("I965 XVMC too many surfaces in one context\n");
-		return BadAlloc;
-	}
-
 	return Success;
 }
 
 static void destory_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface)
 {
-	XvMCContextPtr ctx = surface->context;
-	struct i965_xvmc_surface *priv_surface = surface->driver_priv;
-	struct i965_xvmc_context *priv_ctx = ctx->driver_priv;
-	priv_ctx->surfaces[priv_surface->no] = NULL;
-	Xfree(priv_surface);
 }
 
 static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
