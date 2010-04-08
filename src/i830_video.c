@@ -1348,9 +1348,12 @@ i830_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sho
 		pitchAlignMask = 3;
 	} else {
 		if (IS_I965G(intel))
-			pitchAlignMask = 255;
+			/* Actually the alignment is 64 bytes, too. But the
+			 * stride must be at least 512 bytes. Take the easy fix
+			 * and align on 512 bytes unconditionally. */
+			pitchAlignMask = 511;
 		else
-			pitchAlignMask = 255;
+			pitchAlignMask = 63;
 	}
 
 #if INTEL_XVMC
