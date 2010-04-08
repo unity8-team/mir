@@ -29,7 +29,7 @@
 #define _I915XVMC_H
 
 #include "intel_xvmc.h"
-#include "i915_hwmc.h"
+#include "i830_hwmc.h"
 
 #define I915_SUBPIC_PALETTE_SIZE        16
 #define MAX_SUBCONTEXT_LEN              1024
@@ -56,6 +56,7 @@ typedef struct _i915XvMCContext {
 	unsigned int uvStride;
 	unsigned short ref;
 	unsigned int depth;
+	unsigned int use_phys_addr;
 	XvPortID port;		/* Xv Port ID when displaying */
 	int haveXv;		/* Have I initialized the Xv
 				 * connection for this surface? */
@@ -64,7 +65,6 @@ typedef struct _i915XvMCContext {
 	GC gc;			/* X GC needed for displaying */
 	Drawable draw;		/* Drawable to undisplay from */
 	void *drawHash;
-	int deviceID;
 
 	drm_intel_bo *sis_bo;
 	drm_intel_bo *msb_bo;

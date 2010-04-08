@@ -74,7 +74,6 @@
 #ifdef INTEL_XVMC
 #define _INTEL_XVMC_SERVER_
 #include "i830_hwmc.h"
-#include "i915_hwmc.h"
 #endif
 
 #define OFF_DELAY 	250	/* milliseconds */

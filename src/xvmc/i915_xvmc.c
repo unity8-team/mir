@@ -31,6 +31,10 @@
 #include "i915_structs.h"
 #include "i915_program.h"
 
+#define STRIDE(w)               (((w) + 0x3ff) & ~0x3ff)
+#define SIZE_Y420(w, h)         (h * STRIDE(w))
+#define SIZE_UV420(w, h)        ((h >> 1) * STRIDE(w >> 1))
+#define SIZE_YUV420(w, h)       (SIZE_Y420(w,h) + SIZE_UV420(w,h) * 2)
 #define UOFFSET(surface)        (SIZE_Y420(surface->width, surface->height))
 #define VOFFSET(surface)        (SIZE_Y420(surface->width, surface->height) + \
                                  SIZE_UV420(surface->width, surface->height))
@@ -347,8 +351,7 @@ static void i915_mc_one_time_state_emit(XvMCContext * context)
 				<< BLOCK_MASK_SHIFT;
 	load_indirect |= 8 - 2; /* length */
 
-	if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-	    pI915XvMC->deviceID == PCI_CHIP_I915_GM)
+	if (pI915XvMC->use_phys_addr)
 		mem_select = 0;	/* use physical address */
 	else {
 		load_indirect |= OP_3D_LOAD_INDIRECT_GFX_ADDR;
@@ -691,8 +694,7 @@ static void i915_mc_load_indirect_render_emit(XvMCContext * context)
 	load_indirect |= (BLOCK_SIS | BLOCK_MSB) << BLOCK_MASK_SHIFT;
 	load_indirect |= 5 - 2; /* length */
 
-	if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-	    pI915XvMC->deviceID == PCI_CHIP_I915_GM)
+	if (pI915XvMC->use_phys_addr)
 		mem_select = 0;	/* use physical address */
 	else {
 		load_indirect |= OP_3D_LOAD_INDIRECT_GFX_ADDR;
@@ -901,15 +903,15 @@ static Status i915_xvmc_mc_create_context(Display * display,
 					  CARD32 * priv_data)
 {
 	i915XvMCContext *pI915XvMC = NULL;
-	I915XvMCCreateContextRec *tmpComm = NULL;
+	struct intel_xvmc_hw_context *tmpComm = NULL;
 
 	XVMC_DBG("%s\n", __FUNCTION__);
 
-	if (priv_count != (sizeof(I915XvMCCreateContextRec) >> 2)) {
+	if (priv_count != (sizeof(struct intel_xvmc_hw_context) >> 2)) {
 		XVMC_ERR
 		    ("_xvmc_create_context() returned incorrect data size!");
 		XVMC_INFO("\tExpected %d, got %d",
-			  (int)(sizeof(I915XvMCCreateContextRec) >> 2),
+			  (int)(sizeof(struct intel_xvmc_hw_context) >> 2),
 			  priv_count);
 		_xvmc_destroy_context(display, context);
 		XFree(priv_data);
@@ -924,8 +926,8 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	}
 	pI915XvMC = (i915XvMCContext *) context->privData;
 
-	tmpComm = (I915XvMCCreateContextRec *) priv_data;
-	pI915XvMC->deviceID = tmpComm->deviceID;
+	tmpComm = (struct intel_xvmc_hw_context *) priv_data;
+	pI915XvMC->use_phys_addr = tmpComm->i915.use_phys_addr;
 
 	/* Must free the private data we were passed from X */
 	XFree(priv_data);

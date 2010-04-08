@@ -62,8 +62,13 @@ struct hwmc_buffer {
 	unsigned long bus_addr;
 };
 
-struct _intel_xvmc_common {
+struct intel_xvmc_hw_context {
 	unsigned int type;
+	union {
+		struct {
+			unsigned int use_phys_addr : 1;
+		} i915;
+	};
 };
 
 /* Intel private XvMC command to DDX driver */

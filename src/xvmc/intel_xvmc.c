@@ -332,7 +332,7 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 {
 	Status ret;
 	CARD32 *priv_data = NULL;
-	struct _intel_xvmc_common *comm;
+	struct intel_xvmc_hw_context *comm;
 	int major, minor;
 	int error_base;
 	int event_base;
@@ -392,7 +392,7 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 	}
 	XVMC_DBG("new context %d created\n", (int)context->context_id);
 
-	comm = (struct _intel_xvmc_common *)priv_data;
+	comm = (struct intel_xvmc_hw_context *)priv_data;
 
 	if (xvmc_driver == NULL || xvmc_driver->type != comm->type) {
 		switch (comm->type) {

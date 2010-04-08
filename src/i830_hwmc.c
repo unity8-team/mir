@@ -32,7 +32,6 @@
 #include "i830.h"
 #include "intel_bufmgr.h"
 #include "i830_hwmc.h"
-#include "i915_hwmc.h"
 #include "i965_hwmc.h"
 
 #include <X11/extensions/Xv.h>
@@ -146,21 +145,6 @@ static XF86MCSurfaceInfoPtr ppSI[2] = {
 	(XF86MCSurfaceInfoPtr) & i915_YV12_mpg1_surface
 };
 
-/* Check context size not exceed surface type max */
-static void i915_check_context_size(XvMCContextPtr ctx)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ppSI); i++) {
-		if (ctx->surface_type_id == ppSI[i]->surface_type_id) {
-			if (ctx->width > ppSI[i]->max_width)
-				ctx->width = ppSI[i]->max_width;
-			if (ctx->height > ppSI[i]->max_height)
-				ctx->height = ppSI[i]->max_height;
-		}
-	}
-}
-
 /*
  *  i915_xvmc_create_context
  *
@@ -177,33 +161,20 @@ static void i915_check_context_size(XvMCContextPtr ctx)
 static int i915_xvmc_create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 				    int *num_priv, long **priv)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	I915XvMCCreateContextRec *contextRec = NULL;
+	struct intel_xvmc_hw_context *contextRec;
 
-	*priv = NULL;
-	*num_priv = 0;
-
-	if (!intel->XvMCEnabled) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915: XvMC disabled!\n");
-		return BadAlloc;
-	}
-
-	i915_check_context_size(pContext);
-
-	*priv = xcalloc(1, sizeof(I915XvMCCreateContextRec));
-	contextRec = (I915XvMCCreateContextRec *) * priv;
-
-	if (!*priv) {
+	*priv = xcalloc(1, sizeof(struct intel_xvmc_hw_context));
+	contextRec = (struct intel_xvmc_hw_context *) *priv;
+	if (!contextRec) {
 		*num_priv = 0;
 		return BadAlloc;
 	}
 
-	*num_priv = sizeof(I915XvMCCreateContextRec) >> 2;
+	*num_priv = sizeof(struct intel_xvmc_hw_context) >> 2;
 
-	contextRec->comm.type = xvmc_driver->flag;
+	contextRec->type = xvmc_driver->flag;
 	/* i915 private context */
-	contextRec->deviceID = DEVICE_ID(intel->PciInfo);
+	contextRec->i915.use_phys_addr = 0;
 
 	return Success;
 }
