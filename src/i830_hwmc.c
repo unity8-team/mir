@@ -210,30 +210,8 @@ static int i915_xvmc_create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 	return Success;
 }
 
-static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
-				    int *num_priv, long **priv)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (!intel->XvMCEnabled) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "[XvMC] i915: XvMC disabled!\n");
-		return BadAlloc;
-	}
-
-	*priv = NULL;
-	*num_priv = 0;
-
-	return Success;
-}
-
 static void i915_xvmc_destroy_context(ScrnInfoPtr scrn,
 				      XvMCContextPtr pContext)
-{
-	return;
-}
-
-static void i915_xvmc_destroy_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf)
 {
 	return;
 }
@@ -245,6 +223,16 @@ static int create_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture,
 }
 
 static void destroy_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture)
+{
+}
+
+static int create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface,
+			  int *num_priv, CARD32 ** priv)
+{
+	return Success;
+}
+
+static void destroy_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface)
 {
 }
 
@@ -265,10 +253,8 @@ static XF86MCAdaptorRec pAdapt = {
 	    (xf86XvMCCreateContextProcPtr) i915_xvmc_create_context,
 	.DestroyContext =
 	    (xf86XvMCDestroyContextProcPtr) i915_xvmc_destroy_context,
-	.CreateSurface =
-	    (xf86XvMCCreateSurfaceProcPtr) i915_xvmc_create_surface,
-	.DestroySurface =
-	    (xf86XvMCDestroySurfaceProcPtr) i915_xvmc_destroy_surface,
+	.CreateSurface = create_surface,
+	.DestroySurface = destroy_surface,
 	.CreateSubpicture =  create_subpicture,
 	.DestroySubpicture = destroy_subpicture,
 };
@@ -328,16 +314,6 @@ static void destroy_context(ScrnInfoPtr scrn, XvMCContextPtr context)
 	struct i965_xvmc_context *private_context;
 	private_context = context->driver_priv;
 	Xfree(private_context);
-}
-
-static int create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface,
-			  int *num_priv, CARD32 ** priv)
-{
-	return Success;
-}
-
-static void destory_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface)
-{
 }
 
 static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
@@ -403,7 +379,7 @@ static XF86MCAdaptorRec adaptor_vld = {
 	.CreateContext = create_context,
 	.DestroyContext = destroy_context,
 	.CreateSurface = create_surface,
-	.DestroySurface = destory_surface,
+	.DestroySurface = destroy_surface,
 	.CreateSubpicture = create_subpicture,
 	.DestroySubpicture = destroy_subpicture
 };
@@ -416,7 +392,7 @@ static XF86MCAdaptorRec adaptor = {
 	.CreateContext = create_context,
 	.DestroyContext = destroy_context,
 	.CreateSurface = create_surface,
-	.DestroySurface = destory_surface,
+	.DestroySurface = destroy_surface,
 	.CreateSubpicture = create_subpicture,
 	.DestroySubpicture = destroy_subpicture
 };
