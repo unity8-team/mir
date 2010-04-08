@@ -97,15 +97,7 @@ Bool intel_xvmc_driver_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
 		return FALSE;
 	}
 
-	/* Currently XvMC uses batchbuffer */
-	sp.param = I915_SETPARAM_ALLOW_BATCHBUFFER;
-	sp.value = 1;
-	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_SETPARAM,
-			      &sp, sizeof(sp));
-	if (ret == 0)
-		return TRUE;
-
-	return FALSE;
+	return TRUE;
 }
 
 Bool intel_xvmc_screen_init(ScreenPtr pScreen)
