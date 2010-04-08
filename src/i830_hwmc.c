@@ -208,12 +208,6 @@ static int i915_xvmc_create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 	return Success;
 }
 
-static void i915_xvmc_destroy_context(ScrnInfoPtr scrn,
-				      XvMCContextPtr pContext)
-{
-	return;
-}
-
 static int create_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture,
 			     int *num_priv, CARD32 ** priv)
 {
@@ -234,6 +228,10 @@ static void destroy_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface)
 {
 }
 
+static void destroy_context(ScrnInfoPtr scrn, XvMCContextPtr context)
+{
+}
+
 /* Fill in the device dependent adaptor record.
  * This is named "Intel(R) Textured Video" because this code falls under the
  * XV extenstion, the name must match or it won't be used.
@@ -249,8 +247,7 @@ static XF86MCAdaptorRec pAdapt = {
 	.subpictures = NULL,
 	.CreateContext =
 	    (xf86XvMCCreateContextProcPtr) i915_xvmc_create_context,
-	.DestroyContext =
-	    (xf86XvMCDestroyContextProcPtr) i915_xvmc_destroy_context,
+	.DestroyContext = destroy_context,
 	.CreateSurface = create_surface,
 	.DestroySurface = destroy_surface,
 	.CreateSubpicture =  create_subpicture,
@@ -272,7 +269,7 @@ static int create_context(ScrnInfoPtr scrn,
 			  XvMCContextPtr context, int *num_privates,
 			  CARD32 ** private)
 {
-	struct i965_xvmc_context *private_context, *context_dup;
+	struct i965_xvmc_context *private_context;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	unsigned int blocknum =
@@ -284,11 +281,6 @@ static int create_context(ScrnInfoPtr scrn,
 		return BadAlloc;
 	}
 
-	if ((context_dup = Xcalloc(sizeof(*private_context))) == NULL) {
-		ErrorF("XVMC Can not allocate private context\n");
-		return BadAlloc;
-	}
-
 	private_context->is_g4x = IS_G4X(intel);
 	private_context->is_965_q = IS_965_Q(intel);
 	private_context->is_igdng = IS_IGDNG(intel);
@@ -296,17 +288,8 @@ static int create_context(ScrnInfoPtr scrn,
 
 	*num_privates = sizeof(*private_context) / sizeof(CARD32);
 	*private = (CARD32 *) private_context;
-	memcpy(context_dup, private_context, sizeof(*private_context));
-	context->driver_priv = context_dup;
 
 	return Success;
-}
-
-static void destroy_context(ScrnInfoPtr scrn, XvMCContextPtr context)
-{
-	struct i965_xvmc_context *private_context;
-	private_context = context->driver_priv;
-	Xfree(private_context);
 }
 
 static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
