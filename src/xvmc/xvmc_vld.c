@@ -636,15 +636,6 @@ static Status create_surface(Display * display,
 	return Success;
 }
 
-static Status destroy_surface(Display * display, XvMCSurface * surface)
-{
-	struct intel_xvmc_surface *priv_surface = surface->privData;
-	XSync(display, False);
-	drm_intel_bo_unreference(priv_surface->bo);
-	free(priv_surface);
-	return Success;
-}
-
 static Status load_qmatrix(Display * display, XvMCContext * context,
 			   const XvMCQMatrix * qmx)
 {
@@ -1244,7 +1235,6 @@ struct _intel_xvmc_driver xvmc_vld_driver = {
 	.create_context = create_context,
 	.destroy_context = destroy_context,
 	.create_surface = create_surface,
-	.destroy_surface = destroy_surface,
 	.load_qmatrix = load_qmatrix,
 	.begin_surface = begin_surface,
 	.render_surface = render_surface,

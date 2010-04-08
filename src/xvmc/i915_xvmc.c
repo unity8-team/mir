@@ -1011,25 +1011,6 @@ static Status i915_xvmc_mc_create_surface(Display * display,
 	return 0;
 }
 
-static int i915_xvmc_mc_destroy_surface(Display * display,
-					XvMCSurface * surface)
-{
-	struct intel_xvmc_surface *intel_surf;
-	i915XvMCContext *pI915XvMC;
-
-	if (!display || !surface)
-		return BadValue;
-
-	if (!(intel_surf = surface->privData))
-		return XvMCBadSurface;
-
-	drm_intel_bo_unreference(intel_surf->bo);
-
-	free(intel_surf);
-
-	return Success;
-}
-
 static int i915_xvmc_alloc_render_state_buffers(i915XvMCContext *pI915XvMC)
 {
 	pI915XvMC->sis_bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
@@ -1289,6 +1270,5 @@ struct _intel_xvmc_driver i915_xvmc_mc_driver = {
 	.create_context = i915_xvmc_mc_create_context,
 	.destroy_context = i915_xvmc_mc_destroy_context,
 	.create_surface = i915_xvmc_mc_create_surface,
-	.destroy_surface = i915_xvmc_mc_destroy_surface,
 	.render_surface = i915_xvmc_mc_render_surface,
 };

@@ -524,7 +524,9 @@ _X_EXPORT Status XvMCDestroySurface(Display * display, XvMCSurface * surface)
 	if (intel_surf->gc_init)
 		XFreeGC(display, intel_surf->gc);
 
-	(xvmc_driver->destroy_surface) (display, surface);
+	drm_intel_bo_unreference(intel_surf->bo);
+
+	free(intel_surf);
 
 	_xvmc_destroy_surface(display, surface);
 

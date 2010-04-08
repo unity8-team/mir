@@ -271,15 +271,6 @@ static Status create_surface(Display * display,
 	return Success;
 }
 
-static Status destroy_surface(Display * display, XvMCSurface * surface)
-{
-	struct intel_xvmc_surface *priv_surface = surface->privData;
-	XSync(display, False);
-	drm_intel_bo_unreference(priv_surface->bo);
-	free(priv_surface);
-	return Success;
-}
-
 static void flush()
 {
 	struct brw_mi_flush flush;
@@ -899,6 +890,5 @@ struct _intel_xvmc_driver i965_xvmc_mc_driver = {
 	.create_context = create_context,
 	.destroy_context = destroy_context,
 	.create_surface = create_surface,
-	.destroy_surface = destroy_surface,
 	.render_surface = render_surface,
 };
