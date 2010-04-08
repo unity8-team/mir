@@ -170,11 +170,14 @@ static int create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 
 	*num_priv = sizeof(struct intel_xvmc_hw_context) >> 2;
 
-	contextRec->type = xvmc_driver->flag;
-	if (contextRec->type == XVMC_I915_MPEG2_MC) {
-		/* i915 private context */
+	if (IS_I915(intel)) {
+		contextRec->type = XVMC_I915_MPEG2_MC;
 		contextRec->i915.use_phys_addr = 0;
 	} else {
+		if (IS_G4X(intel) || IS_IGDNG(intel))
+			contextRec->type = XVMC_I965_MPEG2_VLD;
+		else
+			contextRec->type = XVMC_I965_MPEG2_MC;
 		contextRec->i965.is_g4x = IS_G4X(intel);
 		contextRec->i965.is_965_q = IS_965_Q(intel);
 		contextRec->i965.is_igdng = IS_IGDNG(intel);
@@ -211,7 +214,6 @@ static XF86MCAdaptorRec pAdapt = {
 struct intel_xvmc_driver i915_xvmc_driver = {
 	.name = "i915_xvmc",
 	.adaptor = &pAdapt,
-	.flag = XVMC_I915_MPEG2_MC,
 };
 
 /* i965 and later hwmc support */
@@ -303,11 +305,9 @@ static XF86MCAdaptorRec adaptor = {
 struct intel_xvmc_driver i965_xvmc_driver = {
 	.name = "i965_xvmc",
 	.adaptor = &adaptor,
-	.flag = XVMC_I965_MPEG2_MC,
 };
 
 struct intel_xvmc_driver vld_xvmc_driver = {
 	.name = "xvmc_vld",
 	.adaptor = &adaptor_vld,
-	.flag = XVMC_I965_MPEG2_VLD,
 };

@@ -94,7 +94,6 @@ struct intel_xvmc_command {
 struct intel_xvmc_driver {
 	char *name;
 	XF86MCAdaptorPtr adaptor;
-	unsigned int flag;
 	/* more items for xvmv surface manage? */
 	void *devPrivate;
 };
