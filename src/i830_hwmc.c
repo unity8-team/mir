@@ -112,8 +112,6 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 }
 
 /* i915 hwmc support */
-#define _INTEL_XVMC_SERVER_
-
 static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface = {
 	SURFACE_TYPE_MPEG2_MPML,
 	XVMC_CHROMA_FORMAT_420,
@@ -259,7 +257,6 @@ static XF86MCAdaptorRec pAdapt = {
 	.DestroySubpicture = destroy_subpicture,
 };
 
-/* new xvmc driver interface */
 struct intel_xvmc_driver i915_xvmc_driver = {
 	.name = "i915_xvmc",
 	.adaptor = &pAdapt,
@@ -267,10 +264,6 @@ struct intel_xvmc_driver i915_xvmc_driver = {
 };
 
 /* i965 and later hwmc support */
-#define STRIDE(w)               (w)
-#define SIZE_YUV420(w, h)       (h * (STRIDE(w) + STRIDE(w >> 1)))
-#define VLD_MAX_SLICE_LEN	(32*1024)
-
 #ifndef XVMC_VLD
 #define XVMC_VLD  0x00020000
 #endif
@@ -329,7 +322,7 @@ static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
 	NULL
 };
 
-static XF86MCSurfaceInfoRec yv12_mpeg2_surface = {
+static XF86MCSurfaceInfoRec yv12_mpeg2_i965_surface = {
 	FOURCC_YV12,
 	XVMC_CHROMA_FORMAT_420,
 	0,
@@ -344,7 +337,7 @@ static XF86MCSurfaceInfoRec yv12_mpeg2_surface = {
 	NULL
 };
 
-static XF86MCSurfaceInfoRec yv12_mpeg1_surface = {
+static XF86MCSurfaceInfoRec yv12_mpeg1_i965_surface = {
 	FOURCC_YV12,
 	XVMC_CHROMA_FORMAT_420,
 	0,
@@ -361,14 +354,14 @@ static XF86MCSurfaceInfoRec yv12_mpeg1_surface = {
 	NULL
 };
 
-static XF86MCSurfaceInfoPtr surface_info[] = {
-	&yv12_mpeg2_surface,
-	&yv12_mpeg1_surface
+static XF86MCSurfaceInfoPtr surface_info_i965[] = {
+	&yv12_mpeg2_i965_surface,
+	&yv12_mpeg1_i965_surface
 };
 
 static XF86MCSurfaceInfoPtr surface_info_vld[] = {
 	&yv12_mpeg2_vld_surface,
-	&yv12_mpeg2_surface,
+	&yv12_mpeg2_i965_surface,
 };
 
 static XF86MCAdaptorRec adaptor_vld = {
@@ -386,8 +379,8 @@ static XF86MCAdaptorRec adaptor_vld = {
 
 static XF86MCAdaptorRec adaptor = {
 	.name = "Intel(R) Textured Video",
-	.num_surfaces = sizeof(surface_info) / sizeof(surface_info[0]),
-	.surfaces = surface_info,
+	.num_surfaces = sizeof(surface_info_i965) / sizeof(surface_info_i965[0]),
+	.surfaces = surface_info_i965,
 
 	.CreateContext = create_context,
 	.DestroyContext = destroy_context,
