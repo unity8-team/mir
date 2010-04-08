@@ -938,9 +938,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	/* Initialize private context values */
 	pI915XvMC->yStride = STRIDE(context->width);
 	pI915XvMC->uvStride = STRIDE(context->width >> 1);
-	pI915XvMC->haveXv = 0;
-	pI915XvMC->dual_prime = 0;
-	pI915XvMC->port = context->port;
 
 	/* pre-init state buffers */
 	i915_mc_one_time_context_init(context);

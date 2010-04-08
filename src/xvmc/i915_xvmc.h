@@ -51,21 +51,9 @@
  */
 typedef struct _i915XvMCContext {
 	struct intel_xvmc_context comm;
-	unsigned int ctxno;
-	unsigned int dual_prime;	/* Flag to identify when dual prime is in use. */
 	unsigned int yStride;
 	unsigned int uvStride;
-	unsigned short ref;
-	unsigned int depth;
 	unsigned int use_phys_addr;
-	XvPortID port;		/* Xv Port ID when displaying */
-	int haveXv;		/* Have I initialized the Xv
-				 * connection for this surface? */
-	XvImage *xvImage;	/* Fake Xv Image used for command
-				 * buffer transport to the X server */
-	GC gc;			/* X GC needed for displaying */
-	Drawable draw;		/* Drawable to undisplay from */
-	void *drawHash;
 
 	drm_intel_bo *sis_bo;
 	drm_intel_bo *msb_bo;
