@@ -57,8 +57,6 @@
 
 #include "intel_batchbuffer.h"
 
-extern int DEBUG;
-
 #define GTT_PAGE_SIZE 4*1024
 
 #define XVMC_ERR(s, arg...)					\
@@ -69,12 +67,6 @@ extern int DEBUG;
 #define XVMC_INFO(s, arg...)					\
     do {							\
 	fprintf(stderr, "[intel_xvmc] info: " s "\n", ##arg);	\
-    } while (0)
-
-#define XVMC_DBG(s, arg...)						\
-    do {								\
-	if (DEBUG)							\
-	    fprintf(stderr, "[intel_xvmc] debug: " s "\n", ##arg);	\
     } while (0)
 
 /* Subpicture fourcc */

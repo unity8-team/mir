@@ -103,14 +103,6 @@ unsigned int mb_bytes_420[] = {
 	768			/* 111111 */
 };
 
-int DEBUG;
-
-static void intel_xvmc_debug_init(void)
-{
-	if (getenv("INTEL_XVMC_DEBUG"))
-		DEBUG = 1;
-}
-
 void LOCK_HARDWARE(drm_context_t ctx)
 {
 	char __ret = 0;
@@ -241,8 +233,6 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 		return BadValue;
 	}
 
-	intel_xvmc_debug_init();
-
 	/*
 	   Width, Height, and flags are checked against surface_type_id
 	   and port for validity inside the X server, no need to check
@@ -279,7 +269,6 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 		XVMC_ERR("Unable to create XvMC Context.");
 		return ret;
 	}
-	XVMC_DBG("new context %d created\n", (int)context->context_id);
 
 	comm = (struct intel_xvmc_hw_context *)priv_data;
 

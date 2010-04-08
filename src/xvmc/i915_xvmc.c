@@ -904,8 +904,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	i915XvMCContext *pI915XvMC = NULL;
 	struct intel_xvmc_hw_context *tmpComm = NULL;
 
-	XVMC_DBG("%s\n", __FUNCTION__);
-
 	if (priv_count != (sizeof(struct intel_xvmc_hw_context) >> 2)) {
 		XVMC_ERR
 		    ("_xvmc_create_context() returned incorrect data size!");
@@ -1029,8 +1027,6 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	struct intel_xvmc_surface *privPast = NULL;
 	i915XvMCContext *pI915XvMC = NULL;
 
-	XVMC_DBG("%s\n", __FUNCTION__);
-
 	/* Check Parameters for validity */
 	if (!display || !context || !target_surface) {
 		XVMC_ERR("Invalid Display, Context or Target!");
@@ -1071,7 +1067,6 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 		privPast = privTarget;
 	} else {
 		if (!(privPast = past_surface->privData)) {
-			XVMC_ERR("Invalid Past Surface!");
 			return XvMCBadSurface;
 		}
 		picture_coding_type = MPEG_P_PICTURE;
