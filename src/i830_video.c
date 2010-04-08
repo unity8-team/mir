@@ -344,9 +344,6 @@ void I830InitVideo(ScreenPtr screen)
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
 	int num_adaptors;
-#ifdef INTEL_XVMC
-	Bool xvmc_status = FALSE;
-#endif
 
 	num_adaptors = xf86XVListGenericAdaptors(scrn, &adaptors);
 	/* Give our adaptor list enough space for the overlay and/or texture video
@@ -404,11 +401,6 @@ void I830InitVideo(ScreenPtr screen)
 	if (overlayAdaptor && !intel->XvPreferOverlay)
 		adaptors[num_adaptors++] = overlayAdaptor;
 
-#ifdef INTEL_XVMC
-	if (intel_xvmc_probe(scrn))
-		xvmc_status = TRUE;
-#endif
-
 	if (num_adaptors) {
 		xf86XVScreenInit(screen, adaptors, num_adaptors);
 	} else {
@@ -418,8 +410,8 @@ void I830InitVideo(ScreenPtr screen)
 	}
 
 #ifdef INTEL_XVMC
-	if (xvmc_status && texturedAdaptor)
-		intel_xvmc_screen_init(screen);
+	if (texturedAdaptor)
+		intel_xvmc_adaptor_init(screen);
 #endif
 	xfree(adaptors);
 }

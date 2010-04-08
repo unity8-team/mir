@@ -52,10 +52,12 @@ static Bool intel_xvmc_set_driver(struct intel_xvmc_driver *d)
 
 /* check chip type and load xvmc driver */
 /* This must be first called! */
-Bool intel_xvmc_probe(ScrnInfoPtr scrn)
+Bool intel_xvmc_adaptor_init(ScreenPtr pScreen)
 {
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	Bool ret = FALSE;
+	char buf[64];
 
 	if (!intel->XvMCEnabled)
 		return FALSE;
@@ -75,17 +77,6 @@ Bool intel_xvmc_probe(ScrnInfoPtr scrn)
 		ErrorF("Your chipset doesn't support XvMC.\n");
 		return FALSE;
 	}
-	return TRUE;
-}
-
-Bool intel_xvmc_screen_init(ScreenPtr pScreen)
-{
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	char buf[64];
-
-	if (!xvmc_driver)
-		return FALSE;
 
 	if (xf86XvMCScreenInit(pScreen, 1, &xvmc_driver->adaptor)) {
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
