@@ -113,6 +113,7 @@ struct intel_xvmc_surface {
 	GC gc;
 	Bool gc_init;
 	Drawable last_draw;
+	drm_intel_bo *bo;
 	uint32_t gem_handle;
 };
 typedef struct intel_xvmc_surface *intel_xvmc_surface_ptr;

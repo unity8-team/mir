@@ -24,7 +24,7 @@
  *    Zou Nan hai <nanhai.zou@intel.com>
  *
  */
-#include "i965_xvmc.h"
+#include "intel_xvmc.h"
 #include "i810_reg.h"
 #include "brw_defines.h"
 #include "brw_structs.h"
@@ -256,7 +256,7 @@ static Status create_surface(Display * display,
 			     XvMCContext * context, XvMCSurface * surface,
 			     int priv_count, CARD32 * priv_data)
 {
-	struct i965_xvmc_surface *priv_surface = malloc(sizeof(struct i965_xvmc_surface));
+	struct intel_xvmc_surface *priv_surface = malloc(sizeof(struct intel_xvmc_surface));
 
 	if (!priv_surface)
 		return BadAlloc;
@@ -273,7 +273,7 @@ static Status create_surface(Display * display,
 
 static Status destroy_surface(Display * display, XvMCSurface * surface)
 {
-	struct i965_xvmc_surface *priv_surface = surface->privData;
+	struct intel_xvmc_surface *priv_surface = surface->privData;
 	XSync(display, False);
 	drm_intel_bo_unreference(priv_surface->bo);
 	free(priv_surface);
@@ -722,11 +722,11 @@ static Status render_surface(Display * display,
 	int i, j;
 	struct i965_xvmc_context *i965_ctx;
 	XvMCMacroBlock *mb;
-	struct i965_xvmc_surface *priv_target_surface =
+	struct intel_xvmc_surface *priv_target_surface =
 	    target_surface->privData;
-	struct i965_xvmc_surface *priv_past_surface =
+	struct intel_xvmc_surface *priv_past_surface =
 	    past_surface ? past_surface->privData : 0;
-	struct i965_xvmc_surface *priv_future_surface =
+	struct intel_xvmc_surface *priv_future_surface =
 	    future_surface ? future_surface->privData : 0;
 	unsigned short *block_ptr;
 	intel_ctx = intel_xvmc_find_context(context->context_id);
@@ -884,7 +884,7 @@ static Status put_surface(Display * display, XvMCSurface * surface,
 			  unsigned short destw, unsigned short desth,
 			  int flags, uint32_t *gem_handle)
 {
-	struct i965_xvmc_surface *private_surface = surface->privData;
+	struct intel_xvmc_surface *private_surface = surface->privData;
 
 	drm_intel_bo_flink(private_surface->bo, gem_handle);
 

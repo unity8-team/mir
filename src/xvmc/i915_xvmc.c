@@ -406,10 +406,10 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	buffer_info->dest_y.dw1.tiled_surface = 0;	/* linear */
 	buffer_info->dest_y.dw1.walk = TILEWALK_XMAJOR;
 	buffer_info->dest_y.dw1.pitch = (pI915Surface->yStride >> 2);	/* in DWords */
-	buffer_info->dest_y.dw2.base_address = pI915Surface->bo->offset >> 2;	/* starting DWORD address */
+	buffer_info->dest_y.dw2.base_address = pI915Surface->comm.bo->offset >> 2;	/* starting DWORD address */
 	drm_intel_bo_emit_reloc(pI915XvMC->sis_bo,
 				offsetof(typeof(*buffer_info),dest_y.dw2),
-				pI915Surface->bo, 0,
+				pI915Surface->comm.bo, 0,
 				I915_GEM_DOMAIN_RENDER,
 				I915_GEM_DOMAIN_RENDER);
 
@@ -424,10 +424,10 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	buffer_info->dest_u.dw1.walk = TILEWALK_XMAJOR;
 	buffer_info->dest_u.dw1.pitch = (pI915Surface->uvStride >> 2);	/* in DWords */
 	buffer_info->dest_u.dw2.base_address =
-		(pI915Surface->bo->offset + UOFFSET(pI915Surface)) >> 2;
+		(pI915Surface->comm.bo->offset + UOFFSET(pI915Surface)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->sis_bo,
 				offsetof(typeof(*buffer_info),dest_u.dw2),
-				pI915Surface->bo, UOFFSET(pI915Surface),
+				pI915Surface->comm.bo, UOFFSET(pI915Surface),
 				I915_GEM_DOMAIN_RENDER,
 				I915_GEM_DOMAIN_RENDER);
 
@@ -442,10 +442,10 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	buffer_info->dest_v.dw1.walk = TILEWALK_XMAJOR;
 	buffer_info->dest_v.dw1.pitch = (pI915Surface->uvStride >> 2);	/* in Dwords */
 	buffer_info->dest_v.dw2.base_address =
-		(pI915Surface->bo->offset + VOFFSET(pI915Surface)) >> 2;
+		(pI915Surface->comm.bo->offset + VOFFSET(pI915Surface)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->sis_bo,
 				offsetof(typeof(*buffer_info),dest_v.dw2),
-				pI915Surface->bo, VOFFSET(pI915Surface),
+				pI915Surface->comm.bo, VOFFSET(pI915Surface),
 				I915_GEM_DOMAIN_RENDER,
 				I915_GEM_DOMAIN_RENDER);
 
@@ -554,10 +554,10 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->y_forward.tm2.depth = 0;
 	map_state->y_forward.tm2.max_lod = 0;
 	map_state->y_forward.tm2.cube_face = 0;
-	map_state->y_forward.tm0.base_address = privPast->bo->offset >> 2;
+	map_state->y_forward.tm0.base_address = privPast->comm.bo->offset >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),y_forward.tm0),
-				privPast->bo, 0,
+				privPast->comm.bo, 0,
 				I915_GEM_DOMAIN_SAMPLER, 0);
 	map_state->y_forward.tm2.pitch = (privPast->yStride >> 2) - 1;	/* in DWords - 1 */
 
@@ -574,10 +574,10 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->y_backward.tm2.depth = 0;
 	map_state->y_backward.tm2.max_lod = 0;
 	map_state->y_backward.tm2.cube_face = 0;
-	map_state->y_backward.tm0.base_address = privFuture->bo->offset >> 2;
+	map_state->y_backward.tm0.base_address = privFuture->comm.bo->offset >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),y_backward.tm0),
-				privFuture->bo, 0,
+				privFuture->comm.bo, 0,
 				I915_GEM_DOMAIN_SAMPLER, 0);
 	map_state->y_backward.tm2.pitch = (privFuture->yStride >> 2) - 1;
 
@@ -602,10 +602,10 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->u_forward.tm2.max_lod = 0;
 	map_state->u_forward.tm2.cube_face = 0;
 	map_state->u_forward.tm0.base_address =
-		(privPast->bo->offset + UOFFSET(privPast)) >> 2;
+		(privPast->comm.bo->offset + UOFFSET(privPast)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),u_forward.tm0),
-				privPast->bo, UOFFSET(privPast),
+				privPast->comm.bo, UOFFSET(privPast),
 				I915_GEM_DOMAIN_SAMPLER, 0);
 	map_state->u_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;	/* in DWords - 1 */
 
@@ -623,10 +623,10 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->u_backward.tm2.max_lod = 0;
 	map_state->u_backward.tm2.cube_face = 0;
 	map_state->u_backward.tm0.base_address =
-		(privFuture->bo->offset + UOFFSET(privFuture)) >> 2;
+		(privFuture->comm.bo->offset + UOFFSET(privFuture)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),u_backward.tm0),
-				privFuture->bo, UOFFSET(privFuture),
+				privFuture->comm.bo, UOFFSET(privFuture),
 				I915_GEM_DOMAIN_SAMPLER, 0);
 	map_state->u_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
 
@@ -651,10 +651,10 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->v_forward.tm2.max_lod = 0;
 	map_state->v_forward.tm2.cube_face = 0;
 	map_state->v_forward.tm0.base_address =
-		(privPast->bo->offset + VOFFSET(privPast)) >> 2;
+		(privPast->comm.bo->offset + VOFFSET(privPast)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),v_forward.tm0),
-				privPast->bo, VOFFSET(privPast),
+				privPast->comm.bo, VOFFSET(privPast),
 				I915_GEM_DOMAIN_SAMPLER, 0);
 	map_state->v_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;	/* in DWords - 1 */
 
@@ -672,10 +672,10 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->v_backward.tm2.max_lod = 0;
 	map_state->v_backward.tm2.cube_face = 0;
 	map_state->v_backward.tm0.base_address =
-		(privFuture->bo->offset + VOFFSET(privFuture)) >> 2;
+		(privFuture->comm.bo->offset + VOFFSET(privFuture)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),v_backward.tm0),
-				privFuture->bo, VOFFSET(privFuture),
+				privFuture->comm.bo, VOFFSET(privFuture),
 				I915_GEM_DOMAIN_SAMPLER, 0);
 	map_state->v_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
 
@@ -999,16 +999,16 @@ static Status i915_xvmc_mc_create_surface(Display * display,
 	pI915Surface->privContext = pI915XvMC;
 	pI915Surface->privSubPic = NULL;
 
-	pI915Surface->bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+	pI915Surface->comm.bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
 					      "surface",
 					      SIZE_YUV420(context->width,
 						          context->height),
 					      GTT_PAGE_SIZE);
 
 	/* X may still use this buffer when XVMC is already done with it. */
-	drm_intel_bo_disable_reuse(pI915Surface->bo);
+	drm_intel_bo_disable_reuse(pI915Surface->comm.bo);
 
-	if (!pI915Surface->bo) {
+	if (!pI915Surface->comm.bo) {
 		PPTHREAD_MUTEX_UNLOCK();
 		free(pI915Surface);
 		return BadAlloc;
@@ -1036,7 +1036,7 @@ static int i915_xvmc_mc_destroy_surface(Display * display,
 	if (!(pI915XvMC = pI915Surface->privContext))
 		return XvMCBadSurface;
 
-	drm_intel_bo_unreference(pI915Surface->bo);
+	drm_intel_bo_unreference(pI915Surface->comm.bo);
 
 	free(pI915Surface);
 	surface->privData = NULL;
@@ -1316,7 +1316,7 @@ static int i915_xvmc_mc_put_surface(Display * display, XvMCSurface * surface,
 
 	PPTHREAD_MUTEX_LOCK();
 
-	drm_intel_bo_flink(pI915Surface->bo, gem_handle);
+	drm_intel_bo_flink(pI915Surface->comm.bo, gem_handle);
 
 	PPTHREAD_MUTEX_UNLOCK();
 

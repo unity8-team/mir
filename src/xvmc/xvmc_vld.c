@@ -23,7 +23,7 @@
  * Author:
  *    Zou Nan hai <nanhai.zou@intel.com>
  */
-#include "xvmc_vld.h"
+#include "intel_xvmc.h"
 #include "i830_hwmc.h"
 #include "i810_reg.h"
 #include "brw_defines.h"
@@ -325,9 +325,10 @@ struct surface_state_obj {
 	dri_bo *bo;
 };
 
+#define MAX_SURFACES 12
 struct binding_table_obj {
 	dri_bo *bo;
-	struct surface_state_obj surface_states[I965_MAX_SURFACES];
+	struct surface_state_obj surface_states[MAX_SURFACES];
 };
 
 struct slice_data_obj {
@@ -364,7 +365,7 @@ static int free_object(struct media_state *s)
 	for (i = 0; i < MEDIA_KERNEL_NUM; i++)
 		FREE_ONE_BO(s->vfe_state.interface.kernels[i].bo);
 	FREE_ONE_BO(s->binding_table.bo);
-	for (i = 0; i < I965_MAX_SURFACES; i++)
+	for (i = 0; i < MAX_SURFACES; i++)
 		FREE_ONE_BO(s->binding_table.surface_states[i].bo);
 	FREE_ONE_BO(s->slice_data.bo);
 	FREE_ONE_BO(s->mb_data.bo);
@@ -376,7 +377,7 @@ static int alloc_object(struct media_state *s)
 {
 	int i;
 
-	for (i = 0; i < I965_MAX_SURFACES; i++) {
+	for (i = 0; i < MAX_SURFACES; i++) {
 		s->binding_table.surface_states[i].bo =
 		    drm_intel_bo_alloc(xvmc_driver->bufmgr, "surface_state",
 				       sizeof(struct brw_surface_state),
@@ -461,7 +462,7 @@ static Status interface_descriptor()
 		desc->desc1.const_urb_entry_read_offset = 0;
 		desc->desc1.const_urb_entry_read_len = 30;
 
-		desc->desc3.binding_table_entry_count = I965_MAX_SURFACES - 1;
+		desc->desc3.binding_table_entry_count = MAX_SURFACES - 1;
 		desc->desc3.binding_table_pointer =
 		    media_state.binding_table.bo->offset >> 5;
 
@@ -528,18 +529,18 @@ out:
 
 static Status binding_tables()
 {
-	unsigned int table[I965_MAX_SURFACES];
+	unsigned int table[MAX_SURFACES];
 	int i;
 
 	if (media_state.binding_table.bo)
 		drm_intel_bo_unreference(media_state.binding_table.bo);
 	media_state.binding_table.bo =
 	    drm_intel_bo_alloc(xvmc_driver->bufmgr, "binding_table",
-			       I965_MAX_SURFACES * 4, 0x1000);
+			       MAX_SURFACES * 4, 0x1000);
 	if (!media_state.binding_table.bo)
 		return BadAlloc;
 
-	for (i = 0; i < I965_MAX_SURFACES; i++) {
+	for (i = 0; i < MAX_SURFACES; i++) {
 		table[i] =
 		    media_state.binding_table.surface_states[i].bo->offset;
 		drm_intel_bo_emit_reloc(media_state.binding_table.bo,
@@ -620,7 +621,7 @@ static Status create_surface(Display * display,
 			     XvMCContext * context, XvMCSurface * surface,
 			     int priv_count, CARD32 * priv_data)
 {
-	struct i965_xvmc_surface *priv_surface = malloc(sizeof(struct i965_xvmc_surface));
+	struct intel_xvmc_surface *priv_surface = malloc(sizeof(struct intel_xvmc_surface));
 
 	if (!priv_surface)
 		return BadAlloc;
@@ -637,7 +638,7 @@ static Status create_surface(Display * display,
 
 static Status destroy_surface(Display * display, XvMCSurface * surface)
 {
-	struct i965_xvmc_surface *priv_surface = surface->privData;
+	struct intel_xvmc_surface *priv_surface = surface->privData;
 	XSync(display, False);
 	drm_intel_bo_unreference(priv_surface->bo);
 	free(priv_surface);
@@ -754,9 +755,9 @@ static Status setup_media_surface(int index, dri_bo * bo,
 	return Success;
 }
 
-static Status setup_surface(struct i965_xvmc_surface *target,
-			    struct i965_xvmc_surface *past,
-			    struct i965_xvmc_surface *future, int w, int h)
+static Status setup_surface(struct intel_xvmc_surface *target,
+			    struct intel_xvmc_surface *past,
+			    struct intel_xvmc_surface *future, int w, int h)
 {
 	Status ret;
 	ret = setup_media_surface(0, target->bo, 0, w, h, TRUE);
@@ -810,7 +811,7 @@ static Status begin_surface(Display * display, XvMCContext * context,
 			    const XvMCMpegControl * control)
 {
 	struct i965_xvmc_contex *i965_ctx;
-	struct i965_xvmc_surface *priv_target, *priv_past, *priv_future;
+	struct intel_xvmc_surface *priv_target, *priv_past, *priv_future;
 	intel_xvmc_context_ptr intel_ctx;
 	Status ret;
 
@@ -1052,7 +1053,7 @@ static Status put_surface(Display * display, XvMCSurface * surface,
 			  unsigned short destw, unsigned short desth,
 			  int flags, uint32_t *gem_handle)
 {
-	struct i965_xvmc_surface *private_surface = surface->privData;
+	struct intel_xvmc_surface *private_surface = surface->privData;
 
 	drm_intel_bo_flink(private_surface->bo, gem_handle);
 	return Success;
@@ -1070,7 +1071,7 @@ static Status render_surface(Display * display,
 			     XvMCMacroBlockArray * macroblock_array,
 			     XvMCBlockArray * blocks)
 {
-	struct i965_xvmc_surface *priv_target, *priv_past, *priv_future;
+	struct intel_xvmc_surface *priv_target, *priv_past, *priv_future;
 	intel_xvmc_context_ptr intel_ctx;
 	XvMCMacroBlock *mb;
 	Status ret;
