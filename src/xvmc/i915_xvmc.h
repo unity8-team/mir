@@ -91,13 +91,4 @@ typedef struct _i915XvMCSubpicture {
 /* Number of YUV buffers per surface */
 #define I830_MAX_BUFS 2
 
-/*
- * i915XvMCSurface: Private data structure for each XvMCSurface. This
- *  structure is referenced by the privData pointer in the XvMCSurface
- *  structure.
- */
-typedef struct _i915XvMCSurface {
-	struct intel_xvmc_surface comm;
-} i915XvMCSurface;
-
 #endif /* _I915XVMC_H */
