@@ -1282,23 +1282,6 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	return 0;
 }
 
-static int i915_xvmc_mc_get_surface_status(Display * display,
-					   XvMCSurface * surface, int *stat)
-{
-	i915XvMCContext *pI915XvMC;
-	struct intel_xvmc_surface *intel_surf;
-
-	if (!display || !surface || !stat)
-		return BadValue;
-
-	*stat = 0;
-
-	if (!(intel_surf = surface->privData))
-		return XvMCBadSurface;
-
-	return 0;
-}
-
 struct _intel_xvmc_driver i915_xvmc_mc_driver = {
 	.type = XVMC_I915_MPEG2_MC,
 	.num_ctx = 0,
@@ -1308,5 +1291,4 @@ struct _intel_xvmc_driver i915_xvmc_mc_driver = {
 	.create_surface = i915_xvmc_mc_create_surface,
 	.destroy_surface = i915_xvmc_mc_destroy_surface,
 	.render_surface = i915_xvmc_mc_render_surface,
-	.get_surface_status = i915_xvmc_mc_get_surface_status,
 };

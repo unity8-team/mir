@@ -877,13 +877,6 @@ static Status render_surface(Display * display,
 	return Success;
 }
 
-static Status get_surface_status(Display * display,
-				 XvMCSurface * surface, int *stats)
-{
-	*stats = 0;
-	return 0;
-}
-
 static Status create_context(Display * display, XvMCContext * context,
 			     int priv_count, CARD32 * priv_data)
 {
@@ -908,5 +901,4 @@ struct _intel_xvmc_driver i965_xvmc_mc_driver = {
 	.create_surface = create_surface,
 	.destroy_surface = destroy_surface,
 	.render_surface = render_surface,
-	.get_surface_status = get_surface_status,
 };

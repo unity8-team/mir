@@ -742,10 +742,6 @@ _X_EXPORT Status XvMCSyncSurface(Display * display, XvMCSurface * surface)
 	if (!display || !surface)
 		return XvMCBadSurface;
 
-	do {
-		ret = XvMCGetSurfaceStatus(display, surface, &stat);
-	} while (!ret && (stat & XVMC_RENDERING));
-
 	return ret;
 }
 
@@ -763,6 +759,7 @@ _X_EXPORT Status XvMCFlushSurface(Display * display, XvMCSurface * surface)
 {
 	if (!display || !surface)
 		return XvMCBadSurface;
+
 	return Success;
 }
 
@@ -781,16 +778,10 @@ _X_EXPORT Status XvMCFlushSurface(Display * display, XvMCSurface * surface)
 _X_EXPORT Status XvMCGetSurfaceStatus(Display * display, XvMCSurface * surface,
 				      int *stat)
 {
-	Status ret;
-
 	if (!display || !surface || !stat)
 		return XvMCBadSurface;
 
-	ret = (xvmc_driver->get_surface_status) (display, surface, stat);
-	if (ret) {
-		XVMC_ERR("get surface status fail\n");
-		return ret;
-	}
+	*stat = 0;
 
 	return Success;
 }
@@ -812,21 +803,7 @@ _X_EXPORT Status XvMCHideSurface(Display * display, XvMCSurface * surface)
 	if (!display || !surface)
 		return XvMCBadSurface;
 
-	XvMCSyncSurface(display, surface);
-
-	/*
-	   Get the status of the surface, if it is not currently displayed
-	   we don't need to worry about it.
-	 */
-	if ((ret = XvMCGetSurfaceStatus(display, surface, &stat)) != Success)
-		return ret;
-
-	if (!(stat & XVMC_DISPLAYING))
-		return Success;
-
-	/* FIXME: */
-	XVMC_ERR("XvMCHideSurface not implemented!\n");
-	return BadValue;
+	return Success;
 }
 
 /*

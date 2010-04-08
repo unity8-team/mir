@@ -660,13 +660,6 @@ static Status load_qmatrix(Display * display, XvMCContext * context,
 	return Success;
 }
 
-static Status get_surface_status(Display * display, XvMCSurface * surface,
-				 int *status)
-{
-	*status = 0;
-	return Success;
-}
-
 static Status vld_state(const XvMCMpegControl * control)
 {
 	struct brw_vld_state tmp, *vld = &tmp;
@@ -1253,7 +1246,6 @@ struct _intel_xvmc_driver xvmc_vld_driver = {
 	.create_surface = create_surface,
 	.destroy_surface = destroy_surface,
 	.load_qmatrix = load_qmatrix,
-	.get_surface_status = get_surface_status,
 	.begin_surface = begin_surface,
 	.render_surface = render_surface,
 	.put_slice = put_slice,

@@ -186,9 +186,6 @@ typedef struct _intel_xvmc_driver {
 				  XvMCMacroBlockArray * macroblock_array,
 				  XvMCBlockArray * blocks);
 
-	 Status(*get_surface_status) (Display * display, XvMCSurface * surface,
-				      int *stat);
-
 	 Status(*begin_surface) (Display * display, XvMCContext * context,
 				 XvMCSurface * target_surface,
 				 XvMCSurface * past_surface,
