@@ -547,7 +547,7 @@ _X_EXPORT Status XvMCCreateSurface(Display * display, XvMCContext * context,
 
 	intel_surf->image = XvCreateImage(display, context->port,
 					  FOURCC_XVMC,
-					  (char *)&intel_surf->data,
+					  (char *) &intel_surf->gem_handle,
 					  surface->width, surface->height);
 	if (!intel_surf->image) {
 		XVMC_ERR("Can't create XvImage for surface\n");
@@ -555,7 +555,6 @@ _X_EXPORT Status XvMCCreateSurface(Display * display, XvMCContext * context,
 		intel_xvmc_free_surface(surface->surface_id);
 		return BadAlloc;
 	}
-	intel_surf->image->data = (char *)&intel_surf->data;
 
 	ret =
 	    (xvmc_driver->create_surface) (display, context, surface,
@@ -785,7 +784,8 @@ _X_EXPORT Status XvMCPutSurface(Display * display, XvMCSurface * surface,
 	/* fill intel_surf->data */
 	ret = (xvmc_driver->put_surface) (display, surface, draw, srcx, srcy,
 					  srcw, srch, destx, desty, destw,
-					  desth, flags, &intel_surf->data);
+					  desth, flags,
+					  &intel_surf->gem_handle);
 	if (ret) {
 		XVMC_ERR("put surface fail\n");
 		return ret;

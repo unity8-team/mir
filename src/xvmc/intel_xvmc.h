@@ -114,7 +114,7 @@ typedef struct _intel_xvmc_surface {
 	GC gc;
 	Bool gc_init;
 	Drawable last_draw;
-	struct intel_xvmc_command data;
+	uint32_t gem_handle;
 	struct _intel_xvmc_surface *next;
 } intel_xvmc_surface_t, *intel_xvmc_surface_ptr;
 
@@ -191,7 +191,7 @@ typedef struct _intel_xvmc_driver {
 			       unsigned short srcw, unsigned short srch,
 			       short destx, short desty,
 			       unsigned short destw, unsigned short desth,
-			       int flags, struct intel_xvmc_command * data);
+			       int flags, uint32_t *gem_handle);
 
 	 Status(*get_surface_status) (Display * display, XvMCSurface * surface,
 				      int *stat);

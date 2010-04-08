@@ -63,14 +63,7 @@ struct intel_xvmc_hw_context {
 
 /* Intel private XvMC command to DDX driver */
 struct intel_xvmc_command {
-	unsigned int command;
-	unsigned int ctxNo;
-	unsigned int srfNo;
-	unsigned int subPicNo;
-	unsigned int flags;
-	unsigned int real_id;
 	uint32_t handle;
-	unsigned int pad[5];
 };
 
 #ifdef _INTEL_XVMC_SERVER_

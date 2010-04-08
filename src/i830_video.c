@@ -1495,8 +1495,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 
 	if (xvmc_passthrough(id)) {
 		int size;
-		struct intel_xvmc_command *cmd
-			= (struct intel_xvmc_command *)buf;
+		uint32_t *gem_handle = (uint32_t *)buf;
 
 		i830_free_video_buffers(adaptor_priv);
 
@@ -1512,7 +1511,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		adaptor_priv->buf =
 			drm_intel_bo_gem_create_from_name(intel->bufmgr,
 							  "xvmc surface",
-							  cmd->handle);
+							  *gem_handle);
 	} else {
 		if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
 					  &dstPitch, &dstPitch2,

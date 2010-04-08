@@ -1050,13 +1050,11 @@ static Status put_surface(Display * display, XvMCSurface * surface,
 			  unsigned short srcw, unsigned short srch,
 			  short destx, short desty,
 			  unsigned short destw, unsigned short desth,
-			  int flags, struct intel_xvmc_command *data)
+			  int flags, uint32_t *gem_handle)
 {
 	struct i965_xvmc_surface *private_surface = surface->privData;
-	uint32_t handle;
 
-	drm_intel_bo_flink(private_surface->bo, &handle);
-	data->handle = handle;
+	drm_intel_bo_flink(private_surface->bo, gem_handle);
 	return Success;
 }
 

@@ -1302,12 +1302,11 @@ static int i915_xvmc_mc_put_surface(Display * display, XvMCSurface * surface,
 				    unsigned short srcw, unsigned short srch,
 				    short destx, short desty,
 				    unsigned short destw, unsigned short desth,
-				    int flags, struct intel_xvmc_command *data)
+				    int flags, uint32_t *gem_handle)
 {
 	i915XvMCContext *pI915XvMC;
 	i915XvMCSurface *pI915Surface;
 	i915XvMCSubpicture *pI915SubPic;
-	uint32_t handle = 0;
 
 	if (!(pI915Surface = surface->privData))
 		return XvMCBadSurface;
@@ -1317,16 +1316,7 @@ static int i915_xvmc_mc_put_surface(Display * display, XvMCSurface * surface,
 
 	PPTHREAD_MUTEX_LOCK();
 
-	drm_intel_bo_flink(pI915Surface->bo, &handle);
-
-	data->command = INTEL_XVMC_COMMAND_DISPLAY;
-	data->ctxNo = pI915XvMC->ctxno;
-	data->srfNo = pI915Surface->srfNo;
-	pI915SubPic = pI915Surface->privSubPic;
-	data->subPicNo = (!pI915SubPic ? 0 : pI915SubPic->srfNo);
-	data->real_id = FOURCC_YV12;
-	data->flags = flags;
-	data->handle = handle;
+	drm_intel_bo_flink(pI915Surface->bo, gem_handle);
 
 	PPTHREAD_MUTEX_UNLOCK();
 
