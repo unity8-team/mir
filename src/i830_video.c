@@ -1525,7 +1525,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 
 	if (IS_I965G(intel)) {
 		I965DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
-					 width, height, dstPitch,
+					 width, height, dstPitch, dstPitch2,
 					 src_w, src_h,
 					 drw_w, drw_h, pixmap);
 	} else {
