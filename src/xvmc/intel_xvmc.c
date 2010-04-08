@@ -406,6 +406,7 @@ _X_EXPORT Status XvMCCreateSurface(Display * display, XvMCContext * context,
 	int priv_count;
 	CARD32 *priv_data;
 	intel_xvmc_surface_ptr intel_surf = NULL;
+	struct intel_xvmc_context *intel_ctx;
 
 	if (!display || !context)
 		return XvMCBadContext;
@@ -413,19 +414,33 @@ _X_EXPORT Status XvMCCreateSurface(Display * display, XvMCContext * context,
 	if (!surface)
 		return XvMCBadSurface;
 
+	intel_ctx = context->privData;
+
 	if ((ret = _xvmc_create_surface(display, context, surface,
 					&priv_count, &priv_data))) {
 		XVMC_ERR("Unable to create XvMCSurface.");
 		return ret;
 	}
 
-	ret =
-	    (xvmc_driver->create_surface) (display, context, surface,
-					   priv_count, priv_data);
-	if (ret) {
-		XVMC_ERR("create surface failed\n");
-		return ret;
+	XFree(priv_data);
+
+	surface->privData = calloc(1, sizeof(struct intel_xvmc_surface));
+
+	if (!(intel_surf = surface->privData)) {
+		PPTHREAD_MUTEX_UNLOCK();
+		return BadAlloc;
 	}
+
+	intel_surf->bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
+					      "surface",
+					      intel_ctx->surface_bo_size,
+					      GTT_PAGE_SIZE);
+	if (!intel_surf->bo) {
+		free(intel_surf);
+		return BadAlloc;
+	}
+
+	drm_intel_bo_disable_reuse(intel_surf->bo);
 
 	intel_surf = surface->privData;
 	intel_surf->context = context;
@@ -436,6 +451,7 @@ _X_EXPORT Status XvMCCreateSurface(Display * display, XvMCContext * context,
 					  surface->width, surface->height);
 	if (!intel_surf->image) {
 		XVMC_ERR("Can't create XvImage for surface\n");
+		free(intel_surf);
 		_xvmc_destroy_surface(display, surface);
 		return BadAlloc;
 	}

@@ -104,6 +104,7 @@ extern Status _xvmc_destroy_subpicture(Display * dpy,
 
 struct intel_xvmc_context {
 	struct intel_xvmc_hw_context *hw;
+	uint32_t surface_bo_size;
 	drm_context_t hw_context;	/* context id to kernel drm */
 };
 typedef struct intel_xvmc_context *intel_xvmc_context_ptr;
@@ -169,10 +170,6 @@ typedef struct _intel_xvmc_driver {
 				  int priv_count, CARD32 * priv_data);
 
 	 Status(*destroy_context) (Display * display, XvMCContext * context);
-
-	 Status(*create_surface) (Display * display, XvMCContext * context,
-				  XvMCSurface * surface, int priv_count,
-				  CARD32 * priv_data);
 
 	 Status(*render_surface) (Display * display, XvMCContext * context,
 				  unsigned int picture_structure,

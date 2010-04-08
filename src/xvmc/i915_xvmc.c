@@ -927,6 +927,8 @@ static Status i915_xvmc_mc_create_context(Display * display,
 
 	tmpComm = (struct intel_xvmc_hw_context *) priv_data;
 	pI915XvMC->use_phys_addr = tmpComm->i915.use_phys_addr;
+	pI915XvMC->comm.surface_bo_size = SIZE_YUV420(context->width,
+						      context->height);
 
 	/* Must free the private data we were passed from X */
 	XFree(priv_data);
@@ -963,49 +965,6 @@ static int i915_xvmc_mc_destroy_context(Display * display,
 	i915_release_resource(display, context);
 
 	return Success;
-}
-
-static Status i915_xvmc_mc_create_surface(Display * display,
-					  XvMCContext * context,
-					  XvMCSurface * surface, int priv_count,
-					  CARD32 * priv_data)
-{
-	i915XvMCContext *pI915XvMC;
-	struct intel_xvmc_surface *intel_surf;
-
-	if (!(pI915XvMC = context->privData))
-		return XvMCBadContext;
-
-	XVMC_DBG("%s\n", __FUNCTION__);
-
-	PPTHREAD_MUTEX_LOCK();
-	surface->privData = calloc(1, sizeof(struct intel_xvmc_surface));
-
-	if (!(intel_surf = surface->privData)) {
-		PPTHREAD_MUTEX_UNLOCK();
-		return BadAlloc;
-	}
-
-	/* Initialize private values */
-	intel_surf->bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
-					      "surface",
-					      SIZE_YUV420(context->width,
-						          context->height),
-					      GTT_PAGE_SIZE);
-
-	/* X may still use this buffer when XVMC is already done with it. */
-	drm_intel_bo_disable_reuse(intel_surf->bo);
-
-	if (!intel_surf->bo) {
-		PPTHREAD_MUTEX_UNLOCK();
-		free(intel_surf);
-		return BadAlloc;
-	}
-
-	XFree(priv_data);
-
-	PPTHREAD_MUTEX_UNLOCK();
-	return 0;
 }
 
 static int i915_xvmc_alloc_render_state_buffers(i915XvMCContext *pI915XvMC)
@@ -1266,6 +1225,5 @@ struct _intel_xvmc_driver i915_xvmc_mc_driver = {
 	.ctx_list = NULL,
 	.create_context = i915_xvmc_mc_create_context,
 	.destroy_context = i915_xvmc_mc_destroy_context,
-	.create_surface = i915_xvmc_mc_create_surface,
 	.render_surface = i915_xvmc_mc_render_surface,
 };

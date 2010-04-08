@@ -251,25 +251,6 @@ static Status destroy_context(Display * display, XvMCContext * context)
 #define STRIDE(w)               (w)
 #define SIZE_YUV420(w, h)       (h * (STRIDE(w) + STRIDE(w >> 1)))
 
-static Status create_surface(Display * display,
-			     XvMCContext * context, XvMCSurface * surface,
-			     int priv_count, CARD32 * priv_data)
-{
-	struct intel_xvmc_surface *priv_surface = malloc(sizeof(struct intel_xvmc_surface));
-
-	if (!priv_surface)
-		return BadAlloc;
-
-	size_t size = SIZE_YUV420(context->width, context->height);
-	surface->privData = priv_surface;
-	priv_surface->bo = drm_intel_bo_alloc(xvmc_driver->bufmgr, "surface",
-					      size, 0x1000);
-
-	Xfree(priv_data);
-
-	return Success;
-}
-
 static void flush()
 {
 	struct brw_mi_flush flush;
@@ -878,6 +859,8 @@ static Status create_context(Display * display, XvMCContext * context,
 	if (!intel_ctx)
 		return BadAlloc;
 	intel_ctx->hw = hw_ctx;
+	intel_ctx->surface_bo_size
+		= SIZE_YUV420(context->width, context->height);
 	context->privData = intel_ctx;
 
 	media_state.is_g4x = hw_ctx->i965.is_g4x;
@@ -894,6 +877,5 @@ struct _intel_xvmc_driver i965_xvmc_mc_driver = {
 	.type = XVMC_I965_MPEG2_MC,
 	.create_context = create_context,
 	.destroy_context = destroy_context,
-	.create_surface = create_surface,
 	.render_surface = render_surface,
 };
