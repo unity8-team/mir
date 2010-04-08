@@ -64,20 +64,6 @@ typedef struct _I915XvMC {
 	PutImageFuncPtr savePutImage;
 } I915XvMC, *I915XvMCPtr;
 
-/*
-static int yv12_subpicture_index_list[2] =
-{
-    FOURCC_IA44,
-    FOURCC_AI44
-};
-
-static XF86MCImageIDList yv12_subpicture_list =
-{
-    ARRARY_SIZE(yv12_subpicture_index_list),
-    yv12_subpicture_index_list
-};
- */
-
 static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface = {
 	SURFACE_TYPE_MPEG2_MPML,
 	XVMC_CHROMA_FORMAT_420,
@@ -104,7 +90,6 @@ static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface = {
 	XVMC_MPEG_1,
 	/* XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING, */
 	0,
-	/* &yv12_subpicture_list */
 	NULL,
 };
 
