@@ -231,15 +231,6 @@ static int i915_xvmc_create_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf,
 	return Success;
 }
 
-static int i915_xvmc_create_subpict(ScrnInfoPtr scrn, XvMCSubpicturePtr pSubp,
-				    int *num_priv, long **priv)
-{
-	*priv = NULL;
-	*num_priv = 0;
-
-	return Success;
-}
-
 static void i915_xvmc_destroy_context(ScrnInfoPtr scrn,
 				      XvMCContextPtr pContext)
 {
@@ -251,10 +242,14 @@ static void i915_xvmc_destroy_surface(ScrnInfoPtr scrn, XvMCSurfacePtr pSurf)
 	return;
 }
 
-static void i915_xvmc_destroy_subpict(ScrnInfoPtr scrn,
-				      XvMCSubpicturePtr pSubp)
+static int create_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture,
+			     int *num_priv, CARD32 ** priv)
 {
-	return;
+	return Success;
+}
+
+static void destroy_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture)
+{
 }
 
 /* Fill in the device dependent adaptor record.
@@ -278,10 +273,8 @@ static XF86MCAdaptorRec pAdapt = {
 	    (xf86XvMCCreateSurfaceProcPtr) i915_xvmc_create_surface,
 	.DestroySurface =
 	    (xf86XvMCDestroySurfaceProcPtr) i915_xvmc_destroy_surface,
-	.CreateSubpicture =
-	    (xf86XvMCCreateSubpictureProcPtr) i915_xvmc_create_subpict,
-	.DestroySubpicture =
-	    (xf86XvMCDestroySubpictureProcPtr) i915_xvmc_destroy_subpict,
+	.CreateSubpicture =  create_subpicture,
+	.DestroySubpicture = destroy_subpicture,
 };
 
 /* new xvmc driver interface */
@@ -387,16 +380,6 @@ static void destory_surface(ScrnInfoPtr scrn, XvMCSurfacePtr surface)
 	struct i965_xvmc_context *priv_ctx = ctx->driver_priv;
 	priv_ctx->surfaces[priv_surface->no] = NULL;
 	Xfree(priv_surface);
-}
-
-static int create_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture,
-			     int *num_priv, CARD32 ** priv)
-{
-	return Success;
-}
-
-static void destroy_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture)
-{
 }
 
 static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
