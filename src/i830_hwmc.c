@@ -30,110 +30,11 @@
 
 #define _INTEL_XVMC_SERVER_
 #include "i830.h"
-#include "intel_bufmgr.h"
 #include "i830_hwmc.h"
 
 #include <X11/extensions/Xv.h>
 #include <X11/extensions/XvMC.h>
 #include <fourcc.h>
-
-struct intel_xvmc_driver *xvmc_driver;
-
-/* set global current driver for xvmc */
-static Bool intel_xvmc_set_driver(struct intel_xvmc_driver *d)
-{
-	if (xvmc_driver) {
-		ErrorF("XvMC driver already set!\n");
-		return FALSE;
-	} else
-		xvmc_driver = d;
-	return TRUE;
-}
-
-/* check chip type and load xvmc driver */
-/* This must be first called! */
-Bool intel_xvmc_adaptor_init(ScreenPtr pScreen)
-{
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	Bool ret = FALSE;
-	char buf[64];
-
-	if (!intel->XvMCEnabled)
-		return FALSE;
-
-	/* Needs KMS support. */
-	if (IS_I915G(intel) || IS_I915GM(intel))
-		return FALSE;
-
-	if (IS_I9XX(intel)) {
-		if (IS_I915(intel))
-			ret = intel_xvmc_set_driver(&i915_xvmc_driver);
-		else if (IS_G4X(intel) || IS_IGDNG(intel))
-			ret = intel_xvmc_set_driver(&vld_xvmc_driver);
-		else
-			ret = intel_xvmc_set_driver(&i965_xvmc_driver);
-	} else {
-		ErrorF("Your chipset doesn't support XvMC.\n");
-		return FALSE;
-	}
-
-	if (xf86XvMCScreenInit(pScreen, 1, &xvmc_driver->adaptor)) {
-		xf86DrvMsg(scrn->scrnIndex, X_INFO,
-			   "[XvMC] %s driver initialized.\n",
-			   xvmc_driver->name);
-	} else {
-		intel->XvMCEnabled = FALSE;
-		xf86DrvMsg(scrn->scrnIndex, X_INFO,
-			   "[XvMC] Failed to initialize XvMC.\n");
-		return FALSE;
-	}
-
-	sprintf(buf, "pci:%04x:%02x:%02x.%d",
-		intel->PciInfo->domain,
-		intel->PciInfo->bus, intel->PciInfo->dev, intel->PciInfo->func);
-
-	xf86XvMCRegisterDRInfo(pScreen, INTEL_XVMC_LIBNAME,
-			       buf,
-			       INTEL_XVMC_MAJOR, INTEL_XVMC_MINOR,
-			       INTEL_XVMC_PATCHLEVEL);
-	return TRUE;
-}
-
-/* i915 hwmc support */
-static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface = {
-	SURFACE_TYPE_MPEG2_MPML,
-	XVMC_CHROMA_FORMAT_420,
-	0,
-	720,
-	576,
-	720,
-	576,
-	XVMC_MPEG_2,
-	/* XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING, */
-	0,
-	/* &yv12_subpicture_list */
-	NULL,
-};
-
-static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface = {
-	SURFACE_TYPE_MPEG1_MPML,
-	XVMC_CHROMA_FORMAT_420,
-	0,
-	720,
-	576,
-	720,
-	576,
-	XVMC_MPEG_1,
-	/* XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING, */
-	0,
-	NULL,
-};
-
-static XF86MCSurfaceInfoPtr ppSI[2] = {
-	(XF86MCSurfaceInfoPtr) & i915_YV12_mpg2_surface,
-	(XF86MCSurfaceInfoPtr) & i915_YV12_mpg1_surface
-};
 
 static int create_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture,
 			     int *num_priv, CARD32 ** priv)
@@ -190,30 +91,39 @@ static void destroy_context(ScrnInfoPtr scrn, XvMCContextPtr context)
 {
 }
 
-/* Fill in the device dependent adaptor record.
- * This is named "Intel(R) Textured Video" because this code falls under the
- * XV extenstion, the name must match or it won't be used.
- *
- * Surface and Subpicture - see above
- * Function pointers to functions below
- */
-static XF86MCAdaptorRec pAdapt = {
-	.name = "Intel(R) Textured Video",
-	.num_surfaces = ARRAY_SIZE(ppSI),
-	.surfaces = ppSI,
-	.num_subpictures = 0,
-	.subpictures = NULL,
-	.CreateContext = create_context,
-	.DestroyContext = destroy_context,
-	.CreateSurface = create_surface,
-	.DestroySurface = destroy_surface,
-	.CreateSubpicture =  create_subpicture,
-	.DestroySubpicture = destroy_subpicture,
+/* i915 hwmc support */
+static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface = {
+	FOURCC_YV12,
+	XVMC_CHROMA_FORMAT_420,
+	0,
+	720,
+	576,
+	720,
+	576,
+	XVMC_MPEG_2,
+	/* XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING, */
+	0,
+	/* &yv12_subpicture_list */
+	NULL,
 };
 
-struct intel_xvmc_driver i915_xvmc_driver = {
-	.name = "i915_xvmc",
-	.adaptor = &pAdapt,
+static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface = {
+	FOURCC_YV12,
+	XVMC_CHROMA_FORMAT_420,
+	0,
+	720,
+	576,
+	720,
+	576,
+	XVMC_MPEG_1,
+	/* XVMC_OVERLAID_SURFACE | XVMC_SUBPICTURE_INDEPENDENT_SCALING, */
+	0,
+	NULL,
+};
+
+static XF86MCSurfaceInfoPtr surface_info_i915[2] = {
+	(XF86MCSurfaceInfoPtr) & i915_YV12_mpg2_surface,
+	(XF86MCSurfaceInfoPtr) & i915_YV12_mpg1_surface
 };
 
 /* i965 and later hwmc support */
@@ -276,38 +186,75 @@ static XF86MCSurfaceInfoPtr surface_info_vld[] = {
 	&yv12_mpeg2_i965_surface,
 };
 
-static XF86MCAdaptorRec adaptor_vld = {
-	.name = "Intel(R) Textured Video",
-	.num_surfaces = sizeof(surface_info_vld) / sizeof(surface_info_vld[0]),
-	.surfaces = surface_info_vld,
+/* check chip type and load xvmc driver */
+Bool intel_xvmc_adaptor_init(ScreenPtr pScreen)
+{
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	static XF86MCAdaptorRec *pAdapt;
+	char *name;
+	char buf[64];
 
-	.CreateContext = create_context,
-	.DestroyContext = destroy_context,
-	.CreateSurface = create_surface,
-	.DestroySurface = destroy_surface,
-	.CreateSubpicture = create_subpicture,
-	.DestroySubpicture = destroy_subpicture
-};
+	if (!intel->XvMCEnabled)
+		return FALSE;
 
-static XF86MCAdaptorRec adaptor = {
-	.name = "Intel(R) Textured Video",
-	.num_surfaces = sizeof(surface_info_i965) / sizeof(surface_info_i965[0]),
-	.surfaces = surface_info_i965,
+	/* Needs KMS support. */
+	if (IS_I915G(intel) || IS_I915GM(intel))
+		return FALSE;
 
-	.CreateContext = create_context,
-	.DestroyContext = destroy_context,
-	.CreateSurface = create_surface,
-	.DestroySurface = destroy_surface,
-	.CreateSubpicture = create_subpicture,
-	.DestroySubpicture = destroy_subpicture
-};
+	if (!IS_I9XX(intel)) {
+		ErrorF("Your chipset doesn't support XvMC.\n");
+		return FALSE;
+	}
 
-struct intel_xvmc_driver i965_xvmc_driver = {
-	.name = "i965_xvmc",
-	.adaptor = &adaptor,
-};
+	pAdapt = xcalloc(1, sizeof(struct intel_xvmc_hw_context));
+	if (!pAdapt) {
+		ErrorF("Allocation error.\n");
+		return FALSE;
+	}
 
-struct intel_xvmc_driver vld_xvmc_driver = {
-	.name = "xvmc_vld",
-	.adaptor = &adaptor_vld,
-};
+	pAdapt->name = "Intel(R) Textured Video";
+	pAdapt->num_subpictures = 0;
+	pAdapt->subpictures = NULL;
+	pAdapt->CreateContext = create_context;
+	pAdapt->DestroyContext = destroy_context;
+	pAdapt->CreateSurface = create_surface;
+	pAdapt->DestroySurface = destroy_surface;
+	pAdapt->CreateSubpicture =  create_subpicture;
+	pAdapt->DestroySubpicture = destroy_subpicture;
+
+	if (IS_I915(intel)) {
+		name = "i915_xvmc",
+		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_i915);
+		pAdapt->surfaces = surface_info_i915;
+	} else if (IS_G4X(intel) || IS_IGDNG(intel)) {
+		name = "xvmc_vld",
+		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_vld);
+		pAdapt->surfaces = surface_info_vld;
+	} else {
+		name = "i965_xvmc",
+		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_i965);
+		pAdapt->surfaces = surface_info_i965;
+	}
+
+	if (xf86XvMCScreenInit(pScreen, 1, &pAdapt)) {
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "[XvMC] %s driver initialized.\n",
+			   name);
+	} else {
+		intel->XvMCEnabled = FALSE;
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "[XvMC] Failed to initialize XvMC.\n");
+		return FALSE;
+	}
+
+	sprintf(buf, "pci:%04x:%02x:%02x.%d",
+		intel->PciInfo->domain,
+		intel->PciInfo->bus, intel->PciInfo->dev, intel->PciInfo->func);
+
+	xf86XvMCRegisterDRInfo(pScreen, INTEL_XVMC_LIBNAME,
+			       buf,
+			       INTEL_XVMC_MAJOR, INTEL_XVMC_MINOR,
+			       INTEL_XVMC_PATCHLEVEL);
+	return TRUE;
+}

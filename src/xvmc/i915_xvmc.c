@@ -1137,12 +1137,6 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	if (!i915_xvmc_alloc_render_state_buffers(pI915XvMC))
 		return BadAlloc;
 
-	if (context->surface_type_id >= SURFACE_TYPE_MAX) {
-		XVMC_ERR("Unsupprted surface_type_id %d.",
-			 context->surface_type_id);
-		return BadValue;
-	}
-
 	intel_ctx = intel_xvmc_find_context(context->context_id);
 	if (!intel_ctx) {
 		XVMC_ERR("Can't find intel xvmc context\n");

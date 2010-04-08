@@ -47,21 +47,6 @@
 #define XVMC_I945_MPEG2_VLD	0x04
 #define XVMC_I965_MPEG2_VLD	0x08
 
-/* supported surface types */
-enum {
-	SURFACE_TYPE_MPEG2_MPML = FOURCC_XVMC,	/* mpeg2 MP@ML */
-	SURFACE_TYPE_MPEG1_MPML,	/* mpeg1 MP@ML */
-	SURFACE_TYPE_MAX
-};
-
-/* common header for context private */
-struct hwmc_buffer {
-	drm_handle_t handle;
-	unsigned long offset;
-	unsigned long size;
-	unsigned long bus_addr;
-};
-
 struct intel_xvmc_hw_context {
 	unsigned int type;
 	union {
@@ -90,18 +75,6 @@ struct intel_xvmc_command {
 
 #ifdef _INTEL_XVMC_SERVER_
 #include <xf86xvmc.h>
-
-struct intel_xvmc_driver {
-	char *name;
-	XF86MCAdaptorPtr adaptor;
-	/* more items for xvmv surface manage? */
-	void *devPrivate;
-};
-
-extern struct intel_xvmc_driver *xvmc_driver;
-extern struct intel_xvmc_driver i915_xvmc_driver;
-extern struct intel_xvmc_driver i965_xvmc_driver;
-extern struct intel_xvmc_driver vld_xvmc_driver;
 
 extern Bool intel_xvmc_adaptor_init(ScreenPtr);
 #endif
