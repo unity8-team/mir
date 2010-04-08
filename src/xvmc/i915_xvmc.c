@@ -1297,32 +1297,6 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	return 0;
 }
 
-static int i915_xvmc_mc_put_surface(Display * display, XvMCSurface * surface,
-				    Drawable draw, short srcx, short srcy,
-				    unsigned short srcw, unsigned short srch,
-				    short destx, short desty,
-				    unsigned short destw, unsigned short desth,
-				    int flags, uint32_t *gem_handle)
-{
-	i915XvMCContext *pI915XvMC;
-	i915XvMCSurface *pI915Surface;
-	i915XvMCSubpicture *pI915SubPic;
-
-	if (!(pI915Surface = surface->privData))
-		return XvMCBadSurface;
-
-	if (!(pI915XvMC = pI915Surface->privContext))
-		return XvMCBadSurface;
-
-	PPTHREAD_MUTEX_LOCK();
-
-	drm_intel_bo_flink(pI915Surface->comm.bo, gem_handle);
-
-	PPTHREAD_MUTEX_UNLOCK();
-
-	return 0;
-}
-
 static int i915_xvmc_mc_get_surface_status(Display * display,
 					   XvMCSurface * surface, int *stat)
 {
@@ -1352,6 +1326,5 @@ struct _intel_xvmc_driver i915_xvmc_mc_driver = {
 	.create_surface = i915_xvmc_mc_create_surface,
 	.destroy_surface = i915_xvmc_mc_destroy_surface,
 	.render_surface = i915_xvmc_mc_render_surface,
-	.put_surface = i915_xvmc_mc_put_surface,
 	.get_surface_status = i915_xvmc_mc_get_surface_status,
 };

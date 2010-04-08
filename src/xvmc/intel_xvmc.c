@@ -719,14 +719,9 @@ _X_EXPORT Status XvMCPutSurface(Display * display, XvMCSurface * surface,
 		intel_surf->gc = XCreateGC(display, draw, 0, NULL);
 	}
 	intel_surf->last_draw = draw;
-	ret = (xvmc_driver->put_surface) (display, surface, draw, srcx, srcy,
-					  srcw, srch, destx, desty, destw,
-					  desth, flags,
-					  &intel_surf->gem_handle);
-	if (ret) {
-		XVMC_ERR("put surface fail\n");
-		return ret;
-	}
+
+	drm_intel_bo_flink(intel_surf->bo, &intel_surf->gem_handle);
+
 	ret = XvPutImage(display, context->port, draw, intel_surf->gc,
 			 intel_surf->image, srcx, srcy, srcw, srch, destx,
 			 desty, destw, desth);

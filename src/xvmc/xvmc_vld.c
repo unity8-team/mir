@@ -1046,19 +1046,6 @@ static Status put_slice2(Display * display, XvMCContext * context,
 	return Success;
 }
 
-static Status put_surface(Display * display, XvMCSurface * surface,
-			  Drawable draw, short srcx, short srcy,
-			  unsigned short srcw, unsigned short srch,
-			  short destx, short desty,
-			  unsigned short destw, unsigned short desth,
-			  int flags, uint32_t *gem_handle)
-{
-	struct intel_xvmc_surface *private_surface = surface->privData;
-
-	drm_intel_bo_flink(private_surface->bo, gem_handle);
-	return Success;
-}
-
 static Status render_surface(Display * display,
 			     XvMCContext * context,
 			     unsigned int picture_structure,
@@ -1269,7 +1256,6 @@ struct _intel_xvmc_driver xvmc_vld_driver = {
 	.get_surface_status = get_surface_status,
 	.begin_surface = begin_surface,
 	.render_surface = render_surface,
-	.put_surface = put_surface,
 	.put_slice = put_slice,
 	.put_slice2 = put_slice2
 };

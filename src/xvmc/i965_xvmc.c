@@ -877,20 +877,6 @@ static Status render_surface(Display * display,
 	return Success;
 }
 
-static Status put_surface(Display * display, XvMCSurface * surface,
-			  Drawable draw, short srcx, short srcy,
-			  unsigned short srcw, unsigned short srch,
-			  short destx, short desty,
-			  unsigned short destw, unsigned short desth,
-			  int flags, uint32_t *gem_handle)
-{
-	struct intel_xvmc_surface *private_surface = surface->privData;
-
-	drm_intel_bo_flink(private_surface->bo, gem_handle);
-
-	return Success;
-}
-
 static Status get_surface_status(Display * display,
 				 XvMCSurface * surface, int *stats)
 {
@@ -922,6 +908,5 @@ struct _intel_xvmc_driver i965_xvmc_mc_driver = {
 	.create_surface = create_surface,
 	.destroy_surface = destroy_surface,
 	.render_surface = render_surface,
-	.put_surface = put_surface,
 	.get_surface_status = get_surface_status,
 };

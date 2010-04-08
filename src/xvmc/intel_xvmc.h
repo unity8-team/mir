@@ -186,13 +186,6 @@ typedef struct _intel_xvmc_driver {
 				  XvMCMacroBlockArray * macroblock_array,
 				  XvMCBlockArray * blocks);
 
-	 Status(*put_surface) (Display * display, XvMCSurface * surface,
-			       Drawable draw, short srcx, short srcy,
-			       unsigned short srcw, unsigned short srch,
-			       short destx, short desty,
-			       unsigned short destw, unsigned short desth,
-			       int flags, uint32_t *gem_handle);
-
 	 Status(*get_surface_status) (Display * display, XvMCSurface * surface,
 				      int *stat);
 
