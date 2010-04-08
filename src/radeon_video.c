@@ -271,10 +271,14 @@ void RADEONInitVideo(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr    info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
     XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
     int num_adaptors;
 
+    /* no overlay or 3D on RN50 */
+    if (info->ChipFamily == CHIP_FAMILY_RV100 && !pRADEONEnt->HasCRTC2)
+	    return;
 
     num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
     newAdaptors = xalloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
