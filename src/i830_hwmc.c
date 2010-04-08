@@ -80,33 +80,6 @@ Bool intel_xvmc_probe(ScrnInfoPtr scrn)
 	return TRUE;
 }
 
-void intel_xvmc_finish(ScrnInfoPtr scrn)
-{
-	if (!xvmc_driver)
-		return;
-	(*xvmc_driver->fini) (scrn);
-}
-
-Bool intel_xvmc_driver_init(ScreenPtr pScreen, XF86VideoAdaptorPtr xv_adaptor)
-{
-	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct drm_i915_setparam sp;
-	int ret;
-
-	if (!xvmc_driver) {
-		ErrorF("Failed to probe XvMC driver.\n");
-		return FALSE;
-	}
-
-	if (!(*xvmc_driver->init) (scrn, xv_adaptor)) {
-		ErrorF("XvMC driver initialize failed.\n");
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
 Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 {
 	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
@@ -121,7 +94,6 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 			   "[XvMC] %s driver initialized.\n",
 			   xvmc_driver->name);
 	} else {
-		intel_xvmc_finish(scrn);
 		intel->XvMCEnabled = FALSE;
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "[XvMC] Failed to initialize XvMC.\n");
@@ -145,10 +117,6 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 #define I915_XVMC_MAX_BUFFERS 2
 #define I915_XVMC_MAX_CONTEXTS 4
 #define I915_XVMC_MAX_SURFACES 20
-
-typedef struct _I915XvMC {
-	PutImageFuncPtr savePutImage;
-} I915XvMC, *I915XvMCPtr;
 
 static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface = {
 	SURFACE_TYPE_MPEG2_MPML,
@@ -289,52 +257,6 @@ static void i915_xvmc_destroy_subpict(ScrnInfoPtr scrn,
 	return;
 }
 
-static int i915_xvmc_put_image(ScrnInfoPtr scrn,
-			       short src_x, short src_y,
-			       short drw_x, short drw_y, short src_w,
-			       short src_h, short drw_w, short drw_h,
-			       int id, unsigned char *buf, short width,
-			       short height, Bool sync, RegionPtr clipBoxes,
-			       pointer data, DrawablePtr pDraw)
-{
-	I915XvMCPtr pXvMC = (I915XvMCPtr) xvmc_driver->devPrivate;
-	struct intel_xvmc_command *xvmc_cmd = (struct intel_xvmc_command *)buf;
-	int ret;
-
-	if (FOURCC_XVMC == id) {
-		/* Pass the GEM object name through the pointer arg. */
-		buf = (void *)(uintptr_t)xvmc_cmd->handle;
-	}
-
-	ret =
-	    pXvMC->savePutImage(scrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
-				drw_w, drw_h, id, buf, width, height, sync,
-				clipBoxes, data, pDraw);
-	return ret;
-}
-
-static Bool i915_xvmc_init(ScrnInfoPtr scrn, XF86VideoAdaptorPtr XvAdapt)
-{
-	I915XvMCPtr pXvMC;
-
-	pXvMC = (I915XvMCPtr) xcalloc(1, sizeof(I915XvMC));
-	if (!pXvMC) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "[XvMC] alloc driver private failed!\n");
-		return FALSE;
-	}
-	xvmc_driver->devPrivate = (void *)pXvMC;
-	/* set up wrappers */
-	pXvMC->savePutImage = XvAdapt->PutImage;
-	XvAdapt->PutImage = i915_xvmc_put_image;
-	return TRUE;
-}
-
-static void i915_xvmc_fini(ScrnInfoPtr scrn)
-{
-	xfree(xvmc_driver->devPrivate);
-}
-
 /* Fill in the device dependent adaptor record.
  * This is named "Intel(R) Textured Video" because this code falls under the
  * XV extenstion, the name must match or it won't be used.
@@ -367,8 +289,6 @@ struct intel_xvmc_driver i915_xvmc_driver = {
 	.name = "i915_xvmc",
 	.adaptor = &pAdapt,
 	.flag = XVMC_I915_MPEG2_MC,
-	.init = i915_xvmc_init,
-	.fini = i915_xvmc_fini,
 };
 
 /* i965 and later hwmc support */
@@ -379,8 +299,6 @@ struct intel_xvmc_driver i915_xvmc_driver = {
 #ifndef XVMC_VLD
 #define XVMC_VLD  0x00020000
 #endif
-
-static PutImageFuncPtr savedXvPutImage;
 
 static int create_context(ScrnInfoPtr scrn,
 			  XvMCContextPtr context, int *num_privates,
@@ -481,41 +399,6 @@ static void destroy_subpicture(ScrnInfoPtr scrn, XvMCSubpicturePtr subpicture)
 {
 }
 
-static int put_image(ScrnInfoPtr scrn,
-		     short src_x, short src_y,
-		     short drw_x, short drw_y, short src_w,
-		     short src_h, short drw_w, short drw_h,
-		     int id, unsigned char *buf, short width,
-		     short height, Bool sync, RegionPtr clipBoxes, pointer data,
-		     DrawablePtr drawable)
-{
-	struct intel_xvmc_command *cmd = (struct intel_xvmc_command *)buf;
-
-	if (id == FOURCC_XVMC) {
-		/* Pass the GEM object name through the pointer arg. */
-		buf = (void *)(uintptr_t)cmd->handle;
-	}
-
-	savedXvPutImage(scrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
-			drw_w, drw_h, id, buf,
-			width, height, sync, clipBoxes,
-			data, drawable);
-
-	return Success;
-}
-
-static Bool init(ScrnInfoPtr screen_info, XF86VideoAdaptorPtr adaptor)
-{
-	savedXvPutImage = adaptor->PutImage;
-	adaptor->PutImage = put_image;
-
-	return TRUE;
-}
-
-static void fini(ScrnInfoPtr screen_info)
-{
-}
-
 static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface = {
 	FOURCC_YV12,
 	XVMC_CHROMA_FORMAT_420,
@@ -601,14 +484,10 @@ struct intel_xvmc_driver i965_xvmc_driver = {
 	.name = "i965_xvmc",
 	.adaptor = &adaptor,
 	.flag = XVMC_I965_MPEG2_MC,
-	.init = init,
-	.fini = fini
 };
 
 struct intel_xvmc_driver vld_xvmc_driver = {
 	.name = "xvmc_vld",
 	.adaptor = &adaptor_vld,
 	.flag = XVMC_I965_MPEG2_VLD,
-	.init = init,
-	.fini = fini
 };

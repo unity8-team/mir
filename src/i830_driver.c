@@ -1340,11 +1340,6 @@ static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 static void I830FreeScreen(int scrnIndex, int flags)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
-#ifdef INTEL_XVMC
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	if (intel && intel->XvMCEnabled)
-		intel_xvmc_finish(xf86Screens[scrnIndex]);
-#endif
 
 	i830_close_drm_master(scrn);
 

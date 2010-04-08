@@ -406,11 +406,8 @@ void I830InitVideo(ScreenPtr screen)
 		adaptors[num_adaptors++] = overlayAdaptor;
 
 #ifdef INTEL_XVMC
-	if (intel_xvmc_probe(scrn)) {
-		if (texturedAdaptor)
-			xvmc_status =
-			    intel_xvmc_driver_init(screen, texturedAdaptor);
-	}
+	if (intel_xvmc_probe(scrn))
+		xvmc_status = TRUE;
 #endif
 
 	if (num_adaptors) {
@@ -422,7 +419,7 @@ void I830InitVideo(ScreenPtr screen)
 	}
 
 #ifdef INTEL_XVMC
-	if (xvmc_status)
+	if (xvmc_status && texturedAdaptor)
 		intel_xvmc_screen_init(screen);
 #endif
 	xfree(adaptors);
@@ -1507,6 +1504,9 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 
 	if (xvmc_passthrough(id)) {
 		int size;
+		struct intel_xvmc_command *cmd
+			= (struct intel_xvmc_command *)buf;
+
 		i830_free_video_buffers(adaptor_priv);
 
 		i830_setup_dst_params(scrn, adaptor_priv, width, height,
@@ -1521,7 +1521,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		adaptor_priv->buf =
 			drm_intel_bo_gem_create_from_name(intel->bufmgr,
 							  "xvmc surface",
-							  (uintptr_t)buf);
+							  cmd->handle);
 	} else {
 		if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
 					  &dstPitch, &dstPitch2,

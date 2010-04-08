@@ -86,8 +86,6 @@ struct intel_xvmc_driver {
 	XF86MCAdaptorPtr adaptor;
 	unsigned int flag;
 	/* more items for xvmv surface manage? */
-	 Bool(*init) (ScrnInfoPtr, XF86VideoAdaptorPtr);
-	void (*fini) (ScrnInfoPtr);
 	void *devPrivate;
 };
 
@@ -97,9 +95,7 @@ extern struct intel_xvmc_driver i965_xvmc_driver;
 extern struct intel_xvmc_driver vld_xvmc_driver;
 
 extern Bool intel_xvmc_probe(ScrnInfoPtr);
-extern Bool intel_xvmc_driver_init(ScreenPtr, XF86VideoAdaptorPtr);
 extern Bool intel_xvmc_screen_init(ScreenPtr);
-extern void intel_xvmc_finish(ScrnInfoPtr);
 #endif
 
 #endif
