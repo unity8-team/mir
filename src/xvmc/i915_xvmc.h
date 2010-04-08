@@ -98,14 +98,6 @@ typedef struct _i915XvMCSubpicture {
  */
 typedef struct _i915XvMCSurface {
 	struct intel_xvmc_surface comm;
-	unsigned int srfNo;	/* XvMC private surface numbers */
-	unsigned int yStride;	/* Stride of YUV420 Y component. */
-	unsigned int uvStride;
-	unsigned int width;	/* Dimensions */
-	unsigned int height;
-	i915XvMCContext *privContext;
-	i915XvMCSubpicture *privSubPic;	/* Subpicture to be blended when
-					 * displaying. NULL if none. */
 } i915XvMCSurface;
 
 #endif /* _I915XVMC_H */
