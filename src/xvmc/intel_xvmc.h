@@ -102,13 +102,14 @@ extern Status _xvmc_create_subpicture(Display * dpy, XvMCContext * context,
 extern Status _xvmc_destroy_subpicture(Display * dpy,
 				       XvMCSubpicture * subpicture);
 
-typedef struct _intel_xvmc_context {
-	XvMCContext *context;
+struct intel_xvmc_context {
+	struct intel_xvmc_hw_context *hw;
 	drm_context_t hw_context;	/* context id to kernel drm */
-	struct _intel_xvmc_context *next;
-} intel_xvmc_context_t, *intel_xvmc_context_ptr;
+};
+typedef struct intel_xvmc_context *intel_xvmc_context_ptr;
 
 struct intel_xvmc_surface {
+	XvMCContext *context;
 	XvImage *image;
 	GC gc;
 	Bool gc_init;
@@ -246,9 +247,6 @@ static inline const char *intel_xvmc_decoder_string(int flag)
 		return "Unknown decoder";
 	}
 }
-
-extern intel_xvmc_context_ptr intel_xvmc_find_context(XID id);
-extern intel_xvmc_surface_ptr intel_xvmc_find_surface(XID id);
 
 extern unsigned int mb_bytes_420[64];
 

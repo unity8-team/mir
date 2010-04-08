@@ -595,23 +595,30 @@ static Status cs_init(int interface_offset)
 static Status create_context(Display * display, XvMCContext * context,
 			     int priv_count, CARD32 * priv_data)
 {
-	struct intel_xvmc_hw_context *ctx;
-	ctx = (struct intel_xvmc_hw_context *)priv_data;
-	context->privData = priv_data;
+	struct intel_xvmc_context *intel_ctx;
+	struct intel_xvmc_hw_context *hw_ctx;
+	hw_ctx = (struct intel_xvmc_hw_context *)priv_data;
+
+	intel_ctx = calloc(1, sizeof(struct intel_xvmc_context));
+	if (!intel_ctx)
+		return BadAlloc;
+	intel_ctx->hw = hw_ctx;
+	context->privData = intel_ctx;
 
 	if (alloc_object(&media_state))
 		return BadAlloc;
 
-	if (setup_media_kernels(ctx))
+	if (setup_media_kernels(hw_ctx))
 		return BadAlloc;
 	return Success;
 }
 
 static Status destroy_context(Display * display, XvMCContext * context)
 {
-	struct i965_xvmc_context *i965_ctx;
-	i965_ctx = context->privData;
-	Xfree(i965_ctx);
+	struct intel_xvmc_context *intel_ctx;
+	intel_ctx = context->privData;
+	Xfree(intel_ctx->hw);
+	free(intel_ctx);
 	return Success;
 }
 
@@ -796,10 +803,9 @@ static Status begin_surface(Display * display, XvMCContext * context,
 {
 	struct i965_xvmc_contex *i965_ctx;
 	struct intel_xvmc_surface *priv_target, *priv_past, *priv_future;
-	intel_xvmc_context_ptr intel_ctx;
+	intel_xvmc_context_ptr intel_ctx = context->privData;
 	Status ret;
 
-	intel_ctx = intel_xvmc_find_context(context->context_id);
 	priv_target = target->privData;
 	priv_past = past ? past->privData : NULL;
 	priv_future = future ? future->privData : NULL;
@@ -989,11 +995,10 @@ static Status put_slice2(Display * display, XvMCContext * context,
 			 unsigned char *slice, int nbytes, int sliceCode)
 {
 	unsigned int bit_buf;
-	intel_xvmc_context_ptr intel_ctx;
-	struct intel_xvmc_hw_context *ctx;
+	intel_xvmc_context_ptr intel_ctx = context->privData;
+	struct intel_xvmc_hw_context *hw_ctx = intel_ctx->hw;
 	int q_scale_code, mb_row;
 
-	ctx = (struct intel_xvmc_hw_context *)context->privData;
 	mb_row = *(slice - 1) - 1;
 	bit_buf =
 	    (slice[0] << 24) | (slice[1] << 16) | (slice[2] << 8) | (slice[3]);
@@ -1014,9 +1019,8 @@ static Status put_slice2(Display * display, XvMCContext * context,
 
 	memcpy(media_state.slice_data.bo->virtual, slice, nbytes);
 
-	intel_ctx = intel_xvmc_find_context(context->context_id);
 	LOCK_HARDWARE(intel_ctx->hw_context);
-	state_base_address(ctx);
+	state_base_address(hw_ctx);
 	pipeline_select();
 	media_state_pointers(VFE_VLD_MODE);
 	urb_layout();
@@ -1049,15 +1053,11 @@ static Status render_surface(Display * display,
 	unsigned short *block_ptr;
 	int i, j;
 	int block_offset = 0;
-	struct intel_xvmc_hw_context *ctx;
+	struct intel_xvmc_hw_context *hw_ctx;
 
-	intel_ctx = intel_xvmc_find_context(context->context_id);
-	if (!intel_ctx) {
-		XVMC_ERR("Can't find intel xvmc context\n");
-		return BadValue;
-	}
+	intel_ctx = context->privData;
 
-	ctx = (struct intel_xvmc_hw_context *)context->privData;
+	hw_ctx = (struct intel_xvmc_hw_context *)context->privData;
 	priv_target = target_surface->privData;
 	priv_past = past_surface ? past_surface->privData : NULL;
 	priv_future = future_surface ? future_surface->privData : NULL;
@@ -1140,7 +1140,7 @@ static Status render_surface(Display * display,
 	}
 
 	LOCK_HARDWARE(intel_ctx->hw_context);
-	state_base_address(ctx);
+	state_base_address(hw_ctx);
 	flush();
 	pipeline_select();
 	urb_layout();

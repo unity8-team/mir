@@ -50,6 +50,7 @@
  *      pointer in the XvMCContext structure.
  */
 typedef struct _i915XvMCContext {
+	struct intel_xvmc_context comm;
 	unsigned int ctxno;
 	unsigned int dual_prime;	/* Flag to identify when dual prime is in use. */
 	unsigned int yStride;

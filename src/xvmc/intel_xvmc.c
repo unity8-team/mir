@@ -128,60 +128,6 @@ void UNLOCK_HARDWARE(drm_context_t ctx)
 	PPTHREAD_MUTEX_UNLOCK();
 }
 
-static intel_xvmc_context_ptr intel_xvmc_new_context(Display * dpy)
-{
-	intel_xvmc_context_ptr ret;
-
-	ret = (intel_xvmc_context_ptr) calloc(1, sizeof(intel_xvmc_context_t));
-	if (!ret)
-		return NULL;
-
-	if (!xvmc_driver->ctx_list)
-		ret->next = NULL;
-	else
-		ret->next = xvmc_driver->ctx_list;
-	xvmc_driver->ctx_list = ret;
-	xvmc_driver->num_ctx++;
-
-	return ret;
-
-}
-
-static void intel_xvmc_free_context(XID id)
-{
-	intel_xvmc_context_ptr p = xvmc_driver->ctx_list;
-	intel_xvmc_context_ptr pre = p;
-
-	while (p) {
-		if (p->context && p->context->context_id == id) {
-			if (p == xvmc_driver->ctx_list)
-				xvmc_driver->ctx_list = p->next;
-			else
-				pre->next = p->next;
-			break;
-		}
-		pre = p;
-		p = p->next;
-	}
-
-	if (p) {
-		free(p);
-		xvmc_driver->num_ctx--;
-	}
-}
-
-intel_xvmc_context_ptr intel_xvmc_find_context(XID id)
-{
-	intel_xvmc_context_ptr p = xvmc_driver->ctx_list;
-
-	while (p) {
-		if (p->context && p->context->context_id == id)
-			return p;
-		p = p->next;
-	}
-	return NULL;
-}
-
 static int
 dri2_connect(Display *display)
 {
@@ -364,14 +310,6 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 
 	XVMC_INFO("decoder type is %s", intel_xvmc_decoder_string(comm->type));
 
-	/* assign local ctx info */
-	intel_ctx = intel_xvmc_new_context(display);
-	if (!intel_ctx) {
-		XVMC_ERR("Intel XvMC context create fail\n");
-		return BadAlloc;
-	}
-	intel_ctx->context = context;
-
 	/* check DRI2 */
 	ret = Success;
 	xvmc_driver->fd = -1;
@@ -440,8 +378,6 @@ _X_EXPORT Status XvMCDestroyContext(Display * display, XvMCContext * context)
 
 	dri_bufmgr_destroy(xvmc_driver->bufmgr);
 
-	intel_xvmc_free_context(context->context_id);
-
 	ret = _xvmc_destroy_context(display, context);
 	if (ret != Success) {
 		XVMC_ERR("_xvmc_destroy_context fail\n");
@@ -492,6 +428,7 @@ _X_EXPORT Status XvMCCreateSurface(Display * display, XvMCContext * context,
 	}
 
 	intel_surf = surface->privData;
+	intel_surf->context = context;
 
 	intel_surf->image = XvCreateImage(display, context->port,
 					  FOURCC_XVMC,
@@ -701,17 +638,15 @@ _X_EXPORT Status XvMCPutSurface(Display * display, XvMCSurface * surface,
 {
 	Status ret = Success;
 	XvMCContext *context;
-	intel_xvmc_context_ptr intel_ctx;
 	intel_xvmc_surface_ptr intel_surf;
 
 	if (!display || !surface)
 		return XvMCBadSurface;
 
-	intel_ctx = intel_xvmc_find_context(surface->context_id);
 	intel_surf = surface->privData;
-	if (!intel_ctx || !intel_surf)
+	context = intel_surf->context;
+	if (!context || !intel_surf)
 		return XvMCBadSurface;
-	context = intel_ctx->context;
 
 	if (intel_surf->gc_init == FALSE) {
 		intel_surf->gc = XCreateGC(display, draw, 0, NULL);

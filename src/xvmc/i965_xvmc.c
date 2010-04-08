@@ -241,11 +241,10 @@ out:
 
 static Status destroy_context(Display * display, XvMCContext * context)
 {
-	struct i965_xvmc_context *private_context;
-	private_context = context->privData;
-
-	free_object(&media_state);
-	Xfree(private_context);
+	struct intel_xvmc_context *intel_ctx;
+	intel_ctx = context->privData;
+	Xfree(intel_ctx->hw);
+	free(intel_ctx);
 	return Success;
 }
 
@@ -720,7 +719,7 @@ static Status render_surface(Display * display,
 	struct intel_xvmc_surface *priv_future_surface =
 	    future_surface ? future_surface->privData : 0;
 	unsigned short *block_ptr;
-	intel_ctx = intel_xvmc_find_context(context->context_id);
+	intel_ctx = context->privData;
 	i965_ctx = context->privData;
 	if (!intel_ctx) {
 		XVMC_ERR("Can't find intel xvmc context\n");
@@ -871,12 +870,18 @@ static Status render_surface(Display * display,
 static Status create_context(Display * display, XvMCContext * context,
 			     int priv_count, CARD32 * priv_data)
 {
-	struct intel_xvmc_hw_context *ctx;
-	ctx = (struct intel_xvmc_hw_context *)priv_data;
-	context->privData = ctx;
+	struct intel_xvmc_context *intel_ctx;
+	struct intel_xvmc_hw_context *hw_ctx;
+	hw_ctx = (struct intel_xvmc_hw_context *)priv_data;
 
-	media_state.is_g4x = ctx->i965.is_g4x;
-	media_state.is_965_q = ctx->i965.is_965_q;
+	intel_ctx = calloc(1, sizeof(struct intel_xvmc_context));
+	if (!intel_ctx)
+		return BadAlloc;
+	intel_ctx->hw = hw_ctx;
+	context->privData = intel_ctx;
+
+	media_state.is_g4x = hw_ctx->i965.is_g4x;
+	media_state.is_965_q = hw_ctx->i965.is_965_q;
 
 	if (alloc_object(&media_state))
 		return BadAlloc;

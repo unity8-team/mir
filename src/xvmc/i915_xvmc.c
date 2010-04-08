@@ -1103,7 +1103,7 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	if (!i915_xvmc_alloc_render_state_buffers(pI915XvMC))
 		return BadAlloc;
 
-	intel_ctx = intel_xvmc_find_context(context->context_id);
+	intel_ctx = context->privData;
 	if (!intel_ctx) {
 		XVMC_ERR("Can't find intel xvmc context\n");
 		return BadValue;
