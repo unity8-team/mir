@@ -207,7 +207,7 @@ Bool intel_xvmc_adaptor_init(ScreenPtr pScreen)
 		return FALSE;
 	}
 
-	pAdapt = xcalloc(1, sizeof(struct intel_xvmc_hw_context));
+	pAdapt = xcalloc(1, sizeof(XF86MCAdaptorRec));
 	if (!pAdapt) {
 		ErrorF("Allocation error.\n");
 		return FALSE;
