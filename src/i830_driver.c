@@ -374,11 +374,13 @@ Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp)
 				8192,
 				0
 			};
+			int pitch;
 			int i;
 
+			pitch = *width * cpp;
 			for (i = 0; pitches[i] != 0; i++) {
-				if (pitches[i] >= *width) {
-					*width = pitches[i];
+				if (pitches[i] >= pitch) {
+					*width = pitches[i] / cpp;
 					tiled = TRUE;
 					break;
 				}
@@ -386,14 +388,6 @@ Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp)
 		}
 	}
 	return tiled;
-}
-
-/*
- * Pad to accelerator requirement
- */
-int i830_pad_drawable_width(int width, int cpp)
-{
-	return (width + 63) & ~63;
 }
 
 /*
@@ -1100,8 +1094,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	struct pci_device *const device = intel->PciInfo;
 	int fb_bar = IS_I9XX(intel) ? 2 : 0;
 
-	scrn->displayWidth =
-	    i830_pad_drawable_width(scrn->virtualX, intel->cpp);
+	scrn->displayWidth = i830_pad_drawable_width(scrn->virtualX);
 
 	/*
 	 * The "VideoRam" config file parameter specifies the maximum amount of

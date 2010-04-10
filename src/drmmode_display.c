@@ -476,7 +476,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	int size, ret;
 	unsigned long rotate_pitch;
 
-	width = i830_pad_drawable_width(width, drmmode->cpp);
+	width = i830_pad_drawable_width(width);
 	rotate_pitch = width * drmmode->cpp;
 	size = rotate_pitch * height;
 
@@ -523,8 +523,7 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 		}
 	}
 
-	rotate_pitch =
-		i830_pad_drawable_width(width, drmmode->cpp) * drmmode->cpp;
+	rotate_pitch = i830_pad_drawable_width(width) * drmmode->cpp;
 	rotate_pixmap = GetScratchPixmapHeader(scrn->pScreen,
 					       width, height,
 					       scrn->depth,
@@ -1257,13 +1256,14 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	Bool	    ret;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
 	uint32_t    old_fb_id;
-	int	    i, pitch, old_width, old_height, old_pitch;
+	int	    i, w, pitch, old_width, old_height, old_pitch;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	pitch = i830_pad_drawable_width(width, intel->cpp);
-	i830_tiled_width(intel, &pitch, intel->cpp);
+	w = i830_pad_drawable_width(width);
+	i830_tiled_width(intel, &w, intel->cpp);
+	pitch = w * intel->cpp;
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "Allocate new frame buffer %dx%d stride %d\n",
 		   width, height, pitch);
@@ -1276,13 +1276,13 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
-	scrn->displayWidth = pitch;
+	scrn->displayWidth = w;
 	intel->front_buffer = i830_allocate_framebuffer(scrn);
 	if (!intel->front_buffer)
 		goto fail;
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
-			   scrn->bitsPerPixel, pitch * intel->cpp,
+			   scrn->bitsPerPixel, pitch,
 			   intel->front_buffer->handle,
 			   &drmmode->fb_id);
 	if (ret)
@@ -1291,7 +1291,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), intel->front_buffer);
 
 	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
-				   width, height, -1, -1, pitch * intel->cpp, NULL);
+				   width, height, -1, -1, pitch, NULL);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];

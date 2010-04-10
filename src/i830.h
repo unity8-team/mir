@@ -429,8 +429,6 @@ void i830_init_bufmgr(ScrnInfoPtr scrn);
 
 Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
 
-int i830_pad_drawable_width(int width, int cpp);
-
 /* i830_memory.c */
 unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
@@ -586,5 +584,14 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 
 	return pixmap == screen->GetScreenPixmap(screen);
 }
+
+/*
+ * Pad to accelerator requirement
+ */
+static inline int i830_pad_drawable_width(int width)
+{
+	return (width + 63) & ~63;
+}
+
 
 #endif /* _I830_H_ */
