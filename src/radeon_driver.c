@@ -2701,7 +2701,11 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
 	switch(info->ChipFamily){
 	case CHIP_FAMILY_R200:
 	case CHIP_FAMILY_R300:
+	case CHIP_FAMILY_R350:
 	case CHIP_FAMILY_RV350:
+	case CHIP_FAMILY_RV380:
+	case CHIP_FAMILY_R420:
+	case CHIP_FAMILY_RV410:
 		info->overlay_scaler_buffer_width = 1920;
 		break;
 	default:
