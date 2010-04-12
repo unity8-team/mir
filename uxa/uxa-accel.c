@@ -130,37 +130,17 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	int bpp = pDrawable->bitsPerPixel;
 
 	/* Don't bother with under 8bpp, XYPixmaps. */
-	if (format != ZPixmap || bpp < 8) {
-		ScrnInfoPtr scrn = xf86Screens[pDrawable->pScreen->myNum];
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s %p: format=%d, bpp=%d\n", __FUNCTION__, pDrawable,
-			   format, bpp);
+	if (format != ZPixmap || bpp < 8)
 		return FALSE;
-	}
 
 	/* Only accelerate copies: no rop or planemask. */
-	if (!UXA_PM_IS_SOLID(pDrawable, pGC->planemask) || pGC->alu != GXcopy) {
-		ScrnInfoPtr scrn = xf86Screens[pDrawable->pScreen->myNum];
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s %p: solid=%d, alu=%d\n", __FUNCTION__, pDrawable,
-			   UXA_PM_IS_SOLID(pDrawable, pGC->planemask), pGC->alu);
+	if (!UXA_PM_IS_SOLID(pDrawable, pGC->planemask) || pGC->alu != GXcopy)
 		return FALSE;
-	}
 
-	if (uxa_screen->swappedOut) {
-		ScrnInfoPtr scrn = xf86Screens[pDrawable->pScreen->myNum];
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s %p: swapped out\n", __FUNCTION__, pDrawable);
+	if (uxa_screen->swappedOut)
 		return FALSE;
-	}
 
 	pPix = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);
-	if (!pPix) {
-		ScrnInfoPtr scrn = xf86Screens[pDrawable->pScreen->myNum];
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s %p: not offscreen pixmap\n", __FUNCTION__, pDrawable);
-		return FALSE;
-	}
 
 	if (!pPix || !uxa_screen->info->put_image)
 		return FALSE;
