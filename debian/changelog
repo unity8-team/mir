@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.9.1-3ubuntu3) lucid; urgency=low
+
+  [Christopher James Halse Rogers]
+  * debian/patches/107_disable_dri_on_845_855.patch:
+    + Disable DRI on i845 and i855 chips.  Works around the stability problems
+      these chips have in Lucid (LP: #541492, LP: #541511).
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 13 Apr 2010 15:25:23 -0700
+
 xserver-xorg-video-intel (2:2.9.1-3ubuntu2) lucid; urgency=low
 
   * Add 107_i830_clip_solid_fills_to_surface.patch: Clip x,y bounds of

@@ -4,5 +4,6 @@
 104_fail_when_prop_values_gone.patch
 105_free_after_printing.patch
 106_initialize_drmmode_output.patch
+107_disable_dri_on_845_855.patch
 
 107_i830_clip_solid_fills_to_surface.patch
