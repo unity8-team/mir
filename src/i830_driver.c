@@ -1048,8 +1048,9 @@ void i830_init_bufmgr(ScrnInfoPtr scrn)
 	if (IS_I865G(intel))
 		batch_size = 4096;
 
-	intel->bufmgr = intel_bufmgr_gem_init(intel->drmSubFD, batch_size);
-	intel_bufmgr_gem_enable_reuse(intel->bufmgr);
+	intel->bufmgr = drm_intel_bufmgr_gem_init(intel->drmSubFD, batch_size);
+	drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
+	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
 	list_init(&intel->flush_pixmaps);

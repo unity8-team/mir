@@ -98,13 +98,21 @@ static inline void
 intel_batch_emit_reloc(intel_screen_private *intel,
 		       dri_bo * bo,
 		       uint32_t read_domains,
-		       uint32_t write_domains, uint32_t delta)
+		       uint32_t write_domains, uint32_t delta, int needs_fence)
 {
 	assert(intel_batch_space(intel) >= 4);
 	*(uint32_t *) (intel->batch_ptr + intel->batch_used) =
 	    bo->offset + delta;
-	dri_bo_emit_reloc(intel->batch_bo, read_domains, write_domains, delta,
-			  intel->batch_used, bo);
+	if (needs_fence)
+		drm_intel_bo_emit_reloc_fence(intel->batch_bo,
+					      intel->batch_used,
+					      bo, delta,
+					      read_domains, write_domains);
+	else
+		drm_intel_bo_emit_reloc(intel->batch_bo, intel->batch_used,
+					bo, delta,
+					read_domains, write_domains);
+
 	intel->batch_used += 4;
 }
 
@@ -132,7 +140,7 @@ intel_batch_mark_pixmap_domains(intel_screen_private *intel,
 static inline void
 intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 			      uint32_t read_domains, uint32_t write_domain,
-			      uint32_t delta)
+			      uint32_t delta, int needs_fence)
 {
 	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
 
@@ -143,17 +151,20 @@ intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 
 	intel_batch_emit_reloc(intel, priv->bo,
 			       read_domains, write_domain,
-			       delta);
+			       delta, needs_fence);
 }
 
 #define ALIGN_BATCH(align) intel_batch_align(intel, align);
 #define OUT_BATCH(dword) intel_batch_emit_dword(intel, dword)
 
 #define OUT_RELOC(bo, read_domains, write_domains, delta) \
-	intel_batch_emit_reloc (intel, bo, read_domains, write_domains, delta)
+	intel_batch_emit_reloc(intel, bo, read_domains, write_domains, delta, 0)
 
 #define OUT_RELOC_PIXMAP(pixmap, reads, write, delta)	\
-	intel_batch_emit_reloc_pixmap(intel, pixmap, reads, write, delta)
+	intel_batch_emit_reloc_pixmap(intel, pixmap, reads, write, delta, 0)
+
+#define OUT_RELOC_PIXMAP_FENCED(pixmap, reads, write, delta)	\
+	intel_batch_emit_reloc_pixmap(intel, pixmap, reads, write, delta, 1)
 
 union intfloat {
 	float f;

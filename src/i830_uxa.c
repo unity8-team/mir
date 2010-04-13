@@ -295,8 +295,8 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 		OUT_BATCH(intel->BR[13] | pitch);
 		OUT_BATCH((y1 << 16) | (x1 & 0xffff));
 		OUT_BATCH((y2 << 16) | (x2 & 0xffff));
-		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_RENDER,
-				 I915_GEM_DOMAIN_RENDER, 0);
+		OUT_RELOC_PIXMAP_FENCED(pixmap, I915_GEM_DOMAIN_RENDER,
+					I915_GEM_DOMAIN_RENDER, 0);
 		OUT_BATCH(intel->BR[16]);
 		ADVANCE_BATCH();
 	}
@@ -411,15 +411,15 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 		OUT_BATCH(intel->BR[13] | dst_pitch);
 		OUT_BATCH((dst_y1 << 16) | (dst_x1 & 0xffff));
 		OUT_BATCH((dst_y2 << 16) | (dst_x2 & 0xffff));
-		OUT_RELOC_PIXMAP(dest,
-				 I915_GEM_DOMAIN_RENDER,
-				 I915_GEM_DOMAIN_RENDER,
-				 0);
+		OUT_RELOC_PIXMAP_FENCED(dest,
+					I915_GEM_DOMAIN_RENDER,
+					I915_GEM_DOMAIN_RENDER,
+					0);
 		OUT_BATCH((src_y1 << 16) | (src_x1 & 0xffff));
 		OUT_BATCH(src_pitch);
-		OUT_RELOC_PIXMAP(intel->render_source,
-				 I915_GEM_DOMAIN_RENDER, 0,
-				 0);
+		OUT_RELOC_PIXMAP_FENCED(intel->render_source,
+					I915_GEM_DOMAIN_RENDER, 0,
+					0);
 
 		ADVANCE_BATCH();
 	}
