@@ -283,7 +283,7 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 
 	ScrnInfoPtr scrn = xf86Screens[picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	uint32_t format, pitch, filter;
+	uint32_t format, tiling_bits, pitch, filter;
 	uint32_t wrap_mode;
 	uint32_t texcoordtype;
 
@@ -338,16 +338,23 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 		else
 			format |= MAPSURF_32BIT;
 
+		if (i830_pixmap_tiled(pixmap)) {
+			tiling_bits = TM0S1_TILED_SURFACE;
+			if (i830_get_pixmap_intel(pixmap)->tiling
+					== I915_TILING_Y)
+				tiling_bits |= TM0S1_TILE_WALK;
+		} else
+			tiling_bits = 0;
+
 		ATOMIC_BATCH(10);
 		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 			  LOAD_TEXTURE_MAP(unit) | 4);
-		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_SAMPLER, 0,
-				 TM0S0_USE_FENCE);
+		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 		OUT_BATCH(((pixmap->drawable.height -
 			    1) << TM0S1_HEIGHT_SHIFT) | ((pixmap->drawable.width -
 							  1) <<
 							 TM0S1_WIDTH_SHIFT) |
-			  format);
+			  format | tiling_bits);
 		OUT_BATCH((pitch / 4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
 		OUT_BATCH(filter);
 		OUT_BATCH(0);	/* default color */
@@ -535,7 +542,7 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 static void i830_emit_composite_state(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	uint32_t vf2;
+	uint32_t vf2, tiling_bits;
 	uint32_t texcoordfmt = 0;
 
 	intel->needs_render_state_emit = FALSE;
@@ -545,8 +552,16 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
 
 	ATOMIC_BATCH(21);
 
+	if (i830_pixmap_tiled(intel->render_dest)) {
+		tiling_bits = BUF_3D_TILED_SURFACE;
+		if (i830_get_pixmap_intel(intel->render_dest)->tiling
+				== I915_TILING_Y)
+			tiling_bits |= BUF_3D_TILE_WALK_Y;
+	} else
+		tiling_bits = 0;
+
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
-	OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
+	OUT_BATCH(BUF_3D_ID_COLOR_BACK | tiling_bits |
 		  BUF_3D_PITCH(intel_get_pixmap_pitch(intel->render_dest)));
 	OUT_RELOC_PIXMAP(intel->render_dest,
 			 I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
