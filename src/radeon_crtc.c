@@ -447,7 +447,7 @@ done:
 }
 
 void
-RADEONComputePLL(ScrnInfoPtr pScrn,
+RADEONComputePLL(xf86CrtcPtr crtc,
 		 RADEONPLLPtr pll,
 		 unsigned long freq,
 		 uint32_t *chosen_dot_clock_freq,
@@ -457,28 +457,21 @@ RADEONComputePLL(ScrnInfoPtr pScrn,
 		 uint32_t *chosen_post_div,
 		 int flags)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-    if (IS_AVIVO_VARIANT) {
-	if (xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, TRUE)) {
-	    /* disable frac fb dividers */
-	    flags &= ~RADEON_PLL_USE_FRAC_FB_DIV;
-	    RADEONComputePLL_new(pll, freq, chosen_dot_clock_freq,
-				 chosen_feedback_div, chosen_frac_feedback_div,
-				 chosen_reference_div, chosen_post_div, flags);
-	} else
-	    RADEONComputePLL_old(pll, freq, chosen_dot_clock_freq,
-				 chosen_feedback_div, chosen_frac_feedback_div,
-				 chosen_reference_div, chosen_post_div, flags);
-    } else {
-	if (xf86ReturnOptValBool(info->Options, OPTION_NEW_PLL, FALSE))
-	    RADEONComputePLL_new(pll, freq, chosen_dot_clock_freq,
-				 chosen_feedback_div, chosen_frac_feedback_div,
-				 chosen_reference_div, chosen_post_div, flags);
-	else
-	    RADEONComputePLL_old(pll, freq, chosen_dot_clock_freq,
-				 chosen_feedback_div, chosen_frac_feedback_div,
-				 chosen_reference_div, chosen_post_div, flags);
+    switch (radeon_crtc->pll_algo) {
+    case RADEON_PLL_OLD:
+	RADEONComputePLL_old(pll, freq, chosen_dot_clock_freq,
+			     chosen_feedback_div, chosen_frac_feedback_div,
+			     chosen_reference_div, chosen_post_div, flags);
+	break;
+    case RADEON_PLL_NEW:
+	/* disable frac fb dividers */
+	flags &= ~RADEON_PLL_USE_FRAC_FB_DIV;
+	RADEONComputePLL_new(pll, freq, chosen_dot_clock_freq,
+			     chosen_feedback_div, chosen_frac_feedback_div,
+			     chosen_reference_div, chosen_post_div, flags);
+	break;
     }
 }
 

@@ -1176,7 +1176,7 @@ extern void radeon_crtc_load_lut(xf86CrtcPtr crtc);
 extern void radeon_crtc_modeset_ioctl(xf86CrtcPtr crtc, Bool post);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask);
 extern void RADEONBlank(ScrnInfoPtr pScrn);
-extern void RADEONComputePLL(ScrnInfoPtr pScrn,
+extern void RADEONComputePLL(xf86CrtcPtr crtc,
 			     RADEONPLLPtr pll, unsigned long freq,
 			     uint32_t *chosen_dot_clock_freq,
 			     uint32_t *chosen_feedback_div,
