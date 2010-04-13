@@ -438,6 +438,12 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	drm_intel_bo *bo_table[] = {
+		NULL,		/* batch_bo */
+		i830_get_pixmap_bo(source),
+		mask ? i830_get_pixmap_bo(mask) : NULL,
+		i830_get_pixmap_bo(dest),
+	};
 
 	intel->render_source_picture = source_picture;
 	intel->render_source = source;
@@ -456,6 +462,9 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 		return FALSE;
 
 	if (!i830_get_dest_format(dest_picture, &intel->render_dest_format))
+		return FALSE;
+
+	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
 	if (mask) {
