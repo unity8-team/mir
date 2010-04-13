@@ -1,0 +1,19 @@
+diff -Nurp xserver-xorg-video-intel-2.9.1/src/i830_uxa.c xserver-xorg-video-intel-2.9.1-working/src/i830_uxa.c
+--- xserver-xorg-video-intel-2.9.1/src/i830_uxa.c	2010-03-31 13:44:58.000000000 -0700
++++ xserver-xorg-video-intel-2.9.1-working/src/i830_uxa.c	2010-04-13 13:51:34.000000000 -0700
+@@ -212,6 +212,15 @@ i830_uxa_solid(PixmapPtr pPixmap, int x1
+     unsigned long pitch;
+     uint32_t cmd;
+ 
++    if (x1 < 0)
++        x1 = 0;
++    if (y1 < 0)
++        y1 = 0;
++    if (x2 > pPixmap->drawable.width)
++        x2 = pPixmap->drawable.width;
++    if (y2 > pPixmap->drawable.height)
++        y2 = pPixmap->drawable.height;
++
+     pitch = i830_pixmap_pitch(pPixmap);
+ 
+     {

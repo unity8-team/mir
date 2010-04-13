@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.9.1-3ubuntu2) lucid; urgency=low
+
+  * Add 107_i830_clip_solid_fills_to_surface.patch: Clip x,y bounds of
+    solid fills to the min and max coordinates of the pixmap being filled.
+    Partial fix to some of the 8xx freeze issues.  Cherrypick from
+    upstream git commit 0c47195c by Chris Wilson.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 13 Apr 2010 13:58:15 -0700
+
 xserver-xorg-video-intel (2:2.9.1-3ubuntu1) lucid; urgency=low
 
   * Merge with Debian.
