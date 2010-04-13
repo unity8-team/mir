@@ -275,7 +275,7 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, pitch, filter;
 	int w, h, i;
-	uint32_t wrap_mode;
+	uint32_t wrap_mode, tiling_bits;
 
 	pitch = intel_get_pixmap_pitch(pixmap);
 	w = picture->pDrawable->width;
@@ -328,10 +328,18 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	}
 
 	/* offset filled in at emit time */
+	if (i830_pixmap_tiled(pixmap)) {
+		tiling_bits = MS3_TILED_SURFACE;
+		if (i830_get_pixmap_intel(pixmap)->tiling
+				== I915_TILING_Y)
+			tiling_bits |= MS3_TILE_WALK;
+	} else
+		tiling_bits = 0;
+
 	intel->texture[unit] = pixmap;
 	intel->mapstate[unit * 3 + 0] = 0;
 	intel->mapstate[unit * 3 + 1] = format |
-	    MS3_USE_FENCE_REGS |
+	    tiling_bits |
 	    ((pixmap->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
 	    ((pixmap->drawable.width - 1) << MS3_WIDTH_SHIFT);
 	intel->mapstate[unit * 3 + 2] = ((pitch / 4) - 1) << MS4_PITCH_SHIFT;
@@ -482,7 +490,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	PixmapPtr mask = intel->render_mask;
 	PixmapPtr dest = intel->render_dest;
 	uint32_t dst_format = intel->i915_render_state.dst_format, dst_pitch;
-	uint32_t blendctl;
+	uint32_t blendctl, tiling_bits;
 	Bool is_affine_src, is_affine_mask;
 	Bool is_solid_src, is_solid_mask;
 	int tex_count, t;
@@ -540,8 +548,16 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	    OUT_BATCH (intel->render_mask_solid);
 	}
 
+	if (i830_pixmap_tiled(dest)) {
+		tiling_bits = BUF_3D_TILED_SURFACE;
+		if (i830_get_pixmap_intel(dest)->tiling
+				== I915_TILING_Y)
+			tiling_bits |= BUF_3D_TILE_WALK_Y;
+	} else
+		tiling_bits = 0;
+
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
-	OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
+	OUT_BATCH(BUF_3D_ID_COLOR_BACK | tiling_bits |
 		  BUF_3D_PITCH(dst_pitch));
 	OUT_RELOC_PIXMAP(dest, I915_GEM_DOMAIN_RENDER,
 			 I915_GEM_DOMAIN_RENDER, 0);
