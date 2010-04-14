@@ -767,7 +767,6 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	PixmapPtr scratch;
 	struct intel_pixmap *priv;
-	Bool scratch_pixmap;
 	GCPtr gc;
 	Bool ret;
 
@@ -804,38 +803,42 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 		ret = i830_bo_put_image(scratch, bo, src, src_pitch, w, h);
 
 		drm_intel_gem_bo_unmap_gtt(bo);
-		scratch_pixmap = FALSE;
 
-		if (!ret) {
-			(*screen->DestroyPixmap) (scratch);
-			return FALSE;
+		if (ret) {
+			gc = GetScratchGC(pixmap->drawable.depth, screen);
+			if (gc) {
+				ValidateGC(&pixmap->drawable, gc);
+
+				(*gc->ops->CopyArea)(&scratch->drawable,
+						     &pixmap->drawable,
+						     gc, 0, 0, w, h, x, y);
+
+				FreeScratchGC(gc);
+			} else
+				ret = FALSE;
 		}
+
+		(*screen->DestroyPixmap)(scratch);
 	} else {
 		/* bo is not busy so can be mapped without a stall, upload in-place. */
-		scratch = GetScratchPixmapHeader(screen, w, h,
-						 pixmap->drawable.depth,
-						 pixmap->drawable.bitsPerPixel,
-						 src_pitch, src);
-		scratch_pixmap = TRUE;
-	}
+		if (drm_intel_gem_bo_map_gtt(priv->bo)) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s: bo map failed\n", __FUNCTION__);
+			return FALSE;
+		}
 
-	ret = FALSE;
-	gc = GetScratchGC(pixmap->drawable.depth, screen);
-	if (gc) {
-		ValidateGC(&pixmap->drawable, gc);
+		pixman_blt((uint32_t *)src, priv->bo->virtual,
+			   src_pitch / sizeof(uint32_t),
+			   pixmap->devKind / sizeof(uint32_t),
+			   pixmap->drawable.bitsPerPixel,
+			   pixmap->drawable.bitsPerPixel,
+			   0, 0,
+			   x, y,
+			   w, h);
 
-		(*gc->ops->CopyArea)(&scratch->drawable,
-				     &pixmap->drawable,
-				     gc, 0, 0, w, h, x, y);
-
-		FreeScratchGC(gc);
+		drm_intel_gem_bo_unmap_gtt(priv->bo);
 		ret = TRUE;
 	}
-
-	if (scratch_pixmap)
-		FreeScratchPixmapHeader(scratch);
-	else
-		(*screen->DestroyPixmap)(scratch);
 
 	return ret;
 }
