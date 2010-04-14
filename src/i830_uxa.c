@@ -876,7 +876,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	if (w > 32767 || h > 32767)
 		return NullPixmap;
 
-	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE)
+	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE && w <= 32 && h <= 32)
 		return fbCreatePixmap(screen, w, h, depth, usage);
 
 	pixmap = fbCreatePixmap(screen, 0, 0, depth, usage);
@@ -902,6 +902,14 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
 			priv->tiling = I915_TILING_NONE;
 
+		if (priv->tiling != I915_TILING_NONE) {
+		    if (w < 256)
+			priv->tiling = I915_TILING_NONE;
+		    if (h < 8)
+			priv->tiling = I915_TILING_NONE;
+		    if (h < 32 && priv->tiling == I915_TILING_Y)
+			priv->tiling = I915_TILING_X;
+		}
 		size = i830_uxa_pixmap_compute_size(pixmap, w, h,
 						    &priv->tiling, &stride);
 
