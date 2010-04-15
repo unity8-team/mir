@@ -1,10 +1,10 @@
-xserver-xorg-video-intel (2:2.9.1-3ubuntu4) UNRELEASED; urgency=low
+xserver-xorg-video-intel (2:2.9.1-3ubuntu4) lucid; urgency=low
 
   * Drop /etc/modprobe.d/i915-kms.conf; in the best case it's redundant
     because KMS is on by default in the Ubuntu kernel, in the worst case it
     breaks our ability to forcibly disable KMS when there's a problem.
 
- -- Steve Langasek <steve.langasek@ubuntu.com>  Thu, 15 Apr 2010 03:20:19 -0700
+ -- Steve Langasek <steve.langasek@ubuntu.com>  Thu, 15 Apr 2010 03:41:11 -0700
 
 xserver-xorg-video-intel (2:2.9.1-3ubuntu3) lucid; urgency=low
 
