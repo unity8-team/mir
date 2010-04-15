@@ -136,14 +136,22 @@ list_is_empty(struct list *head)
 #define list_first_entry(ptr, type, member) \
 	list_entry((ptr)->next, type, member)
 
+#define list_foreach(pos, head)			\
+	for (pos = (head)->next; pos != (head);	pos = pos->next)
+
+#define list_foreach_entry(pos, type, head, member)		\
+	for (pos = list_entry((head)->next, type, member);\
+	     &pos->member != (head);					\
+	     pos = list_entry(pos->member.next, type, member))
+
 struct intel_pixmap {
 	dri_bo *bo;
-	uint32_t tiling;
+	uint32_t tiling, stride;
 	uint32_t flush_write_domain;
 	uint32_t flush_read_domains;
 	uint32_t batch_write_domain;
 	uint32_t batch_read_domains;
-	struct list flush, batch;
+	struct list flush, batch, in_flight;
 };
 
 struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap);
@@ -252,6 +260,7 @@ typedef struct intel_screen_private {
 	int batch_atomic_limit;
 	struct list batch_pixmaps;
 	struct list flush_pixmaps;
+	struct list in_flight;
 
 	/* For Xvideo */
 	Bool use_drmmode_overlay;

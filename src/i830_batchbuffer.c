@@ -195,6 +195,18 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 		list_del(&entry->flush);
 	}
 
+	while (!list_is_empty(&intel->in_flight)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->in_flight,
+					 struct intel_pixmap,
+					 in_flight);
+
+		dri_bo_unreference(entry->bo);
+		list_del(&entry->in_flight);
+		xfree(entry);
+	}
+
 	/* Save a ref to the last batch emitted, which we use for syncing
 	 * in debug code.
 	 */

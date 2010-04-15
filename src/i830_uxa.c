@@ -127,7 +127,7 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int pitch_align;
+	int pitch, pitch_align;
 	int size;
 
 	if (*tiling != I915_TILING_NONE) {
@@ -151,6 +151,9 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		}
 	}
 
+	pitch = (w * pixmap->drawable.bitsPerPixel + 7) / 8;
+	if (pitch <= 256)
+		*tiling = I915_TILING_NONE;
   repeat:
 	if (*tiling == I915_TILING_NONE) {
 		pitch_align = intel->accel_pixmap_pitch_alignment;
@@ -158,8 +161,7 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		pitch_align = 512;
 	}
 
-	*stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
-			   pitch_align);
+	*stride = ROUND_TO(pitch, pitch_align);
 
 	if (*tiling == I915_TILING_NONE) {
 		/* Round the height up so that the GPU's access to a 2x2 aligned
@@ -548,17 +550,19 @@ dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap)
 
 void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 {
+	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv;
 
 	priv = i830_get_pixmap_intel(pixmap);
 
 	if (priv != NULL) {
-		dri_bo_unreference(priv->bo);
-
-		priv->flush_read_domains = priv->flush_write_domain = 0;
-		priv->batch_read_domains = priv->batch_write_domain = 0;
-		list_del(&priv->batch);
-		list_del(&priv->flush);
+		if (list_is_empty(&priv->batch)) {
+			dri_bo_unreference(priv->bo);
+		} else {
+			list_add(&priv->in_flight, &intel->in_flight);
+			priv = NULL;
+		}
 	}
 
 	if (bo != NULL) {
@@ -576,6 +580,7 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 		dri_bo_reference(bo);
 		priv->bo = bo;
+		priv->stride = i830_pixmap_pitch(pixmap);
 
 		ret = drm_intel_bo_get_tiling(bo,
 					      &priv->tiling,
@@ -883,35 +888,26 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 	if (w && h) {
 		struct intel_pixmap *priv;
-		unsigned int size;
+		unsigned int size, tiling;
 		int stride;
-
-		priv = xcalloc(1, sizeof (struct intel_pixmap));
-		if (priv == NULL) {
-			fbDestroyPixmap(pixmap);
-			return NullPixmap;
-		}
 
 		/* Always attempt to tile, compute_size() will remove the
 		 * tiling for pixmaps that are either too large or too small
 		 * to be effectively tiled.
 		 */
-		priv->tiling = I915_TILING_X;
+		tiling = I915_TILING_X;
 		if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
-			priv->tiling = I915_TILING_Y;
+			tiling = I915_TILING_Y;
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
-			priv->tiling = I915_TILING_NONE;
+			tiling = I915_TILING_NONE;
 
-		if (priv->tiling != I915_TILING_NONE) {
-		    if (w < 256)
-			priv->tiling = I915_TILING_NONE;
-		    if (h < 8)
-			priv->tiling = I915_TILING_NONE;
-		    if (h < 32 && priv->tiling == I915_TILING_Y)
-			priv->tiling = I915_TILING_X;
+		if (tiling != I915_TILING_NONE) {
+		    if (h <= 4)
+			tiling = I915_TILING_NONE;
+		    if (h <= 16 && tiling == I915_TILING_Y)
+			tiling = I915_TILING_X;
 		}
-		size = i830_uxa_pixmap_compute_size(pixmap, w, h,
-						    &priv->tiling, &stride);
+		size = i830_uxa_pixmap_compute_size(pixmap, w, h, &tiling, &stride);
 
 		/* Fail very large allocations on 32-bit systems.  Large BOs will
 		 * tend to hit SW fallbacks frequently, and also will tend to fail
@@ -923,7 +919,37 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		 */
 		if (sizeof(unsigned long) == 4 &&
 		    size > (unsigned int)(1024 * 1024 * 1024)) {
-			xfree(priv);
+			fbDestroyPixmap(pixmap);
+			return NullPixmap;
+		}
+
+		/* Perform a premilinary search for an in-flight bo */
+		if (usage != UXA_CREATE_PIXMAP_FOR_MAP) {
+			int aligned_h;
+
+			if (tiling == I915_TILING_X)
+				aligned_h = ALIGN(h, 8);
+			else if (tiling == I915_TILING_Y)
+				aligned_h = ALIGN(h, 32);
+			else
+				aligned_h = ALIGN(h, 2);
+
+			list_foreach_entry(priv, struct intel_pixmap,
+					   &intel->in_flight,
+					   in_flight) {
+				if (priv->tiling == tiling &&
+				    priv->stride >= stride &&
+				    priv->bo->size >= priv->stride * aligned_h) {
+					list_del(&priv->in_flight);
+					screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, priv->stride, NULL);
+					i830_uxa_set_pixmap_intel(pixmap, priv);
+					return pixmap;
+				}
+			}
+		}
+
+		priv = xcalloc(1, sizeof (struct intel_pixmap));
+		if (priv == NULL) {
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
 		}
@@ -941,6 +967,8 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			return NullPixmap;
 		}
 
+		priv->stride = stride;
+		priv->tiling = tiling;
 		if (priv->tiling != I915_TILING_NONE)
 			drm_intel_bo_set_tiling(priv->bo,
 						&priv->tiling,

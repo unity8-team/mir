@@ -1054,6 +1054,7 @@ void i830_init_bufmgr(ScrnInfoPtr scrn)
 
 	list_init(&intel->batch_pixmaps);
 	list_init(&intel->flush_pixmaps);
+	list_init(&intel->in_flight);
 }
 
 Bool i830_crtc_on(xf86CrtcPtr crtc)
