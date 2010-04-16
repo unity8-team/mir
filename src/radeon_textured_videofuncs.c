@@ -87,8 +87,8 @@ do {								\
 
 #endif /* !ACCEL_CP */
 
-static void
-FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
+static Bool
+FUNC_NAME(RADEONPrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
@@ -97,9 +97,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     uint32_t txformat, txsize, txpitch, txoffset;
     uint32_t dst_pitch, dst_format;
     uint32_t colorpitch;
-    int dstxoff, dstyoff, pixel_shift;
-    BoxPtr pBox = REGION_RECTS(&pPriv->clip);
-    int nBox = REGION_NUM_RECTS(&pPriv->clip);
+    int pixel_shift;
+    int scissor_w = MIN(pPixmap->drawable.width, 2047);
+    int scissor_h = MIN(pPixmap->drawable.height, 2047);
     ACCEL_PREAMBLE();
 
 #ifdef XF86DRM_MODE
@@ -118,14 +118,14 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	ret = radeon_cs_space_check(info->cs);
 	if (ret) {
 	    ErrorF("Not enough RAM to hw accel xv operation\n");
-	    return;
+	    return FALSE;
 	}
     }
 #endif
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 
-    
+
 #ifdef USE_EXA
     if (info->useEXA) {
 	dst_pitch = exaGetPixmapPitch(pPixmap);
@@ -134,14 +134,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     {
         dst_pitch = pPixmap->devKind;
     }
-
-#ifdef COMPOSITE
-    dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
-    dstyoff = -pPixmap->screen_y + pPixmap->drawable.y;
-#else
-    dstxoff = 0;
-    dstyoff = 0;
-#endif
 
 #ifdef USE_EXA
     if (info->useEXA) {
@@ -175,7 +167,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	dst_format = RADEON_COLOR_FORMAT_ARGB8888;
 	break;
     default:
-	return;
+	return FALSE;
     }
 
     if (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12) {
@@ -344,17 +336,36 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	FINISH_ACCEL();
     }
 
-    {
-      int scissor_w, scissor_h;
-      scissor_w = MIN(pPixmap->drawable.width, 2047);
-      scissor_h = MIN(pPixmap->drawable.height, 2047);
+    BEGIN_ACCEL(2);
+    OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
+    OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, ((scissor_w << RADEON_RE_WIDTH_SHIFT) |
+					   (scissor_h << RADEON_RE_HEIGHT_SHIFT)));
+    FINISH_ACCEL();
 
-      BEGIN_ACCEL(2);
-      OUT_ACCEL_REG(RADEON_RE_TOP_LEFT, 0);
-      OUT_ACCEL_REG(RADEON_RE_WIDTH_HEIGHT, ((scissor_w << RADEON_RE_WIDTH_SHIFT) |
-					     (scissor_h << RADEON_RE_HEIGHT_SHIFT)));
-      FINISH_ACCEL();
-    }
+    return TRUE;
+}
+
+static void
+FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    PixmapPtr pPixmap = pPriv->pPixmap;
+    int dstxoff, dstyoff;
+    BoxPtr pBox = REGION_RECTS(&pPriv->clip);
+    int nBox = REGION_NUM_RECTS(&pPriv->clip);
+    ACCEL_PREAMBLE();
+
+#ifdef COMPOSITE
+    dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
+    dstyoff = -pPixmap->screen_y + pPixmap->drawable.y;
+#else
+    dstxoff = 0;
+    dstyoff = 0;
+#endif
+
+    if (!FUNC_NAME(RADEONPrepareTexturedVideo)(pScrn, pPriv))
+	return;
+
     if (pPriv->vsync) {
 	xf86CrtcPtr crtc;
 	if (pPriv->desired_crtc)
