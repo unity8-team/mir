@@ -1052,8 +1052,8 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
 }
 
-static void
-FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
+static Bool
+FUNC_NAME(R300PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
@@ -1063,9 +1063,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     uint32_t dst_pitch, dst_format;
     uint32_t txenable, colorpitch, bicubic_offset;
     uint32_t output_fmt;
-    int dstxoff, dstyoff, pixel_shift;
-    BoxPtr pBox = REGION_RECTS(&pPriv->clip);
-    int nBox = REGION_NUM_RECTS(&pPriv->clip);
+    int pixel_shift;
     ACCEL_PREAMBLE();
 
 #ifdef XF86DRM_MODE
@@ -1084,7 +1082,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	ret = radeon_cs_space_check(info->cs);
 	if (ret) {
 	    ErrorF("Not enough RAM to hw accel xv operation\n");
-	    return;
+	    return FALSE;
 	}
     }
 #endif
@@ -1099,14 +1097,6 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     {
 	dst_pitch = pPixmap->devKind;
     }
-
-#ifdef COMPOSITE
-    dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
-    dstyoff = -pPixmap->screen_y + pPixmap->drawable.y;
-#else
-    dstxoff = 0;
-    dstyoff = 0;
-#endif
 
 #ifdef USE_EXA
     if (info->useEXA) {
@@ -1144,7 +1134,7 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	dst_format = R300_COLORFORMAT_ARGB8888;
 	break;
     default:
-	return;
+	return FALSE;
     }
 
     output_fmt = (R300_OUT_FMT_C4_8 |
@@ -2320,6 +2310,30 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     OUT_ACCEL_REG(R300_VAP_VTX_SIZE, pPriv->vtx_count);
     FINISH_ACCEL();
+
+    return TRUE;
+}
+
+static void
+FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    PixmapPtr pPixmap = pPriv->pPixmap;
+    int dstxoff, dstyoff;
+    BoxPtr pBox = REGION_RECTS(&pPriv->clip);
+    int nBox = REGION_NUM_RECTS(&pPriv->clip);
+    ACCEL_PREAMBLE();
+
+#ifdef COMPOSITE
+    dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
+    dstyoff = -pPixmap->screen_y + pPixmap->drawable.y;
+#else
+    dstxoff = 0;
+    dstyoff = 0;
+#endif
+
+    if (!FUNC_NAME(R300PrepareTexturedVideo)(pScrn, pPriv))
+	return;
 
     if (pPriv->vsync) {
 	xf86CrtcPtr crtc;
