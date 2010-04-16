@@ -7,6 +7,8 @@ void drmmode_adjust_frame(ScrnInfoPtr pScrn, int x, int y, int flags);
 void drmmode_remove_fb(ScrnInfoPtr pScrn);
 Bool drmmode_cursor_init(ScreenPtr pScreen);
 void drmmode_fbcon_copy(ScreenPtr pScreen);
+void drmmode_uevent_init(ScrnInfoPtr);
+void drmmode_uevent_fini(ScrnInfoPtr);
 
 /* in nv_accel_common.c */
 Bool NVAccelCommonInit(ScrnInfoPtr pScrn);

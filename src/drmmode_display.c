@@ -38,12 +38,19 @@
 #include "X11/Xatom.h"
 
 #include <sys/ioctl.h>
+#ifdef HAVE_LIBUDEV
+#include "libudev.h"
+#endif
 
 typedef struct {
     int fd;
     uint32_t fb_id;
     drmModeResPtr mode_res;
     int cpp;
+#ifdef HAVE_LIBUDEV
+    struct udev_monitor *uevent_monitor;
+    InputHandlerProc uevent_handler;
+#endif
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
@@ -1169,3 +1176,79 @@ drmmode_cursor_init(ScreenPtr pScreen)
 	return xf86_cursors_init(pScreen, size, size, flags);
 }
 
+#ifdef HAVE_LIBUDEV
+static drmmode_ptr
+drmmode_from_scrn(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	drmmode_crtc_private_ptr drmmode_crtc;
+
+	drmmode_crtc = xf86_config->crtc[0]->driver_private;
+	return drmmode_crtc->drmmode;
+}
+
+static void
+drmmode_handle_uevents(int fd, void *closure)
+{
+	ScrnInfoPtr scrn = closure;
+	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
+	struct udev_device *dev;
+
+	dev = udev_monitor_receive_device(drmmode->uevent_monitor);
+	if (!dev)
+		return;
+
+	RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+	udev_device_unref(dev);
+}
+#endif
+
+void
+drmmode_uevent_init(ScrnInfoPtr scrn)
+{
+#ifdef HAVE_LIBUDEV
+	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
+	struct udev *u;
+	struct udev_monitor *mon;
+
+	u = udev_new();
+	if (!u)
+		return;
+	mon = udev_monitor_new_from_netlink(u, "udev");
+	if (!mon) {
+		udev_unref(u);
+		return;
+	}
+
+	if (udev_monitor_filter_add_match_subsystem_devtype(mon,
+							    "drm",
+							    "drm_minor") < 0 ||
+	    udev_monitor_enable_receiving(mon) < 0) {
+		udev_monitor_unref(mon);
+		udev_unref(u);
+		return;
+	}
+
+	drmmode->uevent_handler =
+		xf86AddGeneralHandler(udev_monitor_get_fd(mon),
+				      drmmode_handle_uevents, scrn);
+
+	drmmode->uevent_monitor = mon;
+#endif
+}
+
+void
+drmmode_uevent_fini(ScrnInfoPtr scrn)
+{
+#ifdef HAVE_LIBUDEV
+	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
+
+	if (drmmode->uevent_handler) {
+		struct udev *u = udev_monitor_get_udev(drmmode->uevent_monitor);
+		xf86RemoveGeneralHandler(drmmode->uevent_handler);
+
+		udev_monitor_unref(drmmode->uevent_monitor);
+		udev_unref(u);
+	}
+#endif
+}

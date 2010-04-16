@@ -23,9 +23,10 @@
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
-AM_CFLAGS = @XORG_CFLAGS@ @LIBDRM_NOUVEAU_CFLAGS@
+AM_CFLAGS = @XORG_CFLAGS@ @LIBUDEV_CFLAGS@ @LIBDRM_NOUVEAU_CFLAGS@
 nouveau_drv_la_LTLIBRARIES = nouveau_drv.la
-nouveau_drv_la_LDFLAGS = -module -avoid-version @LIBDRM_NOUVEAU_LIBS@
+nouveau_drv_la_LDFLAGS = -module -avoid-version @LIBDRM_NOUVEAU_LIBS@ \
+			 @LIBUDEV_LIBS@
 nouveau_drv_ladir = @moduledir@/drivers
 
 nouveau_drv_la_SOURCES = \
