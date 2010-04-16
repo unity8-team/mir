@@ -601,6 +601,7 @@ static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONCloseScreen\n");
 
+    drmmode_uevent_fini(pScrn, &info->drmmode);
     if (info->cs)
       radeon_cs_flush_indirect(pScrn);
 
@@ -866,6 +867,7 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     info->accel_state->XInited3D = FALSE;
     info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 
+    drmmode_uevent_init(pScrn, &info->drmmode);
     return TRUE;
 }
 
