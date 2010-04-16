@@ -305,6 +305,28 @@ I810DRIScreenInit(ScreenPtr pScreen)
       return FALSE;
    }
 
+   /* adjust width first */
+#define Elements(x) sizeof(x)/sizeof(*x)
+   for (pitch_idx = 0; pitch_idx < Elements(i810_pitches); pitch_idx++)
+      if (width <= i810_pitches[pitch_idx])
+	 break;
+
+   if (pitch_idx == Elements(i810_pitches)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "[dri] Couldn't find depth/back buffer pitch");
+      DRICloseScreen(pScreen);
+      return FALSE;
+   } else {
+      /* for tiled memory to work, the buffer needs to have the
+       * number of lines as a multiple of 16 (the tile size),
+       *  - airlied */
+      int lines = (pScrn->virtualY + 15) / 16 * 16;
+      back_size = i810_pitches[pitch_idx] * lines;
+      back_size = ((back_size + 4096 - 1) / 4096) * 4096;
+   }
+
+   pScrn->displayWidth = i810_pitches[pitch_idx] / pI810->cpp;
+
    /* Check the DRI version */
    {
       int major, minor, patch;
@@ -520,25 +542,6 @@ I810DRIScreenInit(ScreenPtr pScreen)
 
    xf86DrvMsg(pScreen->myNum, X_INFO, "[agp] dcacheHandle : 0x%x\n",
 	      (int)dcacheHandle);
-
-#define Elements(x) sizeof(x)/sizeof(*x)
-   for (pitch_idx = 0; pitch_idx < Elements(i810_pitches); pitch_idx++)
-      if (width <= i810_pitches[pitch_idx])
-	 break;
-
-   if (pitch_idx == Elements(i810_pitches)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "[dri] Couldn't find depth/back buffer pitch");
-      DRICloseScreen(pScreen);
-      return FALSE;
-   } else {
-      /* for tiled memory to work, the buffer needs to have the
-       * number of lines as a multiple of 16 (the tile size),
-       *  - airlied */
-      int lines = (pScrn->virtualY + 15) / 16 * 16;
-      back_size = i810_pitches[pitch_idx] * lines;
-      back_size = ((back_size + 4096 - 1) / 4096) * 4096;
-   }
 
    sysmem_size = pScrn->videoRam * 1024;
    if (dcacheHandle != DRM_AGP_NO_HANDLE) {
