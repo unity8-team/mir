@@ -933,7 +933,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = drmmode_output;
 	
-	output->possible_crtcs = 0xf;
+	output->possible_crtcs = 0x7f;
 	for (i = 0; i < koutput->count_encoders; i++) {
 		output->possible_crtcs &= kencoders[i]->possible_crtcs;
 	}
