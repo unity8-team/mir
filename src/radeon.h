@@ -1138,6 +1138,7 @@ extern Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen);
 #  endif
 uint32_t radeonGetPixmapOffset(PixmapPtr pPix);
 #endif
+extern int radeon_cs_space_remaining(ScrnInfoPtr pScrn);
 
 #ifdef USE_XAA
 /* radeon_accelfuncs.c */

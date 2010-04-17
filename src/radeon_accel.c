@@ -573,6 +573,18 @@ uint32_t radeonGetPixmapOffset(PixmapPtr pPix)
     return offset;
 }
 
+int radeon_cs_space_remaining(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+#ifdef XF86DRM_MODE
+    if (info->cs)
+	return (info->cs->ndw - info->cs->cdw);
+    else
+#endif
+        return (info->cp->indirectBuffer->total - info->cp->indirectBuffer->used) / (int)sizeof(uint32_t);
+}
+
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()        unsigned char *RADEONMMIO = info->MMIO
 #define BEGIN_ACCEL(n)          RADEONWaitForFifo(pScrn, (n))
