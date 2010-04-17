@@ -2431,6 +2431,23 @@ FUNC_NAME(R300PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     OUT_ACCEL_REG(R300_VAP_VTX_SIZE, pPriv->vtx_count);
     FINISH_ACCEL();
 
+    if (pPriv->vsync) {
+	xf86CrtcPtr crtc;
+	if (pPriv->desired_crtc)
+	    crtc = pPriv->desired_crtc;
+	else
+	    crtc = radeon_pick_best_crtc(pScrn,
+					 pPriv->drw_x,
+					 pPriv->drw_x + pPriv->dst_w,
+					 pPriv->drw_y,
+					 pPriv->drw_y + pPriv->dst_h);
+	if (crtc)
+	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
+					  crtc,
+					  pPriv->drw_y - crtc->y,
+					  (pPriv->drw_y - crtc->y) + pPriv->dst_h);
+    }
+
     return TRUE;
 }
 
@@ -2455,22 +2472,6 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     if (!FUNC_NAME(R300PrepareTexturedVideo)(pScrn, pPriv))
 	return;
 
-    if (pPriv->vsync) {
-	xf86CrtcPtr crtc;
-	if (pPriv->desired_crtc)
-	    crtc = pPriv->desired_crtc;
-	else
-	    crtc = radeon_pick_best_crtc(pScrn,
-					 pPriv->drw_x,
-					 pPriv->drw_x + pPriv->dst_w,
-					 pPriv->drw_y,
-					 pPriv->drw_y + pPriv->dst_h);
-	if (crtc)
-	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
-					  crtc,
-					  pPriv->drw_y - crtc->y,
-					  (pPriv->drw_y - crtc->y) + pPriv->dst_h);
-    }
     /*
      * Rendering of the actual polygon is done in two different
      * ways depending on chip generation:
@@ -2495,6 +2496,19 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	int srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
 	Bool use_quad = FALSE;
+#ifdef ACCEL_CP
+	int draw_size = 4 * pPriv->vtx_count + 4 + 2 + 3;
+
+	if (draw_size > radeon_cs_space_remaining(pScrn)) {
+	    if (info->cs)
+		radeon_cs_flush_indirect(pScrn);
+	    else
+		RADEONCPFlushIndirect(pScrn, 1);
+	    if (!FUNC_NAME(R300PrepareTexturedVideo)(pScrn, pPriv))
+		return;
+	}
+#endif
+
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
 	dstw = pBox->x2 - pBox->x1;
@@ -2509,11 +2523,6 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
-
-#if 0
-	ErrorF("dst: %d, %d, %d, %d\n", dstX, dstY, dstw, dsth);
-	ErrorF("src: %d, %d, %d, %d\n", srcX, srcY, srcw, srch);
-#endif
 
 	if (IS_R400_3D) {
 	    if ((dstw+dsth) > 4021)
