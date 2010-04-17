@@ -4039,6 +4039,23 @@ FUNC_NAME(R500PrepareTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     OUT_ACCEL_REG(R300_VAP_VTX_SIZE, pPriv->vtx_count);
     FINISH_ACCEL();
 
+    if (pPriv->vsync) {
+	xf86CrtcPtr crtc;
+	if (pPriv->desired_crtc)
+	    crtc = pPriv->desired_crtc;
+	else
+	    crtc = radeon_pick_best_crtc(pScrn,
+					 pPriv->drw_x,
+					 pPriv->drw_x + pPriv->dst_w,
+					 pPriv->drw_y,
+					 pPriv->drw_y + pPriv->dst_h);
+	if (crtc)
+	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
+					  crtc,
+					  pPriv->drw_y - crtc->y,
+					  (pPriv->drw_y - crtc->y) + pPriv->dst_h);
+    }
+
     return TRUE;
 }
 
@@ -4063,22 +4080,6 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     if (!FUNC_NAME(R500PrepareTexturedVideo)(pScrn, pPriv))
 	return;
 
-    if (pPriv->vsync) {
-	xf86CrtcPtr crtc;
-	if (pPriv->desired_crtc)
-	    crtc = pPriv->desired_crtc;
-	else
-	    crtc = radeon_pick_best_crtc(pScrn,
-					 pPriv->drw_x,
-					 pPriv->drw_x + pPriv->dst_w,
-					 pPriv->drw_y,
-					 pPriv->drw_y + pPriv->dst_h);
-	if (crtc)
-	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
-					  crtc,
-					  pPriv->drw_y - crtc->y,
-					  (pPriv->drw_y - crtc->y) + pPriv->dst_h);
-    }
     /*
      * Rendering of the actual polygon is done in two different
      * ways depending on chip generation:
@@ -4102,6 +4103,19 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
+#ifdef ACCEL_CP
+	int draw_size = 3 * pPriv->vtx_count + 4 + 2 + 3;
+
+	if (draw_size > radeon_cs_space_remaining(pScrn)) {
+	    if (info->cs)
+		radeon_cs_flush_indirect(pScrn);
+	    else
+		RADEONCPFlushIndirect(pScrn, 1);
+	    if (!FUNC_NAME(R500PrepareTexturedVideo)(pScrn, pPriv))
+		return;
+	}
+#endif
+
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
 	dstw = pBox->x2 - pBox->x1;
