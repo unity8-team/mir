@@ -4,6 +4,7 @@ static RADEONCardInfo RADEONCards[] = {
  { 0x3151, CHIP_FAMILY_RV380, 0, 0, 0, 0, 0 },
  { 0x3152, CHIP_FAMILY_RV380, 1, 0, 0, 0, 0 },
  { 0x3154, CHIP_FAMILY_RV380, 1, 0, 0, 0, 0 },
+ { 0x3155, CHIP_FAMILY_RV380, 1, 0, 0, 0, 0 },
  { 0x3E50, CHIP_FAMILY_RV380, 0, 0, 0, 0, 0 },
  { 0x3E54, CHIP_FAMILY_RV380, 0, 0, 0, 0, 0 },
  { 0x4136, CHIP_FAMILY_RS100, 0, 1, 0, 0, 1 },
