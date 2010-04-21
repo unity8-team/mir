@@ -409,6 +409,7 @@ static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
     if (pRADEONEnt->MMIO) {
+        pRADEONEnt->MMIO_cnt++;
         info->MMIO = pRADEONEnt->MMIO;
         return TRUE;
     }
@@ -441,6 +442,7 @@ static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
 #endif
 
     pRADEONEnt->MMIO = info->MMIO;
+    pRADEONEnt->MMIO_cnt = 1;
     return TRUE;
 }
 
@@ -452,8 +454,8 @@ static Bool RADEONUnmapMMIO(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
-    if (info->IsPrimary || info->IsSecondary) {
-      /* never unmap on zaphod */
+    /* refcount for zaphod */
+    if (--pRADEONEnt->MMIO_cnt != 0) {
       info->MMIO = NULL;
       return TRUE;
     }
@@ -479,6 +481,7 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
     if (pRADEONEnt->FB) {
+        pRADEONEnt->FB_cnt++;
         info->FB = pRADEONEnt->FB;
         return TRUE;
     }
@@ -515,6 +518,7 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
 #endif
 
     pRADEONEnt->FB = info->FB;
+    pRADEONEnt->FB_cnt = 1;
     return TRUE;
 }
 
@@ -524,8 +528,8 @@ static Bool RADEONUnmapFB(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
-    if (info->IsPrimary || info->IsSecondary) {
-      /* never unmap on zaphod */
+    /* refcount for zaphod */
+    if (--pRADEONEnt->FB_cnt != 0) {
       info->FB = NULL;
       return TRUE;
     }
