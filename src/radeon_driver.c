@@ -238,7 +238,7 @@ radeonShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
     stride = (pScrn->displayWidth * pScrn->bitsPerPixel) / 8;
     *size = stride;
 
-    return ((uint8_t *)info->FB + row * stride + offset);
+    return ((uint8_t *)info->FB + pScrn->fbOffset + row * stride + offset);
 }
 static Bool
 RADEONCreateScreenResources (ScreenPtr pScreen)
@@ -402,6 +402,9 @@ void RADEONFreeRec(ScrnInfoPtr pScrn)
  */
 static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
 {
+#ifdef XSERVER_LIBPCIACCESS
+    int err;
+#endif
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
@@ -418,15 +421,15 @@ static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
 			       info->MMIOAddr,
 			       info->MMIOSize);
 
-    if (!info->MMIO) return FALSE;
+    if (!info->MMIO)
+        return FALSE;
 #else
 
-    void** result = (void**)&info->MMIO;
-    int err = pci_device_map_range(info->PciInfo,
+    err = pci_device_map_range(info->PciInfo,
 				   info->MMIOAddr,
 				   info->MMIOSize,
 				   PCI_DEV_MAP_FLAG_WRITABLE,
-				   result);
+				   &info->MMIO);
 
     if (err) {
 	xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
@@ -473,6 +476,12 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
     int err;
 #endif
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+    if (pRADEONEnt->FB) {
+        info->FB = pRADEONEnt->FB;
+        return TRUE;
+    }
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "Map: 0x%016llx, 0x%08lx\n", info->LinearAddr, info->FbMapSize);
@@ -505,6 +514,7 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
 
 #endif
 
+    pRADEONEnt->FB = info->FB;
     return TRUE;
 }
 
@@ -512,6 +522,13 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
 static Bool RADEONUnmapFB(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+    if (info->IsPrimary || info->IsSecondary) {
+      /* never unmap on zaphod */
+      info->FB = NULL;
+      return TRUE;
+    }
 
 #ifndef XSERVER_LIBPCIACCESS
     xf86UnMapVidMem(pScrn->scrnIndex, info->FB, info->FbMapSize);
@@ -519,6 +536,7 @@ static Bool RADEONUnmapFB(ScrnInfoPtr pScrn)
     pci_device_unmap_range(info->PciInfo, info->FB, info->FbMapSize);
 #endif
 
+    pRADEONEnt->FB = NULL;
     info->FB = NULL;
     return TRUE;
 }
@@ -1766,23 +1784,21 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, from,
 	       "Mapped VideoRAM: %d kByte (%d bit %s SDRAM)\n", pScrn->videoRam, info->RamWidth, info->IsDDR?"DDR":"SDR");
 
+    /* Do this before we truncate since we only map fb once */
+    info->FbMapSize  = (pScrn->videoRam & ~1023) * 1024;
+
     if (info->IsPrimary) {
 	pScrn->videoRam /= 2;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Using %dk of videoram for primary head\n",
 		   pScrn->videoRam);
-    }
-    
-    if (info->IsSecondary) {
+    } else if (info->IsSecondary) {
 	pScrn->videoRam /= 2;
-	info->LinearAddr += pScrn->videoRam * 1024;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Using %dk of videoram for secondary head\n",
 		   pScrn->videoRam);
     }
-
     pScrn->videoRam  &= ~1023;
-    info->FbMapSize  = pScrn->videoRam * 1024;
 
     /* if the card is PCI Express reserve the last 32k for the gart table */
 #ifdef XF86DRI
@@ -2134,7 +2150,9 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 #if defined(USE_EXA) && defined(USE_XAA)
     char *optstr;
 #endif
+#ifdef XF86DRI /* zaphod FbMapSize is wrong, but no dri then */
     int maxy = info->FbMapSize / (pScrn->displayWidth * info->CurrentLayout.pixel_bytes);
+#endif
 
     if (!(info->accel_state = xcalloc(1, sizeof(struct radeon_accel_state)))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to allocate accel_state rec!\n");
@@ -3424,7 +3442,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     pScrn->fbOffset    = info->dri->frontOffset;
 #endif
 
-    if (info->IsSecondary) pScrn->fbOffset = pScrn->videoRam * 1024;
+    if (info->IsSecondary)
+        pScrn->fbOffset = pScrn->videoRam * 1024;
 #ifdef XF86DRI
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
 		   "RADEONScreenInit %lx %ld %d\n",
@@ -3665,7 +3684,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     if (info->r600_shadow_fb == FALSE) {
 	/* Init fb layer */
-	if (!fbScreenInit(pScreen, info->FB,
+	if (!fbScreenInit(pScreen, info->FB + pScrn->fbOffset,
 			  pScrn->virtualX, pScrn->virtualY,
 			  pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
 			  pScrn->bitsPerPixel))
