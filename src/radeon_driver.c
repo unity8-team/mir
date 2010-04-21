@@ -181,7 +181,6 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_RENDER_ACCEL,   "RenderAccel",      OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_SUBPIXEL_ORDER, "SubPixelOrder",    OPTV_ANYSTR,  {0}, FALSE },
 #endif
-    { OPTION_SHOWCACHE,      "ShowCache",        OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_CLOCK_GATING,   "ClockGating",      OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_VGA_ACCESS,     "VGAAccess",        OPTV_BOOLEAN, {0}, TRUE  },
     { OPTION_REVERSE_DDC,    "ReverseDDC",       OPTV_BOOLEAN, {0}, FALSE },
@@ -2070,11 +2069,6 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	}
     }
 #endif
-    xf86GetOptValBool(info->Options, OPTION_SHOWCACHE, &info->showCache);
-    if (info->showCache)
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-		   "Option ShowCache enabled\n");
-
 #ifdef RENDER
     info->RenderAccel = xf86ReturnOptValBool(info->Options, OPTION_RENDER_ACCEL,
 					     info->Chipset != PCI_CHIP_RN50_515E &&
@@ -5629,15 +5623,6 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONDoAdjustFrame(%d,%d,%d)\n", x, y, clone);
 #endif
-
-    if (info->showCache && y) {
-	        int lastline = info->FbMapSize /
-		    ((pScrn->displayWidth * pScrn->bitsPerPixel) / 8);
-
-		lastline -= pScrn->currentMode->VDisplay;
-		y += (pScrn->virtualY - 1) * (y / 3 + 1);
-		if (y > lastline) y = lastline;
-    }
 
     Base = pScrn->fbOffset;
 

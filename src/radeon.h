@@ -971,7 +971,6 @@ typedef struct {
     unsigned int xv_max_height;
 
     /* general */
-    Bool              showCache;
     OptionInfoPtr     Options;
 
     DisplayModePtr currentMode, savedCurrentMode;
