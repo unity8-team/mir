@@ -543,13 +543,8 @@ typedef struct {
 } RADEONConfigPrivRec, *RADEONConfigPrivPtr;
 
 typedef struct {
-#ifdef PER_CONTEXT_SAREA
-    drm_context_t ctx_id;
-    drm_handle_t sarea_handle;
-#else
     /* Nothing here yet */
     int dummy;
-#endif
 } RADEONDRIContextRec, *RADEONDRIContextPtr;
 
 struct radeon_dri {
@@ -645,10 +640,6 @@ struct radeon_dri {
     void              *pciGartBackup;
 
     int               irq;
-
-#ifdef PER_CONTEXT_SAREA
-    int               perctx_sarea_size;
-#endif
 
 #ifdef USE_XAA
     uint32_t          frontPitchOffset;

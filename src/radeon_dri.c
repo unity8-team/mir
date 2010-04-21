@@ -300,36 +300,6 @@ static Bool RADEONCreateContext(ScreenPtr pScreen, VisualPtr visual,
 				drm_context_t hwContext, void *pVisualConfigPriv,
 				DRIContextType contextStore)
 {
-#ifdef PER_CONTEXT_SAREA
-    ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr        info  = RADEONPTR(pScrn);
-    RADEONDRIContextPtr  ctx_info;
-
-    ctx_info = (RADEONDRIContextPtr)contextStore;
-    if (!ctx_info) return FALSE;
-
-    if (drmAddMap(info->dri->drmFD, 0,
-		  info->dri->perctx_sarea_size,
-		  DRM_SHM,
-		  DRM_REMOVABLE,
-		  &ctx_info->sarea_handle) < 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "[dri] could not create private sarea for ctx id (%d)\n",
-		   (int)hwContext);
-	return FALSE;
-    }
-
-    if (drmAddContextPrivateMapping(info->dri->drmFD, hwContext,
-				    ctx_info->sarea_handle) < 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "[dri] could not associate private sarea to ctx id (%d)\n",
-		   (int)hwContext);
-	drmRmMap(info->dri->drmFD, ctx_info->sarea_handle);
-	return FALSE;
-    }
-
-    ctx_info->ctx_id = hwContext;
-#endif
     return TRUE;
 }
 
@@ -337,20 +307,6 @@ static Bool RADEONCreateContext(ScreenPtr pScreen, VisualPtr visual,
 static void RADEONDestroyContext(ScreenPtr pScreen, drm_context_t hwContext,
 				 DRIContextType contextStore)
 {
-#ifdef PER_CONTEXT_SAREA
-    ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
-    RADEONInfoPtr        info = RADEONPTR(pScrn);
-    RADEONDRIContextPtr  ctx_info;
-
-    ctx_info = (RADEONDRIContextPtr)contextStore;
-    if (!ctx_info) return;
-
-    if (drmRmMap(info->dri->drmFD, ctx_info->sarea_handle) < 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "[dri] could not remove private sarea for ctx id (%d)\n",
-		   (int)hwContext);
-    }
-#endif
 }
 
 /* Called when the X server is woken up to allow the last client's
@@ -1624,12 +1580,6 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
        correctly with pageflip + mergedfb/color tiling */
     pDRIInfo->wrap.AdjustFrame = NULL;
 
-#ifdef PER_CONTEXT_SAREA
-    /* This is only here for testing per-context SAREAs.  When used, the
-       magic number below would be properly defined in a header file. */
-    info->perctx_sarea_size = 64 * 1024;
-#endif
-
 #ifdef NOT_DONE
     /* FIXME: Need to extend DRI protocol to pass this size back to
      * client for SAREA mapping that includes a device private record
@@ -1845,11 +1795,6 @@ Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen)
     pRADEONDRI->gartTexOffset     = info->dri->gartTexStart;
 
     pRADEONDRI->sarea_priv_offset = sizeof(XF86DRISAREARec);
-
-#ifdef PER_CONTEXT_SAREA
-    /* Set per-context SAREA size */
-    pRADEONDRI->perctx_sarea_size = info->dri->perctx_sarea_size;
-#endif
 
     info->directRenderingInited = TRUE;
 
