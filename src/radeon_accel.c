@@ -499,9 +499,11 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	    }
 	}
 
-	/* RV410 SE cards only have 1 quadpipe */
+	/* SE cards only have 1 quadpipe */
 	if ((info->Chipset == PCI_CHIP_RV410_5E4C) ||
-	    (info->Chipset == PCI_CHIP_RV410_5E4F))
+	    (info->Chipset == PCI_CHIP_RV410_5E4F) ||
+	    (info->Chipset == PCI_CHIP_R300_AD) ||
+	    (info->Chipset == PCI_CHIP_R350_AH))
 	    info->accel_state->num_gb_pipes = 1;
 
 	if (IS_R300_3D || IS_R500_3D)
