@@ -644,9 +644,9 @@ typedef struct
     RADEONSaveRec     SavedReg;         /* Original (text) mode              */
 
     void              *MMIO;            /* Map of MMIO region                */
-    int               *MMIO_cnt;        /* Map of FB region refcount         */
+    int               MMIO_cnt;         /* Map of FB region refcount         */
     void              *FB;              /* Map of FB region                  */
-    int               *FB_cnt;          /* Map of FB region refcount         */
+    int               FB_cnt;           /* Map of FB region refcount         */
     int fd;                             /* for sharing across zaphod heads   */
 } RADEONEntRec, *RADEONEntPtr;
 
