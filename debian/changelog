@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.9.1-3ubuntu5) lucid; urgency=low
+
+  * Drop debian/patches/107_disable_dri_on_845_855.patch:
+    + This attempt to work around the crashes on i845 and i855 documented in
+      LP: #541492 and LP: #541511 simply shuffled the brokeness around.  It 
+      hasn't helped enough, and it unconditionally disables 3D which worked for
+      some users before.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 26 Apr 2010 10:14:02 +1000
+
 xserver-xorg-video-intel (2:2.9.1-3ubuntu4) lucid; urgency=low
 
   * Drop /etc/modprobe.d/i915-kms.conf; in the best case it's redundant
