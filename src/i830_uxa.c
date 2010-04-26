@@ -937,14 +937,26 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			list_foreach_entry(priv, struct intel_pixmap,
 					   &intel->in_flight,
 					   in_flight) {
-				if (priv->tiling == tiling &&
-				    priv->stride >= stride &&
-				    priv->bo->size >= priv->stride * aligned_h) {
-					list_del(&priv->in_flight);
-					screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, priv->stride, NULL);
-					i830_uxa_set_pixmap_intel(pixmap, priv);
-					return pixmap;
+				if (priv->tiling != tiling)
+					continue;
+
+				if (tiling == I915_TILING_NONE) {
+				    if (priv->bo->size < size)
+					    continue;
+
+					priv->stride = stride;
+				} else {
+					if (priv->stride < stride ||
+					    priv->bo->size < priv->stride * aligned_h)
+						continue;
+
+					stride = priv->stride;
 				}
+
+				list_del(&priv->in_flight);
+				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
+				i830_uxa_set_pixmap_intel(pixmap, priv);
+				return pixmap;
 			}
 		}
 
