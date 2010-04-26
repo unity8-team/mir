@@ -825,6 +825,8 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 
 		(*screen->DestroyPixmap)(scratch);
 	} else {
+		int dst_pitch;
+
 		/* bo is not busy so can be mapped without a stall, upload in-place. */
 		if (drm_intel_gem_bo_map_gtt(priv->bo)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -832,17 +834,44 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 			return FALSE;
 		}
 
-		pixman_blt((uint32_t *)src, priv->bo->virtual,
-			   src_pitch / sizeof(uint32_t),
-			   pixmap->devKind / sizeof(uint32_t),
-			   pixmap->drawable.bitsPerPixel,
-			   pixmap->drawable.bitsPerPixel,
-			   0, 0,
-			   x, y,
-			   w, h);
+		ret = TRUE;
+
+		/* Older version of pixman did not allow blt for <= 8bpp
+		 * images, so if the blt fails fallback to using the fb.
+		 */
+		dst_pitch = i830_pixmap_pitch (pixmap);
+		if (! pixman_blt((uint32_t *)src,
+				 priv->bo->virtual,
+				 src_pitch / sizeof(uint32_t),
+				 dst_pitch / sizeof(uint32_t),
+				 pixmap->drawable.bitsPerPixel,
+				 pixmap->drawable.bitsPerPixel,
+				 0, 0,
+				 x, y,
+				 w, h))
+		{
+			ret = FALSE;
+
+			scratch = GetScratchPixmapHeader(screen,
+							 w, h,
+							 pixmap->drawable.depth,
+							 pixmap->drawable.bitsPerPixel,
+							 src_pitch,
+							 (pointer) src);
+			if (scratch) {
+				gc = GetScratchGC(pixmap->drawable.depth, screen);
+				if (gc) {
+					ret = !! fbCopyArea(&scratch->drawable, &pixmap->drawable, gc,
+							    0, 0,
+							    w, h,
+							    x, y);
+					FreeScratchGC(gc);
+				}
+				FreeScratchPixmapHeader(scratch);
+			}
+		}
 
 		drm_intel_gem_bo_unmap_gtt(priv->bo);
-		ret = TRUE;
 	}
 
 	return ret;
