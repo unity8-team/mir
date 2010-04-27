@@ -861,6 +861,7 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 			if (scratch) {
 				gc = GetScratchGC(pixmap->drawable.depth, screen);
 				if (gc) {
+					pixmap->devPrivate.ptr = priv->bo->virtual;
 					ret = !! fbCopyArea(&scratch->drawable, &pixmap->drawable, gc,
 							    0, 0,
 							    w, h,
