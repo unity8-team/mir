@@ -391,6 +391,37 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
 
 }
 
+static const unsigned MicroBlockTable[5][3][2] = {
+    /*linear  tiled   square-tiled */
+    {{32, 1}, {8, 4}, {0, 0}}, /*   8 bits per pixel */
+    {{16, 1}, {8, 2}, {4, 4}}, /*  16 bits per pixel */
+    {{ 8, 1}, {4, 2}, {0, 0}}, /*  32 bits per pixel */
+    {{ 4, 1}, {0, 0}, {2, 2}}, /*  64 bits per pixel */
+    {{ 2, 1}, {0, 0}, {0, 0}}  /* 128 bits per pixel */
+};
+
+/* Return true if macrotiling can be enabled */
+static Bool RADEONMacroSwitch(int width, int height, int bpp,
+                              uint32_t flags, Bool rv350_mode)
+{
+    unsigned tilew, tileh, microtiled, logbpp;
+
+    logbpp = RADEONLog2(bpp / 8);
+    if (logbpp > 4)
+        return 0;
+
+    microtiled = !!(flags & RADEON_TILING_MICRO);
+    tilew = MicroBlockTable[logbpp][microtiled][0] * 8;
+    tileh = MicroBlockTable[logbpp][microtiled][1] * 8;
+
+    /* See TX_FILTER1_n.MACRO_SWITCH. */
+    if (rv350_mode) {
+        return width >= tilew && height >= tileh;
+    } else {
+        return width > tilew && height > tileh;
+    }
+}
+
 void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 			     int depth, int usage_hint, int bitsPerPixel,
 			     int *new_pitch)
@@ -418,6 +449,16 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     	    if (usage_hint & RADEON_CREATE_PIXMAP_TILING_MICRO)
                 tiling |= RADEON_TILING_MICRO;
 	}
+    }
+
+    /* Small pixmaps must not be macrotiled on R300, hw cannot sample them
+     * correctly because samplers automatically switch to macrolinear. */
+    if (info->ChipFamily >= CHIP_FAMILY_R300 &&
+        info->ChipFamily <= CHIP_FAMILY_RS690 &&
+        (tiling & RADEON_TILING_MACRO) &&
+        !RADEONMacroSwitch(width, height, bitsPerPixel, tiling,
+                           info->ChipFamily >= CHIP_FAMILY_RV350)) {
+        tiling &= ~RADEON_TILING_MACRO;
     }
 
     if (tiling) {
