@@ -2289,9 +2289,12 @@ RADEONGetATOMClockInfo(ScrnInfoPtr pScrn)
 	break;
     }
     pll->reference_div = 0;
-    if (pll->pll_out_min == 0)
-	pll->pll_out_min = 64800;
-
+    if (pll->pll_out_min == 0) {
+	if (IS_AVIVO_VARIANT)
+	    pll->pll_out_min = 64800;
+	else
+	    pll->pll_out_min = 20000;
+    }
 
     /* limiting the range is a good thing in most cases
      * as it limits the number of matching pll combinations,
