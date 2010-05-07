@@ -79,7 +79,7 @@ nouveau_wfb_rd_tiled(const void *ptr, int size) {
 
 	offset -= wfb->base;
 
-	y = (offset * wfb->multiply_factor) >> 32;
+	y = (offset * wfb->multiply_factor) >> 36;
 	x = offset - y * wfb->pitch;
 
 	offset  = (x >> TP) + ((y >> TH) * wfb->horiz_tiles);
@@ -111,7 +111,7 @@ nouveau_wfb_wr_tiled(void *ptr, FbBits value, int size) {
 
 	offset -= wfb->base;
 
-	y = (offset * wfb->multiply_factor) >> 32;
+	y = (offset * wfb->multiply_factor) >> 36;
 	x = offset - y * wfb->pitch;
 
 	offset  = (x >> TP) + ((y >> TH) * wfb->horiz_tiles);
@@ -175,7 +175,8 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		wfb->pitch = 0;
 	} else {
 		wfb->pitch = ppix->devKind;
-		wfb->multiply_factor = (0xFFFFFFFF / wfb->pitch) + 1;
+		/* 8192x8192x4 is 28 bits max, 64 - 28 == 36. */
+		wfb->multiply_factor = (((1ULL << 36) - 1) / wfb->pitch) + 1;
 		wfb->tile_height = bo->tile_mode + 2;
 		wfb->horiz_tiles = wfb->pitch / 64;
 		have_tiled = 1;
