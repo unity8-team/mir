@@ -1142,15 +1142,15 @@ compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
 }
 
 static int
-drawable_contains (DrawablePtr drawable, int x1, int y1, int x2, int y2)
+drawable_contains (DrawablePtr drawable, int x, int y, int w, int h)
 {
-	if (x1 < 0 || y1 < 0)
+	if (x < 0 || y < 0)
 		return FALSE;
 
-	if (x2 > drawable->width)
+	if (x + w > drawable->width)
 		return FALSE;
 
-	if (y2 > drawable->height)
+	if (y + h > drawable->height)
 		return FALSE;
 
 	return TRUE;
@@ -1171,15 +1171,16 @@ uxa_composite(CARD8 op,
 	Bool saveSrcRepeat = pSrc->repeat;
 	Bool saveMaskRepeat = pMask ? pMask->repeat : 0;
 	RegionRec region;
+	int tx, ty;
 
 	if (uxa_screen->swappedOut)
 		goto fallback;
 
 	/* Remove repeat in source if useless */
-	if (pSrc->pDrawable && pSrc->repeat && !pSrc->transform &&
+	if (pSrc->pDrawable && pSrc->repeat &&
+	    transform_is_integer_translation(pSrc->transform, &tx, &ty) &&
 	    (pSrc->pDrawable->width > 1 || pSrc->pDrawable->height > 1) &&
-	    xSrc >= 0 && (xSrc + width) <= pSrc->pDrawable->width &&
-	    ySrc >= 0 && (ySrc + height) <= pSrc->pDrawable->height)
+	    drawable_contains(pSrc->pDrawable, xSrc + tx, ySrc + ty, width, height))
 		pSrc->repeat = 0;
 
 	if (!pMask) {
@@ -1205,12 +1206,15 @@ uxa_composite(CARD8 op,
 								width, height);
 				if (ret == 1)
 					goto done;
-			} else if (!pSrc->repeat && !pSrc->transform &&
-				   drawable_contains(pSrc->pDrawable, xSrc, ySrc, xSrc + width, ySrc + height)) {
+			} else if (!pSrc->repeat &&
+				   transform_is_integer_translation(pSrc->transform, &tx, &ty) &&
+				   drawable_contains(pSrc->pDrawable,
+						     xSrc + tx, ySrc + ty,
+						     width, height)) {
 				xDst += pDst->pDrawable->x;
 				yDst += pDst->pDrawable->y;
-				xSrc += pSrc->pDrawable->x;
-				ySrc += pSrc->pDrawable->y;
+				xSrc += pSrc->pDrawable->x + tx;
+				ySrc += pSrc->pDrawable->y + ty;
 
 				if (!miComputeCompositeRegion
 				    (&region, pSrc, pMask, pDst, xSrc, ySrc,
