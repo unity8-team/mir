@@ -522,6 +522,32 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
     .destroy = NULL, /* XXX */
 };
 
+int drmmode_get_crtc_id(xf86CrtcPtr crtc)
+{
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	return drmmode_crtc->hw_id;
+}
+
+void drmmode_crtc_hw_id(xf86CrtcPtr crtc)
+{
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
+	struct drm_radeon_info ginfo;
+	int r;
+	uint32_t tmp;
+
+	memset(&ginfo, 0, sizeof(ginfo));
+	ginfo.request = 0x4;
+	tmp = drmmode_crtc->mode_crtc->crtc_id;
+	ginfo.value = (uintptr_t)&tmp;
+	r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+	if (r) {
+		drmmode_crtc->hw_id = -1;
+		return;
+	}
+	drmmode_crtc->hw_id = tmp;
+}
 
 static void
 drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
@@ -537,6 +563,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	drmmode_crtc->mode_crtc = drmModeGetCrtc(drmmode->fd, drmmode->mode_res->crtcs[num]);
 	drmmode_crtc->drmmode = drmmode;
 	crtc->driver_private = drmmode_crtc;
+	drmmode_crtc_hw_id(crtc);
 
 	return;
 }
@@ -1150,10 +1177,28 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 	drmmode_xf86crtc_resize
 };
 
+static void
+drmmode_vblank_handler(int fd, unsigned int frame, unsigned int tv_sec,
+			unsigned int tv_usec, void *event_data)
+{
+	radeon_dri2_frame_event_handler(frame, tv_sec, tv_usec, event_data);
+}
+
+static void
+drm_wakeup_handler(pointer data, int err, pointer p)
+{
+	drmmode_ptr drmmode = data;
+	fd_set *read_mask = p;
+
+	if (err >= 0 && FD_ISSET(drmmode->fd, read_mask)) {
+		drmHandleEvent(drmmode->fd, &drmmode->event_context);
+	}
+}
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 {
-	xf86CrtcConfigPtr   xf86_config;
+	xf86CrtcConfigPtr xf86_config;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 	int i;
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
@@ -1177,6 +1222,16 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	drmmode_clones_init(pScrn, drmmode);
 
 	xf86InitialConfiguration(pScrn, TRUE);
+
+	drmmode->flip_count = 0;
+	drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
+	drmmode->event_context.vblank_handler = drmmode_vblank_handler;
+	drmmode->event_context.page_flip_handler = NULL;
+	if (info->dri->pKernelDRMVersion->version_minor >= 4) {
+		AddGeneralSocket(drmmode->fd);
+		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+				drm_wakeup_handler, drmmode);
+	}
 
 	return TRUE;
 }

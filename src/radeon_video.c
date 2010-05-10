@@ -162,8 +162,7 @@ radeon_pick_best_crtc(ScrnInfoPtr pScrn,
     return best_crtc;
 }
 
-#ifndef HAVE_XF86CRTCCLIPVIDEOHELPER
-static xf86CrtcPtr
+xf86CrtcPtr
 radeon_covering_crtc(ScrnInfoPtr pScrn,
 		     BoxPtr	box,
 		     xf86CrtcPtr desired,
@@ -198,6 +197,7 @@ radeon_covering_crtc(ScrnInfoPtr pScrn,
     return best_crtc;
 }
 
+#ifndef HAVE_XF86CRTCCLIPVIDEOHELPER
 static Bool
 radeon_crtc_clip_video_helper(ScrnInfoPtr pScrn,
 			      xf86CrtcPtr *crtc_ret,

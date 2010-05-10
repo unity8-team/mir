@@ -493,10 +493,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
 	goto fail;
     }
-    if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
-	goto fail;
-    }
 
     info->dri2.enabled = FALSE;
     info->dri->pKernelDRMVersion = drmGetVersion(info->dri->drmFD);
@@ -505,6 +501,12 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		   "RADEONDRIGetVersion failed to get the DRM version\n");
 	goto fail;
     }
+
+    if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
+	goto fail;
+    }
+
 
     {
 	struct drm_radeon_gem_info mminfo;

@@ -48,11 +48,14 @@ typedef struct {
   struct udev_monitor *uevent_monitor;
   InputHandlerProc uevent_handler;
 #endif
+  drmEventContext event_context;
+  int flip_count;
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
     drmmode_ptr drmmode;
     drmModeCrtcPtr mode_crtc;
+    int hw_id;
     struct radeon_bo *cursor_bo;
     struct radeon_bo *rotate_bo;
     unsigned rotate_fb_id;
