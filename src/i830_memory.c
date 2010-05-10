@@ -219,19 +219,18 @@ static Bool IsTileable(ScrnInfoPtr scrn, int pitch)
 drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	unsigned int pitch = scrn->displayWidth * intel->cpp;
+	drm_intel_bo *front_buffer;
 	long size, fb_height;
-	int flags, ret;
-	drm_intel_bo *front_buffer = NULL;
+	unsigned int pitch;
 	uint32_t tiling_mode, requested_tiling_mode;
-
-	flags = ALLOW_SHARING | DISABLE_REUSE;
+	int ret;
 
 	/* We'll allocate the fb such that the root window will fit regardless of
 	 * rotation.
 	 */
 	fb_height = scrn->virtualY;
 
+	pitch = scrn->displayWidth * intel->cpp;
 	size = ROUND_TO_PAGE(pitch * fb_height);
 
 	if (intel->tiling && IsTileable(scrn, pitch))
@@ -254,7 +253,6 @@ drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 
 	front_buffer = drm_intel_bo_alloc(intel->bufmgr, "front buffer",
 					  size, GTT_PAGE_SIZE);
-
 	if (front_buffer == NULL) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer.\n");

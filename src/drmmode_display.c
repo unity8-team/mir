@@ -1255,6 +1255,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	drm_intel_bo *old_front = NULL;
 	Bool	    ret;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
+	PixmapPtr   pixmap;
 	uint32_t    old_fb_id;
 	int	    i, w, pitch, old_width, old_height, old_pitch;
 
@@ -1288,10 +1289,11 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (ret)
 		goto fail;
 
-	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), intel->front_buffer);
+	pixmap = screen->GetScreenPixmap(screen);
+	i830_set_pixmap_bo(pixmap, intel->front_buffer);
+	assert (i830_get_pixmap_intel(pixmap)->stride == pitch);
 
-	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
-				   width, height, -1, -1, pitch, NULL);
+	screen->ModifyPixmapHeader(pixmap, width, height, -1, -1, pitch, NULL);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];

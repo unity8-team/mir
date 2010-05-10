@@ -510,8 +510,6 @@ intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)
 	va_end(ap);
 }
 
-Bool i830_pixmap_tiled(PixmapPtr p);
-
 static inline Bool
 intel_check_pitch_2d(PixmapPtr pixmap)
 {
