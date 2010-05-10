@@ -393,19 +393,6 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 			intel->render_source_is_solid = TRUE;
 			intel->render_source_solid = source->solidFill.color;
 		}
-	} else if (source_picture->pDrawable) {
-		intel->render_source_is_solid =
-			source_picture->pDrawable->width == 1 &&
-			source_picture->pDrawable->height == 1 &&
-			source_picture->repeat;
-
-		if (intel->render_source_is_solid) {
-			if (! uxa_get_color_for_pixmap (source,
-							source_picture->format,
-							PICT_a8r8g8b8,
-							&intel->render_source_solid))
-				intel->render_source_is_solid = FALSE;
-		}
 	}
 	if (!intel->render_source_is_solid && !intel_check_pitch_3d(source))
 		return FALSE;
@@ -417,18 +404,6 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 			if (source->type == SourcePictTypeSolidFill) {
 				intel->render_mask_is_solid = TRUE;
 				intel->render_mask_solid = source->solidFill.color;
-			}
-		} else if (mask_picture->pDrawable) {
-			intel->render_mask_is_solid =
-				mask_picture->pDrawable->width == 1 &&
-				mask_picture->pDrawable->height == 1 &&
-				mask_picture->repeat;
-			if (intel->render_mask_is_solid) {
-				if (! uxa_get_color_for_pixmap (mask,
-								mask_picture->format,
-								PICT_a8r8g8b8,
-								&intel->render_mask_solid))
-					intel->render_mask_is_solid = FALSE;
 			}
 		}
 		if (!intel->render_mask_is_solid && !intel_check_pitch_3d(mask))
