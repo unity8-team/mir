@@ -397,7 +397,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	if (!intel->render_source_is_solid && !intel_check_pitch_3d(source))
 		return FALSE;
 
-	intel->render_mask_is_solid = TRUE; /* mask == NULL => opaque */
+	intel->render_mask_is_solid = FALSE;
 	if (mask) {
 		if (mask_picture->pSourcePict) {
 			SourcePict *source = mask_picture->pSourcePict;
