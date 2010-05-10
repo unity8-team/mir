@@ -369,13 +369,13 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 		       PicturePtr mask_picture, PicturePtr dest_picture,
 		       PixmapPtr source, PixmapPtr mask, PixmapPtr dest)
 {
-	ScrnInfoPtr scrn = xf86Screens[source_picture->pDrawable->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
-		i830_get_pixmap_bo(source),
-		mask ? i830_get_pixmap_bo(mask) : NULL,
 		i830_get_pixmap_bo(dest),
+		source ? i830_get_pixmap_bo(source) : NULL,
+		mask ? i830_get_pixmap_bo(mask) : NULL,
 	};
 	int tex_unit = 0;
 
@@ -465,7 +465,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 
 	intel->i915_render_state.op = op;
 
-	if(i830_uxa_pixmap_is_dirty(source) ||
+	if((source && i830_uxa_pixmap_is_dirty(source)) ||
 	   (mask && i830_uxa_pixmap_is_dirty(mask)))
 		intel_batch_emit_flush(scrn);
 
