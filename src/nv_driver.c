@@ -794,6 +794,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 						     pScrn->depth);
 	}
 
+	/* No usable mode */
+	if (!pScrn->modes)
+		return FALSE;
+
 	/* Set the current mode to the first in the list */
 	pScrn->currentMode = pScrn->modes;
 
