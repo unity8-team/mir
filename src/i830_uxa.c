@@ -737,6 +737,7 @@ i830_uxa_pixmap_swap_bo_with_image(PixmapPtr pixmap,
 		dri_bo_unreference(priv->bo);
 		priv->bo = bo;
 		priv->tiling = tiling;
+		priv->stride = stride;
 		priv->batch_read_domains = priv->batch_write_domain = 0;
 		priv->flush_read_domains = priv->flush_write_domain = 0;
 		list_del(&priv->batch);
