@@ -740,8 +740,13 @@ uxa_acquire_mask(ScreenPtr pScreen,
 
 	if (uxa_screen->info->check_composite_texture &&
 	    uxa_screen->info->check_composite_texture(pScreen, pPict)) {
-		*out_x = x + pPict->pDrawable->x;
-		*out_y = y + pPict->pDrawable->y;
+		if (pPict->pDrawable) {
+			*out_x = x + pPict->pDrawable->x;
+			*out_y = y + pPict->pDrawable->y;
+		} else {
+			*out_x = x;
+			*out_y = y;
+		}
 		return pPict;
 	}
 
