@@ -183,54 +183,6 @@ static Bool i965_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 	return TRUE;
 }
 
-static Bool i965_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
-					 int unit)
-{
-	if (picture->repeatType > RepeatReflect) {
-		intel_debug_fallback(scrn,
-				     "extended repeat (%d) not supported\n",
-				     picture->repeatType);
-		return FALSE;
-	}
-
-	if (picture->filter != PictFilterNearest &&
-	    picture->filter != PictFilterBilinear) {
-		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
-				     picture->filter);
-		return FALSE;
-	}
-
-	if (picture->pDrawable) {
-		int w, h, i;
-
-		w = picture->pDrawable->width;
-		h = picture->pDrawable->height;
-		if ((w > 8192) || (h > 8192)) {
-			intel_debug_fallback(scrn,
-					     "Picture w/h too large (%dx%d)\n",
-					     w, h);
-			return FALSE;
-		}
-
-		for (i = 0;
-		     i < sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]);
-		     i++) {
-			if (i965_tex_formats[i].fmt == picture->format)
-				break;
-		}
-		if (i == sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]))
-		{
-			intel_debug_fallback(scrn,
-					     "Unsupported picture format "
-					     "0x%x\n",
-					     (int)picture->format);
-			return FALSE;
-		}
-	}
-
-	return TRUE;
-}
-
 Bool
 i965_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 		     PicturePtr dest_picture)
@@ -267,24 +219,68 @@ i965_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 		}
 	}
 
-	if (!i965_check_composite_texture(scrn, source_picture, 0)) {
-		intel_debug_fallback(scrn, "Check Src picture texture\n");
-		return FALSE;
-	}
-	if (mask_picture != NULL
-	    && !i965_check_composite_texture(scrn, mask_picture, 1)) {
-		intel_debug_fallback(scrn, "Check Mask picture texture\n");
-		return FALSE;
-	}
-
 	if (!i965_get_dest_format(dest_picture, &tmp1)) {
 		intel_debug_fallback(scrn, "Get Color buffer format\n");
 		return FALSE;
 	}
 
 	return TRUE;
-
 }
+
+Bool
+i965_check_composite_texture(ScreenPtr screen, PicturePtr picture)
+{
+	if (picture->repeatType > RepeatReflect) {
+		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		intel_debug_fallback(scrn,
+				     "extended repeat (%d) not supported\n",
+				     picture->repeatType);
+		return FALSE;
+	}
+
+	if (picture->filter != PictFilterNearest &&
+	    picture->filter != PictFilterBilinear) {
+		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
+				     picture->filter);
+		return FALSE;
+	}
+
+	if (picture->pDrawable) {
+		int w, h, i;
+
+		w = picture->pDrawable->width;
+		h = picture->pDrawable->height;
+		if ((w > 8192) || (h > 8192)) {
+			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+			intel_debug_fallback(scrn,
+					     "Picture w/h too large (%dx%d)\n",
+					     w, h);
+			return FALSE;
+		}
+
+		for (i = 0;
+		     i < sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]);
+		     i++) {
+			if (i965_tex_formats[i].fmt == picture->format)
+				break;
+		}
+		if (i == sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]))
+		{
+			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+			intel_debug_fallback(scrn,
+					     "Unsupported picture format "
+					     "0x%x\n",
+					     (int)picture->format);
+			return FALSE;
+		}
+
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 
 #define BRW_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 

@@ -252,6 +252,19 @@ typedef struct _UxaDriver {
 				PicturePtr pDstPicture);
 
 	/**
+	 * check_composite_texture() checks to see if a source to the composite
+	 * operation can be used without midification.
+	 *
+	 * @param pScreen Screen
+	 * @param pPicture Picture
+	 *
+	 * The check_composite_texture() call is recommended if prepare_composite() is
+	 * implemented, but is not required.
+	 */
+	Bool(*check_composite_texture) (ScreenPtr pScreen,
+					PicturePtr pPicture);
+
+	/**
 	 * prepare_composite() sets up the driver for doing a composite
 	 * operation described in the Render extension protocol spec.
 	 *

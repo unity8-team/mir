@@ -176,54 +176,10 @@ static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 	return TRUE;
 }
 
-static Bool i915_check_composite_texture(ScrnInfoPtr scrn, PicturePtr picture,
-					 int unit)
-{
-	if (picture->repeatType > RepeatReflect) {
-		intel_debug_fallback(scrn, "Unsupported picture repeat %d\n",
-			     picture->repeatType);
-		return FALSE;
-	}
-
-	if (picture->filter != PictFilterNearest &&
-	    picture->filter != PictFilterBilinear) {
-		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
-				     picture->filter);
-		return FALSE;
-	}
-
-	if (picture->pDrawable) {
-		int w, h, i;
-
-		w = picture->pDrawable->width;
-		h = picture->pDrawable->height;
-		if ((w > 2048) || (h > 2048)) {
-			intel_debug_fallback(scrn,
-					     "Picture w/h too large (%dx%d)\n",
-					     w, h);
-			return FALSE;
-		}
-
-		for (i = 0;
-		     i < sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]);
-		     i++) {
-			if (i915_tex_formats[i].fmt == picture->format)
-				break;
-		}
-		if (i == sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]))
-		{
-			intel_debug_fallback(scrn, "Unsupported picture format "
-					     "0x%x\n",
-					     (int)picture->format);
-			return FALSE;
-		}
-	}
-
-	return TRUE;
-}
-
 Bool
-i915_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
+i915_check_composite(int op,
+		     PicturePtr source_picture,
+		     PicturePtr mask_picture,
 		     PicturePtr dest_picture)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
@@ -251,22 +207,70 @@ i915_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 		}
 	}
 
-	if (!i915_check_composite_texture(scrn, source_picture, 0)) {
-		intel_debug_fallback(scrn, "Check Src picture texture\n");
-		return FALSE;
-	}
-	if (mask_picture != NULL
-	    && !i915_check_composite_texture(scrn, mask_picture, 1)) {
-		intel_debug_fallback(scrn, "Check Mask picture texture\n");
-		return FALSE;
-	}
-
 	if (!i915_get_dest_format(dest_picture, &tmp1)) {
 		intel_debug_fallback(scrn, "Get Color buffer format\n");
 		return FALSE;
 	}
 
 	return TRUE;
+}
+
+Bool
+i915_check_composite_texture(ScreenPtr screen, PicturePtr picture)
+{
+	if (picture->repeatType > RepeatReflect) {
+		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		intel_debug_fallback(scrn, "Unsupported picture repeat %d\n",
+			     picture->repeatType);
+		return FALSE;
+	}
+
+	if (picture->filter != PictFilterNearest &&
+	    picture->filter != PictFilterBilinear) {
+		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
+				     picture->filter);
+		return FALSE;
+	}
+
+	if (picture->pSourcePict) {
+		SourcePict *source = picture->pSourcePict;
+		if (source->type == SourcePictTypeSolidFill)
+			return TRUE;
+	}
+
+	if (picture->pDrawable) {
+		int w, h, i;
+
+		w = picture->pDrawable->width;
+		h = picture->pDrawable->height;
+		if ((w > 2048) || (h > 2048)) {
+			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+			intel_debug_fallback(scrn,
+					     "Picture w/h too large (%dx%d)\n",
+					     w, h);
+			return FALSE;
+		}
+
+		for (i = 0;
+		     i < sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]);
+		     i++) {
+			if (i915_tex_formats[i].fmt == picture->format)
+				break;
+		}
+		if (i == sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]))
+		{
+			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+			intel_debug_fallback(scrn, "Unsupported picture format "
+					     "0x%x\n",
+					     (int)picture->format);
+			return FALSE;
+		}
+
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
@@ -382,39 +386,53 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	intel->render_dest_picture = dest_picture;
 	intel->render_dest = dest;
 
-	intel->render_source_is_solid =
-	    source_picture->pDrawable &&
-	    source_picture->pDrawable->width == 1 &&
-	    source_picture->pDrawable->height == 1 &&
-	    source_picture->repeat;
+	intel->render_source_is_solid = FALSE;
+	if (source_picture->pSourcePict) {
+		SourcePict *source = source_picture->pSourcePict;
+		if (source->type == SourcePictTypeSolidFill) {
+			intel->render_source_is_solid = TRUE;
+			intel->render_source_solid = source->solidFill.color;
+		}
+	} else if (source_picture->pDrawable) {
+		intel->render_source_is_solid =
+			source_picture->pDrawable->width == 1 &&
+			source_picture->pDrawable->height == 1 &&
+			source_picture->repeat;
 
-	if (intel->render_source_is_solid) {
-	    if (! uxa_get_color_for_pixmap (source,
-					    source_picture->format,
-					    PICT_a8r8g8b8,
-					    &intel->render_source_solid))
-		intel->render_source_is_solid = FALSE;
+		if (intel->render_source_is_solid) {
+			if (! uxa_get_color_for_pixmap (source,
+							source_picture->format,
+							PICT_a8r8g8b8,
+							&intel->render_source_solid))
+				intel->render_source_is_solid = FALSE;
+		}
 	}
 	if (!intel->render_source_is_solid && !intel_check_pitch_3d(source))
 		return FALSE;
 
-
 	intel->render_mask_is_solid = TRUE; /* mask == NULL => opaque */
 	if (mask) {
-	    intel->render_mask_is_solid =
-		mask_picture->pDrawable &&
-		mask_picture->pDrawable->width == 1 &&
-		mask_picture->pDrawable->height == 1 &&
-		mask_picture->repeat;
-	    if (intel->render_mask_is_solid) {
-		if (! uxa_get_color_for_pixmap (mask,
-						mask_picture->format,
-						PICT_a8r8g8b8,
-						&intel->render_mask_solid))
-		    intel->render_mask_is_solid = FALSE;
-	    }
-	    if (!intel->render_mask_is_solid && !intel_check_pitch_3d(mask))
-		    return FALSE;
+		if (mask_picture->pSourcePict) {
+			SourcePict *source = mask_picture->pSourcePict;
+			if (source->type == SourcePictTypeSolidFill) {
+				intel->render_mask_is_solid = TRUE;
+				intel->render_mask_solid = source->solidFill.color;
+			}
+		} else if (mask_picture->pDrawable) {
+			intel->render_mask_is_solid =
+				mask_picture->pDrawable->width == 1 &&
+				mask_picture->pDrawable->height == 1 &&
+				mask_picture->repeat;
+			if (intel->render_mask_is_solid) {
+				if (! uxa_get_color_for_pixmap (mask,
+								mask_picture->format,
+								PICT_a8r8g8b8,
+								&intel->render_mask_solid))
+					intel->render_mask_is_solid = FALSE;
+			}
+		}
+		if (!intel->render_mask_is_solid && !intel_check_pitch_3d(mask))
+			return FALSE;
 	}
 
 	if (!intel_check_pitch_3d(dest))

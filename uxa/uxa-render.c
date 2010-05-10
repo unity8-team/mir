@@ -642,8 +642,7 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 		     PicturePtr pSrc,
 		     INT16 x, INT16 y,
 		     CARD16 width, CARD16 height,
-		     INT16 * out_x, INT16 * out_y,
-		     Bool force)
+		     INT16 * out_x, INT16 * out_y)
 {
 	PixmapPtr pPixmap;
 	PicturePtr pDst;
@@ -651,17 +650,17 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 	int depth, error;
 	int tx, ty;
 
-	if (!force && uxa_drawable_is_offscreen(pSrc->pDrawable)) {
-		*out_x = x + pSrc->pDrawable->x;
-		*out_y = y + pSrc->pDrawable->y;
-		return pSrc;
-	}
-
 	depth = pSrc->pDrawable->depth;
 	if (depth == 1 || !transform_is_integer_translation(pSrc->transform, &tx, &ty)) {
 		/* XXX extract the sample extents and do the transformation on the GPU */
 		pDst = uxa_render_picture(pScreen, pSrc, x, y, width, height);
 		goto done;
+	} else {
+		if (width == pSrc->pDrawable->width && height == pSrc->pDrawable->depth) {
+			*out_x = x + pSrc->pDrawable->x;
+			*out_y = y + pSrc->pDrawable->y;
+			return pSrc;
+		}
 	}
 
 	pPixmap = pScreen->CreatePixmap(pScreen, width, height, depth, 0);
@@ -671,9 +670,7 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 	/* Skip the copy if the result remains in memory and not a bo */
 	if (!uxa_drawable_is_offscreen(&pPixmap->drawable)) {
 		pScreen->DestroyPixmap(pPixmap);
-		*out_x = x + pSrc->pDrawable->x;
-		*out_y = y + pSrc->pDrawable->y;
-		return pSrc;
+		return 0;
 	}
 
 	pGC = GetScratchGC(depth, pScreen);
@@ -705,14 +702,21 @@ uxa_acquire_source(ScreenPtr pScreen,
 		   PicturePtr pPict,
 		   INT16 x, INT16 y,
 		   CARD16 width, CARD16 height,
-		   INT16 * out_x, INT16 * out_y,
-		   Bool force)
+		   INT16 * out_x, INT16 * out_y)
 {
+	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
+
+	if (uxa_screen->info->check_composite_texture &&
+	    uxa_screen->info->check_composite_texture(pScreen, pPict)) {
+		*out_x = x + pPict->pDrawable->x;
+		*out_y = y + pPict->pDrawable->y;
+		return pPict;
+	}
+
 	if (pPict->pDrawable)
 		return uxa_acquire_drawable(pScreen, pPict,
 					    x, y, width, height,
-					    out_x, out_y,
-					    force);
+					    out_x, out_y);
 
 	*out_x = 0;
 	*out_y = 0;
@@ -725,14 +729,21 @@ uxa_acquire_mask(ScreenPtr pScreen,
 		 PicturePtr pPict,
 		 INT16 x, INT16 y,
 		 INT16 width, INT16 height,
-		 INT16 * out_x, INT16 * out_y,
-		 Bool force)
+		 INT16 * out_x, INT16 * out_y)
 {
+	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
+
+	if (uxa_screen->info->check_composite_texture &&
+	    uxa_screen->info->check_composite_texture(pScreen, pPict)) {
+		*out_x = x + pPict->pDrawable->x;
+		*out_y = y + pPict->pDrawable->y;
+		return pPict;
+	}
+
 	if (pPict->pDrawable)
 		return uxa_acquire_drawable(pScreen, pPict,
 					    x, y, width, height,
-					    out_x, out_y,
-					    force);
+					    out_x, out_y);
 
 	*out_x = 0;
 	*out_y = 0;
@@ -872,11 +883,13 @@ uxa_try_driver_composite(CARD8 op,
 	RegionRec region;
 	BoxPtr pbox;
 	int nbox;
-	INT16 _xSrc = xSrc, _ySrc = ySrc;
-	INT16 _xMask = xMask, _yMask = yMask;
 	int src_off_x, src_off_y, mask_off_x, mask_off_y, dst_off_x, dst_off_y;
 	PixmapPtr pSrcPix, pMaskPix = NULL, pDstPix;
 	PicturePtr localSrc, localMask = NULL;
+
+	if (uxa_screen->info->check_composite &&
+	    !(*uxa_screen->info->check_composite) (op, pSrc, pMask, pDst))
+		return -1;
 
 	pDstPix =
 	    uxa_get_offscreen_pixmap(pDst->pDrawable, &dst_off_x, &dst_off_y);
@@ -886,63 +899,24 @@ uxa_try_driver_composite(CARD8 op,
 	xDst += pDst->pDrawable->x;
 	yDst += pDst->pDrawable->y;
 
-	localSrc = uxa_acquire_source(pDst->pDrawable->pScreen,
-				      pSrc, xSrc, ySrc, width, height,
-				      &xSrc, &ySrc,
-				      FALSE);
+	localSrc = uxa_acquire_source(pDst->pDrawable->pScreen, pSrc,
+				      xSrc, ySrc,
+				      width, height,
+				      &xSrc, &ySrc);
 	if (!localSrc)
 		return 0;
 
 	if (pMask) {
-		localMask = uxa_acquire_mask(pDst->pDrawable->pScreen,
-					     pMask, xMask, yMask, width, height,
-					     &xMask, &yMask,
-					     FALSE);
+		localMask = uxa_acquire_mask(pDst->pDrawable->pScreen, pMask,
+					     xMask, yMask,
+					     width, height,
+					     &xMask, &yMask);
 		if (!localMask) {
 			if (localSrc != pSrc)
 				FreePicture(localSrc, 0);
 
 			return 0;
 		}
-	}
-
-recheck:
-	if (uxa_screen->info->check_composite &&
-	    !(*uxa_screen->info->check_composite) (op, localSrc, localMask,
-						   pDst)) {
-		if (localSrc == pSrc || (localMask && localMask == pMask)) {
-			if (localSrc == pSrc) {
-				localSrc = uxa_acquire_source(pDst->pDrawable->pScreen,
-							      pSrc, _xSrc, _ySrc, width, height,
-							      &xSrc, &ySrc, TRUE);
-				if (!localSrc || localSrc == pSrc) {
-					if (localMask && localMask != pMask)
-						FreePicture(localMask, 0);
-					return -(localSrc == pSrc);
-				}
-			}
-
-			if (localMask && localMask == pMask) {
-				localMask = uxa_acquire_mask(pDst->pDrawable->pScreen,
-							     pMask, _xMask, _yMask, width, height,
-							     &xMask, &yMask, TRUE);
-				if (!localMask || localMask == pMask) {
-					if (localSrc != pSrc)
-						FreePicture(localSrc, 0);
-
-					return -(localMask == pMask);
-				}
-			}
-
-			goto recheck;
-		}
-
-		if (localSrc != pSrc)
-			FreePicture(localSrc, 0);
-		if (localMask && localMask != pMask)
-			FreePicture(localMask, 0);
-
-		return -1;
 	}
 
 	if (!miComputeCompositeRegion(&region, localSrc, localMask, pDst,
@@ -1306,9 +1280,15 @@ uxa_composite(CARD8 op,
 		/* For generic masks and solid src pictures, mach64 can do
 		 * Over in two passes, similar to the component-alpha case.
 		 */
-		isSrcSolid = pSrc->pDrawable &&
-		    pSrc->pDrawable->width == 1 &&
-		    pSrc->pDrawable->height == 1 && pSrc->repeat;
+
+		isSrcSolid =
+			pSrc->pDrawable ?
+				pSrc->pDrawable->width == 1 &&
+				pSrc->pDrawable->height == 1 &&
+				pSrc->repeat :
+			pSrc->pSourcePict ?
+				pSrc->pSourcePict->type == SourcePictTypeSolidFill :
+			0;
 
 		/* If we couldn't do the Composite in a single pass, and it
 		 * was a component-alpha Over, see if we can do it in two
@@ -1320,13 +1300,13 @@ uxa_composite(CARD8 op,
 			    uxa_try_magic_two_pass_composite_helper(op, pSrc,
 								    pMask, pDst,
 								    xSrc, ySrc,
-								    xMask,
-								    yMask, xDst,
-								    yDst, width,
-								    height);
+								    xMask, yMask,
+								    xDst, yDst,
+								    width, height);
 			if (ret == 1)
 				goto done;
 		}
+
 	}
 
 fallback:

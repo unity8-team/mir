@@ -447,8 +447,9 @@ void i830_set_gem_max_sizes(ScrnInfoPtr scrn);
 drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn);
 
 /* i830_render.c */
-Bool i830_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
+Bool i830_check_composite(int op, PicturePtr source, PicturePtr mask,
 			  PicturePtr dest);
+Bool i830_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i830_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
@@ -460,6 +461,7 @@ void i830_done_composite(PixmapPtr dest);
 /* i915_render.c */
 Bool i915_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			  PicturePtr dest);
+Bool i915_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
@@ -473,6 +475,7 @@ void gen4_render_state_init(ScrnInfoPtr scrn);
 void gen4_render_state_cleanup(ScrnInfoPtr scrn);
 Bool i965_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			  PicturePtr dest);
+Bool i965_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i965_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);

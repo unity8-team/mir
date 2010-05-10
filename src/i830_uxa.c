@@ -1078,17 +1078,20 @@ Bool i830_uxa_init(ScreenPtr screen)
 	/* Composite */
 	if (!IS_I9XX(intel)) {
 		intel->uxa_driver->check_composite = i830_check_composite;
+		intel->uxa_driver->check_composite_texture = i830_check_composite_texture;
 		intel->uxa_driver->prepare_composite = i830_prepare_composite;
 		intel->uxa_driver->composite = i830_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
 	} else if (IS_I915G(intel) || IS_I915GM(intel) ||
 		   IS_I945G(intel) || IS_I945GM(intel) || IS_G33CLASS(intel)) {
 		intel->uxa_driver->check_composite = i915_check_composite;
+		intel->uxa_driver->check_composite_texture = i915_check_composite_texture;
 		intel->uxa_driver->prepare_composite = i915_prepare_composite;
 		intel->uxa_driver->composite = i915_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
 	} else {
 		intel->uxa_driver->check_composite = i965_check_composite;
+		intel->uxa_driver->check_composite_texture = i965_check_composite_texture;
 		intel->uxa_driver->prepare_composite = i965_prepare_composite;
 		intel->uxa_driver->composite = i965_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
