@@ -914,6 +914,8 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	if (w > 32767 || h > 32767)
 		return NullPixmap;
 
+	if (depth == 1)
+		return fbCreatePixmap(screen, w, h, depth, usage);
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE && w <= 32 && h <= 32)
 		return fbCreatePixmap(screen, w, h, depth, usage);
 
@@ -956,7 +958,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			return NullPixmap;
 		}
 
-		/* Perform a premilinary search for an in-flight bo */
+		/* Perform a preliminary search for an in-flight bo */
 		if (usage != UXA_CREATE_PIXMAP_FOR_MAP) {
 			int aligned_h;
 
