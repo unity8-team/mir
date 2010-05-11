@@ -605,15 +605,12 @@ transform_is_integer_translation(PictTransformPtr t, int *tx, int *ty)
 static PicturePtr
 uxa_render_picture(ScreenPtr screen,
 		   PicturePtr src,
+		   pixman_format_code_t format,
 		   INT16 x, INT16 y,
 		   CARD16 width, CARD16 height)
 {
 	PicturePtr picture;
-	pixman_format_code_t format;
 	int ret = 0;
-
-	format = src->format |
-		(BitsPerPixel(src->pDrawable->depth) << 24);
 
 	picture = uxa_picture_for_pixman_format(screen, format, width, height);
 	if (!picture)
@@ -653,7 +650,10 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 	depth = pSrc->pDrawable->depth;
 	if (depth == 1 || !transform_is_integer_translation(pSrc->transform, &tx, &ty)) {
 		/* XXX extract the sample extents and do the transformation on the GPU */
-		pDst = uxa_render_picture(pScreen, pSrc, x, y, width, height);
+		pDst = uxa_render_picture(pScreen, pSrc,
+					  pSrc->format | (BitsPerPixel(pSrc->pDrawable->depth) << 24),
+					  x, y, width, height);
+
 		goto done;
 	} else {
 		if (width == pSrc->pDrawable->width && height == pSrc->pDrawable->depth) {
@@ -698,67 +698,75 @@ done:
 }
 
 static PicturePtr
-uxa_acquire_source(ScreenPtr pScreen,
-		   PicturePtr pPict,
+uxa_acquire_picture(ScreenPtr screen,
+		    PicturePtr src,
+		    pixman_format_code_t format,
+		    INT16 x, INT16 y,
+		    CARD16 width, CARD16 height,
+		    INT16 * out_x, INT16 * out_y)
+{
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+
+	if (uxa_screen->info->check_composite_texture &&
+	    uxa_screen->info->check_composite_texture(screen, src)) {
+		if (src->pDrawable) {
+			*out_x = x + src->pDrawable->x;
+			*out_y = y + src->pDrawable->y;
+		} else {
+			*out_x = x;
+			*out_y = y;
+		}
+		return src;
+	}
+
+	if (src->pDrawable) {
+		PicturePtr dst;
+
+		dst = uxa_acquire_drawable(screen, src,
+					   x, y, width, height,
+					   out_x, out_y);
+		if (uxa_screen->info->check_composite_texture &&
+		    !uxa_screen->info->check_composite_texture(screen, dst)) {
+			if (dst != src)
+				FreePicture(dst, 0);
+			return 0;
+		}
+
+		return dst;
+	}
+
+	*out_x = x;
+	*out_y = y;
+	return uxa_acquire_pattern(screen, src,
+				   format, x, y, width, height);
+}
+
+static PicturePtr
+uxa_acquire_source(ScreenPtr screen,
+		   PicturePtr pict,
 		   INT16 x, INT16 y,
 		   CARD16 width, CARD16 height,
 		   INT16 * out_x, INT16 * out_y)
 {
-	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
-
-	if (uxa_screen->info->check_composite_texture &&
-	    uxa_screen->info->check_composite_texture(pScreen, pPict)) {
-		if (pPict->pDrawable) {
-			*out_x = x + pPict->pDrawable->x;
-			*out_y = y + pPict->pDrawable->y;
-		} else {
-			*out_x = x;
-			*out_y = y;
-		}
-		return pPict;
-	}
-
-	if (pPict->pDrawable)
-		return uxa_acquire_drawable(pScreen, pPict,
-					    x, y, width, height,
-					    out_x, out_y);
-
-	*out_x = 0;
-	*out_y = 0;
-	return uxa_acquire_pattern(pScreen, pPict,
-				   PICT_a8r8g8b8, x, y, width, height);
+	return uxa_acquire_picture (screen, pict,
+				    PICT_a8r8g8b8,
+				    x, y,
+				    width, height,
+				    out_x, out_y);
 }
 
 static PicturePtr
-uxa_acquire_mask(ScreenPtr pScreen,
-		 PicturePtr pPict,
+uxa_acquire_mask(ScreenPtr screen,
+		 PicturePtr pict,
 		 INT16 x, INT16 y,
 		 INT16 width, INT16 height,
 		 INT16 * out_x, INT16 * out_y)
 {
-	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
-
-	if (uxa_screen->info->check_composite_texture &&
-	    uxa_screen->info->check_composite_texture(pScreen, pPict)) {
-		if (pPict->pDrawable) {
-			*out_x = x + pPict->pDrawable->x;
-			*out_y = y + pPict->pDrawable->y;
-		} else {
-			*out_x = x;
-			*out_y = y;
-		}
-		return pPict;
-	}
-
-	if (pPict->pDrawable)
-		return uxa_acquire_drawable(pScreen, pPict,
-					    x, y, width, height,
-					    out_x, out_y);
-
-	*out_x = 0;
-	*out_y = 0;
-	return uxa_acquire_pattern(pScreen, pPict,
-				   PICT_a8, x, y, width, height);
+	return uxa_acquire_picture (screen, pict,
+				    PICT_a8,
+				    x, y,
+				    width, height,
+				    out_x, out_y);
 }
 
 static int
