@@ -741,18 +741,12 @@ i830_uxa_pixmap_swap_bo_with_image(PixmapPtr pixmap,
 		if (tiling != I915_TILING_NONE)
 			drm_intel_bo_set_tiling(bo, &tiling, stride);
 
-		dri_bo_unreference(priv->bo);
-		priv->bo = bo;
-		priv->tiling = tiling;
-		priv->stride = stride;
-		priv->batch_read_domains = priv->batch_write_domain = 0;
-		priv->flush_read_domains = priv->flush_write_domain = 0;
-		list_del(&priv->batch);
-		list_del(&priv->flush);
 		pixmap->drawable.pScreen->ModifyPixmapHeader(pixmap,
 							     w, h,
 							     0, 0,
 							     stride, NULL);
+		i830_set_pixmap_bo(pixmap, bo);
+		dri_bo_unreference(bo);
 	} else {
 		bo = priv->bo;
 		stride = i830_pixmap_pitch(pixmap);
