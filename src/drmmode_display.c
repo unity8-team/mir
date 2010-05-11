@@ -1290,10 +1290,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	pixmap = screen->GetScreenPixmap(screen);
-	i830_set_pixmap_bo(pixmap, intel->front_buffer);
-	assert (i830_get_pixmap_intel(pixmap)->stride == pitch);
-
 	screen->ModifyPixmapHeader(pixmap, width, height, -1, -1, pitch, NULL);
+	i830_set_pixmap_bo(pixmap, intel->front_buffer);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
