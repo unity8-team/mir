@@ -296,6 +296,7 @@ typedef struct intel_screen_private {
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
 	int accel_max_y;
+	int max_bo_size;
 	int max_gtt_map_size;
 	int max_tiling_size;
 

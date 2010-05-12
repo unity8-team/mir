@@ -274,50 +274,55 @@ drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
 	return front_buffer;
 }
 
-static void i830_set_max_gtt_map_size(ScrnInfoPtr scrn)
+static void i830_set_max_bo_size(intel_screen_private *intel,
+				 const struct drm_i915_gem_get_aperture *aperture)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct drm_i915_gem_get_aperture aperture;
-	int ret;
+	if (aperture->aper_available_size)
+		/* Large BOs will tend to hit SW fallbacks frequently, and also will
+		 * tend to fail to successfully map when doing SW fallbacks because we
+		 * overcommit address space for BO access, or worse cause aperture
+		 * thrashing.
+		 */
+		intel->max_bo_size = aperture->aper_available_size / 2;
+	else
+		intel->max_bo_size = 64 * 1024 * 1024;
+}
 
-	/* Default low value in case it gets used during server init. */
-	intel->max_gtt_map_size = 16 * 1024 * 1024;
-
-	ret =
-	    ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
-	if (ret == 0) {
+static void i830_set_max_gtt_map_size(intel_screen_private *intel,
+				      const struct drm_i915_gem_get_aperture *aperture)
+{
+	if (aperture->aper_available_size)
 		/* Let objects up get bound up to the size where only 2 would fit in
 		 * the aperture, but then leave slop to account for alignment like
 		 * libdrm does.
 		 */
 		intel->max_gtt_map_size =
-		    aperture.aper_available_size * 3 / 4 / 2;
-	}
+			aperture->aper_available_size * 3 / 4 / 2;
+	else
+		intel->max_gtt_map_size = 16 * 1024 * 1024;
 }
 
-static void i830_set_max_tiling_size(ScrnInfoPtr scrn)
+static void i830_set_max_tiling_size(intel_screen_private *intel,
+				     const struct drm_i915_gem_get_aperture *aperture)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct drm_i915_gem_get_aperture aperture;
-	int ret;
-
-	/* Default low value in case it gets used during server init. */
-	intel->max_tiling_size = 4 * 1024 * 1024;
-
-	ret =
-	    ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
-	if (ret == 0) {
+	if (aperture->aper_available_size)
 		/* Let objects be tiled up to the size where only 4 would fit in
 		 * the aperture, presuming worst case alignment.
 		 */
-		intel->max_tiling_size = aperture.aper_available_size / 4;
-		if (!IS_I965G(intel))
-			intel->max_tiling_size /= 2;
-	}
+		intel->max_tiling_size = aperture->aper_available_size / 4;
+	else
+		intel->max_tiling_size = 4 * 1024 * 1024;
 }
 
 void i830_set_gem_max_sizes(ScrnInfoPtr scrn)
 {
-	i830_set_max_gtt_map_size(scrn);
-	i830_set_max_tiling_size(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct drm_i915_gem_get_aperture aperture;
+
+	aperture.aper_available_size = 0;
+	ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+
+	i830_set_max_bo_size(intel, &aperture);
+	i830_set_max_gtt_map_size(intel, &aperture);
+	i830_set_max_tiling_size(intel, &aperture);
 }

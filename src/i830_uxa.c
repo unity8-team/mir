@@ -944,18 +944,13 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		}
 		size = i830_uxa_pixmap_compute_size(pixmap, w, h, &tiling, &stride);
 
-		/* Fail very large allocations on 32-bit systems.  Large BOs will
-		 * tend to hit SW fallbacks frequently, and also will tend to fail
-		 * to successfully map when doing SW fallbacks because we overcommit
-		 * address space for BO access.
-		 *
-		 * Note that size should fit in 32 bits.  We throw out >32767x32767x4,
-		 * and pitch alignment could get us up to 32768x32767x4.
+		/* Fail very large allocations.  Large BOs will tend to hit SW fallbacks
+		 * frequently, and also will tend to fail to successfully map when doing
+		 * SW fallbacks because we overcommit address space for BO access.
 		 */
-		if (sizeof(unsigned long) == 4 &&
-		    size > (unsigned int)(1024 * 1024 * 1024)) {
+		if (size > intel->max_bo_size) {
 			fbDestroyPixmap(pixmap);
-			return NullPixmap;
+			return fbCreatePixmap(screen, w, h, depth, usage);
 		}
 
 		/* Perform a preliminary search for an in-flight bo */
