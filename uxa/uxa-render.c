@@ -450,74 +450,84 @@ uxa_picture_for_pixman_format(ScreenPtr pScreen,
 }
 
 static PicturePtr
-uxa_picture_from_pixman_image(ScreenPtr pScreen,
+uxa_picture_from_pixman_image(ScreenPtr screen,
 			      pixman_image_t * image,
 			      pixman_format_code_t format)
 {
-	PicturePtr pPicture;
-	PixmapPtr pPixmap;
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+	PicturePtr picture;
+	PixmapPtr pixmap;
 	int width, height;
 
 	width = pixman_image_get_width(image);
 	height = pixman_image_get_height(image);
 
-	pPicture = uxa_picture_for_pixman_format(pScreen, format,
-						 width, height);
-	if (!pPicture)
+	picture = uxa_picture_for_pixman_format(screen, format,
+						width, height);
+	if (!picture)
 		return 0;
 
-	pPixmap = GetScratchPixmapHeader(pScreen, width, height,
-					 PIXMAN_FORMAT_DEPTH(format),
-					 PIXMAN_FORMAT_BPP(format),
-					 pixman_image_get_stride(image),
-					 pixman_image_get_data(image));
-	if (!pPixmap) {
-		FreePicture(pPicture, 0);
+	if (uxa_screen->info->put_image &&
+	    ((picture->pDrawable->depth << 24) | picture->format) == format &&
+	    uxa_screen->info->put_image((PixmapPtr)picture->pDrawable,
+					0, 0,
+					width, height,
+					(char *)pixman_image_get_data(image),
+					pixman_image_get_stride(image)))
+		return picture;
+
+	pixmap = GetScratchPixmapHeader(screen, width, height,
+					PIXMAN_FORMAT_DEPTH(format),
+					PIXMAN_FORMAT_BPP(format),
+					pixman_image_get_stride(image),
+					pixman_image_get_data(image));
+	if (!pixmap) {
+		FreePicture(picture, 0);
 		return 0;
 	}
 
-	if (((pPicture->pDrawable->depth << 24) | pPicture->format) == format) {
-	    GCPtr pGC;
+	if (((picture->pDrawable->depth << 24) | picture->format) == format) {
+		GCPtr gc;
 
-	    pGC = GetScratchGC(PIXMAN_FORMAT_DEPTH(format), pScreen);
-	    if (!pGC) {
-		FreeScratchPixmapHeader(pPixmap);
-		FreePicture(pPicture, 0);
-		return 0;
-	    }
-	    ValidateGC(pPicture->pDrawable, pGC);
+		gc = GetScratchGC(PIXMAN_FORMAT_DEPTH(format), screen);
+		if (!gc) {
+			FreeScratchPixmapHeader(pixmap);
+			FreePicture(picture, 0);
+			return 0;
+		}
+		ValidateGC(picture->pDrawable, gc);
 
-	    (*pGC->ops->CopyArea) (&pPixmap->drawable, pPicture->pDrawable,
-				   pGC, 0, 0, width, height, 0, 0);
+		(*gc->ops->CopyArea) (&pixmap->drawable, picture->pDrawable,
+				      gc, 0, 0, width, height, 0, 0);
 
-	    FreeScratchGC(pGC);
+		FreeScratchGC(gc);
 	} else {
-	    PicturePtr pSrc;
-	    int error;
+		PicturePtr src;
+		int error;
 
-	    pSrc = CreatePicture(0, &pPixmap->drawable,
-				 PictureMatchFormat(pScreen,
-						    PIXMAN_FORMAT_DEPTH(format),
-						    format),
-				 0, 0, serverClient, &error);
-	    if (!pSrc) {
-		FreeScratchPixmapHeader(pPixmap);
-		FreePicture(pPicture, 0);
-		return 0;
-	    }
-	    ValidatePicture(pSrc);
+		src = CreatePicture(0, &pixmap->drawable,
+				    PictureMatchFormat(screen,
+						       PIXMAN_FORMAT_DEPTH(format),
+						       format),
+				    0, 0, serverClient, &error);
+		if (!src) {
+			FreeScratchPixmapHeader(pixmap);
+			FreePicture(picture, 0);
+			return 0;
+		}
+		ValidatePicture(src);
 
-	    if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
-		fbComposite(PictOpSrc, pSrc, NULL, pPicture,
-			    0, 0, 0, 0, 0, 0, width, height);
-		uxa_finish_access(pPicture->pDrawable);
-	    }
+		if (uxa_prepare_access(picture->pDrawable, UXA_ACCESS_RW)) {
+			fbComposite(PictOpSrc, src, NULL, picture,
+				    0, 0, 0, 0, 0, 0, width, height);
+			uxa_finish_access(picture->pDrawable);
+		}
 
-	    FreePicture(pSrc, 0);
+		FreePicture(src, 0);
 	}
-	FreeScratchPixmapHeader(pPixmap);
+	FreeScratchPixmapHeader(pixmap);
 
-	return pPicture;
+	return picture;
 }
 
 static PicturePtr
