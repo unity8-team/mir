@@ -1553,15 +1553,15 @@ uxa_create_alpha_picture(ScreenPtr pScreen,
  * uxa_check_poly_fill_rect to initialize the contents.
  */
 void
-uxa_trapezoids(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
+uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 	       PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
 	       int ntrap, xTrapezoid * traps)
 {
-	ScreenPtr pScreen = pDst->pDrawable->pScreen;
-	PictureScreenPtr ps = GetPictureScreen(pScreen);
+	ScreenPtr screen = dst->pDrawable->pScreen;
 	BoxRec bounds;
-	Bool direct = op == PictOpAdd && miIsSolidAlpha(pSrc);
+	Bool direct;
 
+	direct = op == PictOpAdd && miIsSolidAlpha(src);
 	if (maskFormat || direct) {
 		miTrapezoidBounds(ntrap, traps, &bounds);
 
@@ -1573,7 +1573,7 @@ uxa_trapezoids(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	 * Check for solid alpha add
 	 */
 	if (direct) {
-		DrawablePtr pDraw = pDst->pDrawable;
+		DrawablePtr pDraw = dst->pDrawable;
 		PixmapPtr pixmap = uxa_get_drawable_pixmap(pDraw);
 		int xoff, yoff;
 
@@ -1583,12 +1583,15 @@ uxa_trapezoids(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 		yoff += pDraw->y;
 
 		if (uxa_prepare_access(pDraw, UXA_ACCESS_RW)) {
+			PictureScreenPtr ps = GetPictureScreen(screen);
+
 			for (; ntrap; ntrap--, traps++)
-				(*ps->RasterizeTrapezoid) (pDst, traps, 0, 0);
+				(*ps->RasterizeTrapezoid) (dst, traps, 0, 0);
 			uxa_finish_access(pDraw);
 		}
 	} else if (maskFormat) {
-		PicturePtr pPicture;
+		PixmapPtr scratch = NULL;
+		PicturePtr mask;
 		INT16 xDst, yDst;
 		INT16 xRel, yRel;
 		int width, height;
@@ -1612,28 +1615,48 @@ uxa_trapezoids(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 			pixman_rasterize_trapezoid(image,
 						   (pixman_trapezoid_t *) traps,
 						   -bounds.x1, -bounds.y1);
+		if (uxa_drawable_is_offscreen(dst->pDrawable)) {
+			mask = uxa_picture_from_pixman_image(screen, image, format);
+		} else {
+			int error;
 
-		pPicture =
-		    uxa_picture_from_pixman_image(pScreen, image, format);
-		pixman_image_unref(image);
-		if (!pPicture)
+			scratch = GetScratchPixmapHeader(screen, width, height,
+							PIXMAN_FORMAT_DEPTH(format),
+							PIXMAN_FORMAT_BPP(format),
+							pixman_image_get_stride(image),
+							pixman_image_get_data(image));
+			mask = CreatePicture(0, &scratch->drawable,
+					     PictureMatchFormat(screen,
+								PIXMAN_FORMAT_DEPTH(format),
+								format),
+					     0, 0, serverClient, &error);
+		}
+		if (!mask) {
+			if (scratch)
+				FreeScratchPixmapHeader(scratch);
+			pixman_image_unref(image);
 			return;
+		}
 
 		xRel = bounds.x1 + xSrc - xDst;
 		yRel = bounds.y1 + ySrc - yDst;
-		CompositePicture(op, pSrc, pPicture, pDst,
+		CompositePicture(op, src, mask, dst,
 				 xRel, yRel,
 				 0, 0,
 				 bounds.x1, bounds.y1,
 				 width, height);
-		FreePicture(pPicture, 0);
+		FreePicture(mask, 0);
+
+		if (scratch)
+			FreeScratchPixmapHeader(scratch);
+		pixman_image_unref(image);
 	} else {
-		if (pDst->polyEdge == PolyEdgeSharp)
-			maskFormat = PictureMatchFormat(pScreen, 1, PICT_a1);
+		if (dst->polyEdge == PolyEdgeSharp)
+			maskFormat = PictureMatchFormat(screen, 1, PICT_a1);
 		else
-			maskFormat = PictureMatchFormat(pScreen, 8, PICT_a8);
+			maskFormat = PictureMatchFormat(screen, 8, PICT_a8);
 		for (; ntrap; ntrap--, traps++)
-			uxa_trapezoids(op, pSrc, pDst, maskFormat, xSrc, ySrc,
+			uxa_trapezoids(op, src, dst, maskFormat, xSrc, ySrc,
 				       1, traps);
 	}
 }
