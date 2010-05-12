@@ -735,6 +735,120 @@ uxa_glyphs_intersect(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 	return FALSE;
 }
 
+static void
+uxa_check_glyphs(CARD8 op,
+		 PicturePtr src,
+		 PicturePtr dst,
+		 PictFormatPtr maskFormat,
+		 INT16 xSrc,
+		 INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs)
+{
+	int screen = dst->pDrawable->pScreen->myNum;
+	pixman_image_t *image;
+	PixmapPtr scratch;
+	PicturePtr mask;
+	int width = 0, height = 0;
+	int x, y, n;
+	int xDst = list->xOff, yDst = list->yOff;
+	BoxRec extents = { 0, 0, 0, 0 };
+
+	if (maskFormat) {
+		pixman_format_code_t format;
+		CARD32 component_alpha;
+		int error;
+
+		uxa_glyph_extents(nlist, list, glyphs, &extents);
+		if (extents.x2 <= extents.x1 || extents.y2 <= extents.y1)
+			return;
+
+		width = extents.x2 - extents.x1;
+		height = extents.y2 - extents.y1;
+
+		format = maskFormat->format |
+			(BitsPerPixel(maskFormat->depth) << 24);
+		image =
+			pixman_image_create_bits(format, width, height, NULL, 0);
+		if (!image)
+			return;
+
+		scratch = GetScratchPixmapHeader(dst->pDrawable->pScreen, width, height,
+						 PIXMAN_FORMAT_DEPTH(format),
+						 PIXMAN_FORMAT_BPP(format),
+						 pixman_image_get_stride(image),
+						 pixman_image_get_data(image));
+
+		if (!scratch) {
+			pixman_image_unref(image);
+			return;
+		}
+
+		component_alpha = NeedsComponent(maskFormat->format);
+		mask = CreatePicture(0, &scratch->drawable,
+				     maskFormat, CPComponentAlpha,
+				     &component_alpha, serverClient, &error);
+		if (!mask) {
+			FreeScratchPixmapHeader(scratch);
+			pixman_image_unref(image);
+			return;
+		}
+
+		x = -extents.x1;
+		y = -extents.y1;
+	} else {
+		mask = dst;
+		x = 0;
+		y = 0;
+	}
+
+	while (nlist--) {
+		x += list->xOff;
+		y += list->yOff;
+		n = list->len;
+		while (n--) {
+			GlyphPtr glyph = *glyphs++;
+			PicturePtr g = GlyphPicture(glyph)[screen];
+			if (g) {
+				if (maskFormat) {
+					CompositePicture(PictOpAdd, g, NULL, mask,
+							 0, 0,
+							 0, 0,
+							 x - glyph->info.x,
+							 y - glyph->info.y,
+							 glyph->info.width,
+							 glyph->info.height);
+				} else {
+					CompositePicture(op, src, g, dst,
+							 xSrc + (x - glyph->info.x) - xDst,
+							 ySrc + (y - glyph->info.y) - yDst,
+							 0, 0,
+							 x - glyph->info.x,
+							 y - glyph->info.y,
+							 glyph->info.width,
+							 glyph->info.height);
+				}
+			}
+
+			x += glyph->info.xOff;
+			y += glyph->info.yOff;
+		}
+		list++;
+	}
+
+	if (maskFormat) {
+		x = extents.x1;
+		y = extents.y1;
+		CompositePicture(op, src, mask, dst,
+				 xSrc + x - xDst,
+				 ySrc + y - yDst,
+				 0, 0,
+				 x, y,
+				 width, height);
+		FreePicture(mask, 0);
+		FreeScratchPixmapHeader(scratch);
+		pixman_image_unref(image);
+	}
+}
+
 void
 uxa_glyphs(CARD8 op,
 	   PicturePtr pSrc,
@@ -755,6 +869,11 @@ uxa_glyphs(CARD8 op,
 	BoxRec extents = { 0, 0, 0, 0 };
 	CARD32 component_alpha;
 	uxa_glyph_buffer_t buffer;
+
+	if (!uxa_drawable_is_offscreen(pDst->pDrawable)) {
+	    uxa_check_glyphs(op, pSrc, pDst, maskFormat, xSrc, ySrc, nlist, list, glyphs);
+	    return;
+	}
 
 	/* If we don't have a mask format but all the glyphs have the same format
 	 * and don't intersect, use the glyph format as mask format for the full
