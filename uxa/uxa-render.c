@@ -1324,6 +1324,9 @@ uxa_composite(CARD8 op,
 	if (uxa_screen->swappedOut)
 		goto fallback;
 
+	if (!uxa_drawable_is_offscreen(pDst->pDrawable))
+	    goto fallback;
+
 	/* Remove repeat in source if useless */
 	if (pSrc->pDrawable && pSrc->repeat &&
 	    transform_is_integer_translation(pSrc->transform, &tx, &ty) &&
