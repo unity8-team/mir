@@ -85,28 +85,87 @@ static void uxa_composite_fallback_pict_desc(PicturePtr pict, char *string,
 		 pict->alphaMap ? " with alpha map" :"");
 }
 
+static const char *
+op_to_string(CARD8 op)
+{
+    switch (op) {
+#define C(x) case PictOp##x: return #x
+	C(Clear);
+	C(Src);
+	C(Dst);
+	C(Over);
+	C(OverReverse);
+	C(In);
+	C(InReverse);
+	C(Out);
+	C(OutReverse);
+	C(Atop);
+	C(AtopReverse);
+	C(Xor);
+	C(Add);
+	C(Saturate);
+
+	/*
+	 * Operators only available in version 0.2
+	 */
+	C(DisjointClear);
+	C(DisjointSrc);
+	C(DisjointDst);
+	C(DisjointOver);
+	C(DisjointOverReverse);
+	C(DisjointIn);
+	C(DisjointInReverse);
+	C(DisjointOut);
+	C(DisjointOutReverse);
+	C(DisjointAtop);
+	C(DisjointAtopReverse);
+	C(DisjointXor);
+
+	C(ConjointClear);
+	C(ConjointSrc);
+	C(ConjointDst);
+	C(ConjointOver);
+	C(ConjointOverReverse);
+	C(ConjointIn);
+	C(ConjointInReverse);
+	C(ConjointOut);
+	C(ConjointOutReverse);
+	C(ConjointAtop);
+	C(ConjointAtopReverse);
+	C(ConjointXor);
+
+	/*
+	 * Operators only available in version 0.11
+	 */
+	C(Multiply);
+	C(Screen);
+	C(Overlay);
+	C(Darken);
+	C(Lighten);
+	C(ColorDodge);
+	C(ColorBurn);
+	C(HardLight);
+	C(SoftLight);
+	C(Difference);
+	C(Exclusion);
+	C(HSLHue);
+	C(HSLSaturation);
+	C(HSLColor);
+	C(HSLLuminosity);
+    default: return "garbage";
+#undef C
+    }
+}
+
 static void
 uxa_print_composite_fallback(const char *func, CARD8 op,
 			     PicturePtr pSrc, PicturePtr pMask, PicturePtr pDst)
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDst->pDrawable->pScreen);
-	char sop[20];
 	char srcdesc[40], maskdesc[40], dstdesc[40];
 
 	if (! uxa_screen->fallback_debug)
 		return;
-
-	switch (op) {
-	case PictOpSrc:
-		sprintf(sop, "Src");
-		break;
-	case PictOpOver:
-		sprintf(sop, "Over");
-		break;
-	default:
-		sprintf(sop, "0x%x", (int)op);
-		break;
-	}
 
 	uxa_composite_fallback_pict_desc(pSrc, srcdesc, 40);
 	uxa_composite_fallback_pict_desc(pMask, maskdesc, 40);
@@ -118,7 +177,7 @@ uxa_print_composite_fallback(const char *func, CARD8 op,
 	       "  mask %s, \n"
 	       "  dst  %s, \n"
 	       "  screen %s\n",
-	       func, sop, srcdesc, maskdesc, dstdesc,
+	       func, op_to_string (op), srcdesc, maskdesc, dstdesc,
 	       uxa_screen->swappedOut ? "swapped out" : "normal");
 }
 
