@@ -78,7 +78,7 @@ const int I830PatternROP[16] = {
 	ROP_1
 };
 
-static int uxa_pixmap_index;
+int uxa_pixmap_index;
 
 Bool
 i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
@@ -527,16 +527,6 @@ Bool i830_transform_is_affine(PictTransformPtr t)
 	return t->matrix[2][0] == 0 && t->matrix[2][1] == 0;
 }
 
-struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap)
-{
-	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
-}
-
-static void i830_uxa_set_pixmap_intel(PixmapPtr pixmap, struct intel_pixmap *intel)
-{
-	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, intel);
-}
-
 dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap)
 {
 	struct intel_pixmap *intel;
@@ -604,7 +594,7 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 	}
 
   BAIL:
-	i830_uxa_set_pixmap_intel(pixmap, priv);
+	i830_set_pixmap_intel(pixmap, priv);
 }
 
 static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
@@ -985,7 +975,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 				list_del(&priv->in_flight);
 				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
-				i830_uxa_set_pixmap_intel(pixmap, priv);
+				i830_set_pixmap_intel(pixmap, priv);
 				return pixmap;
 			}
 		}
@@ -1020,7 +1010,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 		list_init(&priv->batch);
 		list_init(&priv->flush);
-		i830_uxa_set_pixmap_intel(pixmap, priv);
+		i830_set_pixmap_intel(pixmap, priv);
 	}
 
 	return pixmap;

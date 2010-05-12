@@ -434,7 +434,9 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 			DRI2BufferPtr back)
 {
 	I830DRI2BufferPrivatePtr front_priv, back_priv;
-	dri_bo *tmp_bo;
+	struct intel_pixmap *front_intel, *back_intel;
+	ScreenPtr screen;
+	intel_screen_private *intel;
 	int tmp;
 
 	front_priv = front->driverPrivate;
@@ -446,17 +448,21 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 	back->name = tmp;
 
 	/* Swap pixmap bos */
+	front_intel = i830_get_pixmap_intel(front_priv->pixmap);
+	back_intel = i830_get_pixmap_intel(back_priv->pixmap);
+	i830_set_pixmap_intel(front_priv->pixmap, back_intel);
+	i830_set_pixmap_intel(back_priv->pixmap, front_intel); /* should be screen */
 
-	/* Hold a ref on the front so the set calls below don't destroy it */
-	dri_bo_reference(i830_get_pixmap_bo(front_priv->pixmap));
-
-	tmp_bo = i830_get_pixmap_bo(front_priv->pixmap);
-	i830_set_pixmap_bo(front_priv->pixmap,
-			   i830_get_pixmap_bo(back_priv->pixmap));
-	i830_set_pixmap_bo(back_priv->pixmap, tmp_bo); /* should be screen */
-
-	/* Release our ref, the last set should have bumped it */
-	dri_bo_unreference(tmp_bo);
+	/* Do we need to update the Screen? */
+	screen = draw->pScreen;
+	intel = intel_get_screen_private(xf86Screens[screen->myNum]);
+	if (front_intel->bo == intel->front_buffer) {
+	    dri_bo_unreference (intel->front_buffer);
+	    intel->front_buffer = back_intel->bo;
+	    dri_bo_reference (intel->front_buffer);
+	    i830_set_pixmap_intel(screen->GetScreenPixmap(screen),
+				  back_intel);
+	}
 }
 
 /*
@@ -469,9 +475,7 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 {
 	ScreenPtr screen = draw->pScreen;
 	I830DRI2BufferPrivatePtr front_priv, back_priv;
-	dri_bo *tmp_bo;
 	DRI2FrameEventPtr flip_info;
-	Bool ret;
 
 	flip_info = xcalloc(1, sizeof(DRI2FrameEventRec));
 	if (!flip_info)
@@ -485,25 +489,12 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	front_priv = front->driverPrivate;
 	back_priv = back->driverPrivate;
-	tmp_bo = i830_get_pixmap_bo(front_priv->pixmap);
-
-	I830DRI2ExchangeBuffers(draw, front, back);
 
 	/* Page flip the full screen buffer */
-	ret = drmmode_do_pageflip(screen,
-				  i830_get_pixmap_bo(front_priv->pixmap),
-				  i830_get_pixmap_bo(back_priv->pixmap),
-				  flip_info);
-
-	/* Unwind in case of failure */
-	if (!ret) {
-	    i830_set_pixmap_bo(back_priv->pixmap,
-			       i830_get_pixmap_bo(front_priv->pixmap));
-	    i830_set_pixmap_bo(front_priv->pixmap, tmp_bo);
-	    return FALSE;
-	}
-
-	return ret;
+	return drmmode_do_pageflip(screen,
+				   i830_get_pixmap_bo(front_priv->pixmap),
+				   i830_get_pixmap_bo(back_priv->pixmap),
+				   flip_info);
 }
 
 void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
@@ -535,6 +526,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 		    I830DRI2ScheduleFlip(event->client, drawable, event->front,
 					 event->back, event->event_complete,
 					 event->event_data)) {
+			I830DRI2ExchangeBuffers(drawable,
+						event->front, event->back);
 			break;
 		}
 		/* else fall through to exchange/blit */

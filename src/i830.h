@@ -154,7 +154,17 @@ struct intel_pixmap {
 	struct list flush, batch, in_flight;
 };
 
-struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap);
+extern int uxa_pixmap_index;
+
+static inline struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap)
+{
+	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
+}
+
+static inline void i830_set_pixmap_intel(PixmapPtr pixmap, struct intel_pixmap *intel)
+{
+	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, intel);
+}
 
 static inline Bool i830_uxa_pixmap_is_dirty(PixmapPtr pixmap)
 {
