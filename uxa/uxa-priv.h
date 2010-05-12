@@ -156,6 +156,7 @@ typedef struct {
 	BitmapToRegionProcPtr SavedBitmapToRegion;
 #ifdef RENDER
 	CompositeProcPtr SavedComposite;
+	CompositeRectsProcPtr SavedCompositeRects;
 	TrianglesProcPtr SavedTriangles;
 	GlyphsProcPtr SavedGlyphs;
 	TrapezoidsProcPtr SavedTrapezoids;
@@ -415,6 +416,13 @@ void
 uxa_composite_rects(CARD8 op,
 		    PicturePtr pSrc,
 		    PicturePtr pDst, int nrect, uxa_composite_rect_t * rects);
+
+void
+uxa_solid_rects (CARD8		op,
+		 PicturePtr	dst,
+		 xRenderColor  *color,
+		 int		num_rects,
+		 xRectangle    *rects);
 
 void
 uxa_trapezoids(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
