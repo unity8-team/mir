@@ -559,6 +559,21 @@ uxa_create_solid(ScreenPtr screen, uint32_t color)
 }
 
 static PicturePtr
+uxa_solid_clear(ScreenPtr screen)
+{
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+	PicturePtr picture;
+
+	if (!uxa_screen->solid_clear) {
+		uxa_screen->solid_clear = uxa_create_solid(screen, 0);
+		if (!uxa_screen->solid_clear)
+			return 0;
+	}
+	picture = uxa_screen->solid_clear;
+	return picture;
+}
+
+static PicturePtr
 uxa_acquire_solid(ScreenPtr screen, SourcePict *source)
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
@@ -567,12 +582,10 @@ uxa_acquire_solid(ScreenPtr screen, SourcePict *source)
 	int i;
 
 	if ((solid->color >> 24) == 0) {
-		if (!uxa_screen->solid_clear) {
-			uxa_screen->solid_clear = uxa_create_solid(screen, 0);
-			if (!uxa_screen->solid_clear)
-				return 0;
-		}
-		picture = uxa_screen->solid_clear;
+		picture = uxa_solid_clear(screen);
+		if (!picture)
+		    return 0;
+
 		goto DONE;
 	} else if (solid->color == 0xff000000) {
 		if (!uxa_screen->solid_black) {
@@ -1335,6 +1348,16 @@ uxa_composite(CARD8 op,
 		pSrc->repeat = 0;
 
 	if (!pMask) {
+		if (op == PictOpClear) {
+			PicturePtr clear = uxa_solid_clear(pDst->pDrawable->pScreen);
+			if (clear &&
+			    uxa_try_driver_solid_fill(clear, pDst,
+						      xSrc, ySrc,
+						      xDst, yDst,
+						      width, height) == 1)
+				goto done;
+		}
+
 		if (pSrc->pDrawable == NULL) {
 			if (pSrc->pSourcePict) {
 				SourcePict *source = pSrc->pSourcePict;
