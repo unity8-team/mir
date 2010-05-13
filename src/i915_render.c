@@ -492,6 +492,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	uint32_t blendctl, tiling_bits;
 	Bool is_affine_src, is_affine_mask;
 	Bool is_solid_src, is_solid_mask;
+	Bool dst_has_alpha = PICT_FORMAT_A(dest_picture->format);
 	int tex_count, t;
 
 	intel->needs_render_state_emit = FALSE;
@@ -636,21 +637,40 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		}
 	    }
 
-	    /* Load the source_picture texel */
-	    if (! is_solid_src) {
-		if (is_affine_src) {
-		    i915_fs_texld(FS_R0, FS_S0, FS_T0);
-		} else {
-		    i915_fs_texldp(FS_R0, FS_S0, FS_T0);
-		}
-
-		src_reg = FS_R0;
-	    }
-
 	    if (!mask) {
-		/* No mask, so move to output color */
-		i915_fs_mov(out_reg, i915_fs_operand_reg(src_reg));
+		    /* No mask, so load directly to output color */
+		    if (! is_solid_src) {
+			    if (dst_format == COLR_BUF_8BIT)
+				    src_reg = FS_R0;
+			    else if (dst_has_alpha)
+				    src_reg = FS_OC;
+			    else
+				    src_reg = FS_R0;
+			    if (is_affine_src)
+				    i915_fs_texld(src_reg, FS_S0, FS_T0);
+			    else
+				    i915_fs_texldp(src_reg, FS_S0, FS_T0);
+		    }
+		    if (src_reg != FS_OC) {
+			    if (dst_format == COLR_BUF_8BIT)
+				    i915_fs_mov(FS_OC, i915_fs_operand(src_reg, W, W, W, W));
+			    else if (dst_has_alpha)
+				    i915_fs_mov(FS_OC, i915_fs_operand_reg(src_reg));
+			    else
+				    i915_fs_mov(FS_OC, i915_fs_operand(src_reg, X, Y, Z, ONE));
+		    }
 	    } else {
+		    if (! is_solid_src) {
+			    /* Load the source_picture texel */
+			    if (is_affine_src) {
+				    i915_fs_texld(FS_R0, FS_S0, FS_T0);
+			    } else {
+				    i915_fs_texldp(FS_R0, FS_S0, FS_T0);
+			    }
+
+			    src_reg = FS_R0;
+		    }
+
 		if (! is_solid_mask) {
 		    /* Load the mask_picture texel */
 		    if (is_affine_mask) {
@@ -673,24 +693,40 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		 * source value (src.X * mask.A).
 		 */
 		if (mask_picture->componentAlpha &&
-			PICT_FORMAT_RGB(mask_picture->format)) {
-		    if (i915_blend_op[op].src_alpha) {
-			i915_fs_mul(out_reg,
-				    i915_fs_operand(src_reg, W, W, W, W),
-				    i915_fs_operand_reg(mask_reg));
-		    } else {
-			    i915_fs_mul(out_reg,
-					i915_fs_operand_reg(src_reg),
-					i915_fs_operand_reg(mask_reg));
-		    }
+		    PICT_FORMAT_RGB(mask_picture->format)) {
+			if (i915_blend_op[op].src_alpha) {
+				if (dst_has_alpha)
+					i915_fs_mul(out_reg,
+						    i915_fs_operand(src_reg, W, W, W, W),
+						    i915_fs_operand_reg(mask_reg));
+				else
+					i915_fs_mul(out_reg,
+						    i915_fs_operand(src_reg, W, W, W, ONE),
+						    i915_fs_operand(mask_reg, X, Y, Z, ONE));
+			} else {
+				if (dst_has_alpha)
+					i915_fs_mul(out_reg,
+						    i915_fs_operand_reg(src_reg),
+						    i915_fs_operand_reg(mask_reg));
+				else
+					i915_fs_mul(out_reg,
+						    i915_fs_operand(src_reg, X, Y, Z, ONE),
+						    i915_fs_operand(mask_reg, X, Y, Z, ONE));
+			}
 		} else {
-		    i915_fs_mul(out_reg,
-				i915_fs_operand_reg(src_reg),
-				i915_fs_operand(mask_reg, W, W, W, W));
+			if (dst_has_alpha)
+				i915_fs_mul(out_reg,
+					    i915_fs_operand_reg(src_reg),
+					    i915_fs_operand(mask_reg, W, W, W, W));
+			else
+				i915_fs_mul(out_reg,
+					    i915_fs_operand(src_reg, X, Y, Z, ONE),
+					    i915_fs_operand(mask_reg, W, W, W, ONE));
 		}
+
+		if (dst_format == COLR_BUF_8BIT)
+		    i915_fs_mov(FS_OC, i915_fs_operand(out_reg, W, W, W, W));
 	    }
-	    if (dst_format == COLR_BUF_8BIT)
-		i915_fs_mov(FS_OC, i915_fs_operand(out_reg, W, W, W, W));
 
 	    FS_END();
 	}
