@@ -1362,12 +1362,16 @@ uxa_composite(CARD8 op,
 			if (pSrc->pSourcePict) {
 				SourcePict *source = pSrc->pSourcePict;
 				if (source->type == SourcePictTypeSolidFill) {
-					ret = uxa_try_driver_solid_fill(pSrc, pDst,
-									xSrc, ySrc,
-									xDst, yDst,
-									width, height);
-					if (ret == 1)
-						goto done;
+					if (op == PictOpSrc ||
+					    (op == PictOpOver &&
+					     (source->solidFill.color & 0xff000000) == 0xff000000)) {
+						ret = uxa_try_driver_solid_fill(pSrc, pDst,
+										xSrc, ySrc,
+										xDst, yDst,
+										width, height);
+						if (ret == 1)
+							goto done;
+					}
 				}
 			}
 		} else if (compatible_formats (op, pDst, pSrc)) {
