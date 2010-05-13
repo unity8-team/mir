@@ -1276,9 +1276,6 @@ compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
 		if (dst->format == PICT_a8r8g8b8 && src->format == PICT_x8r8g8b8)
 			return 1;
 	} else if (op == PictOpOver) {
-		if (src->alphaMap || dst->alphaMap)
-			return 0;
-
 		if (src->format != dst->format)
 			return 0;
 
@@ -1325,7 +1322,10 @@ uxa_composite(CARD8 op,
 		goto fallback;
 
 	if (!uxa_drawable_is_offscreen(pDst->pDrawable))
-	    goto fallback;
+		goto fallback;
+
+	if (pDst->alphaMap || pSrc->alphaMap || (pMask && pMask->alphaMap))
+		goto fallback;
 
 	/* Remove repeat in source if useless */
 	if (pSrc->pDrawable && pSrc->repeat &&
@@ -1389,8 +1389,7 @@ uxa_composite(CARD8 op,
 				/* Let's see if the driver can do the repeat
 				 * in one go
 				 */
-				if (uxa_screen->info->prepare_composite
-				    && !pSrc->alphaMap && !pDst->alphaMap) {
+				if (uxa_screen->info->prepare_composite) {
 					ret = uxa_try_driver_composite(op, pSrc,
 								       pMask, pDst,
 								       xSrc, ySrc,
@@ -1436,15 +1435,13 @@ uxa_composite(CARD8 op,
 	}
 
 	/* Remove repeat in mask if useless */
-	if (pMask && pMask->repeat && !pMask->transform && pMask->pDrawable &&
+	if (pMask && pMask->pDrawable && pMask->repeat &&
+	    transform_is_integer_translation(pMask->transform, &tx, &ty) &&
 	    (pMask->pDrawable->width > 1 || pMask->pDrawable->height > 1) &&
-	    xMask >= 0 && (xMask + width) <= pMask->pDrawable->width &&
-	    yMask >= 0 && (yMask + height) <= pMask->pDrawable->height)
+	    drawable_contains(pMask->pDrawable, xMask + tx, yMask + ty, width, height))
 		pMask->repeat = 0;
 
-	if (uxa_screen->info->prepare_composite &&
-	    !pSrc->alphaMap && (!pMask || !pMask->alphaMap) && !pDst->alphaMap)
-	{
+	if (uxa_screen->info->prepare_composite) {
 		Bool isSrcSolid;
 
 		ret =
