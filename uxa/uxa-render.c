@@ -1326,9 +1326,11 @@ compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
 		if (src->format == PICT_a8b8g8r8 && dst->format == PICT_x8b8g8r8)
 			return 1;
 
-		/* xrgb is promoted to argb during image upload... */
+		/* XXX xrgb is promoted to argb during image upload... */
+#if 0
 		if (dst->format == PICT_a8r8g8b8 && src->format == PICT_x8r8g8b8)
 			return 1;
+#endif
 	} else if (op == PictOpOver) {
 		if (src->format != dst->format)
 			return 0;
