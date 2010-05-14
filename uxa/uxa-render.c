@@ -200,7 +200,10 @@ Bool uxa_op_reads_destination(CARD8 op)
 static Bool
 uxa_get_pixel_from_rgba(CARD32 * pixel,
 			CARD16 red,
-			CARD16 green, CARD16 blue, CARD16 alpha, CARD32 format)
+			CARD16 green,
+			CARD16 blue,
+			CARD16 alpha,
+			CARD32 format)
 {
 	int rbits, bbits, gbits, abits;
 	int rshift, bshift, gshift, ashift;
@@ -225,17 +228,24 @@ uxa_get_pixel_from_rgba(CARD32 * pixel,
 		gshift = bbits;
 		rshift = gshift + gbits;
 		ashift = rshift + rbits;
-	} else {		/* PICT_TYPE_ABGR */
+	} else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_ABGR) {
 		rshift = 0;
 		gshift = rbits;
 		bshift = gshift + gbits;
 		ashift = bshift + bbits;
+	} else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_BGRA) {
+		ashift = 0;
+		rshift = abits;
+		gshift = rshift + rbits;
+		bshift = gshift + gbits;
+	} else {
+		return FALSE;
 	}
 
 	*pixel = 0;
-	*pixel |= (blue >> (16 - bbits)) << bshift;
-	*pixel |= (red >> (16 - rbits)) << rshift;
+	*pixel |= (blue  >> (16 - bbits)) << bshift;
 	*pixel |= (green >> (16 - gbits)) << gshift;
+	*pixel |= (red   >> (16 - rbits)) << rshift;
 	*pixel |= (alpha >> (16 - abits)) << ashift;
 
 	return TRUE;
@@ -245,7 +255,9 @@ static Bool
 uxa_get_rgba_from_pixel(CARD32 pixel,
 			CARD16 * red,
 			CARD16 * green,
-			CARD16 * blue, CARD16 * alpha, CARD32 format)
+			CARD16 * blue,
+			CARD16 * alpha,
+			CARD32 format)
 {
 	int rbits, bbits, gbits, abits;
 	int rshift, bshift, gshift, ashift;
@@ -267,6 +279,13 @@ uxa_get_rgba_from_pixel(CARD32 pixel,
 		gshift = rbits;
 		bshift = gshift + gbits;
 		ashift = bshift + bbits;
+        } else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_BGRA) {
+		ashift = 0;
+		rshift = abits;
+		if (abits == 0)
+			rshift = PICT_FORMAT_BPP(format) - (rbits+gbits+bbits);
+		gshift = rshift + rbits;
+		bshift = gshift + gbits;
 	} else {
 		return FALSE;
 	}
@@ -322,11 +341,13 @@ uxa_get_color_for_pixmap (PixmapPtr	 pixmap,
 	*pixel = uxa_get_pixmap_first_pixel(pixmap);
 
 	if (src_format != dst_format) {
-	    if (!uxa_get_rgba_from_pixel(*pixel, &red, &green, &blue, &alpha,
+	    if (!uxa_get_rgba_from_pixel(*pixel,
+					 &red, &green, &blue, &alpha,
 					 src_format))
 		return FALSE;
 
-	    if (!uxa_get_pixel_from_rgba(pixel, red, green, blue, alpha,
+	    if (!uxa_get_pixel_from_rgba(pixel,
+					 red, green, blue, alpha,
 					 dst_format))
 		return FALSE;
 	}
@@ -386,7 +407,23 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 			return -1;
 		}
 
-		pixel = solid->color;
+		if (pDst->format == PICT_a8r8g8b8) {
+			pixel = solid->color;
+		} else if (pDst->format == PICT_x8r8g8b8) {
+			pixel = solid->color | 0xff000000;
+		} else {
+			CARD16 red, green, blue, alpha;
+
+			if (!uxa_get_rgba_from_pixel(solid->color,
+						     &red, &green, &blue, &alpha,
+						     PICT_a8r8g8b8) ||
+			    !uxa_get_pixel_from_rgba(&pixel,
+						     red, green, blue, alpha,
+						     pDst->format)) {
+				REGION_UNINIT(pDst->pDrawable->pScreen, &region);
+				return -1;
+			}
+		}
 	}
 
 	if (!(*uxa_screen->info->prepare_solid)
