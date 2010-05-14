@@ -627,12 +627,14 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 			    if (dst_format == COLR_BUF_8BIT)
 				    src_reg = FS_R0;
 			    else
-				    src_reg = FS_R0;
+				    src_reg = FS_OC;
+
 			    if (is_affine_src)
 				    i915_fs_texld(src_reg, FS_S0, FS_T0);
 			    else
 				    i915_fs_texldp(src_reg, FS_S0, FS_T0);
 		    }
+
 		    if (src_reg != FS_OC) {
 			    if (dst_format == COLR_BUF_8BIT)
 				    i915_fs_mov(FS_OC, i915_fs_operand(src_reg, W, W, W, W));
@@ -647,6 +649,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 			    i915_fs_dcl(FS_T0 + t);
 			    i915_fs_dcl(FS_S0 + t);
 		    }
+
 		    if (! is_solid_src) {
 			    /* Load the source_picture texel */
 			    if (is_affine_src) {
