@@ -88,9 +88,7 @@ static struct formatinfo i915_tex_formats[] = {
 	{PICT_a2b10g10r10, MAPSURF_32BIT | MT_32BIT_ABGR2101010},
 	{PICT_r5g6b5, MAPSURF_16BIT | MT_16BIT_RGB565},
 	{PICT_a1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555},
-	{PICT_x1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555},
 	{PICT_a4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444},
-	{PICT_x4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444},
 };
 
 static uint32_t i915_get_blend_cntl(int op, PicturePtr mask,
