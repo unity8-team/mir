@@ -1419,7 +1419,8 @@ uxa_composite(CARD8 op,
 			}
 		} else if (pSrc->pDrawable->width == 1 &&
 			   pSrc->pDrawable->height == 1 &&
-			   pSrc->repeat) {
+			   pSrc->repeat &&
+			   (op == PictOpSrc || (op == PictOpOver && !PICT_FORMAT_A(pSrc->format)))) {
 			ret = uxa_try_driver_solid_fill(pSrc, pDst,
 							xSrc, ySrc,
 							xDst, yDst,
