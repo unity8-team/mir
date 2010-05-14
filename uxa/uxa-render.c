@@ -349,7 +349,12 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 	PixmapPtr pSrcPix = NULL, pDstPix;
 	CARD32 pixel;
 
-	pDstPix = uxa_get_drawable_pixmap(pDst->pDrawable);
+	if (uxa_screen->info->check_solid && !uxa_screen->info->check_solid(pDst->pDrawable, GXcopy, 0xffffffff))
+		return -1;
+
+	pDstPix = uxa_get_offscreen_pixmap(pDst->pDrawable, &dst_off_x, &dst_off_y);
+	if (!pDstPix)
+		return -1;
 
 	xDst += pDst->pDrawable->x;
 	yDst += pDst->pDrawable->y;
@@ -365,15 +370,7 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 				      width, height))
 		return 1;
 
-	uxa_get_drawable_deltas(pDst->pDrawable, pDstPix, &dst_off_x,
-				&dst_off_y);
-
 	REGION_TRANSLATE(pScreen, &region, dst_off_x, dst_off_y);
-
-	if (!uxa_pixmap_is_offscreen(pDstPix)) {
-		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
-		return 0;
-	}
 
 	if (pSrcPix) {
 		if (! uxa_get_color_for_pixmap (pSrcPix, pSrc->format, pDst->format, &pixel)) {

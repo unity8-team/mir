@@ -195,6 +195,35 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	return size;
 }
 
+static Bool
+i830_uxa_check_solid(DrawablePtr drawable, int alu, Pixel planemask)
+{
+	ScrnInfoPtr scrn = xf86Screens[drawable->pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (IS_GEN6(intel)) {
+		intel_debug_fallback(scrn,
+				     "Sandybridge BLT engine not supported\n");
+		return FALSE;
+	}
+
+	if (!UXA_PM_IS_SOLID(drawable, planemask)) {
+		intel_debug_fallback(scrn, "planemask is not solid\n");
+		return FALSE;
+	}
+
+	switch (drawable->bitsPerPixel) {
+	case 8:
+	case 16:
+	case 32:
+		break;
+	default:
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 /**
  * Sets up hardware state for a series of solid fills.
  */
@@ -207,27 +236,6 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 		NULL,		/* batch_bo */
 		i830_get_pixmap_bo(pixmap),
 	};
-
-	if (IS_GEN6(intel)) {
-		intel_debug_fallback(scrn,
-				     "Sandybridge BLT engine not supported\n");
-		return FALSE;
-	}
-
-	if (!UXA_PM_IS_SOLID(&pixmap->drawable, planemask)) {
-		intel_debug_fallback(scrn, "planemask is not solid\n");
-		return FALSE;
-	}
-
-	if (pixmap->drawable.bitsPerPixel == 24) {
-		intel_debug_fallback(scrn, "solid 24bpp unsupported!\n");
-		return FALSE;
-	}
-
-	if (pixmap->drawable.bitsPerPixel < 8) {
-		intel_debug_fallback(scrn, "under 8bpp pixmaps unsupported\n");
-		return FALSE;
-	}
 
 	if (!intel_check_pitch_2d(pixmap))
 		return FALSE;
@@ -251,11 +259,10 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 	case 32:
 		/* RGB8888 */
 		intel->BR[13] |= ((1 << 24) | (1 << 25));
-		if (pixmap->drawable.depth == 24)
-		    fg |= 0xff000000;
 		break;
 	}
 	intel->BR[16] = fg;
+
 	return TRUE;
 }
 
@@ -316,6 +323,40 @@ static void i830_uxa_done_solid(PixmapPtr pixmap)
  *   - support planemask using FULL_BLT_CMD?
  */
 static Bool
+i830_uxa_check_copy(DrawablePtr source, DrawablePtr dest,
+		    int alu, Pixel planemask)
+{
+	ScrnInfoPtr scrn = xf86Screens[dest->pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (IS_GEN6(intel)) {
+		intel_debug_fallback(scrn,
+				     "Sandybridge BLT engine not supported\n");
+		return FALSE;
+	}
+
+	if (!UXA_PM_IS_SOLID(source, planemask)) {
+		intel_debug_fallback(scrn, "planemask is not solid");
+		return FALSE;
+	}
+
+	if (source->bitsPerPixel != dest->bitsPerPixel) {
+		intel_debug_fallback(scrn, "mixed bpp copies unsupported\n");
+		return FALSE;
+	}
+	switch (source->bitsPerPixel) {
+	case 8:
+	case 16:
+	case 32:
+		break;
+	default:
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static Bool
 i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		      int ydir, int alu, Pixel planemask)
 {
@@ -327,34 +368,17 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		i830_get_pixmap_bo(dest),
 	};
 
-	if (IS_GEN6(intel)) {
-		intel_debug_fallback(scrn,
-				     "Sandybridge BLT engine not supported\n");
-		return FALSE;
-	}
-
-	if (!UXA_PM_IS_SOLID(&source->drawable, planemask)) {
-		intel_debug_fallback(scrn, "planemask is not solid");
-		return FALSE;
-	}
-
-	if (dest->drawable.bitsPerPixel < 8) {
-		intel_debug_fallback(scrn, "under 8bpp pixmaps unsupported\n");
-		return FALSE;
-	}
-
-	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
-		return FALSE;
-
 	if (!intel_check_pitch_2d(source))
 		return FALSE;
 	if (!intel_check_pitch_2d(dest))
 		return FALSE;
 
+	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
+		return FALSE;
+
 	intel->render_source = source;
 
 	intel->BR[13] = I830CopyROP[alu] << 16;
-
 	switch (source->drawable.bitsPerPixel) {
 	case 8:
 		break;
@@ -365,6 +389,7 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		intel->BR[13] |= ((1 << 25) | (1 << 24));
 		break;
 	}
+
 	return TRUE;
 }
 
@@ -1056,11 +1081,13 @@ Bool i830_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->uxa_minor = 0;
 
 	/* Solid fill */
+	intel->uxa_driver->check_solid = i830_uxa_check_solid;
 	intel->uxa_driver->prepare_solid = i830_uxa_prepare_solid;
 	intel->uxa_driver->solid = i830_uxa_solid;
 	intel->uxa_driver->done_solid = i830_uxa_done_solid;
 
 	/* Copy */
+	intel->uxa_driver->check_copy = i830_uxa_check_copy;
 	intel->uxa_driver->prepare_copy = i830_uxa_prepare_copy;
 	intel->uxa_driver->copy = i830_uxa_copy;
 	intel->uxa_driver->done_copy = i830_uxa_done_copy;

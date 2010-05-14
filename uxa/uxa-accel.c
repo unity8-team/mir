@@ -433,8 +433,16 @@ uxa_copy_n_to_n(DrawablePtr pSrcDrawable,
 	int dst_off_x, dst_off_y;
 	PixmapPtr pSrcPixmap, pDstPixmap;
 
+	if (uxa_screen->info->check_copy &&
+	    !uxa_screen->info->check_copy(pSrcDrawable, pDstDrawable,
+					  pGC ? pGC->alu : GXcopy,
+					  pGC ? pGC->planemask : FB_ALLONES))
+		goto fallback;
+
 	pSrcPixmap = uxa_get_drawable_pixmap(pSrcDrawable);
 	pDstPixmap = uxa_get_drawable_pixmap(pDstDrawable);
+	if (!pSrcPixmap || !pDstPixmap)
+		goto fallback;
 
 	uxa_get_drawable_deltas(pSrcDrawable, pSrcPixmap, &src_off_x,
 				&src_off_y);
@@ -955,6 +963,11 @@ uxa_fill_region_tiled(DrawablePtr pDrawable,
 		return uxa_fill_region_solid(pDrawable, pRegion,
 					     uxa_get_pixmap_first_pixel(pTile),
 					     planemask, alu);
+
+	if (uxa_screen->info->check_copy &&
+	    !uxa_screen->info->check_copy(&pTile->drawable, pDrawable, alu, planemask))
+		return FALSE;
+
 
 	pPixmap = uxa_get_drawable_pixmap(pDrawable);
 	uxa_get_drawable_deltas(pDrawable, pPixmap, &xoff, &yoff);

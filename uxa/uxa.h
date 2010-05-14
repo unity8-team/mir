@@ -74,6 +74,17 @@ typedef struct _UxaDriver {
 	 * @{
 	 */
 	/**
+	 * check_solid() checks whether the driver can do a solid fill to this drawable.
+	 * @param pDrawable Destination drawable
+	 * @param alu raster operation
+	 * @param planemask write mask for the fill
+	 *
+	 * The check_solid() call is recommended if prepare_solid() is
+	 * implemented, but is not required.
+	 */
+	Bool(*check_solid) (DrawablePtr pDrawable, int alu, Pixel planemask);
+
+	/**
 	 * prepare_solid() sets up the driver for doing a solid fill.
 	 * @param pPixmap Destination pixmap
 	 * @param alu raster operation
@@ -137,6 +148,12 @@ typedef struct _UxaDriver {
 	/** @name copy
 	 * @{
 	 */
+	/**
+	 * check_copy() checks whether the driver can blit between the two Pictures
+	 */
+	Bool(*check_copy) (DrawablePtr pSrcDrawable,
+			   DrawablePtr pDstDrawable,
+			   int alu, Pixel planemask);
 	/**
 	 * prepare_copy() sets up the driver for doing a copy within video
 	 * memory.
