@@ -75,6 +75,7 @@ extern XF86ModuleData dri2ModuleData;
 #endif
 
 typedef struct {
+	int refcnt;
 	PixmapPtr pixmap;
 	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
@@ -147,6 +148,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		buffers[i].cpp = pixmap->drawable.bitsPerPixel / 8;
 		buffers[i].driverPrivate = &privates[i];
 		buffers[i].flags = 0;	/* not tiled */
+		privates[i].refcnt = 1;
 		privates[i].pixmap = pixmap;
 		privates[i].attachment = attachments[i];
 
@@ -223,6 +225,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	buffer->driverPrivate = privates;
 	buffer->format = format;
 	buffer->flags = 0;	/* not tiled */
+	privates->refcnt = 1;
 	privates->pixmap = pixmap;
 	privates->attachment = attachment;
 
@@ -262,16 +265,26 @@ static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 {
 	if (buffer) {
 		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
-		ScreenPtr screen = drawable->pScreen;
+		if (--private->refcnt == 0) {
+			ScreenPtr screen = private->pixmap->drawable.pScreen;
 
-		screen->DestroyPixmap(private->pixmap);
+			screen->DestroyPixmap(private->pixmap);
 
-		xfree(private);
-		xfree(buffer);
+			xfree(private);
+			xfree(buffer);
+		}
 	}
 }
 
 #endif
+
+static void I830DRI2ReferenceBuffer(DRI2Buffer2Ptr buffer)
+{
+	if (buffer) {
+		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
+		private->refcnt++;
+	}
+}
 
 static void
 I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
@@ -510,6 +523,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 	status = dixLookupDrawable(&drawable, event->drawable_id, serverClient,
 				   M_ANY, DixWriteAccess);
 	if (status != Success) {
+		I830DRI2DestroyBuffer(NULL, event->front);
+		I830DRI2DestroyBuffer(NULL, event->back);
 		xfree(event);
 		return;
 	}
@@ -568,6 +583,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 		break;
 	}
 
+	I830DRI2DestroyBuffer(drawable, event->front);
+	I830DRI2DestroyBuffer(drawable, event->back);
 	xfree(event);
 }
 
@@ -661,6 +678,8 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	swap_info->event_data = data;
 	swap_info->front = front;
 	swap_info->back = back;
+	I830DRI2ReferenceBuffer(front);
+	I830DRI2ReferenceBuffer(back);
 
 	/* Get current count */
 	vbl.request.type = DRM_VBLANK_RELATIVE;
@@ -791,8 +810,11 @@ blit_fallback:
 	I830DRI2CopyRegion(draw, &region, front, back);
 
 	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
-	if (swap_info)
+	if (swap_info) {
+	    I830DRI2DestroyBuffer(draw, swap_info->front);
+	    I830DRI2DestroyBuffer(draw, swap_info->back);
 	    xfree(swap_info);
+	}
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
 }
