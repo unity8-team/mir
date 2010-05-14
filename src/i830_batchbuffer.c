@@ -89,6 +89,40 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 		dri_bo_unreference(intel->last_batch_bo);
 		intel->last_batch_bo = NULL;
 	}
+
+	while (!list_is_empty(&intel->batch_pixmaps)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->batch_pixmaps,
+					 struct intel_pixmap,
+					 batch);
+
+		entry->batch_read_domains = entry->batch_write_domain = 0;
+		list_del(&entry->batch);
+	}
+
+	while (!list_is_empty(&intel->flush_pixmaps)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->flush_pixmaps,
+					 struct intel_pixmap,
+					 flush);
+
+		entry->flush_read_domains = entry->flush_write_domain = 0;
+		list_del(&entry->flush);
+	}
+
+	while (!list_is_empty(&intel->in_flight)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->in_flight,
+					 struct intel_pixmap,
+					 in_flight);
+
+		dri_bo_unreference(entry->bo);
+		list_del(&entry->in_flight);
+		xfree(entry);
+	}
 }
 
 void intel_batch_emit_flush(ScrnInfoPtr scrn)
