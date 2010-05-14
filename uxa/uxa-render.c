@@ -1430,79 +1430,79 @@ uxa_composite(CARD8 op,
 			if (ret == 1)
 				goto done;
 		} else if (compatible_formats (op, pDst, pSrc) &&
-			   !pSrc->repeat &&
-			   transform_is_integer_translation(pSrc->transform, &tx, &ty) &&
-			   drawable_contains(pSrc->pDrawable,
+			   transform_is_integer_translation(pSrc->transform, &tx, &ty)) {
+			if (!pSrc->repeat &&
+			    drawable_contains(pSrc->pDrawable,
 					     xSrc + tx, ySrc + ty,
 					     width, height)) {
-			xDst += pDst->pDrawable->x;
-			yDst += pDst->pDrawable->y;
-			xSrc += pSrc->pDrawable->x + tx;
-			ySrc += pSrc->pDrawable->y + ty;
+				xDst += pDst->pDrawable->x;
+				yDst += pDst->pDrawable->y;
+				xSrc += pSrc->pDrawable->x + tx;
+				ySrc += pSrc->pDrawable->y + ty;
 
-			if (!miComputeCompositeRegion
-			    (&region, pSrc, pMask, pDst, xSrc, ySrc,
-			     xMask, yMask, xDst, yDst, width, height))
+				if (!miComputeCompositeRegion
+				    (&region, pSrc, pMask, pDst, xSrc, ySrc,
+				     xMask, yMask, xDst, yDst, width, height))
+					goto done;
+
+				uxa_copy_n_to_n(pSrc->pDrawable,
+						pDst->pDrawable, NULL,
+						REGION_RECTS(&region),
+						REGION_NUM_RECTS(&region),
+						xSrc - xDst, ySrc - yDst, FALSE,
+						FALSE, 0, NULL);
+				REGION_UNINIT(pDst->pDrawable->pScreen,
+					      &region);
 				goto done;
+			} else if (pSrc->repeat && pSrc->repeatType == RepeatNormal &&
+				   pSrc->pDrawable->type == DRAWABLE_PIXMAP) {
+				DDXPointRec patOrg;
 
-			uxa_copy_n_to_n(pSrc->pDrawable,
-					pDst->pDrawable, NULL,
-					REGION_RECTS(&region),
-					REGION_NUM_RECTS(&region),
-					xSrc - xDst, ySrc - yDst, FALSE,
-					FALSE, 0, NULL);
-			REGION_UNINIT(pDst->pDrawable->pScreen,
-				      &region);
-			goto done;
-		} else if (pSrc->pDrawable->type == DRAWABLE_PIXMAP &&
-			   pSrc->repeatType == RepeatNormal &&
-			   transform_is_integer_translation(pSrc->transform, &tx, &ty)) {
-			DDXPointRec patOrg;
+				/* Let's see if the driver can do the repeat
+				 * in one go
+				 */
+				if (uxa_screen->info->prepare_composite) {
+					ret = uxa_try_driver_composite(op, pSrc,
+								       pMask, pDst,
+								       xSrc, ySrc,
+								       xMask, yMask,
+								       xDst, yDst,
+								       width, height);
+					if (ret == 1)
+						goto done;
+				}
 
-			/* Let's see if the driver can do the repeat
-			 * in one go
-			 */
-			if (uxa_screen->info->prepare_composite) {
-				ret = uxa_try_driver_composite(op, pSrc,
-							       pMask, pDst,
-							       xSrc, ySrc,
-							       xMask, yMask,
-							       xDst, yDst,
-							       width, height);
-				if (ret == 1)
+				/* Now see if we can use
+				 * uxa_fill_region_tiled()
+				 */
+				xDst += pDst->pDrawable->x;
+				yDst += pDst->pDrawable->y;
+				xSrc += pSrc->pDrawable->x + tx;
+				ySrc += pSrc->pDrawable->y + ty;
+
+				if (!miComputeCompositeRegion
+				    (&region, pSrc, pMask, pDst, xSrc, ySrc,
+				     xMask, yMask, xDst, yDst, width, height))
+					goto done;
+
+				/* pattern origin is the point in the
+				 * destination drawable
+				 * corresponding to (0,0) in the source */
+				patOrg.x = xDst - xSrc;
+				patOrg.y = yDst - ySrc;
+
+				ret = uxa_fill_region_tiled(pDst->pDrawable,
+							    &region,
+							    (PixmapPtr) pSrc->
+							    pDrawable, &patOrg,
+							    FB_ALLONES, GXcopy);
+
+				REGION_UNINIT(pDst->pDrawable->pScreen,
+					      &region);
+
+				if (ret)
 					goto done;
 			}
-
-			/* Now see if we can use
-			 * uxa_fill_region_tiled()
-			 */
-			xDst += pDst->pDrawable->x;
-			yDst += pDst->pDrawable->y;
-			xSrc += pSrc->pDrawable->x + tx;
-			ySrc += pSrc->pDrawable->y + ty;
-
-			if (!miComputeCompositeRegion
-			    (&region, pSrc, pMask, pDst, xSrc, ySrc,
-			     xMask, yMask, xDst, yDst, width, height))
-				goto done;
-
-			/* pattern origin is the point in the
-			 * destination drawable
-			 * corresponding to (0,0) in the source */
-			patOrg.x = xDst - xSrc;
-			patOrg.y = yDst - ySrc;
-
-			ret = uxa_fill_region_tiled(pDst->pDrawable,
-						    &region,
-						    (PixmapPtr) pSrc->
-						    pDrawable, &patOrg,
-						    FB_ALLONES, GXcopy);
-
-			REGION_UNINIT(pDst->pDrawable->pScreen,
-				      &region);
-
-			if (ret)
-				goto done;
 		}
 	}
 
