@@ -492,7 +492,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	uint32_t blendctl, tiling_bits;
 	Bool is_affine_src, is_affine_mask;
 	Bool is_solid_src, is_solid_mask;
-	Bool dst_has_alpha = PICT_FORMAT_A(dest_picture->format);
 	int tex_count, t;
 
 	intel->needs_render_state_emit = FALSE;
@@ -610,12 +609,9 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 
 	{
 	    FS_LOCALS(20);
-	    int src_reg, mask_reg, out_reg = FS_OC;
+	    int src_reg, mask_reg;
 
 	    FS_BEGIN();
-
-	    if (dst_format == COLR_BUF_8BIT)
-		out_reg = FS_U0;
 
 	    /* Declare the registers necessary for our program.  */
 	    t = 0;
@@ -627,23 +623,11 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		i915_fs_dcl(FS_S0);
 		t++;
 	    }
-	    if (mask) {
-		if (is_solid_mask) {
-		    i915_fs_dcl(FS_T9);
-		    mask_reg = FS_T9;
-		} else {
-		    i915_fs_dcl(FS_T0 + t);
-		    i915_fs_dcl(FS_S0 + t);
-		}
-	    }
-
 	    if (!mask) {
 		    /* No mask, so load directly to output color */
 		    if (! is_solid_src) {
 			    if (dst_format == COLR_BUF_8BIT)
 				    src_reg = FS_R0;
-			    else if (dst_has_alpha)
-				    src_reg = FS_OC;
 			    else
 				    src_reg = FS_R0;
 			    if (is_affine_src)
@@ -654,12 +638,17 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		    if (src_reg != FS_OC) {
 			    if (dst_format == COLR_BUF_8BIT)
 				    i915_fs_mov(FS_OC, i915_fs_operand(src_reg, W, W, W, W));
-			    else if (dst_has_alpha)
-				    i915_fs_mov(FS_OC, i915_fs_operand_reg(src_reg));
 			    else
-				    i915_fs_mov(FS_OC, i915_fs_operand(src_reg, X, Y, Z, ONE));
+				    i915_fs_mov(FS_OC, i915_fs_operand_reg(src_reg));
 		    }
 	    } else {
+		    if (is_solid_mask) {
+			    i915_fs_dcl(FS_T9);
+			    mask_reg = FS_T9;
+		    } else {
+			    i915_fs_dcl(FS_T0 + t);
+			    i915_fs_dcl(FS_S0 + t);
+		    }
 		    if (! is_solid_src) {
 			    /* Load the source_picture texel */
 			    if (is_affine_src) {
@@ -671,61 +660,49 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 			    src_reg = FS_R0;
 		    }
 
-		if (! is_solid_mask) {
-		    /* Load the mask_picture texel */
-		    if (is_affine_mask) {
-			i915_fs_texld(FS_R1, FS_S0 + t, FS_T0 + t);
-		    } else {
-			i915_fs_texldp(FS_R1, FS_S0 + t, FS_T0 + t);
+		    if (! is_solid_mask) {
+			    /* Load the mask_picture texel */
+			    if (is_affine_mask) {
+				    i915_fs_texld(FS_R1, FS_S0 + t, FS_T0 + t);
+			    } else {
+				    i915_fs_texldp(FS_R1, FS_S0 + t, FS_T0 + t);
+			    }
+
+			    mask_reg = FS_R1;
 		    }
 
-		    mask_reg = FS_R1;
-		}
-
-		/* If component alpha is active in the mask and the blend
-		 * operation uses the source alpha, then we know we don't
-		 * need the source value (otherwise we would have hit a
-		 * fallback earlier), so we provide the source alpha (src.A *
-		 * mask.X) as output color.
-		 * Conversely, if CA is set and we don't need the source alpha,
-		 * then we produce the source value (src.X * mask.X) and the
-		 * source alpha is unused.  Otherwise, we provide the non-CA
-		 * source value (src.X * mask.A).
-		 */
-		if (mask_picture->componentAlpha &&
-		    PICT_FORMAT_RGB(mask_picture->format)) {
-			if (i915_blend_op[op].src_alpha) {
-				if (dst_has_alpha)
-					i915_fs_mul(out_reg,
-						    i915_fs_operand(src_reg, W, W, W, W),
-						    i915_fs_operand_reg(mask_reg));
-				else
-					i915_fs_mul(out_reg,
-						    i915_fs_operand(src_reg, W, W, W, ONE),
-						    i915_fs_operand(mask_reg, X, Y, Z, ONE));
-			} else {
-				if (dst_has_alpha)
-					i915_fs_mul(out_reg,
-						    i915_fs_operand_reg(src_reg),
-						    i915_fs_operand_reg(mask_reg));
-				else
-					i915_fs_mul(out_reg,
-						    i915_fs_operand(src_reg, X, Y, Z, ONE),
-						    i915_fs_operand(mask_reg, X, Y, Z, ONE));
-			}
-		} else {
-			if (dst_has_alpha)
-				i915_fs_mul(out_reg,
-					    i915_fs_operand_reg(src_reg),
-					    i915_fs_operand(mask_reg, W, W, W, W));
-			else
-				i915_fs_mul(out_reg,
-					    i915_fs_operand(src_reg, X, Y, Z, ONE),
-					    i915_fs_operand(mask_reg, W, W, W, ONE));
-		}
-
-		if (dst_format == COLR_BUF_8BIT)
-		    i915_fs_mov(FS_OC, i915_fs_operand(out_reg, W, W, W, W));
+		    if (dst_format == COLR_BUF_8BIT) {
+			    i915_fs_mul(FS_OC,
+					i915_fs_operand(src_reg, W, W, W, W),
+					i915_fs_operand(mask_reg, W, W, W, W));
+		    } else {
+			    /* If component alpha is active in the mask and the blend
+			     * operation uses the source alpha, then we know we don't
+			     * need the source value (otherwise we would have hit a
+			     * fallback earlier), so we provide the source alpha (src.A *
+			     * mask.X) as output color.
+			     * Conversely, if CA is set and we don't need the source alpha,
+			     * then we produce the source value (src.X * mask.X) and the
+			     * source alpha is unused.  Otherwise, we provide the non-CA
+			     * source value (src.X * mask.A).
+			     */
+			    if (mask_picture->componentAlpha &&
+				PICT_FORMAT_RGB(mask_picture->format)) {
+				    if (i915_blend_op[op].src_alpha) {
+					    i915_fs_mul(FS_OC,
+							i915_fs_operand(src_reg, W, W, W, W),
+							i915_fs_operand_reg(mask_reg));
+				    } else {
+					    i915_fs_mul(FS_OC,
+							i915_fs_operand_reg(src_reg),
+							i915_fs_operand_reg(mask_reg));
+				    }
+			    } else {
+				    i915_fs_mul(FS_OC,
+						i915_fs_operand_reg(src_reg),
+						i915_fs_operand(mask_reg, W, W, W, W));
+			    }
+		    }
 	    }
 
 	    FS_END();
