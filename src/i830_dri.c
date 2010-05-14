@@ -487,7 +487,7 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		     DRI2BufferPtr back, DRI2SwapEventPtr func, void *data)
 {
 	ScreenPtr screen = draw->pScreen;
-	I830DRI2BufferPrivatePtr front_priv, back_priv;
+	I830DRI2BufferPrivatePtr back_priv;
 	DRI2FrameEventPtr flip_info;
 
 	flip_info = xcalloc(1, sizeof(DRI2FrameEventRec));
@@ -500,12 +500,9 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	flip_info->event_complete = func;
 	flip_info->event_data = data;
 
-	front_priv = front->driverPrivate;
-	back_priv = back->driverPrivate;
-
 	/* Page flip the full screen buffer */
+	back_priv = back->driverPrivate;
 	return drmmode_do_pageflip(screen,
-				   i830_get_pixmap_bo(front_priv->pixmap),
 				   i830_get_pixmap_bo(back_priv->pixmap),
 				   flip_info);
 }

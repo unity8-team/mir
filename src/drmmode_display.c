@@ -1323,10 +1323,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 }
 
 Bool
-drmmode_do_pageflip(ScreenPtr screen,
-		    dri_bo *old_front,
-		    dri_bo *new_front,
-		    void *data)
+drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
