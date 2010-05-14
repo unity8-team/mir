@@ -909,12 +909,16 @@ uxa_fill_region_solid(DrawablePtr pDrawable,
 	int xoff, yoff;
 	Bool ret = FALSE;
 
-	uxa_get_drawable_deltas(pDrawable, pPixmap, &xoff, &yoff);
+	if (uxa_screen->info->check_solid && !uxa_screen->info->check_solid(pDrawable, alu, planemask))
+		return FALSE;
+
+	pPixmap = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);
+	if (!pPixmap)
+		return FALSE;
+
 	REGION_TRANSLATE(pScreen, pRegion, xoff, yoff);
 
-	if (uxa_pixmap_is_offscreen(pPixmap) &&
-	    (*uxa_screen->info->prepare_solid) (pPixmap, alu, planemask, pixel))
-	{
+	if ((*uxa_screen->info->prepare_solid) (pPixmap, alu, planemask, pixel)) {
 		int nbox;
 		BoxPtr pBox;
 
