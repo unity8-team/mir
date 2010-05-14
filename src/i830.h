@@ -395,8 +395,7 @@ enum {
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
-extern Bool drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front,
-				dri_bo *old_front, void *data);
+extern Bool drmmode_do_pageflip(ScreenPtr screen, dri_bo *old_front, dri_bo *new_front, void *data);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)

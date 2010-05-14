@@ -1323,7 +1323,9 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 }
 
 Bool
-drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, dri_bo *old_front,
+drmmode_do_pageflip(ScreenPtr screen,
+		    dri_bo *old_front,
+		    dri_bo *new_front,
 		    void *data)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
@@ -1374,7 +1376,6 @@ drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, dri_bo *old_front,
 	dri_bo_pin(new_front, 0);
 	dri_bo_unpin(new_front);
 
-	intel->front_buffer = new_front;
 	drmmode->old_fb_id = old_fb_id;
 
 	return TRUE;
