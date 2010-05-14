@@ -1320,10 +1320,13 @@ compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
 		if (src->format == dst->format)
 			return 1;
 
-		if (src->format == PICT_a8r8g8b8 && dst->format == PICT_x8r8g8b8)
-			return 1;
-
-		if (src->format == PICT_a8b8g8r8 && dst->format == PICT_x8b8g8r8)
+		/* Is the destination an alpha-less version of source? */
+		if (dst->format == PICT_FORMAT(PICT_FORMAT_BPP(src->format),
+					       PICT_FORMAT_TYPE(src->format),
+					       0,
+					       PICT_FORMAT_R(src->format),
+					       PICT_FORMAT_G(src->format),
+					       PICT_FORMAT_B(src->format)))
 			return 1;
 
 		/* XXX xrgb is promoted to argb during image upload... */
@@ -1332,11 +1335,10 @@ compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
 			return 1;
 #endif
 	} else if (op == PictOpOver) {
-		if (src->format != dst->format)
+		if (PICT_FORMAT_A(src->format))
 			return 0;
 
-		if (src->format == PICT_x8r8g8b8 || src->format == PICT_x8b8g8r8)
-			return 1;
+		return src->format == dst->format;
 	}
 
 	return 0;
