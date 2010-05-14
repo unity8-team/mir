@@ -1370,9 +1370,6 @@ drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data)
 		}
 	}
 
-	dri_bo_pin(new_front, 0);
-	dri_bo_unpin(new_front);
-
 	drmmode->old_fb_id = old_fb_id;
 
 	return TRUE;
