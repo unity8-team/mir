@@ -860,7 +860,7 @@ uxa_solid_rects (CARD8		op,
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
-	PixmapPtr pixmap;
+	PixmapPtr pixmap, src_pixmap = NULL;
 	int dst_x, dst_y;
 	PicturePtr src;
 	int error;
@@ -872,17 +872,12 @@ uxa_solid_rects (CARD8		op,
 	if (dst->alphaMap)
 		goto fallback;
 
-	if (!uxa_screen->info->check_composite_texture)
-		goto fallback;
-
 	pixmap = uxa_get_offscreen_pixmap(dst->pDrawable, &dst_x, &dst_y);
 	if (!pixmap)
 		goto fallback;
 
 	if (op == PictOpClear)
 		color->red = color->green = color->blue = color->alpha = 0;
-	if (PICT_FORMAT_A(dst->format) == 0)
-		color->alpha = 0xffff;
 	if (color->alpha >= 0xff00 && op == PictOpOver)
 		op = PictOpSrc;
 
@@ -890,16 +885,26 @@ uxa_solid_rects (CARD8		op,
 	if (!src)
 		goto fallback;
 
-	if (!uxa_screen->info->check_composite(op, src, NULL, dst) ||
+	if (!uxa_screen->info->check_composite(op, src, NULL, dst))
+		goto err_src;
+
+	if (!uxa_screen->info->check_composite_texture ||
 	    !uxa_screen->info->check_composite_texture(screen, src)) {
+		PicturePtr solid;
+		int src_off_x, src_off_y;
+
+		solid = uxa_acquire_solid(screen, src->pSourcePict);
 		FreePicture(src, 0);
-		goto fallback;
+
+		src = solid;
+		src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
+				                      &src_off_x, &src_off_y);
+		if (!src_pixmap)
+			goto err_src;
 	}
 
-	if (!uxa_screen->info->prepare_composite(op, src, NULL, dst, NULL, NULL, pixmap)) {
-		FreePicture(src, 0);
-		goto fallback;
-	}
+	if (!uxa_screen->info->prepare_composite(op, src, NULL, dst, src_pixmap, NULL, pixmap))
+		goto err_src;
 
 	while (num_rects--) {
 		uxa_screen->info->composite(pixmap,
@@ -916,6 +921,8 @@ uxa_solid_rects (CARD8		op,
 
 	return;
 
+err_src:
+	FreePicture(src, 0);
 fallback:
 	uxa_screen->SavedCompositeRects(op, dst, color, num_rects, rects);
 }
