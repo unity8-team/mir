@@ -706,7 +706,8 @@ transform_is_integer_translation(PictTransformPtr t, int *tx, int *ty)
 	    t->matrix[1][0] != 0 ||
 	    t->matrix[1][1] != IntToxFixed(1) ||
 	    t->matrix[2][0] != 0 ||
-	    t->matrix[2][1] != 0)
+	    t->matrix[2][1] != 0 ||
+	    t->matrix[2][2] != IntToxFixed(1))
 		return FALSE;
 
 	if (xFixedFrac(t->matrix[0][2]) != 0 ||
