@@ -765,7 +765,9 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 	int tx, ty;
 
 	depth = pSrc->pDrawable->depth;
-	if (depth == 1 || !transform_is_integer_translation(pSrc->transform, &tx, &ty)) {
+	if (depth == 1 ||
+	    pSrc->filter == PictFilterConvolution || /* XXX */
+	    !transform_is_integer_translation(pSrc->transform, &tx, &ty)) {
 		/* XXX extract the sample extents and do the transformation on the GPU */
 		pDst = uxa_render_picture(pScreen, pSrc,
 					  pSrc->format | (BitsPerPixel(pSrc->pDrawable->depth) << 24),
@@ -1387,7 +1389,7 @@ uxa_composite(CARD8 op,
 		goto fallback;
 
 	/* Remove repeat in source if useless */
-	if (pSrc->pDrawable && pSrc->repeat &&
+	if (pSrc->pDrawable && pSrc->repeat && pSrc->filter != PictFilterConvolution &&
 	    transform_is_integer_translation(pSrc->transform, &tx, &ty) &&
 	    (pSrc->pDrawable->width > 1 || pSrc->pDrawable->height > 1) &&
 	    drawable_contains(pSrc->pDrawable, xSrc + tx, ySrc + ty, width, height))
@@ -1431,6 +1433,7 @@ uxa_composite(CARD8 op,
 			if (ret == 1)
 				goto done;
 		} else if (compatible_formats (op, pDst, pSrc) &&
+			   pSrc->filter != PictFilterConvolution &&
 			   transform_is_integer_translation(pSrc->transform, &tx, &ty)) {
 			if (!pSrc->repeat &&
 			    drawable_contains(pSrc->pDrawable,
@@ -1509,6 +1512,7 @@ uxa_composite(CARD8 op,
 
 	/* Remove repeat in mask if useless */
 	if (pMask && pMask->pDrawable && pMask->repeat &&
+	    pMask->filter != PictFilterConvolution &&
 	    transform_is_integer_translation(pMask->transform, &tx, &ty) &&
 	    (pMask->pDrawable->width > 1 || pMask->pDrawable->height > 1) &&
 	    drawable_contains(pMask->pDrawable, xMask + tx, yMask + ty, width, height))
