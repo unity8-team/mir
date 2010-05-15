@@ -729,6 +729,12 @@ uxa_render_picture(ScreenPtr screen,
 	PicturePtr picture;
 	int ret = 0;
 
+	/* XXX we need a mechanism for the card to choose the fallback format */
+
+	/* force alpha channel in case source does not entirely cover the extents */
+	if (PIXMAN_FORMAT_A(format) == 0)
+		format = PIXMAN_a8r8g8b8; /* available on all hardware */
+
 	picture = uxa_picture_for_pixman_format(screen, format, width, height);
 	if (!picture)
 		return 0;
