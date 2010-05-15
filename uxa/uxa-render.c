@@ -888,6 +888,36 @@ uxa_acquire_mask(ScreenPtr screen,
 				    out_x, out_y);
 }
 
+static Bool
+_pixman_region_init_rectangles(pixman_region16_t *region,
+			       int num_rects,
+			       xRectangle *rects)
+{
+	pixman_box16_t stack_boxes[64], *boxes = stack_boxes;
+	pixman_bool_t ret;
+	int i;
+
+	if (num_rects > sizeof(stack_boxes) / sizeof(stack_boxes[0])) {
+		boxes = xalloc(sizeof(pixman_box16_t) * num_rects);
+		if (boxes == NULL)
+			return FALSE;
+	}
+
+	for (i = 0; i < num_rects; i++) {
+		boxes[i].x1 = rects[i].x;
+		boxes[i].y1 = rects[i].y;
+		boxes[i].x2 = rects[i].x + rects[i].width;
+		boxes[i].y2 = rects[i].y + rects[i].height;
+	}
+
+	ret = pixman_region_init_rects(region, boxes, num_rects);
+
+	if (boxes != stack_boxes)
+		xfree(boxes);
+
+	return ret;
+}
+
 void
 uxa_solid_rects (CARD8		op,
 		 PicturePtr	dst,
@@ -897,69 +927,116 @@ uxa_solid_rects (CARD8		op,
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
-	PixmapPtr pixmap, src_pixmap = NULL;
-	int dst_x, dst_y;
+	PixmapPtr dst_pixmap, src_pixmap = NULL;
+	pixman_region16_t region;
+	pixman_box16_t *boxes;
 	PicturePtr src;
-	int error;
+	int dst_x, dst_y;
+	int num_boxes;
 
-	/* Using GEM, the relocation costs outweigh the advantages of the blitter */
-	if (num_rects == 1)
-		goto fallback;
-
-	if (dst->alphaMap)
-		goto fallback;
-
-	pixmap = uxa_get_offscreen_pixmap(dst->pDrawable, &dst_x, &dst_y);
-	if (!pixmap)
-		goto fallback;
+	if (!pixman_region_not_empty(dst->pCompositeClip))
+		return;
 
 	if (op == PictOpClear)
 		color->red = color->green = color->blue = color->alpha = 0;
 	if (color->alpha >= 0xff00 && op == PictOpOver)
 		op = PictOpSrc;
 
-	src = CreateSolidPicture(0, color, &error);
-	if (!src)
+	if (dst->alphaMap)
 		goto fallback;
 
-	if (!uxa_screen->info->check_composite(op, src, NULL, dst))
-		goto err_src;
+	dst_pixmap = uxa_get_offscreen_pixmap(dst->pDrawable, &dst_x, &dst_y);
+	if (!dst_pixmap)
+		goto fallback;
 
-	if (!uxa_screen->info->check_composite_texture ||
-	    !uxa_screen->info->check_composite_texture(screen, src)) {
-		PicturePtr solid;
-		int src_off_x, src_off_y;
+	if (!_pixman_region_init_rectangles(&region, num_rects, rects))
+		goto fallback;
 
-		solid = uxa_acquire_solid(screen, src->pSourcePict);
-		FreePicture(src, 0);
+	if (!pixman_region_intersect(&region, &region, dst->pCompositeClip)) {
+		pixman_region_fini(&region);
+		return;
+	}
 
-		src = solid;
-		src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
-				                      &src_off_x, &src_off_y);
-		if (!src_pixmap)
+	pixman_region_translate(&region, dst_x, dst_y);
+	boxes = pixman_region_rectangles(&region, &num_boxes);
+
+	/* Using GEM, the relocation costs outweigh the advantages of the blitter */
+	if (num_boxes == 1 && (op == PictOpSrc || op == PictOpClear)) {
+		CARD32 pixel;
+
+		if (uxa_screen->info->check_solid &&
+		    !uxa_screen->info->check_solid(&dst_pixmap->drawable, GXcopy, 0xffffffff))
+			goto err_region;
+
+		if (op == PictOpClear) {
+			pixel = 0;
+		} else {
+			if (!uxa_get_pixel_from_rgba(&pixel,
+						     color->red,
+						     color->green,
+						     color->blue,
+						     color->alpha,
+						     dst->format))
+				goto err_region;
+		}
+
+		if (!uxa_screen->info->prepare_solid(dst_pixmap, GXcopy, 0xffffffff, pixel))
+			goto err_region;
+
+		uxa_screen->info->solid(dst_pixmap,
+					boxes->x1, boxes->y1,
+					boxes->x2, boxes->y2);
+
+		uxa_screen->info->done_solid(dst_pixmap);
+	} else {
+		int error;
+
+		src = CreateSolidPicture(0, color, &error);
+		if (!src)
+			goto err_region;
+
+		if (!uxa_screen->info->check_composite(op, src, NULL, dst))
 			goto err_src;
+
+		if (!uxa_screen->info->check_composite_texture ||
+		    !uxa_screen->info->check_composite_texture(screen, src)) {
+			PicturePtr solid;
+			int src_off_x, src_off_y;
+
+			solid = uxa_acquire_solid(screen, src->pSourcePict);
+			FreePicture(src, 0);
+
+			src = solid;
+			src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
+							      &src_off_x, &src_off_y);
+			if (!src_pixmap)
+				goto err_src;
+		}
+
+		if (!uxa_screen->info->prepare_composite(op, src, NULL, dst, src_pixmap, NULL, dst_pixmap))
+			goto err_src;
+
+		while (num_boxes--) {
+			uxa_screen->info->composite(dst_pixmap,
+						    0, 0, 0, 0,
+						    boxes->x1,
+						    boxes->y1,
+						    boxes->x2 - boxes->x1,
+						    boxes->y2 - boxes->y1);
+			boxes++;
+		}
+
+		uxa_screen->info->done_composite(dst_pixmap);
+		FreePicture(src, 0);
 	}
 
-	if (!uxa_screen->info->prepare_composite(op, src, NULL, dst, src_pixmap, NULL, pixmap))
-		goto err_src;
-
-	while (num_rects--) {
-		uxa_screen->info->composite(pixmap,
-					    0, 0, 0, 0,
-					    rects->x + dst_x,
-					    rects->y + dst_y,
-					    rects->width,
-					    rects->height);
-		rects++;
-	}
-
-	uxa_screen->info->done_composite(pixmap);
-	FreePicture(src, 0);
-
+	pixman_region_fini(&region);
 	return;
 
 err_src:
 	FreePicture(src, 0);
+err_region:
+	pixman_region_fini(&region);
 fallback:
 	uxa_screen->SavedCompositeRects(op, dst, color, num_rects, rects);
 }
