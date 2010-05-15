@@ -126,19 +126,17 @@ static struct blendinfo i830_blend_op[] = {
 	{0, 0, BLENDFACTOR_ONE, BLENDFACTOR_ONE},
 };
 
-/* The x8* formats could use MT_32BIT_X* on 855+, but since we implement
- * workarounds for 830/845 anyway, we just rely on those whether the hardware
- * could handle it for us or not.
- */
 static struct formatinfo i830_tex_formats[] = {
 	{PICT_a8r8g8b8, MT_32BIT_ARGB8888},
-	{PICT_x8r8g8b8, MT_32BIT_ARGB8888},
 	{PICT_a8b8g8r8, MT_32BIT_ABGR8888},
-	{PICT_x8b8g8r8, MT_32BIT_ABGR8888},
 	{PICT_r5g6b5, MT_16BIT_RGB565},
 	{PICT_a1r5g5b5, MT_16BIT_ARGB1555},
-	{PICT_x1r5g5b5, MT_16BIT_ARGB1555},
 	{PICT_a8, MT_8BIT_A8},
+};
+
+static struct formatinfo i855_tex_formats[] = {
+	{PICT_x8r8g8b8, MT_32BIT_XRGB8888},
+	{PICT_x8b8g8r8, MT_32BIT_XBGR8888},
 };
 
 static Bool i830_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
@@ -221,15 +219,26 @@ static Bool i830_get_blend_cntl(ScrnInfoPtr scrn, int op, PicturePtr mask,
 	return TRUE;
 }
 
-static uint32_t i8xx_get_card_format(PicturePtr picture)
+static uint32_t i8xx_get_card_format(intel_screen_private *intel,
+				     PicturePtr picture)
 {
 	int i;
+
 	for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
 	     i++) {
 		if (i830_tex_formats[i].fmt == picture->format)
 			return i830_tex_formats[i].card_fmt;
 	}
-	FatalError("Unsupported format type %d\n", picture->format);
+
+	if (IS_I85X(intel) || IS_I865G(intel)) {
+		for (i = 0; i < sizeof(i855_tex_formats) / sizeof(i855_tex_formats[0]);
+		     i++) {
+			if (i855_tex_formats[i].fmt == picture->format)
+				return i855_tex_formats[i].card_fmt;
+		}
+	}
+
+	return 0;
 }
 
 static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
@@ -251,7 +260,7 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	else
 		texcoordtype = TEXCOORDTYPE_HOMOGENEOUS;
 
-	format = i8xx_get_card_format(picture);
+	format = i8xx_get_card_format(intel, picture);
 
 	switch (picture->repeatType) {
 	case RepeatNone:
@@ -378,8 +387,10 @@ i830_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 Bool
 i830_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 {
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
 	if (picture->repeatType > RepeatReflect) {
-		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 		intel_debug_fallback(scrn, "Unsupported picture repeat %d\n",
 			     picture->repeatType);
 		return FALSE;
@@ -387,34 +398,25 @@ i830_check_composite_texture(ScreenPtr screen, PicturePtr picture)
 
 	if (picture->filter != PictFilterNearest &&
 	    picture->filter != PictFilterBilinear) {
-		ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 		intel_debug_fallback(scrn, "Unsupported filter 0x%x\n",
 				     picture->filter);
 		return FALSE;
 	}
 
 	if (picture->pDrawable) {
-		int w, h, i;
+		int w, h;
 
 		w = picture->pDrawable->width;
 		h = picture->pDrawable->height;
 		if ((w > 2048) || (h > 2048)) {
-			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 			intel_debug_fallback(scrn,
 					     "Picture w/h too large (%dx%d)\n",
 					     w, h);
 			return FALSE;
 		}
 
-		for (i = 0;
-		     i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);
-		     i++) {
-			if (i830_tex_formats[i].fmt == picture->format)
-				break;
-		}
-		if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
-		{
-			ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+		/* XXX we can use the xrgb32 types if there the picture covers the clip */
+		if (!i8xx_get_card_format(intel, picture)) {
 			intel_debug_fallback(scrn, "Unsupported picture format "
 					     "0x%x\n",
 					     (int)picture->format);
