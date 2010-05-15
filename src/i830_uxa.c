@@ -681,35 +681,7 @@ static Bool i830_bo_put_image(PixmapPtr pixmap, dri_bo *bo, char *src, int src_p
 {
 	int stride = i830_pixmap_pitch(pixmap);
 
-	/* fill alpha channel */
-	if (pixmap->drawable.depth == 24) {
-		pixman_image_t *src_image, *dst_image;
-
-		src_image = pixman_image_create_bits (PIXMAN_x8r8g8b8,
-						      w, h,
-						      (uint32_t *) src, src_pitch);
-
-		dst_image = pixman_image_create_bits (PIXMAN_a8r8g8b8,
-						      w, h,
-						      (uint32_t *) bo->virtual, stride);
-
-		if (src_image && dst_image)
-			pixman_image_composite (PictOpSrc,
-						src_image, NULL, dst_image,
-						0, 0,
-						0, 0,
-						0, 0,
-						w, h);
-
-		if (src_image)
-			pixman_image_unref (src_image);
-
-		if (dst_image)
-			pixman_image_unref (dst_image);
-
-		if (src_image == NULL || dst_image == NULL)
-			return FALSE;
-	} else if (src_pitch == stride) {
+	if (src_pitch == stride) {
 		memcpy (bo->virtual, src, stride * h);
 	} else {
 		char *dst = bo->virtual;
@@ -803,8 +775,7 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 
 	priv = i830_get_pixmap_intel(pixmap);
 	if (priv->batch_read_domains ||
-	    drm_intel_bo_busy(priv->bo) ||
-	    pixmap->drawable.depth == 24) {
+	    drm_intel_bo_busy(priv->bo)) {
 		dri_bo *bo;
 
 		/* Partial replacement, copy incoming image to a bo and blit. */
