@@ -370,7 +370,7 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 	PixmapPtr pSrcPix = NULL, pDstPix;
 	CARD32 pixel;
 
-	if (uxa_screen->info->check_solid && !uxa_screen->info->check_solid(pDst->pDrawable, GXcopy, 0xffffffff))
+	if (uxa_screen->info->check_solid && !uxa_screen->info->check_solid(pDst->pDrawable, GXcopy, FB_ALLONES))
 		return -1;
 
 	pDstPix = uxa_get_offscreen_pixmap(pDst->pDrawable, &dst_off_x, &dst_off_y);
@@ -427,7 +427,7 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 	}
 
 	if (!(*uxa_screen->info->prepare_solid)
-	    (pDstPix, GXcopy, 0xffffffff, pixel)) {
+	    (pDstPix, GXcopy, FB_ALLONES, pixel)) {
 		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
 		return -1;
 	}
@@ -971,7 +971,7 @@ uxa_solid_rects (CARD8		op,
 		CARD32 pixel;
 
 		if (uxa_screen->info->check_solid &&
-		    !uxa_screen->info->check_solid(&dst_pixmap->drawable, GXcopy, 0xffffffff))
+		    !uxa_screen->info->check_solid(&dst_pixmap->drawable, GXcopy, FB_ALLONES))
 			goto err_region;
 
 		if (op == PictOpClear) {
@@ -986,7 +986,7 @@ uxa_solid_rects (CARD8		op,
 				goto err_region;
 		}
 
-		if (!uxa_screen->info->prepare_solid(dst_pixmap, GXcopy, 0xffffffff, pixel))
+		if (!uxa_screen->info->prepare_solid(dst_pixmap, GXcopy, FB_ALLONES, pixel))
 			goto err_region;
 
 		uxa_screen->info->solid(dst_pixmap,
