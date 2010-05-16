@@ -943,11 +943,6 @@ uxa_solid_rects (CARD8		op,
 	if (!pixman_region_not_empty(dst->pCompositeClip))
 		return;
 
-	if (op == PictOpClear)
-		color->red = color->green = color->blue = color->alpha = 0;
-	if (color->alpha >= 0xff00 && op == PictOpOver)
-		op = PictOpSrc;
-
 	if (dst->alphaMap)
 		goto fallback;
 
@@ -965,6 +960,11 @@ uxa_solid_rects (CARD8		op,
 
 	pixman_region_translate(&region, dst_x, dst_y);
 	boxes = pixman_region_rectangles(&region, &num_boxes);
+
+	if (op == PictOpClear)
+		color->red = color->green = color->blue = color->alpha = 0;
+	if (color->alpha >= 0xff00 && op == PictOpOver)
+		op = PictOpSrc;
 
 	/* Using GEM, the relocation costs outweigh the advantages of the blitter */
 	if (num_boxes == 1 && (op == PictOpSrc || op == PictOpClear)) {
