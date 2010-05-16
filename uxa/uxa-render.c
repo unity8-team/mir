@@ -838,8 +838,8 @@ uxa_acquire_picture(ScreenPtr screen,
 			*out_x = x + src->pDrawable->x;
 			*out_y = y + src->pDrawable->y;
 		} else {
-			*out_x = x;
-			*out_y = y;
+			*out_x = 0;
+			*out_y = 0;
 		}
 		return src;
 	}
@@ -860,8 +860,8 @@ uxa_acquire_picture(ScreenPtr screen,
 		return dst;
 	}
 
-	*out_x = x;
-	*out_y = y;
+	*out_x = 0;
+	*out_y = 0;
 	return uxa_acquire_pattern(screen, src,
 				   format, x, y, width, height);
 }
