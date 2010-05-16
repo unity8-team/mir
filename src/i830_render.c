@@ -127,16 +127,17 @@ static struct blendinfo i830_blend_op[] = {
 };
 
 static struct formatinfo i830_tex_formats[] = {
-	{PICT_a8r8g8b8, MT_32BIT_ARGB8888},
-	{PICT_a8b8g8r8, MT_32BIT_ABGR8888},
-	{PICT_r5g6b5, MT_16BIT_RGB565},
-	{PICT_a1r5g5b5, MT_16BIT_ARGB1555},
-	{PICT_a8, MT_8BIT_A8},
+	{PICT_a8, MAPSURF_8BIT | MT_8BIT_A8},
+	{PICT_a8r8g8b8, MAPSURF_32BIT | MT_32BIT_ARGB8888},
+	{PICT_a8b8g8r8, MAPSURF_32BIT | MT_32BIT_ABGR8888},
+	{PICT_r5g6b5, MAPSURF_16BIT | MT_16BIT_RGB565},
+	{PICT_a1r5g5b5, MAPSURF_16BIT | MT_16BIT_ARGB1555},
+	{PICT_a4r4g4b4, MAPSURF_16BIT | MT_16BIT_ARGB4444},
 };
 
 static struct formatinfo i855_tex_formats[] = {
-	{PICT_x8r8g8b8, MT_32BIT_XRGB8888},
-	{PICT_x8b8g8r8, MT_32BIT_XBGR8888},
+	{PICT_x8r8g8b8, MAPSURF_32BIT | MT_32BIT_XRGB8888},
+	{PICT_x8b8g8r8, MAPSURF_32BIT | MT_32BIT_XBGR8888},
 };
 
 static Bool i830_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
@@ -260,8 +261,6 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	else
 		texcoordtype = TEXCOORDTYPE_HOMOGENEOUS;
 
-	format = i8xx_get_card_format(intel, picture);
-
 	switch (picture->repeatType) {
 	case RepeatNone:
 		wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
@@ -293,58 +292,51 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	}
 	filter |= (MIPFILTER_NONE << TM0S3_MIP_FILTER_SHIFT);
 
-	{
-		if (pixmap->drawable.bitsPerPixel == 8)
-			format |= MAPSURF_8BIT;
-		else if (pixmap->drawable.bitsPerPixel == 16)
-			format |= MAPSURF_16BIT;
-		else
-			format |= MAPSURF_32BIT;
+	if (i830_pixmap_tiled(pixmap)) {
+		tiling_bits = TM0S1_TILED_SURFACE;
+		if (i830_get_pixmap_intel(pixmap)->tiling
+				== I915_TILING_Y)
+			tiling_bits |= TM0S1_TILE_WALK;
+	} else
+		tiling_bits = 0;
 
-		if (i830_pixmap_tiled(pixmap)) {
-			tiling_bits = TM0S1_TILED_SURFACE;
-			if (i830_get_pixmap_intel(pixmap)->tiling
-					== I915_TILING_Y)
-				tiling_bits |= TM0S1_TILE_WALK;
-		} else
-			tiling_bits = 0;
+	format = i8xx_get_card_format(intel, picture);
 
-		ATOMIC_BATCH(10);
-		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
-			  LOAD_TEXTURE_MAP(unit) | 4);
-		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_SAMPLER, 0, 0);
-		OUT_BATCH(((pixmap->drawable.height -
-			    1) << TM0S1_HEIGHT_SHIFT) | ((pixmap->drawable.width -
-							  1) <<
-							 TM0S1_WIDTH_SHIFT) |
-			  format | tiling_bits);
-		OUT_BATCH((pitch / 4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
-		OUT_BATCH(filter);
-		OUT_BATCH(0);	/* default color */
-		OUT_BATCH(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
-			  ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
-			  texcoordtype | ENABLE_ADDR_V_CNTL |
-			  TEXCOORD_ADDR_V_MODE(wrap_mode) |
-			  ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
-		/* map texel stream */
-		OUT_BATCH(_3DSTATE_MAP_COORD_SETBIND_CMD);
-		if (unit == 0)
-			OUT_BATCH(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
-				  TEXBIND_SET1(TEXCOORDSRC_KEEP) |
-				  TEXBIND_SET2(TEXCOORDSRC_KEEP) |
-				  TEXBIND_SET3(TEXCOORDSRC_KEEP));
-		else
-			OUT_BATCH(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
-				  TEXBIND_SET1(TEXCOORDSRC_VTXSET_1) |
-				  TEXBIND_SET2(TEXCOORDSRC_KEEP) |
-				  TEXBIND_SET3(TEXCOORDSRC_KEEP));
-		OUT_BATCH(_3DSTATE_MAP_TEX_STREAM_CMD | (unit << 16) |
-			  DISABLE_TEX_STREAM_BUMP |
-			  ENABLE_TEX_STREAM_COORD_SET |
-			  TEX_STREAM_COORD_SET(unit) |
-			  ENABLE_TEX_STREAM_MAP_IDX | TEX_STREAM_MAP_IDX(unit));
-		ADVANCE_BATCH();
-	}
+	ATOMIC_BATCH(10);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
+		  LOAD_TEXTURE_MAP(unit) | 4);
+	OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_SAMPLER, 0, 0);
+	OUT_BATCH(((pixmap->drawable.height -
+		    1) << TM0S1_HEIGHT_SHIFT) | ((pixmap->drawable.width -
+						  1) <<
+						 TM0S1_WIDTH_SHIFT) |
+		  format | tiling_bits);
+	OUT_BATCH((pitch / 4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
+	OUT_BATCH(filter);
+	OUT_BATCH(0);	/* default color */
+	OUT_BATCH(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
+		  ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
+		  texcoordtype | ENABLE_ADDR_V_CNTL |
+		  TEXCOORD_ADDR_V_MODE(wrap_mode) |
+		  ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
+	/* map texel stream */
+	OUT_BATCH(_3DSTATE_MAP_COORD_SETBIND_CMD);
+	if (unit == 0)
+		OUT_BATCH(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
+			  TEXBIND_SET1(TEXCOORDSRC_KEEP) |
+			  TEXBIND_SET2(TEXCOORDSRC_KEEP) |
+			  TEXBIND_SET3(TEXCOORDSRC_KEEP));
+	else
+		OUT_BATCH(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
+			  TEXBIND_SET1(TEXCOORDSRC_VTXSET_1) |
+			  TEXBIND_SET2(TEXCOORDSRC_KEEP) |
+			  TEXBIND_SET3(TEXCOORDSRC_KEEP));
+	OUT_BATCH(_3DSTATE_MAP_TEX_STREAM_CMD | (unit << 16) |
+		  DISABLE_TEX_STREAM_BUMP |
+		  ENABLE_TEX_STREAM_COORD_SET |
+		  TEX_STREAM_COORD_SET(unit) |
+		  ENABLE_TEX_STREAM_MAP_IDX | TEX_STREAM_MAP_IDX(unit));
+	ADVANCE_BATCH();
 }
 
 Bool
