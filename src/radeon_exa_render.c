@@ -970,7 +970,7 @@ static Bool R200CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 	    return FALSE;
     }
 
-    if (!R200CheckCompositeTexture(pSrcPicture, pDstPicture, op, 1))
+    if (!R200CheckCompositeTexture(pSrcPicture, pDstPicture, op, 0))
 	return FALSE;
 
     if (!RADEONGetDestFormat(pDstPicture, &tmp1))
