@@ -395,9 +395,6 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	 * client gets to run again so flush now. */
 	intel_batch_emit_flush(scrn);
 	intel_batch_submit(scrn);
-#if ALWAYS_SYNC
-	intel_sync(scrn);
-#endif
 	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 }
 

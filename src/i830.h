@@ -189,9 +189,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #endif
 #endif
 
-#define ALWAYS_SYNC 0
-#define ALWAYS_FLUSH 0
-
 #define PITCH_NONE 0
 
 /** Record of a linear allocation in the aperture. */
@@ -503,8 +500,6 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 				    float *x_out, float *y_out, float *z_out);
 
 void i830_enter_render(ScrnInfoPtr);
-
-extern void intel_sync(ScrnInfoPtr scrn);
 
 static inline void
 intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)

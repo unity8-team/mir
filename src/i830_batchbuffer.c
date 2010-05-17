@@ -269,18 +269,3 @@ void intel_batch_wait_last(ScrnInfoPtr scrn)
 	drm_intel_bo_map(intel->last_batch_bo, TRUE);
 	drm_intel_bo_unmap(intel->last_batch_bo);
 }
-
-void intel_sync(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
-		ErrorF("I830Sync\n");
-
-	if (!scrn->vtSema || !intel->batch_bo || !intel->batch_ptr)
-		return;
-
-	intel_batch_emit_flush(scrn);
-	intel_batch_submit(scrn);
-	intel_batch_wait_last(scrn);
-}
