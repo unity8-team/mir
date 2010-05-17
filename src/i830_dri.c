@@ -302,7 +302,10 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	RegionPtr pCopyClip;
 	GCPtr gc;
 
-	gc = GetScratchGC(drawable->depth, screen);
+	gc = GetScratchGC(dst->depth, screen);
+	if (!gc)
+		return;
+
 	pCopyClip = REGION_CREATE(screen, NULL, 0);
 	REGION_COPY(screen, pCopyClip, pRegion);
 	(*gc->funcs->ChangeClip) (gc, CT_REGION, pCopyClip, 0);
@@ -390,12 +393,12 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	 *
 	 * We can't rely on getting into the block handler before the DRI
 	 * client gets to run again so flush now. */
+	intel_batch_emit_flush(scrn);
 	intel_batch_submit(scrn);
 #if ALWAYS_SYNC
 	intel_sync(scrn);
 #endif
 	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
-
 }
 
 #if DRI2INFOREC_VERSION >= 4
