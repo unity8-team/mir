@@ -399,16 +399,14 @@ static int radeon_dri2_drawable_crtc(DrawablePtr pDraw)
 {
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    BoxRec box, crtcbox;
     xf86CrtcPtr crtc;
     int crtc_id = -1;
 
-    box.x1 = pDraw->x;
-    box.y1 = pDraw->y;
-    box.x2 = box.x1 + pDraw->width;
-    box.y2 = box.y1 + pDraw->height;
-
-    crtc = radeon_covering_crtc(pScrn, &box, NULL, &crtcbox);
+    crtc = radeon_pick_best_crtc(pScrn,
+				 pDraw->x,
+				 pDraw->x + pDraw->width,
+				 pDraw->y,
+				 pDraw->y + pDraw->height);
 
     /* Make sure the CRTC is valid and this is the real front buffer */
     if (crtc != NULL && !crtc->rotatedData) {
