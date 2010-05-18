@@ -66,21 +66,14 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "dri2.h"
 
-#ifdef DRI2
-#if DRI2INFOREC_VERSION >= 1
-#define USE_DRI2_1_1_0
-#endif
-
-extern XF86ModuleData dri2ModuleData;
-#endif
-
 typedef struct {
 	int refcnt;
 	PixmapPtr pixmap;
 	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
-#ifndef USE_DRI2_1_1_0
+#if DRI2INFOREC_VERSION < 2
+
 static DRI2BufferPtr
 I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		      int count)
@@ -162,6 +155,24 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	return buffers;
 }
 
+static void
+I830DRI2DestroyBuffers(DrawablePtr drawable, DRI2BufferPtr buffers, int count)
+{
+	ScreenPtr screen = drawable->pScreen;
+	I830DRI2BufferPrivatePtr private;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		private = buffers[i].driverPrivate;
+		screen->DestroyPixmap(private->pixmap);
+	}
+
+	if (buffers) {
+		xfree(buffers[0].driverPrivate);
+		xfree(buffers);
+	}
+}
+
 #else
 
 static DRI2Buffer2Ptr
@@ -236,30 +247,6 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 
 	return buffer;
 }
-
-#endif
-
-#ifndef USE_DRI2_1_1_0
-
-static void
-I830DRI2DestroyBuffers(DrawablePtr drawable, DRI2BufferPtr buffers, int count)
-{
-	ScreenPtr screen = drawable->pScreen;
-	I830DRI2BufferPrivatePtr private;
-	int i;
-
-	for (i = 0; i < count; i++) {
-		private = buffers[i].driverPrivate;
-		screen->DestroyPixmap(private->pixmap);
-	}
-
-	if (buffers) {
-		xfree(buffers[0].driverPrivate);
-		xfree(buffers);
-	}
-}
-
-#else
 
 static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 {
@@ -979,25 +966,20 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2InfoRec info;
-#ifdef USE_DRI2_1_1_0
 	int dri2_major = 1;
 	int dri2_minor = 0;
-#endif
 #if DRI2INFOREC_VERSION >= 4
 	const char *driverNames[1];
 #endif
 
-#ifdef USE_DRI2_1_1_0
-	if (xf86LoaderCheckSymbol("DRI2Version")) {
+	if (xf86LoaderCheckSymbol("DRI2Version"))
 		DRI2Version(&dri2_major, &dri2_minor);
-	}
 
 	if (dri2_minor < 1) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "DRI2 requires DRI2 module version 1.1.0 or later\n");
 		return FALSE;
 	}
-#endif
 
 	intel->deviceName = drmGetDeviceNameFromFd(intel->drmSubFD);
 	memset(&info, '\0', sizeof(info));
@@ -1005,22 +987,21 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	info.driverName = IS_I965G(intel) ? "i965" : "i915";
 	info.deviceName = intel->deviceName;
 
-#if DRI2INFOREC_VERSION >= 3
-	info.version = 3;
-	info.CreateBuffer = I830DRI2CreateBuffer;
-	info.DestroyBuffer = I830DRI2DestroyBuffer;
-#else
-# ifdef USE_DRI2_1_1_0
-	info.version = 2;
-	info.CreateBuffers = NULL;
-	info.DestroyBuffers = NULL;
-	info.CreateBuffer = I830DRI2CreateBuffer;
-	info.DestroyBuffer = I830DRI2DestroyBuffer;
-# else
+#if DRI2INFOREC_VERSION == 1
 	info.version = 1;
 	info.CreateBuffers = I830DRI2CreateBuffers;
 	info.DestroyBuffers = I830DRI2DestroyBuffers;
-# endif
+#elif DRI2INFOREC_VERSION == 2
+	/* The ABI between 2 and 3 was broken so we could get rid of
+	 * the multi-buffer alloc functions.  Make sure we indicate the
+	 * right version so DRI2 can reject us if it's version 3 or above. */
+	info.version = 2;
+	info.CreateBuffer = I830DRI2CreateBuffer;
+	info.DestroyBuffer = I830DRI2DestroyBuffer;
+#else
+	info.version = 3;
+	info.CreateBuffer = I830DRI2CreateBuffer;
+	info.DestroyBuffer = I830DRI2DestroyBuffer;
 #endif
 
 	info.CopyRegion = I830DRI2CopyRegion;
