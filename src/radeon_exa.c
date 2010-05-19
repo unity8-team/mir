@@ -454,7 +454,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     /* Small pixmaps must not be macrotiled on R300, hw cannot sample them
      * correctly because samplers automatically switch to macrolinear. */
     if (info->ChipFamily >= CHIP_FAMILY_R300 &&
-        info->ChipFamily <= CHIP_FAMILY_RS690 &&
+        info->ChipFamily <= CHIP_FAMILY_RS740 &&
         (tiling & RADEON_TILING_MACRO) &&
         !RADEONMacroSwitch(width, height, bitsPerPixel, tiling,
                            info->ChipFamily >= CHIP_FAMILY_RV350)) {
