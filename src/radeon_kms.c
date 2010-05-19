@@ -424,6 +424,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     RADEONEntPtr pRADEONEnt;
     DevUnion* pPriv;
     Gamma  zeros = { 0.0, 0.0, 0.0 };
+    Bool colorTilingDefault;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONPreInit_KMS\n");
@@ -480,8 +481,11 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (!radeon_alloc_dri(pScrn))
 	return FALSE;
 
+    colorTilingDefault = info->ChipFamily >= CHIP_FAMILY_R300 &&
+                         info->ChipFamily <= CHIP_FAMILY_RS740;
+
     info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-                                        OPTION_COLOR_TILING, FALSE);
+                                        OPTION_COLOR_TILING, colorTilingDefault);
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Color tiling is not yet supported on R600/R700\n");
 	    info->allowColorTiling = FALSE;
