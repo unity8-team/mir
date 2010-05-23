@@ -467,6 +467,10 @@ static void i830_uxa_done_copy(PixmapPtr dest)
 void i830_done_composite(PixmapPtr dest)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (intel->vertex_flush)
+		intel->vertex_flush(intel);
 
 	i830_debug_flush(scrn);
 }
@@ -1050,6 +1054,9 @@ Bool i830_uxa_init(ScreenPtr screen)
 	intel->bufferOffset = 0;
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
+
+	intel->prim_offset = 0;
+	intel->prim_count = 0;
 
 	/* Solid fill */
 	intel->uxa_driver->check_solid = i830_uxa_check_solid;

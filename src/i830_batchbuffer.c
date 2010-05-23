@@ -165,6 +165,9 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 	if (intel->batch_used == 0)
 		return;
 
+	if (intel->vertex_flush)
+		intel->vertex_flush(intel);
+
 	/* Emit a padding dword if we aren't going to be quad-word aligned. */
 	if ((intel->batch_used & 4) == 0) {
 		*(uint32_t *) (intel->batch_ptr + intel->batch_used) = MI_NOOP;

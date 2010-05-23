@@ -708,6 +708,9 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 
 	    FS_END();
 	}
+
+	intel->prim_offset = 0;
+	intel->prim_count = 0;
 }
 
 /* Emit the vertices for a single composite rectangle.
@@ -850,9 +853,10 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 	num_floats = 3 * per_vertex;
 
-	ATOMIC_BATCH(1 + num_floats);
+	ATOMIC_BATCH(num_floats);
 
-	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats - 1));
+	intel->prim_count += num_floats;
+
 	OUT_BATCH_F(intel->dst_coord_adjust + dstX + w);
 	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
 	if (! intel->render_source_is_solid) {
@@ -926,13 +930,30 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	if (intel->needs_render_state_emit)
 		i915_emit_composite_setup(scrn);
 
+	if (intel->prim_offset == 0) {
+		intel->prim_offset = intel->batch_used;
+		ATOMIC_BATCH(1);
+		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
+		ADVANCE_BATCH();
+	}
+
 	i915_emit_composite_primitive(dest, srcX, srcY, maskX, maskY, dstX,
 				      dstY, w, h);
 
 	intel_batch_end_atomic(scrn);
 }
 
-void i915_batch_flush_notify(ScrnInfoPtr scrn)
+void
+i915_vertex_flush(intel_screen_private *intel)
+{
+	if (intel->prim_offset) {
+		*(uint32_t *) (intel->batch_ptr + intel->prim_offset) |= intel->prim_count - 1;
+		intel->prim_offset = 0;
+	}
+}
+
+void
+i915_batch_flush_notify(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 

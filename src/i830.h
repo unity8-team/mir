@@ -295,6 +295,7 @@ typedef struct intel_screen_private {
 
 	CloseScreenProcPtr CloseScreen;
 
+	void (*vertex_flush) (struct intel_screen_private *intel);
 	void (*batch_flush_notify) (ScrnInfoPtr scrn);
 
 	uxa_driver_t *uxa_driver;
@@ -356,6 +357,9 @@ typedef struct intel_screen_private {
 		int op;
 		uint32_t dst_format;
 	} i915_render_state;
+
+	uint32_t prim_offset;
+	uint32_t prim_count;
 
 	/* 965 render acceleration state */
 	struct gen4_render_state *gen4_render_state;
@@ -474,6 +478,7 @@ Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
 void i915_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i915_vertex_flush(intel_screen_private *intel);
 void i915_batch_flush_notify(ScrnInfoPtr scrn);
 void i830_batch_flush_notify(ScrnInfoPtr scrn);
 /* i965_render.c */

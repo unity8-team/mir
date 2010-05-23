@@ -1227,11 +1227,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 		return FALSE;
 	}
 
-	if (IS_I965G(intel))
+	if (IS_I965G(intel)) {
 		intel->batch_flush_notify = i965_batch_flush_notify;
-	else if (IS_I9XX(intel))
+	} else if (IS_I9XX(intel)) {
+		intel->vertex_flush = i915_vertex_flush;
 		intel->batch_flush_notify = i915_batch_flush_notify;
-	else
+	} else
 		intel->batch_flush_notify = i830_batch_flush_notify;
 
 	miInitializeBackingStore(screen);
