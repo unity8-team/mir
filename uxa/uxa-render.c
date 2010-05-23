@@ -251,7 +251,7 @@ uxa_get_pixel_from_rgba(CARD32 * pixel,
 	return TRUE;
 }
 
-static Bool
+Bool
 uxa_get_rgba_from_pixel(CARD32 pixel,
 			CARD16 * red,
 			CARD16 * green,
@@ -607,7 +607,7 @@ uxa_solid_clear(ScreenPtr screen)
 	return picture;
 }
 
-static PicturePtr
+PicturePtr
 uxa_acquire_solid(ScreenPtr screen, SourcePict *source)
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
@@ -974,17 +974,13 @@ uxa_solid_rects (CARD8		op,
 		    !uxa_screen->info->check_solid(&dst_pixmap->drawable, GXcopy, FB_ALLONES))
 			goto err_region;
 
-		if (op == PictOpClear) {
-			pixel = 0;
-		} else {
-			if (!uxa_get_pixel_from_rgba(&pixel,
-						     color->red,
-						     color->green,
-						     color->blue,
-						     color->alpha,
-						     dst->format))
-				goto err_region;
-		}
+		if (!uxa_get_pixel_from_rgba(&pixel,
+					     color->red,
+					     color->green,
+					     color->blue,
+					     color->alpha,
+					     dst->format))
+			goto err_region;
 
 		if (!uxa_screen->info->prepare_solid(dst_pixmap, GXcopy, FB_ALLONES, pixel))
 			goto err_region;

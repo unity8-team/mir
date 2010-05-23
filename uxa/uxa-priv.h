@@ -434,6 +434,17 @@ uxa_triangles(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	      PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
 	      int ntri, xTriangle * tris);
 
+PicturePtr
+uxa_acquire_solid(ScreenPtr screen, SourcePict *source);
+
+Bool
+uxa_get_rgba_from_pixel(CARD32 pixel,
+			CARD16 * red,
+			CARD16 * green,
+			CARD16 * blue,
+			CARD16 * alpha,
+			CARD32 format);
+
 /* uxa_glyph.c */
 void uxa_glyphs_init(ScreenPtr pScreen);
 

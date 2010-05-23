@@ -34,33 +34,106 @@
 #include <X11/fonts/fontstruct.h>
 #include "dixfontstr.h"
 #include "uxa.h"
+#include "mipict.h"
+
+static CARD32
+format_for_depth(int depth)
+{
+	switch (depth) {
+	case 1: return PICT_a1;
+	case 8: return PICT_a8;
+	case 15: return PICT_x1r5g5b5;
+	case 16: return PICT_r5g6b5;
+	default:
+	case 24: return PICT_x8r8g8b8;
+	case 32: return PICT_a8r8g8b8;
+	}
+}
 
 static void
 uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	       DDXPointPtr ppt, int *pwidth, int fSorted)
 {
-	ScreenPtr pScreen = pDrawable->pScreen;
-	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
+	ScreenPtr screen = pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 	RegionPtr pClip = fbGetCompositeClip(pGC);
-	PixmapPtr pPixmap = uxa_get_drawable_pixmap(pDrawable);
+	PixmapPtr dst_pixmap, src_pixmap = NULL;
 	BoxPtr pextent, pbox;
 	int nbox;
 	int extentX1, extentX2, extentY1, extentY2;
 	int fullX1, fullX2, fullY1;
 	int partX1, partX2;
 	int off_x, off_y;
+	xRenderColor color;
+	PictFormatPtr format;
+	PicturePtr dst, src;
+	int error;
 
-	if (uxa_screen->swappedOut || pGC->fillStyle != FillSolid ||
-	    !(pPixmap = uxa_get_offscreen_pixmap(pDrawable, &off_x, &off_y)) ||
-	    !(*uxa_screen->info->prepare_solid) (pPixmap,
-						 pGC->alu,
-						 pGC->planemask,
-						 pGC->fgPixel)) {
-		uxa_check_fill_spans(pDrawable, pGC, n, ppt, pwidth, fSorted);
-		return;
+	if (uxa_screen->swappedOut)
+		goto fallback;
+
+	if (pGC->fillStyle != FillSolid)
+		goto fallback;
+
+	dst_pixmap = uxa_get_offscreen_pixmap(pDrawable, &off_x, &off_y);
+	if (!dst_pixmap)
+		goto fallback;
+
+	if (pGC->alu != GXcopy || pGC->planemask != FB_ALLONES)
+		goto solid;
+
+	format = PictureMatchFormat(screen,
+				    dst_pixmap->drawable.depth,
+				    format_for_depth(dst_pixmap->drawable.depth));
+	dst = CreatePicture(0, &dst_pixmap->drawable, format, 0, 0, serverClient, &error);
+	if (!dst)
+		goto solid;
+
+	ValidatePicture(dst);
+
+	uxa_get_rgba_from_pixel(pGC->fgPixel,
+				&color.red,
+				&color.green,
+				&color.blue,
+				&color.alpha,
+				format_for_depth(dst_pixmap->drawable.depth));
+	src = CreateSolidPicture(0, &color, &error);
+	if (!src) {
+		FreePicture(dst, 0);
+		goto solid;
 	}
 
-	pextent = REGION_EXTENTS(pGC->pScreen, pClip);
+	if (!uxa_screen->info->check_composite(PictOpSrc, src, NULL, dst)) {
+		FreePicture(src, 0);
+		FreePicture(dst, 0);
+		goto solid;
+	}
+
+	if (!uxa_screen->info->check_composite_texture ||
+	    !uxa_screen->info->check_composite_texture(screen, src)) {
+		PicturePtr solid;
+		int src_off_x, src_off_y;
+
+		solid = uxa_acquire_solid(screen, src->pSourcePict);
+		FreePicture(src, 0);
+
+		src = solid;
+		src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
+						      &src_off_x, &src_off_y);
+		if (!src_pixmap) {
+			FreePicture(src, 0);
+			FreePicture(dst, 0);
+			goto solid;
+		}
+	}
+
+	if (!uxa_screen->info->prepare_composite(PictOpSrc, src, NULL, dst, src_pixmap, NULL, dst_pixmap)) {
+		FreePicture(src, 0);
+		FreePicture(dst, 0);
+		goto solid;
+	}
+
+	pextent = REGION_EXTENTS(pGC->screen, pClip);
 	extentX1 = pextent->x1;
 	extentY1 = pextent->y1;
 	extentX2 = pextent->x2;
@@ -86,7 +159,82 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 
 		nbox = REGION_NUM_RECTS(pClip);
 		if (nbox == 1) {
-			(*uxa_screen->info->solid) (pPixmap,
+			uxa_screen->info->composite(dst_pixmap,
+						    0, 0, 0, 0,
+						    fullX1 + off_x,
+						    fullY1 + off_y,
+						    fullX2 - fullX1, 1);
+		} else {
+			pbox = REGION_RECTS(pClip);
+			while (nbox--) {
+				if (pbox->y2 >= fullY1)
+					break;
+
+				if (pbox->y1 <= fullY1) {
+					partX1 = pbox->x1;
+					if (partX1 < fullX1)
+						partX1 = fullX1;
+
+					partX2 = pbox->x2;
+					if (partX2 > fullX2)
+						partX2 = fullX2;
+
+					if (partX2 > partX1) {
+						uxa_screen->info->composite(dst_pixmap,
+									    0, 0, 0, 0,
+									    partX1 + off_x,
+									    fullY1 + off_y,
+									    partX2 - partX1, 1);
+					}
+				}
+				pbox++;
+			}
+		}
+	}
+
+	uxa_screen->info->done_composite(dst_pixmap);
+	FreePicture(src, 0);
+	FreePicture(dst, 0);
+	return;
+
+solid:
+	if (uxa_screen->info->check_solid &&
+	    !uxa_screen->info->check_solid(pDrawable, pGC->alu, pGC->planemask))
+		goto fallback;
+
+	if (!(*uxa_screen->info->prepare_solid) (dst_pixmap,
+						 pGC->alu,
+						 pGC->planemask,
+						 pGC->fgPixel))
+		goto fallback;
+
+	pextent = REGION_EXTENTS(pGC->screen, pClip);
+	extentX1 = pextent->x1;
+	extentY1 = pextent->y1;
+	extentX2 = pextent->x2;
+	extentY2 = pextent->y2;
+	while (n--) {
+		fullX1 = ppt->x;
+		fullY1 = ppt->y;
+		fullX2 = fullX1 + (int)*pwidth;
+		ppt++;
+		pwidth++;
+
+		if (fullY1 < extentY1 || extentY2 <= fullY1)
+			continue;
+
+		if (fullX1 < extentX1)
+			fullX1 = extentX1;
+
+		if (fullX2 > extentX2)
+			fullX2 = extentX2;
+
+		if (fullX1 >= fullX2)
+			continue;
+
+		nbox = REGION_NUM_RECTS(pClip);
+		if (nbox == 1) {
+			(*uxa_screen->info->solid) (dst_pixmap,
 						    fullX1 + off_x,
 						    fullY1 + off_y,
 						    fullX2 + off_x,
@@ -103,7 +251,7 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 						partX2 = fullX2;
 					if (partX2 > partX1) {
 						(*uxa_screen->info->
-						 solid) (pPixmap,
+						 solid) (dst_pixmap,
 							 partX1 + off_x,
 							 fullY1 + off_y,
 							 partX2 + off_x,
@@ -114,7 +262,12 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 			}
 		}
 	}
-	(*uxa_screen->info->done_solid) (pPixmap);
+	(*uxa_screen->info->done_solid) (dst_pixmap);
+
+	return;
+
+fallback:
+	uxa_check_fill_spans(pDrawable, pGC, n, ppt, pwidth, fSorted);
 }
 
 static Bool
