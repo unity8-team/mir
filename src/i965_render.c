@@ -196,8 +196,11 @@ static Bool i965_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 }
 
 Bool
-i965_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
-		     PicturePtr dest_picture)
+i965_check_composite(int op,
+		     PicturePtr source_picture,
+		     PicturePtr mask_picture,
+		     PicturePtr dest_picture,
+		     int width, int height)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);

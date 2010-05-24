@@ -103,7 +103,7 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 		goto solid;
 	}
 
-	if (!uxa_screen->info->check_composite(PictOpSrc, src, NULL, dst)) {
+	if (!uxa_screen->info->check_composite(PictOpSrc, src, NULL, dst, 0, 0)) {
 		FreePicture(src, 0);
 		FreePicture(dst, 0);
 		goto solid;
@@ -586,15 +586,15 @@ uxa_copy_n_to_n(DrawablePtr pSrcDrawable,
 	int dst_off_x, dst_off_y;
 	PixmapPtr pSrcPixmap, pDstPixmap;
 
-	if (uxa_screen->info->check_copy &&
-	    !uxa_screen->info->check_copy(pSrcDrawable, pDstDrawable,
-					  pGC ? pGC->alu : GXcopy,
-					  pGC ? pGC->planemask : FB_ALLONES))
-		goto fallback;
-
 	pSrcPixmap = uxa_get_drawable_pixmap(pSrcDrawable);
 	pDstPixmap = uxa_get_drawable_pixmap(pDstDrawable);
 	if (!pSrcPixmap || !pDstPixmap)
+		goto fallback;
+
+	if (uxa_screen->info->check_copy &&
+	    !uxa_screen->info->check_copy(pSrcPixmap, pDstPixmap,
+					  pGC ? pGC->alu : GXcopy,
+					  pGC ? pGC->planemask : FB_ALLONES))
 		goto fallback;
 
 	uxa_get_drawable_deltas(pSrcDrawable, pSrcPixmap, &src_off_x,
@@ -1121,19 +1121,15 @@ uxa_fill_region_tiled(DrawablePtr pDrawable,
 					     uxa_get_pixmap_first_pixel(pTile),
 					     planemask, alu);
 
-	if (uxa_screen->info->check_copy &&
-	    !uxa_screen->info->check_copy(&pTile->drawable, pDrawable, alu, planemask))
-		return FALSE;
-
-
-	pPixmap = uxa_get_drawable_pixmap(pDrawable);
-	uxa_get_drawable_deltas(pDrawable, pPixmap, &xoff, &yoff);
-	REGION_TRANSLATE(pScreen, pRegion, xoff, yoff);
-
 	pPixmap = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);
-
 	if (!pPixmap || !uxa_pixmap_is_offscreen(pTile))
 		goto out;
+
+	if (uxa_screen->info->check_copy &&
+	    !uxa_screen->info->check_copy(pTile, pPixmap, alu, planemask))
+		return FALSE;
+
+	REGION_TRANSLATE(pScreen, pRegion, xoff, yoff);
 
 	if ((*uxa_screen->info->prepare_copy) (pTile, pPixmap, 1, 1, alu,
 					       planemask)) {

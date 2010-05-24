@@ -151,9 +151,7 @@ typedef struct _UxaDriver {
 	/**
 	 * check_copy() checks whether the driver can blit between the two Pictures
 	 */
-	Bool(*check_copy) (DrawablePtr pSrcDrawable,
-			   DrawablePtr pDstDrawable,
-			   int alu, Pixel planemask);
+	Bool(*check_copy) (PixmapPtr pSrc, PixmapPtr pDst, int alu, Pixel planemask);
 	/**
 	 * prepare_copy() sets up the driver for doing a copy within video
 	 * memory.
@@ -249,6 +247,8 @@ typedef struct _UxaDriver {
 	 * @param pSrcPicture source Picture
 	 * @param pMaskPicture mask picture
 	 * @param pDstPicture destination Picture
+	 * @param width The width of the composite operation
+	 * @param height The height of the composite operation
 	 *
 	 * The check_composite() call checks if the driver could handle
 	 * acceleration of op with the given source, mask, and destination
@@ -266,7 +266,19 @@ typedef struct _UxaDriver {
 	Bool(*check_composite) (int op,
 				PicturePtr pSrcPicture,
 				PicturePtr pMaskPicture,
-				PicturePtr pDstPicture);
+				PicturePtr pDstPicture,
+				int width, int height);
+
+	/**
+	 * check_composite_target() checks to see if the destination of the composite
+	 * operation can be used without midification.
+	 *
+	 * @param pixmap Destination Pixmap
+	 *
+	 * The check_composite_target() call is recommended if prepare_composite() is
+	 * implemented, but is not required.
+	 */
+	Bool(*check_composite_target) (PixmapPtr pixmap);
 
 	/**
 	 * check_composite_texture() checks to see if a source to the composite

@@ -656,7 +656,7 @@ uxa_glyphs_try_driver_composite(CARD8 op,
 	int nrect;
 
 	if (uxa_screen->info->check_composite &&
-	    !(*uxa_screen->info->check_composite) (op, pSrc, buffer->source, pDst)) {
+	    !(*uxa_screen->info->check_composite) (op, pSrc, buffer->source, pDst, 0, 0)) {
 		return -1;
 	}
 
@@ -787,7 +787,7 @@ uxa_glyphs_try_driver_add_to_mask(PicturePtr pDst,
 	int nrect;
 
 	if (uxa_screen->info->check_composite &&
-	    !(*uxa_screen->info->check_composite) (PictOpAdd, buffer->source, NULL, pDst)) {
+	    !(*uxa_screen->info->check_composite) (PictOpAdd, buffer->source, NULL, pDst, 0, 0)) {
 		return -1;
 	}
 
@@ -1109,13 +1109,12 @@ uxa_glyphs(CARD8 op,
 	   PicturePtr pSrc,
 	   PicturePtr pDst,
 	   PictFormatPtr maskFormat,
-	   INT16 xSrc,
-	   INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs)
+	   INT16 xSrc, INT16 ySrc,
+	   int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 {
-	ScreenPtr pScreen = pDst->pDrawable->pScreen;
-	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
-	PixmapPtr pMaskPixmap = 0;
-	PicturePtr pMask;
+	ScreenPtr screen = pDst->pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+	PicturePtr pMask = NULL;
 	int width = 0, height = 0;
 	int x, y;
 	int xDst = list->xOff, yDst = list->yOff;
@@ -1123,13 +1122,16 @@ uxa_glyphs(CARD8 op,
 	GlyphPtr glyph;
 	int error;
 	BoxRec extents = { 0, 0, 0, 0 };
+	Bool have_extents = FALSE;
 	CARD32 component_alpha;
 	uxa_glyph_buffer_t buffer;
+	PicturePtr localDst = pDst;
 
 	if (!uxa_screen->info->prepare_composite ||
 	    uxa_screen->swappedOut ||
 	    !uxa_drawable_is_offscreen(pDst->pDrawable) ||
 	    pDst->alphaMap || pSrc->alphaMap) {
+fallback:
 	    uxa_check_glyphs(op, pSrc, pDst, maskFormat, xSrc, ySrc, nlist, list, glyphs);
 	    return;
 	}
@@ -1161,55 +1163,129 @@ uxa_glyphs(CARD8 op,
 		}
 	}
 
-	if (maskFormat) {
-		GCPtr pGC;
-		xRectangle rect;
+	x = y = 0;
+	if (!maskFormat &&
+	    uxa_screen->info->check_composite_target &&
+	    !uxa_screen->info->check_composite_target(uxa_get_drawable_pixmap(pDst->pDrawable))) {
+		int depth = pDst->pDrawable->depth;
+		PixmapPtr pixmap;
+		int error;
+		GCPtr gc;
+
+		pixmap = uxa_get_drawable_pixmap(pDst->pDrawable);
+		if (uxa_screen->info->check_copy &&
+		    !uxa_screen->info->check_copy(pixmap, pixmap, GXcopy, FB_ALLONES))
+			goto fallback;
 
 		uxa_glyph_extents(nlist, list, glyphs, &extents);
 
+		/* clip against dst bounds */
+		if (extents.x1 < 0)
+			extents.x1 = 0;
+		if (extents.y1 < 0)
+			extents.y1 = 0;
+		if (extents.x2 > pDst->pDrawable->width)
+			extents.x2 = pDst->pDrawable->width;
+		if (extents.y2 > pDst->pDrawable->height)
+			extents.y2 = pDst->pDrawable->height;
+
 		if (extents.x2 <= extents.x1 || extents.y2 <= extents.y1)
 			return;
-		width = extents.x2 - extents.x1;
+		width  = extents.x2 - extents.x1;
 		height = extents.y2 - extents.y1;
+		x = -extents.x1;
+		y = -extents.y1;
+		have_extents = TRUE;
+
+		xDst += x;
+		yDst += y;
+
+		pixmap = screen->CreatePixmap(screen,
+					      width, height, depth,
+					      CREATE_PIXMAP_USAGE_SCRATCH);
+		if (!pixmap)
+			return;
+
+		gc = GetScratchGC(depth, screen);
+		if (!gc) {
+			screen->DestroyPixmap(pixmap);
+			return;
+		}
+
+		ValidateGC(&pixmap->drawable, gc);
+		gc->ops->CopyArea(pDst->pDrawable, &pixmap->drawable, gc,
+				  extents.x1, extents.y1,
+				  width, height,
+				  0, 0);
+		FreeScratchGC(gc);
+
+		localDst = CreatePicture(0, &pixmap->drawable,
+					 PictureMatchFormat(screen, depth, pDst->format),
+					 0, 0, serverClient, &error);
+		screen->DestroyPixmap(pixmap);
+
+		if (!localDst)
+			return;
+
+		ValidatePicture(localDst);
+	}
+
+	if (maskFormat) {
+		PixmapPtr pixmap;
+		GCPtr gc;
+		xRectangle rect;
+
+		if (!have_extents) {
+			uxa_glyph_extents(nlist, list, glyphs, &extents);
+
+			if (extents.x2 <= extents.x1 || extents.y2 <= extents.y1)
+				return;
+			width  = extents.x2 - extents.x1;
+			height = extents.y2 - extents.y1;
+			x = -extents.x1;
+			y = -extents.y1;
+			have_extents = TRUE;
+		}
 
 		if (maskFormat->depth == 1) {
 			PictFormatPtr a8Format =
-			    PictureMatchFormat(pScreen, 8, PICT_a8);
+			    PictureMatchFormat(screen, 8, PICT_a8);
 
 			if (a8Format)
 				maskFormat = a8Format;
 		}
 
-		pMaskPixmap = (*pScreen->CreatePixmap) (pScreen, width, height,
-							maskFormat->depth,
-							CREATE_PIXMAP_USAGE_SCRATCH);
-		if (!pMaskPixmap)
-			return;
-		component_alpha = NeedsComponent(maskFormat->format);
-		pMask = CreatePicture(0, &pMaskPixmap->drawable,
-				      maskFormat, CPComponentAlpha,
-				      &component_alpha, serverClient, &error);
-		if (!pMask) {
-			(*pScreen->DestroyPixmap) (pMaskPixmap);
+		pixmap = screen->CreatePixmap(screen, width, height,
+					      maskFormat->depth,
+					      CREATE_PIXMAP_USAGE_SCRATCH);
+		if (!pixmap) {
+			if (localDst != pDst)
+				FreePicture(localDst, 0);
 			return;
 		}
-		pGC = GetScratchGC(pMaskPixmap->drawable.depth, pScreen);
-		ValidateGC(&pMaskPixmap->drawable, pGC);
+
+		gc = GetScratchGC(pixmap->drawable.depth, screen);
+		ValidateGC(&pixmap->drawable, gc);
 		rect.x = 0;
 		rect.y = 0;
 		rect.width = width;
 		rect.height = height;
-		(*pGC->ops->PolyFillRect) (&pMaskPixmap->drawable, pGC, 1,
-					   &rect);
-		FreeScratchGC(pGC);
-		x = -extents.x1;
-		y = -extents.y1;
+		gc->ops->PolyFillRect(&pixmap->drawable, gc, 1, &rect);
+		FreeScratchGC(gc);
+
+		component_alpha = NeedsComponent(maskFormat->format);
+		pMask = CreatePicture(0, &pixmap->drawable,
+				      maskFormat, CPComponentAlpha,
+				      &component_alpha, serverClient, &error);
+		screen->DestroyPixmap(pixmap);
+
+		if (!pMask) {
+			if (localDst != pDst)
+				FreePicture(localDst, 0);
+			return;
+		}
 
 		ValidatePicture(pMask);
-	} else {
-		pMask = pDst;
-		x = 0;
-		y = 0;
 	}
 
 	buffer.count = 0;
@@ -1222,19 +1298,19 @@ uxa_glyphs(CARD8 op,
 			glyph = *glyphs++;
 
 			if (glyph->info.width > 0 && glyph->info.height > 0 &&
-			    uxa_buffer_glyph(pScreen, &buffer, glyph, x,
+			    uxa_buffer_glyph(screen, &buffer, glyph, x,
 					     y) == UXA_GLYPH_NEED_FLUSH) {
 				if (maskFormat)
 					uxa_glyphs_to_mask(pMask, &buffer);
 				else
-					uxa_glyphs_to_dst(op, pSrc, pDst,
+					uxa_glyphs_to_dst(op, pSrc, localDst,
 							  &buffer, xSrc, ySrc,
 							  xDst, yDst);
 
 				buffer.count = 0;
 				buffer.source = NULL;
 
-				uxa_buffer_glyph(pScreen, &buffer, glyph, x, y);
+				uxa_buffer_glyph(screen, &buffer, glyph, x, y);
 			}
 
 			x += glyph->info.xOff;
@@ -1247,20 +1323,41 @@ uxa_glyphs(CARD8 op,
 		if (maskFormat)
 			uxa_glyphs_to_mask(pMask, &buffer);
 		else
-			uxa_glyphs_to_dst(op, pSrc, pDst, &buffer,
+			uxa_glyphs_to_dst(op, pSrc, localDst, &buffer,
 					  xSrc, ySrc, xDst, yDst);
 	}
 
 	if (maskFormat) {
-		x = extents.x1;
-		y = extents.y1;
+		if (localDst == pDst) {
+			x = extents.x1;
+			y = extents.y1;
+		} else
+			x = y = 0;
 		CompositePicture(op,
 				 pSrc,
 				 pMask,
-				 pDst,
+				 localDst,
 				 xSrc + x - xDst,
-				 ySrc + y - yDst, 0, 0, x, y, width, height);
-		FreePicture((pointer) pMask, (XID) 0);
-		(*pScreen->DestroyPixmap) (pMaskPixmap);
+				 ySrc + y - yDst,
+				 0, 0,
+				 x, y,
+				 width, height);
+		FreePicture(pMask, 0);
+	}
+
+	if (localDst != pDst) {
+		GCPtr gc;
+
+		gc = GetScratchGC(pDst->pDrawable->depth, screen);
+		if (gc) {
+			ValidateGC(pDst->pDrawable, gc);
+			gc->ops->CopyArea(localDst->pDrawable, pDst->pDrawable, gc,
+					  0, 0,
+					  width, height,
+					  extents.x1, extents.y1);
+			FreeScratchGC(gc);
+		}
+
+		FreePicture(localDst, 0);
 	}
 }

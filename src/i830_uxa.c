@@ -323,10 +323,10 @@ static void i830_uxa_done_solid(PixmapPtr pixmap)
  *   - support planemask using FULL_BLT_CMD?
  */
 static Bool
-i830_uxa_check_copy(DrawablePtr source, DrawablePtr dest,
+i830_uxa_check_copy(PixmapPtr source, PixmapPtr dest,
 		    int alu, Pixel planemask)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (IS_GEN6(intel)) {
@@ -335,16 +335,16 @@ i830_uxa_check_copy(DrawablePtr source, DrawablePtr dest,
 		return FALSE;
 	}
 
-	if (!UXA_PM_IS_SOLID(source, planemask)) {
+	if (!UXA_PM_IS_SOLID(&source->drawable, planemask)) {
 		intel_debug_fallback(scrn, "planemask is not solid");
 		return FALSE;
 	}
 
-	if (source->bitsPerPixel != dest->bitsPerPixel) {
+	if (source->drawable.bitsPerPixel != dest->drawable.bitsPerPixel) {
 		intel_debug_fallback(scrn, "mixed bpp copies unsupported\n");
 		return FALSE;
 	}
-	switch (source->bitsPerPixel) {
+	switch (source->drawable.bitsPerPixel) {
 	case 8:
 	case 16:
 	case 32:
@@ -352,6 +352,11 @@ i830_uxa_check_copy(DrawablePtr source, DrawablePtr dest,
 	default:
 		return FALSE;
 	}
+
+	if (!intel_check_pitch_2d(source))
+		return FALSE;
+	if (!intel_check_pitch_2d(dest))
+		return FALSE;
 
 	return TRUE;
 }
@@ -367,11 +372,6 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		i830_get_pixmap_bo(source),
 		i830_get_pixmap_bo(dest),
 	};
-
-	if (!intel_check_pitch_2d(source))
-		return FALSE;
-	if (!intel_check_pitch_2d(dest))
-		return FALSE;
 
 	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
@@ -1076,6 +1076,7 @@ Bool i830_uxa_init(ScreenPtr screen)
 	/* Composite */
 	if (!IS_I9XX(intel)) {
 		intel->uxa_driver->check_composite = i830_check_composite;
+		intel->uxa_driver->check_composite_target = i830_check_composite_target;
 		intel->uxa_driver->check_composite_texture = i830_check_composite_texture;
 		intel->uxa_driver->prepare_composite = i830_prepare_composite;
 		intel->uxa_driver->composite = i830_composite;
@@ -1083,6 +1084,7 @@ Bool i830_uxa_init(ScreenPtr screen)
 	} else if (IS_I915G(intel) || IS_I915GM(intel) ||
 		   IS_I945G(intel) || IS_I945GM(intel) || IS_G33CLASS(intel)) {
 		intel->uxa_driver->check_composite = i915_check_composite;
+		intel->uxa_driver->check_composite_target = i915_check_composite_target;
 		intel->uxa_driver->check_composite_texture = i915_check_composite_texture;
 		intel->uxa_driver->prepare_composite = i915_prepare_composite;
 		intel->uxa_driver->composite = i915_composite;

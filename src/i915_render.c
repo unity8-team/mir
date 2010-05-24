@@ -184,7 +184,8 @@ Bool
 i915_check_composite(int op,
 		     PicturePtr source_picture,
 		     PicturePtr mask_picture,
-		     PicturePtr dest_picture)
+		     PicturePtr dest_picture,
+		     int width, int height)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	uint32_t tmp1;
@@ -215,6 +216,21 @@ i915_check_composite(int op,
 		intel_debug_fallback(scrn, "Get Color buffer format\n");
 		return FALSE;
 	}
+
+	if (width > 2048 || height > 2048)
+		return FALSE;
+
+	return TRUE;
+}
+
+Bool
+i915_check_composite_target(PixmapPtr pixmap)
+{
+	if (pixmap->drawable.width > 2048 || pixmap->drawable.height > 2048)
+		return FALSE;
+
+	if(!intel_check_pitch_3d(pixmap))
+		return FALSE;
 
 	return TRUE;
 }

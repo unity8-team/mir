@@ -469,8 +469,10 @@ void i830_set_gem_max_sizes(ScrnInfoPtr scrn);
 drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn);
 
 /* i830_render.c */
-Bool i830_check_composite(int op, PicturePtr source, PicturePtr mask,
-			  PicturePtr dest);
+Bool i830_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
+Bool i830_check_composite_target(PixmapPtr pixmap);
 Bool i830_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i830_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
@@ -481,8 +483,10 @@ void i830_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i830_done_composite(PixmapPtr dest);
 /* i915_render.c */
-Bool i915_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
-			  PicturePtr dest);
+Bool i915_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
+Bool i915_check_composite_target(PixmapPtr pixmap);
 Bool i915_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
@@ -496,8 +500,9 @@ void i830_batch_flush_notify(ScrnInfoPtr scrn);
 unsigned int gen4_render_state_size(ScrnInfoPtr scrn);
 void gen4_render_state_init(ScrnInfoPtr scrn);
 void gen4_render_state_cleanup(ScrnInfoPtr scrn);
-Bool i965_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
-			  PicturePtr dest);
+Bool i965_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
 Bool i965_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i965_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,

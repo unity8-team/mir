@@ -340,8 +340,11 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 }
 
 Bool
-i830_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
-		     PicturePtr dest_picture)
+i830_check_composite(int op,
+		     PicturePtr source_picture,
+		     PicturePtr mask_picture,
+		     PicturePtr dest_picture,
+		     int width, int height)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	uint32_t tmp1;
@@ -372,6 +375,23 @@ i830_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
 		intel_debug_fallback(scrn, "Get Color buffer format\n");
 		return FALSE;
 	}
+
+	if (width > 2048 || height > 2048) {
+		intel_debug_fallback(scrn, "Operation is too large (%d, %d)\n", width, height);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+Bool
+i830_check_composite_target(PixmapPtr pixmap)
+{
+	if (pixmap->drawable.width > 2048 || pixmap->drawable.height > 2048)
+		return FALSE;
+
+	if(!intel_check_pitch_3d(pixmap))
+		return FALSE;
 
 	return TRUE;
 }
