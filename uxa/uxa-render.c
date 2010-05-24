@@ -664,7 +664,7 @@ DONE:
 	return picture;
 }
 
-static PicturePtr
+PicturePtr
 uxa_acquire_pattern(ScreenPtr pScreen,
 		    PicturePtr pSrc,
 		    pixman_format_code_t format,
@@ -757,7 +757,7 @@ uxa_render_picture(ScreenPtr screen,
 	return picture;
 }
 
-static PicturePtr
+PicturePtr
 uxa_acquire_drawable(ScreenPtr pScreen,
 		     PicturePtr pSrc,
 		     INT16 x, INT16 y,
@@ -1041,122 +1041,6 @@ err_region:
 	pixman_region_fini(&region);
 fallback:
 	uxa_screen->SavedCompositeRects(op, dst, color, num_rects, rects);
-}
-
-static int
-uxa_try_driver_composite_rects(CARD8 op,
-			       PicturePtr pSrc,
-			       PicturePtr pDst,
-			       int nrect, uxa_composite_rect_t * rects)
-{
-	uxa_screen_t *uxa_screen = uxa_get_screen(pDst->pDrawable->pScreen);
-	int src_off_x, src_off_y, dst_off_x, dst_off_y;
-	PixmapPtr pSrcPix, pDstPix;
-
-	if (!uxa_screen->info->prepare_composite || uxa_screen->swappedOut)
-		return -1;
-
-	if (uxa_screen->info->check_composite &&
-	    !(*uxa_screen->info->check_composite) (op, pSrc, NULL, pDst)) {
-		return -1;
-	}
-
-	pDstPix =
-	    uxa_get_offscreen_pixmap(pDst->pDrawable, &dst_off_x, &dst_off_y);
-	if (!pDstPix)
-		return 0;
-
-	pSrcPix =
-	    uxa_get_offscreen_pixmap(pSrc->pDrawable, &src_off_x, &src_off_y);
-	if (!pSrcPix)
-		return 0;
-
-	if (!(*uxa_screen->info->prepare_composite)
-	    (op, pSrc, NULL, pDst, pSrcPix, NULL, pDstPix))
-		return -1;
-
-	while (nrect--) {
-		INT16 xDst = rects->xDst + pDst->pDrawable->x;
-		INT16 yDst = rects->yDst + pDst->pDrawable->y;
-		INT16 xSrc = rects->xSrc + pSrc->pDrawable->x;
-		INT16 ySrc = rects->ySrc + pSrc->pDrawable->y;
-
-		RegionRec region;
-		BoxPtr pbox;
-		int nbox;
-
-		if (!miComputeCompositeRegion(&region, pSrc, NULL, pDst,
-					      xSrc, ySrc, 0, 0, xDst, yDst,
-					      rects->width, rects->height))
-			goto next_rect;
-
-		xSrc = xSrc + src_off_x - xDst;
-		ySrc = ySrc + src_off_y - yDst;
-
-		nbox = REGION_NUM_RECTS(&region);
-		pbox = REGION_RECTS(&region);
-
-		while (nbox--) {
-			(*uxa_screen->info->composite) (pDstPix,
-							pbox->x1 + xSrc,
-							pbox->y1 + ySrc,
-							0, 0,
-							pbox->x1 + dst_off_x,
-							pbox->y1 + dst_off_y,
-							pbox->x2 - pbox->x1,
-							pbox->y2 - pbox->y1);
-			pbox++;
-		}
-
-next_rect:
-		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
-
-		rects++;
-	}
-	(*uxa_screen->info->done_composite) (pDstPix);
-
-	return 1;
-}
-
-/**
- * Copy a number of rectangles from source to destination in a single
- * operation. This is specialized for building a glyph mask: we don'y
- * have a mask argument because we don't need it for that, and we
- * don't have he special-case fallbacks found in uxa_composite() - if the
- * driver can support it, we use the driver functionality, otherwise we
- * fallback straight to software.
- */
-void
-uxa_composite_rects(CARD8 op,
-		    PicturePtr pSrc,
-		    PicturePtr pDst, int nrect, uxa_composite_rect_t * rects)
-{
-	int n;
-	uxa_composite_rect_t *r;
-
-    /************************************************************/
-
-	ValidatePicture(pSrc);
-	ValidatePicture(pDst);
-
-	if (uxa_try_driver_composite_rects(op, pSrc, pDst, nrect, rects) != 1) {
-		uxa_print_composite_fallback("uxa_composite_rects",
-					     op, pSrc, NULL, pDst);
-
-		n = nrect;
-		r = rects;
-		while (n--) {
-			uxa_check_composite(op, pSrc, NULL, pDst,
-					    r->xSrc, r->ySrc,
-					    0, 0,
-					    r->xDst, r->yDst,
-					    r->width, r->height);
-			r++;
-		}
-	}
-
-    /************************************************************/
-
 }
 
 static int

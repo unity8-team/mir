@@ -205,6 +205,8 @@ static Bool uxa_realize_glyph_caches(ScreenPtr pScreen, unsigned int format)
 	if (!pPicture)
 		return FALSE;
 
+	ValidatePicture(pPicture);
+
 	/* And store the picture in all the caches for the format */
 
 	for (i = 0; i < UXA_NUM_GLYPH_CACHES; i++) {
@@ -573,41 +575,294 @@ uxa_buffer_glyph(ScreenPtr pScreen,
 	return UXA_GLYPH_SUCCESS;
 }
 
-static void uxa_glyphs_to_mask(PicturePtr pMask, uxa_glyph_buffer_t * buffer)
+static PicturePtr
+uxa_glyphs_acquire_source(ScreenPtr screen,
+			  PicturePtr src,
+			  INT16 x, INT16 y,
+			  const uxa_glyph_buffer_t * buffer,
+			  INT16 * out_x, INT16 * out_y)
 {
-	uxa_composite_rects(PictOpAdd, buffer->source, pMask,
-			    buffer->count, buffer->rects);
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+	int x1, y1, x2, y2;
+	int width, height;
+	int i;
 
-	buffer->count = 0;
-	buffer->source = NULL;
+	if (uxa_screen->info->check_composite_texture &&
+	    uxa_screen->info->check_composite_texture(screen, src)) {
+		if (src->pDrawable) {
+			*out_x = x + src->pDrawable->x;
+			*out_y = y + src->pDrawable->y;
+		} else {
+			*out_x = x;
+			*out_y = y;
+		}
+		return src;
+	}
+
+	for (i = 0; i < buffer->count; i++) {
+	    const uxa_composite_rect_t *r = &buffer->rects[i];
+
+	    if (r->xDst < x1)
+		x1 = r->xDst;
+	    if (r->xDst + r->width > x2)
+		x2 = r->xDst + r->width;
+
+	    if (r->yDst < y1)
+		y1 = r->yDst;
+	    if (r->yDst + r->height > y2)
+		y2 = r->yDst + r->height;
+	}
+
+	width  = x2 - x1;
+	height = y2 - y1;
+
+	if (src->pDrawable) {
+		PicturePtr dst;
+
+		dst = uxa_acquire_drawable(screen, src,
+					   x, y,
+					   width, height,
+					   out_x, out_y);
+		if (uxa_screen->info->check_composite_texture &&
+		    !uxa_screen->info->check_composite_texture(screen, dst)) {
+			if (dst != src)
+				FreePicture(dst, 0);
+			return 0;
+		}
+
+		return dst;
+	}
+
+	*out_x = 0;
+	*out_y = 0;
+	return uxa_acquire_pattern(screen, src,
+				   PICT_a8r8g8b8, x, y, width, height);
+}
+
+static int
+uxa_glyphs_try_driver_composite(CARD8 op,
+				PicturePtr pSrc,
+				PicturePtr pDst,
+				const uxa_glyph_buffer_t * buffer,
+				INT16 xSrc, INT16 ySrc,
+				INT16 xDst, INT16 yDst)
+{
+	ScreenPtr screen = pDst->pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+	PicturePtr localSrc;
+	int src_off_x = 0, src_off_y = 0, mask_off_x, mask_off_y, dst_off_x, dst_off_y;
+	PixmapPtr pSrcPix = NULL, pMaskPix, pDstPix;
+	const uxa_composite_rect_t *rects;
+	int nrect;
+
+	if (uxa_screen->info->check_composite &&
+	    !(*uxa_screen->info->check_composite) (op, pSrc, buffer->source, pDst)) {
+		return -1;
+	}
+
+	pDstPix =
+	    uxa_get_offscreen_pixmap(pDst->pDrawable, &dst_off_x, &dst_off_y);
+
+	pMaskPix =
+	    uxa_get_offscreen_pixmap(buffer->source->pDrawable, &mask_off_x, &mask_off_y);
+	if(!pMaskPix)
+		return -1;
+
+	localSrc = uxa_glyphs_acquire_source(screen, pSrc,
+					     xSrc, ySrc,
+					     buffer,
+					     &xSrc, &ySrc);
+	if (!localSrc)
+		return 0;
+
+	if (localSrc->pDrawable) {
+		pSrcPix =
+			uxa_get_offscreen_pixmap(localSrc->pDrawable, &src_off_x, &src_off_y);
+		if (!pSrcPix) {
+			if (localSrc != pSrc)
+				FreePicture(localSrc, 0);
+			return 0;
+		}
+
+		xSrc += localSrc->pDrawable->x;
+		ySrc += localSrc->pDrawable->y;
+	}
+
+	if (!(*uxa_screen->info->prepare_composite)
+	    (op, localSrc, buffer->source, pDst, pSrcPix, pMaskPix, pDstPix)) {
+		if (localSrc != pSrc)
+			FreePicture(localSrc, 0);
+		return -1;
+	}
+
+	nrect = buffer->count;
+	rects = buffer->rects;
+	do {
+		INT16 _xDst = rects->xDst + pDst->pDrawable->x;
+		INT16 _yDst = rects->yDst + pDst->pDrawable->y;
+		INT16 _xMask = rects->xSrc + buffer->source->pDrawable->x;
+		INT16 _yMask = rects->ySrc + buffer->source->pDrawable->y;
+		INT16 _xSrc = xSrc, _ySrc = ySrc;
+
+		RegionRec region;
+		BoxPtr pbox;
+		int nbox;
+
+		if (!miComputeCompositeRegion(&region,
+					      localSrc, buffer->source, pDst,
+					      _xSrc, _ySrc,
+					      _xMask, _yMask,
+					      _xDst, _yDst,
+					      rects->width, rects->height))
+			goto next_rect;
+
+		_xSrc += src_off_x - _xDst;
+		_ySrc += src_off_y - _yDst;
+		_xMask += mask_off_x - _xDst;
+		_yMask += mask_off_y - _yDst;
+
+		nbox = REGION_NUM_RECTS(&region);
+		pbox = REGION_RECTS(&region);
+		while (nbox--) {
+			(*uxa_screen->info->composite) (pDstPix,
+							pbox->x1 + _xSrc,
+							pbox->y1 + _ySrc,
+							pbox->x1 + _xMask,
+							pbox->y1 + _yMask,
+							pbox->x1 + dst_off_x,
+							pbox->y1 + dst_off_y,
+							pbox->x2 - pbox->x1,
+							pbox->y2 - pbox->y1);
+			pbox++;
+		}
+
+next_rect:
+		REGION_UNINIT(screen, &region);
+
+		rects++;
+	} while (--nrect);
+	(*uxa_screen->info->done_composite) (pDstPix);
+
+	if (localSrc != pSrc)
+		FreePicture(localSrc, 0);
+
+	return 1;
 }
 
 static void
 uxa_glyphs_to_dst(CARD8 op,
 		  PicturePtr pSrc,
 		  PicturePtr pDst,
-		  uxa_glyph_buffer_t * buffer,
-		  INT16 xSrc, INT16 ySrc, INT16 xDst, INT16 yDst)
+		  const uxa_glyph_buffer_t * buffer,
+		  INT16 xSrc, INT16 ySrc,
+		  INT16 xDst, INT16 yDst)
 {
-	int i;
+	if (uxa_glyphs_try_driver_composite(op, pSrc, pDst, buffer,
+					    xSrc, ySrc,
+					    xDst, yDst) != 1) {
+		int i;
 
-	for (i = 0; i < buffer->count; i++) {
-		uxa_composite_rect_t *rect = &buffer->rects[i];
+		for (i = 0; i < buffer->count; i++) {
+			const uxa_composite_rect_t *rect = &buffer->rects[i];
 
-		CompositePicture(op,
-				 pSrc,
-				 buffer->source,
-				 pDst,
-				 xSrc + rect->xDst - xDst,
-				 ySrc + rect->yDst - yDst,
-				 rect->xSrc,
-				 rect->ySrc,
-				 rect->xDst,
-				 rect->yDst, rect->width, rect->height);
+			CompositePicture(op,
+					 pSrc, buffer->source, pDst,
+					 xSrc + rect->xDst - xDst,
+					 ySrc + rect->yDst - yDst,
+					 rect->xSrc, rect->ySrc,
+					 rect->xDst, rect->yDst,
+					 rect->width, rect->height);
+		}
+	}
+}
+
+static int
+uxa_glyphs_try_driver_add_to_mask(PicturePtr pDst,
+				  const uxa_glyph_buffer_t *buffer)
+{
+	uxa_screen_t *uxa_screen = uxa_get_screen(pDst->pDrawable->pScreen);
+	int src_off_x, src_off_y, dst_off_x, dst_off_y;
+	PixmapPtr pSrcPix, pDstPix;
+	const uxa_composite_rect_t *rects;
+	int nrect;
+
+	if (uxa_screen->info->check_composite &&
+	    !(*uxa_screen->info->check_composite) (PictOpAdd, buffer->source, NULL, pDst)) {
+		return -1;
 	}
 
-	buffer->count = 0;
-	buffer->source = NULL;
+	pDstPix =
+	    uxa_get_offscreen_pixmap(pDst->pDrawable, &dst_off_x, &dst_off_y);
+
+	pSrcPix =
+	    uxa_get_offscreen_pixmap(buffer->source->pDrawable, &src_off_x, &src_off_y);
+	if(!pSrcPix)
+		return -1;
+
+	if (!(*uxa_screen->info->prepare_composite)
+	    (PictOpAdd, buffer->source, NULL, pDst, pSrcPix, NULL, pDstPix))
+		return -1;
+
+	rects = buffer->rects;
+	nrect = buffer->count;
+	do {
+		INT16 xDst = rects->xDst + pDst->pDrawable->x;
+		INT16 yDst = rects->yDst + pDst->pDrawable->y;
+		INT16 xSrc = rects->xSrc + buffer->source->pDrawable->x;
+		INT16 ySrc = rects->ySrc + buffer->source->pDrawable->y;
+
+		RegionRec region;
+		BoxPtr pbox;
+		int nbox;
+
+		if (!miComputeCompositeRegion(&region, buffer->source, NULL, pDst,
+					      xSrc, ySrc, 0, 0, xDst, yDst,
+					      rects->width, rects->height))
+			goto next_rect;
+
+		xSrc += src_off_x - xDst;
+		ySrc += src_off_y - yDst;
+
+		nbox = REGION_NUM_RECTS(&region);
+		pbox = REGION_RECTS(&region);
+
+		while (nbox--) {
+			(*uxa_screen->info->composite) (pDstPix,
+							pbox->x1 + xSrc,
+							pbox->y1 + ySrc,
+							0, 0,
+							pbox->x1 + dst_off_x,
+							pbox->y1 + dst_off_y,
+							pbox->x2 - pbox->x1,
+							pbox->y2 - pbox->y1);
+			pbox++;
+		}
+
+next_rect:
+		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
+
+		rects++;
+	} while (--nrect);
+	(*uxa_screen->info->done_composite) (pDstPix);
+
+	return 1;
+}
+
+static void uxa_glyphs_to_mask(PicturePtr pDst, const uxa_glyph_buffer_t *buffer)
+{
+	if (uxa_glyphs_try_driver_add_to_mask(pDst, buffer) != 1) {
+		int i;
+
+		for (i = 0; i < buffer->count; i++) {
+			const uxa_composite_rect_t *r = &buffer->rects[i];
+
+			uxa_check_composite(PictOpAdd, buffer->source, NULL, pDst,
+					    r->xSrc, r->ySrc,
+					    0, 0,
+					    r->xDst, r->yDst,
+					    r->width, r->height);
+		}
+	}
 }
 
 /* Cut and paste from render/glyph.c - probably should export it instead */
@@ -857,9 +1112,10 @@ uxa_glyphs(CARD8 op,
 	   INT16 xSrc,
 	   INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 {
+	ScreenPtr pScreen = pDst->pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
 	PixmapPtr pMaskPixmap = 0;
 	PicturePtr pMask;
-	ScreenPtr pScreen = pDst->pDrawable->pScreen;
 	int width = 0, height = 0;
 	int x, y;
 	int xDst = list->xOff, yDst = list->yOff;
@@ -870,32 +1126,38 @@ uxa_glyphs(CARD8 op,
 	CARD32 component_alpha;
 	uxa_glyph_buffer_t buffer;
 
-	if (!uxa_drawable_is_offscreen(pDst->pDrawable)) {
+	if (!uxa_screen->info->prepare_composite ||
+	    uxa_screen->swappedOut ||
+	    !uxa_drawable_is_offscreen(pDst->pDrawable) ||
+	    pDst->alphaMap || pSrc->alphaMap) {
 	    uxa_check_glyphs(op, pSrc, pDst, maskFormat, xSrc, ySrc, nlist, list, glyphs);
 	    return;
 	}
 
-	/* If we don't have a mask format but all the glyphs have the same format
-	 * and don't intersect, use the glyph format as mask format for the full
-	 * benefits of the glyph cache.
-	 */
+	ValidatePicture(pSrc);
+	ValidatePicture(pDst);
+
 	if (!maskFormat) {
-		Bool sameFormat = TRUE;
-		int i;
+		/* If we don't have a mask format but all the glyphs have the same format,
+		 * require ComponentAlpha and don't intersect, use the glyph format as mask
+		 * format for the full benefits of the glyph cache.
+		 */
+		if (NeedsComponent(list[0].format->format)) {
+			Bool sameFormat = TRUE;
+			int i;
 
-		maskFormat = list[0].format;
+			maskFormat = list[0].format;
 
-		for (i = 0; i < nlist; i++) {
-			if (maskFormat->format != list[i].format->format) {
-				sameFormat = FALSE;
-				break;
+			for (i = 0; i < nlist; i++) {
+				if (maskFormat->format != list[i].format->format) {
+					sameFormat = FALSE;
+					break;
+				}
 			}
-		}
 
-		if (!sameFormat || (maskFormat->depth != 1 &&
-				    uxa_glyphs_intersect(nlist, list,
-							 glyphs))) {
-			maskFormat = NULL;
+			if (!sameFormat ||
+			    uxa_glyphs_intersect(nlist, list, glyphs))
+				maskFormat = NULL;
 		}
 	}
 
@@ -942,11 +1204,14 @@ uxa_glyphs(CARD8 op,
 		FreeScratchGC(pGC);
 		x = -extents.x1;
 		y = -extents.y1;
+
+		ValidatePicture(pMask);
 	} else {
 		pMask = pDst;
 		x = 0;
 		y = 0;
 	}
+
 	buffer.count = 0;
 	buffer.source = NULL;
 	while (nlist--) {
@@ -965,6 +1230,9 @@ uxa_glyphs(CARD8 op,
 					uxa_glyphs_to_dst(op, pSrc, pDst,
 							  &buffer, xSrc, ySrc,
 							  xDst, yDst);
+
+				buffer.count = 0;
+				buffer.source = NULL;
 
 				uxa_buffer_glyph(pScreen, &buffer, glyph, x, y);
 			}
