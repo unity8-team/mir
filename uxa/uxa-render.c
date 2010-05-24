@@ -391,8 +391,6 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 				      width, height))
 		return 1;
 
-	REGION_TRANSLATE(pScreen, &region, dst_off_x, dst_off_y);
-
 	if (pSrcPix) {
 		if (! uxa_get_color_for_pixmap (pSrcPix, pSrc->format, pDst->format, &pixel)) {
 			REGION_UNINIT(pDst->pDrawable->pScreen, &region);
@@ -431,6 +429,8 @@ uxa_try_driver_solid_fill(PicturePtr pSrc,
 		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
 		return -1;
 	}
+
+	REGION_TRANSLATE(pScreen, &region, dst_off_x, dst_off_y);
 
 	nbox = REGION_NUM_RECTS(&region);
 	pbox = REGION_RECTS(&region);
@@ -1090,21 +1090,19 @@ uxa_try_driver_composite_rects(CARD8 op,
 					      rects->width, rects->height))
 			goto next_rect;
 
-		REGION_TRANSLATE(pScreen, &region, dst_off_x, dst_off_y);
+		xSrc = xSrc + src_off_x - xDst;
+		ySrc = ySrc + src_off_y - yDst;
 
 		nbox = REGION_NUM_RECTS(&region);
 		pbox = REGION_RECTS(&region);
-
-		xSrc = xSrc + src_off_x - xDst - dst_off_x;
-		ySrc = ySrc + src_off_y - yDst - dst_off_y;
 
 		while (nbox--) {
 			(*uxa_screen->info->composite) (pDstPix,
 							pbox->x1 + xSrc,
 							pbox->y1 + ySrc,
 							0, 0,
-							pbox->x1,
-							pbox->y1,
+							pbox->x1 + dst_off_x,
+							pbox->y1 + dst_off_y,
 							pbox->x2 - pbox->x1,
 							pbox->y2 - pbox->y1);
 			pbox++;
@@ -1258,8 +1256,6 @@ uxa_try_driver_composite(CARD8 op,
 		}
 	}
 
-	REGION_TRANSLATE(pScreen, &region, dst_off_x, dst_off_y);
-
 	if (!(*uxa_screen->info->prepare_composite)
 	    (op, localSrc, localMask, pDst, pSrcPix, pMaskPix, pDstPix)) {
 		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
@@ -1272,25 +1268,24 @@ uxa_try_driver_composite(CARD8 op,
 		return -1;
 	}
 
-	nbox = REGION_NUM_RECTS(&region);
-	pbox = REGION_RECTS(&region);
-
 	if (pMask) {
-		xMask = xMask + mask_off_x - xDst - dst_off_x;
-		yMask = yMask + mask_off_y - yDst - dst_off_y;
+		xMask = xMask + mask_off_x - xDst;
+		yMask = yMask + mask_off_y - yDst;
 	}
 
-	xSrc = xSrc + src_off_x - xDst - dst_off_x;
-	ySrc = ySrc + src_off_y - yDst - dst_off_y;
+	xSrc = xSrc + src_off_x - xDst;
+	ySrc = ySrc + src_off_y - yDst;
 
+	nbox = REGION_NUM_RECTS(&region);
+	pbox = REGION_RECTS(&region);
 	while (nbox--) {
 		(*uxa_screen->info->composite) (pDstPix,
 						pbox->x1 + xSrc,
 						pbox->y1 + ySrc,
 						pbox->x1 + xMask,
 						pbox->y1 + yMask,
-						pbox->x1,
-						pbox->y1,
+						pbox->x1 + dst_off_x,
+						pbox->y1 + dst_off_y,
 						pbox->x2 - pbox->x1,
 						pbox->y2 - pbox->y1);
 		pbox++;
