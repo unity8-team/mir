@@ -489,8 +489,6 @@ i915_emit_composite_primitive_constant(PixmapPtr dest,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	float x, y;
 
-	ATOMIC_BATCH((intel->prim_offset == 0) + 6);
-
 	if (intel->prim_offset == 0) {
 		intel->prim_offset = intel->batch_used;
 		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
@@ -508,8 +506,6 @@ i915_emit_composite_primitive_constant(PixmapPtr dest,
 
 	OUT_BATCH_F(x);
 	OUT_BATCH_F(y);
-
-	ADVANCE_BATCH();
 }
 
 static void
@@ -522,8 +518,6 @@ i915_emit_composite_primitive_identity_source(PixmapPtr dest,
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	float dst_x, dst_y, src_x, src_y;
-
-	ATOMIC_BATCH((intel->prim_offset == 0) + 12);
 
 	if (intel->prim_offset == 0) {
 		intel->prim_offset = intel->batch_used;
@@ -550,8 +544,6 @@ i915_emit_composite_primitive_identity_source(PixmapPtr dest,
 	OUT_BATCH_F(dst_y);
 	OUT_BATCH_F(src_x / intel->scale_units[0][0]);
 	OUT_BATCH_F(src_y / intel->scale_units[0][1]);
-
-	ADVANCE_BATCH();
 }
 
 static void
@@ -586,8 +578,6 @@ i915_emit_composite_primitive_affine_source(PixmapPtr dest,
 					      &src_y[2]))
 		return;
 
-	ATOMIC_BATCH((intel->prim_offset == 0) + 12);
-
 	if (intel->prim_offset == 0) {
 		intel->prim_offset = intel->batch_used;
 		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
@@ -611,8 +601,6 @@ i915_emit_composite_primitive_affine_source(PixmapPtr dest,
 	OUT_BATCH_F(y);
 	OUT_BATCH_F(src_x[0] / intel->scale_units[0][0]);
 	OUT_BATCH_F(src_y[0] / intel->scale_units[0][1]);
-
-	ADVANCE_BATCH();
 }
 
 static void
@@ -751,8 +739,6 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 	num_floats = 3 * per_vertex;
 
-	ATOMIC_BATCH(num_floats);
-
 	intel->prim_count += num_floats;
 
 	OUT_BATCH_F(intel->dst_coord_adjust + dstX + w);
@@ -811,8 +797,6 @@ i915_emit_composite_primitive(PixmapPtr dest,
 			OUT_BATCH_F(mask_w[0]);
 		}
 	}
-
-	ADVANCE_BATCH();
 }
 
 static void i915_emit_composite_setup(ScrnInfoPtr scrn)
@@ -846,14 +830,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	tex_count += ! is_solid_src;
 	tex_count += mask && ! is_solid_mask;
 
-	t = 15;
-	if (tex_count)
-	    t += 6 * tex_count + 4;
-	if (is_solid_src)
-	    t += 2;
-	if (mask && is_solid_mask)
-	    t += 2;
-	ATOMIC_BATCH (t);
+	assert(intel->in_batch_atomic);
 
 	if (tex_count != 0) {
 	    OUT_BATCH(_3DSTATE_MAP_STATE | (3 * tex_count));
@@ -940,10 +917,8 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		OUT_BATCH(0x00000000);
 	}
 
-	ADVANCE_BATCH();
-
 	{
-	    FS_LOCALS(20);
+	    FS_LOCALS();
 	    int src_reg, mask_reg;
 
 	    FS_BEGIN();
@@ -1076,9 +1051,7 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 
 	if (intel->prim_offset == 0) {
 		intel->prim_offset = intel->batch_used;
-		ATOMIC_BATCH(1);
 		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
-		ADVANCE_BATCH();
 	}
 
 	intel->prim_emit(dest,

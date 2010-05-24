@@ -75,8 +75,6 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		IntelEmitInvarientState(scrn);
 		intel->last_3d = LAST_3D_VIDEO;
 
-		ATOMIC_BATCH(20);
-
 		/* flush map & render cache */
 		OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE |
 			  MI_INVALIDATE_MAP_CACHE);
@@ -134,12 +132,10 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			  BUF_3D_PITCH(intel_get_pixmap_pitch(pixmap)));
 		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
-		ADVANCE_BATCH();
 
 		if (!is_planar_fourcc(id)) {
-			FS_LOCALS(10);
+			FS_LOCALS();
 
-			ATOMIC_BATCH(16);
 			OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
 			OUT_BATCH(0x0000001);	/* constant 0 */
 			/* constant 0: brightness/contrast */
@@ -184,8 +180,6 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			OUT_BATCH(ms3);
 			OUT_BATCH(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
 
-			ADVANCE_BATCH();
-
 			FS_BEGIN();
 			i915_fs_dcl(FS_S0);
 			i915_fs_dcl(FS_T0);
@@ -198,9 +192,8 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			}
 			FS_END();
 		} else {
-			FS_LOCALS(16);
+			FS_LOCALS();
 
-			ATOMIC_BATCH(22 + 11 + 11);
 			/* For the planar formats, we set up three samplers --
 			 * one for each plane, in a Y8 format.  Because I
 			 * couldn't get the special PLANAR_TO_PACKED
@@ -332,7 +325,6 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
 			OUT_BATCH(ms3);
 			OUT_BATCH(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
-			ADVANCE_BATCH();
 
 			FS_BEGIN();
 			/* Declare samplers */
@@ -389,13 +381,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			FS_END();
 		}
 
-		{
-			ATOMIC_BATCH(2);
-			OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE |
-				  MI_INVALIDATE_MAP_CACHE);
-			OUT_BATCH(0x00000000);
-			ADVANCE_BATCH();
-		}
+		OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
 
 		/* Set up the offset for translating from the given region
 		 * (in screen coordinates) to the backing pixmap.
@@ -411,6 +397,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		dxo = dstRegion->extents.x1;
 		dyo = dstRegion->extents.y1;
 
+		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (12 * nbox_this_time - 1));
 		while (nbox_this_time--) {
 			int box_x1 = pbox->x1;
 			int box_y1 = pbox->y1;
@@ -423,19 +410,9 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			src_scale_x = ((float)src_w / width) / drw_w;
 			src_scale_y = ((float)src_h / height) / drw_h;
 
-			ATOMIC_BATCH(8 + 12);
-			OUT_BATCH(MI_NOOP);
-			OUT_BATCH(MI_NOOP);
-			OUT_BATCH(MI_NOOP);
-			OUT_BATCH(MI_NOOP);
-			OUT_BATCH(MI_NOOP);
-			OUT_BATCH(MI_NOOP);
-			OUT_BATCH(MI_NOOP);
-
 			/* vertex data - rect list consists of bottom right,
 			 * bottom left, and top left vertices.
 			 */
-			OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (12 - 1));
 
 			/* bottom right */
 			OUT_BATCH_F(box_x2 + pix_xoff);
@@ -454,8 +431,6 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			OUT_BATCH_F(box_y1 + pix_yoff);
 			OUT_BATCH_F((box_x1 - dxo) * src_scale_x);
 			OUT_BATCH_F((box_y1 - dyo) * src_scale_y);
-
-			ADVANCE_BATCH();
 		}
 
 		intel_batch_end_atomic(scrn);

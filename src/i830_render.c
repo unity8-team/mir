@@ -302,7 +302,8 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 
 	format = i8xx_get_card_format(intel, picture);
 
-	ATOMIC_BATCH(10);
+	assert(intel->in_batch_atomic);
+
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_MAP(unit) | 4);
 	OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_SAMPLER, 0, 0);
@@ -336,7 +337,6 @@ static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 		  ENABLE_TEX_STREAM_COORD_SET |
 		  TEX_STREAM_COORD_SET(unit) |
 		  ENABLE_TEX_STREAM_MAP_IDX | TEX_STREAM_MAP_IDX(unit));
-	ADVANCE_BATCH();
 }
 
 Bool
@@ -549,7 +549,7 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
 
-	ATOMIC_BATCH(21);
+	assert(intel->in_batch_atomic);
 
 	if (i830_pixmap_tiled(intel->render_dest)) {
 		tiling_bits = BUF_3D_TILED_SURFACE;
@@ -614,8 +614,6 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
 			texcoordfmt |= (TEXCOORDFMT_3D << 2);
 	}
 	OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD | texcoordfmt);
-
-	ADVANCE_BATCH();
 
 	i830_texture_setup(intel->render_source_picture, intel->render_source, 0);
 	if (intel->render_mask) {
@@ -756,8 +754,6 @@ i830_emit_composite_primitive(PixmapPtr dest,
 
 	num_floats = 3 * per_vertex;
 
-	ATOMIC_BATCH(1 + num_floats);
-
 	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats - 1));
 	OUT_BATCH_F(dstX + w);
 	OUT_BATCH_F(dstY + h);
@@ -803,8 +799,6 @@ i830_emit_composite_primitive(PixmapPtr dest,
 			OUT_BATCH_F(mask_w[0]);
 		}
 	}
-
-	ADVANCE_BATCH();
 }
 
 /**

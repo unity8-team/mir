@@ -418,36 +418,25 @@ do {									\
  * \param x maximum number of shader commands that may be used between
  *        a FS_START and FS_END
  */
-#define FS_LOCALS(x)							\
-    uint32_t _shader_buf[(x) * 3];					\
-    unsigned int _max_shader_commands = x;				\
-    unsigned int _cur_shader_commands
+#define FS_LOCALS()							\
+    uint32_t _shader_offset
 
 #define FS_BEGIN()							\
 do {									\
-    _cur_shader_commands = 0;						\
+    _shader_offset = intel->batch_used;					\
+   intel->batch_used += 4;						\
 } while (0)
 
 #define FS_OUT(_shaderop)						\
 do {									\
-    if (_cur_shader_commands >= _max_shader_commands)			\
-	 FatalError("fragment shader command buffer exceeded (%d)\n",	\
-		    _cur_shader_commands);				\
-    _shader_buf[_cur_shader_commands * 3 + 0] = _shaderop.ui[0];	\
-    _shader_buf[_cur_shader_commands * 3 + 1] = _shaderop.ui[1];	\
-    _shader_buf[_cur_shader_commands * 3 + 2] = _shaderop.ui[2];	\
-    ++_cur_shader_commands;						\
+    OUT_BATCH(_shaderop.ui[0]);	\
+    OUT_BATCH(_shaderop.ui[1]);	\
+    OUT_BATCH(_shaderop.ui[2]);	\
 } while (0)
 
 #define FS_END()							\
 do {									\
-    int _i, _pad = (_cur_shader_commands & 0x1) ? 0 : 1;		\
-    ATOMIC_BATCH(_cur_shader_commands * 3 + 1 + _pad);			\
-    OUT_BATCH(_3DSTATE_PIXEL_SHADER_PROGRAM |				\
-	     (_cur_shader_commands * 3 - 1));				\
-    for (_i = 0; _i < _cur_shader_commands * 3; _i++)			\
-	OUT_BATCH(_shader_buf[_i]);					\
-    if (_pad != 0)							\
-	OUT_BATCH(MI_NOOP);						\
-    ADVANCE_BATCH();							\
+    *(uint32_t *)(intel->batch_ptr + _shader_offset) =			\
+	(_3DSTATE_PIXEL_SHADER_PROGRAM |				\
+	 ((intel->batch_used - _shader_offset) / 4 - 2));		\
 } while (0);

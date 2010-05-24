@@ -38,7 +38,7 @@ void I915EmitInvarientState(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	ATOMIC_BATCH(24);
+	assert(intel->in_batch_atomic);
 
 	OUT_BATCH(_3DSTATE_AA_CMD |
 		  AA_LINE_ECAAR_WIDTH_ENABLE |
@@ -104,6 +104,4 @@ void I915EmitInvarientState(ScrnInfoPtr scrn)
 	OUT_BATCH(_3DSTATE_BACKFACE_STENCIL_OPS | BFO_ENABLE_STENCIL_TWO_SIDE |
 		  0);
 	OUT_BATCH(MI_NOOP);
-
-	ADVANCE_BATCH();
 }
