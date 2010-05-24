@@ -360,6 +360,11 @@ typedef struct intel_screen_private {
 
 	uint32_t prim_offset;
 	uint32_t prim_count;
+	void (*prim_emit)(PixmapPtr dest,
+			  int srcX, int srcY,
+			  int maskX, int maskY,
+			  int dstX, int dstY,
+			  int w, int h);
 
 	/* 965 render acceleration state */
 	struct gen4_render_state *gen4_render_state;
