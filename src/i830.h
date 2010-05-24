@@ -252,7 +252,7 @@ typedef struct intel_screen_private {
 
 	dri_bufmgr *bufmgr;
 
-	uint8_t *batch_ptr;
+	uint32_t batch_ptr[4096];
 	/** Byte offset in batch_ptr for the next dword to be emitted. */
 	unsigned int batch_used;
 	/** Position in batch_ptr at the start of the current BEGIN_BATCH */
@@ -295,6 +295,7 @@ typedef struct intel_screen_private {
 
 	CloseScreenProcPtr CloseScreen;
 
+	void (*vertex_flush) (struct intel_screen_private *intel);
 	void (*batch_flush_notify) (ScrnInfoPtr scrn);
 
 	uxa_driver_t *uxa_driver;
@@ -342,6 +343,8 @@ typedef struct intel_screen_private {
 	Bool render_source_is_solid;
 	Bool render_mask_is_solid;
 	Bool needs_render_state_emit;
+	Bool needs_render_vertex_emit;
+	Bool needs_render_ca_pass;
 
 	/* i830 render accel state */
 	uint32_t render_dest_format;
@@ -356,6 +359,19 @@ typedef struct intel_screen_private {
 		int op;
 		uint32_t dst_format;
 	} i915_render_state;
+
+	uint32_t prim_offset;
+	void (*prim_emit)(PixmapPtr dest,
+			  int srcX, int srcY,
+			  int maskX, int maskY,
+			  int dstX, int dstY,
+			  int w, int h);
+	int floats_per_vertex;
+	uint32_t vertex_count;
+	uint32_t vertex_index;
+	uint32_t vertex_used;
+	float vertex_ptr[4*1024];
+	dri_bo *vertex_bo;
 
 	/* 965 render acceleration state */
 	struct gen4_render_state *gen4_render_state;
@@ -454,8 +470,10 @@ void i830_set_gem_max_sizes(ScrnInfoPtr scrn);
 drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn);
 
 /* i830_render.c */
-Bool i830_check_composite(int op, PicturePtr source, PicturePtr mask,
-			  PicturePtr dest);
+Bool i830_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
+Bool i830_check_composite_target(PixmapPtr pixmap);
 Bool i830_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i830_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
@@ -466,22 +484,26 @@ void i830_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i830_done_composite(PixmapPtr dest);
 /* i915_render.c */
-Bool i915_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
-			  PicturePtr dest);
+Bool i915_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
+Bool i915_check_composite_target(PixmapPtr pixmap);
 Bool i915_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
 void i915_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i915_vertex_flush(intel_screen_private *intel);
 void i915_batch_flush_notify(ScrnInfoPtr scrn);
 void i830_batch_flush_notify(ScrnInfoPtr scrn);
 /* i965_render.c */
 unsigned int gen4_render_state_size(ScrnInfoPtr scrn);
 void gen4_render_state_init(ScrnInfoPtr scrn);
 void gen4_render_state_cleanup(ScrnInfoPtr scrn);
-Bool i965_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
-			  PicturePtr dest);
+Bool i965_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
 Bool i965_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i965_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,

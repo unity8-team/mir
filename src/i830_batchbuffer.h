@@ -41,7 +41,12 @@ void intel_batch_wait_last(ScrnInfoPtr scrn);
 
 static inline int intel_batch_space(intel_screen_private *intel)
 {
-	return (intel->batch_bo->size - BATCH_RESERVED) - (intel->batch_used);
+	return (intel->batch_bo->size - BATCH_RESERVED) - (4*intel->batch_used);
+}
+
+static inline int intel_vertex_space(intel_screen_private *intel)
+{
+	return intel->vertex_bo ? intel->vertex_bo->size - (4*intel->vertex_used) : 0;
 }
 
 static inline void
@@ -60,7 +65,7 @@ static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)
 	intel_batch_require_space(scrn, intel, sz * 4);
 
 	intel->in_batch_atomic = TRUE;
-	intel->batch_atomic_limit = intel->batch_used + sz * 4;
+	intel->batch_atomic_limit = intel->batch_used + sz;
 }
 
 static inline void intel_batch_end_atomic(ScrnInfoPtr scrn)
@@ -74,22 +79,19 @@ static inline void intel_batch_end_atomic(ScrnInfoPtr scrn)
 
 static inline void intel_batch_emit_dword(intel_screen_private *intel, uint32_t dword)
 {
-	assert(intel->batch_ptr != NULL);
-	assert(intel->batch_emitting);
-	*(uint32_t *) (intel->batch_ptr + intel->batch_used) = dword;
-	intel->batch_used += 4;
+	intel->batch_ptr[intel->batch_used++] = dword;
 }
 
 static inline void intel_batch_align(intel_screen_private *intel, uint32_t align)
 {
 	uint32_t delta;
 
-	assert(intel->batch_ptr != NULL);
+	align /= 4;
 	assert(align);
 
 	if ((delta = intel->batch_used & (align - 1))) {
 		delta = align - delta;
-		memset (intel->batch_ptr + intel->batch_used, 0, delta);
+		memset (intel->batch_ptr + intel->batch_used, 0, 4*delta);
 		intel->batch_used += delta;
 	}
 }
@@ -100,20 +102,17 @@ intel_batch_emit_reloc(intel_screen_private *intel,
 		       uint32_t read_domains,
 		       uint32_t write_domains, uint32_t delta, int needs_fence)
 {
-	assert(intel_batch_space(intel) >= 4);
-	*(uint32_t *) (intel->batch_ptr + intel->batch_used) =
-	    bo->offset + delta;
 	if (needs_fence)
 		drm_intel_bo_emit_reloc_fence(intel->batch_bo,
-					      intel->batch_used,
+					      intel->batch_used * 4,
 					      bo, delta,
 					      read_domains, write_domains);
 	else
-		drm_intel_bo_emit_reloc(intel->batch_bo, intel->batch_used,
+		drm_intel_bo_emit_reloc(intel->batch_bo, intel->batch_used * 4,
 					bo, delta,
 					read_domains, write_domains);
 
-	intel->batch_used += 4;
+	intel_batch_emit_dword(intel, bo->offset + delta);
 }
 
 static inline void
@@ -143,9 +142,6 @@ intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 			      uint32_t delta, int needs_fence)
 {
 	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
-
-	assert(intel->batch_ptr != NULL);
-	assert(intel_batch_space(intel) >= 4);
 
 	intel_batch_mark_pixmap_domains(intel, priv, read_domains, write_domain);
 
@@ -184,19 +180,7 @@ do {									\
 			   "ADVANCE_BATCH\n", __FUNCTION__);		\
 	assert(!intel->in_batch_atomic);				\
 	intel_batch_require_space(scrn, intel, (n) * 4);		\
-	intel->batch_emitting = (n) * 4;				\
-	intel->batch_emit_start = intel->batch_used;			\
-} while (0)
-
-/* special-case variant for when we have preallocated space */
-#define ATOMIC_BATCH(n)							\
-do {									\
-	if (intel->batch_emitting != 0)					\
-		FatalError("%s: ATOMIC_BATCH called without closing "	\
-			   "ADVANCE_BATCH\n", __FUNCTION__);		\
-	assert(intel->in_batch_atomic);					\
-	assert(intel->batch_used + (n) * 4 <= intel->batch_atomic_limit); \
-	intel->batch_emitting = (n) * 4;				\
+	intel->batch_emitting = (n);					\
 	intel->batch_emit_start = intel->batch_used;			\
 } while (0)
 
@@ -223,5 +207,12 @@ do {									\
 	}								\
 	intel->batch_emitting = 0;					\
 } while (0)
+
+void intel_next_vertex(intel_screen_private *intel);
+static inline void intel_vertex_emit(intel_screen_private *intel, float v)
+{
+	intel->vertex_ptr[intel->vertex_used++] = v;
+}
+#define OUT_VERTEX(v) intel_vertex_emit(intel, v)
 
 #endif /* _INTEL_BATCHBUFFER_H */

@@ -196,8 +196,11 @@ static Bool i965_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 }
 
 Bool
-i965_check_composite(int op, PicturePtr source_picture, PicturePtr mask_picture,
-		     PicturePtr dest_picture)
+i965_check_composite(int op,
+		     PicturePtr source_picture,
+		     PicturePtr mask_picture,
+		     PicturePtr dest_picture,
+		     int width, int height)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -1181,12 +1184,8 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	 */
 	ALIGN_BATCH(64);
 
+	assert(intel->in_batch_atomic);
 	{
-		if (IS_IGDNG(intel))
-			ATOMIC_BATCH(14);
-		else
-			ATOMIC_BATCH(12);
-
 		/* Match Mesa driver setup */
 		OUT_BATCH(MI_FLUSH |
 			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
@@ -1229,12 +1228,10 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		OUT_BATCH(BRW_STATE_SIP | 0);
 		OUT_RELOC(render_state->sip_kernel_bo,
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-		ADVANCE_BATCH();
 	}
 
 	{
 		int pipe_ctrl;
-		ATOMIC_BATCH(26);
 		/* Pipe control */
 
 		if (IS_IGDNG(intel))
@@ -1329,7 +1326,6 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		OUT_BATCH(BRW_CS_URB_STATE | 0);
 		OUT_BATCH(((URB_CS_ENTRY_SIZE - 1) << 4) |
 			  (URB_CS_ENTRIES << 0));
-		ADVANCE_BATCH();
 	}
 	{
 		/*
@@ -1356,7 +1352,6 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		}
 
 		if (IS_IGDNG(intel)) {
-			ATOMIC_BATCH(mask ? 9 : 7);
 			/*
 			 * The reason to add this extra vertex element in the header is that
 			 * IGDNG has different vertex header definition and origin method to
@@ -1386,7 +1381,6 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 				  (BRW_VFCOMPONENT_STORE_0 <<
 				   VE1_VFCOMPONENT_3_SHIFT));
 		} else {
-			ATOMIC_BATCH(mask ? 7 : 5);
 			/* Set up our vertex elements, sourced from the single vertex buffer.
 			 * that will be set up later.
 			 */
@@ -1448,8 +1442,6 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			else
 				OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) | (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) | (w_component << VE1_VFCOMPONENT_2_SHIFT) | (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) | ((4 + 4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
 		}
-
-		ADVANCE_BATCH();
 	}
 }
 
@@ -1835,7 +1827,6 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	if (intel->needs_render_state_emit)
 		i965_emit_composite_state(scrn);
 
-	ATOMIC_BATCH(12);
 	OUT_BATCH(MI_FLUSH);
 	/* Set up the pointer to our (single) vertex buffer */
 	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
@@ -1860,7 +1851,6 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	OUT_BATCH(1);		/* single instance */
 	OUT_BATCH(0);		/* start instance location */
 	OUT_BATCH(0);		/* index buffer offset, ignored */
-	ADVANCE_BATCH();
 
 	render_state->vb_offset += i;
 	drm_intel_bo_unreference(vb_bo);
