@@ -368,116 +368,6 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	return TRUE;
 }
 
-Bool
-i915_prepare_composite(int op, PicturePtr source_picture,
-		       PicturePtr mask_picture, PicturePtr dest_picture,
-		       PixmapPtr source, PixmapPtr mask, PixmapPtr dest)
-{
-	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	drm_intel_bo *bo_table[] = {
-		NULL,		/* batch_bo */
-		i830_get_pixmap_bo(dest),
-		source ? i830_get_pixmap_bo(source) : NULL,
-		mask ? i830_get_pixmap_bo(mask) : NULL,
-	};
-	int tex_unit = 0;
-
-	intel->render_source_picture = source_picture;
-	intel->render_source = source;
-	intel->render_mask_picture = mask_picture;
-	intel->render_mask = mask;
-	intel->render_dest_picture = dest_picture;
-	intel->render_dest = dest;
-
-	intel->render_source_is_solid = FALSE;
-	if (source_picture->pSourcePict) {
-		SourcePict *source = source_picture->pSourcePict;
-		if (source->type == SourcePictTypeSolidFill) {
-			intel->render_source_is_solid = TRUE;
-			intel->render_source_solid = source->solidFill.color;
-		}
-	}
-	if (!intel->render_source_is_solid && !intel_check_pitch_3d(source))
-		return FALSE;
-
-	intel->render_mask_is_solid = FALSE;
-	if (mask) {
-		if (mask_picture->pSourcePict) {
-			SourcePict *source = mask_picture->pSourcePict;
-			if (source->type == SourcePictTypeSolidFill) {
-				intel->render_mask_is_solid = TRUE;
-				intel->render_mask_solid = source->solidFill.color;
-			}
-		}
-		if (!intel->render_mask_is_solid && !intel_check_pitch_3d(mask))
-			return FALSE;
-	}
-
-	if (!intel_check_pitch_3d(dest))
-		return FALSE;
-
-	if (!i915_get_dest_format(dest_picture,
-				  &intel->i915_render_state.dst_format))
-		return FALSE;
-
-	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
-		return FALSE;
-	intel->dst_coord_adjust = 0;
-	intel->src_coord_adjust = 0;
-	intel->mask_coord_adjust = 0;
-
-	intel->transform[0] = NULL;
-	intel->scale_units[0][0] = -1;
-	intel->scale_units[0][1] = -1;
-	intel->transform[1] = NULL;
-	intel->scale_units[1][0] = -1;
-	intel->scale_units[1][1] = -1;
-
-	if (! intel->render_source_is_solid) {
-		if (!i915_texture_setup(source_picture, source, tex_unit++)) {
-			intel_debug_fallback(scrn, "fail to setup src texture\n");
-			return FALSE;
-		}
-
-		if (source_picture->filter == PictFilterNearest) {
-#if PIXEL_CENTRE_SAMPLE
-			intel->src_coord_adjust = 0.375;
-#else
-			intel->dst_coord_adjust = -0.125;
-#endif
-		}
-	}
-
-	if (mask != NULL) {
-		if (! intel->render_mask_is_solid) {
-			if (!i915_texture_setup(mask_picture, mask, tex_unit++)) {
-				intel_debug_fallback(scrn,
-						"fail to setup mask texture\n");
-				return FALSE;
-			}
-
-			if (mask_picture->filter == PictFilterNearest) {
-#if PIXEL_CENTRE_SAMPLE
-			    intel->mask_coord_adjust = 0.375;
-#else
-			    intel->dst_coord_adjust = -0.125;
-#endif
-			}
-		}
-	}
-
-	intel->i915_render_state.op = op;
-
-	if((source && i830_uxa_pixmap_is_dirty(source)) ||
-	   (mask && i830_uxa_pixmap_is_dirty(mask)))
-		intel_batch_emit_flush(scrn);
-
-	intel->needs_render_state_emit = TRUE;
-
-	return TRUE;
-}
-
 static void
 i915_emit_composite_primitive_constant(PixmapPtr dest,
 				       int srcX, int srcY,
@@ -489,23 +379,17 @@ i915_emit_composite_primitive_constant(PixmapPtr dest,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	float x, y;
 
-	if (intel->prim_offset == 0) {
-		intel->prim_offset = intel->batch_used;
-		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
-	}
-	intel->prim_count += 6;
-
 	x = dstX + intel->dst_coord_adjust;
 	y = dstY + intel->dst_coord_adjust;
 
-	OUT_BATCH_F(x + w);
-	OUT_BATCH_F(y + h);
+	OUT_VERTEX(x + w);
+	OUT_VERTEX(y + h);
 
-	OUT_BATCH_F(x);
-	OUT_BATCH_F(y + h);
+	OUT_VERTEX(x);
+	OUT_VERTEX(y + h);
 
-	OUT_BATCH_F(x);
-	OUT_BATCH_F(y);
+	OUT_VERTEX(x);
+	OUT_VERTEX(y);
 }
 
 static void
@@ -519,31 +403,25 @@ i915_emit_composite_primitive_identity_source(PixmapPtr dest,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	float dst_x, dst_y, src_x, src_y;
 
-	if (intel->prim_offset == 0) {
-		intel->prim_offset = intel->batch_used;
-		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
-	}
-	intel->prim_count += 12;
-
 	dst_x = dstX + intel->dst_coord_adjust;
 	dst_y = dstY + intel->dst_coord_adjust;
 	src_x = srcX + intel->src_coord_adjust;
 	src_y = srcY + intel->src_coord_adjust;
 
-	OUT_BATCH_F(dst_x + w);
-	OUT_BATCH_F(dst_y + h);
-	OUT_BATCH_F((src_x + w) / intel->scale_units[0][0]);
-	OUT_BATCH_F((src_y + h) / intel->scale_units[0][1]);
+	OUT_VERTEX(dst_x + w);
+	OUT_VERTEX(dst_y + h);
+	OUT_VERTEX((src_x + w) / intel->scale_units[0][0]);
+	OUT_VERTEX((src_y + h) / intel->scale_units[0][1]);
 
-	OUT_BATCH_F(dst_x);
-	OUT_BATCH_F(dst_y + h);
-	OUT_BATCH_F(src_x / intel->scale_units[0][0]);
-	OUT_BATCH_F((src_y + h) / intel->scale_units[0][1]);
+	OUT_VERTEX(dst_x);
+	OUT_VERTEX(dst_y + h);
+	OUT_VERTEX(src_x / intel->scale_units[0][0]);
+	OUT_VERTEX((src_y + h) / intel->scale_units[0][1]);
 
-	OUT_BATCH_F(dst_x);
-	OUT_BATCH_F(dst_y);
-	OUT_BATCH_F(src_x / intel->scale_units[0][0]);
-	OUT_BATCH_F(src_y / intel->scale_units[0][1]);
+	OUT_VERTEX(dst_x);
+	OUT_VERTEX(dst_y);
+	OUT_VERTEX(src_x / intel->scale_units[0][0]);
+	OUT_VERTEX(src_y / intel->scale_units[0][1]);
 }
 
 static void
@@ -578,29 +456,23 @@ i915_emit_composite_primitive_affine_source(PixmapPtr dest,
 					      &src_y[2]))
 		return;
 
-	if (intel->prim_offset == 0) {
-		intel->prim_offset = intel->batch_used;
-		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
-	}
-	intel->prim_count += 12;
-
 	x = dstX + intel->dst_coord_adjust;
 	y = dstY + intel->dst_coord_adjust;
 
-	OUT_BATCH_F(x + w);
-	OUT_BATCH_F(y + h);
-	OUT_BATCH_F(src_x[2] / intel->scale_units[0][0]);
-	OUT_BATCH_F(src_y[2] / intel->scale_units[0][1]);
+	OUT_VERTEX(x + w);
+	OUT_VERTEX(y + h);
+	OUT_VERTEX(src_x[2] / intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[2] / intel->scale_units[0][1]);
 
-	OUT_BATCH_F(x);
-	OUT_BATCH_F(y + h);
-	OUT_BATCH_F(src_x[1] / intel->scale_units[0][0]);
-	OUT_BATCH_F(src_y[1] / intel->scale_units[0][1]);
+	OUT_VERTEX(x);
+	OUT_VERTEX(y + h);
+	OUT_VERTEX(src_x[1] / intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[1] / intel->scale_units[0][1]);
 
-	OUT_BATCH_F(x);
-	OUT_BATCH_F(y);
-	OUT_BATCH_F(src_x[0] / intel->scale_units[0][0]);
-	OUT_BATCH_F(src_y[0] / intel->scale_units[0][1]);
+	OUT_VERTEX(x);
+	OUT_VERTEX(y);
+	OUT_VERTEX(src_x[0] / intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[0] / intel->scale_units[0][1]);
 }
 
 static void
@@ -739,64 +611,201 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 	num_floats = 3 * per_vertex;
 
-	intel->prim_count += num_floats;
-
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX + w);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
+	OUT_VERTEX(intel->dst_coord_adjust + dstX + w);
+	OUT_VERTEX(intel->dst_coord_adjust + dstY + h);
 	if (! intel->render_source_is_solid) {
-	    OUT_BATCH_F(src_x[2] / intel->scale_units[src_unit][0]);
-	    OUT_BATCH_F(src_y[2] / intel->scale_units[src_unit][1]);
+	    OUT_VERTEX(src_x[2] / intel->scale_units[src_unit][0]);
+	    OUT_VERTEX(src_y[2] / intel->scale_units[src_unit][1]);
 	    if (!is_affine_src) {
-		OUT_BATCH_F(0.0);
-		OUT_BATCH_F(src_w[2]);
+		OUT_VERTEX(0.0);
+		OUT_VERTEX(src_w[2]);
 	    }
 	}
 	if (intel->render_mask && ! intel->render_mask_is_solid) {
-		OUT_BATCH_F(mask_x[2] / intel->scale_units[mask_unit][0]);
-		OUT_BATCH_F(mask_y[2] / intel->scale_units[mask_unit][1]);
+		OUT_VERTEX(mask_x[2] / intel->scale_units[mask_unit][0]);
+		OUT_VERTEX(mask_y[2] / intel->scale_units[mask_unit][1]);
 		if (!is_affine_mask) {
-			OUT_BATCH_F(0.0);
-			OUT_BATCH_F(mask_w[2]);
+			OUT_VERTEX(0.0);
+			OUT_VERTEX(mask_w[2]);
 		}
 	}
 
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY + h);
+	OUT_VERTEX(intel->dst_coord_adjust + dstX);
+	OUT_VERTEX(intel->dst_coord_adjust + dstY + h);
 	if (! intel->render_source_is_solid) {
-	    OUT_BATCH_F(src_x[1] / intel->scale_units[src_unit][0]);
-	    OUT_BATCH_F(src_y[1] / intel->scale_units[src_unit][1]);
+	    OUT_VERTEX(src_x[1] / intel->scale_units[src_unit][0]);
+	    OUT_VERTEX(src_y[1] / intel->scale_units[src_unit][1]);
 	    if (!is_affine_src) {
-		OUT_BATCH_F(0.0);
-		OUT_BATCH_F(src_w[1]);
+		OUT_VERTEX(0.0);
+		OUT_VERTEX(src_w[1]);
 	    }
 	}
 	if (intel->render_mask && ! intel->render_mask_is_solid) {
-		OUT_BATCH_F(mask_x[1] / intel->scale_units[mask_unit][0]);
-		OUT_BATCH_F(mask_y[1] / intel->scale_units[mask_unit][1]);
+		OUT_VERTEX(mask_x[1] / intel->scale_units[mask_unit][0]);
+		OUT_VERTEX(mask_y[1] / intel->scale_units[mask_unit][1]);
 		if (!is_affine_mask) {
-			OUT_BATCH_F(0.0);
-			OUT_BATCH_F(mask_w[1]);
+			OUT_VERTEX(0.0);
+			OUT_VERTEX(mask_w[1]);
 		}
 	}
 
-	OUT_BATCH_F(intel->dst_coord_adjust + dstX);
-	OUT_BATCH_F(intel->dst_coord_adjust + dstY);
+	OUT_VERTEX(intel->dst_coord_adjust + dstX);
+	OUT_VERTEX(intel->dst_coord_adjust + dstY);
 	if (! intel->render_source_is_solid) {
-	    OUT_BATCH_F(src_x[0] / intel->scale_units[src_unit][0]);
-	    OUT_BATCH_F(src_y[0] / intel->scale_units[src_unit][1]);
+	    OUT_VERTEX(src_x[0] / intel->scale_units[src_unit][0]);
+	    OUT_VERTEX(src_y[0] / intel->scale_units[src_unit][1]);
 	    if (!is_affine_src) {
-		OUT_BATCH_F(0.0);
-		OUT_BATCH_F(src_w[0]);
+		OUT_VERTEX(0.0);
+		OUT_VERTEX(src_w[0]);
 	    }
 	}
 	if (intel->render_mask && ! intel->render_mask_is_solid) {
-		OUT_BATCH_F(mask_x[0] / intel->scale_units[mask_unit][0]);
-		OUT_BATCH_F(mask_y[0] / intel->scale_units[mask_unit][1]);
+		OUT_VERTEX(mask_x[0] / intel->scale_units[mask_unit][0]);
+		OUT_VERTEX(mask_y[0] / intel->scale_units[mask_unit][1]);
 		if (!is_affine_mask) {
-			OUT_BATCH_F(0.0);
-			OUT_BATCH_F(mask_w[0]);
+			OUT_VERTEX(0.0);
+			OUT_VERTEX(mask_w[0]);
 		}
 	}
+}
+
+Bool
+i915_prepare_composite(int op, PicturePtr source_picture,
+		       PicturePtr mask_picture, PicturePtr dest_picture,
+		       PixmapPtr source, PixmapPtr mask, PixmapPtr dest)
+{
+	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	drm_intel_bo *bo_table[] = {
+		NULL,		/* batch_bo */
+		i830_get_pixmap_bo(dest),
+		source ? i830_get_pixmap_bo(source) : NULL,
+		mask ? i830_get_pixmap_bo(mask) : NULL,
+	};
+	int tex_unit = 0;
+	int floats_per_vertex;
+
+	intel->render_source_picture = source_picture;
+	intel->render_source = source;
+	intel->render_mask_picture = mask_picture;
+	intel->render_mask = mask;
+	intel->render_dest_picture = dest_picture;
+	intel->render_dest = dest;
+
+	intel->render_source_is_solid = FALSE;
+	if (source_picture->pSourcePict) {
+		SourcePict *source = source_picture->pSourcePict;
+		if (source->type == SourcePictTypeSolidFill) {
+			intel->render_source_is_solid = TRUE;
+			intel->render_source_solid = source->solidFill.color;
+		}
+	}
+	if (!intel->render_source_is_solid && !intel_check_pitch_3d(source))
+		return FALSE;
+
+	intel->render_mask_is_solid = FALSE;
+	if (mask) {
+		if (mask_picture->pSourcePict) {
+			SourcePict *source = mask_picture->pSourcePict;
+			if (source->type == SourcePictTypeSolidFill) {
+				intel->render_mask_is_solid = TRUE;
+				intel->render_mask_solid = source->solidFill.color;
+			}
+		}
+		if (!intel->render_mask_is_solid && !intel_check_pitch_3d(mask))
+			return FALSE;
+	}
+
+	if (!intel_check_pitch_3d(dest))
+		return FALSE;
+
+	if (!i915_get_dest_format(dest_picture,
+				  &intel->i915_render_state.dst_format))
+		return FALSE;
+
+	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
+		return FALSE;
+	intel->dst_coord_adjust = 0;
+	intel->src_coord_adjust = 0;
+	intel->mask_coord_adjust = 0;
+
+	intel->transform[0] = NULL;
+	intel->scale_units[0][0] = -1;
+	intel->scale_units[0][1] = -1;
+	intel->transform[1] = NULL;
+	intel->scale_units[1][0] = -1;
+	intel->scale_units[1][1] = -1;
+
+	floats_per_vertex = 2;		/* dest x/y */
+	if (! intel->render_source_is_solid) {
+		if (!i915_texture_setup(source_picture, source, tex_unit++)) {
+			intel_debug_fallback(scrn, "fail to setup src texture\n");
+			return FALSE;
+		}
+
+		if (i830_transform_is_affine(source_picture->transform))
+			floats_per_vertex += 2;	/* src x/y */
+		else
+			floats_per_vertex += 4;	/* src x/y/z/w */
+
+		if (source_picture->filter == PictFilterNearest) {
+#if PIXEL_CENTRE_SAMPLE
+			intel->src_coord_adjust = 0.375;
+#else
+			intel->dst_coord_adjust = -0.125;
+#endif
+		}
+	}
+
+	if (mask != NULL) {
+		if (! intel->render_mask_is_solid) {
+			if (!i915_texture_setup(mask_picture, mask, tex_unit++)) {
+				intel_debug_fallback(scrn,
+						"fail to setup mask texture\n");
+				return FALSE;
+			}
+
+			if (i830_transform_is_affine(mask_picture->transform))
+				floats_per_vertex += 2;	/* mask x/y */
+			else
+				floats_per_vertex += 4;	/* mask x/y/z/w */
+
+			if (mask_picture->filter == PictFilterNearest) {
+#if PIXEL_CENTRE_SAMPLE
+			    intel->mask_coord_adjust = 0.375;
+#else
+			    intel->dst_coord_adjust = -0.125;
+#endif
+			}
+		}
+	}
+
+	intel->i915_render_state.op = op;
+
+	if((source && i830_uxa_pixmap_is_dirty(source)) ||
+	   (mask && i830_uxa_pixmap_is_dirty(mask)))
+		intel_batch_emit_flush(scrn);
+
+	intel->needs_render_state_emit = TRUE;
+
+	if (!mask) {
+		if (intel->render_source_is_solid)
+			intel->prim_emit = i915_emit_composite_primitive_constant;
+		else if (intel->transform[0] == NULL)
+			intel->prim_emit = i915_emit_composite_primitive_identity_source;
+		else if (i830_transform_is_affine(intel->transform[0]))
+			intel->prim_emit = i915_emit_composite_primitive_affine_source;
+		else
+			intel->prim_emit = i915_emit_composite_primitive;
+	} else
+		intel->prim_emit = i915_emit_composite_primitive;
+
+	if (floats_per_vertex != intel->floats_per_vertex) {
+		intel->floats_per_vertex = floats_per_vertex;
+		intel->needs_render_vertex_emit = TRUE;
+	}
+
+	return TRUE;
 }
 
 static void i915_emit_composite_setup(ScrnInfoPtr scrn)
@@ -1020,20 +1029,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 
 	    FS_END();
 	}
-
-	intel->prim_offset = 0;
-	intel->prim_count = 0;
-	if (!mask) {
-		if (is_solid_src)
-			intel->prim_emit = i915_emit_composite_primitive_constant;
-		else if (intel->transform[0] == NULL)
-			intel->prim_emit = i915_emit_composite_primitive_identity_source;
-		else if (i830_transform_is_affine(intel->transform[0]))
-			intel->prim_emit = i915_emit_composite_primitive_affine_source;
-		else
-			intel->prim_emit = i915_emit_composite_primitive;
-	} else
-		intel->prim_emit = i915_emit_composite_primitive;
 }
 
 void
@@ -1049,10 +1044,41 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	if (intel->needs_render_state_emit)
 		i915_emit_composite_setup(scrn);
 
+	if (intel_vertex_space(intel) < 3*4*intel->floats_per_vertex)
+		intel->needs_render_vertex_emit = TRUE;
+
+	if (intel->needs_render_vertex_emit) {
+		i915_vertex_flush(intel);
+
+		if (intel_vertex_space(intel) < 256) {
+			intel_next_vertex(intel);
+
+			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
+				  I1_LOAD_S(0) | I1_LOAD_S(1) | 1);
+			OUT_RELOC(intel->vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
+			OUT_BATCH((intel->floats_per_vertex << S1_VERTEX_WIDTH_SHIFT) |
+				  (intel->floats_per_vertex << S1_VERTEX_PITCH_SHIFT));
+			intel->vertex_index = 0;
+		} else {
+			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
+				  I1_LOAD_S(1) | 0);
+			OUT_BATCH((intel->floats_per_vertex << S1_VERTEX_WIDTH_SHIFT) |
+				  (intel->floats_per_vertex << S1_VERTEX_PITCH_SHIFT));
+
+			intel->vertex_index =
+				(intel->vertex_used + intel->floats_per_vertex - 1) /  intel->floats_per_vertex;
+			intel->vertex_used = intel->vertex_index * intel->floats_per_vertex;
+		}
+
+		intel->needs_render_vertex_emit = FALSE;
+	}
+
 	if (intel->prim_offset == 0) {
 		intel->prim_offset = intel->batch_used;
-		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
+		OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL);
+		OUT_BATCH(intel->vertex_index);
 	}
+	intel->vertex_count += 3;
 
 	intel->prim_emit(dest,
 			 srcX, srcY,
@@ -1066,10 +1092,14 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 void
 i915_vertex_flush(intel_screen_private *intel)
 {
-	if (intel->prim_offset) {
-		intel->batch_ptr[intel->prim_offset] |= intel->prim_count - 1;
-		intel->prim_offset = 0;
-	}
+	if (intel->prim_offset == 0)
+		return;
+
+	intel->batch_ptr[intel->prim_offset] |= intel->vertex_count;
+	intel->prim_offset = 0;
+
+	intel->vertex_index += intel->vertex_count;
+	intel->vertex_count = 0;
 }
 
 void

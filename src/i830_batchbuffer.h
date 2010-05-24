@@ -44,6 +44,11 @@ static inline int intel_batch_space(intel_screen_private *intel)
 	return (intel->batch_bo->size - BATCH_RESERVED) - (4*intel->batch_used);
 }
 
+static inline int intel_vertex_space(intel_screen_private *intel)
+{
+	return intel->vertex_bo ? intel->vertex_bo->size - (4*intel->vertex_used) : 0;
+}
+
 static inline void
 intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, GLuint sz)
 {
@@ -202,5 +207,12 @@ do {									\
 	}								\
 	intel->batch_emitting = 0;					\
 } while (0)
+
+void intel_next_vertex(intel_screen_private *intel);
+static inline void intel_vertex_emit(intel_screen_private *intel, float v)
+{
+	intel->vertex_ptr[intel->vertex_used++] = v;
+}
+#define OUT_VERTEX(v) intel_vertex_emit(intel, v)
 
 #endif /* _INTEL_BATCHBUFFER_H */

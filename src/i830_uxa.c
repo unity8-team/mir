@@ -1055,8 +1055,11 @@ Bool i830_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
 
+	intel->needs_render_vertex_emit = TRUE;
 	intel->prim_offset = 0;
-	intel->prim_count = 0;
+	intel->vertex_count = 0;
+	intel->floats_per_vertex = 0;
+	intel->vertex_bo = NULL;
 
 	/* Solid fill */
 	intel->uxa_driver->check_solid = i830_uxa_check_solid;

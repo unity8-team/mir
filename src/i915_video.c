@@ -397,7 +397,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		dxo = dstRegion->extents.x1;
 		dyo = dstRegion->extents.y1;
 
-		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (12 * nbox_this_time - 1));
+		OUT_BATCH(PRIM3D_RECTLIST | (12 * nbox_this_time - 1));
 		while (nbox_this_time--) {
 			int box_x1 = pbox->x1;
 			int box_y1 = pbox->y1;

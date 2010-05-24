@@ -39,6 +39,26 @@
 
 #define DUMP_BATCHBUFFERS NULL /* "/tmp/i915-batchbuffers.dump" */
 
+static void intel_end_vertex(intel_screen_private *intel)
+{
+	if (intel->vertex_bo) {
+		if (intel->vertex_used)
+			dri_bo_subdata(intel->vertex_bo, 0, intel->vertex_used*4, intel->vertex_ptr);
+
+		dri_bo_unreference(intel->vertex_bo);
+		intel->vertex_bo = NULL;
+	}
+}
+
+void intel_next_vertex(intel_screen_private *intel)
+{
+	intel_end_vertex(intel);
+
+	intel->vertex_bo =
+		dri_bo_alloc(intel->bufmgr, "vertex", sizeof (intel->vertex_ptr), 4096);
+	intel->vertex_used = 0;
+}
+
 static void intel_next_batch(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -158,6 +178,7 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 
 	if (intel->vertex_flush)
 		intel->vertex_flush(intel);
+	intel_end_vertex(intel);
 
 	/* Mark the end of the batchbuffer. */
 	OUT_BATCH(MI_BATCH_BUFFER_END);

@@ -343,6 +343,7 @@ typedef struct intel_screen_private {
 	Bool render_source_is_solid;
 	Bool render_mask_is_solid;
 	Bool needs_render_state_emit;
+	Bool needs_render_vertex_emit;
 
 	/* i830 render accel state */
 	uint32_t render_dest_format;
@@ -359,12 +360,17 @@ typedef struct intel_screen_private {
 	} i915_render_state;
 
 	uint32_t prim_offset;
-	uint32_t prim_count;
 	void (*prim_emit)(PixmapPtr dest,
 			  int srcX, int srcY,
 			  int maskX, int maskY,
 			  int dstX, int dstY,
 			  int w, int h);
+	int floats_per_vertex;
+	uint32_t vertex_count;
+	uint32_t vertex_index;
+	uint32_t vertex_used;
+	float vertex_ptr[4*1024];
+	dri_bo *vertex_bo;
 
 	/* 965 render acceleration state */
 	struct gen4_render_state *gen4_render_state;
