@@ -133,8 +133,10 @@ static uint32_t i915_get_blend_cntl(int op, PicturePtr mask,
 		}
 	}
 
-	return (sblend << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
-	    (dblend << S6_CBUF_DST_BLEND_FACT_SHIFT);
+	return S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE |
+		(BLENDFUNC_ADD << S6_CBUF_BLEND_FUNC_SHIFT) |
+		(sblend << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+		(dblend << S6_CBUF_DST_BLEND_FACT_SHIFT);
 }
 
 #define DSTORG_HORT_BIAS(x)             ((x)<<20)
@@ -204,11 +206,13 @@ i915_check_composite(int op,
 		 */
 		if (i915_blend_op[op].src_alpha &&
 		    (i915_blend_op[op].src_blend != BLENDFACT_ZERO)) {
-			intel_debug_fallback(scrn,
-					     "Component alpha not supported "
-					     "with source alpha and source "
-					     "value blending.\n");
-			return FALSE;
+			if (op != PictOpOver) {
+				intel_debug_fallback(scrn,
+						     "Component alpha not supported "
+						     "with source alpha and source "
+						     "value blending.\n");
+				return FALSE;
+			}
 		}
 	}
 
@@ -814,6 +818,23 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 
 	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
+
+	intel->needs_render_ca_pass = FALSE;
+	if (mask_picture != NULL && mask_picture->componentAlpha &&
+	    PICT_FORMAT_RGB(mask_picture->format)) {
+		/* Check if it's component alpha that relies on a source alpha
+		 * and on the source value.  We can only get one of those
+		 * into the single source value that we get to blend with.
+		 */
+		if (i915_blend_op[op].src_alpha &&
+		    (i915_blend_op[op].src_blend != BLENDFACT_ZERO)) {
+			if (op != PictOpOver)
+				return FALSE;
+
+			intel->needs_render_ca_pass = TRUE;
+		}
+	}
+
 	intel->dst_coord_adjust = 0;
 	intel->src_coord_adjust = 0;
 	intel->mask_coord_adjust = 0;
@@ -902,6 +923,120 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	return TRUE;
 }
 
+static void
+i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
+{
+	PicturePtr mask_picture = intel->render_mask_picture;
+	PixmapPtr mask = intel->render_mask;
+	int src_reg, mask_reg;
+	Bool is_solid_src, is_solid_mask;
+	uint32_t dst_format = intel->i915_render_state.dst_format;
+	int tex_unit, t;
+	FS_LOCALS();
+
+	is_solid_src = intel->render_source_is_solid;
+	is_solid_mask = intel->render_mask_is_solid;
+
+	FS_BEGIN();
+
+	/* Declare the registers necessary for our program.  */
+	t = 0;
+	if (is_solid_src) {
+		i915_fs_dcl(FS_T8);
+		src_reg = FS_T8;
+	} else {
+		i915_fs_dcl(FS_T0);
+		i915_fs_dcl(FS_S0);
+		t++;
+	}
+	if (!mask) {
+		/* No mask, so load directly to output color */
+		if (! is_solid_src) {
+			if (dst_format == COLR_BUF_8BIT)
+				src_reg = FS_R0;
+			else
+				src_reg = FS_OC;
+
+			if (i830_transform_is_affine(intel->transform[0]))
+				i915_fs_texld(src_reg, FS_S0, FS_T0);
+			else
+				i915_fs_texldp(src_reg, FS_S0, FS_T0);
+		}
+
+		if (src_reg != FS_OC) {
+			if (dst_format == COLR_BUF_8BIT)
+				i915_fs_mov(FS_OC, i915_fs_operand(src_reg, W, W, W, W));
+			else
+				i915_fs_mov(FS_OC, i915_fs_operand_reg(src_reg));
+		}
+	} else {
+		if (is_solid_mask) {
+			i915_fs_dcl(FS_T9);
+			mask_reg = FS_T9;
+		} else {
+			i915_fs_dcl(FS_T0 + t);
+			i915_fs_dcl(FS_S0 + t);
+		}
+
+		tex_unit = 0;
+		if (! is_solid_src) {
+			/* Load the source_picture texel */
+			if (i830_transform_is_affine(intel->transform[tex_unit]))
+				i915_fs_texld(FS_R0, FS_S0, FS_T0);
+			else
+				i915_fs_texldp(FS_R0, FS_S0, FS_T0);
+
+			src_reg = FS_R0;
+			tex_unit++;
+		}
+
+		if (! is_solid_mask) {
+			/* Load the mask_picture texel */
+			if (i830_transform_is_affine(intel->transform[tex_unit]))
+				i915_fs_texld(FS_R1, FS_S0 + t, FS_T0 + t);
+			else
+				i915_fs_texldp(FS_R1, FS_S0 + t, FS_T0 + t);
+
+			mask_reg = FS_R1;
+		}
+
+		if (dst_format == COLR_BUF_8BIT) {
+			i915_fs_mul(FS_OC,
+				    i915_fs_operand(src_reg, W, W, W, W),
+				    i915_fs_operand(mask_reg, W, W, W, W));
+		} else {
+			/* If component alpha is active in the mask and the blend
+			 * operation uses the source alpha, then we know we don't
+			 * need the source value (otherwise we would have hit a
+			 * fallback earlier), so we provide the source alpha (src.A *
+			 * mask.X) as output color.
+			 * Conversely, if CA is set and we don't need the source alpha,
+			 * then we produce the source value (src.X * mask.X) and the
+			 * source alpha is unused.  Otherwise, we provide the non-CA
+			 * source value (src.X * mask.A).
+			 */
+			if (mask_picture->componentAlpha &&
+			    PICT_FORMAT_RGB(mask_picture->format)) {
+				if (i915_blend_op[op].src_alpha) {
+					i915_fs_mul(FS_OC,
+						    i915_fs_operand(src_reg, W, W, W, W),
+						    i915_fs_operand_reg(mask_reg));
+				} else {
+					i915_fs_mul(FS_OC,
+						    i915_fs_operand_reg(src_reg),
+						    i915_fs_operand_reg(mask_reg));
+				}
+			} else {
+				i915_fs_mul(FS_OC,
+					    i915_fs_operand_reg(src_reg),
+					    i915_fs_operand(mask_reg, W, W, W, W));
+			}
+		}
+	}
+
+	FS_END();
+}
+
 static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -911,8 +1046,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	PixmapPtr mask = intel->render_mask;
 	PixmapPtr dest = intel->render_dest;
 	uint32_t dst_format = intel->i915_render_state.dst_format, dst_pitch;
-	uint32_t blendctl, tiling_bits;
-	Bool is_affine_src, is_affine_mask;
+	uint32_t tiling_bits;
 	Bool is_solid_src, is_solid_mask;
 	int tex_count, t;
 
@@ -922,9 +1056,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	intel->last_3d = LAST_3D_RENDER;
 
 	dst_pitch = intel_get_pixmap_pitch(dest);
-
-	is_affine_src = i830_transform_is_affine(intel->transform[0]);
-	is_affine_mask = i830_transform_is_affine(intel->transform[1]);
 
 	is_solid_src = intel->render_source_is_solid;
 	is_solid_mask = intel->render_mask_is_solid;
@@ -982,33 +1113,31 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	{
 		uint32_t ss2;
 
-		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
-			  I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
 		ss2 = ~0;
 		t = 0;
 		if (! is_solid_src) {
 		    ss2 &= ~S2_TEXCOORD_FMT(t, TEXCOORDFMT_NOT_PRESENT);
 		    ss2 |= S2_TEXCOORD_FMT(t,
-					   is_affine_src ? TEXCOORDFMT_2D :
-					   TEXCOORDFMT_4D);
+					   i830_transform_is_affine(intel->transform[t]) ?
+					   TEXCOORDFMT_2D : TEXCOORDFMT_4D);
 		    t++;
 		}
 		if (mask && ! is_solid_mask) {
 		    ss2 &= ~S2_TEXCOORD_FMT(t, TEXCOORDFMT_NOT_PRESENT);
 		    ss2 |= S2_TEXCOORD_FMT(t,
-			    is_affine_mask ? TEXCOORDFMT_2D :
-			    TEXCOORDFMT_4D);
+					   i830_transform_is_affine(intel->transform[t]) ?
+					   TEXCOORDFMT_2D : TEXCOORDFMT_4D);
 		    t++;
 		}
-		OUT_BATCH(ss2);
-		OUT_BATCH((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
-			  S4_CULLMODE_NONE | S4_VFMT_XY);
-		blendctl =
-		    i915_get_blend_cntl(op, mask_picture, dest_picture->format);
-		OUT_BATCH(0x00000000);	/* Disable stencil buffer */
-		OUT_BATCH(S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE |
-			  (BLENDFUNC_ADD << S6_CBUF_BLEND_FUNC_SHIFT) |
-			  blendctl);
+
+		if (intel->needs_render_ca_pass) {
+			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 0);
+			OUT_BATCH(ss2);
+		} else {
+			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | I1_LOAD_S(6) | 1);
+			OUT_BATCH(ss2);
+			OUT_BATCH(i915_get_blend_cntl(op, mask_picture, dest_picture->format));
+		}
 
 		/* draw rect is unconditional */
 		OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
@@ -1020,109 +1149,8 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		OUT_BATCH(0x00000000);
 	}
 
-	{
-	    FS_LOCALS();
-	    int src_reg, mask_reg;
-
-	    FS_BEGIN();
-
-	    /* Declare the registers necessary for our program.  */
-	    t = 0;
-	    if (is_solid_src) {
-		i915_fs_dcl(FS_T8);
-		src_reg = FS_T8;
-	    } else {
-		i915_fs_dcl(FS_T0);
-		i915_fs_dcl(FS_S0);
-		t++;
-	    }
-	    if (!mask) {
-		    /* No mask, so load directly to output color */
-		    if (! is_solid_src) {
-			    if (dst_format == COLR_BUF_8BIT)
-				    src_reg = FS_R0;
-			    else
-				    src_reg = FS_OC;
-
-			    if (is_affine_src)
-				    i915_fs_texld(src_reg, FS_S0, FS_T0);
-			    else
-				    i915_fs_texldp(src_reg, FS_S0, FS_T0);
-		    }
-
-		    if (src_reg != FS_OC) {
-			    if (dst_format == COLR_BUF_8BIT)
-				    i915_fs_mov(FS_OC, i915_fs_operand(src_reg, W, W, W, W));
-			    else
-				    i915_fs_mov(FS_OC, i915_fs_operand_reg(src_reg));
-		    }
-	    } else {
-		    if (is_solid_mask) {
-			    i915_fs_dcl(FS_T9);
-			    mask_reg = FS_T9;
-		    } else {
-			    i915_fs_dcl(FS_T0 + t);
-			    i915_fs_dcl(FS_S0 + t);
-		    }
-
-		    if (! is_solid_src) {
-			    /* Load the source_picture texel */
-			    if (is_affine_src) {
-				    i915_fs_texld(FS_R0, FS_S0, FS_T0);
-			    } else {
-				    i915_fs_texldp(FS_R0, FS_S0, FS_T0);
-			    }
-
-			    src_reg = FS_R0;
-		    }
-
-		    if (! is_solid_mask) {
-			    /* Load the mask_picture texel */
-			    if (is_affine_mask) {
-				    i915_fs_texld(FS_R1, FS_S0 + t, FS_T0 + t);
-			    } else {
-				    i915_fs_texldp(FS_R1, FS_S0 + t, FS_T0 + t);
-			    }
-
-			    mask_reg = FS_R1;
-		    }
-
-		    if (dst_format == COLR_BUF_8BIT) {
-			    i915_fs_mul(FS_OC,
-					i915_fs_operand(src_reg, W, W, W, W),
-					i915_fs_operand(mask_reg, W, W, W, W));
-		    } else {
-			    /* If component alpha is active in the mask and the blend
-			     * operation uses the source alpha, then we know we don't
-			     * need the source value (otherwise we would have hit a
-			     * fallback earlier), so we provide the source alpha (src.A *
-			     * mask.X) as output color.
-			     * Conversely, if CA is set and we don't need the source alpha,
-			     * then we produce the source value (src.X * mask.X) and the
-			     * source alpha is unused.  Otherwise, we provide the non-CA
-			     * source value (src.X * mask.A).
-			     */
-			    if (mask_picture->componentAlpha &&
-				PICT_FORMAT_RGB(mask_picture->format)) {
-				    if (i915_blend_op[op].src_alpha) {
-					    i915_fs_mul(FS_OC,
-							i915_fs_operand(src_reg, W, W, W, W),
-							i915_fs_operand_reg(mask_reg));
-				    } else {
-					    i915_fs_mul(FS_OC,
-							i915_fs_operand_reg(src_reg),
-							i915_fs_operand_reg(mask_reg));
-				    }
-			    } else {
-				    i915_fs_mul(FS_OC,
-						i915_fs_operand_reg(src_reg),
-						i915_fs_operand(mask_reg, W, W, W, W));
-			    }
-		    }
-	    }
-
-	    FS_END();
-	}
+	if (! intel->needs_render_ca_pass)
+		i915_composite_emit_shader(intel, op);
 }
 
 void
@@ -1168,6 +1196,14 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	}
 
 	if (intel->prim_offset == 0) {
+		if (intel->needs_render_ca_pass) {
+			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
+			OUT_BATCH(i915_get_blend_cntl(PictOpOutReverse,
+						      intel->render_mask_picture,
+						      intel->render_dest_picture->format));
+			i915_composite_emit_shader(intel, PictOpOutReverse);
+		}
+
 		intel->prim_offset = intel->batch_used;
 		OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL);
 		OUT_BATCH(intel->vertex_index);
@@ -1191,6 +1227,16 @@ i915_vertex_flush(intel_screen_private *intel)
 
 	intel->batch_ptr[intel->prim_offset] |= intel->vertex_count;
 	intel->prim_offset = 0;
+
+	if (intel->needs_render_ca_pass) {
+		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
+		OUT_BATCH(i915_get_blend_cntl(PictOpAdd,
+					      intel->render_mask_picture,
+					      intel->render_dest_picture->format));
+		i915_composite_emit_shader(intel, PictOpAdd);
+		OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL | intel->vertex_count);
+		OUT_BATCH(intel->vertex_index);
+	}
 
 	intel->vertex_index += intel->vertex_count;
 	intel->vertex_count = 0;

@@ -344,6 +344,7 @@ typedef struct intel_screen_private {
 	Bool render_mask_is_solid;
 	Bool needs_render_state_emit;
 	Bool needs_render_vertex_emit;
+	Bool needs_render_ca_pass;
 
 	/* i830 render accel state */
 	uint32_t render_dest_format;
