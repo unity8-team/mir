@@ -41,7 +41,7 @@ void intel_batch_wait_last(ScrnInfoPtr scrn);
 
 static inline int intel_batch_space(intel_screen_private *intel)
 {
-	return (intel->batch_bo->size - BATCH_RESERVED) - (intel->batch_used);
+	return (intel->batch_bo->size - BATCH_RESERVED) - (4*intel->batch_used);
 }
 
 static inline void
@@ -60,7 +60,7 @@ static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)
 	intel_batch_require_space(scrn, intel, sz * 4);
 
 	intel->in_batch_atomic = TRUE;
-	intel->batch_atomic_limit = intel->batch_used + sz * 4;
+	intel->batch_atomic_limit = intel->batch_used + sz;
 }
 
 static inline void intel_batch_end_atomic(ScrnInfoPtr scrn)
@@ -74,19 +74,19 @@ static inline void intel_batch_end_atomic(ScrnInfoPtr scrn)
 
 static inline void intel_batch_emit_dword(intel_screen_private *intel, uint32_t dword)
 {
-	*(uint32_t *) (intel->batch_ptr + intel->batch_used) = dword;
-	intel->batch_used += 4;
+	intel->batch_ptr[intel->batch_used++] = dword;
 }
 
 static inline void intel_batch_align(intel_screen_private *intel, uint32_t align)
 {
 	uint32_t delta;
 
+	align /= 4;
 	assert(align);
 
 	if ((delta = intel->batch_used & (align - 1))) {
 		delta = align - delta;
-		memset (intel->batch_ptr + intel->batch_used, 0, delta);
+		memset (intel->batch_ptr + intel->batch_used, 0, 4*delta);
 		intel->batch_used += delta;
 	}
 }
@@ -99,11 +99,11 @@ intel_batch_emit_reloc(intel_screen_private *intel,
 {
 	if (needs_fence)
 		drm_intel_bo_emit_reloc_fence(intel->batch_bo,
-					      intel->batch_used,
+					      intel->batch_used * 4,
 					      bo, delta,
 					      read_domains, write_domains);
 	else
-		drm_intel_bo_emit_reloc(intel->batch_bo, intel->batch_used,
+		drm_intel_bo_emit_reloc(intel->batch_bo, intel->batch_used * 4,
 					bo, delta,
 					read_domains, write_domains);
 
@@ -175,7 +175,7 @@ do {									\
 			   "ADVANCE_BATCH\n", __FUNCTION__);		\
 	assert(!intel->in_batch_atomic);				\
 	intel_batch_require_space(scrn, intel, (n) * 4);		\
-	intel->batch_emitting = (n) * 4;				\
+	intel->batch_emitting = (n);					\
 	intel->batch_emit_start = intel->batch_used;			\
 } while (0)
 

@@ -42,7 +42,6 @@
 static void intel_next_batch(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int ret;
 
 	/* The 865 has issues with larger-than-page-sized batch buffers. */
 	if (IS_I865G(intel))
@@ -52,12 +51,7 @@ static void intel_next_batch(ScrnInfoPtr scrn)
 		intel->batch_bo =
 		    dri_bo_alloc(intel->bufmgr, "batch", 4096 * 4, 4096);
 
-	ret = dri_bo_map(intel->batch_bo, 1);
-	if (ret != 0)
-		FatalError("Failed to map batchbuffer: %s\n", strerror(-ret));
-
 	intel->batch_used = 0;
-	intel->batch_ptr = intel->batch_bo->virtual;
 
 	/* We don't know when another client has executed, so we have
 	 * to reinitialize our 3D state per batch.
@@ -80,9 +74,6 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel->batch_ptr != NULL) {
-		dri_bo_unmap(intel->batch_bo);
-		intel->batch_ptr = NULL;
-
 		dri_bo_unreference(intel->batch_bo);
 		intel->batch_bo = NULL;
 
@@ -168,31 +159,24 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 	if (intel->vertex_flush)
 		intel->vertex_flush(intel);
 
-	/* Emit a padding dword if we aren't going to be quad-word aligned. */
-	if ((intel->batch_used & 4) == 0) {
-		*(uint32_t *) (intel->batch_ptr + intel->batch_used) = MI_NOOP;
-		intel->batch_used += 4;
-	}
-
 	/* Mark the end of the batchbuffer. */
-	*(uint32_t *) (intel->batch_ptr + intel->batch_used) =
-	    MI_BATCH_BUFFER_END;
-	intel->batch_used += 4;
+	OUT_BATCH(MI_BATCH_BUFFER_END);
+	/* Emit a padding dword if we aren't going to be quad-word aligned. */
+	if (intel->batch_used & 1)
+		OUT_BATCH(MI_NOOP);
 
 	if (DUMP_BATCHBUFFERS) {
 	    FILE *file = fopen(DUMP_BATCHBUFFERS, "a");
 	    if (file) {
-		fwrite (intel->batch_ptr, intel->batch_used, 1, file);
+		fwrite (intel->batch_ptr, intel->batch_used*4, 1, file);
 		fclose(file);
 	    }
 	}
 
-	dri_bo_unmap(intel->batch_bo);
-	intel->batch_ptr = NULL;
-
-	ret =
-	    dri_bo_exec(intel->batch_bo, intel->batch_used, NULL, 0,
-			0xffffffff);
+	ret = dri_bo_subdata(intel->batch_bo, 0, intel->batch_used*4, intel->batch_ptr);
+	if (ret == 0)
+		ret = dri_bo_exec(intel->batch_bo, intel->batch_used*4,
+				  NULL, 0, 0xffffffff);
 	if (ret != 0) {
 		static int once;
 
@@ -269,6 +253,6 @@ void intel_batch_wait_last(ScrnInfoPtr scrn)
 	/* Map it CPU write, which guarantees it's done.  This is a completely
 	 * non performance path, so we don't need anything better.
 	 */
-	drm_intel_bo_map(intel->last_batch_bo, TRUE);
-	drm_intel_bo_unmap(intel->last_batch_bo);
+	drm_intel_gem_bo_map_gtt(intel->last_batch_bo);
+	drm_intel_gem_bo_unmap_gtt(intel->last_batch_bo);
 }

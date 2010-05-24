@@ -252,7 +252,7 @@ typedef struct intel_screen_private {
 
 	dri_bufmgr *bufmgr;
 
-	uint8_t *batch_ptr;
+	uint32_t batch_ptr[4096];
 	/** Byte offset in batch_ptr for the next dword to be emitted. */
 	unsigned int batch_used;
 	/** Position in batch_ptr at the start of the current BEGIN_BATCH */

@@ -423,8 +423,7 @@ do {									\
 
 #define FS_BEGIN()							\
 do {									\
-    _shader_offset = intel->batch_used;					\
-   intel->batch_used += 4;						\
+    _shader_offset = intel->batch_used++;				\
 } while (0)
 
 #define FS_OUT(_shaderop)						\
@@ -436,7 +435,7 @@ do {									\
 
 #define FS_END()							\
 do {									\
-    *(uint32_t *)(intel->batch_ptr + _shader_offset) =			\
-	(_3DSTATE_PIXEL_SHADER_PROGRAM |				\
-	 ((intel->batch_used - _shader_offset) / 4 - 2));		\
+    intel->batch_ptr[_shader_offset] =					\
+	_3DSTATE_PIXEL_SHADER_PROGRAM |					\
+	(intel->batch_used - _shader_offset - 2);			\
 } while (0);

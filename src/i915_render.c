@@ -1067,7 +1067,7 @@ void
 i915_vertex_flush(intel_screen_private *intel)
 {
 	if (intel->prim_offset) {
-		*(uint32_t *) (intel->batch_ptr + intel->prim_offset) |= intel->prim_count - 1;
+		intel->batch_ptr[intel->prim_offset] |= intel->prim_count - 1;
 		intel->prim_offset = 0;
 	}
 }
