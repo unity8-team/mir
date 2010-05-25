@@ -899,7 +899,8 @@ uxa_acquire_mask(ScreenPtr screen,
 static Bool
 _pixman_region_init_rectangles(pixman_region16_t *region,
 			       int num_rects,
-			       xRectangle *rects)
+			       xRectangle *rects,
+			       int tx, int ty)
 {
 	pixman_box16_t stack_boxes[64], *boxes = stack_boxes;
 	pixman_bool_t ret;
@@ -912,10 +913,10 @@ _pixman_region_init_rectangles(pixman_region16_t *region,
 	}
 
 	for (i = 0; i < num_rects; i++) {
-		boxes[i].x1 = rects[i].x;
-		boxes[i].y1 = rects[i].y;
-		boxes[i].x2 = rects[i].x + rects[i].width;
-		boxes[i].y2 = rects[i].y + rects[i].height;
+		boxes[i].x1 = rects[i].x + tx;
+		boxes[i].y1 = rects[i].y + ty;
+		boxes[i].x2 = rects[i].x + tx + rects[i].width;
+		boxes[i].y2 = rects[i].y + ty + rects[i].height;
 	}
 
 	ret = pixman_region_init_rects(region, boxes, num_rects);
@@ -952,7 +953,9 @@ uxa_solid_rects (CARD8		op,
 	if (!dst_pixmap)
 		goto fallback;
 
-	if (!_pixman_region_init_rectangles(&region, num_rects, rects))
+	if (!_pixman_region_init_rectangles(&region,
+					    num_rects, rects,
+					    dst->pDrawable->x, dst->pDrawable->y))
 		goto fallback;
 
 	if (!pixman_region_intersect(&region, &region, dst->pCompositeClip)) {
