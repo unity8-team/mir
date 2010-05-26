@@ -41,6 +41,7 @@ format_for_depth(int depth)
 {
 	switch (depth) {
 	case 1: return PICT_a1;
+	case 4: return PICT_a4;
 	case 8: return PICT_a8;
 	case 15: return PICT_x1r5g5b5;
 	case 16: return PICT_r5g6b5;
