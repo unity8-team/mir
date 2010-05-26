@@ -282,6 +282,9 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	if (y2 > pixmap->drawable.height)
 		y2 = pixmap->drawable.height;
 
+	if (x2 <= x1 || y2 <= y1)
+		return;
+
 	pitch = i830_pixmap_pitch(pixmap);
 
 	{
