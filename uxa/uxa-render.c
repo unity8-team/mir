@@ -969,8 +969,10 @@ uxa_solid_rects (CARD8		op,
 
 	if (op == PictOpClear)
 		color->red = color->green = color->blue = color->alpha = 0;
-	if (color->alpha >= 0xff00 && op == PictOpOver)
+	if (color->alpha >= 0xff00 && op == PictOpOver) {
+		color->alpha = 0xffff;
 		op = PictOpSrc;
+	}
 
 	/* Using GEM, the relocation costs outweigh the advantages of the blitter */
 	if (num_boxes == 1 && (op == PictOpSrc || op == PictOpClear)) {
