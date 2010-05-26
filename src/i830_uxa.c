@@ -36,6 +36,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830.h"
 #include "i810_reg.h"
 #include "i915_drm.h"
+#include "brw_defines.h"
 #include <string.h>
 #include <sys/mman.h>
 #include <errno.h>
@@ -79,6 +80,26 @@ const int I830PatternROP[16] = {
 };
 
 int uxa_pixmap_index;
+
+static void
+ironlake_blt_workaround(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	/* Ironlake has a limitation that a 3D or Media command can't
+	 * be the first command after a BLT, unless it's
+	 * non-pipelined.  Instead of trying to track it and emit a
+	 * command at the right time, we just emit a dummy
+	 * non-pipelined 3D instruction after each blit.
+	 */
+
+	if (IS_IGDNG(intel)) {
+		BEGIN_BATCH(2);
+		OUT_BATCH(CMD_POLY_STIPPLE_OFFSET << 16);
+		OUT_BATCH(0);
+		ADVANCE_BATCH();
+	}
+}
 
 Bool
 i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
@@ -312,6 +333,8 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 		OUT_BATCH(intel->BR[16]);
 		ADVANCE_BATCH();
 	}
+
+	ironlake_blt_workaround(scrn);
 }
 
 static void i830_uxa_done_solid(PixmapPtr pixmap)
@@ -453,6 +476,7 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 
 		ADVANCE_BATCH();
 	}
+	ironlake_blt_workaround(scrn);
 }
 
 static void i830_uxa_done_copy(PixmapPtr dest)
