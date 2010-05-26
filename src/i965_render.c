@@ -1230,6 +1230,15 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 	}
 
+	if (IS_IGDNG(intel)) {
+		/* Ironlake errata workaround: Before disabling the clipper,
+		 * you have to MI_FLUSH to get the pipeline idle.
+		 */
+		ATOMIC_BATCH(1);
+		OUT_BATCH(MI_FLUSH);
+		ADVANCE_BATCH();
+	}
+
 	{
 		int pipe_ctrl;
 		/* Pipe control */
