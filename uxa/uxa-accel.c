@@ -866,7 +866,7 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDrawable->pScreen);
 	RegionPtr pClip = fbGetCompositeClip(pGC);
-	PixmapPtr pPixmap = uxa_get_drawable_pixmap(pDrawable);
+	PixmapPtr pPixmap;
 	register BoxPtr pbox;
 	BoxPtr pextent;
 	int extentX1, extentX2, extentY1, extentY2;
@@ -884,9 +884,11 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 	if (!REGION_NUM_RECTS(pReg))
 		goto out;
 
-	uxa_get_drawable_deltas(pDrawable, pPixmap, &xoff, &yoff);
-
 	if (uxa_screen->swappedOut)
+		goto fallback;
+
+	pPixmap = uxa_get_offscreen_pixmap (pDrawable, &xoff, &yoff);
+	if (!pPixmap)
 		goto fallback;
 
 	/* For ROPs where overlaps don't matter, convert rectangles to region
@@ -914,8 +916,7 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 		goto fallback;
 	}
 
-	if (!uxa_pixmap_is_offscreen(pPixmap) ||
-	    !(*uxa_screen->info->prepare_solid) (pPixmap,
+	if (!(*uxa_screen->info->prepare_solid) (pPixmap,
 						 pGC->alu,
 						 pGC->planemask,
 						 pGC->fgPixel)) {
@@ -1058,39 +1059,121 @@ uxa_fill_region_solid(DrawablePtr pDrawable,
 		      RegionPtr pRegion,
 		      Pixel pixel, CARD32 planemask, CARD32 alu)
 {
-	uxa_screen_t *uxa_screen = uxa_get_screen(pDrawable->pScreen);
-	PixmapPtr pPixmap = uxa_get_drawable_pixmap(pDrawable);
+	ScreenPtr screen = pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+	PixmapPtr pixmap;
 	int xoff, yoff;
+	int nbox;
+	BoxPtr pBox, extents;
 	Bool ret = FALSE;
 
-	if (uxa_screen->info->check_solid && !uxa_screen->info->check_solid(pDrawable, alu, planemask))
+	pixmap = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);
+	if (!pixmap)
 		return FALSE;
 
-	pPixmap = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);
-	if (!pPixmap)
-		return FALSE;
+	REGION_TRANSLATE(screen, pRegion, xoff, yoff);
 
-	REGION_TRANSLATE(pScreen, pRegion, xoff, yoff);
+	nbox = REGION_NUM_RECTS(pRegion);
+	pBox = REGION_RECTS(pRegion);
+	extents = REGION_EXTENTS(screen, pRegion);
 
-	if ((*uxa_screen->info->prepare_solid) (pPixmap, alu, planemask, pixel)) {
-		int nbox;
-		BoxPtr pBox;
+	/* Using GEM, the relocation costs outweigh the advantages of the blitter */
+	if (nbox == 1 || (alu != GXcopy && alu != GXclear) || planemask != FB_ALLONES) {
+try_solid:
+		if (uxa_screen->info->check_solid &&
+		    !uxa_screen->info->check_solid(&pixmap->drawable, alu, planemask))
+			goto err;
 
-		nbox = REGION_NUM_RECTS(pRegion);
-		pBox = REGION_RECTS(pRegion);
+		if (!uxa_screen->info->prepare_solid(pixmap, alu, planemask, pixel))
+			goto err;
 
 		while (nbox--) {
-			(*uxa_screen->info->solid) (pPixmap, pBox->x1, pBox->y1,
-						    pBox->x2, pBox->y2);
+			uxa_screen->info->solid(pixmap,
+						pBox->x1, pBox->y1,
+						pBox->x2, pBox->y2);
 			pBox++;
 		}
-		(*uxa_screen->info->done_solid) (pPixmap);
 
-		ret = TRUE;
+		uxa_screen->info->done_solid(pixmap);
+	} else {
+		PicturePtr dst, src;
+		PixmapPtr src_pixmap = NULL;
+		xRenderColor color;
+		int error;
+
+		dst = CreatePicture(0, &pixmap->drawable,
+				    PictureMatchFormat(screen,
+						       pixmap->drawable.depth,
+						       format_for_depth(pixmap->drawable.depth)),
+				    0, 0, serverClient, &error);
+		if (!dst)
+			goto err;
+
+		ValidatePicture(dst);
+
+		uxa_get_rgba_from_pixel(pixel,
+					&color.red,
+					&color.green,
+					&color.blue,
+					&color.alpha,
+					format_for_depth(pixmap->drawable.depth));
+		src = CreateSolidPicture(0, &color, &error);
+		if (!src) {
+			FreePicture(dst, 0);
+			goto err;
+		}
+
+		if (!uxa_screen->info->check_composite(PictOpSrc, src, NULL, dst,
+						       extents->x2 - extents->x1,
+						       extents->y2 - extents->y1)) {
+			FreePicture(src, 0);
+			FreePicture(dst, 0);
+			goto try_solid;
+		}
+
+		if (!uxa_screen->info->check_composite_texture ||
+		    !uxa_screen->info->check_composite_texture(screen, src)) {
+			PicturePtr solid;
+			int src_off_x, src_off_y;
+
+			solid = uxa_acquire_solid(screen, src->pSourcePict);
+			FreePicture(src, 0);
+
+			src = solid;
+			src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
+							      &src_off_x, &src_off_y);
+			if (!src_pixmap) {
+				FreePicture(src, 0);
+				FreePicture(dst, 0);
+				goto err;
+			}
+		}
+
+		if (!uxa_screen->info->prepare_composite(PictOpSrc, src, NULL, dst, src_pixmap, NULL, pixmap)) {
+			FreePicture(src, 0);
+			FreePicture(dst, 0);
+			goto err;
+		}
+
+		while (nbox--) {
+			uxa_screen->info->composite(pixmap,
+						    0, 0, 0, 0,
+						    pBox->x1,
+						    pBox->y1,
+						    pBox->x2 - pBox->x1,
+						    pBox->y2 - pBox->y1);
+			pBox++;
+		}
+
+		uxa_screen->info->done_composite(pixmap);
+		FreePicture(src, 0);
+		FreePicture(dst, 0);
 	}
 
-	REGION_TRANSLATE(pScreen, pRegion, -xoff, -yoff);
+	ret = TRUE;
 
+err:
+	REGION_TRANSLATE(screen, pRegion, -xoff, -yoff);
 	return ret;
 }
 
