@@ -93,12 +93,19 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (intel->batch_ptr != NULL) {
+	if (intel->batch_bo != NULL) {
 		dri_bo_unreference(intel->batch_bo);
 		intel->batch_bo = NULL;
+	}
 
+	if (intel->last_batch_bo != NULL) {
 		dri_bo_unreference(intel->last_batch_bo);
 		intel->last_batch_bo = NULL;
+	}
+
+	if (intel->vertex_bo) {
+		dri_bo_unreference(intel->vertex_bo);
+		intel->vertex_bo = NULL;
 	}
 
 	while (!list_is_empty(&intel->batch_pixmaps)) {
