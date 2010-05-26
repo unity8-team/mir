@@ -1234,9 +1234,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		/* Ironlake errata workaround: Before disabling the clipper,
 		 * you have to MI_FLUSH to get the pipeline idle.
 		 */
-		ATOMIC_BATCH(1);
 		OUT_BATCH(MI_FLUSH);
-		ADVANCE_BATCH();
 	}
 
 	{
