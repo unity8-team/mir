@@ -46,7 +46,7 @@ static struct nv50_exa_state exa_state;
 	struct nouveau_grobj *tesla = pNv->Nv3D; (void)tesla;          \
 	struct nv50_exa_state *state = &exa_state; (void)state
 
-#define BF(f) (NV50TCL_BLEND_FUNC_SRC_RGB_##f | 0x4000)
+#define BF(f) NV50TCL_BLEND_FUNC_SRC_RGB_##f
 
 struct nv50_blend_op {
 	unsigned src_alpha;
