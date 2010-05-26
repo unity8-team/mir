@@ -609,9 +609,12 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		if (priv->bo == bo)
 			return;
 
-		if (list_is_empty(&priv->batch) ||
-		    !drm_intel_bo_is_reusable(priv->bo)) {
+		if (list_is_empty(&priv->batch)) {
 			dri_bo_unreference(priv->bo);
+		} else if (!drm_intel_bo_is_reusable(priv->bo)) {
+			dri_bo_unreference(priv->bo);
+			list_del(&priv->batch);
+			list_del(&priv->flush);
 		} else {
 			list_add(&priv->in_flight, &intel->in_flight);
 			priv = NULL;
