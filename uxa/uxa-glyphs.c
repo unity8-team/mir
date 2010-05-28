@@ -80,10 +80,29 @@ typedef enum {
 	UXA_GLYPH_NEED_FLUSH,	/* would evict a glyph already in the buffer */
 } uxa_glyph_cache_result_t;
 
+struct uxa_glyph {
+	uxa_glyph_cache_t *cache;
+	int pos;
+};
+
+static int uxa_glyph_index;
+
+static inline struct uxa_glyph *uxa_glyph_get_private(GlyphPtr glyph)
+{
+	return dixLookupPrivate(&glyph->devPrivates, &uxa_glyph_index);
+}
+
+static inline void uxa_glyph_set_private(GlyphPtr glyph, struct uxa_glyph *priv)
+{
+	dixSetPrivate(&glyph->devPrivates, &uxa_glyph_index, priv);
+}
+
 void uxa_glyphs_init(ScreenPtr pScreen)
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
 	int i = 0;
+
+	dixRequestPrivate(&uxa_glyph_index, 0); /* XXX ignores status */
 
 	memset(uxa_screen->glyphCaches, 0, sizeof(uxa_screen->glyphCaches));
 
@@ -110,7 +129,6 @@ void uxa_glyphs_init(ScreenPtr pScreen)
 		uxa_screen->glyphCaches[i].columns =
 		    CACHE_PICTURE_WIDTH / uxa_screen->glyphCaches[i].glyphWidth;
 		uxa_screen->glyphCaches[i].size = 256;
-		uxa_screen->glyphCaches[i].hashSize = 557;
 	}
 }
 
@@ -128,11 +146,6 @@ static void uxa_unrealize_glyph_caches(ScreenPtr pScreen, unsigned int format)
 		if (cache->picture) {
 			FreePicture((pointer) cache->picture, (XID) 0);
 			cache->picture = NULL;
-		}
-
-		if (cache->hashEntries) {
-			xfree(cache->hashEntries);
-			cache->hashEntries = NULL;
 		}
 
 		if (cache->glyphs) {
@@ -211,23 +224,18 @@ static Bool uxa_realize_glyph_caches(ScreenPtr pScreen, unsigned int format)
 
 	for (i = 0; i < UXA_NUM_GLYPH_CACHES; i++) {
 		uxa_glyph_cache_t *cache = &uxa_screen->glyphCaches[i];
-		int j;
 
 		if (cache->format != format)
 			continue;
 
 		cache->picture = pPicture;
 		cache->picture->refcnt++;
-		cache->hashEntries = xalloc(sizeof(int) * cache->hashSize);
 		cache->glyphs =
-		    xalloc(sizeof(uxa_cached_glyph_t) * cache->size);
+		    xcalloc(sizeof(GlyphPtr), cache->size);
 		cache->glyphCount = 0;
 
-		if (!cache->hashEntries || !cache->glyphs)
+		if (!cache->glyphs)
 			goto bail;
-
-		for (j = 0; j < cache->hashSize; j++)
-			cache->hashEntries[j] = -1;
 
 		cache->evictionPosition = rand() % cache->size;
 	}
@@ -251,105 +259,6 @@ void uxa_glyphs_fini(ScreenPtr pScreen)
 
 		if (cache->picture)
 			uxa_unrealize_glyph_caches(pScreen, cache->format);
-	}
-}
-
-static int
-uxa_glyph_cache_hash_lookup(uxa_glyph_cache_t * cache, GlyphPtr pGlyph)
-{
-	int slot;
-
-	slot = (*(CARD32 *) pGlyph->sha1) % cache->hashSize;
-
-	while (TRUE) {		/* hash table can never be full */
-		int entryPos = cache->hashEntries[slot];
-		if (entryPos == -1)
-			return -1;
-
-		if (memcmp
-		    (pGlyph->sha1, cache->glyphs[entryPos].sha1,
-		     sizeof(pGlyph->sha1)) == 0) {
-			return entryPos;
-		}
-
-		slot--;
-		if (slot < 0)
-			slot = cache->hashSize - 1;
-	}
-}
-
-static void
-uxa_glyph_cache_hash_insert(uxa_glyph_cache_t * cache, GlyphPtr pGlyph, int pos)
-{
-	int slot;
-
-	memcpy(cache->glyphs[pos].sha1, pGlyph->sha1, sizeof(pGlyph->sha1));
-
-	slot = (*(CARD32 *) pGlyph->sha1) % cache->hashSize;
-
-	while (TRUE) {		/* hash table can never be full */
-		if (cache->hashEntries[slot] == -1) {
-			cache->hashEntries[slot] = pos;
-			return;
-		}
-
-		slot--;
-		if (slot < 0)
-			slot = cache->hashSize - 1;
-	}
-}
-
-static void uxa_glyph_cache_hash_remove(uxa_glyph_cache_t * cache, int pos)
-{
-	int slot;
-	int emptiedSlot = -1;
-
-	slot = (*(CARD32 *) cache->glyphs[pos].sha1) % cache->hashSize;
-
-	while (TRUE) {		/* hash table can never be full */
-		int entryPos = cache->hashEntries[slot];
-
-		if (entryPos == -1)
-			return;
-
-		if (entryPos == pos) {
-			cache->hashEntries[slot] = -1;
-			emptiedSlot = slot;
-		} else if (emptiedSlot != -1) {
-			/* See if we can move this entry into the emptied slot,
-			 * we can't do that if if entry would have hashed
-			 * between the current position and the emptied slot.
-			 * (taking wrapping into account). Bad positions
-			 * are:
-			 *
-			 * |   XXXXXXXXXX             |
-			 *     i         j
-			 *
-			 * |XXX                   XXXX|
-			 *     j                  i
-			 *
-			 * i - slot, j - emptiedSlot
-			 *
-			 * (Knuth 6.4R)
-			 */
-
-			int entrySlot =
-			    (*(CARD32 *) cache->glyphs[entryPos].sha1) %
-			    cache->hashSize;
-
-			if (!((entrySlot >= slot && entrySlot < emptiedSlot) ||
-			      (emptiedSlot < slot
-			       && (entrySlot < emptiedSlot
-				   || entrySlot >= slot)))) {
-				cache->hashEntries[emptiedSlot] = entryPos;
-				cache->hashEntries[slot] = -1;
-				emptiedSlot = slot;
-			}
-		}
-
-		slot--;
-		if (slot < 0)
-			slot = cache->hashSize - 1;
 	}
 }
 
@@ -409,6 +318,22 @@ uxa_glyph_cache_upload_glyph(ScreenPtr pScreen,
 	return TRUE;
 }
 
+void
+uxa_glyph_unrealize(ScreenPtr pScreen,
+		    GlyphPtr pGlyph)
+{
+	struct uxa_glyph *priv;
+
+	priv = uxa_glyph_get_private(pGlyph);
+	if (priv == NULL)
+		return;
+
+	priv->cache->glyphs[priv->pos] = NULL;
+
+	uxa_glyph_set_private(pGlyph, NULL);
+	xfree(priv);
+}
+
 static uxa_glyph_cache_result_t
 uxa_glyph_cache_buffer_glyph(ScreenPtr pScreen,
 			     uxa_glyph_cache_t * cache,
@@ -416,6 +341,7 @@ uxa_glyph_cache_buffer_glyph(ScreenPtr pScreen,
 			     GlyphPtr pGlyph, int xGlyph, int yGlyph)
 {
 	uxa_composite_rect_t *rect;
+	struct uxa_glyph *priv = NULL;
 	int pos;
 
 	if (buffer->source && buffer->source != cache->picture)
@@ -431,86 +357,87 @@ uxa_glyph_cache_buffer_glyph(ScreenPtr pScreen,
 			 cache->format == PICT_a8 ? "A" : "ARGB",
 			 (long)*(CARD32 *) pGlyph->sha1));
 
-	pos = uxa_glyph_cache_hash_lookup(cache, pGlyph);
-	if (pos != -1) {
-		DBG_GLYPH_CACHE(("  found existing glyph at %d\n", pos));
+	if (cache->glyphCount < cache->size) {
+		/* Space remaining; we fill from the start */
+		pos = cache->glyphCount++;
+		DBG_GLYPH_CACHE(("  storing glyph in free space at %d\n", pos));
 	} else {
-		if (cache->glyphCount < cache->size) {
-			/* Space remaining; we fill from the start */
-			pos = cache->glyphCount;
-			cache->glyphCount++;
-			DBG_GLYPH_CACHE(("  storing glyph in free space at %d\n", pos));
+		GlyphPtr evicted;
 
-			uxa_glyph_cache_hash_insert(cache, pGlyph, pos);
+		/* Need to evict an entry. We have to see if any glyphs
+		 * already in the output buffer were at this position in
+		 * the cache
+		 */
 
-		} else {
-			/* Need to evict an entry. We have to see if any glyphs
-			 * already in the output buffer were at this position in
-			 * the cache
-			 */
+		pos = cache->evictionPosition;
+		DBG_GLYPH_CACHE(("  evicting glyph at %d\n", pos));
+		if (buffer->count) {
+			int x, y;
+			int i;
 
-			pos = cache->evictionPosition;
-			DBG_GLYPH_CACHE(("  evicting glyph at %d\n", pos));
-			if (buffer->count) {
-				int x, y;
-				int i;
+			x = CACHE_X(pos);
+			y = CACHE_Y(pos);
 
-				x = CACHE_X(pos);
-				y = CACHE_Y(pos);
-
-				for (i = 0; i < buffer->count; i++) {
-					if (buffer->rects[i].xSrc == x
-					    && buffer->rects[i].ySrc == y) {
-						DBG_GLYPH_CACHE(("  must flush buffer\n"));
-						return UXA_GLYPH_NEED_FLUSH;
-					}
+			for (i = 0; i < buffer->count; i++) {
+				if (buffer->rects[i].xSrc == x
+				    && buffer->rects[i].ySrc == y) {
+					DBG_GLYPH_CACHE(("  must flush buffer\n"));
+					return UXA_GLYPH_NEED_FLUSH;
 				}
 			}
-
-			/* OK, we're all set, swap in the new glyph */
-			uxa_glyph_cache_hash_remove(cache, pos);
-			uxa_glyph_cache_hash_insert(cache, pGlyph, pos);
-
-			/* And pick a new eviction position */
-			cache->evictionPosition = rand() % cache->size;
 		}
 
-		/* Now actually upload the glyph into the cache picture; if
-		 * we can't do it with UploadToScreen (because the glyph is
-		 * offscreen, etc), we fall back to CompositePicture.
-		 */
-		if (!uxa_glyph_cache_upload_glyph(pScreen, cache, pos, pGlyph)) {
-			CompositePicture(PictOpSrc,
-					 GlyphPicture(pGlyph)[pScreen->myNum],
-					 None,
-					 cache->picture,
-					 0, 0,
-					 0, 0,
-					 CACHE_X(pos),
-					 CACHE_Y(pos),
-					 pGlyph->info.width,
-					 pGlyph->info.height);
+		evicted = cache->glyphs[pos];
+		if (evicted != NULL) {
+			priv = uxa_glyph_get_private(evicted);
+			uxa_glyph_set_private(evicted, NULL);
 		}
 
+		/* And pick a new eviction position */
+		cache->evictionPosition = rand() % cache->size;
 	}
+
+	/* Now actually upload the glyph into the cache picture; if
+	 * we can't do it with UploadToScreen (because the glyph is
+	 * offscreen, etc), we fall back to CompositePicture.
+	 */
+	if (!uxa_glyph_cache_upload_glyph(pScreen, cache, pos, pGlyph)) {
+		CompositePicture(PictOpSrc,
+				 GlyphPicture(pGlyph)[pScreen->myNum],
+				 None,
+				 cache->picture,
+				 0, 0,
+				 0, 0,
+				 CACHE_X(pos),
+				 CACHE_Y(pos),
+				 pGlyph->info.width,
+				 pGlyph->info.height);
+	}
+
+	if (priv == NULL) {
+		priv = xalloc(sizeof(struct uxa_glyph));
+		if (priv == NULL) {
+			cache->glyphs[pos] = NULL;
+			return UXA_GLYPH_FAIL;
+		}
+	}
+
+	priv->cache = cache;
+	priv->pos = pos;
+	uxa_glyph_set_private(pGlyph, priv);
+	cache->glyphs[pos] = pGlyph;
 
 	buffer->source = cache->picture;
 
-	rect = &buffer->rects[buffer->count];
+	rect = &buffer->rects[buffer->count++];
 	rect->xSrc = CACHE_X(pos);
 	rect->ySrc = CACHE_Y(pos);
 	rect->xDst = xGlyph - pGlyph->info.x;
 	rect->yDst = yGlyph - pGlyph->info.y;
 	rect->width = pGlyph->info.width;
 	rect->height = pGlyph->info.height;
-
-	buffer->count++;
-
 	return UXA_GLYPH_SUCCESS;
 }
-
-#undef CACHE_X
-#undef CACHE_Y
 
 static uxa_glyph_cache_result_t
 uxa_buffer_glyph(ScreenPtr pScreen,
@@ -522,11 +449,32 @@ uxa_buffer_glyph(ScreenPtr pScreen,
 	int width = pGlyph->info.width;
 	int height = pGlyph->info.height;
 	uxa_composite_rect_t *rect;
+	struct uxa_glyph *priv;
 	PicturePtr source;
 	int i;
 
 	if (buffer->count == GLYPH_BUFFER_SIZE)
 		return UXA_GLYPH_NEED_FLUSH;
+
+	priv = uxa_glyph_get_private(pGlyph);
+	if (priv != NULL) {
+		uxa_glyph_cache_t *cache = priv->cache;
+		int pos = priv->pos;
+
+		if (buffer->source && buffer->source != cache->picture)
+			return UXA_GLYPH_NEED_FLUSH;
+
+		buffer->source = cache->picture;
+
+		rect = &buffer->rects[buffer->count++];
+		rect->xSrc = CACHE_X(pos);
+		rect->ySrc = CACHE_Y(pos);
+		rect->xDst = xGlyph - pGlyph->info.x;
+		rect->yDst = yGlyph - pGlyph->info.y;
+		rect->width = pGlyph->info.width;
+		rect->height = pGlyph->info.height;
+		return UXA_GLYPH_SUCCESS;
+	}
 
 	if (PICT_FORMAT_BPP(format) == 1)
 		format = PICT_a8;
@@ -535,15 +483,15 @@ uxa_buffer_glyph(ScreenPtr pScreen,
 		uxa_glyph_cache_t *cache = &uxa_screen->glyphCaches[i];
 
 		if (format == cache->format &&
-		    width <= cache->glyphWidth &&
+		    width  <= cache->glyphWidth &&
 		    height <= cache->glyphHeight) {
 			uxa_glyph_cache_result_t result =
-			    uxa_glyph_cache_buffer_glyph(pScreen,
-							 &uxa_screen->
-							 glyphCaches[i],
-							 buffer,
-							 pGlyph, xGlyph,
-							 yGlyph);
+				uxa_glyph_cache_buffer_glyph(pScreen,
+							     &uxa_screen->
+							     glyphCaches[i],
+							     buffer,
+							     pGlyph, xGlyph,
+							     yGlyph);
 			switch (result) {
 			case UXA_GLYPH_FAIL:
 				break;
@@ -562,18 +510,18 @@ uxa_buffer_glyph(ScreenPtr pScreen,
 
 	buffer->source = source;
 
-	rect = &buffer->rects[buffer->count];
+	rect = &buffer->rects[buffer->count++];
 	rect->xSrc = 0;
 	rect->ySrc = 0;
 	rect->xDst = xGlyph - pGlyph->info.x;
 	rect->yDst = yGlyph - pGlyph->info.y;
 	rect->width = pGlyph->info.width;
 	rect->height = pGlyph->info.height;
-
-	buffer->count++;
-
 	return UXA_GLYPH_SUCCESS;
 }
+
+#undef CACHE_X
+#undef CACHE_Y
 
 static PicturePtr
 uxa_glyphs_acquire_source(ScreenPtr screen,

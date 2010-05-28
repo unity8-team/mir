@@ -393,6 +393,8 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 		ps->Trapezoids = uxa_screen->SavedTrapezoids;
 		ps->AddTraps = uxa_screen->SavedAddTraps;
 		ps->Triangles = uxa_screen->SavedTriangles;
+
+		ps->UnrealizeGlyph = uxa_screen->SavedUnrealizeGlyph;
 	}
 #endif
 
@@ -523,6 +525,9 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 
 		uxa_screen->SavedGlyphs = ps->Glyphs;
 		ps->Glyphs = uxa_glyphs;
+
+		uxa_screen->SavedUnrealizeGlyph = ps->UnrealizeGlyph;
+		ps->UnrealizeGlyph = uxa_glyph_unrealize;
 
 		uxa_screen->SavedTriangles = ps->Triangles;
 		ps->Triangles = uxa_triangles;

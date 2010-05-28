@@ -103,10 +103,6 @@ char uxa_drawable_location(DrawablePtr pDrawable);
 #endif
 
 typedef struct {
-	unsigned char sha1[20];
-} uxa_cached_glyph_t;
-
-typedef struct {
 	/* The identity of the cache, statically configured at initialization */
 	unsigned int format;
 	int glyphWidth;
@@ -115,16 +111,7 @@ typedef struct {
 	/* Size of cache; eventually this should be dynamically determined */
 	int size;
 
-	/* Hash table mapping from glyph sha1 to position in the glyph; we use
-	 * open addressing with a hash table size determined based on size and large
-	 * enough so that we always have a good amount of free space, so we can
-	 * use linear probing. (Linear probing is preferrable to double hashing
-	 * here because it allows us to easily remove entries.)
-	 */
-	int *hashEntries;
-	int hashSize;
-
-	uxa_cached_glyph_t *glyphs;
+	GlyphPtr *glyphs;
 	int glyphCount;		/* Current number of glyphs */
 
 	PicturePtr picture;	/* Where the glyphs of the cache are stored */
@@ -161,6 +148,7 @@ typedef struct {
 	GlyphsProcPtr SavedGlyphs;
 	TrapezoidsProcPtr SavedTrapezoids;
 	AddTrapsProcPtr SavedAddTraps;
+	UnrealizeGlyphProcPtr SavedUnrealizeGlyph;
 #endif
 	EnableDisableFBAccessProcPtr SavedEnableDisableFBAccess;
 
@@ -471,5 +459,9 @@ uxa_glyphs(CARD8 op,
 	   PictFormatPtr maskFormat,
 	   INT16 xSrc,
 	   INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs);
+
+void
+uxa_glyph_unrealize(ScreenPtr pScreen,
+		    GlyphPtr pGlyph);
 
 #endif /* UXAPRIV_H */
