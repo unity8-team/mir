@@ -1088,6 +1088,7 @@ Bool i830_uxa_init(ScreenPtr screen)
 	intel->prim_offset = 0;
 	intel->vertex_count = 0;
 	intel->floats_per_vertex = 0;
+	intel->last_floats_per_vertex = 0;
 	intel->vertex_bo = NULL;
 
 	/* Solid fill */

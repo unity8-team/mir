@@ -1166,10 +1166,8 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	if (intel->needs_render_state_emit)
 		i915_emit_composite_setup(scrn);
 
-	if (intel_vertex_space(intel) < 3*4*intel->floats_per_vertex)
-		intel->needs_render_vertex_emit = TRUE;
-
-	if (intel->needs_render_vertex_emit) {
+	if (intel->needs_render_vertex_emit ||
+	    intel_vertex_space(intel) < 3*4*intel->floats_per_vertex) {
 		i915_vertex_flush(intel);
 
 		if (intel_vertex_space(intel) < 256) {
@@ -1181,7 +1179,7 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 			OUT_BATCH((intel->floats_per_vertex << S1_VERTEX_WIDTH_SHIFT) |
 				  (intel->floats_per_vertex << S1_VERTEX_PITCH_SHIFT));
 			intel->vertex_index = 0;
-		} else {
+		} else if (intel->floats_per_vertex != intel->last_floats_per_vertex){
 			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 				  I1_LOAD_S(1) | 0);
 			OUT_BATCH((intel->floats_per_vertex << S1_VERTEX_WIDTH_SHIFT) |
@@ -1192,6 +1190,7 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 			intel->vertex_used = intel->vertex_index * intel->floats_per_vertex;
 		}
 
+		intel->last_floats_per_vertex = intel->floats_per_vertex;
 		intel->needs_render_vertex_emit = FALSE;
 	}
 
@@ -1248,4 +1247,5 @@ i915_batch_flush_notify(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	intel->needs_render_state_emit = TRUE;
+	intel->last_floats_per_vertex = 0;
 }
