@@ -916,6 +916,11 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 		goto fallback;
 	}
 
+	if (uxa_screen->info->check_solid &&
+	    !uxa_screen->info->check_solid(pDrawable, pGC->alu, pGC->planemask)) {
+		goto fallback;
+	}
+
 	if (!(*uxa_screen->info->prepare_solid) (pPixmap,
 						 pGC->alu,
 						 pGC->planemask,
