@@ -741,11 +741,15 @@ uxa_glyphs_try_driver_add_to_mask(PicturePtr pDst,
 
 	pDstPix =
 	    uxa_get_offscreen_pixmap(pDst->pDrawable, &dst_off_x, &dst_off_y);
+	dst_off_x += pDst->pDrawable->x;
+	dst_off_y += pDst->pDrawable->y;
 
 	pSrcPix =
 	    uxa_get_offscreen_pixmap(buffer->source->pDrawable, &src_off_x, &src_off_y);
 	if(!pSrcPix)
 		return -1;
+	src_off_x += buffer->source->pDrawable->x;
+	src_off_y += buffer->source->pDrawable->y;
 
 	if (!(*uxa_screen->info->prepare_composite)
 	    (PictOpAdd, buffer->source, NULL, pDst, pSrcPix, NULL, pDstPix))
@@ -754,40 +758,23 @@ uxa_glyphs_try_driver_add_to_mask(PicturePtr pDst,
 	rects = buffer->rects;
 	nrect = buffer->count;
 	do {
-		INT16 xDst = rects->xDst + pDst->pDrawable->x;
-		INT16 yDst = rects->yDst + pDst->pDrawable->y;
-		INT16 xSrc = rects->xSrc + buffer->source->pDrawable->x;
-		INT16 ySrc = rects->ySrc + buffer->source->pDrawable->y;
+		INT16 xDst = rects->xDst + dst_off_x;
+		INT16 yDst = rects->yDst + dst_off_y;
+		INT16 xSrc = rects->xSrc + src_off_x;
+		INT16 ySrc = rects->ySrc + src_off_y;
 
-		RegionRec region;
-		BoxPtr pbox;
-		int nbox;
+		/* We trust the device clipping on the target and the
+		 * specialised construction of the glyph mask and source
+		 * so that we can skip computing the clipped composite
+		 * region (miComputeCompositeRects).
+		 */
 
-		if (!miComputeCompositeRegion(&region, buffer->source, NULL, pDst,
-					      xSrc, ySrc, 0, 0, xDst, yDst,
-					      rects->width, rects->height))
-			goto next_rect;
-
-		xSrc += src_off_x - xDst;
-		ySrc += src_off_y - yDst;
-
-		nbox = REGION_NUM_RECTS(&region);
-		pbox = REGION_RECTS(&region);
-
-		while (nbox--) {
-			(*uxa_screen->info->composite) (pDstPix,
-							pbox->x1 + xSrc,
-							pbox->y1 + ySrc,
-							0, 0,
-							pbox->x1 + dst_off_x,
-							pbox->y1 + dst_off_y,
-							pbox->x2 - pbox->x1,
-							pbox->y2 - pbox->y1);
-			pbox++;
-		}
-
-next_rect:
-		REGION_UNINIT(pDst->pDrawable->pScreen, &region);
+		(*uxa_screen->info->composite) (pDstPix,
+						xSrc, ySrc,
+						0, 0,
+						xDst, yDst,
+						rects->width,
+						rects->height);
 
 		rects++;
 	} while (--nrect);
