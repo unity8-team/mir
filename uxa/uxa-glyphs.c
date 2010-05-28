@@ -67,6 +67,7 @@
  * rendering to the mask or destination surface.
  */
 #define GLYPH_BUFFER_SIZE 256
+#define GLYPH_CACHE_SIZE 256
 
 typedef struct {
 	PicturePtr source;
@@ -128,7 +129,6 @@ void uxa_glyphs_init(ScreenPtr pScreen)
 	for (i = 0; i < UXA_NUM_GLYPH_CACHES; i++) {
 		uxa_screen->glyphCaches[i].columns =
 		    CACHE_PICTURE_WIDTH / uxa_screen->glyphCaches[i].glyphWidth;
-		uxa_screen->glyphCaches[i].size = 256;
 	}
 }
 
@@ -195,7 +195,7 @@ static Bool uxa_realize_glyph_caches(ScreenPtr pScreen, unsigned int format)
 
 		cache->yOffset = height;
 
-		rows = (cache->size + cache->columns - 1) / cache->columns;
+		rows = (GLYPH_CACHE_SIZE + cache->columns - 1) / cache->columns;
 		height += rows * cache->glyphHeight;
 	}
 
@@ -231,13 +231,13 @@ static Bool uxa_realize_glyph_caches(ScreenPtr pScreen, unsigned int format)
 		cache->picture = pPicture;
 		cache->picture->refcnt++;
 		cache->glyphs =
-		    xcalloc(sizeof(GlyphPtr), cache->size);
+		    xcalloc(sizeof(GlyphPtr), GLYPH_CACHE_SIZE);
 		cache->glyphCount = 0;
 
 		if (!cache->glyphs)
 			goto bail;
 
-		cache->evictionPosition = rand() % cache->size;
+		cache->evictionPosition = rand() % GLYPH_CACHE_SIZE;
 	}
 
 	/* Each cache references the picture individually */
@@ -357,7 +357,7 @@ uxa_glyph_cache_buffer_glyph(ScreenPtr pScreen,
 			 cache->format == PICT_a8 ? "A" : "ARGB",
 			 (long)*(CARD32 *) pGlyph->sha1));
 
-	if (cache->glyphCount < cache->size) {
+	if (cache->glyphCount < GLYPH_CACHE_SIZE) {
 		/* Space remaining; we fill from the start */
 		pos = cache->glyphCount++;
 		DBG_GLYPH_CACHE(("  storing glyph in free space at %d\n", pos));
@@ -394,7 +394,7 @@ uxa_glyph_cache_buffer_glyph(ScreenPtr pScreen,
 		}
 
 		/* And pick a new eviction position */
-		cache->evictionPosition = rand() % cache->size;
+		cache->evictionPosition = rand() % GLYPH_CACHE_SIZE;
 	}
 
 	/* Now actually upload the glyph into the cache picture; if

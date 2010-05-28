@@ -108,9 +108,6 @@ typedef struct {
 	int glyphWidth;
 	int glyphHeight;
 
-	/* Size of cache; eventually this should be dynamically determined */
-	int size;
-
 	GlyphPtr *glyphs;
 	int glyphCount;		/* Current number of glyphs */
 
