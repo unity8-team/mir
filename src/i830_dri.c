@@ -627,7 +627,7 @@ can_swap(DRI2BufferPtr front, DRI2BufferPtr back)
 	if (front_pixmap->drawable.depth != back_pixmap->drawable.depth)
 		return FALSE;
 #else
-	if (front_pixmap->drawable.bpp != back_pixmap->drawable.bpp)
+	if (front_pixmap->drawable.bitsPerPixel != back_pixmap->drawable.bitsPerPixel)
 		return FALSE;
 #endif
 
