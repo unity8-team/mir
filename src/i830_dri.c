@@ -608,6 +608,32 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 	xfree(flip);
 }
 
+static Bool
+can_swap(DRI2BufferPtr front, DRI2BufferPtr back)
+{
+	I830DRI2BufferPrivatePtr front_priv = front->driverPrivate;
+	I830DRI2BufferPrivatePtr back_priv = back->driverPrivate;
+	PixmapPtr front_pixmap = front_priv->pixmap;
+	PixmapPtr back_pixmap = back_priv->pixmap;
+
+	if (front_pixmap->drawable.width != back_pixmap->drawable.width)
+		return FALSE;
+
+	if (front_pixmap->drawable.height != back_pixmap->drawable.height)
+		return FALSE;
+
+	/* XXX should we be checking depth instead of bpp? */
+#if 0
+	if (front_pixmap->drawable.depth != back_pixmap->drawable.depth)
+		return FALSE;
+#else
+	if (front_pixmap->drawable.bpp != back_pixmap->drawable.bpp)
+		return FALSE;
+#endif
+
+	return TRUE;
+}
+
 /*
  * ScheduleSwap is responsible for requesting a DRM vblank event for the
  * appropriate frame.
@@ -638,11 +664,18 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drmVBlank vbl;
 	int ret, pipe = I830DRI2DrawablePipe(draw), flip = 0;
-	DRI2FrameEventPtr swap_info;
+	DRI2FrameEventPtr swap_info = NULL;
 	enum DRI2FrameEventType swap_type = DRI2_SWAP;
 	CARD64 current_msc;
 	BoxRec box;
 	RegionRec region;
+
+	/* Drawable not displayed... just complete the swap */
+	if (pipe == -1)
+	    goto blit_fallback;
+
+	if (!can_swap(front, back))
+		goto blit_fallback;
 
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
@@ -651,9 +684,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	remainder &= 0xffffffff;
 
 	swap_info = xcalloc(1, sizeof(DRI2FrameEventRec));
-
-	/* Drawable not displayed... just complete the swap */
-	if (pipe == -1 || !swap_info)
+	if (!swap_info)
 	    goto blit_fallback;
 
 	swap_info->drawable_id = draw->id;
@@ -681,8 +712,9 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	current_msc = vbl.reply.sequence;
 
 	/* Flips need to be submitted one frame before */
-	if (DRI2CanFlip(draw) && !intel->shadow_present &&
-	    intel->use_pageflipping) {
+	if (intel->use_pageflipping &&
+	    !intel->shadow_present &&
+	    DRI2CanFlip(draw)) {
 	    swap_type = DRI2_FLIP;
 	    flip = 1;
 	}
