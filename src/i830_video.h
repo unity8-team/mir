@@ -28,61 +28,57 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86_OSproc.h"
 
 typedef struct {
-   uint32_t YBufOffset;
-   uint32_t UBufOffset;
-   uint32_t VBufOffset;
+	uint32_t YBufOffset;
+	uint32_t UBufOffset;
+	uint32_t VBufOffset;
 
-   int brightness;
-   int contrast;
-   int saturation;
-   xf86CrtcPtr current_crtc;
-   xf86CrtcPtr desired_crtc;
+	int brightness;
+	int contrast;
+	int saturation;
+	xf86CrtcPtr desired_crtc;
 
-   RegionRec clip;
-   uint32_t colorKey;
+	RegionRec clip;
+	uint32_t colorKey;
 
-   uint32_t gamma0;
-   uint32_t gamma1;
-   uint32_t gamma2;
-   uint32_t gamma3;
-   uint32_t gamma4;
-   uint32_t gamma5;
+	uint32_t gamma0;
+	uint32_t gamma1;
+	uint32_t gamma2;
+	uint32_t gamma3;
+	uint32_t gamma4;
+	uint32_t gamma5;
 
-   uint32_t videoStatus;
-   Time offTime;
-   Time freeTime;
-   /** YUV data buffers */
-   drm_intel_bo *buf; /* current buffer to draw into */
-   drm_intel_bo *oldBuf; /* old buffer, may be in use by the overlay hw */
-   Bool oldBuf_pinned; /* only actually pinned when in use by the overlay hw */
+	/* only used by the overlay */
+	uint32_t videoStatus;
+	Time offTime;
+	Time freeTime;
+	/** YUV data buffers */
+	drm_intel_bo *buf;
 
-   Bool overlayOK;
-   int oneLineMode;
-   int scaleRatio;
-   Bool textured;
-   Rotation rotation; /* should remove I830->rotation later*/
+	Bool textured;
+	Rotation rotation;	/* should remove intel->rotation later */
 
-   int SyncToVblank; /* -1: auto, 0: off, 1: on */
-} I830PortPrivRec, *I830PortPrivPtr;
+	int SyncToVblank;	/* -1: auto, 0: off, 1: on */
+} intel_adaptor_private;
 
-#define GET_PORT_PRIVATE(pScrn) \
-   (I830PortPrivPtr)((I830PTR(pScrn))->adaptor->pPortPrivates[0].ptr)
+static inline intel_adaptor_private *
+intel_get_adaptor_private(ScrnInfoPtr scrn)
+{
+	return intel_get_screen_private(scrn)->adaptor->pPortPrivates[0].ptr;
+}
 
-void I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+void I915DisplayVideoTextured(ScrnInfoPtr scrn,
+			      intel_adaptor_private *adaptor_priv,
 			      int id, RegionPtr dstRegion, short width,
 			      short height, int video_pitch, int video_pitch2,
-			      int x1, int y1, int x2, int y2,
 			      short src_w, short src_h,
-			      short drw_w, short drw_h,
-			      PixmapPtr pPixmap);
+			      short drw_w, short drw_h, PixmapPtr pixmap);
 
-void I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
+void I965DisplayVideoTextured(ScrnInfoPtr scrn,
+			      intel_adaptor_private *adaptor_priv,
 			      int id, RegionPtr dstRegion, short width,
 			      short height, int video_pitch,
-			      int x1, int y1, int x2, int y2,
 			      short src_w, short src_h,
-			      short drw_w, short drw_h,
-			      PixmapPtr pPixmap);
+			      short drw_w, short drw_h, PixmapPtr pixmap);
 
 void I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 			   pointer pReadmask);

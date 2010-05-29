@@ -1,8 +1,3 @@
 101_copy-fb.patch
-102_avoid_flushing_null.patch
-103_check_for_overflow.patch
-104_fail_when_prop_values_gone.patch
-105_free_after_printing.patch
-106_initialize_drmmode_output.patch
-
-107_i830_clip_solid_fills_to_surface.patch
+102-disable-page-flipping-v2.patch
+103-mbp-backlight-support.patch

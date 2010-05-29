@@ -1,53 +1,53 @@
-Index: xserver-xorg-video-intel-2.9.1/src/drmmode_display.c
-===================================================================
---- xserver-xorg-video-intel-2.9.1.orig/src/drmmode_display.c	2009-10-26 13:48:05.000000000 +0200
-+++ xserver-xorg-video-intel-2.9.1/src/drmmode_display.c	2009-12-07 16:17:51.000000000 +0200
-@@ -35,6 +35,8 @@
- #include <unistd.h>
+diff --git a/src/drmmode_display.c b/src/drmmode_display.c
+index ae200ca..9fee41a 100644
+--- a/src/drmmode_display.c
++++ b/src/drmmode_display.c
+@@ -36,6 +36,8 @@
  #include <errno.h>
+ #include <poll.h>
  
 +#include <sys/ioctl.h>
 +
  #include "xorgVersion.h"
  
  #include "i830.h"
-@@ -910,6 +912,13 @@
+@@ -855,6 +857,13 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
  	drmmode_ptr drmmode = drmmode_output->drmmode;
  	int i;
  	drmModePropertyPtr props;
-+	I830Ptr     pI830 = I830PTR(output->scrn);
++	intel_screen_private *intel = intel_get_screen_private(output->scrn);
 +
 +	/* xf86Crtc.c calls dpms off in set desired modes, so ignore
 +	 * the request if we're starting up. */
 +
-+	if (pI830->starting)
++	if (intel->starting)
 +		return;
  
  	for (i = 0; i < koutput->count_props; i++) {
  		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
-@@ -1410,6 +1419,8 @@
+@@ -1473,6 +1482,8 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
+ 					       drm_wakeup_handler, drmmode);
+ 	}
  
- 	xf86InitialConfiguration(pScrn, TRUE);
- 
-+	pScrn->canDoBGNoneRoot = TRUE;
++	scrn->canDoBGNoneRoot = TRUE;
 +
  	return TRUE;
  }
  
-@@ -1435,3 +1446,97 @@
+@@ -1507,3 +1518,96 @@ void drmmode_closefb(ScrnInfoPtr scrn)
  	drmModeRmFB(drmmode->fd, drmmode->fb_id);
  	drmmode->fb_id = 0;
  }
 +
 +static PixmapPtr
-+drmmode_create_pixmap_for_fbcon(ScrnInfoPtr pScrn)
++drmmode_create_pixmap_for_fbcon(ScrnInfoPtr scrn)
 +{
-+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
++	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 +	drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[0]->driver_private;
-+	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
++	ScreenPtr pScreen = screenInfo.screens[scrn->scrnIndex];
 +	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-+	I830Ptr pI830 = I830PTR(pScrn);
-+	drmModeFBPtr fbcon;
++	intel_screen_private *intel = intel_get_screen_private(scrn);
++	drmModeFBPtr fbcon = NULL;
 +	struct drm_gem_flink flink;
 +	drm_intel_bo *bo;
 +	PixmapPtr pixmap = NULL;
@@ -67,15 +67,15 @@ Index: xserver-xorg-video-intel-2.9.1/src/drmmode_display.c
 +
 +	flink.handle = fbcon->handle;
 +	if (ioctl(drmmode->fd, DRM_IOCTL_GEM_FLINK, &flink) < 0) {
-+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
++		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 +			   "Couldn't flink fbcon handle\n");
 +		return NULL;
 +	}
 +
-+	bo = drm_intel_bo_gem_create_from_name(pI830->bufmgr,
++	bo = drm_intel_bo_gem_create_from_name(intel->bufmgr,
 +					       "fbcon", flink.name);
 +	if (bo == NULL) {
-+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
++		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 +			   "Couldn't allocate bo for fbcon handle\n");
 +		return NULL;
 +	}
@@ -84,9 +84,8 @@ Index: xserver-xorg-video-intel-2.9.1/src/drmmode_display.c
 +					fbcon->width, fbcon->height,
 +					fbcon->depth, fbcon->bpp,
 +					fbcon->pitch, NULL);
-+
 +	if (pixmap == NULL) {
-+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
++		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 +			   "Couldn't allocate pixmap fbcon contents\n");
 +		return NULL;
 +	}
@@ -97,63 +96,88 @@ Index: xserver-xorg-video-intel-2.9.1/src/drmmode_display.c
 +
 +	return pixmap;
 +}
-+void drmmode_copy_fb(ScrnInfoPtr pScrn)
-+{
-+	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-+	I830Ptr pI830 = I830PTR(pScrn);
-+	PixmapPtr src, dst;
-+	unsigned int pitch = pScrn->displayWidth * pI830->cpp;
 +
-+	src = drmmode_create_pixmap_for_fbcon(pScrn);
++void drmmode_copy_fb(ScrnInfoPtr scrn)
++{
++	ScreenPtr pScreen = screenInfo.screens[scrn->scrnIndex];
++	intel_screen_private *intel = intel_get_screen_private(scrn);
++	PixmapPtr src, dst;
++	unsigned int pitch = scrn->displayWidth * intel->cpp;
++
++	src = drmmode_create_pixmap_for_fbcon(scrn);
 +	if (src == NULL) {
-+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
++		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 +			   "Couldn't create pixmap for fbcon\n");
 +		return;
 +	}
 +
 +	/* We dont have a screen Pixmap yet */
 +	dst = GetScratchPixmapHeader(pScreen,
-+				     pScrn->virtualX, pScrn->virtualY,
-+				     pScrn->depth, pScrn->bitsPerPixel,
++				     scrn->virtualX, scrn->virtualY,
++				     scrn->depth, scrn->bitsPerPixel,
 +				     pitch,
 +				     NULL);
-+	i830_set_pixmap_bo(dst, pI830->front_buffer->bo);
++	i830_set_pixmap_bo(dst, intel->front_buffer);
 +
-+	pI830->uxa_driver->prepare_copy(src, dst, -1, -1, GXcopy, FB_ALLONES);
++	intel->uxa_driver->prepare_copy(src, dst, -1, -1, GXcopy, FB_ALLONES);
 +
-+	pI830->uxa_driver->copy(dst, 0, 0, 0, 0,
-+				pScrn->virtualX, pScrn->virtualY);
++	intel->uxa_driver->copy(dst, 0, 0, 0, 0,
++				scrn->virtualX, scrn->virtualY);
 +
-+	pI830->uxa_driver->done_copy(dst);
++	intel->uxa_driver->done_copy(dst);
 +
-+	I830EmitFlush(pScrn);
-+	intel_batch_flush(pScrn, TRUE);
++	intel_sync(scrn);
 +
 +	(*pScreen->DestroyPixmap)(src);
 +	(*pScreen->DestroyPixmap)(dst);
 +}
-Index: xserver-xorg-video-intel-2.9.1/src/i830.h
-===================================================================
---- xserver-xorg-video-intel-2.9.1.orig/src/i830.h	2009-10-26 13:48:05.000000000 +0200
-+++ xserver-xorg-video-intel-2.9.1/src/i830.h	2009-12-07 16:17:51.000000000 +0200
-@@ -696,6 +696,7 @@
+diff --git a/src/i830.h b/src/i830.h
+index 7593cde..f192fbc 100644
+--- a/src/i830.h
++++ b/src/i830.h
+@@ -355,6 +355,7 @@ typedef struct intel_screen_private {
+ 	OptionInfoPtr Options;
+ 
+ 	/* Driver phase/state information */
++	Bool starting;
+ 	Bool suspended;
+ 
+ 	enum last_3d last_3d;
+@@ -419,6 +420,7 @@ extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
+ 					 xf86CrtcPtr crtc);
  extern int drmmode_output_dpms_status(xf86OutputPtr output);
- void
- drmmode_crtc_set_cursor_bo(xf86CrtcPtr crtc, dri_bo *cursor);
-+extern void drmmode_copy_fb(ScrnInfoPtr pScrn);
+ extern int drmmode_crtc_id(xf86CrtcPtr crtc);
++extern void drmmode_copy_fb(ScrnInfoPtr scrn);
  
  extern Bool i830_crtc_on(xf86CrtcPtr crtc);
  extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
-Index: xserver-xorg-video-intel-2.9.1/src/i830_driver.c
-===================================================================
---- xserver-xorg-video-intel-2.9.1.orig/src/i830_driver.c	2009-10-26 13:48:05.000000000 +0200
-+++ xserver-xorg-video-intel-2.9.1/src/i830_driver.c	2009-12-07 16:17:51.000000000 +0200
-@@ -3014,6 +3014,8 @@
-        /* Clear the framebuffer */
-        memset(pI830->FbBase + pScrn->fbOffset, 0,
- 	      pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
-+   } else {
-+       drmmode_copy_fb(pScrn);
-    }
+diff --git a/src/i830_driver.c b/src/i830_driver.c
+index 53d8663..bbbfff0 100644
+--- a/src/i830_driver.c
++++ b/src/i830_driver.c
+@@ -1187,6 +1187,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+ 	if (IS_I965G(intel))
+ 		gen4_render_state_init(scrn);
  
-    if (!xf86SetDesiredModes (pScrn))
++	intel->starting = TRUE;
++
+ 	miClearVisualTypes();
+ 	if (!miSetVisualTypes(scrn->depth,
+ 			      miGetDefaultVisualMask(scrn->depth),
+@@ -1328,6 +1330,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+ 	if (serverGeneration == 1)
+ 		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
+ 
++	intel->starting = FALSE;
+ 	intel->suspended = FALSE;
+ 
+ 	return TRUE;
+@@ -1391,6 +1394,8 @@ static Bool I830EnterVT(int scrnIndex, int flags)
+ 
+ 	i830_set_gem_max_sizes(scrn);
+ 
++	drmmode_copy_fb(scrn);
++
+ 	if (!xf86SetDesiredModes(scrn))
+ 		return FALSE;
+ 
