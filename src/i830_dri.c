@@ -83,7 +83,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2BufferPtr buffers;
 	dri_bo *bo;
-	int i, width, height, depth;
+	int i;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
 
@@ -95,11 +95,6 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		xfree(buffers);
 		return NULL;
 	}
-
-	pixmap = get_drawable_pixmap(drawable);
-	width = pixmap->drawable.width;
-	height = pixmap->drawable.height;
-	depth = pixmap->drawable.depth;
 
 	pDepthPixmap = NULL;
 	for (i = 0; i < count; i++) {
@@ -130,7 +125,12 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 			if (!intel->tiling)
 				hint = 0;
 
-			pixmap = screen->CreatePixmap(screen, width, height, depth, hint);
+			pixmap = screen->CreatePixmap(screen,
+						      drawable->width,
+						      drawable->height,
+						      drawable->depth,
+						      hint);
+
 		}
 
 		if (attachments[i] == DRI2BufferDepth)
@@ -196,8 +196,8 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		return NULL;
 	}
 
-	pixmap = get_drawable_pixmap(drawable);
 	if (attachment == DRI2BufferFrontLeft) {
+		pixmap = get_drawable_pixmap(drawable);
 		pixmap->refcnt++;
 	} else {
 		unsigned int hint = 0;
@@ -222,10 +222,10 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 			hint = 0;
 
 		pixmap = screen->CreatePixmap(screen,
-					      pixmap->drawable.width,
-					      pixmap->drawable.height,
+					      drawable->width,
+					      drawable->height,
 					      (format != 0) ? format :
-							      pixmap->drawable.depth,
+							      drawable->depth,
 					      hint);
 
 	}
