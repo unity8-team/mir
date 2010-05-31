@@ -49,16 +49,46 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			 PixmapPtr pixmap)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	uint32_t format, ms3, s5;
+	uint32_t format, ms3, s5, tiling;
 	BoxPtr pbox = REGION_RECTS(dstRegion);
 	int nbox_total = REGION_NUM_RECTS(dstRegion);
 	int nbox_this_time;
 	int dxo, dyo, pix_xoff, pix_yoff;
+	PixmapPtr target;
 
 #if 0
 	ErrorF("I915DisplayVideo: %dx%d (pitch %d)\n", width, height,
 	       video_pitch);
 #endif
+
+	dxo = dstRegion->extents.x1;
+	dyo = dstRegion->extents.y1;
+
+	if (pixmap->drawable.width > 2048 || pixmap->drawable.height > 2048 ||
+	    !intel_check_pitch_3d(pixmap)) {
+		ScreenPtr screen = pixmap->drawable.pScreen;
+
+		target = screen->CreatePixmap(screen,
+					      drw_w, drw_h,
+					      pixmap->drawable.depth,
+					      CREATE_PIXMAP_USAGE_SCRATCH);
+
+		pix_xoff = -dxo;
+		pix_yoff = -dyo;
+	} else {
+		target = pixmap;
+
+		/* Set up the offset for translating from the given region
+		 * (in screen coordinates) to the backing pixmap.
+		 */
+#ifdef COMPOSITE
+		pix_xoff = -target->screen_x + target->drawable.x;
+		pix_yoff = -target->screen_y + target->drawable.y;
+#else
+		pix_xoff = 0;
+		pix_yoff = 0;
+#endif
+	}
 
 #define BYTES_FOR_BOXES(n)	((200 + (n) * 20) * 4)
 #define BOXES_IN_BYTES(s)	((((s)/4) - 200) / 20)
@@ -75,24 +105,18 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		IntelEmitInvarientState(scrn);
 		intel->last_3d = LAST_3D_VIDEO;
 
-		/* flush map & render cache */
-		OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE |
-			  MI_INVALIDATE_MAP_CACHE);
-		OUT_BATCH(0x00000000);
-
 		/* draw rect -- just clipping */
 		OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
 		OUT_BATCH(DRAW_DITHER_OFS_X(pixmap->drawable.x & 3) |
 			  DRAW_DITHER_OFS_Y(pixmap->drawable.y & 3));
 		OUT_BATCH(0x00000000);	/* ymin, xmin */
 		/* ymax, xmax */
-		OUT_BATCH((pixmap->drawable.width - 1) |
-			  (pixmap->drawable.height - 1) << 16);
+		OUT_BATCH((target->drawable.width - 1) |
+			  (target->drawable.height - 1) << 16);
 		OUT_BATCH(0x00000000);	/* yorigin, xorigin */
-		OUT_BATCH(MI_NOOP);
 
 		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
-			  I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
+			  I1_LOAD_S(5) | I1_LOAD_S(6) | 2);
 		OUT_BATCH(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
 			  S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
 			  S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
@@ -101,8 +125,6 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			  S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
 			  S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
 			  S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
-		OUT_BATCH((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
-			  S4_CULLMODE_NONE | S4_VFMT_XY);
 		s5 = 0x0;
 		if (intel->cpp == 2)
 			s5 |= S5_COLOR_DITHER_ENABLE;
@@ -127,10 +149,16 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			  DSTORG_VERT_BIAS(0x8) | format);
 
 		/* front buffer, pitch, offset */
+		if (i830_pixmap_tiled(target)) {
+			tiling = BUF_3D_TILED_SURFACE;
+			if (i830_get_pixmap_intel(target)->tiling == I915_TILING_Y)
+				tiling |= BUF_3D_TILE_WALK_Y;
+		} else
+			tiling = 0;
 		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
-		OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
-			  BUF_3D_PITCH(intel_get_pixmap_pitch(pixmap)));
-		OUT_RELOC_PIXMAP(pixmap, I915_GEM_DOMAIN_RENDER,
+		OUT_BATCH(BUF_3D_ID_COLOR_BACK | tiling |
+			  BUF_3D_PITCH(intel_get_pixmap_pitch(target)));
+		OUT_RELOC_PIXMAP(target, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
 
 		if (!is_planar_fourcc(id)) {
@@ -166,7 +194,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			else
 				OUT_BATCH(adaptor_priv->YBufOffset);
 
-			ms3 = MAPSURF_422 | MS3_USE_FENCE_REGS;
+			ms3 = MAPSURF_422;
 			switch (id) {
 			case FOURCC_YUY2:
 				ms3 |= MT_422_YCRCB_NORMAL;
@@ -285,7 +313,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			else
 				OUT_BATCH(adaptor_priv->YBufOffset);
 
-			ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
+			ms3 = MAPSURF_8BIT | MT_8BIT_I8;
 			ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
 			ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
 			OUT_BATCH(ms3);
@@ -307,7 +335,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			else
 				OUT_BATCH(adaptor_priv->UBufOffset);
 
-			ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
+			ms3 = MAPSURF_8BIT | MT_8BIT_I8;
 			ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
 			ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
 			OUT_BATCH(ms3);
@@ -320,7 +348,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			else
 				OUT_BATCH(adaptor_priv->VBufOffset);
 
-			ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
+			ms3 = MAPSURF_8BIT | MT_8BIT_I8;
 			ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
 			ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
 			OUT_BATCH(ms3);
@@ -381,22 +409,6 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			FS_END();
 		}
 
-		OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
-
-		/* Set up the offset for translating from the given region
-		 * (in screen coordinates) to the backing pixmap.
-		 */
-#ifdef COMPOSITE
-		pix_xoff = -pixmap->screen_x + pixmap->drawable.x;
-		pix_yoff = -pixmap->screen_y + pixmap->drawable.y;
-#else
-		pix_xoff = 0;
-		pix_yoff = 0;
-#endif
-
-		dxo = dstRegion->extents.x1;
-		dyo = dstRegion->extents.y1;
-
 		OUT_BATCH(PRIM3D_RECTLIST | (12 * nbox_this_time - 1));
 		while (nbox_this_time--) {
 			int box_x1 = pbox->x1;
@@ -434,6 +446,35 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		}
 
 		intel_batch_end_atomic(scrn);
+	}
+
+	if (target != pixmap) {
+		GCPtr gc;
+
+		gc = GetScratchGC(pixmap->drawable.depth,
+				  pixmap->drawable.pScreen);
+		if (gc) {
+			RegionPtr tmp;
+
+			ValidateGC(&pixmap->drawable, gc);
+
+			if (REGION_NUM_RECTS(dstRegion) > 1) {
+				tmp = REGION_CREATE(pixmap->drawable.pScreen, NULL, 0);
+				if (tmp) {
+					REGION_COPY(pixmap->drawable.pScreen, tmp, dstRegion);
+					gc->funcs->ChangeClip(gc, CT_REGION, tmp, 0);
+				}
+			}
+
+			gc->ops->CopyArea(&target->drawable, &pixmap->drawable, gc,
+					  0, 0,
+					  target->drawable.width,
+					  target->drawable.height,
+					  -pix_xoff, -pix_yoff);
+			FreeScratchGC(gc);
+		}
+
+		target->drawable.pScreen->DestroyPixmap(target);
 	}
 
 	i830_debug_flush(scrn);
