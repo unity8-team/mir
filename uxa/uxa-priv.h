@@ -103,21 +103,13 @@ char uxa_drawable_location(DrawablePtr pDrawable);
 #endif
 
 typedef struct {
-	/* The identity of the cache, statically configured at initialization */
-	unsigned int format;
-	int glyphWidth;
-	int glyphHeight;
-
-	GlyphPtr *glyphs;
-	int glyphCount;		/* Current number of glyphs */
-
 	PicturePtr picture;	/* Where the glyphs of the cache are stored */
-	int yOffset;		/* y location within the picture where the cache starts */
-	int columns;		/* Number of columns the glyphs are layed out in */
-	int evictionPosition;	/* Next random position to evict a glyph */
+	GlyphPtr *glyphs;
+	uint16_t count;
+	uint16_t evict;
 } uxa_glyph_cache_t;
 
-#define UXA_NUM_GLYPH_CACHES 4
+#define UXA_NUM_GLYPH_CACHE_FORMATS 2
 
 typedef struct {
 	uint32_t color;
@@ -154,7 +146,7 @@ typedef struct {
 	unsigned disableFbCount;
 	unsigned offScreenCounter;
 
-	uxa_glyph_cache_t glyphCaches[UXA_NUM_GLYPH_CACHES];
+	uxa_glyph_cache_t glyphCaches[UXA_NUM_GLYPH_CACHE_FORMATS];
 
 	PicturePtr solid_clear, solid_black, solid_white;
 	uxa_solid_cache_t solid_cache[UXA_NUM_SOLID_CACHE];
@@ -445,7 +437,7 @@ uxa_get_rgba_from_pixel(CARD32 pixel,
 			CARD32 format);
 
 /* uxa_glyph.c */
-void uxa_glyphs_init(ScreenPtr pScreen);
+Bool uxa_glyphs_init(ScreenPtr pScreen);
 
 void uxa_glyphs_fini(ScreenPtr pScreen);
 

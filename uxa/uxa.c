@@ -432,9 +432,6 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 {
 	uxa_screen_t *uxa_screen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-#ifdef RENDER
-	PictureScreenPtr ps;
-#endif
 
 	if (!uxa_driver)
 		return FALSE;
@@ -463,10 +460,6 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 			   "non-NULL\n", screen->myNum);
 		return FALSE;
 	}
-#ifdef RENDER
-	ps = GetPictureScreenIfSet(screen);
-#endif
-
 	uxa_screen = xcalloc(sizeof(uxa_screen_t), 1);
 
 	if (!uxa_screen) {
@@ -516,27 +509,30 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	scrn->EnableDisableFBAccess = uxa_xorg_enable_disable_fb_access;
 
 #ifdef RENDER
-	if (ps) {
-		uxa_screen->SavedComposite = ps->Composite;
-		ps->Composite = uxa_composite;
+	{
+		PictureScreenPtr ps = GetPictureScreenIfSet(screen);
+		if (ps) {
+			uxa_screen->SavedComposite = ps->Composite;
+			ps->Composite = uxa_composite;
 
-		uxa_screen->SavedCompositeRects = ps->CompositeRects;
-		ps->CompositeRects = uxa_solid_rects;
+			uxa_screen->SavedCompositeRects = ps->CompositeRects;
+			ps->CompositeRects = uxa_solid_rects;
 
-		uxa_screen->SavedGlyphs = ps->Glyphs;
-		ps->Glyphs = uxa_glyphs;
+			uxa_screen->SavedGlyphs = ps->Glyphs;
+			ps->Glyphs = uxa_glyphs;
 
-		uxa_screen->SavedUnrealizeGlyph = ps->UnrealizeGlyph;
-		ps->UnrealizeGlyph = uxa_glyph_unrealize;
+			uxa_screen->SavedUnrealizeGlyph = ps->UnrealizeGlyph;
+			ps->UnrealizeGlyph = uxa_glyph_unrealize;
 
-		uxa_screen->SavedTriangles = ps->Triangles;
-		ps->Triangles = uxa_triangles;
+			uxa_screen->SavedTriangles = ps->Triangles;
+			ps->Triangles = uxa_triangles;
 
-		uxa_screen->SavedTrapezoids = ps->Trapezoids;
-		ps->Trapezoids = uxa_trapezoids;
+			uxa_screen->SavedTrapezoids = ps->Trapezoids;
+			ps->Trapezoids = uxa_trapezoids;
 
-		uxa_screen->SavedAddTraps = ps->AddTraps;
-		ps->AddTraps = uxa_check_add_traps;
+			uxa_screen->SavedAddTraps = ps->AddTraps;
+			ps->AddTraps = uxa_check_add_traps;
+		}
 	}
 #endif
 
@@ -548,7 +544,8 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	ShmRegisterFuncs(screen, &uxa_shm_funcs);
 #endif
 
-	uxa_glyphs_init(screen);
+	if (!uxa_glyphs_init(screen))
+		return FALSE;
 
 	LogMessage(X_INFO,
 		   "UXA(%d): Driver registered support for the following"

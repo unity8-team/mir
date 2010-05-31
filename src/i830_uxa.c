@@ -936,6 +936,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 	if (depth == 1)
 		return fbCreatePixmap(screen, w, h, depth, usage);
+
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE && w <= 32 && h <= 32)
 		return fbCreatePixmap(screen, w, h, depth, usage);
 
@@ -1134,15 +1135,15 @@ Bool i830_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->finish_access = i830_uxa_finish_access;
 	intel->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
 
+	screen->CreatePixmap = i830_uxa_create_pixmap;
+	screen->DestroyPixmap = i830_uxa_destroy_pixmap;
+
 	if (!uxa_driver_init(screen, intel->uxa_driver)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "UXA initialization failed\n");
 		xfree(intel->uxa_driver);
 		return FALSE;
 	}
-
-	screen->CreatePixmap = i830_uxa_create_pixmap;
-	screen->DestroyPixmap = i830_uxa_destroy_pixmap;
 
 	uxa_set_fallback_debug(screen, intel->fallback_debug);
 
