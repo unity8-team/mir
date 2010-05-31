@@ -430,26 +430,6 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 	return TRUE;
 }
 
-/* Compat defines for pre 1.7 xservers. */
-#ifndef PICT_a2b10g10r10
-#define PICT_a2b10g10r10 PICT_FORMAT(32, PICT_TYPE_ABGR, 2, 10, 10, 10)
-#endif
-#ifndef PICT_x2b10g10r10
-#define PICT_x2b10g10r10  PICT_FORMAT(32, PICT_TYPE_ABGR, 0, 10, 10, 10)
-#endif
-#ifndef  PICT_a2r10g10b10
-#define PICT_a2r10g10b10 PICT_FORMAT(32, PICT_TYPE_ARGB, 2, 10, 10, 10)
-#endif
-#ifndef  PICT_x2r10g10b10
-#define PICT_x2r10g10b10 PICT_FORMAT(32, PICT_TYPE_ARGB, 0, 10, 10, 10)
-#endif 
-#ifndef PICT_b8g8r8a8
-#define PICT_b8g8r8a8 PIXMAN_FORMAT(32,PIXMAN_TYPE_BGRA,8,8,8,8)
-#endif
-#ifndef PICT_b8g8r8x8
-#define PICT_b8g8r8x8 PIXMAN_FORMAT(32,PIXMAN_TYPE_BGRA,0,8,8,8)
-#endif
-
 static Bool
 NV50EXACheckRenderTarget(PicturePtr ppict)
 {
