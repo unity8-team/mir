@@ -168,7 +168,7 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 		} else {
 			pbox = REGION_RECTS(pClip);
 			while (nbox--) {
-				if (pbox->y2 >= fullY1)
+				if (pbox->y2 <= fullY1)
 					break;
 
 				if (pbox->y1 <= fullY1) {
