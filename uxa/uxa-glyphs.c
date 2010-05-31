@@ -1026,6 +1026,7 @@ uxa_glyphs(CARD8 op,
 
 	if (!uxa_screen->info->prepare_composite ||
 	    uxa_screen->swappedOut ||
+	    uxa_screen->force_fallback ||
 	    !uxa_drawable_is_offscreen(pDst->pDrawable) ||
 	    pDst->alphaMap || pSrc->alphaMap) {
 fallback:

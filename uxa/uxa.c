@@ -350,6 +350,13 @@ void uxa_set_fallback_debug(ScreenPtr screen, Bool enable)
 	uxa_screen->fallback_debug = enable;
 }
 
+void uxa_set_force_fallback(ScreenPtr screen, Bool value)
+{
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+
+	uxa_screen->force_fallback = value;
+}
+
 /**
  * uxa_close_screen() unwraps its wrapped screen functions and tears down UXA's
  * screen private, before calling down to the next CloseSccreen.
@@ -472,6 +479,8 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	uxa_screen->info = uxa_driver;
 
 	dixSetPrivate(&screen->devPrivates, &uxa_screen_index, uxa_screen);
+
+	uxa_screen->force_fallback = FALSE;
 
 	uxa_screen->solid_cache_size = 0;
 	uxa_screen->solid_clear = 0;

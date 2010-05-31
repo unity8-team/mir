@@ -32,6 +32,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "xf86.h"
 #include "i830.h"
@@ -214,6 +215,13 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 				   "or even a frozen display: %s.\n",
 				   strerror(-ret));
 			once = 1;
+		}
+
+		if (ret == -EIO) {
+			/* The GPU is hung and unlikely to recover by this point. */
+			xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Disabling acceleration.\n");
+			uxa_set_force_fallback(screenInfo.screens[scrn->scrnIndex], TRUE);
+			intel->force_fallback = TRUE;
 		}
 	}
 

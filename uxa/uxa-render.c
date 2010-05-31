@@ -167,6 +167,10 @@ uxa_print_composite_fallback(const char *func, CARD8 op,
 	if (! uxa_screen->fallback_debug)
 		return;
 
+	/* Limit the noise if fallbacks are expected. */
+	if (uxa_screen->force_fallback)
+		return;
+
 	uxa_composite_fallback_pict_desc(pSrc, srcdesc, 40);
 	uxa_composite_fallback_pict_desc(pMask, maskdesc, 40);
 	uxa_composite_fallback_pict_desc(pDst, dstdesc, 40);
@@ -1502,16 +1506,14 @@ uxa_composite(CARD8 op,
 	RegionRec region;
 	int tx, ty;
 
-	if (uxa_screen->swappedOut)
+	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
 		goto fallback;
 
 	if (!uxa_drawable_is_offscreen(pDst->pDrawable))
 		goto fallback;
 
-
 	if (pDst->alphaMap || pSrc->alphaMap || (pMask && pMask->alphaMap))
 		goto fallback;
-
 
 	/* Remove repeat in source if useless */
 	if (pSrc->pDrawable && pSrc->repeat && pSrc->filter != PictFilterConvolution &&

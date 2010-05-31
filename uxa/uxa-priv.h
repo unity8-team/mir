@@ -141,6 +141,7 @@ typedef struct {
 #endif
 	EnableDisableFBAccessProcPtr SavedEnableDisableFBAccess;
 
+	Bool force_fallback;
 	Bool fallback_debug;
 	Bool swappedOut;
 	unsigned disableFbCount;

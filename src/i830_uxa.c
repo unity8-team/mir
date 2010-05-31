@@ -934,7 +934,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	if (w > 32767 || h > 32767)
 		return NullPixmap;
 
-	if (depth == 1)
+	if (depth == 1 || intel->force_fallback)
 		return fbCreatePixmap(screen, w, h, depth, usage);
 
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE && w <= 32 && h <= 32)
@@ -1081,6 +1081,8 @@ Bool i830_uxa_init(ScreenPtr screen)
 		return FALSE;
 
 	memset(intel->uxa_driver, 0, sizeof(*intel->uxa_driver));
+
+	intel->force_fallback = FALSE;
 
 	intel->bufferOffset = 0;
 	intel->uxa_driver->uxa_major = 1;

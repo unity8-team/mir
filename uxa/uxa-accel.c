@@ -70,7 +70,7 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	PicturePtr dst, src;
 	int error;
 
-	if (uxa_screen->swappedOut)
+	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
 		goto fallback;
 
 	if (pGC->fillStyle != FillSolid)
@@ -287,16 +287,18 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	if (format != ZPixmap || bpp < 8)
 		return FALSE;
 
+	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+		return FALSE;
+
+	if (!uxa_screen->info->put_image)
+		return FALSE;
+
 	/* Only accelerate copies: no rop or planemask. */
 	if (!UXA_PM_IS_SOLID(pDrawable, pGC->planemask) || pGC->alu != GXcopy)
 		return FALSE;
 
-	if (uxa_screen->swappedOut)
-		return FALSE;
-
 	pPix = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);
-
-	if (!pPix || !uxa_screen->info->put_image)
+	if (!pPix)
 		return FALSE;
 
 	x += pDrawable->x;
@@ -694,7 +696,7 @@ uxa_copy_area(DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable, GCPtr pGC,
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDstDrawable->pScreen);
 
-	if (uxa_screen->swappedOut) {
+	if (uxa_screen->swappedOut || uxa_screen->force_fallback) {
 		return uxa_check_copy_area(pSrcDrawable, pDstDrawable, pGC,
 					   srcx, srcy, width, height, dstx,
 					   dsty);
@@ -884,7 +886,7 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 	if (!REGION_NUM_RECTS(pReg))
 		goto out;
 
-	if (uxa_screen->swappedOut)
+	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
 		goto fallback;
 
 	pPixmap = uxa_get_offscreen_pixmap (pDrawable, &xoff, &yoff);
@@ -1297,7 +1299,7 @@ uxa_get_image(DrawablePtr pDrawable, int x, int y, int w, int h,
 	Box.x2 = Box.x1 + w;
 	Box.y2 = Box.y1 + h;
 
-	if (uxa_screen->swappedOut)
+	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
 		goto fallback;
 
 	pPix = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);

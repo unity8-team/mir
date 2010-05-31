@@ -384,6 +384,7 @@ typedef struct intel_screen_private {
 	char *deviceName;
 
 	Bool use_pageflipping;
+	Bool force_fallback;
 
 	/* Broken-out options. */
 	OptionInfoPtr Options;
