@@ -332,9 +332,6 @@ typedef struct intel_screen_private {
 	float scale_units[2][2];
 	/** Transform pointers for src/mask, or NULL if identity */
 	PictTransform *transform[2];
-	float dst_coord_adjust;
-	float src_coord_adjust;
-	float mask_coord_adjust;
 
 	PixmapPtr render_source, render_mask, render_dest;
 	PicturePtr render_source_picture, render_mask_picture, render_dest_picture;
