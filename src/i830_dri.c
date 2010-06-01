@@ -494,6 +494,32 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 				   flip_info);
 }
 
+static Bool
+can_exchange(DRI2BufferPtr front, DRI2BufferPtr back)
+{
+	I830DRI2BufferPrivatePtr front_priv = front->driverPrivate;
+	I830DRI2BufferPrivatePtr back_priv = back->driverPrivate;
+	PixmapPtr front_pixmap = front_priv->pixmap;
+	PixmapPtr back_pixmap = back_priv->pixmap;
+
+	if (front_pixmap->drawable.width != back_pixmap->drawable.width)
+		return FALSE;
+
+	if (front_pixmap->drawable.height != back_pixmap->drawable.height)
+		return FALSE;
+
+	/* XXX should we be checking depth instead of bpp? */
+#if 0
+	if (front_pixmap->drawable.depth != back_pixmap->drawable.depth)
+		return FALSE;
+#else
+	if (front_pixmap->drawable.bitsPerPixel != back_pixmap->drawable.bitsPerPixel)
+		return FALSE;
+#endif
+
+	return TRUE;
+}
+
 void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 			       unsigned int tv_usec, void *event_data)
 {
@@ -522,6 +548,7 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 		/* If we can still flip... */
 		if (DRI2CanFlip(drawable) && !intel->shadow_present &&
 		    intel->use_pageflipping &&
+		    can_exchange(event->front, event->back) &&
 		    I830DRI2ScheduleFlip(event->client, drawable, event->front,
 					 event->back, event->event_complete,
 					 event->event_data)) {
@@ -533,7 +560,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 	case DRI2_SWAP: {
 		int swap_type;
 
-		if (DRI2CanExchange(drawable)) {
+		if (DRI2CanExchange(drawable) && can_exchange(event->front,
+							      event->back)) {
 			I830DRI2ExchangeBuffers(drawable,
 						event->front, event->back);
 			swap_type = DRI2_EXCHANGE_COMPLETE;
@@ -608,32 +636,6 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 	xfree(flip);
 }
 
-static Bool
-can_swap(DRI2BufferPtr front, DRI2BufferPtr back)
-{
-	I830DRI2BufferPrivatePtr front_priv = front->driverPrivate;
-	I830DRI2BufferPrivatePtr back_priv = back->driverPrivate;
-	PixmapPtr front_pixmap = front_priv->pixmap;
-	PixmapPtr back_pixmap = back_priv->pixmap;
-
-	if (front_pixmap->drawable.width != back_pixmap->drawable.width)
-		return FALSE;
-
-	if (front_pixmap->drawable.height != back_pixmap->drawable.height)
-		return FALSE;
-
-	/* XXX should we be checking depth instead of bpp? */
-#if 0
-	if (front_pixmap->drawable.depth != back_pixmap->drawable.depth)
-		return FALSE;
-#else
-	if (front_pixmap->drawable.bitsPerPixel != back_pixmap->drawable.bitsPerPixel)
-		return FALSE;
-#endif
-
-	return TRUE;
-}
-
 /*
  * ScheduleSwap is responsible for requesting a DRM vblank event for the
  * appropriate frame.
@@ -674,9 +676,6 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	if (pipe == -1)
 	    goto blit_fallback;
 
-	if (!can_swap(front, back))
-		goto blit_fallback;
-
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
 	*target_msc &= 0xffffffff;
@@ -714,7 +713,8 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	/* Flips need to be submitted one frame before */
 	if (intel->use_pageflipping &&
 	    !intel->shadow_present &&
-	    DRI2CanFlip(draw)) {
+	    DRI2CanFlip(draw) &&
+	    can_exchange(front, back)) {
 	    swap_type = DRI2_FLIP;
 	    flip = 1;
 	}
