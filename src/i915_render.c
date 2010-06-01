@@ -35,8 +35,6 @@
 #include "i915_reg.h"
 #include "i915_3d.h"
 
-#define PIXEL_CENTRE_SAMPLE 0
-
 struct formatinfo {
 	int fmt;
 	uint32_t card_fmt;
@@ -176,9 +174,7 @@ static Bool i915_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 				     (int)dest_picture->format);
 		return FALSE;
 	}
-#if PIXEL_CENTRE_SAMPLE
 	*dst_format |= DSTORG_HORT_BIAS(0x8) | DSTORG_VERT_BIAS(0x8);
-#endif
 	return TRUE;
 }
 
@@ -397,19 +393,15 @@ i915_emit_composite_primitive_constant(PixmapPtr dest,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	float x, y;
 
-	x = dstX + intel->dst_coord_adjust;
-	y = dstY + intel->dst_coord_adjust;
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
 
-	OUT_VERTEX(x + w);
-	OUT_VERTEX(y + h);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
 
-	OUT_VERTEX(x);
-	OUT_VERTEX(y + h);
-
-	OUT_VERTEX(x);
-	OUT_VERTEX(y);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
 }
 
 static void
@@ -421,27 +413,21 @@ i915_emit_composite_primitive_identity_source(PixmapPtr dest,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	float dst_x, dst_y, src_x, src_y;
 
-	dst_x = dstX + intel->dst_coord_adjust;
-	dst_y = dstY + intel->dst_coord_adjust;
-	src_x = srcX + intel->src_coord_adjust;
-	src_y = srcY + intel->src_coord_adjust;
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX((srcX + w) * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
 
-	OUT_VERTEX(dst_x + w);
-	OUT_VERTEX(dst_y + h);
-	OUT_VERTEX((src_x + w) * intel->scale_units[0][0]);
-	OUT_VERTEX((src_y + h) * intel->scale_units[0][1]);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
 
-	OUT_VERTEX(dst_x);
-	OUT_VERTEX(dst_y + h);
-	OUT_VERTEX(src_x * intel->scale_units[0][0]);
-	OUT_VERTEX((src_y + h) * intel->scale_units[0][1]);
-
-	OUT_VERTEX(dst_x);
-	OUT_VERTEX(dst_y);
-	OUT_VERTEX(src_x * intel->scale_units[0][0]);
-	OUT_VERTEX(src_y * intel->scale_units[0][1]);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX(srcY * intel->scale_units[0][1]);
 }
 
 static void
@@ -453,44 +439,38 @@ i915_emit_composite_primitive_affine_source(PixmapPtr dest,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	float x, y, src_x[3], src_y[3];
+	float src_x[3], src_y[3];
 
-	x = srcX + intel->src_coord_adjust;
-	y = srcY + intel->src_coord_adjust;
-
-	if (!i830_get_transformed_coordinates(x, y,
+	if (!i830_get_transformed_coordinates(srcX, srcY,
 					      intel->transform[0],
 					      &src_x[0],
 					      &src_y[0]))
 		return;
 
-	if (!i830_get_transformed_coordinates(x, y + h,
+	if (!i830_get_transformed_coordinates(srcX, srcY + h,
 					      intel->transform[0],
 					      &src_x[1],
 					      &src_y[1]))
 		return;
 
-	if (!i830_get_transformed_coordinates(x + w, y + h,
+	if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
 					      intel->transform[0],
 					      &src_x[2],
 					      &src_y[2]))
 		return;
 
-	x = dstX + intel->dst_coord_adjust;
-	y = dstY + intel->dst_coord_adjust;
-
-	OUT_VERTEX(x + w);
-	OUT_VERTEX(y + h);
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
 	OUT_VERTEX(src_x[2] * intel->scale_units[0][0]);
 	OUT_VERTEX(src_y[2] * intel->scale_units[0][1]);
 
-	OUT_VERTEX(x);
-	OUT_VERTEX(y + h);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
 	OUT_VERTEX(src_x[1] * intel->scale_units[0][0]);
 	OUT_VERTEX(src_y[1] * intel->scale_units[0][1]);
 
-	OUT_VERTEX(x);
-	OUT_VERTEX(y);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
 	OUT_VERTEX(src_x[0] * intel->scale_units[0][0]);
 	OUT_VERTEX(src_y[0] * intel->scale_units[0][1]);
 }
@@ -504,27 +484,21 @@ i915_emit_composite_primitive_constant_identity_mask(PixmapPtr dest,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	float x, y, mx, my;
 
-	x = dstX + intel->dst_coord_adjust;
-	y = dstY + intel->dst_coord_adjust;
-	mx = maskX + intel->mask_coord_adjust;
-	my = maskY + intel->mask_coord_adjust;
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX((maskX + w) * intel->scale_units[0][0]);
+	OUT_VERTEX((maskY + h) * intel->scale_units[0][1]);
 
-	OUT_VERTEX(x + w);
-	OUT_VERTEX(y + h);
-	OUT_VERTEX((mx + w) * intel->scale_units[0][0]);
-	OUT_VERTEX((my + h) * intel->scale_units[0][1]);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(maskX * intel->scale_units[0][0]);
+	OUT_VERTEX((maskY + h) * intel->scale_units[0][1]);
 
-	OUT_VERTEX(x);
-	OUT_VERTEX(y + h);
-	OUT_VERTEX(mx * intel->scale_units[0][0]);
-	OUT_VERTEX((my + h) * intel->scale_units[0][1]);
-
-	OUT_VERTEX(x);
-	OUT_VERTEX(y);
-	OUT_VERTEX(mx * intel->scale_units[0][0]);
-	OUT_VERTEX(my * intel->scale_units[0][1]);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(maskX * intel->scale_units[0][0]);
+	OUT_VERTEX(maskY * intel->scale_units[0][1]);
 }
 
 static void
@@ -536,35 +510,27 @@ i915_emit_composite_primitive_identity_source_mask(PixmapPtr dest,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	float x, y, sx, sy, mx, my;
 
-	x = dstX + intel->dst_coord_adjust;
-	y = dstY + intel->dst_coord_adjust;
-	sx = srcX + intel->src_coord_adjust;
-	sy = srcY + intel->src_coord_adjust;
-	mx = maskX + intel->mask_coord_adjust;
-	my = maskY + intel->mask_coord_adjust;
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX((srcX + w) * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+	OUT_VERTEX((maskX + w) * intel->scale_units[1][0]);
+	OUT_VERTEX((maskY + h) * intel->scale_units[1][1]);
 
-	OUT_VERTEX(x + w);
-	OUT_VERTEX(y + h);
-	OUT_VERTEX((sx + w) * intel->scale_units[0][0]);
-	OUT_VERTEX((sy + h) * intel->scale_units[0][1]);
-	OUT_VERTEX((mx + w) * intel->scale_units[1][0]);
-	OUT_VERTEX((my + h) * intel->scale_units[1][1]);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+	OUT_VERTEX(maskX * intel->scale_units[1][0]);
+	OUT_VERTEX((maskY + h) * intel->scale_units[1][1]);
 
-	OUT_VERTEX(x);
-	OUT_VERTEX(y + h);
-	OUT_VERTEX(sx * intel->scale_units[0][0]);
-	OUT_VERTEX((sy + h) * intel->scale_units[0][1]);
-	OUT_VERTEX(mx * intel->scale_units[1][0]);
-	OUT_VERTEX((my + h) * intel->scale_units[1][1]);
-
-	OUT_VERTEX(x);
-	OUT_VERTEX(y);
-	OUT_VERTEX(sx * intel->scale_units[0][0]);
-	OUT_VERTEX(sy * intel->scale_units[0][1]);
-	OUT_VERTEX(mx * intel->scale_units[1][0]);
-	OUT_VERTEX(my * intel->scale_units[1][1]);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX(srcY * intel->scale_units[0][1]);
+	OUT_VERTEX(maskX * intel->scale_units[1][0]);
+	OUT_VERTEX(maskY * intel->scale_units[1][1]);
 }
 
 static void
@@ -585,28 +551,25 @@ i915_emit_composite_primitive(PixmapPtr dest,
 	per_vertex = 2;		/* dest x/y */
 
 	if (! intel->render_source_is_solid) {
-		float x = srcX + intel->src_coord_adjust;
-		float y = srcY + intel->src_coord_adjust;
-
 		src_unit = tex_unit++;
 
 		is_affine_src = i830_transform_is_affine(intel->transform[src_unit]);
 		if (is_affine_src) {
-			if (!i830_get_transformed_coordinates(x, y,
+			if (!i830_get_transformed_coordinates(srcX, srcY,
 							      intel->
 							      transform[src_unit],
 							      &src_x[0],
 							      &src_y[0]))
 				return;
 
-			if (!i830_get_transformed_coordinates(x, y + h,
+			if (!i830_get_transformed_coordinates(srcX, srcY + h,
 							      intel->
 							      transform[src_unit],
 							      &src_x[1],
 							      &src_y[1]))
 				return;
 
-			if (!i830_get_transformed_coordinates(x + w, y + h,
+			if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
 							      intel->
 							      transform[src_unit],
 							      &src_x[2],
@@ -615,7 +578,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 			per_vertex += 2;	/* src x/y */
 		} else {
-			if (!i830_get_transformed_coordinates_3d(x, y,
+			if (!i830_get_transformed_coordinates_3d(srcX, srcY,
 								 intel->
 								 transform[src_unit],
 								 &src_x[0],
@@ -623,7 +586,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 								 &src_w[0]))
 				return;
 
-			if (!i830_get_transformed_coordinates_3d(x, y + h,
+			if (!i830_get_transformed_coordinates_3d(srcX, srcY + h,
 								 intel->
 								 transform[src_unit],
 								 &src_x[1],
@@ -631,7 +594,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 								 &src_w[1]))
 				return;
 
-			if (!i830_get_transformed_coordinates_3d(x + w, y + h,
+			if (!i830_get_transformed_coordinates_3d(srcX + w, srcY + h,
 								 intel->
 								 transform[src_unit],
 								 &src_x[2],
@@ -644,28 +607,25 @@ i915_emit_composite_primitive(PixmapPtr dest,
 	}
 
 	if (intel->render_mask && ! intel->render_mask_is_solid) {
-		float x = maskX + intel->mask_coord_adjust;
-		float y = maskY + intel->mask_coord_adjust;
-
 		mask_unit = tex_unit++;
 
 		is_affine_mask = i830_transform_is_affine(intel->transform[mask_unit]);
 		if (is_affine_mask) {
-			if (!i830_get_transformed_coordinates(x, y,
+			if (!i830_get_transformed_coordinates(maskX, maskY,
 							      intel->
 							      transform[mask_unit],
 							      &mask_x[0],
 							      &mask_y[0]))
 				return;
 
-			if (!i830_get_transformed_coordinates(x, y + h,
+			if (!i830_get_transformed_coordinates(maskX, maskY + h,
 							      intel->
 							      transform[mask_unit],
 							      &mask_x[1],
 							      &mask_y[1]))
 				return;
 
-			if (!i830_get_transformed_coordinates(x + w, y + h,
+			if (!i830_get_transformed_coordinates(maskX + w, maskY + h,
 							      intel->
 							      transform[mask_unit],
 							      &mask_x[2],
@@ -674,7 +634,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 			per_vertex += 2;	/* mask x/y */
 		} else {
-			if (!i830_get_transformed_coordinates_3d(x, y,
+			if (!i830_get_transformed_coordinates_3d(maskX, maskY,
 								 intel->
 								 transform[mask_unit],
 								 &mask_x[0],
@@ -682,7 +642,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 								 &mask_w[0]))
 				return;
 
-			if (!i830_get_transformed_coordinates_3d(x, y + h,
+			if (!i830_get_transformed_coordinates_3d(maskX, maskY + h,
 								 intel->
 								 transform[mask_unit],
 								 &mask_x[1],
@@ -690,7 +650,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 								 &mask_w[1]))
 				return;
 
-			if (!i830_get_transformed_coordinates_3d(x + w, y + h,
+			if (!i830_get_transformed_coordinates_3d(maskX + w, maskY + h,
 								 intel->
 								 transform[mask_unit],
 								 &mask_x[2],
@@ -704,8 +664,8 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 	num_floats = 3 * per_vertex;
 
-	OUT_VERTEX(intel->dst_coord_adjust + dstX + w);
-	OUT_VERTEX(intel->dst_coord_adjust + dstY + h);
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
 	if (! intel->render_source_is_solid) {
 	    OUT_VERTEX(src_x[2] * intel->scale_units[src_unit][0]);
 	    OUT_VERTEX(src_y[2] * intel->scale_units[src_unit][1]);
@@ -723,8 +683,8 @@ i915_emit_composite_primitive(PixmapPtr dest,
 		}
 	}
 
-	OUT_VERTEX(intel->dst_coord_adjust + dstX);
-	OUT_VERTEX(intel->dst_coord_adjust + dstY + h);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
 	if (! intel->render_source_is_solid) {
 	    OUT_VERTEX(src_x[1] * intel->scale_units[src_unit][0]);
 	    OUT_VERTEX(src_y[1] * intel->scale_units[src_unit][1]);
@@ -742,8 +702,8 @@ i915_emit_composite_primitive(PixmapPtr dest,
 		}
 	}
 
-	OUT_VERTEX(intel->dst_coord_adjust + dstX);
-	OUT_VERTEX(intel->dst_coord_adjust + dstY);
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
 	if (! intel->render_source_is_solid) {
 	    OUT_VERTEX(src_x[0] * intel->scale_units[src_unit][0]);
 	    OUT_VERTEX(src_y[0] * intel->scale_units[src_unit][1]);
@@ -835,10 +795,6 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 		}
 	}
 
-	intel->dst_coord_adjust = 0;
-	intel->src_coord_adjust = 0;
-	intel->mask_coord_adjust = 0;
-
 	intel->transform[0] = NULL;
 	intel->scale_units[0][0] = -1;
 	intel->scale_units[0][1] = -1;
@@ -857,14 +813,6 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 			floats_per_vertex += 2;	/* src x/y */
 		else
 			floats_per_vertex += 4;	/* src x/y/z/w */
-
-		if (source_picture->filter == PictFilterNearest) {
-#if PIXEL_CENTRE_SAMPLE
-			intel->src_coord_adjust = 0.375;
-#else
-			intel->dst_coord_adjust = -0.125;
-#endif
-		}
 	}
 
 	if (mask != NULL) {
@@ -879,14 +827,6 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 				floats_per_vertex += 2;	/* mask x/y */
 			else
 				floats_per_vertex += 4;	/* mask x/y/z/w */
-
-			if (mask_picture->filter == PictFilterNearest) {
-#if PIXEL_CENTRE_SAMPLE
-			    intel->mask_coord_adjust = 0.375;
-#else
-			    intel->dst_coord_adjust = -0.125;
-#endif
-			}
 		}
 	}
 
