@@ -930,7 +930,7 @@ i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
 	PixmapPtr mask = intel->render_mask;
 	int src_reg, mask_reg;
 	Bool is_solid_src, is_solid_mask;
-	uint32_t dst_format = intel->i915_render_state.dst_format;
+	Bool dest_is_alpha = PIXMAN_FORMAT_RGB(intel->render_dest_picture->format) == 0;
 	int tex_unit, t;
 	FS_LOCALS();
 
@@ -952,7 +952,7 @@ i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
 	if (!mask) {
 		/* No mask, so load directly to output color */
 		if (! is_solid_src) {
-			if (dst_format == COLR_BUF_8BIT)
+			if (dest_is_alpha)
 				src_reg = FS_R0;
 			else
 				src_reg = FS_OC;
@@ -964,7 +964,7 @@ i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
 		}
 
 		if (src_reg != FS_OC) {
-			if (dst_format == COLR_BUF_8BIT)
+			if (dest_is_alpha)
 				i915_fs_mov(FS_OC, i915_fs_operand(src_reg, W, W, W, W));
 			else
 				i915_fs_mov(FS_OC, i915_fs_operand_reg(src_reg));
@@ -1000,7 +1000,7 @@ i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
 			mask_reg = FS_R1;
 		}
 
-		if (dst_format == COLR_BUF_8BIT) {
+		if (dest_is_alpha) {
 			i915_fs_mul(FS_OC,
 				    i915_fs_operand(src_reg, W, W, W, W),
 				    i915_fs_operand(mask_reg, W, W, W, W));
@@ -1045,8 +1045,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	PicturePtr dest_picture = intel->render_dest_picture;
 	PixmapPtr mask = intel->render_mask;
 	PixmapPtr dest = intel->render_dest;
-	uint32_t dst_format = intel->i915_render_state.dst_format, dst_pitch;
-	uint32_t tiling_bits;
 	Bool is_solid_src, is_solid_mask;
 	int tex_count, t;
 
@@ -1054,8 +1052,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
-
-	dst_pitch = intel_get_pixmap_pitch(dest);
 
 	is_solid_src = intel->render_source_is_solid;
 	is_solid_mask = intel->render_mask_is_solid;
@@ -1093,22 +1089,38 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	    OUT_BATCH (intel->render_mask_solid);
 	}
 
-	if (i830_pixmap_tiled(dest)) {
-		tiling_bits = BUF_3D_TILED_SURFACE;
-		if (i830_get_pixmap_intel(dest)->tiling
-				== I915_TILING_Y)
-			tiling_bits |= BUF_3D_TILE_WALK_Y;
-	} else
-		tiling_bits = 0;
+	/* BUF_INFO is an implicit flush, so avoid if the target has not changed */
+	if (dest != intel->render_current_dest) {
+		uint32_t tiling_bits;
 
-	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
-	OUT_BATCH(BUF_3D_ID_COLOR_BACK | tiling_bits |
-		  BUF_3D_PITCH(dst_pitch));
-	OUT_RELOC_PIXMAP(dest, I915_GEM_DOMAIN_RENDER,
-			 I915_GEM_DOMAIN_RENDER, 0);
+		if (i830_pixmap_tiled(dest)) {
+			tiling_bits = BUF_3D_TILED_SURFACE;
+			if (i830_get_pixmap_intel(dest)->tiling
+			    == I915_TILING_Y)
+				tiling_bits |= BUF_3D_TILE_WALK_Y;
+		} else
+			tiling_bits = 0;
 
-	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
-	OUT_BATCH(dst_format);
+		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
+		OUT_BATCH(BUF_3D_ID_COLOR_BACK | tiling_bits |
+			  BUF_3D_PITCH(intel_get_pixmap_pitch(dest)));
+		OUT_RELOC_PIXMAP(dest, I915_GEM_DOMAIN_RENDER,
+				 I915_GEM_DOMAIN_RENDER, 0);
+
+		OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
+		OUT_BATCH(intel->i915_render_state.dst_format);
+
+		/* draw rect is unconditional */
+		OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
+		OUT_BATCH(0x00000000);
+		OUT_BATCH(0x00000000);	/* ymin, xmin */
+		OUT_BATCH(DRAW_YMAX(dest->drawable.height - 1) |
+			  DRAW_XMAX(dest->drawable.width - 1));
+		/* yorig, xorig (relate to color buffer?) */
+		OUT_BATCH(0x00000000);
+
+		intel->render_current_dest = dest;
+	}
 
 	{
 		uint32_t ss2;
@@ -1138,15 +1150,6 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 			OUT_BATCH(ss2);
 			OUT_BATCH(i915_get_blend_cntl(op, mask_picture, dest_picture->format));
 		}
-
-		/* draw rect is unconditional */
-		OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
-		OUT_BATCH(0x00000000);
-		OUT_BATCH(0x00000000);	/* ymin, xmin */
-		OUT_BATCH(DRAW_YMAX(dest->drawable.height - 1) |
-			  DRAW_XMAX(dest->drawable.width - 1));
-		/* yorig, xorig (relate to color buffer?) */
-		OUT_BATCH(0x00000000);
 	}
 
 	if (! intel->needs_render_ca_pass)
@@ -1247,5 +1250,6 @@ i915_batch_flush_notify(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	intel->needs_render_state_emit = TRUE;
+	intel->render_current_dest = NULL;
 	intel->last_floats_per_vertex = 0;
 }

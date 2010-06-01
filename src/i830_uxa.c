@@ -619,6 +619,9 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 			list_add(&priv->in_flight, &intel->in_flight);
 			priv = NULL;
 		}
+
+		if (intel->render_current_dest == pixmap)
+		    intel->render_current_dest = NULL;
 	}
 
 	if (bo != NULL) {
@@ -1088,6 +1091,7 @@ Bool i830_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
 
+	intel->render_current_dest = NULL;
 	intel->prim_offset = 0;
 	intel->vertex_count = 0;
 	intel->floats_per_vertex = 0;
