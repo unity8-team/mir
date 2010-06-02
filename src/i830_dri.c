@@ -146,10 +146,9 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		privates[i].attachment = attachments[i];
 
 		bo = i830_get_pixmap_bo(pixmap);
-		if (dri_bo_flink(bo, &buffers[i].name) != 0) {
+		if (bo != NULL && dri_bo_flink(bo, &buffers[i].name) != 0) {
 			/* failed to name buffer */
 		}
-
 	}
 
 	return buffers;
@@ -227,6 +226,11 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 					      (format != 0) ? format :
 							      drawable->depth,
 					      hint);
+		if (pixmap == NULL) {
+			xfree(privates);
+			xfree(buffer);
+			return NULL;
+		}
 
 	}
 
@@ -241,8 +245,12 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	privates->attachment = attachment;
 
 	bo = i830_get_pixmap_bo(pixmap);
-	if (dri_bo_flink(bo, &buffer->name) != 0) {
+	if (bo == NULL || dri_bo_flink(bo, &buffer->name) != 0) {
 		/* failed to name buffer */
+		screen->DestroyPixmap(pixmap);
+		xfree(privates);
+		xfree(buffer);
+		return NULL;
 	}
 
 	return buffer;
