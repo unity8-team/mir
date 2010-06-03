@@ -228,6 +228,7 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
     }
 
     if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE) ||
+	(info->ChipFamily >= CHIP_FAMILY_CEDAR) ||
 	(!RADEONIsAccelWorking(pScrn))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "GPU accel disabled or not working, using shadowfb for KMS\n");
