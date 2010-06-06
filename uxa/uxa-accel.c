@@ -589,6 +589,9 @@ uxa_copy_n_to_n(DrawablePtr pSrcDrawable,
 	int dst_off_x, dst_off_y;
 	PixmapPtr pSrcPixmap, pDstPixmap;
 
+	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+		goto fallback;
+
 	pSrcPixmap = uxa_get_drawable_pixmap(pSrcDrawable);
 	pDstPixmap = uxa_get_drawable_pixmap(pDstDrawable);
 	if (!pSrcPixmap || !pDstPixmap)
@@ -680,11 +683,13 @@ fallback:
 		      uxa_drawable_location(pSrcDrawable),
 		      uxa_drawable_location(pDstDrawable)));
 	if (uxa_prepare_access(pDstDrawable, UXA_ACCESS_RW)) {
-		if (uxa_prepare_access(pSrcDrawable, UXA_ACCESS_RO)) {
+		if (pSrcDrawable == pDstDrawable ||
+		    uxa_prepare_access(pSrcDrawable, UXA_ACCESS_RO)) {
 			fbCopyNtoN(pSrcDrawable, pDstDrawable, pGC, pbox, nbox,
 				   dx, dy, reverse, upsidedown, bitplane,
 				   closure);
-			uxa_finish_access(pSrcDrawable);
+			if (pSrcDrawable != pDstDrawable)
+				uxa_finish_access(pSrcDrawable);
 		}
 		uxa_finish_access(pDstDrawable);
 	}
