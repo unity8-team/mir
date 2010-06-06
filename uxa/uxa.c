@@ -39,7 +39,11 @@
 #include "dixfontstr.h"
 #include "uxa.h"
 
+#if HAS_DEVPRIVATEKEYREC
+DevPrivateKeyRec uxa_screen_index;
+#else
 int uxa_screen_index;
+#endif
 
 /**
  * uxa_get_drawable_pixmap() returns a backing pixmap for a given drawable.
@@ -467,6 +471,10 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 			   "non-NULL\n", screen->myNum);
 		return FALSE;
 	}
+#if HAS_DIXREGISTERPRIVATEKEY
+	if (!dixRegisterPrivateKey(&uxa_screen_index, PRIVATE_SCREEN, 0))
+	    return FALSE;
+#endif
 	uxa_screen = calloc(sizeof(uxa_screen_t), 1);
 
 	if (!uxa_screen) {

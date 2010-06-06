@@ -154,7 +154,11 @@ struct intel_pixmap {
 	struct list flush, batch, in_flight;
 };
 
+#if HAS_DEVPRIVATEKEYREC
+extern DevPrivateKeyRec uxa_pixmap_index;
+#else
 extern int uxa_pixmap_index;
+#endif
 
 static inline struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap)
 {

@@ -166,7 +166,12 @@ typedef struct {
     (PixmapWidthPaddingInfo[d].padRoundUp+1)))
 #endif
 
+#if HAS_DEVPRIVATEKEYREC
+extern DevPrivateKeyRec uxa_screen_index;
+#else
 extern int uxa_screen_index;
+#endif
+
 static inline uxa_screen_t *uxa_get_screen(ScreenPtr screen)
 {
 	return (uxa_screen_t *) dixLookupPrivate(&screen->devPrivates,

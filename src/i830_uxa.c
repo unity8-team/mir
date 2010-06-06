@@ -79,7 +79,11 @@ const int I830PatternROP[16] = {
 	ROP_1
 };
 
+#if HAS_DEVPRIVATEKEYREC
+DevPrivateKeyRec uxa_pixmap_index;
+#else
 int uxa_pixmap_index;
+#endif
 
 static void
 ironlake_blt_workaround(ScrnInfoPtr scrn)
@@ -1076,7 +1080,11 @@ Bool i830_uxa_init(ScreenPtr screen)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
+#if HAS_DIXREGISTERPRIVATEKEY
+	if (!dixRegisterPrivateKey(&uxa_pixmap_index, PRIVATE_PIXMAP, 0))
+#else
 	if (!dixRequestPrivate(&uxa_pixmap_index, 0))
+#endif
 		return FALSE;
 
 	intel->uxa_driver = uxa_driver_alloc();
