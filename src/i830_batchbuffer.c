@@ -140,7 +140,7 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 
 		dri_bo_unreference(entry->bo);
 		list_del(&entry->in_flight);
-		xfree(entry);
+		free(entry);
 	}
 }
 
@@ -261,7 +261,7 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 
 		dri_bo_unreference(entry->bo);
 		list_del(&entry->in_flight);
-		xfree(entry);
+		free(entry);
 	}
 
 	/* Save a ref to the last batch emitted, which we use for syncing

@@ -911,7 +911,7 @@ _pixman_region_init_rectangles(pixman_region16_t *region,
 	int i;
 
 	if (num_rects > sizeof(stack_boxes) / sizeof(stack_boxes[0])) {
-		boxes = xalloc(sizeof(pixman_box16_t) * num_rects);
+		boxes = malloc(sizeof(pixman_box16_t) * num_rects);
 		if (boxes == NULL)
 			return FALSE;
 	}
@@ -926,7 +926,7 @@ _pixman_region_init_rectangles(pixman_region16_t *region,
 	ret = pixman_region_init_rects(region, boxes, num_rects);
 
 	if (boxes != stack_boxes)
-		xfree(boxes);
+		free(boxes);
 
 	return ret;
 }

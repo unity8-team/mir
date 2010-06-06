@@ -405,7 +405,7 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 	}
 #endif
 
-	xfree(uxa_screen);
+	free(uxa_screen);
 
 	return (*pScreen->CloseScreen) (i, pScreen);
 }
@@ -416,13 +416,13 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
  * without breaking ABI between UXA and the drivers.  The driver's
  * responsibility is to check beforehand that the UXA module has a matching
  * major number and sufficient minor.  Drivers are responsible for freeing the
- * driver structure using xfree().
+ * driver structure using free().
  *
  * @return a newly allocated, zero-filled driver structure
  */
 uxa_driver_t *uxa_driver_alloc(void)
 {
-	return xcalloc(1, sizeof(uxa_driver_t));
+	return calloc(1, sizeof(uxa_driver_t));
 }
 
 /**
@@ -467,7 +467,7 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 			   "non-NULL\n", screen->myNum);
 		return FALSE;
 	}
-	uxa_screen = xcalloc(sizeof(uxa_screen_t), 1);
+	uxa_screen = calloc(sizeof(uxa_screen_t), 1);
 
 	if (!uxa_screen) {
 		LogMessage(X_WARNING,

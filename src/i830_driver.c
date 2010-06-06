@@ -244,7 +244,7 @@ static void I830FreeRec(ScrnInfoPtr scrn)
 	if (!scrn->driverPrivate)
 		return;
 
-	xfree(scrn->driverPrivate);
+	free(scrn->driverPrivate);
 	scrn->driverPrivate = NULL;
 }
 
@@ -417,7 +417,7 @@ static Bool i830_kernel_mode_enabled(ScrnInfoPtr scrn)
 	/* Be nice to the user and load fbcon too */
 	if (!ret)
 		(void)xf86LoadKernelModule("fbcon");
-	xfree(busIdString);
+	free(busIdString);
 	if (ret)
 		return FALSE;
 
@@ -584,7 +584,7 @@ static Bool I830GetEarlyOptions(ScrnInfoPtr scrn)
 
 	/* Process the options */
 	xf86CollectOptions(scrn, NULL);
-	if (!(intel->Options = xalloc(sizeof(I830Options))))
+	if (!(intel->Options = malloc(sizeof(I830Options))))
 		return FALSE;
 	memcpy(intel->Options, I830Options, sizeof(I830Options));
 	xf86ProcessOptions(scrn->scrnIndex, scrn->options, intel->Options);
@@ -646,11 +646,11 @@ static Bool i830_open_drm_master(ScrnInfoPtr scrn)
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
 			   busid, strerror(errno));
-		xfree(busid);
+		free(busid);
 		return FALSE;
 	}
 
-	xfree(busid);
+	free(busid);
 
 	/* Check that what we opened was a master or a master-capable FD,
 	 * by setting the version of the interface we'll use to talk to it.
@@ -1406,7 +1406,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	if (intel->uxa_driver) {
 		uxa_driver_fini(screen);
-		xfree(intel->uxa_driver);
+		free(intel->uxa_driver);
 		intel->uxa_driver = NULL;
 	}
 	if (intel->front_buffer) {

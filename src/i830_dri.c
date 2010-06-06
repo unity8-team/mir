@@ -87,12 +87,12 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
 
-	buffers = xcalloc(count, sizeof *buffers);
+	buffers = calloc(count, sizeof *buffers);
 	if (buffers == NULL)
 		return NULL;
-	privates = xcalloc(count, sizeof *privates);
+	privates = calloc(count, sizeof *privates);
 	if (privates == NULL) {
-		xfree(buffers);
+		free(buffers);
 		return NULL;
 	}
 
@@ -167,8 +167,8 @@ I830DRI2DestroyBuffers(DrawablePtr drawable, DRI2BufferPtr buffers, int count)
 	}
 
 	if (buffers) {
-		xfree(buffers[0].driverPrivate);
-		xfree(buffers);
+		free(buffers[0].driverPrivate);
+		free(buffers);
 	}
 }
 
@@ -186,12 +186,12 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap;
 
-	buffer = xcalloc(1, sizeof *buffer);
+	buffer = calloc(1, sizeof *buffer);
 	if (buffer == NULL)
 		return NULL;
-	privates = xcalloc(1, sizeof *privates);
+	privates = calloc(1, sizeof *privates);
 	if (privates == NULL) {
-		xfree(buffer);
+		free(buffer);
 		return NULL;
 	}
 
@@ -227,8 +227,8 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 							      drawable->depth,
 					      hint);
 		if (pixmap == NULL) {
-			xfree(privates);
-			xfree(buffer);
+			free(privates);
+			free(buffer);
 			return NULL;
 		}
 
@@ -248,8 +248,8 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	if (bo == NULL || dri_bo_flink(bo, &buffer->name) != 0) {
 		/* failed to name buffer */
 		screen->DestroyPixmap(pixmap);
-		xfree(privates);
-		xfree(buffer);
+		free(privates);
+		free(buffer);
 		return NULL;
 	}
 
@@ -265,8 +265,8 @@ static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 
 			screen->DestroyPixmap(private->pixmap);
 
-			xfree(private);
-			xfree(buffer);
+			free(private);
+			free(buffer);
 		}
 	}
 }
@@ -485,7 +485,7 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	I830DRI2BufferPrivatePtr back_priv;
 	DRI2FrameEventPtr flip_info;
 
-	flip_info = xcalloc(1, sizeof(DRI2FrameEventRec));
+	flip_info = calloc(1, sizeof(DRI2FrameEventRec));
 	if (!flip_info)
 	    return FALSE;
 
@@ -543,7 +543,7 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 	if (status != Success) {
 		I830DRI2DestroyBuffer(NULL, event->front);
 		I830DRI2DestroyBuffer(NULL, event->back);
-		xfree(event);
+		free(event);
 		return;
 	}
 
@@ -605,7 +605,7 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 
 	I830DRI2DestroyBuffer(drawable, event->front);
 	I830DRI2DestroyBuffer(drawable, event->back);
-	xfree(event);
+	free(event);
 }
 
 void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
@@ -620,7 +620,7 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 	status = dixLookupDrawable(&drawable, flip->drawable_id, serverClient,
 				     M_ANY, DixWriteAccess);
 	if (status != Success) {
-		xfree(flip);
+		free(flip);
 		return;
 	}
 
@@ -641,7 +641,7 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 		break;
 	}
 
-	xfree(flip);
+	free(flip);
 }
 
 /*
@@ -690,7 +690,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	divisor &= 0xffffffff;
 	remainder &= 0xffffffff;
 
-	swap_info = xcalloc(1, sizeof(DRI2FrameEventRec));
+	swap_info = calloc(1, sizeof(DRI2FrameEventRec));
 	if (!swap_info)
 	    goto blit_fallback;
 
@@ -837,7 +837,7 @@ blit_fallback:
 	if (swap_info) {
 	    I830DRI2DestroyBuffer(draw, swap_info->front);
 	    I830DRI2DestroyBuffer(draw, swap_info->back);
-	    xfree(swap_info);
+	    free(swap_info);
 	}
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
@@ -909,7 +909,7 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (pipe == -1)
 		goto out_complete;
 
-	wait_info = xcalloc(1, sizeof(DRI2FrameEventRec));
+	wait_info = calloc(1, sizeof(DRI2FrameEventRec));
 	if (!wait_info)
 		goto out_complete;
 

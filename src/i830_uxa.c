@@ -629,7 +629,7 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		int ret;
 
 		if (priv == NULL) {
-			priv = xcalloc(1, sizeof (struct intel_pixmap));
+			priv = calloc(1, sizeof (struct intel_pixmap));
 			if (priv == NULL)
 				goto BAIL;
 
@@ -650,7 +650,7 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		}
 	} else {
 		if (priv != NULL) {
-			xfree(priv);
+			free(priv);
 			priv = NULL;
 		}
 	}
@@ -1014,7 +1014,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			}
 		}
 
-		priv = xcalloc(1, sizeof (struct intel_pixmap));
+		priv = calloc(1, sizeof (struct intel_pixmap));
 		if (priv == NULL) {
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
@@ -1028,7 +1028,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 								 "pixmap",
 								 size, 0);
 		if (!priv->bo) {
-			xfree(priv);
+			free(priv);
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
 		}
@@ -1147,7 +1147,7 @@ Bool i830_uxa_init(ScreenPtr screen)
 	if (!uxa_driver_init(screen, intel->uxa_driver)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "UXA initialization failed\n");
-		xfree(intel->uxa_driver);
+		free(intel->uxa_driver);
 		return FALSE;
 	}
 

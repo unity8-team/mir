@@ -110,7 +110,7 @@ static void uxa_unrealize_glyph_caches(ScreenPtr pScreen)
 			FreePicture(cache->picture, 0);
 
 		if (cache->glyphs)
-			xfree(cache->glyphs);
+			free(cache->glyphs);
 	}
 }
 
@@ -171,7 +171,7 @@ static Bool uxa_realize_glyph_caches(ScreenPtr pScreen)
 		ValidatePicture(picture);
 
 		cache->picture = picture;
-		cache->glyphs = xcalloc(sizeof(GlyphPtr), GLYPH_CACHE_SIZE);
+		cache->glyphs = calloc(sizeof(GlyphPtr), GLYPH_CACHE_SIZE);
 		if (!cache->glyphs)
 			goto bail;
 
@@ -285,7 +285,7 @@ uxa_glyph_unrealize(ScreenPtr pScreen,
 	priv->cache->glyphs[priv->pos] = NULL;
 
 	uxa_glyph_set_private(pGlyph, NULL);
-	xfree(priv);
+	free(priv);
 }
 
 /* Cut and paste from render/glyph.c - probably should export it instead */
@@ -587,7 +587,7 @@ uxa_glyph_cache(ScreenPtr screen, GlyphPtr glyph, int *out_x, int *out_y)
 				GlyphPtr evicted = cache->glyphs[pos + s];
 				if (evicted != NULL) {
 					if (priv != NULL)
-						xfree(priv);
+						free(priv);
 
 					priv = uxa_glyph_get_private(evicted);
 					uxa_glyph_set_private(evicted, NULL);
@@ -601,7 +601,7 @@ uxa_glyph_cache(ScreenPtr screen, GlyphPtr glyph, int *out_x, int *out_y)
 	}
 
 	if (priv == NULL) {
-		priv = xalloc(sizeof(struct uxa_glyph));
+		priv = malloc(sizeof(struct uxa_glyph));
 		if (priv == NULL)
 			return NULL;
 	}
