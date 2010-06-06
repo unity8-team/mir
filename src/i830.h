@@ -162,7 +162,11 @@ extern int uxa_pixmap_index;
 
 static inline struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap)
 {
+#if HAS_DEVPRIVATEKEYREC
+	return dixGetPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
+#else
 	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
+#endif
 }
 
 static inline void i830_set_pixmap_intel(PixmapPtr pixmap, struct intel_pixmap *intel)

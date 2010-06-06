@@ -174,8 +174,11 @@ extern int uxa_screen_index;
 
 static inline uxa_screen_t *uxa_get_screen(ScreenPtr screen)
 {
-	return (uxa_screen_t *) dixLookupPrivate(&screen->devPrivates,
-						 &uxa_screen_index);
+#if HAS_DEVPRIVATEKEYREC
+	return dixGetPrivate(&screen->devPrivates, &uxa_screen_index);
+#else
+	return dixLookupPrivate(&screen->devPrivates, &uxa_screen_index);
+#endif
 }
 
 /** Align an offset to an arbitrary alignment */
