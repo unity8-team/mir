@@ -1221,6 +1221,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	xf86SetBlackWhitePixels(screen);
 
+	miInitializeBackingStore(screen);
+	xf86SetBackingStore(screen);
+	xf86SetSilkenMouse(screen);
+	miDCInitialize(screen, xf86GetPointerScreenFuncs());
+
 	if (!I830AccelInit(screen)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware acceleration initialization failed\n");
@@ -1235,13 +1240,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	} else
 		intel->batch_flush_notify = i830_batch_flush_notify;
 
-	miInitializeBackingStore(screen);
-	xf86SetBackingStore(screen);
-	xf86SetSilkenMouse(screen);
-	miDCInitialize(screen, xf86GetPointerScreenFuncs());
-
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
-
 	if (!xf86_cursors_init(screen, I810_CURSOR_X, I810_CURSOR_Y,
 			       (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 				HARDWARE_CURSOR_BIT_ORDER_MSBFIRST |

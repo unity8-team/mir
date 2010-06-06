@@ -84,16 +84,24 @@ struct uxa_glyph {
 	uint16_t size, pos;
 };
 
-static int uxa_glyph_index;
+#if HAS_DEVPRIVATEKEYREC
+static DevPrivateKeyRec uxa_glyph_key;
+#else
+static int uxa_glyph_key;
+#endif
 
 static inline struct uxa_glyph *uxa_glyph_get_private(GlyphPtr glyph)
 {
-	return dixLookupPrivate(&glyph->devPrivates, &uxa_glyph_index);
+#if HAS_DEVPRIVATEKEYREC
+	return dixGetPrivate(&glyph->devPrivates, &uxa_glyph_key);
+#else
+	return dixLookupPrivate(&glyph->devPrivates, &uxa_glyph_key);
+#endif
 }
 
 static inline void uxa_glyph_set_private(GlyphPtr glyph, struct uxa_glyph *priv)
 {
-	dixSetPrivate(&glyph->devPrivates, &uxa_glyph_index, priv);
+	dixSetPrivate(&glyph->devPrivates, &uxa_glyph_key, priv);
 }
 
 #define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)
@@ -189,8 +197,20 @@ bail:
 
 Bool uxa_glyphs_init(ScreenPtr pScreen)
 {
-	if (!dixRequestPrivate(&uxa_glyph_index, 0))
+	/* We are trying to initialise per screen resources prior to the
+	 * complete initialisation of the screen. So ensure the components
+	 * that we depend upon are initialsed prior to our use.
+	 */
+	if (!CreateScratchPixmapsForScreen(pScreen->myNum))
 		return FALSE;
+
+#if HAS_DIXREGISTERPRIVATEKEY
+	if (!dixRegisterPrivateKey(&uxa_glyph_key, PRIVATE_GLYPH, 0))
+		return FALSE;
+#else
+	if (!dixRequestPrivate(&uxa_glyph_key, 0))
+		return FALSE;
+#endif
 
 	if (!uxa_realize_glyph_caches(pScreen))
 		return FALSE;
