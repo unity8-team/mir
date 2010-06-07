@@ -385,15 +385,15 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			 * color.  The OC results are implicitly clamped
 			 * at the end of the program.
 			 */
-			i915_fs_dp3_masked(FS_OC, MASK_X,
-					   i915_fs_operand_reg(FS_R0),
-					   i915_fs_operand_reg(FS_C1));
-			i915_fs_dp3_masked(FS_OC, MASK_Y,
-					   i915_fs_operand_reg(FS_R0),
-					   i915_fs_operand_reg(FS_C2));
-			i915_fs_dp3_masked(FS_OC, MASK_Z,
-					   i915_fs_operand_reg(FS_R0),
-					   i915_fs_operand_reg(FS_C3));
+			i915_fs_dp3(FS_OC, MASK_X,
+				    i915_fs_operand_reg(FS_R0),
+				    i915_fs_operand_reg(FS_C1));
+			i915_fs_dp3(FS_OC, MASK_Y,
+				    i915_fs_operand_reg(FS_R0),
+				    i915_fs_operand_reg(FS_C2));
+			i915_fs_dp3(FS_OC, MASK_Z,
+				    i915_fs_operand_reg(FS_R0),
+				    i915_fs_operand_reg(FS_C3));
 			/* Set alpha of the output to 1.0, by wiring W to 1
 			 * and not actually using the source.
 			 */
