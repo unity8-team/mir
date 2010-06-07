@@ -1221,11 +1221,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	xf86SetBlackWhitePixels(screen);
 
-	miInitializeBackingStore(screen);
-	xf86SetBackingStore(screen);
-	xf86SetSilkenMouse(screen);
-	miDCInitialize(screen, xf86GetPointerScreenFuncs());
-
 	if (!I830AccelInit(screen)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Hardware acceleration initialization failed\n");
@@ -1239,6 +1234,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 		intel->batch_flush_notify = i915_batch_flush_notify;
 	} else
 		intel->batch_flush_notify = i830_batch_flush_notify;
+
+	miInitializeBackingStore(screen);
+	xf86SetBackingStore(screen);
+	xf86SetSilkenMouse(screen);
+	miDCInitialize(screen, xf86GetPointerScreenFuncs());
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
 	if (!xf86_cursors_init(screen, I810_CURSOR_X, I810_CURSOR_Y,
@@ -1325,7 +1325,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	intel->suspended = FALSE;
 
-	return TRUE;
+	return uxa_resources_init(screen);
 }
 
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)

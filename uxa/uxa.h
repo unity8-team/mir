@@ -558,6 +558,7 @@ typedef struct _UxaDriver {
 uxa_driver_t *uxa_driver_alloc(void);
 
 Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver);
+Bool uxa_resources_init(ScreenPtr screen);
 
 void uxa_driver_fini(ScreenPtr pScreen);
 

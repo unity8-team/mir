@@ -561,9 +561,6 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	ShmRegisterFuncs(screen, &uxa_shm_funcs);
 #endif
 
-	if (!uxa_glyphs_init(screen))
-		return FALSE;
-
 	LogMessage(X_INFO,
 		   "UXA(%d): Driver registered support for the following"
 		   " operations:\n", screen->myNum);
@@ -580,6 +577,14 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	if (uxa_driver->get_image != NULL) {
 		LogMessage(X_INFO, "        get_image\n");
 	}
+
+	return TRUE;
+}
+
+Bool uxa_resources_init(ScreenPtr screen)
+{
+	if (!uxa_glyphs_init(screen))
+		return FALSE;
 
 	return TRUE;
 }
