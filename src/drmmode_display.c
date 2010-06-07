@@ -470,26 +470,21 @@ static void *
 drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 {
 	ScrnInfoPtr scrn = crtc->scrn;
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	int size, ret;
+	int ret;
 	unsigned long rotate_pitch;
 
-	width = i830_pad_drawable_width(width);
-	rotate_pitch = width * drmmode->cpp;
-	size = rotate_pitch * height;
-
-	drmmode_crtc->rotate_bo =
-		drm_intel_bo_alloc(intel->bufmgr, "rotate", size, 4096);
+	drmmode_crtc->rotate_bo = i830_allocate_framebuffer(scrn,
+							    width, height,
+							    drmmode->cpp,
+							    &rotate_pitch);
 
 	if (!drmmode_crtc->rotate_bo) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow memory for rotated CRTC\n");
 		return NULL;
 	}
-
-	drm_intel_bo_disable_reuse(drmmode_crtc->rotate_bo);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
 			   crtc->scrn->bitsPerPixel, rotate_pitch,
