@@ -1257,17 +1257,11 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
 	PixmapPtr   pixmap;
 	uint32_t    old_fb_id;
-	int	    i, w, pitch, old_width, old_height, old_pitch;
+	int	    i, old_width, old_height, old_pitch;
+	unsigned long pitch;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
-
-	w = i830_pad_drawable_width(width);
-	i830_tiled_width(intel, &w, intel->cpp);
-	pitch = w * intel->cpp;
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		   "Allocate new frame buffer %dx%d stride %d\n",
-		   width, height, pitch);
 
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
@@ -1275,10 +1269,10 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	old_fb_id = drmmode->fb_id;
 	old_front = intel->front_buffer;
 
-	scrn->virtualX = width;
-	scrn->virtualY = height;
-	scrn->displayWidth = w;
-	intel->front_buffer = i830_allocate_framebuffer(scrn);
+	intel->front_buffer = i830_allocate_framebuffer(scrn,
+							width, height,
+							intel->cpp,
+							&pitch);
 	if (!intel->front_buffer)
 		goto fail;
 
@@ -1288,6 +1282,10 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 			   &drmmode->fb_id);
 	if (ret)
 		goto fail;
+
+	scrn->virtualX = width;
+	scrn->virtualY = height;
+	scrn->displayWidth = pitch / intel->cpp;
 
 	pixmap = screen->GetScreenPixmap(screen);
 	screen->ModifyPixmapHeader(pixmap, width, height, -1, -1, pitch, NULL);

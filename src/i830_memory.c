@@ -163,113 +163,60 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 		return FALSE;
 }
 
-/* Resets the state of the aperture allocator, freeing all memory that had
- * been allocated.
- */
-void i830_reset_allocations(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	/* Null out the pointers for all the allocations we just freed.  This is
-	 * kind of gross, but at least it's just one place now.
-	 */
-	drm_intel_bo_unreference(intel->front_buffer);
-	intel->front_buffer = NULL;
-}
-
-static Bool IsTileable(ScrnInfoPtr scrn, int pitch)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (IS_I965G(intel)) {
-		if (pitch / 512 * 512 == pitch && pitch <= KB(128))
-			return TRUE;
-		else
-			return FALSE;
-	}
-
-	/*
-	 * Allow tiling for pitches that are a power of 2 multiple of 128 bytes,
-	 * up to 64 * 128 (= 8192) bytes.
-	 */
-	switch (pitch) {
-	case 128:
-	case 256:
-		if (IS_I945G(intel) || IS_I945GM(intel) || IS_G33CLASS(intel))
-			return TRUE;
-		else
-			return FALSE;
-	case 512:
-	case KB(1):
-	case KB(2):
-	case KB(4):
-	case KB(8):
-		return TRUE;
-	default:
-		return FALSE;
-	}
-}
-
 /**
  * Allocates a framebuffer for a screen.
  *
  * Used once for each X screen, so once with RandR 1.2 and twice with classic
  * dualhead.
  */
-drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
+drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn,
+					int width, int height, int cpp,
+					unsigned long *out_pitch)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *front_buffer;
-	long size, fb_height;
-	unsigned int pitch;
-	uint32_t tiling_mode, requested_tiling_mode;
-	int ret;
+	uint32_t tiling_mode;
+	unsigned long pitch;
 
-	/* We'll allocate the fb such that the root window will fit regardless of
-	 * rotation.
-	 */
-	fb_height = scrn->virtualY;
-
-	pitch = scrn->displayWidth * intel->cpp;
-	size = ROUND_TO_PAGE(pitch * fb_height);
-
-	if (intel->tiling && IsTileable(scrn, pitch))
+	if (intel->tiling)
 		tiling_mode = I915_TILING_X;
 	else
 		tiling_mode = I915_TILING_NONE;
 
-	if (!i830_check_display_stride(scrn, pitch,
-				       tiling_mode != I915_TILING_NONE)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Front buffer stride %d kB "
-			   "exceed display limit\n", pitch / 1024);
-		return NULL;
-	}
+	width = i830_pad_drawable_width(width);
 
-	if (tiling_mode != I915_TILING_NONE) {
-		/* round to size necessary for the fence register to work */
-		size = i830_get_fence_size(intel, size);
-	}
-
-	front_buffer = drm_intel_bo_alloc(intel->bufmgr, "front buffer",
-					  size, GTT_PAGE_SIZE);
+	front_buffer = drm_intel_bo_alloc_tiled(intel->bufmgr, "front buffer",
+						width, height, intel->cpp,
+						&tiling_mode, &pitch, 0);
 	if (front_buffer == NULL) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer.\n");
 		return NULL;
 	}
 
-	requested_tiling_mode = tiling_mode;
-	ret = drm_intel_bo_set_tiling(front_buffer, &tiling_mode, pitch);
-	if (ret != 0 || tiling_mode != requested_tiling_mode) {
+	if (!i830_check_display_stride(scrn, pitch,
+				       tiling_mode != I915_TILING_NONE)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to set tiling on frontbuffer: %s\n",
-			   ret == 0 ? "rejected by kernel" : strerror(-ret));
+			   "Front buffer stride %ld kB "
+			   "exceeds display limit\n", pitch / 1024);
+		drm_intel_bo_unreference(front_buffer);
+		return NULL;
 	}
+
+	if (intel->tiling && tiling_mode != I915_TILING_X) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Failed to set tiling on frontbuffer.\n");
+	}
+
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "Allocated new frame buffer %dx%d stride %ld, %s\n",
+		   width, height, pitch,
+		   tiling_mode == I915_TILING_NONE ? "untiled" : "tiled");
 
 	drm_intel_bo_disable_reuse(front_buffer);
 
 	i830_set_gem_max_sizes(scrn);
+	*out_pitch = pitch;
 
 	return front_buffer;
 }

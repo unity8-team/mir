@@ -464,10 +464,7 @@ extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 
-void i830_reset_allocations(ScrnInfoPtr scrn);
 void i830_init_bufmgr(ScrnInfoPtr scrn);
-
-Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
 
 /* i830_memory.c */
 unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
@@ -475,7 +472,9 @@ unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pi
 				   uint32_t tiling_mode);
 void i830_set_gem_max_sizes(ScrnInfoPtr scrn);
 
-drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn);
+drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn,
+					int w, int h, int cpp,
+					unsigned long *pitch);
 
 /* i830_render.c */
 Bool i830_check_composite(int op,

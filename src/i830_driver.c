@@ -348,49 +348,6 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
 }
 
 /*
- * Adjust *width to allow for tiling if possible
- */
-Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp)
-{
-	Bool tiled = FALSE;
-
-	/*
-	 * Adjust the display width to allow for front buffer tiling if possible
-	 */
-	if (intel->tiling) {
-		if (IS_I965G(intel)) {
-			int tile_pixels = 512 / cpp;
-			*width = (*width + tile_pixels - 1) &
-			    ~(tile_pixels - 1);
-			tiled = TRUE;
-		} else {
-			/* Good pitches to allow tiling.  Don't care about pitches < 1024
-			 * pixels.
-			 */
-			static const int pitches[] = {
-				1024,
-				2048,
-				4096,
-				8192,
-				0
-			};
-			int pitch;
-			int i;
-
-			pitch = *width * cpp;
-			for (i = 0; pitches[i] != 0; i++) {
-				if (pitches[i] >= pitch) {
-					*width = pitches[i] / cpp;
-					tiled = TRUE;
-					break;
-				}
-			}
-		}
-	}
-	return tiled;
-}
-
-/*
  * DRM mode setting Linux only at this point... later on we could
  * add a wrapper here.
  */
@@ -972,66 +929,27 @@ static void i830_fixup_mtrrs(ScrnInfoPtr scrn)
 #endif
 }
 
-static Bool i830_try_memory_allocation(ScrnInfoPtr scrn)
+static Bool
+intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	Bool tiled = intel->tiling;
+	unsigned long pitch;
 
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		   "Attempting memory allocation with %stiled buffers.\n",
-		   tiled ? "" : "un");
+	intel->front_buffer = i830_allocate_framebuffer(scrn,
+							scrn->virtualX,
+							scrn->virtualY,
+							intel->cpp,
+							&pitch);
 
-	intel->front_buffer = i830_allocate_framebuffer(scrn);
 	if (!intel->front_buffer) {
-		xf86DrvMsg(scrn->scrnIndex, X_INFO,
-			   "%siled allocation failed.\n",
-			   tiled ? "T" : "Unt");
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Couldn't allocate initial framebuffer.\n");
 		return FALSE;
 	}
 
-	xf86DrvMsg(scrn->scrnIndex, X_INFO, "%siled allocation successful.\n",
-		   tiled ? "T" : "Unt");
+	scrn->displayWidth = pitch / intel->cpp;
+
 	return TRUE;
-}
-
-/*
- * Try to allocate memory in several ways:
- *  1) If direct rendering is enabled, try to allocate enough memory for tiled
- *     surfaces by rounding up the display width to a tileable one.
- *  2) If that fails or the allocations themselves fail, try again with untiled
- *     allocations (if this works DRI will stay enabled).
- *  3) And if all else fails, disable DRI and try just 2D allocations.
- *  4) Give up and fail ScreenInit.
- */
-static Bool i830_memory_init(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int savedDisplayWidth = scrn->displayWidth;
-	Bool tiled = FALSE;
-
-	tiled = i830_tiled_width(intel, &scrn->displayWidth, intel->cpp);
-
-	xf86DrvMsg(scrn->scrnIndex,
-		   intel->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
-		   "VideoRam: %d KB\n", scrn->videoRam);
-
-	/* Tiled first if we got a good displayWidth */
-	if (tiled) {
-		if (i830_try_memory_allocation(scrn))
-			return TRUE;
-		else {
-			i830_reset_allocations(scrn);
-			intel->tiling = FALSE;
-		}
-	}
-
-	/* If tiling fails we have to disable FBC */
-	scrn->displayWidth = savedDisplayWidth;
-
-	if (i830_try_memory_allocation(scrn))
-		return TRUE;
-
-	return FALSE;
 }
 
 void i830_init_bufmgr(ScrnInfoPtr scrn)
@@ -1095,8 +1013,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 #endif
 	struct pci_device *const device = intel->PciInfo;
 	int fb_bar = IS_I9XX(intel) ? 2 : 0;
-
-	scrn->displayWidth = i830_pad_drawable_width(scrn->virtualX);
 
 	/*
 	 * The "VideoRam" config file parameter specifies the maximum amount of
@@ -1169,11 +1085,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	 */
 	intel->XvEnabled = TRUE;
 
-	if (!i830_memory_init(scrn)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Couldn't allocate video memory\n");
+	xf86DrvMsg(scrn->scrnIndex,
+		   intel->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
+		   "VideoRam: %d KB\n", scrn->videoRam);
+
+	if (!intel_init_initial_framebuffer(scrn))
 		return FALSE;
-	}
 
 	i830_fixup_mtrrs(scrn);
 
@@ -1191,9 +1108,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 		return FALSE;
 
 	DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
-
-	if (scrn->virtualX > scrn->displayWidth)
-		scrn->displayWidth = scrn->virtualX;
 
 	DPRINTF(PFX, "assert( if(!fbScreenInit(screen, ...) )\n");
 	if (!fbScreenInit(screen, NULL,
@@ -1422,8 +1336,8 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	xf86_cursors_fini(screen);
 
-	/* Free most of the allocations */
-	i830_reset_allocations(scrn);
+	drm_intel_bo_unreference(intel->front_buffer);
+	intel->front_buffer = NULL;
 
 	i965_free_video(scrn);
 
