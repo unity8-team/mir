@@ -517,6 +517,26 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     else
         pRADEONEnt->HasCRTC2 = TRUE;
 
+
+    /* fix up cloning on rn50 cards
+     * since they only have one crtc sometimes the xserver doesn't assign
+     * a crtc to one of the outputs even though both outputs have common modes
+     * which results in only one monitor being enabled.  Assign a crtc here so
+     * that both outputs light up.
+     */
+    if (info->ChipFamily == CHIP_FAMILY_RV100 && !pRADEONEnt->HasCRTC2) {
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+	    xf86OutputPtr output = xf86_config->output[i];
+
+	    /* XXX: double check crtc mode */
+	    if ((output->probed_modes != NULL) && (output->crtc == NULL))
+		output->crtc = xf86_config->crtc[0];
+	}
+    }
+
     {
 	struct drm_radeon_gem_info mminfo;
 
