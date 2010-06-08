@@ -512,6 +512,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	goto fail;
     }
 
+    if (info->drmmode.mode_res->count_crtcs == 1)
+        pRADEONEnt->HasCRTC2 = FALSE;
+    else
+        pRADEONEnt->HasCRTC2 = TRUE;
 
     {
 	struct drm_radeon_gem_info mminfo;
