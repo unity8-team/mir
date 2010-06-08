@@ -50,12 +50,15 @@ static inline int intel_vertex_space(intel_screen_private *intel)
 	return intel->vertex_bo ? intel->vertex_bo->size - (4*intel->vertex_used) : 0;
 }
 
-static inline void
+static inline Bool
 intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, GLuint sz)
 {
 	assert(sz < intel->batch_bo->size - 8);
-	if (intel_batch_space(intel) < sz)
+	if (intel_batch_space(intel) < sz) {
 		intel_batch_submit(scrn);
+		return TRUE;
+	}
+	return FALSE;
 }
 
 static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)

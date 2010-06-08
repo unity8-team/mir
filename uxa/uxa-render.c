@@ -1759,6 +1759,7 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 	       int ntrap, xTrapezoid * traps)
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 	BoxRec bounds;
 	Bool direct;
 
@@ -1783,12 +1784,19 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 		xoff += pDraw->x;
 		yoff += pDraw->y;
 
-		if (uxa_prepare_access(pDraw, UXA_ACCESS_RW)) {
-			PictureScreenPtr ps = GetPictureScreen(screen);
+		if (!(uxa_pixmap_is_offscreen(pixmap) &&
+		      uxa_screen->info->check_trapezoids &&
+		      uxa_screen->info->check_trapezoids(pixmap->drawable.width,
+							 pixmap->drawable.height,
+							 pixmap->drawable.depth) &&
+		      uxa_screen->info->rasterize_trapezoids(pixmap, FALSE, ntrap, traps, xoff, yoff))) {
+			if (uxa_prepare_access(pDraw, UXA_ACCESS_RW)) {
+				PictureScreenPtr ps = GetPictureScreen(screen);
 
-			for (; ntrap; ntrap--, traps++)
-				(*ps->RasterizeTrapezoid) (dst, traps, 0, 0);
-			uxa_finish_access(pDraw);
+				for (; ntrap; ntrap--, traps++)
+					(*ps->RasterizeTrapezoid) (dst, traps, 0, 0);
+				uxa_finish_access(pDraw);
+			}
 		}
 	} else if (maskFormat) {
 		PixmapPtr scratch = NULL;
@@ -1804,6 +1812,36 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 
 		width  = bounds.x2 - bounds.x1;
 		height = bounds.y2 - bounds.y1;
+
+		if (uxa_drawable_is_offscreen(dst->pDrawable) &&
+		    uxa_screen->info->check_trapezoids &&
+		    uxa_screen->info->check_trapezoids(width, height, maskFormat->depth)) {
+			PixmapPtr pixmap;
+
+			pixmap = screen->CreatePixmap(screen, width, height, maskFormat->depth,
+						       CREATE_PIXMAP_USAGE_SCRATCH);
+			if (uxa_screen->info->rasterize_trapezoids(pixmap, TRUE,
+								   ntrap, traps,
+								   -bounds.x1, -bounds.y1)) {
+				int error;
+
+				mask = CreatePicture(0, &pixmap->drawable, maskFormat,
+						     0, 0, serverClient, &error);
+				if (mask) {
+					CompositePicture(op, src, mask, dst,
+							 bounds.x1 + xSrc - xDst,
+							 bounds.y1 + ySrc - yDst,
+							 0, 0,
+							 bounds.x1, bounds.y1,
+							 width, height);
+					FreePicture(mask, 0);
+					screen->DestroyPixmap(pixmap);
+					return;
+				}
+			}
+
+			screen->DestroyPixmap(pixmap);
+		}
 
 		format = maskFormat->format |
 			(BitsPerPixel(maskFormat->depth) << 24);

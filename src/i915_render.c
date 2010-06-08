@@ -993,7 +993,8 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 
 	intel->needs_render_state_emit = FALSE;
 
-	IntelEmitInvarientState(scrn);
+	if (intel->last_3d == LAST_3D_OTHER)
+		I915EmitInvarientState(intel);
 	intel->last_3d = LAST_3D_RENDER;
 
 	is_solid_src = intel->render_source_is_solid;
@@ -1140,18 +1141,12 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 		intel->needs_render_vertex_emit = FALSE;
 	}
 
-	if (intel->prim_offset == 0) {
-		if (intel->needs_render_ca_pass) {
-			OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
-			OUT_BATCH(i915_get_blend_cntl(PictOpOutReverse,
-						      intel->render_mask_picture,
-						      intel->render_dest_picture->format));
-			i915_composite_emit_shader(intel, PictOpOutReverse);
-		}
-
-		intel->prim_offset = intel->batch_used;
-		OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL);
-		OUT_BATCH(intel->vertex_index);
+	if (intel->vertex_count == 0 && intel->needs_render_ca_pass) {
+		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);
+		OUT_BATCH(i915_get_blend_cntl(PictOpOutReverse,
+					      intel->render_mask_picture,
+					      intel->render_dest_picture->format));
+		i915_composite_emit_shader(intel, PictOpOutReverse);
 	}
 	intel->vertex_count += 3;
 
@@ -1167,11 +1162,11 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 void
 i915_vertex_flush(intel_screen_private *intel)
 {
-	if (intel->prim_offset == 0)
+	if (intel->vertex_count == 0)
 		return;
 
-	intel->batch_ptr[intel->prim_offset] |= intel->vertex_count;
-	intel->prim_offset = 0;
+	OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL | intel->vertex_count);
+	OUT_BATCH(intel->vertex_index);
 
 	if (intel->needs_render_ca_pass) {
 		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(6) | 0);

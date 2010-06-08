@@ -577,6 +577,9 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	if (uxa_driver->get_image != NULL) {
 		LogMessage(X_INFO, "        get_image\n");
 	}
+	if (uxa_driver->rasterize_trapezoids != NULL) {
+		LogMessage(X_INFO, "        trapezoids\n");
+	}
 
 	return TRUE;
 }

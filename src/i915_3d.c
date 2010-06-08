@@ -34,12 +34,8 @@
 
 #include "i915_reg.h"
 
-void I915EmitInvarientState(ScrnInfoPtr scrn)
+void I915EmitInvarientState(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	assert(intel->in_batch_atomic);
-
 	OUT_BATCH(_3DSTATE_AA_CMD |
 		  AA_LINE_ECAAR_WIDTH_ENABLE |
 		  AA_LINE_ECAAR_WIDTH_1_0 |
@@ -70,7 +66,9 @@ void I915EmitInvarientState(ScrnInfoPtr scrn)
 		  CSB_TCB(2, 2) |
 		  CSB_TCB(3, 3) |
 		  CSB_TCB(4, 4) |
-		  CSB_TCB(5, 5) | CSB_TCB(6, 6) | CSB_TCB(7, 7));
+		  CSB_TCB(5, 5) |
+		  CSB_TCB(6, 6) |
+		  CSB_TCB(7, 7));
 
 	OUT_BATCH(_3DSTATE_RASTER_RULES_CMD |
 		  ENABLE_POINT_RASTER_RULE |

@@ -1156,8 +1156,6 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	dri_bo *binding_table_bo = composite_op->binding_table_bo;
 
 	intel->needs_render_state_emit = FALSE;
-
-	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
 
 	urb_vs_start = 0;

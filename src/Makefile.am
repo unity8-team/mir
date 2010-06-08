@@ -80,6 +80,7 @@ intel_drv_la_SOURCES = \
 	 i830_render.c \
 	 i915_render.c \
 	 i965_render.c \
+	 i915_trapezoids.c \
 	 drmmode_display.c
 
 EXTRA_DIST = 		\

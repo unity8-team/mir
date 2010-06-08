@@ -824,31 +824,6 @@ enum pipe {
 	PIPE_B,
 };
 
-/**
- * Intialiazes the hardware for the 3D pipeline use in the 2D driver.
- *
- * Some state caching is performed to avoid redundant state emits.  This
- * function is also responsible for marking the state as clobbered for DRI
- * clients.
- */
-void IntelEmitInvarientState(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	/* If we've emitted our state since the last clobber by another client,
-	 * skip it.
-	 */
-	if (intel->last_3d != LAST_3D_OTHER)
-		return;
-
-	if (!IS_I965G(intel)) {
-		if (IS_I9XX(intel))
-			I915EmitInvarientState(scrn);
-		else
-			I830EmitInvarientState(scrn);
-	}
-}
-
 static void
 I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 {

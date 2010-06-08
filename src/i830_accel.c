@@ -45,11 +45,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_reg.h"
 #include "i915_drm.h"
 
-unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap)
-{
-	return (unsigned long)pixmap->devKind;
-}
-
 void i830_debug_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);

@@ -764,7 +764,6 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 	int urb_cs_start, urb_cs_size;
 	int pipe_ctl;
 
-	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_VIDEO;
 
 	urb_vs_start = 0;
