@@ -144,6 +144,24 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 	}
 }
 
+void intel_batch_do_flush(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	while (!list_is_empty(&intel->flush_pixmaps)) {
+		struct intel_pixmap *entry;
+
+		entry = list_first_entry(&intel->flush_pixmaps,
+					 struct intel_pixmap,
+					 flush);
+
+		entry->flush_read_domains = entry->flush_write_domain = 0;
+		list_del(&entry->flush);
+	}
+
+	intel->need_mi_flush = FALSE;
+}
+
 void intel_batch_emit_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -160,18 +178,7 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	OUT_BATCH(MI_FLUSH | flags);
 	ADVANCE_BATCH();
 
-	while (!list_is_empty(&intel->flush_pixmaps)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->flush_pixmaps,
-					 struct intel_pixmap,
-					 flush);
-
-		entry->flush_read_domains = entry->flush_write_domain = 0;
-		list_del(&entry->flush);
-	}
-
-	intel->need_mi_flush = FALSE;
+	intel_batch_do_flush(scrn);
 }
 
 void intel_batch_submit(ScrnInfoPtr scrn)

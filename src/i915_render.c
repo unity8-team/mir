@@ -832,8 +832,11 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 
 	intel->i915_render_state.op = op;
 
-	if((source && i830_uxa_pixmap_is_dirty(source)) ||
-	   (mask && i830_uxa_pixmap_is_dirty(mask)))
+	/* BUF_INFO is an implicit flush */
+	if (dest != intel->render_current_dest)
+		intel_batch_do_flush(scrn);
+	else if((source && i830_uxa_pixmap_is_dirty(source)) ||
+		(mask && i830_uxa_pixmap_is_dirty(mask)))
 		intel_batch_emit_flush(scrn);
 
 	intel->needs_render_state_emit = TRUE;

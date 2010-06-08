@@ -36,6 +36,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 void intel_batch_init(ScrnInfoPtr scrn);
 void intel_batch_teardown(ScrnInfoPtr scrn);
 void intel_batch_emit_flush(ScrnInfoPtr scrn);
+void intel_batch_do_flush(ScrnInfoPtr scrn);
 void intel_batch_submit(ScrnInfoPtr scrn);
 void intel_batch_wait_last(ScrnInfoPtr scrn);
 
