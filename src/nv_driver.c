@@ -389,6 +389,10 @@ NVCreateScreenResources(ScreenPtr pScreen)
 		return FALSE;
 	pScreen->CreateScreenResources = NVCreateScreenResources;
 
+	drmmode_fbcon_copy(pScreen);
+	if (!xf86SetDesiredModes(pScrn))
+		return FALSE;
+
 	if (!pNv->NoAccel) {
 		ppix = pScreen->GetScreenPixmap(pScreen);
 		nouveau_bo_ref(pNv->scanout, &nouveau_pixmap(ppix)->bo);
@@ -1138,10 +1142,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	pNv->BlockHandler = pScreen->BlockHandler;
 	pScreen->BlockHandler = NVBlockHandler;
 
-	drmmode_fbcon_copy(pScreen);
-
-	if (!NVEnterVT(pScrn->scrnIndex, 0))
-		return FALSE;
 	pScrn->vtSema = TRUE;
 	pScrn->pScreen = pScreen;
 
