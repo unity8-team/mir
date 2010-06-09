@@ -566,8 +566,7 @@ static void i830_emit_composite_state(ScrnInfoPtr scrn)
 
 	intel->needs_render_state_emit = FALSE;
 
-	if (intel->last_3d == LAST_3D_OTHER)
-		I830EmitInvarientState(intel);
+	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
 
 	assert(intel->in_batch_atomic);

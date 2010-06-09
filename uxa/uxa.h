@@ -402,11 +402,6 @@ typedef struct _UxaDriver {
 	 * This call is required if prepare_composite() ever succeeds.
 	 */
 	void (*done_composite) (PixmapPtr pDst);
-
-	Bool(*check_trapezoids) (int width, int height, int depth);
-	Bool(*rasterize_trapezoids) (PixmapPtr pixmap, Bool clear,
-				     int ntraps, xTrapezoid *traps,
-				     int dst_x, int dst_y);
 	/** @} */
 
 	/**

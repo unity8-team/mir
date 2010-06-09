@@ -101,6 +101,8 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		nbox_total -= nbox_this_time;
 
 		intel_batch_start_atomic(scrn, 200 + 20 * nbox_this_time);
+
+		IntelEmitInvarientState(scrn);
 		intel->last_3d = LAST_3D_VIDEO;
 
 		/* draw rect -- just clipping */

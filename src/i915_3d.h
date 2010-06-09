@@ -598,21 +598,6 @@ enum i915_fs_channel {
 	} while (0)
 
 /**
- * Perform a 4-component dot-product of operand0 and operand1 and put the
- * resulting scalar in the channels of dest_reg specified by the dest_mask.
- */
-#define i915_fs_dp4(dest_reg, dest_mask, op0, op1)	\
-	do {									\
-		if (dest_mask) {							\
-			i915_fs_arith_masked (DP4, dest_reg, dest_mask, \
-					      op0, op1,\
-					      i915_fs_operand_none());			\
-		} else { \
-			i915_fs_arith (DP4, dest_reg, op0, op1,\
-				       i915_fs_operand_none());			\
-		} \
-	} while (0)
-/**
  * Sets up local state for accumulating a fragment shader buffer.
  *
  * \param x maximum number of shader commands that may be used between

@@ -34,8 +34,12 @@
 
 #include "i830_reg.h"
 
-void I830EmitInvarientState(intel_screen_private *intel)
+void I830EmitInvarientState(ScrnInfoPtr scrn)
 {
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	assert(intel->in_batch_atomic);
+
 	OUT_BATCH(_3DSTATE_MAP_CUBE | MAP_UNIT(0));
 	OUT_BATCH(_3DSTATE_MAP_CUBE | MAP_UNIT(1));
 	OUT_BATCH(_3DSTATE_MAP_CUBE | MAP_UNIT(2));

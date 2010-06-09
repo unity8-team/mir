@@ -366,6 +366,7 @@ typedef struct intel_screen_private {
 		uint32_t dst_format;
 	} i915_render_state;
 
+	uint32_t prim_offset;
 	void (*prim_emit)(PixmapPtr dest,
 			  int srcX, int srcY,
 			  int maskX, int maskY,
@@ -427,18 +428,15 @@ intel_get_screen_private(ScrnInfoPtr scrn)
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
 
-static inline unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap)
-{
-	return (unsigned long)pixmap->devKind;
-}
-
+unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap);
 
 /* Batchbuffer support macros and functions */
 #include "i830_batchbuffer.h"
 
 /* I830 specific functions */
-extern void I830EmitInvarientState(intel_screen_private *intel);
-extern void I915EmitInvarientState(intel_screen_private *intel);
+extern void IntelEmitInvarientState(ScrnInfoPtr scrn);
+extern void I830EmitInvarientState(ScrnInfoPtr scrn);
+extern void I915EmitInvarientState(ScrnInfoPtr scrn);
 
 extern void I830EmitFlush(ScrnInfoPtr scrn);
 
@@ -503,8 +501,6 @@ Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
 void i915_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
-Bool i915_check_trapezoids(int width, int height, int depth);
-Bool i915_rasterize_trapezoids(PixmapPtr pixmap, Bool clear, int ntrap, xTrapezoid *trap, int dst_x, int dst_y);
 void i915_vertex_flush(intel_screen_private *intel);
 void i915_batch_flush_notify(ScrnInfoPtr scrn);
 void i830_batch_flush_notify(ScrnInfoPtr scrn);

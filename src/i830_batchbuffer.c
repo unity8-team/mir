@@ -53,13 +53,11 @@ static void intel_end_vertex(intel_screen_private *intel)
 
 void intel_next_vertex(intel_screen_private *intel)
 {
-	assert(intel->vertex_count == 0);
-
 	intel_end_vertex(intel);
 
 	intel->vertex_bo =
 		dri_bo_alloc(intel->bufmgr, "vertex", sizeof (intel->vertex_ptr), 4096);
-	intel->vertex_used = intel->vertex_index = 0;
+	intel->vertex_used = 0;
 }
 
 static void intel_next_batch(ScrnInfoPtr scrn)

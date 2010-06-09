@@ -1100,6 +1100,7 @@ Bool i830_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->uxa_minor = 0;
 
 	intel->render_current_dest = NULL;
+	intel->prim_offset = 0;
 	intel->vertex_count = 0;
 	intel->floats_per_vertex = 0;
 	intel->last_floats_per_vertex = 0;
@@ -1133,8 +1134,6 @@ Bool i830_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->prepare_composite = i915_prepare_composite;
 		intel->uxa_driver->composite = i915_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
-		intel->uxa_driver->check_trapezoids = i915_check_trapezoids;
-		intel->uxa_driver->rasterize_trapezoids = i915_rasterize_trapezoids;
 	} else {
 		intel->uxa_driver->check_composite = i965_check_composite;
 		intel->uxa_driver->check_composite_texture = i965_check_composite_texture;
