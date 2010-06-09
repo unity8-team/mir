@@ -322,8 +322,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 34);
 	OUT_RING  (chan, 0x80000008);
 	OUT_RING  (chan, 0x90000408);
-	OUT_RING  (chan, 0x80010400);
-	OUT_RING  (chan, 0x80020404);
+	OUT_RING  (chan, 0x82010400);
+	OUT_RING  (chan, 0x82020404);
 	OUT_RING  (chan, 0xf0400001);
 	OUT_RING  (chan, 0x00008784);
 	OUT_RING  (chan, 0xc0080001);
@@ -334,8 +334,8 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0x03f078ff);
 	OUT_RING  (chan, 0xb0220015);
 	OUT_RING  (chan, 0x0bf8a677);
-	OUT_RING  (chan, 0x80030400);
-	OUT_RING  (chan, 0x80040404);
+	OUT_RING  (chan, 0x82030400);
+	OUT_RING  (chan, 0x82040404);
 	OUT_RING  (chan, 0xf0400201);
 	OUT_RING  (chan, 0x0000c784);
 	OUT_RING  (chan, 0xc0160009);
