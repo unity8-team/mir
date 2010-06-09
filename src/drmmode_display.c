@@ -293,7 +293,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	if (!xf86CrtcRotate(crtc))
 		return FALSE;
 
-	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
+	output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
 	if (!output_ids)
 		return FALSE;
 
@@ -321,7 +321,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			     fb_id, x, y, output_ids, output_count, &kmode);
-	xfree(output_ids);
+	free(output_ids);
 
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
@@ -646,10 +646,10 @@ drmmode_output_destroy(xf86OutputPtr output)
 		drmModeFreePropertyBlob(drmmode_output->edid_blob);
 	for (i = 0; i < drmmode_output->num_props; i++) {
 		drmModeFreeProperty(drmmode_output->props[i].mode_prop);
-		xfree(drmmode_output->props[i].atoms);
+		free(drmmode_output->props[i].atoms);
 	}
 	drmModeFreeConnector(drmmode_output->mode_output);
-	xfree(drmmode_output);
+	free(drmmode_output);
 	output->driver_private = NULL;
 }
 
@@ -707,7 +707,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
 	uint32_t value;
 	int i, j, err;
 
-	drmmode_output->props = xcalloc(mode_output->count_props, sizeof(drmmode_prop_rec));
+	drmmode_output->props = calloc(mode_output->count_props, sizeof(drmmode_prop_rec));
 	if (!drmmode_output->props)
 		return;
 
@@ -734,7 +734,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
 			INT32 range[2];
 
 			p->num_atoms = 1;
-			p->atoms = xcalloc(p->num_atoms, sizeof(Atom));
+			p->atoms = calloc(p->num_atoms, sizeof(Atom));
 			if (!p->atoms)
 				continue;
 			p->atoms[0] = MakeAtom(drmmode_prop->name, strlen(drmmode_prop->name), TRUE);
@@ -757,7 +757,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
 			}
 		} else if (drmmode_prop->flags & DRM_MODE_PROP_ENUM) {
 			p->num_atoms = drmmode_prop->count_enums + 1;
-			p->atoms = xcalloc(p->num_atoms, sizeof(Atom));
+			p->atoms = calloc(p->num_atoms, sizeof(Atom));
 			if (!p->atoms)
 				continue;
 			p->atoms[0] = MakeAtom(drmmode_prop->name, strlen(drmmode_prop->name), TRUE);
@@ -969,7 +969,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		return;
 	}
 
-	drmmode_output = xcalloc(sizeof(drmmode_output_private_rec), 1);
+	drmmode_output = calloc(sizeof(drmmode_output_private_rec), 1);
 	if (!drmmode_output) {
 		xf86OutputDestroy(output);
 		drmModeFreeConnector(koutput);
@@ -1054,9 +1054,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	}
 
 	if (pNv->ShadowPtr) {
-		xfree(pNv->ShadowPtr);
+		free(pNv->ShadowPtr);
 		pNv->ShadowPitch = pitch;
-		pNv->ShadowPtr = xalloc(pNv->ShadowPitch * height);
+		pNv->ShadowPtr = malloc(pNv->ShadowPitch * height);
 	}
 
 	ppix = screen->GetScreenPixmap(screen);

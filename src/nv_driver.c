@@ -218,7 +218,7 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	ret = nouveau_device_open(&dev, busid);
 	if (ret) {
 		xf86DrvMsg(-1, X_ERROR, "[drm] failed to open device\n");
-		xfree(busid);
+		free(busid);
 		return FALSE;
 	}
 
@@ -237,7 +237,7 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	nouveau_device_close(&dev);
 
 	ret = drmCheckModesettingSupported(busid);
-	xfree(busid);
+	free(busid);
 	if (ret) {
 		xf86DrvMsg(-1, X_ERROR, "[drm] KMS not enabled\n");
 		return FALSE;
@@ -428,28 +428,28 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	xf86_cursors_fini(pScreen);
 
 	if (pNv->ShadowPtr) {
-		xfree(pNv->ShadowPtr);
+		free(pNv->ShadowPtr);
 		pNv->ShadowPtr = NULL;
 	}
 	if (pNv->overlayAdaptor) {
-		xfree(pNv->overlayAdaptor);
+		free(pNv->overlayAdaptor);
 		pNv->overlayAdaptor = NULL;
 	}
 	if (pNv->blitAdaptor) {
-		xfree(pNv->blitAdaptor);
+		free(pNv->blitAdaptor);
 		pNv->blitAdaptor = NULL;
 	}
 	if (pNv->textureAdaptor[0]) {
-		xfree(pNv->textureAdaptor[0]);
+		free(pNv->textureAdaptor[0]);
 		pNv->textureAdaptor[0] = NULL;
 	}
 	if (pNv->textureAdaptor[1]) {
-		xfree(pNv->textureAdaptor[1]);
+		free(pNv->textureAdaptor[1]);
 		pNv->textureAdaptor[1] = NULL;
 	}
 	if (pNv->EXADriverPtr) {
 		exaDriverFini(pScreen);
-		xfree(pNv->EXADriverPtr);
+		free(pNv->EXADriverPtr);
 		pNv->EXADriverPtr = NULL;
 	}
 
@@ -478,7 +478,7 @@ NVFreeScreen(int scrnIndex, int flags)
 
 	NVCloseDRM(pScrn);
 
-	xfree(pScrn->driverPrivate);
+	free(pScrn->driverPrivate);
 	pScrn->driverPrivate = NULL;
 }
 
@@ -544,7 +544,7 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	/* Load the kernel module, and open the DRM */
 	bus_id = DRICreatePCIBusID(pNv->PciInfo);
 	ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, bus_id, "nouveau");
-	xfree(bus_id);
+	free(bus_id);
 	if (!ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] error opening the drm\n");
@@ -580,7 +580,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			return FALSE;
 
 		i = pEnt->index;
-		xfree(pEnt);
+		free(pEnt);
 
 		return TRUE;
 	}
@@ -721,7 +721,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86CollectOptions(pScrn, NULL);
 
 	/* Process the options */
-	if (!(pNv->Options = xalloc(sizeof(NVOptions))))
+	if (!(pNv->Options = malloc(sizeof(NVOptions))))
 		return FALSE;
 	memcpy(pNv->Options, NVOptions, sizeof(NVOptions));
 	xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, pNv->Options);
@@ -1036,7 +1036,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	if (pNv->ShadowFB) {
 		pNv->ShadowPitch = BitmapBytePad(pScrn->bitsPerPixel * pScrn->virtualX);
-		pNv->ShadowPtr = xalloc(pNv->ShadowPitch * pScrn->virtualY);
+		pNv->ShadowPtr = malloc(pNv->ShadowPitch * pScrn->virtualY);
 		displayWidth = pNv->ShadowPitch / (pScrn->bitsPerPixel >> 3);
 		FBStart = pNv->ShadowPtr;
 	} else

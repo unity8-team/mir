@@ -322,13 +322,13 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 	int ret, size, cpp = bitsPerPixel >> 3;
 
 	if (!width || !height)
-		return xcalloc(1, sizeof(*nvpix));
+		return calloc(1, sizeof(*nvpix));
 
 	if (!pNv->exa_force_cp &&
 	     pNv->dev->vm_vram_size <= 32*1024*1024)
 		return NULL;
 
-	nvpix = xcalloc(1, sizeof(*nvpix));
+	nvpix = calloc(1, sizeof(*nvpix));
 	if (!nvpix)
 		return NULL;
 
@@ -369,7 +369,7 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, size, tile_mode,
 				  tile_flags, &nvpix->bo);
 	if (ret) {
-		xfree(nvpix);
+		free(nvpix);
 		return NULL;
 	}
 
@@ -385,7 +385,7 @@ nouveau_exa_destroy_pixmap(ScreenPtr pScreen, void *priv)
 		return;
 
 	nouveau_bo_ref(NULL, &nvpix->bo);
-	xfree(nvpix);
+	free(nvpix);
 }
 
 bool

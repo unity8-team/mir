@@ -30,7 +30,7 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 	struct nouveau_dri2_buffer *nvbuf;
 	PixmapPtr ppix;
 
-	nvbuf = xcalloc(1, sizeof(*nvbuf));
+	nvbuf = calloc(1, sizeof(*nvbuf));
 	if (!nvbuf)
 		return NULL;
 
@@ -81,7 +81,7 @@ nouveau_dri2_destroy_buffer(DrawablePtr pDraw, DRI2BufferPtr buf)
 		return;
 
 	pDraw->pScreen->DestroyPixmap(nvbuf->ppix);
-	xfree(nvbuf);
+	free(nvbuf);
 }
 
 void
