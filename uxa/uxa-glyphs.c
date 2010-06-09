@@ -800,7 +800,7 @@ uxa_glyphs_to_dst(CARD8 op,
 							    glyph->info.height);
 			} else {
 				BoxPtr rects = REGION_RECTS(pDst->pCompositeClip);
-				do {
+				while (nrect--) {
 					int x1 = x - glyph->info.x, dx = 0;
 					int y1 = y - glyph->info.y, dy = 0;
 					int x2 = x1 + glyph->info.width;
@@ -823,7 +823,7 @@ uxa_glyphs_to_dst(CARD8 op,
 									    x2 - x1, y2 - y1);
 					}
 					rects++;
-				} while (--nrect);
+				}
 			}
 
 next_glyph:
