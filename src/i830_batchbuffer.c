@@ -214,21 +214,21 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 		ret = dri_bo_exec(intel->batch_bo, intel->batch_used*4,
 				  NULL, 0, 0xffffffff);
 	if (ret != 0) {
-		static int once;
+		if (ret == -EIO) {
+			static int once;
 
-		if (!once) {
+			/* The GPU has hung and unlikely to recover by this point. */
+			if (!once) {
+				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Detected a hung GPU, disabling acceleration.\n");
+				uxa_set_force_fallback(screenInfo.screens[scrn->scrnIndex], TRUE);
+				intel->force_fallback = TRUE;
+				once = 1;
+			}
+		} else {
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 				   "Failed to submit batch buffer, expect rendering corruption "
 				   "or even a frozen display: %s.\n",
 				   strerror(-ret));
-			once = 1;
-		}
-
-		if (ret == -EIO) {
-			/* The GPU is hung and unlikely to recover by this point. */
-			xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Disabling acceleration.\n");
-			uxa_set_force_fallback(screenInfo.screens[scrn->scrnIndex], TRUE);
-			intel->force_fallback = TRUE;
 		}
 	}
 
