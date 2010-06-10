@@ -214,7 +214,7 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 		ret = dri_bo_exec(intel->batch_bo, intel->batch_used*4,
 				  NULL, 0, 0xffffffff);
 	if (ret != 0) {
-		if (ret == -EIO) {
+		if (ret == -EIO && !IS_I965G(intel)) {
 			static int once;
 
 			/* The GPU has hung and unlikely to recover by this point. */
