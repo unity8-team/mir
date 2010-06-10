@@ -1740,6 +1740,90 @@ uxa_create_alpha_picture(ScreenPtr pScreen,
 	return pPicture;
 }
 
+static void
+uxa_check_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
+	       PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
+	       int ntrap, xTrapezoid * traps)
+{
+	ScreenPtr screen = dst->pDrawable->pScreen;
+
+	if (maskFormat) {
+		PixmapPtr scratch = NULL;
+		PicturePtr mask;
+		INT16 xDst, yDst;
+		INT16 xRel, yRel;
+		BoxRec bounds;
+		int width, height;
+		pixman_image_t *image;
+		pixman_format_code_t format;
+		int error;
+
+		xDst = traps[0].left.p1.x >> 16;
+		yDst = traps[0].left.p1.y >> 16;
+
+		miTrapezoidBounds (ntrap, traps, &bounds);
+		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
+			return;
+
+		width  = bounds.x2 - bounds.x1;
+		height = bounds.y2 - bounds.y1;
+
+		format = maskFormat->format |
+			(BitsPerPixel(maskFormat->depth) << 24);
+		image =
+		    pixman_image_create_bits(format, width, height, NULL, 0);
+		if (!image)
+			return;
+
+		for (; ntrap; ntrap--, traps++)
+			pixman_rasterize_trapezoid(image,
+						   (pixman_trapezoid_t *) traps,
+						   -bounds.x1, -bounds.y1);
+
+
+		scratch = GetScratchPixmapHeader(screen, width, height,
+						 PIXMAN_FORMAT_DEPTH(format),
+						 PIXMAN_FORMAT_BPP(format),
+						 pixman_image_get_stride(image),
+						 pixman_image_get_data(image));
+		if (!scratch) {
+			pixman_image_unref(image);
+			return;
+		}
+
+		mask = CreatePicture(0, &scratch->drawable,
+				     PictureMatchFormat(screen,
+							PIXMAN_FORMAT_DEPTH(format),
+							format),
+				     0, 0, serverClient, &error);
+		if (!mask) {
+			FreeScratchPixmapHeader(scratch);
+			pixman_image_unref(image);
+			return;
+		}
+
+		xRel = bounds.x1 + xSrc - xDst;
+		yRel = bounds.y1 + ySrc - yDst;
+		CompositePicture(op, src, mask, dst,
+				 xRel, yRel,
+				 0, 0,
+				 bounds.x1, bounds.y1,
+				 width, height);
+		FreePicture(mask, 0);
+
+		FreeScratchPixmapHeader(scratch);
+		pixman_image_unref(image);
+	} else {
+		if (dst->polyEdge == PolyEdgeSharp)
+			maskFormat = PictureMatchFormat(screen, 1, PICT_a1);
+		else
+			maskFormat = PictureMatchFormat(screen, 8, PICT_a8);
+
+		for (; ntrap; ntrap--, traps++)
+			uxa_check_trapezoids(op, src, dst, maskFormat, xSrc, ySrc, 1, traps);
+	}
+}
+
 /**
  * uxa_trapezoids is essentially a copy of miTrapezoids that uses
  * uxa_create_alpha_picture instead of miCreateAlphaPicture.
@@ -1759,8 +1843,14 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 	       int ntrap, xTrapezoid * traps)
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 	BoxRec bounds;
 	Bool direct;
+
+	if (uxa_screen->swappedOut || uxa_screen->force_fallback) {
+		uxa_check_trapezoids(op, src, dst, maskFormat, xSrc, ySrc, ntrap, traps);
+		return;
+	}
 
 	direct = op == PictOpAdd && miIsSolidAlpha(src);
 	if (maskFormat || direct) {
