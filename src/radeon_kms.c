@@ -1008,7 +1008,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 		radeon_bo_set_tiling(info->cursor_bo[c], RADEON_TILING_SWAP_32BIT |
-				     RADEON_TILING_SURFACE, stride);
+				     RADEON_TILING_SURFACE, RADEON_CURSOR_WIDTH);
 #endif
 
                 if (radeon_bo_map(info->cursor_bo[c], 1)) {
