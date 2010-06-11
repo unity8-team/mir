@@ -390,7 +390,7 @@ NVCreateScreenResources(ScreenPtr pScreen)
 	pScreen->CreateScreenResources = NVCreateScreenResources;
 
 	drmmode_fbcon_copy(pScreen);
-	if (!xf86SetDesiredModes(pScrn))
+	if (!NVEnterVT(pScrn->scrnIndex, 0))
 		return FALSE;
 
 	if (!pNv->NoAccel) {
