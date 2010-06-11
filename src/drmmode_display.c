@@ -722,6 +722,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
 
 	if (drmmode_prop->flags & DRM_MODE_PROP_RANGE) {
 	    INT32 range[2];
+	    INT32 value = p->value;
 
 	    p->num_atoms = 1;
 	    p->atoms = xcalloc(p->num_atoms, sizeof(Atom));
@@ -739,7 +740,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
 			"RRConfigureOutputProperty error, %d\n", err);
 	    }
 	    err = RRChangeOutputProperty(output->randr_output, p->atoms[0],
-		    XA_INTEGER, 32, PropModeReplace, 1, &p->value, FALSE, TRUE);
+		    XA_INTEGER, 32, PropModeReplace, 1, &value, FALSE, TRUE);
 	    if (err != 0) {
 		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
 			"RRChangeOutputProperty error, %d\n", err);
