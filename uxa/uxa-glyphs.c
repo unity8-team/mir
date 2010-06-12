@@ -663,7 +663,7 @@ uxa_glyphs_to_dst(CARD8 op,
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 	PixmapPtr src_pixmap, dst_pixmap;
 	PicturePtr localSrc, glyph_atlas;
-	int x, y, n, nrect;
+	int x, y, n;
 	BoxRec box;
 
 	if (uxa_screen->info->check_composite_texture &&
@@ -747,8 +747,9 @@ uxa_glyphs_to_dst(CARD8 op,
 		while (n--) {
 			GlyphPtr glyph = *glyphs++;
 			PicturePtr this_atlas;
-			int mask_x, mask_y;
+			int mask_x, mask_y, nrect;
 			struct uxa_glyph *priv;
+			BoxPtr rects;
 
 			if (glyph->info.width == 0 || glyph->info.height == 0)
 				goto next_glyph;
@@ -789,41 +790,34 @@ uxa_glyphs_to_dst(CARD8 op,
 				glyph_atlas = this_atlas;
 			}
 
+			rects = REGION_RECTS(pDst->pCompositeClip);
 			nrect = REGION_NUM_RECTS(pDst->pCompositeClip);
-			if (nrect == 1) {
-				uxa_screen->info->composite(dst_pixmap,
-							    x + src_x, y + src_y,
-							    mask_x, mask_y,
-							    x - glyph->info.x,
-							    y - glyph->info.y,
-							    glyph->info.width,
-							    glyph->info.height);
-			} else {
-				BoxPtr rects = REGION_RECTS(pDst->pCompositeClip);
-				while (nrect--) {
-					int x1 = x - glyph->info.x, dx = 0;
-					int y1 = y - glyph->info.y, dy = 0;
-					int x2 = x1 + glyph->info.width;
-					int y2 = y1 + glyph->info.height;
+			while (nrect--) {
+				int x1 = x - glyph->info.x, dx = 0;
+				int y1 = y - glyph->info.y, dy = 0;
+				int x2 = x1 + glyph->info.width;
+				int y2 = y1 + glyph->info.height;
 
-					if (x1 < rects->x1)
-						dx = rects->x1 - x1, x1 = rects->x1;
-					if (x2 > rects->x2)
-						x2 = rects->x2;
-					if (y1 < rects->y1)
-						dy = rects->y1 - y1, y1 = rects->y1;
-					if (y2 > rects->y2)
-						y2 = rects->y2;
+				if (rects->y1 >= y2)
+					break;
 
-					if (x1 < x2 && y1 < y2) {
-						uxa_screen->info->composite(dst_pixmap,
-									    x1 + src_x, y1 + src_y,
-									    dx + mask_x, dy + mask_y,
-									    x1, y1,
-									    x2 - x1, y2 - y1);
-					}
-					rects++;
+				if (x1 < rects->x1)
+					dx = rects->x1 - x1, x1 = rects->x1;
+				if (x2 > rects->x2)
+					x2 = rects->x2;
+				if (y1 < rects->y1)
+					dy = rects->y1 - y1, y1 = rects->y1;
+				if (y2 > rects->y2)
+					y2 = rects->y2;
+
+				if (x1 < x2 && y1 < y2) {
+					uxa_screen->info->composite(dst_pixmap,
+								    x1 + src_x,  y1 + src_y,
+								    dx + mask_x, dy + mask_y,
+								    x1, y1,
+								    x2 - x1, y2 - y1);
 				}
+				rects++;
 			}
 
 next_glyph:
