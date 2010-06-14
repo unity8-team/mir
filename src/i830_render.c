@@ -465,6 +465,20 @@ i830_prepare_composite(int op, PicturePtr source_picture,
 	if (!intel_check_pitch_3d(source))
 		return FALSE;
 	if (mask) {
+		if (mask_picture->componentAlpha &&
+		    PICT_FORMAT_RGB(mask_picture->format)) {
+			/* Check if it's component alpha that relies on a source alpha and on
+			 * the source value.  We can only get one of those into the single
+			 * source value that we get to blend with.
+			 */
+			if (i830_blend_op[op].src_alpha &&
+			    (i830_blend_op[op].src_blend != BLENDFACTOR_ZERO)) {
+				intel_debug_fallback(scrn, "Component alpha not "
+						     "supported with source alpha and "
+						     "source value blending.\n");
+				return FALSE;
+			}
+		}
 		if (!intel_check_pitch_3d(mask))
 			return FALSE;
 	}

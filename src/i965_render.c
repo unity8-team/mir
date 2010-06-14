@@ -1509,6 +1509,22 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	}
 
 	if (mask_picture) {
+		if (mask_picture->componentAlpha &&
+		    PICT_FORMAT_RGB(mask_picture->format)) {
+			/* Check if it's component alpha that relies on a source alpha and on
+			 * the source value.  We can only get one of those into the single
+			 * source value that we get to blend with.
+			 */
+			if (i965_blend_op[op].src_alpha &&
+			    (i965_blend_op[op].src_blend != BRW_BLENDFACTOR_ZERO)) {
+				intel_debug_fallback(scrn,
+						     "Component alpha not supported "
+						     "with source alpha and source "
+						     "value blending.\n");
+				return FALSE;
+			}
+		}
+
 		composite_op->mask_filter =
 		    sampler_state_filter_from_picture(mask_picture->filter);
 		if (composite_op->mask_filter < 0) {
