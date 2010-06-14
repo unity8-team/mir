@@ -77,6 +77,15 @@ void i830_uxa_block_handler(ScreenPtr pScreen);
 Bool i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			     int num_bos);
 
+/* XXX
+ * The X server gained an *almost* identical implementation in 1.9.
+ *
+ * Remove this duplicate code either in 2.16 (when we can depend upon 1.9)
+ * or the drivers are merged back into the xserver tree, whichever happens
+ * earlier.
+ */
+
+#ifndef _LIST_H_
 /* classic doubly-link circular list */
 struct list {
 	struct list *next, *prev;
@@ -124,25 +133,35 @@ list_is_empty(struct list *head)
 {
 	return head->next == head;
 }
+#endif
 
 #ifndef container_of
 #define container_of(ptr, type, member) \
 	(type *)((char *)(ptr) - (char *) &((type *)0)->member)
 #endif
 
+#ifndef list_entry
 #define list_entry(ptr, type, member) \
 	container_of(ptr, type, member)
+#endif
 
+#ifndef list_first_entry
 #define list_first_entry(ptr, type, member) \
 	list_entry((ptr)->next, type, member)
+#endif
 
+#ifndef list_foreach
 #define list_foreach(pos, head)			\
 	for (pos = (head)->next; pos != (head);	pos = pos->next)
+#endif
 
+/* XXX list.h from xserver-1.9 uses a GCC-ism to avoid having to pass type */
+#ifndef list_foreach_entry
 #define list_foreach_entry(pos, type, head, member)		\
 	for (pos = list_entry((head)->next, type, member);\
 	     &pos->member != (head);					\
 	     pos = list_entry(pos->member.next, type, member))
+#endif
 
 struct intel_pixmap {
 	dri_bo *bo;
