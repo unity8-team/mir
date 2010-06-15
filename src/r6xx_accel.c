@@ -968,7 +968,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 	END_BATCH();
     }
 
-    BEGIN_BATCH(18);
+    BEGIN_BATCH(21);
     PACK0(ib, CB_CLRCMP_CONTROL, 4);
     E32(ib, 1 << CLRCMP_FCN_SEL_shift);				// CB_CLRCMP_CONTROL: use CLRCMP_FCN_SRC
     E32(ib, 0);							// CB_CLRCMP_SRC
@@ -984,18 +984,17 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 						   (0 << WINDOW_Y_OFFSET_shift)));
 
     EREG(ib, PA_SC_CLIPRECT_RULE,                 CLIP_RULE_mask);
+
+    if (info->ChipFamily < CHIP_FAMILY_RV770)
+	EREG(ib, R7xx_PA_SC_EDGERULE,             0x00000000);
+    else
+	EREG(ib, R7xx_PA_SC_EDGERULE,             0xAAAAAAAA);
+
     END_BATCH();
 
     /* clip boolean is set to always visible -> doesn't matter */
     for (i = 0; i < PA_SC_CLIPRECT_0_TL_num; i++)
 	set_clip_rect (pScrn, ib, i, 0, 0, 8192, 8192);
-
-    BEGIN_BATCH(3);
-    if (info->ChipFamily < CHIP_FAMILY_RV770)
-	EREG(ib, R7xx_PA_SC_EDGERULE,             0x00000000);
-    else
-	EREG(ib, R7xx_PA_SC_EDGERULE,             0xAAAAAAAA);
-    END_BATCH();
 
     for (i = 0; i < PA_SC_VPORT_SCISSOR_0_TL_num; i++) {
 	set_vport_scissor (pScrn, ib, i, 0, 0, 8192, 8192);
@@ -1006,17 +1005,12 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 	END_BATCH();
     }
 
-    BEGIN_BATCH(15);
+    BEGIN_BATCH(12);
     if (info->ChipFamily < CHIP_FAMILY_RV770)
 	EREG(ib, PA_SC_MODE_CNTL,                 (WALK_ORDER_ENABLE_bit | FORCE_EOV_CNTDWN_ENABLE_bit));
     else
 	EREG(ib, PA_SC_MODE_CNTL,                 (FORCE_EOV_CNTDWN_ENABLE_bit | FORCE_EOV_REZ_ENABLE_bit |
 						   0x00500000)); /* ? */
-
-    EREG(ib, PA_SU_SC_MODE_CNTL, (FACE_bit |
-				  (POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift) |
-				  (POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-
 
     EREG(ib, PA_SC_LINE_CNTL,                     0);
     EREG(ib, PA_SC_AA_CONFIG,                     0);
@@ -1031,7 +1025,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 	END_BATCH();
     }
 
-    BEGIN_BATCH(83);
+    BEGIN_BATCH(80);
     EREG(ib, PA_SC_LINE_STIPPLE,                  0);
     EREG(ib, PA_SC_MPASS_PS_CNTL,                 0);
 
@@ -1043,7 +1037,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EFLOAT(ib, 0.0f);						// PA_CL_VPORT_YOFFSET
     EFLOAT(ib, 0.0f);						// PA_CL_VPORT_ZSCALE
     EFLOAT(ib, 0.0f);						// PA_CL_VPORT_ZOFFSET
-    EREG(ib, PA_CL_VTE_CNTL,                      0);
     EREG(ib, PA_CL_VS_OUT_CNTL,                   0);
     EREG(ib, PA_CL_NANINF_CNTL,                   0);
     PACK0(ib, PA_CL_GB_VERT_CLIP_ADJ, 4);
