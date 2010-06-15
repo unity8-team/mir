@@ -753,35 +753,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 
     start_3d(pScrn, accel_state->ib);
 
-    // ASIC specific setup, see drm
-    BEGIN_BATCH(15);
-    if (info->ChipFamily < CHIP_FAMILY_RV770) {
-	EREG(ib, TA_CNTL_AUX,                     (( 3 << GRADIENT_CREDIT_shift)		|
-						   (28 << TD_FIFO_CREDIT_shift)));
-	EREG(ib, VC_ENHANCE,                      0);
-	EREG(ib, R7xx_SQ_DYN_GPR_CNTL_PS_FLUSH_REQ, 0);
-	EREG(ib, DB_DEBUG,                        0x82000000); /* ? */
-	EREG(ib, DB_WATERMARKS,		        ((4  << DEPTH_FREE_shift)		|
-						 (16 << DEPTH_FLUSH_shift)		|
-						 (0  << FORCE_SUMMARIZE_shift)		|
-						 (4  << DEPTH_PENDING_FREE_shift)	|
-						 (16 << DEPTH_CACHELINE_FREE_shift)	|
-						 0));
-    } else {
-	EREG(ib, TA_CNTL_AUX,                      (( 2 << GRADIENT_CREDIT_shift)		|
-						    (28 << TD_FIFO_CREDIT_shift)));
-	EREG(ib, VC_ENHANCE,                       0);
-	EREG(ib, R7xx_SQ_DYN_GPR_CNTL_PS_FLUSH_REQ, VS_PC_LIMIT_ENABLE_bit);
-	EREG(ib, DB_DEBUG,                         0);
-	EREG(ib, DB_WATERMARKS,                    ((4  << DEPTH_FREE_shift)		|
-						    (16 << DEPTH_FLUSH_shift)		|
-						    (0  << FORCE_SUMMARIZE_shift)		|
-						    (4  << DEPTH_PENDING_FREE_shift)	|
-						    (4  << DEPTH_CACHELINE_FREE_shift)	|
-						    0));
-    }
-    END_BATCH();
-
     // SQ
     sq_conf.ps_prio = 0;
     sq_conf.vs_prio = 1;
@@ -906,33 +877,13 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 
     sq_setup(pScrn, ib, &sq_conf);
 
-    BEGIN_BATCH(47);
+    BEGIN_BATCH(41);
     PACK0(ib, SQ_VTX_BASE_VTX_LOC, 2);
     E32(ib, 0);
     E32(ib, 0);
 
-    PACK0(ib, SQ_ESGS_RING_ITEMSIZE, 9);
-    E32(ib, 0);							// SQ_ESGS_RING_ITEMSIZE
-    E32(ib, 0);							// SQ_GSVS_RING_ITEMSIZE
-    E32(ib, 0);							// SQ_ESTMP_RING_ITEMSIZE
-    E32(ib, 0);							// SQ_GSTMP_RING_ITEMSIZE
-    E32(ib, 0);							// SQ_VSTMP_RING_ITEMSIZE
-    E32(ib, 0);							// SQ_PSTMP_RING_ITEMSIZE
-    E32(ib, 0);							// SQ_FBUF_RING_ITEMSIZE
-    E32(ib, 0);							// SQ_REDUC_RING_ITEMSIZE
-    E32(ib, 0);							// SQ_GS_VERT_ITEMSIZE
-
     // DB
     EREG(ib, DB_DEPTH_INFO,                       0);
-
-    PACK0(ib, DB_STENCIL_CLEAR, 2);
-    E32(ib, 0);
-    E32(ib, 0);
-
-    PACK0(ib, DB_STENCILREFMASK, 3);
-    E32(ib, 0);
-    E32(ib, 0);
-    E32(ib, 0);
 
     EREG(ib, DB_DEPTH_CONTROL,                    0);
     PACK0(ib, DB_RENDER_CONTROL, 2);
@@ -948,29 +899,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EREG(ib, DB_SHADER_CONTROL, ((1 << Z_ORDER_shift) | /* EARLY_Z_THEN_LATE_Z */
 				 DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
-    PACK0(ib, SX_ALPHA_TEST_CONTROL, 5);
-    E32(ib, 0); // SX_ALPHA_TEST_CONTROL
-    E32(ib, 0x00000000); //CB_BLEND_RED
-    E32(ib, 0x00000000);
-    E32(ib, 0x00000000);
-    E32(ib, 0x00000000);
-    END_BATCH();
-
-    if (info->ChipFamily < CHIP_FAMILY_RV770) {
-	BEGIN_BATCH(11);
-	PACK0(ib, CB_FOG_RED, 3);
-	E32(ib, 0x00000000);
-	E32(ib, 0x00000000);
-	E32(ib, 0x00000000);
-	PACK0(ib, CB_CLEAR_RED, 4);
-	EFLOAT(ib, 1.0);						/* WTF? */
-	EFLOAT(ib, 0.0);
-	EFLOAT(ib, 1.0);
-	EFLOAT(ib, 1.0);
-	END_BATCH();
-    }
-
-    BEGIN_BATCH(21);
     PACK0(ib, CB_CLRCMP_CONTROL, 4);
     E32(ib, 1 << CLRCMP_FCN_SEL_shift);				// CB_CLRCMP_CONTROL: use CLRCMP_FCN_SRC
     E32(ib, 0);							// CB_CLRCMP_SRC
@@ -996,16 +924,10 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     for (i = 0; i < PA_SC_CLIPRECT_0_TL_num; i++)
 	set_clip_rect (pScrn, ib, i, 0, 0, 8192, 8192);
 
-    for (i = 0; i < PA_SC_VPORT_SCISSOR_0_TL_num; i++) {
+    for (i = 0; i < PA_SC_VPORT_SCISSOR_0_TL_num; i++)
 	set_vport_scissor (pScrn, ib, i, 0, 0, 8192, 8192);
-	BEGIN_BATCH(4);
-	PACK0(ib, PA_SC_VPORT_ZMIN_0 + i * PA_SC_VPORT_ZMIN_0_offset, 2);
-	EFLOAT(ib, 0.0);
-	EFLOAT(ib, 1.0);
-	END_BATCH();
-    }
 
-    BEGIN_BATCH(16);
+    BEGIN_BATCH(40);
     PACK0(ib, PA_SC_MPASS_PS_CNTL, 2);
     E32(ib, 0);
     if (info->ChipFamily < CHIP_FAMILY_RV770)
@@ -1025,25 +947,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_DISC_ADJ
 
     EREG(ib, PA_SC_AA_MASK,                       0xFFFFFFFF);
-    END_BATCH();
-
-    //XXX: double check this
-    if (info->ChipFamily > CHIP_FAMILY_R600) {
-	BEGIN_BATCH(6);
-	EREG(ib, PA_SC_AA_SAMPLE_LOCS_MCTX,       0);
-	EREG(ib, PA_SC_AA_SAMPLE_LOCS_8S_WD1_M,   0);
-	END_BATCH();
-    }
-
-    BEGIN_BATCH(38);
-    // CL
-    PACK0(ib, PA_CL_VPORT_XSCALE_0, 6);
-    EFLOAT(ib, 0.0f);						// PA_CL_VPORT_XSCALE
-    EFLOAT(ib, 0.0f);						// PA_CL_VPORT_XOFFSET
-    EFLOAT(ib, 0.0f);						// PA_CL_VPORT_YSCALE
-    EFLOAT(ib, 0.0f);						// PA_CL_VPORT_YOFFSET
-    EFLOAT(ib, 0.0f);						// PA_CL_VPORT_ZSCALE
-    EFLOAT(ib, 0.0f);						// PA_CL_VPORT_ZOFFSET
 
     PACK0(ib, PA_CL_CLIP_CNTL, 5);
     E32(ib, CLIP_DISABLE_bit); // PA_CL_CLIP_CNTL
@@ -1051,12 +954,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     E32(ib, VTX_XY_FMT_bit);   // PA_CL_VTE_CNTL
     E32(ib, 0);                // PA_CL_VS_OUT_CNTL
     E32(ib, 0);                // PA_CL_NANINF_CNTL
-
-    PACK0(ib, PA_SU_POINT_SIZE, 4);
-    E32(ib, 0); // PA_SU_POINT_SIZE
-    E32(ib, 0); // PA_SU_POINT_MINMAX
-    E32(ib, (8 << PA_SU_LINE_CNTL__WIDTH_shift)); /* Line width 1 pixel */ // PA_SU_LINE_CNTL
-    E32(ib, 0); // PA_SC_LINE_STIPPLE
 
     PACK0(ib, PA_SU_POLY_OFFSET_DB_FMT_CNTL, 6);
     E32(ib, 0); // PA_SU_POLY_OFFSET_DB_FMT_CNTL
