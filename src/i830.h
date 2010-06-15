@@ -648,13 +648,4 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 	return pixmap == screen->GetScreenPixmap(screen);
 }
 
-/*
- * Pad to accelerator requirement
- */
-static inline int i830_pad_drawable_width(int width)
-{
-	return (width + 63) & ~63;
-}
-
-
 #endif /* _I830_H_ */

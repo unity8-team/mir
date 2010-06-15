@@ -163,6 +163,14 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 		return FALSE;
 }
 
+/*
+ * Pad to accelerator requirement
+ */
+static inline int i830_pad_drawable_width(int width)
+{
+	return (width + 63) & ~63;
+}
+
 /**
  * Allocates a framebuffer for a screen.
  *

@@ -60,6 +60,7 @@ typedef struct {
     drmModeCrtcPtr mode_crtc;
     dri_bo *cursor;
     dri_bo *rotate_bo;
+    uint32_t rotate_pitch;
     uint32_t rotate_fb_id;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
@@ -472,8 +473,8 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	ScrnInfoPtr scrn = crtc->scrn;
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	int ret;
 	unsigned long rotate_pitch;
+	int ret;
 
 	drmmode_crtc->rotate_bo = i830_allocate_framebuffer(scrn,
 							    width, height,
@@ -496,6 +497,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
+	drmmode_crtc->rotate_pitch = rotate_pitch;
 	return drmmode_crtc->rotate_bo;
 }
 
@@ -505,8 +507,6 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	ScrnInfoPtr scrn = crtc->scrn;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	unsigned long rotate_pitch;
 	PixmapPtr rotate_pixmap;
 
 	if (!data) {
@@ -517,13 +517,17 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 			return NULL;
 		}
 	}
+	if (drmmode_crtc->rotate_bo == NULL) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
+		return NULL;
+	}
 
-	rotate_pitch = i830_pad_drawable_width(width) * drmmode->cpp;
 	rotate_pixmap = GetScratchPixmapHeader(scrn->pScreen,
 					       width, height,
 					       scrn->depth,
 					       scrn->bitsPerPixel,
-					       rotate_pitch,
+					       drmmode_crtc->rotate_pitch,
 					       NULL);
 
 	if (rotate_pixmap == NULL) {
@@ -532,8 +536,7 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 		return NULL;
 	}
 
-	if (drmmode_crtc->rotate_bo)
-		i830_set_pixmap_bo(rotate_pixmap, drmmode_crtc->rotate_bo);
+	i830_set_pixmap_bo(rotate_pixmap, drmmode_crtc->rotate_bo);
 
 	intel->shadow_present = TRUE;
 
