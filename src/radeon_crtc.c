@@ -564,28 +564,12 @@ radeon_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
 		      uint16_t *blue, int size)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    ScrnInfoPtr		pScrn = crtc->scrn;
-    int i, j;
+    int i;
 
-    if (pScrn->depth == 16) {
-	for (i = 0; i < 64; i++) {
-	    if (i <= 31) {
-		for (j = 0; j < 8; j++) {
-		    radeon_crtc->lut_r[i * 8 + j] = red[i] >> 6;
-		    radeon_crtc->lut_b[i * 8 + j] = blue[i] >> 6;
-		}
-	    }
-
-	    for (j = 0; j < 4; j++) {
-		radeon_crtc->lut_g[i * 4 + j] = green[i] >> 6;
-	    }
-	}
-    } else {
-	for (i = 0; i < 256; i++) {
-	    radeon_crtc->lut_r[i] = red[i] >> 6;
-	    radeon_crtc->lut_g[i] = green[i] >> 6;
-	    radeon_crtc->lut_b[i] = blue[i] >> 6;
-	}
+    for (i = 0; i < 256; i++) {
+	radeon_crtc->lut_r[i] = red[i] >> 6;
+	radeon_crtc->lut_g[i] = green[i] >> 6;
+	radeon_crtc->lut_b[i] = blue[i] >> 6;
     }
 
     radeon_crtc_load_lut(crtc);
