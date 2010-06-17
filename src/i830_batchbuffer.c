@@ -109,27 +109,11 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 		intel->vertex_bo = NULL;
 	}
 
-	while (!list_is_empty(&intel->batch_pixmaps)) {
-		struct intel_pixmap *entry;
+	while (!list_is_empty(&intel->batch_pixmaps))
+		list_del(intel->batch_pixmaps.next);
 
-		entry = list_first_entry(&intel->batch_pixmaps,
-					 struct intel_pixmap,
-					 batch);
-
-		entry->batch_read_domains = entry->batch_write_domain = 0;
-		list_del(&entry->batch);
-	}
-
-	while (!list_is_empty(&intel->flush_pixmaps)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->flush_pixmaps,
-					 struct intel_pixmap,
-					 flush);
-
-		entry->flush_read_domains = entry->flush_write_domain = 0;
-		list_del(&entry->flush);
-	}
+	while (!list_is_empty(&intel->flush_pixmaps))
+		list_del(intel->flush_pixmaps.next);
 
 	while (!list_is_empty(&intel->in_flight)) {
 		struct intel_pixmap *entry;
@@ -148,16 +132,8 @@ void intel_batch_do_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	while (!list_is_empty(&intel->flush_pixmaps)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->flush_pixmaps,
-					 struct intel_pixmap,
-					 flush);
-
-		entry->flush_read_domains = entry->flush_write_domain = 0;
-		list_del(&entry->flush);
-	}
+	while (!list_is_empty(&intel->flush_pixmaps))
+		list_del(intel->flush_pixmaps.next);
 
 	intel->need_mi_flush = FALSE;
 }
@@ -239,8 +215,8 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 					 struct intel_pixmap,
 					 batch);
 
-		entry->batch_read_domains = entry->batch_write_domain = 0;
 		entry->busy = -1;
+		entry->batch_write = 0;
 		list_del(&entry->batch);
 	}
 
@@ -249,16 +225,8 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 	 * the work.
 	 */
 	intel->need_mi_flush = !list_is_empty(&intel->flush_pixmaps);
-	while (!list_is_empty(&intel->flush_pixmaps)) {
-		struct intel_pixmap *entry;
-
-		entry = list_first_entry(&intel->flush_pixmaps,
-					 struct intel_pixmap,
-					 flush);
-
-		entry->flush_read_domains = entry->flush_write_domain = 0;
-		list_del(&entry->flush);
-	}
+	while (!list_is_empty(&intel->flush_pixmaps))
+		list_del(intel->flush_pixmaps.next);
 
 	while (!list_is_empty(&intel->in_flight)) {
 		struct intel_pixmap *entry;

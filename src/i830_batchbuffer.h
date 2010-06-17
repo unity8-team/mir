@@ -123,19 +123,13 @@ intel_batch_mark_pixmap_domains(intel_screen_private *intel,
 {
 	assert (read_domains);
 	assert (write_domain == 0 || write_domain == read_domains);
-	assert (write_domain == 0 ||
-		priv->flush_write_domain == 0 ||
-		priv->flush_write_domain == write_domain);
 
-	priv->flush_read_domains |= read_domains;
-	priv->batch_read_domains |= read_domains;
-	priv->flush_write_domain |= write_domain;
-	priv->batch_write_domain |= write_domain;
 	if (list_is_empty(&priv->batch))
 		list_add(&priv->batch, &intel->batch_pixmaps);
 	if (list_is_empty(&priv->flush))
 		list_add(&priv->flush, &intel->flush_pixmaps);
 
+	priv->batch_write |= write_domain != 0;
 	priv->busy = 1;
 }
 

@@ -676,7 +676,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	int ret;
 
 	if (!list_is_empty(&priv->batch) &&
-	    (access == UXA_ACCESS_RW || priv->batch_write_domain))
+	    (access == UXA_ACCESS_RW || priv->batch_write))
 		intel_batch_submit(scrn);
 
 	if (bo->size > intel->max_gtt_map_size) {

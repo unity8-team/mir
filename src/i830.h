@@ -168,14 +168,10 @@ struct intel_pixmap {
 
 	struct list flush, batch, in_flight;
 
-	int8_t busy;
-	uint8_t tiling;
 	uint16_t stride;
-
-	uint16_t flush_write_domain;
-	uint16_t flush_read_domains;
-	uint16_t batch_write_domain;
-	uint16_t batch_read_domains;
+	uint8_t tiling;
+	int8_t busy :2;
+	int8_t batch_write :1;
 };
 
 #if HAS_DEVPRIVATEKEYREC
@@ -207,7 +203,7 @@ static inline void i830_set_pixmap_intel(PixmapPtr pixmap, struct intel_pixmap *
 
 static inline Bool i830_uxa_pixmap_is_dirty(PixmapPtr pixmap)
 {
-	return i830_get_pixmap_intel(pixmap)->flush_write_domain != 0;
+	return !list_is_empty(&i830_get_pixmap_intel(pixmap)->flush);
 }
 
 static inline Bool i830_pixmap_tiled(PixmapPtr pixmap)
