@@ -165,12 +165,17 @@ list_is_empty(struct list *head)
 
 struct intel_pixmap {
 	dri_bo *bo;
-	uint32_t tiling, stride;
-	uint32_t flush_write_domain;
-	uint32_t flush_read_domains;
-	uint32_t batch_write_domain;
-	uint32_t batch_read_domains;
+
 	struct list flush, batch, in_flight;
+
+	int8_t busy;
+	uint8_t tiling;
+	uint16_t stride;
+
+	uint16_t flush_write_domain;
+	uint16_t flush_read_domains;
+	uint16_t batch_write_domain;
+	uint16_t batch_read_domains;
 };
 
 #if HAS_DEVPRIVATEKEYREC
@@ -186,6 +191,13 @@ static inline struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap)
 #else
 	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
 #endif
+}
+
+static inline Bool intel_pixmap_is_busy(struct intel_pixmap *priv)
+{
+	if (priv->busy == -1)
+		priv->busy = drm_intel_bo_busy(priv->bo);
+	return priv->busy;
 }
 
 static inline void i830_set_pixmap_intel(PixmapPtr pixmap, struct intel_pixmap *intel)

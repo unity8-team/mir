@@ -240,6 +240,7 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 					 batch);
 
 		entry->batch_read_domains = entry->batch_write_domain = 0;
+		entry->busy = -1;
 		list_del(&entry->batch);
 	}
 

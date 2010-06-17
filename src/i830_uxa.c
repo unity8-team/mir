@@ -629,6 +629,7 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 	}
 
 	if (bo != NULL) {
+		uint32_t tiling;
 		uint32_t swizzle_mode;
 		int ret;
 
@@ -646,12 +647,15 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		priv->stride = i830_pixmap_pitch(pixmap);
 
 		ret = drm_intel_bo_get_tiling(bo,
-					      &priv->tiling,
+					      &tiling,
 					      &swizzle_mode);
 		if (ret != 0) {
 			FatalError("Couldn't get tiling on bo %p: %s\n",
 				   bo, strerror(-ret));
 		}
+
+		priv->tiling = tiling;
+		priv->busy = -1;
 	} else {
 		if (priv != NULL) {
 			free(priv);
@@ -696,6 +700,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	}
 
 	pixmap->devPrivate.ptr = bo->virtual;
+	priv->busy = 0;
 
 	return TRUE;
 }
@@ -718,77 +723,32 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 	pixmap->devPrivate.ptr = NULL;
 }
 
-static Bool i830_bo_put_image(PixmapPtr pixmap, dri_bo *bo, char *src, int src_pitch, int w, int h)
+static Bool i830_uxa_pixmap_put_image(PixmapPtr pixmap,
+				      char *src, int src_pitch,
+				      int x, int y, int w, int h)
 {
+	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
 	int stride = i830_pixmap_pitch(pixmap);
+	int ret = FALSE;
 
-	if (src_pitch == stride) {
-		memcpy (bo->virtual, src, stride * h);
-	} else {
-		char *dst = bo->virtual;
-		int row_length = w * pixmap->drawable.bitsPerPixel/8;
+	if (src_pitch == stride && w == pixmap->drawable.width && priv->tiling == I915_TILING_NONE) {
+		ret = drm_intel_bo_subdata(priv->bo, y * stride, stride * h, src) == 0;
+	} else if (drm_intel_gem_bo_map_gtt(priv->bo) == 0) {
+		char *dst = priv->bo->virtual;
+		int cpp = pixmap->drawable.bitsPerPixel/8;
+		int row_length = w * cpp;
 		int num_rows = h;
-		while (num_rows--) {
+		if (row_length == src_pitch && src_pitch == stride)
+			num_rows = 1, row_length *= h;
+		dst += y * stride + x * cpp;
+		do {
 			memcpy (dst, src, row_length);
 			src += src_pitch;
 			dst += stride;
-		}
+		} while (--num_rows);
+		drm_intel_gem_bo_unmap_gtt(priv->bo);
+		ret = TRUE;
 	}
-
-	return TRUE;
-}
-
-static Bool
-i830_uxa_pixmap_swap_bo_with_image(PixmapPtr pixmap,
-				   char *src, int src_pitch)
-{
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct intel_pixmap *priv;
-	dri_bo *bo;
-	uint32_t tiling = I915_TILING_X;
-	int stride;
-	int w = pixmap->drawable.width;
-	int h = pixmap->drawable.height;
-	Bool ret;
-
-	priv = i830_get_pixmap_intel(pixmap);
-
-	if (priv->batch_read_domains || drm_intel_bo_busy(priv->bo)) {
-		unsigned int size;
-
-		size = i830_uxa_pixmap_compute_size (pixmap, w, h,
-						     &tiling, &stride);
-		if (size > intel->max_gtt_map_size)
-			return FALSE;
-
-		bo = drm_intel_bo_alloc(intel->bufmgr, "pixmap", size, 0);
-		if (bo == NULL)
-			return FALSE;
-
-		if (tiling != I915_TILING_NONE)
-			drm_intel_bo_set_tiling(bo, &tiling, stride);
-
-		pixmap->drawable.pScreen->ModifyPixmapHeader(pixmap,
-							     w, h,
-							     0, 0,
-							     stride, NULL);
-		i830_set_pixmap_bo(pixmap, bo);
-		dri_bo_unreference(bo);
-	} else {
-		bo = priv->bo;
-		stride = i830_pixmap_pitch(pixmap);
-	}
-
-	if (drm_intel_gem_bo_map_gtt(bo)) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s: bo map failed\n", __FUNCTION__);
-		return FALSE;
-	}
-
-	ret = i830_bo_put_image(pixmap, bo, src, src_pitch, w, h);
-
-	drm_intel_gem_bo_unmap_gtt(bo);
 
 	return ret;
 }
@@ -798,114 +758,77 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 			       int w, int h,
 			       char *src, int src_pitch)
 {
-	ScreenPtr screen = pixmap->drawable.pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	PixmapPtr scratch;
 	struct intel_pixmap *priv;
-	GCPtr gc;
-	Bool ret;
-
-	if (x == 0 && y == 0 &&
-	    w == pixmap->drawable.width &&
-	    h == pixmap->drawable.height)
-	{
-		/* Replace GPU hot bo with new CPU data. */
-		return i830_uxa_pixmap_swap_bo_with_image(pixmap,
-							  src, src_pitch);
-	}
 
 	priv = i830_get_pixmap_intel(pixmap);
-	if (priv->batch_read_domains ||
-	    drm_intel_bo_busy(priv->bo)) {
-		dri_bo *bo;
-
-		/* Partial replacement, copy incoming image to a bo and blit. */
-		scratch = (*screen->CreatePixmap)(screen, w, h,
-						  pixmap->drawable.depth,
-						  UXA_CREATE_PIXMAP_FOR_MAP);
-		if (!scratch)
-			return FALSE;
-
-		bo = i830_get_pixmap_bo(scratch);
-		if (drm_intel_gem_bo_map_gtt(bo)) {
-			(*screen->DestroyPixmap) (scratch);
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: bo map failed\n", __FUNCTION__);
-			return FALSE;
-		}
-
-		ret = i830_bo_put_image(scratch, bo, src, src_pitch, w, h);
-
-		drm_intel_gem_bo_unmap_gtt(bo);
-
-		if (ret) {
-			gc = GetScratchGC(pixmap->drawable.depth, screen);
-			if (gc) {
-				ValidateGC(&pixmap->drawable, gc);
-
-				(*gc->ops->CopyArea)(&scratch->drawable,
-						     &pixmap->drawable,
-						     gc, 0, 0, w, h, x, y);
-
-				FreeScratchGC(gc);
-			} else
-				ret = FALSE;
-		}
-
-		(*screen->DestroyPixmap)(scratch);
+	if (!intel_pixmap_is_busy(priv)) {
+		/* bo is not busy so can be replaced without a stall, upload in-place. */
+		return i830_uxa_pixmap_put_image(pixmap, src, src_pitch, x, y, w, h);
 	} else {
-		int dst_pitch;
+		ScreenPtr screen = pixmap->drawable.pScreen;
 
-		/* bo is not busy so can be mapped without a stall, upload in-place. */
-		if (drm_intel_gem_bo_map_gtt(priv->bo)) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: bo map failed\n", __FUNCTION__);
-			return FALSE;
-		}
-
-		ret = TRUE;
-
-		/* Older version of pixman did not allow blt for <= 8bpp
-		 * images, so if the blt fails fallback to using the fb.
-		 */
-		dst_pitch = i830_pixmap_pitch (pixmap);
-		if (! pixman_blt((uint32_t *)src,
-				 priv->bo->virtual,
-				 src_pitch / sizeof(uint32_t),
-				 dst_pitch / sizeof(uint32_t),
-				 pixmap->drawable.bitsPerPixel,
-				 pixmap->drawable.bitsPerPixel,
-				 0, 0,
-				 x, y,
-				 w, h))
+		if (x == 0 && y == 0 &&
+		    w == pixmap->drawable.width &&
+		    h == pixmap->drawable.height)
 		{
-			ret = FALSE;
+			intel_screen_private *intel = intel_get_screen_private(xf86Screens[screen->myNum]);
+			uint32_t tiling = priv->tiling;
+			int size, stride;
+			dri_bo *bo;
 
-			scratch = GetScratchPixmapHeader(screen,
-							 w, h,
-							 pixmap->drawable.depth,
-							 pixmap->drawable.bitsPerPixel,
-							 src_pitch,
-							 (pointer) src);
-			if (scratch) {
-				gc = GetScratchGC(pixmap->drawable.depth, screen);
+			/* Replace busy bo. */
+			size = i830_uxa_pixmap_compute_size (pixmap, w, h,
+							     &tiling, &stride);
+			if (size > intel->max_gtt_map_size)
+				return FALSE;
+
+			bo = drm_intel_bo_alloc(intel->bufmgr, "pixmap", size, 0);
+			if (bo == NULL)
+				return FALSE;
+
+			if (tiling != I915_TILING_NONE)
+				drm_intel_bo_set_tiling(bo, &tiling, stride);
+
+			screen->ModifyPixmapHeader(pixmap,
+						   w, h,
+						   0, 0,
+						   stride, NULL);
+			i830_set_pixmap_bo(pixmap, bo);
+			dri_bo_unreference(bo);
+
+			return i830_uxa_pixmap_put_image(pixmap, src, src_pitch, 0, 0, w, h);
+		}
+		else
+		{
+			PixmapPtr scratch;
+			Bool ret;
+
+			/* Upload to a linear buffer and queue a blit.  */
+			scratch = (*screen->CreatePixmap)(screen, w, h,
+							  pixmap->drawable.depth,
+							  UXA_CREATE_PIXMAP_FOR_MAP);
+			if (!scratch)
+				return FALSE;
+
+			ret = i830_uxa_pixmap_put_image(scratch, src, src_pitch, 0, 0, w, h);
+			if (ret) {
+				GCPtr gc = GetScratchGC(pixmap->drawable.depth, screen);
 				if (gc) {
 					ValidateGC(&pixmap->drawable, gc);
-					pixmap->devPrivate.ptr = priv->bo->virtual;
-					ret = !! fbCopyArea(&scratch->drawable, &pixmap->drawable, gc,
-							    0, 0,
-							    w, h,
-							    x, y);
+
+					(*gc->ops->CopyArea)(&scratch->drawable,
+							     &pixmap->drawable,
+							     gc, 0, 0, w, h, x, y);
+
 					FreeScratchGC(gc);
-				}
-				FreeScratchPixmapHeader(scratch);
+				} else
+					ret = FALSE;
 			}
+
+			(*screen->DestroyPixmap)(scratch);
+			return ret;
 		}
-
-		drm_intel_gem_bo_unmap_gtt(priv->bo);
 	}
-
-	return ret;
 }
 
 void i830_uxa_block_handler(ScreenPtr screen)
@@ -1024,25 +947,26 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			return NullPixmap;
 		}
 
-		if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
+		if (usage == UXA_CREATE_PIXMAP_FOR_MAP) {
+			priv->busy = 0;
 			priv->bo = drm_intel_bo_alloc(intel->bufmgr,
 						      "pixmap", size, 0);
-		else
+		} else {
+			priv->busy = -1;
 			priv->bo = drm_intel_bo_alloc_for_render(intel->bufmgr,
 								 "pixmap",
 								 size, 0);
+		}
 		if (!priv->bo) {
 			free(priv);
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
 		}
 
+		if (tiling != I915_TILING_NONE)
+			drm_intel_bo_set_tiling(priv->bo, &tiling, stride);
 		priv->stride = stride;
 		priv->tiling = tiling;
-		if (priv->tiling != I915_TILING_NONE)
-			drm_intel_bo_set_tiling(priv->bo,
-						&priv->tiling,
-						stride);
 
 		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 
@@ -1072,6 +996,7 @@ void i830_uxa_create_screen_resources(ScreenPtr screen)
 	if (bo != NULL) {
 		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
 		i830_set_pixmap_bo(pixmap, bo);
+		i830_get_pixmap_intel(pixmap)->busy = 1;
 	}
 }
 
