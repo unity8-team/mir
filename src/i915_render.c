@@ -1032,9 +1032,14 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 	    OUT_BATCH (intel->render_mask_solid);
 	}
 
-	/* BUF_INFO is an implicit flush, so avoid if the target has not changed */
-	if (dest != intel->render_current_dest) {
+	/* BUF_INFO is an implicit flush, so avoid if the target has not changed.
+	 * XXX However for reasons unfathomed, correct rendering in KDE requires
+	 * at least a MI_FLUSH | INHIBIT_RENDER_CACHE_FLUSH here.
+	 */
+	if (1 || dest != intel->render_current_dest) {
 		uint32_t tiling_bits;
+
+		intel_batch_do_flush(scrn);
 
 		if (i830_pixmap_tiled(dest)) {
 			tiling_bits = BUF_3D_TILED_SURFACE;
