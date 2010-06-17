@@ -831,6 +831,94 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 	}
 }
 
+static Bool i830_uxa_pixmap_get_image(PixmapPtr pixmap,
+				      int x, int y, int w, int h,
+				      char *dst, int dst_pitch)
+{
+	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
+	int stride = i830_pixmap_pitch(pixmap);
+
+	if (dst_pitch == stride && w == pixmap->drawable.width) {
+		return drm_intel_bo_get_subdata(priv->bo, y * stride, stride * h, dst) == 0;
+	} else {
+		char *src;
+		int cpp;
+
+		if (drm_intel_bo_map(priv->bo, FALSE))
+		    return FALSE;
+
+		cpp = pixmap->drawable.bitsPerPixel/8;
+		src = (char *) priv->bo->virtual + y * stride + x * cpp;
+		w *= cpp;
+		do {
+			memcpy(dst, src, w);
+			src += stride;
+			dst += dst_pitch;
+		} while (--h);
+
+		drm_intel_bo_unmap(priv->bo);
+
+		return TRUE;
+	}
+}
+
+static Bool i830_uxa_get_image(PixmapPtr pixmap,
+			       int x, int y,
+			       int w, int h,
+			       char *dst, int dst_pitch)
+{
+	struct intel_pixmap *priv;
+	PixmapPtr scratch = NULL;
+	Bool ret;
+
+	/* The presumption is that we wish to keep the target hot, so
+	 * copy to a new bo and move that to the CPU in preference to
+	 * causing ping-pong of the original.
+	 *
+	 * Also the gpu is much faster at detiling.
+	 */
+
+	priv = i830_get_pixmap_intel(pixmap);
+	if (intel_pixmap_is_busy(priv) || priv->tiling != I915_TILING_NONE) {
+		ScreenPtr screen = pixmap->drawable.pScreen;
+		GCPtr gc;
+
+		/* Copy to a linear buffer and pull.  */
+		scratch = screen->CreatePixmap(screen, w, h,
+					       pixmap->drawable.depth,
+					       INTEL_CREATE_PIXMAP_TILING_NONE);
+		if (!scratch)
+			return FALSE;
+
+		gc = GetScratchGC(pixmap->drawable.depth, screen);
+		if (!gc) {
+			screen->DestroyPixmap(scratch);
+			return FALSE;
+		}
+
+		ValidateGC(&pixmap->drawable, gc);
+
+		gc->ops->CopyArea(&pixmap->drawable,
+				  &scratch->drawable,
+				  gc, x, y, w, h, 0, 0);
+
+		FreeScratchGC(gc);
+
+		intel_batch_submit(xf86Screens[screen->myNum]);
+
+		x = y = 0;
+		pixmap = scratch;
+	}
+
+	ret = i830_uxa_pixmap_get_image(pixmap, x, y, w, h, dst, dst_pitch);
+
+	if (scratch)
+		scratch->drawable.pScreen->DestroyPixmap(scratch);
+
+	return ret;
+
+}
+
 void i830_uxa_block_handler(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
@@ -884,7 +972,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		tiling = I915_TILING_X;
 		if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
 			tiling = I915_TILING_Y;
-		if (usage == UXA_CREATE_PIXMAP_FOR_MAP)
+		if (usage == UXA_CREATE_PIXMAP_FOR_MAP || usage == INTEL_CREATE_PIXMAP_TILING_NONE)
 			tiling = I915_TILING_NONE;
 
 		if (tiling != I915_TILING_NONE) {
@@ -1069,6 +1157,7 @@ Bool i830_uxa_init(ScreenPtr screen)
 
 	/* PutImage */
 	intel->uxa_driver->put_image = i830_uxa_put_image;
+	intel->uxa_driver->get_image = i830_uxa_get_image;
 
 	intel->uxa_driver->prepare_access = i830_uxa_prepare_access;
 	intel->uxa_driver->finish_access = i830_uxa_finish_access;
