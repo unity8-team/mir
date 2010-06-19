@@ -618,8 +618,45 @@ uxa_copy_n_to_n(DrawablePtr pSrcDrawable,
 		goto fallback;
 	}
 
-	if (!uxa_pixmap_is_offscreen(pDstPixmap))
-	    goto fallback;
+	if (!uxa_pixmap_is_offscreen(pDstPixmap)) {
+		int stride, bpp;
+		char *dst;
+
+		if (!uxa_pixmap_is_offscreen(pSrcPixmap))
+			goto fallback;
+
+		if (!uxa_screen->info->get_image)
+			goto fallback;
+
+		/* Don't bother with under 8bpp, XYPixmaps. */
+		bpp = pSrcPixmap->drawable.bitsPerPixel;
+		if (bpp != pDstDrawable->bitsPerPixel || bpp < 8)
+			goto fallback;
+
+		/* Only accelerate copies: no rop or planemask. */
+		if (pGC && (!UXA_PM_IS_SOLID(pSrcDrawable, pGC->planemask) || pGC->alu != GXcopy))
+			goto fallback;
+
+		dst = pDstPixmap->devPrivate.ptr;
+		stride = pDstPixmap->devKind;
+		bpp /= 8;
+		while (nbox--) {
+			if (!uxa_screen->info->get_image(pSrcPixmap,
+							 pbox->x1 + src_off_x,
+							 pbox->y1 + src_off_y,
+							 pbox->x2 - pbox->x1,
+							 pbox->y2 - pbox->y1,
+							 (char *) dst +
+							 (pbox->y1 + dy + dst_off_y) * stride +
+							 (pbox->x1 + dx + dst_off_x) * bpp,
+							 stride))
+				goto fallback;
+
+			pbox++;
+		}
+
+		return;
+	}
 
 	if (uxa_pixmap_is_offscreen(pSrcPixmap)) {
 	    if (!(*uxa_screen->info->prepare_copy) (pSrcPixmap, pDstPixmap,
