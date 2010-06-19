@@ -361,92 +361,12 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	return TRUE;
 }
 
-#ifdef MITSHM
-
-#include "xorgVersion.h"
-
-static Bool
-uxa_do_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
-		     unsigned int format, int w, int h, int sx, int sy, int sw,
-		     int sh, int dx, int dy, char *data)
-{
-	int src_stride = PixmapBytePad(w, depth);
-
-	if (uxa_do_put_image
-	    (pDrawable, pGC, depth, dx, dy, sw, sh, format,
-	     data + sy * src_stride + sx * BitsPerPixel(depth) / 8, src_stride))
-		return TRUE;
-
-	if (format == ZPixmap) {
-		PixmapPtr pPixmap;
-
-		pPixmap =
-		    GetScratchPixmapHeader(pDrawable->pScreen, w, h, depth,
-					   BitsPerPixel(depth), PixmapBytePad(w,
-									      depth),
-					   (pointer) data);
-		if (!pPixmap)
-			return FALSE;
-
-		if (!uxa_prepare_access(pDrawable, UXA_ACCESS_RW)) {
-			FreeScratchPixmapHeader(pPixmap);
-			return FALSE;
-		}
-
-		fbCopyArea((DrawablePtr) pPixmap, pDrawable, pGC, sx, sy, sw,
-			   sh, dx, dy);
-		uxa_finish_access(pDrawable);
-
-		FreeScratchPixmapHeader(pPixmap);
-
-		return TRUE;
-	}
-
-	return FALSE;
-}
-
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,5,99,0,0)
-
-/* The actual ShmPutImage isn't wrapped by the damage layer, so we need to
- * inform any interested parties of the damage incurred to the drawable.
- *
- * We also need to set the pending damage to ensure correct migration in all
- * cases.
- */
-void
-uxa_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
-		  unsigned int format, int w, int h, int sx, int sy, int sw,
-		  int sh, int dx, int dy, char *data)
-{
-	if (!uxa_do_shm_put_image
-	    (pDrawable, pGC, depth, format, w, h, sx, sy, sw, sh, dx, dy,
-	     data)) {
-		if (!uxa_prepare_access(pDrawable, UXA_ACCESS_RW))
-			return;
-		fbShmPutImage(pDrawable, pGC, depth, format, w, h, sx, sy, sw,
-			      sh, dx, dy, data);
-		uxa_finish_access(pDrawable);
-	}
-}
-#else
-#define uxa_shm_put_image NULL
-#endif
-
-ShmFuncs uxa_shm_funcs = { NULL, uxa_shm_put_image };
-
-#endif
-
 static void
 uxa_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	      int w, int h, int leftPad, int format, char *bits)
 {
-#ifdef MITSHM
-	if (!uxa_do_shm_put_image
-	    (pDrawable, pGC, depth, format, w, h, 0, 0, w, h, x, y, bits))
-#else
 	if (!uxa_do_put_image(pDrawable, pGC, depth, x, y, w, h, format, bits,
 			      PixmapBytePad(w, pDrawable->depth)))
-#endif
 		uxa_check_put_image(pDrawable, pGC, depth, x, y, w, h, leftPad,
 				    format, bits);
 }

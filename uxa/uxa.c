@@ -553,14 +553,6 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	}
 #endif
 
-#ifdef MITSHM
-	/* Re-register with the MI funcs, which don't allow shared pixmaps.
-	 * Shared pixmaps are almost always a performance loss for us, but this
-	 * still allows for SHM PutImage.
-	 */
-	ShmRegisterFuncs(screen, &uxa_shm_funcs);
-#endif
-
 	LogMessage(X_INFO,
 		   "UXA(%d): Driver registered support for the following"
 		   " operations:\n", screen->myNum);

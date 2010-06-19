@@ -41,14 +41,6 @@
 #include <X11/X.h>
 #define NEED_EVENTS
 #include <X11/Xproto.h>
-#ifdef MITSHM
-#ifdef HAVE_XEXTPROTO_71
-#include <X11/extensions/shm.h>
-#else
-#define _XSHM_SERVER_
-#include <X11/extensions/shmstr.h>
-#endif
-#endif
 #include "scrnintstr.h"
 #include "pixmapstr.h"
 #include "windowstr.h"
@@ -294,11 +286,6 @@ Bool
 uxa_fill_region_tiled(DrawablePtr pDrawable, RegionPtr pRegion, PixmapPtr pTile,
 		      DDXPointPtr pPatOrg, CARD32 planemask, CARD32 alu);
 
-void
-uxa_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
-		  unsigned int format, int w, int h, int sx, int sy, int sw,
-		  int sh, int dx, int dy, char *data);
-
 void uxa_paint_window(WindowPtr pWin, RegionPtr pRegion, int what);
 
 void
@@ -306,24 +293,6 @@ uxa_get_image(DrawablePtr pDrawable, int x, int y, int w, int h,
 	      unsigned int format, unsigned long planeMask, char *d);
 
 extern const GCOps uxa_ops;
-
-#ifdef MITSHM
-/* XXX these come from shmint.h, which isn't exported by the server */
-
-#ifdef HAVE_XEXTPROTO_71
-#include "shmint.h"
-#else
-
-void ShmRegisterFuncs(ScreenPtr pScreen, ShmFuncsPtr funcs);
-
-void ShmSetPixmapFormat(ScreenPtr pScreen, int format);
-
-void fbShmPutImage(XSHM_PUT_IMAGE_ARGS);
-#endif
-
-extern ShmFuncs uxa_shm_funcs;
-
-#endif
 
 #ifdef RENDER
 
