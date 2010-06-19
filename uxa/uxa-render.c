@@ -856,6 +856,9 @@ uxa_acquire_picture(ScreenPtr screen,
 		dst = uxa_acquire_drawable(screen, src,
 					   x, y, width, height,
 					   out_x, out_y);
+		if (!dst)
+			return 0;
+
 		if (uxa_screen->info->check_composite_texture &&
 		    !uxa_screen->info->check_composite_texture(screen, dst)) {
 			if (dst != src)
