@@ -47,6 +47,7 @@ format_for_depth(int depth)
 	case 16: return PICT_r5g6b5;
 	default:
 	case 24: return PICT_x8r8g8b8;
+	case 30: return PICT_x2r10g10b10;
 	case 32: return PICT_a8r8g8b8;
 	}
 }
