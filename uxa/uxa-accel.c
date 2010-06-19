@@ -562,13 +562,13 @@ uxa_copy_n_to_n(DrawablePtr pSrcDrawable,
 		bpp /= 8;
 		while (nbox--) {
 			if (!uxa_screen->info->get_image(pSrcPixmap,
-							 pbox->x1 + src_off_x,
-							 pbox->y1 + src_off_y,
+							 pbox->x1 + dx + src_off_x,
+							 pbox->y1 + dy + src_off_y,
 							 pbox->x2 - pbox->x1,
 							 pbox->y2 - pbox->y1,
 							 (char *) dst +
-							 (pbox->y1 + dy + dst_off_y) * stride +
-							 (pbox->x1 + dx + dst_off_x) * bpp,
+							 (pbox->y1 + dst_off_y) * stride +
+							 (pbox->x1 + dst_off_x) * bpp,
 							 stride))
 				goto fallback;
 
