@@ -1283,6 +1283,8 @@ void r600_vb_no_space(ScrnInfoPtr pScrn, int vert_size)
     }
 #endif 
 
-    r600_finish_op(pScrn, vert_size);
-    r600_cp_start(pScrn);
+    if (accel_state->vb_start_op != -1) {
+	r600_finish_op(pScrn, vert_size);
+	r600_cp_start(pScrn);
+    }
 }
