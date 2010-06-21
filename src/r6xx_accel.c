@@ -877,14 +877,50 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 
     sq_setup(pScrn, ib, &sq_conf);
 
-    BEGIN_BATCH(41);
+    BEGIN_BATCH(83);
+    if (info->ChipFamily < CHIP_FAMILY_RV770) {
+	EREG(ib, TA_CNTL_AUX, (( 3 << GRADIENT_CREDIT_shift) |
+				 - (28 << TD_FIFO_CREDIT_shift)));
+	EREG(ib, VC_ENHANCE, 0);
+	EREG(ib, R7xx_SQ_DYN_GPR_CNTL_PS_FLUSH_REQ, 0);
+	EREG(ib, DB_DEBUG, 0x82000000); /* ? */
+	EREG(ib, DB_WATERMARKS, ((4 << DEPTH_FREE_shift) |
+				 (16 << DEPTH_FLUSH_shift) |
+				 (0 << FORCE_SUMMARIZE_shift) |
+				 (4 << DEPTH_PENDING_FREE_shift) |
+				 (16 << DEPTH_CACHELINE_FREE_shift) |
+				 0));
+    } else {
+	EREG(ib, TA_CNTL_AUX, (( 2 << GRADIENT_CREDIT_shift) |
+			       - (28 << TD_FIFO_CREDIT_shift)));
+	EREG(ib, VC_ENHANCE, 0);
+	EREG(ib, R7xx_SQ_DYN_GPR_CNTL_PS_FLUSH_REQ, VS_PC_LIMIT_ENABLE_bit);
+	EREG(ib, DB_DEBUG, 0);
+	EREG(ib, DB_WATERMARKS, ((4 << DEPTH_FREE_shift) |
+				 (16 << DEPTH_FLUSH_shift) |
+				 (0 << FORCE_SUMMARIZE_shift) |
+				 (4 << DEPTH_PENDING_FREE_shift) |
+				 (4 << DEPTH_CACHELINE_FREE_shift) |
+				 0));
+    }
+
     PACK0(ib, SQ_VTX_BASE_VTX_LOC, 2);
     E32(ib, 0);
     E32(ib, 0);
 
+    PACK0(ib, SQ_ESGS_RING_ITEMSIZE, 9);
+    E32(ib, 0); // SQ_ESGS_RING_ITEMSIZE
+    E32(ib, 0); // SQ_GSVS_RING_ITEMSIZE
+    E32(ib, 0); // SQ_ESTMP_RING_ITEMSIZE
+    E32(ib, 0); // SQ_GSTMP_RING_ITEMSIZE
+    E32(ib, 0); // SQ_VSTMP_RING_ITEMSIZE
+    E32(ib, 0); // SQ_PSTMP_RING_ITEMSIZE
+    E32(ib, 0); // SQ_FBUF_RING_ITEMSIZE
+    E32(ib, 0); // SQ_REDUC_RING_ITEMSIZE
+    E32(ib, 0); // SQ_GS_VERT_ITEMSIZE
+
     // DB
     EREG(ib, DB_DEPTH_INFO,                       0);
-
     EREG(ib, DB_DEPTH_CONTROL,                    0);
     PACK0(ib, DB_RENDER_CONTROL, 2);
     E32(ib, STENCIL_COMPRESS_DISABLE_bit | DEPTH_COMPRESS_DISABLE_bit);
@@ -899,6 +935,15 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EREG(ib, DB_SHADER_CONTROL, ((1 << Z_ORDER_shift) | /* EARLY_Z_THEN_LATE_Z */
 				 DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
+    PACK0(ib, DB_STENCIL_CLEAR, 2);
+    E32(ib, 0); // DB_STENCIL_CLEAR
+    E32(ib, 0); // DB_DEPTH_CLEAR
+
+    PACK0(ib, DB_STENCILREFMASK, 3);
+    E32(ib, 0); // DB_STENCILREFMASK
+    E32(ib, 0); // DB_STENCILREFMASK_BF
+    E32(ib, 0); // SX_ALPHA_REF
+
     PACK0(ib, CB_CLRCMP_CONTROL, 4);
     E32(ib, 1 << CLRCMP_FCN_SEL_shift);				// CB_CLRCMP_CONTROL: use CLRCMP_FCN_SRC
     E32(ib, 0);							// CB_CLRCMP_SRC
@@ -907,6 +952,13 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 
     EREG(ib, CB_SHADER_MASK,                      OUTPUT0_ENABLE_mask);
     EREG(ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
+
+    PACK0(ib, SX_ALPHA_TEST_CONTROL, 5);
+    E32(ib, 0); // SX_ALPHA_TEST_CONTROL
+    E32(ib, 0x00000000); // CB_BLEND_RED
+    E32(ib, 0x00000000); // CB_BLEND_GREEN
+    E32(ib, 0x00000000); // CB_BLEND_BLUE
+    E32(ib, 0x00000000); // CB_BLEND_ALPHA
 
     EREG(ib, PA_SC_WINDOW_OFFSET,                 ((0 << WINDOW_X_OFFSET_shift) |
 						   (0 << WINDOW_Y_OFFSET_shift)));
@@ -936,7 +988,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 	E32(ib, (FORCE_EOV_CNTDWN_ENABLE_bit | FORCE_EOV_REZ_ENABLE_bit |
 		 0x00500000)); /* ? */
 
-    PACK0(ib, PA_SC_LINE_CNTL, 7);
+    PACK0(ib, PA_SC_LINE_CNTL, 9);
     E32(ib, 0); // PA_SC_LINE_CNTL
     E32(ib, 0); // PA_SC_AA_CONFIG
     E32(ib, ((2 << PA_SU_VTX_CNTL__ROUND_MODE_shift) | PIX_CENTER_bit | // PA_SU_VTX_CNTL
@@ -945,6 +997,8 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     EFLOAT(ib, 1.0);						// PA_CL_GB_VERT_DISC_ADJ
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_CLIP_ADJ
     EFLOAT(ib, 1.0);						// PA_CL_GB_HORZ_DISC_ADJ
+    E32(ib, 0);                                                 // PA_SC_AA_SAMPLE_LOCS_MCTX
+    E32(ib, 0);                                                 // PA_SC_AA_SAMPLE_LOCS_8S_WD1_M
 
     EREG(ib, PA_SC_AA_MASK,                       0xFFFFFFFF);
 
@@ -982,7 +1036,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     fs_setup(pScrn, ib, &fs_conf, RADEON_GEM_DOMAIN_VRAM);
 
     // VGT
-    BEGIN_BATCH(39);
+    BEGIN_BATCH(43);
     PACK0(ib, VGT_MAX_VTX_INDX, 4);
     E32(ib, 2048); /* XXX set to a reasonably large number of indices */ // VGT_MAX_VTX_INDX
     E32(ib, 0); // VGT_MIN_VTX_INDX
@@ -996,7 +1050,11 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     E32(ib, 0); // VGT_INSTANCE_STEP_RATE_0
     E32(ib, 0); // VGT_INSTANCE_STEP_RATE_1
 
-    PACK0(ib, VGT_OUTPUT_PATH_CNTL, 13);
+    PACK0(ib, PA_SU_POINT_SIZE, 17);
+    E32(ib, 0); // PA_SU_POINT_SIZE
+    E32(ib, 0); // PA_SU_POINT_MINMAX
+    E32(ib, (8 << PA_SU_LINE_CNTL__WIDTH_shift)); /* Line width 1 pixel */ // PA_SU_LINE_CNTL
+    E32(ib, 0); // PA_SC_LINE_STIPPLE
     E32(ib, 0); // VGT_OUTPUT_PATH_CNTL
     E32(ib, 0); // VGT_HOS_CNTL
     E32(ib, 0); // VGT_HOS_MAX_TESS_LEVEL
