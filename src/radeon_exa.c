@@ -372,7 +372,7 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
     }
 #endif
 	    
-    new_priv = xcalloc(1, sizeof(struct radeon_exa_pixmap_priv));
+    new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
     if (!new_priv)
 	return NULL;
 
@@ -382,7 +382,7 @@ void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
     new_priv->bo = radeon_bo_open(info->bufmgr, 0, size, align,
 				  RADEON_GEM_DOMAIN_VRAM, 0);
     if (!new_priv->bo) {
-	xfree(new_priv);
+	free(new_priv);
 	ErrorF("Failed to alloc memory\n");
 	return NULL;
     }
@@ -471,7 +471,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     padded_width = RADEON_ALIGN(padded_width, pixmap_align);
     size = height * padded_width;
 
-    new_priv = xcalloc(1, sizeof(struct radeon_exa_pixmap_priv));
+    new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
     if (!new_priv)
 	return NULL;
 
@@ -483,7 +483,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     new_priv->bo = radeon_bo_open(info->bufmgr, 0, size, 0,
 				  RADEON_GEM_DOMAIN_VRAM, 0);
     if (!new_priv->bo) {
-	xfree(new_priv);
+	free(new_priv);
 	ErrorF("Failed to alloc memory\n");
 	return NULL;
     }
@@ -503,7 +503,7 @@ void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 
     if (driver_priv->bo)
 	radeon_bo_unref(driver_priv->bo);
-    xfree(driverPriv);
+    free(driverPriv);
 }
 
 struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)

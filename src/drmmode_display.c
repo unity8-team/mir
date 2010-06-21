@@ -292,7 +292,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
 	}
 
-	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
+	output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
 	if (!output_ids) {
 		ret = FALSE;
 		goto done;
@@ -649,15 +649,15 @@ drmmode_output_destroy(xf86OutputPtr output)
 		drmModeFreePropertyBlob(drmmode_output->edid_blob);
 	for (i = 0; i < drmmode_output->num_props; i++) {
 		drmModeFreeProperty(drmmode_output->props[i].mode_prop);
-		xfree(drmmode_output->props[i].atoms);
+		free(drmmode_output->props[i].atoms);
 	}
 	for (i = 0; i < drmmode_output->mode_output->count_encoders; i++) {
 		drmModeFreeEncoder(drmmode_output->mode_encoders[i]);
-		xfree(drmmode_output->mode_encoders);
+		free(drmmode_output->mode_encoders);
 	}
-	xfree(drmmode_output->props);
+	free(drmmode_output->props);
 	drmModeFreeConnector(drmmode_output->mode_output);
-	xfree(drmmode_output);
+	free(drmmode_output);
 	output->driver_private = NULL;
 }
 
@@ -699,7 +699,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
     drmModePropertyPtr drmmode_prop;
     int i, j, err;
 
-    drmmode_output->props = xcalloc(mode_output->count_props, sizeof(drmmode_prop_rec));
+    drmmode_output->props = calloc(mode_output->count_props, sizeof(drmmode_prop_rec));
     if (!drmmode_output->props)
 	return;
     
@@ -725,7 +725,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
 	    INT32 value = p->value;
 
 	    p->num_atoms = 1;
-	    p->atoms = xcalloc(p->num_atoms, sizeof(Atom));
+	    p->atoms = calloc(p->num_atoms, sizeof(Atom));
 	    if (!p->atoms)
 		continue;
 	    p->atoms[0] = MakeAtom(drmmode_prop->name, strlen(drmmode_prop->name), TRUE);
@@ -747,7 +747,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
 	    }
 	} else if (drmmode_prop->flags & DRM_MODE_PROP_ENUM) {
 	    p->num_atoms = drmmode_prop->count_enums + 1;
-	    p->atoms = xcalloc(p->num_atoms, sizeof(Atom));
+	    p->atoms = calloc(p->num_atoms, sizeof(Atom));
 	    if (!p->atoms)
 		continue;
 	    p->atoms[0] = MakeAtom(drmmode_prop->name, strlen(drmmode_prop->name), TRUE);
@@ -896,7 +896,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	if (!koutput)
 		return;
 
-	kencoders = xcalloc(sizeof(drmModeEncoderPtr), koutput->count_encoders);
+	kencoders = calloc(sizeof(drmModeEncoderPtr), koutput->count_encoders);
 	if (!kencoders) {
 		goto out_free_encoders;
 	}
@@ -945,7 +945,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		goto out_free_encoders;
 	}
 
-	drmmode_output = xcalloc(sizeof(drmmode_output_private_rec), 1);
+	drmmode_output = calloc(sizeof(drmmode_output_private_rec), 1);
 	if (!drmmode_output) {
 		xf86OutputDestroy(output);
 		goto out_free_encoders;
@@ -985,7 +985,7 @@ out_free_encoders:
 	if (kencoders){
 		for (i = 0; i < koutput->count_encoders; i++)
 			drmModeFreeEncoder(kencoders[i]);
-		xfree(kencoders);
+		free(kencoders);
 	}
 	drmModeFreeConnector(koutput);
 	
@@ -1130,10 +1130,10 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	} else {
 		if (radeon_bo_map(info->front_bo, 1))
 			goto fail;
-		fb_shadow = xcalloc(1, screen_size);
+		fb_shadow = calloc(1, screen_size);
 		if (fb_shadow == NULL)
 			goto fail;
-		xfree(info->fb_shadow);
+		free(info->fb_shadow);
 		info->fb_shadow = fb_shadow;
 		screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
 					   width, height, -1, -1, pitch * cpp,

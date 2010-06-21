@@ -318,10 +318,10 @@ fail_exit:
 	curr_seg = seg_list;
 	while(curr_seg)
 	{
-		Xfree(curr_seg->data);
+		free(curr_seg->data);
 		prev_seg = curr_seg;
 		curr_seg = curr_seg->next;
-		Xfree(prev_seg);
+		free(prev_seg);
 	}
 	fclose(file);
 
@@ -335,10 +335,10 @@ static void microc_clean(struct rt200_microc_data* microc_datap, int screen)
 
 	while(seg_list)
 	{
-		Xfree(seg_list->data);
+		free(seg_list->data);
 		prev_seg = seg_list;
 		seg_list = seg_list->next;
-		Xfree(prev_seg);
+		free(prev_seg);
 	}
 }
 

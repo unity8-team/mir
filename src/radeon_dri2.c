@@ -74,13 +74,13 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
     int i, r;
     int flags = 0;
 
-    buffers = xcalloc(count, sizeof *buffers);
+    buffers = calloc(count, sizeof *buffers);
     if (buffers == NULL) {
         return NULL;
     }
-    privates = xcalloc(count, sizeof(struct dri2_buffer_priv));
+    privates = calloc(count, sizeof(struct dri2_buffer_priv));
     if (privates == NULL) {
-        xfree(buffers);
+        free(buffers);
         return NULL;
     }
 
@@ -156,13 +156,13 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     int r;
     int flags;
 
-    buffers = xcalloc(1, sizeof *buffers);
+    buffers = calloc(1, sizeof *buffers);
     if (buffers == NULL) {
         return NULL;
     }
-    privates = xcalloc(1, sizeof(struct dri2_buffer_priv));
+    privates = calloc(1, sizeof(struct dri2_buffer_priv));
     if (privates == NULL) {
-        xfree(buffers);
+        free(buffers);
         return NULL;
     }
 
@@ -240,8 +240,8 @@ radeon_dri2_destroy_buffers(DrawablePtr drawable,
         (*pScreen->DestroyPixmap)(private->pixmap);
     }
     if (buffers) {
-        xfree(buffers[0].driverPrivate);
-        xfree(buffers);
+        free(buffers[0].driverPrivate);
+        free(buffers);
     }
 }
 #else
@@ -256,8 +256,8 @@ radeon_dri2_destroy_buffer(DrawablePtr drawable, BufferPtr buffers)
         private = buffers->driverPrivate;
         (*pScreen->DestroyPixmap)(private->pixmap);
 
-        xfree(buffers->driverPrivate);
-        xfree(buffers);
+        free(buffers->driverPrivate);
+        free(buffers);
     }
 }
 #endif
@@ -361,7 +361,7 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
     status = dixLookupDrawable(&drawable, event->drawable_id, serverClient,
                                M_ANY, DixWriteAccess);
     if (status != Success) {
-        xfree(event);
+        free(event);
         return;
     }
 
@@ -392,7 +392,7 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
         break;
     }
 
-    xfree(event);
+    free(event);
 }
 
 static int radeon_dri2_drawable_crtc(DrawablePtr pDraw)
@@ -480,7 +480,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     if (crtc == -1)
         goto out_complete;
 
-    wait_info = xcalloc(1, sizeof(DRI2FrameEventRec));
+    wait_info = calloc(1, sizeof(DRI2FrameEventRec));
     if (!wait_info)
         goto out_complete;
 
@@ -614,7 +614,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     divisor &= 0xffffffff;
     remainder &= 0xffffffff;
 
-    swap_info = xcalloc(1, sizeof(DRI2FrameEventRec));
+    swap_info = calloc(1, sizeof(DRI2FrameEventRec));
 
     /* Drawable not displayed... just complete the swap */
     if (crtc == -1 || !swap_info)
@@ -749,7 +749,7 @@ blit_fallback:
 
     DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
     if (swap_info)
-        xfree(swap_info);
+        free(swap_info);
     *target_msc = 0; /* offscreen, so zero out target vblank count */
     return TRUE;
 }
