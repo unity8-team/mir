@@ -868,7 +868,9 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 		 * rendering results may not hit the framebuffer until significantly
 		 * later.
 		 */
-		intel_batch_submit(scrn, intel->need_mi_flush);
+		intel_batch_submit(scrn,
+				   intel->need_mi_flush ||
+				   !list_is_empty(intel->flush_pixmaps));
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 	}
 
