@@ -870,7 +870,7 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 		 */
 		intel_batch_submit(scrn,
 				   intel->need_mi_flush ||
-				   !list_is_empty(intel->flush_pixmaps));
+				   !list_is_empty(&intel->flush_pixmaps));
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 	}
 

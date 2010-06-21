@@ -1162,7 +1162,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 
 	/* Mark the destination dirty within this batch */
 	intel_batch_mark_pixmap_domains(intel,
-					i830_uxa_get_pixmap_intel(dest_picture),
+					i830_get_pixmap_intel(dest),
 					I915_GEM_DOMAIN_RENDER,
 					I915_GEM_DOMAIN_RENDER);
 
