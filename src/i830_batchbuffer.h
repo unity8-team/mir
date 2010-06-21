@@ -126,7 +126,7 @@ intel_batch_mark_pixmap_domains(intel_screen_private *intel,
 
 	if (list_is_empty(&priv->batch))
 		list_add(&priv->batch, &intel->batch_pixmaps);
-	if (list_is_empty(&priv->flush))
+	if (write_domain && list_is_empty(&priv->flush))
 		list_add(&priv->flush, &intel->flush_pixmaps);
 
 	priv->batch_write |= write_domain != 0;
