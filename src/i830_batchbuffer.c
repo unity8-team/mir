@@ -157,19 +157,22 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	intel_batch_do_flush(scrn);
 }
 
-void intel_batch_submit(ScrnInfoPtr scrn)
+void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
 
 	assert (!intel->in_batch_atomic);
 
-	if (intel->batch_used == 0)
-		return;
-
 	if (intel->vertex_flush)
 		intel->vertex_flush(intel);
 	intel_end_vertex(intel);
+
+	if (flush)
+		intel_batch_emit_flush(scrn);
+
+	if (intel->batch_used == 0)
+		return;
 
 	/* Mark the end of the batchbuffer. */
 	OUT_BATCH(MI_BATCH_BUFFER_END);
@@ -220,10 +223,6 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 		list_del(&entry->batch);
 	}
 
-	/* Mark that we need to flush whatever potential rendering we've done in the
-	 * blockhandler.  We could set this less often, but it's probably not worth
-	 * the work.
-	 */
 	intel->need_mi_flush = !list_is_empty(&intel->flush_pixmaps);
 	while (!list_is_empty(&intel->flush_pixmaps))
 		list_del(intel->flush_pixmaps.next);
@@ -248,7 +247,6 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 	intel->batch_bo = NULL;
 
 	intel_next_batch(scrn);
-
 
 	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
 		intel_batch_wait_last(scrn);

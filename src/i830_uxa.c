@@ -118,7 +118,7 @@ i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 
 	bo_table[0] = intel->batch_bo;
 	if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0) {
-		intel_batch_submit(scrn);
+		intel_batch_submit(scrn, FALSE);
 		bo_table[0] = intel->batch_bo;
 		if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) !=
 		    0) {
@@ -677,7 +677,7 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 	if (!list_is_empty(&priv->batch) &&
 	    (access == UXA_ACCESS_RW || priv->batch_write))
-		intel_batch_submit(scrn);
+		intel_batch_submit(scrn, FALSE);
 
 	if (bo->size > intel->max_gtt_map_size) {
 		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
@@ -904,7 +904,7 @@ static Bool i830_uxa_get_image(PixmapPtr pixmap,
 
 		FreeScratchGC(gc);
 
-		intel_batch_submit(xf86Screens[screen->myNum]);
+		intel_batch_submit(xf86Screens[screen->myNum], FALSE);
 
 		x = y = 0;
 		pixmap = scratch;

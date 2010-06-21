@@ -867,16 +867,8 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 		/* Emit a flush of the rendering cache, or on the 965 and beyond
 		 * rendering results may not hit the framebuffer until significantly
 		 * later.
-		 *
-		 * XXX Under KMS this is only required because tfp does not have
-		 * the appropriate synchronisation points, so that outstanding updates
-		 * to the pixmap are flushed prior to use as a texture. The framebuffer
-		 * should be handled by the kernel domain management...
 		 */
-		if (intel->need_mi_flush || !list_is_empty(&intel->flush_pixmaps))
-			intel_batch_emit_flush(scrn);
-
-		intel_batch_submit(scrn);
+		intel_batch_submit(scrn, intel->need_mi_flush);
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 	}
 

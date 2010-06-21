@@ -387,9 +387,9 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	 * later.
 	 *
 	 * We can't rely on getting into the block handler before the DRI
-	 * client gets to run again so flush now. */
-	intel_batch_emit_flush(scrn);
-	intel_batch_submit(scrn);
+	 * client gets to run again so flush now.
+	 */
+	intel_batch_submit(scrn, TRUE);
 	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 }
 

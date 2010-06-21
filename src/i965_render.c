@@ -1667,7 +1667,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	}
 
 	if (!i965_composite_check_aperture(scrn)) {
-		intel_batch_submit(scrn);
+		intel_batch_submit(scrn, FALSE);
 		if (!i965_composite_check_aperture(scrn)) {
 			intel_debug_fallback(scrn,
 					     "Couldn't fit render operation "
@@ -1844,7 +1844,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	drm_intel_bo_subdata(vb_bo, render_state->vb_offset * 4, i * 4, vb);
 
 	if (!i965_composite_check_aperture(scrn))
-		intel_batch_submit(scrn);
+		intel_batch_submit(scrn, FALSE);
 
 	intel_batch_start_atomic(scrn, 200);
 	if (intel->needs_render_state_emit)

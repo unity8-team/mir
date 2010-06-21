@@ -37,7 +37,7 @@ void intel_batch_init(ScrnInfoPtr scrn);
 void intel_batch_teardown(ScrnInfoPtr scrn);
 void intel_batch_emit_flush(ScrnInfoPtr scrn);
 void intel_batch_do_flush(ScrnInfoPtr scrn);
-void intel_batch_submit(ScrnInfoPtr scrn);
+void intel_batch_submit(ScrnInfoPtr scrn, int flush);
 void intel_batch_wait_last(ScrnInfoPtr scrn);
 
 static inline int intel_batch_space(intel_screen_private *intel)
@@ -55,7 +55,7 @@ intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, GLuint 
 {
 	assert(sz < intel->batch_bo->size - 8);
 	if (intel_batch_space(intel) < sz)
-		intel_batch_submit(scrn);
+		intel_batch_submit(scrn, FALSE);
 }
 
 static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)
@@ -200,7 +200,7 @@ do {									\
 	if ((intel->batch_emitting > 8) &&				\
 	    (I810_DEBUG & DEBUG_ALWAYS_SYNC)) {				\
 		/* Note: not actually syncing, just flushing each batch. */ \
-		intel_batch_submit(scrn);			\
+		intel_batch_submit(scrn, FALSE);			\
 	}								\
 	intel->batch_emitting = 0;					\
 } while (0)
