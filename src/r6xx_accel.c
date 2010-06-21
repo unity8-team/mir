@@ -979,7 +979,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     for (i = 0; i < PA_SC_VPORT_SCISSOR_0_TL_num; i++)
 	set_vport_scissor (pScrn, ib, i, 0, 0, 8192, 8192);
 
-    BEGIN_BATCH(40);
+    BEGIN_BATCH(42);
     PACK0(ib, PA_SC_MPASS_PS_CNTL, 2);
     E32(ib, 0);
     if (info->ChipFamily < CHIP_FAMILY_RV770)
