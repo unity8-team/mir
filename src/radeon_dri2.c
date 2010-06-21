@@ -272,26 +272,28 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     struct dri2_buffer_priv *dst_private = dest_buffer->driverPrivate;
     ScreenPtr pScreen = drawable->pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    PixmapPtr src_pixmap;
-    PixmapPtr dst_pixmap;
+    DrawablePtr src_drawable;
+    DrawablePtr dst_drawable;
     RegionPtr copy_clip;
     GCPtr gc;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     Bool vsync;
 
-    src_pixmap = src_private->pixmap;
-    dst_pixmap = dst_private->pixmap;
     if (src_private->attachment == DRI2BufferFrontLeft) {
-        src_pixmap = (PixmapPtr)drawable;
+        src_drawable = drawable;
+    } else {
+        src_drawable = &src_private->pixmap->drawable;
     }
     if (dst_private->attachment == DRI2BufferFrontLeft) {
-        dst_pixmap = (PixmapPtr)drawable;
+        dst_drawable = drawable;
+    } else {
+        dst_drawable = &dst_private->pixmap->drawable;
     }
-    gc = GetScratchGC(drawable->depth, pScreen);
+    gc = GetScratchGC(dst_drawable->depth, pScreen);
     copy_clip = REGION_CREATE(pScreen, NULL, 0);
     REGION_COPY(pScreen, copy_clip, region);
     (*gc->funcs->ChangeClip) (gc, CT_REGION, copy_clip, 0);
-    ValidateGC(&dst_pixmap->drawable, gc);
+    ValidateGC(dst_drawable, gc);
 
     /* If this is a full buffer swap or frontbuffer flush, throttle on the
      * previous one
@@ -304,7 +306,7 @@ radeon_dri2_copy_region(DrawablePtr drawable,
 		extents->x2 == drawable->width &&
 		extents->y2 == drawable->height) {
 		struct radeon_exa_pixmap_priv *exa_priv =
-		    exaGetPixmapDriverPrivate(dst_pixmap);
+		    exaGetPixmapDriverPrivate(dst_private->pixmap);
 
 		if (exa_priv && exa_priv->bo)
 		    radeon_bo_wait(exa_priv->bo);
@@ -315,7 +317,7 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     vsync = info->accel_state->vsync;
     info->accel_state->vsync = TRUE;
 
-    (*gc->ops->CopyArea)(&src_pixmap->drawable, &dst_pixmap->drawable, gc,
+    (*gc->ops->CopyArea)(src_drawable, dst_drawable, gc,
                          0, 0, drawable->width, drawable->height, 0, 0);
 
     info->accel_state->vsync = vsync;
