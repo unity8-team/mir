@@ -1160,6 +1160,12 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_RENDER;
 
+	/* Mark the destination dirty within this batch */
+	intel_batch_mark_pixmap_domains(intel,
+					i830_uxa_get_pixmap_intel(dest_picture),
+					I915_GEM_DOMAIN_RENDER,
+					I915_GEM_DOMAIN_RENDER);
+
 	urb_vs_start = 0;
 	urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
 	urb_gs_start = urb_vs_start + urb_vs_size;
@@ -1544,6 +1550,12 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 		composite_op->mask_extend = SAMPLER_STATE_EXTEND_NONE;
 	}
 
+	/* Flush any pending writes prior to relocating the textures. */
+	if(i830_uxa_pixmap_is_dirty(source) ||
+	   (mask && i830_uxa_pixmap_is_dirty(mask)))
+		intel_batch_emit_flush(scrn);
+
+
 	/* Set up the surface states. */
 	surface_state_bo = dri_bo_alloc(intel->bufmgr, "surface_state",
 					3 * sizeof(brw_surface_state_padded),
@@ -1675,10 +1687,6 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 			return FALSE;
 		}
 	}
-
-	if(i830_uxa_pixmap_is_dirty(source) ||
-	   (mask && i830_uxa_pixmap_is_dirty(mask)))
-		intel_batch_emit_flush(scrn);
 
 	intel->needs_render_state_emit = TRUE;
 
