@@ -159,6 +159,11 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	return FALSE;
     pScreen->CreateScreenResources = RADEONCreateScreenResources_KMS;
 
+    if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
+	return FALSE;
+
+    drmmode_uevent_init(pScrn, &info->drmmode);
+
     if (info->r600_shadow_fb) {
 	pixmap = pScreen->GetScreenPixmap(pScreen);
 
@@ -865,9 +870,6 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     }
     pScrn->pScreen = pScreen;
 
-    if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
-	return FALSE;
-
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
     info->CloseScreen    = pScreen->CloseScreen;
@@ -898,7 +900,6 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     info->accel_state->XInited3D = FALSE;
     info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 
-    drmmode_uevent_init(pScrn, &info->drmmode);
     return TRUE;
 }
 
