@@ -223,7 +223,7 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 		list_del(&entry->batch);
 	}
 
-	intel->need_mi_flush = !list_is_empty(&intel->flush_pixmaps);
+	intel->need_mi_flush |= !list_is_empty(&intel->flush_pixmaps);
 	while (!list_is_empty(&intel->flush_pixmaps))
 		list_del(intel->flush_pixmaps.next);
 
