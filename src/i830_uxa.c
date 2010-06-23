@@ -152,20 +152,25 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int pitch, pitch_align;
-	int size;
+	int pitch, size;
 
 	if (*tiling != I915_TILING_NONE) {
 		/* First check whether tiling is necessary. */
-		pitch_align = intel->accel_pixmap_pitch_alignment;
-		size = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
-				pitch_align) * ALIGN (h, 2);
+		pitch = (w * pixmap->drawable.bitsPerPixel + 7) / 8;
+		pitch = ROUND_TO(pitch, intel->accel_pixmap_pitch_alignment);
+		size = pitch * ALIGN (h, 2);
 		if (!IS_I965G(intel)) {
 			/* Older hardware requires fences to be pot size
 			 * aligned with a minimum of 1 MiB, so causes
 			 * massive overallocation for small textures.
 			 */
 			if (size < 1024*1024/2)
+				*tiling = I915_TILING_NONE;
+
+			/* Gen 2/3 has a maximum stride for tiling of
+			 * 8192 bytes.
+			 */
+			if (pitch > KB(8))
 				*tiling = I915_TILING_NONE;
 		} else if (size <= 4096) {
 			/* Disable tiling beneath a page size, we will not see
@@ -179,29 +184,19 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	pitch = (w * pixmap->drawable.bitsPerPixel + 7) / 8;
 	if (pitch <= 256)
 		*tiling = I915_TILING_NONE;
-  repeat:
-	if (*tiling == I915_TILING_NONE) {
-		pitch_align = intel->accel_pixmap_pitch_alignment;
-	} else {
-		pitch_align = 512;
-	}
 
-	*stride = ROUND_TO(pitch, pitch_align);
-
-	if (*tiling == I915_TILING_NONE) {
-		/* Round the height up so that the GPU's access to a 2x2 aligned
-		 * subspan doesn't address an invalid page offset beyond the
-		 * end of the GTT.
-		 */
-		size = *stride * ALIGN(h, 2);
-	} else {
+	if (*tiling != I915_TILING_NONE) {
 		int aligned_h;
+
 		if (*tiling == I915_TILING_X)
 			aligned_h = ALIGN(h, 8);
 		else
 			aligned_h = ALIGN(h, 32);
 
-		*stride = i830_get_fence_pitch(intel, *stride, *tiling);
+		*stride = i830_get_fence_pitch(intel,
+					       ROUND_TO(pitch, 512),
+					       *tiling);
+
 		/* Round the object up to the size of the fence it will live in
 		 * if necessary.  We could potentially make the kernel allocate
 		 * a larger aperture space and just bind the subset of pages in,
@@ -209,12 +204,18 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		 * with drm_intel_bufmgr_check_aperture().
 		 */
 		size = i830_get_fence_size(intel, *stride * aligned_h);
-		assert(size >= *stride * aligned_h);
+
+		if (size > intel->max_tiling_size)
+			*tiling = I915_TILING_NONE;
 	}
 
-	if (*tiling != I915_TILING_NONE && size > intel->max_tiling_size) {
-		*tiling = I915_TILING_NONE;
-		goto repeat;
+	if (*tiling == I915_TILING_NONE) {
+		/* Round the height up so that the GPU's access to a 2x2 aligned
+		 * subspan doesn't address an invalid page offset beyond the
+		 * end of the GTT.
+		 */
+		*stride = ROUND_TO(pitch, intel->accel_pixmap_pitch_alignment);
+		size = *stride * ALIGN(h, 2);
 	}
 
 	return size;
@@ -987,7 +988,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		 * frequently, and also will tend to fail to successfully map when doing
 		 * SW fallbacks because we overcommit address space for BO access.
 		 */
-		if (size > intel->max_bo_size) {
+		if (size > intel->max_bo_size || stride >= KB(32)) {
 			fbDestroyPixmap(pixmap);
 			return fbCreatePixmap(screen, w, h, depth, usage);
 		}
