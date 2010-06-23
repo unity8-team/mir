@@ -761,6 +761,21 @@ uxa_render_picture(ScreenPtr screen,
 	return picture;
 }
 
+static int
+drawable_contains (DrawablePtr drawable, int x, int y, int w, int h)
+{
+	if (x < 0 || y < 0)
+		return FALSE;
+
+	if (x + w > drawable->width)
+		return FALSE;
+
+	if (y + h > drawable->height)
+		return FALSE;
+
+	return TRUE;
+}
+
 PicturePtr
 uxa_acquire_drawable(ScreenPtr pScreen,
 		     PicturePtr pSrc,
@@ -770,14 +785,15 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 {
 	PixmapPtr pPixmap;
 	PicturePtr pDst;
-	GCPtr pGC;
 	int depth, error;
 	int tx, ty;
+	GCPtr pGC;
 
 	depth = pSrc->pDrawable->depth;
-	if (depth == 1 ||
-	    pSrc->filter == PictFilterConvolution || /* XXX */
-	    !transform_is_integer_translation(pSrc->transform, &tx, &ty)) {
+	if (!transform_is_integer_translation(pSrc->transform, &tx, &ty) ||
+	    !drawable_contains(pSrc->pDrawable, x + tx, y + ty, width, height) ||
+	    depth == 1 ||
+	    pSrc->filter == PictFilterConvolution) {
 		/* XXX extract the sample extents and do the transformation on the GPU */
 		pDst = uxa_render_picture(pScreen, pSrc,
 					  pSrc->format | (BitsPerPixel(pSrc->pDrawable->depth) << 24),
@@ -785,7 +801,7 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 
 		goto done;
 	} else {
-		if (width == pSrc->pDrawable->width && height == pSrc->pDrawable->depth) {
+		if (width == pSrc->pDrawable->width && height == pSrc->pDrawable->height) {
 			*out_x = x + pSrc->pDrawable->x;
 			*out_y = y + pSrc->pDrawable->y;
 			return pSrc;
@@ -799,7 +815,7 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 		return 0;
 
 	/* Skip the copy if the result remains in memory and not a bo */
-	if (!uxa_drawable_is_offscreen(&pPixmap->drawable)) {
+	if (!uxa_pixmap_is_offscreen(pPixmap)) {
 		pScreen->DestroyPixmap(pPixmap);
 		return 0;
 	}
@@ -816,15 +832,15 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 	FreeScratchGC(pGC);
 
 	pDst = CreatePicture(0, &pPixmap->drawable,
-				 PictureMatchFormat(pScreen, depth, pSrc->format),
-				 0, 0, serverClient, &error);
+			     PictureMatchFormat(pScreen, depth, pSrc->format),
+			     0, 0, serverClient, &error);
 	pScreen->DestroyPixmap(pPixmap);
 	ValidatePicture(pDst);
 
 done:
 	pDst->componentAlpha = pSrc->componentAlpha;
-	*out_x = x;
-	*out_y = y;
+	*out_x = 0;
+	*out_y = 0;
 	return pDst;
 }
 
@@ -844,8 +860,8 @@ uxa_acquire_picture(ScreenPtr screen,
 			*out_x = x + src->pDrawable->x;
 			*out_y = y + src->pDrawable->y;
 		} else {
-			*out_x = 0;
-			*out_y = 0;
+			*out_x = x;
+			*out_y = y;
 		}
 		return src;
 	}
@@ -1475,21 +1491,6 @@ compatible_formats (CARD8 op, PicturePtr dst, PicturePtr src)
 	}
 
 	return 0;
-}
-
-static int
-drawable_contains (DrawablePtr drawable, int x, int y, int w, int h)
-{
-	if (x < 0 || y < 0)
-		return FALSE;
-
-	if (x + w > drawable->width)
-		return FALSE;
-
-	if (y + h > drawable->height)
-		return FALSE;
-
-	return TRUE;
 }
 
 void
