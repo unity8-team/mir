@@ -24,7 +24,7 @@
  *    Zou Nan hai <nanhai.zou@intel.com>
  */
 #include "intel_xvmc.h"
-#include "i830_hwmc.h"
+#include "intel_hwmc.h"
 #include "i830_reg.h"
 #include "i965_reg.h"
 #include "brw_defines.h"

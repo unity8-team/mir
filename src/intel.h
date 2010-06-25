@@ -72,12 +72,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "intel_driver.h"
 
 #include "uxa.h"
-Bool i830_uxa_init(ScreenPtr pScreen);
-void i830_uxa_create_screen_resources(ScreenPtr pScreen);
-void i830_uxa_block_handler(ScreenPtr pScreen);
-Bool i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
-			     int num_bos);
-
 /* XXX
  * The X server gained an *almost* identical implementation in 1.9.
  *
@@ -181,7 +175,7 @@ extern DevPrivateKeyRec uxa_pixmap_index;
 extern int uxa_pixmap_index;
 #endif
 
-static inline struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap)
+static inline struct intel_pixmap *intel_get_pixmap_private(PixmapPtr pixmap)
 {
 #if HAS_DEVPRIVATEKEYREC
 	return dixGetPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
@@ -197,23 +191,23 @@ static inline Bool intel_pixmap_is_busy(struct intel_pixmap *priv)
 	return priv->busy;
 }
 
-static inline void i830_set_pixmap_intel(PixmapPtr pixmap, struct intel_pixmap *intel)
+static inline void intel_set_pixmap_private(PixmapPtr pixmap, struct intel_pixmap *intel)
 {
 	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, intel);
 }
 
-static inline Bool i830_uxa_pixmap_is_dirty(PixmapPtr pixmap)
+static inline Bool intel_pixmap_is_dirty(PixmapPtr pixmap)
 {
-	return !list_is_empty(&i830_get_pixmap_intel(pixmap)->flush);
+	return !list_is_empty(&intel_get_pixmap_private(pixmap)->flush);
 }
 
-static inline Bool i830_pixmap_tiled(PixmapPtr pixmap)
+static inline Bool intel_pixmap_tiled(PixmapPtr pixmap)
 {
-	return i830_get_pixmap_intel(pixmap)->tiling != I915_TILING_NONE;
+	return intel_get_pixmap_private(pixmap)->tiling != I915_TILING_NONE;
 }
 
-dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap);
-void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo);
+dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap);
+void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo);
 
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
@@ -228,16 +222,16 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #define PITCH_NONE 0
 
 /** Record of a linear allocation in the aperture. */
-typedef struct _i830_memory i830_memory;
-struct _i830_memory {
+typedef struct _intel_memory intel_memory;
+struct _intel_memory {
 	/** Description of the allocation, for logging */
 	char *name;
 
 	/** @{
 	 * Memory allocator linked list pointers
 	 */
-	i830_memory *next;
-	i830_memory *prev;
+	intel_memory *next;
+	intel_memory *prev;
 	/** @} */
 
 	drm_intel_bo *bo;
@@ -299,7 +293,7 @@ typedef struct intel_screen_private {
 	dri_bo *last_batch_bo;
 	/** Whether we're in a section of code that can't tolerate flushing */
 	Bool in_batch_atomic;
-	/** Ending batch_used that was verified by i830_start_batch_atomic() */
+	/** Ending batch_used that was verified by intel_start_batch_atomic() */
 	int batch_atomic_limit;
 	struct list batch_pixmaps;
 	struct list flush_pixmaps;
@@ -335,7 +329,7 @@ typedef struct intel_screen_private {
 	void (*batch_flush_notify) (ScrnInfoPtr scrn);
 
 	uxa_driver_t *uxa_driver;
-	Bool need_flush;
+	Bool need_sync;
 	int accel_pixmap_pitch_alignment;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
@@ -456,10 +450,13 @@ intel_get_screen_private(ScrnInfoPtr scrn)
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
 
-unsigned long intel_get_pixmap_pitch(PixmapPtr pixmap);
+static inline unsigned long intel_pixmap_pitch(PixmapPtr pixmap)
+{
+	return (unsigned long)pixmap->devKind;
+}
 
 /* Batchbuffer support macros and functions */
-#include "i830_batchbuffer.h"
+#include "intel_batchbuffer.h"
 
 /* I830 specific functions */
 extern void IntelEmitInvarientState(ScrnInfoPtr scrn);
@@ -469,10 +466,10 @@ extern void I915EmitInvarientState(ScrnInfoPtr scrn);
 extern void I830EmitFlush(ScrnInfoPtr scrn);
 
 extern void I830InitVideo(ScreenPtr pScreen);
-extern xf86CrtcPtr i830_covering_crtc(ScrnInfoPtr scrn, BoxPtr box,
+extern xf86CrtcPtr intel_covering_crtc(ScrnInfoPtr scrn, BoxPtr box,
 				      xf86CrtcPtr desired, BoxPtr crtc_box_ret);
 
-extern xf86CrtcPtr i830_pipe_to_crtc(ScrnInfoPtr scrn, int pipe);
+extern xf86CrtcPtr intel_pipe_to_crtc(ScrnInfoPtr scrn, int pipe);
 
 Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
@@ -488,19 +485,16 @@ extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
 extern int drmmode_crtc_id(xf86CrtcPtr crtc);
 
-extern Bool i830_crtc_on(xf86CrtcPtr crtc);
-extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
-extern Bool I830AccelInit(ScreenPtr pScreen);
+extern Bool intel_crtc_on(xf86CrtcPtr crtc);
+extern int intel_crtc_to_pipe(xf86CrtcPtr crtc);
 
-void i830_init_bufmgr(ScrnInfoPtr scrn);
-
-/* i830_memory.c */
-unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
-unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
+/* intel_memory.c */
+unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);
+unsigned long intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   uint32_t tiling_mode);
-void i830_set_gem_max_sizes(ScrnInfoPtr scrn);
+void intel_set_gem_max_sizes(ScrnInfoPtr scrn);
 
-drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn,
+drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int w, int h, int cpp,
 					unsigned long *pitch);
 
@@ -513,11 +507,9 @@ Bool i830_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i830_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
-Bool i830_transform_is_affine(PictTransformPtr t);
 
 void i830_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
-void i830_done_composite(PixmapPtr dest);
 /* i915_render.c */
 Bool i915_check_composite(int op,
 			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
@@ -548,15 +540,14 @@ void i965_composite(PixmapPtr dest, int srcX, int srcY,
 
 void i965_batch_flush_notify(ScrnInfoPtr scrn);
 
+Bool intel_transform_is_affine(PictTransformPtr t);
 Bool
-i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
+intel_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 				 float *x_out, float *y_out);
 
 Bool
-i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
+intel_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 				    float *x_out, float *y_out, float *z_out);
-
-void i830_enter_render(ScrnInfoPtr);
 
 static inline void
 intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)
@@ -575,7 +566,7 @@ intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)
 static inline Bool
 intel_check_pitch_2d(PixmapPtr pixmap)
 {
-	uint32_t pitch = intel_get_pixmap_pitch(pixmap);
+	uint32_t pitch = intel_pixmap_pitch(pixmap);
 	if (pitch > KB(32)) {
 		ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 		intel_debug_fallback(scrn, "pitch exceeds 2d limit 32K\n");
@@ -588,7 +579,7 @@ intel_check_pitch_2d(PixmapPtr pixmap)
 static inline Bool
 intel_check_pitch_3d(PixmapPtr pixmap)
 {
-	uint32_t pitch = intel_get_pixmap_pitch(pixmap);
+	uint32_t pitch = intel_pixmap_pitch(pixmap);
 	if (pitch > KB(8)) {
 		ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 		intel_debug_fallback(scrn, "pitch exceeds 3d limit 8K\n");
@@ -630,15 +621,12 @@ static inline drm_intel_bo *intel_bo_alloc_for_data(ScrnInfoPtr scrn,
 	return bo;
 }
 
-extern const int I830PatternROP[16];
-extern const int I830CopyROP[16];
-
 /* Flags for memory allocation function */
 #define NEED_PHYSICAL_ADDR		0x00000001
 #define ALLOW_SHARING			0x00000010
 #define DISABLE_REUSE			0x00000020
 
-void i830_debug_flush(ScrnInfoPtr scrn);
+void intel_debug_flush(ScrnInfoPtr scrn);
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 {
@@ -657,6 +645,12 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 	return pixmap == screen->GetScreenPixmap(screen);
 }
 
-const OptionInfoRec *i830_available_options(int chipid, int busid);
+const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
+
+Bool intel_uxa_init(ScreenPtr pScreen);
+void intel_uxa_create_screen_resources(ScreenPtr pScreen);
+void intel_uxa_block_handler(intel_screen_private *intel);
+Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
+			      int num_bos);
 
 #endif /* _I830_H_ */

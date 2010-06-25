@@ -33,7 +33,7 @@
 #include "xf86cmap.h"
 
 #include "common.h"
-#include "i830.h"
+#include "intel.h"
 #include "intel_driver.h"
 #include "legacy/legacy.h"
 
@@ -390,18 +390,18 @@ static const OptionInfoRec *
 intel_available_options(int chipid, int busid)
 {
 #if KMS_ONLY
-	return i830_available_options(chipid, busid);
+	return intel_uxa_available_options(chipid, busid);
 #else
-    switch (chipid) {
-    case PCI_CHIP_I810:
-    case PCI_CHIP_I810_DC100:
-    case PCI_CHIP_I810_E:
-    case PCI_CHIP_I815:
-	    return lg_i810_available_options(chipid, busid);
+	switch (chipid) {
+	case PCI_CHIP_I810:
+	case PCI_CHIP_I810_DC100:
+	case PCI_CHIP_I810_E:
+	case PCI_CHIP_I815:
+		return lg_i810_available_options(chipid, busid);
 
-    default:
-	    return i830_available_options(chipid, busid);
-    }
+	default:
+		return intel_uxa_available_options(chipid, busid);
+	}
 #endif
 }
 

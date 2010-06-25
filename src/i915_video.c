@@ -34,8 +34,8 @@
 #include "xf86xv.h"
 #include "fourcc.h"
 
-#include "i830.h"
-#include "i830_video.h"
+#include "intel.h"
+#include "intel_video.h"
 #include "i915_reg.h"
 #include "i915_3d.h"
 
@@ -149,15 +149,15 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 			  DSTORG_VERT_BIAS(0x8) | format);
 
 		/* front buffer, pitch, offset */
-		if (i830_pixmap_tiled(target)) {
+		if (intel_pixmap_tiled(target)) {
 			tiling = BUF_3D_TILED_SURFACE;
-			if (i830_get_pixmap_intel(target)->tiling == I915_TILING_Y)
+			if (intel_get_pixmap_private(target)->tiling == I915_TILING_Y)
 				tiling |= BUF_3D_TILE_WALK_Y;
 		} else
 			tiling = 0;
 		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 		OUT_BATCH(BUF_3D_ID_COLOR_BACK | tiling |
-			  BUF_3D_PITCH(intel_get_pixmap_pitch(target)));
+			  BUF_3D_PITCH(intel_pixmap_pitch(target)));
 		OUT_RELOC_PIXMAP(target, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
 
@@ -477,5 +477,5 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		target->drawable.pScreen->DestroyPixmap(target);
 	}
 
-	i830_debug_flush(scrn);
+	intel_debug_flush(scrn);
 }

@@ -60,7 +60,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "GL/glxtokens.h"
 
-#include "i830.h"
+#include "intel.h"
 #include "i830_reg.h"
 
 #include "i915_drm.h"
@@ -146,7 +146,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		privates[i].pixmap = pixmap;
 		privates[i].attachment = attachments[i];
 
-		bo = i830_get_pixmap_bo(pixmap);
+		bo = intel_get_pixmap_bo(pixmap);
 		if (bo != NULL && dri_bo_flink(bo, &buffers[i].name) != 0) {
 			/* failed to name buffer */
 		}
@@ -245,7 +245,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	privates->pixmap = pixmap;
 	privates->attachment = attachment;
 
-	bo = i830_get_pixmap_bo(pixmap);
+	bo = intel_get_pixmap_bo(pixmap);
 	if (bo == NULL || dri_bo_flink(bo, &buffer->name) != 0) {
 		/* failed to name buffer */
 		screen->DestroyPixmap(pixmap);
@@ -318,14 +318,14 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		Bool full_height = FALSE;
 
 		box = REGION_EXTENTS(unused, gc->pCompositeClip);
-		crtc = i830_covering_crtc(scrn, box, NULL, &crtcbox);
+		crtc = intel_covering_crtc(scrn, box, NULL, &crtcbox);
 
 		/*
 		 * Make sure the CRTC is valid and this is the real front
 		 * buffer
 		 */
 		if (crtc != NULL && !crtc->rotatedData) {
-			pipe = i830_crtc_to_pipe(crtc);
+			pipe = intel_crtc_to_pipe(crtc);
 
 			/*
 			 * Make sure we don't wait for a scanline that will
@@ -429,11 +429,11 @@ I830DRI2DrawablePipe(DrawablePtr pDraw)
 	box.x2 = box.x1 + pDraw->width;
 	box.y2 = box.y1 + pDraw->height;
 
-	crtc = i830_covering_crtc(pScrn, &box, NULL, &crtcbox);
+	crtc = intel_covering_crtc(pScrn, &box, NULL, &crtcbox);
 
 	/* Make sure the CRTC is valid and this is the real front buffer */
 	if (crtc != NULL && !crtc->rotatedData)
-		pipe = i830_crtc_to_pipe(crtc);
+		pipe = intel_crtc_to_pipe(crtc);
 
 	return pipe;
 }
@@ -457,10 +457,10 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 	back->name = tmp;
 
 	/* Swap pixmap bos */
-	front_intel = i830_get_pixmap_intel(front_priv->pixmap);
-	back_intel = i830_get_pixmap_intel(back_priv->pixmap);
-	i830_set_pixmap_intel(front_priv->pixmap, back_intel);
-	i830_set_pixmap_intel(back_priv->pixmap, front_intel); /* should be screen */
+	front_intel = intel_get_pixmap_private(front_priv->pixmap);
+	back_intel = intel_get_pixmap_private(back_priv->pixmap);
+	intel_set_pixmap_private(front_priv->pixmap, back_intel);
+	intel_set_pixmap_private(back_priv->pixmap, front_intel); /* should be screen */
 
 	/* Do we need to update the Screen? */
 	screen = draw->pScreen;
@@ -469,8 +469,10 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 	    dri_bo_unreference (intel->front_buffer);
 	    intel->front_buffer = back_intel->bo;
 	    dri_bo_reference (intel->front_buffer);
-	    i830_set_pixmap_intel(screen->GetScreenPixmap(screen),
-				  back_intel);
+	    intel_set_pixmap_private(screen->GetScreenPixmap(screen),
+				     back_intel);
+	    back_intel->busy = 1;
+	    front_intel->busy = -1;
 	}
 }
 
@@ -499,7 +501,7 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	/* Page flip the full screen buffer */
 	back_priv = back->driverPrivate;
 	return drmmode_do_pageflip(screen,
-				   i830_get_pixmap_bo(back_priv->pixmap),
+				   intel_get_pixmap_bo(back_priv->pixmap),
 				   flip_info);
 }
 

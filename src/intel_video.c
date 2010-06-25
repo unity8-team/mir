@@ -64,9 +64,9 @@
 #include "randrstr.h"
 #include "windowstr.h"
 #include "damage.h"
-#include "i830.h"
+#include "intel.h"
+#include "intel_video.h"
 #include "i830_reg.h"
-#include "i830_video.h"
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
 #include "dixstruct.h"
@@ -74,7 +74,7 @@
 
 #ifdef INTEL_XVMC
 #define _INTEL_XVMC_SERVER_
-#include "i830_hwmc.h"
+#include "intel_hwmc.h"
 #endif
 
 #define OFF_DELAY 	250	/* milliseconds */
@@ -210,9 +210,8 @@ static XF86ImageRec Images[NUM_IMAGES] = {
 };
 
 /* kernel modesetting overlay functions */
-static Bool drmmode_has_overlay(ScrnInfoPtr scrn)
+static Bool drmmode_has_overlay(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_i915_getparam gp;
 	int has_overlay = 0;
 
@@ -223,10 +222,9 @@ static Bool drmmode_has_overlay(ScrnInfoPtr scrn)
 	return has_overlay ? TRUE : FALSE;
 }
 
-static void drmmode_overlay_update_attrs(ScrnInfoPtr scrn)
+static void drmmode_overlay_update_attrs(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(scrn);
+	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(intel);
 	struct drm_intel_overlay_attrs attrs;
 	int ret;
 
@@ -249,9 +247,8 @@ static void drmmode_overlay_update_attrs(ScrnInfoPtr scrn)
 		OVERLAY_DEBUG("overlay attrs ioctl failed: %i\n", ret);
 }
 
-static void drmmode_overlay_off(ScrnInfoPtr scrn)
+static void drmmode_overlay_off(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_intel_overlay_put_image request;
 	int ret;
 
@@ -265,14 +262,14 @@ static void drmmode_overlay_off(ScrnInfoPtr scrn)
 }
 
 static Bool
-drmmode_overlay_put_image(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
+drmmode_overlay_put_image(intel_screen_private *intel,
+			  xf86CrtcPtr crtc,
 			  int id, short width, short height,
 			  int dstPitch, int dstPitch2,
 			  BoxPtr dstBox, short src_w, short src_h, short drw_w,
 			  short drw_h)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(scrn);
+	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(intel);
 	struct drm_intel_overlay_put_image request;
 	int ret;
 	int planar = is_planar_fourcc(id);
@@ -380,7 +377,7 @@ void I830InitVideo(ScreenPtr screen)
 	}
 
 	/* Set up overlay video if it is available */
-	intel->use_drmmode_overlay = drmmode_has_overlay(scrn);
+	intel->use_drmmode_overlay = drmmode_has_overlay(intel);
 	if (intel->use_drmmode_overlay) {
 		overlayAdaptor = I830SetupImageVideoOverlay(screen);
 		if (overlayAdaptor != NULL) {
@@ -516,7 +513,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 		xvGamma5 = MAKE_ATOM("XV_GAMMA5");
 	}
 
-	drmmode_overlay_update_attrs(scrn);
+	drmmode_overlay_update_attrs(intel);
 
 	return adapt;
 }
@@ -600,7 +597,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 	return adapt;
 }
 
-static void i830_free_video_buffers(intel_adaptor_private *adaptor_priv)
+static void intel_free_video_buffers(intel_adaptor_private *adaptor_priv)
 {
 	if (adaptor_priv->buf) {
 		drm_intel_bo_unreference(adaptor_priv->buf);
@@ -621,9 +618,9 @@ static void I830StopVideo(ScrnInfoPtr scrn, pointer data, Bool shutdown)
 
 	if (shutdown) {
 		if (adaptor_priv->videoStatus & CLIENT_VIDEO_ON)
-			drmmode_overlay_off(scrn);
+			drmmode_overlay_off(intel_get_screen_private(scrn));
 
-		i830_free_video_buffers(adaptor_priv);
+		intel_free_video_buffers(adaptor_priv);
 		adaptor_priv->videoStatus = 0;
 	} else {
 		if (adaptor_priv->videoStatus & CLIENT_VIDEO_ON) {
@@ -716,7 +713,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 		OVERLAY_DEBUG("GAMMA\n");
 	}
 
-	drmmode_overlay_update_attrs(scrn);
+	drmmode_overlay_update_attrs(intel);
 
 	if (attribute == xvColorKey)
 		REGION_EMPTY(scrn->pScreen, &adaptor_priv->clip);
@@ -895,9 +892,9 @@ I830CopyPackedData(intel_adaptor_private *adaptor_priv,
 	drm_intel_bo_unmap(adaptor_priv->buf);
 }
 
-static void i830_memcpy_plane(unsigned char *dst, unsigned char *src,
-			      int height, int width,
-			      int dstPitch, int srcPitch, Rotation rotation)
+static void intel_memcpy_plane(unsigned char *dst, unsigned char *src,
+			       int height, int width,
+			       int dstPitch, int srcPitch, Rotation rotation)
 {
 	int i, j = 0;
 	unsigned char *s;
@@ -972,7 +969,7 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 
 	dst1 = dst_base + adaptor_priv->YBufOffset;
 
-	i830_memcpy_plane(dst1, src1, h, w, dstPitch2, srcPitch,
+	intel_memcpy_plane(dst1, src1, h, w, dstPitch2, srcPitch,
 			  adaptor_priv->rotation);
 
 	/* Copy V data for YV12, or U data for I420 */
@@ -990,7 +987,7 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	else
 		dst2 = dst_base + adaptor_priv->VBufOffset;
 
-	i830_memcpy_plane(dst2, src2, h / 2, w / 2,
+	intel_memcpy_plane(dst2, src2, h / 2, w / 2,
 			  dstPitch, srcPitch2, adaptor_priv->rotation);
 
 	/* Copy U data for YV12, or V data for I420 */
@@ -1008,13 +1005,13 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	else
 		dst3 = dst_base + adaptor_priv->UBufOffset;
 
-	i830_memcpy_plane(dst3, src3, h / 2, w / 2,
+	intel_memcpy_plane(dst3, src3, h / 2, w / 2,
 			  dstPitch, srcPitch2, adaptor_priv->rotation);
 
 	drm_intel_bo_unmap(adaptor_priv->buf);
 }
 
-static void i830_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
+static void intel_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
 {
 	dest->x1 = a->x1 > b->x1 ? a->x1 : b->x1;
 	dest->x2 = a->x2 < b->x2 ? a->x2 : b->x2;
@@ -1024,7 +1021,7 @@ static void i830_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
 		dest->x1 = dest->x2 = dest->y1 = dest->y2 = 0;
 }
 
-static void i830_crtc_box(xf86CrtcPtr crtc, BoxPtr crtc_box)
+static void intel_crtc_box(xf86CrtcPtr crtc, BoxPtr crtc_box)
 {
 	if (crtc->enabled) {
 		crtc_box->x1 = crtc->x;
@@ -1037,7 +1034,7 @@ static void i830_crtc_box(xf86CrtcPtr crtc, BoxPtr crtc_box)
 		crtc_box->x1 = crtc_box->x2 = crtc_box->y1 = crtc_box->y2 = 0;
 }
 
-static int i830_box_area(BoxPtr box)
+static int intel_box_area(BoxPtr box)
 {
 	return (int)(box->x2 - box->x1) * (int)(box->y2 - box->y1);
 }
@@ -1049,8 +1046,8 @@ static int i830_box_area(BoxPtr box)
  */
 
 xf86CrtcPtr
-i830_covering_crtc(ScrnInfoPtr scrn,
-		   BoxPtr box, xf86CrtcPtr desired, BoxPtr crtc_box_ret)
+intel_covering_crtc(ScrnInfoPtr scrn,
+		    BoxPtr box, xf86CrtcPtr desired, BoxPtr crtc_box_ret)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	xf86CrtcPtr crtc, best_crtc;
@@ -1068,12 +1065,12 @@ i830_covering_crtc(ScrnInfoPtr scrn,
 		crtc = xf86_config->crtc[c];
 
 		/* If the CRTC is off, treat it as not covering */
-		if (!i830_crtc_on(crtc))
+		if (!intel_crtc_on(crtc))
 			continue;
 
-		i830_crtc_box(crtc, &crtc_box);
-		i830_box_intersect(&cover_box, &crtc_box, box);
-		coverage = i830_box_area(&cover_box);
+		intel_crtc_box(crtc, &crtc_box);
+		intel_box_intersect(&cover_box, &crtc_box, box);
+		coverage = intel_box_area(&cover_box);
 		if (coverage && crtc == desired) {
 			*crtc_box_ret = crtc_box;
 			return crtc;
@@ -1088,8 +1085,8 @@ i830_covering_crtc(ScrnInfoPtr scrn,
 }
 
 static void
-i830_update_dst_box_to_crtc_coords(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
-				   BoxPtr dstBox)
+intel_update_dst_box_to_crtc_coords(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
+				    BoxPtr dstBox)
 {
 	int tmp;
 
@@ -1167,12 +1164,13 @@ static int xvmc_passthrough(int id)
 }
 
 static Bool
-i830_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
-		     int id, short width, short height,
-		     int dstPitch, int dstPitch2,
-		     BoxPtr dstBox, short src_w, short src_h, short drw_w,
-		     short drw_h)
+intel_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
+		      int id, short width, short height,
+		      int dstPitch, int dstPitch2,
+		      BoxPtr dstBox, short src_w, short src_h, short drw_w,
+		      short drw_h)
 {
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int tmp;
 
 	OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
@@ -1182,12 +1180,12 @@ i830_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 	 * If the video isn't visible on any CRTC, turn it off
 	 */
 	if (!crtc) {
-		drmmode_overlay_off(scrn);
+		drmmode_overlay_off(intel);
 
 		return TRUE;
 	}
 
-	i830_update_dst_box_to_crtc_coords(scrn, crtc, dstBox);
+	intel_update_dst_box_to_crtc_coords(scrn, crtc, dstBox);
 
 	if (crtc->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 		tmp = width;
@@ -1201,23 +1199,24 @@ i830_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 		src_h = tmp;
 	}
 
-	return drmmode_overlay_put_image(scrn, crtc, id, width, height,
+	return drmmode_overlay_put_image(intel, crtc, id,
+					 width, height,
 					 dstPitch, dstPitch2, dstBox,
 					 src_w, src_h, drw_w, drw_h);
 }
 
 static Bool
-i830_clip_video_helper(ScrnInfoPtr scrn,
-		       intel_adaptor_private *adaptor_priv,
-		       xf86CrtcPtr * crtc_ret,
-		       BoxPtr dst,
-		       short src_x, short src_y,
-		       short drw_x, short drw_y,
-		       short src_w, short src_h,
-		       short drw_w, short drw_h,
-		       int id,
-		       int *top, int* left, int* npixels, int *nlines,
-		       RegionPtr reg, INT32 width, INT32 height)
+intel_clip_video_helper(ScrnInfoPtr scrn,
+			intel_adaptor_private *adaptor_priv,
+			xf86CrtcPtr * crtc_ret,
+			BoxPtr dst,
+			short src_x, short src_y,
+			short drw_x, short drw_y,
+			short src_w, short src_h,
+			short drw_w, short drw_h,
+			int id,
+			int *top, int* left, int* npixels, int *nlines,
+			RegionPtr reg, INT32 width, INT32 height)
 {
 	Bool ret;
 	RegionRec crtc_region_local;
@@ -1240,8 +1239,8 @@ i830_clip_video_helper(ScrnInfoPtr scrn,
 	 * For overlay video, compute the relevant CRTC and
 	 * clip video to that
 	 */
-	crtc = i830_covering_crtc(scrn, dst, adaptor_priv->desired_crtc,
-					      &crtc_box);
+	crtc = intel_covering_crtc(scrn, dst, adaptor_priv->desired_crtc,
+				   &crtc_box);
 
 	/* For textured video, we don't actually want to clip at all. */
 	if (crtc && !adaptor_priv->textured) {
@@ -1270,8 +1269,8 @@ i830_clip_video_helper(ScrnInfoPtr scrn,
 }
 
 static void
-i830_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
-		       xf86CrtcPtr crtc, RegionPtr clipBoxes)
+intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
+			xf86CrtcPtr crtc, RegionPtr clipBoxes)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	BoxPtr box;
@@ -1279,7 +1278,7 @@ i830_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 	int pipe = -1, event, load_scan_lines_pipe;
 
 	if (pixmap_is_scanout(pixmap))
-		pipe = i830_crtc_to_pipe(crtc);
+		pipe = intel_crtc_to_pipe(crtc);
 
 	if (pipe >= 0) {
 		if (pipe == 0) {
@@ -1311,8 +1310,8 @@ i830_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 }
 
 static Bool
-i830_setup_video_buffer(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
-			int alloc_size, int id, unsigned char *buf)
+intel_setup_video_buffer(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
+			 int alloc_size, int id, unsigned char *buf)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
@@ -1334,9 +1333,9 @@ i830_setup_video_buffer(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 }
 
 static void
-i830_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, short width,
-			short height, int *dstPitch, int *dstPitch2, int *size,
-			int id)
+intel_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, short width,
+		       short height, int *dstPitch, int *dstPitch2, int *size,
+		       int id)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int pitchAlignMask;
@@ -1412,7 +1411,7 @@ i830_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sho
 }
 
 static Bool
-i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
+intel_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 		     short width, short height, int *dstPitch, int *dstPitch2,
 		     int top, int left, int npixels, int nlines,
 		     int id, unsigned char *buf)
@@ -1427,10 +1426,10 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 		srcPitch = width << 1;
 	}
 
-	i830_setup_dst_params(scrn, adaptor_priv, width, height, dstPitch,
+	intel_setup_dst_params(scrn, adaptor_priv, width, height, dstPitch,
 				dstPitch2, &size, id);
 
-	if (!i830_setup_video_buffer(scrn, adaptor_priv, size, id, buf))
+	if (!intel_setup_video_buffer(scrn, adaptor_priv, size, id, buf))
 		return FALSE;
 
 	/* copy data */
@@ -1462,14 +1461,14 @@ i830_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
  */
 static int
 I830PutImageTextured(ScrnInfoPtr scrn,
-	     short src_x, short src_y,
-	     short drw_x, short drw_y,
-	     short src_w, short src_h,
-	     short drw_w, short drw_h,
-	     int id, unsigned char *buf,
-	     short width, short height,
-	     Bool sync, RegionPtr clipBoxes, pointer data,
-	     DrawablePtr drawable)
+		     short src_x, short src_y,
+		     short drw_x, short drw_y,
+		     short src_w, short src_h,
+		     short drw_w, short drw_h,
+		     int id, unsigned char *buf,
+		     short width, short height,
+		     Bool sync, RegionPtr clipBoxes, pointer data,
+		     DrawablePtr drawable)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	intel_adaptor_private *adaptor_priv = (intel_adaptor_private *) data;
@@ -1485,7 +1484,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 	       drw_y, drw_w, drw_h, width, height);
 #endif
 
-	if (!i830_clip_video_helper(scrn,
+	if (!intel_clip_video_helper(scrn,
 				    adaptor_priv,
 				    &crtc,
 				    &dstBox,
@@ -1500,9 +1499,9 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		int size;
 		uint32_t *gem_handle = (uint32_t *)buf;
 
-		i830_free_video_buffers(adaptor_priv);
+		intel_free_video_buffers(adaptor_priv);
 
-		i830_setup_dst_params(scrn, adaptor_priv, width, height,
+		intel_setup_dst_params(scrn, adaptor_priv, width, height,
 				&dstPitch, &dstPitch2, &size, id);
 
 		if (IS_I915G(intel) || IS_I915GM(intel)) {
@@ -1516,14 +1515,14 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 							  "xvmc surface",
 							  *gem_handle);
 	} else {
-		if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
+		if (!intel_copy_video_data(scrn, adaptor_priv, width, height,
 					  &dstPitch, &dstPitch2,
 					  top, left, npixels, nlines, id, buf))
 			return BadAlloc;
 	}
 
 	if (crtc && adaptor_priv->SyncToVblank != 0) {
-		i830_wait_for_scanline(scrn, pixmap, crtc, clipBoxes);
+		intel_wait_for_scanline(scrn, pixmap, crtc, clipBoxes);
 	}
 
 	if (IS_I965G(intel)) {
@@ -1575,7 +1574,7 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 	if (src_h >= (drw_h * 8))
 		drw_h = src_h / 7;
 
-	if (!i830_clip_video_helper(scrn,
+	if (!intel_clip_video_helper(scrn,
 				    adaptor_priv,
 				    &crtc,
 				    &dstBox,
@@ -1595,12 +1594,12 @@ I830PutImageOverlay(ScrnInfoPtr scrn,
 		return Success;
 	}
 
-	if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
+	if (!intel_copy_video_data(scrn, adaptor_priv, width, height,
 				  &dstPitch, &dstPitch2,
 				  top, left, npixels, nlines, id, buf))
 		return BadAlloc;
 
-	if (!i830_display_overlay
+	if (!intel_display_overlay
 	    (scrn, crtc, id, width, height, dstPitch, dstPitch2,
 	     &dstBox, src_w, src_h, drw_w, drw_h))
 		return BadAlloc;
@@ -1705,18 +1704,15 @@ I830QueryImageAttributes(ScrnInfoPtr scrn,
 }
 
 void
-I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
-		      pointer pReadmask)
+intel_video_block_handler(intel_screen_private *intel)
 {
-	ScrnInfoPtr scrn = xf86Screens[i];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	intel_adaptor_private *adaptor_priv;
 
 	/* no overlay */
 	if (intel->adaptor == NULL)
 		return;
 
-	adaptor_priv = intel_get_adaptor_private(scrn);
+	adaptor_priv = intel_get_adaptor_private(intel);
 
 	if (adaptor_priv->videoStatus & TIMER_MASK) {
 #if 1
@@ -1729,14 +1725,14 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 				/* Turn off the overlay */
 				OVERLAY_DEBUG("BLOCKHANDLER\n");
 
-				drmmode_overlay_off(scrn);
+				drmmode_overlay_off(intel);
 
 				adaptor_priv->videoStatus = FREE_TIMER;
 				adaptor_priv->freeTime = now + FREE_DELAY;
 			}
 		} else {	/* FREE_TIMER */
 			if (adaptor_priv->freeTime < now) {
-				i830_free_video_buffers(adaptor_priv);
+				intel_free_video_buffers(adaptor_priv);
 				adaptor_priv->videoStatus = 0;
 			}
 		}

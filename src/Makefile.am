@@ -37,51 +37,36 @@ intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 
 NULL:=#
 
-INTEL_DRI_SRCS = \
-         i830_dri.c \
-	 $(NULL)
-
-INTEL_XVMC_SRCS = \
-	 i830_hwmc.h \
-	 i830_hwmc.c \
-	 $(NULL)
-
 intel_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
          common.h \
+         intel.h \
 	 intel_module.c \
+         intel_driver.c \
+         intel_batchbuffer.c \
+         intel_batchbuffer.h \
+         intel_memory.c \
+	 intel_uxa.c \
+         intel_video.c \
+         intel_video.h \
 	 i830_3d.c \
-         i830_accel.c \
-         i830_batchbuffer.c \
-         i830_batchbuffer.h \
-         i830_driver.c \
-         i830.h \
-         i830_memory.c \
-         i830_video.c \
-         i830_video.h \
+	 i830_render.c \
 	 i830_reg.h \
-	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \
-	 i915_video.c \
-	 i965_video.c \
-	 i830_uxa.c \
-	 i830_render.c \
+	 i915_3d.c \
 	 i915_render.c \
+	 i915_video.c \
+	 i965_reg.h \
+	 i965_video.c \
 	 i965_render.c \
 	 drmmode_display.c \
 	 $(NULL)
 
-EXTRA_DIST = 		\
-	$(XMODE_SRCS)	\
-	$(INTEL_DRI_SRCS) \
-	$(INTEL_XVMC_SRCS) \
-	$(NULL)
-
 if DRI
 intel_drv_la_SOURCES += \
-	$(INTEL_DRI_SRCS) \
+	intel_dri.c \
 	$(NULL)
 intel_drv_la_LIBADD += \
 	$(DRI_LIBS) \
@@ -90,6 +75,7 @@ endif
 
 if XVMC
 intel_drv_la_SOURCES += \
-	$(INTEL_XVMC_SRCS) \
+	intel_hwmc.h \
+	intel_hwmc.c \
 	$(NULL)
 endif

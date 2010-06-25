@@ -33,7 +33,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86.h"
 #include "xaarop.h"
-#include "i830.h"
+#include "intel.h"
 #include "i830_reg.h"
 #include "i915_drm.h"
 #include "brw_defines.h"
@@ -41,7 +41,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/mman.h>
 #include <errno.h>
 
-const int I830CopyROP[16] = {
+static const int I830CopyROP[16] = {
 	ROP_0,			/* GXclear */
 	ROP_DSa,		/* GXand */
 	ROP_SDna,		/* GXandReverse */
@@ -60,7 +60,7 @@ const int I830CopyROP[16] = {
 	ROP_1			/* GXset */
 };
 
-const int I830PatternROP[16] = {
+static const int I830PatternROP[16] = {
 	ROP_0,
 	ROP_DPa,
 	ROP_PDna,
@@ -106,8 +106,8 @@ ironlake_blt_workaround(ScrnInfoPtr scrn)
 }
 
 Bool
-i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
-			int num_bos)
+intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
+			 int num_bos)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
@@ -130,25 +130,11 @@ i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 	return TRUE;
 }
 
-static unsigned long i830_pixmap_pitch(PixmapPtr pixmap)
-{
-	return pixmap->devKind;
-}
-
-static int i830_pixmap_pitch_is_aligned(PixmapPtr pixmap)
-{
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	return i830_pixmap_pitch(pixmap) %
-	    intel->accel_pixmap_pitch_alignment == 0;
-}
-
 static unsigned int
-i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
-			     int w, int h,
-			     uint32_t *tiling,
-			     int *stride)
+intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
+			      int w, int h,
+			      uint32_t *tiling,
+			      int *stride)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -193,9 +179,9 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		else
 			aligned_h = ALIGN(h, 32);
 
-		*stride = i830_get_fence_pitch(intel,
-					       ROUND_TO(pitch, 512),
-					       *tiling);
+		*stride = intel_get_fence_pitch(intel,
+						ROUND_TO(pitch, 512),
+						*tiling);
 
 		/* Round the object up to the size of the fence it will live in
 		 * if necessary.  We could potentially make the kernel allocate
@@ -203,7 +189,7 @@ i830_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		 * but this is easier and also keeps us out of trouble (as much)
 		 * with drm_intel_bufmgr_check_aperture().
 		 */
-		size = i830_get_fence_size(intel, *stride * aligned_h);
+		size = intel_get_fence_size(intel, *stride * aligned_h);
 
 		if (size > intel->max_tiling_size)
 			*tiling = I915_TILING_NONE;
@@ -260,18 +246,13 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
-		i830_get_pixmap_bo(pixmap),
+		intel_get_pixmap_bo(pixmap),
 	};
 
 	if (!intel_check_pitch_2d(pixmap))
 		return FALSE;
 
-	if (!i830_pixmap_pitch_is_aligned(pixmap)) {
-		intel_debug_fallback(scrn, "pixmap pitch not aligned");
-		return FALSE;
-	}
-
-	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
+	if (!intel_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
 	intel->BR[13] = (I830PatternROP[alu] & 0xff) << 16;
@@ -311,7 +292,7 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	if (x2 <= x1 || y2 <= y1)
 		return;
 
-	pitch = i830_pixmap_pitch(pixmap);
+	pitch = intel_pixmap_pitch(pixmap);
 
 	{
 		BEGIN_BATCH(6);
@@ -322,7 +303,7 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 			cmd |=
 			    XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
 
-		if (IS_I965G(intel) && i830_pixmap_tiled(pixmap)) {
+		if (IS_I965G(intel) && intel_pixmap_tiled(pixmap)) {
 			assert((pitch % 512) == 0);
 			pitch >>= 2;
 			cmd |= XY_COLOR_BLT_TILED;
@@ -346,7 +327,7 @@ static void i830_uxa_done_solid(PixmapPtr pixmap)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 
-	i830_debug_flush(scrn);
+	intel_debug_flush(scrn);
 }
 
 /**
@@ -400,11 +381,11 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
-		i830_get_pixmap_bo(source),
-		i830_get_pixmap_bo(dest),
+		intel_get_pixmap_bo(source),
+		intel_get_pixmap_bo(dest),
 	};
 
-	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
+	if (!intel_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
 	intel->render_source = source;
@@ -437,8 +418,8 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	dst_x2 = dst_x1 + w;
 	dst_y2 = dst_y1 + h;
 
-	dst_pitch = i830_pixmap_pitch(dest);
-	src_pitch = i830_pixmap_pitch(intel->render_source);
+	dst_pitch = intel_pixmap_pitch(dest);
+	src_pitch = intel_pixmap_pitch(intel->render_source);
 
 	{
 		BEGIN_BATCH(8);
@@ -451,13 +432,13 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 			    XY_SRC_COPY_BLT_WRITE_RGB;
 
 		if (IS_I965G(intel)) {
-			if (i830_pixmap_tiled(dest)) {
+			if (intel_pixmap_tiled(dest)) {
 				assert((dst_pitch % 512) == 0);
 				dst_pitch >>= 2;
 				cmd |= XY_SRC_COPY_BLT_DST_TILED;
 			}
 
-			if (i830_pixmap_tiled(intel->render_source)) {
+			if (intel_pixmap_tiled(intel->render_source)) {
 				assert((src_pitch % 512) == 0);
 				src_pitch >>= 2;
 				cmd |= XY_SRC_COPY_BLT_SRC_TILED;
@@ -488,7 +469,7 @@ static void i830_uxa_done_copy(PixmapPtr dest)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 
-	i830_debug_flush(scrn);
+	intel_debug_flush(scrn);
 }
 
 /**
@@ -496,7 +477,7 @@ static void i830_uxa_done_copy(PixmapPtr dest)
  *
  * This is shared between i830 through i965.
  */
-void i830_done_composite(PixmapPtr dest)
+static void i830_done_composite(PixmapPtr dest)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -504,15 +485,15 @@ void i830_done_composite(PixmapPtr dest)
 	if (intel->vertex_flush)
 		intel->vertex_flush(intel);
 
-	i830_debug_flush(scrn);
+	intel_debug_flush(scrn);
 }
 
 #define xFixedToFloat(val) \
 	((float)xFixedToInt(val) + ((float)xFixedFrac(val) / 65536.0))
 
 static Bool
-_i830_transform_point(PictTransformPtr transform,
-		      float x, float y, float result[3])
+_intel_transform_point(PictTransformPtr transform,
+		       float x, float y, float result[3])
 {
 	int j;
 
@@ -532,8 +513,8 @@ _i830_transform_point(PictTransformPtr transform,
  * transform may be null.
  */
 Bool
-i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
-				 float *x_out, float *y_out)
+intel_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
+				  float *x_out, float *y_out)
 {
 	if (transform == NULL) {
 		*x_out = x;
@@ -541,8 +522,9 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 	} else {
 		float result[3];
 
-		if (!_i830_transform_point
-		    (transform, (float)x, (float)y, result))
+		if (!_intel_transform_point(transform,
+					    x, y,
+					    result))
 			return FALSE;
 		*x_out = result[0] / result[2];
 		*y_out = result[1] / result[2];
@@ -556,8 +538,8 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
  * transform may be null.
  */
 Bool
-i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
-				    float *x_out, float *y_out, float *w_out)
+intel_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
+				     float *x_out, float *y_out, float *w_out)
 {
 	if (transform == NULL) {
 		*x_out = x;
@@ -566,8 +548,9 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 	} else {
 		float result[3];
 
-		if (!_i830_transform_point
-		    (transform, (float)x, (float)y, result))
+		if (!_intel_transform_point(transform,
+					    x, y,
+					    result))
 			return FALSE;
 		*x_out = result[0];
 		*y_out = result[1];
@@ -581,31 +564,31 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
  *
  * transform may be null.
  */
-Bool i830_transform_is_affine(PictTransformPtr t)
+Bool intel_transform_is_affine(PictTransformPtr t)
 {
 	if (t == NULL)
 		return TRUE;
 	return t->matrix[2][0] == 0 && t->matrix[2][1] == 0;
 }
 
-dri_bo *i830_get_pixmap_bo(PixmapPtr pixmap)
+dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap)
 {
 	struct intel_pixmap *intel;
 
-	intel = i830_get_pixmap_intel(pixmap);
+	intel = intel_get_pixmap_private(pixmap);
 	if (intel == NULL)
 		return NULL;
 
 	return intel->bo;
 }
 
-void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
+void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv;
 
-	priv = i830_get_pixmap_intel(pixmap);
+	priv = intel_get_pixmap_private(pixmap);
 
 	if (priv == NULL && bo == NULL)
 	    return;
@@ -645,7 +628,7 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 		dri_bo_reference(bo);
 		priv->bo = bo;
-		priv->stride = i830_pixmap_pitch(pixmap);
+		priv->stride = intel_pixmap_pitch(pixmap);
 
 		ret = drm_intel_bo_get_tiling(bo,
 					      &tiling,
@@ -665,14 +648,14 @@ void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 	}
 
   BAIL:
-	i830_set_pixmap_intel(pixmap, priv);
+	intel_set_pixmap_private(pixmap, priv);
 }
 
-static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
+static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	dri_bo *bo = priv->bo;
 	int ret;
 
@@ -706,15 +689,15 @@ static Bool i830_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	return TRUE;
 }
 
-static void i830_uxa_finish_access(PixmapPtr pixmap)
+static void intel_uxa_finish_access(PixmapPtr pixmap)
 {
-	dri_bo *bo = i830_get_pixmap_bo(pixmap);
+	dri_bo *bo = intel_get_pixmap_bo(pixmap);
 	ScreenPtr screen = pixmap->drawable.pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (bo == intel->front_buffer)
-		intel->need_flush = TRUE;
+		intel->need_sync = TRUE;
 
 	if (bo->size > intel->max_gtt_map_size)
 		dri_bo_unmap(bo);
@@ -724,12 +707,12 @@ static void i830_uxa_finish_access(PixmapPtr pixmap)
 	pixmap->devPrivate.ptr = NULL;
 }
 
-static Bool i830_uxa_pixmap_put_image(PixmapPtr pixmap,
-				      char *src, int src_pitch,
-				      int x, int y, int w, int h)
+static Bool intel_uxa_pixmap_put_image(PixmapPtr pixmap,
+				       char *src, int src_pitch,
+				       int x, int y, int w, int h)
 {
-	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
-	int stride = i830_pixmap_pitch(pixmap);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	int stride = intel_pixmap_pitch(pixmap);
 	int ret = FALSE;
 
 	if (src_pitch == stride && w == pixmap->drawable.width && priv->tiling == I915_TILING_NONE) {
@@ -754,17 +737,17 @@ static Bool i830_uxa_pixmap_put_image(PixmapPtr pixmap,
 	return ret;
 }
 
-static Bool i830_uxa_put_image(PixmapPtr pixmap,
-			       int x, int y,
-			       int w, int h,
-			       char *src, int src_pitch)
+static Bool intel_uxa_put_image(PixmapPtr pixmap,
+				int x, int y,
+				int w, int h,
+				char *src, int src_pitch)
 {
 	struct intel_pixmap *priv;
 
-	priv = i830_get_pixmap_intel(pixmap);
+	priv = intel_get_pixmap_private(pixmap);
 	if (!intel_pixmap_is_busy(priv)) {
 		/* bo is not busy so can be replaced without a stall, upload in-place. */
-		return i830_uxa_pixmap_put_image(pixmap, src, src_pitch, x, y, w, h);
+		return intel_uxa_pixmap_put_image(pixmap, src, src_pitch, x, y, w, h);
 	} else {
 		ScreenPtr screen = pixmap->drawable.pScreen;
 
@@ -778,8 +761,8 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 			dri_bo *bo;
 
 			/* Replace busy bo. */
-			size = i830_uxa_pixmap_compute_size (pixmap, w, h,
-							     &tiling, &stride);
+			size = intel_uxa_pixmap_compute_size (pixmap, w, h,
+							      &tiling, &stride);
 			if (size > intel->max_gtt_map_size)
 				return FALSE;
 
@@ -794,10 +777,10 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 						   w, h,
 						   0, 0,
 						   stride, NULL);
-			i830_set_pixmap_bo(pixmap, bo);
+			intel_set_pixmap_bo(pixmap, bo);
 			dri_bo_unreference(bo);
 
-			return i830_uxa_pixmap_put_image(pixmap, src, src_pitch, 0, 0, w, h);
+			return intel_uxa_pixmap_put_image(pixmap, src, src_pitch, 0, 0, w, h);
 		}
 		else
 		{
@@ -811,7 +794,7 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 			if (!scratch)
 				return FALSE;
 
-			ret = i830_uxa_pixmap_put_image(scratch, src, src_pitch, 0, 0, w, h);
+			ret = intel_uxa_pixmap_put_image(scratch, src, src_pitch, 0, 0, w, h);
 			if (ret) {
 				GCPtr gc = GetScratchGC(pixmap->drawable.depth, screen);
 				if (gc) {
@@ -832,12 +815,12 @@ static Bool i830_uxa_put_image(PixmapPtr pixmap,
 	}
 }
 
-static Bool i830_uxa_pixmap_get_image(PixmapPtr pixmap,
-				      int x, int y, int w, int h,
-				      char *dst, int dst_pitch)
+static Bool intel_uxa_pixmap_get_image(PixmapPtr pixmap,
+				       int x, int y, int w, int h,
+				       char *dst, int dst_pitch)
 {
-	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
-	int stride = i830_pixmap_pitch(pixmap);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	int stride = intel_pixmap_pitch(pixmap);
 
 	if (dst_pitch == stride && w == pixmap->drawable.width) {
 		return drm_intel_bo_get_subdata(priv->bo, y * stride, stride * h, dst) == 0;
@@ -863,10 +846,10 @@ static Bool i830_uxa_pixmap_get_image(PixmapPtr pixmap,
 	}
 }
 
-static Bool i830_uxa_get_image(PixmapPtr pixmap,
-			       int x, int y,
-			       int w, int h,
-			       char *dst, int dst_pitch)
+static Bool intel_uxa_get_image(PixmapPtr pixmap,
+				int x, int y,
+				int w, int h,
+				char *dst, int dst_pitch)
 {
 	struct intel_pixmap *priv;
 	PixmapPtr scratch = NULL;
@@ -879,7 +862,7 @@ static Bool i830_uxa_get_image(PixmapPtr pixmap,
 	 * Also the gpu is much faster at detiling.
 	 */
 
-	priv = i830_get_pixmap_intel(pixmap);
+	priv = intel_get_pixmap_private(pixmap);
 	if (intel_pixmap_is_busy(priv) || priv->tiling != I915_TILING_NONE) {
 		ScreenPtr screen = pixmap->drawable.pScreen;
 		GCPtr gc;
@@ -911,7 +894,7 @@ static Bool i830_uxa_get_image(PixmapPtr pixmap,
 		pixmap = scratch;
 	}
 
-	ret = i830_uxa_pixmap_get_image(pixmap, x, y, w, h, dst, dst_pitch);
+	ret = intel_uxa_pixmap_get_image(pixmap, x, y, w, h, dst, dst_pitch);
 
 	if (scratch)
 		scratch->drawable.pScreen->DestroyPixmap(scratch);
@@ -920,31 +903,22 @@ static Bool i830_uxa_get_image(PixmapPtr pixmap,
 
 }
 
-void i830_uxa_block_handler(ScreenPtr screen)
+void intel_uxa_block_handler(intel_screen_private *intel)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (intel->need_flush) {
+	if (intel->need_sync) {
 		dri_bo_wait_rendering(intel->front_buffer);
-		intel->need_flush = FALSE;
+		intel->need_sync = FALSE;
 	}
 }
 
-static Bool i830_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
+static Bool intel_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 {
-	ScreenPtr screen = pixmap->drawable.pScreen;
-
-	/* The front buffer is always in memory and pinned */
-	if (screen->GetScreenPixmap(screen) == pixmap)
-		return TRUE;
-
-	return i830_get_pixmap_bo(pixmap) != NULL;
+	return intel_get_pixmap_private(pixmap) != NULL;
 }
 
 static PixmapPtr
-i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
-		       unsigned usage)
+intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
+			unsigned usage)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -982,7 +956,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		    if (h <= 16 && tiling == I915_TILING_Y)
 			tiling = I915_TILING_X;
 		}
-		size = i830_uxa_pixmap_compute_size(pixmap, w, h, &tiling, &stride);
+		size = intel_uxa_pixmap_compute_size(pixmap, w, h, &tiling, &stride);
 
 		/* Fail very large allocations.  Large BOs will tend to hit SW fallbacks
 		 * frequently, and also will tend to fail to successfully map when doing
@@ -1025,7 +999,7 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 				list_del(&priv->in_flight);
 				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
-				i830_set_pixmap_intel(pixmap, priv);
+				intel_set_pixmap_private(pixmap, priv);
 				return pixmap;
 			}
 		}
@@ -1061,22 +1035,22 @@ i830_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 		list_init(&priv->batch);
 		list_init(&priv->flush);
-		i830_set_pixmap_intel(pixmap, priv);
+		intel_set_pixmap_private(pixmap, priv);
 	}
 
 	return pixmap;
 }
 
-static Bool i830_uxa_destroy_pixmap(PixmapPtr pixmap)
+static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 {
 	if (pixmap->refcnt == 1)
-		i830_set_pixmap_bo(pixmap, NULL);
+		intel_set_pixmap_bo(pixmap, NULL);
 	fbDestroyPixmap(pixmap);
 	return TRUE;
 }
 
 
-void i830_uxa_create_screen_resources(ScreenPtr screen)
+void intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -1084,12 +1058,66 @@ void i830_uxa_create_screen_resources(ScreenPtr screen)
 
 	if (bo != NULL) {
 		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-		i830_set_pixmap_bo(pixmap, bo);
-		i830_get_pixmap_intel(pixmap)->busy = 1;
+		intel_set_pixmap_bo(pixmap, bo);
+		intel_get_pixmap_private(pixmap)->busy = 1;
 	}
 }
 
-Bool i830_uxa_init(ScreenPtr screen)
+static void
+intel_limits_init(intel_screen_private *intel)
+{
+	/* Limits are described in the BLT engine chapter under Graphics Data Size
+	 * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
+	 * 3DSTATE_DRAWING_RECTANGLE, 3DSTATE_MAP_INFO, and 3DSTATE_MAP_INFO.
+	 *
+	 * i845 through i965 limits 2D rendering to 65536 lines and pitch of 32768.
+	 *
+	 * i965 limits 3D surface to (2*element size)-aligned offset if un-tiled.
+	 * i965 limits 3D surface to 4kB-aligned offset if tiled.
+	 * i965 limits 3D surfaces to w,h of ?,8192.
+	 * i965 limits 3D surface to pitch of 1B - 128kB.
+	 * i965 limits 3D surface pitch alignment to 1 or 2 times the element size.
+	 * i965 limits 3D surface pitch alignment to 512B if tiled.
+	 * i965 limits 3D destination drawing rect to w,h of 8192,8192.
+	 *
+	 * i915 limits 3D textures to 4B-aligned offset if un-tiled.
+	 * i915 limits 3D textures to ~4kB-aligned offset if tiled.
+	 * i915 limits 3D textures to width,height of 2048,2048.
+	 * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
+	 * i915 limits 3D destination to ~4kB-aligned offset if tiled.
+	 * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
+	 * i915 limits 3D destination to pitch 64B-aligned if used with depth.
+	 * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
+	 * i915 limits 3D destination to POT aligned pitch if tiled.
+	 * i915 limits 3D destination drawing rect to w,h of 2048,2048.
+	 *
+	 * i845 limits 3D textures to 4B-aligned offset if un-tiled.
+	 * i845 limits 3D textures to ~4kB-aligned offset if tiled.
+	 * i845 limits 3D textures to width,height of 2048,2048.
+	 * i845 limits 3D textures to pitch of 4B - 8kB, in dwords.
+	 * i845 limits 3D destination to 4B-aligned offset if un-tiled.
+	 * i845 limits 3D destination to ~4kB-aligned offset if tiled.
+	 * i845 limits 3D destination to pitch of 8B - 8kB, in dwords.
+	 * i845 limits 3D destination drawing rect to w,h of 2048,2048.
+	 *
+	 * For the tiled issues, the only tiled buffer we draw to should be
+	 * the front, which will have an appropriate pitch/offset already set up,
+	 * so UXA doesn't need to worry.
+	 */
+	if (IS_I965G(intel)) {
+		intel->accel_pixmap_offset_alignment = 4 * 2;
+		intel->accel_pixmap_pitch_alignment = 64;
+		intel->accel_max_x = 8192;
+		intel->accel_max_y = 8192;
+	} else {
+		intel->accel_pixmap_offset_alignment = 4;
+		intel->accel_pixmap_pitch_alignment = 64;
+		intel->accel_max_x = 2048;
+		intel->accel_max_y = 2048;
+	}
+}
+
+Bool intel_uxa_init(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -1100,6 +1128,8 @@ Bool i830_uxa_init(ScreenPtr screen)
 	if (!dixRequestPrivate(&uxa_pixmap_index, 0))
 #endif
 		return FALSE;
+
+	intel_limits_init(intel);
 
 	intel->uxa_driver = uxa_driver_alloc();
 	if (intel->uxa_driver == NULL)
@@ -1140,6 +1170,8 @@ Bool i830_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->prepare_composite = i830_prepare_composite;
 		intel->uxa_driver->composite = i830_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
+
+		intel->batch_flush_notify = i830_batch_flush_notify;
 	} else if (IS_I915G(intel) || IS_I915GM(intel) ||
 		   IS_I945G(intel) || IS_I945GM(intel) || IS_G33CLASS(intel)) {
 		intel->uxa_driver->check_composite = i915_check_composite;
@@ -1148,24 +1180,29 @@ Bool i830_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->prepare_composite = i915_prepare_composite;
 		intel->uxa_driver->composite = i915_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
+
+		intel->vertex_flush = i915_vertex_flush;
+		intel->batch_flush_notify = i915_batch_flush_notify;
 	} else {
 		intel->uxa_driver->check_composite = i965_check_composite;
 		intel->uxa_driver->check_composite_texture = i965_check_composite_texture;
 		intel->uxa_driver->prepare_composite = i965_prepare_composite;
 		intel->uxa_driver->composite = i965_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
+
+		intel->batch_flush_notify = i965_batch_flush_notify;
 	}
 
 	/* PutImage */
-	intel->uxa_driver->put_image = i830_uxa_put_image;
-	intel->uxa_driver->get_image = i830_uxa_get_image;
+	intel->uxa_driver->put_image = intel_uxa_put_image;
+	intel->uxa_driver->get_image = intel_uxa_get_image;
 
-	intel->uxa_driver->prepare_access = i830_uxa_prepare_access;
-	intel->uxa_driver->finish_access = i830_uxa_finish_access;
-	intel->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
+	intel->uxa_driver->prepare_access = intel_uxa_prepare_access;
+	intel->uxa_driver->finish_access = intel_uxa_finish_access;
+	intel->uxa_driver->pixmap_is_offscreen = intel_uxa_pixmap_is_offscreen;
 
-	screen->CreatePixmap = i830_uxa_create_pixmap;
-	screen->DestroyPixmap = i830_uxa_destroy_pixmap;
+	screen->CreatePixmap = intel_uxa_create_pixmap;
+	screen->DestroyPixmap = intel_uxa_destroy_pixmap;
 
 	if (!uxa_driver_init(screen, intel->uxa_driver)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,

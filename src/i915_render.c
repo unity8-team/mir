@@ -31,7 +31,7 @@
 #endif
 
 #include "xf86.h"
-#include "i830.h"
+#include "intel.h"
 #include "i915_reg.h"
 #include "i915_3d.h"
 
@@ -301,7 +301,7 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	int w, h, i;
 	uint32_t wrap_mode, tiling_bits;
 
-	pitch = intel_get_pixmap_pitch(pixmap);
+	pitch = intel_pixmap_pitch(pixmap);
 	w = picture->pDrawable->width;
 	h = picture->pDrawable->height;
 	intel->scale_units[unit][0] = 1. / pixmap->drawable.width;
@@ -352,9 +352,9 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	}
 
 	/* offset filled in at emit time */
-	if (i830_pixmap_tiled(pixmap)) {
+	if (intel_pixmap_tiled(pixmap)) {
 		tiling_bits = MS3_TILED_SURFACE;
-		if (i830_get_pixmap_intel(pixmap)->tiling
+		if (intel_get_pixmap_private(pixmap)->tiling
 				== I915_TILING_Y)
 			tiling_bits |= MS3_TILE_WALK;
 	} else
@@ -441,19 +441,19 @@ i915_emit_composite_primitive_affine_source(PixmapPtr dest,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	float src_x[3], src_y[3];
 
-	if (!i830_get_transformed_coordinates(srcX, srcY,
+	if (!intel_get_transformed_coordinates(srcX, srcY,
 					      intel->transform[0],
 					      &src_x[0],
 					      &src_y[0]))
 		return;
 
-	if (!i830_get_transformed_coordinates(srcX, srcY + h,
+	if (!intel_get_transformed_coordinates(srcX, srcY + h,
 					      intel->transform[0],
 					      &src_x[1],
 					      &src_y[1]))
 		return;
 
-	if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
+	if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
 					      intel->transform[0],
 					      &src_x[2],
 					      &src_y[2]))
@@ -553,23 +553,23 @@ i915_emit_composite_primitive(PixmapPtr dest,
 	if (! intel->render_source_is_solid) {
 		src_unit = tex_unit++;
 
-		is_affine_src = i830_transform_is_affine(intel->transform[src_unit]);
+		is_affine_src = intel_transform_is_affine(intel->transform[src_unit]);
 		if (is_affine_src) {
-			if (!i830_get_transformed_coordinates(srcX, srcY,
+			if (!intel_get_transformed_coordinates(srcX, srcY,
 							      intel->
 							      transform[src_unit],
 							      &src_x[0],
 							      &src_y[0]))
 				return;
 
-			if (!i830_get_transformed_coordinates(srcX, srcY + h,
+			if (!intel_get_transformed_coordinates(srcX, srcY + h,
 							      intel->
 							      transform[src_unit],
 							      &src_x[1],
 							      &src_y[1]))
 				return;
 
-			if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
+			if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
 							      intel->
 							      transform[src_unit],
 							      &src_x[2],
@@ -578,7 +578,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 			per_vertex += 2;	/* src x/y */
 		} else {
-			if (!i830_get_transformed_coordinates_3d(srcX, srcY,
+			if (!intel_get_transformed_coordinates_3d(srcX, srcY,
 								 intel->
 								 transform[src_unit],
 								 &src_x[0],
@@ -586,7 +586,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 								 &src_w[0]))
 				return;
 
-			if (!i830_get_transformed_coordinates_3d(srcX, srcY + h,
+			if (!intel_get_transformed_coordinates_3d(srcX, srcY + h,
 								 intel->
 								 transform[src_unit],
 								 &src_x[1],
@@ -594,7 +594,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 								 &src_w[1]))
 				return;
 
-			if (!i830_get_transformed_coordinates_3d(srcX + w, srcY + h,
+			if (!intel_get_transformed_coordinates_3d(srcX + w, srcY + h,
 								 intel->
 								 transform[src_unit],
 								 &src_x[2],
@@ -609,23 +609,23 @@ i915_emit_composite_primitive(PixmapPtr dest,
 	if (intel->render_mask && ! intel->render_mask_is_solid) {
 		mask_unit = tex_unit++;
 
-		is_affine_mask = i830_transform_is_affine(intel->transform[mask_unit]);
+		is_affine_mask = intel_transform_is_affine(intel->transform[mask_unit]);
 		if (is_affine_mask) {
-			if (!i830_get_transformed_coordinates(maskX, maskY,
+			if (!intel_get_transformed_coordinates(maskX, maskY,
 							      intel->
 							      transform[mask_unit],
 							      &mask_x[0],
 							      &mask_y[0]))
 				return;
 
-			if (!i830_get_transformed_coordinates(maskX, maskY + h,
+			if (!intel_get_transformed_coordinates(maskX, maskY + h,
 							      intel->
 							      transform[mask_unit],
 							      &mask_x[1],
 							      &mask_y[1]))
 				return;
 
-			if (!i830_get_transformed_coordinates(maskX + w, maskY + h,
+			if (!intel_get_transformed_coordinates(maskX + w, maskY + h,
 							      intel->
 							      transform[mask_unit],
 							      &mask_x[2],
@@ -634,7 +634,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 
 			per_vertex += 2;	/* mask x/y */
 		} else {
-			if (!i830_get_transformed_coordinates_3d(maskX, maskY,
+			if (!intel_get_transformed_coordinates_3d(maskX, maskY,
 								 intel->
 								 transform[mask_unit],
 								 &mask_x[0],
@@ -642,7 +642,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 								 &mask_w[0]))
 				return;
 
-			if (!i830_get_transformed_coordinates_3d(maskX, maskY + h,
+			if (!intel_get_transformed_coordinates_3d(maskX, maskY + h,
 								 intel->
 								 transform[mask_unit],
 								 &mask_x[1],
@@ -650,7 +650,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 								 &mask_w[1]))
 				return;
 
-			if (!i830_get_transformed_coordinates_3d(maskX + w, maskY + h,
+			if (!intel_get_transformed_coordinates_3d(maskX + w, maskY + h,
 								 intel->
 								 transform[mask_unit],
 								 &mask_x[2],
@@ -731,9 +731,9 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo_table[] = {
 		NULL,		/* batch_bo */
-		i830_get_pixmap_bo(dest),
-		source ? i830_get_pixmap_bo(source) : NULL,
-		mask ? i830_get_pixmap_bo(mask) : NULL,
+		intel_get_pixmap_bo(dest),
+		source ? intel_get_pixmap_bo(source) : NULL,
+		mask ? intel_get_pixmap_bo(mask) : NULL,
 	};
 	int tex_unit = 0;
 	int floats_per_vertex;
@@ -776,7 +776,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 				  &intel->i915_render_state.dst_format))
 		return FALSE;
 
-	if (!i830_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
+	if (!intel_get_aperture_space(scrn, bo_table, ARRAY_SIZE(bo_table)))
 		return FALSE;
 
 	intel->needs_render_ca_pass = FALSE;
@@ -809,7 +809,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 			return FALSE;
 		}
 
-		if (i830_transform_is_affine(source_picture->transform))
+		if (intel_transform_is_affine(source_picture->transform))
 			floats_per_vertex += 2;	/* src x/y */
 		else
 			floats_per_vertex += 4;	/* src x/y/z/w */
@@ -823,7 +823,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 				return FALSE;
 			}
 
-			if (i830_transform_is_affine(mask_picture->transform))
+			if (intel_transform_is_affine(mask_picture->transform))
 				floats_per_vertex += 2;	/* mask x/y */
 			else
 				floats_per_vertex += 4;	/* mask x/y/z/w */
@@ -835,8 +835,8 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 	/* BUF_INFO is an implicit flush */
 	if (dest != intel->render_current_dest)
 		intel_batch_do_flush(scrn);
-	else if((source && i830_uxa_pixmap_is_dirty(source)) ||
-		(mask && i830_uxa_pixmap_is_dirty(mask)))
+	else if((source && intel_pixmap_is_dirty(source)) ||
+		(mask && intel_pixmap_is_dirty(mask)))
 		intel_batch_emit_flush(scrn);
 
 	intel->needs_render_state_emit = TRUE;
@@ -847,7 +847,7 @@ i915_prepare_composite(int op, PicturePtr source_picture,
 			intel->prim_emit = i915_emit_composite_primitive_constant;
 		else if (intel->transform[0] == NULL)
 			intel->prim_emit = i915_emit_composite_primitive_identity_source;
-		else if (i830_transform_is_affine(intel->transform[0]))
+		else if (intel_transform_is_affine(intel->transform[0]))
 			intel->prim_emit = i915_emit_composite_primitive_affine_source;
 	} else {
 		if (intel->transform[0] == NULL) {
@@ -900,7 +900,7 @@ i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
 			else
 				src_reg = FS_OC;
 
-			if (i830_transform_is_affine(intel->transform[0]))
+			if (intel_transform_is_affine(intel->transform[0]))
 				i915_fs_texld(src_reg, FS_S0, FS_T0);
 			else
 				i915_fs_texldp(src_reg, FS_S0, FS_T0);
@@ -924,7 +924,7 @@ i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
 		tex_unit = 0;
 		if (! is_solid_src) {
 			/* Load the source_picture texel */
-			if (i830_transform_is_affine(intel->transform[tex_unit]))
+			if (intel_transform_is_affine(intel->transform[tex_unit]))
 				i915_fs_texld(FS_R0, FS_S0, FS_T0);
 			else
 				i915_fs_texldp(FS_R0, FS_S0, FS_T0);
@@ -935,7 +935,7 @@ i915_composite_emit_shader(intel_screen_private *intel, CARD8 op)
 
 		if (! is_solid_mask) {
 			/* Load the mask_picture texel */
-			if (i830_transform_is_affine(intel->transform[tex_unit]))
+			if (intel_transform_is_affine(intel->transform[tex_unit]))
 				i915_fs_texld(FS_R1, FS_S0 + t, FS_T0 + t);
 			else
 				i915_fs_texldp(FS_R1, FS_S0 + t, FS_T0 + t);
@@ -1041,9 +1041,9 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 
 		intel_batch_do_flush(scrn);
 
-		if (i830_pixmap_tiled(dest)) {
+		if (intel_pixmap_tiled(dest)) {
 			tiling_bits = BUF_3D_TILED_SURFACE;
-			if (i830_get_pixmap_intel(dest)->tiling
+			if (intel_get_pixmap_private(dest)->tiling
 			    == I915_TILING_Y)
 				tiling_bits |= BUF_3D_TILE_WALK_Y;
 		} else
@@ -1051,7 +1051,7 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 
 		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 		OUT_BATCH(BUF_3D_ID_COLOR_BACK | tiling_bits |
-			  BUF_3D_PITCH(intel_get_pixmap_pitch(dest)));
+			  BUF_3D_PITCH(intel_pixmap_pitch(dest)));
 		OUT_RELOC_PIXMAP(dest, I915_GEM_DOMAIN_RENDER,
 				 I915_GEM_DOMAIN_RENDER, 0);
 
@@ -1078,14 +1078,14 @@ static void i915_emit_composite_setup(ScrnInfoPtr scrn)
 		if (! is_solid_src) {
 		    ss2 &= ~S2_TEXCOORD_FMT(t, TEXCOORDFMT_NOT_PRESENT);
 		    ss2 |= S2_TEXCOORD_FMT(t,
-					   i830_transform_is_affine(intel->transform[t]) ?
+					   intel_transform_is_affine(intel->transform[t]) ?
 					   TEXCOORDFMT_2D : TEXCOORDFMT_4D);
 		    t++;
 		}
 		if (mask && ! is_solid_mask) {
 		    ss2 &= ~S2_TEXCOORD_FMT(t, TEXCOORDFMT_NOT_PRESENT);
 		    ss2 |= S2_TEXCOORD_FMT(t,
-					   i830_transform_is_affine(intel->transform[t]) ?
+					   intel_transform_is_affine(intel->transform[t]) ?
 					   TEXCOORDFMT_2D : TEXCOORDFMT_4D);
 		    t++;
 		}

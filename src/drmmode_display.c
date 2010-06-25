@@ -38,7 +38,7 @@
 
 #include "xorgVersion.h"
 
-#include "i830.h"
+#include "intel.h"
 #include "intel_bufmgr.h"
 #include "xf86drmMode.h"
 #include "X11/Xatom.h"
@@ -402,7 +402,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		drmmode_output_dpms(output, DPMSModeOn);
 	}
 
-	i830_set_gem_max_sizes(scrn);
+	intel_set_gem_max_sizes(scrn);
 
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);
@@ -476,10 +476,10 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	unsigned long rotate_pitch;
 	int ret;
 
-	drmmode_crtc->rotate_bo = i830_allocate_framebuffer(scrn,
-							    width, height,
-							    drmmode->cpp,
-							    &rotate_pitch);
+	drmmode_crtc->rotate_bo = intel_allocate_framebuffer(scrn,
+							     width, height,
+							     drmmode->cpp,
+							     &rotate_pitch);
 
 	if (!drmmode_crtc->rotate_bo) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
@@ -536,7 +536,7 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 		return NULL;
 	}
 
-	i830_set_pixmap_bo(rotate_pixmap, drmmode_crtc->rotate_bo);
+	intel_set_pixmap_bo(rotate_pixmap, drmmode_crtc->rotate_bo);
 
 	intel->shadow_present = TRUE;
 
@@ -552,7 +552,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
 	if (rotate_pixmap) {
-		i830_set_pixmap_bo(rotate_pixmap, NULL);
+		intel_set_pixmap_bo(rotate_pixmap, NULL);
 		FreeScratchPixmapHeader(rotate_pixmap);
 	}
 
@@ -1267,10 +1267,10 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	old_fb_id = drmmode->fb_id;
 	old_front = intel->front_buffer;
 
-	intel->front_buffer = i830_allocate_framebuffer(scrn,
-							width, height,
-							intel->cpp,
-							&pitch);
+	intel->front_buffer = intel_allocate_framebuffer(scrn,
+							 width, height,
+							 intel->cpp,
+							 &pitch);
 	if (!intel->front_buffer)
 		goto fail;
 
@@ -1287,7 +1287,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 
 	pixmap = screen->GetScreenPixmap(screen);
 	screen->ModifyPixmapHeader(pixmap, width, height, -1, -1, pitch, NULL);
-	i830_set_pixmap_bo(pixmap, intel->front_buffer);
+	intel_set_pixmap_bo(pixmap, intel->front_buffer);
+	intel_get_pixmap_private(pixmap)->busy = 1;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
