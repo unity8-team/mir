@@ -86,10 +86,6 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.21])
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
-PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
-                  HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
-                  HAVE_XEXTPROTO_71="no")
-AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
 
