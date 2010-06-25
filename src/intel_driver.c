@@ -68,9 +68,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "shadow.h"
 #include "intel.h"
 #include "intel_video.h"
-#if HAVE_SYS_MMAN_H && HAVE_MPROTECT
-#include <sys/mman.h>
-#endif
 
 #ifdef INTEL_XVMC
 #define _INTEL_XVMC_SERVER_

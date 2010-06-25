@@ -50,7 +50,6 @@ PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.0], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 AC_HEADER_STDC
-AC_CHECK_HEADERS(sys/mman.h)
 
 AH_TOP([#include "xorg-server.h"])
 

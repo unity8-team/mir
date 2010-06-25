@@ -38,7 +38,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 #include "brw_defines.h"
 #include <string.h>
-#include <sys/mman.h>
 #include <errno.h>
 
 static const int I830CopyROP[16] = {
