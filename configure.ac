@@ -51,7 +51,6 @@ AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 AC_HEADER_STDC
 AC_CHECK_HEADERS(sys/mman.h)
-AC_CHECK_FUNCS(mprotect)
 
 AH_TOP([#include "xorg-server.h"])
 
