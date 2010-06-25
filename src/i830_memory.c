@@ -84,7 +84,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86_OSproc.h"
 
 #include "i830.h"
-#include "i810_reg.h"
 #include "i915_drm.h"
 
 /**

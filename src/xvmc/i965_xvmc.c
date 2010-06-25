@@ -25,7 +25,8 @@
  *
  */
 #include "intel_xvmc.h"
-#include "i810_reg.h"
+#include "i830_reg.h"
+#include "i965_reg.h"
 #include "brw_defines.h"
 #include "brw_structs.h"
 #include "intel_batchbuffer.h"

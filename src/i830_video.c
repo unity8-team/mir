@@ -65,6 +65,7 @@
 #include "windowstr.h"
 #include "damage.h"
 #include "i830.h"
+#include "i830_reg.h"
 #include "i830_video.h"
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>

@@ -51,7 +51,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "compiler.h"
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
-#include "i810_reg.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
 #include "vgaHW.h"
@@ -69,6 +68,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "GL/glxint.h"
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
+
+#include "intel_driver.h"
 
 #include "uxa.h"
 Bool i830_uxa_init(ScreenPtr pScreen);
@@ -324,7 +325,7 @@ typedef struct intel_screen_private {
 	unsigned long LinearAddr;
 	EntityInfoPtr pEnt;
 	struct pci_device *PciInfo;
-	uint8_t variant;
+	struct intel_chipset chipset;
 
 	unsigned int BR[20];
 
@@ -655,5 +656,7 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 
 	return pixmap == screen->GetScreenPixmap(screen);
 }
+
+const OptionInfoRec *i830_available_options(int chipid, int busid);
 
 #endif /* _I830_H_ */

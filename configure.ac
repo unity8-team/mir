@@ -156,6 +156,9 @@ AC_OUTPUT([
 	src/xvmc/shader/Makefile
 	src/xvmc/shader/mc/Makefile
 	src/xvmc/shader/vld/Makefile
+	src/legacy/Makefile
+	src/legacy/i810/Makefile
+	src/legacy/i810/xvmc/Makefile
 	man/Makefile
 	src/render_program/Makefile
 ])

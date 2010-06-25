@@ -34,7 +34,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86.h"
 #include "xaarop.h"
 #include "i830.h"
-#include "i810_reg.h"
+#include "i830_reg.h"
 #include "i915_drm.h"
 #include "brw_defines.h"
 #include <string.h>

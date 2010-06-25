@@ -36,11 +36,14 @@
 #include "fourcc.h"
 
 #include "i830.h"
+#include "i830_reg.h"
 #include "i830_video.h"
 #include "i830_hwmc.h"
+#include "i965_reg.h"
 #include "brw_defines.h"
 #include "brw_structs.h"
 #include <string.h>
+
 
 /* Make assert() work. */
 #undef NDEBUG

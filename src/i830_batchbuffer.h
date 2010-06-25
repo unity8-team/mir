@@ -197,11 +197,6 @@ do {									\
 			   __FUNCTION__,				\
 			   intel->batch_used - intel->batch_emit_start,	\
 			   intel->batch_emitting);			\
-	if ((intel->batch_emitting > 8) &&				\
-	    (I810_DEBUG & DEBUG_ALWAYS_SYNC)) {				\
-		/* Note: not actually syncing, just flushing each batch. */ \
-		intel_batch_submit(scrn, FALSE);			\
-	}								\
 	intel->batch_emitting = 0;					\
 } while (0)
 

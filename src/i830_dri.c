@@ -61,6 +61,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "GL/glxtokens.h"
 
 #include "i830.h"
+#include "i830_reg.h"
 
 #include "i915_drm.h"
 

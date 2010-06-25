@@ -77,6 +77,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_hwmc.h"
 #endif
 
+#include "legacy/legacy.h"
+
 #include <sys/ioctl.h>
 #include "i915_drm.h"
 #include <xf86drmMode.h>
@@ -86,72 +88,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define NB_OF(x) (sizeof (x) / sizeof (*x))
 
 /* *INDENT-OFF* */
-static SymTabRec I830Chipsets[] = {
-   {PCI_CHIP_I830_M,		"i830"},
-   {PCI_CHIP_845_G,		"845G"},
-   {PCI_CHIP_I855_GM,		"852GM/855GM"},
-   {PCI_CHIP_I865_G,		"865G"},
-   {PCI_CHIP_I915_G,		"915G"},
-   {PCI_CHIP_E7221_G,		"E7221 (i915)"},
-   {PCI_CHIP_I915_GM,		"915GM"},
-   {PCI_CHIP_I945_G,		"945G"},
-   {PCI_CHIP_I945_GM,		"945GM"},
-   {PCI_CHIP_I945_GME,		"945GME"},
-   {PCI_CHIP_IGD_GM,		"Pineview GM"},
-   {PCI_CHIP_IGD_G,		"Pineview G"},
-   {PCI_CHIP_I965_G,		"965G"},
-   {PCI_CHIP_G35_G,		"G35"},
-   {PCI_CHIP_I965_Q,		"965Q"},
-   {PCI_CHIP_I946_GZ,		"946GZ"},
-   {PCI_CHIP_I965_GM,		"965GM"},
-   {PCI_CHIP_I965_GME,		"965GME/GLE"},
-   {PCI_CHIP_G33_G,		"G33"},
-   {PCI_CHIP_Q35_G,		"Q35"},
-   {PCI_CHIP_Q33_G,		"Q33"},
-   {PCI_CHIP_GM45_GM,		"GM45"},
-   {PCI_CHIP_IGD_E_G,		"4 Series"},
-   {PCI_CHIP_G45_G,		"G45/G43"},
-   {PCI_CHIP_Q45_G,		"Q45/Q43"},
-   {PCI_CHIP_G41_G,		"G41"},
-   {PCI_CHIP_B43_G,		"B43"},
-   {PCI_CHIP_IGDNG_D_G,		"Clarkdale"},
-   {PCI_CHIP_IGDNG_M_G,		"Arrandale"},
-   {-1,				NULL}
-};
-
-static PciChipsets I830PciChipsets[] = {
-   {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	NULL},
-   {PCI_CHIP_845_G,		PCI_CHIP_845_G,		NULL},
-   {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	NULL},
-   {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	NULL},
-   {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	NULL},
-   {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	NULL},
-   {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	NULL},
-   {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	NULL},
-   {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	NULL},
-   {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	NULL},
-   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	NULL},
-   {PCI_CHIP_IGD_G,		PCI_CHIP_IGD_G,		NULL},
-   {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	NULL},
-   {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		NULL},
-   {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	NULL},
-   {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	NULL},
-   {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	NULL},
-   {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	NULL},
-   {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		NULL},
-   {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		NULL},
-   {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		NULL},
-   {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	NULL},
-   {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	NULL},
-   {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		NULL},
-   {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		NULL},
-   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		NULL},
-   {PCI_CHIP_B43_G,		PCI_CHIP_B43_G,		NULL},
-   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,		NULL},
-   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,		NULL},
-   {-1,				-1,			NULL}
-};
-
 /*
  * Note: "ColorKey" is provided for compatibility with the i810 driver.
  * However, the correct option name is "VideoKey".  "ColorKey" usually
@@ -159,6 +95,7 @@ static PciChipsets I830PciChipsets[] = {
  */
 
 typedef enum {
+   OPTION_ACCELMETHOD,
    OPTION_DRI,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
@@ -175,6 +112,7 @@ typedef enum {
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
+   {OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_ANYSTR,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
@@ -217,15 +155,9 @@ I830DPRINTF(const char *filename, int line, const char *function,
 #endif /* #ifdef I830DEBUG */
 
 /* Export I830 options to i830 driver where necessary */
-const OptionInfoRec *I830AvailableOptions(int chipid, int busid)
+const OptionInfoRec *i830_available_options(int chipid, int busid)
 {
-	int i;
-
-	for (i = 0; I830PciChipsets[i].PCIid > 0; i++) {
-		if (chipid == I830PciChipsets[i].PCIid)
-			return I830Options;
-	}
-	return NULL;
+	return I830Options;
 }
 
 static Bool I830GetRec(ScrnInfoPtr scrn)
@@ -385,135 +317,18 @@ static void i830_detect_chipset(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	MessageType from = X_PROBED;
-	const char *chipname;
-	uint32_t capid;
 
-	switch (DEVICE_ID(intel->PciInfo)) {
-	case PCI_CHIP_I830_M:
-		chipname = "830M";
-		break;
-	case PCI_CHIP_845_G:
-		chipname = "845G";
-		break;
-	case PCI_CHIP_I855_GM:
-		/* Check capid register to find the chipset variant */
-		pci_device_cfg_read_u32(intel->PciInfo, &capid, I85X_CAPID);
-		intel->variant =
-		    (capid >> I85X_VARIANT_SHIFT) & I85X_VARIANT_MASK;
-		switch (intel->variant) {
-		case I855_GM:
-			chipname = "855GM";
-			break;
-		case I855_GME:
-			chipname = "855GME";
-			break;
-		case I852_GM:
-			chipname = "852GM";
-			break;
-		case I852_GME:
-			chipname = "852GME";
-			break;
-		default:
-			xf86DrvMsg(scrn->scrnIndex, X_INFO,
-				   "Unknown 852GM/855GM variant: 0x%x)\n",
-				   intel->variant);
-			chipname = "852GM/855GM (unknown variant)";
-			break;
-		}
-		break;
-	case PCI_CHIP_I865_G:
-		chipname = "865G";
-		break;
-	case PCI_CHIP_I915_G:
-		chipname = "915G";
-		break;
-	case PCI_CHIP_E7221_G:
-		chipname = "E7221 (i915)";
-		break;
-	case PCI_CHIP_I915_GM:
-		chipname = "915GM";
-		break;
-	case PCI_CHIP_I945_G:
-		chipname = "945G";
-		break;
-	case PCI_CHIP_I945_GM:
-		chipname = "945GM";
-		break;
-	case PCI_CHIP_I945_GME:
-		chipname = "945GME";
-		break;
-	case PCI_CHIP_IGD_GM:
-		chipname = "Pineview GM";
-		break;
-	case PCI_CHIP_IGD_G:
-		chipname = "Pineview G";
-		break;
-	case PCI_CHIP_I965_G:
-		chipname = "965G";
-		break;
-	case PCI_CHIP_G35_G:
-		chipname = "G35";
-		break;
-	case PCI_CHIP_I965_Q:
-		chipname = "965Q";
-		break;
-	case PCI_CHIP_I946_GZ:
-		chipname = "946GZ";
-		break;
-	case PCI_CHIP_I965_GM:
-		chipname = "965GM";
-		break;
-	case PCI_CHIP_I965_GME:
-		chipname = "965GME/GLE";
-		break;
-	case PCI_CHIP_G33_G:
-		chipname = "G33";
-		break;
-	case PCI_CHIP_Q35_G:
-		chipname = "Q35";
-		break;
-	case PCI_CHIP_Q33_G:
-		chipname = "Q33";
-		break;
-	case PCI_CHIP_GM45_GM:
-		chipname = "GM45";
-		break;
-	case PCI_CHIP_IGD_E_G:
-		chipname = "4 Series";
-		break;
-	case PCI_CHIP_G45_G:
-		chipname = "G45/G43";
-		break;
-	case PCI_CHIP_Q45_G:
-		chipname = "Q45/Q43";
-		break;
-	case PCI_CHIP_G41_G:
-		chipname = "G41";
-		break;
-	case PCI_CHIP_B43_G:
-		chipname = "B43";
-		break;
-	case PCI_CHIP_IGDNG_D_G:
-		chipname = "Clarkdale";
-		break;
-	case PCI_CHIP_IGDNG_M_G:
-		chipname = "Arrandale";
-		break;
-	default:
-		chipname = "unknown chipset";
-		break;
-	}
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		   "Integrated Graphics Chipset: Intel(R) %s\n", chipname);
+	intel_detect_chipset(scrn,
+			     intel->PciInfo,
+			     &intel->chipset);
 
 	/* Set the Chipset and ChipRev, allowing config file entries to override. */
 	if (intel->pEnt->device->chipset && *intel->pEnt->device->chipset) {
 		scrn->chipset = intel->pEnt->device->chipset;
 		from = X_CONFIG;
 	} else if (intel->pEnt->device->chipID >= 0) {
-		scrn->chipset = (char *)xf86TokenToString(I830Chipsets,
-							   intel->pEnt->device->
-							   chipID);
+		scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
+							   intel->pEnt->device->chipID);
 		from = X_CONFIG;
 		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
 			   "ChipID override: 0x%04X\n",
@@ -521,9 +336,8 @@ static void i830_detect_chipset(ScrnInfoPtr scrn)
 		DEVICE_ID(intel->PciInfo) = intel->pEnt->device->chipID;
 	} else {
 		from = X_PROBED;
-		scrn->chipset = (char *)xf86TokenToString(I830Chipsets,
-							   DEVICE_ID(intel->
-								     PciInfo));
+		scrn->chipset = (char *)xf86TokenToString(intel_chipsets,
+							   DEVICE_ID(intel->PciInfo));
 	}
 
 	if (intel->pEnt->device->chipRev >= 0) {

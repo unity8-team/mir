@@ -36,7 +36,8 @@
 #include <assert.h>
 #include "xf86.h"
 #include "i830.h"
-#include "i915_reg.h"
+#include "i830_reg.h"
+#include "i965_reg.h"
 
 /* bring in brw structs */
 #include "brw_defines.h"
