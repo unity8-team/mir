@@ -172,25 +172,25 @@ I810InitVisualConfigs(ScreenPtr pScreen)
       numConfigs = 8;
 
       pConfigs =
-	    (__GLXvisualConfig *) xcalloc(sizeof(__GLXvisualConfig),
+	    (__GLXvisualConfig *) calloc(sizeof(__GLXvisualConfig),
 					  numConfigs);
       if (!pConfigs)
 	 return FALSE;
 
       pI810Configs =
-	    (I810ConfigPrivPtr) xcalloc(sizeof(I810ConfigPrivRec),
+	    (I810ConfigPrivPtr) calloc(sizeof(I810ConfigPrivRec),
 					numConfigs);
       if (!pI810Configs) {
-	 xfree(pConfigs);
+	 free(pConfigs);
 	 return FALSE;
       }
 
       pI810ConfigPtrs =
-	    (I810ConfigPrivPtr *) xcalloc(sizeof(I810ConfigPrivPtr),
+	    (I810ConfigPrivPtr *) calloc(sizeof(I810ConfigPrivPtr),
 					  numConfigs);
       if (!pI810ConfigPtrs) {
-	 xfree(pConfigs);
-	 xfree(pI810Configs);
+	 free(pConfigs);
+	 free(pI810Configs);
 	 return FALSE;
       }
 
@@ -305,6 +305,28 @@ I810DRIScreenInit(ScreenPtr pScreen)
       return FALSE;
    }
 
+   /* adjust width first */
+#define Elements(x) sizeof(x)/sizeof(*x)
+   for (pitch_idx = 0; pitch_idx < Elements(i810_pitches); pitch_idx++)
+      if (width <= i810_pitches[pitch_idx])
+	 break;
+
+   if (pitch_idx == Elements(i810_pitches)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		 "[dri] Couldn't find depth/back buffer pitch");
+      DRICloseScreen(pScreen);
+      return FALSE;
+   } else {
+      /* for tiled memory to work, the buffer needs to have the
+       * number of lines as a multiple of 16 (the tile size),
+       *  - airlied */
+      int lines = (pScrn->virtualY + 15) / 16 * 16;
+      back_size = i810_pitches[pitch_idx] * lines;
+      back_size = ((back_size + 4096 - 1) / 4096) * 4096;
+   }
+
+   pScrn->displayWidth = i810_pitches[pitch_idx] / pI810->cpp;
+
    /* Check the DRI version */
    {
       int major, minor, patch;
@@ -338,7 +360,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    if (xf86LoaderCheckSymbol("DRICreatePCIBusID")) {
       pDRIInfo->busIdString = DRICreatePCIBusID(pI810->PciInfo);
    } else {
-      pDRIInfo->busIdString = xalloc(64);
+      pDRIInfo->busIdString = malloc(64);
       sprintf(pDRIInfo->busIdString, "PCI:%d:%d:%d",
 	      ((pI810->PciInfo->domain << 8) | pI810->PciInfo->bus),
 	      pI810->PciInfo->dev, pI810->PciInfo->func
@@ -370,7 +392,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    }
    pDRIInfo->SAREASize = SAREA_MAX;
 
-   if (!(pI810DRI = (I810DRIPtr) xcalloc(sizeof(I810DRIRec), 1))) {
+   if (!(pI810DRI = (I810DRIPtr) calloc(sizeof(I810DRIRec), 1))) {
       DRIDestroyInfoRec(pI810->pDRIInfo);
       pI810->pDRIInfo = NULL;
       return FALSE;
@@ -399,7 +421,7 @@ I810DRIScreenInit(ScreenPtr pScreen)
    if (!DRIScreenInit(pScreen, pDRIInfo, &pI810->drmSubFD)) {
       xf86DrvMsg(pScreen->myNum, X_ERROR,
 		 "[dri] DRIScreenInit failed.  Disabling DRI.\n");
-      xfree(pDRIInfo->devPrivate);
+      free(pDRIInfo->devPrivate);
       pDRIInfo->devPrivate = NULL;
       DRIDestroyInfoRec(pI810->pDRIInfo);
       pI810->pDRIInfo = NULL;
@@ -520,25 +542,6 @@ I810DRIScreenInit(ScreenPtr pScreen)
 
    xf86DrvMsg(pScreen->myNum, X_INFO, "[agp] dcacheHandle : 0x%x\n",
 	      (int)dcacheHandle);
-
-#define Elements(x) sizeof(x)/sizeof(*x)
-   for (pitch_idx = 0; pitch_idx < Elements(i810_pitches); pitch_idx++)
-      if (width <= i810_pitches[pitch_idx])
-	 break;
-
-   if (pitch_idx == Elements(i810_pitches)) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		 "[dri] Couldn't find depth/back buffer pitch");
-      DRICloseScreen(pScreen);
-      return FALSE;
-   } else {
-      /* for tiled memory to work, the buffer needs to have the
-       * number of lines as a multiple of 16 (the tile size),
-       *  - airlied */
-      int lines = (pScrn->virtualY + 15) / 16 * 16;
-      back_size = i810_pitches[pitch_idx] * lines;
-      back_size = ((back_size + 4096 - 1) / 4096) * 4096;
-   }
 
    sysmem_size = pScrn->videoRam * 1024;
    if (dcacheHandle != DRM_AGP_NO_HANDLE) {
@@ -1055,16 +1058,16 @@ I810DRICloseScreen(ScreenPtr pScreen)
 
    if (pI810->pDRIInfo) {
       if (pI810->pDRIInfo->devPrivate) {
-	 xfree(pI810->pDRIInfo->devPrivate);
+	 free(pI810->pDRIInfo->devPrivate);
 	 pI810->pDRIInfo->devPrivate = NULL;
       }
       DRIDestroyInfoRec(pI810->pDRIInfo);
       pI810->pDRIInfo = NULL;
    }
    if (pI810->pVisualConfigs)
-      xfree(pI810->pVisualConfigs);
+      free(pI810->pVisualConfigs);
    if (pI810->pVisualConfigsPriv)
-      xfree(pI810->pVisualConfigsPriv);
+      free(pI810->pVisualConfigsPriv);
 }
 
 static Bool
@@ -1202,12 +1205,12 @@ I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
       if (nbox > 1) {
 	 /* Keep ordering in each band, reverse order of bands */
-	 pboxNew1 = (BoxPtr) xalloc(sizeof(BoxRec) * nbox);
+	 pboxNew1 = (BoxPtr) malloc(sizeof(BoxRec) * nbox);
 	 if (!pboxNew1)
 	    return;
-	 pptNew1 = (DDXPointPtr) xalloc(sizeof(DDXPointRec) * nbox);
+	 pptNew1 = (DDXPointPtr) malloc(sizeof(DDXPointRec) * nbox);
 	 if (!pptNew1) {
-	    xfree(pboxNew1);
+	    free(pboxNew1);
 	    return;
 	 }
 	 pboxBase = pboxNext = pbox + nbox - 1;
@@ -1238,16 +1241,16 @@ I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
       if (nbox > 1) {
 	 /*reverse orderof rects in each band */
-	 pboxNew2 = (BoxPtr) xalloc(sizeof(BoxRec) * nbox);
-	 pptNew2 = (DDXPointPtr) xalloc(sizeof(DDXPointRec) * nbox);
+	 pboxNew2 = (BoxPtr) malloc(sizeof(BoxRec) * nbox);
+	 pptNew2 = (DDXPointPtr) malloc(sizeof(DDXPointRec) * nbox);
 	 if (!pboxNew2 || !pptNew2) {
 	    if (pptNew2)
-	       xfree(pptNew2);
+	       free(pptNew2);
 	    if (pboxNew2)
-	       xfree(pboxNew2);
+	       free(pboxNew2);
 	    if (pboxNew1) {
-	       xfree(pptNew1);
-	       xfree(pboxNew1);
+	       free(pptNew1);
+	       free(pboxNew1);
 	    }
 	    return;
 	 }
@@ -1312,12 +1315,12 @@ I810DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
    I810EmitFlush(pScrn);
 
    if (pboxNew2) {
-      xfree(pptNew2);
-      xfree(pboxNew2);
+      free(pptNew2);
+      free(pboxNew2);
    }
    if (pboxNew1) {
-      xfree(pptNew1);
-      xfree(pboxNew1);
+      free(pptNew1);
+      free(pboxNew1);
    }
 
    if (pI810->AccelInfoRec)

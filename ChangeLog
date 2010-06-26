@@ -1,3 +1,2521 @@
+commit ca16e3133658504b68a6b5c83bb8712899016544
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Jun 24 14:07:15 2010 -0700
+
+    Update version to 2.12.0
+    
+    For the imminent 2.12.0 release.
+
+commit 8caf1564a75d65636d9b7a4da03219bb302bb37b
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Jun 24 14:06:43 2010 -0700
+
+    NEWS: Add notes for the 2.12.0 release.
+    
+    Let it ship!
+
+commit b58a6a39c1568800938eb0e3ebc7664683b61200
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 23 23:56:44 2010 +0100
+
+    uxa: Fallback to pixman if source is out-of-bounds
+    
+    If the source is outside the drawable, then CopyArea will fail to
+    initialise the source correctly. The simplest fix in this case is to
+    fallback to pixman to generate the source texture.
+    
+    Fixes:
+    
+      Bug 28497 - Graphics corruption after opening a specific website
+      https://bugs.freedesktop.org/show_bug.cgi?id=28497
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6d33e578de4e23336ac69cc3c5d0935a65d4dda1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 23 21:28:50 2010 +0100
+
+    Limit maximum tiled stride to 8k and untiled to 32k.
+    
+    Tiling on gen 2/3 hardware is only supported for pitches up to 8192
+    bytes, so above this limit the surface will be untiled and we will no
+    longer have to comply with the power-of-two pitch alignment. So
+    disabling tiling for these too wide surface should ~halve the memory
+    requirement for the full surface.
+    
+    Also the absolute limit for the 2D blitter is 32,768 bytes. The
+    documentation says "up to 32,768 bytes" and my PineView box was
+    malfunction with a surface stride of 32,768 so set the limit to be
+    32,767.
+    
+    References:
+    
+      Bug 28497 - Graphics corruption after opening a specific website
+      https://bugs.freedesktop.org/show_bug.cgi?id=28497
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5bf470bd38b1f6a7a540585186a54c9dbbca98f9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 21 22:28:58 2010 +0100
+
+    i965: Compile fix.
+    
+    Oops, I spent more time discussing these flushing bugs than I spent
+    paying attention to what I was actually doing.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0203cf91b54ee8a7cea8560e559288ee9b6e8554
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 21 22:25:08 2010 +0100
+
+    Do not clear need_mi_flush within the batch.
+    
+    This is a situation that should not be possible, need_mi_flush being
+    true but the list of pending flush pixmaps being clear. However, an
+    earlier bug in doing just that revealed this minor bug. So for
+    correctness, be careful not to clear need_mi_flush without emitting a
+    MI_FLUSH.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5107b6fa26ecfdbdd60b869a86765c9c484db3a2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 21 22:21:58 2010 +0100
+
+    i965: Mark the render target as dirty within composite_setup()
+    
+    The key difference between i965 and earlier, is that the surfaces passed
+    to the samplers through an indirect table and so the batch and render
+    target was not being marked dirty by the relocation (since the
+    relocation only happens within prepare_composite() which may have been
+    in another batch.) Simply call intel_pixmap_mark_dirty() when binding
+    the sampler table into the batch to ensure that the dirty is tracked
+    appropriately.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bebd64d82121d2b61893e1d0adebda03f4faea61
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 21 22:05:19 2010 +0100
+
+    Also submit any pending flush for *this* batch in the BlockHander.
+    
+    We still need to submit an additional flush if we have further writes
+    since the last flush.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c4d200517755e6b0f48d6c6a6ba8dd0ddc883d8b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 21 21:57:21 2010 +0100
+
+    Only append the pixmap to the flushing list if we are writing to it.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c942585098ac84ae461821cbb8f52dedce7a0da1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 21 21:45:04 2010 +0100
+
+    Emit the flush after a potential draw from the BlockHandler.
+    
+    As the batch submit may not trigger further drawing through flushing the
+    vertices, pass the requirement to emit the flush down to the submission
+    routine so that the flush can be appended after the final commands.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e8783869ad55d337601b6f6a51c02f6576c64f38
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jun 20 00:09:20 2010 +0100
+
+    uxa: Apply the source offsets to the pixmap source, not target.
+    
+    A slight confusion in computing the correction image location resulted
+    in the application of the source offsets to the pixel location in the
+    target and not in the source as intended.
+    
+    Fixes the visual corruption of the scrollbar in Chromium, and hopefully
+    the crash reported by Robert Hooker when starting gdm after plymouth.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4b7142baa0b3bf6f38843d06aadc579d8624cefc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jun 19 12:30:23 2010 +0100
+
+    uxa: Enable SHM pixmaps
+    
+    Now with streaming uploads and downloads for composite operations in
+    place, shared memory pixmaps are no longer that dire performance wise.
+    With careful use these can in fact be the most efficient means of
+    transfer between a wholly software renderer in the client and a backing
+    store. For instance, Chromium renders internally to an ARGB32 image
+    buffer and uses a shared pixmap to composite dirty regions into the
+    backing store. Thereby using the GPU to either perform the blit or the
+    format conversion. Enabling shared pixmaps, reduces our CPU overhead
+    whilst scrolling by a factor of 5 or so.
+    
+    And this is achieved simply by deleting obsolete code!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d748f8e6fcebdf5b5b00c90b6c3d519560ee2928
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jun 17 18:29:55 2010 +0100
+
+    uxa: Use accelerated get_image for copying to !offscreen
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 78ee25f005fac9e9cc85425aa3fca8c396d015ea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jun 17 18:37:32 2010 +0100
+
+    uxa: Match depth 30 to format.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit af5c4fc96db56a14bf6347774d8e8f23b38c5967
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jun 19 13:36:20 2010 +0100
+
+    uxa: Check for allocation failure.
+    
+    Check for the NULL Picture prior to passing it to the backends for
+    inspection.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit be55066c6481b4c5e2cd39ef1c0f3be88cae0c93
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jun 17 14:23:21 2010 +0100
+
+    i830: Remove domain tracking from pixmaps.
+    
+    The 4 integers can be reduced to a single boolean value, so do so.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c187da9a24e98cbdf86f0f0dfbdcd9025c8a4c76
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 16 13:16:28 2010 +0100
+
+    i830: GetImage acceleration.
+    
+    The presumption is that we wish to keep the target hot, so
+    copy to a new bo and move that to the CPU in preference to
+    causing ping-pong of the original.
+    
+    Also the gpu is much faster at detiling.
+    
+    Before (PineView):
+     400000 trep @   0.1128 msec (  8860.0/sec): GetImage 10x10 square
+      18000 trep @   1.3839 msec (   723.0/sec): GetImage 100x100 square
+        800 trep @  30.0987 msec (    33.2/sec): GetImage 500x500 square
+    
+    After: (PineView)
+     180000 trep @   0.1478 msec (  6770.0/sec): GetImage 10x10 square
+      60000 trep @   0.4545 msec (  2200.0/sec): GetImage 100x100 square
+       4000 trep @   8.0739 msec (   124.0/sec): GetImage 500x500 square
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0e0101758438debf98f989d815989b45e78cf5f6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 15 12:48:57 2010 +0100
+
+    i830: Tidy i830_uxa_put_image()
+    
+    Use a single code path to upload the image data after selecting the
+    right bo, and take advantage of pwrite() when possible.
+    
+    Fixes:
+    
+      Bug 28569 - [i965] IGN's flash-based video player crashes X
+      https://bugs.freedesktop.org/show_bug.cgi?id=28569
+    
+      Bug 28573 - [i965] Fullscreen flash and windowed SDL games fail to
+                  update the screen
+      https://bugs.freedesktop.org/show_bug.cgi?id=28573
+    
+    Reported-and-tested-by: Brian Rogers <brian@xyzw.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2ff7a2fc9d939554502e9adec89cae5597a9e82c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jun 17 13:56:30 2010 +0100
+
+    i915: Force the emission of BUF_INFO on every composite_setup
+    
+    We should be able to eliminate these as the drawable remains unchanged.
+    However, the implicit flush of BUF_INFO fixes the rendering in KDE.
+    Alternatively, we need an MI_FLUSH | INHIBIT_RENDER_CACHE_FLUSH between
+    composites. (Note that it is not stale cache data causing the rendering
+    corruption and that a pipelined flush is not sufficient either.) Also,
+    having tried varies points at which to flush, the only place where the
+    flush is effective seems to be between composite operations - that is a
+    flush after 2D is not sufficient.
+    
+    Reported-by: Vasily Khoruzhick <anarsoul@gmail.com>
+    Reported-by: Clemens Eisserer <linuxhippy@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a25573d5c47ebea34c076075e1993233d7db2b4f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 15 20:26:19 2010 +0100
+
+    drmmode: Use the tiled stride for the rotated pixmap.
+    
+    After d41684d5459 we now allocate all framebuffers as tiled bo, and so
+    we must be careful to use the appropriate stride as returned from the
+    allocation, instead of assuming that it is just an aligned width.
+    
+    Fixes:
+    
+      Bug 28461 - screen rotation results in corrupted output.
+      https://bugs.freedesktop.org/show_bug.cgi?id=28461
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Reported-by: Till Matthiesen <entropy@everymail.net>
+
+commit 23ddcf45344936da2931a3bf25bd187a9ea28344
+Merge: 254bcc4 ffc6897
+Author: Julien Cristau <jcristau@debian.org>
+Date:   Tue Jun 15 17:46:52 2010 +0100
+
+    Merge commit '2.11.901'
+
+commit 254bcc40fca6ed9aa0b71f2115c654667f16aec6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 15 10:24:40 2010 +0100
+
+    configure: Bump drm requirement to 2.4.21
+    
+    We depend upon the recent introduction of drm_intel_bo_is_reusable().
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Reported-by: Julien Cristau <jcristau@debian.org>
+
+commit ffc689767fa56f2c7710e6f396441c3d8a24ea18
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 14 17:35:20 2010 -0700
+
+    Update version to 2.11.901
+    
+    For the 2.12 RC1 snapshot we're making now.
+
+commit 68c8b3f12482489f2e2e8040fd6728f1a2b9e420
+Author: Carl Worth <cworth@cworth.org>
+Date:   Mon Jun 14 17:34:38 2010 -0700
+
+    NEWS: Add notes for 2.11.901
+    
+    This is the 2.12 RC1 snapshot we're making now.
+
+commit 8899cd03e2e7ee673e8b3b2a9d2873839cdc1bf8
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Jun 10 15:38:54 2010 -0700
+
+    Fix to require libdrm 2.4.19 or newer.
+    
+    This is necessary for the drm_intel_bo_emit_reloc_fence function which
+    did not exist in 2.4.16 which is all we were requiring earlier.
+
+commit 995a4b2b1d09c31672d9258a8ac732dcf9a8fe9f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 14 12:15:34 2010 +0100
+
+    i965: Sanity check ComponentAlpha status in prepare_composite
+    
+    Fixes:
+    
+      Bug 28446 - Garbled Font with Mathematica 7
+      https://bugs.freedesktop.org/show_bug.cgi?id=28446
+    
+    Rewriting the glyphs to render to the destination directly and removing
+    the more expensive multiple invocations of CompositePicture per picture
+    was a great performance boost -- except that it needs special handling
+    in the backend in order to not fallback. Having done so for i915, I
+    neglected to ensure the sanity checking in i965_prepare_composite() was
+    sufficient. As it turns out, it was not and so we misrendered CA-glyphs
+    when rendering directly to the destination. This causes us to fallback
+    properly, but is a performance regression as we no longer try the 2-pass
+    magic helper before resorting to s/w. At the moment, I'd rather live
+    with the temporary regression and fix i965 to do the same magic as i915,
+    as it critical to fixing the severe performance issues currently
+    crippling i965, as I believe that this regression only affects the
+    minority of applications (incorrect, as it turns out, as the glyphs are
+    overlapping) rendering directly to the destination.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 84d65bace521ad80b9bede4ae9e3e2a8d0668b90
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 14 11:31:40 2010 +0100
+
+    Compile fix for alternate list.h from xserver-1.9
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 00a54eee8f29ced610ef9d65b077e64bc65655e9
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Sat Jun 12 20:24:10 2010 -0400
+
+    COPYING: replace stub file with actual Copyright notices.
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 94217ed5f5a3726db3fad6cac2132d99ed45c154
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jun 12 17:21:44 2010 +0100
+
+    uxa: Always clip glyphs to destination.
+    
+    Even if there is only a single clip rect, since the clip may be smaller
+    than the drawing rectangle on the destination we need to actually
+    compute the clipped glyph rectangle.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5a0a8a1cf6d9b0616d6a097e783f2aa318b45736
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jun 10 22:56:34 2010 +0100
+
+    i830: Limit disabling acceleration following EIO to !i965
+    
+    Following a conversation with Owain G. Ainsworth, it was decided that
+    the second best approach to handling a wedged GPU was to hope that the
+    kernel could successfully reset it, which currently is only possible for
+    i965 and later chipsets.
+    
+    The best approach is of course to prevent such hangs from ever occurring
+    in the first place.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3bf4ca2cdc2493e209bbb9c597bfa17ed7fcf5dc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 9 12:02:21 2010 +0100
+
+    i830: Only emit the disabling GPU error message once.
+    
+    But emit the warning about rendering corruption every time for the
+    transient errors like out-of-memory.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 35a12f029005d8f432755fb78f10c9d48ea2f347
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 9 11:47:37 2010 +0100
+
+    Fallback implementation for trapezoids for hung GPUs.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8c1a8d22978f143044cc3cd0ff2ade5736ee9d48
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 9 10:03:08 2010 +0100
+
+    Revert "xp:trapezoids"
+    
+    This reverts commit f429fb9d872950705e11171d0e7407fb7673c786.
+    
+    An experimental patch I forgot was on my main branch as I was bugfixing.
+    ARGH!
+
+commit 994aa1ef571ac2ab05f6588f9068d33b536c7a37
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 9 09:59:36 2010 +0100
+
+    uxa: Handle all-clipped out case with destination glyphs.
+    
+    Fixes the crash reported in:
+    
+      Bug 28446 - Garbled Font with Mathematica 7
+      https://bugs.freedesktop.org/show_bug.cgi?id=28446
+    
+    pDst=0x3d663c0, src_x=0, src_y=0, xDst=142, yDst=112, nlist=0,
+    list=0x7fffea026580, glyphs=0x7fffea025d88, extents=0x0)
+        at uxa-glyphs.c:809
+            dx = 0
+            y1 = 101
+            x2 = 150
+            x1 = 142
+            dy = 0
+            y2 = 112
+            rects = 0x5491000
+            this_atlas = 0x2456d00
+            mask_y = 128
+            glyph = 0x35933a0
+            mask_x = 736
+            priv = 0x39309e0
+            screen = 0x8d2cc0
+            uxa_screen = 0x2443eb0
+            src_pixmap = 0x37c29e0
+            dst_pixmap = 0x45ddbf0
+            localSrc = 0x361a450
+            glyph_atlas = 0x2456d00
+            x = 142
+            y = 112
+            n = 18
+            nrect = -9975128
+            box = {x1 = 23152, y1 = -5630, x2 = 32767, y2 = 0}
+            __PRETTY_FUNCTION__ = "uxa_glyphs_to_dst"
+    
+    Though the meat of that bug regarding the incorrect remains unsolved.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f429fb9d872950705e11171d0e7407fb7673c786
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 8 10:24:51 2010 +0100
+
+    xp:trapezoids
+
+commit 0776a42b70f2de7b7d7d8804046c79442da1cb8a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 8 10:43:24 2010 +0100
+
+    implicit-flush
+
+commit d41684d54592cf93554a4d6534e7ea74562b1798
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jun 7 11:18:09 2010 -0700
+
+    Allocate rotate shadow buffers using the usual framebuffer allocator.
+    
+    This means we can get tiling on them, which should significantly boost
+    performance, and also allow for FBC.
+
+commit b5c9de10ba3a811f312e622b97ee5e601bd3b74f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sun Jun 6 23:41:23 2010 -0700
+
+    Allocate a correctly sized framebuffer when tiling by using libdrm's support.
+    
+    When I made libdrm stop overallocating so much memory for the purpose
+    of bo caching, things started scribbling on the bottom of my
+    frontbuffer (and vice versa, leading to GPU hangs).  We had the usual
+    mistake of size = tiled_pitch * height instead of size = tiled_pitch *
+    tile_aligned_height.
+
+commit e6acbc763229fd5b5b2cc1d65136404d02ac4655
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 7 18:04:51 2010 +0100
+
+    uxa: Setup acceleration functions prior to the damage layer
+    
+    We need to install the acceleration functions so that they are wrapped
+    by the Damage layer. This fixes the corruption under a compositing WM
+    introduced in commit 8700673157fdd3a87ad5150f2f30823261fec519.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Reported-and-tested-by: Arkadiusz Miśkiewicz <arekm@maven.pl>
+
+commit 1788b16eb26580624dd3df96ed84f68d40e78ed7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 7 15:31:47 2010 +0100
+
+    i915: Fix typo from previous commit.
+    
+    A trivial change, I thought, having tested it before rebasing, unworthy
+    even of a perfunctory compile test. How wrong I was.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d9bc36ae03e3c56ab165d24fe4bdc6688fd62b6d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 7 15:28:18 2010 +0100
+
+    i915: Remove screen size limit from video setup.
+    
+    The i915 textured video routine know how to handle drawing on an output
+    larger than the 3D pipe, so allow them to do so.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6555ef5fd16c9e4fe733caf9e831f29f97462278
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 7 13:16:34 2010 +0100
+
+    i915: Replace structure passing with macros for shader generation.
+    
+    gcc is horribly bad at collapsing the constants:
+    
+      text     data     bss     dec     hex filename
+    282336     8720     256  291312   471f0 intel_drv.so.old
+    269280     8720     256  278256   43ef0 intel_drv.so
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d56ea7a852d7090360fe080acec268de55ee908d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 7 00:20:35 2010 +0100
+
+    Use the direct dixGevPrivate() API when available
+    
+    This is quicker and smaller than the old indirect function call to
+    dixLookupPrivate().
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8700673157fdd3a87ad5150f2f30823261fec519
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jun 7 00:16:18 2010 +0100
+
+    Adapt glyphs for changes in devPrivates API
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 42ddc39430a10513c49a415ddf1a0dc5fa52089e
+Author: Keith Packard <keithp@keithp.com>
+Date:   Fri Apr 30 13:33:54 2010 -0700
+
+    Adapt to DevPrivate API changes
+    
+    This allows the driver to be built against either the old or new
+    DevPrivate API.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 2c1fda08e889cad07acb452230da06f9c383d21c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Jun 4 16:04:37 2010 -0700
+
+    Use libc instead of deprecated libc wrappers for malloc/calloc/free.
+
+commit b586624d4f2908d2a998ba87fe0ae31c10f46b91
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jun 6 17:11:40 2010 +0100
+
+    uxa: Force fallback for copies.
+    
+    All but uxa_copy_window() perform the preliminary checks for whether
+    acceleration is available. The simplest method for adding the fallback
+    for uxa_copy_window() seems to be to add it in the core copy function,
+    so be it.
+    
+    This allows X to survive a little longer once we encounter a GPU hang.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6db1e5231b7a0e79611f771d4efea686f7849e04
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jun 2 20:43:49 2010 +0100
+
+    dri: Protect against NULL dereference following GPU hang.
+    
+    References:
+    
+      Bug 28361 - "glresize" causes server segfault with single buffering.
+      https://bugs.freedesktop.org/show_bug.cgi?id=28361
+    
+    [ 14528.767] (EE) intel(0): Failed to submit batch buffer, expect rendering corruption or even a frozen display: Input/output error.
+    [ 14528.767] (EE) intel(0): Disabling acceleration.
+    [ 14528.788] Backtrace:
+    [ 14528.858] 0: /usr/bin/X (xorg_backtrace+0x28) [0x491818]
+    [ 14528.858] 1: /usr/bin/X (0x400000+0x65ca9) [0x465ca9]
+    [ 14528.858] 2: /lib/libpthread.so.0 (0x7f9df2dc9000+0xedf0) [0x7f9df2dd7df0]
+    [ 14528.858] 3: /usr/local/lib/libdrm_intel.so.1 (drm_intel_bo_flink+0x0) [0x7f9defd60c60]
+    [ 14528.858] 4: /usr/local/lib/xorg/modules/drivers/intel_drv.so (0x7f9deff6a000+0x2fdfd) [0x7f9deff99dfd]
+    [ 14528.858] 5: /usr/lib/xorg/modules/extensions/libdri2.so (0x7f9df01b8000+0x19e7) [0x7f9df01b99e7]
+    [ 14528.858] 6: /usr/lib/xorg/modules/extensions/libdri2.so (0x7f9df01b8000+0x1fdb) [0x7f9df01b9fdb]
+    [ 14528.858] 7: /usr/lib/xorg/modules/extensions/libdri2.so (DRI2GetBuffersWithFormat+0x10) [0x7f9df01ba250]
+    [ 14528.858] 8: /usr/lib/xorg/modules/extensions/libdri2.so (0x7f9df01b8000+0x3834) [0x7f9df01bb834]
+    [ 14528.858] 9: /usr/bin/X (0x400000+0x2fc2c) [0x42fc2c]
+    [ 14528.858] 10: /usr/bin/X (0x400000+0x24da5) [0x424da5]
+    [ 14528.858] 11: /lib/libc.so.6 (__libc_start_main+0xe6) [0x7f9df1d60a26]
+    [ 14528.858] 12: /usr/bin/X (0x400000+0x24959) [0x424959]
+    [ 14528.858] Segmentation fault at address 0x20
+    [ 14528.858] Fatal server error:
+    [ 14528.858] Caught signal 11 (Segmentation fault). Server aborting
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2989f51caf3134460c2551de597e7e54fe74ee92
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 1 23:08:02 2010 +0100
+
+    i830: Remove unused coord-adjust.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dc402334f4e9b0de624bc89cd77eae4ec7cf1708
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 1 23:03:19 2010 +0100
+
+    i915: Centre sampling.
+    
+    Use centre sampling of textures to match pixman, and remove numerous
+    off-by-one and visual artefacts when rendering. The classic example for
+    this is cairo/text/xcomposite-projection where the edge of the rotated
+    rectangle is jaggy due to the incorrect sample position.
+    
+    Fixes:
+    
+      Bug 16917  - [i915] Blur on y-axis also when only x-axis is scaled
+                   billiear
+      https://bugs.freedesktop.org/show_bug.cgi?id=16917
+    
+    And about 15 tests from the Cairo test suite.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f74b3f82bab11463a0f4de9f614fc6aa1492ef24
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jun 1 22:31:35 2010 +0100
+
+    i915; Avoid the implicit flush on changing BUF_INFO
+    
+    3DSTATE_BUF_INFO is an implicit flush of the piepline, so avoid emitting
+    that and associated state unless the destination pixmap has actually
+    changed. This is a win of around 3-5% for cairo-perf-trace, notably for
+    firefox.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f2272402035574c206a0e3383c55373c440fd928
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Jun 1 13:46:15 2010 -0700
+
+    DRI2: fix new buffer exchange check
+    
+    Chris's new buffer exchange check is a good one, but we don't want to
+    hit the immediate blit fallback path if it fails.  We still want to
+    schedule a blit for sometime in the future, and we need to use it
+    wherever an exchange might occur (like the secondary flip check or the
+    currently disabled CanExchange check).
+    
+    Fixes https://bugs.freedesktop.org/show_bug.cgi?id=28252.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit a386a003e7b0ff7100434dccd51fedd822454a6c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 31 22:18:43 2010 +0100
+
+    uxa: Spans, try again to get the early break correct.
+    
+    Trigger happy bug fixing. The sign *was* right, the endpoint was wrong.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1672ee0421a99b745d65d72a3818de01d8100b6b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 31 22:08:43 2010 +0100
+
+    uxa: Sign reversal on early break from spans passing the YXband
+    
+    Introduced with e5c971e7639095d38da3518a5dc404b708d45cfb.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit cd38b705be84901a38380dc2a1b90889b553d565
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 31 17:23:36 2010 +0100
+
+    Disable acceleration if we detect a hardware error.
+    
+    This is wildly optimistic, but it should work in a surprising number of
+    error situations and some output in those cases will be hopefully be
+    better than none...
+    
+    If we submit a batchbuffer and the kernel reports the GPU is hung (which
+    will be caused by an earlier execbuffer, and so the kernel should have
+    had enough time to determine whether or not it could reset the GPU) then
+    disable any further attempt to accelerate gfx and force fallbacks to map
+    the buffers and use the CPU. We cannot normally map any more buffers if
+    the GPU is hung, so only those already mapped prior to the hang can be
+    written to, or those allocated in system memory. However, we can expect
+    that the framebuffer is already mapped, and so have a reasonable
+    expectation to continue to see the display update.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5fff430046db2030f89e49beb66c6476dc3fcd4c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 29 17:35:00 2010 +0100
+
+    uxa: Mega-Glyphs!
+    
+    Rewrite glyph rendering to avoid the intermediate buffer, accumulating
+    the glyph rectangles directly in the backend composite routines. And
+    modify the glyph cache routines to fully utilise the allocated size of
+    the tiled buffer on older hardware. To do this we alias all glyph sizes
+    into the same texture using a technique suggested by Keith Packard.
+    
+    PineView:
+      885/856-> 1150/1110 kglyph/s (aa/rgb)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d31abccd41c417338aac7c681e8bc6bd187b1843
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 31 12:14:23 2010 +0100
+
+    i915: Support textured video on an extended desktop.
+    
+    Handle rendering textured video onto an extended desktop (>2048) by
+    using a temporary pixmap. Note that we still cannot handle rendering to
+    a greater than 2048 destination region, for that we will need to tile.
+    Hmm, time to request a 2560x1600, 10bpc monitor...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2cfd5bc134f0dd86ea714594d61f6d5eb29019ce
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 29 17:55:19 2010 +0100
+
+    dri: Compilation fix.
+    
+    17:53 < arekm> ickle: i830_dri.c:630:28: error: ‘DrawableRec’ has no member named ‘bpp’
+    17:53 < arekm> ickle: i830_dri.c:630:57: error: ‘DrawableRec’ has no member named ‘bpp’
+    
+    * sigh. I need to fix this machine to have the right version of the
+    * headers.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e2615cdeef078dbd2e834b68c437f098a92b941d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 29 16:37:12 2010 +0100
+
+    dri: Only flip if the front and back pixmaps match.
+    
+    An unredirected window (thanks Michel for the reminder) is backed by the
+    Screen pixmap, and so uses a reference of that as its front buffer. The
+    back buffer is a pixmap appropriately sized for the drawable. When the
+    application requests to swap its buffers, obviously we cannot simply
+    exchange the front and back buffer as they do not match, but need to copy
+    the appropriate region from the back to the front.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8b2039187fc23f5e9dddf4081f8b1ab6f4c01416
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 29 12:14:55 2010 +0100
+
+    Revert "dri: Use size from backing pixmap when creating buffers."
+    
+    This reverts commit 44d45d3fa56f121ce89ffe5b28beb48be01a95df.
+    
+    Michel Dänzer pointed out the flaw in using the pixmap size instead of
+    the drawable size:
+    
+      Using the backing pixmap dimensions for this is not desirable. In
+      particular, it means that the DRI2 buffers of non-redirected windows
+      always have the same size as the screen. But even for redirected windows
+      it wastes some graphics memory with a re-parenting window manager, that
+      is if it doesn't break in various ways due to the top left corner of the
+      DRI2 buffers no longer corresponding to the top left corner of the window.
+
+commit 44d45d3fa56f121ce89ffe5b28beb48be01a95df
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 29 10:39:28 2010 +0100
+
+    dri: Use size from backing pixmap when creating buffers.
+    
+    This avoid using the garbage values stored in the Screen drawable,
+    instead of the true values which are only maintained in its backing
+    pixmap. The consequence of using the wrong size was to hand a 1x1
+    pixmap to metacity/mutter and have it believe it was a full screen
+    drawable; GPU hangs ensued if using page flipping.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 90c74a43149ec72bef64fb7e64b812294bda69a5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 28 21:49:38 2010 +0100
+
+    i915: Don't re-emit vertex size unless it has changed.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a94ae175d6a69243a4465de0be0a8a3368e0ab28
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri May 28 12:40:02 2010 -0700
+
+    uxa: Fix prepare_solid being called without check_solid first.
+    
+    Fixes GPU hang on gen6.
+
+commit 66c90158e45e890c6f655195c6707d216c7ac4c5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 28 17:13:30 2010 +0100
+
+    uxa: Skip the redundant miComputeCompositeRects() when adding to the mask
+    
+    As we are in full control of the destination (the temporary glyph mask)
+    and the source (the glyph cache) we know that there are no clip regions
+    on either and so can skip computing the composite rectangles. (We trust
+    the device clipping to prevent compositing outside the target.)
+    
+    x11perf on PineView:
+    701/686 -> 881/856 kglyphs/s [aa/rgb]
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5b2254838eb89bf77eeb893c73eecb8c737822f4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 28 12:47:26 2010 +0100
+
+    uxa: Make the glyph caches' fixed size explicit.
+    
+    Until we actual resize the glyph cache dynamically, make it obvious to
+    the reader and the compiler that the size is fixed.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 11581dda99cb2e4ae78fc73be4b02185b3be58ed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 28 11:38:05 2010 +0100
+
+    uxa: Use a glyph private rather than a hash table.
+    
+    Store the cache position directly on the glyph using a devPrivate rather
+    than an through auxiliary hash table.
+    
+    x11perf on PineView:
+    650/638 kglyphs/s -> 701/686 kglyphs/s [aa/rgb]
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 73111cf2a212ee5cc2e03af1c600867df0c55b39
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 26 21:05:27 2010 +0100
+
+    Decouple non-reusuable pixmaps from batch lists on unref.
+    
+    ==7596== Invalid write of size 4
+    ==7596==    at 0x491ACA8: intel_batch_teardown (i830_batchbuffer.c:118)
+    ==7596==    by 0x491C9D6: I830CloseScreen (i830_driver.c:1419)
+    ==7596==    by 0x8103A9C: RRCloseScreen (randr.c:105)
+    ==7596==    by 0x80DE794: xf86CrtcCloseScreen (xf86Crtc.c:759)
+    ==7596==    by 0x80BEBA3: DGACloseScreen (xf86DGA.c:268)
+    ==7596==    by 0x80D044B: DPMSClose (xf86DPMS.c:134)
+    ==7596==    by 0x488B050: XvCloseScreen (xvmain.c:320)
+    ==7596==    by 0x81841B1: VidModeClose (xf86VidMode.c:110)
+    ==7596==    by 0x80EB12F: CursorCloseScreen (cursor.c:191)
+    ==7596==    by 0x810CA17: AnimCurCloseScreen (animcur.c:108)
+    ==7596==    by 0x816937E: compCloseScreen (compinit.c:86)
+    ==7596==    by 0x48D39B9: glxCloseScreen (glxscreens.c:221)
+    ==7596==  Address 0x49c1a50 is 24 bytes inside a block of size 52 free'd
+    ==7596==    at 0x4024866: free (vg_replace_malloc.c:325)
+    ==7596==    by 0x80B023C: Xfree (utils.c:1096)
+    ==7596==    by 0x4927CFD: i830_set_pixmap_bo (i830_uxa.c:647)
+    ==7596==    by 0x491C9B4: I830CloseScreen (i830_driver.c:1413)
+    ==7596==    by 0x8103A9C: RRCloseScreen (randr.c:105)
+    ==7596==    by 0x80DE794: xf86CrtcCloseScreen (xf86Crtc.c:759)
+    ==7596==    by 0x80BEBA3: DGACloseScreen (xf86DGA.c:268)
+    ==7596==    by 0x80D044B: DPMSClose (xf86DPMS.c:134)
+    ==7596==    by 0x488B050: XvCloseScreen (xvmain.c:320)
+    ==7596==    by 0x81841B1: VidModeClose (xf86VidMode.c:110)
+    ==7596==    by 0x80EB12F: CursorCloseScreen (cursor.c:191)
+    ==7596==    by 0x810CA17: AnimCurCloseScreen (animcur.c:108)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a6fb6aa5f9c1c81b8b81b9d1138a526ffbbd5ad3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 26 20:31:45 2010 +0100
+
+    Add vertex bo to the list of buffers to be torn down.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5dce69002dd48dd6dce4f0e7ad9ecf2c4c17cfe4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 26 20:26:42 2010 +0100
+
+    i965: Remove ATOMIC_BATCH.
+    
+    This paranoid check is deceased; pining for the fjords.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 06ebb55d308defbf8e01e30e4f994c2dd1071c40
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sun May 23 20:33:47 2010 -0700
+
+    Add a workaround for Ironlake errata relating to disabling the clipper.
+
+commit 158a158dad26b6888dd2ebaf13e6020894475fcb
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sun May 23 20:28:24 2010 -0700
+
+    Add a workaround for Ironlake errata regarding blits and other engines.
+
+commit 3461f8f4bc2a49fd41c408d225c592623404be91
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sun Apr 18 19:14:13 2010 -0700
+
+    Remove remaining REG_DUMPER build stuff.
+
+commit 03bbb4c896ef3cd275312b413a2c85d9f499c032
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 26 10:16:36 2010 +0100
+
+    uxa: Perform manual damage for CompositeRects
+    
+    [xserver-1.8] The damage layer doesn't wrap CompositeRects, so we need to
+    manually append the damaged region ourselves. This works for
+    miCompsiteRects since that translates the call into multiple invocations
+    of either PolyFillRectangle or Composite, which themselves cause damage.
+    
+    Fixes:
+    
+      Bug 28120 - Tint2's tooltip borders end up at 0,0 and do not disappear
+      https://bugs.freedesktop.org/show_bug.cgi?id=28120
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b9ada52a3081f54e0ed094ac31188bb240866f81
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 26 10:14:52 2010 +0100
+
+    uxa: Force the alpha value to 0xffff when treating Over as Src
+    
+    Since we have at most 8 bits of alpha, we treat >= 0xff00 as opaque.
+    However, being paranoid we should set the alpha value to 0xfff in case
+    something unexpected happens when converting from the xRenderColor to
+    the pixel value.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3055d40164590147d35b5e7059ebe5f5858c85fa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 26 10:12:57 2010 +0100
+
+    uxa: Use Composite rather than solid blitter for PolyRect
+    
+    Due to the relocation overhead, using a single composite with many
+    rectangles outperforms many solid blits.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ec2437f958ec4f5ac5222b37cba4cd403b5c8855
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 26 10:12:18 2010 +0100
+
+    uxa: Add PICT format mapping for depth 4 pixmaps.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 309bd3a29943ef7502d40c67be49c19a59b6d1a2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 26 10:11:32 2010 +0100
+
+    i830: Skip an empty fill.
+    
+    In the extremely unlikely event that the higher layer erroneous gave us
+    an empty fill, skip it.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b645ec83e0d86f2247b8338ceab60b9502516e70
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 25 09:49:20 2010 +0100
+
+    uxa: Apply the drawable offset to the solid rects
+    
+    Fixes:
+    
+      Bug 28120 - Tint2's tooltip borders end up at 0,0 and do not disappear
+      https://bugs.freedesktop.org/show_bug.cgi?id=28120
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9d8ac271404ff219c3d40ae8f829e8b76ac7c359
+Merge: 509df27 ea07535
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 21 11:01:30 2010 +0100
+
+    Merge branch 'glyphs'
+    
+    Tweak glyphs to improve x11perf on i915 by about 33%.
+    PineView, aa10text:  460 -> 617 kglyphs/s.
+    PineView, rgb10text: 434 -> 610 kglyphs/s.
+    
+    Speedups
+    ========
+      xcb                    poppler    18.636 -> 13.958:  1.34x speedup
+     xlib          firefox-talos-gfx    71.905 -> 56.232:  1.28x speedup
+      xcb          firefox-talos-gfx    72.882 -> 57.969:  1.26x speedup
+     xlib         gnome-terminal-vim    38.126 -> 34.472:  1.11x speedup
+      xcb         gnome-terminal-vim    35.164 -> 32.573:  1.08x speedup
+     xlib                    poppler    19.634 -> 18.246:  1.08x speedup
+    
+    Note the lack of significant improvement for firefox-planet-gnome.
+
+commit ea07535240dafc4c6ef55b4b7a2eeaa595febe86
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 21 14:33:18 2010 +0100
+
+    i915: Emit CA over using OutReverse + Add passes
+    
+    On PineView:
+      578/621 -> 610/617 kglyphs/sec [rgb/aa]
+
+commit 80a9e64f50aeda6004e3aba1fbfdda50bb1f1c82
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 21 09:55:55 2010 +0100
+
+    uxa: Use temporary dest when target is too large for compositor
+    
+    If the destination cannot fit into the 3D pipeline when we need to
+    composite, we fallback to doing the operation on the CPU. This is very
+    slow, and quite easy to trigger on i915 by plugging in an external
+    display.
+    
+    An alternative is to extract the extents of the operation from the
+    destination using the blitter which can usually handle much larger
+    operations. This gives us a temporary target that can fit into the 3D
+    pipeline and thus be accelerated, before copying back into the larger
+    real destination.
+    
+    For x11perf this boosts glyph rendering on PineView, from 38kglyphs/s to
+    480kglyphs/s. Just a little shy of the native performance of 601kglyphs/s
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 91f560034fc2695680d1208a78fc56d814b0da79
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 20 10:26:59 2010 +0100
+
+    uxa: Composite glyphs directly onto dst when possible.
+    
+    Without using a mask and compositing directly onto the destination,
+    takes us from 580 kglyphs/s to 850 kglyphs/s on i945 [x11perf -aa10text].
+    
+    However, the extra intersection check almost entirely cancels out the
+    speed up and we discover that the glyphs in x11perf are always
+    overlapping. Nothing is ever easy.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e3ece83f577d3664962edeec6ab5bdc41c5d77cf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 19 16:52:11 2010 +0100
+
+    i915: compute normalized texcoords using a scale factor.
+    
+    500 -> 580kglyphs/s on i945.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c2abf8d659b8b161a4f9df100b614ee3c8f8e458
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 19 16:18:40 2010 +0100
+
+    uxa: translate the region in line for composites
+    
+    When compositing, we need to convert the box into a rect and so the
+    advantages of using REGION_TRANSLATE are lost.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2adf823b80b7b1f6df1bf3422a1219e93321a8fb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 19 15:02:58 2010 +0100
+
+    i915: Add special case primitive emitters for glyphs.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f64ab9e0d97dd9c654b4ae1924e62ef6813d9bb0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 19 14:50:12 2010 +0100
+
+    i915: Move vertices into a vertex buffer object.
+    
+    In theory this should allow us to pack far more operations into a single
+    batch buffer, and reduce our overheads.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2b050f330f78d02e7f476e55be29d760271ac61c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 19 10:57:46 2010 +0100
+
+    Use pwrite to upload the batch buffer
+    
+    By using pwrite() instead of dri_bo_map() we can write to the batch buffer
+    through the GTT and not be forced to map it back into the CPU domain and
+    out again, eliminating a double clflush.
+    
+    Measing x11perf text performance on PineView:
+    
+    Before:
+    16000000 trep @   0.0020 msec (511000.0/sec): Char in 80-char aa line (Charter 10)
+    16000000 trep @   0.0021 msec (480000.0/sec): Char in 80-char rgb line (Charter 10)
+    After:
+    16000000 trep @   0.0019 msec (532000.0/sec): Char in 80-char aa line (Charter 10)
+    16000000 trep @   0.0020 msec (496000.0/sec): Char in 80-char rgb line (Charter 10)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dcef703a7cdcf360f12312a338361697acffc3e9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 19 09:30:02 2010 +0100
+
+    Kill paranoid assertions on every write into the batchbuffer.
+    
+    On my PineView box these represent ~5% overhead on x11perf text:
+    
+    Before:
+    16000000 trep @   0.0020 msec (495000.0/sec): Char in 80-char aa line (Charter 10)
+    12000000 trep @   0.0022 msec (461000.0/sec): Char in 80-char rgb line (Charter 10)
+    
+    After:
+    16000000 trep @   0.0020 msec (511000.0/sec): Char in 80-char aa line (Charter 10)
+    16000000 trep @   0.0021 msec (480000.0/sec): Char in 80-char rgb line (Charter 10)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bc41f84e01f18548b05c670e1fd0d641adc28d0f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 18 23:54:13 2010 +0100
+
+    i915: Emit composite primitive with specialised functions.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4a3476ea094e84887fefb558e0bba023fee34151
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 18 23:25:59 2010 +0100
+
+    i915: amalgamate composite into a single primitive list
+    
+    Combine all the calls to composite between prepare_composite and
+    done_composite into a single primitive list, rather than a primitive
+    call per composite().
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e5c971e7639095d38da3518a5dc404b708d45cfb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 18 22:16:17 2010 +0100
+
+    uxa: Spans! OMG!
+    
+    Use composite rather than solid blits in order to bring performance on
+    a par with the CPU when using GEM and relocations.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 509df27c7401e96d3062890da73f6af6629adef4
+Author: Kristian Høgsberg <krh@bitplanet.net>
+Date:   Tue May 18 10:01:52 2010 -0400
+
+    dri: Clean up DRI2 API #ifdefs a bit
+    
+    Signed-off-by: Kristian Høgsberg <krh@bitplanet.net>
+
+commit 5e04a81369dfc76bbc1ebbd4db00c23e71eb9e1c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 17 15:16:25 2010 +0100
+
+    i830: Remove vestigal debugging ALWAYS_FLUSH and ALWAYS_SYNC
+    
+    These are now debugging options exposed in Xorg.conf, and now unused int
+    the source code.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 723cc45b2707aa160eac6d5b56a20e19cc42c8a3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 17 15:14:55 2010 +0100
+
+    dri: Check error code from GetScratchGC()
+    
+    It may fail so be prepared, and do use the right drawable!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2c00297bc3b4969f28e2eb19bce36ece50ce4ccb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun May 16 19:15:37 2010 +0100
+
+    uxa: Replace solid planemask [0xffffffff] with FB_ALLONES
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2c69709d8afa6e9c0990efc463df0061536585e1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun May 16 18:41:52 2010 +0100
+
+    i830: Encode surface bpp into format
+    
+    References:
+    
+      Bug 28135 - [855GM] Slowdown/High CPU-Usage after Git-Commit
+                  926fbc7d90ac1d0d49d154f136f9c9ed613c98c2
+      https://bugs.freedesktop.org/show_bug.cgi?id=28135
+    
+    The simple answer is that I had assumed that 0 was a reserved value.
+    However, without the bbp encoded into the format 0 was used for a8r8g8b8
+    and r5g6b5, which are very common formats!
+    
+    The other possibility for the slowdown is that gtkperf is using of the
+    now verboten xrgb formats -- but would in fact be valid if the source
+    covers the clip and we could fixup the alpha value in the fixed function
+    combine.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 21b5fd427f5ed6c99276349a7ae128eea580dd72
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun May 16 13:51:41 2010 +0100
+
+    uxa: Tidy uxa_solid_rects()
+    
+    Move the operator reduction after a few fallbacks, closer to its use.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 61835701fd411d3bb550ceee3365e30639e46861
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun May 16 13:26:07 2010 +0100
+
+    uxa: Patterns are acquired at 0,0
+    
+    Set the correct offset for the gradients patterns after rendering to a
+    local Picture.
+    
+    Fixes cairo/test/huge-radial and friends
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 89f43f69a9c854fb2b82538a8938002675ca19e4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 18:34:54 2010 +0100
+
+    uxa: Force an alpha channel when rendering source fallbacks
+    
+    As the source may not cover the extents, we need to represent those
+    areas as transparent in the fallback picture, ergo we need an alpha
+    channel. We could be smarter and force a format conversion when
+    necessary, and we could let the backend choose the most appropriate
+    format.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 524fd2dd0da8f69d4c3f5aebe3a345fe34af609d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 18:23:21 2010 +0100
+
+    uxa: Apply clip for solid rectangles.
+    
+    References:
+    
+      Bug 28120 - Tint2's tooltip borders end up at 0,0 and do not disappear
+      https://bugs.freedesktop.org/show_bug.cgi?id=28120
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 58b089febceca1e915607bb723ee658aaa9dbed3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 09:11:46 2010 +0100
+
+    uxa: Avoid using blits when with PictFilterConvolution
+    
+    References:
+    
+      Bug 28098 Compiz renders shadows wrong, garbage line of pixels along left
+                and top edge of windows
+      https://bugs.freedesktop.org/show_bug.cgi?id=28098
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ef95899f5b21453daeabf81a3015b22456d21fec
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 09:02:07 2010 +0100
+
+    uxa: Check the w-scaling component is 1 for an translation matrix
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9c3da71349bcfeabae08f1572cf602c357bf7641
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 01:05:24 2010 +0100
+
+    i830: Remove xrgb conversion to argb, no longer required.
+    
+    All textures are now properly declared so that the alpha swizzling
+    occurs in the sampler or not at all. The downside is that for quite a
+    few composite operations we have to fallback to software on older
+    hardware. There is scope for more performing the alpha expansion in
+    shaders or combiners when we know the picture covers the clip - which is
+    almost all of the time for normal operations especially those
+    constructed by Cairo.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 926fbc7d90ac1d0d49d154f136f9c9ed613c98c2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 01:01:20 2010 +0100
+
+    i830: Remove incorrectly mapped tex formats.
+    
+    We no longer workaround the lack of alpha expansion for xrgb textures as
+    this interferes with EXTEND_NONE, though we could if we know the source
+    covers the clip...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 95654cffa8643f61f153218f27e800df75b9bdee
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 00:50:42 2010 +0100
+
+    uxa: Fix order of conditionals to only run fill_region for SRC or opaque
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f67b45965b527699794ee21174809c5d71c03f22
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 00:50:20 2010 +0100
+
+    uxa: Expand the range of compatible formats to cover all bpp.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 82d07fdf10cac2211af74ebf7d519daacd7084c0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 00:49:39 2010 +0100
+
+    uxa: Only use 1x1R as a solid with an opaque format or SRC
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3bca186a7ead84d4f0e71dfd83847ef77a4e390b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 00:48:31 2010 +0100
+
+    uxa: Call check_solid before running the solid blitter.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 213816c30b5ca6146e26ded85b2aa31ca16ca9bf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 15 00:47:55 2010 +0100
+
+    i915: Load texture into directly into OC when possible.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 737de9a779d05fe6fb1efe1904fda2cc452ff137
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 23:48:27 2010 +0100
+
+    uxa: Disable compatible src xrgb and dst argb
+    
+    I'm seeing garbage alpha for rendercheck blend:
+    
+      x8r8g8b8a 10x10 SRC ar8g8b8a
+    
+    so disable blitting until I work out if we can fast-path it.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 271240fd477b11885947da32868bc77151681559
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 23:38:02 2010 +0100
+
+    i915: Remove a couple of unsupported 16bpp no-alpha tex formats
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a7c318d21c9035f6cab48c16e734b9ecb6f4b238
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 23:30:21 2010 +0100
+
+    uxa: Parse BGRA pixel formats.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f7bbcc492a05f0801c64ee884798cf1a7ebb71c2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 23:29:13 2010 +0100
+
+    Split the prepare blitter functions into check + prepare.
+    
+    Allow us to check whether we can handle the operation using the blitter
+    prior to doing any work.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4be8d7eb89e61ffb2ceb19f1f84260e581187692
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 21:13:21 2010 +0100
+
+    i915: Don't force alpha=1 for RGB drawables in the shader.
+    
+    I was blindly fixing rendercheck without thinking. We need to force the
+    alpha value to be in the blend unit and not before -- otherwise we
+    generate the incorrect result whilst blending. D'oh.
+
+commit b9a5e36f957e42eaf0387ad15f2298d3e9538b05
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 20:52:48 2010 +0100
+
+    uxa: enable solid rects for backends that require pixmaps
+    
+    Convert the color into a (cached) pixmap if the backend cannot handle
+    the SolidFill natively.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a21297d7cc5945704d8cbd28ad0a2a3f6096fa47
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 17:51:42 2010 +0100
+
+    drm: Remove pin(); unpin() sync
+    
+    GEM handles serialisation of the new front buffer with respect to page
+    flipping and rendering and reports back when the flip is complete.
+    Adding a sync point here is then redundant.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7ee73d2c6f373f3d6829cb1876b1940db62be452
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 17:51:20 2010 +0100
+
+    drm: Remove unused old_front parameter from drmmode_do_pageflip.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 030d56279bf14d9ddd42d8fdbeaa66ef3f557b4d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 16:53:40 2010 +0100
+
+    drm: don't overwrite the old intel->front_buffer
+    
+    It's now handled in the common ExchangeBuffers() path.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5bd022739511104e4978bdfd2f4a1f60b9206723
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 15:47:09 2010 +0100
+
+    i830: Teardown batch entries on reset.
+    
+    By not cleaning up the batch entries when resetting the X server, we left
+    the pointers in an inconsistent state and caused X to crash.
+
+commit 0d2392d44aae95d6b571d98f7ec323cf672a687f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri May 14 10:32:12 2010 +0100
+
+    dri: Hold reference to buffers across swap
+    
+    As we schedule swaps for some time in the future and may process a
+    detachment prior to receiving the vblank notification from the kernel,
+    we need to hold a reference to the buffers for our swap event handler.
+    
+    Fixes:
+      Bug 28080 - "glresize" causes X server segfault with indirect rendering.
+      https://bugs.freedesktop.org/show_bug.cgi?id=28080
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8de09a0707ee1be1b919b979843711728618ef27
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 13 17:15:28 2010 +0100
+
+    uxa: Convert 1x1R back to solid_fill
+    
+    In the change to prevent blitting between incompatible sources, we also
+    prevented 1x1R pixmaps from being used for solid fills. Reorder the
+    sequence of conditions to enable this fast path again.
+
+commit 92e9cf8af784b13c28030e38b15c8decf29e6a32
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 13 15:12:51 2010 +0100
+
+    uxa: Only use solid_fill for SRC.
+
+commit d1bd14e8b6754ba9f797642e1b33bf689e19417b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 13 15:11:16 2010 +0100
+
+    uxa: Replace source for CLEAR with a transparent solid
+    
+    This means that we will hit the faster try_solid_fill path instead.
+
+commit cdab72c405434ecbf7a79e402ff2d65d6a728179
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 13 15:12:32 2010 +0100
+
+    uxa: Fallback early if compositing with alphaMaps
+
+commit 25811dc7b7d1ad3fb01c31197d1ae1fe5b498975
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 13 15:09:28 2010 +0100
+
+    i915: Force output alpha to 1. if dst has no alpha channel.
+    
+    Ensure that garbage is not stored in the unused alpha channel so that
+    we can rely on it being currently initialiased when used as a source or
+    returning via GetImage.
+    
+    Partial fix for rendercheck -t blend
+
+commit 0e726b85ca6013ae9dc51391aaa309203352b61e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu May 13 09:41:39 2010 +0100
+
+    i915: Add a2r10g10b10 format and friends
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9f54107f866a25cf670f81f7c52b8c108728c6a5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 11 14:55:16 2010 +0100
+
+    dri2: Handle reference counting across page flipping
+    
+    1. Instead of swapping bos, swap the entire private structure.
+    
+    2. If we update the pixmap bo for the Screen, make sure we update the
+    reference inside intel->front_buffer so that xrandr still functions.
+    
+    Fixes:
+    
+      Bug 27922 - i965: Rapidly resizing OpenGL window causes GPU to hang.
+      https://bugs.freedesktop.org/show_bug.cgi?id=27922
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6c27f6e4f76b97df71094acf25083b2922966b42
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 12 12:01:46 2010 +0100
+
+    uxa: Avoid glyph ping-pong with !offscreen destination
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d5383c2073e181b9ec352461c05d6202ad37f9d6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 12 10:53:14 2010 +0100
+
+    uxa: Avoid ping-pong with !offscreen destination and traps
+    
+    If we are destined to target an !offscreen drawable, then uploading the
+    trapezoid mask to a bo is the last thing we actually want to do...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 00664b8f9d3da8d0d6aa53471ed3a8a8f6391660
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 12 12:41:51 2010 +0100
+
+    uxa: Fallback when compositing to a !offscreen destination
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0c6372a77fd8c051534c1b420a02a8737aa1dd01
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 12 09:57:27 2010 +0100
+
+    i830: Prevent allocation of bo larger than half the aperture
+    
+    We need to prevent overcommitting the aperture, and in particular if we
+    allocate a buffer larger than available space we will fail to mmap it in
+    and rendering will fail. Trying to allocate multiple large buffers in
+    the aperture, often the case when falling back, causes thrashes and
+    eviction of useful buffers. So from the outset simply do not allocate a
+    bo if the the required size is more than half the available aperture
+    space.
+    
+    Fixes allocation failure in ocitymap.trace for instance.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 244b7cbfffdcda4761948eaa37ed2a30ca81f107
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 12 09:18:30 2010 +0100
+
+    uxa: Use accelerated PutImage for uploading pixman images.
+    
+    Short-circuits the current use of PutImage from CopyArea, bypassing all
+    the temporary allocations.
+
+commit cb887cfc670bf63993bd313ff33927afb8198eae
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Mar 26 09:59:51 2010 +0000
+
+    uxa: solid rects
+    
+    The cost of performing relocations outweigh the advantages of using the
+    blitter for solids with lots of rectangles.
+    
+    References:
+    
+      Bug 22127 - [UXA] 50% performance regression for XRenderFillRectangles
+      https://bugs.freedesktop.org/show_bug.cgi?id=22127
+    
+    By using the 3D pipeline we improve our performance by around 4x on
+    i945, measured by the jxbench microbenchmark, and a factor of 10x by
+    short-cutting to the 3D pipeline for blended rectangles.
+    
+    Before, on a i945GME:
+      19982.412060 Ops/s; rects (!); 15x15
+      9599.131693 Ops/s; rects (!); 75x75
+      3803.654743 Ops/s; rects (!); 250x250
+      6836.743772 Ops/s; rects blended; 15x15
+      1443.750000 Ops/s; rects blended; 75x75
+      495.335821 Ops/s; rects blended; 250x250
+      23247.933884 Ops/s; rects composition (!); 15x15
+      10993.073048 Ops/s; rects composition (!); 75x75
+      3595.905172 Ops/s; rects composition (!); 250x250
+    
+    After:
+      87271.145975 Ops/s; rects (!); 15x15
+      32347.744361 Ops/s; rects (!); 75x75
+      5884.177215 Ops/s; rects (!); 250x250
+      73500.000000 Ops/s; rects blended; 15x15
+      33580.882353 Ops/s; rects blended; 75x75
+      5858.811749 Ops/s; rects blended; 250x250
+      25582.317073 Ops/s; rects composition (!); 15x15
+      6664.728682 Ops/s; rects composition (!); 75x75
+      14965.909091 Ops/s; rects composition (!); 250x250 [suspicious]
+    
+    This has no impact on Cairo, but I have a suspicion from watching xtrace
+    that Qt likes to blit thousands of 1x1 rectangles with the same colour.
+    However, we are still around 2-3x slower than the reported figures for
+    EXA!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c8e10f7791fecf0fed7ad606db062d87d8ff263c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed May 12 12:41:00 2010 +0100
+
+    debug: Add names for operators
+    
+    Most useful for confirming my worst fears: unwarranted use of
+    OutReverse + Add.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6ea8ce640fbc7e5054b521a6f70b303945d0e849
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 11 19:35:59 2010 +0100
+
+    xvmc: Build fix with -pedantic
+    
+    Fixes:
+    
+      Bug 27352 - RPMLINT error causes build breakage
+      https://bugs.freedesktop.org/show_bug.cgi?id=27352
+    
+    Reported-by: Johannes Obermayr <johannesobermayr@gmx.de>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e1b7e8bf1d475b3d00adcb96e6002c20c9e70d1c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 11 15:50:23 2010 +0100
+
+    drmmode: Reorder i830_set_pixmap_bo() so that the correct stride is used.
+    
+    The pitch needs to be set on the pixmap prior to the private
+    intel_pixmap structure being created so that it can record the correct
+    value from the pixmap.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dfbaf9aab80cf33d47148f087fa747eacd508b05
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 11 14:54:15 2010 +0100
+
+    i830: Never create a bo for depth=1 pixmaps.
+    
+    As we can not accelerate these either as a destination or a source,
+    don't bother allocating a buffer object for them.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5b7efe375ae951ffcdb2c81e2ad8a2ed86ffbdf2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 11 14:53:29 2010 +0100
+
+    i830: Use set_pixmap_bo() instead of open-coding.
+    
+    The advantage is that this enables in-flight reuse of the old pixmap if
+    possible.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ad8af95dd35921118f45d6cff355c80cf0906ff0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 11 14:52:54 2010 +0100
+
+    i830: Do not cache in-flight non-reusable buffers.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f1048e14d5ef34970cb717e2a37d1c6bb4ea3a34
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 11 11:39:46 2010 +0100
+
+    i965: Add texformats mapping for additional pixman formats
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a35afd4a2df8bab543700d874274228eddccae5b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue May 11 11:26:33 2010 +0100
+
+    uxa: Recheck texture after acquiring pattern.
+    
+    As the first step to handling unsupported texture formats, double check
+    that the converted pattern can be used as a texture by the card.
+    
+    Fixes: rendercheck -t repeat
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d745cab6c45b9fce5e46eacbdd04ceae911fddbb
+Author: Keith Packard <keithp@keithp.com>
+Date:   Mon May 10 22:58:49 2010 -0700
+
+    Must call ValidateGC in i830_uxa_put_image for scratch GC
+    
+    Always need to call ValidateGC or the scratch GC will not get the
+    right composite clip.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit 3eded4202ea00d42edf5edad831484ebc6c0c826
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 10 23:38:17 2010 +0100
+
+    i915: Fix pixmap based masks.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1ecd89be039b642affb2f9933f4341d186cb4dea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 10 23:33:52 2010 +0100
+
+    uxa: Protect against valid SourcePict in uxa_acquire_mask()
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a8761585ef0b37736d302299d6b03e0957ad3e16
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 10 19:38:24 2010 +0100
+
+    i830: Minor cleanup
+    
+    Remove some extraneous prototypes and unused variables.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9e9b0d85da801f1f95c7bc7e99566fe7056f5813
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 10 18:37:02 2010 +0100
+
+    i830: Update stride when swapping bo for PutImage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0d4dd00aeafdd625ffe902e26e666b63a0842adc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 10 12:10:09 2010 +0100
+
+    uxa,i915: Handle SourcePict through uxa_composite()
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 21c1c3c7f6eb2b5070d2153b15a8fb1afe938bbb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 10 10:19:28 2010 +0100
+
+    i915: Use 1x1R pixmap for solid drawables
+    
+      x11perf has a regression
+      https://bugs.freedesktop.org/show_bug.cgi?id=25068
+    
+    caused by
+    
+      commit e581ceb7381e29ecc1a172597d258824f6a1d2d3
+      i915: Use the color channels to pass along solid sources and masks.
+    
+    Do not convert 1x1R pixmaps into a solid color as the readback from the
+    bo negates all the performances advantages of using a smaller vertex
+    buffer and fewer samplers.
+    
+    Before (PineView):
+      aa=66800 glyph/s, rgb=28800 glyphs/s
+    
+    Now:
+      aa=96800 glyphs/s, rgb=48500 glyphs/s
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f52b6e832292c02c0010b19882e38e1097beeda0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon May 10 09:39:44 2010 +0100
+
+    uxa: Rearrange checking and preparing of composite textures.
+    
+      x11perf regression caused by 2D driver
+      https://bugs.freedesktop.org/show_bug.cgi?id=28047
+    
+    caused by
+    
+      commit a7b800513fcc94e063dfd68d2f63b6bab7fae47d
+      uxa: Extract sub-region from in-memory buffers.
+    
+    The issue is that as we extract the region prior to checking whether the
+    composite can in fact be accelerated, we perform expensive surplus
+    operations. This is particularly noticeable for ComponentAlpha text,
+    such as rgb10text. The solution here is to rearrange the
+    check_composite() prior to acquiring the sources, and only extracting
+    the subregion if the render path can not actually handle the texture.
+    
+    Performance (on PineView):
+    a7b800513^: aa=68600 glyphs/s, rgb=29900 glyphs/s
+    a7b800513: aa=65700 glyphs/s, rgb=13200 glyphs/s
+    now: aa=66800 glyph/s, rgb=28800 glyphs/s
+    
+    The residual lossage seems to be from the extra function call and
+    dixPrivate lookups. Hmm. More warning is the extremely low performance,
+    however the results are consistent so the improvement looks real...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 848ab66384508c3ad3e5fb4884e4527f3ebd3bde
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat May 8 18:36:55 2010 +0100
+
+    uxa: Transform composites with a simple translation into a blit
+    
+    We can also convert a composite with an integer translation into a
+    blit, so long as the sample extents remains within the source.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a7b800513fcc94e063dfd68d2f63b6bab7fae47d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 14 21:14:34 2010 +0100
+
+    uxa: Extract sub-region from in-memory buffers.
+    
+    If the buffer is too large or not suitable for a GPU operation, we
+    currently fallback and perform the composite on the CPU. An alternative
+    is too extract the small region out of the source (as usually the
+    sample extents are much smaller than the actual surface size) and try
+    the composite with the new surface.
+    
+    The effect is particularly noticeable on pathological websites that use
+    very large background images. For example, http://www.woodtv.com/ uses a
+    1299x15000 pattern that is obscured by another opaque pattern.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8562b7bc6740eef2602af76b8685388efd2d4d37
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 27 10:27:44 2010 +0100
+
+    i830: prepare the uxa pixmap for fbCopyArea.
+    
+    Complete the prepare access for the PutImage fallback via fbCopyArea(),
+    by remembering to set the private pointer to the GTT mapping.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9a5cd65b593ea82e56e0c403f7ddcc2420a64dc3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 26 09:07:07 2010 +0100
+
+    i830: if pixman_blt() fails fallback to fbCopyArea()
+    
+    On older versions of pixman, pixman_blt() can return false if the images
+    are <= 8bpp. If we are being called from CopyArea, then we cannot return
+    FALSE here as that will trigger an infinite recursion. Instead we must
+    manually perform the fallback using fbCopyArea().
+    
+    Reported-by: Peter Clifton <pcjc2@cam.ac.uk>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 86d349aa7b0a596fbb9530e896c19349405bf3ba
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 26 09:12:54 2010 +0100
+
+    i830: tidy in flight bo reuse.
+    
+    A left-over cleanup patch for c374c94. *sigh*
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 72fd7d191c33c8d0b75b06ab0717d7ca0d4e019a
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Apr 19 21:56:57 2010 +0200
+
+    Fix "make dist"
+    
+    This is some fallout from my xvmc cleanup.
+    
+    Original-Patch-by: Rico Tzschichholz <ricotz@t-online.de>
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 9494f4e91f8c8c7a0f8d61c6883c9bfceb2cec46
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Fri Apr 16 22:24:01 2010 +0200
+
+    i810: adjust the pitch for DRI rendering
+    
+    Current code forgot to adjust the pitch of the frontbuffer.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=16729
+
+commit c374c94e41d6e7d677334171e3255778d77cbe18
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 31 11:50:27 2010 +0100
+
+    uxa: Reuse in-flight bo
+    
+    When we need to allocate a new bo for use as a gpu target, first check
+    if we can reuse a pixmap that has already been relocated into the
+    aperture as a temporary target, for instance a glyph mask or a clip mask.
+    
+    Before:
+    backend                      test   min(s) median(s) stddev.
+    xlib         firefox-planet-gnome   50.568   50.873   0.30%
+     xcb         firefox-planet-gnome   49.686   53.003   3.92%
+    xlib                    evolution   40.115   40.131   0.86%
+     xcb                    evolution   28.241   28.285   0.18%
+    
+    After:
+    backend                      test   min(s) median(s) stddev.
+    xlib         firefox-planet-gnome   47.759   48.233   0.80%
+     xcb         firefox-planet-gnome   48.611   48.657   0.87%
+    xlib                    evolution   38.954   38.991   0.05%
+     xcb                    evolution   26.561   26.654   0.19%
+    
+    And even more dramatic improvements when using a font size larger than
+    the maximum size of the glyph cache:
+     xcb firefox-36-20090611:  1.79x speedup
+    xlib firefox-36-20090611:  1.74x speedup
+     xcb firefox-36-20090609:  1.62x speedup
+    xlib firefox-36-20090609:  1.59x speedup
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 96aa7a236ac0605324a94f7b7d10413cb219f071
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 14 15:04:53 2010 +0100
+
+    i830: Allocate bo's for glyphs larger than 32x32.
+    
+    As we only use the glyph cache for small glyphs, those large than 32x32
+    will first be copied to a bo and used as a mask in a composite
+    operation. We can avoid the allocation and upload per use by allocating
+    a bo for the over-sized glyph from the start. As the glyph is large
+    anyway, the excess memory allocation is less significant.
+    
+    Using normal font sizes, firefox shows no change - as expected. However,
+    using the 36 font size traces, we see around a 10% improvement on g45.
+    
+    Before:
+          xcb          firefox-36-20090609  127.333  127.897   0.22%
+          xcb          firefox-36-20090611   87.456   88.624   0.66%
+          xcb             firefox-20090601   19.522   20.194   1.69%
+         xlib          firefox-36-20090609  201.054  201.780   0.18%
+         xlib          firefox-36-20090611  133.468  133.717   0.09%
+         xlib             firefox-20090601   23.740   23.975   0.49%
+    
+    With large glyphs in bo:
+          xcb          firefox-36-20090609  117.256  118.254   0.42%
+          xcb          firefox-36-20090611   79.462   79.962   0.31%
+          xcb             firefox-20090601   19.658   20.024   0.92%
+         xlib          firefox-36-20090609  185.645  188.202   0.68%
+         xlib          firefox-36-20090611  123.592  124.940   0.54%
+         xlib             firefox-20090601   23.917   24.098   0.38%
+    
+    Thanks to Owain G. Ainsworth for the suggestion!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2d17bd50af367bead84985c22fdd43d264a5f072
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 14 14:54:34 2010 +0100
+
+    Revert "Revert "uxa: Try using put_image when copying from a memory buffer.""
+    
+    This reverts commit 6d50553e8f70d8f2142efdfd6c90bc27a599d0bc.
+    
+    Now we have taught the fallback path not to infinitely recurse,
+    re-enable the accelerated path for ShmPutImage and friends.
+
+commit 1cc2c2c44ac72460cf1c4e6bdc13c612235809c9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Apr 14 11:18:25 2010 +0100
+
+    i830: Use pixman_blt directly for performing the in-memory copy
+    
+    In order to avoid an infinite recursion after enabling CopyArea to use
+    the put_image acceleration to either stream a blit or to copy in-place,
+    we cannot call CopyArea from put_image for the fallback path. Instead,
+    we can simply call pixman_blt directly, which coincidentally is a tiny
+    bit faster.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 324a2810da3fbae35637ba9080f31f9383db0868
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Apr 13 08:39:43 2010 +0200
+
+    i830 render: check aperture space requirements
+    
+    No point not doing this.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 804263c10df2fedb2f0debab6cdfaa6a89184a42
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Sun Apr 11 12:56:24 2010 +0200
+
+    render: tell the kernel explicitly when fences are needed
+    
+    This slighlty improves xrender performance on fence reg starved
+    i8xx hw.
+    
+    I've also changed a few function calls to the new names from the
+    compat ones while looking at the code.
+    
+    The i915 textured video path is not converted because atm the xv
+    code does not use tiled surfaces.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit a619a7831228dc52f0fef7d92c92f701e5aeaa94
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Apr 8 18:49:01 2010 +0200
+
+    i915 render: use tiling bits where possible
+    
+    This is in preparation to explicit fence allocation with execbuf2.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 55cd36046e61e8d51b5cb754a81cdb54e3eab166
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Apr 8 14:48:35 2010 +0200
+
+    i830 render: use tiling bits where possible
+    
+    This is in preparation to explicit fence allocation with execbuf2.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 6d50553e8f70d8f2142efdfd6c90bc27a599d0bc
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Apr 12 13:44:31 2010 -0700
+
+    Revert "uxa: Try using put_image when copying from a memory buffer."
+    
+    This reverts commit 27195d7dba0f3ff08b92f3fd916cdf5113cbef58.
+    put_image often calls copy_area. Which calls put_image.  Exhausting of
+    the stack follows.
+
+commit 28024f6c5f351ce4cb3434998d5dbfbeded7c606
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 12 13:44:01 2010 +0100
+
+    Revert "uxa: Add fallback warnings for PutImage."
+    
+    This reverts commit 299b0338d0811192dc4f8eae5d79453e9882c5d1.
+    A debugging patch, it was never intended to go into master
+
+commit 27195d7dba0f3ff08b92f3fd916cdf5113cbef58
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 31 20:30:27 2010 +0100
+
+    uxa: Try using put_image when copying from a memory buffer.
+    
+    Often, for example in the fallback for ShmPutImage, we will attempt to
+    use uxa_copy_area() copying to a normal pixmap from a memory buffer.
+    This triggers a fallback, and maps the destination pixmap back into the
+    GTT. The accelerated put_image path will attempt to stream a blit to the
+    destination pixmap if it is currently active, avoiding the stall.
+
+commit 385563417d10b5e8a005bed6ae4de9a8fac1b407
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 30 21:10:50 2010 +0100
+
+    Review i830_pad_drawable_width()
+    
+    We appear to have a confusion of stride in terms of pixels, pitch in
+    terms of bytes and the actual width of the surface.
+    i830_pad_drawable_width() appears to be operating aligning *pixels* to a
+    64 pixel boundary and has never used the chars-per-pixel causing
+    considerable confusion in its callers. Remove the parameter and ensure
+    that the callers are expecting a value in pixels returned, multiplying
+    by cpp where necessary to get the pitch.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 299b0338d0811192dc4f8eae5d79453e9882c5d1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Mar 25 13:43:26 2010 +0000
+
+    uxa: Add fallback warnings for PutImage.
+
+commit 80f52482c7cde000a76b91fe3d8b6c16baf2141f
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Apr 8 22:30:33 2010 +0200
+
+    XvMC: fix memory overflow
+    
+    Caught by a malloc library assert.
+    
+    Note to self: Don't just copy&paste codelines around :(
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Buzilla: https://bugs.freedesktop.org/show_bug.cgi?id=27540
+    Tested-by: Nick Bowler <nbowler@draconx.ca>
+    Tested-by: Calvin Walton <calvin.walton@gmail.com>
+
+commit 3d7723526b181686d62f09f81fba3ccdbf7d2b1a
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Apr 8 22:21:01 2010 +0200
+
+    Xv: fixup overlay stride confusion
+    
+    For some reason I've made a mess out of the overlay stride constrains.
+    Fix it up.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Tested-by: Calvin Walton <calvin.walton@gmail.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=27453
+
+commit bdf0ee509c26ab35e60f3ed02549efa435be032f
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Apr 8 13:29:04 2010 +0200
+
+    i965 Xv: fix chroma pitch
+    
+    In my recent fix for the chroma pitch for i915 xvmc I've forgotten about
+    i965 class hw. For videos with a non-even sized stride (measured in dwords)
+    the chroma pitch was internally incosistent and one dword off.
+    
+    Fix this by using pitch2 for the chroma pitch in i965 textured video like
+    everywhere else.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=27417
+    Tested-by: Nick Bowler <nbowler@draconx.ca>
+    Tested-by: Sven Arvidsson <sa@whiz.se>
+
+commit f6cb28e909c8685474e69e8bd8600f146d3a74e9
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Thu Mar 11 15:37:54 2010 +0100
+
+    libXvMC: rip out debug stuff
+    
+    Almost totatlly unused, but surely totally useless.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 676028ec0cbd4fadded92feefc8371e075abcc12
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 19:23:06 2010 +0100
+
+    libXvMC: unify CreateSurface
+    
+    Simply store the desired bo size in intel_xvmc_context and initialize
+    it in the driver's create_context function.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 3f590a4577f554313e7577205e471757a39129b6
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 19:04:51 2010 +0100
+
+    libXvMC i915: kill unused context private fields
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 8a31dacb067f813a5b0eafc16d265434e48ec5fc
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 18:59:29 2010 +0100
+
+    libXvMC: derive driver context from struct intel_xvmc_context
+    
+    ... by putting struct intel_xvmc_surface at the beginning. Also kill
+    the common context handling code and simply keep a pointer in the
+    surface private to the context.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 16e5edde4d97e1818e0dbfbc165bd8199f697336
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 16:51:10 2010 +0100
+
+    libXvMC: unify DestroySurface
+    
+    Surface bo's can be freed by the common code, then there's nothing
+    driver specific left.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 5f64122551f2d8d41d745351b2e4e68208aa6084
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 16:25:57 2010 +0100
+
+    libXvMC: drop get_surface_status driver callback
+    
+    It's unused. Also drop all related generic code that tries to do
+    clever stuff with this callback. These are all remnants from a
+    pre-gem world.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 6c44ce9e127e531224bac825da7918800a3e6a1a
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 16:20:03 2010 +0100
+
+    libXvMC i915: s/i915XvMCSurface/struct intel_xvmc_surface/
+    
+    The private surface struct now adds nothing. Drop it.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 583ec1f2f7ed32bb42c98baa1ca0fc3735b69b11
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 15:55:44 2010 +0100
+
+    libXvMC i915: rip out unneeded surface fields
+    
+    All of these are also stored in the context. Also kill the context
+    reference counting. Doesn't serve a purpose besides occupying a
+    pointer to the context in the private surface struct.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit c9aaaed829731cda22d057d6ac6424c587770973
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 15:27:02 2010 +0100
+
+    libXvMC: unify PutSurface
+    
+    Now that the drm bo is in the common structure, do the PutImage
+    handling in common code, too.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 4edff6c972311df2370a8323e346eeabd49ced35
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 15:13:41 2010 +0100
+
+    libXvMC: move drm_intel_bo to common intel_xvmc_surface
+    
+    i965 lost the last field in it's private surface struct. Kill it
+    and any associated headers.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 9eeabf876d1f70f5525bbac438414557dd2d4335
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 15:00:58 2010 +0100
+
+    libXvMC: derive driver surfaces from struct intel_xvmc_surface
+    
+    ... by putting struct intel_xvmc_surface at the beginning. This
+    will allow to consolidate surface and bo handling.
+    
+    Also kill some now dead code used to handle the common surface
+    structure.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit a0058369bbdfb49f8df5ee1e50671115927d3565
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Wed Mar 10 14:31:40 2010 +0100
+
+    XvMC: kill intel_xvmc_command
+    
+    We only passed around and actually used the gem handle. Don't
+    need a struct for one field alone ...
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 79fe4caafd21f6ca262901eac4a66ce5a4eaf548
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 9 16:20:33 2010 +0100
+
+    XvMC: dynamically allocate adaptor
+    
+    And kill all the static structures. This way it's clearer what's
+    common and what's specific. And the code is shorter too.
+    
+    Also clean up src/i830_hwmc.c - kill the nonstandard surface types
+    for i915 and the associated code.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 00b63ecb192b7eafea9482bf5c5c5d442ce2c6fc
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 9 15:29:15 2010 +0100
+
+    XvMC: directly set driver type in context creation
+    
+    Instead of threading it through a global variable.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 411cdcb6fcb60085191cf712aba1e0977f145256
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 9 15:23:02 2010 +0100
+
+    XvMC: init driver in one function call
+    
+    No point splitting this up. Gets rid of two #ifdef INTEL_XVMC blocks
+    in i830_video.c.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit b666e3e29f22894f43a8e9f7f3d1b950d431c42d
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 9 14:56:44 2010 +0100
+
+    XvMC: move i965 specific stuff to common context
+    
+    Like for the i915. With this create_context is now also shared.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit e0068b1e63bc914940dbeb52de46657fcf5da1ea
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 9 14:44:53 2010 +0100
+
+    XvMC: move i915 specific stuff to common context
+    
+    Doing the same with the i965 code will allow us to share the
+    create_context function.
+    
+    src/i915_hwmc.h is now almost empty. Move the last #defines to
+    src/xvmv/i915_xvmc.c where they are actually used and delete the
+    file.
+    
+    Also rename the ddx context struct to something sane.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 8cab7b84da6d06c20ad9dbbcd8f3f3d971b438e7
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 9 14:02:23 2010 +0100
+
+    XvMC: unify destroy context function
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 323464b8e2669423df573a18fd1137cb3cad6700
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 8 23:46:25 2010 +0100
+
+    XvMC: clean up i830_hwmc.c
+    
+    - Drop unnecessary macros
+    - Denote i965 specific stuff
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit cfa907adf800e91a3c1f4698ac701b9b83fa600b
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 8 23:41:56 2010 +0100
+
+    XvMC: unify surface functions
+    
+    Like for the subpicture stuff, share the "do-nothing" functions ...
+    And fix function name spelling, too.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 036cd4bb82131c08b79f596667f00b19a0c8ab79
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 8 17:33:18 2010 +0100
+
+    i965 XvMC: don't create any surface state in the ddx
+    
+    Like for i915. Also drop that now totally superflous limit on the
+    available surfaces.
+    
+    Move the surface struct into the userspace library header now that
+    the ddx doesn't use it anymore.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 69218cc1b51acfee91b471bb973a4419b79cdd85
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 8 17:05:25 2010 +0100
+
+    XvMC: unify subpicture functions
+    
+    The XvMC driver api in the server is insane. Even for optional stuff
+    like subpicture support it doesn't check for NULL-pointers. So we
+    have to retain some dummy functions.
+    
+    Wonder how many copies of these things exist on fdo ...
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 5d104e9c5cd5cd2d34c9035dd38794fa9b5578f3
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 8 17:03:36 2010 +0100
+
+    XvMC: unify PutImage handling
+    
+    Both xvmc are handing in the bo in the exact same way. So move the code
+    to src/i830_video.c and kill this great oeuvre of spaghetti-code.
+    
+    The xvmc driver ini and fini also lost their last use, kill them, too.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit ebc0ffba79cc4bd564a8bd97327f24a1d15b3d1a
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Mar 8 16:36:24 2010 +0100
+
+    XvMC: merge *_hwmc.c into i830_hwmc.c
+    
+    After unifying i915 and i965, not much will be left of these files.
+    Therefore merge them to make the following changes easier.
+    
+    This creates some warnings about some redefined macros, but when this
+    is all cleaned up they'll all be gone.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 8199f8f191f8385ef3a228e0ec014a8bbd44002b
+Author: Daniel Vetter <daniel@fliege.ffwll.ch>
+Date:   Sun Mar 7 23:17:49 2010 +0100
+
+    i915 XvMC: kill more subpict support remnants
+    
+    This things just won't die!
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 29ba8a84f7cf5c29a5f38688a1ac0ccf41d8e4ec
+Author: Daniel Vetter <daniel@fliege.ffwll.ch>
+Date:   Sun Mar 7 23:16:28 2010 +0100
+
+    XvMC: everyone's using execbuffer!
+    
+    XvMC was switched over from batchbuffers a few years ago ...
+    
+    Signed-off-by: Daniel Vetter <daniel@fliege.ffwll.ch>
+
 commit 440b4d207b730112169827d0b90b46596659b504
 Author: Carl Worth <cworth@cworth.org>
 Date:   Mon Mar 29 11:20:20 2010 -0700

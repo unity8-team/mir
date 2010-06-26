@@ -20,9 +20,7 @@ libIntelXvMC_la_SOURCES = intel_xvmc.c \
         i915_xvmc.c                    \
         i915_xvmc.h                    \
         i965_xvmc.c                    \
-        i965_xvmc.h                    \
         xvmc_vld.c                     \
-        xvmc_vld.h                     \
         intel_batchbuffer.c            \
         intel_batchbuffer.h
 

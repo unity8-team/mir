@@ -31,9 +31,13 @@
 #include "i915_structs.h"
 #include "i915_program.h"
 
-#define UOFFSET(surface)        (SIZE_Y420(surface->width, surface->height))
-#define VOFFSET(surface)        (SIZE_Y420(surface->width, surface->height) + \
-                                 SIZE_UV420(surface->width, surface->height))
+#define STRIDE(w)               (((w) + 0x3ff) & ~0x3ff)
+#define SIZE_Y420(w, h)         (h * STRIDE(w))
+#define SIZE_UV420(w, h)        ((h >> 1) * STRIDE(w >> 1))
+#define SIZE_YUV420(w, h)       (SIZE_Y420(w,h) + SIZE_UV420(w,h) * 2)
+#define UOFFSET(context)        (SIZE_Y420(context->width, context->height))
+#define VOFFSET(context)        (SIZE_Y420(context->width, context->height) + \
+                                 SIZE_UV420(context->width, context->height))
 
 typedef union {
 	int16_t component[2];
@@ -347,8 +351,7 @@ static void i915_mc_one_time_state_emit(XvMCContext * context)
 				<< BLOCK_MASK_SHIFT;
 	load_indirect |= 8 - 2; /* length */
 
-	if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-	    pI915XvMC->deviceID == PCI_CHIP_I915_GM)
+	if (pI915XvMC->use_phys_addr)
 		mem_select = 0;	/* use physical address */
 	else {
 		load_indirect |= OP_3D_LOAD_INDIRECT_GFX_ADDR;
@@ -384,7 +387,7 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 					      unsigned int picture_coding_type)
 {
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
-	i915XvMCSurface *pI915Surface = (i915XvMCSurface *) dest->privData;
+	struct intel_xvmc_surface *intel_surf = dest->privData;
 	struct i915_mc_static_indirect_state_buffer *buffer_info;
 	unsigned int w = dest->width;
 
@@ -402,11 +405,11 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	buffer_info->dest_y.dw1.fence_regs = 0;	/* disabled *//* FIXME: tiled y for performance */
 	buffer_info->dest_y.dw1.tiled_surface = 0;	/* linear */
 	buffer_info->dest_y.dw1.walk = TILEWALK_XMAJOR;
-	buffer_info->dest_y.dw1.pitch = (pI915Surface->yStride >> 2);	/* in DWords */
-	buffer_info->dest_y.dw2.base_address = pI915Surface->bo->offset >> 2;	/* starting DWORD address */
+	buffer_info->dest_y.dw1.pitch = (pI915XvMC->yStride >> 2);	/* in DWords */
+	buffer_info->dest_y.dw2.base_address = intel_surf->bo->offset >> 2;	/* starting DWORD address */
 	drm_intel_bo_emit_reloc(pI915XvMC->sis_bo,
 				offsetof(typeof(*buffer_info),dest_y.dw2),
-				pI915Surface->bo, 0,
+				intel_surf->bo, 0,
 				I915_GEM_DOMAIN_RENDER,
 				I915_GEM_DOMAIN_RENDER);
 
@@ -419,12 +422,12 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	buffer_info->dest_u.dw1.fence_regs = 0;
 	buffer_info->dest_u.dw1.tiled_surface = 0;
 	buffer_info->dest_u.dw1.walk = TILEWALK_XMAJOR;
-	buffer_info->dest_u.dw1.pitch = (pI915Surface->uvStride >> 2);	/* in DWords */
+	buffer_info->dest_u.dw1.pitch = (pI915XvMC->uvStride >> 2);	/* in DWords */
 	buffer_info->dest_u.dw2.base_address =
-		(pI915Surface->bo->offset + UOFFSET(pI915Surface)) >> 2;
+		(intel_surf->bo->offset + UOFFSET(context)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->sis_bo,
 				offsetof(typeof(*buffer_info),dest_u.dw2),
-				pI915Surface->bo, UOFFSET(pI915Surface),
+				intel_surf->bo, UOFFSET(context),
 				I915_GEM_DOMAIN_RENDER,
 				I915_GEM_DOMAIN_RENDER);
 
@@ -437,12 +440,12 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	buffer_info->dest_v.dw1.fence_regs = 0;
 	buffer_info->dest_v.dw1.tiled_surface = 0;
 	buffer_info->dest_v.dw1.walk = TILEWALK_XMAJOR;
-	buffer_info->dest_v.dw1.pitch = (pI915Surface->uvStride >> 2);	/* in Dwords */
+	buffer_info->dest_v.dw1.pitch = (pI915XvMC->uvStride >> 2);	/* in Dwords */
 	buffer_info->dest_v.dw2.base_address =
-		(pI915Surface->bo->offset + VOFFSET(pI915Surface)) >> 2;
+		(intel_surf->bo->offset + VOFFSET(context)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->sis_bo,
 				offsetof(typeof(*buffer_info),dest_v.dw2),
-				pI915Surface->bo, VOFFSET(pI915Surface),
+				intel_surf->bo, VOFFSET(context),
 				I915_GEM_DOMAIN_RENDER,
 				I915_GEM_DOMAIN_RENDER);
 
@@ -518,8 +521,8 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 }
 
 static void i915_mc_map_state_set(XvMCContext * context,
-				  i915XvMCSurface * privPast,
-				  i915XvMCSurface * privFuture)
+				  struct intel_xvmc_surface * privPast,
+				  struct intel_xvmc_surface * privFuture)
 {
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
 	struct i915_mc_map_state *map_state;
@@ -556,7 +559,7 @@ static void i915_mc_map_state_set(XvMCContext * context,
 				offsetof(typeof(*map_state),y_forward.tm0),
 				privPast->bo, 0,
 				I915_GEM_DOMAIN_SAMPLER, 0);
-	map_state->y_forward.tm2.pitch = (privPast->yStride >> 2) - 1;	/* in DWords - 1 */
+	map_state->y_forward.tm2.pitch = (pI915XvMC->yStride >> 2) - 1;	/* in DWords - 1 */
 
 	/* Y Backward (Future) */
 	map_state->y_backward.tm0.v_ls_offset = 0;
@@ -576,7 +579,7 @@ static void i915_mc_map_state_set(XvMCContext * context,
 				offsetof(typeof(*map_state),y_backward.tm0),
 				privFuture->bo, 0,
 				I915_GEM_DOMAIN_SAMPLER, 0);
-	map_state->y_backward.tm2.pitch = (privFuture->yStride >> 2) - 1;
+	map_state->y_backward.tm2.pitch = (pI915XvMC->yStride >> 2) - 1;
 
 	/* 3DSATE_MAP_STATE: U */
 	map_state->u_map.dw0.type = CMD_3D;
@@ -599,12 +602,12 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->u_forward.tm2.max_lod = 0;
 	map_state->u_forward.tm2.cube_face = 0;
 	map_state->u_forward.tm0.base_address =
-		(privPast->bo->offset + UOFFSET(privPast)) >> 2;
+		(privPast->bo->offset + UOFFSET(context)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),u_forward.tm0),
-				privPast->bo, UOFFSET(privPast),
+				privPast->bo, UOFFSET(context),
 				I915_GEM_DOMAIN_SAMPLER, 0);
-	map_state->u_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;	/* in DWords - 1 */
+	map_state->u_forward.tm2.pitch = (pI915XvMC->uvStride >> 2) - 1;	/* in DWords - 1 */
 
 	/* U Backward */
 	map_state->u_backward.tm0.v_ls_offset = 0;
@@ -620,12 +623,12 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->u_backward.tm2.max_lod = 0;
 	map_state->u_backward.tm2.cube_face = 0;
 	map_state->u_backward.tm0.base_address =
-		(privFuture->bo->offset + UOFFSET(privFuture)) >> 2;
+		(privFuture->bo->offset + UOFFSET(context)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),u_backward.tm0),
-				privFuture->bo, UOFFSET(privFuture),
+				privFuture->bo, UOFFSET(context),
 				I915_GEM_DOMAIN_SAMPLER, 0);
-	map_state->u_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
+	map_state->u_backward.tm2.pitch = (pI915XvMC->uvStride >> 2) - 1;
 
 	/* 3DSATE_MAP_STATE: V */
 	map_state->v_map.dw0.type = CMD_3D;
@@ -648,12 +651,12 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->v_forward.tm2.max_lod = 0;
 	map_state->v_forward.tm2.cube_face = 0;
 	map_state->v_forward.tm0.base_address =
-		(privPast->bo->offset + VOFFSET(privPast)) >> 2;
+		(privPast->bo->offset + VOFFSET(context)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),v_forward.tm0),
-				privPast->bo, VOFFSET(privPast),
+				privPast->bo, VOFFSET(context),
 				I915_GEM_DOMAIN_SAMPLER, 0);
-	map_state->v_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;	/* in DWords - 1 */
+	map_state->v_forward.tm2.pitch = (pI915XvMC->uvStride >> 2) - 1;	/* in DWords - 1 */
 
 	/* V Backward */
 	map_state->v_backward.tm0.v_ls_offset = 0;
@@ -669,12 +672,12 @@ static void i915_mc_map_state_set(XvMCContext * context,
 	map_state->v_backward.tm2.max_lod = 0;
 	map_state->v_backward.tm2.cube_face = 0;
 	map_state->v_backward.tm0.base_address =
-		(privFuture->bo->offset + VOFFSET(privFuture)) >> 2;
+		(privFuture->bo->offset + VOFFSET(context)) >> 2;
 	drm_intel_bo_emit_reloc(pI915XvMC->msb_bo,
 				offsetof(typeof(*map_state),v_backward.tm0),
-				privFuture->bo, VOFFSET(privFuture),
+				privFuture->bo, VOFFSET(context),
 				I915_GEM_DOMAIN_SAMPLER, 0);
-	map_state->v_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
+	map_state->v_backward.tm2.pitch = (pI915XvMC->uvStride >> 2) - 1;
 
 	drm_intel_gem_bo_unmap_gtt(pI915XvMC->msb_bo);
 }
@@ -691,8 +694,7 @@ static void i915_mc_load_indirect_render_emit(XvMCContext * context)
 	load_indirect |= (BLOCK_SIS | BLOCK_MSB) << BLOCK_MASK_SHIFT;
 	load_indirect |= 5 - 2; /* length */
 
-	if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-	    pI915XvMC->deviceID == PCI_CHIP_I915_GM)
+	if (pI915XvMC->use_phys_addr)
 		mem_select = 0;	/* use physical address */
 	else {
 		load_indirect |= OP_3D_LOAD_INDIRECT_GFX_ADDR;
@@ -889,7 +891,6 @@ static void i915_release_resource(Display * display, XvMCContext * context)
 	if (!(pI915XvMC = context->privData))
 		return;
 
-	pI915XvMC->ref--;
 	i915_xvmc_free_one_time_buffers(pI915XvMC);
 
 	free(pI915XvMC);
@@ -901,15 +902,13 @@ static Status i915_xvmc_mc_create_context(Display * display,
 					  CARD32 * priv_data)
 {
 	i915XvMCContext *pI915XvMC = NULL;
-	I915XvMCCreateContextRec *tmpComm = NULL;
+	struct intel_xvmc_hw_context *tmpComm = NULL;
 
-	XVMC_DBG("%s\n", __FUNCTION__);
-
-	if (priv_count != (sizeof(I915XvMCCreateContextRec) >> 2)) {
+	if (priv_count != (sizeof(struct intel_xvmc_hw_context) >> 2)) {
 		XVMC_ERR
 		    ("_xvmc_create_context() returned incorrect data size!");
 		XVMC_INFO("\tExpected %d, got %d",
-			  (int)(sizeof(I915XvMCCreateContextRec) >> 2),
+			  (int)(sizeof(struct intel_xvmc_hw_context) >> 2),
 			  priv_count);
 		_xvmc_destroy_context(display, context);
 		XFree(priv_data);
@@ -924,8 +923,10 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	}
 	pI915XvMC = (i915XvMCContext *) context->privData;
 
-	tmpComm = (I915XvMCCreateContextRec *) priv_data;
-	pI915XvMC->deviceID = tmpComm->deviceID;
+	tmpComm = (struct intel_xvmc_hw_context *) priv_data;
+	pI915XvMC->use_phys_addr = tmpComm->i915.use_phys_addr;
+	pI915XvMC->comm.surface_bo_size = SIZE_YUV420(context->width,
+						      context->height);
 
 	/* Must free the private data we were passed from X */
 	XFree(priv_data);
@@ -937,10 +938,6 @@ static Status i915_xvmc_mc_create_context(Display * display,
 	/* Initialize private context values */
 	pI915XvMC->yStride = STRIDE(context->width);
 	pI915XvMC->uvStride = STRIDE(context->width >> 1);
-	pI915XvMC->haveXv = 0;
-	pI915XvMC->dual_prime = 0;
-	pI915XvMC->port = context->port;
-	pI915XvMC->ref = 1;
 
 	/* pre-init state buffers */
 	i915_mc_one_time_context_init(context);
@@ -964,81 +961,6 @@ static int i915_xvmc_mc_destroy_context(Display * display,
 
 	/* Pass Control to the X server to destroy the drm_context_t */
 	i915_release_resource(display, context);
-
-	return Success;
-}
-
-static Status i915_xvmc_mc_create_surface(Display * display,
-					  XvMCContext * context,
-					  XvMCSurface * surface, int priv_count,
-					  CARD32 * priv_data)
-{
-	i915XvMCContext *pI915XvMC;
-	i915XvMCSurface *pI915Surface;
-
-	if (!(pI915XvMC = context->privData))
-		return XvMCBadContext;
-
-	XVMC_DBG("%s\n", __FUNCTION__);
-
-	PPTHREAD_MUTEX_LOCK();
-	surface->privData = (i915XvMCSurface *) malloc(sizeof(i915XvMCSurface));
-
-	if (!(pI915Surface = surface->privData)) {
-		PPTHREAD_MUTEX_UNLOCK();
-		return BadAlloc;
-	}
-
-	/* Initialize private values */
-	pI915Surface->yStride = pI915XvMC->yStride;
-	pI915Surface->uvStride = pI915XvMC->uvStride;
-	pI915Surface->width = context->width;
-	pI915Surface->height = context->height;
-	pI915Surface->privContext = pI915XvMC;
-	pI915Surface->privSubPic = NULL;
-
-	pI915Surface->bo = drm_intel_bo_alloc(xvmc_driver->bufmgr,
-					      "surface",
-					      SIZE_YUV420(context->width,
-						          context->height),
-					      GTT_PAGE_SIZE);
-
-	/* X may still use this buffer when XVMC is already done with it. */
-	drm_intel_bo_disable_reuse(pI915Surface->bo);
-
-	if (!pI915Surface->bo) {
-		PPTHREAD_MUTEX_UNLOCK();
-		free(pI915Surface);
-		return BadAlloc;
-	}
-
-	XFree(priv_data);
-
-	pI915XvMC->ref++;
-	PPTHREAD_MUTEX_UNLOCK();
-	return 0;
-}
-
-static int i915_xvmc_mc_destroy_surface(Display * display,
-					XvMCSurface * surface)
-{
-	i915XvMCSurface *pI915Surface;
-	i915XvMCContext *pI915XvMC;
-
-	if (!display || !surface)
-		return BadValue;
-
-	if (!(pI915Surface = surface->privData))
-		return XvMCBadSurface;
-
-	if (!(pI915XvMC = pI915Surface->privContext))
-		return XvMCBadSurface;
-
-	drm_intel_bo_unreference(pI915Surface->bo);
-
-	free(pI915Surface);
-	surface->privData = NULL;
-	pI915XvMC->ref--;
 
 	return Success;
 }
@@ -1100,12 +1022,10 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 
 	intel_xvmc_context_ptr intel_ctx;
 
-	i915XvMCSurface *privTarget = NULL;
-	i915XvMCSurface *privFuture = NULL;
-	i915XvMCSurface *privPast = NULL;
+	struct intel_xvmc_surface *privTarget = NULL;
+	struct intel_xvmc_surface *privFuture = NULL;
+	struct intel_xvmc_surface *privPast = NULL;
 	i915XvMCContext *pI915XvMC = NULL;
-
-	XVMC_DBG("%s\n", __FUNCTION__);
 
 	/* Check Parameters for validity */
 	if (!display || !context || !target_surface) {
@@ -1135,13 +1055,7 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	if (!i915_xvmc_alloc_render_state_buffers(pI915XvMC))
 		return BadAlloc;
 
-	if (context->surface_type_id >= SURFACE_TYPE_MAX) {
-		XVMC_ERR("Unsupprted surface_type_id %d.",
-			 context->surface_type_id);
-		return BadValue;
-	}
-
-	intel_ctx = intel_xvmc_find_context(context->context_id);
+	intel_ctx = context->privData;
 	if (!intel_ctx) {
 		XVMC_ERR("Can't find intel xvmc context\n");
 		return BadValue;
@@ -1153,7 +1067,6 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 		privPast = privTarget;
 	} else {
 		if (!(privPast = past_surface->privData)) {
-			XVMC_ERR("Invalid Past Surface!");
 			return XvMCBadSurface;
 		}
 		picture_coding_type = MPEG_P_PICTURE;
@@ -1301,71 +1214,11 @@ static int i915_xvmc_mc_render_surface(Display * display, XvMCContext * context,
 	return 0;
 }
 
-static int i915_xvmc_mc_put_surface(Display * display, XvMCSurface * surface,
-				    Drawable draw, short srcx, short srcy,
-				    unsigned short srcw, unsigned short srch,
-				    short destx, short desty,
-				    unsigned short destw, unsigned short desth,
-				    int flags, struct intel_xvmc_command *data)
-{
-	i915XvMCContext *pI915XvMC;
-	i915XvMCSurface *pI915Surface;
-	i915XvMCSubpicture *pI915SubPic;
-	uint32_t handle = 0;
-
-	if (!(pI915Surface = surface->privData))
-		return XvMCBadSurface;
-
-	if (!(pI915XvMC = pI915Surface->privContext))
-		return XvMCBadSurface;
-
-	PPTHREAD_MUTEX_LOCK();
-
-	drm_intel_bo_flink(pI915Surface->bo, &handle);
-
-	data->command = INTEL_XVMC_COMMAND_DISPLAY;
-	data->ctxNo = pI915XvMC->ctxno;
-	data->srfNo = pI915Surface->srfNo;
-	pI915SubPic = pI915Surface->privSubPic;
-	data->subPicNo = (!pI915SubPic ? 0 : pI915SubPic->srfNo);
-	data->real_id = FOURCC_YV12;
-	data->flags = flags;
-	data->handle = handle;
-
-	PPTHREAD_MUTEX_UNLOCK();
-
-	return 0;
-}
-
-static int i915_xvmc_mc_get_surface_status(Display * display,
-					   XvMCSurface * surface, int *stat)
-{
-	i915XvMCSurface *pI915Surface;
-	i915XvMCContext *pI915XvMC;
-
-	if (!display || !surface || !stat)
-		return BadValue;
-
-	*stat = 0;
-
-	if (!(pI915Surface = surface->privData))
-		return XvMCBadSurface;
-
-	if (!(pI915XvMC = pI915Surface->privContext))
-		return XvMCBadSurface;
-
-	return 0;
-}
-
 struct _intel_xvmc_driver i915_xvmc_mc_driver = {
 	.type = XVMC_I915_MPEG2_MC,
 	.num_ctx = 0,
 	.ctx_list = NULL,
 	.create_context = i915_xvmc_mc_create_context,
 	.destroy_context = i915_xvmc_mc_destroy_context,
-	.create_surface = i915_xvmc_mc_create_surface,
-	.destroy_surface = i915_xvmc_mc_destroy_surface,
 	.render_surface = i915_xvmc_mc_render_surface,
-	.put_surface = i915_xvmc_mc_put_surface,
-	.get_surface_status = i915_xvmc_mc_get_surface_status,
 };

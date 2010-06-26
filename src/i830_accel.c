@@ -58,7 +58,7 @@ void i830_debug_flush(ScrnInfoPtr scrn)
 		intel_batch_emit_flush(scrn);
 
 	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
-		intel_batch_submit(scrn);
+		intel_batch_submit(scrn, FALSE);
 }
 
 /* The following function sets up the supported acceleration. Call it
