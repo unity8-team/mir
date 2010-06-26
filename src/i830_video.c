@@ -74,7 +74,6 @@
 #ifdef INTEL_XVMC
 #define _INTEL_XVMC_SERVER_
 #include "i830_hwmc.h"
-#include "i915_hwmc.h"
 #endif
 
 #define OFF_DELAY 	250	/* milliseconds */
@@ -345,16 +344,13 @@ void I830InitVideo(ScreenPtr screen)
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
 	int num_adaptors;
-#ifdef INTEL_XVMC
-	Bool xvmc_status = FALSE;
-#endif
 
 	num_adaptors = xf86XVListGenericAdaptors(scrn, &adaptors);
 	/* Give our adaptor list enough space for the overlay and/or texture video
 	 * adaptors.
 	 */
 	newAdaptors =
-	    xalloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
+	    malloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
 	if (newAdaptors == NULL)
 		return;
 
@@ -371,8 +367,7 @@ void I830InitVideo(ScreenPtr screen)
 	/* Set up textured video if we can do it at this depth and we are on
 	 * supported hardware.
 	 */
-	if (scrn->bitsPerPixel >= 16 && (IS_I9XX(intel) || IS_I965G(intel)) &&
-	    !(!IS_I965G(intel) && scrn->displayWidth > 2048)) {
+	if (scrn->bitsPerPixel >= 16 && (IS_I9XX(intel) || IS_I965G(intel))) {
 		texturedAdaptor = I830SetupImageVideoTextured(screen);
 		if (texturedAdaptor != NULL) {
 			xf86DrvMsg(scrn->scrnIndex, X_INFO,
@@ -405,14 +400,6 @@ void I830InitVideo(ScreenPtr screen)
 	if (overlayAdaptor && !intel->XvPreferOverlay)
 		adaptors[num_adaptors++] = overlayAdaptor;
 
-#ifdef INTEL_XVMC
-	if (intel_xvmc_probe(scrn)) {
-		if (texturedAdaptor)
-			xvmc_status =
-			    intel_xvmc_driver_init(screen, texturedAdaptor);
-	}
-#endif
-
 	if (num_adaptors) {
 		xf86XVScreenInit(screen, adaptors, num_adaptors);
 	} else {
@@ -422,10 +409,10 @@ void I830InitVideo(ScreenPtr screen)
 	}
 
 #ifdef INTEL_XVMC
-	if (xvmc_status)
-		intel_xvmc_screen_init(screen);
+	if (texturedAdaptor)
+		intel_xvmc_adaptor_init(screen);
 #endif
-	xfree(adaptors);
+	free(adaptors);
 }
 
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
@@ -438,7 +425,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 
 	OVERLAY_DEBUG("I830SetupImageVideoOverlay\n");
 
-	if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
+	if (!(adapt = calloc(1, sizeof(XF86VideoAdaptorRec) +
 			      sizeof(intel_adaptor_private) + sizeof(DevUnion))))
 		return NULL;
 
@@ -548,16 +535,16 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 
 	nAttributes = NUM_TEXTURED_ATTRIBUTES;
 
-	adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec));
-	adaptor_privs = xcalloc(nports, sizeof(intel_adaptor_private));
-	devUnions = xcalloc(nports, sizeof(DevUnion));
-	attrs = xcalloc(nAttributes, sizeof(XF86AttributeRec));
+	adapt = calloc(1, sizeof(XF86VideoAdaptorRec));
+	adaptor_privs = calloc(nports, sizeof(intel_adaptor_private));
+	devUnions = calloc(nports, sizeof(DevUnion));
+	attrs = calloc(nAttributes, sizeof(XF86AttributeRec));
 	if (adapt == NULL || adaptor_privs == NULL || devUnions == NULL ||
 	    attrs == NULL) {
-		xfree(adapt);
-		xfree(adaptor_privs);
-		xfree(devUnions);
-		xfree(attrs);
+		free(adapt);
+		free(adaptor_privs);
+		free(devUnions);
+		free(attrs);
 		return NULL;
 	}
 
@@ -1360,9 +1347,12 @@ i830_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sho
 		pitchAlignMask = 3;
 	} else {
 		if (IS_I965G(intel))
-			pitchAlignMask = 255;
+			/* Actually the alignment is 64 bytes, too. But the
+			 * stride must be at least 512 bytes. Take the easy fix
+			 * and align on 512 bytes unconditionally. */
+			pitchAlignMask = 511;
 		else
-			pitchAlignMask = 255;
+			pitchAlignMask = 63;
 	}
 
 #if INTEL_XVMC
@@ -1507,6 +1497,8 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 
 	if (xvmc_passthrough(id)) {
 		int size;
+		uint32_t *gem_handle = (uint32_t *)buf;
+
 		i830_free_video_buffers(adaptor_priv);
 
 		i830_setup_dst_params(scrn, adaptor_priv, width, height,
@@ -1521,7 +1513,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		adaptor_priv->buf =
 			drm_intel_bo_gem_create_from_name(intel->bufmgr,
 							  "xvmc surface",
-							  (uintptr_t)buf);
+							  *gem_handle);
 	} else {
 		if (!i830_copy_video_data(scrn, adaptor_priv, width, height,
 					  &dstPitch, &dstPitch2,
@@ -1535,7 +1527,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 
 	if (IS_I965G(intel)) {
 		I965DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
-					 width, height, dstPitch,
+					 width, height, dstPitch, dstPitch2,
 					 src_w, src_h,
 					 drw_w, drw_h, pixmap);
 	} else {

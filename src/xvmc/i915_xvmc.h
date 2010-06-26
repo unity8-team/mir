@@ -29,7 +29,7 @@
 #define _I915XVMC_H
 
 #include "intel_xvmc.h"
-#include "i915_hwmc.h"
+#include "i830_hwmc.h"
 
 #define I915_SUBPIC_PALETTE_SIZE        16
 #define MAX_SUBCONTEXT_LEN              1024
@@ -50,21 +50,10 @@
  *      pointer in the XvMCContext structure.
  */
 typedef struct _i915XvMCContext {
-	unsigned int ctxno;
-	unsigned int dual_prime;	/* Flag to identify when dual prime is in use. */
+	struct intel_xvmc_context comm;
 	unsigned int yStride;
 	unsigned int uvStride;
-	unsigned short ref;
-	unsigned int depth;
-	XvPortID port;		/* Xv Port ID when displaying */
-	int haveXv;		/* Have I initialized the Xv
-				 * connection for this surface? */
-	XvImage *xvImage;	/* Fake Xv Image used for command
-				 * buffer transport to the X server */
-	GC gc;			/* X GC needed for displaying */
-	Drawable draw;		/* Drawable to undisplay from */
-	void *drawHash;
-	int deviceID;
+	unsigned int use_phys_addr;
 
 	drm_intel_bo *sis_bo;
 	drm_intel_bo *msb_bo;
@@ -90,22 +79,5 @@ typedef struct _i915XvMCSubpicture {
 
 /* Number of YUV buffers per surface */
 #define I830_MAX_BUFS 2
-
-/*
- * i915XvMCSurface: Private data structure for each XvMCSurface. This
- *  structure is referenced by the privData pointer in the XvMCSurface
- *  structure.
- */
-typedef struct _i915XvMCSurface {
-	unsigned int srfNo;	/* XvMC private surface numbers */
-	unsigned int yStride;	/* Stride of YUV420 Y component. */
-	unsigned int uvStride;
-	unsigned int width;	/* Dimensions */
-	unsigned int height;
-	drm_intel_bo *bo;
-	i915XvMCContext *privContext;
-	i915XvMCSubpicture *privSubPic;	/* Subpicture to be blended when
-					 * displaying. NULL if none. */
-} i915XvMCSurface;
 
 #endif /* _I915XVMC_H */

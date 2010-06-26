@@ -1,3 +1,165 @@
+Snapshot 2.12.0 (2010-06-24)
+=============================
+We are pleased to announce this major release of the xf86-video-intel
+2D driver. It contains many correctness and performance improvements
+compared to the 2.11 releases. We encourage everyone using 2.11 to
+upgrade to 2.12.
+
+[This release contains several bug fixes since the earlier 2.11.901
+release candidate---see below for details.]
+
+New requirements compared to 2.11
+---------------------------------
+ * Libdrm >= 2.4.21
+
+Major performance improvements
+------------------------------
+There have been many performance improvements targeting the
+915G/945G/Pineview graphics chipsets (thank to Chris Wilson!). Areas
+improved include:
+
+ * Major improvements to glyph rendering
+
+ * Avoid software fallback when using extended desktops, (for example,
+   video playback)
+
+ * Better performance when using large windows, (for example with
+   firefox scrolling)
+
+ * Avoiding migration ping-pong with gigantic drawing
+
+The following speedups (measured with cairo-perf-trace/cairo-traces)
+capture some of the improvements. These were measured on a Pineview
+system with X server 1.8.1. This compares how this 2.12 release
+improves performance compared to 2.11.0:
+
+	Trace			Speedup
+	-----			-------
+	ocitysmap		5.41x speedup
+	firefox-talos-gfx       2.41x speedup
+	gnome-terminal-vim      2.15x speedup
+	poppler                 1.86x speedup
+	firefox-planet-gnome	1.43x speedup
+	midori-zoomed		1.39x speedup
+	swfdec-giant-steps      1.36x speedup
+	xfce4-terminal-a1	1.17x speedup
+	evolution		1.09x speedup
+	swfdec-youtube		1.06x speedup
+
+Other improvements
+------------------
+Daniel Vetter improved Xvmc and overlay, adding GEM support.
+
+Bug fixes
+---------
+There have been many conformance improvements targeting the
+915G/945G/Pineview graphics chipsets. The rendercheck test suite
+passes once again and there has been a significant reduction in the
+number of errors detected by the cairo test suite (notably center
+sampling and EXTEND_NONE behaviors are fixed).
+
+Other notable bug fixes include:
+
+ * Fix for bug 28446 Garbled fonts with Mathematica
+   https://bugs.freedesktop.org/show_bug.cgi?id=28446
+
+ * Fixes for page-flipping and other DRI2-handling bugs, (Thanks Jesse
+   Barnes, and Kristian Høgsberg)
+
+ * Avoid corruption when using extended desktops, (for example, video
+   playback)
+
+(The bug fixes below are new since the 2.11.901 release candidate)
+
+ * Fix corrupted output when screen rotated
+   https://bugs.freedesktop.org/show_bug.cgi?id=28461
+
+ * Fix corrupted rendering in KDE due to missing flush.
+
+ * Fixes i830_uxa_put_image for the following issues:
+
+      Bug 28569 - [i965] IGN's flash-based video player crashes X
+      https://bugs.freedesktop.org/show_bug.cgi?id=28569
+    
+      Bug 28573 - [i965] Fullscreen flash and windowed SDL games fail to
+                  update the screen
+      https://bugs.freedesktop.org/show_bug.cgi?id=28573
+
+ * Fix visual corruption of scrollbar in Chromium
+
+ * Fix tiling limits to resolve this issue:
+
+      Bug 28497 - Graphics corruption after opening a specific website
+      https://bugs.freedesktop.org/show_bug.cgi?id=28497
+
+Snapshot 2.11.901 (2010-06-14)
+==============================
+This is the first release candidate in preparation for the upcoming
+2.12.0 release. We will appreciate any feedback we can get from
+testing of this snapshot to improve the 2.12.0 release.
+
+New requirements compared to 2.10
+---------------------------------
+ * Libdrm >= 2.4.19
+
+Major performance improvements
+------------------------------
+There have been many performance improvements targeting the
+915G/945G/Pineview graphics chipsets (thank to Chris Wilson!). Areas
+improved include:
+
+ * Major improvements to glyph rendering
+
+ * Avoid software fallback when using extended desktops, (for example,
+   video playback)
+
+ * Better performance when using large windows, (for example with
+   firefox scrolling)
+
+ * Avoiding migration ping-pong with gigantic drawing
+
+The following speedups (measured with cairo-perf-trace/cairo-traces)
+capture some of the improvements. These were measured on a Pineview
+system with a very recent X server, (from git just before 1.8.1). This
+compares how this 2.12 release candidate improves performance compared
+to 2.11.0:
+
+	Trace			Speedup
+	-----			-------
+	ocitysmap		5.41x speedup
+	firefox-talos-gfx       2.41x speedup
+	gnome-terminal-vim      2.15x speedup
+	poppler                 1.86x speedup
+	firefox-planet-gnome	1.43x speedup
+	midori-zoomed		1.39x speedup
+	swfdec-giant-steps      1.36x speedup
+	xfce4-terminal-a1	1.17x speedup
+	evolution		1.09x speedup
+	swfdec-youtube		1.06x speedup
+
+Other improvements
+------------------
+Daniel Vetter improved Xvmc and overlay, adding GEM support.
+
+Bug fixes
+---------
+There have been many conformance improvements targeting the
+915G/945G/Pineview graphics chipsets. The rendercheck test suite
+passes once again and there has been a significant reduction in the
+number of errors detected by the cairo test suite (notably center
+sampling and EXTEND_NONE behaviors are fixed).
+
+Other notable bug fixes include:
+
+ * Fix for bug 28446 Garbled fonts with Mathematica
+   https://bugs.freedesktop.org/show_bug.cgi?id=28446
+
+ * Fixes for page-flipping and other DRI2-handling bugs, (Thanks Jesse
+   Barnes, and Kristian Høgsberg)
+
+ * Avoid corruption when using extended desktops, (for example, video
+   playback)
+
 Release 2.11.0 (2010-03-29)
 ===========================
 New in 2.11: DRI2 and page flipping
