@@ -2,7 +2,10 @@ SUBDIRS = xvmc
 
 noinst_LTLIBRARIES = liblegacy-i810.la
 
-AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ @PCIACCESS_CFLAGS@ -I$(top_srcdir)/src
+AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ @PCIACCESS_CFLAGS@ \
+	    -I$(top_srcdir)/src \
+	    -I$(top_srcdir)/src/legacy \
+	    $(NULL)
 
 liblegacy_i810_la_SOURCES = \
          i810_accel.c \
@@ -27,7 +30,6 @@ endif
 
 if XVMC
 liblegacy_i810_la_SOURCES += \
-	i810_hwmc.h \
 	i810_hwmc.c \
 	$(NULL)
 endif

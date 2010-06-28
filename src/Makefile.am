@@ -44,6 +44,7 @@ intel_drv_la_SOURCES = \
          intel.h \
 	 intel_module.c \
          intel_driver.c \
+         intel_driver.h \
          intel_batchbuffer.c \
          intel_batchbuffer.h \
          intel_memory.c \
