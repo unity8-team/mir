@@ -548,15 +548,6 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
-    /* Some RV100 cards with 2 VGA ports show up with DVI+VGA */
-    if (info->Chipset == PCI_CHIP_RV100_QY &&
-	PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1002 &&
-	PCI_SUB_DEVICE_ID(info->PciInfo) == 0x013a) {
-	if (info->BiosConnector[index].ConnectorType == CONNECTOR_DVI_I) {
-	    info->BiosConnector[index].ConnectorType = CONNECTOR_VGA;
-	}
-    }
-
     /* X300 card with extra non-existent DVI port */
     if (info->Chipset == PCI_CHIP_RV370_5B60 &&
 	PCI_SUB_VENDOR_ID(info->PciInfo) == 0x17af &&
