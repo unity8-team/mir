@@ -147,12 +147,21 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		privates[i].attachment = attachments[i];
 
 		bo = intel_get_pixmap_bo(pixmap);
-		if (bo != NULL && dri_bo_flink(bo, &buffers[i].name) != 0) {
+		if (bo == NULL || dri_bo_flink(bo, &buffers[i].name) != 0) {
 			/* failed to name buffer */
+			screen->DestroyPixmap(pixmap);
+			goto unwind;
 		}
 	}
 
 	return buffers;
+
+unwind:
+	while (i--)
+		screen->DestroyPixmap(privates[i].pixmap);
+	free(privates);
+	free(buffers);
+	return NULL;
 }
 
 static void
