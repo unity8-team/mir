@@ -57,6 +57,7 @@ typedef struct {
 
 typedef struct {
     drmmode_ptr drmmode;
+    drmModeModeInfo kmode;
     drmModeCrtcPtr mode_crtc;
     dri_bo *cursor;
     dri_bo *rotate_bo;
@@ -302,52 +303,20 @@ drmmode_crtc_dpms(xf86CrtcPtr drmmode_crtc, int mode)
 }
 
 static Bool
-drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
-		       Rotation rotation, int x, int y)
+drmmode_apply(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr scrn = crtc->scrn;
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	int saved_x, saved_y;
-	Rotation saved_rotation;
-	DisplayModeRec saved_mode;
+	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	uint32_t *output_ids;
 	int output_count = 0;
-	int ret = TRUE;
-	int i;
-	int fb_id;
-	drmModeModeInfo kmode;
-	unsigned int pitch = scrn->displayWidth * intel->cpp;
-
-	if (drmmode->fb_id == 0) {
-		ret = drmModeAddFB(drmmode->fd,
-				   scrn->virtualX, scrn->virtualY,
-				   scrn->depth, scrn->bitsPerPixel,
-				   pitch, intel->front_buffer->handle,
-				   &drmmode->fb_id);
-		if (ret < 0) {
-			ErrorF("failed to add fb\n");
-			return FALSE;
-		}
-	}
-
-	saved_mode = crtc->mode;
-	saved_x = crtc->x;
-	saved_y = crtc->y;
-	saved_rotation = crtc->rotation;
-
-	crtc->mode = *mode;
-	crtc->x = x;
-	crtc->y = y;
-	crtc->rotation = rotation;
+	int fb_id, x, y;
+	int i, ret;
 
 	output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
-	if (!output_ids) {
-		ret = FALSE;
-		goto done;
-	}
+	if (!output_ids)
+		return FALSE;
 
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
@@ -375,9 +344,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			       crtc->gamma_blue, crtc->gamma_size);
 #endif
 
-	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
-
+	x = crtc->x;
+	y = crtc->y;
 	fb_id = drmmode->fb_id;
 	if (drmmode_crtc->rotate_fb_id) {
 		fb_id = drmmode_crtc->rotate_fb_id;
@@ -385,11 +354,13 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		y = 0;
 	}
 	ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			     fb_id, x, y, output_ids, output_count, &kmode);
-	if (ret)
+			     fb_id, x, y, output_ids, output_count,
+			     &drmmode_crtc->kmode);
+	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s", strerror(-ret));
-	else
+		ret = FALSE;
+	} else
 		ret = TRUE;
 
 	/* Turn on any outputs on this crtc that may have been disabled */
@@ -406,7 +377,52 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);
+
+	return ret;
+
 done:
+	free(output_ids);
+	return FALSE;
+}
+
+static Bool
+drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
+		       Rotation rotation, int x, int y)
+{
+	ScrnInfoPtr scrn = crtc->scrn;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	int saved_x, saved_y;
+	Rotation saved_rotation;
+	DisplayModeRec saved_mode;
+	int ret = TRUE;
+	unsigned int pitch = scrn->displayWidth * intel->cpp;
+
+	if (drmmode->fb_id == 0) {
+		ret = drmModeAddFB(drmmode->fd,
+				   scrn->virtualX, scrn->virtualY,
+				   scrn->depth, scrn->bitsPerPixel,
+				   pitch, intel->front_buffer->handle,
+				   &drmmode->fb_id);
+		if (ret < 0) {
+			ErrorF("failed to add fb\n");
+			return FALSE;
+		}
+	}
+
+	saved_mode = crtc->mode;
+	saved_x = crtc->x;
+	saved_y = crtc->y;
+	saved_rotation = crtc->rotation;
+
+	crtc->mode = *mode;
+	crtc->x = x;
+	crtc->y = y;
+	crtc->rotation = rotation;
+
+	drmmode_ConvertToKMode(crtc->scrn, &drmmode_crtc->kmode, mode);
+	ret = drmmode_apply(crtc);
 	if (!ret) {
 		crtc->x = saved_x;
 		crtc->y = saved_y;
@@ -1296,8 +1312,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		if (!crtc->enabled)
 			continue;
 
-		drmmode_set_mode_major(crtc, &crtc->mode,
-				       crtc->rotation, crtc->x, crtc->y);
+		if (!drmmode_apply(crtc))
+			goto fail;
 	}
 
 	if (old_fb_id)
