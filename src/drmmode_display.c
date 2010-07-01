@@ -358,7 +358,7 @@ drmmode_apply(xf86CrtcPtr crtc)
 			     &drmmode_crtc->kmode);
 	if (ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-			   "failed to set mode: %s", strerror(-ret));
+			   "failed to set mode: %s\n", strerror(-ret));
 		ret = FALSE;
 	} else
 		ret = TRUE;
@@ -457,7 +457,7 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 	ret = dri_bo_subdata(drmmode_crtc->cursor, 0, 64*64*4, image);
 	if (ret)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-			   "failed to set cursor: %s", strerror(-ret));
+			   "failed to set cursor: %s\n", strerror(-ret));
 
 	return;
 }
