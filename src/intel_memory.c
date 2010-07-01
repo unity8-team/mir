@@ -191,7 +191,19 @@ drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 		tiling_mode = I915_TILING_NONE;
 
 	width = intel_pad_drawable_width(width);
+	if (!intel_check_display_stride(scrn, width * intel->cpp,
+					tiling_mode != I915_TILING_NONE))
+	    tiling_mode = I915_TILING_NONE;
+	if (!intel_check_display_stride(scrn, width * intel->cpp,
+					tiling_mode != I915_TILING_NONE)) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Expected front buffer stride %d kB "
+			   "will exceed display limit\n",
+			   width * intel->cpp / 1024);
+		return NULL;
+	}
 
+retry:
 	front_buffer = drm_intel_bo_alloc_tiled(intel->bufmgr, "front buffer",
 						width, height, intel->cpp,
 						&tiling_mode, &pitch, 0);
@@ -203,10 +215,15 @@ drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 
 	if (!intel_check_display_stride(scrn, pitch,
 				       tiling_mode != I915_TILING_NONE)) {
+		drm_intel_bo_unreference(front_buffer);
+		if (tiling_mode != I915_TILING_NONE) {
+			tiling_mode = I915_TILING_NONE;
+			goto retry;
+		}
+
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Front buffer stride %ld kB "
 			   "exceeds display limit\n", pitch / 1024);
-		drm_intel_bo_unreference(front_buffer);
 		return NULL;
 	}
 
