@@ -103,6 +103,7 @@ static char *backlight_interfaces[] = {
     "asus-laptop",
     "eeepc",
     "thinkpad_screen",
+    "mbp_backlight",
     "acpi_video1",
     "acpi_video0",
     "fujitsu-laptop",
