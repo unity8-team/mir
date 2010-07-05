@@ -81,7 +81,7 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	if (!dst_pixmap)
 		goto fallback;
 
-	if (pGC->alu != GXcopy || !UXA_IS_PM_SOLID(pDrawable, pGC->planemask))
+	if (pGC->alu != GXcopy || !UXA_PM_IS_SOLID(pDrawable, pGC->planemask))
 		goto solid;
 
 	format = PictureMatchFormat(screen,
