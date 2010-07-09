@@ -1289,6 +1289,7 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 	if (crtc->transform_in_use)
 		pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc, &box);
 
+	/* We could presume the clip was correctly computed... */
 	intel_crtc_box(crtc, &crtc_box);
 	intel_box_intersect(&box, &crtc_box, &box);
 
@@ -1299,6 +1300,8 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 	y1 = (crtc_box.y1 <= box.y1) ? box.y1 - crtc_box.y1 : 0;
 	y2 = (box.y2 <= crtc_box.y2) ?
 		box.y2 - crtc_box.y1 : crtc_box.y2 - crtc_box.y1;
+	if (y2 <= y1)
+		return;
 
 	full_height = FALSE;
 	if (y1 == 0 && y2 == (crtc_box.y2 - crtc_box.y1))
