@@ -30,6 +30,11 @@
 #define PCI_CHIP_845_G_BRIDGE	   0x2560
 #endif
 
+#ifndef PCI_CHIP_I854
+#define PCI_CHIP_I854		   0x358E
+#define PCI_CHIP_I854_BRIDGE	   0x358C
+#endif
+
 #ifndef PCI_CHIP_I855_GM
 #define PCI_CHIP_I855_GM	   0x3582
 #define PCI_CHIP_I855_GM_BRIDGE	   0x3580
@@ -191,10 +196,13 @@
 #define IS_I815(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I815)
 #define IS_I830(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I830_M)
 #define IS_845G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_845_G)
-#define IS_I85X(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I855_GM)
+#define IS_I85X(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I855_GM || \
+			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I854)
 #define IS_I852(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I855_GM && (pI810->variant == I852_GM || pI810->variant == I852_GME))
+#define IS_I854(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I854)
 #define IS_I855(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I855_GM && (pI810->variant == I855_GM || pI810->variant == I855_GME))
 #define IS_I865G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I865_G)
+#define IS_I8XX(pI810)	(IS_I830(pI810) || IS_845G(pI810) || IS_I85X(pI810) || IS_I865G(pI810))
 
 #define IS_I915G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I915_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_E7221_G)
 #define IS_I915GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I915_GM)

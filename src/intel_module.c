@@ -44,6 +44,7 @@ static const SymTabRec _intel_chipsets[] = {
     {PCI_CHIP_I815,		"i815"},
     {PCI_CHIP_I830_M,		"i830M"},
     {PCI_CHIP_845_G,		"845G"},
+    {PCI_CHIP_I854,		"854"},
     {PCI_CHIP_I855_GM,		"852GM/855GM"},
     {PCI_CHIP_I865_G,		"865G"},
     {PCI_CHIP_I915_G,		"915G"},
@@ -85,6 +86,7 @@ static const struct pci_id_match intel_device_match[] = {
     INTEL_DEVICE_MATCH (PCI_CHIP_I815, 0 ),
     INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, 0 ),
     INTEL_DEVICE_MATCH (PCI_CHIP_845_G, 0 ),
+    INTEL_DEVICE_MATCH (PCI_CHIP_I854, 0 ),
     INTEL_DEVICE_MATCH (PCI_CHIP_I855_GM, 0 ),
     INTEL_DEVICE_MATCH (PCI_CHIP_I865_G, 0 ),
     INTEL_DEVICE_MATCH (PCI_CHIP_I915_G, 0 ),
@@ -124,6 +126,7 @@ static PciChipsets intel_pci_chipsets[] = {
     {PCI_CHIP_I815,		PCI_CHIP_I815,		NULL},
     {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	NULL},
     {PCI_CHIP_845_G,		PCI_CHIP_845_G,		NULL},
+    {PCI_CHIP_I854,		PCI_CHIP_I854,		NULL},
     {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	NULL},
     {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	NULL},
     {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	NULL},
@@ -178,6 +181,9 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
 	break;
     case PCI_CHIP_845_G:
 	chipset->name = "845G";
+	break;
+    case PCI_CHIP_I854:
+	chipset->name = "854";
 	break;
     case PCI_CHIP_I855_GM:
 	/* Check capid register to find the chipset variant */

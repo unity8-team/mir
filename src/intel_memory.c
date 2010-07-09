@@ -144,7 +144,7 @@ intel_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 
 	/* 8xx spec has always 8K limit, but tests show larger limit in
 	   non-tiling mode, which makes large monitor work. */
-	if ((IS_845G(intel) || IS_I85X(intel)) && tiling)
+	if (IS_I8XX(intel) && tiling)
 		limit = KB(8);
 
 	if (IS_I915(intel) && tiling)
