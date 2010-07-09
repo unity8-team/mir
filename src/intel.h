@@ -278,6 +278,7 @@ typedef struct intel_screen_private {
 	long FbMapSize;
 	long GTTMapSize;
 
+	xf86OutputPtr output;
 	xf86CrtcPtr crtc;
 	drm_intel_bo *front_buffer;
 

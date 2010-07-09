@@ -1194,6 +1194,7 @@ static const char *output_names[] = { "None",
 static void
 drmmode_output_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, int num)
 {
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 	xf86OutputPtr output;
 	drmModeConnectorPtr koutput;
 	drmModeEncoderPtr kencoder;
@@ -1256,7 +1257,8 @@ drmmode_output_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, int num)
 
 	output->possible_crtcs = kencoder->possible_crtcs;
 	output->possible_clones = kencoder->possible_clones;
-	return;
+
+	intel->output = output;
 }
 
 static Bool
@@ -1493,6 +1495,11 @@ drmmode_close_screen(intel_screen_private *intel)
 	if (intel->crtc) {
 		xf86CrtcDestroy(intel->crtc);
 		intel->crtc = NULL;
+	}
+
+	if (intel->output) {
+		xf86OutputDestroy(intel->output);
+		intel->output = NULL;
 	}
 }
 
