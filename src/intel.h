@@ -278,6 +278,7 @@ typedef struct intel_screen_private {
 	long FbMapSize;
 	long GTTMapSize;
 
+	xf86CrtcPtr crtc;
 	drm_intel_bo *front_buffer;
 
 	dri_bufmgr *bufmgr;
@@ -436,6 +437,7 @@ enum {
 };
 
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
+extern void drmmode_close_screen(intel_screen_private *intel);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
 extern Bool drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data);

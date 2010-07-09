@@ -643,7 +643,7 @@ drmmode_crtc_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, int num)
 						  GTT_PAGE_SIZE);
 	drm_intel_bo_disable_reuse(drmmode_crtc->cursor);
 
-	return;
+	intel->crtc = crtc;
 }
 
 static xf86OutputStatus
@@ -1485,6 +1485,15 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 	}
 
 	return TRUE;
+}
+
+void
+drmmode_close_screen(intel_screen_private *intel)
+{
+	if (intel->crtc) {
+		xf86CrtcDestroy(intel->crtc);
+		intel->crtc = NULL;
+	}
 }
 
 int

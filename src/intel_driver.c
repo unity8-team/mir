@@ -1139,6 +1139,8 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	screen->CloseScreen = intel->CloseScreen;
 	(*screen->CloseScreen) (scrnIndex, screen);
 
+	drmmode_close_screen(intel);
+
 	if (intel->directRenderingOpen
 	    && intel->directRenderingType == DRI_DRI2) {
 		intel->directRenderingOpen = FALSE;
