@@ -1273,40 +1273,66 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 			xf86CrtcPtr crtc, RegionPtr clipBoxes)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	BoxPtr box;
-	pixman_box16_t box_in_crtc_coordinates;
-	int pipe = -1, event, load_scan_lines_pipe;
+	pixman_box16_t box, crtc_box;
+	int pipe, event;
+	Bool full_height;
+	int y1, y2;
 
+	pipe = -1;
 	if (pixmap_is_scanout(pixmap))
 		pipe = intel_crtc_to_pipe(crtc);
+	if (pipe < 0)
+		return;
 
-	if (pipe >= 0) {
-		if (pipe == 0) {
-			event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
-			load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
-		} else {
-			event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
-			load_scan_lines_pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
-		}
+	box = *REGION_EXTENTS(unused, clipBoxes);
 
-		box = REGION_EXTENTS(unused, clipBoxes);
-		box_in_crtc_coordinates = *box;
-		if (crtc->transform_in_use)
-			pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc,
-						  &box_in_crtc_coordinates);
+	if (crtc->transform_in_use)
+		pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc, &box);
 
-		BEGIN_BATCH(5);
-		/* The documentation says that the LOAD_SCAN_LINES command
-		 * always comes in pairs. Don't ask me why. */
-		OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
-		OUT_BATCH((box_in_crtc_coordinates.
-			   y1 << 16) | box_in_crtc_coordinates.y2);
-		OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | load_scan_lines_pipe);
-		OUT_BATCH((box_in_crtc_coordinates.
-			   y1 << 16) | box_in_crtc_coordinates.y2);
-		OUT_BATCH(MI_WAIT_FOR_EVENT | event);
-		ADVANCE_BATCH();
+	intel_crtc_box(crtc, &crtc_box);
+	intel_box_intersect(&box, &crtc_box, &box);
+
+	/*
+	 * Make sure we don't wait for a scanline that will
+	 * never occur
+	 */
+	y1 = (crtc_box.y1 <= box.y1) ? box.y1 - crtc_box.y1 : 0;
+	y2 = (box.y2 <= crtc_box.y2) ?
+		box.y2 - crtc_box.y1 : crtc_box.y2 - crtc_box.y1;
+
+	full_height = FALSE;
+	if (y1 == 0 && y2 == (crtc_box.y2 - crtc_box.y1))
+		full_height = TRUE;
+
+	/*
+	 * Pre-965 doesn't have SVBLANK, so we need a bit
+	 * of extra time for the blitter to start up and
+	 * do its job for a full height blit
+	 */
+	if (full_height && !IS_I965G(intel))
+		y2 -= 2;
+
+	if (pipe == 0) {
+		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
+		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+		if (full_height && IS_I965G(intel))
+			event = MI_WAIT_FOR_PIPEA_SVBLANK;
+	} else {
+		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+		if (full_height && IS_I965G(intel))
+			event = MI_WAIT_FOR_PIPEB_SVBLANK;
 	}
+
+	BEGIN_BATCH(5);
+	/* The documentation says that the LOAD_SCAN_LINES command
+	 * always comes in pairs. Don't ask me why. */
+	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | pipe);
+	OUT_BATCH((box.y1 << 16) | box.y2);
+	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | pipe);
+	OUT_BATCH((box.y1 << 16) | box.y2);
+	OUT_BATCH(MI_WAIT_FOR_EVENT | event);
+	ADVANCE_BATCH();
 }
 
 static Bool
