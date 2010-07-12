@@ -128,7 +128,7 @@ static Atom xvSyncToVblank;
 #endif
 
 /* client libraries expect an encoding */
-static XF86VideoEncodingRec DummyEncoding[1] = {
+static const XF86VideoEncodingRec DummyEncoding[1] = {
 	{
 	 0,
 	 "XV_IMAGE",
@@ -423,16 +423,18 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 
 	OVERLAY_DEBUG("I830SetupImageVideoOverlay\n");
 
-	if (!(adapt = calloc(1, sizeof(XF86VideoAdaptorRec) +
-			      sizeof(intel_adaptor_private) + sizeof(DevUnion))))
+	if (!(adapt = calloc(1,
+			     sizeof(XF86VideoAdaptorRec) +
+			     sizeof(intel_adaptor_private) +
+			     sizeof(DevUnion))))
 		return NULL;
 
 	adapt->type = XvWindowMask | XvInputMask | XvImageMask;
 	adapt->flags = VIDEO_OVERLAID_IMAGES /*| VIDEO_CLIP_TO_VIEWPORT */ ;
 	adapt->name = "Intel(R) Video Overlay";
 	adapt->nEncodings = 1;
-	adapt->pEncodings = DummyEncoding;
-	/* update the DummyEncoding for these two chipsets */
+	adapt->pEncodings = xnfalloc(sizeof(DummyEncoding));
+	memcpy(adapt->pEncodings, DummyEncoding, sizeof(DummyEncoding));
 	if (IS_845G(intel) || IS_I830(intel)) {
 		adapt->pEncodings->width = IMAGE_MAX_WIDTH_LEGACY;
 		adapt->pEncodings->height = IMAGE_MAX_HEIGHT_LEGACY;
@@ -550,7 +552,8 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 	adapt->flags = 0;
 	adapt->name = "Intel(R) Textured Video";
 	adapt->nEncodings = 1;
-	adapt->pEncodings = DummyEncoding;
+	adapt->pEncodings = xnfalloc(sizeof(DummyEncoding));
+	memcpy(adapt->pEncodings, DummyEncoding, sizeof(DummyEncoding));
 	adapt->nFormats = NUM_FORMATS;
 	adapt->pFormats = Formats;
 	adapt->nPorts = nports;
