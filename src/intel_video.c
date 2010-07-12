@@ -1383,6 +1383,11 @@ intel_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sh
 			 * stride must be at least 512 bytes. Take the easy fix
 			 * and align on 512 bytes unconditionally. */
 			pitchAlignMask = 511;
+		else if (IS_I830(intel) || IS_845G(intel))
+			/* Harsh, errata on these chipsets limit the stride to be
+			 * a multiple of 256 bytes.
+			 */
+			pitchAlignMask = 255;
 		else
 			pitchAlignMask = 63;
 	}
