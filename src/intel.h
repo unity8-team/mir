@@ -130,6 +130,9 @@ list_is_empty(struct list *head)
 }
 #endif
 
+/* XXX work around a broken define in list.h currently [ickle 20100713] */
+#undef container_of
+
 #ifndef container_of
 #define container_of(ptr, type, member) \
 	((type *)((char *)(ptr) - (char *) &((type *)0)->member))
