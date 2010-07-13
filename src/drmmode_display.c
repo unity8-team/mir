@@ -126,6 +126,12 @@ static char *backlight_interfaces[] = {
 /* Enough for 10 digits of backlight + '\n' + '\0' */
 #define BACKLIGHT_VALUE_LEN 12
 
+static inline int
+crtc_id(drmmode_crtc_private_ptr drmmode_crtc)
+{
+	return drmmode_crtc->mode_crtc->crtc_id;
+}
+
 static void
 drmmode_backlight_set(xf86OutputPtr output, int level)
 {
@@ -361,7 +367,7 @@ drmmode_apply(xf86CrtcPtr crtc)
 		x = 0;
 		y = 0;
 	}
-	ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+	ret = drmModeSetCrtc(drmmode->fd, crtc_id(drmmode_crtc),
 			     fb_id, x, y, output_ids, output_count,
 			     &drmmode_crtc->kmode);
 	if (ret) {
@@ -452,7 +458,7 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	drmModeMoveCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
+	drmModeMoveCursor(drmmode->fd, crtc_id(drmmode_crtc), x, y);
 }
 
 static void
@@ -477,8 +483,7 @@ drmmode_hide_cursor (xf86CrtcPtr crtc)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			 0, 64, 64);
+	drmModeSetCursor(drmmode->fd, crtc_id(drmmode_crtc), 0, 64, 64);
 }
 
 static void
@@ -487,7 +492,7 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+	drmModeSetCursor(drmmode->fd, crtc_id(drmmode_crtc),
 			 drmmode_crtc->cursor->handle, 64, 64);
 }
 
@@ -599,7 +604,7 @@ drmmode_crtc_gamma_set(xf86CrtcPtr crtc,
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	drmModeCrtcSetGamma(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+	drmModeCrtcSetGamma(drmmode->fd, crtc_id(drmmode_crtc),
 			    size, red, green, blue);
 }
 
@@ -1364,7 +1369,6 @@ drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	unsigned int pitch = scrn->displayWidth * intel->cpp;
 	int i, old_fb_id;
-	unsigned int crtc_id;
 
 	/*
 	 * Create a new handle for the back buffer
@@ -1391,10 +1395,9 @@ drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data)
 			continue;
 
 		drmmode_crtc = crtc->driver_private;
-		crtc_id = drmmode_crtc->mode_crtc->crtc_id;
 		drmmode->event_data = data;
 		drmmode->flip_count++;
-		if (drmModePageFlip(drmmode->fd, crtc_id, drmmode->fb_id,
+		if (drmModePageFlip(drmmode->fd, crtc_id(drmmode_crtc), drmmode->fb_id,
 				    DRM_MODE_PAGE_FLIP_EVENT, drmmode)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));
@@ -1549,16 +1552,12 @@ drmmode_fini(intel_screen_private *intel)
 int
 drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc)
 {
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-	return drm_intel_get_pipe_from_crtc_id (bufmgr, drmmode_crtc->mode_crtc->crtc_id);
+	return drm_intel_get_pipe_from_crtc_id (bufmgr, crtc_id(crtc->driver_private));
 }
 
 /* for the drmmode overlay */
 int
 drmmode_crtc_id(xf86CrtcPtr crtc)
 {
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-	return drmmode_crtc->mode_crtc->crtc_id;
+	return crtc_id(crtc->driver_private);
 }
