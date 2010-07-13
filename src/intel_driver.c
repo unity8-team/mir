@@ -445,43 +445,32 @@ static void intel_close_drm_master(intel_screen_private *intel)
 	}
 }
 
-static void intel_init_bufmgr(ScrnInfoPtr scrn)
+static int intel_init_bufmgr(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int batch_size;
 
-	if (intel->bufmgr)
-		return;
-
 	batch_size = 4096 * 4;
-
-	/* The 865 has issues with larger-than-page-sized batch buffers. */
 	if (IS_I865G(intel))
+		/* The 865 has issues with larger-than-page-sized batch buffers. */
 		batch_size = 4096;
 
 	intel->bufmgr = drm_intel_bufmgr_gem_init(intel->drmSubFD, batch_size);
+	if (!intel->bufmgr)
+		return FALSE;
+
 	drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
 	list_init(&intel->flush_pixmaps);
 	list_init(&intel->in_flight);
-}
-
-static Bool I830DrmModeInit(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	intel_init_bufmgr(scrn);
-
-	if (drmmode_pre_init(scrn, intel->drmSubFD, intel->cpp) == FALSE) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Kernel modesetting setup failed\n");
-		PreInitCleanup(scrn);
-		return FALSE;
-	}
 
 	return TRUE;
+}
+
+static void intel_bufmgr_fini(intel_screen_private *intel)
+{
+	drm_intel_bufmgr_destroy(intel->bufmgr);
 }
 
 static void I830XvInit(ScrnInfoPtr scrn)
@@ -605,8 +594,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	I830XvInit(scrn);
 
-	if (!I830DrmModeInit(scrn))
+	if (!intel_init_bufmgr(intel)) {
+		PreInitCleanup(scrn);
 		return FALSE;
+	}
+
+	if (!drmmode_pre_init(scrn, intel->drmSubFD, intel->cpp)) {
+		PreInitCleanup(scrn);
+		return FALSE;
+	}
 
 	if (!xf86SetGamma(scrn, zeros)) {
 		PreInitCleanup(scrn);
@@ -1035,6 +1031,7 @@ static void I830FreeScreen(int scrnIndex, int flags)
 	if (intel) {
 		drmmode_fini(intel);
 		intel_close_drm_master(intel);
+		intel_bufmgr_fini(intel);
 
 		free(intel);
 		scrn->driverPrivate = NULL;
