@@ -157,26 +157,6 @@ const OptionInfoRec *intel_uxa_available_options(int chipid, int busid)
 	return I830Options;
 }
 
-static Bool I830GetRec(ScrnInfoPtr scrn)
-{
-	if (scrn->driverPrivate)
-		return TRUE;
-	scrn->driverPrivate = xnfcalloc(sizeof(intel_screen_private), 1);
-
-	return TRUE;
-}
-
-static void I830FreeRec(ScrnInfoPtr scrn)
-{
-	if (!scrn)
-		return;
-	if (!scrn->driverPrivate)
-		return;
-
-	free(scrn->driverPrivate);
-	scrn->driverPrivate = NULL;
-}
-
 static void
 I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
 		LOCO * colors, VisualPtr pVisual)
@@ -273,7 +253,11 @@ static Bool i830CreateScreenResources(ScreenPtr screen)
 
 static void PreInitCleanup(ScrnInfoPtr scrn)
 {
-	I830FreeRec(scrn);
+	if (!scrn || !scrn->driverPrivate)
+		return;
+
+	free(scrn->driverPrivate);
+	scrn->driverPrivate = NULL;
 }
 
 /*
@@ -453,9 +437,8 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 	return TRUE;
 }
 
-static void intel_close_drm_master(ScrnInfoPtr scrn)
+static void intel_close_drm_master(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	if (intel && intel->drmSubFD > 0) {
 		drmClose(intel->drmSubFD);
 		intel->drmSubFD = -1;
@@ -563,11 +546,14 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (flags & PROBE_DETECT)
 		return TRUE;
 
-	/* Allocate driverPrivate */
-	if (!I830GetRec(scrn))
-		return FALSE;
-
 	intel = intel_get_screen_private(scrn);
+	if (intel == NULL) {
+		intel = xnfcalloc(sizeof(intel_screen_private), 1);
+		if (intel == NULL)
+			return FALSE;
+
+		scrn->driverPrivate = intel;
+	}
 	intel->pEnt = pEnt;
 
 	scrn->displayWidth = 640;	/* default it */
@@ -1044,10 +1030,16 @@ static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 static void I830FreeScreen(int scrnIndex, int flags)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	intel_close_drm_master(scrn);
+	if (intel) {
+		drmmode_fini(intel);
+		intel_close_drm_master(intel);
 
-	I830FreeRec(xf86Screens[scrnIndex]);
+		free(intel);
+		scrn->driverPrivate = NULL;
+	}
+
 	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
 		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
@@ -1117,9 +1109,10 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		free(intel->uxa_driver);
 		intel->uxa_driver = NULL;
 	}
+
 	if (intel->front_buffer) {
 		intel_set_pixmap_bo(screen->GetScreenPixmap(screen), NULL);
-		drmmode_closefb(scrn);
+		drmmode_remove_fb(intel);
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
 	}
@@ -1131,15 +1124,10 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	xf86_cursors_fini(screen);
 
-	drm_intel_bo_unreference(intel->front_buffer);
-	intel->front_buffer = NULL;
-
 	i965_free_video(scrn);
 
 	screen->CloseScreen = intel->CloseScreen;
 	(*screen->CloseScreen) (scrnIndex, screen);
-
-	drmmode_close_screen(intel);
 
 	if (intel->directRenderingOpen
 	    && intel->directRenderingType == DRI_DRI2) {

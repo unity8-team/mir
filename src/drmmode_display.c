@@ -48,11 +48,14 @@ typedef struct {
     uint32_t fb_id;
     drmModeResPtr mode_res;
     int cpp;
-    
+
     drmEventContext event_context;
     void *event_data;
     int old_fb_id;
     int flip_count;
+
+    struct list outputs;
+    struct list crtcs;
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
@@ -63,6 +66,8 @@ typedef struct {
     dri_bo *rotate_bo;
     uint32_t rotate_pitch;
     uint32_t rotate_fb_id;
+    xf86CrtcPtr crtc;
+    struct list link;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
@@ -89,6 +94,8 @@ typedef struct {
     char *backlight_iface;
     int backlight_active_level;
     int backlight_max;
+    xf86OutputPtr output;
+    struct list link;
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 static void
@@ -603,6 +610,11 @@ drmmode_crtc_destroy(xf86CrtcPtr crtc)
 
 	drm_intel_bo_unreference(drmmode_crtc->cursor);
 	drmmode_crtc->cursor = NULL;
+
+	list_del(&drmmode_crtc->link);
+	free(drmmode_crtc);
+
+	crtc->driver_private = NULL;
 }
 
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
@@ -643,7 +655,8 @@ drmmode_crtc_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, int num)
 						  GTT_PAGE_SIZE);
 	drm_intel_bo_disable_reuse(drmmode_crtc->cursor);
 
-	intel->crtc = crtc;
+	drmmode_crtc->crtc = crtc;
+	list_add(&drmmode_crtc->link, &drmmode->crtcs);
 }
 
 static xf86OutputStatus
@@ -838,7 +851,10 @@ drmmode_output_destroy(xf86OutputPtr output)
 	}
 	if (drmmode_output->backlight_iface)
 		drmmode_backlight_set(output, drmmode_output->backlight_active_level);
+
+	list_del(&drmmode_output->link);
 	free(drmmode_output);
+
 	output->driver_private = NULL;
 }
 
@@ -1194,7 +1210,6 @@ static const char *output_names[] = { "None",
 static void
 drmmode_output_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, int num)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	xf86OutputPtr output;
 	drmModeConnectorPtr koutput;
 	drmModeEncoderPtr kencoder;
@@ -1258,7 +1273,8 @@ drmmode_output_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, int num)
 	output->possible_crtcs = kencoder->possible_crtcs;
 	output->possible_clones = kencoder->possible_clones;
 
-	intel->output = output;
+	drmmode_output->output = output;
+	list_add(&drmmode_output->link, &drmmode->outputs);
 }
 
 static Bool
@@ -1448,6 +1464,9 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 	drmmode->fd = fd;
 	drmmode->fb_id = 0;
 
+	list_init(&drmmode->crtcs);
+	list_init(&drmmode->outputs);
+
 	xf86CrtcConfigInit(scrn, &drmmode_xf86crtc_config_funcs);
 
 	drmmode->cpp = cpp;
@@ -1486,21 +1505,45 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 					       drm_wakeup_handler, drmmode);
 	}
 
+	intel->modes = drmmode;
 	return TRUE;
 }
 
 void
-drmmode_close_screen(intel_screen_private *intel)
+drmmode_remove_fb(intel_screen_private *intel)
 {
-	if (intel->crtc) {
-		xf86CrtcDestroy(intel->crtc);
-		intel->crtc = NULL;
+	drmmode_ptr drmmode = intel->modes;
+
+	if (drmmode->fb_id) {
+		drmModeRmFB(drmmode->fd, drmmode->fb_id);
+		drmmode->fb_id = 0;
+	}
+}
+
+void
+drmmode_fini(intel_screen_private *intel)
+{
+	drmmode_ptr drmmode = intel->modes;
+
+	while(!list_is_empty(&drmmode->crtcs)) {
+		xf86CrtcDestroy(list_first_entry(&drmmode->crtcs,
+						 drmmode_crtc_private_rec,
+						 link)->crtc);
 	}
 
-	if (intel->output) {
-		xf86OutputDestroy(intel->output);
-		intel->output = NULL;
+	while(!list_is_empty(&drmmode->outputs)) {
+		xf86OutputDestroy(list_first_entry(&drmmode->outputs,
+						   drmmode_output_private_rec,
+						   link)->output);
 	}
+
+	if (drmmode->fb_id)
+		drmModeRmFB(drmmode->fd, drmmode->fb_id);
+
+	/* drmmode->rotate_fb_id should have been destroyed already */
+
+	free(drmmode);
+	intel->modes = NULL;
 }
 
 int
@@ -1518,19 +1561,4 @@ drmmode_crtc_id(xf86CrtcPtr crtc)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
 	return drmmode_crtc->mode_crtc->crtc_id;
-}
-
-void drmmode_closefb(ScrnInfoPtr scrn)
-{
-	xf86CrtcConfigPtr xf86_config;
-	drmmode_crtc_private_ptr drmmode_crtc;
-	drmmode_ptr drmmode;
-
-	xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-
-	drmmode_crtc = xf86_config->crtc[0]->driver_private;
-	drmmode = drmmode_crtc->drmmode;
-
-	drmModeRmFB(drmmode->fd, drmmode->fb_id);
-	drmmode->fb_id = 0;
 }
