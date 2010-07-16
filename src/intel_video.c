@@ -53,6 +53,7 @@
 #include <math.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -214,12 +215,15 @@ static Bool drmmode_has_overlay(intel_screen_private *intel)
 {
 	struct drm_i915_getparam gp;
 	int has_overlay = 0;
+	int ret;
 
 	gp.param = I915_PARAM_HAS_OVERLAY;
 	gp.value = &has_overlay;
-	drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
+	do {
+		ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
+	} while (ret == -EINTR);
 
-	return has_overlay ? TRUE : FALSE;
+	return !! has_overlay;
 }
 
 static void drmmode_overlay_update_attrs(intel_screen_private *intel)
@@ -240,11 +244,10 @@ static void drmmode_overlay_update_attrs(intel_screen_private *intel)
 	attrs.gamma4 = adaptor_priv->gamma4;
 	attrs.gamma5 = adaptor_priv->gamma5;
 
-	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
-				  &attrs, sizeof(attrs));
-
-	if (ret != 0)
-		OVERLAY_DEBUG("overlay attrs ioctl failed: %i\n", ret);
+	do {
+		ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
+					  &attrs, sizeof(attrs));
+	} while (ret == -EINTR);
 }
 
 static void drmmode_overlay_off(intel_screen_private *intel)
@@ -254,11 +257,10 @@ static void drmmode_overlay_off(intel_screen_private *intel)
 
 	request.flags = 0;
 
-	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
-			      &request, sizeof(request));
-
-	if (ret != 0)
-		OVERLAY_DEBUG("overlay switch-off ioctl failed: %i\n", ret);
+	do {
+		ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
+				      &request, sizeof(request));
+	} while (ret == -EINTR);
 }
 
 static Bool
@@ -274,6 +276,7 @@ drmmode_overlay_put_image(intel_screen_private *intel,
 	int ret;
 	int planar = is_planar_fourcc(id);
 	float scale;
+	dri_bo *tmp;
 
 	request.flags = I915_OVERLAY_ENABLE;
 
@@ -320,19 +323,24 @@ drmmode_overlay_put_image(intel_screen_private *intel,
 			request.flags |= I915_OVERLAY_Y_SWAP;
 	}
 
-	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
-			      &request, sizeof(request));
-
-	/* drop the newly displaying buffer right away */
-	drm_intel_bo_disable_reuse(adaptor_priv->buf);
-	drm_intel_bo_unreference(adaptor_priv->buf);
-	adaptor_priv->buf = NULL;
-
-	if (ret != 0) {
-		OVERLAY_DEBUG("overlay put-image ioctl failed: %i\n", ret);
+	do {
+		ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
+				      &request, sizeof(request));
+	} while (ret == -EINTR);
+	if (ret)
 		return FALSE;
-	} else
-		return TRUE;
+
+	if (!adaptor_priv->reusable) {
+		drm_intel_bo_unreference(adaptor_priv->buf);
+		adaptor_priv->buf = NULL;
+		adaptor_priv->reusable = TRUE;
+	}
+
+	tmp = adaptor_priv->old_buf;
+	adaptor_priv->old_buf = adaptor_priv->buf;
+	adaptor_priv->buf = tmp;
+
+	return TRUE;
 }
 
 void I830InitVideo(ScreenPtr screen)
@@ -484,6 +492,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	adaptor_priv->saturation = 146;	/* 128/112 * 128 */
 	adaptor_priv->desired_crtc = NULL;
 	adaptor_priv->buf = NULL;
+	adaptor_priv->old_buf = NULL;
 	adaptor_priv->gamma5 = 0xc0c0c0;
 	adaptor_priv->gamma4 = 0x808080;
 	adaptor_priv->gamma3 = 0x404040;
@@ -585,6 +594,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 		adaptor_priv->textured = TRUE;
 		adaptor_priv->videoStatus = 0;
 		adaptor_priv->buf = NULL;
+		adaptor_priv->old_buf = NULL;
 
 		adaptor_priv->rotation = RR_Rotate_0;
 		adaptor_priv->SyncToVblank = 1;
@@ -602,6 +612,12 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 
 static void intel_free_video_buffers(intel_adaptor_private *adaptor_priv)
 {
+	if (adaptor_priv->old_buf) {
+		drm_intel_bo_disable_reuse(adaptor_priv->old_buf);
+		drm_intel_bo_unreference(adaptor_priv->old_buf);
+		adaptor_priv->old_buf = NULL;
+	}
+
 	if (adaptor_priv->buf) {
 		drm_intel_bo_unreference(adaptor_priv->buf);
 		adaptor_priv->buf = NULL;
@@ -784,7 +800,7 @@ I830QueryBestSize(ScrnInfoPtr scrn,
 	*p_h = drw_h;
 }
 
-static void
+static Bool
 I830CopyPackedData(intel_adaptor_private *adaptor_priv,
 		   unsigned char *buf,
 		   int srcPitch, int dstPitch, int top, int left, int h, int w)
@@ -801,7 +817,9 @@ I830CopyPackedData(intel_adaptor_private *adaptor_priv,
 
 	src = buf + (top * srcPitch) + (left << 1);
 
-	drm_intel_bo_map(adaptor_priv->buf, TRUE);
+	if (drm_intel_gem_bo_map_gtt(adaptor_priv->buf))
+		return FALSE;
+
 	dst_base = adaptor_priv->buf->virtual;
 
 	dst = dst_base + adaptor_priv->YBufOffset;
@@ -892,7 +910,8 @@ I830CopyPackedData(intel_adaptor_private *adaptor_priv,
 		break;
 	}
 
-	drm_intel_bo_unmap(adaptor_priv->buf);
+	drm_intel_gem_bo_unmap_gtt(adaptor_priv->buf);
+	return TRUE;
 }
 
 static void intel_memcpy_plane(unsigned char *dst, unsigned char *src,
@@ -945,7 +964,7 @@ static void intel_memcpy_plane(unsigned char *dst, unsigned char *src,
 	}
 }
 
-static void
+static Bool
 I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 		   unsigned char *buf, int srcPitch, int srcPitch2,
 		   int dstPitch, int dstPitch2,
@@ -967,7 +986,9 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	       (unsigned long)src1 - (unsigned long)buf);
 #endif
 
-	drm_intel_bo_map(adaptor_priv->buf, TRUE);
+	if (drm_intel_gem_bo_map_gtt(adaptor_priv->buf))
+		return FALSE;
+
 	dst_base = adaptor_priv->buf->virtual;
 
 	dst1 = dst_base + adaptor_priv->YBufOffset;
@@ -1011,7 +1032,8 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	intel_memcpy_plane(dst3, src3, h / 2, w / 2,
 			  dstPitch, srcPitch2, adaptor_priv->rotation);
 
-	drm_intel_bo_unmap(adaptor_priv->buf);
+	drm_intel_gem_bo_unmap_gtt(adaptor_priv->buf);
+	return TRUE;
 }
 
 static void intel_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
@@ -1348,17 +1370,16 @@ intel_setup_video_buffer(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Free the current buffer if we're going to have to reallocate */
-	if (adaptor_priv->buf && adaptor_priv->buf->size < alloc_size) {
-		drm_intel_bo_unreference(adaptor_priv->buf);
-		adaptor_priv->buf = NULL;
-	}
+	if (adaptor_priv->buf && adaptor_priv->buf->size < alloc_size)
+		intel_free_video_buffers(adaptor_priv);
 
 	if (adaptor_priv->buf == NULL) {
-		adaptor_priv->buf = drm_intel_bo_alloc(intel->bufmgr,
-						"xv buffer", alloc_size,
-						4096);
+		adaptor_priv->buf = drm_intel_bo_alloc(intel->bufmgr, "xv buffer",
+						       alloc_size, 4096);
 		if (adaptor_priv->buf == NULL)
 			return FALSE;
+
+		adaptor_priv->reusable = TRUE;
 	}
 
 	return TRUE;
@@ -1471,16 +1492,14 @@ intel_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 
 	/* copy data */
 	if (is_planar_fourcc(id)) {
-		I830CopyPlanarData(adaptor_priv, buf, srcPitch, srcPitch2,
-				   *dstPitch, *dstPitch2,
-				   height, top, left, nlines,
-				   npixels, id);
+		return I830CopyPlanarData(adaptor_priv, buf, srcPitch, srcPitch2,
+					  *dstPitch, *dstPitch2,
+					  height, top, left, nlines,
+					  npixels, id);
 	} else {
-		I830CopyPackedData(adaptor_priv, buf, srcPitch, *dstPitch, top, left,
-				   nlines, npixels);
+		return I830CopyPackedData(adaptor_priv, buf, srcPitch, *dstPitch, top, left,
+					  nlines, npixels);
 	}
-
-	return TRUE;
 }
 
 /*
@@ -1533,10 +1552,8 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		return Success;
 
 	if (xvmc_passthrough(id)) {
-		int size;
 		uint32_t *gem_handle = (uint32_t *)buf;
-
-		intel_free_video_buffers(adaptor_priv);
+		int size;
 
 		intel_setup_dst_params(scrn, adaptor_priv, width, height,
 				&dstPitch, &dstPitch2, &size, id);
@@ -1547,10 +1564,17 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 			return BadAlloc;
 		}
 
+		if (adaptor_priv->buf)
+			drm_intel_bo_unreference(adaptor_priv->buf);
+
 		adaptor_priv->buf =
 			drm_intel_bo_gem_create_from_name(intel->bufmgr,
 							  "xvmc surface",
 							  *gem_handle);
+		if (adaptor_priv->buf == NULL)
+			return BadAlloc;
+
+		adaptor_priv->reusable = FALSE;
 	} else {
 		if (!intel_copy_video_data(scrn, adaptor_priv, width, height,
 					  &dstPitch, &dstPitch2,
