@@ -78,14 +78,10 @@
 #include "intel_hwmc.h"
 #endif
 
-#define OFF_DELAY 	250	/* milliseconds */
-#define FREE_DELAY 	15000
+#define OFF_DELAY	250	/* milliseconds */
 
-#define OFF_TIMER 	0x01
-#define FREE_TIMER	0x02
-#define CLIENT_VIDEO_ON	0x04
-
-#define TIMER_MASK      (OFF_TIMER | FREE_TIMER)
+#define OFF_TIMER	0x01
+#define CLIENT_VIDEO_ON	0x02
 
 static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr);
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr);
@@ -1774,28 +1770,13 @@ intel_video_block_handler(intel_screen_private *intel)
 		return;
 
 	adaptor_priv = intel_get_adaptor_private(intel);
-
-	if (adaptor_priv->videoStatus & TIMER_MASK) {
-#if 1
+	if (adaptor_priv->videoStatus & OFF_TIMER) {
 		Time now = currentTime.milliseconds;
-#else
-		UpdateCurrentTime();
-#endif
-		if (adaptor_priv->videoStatus & OFF_TIMER) {
-			if (adaptor_priv->offTime < now) {
-				/* Turn off the overlay */
-				OVERLAY_DEBUG("BLOCKHANDLER\n");
-
-				drmmode_overlay_off(intel);
-
-				adaptor_priv->videoStatus = FREE_TIMER;
-				adaptor_priv->freeTime = now + FREE_DELAY;
-			}
-		} else {	/* FREE_TIMER */
-			if (adaptor_priv->freeTime < now) {
-				intel_free_video_buffers(adaptor_priv);
-				adaptor_priv->videoStatus = 0;
-			}
+		if (adaptor_priv->offTime < now) {
+			/* Turn off the overlay */
+			drmmode_overlay_off(intel);
+			intel_free_video_buffers(adaptor_priv);
+			adaptor_priv->videoStatus = 0;
 		}
 	}
 }
