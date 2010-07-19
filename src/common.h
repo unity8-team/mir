@@ -75,7 +75,6 @@ I830DPRINTF_stub(const char *filename, int line, const char *function,
 #define DELAY(x) do {;} while (0)
 #endif
 
-#ifndef REG_DUMPER
 /* I830 hooks for the I810 driver setup/probe. */
 extern const OptionInfoRec *I830AvailableOptions(int chipid, int busid);
 extern void intel_init_scrn(ScrnInfoPtr scrn);
@@ -165,7 +164,6 @@ extern int I810_DEBUG;
 #define DEBUG_ALWAYS_SYNC    0x80
 #define DEBUG_VERBOSE_DRI    0x100
 #define DEBUG_VERBOSE_BIOS   0x200
-#endif /* !REG_DUMPER */
 
 /* Size of the mmio region.
  */
@@ -423,6 +421,7 @@ intel_host_bridge (void);
 enum {
 	INTEL_CREATE_PIXMAP_TILING_X = 0x10000000,
 	INTEL_CREATE_PIXMAP_TILING_Y,
+	INTEL_CREATE_PIXMAP_TILING_NONE,
 };
 
 #endif /* _INTEL_COMMON_H_ */

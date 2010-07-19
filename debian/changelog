@@ -1,3 +1,37 @@
+xserver-xorg-video-intel (2:2.12.0-1ubuntu1) maverick; urgency=low
+
+  * Merge from Debian experimental (LP: #601052).  Remaining Ubuntu changes:
+    + debian/apport-gpu-error-intel.py, debian/xserver-xorg-video-intel.udev,
+      debian/xserver-xorg-video-intel:
+      Add apport script to collect debug information on GPU hangs
+    + rules: Install udev rule to run the script when the kernel detects hung 
+      GPU.
+    + 101_copy-fb.patch: Adds feature to driver so Xserver can draw
+      root windows with no background.  This enables smooth boot with
+      Plymouth.
+    + control: Add Recommends on intel-gpu-tools to xserver-xorg-video-intel 
+      package for use by GPU hang scripts.
+    + xserver-xorg-video-intel.preinst.in, xserver-xorg-video-intel.postinst.in,
+      rules:
+      Don't install /etc/modprobe.d/i915-kms.conf, and remove it on upgrades.
+      At best it's redundant (as the kernel defaults to KMS), at worst it breaks
+      the ability to disable KMS.     
+    + 103-mbp-backlight-support.patch: Enables xrandr backlight control for
+      macbook's using the mbp_backlight module.
+  * Drop 102-disable-page-flipping-v2.patch: all the upstream bugs mentioned
+    in the patch are closed.  If we get a spate of freeze bugs, start looking
+    here.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 19 Jul 2010 16:36:28 +0200
+
+xserver-xorg-video-intel (2:2.12.0-1) experimental; urgency=low
+
+  * New upstream release.
+    + Fix Xv distortion, closes: #581705.
+  * Bump libdrm build-dependency to 2.4.21.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 26 Jun 2010 00:26:59 +0200
+
 xserver-xorg-video-intel (2:2.11.0-1ubuntu2) maverick; urgency=low
 
   * No change rebuild with the new xserver
@@ -61,6 +95,12 @@ xserver-xorg-video-intel (2:2.10.902-1) experimental; urgency=low
     by xserver-xorg-video-intel-dbg anymore.
 
  -- Brice Goglin <bgoglin@debian.org>  Tue, 16 Mar 2010 20:53:53 +0100
+
+xserver-xorg-video-intel (2:2.9.1-4) unstable; urgency=medium
+
+  * Update xsfbs, use new ${xviddriver:Depends} subsvar.
+
+ -- Julien Cristau <jcristau@debian.org>  Fri, 14 May 2010 17:44:44 +0200
 
 xserver-xorg-video-intel (2:2.9.1-3ubuntu5) lucid; urgency=low
 

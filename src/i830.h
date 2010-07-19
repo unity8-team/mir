@@ -77,6 +77,15 @@ void i830_uxa_block_handler(ScreenPtr pScreen);
 Bool i830_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			     int num_bos);
 
+/* XXX
+ * The X server gained an *almost* identical implementation in 1.9.
+ *
+ * Remove this duplicate code either in 2.16 (when we can depend upon 1.9)
+ * or the drivers are merged back into the xserver tree, whichever happens
+ * earlier.
+ */
+
+#ifndef _LIST_H_
 /* classic doubly-link circular list */
 struct list {
 	struct list *next, *prev;
@@ -124,33 +133,77 @@ list_is_empty(struct list *head)
 {
 	return head->next == head;
 }
+#endif
 
 #ifndef container_of
 #define container_of(ptr, type, member) \
 	(type *)((char *)(ptr) - (char *) &((type *)0)->member)
 #endif
 
+#ifndef list_entry
 #define list_entry(ptr, type, member) \
 	container_of(ptr, type, member)
+#endif
 
+#ifndef list_first_entry
 #define list_first_entry(ptr, type, member) \
 	list_entry((ptr)->next, type, member)
+#endif
+
+#ifndef list_foreach
+#define list_foreach(pos, head)			\
+	for (pos = (head)->next; pos != (head);	pos = pos->next)
+#endif
+
+/* XXX list.h from xserver-1.9 uses a GCC-ism to avoid having to pass type */
+#ifndef list_foreach_entry
+#define list_foreach_entry(pos, type, head, member)		\
+	for (pos = list_entry((head)->next, type, member);\
+	     &pos->member != (head);					\
+	     pos = list_entry(pos->member.next, type, member))
+#endif
 
 struct intel_pixmap {
 	dri_bo *bo;
-	uint32_t tiling;
-	uint32_t flush_write_domain;
-	uint32_t flush_read_domains;
-	uint32_t batch_write_domain;
-	uint32_t batch_read_domains;
-	struct list flush, batch;
+
+	struct list flush, batch, in_flight;
+
+	uint16_t stride;
+	uint8_t tiling;
+	int8_t busy :2;
+	int8_t batch_write :1;
 };
 
-struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap);
+#if HAS_DEVPRIVATEKEYREC
+extern DevPrivateKeyRec uxa_pixmap_index;
+#else
+extern int uxa_pixmap_index;
+#endif
+
+static inline struct intel_pixmap *i830_get_pixmap_intel(PixmapPtr pixmap)
+{
+#if HAS_DEVPRIVATEKEYREC
+	return dixGetPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
+#else
+	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
+#endif
+}
+
+static inline Bool intel_pixmap_is_busy(struct intel_pixmap *priv)
+{
+	if (priv->busy == -1)
+		priv->busy = drm_intel_bo_busy(priv->bo);
+	return priv->busy;
+}
+
+static inline void i830_set_pixmap_intel(PixmapPtr pixmap, struct intel_pixmap *intel)
+{
+	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, intel);
+}
 
 static inline Bool i830_uxa_pixmap_is_dirty(PixmapPtr pixmap)
 {
-	return i830_get_pixmap_intel(pixmap)->flush_write_domain != 0;
+	return !list_is_empty(&i830_get_pixmap_intel(pixmap)->flush);
 }
 
 static inline Bool i830_pixmap_tiled(PixmapPtr pixmap)
@@ -170,9 +223,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #define INTEL_XVMC 1
 #endif
 #endif
-
-#define ALWAYS_SYNC 0
-#define ALWAYS_FLUSH 0
 
 #define PITCH_NONE 0
 
@@ -237,7 +287,7 @@ typedef struct intel_screen_private {
 
 	dri_bufmgr *bufmgr;
 
-	uint8_t *batch_ptr;
+	uint32_t batch_ptr[4096];
 	/** Byte offset in batch_ptr for the next dword to be emitted. */
 	unsigned int batch_used;
 	/** Position in batch_ptr at the start of the current BEGIN_BATCH */
@@ -252,6 +302,7 @@ typedef struct intel_screen_private {
 	int batch_atomic_limit;
 	struct list batch_pixmaps;
 	struct list flush_pixmaps;
+	struct list in_flight;
 
 	/* For Xvideo */
 	Bool use_drmmode_overlay;
@@ -279,6 +330,7 @@ typedef struct intel_screen_private {
 
 	CloseScreenProcPtr CloseScreen;
 
+	void (*vertex_flush) (struct intel_screen_private *intel);
 	void (*batch_flush_notify) (ScrnInfoPtr scrn);
 
 	uxa_driver_t *uxa_driver;
@@ -287,6 +339,7 @@ typedef struct intel_screen_private {
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
 	int accel_max_y;
+	int max_bo_size;
 	int max_gtt_map_size;
 	int max_tiling_size;
 
@@ -314,17 +367,17 @@ typedef struct intel_screen_private {
 	float scale_units[2][2];
 	/** Transform pointers for src/mask, or NULL if identity */
 	PictTransform *transform[2];
-	float dst_coord_adjust;
-	float src_coord_adjust;
-	float mask_coord_adjust;
 
 	PixmapPtr render_source, render_mask, render_dest;
 	PicturePtr render_source_picture, render_mask_picture, render_dest_picture;
 	CARD32 render_source_solid;
 	CARD32 render_mask_solid;
+	PixmapPtr render_current_dest;
 	Bool render_source_is_solid;
 	Bool render_mask_is_solid;
 	Bool needs_render_state_emit;
+	Bool needs_render_vertex_emit;
+	Bool needs_render_ca_pass;
 
 	/* i830 render accel state */
 	uint32_t render_dest_format;
@@ -340,6 +393,20 @@ typedef struct intel_screen_private {
 		uint32_t dst_format;
 	} i915_render_state;
 
+	uint32_t prim_offset;
+	void (*prim_emit)(PixmapPtr dest,
+			  int srcX, int srcY,
+			  int maskX, int maskY,
+			  int dstX, int dstY,
+			  int w, int h);
+	int floats_per_vertex;
+	int last_floats_per_vertex;
+	uint32_t vertex_count;
+	uint32_t vertex_index;
+	uint32_t vertex_used;
+	float vertex_ptr[4*1024];
+	dri_bo *vertex_bo;
+
 	/* 965 render acceleration state */
 	struct gen4_render_state *gen4_render_state;
 
@@ -350,6 +417,7 @@ typedef struct intel_screen_private {
 	char *deviceName;
 
 	Bool use_pageflipping;
+	Bool force_fallback;
 
 	/* Broken-out options. */
 	OptionInfoPtr Options;
@@ -375,8 +443,7 @@ enum {
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
 extern int drmmode_output_dpms_status(xf86OutputPtr output);
-extern Bool drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front,
-				dri_bo *old_front, void *data);
+extern Bool drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -424,12 +491,7 @@ extern Bool i830_crtc_on(xf86CrtcPtr crtc);
 extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 
-void i830_reset_allocations(ScrnInfoPtr scrn);
 void i830_init_bufmgr(ScrnInfoPtr scrn);
-
-Bool i830_tiled_width(intel_screen_private *intel, int *width, int cpp);
-
-int i830_pad_drawable_width(int width, int cpp);
 
 /* i830_memory.c */
 unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size);
@@ -437,11 +499,16 @@ unsigned long i830_get_fence_pitch(intel_screen_private *intel, unsigned long pi
 				   uint32_t tiling_mode);
 void i830_set_gem_max_sizes(ScrnInfoPtr scrn);
 
-drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn);
+drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn,
+					int w, int h, int cpp,
+					unsigned long *pitch);
 
 /* i830_render.c */
-Bool i830_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
-			  PicturePtr dest);
+Bool i830_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
+Bool i830_check_composite_target(PixmapPtr pixmap);
+Bool i830_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i830_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
@@ -451,21 +518,27 @@ void i830_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i830_done_composite(PixmapPtr dest);
 /* i915_render.c */
-Bool i915_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
-			  PicturePtr dest);
+Bool i915_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
+Bool i915_check_composite_target(PixmapPtr pixmap);
+Bool i915_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
 void i915_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i915_vertex_flush(intel_screen_private *intel);
 void i915_batch_flush_notify(ScrnInfoPtr scrn);
 void i830_batch_flush_notify(ScrnInfoPtr scrn);
 /* i965_render.c */
 unsigned int gen4_render_state_size(ScrnInfoPtr scrn);
 void gen4_render_state_init(ScrnInfoPtr scrn);
 void gen4_render_state_cleanup(ScrnInfoPtr scrn);
-Bool i965_check_composite(int op, PicturePtr sourcec, PicturePtr mask,
-			  PicturePtr dest);
+Bool i965_check_composite(int op,
+			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
+			  int width, int height);
+Bool i965_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i965_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
@@ -484,8 +557,6 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 
 void i830_enter_render(ScrnInfoPtr);
 
-extern void intel_sync(ScrnInfoPtr scrn);
-
 static inline void
 intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)
 {
@@ -499,8 +570,6 @@ intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)
 	}
 	va_end(ap);
 }
-
-Bool i830_pixmap_tiled(PixmapPtr p);
 
 static inline Bool
 intel_check_pitch_2d(PixmapPtr pixmap)

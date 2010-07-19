@@ -163,51 +163,12 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 		return FALSE;
 }
 
-/* Resets the state of the aperture allocator, freeing all memory that had
- * been allocated.
+/*
+ * Pad to accelerator requirement
  */
-void i830_reset_allocations(ScrnInfoPtr scrn)
+static inline int i830_pad_drawable_width(int width)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	/* Null out the pointers for all the allocations we just freed.  This is
-	 * kind of gross, but at least it's just one place now.
-	 */
-	drm_intel_bo_unreference(intel->front_buffer);
-	intel->front_buffer = NULL;
-}
-
-static Bool IsTileable(ScrnInfoPtr scrn, int pitch)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (IS_I965G(intel)) {
-		if (pitch / 512 * 512 == pitch && pitch <= KB(128))
-			return TRUE;
-		else
-			return FALSE;
-	}
-
-	/*
-	 * Allow tiling for pitches that are a power of 2 multiple of 128 bytes,
-	 * up to 64 * 128 (= 8192) bytes.
-	 */
-	switch (pitch) {
-	case 128:
-	case 256:
-		if (IS_I945G(intel) || IS_I945GM(intel) || IS_G33CLASS(intel))
-			return TRUE;
-		else
-			return FALSE;
-	case 512:
-	case KB(1):
-	case KB(2):
-	case KB(4):
-	case KB(8):
-		return TRUE;
-	default:
-		return FALSE;
-	}
+	return (width + 63) & ~63;
 }
 
 /**
@@ -216,110 +177,107 @@ static Bool IsTileable(ScrnInfoPtr scrn, int pitch)
  * Used once for each X screen, so once with RandR 1.2 and twice with classic
  * dualhead.
  */
-drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn)
+drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn,
+					int width, int height, int cpp,
+					unsigned long *out_pitch)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	unsigned int pitch = scrn->displayWidth * intel->cpp;
-	long size, fb_height;
-	int flags, ret;
-	drm_intel_bo *front_buffer = NULL;
-	uint32_t tiling_mode, requested_tiling_mode;
+	drm_intel_bo *front_buffer;
+	uint32_t tiling_mode;
+	unsigned long pitch;
 
-	flags = ALLOW_SHARING | DISABLE_REUSE;
-
-	/* We'll allocate the fb such that the root window will fit regardless of
-	 * rotation.
-	 */
-	fb_height = scrn->virtualY;
-
-	size = ROUND_TO_PAGE(pitch * fb_height);
-
-	if (intel->tiling && IsTileable(scrn, pitch))
+	if (intel->tiling)
 		tiling_mode = I915_TILING_X;
 	else
 		tiling_mode = I915_TILING_NONE;
 
-	if (!i830_check_display_stride(scrn, pitch,
-				       tiling_mode != I915_TILING_NONE)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Front buffer stride %d kB "
-			   "exceed display limit\n", pitch / 1024);
-		return NULL;
-	}
+	width = i830_pad_drawable_width(width);
 
-	if (tiling_mode != I915_TILING_NONE) {
-		/* round to size necessary for the fence register to work */
-		size = i830_get_fence_size(intel, size);
-	}
-
-	front_buffer = drm_intel_bo_alloc(intel->bufmgr, "front buffer",
-					  size, GTT_PAGE_SIZE);
-
+	front_buffer = drm_intel_bo_alloc_tiled(intel->bufmgr, "front buffer",
+						width, height, intel->cpp,
+						&tiling_mode, &pitch, 0);
 	if (front_buffer == NULL) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer.\n");
 		return NULL;
 	}
 
-	requested_tiling_mode = tiling_mode;
-	ret = drm_intel_bo_set_tiling(front_buffer, &tiling_mode, pitch);
-	if (ret != 0 || tiling_mode != requested_tiling_mode) {
+	if (!i830_check_display_stride(scrn, pitch,
+				       tiling_mode != I915_TILING_NONE)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to set tiling on frontbuffer: %s\n",
-			   ret == 0 ? "rejected by kernel" : strerror(-ret));
+			   "Front buffer stride %ld kB "
+			   "exceeds display limit\n", pitch / 1024);
+		drm_intel_bo_unreference(front_buffer);
+		return NULL;
 	}
+
+	if (intel->tiling && tiling_mode != I915_TILING_X) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Failed to set tiling on frontbuffer.\n");
+	}
+
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "Allocated new frame buffer %dx%d stride %ld, %s\n",
+		   width, height, pitch,
+		   tiling_mode == I915_TILING_NONE ? "untiled" : "tiled");
 
 	drm_intel_bo_disable_reuse(front_buffer);
 
 	i830_set_gem_max_sizes(scrn);
+	*out_pitch = pitch;
 
 	return front_buffer;
 }
 
-static void i830_set_max_gtt_map_size(ScrnInfoPtr scrn)
+static void i830_set_max_bo_size(intel_screen_private *intel,
+				 const struct drm_i915_gem_get_aperture *aperture)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct drm_i915_gem_get_aperture aperture;
-	int ret;
+	if (aperture->aper_available_size)
+		/* Large BOs will tend to hit SW fallbacks frequently, and also will
+		 * tend to fail to successfully map when doing SW fallbacks because we
+		 * overcommit address space for BO access, or worse cause aperture
+		 * thrashing.
+		 */
+		intel->max_bo_size = aperture->aper_available_size / 2;
+	else
+		intel->max_bo_size = 64 * 1024 * 1024;
+}
 
-	/* Default low value in case it gets used during server init. */
-	intel->max_gtt_map_size = 16 * 1024 * 1024;
-
-	ret =
-	    ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
-	if (ret == 0) {
+static void i830_set_max_gtt_map_size(intel_screen_private *intel,
+				      const struct drm_i915_gem_get_aperture *aperture)
+{
+	if (aperture->aper_available_size)
 		/* Let objects up get bound up to the size where only 2 would fit in
 		 * the aperture, but then leave slop to account for alignment like
 		 * libdrm does.
 		 */
 		intel->max_gtt_map_size =
-		    aperture.aper_available_size * 3 / 4 / 2;
-	}
+			aperture->aper_available_size * 3 / 4 / 2;
+	else
+		intel->max_gtt_map_size = 16 * 1024 * 1024;
 }
 
-static void i830_set_max_tiling_size(ScrnInfoPtr scrn)
+static void i830_set_max_tiling_size(intel_screen_private *intel,
+				     const struct drm_i915_gem_get_aperture *aperture)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct drm_i915_gem_get_aperture aperture;
-	int ret;
-
-	/* Default low value in case it gets used during server init. */
-	intel->max_tiling_size = 4 * 1024 * 1024;
-
-	ret =
-	    ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
-	if (ret == 0) {
+	if (aperture->aper_available_size)
 		/* Let objects be tiled up to the size where only 4 would fit in
 		 * the aperture, presuming worst case alignment.
 		 */
-		intel->max_tiling_size = aperture.aper_available_size / 4;
-		if (!IS_I965G(intel))
-			intel->max_tiling_size /= 2;
-	}
+		intel->max_tiling_size = aperture->aper_available_size / 4;
+	else
+		intel->max_tiling_size = 4 * 1024 * 1024;
 }
 
 void i830_set_gem_max_sizes(ScrnInfoPtr scrn)
 {
-	i830_set_max_gtt_map_size(scrn);
-	i830_set_max_tiling_size(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct drm_i915_gem_get_aperture aperture;
+
+	aperture.aper_available_size = 0;
+	ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+
+	i830_set_max_bo_size(intel, &aperture);
+	i830_set_max_gtt_map_size(intel, &aperture);
+	i830_set_max_tiling_size(intel, &aperture);
 }
