@@ -949,6 +949,10 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP || usage == INTEL_CREATE_PIXMAP_TILING_NONE)
 			tiling = I915_TILING_NONE;
 
+		/* if tiling is off force to none */
+		if (!intel->tiling)
+			tiling = I915_TILING_NONE;
+
 		if (tiling != I915_TILING_NONE) {
 		    if (h <= 4)
 			tiling = I915_TILING_NONE;
