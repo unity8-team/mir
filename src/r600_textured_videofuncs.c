@@ -437,12 +437,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	break;
     }
 
-    /* Render setup */
-    BEGIN_BATCH(6);
-    EREG(accel_state->ib, CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
-    EREG(accel_state->ib, CB_COLOR_CONTROL,                    (0xcc << ROP3_shift)); /* copy */
-    END_BATCH();
-
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_obj.pitch;
     cb_conf.h = accel_state->dst_obj.height;
@@ -471,20 +465,25 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
+    /* Render setup */
+    BEGIN_BATCH(20);
+    EREG(accel_state->ib, CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
+    EREG(accel_state->ib, CB_COLOR_CONTROL,                    (0xcc << ROP3_shift)); /* copy */
+
     /* Interpolator setup */
     /* export tex coords from VS */
-    BEGIN_BATCH(18);
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
     EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
+    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 << 2),       ((0    << SEMANTIC_shift)	|
+								(0x03 << DEFAULT_VAL_shift)	|
+								SEL_CENTROID_bit));
 
     /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
      * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
-    EREG(accel_state->ib, SPI_PS_IN_CONTROL_0,                 ((1 << NUM_INTERP_shift)));
-    EREG(accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
-    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
-								(0x03 << DEFAULT_VAL_shift)	|
-								SEL_CENTROID_bit));
-    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
+    PACK0(accel_state->ib, SPI_PS_IN_CONTROL_0, 3);
+    E32(accel_state->ib, ((1 << NUM_INTERP_shift)));
+    E32(accel_state->ib, 0);
+    E32(accel_state->ib, 0);
     END_BATCH();
 
     vs_alu_consts[0] = 1.0 / pPriv->w;

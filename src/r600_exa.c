@@ -364,20 +364,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     ps_conf.bo                  = accel_state->shaders_bo;
     ps_setup                    (pScrn, accel_state->ib, &ps_conf, RADEON_GEM_DOMAIN_VRAM);
 
-    /* Render setup */
-    if (accel_state->planemask & 0x000000ff)
-	pmask |= 4; /* B */
-    if (accel_state->planemask & 0x0000ff00)
-	pmask |= 2; /* G */
-    if (accel_state->planemask & 0x00ff0000)
-	pmask |= 1; /* R */
-    if (accel_state->planemask & 0xff000000)
-	pmask |= 8; /* A */
-    BEGIN_BATCH(6);
-    EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
-    EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[accel_state->rop]);
-    END_BATCH();
-
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_obj.pitch;
     cb_conf.h = accel_state->dst_obj.height;
@@ -398,23 +384,36 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
+    /* Render setup */
+    if (accel_state->planemask & 0x000000ff)
+	pmask |= 4; /* B */
+    if (accel_state->planemask & 0x0000ff00)
+	pmask |= 2; /* G */
+    if (accel_state->planemask & 0x00ff0000)
+	pmask |= 1; /* R */
+    if (accel_state->planemask & 0xff000000)
+	pmask |= 8; /* A */
+    BEGIN_BATCH(20);
+    EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
+    EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[accel_state->rop]);
+
     /* Interpolator setup */
     /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
-    BEGIN_BATCH(18);
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, (0 << VS_EXPORT_COUNT_shift));
     EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
+    /* color semantic id 0 -> GPR[0] */
+    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 << 2),       ((0    << SEMANTIC_shift)	|
+								  (0x03 << DEFAULT_VAL_shift)	|
+								  FLAT_SHADE_bit		|
+								  SEL_CENTROID_bit));
 
     /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
      * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
     /* no VS exports as PS input (NUM_INTERP is not zero based, no minus one) */
-    EREG(accel_state->ib, SPI_PS_IN_CONTROL_0,                 (0 << NUM_INTERP_shift));
-    EREG(accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
-    /* color semantic id 0 -> GPR[0] */
-    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
-								  (0x03 << DEFAULT_VAL_shift)	|
-								  FLAT_SHADE_bit		|
-								  SEL_CENTROID_bit));
-    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                FLAT_SHADE_ENA_bit);
+    PACK0(accel_state->ib, SPI_PS_IN_CONTROL_0, 3);
+    E32(accel_state->ib, (0 << NUM_INTERP_shift));
+    E32(accel_state->ib, 0);
+    E32(accel_state->ib, FLAT_SHADE_ENA_bit);
     END_BATCH();
 
     /* PS alu constants */
@@ -598,21 +597,6 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     tex_samp.mip_filter         = 0;			/* no mipmap */
     set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
 
-
-    /* Render setup */
-    if (accel_state->planemask & 0x000000ff)
-	pmask |= 4; /* B */
-    if (accel_state->planemask & 0x0000ff00)
-	pmask |= 2; /* G */
-    if (accel_state->planemask & 0x00ff0000)
-	pmask |= 1; /* R */
-    if (accel_state->planemask & 0xff000000)
-	pmask |= 8; /* A */
-    BEGIN_BATCH(6);
-    EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
-    EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[accel_state->rop]);
-    END_BATCH();
-
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_obj.pitch;
     cb_conf.h = accel_state->dst_obj.height;
@@ -632,22 +616,35 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
+    /* Render setup */
+    if (accel_state->planemask & 0x000000ff)
+	pmask |= 4; /* B */
+    if (accel_state->planemask & 0x0000ff00)
+	pmask |= 2; /* G */
+    if (accel_state->planemask & 0x00ff0000)
+	pmask |= 1; /* R */
+    if (accel_state->planemask & 0xff000000)
+	pmask |= 8; /* A */
+    BEGIN_BATCH(20);
+    EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
+    EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[accel_state->rop]);
+
     /* Interpolator setup */
     /* export tex coord from VS */
-    BEGIN_BATCH(18);
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
     EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
+    /* color semantic id 0 -> GPR[0] */
+    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 << 2),       ((0    << SEMANTIC_shift)	|
+								(0x01 << DEFAULT_VAL_shift)	|
+								SEL_CENTROID_bit));
 
     /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
      * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
     /* input tex coord from VS */
-    EREG(accel_state->ib, SPI_PS_IN_CONTROL_0,                 ((1 << NUM_INTERP_shift)));
-    EREG(accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
-    /* color semantic id 0 -> GPR[0] */
-    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
-								(0x01 << DEFAULT_VAL_shift)	|
-								SEL_CENTROID_bit));
-    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
+    PACK0(accel_state->ib, SPI_PS_IN_CONTROL_0, 3);
+    E32(accel_state->ib, ((1 << NUM_INTERP_shift)));
+    E32(accel_state->ib, 0);
+    E32(accel_state->ib, 0);
     END_BATCH();
 
 }
@@ -1526,23 +1523,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     ps_conf.bo                  = accel_state->shaders_bo;
     ps_setup                    (pScrn, accel_state->ib, &ps_conf, RADEON_GEM_DOMAIN_VRAM);
 
-    BEGIN_BATCH(9);
-    EREG(accel_state->ib, CB_TARGET_MASK,                      (0xf << TARGET0_ENABLE_shift));
-
-    blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
-
-    if (info->ChipFamily == CHIP_FAMILY_R600) {
-	/* no per-MRT blend on R600 */
-	EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[3] | (1 << TARGET_BLEND_ENABLE_shift));
-	EREG(accel_state->ib, CB_BLEND_CONTROL,                    blendcntl);
-    } else {
-	EREG(accel_state->ib, CB_COLOR_CONTROL,                    (RADEON_ROP[3] |
-								    (1 << TARGET_BLEND_ENABLE_shift) |
-								    PER_MRT_BLEND_bit));
-	EREG(accel_state->ib, CB_BLEND0_CONTROL,                   blendcntl);
-    }
-    END_BATCH();
-
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_obj.pitch;
     cb_conf.h = accel_state->dst_obj.height;
@@ -1579,34 +1559,56 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
+    BEGIN_BATCH(24);
+    EREG(accel_state->ib, CB_TARGET_MASK,                      (0xf << TARGET0_ENABLE_shift));
+
+    blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
+
+    if (info->ChipFamily == CHIP_FAMILY_R600) {
+	/* no per-MRT blend on R600 */
+	EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[3] | (1 << TARGET_BLEND_ENABLE_shift));
+	EREG(accel_state->ib, CB_BLEND_CONTROL,                    blendcntl);
+    } else {
+	EREG(accel_state->ib, CB_COLOR_CONTROL,                    (RADEON_ROP[3] |
+								    (1 << TARGET_BLEND_ENABLE_shift) |
+								    PER_MRT_BLEND_bit));
+	EREG(accel_state->ib, CB_BLEND0_CONTROL,                   blendcntl);
+    }
+
     /* Interpolator setup */
-    BEGIN_BATCH(21);
     if (pMask) {
 	/* export 2 tex coords from VS */
 	EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((2 - 1) << VS_EXPORT_COUNT_shift));
 	/* src = semantic id 0; mask = semantic id 1 */
 	EREG(accel_state->ib, SPI_VS_OUT_ID_0, ((0 << SEMANTIC_0_shift) |
 						  (1 << SEMANTIC_1_shift)));
-	/* input 2 tex coords from VS */
-	EREG(accel_state->ib, SPI_PS_IN_CONTROL_0, (2 << NUM_INTERP_shift));
     } else {
 	/* export 1 tex coords from VS */
 	EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
 	/* src = semantic id 0 */
 	EREG(accel_state->ib, SPI_VS_OUT_ID_0,   (0 << SEMANTIC_0_shift));
-	/* input 1 tex coords from VS */
-	EREG(accel_state->ib, SPI_PS_IN_CONTROL_0, (1 << NUM_INTERP_shift));
     }
-    EREG(accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
+
+    PACK0(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 << 2), 2);
     /* SPI_PS_INPUT_CNTL_0 maps to GPR[0] - load with semantic id 0 */
-    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
-								(0x01 << DEFAULT_VAL_shift)	|
-								SEL_CENTROID_bit));
+    E32(accel_state->ib, ((0    << SEMANTIC_shift)	|
+			  (0x01 << DEFAULT_VAL_shift)	|
+			  SEL_CENTROID_bit));
     /* SPI_PS_INPUT_CNTL_1 maps to GPR[1] - load with semantic id 1 */
-    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (1 <<2),       ((1    << SEMANTIC_shift)	|
-								(0x01 << DEFAULT_VAL_shift)	|
-								SEL_CENTROID_bit));
-    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
+    E32(accel_state->ib, ((1    << SEMANTIC_shift)	|
+			  (0x01 << DEFAULT_VAL_shift)	|
+			  SEL_CENTROID_bit));
+
+    PACK0(accel_state->ib, SPI_PS_IN_CONTROL_0, 3);
+    if (pMask) {
+	/* input 2 tex coords from VS */
+	E32(accel_state->ib, (2 << NUM_INTERP_shift));
+    } else {
+	/* input 1 tex coords from VS */
+	E32(accel_state->ib, (1 << NUM_INTERP_shift));
+    }
+    E32(accel_state->ib, 0);
+    E32(accel_state->ib, 0);
     END_BATCH();
 
     if (accel_state->vsync)
