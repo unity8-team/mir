@@ -53,29 +53,29 @@ fi
 AH_TOP([#include "xorg-server.h"])
 
 AC_ARG_WITH(xorg-module-dir,
-            AC_HELP_STRING([--with-xorg-module-dir=DIR],
+            AS_HELP_STRING([--with-xorg-module-dir=DIR],
                            [Default xorg module directory [[default=$libdir/xorg/modules]]]),
             [moduledir="$withval"],
             [moduledir="$libdir/xorg/modules"])
 
-AC_ARG_ENABLE(dri, AC_HELP_STRING([--disable-dri],
+AC_ARG_ENABLE(dri, AS_HELP_STRING([--disable-dri],
                                   [Disable DRI support [[default=auto]]]),
               [DRI="$enableval"],
               [DRI=auto])
 
 AC_ARG_ENABLE(exa,
-              AC_HELP_STRING([--disable-exa],
+              AS_HELP_STRING([--disable-exa],
                              [Disable EXA support [[default=enabled]]]),
               [EXA="$enableval"],
               [EXA=yes])
 
 AC_ARG_ENABLE(kms,
-              AC_HELP_STRING([--disable-kms],
+              AS_HELP_STRING([--disable-kms],
                              [Disable KMS support [[default=enabled]]]),
               [DRM_MODE="$enableval"],
               [DRM_MODE=yes])
 
-AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE],
+AC_ARG_WITH(xserver-source,AS_HELP_STRING([--with-xserver-source=XSERVER_SOURCE],
                                           [Path to X server source tree]),
                            [ XSERVER_SOURCE="$withval" ],
                            [ XSERVER_SOURCE="" ])
