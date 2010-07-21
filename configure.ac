@@ -356,7 +356,6 @@ case $host_os in
   AC_DEFINE(FGL_LINUX, 1, [Use linux pragma pack]) ;;
 esac
 
-AC_SUBST([XORG_CFLAGS])
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([LIBDRM_RADEON_CFLAGS])
 AC_SUBST([LIBDRM_RADEON_LIBS])
