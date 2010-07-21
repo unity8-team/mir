@@ -95,8 +95,6 @@ AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
 
 # Checks for libraries.
 
-# Checks for header files.
-AC_HEADER_STDC
 
 if test "$DRI" != no; then
 	PKG_CHECK_MODULES(DRI, [libdrm >= 2.2 xf86driproto])
