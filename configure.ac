@@ -373,11 +373,12 @@ AC_MSG_NOTICE(
 [Please install that driver as well for rage128-based cards.]
 )
 
-AC_OUTPUT([
-	Makefile
-	src/Makefile
-	man/Makefile
+AC_CONFIG_FILES([
+                Makefile
+                src/Makefile
+                man/Makefile
 ])
+AC_OUTPUT
 
 dnl
 dnl Output some configuration info for the user
