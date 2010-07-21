@@ -356,10 +356,6 @@ case $host_os in
   AC_DEFINE(FGL_LINUX, 1, [Use linux pragma pack]) ;;
 esac
 
-AC_SUBST([LIBDRM_RADEON_CFLAGS])
-AC_SUBST([LIBDRM_RADEON_LIBS])
-AC_SUBST([LIBUDEV_CFLAGS])
-AC_SUBST([LIBUDEV_LIBS])
 AC_SUBST([moduledir])
 
 DRIVER_NAME=ati
