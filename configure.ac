@@ -134,7 +134,6 @@ if test "$KMS_ONLY" = yes; then
 	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
 fi
 
-AC_SUBST([DRI_CFLAGS])
 
 DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
