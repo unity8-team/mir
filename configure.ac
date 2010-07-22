@@ -52,22 +52,22 @@ AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 AH_TOP([#include "xorg-server.h"])
 
 AC_ARG_WITH(xorg-module-dir,
-            AC_HELP_STRING([--with-xorg-module-dir=DIR],
+            AS_HELP_STRING([--with-xorg-module-dir=DIR],
                            [Default xorg module directory [[default=$libdir/xorg/modules]]]),
             [moduledir="$withval"],
             [moduledir="$libdir/xorg/modules"])
 
-AC_ARG_ENABLE(dri, AC_HELP_STRING([--disable-dri],
+AC_ARG_ENABLE(dri, AS_HELP_STRING([--disable-dri],
                                   [Disable DRI support [[default=auto]]]),
               [DRI="$enableval"],
               [DRI=auto])
 
-AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
+AC_ARG_ENABLE(xvmc, AS_HELP_STRING([--disable-xvmc],
                                   [Disable XvMC support [[default=yes]]]),
               [XVMC="$enableval"],
               [XVMC=yes])
 
-AC_ARG_ENABLE(kms-only, AC_HELP_STRING([--enable-kms-only],
+AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
                                   [Assume KMS support [[default=no]]]),
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
