@@ -139,17 +139,18 @@ DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
 AC_SUBST([moduledir])
 
-AC_OUTPUT([
-	Makefile
-	uxa/Makefile
-	src/Makefile
-	src/xvmc/Makefile
-	src/xvmc/shader/Makefile
-	src/xvmc/shader/mc/Makefile
-	src/xvmc/shader/vld/Makefile
-	src/legacy/Makefile
-	src/legacy/i810/Makefile
-	src/legacy/i810/xvmc/Makefile
-	man/Makefile
-	src/render_program/Makefile
+AC_CONFIG_FILES([
+                Makefile
+                uxa/Makefile
+                src/Makefile
+                src/xvmc/Makefile
+                src/xvmc/shader/Makefile
+                src/xvmc/shader/mc/Makefile
+                src/xvmc/shader/vld/Makefile
+                src/legacy/Makefile
+                src/legacy/i810/Makefile
+                src/legacy/i810/xvmc/Makefile
+                man/Makefile
+                src/render_program/Makefile
 ])
+AC_OUTPUT
