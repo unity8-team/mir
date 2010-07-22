@@ -454,11 +454,11 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 		gc = GetScratchGC(pixmap->drawable.depth,
 				  pixmap->drawable.pScreen);
 		if (gc) {
-			RegionPtr tmp;
-
-			ValidateGC(&pixmap->drawable, gc);
+			gc->subWindowMode = ClipByChildren;
 
 			if (REGION_NUM_RECTS(dstRegion) > 1) {
+				RegionPtr tmp;
+
 				tmp = REGION_CREATE(pixmap->drawable.pScreen, NULL, 0);
 				if (tmp) {
 					REGION_COPY(pixmap->drawable.pScreen, tmp, dstRegion);
@@ -466,6 +466,7 @@ I915DisplayVideoTextured(ScrnInfoPtr scrn,
 				}
 			}
 
+			ValidateGC(&pixmap->drawable, gc);
 			gc->ops->CopyArea(&target->drawable, &pixmap->drawable, gc,
 					  0, 0,
 					  target->drawable.width,
