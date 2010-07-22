@@ -43,7 +43,6 @@ XORG_DEFAULT_OPTIONS
 # Checks for programs.
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
-AC_PROG_CC
 AM_PROG_CC_C_O
 
 PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.0], [gen4asm=yes], [gen4asm=no])
