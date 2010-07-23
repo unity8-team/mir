@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.12.0-1ubuntu2) maverick; urgency=low
+
+  * Re-add 102-disable-page-flipping-v2.patch.  Spate of freeze bugs: recieved.
+    (LP: #609073)
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Fri, 23 Jul 2010 11:30:05 +0200
+
 xserver-xorg-video-intel (2:2.12.0-1ubuntu1) maverick; urgency=low
 
   * Merge from Debian experimental (LP: #601052).  Remaining Ubuntu changes:
