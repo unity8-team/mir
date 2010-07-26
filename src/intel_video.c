@@ -215,9 +215,7 @@ static Bool drmmode_has_overlay(intel_screen_private *intel)
 
 	gp.param = I915_PARAM_HAS_OVERLAY;
 	gp.value = &has_overlay;
-	do {
-		ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
-	} while (ret == -EINTR);
+	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
 
 	return !! has_overlay;
 }
@@ -240,10 +238,8 @@ static void drmmode_overlay_update_attrs(intel_screen_private *intel)
 	attrs.gamma4 = adaptor_priv->gamma4;
 	attrs.gamma5 = adaptor_priv->gamma5;
 
-	do {
-		ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
-					  &attrs, sizeof(attrs));
-	} while (ret == -EINTR);
+	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
+				  &attrs, sizeof(attrs));
 }
 
 static void drmmode_overlay_off(intel_screen_private *intel)
@@ -253,10 +249,8 @@ static void drmmode_overlay_off(intel_screen_private *intel)
 
 	request.flags = 0;
 
-	do {
-		ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
-				      &request, sizeof(request));
-	} while (ret == -EINTR);
+	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
+			      &request, sizeof(request));
 }
 
 static Bool
@@ -319,10 +313,8 @@ drmmode_overlay_put_image(intel_screen_private *intel,
 			request.flags |= I915_OVERLAY_Y_SWAP;
 	}
 
-	do {
-		ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
-				      &request, sizeof(request));
-	} while (ret == -EINTR);
+	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
+			      &request, sizeof(request));
 	if (ret)
 		return FALSE;
 
