@@ -332,8 +332,9 @@ drmmode_overlay_put_image(intel_screen_private *intel,
 		adaptor_priv->reusable = TRUE;
 	}
 
-	tmp = adaptor_priv->old_buf;
-	adaptor_priv->old_buf = adaptor_priv->buf;
+	tmp = adaptor_priv->old_buf[1];
+	adaptor_priv->old_buf[1] = adaptor_priv->old_buf[0];
+	adaptor_priv->old_buf[0] = adaptor_priv->buf;
 	adaptor_priv->buf = tmp;
 
 	return TRUE;
@@ -488,7 +489,8 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 	adaptor_priv->saturation = 146;	/* 128/112 * 128 */
 	adaptor_priv->desired_crtc = NULL;
 	adaptor_priv->buf = NULL;
-	adaptor_priv->old_buf = NULL;
+	adaptor_priv->old_buf[0] = NULL;
+	adaptor_priv->old_buf[1] = NULL;
 	adaptor_priv->gamma5 = 0xc0c0c0;
 	adaptor_priv->gamma4 = 0x808080;
 	adaptor_priv->gamma3 = 0x404040;
@@ -590,7 +592,8 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 		adaptor_priv->textured = TRUE;
 		adaptor_priv->videoStatus = 0;
 		adaptor_priv->buf = NULL;
-		adaptor_priv->old_buf = NULL;
+		adaptor_priv->old_buf[0] = NULL;
+		adaptor_priv->old_buf[1] = NULL;
 
 		adaptor_priv->rotation = RR_Rotate_0;
 		adaptor_priv->SyncToVblank = 1;
@@ -608,10 +611,14 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 
 static void intel_free_video_buffers(intel_adaptor_private *adaptor_priv)
 {
-	if (adaptor_priv->old_buf) {
-		drm_intel_bo_disable_reuse(adaptor_priv->old_buf);
-		drm_intel_bo_unreference(adaptor_priv->old_buf);
-		adaptor_priv->old_buf = NULL;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		if (adaptor_priv->old_buf[i]) {
+			drm_intel_bo_disable_reuse(adaptor_priv->old_buf[i]);
+			drm_intel_bo_unreference(adaptor_priv->old_buf[i]);
+			adaptor_priv->old_buf[i] = NULL;
+		}
 	}
 
 	if (adaptor_priv->buf) {

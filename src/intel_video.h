@@ -52,7 +52,7 @@ typedef struct {
 	Time offTime;
 	Time freeTime;
 	/** YUV data buffers */
-	drm_intel_bo *buf, *old_buf;
+	drm_intel_bo *buf, *old_buf[2];
 	Bool reusable;
 
 	Bool textured;
