@@ -81,8 +81,6 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.21])
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
-PKG_CHECK_MODULES(XI, [xi >= 1.3])
-PKG_CHECK_MODULES(GL, [gl >= 7.7.0])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
 
