@@ -58,8 +58,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "windowstr.h"
 #include "shadow.h"
 
-#include "GL/glxtokens.h"
-
 #include "intel.h"
 #include "i830_reg.h"
 

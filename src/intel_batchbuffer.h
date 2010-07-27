@@ -51,7 +51,7 @@ static inline int intel_vertex_space(intel_screen_private *intel)
 }
 
 static inline void
-intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, GLuint sz)
+intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, unsigned int sz)
 {
 	assert(sz < intel->batch_bo->size - 8);
 	if (intel_batch_space(intel) < sz)
