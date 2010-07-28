@@ -48,23 +48,6 @@ RADEON_ATOMBIOS_SOURCES = \
         AtomBios/includes/ObjectID.h \
         AtomBios/includes/regsdef.h
 
-XMODE_SRCS=\
-        local_xf86Rename.h \
-	parser/xf86Parser.h \
-        parser/xf86Optrec.h \
-        modes/xf86Modes.h \
-        modes/xf86Modes.c \
-        modes/xf86cvt.c \
-        modes/xf86Crtc.h \
-        modes/xf86Crtc.c \
-        modes/xf86Cursors.c \
-        modes/xf86EdidModes.c \
-        modes/xf86RandR12.c \
-        modes/xf86RandR12.h \
-        modes/xf86Rename.h \
-        modes/xf86Rotate.c \
-        modes/xf86DiDGA.c
-
 if XF86DRM_MODE
 RADEON_KMS_SRCS=radeon_dri2.c radeon_kms.c drmmode_display.c radeon_vbo.c
 endif
@@ -77,7 +60,6 @@ AM_CFLAGS = \
             @LIBDRM_RADEON_CFLAGS@ \
             @XORG_CFLAGS@ \
             @DRI_CFLAGS@ \
-            @XMODES_CFLAGS@ \
             @LIBUDEV_CFLAGS@ \
             -DDISABLE_EASF \
             -DENABLE_ALL_SERVICE_FUNCTIONS \
@@ -116,11 +98,6 @@ radeon_drv_la_SOURCES = \
 	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES) atombios_output.c atombios_crtc.c \
 	$(RADEON_KMS_SRCS)
 
-if XMODES
-radeon_drv_la_SOURCES += \
-	$(XMODE_SRCS)
-endif
-
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version
 theatre_detect_drv_ladir = @moduledir@/multimedia
@@ -143,7 +120,6 @@ theatre200_drv_la_SOURCES = \
 	theatre200.c theatre200_module.c
 
 EXTRA_DIST = \
-	$(XMODE_SRCS) \
 	radeon_render.c \
 	radeon_accelfuncs.c \
 	radeon_textured_videofuncs.c \

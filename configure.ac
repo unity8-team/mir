@@ -81,11 +81,6 @@ AC_ARG_ENABLE(kms,
               [DRM_MODE="$enableval"],
               [DRM_MODE=yes])
 
-AC_ARG_WITH(xserver-source,AS_HELP_STRING([--with-xserver-source=XSERVER_SOURCE],
-                                          [Path to X server source tree]),
-                           [ XSERVER_SOURCE="$withval" ],
-                           [ XSERVER_SOURCE="" ])
-
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
@@ -93,7 +88,7 @@ XORG_DRIVER_CHECK_EXT(XV, videoproto)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.2 xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= 1.3 xproto fontsproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
                   HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
                   HAVE_XEXTPROTO_71="no")
@@ -168,11 +163,6 @@ fi
 AM_CONDITIONAL(DRM_MODE, test x$DRM_MODE = xyes)
 AM_CONDITIONAL(LIBUDEV, test x$LIBUDEV = xyes)
 
-save_CFLAGS="$CFLAGS"
-CFLAGS="$XORG_CFLAGS"
-AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
-CFLAGS="$save_CFLAGS"
-
 AC_DEFINE(USE_XAA, 1, [Build support for XAA])
 
 # Properly handle EXA.
@@ -242,48 +232,6 @@ AC_CHECK_DECL(pci_device_enable,
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
 	      [#include "xorg-server.h"])
-
-AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
-
-if test "x$XSERVER_SOURCE" = x; then
-        if test -d ../../xserver; then
-                XSERVER_SOURCE="`cd ../../xserver && pwd`"
-        fi
-fi
-
-if test -d "$XSERVER_SOURCE"; then
-        case "$XSERVER_SOURCE" in
-        /*)
-                ;;
-        *)
-                XSERVER_SOURCE="`cd $XSERVER_SOURCE && pwd`"
-        esac
-        if test -f src/modes/xf86Modes.h; then
-                :
-        else
-                ln -sf $XSERVER_SOURCE/hw/xfree86/modes src/modes
-        fi
-
-        if test -f src/parser/xf86Parser.h; then
-                :
-        else
-                ln -sf $XSERVER_SOURCE/hw/xfree86/parser src/parser
-        fi
-fi
-if test "x$XMODES" = xyes; then
-        AC_MSG_NOTICE([X server has new mode code])
-        AC_DEFINE(XMODES, 1,[X server has built-in mode code])
-        XMODES_CFLAGS=
-else
-        if test -f src/modes/xf86Modes.h -a -f src/parser/xf86Parser.h; then
-                AC_MSG_NOTICE([X server is missing new mode code, using local copy])
-        else
-                AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
-        fi
-        XMODES_CFLAGS='-DXF86_MODES_RENAME -I$(top_srcdir)/src -I$(top_srcdir)/src/modes -I$(top_srcdir)/src/parser'
-fi
-
-AC_SUBST([XMODES_CFLAGS])
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
