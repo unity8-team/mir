@@ -91,7 +91,7 @@ typedef struct {
     drmmode_prop_ptr props;
     void *private_data;
     int dpms_mode;
-    char *backlight_iface;
+    const char *backlight_iface;
     int backlight_active_level;
     int backlight_max;
     xf86OutputPtr output;
@@ -106,7 +106,7 @@ drmmode_output_dpms(xf86OutputPtr output, int mode);
 /*
  * List of available kernel interfaces in priority order
  */
-static char *backlight_interfaces[] = {
+static const char *backlight_interfaces[] = {
     "asus-laptop",
     "eeepc",
     "thinkpad_screen",
@@ -240,11 +240,13 @@ drmmode_backlight_init(xf86OutputPtr output)
 	sprintf(path, "%s/%s", BACKLIGHT_CLASS, backlight_interfaces[i]);
 	if (!stat(path, &buf)) {
 	    drmmode_output->backlight_iface = backlight_interfaces[i];
-	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-		       "found backlight control interface %s\n", path);
 	    drmmode_output->backlight_max = drmmode_backlight_get_max(output);
 	    drmmode_output->backlight_active_level = drmmode_backlight_get(output);
-	    return;
+	    if (drmmode_backlight_get_max(output)) {
+		    xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
+			       "found backlight control interface %s\n", path);
+		    return;
+	    }
 	}
     }
     drmmode_output->backlight_iface = NULL;
