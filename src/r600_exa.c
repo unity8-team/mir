@@ -1427,7 +1427,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 			       &src_obj,
 			       &mask_obj,
 			       &dst_obj,
-			       accel_state->comp_vs_offset, accel_state->comp_mask_ps_offset,
+			       accel_state->comp_vs_offset, accel_state->comp_ps_offset,
 			       3, 0xffffffff))
 	    return FALSE;
 
@@ -1491,10 +1491,13 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     } else
         accel_state->is_transform[1] = FALSE;
 
-    if (pMask)
+    if (pMask) {
 	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_vs, (1 << 0));
-    else
+	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_ps, (1 << 0));
+    } else {
 	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_vs, (0 << 0));
+	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_ps, (0 << 0));
+    }
 
     /* Shader */
 
@@ -1516,7 +1519,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
     ps_conf.shader_addr         = accel_state->ps_mc_addr;
     ps_conf.num_gprs            = 3;
-    ps_conf.stack_size          = 0;
+    ps_conf.stack_size          = 1;
     ps_conf.uncached_first_inst = 1;
     ps_conf.clamp_consts        = 0;
     ps_conf.export_mode         = 2;
@@ -2224,16 +2227,12 @@ R600LoadShaders(ScrnInfoPtr pScrn)
     accel_state->comp_ps_offset = 2560;
     R600_comp_ps(ChipSet, shader + accel_state->comp_ps_offset / 4);
 
-    /*  comp mask ps --------------------------------------- */
-    accel_state->comp_mask_ps_offset = 3072;
-    R600_comp_mask_ps(ChipSet, shader + accel_state->comp_mask_ps_offset / 4);
-
     /*  xv vs --------------------------------------- */
-    accel_state->xv_vs_offset = 3584;
+    accel_state->xv_vs_offset = 3072;
     R600_xv_vs(ChipSet, shader + accel_state->xv_vs_offset / 4);
 
     /*  xv ps --------------------------------------- */
-    accel_state->xv_ps_offset = 4096;
+    accel_state->xv_ps_offset = 3584;
     R600_xv_ps(ChipSet, shader + accel_state->xv_ps_offset / 4);
 
 #ifdef XF86DRM_MODE
