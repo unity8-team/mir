@@ -678,16 +678,8 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
 
-	if (scrn->vtSema) {
-		/* Emit a flush of the rendering cache, or on the 965 and beyond
-		 * rendering results may not hit the framebuffer until significantly
-		 * later.
-		 */
-		intel_batch_submit(scrn,
-				   intel->need_mi_flush ||
-				   !list_is_empty(&intel->flush_pixmaps));
+	if (scrn->vtSema == TRUE)
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
-	}
 
 	intel_uxa_block_handler(intel);
 	intel_video_block_handler(intel);
@@ -785,6 +777,24 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	return drmmode_get_pipe_from_crtc_id(intel->bufmgr, crtc);
+}
+
+static void
+intel_flush_callback(CallbackListPtr *list,
+		     pointer user_data, pointer call_data)
+{
+	ScrnInfoPtr scrn = user_data;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (scrn->vtSema) {
+		/* Emit a flush of the rendering cache, or on the 965
+		 * and beyond rendering results may not hit the
+		 * framebuffer until significantly later.
+		 */
+		intel_batch_submit(scrn,
+				   intel->need_mi_flush ||
+				   !list_is_empty(&intel->flush_pixmaps));
+	}
 }
 
 static Bool
@@ -955,6 +965,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
 
+	if (!AddCallback(&FlushCallback, intel_flush_callback, scrn))
+		return FALSE;
+
 	screen->SaveScreen = xf86SaveScreen;
 	intel->CloseScreen = screen->CloseScreen;
 	screen->CloseScreen = I830CloseScreen;
@@ -1113,6 +1126,8 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
 	}
+
+	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
 
 	intel_batch_teardown(scrn);
 
