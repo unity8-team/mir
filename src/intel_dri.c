@@ -383,22 +383,22 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		}
 	}
 
+	/* It's important that this copy gets submitted before the
+	 * direct rendering client submits rendering for the next
+	 * frame, but we don't actually need to submit right now.  The
+	 * client will wait for the DRI2CopyRegion reply or the swap
+	 * buffer event before rendering, and we'll hit the flush
+	 * callback chain before those messages are sent.  We submit
+	 * our batch buffers from the flush callback chain so we know
+	 * that will happen before the client tries to render
+	 * again. */
+
 	(*gc->ops->CopyArea) (src, dst,
 			       gc,
 			       0, 0,
 			       drawable->width, drawable->height,
 			       0, 0);
 	FreeScratchGC(gc);
-
-	/* Emit a flush of the rendering cache, or on the 965 and beyond
-	 * rendering results may not hit the framebuffer until significantly
-	 * later.
-	 *
-	 * We can't rely on getting into the block handler before the DRI
-	 * client gets to run again so flush now.
-	 */
-	intel_batch_submit(scrn, TRUE);
-	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 }
 
 #if DRI2INFOREC_VERSION >= 4
