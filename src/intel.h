@@ -438,13 +438,15 @@ enum {
 	DEBUG_FLUSH_WAIT = 0x4,
 };
 
-extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
-extern void drmmode_remove_fb(intel_screen_private *intel);
-extern void drmmode_fini(intel_screen_private *intel);
-extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
-extern int drmmode_crtc_id(xf86CrtcPtr crtc);
-extern int drmmode_output_dpms_status(xf86OutputPtr output);
-extern Bool drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data);
+extern Bool intel_mode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
+extern void intel_mode_remove_fb(intel_screen_private *intel);
+extern void intel_mode_fini(intel_screen_private *intel);
+
+extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
+extern int intel_crtc_id(xf86CrtcPtr crtc);
+extern int intel_output_dpms_status(xf86OutputPtr output);
+
+extern Bool intel_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -485,7 +487,11 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 			      unsigned int tv_usec, void *user_data);
 
 extern Bool intel_crtc_on(xf86CrtcPtr crtc);
-extern int intel_crtc_to_pipe(xf86CrtcPtr crtc);
+static inline int intel_crtc_to_pipe(xf86CrtcPtr crtc)
+{
+	intel_screen_private *intel = intel_get_screen_private(crtc->scrn);
+	return intel_get_pipe_from_crtc_id(intel->bufmgr, crtc);
+}
 
 /* intel_memory.c */
 unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);

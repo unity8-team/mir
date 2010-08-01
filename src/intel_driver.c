@@ -599,7 +599,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 	}
 
-	if (!drmmode_pre_init(scrn, intel->drmSubFD, intel->cpp)) {
+	if (!intel_mode_pre_init(scrn, intel->drmSubFD, intel->cpp)) {
 		PreInitCleanup(scrn);
 		return FALSE;
 	}
@@ -762,21 +762,13 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
 		if (output->crtc == crtc &&
-		    drmmode_output_dpms_status(output) == DPMSModeOn)
+		    intel_output_dpms_status(output) == DPMSModeOn)
 			active_outputs++;
 	}
 
 	if (active_outputs)
 		return TRUE;
 	return FALSE;
-}
-
-int intel_crtc_to_pipe(xf86CrtcPtr crtc)
-{
-	ScrnInfoPtr scrn = crtc->scrn;
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	return drmmode_get_pipe_from_crtc_id(intel->bufmgr, crtc);
 }
 
 static void
@@ -1042,7 +1034,7 @@ static void I830FreeScreen(int scrnIndex, int flags)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	if (intel) {
-		drmmode_fini(intel);
+		intel_mode_fini(intel);
 		intel_close_drm_master(intel);
 		intel_bufmgr_fini(intel);
 
@@ -1122,7 +1114,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	if (intel->front_buffer) {
 		intel_set_pixmap_bo(screen->GetScreenPixmap(screen), NULL);
-		drmmode_remove_fb(intel);
+		intel_mode_remove_fb(intel);
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
 	}

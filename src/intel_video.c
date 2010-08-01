@@ -284,7 +284,7 @@ drmmode_overlay_put_image(intel_screen_private *intel,
 	OVERLAY_DEBUG("off_Y: %i, off_U: %i, off_V: %i\n", request.offset_Y,
 		      request.offset_U, request.offset_V);
 
-	request.crtc_id = drmmode_crtc_id(crtc);
+	request.crtc_id = intel_crtc_id(crtc);
 	request.dst_x = dstBox->x1;
 	request.dst_y = dstBox->y1;
 	request.dst_width = dstBox->x2 - dstBox->x1;
