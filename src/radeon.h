@@ -721,7 +721,7 @@ struct radeon_accel_state {
     uint32_t          *draw_header;
     unsigned          vtx_count;
     unsigned          num_vtx;
-
+    unsigned          verts_per_op;
     Bool              vsync;
 
     drmBufPtr         ib;
@@ -741,7 +741,7 @@ struct radeon_accel_state {
     struct radeon_dma_bo bo_reserved;
     Bool use_vbos;
 #endif
-
+    void (*finish_op)(ScrnInfoPtr, int);
     // shader storage
     ExaOffscreenArea  *shaders;
     struct radeon_bo  *shaders_bo;

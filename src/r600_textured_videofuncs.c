@@ -45,6 +45,7 @@
 
 #include "damage.h"
 
+#include "radeon_exa_shared.h"
 #include "radeon_vbo.h"
 
 /* Parameters for ITU-R BT.601 and ITU-R BT.709 colour spaces
@@ -206,7 +207,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 #endif
 
     radeon_vbo_check(pScrn, 16);
-    r600_cp_start(pScrn);
+    radeon_cp_start(pScrn);
 
     set_default_state(pScrn, accel_state->ib);
 

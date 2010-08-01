@@ -39,6 +39,7 @@
 
 #include "radeon_drm.h"
 #include "radeon_vbo.h"
+#include "radeon_exa_shared.h"
 
 /* we try and batch operations together under KMS -
    but it doesn't work yet without misrendering */
@@ -85,34 +86,9 @@ void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib)
 void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib)
 {
 #if defined(XF86DRM_MODE)
-    int ret;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     if (info->cs) {
-	if (info->accel_state->ib_reset_op) {
-	    /* if we have data just reset the CS and ignore the operation */
-	    info->cs->cdw = info->accel_state->ib_reset_op;
-	    info->accel_state->ib_reset_op = 0;
-	    return;
-	}
-	if (info->accel_state->vb_ptr) {
-	    info->accel_state->vb_ptr = NULL;
-	}
-
-	info->accel_state->vb_offset = 0;
-	info->accel_state->vb_start_op = -1;
-
-	if (CS_FULL(info->cs)) {
-	    radeon_cs_flush_indirect(pScrn);
-	    return;
-	}
-	radeon_cs_erase(info->cs);
-	ret = radeon_cs_space_check(info->cs);
-	if (ret)
-	    ErrorF("space check failed in flush\n");
-	if (info->dri2.enabled) {
-		info->accel_state->XInited3D = FALSE;
-		info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
-	}
+        radeon_ib_discard(pScrn);
     }
 #endif
     if (!ib) return;
@@ -1138,57 +1114,6 @@ draw_auto(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf)
     END_BATCH();
 }
 
-Bool
-r600_vb_get(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-
-    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
-	(accel_state->ib->idx*accel_state->ib->total)+
-	(accel_state->ib->total / 2);
-    accel_state->vb_total = (accel_state->ib->total / 2);
-    accel_state->vb_ptr = (pointer)((char*)accel_state->ib->address +
-				    (accel_state->ib->total / 2));
-    accel_state->vb_offset = 0;
-    return TRUE;
-}
-
-void
-r600_vb_discard(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
-    info->accel_state->vb_start_op = -1;
-}
-
-
-
-int
-r600_cp_start(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-
-#if defined(XF86DRM_MODE)
-    if (info->cs) {
-	if (CS_FULL(info->cs)) {
-	    radeon_cs_flush_indirect(pScrn);
-	}
-	accel_state->ib_reset_op = info->cs->cdw;
-	accel_state->vb_start_op = accel_state->vb_offset;
-    } else
-#endif
-    {
-	accel_state->ib = RADEONCPGetBuffer(pScrn);
-	if (!r600_vb_get(pScrn)) {
-	    return -1;
-	}
-	accel_state->vb_start_op = accel_state->vb_offset;
-    }
-    return 0;
-}
-
 void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -1204,7 +1129,7 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 
     if (accel_state->vb_offset == accel_state->vb_start_op) {
         R600IBDiscard(pScrn, accel_state->ib);
-	r600_vb_discard(pScrn);
+	radeon_vb_discard(pScrn);
 	return;
     }
 
@@ -1260,31 +1185,3 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 	R600CPFlushIndirect(pScrn, accel_state->ib);
 }
 
-void r600_vb_no_space(ScrnInfoPtr pScrn, int vert_size)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state; 
-#ifdef XF86DRM_MODE
-
-    if (info->cs) {
-	if (accel_state->vb_bo) {
-	    if (accel_state->vb_start_op != accel_state->vb_offset) { 
-		r600_finish_op(pScrn, vert_size);
-		accel_state->ib_reset_op = info->cs->cdw;
-	    }
-	    
-	    /* release the current VBO */
-	    radeon_vbo_put(pScrn);
-	}
-	
-	/* get a new one */
-	radeon_vbo_get(pScrn);
-	return;
-    }
-#endif 
-
-    if (accel_state->vb_start_op != -1) {
-	r600_finish_op(pScrn, vert_size);
-	r600_cp_start(pScrn);
-    }
-}

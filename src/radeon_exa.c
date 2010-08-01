@@ -42,6 +42,7 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
+#include "radeon_exa_shared.h"
 
 #include "xf86.h"
 
@@ -49,26 +50,6 @@
 /***********************************************************************/
 #define RINFO_FROM_SCREEN(pScr) ScrnInfoPtr pScrn =  xf86Screens[pScr->myNum]; \
     RADEONInfoPtr info   = RADEONPTR(pScrn)
-
-#define RADEON_TRACE_FALL 0
-#define RADEON_TRACE_DRAW 0
-
-#if RADEON_TRACE_FALL
-#define RADEON_FALLBACK(x)     		\
-do {					\
-	ErrorF("%s: ", __FUNCTION__);	\
-	ErrorF x;			\
-	return FALSE;			\
-} while (0)
-#else
-#define RADEON_FALLBACK(x) return FALSE
-#endif
-
-#if RADEON_TRACE_DRAW
-#define TRACE do { ErrorF("TRACE: %s\n", __FUNCTION__); } while(0)
-#else
-#define TRACE
-#endif
 
 static struct {
     int rop;
@@ -119,18 +100,6 @@ static __inline__ uint32_t F_TO_DW(float val)
     tmp.f = val;
     return tmp.l;
 }
-
-
-#ifdef XF86DRM_MODE
-
-static inline void radeon_add_pixmap(struct radeon_cs *cs, PixmapPtr pPix, int read_domains, int write_domain)
-{
-    struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
-
-    radeon_cs_space_add_persistent_bo(cs, driver_priv->bo, read_domains, write_domain);
-}
-
-#endif /* XF86DRM_MODE */
 
 
 /* Assumes that depth 15 and 16 can be used as depth 16, which is okay since we

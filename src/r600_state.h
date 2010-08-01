@@ -320,12 +320,6 @@ draw_immd(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf, uint32_t *i
 void
 draw_auto(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf);
 
-Bool
-r600_vb_get(ScrnInfoPtr pScrn);
-void
-r600_vb_discard(ScrnInfoPtr pScrn);
-int
-r600_cp_start(ScrnInfoPtr pScrn);
 void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size);
 
 Bool

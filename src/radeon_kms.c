@@ -82,9 +82,6 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
     if (!info->cs->cdw)
 	return;
 
-    if (info->accel_state->vb_ptr)
-      info->accel_state->vb_ptr = NULL;
-
     /* release the current VBO so we don't block on mapping it later */
     if (info->accel_state->vb_offset && info->accel_state->vb_bo) {
         radeon_vbo_put(pScrn);
