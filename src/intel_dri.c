@@ -507,9 +507,9 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	/* Page flip the full screen buffer */
 	back_priv = back->driverPrivate;
-	return drmmode_do_pageflip(screen,
-				   intel_get_pixmap_bo(back_priv->pixmap),
-				   flip_info);
+	return intel_do_pageflip(screen,
+				 intel_get_pixmap_bo(back_priv->pixmap),
+				 flip_info);
 }
 
 static Bool

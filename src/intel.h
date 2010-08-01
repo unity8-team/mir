@@ -303,7 +303,7 @@ typedef struct intel_screen_private {
 	struct list in_flight;
 
 	/* For Xvideo */
-	Bool use_drmmode_overlay;
+	Bool use_overlay;
 #ifdef INTEL_XVMC
 	/* For XvMC */
 	Bool XvMCEnabled;

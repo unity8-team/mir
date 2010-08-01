@@ -207,7 +207,7 @@ static XF86ImageRec Images[NUM_IMAGES] = {
 };
 
 /* kernel modesetting overlay functions */
-static Bool drmmode_has_overlay(intel_screen_private *intel)
+static Bool intel_has_overlay(intel_screen_private *intel)
 {
 	struct drm_i915_getparam gp;
 	int has_overlay = 0;
@@ -220,7 +220,7 @@ static Bool drmmode_has_overlay(intel_screen_private *intel)
 	return !! has_overlay;
 }
 
-static void drmmode_overlay_update_attrs(intel_screen_private *intel)
+static void intel_overlay_update_attrs(intel_screen_private *intel)
 {
 	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(intel);
 	struct drm_intel_overlay_attrs attrs;
@@ -242,7 +242,7 @@ static void drmmode_overlay_update_attrs(intel_screen_private *intel)
 				  &attrs, sizeof(attrs));
 }
 
-static void drmmode_overlay_off(intel_screen_private *intel)
+static void intel_overlay_off(intel_screen_private *intel)
 {
 	struct drm_intel_overlay_put_image request;
 	int ret;
@@ -254,7 +254,7 @@ static void drmmode_overlay_off(intel_screen_private *intel)
 }
 
 static Bool
-drmmode_overlay_put_image(intel_screen_private *intel,
+intel_overlay_put_image(intel_screen_private *intel,
 			  xf86CrtcPtr crtc,
 			  int id, short width, short height,
 			  int dstPitch, int dstPitch2,
@@ -374,8 +374,8 @@ void I830InitVideo(ScreenPtr screen)
 	}
 
 	/* Set up overlay video if it is available */
-	intel->use_drmmode_overlay = drmmode_has_overlay(intel);
-	if (intel->use_drmmode_overlay) {
+	intel->use_overlay = intel_has_overlay(intel);
+	if (intel->use_overlay) {
 		overlayAdaptor = I830SetupImageVideoOverlay(screen);
 		if (overlayAdaptor != NULL) {
 			xf86DrvMsg(scrn->scrnIndex, X_INFO,
@@ -514,7 +514,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr screen)
 		xvGamma5 = MAKE_ATOM("XV_GAMMA5");
 	}
 
-	drmmode_overlay_update_attrs(intel);
+	intel_overlay_update_attrs(intel);
 
 	return adapt;
 }
@@ -632,7 +632,7 @@ static void I830StopVideo(ScrnInfoPtr scrn, pointer data, Bool shutdown)
 
 	if (shutdown) {
 		if (adaptor_priv->videoStatus & CLIENT_VIDEO_ON)
-			drmmode_overlay_off(intel_get_screen_private(scrn));
+			intel_overlay_off(intel_get_screen_private(scrn));
 
 		intel_free_video_buffers(adaptor_priv);
 		adaptor_priv->videoStatus = 0;
@@ -727,7 +727,7 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 		OVERLAY_DEBUG("GAMMA\n");
 	}
 
-	drmmode_overlay_update_attrs(intel);
+	intel_overlay_update_attrs(intel);
 
 	if (attribute == xvColorKey)
 		REGION_EMPTY(scrn->pScreen, &adaptor_priv->clip);
@@ -1200,8 +1200,7 @@ intel_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 	 * If the video isn't visible on any CRTC, turn it off
 	 */
 	if (!crtc) {
-		drmmode_overlay_off(intel);
-
+		intel_overlay_off(intel);
 		return TRUE;
 	}
 
@@ -1219,7 +1218,7 @@ intel_display_overlay(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 		src_h = tmp;
 	}
 
-	return drmmode_overlay_put_image(intel, crtc, id,
+	return intel_overlay_put_image(intel, crtc, id,
 					 width, height,
 					 dstPitch, dstPitch2, dstBox,
 					 src_w, src_h, drw_w, drw_h);
@@ -1773,7 +1772,7 @@ intel_video_block_handler(intel_screen_private *intel)
 		Time now = currentTime.milliseconds;
 		if (adaptor_priv->offTime < now) {
 			/* Turn off the overlay */
-			drmmode_overlay_off(intel);
+			intel_overlay_off(intel);
 			intel_free_video_buffers(adaptor_priv);
 			adaptor_priv->videoStatus = 0;
 		}
