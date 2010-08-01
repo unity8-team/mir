@@ -139,6 +139,7 @@ EXTRA_DIST = \
 	radeon_dummy_bufmgr.h \
 	radeon_exa_render.c \
 	radeon_exa_funcs.c \
+	radeon_exa_shared.h \
 	radeon.h \
 	radeon_macros.h \
 	radeon_probe.h \
