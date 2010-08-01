@@ -590,9 +590,11 @@ intel_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 		 * unbound. */
 		drmModeRmFB(mode->fd, intel_crtc->rotate_fb_id);
 		intel_crtc->rotate_fb_id = 0;
+
 		dri_bo_unreference(intel_crtc->rotate_bo);
 		intel_crtc->rotate_bo = NULL;
 	}
+
 	intel->shadow_present = FALSE;
 }
 
@@ -674,8 +676,8 @@ intel_output_detect(xf86OutputPtr output)
 	struct intel_output *intel_output = output->driver_private;
 	struct intel_mode *mode = intel_output->mode;
 	xf86OutputStatus status;
-	drmModeFreeConnector(intel_output->mode_output);
 
+	drmModeFreeConnector(intel_output->mode_output);
 	intel_output->mode_output =
 		drmModeGetConnector(mode->fd, intel_output->output_id);
 
@@ -705,7 +707,7 @@ intel_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 	 * If the connector type is LVDS, we will use the panel limit to
 	 * verfiy whether the mode is valid.
 	 */
-	if ((koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
+	if ((koutput->connector_type == DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
 		if (pModes->HDisplay > p_lvds->hdisplay ||
 		    pModes->VDisplay > p_lvds->vdisplay)
 			return MODE_PANEL;
@@ -778,6 +780,7 @@ intel_output_get_modes(xf86OutputPtr output)
 		props = drmModeGetProperty(mode->fd, koutput->props[i]);
 		if (!props)
 			continue;
+
 		if (!(props->flags & DRM_MODE_PROP_BLOB)) {
 			drmModeFreeProperty(props);
 			continue;
@@ -809,12 +812,13 @@ intel_output_get_modes(xf86OutputPtr output)
 		Modes = xf86ModesAdd(Modes, Mode);
 
 	}
-	p_lvds = intel_output->private_data;
+
 	/*
 	 * If the connector type is LVDS, we will traverse the kernel mode to
 	 * get the panel limit.
 	 * If it is incorrect, please fix me.
 	 */
+	p_lvds = intel_output->private_data;
 	if ((koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
 		p_lvds->hdisplay = 0;
 		p_lvds->vdisplay = 0;
@@ -894,9 +898,10 @@ intel_output_dpms(xf86OutputPtr output, int dpms)
 	drmModeConnectorPtr koutput = intel_output->mode_output;
 	struct intel_mode *mode = intel_output->mode;
 	int i;
-	drmModePropertyPtr props;
 
 	for (i = 0; i < koutput->count_props; i++) {
+		drmModePropertyPtr props;
+
 		props = drmModeGetProperty(mode->fd, koutput->props[i]);
 		if (!props)
 			continue;
@@ -952,7 +957,6 @@ intel_output_create_resources(xf86OutputPtr output)
 	struct intel_output *intel_output = output->driver_private;
 	drmModeConnectorPtr mode_output = intel_output->mode_output;
 	struct intel_mode *mode = intel_output->mode;
-	drmModePropertyPtr drmmode_prop;
 	int i, j, err;
 
 	intel_output->props = calloc(mode_output->count_props,
@@ -961,8 +965,11 @@ intel_output_create_resources(xf86OutputPtr output)
 		return;
 
 	intel_output->num_props = 0;
-	for (i = 0, j = 0; i < mode_output->count_props; i++) {
-		drmmode_prop = drmModeGetProperty(mode->fd, mode_output->props[i]);
+	for (i = j = 0; i < mode_output->count_props; i++) {
+		drmModePropertyPtr drmmode_prop;
+
+		drmmode_prop = drmModeGetProperty(mode->fd,
+						  mode_output->props[i]);
 		if (intel_property_ignore(drmmode_prop)) {
 			drmModeFreeProperty(drmmode_prop);
 			continue;
@@ -976,7 +983,7 @@ intel_output_create_resources(xf86OutputPtr output)
 
 	for (i = 0; i < intel_output->num_props; i++) {
 		struct intel_property *p = &intel_output->props[i];
-		drmmode_prop = p->mode_prop;
+		drmModePropertyPtr drmmode_prop = p->mode_prop;
 
 		if (drmmode_prop->flags & DRM_MODE_PROP_RANGE) {
 			INT32 range[2];
@@ -1151,7 +1158,7 @@ intel_output_set_property(xf86OutputPtr output, Atom property,
 		}
 	}
 
-	return TRUE;
+	return FALSE;
 }
 
 static Bool
@@ -1182,7 +1189,7 @@ intel_output_get_property(xf86OutputPtr output, Atom property)
 		return TRUE;
 	}
 
-	return TRUE;
+	return FALSE;
 }
 
 static const xf86OutputFuncsRec intel_output_funcs = {
@@ -1278,8 +1285,7 @@ intel_output_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 	 */
 	intel_output->private_data = NULL;
 	if (koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) {
-		intel_output->private_data = calloc(
-						      sizeof(struct fixed_panel_lvds), 1);
+		intel_output->private_data = calloc(sizeof(struct fixed_panel_lvds), 1);
 		if (!intel_output->private_data)
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 				   "Can't allocate private memory for LVDS.\n");
@@ -1375,6 +1381,8 @@ fail:
 	scrn->virtualX = old_width;
 	scrn->virtualY = old_height;
 	scrn->displayWidth = old_pitch;
+	if (old_fb_id != mode->fb_id)
+		drmModeRmFB(mode->fd, mode->fb_id);
 	mode->fb_id = old_fb_id;
 
 	return FALSE;
@@ -1480,11 +1488,13 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 	struct drm_i915_getparam gp;
 	struct intel_mode *mode;
 	unsigned int i;
-	int has_flipping = 0;
+	int has_flipping;
 
-	mode = xnfalloc(sizeof *mode);
+	mode = calloc(1, sizeof *mode);
+	if (!mode)
+		return FALSE;
+
 	mode->fd = fd;
-	mode->fb_id = 0;
 
 	list_init(&mode->crtcs);
 	list_init(&mode->outputs);
@@ -1496,6 +1506,7 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 	if (!mode->mode_res) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "failed to get resources: %s\n", strerror(errno));
+		free(mode);
 		return FALSE;
 	}
 
@@ -1509,6 +1520,7 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 
 	xf86InitialConfiguration(scrn, TRUE);
 
+	has_flipping = 0;
 	gp.param = I915_PARAM_HAS_PAGEFLIPPING;
 	gp.value = &has_flipping;
 	(void)drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp,
