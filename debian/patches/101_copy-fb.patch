@@ -1,7 +1,7 @@
 Index: xserver-xorg-video-intel/src/drmmode_display.c
 ===================================================================
---- xserver-xorg-video-intel.orig/src/drmmode_display.c	2010-07-19 16:53:00.804605145 +0200
-+++ xserver-xorg-video-intel/src/drmmode_display.c	2010-07-21 11:45:20.603191502 +0200
+--- xserver-xorg-video-intel.orig/src/drmmode_display.c	2010-08-02 15:19:02.007854556 +1000
++++ xserver-xorg-video-intel/src/drmmode_display.c	2010-08-02 15:19:03.687916333 +1000
 @@ -36,6 +36,8 @@
  #include <errno.h>
  #include <poll.h>
@@ -133,8 +133,8 @@ Index: xserver-xorg-video-intel/src/drmmode_display.c
 +}
 Index: xserver-xorg-video-intel/src/i830.h
 ===================================================================
---- xserver-xorg-video-intel.orig/src/i830.h	2010-07-19 16:53:00.814605145 +0200
-+++ xserver-xorg-video-intel/src/i830.h	2010-07-21 11:44:42.133191502 +0200
+--- xserver-xorg-video-intel.orig/src/i830.h	2010-08-02 15:19:02.017854924 +1000
++++ xserver-xorg-video-intel/src/i830.h	2010-08-02 15:19:03.687916333 +1000
 @@ -423,6 +423,7 @@
  	OptionInfoPtr Options;
  
@@ -153,8 +153,8 @@ Index: xserver-xorg-video-intel/src/i830.h
  extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
 Index: xserver-xorg-video-intel/src/i830_driver.c
 ===================================================================
---- xserver-xorg-video-intel.orig/src/i830_driver.c	2010-07-19 16:53:00.834605145 +0200
-+++ xserver-xorg-video-intel/src/i830_driver.c	2010-07-21 11:44:42.133191502 +0200
+--- xserver-xorg-video-intel.orig/src/i830_driver.c	2010-08-02 15:19:02.027855292 +1000
++++ xserver-xorg-video-intel/src/i830_driver.c	2010-08-02 15:19:23.298637400 +1000
 @@ -1093,6 +1093,8 @@
  	if (IS_I965G(intel))
  		gen4_render_state_init(scrn);
@@ -172,10 +172,13 @@ Index: xserver-xorg-video-intel/src/i830_driver.c
  	intel->suspended = FALSE;
  
  	return uxa_resources_init(screen);
-@@ -1289,6 +1292,8 @@
+@@ -1289,6 +1292,11 @@
  
  	i830_set_gem_max_sizes(scrn);
  
++	if (!CreateScratchPixmapsForScreen(scrn->scrnIndex))
++		return FALSE;
++
 +	drmmode_copy_fb(scrn);
 +
  	if (!xf86SetDesiredModes(scrn))

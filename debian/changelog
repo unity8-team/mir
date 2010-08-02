@@ -1,3 +1,16 @@
+xserver-xorg-video-intel (2:2.12.0-1ubuntu3) maverick; urgency=low
+
+  [ Christopher James Halse Rogers ]
+  * debian/patches/101_copy-fb.patch:
+    + Update for Xserver 1.9
+  * debian/control:
+    + Bump build-depends on xserver-xorg-dev to ensure we pick up the new ABI
+
+  [ Martin Pitt ]
+  * debian/rules: Do not install the big upstream changelog.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 02 Aug 2010 15:54:36 +1000
+
 xserver-xorg-video-intel (2:2.12.0-1ubuntu2) maverick; urgency=low
 
   * Re-add 102-disable-page-flipping-v2.patch.  Spate of freeze bugs: recieved.
