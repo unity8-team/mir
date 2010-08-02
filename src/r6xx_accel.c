@@ -1014,7 +1014,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     // VGT
     BEGIN_BATCH(43);
     PACK0(ib, VGT_MAX_VTX_INDX, 4);
-    E32(ib, 2048); /* XXX set to a reasonably large number of indices */ // VGT_MAX_VTX_INDX
+    E32(ib, 0xffffff); // VGT_MAX_VTX_INDX
     E32(ib, 0); // VGT_MIN_VTX_INDX
     E32(ib, 0); // VGT_INDX_OFFSET
     E32(ib, 0); // VGT_MULTI_PRIM_IB_RESET_INDX
