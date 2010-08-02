@@ -229,24 +229,15 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
 
     /* Shader */
-
-    /* flush SQ cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->vs_size, accel_state->vs_mc_addr,
-			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
+    vs_conf.shader_size         = accel_state->vs_size;
     vs_conf.num_gprs            = 2;
     vs_conf.stack_size          = 0;
     vs_conf.bo                  = accel_state->shaders_bo;
     vs_setup                    (pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
 
-    /* flush SQ cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->ps_size, accel_state->ps_mc_addr,
-			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
     ps_conf.shader_addr         = accel_state->ps_mc_addr;
+    ps_conf.shader_size         = accel_state->ps_size;
     ps_conf.num_gprs            = 3;
     ps_conf.stack_size          = 1;
     ps_conf.uncached_first_inst = 1;
@@ -265,11 +256,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     case FOURCC_I420:
 	accel_state->src_size[0] = accel_state->src_obj[0].pitch * pPriv->h;
 
-	/* flush texture cache */
-	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
-			    accel_state->src_obj[0].offset,
-			    accel_state->src_obj[0].bo, accel_state->src_obj[0].domain, 0);
-
 	/* Y texture */
 	tex_res.id                  = 0;
 	tex_res.w                   = accel_state->src_obj[0].width;
@@ -279,6 +265,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.dim                 = SQ_TEX_DIM_2D;
 	tex_res.base                = accel_state->src_obj[0].offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset;
+	tex_res.size                = accel_state->src_size[0];
 	tex_res.bo                  = accel_state->src_obj[0].bo;
 	tex_res.mip_bo              = accel_state->src_obj[0].bo;
 
@@ -310,11 +297,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
 
 	/* U or V texture */
-	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			    accel_state->src_size[0] / 4,
-			    accel_state->src_obj[0].offset + pPriv->planev_offset,
-			    accel_state->src_obj[0].bo, accel_state->src_obj[0].domain, 0);
-
 	tex_res.id                  = 1;
 	tex_res.format              = FMT_8;
 	tex_res.w                   = accel_state->src_obj[0].width >> 1;
@@ -328,6 +310,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planev_offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planev_offset;
+	tex_res.size                = accel_state->src_size[0] / 4;
 	set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
 	/* U or V sampler */
@@ -335,11 +318,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
 
 	/* U or V texture */
-	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			    accel_state->src_size[0] / 4,
-			    accel_state->src_obj[0].offset + pPriv->planeu_offset,
-			    accel_state->src_obj[0].bo, accel_state->src_obj[0].domain, 0);
-
 	tex_res.id                  = 2;
 	tex_res.format              = FMT_8;
 	tex_res.w                   = accel_state->src_obj[0].width >> 1;
@@ -353,6 +331,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planeu_offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planeu_offset;
+	tex_res.size                = accel_state->src_size[0] / 4;
 	set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
 	/* UV sampler */
@@ -364,11 +343,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     default:
 	accel_state->src_size[0] = accel_state->src_obj[0].pitch * pPriv->h;
 
-	/* flush texture cache */
-	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
-			    accel_state->src_obj[0].offset,
-			    accel_state->src_obj[0].bo, accel_state->src_obj[0].domain, 0);
-
 	/* Y texture */
 	tex_res.id                  = 0;
 	tex_res.w                   = accel_state->src_obj[0].width;
@@ -378,6 +352,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.dim                 = SQ_TEX_DIM_2D;
 	tex_res.base                = accel_state->src_obj[0].offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset;
+	tex_res.size                = accel_state->src_size[0];
 	tex_res.bo                  = accel_state->src_obj[0].bo;
 	tex_res.mip_bo              = accel_state->src_obj[0].bo;
 
@@ -430,6 +405,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	tex_res.base                = accel_state->src_obj[0].offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset;
+	tex_res.size                = accel_state->src_size[0];
 	set_tex_resource            (pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
 	/* UV sampler */

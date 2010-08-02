@@ -270,7 +270,7 @@ set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf, uint32_
     END_BATCH();
 }
 
-void
+static void
 cp_set_surface_sync(ScrnInfoPtr pScrn, drmBufPtr ib, uint32_t sync_type, uint32_t size, uint64_t mc_addr,
 		    struct radeon_bo *bo, uint32_t rdomains, uint32_t wdomain)
 {
@@ -413,6 +413,11 @@ vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf, uint32_t dom
     if (vs_conf->uncached_first_inst)
 	sq_pgm_resources |= UNCACHED_FIRST_INST_bit;
 
+    /* flush SQ cache */
+    cp_set_surface_sync(pScrn, ib, SH_ACTION_ENA_bit,
+			vs_conf->shader_size, vs_conf->shader_addr,
+			vs_conf->bo, domain, 0);
+
     BEGIN_BATCH(3 + 2);
     EREG(ib, SQ_PGM_START_VS, vs_conf->shader_addr >> 8);
     RELOC_BATCH(vs_conf->bo, domain, 0);
@@ -441,6 +446,11 @@ ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf, uint32_t dom
 	sq_pgm_resources |= UNCACHED_FIRST_INST_bit;
     if (ps_conf->clamp_consts)
 	sq_pgm_resources |= CLAMP_CONSTS_bit;
+
+    /* flush SQ cache */
+    cp_set_surface_sync(pScrn, ib, SH_ACTION_ENA_bit,
+			ps_conf->shader_size, ps_conf->shader_addr,
+			ps_conf->bo, domain, 0);
 
     BEGIN_BATCH(3 + 2);
     EREG(ib, SQ_PGM_START_PS, ps_conf->shader_addr >> 8);
@@ -480,10 +490,11 @@ set_bool_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, uint32_t val)
     END_BATCH();
 }
 
-void
+static void
 set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res, uint32_t domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
     uint32_t sq_vtx_constant_word2;
 
     sq_vtx_constant_word2 = ((((res->vb_addr) >> 32) & BASE_ADDRESS_HI_mask) |
@@ -499,6 +510,22 @@ set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res, uint32_t 
 
     if (res->srf_mode_all)
 	    sq_vtx_constant_word2 |= SQ_VTX_CONSTANT_WORD2_0__SRF_MODE_ALL_bit;
+
+    /* flush vertex cache */
+    if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
+	(info->ChipFamily == CHIP_FAMILY_RV620) ||
+	(info->ChipFamily == CHIP_FAMILY_RS780) ||
+	(info->ChipFamily == CHIP_FAMILY_RS880) ||
+	(info->ChipFamily == CHIP_FAMILY_RV710))
+	cp_set_surface_sync(pScrn, ib, TC_ACTION_ENA_bit,
+			    accel_state->vb_offset, accel_state->vb_mc_addr,
+			    res->bo,
+			    domain, 0);
+    else
+	cp_set_surface_sync(pScrn, ib, VC_ACTION_ENA_bit,
+			    accel_state->vb_offset, accel_state->vb_mc_addr,
+			    res->bo,
+			    domain, 0);
 
     BEGIN_BATCH(9 + 2);
     PACK0(ib, SQ_VTX_RESOURCE + res->id * SQ_VTX_RESOURCE_offset, 7);
@@ -565,6 +592,11 @@ set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res, uint3
 
     if (tex_res->interlaced)
 	sq_tex_resource_word6 |= INTERLACED_bit;
+
+    /* flush texture cache */
+    cp_set_surface_sync(pScrn, ib, TC_ACTION_ENA_bit,
+			tex_res->size, tex_res->base,
+			tex_res->bo, domain, 0);
 
     BEGIN_BATCH(9 + 4);
     PACK0(ib, SQ_TEX_RESOURCE + tex_res->id * SQ_TEX_RESOURCE_offset, 7);
@@ -1132,22 +1164,6 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 	radeon_vb_discard(pScrn);
 	return;
     }
-
-    /* flush vertex cache */
-    if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
-	(info->ChipFamily == CHIP_FAMILY_RV620) ||
-	(info->ChipFamily == CHIP_FAMILY_RS780) ||
-	(info->ChipFamily == CHIP_FAMILY_RS880) ||
-	(info->ChipFamily == CHIP_FAMILY_RV710))
-	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			    accel_state->vb_offset, accel_state->vb_mc_addr,
-			    accel_state->vb_bo,
-			    RADEON_GEM_DOMAIN_GTT, 0);
-    else
-	cp_set_surface_sync(pScrn, accel_state->ib, VC_ACTION_ENA_bit,
-			    accel_state->vb_offset, accel_state->vb_mc_addr,
-			    accel_state->vb_bo,
-			    RADEON_GEM_DOMAIN_GTT, 0);
 
     /* Vertex buffer setup */
     accel_state->vb_size = accel_state->vb_offset - accel_state->vb_start_op;

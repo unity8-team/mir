@@ -70,6 +70,7 @@ typedef struct {
 /* Shader */
 typedef struct {
     uint64_t shader_addr;
+    uint32_t shader_size;
     int num_gprs;
     int stack_size;
     int dx10_clamp;
@@ -113,6 +114,7 @@ typedef struct {
     int format;
     uint64_t base;
     uint64_t mip_base;
+    uint32_t size;
     int format_comp_x;
     int format_comp_y;
     int format_comp_z;
@@ -283,9 +285,6 @@ start_3d(ScrnInfoPtr pScrn, drmBufPtr ib);
 void
 set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf, uint32_t domain);
 void
-cp_set_surface_sync(ScrnInfoPtr pScrn, drmBufPtr ib, uint32_t sync_type, uint32_t size, uint64_t mc_addr,
-		    struct radeon_bo *bo, uint32_t rdomains, uint32_t wdomain);
-void
 cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix, xf86CrtcPtr crtc, int start, int stop);
 void
 fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf, uint32_t domain);
@@ -297,8 +296,6 @@ void
 set_alu_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, float *const_buf);
 void
 set_bool_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, uint32_t val);
-void
-set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res, uint32_t domain);
 void
 set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res, uint32_t domain);
 void

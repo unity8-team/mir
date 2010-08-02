@@ -195,7 +195,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     dst.height = pPix->drawable.height;
     dst.bpp = pPix->drawable.bitsPerPixel;
     dst.domain = RADEON_GEM_DOMAIN_VRAM;
-	
+
     if (!R600SetAccelState(pScrn,
 			   NULL,
 			   NULL,
@@ -218,24 +218,15 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
 
     /* Shader */
-
-    /* flush SQ cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->vs_size, accel_state->vs_mc_addr,
-			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
+    vs_conf.shader_size         = accel_state->vs_size;
     vs_conf.num_gprs            = 2;
     vs_conf.stack_size          = 0;
     vs_conf.bo                  = accel_state->shaders_bo;
     vs_setup                    (pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
 
-    /* flush SQ cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->ps_size, accel_state->ps_mc_addr,
-			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
     ps_conf.shader_addr         = accel_state->ps_mc_addr;
+    ps_conf.shader_size         = accel_state->ps_size;
     ps_conf.num_gprs            = 1;
     ps_conf.stack_size          = 0;
     ps_conf.uncached_first_inst = 1;
@@ -399,24 +390,15 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     set_window_scissor(pScrn, accel_state->ib, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
 
     /* Shader */
-
-    /* flush SQ cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->vs_size, accel_state->vs_mc_addr,
-			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
+    vs_conf.shader_size         = accel_state->vs_size;
     vs_conf.num_gprs            = 2;
     vs_conf.stack_size          = 0;
     vs_conf.bo                  = accel_state->shaders_bo;
     vs_setup                    (pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
 
-    /* flush SQ cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->ps_size, accel_state->ps_mc_addr,
-			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
     ps_conf.shader_addr         = accel_state->ps_mc_addr;
+    ps_conf.shader_size         = accel_state->ps_size;
     ps_conf.num_gprs            = 1;
     ps_conf.stack_size          = 0;
     ps_conf.uncached_first_inst = 1;
@@ -424,11 +406,6 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     ps_conf.export_mode         = 2;
     ps_conf.bo                  = accel_state->shaders_bo;
     ps_setup                    (pScrn, accel_state->ib, &ps_conf, RADEON_GEM_DOMAIN_VRAM);
-
-    /* flush texture cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			accel_state->src_size[0], accel_state->src_obj[0].offset,
-			accel_state->src_obj[0].bo, accel_state->src_obj[0].domain, 0);
 
     /* Texture */
     tex_res.id                  = 0;
@@ -439,6 +416,7 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     tex_res.dim                 = SQ_TEX_DIM_2D;
     tex_res.base                = accel_state->src_obj[0].offset;
     tex_res.mip_base            = accel_state->src_obj[0].offset;
+    tex_res.size                = accel_state->src_size[0];
     tex_res.bo                  = accel_state->src_obj[0].bo;
     tex_res.mip_bo              = accel_state->src_obj[0].bo;
     if (accel_state->src_obj[0].bpp == 8) {
@@ -950,11 +928,6 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	    break;
     }
 
-    /* flush texture cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			accel_state->src_size[unit], accel_state->src_obj[unit].offset,
-			accel_state->src_obj[unit].bo, accel_state->src_obj[unit].domain, 0);
-
     /* Texture */
     tex_res.id                  = unit;
     tex_res.w                   = w;
@@ -964,6 +937,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.dim                 = SQ_TEX_DIM_2D;
     tex_res.base                = accel_state->src_obj[unit].offset;
     tex_res.mip_base            = accel_state->src_obj[unit].offset;
+    tex_res.size                = accel_state->src_size[unit];
     tex_res.format              = R600TexFormats[i].card_fmt;
     tex_res.bo                  = accel_state->src_obj[unit].bo;
     tex_res.mip_bo              = accel_state->src_obj[unit].bo;
@@ -1380,24 +1354,15 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     }
 
     /* Shader */
-
-    /* flush SQ cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->vs_size, accel_state->vs_mc_addr,
-			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
+    vs_conf.shader_size         = accel_state->vs_size;
     vs_conf.num_gprs            = 3;
     vs_conf.stack_size          = 1;
     vs_conf.bo                  = accel_state->shaders_bo;
     vs_setup                    (pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
 
-    /* flush SQ cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, SH_ACTION_ENA_bit,
-			accel_state->ps_size, accel_state->ps_mc_addr,
-			accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
-
     ps_conf.shader_addr         = accel_state->ps_mc_addr;
+    ps_conf.shader_size         = accel_state->ps_size;
     ps_conf.num_gprs            = 3;
     ps_conf.stack_size          = 1;
     ps_conf.uncached_first_inst = 1;
