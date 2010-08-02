@@ -35,8 +35,6 @@
 #endif
 
 #include "radeon.h"
-#include "radeon_reg.h"
-#include "r600_reg.h"
 #ifdef XF86DRI
 #include "radeon_drm.h"
 #endif
