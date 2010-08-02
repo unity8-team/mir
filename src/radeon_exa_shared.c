@@ -76,6 +76,56 @@ void RADEONVlineHelperSet(ScrnInfoPtr pScrn, int x1, int y1, int x2, int y2)
 	accel_state->vline_y2 = y2;
 }
 
+Bool RADEONValidPM(uint32_t pm, int bpp)
+{
+    uint8_t r, g, b, a;
+    Bool ret = FALSE;
+
+    switch (bpp) {
+    case 8:
+	a = pm & 0xff;
+	if ((a == 0) || (a == 0xff))
+	    ret = TRUE;
+	break;
+    case 16:
+	r = (pm >> 11) & 0x1f;
+	g = (pm >> 5) & 0x3f;
+	b = (pm >> 0) & 0x1f;
+	if (((r == 0) || (r == 0x1f)) &&
+	    ((g == 0) || (g == 0x3f)) &&
+	    ((b == 0) || (b == 0x1f)))
+	    ret = TRUE;
+	break;
+    case 32:
+	a = (pm >> 24) & 0xff;
+	r = (pm >> 16) & 0xff;
+	g = (pm >> 8) & 0xff;
+	b = (pm >> 0) & 0xff;
+	if (((a == 0) || (a == 0xff)) &&
+	    ((r == 0) || (r == 0xff)) &&
+	    ((g == 0) || (g == 0xff)) &&
+	    ((b == 0) || (b == 0xff)))
+	    ret = TRUE;
+	break;
+    default:
+	break;
+    }
+    return ret;
+}
+
+Bool RADEONCheckBPP(int bpp)
+{
+	switch (bpp) {
+	case 8:
+	case 16:
+	case 32:
+		return TRUE;
+	default:
+		break;
+	}
+	return FALSE;
+}
+
 static Bool radeon_vb_get(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -133,7 +183,7 @@ void radeon_vb_no_space(ScrnInfoPtr pScrn, int vert_size)
 		accel_state->finish_op(pScrn, vert_size);
 		accel_state->ib_reset_op = info->cs->cdw;
 	    }
-	    
+
 	    /* release the current VBO */
 	    radeon_vbo_put(pScrn);
 	}
@@ -180,5 +230,5 @@ void radeon_ib_discard(ScrnInfoPtr pScrn)
 	info->accel_state->XInited3D = FALSE;
 	info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
     }
-    
+
 }
