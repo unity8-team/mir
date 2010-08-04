@@ -1250,6 +1250,7 @@ intel_output_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 	drmModeConnectorPtr koutput;
 	drmModeEncoderPtr kencoder;
 	struct intel_output *intel_output;
+	const char *output_name;
 	char name[32];
 
 	koutput = drmModeGetConnector(mode->fd,
@@ -1263,8 +1264,11 @@ intel_output_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 		return;
 	}
 
-	snprintf(name, 32, "%s%d", output_names[koutput->connector_type],
-		 koutput->connector_type_id);
+	if (koutput->connector_type < ARRAY_SIZE(output_names))
+		output_name = output_names[koutput->connector_type];
+	else
+		output_name = "UNKNOWN";
+	snprintf(name, 32, "%s%d", output_name, koutput->connector_type_id);
 
 	output = xf86OutputCreate (scrn, &intel_output_funcs, name);
 	if (!output) {
