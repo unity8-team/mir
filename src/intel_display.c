@@ -1239,6 +1239,8 @@ static const char *output_names[] = {
 	"DP",
 	"HDMI",
 	"HDMI",
+	"TV",
+	"eDP",
 };
 
 static void
