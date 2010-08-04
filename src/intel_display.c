@@ -468,7 +468,6 @@ intel_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	struct intel_crtc *intel_crtc = crtc->driver_private;
 	int ret;
 
-	/* cursor should be mapped already */
 	ret = dri_bo_subdata(intel_crtc->cursor, 0, 64*64*4, image);
 	if (ret)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
@@ -612,8 +611,11 @@ intel_crtc_destroy(xf86CrtcPtr crtc)
 {
 	struct intel_crtc *intel_crtc = crtc->driver_private;
 
-	drm_intel_bo_unreference(intel_crtc->cursor);
-	intel_crtc->cursor = NULL;
+	if (intel_crtc->cursor) {
+		drmModeSetCursor(intel_crtc->mode->fd, crtc_id(intel_crtc), 0, 64, 64);
+		drm_intel_bo_unreference(intel_crtc->cursor);
+		intel_crtc->cursor = NULL;
+	}
 
 	list_del(&intel_crtc->link);
 	free(intel_crtc);
@@ -661,7 +663,6 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 	intel_crtc->cursor = drm_intel_bo_alloc(intel->bufmgr, "ARGB cursor",
 						HWCURSOR_SIZE_ARGB,
 						GTT_PAGE_SIZE);
-	drm_intel_bo_disable_reuse(intel_crtc->cursor);
 
 	intel_crtc->crtc = crtc;
 	list_add(&intel_crtc->link, &mode->crtcs);
