@@ -77,11 +77,6 @@ struct intel_property {
 	Atom *atoms;
 };
 
-struct fixed_panel_lvds {
-	int hdisplay;
-	int vdisplay;
-};
-
 struct intel_output {
 	struct intel_mode *mode;
 	int output_id;
@@ -91,6 +86,11 @@ struct intel_output {
 	int num_props;
 	struct intel_property *props;
 	void *private_data;
+
+	Bool has_lvds_limits;
+	int lvds_hdisplay;
+	int lvds_vdisplay;
+
 	int dpms_mode;
 	const char *backlight_iface;
 	int backlight_active_level;
@@ -700,19 +700,18 @@ intel_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 {
 	struct intel_output *intel_output = output->driver_private;
 	drmModeConnectorPtr koutput = intel_output->mode_output;
-	struct fixed_panel_lvds *p_lvds = intel_output->private_data;
 
 	/*
 	 * If the connector type is LVDS, we will use the panel limit to
 	 * verfiy whether the mode is valid.
 	 */
-	if ((koutput->connector_type == DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
-		if (pModes->HDisplay > p_lvds->hdisplay ||
-		    pModes->VDisplay > p_lvds->vdisplay)
+	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS &&
+	    intel_output->has_lvds_limits) {
+		if (pModes->HDisplay > intel_output->lvds_hdisplay ||
+		    pModes->VDisplay > intel_output->lvds_vdisplay)
 			return MODE_PANEL;
-		else
-			return MODE_OK;
 	}
+
 	return MODE_OK;
 }
 
@@ -771,7 +770,6 @@ intel_output_get_modes(xf86OutputPtr output)
 	int i;
 	DisplayModePtr Modes = NULL, Mode;
 	drmModePropertyPtr props;
-	struct fixed_panel_lvds *p_lvds;
 	drmModeModeInfo *mode_ptr;
 
 	/* look for an EDID property */
@@ -817,21 +815,20 @@ intel_output_get_modes(xf86OutputPtr output)
 	 * get the panel limit.
 	 * If it is incorrect, please fix me.
 	 */
-	p_lvds = intel_output->private_data;
-	if ((koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) && p_lvds) {
-		p_lvds->hdisplay = 0;
-		p_lvds->vdisplay = 0;
+	intel_output->has_lvds_limits = FALSE;
+	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 		for (i = 0; i < koutput->count_modes; i++) {
+
 			mode_ptr = &koutput->modes[i];
-			if ((mode_ptr->hdisplay >= p_lvds->hdisplay) &&
-			    (mode_ptr->vdisplay >= p_lvds->vdisplay)) {
-				p_lvds->hdisplay = mode_ptr->hdisplay;
-				p_lvds->vdisplay = mode_ptr->vdisplay;
-			}
+			if (mode_ptr->hdisplay > intel_output->lvds_hdisplay)
+				intel_output->lvds_hdisplay = mode_ptr->hdisplay;
+			if (mode_ptr->vdisplay > intel_output->lvds_vdisplay)
+				intel_output->lvds_vdisplay = mode_ptr->vdisplay;
 		}
-		if (!p_lvds->hdisplay || !p_lvds->vdisplay)
-			xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
-				   "Incorrect KMS mode.\n");
+
+		intel_output->has_lvds_limits =
+			intel_output->lvds_hdisplay &&
+			intel_output->lvds_vdisplay;
 	}
 
 	if (koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS)
@@ -857,11 +854,6 @@ intel_output_destroy(xf86OutputPtr output)
 
 	drmModeFreeConnector(intel_output->mode_output);
 	intel_output->mode_output = NULL;
-
-	if (intel_output->private_data) {
-		free(intel_output->private_data);
-		intel_output->private_data = NULL;
-	}
 
 	list_del(&intel_output->link);
 	free(intel_output);
@@ -1284,29 +1276,19 @@ intel_output_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 		drmModeFreeEncoder(kencoder);
 		return;
 	}
-	/*
-	 * If the connector type of the output device is LVDS, we will
-	 * allocate the private_data to store the panel limit.
-	 * For example: hdisplay, vdisplay
-	 */
-	intel_output->private_data = NULL;
-	if (koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS) {
-		intel_output->private_data = calloc(sizeof(struct fixed_panel_lvds), 1);
-		if (!intel_output->private_data)
-			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-				   "Can't allocate private memory for LVDS.\n");
-	}
+
 	intel_output->output_id = mode->mode_res->connectors[num];
 	intel_output->mode_output = koutput;
 	intel_output->mode_encoder = kencoder;
 	intel_output->mode = mode;
+
 	output->mm_width = koutput->mmWidth;
 	output->mm_height = koutput->mmHeight;
 
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = intel_output;
 
-	if (koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS)
+	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS)
 		intel_output_backlight_init(output);
 
 	output->possible_crtcs = kencoder->possible_crtcs;
