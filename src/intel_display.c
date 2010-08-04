@@ -171,9 +171,6 @@ intel_output_backlight_get(xf86OutputPtr output)
 	char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
 	int fd, level;
 
-	if (! intel_output->backlight_iface)
-		return -1;
-
 	sprintf(path, "%s/%s/actual_brightness",
 		BACKLIGHT_CLASS, intel_output->backlight_iface);
 	fd = open(path, O_RDONLY);
@@ -212,7 +209,7 @@ intel_output_backlight_get_max(xf86OutputPtr output)
 	if (fd == -1) {
 		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR, "failed to open %s "
 			   "for backlight control: %s\n", path, strerror(errno));
-		return 0;
+		return -1;
 	}
 
 	memset(val, 0, sizeof(val));
@@ -225,7 +222,7 @@ intel_output_backlight_get_max(xf86OutputPtr output)
 
 	max = atoi(val);
 	if (max <= 0)
-		max  = -1;
+		max = -1;
 	return max;
 }
 
@@ -233,16 +230,17 @@ static void
 intel_output_backlight_init(xf86OutputPtr output)
 {
 	struct intel_output *intel_output = output->driver_private;
-	char path[BACKLIGHT_PATH_LEN];
-	struct stat buf;
 	int i;
 
 	for (i = 0; backlight_interfaces[i] != NULL; i++) {
+		char path[BACKLIGHT_PATH_LEN];
+		struct stat buf;
+
 		sprintf(path, "%s/%s", BACKLIGHT_CLASS, backlight_interfaces[i]);
 		if (!stat(path, &buf)) {
 			intel_output->backlight_iface = backlight_interfaces[i];
-			intel_output->backlight_max = intel_output_backlight_get_max(output);
 			intel_output->backlight_active_level = intel_output_backlight_get(output);
+			intel_output->backlight_max = intel_output_backlight_get_max(output);
 			if (intel_output->backlight_max > 0) {
 				xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
 					   "found backlight control interface %s\n", path);
@@ -849,20 +847,20 @@ intel_output_destroy(xf86OutputPtr output)
 
 	if (intel_output->edid_blob)
 		drmModeFreePropertyBlob(intel_output->edid_blob);
+
 	for (i = 0; i < intel_output->num_props; i++) {
 		drmModeFreeProperty(intel_output->props[i].mode_prop);
 		free(intel_output->props[i].atoms);
 	}
 	free(intel_output->props);
+
 	drmModeFreeConnector(intel_output->mode_output);
 	intel_output->mode_output = NULL;
+
 	if (intel_output->private_data) {
 		free(intel_output->private_data);
 		intel_output->private_data = NULL;
 	}
-	if (intel_output->backlight_iface)
-		intel_output_backlight_set(output,
-					   intel_output->backlight_active_level);
 
 	list_del(&intel_output->link);
 	free(intel_output);
@@ -918,6 +916,7 @@ intel_output_dpms(xf86OutputPtr output, int dpms)
 			drmModeFreeProperty(props);
 			return;
 		}
+
 		drmModeFreeProperty(props);
 	}
 }
