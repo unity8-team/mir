@@ -524,7 +524,7 @@ nouveau_exa_init(ScreenPtr pScreen)
 		exa->maxX = 8192;
 		exa->maxY = 8192;
 	} else
-	if (pNv->Architecture >= NV_ARCH_20) {
+	if (pNv->Architecture >= NV_ARCH_10) {
 		exa->maxX = 4096;
 		exa->maxY = 4096;
 	} else {
