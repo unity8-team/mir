@@ -102,7 +102,10 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 	    case DRI2BufferDepth:
 	    case DRI2BufferDepthStencil:
 		if (info->ChipFamily >= CHIP_FAMILY_R600)
-		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+		    /* macro is the preferred setting, but the 2D detiling for software
+		     * fallbacks in mesa still has issues on some configurations
+		     */
+		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
 		else
 		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 		break;
@@ -110,7 +113,13 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 	    case DRI2BufferBackRight:
 	    case DRI2BufferFakeFrontLeft:
 	    case DRI2BufferFakeFrontRight:
-		flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+		if (info->ChipFamily >= CHIP_FAMILY_R600)
+		    /* macro is the preferred setting, but the 2D detiling for software
+		     * fallbacks in mesa still has issues on some configurations
+		     */
+		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+		else
+		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
 		break;
 	    default:
 		flags = 0;
@@ -186,16 +195,25 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	switch(attachment) {
 	case DRI2BufferDepth:
 	case DRI2BufferDepthStencil:
-		if (info->ChipFamily >= CHIP_FAMILY_R600)
-		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
-		else
-		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+	    /* macro is the preferred setting, but the 2D detiling for software
+	     * fallbacks in mesa still has issues on some configurations
+	     */
+	    if (info->ChipFamily >= CHIP_FAMILY_R600)
+		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+	    else
+		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    break;
 	case DRI2BufferBackLeft:
 	case DRI2BufferBackRight:
 	case DRI2BufferFakeFrontLeft:
 	case DRI2BufferFakeFrontRight:
-	    flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+	    if (info->ChipFamily >= CHIP_FAMILY_R600)
+		/* macro is the preferred setting, but the 2D detiling for software
+		 * fallbacks in mesa still has issues on some configurations
+		 */
+		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+	    else
+		flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
 	    break;
 	default:
 	    flags = 0;
