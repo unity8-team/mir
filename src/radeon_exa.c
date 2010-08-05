@@ -430,11 +430,27 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
         tiling &= ~RADEON_TILING_MACRO;
     }
 
-    if (tiling) {
-	height = RADEON_ALIGN(height, 16);
-	pixmap_align = 256;
-    } else
-	pixmap_align = 64;
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	int bpe = bitsPerPixel / 8;
+
+	if (tiling & RADEON_TILING_MACRO) {
+	    height = RADEON_ALIGN(height, info->num_banks * 8);
+	    pixmap_align = MAX(info->num_banks,
+			       (((info->group_bytes / 8) / bpe) * info->num_banks)) * 8 * bpe;
+	} else if (tiling & RADEON_TILING_MICRO) {
+	    height = RADEON_ALIGN(height, 8);
+	    pixmap_align = MAX(8, (info->group_bytes / (8 * bpe))) * bpe;
+	} else {
+	    height = RADEON_ALIGN(height, 8);
+	    pixmap_align = 256; /* 8 * bpe */
+	}
+    } else {
+	if (tiling) {
+	    height = RADEON_ALIGN(height, 16);
+	    pixmap_align = 256;
+	} else
+	    pixmap_align = 64;
+    }
 
     padded_width = ((width * bitsPerPixel + FB_MASK) >> FB_SHIFT) * sizeof(FbBits);
     padded_width = RADEON_ALIGN(padded_width, pixmap_align);

@@ -1101,8 +1101,11 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (!info->front_bo)
 		goto fail;
 
-	if (info->allowColorTiling)
-	    tiling_flags |= RADEON_TILING_MACRO;
+	/* no tiled scanout on r6xx+ yet */
+	if (info->allowColorTiling) {
+		if (info->ChipFamily < CHIP_FAMILY_R600)
+			tiling_flags |= RADEON_TILING_MACRO;
+	}
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	switch (cpp) {
 	case 4:

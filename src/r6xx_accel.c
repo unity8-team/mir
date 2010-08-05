@@ -258,16 +258,21 @@ set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf, uint32_
     EREG(ib, (CB_COLOR0_FRAG + (4 * cb_conf->id)), (0     >> 8));	// FMASK per-tile data base/256
     RELOC_BATCH(cb_conf->bo, 0, domain);
     END_BATCH();
-    BEGIN_BATCH(12);
+    BEGIN_BATCH(9);
     // pitch only for ARRAY_LINEAR_GENERAL, other tiling modes require addrlib
     EREG(ib, (CB_COLOR0_SIZE + (4 * cb_conf->id)), ((pitch << PITCH_TILE_MAX_shift)	|
 						    (slice << SLICE_TILE_MAX_shift)));
     EREG(ib, (CB_COLOR0_VIEW + (4 * cb_conf->id)), ((0    << SLICE_START_shift)		|
 						    (0    << SLICE_MAX_shift)));
-    EREG(ib, (CB_COLOR0_INFO + (4 * cb_conf->id)), cb_color_info);
     EREG(ib, (CB_COLOR0_MASK + (4 * cb_conf->id)), ((0    << CMASK_BLOCK_MAX_shift)	|
 						    (0    << FMASK_TILE_MAX_shift)));
     END_BATCH();
+
+    BEGIN_BATCH(3 + 2);
+    EREG(ib, (CB_COLOR0_INFO + (4 * cb_conf->id)), cb_color_info);
+    RELOC_BATCH(cb_conf->bo, 0, domain);
+    END_BATCH();
+
 }
 
 static void
@@ -885,7 +890,13 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 
     sq_setup(pScrn, ib, &sq_conf);
 
-    BEGIN_BATCH(83);
+    /* set fake reloc for unused depth */
+    BEGIN_BATCH(3 + 2);
+    EREG(ib, DB_DEPTH_INFO, 0);
+    RELOC_BATCH(accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
+
+    BEGIN_BATCH(80);
     if (info->ChipFamily < CHIP_FAMILY_RV770) {
 	EREG(ib, TA_CNTL_AUX, (( 3 << GRADIENT_CREDIT_shift) |
 				 - (28 << TD_FIFO_CREDIT_shift)));
@@ -928,7 +939,6 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     E32(ib, 0); // SQ_GS_VERT_ITEMSIZE
 
     // DB
-    EREG(ib, DB_DEPTH_INFO,                       0);
     EREG(ib, DB_DEPTH_CONTROL,                    0);
     PACK0(ib, DB_RENDER_CONTROL, 2);
     E32(ib, STENCIL_COMPRESS_DISABLE_bit | DEPTH_COMPRESS_DISABLE_bit);

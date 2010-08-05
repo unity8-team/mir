@@ -421,6 +421,74 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    struct drm_radeon_info ginfo;
+    int r;
+    uint32_t tmp;
+
+    if (info->ChipFamily < CHIP_FAMILY_R600)
+	return FALSE;
+
+#ifndef RADEON_INFO_TILING_CONFIG
+#define RADEON_INFO_TILING_CONFIG 0x6
+#endif
+
+    memset(&ginfo, 0, sizeof(ginfo));
+    ginfo.request = RADEON_INFO_TILING_CONFIG;
+    ginfo.value = (uintptr_t)&tmp;
+    r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+    if (r)
+	return FALSE;
+
+    info->tile_config = tmp;
+    info->r7xx_bank_op = 0;
+    if (info->ChipFamily >= CHIP_FAMILY_CEDAR) {
+	/* for now */
+	return FALSE;
+    } else {
+	switch((info->tile_config & 0xe) >> 1) {
+	case 0:
+	    info->num_channels = 1;
+	    break;
+	case 1:
+	    info->num_channels = 2;
+	    break;
+	case 2:
+	    info->num_channels = 4;
+	    break;
+	case 3:
+	    info->num_channels = 8;
+	    break;
+	default:
+	    return FALSE;
+	}
+	switch((info->tile_config & 0x30) >> 4) {
+	case 0:
+	    info->num_banks = 4;
+	    break;
+	case 1:
+	    info->num_banks = 8;
+	    break;
+	default:
+	    return FALSE;
+	}
+	switch((info->tile_config & 0xc0) >> 6) {
+	case 0:
+	    info->group_bytes = 256;
+	    break;
+	case 1:
+	    info->group_bytes = 512;
+	    break;
+	default:
+	    return FALSE;
+	}
+    }
+
+    return TRUE;
+}
+
 Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 {
     RADEONInfoPtr     info;
@@ -484,18 +552,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (!radeon_alloc_dri(pScrn))
 	return FALSE;
 
-    colorTilingDefault = info->ChipFamily >= CHIP_FAMILY_R300 &&
-                         info->ChipFamily <= CHIP_FAMILY_RS740;
-
-    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-                                        OPTION_COLOR_TILING, colorTilingDefault);
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Color tiling is not yet supported on R600/R700\n");
-	    info->allowColorTiling = FALSE;
-    }
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
-
     if (radeon_open_drm_master(pScrn) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
 	goto fail;
@@ -508,6 +564,25 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		   "RADEONDRIGetVersion failed to get the DRM version\n");
 	goto fail;
     }
+
+    colorTilingDefault = info->ChipFamily >= CHIP_FAMILY_R300 &&
+                         info->ChipFamily <= CHIP_FAMILY_RS740;
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	if (info->dri->pKernelDRMVersion->version_minor >= 6) {
+	    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+							  OPTION_COLOR_TILING, colorTilingDefault);
+	    if (info->allowColorTiling)
+		info->allowColorTiling = r600_get_tile_config(pScrn);
+	} else
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "R6xx+ KMS Color Tiling requires radeon drm 2.6.0 or newer\n");
+    } else
+	info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+						      OPTION_COLOR_TILING, colorTilingDefault);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
 
     if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
@@ -1038,8 +1113,10 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
                 ErrorF("Failed to map cursor buffer memory\n");
             }
         }
+	/* no tiled scanout on r6xx+ yet */
         if (info->allowColorTiling) {
-	    tiling_flags |= RADEON_TILING_MACRO;
+	    if (info->ChipFamily < CHIP_FAMILY_R600)
+		tiling_flags |= RADEON_TILING_MACRO;
         }
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	switch (cpp) {

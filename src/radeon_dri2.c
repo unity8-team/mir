@@ -101,7 +101,10 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 	    switch(attachments[i]) {
 	    case DRI2BufferDepth:
 	    case DRI2BufferDepthStencil:
-		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+		if (info->ChipFamily >= CHIP_FAMILY_R600)
+		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+		else
+		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 		break;
 	    case DRI2BufferBackLeft:
 	    case DRI2BufferBackRight:
@@ -183,7 +186,10 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	switch(attachment) {
 	case DRI2BufferDepth:
 	case DRI2BufferDepthStencil:
-	    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+		if (info->ChipFamily >= CHIP_FAMILY_R600)
+		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO;
+		else
+		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    break;
 	case DRI2BufferBackLeft:
 	case DRI2BufferBackRight:

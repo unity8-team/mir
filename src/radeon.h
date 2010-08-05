@@ -1035,6 +1035,12 @@ typedef struct {
     uint64_t vram_size;
     uint64_t gart_size;
     drmmode_rec drmmode;
+    /* r6xx+ tile config */
+    uint32_t tile_config;
+    int group_bytes;
+    int num_channels;
+    int num_banks;
+    int r7xx_bank_op;
 #else
     /* fake bool */
     Bool cs;
