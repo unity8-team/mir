@@ -698,14 +698,12 @@ static Bool
 intel_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 {
 	struct intel_output *intel_output = output->driver_private;
-	drmModeConnectorPtr koutput = intel_output->mode_output;
 
 	/*
 	 * If the connector type is LVDS, we will use the panel limit to
 	 * verfiy whether the mode is valid.
 	 */
-	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS &&
-	    intel_output->has_lvds_limits) {
+	if (intel_output->has_lvds_limits) {
 		if (pModes->HDisplay > intel_output->lvds_hdisplay ||
 		    pModes->VDisplay > intel_output->lvds_vdisplay)
 			return MODE_PANEL;
@@ -808,29 +806,32 @@ intel_output_get_modes(xf86OutputPtr output)
 {
 	struct intel_output *intel_output = output->driver_private;
 	drmModeConnectorPtr koutput = intel_output->mode_output;
+	DisplayModePtr Modes = NULL;
 	int i;
-	DisplayModePtr Modes = NULL, Mode;
-	drmModeModeInfo *mode_ptr;
 
 	intel_output_attach_edid(output);
 
 	/* modes should already be available */
 	for (i = 0; i < koutput->count_modes; i++) {
-		Mode = xnfalloc(sizeof(DisplayModeRec));
+		DisplayModePtr Mode;
 
-		mode_from_kmode(output->scrn, &koutput->modes[i], Mode);
-		Modes = xf86ModesAdd(Modes, Mode);
-
+		Mode = calloc(1, sizeof(DisplayModeRec));
+		if (Mode) {
+			mode_from_kmode(output->scrn, &koutput->modes[i], Mode);
+			Modes = xf86ModesAdd(Modes, Mode);
+		}
 	}
 
 	/*
 	 * If the connector type is LVDS, we will traverse the kernel mode to
-	 * get the panel limit.
+	 * get the panel limit. And then add all the standard modes to fake
+	 * the fullscreen experience.
 	 * If it is incorrect, please fix me.
 	 */
 	intel_output->has_lvds_limits = FALSE;
 	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 		for (i = 0; i < koutput->count_modes; i++) {
+			drmModeModeInfo *mode_ptr;
 
 			mode_ptr = &koutput->modes[i];
 			if (mode_ptr->hdisplay > intel_output->lvds_hdisplay)
@@ -842,10 +843,9 @@ intel_output_get_modes(xf86OutputPtr output)
 		intel_output->has_lvds_limits =
 			intel_output->lvds_hdisplay &&
 			intel_output->lvds_vdisplay;
-	}
 
-	if (koutput->connector_type ==  DRM_MODE_CONNECTOR_LVDS)
 		Modes = intel_output_lvds_edid(output, Modes);
+	}
 
 	return Modes;
 }
