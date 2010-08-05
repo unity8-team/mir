@@ -82,7 +82,6 @@ struct intel_output {
 	int output_id;
 	drmModeConnectorPtr mode_output;
 	drmModeEncoderPtr mode_encoder;
-	drmModePropertyBlobPtr edid_blob;
 	int num_props;
 	struct intel_property *props;
 	void *private_data;
@@ -715,6 +714,49 @@ intel_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 	return MODE_OK;
 }
 
+static void
+intel_output_attach_edid(xf86OutputPtr output)
+{
+	struct intel_output *intel_output = output->driver_private;
+	drmModeConnectorPtr koutput = intel_output->mode_output;
+	struct intel_mode *mode = intel_output->mode;
+	drmModePropertyBlobPtr edid_blob = NULL;
+	int i;
+
+	/* look for an EDID property */
+	for (i = 0; i < koutput->count_props; i++) {
+		drmModePropertyPtr props;
+
+		props = drmModeGetProperty(mode->fd, koutput->props[i]);
+		if (!props)
+			continue;
+
+		if (!(props->flags & DRM_MODE_PROP_BLOB)) {
+			drmModeFreeProperty(props);
+			continue;
+		}
+
+		if (!strcmp(props->name, "EDID")) {
+			drmModeFreePropertyBlob(edid_blob);
+			edid_blob =
+				drmModeGetPropertyBlob(mode->fd,
+						       koutput->prop_values[i]);
+		}
+		drmModeFreeProperty(props);
+	}
+
+	if (edid_blob) {
+		xf86OutputSetEDID(output,
+				  xf86InterpretEDID(output->scrn->scrnIndex,
+						    edid_blob->data));
+		drmModeFreePropertyBlob(edid_blob);
+	} else {
+		xf86OutputSetEDID(output,
+				  xf86InterpretEDID(output->scrn->scrnIndex,
+						    NULL));
+	}
+}
+
 static DisplayModePtr
 intel_output_lvds_edid(xf86OutputPtr output, DisplayModePtr modes)
 {
@@ -766,40 +808,11 @@ intel_output_get_modes(xf86OutputPtr output)
 {
 	struct intel_output *intel_output = output->driver_private;
 	drmModeConnectorPtr koutput = intel_output->mode_output;
-	struct intel_mode *mode = intel_output->mode;
 	int i;
 	DisplayModePtr Modes = NULL, Mode;
-	drmModePropertyPtr props;
 	drmModeModeInfo *mode_ptr;
 
-	/* look for an EDID property */
-	for (i = 0; i < koutput->count_props; i++) {
-		props = drmModeGetProperty(mode->fd, koutput->props[i]);
-		if (!props)
-			continue;
-
-		if (!(props->flags & DRM_MODE_PROP_BLOB)) {
-			drmModeFreeProperty(props);
-			continue;
-		}
-
-		if (!strcmp(props->name, "EDID")) {
-			drmModeFreePropertyBlob(intel_output->edid_blob);
-			intel_output->edid_blob =
-				drmModeGetPropertyBlob(mode->fd,
-						       koutput->prop_values[i]);
-		}
-		drmModeFreeProperty(props);
-	}
-
-	if (intel_output->edid_blob)
-		xf86OutputSetEDID(output,
-				  xf86InterpretEDID(output->scrn->scrnIndex,
-						    intel_output->edid_blob->data));
-	else
-		xf86OutputSetEDID(output,
-				  xf86InterpretEDID(output->scrn->scrnIndex,
-						    NULL));
+	intel_output_attach_edid(output);
 
 	/* modes should already be available */
 	for (i = 0; i < koutput->count_modes; i++) {
@@ -842,9 +855,6 @@ intel_output_destroy(xf86OutputPtr output)
 {
 	struct intel_output *intel_output = output->driver_private;
 	int i;
-
-	if (intel_output->edid_blob)
-		drmModeFreePropertyBlob(intel_output->edid_blob);
 
 	for (i = 0; i < intel_output->num_props; i++) {
 		drmModeFreeProperty(intel_output->props[i].mode_prop);
