@@ -254,6 +254,7 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	case 0x80:
 	case 0x90:
 	case 0xa0:
+	case 0xc0:
 		break;
 	default:
 		xf86DrvMsg(-1, X_ERROR, "Unknown chipset: NV%02x\n", chipset);
@@ -652,6 +653,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	case 0xa0:
 		pNv->Architecture = NV_ARCH_50;
 		break;
+	case 0xc0:
+		pNv->Architecture = NV_ARCH_C0;
+		break;
 	default:
 		return FALSE;
 	}
@@ -674,8 +678,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			break;
 		case 30:
 			/* OK on NV50 KMS */
-			if (pNv->Architecture != NV_ARCH_50)
-				NVPreInitFail("Depth 30 supported on G80 only\n");
+			if (pNv->Architecture < NV_ARCH_50)
+				NVPreInitFail("Depth 30 supported on G80+ only\n");
 			break;
 		case 15: /* 15 may get done one day, so leave any code for it in place */
 		default:

@@ -24,6 +24,7 @@
 #define NV_ARCH_30  0x30
 #define NV_ARCH_40  0x40
 #define NV_ARCH_50  0x50
+#define NV_ARCH_C0  0xc0
 
 /* NV50 */
 typedef struct _NVRec *NVPtr;
