@@ -52,6 +52,8 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	unsigned cpp = pspix->drawable.bitsPerPixel / 8;
 	unsigned line_len = w * cpp;
 	unsigned src_offset = 0, src_pitch = 0, linear = 0;
+	/* Maximum DMA transfer */
+	unsigned line_count = pNv->GART->size / line_len;
 
 	if (!nv50_style_tiled_pixmap(pspix)) {
 		linear     = 1;
@@ -59,21 +61,16 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		src_offset += (y * src_pitch) + (x * cpp);
 	}
 
+	/* HW limitations */
+	if (line_count > 2047)
+		line_count = 2047;
+
 	while (h) {
-		int line_count, i;
+		int i;
 		char *src;
 
-		if (h * line_len <= pNv->GART->size) {
+		if (line_count > h)
 			line_count = h;
-		} else {
-			line_count = pNv->GART->size / line_len;
-			if (line_count > h)
-				line_count = h;
-		}
-
-		/* HW limitations */
-		if (line_count > 2047)
-			line_count = 2047;
 
 		if (MARK_RING(chan, 32, 6))
 			return FALSE;
@@ -169,6 +166,8 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	unsigned cpp = pdpix->drawable.bitsPerPixel / 8;
 	unsigned line_len = w * cpp;
 	unsigned dst_offset = 0, dst_pitch = 0, linear = 0;
+	/* Maximum DMA transfer */
+	unsigned line_count = pNv->GART->size / line_len;
 
 	if (!nv50_style_tiled_pixmap(pdpix)) {
 		linear     = 1;
@@ -176,22 +175,16 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		dst_offset += (y * dst_pitch) + (x * cpp);
 	}
 
+	/* HW limitations */
+	if (line_count > 2047)
+		line_count = 2047;
+
 	while (h) {
-		int line_count, i;
+		int i;
 		char *dst;
 
-		/* Determine max amount of data we can DMA at once */
-		if (h * line_len <= pNv->GART->size) {
+		if (line_count > h)
 			line_count = h;
-		} else {
-			line_count = pNv->GART->size / line_len;
-			if (line_count > h)
-				line_count = h;
-		}
-
-		/* HW limitations */
-		if (line_count > 2047)
-			line_count = 2047;
 
 		/* Upload to GART */
 		if (nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR))
