@@ -326,7 +326,7 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 	uint32_t *output_ids;
 	int output_count = 0;
 	int fb_id, x, y;
-	int i, ret;
+	int i, ret = FALSE;
 
 	output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
 	if (!output_ids)
@@ -377,26 +377,14 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 	} else
 		ret = TRUE;
 
-	/* Turn on any outputs on this crtc that may have been disabled */
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr output = xf86_config->output[i];
-
-		if (output->crtc != crtc)
-			continue;
-
-		intel_output_dpms(output, DPMSModeOn);
-	}
-
 	intel_set_gem_max_sizes(scrn);
 
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);
 
-	return ret;
-
 done:
 	free(output_ids);
-	return FALSE;
+	return ret;
 }
 
 static Bool
