@@ -1693,7 +1693,7 @@ atombios_output_mode_set(xf86OutputPtr output,
     atombios_output_scaler_setup(output);
     atombios_set_output_crtc_source(output);
 
-    if (IS_AVIVO_VARIANT) {
+    if (IS_AVIVO_VARIANT && !IS_DCE4_VARIANT) {
 	if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT))
 	    atombios_output_yuv_setup(output, TRUE);
 	else
