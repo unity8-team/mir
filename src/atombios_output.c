@@ -2002,6 +2002,7 @@ RADEONProcessAuxCH(xf86OutputPtr output, uint8_t *req_bytes, uint8_t num_bytes,
     AtomBiosArgRec data;
     unsigned char *space;
     unsigned char *base;
+    int retry_count = 0;
 
     memset(&args, 0, sizeof(args));
     if (info->atomBIOS->fbBase)
@@ -2011,6 +2012,7 @@ RADEONProcessAuxCH(xf86OutputPtr output, uint8_t *req_bytes, uint8_t num_bytes,
     else
 	return FALSE;
 
+retry:
     memcpy(base, req_bytes, num_bytes);
 
     args.v1.lpAuxRequest = 0;
@@ -2026,9 +2028,11 @@ RADEONProcessAuxCH(xf86OutputPtr output, uint8_t *req_bytes, uint8_t num_bytes,
     data.exec.pspace = &args;
 
     RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data);
-    if (args.v1.ucReplyStatus) {
-	ErrorF("failed to get auxch %02x%02x %02x %02x %02x\n",
-	       req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3], args.v1.ucReplyStatus);
+    if (args.v1.ucReplyStatus && !args.v1.ucDataOutLen) {
+	if (args.v1.ucReplyStatus == 0x20 && retry_count++ < 10)
+		goto retry;
+	ErrorF("failed to get auxch %02x%02x %02x %02x %02x after %d retries\n",
+	       req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3], args.v1.ucReplyStatus, retry_count);
 	return FALSE;
     }
     if (args.v1.ucDataOutLen && read_byte && read_buf_len) {
@@ -2066,7 +2070,7 @@ RADEONDPEncoderService(xf86OutputPtr output, int action, uint8_t ucconfig, uint8
 
     RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data);
 
-    ErrorF("%s: %d\n", __func__, args.ucStatus);
+    ErrorF("%s: %d %d\n", __func__, action, args.ucStatus);
     return args.ucStatus;
 }
 
