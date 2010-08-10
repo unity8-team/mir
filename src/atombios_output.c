@@ -67,8 +67,6 @@ const char *device_name[12] = {
 
 static void do_displayport_link_train(xf86OutputPtr output);
 
-static void atombios_set_output_crtc_source(xf86OutputPtr output);
-
 static int
 atombios_output_dac_setup(xf86OutputPtr output, int action)
 {
@@ -1409,7 +1407,12 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     }
 }
 
-static void
+union crtc_source_param {
+    SELECT_CRTC_SOURCE_PS_ALLOCATION v1;
+    SELECT_CRTC_SOURCE_PARAMETERS_V2 v2;
+};
+
+void
 atombios_set_output_crtc_source(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -1418,16 +1421,15 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
     radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
     AtomBiosArgRec data;
     unsigned char *space;
-    SELECT_CRTC_SOURCE_PS_ALLOCATION crtc_src_param;
-    SELECT_CRTC_SOURCE_PARAMETERS_V2 crtc_src_param2;
+    union crtc_source_param args;
     int index = GetIndexIntoMasterTable(COMMAND, SelectCRTC_Source);
     int major, minor;
 
     if (radeon_encoder == NULL)
 	return;
 
-    memset(&crtc_src_param, 0, sizeof(crtc_src_param));
-    memset(&crtc_src_param2, 0, sizeof(crtc_src_param2));
+    memset(&args, 0, sizeof(args));
+
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 
     /*ErrorF("select crtc source table is %d %d\n", major, minor);*/
@@ -1439,55 +1441,54 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	case 1:
 	default:
 	    if (IS_AVIVO_VARIANT)
-		crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
+		args.v1.ucCRTC = radeon_crtc->crtc_id;
 	    else {
 		if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1)
-		    crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
+		    args.v1.ucCRTC = radeon_crtc->crtc_id;
 		else
-		    crtc_src_param.ucCRTC = radeon_crtc->crtc_id << 2;
+		    args.v1.ucCRTC = radeon_crtc->crtc_id << 2;
 	    }
 	    switch (radeon_encoder->encoder_id) {
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-		crtc_src_param.ucDevice = ATOM_DEVICE_DFP1_INDEX;
+		args.v1.ucDevice = ATOM_DEVICE_DFP1_INDEX;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
 	    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 		if (radeon_output->active_device & ATOM_DEVICE_LCD1_SUPPORT)
-		    crtc_src_param.ucDevice = ATOM_DEVICE_LCD1_INDEX;
+		    args.v1.ucDevice = ATOM_DEVICE_LCD1_INDEX;
 		else
-		    crtc_src_param.ucDevice = ATOM_DEVICE_DFP3_INDEX;
+		    args.v1.ucDevice = ATOM_DEVICE_DFP3_INDEX;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DVO1:
 	    case ENCODER_OBJECT_ID_INTERNAL_DDI:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-		crtc_src_param.ucDevice = ATOM_DEVICE_DFP2_INDEX;
+		args.v1.ucDevice = ATOM_DEVICE_DFP2_INDEX;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
 		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
-		    crtc_src_param.ucDevice = ATOM_DEVICE_TV1_INDEX;
+		    args.v1.ucDevice = ATOM_DEVICE_TV1_INDEX;
 		else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
-		    crtc_src_param.ucDevice = ATOM_DEVICE_CV_INDEX;
+		    args.v1.ucDevice = ATOM_DEVICE_CV_INDEX;
 		else
-		    crtc_src_param.ucDevice = ATOM_DEVICE_CRT1_INDEX;
+		    args.v1.ucDevice = ATOM_DEVICE_CRT1_INDEX;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
-		    crtc_src_param.ucDevice = ATOM_DEVICE_TV1_INDEX;
+		    args.v1.ucDevice = ATOM_DEVICE_TV1_INDEX;
 		else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
-		    crtc_src_param.ucDevice = ATOM_DEVICE_CV_INDEX;
+		    args.v1.ucDevice = ATOM_DEVICE_CV_INDEX;
 		else
-		    crtc_src_param.ucDevice = ATOM_DEVICE_CRT2_INDEX;
+		    args.v1.ucDevice = ATOM_DEVICE_CRT2_INDEX;
 		break;
 	    }
-	    data.exec.pspace = &crtc_src_param;
-	    /*ErrorF("device sourced: 0x%x\n", crtc_src_param.ucDevice);*/
+	    /*ErrorF("device sourced: 0x%x\n", args.v1.ucDevice);*/
 	    break;
 	case 2:
-	    crtc_src_param2.ucCRTC = radeon_crtc->crtc_id;
-	    crtc_src_param2.ucEncodeMode = atombios_get_encoder_mode(output);
+	    args.v2.ucCRTC = radeon_crtc->crtc_id;
+	    args.v2.ucEncodeMode = atombios_get_encoder_mode(output);
 	    switch (radeon_encoder->encoder_id) {
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
@@ -1495,44 +1496,46 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
  		switch (radeon_output->dig_encoder) {
  		case 0:
- 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
+ 		    args.v2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
  		    break;
  		case 1:
- 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+ 		    args.v2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
  		    break;
  		case 2:
- 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG3_ENCODER_ID;
+ 		    args.v2.ucEncoderID = ASIC_INT_DIG3_ENCODER_ID;
  		    break;
  		case 3:
- 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG4_ENCODER_ID;
+ 		    args.v2.ucEncoderID = ASIC_INT_DIG4_ENCODER_ID;
  		    break;
  		case 4:
- 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG5_ENCODER_ID;
+ 		    args.v2.ucEncoderID = ASIC_INT_DIG5_ENCODER_ID;
  		    break;
  		case 5:
- 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG6_ENCODER_ID;
+ 		    args.v2.ucEncoderID = ASIC_INT_DIG6_ENCODER_ID;
  		    break;
  		}
 		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+		args.v2.ucEncoderID = ASIC_INT_DVO_ENCODER_ID;
+		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
 		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
-		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
+		    args.v2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
 		else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
-		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
+		    args.v2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
 		else
-		    crtc_src_param2.ucEncoderID = ASIC_INT_DAC1_ENCODER_ID;
+		    args.v2.ucEncoderID = ASIC_INT_DAC1_ENCODER_ID;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
-		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
+		    args.v2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
 		else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
-		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
+		    args.v2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
 		else
-		    crtc_src_param2.ucEncoderID = ASIC_INT_DAC2_ENCODER_ID;
+		    args.v2.ucEncoderID = ASIC_INT_DAC2_ENCODER_ID;
 		break;
 	    }
-	    data.exec.pspace = &crtc_src_param2;
-	    /*ErrorF("device sourced: 0x%x\n", crtc_src_param2.ucEncoderID);*/
+	    /*ErrorF("device sourced: 0x%x\n", args.v2.ucEncoderID);*/
 	    break;
 	}
 	break;
@@ -1541,6 +1544,7 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	exit(-1);
     }
 
+    data.exec.pspace = &args;
     data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
 

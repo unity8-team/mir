@@ -734,6 +734,9 @@ radeon_mode_prepare(xf86OutputPtr output)
     radeon_dpms(output, DPMSModeOff);
     radeon_crtc_dpms(output->crtc, DPMSModeOff);
 
+    if (IS_AVIVO_VARIANT || info->r4xx_atom)
+        atombios_set_output_crtc_source(output);
+
 }
 
 static void

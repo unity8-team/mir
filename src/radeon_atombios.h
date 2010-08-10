@@ -288,4 +288,5 @@ radeon_add_encoder(ScrnInfoPtr pScrn, uint32_t encoder_id, uint32_t device_suppo
 extern uint32_t
 radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supported_device, int dac);
 
+void atombios_set_output_crtc_source(xf86OutputPtr output);
 #endif /*  RHD_ATOMBIOS_H_ */
