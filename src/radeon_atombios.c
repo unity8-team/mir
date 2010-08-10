@@ -2307,6 +2307,13 @@ RADEONGetATOMClockInfo(ScrnInfoPtr pScrn)
 	    pll->pll_out_min = 64800;
     }
 
+    if (IS_DCE4_VARIANT) {
+	info->default_dispclk =
+	    le32_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_2_1->ulDefaultDispEngineClkFreq);
+	if (info->default_dispclk == 0)
+	    info->default_dispclk = 60000;
+	info->dp_extclk = le16_to_cpu(atomDataPtr->FirmwareInfo.FirmwareInfo_V_2_1->usUniphyDPModeExtClkFreq);
+    }
     return TRUE;
 }
 

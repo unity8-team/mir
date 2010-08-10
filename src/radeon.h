@@ -872,6 +872,8 @@ typedef struct {
     Bool              ddc2;
 
     RADEONPLLRec      pll;
+    int               default_dispclk;
+    int               dp_extclk;
 
     int               RamWidth;
     float	      sclk;		/* in MHz */

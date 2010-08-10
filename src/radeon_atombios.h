@@ -194,6 +194,7 @@ typedef struct _atomDataTables
         ATOM_FIRMWARE_INFO_V1_2         *FirmwareInfo_V_1_2;
         ATOM_FIRMWARE_INFO_V1_3         *FirmwareInfo_V_1_3;
         ATOM_FIRMWARE_INFO_V1_4         *FirmwareInfo_V_1_4;
+        ATOM_FIRMWARE_INFO_V2_1         *FirmwareInfo_V_2_1;
     } FirmwareInfo;
     ATOM_DAC_INFO                       *DAC_Info;
     union {

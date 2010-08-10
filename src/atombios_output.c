@@ -729,7 +729,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	}
 
 	// select the PLL for the UNIPHY
-	if (radeon_output->MonType == MT_DP)
+	if (radeon_output->MonType == MT_DP && info->dp_extclk)
 	    disp_data.v3.acConfig.ucRefClkSource = 2; /* ext clk */
 	else
 	    disp_data.v3.acConfig.ucRefClkSource = radeon_output->pll_id;
