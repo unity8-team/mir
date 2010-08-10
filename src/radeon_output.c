@@ -2103,10 +2103,6 @@ void RADEONInitConnector(xf86OutputPtr output)
     else
 	radeon_output->rmx_type = RMX_OFF;
 
-    /* dce 3.2 chips have problems with low dot clocks, so use the scaler */
-    if (IS_DCE32_VARIANT && (radeon_output->devices & (ATOM_DEVICE_DFP_SUPPORT)))
-	radeon_output->rmx_type = RMX_FULL;
-
     if (!IS_AVIVO_VARIANT) {
 	if (radeon_output->devices & (ATOM_DEVICE_CRT2_SUPPORT)) {
 	    if (xf86ReturnOptValBool(info->Options, OPTION_TVDAC_LOAD_DETECT, FALSE))
