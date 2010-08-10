@@ -2547,6 +2547,11 @@ static int radeon_dp_link_required(int pixel_clock)
     return pixel_clock * 3;
 }
 
+static int link_bw_avail(int max_link_clock, int max_lanes)
+{
+    return (max_link_clock * max_lanes * 8) / 10;
+}
+
 Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -2557,7 +2562,7 @@ Bool radeon_dp_mode_fixup(xf86OutputPtr output, DisplayModePtr mode, DisplayMode
 
     for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 	for (clock = 0; clock <= max_clock; clock++) {
-	    int link_avail = radeon_dp_link_clock(bws[clock]) * lane_count;
+	    int link_avail = link_bw_avail(radeon_dp_link_clock(bws[clock]), lane_count);
 
 	    if (radeon_dp_link_required(mode->Clock) <= link_avail) {
 		radeon_output->dp_lane_count = lane_count;
