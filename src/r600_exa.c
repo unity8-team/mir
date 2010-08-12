@@ -72,7 +72,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    int ret;
 
     if (src0) {
 	memcpy(&accel_state->src_obj[0], src0, sizeof(struct r600_accel_object));
@@ -127,6 +126,7 @@ R600SetAccelState(ScrnInfoPtr pScrn,
     accel_state->ps_size = 512;
 #if defined(XF86DRM_MODE)
     if (info->cs) {
+	int ret;
 	accel_state->vs_mc_addr = vs_offset;
 	accel_state->ps_mc_addr = ps_offset;
 

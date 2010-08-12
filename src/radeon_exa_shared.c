@@ -177,6 +177,7 @@ void radeon_vb_no_space(ScrnInfoPtr pScrn, int vert_size)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state; 
 
+#if defined(XF86DRM_MODE)
     if (info->cs) {
 	if (accel_state->vb_bo) {
 	    if (accel_state->vb_start_op != accel_state->vb_offset) { 
@@ -191,7 +192,7 @@ void radeon_vb_no_space(ScrnInfoPtr pScrn, int vert_size)
 	radeon_vbo_get(pScrn);
 	return;
     }
-
+#endif
     if (accel_state->vb_start_op != -1) {
         accel_state->finish_op(pScrn, vert_size);
         radeon_cp_start(pScrn);
@@ -199,6 +200,7 @@ void radeon_vb_no_space(ScrnInfoPtr pScrn, int vert_size)
     return;
 }
 
+#if defined(XF86DRM_MODE)
 void radeon_ib_discard(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -232,3 +234,4 @@ void radeon_ib_discard(ScrnInfoPtr pScrn)
     }
 
 }
+#endif
