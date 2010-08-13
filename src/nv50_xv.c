@@ -70,7 +70,7 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
 	uint32_t mode = 0xd0005000 | (src->tile_mode << 22);
 
-	if (MARK_RING(chan, 256, 16))
+	if (MARK_RING(chan, 256, 18))
 		return FALSE;
 
 	BEGIN_RING(chan, tesla, NV50TCL_RT_ADDRESS_HIGH(0), 5);
