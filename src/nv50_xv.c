@@ -331,7 +331,7 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 
 		if (AVAIL_RING(chan) < 64) {
 			if (!nv50_xv_state_emit(ppix, id, src, packed_y, uv,
-						src_w, src_h))
+						width, height))
 				return BadAlloc;
 		}
 
