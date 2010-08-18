@@ -1019,6 +1019,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
 
+	intel_mode_init(intel);
+
 	intel->suspended = FALSE;
 
 	return uxa_resources_init(screen);
