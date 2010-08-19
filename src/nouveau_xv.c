@@ -1983,7 +1983,8 @@ NV50TexturedImages[] =
 {
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
-	XVIMAGE_YUY2
+	XVIMAGE_YUY2,
+	XVIMAGE_UYVY
 };
 
 static XF86VideoAdaptorPtr
