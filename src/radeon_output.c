@@ -1874,6 +1874,13 @@ RADEONI2CDoLock(xf86OutputPtr output, I2CBusPtr b, int lock_state)
 					       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3)));
 	}
 
+	/* set the pad in ddc mode */
+	if (IS_DCE3_VARIANT) {
+	    temp = INREG(pRADEONI2CBus->mask_clk_reg);
+	    temp &= ~(1 << 16);
+	    OUTREG(pRADEONI2CBus->mask_clk_reg, temp);
+	}
+
 	temp = INREG(pRADEONI2CBus->a_clk_reg);
 	temp &= ~(pRADEONI2CBus->a_clk_mask);
 	OUTREG(pRADEONI2CBus->a_clk_reg, temp);
