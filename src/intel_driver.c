@@ -266,32 +266,25 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
  */
 static Bool intel_kernel_mode_enabled(ScrnInfoPtr scrn)
 {
-	struct pci_device *PciInfo;
-	EntityInfoPtr pEnt;
-	char *busIdString;
+	struct pci_device *dev;
+	char id[20];
 	int ret;
 
-	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
-	PciInfo = xf86GetPciInfoForEntity(pEnt->index);
+	dev = xf86GetPciInfoForEntity(xf86GetEntityInfo(scrn->entityList[0])->index);
+	snprintf(id, sizeof(id),
+		 "pci:%04x:%02x:%02x.%d",
+		 dev->domain, dev->bus, dev->dev, dev->func);
 
-	if (!xf86LoaderCheckSymbol("DRICreatePCIBusID"))
-		return FALSE;
-
-	busIdString = DRICreatePCIBusID(PciInfo);
-
-	ret = drmCheckModesettingSupported(busIdString);
+	ret = drmCheckModesettingSupported(id);
 	if (ret) {
 		if (xf86LoadKernelModule("i915"))
-			ret = drmCheckModesettingSupported(busIdString);
+			ret = drmCheckModesettingSupported(id);
 	}
 	/* Be nice to the user and load fbcon too */
 	if (!ret)
 		(void)xf86LoadKernelModule("fbcon");
-	free(busIdString);
-	if (ret)
-		return FALSE;
 
-	return TRUE;
+	return ret == 0;
 }
 
 static void intel_check_chipset_option(ScrnInfoPtr scrn)
