@@ -202,8 +202,18 @@ static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
     int r;
     uint32_t tmp;
 
+#ifndef RADEON_INFO_ACCEL_WORKING
+#define RADEON_INFO_ACCEL_WORKING 0x03
+#endif
+#ifndef RADEON_INFO_ACCEL_WORKING2
+#define RADEON_INFO_ACCEL_WORKING2 0x05
+#endif
+
     memset(&ginfo, 0, sizeof(ginfo));
-    ginfo.request = 0x3;
+    if (info->dri->pKernelDRMVersion->version_minor >= 5)
+	ginfo.request = RADEON_INFO_ACCEL_WORKING2;
+    else
+	ginfo.request = RADEON_INFO_ACCEL_WORKING;
     ginfo.value = (uintptr_t)&tmp;
     r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
     if (r) {
@@ -230,7 +240,6 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
     }
 
     if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE) ||
-	(info->ChipFamily >= CHIP_FAMILY_CEDAR) ||
 	(!RADEONIsAccelWorking(pScrn))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "GPU accel disabled or not working, using shadowfb for KMS\n");

@@ -387,6 +387,8 @@ typedef enum {
 
 #define IS_DCE4_VARIANT ((info->ChipFamily >= CHIP_FAMILY_CEDAR))
 
+#define IS_EVERGREEN_3D (info->ChipFamily >= CHIP_FAMILY_CEDAR)
+
 #define IS_R600_3D (info->ChipFamily >= CHIP_FAMILY_R600)
 
 #define IS_R500_3D ((info->ChipFamily == CHIP_FAMILY_RV515)  ||  \
@@ -753,6 +755,16 @@ struct radeon_accel_state {
     uint32_t          comp_ps_offset;
     uint32_t          xv_vs_offset;
     uint32_t          xv_ps_offset;
+    // shader consts
+    uint32_t          solid_vs_const_offset;
+    uint32_t          solid_ps_const_offset;
+    uint32_t          copy_vs_const_offset;
+    uint32_t          copy_ps_const_offset;
+    uint32_t          comp_vs_const_offset;
+    uint32_t          comp_ps_const_offset;
+    uint32_t          comp_mask_ps_const_offset;
+    uint32_t          xv_vs_const_offset;
+    uint32_t          xv_ps_const_offset;
 
     //size/addr stuff
     struct r600_accel_object src_obj[2];
@@ -1274,6 +1286,8 @@ extern void RADEONDoPrepareCopyMMIO(ScrnInfoPtr pScrn,
 				    Pixel planemask);
 extern Bool R600DrawInit(ScreenPtr pScreen);
 extern Bool R600LoadShaders(ScrnInfoPtr pScrn);
+extern Bool EVERGREENDrawInit(ScreenPtr pScreen);
+extern Bool EVERGREENLoadShaders(ScrnInfoPtr pScrn);
 #endif
 
 #if defined(XF86DRI) && defined(USE_EXA)

@@ -36,7 +36,6 @@
 
 #include "radeon.h"
 #include "radeon_reg.h"
-#include "r600_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_video.h"
@@ -46,6 +45,9 @@
 
 extern void
 R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
+
+extern void
+EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 
 extern Bool
 R600CopyToVRAM(ScrnInfoPtr pScrn,
@@ -473,7 +475,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 #endif
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
-	if (IS_R600_3D)
+	if (IS_EVERGREEN_3D)
+	    EVERGREENDisplayTexturedVideo(pScrn, pPriv);
+	else if (IS_R600_3D)
 	    R600DisplayTexturedVideo(pScrn, pPriv);
 	else if (IS_R500_3D)
 	    R500DisplayTexturedVideoCP(pScrn, pPriv);
