@@ -422,6 +422,8 @@ atombios_maybe_hdmi_mode(xf86OutputPtr output)
 int
 atombios_get_encoder_mode(xf86OutputPtr output)
 {
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     /* DVI should really be atombios_maybe_hdmi_mode() as well */
@@ -438,7 +440,10 @@ atombios_get_encoder_mode(xf86OutputPtr output)
 	break;
     case CONNECTOR_HDMI_TYPE_A:
     case CONNECTOR_HDMI_TYPE_B:
-	return atombios_maybe_hdmi_mode(output);
+	if (IS_DCE4_VARIANT)
+	    return ATOM_ENCODER_MODE_DVI;
+	else
+	    return atombios_maybe_hdmi_mode(output);
 	break;
     case CONNECTOR_LVDS:
 	return ATOM_ENCODER_MODE_LVDS;
@@ -447,8 +452,12 @@ atombios_get_encoder_mode(xf86OutputPtr output)
     case CONNECTOR_EDP:
 	if (radeon_output->MonType == MT_DP)
 	    return ATOM_ENCODER_MODE_DP;
-	else
-	    return atombios_maybe_hdmi_mode(output);
+	else {
+	    if (IS_DCE4_VARIANT)
+	        return ATOM_ENCODER_MODE_DVI;
+	    else
+	        return atombios_maybe_hdmi_mode(output);
+	}
 	break;
     case CONNECTOR_DVI_A:
     case CONNECTOR_VGA:
