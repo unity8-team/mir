@@ -333,7 +333,6 @@ typedef struct intel_screen_private {
 
 	uxa_driver_t *uxa_driver;
 	Bool need_sync;
-	int accel_pixmap_pitch_alignment;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
 	int accel_max_y;

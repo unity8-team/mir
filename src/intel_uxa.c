@@ -142,7 +142,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	if (*tiling != I915_TILING_NONE) {
 		/* First check whether tiling is necessary. */
 		pitch = (w * pixmap->drawable.bitsPerPixel + 7) / 8;
-		pitch = ALIGN(pitch, intel->accel_pixmap_pitch_alignment);
+		pitch = ALIGN(pitch, 64);
 		size = pitch * ALIGN (h, 2);
 		if (!IS_I965G(intel)) {
 			/* Older hardware requires fences to be pot size
@@ -199,7 +199,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		 * subspan doesn't address an invalid page offset beyond the
 		 * end of the GTT.
 		 */
-		*stride = ALIGN(pitch, intel->accel_pixmap_pitch_alignment);
+		*stride = ALIGN(pitch, 64);
 		size = *stride * ALIGN(h, 2);
 	}
 
@@ -1109,12 +1109,10 @@ intel_limits_init(intel_screen_private *intel)
 	 */
 	if (IS_I965G(intel)) {
 		intel->accel_pixmap_offset_alignment = 4 * 2;
-		intel->accel_pixmap_pitch_alignment = 64;
 		intel->accel_max_x = 8192;
 		intel->accel_max_y = 8192;
 	} else {
 		intel->accel_pixmap_offset_alignment = 4;
-		intel->accel_pixmap_pitch_alignment = 64;
 		intel->accel_max_x = 2048;
 		intel->accel_max_y = 2048;
 	}
