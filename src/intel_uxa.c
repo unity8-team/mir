@@ -142,7 +142,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	if (*tiling != I915_TILING_NONE) {
 		/* First check whether tiling is necessary. */
 		pitch = (w * pixmap->drawable.bitsPerPixel + 7) / 8;
-		pitch = ROUND_TO(pitch, intel->accel_pixmap_pitch_alignment);
+		pitch = ALIGN(pitch, intel->accel_pixmap_pitch_alignment);
 		size = pitch * ALIGN (h, 2);
 		if (!IS_I965G(intel)) {
 			/* Older hardware requires fences to be pot size
@@ -179,7 +179,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 			aligned_h = ALIGN(h, 32);
 
 		*stride = intel_get_fence_pitch(intel,
-						ROUND_TO(pitch, 512),
+						ALIGN(pitch, 512),
 						*tiling);
 
 		/* Round the object up to the size of the fence it will live in
@@ -199,7 +199,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		 * subspan doesn't address an invalid page offset beyond the
 		 * end of the GTT.
 		 */
-		*stride = ROUND_TO(pitch, intel->accel_pixmap_pitch_alignment);
+		*stride = ALIGN(pitch, intel->accel_pixmap_pitch_alignment);
 		size = *stride * ALIGN(h, 2);
 	}
 

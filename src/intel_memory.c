@@ -128,7 +128,7 @@ intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 
 	/* 965 is flexible */
 	if (IS_I965G(intel))
-		return ROUND_TO(pitch, tile_width);
+		return ALIGN(pitch, tile_width);
 
 	/* Pre-965 needs power of two tile width */
 	for (i = tile_width; i < pitch; i <<= 1) ;
