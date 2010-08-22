@@ -167,7 +167,7 @@ intel_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
  */
 static inline int intel_pad_drawable_width(int width)
 {
-	return (width + 63) & ~63;
+	return ALIGN(width, 64);
 }
 
 /**

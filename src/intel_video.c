@@ -1277,10 +1277,10 @@ intel_clip_video_helper(ScrnInfoPtr scrn,
 
 	*top = y1 >> 16;
 	*left = (x1 >> 16) & ~1;
-	*npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - *left;
+	*npixels = ALIGN(((x2 + 0xffff) >> 16), 2) - *left;
 	if (is_planar_fourcc(id)) {
 		*top &= ~1;
-		*nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - *top;
+		*nlines = ALIGN(((y2 + 0xffff) >> 16), 2) - *top;
 	} else
 		*nlines = ((y2 + 0xffff) >> 16) - *top;
 
@@ -1385,32 +1385,32 @@ intel_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sh
 		       int id)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int pitchAlignMask;
+	int pitchAlign;
 
 	/* Only needs to be DWORD-aligned for textured on i915, but overlay has
 	 * stricter requirements.
 	 */
 	if (adaptor_priv->textured) {
-		pitchAlignMask = 3;
+		pitchAlign = 4;
 	} else {
 		if (IS_I965G(intel))
 			/* Actually the alignment is 64 bytes, too. But the
 			 * stride must be at least 512 bytes. Take the easy fix
 			 * and align on 512 bytes unconditionally. */
-			pitchAlignMask = 511;
+			pitchAlign = 512;
 		else if (IS_I830(intel) || IS_845G(intel))
 			/* Harsh, errata on these chipsets limit the stride to be
 			 * a multiple of 256 bytes.
 			 */
-			pitchAlignMask = 255;
+			pitchAlign = 256;
 		else
-			pitchAlignMask = 63;
+			pitchAlign = 64;
 	}
 
 #if INTEL_XVMC
 	/* for i915 xvmc, hw requires 1kb aligned surfaces */
 	if ((id == FOURCC_XVMC) && IS_I915(intel))
-		pitchAlignMask = 0x3ff;
+		pitchAlign = 1024;
 #endif
 
 	/* Determine the desired destination pitch (representing the chroma's pitch,
@@ -1418,26 +1418,20 @@ intel_setup_dst_params(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv, sh
 	 */
 	if (is_planar_fourcc(id)) {
 		if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-			*dstPitch =
-			    ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
-			*dstPitch2 =
-			    (height + pitchAlignMask) & ~pitchAlignMask;
+			*dstPitch = ALIGN((height / 2), pitchAlign);
+			*dstPitch2 = ALIGN(height, pitchAlign);
 			*size = *dstPitch * width * 3;
 		} else {
-			*dstPitch =
-			    ((width / 2) + pitchAlignMask) & ~pitchAlignMask;
-			*dstPitch2 =
-			    (width + pitchAlignMask) & ~pitchAlignMask;
+			*dstPitch = ALIGN((width / 2), pitchAlign);
+			*dstPitch2 = ALIGN(width, pitchAlign);
 			*size = *dstPitch * height * 3;
 		}
 	} else {
 		if (adaptor_priv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-			*dstPitch =
-			    ((height << 1) + pitchAlignMask) & ~pitchAlignMask;
+			*dstPitch = ALIGN((height << 1), pitchAlign);
 			*size = *dstPitch * width;
 		} else {
-			*dstPitch =
-			    ((width << 1) + pitchAlignMask) & ~pitchAlignMask;
+			*dstPitch = ALIGN((width << 1), pitchAlign);
 			*size = *dstPitch * height;
 		}
 		*dstPitch2 = 0;
@@ -1472,8 +1466,8 @@ intel_copy_video_data(ScrnInfoPtr scrn, intel_adaptor_private *adaptor_priv,
 	int size;
 
 	if (is_planar_fourcc(id)) {
-		srcPitch = (width + 0x3) & ~0x3;
-		srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
+		srcPitch = ALIGN(width, 0x4);
+		srcPitch2 = ALIGN((width >> 1), 0x4);
 	} else {
 		srcPitch = width << 1;
 	}

@@ -50,6 +50,8 @@
 #define KB(x) ((x) * 1024)
 #define MB(x) ((x) * KB(1024))
 
+#define ALIGN(i,m) (((i) + (m) - 1) & ~((m) - 1))
+
 /* Using usleep() makes things noticably slow. */
 #if 0
 #define DELAY(x) usleep(x)

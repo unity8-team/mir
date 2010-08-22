@@ -1545,8 +1545,7 @@ I810AllocateFront(ScrnInfoPtr pScrn)
 
    if (!I810AllocLow(&(pI810->FrontBuffer),
 		     &(pI810->SysMem),
-		     ((pI810->FbMemBox.x2 *
-		       pI810->FbMemBox.y2 * pI810->cpp) + 4095) & ~4095)) {
+		     ALIGN((pI810->FbMemBox.x2 * pI810->FbMemBox.y2 * pI810->cpp), 4096))) {
       xf86DrvMsg(pScrn->scrnIndex,
 		 X_WARNING, "Framebuffer allocation failed\n");
       return FALSE;
