@@ -172,6 +172,7 @@
 #define PCI_CHIP_SANDYBRIDGE		0x0102
 #define PCI_CHIP_SANDYBRIDGE_BRIDGE	0x0100
 #define PCI_CHIP_SANDYBRIDGE_M		0x0106
+#define PCI_CHIP_SANDYBRIDGE_M_D0	0x0126
 #define PCI_CHIP_SANDYBRIDGE_BRIDGE_M	0x0104
 #endif
 
@@ -242,7 +243,8 @@
 #define IS_I915(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_G33CLASS(pI810))
 
 #define IS_GEN6(pI810) ((pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE || \
-			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_M)
+			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_M ||\
+			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_M_D0)
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_GM45(pI810) || IS_IGD(pI810) || IS_IGDNG_M(pI810))
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
