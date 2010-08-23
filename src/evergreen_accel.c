@@ -868,7 +868,7 @@ evergreen_set_default_state(ScrnInfoPtr pScrn)
     RELOC_BATCH(accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
     END_BATCH();
 
-    BEGIN_BATCH(42);
+    BEGIN_BATCH(45);
     EREG(DB_DEPTH_CONTROL,                    0);
 
     PACK0(DB_RENDER_CONTROL, 5);
@@ -978,7 +978,7 @@ evergreen_set_default_state(ScrnInfoPtr pScrn)
     evergreen_fs_setup(pScrn, &fs_conf, RADEON_GEM_DOMAIN_VRAM);
 
     // VGT
-    BEGIN_BATCH(45);
+    BEGIN_BATCH(46);
 
     PACK0(VGT_MAX_VTX_INDX, 4);
     E32(0xffffff);
