@@ -83,9 +83,9 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 	return;
 
     /* release the current VBO so we don't block on mapping it later */
-    if (info->accel_state->vb_offset && info->accel_state->vb_bo) {
-        radeon_vbo_put(pScrn);
-        info->accel_state->vb_start_op = -1;
+    if (info->accel_state->vbo.vb_offset && info->accel_state->vbo.vb_bo) {
+        radeon_vbo_put(pScrn, &info->accel_state->vbo);
+        info->accel_state->vbo.vb_start_op = -1;
     }
 
     radeon_cs_emit(info->cs);
@@ -95,7 +95,7 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
         radeon_vbo_flush_bos(pScrn);
 
     ret = radeon_cs_space_check_with_bo(info->cs,
-					accel_state->vb_bo,
+					accel_state->vbo.vb_bo,
 					RADEON_GEM_DOMAIN_GTT, 0);
     if (ret)
       ErrorF("space check failed in flush\n");

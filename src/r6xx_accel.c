@@ -525,12 +525,12 @@ r600_set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res, uint
 	(info->ChipFamily == CHIP_FAMILY_RS880) ||
 	(info->ChipFamily == CHIP_FAMILY_RV710))
 	r600_cp_set_surface_sync(pScrn, ib, TC_ACTION_ENA_bit,
-				 accel_state->vb_offset, accel_state->vb_mc_addr,
+				 accel_state->vbo.vb_offset, accel_state->vbo.vb_mc_addr,
 				 res->bo,
 				 domain, 0);
     else
 	r600_cp_set_surface_sync(pScrn, ib, VC_ACTION_ENA_bit,
-				 accel_state->vb_offset, accel_state->vb_mc_addr,
+				 accel_state->vbo.vb_offset, accel_state->vbo.vb_mc_addr,
 				 res->bo,
 				 domain, 0);
 
@@ -1165,26 +1165,26 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
     draw_config_t   draw_conf;
     vtx_resource_t  vtx_res;
 
-    if (accel_state->vb_start_op == -1)
+    if (accel_state->vbo.vb_start_op == -1)
 	return;
 
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-    if (accel_state->vb_offset == accel_state->vb_start_op) {
+    if (accel_state->vbo.vb_offset == accel_state->vbo.vb_start_op) {
         R600IBDiscard(pScrn, accel_state->ib);
-	radeon_vb_discard(pScrn);
+	radeon_vb_discard(pScrn, &accel_state->vbo);
 	return;
     }
 
     /* Vertex buffer setup */
-    accel_state->vb_size = accel_state->vb_offset - accel_state->vb_start_op;
+    accel_state->vbo.vb_size = accel_state->vbo.vb_offset - accel_state->vbo.vb_start_op;
     vtx_res.id              = SQ_VTX_RESOURCE_vs;
     vtx_res.vtx_size_dw     = vtx_size / 4;
-    vtx_res.vtx_num_entries = accel_state->vb_size / 4;
+    vtx_res.vtx_num_entries = accel_state->vbo.vb_size / 4;
     vtx_res.mem_req_size    = 1;
-    vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
-    vtx_res.bo              = accel_state->vb_bo;
+    vtx_res.vb_addr         = accel_state->vbo.vb_mc_addr + accel_state->vbo.vb_start_op;
+    vtx_res.bo              = accel_state->vbo.vb_bo;
     r600_set_vtx_resource(pScrn, accel_state->ib, &vtx_res, RADEON_GEM_DOMAIN_GTT);
 
     /* Draw */
@@ -1204,7 +1204,7 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 			     accel_state->dst_size, accel_state->dst_obj.offset,
 			     accel_state->dst_obj.bo, 0, accel_state->dst_obj.domain);
 
-    accel_state->vb_start_op = -1;
+    accel_state->vbo.vb_start_op = -1;
     accel_state->ib_reset_op = 0;
 
 #if KMS_MULTI_OP

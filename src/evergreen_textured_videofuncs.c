@@ -264,7 +264,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     dstyoff = 0;
 #endif
 
-    radeon_vbo_check(pScrn, 16);
+    radeon_vbo_check(pScrn, &accel_state->vbo, 16);
     radeon_cp_start(pScrn);
 
     evergreen_set_default_state(pScrn);
@@ -559,7 +559,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
 
-	vb = radeon_vbo_space(pScrn, 16);
+	vb = radeon_vbo_space(pScrn, &accel_state->vbo, 16);
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
@@ -576,7 +576,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	vb[10] = (float)(srcX + srcw);
 	vb[11] = (float)(srcY + srch);
 
-	radeon_vbo_commit(pScrn);
+	radeon_vbo_commit(pScrn, &accel_state->vbo);
 
 	pBox++;
     }

@@ -495,12 +495,12 @@ evergreen_set_vtx_resource(ScrnInfoPtr pScrn, vtx_resource_t *res, uint32_t doma
     /* flush vertex cache */
     if (info->ChipFamily == CHIP_FAMILY_CEDAR)
 	evergreen_cp_set_surface_sync(pScrn, TC_ACTION_ENA_bit,
-				      accel_state->vb_offset, accel_state->vb_mc_addr,
+				      accel_state->vbo.vb_offset, accel_state->vbo.vb_mc_addr,
 				      res->bo,
 				      domain, 0);
     else
 	evergreen_cp_set_surface_sync(pScrn, VC_ACTION_ENA_bit,
-				      accel_state->vb_offset, accel_state->vb_mc_addr,
+				      accel_state->vbo.vb_offset, accel_state->vbo.vb_mc_addr,
 				      res->bo,
 				      domain, 0);
 
@@ -1052,26 +1052,26 @@ void evergreen_finish_op(ScrnInfoPtr pScrn, int vtx_size)
     draw_config_t   draw_conf;
     vtx_resource_t  vtx_res;
 
-    if (accel_state->vb_start_op == -1)
+    if (accel_state->vbo.vb_start_op == -1)
       return;
 
     CLEAR (draw_conf);
     CLEAR (vtx_res);
 
-    if (accel_state->vb_offset == accel_state->vb_start_op) {
+    if (accel_state->vbo.vb_offset == accel_state->vbo.vb_start_op) {
 	radeon_ib_discard(pScrn);
 	radeon_cs_flush_indirect(pScrn);
-	radeon_vb_discard(pScrn);
+	radeon_vb_discard(pScrn, &accel_state->vbo);
 	return;
     }
 
     /* Vertex buffer setup */
-    accel_state->vb_size = accel_state->vb_offset - accel_state->vb_start_op;
+    accel_state->vbo.vb_size = accel_state->vbo.vb_offset - accel_state->vbo.vb_start_op;
     vtx_res.id              = SQ_FETCH_RESOURCE_vs;
     vtx_res.vtx_size_dw     = vtx_size / 4;
-    vtx_res.vtx_num_entries = accel_state->vb_size / 4;
-    vtx_res.vb_addr         = accel_state->vb_mc_addr + accel_state->vb_start_op;
-    vtx_res.bo              = accel_state->vb_bo;
+    vtx_res.vtx_num_entries = accel_state->vbo.vb_size / 4;
+    vtx_res.vb_addr         = accel_state->vbo.vb_mc_addr + accel_state->vbo.vb_start_op;
+    vtx_res.bo              = accel_state->vbo.vb_bo;
     vtx_res.dst_sel_x       = SQ_SEL_X;
     vtx_res.dst_sel_y       = SQ_SEL_Y;
     vtx_res.dst_sel_z       = SQ_SEL_Z;
@@ -1092,7 +1092,7 @@ void evergreen_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 				  accel_state->dst_size, accel_state->dst_obj.offset,
 				  accel_state->dst_obj.bo, 0, accel_state->dst_obj.domain);
 
-    accel_state->vb_start_op = -1;
+    accel_state->vbo.vb_start_op = -1;
     accel_state->ib_reset_op = 0;
 
 }

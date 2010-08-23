@@ -41,8 +41,6 @@
 #include "radeon_exa_shared.h"
 #include "radeon_vbo.h"
 
-/* #define SHOW_VERTEXES */
-
 uint32_t EVERGREEN_ROP[16] = {
     RADEON_ROP3_ZERO, /* GXclear        */
     RADEON_ROP3_DSa,  /* Gxand          */
@@ -241,7 +239,7 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	RADEON_FALLBACK(("ps const buffer size check failed\n"));
     }
 
-    radeon_vbo_check(pScrn, 16);
+    radeon_vbo_check(pScrn, &accel_state->vbo, 16);
     radeon_cp_start(pScrn);
 
     evergreen_set_default_state(pScrn);
@@ -342,7 +340,7 @@ EVERGREENSolid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     if (accel_state->vsync)
 	RADEONVlineHelperSet(pScrn, x1, y1, x2, y2);
 
-    vb = radeon_vbo_space(pScrn, 8);
+    vb = radeon_vbo_space(pScrn, &accel_state->vbo, 8);
 
     vb[0] = (float)x1;
     vb[1] = (float)y1;
@@ -353,7 +351,7 @@ EVERGREENSolid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     vb[4] = (float)x2;
     vb[5] = (float)y2;
 
-    radeon_vbo_commit(pScrn);
+    radeon_vbo_commit(pScrn, &accel_state->vbo);
 }
 
 static void
@@ -389,7 +387,7 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     CLEAR (vs_conf);
     CLEAR (ps_conf);
 
-    radeon_vbo_check(pScrn, 16);
+    radeon_vbo_check(pScrn, &accel_state->vbo, 16);
     radeon_cp_start(pScrn);
 
     evergreen_set_default_state(pScrn);
@@ -545,9 +543,11 @@ EVERGREENAppendCopyVertex(ScrnInfoPtr pScrn,
 			  int dstX, int dstY,
 			  int w, int h)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
     float *vb;
 
-    vb = radeon_vbo_space(pScrn, 16);
+    vb = radeon_vbo_space(pScrn, &accel_state->vbo, 16);
 
     vb[0] = (float)dstX;
     vb[1] = (float)dstY;
@@ -564,7 +564,7 @@ EVERGREENAppendCopyVertex(ScrnInfoPtr pScrn,
     vb[10] = (float)(srcX + w);
     vb[11] = (float)(srcY + h);
 
-    radeon_vbo_commit(pScrn);
+    radeon_vbo_commit(pScrn, &accel_state->vbo);
 }
 
 static Bool
@@ -1311,9 +1311,9 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     }
 
     if (pMask)
-        radeon_vbo_check(pScrn, 24);
+        radeon_vbo_check(pScrn, &accel_state->vbo, 24);
     else
-        radeon_vbo_check(pScrn, 16);
+        radeon_vbo_check(pScrn, &accel_state->vbo, 16);
 
     radeon_cp_start(pScrn);
 
@@ -1326,7 +1326,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     if (!EVERGREENTextureSetup(pSrcPicture, pSrc, 0)) {
         radeon_ib_discard(pScrn);
         radeon_cs_flush_indirect(pScrn);
-        radeon_vb_discard(pScrn);
+        radeon_vb_discard(pScrn, &accel_state->vbo);
         return FALSE;
     }
 
@@ -1334,7 +1334,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
         if (!EVERGREENTextureSetup(pMaskPicture, pMask, 1)) {
 	    radeon_ib_discard(pScrn);
 	    radeon_cs_flush_indirect(pScrn);
-            radeon_vb_discard(pScrn);
+            radeon_vb_discard(pScrn, &accel_state->vbo);
             return FALSE;
         }
     } else
@@ -1470,7 +1470,7 @@ static void EVERGREENComposite(PixmapPtr pDst,
 
     if (accel_state->msk_pic) {
 
-	vb = radeon_vbo_space(pScrn, 24);
+	vb = radeon_vbo_space(pScrn, &accel_state->vbo, 24);
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
@@ -1493,11 +1493,11 @@ static void EVERGREENComposite(PixmapPtr pDst,
 	vb[16] = (float)(maskX + w);
 	vb[17] = (float)(maskY + h);
 
-	radeon_vbo_commit(pScrn);
+	radeon_vbo_commit(pScrn, &accel_state->vbo);
 
     } else {
 
-	vb = radeon_vbo_space(pScrn, 16);
+	vb = radeon_vbo_space(pScrn, &accel_state->vbo, 16);
 
 	vb[0] = (float)dstX;
 	vb[1] = (float)dstY;
@@ -1514,7 +1514,7 @@ static void EVERGREENComposite(PixmapPtr pDst,
 	vb[10] = (float)(srcX + w);
 	vb[11] = (float)(srcY + h);
 
-	radeon_vbo_commit(pScrn);
+	radeon_vbo_commit(pScrn, &accel_state->vbo);
     }
 
 
@@ -1906,9 +1906,9 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     info->accel_state->src_obj[1].bo = NULL;
     info->accel_state->dst_obj.bo = NULL;
     info->accel_state->copy_area_bo = NULL;
-    info->accel_state->vb_start_op = -1;
+    info->accel_state->vbo.vb_start_op = -1;
     info->accel_state->finish_op = evergreen_finish_op;
-    info->accel_state->verts_per_op = 3;
+    info->accel_state->vbo.verts_per_op = 3;
     RADEONVlineHelperClear(pScrn);
 
     radeon_vbo_init_lists(pScrn);

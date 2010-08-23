@@ -41,31 +41,27 @@
 
 static struct radeon_bo *radeon_vbo_get_bo(ScrnInfoPtr pScrn);
 
-void radeon_vbo_put(ScrnInfoPtr pScrn)
+void radeon_vbo_put(ScrnInfoPtr pScrn, struct radeon_vbo_object *vbo)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-    
-    if (accel_state->vb_bo) {
-	radeon_bo_unmap(accel_state->vb_bo);
-	radeon_bo_unref(accel_state->vb_bo);
-	accel_state->vb_bo = NULL;
-	accel_state->vb_total = 0;
+
+    if (vbo->vb_bo) {
+	radeon_bo_unmap(vbo->vb_bo);
+	radeon_bo_unref(vbo->vb_bo);
+	vbo->vb_bo = NULL;
+	vbo->vb_total = 0;
     }
 
-    accel_state->vb_offset = 0;
+    vbo->vb_offset = 0;
 }
 
-void radeon_vbo_get(ScrnInfoPtr pScrn)
+void radeon_vbo_get(ScrnInfoPtr pScrn, struct radeon_vbo_object *vbo)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
 
-    accel_state->vb_bo = radeon_vbo_get_bo(pScrn);
+    vbo->vb_bo = radeon_vbo_get_bo(pScrn);
 
-    accel_state->vb_total = VBO_SIZE;
-    accel_state->vb_offset = 0;
-    accel_state->vb_start_op = accel_state->vb_offset;
+    vbo->vb_total = VBO_SIZE;
+    vbo->vb_offset = 0;
+    vbo->vb_start_op = vbo->vb_offset;
 }
 
 /* these functions could migrate to libdrm and
@@ -80,7 +76,7 @@ static int radeon_bo_is_idle(struct radeon_bo *bo)
 void radeon_vbo_init_lists(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state; 
+    struct radeon_accel_state *accel_state = info->accel_state;
 
     accel_state->use_vbos = TRUE;
     make_empty_list(&accel_state->bo_free);
@@ -91,7 +87,7 @@ void radeon_vbo_init_lists(ScrnInfoPtr pScrn)
 void radeon_vbo_free_lists(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state; 
+    struct radeon_accel_state *accel_state = info->accel_state;
     struct radeon_dma_bo *dma_bo, *temp;
 
     foreach_s(dma_bo, temp, &accel_state->bo_free) {
@@ -116,7 +112,7 @@ void radeon_vbo_free_lists(ScrnInfoPtr pScrn)
 void radeon_vbo_flush_bos(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state; 
+    struct radeon_accel_state *accel_state = info->accel_state;
     struct radeon_dma_bo *dma_bo, *temp;
     const int expire_at = ++accel_state->bo_free.expire_counter + DMA_BO_FREE_TIME;
     const int time = accel_state->bo_free.expire_counter;
@@ -164,7 +160,7 @@ void radeon_vbo_flush_bos(ScrnInfoPtr pScrn)
 static struct radeon_bo *radeon_vbo_get_bo(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state; 
+    struct radeon_accel_state *accel_state = info->accel_state;
     struct radeon_dma_bo *dma_bo = NULL;
     struct radeon_bo *bo;
 

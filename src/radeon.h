@@ -676,6 +676,18 @@ struct r600_accel_object {
     struct radeon_bo *bo;
 };
 
+struct radeon_vbo_object {
+    int               vb_offset;
+    uint64_t          vb_mc_addr;
+    int               vb_total;
+    void              *vb_ptr;
+    uint32_t          vb_size;
+    uint32_t          vb_op_vert_size;
+    int32_t           vb_start_op;
+    struct radeon_bo *vb_bo;
+    unsigned          verts_per_op;
+};
+
 struct radeon_accel_state {
     /* common accel data */
     int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
@@ -723,20 +735,14 @@ struct radeon_accel_state {
     uint32_t          *draw_header;
     unsigned          vtx_count;
     unsigned          num_vtx;
-    unsigned          verts_per_op;
     Bool              vsync;
 
     drmBufPtr         ib;
-    int               vb_offset;
-    uint64_t          vb_mc_addr;
-    int               vb_total;
-    void              *vb_ptr;
-    uint32_t          vb_size;
-    uint32_t          vb_op_vert_size;
-    int32_t           vb_start_op;
+
+    struct radeon_vbo_object vbo;
+
     /* where to discard IB from if we cancel operation */
     uint32_t          ib_reset_op;
-    struct radeon_bo *vb_bo;
 #ifdef XF86DRM_MODE
     struct radeon_dma_bo bo_free;
     struct radeon_dma_bo bo_wait;
