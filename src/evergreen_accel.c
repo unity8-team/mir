@@ -1062,6 +1062,7 @@ void evergreen_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 	radeon_ib_discard(pScrn);
 	radeon_cs_flush_indirect(pScrn);
 	radeon_vb_discard(pScrn, &accel_state->vbo);
+	radeon_vb_discard(pScrn, &accel_state->cbuf);
 	return;
     }
 
@@ -1093,6 +1094,7 @@ void evergreen_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 				  accel_state->dst_obj.bo, 0, accel_state->dst_obj.domain);
 
     accel_state->vbo.vb_start_op = -1;
+    accel_state->cbuf.vb_start_op = -1;
     accel_state->ib_reset_op = 0;
 
 }

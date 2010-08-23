@@ -740,6 +740,7 @@ struct radeon_accel_state {
     drmBufPtr         ib;
 
     struct radeon_vbo_object vbo;
+    struct radeon_vbo_object cbuf;
 
     /* where to discard IB from if we cancel operation */
     uint32_t          ib_reset_op;

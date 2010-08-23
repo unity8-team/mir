@@ -111,7 +111,6 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     const_config_t ps_const_conf;
     float *vs_alu_consts;
     const_config_t vs_const_conf;
-    int ret;
 
     cont = RTFContrast(pPriv->contrast);
     bright = RTFBrightness(pPriv->brightness);
@@ -152,75 +151,6 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     CLEAR (ps_conf);
     CLEAR (vs_const_conf);
     CLEAR (ps_const_conf);
-
-    /* setup the ps consts */
-    ps_const_conf.bo = radeon_bo_open(info->bufmgr, 0, 256, 0,
-				      RADEON_GEM_DOMAIN_GTT, 0);
-    if (ps_const_conf.bo == NULL) {
-	ErrorF("ps const buffer alloc failed\n");
-	return;
-    }
-    ret = radeon_bo_map(ps_const_conf.bo, 0);
-    if (ret) {
-	ErrorF("ps const buffer map failed\n");
-	return;
-    }
-
-    /* PS alu constants */
-    ps_const_conf.size_bytes = 256;
-    ps_const_conf.const_addr = 0;
-    ps_const_conf.type = SHADER_TYPE_PS;
-    ps_alu_consts = (float *)ps_const_conf.bo->ptr;
-
-    ps_alu_consts[0] = off[0];
-    ps_alu_consts[1] = off[1];
-    ps_alu_consts[2] = off[2];
-    ps_alu_consts[3] = yco;
-
-    ps_alu_consts[4] = uco[0];
-    ps_alu_consts[5] = uco[1];
-    ps_alu_consts[6] = uco[2];
-    ps_alu_consts[7] = gamma;
-
-    ps_alu_consts[8] = vco[0];
-    ps_alu_consts[9] = vco[1];
-    ps_alu_consts[10] = vco[2];
-    ps_alu_consts[11] = 0.0;
-    radeon_bo_unmap(ps_const_conf.bo);
-
-    vs_const_conf.bo = radeon_bo_open(info->bufmgr, 0, 256, 0,
-				      RADEON_GEM_DOMAIN_GTT, 0);
-    if (vs_const_conf.bo == NULL) {
-	ErrorF("vs const buffer alloc failed\n");
-	return;
-    }
-    ret = radeon_bo_map(vs_const_conf.bo, 0);
-    if (ret) {
-	ErrorF("vs const buffer map failed\n");
-	return;
-    }
-
-    /* PS alu constants */
-    vs_const_conf.size_bytes = 256;
-    vs_const_conf.const_addr = 0;
-    vs_const_conf.type = SHADER_TYPE_VS;
-    vs_alu_consts = (float *)vs_const_conf.bo->ptr;
-    vs_alu_consts[0] = 1.0 / pPriv->w;
-    vs_alu_consts[1] = 1.0 / pPriv->h;
-    vs_alu_consts[2] = 0.0;
-    vs_alu_consts[3] = 0.0;
-    radeon_bo_unmap(vs_const_conf.bo);
-
-    radeon_cs_space_add_persistent_bo(info->cs, ps_const_conf.bo,
-				      RADEON_GEM_DOMAIN_GTT, 0);
-    radeon_cs_space_add_persistent_bo(info->cs, vs_const_conf.bo,
-				      RADEON_GEM_DOMAIN_GTT, 0);
-    if (radeon_cs_space_check(info->cs)) {
-	radeon_bo_unref(ps_const_conf.bo);
-	radeon_bo_unref(vs_const_conf.bo);
-	ErrorF("const buffer size check failed\n");
-	return;
-    }
 
 #if defined(XF86DRM_MODE)
     if (info->cs) {
@@ -265,6 +195,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 #endif
 
     radeon_vbo_check(pScrn, &accel_state->vbo, 16);
+    radeon_vbo_check(pScrn, &accel_state->cbuf, 512);
     radeon_cp_start(pScrn);
 
     evergreen_set_default_state(pScrn);
@@ -302,9 +233,6 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     ps_conf.export_mode         = 2;
     ps_conf.bo                  = accel_state->shaders_bo;
     evergreen_ps_setup(pScrn, &ps_conf, RADEON_GEM_DOMAIN_VRAM);
-
-    /* PS alu constants */
-    evergreen_set_alu_consts(pScrn, &ps_const_conf, RADEON_GEM_DOMAIN_GTT);
 
     /* Texture */
     switch(pPriv->id) {
@@ -518,7 +446,49 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     E32(0); // SPI_INTERP_CONTROL_0
     END_BATCH();
 
+    /* PS alu constants */
+    ps_const_conf.size_bytes = 256;
+    ps_const_conf.type = SHADER_TYPE_PS;
+    ps_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
+
+    ps_alu_consts[0] = off[0];
+    ps_alu_consts[1] = off[1];
+    ps_alu_consts[2] = off[2];
+    ps_alu_consts[3] = yco;
+
+    ps_alu_consts[4] = uco[0];
+    ps_alu_consts[5] = uco[1];
+    ps_alu_consts[6] = uco[2];
+    ps_alu_consts[7] = gamma;
+
+    ps_alu_consts[8] = vco[0];
+    ps_alu_consts[9] = vco[1];
+    ps_alu_consts[10] = vco[2];
+    ps_alu_consts[11] = 0.0;
+
+    radeon_vbo_commit(pScrn, &accel_state->cbuf);
+
+    /* PS alu constants */
+    ps_const_conf.bo = accel_state->cbuf.vb_bo;
+    ps_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_start_op;
+    evergreen_set_alu_consts(pScrn, &ps_const_conf, RADEON_GEM_DOMAIN_GTT);
+
     /* VS alu constants */
+    vs_const_conf.size_bytes = 256;
+    vs_const_conf.type = SHADER_TYPE_VS;
+    vs_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
+
+    vs_alu_consts = (float *)vs_const_conf.bo->ptr;
+    vs_alu_consts[0] = 1.0 / pPriv->w;
+    vs_alu_consts[1] = 1.0 / pPriv->h;
+    vs_alu_consts[2] = 0.0;
+    vs_alu_consts[3] = 0.0;
+
+    radeon_vbo_commit(pScrn, &accel_state->cbuf);
+
+    /* VS alu constants */
+    vs_const_conf.bo = accel_state->cbuf.vb_bo;
+    vs_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_start_op;
     evergreen_set_alu_consts(pScrn, &vs_const_conf, RADEON_GEM_DOMAIN_GTT);
 
     if (pPriv->vsync) {

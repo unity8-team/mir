@@ -158,7 +158,6 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     cb_config_t     cb_conf;
     shader_config_t vs_conf, ps_conf;
     int pmask = 0;
-    int ret;
     uint32_t a, r, g, b;
     float *ps_alu_consts;
     const_config_t ps_const_conf;
@@ -193,53 +192,8 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     CLEAR (ps_conf);
     CLEAR (ps_const_conf);
 
-    ps_const_conf.bo = radeon_bo_open(info->bufmgr, 0, 256, 0,
-				      RADEON_GEM_DOMAIN_GTT, 0);
-    if (ps_const_conf.bo == NULL)
-	RADEON_FALLBACK(("ps const buffer alloc failed\n"));
-    ret = radeon_bo_map(ps_const_conf.bo, 0);
-    if (ret)
-	RADEON_FALLBACK(("ps const buffer map failed\n"));
-
-    /* PS alu constants */
-    ps_const_conf.size_bytes = 256;
-    ps_const_conf.const_addr = 0;
-    ps_const_conf.type = SHADER_TYPE_PS;
-    ps_alu_consts = (float *)ps_const_conf.bo->ptr;
-    if (accel_state->dst_obj.bpp == 16) {
-	r = (fg >> 11) & 0x1f;
-	g = (fg >> 5) & 0x3f;
-	b = (fg >> 0) & 0x1f;
-	ps_alu_consts[0] = (float)r / 31; /* R */
-	ps_alu_consts[1] = (float)g / 63; /* G */
-	ps_alu_consts[2] = (float)b / 31; /* B */
-	ps_alu_consts[3] = 1.0; /* A */
-    } else if (accel_state->dst_obj.bpp == 8) {
-	a = (fg >> 0) & 0xff;
-	ps_alu_consts[0] = 0.0; /* R */
-	ps_alu_consts[1] = 0.0; /* G */
-	ps_alu_consts[2] = 0.0; /* B */
-	ps_alu_consts[3] = (float)a / 255; /* A */
-    } else {
-	a = (fg >> 24) & 0xff;
-	r = (fg >> 16) & 0xff;
-	g = (fg >> 8) & 0xff;
-	b = (fg >> 0) & 0xff;
-	ps_alu_consts[0] = (float)r / 255; /* R */
-	ps_alu_consts[1] = (float)g / 255; /* G */
-	ps_alu_consts[2] = (float)b / 255; /* B */
-	ps_alu_consts[3] = (float)a / 255; /* A */
-    }
-    radeon_bo_unmap(ps_const_conf.bo);
-
-    radeon_cs_space_add_persistent_bo(info->cs, ps_const_conf.bo,
-				      RADEON_GEM_DOMAIN_GTT, 0);
-    if (radeon_cs_space_check(info->cs)) {
-	radeon_bo_unref(ps_const_conf.bo);
-	RADEON_FALLBACK(("ps const buffer size check failed\n"));
-    }
-
     radeon_vbo_check(pScrn, &accel_state->vbo, 16);
+    radeon_vbo_check(pScrn, &accel_state->cbuf, 256);
     radeon_cp_start(pScrn);
 
     evergreen_set_default_state(pScrn);
@@ -320,6 +274,39 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     E32(FLAT_SHADE_ENA_bit); // SPI_INTERP_CONTROL_0
     END_BATCH();
 
+
+    /* PS alu constants */
+    ps_const_conf.size_bytes = 256;
+    ps_const_conf.type = SHADER_TYPE_PS;
+    ps_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
+    if (accel_state->dst_obj.bpp == 16) {
+	r = (fg >> 11) & 0x1f;
+	g = (fg >> 5) & 0x3f;
+	b = (fg >> 0) & 0x1f;
+	ps_alu_consts[0] = (float)r / 31; /* R */
+	ps_alu_consts[1] = (float)g / 63; /* G */
+	ps_alu_consts[2] = (float)b / 31; /* B */
+	ps_alu_consts[3] = 1.0; /* A */
+    } else if (accel_state->dst_obj.bpp == 8) {
+	a = (fg >> 0) & 0xff;
+	ps_alu_consts[0] = 0.0; /* R */
+	ps_alu_consts[1] = 0.0; /* G */
+	ps_alu_consts[2] = 0.0; /* B */
+	ps_alu_consts[3] = (float)a / 255; /* A */
+    } else {
+	a = (fg >> 24) & 0xff;
+	r = (fg >> 16) & 0xff;
+	g = (fg >> 8) & 0xff;
+	b = (fg >> 0) & 0xff;
+	ps_alu_consts[0] = (float)r / 255; /* R */
+	ps_alu_consts[1] = (float)g / 255; /* G */
+	ps_alu_consts[2] = (float)b / 255; /* B */
+	ps_alu_consts[3] = (float)a / 255; /* A */
+    }
+    radeon_vbo_commit(pScrn, &accel_state->cbuf);
+
+    ps_const_conf.bo = accel_state->cbuf.vb_bo;
+    ps_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_start_op;
     evergreen_set_alu_consts(pScrn, &ps_const_conf, RADEON_GEM_DOMAIN_GTT);
 
     if (accel_state->vsync)
@@ -1208,7 +1195,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     shader_config_t vs_conf, ps_conf;
     const_config_t vs_const_conf;
     struct r600_accel_object src_obj, mask_obj, dst_obj;
-    int ret;
+    float *cbuf;
 
     //return FALSE;
 
@@ -1284,36 +1271,12 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     CLEAR (ps_conf);
     CLEAR (vs_const_conf);
 
-    vs_const_conf.bo = radeon_bo_open(info->bufmgr, 0, 256, 0,
-				      RADEON_GEM_DOMAIN_GTT, 0);
-    if (vs_const_conf.bo == NULL)
-	RADEON_FALLBACK(("vs const buffer alloc failed\n"));
-    ret = radeon_bo_map(vs_const_conf.bo, 0);
-    if (ret)
-	RADEON_FALLBACK(("vs const buffer map failed\n"));
-
-    /* VS alu constants */
-    vs_const_conf.size_bytes = 256;
-    vs_const_conf.const_addr = 0;
-    vs_const_conf.type = SHADER_TYPE_VS;
-
-    EVERGREENXFormSetup(pSrcPicture, pSrc, 0, (float *)vs_const_conf.bo->ptr);
-    if (pMask)
-        EVERGREENXFormSetup(pMaskPicture, pMask, 1, (float *)vs_const_conf.bo->ptr);
-
-    radeon_bo_unmap(vs_const_conf.bo);
-
-    radeon_cs_space_add_persistent_bo(info->cs, vs_const_conf.bo,
-				      RADEON_GEM_DOMAIN_GTT, 0);
-    if (radeon_cs_space_check(info->cs)) {
-	radeon_bo_unref(vs_const_conf.bo);
-	RADEON_FALLBACK(("vs const buffer size check failed\n"));
-    }
-
     if (pMask)
         radeon_vbo_check(pScrn, &accel_state->vbo, 24);
     else
         radeon_vbo_check(pScrn, &accel_state->vbo, 16);
+
+    radeon_vbo_check(pScrn, &accel_state->cbuf, 256);
 
     radeon_cp_start(pScrn);
 
@@ -1327,6 +1290,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
         radeon_ib_discard(pScrn);
         radeon_cs_flush_indirect(pScrn);
         radeon_vb_discard(pScrn, &accel_state->vbo);
+        radeon_vb_discard(pScrn, &accel_state->cbuf);
         return FALSE;
     }
 
@@ -1335,6 +1299,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
 	    radeon_ib_discard(pScrn);
 	    radeon_cs_flush_indirect(pScrn);
             radeon_vb_discard(pScrn, &accel_state->vbo);
+            radeon_vb_discard(pScrn, &accel_state->cbuf);
             return FALSE;
         }
     } else
@@ -1446,6 +1411,19 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     END_BATCH();
 
     /* VS alu constants */
+    vs_const_conf.size_bytes = 256;
+    vs_const_conf.type = SHADER_TYPE_VS;
+    cbuf = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
+
+    EVERGREENXFormSetup(pSrcPicture, pSrc, 0, cbuf);
+    if (pMask)
+        EVERGREENXFormSetup(pMaskPicture, pMask, 1, cbuf);
+
+    radeon_vbo_commit(pScrn, &accel_state->cbuf);
+
+    /* VS alu constants */
+    vs_const_conf.bo = accel_state->cbuf.vb_bo;
+    vs_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_start_op;
     evergreen_set_alu_consts(pScrn, &vs_const_conf, RADEON_GEM_DOMAIN_GTT);
 
     if (accel_state->vsync)
@@ -1907,8 +1885,10 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     info->accel_state->dst_obj.bo = NULL;
     info->accel_state->copy_area_bo = NULL;
     info->accel_state->vbo.vb_start_op = -1;
+    info->accel_state->cbuf.vb_start_op = -1;
     info->accel_state->finish_op = evergreen_finish_op;
     info->accel_state->vbo.verts_per_op = 3;
+    info->accel_state->cbuf.verts_per_op = 1;
     RADEONVlineHelperClear(pScrn);
 
     radeon_vbo_init_lists(pScrn);

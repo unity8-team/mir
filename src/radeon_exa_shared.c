@@ -166,6 +166,7 @@ int radeon_cp_start(ScrnInfoPtr pScrn)
 	}
     }
     accel_state->vbo.vb_start_op = accel_state->vbo.vb_offset;
+    accel_state->cbuf.vb_start_op = accel_state->cbuf.vb_offset;
     return 0;
 }
 
@@ -214,6 +215,8 @@ void radeon_ib_discard(ScrnInfoPtr pScrn)
 
     info->accel_state->vbo.vb_offset = 0;
     info->accel_state->vbo.vb_start_op = -1;
+    info->accel_state->cbuf.vb_offset = 0;
+    info->accel_state->cbuf.vb_start_op = -1;
 
     if (CS_FULL(info->cs)) {
 	radeon_cs_flush_indirect(pScrn);
@@ -225,6 +228,14 @@ void radeon_ib_discard(ScrnInfoPtr pScrn)
 					RADEON_GEM_DOMAIN_GTT, 0);
     if (ret)
 	ErrorF("space check failed in flush\n");
+
+    if (info->accel_state->cbuf.vb_bo) {
+	ret = radeon_cs_space_check_with_bo(info->cs,
+					    info->accel_state->cbuf.vb_bo,
+					    RADEON_GEM_DOMAIN_GTT, 0);
+	if (ret)
+	    ErrorF("space check failed in flush\n");
+    }
 
  out:
     if (info->dri2.enabled) {
