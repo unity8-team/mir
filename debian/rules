@@ -75,8 +75,6 @@ install: build
 	dh_installdirs
 
 	cd build && $(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
-	install -d $(CURDIR)/debian/tmp/usr/bin
-	install -m 755 build/src/reg_dumper/intel_reg_dumper $(CURDIR)/debian/tmp/usr/bin/
 
 # Build architecture-dependent files here.
 binary-arch: DH_OPTIONS=-s

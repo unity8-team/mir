@@ -2,6 +2,12 @@
 
 #include "xorg-server.h"
 
+/* Enable DRI driver support */
+#undef BUILD_DRI
+
+/* Enable developmental DRI driver support */
+#undef BUILD_DRI_DEVEL
+
 /* Enable XvMC support */
 #undef ENABLE_XVMC
 
@@ -13,9 +19,6 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-
-/* Define to 1 if you have the `mprotect' function. */
-#undef HAVE_MPROTECT
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -29,9 +32,6 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the <sys/mman.h> header file. */
-#undef HAVE_SYS_MMAN_H
-
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
@@ -40,9 +40,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
-
-/* xextproto 7.1 available */
-#undef HAVE_XEXTPROTO_71
 
 /* Assume KMS support */
 #undef KMS_ONLY
@@ -89,12 +86,3 @@
 
 /* Version number of package */
 #undef VERSION
-
-/* Enable debug support */
-#undef VIDEO_DEBUG
-
-/* Enable DRI driver support */
-#undef XF86DRI
-
-/* Enable developmental DRI driver support */
-#undef XF86DRI_DEVEL

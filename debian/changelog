@@ -1,3 +1,50 @@
+xserver-xorg-video-intel (2:2.12.0+legacy1-1) unstable; urgency=low
+
+  * Merge from people.freedesktop.org/~ickle/xf86-video-intel:legacy.
+    This reintroduces UMS and EXA for legacy chips, while allowing us to get
+    the fixes and new hw support from 2.12.
+
+ -- Julien Cristau <jcristau@debian.org>  Tue, 24 Aug 2010 21:33:56 +0200
+
+xserver-xorg-video-intel (2:2.12.0-1) experimental; urgency=low
+
+  * New upstream release.
+    + Fix Xv distortion, closes: #581705.
+  * Bump libdrm build-dependency to 2.4.21.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 26 Jun 2010 00:26:59 +0200
+
+xserver-xorg-video-intel (2:2.11.0-1) experimental; urgency=low
+
+  * New upstream release.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 30 Mar 2010 07:04:52 +0200
+
+xserver-xorg-video-intel (2:2.10.903-1) experimental; urgency=low
+
+  * New upstream release candidate.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 23 Mar 2010 07:39:23 +0100
+
+xserver-xorg-video-intel (2:2.10.902-1) experimental; urgency=low
+
+  [ Julien Cristau ]
+  * Rename the build directory to not include DEB_BUILD_GNU_TYPE for no
+    good reason.  Thanks, Colin Watson!
+  * Remove myself from Uploaders
+
+  [ Brice Goglin ]
+  * New upstream release candidate, closes: #567829.
+    + User mode-setting is not supported anymore.
+  * Bump xutils-dev build dependency for new util-macros.
+  * Bump libdrm build dependency to 2.4.18-3 for latest i915 drm headers.
+  * Build depend on libx11-xcb-dev, libxcb-aux0-dev and libxcb-dri2-0-dev
+    for XVMC.
+  * Recommends intel-gpu-tools since intel_reg_dumper is not provided
+    by xserver-xorg-video-intel-dbg anymore.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 16 Mar 2010 20:53:53 +0100
+
 xserver-xorg-video-intel (2:2.9.1-4) unstable; urgency=medium
 
   * Update xsfbs, use new ${xviddriver:Depends} subsvar.

@@ -41,8 +41,7 @@
 #include <stdint.h>
 
 #include <xf86drm.h>
-#include "i830_common.h"
-#include "i830_hwmc.h"
+#include "intel_hwmc.h"
 #include <X11/X.h>
 #include <X11/Xlibint.h>
 #include <X11/Xutil.h>
@@ -58,7 +57,7 @@
 
 #include "intel_batchbuffer.h"
 
-extern int DEBUG;
+#define GTT_PAGE_SIZE 4*1024
 
 #define XVMC_ERR(s, arg...)					\
     do {							\
@@ -70,12 +69,6 @@ extern int DEBUG;
 	fprintf(stderr, "[intel_xvmc] info: " s "\n", ##arg);	\
     } while (0)
 
-#define XVMC_DBG(s, arg...)						\
-    do {								\
-	if (DEBUG)							\
-	    fprintf(stderr, "[intel_xvmc] debug: " s "\n", ##arg);	\
-    } while (0)
-
 /* Subpicture fourcc */
 #define FOURCC_IA44 0x34344149
 
@@ -83,131 +76,116 @@ extern int DEBUG;
   Definitions for temporary wire protocol hooks to be replaced
   when a HW independent libXvMC is created.
 */
-extern Status _xvmc_create_context(Display *dpy, XvMCContext *context,
-				   int *priv_count, CARD32 **priv_data);
+extern Status _xvmc_create_context(Display * dpy, XvMCContext * context,
+				   int *priv_count, CARD32 ** priv_data);
 
-extern Status _xvmc_destroy_context(Display *dpy, XvMCContext *context);
+extern Status _xvmc_destroy_context(Display * dpy, XvMCContext * context);
 
-extern Status _xvmc_create_surface(Display *dpy, XvMCContext *context,
-				   XvMCSurface *surface, int *priv_count,
-				   CARD32 **priv_data);
+extern Status _xvmc_create_surface(Display * dpy, XvMCContext * context,
+				   XvMCSurface * surface, int *priv_count,
+				   CARD32 ** priv_data);
 
-extern Status _xvmc_destroy_surface(Display *dpy, XvMCSurface *surface);
+extern Status _xvmc_destroy_surface(Display * dpy, XvMCSurface * surface);
 
-extern Status  _xvmc_create_subpicture(Display *dpy, XvMCContext *context,
-				       XvMCSubpicture *subpicture,
-				       int *priv_count, uint **priv_data);
+extern Status _xvmc_create_subpicture(Display * dpy, XvMCContext * context,
+				      XvMCSubpicture * subpicture,
+				      int *priv_count, uint ** priv_data);
 
-extern Status   _xvmc_destroy_subpicture(Display *dpy,
-					 XvMCSubpicture *subpicture);
+extern Status _xvmc_destroy_subpicture(Display * dpy,
+				       XvMCSubpicture * subpicture);
 
-typedef struct _intel_xvmc_context {
-    XvMCContext *context;
-    drm_context_t hw_context;	/* context id to kernel drm */
-    struct _intel_xvmc_context *next;
-} intel_xvmc_context_t, *intel_xvmc_context_ptr;
+struct intel_xvmc_context {
+	struct intel_xvmc_hw_context *hw;
+	uint32_t surface_bo_size;
+	drm_context_t hw_context;	/* context id to kernel drm */
+};
+typedef struct intel_xvmc_context *intel_xvmc_context_ptr;
 
-typedef struct _intel_xvmc_surface {
-    XvMCSurface *surface;
-    XvImage *image;
-    GC gc;
-    Bool gc_init;
-    Drawable last_draw;
-    struct intel_xvmc_command data;
-    struct _intel_xvmc_surface *next;
-} intel_xvmc_surface_t, *intel_xvmc_surface_ptr;
+struct intel_xvmc_surface {
+	XvMCContext *context;
+	XvImage *image;
+	GC gc;
+	Bool gc_init;
+	Drawable last_draw;
+	drm_intel_bo *bo;
+	uint32_t gem_handle;
+};
+typedef struct intel_xvmc_surface *intel_xvmc_surface_ptr;
 
 typedef struct _intel_xvmc_drm_map {
-    drm_handle_t handle;
-    unsigned long offset;
-    unsigned long size;
-    unsigned long bus_addr;
-    drmAddress map;
+	drm_handle_t handle;
+	unsigned long offset;
+	unsigned long size;
+	unsigned long bus_addr;
+	drmAddress map;
 } intel_xvmc_drm_map_t, *intel_xvmc_drm_map_ptr;
 
 typedef struct _intel_xvmc_driver {
-    int type;			/* hw xvmc type - i830_hwmc.h */
-    int screen;			/* current screen num*/
+	int type;		/* hw xvmc type - i830_hwmc.h */
+	int screen;		/* current screen num */
 
-    int fd;			/* drm file handler */
+	int fd;			/* drm file handler */
 
-    dri_bufmgr      *bufmgr;
-    unsigned int kernel_exec_fencing:1;
+	dri_bufmgr *bufmgr;
 
-    struct {
-	unsigned int init_offset;
-	unsigned int size;
-	unsigned int space;
-	unsigned char *ptr;
-	unsigned char *init_ptr;
-	dri_bo *buf;
-    } batch;
+	struct {
+		unsigned int init_offset;
+		unsigned int size;
+		unsigned int space;
+		unsigned char *ptr;
+		unsigned char *init_ptr;
+		dri_bo *buf;
+	} batch;
 
-    struct
-    {
-        void *ptr;
-        unsigned int size;
-        unsigned int offset;
-        unsigned int active_buf;
-        unsigned int irq_emitted;
-    } alloc;
-    intel_xvmc_drm_map_t batchbuffer;
-    unsigned int last_render;
+	struct {
+		void *ptr;
+		unsigned int size;
+		unsigned int offset;
+		unsigned int active_buf;
+		unsigned int irq_emitted;
+	} alloc;
+	intel_xvmc_drm_map_t batchbuffer;
 
-    sigset_t sa_mask;
-    pthread_mutex_t ctxmutex;
-    int locked;
+	sigset_t sa_mask;
+	pthread_mutex_t ctxmutex;
+	int locked;
 
-    int num_ctx;
-    intel_xvmc_context_ptr ctx_list;
-    int num_surf;
-    intel_xvmc_surface_ptr surf_list;
+	int num_ctx;
+	intel_xvmc_context_ptr ctx_list;
+	int num_surf;
+	struct intel_xvmc_surface * surf_list;
 
-    void *private;
+	void *private;
 
-    /* driver specific xvmc callbacks */
-    Status (*create_context)(Display* display, XvMCContext *context,
-	    int priv_count, CARD32 *priv_data);
+	/* driver specific xvmc callbacks */
+	 Status(*create_context) (Display * display, XvMCContext * context,
+				  int priv_count, CARD32 * priv_data);
 
-    Status (*destroy_context)(Display* display, XvMCContext *context);
+	 Status(*destroy_context) (Display * display, XvMCContext * context);
 
-    Status (*create_surface)(Display* display, XvMCContext *context,
-	    XvMCSurface *surface, int priv_count, CARD32 *priv_data);
+	 Status(*render_surface) (Display * display, XvMCContext * context,
+				  unsigned int picture_structure,
+				  XvMCSurface * target_surface,
+				  XvMCSurface * past_surface,
+				  XvMCSurface * future_surface,
+				  unsigned int flags,
+				  unsigned int num_macroblocks,
+				  unsigned int first_macroblock,
+				  XvMCMacroBlockArray * macroblock_array,
+				  XvMCBlockArray * blocks);
 
-    Status (*destroy_surface)(Display* display, XvMCSurface *surface);
+	 Status(*begin_surface) (Display * display, XvMCContext * context,
+				 XvMCSurface * target_surface,
+				 XvMCSurface * past_surface,
+				 XvMCSurface * future_surface,
+				 const XvMCMpegControl * control);
+	 Status(*load_qmatrix) (Display * display, XvMCContext * context,
+				const XvMCQMatrix * qmx);
+	 Status(*put_slice) (Display * display, XvMCContext * context,
+			     unsigned char *slice, int bytes);
+	 Status(*put_slice2) (Display * display, XvMCContext * context,
+			      unsigned char *slice, int bytes, int slice_code);
 
-    Status (*render_surface)(Display *display, XvMCContext *context,
-	    unsigned int picture_structure,
-	    XvMCSurface *target_surface,
-	    XvMCSurface *past_surface,
-	    XvMCSurface *future_surface,
-	    unsigned int flags,
-	    unsigned int num_macroblocks,
-	    unsigned int first_macroblock,
-	    XvMCMacroBlockArray *macroblock_array,
-	    XvMCBlockArray *blocks);
-
-    Status (*put_surface)(Display *display, XvMCSurface *surface,
-	    Drawable draw, short srcx, short srcy,
-	    unsigned short srcw, unsigned short srch,
-	    short destx, short desty,
-	    unsigned short destw, unsigned short desth,
-	    int flags, struct intel_xvmc_command *data);
-
-    Status (*get_surface_status)(Display *display, XvMCSurface *surface, int *stat);
-
-    Status (*begin_surface)(Display *display, XvMCContext *context,
-	    XvMCSurface *target_surface,
-	    XvMCSurface *past_surface,
-	    XvMCSurface *future_surface,
-	    const XvMCMpegControl *control);
-    Status (*load_qmatrix)(Display *display, XvMCContext *context,
-	    	const XvMCQMatrix *qmx);
-    Status (*put_slice)(Display *display, XvMCContext *context,
-	    	unsigned char *slice, int bytes);
-    Status (*put_slice2)(Display *display, XvMCContext *context,
-	    	unsigned char *slice, int bytes, int slice_code);
-    
 } intel_xvmc_driver_t, *intel_xvmc_driver_ptr;
 
 extern struct _intel_xvmc_driver i915_xvmc_mc_driver;
@@ -243,36 +221,37 @@ extern struct _intel_xvmc_driver *xvmc_driver;
 extern void LOCK_HARDWARE(drm_context_t);
 extern void UNLOCK_HARDWARE(drm_context_t);
 
-static inline const char* intel_xvmc_decoder_string(int flag)
+static inline const char *intel_xvmc_decoder_string(int flag)
 {
-    switch (flag) {
+	switch (flag) {
 	case XVMC_I915_MPEG2_MC:
-	    return "i915/945 MPEG2 MC decoder";
+		return "i915/945 MPEG2 MC decoder";
 	case XVMC_I965_MPEG2_MC:
-	    return "i965 MPEG2 MC decoder";
+		return "i965 MPEG2 MC decoder";
 	case XVMC_I945_MPEG2_VLD:
-	    return "i945 MPEG2 VLD decoder";
+		return "i945 MPEG2 VLD decoder";
 	case XVMC_I965_MPEG2_VLD:
-	    return "i965 MPEG2 VLD decoder";
+		return "i965 MPEG2 VLD decoder";
 	default:
-	    return "Unknown decoder";
-    }
+		return "Unknown decoder";
+	}
 }
-
-extern intel_xvmc_context_ptr intel_xvmc_find_context(XID id);
-extern intel_xvmc_surface_ptr intel_xvmc_find_surface(XID id);
 
 extern unsigned int mb_bytes_420[64];
 
 /* dump function */
 extern void intel_xvmc_dump_open(void);
 extern void intel_xvmc_dump_close(void);
-extern void intel_xvmc_dump_render(XvMCContext *context, unsigned int picture_structure,
-	    XvMCSurface *target_surface, XvMCSurface *past_surface,
-	    XvMCSurface *future_surface, unsigned int flags,
-	    unsigned int num_macroblocks, unsigned int first_macroblock,
-	    XvMCMacroBlockArray *macroblock_array, XvMCBlockArray *blocks);
-
+extern void intel_xvmc_dump_render(XvMCContext * context,
+				   unsigned int picture_structure,
+				   XvMCSurface * target_surface,
+				   XvMCSurface * past_surface,
+				   XvMCSurface * future_surface,
+				   unsigned int flags,
+				   unsigned int num_macroblocks,
+				   unsigned int first_macroblock,
+				   XvMCMacroBlockArray * macroblock_array,
+				   XvMCBlockArray * blocks);
 
 #define	VFE_GENERIC_MODE	0x0
 #define	VFE_VLD_MODE		0x1

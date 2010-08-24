@@ -52,6 +52,7 @@ extern void intelBatchbufferData(const void *, unsigned, unsigned);
 extern Bool intelInitBatchBuffer(void);
 extern void intelFiniBatchBuffer(void);
 extern void intelCmdIoctl(char *, unsigned);
-extern void intel_batch_emit_reloc(dri_bo *bo, uint32_t read_domain,
-	uint32_t write_domain, uint32_t delta, unsigned char *);
+extern void intel_batch_emit_reloc(dri_bo * bo, uint32_t read_domain,
+				   uint32_t write_domain, uint32_t delta,
+				   unsigned char *);
 #endif /* _INTEL_BATCHBUFFER_H */

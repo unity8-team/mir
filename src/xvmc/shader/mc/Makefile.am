@@ -19,6 +19,7 @@ INTEL_G4A = dual_prime_igd.g4a          \
         null.g4a
 
 INTEL_G4I = addidct.g4i                          \
+        addidct_igd.g4i                          \
         block_clear.g4i                          \
         read_frame_x0y0_y.g4i                    \
         read_frame_x0y1_y.g4i                    \
