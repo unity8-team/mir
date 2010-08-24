@@ -478,7 +478,6 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     vs_const_conf.type = SHADER_TYPE_VS;
     vs_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
 
-    vs_alu_consts = (float *)vs_const_conf.bo->ptr;
     vs_alu_consts[0] = 1.0 / pPriv->w;
     vs_alu_consts[1] = 1.0 / pPriv->h;
     vs_alu_consts[2] = 0.0;
