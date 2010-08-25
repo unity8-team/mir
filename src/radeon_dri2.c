@@ -347,7 +347,6 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     info->accel_state->vsync = vsync;
 
     FreeScratchGC(gc);
-    radeon_cs_flush_indirect(pScrn);
 }
 
 
