@@ -191,8 +191,17 @@ static void RADEONBlockHandler_KMS(int i, pointer blockData,
 
     if (info->VideoTimerCallback)
 	(*info->VideoTimerCallback)(pScrn, currentTime.milliseconds);
+}
 
-    radeon_cs_flush_indirect(pScrn);
+static void
+radeon_flush_callback(CallbackListPtr *list,
+		      pointer user_data, pointer call_data)
+{
+    ScrnInfoPtr pScrn = user_data;
+
+    if (pScrn->vtSema) {
+        radeon_cs_flush_indirect(pScrn);
+    }
 }
 
 static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
@@ -713,6 +722,8 @@ static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
     if (info->cs)
       radeon_cs_flush_indirect(pScrn);
 
+    DeleteCallback(&FlushCallback, radeon_flush_callback, pScrn);
+
     if (info->accel_state->exa) {
 	exaDriverFini(pScreen);
 	free(info->accel_state->exa);
@@ -949,6 +960,10 @@ Bool RADEONScreenInit_KMS(int scrnIndex, ScreenPtr pScreen,
     pScreen->SaveScreen  = RADEONSaveScreen_KMS;
     info->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
+
+    if (!AddCallback(&FlushCallback, radeon_flush_callback, pScrn))
+        return FALSE;
+
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources_KMS;
 
