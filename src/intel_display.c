@@ -80,7 +80,6 @@ struct intel_property {
 struct intel_output {
 	struct intel_mode *mode;
 	int output_id;
-	int dpms_id;
 	drmModeConnectorPtr mode_output;
 	drmModeEncoderPtr mode_encoder;
 	int num_props;
@@ -862,16 +861,56 @@ intel_output_destroy(xf86OutputPtr output)
 }
 
 static void
+intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode)
+{
+	struct intel_output *intel_output = output->driver_private;
+
+	if (!intel_output->backlight_iface)
+		return;
+
+	if (mode == DPMSModeOn) {
+		/* If we're going from off->on we may need to turn on the backlight. */
+		if (oldmode != DPMSModeOn)
+			intel_output_backlight_set(output,
+						   intel_output->backlight_active_level);
+	} else {
+		/* Only save the current backlight value if we're going from on to off. */
+		if (oldmode == DPMSModeOn)
+			intel_output->backlight_active_level = intel_output_backlight_get(output);
+		intel_output_backlight_set(output, 0);
+	}
+}
+
+static void
 intel_output_dpms(xf86OutputPtr output, int dpms)
 {
 	struct intel_output *intel_output = output->driver_private;
+	drmModeConnectorPtr koutput = intel_output->mode_output;
 	struct intel_mode *mode = intel_output->mode;
+	int i;
 
-	drmModeConnectorSetProperty(mode->fd,
-				    intel_output->output_id,
-				    intel_output->dpms_id,
-				    dpms);
-	intel_output->dpms_mode = dpms;
+	for (i = 0; i < koutput->count_props; i++) {
+		drmModePropertyPtr props;
+
+		props = drmModeGetProperty(mode->fd, koutput->props[i]);
+		if (!props)
+			continue;
+
+		if (!strcmp(props->name, "DPMS")) {
+			drmModeConnectorSetProperty(mode->fd,
+						    intel_output->output_id,
+						    props->prop_id,
+						    dpms);
+			intel_output_dpms_backlight(output,
+						      intel_output->dpms_mode,
+						      dpms);
+			intel_output->dpms_mode = dpms;
+			drmModeFreeProperty(props);
+			return;
+		}
+
+		drmModeFreeProperty(props);
+	}
 }
 
 int
@@ -922,10 +961,6 @@ intel_output_create_resources(xf86OutputPtr output)
 
 		drmmode_prop = drmModeGetProperty(mode->fd,
 						  mode_output->props[i]);
-
-		if (!strcmp(drmmode_prop->name, "DPMS"))
-			intel_output->dpms_id = drmmode_prop->prop_id;
-
 		if (intel_property_ignore(drmmode_prop)) {
 			drmModeFreeProperty(drmmode_prop);
 			continue;
