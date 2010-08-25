@@ -780,9 +780,8 @@ uxa_glyphs_to_dst(CARD8 op,
 
 				mask_pixmap =
 					uxa_get_drawable_pixmap(this_atlas->pDrawable);
-				assert (uxa_pixmap_is_offscreen(mask_pixmap));
-
-				if (!uxa_screen->info->prepare_composite(op,
+				if (!uxa_pixmap_is_offscreen(mask_pixmap) ||
+				    !uxa_screen->info->prepare_composite(op,
 									 localSrc, this_atlas, pDst,
 									 src_pixmap, mask_pixmap, dst_pixmap))
 					return -1;
@@ -983,9 +982,8 @@ uxa_glyphs_via_mask(CARD8 op,
 
 				src_pixmap =
 					uxa_get_drawable_pixmap(this_atlas->pDrawable);
-				assert (uxa_pixmap_is_offscreen(src_pixmap));
-
-				if (!uxa_screen->info->prepare_composite(PictOpAdd,
+				if (!uxa_pixmap_is_offscreen(src_pixmap) ||
+				    !uxa_screen->info->prepare_composite(PictOpAdd,
 									 this_atlas, NULL, mask,
 									 src_pixmap, NULL, pixmap))
 					return -1;
