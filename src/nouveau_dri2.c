@@ -93,7 +93,6 @@ nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 	PixmapPtr pspix = src->ppix, pdpix = dst->ppix;
 	ScreenPtr pScreen = pDraw->pScreen;
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
 	RegionPtr pCopyClip;
 	GCPtr pGC;
 
@@ -112,8 +111,6 @@ nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 			   pDraw->width, pDraw->height, 0, 0);
 
 	FreeScratchGC(pGC);
-
-	FIRE_RING(pNv->chan);
 }
 
 Bool
