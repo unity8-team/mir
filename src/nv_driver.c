@@ -355,6 +355,16 @@ NVLeaveVT(int scrnIndex, int flags)
 		ErrorF("Error dropping master: %d\n", ret);
 }
 
+static void
+NVFlushCallback(CallbackListPtr *list, pointer user_data, pointer call_data)
+{
+	ScrnInfoPtr pScrn = user_data;
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pScrn->vtSema && !pNv->NoAccel)
+		FIRE_RING (pNv->chan);
+}
+
 static void 
 NVBlockHandler (
 	int i, 
@@ -366,9 +376,6 @@ NVBlockHandler (
 	ScreenPtr pScreen = screenInfo.screens[i];
 	ScrnInfoPtr pScrnInfo = xf86Screens[i];
 	NVPtr pNv = NVPTR(pScrnInfo);
-
-	if (pScrnInfo->vtSema && !pNv->NoAccel)
-		FIRE_RING (pNv->chan);
 
 	pScreen->BlockHandler = pNv->BlockHandler;
 	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
@@ -431,6 +438,8 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	NVUnmapMem(pScrn);
 
 	xf86_cursors_fini(pScreen);
+
+	DeleteCallback(&FlushCallback, NVFlushCallback, pScrn);
 
 	if (pNv->ShadowPtr) {
 		free(pNv->ShadowPtr);
@@ -1145,6 +1154,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 */
 	pNv->BlockHandler = pScreen->BlockHandler;
 	pScreen->BlockHandler = NVBlockHandler;
+
+	if (!AddCallback(&FlushCallback, NVFlushCallback, pScrn))
+		return FALSE;
 
 	pScrn->vtSema = TRUE;
 	pScrn->pScreen = pScreen;
