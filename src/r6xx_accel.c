@@ -899,7 +899,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     BEGIN_BATCH(80);
     if (info->ChipFamily < CHIP_FAMILY_RV770) {
 	EREG(ib, TA_CNTL_AUX, (( 3 << GRADIENT_CREDIT_shift) |
-				 - (28 << TD_FIFO_CREDIT_shift)));
+			       (28 << TD_FIFO_CREDIT_shift)));
 	EREG(ib, VC_ENHANCE, 0);
 	EREG(ib, R7xx_SQ_DYN_GPR_CNTL_PS_FLUSH_REQ, 0);
 	EREG(ib, DB_DEBUG, 0x82000000); /* ? */
@@ -911,7 +911,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 				 0));
     } else {
 	EREG(ib, TA_CNTL_AUX, (( 2 << GRADIENT_CREDIT_shift) |
-			       - (28 << TD_FIFO_CREDIT_shift)));
+			       (28 << TD_FIFO_CREDIT_shift)));
 	EREG(ib, VC_ENHANCE, 0);
 	EREG(ib, R7xx_SQ_DYN_GPR_CNTL_PS_FLUSH_REQ, VS_PC_LIMIT_ENABLE_bit);
 	EREG(ib, DB_DEBUG, 0);
