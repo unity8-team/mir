@@ -868,8 +868,17 @@ evergreen_set_default_state(ScrnInfoPtr pScrn)
     RELOC_BATCH(accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
     END_BATCH();
 
-    BEGIN_BATCH(45);
+    BEGIN_BATCH(3 + 2);
+    EREG(DB_HTILE_DATA_BASE,                    0);
+    RELOC_BATCH(accel_state->shaders_bo, RADEON_GEM_DOMAIN_VRAM, 0);
+    END_BATCH();
+
+    BEGIN_BATCH(49);
     EREG(DB_DEPTH_CONTROL,                    0);
+
+    PACK0(PA_SC_VPORT_ZMIN_0, 2);
+    EFLOAT(0.0); // PA_SC_VPORT_ZMIN_0
+    EFLOAT(1.0); // PA_SC_VPORT_ZMAX_0
 
     PACK0(DB_RENDER_CONTROL, 5);
     E32(STENCIL_COMPRESS_DISABLE_bit | DEPTH_COMPRESS_DISABLE_bit); // DB_RENDER_CONTROL
