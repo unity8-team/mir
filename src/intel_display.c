@@ -708,6 +708,7 @@ intel_output_attach_edid(xf86OutputPtr output)
 	drmModeConnectorPtr koutput = intel_output->mode_output;
 	struct intel_mode *mode = intel_output->mode;
 	drmModePropertyBlobPtr edid_blob = NULL;
+	xf86MonPtr mon = NULL;
 	int i;
 
 	/* look for an EDID property */
@@ -733,15 +734,16 @@ intel_output_attach_edid(xf86OutputPtr output)
 	}
 
 	if (edid_blob) {
-		xf86OutputSetEDID(output,
-				  xf86InterpretEDID(output->scrn->scrnIndex,
-						    edid_blob->data));
+		mon = xf86InterpretEDID(output->scrn->scrnIndex,
+					edid_blob->data);
+
+		if (mon && edid_blob->length > 128)
+			mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
+
 		drmModeFreePropertyBlob(edid_blob);
-	} else {
-		xf86OutputSetEDID(output,
-				  xf86InterpretEDID(output->scrn->scrnIndex,
-						    NULL));
 	}
+
+	xf86OutputSetEDID(output, mon);
 }
 
 static DisplayModePtr
