@@ -662,24 +662,16 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	    (access == UXA_ACCESS_RW || priv->batch_write))
 		intel_batch_submit(scrn, FALSE);
 
-	if (bo->size > intel->max_gtt_map_size) {
-		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
-		if (ret != 0) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: bo map failed: %s\n",
-				   __FUNCTION__,
-				   strerror(-ret));
-			return FALSE;
-		}
-	} else {
+	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
 		ret = drm_intel_gem_bo_map_gtt(bo);
-		if (ret != 0) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: gtt bo map failed: %s\n",
-				   __FUNCTION__,
-				   strerror(-ret));
-			return FALSE;
-		}
+	else
+		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
+	if (ret) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "%s: bo map failed: %s\n",
+			   __FUNCTION__,
+			   strerror(-ret));
+		return FALSE;
 	}
 
 	pixmap->devPrivate.ptr = bo->virtual;
@@ -690,18 +682,19 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 static void intel_uxa_finish_access(PixmapPtr pixmap)
 {
-	dri_bo *bo = intel_get_pixmap_bo(pixmap);
 	ScreenPtr screen = pixmap->drawable.pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	dri_bo *bo = priv->bo;
 
 	if (bo == intel->front_buffer)
 		intel->need_sync = TRUE;
 
-	if (bo->size > intel->max_gtt_map_size)
-		dri_bo_unmap(bo);
-	else
+	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
 		drm_intel_gem_bo_unmap_gtt(bo);
+	else
+		dri_bo_unmap(bo);
 
 	pixmap->devPrivate.ptr = NULL;
 }
