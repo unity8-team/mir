@@ -239,9 +239,9 @@ intel_output_backlight_init(xf86OutputPtr output)
 		sprintf(path, "%s/%s", BACKLIGHT_CLASS, backlight_interfaces[i]);
 		if (!stat(path, &buf)) {
 			intel_output->backlight_iface = backlight_interfaces[i];
-			intel_output->backlight_active_level = intel_output_backlight_get(output);
 			intel_output->backlight_max = intel_output_backlight_get_max(output);
 			if (intel_output->backlight_max > 0) {
+				intel_output->backlight_active_level = intel_output_backlight_get(output);
 				xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
 					   "found backlight control interface %s\n", path);
 				return;
