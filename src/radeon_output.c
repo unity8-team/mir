@@ -3083,6 +3083,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    if (!output) {
 		return FALSE;
 	    }
+	    output->interlaceAllowed = TRUE;
+	    output->doubleScanAllowed = TRUE;
 	    output->driver_private = radeon_output;
 	    if (IS_DCE4_VARIANT) {
 		output->possible_crtcs = 0x3f;

@@ -960,6 +960,8 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	output->mm_height = koutput->mmHeight;
 
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
+	output->interlaceAllowed = TRUE;
+	output->doubleScanAllowed = TRUE;
 	output->driver_private = drmmode_output;
 	
 	output->possible_crtcs = 0x7f;
