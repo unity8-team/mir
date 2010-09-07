@@ -86,9 +86,9 @@ struct intel_output {
 	struct intel_property *props;
 	void *private_data;
 
-	Bool has_lvds_limits;
-	int lvds_hdisplay;
-	int lvds_vdisplay;
+	Bool has_panel_limits;
+	int panel_hdisplay;
+	int panel_vdisplay;
 
 	int dpms_mode;
 	const char *backlight_iface;
@@ -689,12 +689,12 @@ intel_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 	struct intel_output *intel_output = output->driver_private;
 
 	/*
-	 * If the connector type is LVDS, we will use the panel limit to
+	 * If the connector type is a panel, we will use the panel limit to
 	 * verfiy whether the mode is valid.
 	 */
-	if (intel_output->has_lvds_limits) {
-		if (pModes->HDisplay > intel_output->lvds_hdisplay ||
-		    pModes->VDisplay > intel_output->lvds_vdisplay)
+	if (intel_output->has_panel_limits) {
+		if (pModes->HDisplay > intel_output->panel_hdisplay ||
+		    pModes->VDisplay > intel_output->panel_vdisplay)
 			return MODE_PANEL;
 	}
 
@@ -747,7 +747,7 @@ intel_output_attach_edid(xf86OutputPtr output)
 }
 
 static DisplayModePtr
-intel_output_lvds_edid(xf86OutputPtr output, DisplayModePtr modes)
+intel_output_panel_edid(xf86OutputPtr output, DisplayModePtr modes)
 {
 	xf86MonPtr mon = output->MonInfo;
 
@@ -814,29 +814,29 @@ intel_output_get_modes(xf86OutputPtr output)
 	}
 
 	/*
-	 * If the connector type is LVDS, we will traverse the kernel mode to
+	 * If the connector type is a panel, we will traverse the kernel mode to
 	 * get the panel limit. And then add all the standard modes to fake
 	 * the fullscreen experience.
 	 * If it is incorrect, please fix me.
 	 */
-	intel_output->has_lvds_limits = FALSE;
+	intel_output->has_panel_limits = FALSE;
 	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS ||
 	    koutput->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		for (i = 0; i < koutput->count_modes; i++) {
 			drmModeModeInfo *mode_ptr;
 
 			mode_ptr = &koutput->modes[i];
-			if (mode_ptr->hdisplay > intel_output->lvds_hdisplay)
-				intel_output->lvds_hdisplay = mode_ptr->hdisplay;
-			if (mode_ptr->vdisplay > intel_output->lvds_vdisplay)
-				intel_output->lvds_vdisplay = mode_ptr->vdisplay;
+			if (mode_ptr->hdisplay > intel_output->panel_hdisplay)
+				intel_output->panel_hdisplay = mode_ptr->hdisplay;
+			if (mode_ptr->vdisplay > intel_output->panel_vdisplay)
+				intel_output->panel_vdisplay = mode_ptr->vdisplay;
 		}
 
-		intel_output->has_lvds_limits =
-			intel_output->lvds_hdisplay &&
-			intel_output->lvds_vdisplay;
+		intel_output->has_panel_limits =
+			intel_output->panel_hdisplay &&
+			intel_output->panel_vdisplay;
 
-		Modes = intel_output_lvds_edid(output, Modes);
+		Modes = intel_output_panel_edid(output, Modes);
 	}
 
 	return Modes;
