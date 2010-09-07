@@ -1290,7 +1290,8 @@ intel_output_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = intel_output;
 
-	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS)
+	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS ||
+	    koutput->connector_type == DRM_MODE_CONNECTOR_eDP)
 		intel_output_backlight_init(output);
 
 	output->possible_crtcs = kencoder->possible_crtcs;
