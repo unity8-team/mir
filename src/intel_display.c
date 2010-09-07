@@ -820,7 +820,8 @@ intel_output_get_modes(xf86OutputPtr output)
 	 * If it is incorrect, please fix me.
 	 */
 	intel_output->has_lvds_limits = FALSE;
-	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS) {
+	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS ||
+	    koutput->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		for (i = 0; i < koutput->count_modes; i++) {
 			drmModeModeInfo *mode_ptr;
 
