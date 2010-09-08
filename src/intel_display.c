@@ -488,12 +488,14 @@ intel_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	struct intel_crtc *intel_crtc = crtc->driver_private;
 	struct intel_mode *mode = intel_crtc->mode;
 	unsigned long rotate_pitch;
+	uint32_t tiling;
 	int ret;
 
 	intel_crtc->rotate_bo = intel_allocate_framebuffer(scrn,
 							     width, height,
 							     mode->cpp,
-							     &rotate_pitch);
+							     &rotate_pitch,
+							     &tiling);
 
 	if (!intel_crtc->rotate_bo) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
@@ -580,7 +582,7 @@ intel_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 		intel_crtc->rotate_bo = NULL;
 	}
 
-	intel->shadow_present = FALSE;
+	intel->shadow_present = intel->use_shadow;
 }
 
 static void
@@ -1310,11 +1312,10 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *old_front = NULL;
 	Bool	    ret;
-	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
-	PixmapPtr   pixmap;
 	uint32_t    old_fb_id;
 	int	    i, old_width, old_height, old_pitch;
 	unsigned long pitch;
+	uint32_t tiling;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
@@ -1328,7 +1329,8 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	intel->front_buffer = intel_allocate_framebuffer(scrn,
 							 width, height,
 							 intel->cpp,
-							 &pitch);
+							 &pitch,
+							 &tiling);
 	if (!intel->front_buffer)
 		goto fail;
 
@@ -1339,14 +1341,11 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (ret)
 		goto fail;
 
+	intel->front_pitch = pitch;
+	intel->front_tiling = tiling;
+
 	scrn->virtualX = width;
 	scrn->virtualY = height;
-	scrn->displayWidth = pitch / intel->cpp;
-
-	pixmap = screen->GetScreenPixmap(screen);
-	screen->ModifyPixmapHeader(pixmap, width, height, -1, -1, pitch, NULL);
-	intel_set_pixmap_bo(pixmap, intel->front_buffer);
-	intel_get_pixmap_private(pixmap)->busy = 1;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -1357,6 +1356,8 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		if (!intel_crtc_apply(crtc))
 			goto fail;
 	}
+
+	intel_uxa_create_screen_resources(scrn->pScreen);
 
 	if (old_fb_id)
 		drmModeRmFB(mode->fd, old_fb_id);
@@ -1380,10 +1381,11 @@ fail:
 }
 
 Bool
-intel_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data)
+intel_do_pageflip(intel_screen_private *intel,
+		  dri_bo *new_front,
+		  void *data)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
+	ScrnInfoPtr scrn = intel->scrn;
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
 	struct intel_crtc *crtc = config->crtc[0]->driver_private;
 	struct intel_mode *mode = crtc->mode;
@@ -1454,11 +1456,15 @@ intel_page_flip_handler(int fd, unsigned int frame, unsigned int tv_sec,
 {
 	struct intel_mode *mode = event_data;
 
+
 	mode->flip_count--;
 	if (mode->flip_count > 0)
 		return;
 
 	drmModeRmFB(mode->fd, mode->old_fb_id);
+
+	if (mode->event_data == NULL)
+		return;
 
 	I830DRI2FlipEventHandler(frame, tv_sec, tv_usec, mode->event_data);
 }
@@ -1466,10 +1472,15 @@ intel_page_flip_handler(int fd, unsigned int frame, unsigned int tv_sec,
 static void
 drm_wakeup_handler(pointer data, int err, pointer p)
 {
-	struct intel_mode *mode = data;
-	fd_set *read_mask = p;
+	struct intel_mode *mode;
+	fd_set *read_mask;
 
-	if (err >= 0 && FD_ISSET(mode->fd, read_mask))
+	if (data == NULL || err < 0)
+		return;
+
+	mode = data;
+	read_mask = p;
+	if (FD_ISSET(mode->fd, read_mask))
 		drmHandleEvent(mode->fd, &mode->event_context);
 }
 

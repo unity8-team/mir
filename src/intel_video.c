@@ -362,7 +362,9 @@ void I830InitVideo(ScreenPtr screen)
 	/* Set up textured video if we can do it at this depth and we are on
 	 * supported hardware.
 	 */
-	if (scrn->bitsPerPixel >= 16 && (IS_I9XX(intel) || IS_I965G(intel))) {
+	if (scrn->bitsPerPixel >= 16 &&
+	    (IS_I9XX(intel) || IS_I965G(intel)) &&
+	    !intel->use_shadow) {
 		texturedAdaptor = I830SetupImageVideoTextured(screen);
 		if (texturedAdaptor != NULL) {
 			xf86DrvMsg(scrn->scrnIndex, X_INFO,

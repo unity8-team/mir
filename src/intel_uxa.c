@@ -688,9 +688,6 @@ static void intel_uxa_finish_access(PixmapPtr pixmap)
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	dri_bo *bo = priv->bo;
 
-	if (bo == intel->front_buffer)
-		intel->need_sync = TRUE;
-
 	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
 		drm_intel_gem_bo_unmap_gtt(bo);
 	else
@@ -892,14 +889,197 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 		scratch->drawable.pScreen->DestroyPixmap(scratch);
 
 	return ret;
+}
 
+static dri_bo *
+intel_shadow_create_bo(intel_screen_private *intel,
+		       int16_t x1, int16_t y1,
+		       int16_t x2, int16_t y2,
+		       int *pitch)
+{
+	int w = x2 - x1, h = y2 - y1;
+	int size = h * w * intel->cpp;
+	dri_bo *bo;
+
+	bo = drm_intel_bo_alloc(intel->bufmgr, "shadow", size, 0);
+	if (bo && drm_intel_gem_bo_map_gtt(bo) == 0) {
+		char *dst = bo->virtual;
+		char *src = intel->shadow_pixmap->devPrivate.ptr;
+		int src_pitch = intel->shadow_pixmap->devKind;
+		int row_length = w * intel->cpp;
+		int num_rows = h;
+		src += y1 * src_pitch + x1 * intel->cpp;
+		do {
+			memcpy (dst, src, row_length);
+			src += src_pitch;
+			dst += row_length;
+		} while (--num_rows);
+		drm_intel_gem_bo_unmap_gtt(bo);
+	}
+
+	*pitch = w * intel->cpp;
+	return bo;
+}
+
+static void
+intel_shadow_blt(intel_screen_private *intel)
+{
+	ScrnInfoPtr scrn = intel->scrn;
+	unsigned int dst_pitch;
+	uint32_t blt, br13;
+	RegionPtr region;
+	BoxPtr box;
+	int n;
+
+	dst_pitch = intel->front_pitch;
+
+	blt = XY_SRC_COPY_BLT_CMD;
+	if (intel->cpp == 4)
+		blt |= (XY_SRC_COPY_BLT_WRITE_ALPHA |
+				XY_SRC_COPY_BLT_WRITE_RGB);
+
+	if (IS_I965G(intel)) {
+		if (intel->front_tiling) {
+			dst_pitch >>= 2;
+			blt |= XY_SRC_COPY_BLT_DST_TILED;
+		}
+	}
+
+	br13 = ROP_S << 16 | dst_pitch;
+	switch (intel->cpp) {
+		default:
+		case 4: br13 |= 1 << 25; /* RGB8888 */
+		case 2: br13 |= 1 << 24; /* RGB565 */
+		case 1: break;
+	}
+
+	region = DamageRegion(intel->shadow_damage);
+	box = REGION_RECTS(region);
+	n = REGION_NUM_RECTS(region);
+	while (n--) {
+		int pitch;
+		dri_bo *bo;
+		int offset;
+
+		if (intel->shadow_buffer) {
+			bo = intel->shadow_buffer;
+			offset = box->x1 | box->y1 << 16;
+			pitch = intel->shadow_pixmap->devKind;
+		} else {
+			bo = intel_shadow_create_bo(intel,
+						    box->x1, box->y1,
+						    box->x2, box->y2,
+						    &pitch);
+			if (bo == NULL)
+				return;
+
+			offset = 0;
+		}
+
+		BEGIN_BATCH(8);
+		OUT_BATCH(blt);
+		OUT_BATCH(br13);
+		OUT_BATCH(box->y1 << 16 | box->x1);
+		OUT_BATCH(box->y2 << 16 | box->x2);
+		OUT_RELOC_FENCED(intel->front_buffer,
+				I915_GEM_DOMAIN_RENDER,
+				I915_GEM_DOMAIN_RENDER,
+				0);
+		OUT_BATCH(offset);
+		OUT_BATCH(pitch);
+		OUT_RELOC(bo, I915_GEM_DOMAIN_RENDER, 0, 0);
+
+		ADVANCE_BATCH();
+
+		if (bo != intel->shadow_buffer)
+			drm_intel_bo_unreference(bo);
+		box++;
+	}
+}
+
+static void intel_shadow_create(struct intel_screen_private *intel)
+{
+	ScrnInfoPtr scrn = intel->scrn;
+	ScreenPtr screen = scrn->pScreen;
+	PixmapPtr pixmap;
+	int stride;
+
+	if (IS_I8XX(intel))
+		pixmap = screen->GetScreenPixmap(screen);
+	else
+		pixmap = intel->shadow_pixmap;
+
+	if (intel->shadow_damage) {
+		DamageUnregister(&pixmap->drawable, intel->shadow_damage);
+		DamageDestroy(intel->shadow_damage);
+	}
+
+	if (IS_I8XX(intel)) {
+		dri_bo *bo;
+		int size;
+
+		/* Reduce the incoherency worries for gen2
+		 * by only allocating a static shadow, at about 2-3x
+		 * performance cost for forcing rendering to uncached memory.
+		 */
+		if (intel->shadow_buffer) {
+			drm_intel_gem_bo_unmap_gtt(intel->shadow_buffer);
+			drm_intel_bo_unreference(intel->shadow_buffer);
+			intel->shadow_buffer = NULL;
+		}
+
+		stride = ALIGN(scrn->virtualX * intel->cpp, 4);
+		size = stride * scrn->virtualY;
+		bo = drm_intel_bo_alloc(intel->bufmgr,
+					"shadow", size,
+					0);
+		if (bo && drm_intel_gem_bo_map_gtt(bo) == 0) {
+			screen->ModifyPixmapHeader(pixmap,
+						   scrn->virtualX,
+						   scrn->virtualY,
+						   -1, -1,
+						   stride,
+						   bo->virtual);
+			intel->shadow_buffer = bo;
+		}
+	} else {
+		if (intel->shadow_pixmap)
+			fbDestroyPixmap(intel->shadow_pixmap);
+
+		pixmap = fbCreatePixmap(screen,
+					scrn->virtualX,
+					scrn->virtualY,
+					scrn->depth,
+					0);
+
+		screen->SetScreenPixmap(pixmap);
+		stride = pixmap->devKind;
+	}
+
+	intel->shadow_pixmap = pixmap;
+	intel->shadow_damage = DamageCreate(NULL, NULL,
+					    DamageReportNone,
+					    TRUE,
+					    screen,
+					    intel);
+	DamageRegister(&pixmap->drawable, intel->shadow_damage);
+	DamageSetReportAfterOp(intel->shadow_damage, TRUE);
+
+	scrn->displayWidth = stride / intel->cpp;
 }
 
 void intel_uxa_block_handler(intel_screen_private *intel)
 {
-	if (intel->need_sync) {
-		dri_bo_wait_rendering(intel->front_buffer);
-		intel->need_sync = FALSE;
+	if (intel->shadow_damage &&
+	    pixman_region_not_empty(DamageRegion(intel->shadow_damage))) {
+		intel_shadow_blt(intel);
+		/* Emit a flush of the rendering cache, or on the 965
+		 * and beyond rendering results may not hit the
+		 * framebuffer until significantly later.
+		 */
+		intel_batch_submit(intel->scrn, TRUE);
+
+		DamageEmpty(intel->shadow_damage);
 	}
 }
 
@@ -1045,17 +1225,27 @@ static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 	return TRUE;
 }
 
-
 void intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	dri_bo *bo = intel->front_buffer;
 
-	if (bo != NULL) {
-		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-		intel_set_pixmap_bo(pixmap, bo);
-		intel_get_pixmap_private(pixmap)->busy = 1;
+	if (intel->use_shadow) {
+		intel_shadow_create(intel);
+	} else {
+		dri_bo *bo = intel->front_buffer;
+		if (bo != NULL) {
+			PixmapPtr pixmap = screen->GetScreenPixmap(screen);
+			intel_set_pixmap_bo(pixmap, bo);
+			intel_get_pixmap_private(pixmap)->busy = 1;
+			screen->ModifyPixmapHeader(pixmap,
+						   scrn->virtualX,
+						   scrn->virtualY,
+						   -1, -1,
+						   intel->front_pitch,
+						   NULL);
+		}
+		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
 }
 
@@ -1131,8 +1321,6 @@ Bool intel_uxa_init(ScreenPtr screen)
 
 	memset(intel->uxa_driver, 0, sizeof(*intel->uxa_driver));
 
-	intel->force_fallback = FALSE;
-
 	intel->bufferOffset = 0;
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
@@ -1206,6 +1394,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 	}
 
 	uxa_set_fallback_debug(screen, intel->fallback_debug);
+	uxa_set_force_fallback(screen, intel->force_fallback);
 
 	return TRUE;
 }

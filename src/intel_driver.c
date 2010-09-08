@@ -98,6 +98,7 @@ typedef enum {
    OPTION_COLOR_KEY,
    OPTION_FALLBACKDEBUG,
    OPTION_TILING,
+   OPTION_SHADOW,
    OPTION_SWAPBUFFERS_WAIT,
 #ifdef INTEL_XVMC
    OPTION_XVMC,
@@ -115,6 +116,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_FALLBACKDEBUG, "FallbackDebug", OPTV_BOOLEAN, {0},	FALSE},
    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
@@ -536,6 +538,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 		scrn->driverPrivate = intel;
 	}
+	intel->scrn = scrn;
 	intel->pEnt = pEnt;
 
 	scrn->displayWidth = 640;	/* default it */
@@ -726,13 +729,16 @@ static Bool
 intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	int width = scrn->virtualX;
+	int height = scrn->virtualY;
 	unsigned long pitch;
+	uint32_t tiling;
 
 	intel->front_buffer = intel_allocate_framebuffer(scrn,
-							 scrn->virtualX,
-							 scrn->virtualY,
+							 width, height,
 							 intel->cpp,
-							 &pitch);
+							 &pitch,
+							 &tiling);
 
 	if (!intel->front_buffer) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -740,6 +746,8 @@ intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 		return FALSE;
 	}
 
+	intel->front_pitch = pitch;
+	intel->front_tiling = tiling;
 	scrn->displayWidth = pitch / intel->cpp;
 
 	return TRUE;
@@ -828,6 +836,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 		intel->directRenderingType = DRI_DRI2;
 #endif
 
+	intel->force_fallback = FALSE;
+	intel->use_shadow = FALSE;
+
 	/* Enable tiling by default */
 	intel->tiling = TRUE;
 
@@ -837,6 +848,17 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 			intel->tiling = TRUE;
 		else
 			intel->tiling = FALSE;
+	}
+
+	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
+		if (xf86ReturnOptValBool(intel->Options, OPTION_SHADOW, FALSE))
+			intel->force_fallback = intel->use_shadow = TRUE;
+	}
+
+	if (intel->use_shadow) {
+		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
+			   "Shadow buffer enabled,"
+			   " GPU acceleration disabled.\n");
 	}
 
 	/* SwapBuffers delays to avoid tearing */
@@ -1101,6 +1123,8 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		I830LeaveVT(scrnIndex, 0);
 	}
 
+	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
+
 	if (intel->uxa_driver) {
 		uxa_driver_fini(screen);
 		free(intel->uxa_driver);
@@ -1108,13 +1132,31 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	}
 
 	if (intel->front_buffer) {
-		intel_set_pixmap_bo(screen->GetScreenPixmap(screen), NULL);
+		if (!intel->use_shadow)
+			intel_set_pixmap_bo(screen->GetScreenPixmap(screen),
+					    NULL);
 		intel_mode_remove_fb(intel);
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
 	}
 
-	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
+	if (intel->shadow_pixmap) {
+		PixmapPtr pixmap = intel->shadow_pixmap;
+
+		if (intel->shadow_damage) {
+			DamageUnregister(&pixmap->drawable,
+					 intel->shadow_damage);
+			DamageDestroy(intel->shadow_damage);
+			intel->shadow_damage = NULL;
+		}
+
+		if (intel->shadow_buffer) {
+			drm_intel_bo_unreference(intel->shadow_buffer);
+			intel->shadow_buffer = NULL;
+		}
+
+		intel->shadow_pixmap = NULL;
+	}
 
 	intel_batch_teardown(scrn);
 

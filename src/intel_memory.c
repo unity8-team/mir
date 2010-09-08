@@ -178,7 +178,8 @@ static inline int intel_pad_drawable_width(int width)
  */
 drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int width, int height, int cpp,
-					unsigned long *out_pitch)
+					unsigned long *out_pitch,
+					uint32_t *out_tiling)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *front_buffer;
@@ -241,6 +242,7 @@ retry:
 
 	intel_set_gem_max_sizes(scrn);
 	*out_pitch = pitch;
+	*out_tiling = tiling_mode;
 
 	return front_buffer;
 }

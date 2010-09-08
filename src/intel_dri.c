@@ -488,10 +488,10 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
  * flipping buffers as necessary.
  */
 static Bool
-I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
+I830DRI2ScheduleFlip(struct intel_screen_private *intel,
+		     ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		     DRI2BufferPtr back, DRI2SwapEventPtr func, void *data)
 {
-	ScreenPtr screen = draw->pScreen;
 	I830DRI2BufferPrivatePtr back_priv;
 	DRI2FrameEventPtr flip_info;
 
@@ -507,7 +507,7 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	/* Page flip the full screen buffer */
 	back_priv = back->driverPrivate;
-	return intel_do_pageflip(screen,
+	return intel_do_pageflip(intel,
 				 intel_get_pixmap_bo(back_priv->pixmap),
 				 flip_info);
 }
@@ -567,7 +567,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 		if (DRI2CanFlip(drawable) && !intel->shadow_present &&
 		    intel->use_pageflipping &&
 		    can_exchange(event->front, event->back) &&
-		    I830DRI2ScheduleFlip(event->client, drawable, event->front,
+		    I830DRI2ScheduleFlip(intel,
+					 event->client, drawable, event->front,
 					 event->back, event->event_complete,
 					 event->event_data)) {
 			I830DRI2ExchangeBuffers(drawable,

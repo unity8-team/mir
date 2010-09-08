@@ -385,12 +385,15 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 
 	uxa_glyphs_fini(pScreen);
 
-	/* Destroy the pixmap created by miScreenInit() *before* chaining up as
-	 * we finalize ourselves here and so this is the last chance we have of
-	 * releasing our resources associated with the Pixmap. So do it first.
-	 */
-	(void) (*pScreen->DestroyPixmap) (pScreen->devPrivate);
-	pScreen->devPrivate = NULL;
+	if (pScreen->devPrivate) {
+		/* Destroy the pixmap created by miScreenInit() *before*
+		 * chaining up as we finalize ourselves here and so this
+		 * is the last chance we have of releasing our resources
+		 * associated with the Pixmap. So do it first.
+		 */
+		(void) (*pScreen->DestroyPixmap) (pScreen->devPrivate);
+		pScreen->devPrivate = NULL;
+	}
 
 	pScreen->CreateGC = uxa_screen->SavedCreateGC;
 	pScreen->CloseScreen = uxa_screen->SavedCloseScreen;

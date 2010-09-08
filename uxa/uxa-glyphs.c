@@ -197,13 +197,6 @@ bail:
 
 Bool uxa_glyphs_init(ScreenPtr pScreen)
 {
-	/* We are trying to initialise per screen resources prior to the
-	 * complete initialisation of the screen. So ensure the components
-	 * that we depend upon are initialsed prior to our use.
-	 */
-	if (!CreateScratchPixmapsForScreen(pScreen->myNum))
-		return FALSE;
-
 #if HAS_DIXREGISTERPRIVATEKEY
 	if (!dixRegisterPrivateKey(&uxa_glyph_key, PRIVATE_GLYPH, 0))
 		return FALSE;
@@ -211,6 +204,17 @@ Bool uxa_glyphs_init(ScreenPtr pScreen)
 	if (!dixRequestPrivate(&uxa_glyph_key, 0))
 		return FALSE;
 #endif
+
+	/* Skip pixmap creation if we don't intend to use it. */
+	if (uxa_get_screen(pScreen)->force_fallback)
+		return TRUE;
+
+	/* We are trying to initialise per screen resources prior to the
+	 * complete initialisation of the screen. So ensure the components
+	 * that we depend upon are initialsed prior to our use.
+	 */
+	if (!CreateScratchPixmapsForScreen(pScreen->myNum))
+		return FALSE;
 
 	if (!uxa_realize_glyph_caches(pScreen))
 		return FALSE;
@@ -293,18 +297,19 @@ uxa_glyph_cache_upload_glyph(ScreenPtr screen,
 }
 
 void
-uxa_glyph_unrealize(ScreenPtr pScreen,
-		    GlyphPtr pGlyph)
+uxa_glyph_unrealize(ScreenPtr screen,
+		    GlyphPtr glyph)
 {
 	struct uxa_glyph *priv;
 
-	priv = uxa_glyph_get_private(pGlyph);
+	/* Use Lookup in case we have not attached to this glyph. */
+	priv = dixLookupPrivate(&glyph->devPrivates, &uxa_glyph_key);
 	if (priv == NULL)
 		return;
 
 	priv->cache->glyphs[priv->pos] = NULL;
 
-	uxa_glyph_set_private(pGlyph, NULL);
+	uxa_glyph_set_private(glyph, NULL);
 	free(priv);
 }
 

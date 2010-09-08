@@ -271,6 +271,7 @@ enum dri_type {
 };
 
 typedef struct intel_screen_private {
+	ScrnInfoPtr scrn;
 	unsigned char *MMIOBase;
 	int cpp;
 
@@ -281,7 +282,10 @@ typedef struct intel_screen_private {
 	long GTTMapSize;
 
 	void *modes;
-	drm_intel_bo *front_buffer;
+	drm_intel_bo *front_buffer, *shadow_buffer;
+	long front_pitch, front_tiling;
+	PixmapPtr shadow_pixmap;
+	DamagePtr shadow_damage;
 
 	dri_bufmgr *bufmgr;
 
@@ -415,6 +419,7 @@ typedef struct intel_screen_private {
 
 	Bool use_pageflipping;
 	Bool force_fallback;
+	Bool use_shadow;
 
 	/* Broken-out options. */
 	OptionInfoPtr Options;
@@ -446,7 +451,9 @@ extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crt
 extern int intel_crtc_id(xf86CrtcPtr crtc);
 extern int intel_output_dpms_status(xf86OutputPtr output);
 
-extern Bool intel_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data);
+extern Bool intel_do_pageflip(intel_screen_private *intel,
+			      dri_bo *new_front,
+			      void *data);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -501,7 +508,8 @@ void intel_set_gem_max_sizes(ScrnInfoPtr scrn);
 
 drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int w, int h, int cpp,
-					unsigned long *pitch);
+					unsigned long *pitch,
+					uint32_t *tiling);
 
 /* i830_render.c */
 Bool i830_check_composite(int op,
