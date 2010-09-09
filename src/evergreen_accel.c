@@ -242,11 +242,13 @@ void evergreen_cp_wait_vline_sync(ScrnInfoPtr pScrn, PixmapPtr pPix,
 				  xf86CrtcPtr crtc, int start, int stop)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_crtc_private_ptr drmmode_crtc;
     uint32_t offset;
 
     if (!crtc)
         return;
+
+    drmmode_crtc = crtc->driver_private;
 
     if (stop < start)
         return;
