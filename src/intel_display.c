@@ -741,11 +741,12 @@ intel_output_attach_edid(xf86OutputPtr output)
 
 		if (mon && edid_blob->length > 128)
 			mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
-
-		drmModeFreePropertyBlob(edid_blob);
 	}
 
 	xf86OutputSetEDID(output, mon);
+
+	if (edid_blob)
+		drmModeFreePropertyBlob(edid_blob);
 }
 
 static DisplayModePtr
