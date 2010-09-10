@@ -1,7 +1,7 @@
-Index: xserver-xorg-video-intel/src/drmmode_display.c
-===================================================================
---- xserver-xorg-video-intel.orig/src/drmmode_display.c	2010-08-02 15:19:02.007854556 +1000
-+++ xserver-xorg-video-intel/src/drmmode_display.c	2010-08-02 15:19:03.687916333 +1000
+diff --git a/src/drmmode_display.c b/src/drmmode_display.c
+index ba24206..bd6ef4e 100644
+--- a/src/drmmode_display.c
++++ b/src/drmmode_display.c
 @@ -36,6 +36,8 @@
  #include <errno.h>
  #include <poll.h>
@@ -11,7 +11,7 @@ Index: xserver-xorg-video-intel/src/drmmode_display.c
  #include "xorgVersion.h"
  
  #include "i830.h"
-@@ -853,6 +855,13 @@
+@@ -853,6 +855,13 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
  	drmmode_ptr drmmode = drmmode_output->drmmode;
  	int i;
  	drmModePropertyPtr props;
@@ -25,7 +25,7 @@ Index: xserver-xorg-video-intel/src/drmmode_display.c
  
  	for (i = 0; i < koutput->count_props; i++) {
  		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
-@@ -1466,6 +1475,8 @@
+@@ -1466,6 +1475,8 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
  					       drm_wakeup_handler, drmmode);
  	}
  
@@ -34,7 +34,7 @@ Index: xserver-xorg-video-intel/src/drmmode_display.c
  	return TRUE;
  }
  
-@@ -1500,3 +1511,96 @@
+@@ -1500,3 +1511,96 @@ void drmmode_closefb(ScrnInfoPtr scrn)
  	drmModeRmFB(drmmode->fd, drmmode->fb_id);
  	drmmode->fb_id = 0;
  }
@@ -131,11 +131,11 @@ Index: xserver-xorg-video-intel/src/drmmode_display.c
 +	(*pScreen->DestroyPixmap)(src);
 +	(*pScreen->DestroyPixmap)(dst);
 +}
-Index: xserver-xorg-video-intel/src/i830.h
-===================================================================
---- xserver-xorg-video-intel.orig/src/i830.h	2010-08-02 15:19:02.017854924 +1000
-+++ xserver-xorg-video-intel/src/i830.h	2010-08-02 15:19:03.687916333 +1000
-@@ -423,6 +423,7 @@
+diff --git a/src/i830.h b/src/i830.h
+index 64acda3..83d1da9 100644
+--- a/src/i830.h
++++ b/src/i830.h
+@@ -423,6 +423,7 @@ typedef struct intel_screen_private {
  	OptionInfoPtr Options;
  
  	/* Driver phase/state information */
@@ -143,7 +143,7 @@ Index: xserver-xorg-video-intel/src/i830.h
  	Bool suspended;
  
  	enum last_3d last_3d;
-@@ -486,6 +487,7 @@
+@@ -486,6 +487,7 @@ extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
  					 xf86CrtcPtr crtc);
  extern int drmmode_output_dpms_status(xf86OutputPtr output);
  extern int drmmode_crtc_id(xf86CrtcPtr crtc);
@@ -151,11 +151,11 @@ Index: xserver-xorg-video-intel/src/i830.h
  
  extern Bool i830_crtc_on(xf86CrtcPtr crtc);
  extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
-Index: xserver-xorg-video-intel/src/i830_driver.c
-===================================================================
---- xserver-xorg-video-intel.orig/src/i830_driver.c	2010-08-02 15:19:02.027855292 +1000
-+++ xserver-xorg-video-intel/src/i830_driver.c	2010-08-02 15:19:23.298637400 +1000
-@@ -1093,6 +1093,8 @@
+diff --git a/src/i830_driver.c b/src/i830_driver.c
+index b8e0c0b..a4190ec 100644
+--- a/src/i830_driver.c
++++ b/src/i830_driver.c
+@@ -1093,6 +1093,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
  	if (IS_I965G(intel))
  		gen4_render_state_init(scrn);
  
@@ -164,7 +164,7 @@ Index: xserver-xorg-video-intel/src/i830_driver.c
  	miClearVisualTypes();
  	if (!miSetVisualTypes(scrn->depth,
  			      miGetDefaultVisualMask(scrn->depth),
-@@ -1231,6 +1233,7 @@
+@@ -1231,6 +1233,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
  	if (serverGeneration == 1)
  		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
  
@@ -172,14 +172,15 @@ Index: xserver-xorg-video-intel/src/i830_driver.c
  	intel->suspended = FALSE;
  
  	return uxa_resources_init(screen);
-@@ -1289,6 +1292,11 @@
+@@ -1289,6 +1292,12 @@ static Bool I830EnterVT(int scrnIndex, int flags)
  
  	i830_set_gem_max_sizes(scrn);
  
 +	if (!CreateScratchPixmapsForScreen(scrn->scrnIndex))
 +		return FALSE;
 +
-+	drmmode_copy_fb(scrn);
++	if (!IS_GEN6(intel))
++		drmmode_copy_fb(scrn);
 +
  	if (!xf86SetDesiredModes(scrn))
  		return FALSE;

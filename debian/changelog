@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.12.0-1ubuntu4) maverick; urgency=low
+
+  * debian/patches/101_copy-fb.patch: Explicitly disable copyfb functionality
+    on gen6 (Sandybridge) where it is not working.
+  * Update Sandybridge device id's. (LP: #632488)
+
+ -- Robert Hooker <robert.hooker@canonical.com>  Fri, 10 Sep 2010 07:39:32 -0400
+
 xserver-xorg-video-intel (2:2.12.0-1ubuntu3) maverick; urgency=low
 
   [ Christopher James Halse Rogers ]
