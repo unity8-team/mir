@@ -904,8 +904,8 @@ intel_shadow_create_bo(intel_screen_private *intel,
 	bo = drm_intel_bo_alloc(intel->bufmgr, "shadow", size, 0);
 	if (bo && drm_intel_gem_bo_map_gtt(bo) == 0) {
 		char *dst = bo->virtual;
-		char *src = intel->shadow_pixmap->devPrivate.ptr;
-		int src_pitch = intel->shadow_pixmap->devKind;
+		char *src = intel->shadow_buffer;
+		int src_pitch = intel->shadow_stride;
 		int row_length = w * intel->cpp;
 		int num_rows = h;
 		src += y1 * src_pitch + x1 * intel->cpp;
@@ -961,10 +961,10 @@ intel_shadow_blt(intel_screen_private *intel)
 		dri_bo *bo;
 		int offset;
 
-		if (intel->shadow_buffer) {
+		if (IS_I8XX(intel)) {
 			bo = intel->shadow_buffer;
 			offset = box->x1 | box->y1 << 16;
-			pitch = intel->shadow_pixmap->devKind;
+			pitch = intel->shadow_stride;
 		} else {
 			bo = intel_shadow_create_bo(intel,
 						    box->x1, box->y1,
@@ -1004,16 +1004,7 @@ static void intel_shadow_create(struct intel_screen_private *intel)
 	PixmapPtr pixmap;
 	int stride;
 
-	if (IS_I8XX(intel))
-		pixmap = screen->GetScreenPixmap(screen);
-	else
-		pixmap = intel->shadow_pixmap;
-
-	if (intel->shadow_damage) {
-		DamageUnregister(&pixmap->drawable, intel->shadow_damage);
-		DamageDestroy(intel->shadow_damage);
-	}
-
+	pixmap = screen->GetScreenPixmap(screen);
 	if (IS_I8XX(intel)) {
 		dri_bo *bo;
 		int size;
@@ -1043,29 +1034,37 @@ static void intel_shadow_create(struct intel_screen_private *intel)
 			intel->shadow_buffer = bo;
 		}
 	} else {
-		if (intel->shadow_pixmap)
-			fbDestroyPixmap(intel->shadow_pixmap);
+		void *buffer;
 
-		pixmap = fbCreatePixmap(screen,
-					scrn->virtualX,
-					scrn->virtualY,
-					scrn->depth,
-					0);
+		stride = intel->cpp*scrn->virtualX;
+		buffer = malloc(stride * scrn->virtualY);
 
-		screen->SetScreenPixmap(pixmap);
-		stride = pixmap->devKind;
+		if (buffer && screen->ModifyPixmapHeader(pixmap,
+							 scrn->virtualX,
+							 scrn->virtualY,
+							 -1, -1,
+							 stride,
+							 buffer)) {
+			if (intel->shadow_buffer)
+				free(intel->shadow_buffer);
+
+			intel->shadow_buffer = buffer;
+		} else
+			stride = intel->shadow_stride;
 	}
 
-	intel->shadow_pixmap = pixmap;
-	intel->shadow_damage = DamageCreate(NULL, NULL,
-					    DamageReportNone,
-					    TRUE,
-					    screen,
-					    intel);
-	DamageRegister(&pixmap->drawable, intel->shadow_damage);
-	DamageSetReportAfterOp(intel->shadow_damage, TRUE);
+	if (!intel->shadow_damage) {
+		intel->shadow_damage = DamageCreate(NULL, NULL,
+						    DamageReportNone,
+						    TRUE,
+						    screen,
+						    intel);
+		DamageRegister(&pixmap->drawable, intel->shadow_damage);
+		DamageSetReportAfterOp(intel->shadow_damage, TRUE);
+	}
 
 	scrn->displayWidth = stride / intel->cpp;
+	intel->shadow_stride = stride;
 }
 
 void intel_uxa_block_handler(intel_screen_private *intel)

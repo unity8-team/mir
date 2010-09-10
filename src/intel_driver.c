@@ -1140,22 +1140,19 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		intel->front_buffer = NULL;
 	}
 
-	if (intel->shadow_pixmap) {
-		PixmapPtr pixmap = intel->shadow_pixmap;
-
-		if (intel->shadow_damage) {
-			DamageUnregister(&pixmap->drawable,
-					 intel->shadow_damage);
-			DamageDestroy(intel->shadow_damage);
-			intel->shadow_damage = NULL;
-		}
-
-		if (intel->shadow_buffer) {
+	if (intel->shadow_buffer) {
+		if (IS_I8XX(intel))
 			drm_intel_bo_unreference(intel->shadow_buffer);
-			intel->shadow_buffer = NULL;
-		}
+		else
+			free(intel->shadow_buffer);
+		intel->shadow_buffer = NULL;
+	}
 
-		intel->shadow_pixmap = NULL;
+	if (intel->shadow_damage) {
+		DamageUnregister(&screen->GetScreenPixmap(screen)->drawable,
+				 intel->shadow_damage);
+		DamageDestroy(intel->shadow_damage);
+		intel->shadow_damage = NULL;
 	}
 
 	intel_batch_teardown(scrn);

@@ -282,9 +282,10 @@ typedef struct intel_screen_private {
 	long GTTMapSize;
 
 	void *modes;
-	drm_intel_bo *front_buffer, *shadow_buffer;
+	drm_intel_bo *front_buffer;
 	long front_pitch, front_tiling;
-	PixmapPtr shadow_pixmap;
+	void *shadow_buffer;
+	int shadow_stride;
 	DamagePtr shadow_damage;
 
 	dri_bufmgr *bufmgr;
