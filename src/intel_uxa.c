@@ -411,11 +411,38 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t cmd;
-	int dst_x2, dst_y2;
+	int dst_x2, dst_y2, src_x2, src_y2;
 	unsigned int dst_pitch, src_pitch;
 
 	dst_x2 = dst_x1 + w;
 	dst_y2 = dst_y1 + h;
+
+	/* XXX Fixup extents as a lamentable workaround for missing
+	 * source clipping in the upper layers.
+	 */
+	if (dst_x1 < 0)
+		src_x1 -= dst_x1, dst_x1 = 0;
+	if (dst_y1 < 0)
+		src_y1 -= dst_y1, dst_y1 = 0;
+	if (dst_x2 > dest->drawable.width)
+		dst_x2 = dest->drawable.width;
+	if (dst_y2 > dest->drawable.height)
+		dst_y2 = dest->drawable.height;
+
+	src_x2 = src_x1 + (dst_x2 - dst_x1);
+	src_y2 = src_y1 + (dst_y2 - dst_y1);
+
+	if (src_x1 < 0)
+		dst_x1 -= src_x1, src_x1 = 0;
+	if (src_y1 < 0)
+		dst_y1 -= src_y1, src_y1 = 0;
+	if (src_x2 > intel->render_source->drawable.width)
+		dst_x2 -= src_x2 - intel->render_source->drawable.width;
+	if (src_y2 > intel->render_source->drawable.height)
+		dst_y2 -= src_y2 - intel->render_source->drawable.height;
+
+	if (dst_x2 <= dst_x1 || dst_y2 <= dst_y1)
+		return;
 
 	dst_pitch = intel_pixmap_pitch(dest);
 	src_pitch = intel_pixmap_pitch(intel->render_source);
