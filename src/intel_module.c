@@ -70,6 +70,7 @@ static const SymTabRec _intel_chipsets[] = {
     {PCI_CHIP_Q45_G,		"Q45/Q43"},
     {PCI_CHIP_G41_G,		"G41"},
     {PCI_CHIP_B43_G,		"B43"},
+    {PCI_CHIP_B43_G1,		"B43"},
     {PCI_CHIP_IGDNG_D_G,		"Clarkdale"},
     {PCI_CHIP_IGDNG_M_G,		"Arrandale"},
     {PCI_CHIP_SANDYBRIDGE_GT1,	"Sandybridge" },

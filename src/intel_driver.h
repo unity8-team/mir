@@ -158,6 +158,11 @@
 #define PCI_CHIP_B43_G_BRIDGE	0x2E40
 #endif
 
+#ifndef PCI_CHIP_B43_G1
+#define PCI_CHIP_B43_G1		0x2E92
+#define PCI_CHIP_B43_G1_BRIDGE	0x2E90
+#endif
+
 #ifndef PCI_CHIP_IGDNG_D_G
 #define PCI_CHIP_IGDNG_D_G		0x0042
 #define PCI_CHIP_IGDNG_D_G_BRIDGE	0x0040
