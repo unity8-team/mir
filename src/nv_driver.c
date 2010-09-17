@@ -425,7 +425,8 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 	drmmode_uevent_fini(pScrn);
 
-	nouveau_dri2_fini(pScreen);
+	if (!pNv->NoAccel)
+		nouveau_dri2_fini(pScreen);
 
 	if (pScrn->vtSema) {
 		NVLeaveVT(scrnIndex, 0);

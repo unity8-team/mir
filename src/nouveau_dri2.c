@@ -92,7 +92,6 @@ nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 	struct nouveau_dri2_buffer *dst = nouveau_dri2_buffer(pDstBuffer);
 	PixmapPtr pspix = src->ppix, pdpix = dst->ppix;
 	ScreenPtr pScreen = pDraw->pScreen;
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	RegionPtr pCopyClip;
 	GCPtr pGC;
 

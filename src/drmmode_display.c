@@ -87,17 +87,22 @@ static void drmmode_output_dpms(xf86OutputPtr output, int mode);
 
 static PixmapPtr
 drmmode_pixmap_wrap(ScreenPtr pScreen, int width, int height, int depth,
-		    int bpp, int pitch, struct nouveau_bo *bo)
+		    int bpp, int pitch, struct nouveau_bo *bo, void *data)
 {
+	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
 	PixmapPtr ppix;
+
+	if (!pNv->NoAccel)
+		data = NULL;
 
 	ppix = pScreen->CreatePixmap(pScreen, 0, 0, depth, 0);
 	if (!ppix)
 		return NULL;
 
 	pScreen->ModifyPixmapHeader(ppix, width, height, depth, bpp,
-				    pitch, NULL);
-	nouveau_bo_ref(bo, &nouveau_pixmap(ppix)->bo);
+				    pitch, data);
+	if (!pNv->NoAccel)
+		nouveau_bo_ref(bo, &nouveau_pixmap(ppix)->bo);
 
 	return ppix;
 }
@@ -224,7 +229,7 @@ drmmode_fbcon_copy(ScreenPtr pScreen)
 	}
 
 	pspix = drmmode_pixmap_wrap(pScreen, fb->width, fb->height,
-				    fb->depth, fb->bpp, fb->pitch, bo);
+				    fb->depth, fb->bpp, fb->pitch, bo, NULL);
 	nouveau_bo_ref(NULL, &bo);
 	drmFree(fb);
 	if (!pspix) {
@@ -236,7 +241,8 @@ drmmode_fbcon_copy(ScreenPtr pScreen)
 	pdpix = drmmode_pixmap_wrap(pScreen, pScrn->virtualX,
 				    pScrn->virtualY, pScrn->depth,
 				    pScrn->bitsPerPixel, pScrn->displayWidth *
-				    pScrn->bitsPerPixel / 8, pNv->scanout);
+				    pScrn->bitsPerPixel / 8, pNv->scanout,
+				    NULL);
 	if (!pdpix) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Failed to init scanout pixmap for fbcon mirror\n");
@@ -418,7 +424,7 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	int ah = height, ret, pitch;
 	void *virtual;
 
-	if (pNv->Architecture >= NV_ARCH_50) {
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
 		tile_mode = 4;
 		tile_flags = (drmmode->cpp == 2) ? 0x7000 : 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
@@ -476,7 +482,7 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	rotate_pixmap = drmmode_pixmap_wrap(pScrn->pScreen, width, height,
 					    pScrn->depth, pScrn->bitsPerPixel,
 					    drmmode_crtc->rotate_pitch,
-					    drmmode_crtc->rotate_bo);
+					    drmmode_crtc->rotate_bo, data);
 
 	drmmode_crtc->rotate_pixmap = rotate_pixmap;
 	return drmmode_crtc->rotate_pixmap;
@@ -487,6 +493,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	NVPtr pNv = NVPTR(crtc->scrn);
 
 	if (rotate_pixmap)
 		FreeScratchPixmapHeader(rotate_pixmap);
@@ -494,7 +501,8 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 	if (data) {
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
-		nouveau_bo_ref(NULL, &drmmode_crtc->rotate_bo);
+		if (!pNv->NoAccel)
+			nouveau_bo_ref(NULL, &drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_pixmap = NULL;
 	}
 }
