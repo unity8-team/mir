@@ -873,6 +873,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 			intel->swapbuffers_wait = FALSE;
 	}
 
+	if (IS_GEN6(intel))
+	    intel->swapbuffers_wait = FALSE;
+
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Tiling %sabled\n",
 		   intel->tiling ? "en" : "dis");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "SwapBuffers wait %sabled\n",
