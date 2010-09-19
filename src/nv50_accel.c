@@ -47,6 +47,9 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 		case 0xac:
 			class = NVA0TCL;
 			break;
+		case 0xaf:
+			class = NVAFTCL;
+			break;
 		default:
 			class = NVA8TCL;
 			break;
