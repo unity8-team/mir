@@ -1885,7 +1885,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     if (!src_domain)
 	radeon_bo_is_busy(driver_priv->bo, &src_domain);
 
-    if (src_domain != RADEON_GEM_DOMAIN_VRAM)
+    if (src_domain & ~(uint32_t)RADEON_GEM_DOMAIN_VRAM)
 	return FALSE;
 
     size = scratch_pitch * h;

@@ -598,7 +598,7 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     if (!src_domain)
 	radeon_bo_is_busy(driver_priv->bo, &src_domain);
 
-    if (src_domain != RADEON_GEM_DOMAIN_VRAM) {
+    if (src_domain & ~(uint32_t)RADEON_GEM_DOMAIN_VRAM) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* Can't return FALSE here if we need to swap bytes */
 	if (swap != RADEON_HOST_DATA_SWAP_NONE) {
