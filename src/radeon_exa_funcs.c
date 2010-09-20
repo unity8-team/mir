@@ -567,6 +567,9 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     unsigned bpp = pSrc->drawable.bitsPerPixel;
     uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 64);
     uint32_t swap = RADEON_HOST_DATA_SWAP_NONE;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    Bool flush = FALSE;
+#endif
     Bool r;
 
     if (bpp < 8)
@@ -593,6 +596,10 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 	if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
 	    (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
 	    src_domain = 0;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	else /* A write may be scheduled */
+	    flush = TRUE;
+#endif
     }
 
     if (!src_domain)
@@ -631,11 +638,14 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
                     scratch_pitch << 16, x, y, 0, 0, w, h,
                     RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT,
                     RADEON_GEM_DOMAIN_GTT);
-    FLUSH_RING();
-
 #if X_BYTE_ORDER == X_BIG_ENDIAN
+    flush = TRUE;
+
 copy:
+    if (flush)
 #endif
+	FLUSH_RING();
+
     r = radeon_bo_map(scratch, 0);
     if (r) {
         r = FALSE;
