@@ -244,6 +244,7 @@ static uint32_t i8xx_get_card_format(intel_screen_private *intel,
 
 static void i830_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 {
+
 	ScrnInfoPtr scrn = xf86Screens[picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, tiling_bits, pitch, filter;

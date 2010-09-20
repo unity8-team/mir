@@ -129,7 +129,7 @@ I810AccelInit(ScreenPtr pScreen)
     */
    if (pI810->Scratch.Size != 0) {
       int i;
-      int width = ((pScrn->displayWidth + 31) & ~31) / 8;
+      int width = ALIGN(pScrn->displayWidth, 32) / 8;
       int nr_buffers = pI810->Scratch.Size / width;
       unsigned char *ptr = pI810->FbBase + pI810->Scratch.Start;
 
@@ -213,7 +213,7 @@ I810WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 		start);
 	 I810PrintErrorState(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
-#ifdef BUILD_DRI
+#ifdef XF86DRI
 	 if (pI810->directRenderingEnabled) {
 	    DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
 	    DRICloseScreen(screenInfo.screens[pScrn->scrnIndex]);
@@ -245,7 +245,7 @@ I810Sync(ScrnInfoPtr pScrn)
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I810Sync\n");
 
-#ifdef BUILD_DRI
+#ifdef XF86DRI
    /* VT switching tries to do this.  
     */
    if (!pI810->LockHeld && pI810->directRenderingEnabled) {

@@ -1,3 +1,17 @@
+xserver-xorg-video-intel (2:2.12.0+shadow-1) unstable; urgency=low
+
+  * Revert the come-back of UMS.  Update to upstream HEAD instead.
+    Closes: #594623, #594338.
+  * Dropping UMS means its bugs are irrelevant, so this closes: #570766,
+    #594815.
+  * Bump libdrm build-dep for DRM_MODE_CONNECTOR_eDP.
+  * Don't enable DRI2 if the shadow option is on.
+  * Use shadowfb on i8xx by default.  Hopefully closes: #570988, #572105,
+    #576848, #592586, #593293.
+  * New upstream doesn't assert() when running sm (closes: #593199).
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 20 Sep 2010 19:44:14 +0200
+
 xserver-xorg-video-intel (2:2.12.0+legacy1-1) unstable; urgency=low
 
   * Merge from people.freedesktop.org/~ickle/xf86-video-intel:legacy.

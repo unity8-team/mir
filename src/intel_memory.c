@@ -128,7 +128,7 @@ intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 
 	/* 965 is flexible */
 	if (IS_I965G(intel))
-		return ROUND_TO(pitch, tile_width);
+		return ALIGN(pitch, tile_width);
 
 	/* Pre-965 needs power of two tile width */
 	for (i = tile_width; i < pitch; i <<= 1) ;
@@ -167,7 +167,7 @@ intel_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
  */
 static inline int intel_pad_drawable_width(int width)
 {
-	return (width + 63) & ~63;
+	return ALIGN(width, 64);
 }
 
 /**
@@ -178,7 +178,8 @@ static inline int intel_pad_drawable_width(int width)
  */
 drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int width, int height, int cpp,
-					unsigned long *out_pitch)
+					unsigned long *out_pitch,
+					uint32_t *out_tiling)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *front_buffer;
@@ -241,6 +242,7 @@ retry:
 
 	intel_set_gem_max_sizes(scrn);
 	*out_pitch = pitch;
+	*out_tiling = tiling_mode;
 
 	return front_buffer;
 }

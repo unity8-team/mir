@@ -31,7 +31,9 @@
 #include "i915_structs.h"
 #include "i915_program.h"
 
-#define STRIDE(w)               (((w) + 0x3ff) & ~0x3ff)
+#define ALIGN(i,m)		(((i) + (m) - 1) & ~((m) - 1))
+
+#define STRIDE(w)               (ALIGN((w), 1024))
 #define SIZE_Y420(w, h)         (h * STRIDE(w))
 #define SIZE_UV420(w, h)        ((h >> 1) * STRIDE(w >> 1))
 #define SIZE_YUV420(w, h)       (SIZE_Y420(w,h) + SIZE_UV420(w,h) * 2)

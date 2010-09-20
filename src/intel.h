@@ -61,16 +61,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <pciaccess.h>
 
 #include "xf86drm.h"
-#include "intel_bufmgr.h"
-#include "i915_drm.h"
-
-#ifdef BUILD_DRI
 #include "sarea.h"
 #define _XF86DRI_SERVER_
 #include "dri.h"
 #include "dri2.h"
-#include "GL/glxint.h"
-#endif
+#include "intel_bufmgr.h"
+#include "i915_drm.h"
 
 #include "intel_driver.h"
 
@@ -133,9 +129,12 @@ list_is_empty(struct list *head)
 }
 #endif
 
+/* XXX work around a broken define in list.h currently [ickle 20100713] */
+#undef container_of
+
 #ifndef container_of
 #define container_of(ptr, type, member) \
-	(type *)((char *)(ptr) - (char *) &((type *)0)->member)
+	((type *)((char *)(ptr) - (char *) &((type *)0)->member))
 #endif
 
 #ifndef list_entry
@@ -272,6 +271,7 @@ enum dri_type {
 };
 
 typedef struct intel_screen_private {
+	ScrnInfoPtr scrn;
 	unsigned char *MMIOBase;
 	int cpp;
 
@@ -281,9 +281,12 @@ typedef struct intel_screen_private {
 	long FbMapSize;
 	long GTTMapSize;
 
-	xf86OutputPtr output;
-	xf86CrtcPtr crtc;
+	void *modes;
 	drm_intel_bo *front_buffer;
+	long front_pitch, front_tiling;
+	void *shadow_buffer;
+	int shadow_stride;
+	DamagePtr shadow_damage;
 
 	dri_bufmgr *bufmgr;
 
@@ -305,7 +308,7 @@ typedef struct intel_screen_private {
 	struct list in_flight;
 
 	/* For Xvideo */
-	Bool use_drmmode_overlay;
+	Bool use_overlay;
 #ifdef INTEL_XVMC
 	/* For XvMC */
 	Bool XvMCEnabled;
@@ -335,7 +338,6 @@ typedef struct intel_screen_private {
 
 	uxa_driver_t *uxa_driver;
 	Bool need_sync;
-	int accel_pixmap_pitch_alignment;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
 	int accel_max_y;
@@ -418,6 +420,7 @@ typedef struct intel_screen_private {
 
 	Bool use_pageflipping;
 	Bool force_fallback;
+	Bool use_shadow;
 
 	/* Broken-out options. */
 	OptionInfoPtr Options;
@@ -440,11 +443,18 @@ enum {
 	DEBUG_FLUSH_WAIT = 0x4,
 };
 
-extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
-extern void drmmode_close_screen(intel_screen_private *intel);
-extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
-extern int drmmode_output_dpms_status(xf86OutputPtr output);
-extern Bool drmmode_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data);
+extern Bool intel_mode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
+extern void intel_mode_init(struct intel_screen_private *intel);
+extern void intel_mode_remove_fb(intel_screen_private *intel);
+extern void intel_mode_fini(intel_screen_private *intel);
+
+extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
+extern int intel_crtc_id(xf86CrtcPtr crtc);
+extern int intel_output_dpms_status(xf86OutputPtr output);
+
+extern Bool intel_do_pageflip(intel_screen_private *intel,
+			      dri_bo *new_front,
+			      void *data);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -484,15 +494,12 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 			      unsigned int tv_usec, void *user_data);
 
-extern Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp);
-extern void drmmode_closefb(ScrnInfoPtr scrn);
-extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
-					 xf86CrtcPtr crtc);
-extern int drmmode_output_dpms_status(xf86OutputPtr output);
-extern int drmmode_crtc_id(xf86CrtcPtr crtc);
-
 extern Bool intel_crtc_on(xf86CrtcPtr crtc);
-extern int intel_crtc_to_pipe(xf86CrtcPtr crtc);
+static inline int intel_crtc_to_pipe(xf86CrtcPtr crtc)
+{
+	intel_screen_private *intel = intel_get_screen_private(crtc->scrn);
+	return intel_get_pipe_from_crtc_id(intel->bufmgr, crtc);
+}
 
 /* intel_memory.c */
 unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);
@@ -502,7 +509,8 @@ void intel_set_gem_max_sizes(ScrnInfoPtr scrn);
 
 drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int w, int h, int cpp,
-					unsigned long *pitch);
+					unsigned long *pitch,
+					uint32_t *tiling);
 
 /* i830_render.c */
 Bool i830_check_composite(int op,

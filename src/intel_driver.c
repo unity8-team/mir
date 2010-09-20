@@ -77,9 +77,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "legacy/legacy.h"
 
 #include <sys/ioctl.h>
+#include "i915_drm.h"
 #include <xf86drmMode.h>
-#include <i915_drm.h>
-#include <dri.h> /* DRICreatePCIBusID() */
 
 #define BIT(x) (1 << (x))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -99,6 +98,7 @@ typedef enum {
    OPTION_COLOR_KEY,
    OPTION_FALLBACKDEBUG,
    OPTION_TILING,
+   OPTION_SHADOW,
    OPTION_SWAPBUFFERS_WAIT,
 #ifdef INTEL_XVMC
    OPTION_XVMC,
@@ -116,6 +116,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_FALLBACKDEBUG, "FallbackDebug", OPTV_BOOLEAN, {0},	FALSE},
    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
@@ -156,26 +157,6 @@ I830DPRINTF(const char *filename, int line, const char *function,
 const OptionInfoRec *intel_uxa_available_options(int chipid, int busid)
 {
 	return I830Options;
-}
-
-static Bool I830GetRec(ScrnInfoPtr scrn)
-{
-	if (scrn->driverPrivate)
-		return TRUE;
-	scrn->driverPrivate = xnfcalloc(sizeof(intel_screen_private), 1);
-
-	return TRUE;
-}
-
-static void I830FreeRec(ScrnInfoPtr scrn)
-{
-	if (!scrn)
-		return;
-	if (!scrn->driverPrivate)
-		return;
-
-	free(scrn->driverPrivate);
-	scrn->driverPrivate = NULL;
 }
 
 static void
@@ -274,9 +255,12 @@ static Bool i830CreateScreenResources(ScreenPtr screen)
 
 static void PreInitCleanup(ScrnInfoPtr scrn)
 {
-	I830FreeRec(scrn);
-}
+	if (!scrn || !scrn->driverPrivate)
+		return;
 
+	free(scrn->driverPrivate);
+	scrn->driverPrivate = NULL;
+}
 
 /*
  * DRM mode setting Linux only at this point... later on we could
@@ -284,32 +268,25 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
  */
 static Bool intel_kernel_mode_enabled(ScrnInfoPtr scrn)
 {
-	struct pci_device *PciInfo;
-	EntityInfoPtr pEnt;
-	char *busIdString;
+	struct pci_device *dev;
+	char id[20];
 	int ret;
 
-	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
-	PciInfo = xf86GetPciInfoForEntity(pEnt->index);
+	dev = xf86GetPciInfoForEntity(xf86GetEntityInfo(scrn->entityList[0])->index);
+	snprintf(id, sizeof(id),
+		 "pci:%04x:%02x:%02x.%d",
+		 dev->domain, dev->bus, dev->dev, dev->func);
 
-	if (!xf86LoaderCheckSymbol("DRICreatePCIBusID"))
-		return FALSE;
-
-	busIdString = DRICreatePCIBusID(PciInfo);
-
-	ret = drmCheckModesettingSupported(busIdString);
+	ret = drmCheckModesettingSupported(id);
 	if (ret) {
 		if (xf86LoadKernelModule("i915"))
-			ret = drmCheckModesettingSupported(busIdString);
+			ret = drmCheckModesettingSupported(id);
 	}
 	/* Be nice to the user and load fbcon too */
 	if (!ret)
 		(void)xf86LoadKernelModule("fbcon");
-	free(busIdString);
-	if (ret)
-		return FALSE;
 
-	return TRUE;
+	return ret == 0;
 }
 
 static void intel_check_chipset_option(ScrnInfoPtr scrn)
@@ -455,52 +432,40 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 	return TRUE;
 }
 
-static void intel_close_drm_master(ScrnInfoPtr scrn)
+static void intel_close_drm_master(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	if (intel && intel->drmSubFD > 0) {
 		drmClose(intel->drmSubFD);
 		intel->drmSubFD = -1;
 	}
 }
 
-static void intel_init_bufmgr(ScrnInfoPtr scrn)
+static int intel_init_bufmgr(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int batch_size;
 
-	if (intel->bufmgr)
-		return;
-
 	batch_size = 4096 * 4;
-
-	/* The 865 has issues with larger-than-page-sized batch buffers. */
 	if (IS_I865G(intel))
+		/* The 865 has issues with larger-than-page-sized batch buffers. */
 		batch_size = 4096;
 
 	intel->bufmgr = drm_intel_bufmgr_gem_init(intel->drmSubFD, batch_size);
+	if (!intel->bufmgr)
+		return FALSE;
+
 	drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
 	list_init(&intel->flush_pixmaps);
 	list_init(&intel->in_flight);
-}
-
-static Bool I830DrmModeInit(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	intel_init_bufmgr(scrn);
-
-	if (drmmode_pre_init(scrn, intel->drmSubFD, intel->cpp) == FALSE) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Kernel modesetting setup failed\n");
-		PreInitCleanup(scrn);
-		return FALSE;
-	}
 
 	return TRUE;
+}
+
+static void intel_bufmgr_fini(intel_screen_private *intel)
+{
+	drm_intel_bufmgr_destroy(intel->bufmgr);
 }
 
 static void I830XvInit(ScrnInfoPtr scrn)
@@ -565,11 +530,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (flags & PROBE_DETECT)
 		return TRUE;
 
-	/* Allocate driverPrivate */
-	if (!I830GetRec(scrn))
-		return FALSE;
-
 	intel = intel_get_screen_private(scrn);
+	if (intel == NULL) {
+		intel = xnfcalloc(sizeof(intel_screen_private), 1);
+		if (intel == NULL)
+			return FALSE;
+
+		scrn->driverPrivate = intel;
+	}
+	intel->scrn = scrn;
 	intel->pEnt = pEnt;
 
 	scrn->displayWidth = 640;	/* default it */
@@ -621,8 +590,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	I830XvInit(scrn);
 
-	if (!I830DrmModeInit(scrn))
+	if (!intel_init_bufmgr(intel)) {
+		PreInitCleanup(scrn);
 		return FALSE;
+	}
+
+	if (!intel_mode_pre_init(scrn, intel->drmSubFD, intel->cpp)) {
+		PreInitCleanup(scrn);
+		return FALSE;
+	}
 
 	if (!xf86SetGamma(scrn, zeros)) {
 		PreInitCleanup(scrn);
@@ -698,16 +674,8 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
 
-	if (scrn->vtSema) {
-		/* Emit a flush of the rendering cache, or on the 965 and beyond
-		 * rendering results may not hit the framebuffer until significantly
-		 * later.
-		 */
-		intel_batch_submit(scrn,
-				   intel->need_mi_flush ||
-				   !list_is_empty(&intel->flush_pixmaps));
+	if (scrn->vtSema == TRUE)
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
-	}
 
 	intel_uxa_block_handler(intel);
 	intel_video_block_handler(intel);
@@ -761,13 +729,16 @@ static Bool
 intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	int width = scrn->virtualX;
+	int height = scrn->virtualY;
 	unsigned long pitch;
+	uint32_t tiling;
 
 	intel->front_buffer = intel_allocate_framebuffer(scrn,
-							 scrn->virtualX,
-							 scrn->virtualY,
+							 width, height,
 							 intel->cpp,
-							 &pitch);
+							 &pitch,
+							 &tiling);
 
 	if (!intel->front_buffer) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -775,6 +746,8 @@ intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 		return FALSE;
 	}
 
+	intel->front_pitch = pitch;
+	intel->front_tiling = tiling;
 	scrn->displayWidth = pitch / intel->cpp;
 
 	return TRUE;
@@ -790,7 +763,7 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
 		if (output->crtc == crtc &&
-		    drmmode_output_dpms_status(output) == DPMSModeOn)
+		    intel_output_dpms_status(output) == DPMSModeOn)
 			active_outputs++;
 	}
 
@@ -799,12 +772,22 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 	return FALSE;
 }
 
-int intel_crtc_to_pipe(xf86CrtcPtr crtc)
+static void
+intel_flush_callback(CallbackListPtr *list,
+		     pointer user_data, pointer call_data)
 {
-	ScrnInfoPtr scrn = crtc->scrn;
+	ScrnInfoPtr scrn = user_data;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	return drmmode_get_pipe_from_crtc_id(intel->bufmgr, crtc);
+	if (scrn->vtSema) {
+		/* Emit a flush of the rendering cache, or on the 965
+		 * and beyond rendering results may not hit the
+		 * framebuffer until significantly later.
+		 */
+		intel_batch_submit(scrn,
+				   intel->need_mi_flush ||
+				   !list_is_empty(&intel->flush_pixmaps));
+	}
 }
 
 static Bool
@@ -853,6 +836,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 		intel->directRenderingType = DRI_DRI2;
 #endif
 
+	intel->force_fallback = FALSE;
+	intel->use_shadow = FALSE;
+
 	/* Enable tiling by default */
 	intel->tiling = TRUE;
 
@@ -862,6 +848,17 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 			intel->tiling = TRUE;
 		else
 			intel->tiling = FALSE;
+	}
+
+	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
+		if (xf86ReturnOptValBool(intel->Options, OPTION_SHADOW, FALSE))
+			intel->force_fallback = intel->use_shadow = TRUE;
+	}
+
+	if (intel->use_shadow) {
+		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
+			   "Shadow buffer enabled,"
+			   " GPU acceleration disabled.\n");
 	}
 
 	/* SwapBuffers delays to avoid tearing */
@@ -875,6 +872,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 		else
 			intel->swapbuffers_wait = FALSE;
 	}
+
+	if (IS_GEN6(intel))
+	    intel->swapbuffers_wait = FALSE;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Tiling %sabled\n",
 		   intel->tiling ? "en" : "dis");
@@ -975,6 +975,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
 
+	if (!AddCallback(&FlushCallback, intel_flush_callback, scrn))
+		return FALSE;
+
 	screen->SaveScreen = xf86SaveScreen;
 	intel->CloseScreen = screen->CloseScreen;
 	screen->CloseScreen = I830CloseScreen;
@@ -1034,6 +1037,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
 
+	intel_mode_init(intel);
+
 	intel->suspended = FALSE;
 
 	return uxa_resources_init(screen);
@@ -1046,10 +1051,17 @@ static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 static void I830FreeScreen(int scrnIndex, int flags)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	intel_close_drm_master(scrn);
+	if (intel) {
+		intel_mode_fini(intel);
+		intel_close_drm_master(intel);
+		intel_bufmgr_fini(intel);
 
-	I830FreeRec(xf86Screens[scrnIndex]);
+		free(intel);
+		scrn->driverPrivate = NULL;
+	}
+
 	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
 		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
@@ -1114,16 +1126,36 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		I830LeaveVT(scrnIndex, 0);
 	}
 
+	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
+
 	if (intel->uxa_driver) {
 		uxa_driver_fini(screen);
 		free(intel->uxa_driver);
 		intel->uxa_driver = NULL;
 	}
+
 	if (intel->front_buffer) {
-		intel_set_pixmap_bo(screen->GetScreenPixmap(screen), NULL);
-		drmmode_closefb(scrn);
+		if (!intel->use_shadow)
+			intel_set_pixmap_bo(screen->GetScreenPixmap(screen),
+					    NULL);
+		intel_mode_remove_fb(intel);
 		drm_intel_bo_unreference(intel->front_buffer);
 		intel->front_buffer = NULL;
+	}
+
+	if (intel->shadow_buffer) {
+		if (IS_I8XX(intel))
+			drm_intel_bo_unreference(intel->shadow_buffer);
+		else
+			free(intel->shadow_buffer);
+		intel->shadow_buffer = NULL;
+	}
+
+	if (intel->shadow_damage) {
+		DamageUnregister(&screen->GetScreenPixmap(screen)->drawable,
+				 intel->shadow_damage);
+		DamageDestroy(intel->shadow_damage);
+		intel->shadow_damage = NULL;
 	}
 
 	intel_batch_teardown(scrn);
@@ -1133,15 +1165,10 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	xf86_cursors_fini(screen);
 
-	drm_intel_bo_unreference(intel->front_buffer);
-	intel->front_buffer = NULL;
-
 	i965_free_video(scrn);
 
 	screen->CloseScreen = intel->CloseScreen;
 	(*screen->CloseScreen) (scrnIndex, screen);
-
-	drmmode_close_screen(intel);
 
 	if (intel->directRenderingOpen
 	    && intel->directRenderingType == DRI_DRI2) {

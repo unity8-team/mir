@@ -835,8 +835,10 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 			     PictureMatchFormat(pScreen, depth, pSrc->format),
 			     0, 0, serverClient, &error);
 	pScreen->DestroyPixmap(pPixmap);
-	ValidatePicture(pDst);
+	if (!pDst)
+		return 0;
 
+	ValidatePicture(pDst);
 done:
 	pDst->componentAlpha = pSrc->componentAlpha;
 	*out_x = 0;

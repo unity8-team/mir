@@ -50,6 +50,8 @@
 #define KB(x) ((x) * 1024)
 #define MB(x) ((x) * KB(1024))
 
+#define ALIGN(i,m) (((i) + (m) - 1) & ~((m) - 1))
+
 /* Using usleep() makes things noticably slow. */
 #if 0
 #define DELAY(x) usleep(x)
@@ -136,10 +138,6 @@ extern int I810_DEBUG;
 #define I810_REG_SIZE 0x80000
 
 #define GTT_PAGE_SIZE			KB(4)
-#define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))
-#define ROUND_DOWN_TO(x, y)		((x) / (y) * (y))
-#define ROUND_TO_PAGE(x)		ROUND_TO((x), GTT_PAGE_SIZE)
-#define ROUND_TO_MB(x)			ROUND_TO((x), MB(1))
 #define PRIMARY_RINGBUFFER_SIZE		KB(128)
 #define MIN_SCRATCH_BUFFER_SIZE		KB(16)
 #define MAX_SCRATCH_BUFFER_SIZE		KB(64)
