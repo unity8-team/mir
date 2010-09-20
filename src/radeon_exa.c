@@ -323,6 +323,7 @@ void RADEONFinishAccess_CS(PixmapPtr pPix, int index)
         return;
 
     radeon_bo_unmap(driver_priv->bo);
+    driver_priv->bo_mapped = FALSE;
     pPix->devPrivate.ptr = NULL;
 }
 
