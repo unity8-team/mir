@@ -1,90 +1,795 @@
-commit a69c7e3817ee63afe31e6a1874e84ec03d944cd4
-Author: Julien Cristau <jcristau@debian.org>
-Date:   Tue Aug 24 20:36:40 2010 +0200
+commit f63c7df6866fed61551d39209b1a262e2a0c4b28
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Fri Sep 17 16:39:12 2010 +0800
 
-    legacy/ums: fix distcheck
+    Disable swap buffer wait on Sandybridge
     
-    Signed-off-by: Julien Cristau <jcristau@debian.org>
+    MI_LOAD_SCAN_LINE_INCL command is not available on sandybridge.
+    I haven't got reply on any substitution for it, so turn it off for now.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
 
-commit 22e5830d3a60f25cbbab6976a8effaa2c843a804
-Author: Daniel Vetter <daniel.vetter@ffwll.ch>
-Date:   Wed Oct 14 18:09:08 2009 +0200
-
-    legacy/ums/Xv overlay: fix planar YUV copy for right rotated crtcs
-    
-    While copying and rotating the buffer, array access was out of bounds when
-    rotated to the right (RR_Rotate_270).  My buffer handling changes probably
-    made this bug much more likely to actually result in a SIGSEGV.
-    
-    I've checked the logs and the bug exists since rotation has been supported,
-    i.e.  this looks like a candidate for cherry-picking for all supported
-    releases.
-    
-    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
-
-commit 352016d2da69bfc998a642132ab722940899ad2e
+commit 55b5fe888002258dd863d41977bfbfcf1a922179
 Author: Chris Wilson <chris@chris-wilson.co.uk>
-Date:   Sat Jul 24 23:08:20 2010 +0100
+Date:   Thu Sep 16 16:50:13 2010 +0100
 
-    legacy/ums: Don't use uninitialised methods for synchronisation
+    Add alternate pci-id for B43
     
-    Fixes https://bugs.freedesktop.org/show_bug.cgi?id=29153
+    Confirmed by http://en.wikipedia.org/wiki/Intel_GMA
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=30221
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
 
-commit e90446967b34013cf74bc9c6aa502261dddf1933
+commit 08c2caca48323d6d5701dcef3486f850619d7905
 Author: Chris Wilson <chris@chris-wilson.co.uk>
-Date:   Thu Jul 15 11:31:32 2010 +0100
+Date:   Sun Sep 12 12:34:51 2010 +0100
 
-    legacy/ums: #include <drm.h>
+    uxa: Apply source clipping to blits
+    
+    Yes, this should be done in the higher layers. Yes, I have written code
+    to that. No, it is not ready, hence add the sanity check to the
+    SRC_COPY_BLT.
+    
+    This isn't the first report that I've seen, but will be the last.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=30120
+    Reported-by: rezbit.hex@gmail.com
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
 
-commit 7865828182d094b0e9b3706dc4a6ea17e3b09ba7
+commit ae160d7fbfc79e78dad8702efcc55d9c0c25ff67
 Author: Chris Wilson <chris@chris-wilson.co.uk>
-Date:   Tue Jul 13 17:50:59 2010 +0100
+Date:   Fri Sep 10 13:19:12 2010 +0100
 
-    legacy/ums/dri: Enable framebuffer mapping for dri
-
-commit 381a69364cd74e66554454567efb8b71ceb50819
-Author: Chris Wilson <chris@chris-wilson.co.uk>
-Date:   Tue Jul 13 08:57:13 2010 +0100
-
-    legacy/ums/i965: we do not handle SourcePictures
+    shadow: Simply modify the Screen pixmap header
+    
+    This is a slightly less risky strategy than having to remember to update
+    all pointers to the old Screen pixmap.
     
     Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
 
-commit cc6467a4fce031143a5be5500c25d8210bc4d29e
-Author: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
-Date:   Tue Jul 13 17:36:25 2010 +1000
-
-    legacy/ums: Fix build with DRI disabled
-
-commit 3c28c879e2f26265a50129d558b3aee261956f77
-Author: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
-Date:   Tue Jul 13 17:15:00 2010 +1000
-
-    legacy/ums: Re-add missing HWS initialisation
-
-commit 8ea8567cb2d45c8b2f2ba8b8893a112c1068e753
-Author: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
-Date:   Mon Jul 12 14:33:46 2010 +1000
-
-    ums: ChangeGC changed prototype in 1.8.99, not 1.7.98
-
-commit b0f7f8744aea54086d86936031d14c47b92854da
+commit 0515256490d5bcd55f85af83b84918d1bfe7f8f8
 Author: Chris Wilson <chris@chris-wilson.co.uk>
-Date:   Sun Jun 20 19:18:04 2010 +0100
+Date:   Fri Sep 10 00:08:58 2010 +0100
 
-    Reintegrate legacy UMS.
+    display: Free the EDID blob after we copy it to the output, not before.
     
-    As downstream still carries our old UMS driver in order to workaround
-    the catastrophic incoherency issues that currently plague the earlier
-    i8xx chipsets when trying to use GEM, it makes sense to integrate their
-    work into the main repository so that their fixes are shared and
-    available for all users.
-    
-    This combines the EXA code from 2.6 with the most recent updates through
-    to 2.9 when the UMS code was removed and the distributions were forced
-    to fork.
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
 
-commit 1cca56f9c8439e4ae2016d7ed5e415a690f80a66
+commit 2b96c18165d713cd6781dbf217ec33e11cc961bc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 25 12:56:43 2010 +0100
+
+    Enable a shadow buffer and disable GPU acceleration.
+    
+    An attempt to workaround the incoherency in gen2 chipsets, we avoid
+    using dynamic reallocation as much as possible.
+    
+    The first step is to disable allocation of pixmaps using GEM and simply
+    create them in system memory without a backing buffer object. This
+    forces all rendering to use S/W fallbacks.
+    
+    The second step is to allocate a shadow front buffer and assign that to
+    the Screen pixmap. This ensure that the front buffer remains in the GTT
+    and pinned for scanout. The shadow buffer will be rendered to in the
+    normal fashion via the Screen pixmap, and be marked dirty. In the block
+    handler, the dirty shadow buffer is then blitted (using the GPU) over
+    the front buffer. This should completely avoid having to move pages
+    around in the GTT and avoid incurring the wrath of those early chipsets.
+    Secondly, performance should be reasonable as we avoid the ping-pong
+    caused by the small aperture and weak GPU forcing software fallbacks.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0fa4321a765126228170ecb9536f32c134886d51
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Sep 7 13:56:16 2010 -0700
+
+    KMS: initialize backlight support for eDP panels too
+    
+    Since being able to control the backlight is handy.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit f56c839f30ec39ea22bbf6a7fda4cefd7cbfbfc2
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Sep 7 13:53:47 2010 -0700
+
+    KMS: rename LVDS fields to reflect actual usage
+    
+    These are used for panels, not just LVDS connections, so name them as such.
+    
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 0d26d950fdada1f59dc6cb31fe2f03004825f773
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Sep 7 13:46:58 2010 -0700
+
+    KMS: add fake EDID on eDP too
+    
+    This gives us a few more standard modes on eDP panels with just a simple
+    fixed timing in the VBT, just like on older, LVDS attached panels.
+    
+    Fixes FDO bug https://bugs.freedesktop.org/show_bug.cgi?id=30069.
+    
+    Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Tested-by: Manoj Iyer <manoj.iyer@canonical.com>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+commit 273d34fbc43e54a8539fbe7efc1dca66bbb4e6dc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Sep 7 12:57:04 2010 +0100
+
+    display: Query current level after finding max value.
+    
+    The current backlight value is clamped to the valid range [0, max] and
+    so as we queried the value before setting the max, we forced the current
+    backlight to 0 and so set it to be zero on initialising the display.
+    
+    Fixes:
+    
+      Bug 30063 - start X will modify brightness value to zero
+      https://bugs.freedesktop.org/show_bug.cgi?id=30063
+    
+    which is a regression due to 38f940dfea494d3093236f065392c431be06ae6e.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 53767cc0d0a58d36cd445da3a31c65b349eebbba
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Tue Sep 7 14:17:05 2010 +0800
+
+    Add more sandybridge graphics device ids
+    
+    New ids for GT2 and GT2+ on desktop and mobile sandybridge, and
+    server sandybridge device ids.
+
+commit 00f6af2c8ec899258ffab60dc2d9d80c4d9daec8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 4 18:45:11 2010 +0100
+
+    display: Set MONITOR_EDID_COMPLETE_RAWDATA for large EDIDs
+    
+    Quoting Adam Jackson:
+    
+    "But the X driver looks like
+    it never sets MONITOR_EDID_COMPLETE_RAWDATA, which means the X core
+    doesn't know that any sections beyond the first are present, so it won't
+    ever hand back more than 128 bytes to clients.  Boo."
+    
+    This patch is based on his.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 501e78b0095b00a635dc1dc182fc132f14f08f22
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Sep 4 12:37:39 2010 +0100
+
+    Force use of GTT and fence registers for mapping tiled objects
+    
+    If the buffer object is tiled, we need to use the fence registers to
+    perform the appropriate untiling for CPU access. Ensure that we always
+    take this path for tiled objects, regardless of their size.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b7a8087fbc5cbd944f8345b8a098270c1f63ebab
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 25 15:44:20 2010 +0100
+
+    Revert "Leave adjustment of backlight to the driver."
+    
+    This reverts commit 9c3e34703dcdc2155faeb2c1886930def19d9989.
+    
+    This commit is not ready, as first the driver needs to handle all
+    controllers, especially those that ignore the BLC and require their own
+    interface.  Fortunately, by moving that discovery into the kernel - where
+    it just means finding which ACPI device is attached to the video and has a
+    backlight interface - the userspace code should become much more sane,
+    and work even with multi-gpu, multi-lid systems.
+    
+    But that is for tomorrow.
+
+commit 68a5ad497b557ab9e8bff301098ea78c84d385a2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 25 14:59:04 2010 +0100
+
+    uxa: Fallback if faced with large A1 glyphs.
+    
+    Rather than assert, we should fixup the use of large A1 glyphs. However,
+    the simplest approach is to simply fallback to s/w.
+    
+    Fixes:
+    
+      Bug 29430 - [UXA] Crash due assert (uxa_pixmap_is_offscreen(src_pixmap));
+      https://bugs.freedesktop.org/show_bug.cgi?id=29430
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9c3e34703dcdc2155faeb2c1886930def19d9989
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Aug 22 21:27:45 2010 +0100
+
+    Leave adjustment of backlight to the driver.
+
+commit 104cd0554bde1d109a54db7a93700d5edfabd914
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Mon Aug 23 09:48:22 2010 +0800
+
+    Add sandybridge D0 support
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
+
+commit 271dda84be2f81b32dbe5947e64f5558a89e385e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Aug 22 19:57:24 2010 +0100
+
+    display: Use the native intel backlight controller
+    
+    If the i915 driver exposes a native ACPI interface to modify the panel
+    backlight use it in preference to the generic interfaces. On multi-GPU
+    systems, the panel backlight is meant to be connected via the IGP and
+    this ensures that we always find the right interface.
+    
+    Fixes:
+    
+          Bug 29273 - XORG Intel driver chooses wrong acpi_video to control
+                      brightness in multi-GPU system
+          https://bugs.freedesktop.org/show_bug.cgi?id=29273
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 42312bbd8c9cbadf0adc4556b76987857d105bd9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Aug 22 09:54:18 2010 +0100
+
+    Remove accel_pitch_alignment
+    
+    This has to be 64 on all generations currently, so replace the variable
+    with a constant.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7f86e5b5da88201e5443e26619c35a1a9745cf68
+Author: Matt Turner <mattst88@gmail.com>
+Date:   Sat Aug 21 17:32:25 2010 -0400
+
+    Replace ROUND_* macros with ALIGN.
+    
+    Signed-off-by: Matt Turner <mattst88@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b611bced15c30f7bcd03106ce90668b684c1ada6
+Author: Matt Turner <mattst88@gmail.com>
+Date:   Sat Aug 21 17:32:24 2010 -0400
+
+    Use ALIGN macro instead of open coding it.
+    
+    Signed-off-by: Matt Turner <mattst88@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8b04b350a983b89eb2d741f55baa297a933ac6ea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Aug 19 20:05:08 2010 +0100
+
+    Open-code DRICreatePCIBusID()
+    
+    During -configure we would attempt to query the availablility of KMS
+    before the DRI module was loaded, thus we were unable to create a valid
+    bus identifier and so the query failed and we disowned the device.
+    
+    Fixes:
+    
+      Bug 29611 - Xorg -configure fails
+      https://bugs.freedesktop.org/show_bug.cgi?id=29611
+    
+    Reported-by: Sergey Samokhin <prikrutil@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c882f6a22a862c1664c375e05e5e6fc4bdb04edb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 18 10:21:22 2010 +0100
+
+    Move registration of vsync fd from pre-init to screen-init
+    
+    Marty Jack reported an issue he found where the page-flipping handler
+    was being lost on server reset. This results in the swap completion
+    notification being lost, with the sporadic hang of full screen
+    applications like Compiz, flash and even glxgears!
+    
+    Fixes:
+    
+      Bug 29584 - Server in compute loop
+      https://bugs.freedesktop.org/show_bug.cgi?id=29584
+    
+    There are also several possibly related bugs with similar symptoms, i.e.
+    OpenGL applications hanging on missed swap notifications.
+    
+    Reported-by: Marty Jack <martyj19@comcast.net>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Cc: Keith Packard <keithp@keithp.com>
+
+commit 19c48d3b3f33582baa87a9b3a9189e320e4cea45
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Aug 9 10:13:58 2010 +0100
+
+    display: outputs are enabled automatically by KMS
+    
+    When an output is attached to a crtc and that crtc is enabled, the
+    output is automatically enabled so we can remove the redundant manual
+    dpms on.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6304cb048c745be81dae13f1d936996e04eaa530
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Aug 5 18:13:55 2010 +0100
+
+    display: Minor cleanup for adding extra LVDS modes
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 41ae9564350cba8ac9f040f22bad8740e08e14c4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Aug 5 18:13:30 2010 +0100
+
+    display: Refactor EDID attachment to output.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a8919ab2967a8425e1cdc04b73702ce534f6abf0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Aug 5 09:59:22 2010 +0100
+
+    Revert "display: Cache whether we have probed for an EDID"
+    
+    Dave Airlie advised that hotplug detection can be unreliable and that
+    mode caching, in general, should be done in the kernel in any case.
+    
+    This reverts commit 622e600069ab0efd22586c7a71eecbd4baf21c40.
+
+commit 622e600069ab0efd22586c7a71eecbd4baf21c40
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 4 09:57:12 2010 +0100
+
+    display: Cache whether we have probed for an EDID
+    
+    Remember for the detection cycle whether we have already probed for the
+    EDID -- as this can be slow.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a6a707ca13097b85b319283b3a174b1986056ab8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 4 09:54:28 2010 +0100
+
+    display: Embed the lvds size into the connector
+    
+    Remove one very common allocation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6c7d105ccae32fba49a07a03b726cc3fe2de3d27
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 4 09:51:34 2010 +0100
+
+    display: Handle cursor error paths.
+    
+    Check that the cursor was allocated before freeing.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 38f940dfea494d3093236f065392c431be06ae6e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 4 09:50:14 2010 +0100
+
+    display: Tidy backlight initialisation
+    
+    Mostly whitespace and a single error-code fix.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2b7263b771d94401cb4ea6cbf4dc7a295eeda7c0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Aug 4 09:46:01 2010 +0100
+
+    display: Check for buffer overrun in output name lookup.
+    
+    The kernel may know about more types than we do, so protect ourselves
+    from reading from beyond the end of the string array.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 56629166915155628e70e6ec8052c0d220a8bb68
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Wed Aug 4 15:35:41 2010 +1000
+
+    intel: add output names for later additions to kernel
+
+commit fe7dee7fe1cf12665bc5ba3923cd1a8f74cbbe57
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Aug 1 14:15:09 2010 +0100
+
+    Remove the final references to the drmmode prefix
+    
+    In particular fix the compile regression for intel_do_pageflip().
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4f8b279f32cfda0f3b8fa1542b3fe00051520012
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Aug 1 12:35:57 2010 +0100
+
+    intel_display: Miscellaneous tidy
+    
+    A mixture of whitespace and closing of leaks on error paths.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit db7cd7b9f0ce8e435c121071eaadf8e6dcebf9e8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Aug 1 11:25:42 2010 +0100
+
+    Rename drmmode_display to intel_display
+    
+    And fixup all the drmmode_* functions to have an intel prefix and
+    categorise those into intel_mode, intel_crtc, intel_output and
+    intel_property so that the functions are a little more self-descriptive
+    and, more importantly, are consistent.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0be3e95c844247746742805830860ace9f546d99
+Author: Kristian Høgsberg <krh@bitplanet.net>
+Date:   Fri Jul 30 09:39:58 2010 -0400
+
+    Remove explicit batchbuffer submit in DRI2 copyregion
+    
+    Now that we submit from the flush callback chain, we know we'll always
+    submit before the client receives the reply or event that blocks it from
+    rendering the next frame.
+
+commit 69d65f9184006eac790efcff78a0e425160e95aa
+Author: Kristian Høgsberg <krh@bitplanet.net>
+Date:   Thu Jul 29 18:31:48 2010 -0400
+
+    Submit batch buffers from flush callback chain
+    
+    There are a few cases where the server will flush client output buffers
+    but our block handler only catches the most common (before going into select).
+    If the server flushes client buffers before we submit our batch buffer,
+    the client may receive a damage event for rendering that hasn't happened yet.
+    
+    Instead, we can hook into the flush callback chain, which the server will
+    invoke just before flushing output.  This lets us submit batch buffers
+    before sending out events, preserving ordering.
+    
+    Fixes 28438: [bisected] incorrect character in gnome-terminal under compiz
+    https://bugs.freedesktop.org/show_bug.cgi?id=28438
+    
+    Signed-off-by: Kristian Høgsberg <krh@bitplanet.net>
+
+commit b68d4fcab5d671946c187947f5d00aedff939852
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jul 28 13:41:41 2010 +0100
+
+    drmmode: Only treat a backlight as connected if it has a non-zero max
+    
+    Optimistically might help
+    https://bugs.freedesktop.org/show_bug.cgi?id=29273
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 938ef4eaec0e406e198105d866f6d2a1be5e0ef8
+Author: Kristian Høgsberg <krh@bitplanet.net>
+Date:   Wed Jul 28 07:57:42 2010 -0400
+
+    legacy: Remove long gone use of GlxSetVisualConfigs()
+    
+    This removes the last dependeny on anything GL/GLX in the driver.
+
+commit fba6651a92af76d7a8d034e1acfdad5023cd311c
+Author: Kristian Høgsberg <krh@bitplanet.net>
+Date:   Tue Jul 27 12:59:39 2010 -0400
+
+    Drop use of GL types in the driver
+    
+    Still used in i810 for building the glx visuals.
+
+commit 34b9d45be6cb0c42f031677a0bda8a5013472ae8
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Tue Jul 27 09:10:04 2010 -0700
+
+    Revert "configure.ac: add xi and gl requirements"
+    
+    This reverts commit d580fa82a1cf339d2d1fd1055d137c0b23cd04f3.
+    
+    Oops, these should be server or other package dependencies, we don't
+    actually need them for xf86-video-intel.
+
+commit d580fa82a1cf339d2d1fd1055d137c0b23cd04f3
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Jul 26 16:44:19 2010 -0700
+
+    configure.ac: add xi and gl requirements
+    
+    Could probably be earlier versions, but having these here makes packaging
+    easier.
+
+commit f46a8dfce59013ce593c15f7166598d0fff9198f
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Jul 26 23:02:02 2010 +0200
+
+    video: kill do { ... } while (ret != -EINTR) loops
+    
+    Chris Wilson likes to sprinkle these all over, but in this
+    case it's just misleading. libdrm already does this for us.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 1cb69b9a77b7afbb4358757556065e10a6b15ea8
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Mon Jul 26 23:00:20 2010 +0200
+
+    video: kernel overlay needs triple buffering
+    
+    The kernel overlay code does asynchronous overlay flips. So keep
+    onto two old buffers, for otherwise the rendering of the next
+    frame might overwrite the contents of the currently still displaying
+    one. With ~25fps videos and ~50 Hz screens that's rather unlikely,
+    still, fix it.
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 68df6b2790891683ee2e58daaad34ef17ae344f5
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Fri Jul 23 17:39:37 2010 -0400
+
+    simplify Makefile as per-target compilation flags are not needed
+    
+    Per-target compilation flags (libIntelXvMC_la_CFLAGS) are required
+    when multiple targets which require different compiler flags,
+    are build in the same makefile.
+    
+    Automake issues a command with -c and -o flags which not all compilers
+    support. The object fles are prefixed with libIntelXvMC_la.
+    The macro AM_PROG_CC_C_O must then be used to provide this feature
+    on compilers that do not have it. If not, a warning is issued at make time.
+    
+    This macros checks for compiler support and if missing, uses a "compile"
+    script it generates in the package root directory.
+    
+    Currently the driver uses per-target flags but the macro is missing.
+    Rather than adding the macro, this patch stops using per-target flags
+    by using the AM_CFLAGS variable for all targets in the makefile, as
+    there is only one.
+    
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 0ae30b6d1f4f6c2f2db9443f1027ea41849ad087
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Wed Jul 21 16:49:04 2010 -0400
+
+    config: add comments for main statements
+
+commit b12b2219677d94933774955b50545efceff57279
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Wed Jul 21 16:07:00 2010 -0400
+
+    config: replace deprecated use of AC_OUTPUT with AC_CONFIG_FILES
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 8b2d65da41461735b1138fdd6e0efc96419cd815
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Wed Jul 21 14:37:41 2010 -0400
+
+    config: replace deprecated AC_HELP_STRING with AS_HELP_STRING
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 3feeef5294b1a2df05a25f4f4eb6400be6cc4ee1
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Wed Jul 21 14:05:22 2010 -0400
+
+    config: replace deprecated AM_CONFIG_HEADER with AC_CONFIG_HEADERS
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 74a828e286c46473b8edf6de32c1989c052dd82c
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Wed Jul 21 09:27:42 2010 -0400
+
+    config: complete AC_INIT m4 quoting
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 33ec66d7006e2a7e287fd77c53a31db49220591a
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Tue Jul 20 21:54:11 2010 -0400
+
+    config: remove unrequired AC_SUBST([DRI_CFLAGS])
+    
+    This macro is called by PKG_CHECK_MODULES
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit b20b8ac937505310fbe68f07e42cafe4ba88da76
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Tue Jul 20 20:24:42 2010 -0400
+
+    config: remove unrequired AC_HEADER_STDC
+    
+    Autoconf says:
+    "This macro is obsolescent, as current systems have conforming
+    header files. New programs need not use this macro".
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 9fe5169fffeee10b1262f160a15c11c283e2faa7
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Tue Jul 20 19:41:31 2010 -0400
+
+    config: remove AC_PROG_CC as it overrides AC_PROG_C_C99
+    
+    XORG_STRICT_OPTION from XORG_DEFAULT_OPTIONS calls
+    AC_PROG_C_C99. This sets gcc with -std=gnu99.
+    If AC_PROG_CC macro is called afterwards, it resets CC to gcc.
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit e6b8811e5bb30e2cd4e35b1fe84d69f18a73ee0e
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Tue Jul 20 18:45:19 2010 -0400
+
+    config: update AC_PREREQ statement to 2.60
+    
+    Unrelated to the previous patches, the new value simply reflects
+    the reality that the minimum level for autoconf to configure
+    all x.org modules is 2.60 dated June 2006.
+    
+    ftp://ftp.gnu.org/gnu/autoconf/autoconf-2.60.tar.gz
+    
+    Signed-off-by: Gaetan Nadon <memsize@videotron.ca>
+
+commit 2d85efaa36791bd441f069b612ee86387353d1ed
+Author: Gaetan Nadon <memsize@videotron.ca>
+Date:   Tue Jul 20 16:15:29 2010 -0400
+
+    config: upgrade to util-macros 1.8 for additional man page support
+    
+    Use MAN_SUBST now supplied in XORG_MANPAGE_SECTIONS
+    The value of MAN_SUBST is the same for all X.Org packages.
+
+commit 142ffa287236adbc3c5f6ead46c63c4c541ace0c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jul 22 16:42:26 2010 +0100
+
+    video/i915: ValidateGC after setting clip.
+    
+    Order is important. And ensure that the scratch GC is performing clip by
+    children.
+    
+    Fixes:
+    
+      Bug 29213 - video artifacts if used dualscreen mode
+      https://bugs.freedesktop.org/show_bug.cgi?id=29213
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c57840b272ba88fddf22484929608431879b0fab
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jul 21 09:06:06 2010 +0100
+
+    uxa: Check for failed pixmap allocation
+    
+    Fixes:
+    
+      Bug 29187 - crash in intel_drv
+      https://bugs.freedesktop.org/show_bug.cgi?id=29187
+    
+    Backtrace:
+    0: /usr/bin/X (xorg_backtrace+0x28) [0x466808]
+    1: /usr/bin/X (0x400000+0x67c79) [0x467c79]
+    2: /lib/libpthread.so.0 (0x7ff19b297000+0xef60) [0x7ff19b2a5f60]
+    3: /usr/lib/xorg/modules/drivers/intel_drv.so (0x7ff197986000+0x34684) => uxa/uxa-render.c:841
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7a4bfaf42412f373bbc8ebe1536018dcacde7436
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Tue Jul 20 11:30:44 2010 +1000
+
+    intel: respect tiling disable.
+    
+    For testing purposes its nice to know tiling isn't being used anywhere.
+    
+    Signed-off-by: Dave Airlie <airlied@redhat.com>
+
+commit d48d584a822ae5adae64f6d5f09faa4ac9b8de73
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jul 15 14:37:59 2010 +0100
+
+    video: Free the buffers immediately after turning off.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 24bdfe0d5eb4e890e9c63bbb4617efaa0768ab7f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jul 15 13:54:04 2010 +0100
+
+    video: Reuse the old buffers.
+    
+    After passing the new buffer to the kernel, the old buffer is unpinned
+    and becomes available for re-use. So keep hold of the old buffer and
+    swap after a PutImage. This greatly reduces the amount of CPU time
+    consumed by the kernel on behalf of the video overlay -- by only
+    allocating two buffers for an entire sequence, we avoid clflushing and
+    page allocation on every frame.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2267e5928bd90a6997970584462bd97df447e819
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 13 10:36:34 2010 +0100
+
+    Workaround a broken container_of define in list.h
+
+commit 798c3a5fc6e3d44c9b94e6bc4e72385a10939f52
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 13 10:30:33 2010 +0100
+
+    Teardown the bufmgr on shutdown as well.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b2e98227d11a60e90b3ea518f14962f2764ffa68
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 13 10:15:34 2010 +0100
+
+    Remove the duplicate drmmode prototypes.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5de1b74d64f807b59c730871d4cb171484db9780
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jul 13 09:34:53 2010 +0100
+
+    modes: There may be more than one crtc and output... DESTROY THEM ALL!
+    
+    In order to cleanup all CRTCs and outputs on shutdown, we need to keep a
+    list of the individual structures and iterate over that list on
+    shutdown.
+    
+    Also, the output and crtcs are configured just once and not for each
+    screen generation so move the shutdown to the termination and not on
+    CloseScreen. Oops.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3a7c25ff8ddd45c9d9eca5cc2228552847ca9e7d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jul 12 19:47:46 2010 +0100
+
+    video: Apply overlay stride errata for i830 and i845
+    
+    Due to an erratum on these chipsets, the overlay stride must be a
+    multiple of 256 bytes.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 56e5816252afbc7dd555c308ca678fce7ee584cc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jul 12 17:26:37 2010 +0100
+
+    video: Copy DummyEncoding into each adapter.
+    
+    As we use the static DummyEncoding and may attempt to modify it for each
+    adaptor (on each device), we should use copies instead.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e30f0338fbf894fa3fdab20f4f9a97495cd341da
 Author: Keith Packard <keithp@keithp.com>
 Date:   Thu Jul 1 09:56:40 2010 -0400
 
@@ -97,6 +802,16 @@ Date:   Thu Jul 1 09:56:40 2010 -0400
     destroying the pixmap ourselves and why chaining up in this instance is
     not the correct approach.]
     Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6e08b0f48f0d6ddaca963de6f4fd3b56f32512c6
+Author: Fernando Carrijo <fcarrijo@yahoo.com.br>
+Date:   Thu Jul 1 07:15:22 2010 -0300
+
+    Purge macro NEED_EVENTS
+    
+    Signed-off-by: Fernando Carrijo <fcarrijo@yahoo.com.br>
+    Acked-by: Tiago Vignatti <tiago.vignatti@nokia.com>
+    Reviewed-by: Alan Coopersmith <alan.coopersmith@oracle.com>
 
 commit 5ce3f536b7169a1ee9eadf830e61bab230dd7239
 Author: Chris Wilson <chris@chris-wilson.co.uk>

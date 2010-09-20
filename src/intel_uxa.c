@@ -142,7 +142,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	if (*tiling != I915_TILING_NONE) {
 		/* First check whether tiling is necessary. */
 		pitch = (w * pixmap->drawable.bitsPerPixel + 7) / 8;
-		pitch = ROUND_TO(pitch, intel->accel_pixmap_pitch_alignment);
+		pitch = ALIGN(pitch, 64);
 		size = pitch * ALIGN (h, 2);
 		if (!IS_I965G(intel)) {
 			/* Older hardware requires fences to be pot size
@@ -179,7 +179,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 			aligned_h = ALIGN(h, 32);
 
 		*stride = intel_get_fence_pitch(intel,
-						ROUND_TO(pitch, 512),
+						ALIGN(pitch, 512),
 						*tiling);
 
 		/* Round the object up to the size of the fence it will live in
@@ -199,7 +199,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		 * subspan doesn't address an invalid page offset beyond the
 		 * end of the GTT.
 		 */
-		*stride = ROUND_TO(pitch, intel->accel_pixmap_pitch_alignment);
+		*stride = ALIGN(pitch, 64);
 		size = *stride * ALIGN(h, 2);
 	}
 
@@ -411,11 +411,38 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t cmd;
-	int dst_x2, dst_y2;
+	int dst_x2, dst_y2, src_x2, src_y2;
 	unsigned int dst_pitch, src_pitch;
 
 	dst_x2 = dst_x1 + w;
 	dst_y2 = dst_y1 + h;
+
+	/* XXX Fixup extents as a lamentable workaround for missing
+	 * source clipping in the upper layers.
+	 */
+	if (dst_x1 < 0)
+		src_x1 -= dst_x1, dst_x1 = 0;
+	if (dst_y1 < 0)
+		src_y1 -= dst_y1, dst_y1 = 0;
+	if (dst_x2 > dest->drawable.width)
+		dst_x2 = dest->drawable.width;
+	if (dst_y2 > dest->drawable.height)
+		dst_y2 = dest->drawable.height;
+
+	src_x2 = src_x1 + (dst_x2 - dst_x1);
+	src_y2 = src_y1 + (dst_y2 - dst_y1);
+
+	if (src_x1 < 0)
+		dst_x1 -= src_x1, src_x1 = 0;
+	if (src_y1 < 0)
+		dst_y1 -= src_y1, src_y1 = 0;
+	if (src_x2 > intel->render_source->drawable.width)
+		dst_x2 -= src_x2 - intel->render_source->drawable.width;
+	if (src_y2 > intel->render_source->drawable.height)
+		dst_y2 -= src_y2 - intel->render_source->drawable.height;
+
+	if (dst_x2 <= dst_x1 || dst_y2 <= dst_y1)
+		return;
 
 	dst_pitch = intel_pixmap_pitch(dest);
 	src_pitch = intel_pixmap_pitch(intel->render_source);
@@ -485,6 +512,89 @@ static void i830_done_composite(PixmapPtr dest)
 		intel->vertex_flush(intel);
 
 	intel_debug_flush(scrn);
+}
+
+#define xFixedToFloat(val) \
+	((float)xFixedToInt(val) + ((float)xFixedFrac(val) / 65536.0))
+
+static Bool
+_intel_transform_point(PictTransformPtr transform,
+		       float x, float y, float result[3])
+{
+	int j;
+
+	for (j = 0; j < 3; j++) {
+		result[j] = (xFixedToFloat(transform->matrix[j][0]) * x +
+			     xFixedToFloat(transform->matrix[j][1]) * y +
+			     xFixedToFloat(transform->matrix[j][2]));
+	}
+	if (!result[2])
+		return FALSE;
+	return TRUE;
+}
+
+/**
+ * Returns the floating-point coordinates transformed by the given transform.
+ *
+ * transform may be null.
+ */
+Bool
+intel_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
+				  float *x_out, float *y_out)
+{
+	if (transform == NULL) {
+		*x_out = x;
+		*y_out = y;
+	} else {
+		float result[3];
+
+		if (!_intel_transform_point(transform,
+					    x, y,
+					    result))
+			return FALSE;
+		*x_out = result[0] / result[2];
+		*y_out = result[1] / result[2];
+	}
+	return TRUE;
+}
+
+/**
+ * Returns the un-normalized floating-point coordinates transformed by the given transform.
+ *
+ * transform may be null.
+ */
+Bool
+intel_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
+				     float *x_out, float *y_out, float *w_out)
+{
+	if (transform == NULL) {
+		*x_out = x;
+		*y_out = y;
+		*w_out = 1;
+	} else {
+		float result[3];
+
+		if (!_intel_transform_point(transform,
+					    x, y,
+					    result))
+			return FALSE;
+		*x_out = result[0];
+		*y_out = result[1];
+		*w_out = result[2];
+	}
+	return TRUE;
+}
+
+/**
+ * Returns whether the provided transform is affine.
+ *
+ * transform may be null.
+ */
+Bool intel_transform_is_affine(PictTransformPtr t)
+{
+	if (t == NULL)
+		return TRUE;
+	return t->matrix[2][0] == 0 && t->matrix[2][1] == 0;
 }
 
 dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap)
@@ -579,24 +689,16 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	    (access == UXA_ACCESS_RW || priv->batch_write))
 		intel_batch_submit(scrn, FALSE);
 
-	if (bo->size > intel->max_gtt_map_size) {
-		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
-		if (ret != 0) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: bo map failed: %s\n",
-				   __FUNCTION__,
-				   strerror(-ret));
-			return FALSE;
-		}
-	} else {
+	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
 		ret = drm_intel_gem_bo_map_gtt(bo);
-		if (ret != 0) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: gtt bo map failed: %s\n",
-				   __FUNCTION__,
-				   strerror(-ret));
-			return FALSE;
-		}
+	else
+		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
+	if (ret) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "%s: bo map failed: %s\n",
+			   __FUNCTION__,
+			   strerror(-ret));
+		return FALSE;
 	}
 
 	pixmap->devPrivate.ptr = bo->virtual;
@@ -607,18 +709,16 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 static void intel_uxa_finish_access(PixmapPtr pixmap)
 {
-	dri_bo *bo = intel_get_pixmap_bo(pixmap);
 	ScreenPtr screen = pixmap->drawable.pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	dri_bo *bo = priv->bo;
 
-	if (bo == intel->front_buffer)
-		intel->need_sync = TRUE;
-
-	if (bo->size > intel->max_gtt_map_size)
-		dri_bo_unmap(bo);
-	else
+	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
 		drm_intel_gem_bo_unmap_gtt(bo);
+	else
+		dri_bo_unmap(bo);
 
 	pixmap->devPrivate.ptr = NULL;
 }
@@ -816,14 +916,196 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 		scratch->drawable.pScreen->DestroyPixmap(scratch);
 
 	return ret;
+}
 
+static dri_bo *
+intel_shadow_create_bo(intel_screen_private *intel,
+		       int16_t x1, int16_t y1,
+		       int16_t x2, int16_t y2,
+		       int *pitch)
+{
+	int w = x2 - x1, h = y2 - y1;
+	int size = h * w * intel->cpp;
+	dri_bo *bo;
+
+	bo = drm_intel_bo_alloc(intel->bufmgr, "shadow", size, 0);
+	if (bo && drm_intel_gem_bo_map_gtt(bo) == 0) {
+		char *dst = bo->virtual;
+		char *src = intel->shadow_buffer;
+		int src_pitch = intel->shadow_stride;
+		int row_length = w * intel->cpp;
+		int num_rows = h;
+		src += y1 * src_pitch + x1 * intel->cpp;
+		do {
+			memcpy (dst, src, row_length);
+			src += src_pitch;
+			dst += row_length;
+		} while (--num_rows);
+		drm_intel_gem_bo_unmap_gtt(bo);
+	}
+
+	*pitch = w * intel->cpp;
+	return bo;
+}
+
+static void
+intel_shadow_blt(intel_screen_private *intel)
+{
+	ScrnInfoPtr scrn = intel->scrn;
+	unsigned int dst_pitch;
+	uint32_t blt, br13;
+	RegionPtr region;
+	BoxPtr box;
+	int n;
+
+	dst_pitch = intel->front_pitch;
+
+	blt = XY_SRC_COPY_BLT_CMD;
+	if (intel->cpp == 4)
+		blt |= (XY_SRC_COPY_BLT_WRITE_ALPHA |
+				XY_SRC_COPY_BLT_WRITE_RGB);
+
+	if (IS_I965G(intel)) {
+		if (intel->front_tiling) {
+			dst_pitch >>= 2;
+			blt |= XY_SRC_COPY_BLT_DST_TILED;
+		}
+	}
+
+	br13 = ROP_S << 16 | dst_pitch;
+	switch (intel->cpp) {
+		default:
+		case 4: br13 |= 1 << 25; /* RGB8888 */
+		case 2: br13 |= 1 << 24; /* RGB565 */
+		case 1: break;
+	}
+
+	region = DamageRegion(intel->shadow_damage);
+	box = REGION_RECTS(region);
+	n = REGION_NUM_RECTS(region);
+	while (n--) {
+		int pitch;
+		dri_bo *bo;
+		int offset;
+
+		if (IS_I8XX(intel)) {
+			bo = intel->shadow_buffer;
+			offset = box->x1 | box->y1 << 16;
+			pitch = intel->shadow_stride;
+		} else {
+			bo = intel_shadow_create_bo(intel,
+						    box->x1, box->y1,
+						    box->x2, box->y2,
+						    &pitch);
+			if (bo == NULL)
+				return;
+
+			offset = 0;
+		}
+
+		BEGIN_BATCH(8);
+		OUT_BATCH(blt);
+		OUT_BATCH(br13);
+		OUT_BATCH(box->y1 << 16 | box->x1);
+		OUT_BATCH(box->y2 << 16 | box->x2);
+		OUT_RELOC_FENCED(intel->front_buffer,
+				I915_GEM_DOMAIN_RENDER,
+				I915_GEM_DOMAIN_RENDER,
+				0);
+		OUT_BATCH(offset);
+		OUT_BATCH(pitch);
+		OUT_RELOC(bo, I915_GEM_DOMAIN_RENDER, 0, 0);
+
+		ADVANCE_BATCH();
+
+		if (bo != intel->shadow_buffer)
+			drm_intel_bo_unreference(bo);
+		box++;
+	}
+}
+
+static void intel_shadow_create(struct intel_screen_private *intel)
+{
+	ScrnInfoPtr scrn = intel->scrn;
+	ScreenPtr screen = scrn->pScreen;
+	PixmapPtr pixmap;
+	int stride;
+
+	pixmap = screen->GetScreenPixmap(screen);
+	if (IS_I8XX(intel)) {
+		dri_bo *bo;
+		int size;
+
+		/* Reduce the incoherency worries for gen2
+		 * by only allocating a static shadow, at about 2-3x
+		 * performance cost for forcing rendering to uncached memory.
+		 */
+		if (intel->shadow_buffer) {
+			drm_intel_gem_bo_unmap_gtt(intel->shadow_buffer);
+			drm_intel_bo_unreference(intel->shadow_buffer);
+			intel->shadow_buffer = NULL;
+		}
+
+		stride = ALIGN(scrn->virtualX * intel->cpp, 4);
+		size = stride * scrn->virtualY;
+		bo = drm_intel_bo_alloc(intel->bufmgr,
+					"shadow", size,
+					0);
+		if (bo && drm_intel_gem_bo_map_gtt(bo) == 0) {
+			screen->ModifyPixmapHeader(pixmap,
+						   scrn->virtualX,
+						   scrn->virtualY,
+						   -1, -1,
+						   stride,
+						   bo->virtual);
+			intel->shadow_buffer = bo;
+		}
+	} else {
+		void *buffer;
+
+		stride = intel->cpp*scrn->virtualX;
+		buffer = malloc(stride * scrn->virtualY);
+
+		if (buffer && screen->ModifyPixmapHeader(pixmap,
+							 scrn->virtualX,
+							 scrn->virtualY,
+							 -1, -1,
+							 stride,
+							 buffer)) {
+			if (intel->shadow_buffer)
+				free(intel->shadow_buffer);
+
+			intel->shadow_buffer = buffer;
+		} else
+			stride = intel->shadow_stride;
+	}
+
+	if (!intel->shadow_damage) {
+		intel->shadow_damage = DamageCreate(NULL, NULL,
+						    DamageReportNone,
+						    TRUE,
+						    screen,
+						    intel);
+		DamageRegister(&pixmap->drawable, intel->shadow_damage);
+		DamageSetReportAfterOp(intel->shadow_damage, TRUE);
+	}
+
+	scrn->displayWidth = stride / intel->cpp;
+	intel->shadow_stride = stride;
 }
 
 void intel_uxa_block_handler(intel_screen_private *intel)
 {
-	if (intel->need_sync) {
-		dri_bo_wait_rendering(intel->front_buffer);
-		intel->need_sync = FALSE;
+	if (intel->shadow_damage &&
+	    pixman_region_not_empty(DamageRegion(intel->shadow_damage))) {
+		intel_shadow_blt(intel);
+		/* Emit a flush of the rendering cache, or on the 965
+		 * and beyond rendering results may not hit the
+		 * framebuffer until significantly later.
+		 */
+		intel_batch_submit(intel->scrn, TRUE);
+
+		DamageEmpty(intel->shadow_damage);
 	}
 }
 
@@ -864,6 +1146,10 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
 			tiling = I915_TILING_Y;
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP || usage == INTEL_CREATE_PIXMAP_TILING_NONE)
+			tiling = I915_TILING_NONE;
+
+		/* if tiling is off force to none */
+		if (!intel->tiling)
 			tiling = I915_TILING_NONE;
 
 		if (tiling != I915_TILING_NONE) {
@@ -965,17 +1251,27 @@ static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 	return TRUE;
 }
 
-
 void intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	dri_bo *bo = intel->front_buffer;
 
-	if (bo != NULL) {
-		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-		intel_set_pixmap_bo(pixmap, bo);
-		intel_get_pixmap_private(pixmap)->busy = 1;
+	if (intel->use_shadow) {
+		intel_shadow_create(intel);
+	} else {
+		dri_bo *bo = intel->front_buffer;
+		if (bo != NULL) {
+			PixmapPtr pixmap = screen->GetScreenPixmap(screen);
+			intel_set_pixmap_bo(pixmap, bo);
+			intel_get_pixmap_private(pixmap)->busy = 1;
+			screen->ModifyPixmapHeader(pixmap,
+						   scrn->virtualX,
+						   scrn->virtualY,
+						   -1, -1,
+						   intel->front_pitch,
+						   NULL);
+		}
+		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
 }
 
@@ -1022,12 +1318,10 @@ intel_limits_init(intel_screen_private *intel)
 	 */
 	if (IS_I965G(intel)) {
 		intel->accel_pixmap_offset_alignment = 4 * 2;
-		intel->accel_pixmap_pitch_alignment = 64;
 		intel->accel_max_x = 8192;
 		intel->accel_max_y = 8192;
 	} else {
 		intel->accel_pixmap_offset_alignment = 4;
-		intel->accel_pixmap_pitch_alignment = 64;
 		intel->accel_max_x = 2048;
 		intel->accel_max_y = 2048;
 	}
@@ -1052,8 +1346,6 @@ Bool intel_uxa_init(ScreenPtr screen)
 		return FALSE;
 
 	memset(intel->uxa_driver, 0, sizeof(*intel->uxa_driver));
-
-	intel->force_fallback = FALSE;
 
 	intel->bufferOffset = 0;
 	intel->uxa_driver->uxa_major = 1;
@@ -1128,6 +1420,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 	}
 
 	uxa_set_fallback_debug(screen, intel->fallback_debug);
+	uxa_set_force_fallback(screen, intel->force_fallback);
 
 	return TRUE;
 }

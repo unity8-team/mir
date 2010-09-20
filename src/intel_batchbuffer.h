@@ -153,6 +153,9 @@ intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 #define OUT_RELOC(bo, read_domains, write_domains, delta) \
 	intel_batch_emit_reloc(intel, bo, read_domains, write_domains, delta, 0)
 
+#define OUT_RELOC_FENCED(bo, read_domains, write_domains, delta) \
+	intel_batch_emit_reloc(intel, bo, read_domains, write_domains, delta, 1)
+
 #define OUT_RELOC_PIXMAP(pixmap, reads, write, delta)	\
 	intel_batch_emit_reloc_pixmap(intel, pixmap, reads, write, delta, 0)
 

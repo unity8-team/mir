@@ -43,16 +43,15 @@ intel_drv_la_SOURCES = \
          common.h \
          intel.h \
 	 intel_module.c \
-         intel_driver.c \
-         intel_driver.h \
          intel_batchbuffer.c \
          intel_batchbuffer.h \
+	 intel_display.c \
+         intel_driver.c \
+         intel_driver.h \
          intel_memory.c \
 	 intel_uxa.c \
          intel_video.c \
          intel_video.h \
-	 intel_transform.c \
-	 intel_transform.h \
 	 i830_3d.c \
 	 i830_render.c \
 	 i830_reg.h \
@@ -64,7 +63,6 @@ intel_drv_la_SOURCES = \
 	 i965_reg.h \
 	 i965_video.c \
 	 i965_render.c \
-	 drmmode_display.c \
 	 $(NULL)
 
 if DRI

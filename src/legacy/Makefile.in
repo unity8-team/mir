@@ -34,11 +34,10 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@KMS_ONLY_FALSE@am__append_1 = i810 ums
+@KMS_ONLY_FALSE@am__append_1 = i810
 @KMS_ONLY_FALSE@am__append_2 = 
 @KMS_ONLY_FALSE@am__append_3 = \
 @KMS_ONLY_FALSE@		       i810/liblegacy-i810.la \
-@KMS_ONLY_FALSE@		      ums/liblegacy-ums.la \
 @KMS_ONLY_FALSE@		       $(NULL)
 
 subdir = src/legacy
@@ -54,7 +53,7 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 @KMS_ONLY_FALSE@am__DEPENDENCIES_2 = i810/liblegacy-i810.la \
-@KMS_ONLY_FALSE@	ums/liblegacy-ums.la $(am__DEPENDENCIES_1)
+@KMS_ONLY_FALSE@	$(am__DEPENDENCIES_1)
 liblegacy_la_DEPENDENCIES = $(am__DEPENDENCIES_2)
 am__objects_1 =
 am_liblegacy_la_OBJECTS = $(am__objects_1)
@@ -101,7 +100,7 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 	distdir
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = i810 ums
+DIST_SUBDIRS = i810
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 am__relativize = \
   dir0=`pwd`; \

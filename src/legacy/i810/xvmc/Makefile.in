@@ -68,15 +68,15 @@ am__base_list = \
 am__installdirs = "$(DESTDIR)$(libdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libI810XvMC_la_DEPENDENCIES =
-am_libI810XvMC_la_OBJECTS = libI810XvMC_la-I810XvMC.lo
+am_libI810XvMC_la_OBJECTS = I810XvMC.lo
 libI810XvMC_la_OBJECTS = $(am_libI810XvMC_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
 am__v_lt_0 = --silent
 libI810XvMC_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libI810XvMC_la_CFLAGS) $(CFLAGS) $(libI810XvMC_la_LDFLAGS) \
-	$(LDFLAGS) -o $@
+	$(AM_CFLAGS) $(CFLAGS) $(libI810XvMC_la_LDFLAGS) $(LDFLAGS) -o \
+	$@
 @XVMC_TRUE@am_libI810XvMC_la_rpath = -rpath $(libdir)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -260,9 +260,7 @@ top_srcdir = @top_srcdir@
 libI810XvMC_la_SOURCES = I810XvMC.c \
 			 I810XvMC.h
 
-libI810XvMC_la_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
-			-DTRUE=1 -DFALSE=0
-
+AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ -DTRUE=1 -DFALSE=0
 libI810XvMC_la_LDFLAGS = -version-number 1:0:0
 libI810XvMC_la_LIBADD = @DRI_LIBS@ @DRM_LIBS@ @XVMCLIB_LIBS@
 all: all-am
@@ -339,7 +337,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libI810XvMC_la-I810XvMC.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/I810XvMC.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -364,14 +362,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
-
-libI810XvMC_la-I810XvMC.lo: I810XvMC.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libI810XvMC_la_CFLAGS) $(CFLAGS) -MT libI810XvMC_la-I810XvMC.lo -MD -MP -MF $(DEPDIR)/libI810XvMC_la-I810XvMC.Tpo -c -o libI810XvMC_la-I810XvMC.lo `test -f 'I810XvMC.c' || echo '$(srcdir)/'`I810XvMC.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libI810XvMC_la-I810XvMC.Tpo $(DEPDIR)/libI810XvMC_la-I810XvMC.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='I810XvMC.c' object='libI810XvMC_la-I810XvMC.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libI810XvMC_la_CFLAGS) $(CFLAGS) -c -o libI810XvMC_la-I810XvMC.lo `test -f 'I810XvMC.c' || echo '$(srcdir)/'`I810XvMC.c
 
 mostlyclean-libtool:
 	-rm -f *.lo

@@ -750,14 +750,14 @@ I810DisplayVideo(
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	swidth = (width + 7) & ~7;
+	swidth = ALIGN(width, 8);
 	overlay->SWID = (swidth << 15) | swidth;
 	overlay->SWIDQW = (swidth << 12) | (swidth >> 3);
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	swidth = ((width + 3) & ~3) << 1;
+	swidth = ALIGN(width, 4) << 1;
 	overlay->SWID = swidth;
 	overlay->SWIDQW = swidth >> 3;
 	break;
@@ -1013,15 +1013,15 @@ I810PutImage(
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	 srcPitch = (width + 3) & ~3;
-	 dstPitch = ((width >> 1) + 7) & ~7;  /* of chroma */
+	 srcPitch = ALIGN(width, 4);
+	 dstPitch = ALIGN((width >> 1), 8);  /* of chroma */
 	 size =  dstPitch * height * 3;	
 	 break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
 	 srcPitch = (width << 1);
-	 dstPitch = (srcPitch + 7) & ~7;
+	 dstPitch = ALIGN(srcPitch, 8);
 	 size = dstPitch * height;
 	 break;
     }  
@@ -1062,13 +1062,13 @@ I810PutImage(
     /* copy data */
     top = y1 >> 16;
     left = (x1 >> 16) & ~1;
-    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
+    npixels = ALIGN(((x2 + 0xffff) >> 16), 2) - left;
 
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
 	top &= ~1;
-	nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+	nlines = ALIGN(((y2 + 0xffff) >> 16), 2) - top;
 	I810CopyPlanarData(pScrn, buf, srcPitch, dstPitch,  height, top, left, 
                            nlines, npixels, id);
 	break;
@@ -1213,8 +1213,8 @@ I810AllocateSurface(
     if((w > 1024) || (h > 1024))
 	return BadAlloc;
 
-    w = (w + 1) & ~1;
-    pitch = ((w << 1) + 15) & ~15;
+    w = ALIGN(w, 2);
+    pitch = ALIGN((w << 1), 16);
     bpp = pScrn->bitsPerPixel >> 3;
     size = ((pitch * h) + bpp - 1) / bpp;
 

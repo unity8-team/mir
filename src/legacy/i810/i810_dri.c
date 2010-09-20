@@ -18,15 +18,12 @@
 #include "shadow.h"
 #include "shadowfb.h"
 
-#include "GL/glxtokens.h"
-
 #include "i810.h"
 #include "i810_dri.h"
 
 static char I810KernelDriverName[] = "i810";
 static char I810ClientDriverName[] = "i810";
 
-static Bool I810InitVisualConfigs(ScreenPtr pScreen);
 static Bool I810CreateContext(ScreenPtr pScreen, VisualPtr visual,
 			      drm_context_t hwContext, void *pVisualConfigPriv,
 			      DRIContextType contextStore);
@@ -50,10 +47,6 @@ static void I810DRITransitionTo3d(ScreenPtr pScreen);
 static void I810DRITransitionTo2d(ScreenPtr pScreen);
 
 static void I810DRIRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-
-extern void GlxSetVisualConfigs(int nconfigs,
-				__GLXvisualConfig * configs,
-				void **configprivs);
 
 static int i810_pitches[] = {
    512,
@@ -151,116 +144,6 @@ I810InitDma(ScrnInfoPtr pScrn)
    return TRUE;
 }
 
-static Bool
-I810InitVisualConfigs(ScreenPtr pScreen)
-{
-   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I810Ptr pI810 = I810PTR(pScrn);
-   int numConfigs = 0;
-   __GLXvisualConfig *pConfigs = NULL;
-   I810ConfigPrivPtr pI810Configs = NULL;
-   I810ConfigPrivPtr *pI810ConfigPtrs = NULL;
-   int accum, stencil, db, depth;
-   int i;
-
-   switch (pScrn->bitsPerPixel) {
-   case 8:
-   case 24:
-   case 32:
-      break;
-   case 16:
-      numConfigs = 8;
-
-      pConfigs =
-	    (__GLXvisualConfig *) calloc(sizeof(__GLXvisualConfig),
-					  numConfigs);
-      if (!pConfigs)
-	 return FALSE;
-
-      pI810Configs =
-	    (I810ConfigPrivPtr) calloc(sizeof(I810ConfigPrivRec),
-					numConfigs);
-      if (!pI810Configs) {
-	 free(pConfigs);
-	 return FALSE;
-      }
-
-      pI810ConfigPtrs =
-	    (I810ConfigPrivPtr *) calloc(sizeof(I810ConfigPrivPtr),
-					  numConfigs);
-      if (!pI810ConfigPtrs) {
-	 free(pConfigs);
-	 free(pI810Configs);
-	 return FALSE;
-      }
-
-      for (i = 0; i < numConfigs; i++)
-	 pI810ConfigPtrs[i] = &pI810Configs[i];
-
-      i = 0;
-      depth = 1;
-      for (accum = 0; accum <= 1; accum++) {
-	 for (stencil = 0; stencil <= 1; stencil++) {
-	    for (db = 1; db >= 0; db--) {
-	       pConfigs[i].vid = -1;
-	       pConfigs[i].class = -1;
-	       pConfigs[i].rgba = TRUE;
-	       pConfigs[i].redSize = 5;
-	       pConfigs[i].greenSize = 6;
-	       pConfigs[i].blueSize = 5;
-	       pConfigs[i].alphaSize = 0;
-	       pConfigs[i].redMask = 0x0000F800;
-	       pConfigs[i].greenMask = 0x000007E0;
-	       pConfigs[i].blueMask = 0x0000001F;
-	       pConfigs[i].alphaMask = 0;
-	       if (accum) {
-		  pConfigs[i].accumRedSize = 16;
-		  pConfigs[i].accumGreenSize = 16;
-		  pConfigs[i].accumBlueSize = 16;
-		  pConfigs[i].accumAlphaSize = 0;
-	       } else {
-		  pConfigs[i].accumRedSize = 0;
-		  pConfigs[i].accumGreenSize = 0;
-		  pConfigs[i].accumBlueSize = 0;
-		  pConfigs[i].accumAlphaSize = 0;
-	       }
-	       pConfigs[i].doubleBuffer = db ? TRUE : FALSE;
-	       pConfigs[i].stereo = FALSE;
-	       pConfigs[i].bufferSize = 16;
-	       if (depth)
-		  pConfigs[i].depthSize = 16;
-	       else
-		  pConfigs[i].depthSize = 0;
-	       if (stencil)
-		  pConfigs[i].stencilSize = 8;
-	       else
-		  pConfigs[i].stencilSize = 0;
-	       pConfigs[i].auxBuffers = 0;
-	       pConfigs[i].level = 0;
-	       if (stencil || accum)
-		  pConfigs[i].visualRating = GLX_SLOW_CONFIG;
-	       else
-		  pConfigs[i].visualRating = GLX_NONE;
-	       pConfigs[i].transparentPixel = GLX_NONE;
-	       pConfigs[i].transparentRed = 0;
-	       pConfigs[i].transparentGreen = 0;
-	       pConfigs[i].transparentBlue = 0;
-	       pConfigs[i].transparentAlpha = 0;
-	       pConfigs[i].transparentIndex = 0;
-	       i++;
-	    }
-	 }
-      }
-      assert(i == numConfigs);
-      break;
-   }
-   pI810->numVisualConfigs = numConfigs;
-   pI810->pVisualConfigs = pConfigs;
-   pI810->pVisualConfigsPriv = pI810Configs;
-   GlxSetVisualConfigs(numConfigs, pConfigs, (void **)pI810ConfigPtrs);
-   return TRUE;
-}
-
 static unsigned int
 mylog2(unsigned int n)
 {
@@ -293,10 +176,8 @@ I810DRIScreenInit(ScreenPtr pScreen)
    if (pScrn->depth != 16)
       return FALSE;
 
-   /* Check that the GLX, DRI, and DRM modules have been loaded by testing
+   /* Check that the DRI, and DRM modules have been loaded by testing
     * for known symbols in each module. */
-   if (!xf86LoaderCheckSymbol("GlxSetVisualConfigs"))
-      return FALSE;
    if (!xf86LoaderCheckSymbol("drmAvailable"))
       return FALSE;
    if (!xf86LoaderCheckSymbol("DRIQueryVersion")) {
@@ -1001,13 +882,6 @@ I810DRIScreenInit(ScreenPtr pScreen)
    pI810DRI->auxPitch = pI810->auxPitch;
    pI810DRI->auxPitchBits = pI810->auxPitchBits;
    pI810DRI->sarea_priv_offset = sizeof(XF86DRISAREARec);
-
-   if (!(I810InitVisualConfigs(pScreen))) {
-      xf86DrvMsg(pScreen->myNum, X_ERROR,
-		 "[dri] I810InitVisualConfigs failed.  Disabling DRI.\n");
-      DRICloseScreen(pScreen);
-      return FALSE;
-   }
 
    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	      "[dri] visual configs initialized.\n");
