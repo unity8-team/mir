@@ -471,9 +471,7 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     uint32_t copy_pitch;
     uint32_t swap = RADEON_HOST_DATA_SWAP_NONE;
     int ret;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
     Bool flush = TRUE;
-#endif
     Bool r;
     int i;
 
@@ -495,61 +493,34 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     }
 #endif
 
-    /* If we know the BO won't be busy, don't bother */
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* If we know the BO won't be busy, don't bother with a scratch */
     copy_dst = driver_priv->bo;
     copy_pitch = pDst->devKind;
-#endif
     if (!radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
 	flush = FALSE;
-#endif
-	if (!radeon_bo_is_busy(driver_priv->bo, &dst_domain)) {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	    /* Can't return FALSE here if we need to swap bytes */
-	    if (swap != RADEON_HOST_DATA_SWAP_NONE &&
-		driver_priv->bo != info->front_bo) {
-		goto copy;
-	    }
-#endif
-	    return FALSE;
-	}
+	if (!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
+	    goto copy;
     }
 
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	if (swap != RADEON_HOST_DATA_SWAP_NONE &&
-	    driver_priv->bo != info->front_bo) {
-	    goto copy;
-	}
-#endif
-	return FALSE;
+	goto copy;
     }
     radeon_cs_space_reset_bos(info->cs);
     radeon_add_pixmap(info->cs, pDst, 0, RADEON_GEM_DOMAIN_VRAM);
     radeon_cs_space_add_persistent_bo(info->cs, scratch, RADEON_GEM_DOMAIN_GTT, 0);
     ret = radeon_cs_space_check(info->cs);
     if (ret) {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	if (swap != RADEON_HOST_DATA_SWAP_NONE &&
-	    driver_priv->bo != info->front_bo) {
-	    goto copy;
-	}
-#endif
-        r = FALSE;
-        goto out;
+	goto copy;
     }
     copy_dst = scratch;
     copy_pitch = scratch_pitch;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
     flush = FALSE;
 
 copy:
     if (flush)
 	radeon_cs_flush_indirect(pScrn);
-#endif
 
     ret = radeon_bo_map(copy_dst, 0);
     if (ret) {
@@ -600,9 +571,7 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     uint32_t copy_pitch;
     uint32_t swap = RADEON_HOST_DATA_SWAP_NONE;
     int ret;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
     Bool flush = FALSE;
-#endif
     Bool r;
 
     if (bpp < 8)
@@ -623,57 +592,36 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     }
 #endif
 
-    /* If we know the BO won't end up in VRAM anyway, don't bother */
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+    /* If we know the BO won't end up in VRAM anyway, don't bother with a scratch */
     copy_src = driver_priv->bo;
     copy_pitch = pSrc->devKind;
-#endif
     if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
 	src_domain = radeon_bo_get_src_domain(driver_priv->bo);
 	if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
 	    (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
 	    src_domain = 0;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
 	else /* A write may be scheduled */
 	    flush = TRUE;
-#endif
     }
 
     if (!src_domain)
 	radeon_bo_is_busy(driver_priv->bo, &src_domain);
 
     if (src_domain & ~(uint32_t)RADEON_GEM_DOMAIN_VRAM) {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	/* Can't return FALSE here if we need to swap bytes */
-	if (swap != RADEON_HOST_DATA_SWAP_NONE) {
-	    goto copy;
-	}
-#endif
-	return FALSE;
+	goto copy;
     }
 
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	if (swap != RADEON_HOST_DATA_SWAP_NONE) {
-	    goto copy;
-	}
-#endif
-	return FALSE;
+	goto copy;
     }
     radeon_cs_space_reset_bos(info->cs);
     radeon_add_pixmap(info->cs, pSrc, RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM, 0);
     radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, RADEON_GEM_DOMAIN_GTT);
     ret = radeon_cs_space_check(info->cs);
     if (ret) {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	if (swap != RADEON_HOST_DATA_SWAP_NONE) {
-	    goto copy;
-	}
-#endif
-        r = FALSE;
-        goto out;
+	goto copy;
     }
     RADEONGetDatatypeBpp(pSrc->drawable.bitsPerPixel, &datatype);
     RADEONGetPixmapOffsetPitch(pSrc, &src_pitch_offset);
@@ -685,12 +633,10 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
                     RADEON_GEM_DOMAIN_GTT);
     copy_src = scratch;
     copy_pitch = scratch_pitch;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
     flush = TRUE;
 
 copy:
     if (flush)
-#endif
 	FLUSH_RING();
 
     ret = radeon_bo_map(copy_src, 0);

@@ -1772,13 +1772,18 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
     struct radeon_exa_pixmap_priv *driver_priv;
-    struct radeon_bo *scratch;
+    struct radeon_bo *scratch = NULL;
+    struct radeon_bo *copy_dst;
+    unsigned char *dst;
     unsigned size;
     uint32_t dst_domain;
     int bpp = pDst->drawable.bitsPerPixel;
     uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 256);
+    uint32_t copy_pitch;
     uint32_t src_pitch_hw = scratch_pitch / (bpp / 8);
     uint32_t dst_pitch_hw = exaGetPixmapPitch(pDst) / (bpp / 8);
+    int ret;
+    Bool flush = TRUE;
     Bool r;
     int i;
     struct r600_accel_object src_obj, dst_obj;
@@ -1788,15 +1793,19 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 
     driver_priv = exaGetPixmapDriverPrivate(pDst);
 
-    /* If we know the BO won't be busy, don't bother */
-    if (!radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs) &&
-	!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
-	return FALSE;
+    /* If we know the BO won't be busy, don't bother with a scratch */
+    copy_dst = driver_priv->bo;
+    copy_pitch = pDst->devKind;
+    if (!radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
+	flush = FALSE;
+	if (!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
+	    goto copy;
+    }
 
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
-	return FALSE;
+	goto copy;
     }
 
     src_obj.pitch = src_pitch_hw;
@@ -1821,33 +1830,45 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 			   &dst_obj,
 			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
 			   3, 0xffffffff)) {
-        r = FALSE;
-        goto out;
+        goto copy;
     }
+    copy_dst = scratch;
+    copy_pitch = scratch_pitch;
+    flush = FALSE;
 
-    r = radeon_bo_map(scratch, 0);
-    if (r) {
+copy:
+    if (flush)
+	radeon_cs_flush_indirect(pScrn);
+
+    ret = radeon_bo_map(copy_dst, 0);
+    if (ret) {
         r = FALSE;
         goto out;
     }
     r = TRUE;
     size = w * bpp / 8;
+    dst = copy_dst->ptr;
+    if (copy_dst == driver_priv->bo)
+	dst += y * copy_pitch + x * bpp / 8;
     for (i = 0; i < h; i++) {
-        memcpy(scratch->ptr + i * scratch_pitch, src, size);
+        memcpy(dst + i * copy_pitch, src, size);
         src += src_pitch;
     }
-    radeon_bo_unmap(scratch);
+    radeon_bo_unmap(copy_dst);
 
-    if (info->accel_state->vsync)
-	RADEONVlineHelperSet(pScrn, x, y, x + w, y + h);
+    if (copy_dst == scratch) {
+	if (info->accel_state->vsync)
+	    RADEONVlineHelperSet(pScrn, x, y, x + w, y + h);
 
-    /* blit from gart to vram */
-    R600DoPrepareCopy(pScrn);
-    R600AppendCopyVertex(pScrn, 0, 0, x, y, w, h);
-    R600DoCopyVline(pDst);
+	/* blit from gart to vram */
+	R600DoPrepareCopy(pScrn);
+	R600AppendCopyVertex(pScrn, 0, 0, x, y, w, h);
+	R600DoCopyVline(pDst);
+    }
 
 out:
-    radeon_bo_unref(scratch);
+    if (scratch)
+	radeon_bo_unref(scratch);
     return r;
 }
 
@@ -1859,13 +1880,17 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
     struct radeon_exa_pixmap_priv *driver_priv;
-    struct radeon_bo *scratch;
+    struct radeon_bo *scratch = NULL;
+    struct radeon_bo *copy_src;
     unsigned size;
     uint32_t src_domain = 0;
     int bpp = pSrc->drawable.bitsPerPixel;
     uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 256);
+    uint32_t copy_pitch;
     uint32_t dst_pitch_hw = scratch_pitch / (bpp / 8);
     uint32_t src_pitch_hw = exaGetPixmapPitch(pSrc) / (bpp / 8);
+    int ret;
+    Bool flush = FALSE;
     Bool r;
     struct r600_accel_object src_obj, dst_obj;
 
@@ -1874,24 +1899,28 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 
     driver_priv = exaGetPixmapDriverPrivate(pSrc);
 
-    /* If we know the BO won't end up in VRAM anyway, don't bother */
+    /* If we know the BO won't end up in VRAM anyway, don't bother with a scratch */
+    copy_src = driver_priv->bo;
+    copy_pitch = pSrc->devKind;
     if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
 	src_domain = radeon_bo_get_src_domain(driver_priv->bo);
 	if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
 	    (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
 	    src_domain = 0;
+	else /* A write may be scheduled */
+	    flush = TRUE;
     }
 
     if (!src_domain)
 	radeon_bo_is_busy(driver_priv->bo, &src_domain);
 
     if (src_domain & ~(uint32_t)RADEON_GEM_DOMAIN_VRAM)
-	return FALSE;
+	goto copy;
 
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
-	return FALSE;
+	goto copy;
     }
     radeon_cs_space_reset_bos(info->cs);
     radeon_cs_space_add_persistent_bo(info->cs, info->accel_state->shaders_bo,
@@ -1900,10 +1929,9 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     radeon_add_pixmap(info->cs, pSrc, info->accel_state->src_obj[0].domain, 0);
     accel_state->dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
     radeon_cs_space_add_persistent_bo(info->cs, scratch, 0, accel_state->dst_obj.domain);
-    r = radeon_cs_space_check(info->cs);
-    if (r) {
-        r = FALSE;
-        goto out;
+    ret = radeon_cs_space_check(info->cs);
+    if (ret) {
+        goto copy;
     }
 
     src_obj.pitch = src_pitch_hw;
@@ -1928,34 +1956,42 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 			   &dst_obj,
 			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
 			   3, 0xffffffff)) {
-        r = FALSE;
-        goto out;
+        goto copy;
     }
 
     /* blit from vram to gart */
     R600DoPrepareCopy(pScrn);
     R600AppendCopyVertex(pScrn, x, y, 0, 0, w, h);
     R600DoCopy(pScrn);
+    copy_src = scratch;
+    copy_pitch = scratch_pitch;
+    flush = TRUE;
 
-    if (info->cs)
+copy:
+    if (flush && info->cs)
 	radeon_cs_flush_indirect(pScrn);
 
-    r = radeon_bo_map(scratch, 0);
-    if (r) {
+    ret = radeon_bo_map(copy_src, 0);
+    if (ret) {
+	ErrorF("failed to map pixmap: %d\n", ret);
         r = FALSE;
         goto out;
     }
     r = TRUE;
     w *= bpp / 8;
-    size = 0;
+    if (copy_src == driver_priv->bo)
+	size = y * copy_pitch + x * bpp / 8;
+    else
+	size = 0;
     while (h--) {
-        memcpy(dst, scratch->ptr + size, w);
-        size += scratch_pitch;
+        memcpy(dst, copy_src->ptr + size, w);
+        size += copy_pitch;
         dst += dst_pitch;
     }
-    radeon_bo_unmap(scratch);
+    radeon_bo_unmap(copy_src);
 out:
-    radeon_bo_unref(scratch);
+    if (scratch)
+	radeon_bo_unref(scratch);
     return r;
 }
 #endif
