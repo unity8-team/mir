@@ -284,12 +284,21 @@ Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *driver_priv;
+    uint32_t possible_domains = ~0U;
+    uint32_t current_domain = 0;
+#ifdef EXA_MIXED_PIXMAPS
+    Bool can_fail = !(pPix->drawable.bitsPerPixel < 8) &&
+	pPix != pScreen->GetScreenPixmap(pScreen) &&
+        (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS);
+#else
+    Bool can_fail = FALSE;
+#endif
+    Bool flush = FALSE;
     int ret;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     /* May need to handle byte swapping in DownloadFrom/UploadToScreen */
-    if (pPix->drawable.bitsPerPixel > 8 &&
-	pPix != pScreen->GetScreenPixmap(pScreen))
+    if (can_fail && pPix->drawable.bitsPerPixel > 8)
 	return FALSE;
 #endif
 
@@ -298,7 +307,28 @@ Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
       return FALSE;
 
     /* if we have more refs than just the BO then flush */
-    if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs))
+    if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
+	flush = TRUE;
+
+	if (can_fail) {
+	    possible_domains = radeon_bo_get_src_domain(driver_priv->bo);
+	    if (possible_domains == RADEON_GEM_DOMAIN_VRAM)
+		return FALSE; /* use DownloadFromScreen */
+	}
+    }
+
+    /* if the BO might end up in VRAM, prefer DownloadFromScreen */
+    if (can_fail && (possible_domains & RADEON_GEM_DOMAIN_VRAM)) {
+	radeon_bo_is_busy(driver_priv->bo, &current_domain);
+
+	if (current_domain & possible_domains) {
+	    if (current_domain == RADEON_GEM_DOMAIN_VRAM)
+		return FALSE;
+	} else if (possible_domains & RADEON_GEM_DOMAIN_VRAM)
+	    return FALSE;
+    }
+
+    if (flush)
         radeon_cs_flush_indirect(pScrn);
     
     /* flush IB */
