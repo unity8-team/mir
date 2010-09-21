@@ -1299,6 +1299,7 @@ intel_output_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 
 	output->possible_crtcs = kencoder->possible_crtcs;
 	output->possible_clones = kencoder->possible_clones;
+	output->interlaceAllowed = TRUE;
 
 	intel_output->output = output;
 	list_add(&intel_output->link, &mode->outputs);

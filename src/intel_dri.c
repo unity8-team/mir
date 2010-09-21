@@ -367,6 +367,12 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 				    event = MI_WAIT_FOR_PIPEB_SVBLANK;
 			}
 
+			if (scrn->currentMode->Flags & V_INTERLACE) {
+				/* DSL count field lines */
+				y1 /= 2;
+				y2 /= 2;
+			}
+
 			BEGIN_BATCH(5);
 			/*
 			 * The documentation says that the LOAD_SCAN_LINES
