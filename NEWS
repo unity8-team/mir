@@ -1,5 +1,48 @@
-Snapshot 2.12.0 (2010-06-24)
-=============================
+Snapshot 2.12.901 (2010-09-21)
+==============================
+This is the first release candidate in preparation for the upcoming
+2.13.0 release. We will appreciate any feedback we can get from
+testing of this snapshot.
+
+Bugs fixed in this snapshot (compared to 2.12.0)
+------------------------------------------------
+ * Attempt to fix infinite MI_WAIT_FOR_EVENT while watching video
+   https://bugs.freedesktop.org/show_bug.cgi?id=28964
+
+   [Various new checks have been added to the video code here, but the
+   bug fix hasn't yet been verified by the original reporter.]
+
+ * Fix buffer-object leak
+   https://bugs.freedesktop.org/show_bug.cgi?id=26946
+
+ * Fix memory leak on server reset
+
+ * Fix crash due to unchecked pixmap allocation
+   https://bugs.freedesktop.org/show_bug.cgi?id=29187
+
+ * Fix for video artifacts when using dualscreen
+   https://bugs.freedesktop.org/show_bug.cgi?id=29213
+
+ * Fix for incorrect characters in gnome-terminal when using compiz
+   https://bugs.freedesktop.org/show_bug.cgi?id=28438
+
+ * Fix for hanging, full-screen applications, (flash, compiz, etc.)
+   https://bugs.freedesktop.org/show_bug.cgi?id=29584
+
+ * Fix selection of backlight device on multi-GPU systems
+   https://bugs.freedesktop.org/show_bug.cgi?id=29273
+
+ * Fix to avoid crash with extremely large glyphs
+   https://bugs.freedesktop.org/show_bug.cgi?id=29430
+
+ * Fix for eDP panels incorrectly being given only a single, valid mode
+   https://bugs.freedesktop.org/show_bug.cgi?id=30069
+
+ * Fix GPU hang involving clipped SRC copies
+   https://bugs.freedesktop.org/show_bug.cgi?id=30120
+
+Release 2.12.0 (2010-06-24)
+===========================
 We are pleased to announce this major release of the xf86-video-intel
 2D driver. It contains many correctness and performance improvements
 compared to the 2.11 releases. We encourage everyone using 2.11 to
