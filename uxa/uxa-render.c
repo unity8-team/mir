@@ -108,6 +108,7 @@ op_to_string(CARD8 op)
 	/*
 	 * Operators only available in version 0.2
 	 */
+#if RENDER_MAJOR >= 1 || RENDER_MINOR >= 2
 	C(DisjointClear);
 	C(DisjointSrc);
 	C(DisjointDst);
@@ -133,10 +134,12 @@ op_to_string(CARD8 op)
 	C(ConjointAtop);
 	C(ConjointAtopReverse);
 	C(ConjointXor);
+#endif
 
 	/*
 	 * Operators only available in version 0.11
 	 */
+#if RENDER_MAJOR >= 1 || RENDER_MINOR >= 11
 	C(Multiply);
 	C(Screen);
 	C(Overlay);
@@ -152,6 +155,7 @@ op_to_string(CARD8 op)
 	C(HSLSaturation);
 	C(HSLColor);
 	C(HSLLuminosity);
+#endif
     default: return "garbage";
 #undef C
     }
@@ -237,11 +241,13 @@ uxa_get_pixel_from_rgba(CARD32 * pixel,
 		gshift = rbits;
 		bshift = gshift + gbits;
 		ashift = bshift + bbits;
+#if XORG_VERSION_CURRENT >= 10699900
 	} else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_BGRA) {
 		ashift = 0;
 		rshift = abits;
 		gshift = rshift + rbits;
 		bshift = gshift + gbits;
+#endif
 	} else {
 		return FALSE;
 	}
@@ -283,6 +289,7 @@ uxa_get_rgba_from_pixel(CARD32 pixel,
 		gshift = rbits;
 		bshift = gshift + gbits;
 		ashift = bshift + bbits;
+#if XORG_VERSION_CURRENT >= 10699900
         } else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_BGRA) {
 		ashift = 0;
 		rshift = abits;
@@ -290,6 +297,7 @@ uxa_get_rgba_from_pixel(CARD32 pixel,
 			rshift = PICT_FORMAT_BPP(format) - (rbits+gbits+bbits);
 		gshift = rshift + rbits;
 		bshift = gshift + gbits;
+#endif
 	} else {
 		return FALSE;
 	}
