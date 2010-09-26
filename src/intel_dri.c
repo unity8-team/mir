@@ -1029,6 +1029,12 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	const char *driverNames[1];
 #endif
 
+	if (intel->force_fallback) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "cannot enable DRI2 whilst forcing software fallbacks\n");
+		return FALSE;
+	}
+
 	if (xf86LoaderCheckSymbol("DRI2Version"))
 		DRI2Version(&dri2_major, &dri2_minor);
 
