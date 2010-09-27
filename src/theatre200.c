@@ -162,7 +162,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 		{
 			int ret;
 			
-			curr_seg = (struct rt200_microc_seg*)Xalloc(sizeof(struct rt200_microc_seg));
+			curr_seg = (struct rt200_microc_seg*)malloc(sizeof(struct rt200_microc_seg));
 			if (curr_seg == NULL)
 			{
 				ERROR_0("Cannot allocate memory\n");
@@ -178,7 +178,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 				goto fail_exit;
 			}
 
-			curr_seg->data = (unsigned char*)Xalloc(curr_seg->num_bytes);
+			curr_seg->data = (unsigned char*)malloc(curr_seg->num_bytes);
 			if (curr_seg->data == NULL)
 			{
 				ERROR_0("cannot allocate memory\n");
@@ -241,7 +241,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 
 		for (i = 0; i < microc_headp->num_seg; i++)
 		{
-			curr_seg = (struct rt200_microc_seg*)Xalloc(sizeof(struct rt200_microc_seg));
+			curr_seg = (struct rt200_microc_seg*)malloc(sizeof(struct rt200_microc_seg));
 			if (curr_seg == NULL)
 			{
 				ERROR_0("Cannot allocate memory\n");
@@ -262,7 +262,7 @@ static int microc_load (char* micro_path, char* micro_type, struct rt200_microc_
 				goto fail_exit;
 			}
 								
-			curr_seg->data = (unsigned char*)Xalloc(curr_seg->num_bytes);
+			curr_seg->data = (unsigned char*)malloc(curr_seg->num_bytes);
 			if (curr_seg->data == NULL)
 			{
 				ERROR_0("cannot allocate memory\n");

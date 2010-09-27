@@ -79,7 +79,7 @@ _X_EXPORT TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
    return NULL;
    }
    
-   t = xcalloc(1,sizeof(TheatreRec));
+   t = calloc(1,sizeof(TheatreRec));
    t->VIP = b;
    t->theatre_num = -1;
    t->mode=MODE_UNINITIALIZED;
@@ -113,7 +113,7 @@ _X_EXPORT TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
 
    if(t->theatre_num < 0)
    {
-   xfree(t);
+   free(t);
    return NULL;
    }
 
