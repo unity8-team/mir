@@ -1,3 +1,30 @@
+xserver-xorg-video-intel (2:2.12.0-1ubuntu5) maverick; urgency=low
+
+  [ Robert Hooker ]
+  * Disable DRI on Sandybridge chipsets. Support for them will not be released
+    until the Q42010 Intel releases, which will not be pulled into maverick.
+    Without this change, all 3D apps on these devices cause hangs.
+    (LP: #639667)
+  * Add 102_b43_pciid_update.patch. Fixes detection of a new b43
+    chipset revision that is being shipped. Without this the drivers
+    will not attempt to load even though this chipset is the same as
+    the previous b43 ones. Backport of upstream commit 55b5fe8880.
+    (LP: #640214)
+
+  [ Christopher James Halse Rogers ]
+  * debian/patches/101_copy-fb.patch: Move scratch pixmap creation to the
+    drmmode_copy_fb function, and clean up after we've used it.  Fixes the
+    SIGSEGV in FreeClientResources when logging out of KDE (LP: #628077)
+  * debian/patches/106_backport_vblank_on_server_regenerate_fix.patch:
+    Backport fix for SwapBuffers hang after server regenerate.  LP 628077
+    was hiding this by crashing the server.  Fixes kwin desktop effects hanging
+    on second and subsequent logins.
+  * Cherry-pick e30f0338 to free the Screen pixmap on close.  Fixes a memory
+    leak on server regeneration, and another crash on KDE log out hidden by
+    LP 628077.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 27 Sep 2010 14:34:27 +1000
+
 xserver-xorg-video-intel (2:2.12.0-1ubuntu4) maverick; urgency=low
 
   * debian/patches/101_copy-fb.patch: Explicitly disable copyfb functionality

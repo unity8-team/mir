@@ -1,7 +1,7 @@
-diff --git a/src/drmmode_display.c b/src/drmmode_display.c
-index ba24206..bd6ef4e 100644
---- a/src/drmmode_display.c
-+++ b/src/drmmode_display.c
+Index: xserver-xorg-video-intel/src/drmmode_display.c
+===================================================================
+--- xserver-xorg-video-intel.orig/src/drmmode_display.c	2010-09-23 16:26:34.275006000 +1000
++++ xserver-xorg-video-intel/src/drmmode_display.c	2010-09-23 16:29:20.555006001 +1000
 @@ -36,6 +36,8 @@
  #include <errno.h>
  #include <poll.h>
@@ -11,7 +11,7 @@ index ba24206..bd6ef4e 100644
  #include "xorgVersion.h"
  
  #include "i830.h"
-@@ -853,6 +855,13 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
+@@ -853,6 +855,13 @@
  	drmmode_ptr drmmode = drmmode_output->drmmode;
  	int i;
  	drmModePropertyPtr props;
@@ -25,7 +25,7 @@ index ba24206..bd6ef4e 100644
  
  	for (i = 0; i < koutput->count_props; i++) {
  		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
-@@ -1466,6 +1475,8 @@ Bool drmmode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
+@@ -1466,6 +1475,8 @@
  					       drm_wakeup_handler, drmmode);
  	}
  
@@ -34,7 +34,7 @@ index ba24206..bd6ef4e 100644
  	return TRUE;
  }
  
-@@ -1500,3 +1511,96 @@ void drmmode_closefb(ScrnInfoPtr scrn)
+@@ -1500,3 +1511,101 @@
  	drmModeRmFB(drmmode->fd, drmmode->fb_id);
  	drmmode->fb_id = 0;
  }
@@ -79,6 +79,10 @@ index ba24206..bd6ef4e 100644
 +			   "Couldn't allocate bo for fbcon handle\n");
 +		return NULL;
 +	}
++
++
++	if (!CreateScratchPixmapsForScreen(scrn->scrnIndex))
++		return FALSE;
 +
 +	pixmap = GetScratchPixmapHeader(pScreen,
 +					fbcon->width, fbcon->height,
@@ -130,12 +134,13 @@ index ba24206..bd6ef4e 100644
 +
 +	(*pScreen->DestroyPixmap)(src);
 +	(*pScreen->DestroyPixmap)(dst);
++	FreeScratchPixmapsForScreen(pScreen->myNum);
 +}
-diff --git a/src/i830.h b/src/i830.h
-index 64acda3..83d1da9 100644
---- a/src/i830.h
-+++ b/src/i830.h
-@@ -423,6 +423,7 @@ typedef struct intel_screen_private {
+Index: xserver-xorg-video-intel/src/i830.h
+===================================================================
+--- xserver-xorg-video-intel.orig/src/i830.h	2010-09-23 16:26:34.385006000 +1000
++++ xserver-xorg-video-intel/src/i830.h	2010-09-23 16:29:20.555006001 +1000
+@@ -423,6 +423,7 @@
  	OptionInfoPtr Options;
  
  	/* Driver phase/state information */
@@ -143,7 +148,7 @@ index 64acda3..83d1da9 100644
  	Bool suspended;
  
  	enum last_3d last_3d;
-@@ -486,6 +487,7 @@ extern int drmmode_get_pipe_from_crtc_id(drm_intel_bufmgr * bufmgr,
+@@ -486,6 +487,7 @@
  					 xf86CrtcPtr crtc);
  extern int drmmode_output_dpms_status(xf86OutputPtr output);
  extern int drmmode_crtc_id(xf86CrtcPtr crtc);
@@ -151,11 +156,11 @@ index 64acda3..83d1da9 100644
  
  extern Bool i830_crtc_on(xf86CrtcPtr crtc);
  extern int i830_crtc_to_pipe(xf86CrtcPtr crtc);
-diff --git a/src/i830_driver.c b/src/i830_driver.c
-index b8e0c0b..a4190ec 100644
---- a/src/i830_driver.c
-+++ b/src/i830_driver.c
-@@ -1093,6 +1093,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+Index: xserver-xorg-video-intel/src/i830_driver.c
+===================================================================
+--- xserver-xorg-video-intel.orig/src/i830_driver.c	2010-09-23 16:26:34.165006000 +1000
++++ xserver-xorg-video-intel/src/i830_driver.c	2010-09-23 16:29:20.565006001 +1000
+@@ -1093,6 +1093,8 @@
  	if (IS_I965G(intel))
  		gen4_render_state_init(scrn);
  
@@ -164,7 +169,7 @@ index b8e0c0b..a4190ec 100644
  	miClearVisualTypes();
  	if (!miSetVisualTypes(scrn->depth,
  			      miGetDefaultVisualMask(scrn->depth),
-@@ -1231,6 +1233,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+@@ -1231,6 +1233,7 @@
  	if (serverGeneration == 1)
  		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
  
@@ -172,13 +177,10 @@ index b8e0c0b..a4190ec 100644
  	intel->suspended = FALSE;
  
  	return uxa_resources_init(screen);
-@@ -1289,6 +1292,12 @@ static Bool I830EnterVT(int scrnIndex, int flags)
+@@ -1289,6 +1292,9 @@
  
  	i830_set_gem_max_sizes(scrn);
  
-+	if (!CreateScratchPixmapsForScreen(scrn->scrnIndex))
-+		return FALSE;
-+
 +	if (!IS_GEN6(intel))
 +		drmmode_copy_fb(scrn);
 +

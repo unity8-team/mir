@@ -1,4 +1,7 @@
+100_b43_pciid_update.patch
 101_copy-fb.patch
 102-disable-page-flipping-v2.patch
 103-mbp-backlight-support.patch
 104_sandybridge_id_update.patch
+105_sandybridge_dri_disable.patch
+106_backport_vblank_on_server_regenerate_fix.patch
