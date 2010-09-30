@@ -3996,7 +3996,7 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 					    restore->mc_agp_location,
 					    restore->mc_agp_location_hi);
 
-	    OUTREG(R600_HDP_NONSURFACE_BASE, (restore->mc_fb_location << 16) & 0xff0000);
+	    OUTREG(R600_HDP_NONSURFACE_BASE, (restore->mc_fb_location & 0xffff) << 16);
 
 	}
     } else if (IS_AVIVO_VARIANT) {
