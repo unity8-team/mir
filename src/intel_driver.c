@@ -601,7 +601,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel->tiling = TRUE;
 
 	/* Allow user override if they set a value */
-	if (xf86IsOptionSet(intel->Options, OPTION_TILING)) {
+	if (!ALWAYS_TILING(intel) && xf86IsOptionSet(intel->Options, OPTION_TILING)) {
 		if (xf86ReturnOptValBool(intel->Options, OPTION_TILING, FALSE))
 			intel->tiling = TRUE;
 		else
