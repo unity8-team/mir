@@ -1,3 +1,59 @@
+Release 2.13.0 (2010-09-30)
+===========================
+We are pleased to announce this major release of the xf86-video-intel
+driver, on schedule at 3 months since 2.12.0. With the many bug fixes
+in this release, we encourage everyone using 2.12 to upgrade to 2.13.
+
+[This release is functionally identical to the earlier 2.12.902
+release candidate.]
+
+New requirements compared to 2.12
+---------------------------------
+ * Librdrm >= 2.4.22
+
+Bug fixes
+---------
+ * Attempt to fix infinite MI_WAIT_FOR_EVENT while watching video
+   https://bugs.freedesktop.org/show_bug.cgi?id=28964
+
+   [Various new checks have been added to the video code here, but the
+   bug fix hasn't yet been verified by the original reporter.]
+
+ * Fix buffer-object leak
+   https://bugs.freedesktop.org/show_bug.cgi?id=26946
+
+ * Fix memory leak on server reset
+
+ * Fix crash due to unchecked pixmap allocation
+   https://bugs.freedesktop.org/show_bug.cgi?id=29187
+
+ * Fix for video artifacts when using dualscreen
+   https://bugs.freedesktop.org/show_bug.cgi?id=29213
+
+ * Fix for incorrect characters in gnome-terminal when using compiz
+   https://bugs.freedesktop.org/show_bug.cgi?id=28438
+
+ * Fix for hanging, full-screen applications, (flash, compiz, etc.)
+   https://bugs.freedesktop.org/show_bug.cgi?id=29584
+
+ * Fix selection of backlight device on multi-GPU systems
+   https://bugs.freedesktop.org/show_bug.cgi?id=29273
+
+ * Fix to avoid crash with extremely large glyphs
+   https://bugs.freedesktop.org/show_bug.cgi?id=29430
+
+ * Fix for eDP panels incorrectly being given only a single, valid mode
+   https://bugs.freedesktop.org/show_bug.cgi?id=30069
+
+ * Fix GPU hang involving clipped SRC copies
+   https://bugs.freedesktop.org/show_bug.cgi?id=30120
+
+ * Fix to compile for 1.6 series X server.
+
+ * Fix to retry framebuffer allocation after an initial failure.
+
+ * Fix to disable dri2 after fallbacks are forced on.
+
 Snapshot 2.12.902 (2010-09-28)
 ==============================
 This is the second release candidate in preparation for the upcoming
