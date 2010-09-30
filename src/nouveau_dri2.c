@@ -106,6 +106,13 @@ nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 	pGC->funcs->ChangeClip(pGC, CT_REGION, pCopyClip, 0);
 	ValidateGC(&pdpix->drawable, pGC);
 
+	/* Throttle on the previous frame before blitting this one */
+	if (dst->base.attachment == DRI2BufferFrontLeft) {
+		struct nouveau_bo *bo = nouveau_pixmap_bo(dst->ppix);
+		nouveau_bo_map(bo, NOUVEAU_BO_RD);
+		nouveau_bo_unmap(bo);
+	}
+
 	pGC->ops->CopyArea(&pspix->drawable, &pdpix->drawable, pGC, 0, 0,
 			   pDraw->width, pDraw->height, 0, 0);
 
