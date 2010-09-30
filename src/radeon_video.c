@@ -2759,7 +2759,7 @@ RADEONDisplayVideo(
     OUTREG(RADEON_OV0_P3_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
     if (info->ModeReg->ov0_base_addr != (info->fbLocation + base_offset)) {
 	ErrorF("Changing OV0_BASE_ADDR from 0x%08x to 0x%08x\n",
-	       info->ModeReg->ov0_base_addr, info->fbLocation + base_offset);
+	       info->ModeReg->ov0_base_addr, (uint32_t)info->fbLocation + base_offset);
 	info->ModeReg->ov0_base_addr = info->fbLocation + base_offset;
 	OUTREG(RADEON_OV0_BASE_ADDR, info->ModeReg->ov0_base_addr);
     }

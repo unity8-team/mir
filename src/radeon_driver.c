@@ -1517,9 +1517,9 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 	}
     }
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	info->fbLocation = (info->mc_fb_location & 0xffff) << 24;
+	info->fbLocation = ((uint64_t)info->mc_fb_location & 0xffff) << 24;
     } else {
-	info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+	info->fbLocation = ((uint64_t)info->mc_fb_location & 0xffff) << 16;
     }
     /* Just disable the damn AGP apertures for now, it may be
      * re-enabled later by the DRM
@@ -4218,9 +4218,9 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	info->mc_fb_location = fb;
 	info->mc_agp_location = agp;
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
-	    info->fbLocation = (info->mc_fb_location & 0xffff) << 24;
+	    info->fbLocation = ((uint64_t)info->mc_fb_location & 0xffff) << 24;
 	else
-	    info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+	    info->fbLocation = ((uint64_t)info->mc_fb_location & 0xffff) << 16;
 
 	info->accel_state->dst_pitch_offset =
 	    (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
