@@ -363,7 +363,7 @@ void I830InitVideo(ScreenPtr screen)
 	 * supported hardware.
 	 */
 	if (scrn->bitsPerPixel >= 16 &&
-	    (IS_I9XX(intel) || IS_I965G(intel)) &&
+	    (IS_I9XX(intel) || (IS_I965G(intel) && !IS_GEN6(intel))) &&
 	    !intel->use_shadow) {
 		texturedAdaptor = I830SetupImageVideoTextured(screen);
 		if (texturedAdaptor != NULL) {
