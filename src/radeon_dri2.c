@@ -71,7 +71,7 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
-    int i, r;
+    int i, r, need_enlarge = 0;
     int flags = 0;
 
     buffers = calloc(count, sizeof *buffers);
@@ -100,13 +100,23 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 	    /* tile the back buffer */
 	    switch(attachments[i]) {
 	    case DRI2BufferDepth:
-	    case DRI2BufferDepthStencil:
 		if (info->ChipFamily >= CHIP_FAMILY_R600)
 		    /* macro is the preferred setting, but the 2D detiling for software
 		     * fallbacks in mesa still has issues on some configurations
 		     */
 		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
 		else
+		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+		break;
+	    case DRI2BufferDepthStencil:
+		if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		    /* macro is the preferred setting, but the 2D detiling for software
+		     * fallbacks in mesa still has issues on some configurations
+		     */
+		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+		    if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
+			need_enlarge = 1;
+		} else
 		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 		break;
 	    case DRI2BufferBackLeft:
@@ -124,11 +134,31 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 	    default:
 		flags = 0;
 	    }
-	    pixmap = (*pScreen->CreatePixmap)(pScreen,
-                                              drawable->width,
-                                              drawable->height,
-                                              drawable->depth,
-                                              flags);
+
+	    if (need_enlarge) {
+		/* evergreen uses separate allocations for depth and stencil
+		 * so we make an extra large depth buffer to cover stencil
+		 * as well.
+		 */
+		int pitch = drawable->width * (drawable->depth / 8);
+		int aligned_height = (drawable->height + 7) & ~7;
+		int size = pitch * aligned_height;
+		size = (size + 255) & ~255;
+		size += drawable->width * aligned_height;
+		aligned_height = ((size / pitch) + 7) & ~7;
+
+		pixmap = (*pScreen->CreatePixmap)(pScreen,
+						  drawable->width,
+						  aligned_height,
+						  drawable->depth,
+						  flags);
+
+	    } else
+		pixmap = (*pScreen->CreatePixmap)(pScreen,
+						  drawable->width,
+						  drawable->height,
+						  drawable->depth,
+						  flags);
         }
 
         if (attachments[i] == DRI2BufferDepth) {
@@ -165,7 +195,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
-    int r;
+    int r, need_enlarge = 0;
     int flags;
 
     buffers = calloc(1, sizeof *buffers);
@@ -194,13 +224,23 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	/* tile the back buffer */
 	switch(attachment) {
 	case DRI2BufferDepth:
-	case DRI2BufferDepthStencil:
 	    /* macro is the preferred setting, but the 2D detiling for software
 	     * fallbacks in mesa still has issues on some configurations
 	     */
 	    if (info->ChipFamily >= CHIP_FAMILY_R600)
 		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    else
+		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+	    break;
+	case DRI2BufferDepthStencil:
+	    /* macro is the preferred setting, but the 2D detiling for software
+	     * fallbacks in mesa still has issues on some configurations
+	     */
+	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
+		if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
+		    need_enlarge = 1;
+	    } else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    break;
 	case DRI2BufferBackLeft:
@@ -218,11 +258,32 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	default:
 	    flags = 0;
 	}
-        pixmap = (*pScreen->CreatePixmap)(pScreen,
-                drawable->width,
-                drawable->height,
-                (format != 0)?format:drawable->depth,
-                flags);
+
+	if (need_enlarge) {
+	    /* evergreen uses separate allocations for depth and stencil
+	     * so we make an extra large depth buffer to cover stencil
+	     * as well.
+	     */
+	    int depth = (format != 0) ? format : drawable->depth;
+	    int pitch = drawable->width * (depth / 8);
+	    int aligned_height = (drawable->height + 7) & ~7;
+	    int size = pitch * aligned_height;
+	    size = (size + 255) & ~255;
+	    size += drawable->width * aligned_height;
+	    aligned_height = ((size / pitch) + 7) & ~7;
+
+	    pixmap = (*pScreen->CreatePixmap)(pScreen,
+					      drawable->width,
+					      aligned_height,
+					      (format != 0)?format:drawable->depth,
+					      flags);
+
+	} else
+	    pixmap = (*pScreen->CreatePixmap)(pScreen,
+					      drawable->width,
+					      drawable->height,
+					      (format != 0)?format:drawable->depth,
+					      flags);
     }
 
     if (attachment == DRI2BufferDepth) {
