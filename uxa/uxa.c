@@ -1,7 +1,7 @@
 /*
- * Copyright © 2001 Keith Packard
+ * Copyright Â© 2001 Keith Packard
  *
- * Partly based on code that is Copyright © The XFree86 Project Inc.
+ * Partly based on code that is Copyright Â© The XFree86 Project Inc.
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -384,6 +384,16 @@ static Bool uxa_close_screen(int i, ScreenPtr pScreen)
 		FreePicture(uxa_screen->solid_cache[n].picture, 0);
 
 	uxa_glyphs_fini(pScreen);
+
+	if (pScreen->devPrivate) {
+		/* Destroy the pixmap created by miScreenInit() *before*
+		 * chaining up as we finalize ourselves here and so this
+		 * is the last chance we have of releasing our resources
+		 * associated with the Pixmap. So do it first.
+		 */
+		(void) (*pScreen->DestroyPixmap) (pScreen->devPrivate);
+		pScreen->devPrivate = NULL;
+	}
 
 	pScreen->CreateGC = uxa_screen->SavedCreateGC;
 	pScreen->CloseScreen = uxa_screen->SavedCloseScreen;

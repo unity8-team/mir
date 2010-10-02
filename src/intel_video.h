@@ -52,7 +52,8 @@ typedef struct {
 	Time offTime;
 	Time freeTime;
 	/** YUV data buffers */
-	drm_intel_bo *buf;
+	drm_intel_bo *buf, *old_buf[2];
+	Bool reusable;
 
 	Bool textured;
 	Rotation rotation;	/* should remove intel->rotation later */
@@ -61,9 +62,9 @@ typedef struct {
 } intel_adaptor_private;
 
 static inline intel_adaptor_private *
-intel_get_adaptor_private(ScrnInfoPtr scrn)
+intel_get_adaptor_private(intel_screen_private *intel)
 {
-	return intel_get_screen_private(scrn)->adaptor->pPortPrivates[0].ptr;
+	return intel->adaptor->pPortPrivates[0].ptr;
 }
 
 void I915DisplayVideoTextured(ScrnInfoPtr scrn,
@@ -80,8 +81,8 @@ void I965DisplayVideoTextured(ScrnInfoPtr scrn,
 			      short src_w, short src_h,
 			      short drw_w, short drw_h, PixmapPtr pixmap);
 
-void I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
-			   pointer pReadmask);
 void i965_free_video(ScrnInfoPtr scrn);
 
 int is_planar_fourcc(int id);
+
+void intel_video_block_handler(intel_screen_private *intel);

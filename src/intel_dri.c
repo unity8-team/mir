@@ -58,9 +58,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "windowstr.h"
 #include "shadow.h"
 
-#include "GL/glxtokens.h"
-
-#include "i830.h"
+#include "intel.h"
+#include "i830_reg.h"
 
 #include "i915_drm.h"
 
@@ -145,13 +144,22 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		privates[i].pixmap = pixmap;
 		privates[i].attachment = attachments[i];
 
-		bo = i830_get_pixmap_bo(pixmap);
-		if (bo != NULL && dri_bo_flink(bo, &buffers[i].name) != 0) {
+		bo = intel_get_pixmap_bo(pixmap);
+		if (bo == NULL || dri_bo_flink(bo, &buffers[i].name) != 0) {
 			/* failed to name buffer */
+			screen->DestroyPixmap(pixmap);
+			goto unwind;
 		}
 	}
 
 	return buffers;
+
+unwind:
+	while (i--)
+		screen->DestroyPixmap(privates[i].pixmap);
+	free(privates);
+	free(buffers);
+	return NULL;
 }
 
 static void
@@ -244,7 +252,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	privates->pixmap = pixmap;
 	privates->attachment = attachment;
 
-	bo = i830_get_pixmap_bo(pixmap);
+	bo = intel_get_pixmap_bo(pixmap);
 	if (bo == NULL || dri_bo_flink(bo, &buffer->name) != 0) {
 		/* failed to name buffer */
 		screen->DestroyPixmap(pixmap);
@@ -317,14 +325,14 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		Bool full_height = FALSE;
 
 		box = REGION_EXTENTS(unused, gc->pCompositeClip);
-		crtc = i830_covering_crtc(scrn, box, NULL, &crtcbox);
+		crtc = intel_covering_crtc(scrn, box, NULL, &crtcbox);
 
 		/*
 		 * Make sure the CRTC is valid and this is the real front
 		 * buffer
 		 */
 		if (crtc != NULL && !crtc->rotatedData) {
-			pipe = i830_crtc_to_pipe(crtc);
+			pipe = intel_crtc_to_pipe(crtc);
 
 			/*
 			 * Make sure we don't wait for a scanline that will
@@ -359,6 +367,12 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 				    event = MI_WAIT_FOR_PIPEB_SVBLANK;
 			}
 
+			if (scrn->currentMode->Flags & V_INTERLACE) {
+				/* DSL count field lines */
+				y1 /= 2;
+				y2 /= 2;
+			}
+
 			BEGIN_BATCH(5);
 			/*
 			 * The documentation says that the LOAD_SCAN_LINES
@@ -375,22 +389,22 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		}
 	}
 
+	/* It's important that this copy gets submitted before the
+	 * direct rendering client submits rendering for the next
+	 * frame, but we don't actually need to submit right now.  The
+	 * client will wait for the DRI2CopyRegion reply or the swap
+	 * buffer event before rendering, and we'll hit the flush
+	 * callback chain before those messages are sent.  We submit
+	 * our batch buffers from the flush callback chain so we know
+	 * that will happen before the client tries to render
+	 * again. */
+
 	(*gc->ops->CopyArea) (src, dst,
 			       gc,
 			       0, 0,
 			       drawable->width, drawable->height,
 			       0, 0);
 	FreeScratchGC(gc);
-
-	/* Emit a flush of the rendering cache, or on the 965 and beyond
-	 * rendering results may not hit the framebuffer until significantly
-	 * later.
-	 *
-	 * We can't rely on getting into the block handler before the DRI
-	 * client gets to run again so flush now.
-	 */
-	intel_batch_submit(scrn, TRUE);
-	drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 }
 
 #if DRI2INFOREC_VERSION >= 4
@@ -428,11 +442,11 @@ I830DRI2DrawablePipe(DrawablePtr pDraw)
 	box.x2 = box.x1 + pDraw->width;
 	box.y2 = box.y1 + pDraw->height;
 
-	crtc = i830_covering_crtc(pScrn, &box, NULL, &crtcbox);
+	crtc = intel_covering_crtc(pScrn, &box, NULL, &crtcbox);
 
 	/* Make sure the CRTC is valid and this is the real front buffer */
 	if (crtc != NULL && !crtc->rotatedData)
-		pipe = i830_crtc_to_pipe(crtc);
+		pipe = intel_crtc_to_pipe(crtc);
 
 	return pipe;
 }
@@ -456,10 +470,10 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 	back->name = tmp;
 
 	/* Swap pixmap bos */
-	front_intel = i830_get_pixmap_intel(front_priv->pixmap);
-	back_intel = i830_get_pixmap_intel(back_priv->pixmap);
-	i830_set_pixmap_intel(front_priv->pixmap, back_intel);
-	i830_set_pixmap_intel(back_priv->pixmap, front_intel); /* should be screen */
+	front_intel = intel_get_pixmap_private(front_priv->pixmap);
+	back_intel = intel_get_pixmap_private(back_priv->pixmap);
+	intel_set_pixmap_private(front_priv->pixmap, back_intel);
+	intel_set_pixmap_private(back_priv->pixmap, front_intel); /* should be screen */
 
 	/* Do we need to update the Screen? */
 	screen = draw->pScreen;
@@ -468,8 +482,10 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 	    dri_bo_unreference (intel->front_buffer);
 	    intel->front_buffer = back_intel->bo;
 	    dri_bo_reference (intel->front_buffer);
-	    i830_set_pixmap_intel(screen->GetScreenPixmap(screen),
-				  back_intel);
+	    intel_set_pixmap_private(screen->GetScreenPixmap(screen),
+				     back_intel);
+	    back_intel->busy = 1;
+	    front_intel->busy = -1;
 	}
 }
 
@@ -478,10 +494,10 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
  * flipping buffers as necessary.
  */
 static Bool
-I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
+I830DRI2ScheduleFlip(struct intel_screen_private *intel,
+		     ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		     DRI2BufferPtr back, DRI2SwapEventPtr func, void *data)
 {
-	ScreenPtr screen = draw->pScreen;
 	I830DRI2BufferPrivatePtr back_priv;
 	DRI2FrameEventPtr flip_info;
 
@@ -497,9 +513,9 @@ I830DRI2ScheduleFlip(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	/* Page flip the full screen buffer */
 	back_priv = back->driverPrivate;
-	return drmmode_do_pageflip(screen,
-				   i830_get_pixmap_bo(back_priv->pixmap),
-				   flip_info);
+	return intel_do_pageflip(intel,
+				 intel_get_pixmap_bo(back_priv->pixmap),
+				 flip_info);
 }
 
 static Bool
@@ -557,7 +573,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 		if (DRI2CanFlip(drawable) && !intel->shadow_present &&
 		    intel->use_pageflipping &&
 		    can_exchange(event->front, event->back) &&
-		    I830DRI2ScheduleFlip(event->client, drawable, event->front,
+		    I830DRI2ScheduleFlip(intel,
+					 event->client, drawable, event->front,
 					 event->back, event->event_complete,
 					 event->event_data)) {
 			I830DRI2ExchangeBuffers(drawable,
@@ -1011,6 +1028,12 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 #if DRI2INFOREC_VERSION >= 4
 	const char *driverNames[1];
 #endif
+
+	if (intel->force_fallback) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "cannot enable DRI2 whilst forcing software fallbacks\n");
+		return FALSE;
+	}
 
 	if (xf86LoaderCheckSymbol("DRI2Version"))
 		DRI2Version(&dri2_major, &dri2_minor);

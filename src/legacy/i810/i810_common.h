@@ -35,6 +35,136 @@
 #ifndef _I810_COMMON_H_
 #define _I810_COMMON_H_
 
+/* Provide substitutes for gcc's __FUNCTION__ on other compilers */
+#if !defined(__GNUC__) && !defined(__FUNCTION__)
+# if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
+#  define __FUNCTION__ __func__
+# else
+#  define __FUNCTION__ ""
+# endif
+#endif
+
+#define PFX __FILE__,__LINE__,__FUNCTION__
+#define FUNCTION_NAME __FUNCTION__
+
+#define KB(x) ((x) * 1024)
+#define MB(x) ((x) * KB(1024))
+
+#define ALIGN(i,m) (((i) + (m) - 1) & ~((m) - 1))
+
+/* Using usleep() makes things noticably slow. */
+#if 0
+#define DELAY(x) usleep(x)
+#else
+#define DELAY(x) do {;} while (0)
+#endif
+
+#define PrintErrorState I810PrintErrorState
+#define WaitRingFunc I810WaitLpRing
+#define RecPtr pI810
+
+static inline void memset_volatile(volatile void *b, int c, size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)b)[i] = c;
+}
+
+static inline void memcpy_volatile(volatile void *dst, const void *src,
+				   size_t len)
+{
+    int i;
+    
+    for (i = 0; i < len; i++)
+	((volatile char *)dst)[i] = ((volatile char *)src)[i];
+}
+
+/* Memory mapped register access macros */
+#define INREG8(addr)        *(volatile uint8_t *)(RecPtr->MMIOBase + (addr))
+#define INREG16(addr)       *(volatile uint16_t *)(RecPtr->MMIOBase + (addr))
+#define INREG(addr)         *(volatile uint32_t *)(RecPtr->MMIOBase + (addr))
+#define INGTT(addr)         *(volatile uint32_t *)(RecPtr->GTTBase + (addr))
+#define POSTING_READ(addr)  (void)INREG(addr)
+
+#define OUTREG8(addr, val) do {						\
+   *(volatile uint8_t *)(RecPtr->MMIOBase  + (addr)) = (val);		\
+   if (I810_DEBUG&DEBUG_VERBOSE_OUTREG) {				\
+      ErrorF("OUTREG8(0x%lx, 0x%lx) in %s\n", (unsigned long)(addr),	\
+		(unsigned long)(val), FUNCTION_NAME);			\
+   }									\
+} while (0)
+
+#define OUTREG16(addr, val) do {					\
+   *(volatile uint16_t *)(RecPtr->MMIOBase + (addr)) = (val);		\
+   if (I810_DEBUG&DEBUG_VERBOSE_OUTREG) {				\
+      ErrorF("OUTREG16(0x%lx, 0x%lx) in %s\n", (unsigned long)(addr),	\
+		(unsigned long)(val), FUNCTION_NAME);			\
+   }									\
+} while (0)
+
+#define OUTREG(addr, val) do {						\
+   *(volatile uint32_t *)(RecPtr->MMIOBase + (addr)) = (val);		\
+   if (I810_DEBUG&DEBUG_VERBOSE_OUTREG) {				\
+      ErrorF("OUTREG(0x%lx, 0x%lx) in %s\n", (unsigned long)(addr),	\
+		(unsigned long)(val), FUNCTION_NAME);			\
+   }									\
+} while (0)
+
+/* To remove all debugging, make sure I810_DEBUG is defined as a
+ * preprocessor symbol, and equal to zero.
+ */
+#if 1
+#define I810_DEBUG 0
+#endif
+#ifndef I810_DEBUG
+#warning "Debugging enabled - expect reduced performance"
+extern int I810_DEBUG;
+#endif
+
+#define DEBUG_VERBOSE_ACCEL  0x1
+#define DEBUG_VERBOSE_SYNC   0x2
+#define DEBUG_VERBOSE_VGA    0x4
+#define DEBUG_VERBOSE_RING   0x8
+#define DEBUG_VERBOSE_OUTREG 0x10
+#define DEBUG_VERBOSE_MEMORY 0x20
+#define DEBUG_VERBOSE_CURSOR 0x40
+#define DEBUG_ALWAYS_SYNC    0x80
+#define DEBUG_VERBOSE_DRI    0x100
+#define DEBUG_VERBOSE_BIOS   0x200
+
+/* Size of the mmio region.
+ */
+#define I810_REG_SIZE 0x80000
+
+#define GTT_PAGE_SIZE			KB(4)
+#define PRIMARY_RINGBUFFER_SIZE		KB(128)
+#define MIN_SCRATCH_BUFFER_SIZE		KB(16)
+#define MAX_SCRATCH_BUFFER_SIZE		KB(64)
+#define HWCURSOR_SIZE			GTT_PAGE_SIZE
+#define HWCURSOR_SIZE_ARGB		GTT_PAGE_SIZE * 4
+
+/* Use a 64x64 HW cursor */
+#define I810_CURSOR_X			64
+#define I810_CURSOR_Y			I810_CURSOR_X
+
+#define PIPE_NAME(n)			('A' + (n))
+
+extern struct pci_device *
+intel_host_bridge (void);
+
+/**
+ * Hints to CreatePixmap to tell the driver how the pixmap is going to be
+ * used.
+ *
+ * Compare to CREATE_PIXMAP_USAGE_* in the server.
+ */
+enum {
+	INTEL_CREATE_PIXMAP_TILING_X = 0x10000000,
+	INTEL_CREATE_PIXMAP_TILING_Y,
+	INTEL_CREATE_PIXMAP_TILING_NONE,
+};
+
 #ifndef _I810_DEFINES_
 #define _I810_DEFINES_
 #define I810_USE_BATCH 1

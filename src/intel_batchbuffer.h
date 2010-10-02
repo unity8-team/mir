@@ -51,7 +51,7 @@ static inline int intel_vertex_space(intel_screen_private *intel)
 }
 
 static inline void
-intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, GLuint sz)
+intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, unsigned int sz)
 {
 	assert(sz < intel->batch_bo->size - 8);
 	if (intel_batch_space(intel) < sz)
@@ -138,7 +138,7 @@ intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 			      uint32_t read_domains, uint32_t write_domain,
 			      uint32_t delta, int needs_fence)
 {
-	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 
 	intel_batch_mark_pixmap_domains(intel, priv, read_domains, write_domain);
 
@@ -152,6 +152,9 @@ intel_batch_emit_reloc_pixmap(intel_screen_private *intel, PixmapPtr pixmap,
 
 #define OUT_RELOC(bo, read_domains, write_domains, delta) \
 	intel_batch_emit_reloc(intel, bo, read_domains, write_domains, delta, 0)
+
+#define OUT_RELOC_FENCED(bo, read_domains, write_domains, delta) \
+	intel_batch_emit_reloc(intel, bo, read_domains, write_domains, delta, 1)
 
 #define OUT_RELOC_PIXMAP(pixmap, reads, write, delta)	\
 	intel_batch_emit_reloc_pixmap(intel, pixmap, reads, write, delta, 0)
@@ -197,11 +200,6 @@ do {									\
 			   __FUNCTION__,				\
 			   intel->batch_used - intel->batch_emit_start,	\
 			   intel->batch_emitting);			\
-	if ((intel->batch_emitting > 8) &&				\
-	    (I810_DEBUG & DEBUG_ALWAYS_SYNC)) {				\
-		/* Note: not actually syncing, just flushing each batch. */ \
-		intel_batch_submit(scrn, FALSE);			\
-	}								\
 	intel->batch_emitting = 0;					\
 } while (0)
 

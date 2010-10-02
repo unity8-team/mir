@@ -70,22 +70,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vbe.h"
 
 #include "i810.h"
-#include "i830.h"
 
 #ifdef XF86DRI
 #include "dri.h"
 #endif
 
-/* Required Functions: */
+#include "../legacy.h"
 
-static void I810Identify(int flags);
-static Bool I810DriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer ptr);
-static Bool intel_pci_probe (DriverPtr		drv,
-			     int		entity_num,
-			     struct pci_device	*dev,
-			     intptr_t		match_data);
-
-#ifndef I830_ONLY
 static Bool I810PreInit(ScrnInfoPtr pScrn, int flags);
 static Bool I810ScreenInit(int Index, ScreenPtr pScreen, int argc,
 			   char **argv);
@@ -99,146 +90,7 @@ static void I810DisplayPowerManagementSet(ScrnInfoPtr pScrn,
 					  int flags);
 static ModeStatus I810ValidMode(int scrnIndex, DisplayModePtr mode,
 				Bool verbose, int flags);
-#endif /* I830_ONLY */
 
-#define INTEL_DEVICE_MATCH(d,i) \
-    { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, (i) }
-
-static const struct pci_id_match intel_device_match[] = {
-#ifndef I830_ONLY
-   INTEL_DEVICE_MATCH (PCI_CHIP_I810, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I810_DC100, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I810_E, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I815, 0 ),
-#endif
-   INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_845_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I855_GM, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I865_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I915_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_E7221_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I915_GM, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I945_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I945_GM, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I945_GME, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_IGD_GM, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_IGD_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I965_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_G35_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I965_Q, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I946_GZ, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I965_GM, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_I965_GME, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_G33_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_Q35_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_Q33_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_GM45_GM, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_IGD_E_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_G45_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_G41_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_B43_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_D_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_IGDNG_M_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M, 0 ),
-    { 0, 0, 0 },
-};
-
-_X_EXPORT DriverRec I810 = {
-   I810_VERSION,
-   I810_DRIVER_NAME,
-   I810Identify,
-   NULL,
-   I810AvailableOptions,
-   NULL,
-   0,
-   I810DriverFunc,
-   intel_device_match,
-   intel_pci_probe
-};
-
-/* *INDENT-OFF* */
-/* Chipsets */
-static SymTabRec I810Chipsets[] = {
-#ifndef I830_ONLY
-   {PCI_CHIP_I810,		"i810"},
-   {PCI_CHIP_I810_DC100,	"i810-dc100"},
-   {PCI_CHIP_I810_E,		"i810e"},
-   {PCI_CHIP_I815,		"i815"},
-#endif
-   {PCI_CHIP_I830_M,		"i830M"},
-   {PCI_CHIP_845_G,		"845G"},
-   {PCI_CHIP_I855_GM,		"852GM/855GM"},
-   {PCI_CHIP_I865_G,		"865G"},
-   {PCI_CHIP_I915_G,		"915G"},
-   {PCI_CHIP_E7221_G,		"E7221 (i915)"},
-   {PCI_CHIP_I915_GM,		"915GM"},
-   {PCI_CHIP_I945_G,		"945G"},
-   {PCI_CHIP_I945_GM,		"945GM"},
-   {PCI_CHIP_I945_GME,		"945GME"},
-   {PCI_CHIP_IGD_GM,		"Pineview GM"},
-   {PCI_CHIP_IGD_G,		"Pineview G"},
-   {PCI_CHIP_I965_G,		"965G"},
-   {PCI_CHIP_G35_G,		"G35"},
-   {PCI_CHIP_I965_Q,		"965Q"},
-   {PCI_CHIP_I946_GZ,		"946GZ"},
-   {PCI_CHIP_I965_GM,		"965GM"},
-   {PCI_CHIP_I965_GME,		"965GME/GLE"},
-   {PCI_CHIP_G33_G,		"G33"},
-   {PCI_CHIP_Q35_G,		"Q35"},
-   {PCI_CHIP_Q33_G,		"Q33"},
-   {PCI_CHIP_GM45_GM,		"GM45"},
-   {PCI_CHIP_IGD_E_G,		"4 Series"},
-   {PCI_CHIP_G45_G,		"G45/G43"},
-   {PCI_CHIP_Q45_G,		"Q45/Q43"},
-   {PCI_CHIP_G41_G,		"G41"},
-   {PCI_CHIP_B43_G,		"B43"},
-   {PCI_CHIP_IGDNG_D_G,		"Clarkdale"},
-   {PCI_CHIP_IGDNG_M_G,		"Arrandale"},
-   {-1,				NULL}
-};
-
-static PciChipsets I810PciChipsets[] = {
-#ifndef I830_ONLY
-   {PCI_CHIP_I810,		PCI_CHIP_I810,		NULL},
-   {PCI_CHIP_I810_DC100,	PCI_CHIP_I810_DC100,	NULL},
-   {PCI_CHIP_I810_E,		PCI_CHIP_I810_E,	NULL},
-   {PCI_CHIP_I815,		PCI_CHIP_I815,		NULL},
-#endif
-   {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	NULL},
-   {PCI_CHIP_845_G,		PCI_CHIP_845_G,		NULL},
-   {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	NULL},
-   {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	NULL},
-   {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	NULL},
-   {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	NULL},
-   {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	NULL},
-   {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	NULL},
-   {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	NULL},
-   {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	NULL},
-   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	NULL},
-   {PCI_CHIP_IGD_G,		PCI_CHIP_IGD_G,		NULL},
-   {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	NULL},
-   {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		NULL},
-   {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	NULL},
-   {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	NULL},
-   {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	NULL},
-   {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	NULL},
-   {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		NULL},
-   {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		NULL},
-   {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		NULL},
-   {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	NULL},
-   {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	NULL},
-   {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		NULL},
-   {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		NULL},
-   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		NULL},
-   {PCI_CHIP_B43_G,		PCI_CHIP_B43_G,		NULL},
-   {PCI_CHIP_IGDNG_D_G,		PCI_CHIP_IGDNG_D_G,	NULL},
-   {PCI_CHIP_IGDNG_M_G,		PCI_CHIP_IGDNG_M_G,	NULL},
-   {-1,				-1, NULL }
-};
-
-#ifndef I830_ONLY
 typedef enum {
    OPTION_NOACCEL,
    OPTION_SW_CURSOR,
@@ -266,7 +118,6 @@ static const OptionInfoRec I810Options[] = {
    {-1,				NULL,		OPTV_NONE,	{0}, FALSE}
 };
 /* *INDENT-ON* */
-#endif
 
 #ifndef I810_DEBUG
 int I810_DEBUG = (0
@@ -281,7 +132,6 @@ int I810_DEBUG = (0
       );
 #endif
 
-#ifndef I830_ONLY
 #ifdef XF86DRI
 static int i810_pitches[] = {
    512,
@@ -291,57 +141,9 @@ static int i810_pitches[] = {
    0
 };
 #endif
-#endif
 
 int I830EntityIndex = -1;
 
-#ifdef XFree86LOADER
-
-static MODULESETUPPROTO(i810Setup);
-
-static XF86ModuleVersionInfo intelVersRec = {
-   "intel",
-   MODULEVENDORSTRING,
-   MODINFOSTRING1,
-   MODINFOSTRING2,
-   XORG_VERSION_CURRENT,
-   INTEL_VERSION_MAJOR, INTEL_VERSION_MINOR, INTEL_VERSION_PATCH,
-   ABI_CLASS_VIDEODRV,
-   ABI_VIDEODRV_VERSION,
-   MOD_CLASS_VIDEODRV,
-   {0, 0, 0, 0}
-};
-
-_X_EXPORT XF86ModuleData intelModuleData = { &intelVersRec, i810Setup, NULL };
-
-static pointer
-i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
-{
-   static Bool setupDone = 0;
-
-   /* This module should be loaded only once, but check to be sure.
-    */
-   if (!setupDone) {
-      setupDone = 1;
-      xf86AddDriver(&I810, module,
-		    HaveDriverFuncs
-		    );
-
-      /*
-       * The return value must be non-NULL on success even though there
-       * is no TearDownProc.
-       */
-      return (pointer) 1;
-   } else {
-      if (errmaj)
-	 *errmaj = LDR_ONCEONLY;
-      return NULL;
-   }
-}
-
-#endif
-
-#ifndef I830_ONLY
 /*
  * I810GetRec and I810FreeRec --
  *
@@ -369,55 +171,6 @@ I810FreeRec(ScrnInfoPtr pScrn)
    free(pScrn->driverPrivate);
    pScrn->driverPrivate = NULL;
 }
-#endif
-
-/*
- * I810Identify --
- *
- * Returns the string name for the driver based on the chipset. In this
- * case it will always be an I810, so we can return a static string.
- *
- */
-static void
-I810Identify(int flags)
-{
-   xf86PrintChipsets(I810_NAME, "Driver for Intel Integrated Graphics Chipsets",
-		     I810Chipsets);
-}
-
-const OptionInfoRec *
-I810AvailableOptions(int chipid, int busid)
-{
-#ifndef I830_ONLY
-   const OptionInfoRec *pOptions;
-
-   if ((pOptions = I830AvailableOptions(chipid, busid)))
-      return pOptions;
-   return I810Options;
-#else
-   return I830AvailableOptions(chipid, busid);
-#endif
-}
-
-static Bool
-I810DriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer ptr)
-{
-    xorgHWFlags *flag;
-
-    switch (op) {
-        case GET_REQUIRED_HW_INTERFACES:
-            flag = (CARD32*)ptr;
-#ifdef KMS_ONLY
-            (*flag) = 0;
-#else
-	    (*flag) = HW_IO | HW_MMIO;
-#endif
-            return TRUE;
-        default:
-	    /* Unknown or deprecated function */
-            return FALSE;
-    }
-}
 
 struct pci_device *
 intel_host_bridge (void)
@@ -434,55 +187,6 @@ intel_host_bridge (void)
     return bridge;
 }
 
-/*
- * intel_pci_probe --
- *
- * Look through the PCI bus to find cards that are intel boards.
- * Setup the dispatch table for the rest of the driver functions.
- *
- */
-static Bool intel_pci_probe (DriverPtr		driver,
-			     int		entity_num,
-			     struct pci_device	*device,
-			     intptr_t		match_data)
-{
-    ScrnInfoPtr	    scrn = NULL;
-
-    scrn = xf86ConfigPciEntity (scrn, 0, entity_num, I810PciChipsets,
-				NULL,
-				NULL, NULL, NULL, NULL);
-    if (scrn != NULL)
-    {
-	scrn->driverVersion = I810_VERSION;
-	scrn->driverName = I810_DRIVER_NAME;
-	scrn->name = I810_NAME;
-	scrn->Probe = NULL;
-
-	switch (DEVICE_ID(device)) {
-#ifndef I830_ONLY
-	case PCI_CHIP_I810:
-	case PCI_CHIP_I810_DC100:
-	case PCI_CHIP_I810_E:
-	case PCI_CHIP_I815:
-	    scrn->PreInit = I810PreInit;
-	    scrn->ScreenInit = I810ScreenInit;
-	    scrn->SwitchMode = I810SwitchMode;
-	    scrn->AdjustFrame = I810AdjustFrame;
-	    scrn->EnterVT = I810EnterVT;
-	    scrn->LeaveVT = I810LeaveVT;
-	    scrn->FreeScreen = I810FreeScreen;
-	    scrn->ValidMode = I810ValidMode;
-	    break;
-#endif
-	default:
-	    intel_init_scrn(scrn);
-	    break;
-	}
-    }
-    return scrn != NULL;
-}
-
-#ifndef I830_ONLY
 static void
 I810ProbeDDC(ScrnInfoPtr pScrn, int index)
 {
@@ -539,6 +243,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    rgb defaultWeight = { 0, 0, 0 };
    int mem;
    Bool enable;
+   struct intel_chipset chipset;
 
    if (pScrn->numEntities != 1)
       return FALSE;
@@ -676,6 +381,8 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    /* We have to use PIO to probe, because we haven't mapped yet */
    I810SetPIOAccess(pI810);
 
+   intel_detect_chipset(pScrn, pI810->PciInfo, &chipset);
+
    /*
     * Set the Chipset and ChipRev, allowing config file entries to
     * override.
@@ -684,14 +391,14 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
       pScrn->chipset = pI810->pEnt->device->chipset;
       from = X_CONFIG;
    } else if (pI810->pEnt->device->chipID >= 0) {
-      pScrn->chipset = (char *)xf86TokenToString(I810Chipsets,
+      pScrn->chipset = (char *)xf86TokenToString(intel_chipsets,
 						 pI810->pEnt->device->chipID);
       from = X_CONFIG;
       xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
 		 pI810->pEnt->device->chipID);
    } else {
       from = X_PROBED;
-      pScrn->chipset = (char *)xf86TokenToString(I810Chipsets,
+      pScrn->chipset = (char *)xf86TokenToString(intel_chipsets,
 						 DEVICE_ID(pI810->PciInfo));
    }
    if (pI810->pEnt->device->chipRev >= 0) {
@@ -1838,24 +1545,14 @@ I810AllocateFront(ScrnInfoPtr pScrn)
 
    if (!I810AllocLow(&(pI810->FrontBuffer),
 		     &(pI810->SysMem),
-		     ((pI810->FbMemBox.x2 *
-		       pI810->FbMemBox.y2 * pI810->cpp) + 4095) & ~4095)) {
+		     ALIGN((pI810->FbMemBox.x2 * pI810->FbMemBox.y2 * pI810->cpp), 4096))) {
       xf86DrvMsg(pScrn->scrnIndex,
 		 X_WARNING, "Framebuffer allocation failed\n");
       return FALSE;
-   } else
-      DPRINTF(PFX,
-	      "Frame buffer at 0x%.8x (%luk, %lu bytes)\n",
-	      pI810->FrontBuffer.Start,
-	      pI810->FrontBuffer.Size / 1024, pI810->FrontBuffer.Size);
+   }
 
    memset(pI810->LpRing, 0, sizeof(I810RingBuffer));
    if (I810AllocLow(&(pI810->LpRing->mem), &(pI810->SysMem), 16 * 4096)) {
-      DPRINTF(PFX,
-	      "Ring buffer at 0x%.8x (%luk, %lu bytes)\n",
-	      pI810->LpRing->mem.Start,
-	      pI810->LpRing->mem.Size / 1024, pI810->LpRing->mem.Size);
-
       pI810->LpRing->tail_mask = pI810->LpRing->mem.Size - 1;
       pI810->LpRing->virtual_start = pI810->FbBase + pI810->LpRing->mem.Start;
       pI810->LpRing->head = 0;
@@ -1869,11 +1566,6 @@ I810AllocateFront(ScrnInfoPtr pScrn)
 
    if (I810AllocLow(&pI810->Scratch, &(pI810->SysMem), 64 * 1024) ||
        I810AllocLow(&pI810->Scratch, &(pI810->SysMem), 16 * 1024)) {
-      DPRINTF(PFX,
-	      "Scratch memory at 0x%.8x (%luk, %lu bytes)\n",
-	      pI810->Scratch.Start,
-	      pI810->Scratch.Size / 1024, pI810->Scratch.Size);
-
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Allocated Scratch Memory\n");
    } else {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -2407,4 +2099,22 @@ I810DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
    /* Set the DPMS mode */
    OUTREG8(DPMS_SYNC_SELECT, DPMSSyncSelect);
 }
-#endif /* I830_ONLY */
+
+const OptionInfoRec *
+lg_i810_available_options(int chipid, int busid)
+{
+   return I810Options;
+}
+
+
+void lg_i810_init(ScrnInfoPtr scrn)
+{
+    scrn->PreInit = I810PreInit;
+    scrn->ScreenInit = I810ScreenInit;
+    scrn->SwitchMode = I810SwitchMode;
+    scrn->AdjustFrame = I810AdjustFrame;
+    scrn->EnterVT = I810EnterVT;
+    scrn->LeaveVT = I810LeaveVT;
+    scrn->FreeScreen = I810FreeScreen;
+    scrn->ValidMode = I810ValidMode;
+}
