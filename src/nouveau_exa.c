@@ -284,7 +284,10 @@ static Bool
 nouveau_exa_prepare_access(PixmapPtr ppix, int index)
 {
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	NVPtr pNv = NVPTR(xf86Screens[ppix->drawable.pScreen->myNum]);
 
+	if (nv50_style_tiled_pixmap(ppix) && !pNv->wfb_enabled)
+		return FALSE;
 	if (nouveau_bo_map(bo, NOUVEAU_BO_RDWR))
 		return FALSE;
 	ppix->devPrivate.ptr = bo->map;

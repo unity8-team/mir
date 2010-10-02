@@ -775,7 +775,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 
 	if (!pNv->NoAccel && pNv->Architecture >= NV_ARCH_50) {
-		pNv->wfb_enabled = TRUE;
+		if (xf86ReturnOptValBool(pNv->Options, OPTION_WFB, FALSE))
+			pNv->wfb_enabled = TRUE;
+		else
+			pNv->wfb_enabled = FALSE; /* Default: use UTS/DFS all the time */
 		pNv->tiled_scanout = TRUE;
 	}
 
