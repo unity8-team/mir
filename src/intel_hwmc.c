@@ -29,8 +29,8 @@
 #endif
 
 #define _INTEL_XVMC_SERVER_
-#include "i830.h"
-#include "i830_hwmc.h"
+#include "intel.h"
+#include "intel_hwmc.h"
 
 #include <X11/extensions/Xv.h>
 #include <X11/extensions/XvMC.h>

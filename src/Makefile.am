@@ -18,7 +18,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SUBDIRS = xvmc render_program
+SUBDIRS = xvmc render_program legacy
 
 # this is obnoxious:
 # -module lets us name the module exactly how we want
@@ -32,69 +32,51 @@ AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
-intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la
+intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la legacy/liblegacy.la
 intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 
-INTEL_DRI_SRCS = \
-         i810_dri.c \
-         i810_dri.h \
-         i830_dri.c \
-         i810_hwmc.c
-
-INTEL_XVMC_SRCS = \
-	 i830_hwmc.h \
-	 i830_hwmc.c
+NULL:=#
 
 intel_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
          common.h \
-         i810_accel.c \
-         i810_common.h \
-         i810_cursor.c \
-         i810_dga.c \
-         i810_driver.c \
-         i810.h \
-         i810_io.c \
-         i810_memory.c \
-         i810_reg.h \
-         i810_ring.h \
-         i810_video.c \
-         i810_wmark.c \
+         intel.h \
+	 intel_module.c \
+         intel_batchbuffer.c \
+         intel_batchbuffer.h \
+	 intel_display.c \
+         intel_driver.c \
+         intel_driver.h \
+         intel_memory.c \
+	 intel_uxa.c \
+         intel_video.c \
+         intel_video.h \
 	 i830_3d.c \
-         i830_accel.c \
-         i830_batchbuffer.c \
-         i830_batchbuffer.h \
-         i830_driver.c \
-         i830.h \
-         i830_memory.c \
-         i830_video.c \
-         i830_video.h \
+	 i830_render.c \
 	 i830_reg.h \
-	 i915_3d.c \
 	 i915_3d.h \
 	 i915_reg.h \
-	 i915_video.c \
-	 i965_video.c \
-	 i830_uxa.c \
-	 i830_render.c \
+	 i915_3d.c \
 	 i915_render.c \
+	 i915_video.c \
+	 i965_reg.h \
+	 i965_video.c \
 	 i965_render.c \
-	 drmmode_display.c
-
-EXTRA_DIST = 		\
-	$(XMODE_SRCS)	\
-	$(INTEL_DRI_SRCS) \
-	$(INTEL_XVMC_SRCS)
+	 $(NULL)
 
 if DRI
 intel_drv_la_SOURCES += \
-	$(INTEL_DRI_SRCS)
+	intel_dri.c \
+	$(NULL)
 intel_drv_la_LIBADD += \
-	$(DRI_LIBS)
+	$(DRI_LIBS) \
+	$(NULL)
 endif
 
 if XVMC
 intel_drv_la_SOURCES += \
-	$(INTEL_XVMC_SRCS)
+	intel_hwmc.h \
+	intel_hwmc.c \
+	$(NULL)
 endif

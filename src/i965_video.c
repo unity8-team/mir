@@ -35,12 +35,15 @@
 #include "xf86xv.h"
 #include "fourcc.h"
 
-#include "i830.h"
-#include "i830_video.h"
-#include "i830_hwmc.h"
+#include "intel.h"
+#include "intel_hwmc.h"
+#include "intel_video.h"
+#include "i830_reg.h"
+#include "i965_reg.h"
 #include "brw_defines.h"
 #include "brw_structs.h"
 #include <string.h>
+
 
 /* Make assert() work. */
 #undef NDEBUG
@@ -362,7 +365,7 @@ static drm_intel_bo *i965_create_dst_surface_state(ScrnInfoPtr scrn,
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_surface_state *dest_surf_state;
-	drm_intel_bo *pixmap_bo = i830_get_pixmap_bo(pixmap);
+	drm_intel_bo *pixmap_bo = intel_get_pixmap_bo(pixmap);
 	drm_intel_bo *surf_bo;
 
 	if (intel_alloc_and_map(intel, "textured video surface state", 4096,
@@ -397,8 +400,8 @@ static drm_intel_bo *i965_create_dst_surface_state(ScrnInfoPtr scrn,
 	dest_surf_state->ss2.width = scrn->virtualX - 1;
 	dest_surf_state->ss2.mip_count = 0;
 	dest_surf_state->ss2.render_target_rotation = 0;
-	dest_surf_state->ss3.pitch = intel_get_pixmap_pitch(pixmap) - 1;
-	dest_surf_state->ss3.tiled_surface = i830_pixmap_tiled(pixmap);
+	dest_surf_state->ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
+	dest_surf_state->ss3.tiled_surface = intel_pixmap_tiled(pixmap);
 	dest_surf_state->ss3.tile_walk = 0;	/* TileX */
 
 	drm_intel_bo_unmap(surf_bo);
@@ -1237,11 +1240,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 	/* release reference once we're finished */
 	drm_intel_bo_unreference(bind_bo);
 
-#if WATCH_STATS
-	/* i830_dump_error_state(scrn); */
-#endif
-
-	i830_debug_flush(scrn);
+	intel_debug_flush(scrn);
 }
 
 void i965_free_video(ScrnInfoPtr scrn)

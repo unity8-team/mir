@@ -37,7 +37,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /**
- * @file i830_memory.c
+ * @file intel_memory.c
  *
  * This is the video memory allocator.  Our memory allocation is different from
  * other graphics chips, where you have a fixed amount of graphics memory
@@ -83,14 +83,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86.h"
 #include "xf86_OSproc.h"
 
-#include "i830.h"
-#include "i810_reg.h"
+#include "intel.h"
 #include "i915_drm.h"
 
 /**
  * Returns the fence size for a tiled area of the given size.
  */
-unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long size)
+unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size)
 {
 	unsigned long i;
 	unsigned long start;
@@ -118,7 +117,7 @@ unsigned long i830_get_fence_size(intel_screen_private *intel, unsigned long siz
  * calculate that here.
  */
 unsigned long
-i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
+intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 		     uint32_t tiling_mode)
 {
 	unsigned long i;
@@ -129,7 +128,7 @@ i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 
 	/* 965 is flexible */
 	if (IS_I965G(intel))
-		return ROUND_TO(pitch, tile_width);
+		return ALIGN(pitch, tile_width);
 
 	/* Pre-965 needs power of two tile width */
 	for (i = tile_width; i < pitch; i <<= 1) ;
@@ -138,14 +137,14 @@ i830_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 }
 
 static Bool
-i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
+intel_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int limit = KB(32);
 
 	/* 8xx spec has always 8K limit, but tests show larger limit in
 	   non-tiling mode, which makes large monitor work. */
-	if ((IS_845G(intel) || IS_I85X(intel)) && tiling)
+	if (IS_I8XX(intel) && tiling)
 		limit = KB(8);
 
 	if (IS_I915(intel) && tiling)
@@ -166,9 +165,9 @@ i830_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 /*
  * Pad to accelerator requirement
  */
-static inline int i830_pad_drawable_width(int width)
+static inline int intel_pad_drawable_width(int width)
 {
-	return (width + 63) & ~63;
+	return ALIGN(width, 64);
 }
 
 /**
@@ -177,9 +176,10 @@ static inline int i830_pad_drawable_width(int width)
  * Used once for each X screen, so once with RandR 1.2 and twice with classic
  * dualhead.
  */
-drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn,
+drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int width, int height, int cpp,
-					unsigned long *out_pitch)
+					unsigned long *out_pitch,
+					uint32_t *out_tiling)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *front_buffer;
@@ -191,23 +191,44 @@ drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn,
 	else
 		tiling_mode = I915_TILING_NONE;
 
-	width = i830_pad_drawable_width(width);
+	width = intel_pad_drawable_width(width);
+	if (!intel_check_display_stride(scrn, width * intel->cpp,
+					tiling_mode != I915_TILING_NONE))
+	    tiling_mode = I915_TILING_NONE;
+	if (!intel_check_display_stride(scrn, width * intel->cpp,
+					tiling_mode != I915_TILING_NONE)) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "Expected front buffer stride %d kB "
+			   "will exceed display limit\n",
+			   width * intel->cpp / 1024);
+		return NULL;
+	}
 
+retry:
 	front_buffer = drm_intel_bo_alloc_tiled(intel->bufmgr, "front buffer",
 						width, height, intel->cpp,
 						&tiling_mode, &pitch, 0);
 	if (front_buffer == NULL) {
+		if (tiling_mode != I915_TILING_NONE) {
+			tiling_mode = I915_TILING_NONE;
+			goto retry;
+		}
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer.\n");
 		return NULL;
 	}
 
-	if (!i830_check_display_stride(scrn, pitch,
+	if (!intel_check_display_stride(scrn, pitch,
 				       tiling_mode != I915_TILING_NONE)) {
+		drm_intel_bo_unreference(front_buffer);
+		if (tiling_mode != I915_TILING_NONE) {
+			tiling_mode = I915_TILING_NONE;
+			goto retry;
+		}
+
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Front buffer stride %ld kB "
 			   "exceeds display limit\n", pitch / 1024);
-		drm_intel_bo_unreference(front_buffer);
 		return NULL;
 	}
 
@@ -223,13 +244,14 @@ drm_intel_bo *i830_allocate_framebuffer(ScrnInfoPtr scrn,
 
 	drm_intel_bo_disable_reuse(front_buffer);
 
-	i830_set_gem_max_sizes(scrn);
+	intel_set_gem_max_sizes(scrn);
 	*out_pitch = pitch;
+	*out_tiling = tiling_mode;
 
 	return front_buffer;
 }
 
-static void i830_set_max_bo_size(intel_screen_private *intel,
+static void intel_set_max_bo_size(intel_screen_private *intel,
 				 const struct drm_i915_gem_get_aperture *aperture)
 {
 	if (aperture->aper_available_size)
@@ -243,7 +265,7 @@ static void i830_set_max_bo_size(intel_screen_private *intel,
 		intel->max_bo_size = 64 * 1024 * 1024;
 }
 
-static void i830_set_max_gtt_map_size(intel_screen_private *intel,
+static void intel_set_max_gtt_map_size(intel_screen_private *intel,
 				      const struct drm_i915_gem_get_aperture *aperture)
 {
 	if (aperture->aper_available_size)
@@ -257,7 +279,7 @@ static void i830_set_max_gtt_map_size(intel_screen_private *intel,
 		intel->max_gtt_map_size = 16 * 1024 * 1024;
 }
 
-static void i830_set_max_tiling_size(intel_screen_private *intel,
+static void intel_set_max_tiling_size(intel_screen_private *intel,
 				     const struct drm_i915_gem_get_aperture *aperture)
 {
 	if (aperture->aper_available_size)
@@ -269,7 +291,7 @@ static void i830_set_max_tiling_size(intel_screen_private *intel,
 		intel->max_tiling_size = 4 * 1024 * 1024;
 }
 
-void i830_set_gem_max_sizes(ScrnInfoPtr scrn)
+void intel_set_gem_max_sizes(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_i915_gem_get_aperture aperture;
@@ -277,7 +299,7 @@ void i830_set_gem_max_sizes(ScrnInfoPtr scrn)
 	aperture.aper_available_size = 0;
 	ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
 
-	i830_set_max_bo_size(intel, &aperture);
-	i830_set_max_gtt_map_size(intel, &aperture);
-	i830_set_max_tiling_size(intel, &aperture);
+	intel_set_max_bo_size(intel, &aperture);
+	intel_set_max_gtt_map_size(intel, &aperture);
+	intel_set_max_tiling_size(intel, &aperture);
 }

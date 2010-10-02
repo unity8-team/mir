@@ -35,8 +35,9 @@
 
 #include <assert.h>
 #include "xf86.h"
-#include "i830.h"
-#include "i915_reg.h"
+#include "intel.h"
+#include "i830_reg.h"
+#include "i965_reg.h"
 
 /* bring in brw structs */
 #include "brw_defines.h"
@@ -116,10 +117,12 @@ static struct formatinfo i965_tex_formats[] = {
 	{PICT_r8g8b8, BRW_SURFACEFORMAT_R8G8B8_UNORM},
 	{PICT_r5g6b5, BRW_SURFACEFORMAT_B5G6R5_UNORM},
 	{PICT_a1r5g5b5, BRW_SURFACEFORMAT_B5G5R5A1_UNORM},
+#if XORG_VERSION_CURRENT >= 10699900
 	{PICT_a2r10g10b10, BRW_SURFACEFORMAT_B10G10R10A2_UNORM},
 	{PICT_x2r10g10b10, BRW_SURFACEFORMAT_B10G10R10X2_UNORM},
 	{PICT_a2b10g10r10, BRW_SURFACEFORMAT_R10G10B10A2_UNORM},
 	{PICT_x2r10g10b10, BRW_SURFACEFORMAT_B10G10R10X2_UNORM},
+#endif
 	{PICT_a4r4g4b4, BRW_SURFACEFORMAT_B4G4R4A4_UNORM},
 };
 
@@ -168,10 +171,12 @@ static Bool i965_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
 	case PICT_x8b8g8r8:
 		*dst_format = BRW_SURFACEFORMAT_R8G8B8A8_UNORM;
 		break;
+#if XORG_VERSION_CURRENT >= 10699900
 	case PICT_a2r10g10b10:
 	case PICT_x2r10g10b10:
 		*dst_format = BRW_SURFACEFORMAT_B10G10R10A2_UNORM;
 		break;
+#endif
 	case PICT_r5g6b5:
 		*dst_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
 		break;
@@ -1070,7 +1075,7 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 {
 	struct brw_surface_state_padded *ss;
 	struct brw_surface_state local_ss;
-	struct intel_pixmap *priv = i830_get_pixmap_intel(pixmap);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 
 	ss = (struct brw_surface_state_padded *)ss_bo->virtual + ss_index;
 
@@ -1106,9 +1111,9 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 	local_ss.ss2.render_target_rotation = 0;
 	local_ss.ss2.height = pixmap->drawable.height - 1;
 	local_ss.ss2.width = pixmap->drawable.width - 1;
-	local_ss.ss3.pitch = intel_get_pixmap_pitch(pixmap) - 1;
+	local_ss.ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
 	local_ss.ss3.tile_walk = 0;	/* Tiled X */
-	local_ss.ss3.tiled_surface = i830_pixmap_tiled(pixmap) ? 1 : 0;
+	local_ss.ss3.tiled_surface = intel_pixmap_tiled(pixmap) ? 1 : 0;
 
 	memcpy(ss, &local_ss, sizeof(local_ss));
 
@@ -1162,7 +1167,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 
 	/* Mark the destination dirty within this batch */
 	intel_batch_mark_pixmap_domains(intel,
-					i830_get_pixmap_intel(dest),
+					intel_get_pixmap_private(dest),
 					I915_GEM_DOMAIN_RENDER,
 					I915_GEM_DOMAIN_RENDER);
 
@@ -1551,8 +1556,8 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	}
 
 	/* Flush any pending writes prior to relocating the textures. */
-	if(i830_uxa_pixmap_is_dirty(source) ||
-	   (mask && i830_uxa_pixmap_is_dirty(mask)))
+	if (intel_pixmap_is_dirty(source) ||
+	    (mask && intel_pixmap_is_dirty(mask)))
 		intel_batch_emit_flush(scrn);
 
 
@@ -1631,7 +1636,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	intel->scale_units[0][1] = source->drawable.height;
 
 	intel->transform[0] = source_picture->transform;
-	composite_op->is_affine = i830_transform_is_affine(intel->transform[0]);
+	composite_op->is_affine = intel_transform_is_affine(intel->transform[0]);
 
 	if (!mask) {
 		intel->transform[1] = NULL;
@@ -1642,7 +1647,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 		intel->scale_units[1][0] = mask->drawable.width;
 		intel->scale_units[1][1] = mask->drawable.height;
 		composite_op->is_affine &=
-		    i830_transform_is_affine(intel->transform[1]);
+		    intel_transform_is_affine(intel->transform[1]);
 	}
 
 	if (mask) {
@@ -1734,30 +1739,30 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	Bool is_affine = render_state->composite_op.is_affine;
 
 	if (is_affine) {
-		if (!i830_get_transformed_coordinates(srcX, srcY,
+		if (!intel_get_transformed_coordinates(srcX, srcY,
 						      intel->transform[0],
 						      &src_x[0], &src_y[0]))
 			return;
-		if (!i830_get_transformed_coordinates(srcX, srcY + h,
+		if (!intel_get_transformed_coordinates(srcX, srcY + h,
 						      intel->transform[0],
 						      &src_x[1], &src_y[1]))
 			return;
-		if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
+		if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
 						      intel->transform[0],
 						      &src_x[2], &src_y[2]))
 			return;
 	} else {
-		if (!i830_get_transformed_coordinates_3d(srcX, srcY,
+		if (!intel_get_transformed_coordinates_3d(srcX, srcY,
 							 intel->transform[0],
 							 &src_x[0], &src_y[0],
 							 &src_w[0]))
 			return;
-		if (!i830_get_transformed_coordinates_3d(srcX, srcY + h,
+		if (!intel_get_transformed_coordinates_3d(srcX, srcY + h,
 							 intel->transform[0],
 							 &src_x[1], &src_y[1],
 							 &src_w[1]))
 			return;
-		if (!i830_get_transformed_coordinates_3d(srcX + w, srcY + h,
+		if (!intel_get_transformed_coordinates_3d(srcX + w, srcY + h,
 							 intel->transform[0],
 							 &src_x[2], &src_y[2],
 							 &src_w[2]))
@@ -1769,35 +1774,35 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	} else {
 		has_mask = TRUE;
 		if (is_affine) {
-			if (!i830_get_transformed_coordinates(maskX, maskY,
+			if (!intel_get_transformed_coordinates(maskX, maskY,
 							      intel->
 							      transform[1],
 							      &mask_x[0],
 							      &mask_y[0]))
 				return;
-			if (!i830_get_transformed_coordinates(maskX, maskY + h,
+			if (!intel_get_transformed_coordinates(maskX, maskY + h,
 							      intel->
 							      transform[1],
 							      &mask_x[1],
 							      &mask_y[1]))
 				return;
-			if (!i830_get_transformed_coordinates
+			if (!intel_get_transformed_coordinates
 			    (maskX + w, maskY + h, intel->transform[1],
 			     &mask_x[2], &mask_y[2]))
 				return;
 		} else {
-			if (!i830_get_transformed_coordinates_3d(maskX, maskY,
+			if (!intel_get_transformed_coordinates_3d(maskX, maskY,
 								 intel->
 								 transform[1],
 								 &mask_x[0],
 								 &mask_y[0],
 								 &mask_w[0]))
 				return;
-			if (!i830_get_transformed_coordinates_3d
+			if (!intel_get_transformed_coordinates_3d
 			    (maskX, maskY + h, intel->transform[1], &mask_x[1],
 			     &mask_y[1], &mask_w[1]))
 				return;
-			if (!i830_get_transformed_coordinates_3d
+			if (!intel_get_transformed_coordinates_3d
 			    (maskX + w, maskY + h, intel->transform[1],
 			     &mask_x[2], &mask_y[2], &mask_w[2]))
 				return;
