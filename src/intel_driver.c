@@ -262,33 +262,6 @@ static void PreInitCleanup(ScrnInfoPtr scrn)
 	scrn->driverPrivate = NULL;
 }
 
-/*
- * DRM mode setting Linux only at this point... later on we could
- * add a wrapper here.
- */
-static Bool intel_kernel_mode_enabled(ScrnInfoPtr scrn)
-{
-	struct pci_device *dev;
-	char id[20];
-	int ret;
-
-	dev = xf86GetPciInfoForEntity(xf86GetEntityInfo(scrn->entityList[0])->index);
-	snprintf(id, sizeof(id),
-		 "pci:%04x:%02x:%02x.%d",
-		 dev->domain, dev->bus, dev->dev, dev->func);
-
-	ret = drmCheckModesettingSupported(id);
-	if (ret) {
-		if (xf86LoadKernelModule("i915"))
-			ret = drmCheckModesettingSupported(id);
-	}
-	/* Be nice to the user and load fbcon too */
-	if (!ret)
-		(void)xf86LoadKernelModule("fbcon");
-
-	return ret == 0;
-}
-
 static void intel_check_chipset_option(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -513,17 +486,9 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	EntityInfoPtr pEnt;
 	int flags24;
 	Gamma zeros = { 0.0, 0.0, 0.0 };
-	int drm_mode_setting;
 
 	if (scrn->numEntities != 1)
 		return FALSE;
-
-	drm_mode_setting = intel_kernel_mode_enabled(scrn);
-	if (!drm_mode_setting) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "No kernel modesetting driver detected.\n");
-		return FALSE;
-	}
 
 	pEnt = xf86GetEntityInfo(scrn->entityList[0]);
 
