@@ -139,7 +139,7 @@ void intel_shadow_create(struct intel_screen_private *intel)
 	void *buffer;
 
 	pixmap = screen->GetScreenPixmap(screen);
-	if (IS_I8XX(intel)) {
+	if (IS_I8XX(intel) || IS_GEN6(intel)) {
 		/* Okay, this is a lie. We just use the scanout directly
 		 * via a GTT (uncached) mapping and never attempt anything
 		 * more dangerous...
