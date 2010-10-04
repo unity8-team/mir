@@ -1072,7 +1072,10 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
     if (info->useEXA) {
 # ifdef XF86DRI
 	if (info->directRenderingEnabled) {
-	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    if (info->ChipFamily >= CHIP_FAMILY_CEDAR) {
+		if (!EVERGREENDrawInit(pScreen))
+		    return FALSE;
+	    } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		if (!R600DrawInit(pScreen))
 		    return FALSE;
 	    } else {

@@ -83,9 +83,15 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 	return;
 
     /* release the current VBO so we don't block on mapping it later */
-    if (info->accel_state->vb_offset && info->accel_state->vb_bo) {
-        radeon_vbo_put(pScrn);
-        info->accel_state->vb_start_op = -1;
+    if (info->accel_state->vbo.vb_offset && info->accel_state->vbo.vb_bo) {
+        radeon_vbo_put(pScrn, &info->accel_state->vbo);
+        info->accel_state->vbo.vb_start_op = -1;
+    }
+
+    /* release the current VBO so we don't block on mapping it later */
+    if (info->accel_state->cbuf.vb_offset && info->accel_state->cbuf.vb_bo) {
+        radeon_vbo_put(pScrn, &info->accel_state->cbuf);
+        info->accel_state->cbuf.vb_start_op = -1;
     }
 
     radeon_cs_emit(info->cs);
@@ -95,10 +101,18 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
         radeon_vbo_flush_bos(pScrn);
 
     ret = radeon_cs_space_check_with_bo(info->cs,
-					accel_state->vb_bo,
+					accel_state->vbo.vb_bo,
 					RADEON_GEM_DOMAIN_GTT, 0);
     if (ret)
       ErrorF("space check failed in flush\n");
+
+    if (accel_state->cbuf.vb_bo) {
+	ret = radeon_cs_space_check_with_bo(info->cs,
+					    accel_state->cbuf.vb_bo,
+					    RADEON_GEM_DOMAIN_GTT, 0);
+	if (ret)
+	    ErrorF("space check failed in flush\n");
+    }
 
     if (info->reemit_current2d && info->state_2d.op)
         info->reemit_current2d(pScrn, info->state_2d.op);
@@ -211,8 +225,18 @@ static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
     int r;
     uint32_t tmp;
 
+#ifndef RADEON_INFO_ACCEL_WORKING
+#define RADEON_INFO_ACCEL_WORKING 0x03
+#endif
+#ifndef RADEON_INFO_ACCEL_WORKING2
+#define RADEON_INFO_ACCEL_WORKING2 0x05
+#endif
+
     memset(&ginfo, 0, sizeof(ginfo));
-    ginfo.request = 0x3;
+    if (info->dri->pKernelDRMVersion->version_minor >= 5)
+	ginfo.request = RADEON_INFO_ACCEL_WORKING2;
+    else
+	ginfo.request = RADEON_INFO_ACCEL_WORKING;
     ginfo.value = (uintptr_t)&tmp;
     r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
     if (r) {
@@ -239,7 +263,6 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
     }
 
     if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE) ||
-	(info->ChipFamily >= CHIP_FAMILY_CEDAR) ||
 	(!RADEONIsAccelWorking(pScrn))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "GPU accel disabled or not working, using shadowfb for KMS\n");

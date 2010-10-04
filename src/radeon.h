@@ -387,6 +387,8 @@ typedef enum {
 
 #define IS_DCE4_VARIANT ((info->ChipFamily >= CHIP_FAMILY_CEDAR))
 
+#define IS_EVERGREEN_3D (info->ChipFamily >= CHIP_FAMILY_CEDAR)
+
 #define IS_R600_3D (info->ChipFamily >= CHIP_FAMILY_R600)
 
 #define IS_R500_3D ((info->ChipFamily == CHIP_FAMILY_RV515)  ||  \
@@ -674,6 +676,18 @@ struct r600_accel_object {
     struct radeon_bo *bo;
 };
 
+struct radeon_vbo_object {
+    int               vb_offset;
+    uint64_t          vb_mc_addr;
+    int               vb_total;
+    void              *vb_ptr;
+    uint32_t          vb_size;
+    uint32_t          vb_op_vert_size;
+    int32_t           vb_start_op;
+    struct radeon_bo *vb_bo;
+    unsigned          verts_per_op;
+};
+
 struct radeon_accel_state {
     /* common accel data */
     int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
@@ -721,20 +735,15 @@ struct radeon_accel_state {
     uint32_t          *draw_header;
     unsigned          vtx_count;
     unsigned          num_vtx;
-    unsigned          verts_per_op;
     Bool              vsync;
 
     drmBufPtr         ib;
-    int               vb_offset;
-    uint64_t          vb_mc_addr;
-    int               vb_total;
-    void              *vb_ptr;
-    uint32_t          vb_size;
-    uint32_t          vb_op_vert_size;
-    int32_t           vb_start_op;
+
+    struct radeon_vbo_object vbo;
+    struct radeon_vbo_object cbuf;
+
     /* where to discard IB from if we cancel operation */
     uint32_t          ib_reset_op;
-    struct radeon_bo *vb_bo;
 #ifdef XF86DRM_MODE
     struct radeon_dma_bo bo_free;
     struct radeon_dma_bo bo_wait;
@@ -753,6 +762,16 @@ struct radeon_accel_state {
     uint32_t          comp_ps_offset;
     uint32_t          xv_vs_offset;
     uint32_t          xv_ps_offset;
+    // shader consts
+    uint32_t          solid_vs_const_offset;
+    uint32_t          solid_ps_const_offset;
+    uint32_t          copy_vs_const_offset;
+    uint32_t          copy_ps_const_offset;
+    uint32_t          comp_vs_const_offset;
+    uint32_t          comp_ps_const_offset;
+    uint32_t          comp_mask_ps_const_offset;
+    uint32_t          xv_vs_const_offset;
+    uint32_t          xv_ps_const_offset;
 
     //size/addr stuff
     struct r600_accel_object src_obj[2];
@@ -1274,6 +1293,8 @@ extern void RADEONDoPrepareCopyMMIO(ScrnInfoPtr pScrn,
 				    Pixel planemask);
 extern Bool R600DrawInit(ScreenPtr pScreen);
 extern Bool R600LoadShaders(ScrnInfoPtr pScrn);
+extern Bool EVERGREENDrawInit(ScreenPtr pScreen);
+extern Bool EVERGREENLoadShaders(ScrnInfoPtr pScrn);
 #endif
 
 #if defined(XF86DRI) && defined(USE_EXA)
