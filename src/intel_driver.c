@@ -575,7 +575,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
 		if (xf86ReturnOptValBool(intel->Options, OPTION_SHADOW, FALSE))
-			intel->force_fallback = intel->use_shadow = TRUE;
+			intel->use_shadow = TRUE;
 	}
 
 	if (intel->use_shadow) {

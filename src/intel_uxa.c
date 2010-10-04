@@ -731,6 +731,9 @@ static Bool intel_uxa_pixmap_put_image(PixmapPtr pixmap,
 	int stride = intel_pixmap_pitch(pixmap);
 	int ret = FALSE;
 
+	if (priv == NULL || priv->bo == NULL)
+		return FALSE;
+
 	if (src_pitch == stride && w == pixmap->drawable.width && priv->tiling == I915_TILING_NONE) {
 		ret = drm_intel_bo_subdata(priv->bo, y * stride, stride * h, src) == 0;
 	} else if (drm_intel_gem_bo_map_gtt(priv->bo) == 0) {
@@ -890,6 +893,11 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 		if (!scratch)
 			return FALSE;
 
+		if (!intel_get_pixmap_bo(scratch)) {
+			screen->DestroyPixmap(scratch);
+			return FALSE;
+		}
+
 		gc = GetScratchGC(pixmap->drawable.depth, screen);
 		if (!gc) {
 			screen->DestroyPixmap(scratch);
@@ -935,7 +943,10 @@ void intel_uxa_block_handler(intel_screen_private *intel)
 
 static Bool intel_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 {
-	return intel_get_pixmap_private(pixmap) != NULL;
+	if (pixmap->devPrivate.ptr)
+		return FALSE;
+
+	return intel_get_pixmap_bo(pixmap) != NULL;
 }
 
 static PixmapPtr
@@ -950,6 +961,9 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		return NullPixmap;
 
 	if (depth == 1 || intel->force_fallback)
+		return fbCreatePixmap(screen, w, h, depth, usage);
+
+	if (intel->use_shadow && (usage & INTEL_CREATE_PIXMAP_DRI2) == 0)
 		return fbCreatePixmap(screen, w, h, depth, usage);
 
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE && w <= 32 && h <= 32)
@@ -967,9 +981,9 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		 * to be effectively tiled.
 		 */
 		tiling = I915_TILING_X;
-		if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
+		if (usage & INTEL_CREATE_PIXMAP_TILING_Y)
 			tiling = I915_TILING_Y;
-		if (usage == UXA_CREATE_PIXMAP_FOR_MAP || usage == INTEL_CREATE_PIXMAP_TILING_NONE)
+		if (usage == UXA_CREATE_PIXMAP_FOR_MAP || usage & INTEL_CREATE_PIXMAP_TILING_NONE)
 			tiling = I915_TILING_NONE;
 
 		/* if tiling is off force to none */

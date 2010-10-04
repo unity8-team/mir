@@ -58,6 +58,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "windowstr.h"
 #include "shadow.h"
 
+#include "xaarop.h"
+
 #include "intel.h"
 #include "i830_reg.h"
 
@@ -68,11 +70,101 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct {
 	int refcnt;
 	PixmapPtr pixmap;
+	DrawablePtr drawable;
 	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
-#if DRI2INFOREC_VERSION < 2
+static PixmapPtr get_front_buffer(DrawablePtr drawable, DrawablePtr *ret)
+{
+	ScreenPtr screen = drawable->pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	PixmapPtr pixmap;
 
+	pixmap = get_drawable_pixmap(drawable);
+	if (pixmap_is_scanout(pixmap)) {
+		pixmap = fbCreatePixmap(screen, 0, 0, drawable->depth, 0);
+		if (pixmap) {
+			screen->ModifyPixmapHeader(pixmap,
+						   drawable->width,
+						   drawable->height,
+						   0, 0,
+						   intel->front_pitch,
+						   NULL);
+			intel_set_pixmap_bo(pixmap, intel->front_buffer);
+		}
+	} else if (intel_get_pixmap_bo(pixmap)) {
+		pixmap->refcnt++;
+		*ret = drawable;
+	} else
+		pixmap = NULL;
+	return pixmap;
+}
+
+static PixmapPtr fixup_shadow(DrawablePtr drawable, PixmapPtr pixmap)
+{
+	ScreenPtr screen = drawable->pScreen;
+	PixmapPtr old = get_drawable_pixmap(drawable);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	GCPtr gc;
+
+	/* With an active shadow buffer, 2D pixmaps are created in
+	 * system memory and GPU acceleration of 2D render operations
+	 * is *disabled*. As DRI is still enabled, we create hardware
+	 * buffers for the clients, and need to mix this with the
+	 * 2D rendering. So we replace the system pixmap with a GTT
+	 * mapping (with the kernel enforcing coherency between
+	 * CPU and GPU) for 2D and provide the bo so that clients
+	 * can write directly to it (or read from it in the case
+	 * of TextureFromPixmap) using the GPU.
+	 *
+	 * So for a compositor with a GL backend (i.e. compiz) we have
+	 * smooth wobbly windows but incur the cost of uncached 2D rendering,
+	 * however 3D applications (games and clutter) are still fully
+	 * accelerated.
+	 */
+
+	drm_intel_gem_bo_map_gtt(priv->bo);
+
+	/* Copy the current contents of the pixmap to the bo. */
+	gc = GetScratchGC(drawable->depth, screen);
+	if (gc) {
+		ValidateGC(&pixmap->drawable, gc);
+
+		screen->ModifyPixmapHeader(pixmap,
+					   drawable->width,
+					   drawable->height,
+					   0, 0,
+					   priv->stride,
+					   priv->bo->virtual);
+
+		gc->ops->CopyArea(drawable, &pixmap->drawable,
+				  gc,
+				  0, 0,
+				  drawable->width,
+				  drawable->height,
+				  0, 0);
+		FreeScratchGC(gc);
+	}
+
+	intel_set_pixmap_private(pixmap, NULL);
+	screen->DestroyPixmap(pixmap);
+
+	/* Redirect 2D rendering to the uncached GTT map of the bo */
+	screen->ModifyPixmapHeader(old,
+				   drawable->width,
+				   drawable->height,
+				   0, 0,
+				   priv->stride,
+				   priv->bo->virtual);
+
+	/* And redirect the pixmap to the new bo (for 3D). */
+	intel_set_pixmap_private(old, priv);
+	old->refcnt++;
+	return old;
+}
+
+#if DRI2INFOREC_VERSION < 2
 static DRI2BufferPtr
 I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		      int count)
@@ -85,6 +177,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	int i;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
+	DrawablePtr target;
 
 	buffers = calloc(count, sizeof *buffers);
 	if (buffers == NULL)
@@ -97,39 +190,49 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 
 	pDepthPixmap = NULL;
 	for (i = 0; i < count; i++) {
+		target = NULL;
+		pixmap = NULL;
 		if (attachments[i] == DRI2BufferFrontLeft) {
-			pixmap = get_drawable_pixmap(drawable);
-			pixmap->refcnt++;
+			pixmap = get_front_buffer(drawable, &target);
 		} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 			pixmap = pDepthPixmap;
 			pixmap->refcnt++;
-		} else {
-			unsigned int hint = 0;
+		}
+		if (pixmap == NULL) {
+			unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 
-			switch (attachments[i]) {
-			case DRI2BufferDepth:
-				if (SUPPORTS_YTILING(intel))
-					hint = INTEL_CREATE_PIXMAP_TILING_Y;
-				else
-					hint = INTEL_CREATE_PIXMAP_TILING_X;
-				break;
-			case DRI2BufferFakeFrontLeft:
-			case DRI2BufferFakeFrontRight:
-			case DRI2BufferBackLeft:
-			case DRI2BufferBackRight:
-				hint = INTEL_CREATE_PIXMAP_TILING_X;
-				break;
+			if (intel->tiling) {
+				switch (attachments[i]) {
+				case DRI2BufferDepth:
+					if (SUPPORTS_YTILING(intel))
+						hint |= INTEL_CREATE_PIXMAP_TILING_Y;
+					else
+						hint |= INTEL_CREATE_PIXMAP_TILING_X;
+					break;
+				case DRI2BufferFakeFrontLeft:
+				case DRI2BufferFakeFrontRight:
+				case DRI2BufferBackLeft:
+				case DRI2BufferBackRight:
+					hint |= INTEL_CREATE_PIXMAP_TILING_X;
+					break;
+				}
 			}
-
-			if (!intel->tiling)
-				hint = 0;
 
 			pixmap = screen->CreatePixmap(screen,
 						      drawable->width,
 						      drawable->height,
 						      drawable->depth,
 						      hint);
+			if (pixmap == NULL ||
+			    intel_get_pixmap_bo(pixmap) == NULL)
+			{
+				if (pixmap)
+					screen->DestroyPixmap(pixmap);
+				goto unwind;
+			}
 
+			if (attachment == DRI2BufferFrontLeft)
+				pixmap = fixup_shadow(drawable, pixmap);
 		}
 
 		if (attachments[i] == DRI2BufferDepth)
@@ -143,6 +246,8 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		privates[i].refcnt = 1;
 		privates[i].pixmap = pixmap;
 		privates[i].attachment = attachments[i];
+
+		privates[i].drawable = target ? target : &pixmap->drawable;
 
 		bo = intel_get_pixmap_bo(pixmap);
 		if (bo == NULL || dri_bo_flink(bo, &buffers[i].name) != 0) {
@@ -193,6 +298,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	dri_bo *bo;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap;
+	DrawablePtr target = NULL;
 
 	buffer = calloc(1, sizeof *buffer);
 	if (buffer == NULL)
@@ -203,30 +309,25 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		return NULL;
 	}
 
-	if (attachment == DRI2BufferFrontLeft) {
-		pixmap = get_drawable_pixmap(drawable);
-		pixmap->refcnt++;
-	} else {
-		unsigned int hint = 0;
+	pixmap = NULL;
+	if (attachment == DRI2BufferFrontLeft)
+		pixmap = get_front_buffer(drawable, &target);
+	if (pixmap == NULL) {
+		unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 
-		switch (attachment) {
-		case DRI2BufferDepth:
-		case DRI2BufferDepthStencil:
-			if (SUPPORTS_YTILING(intel))
-				hint = INTEL_CREATE_PIXMAP_TILING_Y;
-			else
-				hint = INTEL_CREATE_PIXMAP_TILING_X;
-			break;
-		case DRI2BufferFakeFrontLeft:
-		case DRI2BufferFakeFrontRight:
-		case DRI2BufferBackLeft:
-		case DRI2BufferBackRight:
-			hint = INTEL_CREATE_PIXMAP_TILING_X;
-			break;
+		if (intel->tiling) {
+			switch (attachment) {
+			case DRI2BufferDepth:
+			case DRI2BufferDepthStencil:
+				if (SUPPORTS_YTILING(intel)) {
+					hint |= INTEL_CREATE_PIXMAP_TILING_Y;
+					break;
+				}
+			default:
+				hint |= INTEL_CREATE_PIXMAP_TILING_X;
+				break;
+			}
 		}
-
-		if (!intel->tiling)
-			hint = 0;
 
 		pixmap = screen->CreatePixmap(screen,
 					      drawable->width,
@@ -234,12 +335,16 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 					      (format != 0) ? format :
 							      drawable->depth,
 					      hint);
-		if (pixmap == NULL) {
+		if (pixmap == NULL || intel_get_pixmap_bo(pixmap) == NULL) {
+			if (pixmap)
+				screen->DestroyPixmap(pixmap);
 			free(privates);
 			free(buffer);
 			return NULL;
 		}
 
+		if (attachment == DRI2BufferFrontLeft)
+			pixmap = fixup_shadow(drawable, pixmap);
 	}
 
 	buffer->attachment = attachment;
@@ -251,6 +356,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	privates->refcnt = 1;
 	privates->pixmap = pixmap;
 	privates->attachment = attachment;
+	privates->drawable = target ? target : &pixmap->drawable;
 
 	bo = intel_get_pixmap_bo(pixmap);
 	if (bo == NULL || dri_bo_flink(bo, &buffer->name) != 0) {
@@ -298,11 +404,10 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	ScreenPtr screen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
-	    ? drawable : &srcPrivate->pixmap->drawable;
-	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
-	    ? drawable : &dstPrivate->pixmap->drawable;
+	DrawablePtr src = srcPrivate->drawable;
+	DrawablePtr dst = dstPrivate->drawable;
 	RegionPtr pCopyClip;
+	PixmapPtr src_pixmap, dst_pixmap;
 	GCPtr gc;
 
 	gc = GetScratchGC(dst->depth, screen);
@@ -399,12 +504,22 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	 * that will happen before the client tries to render
 	 * again. */
 
-	(*gc->ops->CopyArea) (src, dst,
-			       gc,
-			       0, 0,
-			       drawable->width, drawable->height,
-			       0, 0);
+	/* Re-enable 2D acceleration... */
+	src_pixmap = get_drawable_pixmap(src);
+	src_pixmap->devPrivate.ptr = NULL;
+
+	dst_pixmap = get_drawable_pixmap(dst);
+	dst_pixmap->devPrivate.ptr = NULL;
+
+	gc->ops->CopyArea(src, dst, gc,
+			  0, 0,
+			  drawable->width, drawable->height,
+			  0, 0);
 	FreeScratchGC(gc);
+
+	/* and restore 2D/3D coherency */
+	src_pixmap->devPrivate.ptr = intel_get_pixmap_bo(src_pixmap)->virtual;
+	dst_pixmap->devPrivate.ptr = intel_get_pixmap_bo(dst_pixmap)->virtual;
 }
 
 #if DRI2INFOREC_VERSION >= 4
