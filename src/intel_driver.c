@@ -560,7 +560,6 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	intel->force_fallback =
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE) != 0;
-	intel->use_shadow = FALSE;
 
 	/* Enable tiling by default */
 	intel->tiling = TRUE;
@@ -573,9 +572,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 			intel->tiling = FALSE;
 	}
 
+	intel->use_shadow = FALSE;
+	if (IS_GEN6(intel))
+		intel->use_shadow = TRUE;
+
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
-		if (xf86ReturnOptValBool(intel->Options, OPTION_SHADOW, FALSE))
-			intel->use_shadow = TRUE;
+		intel->use_shadow =
+			xf86ReturnOptValBool(intel->Options,
+					     OPTION_SHADOW,
+					     FALSE);
 	}
 
 	if (intel->use_shadow) {
