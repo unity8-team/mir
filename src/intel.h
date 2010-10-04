@@ -667,4 +667,8 @@ void intel_uxa_block_handler(intel_screen_private *intel);
 Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			      int num_bos);
 
+/* intel_shadow.c */
+void intel_shadow_blt(intel_screen_private *intel);
+void intel_shadow_create(struct intel_screen_private *intel);
+
 #endif /* _I830_H_ */
