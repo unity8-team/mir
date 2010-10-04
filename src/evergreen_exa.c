@@ -1873,6 +1873,9 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
     info->accel_state->exa->UploadToScreen = EVERGREENUploadToScreen;
     info->accel_state->exa->DownloadFromScreen = EVERGREENDownloadFromScreen;
+#if (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 5)
+    info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
+#endif
 
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
 #ifdef EXA_SUPPORTS_PREPARE_AUX
