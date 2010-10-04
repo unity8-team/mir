@@ -101,22 +101,13 @@ void intel_shadow_blt(intel_screen_private *intel)
 	while (n--) {
 		int pitch;
 		dri_bo *bo;
-		int offset;
 
-		if (IS_I8XX(intel)) {
-			bo = intel->shadow_buffer;
-			offset = box->x1 | box->y1 << 16;
-			pitch = intel->shadow_stride;
-		} else {
-			bo = intel_shadow_create_bo(intel,
-						    box->x1, box->y1,
-						    box->x2, box->y2,
-						    &pitch);
-			if (bo == NULL)
-				return;
-
-			offset = 0;
-		}
+		bo = intel_shadow_create_bo(intel,
+					    box->x1, box->y1,
+					    box->x2, box->y2,
+					    &pitch);
+		if (bo == NULL)
+			return;
 
 		BEGIN_BATCH(8);
 		OUT_BATCH(blt);
@@ -127,7 +118,7 @@ void intel_shadow_blt(intel_screen_private *intel)
 				I915_GEM_DOMAIN_RENDER,
 				I915_GEM_DOMAIN_RENDER,
 				0);
-		OUT_BATCH(offset);
+		OUT_BATCH(0);
 		OUT_BATCH(pitch);
 		OUT_RELOC(bo, I915_GEM_DOMAIN_RENDER, 0, 0);
 
@@ -145,62 +136,43 @@ void intel_shadow_create(struct intel_screen_private *intel)
 	ScreenPtr screen = scrn->pScreen;
 	PixmapPtr pixmap;
 	int stride;
+	void *buffer;
 
 	pixmap = screen->GetScreenPixmap(screen);
 	if (IS_I8XX(intel)) {
-		dri_bo *bo;
-		int size;
-
-		/* Reduce the incoherency worries for gen2
-		 * by only allocating a static shadow, at about 2-3x
-		 * performance cost for forcing rendering to uncached memory.
+		/* Okay, this is a lie. We just use the scanout directly
+		 * via a GTT (uncached) mapping and never attempt anything
+		 * more dangerous...
 		 */
-		if (intel->shadow_buffer) {
-			drm_intel_gem_bo_unmap_gtt(intel->shadow_buffer);
-			drm_intel_bo_unreference(intel->shadow_buffer);
-			intel->shadow_buffer = NULL;
-		}
-
-		stride = ALIGN(scrn->virtualX * intel->cpp, 4);
-		size = stride * scrn->virtualY;
-		bo = drm_intel_bo_alloc(intel->bufmgr,
-					"shadow", size,
-					0);
-		if (bo && drm_intel_gem_bo_map_gtt(bo) == 0) {
+		if (intel->front_buffer &&
+		    drm_intel_gem_bo_map_gtt(intel->front_buffer) == 0) {
 			screen->ModifyPixmapHeader(pixmap,
 						   scrn->virtualX,
 						   scrn->virtualY,
 						   -1, -1,
-						   stride,
-						   bo->virtual);
-			intel->shadow_buffer = bo;
+						   intel->front_pitch,
+						   intel->front_buffer->virtual);
 		}
-	} else {
-		void *buffer;
-
-		stride = intel->cpp*scrn->virtualX;
-		buffer = malloc(stride * scrn->virtualY);
-
-		if (buffer && screen->ModifyPixmapHeader(pixmap,
-							 scrn->virtualX,
-							 scrn->virtualY,
-							 -1, -1,
-							 stride,
-							 buffer)) {
-			if (intel->shadow_buffer)
-				free(intel->shadow_buffer);
-
-			intel->shadow_buffer = buffer;
-		} else
-			stride = intel->shadow_stride;
+		return;
 	}
 
+	stride = intel->cpp*scrn->virtualX;
+	buffer = malloc(stride * scrn->virtualY);
+	if (buffer &&
+	    screen->ModifyPixmapHeader(pixmap,
+				       scrn->virtualX, scrn->virtualY,
+				       -1, -1,
+				       stride, buffer)) {
+		free(intel->shadow_buffer);
+		intel->shadow_buffer = buffer;
+	} else
+		stride = intel->shadow_stride;
+
 	if (!intel->shadow_damage) {
-		intel->shadow_damage = DamageCreate(NULL, NULL,
-						    DamageReportNone,
-						    TRUE,
-						    screen,
-						    intel);
+		intel->shadow_damage =
+			DamageCreate(NULL, NULL,
+				     DamageReportNone, TRUE,
+				     screen, intel);
 		DamageRegister(&pixmap->drawable, intel->shadow_damage);
 		DamageSetReportAfterOp(intel->shadow_damage, TRUE);
 	}
@@ -208,4 +180,3 @@ void intel_shadow_create(struct intel_screen_private *intel)
 	scrn->displayWidth = stride / intel->cpp;
 	intel->shadow_stride = stride;
 }
-
