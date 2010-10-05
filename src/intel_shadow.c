@@ -64,6 +64,40 @@ intel_shadow_create_bo(intel_screen_private *intel,
 	return bo;
 }
 
+static void intel_shadow_memcpy(intel_screen_private *intel)
+{
+	char *src_data, *dst_data;
+	unsigned int src_pitch, dst_pitch;
+	RegionPtr region;
+	BoxPtr box;
+	int n;
+
+	if (drm_intel_gem_bo_map_gtt(intel->front_buffer))
+		return;
+
+	src_data = intel->shadow_buffer;
+	dst_data = intel->front_buffer->virtual;
+
+	src_pitch = intel->shadow_stride;
+	dst_pitch = intel->front_pitch;
+
+	region = DamageRegion(intel->shadow_damage);
+	box = REGION_RECTS(region);
+	n = REGION_NUM_RECTS(region);
+	while (n--) {
+		char *src = src_data + box->y1*src_pitch + box->x1*intel->cpp;
+		char *dst = dst_data + box->y1*dst_pitch + box->x1*intel->cpp;
+		int len = (box->x2 - box->x1)*intel->cpp;
+		int row = box->y2 - box->y1;
+		while (row--) {
+			memcpy(dst, src, len);
+			src += src_pitch;
+			dst += dst_pitch;
+		}
+		box++;
+	}
+}
+
 void intel_shadow_blt(intel_screen_private *intel)
 {
 	ScrnInfoPtr scrn = intel->scrn;
@@ -72,6 +106,12 @@ void intel_shadow_blt(intel_screen_private *intel)
 	RegionPtr region;
 	BoxPtr box;
 	int n;
+
+	/* Can we trust the BLT? Otherwise do an uncached mmecy. */
+	if (IS_I8XX(intel) || IS_GEN6(intel)) {
+		intel_shadow_memcpy(intel);
+		return;
+	}
 
 	dst_pitch = intel->front_pitch;
 
@@ -124,8 +164,7 @@ void intel_shadow_blt(intel_screen_private *intel)
 
 		ADVANCE_BATCH();
 
-		if (bo != intel->shadow_buffer)
-			drm_intel_bo_unreference(bo);
+		drm_intel_bo_unreference(bo);
 		box++;
 	}
 }
@@ -139,23 +178,6 @@ void intel_shadow_create(struct intel_screen_private *intel)
 	void *buffer;
 
 	pixmap = screen->GetScreenPixmap(screen);
-	if (IS_I8XX(intel) || IS_GEN6(intel)) {
-		/* Okay, this is a lie. We just use the scanout directly
-		 * via a GTT (uncached) mapping and never attempt anything
-		 * more dangerous...
-		 */
-		if (intel->front_buffer &&
-		    drm_intel_gem_bo_map_gtt(intel->front_buffer) == 0) {
-			screen->ModifyPixmapHeader(pixmap,
-						   scrn->virtualX,
-						   scrn->virtualY,
-						   -1, -1,
-						   intel->front_pitch,
-						   intel->front_buffer->virtual);
-		}
-		return;
-	}
-
 	stride = intel->cpp*scrn->virtualX;
 	buffer = malloc(stride * scrn->virtualY);
 	if (buffer &&
