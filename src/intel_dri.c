@@ -70,11 +70,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct {
 	int refcnt;
 	PixmapPtr pixmap;
-	DrawablePtr drawable;
 	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
-static PixmapPtr get_front_buffer(DrawablePtr drawable, DrawablePtr *ret)
+static PixmapPtr get_front_buffer(DrawablePtr drawable)
 {
 	ScreenPtr screen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
@@ -82,7 +81,9 @@ static PixmapPtr get_front_buffer(DrawablePtr drawable, DrawablePtr *ret)
 	PixmapPtr pixmap;
 
 	pixmap = get_drawable_pixmap(drawable);
-	if (pixmap_is_scanout(pixmap)) {
+	if (!intel->use_shadow) {
+		pixmap->refcnt++;
+	} else if (pixmap_is_scanout(pixmap)) {
 		pixmap = fbCreatePixmap(screen, 0, 0, drawable->depth, 0);
 		if (pixmap) {
 			screen->ModifyPixmapHeader(pixmap,
@@ -91,12 +92,15 @@ static PixmapPtr get_front_buffer(DrawablePtr drawable, DrawablePtr *ret)
 						   0, 0,
 						   intel->front_pitch,
 						   intel->front_buffer->virtual);
+
 			intel_set_pixmap_bo(pixmap, intel->front_buffer);
 			intel_get_pixmap_private(pixmap)->offscreen = 0;
+			if (WindowDrawable(drawable->type))
+				screen->SetWindowPixmap((WindowPtr)drawable,
+							pixmap);
 		}
 	} else if (intel_get_pixmap_bo(pixmap)) {
 		pixmap->refcnt++;
-		*ret = drawable;
 	} else
 		pixmap = NULL;
 	return pixmap;
@@ -179,7 +183,6 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	int i;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
-	DrawablePtr target;
 
 	buffers = calloc(count, sizeof *buffers);
 	if (buffers == NULL)
@@ -192,10 +195,9 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 
 	pDepthPixmap = NULL;
 	for (i = 0; i < count; i++) {
-		target = NULL;
 		pixmap = NULL;
 		if (attachments[i] == DRI2BufferFrontLeft) {
-			pixmap = get_front_buffer(drawable, &target);
+			pixmap = get_front_buffer(drawable);
 		} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 			pixmap = pDepthPixmap;
 			pixmap->refcnt++;
@@ -249,8 +251,6 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		privates[i].pixmap = pixmap;
 		privates[i].attachment = attachments[i];
 
-		privates[i].drawable = target ? target : &pixmap->drawable;
-
 		bo = intel_get_pixmap_bo(pixmap);
 		if (bo == NULL || dri_bo_flink(bo, &buffers[i].name) != 0) {
 			/* failed to name buffer */
@@ -300,7 +300,6 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	dri_bo *bo;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap;
-	DrawablePtr target = NULL;
 
 	buffer = calloc(1, sizeof *buffer);
 	if (buffer == NULL)
@@ -313,7 +312,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 
 	pixmap = NULL;
 	if (attachment == DRI2BufferFrontLeft)
-		pixmap = get_front_buffer(drawable, &target);
+		pixmap = get_front_buffer(drawable);
 	if (pixmap == NULL) {
 		unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 
@@ -358,7 +357,6 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	privates->refcnt = 1;
 	privates->pixmap = pixmap;
 	privates->attachment = attachment;
-	privates->drawable = target ? target : &pixmap->drawable;
 
 	bo = intel_get_pixmap_bo(pixmap);
 	if (bo == NULL || dri_bo_flink(bo, &buffer->name) != 0) {
@@ -406,8 +404,10 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	ScreenPtr screen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	DrawablePtr src = srcPrivate->drawable;
-	DrawablePtr dst = dstPrivate->drawable;
+	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
+		? drawable : &srcPrivate->pixmap->drawable;
+	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
+		? drawable : &dstPrivate->pixmap->drawable;
 	RegionPtr pCopyClip;
 	struct intel_pixmap *src_pixmap, *dst_pixmap;
 	GCPtr gc;
