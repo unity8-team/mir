@@ -25,10 +25,11 @@ Full support for 8, 15, 16 and 24 bit pixel depths;
 RandR 1.2 and RandR 1.3 support;
 .TP
 \(bu
-TV-out support (only on R/RV/RS1xx, R/RV/RS2xx, R/RV/RS3xx. Experimental
+TV-out support (only on RV/RS1xx, RV/RS2xx, R/RV/RS3xx. Experimental
 support on R/RV5xx, R/RV6xx, and R/RV7xx through the
 .B ATOMTvOut
-option);
+option);  TV-out is not supported on cards that use the Rage Theatre
+chip for TV-out (R100, R200).
 .TP
 \(bu
 Full EXA 2D acceleration;
@@ -163,6 +164,21 @@ Radeon HD 4650/4670
 .TP 12
 .B RV770
 Radeon HD 4850/4870
+.TP 12
+.B CEDAR
+Radeon HD 5450
+.TP 12
+.B REDWOOD
+Radeon HD 5550/5570/5670
+.TP 12
+.B JUNIPER
+Radeon HD 5750/5770
+.TP 12
+.B CYPRESS
+Radeon HD 5850/5870
+.TP 12
+.B HEMLOCK
+Radeon HD 5970
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
