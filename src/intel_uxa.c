@@ -666,6 +666,7 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 		priv->tiling = tiling;
 		priv->busy = -1;
+		priv->offscreen = 1;
 	} else {
 		if (priv != NULL) {
 			free(priv);
@@ -675,6 +676,12 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
   BAIL:
 	intel_set_pixmap_private(pixmap, priv);
+}
+
+static Bool intel_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
+{
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	return priv && priv->offscreen;
 }
 
 static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
@@ -705,22 +712,6 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	priv->busy = 0;
 
 	return TRUE;
-}
-
-static void intel_uxa_finish_access(PixmapPtr pixmap)
-{
-	ScreenPtr screen = pixmap->drawable.pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
-	dri_bo *bo = priv->bo;
-
-	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
-		drm_intel_gem_bo_unmap_gtt(bo);
-	else
-		dri_bo_unmap(bo);
-
-	pixmap->devPrivate.ptr = NULL;
 }
 
 static Bool intel_uxa_pixmap_put_image(PixmapPtr pixmap,
@@ -813,6 +804,11 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 			if (!scratch)
 				return FALSE;
 
+			if (!intel_uxa_pixmap_is_offscreen(scratch)) {
+				screen->DestroyPixmap(scratch);
+				return FALSE;
+			}
+
 			ret = intel_uxa_pixmap_put_image(scratch, src, src_pitch, 0, 0, w, h);
 			if (ret) {
 				GCPtr gc = GetScratchGC(pixmap->drawable.depth, screen);
@@ -893,7 +889,7 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 		if (!scratch)
 			return FALSE;
 
-		if (!intel_get_pixmap_bo(scratch)) {
+		if (!intel_uxa_pixmap_is_offscreen(scratch)) {
 			screen->DestroyPixmap(scratch);
 			return FALSE;
 		}
@@ -939,14 +935,6 @@ void intel_uxa_block_handler(intel_screen_private *intel)
 
 		DamageEmpty(intel->shadow_damage);
 	}
-}
-
-static Bool intel_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
-{
-	if (pixmap->devPrivate.ptr)
-		return FALSE;
-
-	return intel_get_pixmap_bo(pixmap) != NULL;
 }
 
 static PixmapPtr
@@ -1070,6 +1058,7 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			drm_intel_bo_set_tiling(priv->bo, &tiling, stride);
 		priv->stride = stride;
 		priv->tiling = tiling;
+		priv->offscreen = 1;
 
 		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 
@@ -1093,22 +1082,22 @@ void intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	dri_bo *bo = intel->front_buffer;
+
+	drm_intel_gem_bo_map_gtt(bo);
 
 	if (intel->use_shadow) {
 		intel_shadow_create(intel);
 	} else {
-		dri_bo *bo = intel->front_buffer;
-		if (bo != NULL) {
-			PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-			intel_set_pixmap_bo(pixmap, bo);
-			intel_get_pixmap_private(pixmap)->busy = 1;
-			screen->ModifyPixmapHeader(pixmap,
-						   scrn->virtualX,
-						   scrn->virtualY,
-						   -1, -1,
-						   intel->front_pitch,
-						   NULL);
-		}
+		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
+		intel_set_pixmap_bo(pixmap, bo);
+		intel_get_pixmap_private(pixmap)->busy = 1;
+		screen->ModifyPixmapHeader(pixmap,
+					   scrn->virtualX,
+					   scrn->virtualY,
+					   -1, -1,
+					   intel->front_pitch,
+					   NULL);
 		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
 }
@@ -1244,7 +1233,6 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->get_image = intel_uxa_get_image;
 
 	intel->uxa_driver->prepare_access = intel_uxa_prepare_access;
-	intel->uxa_driver->finish_access = intel_uxa_finish_access;
 	intel->uxa_driver->pixmap_is_offscreen = intel_uxa_pixmap_is_offscreen;
 
 	screen->CreatePixmap = intel_uxa_create_pixmap;
