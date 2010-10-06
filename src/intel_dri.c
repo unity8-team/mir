@@ -409,7 +409,6 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
 		? drawable : &dstPrivate->pixmap->drawable;
 	RegionPtr pCopyClip;
-	struct intel_pixmap *src_pixmap, *dst_pixmap;
 	GCPtr gc;
 
 	gc = GetScratchGC(dst->depth, screen);
@@ -507,23 +506,32 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	 * again. */
 
 	/* Re-enable 2D acceleration... */
-	src_pixmap = intel_get_pixmap_private(get_drawable_pixmap(src));
-	src_pixmap->offscreen = 1;
-	src_pixmap->busy = 1;
+	if (intel->use_shadow) {
+		struct intel_pixmap *src_pixmap, *dst_pixmap;
 
-	dst_pixmap = intel_get_pixmap_private(get_drawable_pixmap(dst));
-	dst_pixmap->offscreen = 1;
-	dst_pixmap->busy = 1;
+		src_pixmap = intel_get_pixmap_private(get_drawable_pixmap(src));
+		src_pixmap->offscreen = 1;
+		src_pixmap->busy = 1;
 
-	gc->ops->CopyArea(src, dst, gc,
-			  0, 0,
-			  drawable->width, drawable->height,
-			  0, 0);
+		dst_pixmap = intel_get_pixmap_private(get_drawable_pixmap(dst));
+		dst_pixmap->offscreen = 1;
+		dst_pixmap->busy = 1;
+
+		gc->ops->CopyArea(src, dst, gc,
+				  0, 0,
+				  drawable->width, drawable->height,
+				  0, 0);
+
+		/* and restore 2D/3D coherency */
+		src_pixmap->offscreen = 0;
+		dst_pixmap->offscreen = 0;
+	} else {
+		gc->ops->CopyArea(src, dst, gc,
+				  0, 0,
+				  drawable->width, drawable->height,
+				  0, 0);
+	}
 	FreeScratchGC(gc);
-
-	/* and restore 2D/3D coherency */
-	src_pixmap->offscreen = 0;
-	dst_pixmap->offscreen = 0;
 }
 
 #if DRI2INFOREC_VERSION >= 4
