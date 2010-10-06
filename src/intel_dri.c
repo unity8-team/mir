@@ -91,7 +91,6 @@ static PixmapPtr get_front_buffer(DrawablePtr drawable, DrawablePtr *ret)
 						   0, 0,
 						   intel->front_pitch,
 						   NULL);
-			pixmap->devPrivate.ptr = NULL;
 			intel_set_pixmap_bo(pixmap, intel->front_buffer);
 		}
 	} else if (intel_get_pixmap_bo(pixmap)) {

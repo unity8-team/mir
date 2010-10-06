@@ -796,7 +796,6 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 						   w, h,
 						   0, 0,
 						   stride, NULL);
-			pixmap->devPrivate.ptr = NULL;
 			intel_set_pixmap_bo(pixmap, bo);
 			dri_bo_unreference(bo);
 
@@ -1040,7 +1039,6 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 				list_del(&priv->in_flight);
 				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
-				pixmap->devPrivate.ptr = NULL;
 				intel_set_pixmap_private(pixmap, priv);
 				return pixmap;
 			}
@@ -1074,7 +1072,6 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		priv->tiling = tiling;
 
 		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
-		pixmap->devPrivate.ptr = NULL;
 
 		list_init(&priv->batch);
 		list_init(&priv->flush);
@@ -1111,7 +1108,6 @@ void intel_uxa_create_screen_resources(ScreenPtr screen)
 						   -1, -1,
 						   intel->front_pitch,
 						   NULL);
-			pixmap->devPrivate.ptr = NULL;
 		}
 		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
