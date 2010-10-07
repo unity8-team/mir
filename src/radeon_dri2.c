@@ -38,12 +38,20 @@
 #include "radeon_dri2.h"
 #include "radeon_version.h"
 
+#if HAVE_LIST_H
+#include "list.h"
+#endif
+
 #ifdef RADEON_DRI2
 
 #include "radeon_bo_gem.h"
 
 #if DRI2INFOREC_VERSION >= 1
 #define USE_DRI2_1_1_0
+#endif
+
+#if DRI2INFOREC_VERSION >= 4 && HAVE_LIST_H
+#define USE_DRI2_SCHEDULING
 #endif
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,6,99,0, 0)
@@ -426,7 +434,7 @@ radeon_dri2_copy_region(DrawablePtr drawable,
 }
 
 
-#if DRI2INFOREC_VERSION >= 4
+#ifdef USE_DRI2_SCHEDULING
 
 enum DRI2FrameEventType {
     DRI2_SWAP,
@@ -437,7 +445,6 @@ enum DRI2FrameEventType {
 typedef struct _DRI2FrameEvent {
     XID drawable_id;
     ClientPtr client;
-    int client_index;
     enum DRI2FrameEventType type;
     int frame;
 
@@ -446,7 +453,85 @@ typedef struct _DRI2FrameEvent {
     void *event_data;
     DRI2BufferPtr front;
     DRI2BufferPtr back;
+
+    Bool valid;
+
+    struct list link;
 } DRI2FrameEventRec, *DRI2FrameEventPtr;
+
+typedef struct _DRI2ClientEvents {
+    struct list   reference_list;
+} DRI2ClientEventsRec, *DRI2ClientEventsPtr;
+
+#if HAS_DEVPRIVATEKEYREC
+
+static DevPrivateKeyRec DRI2ClientEventsPrivateKeyRec;
+#define DRI2ClientEventsPrivateKey (&DRI2ClientEventsPrivateKeyRec)
+
+#else
+
+static int DRI2ClientEventsPrivateKeyIndex;
+DevPrivateKey DRI2ClientEventsPrivateKey = &DRI2ClientEventsPrivateKeyIndex;
+
+#endif /* HAS_DEVPRIVATEKEYREC */
+
+#define GetDRI2ClientEvents(pClient)	((DRI2ClientEventsPtr) \
+    dixLookupPrivate(&(pClient)->devPrivates, DRI2ClientEventsPrivateKey))
+
+static int
+ListAddDRI2ClientEvents(ClientPtr client, struct list *entry)
+{
+    DRI2ClientEventsPtr pClientPriv;
+    pClientPriv = GetDRI2ClientEvents(client);
+
+    if (!pClientPriv) {
+        return BadAlloc;
+    }
+
+    list_add(entry, &pClientPriv->reference_list);
+    return 0;
+}
+
+static void
+ListDelDRI2ClientEvents(ClientPtr client, struct list *entry)
+{
+    DRI2ClientEventsPtr pClientPriv;
+    pClientPriv = GetDRI2ClientEvents(client);
+
+    if (!pClientPriv) {
+        return;
+    }
+    list_del(entry);
+}
+
+static void
+radeon_dri2_client_state_changed(CallbackListPtr *ClientStateCallback, pointer data, pointer calldata)
+{
+    DRI2ClientEventsPtr pClientEventsPriv;
+    DRI2FrameEventPtr ref;
+    NewClientInfoRec *clientinfo = calldata;
+    ClientPtr pClient = clientinfo->client;
+    pClientEventsPriv = GetDRI2ClientEvents(pClient);
+
+    switch (pClient->clientState) {
+    case ClientStateInitial:
+        list_init(&pClientEventsPriv->reference_list);
+        break;
+    case ClientStateRunning:
+        break;
+
+    case ClientStateRetained:
+    case ClientStateGone:
+        if (pClientEventsPriv) {
+            list_for_each_entry(ref, &pClientEventsPriv->reference_list, link) {
+                ref->valid = FALSE;
+            }
+        }
+        break;
+    default:
+        break;
+    }
+}
 
 static void
 radeon_dri2_ref_buffer(BufferPtr buffer)
@@ -477,28 +562,17 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
     BoxRec box;
     RegionRec region;
 
+    if (!event->valid)
+        goto cleanup;
+
     status = dixLookupDrawable(&drawable, event->drawable_id, serverClient,
                                M_ANY, DixWriteAccess);
-    if (status != Success) {
-        radeon_dri2_unref_buffer(event->front);
-        radeon_dri2_unref_buffer(event->back);
-        free(event);
-        return;
-    }
+    if (status != Success)
+        goto cleanup;
 
     screen = drawable->pScreen;
     scrn = xf86Screens[screen->myNum];
-
-    /* event->client may have quit between submitting a request
-     * and this callback being triggered.
-     *
-     * Check our saved client pointer against the client in the saved client
-     * slot.  This will catch almost all cases where the client that requested
-     * SwapBuffers has gone away, and will guarantee that there is at least a 
-     * valid client to write the BufferSwapComplete event to.
-     */
-    client = event->client == clients[event->client_index] ? 
-            event->client : NULL;
+    client = event->client;
 
     switch (event->type) {
     case DRI2_FLIP:
@@ -514,8 +588,6 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
         DRI2SwapComplete(client, drawable, frame, tv_sec, tv_usec,
                 swap_type, event->event_complete, event->event_data);
 
-        radeon_dri2_unref_buffer(event->front);
-        radeon_dri2_unref_buffer(event->back);
         break;
     case DRI2_WAITMSC:
         DRI2WaitMSCComplete(client, drawable, frame, tv_sec, tv_usec);
@@ -527,6 +599,11 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
         break;
     }
 
+cleanup:
+    radeon_dri2_unref_buffer(event->front);
+    radeon_dri2_unref_buffer(event->back);
+    if (event->valid)
+        ListDelDRI2ClientEvents(event->client, &event->link);
     free(event);
 }
 
@@ -600,7 +677,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     ScreenPtr screen = draw->pScreen;
     ScrnInfoPtr scrn = xf86Screens[screen->myNum];
     RADEONInfoPtr info = RADEONPTR(scrn);
-    DRI2FrameEventPtr wait_info;
+    DRI2FrameEventPtr wait_info = NULL;
     drmVBlank vbl;
     int ret, crtc = radeon_dri2_drawable_crtc(draw);
     CARD64 current_msc;
@@ -621,8 +698,14 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 
     wait_info->drawable_id = draw->id;
     wait_info->client = client;
-    wait_info->client_index = client->index;
     wait_info->type = DRI2_WAITMSC;
+    wait_info->valid = TRUE;
+
+    if (ListAddDRI2ClientEvents(client, &wait_info->link)) {
+        xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+                "add events to client private failed.\n");
+        goto out_complete;
+    }
 
     /* Get current count */
     vbl.request.type = DRM_VBLANK_RELATIVE;
@@ -703,6 +786,10 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     return TRUE;
 
 out_complete:
+    if (wait_info) {
+        ListDelDRI2ClientEvents(wait_info->client, &wait_info->link);
+        free(wait_info);
+    }
     DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
     return TRUE;
 }
@@ -765,11 +852,16 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 
     swap_info->drawable_id = draw->id;
     swap_info->client = client;
-    swap_info->client_index = client->index;
     swap_info->event_complete = func;
     swap_info->event_data = data;
     swap_info->front = front;
     swap_info->back = back;
+    swap_info->valid = TRUE;
+    if (ListAddDRI2ClientEvents(client, &swap_info->link)) {
+        xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+                "add events to client private failed.\n");
+        goto blit_fallback;
+    }
 
     /* Get current count */
     vbl.request.type = DRM_VBLANK_RELATIVE;
@@ -892,8 +984,10 @@ blit_fallback:
     radeon_dri2_copy_region(draw, &region, front, back);
 
     DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
-    if (swap_info)
+    if (swap_info) {
+        ListDelDRI2ClientEvents(swap_info->client, &swap_info->link);
         free(swap_info);
+    }
 
     radeon_dri2_unref_buffer(front);
     radeon_dri2_unref_buffer(back);
@@ -902,7 +996,7 @@ blit_fallback:
     return TRUE;
 }
 
-#endif /* DRI2INFOREC_VERSION >= 4 */
+#endif /* USE_DRI2_SCHEDULING */
 
 
 Bool
@@ -911,7 +1005,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     DRI2InfoRec dri2_info = { 0 };
-#if DRI2INFOREC_VERSION >= 4
+#ifdef USE_DRI2_SCHEDULING
     const char *driverNames[1];
 #endif
 
@@ -944,7 +1038,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 #endif
     dri2_info.CopyRegion = radeon_dri2_copy_region;
 
-#if DRI2INFOREC_VERSION >= 4
+#ifdef USE_DRI2_SCHEDULING
     if (info->dri->pKernelDRMVersion->version_minor >= 4) {
         dri2_info.version = 4;
         dri2_info.ScheduleSwap = radeon_dri2_schedule_swap;
@@ -956,6 +1050,20 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     } else {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for sync extension\n");
     }
+
+#if HAS_DIXREGISTERPRIVATEKEY
+    if (!dixRegisterPrivateKey(DRI2ClientEventsPrivateKey, PRIVATE_CLIENT, sizeof(DRI2ClientEventsRec))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 registering private key to client failed\n");
+        return FALSE;
+    }
+#else
+    if (!dixRequestPrivate(DRI2ClientEventsPrivateKey, sizeof(DRI2ClientEventsRec))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requesting private key to client failed\n");
+        return FALSE;
+    }
+#endif
+
+    AddCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
 #endif
 
     info->dri2.enabled = DRI2ScreenInit(pScreen, &dri2_info);
@@ -967,6 +1075,9 @@ void radeon_dri2_close_screen(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
+#ifdef USE_DRI2_SCHEDULING
+    DeleteCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
+#endif
     DRI2CloseScreen(pScreen);
     drmFree(info->dri2.device_name);
 }

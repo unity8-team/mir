@@ -233,6 +233,11 @@ AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
 	      [#include "xorg-server.h"])
 
+AC_CHECK_HEADERS([list.h],
+		 [], [],
+		 [#include <X11/Xdefs.h>
+		  #include "xorg-server.h"])
+
 CPPFLAGS="$SAVE_CPPFLAGS"
 
 AM_CONDITIONAL(USE_EXA, test "x$USE_EXA" = xyes)
