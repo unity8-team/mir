@@ -27,6 +27,8 @@
 #include "config.h"
 #endif
 
+#ifdef XF86DRM_MODE
+
 #include "xf86.h"
 
 #include <errno.h>
@@ -1110,3 +1112,4 @@ void evergreen_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 
 }
 
+#endif

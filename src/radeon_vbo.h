@@ -24,7 +24,9 @@ radeon_vbo_space(ScrnInfoPtr pScrn,
 		 struct radeon_vbo_object *vbo,
 		 int vert_size)
 {
+#if defined(XF86DRM_MODE)
     RADEONInfoPtr info = RADEONPTR(pScrn);
+#endif
     void *vb;
 
     /* we've ran out of space in the vertex buffer - need to get a

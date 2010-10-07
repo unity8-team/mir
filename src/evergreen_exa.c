@@ -28,6 +28,8 @@
 #include "config.h"
 #endif
 
+#ifdef XF86DRM_MODE
+
 #include "xf86.h"
 
 #include "exa.h"
@@ -1945,3 +1947,4 @@ EVERGREENDrawInit(ScreenPtr pScreen)
 
 }
 
+#endif

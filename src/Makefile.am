@@ -132,7 +132,6 @@ EXTRA_DIST = \
 	r600_state.h \
 	evergreen_reg.h \
 	evergreen_reg_auto.h \
-	evergreen_reg_r7xx.h \
 	evergreen_shader.h \
 	evergreen_state.h \
 	ati.h \
