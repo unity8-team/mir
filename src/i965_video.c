@@ -512,7 +512,7 @@ static drm_intel_bo *i965_create_vs_state(ScrnInfoPtr scrn)
 		return NULL;
 
 	/* Set up the vertex shader to be disabled (passthrough) */
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES >> 2;
 	else
 		vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
@@ -547,7 +547,7 @@ static drm_intel_bo *i965_create_sf_state(ScrnInfoPtr scrn)
 	drm_intel_bo *sf_bo, *kernel_bo;
 	struct brw_sf_unit_state *sf_state;
 
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		kernel_bo =
 		    i965_create_program(scrn, &sf_kernel_static_gen5[0][0],
 					sizeof(sf_kernel_static_gen5));
@@ -612,7 +612,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 	struct brw_wm_unit_state *wm_state;
 
 	if (is_packed) {
-		if (IS_IGDNG(intel))
+		if (IS_GEN5(intel))
 			kernel_bo =
 			    i965_create_program(scrn,
 						&ps_kernel_packed_static_gen5[0]
@@ -626,7 +626,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 						sizeof
 						(ps_kernel_packed_static));
 	} else {
-		if (IS_IGDNG(intel))
+		if (IS_GEN5(intel))
 			kernel_bo =
 			    i965_create_program(scrn,
 						&ps_kernel_planar_static_gen5[0]
@@ -664,7 +664,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 	/* binding table entry count is only used for prefetching, and it has to
 	 * be set 0 for IGDNG
 	 */
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		wm_state->thread1.binding_table_entry_count = 0;
 
 	/* Though we never use the scratch space in our WM kernel, it has to be
@@ -682,7 +682,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 	    intel_emit_reloc(wm_bo, offsetof(struct brw_wm_unit_state, wm4),
 			     sampler_bo, 0,
 			     I915_GEM_DOMAIN_INSTRUCTION, 0) >> 5;
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		wm_state->wm4.sampler_count = 0;
 	else
 		wm_state->wm4.sampler_count = 1;	/* 1-4 samplers used */
@@ -788,7 +788,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 
 	/* brw_debug (scrn, "before base address modify"); */
 	/* Match Mesa driver setup */
-	if (IS_G4X(intel) || IS_IGDNG(intel))
+	if (INTEL_INFO(intel)->gen >= 45)
 		OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 		OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -801,7 +801,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 	/* Zero out the two base address registers so all offsets are
 	 * absolute
 	 */
-	if (IS_IGDNG(intel)) {
+	if (IS_GEN5(intel)) {
 		OUT_BATCH(BRW_STATE_BASE_ADDRESS | 6);
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Surface state base address */
@@ -832,7 +832,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 
 	/* brw_debug (scrn, "after base address modify"); */
 
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		pipe_ctl = BRW_PIPE_CONTROL_NOWRITE;
 	else
 		pipe_ctl = BRW_PIPE_CONTROL_NOWRITE | BRW_PIPE_CONTROL_IS_FLUSH;
@@ -905,7 +905,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * bind_bo, int n_src_surf)
 
 	/* Set up our vertex elements, sourced from the single vertex buffer. */
 
-	if (IS_IGDNG(intel)) {
+	if (IS_GEN5(intel)) {
 		OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | 3);
 		/* offset 0: X,Y -> {X, Y, 1.0, 1.0} */
 		OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
@@ -1190,7 +1190,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 
 		drm_intel_bo_unmap(vb_bo);
 
-		if (!IS_IGDNG(intel))
+		if (IS_GEN4(intel))
 			i965_pre_draw_debug(scrn);
 
 		/* If this command won't fit in the current batch, flush.
@@ -1212,7 +1212,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 		OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 			  VB0_VERTEXDATA | ((4 * 4) << VB0_BUFFER_PITCH_SHIFT));
 		OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
-		if (IS_IGDNG(intel))
+		if (IS_GEN5(intel))
 			OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
 				  i * 4);
 		else
@@ -1232,7 +1232,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 
 		drm_intel_bo_unreference(vb_bo);
 
-		if (!IS_IGDNG(intel))
+		if (IS_GEN4(intel))
 			i965_post_draw_debug(scrn);
 
 	}

@@ -912,7 +912,7 @@ static drm_intel_bo *gen4_create_wm_state(ScrnInfoPtr scrn,
 
 	wm_state->wm4.stats_enable = 1;	/* statistic */
 
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		wm_state->wm4.sampler_count = 0;	/* hardware requirement */
 	else
 		wm_state->wm4.sampler_count = 1;	/* 1-4 samplers used */
@@ -946,7 +946,7 @@ static drm_intel_bo *gen4_create_wm_state(ScrnInfoPtr scrn,
 	/* binding table entry count is only used for prefetching, and it has to
 	 * be set 0 for IGDNG
 	 */
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		wm_state->thread1.binding_table_entry_count = 0;
 
 	drm_intel_bo_unmap(wm_state_bo);
@@ -977,7 +977,7 @@ static drm_intel_bo *gen4_create_vs_unit_state(ScrnInfoPtr scrn)
 	memset(&vs_state, 0, sizeof(vs_state));
 
 	/* Set up the vertex shader to be disabled (passthrough) */
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES >> 2;	/* hardware requirement */
 	else
 		vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
@@ -1201,7 +1201,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		OUT_BATCH(MI_FLUSH |
 			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
 			  BRW_MI_GLOBAL_SNAPSHOT_RESET);
-		if (IS_G4X(intel) || IS_IGDNG(intel))
+		if (INTEL_INFO(intel)->gen >= 45)
 			OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 		else
 			OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -1213,7 +1213,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		/* Zero out the two base address registers so all offsets are
 		 * absolute.
 		 */
-		if (IS_IGDNG(intel)) {
+		if (IS_GEN5(intel)) {
 			OUT_BATCH(BRW_STATE_BASE_ADDRESS | 6);
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Surface state base address */
@@ -1241,7 +1241,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 	}
 
-	if (IS_IGDNG(intel)) {
+	if (IS_GEN5(intel)) {
 		/* Ironlake errata workaround: Before disabling the clipper,
 		 * you have to MI_FLUSH to get the pipeline idle.
 		 */
@@ -1252,7 +1252,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		int pipe_ctrl;
 		/* Pipe control */
 
-		if (IS_IGDNG(intel))
+		if (IS_GEN5(intel))
 			pipe_ctrl = BRW_PIPE_CONTROL_NOWRITE;
 		else
 			pipe_ctrl =
@@ -1369,7 +1369,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			w_component = BRW_VFCOMPONENT_STORE_SRC;
 		}
 
-		if (IS_IGDNG(intel)) {
+		if (IS_GEN5(intel)) {
 			/*
 			 * The reason to add this extra vertex element in the header is that
 			 * IGDNG has different vertex header definition and origin method to
@@ -1412,7 +1412,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 			  (0 << VE0_OFFSET_SHIFT));
 
-		if (IS_IGDNG(intel))
+		if (IS_GEN5(intel))
 			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
 				   VE1_VFCOMPONENT_0_SHIFT) |
 				  (BRW_VFCOMPONENT_STORE_SRC <<
@@ -1434,7 +1434,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		/* u0, v0, w0 */
 		OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID | (src_format << VE0_FORMAT_SHIFT) | ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
 
-		if (IS_IGDNG(intel))
+		if (IS_GEN5(intel))
 			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
 				   VE1_VFCOMPONENT_0_SHIFT) |
 				  (BRW_VFCOMPONENT_STORE_SRC <<
@@ -1448,7 +1448,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		if (mask) {
 			OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID | (src_format << VE0_FORMAT_SHIFT) | (((2 + selem) * 4) << VE0_OFFSET_SHIFT));	/* vb offset in bytes */
 
-			if (IS_IGDNG(intel))
+			if (IS_GEN5(intel))
 				OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
 					   VE1_VFCOMPONENT_0_SHIFT) |
 					  (BRW_VFCOMPONENT_STORE_SRC <<
@@ -1872,7 +1872,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
 		  render_state->vb_offset * 4);
 
-	if (IS_IGDNG(intel))
+	if (IS_GEN5(intel))
 		OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
 			  render_state->vb_offset * 4 + i * 4);
 	else
@@ -1930,7 +1930,7 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 	render_state->vs_state_bo = gen4_create_vs_unit_state(scrn);
 
 	/* Set up the two SF states (one for blending with a mask, one without) */
-	if (IS_IGDNG(intel)) {
+	if (IS_GEN5(intel)) {
 		sf_kernel_bo = intel_bo_alloc_for_data(scrn,
 						       sf_kernel_static_gen5,
 						       sizeof
@@ -1958,7 +1958,7 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 	drm_intel_bo_unreference(sf_kernel_mask_bo);
 
 	for (m = 0; m < WM_KERNEL_COUNT; m++) {
-		if (IS_IGDNG(intel))
+		if (IS_GEN5(intel))
 			render_state->wm_kernel_bo[m] =
 			    intel_bo_alloc_for_data(scrn,
 						    wm_kernels_gen5[m].data,
@@ -1989,7 +1989,7 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 								      border_color_bo);
 
 					for (m = 0; m < WM_KERNEL_COUNT; m++) {
-						if (IS_IGDNG(intel))
+						if (IS_GEN5(intel))
 							render_state->
 							    wm_state_bo[m][i][j]
 							    [k][l] =

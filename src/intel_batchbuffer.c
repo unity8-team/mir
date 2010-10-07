@@ -148,7 +148,7 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 
 	/* Big hammer, look to the pipelined flushes in future. */
 	flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-	if (IS_I965G(intel))
+	if (INTEL_INFO(intel)->gen >= 40)
 		flags = 0;
 
 	BEGIN_BATCH(1);
@@ -194,7 +194,7 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 		ret = dri_bo_exec(intel->batch_bo, intel->batch_used*4,
 				  NULL, 0, 0xffffffff);
 	if (ret != 0) {
-		if (ret == -EIO && !IS_I965G(intel)) {
+		if (ret == -EIO) {
 			static int once;
 
 			/* The GPU has hung and unlikely to recover by this point. */

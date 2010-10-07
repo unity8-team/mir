@@ -668,12 +668,10 @@ void IntelEmitInvarientState(ScrnInfoPtr scrn)
 	if (intel->last_3d != LAST_3D_OTHER)
 		return;
 
-	if (!IS_I965G(intel)) {
-		if (IS_I9XX(intel))
-			I915EmitInvarientState(scrn);
-		else
-			I830EmitInvarientState(scrn);
-	}
+	if (IS_GEN2(intel))
+		I830EmitInvarientState(scrn);
+	else if IS_GEN3(intel)
+		I915EmitInvarientState(scrn);
 }
 
 static void
@@ -816,7 +814,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	MessageType from;
 #endif
 	struct pci_device *const device = intel->PciInfo;
-	int fb_bar = IS_I9XX(intel) ? 2 : 0;
+	int fb_bar = IS_GEN2(intel) ? 0 : 2;
 
 	/*
 	 * The "VideoRam" config file parameter specifies the maximum amount of
@@ -872,7 +870,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	intel_batch_init(scrn);
 
-	if (IS_I965G(intel))
+	if (INTEL_INFO(intel)->gen >= 40)
 		gen4_render_state_init(scrn);
 
 	miClearVisualTypes();
@@ -972,7 +970,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 #ifdef INTEL_XVMC
-	if (IS_I965G(intel))
+	if (INTEL_INFO(intel)->gen >= 40)
 		intel->XvMCEnabled = TRUE;
 	from = ((intel->directRenderingType == DRI_DRI2) &&
 		xf86GetOptValBool(intel->Options, OPTION_XVMC,
@@ -1115,10 +1113,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	}
 
 	if (intel->shadow_buffer) {
-		if (IS_I8XX(intel))
-			drm_intel_bo_unreference(intel->shadow_buffer);
-		else
-			free(intel->shadow_buffer);
+		free(intel->shadow_buffer);
 		intel->shadow_buffer = NULL;
 	}
 
@@ -1131,7 +1126,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	intel_batch_teardown(scrn);
 
-	if (IS_I965G(intel))
+	if (INTEL_INFO(intel)->gen >= 40)
 		gen4_render_state_cleanup(scrn);
 
 	xf86_cursors_fini(screen);

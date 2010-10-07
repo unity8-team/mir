@@ -108,7 +108,7 @@ void intel_shadow_blt(intel_screen_private *intel)
 	int n;
 
 	/* Can we trust the BLT? Otherwise do an uncached mmecy. */
-	if (IS_I8XX(intel) || IS_GEN6(intel)) {
+	if (IS_GEN2(intel) || IS_GEN6(intel)) {
 		intel_shadow_memcpy(intel);
 		return;
 	}
@@ -120,7 +120,7 @@ void intel_shadow_blt(intel_screen_private *intel)
 		blt |= (XY_SRC_COPY_BLT_WRITE_ALPHA |
 				XY_SRC_COPY_BLT_WRITE_RGB);
 
-	if (IS_I965G(intel)) {
+	if (INTEL_INFO(intel)->gen >= 40) {
 		if (intel->front_tiling) {
 			dst_pitch >>= 2;
 			blt |= XY_SRC_COPY_BLT_DST_TILED;

@@ -456,20 +456,20 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 			 * of extra time for the blitter to start up and
 			 * do its job for a full height blit
 			 */
-			if (full_height && !IS_I965G(intel))
+			if (full_height && INTEL_INFO(intel)->gen < 40)
 			    y2 -= 2;
 
 			if (pipe == 0) {
 				event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
 				load_scan_lines_pipe =
 				    MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
-				if (full_height && IS_I965G(intel))
+				if (full_height && INTEL_INFO(intel)->gen >= 40)
 				    event = MI_WAIT_FOR_PIPEA_SVBLANK;
 			} else {
 				event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 				load_scan_lines_pipe =
 				    MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
-				if (full_height && IS_I965G(intel))
+				if (full_height && INTEL_INFO(intel)->gen >= 40)
 				    event = MI_WAIT_FOR_PIPEB_SVBLANK;
 			}
 
@@ -1174,7 +1174,7 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	intel->deviceName = drmGetDeviceNameFromFd(intel->drmSubFD);
 	memset(&info, '\0', sizeof(info));
 	info.fd = intel->drmSubFD;
-	info.driverName = IS_I965G(intel) ? "i965" : "i915";
+	info.driverName = IS_GEN3(intel) ? "i915" : "i965";
 	info.deviceName = intel->deviceName;
 
 #if DRI2INFOREC_VERSION == 1

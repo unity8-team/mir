@@ -39,6 +39,38 @@
 
 #include <xf86drmMode.h>
 
+static const struct intel_device_info intel_i81x_info = {
+	.gen = 10,
+};
+
+static const struct intel_device_info intel_i8xx_info = {
+	.gen = 20,
+};
+
+static const struct intel_device_info intel_i915_info = {
+	.gen = 30,
+};
+
+static const struct intel_device_info intel_g33_info = {
+	.gen = 33,
+};
+
+static const struct intel_device_info intel_i965_info = {
+	.gen = 40,
+};
+
+static const struct intel_device_info intel_g4x_info = {
+	.gen = 45,
+};
+
+static const struct intel_device_info intel_ironlake_info = {
+	.gen = 50,
+};
+
+static const struct intel_device_info intel_sandybridge_info = {
+	.gen = 60,
+};
+
 static const SymTabRec _intel_chipsets[] = {
     {PCI_CHIP_I810,		"i810"},
     {PCI_CHIP_I810_DC100,	"i810-dc100"},
@@ -188,24 +220,31 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
     switch (DEVICE_ID(pci)) {
     case PCI_CHIP_I810:
 	chipset->name = "i810";
+	chipset->info = &intel_i81x_info;
 	break;
     case PCI_CHIP_I810_DC100:
 	chipset->name = "i810-dc100";
+	chipset->info = &intel_i81x_info;
 	break;
     case PCI_CHIP_I810_E:
 	chipset->name = "i810e";
+	chipset->info = &intel_i81x_info;
 	break;
     case PCI_CHIP_I815:
 	chipset->name = "i815";
+	chipset->info = &intel_i81x_info;
 	break;
     case PCI_CHIP_I830_M:
 	chipset->name = "830M";
+	chipset->info = &intel_i8xx_info;
 	break;
     case PCI_CHIP_845_G:
 	chipset->name = "845G";
+	chipset->info = &intel_i8xx_info;
 	break;
     case PCI_CHIP_I854:
 	chipset->name = "854";
+	chipset->info = &intel_i8xx_info;
 	break;
     case PCI_CHIP_I855_GM:
 	/* Check capid register to find the chipset variant */
@@ -232,84 +271,111 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
 	    chipset->name = "852GM/855GM (unknown variant)";
 	    break;
 	}
+	chipset->info = &intel_i8xx_info;
 	break;
     case PCI_CHIP_I865_G:
 	chipset->name = "865G";
+	chipset->info = &intel_i8xx_info;
 	break;
     case PCI_CHIP_I915_G:
 	chipset->name = "915G";
+	chipset->info = &intel_i915_info;
 	break;
     case PCI_CHIP_E7221_G:
 	chipset->name = "E7221 (i915)";
+	chipset->info = &intel_i915_info;
 	break;
     case PCI_CHIP_I915_GM:
 	chipset->name = "915GM";
+	chipset->info = &intel_i915_info;
 	break;
     case PCI_CHIP_I945_G:
 	chipset->name = "945G";
+	chipset->info = &intel_i915_info;
 	break;
     case PCI_CHIP_I945_GM:
 	chipset->name = "945GM";
+	chipset->info = &intel_i915_info;
 	break;
     case PCI_CHIP_I945_GME:
 	chipset->name = "945GME";
+	chipset->info = &intel_i915_info;
 	break;
     case PCI_CHIP_IGD_GM:
 	chipset->name = "Pineview GM";
+	chipset->info = &intel_g33_info;
 	break;
     case PCI_CHIP_IGD_G:
 	chipset->name = "Pineview G";
+	chipset->info = &intel_g33_info;
 	break;
     case PCI_CHIP_I965_G:
 	chipset->name = "965G";
+	chipset->info = &intel_i965_info;
 	break;
     case PCI_CHIP_G35_G:
 	chipset->name = "G35";
+	chipset->info = &intel_g33_info;
 	break;
     case PCI_CHIP_I965_Q:
 	chipset->name = "965Q";
+	chipset->info = &intel_i965_info;
 	break;
     case PCI_CHIP_I946_GZ:
 	chipset->name = "946GZ";
+	chipset->info = &intel_i915_info;
 	break;
     case PCI_CHIP_I965_GM:
 	chipset->name = "965GM";
+	chipset->info = &intel_i965_info;
 	break;
     case PCI_CHIP_I965_GME:
 	chipset->name = "965GME/GLE";
+	chipset->info = &intel_i965_info;
 	break;
     case PCI_CHIP_G33_G:
 	chipset->name = "G33";
+	chipset->info = &intel_g33_info;
 	break;
     case PCI_CHIP_Q35_G:
 	chipset->name = "Q35";
+	chipset->info = &intel_g33_info;
 	break;
     case PCI_CHIP_Q33_G:
 	chipset->name = "Q33";
+	chipset->info = &intel_g33_info;
 	break;
     case PCI_CHIP_GM45_GM:
 	chipset->name = "GM45";
+	chipset->info = &intel_g4x_info;
 	break;
     case PCI_CHIP_IGD_E_G:
 	chipset->name = "4 Series";
+	chipset->info = &intel_g4x_info;
 	break;
     case PCI_CHIP_G45_G:
 	chipset->name = "G45/G43";
+	chipset->info = &intel_g4x_info;
 	break;
     case PCI_CHIP_Q45_G:
 	chipset->name = "Q45/Q43";
+	chipset->info = &intel_g4x_info;
 	break;
     case PCI_CHIP_G41_G:
 	chipset->name = "G41";
+	chipset->info = &intel_g4x_info;
 	break;
     case PCI_CHIP_B43_G:
 	chipset->name = "B43";
+	chipset->info = &intel_g4x_info;
 	break;
     case PCI_CHIP_IGDNG_D_G:
 	chipset->name = "Clarkdale";
+	chipset->info = &intel_ironlake_info;
 	break;
     case PCI_CHIP_IGDNG_M_G:
 	chipset->name = "Arrandale";
+	chipset->info = &intel_ironlake_info;
 	break;
     case PCI_CHIP_SANDYBRIDGE_GT1:
     case PCI_CHIP_SANDYBRIDGE_GT2:
@@ -319,6 +385,7 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
     case PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS:
     case PCI_CHIP_SANDYBRIDGE_S_GT:
 	chipset->name = "Sandybridge";
+	chipset->info = &intel_sandybridge_info;
 	break;
     default:
 	chipset->name = "unknown chipset";

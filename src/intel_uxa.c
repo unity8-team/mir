@@ -96,7 +96,7 @@ ironlake_blt_workaround(ScrnInfoPtr scrn)
 	 * non-pipelined 3D instruction after each blit.
 	 */
 
-	if (IS_IGDNG(intel)) {
+	if (IS_GEN5(intel)) {
 		BEGIN_BATCH(2);
 		OUT_BATCH(CMD_POLY_STIPPLE_OFFSET << 16);
 		OUT_BATCH(0);
@@ -144,7 +144,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		pitch = (w * pixmap->drawable.bitsPerPixel + 7) / 8;
 		pitch = ALIGN(pitch, 64);
 		size = pitch * ALIGN (h, 2);
-		if (!IS_I965G(intel)) {
+		if (INTEL_INFO(intel)->gen < 40) {
 			/* Older hardware requires fences to be pot size
 			 * aligned with a minimum of 1 MiB, so causes
 			 * massive overallocation for small textures.
@@ -302,7 +302,7 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 			cmd |=
 			    XY_COLOR_BLT_WRITE_ALPHA | XY_COLOR_BLT_WRITE_RGB;
 
-		if (IS_I965G(intel) && intel_pixmap_tiled(pixmap)) {
+		if (INTEL_INFO(intel)->gen >= 40 && intel_pixmap_tiled(pixmap)) {
 			assert((pitch % 512) == 0);
 			pitch >>= 2;
 			cmd |= XY_COLOR_BLT_TILED;
@@ -457,7 +457,7 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 			    XY_SRC_COPY_BLT_WRITE_ALPHA |
 			    XY_SRC_COPY_BLT_WRITE_RGB;
 
-		if (IS_I965G(intel)) {
+		if (INTEL_INFO(intel)->gen >= 40) {
 			if (intel_pixmap_tiled(dest)) {
 				assert((dst_pitch % 512) == 0);
 				dst_pitch >>= 2;
@@ -1143,7 +1143,7 @@ intel_limits_init(intel_screen_private *intel)
 	 * the front, which will have an appropriate pitch/offset already set up,
 	 * so UXA doesn't need to worry.
 	 */
-	if (IS_I965G(intel)) {
+	if (INTEL_INFO(intel)->gen >= 40) {
 		intel->accel_pixmap_offset_alignment = 4 * 2;
 		intel->accel_max_x = 8192;
 		intel->accel_max_y = 8192;
@@ -1198,7 +1198,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->done_copy = i830_uxa_done_copy;
 
 	/* Composite */
-	if (!IS_I9XX(intel)) {
+	if (IS_GEN2(intel)) {
 		intel->uxa_driver->check_composite = i830_check_composite;
 		intel->uxa_driver->check_composite_target = i830_check_composite_target;
 		intel->uxa_driver->check_composite_texture = i830_check_composite_texture;
@@ -1207,8 +1207,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->done_composite = i830_done_composite;
 
 		intel->batch_flush_notify = i830_batch_flush_notify;
-	} else if (IS_I915G(intel) || IS_I915GM(intel) ||
-		   IS_I945G(intel) || IS_I945GM(intel) || IS_G33CLASS(intel)) {
+	} else if (IS_GEN3(intel)) {
 		intel->uxa_driver->check_composite = i915_check_composite;
 		intel->uxa_driver->check_composite_target = i915_check_composite_target;
 		intel->uxa_driver->check_composite_texture = i915_check_composite_texture;

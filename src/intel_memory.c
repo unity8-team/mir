@@ -94,14 +94,14 @@ unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long si
 	unsigned long i;
 	unsigned long start;
 
-	if (IS_I965G(intel)) {
+	if (INTEL_INFO(intel)->gen >= 40) {
 		/* The 965 can have fences at any page boundary. */
 		return ALIGN(size, GTT_PAGE_SIZE);
 	} else {
 		/* Align the size to a power of two greater than the smallest fence
 		 * size.
 		 */
-		if (IS_I9XX(intel))
+		if (IS_GEN3(intel))
 			start = MB(1);
 		else
 			start = KB(512);
@@ -126,8 +126,8 @@ intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 	if (tiling_mode == I915_TILING_NONE)
 		return pitch;
 
-	/* 965 is flexible */
-	if (IS_I965G(intel))
+	/* 965+ is flexible */
+	if (INTEL_INFO(intel)->gen >= 40)
 		return ALIGN(pitch, tile_width);
 
 	/* Pre-965 needs power of two tile width */
@@ -144,17 +144,16 @@ intel_check_display_stride(ScrnInfoPtr scrn, int stride, Bool tiling)
 
 	/* 8xx spec has always 8K limit, but tests show larger limit in
 	   non-tiling mode, which makes large monitor work. */
-	if (IS_I8XX(intel) && tiling)
-		limit = KB(8);
-
-	if (IS_I915(intel) && tiling)
-		limit = KB(8);
-
-	if (IS_I965G(intel) && tiling)
-		limit = KB(16);
-
-	if (IS_IGDNG(intel) && tiling)
-		limit = KB(32);
+	if (tiling) {
+		if (IS_GEN2(intel))
+			limit = KB(8);
+		else if (IS_GEN3(intel))
+			limit = KB(8);
+		else if (IS_GEN4(intel))
+			limit = KB(16);
+		else
+			limit = KB(32);
+	}
 
 	if (stride <= limit)
 		return TRUE;
