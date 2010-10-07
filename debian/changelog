@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.12.0-1ubuntu5.1) maverick-proposed; urgency=low
+
+  * debian/patches/108_sandybridge_disable_Xv.patch: Disable Xv code
+    on sandybridge generation GPU's only, support does not exist in
+    this driver release and it attempts to use an old code path that
+    causes a GPU hang every time it is used. (LP: #654876)
+
+ -- Robert Hooker <robert.hooker@canonical.com>  Thu, 07 Oct 2010 13:04:33 -0400
+
 xserver-xorg-video-intel (2:2.12.0-1ubuntu5) maverick; urgency=low
 
   [ Robert Hooker ]

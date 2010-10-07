@@ -5,3 +5,4 @@
 104_sandybridge_id_update.patch
 105_sandybridge_dri_disable.patch
 106_backport_vblank_on_server_regenerate_fix.patch
+108_sandybridge_disable_Xv.patch

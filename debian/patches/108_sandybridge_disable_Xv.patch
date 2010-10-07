@@ -1,0 +1,31 @@
+diff --git a/src/i830_driver.c b/src/i830_driver.c
+index b8e0c0b..8585724 100644
+--- a/src/i830_driver.c
++++ b/src/i830_driver.c
+@@ -172,6 +172,7 @@ typedef enum {
+    OPTION_DEBUG_FLUSH_BATCHES,
+    OPTION_DEBUG_FLUSH_CACHES,
+    OPTION_DEBUG_WAIT,
++   OPTION_XVIDEO,
+ } I830Opts;
+ 
+ static OptionInfoRec I830Options[] = {
+@@ -188,6 +189,7 @@ static OptionInfoRec I830Options[] = {
+    {OPTION_DEBUG_FLUSH_BATCHES, "DebugFlushBatches", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
++   {OPTION_XVIDEO,      "XVideo",       OPTV_BOOLEAN,   {0},    FALSE},
+    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
+ };
+ /* *INDENT-ON* */
+@@ -1077,7 +1079,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+ 	 * Set this so that the overlay allocation is factored in when
+ 	 * appropriate.
+ 	 */
+-	intel->XvEnabled = TRUE;
++	intel->XvEnabled = xf86ReturnOptValBool(intel->Options,
++						OPTION_XVIDEO,
++						!IS_GEN6(intel));
+ 
+ 	xf86DrvMsg(scrn->scrnIndex,
+ 		   intel->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
