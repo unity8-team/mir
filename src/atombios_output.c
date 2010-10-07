@@ -791,6 +791,8 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	else if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT)) {
 	    if (radeon_output->coherent_mode)
 		disp_data.v2.acConfig.fCoherentMode = 1;
+	    if (clock > 165000)
+		disp_data.v2.acConfig.fDualLinkConnector = 1;
 	}
     } else {
 	disp_data.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
