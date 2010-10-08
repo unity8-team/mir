@@ -510,12 +510,16 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		struct intel_pixmap *src_pixmap, *dst_pixmap;
 
 		src_pixmap = intel_get_pixmap_private(get_drawable_pixmap(src));
-		src_pixmap->offscreen = 1;
-		src_pixmap->busy = 1;
+		if (src_pixmap) {
+			src_pixmap->offscreen = 1;
+			src_pixmap->busy = 1;
+		}
 
 		dst_pixmap = intel_get_pixmap_private(get_drawable_pixmap(dst));
-		dst_pixmap->offscreen = 1;
-		dst_pixmap->busy = 1;
+		if (dst_pixmap) {
+			dst_pixmap->offscreen = 1;
+			dst_pixmap->busy = 1;
+		}
 
 		gc->ops->CopyArea(src, dst, gc,
 				  0, 0,
@@ -523,8 +527,10 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 				  0, 0);
 
 		/* and restore 2D/3D coherency */
-		src_pixmap->offscreen = 0;
-		dst_pixmap->offscreen = 0;
+		if (src_pixmap)
+			src_pixmap->offscreen = 0;
+		if (dst_pixmap)
+			dst_pixmap->offscreen = 0;
 	} else {
 		gc->ops->CopyArea(src, dst, gc,
 				  0, 0,
