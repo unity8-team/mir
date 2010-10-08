@@ -1875,7 +1875,8 @@ RADEONI2CDoLock(xf86OutputPtr output, I2CBusPtr b, int lock_state)
 	}
 
 	/* set the pad in ddc mode */
-	if (IS_DCE3_VARIANT) {
+	if (IS_DCE3_VARIANT &&
+	    pRADEONI2CBus->hw_capable) {
 	    temp = INREG(pRADEONI2CBus->mask_clk_reg);
 	    temp &= ~(1 << 16);
 	    OUTREG(pRADEONI2CBus->mask_clk_reg, temp);
