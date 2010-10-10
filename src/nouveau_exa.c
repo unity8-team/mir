@@ -347,8 +347,9 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		} else {
 			if (usage_hint & NOUVEAU_CREATE_PIXMAP_TILED) {
-				int pitch_align =
-					pNv->dev->chipset >= 0x40 ? 1024 : 256;
+				int pitch_align = max(
+					pNv->dev->chipset >= 0x40 ? 1024 : 256,
+					round_down_pow2(*new_pitch / 4));
 
 				*new_pitch = NOUVEAU_ALIGN(*new_pitch,
 							   pitch_align);

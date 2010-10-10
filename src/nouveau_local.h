@@ -69,4 +69,9 @@ static inline int log2i(int i)
 	return r;
 }
 
+static inline int round_down_pow2(int x)
+{
+	return 1 << log2i(x);
+}
+
 #endif
