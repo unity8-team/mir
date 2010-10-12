@@ -856,13 +856,13 @@ NVMapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_device *dev = pNv->dev;
-	uint32_t tile_mode = 0, tile_flags = 0;
+	uint32_t tile_mode = 0, tile_flags = NOUVEAU_BO_TILE_SCANOUT;
 	int ret, size;
 
 	size = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
 		tile_mode = 4;
-		tile_flags = pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7a00;
+		tile_flags |= pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7a00;
 		size *= NOUVEAU_ALIGN(pScrn->virtualY, (1 << (tile_mode + 2)));
 	} else {
 		size *= pScrn->virtualY;

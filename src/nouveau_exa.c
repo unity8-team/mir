@@ -354,6 +354,14 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 				*new_pitch = NOUVEAU_ALIGN(*new_pitch,
 							   pitch_align);
 				tile_mode = *new_pitch;
+
+				if (bitsPerPixel == 32)
+					tile_flags |= NOUVEAU_BO_TILE_32BPP;
+				else if (bitsPerPixel == 16)
+					tile_flags |= NOUVEAU_BO_TILE_16BPP;
+
+				if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
+					tile_flags |= NOUVEAU_BO_TILE_ZETA;
 			}
 		}
 	} else {
@@ -392,7 +400,8 @@ nv50_style_tiled_pixmap(PixmapPtr ppix)
 	NVPtr pNv = NVPTR(pScrn);
 
 	return pNv->Architecture == NV_ARCH_50 &&
-		nouveau_pixmap_bo(ppix)->tile_flags;
+		(nouveau_pixmap_bo(ppix)->tile_flags &
+		 NOUVEAU_BO_TILE_LAYOUT_MASK);
 }
 
 static Bool

@@ -420,13 +420,13 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	NVPtr pNv = NVPTR(crtc->scrn);
-	uint32_t tile_mode = 0, tile_flags = 0;
+	uint32_t tile_mode = 0, tile_flags = NOUVEAU_BO_TILE_SCANOUT;
 	int ah = height, ret, pitch;
 	void *virtual;
 
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
 		tile_mode = 4;
-		tile_flags = (drmmode->cpp == 2) ? 0x7000 : 0x7a00;
+		tile_flags |= (drmmode->cpp == 2) ? 0x7000 : 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		pitch = NOUVEAU_ALIGN(width * drmmode->cpp, 64);
 	} else {
@@ -1015,9 +1015,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	uint32_t pitch, old_width, old_height, old_pitch, old_fb_id;
 	struct nouveau_bo *old_bo = NULL;
-	uint32_t tile_mode = 0, tile_flags = 0, ah = height;
+	uint32_t tile_mode = 0, tile_flags = NOUVEAU_BO_TILE_SCANOUT;
 	PixmapPtr ppix;
-	int ret, i;
+	int ret, i, ah = height;
 
 	ErrorF("resize called %d %d\n", width, height);
 
@@ -1026,7 +1026,7 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
 		tile_mode = 4;
-		tile_flags = (scrn->bitsPerPixel == 16) ? 0x7000 : 0x7a00;
+		tile_flags |= (scrn->bitsPerPixel == 16) ? 0x7000 : 0x7a00;
 		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
 		pitch = NOUVEAU_ALIGN(width * (scrn->bitsPerPixel >> 3), 64);
 	} else {
