@@ -172,11 +172,6 @@ static inline void memcpy_volatile(volatile void *dst, const void *src,
 
 #define PIPE_NAME(n)			('A' + (n))
 
-/* remain compatible to xorg-server 1.6 */
-#ifndef MONITOR_EDID_COMPLETE_RAWDATA
-#define MONITOR_EDID_COMPLETE_RAWDATA EDID_COMPLETE_RAWDATA
-#endif
-
 struct pci_device *
 intel_host_bridge (void);
 

@@ -160,6 +160,11 @@ list_is_empty(struct list *head)
 	     pos = list_entry(pos->member.next, type, member))
 #endif
 
+/* remain compatible to xorg-server 1.6 */
+#ifndef MONITOR_EDID_COMPLETE_RAWDATA
+#define MONITOR_EDID_COMPLETE_RAWDATA EDID_COMPLETE_RAWDATA
+#endif
+
 struct intel_pixmap {
 	dri_bo *bo;
 
