@@ -614,6 +614,18 @@ static XF86AttributeRec Attributes_r600[NUM_ATTRIBUTES_R600+1] =
     {0, 0, 0, NULL}
 };
 
+static XF86AttributeRec Attributes_eg[NUM_ATTRIBUTES_R600+1] =
+{
+    {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_BRIGHTNESS"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_CONTRAST"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
+    {XvSettable | XvGettable, 0, 1, "XV_COLORSPACE"},
+    {XvSettable | XvGettable, -1, 5, "XV_CRTC"},
+    {0, 0, 0, NULL}
+};
+
 static Atom xvBicubic;
 static Atom xvVSync;
 static Atom xvBrightness, xvContrast, xvSaturation, xvHue;
@@ -811,7 +823,11 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     pPortPriv =
 	(RADEONPortPrivPtr)(&adapt->pPortPrivates[num_texture_ports]);
 
-    if (IS_R600_3D) {
+    if (IS_EVERGREEN_3D) {
+	adapt->pAttributes = Attributes_eg;
+	adapt->nAttributes = NUM_ATTRIBUTES_R600;
+    }
+    else if (IS_R600_3D) {
 	adapt->pAttributes = Attributes_r600;
 	adapt->nAttributes = NUM_ATTRIBUTES_R600;
     }
