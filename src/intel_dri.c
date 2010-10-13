@@ -1180,7 +1180,7 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 	intel->deviceName = drmGetDeviceNameFromFd(intel->drmSubFD);
 	memset(&info, '\0', sizeof(info));
 	info.fd = intel->drmSubFD;
-	info.driverName = IS_GEN3(intel) ? "i915" : "i965";
+	info.driverName = INTEL_INFO(intel)->gen < 40 ? "i915" : "i965";
 	info.deviceName = intel->deviceName;
 
 #if DRI2INFOREC_VERSION == 1
