@@ -1948,14 +1948,6 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 				/* BIOS */
     from              = X_PROBED;
     info->BIOSAddr    = info->PciInfo->biosBase & 0xfffe0000;
-    if (dev->BiosBase) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "BIOS address override, using 0x%08lx instead of 0x%08lx\n",
-		   (unsigned long)dev->BiosBase,
-		   (unsigned long)info->BIOSAddr);
-	info->BIOSAddr = dev->BiosBase;
-	from           = X_CONFIG;
-    }
     if (info->BIOSAddr) {
 	xf86DrvMsg(pScrn->scrnIndex, from,
 		   "BIOS at 0x%08lx\n", (unsigned long)info->BIOSAddr);
