@@ -1161,7 +1161,11 @@ intel_output_set_property(xf86OutputPtr output, Atom property,
 		}
 	}
 
-	return FALSE;
+	/* We didn't recognise this property, just report success in order
+	 * to allow the set to continue, otherwise we break setting of
+	 * common properties like EDID.
+	 */
+	return TRUE;
 }
 
 static Bool
