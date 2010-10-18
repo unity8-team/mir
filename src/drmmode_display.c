@@ -610,6 +610,7 @@ drmmode_output_get_modes(xf86OutputPtr output)
 	int i;
 	DisplayModePtr Modes = NULL, Mode;
 	drmModePropertyPtr props;
+	xf86MonPtr mon = NULL;
 
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
@@ -624,10 +625,13 @@ drmmode_output_get_modes(xf86OutputPtr output)
 		}
 	}
 
-	if (drmmode_output->edid_blob)
-		xf86OutputSetEDID(output, xf86InterpretEDID(output->scrn->scrnIndex, drmmode_output->edid_blob->data));
-	else
-		xf86OutputSetEDID(output, xf86InterpretEDID(output->scrn->scrnIndex, NULL));
+	if (drmmode_output->edid_blob) {
+		mon = xf86InterpretEDID(output->scrn->scrnIndex,
+					drmmode_output->edid_blob->data);
+		if (mon && drmmode_output->edid_blob->length > 128)
+			mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
+	}
+	xf86OutputSetEDID(output, mon);
 
 	/* modes should already be available */
 	for (i = 0; i < koutput->count_modes; i++) {
