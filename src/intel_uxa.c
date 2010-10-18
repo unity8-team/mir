@@ -133,7 +133,8 @@ static unsigned int
 intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 			      int w, int h,
 			      uint32_t *tiling,
-			      int *stride)
+			      int *stride,
+			      unsigned usage)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -157,7 +158,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 			 */
 			if (pitch > KB(8))
 				*tiling = I915_TILING_NONE;
-		} else if (size <= 4096) {
+		} else if (!(usage & INTEL_CREATE_PIXMAP_DRI2) && size <= 4096) {
 			/* Disable tiling beneath a page size, we will not see
 			 * any benefit from reducing TLB misses and instead
 			 * just incur extra cost when we require a fence.
@@ -167,7 +168,7 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	}
 
 	pitch = (w * pixmap->drawable.bitsPerPixel + 7) / 8;
-	if (pitch <= 256)
+	if (!(usage & INTEL_CREATE_PIXMAP_DRI2) && pitch <= 256)
 		*tiling = I915_TILING_NONE;
 
 	if (*tiling != I915_TILING_NONE) {
@@ -772,7 +773,7 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 
 			/* Replace busy bo. */
 			size = intel_uxa_pixmap_compute_size (pixmap, w, h,
-							      &tiling, &stride);
+							      &tiling, &stride, 0);
 			if (size > intel->max_gtt_map_size)
 				return FALSE;
 
@@ -978,13 +979,13 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		if (!intel->tiling)
 			tiling = I915_TILING_NONE;
 
-		if (tiling != I915_TILING_NONE) {
+		if (tiling != I915_TILING_NONE && !(usage & INTEL_CREATE_PIXMAP_DRI2)) {
 		    if (h <= 4)
 			tiling = I915_TILING_NONE;
 		    if (h <= 16 && tiling == I915_TILING_Y)
 			tiling = I915_TILING_X;
 		}
-		size = intel_uxa_pixmap_compute_size(pixmap, w, h, &tiling, &stride);
+		size = intel_uxa_pixmap_compute_size(pixmap, w, h, &tiling, &stride, usage);
 
 		/* Fail very large allocations.  Large BOs will tend to hit SW fallbacks
 		 * frequently, and also will tend to fail to successfully map when doing
