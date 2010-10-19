@@ -325,7 +325,7 @@ static XF86VideoEncodingRec DummyEncoding =
 {
    0,
    "XV_IMAGE",
-   2048, 2048,
+   2047, 2047,
    {1, 1}
 };
 
@@ -334,7 +334,7 @@ static XF86VideoEncodingRec DummyEncoding =
 static XF86VideoEncodingRec
 InputVideoEncodings[] =
 {
-    { 0, "XV_IMAGE",			2048,2048,{1,1}},        
+    { 0, "XV_IMAGE",			2047,2047,{1,1}},        
     { 1, "pal-composite",		720, 288, { 1, 50 }},
     { 2, "pal-tuner",			720, 288, { 1, 50 }},
     { 3, "pal-svideo",			720, 288, { 1, 50 }},
@@ -1515,8 +1515,8 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 	RADEONVIP_init(pScrn, pPriv);
 
     info->adaptor = adapt;
-    info->xv_max_width = 2048;
-    info->xv_max_height = 2048;
+    info->xv_max_width = 2047;
+    info->xv_max_height = 2047;
 
 	if(!xf86LoadSubModule(pScrn,"theatre_detect")) 
 	{
@@ -3380,8 +3380,8 @@ RADEONInitOffscreenImages(ScreenPtr pScreen)
     offscreenImages[0].stop = RADEONStopSurface;
     offscreenImages[0].setAttribute = RADEONSetSurfaceAttribute;
     offscreenImages[0].getAttribute = RADEONGetSurfaceAttribute;
-    offscreenImages[0].max_width = 2048;
-    offscreenImages[0].max_height = 2048;
+    offscreenImages[0].max_width = 2047;
+    offscreenImages[0].max_height = 2047;
     offscreenImages[0].num_attributes = NUM_ATTRIBUTES;
     offscreenImages[0].attributes = Attributes;
 
