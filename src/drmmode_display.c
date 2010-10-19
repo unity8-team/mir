@@ -1149,10 +1149,9 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 					   width, height, -1, -1, pitch * cpp,
 					   info->fb_shadow);
 	}
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,9,99,1,0)
 	scrn->pixmapPrivate.ptr = ppix->devPrivate.ptr;
-
-	//	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
-	//		   info->front_bo-);
+#endif
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
