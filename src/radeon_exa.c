@@ -465,7 +465,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 	int bpe = bitsPerPixel / 8;
 
 	if (tiling & RADEON_TILING_MACRO) {
-	    height = RADEON_ALIGN(height, info->num_banks * 8);
+	    height = RADEON_ALIGN(height, info->num_channels * 8);
 	    pixmap_align = MAX(info->num_banks,
 			       (((info->group_bytes / 8) / bpe) * info->num_banks)) * 8 * bpe;
 	} else if (tiling & RADEON_TILING_MICRO) {
