@@ -47,9 +47,9 @@ typedef struct {
     uint32_t fb_id;
     drmModeResPtr mode_res;
     int cpp;
+    drmEventContext event_context;
 #ifdef HAVE_LIBUDEV
     struct udev_monitor *uevent_monitor;
-    InputHandlerProc uevent_handler;
 #endif
 } drmmode_rec, *drmmode_ptr;
 
@@ -84,6 +84,19 @@ typedef struct {
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 static void drmmode_output_dpms(xf86OutputPtr output, int mode);
+
+static drmmode_ptr
+drmmode_from_scrn(ScrnInfoPtr scrn)
+{
+	if (scrn) {
+		xf86CrtcConfigPtr conf = XF86_CRTC_CONFIG_PTR(scrn);
+		drmmode_crtc_private_ptr crtc = conf->crtc[0]->driver_private;
+
+		return crtc->drmmode;
+	}
+
+	return NULL;
+}
 
 static PixmapPtr
 drmmode_pixmap_wrap(ScreenPtr pScreen, int width, int height, int depth,
@@ -1187,20 +1200,11 @@ drmmode_cursor_init(ScreenPtr pScreen)
 }
 
 #ifdef HAVE_LIBUDEV
-static drmmode_ptr
-drmmode_from_scrn(ScrnInfoPtr scrn)
-{
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	drmmode_crtc_private_ptr drmmode_crtc;
 
-	drmmode_crtc = xf86_config->crtc[0]->driver_private;
-	return drmmode_crtc->drmmode;
-}
 
 static void
-drmmode_handle_uevents(int fd, void *closure)
+drmmode_handle_uevents(ScrnInfoPtr scrn)
 {
-	ScrnInfoPtr scrn = closure;
 	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
 	struct udev_device *dev;
 
@@ -1213,7 +1217,7 @@ drmmode_handle_uevents(int fd, void *closure)
 }
 #endif
 
-void
+static void
 drmmode_uevent_init(ScrnInfoPtr scrn)
 {
 #ifdef HAVE_LIBUDEV
@@ -1239,26 +1243,63 @@ drmmode_uevent_init(ScrnInfoPtr scrn)
 		return;
 	}
 
-	drmmode->uevent_handler =
-		xf86AddGeneralHandler(udev_monitor_get_fd(mon),
-				      drmmode_handle_uevents, scrn);
-
+	AddGeneralSocket(udev_monitor_get_fd(mon));
 	drmmode->uevent_monitor = mon;
 #endif
 }
 
-void
+static void
 drmmode_uevent_fini(ScrnInfoPtr scrn)
 {
 #ifdef HAVE_LIBUDEV
 	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
 
-	if (drmmode->uevent_handler) {
+	if (drmmode->uevent_monitor) {
 		struct udev *u = udev_monitor_get_udev(drmmode->uevent_monitor);
-		xf86RemoveGeneralHandler(drmmode->uevent_handler);
 
 		udev_monitor_unref(drmmode->uevent_monitor);
 		udev_unref(u);
 	}
 #endif
+}
+
+static void
+drmmode_wakeup_handler(pointer data, int err, pointer p)
+{
+	ScrnInfoPtr scrn = data;
+	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
+	fd_set *read_mask = p;
+
+	if (scrn == NULL || err < 0)
+		return;
+
+	if (FD_ISSET(drmmode->fd, read_mask))
+		drmHandleEvent(drmmode->fd, &drmmode->event_context);
+
+#ifdef HAVE_LIBUDEV
+	if (FD_ISSET(udev_monitor_get_fd(drmmode->uevent_monitor), read_mask))
+		drmmode_handle_uevents(scrn);
+#endif
+}
+
+void
+drmmode_screen_init(ScreenPtr pScreen)
+{
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
+
+	drmmode_uevent_init(scrn);
+	AddGeneralSocket(drmmode->fd);
+
+	/* Register a wakeup handler to get informed on DRM events */
+	RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
+				       drmmode_wakeup_handler, scrn);
+}
+
+void
+drmmode_screen_fini(ScreenPtr pScreen)
+{
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+
+	drmmode_uevent_fini(scrn);
 }

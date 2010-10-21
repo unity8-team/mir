@@ -423,7 +423,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	drmmode_uevent_fini(pScrn);
+	drmmode_screen_fini(pScreen);
 
 	if (!pNv->NoAccel)
 		nouveau_dri2_fini(pScreen);
@@ -1193,7 +1193,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
-	drmmode_uevent_init(pScrn);
+	drmmode_screen_init(pScreen);
+
 	return TRUE;
 }
 
