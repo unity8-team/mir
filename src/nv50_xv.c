@@ -265,34 +265,6 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	return TRUE;
 }
 
-static void
-NV50EmitWaitForVBlank(PixmapPtr ppix, int x, int y, int w, int h)
-{
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *nvsw = pNv->NvSW;
-	int crtcs;
-
-	if (!nouveau_exa_pixmap_is_onscreen(ppix))
-		return;
-
-	crtcs = nv_window_belongs_to_crtc(pScrn, x, y, w, h);
-	if (!crtcs)
-		return;
-
-	BEGIN_RING(chan, nvsw, 0x0060, 2);
-	OUT_RING  (chan, pNv->vblank_sem->handle);
-	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, nvsw, 0x006c, 1);
-	OUT_RING  (chan, 0x22222222);
-	BEGIN_RING(chan, nvsw, 0x0404, 2);
-	OUT_RING  (chan, 0x11111111);
-	OUT_RING  (chan, ffs(crtcs) - 1);
-	BEGIN_RING(chan, nvsw, 0x0068, 1);
-	OUT_RING  (chan, 0x11111111);
-}
-
 int
 nv50_xv_image_put(ScrnInfoPtr pScrn,
 		  struct nouveau_bo *src, int packed_y, int uv,
@@ -317,9 +289,8 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		return BadAlloc;
 
 	if (pPriv->SyncToVBlank) {
-		NV50EmitWaitForVBlank(ppix, dstBox->x1, dstBox->y1,
-				      dstBox->x2 - dstBox->x1,
-				      dstBox->y2 - dstBox->y1);
+		NV50SyncToVBlank(ppix, dstBox->x1, dstBox->y1,
+				 dstBox->x2, dstBox->y2);
 	}
 
 	/* These are fixed point values in the 16.16 format. */

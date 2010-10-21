@@ -22,6 +22,32 @@
 
 #include "nv_include.h"
 
+void
+NV11SyncToVBlank(PixmapPtr ppix, int x1, int y1, int x2, int y2)
+{
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_grobj *blit = pNv->NvImageBlit;
+	int crtcs;
+
+	if (!nouveau_exa_pixmap_is_onscreen(ppix))
+		return;
+
+	crtcs = nv_window_belongs_to_crtc(pScrn, x1, y1, x2 - x1, y2 - y1);
+	if (!crtcs)
+		return;
+
+	BEGIN_RING(chan, blit, 0x0000012C, 1);
+	OUT_RING  (chan, 0);
+	BEGIN_RING(chan, blit, 0x00000134, 1);
+	OUT_RING  (chan, ffs(crtcs) - 1);
+	BEGIN_RING(chan, blit, 0x00000100, 1);
+	OUT_RING  (chan, 0);
+	BEGIN_RING(chan, blit, 0x00000130, 1);
+	OUT_RING  (chan, 0);
+}
+
 static Bool
 NVAccelInitDmaNotifier0(ScrnInfoPtr pScrn)
 {
