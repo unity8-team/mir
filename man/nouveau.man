@@ -75,6 +75,11 @@ Enable or disable use of the shadow framebuffer layer.  Default: off.
 .TP
 .BI "Option \*qWrappedFB\*q \*q" boolean \*q
 Enable or disable wfb, only affects nv50+. Useful for some legacy configurations where high rendering latency is perceived.  Default: wfb is disabled.
+.TP
+.BI "Option \*qGLXVBlank\*q \*q" boolean \*q
+Synchronize GLX clients to VBlank. Useful where tearing is a problem,
+harmful if the GPU isn't fast enough to keep up with the monitor
+refresh rate. Default: off.
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS

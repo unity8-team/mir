@@ -106,17 +106,185 @@ nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 	pGC->funcs->ChangeClip(pGC, CT_REGION, pCopyClip, 0);
 	ValidateGC(&pdpix->drawable, pGC);
 
-	/* Throttle on the previous frame before blitting this one */
-	if (dst->base.attachment == DRI2BufferFrontLeft) {
-		struct nouveau_bo *bo = nouveau_pixmap_bo(dst->ppix);
-		nouveau_bo_map(bo, NOUVEAU_BO_RD);
-		nouveau_bo_unmap(bo);
-	}
-
 	pGC->ops->CopyArea(&pspix->drawable, &pdpix->drawable, pGC, 0, 0,
 			   pDraw->width, pDraw->height, 0, 0);
 
 	FreeScratchGC(pGC);
+}
+
+struct nouveau_dri2_vblank_state {
+	enum {
+		SWAP
+	} action;
+
+	ClientPtr client;
+	XID draw;
+
+	DRI2BufferPtr dst;
+	DRI2BufferPtr src;
+	DRI2SwapEventPtr func;
+	void *data;
+};
+
+static Bool
+can_sync_to_vblank(DrawablePtr draw)
+{
+	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	NVPtr pNv = NVPTR(scrn);
+	PixmapPtr pix = NVGetDrawablePixmap(draw);
+
+	return pNv->glx_vblank &&
+		nouveau_exa_pixmap_is_onscreen(pix) &&
+		nv_window_belongs_to_crtc(scrn, draw->x, draw->y,
+					  draw->width, draw->height);
+}
+
+static int
+nouveau_wait_vblank(DrawablePtr draw, int type, CARD64 msc,
+		    CARD64 *pmsc, CARD64 *pust, void *data)
+{
+	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	NVPtr pNv = NVPTR(scrn);
+	int crtcs = nv_window_belongs_to_crtc(scrn, draw->x, draw->y,
+					      draw->width, draw->height);
+	drmVBlank vbl;
+	int ret;
+
+	vbl.request.type = type | (crtcs == 2 ? DRM_VBLANK_SECONDARY : 0);
+	vbl.request.sequence = msc;
+	vbl.request.signal = (unsigned long)data;
+
+	ret = drmWaitVBlank(nouveau_device(pNv->dev)->fd, &vbl);
+	if (ret) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "Wait for VBlank failed: %s\n", strerror(errno));
+		return ret;
+	}
+
+	if (pmsc)
+		*pmsc = vbl.reply.sequence;
+	if (pust)
+		*pust = (CARD64)vbl.reply.tval_sec * 1000000 +
+			vbl.reply.tval_usec;
+	return 0;
+}
+
+static void
+nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
+			 unsigned int tv_sec, unsigned int tv_usec,
+			 struct nouveau_dri2_vblank_state *s)
+{
+	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	NVPtr pNv = NVPTR(scrn);
+	PixmapPtr dst_pix = nouveau_dri2_buffer(s->dst)->ppix;
+	PixmapPtr src_pix = nouveau_dri2_buffer(s->src)->ppix;
+	struct nouveau_bo *dst_bo = nouveau_pixmap_bo(dst_pix);
+	struct nouveau_bo *src_bo = nouveau_pixmap_bo(src_pix);
+	struct nouveau_channel *chan = pNv->chan;
+	BoxRec box = { 0, 0, draw->width, draw->height };
+	RegionRec region;
+	int ret;
+
+	/* Throttle on the previous frame before swapping */
+	nouveau_bo_map(dst_bo, NOUVEAU_BO_RD);
+	nouveau_bo_unmap(dst_bo);
+
+	if (can_sync_to_vblank(draw)) {
+		int x1 = draw->x, y1 = draw->y,
+			x2 = draw->x + draw->width,
+			y2 = draw->y + draw->height;
+
+		/* Reference the back buffer to sync it to vblank */
+		WAIT_RING(chan, 1);
+		OUT_RELOC(chan, src_bo, 0,
+			  NOUVEAU_BO_VRAM | NOUVEAU_BO_RD, 0, 0);
+
+		if (pNv->Architecture >= NV_ARCH_50)
+			NV50SyncToVBlank(dst_pix, x1, y1, x2, y2);
+		else
+			NV11SyncToVBlank(dst_pix, x1, y1, x2, y2);
+
+		FIRE_RING(chan);
+	}
+
+
+	RegionInit(&region, &box, 0);
+	nouveau_dri2_copy_region(draw, &region, s->dst, s->src);
+
+	DRI2SwapComplete(s->client, draw, frame, tv_sec, tv_usec,
+			 DRI2_BLIT_COMPLETE, s->func, s->data);
+	free(s);
+}
+
+static Bool
+nouveau_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
+			   DRI2BufferPtr dst, DRI2BufferPtr src,
+			   CARD64 *target_msc, CARD64 divisor, CARD64 remainder,
+			   DRI2SwapEventPtr func, void *data)
+{
+	struct nouveau_dri2_vblank_state *s;
+	CARD64 current_msc;
+	int ret;
+
+	/* Initialize a swap structure */
+	s = malloc(sizeof(*s));
+	if (!s)
+		return FALSE;
+
+	*s = (struct nouveau_dri2_vblank_state)
+		{ SWAP, client, draw->id, dst, src, func, data };
+
+	if (can_sync_to_vblank(draw)) {
+		/* Get current sequence */
+		ret = nouveau_wait_vblank(draw, DRM_VBLANK_RELATIVE, 0,
+					  &current_msc, NULL, NULL);
+		if (ret)
+			goto fail;
+
+		/* Calculate a swap target if we don't have one */
+		if (current_msc >= *target_msc && divisor)
+			*target_msc = current_msc + divisor
+				- (current_msc - remainder) % divisor;
+
+		/* Request a vblank event one frame before the target */
+		ret = nouveau_wait_vblank(draw, DRM_VBLANK_ABSOLUTE |
+					  DRM_VBLANK_EVENT,
+					  max(current_msc, *target_msc - 1),
+					  NULL, NULL, s);
+		if (ret)
+			goto fail;
+
+	} else {
+		/* We can't/don't want to sync to vblank, just swap. */
+		nouveau_dri2_finish_swap(draw, 0, 0, 0, s);
+	}
+
+	return TRUE;
+
+fail:
+	free(s);
+	return FALSE;
+}
+
+void
+nouveau_dri2_vblank_handler(int fd, unsigned int frame,
+			    unsigned int tv_sec, unsigned int tv_usec,
+			    void *event_data)
+{
+	struct nouveau_dri2_vblank_state *s = event_data;
+	DrawablePtr draw;
+	int ret;
+
+	ret = dixLookupDrawable(&draw, s->draw, serverClient,
+				M_ANY, DixWriteAccess);
+	if (ret)
+		return;
+
+	switch (s->action) {
+	case SWAP:
+		nouveau_dri2_finish_swap(draw, frame, tv_sec, tv_usec, s);
+		break;
+	}
 }
 
 Bool
@@ -138,6 +306,7 @@ nouveau_dri2_init(ScreenPtr pScreen)
 	dri2.CreateBuffer = nouveau_dri2_create_buffer;
 	dri2.DestroyBuffer = nouveau_dri2_destroy_buffer;
 	dri2.CopyRegion = nouveau_dri2_copy_region;
+	dri2.ScheduleSwap = nouveau_dri2_schedule_swap;
 
 	return DRI2ScreenInit(pScreen, &dri2);
 }

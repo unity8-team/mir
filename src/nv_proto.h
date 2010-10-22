@@ -19,6 +19,9 @@ void NVAccelFree(ScrnInfoPtr pScrn);
 void NV11SyncToVBlank(PixmapPtr ppix, int x1, int y1, int x2, int y2);
 
 /* in nouveau_dri2.c */
+void nouveau_dri2_vblank_handler(int fd, unsigned int frame,
+				 unsigned int tv_sec, unsigned int tv_usec,
+				 void *event_data);
 Bool nouveau_dri2_init(ScreenPtr pScreen);
 void nouveau_dri2_fini(ScreenPtr pScreen);
 

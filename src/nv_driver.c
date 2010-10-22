@@ -782,6 +782,16 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		pNv->tiled_scanout = TRUE;
 	}
 
+	if (!pNv->NoAccel && pNv->dev->chipset >= 0x11) {
+		from = X_DEFAULT;
+		if (xf86GetOptValBool(pNv->Options, OPTION_GLX_VBLANK,
+				      &pNv->glx_vblank))
+			from = X_CONFIG;
+
+		xf86DrvMsg(pScrn->scrnIndex, from, "GLX sync to VBlank %s.\n",
+			   pNv->glx_vblank ? "enabled" : "disabled");
+	}
+
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
 					pNv->videoKey);

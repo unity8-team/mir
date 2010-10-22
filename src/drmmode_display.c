@@ -1289,6 +1289,10 @@ drmmode_screen_init(ScreenPtr pScreen)
 	drmmode_ptr drmmode = drmmode_from_scrn(scrn);
 
 	drmmode_uevent_init(scrn);
+
+	/* Plug in a vblank event handler */
+	drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
+	drmmode->event_context.vblank_handler = nouveau_dri2_vblank_handler;
 	AddGeneralSocket(drmmode->fd);
 
 	/* Register a wakeup handler to get informed on DRM events */
