@@ -51,6 +51,7 @@ typedef struct _NVRec {
     Bool		wfb_enabled;
     Bool		tiled_scanout;
     Bool		glx_vblank;
+    Bool		has_pageflip;
     ScreenBlockHandlerProcPtr BlockHandler;
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr  CloseScreen;

@@ -28,6 +28,7 @@
 #include "xf86int10.h"
 #include "xf86drm.h"
 #include "xf86drmMode.h"
+#include "nouveau_drm.h"
 
 /*
  * Forward definitions for the functions that make up the driver.
@@ -586,6 +587,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	struct nouveau_device *dev;
 	NVPtr pNv;
 	MessageType from;
+	uint64_t v;
 	int ret, i;
 
 	if (flags & PROBE_DETECT) {
@@ -791,6 +793,15 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86DrvMsg(pScrn->scrnIndex, from, "GLX sync to VBlank %s.\n",
 			   pNv->glx_vblank ? "enabled" : "disabled");
 	}
+
+#ifdef NOUVEAU_GETPARAM_HAS_PAGEFLIP
+	ret = nouveau_device_get_param(pNv->dev,
+				       NOUVEAU_GETPARAM_HAS_PAGEFLIP, &v);
+	if (!ret)
+		pNv->has_pageflip = v;
+#else
+	(void)v;
+#endif
 
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",

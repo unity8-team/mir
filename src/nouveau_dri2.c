@@ -129,6 +129,20 @@ struct nouveau_dri2_vblank_state {
 };
 
 static Bool
+can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
+{
+	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	NVPtr pNv = NVPTR(scrn);
+
+	return (!nouveau_exa_pixmap_is_onscreen(dst_pix) ||
+		(DRI2CanFlip(draw) && pNv->has_pageflip)) &&
+		dst_pix->drawable.width == src_pix->drawable.width &&
+		dst_pix->drawable.height == src_pix->drawable.height &&
+		dst_pix->drawable.depth == src_pix->drawable.depth &&
+		dst_pix->devKind == src_pix->devKind;
+}
+
+static Bool
 can_sync_to_vblank(DrawablePtr draw)
 {
 	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
@@ -183,9 +197,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	struct nouveau_bo *dst_bo = nouveau_pixmap_bo(dst_pix);
 	struct nouveau_bo *src_bo = nouveau_pixmap_bo(src_pix);
 	struct nouveau_channel *chan = pNv->chan;
-	BoxRec box = { 0, 0, draw->width, draw->height };
-	RegionRec region;
-	int ret;
+	int type, ret;
 
 	/* Throttle on the previous frame before swapping */
 	nouveau_bo_map(dst_bo, NOUVEAU_BO_RD);
@@ -209,12 +221,40 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		FIRE_RING(chan);
 	}
 
+	if (can_exchange(draw, dst_pix, src_pix)) {
+		type = DRI2_EXCHANGE_COMPLETE;
 
-	RegionInit(&region, &box, 0);
-	nouveau_dri2_copy_region(draw, &region, s->dst, s->src);
+		if (DRI2CanFlip(draw)) {
+			type = DRI2_FLIP_COMPLETE;
+			ret = drmmode_page_flip(draw, src_pix, s);
+			if (!ret)
+				goto out;
+		}
 
+		SWAP(s->dst->name, s->src->name);
+		SWAP(nouveau_pixmap(dst_pix)->bo, nouveau_pixmap(src_pix)->bo);
+
+	} else {
+		BoxRec box = { 0, 0, draw->width, draw->height };
+		RegionRec region;
+
+		RegionInit(&region, &box, 0);
+
+		type = DRI2_BLIT_COMPLETE;
+		nouveau_dri2_copy_region(draw, &region, s->dst, s->src);
+	}
+
+	/*
+	 * Tell the X server buffers are already swapped even if they're
+	 * not, to prevent it from blocking the client on the next
+	 * GetBuffers request (and let the client do triple-buffering).
+	 *
+	 * XXX - The DRI2SwapLimit() API will allow us to move this to
+	 *	 the flip handler with no FPS hit.
+	 */
 	DRI2SwapComplete(s->client, draw, frame, tv_sec, tv_usec,
-			 DRI2_BLIT_COMPLETE, s->func, s->data);
+			 type, s->func, s->data);
+out:
 	free(s);
 }
 

@@ -1179,9 +1179,47 @@ drmmode_cursor_init(ScreenPtr pScreen)
 	return xf86_cursors_init(pScreen, size, size, flags);
 }
 
+Bool
+drmmode_page_flip(DrawablePtr draw, PixmapPtr back, void *priv)
+{
+	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	drmmode_crtc_private_ptr crtc = config->crtc[0]->driver_private;
+	drmmode_ptr mode = crtc->drmmode;
+	int ret, i, old_fb_id;
+
+	old_fb_id = mode->fb_id;
+	ret = drmModeAddFB(mode->fd, scrn->virtualX, scrn->virtualY,
+			   scrn->depth, scrn->bitsPerPixel,
+			   scrn->displayWidth * scrn->bitsPerPixel / 8,
+			   nouveau_pixmap_bo(back)->handle, &mode->fb_id);
+	if (ret) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "add fb failed: %s\n", strerror(errno));
+		return FALSE;
+	}
+
+	for (i = 0; i < config->num_crtc; i++) {
+		crtc = config->crtc[i]->driver_private;
+
+		if (!config->crtc[i]->enabled)
+			continue;
+
+		ret = drmModePageFlip(mode->fd, crtc->mode_crtc->crtc_id,
+				      mode->fb_id, 0, priv);
+		if (ret) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "flip queue failed: %s\n", strerror(errno));
+			return FALSE;
+		}
+	}
+
+	drmModeRmFB(mode->fd, old_fb_id);
+
+	return TRUE;
+}
+
 #ifdef HAVE_LIBUDEV
-
-
 static void
 drmmode_handle_uevents(ScrnInfoPtr scrn)
 {

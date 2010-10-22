@@ -74,4 +74,10 @@ static inline int round_down_pow2(int x)
 	return 1 << log2i(x);
 }
 
+#define SWAP(x, y) do {			\
+		typeof(x) __z = (x);	\
+		(x) = (y);		\
+		(y) = __z;		\
+	} while (0)
+
 #endif
