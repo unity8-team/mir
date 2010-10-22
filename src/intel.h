@@ -34,6 +34,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if 0
 #define I830DEBUG
 #endif
@@ -69,6 +73,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 #include "intel_driver.h"
+
+#if HAVE_UDEV
+#include <libudev.h>
+#endif
 
 #include "uxa.h"
 /* XXX
@@ -441,6 +449,10 @@ typedef struct intel_screen_private {
 	 */
 	Bool fallback_debug;
 	unsigned debug_flush;
+#if HAVE_UDEV
+	struct udev_monitor *uevent_monitor;
+	InputHandlerProc uevent_handler;
+#endif
 } intel_screen_private;
 
 enum {

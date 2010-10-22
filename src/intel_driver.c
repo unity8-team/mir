@@ -107,6 +107,7 @@ typedef enum {
    OPTION_DEBUG_FLUSH_BATCHES,
    OPTION_DEBUG_FLUSH_CACHES,
    OPTION_DEBUG_WAIT,
+   OPTION_HOTPLUG,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -125,6 +126,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_DEBUG_FLUSH_BATCHES, "DebugFlushBatches", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
+   {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -804,6 +806,110 @@ intel_flush_callback(CallbackListPtr *list,
 	}
 }
 
+#if HAVE_UDEV
+static void
+I830HandleUEvents(int fd, void *closure)
+{
+    ScrnInfoPtr scrn = closure;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+    struct udev_device *dev;
+    const char *hotplug;
+    struct stat s;
+    dev_t udev_devnum;
+
+    dev = udev_monitor_receive_device(intel->uevent_monitor);
+    if (!dev)
+	return;
+
+    udev_devnum = udev_device_get_devnum(dev);
+    fstat(intel->drmSubFD, &s);
+    /*
+     * Check to make sure this event is directed at our
+     * device (by comparing dev_t values), then make
+     * sure it's a hotplug event (HOTPLUG=1)
+     */
+
+    hotplug = udev_device_get_property_value(dev, "HOTPLUG");
+
+    if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
+	hotplug && atoi(hotplug) == 1)
+	RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+
+    udev_device_unref(dev);
+}
+
+static void
+I830UeventInit(ScrnInfoPtr scrn)
+{
+    intel_screen_private *intel = intel_get_screen_private(scrn);
+    struct udev *u;
+    struct udev_monitor *mon;
+    Bool hotplug;
+    MessageType from = X_CONFIG;
+
+    if (!xf86GetOptValBool(intel->Options, OPTION_HOTPLUG, &hotplug)) {
+	from = X_DEFAULT;
+	hotplug = TRUE;
+    }
+
+    xf86DrvMsg(scrn->scrnIndex, from, "hotplug detection: \"%s\"\n",
+	       hotplug ? "enabled" : "disabled");
+    if (!hotplug)
+	return;
+
+    u = udev_new();
+    if (!u)
+	return;
+
+    mon = udev_monitor_new_from_netlink(u, "udev");
+
+    if (!mon) {
+	udev_unref(u);
+	return;
+    }
+
+    if (udev_monitor_filter_add_match_subsystem_devtype(mon,
+							"drm",
+							"drm_minor") < 0 ||
+	udev_monitor_enable_receiving(mon) < 0)
+    {
+	udev_monitor_unref(mon);
+	udev_unref(u);
+	return;
+    }
+
+    intel->uevent_handler =
+	xf86AddGeneralHandler(udev_monitor_get_fd(mon),
+			      I830HandleUEvents,
+			      scrn);
+    if (!intel->uevent_handler) {
+	udev_monitor_unref(mon);
+	udev_unref(u);
+	return;
+    }
+
+    intel->uevent_monitor = mon;
+}
+
+static void
+I830UeventFini(ScrnInfoPtr scrn)
+{
+    intel_screen_private *intel = intel_get_screen_private(scrn);
+
+    if (intel->uevent_handler)
+    {
+	struct udev *u = udev_monitor_get_udev(intel->uevent_monitor);
+
+	xf86RemoveGeneralHandler(intel->uevent_handler);
+
+	udev_monitor_unref(intel->uevent_monitor);
+	udev_unref(u);
+	intel->uevent_handler = NULL;
+	intel->uevent_monitor = NULL;
+    }
+}
+#endif /* HAVE_UDEV */
+
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 {
@@ -1010,6 +1116,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	intel->suspended = FALSE;
 
+#if HAVE_UDEV
+	I830UeventInit(scrn);
+#endif
+
 	return uxa_resources_init(screen);
 }
 
@@ -1090,6 +1200,10 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+#if HAVE_UDEV
+	I830UeventFini(scrn);
+#endif
 
 	if (scrn->vtSema == TRUE) {
 		I830LeaveVT(scrnIndex, 0);
