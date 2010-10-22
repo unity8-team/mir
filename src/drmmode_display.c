@@ -58,7 +58,7 @@ typedef struct {
     drmModeCrtcPtr mode_crtc;
     struct nouveau_bo *cursor;
     struct nouveau_bo *rotate_bo;
-    uint32_t rotate_pitch;
+    int rotate_pitch;
     PixmapPtr rotate_pixmap;
     uint32_t rotate_fb_id;
     Bool cursor_visible;
@@ -430,28 +430,18 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 static void *
 drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 {
+	ScrnInfoPtr scrn = crtc->scrn;
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	NVPtr pNv = NVPTR(crtc->scrn);
-	uint32_t tile_mode = 0, tile_flags = NOUVEAU_BO_TILE_SCANOUT;
-	int ah = height, ret, pitch;
 	void *virtual;
+	int ret;
 
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
-		tile_mode = 4;
-		tile_flags |= (drmmode->cpp == 2) ? 0x7000 : 0x7a00;
-		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
-		pitch = NOUVEAU_ALIGN(width * drmmode->cpp, 64);
-	} else {
-		pitch  = nv_pitch_align(pNv, width, crtc->scrn->depth);
-		pitch *= drmmode->cpp;
-	}
-	drmmode_crtc->rotate_pitch = pitch;
-
-	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP, 0,
-				  drmmode_crtc->rotate_pitch * ah, tile_mode,
-				  tile_flags, &drmmode_crtc->rotate_bo);
-	if (ret) {
+	ret = nouveau_allocate_surface(scrn, width, height,
+				       scrn->bitsPerPixel,
+				       NOUVEAU_CREATE_PIXMAP_SCANOUT,
+				       &drmmode_crtc->rotate_pitch,
+				       &drmmode_crtc->rotate_bo);
+	if (!ret) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow memory for rotated CRTC\n");
 		return NULL;
@@ -1026,26 +1016,15 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	drmmode_crtc_private_ptr
 		    drmmode_crtc = xf86_config->crtc[0]->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	uint32_t pitch, old_width, old_height, old_pitch, old_fb_id;
+	uint32_t old_width, old_height, old_pitch, old_fb_id;
 	struct nouveau_bo *old_bo = NULL;
-	uint32_t tile_mode = 0, tile_flags = NOUVEAU_BO_TILE_SCANOUT;
+	int ret, i, pitch;
 	PixmapPtr ppix;
-	int ret, i, ah = height;
 
 	ErrorF("resize called %d %d\n", width, height);
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
-
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
-		tile_mode = 4;
-		tile_flags |= (scrn->bitsPerPixel == 16) ? 0x7000 : 0x7a00;
-		ah = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
-		pitch = NOUVEAU_ALIGN(width * (scrn->bitsPerPixel >> 3), 64);
-	} else {
-		pitch  = nv_pitch_align(pNv, width, scrn->depth);
-		pitch *= (scrn->bitsPerPixel >> 3);
-	}
 
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
@@ -1054,15 +1033,16 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	nouveau_bo_ref(pNv->scanout, &old_bo);
 	nouveau_bo_ref(NULL, &pNv->scanout);
 
+	ret = nouveau_allocate_surface(scrn, width, height,
+				       scrn->bitsPerPixel,
+				       NOUVEAU_CREATE_PIXMAP_SCANOUT,
+				       &pitch, &pNv->scanout);
+	if (!ret)
+		goto fail;
+
 	scrn->virtualX = width;
 	scrn->virtualY = height;
 	scrn->displayWidth = pitch / (scrn->bitsPerPixel >> 3);
-
-	ret = nouveau_bo_new_tile(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
-				  0, pitch * ah, tile_mode, tile_flags,
-				  &pNv->scanout);
-	if (ret)
-		goto fail;
 
 	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
 

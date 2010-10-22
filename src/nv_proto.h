@@ -17,6 +17,9 @@ Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
 PixmapPtr NVGetDrawablePixmap(DrawablePtr pDraw);
 void NVAccelFree(ScrnInfoPtr pScrn);
 void NV11SyncToVBlank(PixmapPtr ppix, int x1, int y1, int x2, int y2);
+Bool nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height,
+			      int bpp, int usage_hint, int *pitch,
+			      struct nouveau_bo **bo);
 
 /* in nouveau_dri2.c */
 void nouveau_dri2_vblank_handler(int fd, unsigned int frame,

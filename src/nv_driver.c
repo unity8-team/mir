@@ -815,16 +815,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!xf86SetGamma(pScrn, gammazeros))
 		NVPreInitFail("\n");
 
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
-		int cpp = pScrn->bitsPerPixel >> 3;
-		pScrn->displayWidth = pScrn->virtualX * cpp;
-		pScrn->displayWidth = NOUVEAU_ALIGN(pScrn->displayWidth, 64);
-		pScrn->displayWidth = pScrn->displayWidth / cpp;
-	} else {
-		pScrn->displayWidth = nv_pitch_align(pNv, pScrn->virtualX,
-						     pScrn->depth);
-	}
-
 	/* No usable mode */
 	if (!pScrn->modes)
 		return FALSE;
@@ -866,29 +856,19 @@ NVMapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_device *dev = pNv->dev;
-	uint32_t tile_mode = 0, tile_flags = NOUVEAU_BO_TILE_SCANOUT;
-	int ret, size;
+	int ret, pitch, size;
 
-	size = pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->tiled_scanout) {
-		tile_mode = 4;
-		tile_flags |= pScrn->bitsPerPixel == 16 ? 0x7000 : 0x7a00;
-		size *= NOUVEAU_ALIGN(pScrn->virtualY, (1 << (tile_mode + 2)));
-	} else {
-		size *= pScrn->virtualY;
-	}
-
-	ret = nouveau_bo_new_tile(dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_MAP,
-				  0, size, tile_mode, tile_flags,
-				  &pNv->scanout);
-	if (ret) {
+	ret = nouveau_allocate_surface(pScrn, pScrn->virtualX, pScrn->virtualY,
+				       pScrn->bitsPerPixel,
+				       NOUVEAU_CREATE_PIXMAP_SCANOUT,
+				       &pitch, &pNv->scanout);
+	if (!ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Error allocating scanout buffer: %d\n", ret);
 		return FALSE;
 	}
 
-	nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
-	nouveau_bo_unmap(pNv->scanout);
+	pScrn->displayWidth = pitch / (pScrn->bitsPerPixel / 8);
 
 	if (pNv->NoAccel)
 		return TRUE;

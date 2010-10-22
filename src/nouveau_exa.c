@@ -312,10 +312,10 @@ static void *
 nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 			  int usage_hint, int bitsPerPixel, int *new_pitch)
 {
-	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
+	ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(scrn);
 	struct nouveau_pixmap *nvpix;
-	uint32_t flags = NOUVEAU_BO_MAP, tile_mode = 0, tile_flags = 0;
-	int ret, size, cpp = bitsPerPixel >> 3;
+	int ret;
 
 	if (!width || !height)
 		return calloc(1, sizeof(*nvpix));
@@ -328,52 +328,9 @@ nouveau_exa_create_pixmap(ScreenPtr pScreen, int width, int height, int depth,
 	if (!nvpix)
 		return NULL;
 
-	if (cpp) {
-		flags |= NOUVEAU_BO_VRAM;
-		*new_pitch = width * cpp;
-
-		if (pNv->Architecture >= NV_ARCH_50) {
-			if      (height > 32) tile_mode = 4;
-			else if (height > 16) tile_mode = 3;
-			else if (height >  8) tile_mode = 2;
-			else if (height >  4) tile_mode = 1;
-			else                  tile_mode = 0;
-
-			if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
-				tile_flags = 0x2800;
-			else
-				tile_flags = 0x7000;
-
-			height = NOUVEAU_ALIGN(height, 1 << (tile_mode + 2));
-		} else {
-			if (usage_hint & NOUVEAU_CREATE_PIXMAP_TILED) {
-				int pitch_align = max(
-					pNv->dev->chipset >= 0x40 ? 1024 : 256,
-					round_down_pow2(*new_pitch / 4));
-
-				*new_pitch = NOUVEAU_ALIGN(*new_pitch,
-							   pitch_align);
-				tile_mode = *new_pitch;
-
-				if (bitsPerPixel == 32)
-					tile_flags |= NOUVEAU_BO_TILE_32BPP;
-				else if (bitsPerPixel == 16)
-					tile_flags |= NOUVEAU_BO_TILE_16BPP;
-
-				if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
-					tile_flags |= NOUVEAU_BO_TILE_ZETA;
-			}
-		}
-	} else {
-		*new_pitch = (width * bitsPerPixel + 7) / 8;
-	}
-
-	*new_pitch = NOUVEAU_ALIGN(*new_pitch, 64);
-	size  = *new_pitch * height;
-
-	ret = nouveau_bo_new_tile(pNv->dev, flags, 0, size, tile_mode,
-				  tile_flags, &nvpix->bo);
-	if (ret) {
+	ret = nouveau_allocate_surface(scrn, width, height, bitsPerPixel,
+				       usage_hint, new_pitch, &nvpix->bo);
+	if (!ret) {
 		free(nvpix);
 		return NULL;
 	}
