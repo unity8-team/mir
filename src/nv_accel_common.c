@@ -90,7 +90,7 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 }
 
 void
-NV11SyncToVBlank(PixmapPtr ppix, int x1, int y1, int x2, int y2)
+NV11SyncToVBlank(PixmapPtr ppix, BoxPtr box)
 {
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -101,7 +101,9 @@ NV11SyncToVBlank(PixmapPtr ppix, int x1, int y1, int x2, int y2)
 	if (!nouveau_exa_pixmap_is_onscreen(ppix))
 		return;
 
-	crtcs = nv_window_belongs_to_crtc(pScrn, x1, y1, x2 - x1, y2 - y1);
+	crtcs = nv_window_belongs_to_crtc(pScrn, box->x1, box->y1,
+					  box->x2 - box->x1,
+					  box->y2 - box->y1);
 	if (!crtcs)
 		return;
 

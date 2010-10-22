@@ -130,8 +130,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 
         if(pPriv->SyncToVBlank) {
                 FIRE_RING(chan);
-		NV11SyncToVBlank(ppix, dstBox->x1, dstBox->y1,
-				 dstBox->x2, dstBox->y2);
+		NV11SyncToVBlank(ppix, dstBox);
         }
 
         if (pNv->dev->chipset >= 0x05) {

@@ -350,8 +350,7 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	/* Just before rendering we wait for vblank in the non-composited case. */
 	if (pPriv->SyncToVBlank) {
 		FIRE_RING(chan);
-		NV11SyncToVBlank(ppix, dstBox->x1, dstBox->y1,
-				 dstBox->x2, dstBox->y2);
+		NV11SyncToVBlank(ppix, dstBox);
 	}
 
 	/* These are fixed point values in the 16.16 format. */

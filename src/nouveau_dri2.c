@@ -198,26 +198,26 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	struct nouveau_bo *dst_bo = nouveau_pixmap_bo(dst_pix);
 	struct nouveau_bo *src_bo = nouveau_pixmap_bo(src_pix);
 	struct nouveau_channel *chan = pNv->chan;
+	RegionRec reg;
 	int type, ret;
+
+	RegionInit(&reg, &(BoxRec){ 0, 0, draw->width, draw->height }, 0);
+	RegionTranslate(&reg, draw->x, draw->y);
 
 	/* Throttle on the previous frame before swapping */
 	nouveau_bo_map(dst_bo, NOUVEAU_BO_RD);
 	nouveau_bo_unmap(dst_bo);
 
 	if (can_sync_to_vblank(draw)) {
-		int x1 = draw->x, y1 = draw->y,
-			x2 = draw->x + draw->width,
-			y2 = draw->y + draw->height;
-
 		/* Reference the back buffer to sync it to vblank */
 		WAIT_RING(chan, 1);
 		OUT_RELOC(chan, src_bo, 0,
 			  NOUVEAU_BO_VRAM | NOUVEAU_BO_RD, 0, 0);
 
 		if (pNv->Architecture >= NV_ARCH_50)
-			NV50SyncToVBlank(dst_pix, x1, y1, x2, y2);
+			NV50SyncToVBlank(dst_pix, RegionExtents(&reg));
 		else
-			NV11SyncToVBlank(dst_pix, x1, y1, x2, y2);
+			NV11SyncToVBlank(dst_pix, RegionExtents(&reg));
 
 		FIRE_RING(chan);
 	}
@@ -236,13 +236,9 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		SWAP(nouveau_pixmap(dst_pix)->bo, nouveau_pixmap(src_pix)->bo);
 
 	} else {
-		BoxRec box = { 0, 0, draw->width, draw->height };
-		RegionRec region;
-
-		RegionInit(&region, &box, 0);
-
 		type = DRI2_BLIT_COMPLETE;
-		nouveau_dri2_copy_region(draw, &region, s->dst, s->src);
+		RegionTranslate(&reg, -draw->x, -draw->y);
+		nouveau_dri2_copy_region(draw, &reg, s->dst, s->src);
 	}
 
 	/*

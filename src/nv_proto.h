@@ -17,7 +17,7 @@ Bool NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret);
 Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
 PixmapPtr NVGetDrawablePixmap(DrawablePtr pDraw);
 void NVAccelFree(ScrnInfoPtr pScrn);
-void NV11SyncToVBlank(PixmapPtr ppix, int x1, int y1, int x2, int y2);
+void NV11SyncToVBlank(PixmapPtr ppix, BoxPtr box);
 Bool nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height,
 			      int bpp, int usage_hint, int *pitch,
 			      struct nouveau_bo **bo);
@@ -132,7 +132,7 @@ int NV40GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 int NV40SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 
 /* in nv50_accel.c */
-void NV50SyncToVBlank(PixmapPtr ppix, int x1, int y1, int x2, int y2);
+void NV50SyncToVBlank(PixmapPtr ppix, BoxPtr box);
 Bool NVAccelInitNV50TCL(ScrnInfoPtr pScrn);
 
 /* in nv50_exa.c */

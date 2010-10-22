@@ -289,8 +289,7 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		return BadAlloc;
 
 	if (pPriv->SyncToVBlank) {
-		NV50SyncToVBlank(ppix, dstBox->x1, dstBox->y1,
-				 dstBox->x2, dstBox->y2);
+		NV50SyncToVBlank(ppix, dstBox);
 	}
 
 	/* These are fixed point values in the 16.16 format. */
