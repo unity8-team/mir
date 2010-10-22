@@ -116,7 +116,8 @@ nouveau_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
 
 struct nouveau_dri2_vblank_state {
 	enum {
-		SWAP
+		SWAP,
+		WAIT
 	} action;
 
 	ClientPtr client;
@@ -308,6 +309,66 @@ fail:
 	return FALSE;
 }
 
+static Bool
+nouveau_dri2_schedule_wait(ClientPtr client, DrawablePtr draw,
+			   CARD64 target_msc, CARD64 divisor, CARD64 remainder)
+{
+	struct nouveau_dri2_vblank_state *s;
+	CARD64 current_msc;
+	int ret;
+
+	if (!can_sync_to_vblank(draw))
+		return FALSE;
+
+	/* Initialize a vblank structure */
+	s = malloc(sizeof(*s));
+	if (!s)
+		return FALSE;
+
+	*s = (struct nouveau_dri2_vblank_state) { WAIT, client, draw->id };
+
+	/* Get current sequence */
+	ret = nouveau_wait_vblank(draw, DRM_VBLANK_RELATIVE, 0,
+				  &current_msc, NULL, NULL);
+	if (ret)
+		goto fail;
+
+	/* Calculate a wait target if we don't have one */
+	if (current_msc > target_msc && divisor)
+		target_msc = current_msc + divisor
+			- (current_msc - remainder) % divisor;
+
+	/* Request a vblank event */
+	ret = nouveau_wait_vblank(draw, DRM_VBLANK_ABSOLUTE |
+				  DRM_VBLANK_EVENT,
+				  max(current_msc, target_msc),
+				  NULL, NULL, s);
+	if (ret)
+		goto fail;
+
+	DRI2BlockClient(client, draw);
+	return TRUE;
+fail:
+	free(s);
+	return FALSE;
+}
+
+static Bool
+nouveau_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
+{
+	int ret;
+
+	if (!can_sync_to_vblank(draw))
+		return FALSE;
+
+	/* Get current sequence */
+	ret = nouveau_wait_vblank(draw, DRM_VBLANK_RELATIVE, 0, msc, ust, NULL);
+	if (ret)
+		return FALSE;
+
+	return TRUE;
+}
+
 void
 nouveau_dri2_vblank_handler(int fd, unsigned int frame,
 			    unsigned int tv_sec, unsigned int tv_usec,
@@ -325,6 +386,11 @@ nouveau_dri2_vblank_handler(int fd, unsigned int frame,
 	switch (s->action) {
 	case SWAP:
 		nouveau_dri2_finish_swap(draw, frame, tv_sec, tv_usec, s);
+		break;
+
+	case WAIT:
+		DRI2WaitMSCComplete(s->client, draw, frame, tv_sec, tv_usec);
+		free(s);
 		break;
 	}
 }
@@ -349,6 +415,8 @@ nouveau_dri2_init(ScreenPtr pScreen)
 	dri2.DestroyBuffer = nouveau_dri2_destroy_buffer;
 	dri2.CopyRegion = nouveau_dri2_copy_region;
 	dri2.ScheduleSwap = nouveau_dri2_schedule_swap;
+	dri2.ScheduleWaitMSC = nouveau_dri2_schedule_wait;
+	dri2.GetMSC = nouveau_dri2_get_msc;
 
 	return DRI2ScreenInit(pScreen, &dri2);
 }
