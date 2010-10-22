@@ -224,6 +224,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 
 	if (can_exchange(draw, dst_pix, src_pix)) {
 		type = DRI2_EXCHANGE_COMPLETE;
+		DamageRegionAppend (draw, &reg);
 
 		if (DRI2CanFlip(draw)) {
 			type = DRI2_FLIP_COMPLETE;
@@ -235,6 +236,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		SWAP(s->dst->name, s->src->name);
 		SWAP(nouveau_pixmap(dst_pix)->bo, nouveau_pixmap(src_pix)->bo);
 
+		DamageRegionProcessPending(draw);
 	} else {
 		type = DRI2_BLIT_COMPLETE;
 		RegionTranslate(&reg, -draw->x, -draw->y);
