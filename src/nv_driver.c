@@ -774,11 +774,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			"Using \"Shadow Framebuffer\" - acceleration disabled\n");
 	}
 
-	if (!pNv->NoAccel && pNv->Architecture >= NV_ARCH_50) {
-		if (xf86ReturnOptValBool(pNv->Options, OPTION_WFB, FALSE))
-			pNv->wfb_enabled = TRUE;
-		else
-			pNv->wfb_enabled = FALSE; /* Default: use UTS/DFS all the time */
+	if (!pNv->NoAccel) {
+		if (pNv->Architecture >= NV_ARCH_50)
+			pNv->wfb_enabled = xf86ReturnOptValBool(
+				pNv->Options, OPTION_WFB, FALSE);
+
 		pNv->tiled_scanout = TRUE;
 	}
 
