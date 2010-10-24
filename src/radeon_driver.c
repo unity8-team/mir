@@ -4477,7 +4477,7 @@ static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     }
 
     PAL_SELECT(0);
-    INPAL_START(0);
+    OUTPAL_START(0);
     for (i = 0; i < 256; i++) {
 	OUTREG(RADEON_PALETTE_30_DATA, restore->palette[i]);
     }
