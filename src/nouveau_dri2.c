@@ -201,8 +201,8 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 	RegionRec reg;
 	int type, ret;
 
-	RegionInit(&reg, &(BoxRec){ 0, 0, draw->width, draw->height }, 0);
-	RegionTranslate(&reg, draw->x, draw->y);
+	REGION_INIT(0, &reg, (&(BoxRec){ 0, 0, draw->width, draw->height }), 0);
+	REGION_TRANSLATE(0, &reg, draw->x, draw->y);
 
 	/* Throttle on the previous frame before swapping */
 	nouveau_bo_map(dst_bo, NOUVEAU_BO_RD);
@@ -215,16 +215,16 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 			  NOUVEAU_BO_VRAM | NOUVEAU_BO_RD, 0, 0);
 
 		if (pNv->Architecture >= NV_ARCH_50)
-			NV50SyncToVBlank(dst_pix, RegionExtents(&reg));
+			NV50SyncToVBlank(dst_pix, REGION_EXTENTS(0, &reg));
 		else
-			NV11SyncToVBlank(dst_pix, RegionExtents(&reg));
+			NV11SyncToVBlank(dst_pix, REGION_EXTENTS(0, &reg));
 
 		FIRE_RING(chan);
 	}
 
 	if (can_exchange(draw, dst_pix, src_pix)) {
 		type = DRI2_EXCHANGE_COMPLETE;
-		DamageRegionAppend (draw, &reg);
+		DamageRegionAppend(draw, &reg);
 
 		if (DRI2CanFlip(draw)) {
 			type = DRI2_FLIP_COMPLETE;
@@ -239,7 +239,7 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		DamageRegionProcessPending(draw);
 	} else {
 		type = DRI2_BLIT_COMPLETE;
-		RegionTranslate(&reg, -draw->x, -draw->y);
+		REGION_TRANSLATE(0, &reg, -draw->x, -draw->y);
 		nouveau_dri2_copy_region(draw, &reg, s->dst, s->src);
 	}
 
