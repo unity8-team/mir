@@ -410,7 +410,7 @@ atombios_maybe_hdmi_mode(xf86OutputPtr output)
 {
 #ifndef EDID_COMPLETE_RAWDATA
     /* there's no getting this right unless we have complete EDID */
-    return ATOM_ENCODER_MODE_HDMI;
+    return ATOM_ENCODER_MODE_DVI;
 #else
     if (output && xf86MonitorIsHDMI(output->MonInfo))
 	return ATOM_ENCODER_MODE_HDMI;
