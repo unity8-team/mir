@@ -205,6 +205,7 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 		{ -1, -1, NULL }
 	};
 	struct nouveau_device *dev = NULL;
+	EntityInfoPtr pEnt = NULL;
 	ScrnInfoPtr pScrn = NULL;
 	drmVersion *version;
 	int chipset, ret;
@@ -279,6 +280,12 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	pScrn->EnterVT          = NVEnterVT;
 	pScrn->LeaveVT          = NVLeaveVT;
 	pScrn->FreeScreen       = NVFreeScreen;
+
+	xf86SetEntitySharable(entity_num);
+
+	pEnt = xf86GetEntityInfo(entity_num);
+	xf86SetEntityInstanceForScreen(pScrn, pEnt->index, xf86GetNumEntityInstances(pEnt->index) - 1);
+	free(pEnt);
 
 	return TRUE;
 }
@@ -628,10 +635,18 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	pNv->pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
 	if (pNv->pEnt->location.type != BUS_PCI)
 		return FALSE;
- 
+
+	if (xf86IsEntityShared(pScrn->entityList[0])) {
+		if(!xf86IsPrimInitDone(pScrn->entityList[0])) {
+			pNv->Primary = TRUE;
+			xf86SetPrimInitDone(pScrn->entityList[0]);
+		} else {
+			pNv->Secondary = TRUE;
+		}
+        }
+
 	/* Find the PCI info for this screen */
 	pNv->PciInfo = xf86GetPciInfoForEntity(pNv->pEnt->index);
-	pNv->Primary = xf86IsPrimaryPci(pNv->PciInfo);
 
 	/* Initialise the kernel module */
 	if (!NVPreInitDRM(pScrn))

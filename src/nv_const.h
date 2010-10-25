@@ -15,6 +15,7 @@ typedef enum {
     OPTION_VIDEO_KEY,
     OPTION_WFB,
     OPTION_GLX_VBLANK,
+    OPTION_ZAPHOD_HEADS,
 } NVOpts;
 
 
@@ -26,6 +27,7 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_VIDEO_KEY,		"VideoKey",	OPTV_INTEGER,	{0}, FALSE },
     { OPTION_WFB,		"WrappedFB",	OPTV_BOOLEAN,	{0}, FALSE },
     { OPTION_GLX_VBLANK,	"GLXVBlank",	OPTV_BOOLEAN,	{0}, FALSE },
+    { OPTION_ZAPHOD_HEADS,	"ZaphodHeads",	OPTV_STRING,	{0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
 };
 

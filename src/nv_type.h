@@ -33,6 +33,7 @@ typedef struct _NVRec {
     EntityInfoPtr       pEnt;
 	struct pci_device *PciInfo;
     Bool                Primary;
+    Bool		Secondary;
 
     /* Various pinned memory regions */
     struct nouveau_bo * scanout;

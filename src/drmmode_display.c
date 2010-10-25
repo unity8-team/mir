@@ -945,13 +945,48 @@ const char *output_names[] = { "None",
 };
 #define NUM_OUTPUT_NAMES (sizeof(output_names) / sizeof(output_names[0]))
 
+static Bool
+drmmode_zaphod_match(ScrnInfoPtr pScrn, const char *s, char *output_name)
+{
+    int i = 0;
+    char s1[20];
+
+    do {
+	switch(*s) {
+	case ',':
+	    s1[i] = '\0';
+	    i = 0;
+	    if (strcmp(s1, output_name) == 0)
+		return TRUE;
+	    break;
+	case ' ':
+	case '\t':
+	case '\n':
+	case '\r':
+	    break;
+	default:
+	    s1[i] = *s;
+	    i++;
+	    break;
+	}
+    } while(*s++);
+
+    s1[i] = '\0';
+    if (strcmp(s1, output_name) == 0)
+	return TRUE;
+
+    return FALSE;
+}
+
 static void
 drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
 	drmModeConnectorPtr koutput;
 	drmModeEncoderPtr kencoder;
 	drmmode_output_private_ptr drmmode_output;
+	const char *s;
 	char name[32];
 
 	koutput = drmModeGetConnector(drmmode->fd,
@@ -972,6 +1007,28 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		snprintf(name, 32, "%s-%d",
 			 output_names[koutput->connector_type],
 			 koutput->connector_type_id);
+
+	if (xf86IsEntityShared(pScrn->entityList[0])) {
+		s = xf86GetOptValString(pNv->Options, OPTION_ZAPHOD_HEADS);
+		if (s) {
+			if (!drmmode_zaphod_match(pScrn, s, name)) {
+				drmModeFreeEncoder(kencoder);
+				drmModeFreeConnector(koutput);
+				return;
+			}
+		} else {
+			if (pNv->Primary && (num != 0)) {
+				drmModeFreeEncoder(kencoder);
+				drmModeFreeConnector(koutput);
+				return;
+			} else
+			if (pNv->Secondary && (num != 1)) {
+				drmModeFreeEncoder(kencoder);
+				drmModeFreeConnector(koutput);
+				return;
+			}
+		}
+	}
 
 	output = xf86OutputCreate (pScrn, &drmmode_output_funcs, name);
 	if (!output) {
@@ -1003,8 +1060,6 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 
 	output->interlaceAllowed = true;
 	output->doubleScanAllowed = true;
-
-	return;
 }
 
 static Bool
@@ -1121,8 +1176,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 
 	xf86CrtcSetSizeRange(pScrn, 320, 200, drmmode->mode_res->max_width,
 			     drmmode->mode_res->max_height);
-	for (i = 0; i < drmmode->mode_res->count_crtcs; i++)
-		drmmode_crtc_init(pScrn, drmmode, i);
+	for (i = 0; i < drmmode->mode_res->count_crtcs; i++) {
+		if (!xf86IsEntityShared(pScrn->entityList[0] ||
+		     pScrn->confScreen->device->screen == i))
+			drmmode_crtc_init(pScrn, drmmode, i);
+	}
 
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		drmmode_output_init(pScrn, drmmode, i);
