@@ -239,6 +239,13 @@ nouveau_dri2_finish_swap(DrawablePtr draw, unsigned int frame,
 		DamageRegionProcessPending(draw);
 	} else {
 		type = DRI2_BLIT_COMPLETE;
+
+		/* Reference the front buffer to let throttling work
+		 * on occluded drawables. */
+		WAIT_RING(chan, 1);
+		OUT_RELOC(chan, dst_bo, 0,
+			  NOUVEAU_BO_VRAM | NOUVEAU_BO_RD, 0, 0);
+
 		REGION_TRANSLATE(0, &reg, -draw->x, -draw->y);
 		nouveau_dri2_copy_region(draw, &reg, s->dst, s->src);
 	}
