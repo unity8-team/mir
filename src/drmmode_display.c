@@ -1134,8 +1134,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	if (!info->r600_shadow_fb) {
-		radeon_set_pixmap_bo(screen->GetScreenPixmap(screen), info->front_bo);
-		screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
+		radeon_set_pixmap_bo(ppix, info->front_bo);
+		screen->ModifyPixmapHeader(ppix,
 					   width, height, -1, -1, pitch * cpp, NULL);
 	} else {
 		if (radeon_bo_map(info->front_bo, 1))
@@ -1145,7 +1145,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 			goto fail;
 		free(info->fb_shadow);
 		info->fb_shadow = fb_shadow;
-		screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
+		screen->ModifyPixmapHeader(ppix,
 					   width, height, -1, -1, pitch * cpp,
 					   info->fb_shadow);
 	}
