@@ -704,6 +704,8 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     if (ListAddDRI2ClientEvents(client, &wait_info->link)) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "add events to client private failed.\n");
+        free(wait_info);
+        wait_info = NULL;
         goto out_complete;
     }
 
@@ -825,7 +827,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     RADEONInfoPtr info = RADEONPTR(scrn);
     drmVBlank vbl;
     int ret, crtc= radeon_dri2_drawable_crtc(draw), flip = 0;
-    DRI2FrameEventPtr swap_info;
+    DRI2FrameEventPtr swap_info = NULL;
     enum DRI2FrameEventType swap_type = DRI2_SWAP;
     CARD64 current_msc;
     BoxRec box;
@@ -837,8 +839,6 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     divisor &= 0xffffffff;
     remainder &= 0xffffffff;
 
-    swap_info = calloc(1, sizeof(DRI2FrameEventRec));
-
     /* radeon_dri2_frame_event_handler will get called some unknown time in the
      * future with these buffers.  Take a reference to ensure that they won't
      * get destroyed before then. 
@@ -847,7 +847,11 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     radeon_dri2_ref_buffer(back);
 
     /* Drawable not displayed... just complete the swap */
-    if (crtc == -1 || !swap_info)
+    if (crtc == -1)
+        goto blit_fallback;
+
+    swap_info = calloc(1, sizeof(DRI2FrameEventRec));
+    if (!swap_info)
         goto blit_fallback;
 
     swap_info->drawable_id = draw->id;
@@ -860,6 +864,8 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     if (ListAddDRI2ClientEvents(client, &swap_info->link)) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "add events to client private failed.\n");
+        free(swap_info);
+        swap_info = NULL;
         goto blit_fallback;
     }
 
