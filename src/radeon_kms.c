@@ -1088,8 +1088,9 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;
     int screen_size;
-    int stride = pScrn->displayWidth * cpp;
+    int stride;
     int total_size_bytes = 0, remain_size_bytes;
+    uint32_t tiling_flags = 0;
 
     if (info->accel_state->exa != NULL) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map already initialized\n");
@@ -1101,7 +1102,13 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	    return FALSE;
     }
 
-    screen_size = RADEON_ALIGN(pScrn->virtualY, 16) * stride;
+    /* no tiled scanout on r6xx+ yet */
+    if (info->allowColorTiling) {
+	if (info->ChipFamily < CHIP_FAMILY_R600)
+	    tiling_flags |= RADEON_TILING_MACRO;
+    }
+    stride = RADEON_ALIGN(pScrn->displayWidth * cpp, drmmode_get_pitch_align(pScrn, cpp, tiling_flags));
+    screen_size = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags)) * stride;
     {
 	int cursor_size = 64 * 4 * 64;
 	int c;
@@ -1142,19 +1149,12 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     info->dri->textureSize = 0;
 
     if (info->front_bo == NULL) {
-	uint32_t tiling_flags = 0;
-
         info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size,
                                         0, RADEON_GEM_DOMAIN_VRAM, 0);
         if (info->r600_shadow_fb == TRUE) {
             if (radeon_bo_map(info->front_bo, 1)) {
                 ErrorF("Failed to map cursor buffer memory\n");
             }
-        }
-	/* no tiled scanout on r6xx+ yet */
-        if (info->allowColorTiling) {
-	    if (info->ChipFamily < CHIP_FAMILY_R600)
-		tiling_flags |= RADEON_TILING_MACRO;
         }
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	switch (cpp) {

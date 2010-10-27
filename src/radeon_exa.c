@@ -432,7 +432,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     int padded_width;
     uint32_t size;
     uint32_t tiling = 0;
-    int pixmap_align;
+    int cpp = bitsPerPixel / 8;
 
 #ifdef EXA_MIXED_PIXMAPS
     if (info->accel_state->exa->flags & EXA_MIXED_PIXMAPS) {
@@ -461,31 +461,11 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
         tiling &= ~RADEON_TILING_MACRO;
     }
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	int bpe = bitsPerPixel / 8;
-
-	if (tiling & RADEON_TILING_MACRO) {
-	    height = RADEON_ALIGN(height, info->num_channels * 8);
-	    pixmap_align = MAX(info->num_banks,
-			       (((info->group_bytes / 8) / bpe) * info->num_banks)) * 8 * bpe;
-	} else if (tiling & RADEON_TILING_MICRO) {
-	    height = RADEON_ALIGN(height, 8);
-	    pixmap_align = MAX(8, (info->group_bytes / (8 * bpe))) * bpe;
-	} else {
-	    height = RADEON_ALIGN(height, 8);
-	    pixmap_align = 256; /* 8 * bpe */
-	}
-    } else {
-	if (tiling) {
-	    height = RADEON_ALIGN(height, 16);
-	    pixmap_align = 256;
-	} else
-	    pixmap_align = 64;
-    }
-
+    height = RADEON_ALIGN(height, drmmode_get_height_align(pScrn, tiling));
     padded_width = ((width * bitsPerPixel + FB_MASK) >> FB_SHIFT) * sizeof(FbBits);
-    padded_width = RADEON_ALIGN(padded_width, pixmap_align);
+    padded_width = RADEON_ALIGN(padded_width, drmmode_get_pitch_align(pScrn, cpp, tiling));
     size = height * padded_width;
+    size = RADEON_ALIGN(size, RADEON_GPU_PAGE_SIZE);
 
     new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
     if (!new_priv)

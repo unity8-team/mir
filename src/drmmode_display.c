@@ -1055,6 +1055,49 @@ drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 	}
 }
 
+int drmmode_get_height_align(ScrnInfoPtr scrn, uint32_t tiling)
+{
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	int height_align = 1;
+
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		if (tiling & RADEON_TILING_MACRO)
+			height_align =  info->num_channels * 8;
+		else if (tiling & RADEON_TILING_MICRO)
+			height_align = 8;
+		else
+			height_align = 8;
+	} else {
+		if (tiling)
+			height_align = 16;
+		else
+			height_align = 1;
+	}
+	return height_align;
+}
+
+int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling)
+{
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	int pitch_align = 1;
+
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		if (tiling & RADEON_TILING_MACRO)
+		pitch_align = MAX(info->num_banks,
+				  (((info->group_bytes / 8) / bpe) * info->num_banks)) * 8 * bpe;
+		else if (tiling & RADEON_TILING_MICRO)
+			pitch_align = MAX(8, (info->group_bytes / (8 * bpe))) * bpe;
+		else
+			pitch_align = 256; /* 8 * bpe */
+	} else {
+		if (tiling)
+			pitch_align = 256;
+		else
+			pitch_align = 64;
+	}
+	return pitch_align;
+}
+
 static Bool
 drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 {
@@ -1084,10 +1127,17 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (front_bo)
 		radeon_bo_wait(front_bo);
 
-	pitch = RADEON_ALIGN(width, 64);
-	height = RADEON_ALIGN(height, 16);
+	/* no tiled scanout on r6xx+ yet */
+	if (info->allowColorTiling) {
+		if (info->ChipFamily < CHIP_FAMILY_R600)
+			tiling_flags |= RADEON_TILING_MACRO;
+	}
+
+	pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(scrn, cpp, tiling_flags) / cpp);
+	height = RADEON_ALIGN(height, drmmode_get_height_align(scrn, tiling_flags));
 
 	screen_size = pitch * height * cpp;
+	screen_size = RADEON_ALIGN(screen_size, RADEON_GPU_PAGE_SIZE);
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "Allocate new frame buffer %dx%d stride %d\n",
@@ -1107,11 +1157,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (!info->front_bo)
 		goto fail;
 
-	/* no tiled scanout on r6xx+ yet */
-	if (info->allowColorTiling) {
-		if (info->ChipFamily < CHIP_FAMILY_R600)
-			tiling_flags |= RADEON_TILING_MACRO;
-	}
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	switch (cpp) {
 	case 4:
