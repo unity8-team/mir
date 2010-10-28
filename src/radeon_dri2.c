@@ -1009,6 +1009,7 @@ Bool
 radeon_dri2_screen_init(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     DRI2InfoRec dri2_info = { 0 };
 #ifdef USE_DRI2_SCHEDULING
@@ -1057,19 +1058,22 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for sync extension\n");
     }
 
+    if (pRADEONEnt->dri2_info_cnt == 0) {
 #if HAS_DIXREGISTERPRIVATEKEY
-    if (!dixRegisterPrivateKey(DRI2ClientEventsPrivateKey, PRIVATE_CLIENT, sizeof(DRI2ClientEventsRec))) {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 registering private key to client failed\n");
-        return FALSE;
-    }
+	if (!dixRegisterPrivateKey(DRI2ClientEventsPrivateKey, PRIVATE_CLIENT, sizeof(DRI2ClientEventsRec))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 registering private key to client failed\n");
+	    return FALSE;
+	}
 #else
-    if (!dixRequestPrivate(DRI2ClientEventsPrivateKey, sizeof(DRI2ClientEventsRec))) {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requesting private key to client failed\n");
-        return FALSE;
-    }
+	if (!dixRequestPrivate(DRI2ClientEventsPrivateKey, sizeof(DRI2ClientEventsRec))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requesting private key to client failed\n");
+	    return FALSE;
+	}
 #endif
 
-    AddCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
+	AddCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
+    }
+    pRADEONEnt->dri2_info_cnt++;
 #endif
 
     info->dri2.enabled = DRI2ScreenInit(pScreen, &dri2_info);
@@ -1080,9 +1084,11 @@ void radeon_dri2_close_screen(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
 #ifdef USE_DRI2_SCHEDULING
-    DeleteCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
+    if (--pRADEONEnt->dri2_info_cnt == 0)
+    	DeleteCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
 #endif
     DRI2CloseScreen(pScreen);
     drmFree(info->dri2.device_name);
