@@ -648,6 +648,7 @@ typedef struct
     void              *FB;              /* Map of FB region                  */
     int               FB_cnt;           /* Map of FB region refcount         */
     int fd;                             /* for sharing across zaphod heads   */
+    Bool              fd_wakeup_registered; /* fd has already been registered for wakeup handling */
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */

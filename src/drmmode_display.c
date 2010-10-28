@@ -1250,6 +1250,7 @@ drm_wakeup_handler(pointer data, int err, pointer p)
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 {
+	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 	xf86CrtcConfigPtr xf86_config;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	int i;
@@ -1280,10 +1281,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
 	drmmode->event_context.vblank_handler = drmmode_vblank_handler;
 	drmmode->event_context.page_flip_handler = NULL;
-	if (info->dri->pKernelDRMVersion->version_minor >= 4) {
+	if (!pRADEONEnt->fd_wakeup_registered && info->dri->pKernelDRMVersion->version_minor >= 4) {
 		AddGeneralSocket(drmmode->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
+		pRADEONEnt->fd_wakeup_registered = TRUE;
 	}
 
 	return TRUE;
