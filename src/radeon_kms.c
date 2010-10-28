@@ -528,6 +528,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     DevUnion* pPriv;
     Gamma  zeros = { 0.0, 0.0, 0.0 };
     Bool colorTilingDefault;
+    uint32_t tiling = 0;
+    int cpp;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONPreInit_KMS\n");
@@ -671,7 +673,16 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     else
     	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"EXA: Driver will not allow EXA pixmaps in VRAM\n");
-    RADEONSetPitch(pScrn);
+
+    /* no tiled scanout on r6xx+ yet */
+    if (info->allowColorTiling) {
+	if (info->ChipFamily < CHIP_FAMILY_R600)
+	    tiling |= RADEON_TILING_MACRO;
+    }
+    cpp = pScrn->bitsPerPixel / 8;
+    pScrn->displayWidth =
+	RADEON_ALIGN(pScrn->virtualX * cpp, drmmode_get_pitch_align(pScrn, cpp, tiling)) / cpp;
+    info->CurrentLayout.displayWidth = pScrn->displayWidth;
 
     /* Set display resolution */
     xf86SetDpi(pScrn, 0, 0);
@@ -1088,7 +1099,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;
     int screen_size;
-    int stride;
+    int pitch;
     int total_size_bytes = 0, remain_size_bytes;
     uint32_t tiling_flags = 0;
 
@@ -1107,8 +1118,8 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	if (info->ChipFamily < CHIP_FAMILY_R600)
 	    tiling_flags |= RADEON_TILING_MACRO;
     }
-    stride = RADEON_ALIGN(pScrn->displayWidth * cpp, drmmode_get_pitch_align(pScrn, cpp, tiling_flags));
-    screen_size = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags)) * stride;
+    pitch = RADEON_ALIGN(pScrn->displayWidth * cpp, drmmode_get_pitch_align(pScrn, cpp, tiling_flags));
+    screen_size = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags)) * pitch;
     {
 	int cursor_size = 64 * 4 * 64;
 	int c;
@@ -1168,7 +1179,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 #endif
 	if (tiling_flags) {
             radeon_bo_set_tiling(info->front_bo,
-				 tiling_flags | RADEON_TILING_SURFACE, stride);
+				 tiling_flags | RADEON_TILING_SURFACE, pitch);
 	}
     }
 

@@ -426,10 +426,10 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	int ret;
 	unsigned long rotate_pitch;
 
-	width = RADEON_ALIGN(width, 64);
-	rotate_pitch = width * drmmode->cpp;
-
-	size = rotate_pitch * height;
+	rotate_pitch =
+		RADEON_ALIGN(width * drmmode->cpp, drmmode_get_pitch_align(crtc->scrn, drmmode->cpp, 0));
+	height = RADEON_ALIGN(height, drmmode_get_height_align(crtc->scrn, 0));
+	size = RADEON_ALIGN(rotate_pitch * height, RADEON_GPU_PAGE_SIZE);
 
 	rotate_bo = radeon_bo_open(drmmode->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_VRAM, 0);
 	if (rotate_bo == NULL)
@@ -1133,15 +1133,13 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
-	pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(scrn, cpp, tiling_flags) / cpp);
+	pitch = RADEON_ALIGN(width * cpp, drmmode_get_pitch_align(scrn, cpp, tiling_flags));
 	height = RADEON_ALIGN(height, drmmode_get_height_align(scrn, tiling_flags));
-
-	screen_size = pitch * height * cpp;
-	screen_size = RADEON_ALIGN(screen_size, RADEON_GPU_PAGE_SIZE);
+	screen_size = RADEON_ALIGN(pitch * height, RADEON_GPU_PAGE_SIZE);
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "Allocate new frame buffer %dx%d stride %d\n",
-		   width, height, pitch);
+		   width, height, pitch / cpp);
 
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
@@ -1151,7 +1149,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
-	scrn->displayWidth = pitch;
+	scrn->displayWidth = pitch / cpp;
 
 	info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size, 0, RADEON_GEM_DOMAIN_VRAM, 0);
 	if (!info->front_bo)
@@ -1169,10 +1167,10 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 #endif
 	if (tiling_flags)
 	    radeon_bo_set_tiling(info->front_bo,
-				 tiling_flags | RADEON_TILING_SURFACE, pitch * cpp);
+				 tiling_flags | RADEON_TILING_SURFACE, pitch);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
-			   scrn->bitsPerPixel, pitch * cpp,
+			   scrn->bitsPerPixel, pitch,
 			   info->front_bo->handle,
 			   &drmmode->fb_id);
 	if (ret)
@@ -1181,7 +1179,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (!info->r600_shadow_fb) {
 		radeon_set_pixmap_bo(ppix, info->front_bo);
 		screen->ModifyPixmapHeader(ppix,
-					   width, height, -1, -1, pitch * cpp, NULL);
+					   width, height, -1, -1, pitch, NULL);
 	} else {
 		if (radeon_bo_map(info->front_bo, 1))
 			goto fail;
@@ -1191,7 +1189,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		free(info->fb_shadow);
 		info->fb_shadow = fb_shadow;
 		screen->ModifyPixmapHeader(ppix,
-					   width, height, -1, -1, pitch * cpp,
+					   width, height, -1, -1, pitch,
 					   info->fb_shadow);
 	}
 #if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,9,99,1,0)
