@@ -263,10 +263,21 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int fb_id;
 	drmModeModeInfo kmode;
 	int pitch = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
+	uint32_t tiling_flags = 0;
+	int height;
+
+	/* no tiled scanout on r6xx+ yet */
+	if (info->allowColorTiling) {
+		if (info->ChipFamily < CHIP_FAMILY_R600)
+			tiling_flags |= RADEON_TILING_MACRO;
+	}
+
+	pitch = RADEON_ALIGN(pitch, drmmode_get_pitch_align(pScrn, info->CurrentLayout.pixel_bytes, tiling_flags));
+	height = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags));
 
 	if (drmmode->fb_id == 0) {
 		ret = drmModeAddFB(drmmode->fd,
-				   pScrn->virtualX, pScrn->virtualY,
+				   pScrn->virtualX, height,
                                    pScrn->depth, pScrn->bitsPerPixel,
 				   pitch,
 				   info->front_bo->handle,
