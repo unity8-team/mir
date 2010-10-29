@@ -336,6 +336,7 @@ typedef struct intel_screen_private {
 
 	Bool tiling;
 	Bool swapbuffers_wait;
+	Bool has_relaxed_fencing;
 
 	int Chipset;
 	unsigned long LinearAddr;

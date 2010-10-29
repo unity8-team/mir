@@ -94,7 +94,7 @@ unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long si
 	unsigned long i;
 	unsigned long start;
 
-	if (INTEL_INFO(intel)->gen >= 40) {
+	if (INTEL_INFO(intel)->gen >= 40 || intel->has_relaxed_fencing) {
 		/* The 965 can have fences at any page boundary. */
 		return ALIGN(size, GTT_PAGE_SIZE);
 	} else {
@@ -294,11 +294,17 @@ void intel_set_gem_max_sizes(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_i915_gem_get_aperture aperture;
+	drm_i915_getparam_t gp;
+	int ret;
 
 	aperture.aper_available_size = 0;
-	ioctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+	drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
 
 	intel_set_max_bo_size(intel, &aperture);
 	intel_set_max_gtt_map_size(intel, &aperture);
 	intel_set_max_tiling_size(intel, &aperture);
+
+	gp.param = I915_PARAM_HAS_RELAXED_FENCING;
+	ret = drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp);
+	intel->has_relaxed_fencing = ret == 0;
 }
