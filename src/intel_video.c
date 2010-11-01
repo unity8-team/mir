@@ -364,7 +364,6 @@ void I830InitVideo(ScreenPtr screen)
 	 */
 	if (scrn->bitsPerPixel >= 16 &&
 	    INTEL_INFO(intel)->gen >= 30 &&
-	    INTEL_INFO(intel)->gen < 60 &&
 	    !intel->use_shadow) {
 		texturedAdaptor = I830SetupImageVideoTextured(screen);
 		if (texturedAdaptor != NULL) {
@@ -1583,7 +1582,12 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 		intel_wait_for_scanline(scrn, pixmap, crtc, clipBoxes);
 	}
 
-	if (INTEL_INFO(intel)->gen >= 40) {
+	if (INTEL_INFO(intel)->gen >= 60) {
+		Gen6DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
+					 width, height, dstPitch, dstPitch2,
+					 src_w, src_h,
+					 drw_w, drw_h, pixmap);
+	} else if (INTEL_INFO(intel)->gen >= 40) {
 		I965DisplayVideoTextured(scrn, adaptor_priv, id, clipBoxes,
 					 width, height, dstPitch, dstPitch2,
 					 src_w, src_h,
