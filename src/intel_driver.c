@@ -575,8 +575,6 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	}
 
 	intel->use_shadow = FALSE;
-	if (IS_GEN6(intel))
-		intel->use_shadow = TRUE;
 
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
 		intel->use_shadow =

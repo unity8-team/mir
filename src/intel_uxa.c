@@ -208,16 +208,9 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 }
 
 static Bool
-i830_uxa_check_solid(DrawablePtr drawable, int alu, Pixel planemask)
+intel_uxa_check_solid(DrawablePtr drawable, int alu, Pixel planemask)
 {
 	ScrnInfoPtr scrn = xf86Screens[drawable->pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (IS_GEN6(intel)) {
-		intel_debug_fallback(scrn,
-				     "Sandybridge BLT engine not supported\n");
-		return FALSE;
-	}
 
 	if (!UXA_PM_IS_SOLID(drawable, planemask)) {
 		intel_debug_fallback(scrn, "planemask is not solid\n");
@@ -240,7 +233,7 @@ i830_uxa_check_solid(DrawablePtr drawable, int alu, Pixel planemask)
  * Sets up hardware state for a series of solid fills.
  */
 static Bool
-i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
+intel_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -273,7 +266,7 @@ i830_uxa_prepare_solid(PixmapPtr pixmap, int alu, Pixel planemask, Pixel fg)
 	return TRUE;
 }
 
-static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
+static void intel_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -295,7 +288,10 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	pitch = intel_pixmap_pitch(pixmap);
 
 	{
-		BEGIN_BATCH(6);
+		if (IS_GEN6(intel))
+			BEGIN_BATCH_BLT(6);
+		else
+			BEGIN_BATCH(6);
 
 		cmd = XY_COLOR_BLT_CMD;
 
@@ -323,7 +319,7 @@ static void i830_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	ironlake_blt_workaround(scrn);
 }
 
-static void i830_uxa_done_solid(PixmapPtr pixmap)
+static void intel_uxa_done_solid(PixmapPtr pixmap)
 {
 	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
 
@@ -335,17 +331,10 @@ static void i830_uxa_done_solid(PixmapPtr pixmap)
  *   - support planemask using FULL_BLT_CMD?
  */
 static Bool
-i830_uxa_check_copy(PixmapPtr source, PixmapPtr dest,
+intel_uxa_check_copy(PixmapPtr source, PixmapPtr dest,
 		    int alu, Pixel planemask)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (IS_GEN6(intel)) {
-		intel_debug_fallback(scrn,
-				     "Sandybridge BLT engine not supported\n");
-		return FALSE;
-	}
 
 	if (!UXA_PM_IS_SOLID(&source->drawable, planemask)) {
 		intel_debug_fallback(scrn, "planemask is not solid");
@@ -374,7 +363,7 @@ i830_uxa_check_copy(PixmapPtr source, PixmapPtr dest,
 }
 
 static Bool
-i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
+intel_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 		      int ydir, int alu, Pixel planemask)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
@@ -406,7 +395,7 @@ i830_uxa_prepare_copy(PixmapPtr source, PixmapPtr dest, int xdir,
 }
 
 static void
-i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
+intel_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	      int dst_y1, int w, int h)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
@@ -449,7 +438,10 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	src_pitch = intel_pixmap_pitch(intel->render_source);
 
 	{
-		BEGIN_BATCH(8);
+		if (IS_GEN6(intel))
+			BEGIN_BATCH_BLT(8);
+		else
+			BEGIN_BATCH(8);
 
 		cmd = XY_SRC_COPY_BLT_CMD;
 
@@ -492,7 +484,7 @@ i830_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	ironlake_blt_workaround(scrn);
 }
 
-static void i830_uxa_done_copy(PixmapPtr dest)
+static void intel_uxa_done_copy(PixmapPtr dest)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 
@@ -1187,16 +1179,16 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->vertex_bo = NULL;
 
 	/* Solid fill */
-	intel->uxa_driver->check_solid = i830_uxa_check_solid;
-	intel->uxa_driver->prepare_solid = i830_uxa_prepare_solid;
-	intel->uxa_driver->solid = i830_uxa_solid;
-	intel->uxa_driver->done_solid = i830_uxa_done_solid;
+	intel->uxa_driver->check_solid = intel_uxa_check_solid;
+	intel->uxa_driver->prepare_solid = intel_uxa_prepare_solid;
+	intel->uxa_driver->solid = intel_uxa_solid;
+	intel->uxa_driver->done_solid = intel_uxa_done_solid;
 
 	/* Copy */
-	intel->uxa_driver->check_copy = i830_uxa_check_copy;
-	intel->uxa_driver->prepare_copy = i830_uxa_prepare_copy;
-	intel->uxa_driver->copy = i830_uxa_copy;
-	intel->uxa_driver->done_copy = i830_uxa_done_copy;
+	intel->uxa_driver->check_copy = intel_uxa_check_copy;
+	intel->uxa_driver->prepare_copy = intel_uxa_prepare_copy;
+	intel->uxa_driver->copy = intel_uxa_copy;
+	intel->uxa_driver->done_copy = intel_uxa_done_copy;
 
 	/* Composite */
 	if (IS_GEN2(intel)) {
