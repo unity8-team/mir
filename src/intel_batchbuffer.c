@@ -38,6 +38,7 @@
 #include "intel.h"
 #include "i830_reg.h"
 #include "i915_drm.h"
+#include "i965_reg.h"
 
 #define DUMP_BATCHBUFFERS NULL /* "/tmp/i915-batchbuffers.dump" */
 
@@ -146,14 +147,26 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 
 	assert (!intel->in_batch_atomic);
 
-	/* Big hammer, look to the pipelined flushes in future. */
-	flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-	if (INTEL_INFO(intel)->gen >= 40)
+	if ((INTEL_INFO(intel)->gen >= 60)) {
+	    BEGIN_BATCH(4);
+	    OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2)); /* Mesa does so */ 
+	    OUT_BATCH(BRW_PIPE_CONTROL_IS_FLUSH |
+		    BRW_PIPE_CONTROL_WC_FLUSH |
+		    BRW_PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+		    BRW_PIPE_CONTROL_NOWRITE);
+	    OUT_BATCH(0); /* write address */
+	    OUT_BATCH(0); /* write data */
+	    ADVANCE_BATCH();
+	} else {
+	    /* Big hammer, look to the pipelined flushes in future. */
+	    flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+	    if (INTEL_INFO(intel)->gen >= 40)
 		flags = 0;
 
-	BEGIN_BATCH(1);
-	OUT_BATCH(MI_FLUSH | flags);
-	ADVANCE_BATCH();
+	    BEGIN_BATCH(1);
+	    OUT_BATCH(MI_FLUSH | flags);
+	    ADVANCE_BATCH();
+	}
 
 	intel_batch_do_flush(scrn);
 }

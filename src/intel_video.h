@@ -81,6 +81,13 @@ void I965DisplayVideoTextured(ScrnInfoPtr scrn,
 			      short src_w, short src_h,
 			      short drw_w, short drw_h, PixmapPtr pixmap);
 
+void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
+			      intel_adaptor_private *adaptor_priv,
+			      int id, RegionPtr dstRegion, short width,
+			      short height, int video_pitch, int video_pitch2,
+			      short src_w, short src_h,
+			      short drw_w, short drw_h, PixmapPtr pixmap);
+
 void i965_free_video(ScrnInfoPtr scrn);
 
 int is_planar_fourcc(int id);

@@ -378,6 +378,10 @@ typedef struct intel_screen_private {
 		drm_intel_bo *gen4_cc_vp_bo;
 		drm_intel_bo *gen4_sampler_bo;
 		drm_intel_bo *gen4_sip_kernel_bo;
+		drm_intel_bo *wm_prog_packed_bo;
+		drm_intel_bo *wm_prog_planar_bo;
+		drm_intel_bo *gen6_blend_bo;
+		drm_intel_bo *gen6_depth_stencil_bo;
 	} video;
 
 	/* Render accel state */
