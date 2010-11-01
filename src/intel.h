@@ -289,6 +289,10 @@ typedef struct intel_screen_private {
 	unsigned char *MMIOBase;
 	int cpp;
 
+#define RENDER_BATCH			I915_EXEC_RENDER
+#define BLT_BATCH			I915_EXEC_BLT
+	unsigned int current_batch;
+
 	unsigned int bufferOffset;	/* for I830SelectBuffer */
 
 	/* These are set in PreInit and never changed. */
