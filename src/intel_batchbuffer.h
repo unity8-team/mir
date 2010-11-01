@@ -64,8 +64,11 @@ static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)
 
 	assert(!intel->in_batch_atomic);
 
+	if (intel->current_batch != RENDER_BATCH)
+		intel_batch_submit(scrn, FALSE);
+
 	intel_batch_require_space(scrn, intel, sz * 4);
-	intel->current_batch = RENDER_BATCH;				\
+	intel->current_batch = RENDER_BATCH;
 
 	intel->in_batch_atomic = TRUE;
 	intel->batch_atomic_limit = intel->batch_used + sz;
