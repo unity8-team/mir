@@ -1578,7 +1578,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 			return BadAlloc;
 	}
 
-	if (crtc && adaptor_priv->SyncToVblank != 0) {
+	if (crtc && adaptor_priv->SyncToVblank != 0 && INTEL_INFO(intel)->gen < 60) {
 		intel_wait_for_scanline(scrn, pixmap, crtc, clipBoxes);
 	}
 
