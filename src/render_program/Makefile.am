@@ -63,15 +63,33 @@ INTEL_G4B_GEN5 = 				\
 
 INTEL_G6A =				\
 	exa_wm_src_affine.g6a 		\
+	exa_wm_src_projective.g6a	\
 	exa_wm_src_sample_argb.g6a 	\
 	exa_wm_src_sample_planar.g6a 	\
+	exa_wm_src_sample_a.g6a		\
+	exa_wm_mask_affine.g6a		\
+	exa_wm_mask_projective.g6a	\
+	exa_wm_mask_sample_argb.g6a	\
+	exa_wm_mask_sample_a.g6a	\
+	exa_wm_ca.g6a			\
+	exa_wm_ca_srcalpha.g6a		\
+	exa_wm_noca.g6a			\
 	exa_wm_write.g6a 		\
 	exa_wm_yuv_rgb.g6a
 
 INTEL_G6B =				\
 	exa_wm_src_affine.g6b 		\
+	exa_wm_src_projective.g6b	\
 	exa_wm_src_sample_argb.g6b 	\
 	exa_wm_src_sample_planar.g6b 	\
+	exa_wm_src_sample_a.g6b		\
+	exa_wm_mask_affine.g6b		\
+	exa_wm_mask_projective.g6b	\
+	exa_wm_mask_sample_argb.g6b	\
+	exa_wm_mask_sample_a.g6b	\
+	exa_wm_ca.g6b			\
+	exa_wm_ca_srcalpha.g6b		\
+	exa_wm_noca.g6b			\
 	exa_wm_write.g6b 		\
 	exa_wm_yuv_rgb.g6b
 
