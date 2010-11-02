@@ -619,6 +619,8 @@ typedef struct brw_surface_state_padded {
 	char pad[32 - sizeof(struct brw_surface_state)];
 } brw_surface_state_padded;
 
+#define PS_BINDING_TABLE_OFFSET	(3 * sizeof(struct brw_surface_state_padded))
+
 struct gen4_cc_unit_state {
 	/* Index by [src_blend][dst_blend] */
 	brw_cc_unit_state_padded cc_state[BRW_BLENDFACTOR_COUNT]
@@ -629,7 +631,7 @@ typedef float gen4_vertex_buffer[VERTEX_BUFFER_SIZE];
 
 typedef struct gen4_composite_op {
 	int op;
-	drm_intel_bo *binding_table_bo;
+	drm_intel_bo *surface_state_binding_table_bo;
 	sampler_state_filter_t src_filter;
 	sampler_state_filter_t mask_filter;
 	sampler_state_extend_t src_extend;
@@ -1158,7 +1160,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	int urb_sf_start, urb_sf_size;
 	int urb_cs_start, urb_cs_size;
 	uint32_t src_blend, dst_blend;
-	dri_bo *binding_table_bo = composite_op->binding_table_bo;
+	dri_bo *surface_state_binding_table_bo = composite_op->surface_state_binding_table_bo;
 
 	intel->needs_render_state_emit = FALSE;
 
@@ -1216,7 +1218,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		if (IS_GEN5(intel)) {
 			OUT_BATCH(BRW_STATE_BASE_ADDRESS | 6);
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
-			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Surface state base address */
+			OUT_RELOC(surface_state_binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, BASE_ADDRESS_MODIFY); /* Surface state base address */
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* media base addr, don't care */
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Instruction base address */
 			/* general state max addr, disabled */
@@ -1228,7 +1230,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		} else {
 			OUT_BATCH(BRW_STATE_BASE_ADDRESS | 4);
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
-			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Surface state base address */
+			OUT_RELOC(surface_state_binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, BASE_ADDRESS_MODIFY); /* Surface state base address */
 			OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* media base addr, don't care */
 			/* general state max addr, disabled */
 			OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
@@ -1271,7 +1273,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		OUT_BATCH(0);	/* clip */
 		OUT_BATCH(0);	/* sf */
 		/* Only the PS uses the binding table */
-		OUT_RELOC(binding_table_bo, I915_GEM_DOMAIN_SAMPLER, 0, 0);
+		OUT_BATCH(PS_BINDING_TABLE_OFFSET);
 
 		/* The drawing rectangle clipping is always on.  Set it to values that
 		 * shouldn't do any clipping.
@@ -1474,7 +1476,7 @@ static Bool i965_composite_check_aperture(ScrnInfoPtr scrn)
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	drm_intel_bo *bo_table[] = {
 		intel->batch_bo,
-		composite_op->binding_table_bo,
+		composite_op->surface_state_binding_table_bo,
 		render_state->vertex_buffer_bo,
 		render_state->vs_state_bo,
 		render_state->sf_state_bo,
@@ -1502,7 +1504,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	uint32_t *binding_table;
-	drm_intel_bo *binding_table_bo, *surface_state_bo;
+	drm_intel_bo *surface_state_binding_table_bo;
 
 	composite_op->src_filter =
 	    sampler_state_filter_from_picture(source_picture->filter);
@@ -1562,65 +1564,36 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 
 
 	/* Set up the surface states. */
-	surface_state_bo = dri_bo_alloc(intel->bufmgr, "surface_state",
-					3 * sizeof(brw_surface_state_padded),
+	surface_state_binding_table_bo = dri_bo_alloc(intel->bufmgr, "surface_state",
+					3 * (sizeof(struct brw_surface_state_padded) + sizeof(uint32_t)),
 					4096);
-	if (dri_bo_map(surface_state_bo, 1) != 0) {
-		dri_bo_unreference(surface_state_bo);
+	if (dri_bo_map(surface_state_binding_table_bo, 1) != 0) {
+		dri_bo_unreference(surface_state_binding_table_bo);
 		return FALSE;
 	}
 	/* Set up the state buffer for the destination surface */
-	i965_set_picture_surface_state(intel, surface_state_bo, 0,
+	i965_set_picture_surface_state(intel, surface_state_binding_table_bo, 0,
 				       dest_picture, dest, TRUE);
 	/* Set up the source surface state buffer */
-	i965_set_picture_surface_state(intel, surface_state_bo, 1,
+	i965_set_picture_surface_state(intel, surface_state_binding_table_bo, 1,
 				       source_picture, source, FALSE);
 	if (mask) {
 		/* Set up the mask surface state buffer */
-		i965_set_picture_surface_state(intel, surface_state_bo, 2,
+		i965_set_picture_surface_state(intel, surface_state_binding_table_bo, 2,
 					       mask_picture, mask, FALSE);
 	}
-	dri_bo_unmap(surface_state_bo);
 
 	/* Set up the binding table of surface indices to surface state. */
-	binding_table_bo = dri_bo_alloc(intel->bufmgr, "binding_table",
-					3 * sizeof(uint32_t), 4096);
-	if (dri_bo_map(binding_table_bo, 1) != 0) {
-		dri_bo_unreference(binding_table_bo);
-		dri_bo_unreference(surface_state_bo);
-		return FALSE;
-	}
-
-	binding_table = binding_table_bo->virtual;
-	binding_table[0] = intel_emit_reloc(binding_table_bo,
-					    0 * sizeof(uint32_t),
-					    surface_state_bo,
-					    0 *
-					    sizeof(brw_surface_state_padded),
-					    I915_GEM_DOMAIN_INSTRUCTION, 0);
-
-	binding_table[1] = intel_emit_reloc(binding_table_bo,
-					    1 * sizeof(uint32_t),
-					    surface_state_bo,
-					    1 *
-					    sizeof(brw_surface_state_padded),
-					    I915_GEM_DOMAIN_INSTRUCTION, 0);
+	binding_table = (uint32_t *)((char *)surface_state_binding_table_bo->virtual + PS_BINDING_TABLE_OFFSET);
+	binding_table[0] = 0;
+	binding_table[1] = sizeof(struct brw_surface_state_padded);
 
 	if (mask) {
-		binding_table[2] = intel_emit_reloc(binding_table_bo,
-						    2 * sizeof(uint32_t),
-						    surface_state_bo,
-						    2 *
-						    sizeof
-						    (brw_surface_state_padded),
-						    I915_GEM_DOMAIN_INSTRUCTION,
-						    0);
+		binding_table[2] = 2 * sizeof(struct brw_surface_state_padded);
 	} else {
 		binding_table[2] = 0;
 	}
-	dri_bo_unmap(binding_table_bo);
-	/* All refs to surface_state are now contained in binding_table_bo. */
-	drm_intel_bo_unreference(surface_state_bo);
+	dri_bo_unmap(surface_state_binding_table_bo);
 
 	composite_op->op = op;
 	intel->render_source_picture = source_picture;
@@ -1629,8 +1602,8 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	intel->render_source = source;
 	intel->render_mask = mask;
 	intel->render_dest = dest;
-	drm_intel_bo_unreference(composite_op->binding_table_bo);
-	composite_op->binding_table_bo = binding_table_bo;
+	drm_intel_bo_unreference(composite_op->surface_state_binding_table_bo);
+	composite_op->surface_state_binding_table_bo = surface_state_binding_table_bo;
 
 	intel->scale_units[0][0] = source->drawable.width;
 	intel->scale_units[0][1] = source->drawable.height;
@@ -2038,7 +2011,7 @@ void gen4_render_state_cleanup(ScrnInfoPtr scrn)
 	int i, j, k, l, m;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 
-	drm_intel_bo_unreference(composite_op->binding_table_bo);
+	drm_intel_bo_unreference(composite_op->surface_state_binding_table_bo);
 	drm_intel_bo_unreference(render_state->vertex_buffer_bo);
 
 	drm_intel_bo_unreference(render_state->vs_state_bo);
