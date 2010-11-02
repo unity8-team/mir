@@ -688,9 +688,6 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
 
-	if (scrn->vtSema == TRUE)
-		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
-
 	intel_uxa_block_handler(intel);
 	intel_video_block_handler(intel);
 }
