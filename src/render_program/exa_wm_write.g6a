@@ -36,6 +36,7 @@ define(`slot_b_00',     `m6')
 define(`slot_b_01',     `m7')
 define(`slot_a_00',     `m8')
 define(`slot_a_01',     `m9')
+define(`data_port_msg_2_ind',	`2')
 
 mov (8) slot_r_00<1>F     src_sample_r_01<8,8,1>F { align1 };
 mov (8) slot_r_01<1>F     src_sample_r_23<8,8,1>F { align1 };
@@ -49,22 +50,19 @@ mov (8) slot_b_01<1>F     src_sample_b_23<8,8,1>F { align1 };
 mov (8) slot_a_00<1>F     src_sample_a_01<8,8,1>F { align1 };
 mov (8) slot_a_01<1>F     src_sample_a_23<8,8,1>F { align1 };
 
-/* pass payload in m0-m1 */
-mov (8) data_port_msg_0<1>UD    g0<8,8,1>UD { align1 };
-mov (8) data_port_msg_1<1>UD    g1<8,8,1>UD { align1 };
-
 /* write */
 send (16) 
-	data_port_msg_0_ind 
+	data_port_msg_2_ind 
 	acc0<1>UW 
 	null
 	write (
 	       0,  /* binding_table */
 	       16,  /* pixel scordboard clear, msg type simd16 single source */
 	       12,  /* render target write */
-	       0   /* no write commit message */
+	       0,   /* no write commit message */
+	       0  /* headerless render target write */
 	) 
-	mlen 10
+	mlen 8
 	rlen 0
 	{ align1 EOT };
 
