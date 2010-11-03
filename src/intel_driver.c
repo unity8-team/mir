@@ -468,6 +468,24 @@ static void I830XvInit(ScrnInfoPtr scrn)
 		   intel->colorKey);
 }
 
+static Bool can_accelerate_2d(struct intel_screen_private *intel)
+{
+	if (INTEL_INFO(intel)->gen >= 60) {
+		drm_i915_getparam_t gp;
+		int value;
+
+		/* On Sandybridge we need the BLT in order to do anything since
+		 * it so frequently used in the acceleration code paths.
+		 */
+		gp.value = &value;
+		gp.param = I915_PARAM_HAS_BLT;
+		if (drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp))
+			return FALSE;
+	}
+
+	return TRUE;
+}
+
 /**
  * This is called before ScreenInit to do any require probing of screen
  * configuration.
@@ -575,6 +593,8 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	}
 
 	intel->use_shadow = FALSE;
+	if (!can_accelerate_2d(intel))
+		intel->use_shadow = TRUE;
 
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
 		intel->use_shadow =
