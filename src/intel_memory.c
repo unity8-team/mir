@@ -232,7 +232,7 @@ retry:
 	}
 
 	if (intel->tiling && tiling_mode != I915_TILING_X) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Failed to set tiling on frontbuffer.\n");
 	}
 
