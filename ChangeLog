@@ -1,3 +1,116 @@
+commit 9f232ad67c72b7869dcd112207bc41dc01d7d104
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Sep 30 08:45:49 2010 -0700
+
+    Increment version to 2.13.0
+    
+    For the new, major release.
+
+commit 99ec9bb0f1eaf2e5c04614957a51624a928526e5
+Author: Carl Worth <cworth@cworth.org>
+Date:   Thu Sep 30 08:45:15 2010 -0700
+
+    Add release notes for the 2.13.0 release.
+    
+    Which is functionalliy identical to 2.12.902.
+
+commit d4c013cb9d92d2959c9a98eca20e43ab14ae22e3
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Sep 28 20:49:52 2010 -0700
+
+    Increment version to 2.12.902
+    
+    Just before making the 2.12.902 (2.13-rc2) snapshot.
+
+commit 35e7da7df0b286b5168a85d540cc9fdf55c1cae6
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Sep 28 20:49:10 2010 -0700
+
+    Add release notes for the 2.12.902 snapshot.
+    
+    Summarizing the 5 recent changes to the driver.
+
+commit 5704955538f59a2b7a5eff67cc23953d2f27d523
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Sep 28 20:44:40 2010 -0700
+
+    Fix to depend on the (just-released) libdrm >= 2.4.22
+    
+    With libdrm < 2.4.22, the compilation of xf86-video-intel would fail
+    due to an undefined DRM_MODE_CONNECTOR_eDP. We now ensure that a
+    sufficiently new libdrm is available before compiling.
+
+commit 40c9d180bf43af84ae05d88e993deedf76e263e6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Sep 26 23:09:04 2010 +0100
+
+    Retry framebuffer allocation if first attempt fails.
+    
+    If we are tiled, we may fail the allocation due to an EIO and so not
+    being able to set tiling. Try again with an untiled request in this
+    case.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 537e73f3f935b917f2f5f9b51499cb29d65e3889
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Sep 24 17:37:41 2010 +0100
+
+    Disable dri2 after forcing fallbacks
+    
+    If we force fallbacks, then we will only create pixmaps in system
+    memory, preventing DRI2 from passing valid bo names to the clients. In
+    this case, they will just fallback to swrast. If we disable DRI2 after
+    forcing fallbacks (e.g. regenerating after a GPU hang or explicitly
+    disabled with the shadow buffer) then it is simpler just to disable the
+    extension and allow mesa to use pure swrast.
+    
+    Reported-by: Julien Cristau <jcristau@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b84925b9c0842ba4dfa3481c09d3a80f84db4838
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Tue Aug 17 18:05:02 2010 +0200
+
+    Make driver compile for 1.6 Xserver series again.
+    
+    Signed-off-by: Matthias Hopf <mhopf@suse.de>
+
+commit 99f8d68d3dbc54fdd7de4a6df546cfa89422a0c2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Sep 22 12:34:00 2010 +0100
+
+    display: Refactor is_panel()
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4ba27e1f2198fc10a1dd268ed9f137bac6e80086
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Sep 21 17:43:01 2010 -0700
+
+    Bump version to 2.12.901
+    
+    Just prior to pushing out this new snapshot.
+
+commit 334265fa5ef18405bd8c897343fff49ad53f5fce
+Author: Carl Worth <cworth@cworth.org>
+Date:   Tue Sep 21 17:42:21 2010 -0700
+
+    NEWS: Add notes for the 2.12.901 snapshot
+    
+    (Otherwise known as rc1 for 2.13)
+
+commit bfba6d6148b938588ffbefdf04f4e71683c66dfd
+Author: Krzysztof Halasa <khc@pm.waw.pl>
+Date:   Tue Sep 21 22:56:26 2010 +0100
+
+    Allow interlaced modes.
+    
+    This may not the best method, but it should be a good base on which to
+    build...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit f63c7df6866fed61551d39209b1a262e2a0c4b28
 Author: Zhenyu Wang <zhenyuw@linux.intel.com>
 Date:   Fri Sep 17 16:39:12 2010 +0800

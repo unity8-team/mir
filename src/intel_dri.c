@@ -367,6 +367,12 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 				    event = MI_WAIT_FOR_PIPEB_SVBLANK;
 			}
 
+			if (scrn->currentMode->Flags & V_INTERLACE) {
+				/* DSL count field lines */
+				y1 /= 2;
+				y2 /= 2;
+			}
+
 			BEGIN_BATCH(5);
 			/*
 			 * The documentation says that the LOAD_SCAN_LINES
@@ -1022,6 +1028,12 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 #if DRI2INFOREC_VERSION >= 4
 	const char *driverNames[1];
 #endif
+
+	if (intel->force_fallback) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "cannot enable DRI2 whilst forcing software fallbacks\n");
+		return FALSE;
+	}
 
 	if (xf86LoaderCheckSymbol("DRI2Version"))
 		DRI2Version(&dri2_major, &dri2_minor);

@@ -1348,13 +1348,19 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 			event = MI_WAIT_FOR_PIPEB_SVBLANK;
 	}
 
+	if (scrn->currentMode->Flags & V_INTERLACE) {
+		/* DSL count field lines */
+		y1 /= 2;
+		y2 /= 2;
+	}
+
 	BEGIN_BATCH(5);
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | pipe);
-	OUT_BATCH((box.y1 << 16) | box.y2);
+	OUT_BATCH((y1 << 16) | y2);
 	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | pipe);
-	OUT_BATCH((box.y1 << 16) | box.y2);
+	OUT_BATCH((y1 << 16) | y2);
 	OUT_BATCH(MI_WAIT_FOR_EVENT | event);
 	ADVANCE_BATCH();
 }

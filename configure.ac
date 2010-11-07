@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.12.0],
+        [2.13.0],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -79,7 +79,7 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.21])
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.22])
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
