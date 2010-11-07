@@ -658,6 +658,13 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 	list_add(&intel_crtc->link, &mode->crtcs);
 }
 
+static Bool
+is_panel(int type)
+{
+	return (type == DRM_MODE_CONNECTOR_LVDS ||
+	       	type == DRM_MODE_CONNECTOR_eDP);
+}
+
 static xf86OutputStatus
 intel_output_detect(xf86OutputPtr output)
 {
@@ -823,8 +830,7 @@ intel_output_get_modes(xf86OutputPtr output)
 	 * If it is incorrect, please fix me.
 	 */
 	intel_output->has_panel_limits = FALSE;
-	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS ||
-	    koutput->connector_type == DRM_MODE_CONNECTOR_eDP) {
+	if (is_panel(koutput->connector_type)) {
 		for (i = 0; i < koutput->count_modes; i++) {
 			drmModeModeInfo *mode_ptr;
 
@@ -1155,7 +1161,11 @@ intel_output_set_property(xf86OutputPtr output, Atom property,
 		}
 	}
 
-	return FALSE;
+	/* We didn't recognise this property, just report success in order
+	 * to allow the set to continue, otherwise we break setting of
+	 * common properties like EDID.
+	 */
+	return TRUE;
 }
 
 static Bool
@@ -1293,12 +1303,12 @@ intel_output_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = intel_output;
 
-	if (koutput->connector_type == DRM_MODE_CONNECTOR_LVDS ||
-	    koutput->connector_type == DRM_MODE_CONNECTOR_eDP)
+	if (is_panel(koutput->connector_type))
 		intel_output_backlight_init(output);
 
 	output->possible_crtcs = kencoder->possible_crtcs;
 	output->possible_clones = kencoder->possible_clones;
+	output->interlaceAllowed = TRUE;
 
 	intel_output->output = output;
 	list_add(&intel_output->link, &mode->outputs);

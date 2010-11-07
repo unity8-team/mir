@@ -588,12 +588,58 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel_check_chipset_option(scrn);
 	intel_check_dri_option(scrn);
 
-	I830XvInit(scrn);
-
 	if (!intel_init_bufmgr(intel)) {
 		PreInitCleanup(scrn);
 		return FALSE;
 	}
+
+	intel->force_fallback =
+		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE) != 0;
+	intel->use_shadow = FALSE;
+
+	/* Enable tiling by default */
+	intel->tiling = TRUE;
+
+	/* Allow user override if they set a value */
+	if (xf86IsOptionSet(intel->Options, OPTION_TILING)) {
+		if (xf86ReturnOptValBool(intel->Options, OPTION_TILING, FALSE))
+			intel->tiling = TRUE;
+		else
+			intel->tiling = FALSE;
+	}
+
+	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
+		if (xf86ReturnOptValBool(intel->Options, OPTION_SHADOW, FALSE))
+			intel->force_fallback = intel->use_shadow = TRUE;
+	}
+
+	if (intel->use_shadow) {
+		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
+			   "Shadow buffer enabled,"
+			   " GPU acceleration disabled.\n");
+	}
+
+	/* SwapBuffers delays to avoid tearing */
+	intel->swapbuffers_wait = TRUE;
+
+	/* Allow user override if they set a value */
+	if (xf86IsOptionSet(intel->Options, OPTION_SWAPBUFFERS_WAIT)) {
+		if (xf86ReturnOptValBool
+		    (intel->Options, OPTION_SWAPBUFFERS_WAIT, FALSE))
+			intel->swapbuffers_wait = TRUE;
+		else
+			intel->swapbuffers_wait = FALSE;
+	}
+
+	if (IS_GEN6(intel))
+	    intel->swapbuffers_wait = FALSE;
+
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Tiling %sabled\n",
+		   intel->tiling ? "en" : "dis");
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "SwapBuffers wait %sabled\n",
+		   intel->swapbuffers_wait ? "en" : "dis");
+
+	I830XvInit(scrn);
 
 	if (!intel_mode_pre_init(scrn, intel->drmSubFD, intel->cpp)) {
 		PreInitCleanup(scrn);
@@ -830,57 +876,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	scrn->videoRam = device->regions[fb_bar].size / 1024;
 
-#ifdef DRI2
-	if (intel->directRenderingType == DRI_NONE
-	    && I830DRI2ScreenInit(screen))
-		intel->directRenderingType = DRI_DRI2;
-#endif
-
-	intel->force_fallback = FALSE;
-	intel->use_shadow = FALSE;
-
-	/* Enable tiling by default */
-	intel->tiling = TRUE;
-
-	/* Allow user override if they set a value */
-	if (xf86IsOptionSet(intel->Options, OPTION_TILING)) {
-		if (xf86ReturnOptValBool(intel->Options, OPTION_TILING, FALSE))
-			intel->tiling = TRUE;
-		else
-			intel->tiling = FALSE;
-	}
-
-	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
-		if (xf86ReturnOptValBool(intel->Options, OPTION_SHADOW, FALSE))
-			intel->force_fallback = intel->use_shadow = TRUE;
-	}
-
-	if (intel->use_shadow) {
-		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
-			   "Shadow buffer enabled,"
-			   " GPU acceleration disabled.\n");
-	}
-
-	/* SwapBuffers delays to avoid tearing */
-	intel->swapbuffers_wait = TRUE;
-
-	/* Allow user override if they set a value */
-	if (xf86IsOptionSet(intel->Options, OPTION_SWAPBUFFERS_WAIT)) {
-		if (xf86ReturnOptValBool
-		    (intel->Options, OPTION_SWAPBUFFERS_WAIT, FALSE))
-			intel->swapbuffers_wait = TRUE;
-		else
-			intel->swapbuffers_wait = FALSE;
-	}
-
-	if (IS_GEN6(intel))
-	    intel->swapbuffers_wait = FALSE;
-
-	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Tiling %sabled\n",
-		   intel->tiling ? "en" : "dis");
-	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "SwapBuffers wait %sabled\n",
-		   intel->swapbuffers_wait ? "en" : "dis");
-
 	intel->last_3d = LAST_3D_OTHER;
 	intel->overlayOn = FALSE;
 
@@ -893,6 +888,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	xf86DrvMsg(scrn->scrnIndex,
 		   intel->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
 		   "VideoRam: %d KB\n", scrn->videoRam);
+
+#ifdef DRI2
+	if (intel->directRenderingType == DRI_NONE
+	    && I830DRI2ScreenInit(screen))
+		intel->directRenderingType = DRI_DRI2;
+#endif
 
 	if (!intel_init_initial_framebuffer(scrn))
 		return FALSE;

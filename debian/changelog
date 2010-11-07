@@ -1,3 +1,35 @@
+xserver-xorg-video-intel (2:2.13.0-2) unstable; urgency=low
+
+  [ Cyril Brulebois ]
+  * Merge from experimental.
+  * Lower build-dep on libdrm-dev from 2.4.22 to 2.4.21-1~squeeze3 since
+    the latter contains the needed bits, making it possible to build
+    within unstable.
+  * Add patch to make configure.ac happy: libdrm-from-sid-is-ok.diff
+  * Add README.Debian documenting the need for a kernel driver to handle
+    modesetting.
+  * Drop shadow-no-dri2.diff, obsoleted by upstream's 537e73f3.
+
+  [ Julien Cristau ]
+  * Update i8xx-shadow.diff.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 07 Nov 2010 19:51:56 +0100
+
+xserver-xorg-video-intel (2:2.13.0-1) experimental; urgency=low
+
+  [ Sven Joachim ]
+  * New upstream release.
+  * Bump libdrm build-dependency to 2.4.22.
+
+  [ Cyril Brulebois ]
+  * Bump xutils-dev build-dependency to 1:7.5+4 (needed for xorg macros
+    1.8).
+  * Picked from unstable to avoid introducing back binaries on non-Linux
+    architectures: UMS is gone, this means Linux-only.
+  * Add myself to Uploaders.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 02 Oct 2010 09:51:48 +0200
+
 xserver-xorg-video-intel (2:2.12.0+shadow-2) unstable; urgency=low
 
   * UMS is gone, this means Linux-only (closes: 597845).

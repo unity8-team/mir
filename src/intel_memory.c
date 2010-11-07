@@ -209,6 +209,10 @@ retry:
 						width, height, intel->cpp,
 						&tiling_mode, &pitch, 0);
 	if (front_buffer == NULL) {
+		if (tiling_mode != I915_TILING_NONE) {
+			tiling_mode = I915_TILING_NONE;
+			goto retry;
+		}
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to allocate framebuffer.\n");
 		return NULL;
