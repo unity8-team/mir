@@ -35,7 +35,8 @@
 #include <errno.h>
 
 #include "xf86.h"
-#include "i830.h"
+#include "intel.h"
+#include "i830_reg.h"
 #include "i915_drm.h"
 
 #define DUMP_BATCHBUFFERS NULL /* "/tmp/i915-batchbuffers.dump" */
@@ -265,4 +266,15 @@ void intel_batch_wait_last(ScrnInfoPtr scrn)
 	 */
 	drm_intel_gem_bo_map_gtt(intel->last_batch_bo);
 	drm_intel_gem_bo_unmap_gtt(intel->last_batch_bo);
+}
+
+void intel_debug_flush(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (intel->debug_flush & DEBUG_FLUSH_CACHES)
+		intel_batch_emit_flush(scrn);
+
+	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
+		intel_batch_submit(scrn, FALSE);
 }

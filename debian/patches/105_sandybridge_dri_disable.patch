@@ -5,13 +5,13 @@ Subject: [PATCH] Disable non-functional DRI completely on Sandybridge.
 
 Revert after Intel 2010Q4 release that will support it.
 ---
- src/i830_driver.c |    2 ++
+ src/intel_driver.c |    2 ++
  1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/src/i830_driver.c b/src/i830_driver.c
+diff --git a/src/intel_driver.c b/src/intel_driver.c
 index b8e0c0b..c9072d4 100644
---- a/src/i830_driver.c
-+++ b/src/i830_driver.c
+--- a/src/intel_driver.c
++++ b/src/intel_driver.c
 @@ -1037,6 +1037,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
  	scrn->videoRam = device->regions[fb_bar].size / 1024;
  

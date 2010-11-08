@@ -47,7 +47,9 @@ format_for_depth(int depth)
 	case 16: return PICT_r5g6b5;
 	default:
 	case 24: return PICT_x8r8g8b8;
+#if XORG_VERSION_CURRENT >= 10699900
 	case 30: return PICT_x2r10g10b10;
+#endif
 	case 32: return PICT_a8r8g8b8;
 	}
 }
@@ -81,7 +83,7 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	if (!dst_pixmap)
 		goto fallback;
 
-	if (pGC->alu != GXcopy || pGC->planemask != FB_ALLONES)
+	if (pGC->alu != GXcopy || !UXA_PM_IS_SOLID(pDrawable, pGC->planemask))
 		goto solid;
 
 	format = PictureMatchFormat(screen,
@@ -1048,7 +1050,7 @@ uxa_fill_region_solid(DrawablePtr pDrawable,
 	extents = REGION_EXTENTS(screen, pRegion);
 
 	/* Using GEM, the relocation costs outweigh the advantages of the blitter */
-	if (nbox == 1 || (alu != GXcopy && alu != GXclear) || planemask != FB_ALLONES) {
+	if (nbox == 1 || (alu != GXcopy && alu != GXclear) || !UXA_PM_IS_SOLID(&pixmap->drawable, planemask)) {
 try_solid:
 		if (uxa_screen->info->check_solid &&
 		    !uxa_screen->info->check_solid(&pixmap->drawable, alu, planemask))

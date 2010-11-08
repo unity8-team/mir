@@ -78,8 +78,6 @@ I810DGAInit(ScreenPtr pScreen)
    int Bpp = pScrn->bitsPerPixel >> 3;
    int num = 0;
 
-   MARKER();
-
    pMode = firstMode = pScrn->modes;
 
    while (pMode) {
@@ -148,10 +146,7 @@ I810_SetMode(ScrnInfoPtr pScrn, DGAModePtr pMode)
    int index = pScrn->pScreen->myNum;
    I810Ptr pI810 = I810PTR(pScrn);
 
-   MARKER();
-
    if (!pMode) {			/* restore the original mode */
-      DPRINTF(PFX, "Restoring original mode (from DGA mode)\n");
       if (pI810->DGAactive) {
 	 pScrn->currentMode = I810SavedDGAModes[index];
 	 pScrn->SwitchMode(index, pScrn->currentMode, 0);
@@ -160,7 +155,6 @@ I810_SetMode(ScrnInfoPtr pScrn, DGAModePtr pMode)
       }
    } else {
       if (!pI810->DGAactive) {
-	 DPRINTF(PFX, "Setting DGA mode\n");
 	 I810SavedDGAModes[index] = pScrn->currentMode;
 	 pI810->DGAactive = TRUE;
       }
@@ -176,8 +170,6 @@ I810_GetViewport(ScrnInfoPtr pScrn)
 {
    I810Ptr pI810 = I810PTR(pScrn);
 
-   MARKER();
-
    return pI810->DGAViewportStatus;
 }
 
@@ -186,8 +178,6 @@ I810_SetViewport(ScrnInfoPtr pScrn, int x, int y, int flags)
 {
    I810Ptr pI810 = I810PTR(pScrn);
    vgaHWPtr hwp = VGAHWPTR(pScrn);
-
-   MARKER();
 
    pScrn->AdjustFrame(pScrn->pScreen->myNum, x, y, flags);
 
@@ -204,8 +194,6 @@ I810_FillRect(ScrnInfoPtr pScrn,
 {
    I810Ptr pI810 = I810PTR(pScrn);
 
-   MARKER();
-
    if (pI810->AccelInfoRec) {
       (*pI810->AccelInfoRec->SetupForSolidFill) (pScrn, color, GXcopy, ~0);
       (*pI810->AccelInfoRec->SubsequentSolidFillRect) (pScrn, x, y, w, h);
@@ -218,8 +206,6 @@ I810_Sync(ScrnInfoPtr pScrn)
 {
    I810Ptr pI810 = I810PTR(pScrn);
 
-   MARKER();
-
    if (pI810->AccelInfoRec) {
       (*pI810->AccelInfoRec->Sync) (pScrn);
    }
@@ -230,8 +216,6 @@ I810_BlitRect(ScrnInfoPtr pScrn,
 	      int srcx, int srcy, int w, int h, int dstx, int dsty)
 {
    I810Ptr pI810 = I810PTR(pScrn);
-
-   MARKER();
 
    if (pI810->AccelInfoRec) {
       int xdir = ((srcx < dstx) && (srcy == dsty)) ? -1 : 1;
@@ -252,8 +236,6 @@ I810_BlitTransRect(ScrnInfoPtr pScrn,
 		   int w, int h, int dstx, int dsty, unsigned long color)
 {
 
-   MARKER();
-
    /* this one should be separate since the XAA function would
     * prohibit usage of ~0 as the key */
 }
@@ -266,17 +248,11 @@ I810_OpenFramebuffer(ScrnInfoPtr pScrn,
 {
    I810Ptr pI810 = I810PTR(pScrn);
 
-   MARKER();
-
    *name = NULL;			/* no special device */
    *mem = (unsigned char *)pI810->LinearAddr;
    *size = pI810->FbMapSize;
    *offset = 0;
    *flags = DGA_NEED_ROOT;
-
-   DPRINTF(PFX,
-	   " mem == 0x%.8x (pI810->LinearAddr)\n"
-	   "size == %lu (pI810->FbMapSize)\n", *mem, *size);
 
    return TRUE;
 }

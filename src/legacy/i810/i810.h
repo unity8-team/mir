@@ -61,16 +61,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_dri.h"
 #endif
 
-#include "common.h"
+#include "i810_common.h"
 #include "i810_ring.h"
 
-#define I810_VERSION 4000
-#define I810_NAME "intel"
-#define I810_DRIVER_NAME "intel"
-
-#define INTEL_VERSION_MAJOR PACKAGE_VERSION_MAJOR
-#define INTEL_VERSION_MINOR PACKAGE_VERSION_MINOR
-#define INTEL_VERSION_PATCH PACKAGE_VERSION_PATCHLEVEL
+#include "intel_driver.h"
 
 /* HWMC Surfaces */
 #define I810_MAX_SURFACES 7

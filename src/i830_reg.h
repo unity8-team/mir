@@ -30,6 +30,73 @@
 
 #define I830_SET_FIELD( var, mask, value ) (var &= ~(mask), var |= value)
 
+/* Flush */
+#define MI_FLUSH			(0x04<<23)
+#define MI_WRITE_DIRTY_STATE		(1<<4)
+#define MI_END_SCENE			(1<<3)
+#define MI_GLOBAL_SNAPSHOT_COUNT_RESET	(1<<3)
+#define MI_INHIBIT_RENDER_CACHE_FLUSH	(1<<2)
+#define MI_STATE_INSTRUCTION_CACHE_FLUSH (1<<1)
+#define MI_INVALIDATE_MAP_CACHE		(1<<0)
+/* broadwater flush bits */
+#define BRW_MI_GLOBAL_SNAPSHOT_RESET   (1 << 3)
+
+#define MI_BATCH_BUFFER_END	(0xA << 23)
+
+/* Noop */
+#define MI_NOOP				0x00
+#define MI_NOOP_WRITE_ID		(1<<22)
+#define MI_NOOP_ID_MASK			(1<<22 - 1)
+
+/* Wait for Events */
+#define MI_WAIT_FOR_EVENT			(0x03<<23)
+#define MI_WAIT_FOR_PIPEB_SVBLANK		(1<<18)
+#define MI_WAIT_FOR_PIPEA_SVBLANK		(1<<17)
+#define MI_WAIT_FOR_OVERLAY_FLIP		(1<<16)
+#define MI_WAIT_FOR_PIPEB_VBLANK		(1<<7)
+#define MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW	(1<<5)
+#define MI_WAIT_FOR_PIPEA_VBLANK		(1<<3)
+#define MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW	(1<<1)
+
+/* Set the scan line for MI_WAIT_FOR_PIPE?_SCAN_LINE_WINDOW */
+#define MI_LOAD_SCAN_LINES_INCL			(0x12<<23)
+#define MI_LOAD_SCAN_LINES_DISPLAY_PIPEA	(0)
+#define MI_LOAD_SCAN_LINES_DISPLAY_PIPEB	(0x1<<20)
+
+/* BLT commands */
+#define COLOR_BLT_CMD		((2<<29)|(0x40<<22)|(0x3))
+#define COLOR_BLT_WRITE_ALPHA	(1<<21)
+#define COLOR_BLT_WRITE_RGB	(1<<20)
+
+#define XY_COLOR_BLT_CMD		((2<<29)|(0x50<<22)|(0x4))
+#define XY_COLOR_BLT_WRITE_ALPHA	(1<<21)
+#define XY_COLOR_BLT_WRITE_RGB		(1<<20)
+#define XY_COLOR_BLT_TILED		(1<<11)
+
+#define XY_SETUP_CLIP_BLT_CMD		((2<<29)|(3<<22)|1)
+
+#define XY_SRC_COPY_BLT_CMD		((2<<29)|(0x53<<22)|6)
+#define XY_SRC_COPY_BLT_WRITE_ALPHA	(1<<21)
+#define XY_SRC_COPY_BLT_WRITE_RGB	(1<<20)
+#define XY_SRC_COPY_BLT_SRC_TILED	(1<<15)
+#define XY_SRC_COPY_BLT_DST_TILED	(1<<11)
+
+#define SRC_COPY_BLT_CMD		((2<<29)|(0x43<<22)|0x4)
+#define SRC_COPY_BLT_WRITE_ALPHA	(1<<21)
+#define SRC_COPY_BLT_WRITE_RGB		(1<<20)
+
+#define XY_PAT_BLT_IMMEDIATE		((2<<29)|(0x72<<22))
+
+#define XY_MONO_PAT_BLT_CMD		((0x2<<29)|(0x52<<22)|0x7)
+#define XY_MONO_PAT_VERT_SEED		((1<<10)|(1<<9)|(1<<8))
+#define XY_MONO_PAT_HORT_SEED		((1<<14)|(1<<13)|(1<<12))
+#define XY_MONO_PAT_BLT_WRITE_ALPHA	(1<<21)
+#define XY_MONO_PAT_BLT_WRITE_RGB	(1<<20)
+
+#define XY_MONO_SRC_BLT_CMD		((0x2<<29)|(0x54<<22)|(0x6))
+#define XY_MONO_SRC_BLT_WRITE_ALPHA	(1<<21)
+#define XY_MONO_SRC_BLT_WRITE_RGB	(1<<20)
+
 #define CMD_3D (0x3<<29)
 
 #define PRIM3D_INLINE		(CMD_3D | (0x1f<<24))

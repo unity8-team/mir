@@ -67,28 +67,17 @@ am__base_list = \
   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
 am__installdirs = "$(DESTDIR)$(libdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libI810XvMC_la_DEPENDENCIES =
-am_libI810XvMC_la_OBJECTS = libI810XvMC_la-I810XvMC.lo
-libI810XvMC_la_OBJECTS = $(am_libI810XvMC_la_OBJECTS)
+libIntelXvMC_la_DEPENDENCIES =
+am_libIntelXvMC_la_OBJECTS = intel_xvmc.lo intel_xvmc_dump.lo \
+	i915_xvmc.lo i965_xvmc.lo xvmc_vld.lo intel_batchbuffer.lo
+libIntelXvMC_la_OBJECTS = $(am_libIntelXvMC_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
 am__v_lt_0 = --silent
-libI810XvMC_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libI810XvMC_la_CFLAGS) $(CFLAGS) $(libI810XvMC_la_LDFLAGS) \
-	$(LDFLAGS) -o $@
-@XVMC_TRUE@am_libI810XvMC_la_rpath = -rpath $(libdir)
-libIntelXvMC_la_DEPENDENCIES =
-am_libIntelXvMC_la_OBJECTS = libIntelXvMC_la-intel_xvmc.lo \
-	libIntelXvMC_la-intel_xvmc_dump.lo \
-	libIntelXvMC_la-i915_xvmc.lo libIntelXvMC_la-i965_xvmc.lo \
-	libIntelXvMC_la-xvmc_vld.lo \
-	libIntelXvMC_la-intel_batchbuffer.lo
-libIntelXvMC_la_OBJECTS = $(am_libIntelXvMC_la_OBJECTS)
 libIntelXvMC_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libIntelXvMC_la_CFLAGS) $(CFLAGS) $(libIntelXvMC_la_LDFLAGS) \
-	$(LDFLAGS) -o $@
+	$(AM_CFLAGS) $(CFLAGS) $(libIntelXvMC_la_LDFLAGS) $(LDFLAGS) \
+	-o $@
 @XVMC_TRUE@am_libIntelXvMC_la_rpath = -rpath $(libdir)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -116,8 +105,8 @@ am__v_CCLD_0 = @echo "  CCLD  " $@;
 AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
-SOURCES = $(libI810XvMC_la_SOURCES) $(libIntelXvMC_la_SOURCES)
-DIST_SOURCES = $(libI810XvMC_la_SOURCES) $(libIntelXvMC_la_SOURCES)
+SOURCES = $(libIntelXvMC_la_SOURCES)
+DIST_SOURCES = $(libIntelXvMC_la_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -240,14 +229,14 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PCIACCESS_CFLAGS = @PCIACCESS_CFLAGS@
 PCIACCESS_LIBS = @PCIACCESS_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
-XEXT_CFLAGS = @XEXT_CFLAGS@
-XEXT_LIBS = @XEXT_LIBS@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
 XORG_MAN_PAGE = @XORG_MAN_PAGE@
@@ -306,16 +295,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-@XVMC_TRUE@lib_LTLIBRARIES = libI810XvMC.la libIntelXvMC.la
+@XVMC_TRUE@lib_LTLIBRARIES = libIntelXvMC.la
 SUBDIRS = shader
-libI810XvMC_la_SOURCES = I810XvMC.c \
-			 I810XvMC.h
-
-libI810XvMC_la_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
-	-I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
-
-libI810XvMC_la_LDFLAGS = -version-number 1:0:0
-libI810XvMC_la_LIBADD = @DRI_LIBS@ @DRM_LIBS@ @XVMCLIB_LIBS@
 libIntelXvMC_la_SOURCES = intel_xvmc.c \
         intel_xvmc.h                   \
         intel_xvmc_dump.c              \
@@ -328,7 +309,7 @@ libIntelXvMC_la_SOURCES = intel_xvmc.c \
         intel_batchbuffer.c            \
         intel_batchbuffer.h
 
-libIntelXvMC_la_CFLAGS = @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
+AM_CFLAGS = @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	@XVMCLIB_CFLAGS@ -I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
 
 libIntelXvMC_la_LDFLAGS = -version-number 1:0:0
@@ -398,8 +379,6 @@ clean-libLTLIBRARIES:
 	  echo "rm -f \"$${dir}/so_locations\""; \
 	  rm -f "$${dir}/so_locations"; \
 	done
-libI810XvMC.la: $(libI810XvMC_la_OBJECTS) $(libI810XvMC_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(libI810XvMC_la_LINK) $(am_libI810XvMC_la_rpath) $(libI810XvMC_la_OBJECTS) $(libI810XvMC_la_LIBADD) $(LIBS)
 libIntelXvMC.la: $(libIntelXvMC_la_OBJECTS) $(libIntelXvMC_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(libIntelXvMC_la_LINK) $(am_libIntelXvMC_la_rpath) $(libIntelXvMC_la_OBJECTS) $(libIntelXvMC_la_LIBADD) $(LIBS)
 
@@ -409,13 +388,12 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libI810XvMC_la-I810XvMC.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-i915_xvmc.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-i965_xvmc.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-intel_batchbuffer.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-intel_xvmc.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-intel_xvmc_dump.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libIntelXvMC_la-xvmc_vld.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i915_xvmc.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i965_xvmc.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_batchbuffer.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_xvmc.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_xvmc_dump.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xvmc_vld.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -440,62 +418,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
-
-libI810XvMC_la-I810XvMC.lo: I810XvMC.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libI810XvMC_la_CFLAGS) $(CFLAGS) -MT libI810XvMC_la-I810XvMC.lo -MD -MP -MF $(DEPDIR)/libI810XvMC_la-I810XvMC.Tpo -c -o libI810XvMC_la-I810XvMC.lo `test -f 'I810XvMC.c' || echo '$(srcdir)/'`I810XvMC.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libI810XvMC_la-I810XvMC.Tpo $(DEPDIR)/libI810XvMC_la-I810XvMC.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='I810XvMC.c' object='libI810XvMC_la-I810XvMC.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libI810XvMC_la_CFLAGS) $(CFLAGS) -c -o libI810XvMC_la-I810XvMC.lo `test -f 'I810XvMC.c' || echo '$(srcdir)/'`I810XvMC.c
-
-libIntelXvMC_la-intel_xvmc.lo: intel_xvmc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-intel_xvmc.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-intel_xvmc.Tpo -c -o libIntelXvMC_la-intel_xvmc.lo `test -f 'intel_xvmc.c' || echo '$(srcdir)/'`intel_xvmc.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libIntelXvMC_la-intel_xvmc.Tpo $(DEPDIR)/libIntelXvMC_la-intel_xvmc.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='intel_xvmc.c' object='libIntelXvMC_la-intel_xvmc.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-intel_xvmc.lo `test -f 'intel_xvmc.c' || echo '$(srcdir)/'`intel_xvmc.c
-
-libIntelXvMC_la-intel_xvmc_dump.lo: intel_xvmc_dump.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-intel_xvmc_dump.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-intel_xvmc_dump.Tpo -c -o libIntelXvMC_la-intel_xvmc_dump.lo `test -f 'intel_xvmc_dump.c' || echo '$(srcdir)/'`intel_xvmc_dump.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libIntelXvMC_la-intel_xvmc_dump.Tpo $(DEPDIR)/libIntelXvMC_la-intel_xvmc_dump.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='intel_xvmc_dump.c' object='libIntelXvMC_la-intel_xvmc_dump.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-intel_xvmc_dump.lo `test -f 'intel_xvmc_dump.c' || echo '$(srcdir)/'`intel_xvmc_dump.c
-
-libIntelXvMC_la-i915_xvmc.lo: i915_xvmc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-i915_xvmc.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-i915_xvmc.Tpo -c -o libIntelXvMC_la-i915_xvmc.lo `test -f 'i915_xvmc.c' || echo '$(srcdir)/'`i915_xvmc.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libIntelXvMC_la-i915_xvmc.Tpo $(DEPDIR)/libIntelXvMC_la-i915_xvmc.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='i915_xvmc.c' object='libIntelXvMC_la-i915_xvmc.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-i915_xvmc.lo `test -f 'i915_xvmc.c' || echo '$(srcdir)/'`i915_xvmc.c
-
-libIntelXvMC_la-i965_xvmc.lo: i965_xvmc.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-i965_xvmc.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-i965_xvmc.Tpo -c -o libIntelXvMC_la-i965_xvmc.lo `test -f 'i965_xvmc.c' || echo '$(srcdir)/'`i965_xvmc.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libIntelXvMC_la-i965_xvmc.Tpo $(DEPDIR)/libIntelXvMC_la-i965_xvmc.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='i965_xvmc.c' object='libIntelXvMC_la-i965_xvmc.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-i965_xvmc.lo `test -f 'i965_xvmc.c' || echo '$(srcdir)/'`i965_xvmc.c
-
-libIntelXvMC_la-xvmc_vld.lo: xvmc_vld.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-xvmc_vld.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-xvmc_vld.Tpo -c -o libIntelXvMC_la-xvmc_vld.lo `test -f 'xvmc_vld.c' || echo '$(srcdir)/'`xvmc_vld.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libIntelXvMC_la-xvmc_vld.Tpo $(DEPDIR)/libIntelXvMC_la-xvmc_vld.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='xvmc_vld.c' object='libIntelXvMC_la-xvmc_vld.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-xvmc_vld.lo `test -f 'xvmc_vld.c' || echo '$(srcdir)/'`xvmc_vld.c
-
-libIntelXvMC_la-intel_batchbuffer.lo: intel_batchbuffer.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -MT libIntelXvMC_la-intel_batchbuffer.lo -MD -MP -MF $(DEPDIR)/libIntelXvMC_la-intel_batchbuffer.Tpo -c -o libIntelXvMC_la-intel_batchbuffer.lo `test -f 'intel_batchbuffer.c' || echo '$(srcdir)/'`intel_batchbuffer.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libIntelXvMC_la-intel_batchbuffer.Tpo $(DEPDIR)/libIntelXvMC_la-intel_batchbuffer.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='intel_batchbuffer.c' object='libIntelXvMC_la-intel_batchbuffer.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIntelXvMC_la_CFLAGS) $(CFLAGS) -c -o libIntelXvMC_la-intel_batchbuffer.lo `test -f 'intel_batchbuffer.c' || echo '$(srcdir)/'`intel_batchbuffer.c
 
 mostlyclean-libtool:
 	-rm -f *.lo

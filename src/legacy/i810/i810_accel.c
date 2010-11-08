@@ -129,7 +129,7 @@ I810AccelInit(ScreenPtr pScreen)
     */
    if (pI810->Scratch.Size != 0) {
       int i;
-      int width = ((pScrn->displayWidth + 31) & ~31) / 8;
+      int width = ALIGN(pScrn->displayWidth, 32) / 8;
       int nr_buffers = pI810->Scratch.Size / width;
       unsigned char *ptr = pI810->FbBase + pI810->Scratch.Start;
 

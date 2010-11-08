@@ -1,3 +1,72 @@
+xserver-xorg-video-intel (2:2.13.0-1ubuntu1) natty; urgency=low
+
+  * New upstream release.  See ChangeLog for more info.
+    - Attempt to fix infinite MI_WAIT_FOR_EVENT while watching video
+    - Fix buffer-object leak
+    - Fix memory leak on server reset
+    - Fix crash due to unchecked pixmap allocation
+    - Fix for video artifacts when using dualscreen
+    - Fix for incorrect characters in gnome-terminal when using compiz
+    - Fix for hanging, full-screen applications, (flash, compiz, etc.)
+    - Fix selection of backlight device on multi-GPU systems
+    - Fix to avoid crash with extremely large glyphs
+    - Fix for eDP panels incorrectly being given only a single, valid mode
+    - Fix GPU hang involving clipped SRC copies
+    - Fix to compile for 1.6 series X server.
+    - Fix to retry framebuffer allocation after an initial failure.
+    - Fix to disable dri2 after fallbacks are forced on.
+  * Remaining Ubuntu changes:
+    - debian/apport-gpu-error-intel.py, debian/xserver-xorg-video-intel.udev,
+      debian/xserver-xorg-video-intel:
+      Add apport script to collect debug information on GPU hangs
+    - rules: Install udev rule to run the script when the kernel detects hung GPU
+    - 101_copy-fb.patch: Adds feature to driver so Xserver can draw
+      root windows with no background.  This enables smooth boot with
+      Plymouth.
+    - 105_sandybridge_dri_disable.patch: Disable DRI on Sandybridge until it is
+      working (drop with mesa 7.10).
+    - 108_sandybridge_disable_Xv.patch: Disable Xv on Sandybridge until it is
+      supported. (Drop with intel 2.13.901).
+    - control: Add Recommends on intel-gpu-tools to xserver-xorg-video-intel
+      package for use by GPU hang scripts.
+    - xserver-xorg-video-intel.preinst.in, xserver-xorg-video-intel.postinst.in,
+      rules:
+      Don't install /etc/modprobe.d/i915-kms.conf, and remove it on upgrades.
+      At best it's redundant (as the kernel defaults to KMS), at worst it breaks
+      the ability to disable KMS.
+  * Dropped patches:
+      100_b43_pciid_update.patch: Upstream
+      102-disable-page-flipping-v2.patch: Should be unneeded.
+      103-mbp-backlight-support.patch: Upstream
+      104_sandybridge_id_update.patch: Upstream
+      106_backport_vblank_on_server_regenerate_fix.patch: Upstream
+
+ -- Robert Hooker <sarvatt@ubuntu.com>  Mon, 08 Nov 2010 11:27:15 -0500
+
+xserver-xorg-video-intel (2:2.13.0-1) experimental; urgency=low
+
+  [ Sven Joachim ]
+  * New upstream release.
+  * Bump libdrm build-dependency to 2.4.22.
+
+  [ Cyril Brulebois ]
+  * Bump xutils-dev build-dependency to 1:7.5+4 (needed for xorg macros
+    1.8).
+  * Picked from unstable to avoid introducing back binaries on non-Linux
+    architectures: UMS is gone, this means Linux-only.
+  * Add myself to Uploaders.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 02 Oct 2010 09:51:48 +0200
+
+xserver-xorg-video-intel (2:2.12.0-1ubuntu5.1) maverick-proposed; urgency=low
+
+  * debian/patches/108_sandybridge_disable_Xv.patch: Disable Xv code
+    on sandybridge generation GPU's only, support does not exist in
+    this driver release and it attempts to use an old code path that
+    causes a GPU hang every time it is used. (LP: #654876)
+
+ -- Robert Hooker <robert.hooker@canonical.com>  Thu, 07 Oct 2010 13:04:33 -0400
+
 xserver-xorg-video-intel (2:2.12.0-1ubuntu5) maverick; urgency=low
 
   [ Robert Hooker ]
