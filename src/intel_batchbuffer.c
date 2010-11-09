@@ -38,6 +38,7 @@
 #include "intel.h"
 #include "i830_reg.h"
 #include "i915_drm.h"
+#include "i965_reg.h"
 
 #define DUMP_BATCHBUFFERS NULL /* "/tmp/i915-batchbuffers.dump" */
 
@@ -147,14 +148,32 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	assert (!intel->in_batch_atomic);
 
 	/* Big hammer, look to the pipelined flushes in future. */
-	flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-	if (IS_I965G(intel))
-		flags = 0;
+	if (intel->current_batch == BLT_BATCH) {
+		BEGIN_BATCH_BLT(4);
+		OUT_BATCH(MI_FLUSH_DW | 2);
+		OUT_BATCH(0);
+		OUT_BATCH(0);
+		OUT_BATCH(0);
+		ADVANCE_BATCH();
+	} else if ((INTEL_INFO(intel)->gen >= 60)) {
+		BEGIN_BATCH(4);
+		OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2)); /* Mesa does so */
+		OUT_BATCH(BRW_PIPE_CONTROL_IS_FLUSH |
+			  BRW_PIPE_CONTROL_WC_FLUSH |
+			  BRW_PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+			  BRW_PIPE_CONTROL_NOWRITE);
+		OUT_BATCH(0); /* write address */
+		OUT_BATCH(0); /* write data */
+		ADVANCE_BATCH();
+	} else {
+		flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+		if (INTEL_INFO(intel)->gen >= 40)
+			flags = 0;
 
-	BEGIN_BATCH(1);
-	OUT_BATCH(MI_FLUSH | flags);
-	ADVANCE_BATCH();
-
+		BEGIN_BATCH(1);
+		OUT_BATCH(MI_FLUSH | flags);
+		ADVANCE_BATCH();
+	}
 	intel_batch_do_flush(scrn);
 }
 
@@ -191,10 +210,13 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 
 	ret = dri_bo_subdata(intel->batch_bo, 0, intel->batch_used*4, intel->batch_ptr);
 	if (ret == 0)
-		ret = dri_bo_exec(intel->batch_bo, intel->batch_used*4,
-				  NULL, 0, 0xffffffff);
+		ret = drm_intel_bo_mrb_exec(intel->batch_bo,
+				intel->batch_used*4,
+				NULL, 0, 0xffffffff,
+				intel->current_batch);
+
 	if (ret != 0) {
-		if (ret == -EIO && !IS_I965G(intel)) {
+		if (ret == -EIO) {
 			static int once;
 
 			/* The GPU has hung and unlikely to recover by this point. */
@@ -260,6 +282,9 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 void intel_batch_wait_last(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (intel->last_batch_bo == NULL)
+		return;
 
 	/* Map it CPU write, which guarantees it's done.  This is a completely
 	 * non performance path, so we don't need anything better.

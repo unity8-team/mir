@@ -164,11 +164,12 @@ void uxa_finish_access(DrawablePtr pDrawable)
 {
 	ScreenPtr pScreen = pDrawable->pScreen;
 	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
-	PixmapPtr pPixmap = uxa_get_drawable_pixmap(pDrawable);
+	PixmapPtr pPixmap;
 
 	if (uxa_screen->info->finish_access == NULL)
 		return;
 
+	pPixmap = uxa_get_drawable_pixmap(pDrawable);
 	if (!uxa_pixmap_is_offscreen(pPixmap))
 		return;
 

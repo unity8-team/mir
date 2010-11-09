@@ -71,17 +71,17 @@ static int create_context(ScrnInfoPtr scrn, XvMCContextPtr pContext,
 
 	*num_priv = sizeof(struct intel_xvmc_hw_context) >> 2;
 
-	if (IS_I915(intel)) {
+	if (IS_GEN3(intel)) {
 		contextRec->type = XVMC_I915_MPEG2_MC;
 		contextRec->i915.use_phys_addr = 0;
 	} else {
-		if (IS_G4X(intel) || IS_IGDNG(intel))
+		if (INTEL_INFO(intel)->gen >= 45)
 			contextRec->type = XVMC_I965_MPEG2_VLD;
 		else
 			contextRec->type = XVMC_I965_MPEG2_MC;
-		contextRec->i965.is_g4x = IS_G4X(intel);
+		contextRec->i965.is_g4x = INTEL_INFO(intel)->gen == 45;
 		contextRec->i965.is_965_q = IS_965_Q(intel);
-		contextRec->i965.is_igdng = IS_IGDNG(intel);
+		contextRec->i965.is_igdng = IS_GEN5(intel);
 	}
 
 	return Success;
@@ -202,7 +202,7 @@ Bool intel_xvmc_adaptor_init(ScreenPtr pScreen)
 	if (IS_I915G(intel) || IS_I915GM(intel))
 		return FALSE;
 
-	if (!IS_I9XX(intel)) {
+	if (IS_GEN2(intel)) {
 		ErrorF("Your chipset doesn't support XvMC.\n");
 		return FALSE;
 	}
@@ -223,11 +223,11 @@ Bool intel_xvmc_adaptor_init(ScreenPtr pScreen)
 	pAdapt->CreateSubpicture =  create_subpicture;
 	pAdapt->DestroySubpicture = destroy_subpicture;
 
-	if (IS_I915(intel)) {
+	if (IS_GEN3(intel)) {
 		name = "i915_xvmc",
 		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_i915);
 		pAdapt->surfaces = surface_info_i915;
-	} else if (IS_G4X(intel) || IS_IGDNG(intel)) {
+	} else if (INTEL_INFO(intel)->gen >= 45) {
 		name = "xvmc_vld",
 		pAdapt->num_surfaces = ARRAY_SIZE(surface_info_vld);
 		pAdapt->surfaces = surface_info_vld;
