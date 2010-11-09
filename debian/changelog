@@ -1,3 +1,35 @@
+xserver-xorg-video-intel (2:2.13.901-2) experimental; urgency=low
+
+  * Build against Xserver 1.9.1 rc1.
+
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 09 Nov 2010 15:53:43 +0100
+
+xserver-xorg-video-intel (2:2.13.901-1) experimental; urgency=low
+
+  * New upstream release candidate.
+  * Bump build-dep on libdrm-dev: 2.4.22-2 contains some cherry-picked
+    changes to allow this release candidate to build and run.
+  * Drop patch: i8xx-shadow.diff
+
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 09 Nov 2010 14:54:21 +0100
+
+xserver-xorg-video-intel (2:2.13.0-2) unstable; urgency=low
+
+  [ Cyril Brulebois ]
+  * Merge from experimental.
+  * Lower build-dep on libdrm-dev from 2.4.22 to 2.4.21-1~squeeze3 since
+    the latter contains the needed bits, making it possible to build
+    within unstable.
+  * Add patch to make configure.ac happy: libdrm-from-sid-is-ok.diff
+  * Add README.Debian documenting the need for a kernel driver to handle
+    modesetting.
+  * Drop shadow-no-dri2.diff, obsoleted by upstream's 537e73f3.
+
+  [ Julien Cristau ]
+  * Update i8xx-shadow.diff.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 07 Nov 2010 19:51:56 +0100
+
 xserver-xorg-video-intel (2:2.13.0-1) experimental; urgency=low
 
   [ Sven Joachim ]
@@ -12,6 +44,34 @@ xserver-xorg-video-intel (2:2.13.0-1) experimental; urgency=low
   * Add myself to Uploaders.
 
  -- Cyril Brulebois <kibi@debian.org>  Sat, 02 Oct 2010 09:51:48 +0200
+
+xserver-xorg-video-intel (2:2.12.0+shadow-2) unstable; urgency=low
+
+  * UMS is gone, this means Linux-only (closes: 597845).
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 23 Sep 2010 16:40:26 +0200
+
+xserver-xorg-video-intel (2:2.12.0+shadow-1) unstable; urgency=low
+
+  * Revert the come-back of UMS.  Update to upstream HEAD instead.
+    Closes: #594623, #594338.
+  * Dropping UMS means its bugs are irrelevant, so this closes: #570766,
+    #594815.
+  * Bump libdrm build-dep for DRM_MODE_CONNECTOR_eDP.
+  * Don't enable DRI2 if the shadow option is on.
+  * Use shadowfb on i8xx by default.  Hopefully closes: #570988, #572105,
+    #576848, #592586, #593293.
+  * New upstream doesn't assert() when running sm (closes: #593199).
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 20 Sep 2010 19:44:14 +0200
+
+xserver-xorg-video-intel (2:2.12.0+legacy1-1) unstable; urgency=low
+
+  * Merge from people.freedesktop.org/~ickle/xf86-video-intel:legacy.
+    This reintroduces UMS and EXA for legacy chips, while allowing us to get
+    the fixes and new hw support from 2.12.
+
+ -- Julien Cristau <jcristau@debian.org>  Tue, 24 Aug 2010 21:33:56 +0200
 
 xserver-xorg-video-intel (2:2.12.0-1) experimental; urgency=low
 

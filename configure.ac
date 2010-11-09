@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.13.0],
+        [2.13.901],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -44,8 +44,13 @@ XORG_DEFAULT_OPTIONS
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 
-PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.0], [gen4asm=yes], [gen4asm=no])
+PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.1], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
+
+PKG_CHECK_MODULES(UDEV, [libudev], [udev=yes], [udev=no])
+if test x"$udev" = xyes; then
+	AC_DEFINE(HAVE_UDEV,1,[Enable udev-based monitor hotplug detection])
+fi
 
 AH_TOP([#include "xorg-server.h"])
 

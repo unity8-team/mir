@@ -164,7 +164,12 @@ static Bool uxa_realize_glyph_caches(ScreenPtr pScreen)
 					       INTEL_CREATE_PIXMAP_TILING_X);
 		if (!pixmap)
 			goto bail;
-		assert (uxa_pixmap_is_offscreen(pixmap));
+		if (!uxa_pixmap_is_offscreen(pixmap)) {
+			/* Presume shadow is in-effect */
+			pScreen->DestroyPixmap(pixmap);
+			uxa_unrealize_glyph_caches(pScreen);
+			return TRUE;
+		}
 
 		component_alpha = NeedsComponent(pPictFormat->format);
 		picture = CreatePicture(0, &pixmap->drawable, pPictFormat,

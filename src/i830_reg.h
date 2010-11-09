@@ -32,6 +32,8 @@
 
 /* Flush */
 #define MI_FLUSH			(0x04<<23)
+#define MI_FLUSH_DW			(0x26<<23)
+
 #define MI_WRITE_DIRTY_STATE		(1<<4)
 #define MI_END_SCENE			(1<<3)
 #define MI_GLOBAL_SNAPSHOT_COUNT_RESET	(1<<3)

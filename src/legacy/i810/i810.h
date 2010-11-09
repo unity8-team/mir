@@ -57,7 +57,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sarea.h"
 #define _XF86DRI_SERVER_
 #include "dri.h"
-#include "GL/glxint.h"
 #include "i810_dri.h"
 #endif
 
@@ -230,8 +229,6 @@ typedef struct _I810Rec {
    DRIInfoPtr pDRIInfo;
    int drmSubFD;
    int numVisualConfigs;
-   __GLXvisualConfig *pVisualConfigs;
-   I810ConfigPrivPtr pVisualConfigsPriv;
    unsigned long dcacheHandle;
    unsigned long backHandle;
    unsigned long zHandle;

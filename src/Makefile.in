@@ -108,18 +108,19 @@ intel_drv_la_DEPENDENCIES = ../uxa/libuxa.la legacy/liblegacy.la \
 am__intel_drv_la_SOURCES_DIST = brw_defines.h brw_structs.h common.h \
 	intel.h intel_module.c intel_batchbuffer.c intel_batchbuffer.h \
 	intel_display.c intel_driver.c intel_driver.h intel_memory.c \
-	intel_uxa.c intel_video.c intel_video.h i830_3d.c \
-	i830_render.c i830_reg.h i915_3d.h i915_reg.h i915_3d.c \
-	i915_render.c i915_video.c i965_reg.h i965_video.c \
+	intel_shadow.c intel_uxa.c intel_video.c intel_video.h \
+	i830_3d.c i830_render.c i830_reg.h i915_3d.h i915_reg.h \
+	i915_3d.c i915_render.c i915_video.c i965_reg.h i965_video.c \
 	i965_render.c intel_dri.c intel_hwmc.h intel_hwmc.c
 am__objects_1 =
 @DRI_TRUE@am__objects_2 = intel_dri.lo $(am__objects_1)
 @XVMC_TRUE@am__objects_3 = intel_hwmc.lo $(am__objects_1)
 am_intel_drv_la_OBJECTS = intel_module.lo intel_batchbuffer.lo \
-	intel_display.lo intel_driver.lo intel_memory.lo intel_uxa.lo \
-	intel_video.lo i830_3d.lo i830_render.lo i915_3d.lo \
-	i915_render.lo i915_video.lo i965_video.lo i965_render.lo \
-	$(am__objects_1) $(am__objects_2) $(am__objects_3)
+	intel_display.lo intel_driver.lo intel_memory.lo \
+	intel_shadow.lo intel_uxa.lo intel_video.lo i830_3d.lo \
+	i830_render.lo i915_3d.lo i915_render.lo i915_video.lo \
+	i965_video.lo i965_render.lo $(am__objects_1) $(am__objects_2) \
+	$(am__objects_3)
 intel_drv_la_OBJECTS = $(am_intel_drv_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
@@ -284,6 +285,8 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+UDEV_CFLAGS = @UDEV_CFLAGS@
+UDEV_LIBS = @UDEV_LIBS@
 VERSION = @VERSION@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
@@ -350,21 +353,22 @@ SUBDIRS = xvmc render_program legacy
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
-AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
+AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @UDEV_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa -I$(top_srcdir)/src/render_program
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
-intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la \
-	legacy/liblegacy.la @PCIACCESS_LIBS@ $(am__append_2)
+intel_drv_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ -ldrm_intel \
+	../uxa/libuxa.la legacy/liblegacy.la @PCIACCESS_LIBS@ \
+	$(am__append_2)
 NULL := #
 intel_drv_la_SOURCES = brw_defines.h brw_structs.h common.h intel.h \
 	intel_module.c intel_batchbuffer.c intel_batchbuffer.h \
 	intel_display.c intel_driver.c intel_driver.h intel_memory.c \
-	intel_uxa.c intel_video.c intel_video.h i830_3d.c \
-	i830_render.c i830_reg.h i915_3d.h i915_reg.h i915_3d.c \
-	i915_render.c i915_video.c i965_reg.h i965_video.c \
+	intel_shadow.c intel_uxa.c intel_video.c intel_video.h \
+	i830_3d.c i830_render.c i830_reg.h i915_3d.h i915_reg.h \
+	i915_3d.c i915_render.c i915_video.c i965_reg.h i965_video.c \
 	i965_render.c $(NULL) $(am__append_1) $(am__append_3)
 all: all-recursive
 
@@ -454,6 +458,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_hwmc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_memory.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_module.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_shadow.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_uxa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/intel_video.Plo@am__quote@
 
