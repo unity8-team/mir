@@ -806,6 +806,8 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 		pDst = uxa_render_picture(pScreen, pSrc,
 					  pSrc->format | (BitsPerPixel(pSrc->pDrawable->depth) << 24),
 					  x, y, width, height);
+		if (!pDst)
+			return 0;
 
 		goto done;
 	} else {
