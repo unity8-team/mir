@@ -369,24 +369,25 @@ struct avivo_state
 
     uint32_t vga1_cntl;
     uint32_t vga2_cntl;
+    uint32_t vga3_cntl;
+    uint32_t vga4_cntl;
+    uint32_t vga5_cntl;
+    uint32_t vga6_cntl;
     uint32_t vga_render_control;
 
     uint32_t crtc_master_en;
     uint32_t crtc_tv_control;
     uint32_t dc_lb_memory_split;
 
-    struct avivo_pll_state pll1;
-    struct avivo_pll_state pll2;
+    struct avivo_pll_state pll[2];
 
     struct avivo_pll_state vga25_ppll;
     struct avivo_pll_state vga28_ppll;
     struct avivo_pll_state vga41_ppll;
 
-    struct avivo_crtc_state crtc1;
-    struct avivo_crtc_state crtc2;
+    struct avivo_crtc_state crtc[6];
 
-    struct avivo_grph_state grph1;
-    struct avivo_grph_state grph2;
+    struct avivo_grph_state grph[2];
 
     /* DDIA block on RS6xx chips */
     uint32_t ddia[37];
