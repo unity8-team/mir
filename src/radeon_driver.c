@@ -4600,7 +4600,7 @@ evergreen_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     struct avivo_state *state = &save->avivo;
-    int i, j;
+    int i;
 
     state->vga1_cntl = INREG(AVIVO_D1VGA_CONTROL);
     state->vga2_cntl = INREG(AVIVO_D2VGA_CONTROL);
@@ -4988,7 +4988,7 @@ evergreen_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     struct avivo_state *state = &restore->avivo;
-    int i, j;
+    int i;
 
     OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
     OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);;
