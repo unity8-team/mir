@@ -4484,6 +4484,147 @@ static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 }
 
 static void
+evergreen_save_grph(ScrnInfoPtr pScrn, RADEONSavePtr save, int index)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &save->avivo;
+    uint32_t grph_offset[] = {0x0, 0xc00, 0x9800, 0xa400, 0xb000, 0xbc00};
+
+    state->grph[index].enable = INREG(grph_offset[index] + EVERGREEN_GRPH_ENABLE);
+    state->grph[index].control = INREG(grph_offset[index] + EVERGREEN_GRPH_CONTROL);
+    state->grph[index].swap_control = INREG(grph_offset[index] + EVERGREEN_GRPH_SWAP_CONTROL);
+    state->grph[index].prim_surf_addr = INREG(grph_offset[index] + EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS);
+    state->grph[index].sec_surf_addr = INREG(grph_offset[index] + EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS);
+    state->grph[index].pitch = INREG(grph_offset[index] + EVERGREEN_GRPH_PITCH);
+    state->grph[index].prim_surf_addr_hi = INREG(grph_offset[index] + EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH);
+    state->grph[index].sec_surf_addr_hi = INREG(grph_offset[index] + EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS_HIGH);
+    state->grph[index].x_offset = INREG(grph_offset[index] + EVERGREEN_GRPH_SURFACE_OFFSET_X);
+    state->grph[index].y_offset = INREG(grph_offset[index] + EVERGREEN_GRPH_SURFACE_OFFSET_Y);
+    state->grph[index].x_start = INREG(grph_offset[index] + EVERGREEN_GRPH_X_START);
+    state->grph[index].y_start = INREG(grph_offset[index] + EVERGREEN_GRPH_Y_START);
+    state->grph[index].x_end = INREG(grph_offset[index] + EVERGREEN_GRPH_X_END);
+    state->grph[index].y_end = INREG(grph_offset[index] + EVERGREEN_GRPH_Y_END);
+
+    state->grph[index].desktop_height = INREG(grph_offset[index] + EVERGREEN_DESKTOP_HEIGHT);
+    state->grph[index].viewport_start = INREG(grph_offset[index] + EVERGREEN_VIEWPORT_START);
+    state->grph[index].viewport_size = INREG(grph_offset[index] + EVERGREEN_VIEWPORT_SIZE);
+    state->grph[index].mode_data_format = INREG(grph_offset[index] + EVERGREEN_DATA_FORMAT);
+}
+
+static void
+evergreen_restore_grph(ScrnInfoPtr pScrn, RADEONSavePtr restore, int index)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &restore->avivo;
+    uint32_t grph_offset[] = {0x0, 0xc00, 0x9800, 0xa400, 0xb000, 0xbc00};
+
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_ENABLE, state->grph[index].enable);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_CONTROL, state->grph[index].control);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_SWAP_CONTROL, state->grph[index].swap_control);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS, state->grph[index].prim_surf_addr);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS, state->grph[index].sec_surf_addr);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_PITCH, state->grph[index].pitch);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, state->grph[index].prim_surf_addr_hi);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, state->grph[index].sec_surf_addr_hi);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_SURFACE_OFFSET_X, state->grph[index].x_offset);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_SURFACE_OFFSET_Y, state->grph[index].y_offset);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_X_START, state->grph[index].x_start);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_Y_START, state->grph[index].y_start);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_X_END, state->grph[index].x_end);
+    OUTREG(grph_offset[index] + EVERGREEN_GRPH_Y_END, state->grph[index].y_end);
+
+    OUTREG(grph_offset[index] + EVERGREEN_DESKTOP_HEIGHT, state->grph[index].desktop_height);
+    OUTREG(grph_offset[index] + EVERGREEN_VIEWPORT_START, state->grph[index].viewport_start);
+    OUTREG(grph_offset[index] + EVERGREEN_VIEWPORT_SIZE, state->grph[index].viewport_size);
+    OUTREG(grph_offset[index] + EVERGREEN_DATA_FORMAT, state->grph[index].mode_data_format);
+}
+
+static uint32_t evergreen_dac_regs[] = {
+    0x6690, 0x6694, 0x66b0, 0x66cc, 0x66d0, 0x66d4, 0x66d8 };
+
+static uint32_t evergreen_scl1_regs[] = {
+  0x6d08, 0x6d0c, 0x6d14, 0x6d1c };
+
+static uint32_t evergreen_crtc_regs[] = {
+  0x6e00, 0x6e04, 0x6e08, 0x6e0c, 0x6e1c, 0x6e34, 0x6e38, 0x6e3c, 0x6e70, 0x6e74, 0x6e78};
+
+#define EG_REG_SCL1_NUM (sizeof(evergreen_scl1_regs)/sizeof(uint32_t))
+#define EG_REG_CRTC_NUM (sizeof(evergreen_crtc_regs)/sizeof(uint32_t))
+#define EG_DAC_NUM (sizeof(evergreen_dac_regs)/sizeof(uint32_t))
+
+
+static void
+evergreen_save_crtc(ScrnInfoPtr pScrn, RADEONSavePtr save, int index)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &save->avivo;
+    int i;
+
+    uint32_t crtc_offset[] = {EVERGREEN_CRTC0_REGISTER_OFFSET,
+			      EVERGREEN_CRTC1_REGISTER_OFFSET,
+			      EVERGREEN_CRTC2_REGISTER_OFFSET,
+			      EVERGREEN_CRTC3_REGISTER_OFFSET,
+			      EVERGREEN_CRTC4_REGISTER_OFFSET,
+			      EVERGREEN_CRTC5_REGISTER_OFFSET};
+
+    for (i = 0; i < EG_REG_CRTC_NUM; i++) {
+        state->eg_crtc[index][i] = INREG(crtc_offset[index] + evergreen_crtc_regs[i]);
+    }
+}
+
+static void
+evergreen_restore_crtc(ScrnInfoPtr pScrn, RADEONSavePtr restore, int index)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &restore->avivo;
+    int i;
+    uint32_t crtc_offset[] = {EVERGREEN_CRTC0_REGISTER_OFFSET,
+			      EVERGREEN_CRTC1_REGISTER_OFFSET,
+			      EVERGREEN_CRTC2_REGISTER_OFFSET,
+			      EVERGREEN_CRTC3_REGISTER_OFFSET,
+			      EVERGREEN_CRTC4_REGISTER_OFFSET,
+			      EVERGREEN_CRTC5_REGISTER_OFFSET};
+
+    for (i = 0; i < EG_REG_CRTC_NUM; i++) {
+        OUTREG(crtc_offset[index] + evergreen_crtc_regs[i], state->eg_crtc[index][i]);
+    }
+}
+
+static void
+evergreen_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &save->avivo;
+    int i, j;
+
+    state->vga1_cntl = INREG(AVIVO_D1VGA_CONTROL);
+    state->vga2_cntl = INREG(AVIVO_D2VGA_CONTROL);
+    state->vga3_cntl = INREG(EVERGREEN_D3VGA_CONTROL);
+    state->vga4_cntl = INREG(EVERGREEN_D4VGA_CONTROL);
+    state->vga5_cntl = INREG(EVERGREEN_D5VGA_CONTROL);
+    state->vga6_cntl = INREG(EVERGREEN_D6VGA_CONTROL);
+    state->vga_render_control = INREG(AVIVO_VGA_RENDER_CONTROL);
+
+    for (i = 0; i < 6; i++)
+	evergreen_save_grph(pScrn, save, i);
+
+    for (i = 0; i < 6; i++)
+	evergreen_save_crtc(pScrn, save, i);
+
+    for (i = 0; i < EG_DAC_NUM; i++)
+	state->daca[i] = INREG(evergreen_dac_regs[i]);
+
+    for (i = 0; i < EG_REG_SCL1_NUM; i++)
+	state->d1scl[i] = INREG(evergreen_scl1_regs[i]);
+
+}
+
+static void
 avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -4839,6 +4980,35 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     if (state->crtc[1].control & AVIVO_CRTC_EN)
 	info->crtc2_on = TRUE;
 
+}
+
+static void
+evergreen_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &restore->avivo;
+    int i, j;
+
+    OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
+    OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);;
+    OUTREG(EVERGREEN_D3VGA_CONTROL, state->vga3_cntl);
+    OUTREG(EVERGREEN_D4VGA_CONTROL, state->vga4_cntl);
+    OUTREG(EVERGREEN_D5VGA_CONTROL, state->vga5_cntl);
+    OUTREG(EVERGREEN_D6VGA_CONTROL, state->vga6_cntl);
+    OUTREG(AVIVO_VGA_RENDER_CONTROL, state->vga_render_control);
+
+    for (i = 0; i < 6; i++)
+	evergreen_restore_grph(pScrn, restore, i);
+
+    for (i = 0; i < 6; i++)
+	evergreen_restore_crtc(pScrn, restore, i);
+
+    for (i = 0; i < EG_DAC_NUM; i++)
+	OUTREG(evergreen_dac_regs[i], state->daca[i]);
+
+    for (i = 0; i < EG_REG_SCL1_NUM; i++)
+      OUTREG(evergreen_scl1_regs[i], state->d1scl[i]);
 }
 
 static void
@@ -5338,6 +5508,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 
     if (IS_DCE4_VARIANT) {
 	RADEONSaveMemMapRegisters(pScrn, save);
+	evergreen_save(pScrn, save);
 	//XXX
     } else if (IS_AVIVO_VARIANT) {
 	RADEONSaveMemMapRegisters(pScrn, save);
@@ -5393,6 +5564,7 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 
     if (IS_DCE4_VARIANT) {
 	RADEONRestoreMemMapRegisters(pScrn, restore);
+	evergreen_restore(pScrn, restore);
 	//XXX
     } else if (IS_AVIVO_VARIANT) {
 	RADEONRestoreMemMapRegisters(pScrn, restore);

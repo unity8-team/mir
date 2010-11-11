@@ -344,9 +344,12 @@ struct avivo_crtc_state {
 struct avivo_grph_state {
     uint32_t enable;
     uint32_t control;
+    uint32_t swap_control;
     uint32_t prim_surf_addr;
     uint32_t sec_surf_addr;
     uint32_t pitch;
+    uint32_t prim_surf_addr_hi;
+    uint32_t sec_surf_addr_hi;
     uint32_t x_offset;
     uint32_t y_offset;
     uint32_t x_start;
@@ -385,9 +388,11 @@ struct avivo_state
     struct avivo_pll_state vga28_ppll;
     struct avivo_pll_state vga41_ppll;
 
-    struct avivo_crtc_state crtc[6];
+    struct avivo_crtc_state crtc[2];
 
-    struct avivo_grph_state grph[2];
+    uint32_t eg_crtc[6][15];
+
+    struct avivo_grph_state grph[6];
 
     /* DDIA block on RS6xx chips */
     uint32_t ddia[37];
