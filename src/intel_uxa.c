@@ -146,17 +146,21 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		pitch = ALIGN(pitch, 64);
 		size = pitch * ALIGN (h, 2);
 		if (INTEL_INFO(intel)->gen < 40) {
-			/* Older hardware requires fences to be pot size
-			 * aligned with a minimum of 1 MiB, so causes
-			 * massive overallocation for small textures.
-			 */
-			if (size < 1024*1024/2)
-				*tiling = I915_TILING_NONE;
-
 			/* Gen 2/3 has a maximum stride for tiling of
 			 * 8192 bytes.
 			 */
 			if (pitch > KB(8))
+				*tiling = I915_TILING_NONE;
+
+			/* Narrower than half a tile? */
+			if (pitch < 256)
+				*tiling = I915_TILING_NONE;
+
+			/* Older hardware requires fences to be pot size
+			 * aligned with a minimum of 1 MiB, so causes
+			 * massive overallocation for small textures.
+			 */
+			if (size < 1024*1024/2 && !intel->has_relaxed_fencing)
 				*tiling = I915_TILING_NONE;
 		} else if (!(usage & INTEL_CREATE_PIXMAP_DRI2) && size <= 4096) {
 			/* Disable tiling beneath a page size, we will not see
