@@ -363,6 +363,37 @@ struct avivo_grph_state {
     uint32_t mode_data_format;
 };
 
+struct dce4_main_block_state {
+    struct avivo_grph_state grph;
+    uint32_t scl[6];
+    uint32_t crtc[15];
+    uint32_t fmt[10];
+    uint32_t dig[20];
+};
+
+struct dce4_state
+{
+
+    uint32_t vga1_cntl;
+    uint32_t vga2_cntl;
+    uint32_t vga3_cntl;
+    uint32_t vga4_cntl;
+    uint32_t vga5_cntl;
+    uint32_t vga6_cntl;
+    uint32_t vga_render_control;
+
+    struct dce4_main_block_state block[6];
+
+    uint32_t vga_pll[3][3];
+    uint32_t pll[2][15];
+    uint32_t pll_route[6];
+
+    uint32_t dac[2][26];
+    uint32_t uniphy[6][10];
+
+    uint32_t dig[20];
+};
+
 struct avivo_state
 {
     uint32_t hdp_fb_location;
@@ -390,9 +421,7 @@ struct avivo_state
 
     struct avivo_crtc_state crtc[2];
 
-    uint32_t eg_crtc[6][15];
-
-    struct avivo_grph_state grph[6];
+    struct avivo_grph_state grph[2];
 
     /* DDIA block on RS6xx chips */
     uint32_t ddia[37];
@@ -446,6 +475,7 @@ struct avivo_state
 
 typedef struct {
     struct avivo_state avivo;
+    struct dce4_state dce4;
 
 				/* Common registers */
     uint32_t          ovr_clr;
