@@ -97,6 +97,7 @@ extern void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode);
 
 extern int drmmode_get_height_align(ScrnInfoPtr scrn, uint32_t tiling);
 extern int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
+extern int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 
 #endif
 

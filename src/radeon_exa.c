@@ -429,7 +429,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_exa_pixmap_priv *new_priv;
-    int pitch;
+    int pitch, base_align;
     uint32_t size;
     uint32_t tiling = 0;
     int cpp = bitsPerPixel / 8;
@@ -462,7 +462,8 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     }
 
     height = RADEON_ALIGN(height, drmmode_get_height_align(pScrn, tiling));
-    pitch = RADEON_ALIGN(width * cpp, drmmode_get_pitch_align(pScrn, cpp, tiling));
+    pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, cpp, tiling)) * cpp;
+    base_align = drmmode_get_base_align(pScrn, cpp, tiling);
     size = RADEON_ALIGN(height * pitch, RADEON_GPU_PAGE_SIZE);
 
     new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
@@ -474,7 +475,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 
     *new_pitch = pitch;
 
-    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size, 0,
+    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size, base_align,
 				  RADEON_GEM_DOMAIN_VRAM, 0);
     if (!new_priv->bo) {
 	free(new_priv);

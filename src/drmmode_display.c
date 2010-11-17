@@ -262,7 +262,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int i;
 	int fb_id;
 	drmModeModeInfo kmode;
-	int pitch = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
+	int pitch;
 	uint32_t tiling_flags = 0;
 	int height;
 
@@ -272,7 +272,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
-	pitch = RADEON_ALIGN(pitch, drmmode_get_pitch_align(pScrn, info->CurrentLayout.pixel_bytes, tiling_flags));
+	pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
+		info->CurrentLayout.pixel_bytes;
 	height = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags));
 
 	if (drmmode->fb_id == 0) {
@@ -436,13 +437,15 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	struct radeon_bo *rotate_bo;
 	int ret;
 	unsigned long rotate_pitch;
+	int base_align;
 
 	rotate_pitch =
-		RADEON_ALIGN(width * drmmode->cpp, drmmode_get_pitch_align(crtc->scrn, drmmode->cpp, 0));
+		RADEON_ALIGN(width, drmmode_get_pitch_align(crtc->scrn, drmmode->cpp, 0)) * drmmode->cpp;
 	height = RADEON_ALIGN(height, drmmode_get_height_align(crtc->scrn, 0));
+	base_align = drmmode_get_base_align(crtc->scrn, drmmode->cpp, 0);
 	size = RADEON_ALIGN(rotate_pitch * height, RADEON_GPU_PAGE_SIZE);
 
-	rotate_bo = radeon_bo_open(drmmode->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_VRAM, 0);
+	rotate_bo = radeon_bo_open(drmmode->bufmgr, 0, size, base_align, RADEON_GEM_DOMAIN_VRAM, 0);
 	if (rotate_bo == NULL)
 		return NULL;
 
@@ -1066,6 +1069,7 @@ drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 	}
 }
 
+/* returns height alignment in pixels */
 int drmmode_get_height_align(ScrnInfoPtr scrn, uint32_t tiling)
 {
 	RADEONInfoPtr info = RADEONPTR(scrn);
@@ -1087,6 +1091,7 @@ int drmmode_get_height_align(ScrnInfoPtr scrn, uint32_t tiling)
 	return height_align;
 }
 
+/* returns pitch alignment in pixels */
 int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling)
 {
 	RADEONInfoPtr info = RADEONPTR(scrn);
@@ -1094,19 +1099,37 @@ int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling)
 
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		if (tiling & RADEON_TILING_MACRO)
-		pitch_align = MAX(info->num_banks,
-				  (((info->group_bytes / 8) / bpe) * info->num_banks)) * 8 * bpe;
+			pitch_align = MAX(info->num_banks,
+					  (((info->group_bytes / 8) / bpe) * info->num_banks)) * 8;
 		else if (tiling & RADEON_TILING_MICRO)
-			pitch_align = MAX(8, (info->group_bytes / (8 * bpe))) * bpe;
+			pitch_align = MAX(8, (info->group_bytes / (8 * bpe)));
 		else
-			pitch_align = 256; /* 8 * bpe */
+			pitch_align = info->group_bytes / bpe;
 	} else {
 		if (tiling)
-			pitch_align = 256;
+			pitch_align = 256 / bpe;
 		else
 			pitch_align = 64;
 	}
 	return pitch_align;
+}
+
+/* returns base alignment in bytes */
+int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling)
+{
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	int pixel_align = drmmode_get_pitch_align(scrn, bpe, tiling);
+	int height_align = drmmode_get_height_align(scrn, tiling);
+	int base_align = RADEON_GPU_PAGE_SIZE;
+
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		if (tiling & RADEON_TILING_MACRO)
+			base_align = MAX(info->num_banks * info->num_channels * 8 * 8 * bpe,
+					 pixel_align * bpe * height_align);
+		else
+			base_align = info->group_bytes;
+	}
+	return base_align;
 }
 
 static Bool
@@ -1144,7 +1167,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
-	pitch = RADEON_ALIGN(width * cpp, drmmode_get_pitch_align(scrn, cpp, tiling_flags));
+	pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(scrn, cpp, tiling_flags)) * cpp;
 	height = RADEON_ALIGN(height, drmmode_get_height_align(scrn, tiling_flags));
 	screen_size = RADEON_ALIGN(pitch * height, RADEON_GPU_PAGE_SIZE);
 

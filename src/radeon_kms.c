@@ -603,6 +603,11 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
                          info->ChipFamily <= CHIP_FAMILY_RS740;
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	/* set default group bytes, overriden by kernel info below */
+	if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
+	    info->group_bytes = 512;
+	else
+	    info->group_bytes = 256;
 	if (info->dri->pKernelDRMVersion->version_minor >= 6) {
 	    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 							  OPTION_COLOR_TILING, colorTilingDefault);
@@ -681,7 +686,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     }
     cpp = pScrn->bitsPerPixel / 8;
     pScrn->displayWidth =
-	RADEON_ALIGN(pScrn->virtualX * cpp, drmmode_get_pitch_align(pScrn, cpp, tiling)) / cpp;
+	RADEON_ALIGN(pScrn->virtualX, drmmode_get_pitch_align(pScrn, cpp, tiling));
     info->CurrentLayout.displayWidth = pScrn->displayWidth;
 
     /* Set display resolution */
@@ -1099,7 +1104,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;
     int screen_size;
-    int pitch;
+    int pitch, base_align;
     int total_size_bytes = 0, remain_size_bytes;
     uint32_t tiling_flags = 0;
 
@@ -1118,8 +1123,9 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	if (info->ChipFamily < CHIP_FAMILY_R600)
 	    tiling_flags |= RADEON_TILING_MACRO;
     }
-    pitch = RADEON_ALIGN(pScrn->displayWidth * cpp, drmmode_get_pitch_align(pScrn, cpp, tiling_flags));
+    pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, cpp, tiling_flags)) * cpp;
     screen_size = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags)) * pitch;
+    base_align = drmmode_get_base_align(pScrn, cpp, tiling_flags);
     {
 	int cursor_size = 64 * 4 * 64;
 	int c;
@@ -1161,7 +1167,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 
     if (info->front_bo == NULL) {
         info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size,
-                                        0, RADEON_GEM_DOMAIN_VRAM, 0);
+                                        base_align, RADEON_GEM_DOMAIN_VRAM, 0);
         if (info->r600_shadow_fb == TRUE) {
             if (radeon_bo_map(info->front_bo, 1)) {
                 ErrorF("Failed to map cursor buffer memory\n");
