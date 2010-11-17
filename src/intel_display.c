@@ -101,6 +101,9 @@ struct intel_output {
 static void
 intel_output_dpms(xf86OutputPtr output, int mode);
 
+static void
+intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode);
+
 #define BACKLIGHT_CLASS "/sys/class/backlight"
 
 /*
@@ -377,8 +380,24 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(-ret));
 		ret = FALSE;
-	} else
+	} else {
 		ret = TRUE;
+
+		/* Force DPMS to On for all outputs, which the kernel will have done
+		 * with the mode set. Also, restore the backlight level
+		 */
+		for (i = 0; i < xf86_config->num_output; i++) {
+		    xf86OutputPtr output = xf86_config->output[i];
+		    struct intel_output *intel_output;
+
+		    if (output->crtc != crtc)
+			continue;
+
+		    intel_output = output->driver_private;
+		    intel_output_dpms_backlight(output, intel_output->dpms_mode, DPMSModeOn);
+		    intel_output->dpms_mode = DPMSModeOn;
+		}
+	}
 
 	intel_set_gem_max_sizes(scrn);
 
