@@ -188,7 +188,7 @@ enum {
     SQ_FETCH_RESOURCE_offset                                = 32,
     SQ_FETCH_RESOURCE_ps                                    = 0,                                               //   0...175
     SQ_FETCH_RESOURCE_vs                                    = SQ_FETCH_RESOURCE_ps + SQ_FETCH_RESOURCE_ps_num, // 176...335
-    SQ_FETCH_RESOURCE_gs                                    = SQ_FETCH_RESOURCE_vs + SQ_FETCH_RESOURCE_fs_num, // 336...495
+    SQ_FETCH_RESOURCE_gs                                    = SQ_FETCH_RESOURCE_vs + SQ_FETCH_RESOURCE_vs_num, // 336...495
     SQ_FETCH_RESOURCE_hs                                    = SQ_FETCH_RESOURCE_gs + SQ_FETCH_RESOURCE_gs_num, // 496...655
     SQ_FETCH_RESOURCE_ls                                    = SQ_FETCH_RESOURCE_hs + SQ_FETCH_RESOURCE_hs_num, // 656...815
     SQ_FETCH_RESOURCE_cs                                    = SQ_FETCH_RESOURCE_ls + SQ_FETCH_RESOURCE_ls_num, // 816...991
