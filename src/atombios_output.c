@@ -731,9 +731,17 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int action, uint8_t 
 	else
 	    disp_data.v3.ucLaneNum = 4;
 
-	if (radeon_output->linkb) {
-	    disp_data.v3.acConfig.ucLinkSel = 1;
-	    disp_data.v2.acConfig.ucEncoderSel = 1;
+	if (IS_DCE41_VARIANT) {
+	    if (radeon_output->dig_encoder)
+		disp_data.v3.acConfig.ucEncoderSel = 1;
+
+	    if (radeon_output->linkb)
+		disp_data.v3.acConfig.ucLinkSel = 1;
+	} else {
+	    if (radeon_output->linkb) {
+		disp_data.v3.acConfig.ucLinkSel = 1;
+		disp_data.v2.acConfig.ucEncoderSel = 1;
+	    }
 	}
 
 	// select the PLL for the UNIPHY
@@ -1629,6 +1637,12 @@ atombios_pick_dig_encoder(xf86OutputPtr output)
         mode == ATOM_ENCODER_MODE_TV ||
         mode == ATOM_ENCODER_MODE_CV)
         return;
+
+    if (IS_DCE41_VARIANT) {
+        RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
+        radeon_output->dig_encoder = radeon_crtc->crtc_id;
+        return;
+    }
 
     if (IS_DCE4_VARIANT) {
         radeon_encoder = radeon_get_encoder(output);

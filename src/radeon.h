@@ -358,6 +358,7 @@ typedef enum {
     CHIP_FAMILY_JUNIPER,
     CHIP_FAMILY_CYPRESS,
     CHIP_FAMILY_HEMLOCK,
+    CHIP_FAMILY_PALM,
     CHIP_FAMILY_LAST
 } RADEONChipFamily;
 
@@ -386,6 +387,8 @@ typedef enum {
 #define IS_DCE32_VARIANT ((info->ChipFamily >= CHIP_FAMILY_RV730))
 
 #define IS_DCE4_VARIANT ((info->ChipFamily >= CHIP_FAMILY_CEDAR))
+
+#define IS_DCE41_VARIANT ((info->ChipFamily >= CHIP_FAMILY_PALM))
 
 #define IS_EVERGREEN_3D (info->ChipFamily >= CHIP_FAMILY_CEDAR)
 
