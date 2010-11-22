@@ -69,7 +69,8 @@ evergreen_sq_setup(ScrnInfoPtr pScrn, sq_config_t *sq_conf)
     uint32_t sq_stack_resource_mgmt_1, sq_stack_resource_mgmt_2, sq_stack_resource_mgmt_3;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-    if (info->ChipFamily == CHIP_FAMILY_CEDAR)
+    if ((info->ChipFamily == CHIP_FAMILY_CEDAR) ||
+	(info->ChipFamily == CHIP_FAMILY_PALM))
 	sq_config = 0;
     else
 	sq_config = VC_ENABLE_bit;
@@ -497,7 +498,8 @@ evergreen_set_vtx_resource(ScrnInfoPtr pScrn, vtx_resource_t *res, uint32_t doma
     sq_vtx_constant_word4 = 0;
 
     /* flush vertex cache */
-    if (info->ChipFamily == CHIP_FAMILY_CEDAR)
+    if ((info->ChipFamily == CHIP_FAMILY_CEDAR) ||
+	(info->ChipFamily == CHIP_FAMILY_PALM))
 	evergreen_cp_set_surface_sync(pScrn, TC_ACTION_ENA_bit,
 				      accel_state->vbo.vb_offset, accel_state->vbo.vb_mc_addr,
 				      res->bo,
@@ -833,6 +835,27 @@ evergreen_set_default_state(ScrnInfoPtr pScrn)
 	sq_conf.num_es_stack_entries = 85;
 	sq_conf.num_hs_stack_entries = 85;
 	sq_conf.num_ls_stack_entries = 85;
+	break;
+    case CHIP_FAMILY_PALM:
+	sq_conf.num_ps_gprs = 93;
+	sq_conf.num_vs_gprs = 46;
+	sq_conf.num_temp_gprs = 4;
+	sq_conf.num_gs_gprs = 31;
+	sq_conf.num_es_gprs = 31;
+	sq_conf.num_hs_gprs = 23;
+	sq_conf.num_ls_gprs = 23;
+	sq_conf.num_ps_threads = 96;
+	sq_conf.num_vs_threads = 16;
+	sq_conf.num_gs_threads = 16;
+	sq_conf.num_es_threads = 16;
+	sq_conf.num_hs_threads = 16;
+	sq_conf.num_ls_threads = 16;
+	sq_conf.num_ps_stack_entries = 42;
+	sq_conf.num_vs_stack_entries = 42;
+	sq_conf.num_gs_stack_entries = 42;
+	sq_conf.num_es_stack_entries = 42;
+	sq_conf.num_hs_stack_entries = 42;
+	sq_conf.num_ls_stack_entries = 42;
 	break;
     }
 
