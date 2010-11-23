@@ -189,7 +189,7 @@ driver.
 .PP
 The driver auto\-detects all device information necessary to initialize
 the card.  However, if you have problems with auto\-detection, you can
-specify:
+specify for UMS (Userspace Modesetting):
 .PP
 .RS 4
 VideoRam \- in kilobytes
@@ -203,7 +203,7 @@ ChipID   \- PCI DEVICE ID
 .PP
 In addition, the following driver
 .B Options
-are supported:
+are supported for both UMS (Userspace Modesetting) and KMS (Kernel Modesetting):
 .TP
 .BI "Option \*qSWcursor\*q \*q" boolean \*q
 Selects software cursor.  The default is
@@ -215,6 +215,57 @@ Enables or disables all hardware acceleration.
 The default is to
 .B enable
 hardware acceleration.
+.TP
+.BI "Option \*qZaphodHeads\*q \*q" string \*q
+Specify the RandR output(s) to use with zaphod mode for a particular driver
+instance.  If you use this option you most use this option for all instances
+of the driver.
+.br
+For example:
+.B
+Option \*qZaphodHeads\*q \*qLVDS,VGA-0\*q
+will assign xrandr outputs LVDS and VGA-0 to this instance of the driver.
+.TP
+.BI "Option \*qEXAVSync\*q \*q" boolean \*q
+This option attempts to avoid tearing by stalling the engine until the display
+controller has passed the destination region.  It reduces tearing at the cost
+of performance and has been known to cause instability on some chips.
+The default is
+.B off.
+
+.PP
+The following driver
+.B Options
+are supported for
+.B KMS
+(Kernel Modesetting):
+.TP
+.BI "Option \*qColorTiling\*q \*q" "boolean" \*q
+The framebuffer can be addressed either in linear or tiled mode. Tiled mode can provide
+significant performance benefits with 3D applications.  Tiling will be disabled if the drm
+module is too old or if the current display configuration does not support it. KMS
+ColorTiling is not currently supported on R/RV/RS1XX, R/RV/RS2XX, and RS3XX.
+.br
+The default value is
+.B on
+for R/RV3XX, R/RV4XX, R/RV5XX, RS6XX, RS740 and
+.B off
+for R/RV6XX, R/RV7XX, RS780, RS880, and EVERGREEN.
+.TP
+.BI "Option \*qEXAPixmaps\*q \*q" boolean \*q
+Under KMS, to avoid thrashing pixmaps in/out of VRAM on low memory cards,
+we use a heuristic based on VRAM amount to determine whether to allow EXA
+to use VRAM for non-essential pixmaps.  This option allows us to override the
+heuristic.  The default is
+.B on
+with > 32MB VRAM, off with < 32MB.
+
+.PP
+The following driver
+.B Options
+are supported for
+.B UMS
+(Userspace Modesetting):
 .TP
 .BI "Option \*qDac6Bit\*q \*q" boolean \*q
 Enables or disables the use of 6 bits per color component when in 8 bpp
@@ -607,13 +658,6 @@ False if you are experiencing a hang when initializing a secondary card.
 The default is
 .B on.
 .TP 
-.BI "Option \*qEXAVSync\*q \*q" boolean \*q
-This option attempts to avoid tearing by stalling the engine until the display
-controller has passed the destination region.  It reduces tearing at the cost
-of performance and has been known to cause instability on some chips.
-The default is
-.B off.
-.TP 
 .BI "Option \*qATOMTvOut\*q \*q" boolean \*q
 This option enables experimental TV-out support for R/RV5xx, R/RV6xx, and R/RV7xx
 AtomBIOS chips. TV-out is experimental and may not function on these chips as
@@ -625,24 +669,6 @@ The default is
 This option enables modesetting on R/RV4xx chips using AtomBIOS.
 The default is
 .B off.
-.TP 
-.BI "Option \*qEXAPixmaps\*q \*q" boolean \*q
-(KMS Only) Under kernel modesetting, to avoid thrashing pixmaps in/out
-of VRAM on low memory cards, we use a heuristic based on VRAM amount
-to determine whether to allow EXA to use VRAM for non-essential pixmaps.
-This option allows us to override the heuristic.
-The default is
-.B on with > 32MB VRAM, off with < 32MB.
-.TP
-.BI "Option \*qZaphodHeads\*q \*q" string \*q
-Specify the RandR output(s) to use with zaphod mode for a particular driver
-instance.  If you use this option you most use this option for all instances
-of the driver.
-.br
-For example:
-.B
-Option \*qZaphodHeads\*q \*qLVDS,VGA-0\*q
-will assign xrandr outputs LVDS and VGA-0 to this instance of the driver.
 
 .SH TEXTURED VIDEO ATTRIBUTES
 The driver supports the following X11 Xv attributes for Textured Video.
