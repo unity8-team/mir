@@ -178,6 +178,9 @@ Radeon HD 5850/5870
 .TP 12
 .B HEMLOCK
 Radeon HD 5970
+.TP 12
+.B PALM
+Radeon HD 6310/6250
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
