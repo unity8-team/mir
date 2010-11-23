@@ -443,6 +443,7 @@ typedef struct intel_screen_private {
 
 	Bool use_pageflipping;
 	Bool force_fallback;
+	Bool can_blt;
 	Bool use_shadow;
 
 	/* Broken-out options. */

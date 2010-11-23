@@ -468,8 +468,21 @@ static void I830XvInit(ScrnInfoPtr scrn)
 		   intel->colorKey);
 }
 
-static Bool can_accelerate_2d(struct intel_screen_private *intel)
+static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
+	if (IS_I830(intel) || IS_845G(intel)) {
+		/* These pair of i8xx chipsets have a crippling erratum
+		 * that prevents the use of a PTE entry by the BLT
+		 * engine immediately following updating that
+		 * entry in the GATT.
+		 *
+		 * As the BLT is fundamental to our 2D acceleration,
+		 * and the workaround is lost in the midst of time,
+		 * fallback.
+		 */
+		return FALSE;
+	}
+
 	if (INTEL_INFO(intel)->gen >= 60) {
 		drm_i915_getparam_t gp;
 		int value;
@@ -592,9 +605,8 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 			intel->tiling = FALSE;
 	}
 
-	intel->use_shadow = FALSE;
-	if (!can_accelerate_2d(intel))
-		intel->use_shadow = TRUE;
+	intel->can_blt = can_accelerate_blt(intel);
+	intel->use_shadow = !intel->can_blt;
 
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
 		intel->use_shadow =
@@ -606,7 +618,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (intel->use_shadow) {
 		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
 			   "Shadow buffer enabled,"
-			   " GPU acceleration disabled.\n");
+			   " 2D GPU acceleration disabled.\n");
 	}
 
 	/* SwapBuffers delays to avoid tearing */
