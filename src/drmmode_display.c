@@ -899,7 +899,7 @@ const char *output_names[] = { "None",
 };
 
 static void
-drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
+drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num, int *num_dvi, int *num_hdmi)
 {
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	xf86OutputPtr output;
@@ -930,12 +930,18 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	/* need to do smart conversion here for compat with non-kms ATI driver */
 	if (koutput->connector_type_id == 1) {
 	    switch(koutput->connector_type) {
-	    case DRM_MODE_CONNECTOR_VGA:
 	    case DRM_MODE_CONNECTOR_DVII:
 	    case DRM_MODE_CONNECTOR_DVID:
 	    case DRM_MODE_CONNECTOR_DVIA:
+		snprintf(name, 32, "%s-%d", output_names[koutput->connector_type], *num_dvi);
+		(*num_dvi)++;
+		break;
 	    case DRM_MODE_CONNECTOR_HDMIA:
 	    case DRM_MODE_CONNECTOR_HDMIB:
+		snprintf(name, 32, "%s-%d", output_names[koutput->connector_type], *num_hdmi);
+		(*num_hdmi)++;
+		break;
+	    case DRM_MODE_CONNECTOR_VGA:
 	    case DRM_MODE_CONNECTOR_DisplayPort:
 		snprintf(name, 32, "%s-%d", output_names[koutput->connector_type], koutput->connector_type_id - 1);
 		break;
@@ -1287,7 +1293,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 	xf86CrtcConfigPtr xf86_config;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
-	int i;
+	int i, num_dvi = 0, num_hdmi = 0;
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
 	xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -1304,7 +1310,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 			drmmode_crtc_init(pScrn, drmmode, i);
 
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
-		drmmode_output_init(pScrn, drmmode, i);
+		drmmode_output_init(pScrn, drmmode, i, &num_dvi, &num_hdmi);
 
 	/* workout clones */
 	drmmode_clones_init(pScrn, drmmode);
