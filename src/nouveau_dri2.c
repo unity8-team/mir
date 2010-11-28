@@ -363,8 +363,11 @@ nouveau_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 {
 	int ret;
 
-	if (!can_sync_to_vblank(draw))
-		return FALSE;
+	if (!can_sync_to_vblank(draw)) {
+		*ust = 0;
+		*msc = 0;
+		return TRUE;
+	}
 
 	/* Get current sequence */
 	ret = nouveau_wait_vblank(draw, DRM_VBLANK_RELATIVE, 0, msc, ust, NULL);
