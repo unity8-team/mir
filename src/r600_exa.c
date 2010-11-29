@@ -1358,7 +1358,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     /* Shader */
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
     vs_conf.shader_size         = accel_state->vs_size;
-    vs_conf.num_gprs            = 3;
+    vs_conf.num_gprs            = 5;
     vs_conf.stack_size          = 1;
     vs_conf.bo                  = accel_state->shaders_bo;
     r600_vs_setup(pScrn, accel_state->ib, &vs_conf, RADEON_GEM_DOMAIN_VRAM);
