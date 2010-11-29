@@ -193,6 +193,10 @@
 // 128-159 kcache constants bank 0
 // 160-191 kcache constants bank 1
 // 248-255 special SQ_ALU_SRC_* (0, 1, etc.)
+#define ALU_SRC_GPR_BASE        0
+#define ALU_SRC_KCACHE0_BASE  128
+#define ALU_SRC_KCACHE1_BASE  160
+#define ALU_SRC_CFILE_BASE    256
 
 #define SRC0_REL(x)        (x)
 #define SRC1_REL(x)        (x)
