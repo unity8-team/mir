@@ -603,11 +603,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
                          info->ChipFamily <= CHIP_FAMILY_RS740;
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	/* set default group bytes, overriden by kernel info below */
-	if (info->ChipFamily >= CHIP_FAMILY_CEDAR)
-	    info->group_bytes = 512;
-	else
-	    info->group_bytes = 256;
+	/* set default group bytes, overridden by kernel info below */
+	info->group_bytes = 256;
 	if (info->dri->pKernelDRMVersion->version_minor >= 6) {
 	    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 							  OPTION_COLOR_TILING, colorTilingDefault);
