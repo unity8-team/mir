@@ -34,6 +34,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if 0
 #define I830DEBUG
 #endif
@@ -69,6 +73,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 #include "intel_driver.h"
+
+#if HAVE_UDEV
+#include <libudev.h>
+#endif
 
 #include "uxa.h"
 /* XXX
@@ -160,6 +168,11 @@ list_is_empty(struct list *head)
 	     pos = list_entry(pos->member.next, type, member))
 #endif
 
+/* remain compatible to xorg-server 1.6 */
+#ifndef MONITOR_EDID_COMPLETE_RAWDATA
+#define MONITOR_EDID_COMPLETE_RAWDATA EDID_COMPLETE_RAWDATA
+#endif
+
 struct intel_pixmap {
 	dri_bo *bo;
 
@@ -169,6 +182,7 @@ struct intel_pixmap {
 	uint8_t tiling;
 	int8_t busy :2;
 	int8_t batch_write :1;
+	int8_t offscreen :1;
 };
 
 #if HAS_DEVPRIVATEKEYREC
@@ -275,6 +289,10 @@ typedef struct intel_screen_private {
 	unsigned char *MMIOBase;
 	int cpp;
 
+#define RENDER_BATCH			I915_EXEC_RENDER
+#define BLT_BATCH			I915_EXEC_BLT
+	unsigned int current_batch;
+
 	unsigned int bufferOffset;	/* for I830SelectBuffer */
 
 	/* These are set in PreInit and never changed. */
@@ -322,6 +340,7 @@ typedef struct intel_screen_private {
 
 	Bool tiling;
 	Bool swapbuffers_wait;
+	Bool has_relaxed_fencing;
 
 	int Chipset;
 	unsigned long LinearAddr;
@@ -363,6 +382,10 @@ typedef struct intel_screen_private {
 		drm_intel_bo *gen4_cc_vp_bo;
 		drm_intel_bo *gen4_sampler_bo;
 		drm_intel_bo *gen4_sip_kernel_bo;
+		drm_intel_bo *wm_prog_packed_bo;
+		drm_intel_bo *wm_prog_planar_bo;
+		drm_intel_bo *gen6_blend_bo;
+		drm_intel_bo *gen6_depth_stencil_bo;
 	} video;
 
 	/* Render accel state */
@@ -435,6 +458,10 @@ typedef struct intel_screen_private {
 	 */
 	Bool fallback_debug;
 	unsigned debug_flush;
+#if HAVE_UDEV
+	struct udev_monitor *uevent_monitor;
+	InputHandlerProc uevent_handler;
+#endif
 } intel_screen_private;
 
 enum {
@@ -666,5 +693,9 @@ void intel_uxa_create_screen_resources(ScreenPtr pScreen);
 void intel_uxa_block_handler(intel_screen_private *intel);
 Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			      int num_bos);
+
+/* intel_shadow.c */
+void intel_shadow_blt(intel_screen_private *intel);
+void intel_shadow_create(struct intel_screen_private *intel);
 
 #endif /* _I830_H_ */

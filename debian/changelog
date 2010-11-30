@@ -1,20 +1,7 @@
-xserver-xorg-video-intel (2:2.13.0-1ubuntu1) natty; urgency=low
+xserver-xorg-video-intel (2:2.13.901-2ubuntu1) natty; urgency=low
 
-  * New upstream release.  See ChangeLog for more info.
-    - Attempt to fix infinite MI_WAIT_FOR_EVENT while watching video
-    - Fix buffer-object leak
-    - Fix memory leak on server reset
-    - Fix crash due to unchecked pixmap allocation
-    - Fix for video artifacts when using dualscreen
-    - Fix for incorrect characters in gnome-terminal when using compiz
-    - Fix for hanging, full-screen applications, (flash, compiz, etc.)
-    - Fix selection of backlight device on multi-GPU systems
-    - Fix to avoid crash with extremely large glyphs
-    - Fix for eDP panels incorrectly being given only a single, valid mode
-    - Fix GPU hang involving clipped SRC copies
-    - Fix to compile for 1.6 series X server.
-    - Fix to retry framebuffer allocation after an initial failure.
-    - Fix to disable dri2 after fallbacks are forced on.
+  * New upstream release.
+    - Fixes a GPU lockup when using java (LP: #668270)
   * Remaining Ubuntu changes:
     - debian/apport-gpu-error-intel.py, debian/xserver-xorg-video-intel.udev,
       debian/xserver-xorg-video-intel:
@@ -25,7 +12,61 @@ xserver-xorg-video-intel (2:2.13.0-1ubuntu1) natty; urgency=low
       Plymouth.
     - 105_sandybridge_dri_disable.patch: Disable DRI on Sandybridge until it is
       working (drop with mesa 7.10).
-    - 108_sandybridge_disable_Xv.patch: Disable Xv on Sandybridge until it is
+    - control: Add Recommends on intel-gpu-tools to xserver-xorg-video-intel
+      package for use by GPU hang scripts.
+    - xserver-xorg-video-intel.preinst.in, xserver-xorg-video-intel.postinst.in,
+      rules:
+      Don't install /etc/modprobe.d/i915-kms.conf, and remove it on upgrades.
+      At best it's redundant (as the kernel defaults to KMS), at worst it breaks
+      the ability to disable KMS.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 30 Nov 2010 10:59:32 -0800
+
+xserver-xorg-video-intel (2:2.13.901-2) experimental; urgency=low
+
+  * Build against Xserver 1.9.1 rc1.
+
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 09 Nov 2010 15:53:43 +0100
+
+xserver-xorg-video-intel (2:2.13.901-1) experimental; urgency=low
+
+  * New upstream release candidate.
+  * Bump build-dep on libdrm-dev: 2.4.22-2 contains some cherry-picked
+    changes to allow this release candidate to build and run.
+  * Drop patch: i8xx-shadow.diff
+
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 09 Nov 2010 14:54:21 +0100
+
+xserver-xorg-video-intel (2:2.13.0-2) unstable; urgency=low
+
+  [ Cyril Brulebois ]
+  * Merge from experimental.
+  * Lower build-dep on libdrm-dev from 2.4.22 to 2.4.21-1~squeeze3 since
+    the latter contains the needed bits, making it possible to build
+    within unstable.
+  * Add patch to make configure.ac happy: libdrm-from-sid-is-ok.diff
+  * Add README.Debian documenting the need for a kernel driver to handle
+    modesetting.
+  * Drop shadow-no-dri2.diff, obsoleted by upstream's 537e73f3.
+
+  [ Julien Cristau ]
+  * Update i8xx-shadow.diff.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 07 Nov 2010 19:51:56 +0100
+
+xserver-xorg-video-intel (2:2.13.0-1ubuntu1) natty; urgency=low
+
+  * New upstream release. Remaining Ubuntu changes:
+    - debian/apport-gpu-error-intel.py, debian/xserver-xorg-video-intel.udev,
+      debian/xserver-xorg-video-intel:
+      Add apport script to collect debug information on GPU hangs
+    - rules: Install udev rule to run the script when the kernel detects hung GPU
+    - 101_copy-fb.patch: Adds feature to driver so Xserver can draw
+      root windows with no background.  This enables smooth boot with
+      Plymouth.
+    - 105_sandybridge_dri_disable.patch: Disable DRI on Sandybridge until it is
+      working (drop with mesa 7.10).
+    - 108_sandybridge_disable_Xv.patch: Disable Xv on Sandybridge until it is 
       supported. (Drop with intel 2.13.901).
     - control: Add Recommends on intel-gpu-tools to xserver-xorg-video-intel
       package for use by GPU hang scripts.
@@ -147,6 +188,34 @@ xserver-xorg-video-intel (2:2.12.0-1ubuntu1) maverick; urgency=low
     here.
 
  -- Christopher James Halse Rogers <raof@ubuntu.com>  Mon, 19 Jul 2010 16:36:28 +0200
+
+xserver-xorg-video-intel (2:2.12.0+shadow-2) unstable; urgency=low
+
+  * UMS is gone, this means Linux-only (closes: 597845).
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 23 Sep 2010 16:40:26 +0200
+
+xserver-xorg-video-intel (2:2.12.0+shadow-1) unstable; urgency=low
+
+  * Revert the come-back of UMS.  Update to upstream HEAD instead.
+    Closes: #594623, #594338.
+  * Dropping UMS means its bugs are irrelevant, so this closes: #570766,
+    #594815.
+  * Bump libdrm build-dep for DRM_MODE_CONNECTOR_eDP.
+  * Don't enable DRI2 if the shadow option is on.
+  * Use shadowfb on i8xx by default.  Hopefully closes: #570988, #572105,
+    #576848, #592586, #593293.
+  * New upstream doesn't assert() when running sm (closes: #593199).
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 20 Sep 2010 19:44:14 +0200
+
+xserver-xorg-video-intel (2:2.12.0+legacy1-1) unstable; urgency=low
+
+  * Merge from people.freedesktop.org/~ickle/xf86-video-intel:legacy.
+    This reintroduces UMS and EXA for legacy chips, while allowing us to get
+    the fixes and new hw support from 2.12.
+
+ -- Julien Cristau <jcristau@debian.org>  Tue, 24 Aug 2010 21:33:56 +0200
 
 xserver-xorg-video-intel (2:2.12.0-1) experimental; urgency=low
 

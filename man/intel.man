@@ -192,6 +192,12 @@ Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
 User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
 .IP
 Default: Disabled.
+.TP
+.BI "Option \*qHotPlug\*q \*q" boolean \*q
+This option controls whether the driver automatically notifies
+applications when monitors are connected or disconnected.
+.IP
+Default: enabled.
 
 .SH OUTPUT CONFIGURATION
 On 830M and better chipsets, the driver supports runtime configuration of

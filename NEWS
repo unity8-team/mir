@@ -1,3 +1,10 @@
+Snapshot 2.13.901 (2010-11-05)
+==============================
+This is an intermediate snapshot of ongoing driver development. The
+primary purpose of this snapshot is to capture some recent
+improvements, (particularly in Sandybridge support), for further
+testing.
+
 Release 2.13.0 (2010-09-30)
 ===========================
 We are pleased to announce this major release of the xf86-video-intel

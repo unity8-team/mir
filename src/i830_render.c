@@ -231,7 +231,7 @@ static uint32_t i8xx_get_card_format(intel_screen_private *intel,
 			return i830_tex_formats[i].card_fmt;
 	}
 
-	if (IS_I85X(intel) || IS_I865G(intel)) {
+	if (!(IS_I830(intel) || IS_845G(intel))) {
 		for (i = 0; i < sizeof(i855_tex_formats) / sizeof(i855_tex_formats[0]);
 		     i++) {
 			if (i855_tex_formats[i].fmt == picture->format)
