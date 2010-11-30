@@ -322,8 +322,10 @@ nouveau_dri2_schedule_wait(ClientPtr client, DrawablePtr draw,
 	CARD64 current_msc;
 	int ret;
 
-	if (!can_sync_to_vblank(draw))
+	if (!can_sync_to_vblank(draw)) {
+		DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
 		return TRUE;
+	}
 
 	/* Initialize a vblank structure */
 	s = malloc(sizeof(*s));
