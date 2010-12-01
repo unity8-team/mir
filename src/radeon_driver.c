@@ -2215,6 +2215,8 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 #else /* USE_XAA */
 	info->useEXA = TRUE;
 #endif /* !USE_XAA */
+#else
+	info->useEXA = FALSE;
 #endif /* USE_EXA */
         if (info->ChipFamily < CHIP_FAMILY_R600)
 	    xf86DrvMsg(pScrn->scrnIndex, from,
