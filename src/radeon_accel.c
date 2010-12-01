@@ -75,6 +75,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <assert.h>
 				/* Driver data structures */
 #include "radeon.h"
 #include "radeon_reg.h"

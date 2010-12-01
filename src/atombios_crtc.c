@@ -40,7 +40,7 @@
 #include <X11/extensions/dpms.h>
 #endif
 
-
+#include <math.h>
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"

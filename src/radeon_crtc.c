@@ -32,6 +32,8 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
+#include <math.h>
 
 /* X and server generic header files */
 #include "xf86.h"
