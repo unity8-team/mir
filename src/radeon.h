@@ -1074,6 +1074,8 @@ typedef struct {
     struct radeon_bo *bicubic_bo;
     void             *bicubic_memory;
     int               bicubic_offset;
+    /* kms pageflipping */
+    Bool allowPageFlip;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\

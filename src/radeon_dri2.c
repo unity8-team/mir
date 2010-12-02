@@ -82,6 +82,10 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
     struct radeon_exa_pixmap_priv *driver_priv;
     int i, r, need_enlarge = 0;
     int flags = 0;
+    unsigned front_width;
+
+    pixmap = screen->GetScreenPixmap(screen);
+    front_width = pixmap->drawable.width;
 
     buffers = calloc(count, sizeof *buffers);
     if (buffers == NULL) {
@@ -162,12 +166,18 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 						  drawable->depth,
 						  flags);
 
-	    } else
+	    } else {
+		unsigned aligned_width = drawable->width;
+
+		if (aligned_width == front_width)
+		    aligned_width = pScrn->virtualX;
+
 		pixmap = (*pScreen->CreatePixmap)(pScreen,
-						  drawable->width,
+						  aligned_width,
 						  drawable->height,
 						  drawable->depth,
 						  flags);
+	    }
         }
 
         if (attachments[i] == DRI2BufferDepth) {
@@ -206,6 +216,10 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     struct radeon_exa_pixmap_priv *driver_priv;
     int r, need_enlarge = 0;
     int flags;
+    unsigned front_width;
+
+    pixmap = pScreen->GetScreenPixmap(pScreen);
+    front_width = pixmap->drawable.width;
 
     buffers = calloc(1, sizeof *buffers);
     if (buffers == NULL) {
@@ -287,12 +301,18 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 					      (format != 0)?format:drawable->depth,
 					      flags);
 
-	} else
+	} else {
+	    unsigned aligned_width = drawable->width;
+
+	    if (aligned_width == front_width)
+		aligned_width = pScrn->virtualX;
+
 	    pixmap = (*pScreen->CreatePixmap)(pScreen,
-					      drawable->width,
+					      aligned_width,
 					      drawable->height,
 					      (format != 0)?format:drawable->depth,
 					      flags);
+	}
     }
 
     if (attachment == DRI2BufferDepth) {
@@ -549,12 +569,98 @@ radeon_dri2_unref_buffer(BufferPtr buffer)
     }
 }
 
+static Bool
+radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
+			  DrawablePtr draw, DRI2BufferPtr front,
+			  DRI2BufferPtr back, DRI2SwapEventPtr func,
+			  void *data)
+{
+    struct dri2_buffer_priv *back_priv;
+    struct radeon_exa_pixmap_priv *exa_priv;
+    DRI2FrameEventPtr flip_info;
+
+    flip_info = calloc(1, sizeof(DRI2FrameEventRec));
+    if (!flip_info)
+	return FALSE;
+
+    flip_info->drawable_id = draw->id;
+    flip_info->client = client;
+    flip_info->type = DRI2_SWAP;
+    flip_info->event_complete = func;
+    flip_info->event_data = data;
+    xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "%s:%d fevent[%p]\n", __func__, __LINE__, flip_info);
+
+    /* Page flip the full screen buffer */
+    back_priv = back->driverPrivate;
+    exa_priv = exaGetPixmapDriverPrivate(back_priv->pixmap);
+    return radeon_do_pageflip(scrn, exa_priv->bo, flip_info);
+}
+
+static Bool
+can_exchange(DRI2BufferPtr front, DRI2BufferPtr back)
+{
+    struct dri2_buffer_priv *front_priv = front->driverPrivate;
+    struct dri2_buffer_priv *back_priv = back->driverPrivate;
+    PixmapPtr front_pixmap = front_priv->pixmap;
+    PixmapPtr back_pixmap = back_priv->pixmap;
+
+    if (front_pixmap->drawable.width != back_pixmap->drawable.width)
+	return FALSE;
+
+    if (front_pixmap->drawable.height != back_pixmap->drawable.height)
+	return FALSE;
+
+    if (front_pixmap->drawable.bitsPerPixel != back_pixmap->drawable.bitsPerPixel)
+	return FALSE;
+
+    if (front_pixmap->devKind != back_pixmap->devKind)
+	return FALSE;
+
+    return TRUE;
+}
+
+static void
+radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPtr back)
+{
+    struct dri2_buffer_priv *front_priv = front->driverPrivate;
+    struct dri2_buffer_priv *back_priv = back->driverPrivate;
+    struct radeon_exa_pixmap_priv *front_radeon, *back_radeon;
+    ScreenPtr screen;
+    RADEONInfoPtr info;
+    struct radeon_bo *bo;
+    int tmp;
+
+    /* Swap BO names so DRI works */
+    tmp = front->name;
+    front->name = back->name;
+    back->name = tmp;
+
+    /* Swap pixmap bos */
+    front_radeon = exaGetPixmapDriverPrivate(front_priv->pixmap);
+    back_radeon = exaGetPixmapDriverPrivate(back_priv->pixmap);
+    bo = back_radeon->bo;
+    back_radeon->bo = front_radeon->bo;
+    front_radeon->bo = bo;
+
+    /* Do we need to update the Screen? */
+    screen = draw->pScreen;
+    info = RADEONPTR(xf86Screens[screen->myNum]);
+    if (front_radeon->bo == info->front_bo) {
+	radeon_bo_unref(info->front_bo);
+	info->front_bo = back_radeon->bo;
+	radeon_bo_ref(info->front_bo);
+	front_radeon = exaGetPixmapDriverPrivate(screen->GetScreenPixmap(screen));
+        front_radeon->bo = bo;
+    }
+}
+
 void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
                                      unsigned int tv_usec, void *event_data)
 {
     DRI2FrameEventPtr event = event_data;
+    RADEONInfoPtr info;
     DrawablePtr drawable;
-    ClientPtr client;
     ScreenPtr screen;
     ScrnInfoPtr scrn;
     int status;
@@ -563,7 +669,7 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
     RegionRec region;
 
     if (!event->valid)
-        goto cleanup;
+	goto cleanup;
 
     status = dixLookupDrawable(&drawable, event->drawable_id, serverClient,
                                M_ANY, DixWriteAccess);
@@ -572,25 +678,45 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
 
     screen = drawable->pScreen;
     scrn = xf86Screens[screen->myNum];
-    client = event->client;
+    info = RADEONPTR(scrn);
 
     switch (event->type) {
     case DRI2_FLIP:
+	if (info->allowPageFlip &&
+	    DRI2CanFlip(drawable) &&
+	    can_exchange(event->front, event->back) &&
+	    radeon_dri2_schedule_flip(scrn,
+				      event->client,
+				      drawable,
+				      event->front,
+				      event->back,
+				      event->event_complete,
+				      event->event_data)) {
+	    radeon_dri2_exchange_buffers(drawable, event->front, event->back);
+	    break;
+	}
+	/* else fall through to exchange/blit */
     case DRI2_SWAP:
-        box.x1 = 0;
-        box.y1 = 0;
-        box.x2 = drawable->width;
-        box.y2 = drawable->height;
-        REGION_INIT(pScreen, &region, &box, 0);
-        radeon_dri2_copy_region(drawable, &region, event->front, event->back);
-        swap_type = DRI2_BLIT_COMPLETE;
+	if (DRI2CanExchange(drawable) &&
+	    can_exchange(event->front, event->back)) {
+	    radeon_dri2_exchange_buffers(drawable, event->front, event->back);
+	    swap_type = DRI2_EXCHANGE_COMPLETE;
+	} else {
+	    box.x1 = 0;
+	    box.y1 = 0;
+	    box.x2 = drawable->width;
+	    box.y2 = drawable->height;
+	    REGION_INIT(pScreen, &region, &box, 0);
+	    radeon_dri2_copy_region(drawable, &region, event->front, event->back);
+	    swap_type = DRI2_BLIT_COMPLETE;
+	}
 
-        DRI2SwapComplete(client, drawable, frame, tv_sec, tv_usec,
+        DRI2SwapComplete(event->client, drawable, frame, tv_sec, tv_usec,
                 swap_type, event->event_complete, event->event_data);
 
         break;
     case DRI2_WAITMSC:
-        DRI2WaitMSCComplete(client, drawable, frame, tv_sec, tv_usec);
+        DRI2WaitMSCComplete(event->client, drawable, frame, tv_sec, tv_usec);
         break;
     default:
         /* Unknown type */
@@ -638,7 +764,7 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
     RADEONInfoPtr info = RADEONPTR(scrn);
     drmVBlank vbl;
     int ret;
-    int crtc= radeon_dri2_drawable_crtc(draw);
+    int crtc = radeon_dri2_drawable_crtc(draw);
 
     /* Drawable not displayed, make up a value */
     if (crtc == -1) {
@@ -796,6 +922,47 @@ out_complete:
     return TRUE;
 }
 
+void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
+				    unsigned int tv_usec, void *event_data)
+{
+    DRI2FrameEventPtr flip = event_data;
+    DrawablePtr drawable;
+    ScreenPtr screen;
+    ScrnInfoPtr scrn;
+    int status;
+    PixmapPtr pixmap;
+
+    status = dixLookupDrawable(&drawable, flip->drawable_id, serverClient,
+			       M_ANY, DixWriteAccess);
+    if (status != Success) {
+	free(flip);
+	return;
+    }
+
+    screen = drawable->pScreen;
+    scrn = xf86Screens[screen->myNum];
+
+    pixmap = screen->GetScreenPixmap(screen);
+    xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "%s:%d fevent[%p] width %d pitch %d (/4 %d)\n",
+		   __func__, __LINE__, flip, pixmap->drawable.width, pixmap->devKind, pixmap->devKind/4);
+
+    /* We assume our flips arrive in order, so we don't check the frame */
+    switch (flip->type) {
+    case DRI2_SWAP:
+	DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
+			 DRI2_FLIP_COMPLETE, flip->event_complete,
+			 flip->event_data);
+	break;
+    default:
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: unknown vblank event received\n", __func__);
+	/* Unknown type */
+	break;
+    }
+
+    free(flip);
+}
+
 /*
  * ScheduleSwap is responsible for requesting a DRM vblank event for the
  * appropriate frame.
@@ -883,6 +1050,15 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     }
 
     current_msc = vbl.reply.sequence;
+
+    /* Flips need to be submitted one frame before */
+    if (info->allowPageFlip &&
+	DRI2CanFlip(draw) &&
+	can_exchange(front, back)) {
+	swap_type = DRI2_FLIP;
+	flip = 1;
+    }
+
     swap_info->type = swap_type;
 
     /* Correct target_msc by 'flip' if swap_type == DRI2_FLIP.
@@ -899,9 +1075,6 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
      */
     if (divisor == 0 || current_msc < *target_msc) {
         vbl.request.type =  DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-        if (crtc > 0)
-            vbl.request.type |= DRM_VBLANK_SECONDARY;
-
         /* If non-pageflipping, but blitting/exchanging, we need to use
          * DRM_VBLANK_NEXTONMISS to avoid unreliable timestamping later
          * on.

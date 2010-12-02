@@ -70,6 +70,7 @@ const OptionInfoRec RADEONOptions_KMS[] = {
     { OPTION_EXA_VSYNC,      "EXAVSync",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_EXA_PIXMAPS,    "EXAPixmaps",	 OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_ZAPHOD_HEADS,   "ZaphodHeads",      OPTV_STRING,  {0}, FALSE },
+    { OPTION_PAGE_FLIP,      "EnablePageFlip",   OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -619,6 +620,13 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
+
+    if (info->dri->pKernelDRMVersion->version_minor >= 8) {
+	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
+						   OPTION_PAGE_FLIP, TRUE);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "KMS Pageflipping: %sabled\n", info->allowPageFlip ? "en" : "dis");
+    }
 
     if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");

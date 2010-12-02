@@ -39,6 +39,7 @@
 typedef struct {
   int fd;
   unsigned fb_id;
+  unsigned old_fb_id;
   drmModeResPtr mode_res;
   drmModeFBPtr mode_fb;
   int cpp;
@@ -50,6 +51,7 @@ typedef struct {
 #endif
   drmEventContext event_context;
   int flip_count;
+  void *event_data;
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
@@ -98,6 +100,8 @@ extern void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode);
 extern int drmmode_get_height_align(ScrnInfoPtr scrn, uint32_t tiling);
 extern int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 extern int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
+
+Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *data);
 
 #endif
 
