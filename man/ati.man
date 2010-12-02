@@ -26,7 +26,6 @@ those drivers.  See those manpages for specific cards supported.
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
 details, and the specific card driver for driver configuration details.
-driver.
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__), r128(__drivermansuffix__), radeon(__drivermansuffix__)
 .SH AUTHORS
