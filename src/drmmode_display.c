@@ -266,9 +266,10 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	uint32_t tiling_flags = 0;
 	int height;
 
-	/* no tiled scanout on r6xx+ yet */
 	if (info->allowColorTiling) {
-		if (info->ChipFamily < CHIP_FAMILY_R600)
+		if (info->ChipFamily >= CHIP_FAMILY_R600)
+			tiling_flags |= RADEON_TILING_MICRO;
+		else
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
@@ -1167,9 +1168,10 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (front_bo)
 		radeon_bo_wait(front_bo);
 
-	/* no tiled scanout on r6xx+ yet */
 	if (info->allowColorTiling) {
-		if (info->ChipFamily < CHIP_FAMILY_R600)
+		if (info->ChipFamily >= CHIP_FAMILY_R600)
+			tiling_flags |= RADEON_TILING_MICRO;
+		else
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 

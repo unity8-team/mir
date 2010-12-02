@@ -678,7 +678,9 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     /* no tiled scanout on r6xx+ yet */
     if (info->allowColorTiling) {
-	if (info->ChipFamily < CHIP_FAMILY_R600)
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    tiling |= RADEON_TILING_MICRO;
+	else
 	    tiling |= RADEON_TILING_MACRO;
     }
     cpp = pScrn->bitsPerPixel / 8;
@@ -1115,9 +1117,10 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	    return FALSE;
     }
 
-    /* no tiled scanout on r6xx+ yet */
     if (info->allowColorTiling) {
-	if (info->ChipFamily < CHIP_FAMILY_R600)
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    tiling_flags |= RADEON_TILING_MICRO;
+	else
 	    tiling_flags |= RADEON_TILING_MACRO;
     }
     pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, cpp, tiling_flags)) * cpp;
