@@ -443,7 +443,9 @@ radeon_dri2_copy_region(DrawablePtr drawable,
     }
 
     vsync = info->accel_state->vsync;
-    info->accel_state->vsync = TRUE;
+
+    /* Driver option "SwapbuffersWait" defines if we vsync DRI2 copy-swaps. */ 
+    info->accel_state->vsync = info->swapBuffersWait;
 
     (*gc->ops->CopyArea)(src_drawable, dst_drawable, gc,
                          0, 0, drawable->width, drawable->height, 0, 0);

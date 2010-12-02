@@ -71,6 +71,7 @@ const OptionInfoRec RADEONOptions_KMS[] = {
     { OPTION_EXA_PIXMAPS,    "EXAPixmaps",	 OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_ZAPHOD_HEADS,   "ZaphodHeads",      OPTV_STRING,  {0}, FALSE },
     { OPTION_PAGE_FLIP,      "EnablePageFlip",   OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_SWAPBUFFERS_WAIT,"SwapbuffersWait", OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -627,6 +628,11 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "KMS Pageflipping: %sabled\n", info->allowPageFlip ? "en" : "dis");
     }
+
+    info->swapBuffersWait = xf86ReturnOptValBool(info->Options,
+						 OPTION_SWAPBUFFERS_WAIT, TRUE);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "SwapBuffers wait for vsync: %sabled\n", info->swapBuffersWait ? "en" : "dis");
 
     if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");

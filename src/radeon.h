@@ -224,7 +224,8 @@ typedef enum {
     OPTION_FORCE_LOW_POWER,
     OPTION_DYNAMIC_PM,
     OPTION_NEW_PLL,
-    OPTION_ZAPHOD_HEADS
+    OPTION_ZAPHOD_HEADS,
+    OPTION_SWAPBUFFERS_WAIT
 } RADEONOpts;
 
 
@@ -1076,6 +1077,9 @@ typedef struct {
     int               bicubic_offset;
     /* kms pageflipping */
     Bool allowPageFlip;
+
+    /* Perform vsync'ed SwapBuffers? */
+    Bool swapBuffersWait;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
