@@ -571,6 +571,26 @@ radeon_dri2_unref_buffer(BufferPtr buffer)
     }
 }
 
+static int radeon_dri2_drawable_crtc(DrawablePtr pDraw)
+{
+    ScreenPtr pScreen = pDraw->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    xf86CrtcPtr crtc;
+    int crtc_id = -1;
+
+    crtc = radeon_pick_best_crtc(pScrn,
+				 pDraw->x,
+				 pDraw->x + pDraw->width,
+				 pDraw->y,
+				 pDraw->y + pDraw->height);
+
+    /* Make sure the CRTC is valid and this is the real front buffer */
+    if (crtc != NULL && !crtc->rotatedData) {
+        crtc_id = drmmode_get_crtc_id(crtc);
+    }
+    return crtc_id;
+}
+
 static Bool
 radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
 			  DrawablePtr draw, DRI2BufferPtr front,
@@ -580,6 +600,9 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
     struct dri2_buffer_priv *back_priv;
     struct radeon_exa_pixmap_priv *exa_priv;
     DRI2FrameEventPtr flip_info;
+
+    /* Main crtc for this drawable shall finally deliver pageflip event. */
+    int ref_crtc_hw_id = radeon_dri2_drawable_crtc(draw);
 
     flip_info = calloc(1, sizeof(DRI2FrameEventRec));
     if (!flip_info)
@@ -596,7 +619,8 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
     /* Page flip the full screen buffer */
     back_priv = back->driverPrivate;
     exa_priv = exaGetPixmapDriverPrivate(back_priv->pixmap);
-    return radeon_do_pageflip(scrn, exa_priv->bo, flip_info);
+
+    return radeon_do_pageflip(scrn, exa_priv->bo, flip_info, ref_crtc_hw_id);
 }
 
 static Bool
@@ -733,26 +757,6 @@ cleanup:
     if (event->valid)
         ListDelDRI2ClientEvents(event->client, &event->link);
     free(event);
-}
-
-static int radeon_dri2_drawable_crtc(DrawablePtr pDraw)
-{
-    ScreenPtr pScreen = pDraw->pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    xf86CrtcPtr crtc;
-    int crtc_id = -1;
-
-    crtc = radeon_pick_best_crtc(pScrn,
-				 pDraw->x,
-				 pDraw->x + pDraw->width,
-				 pDraw->y,
-				 pDraw->y + pDraw->height);
-
-    /* Make sure the CRTC is valid and this is the real front buffer */
-    if (crtc != NULL && !crtc->rotatedData) {
-        crtc_id = drmmode_get_crtc_id(crtc);
-    }
-    return crtc_id;
 }
 
 /*
@@ -952,6 +956,18 @@ void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
     /* We assume our flips arrive in order, so we don't check the frame */
     switch (flip->type) {
     case DRI2_SWAP:
+	/* Check for too small vblank count of pageflip completion, taking wraparound
+	 * into account. This usually means some defective kms pageflip completion,
+	 * causing wrong (msc, ust) return values and possible visual corruption.
+	 */
+	if ((frame < flip->frame) && (flip->frame - frame < 5)) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "%s: Pageflip completion event has impossible msc %d < target_msc %d\n",
+		        __func__, frame, flip->frame);
+	    /* All-Zero values signal failure of (msc, ust) timestamping to client. */
+	    frame = tv_sec = tv_usec = 0;
+	}
+
 	DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
 			 DRI2_FLIP_COMPLETE, flip->event_complete,
 			 flip->event_data);
