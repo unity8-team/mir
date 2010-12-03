@@ -863,6 +863,9 @@ static Bool EVERGREENCheckCompositeTexture(PicturePtr pPict,
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
 
+    if (!radeon_transform_is_affine(pPict->transform))
+	RADEON_FALLBACK(("non-affine transforms not supported\n"));
+
     return TRUE;
 }
 
