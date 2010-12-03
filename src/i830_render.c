@@ -859,9 +859,7 @@ i830_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	intel_batch_end_atomic(scrn);
 }
 
-void i830_batch_flush_notify(ScrnInfoPtr scrn)
+void i830_batch_commit_notify(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	intel->needs_render_state_emit = TRUE;
 }

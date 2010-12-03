@@ -352,8 +352,11 @@ typedef struct intel_screen_private {
 
 	CloseScreenProcPtr CloseScreen;
 
+	void (*context_switch) (struct intel_screen_private *intel,
+				int new_mode);
 	void (*vertex_flush) (struct intel_screen_private *intel);
-	void (*batch_flush_notify) (ScrnInfoPtr scrn);
+	void (*batch_flush) (struct intel_screen_private *intel);
+	void (*batch_commit_notify) (struct intel_screen_private *intel);
 
 	uxa_driver_t *uxa_driver;
 	Bool need_sync;
@@ -400,6 +403,7 @@ typedef struct intel_screen_private {
 	PixmapPtr render_current_dest;
 	Bool render_source_is_solid;
 	Bool render_mask_is_solid;
+	Bool needs_3d_invariant;
 	Bool needs_render_state_emit;
 	Bool needs_render_vertex_emit;
 	Bool needs_render_ca_pass;
@@ -432,6 +436,12 @@ typedef struct intel_screen_private {
 	uint16_t vertex_used;
 	float vertex_ptr[4*1024];
 	dri_bo *vertex_bo;
+
+	uint8_t surface_data[16*1024];
+	uint16_t surface_used;
+	uint16_t surface_table;
+	uint32_t surface_reloc;
+	dri_bo *surface_bo;
 
 	/* 965 render acceleration state */
 	struct gen4_render_state *gen4_render_state;
@@ -565,8 +575,8 @@ Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 void i915_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i915_vertex_flush(intel_screen_private *intel);
-void i915_batch_flush_notify(ScrnInfoPtr scrn);
-void i830_batch_flush_notify(ScrnInfoPtr scrn);
+void i915_batch_commit_notify(intel_screen_private *intel);
+void i830_batch_commit_notify(intel_screen_private *intel);
 /* i965_render.c */
 unsigned int gen4_render_state_size(ScrnInfoPtr scrn);
 void gen4_render_state_init(ScrnInfoPtr scrn);
@@ -581,8 +591,9 @@ Bool i965_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 void i965_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
-void i965_vertex_flush(struct intel_screen_private *intel);
-void i965_batch_flush_notify(ScrnInfoPtr scrn);
+void i965_vertex_flush(intel_screen_private *intel);
+void i965_batch_flush(intel_screen_private *intel);
+void i965_batch_commit_notify(intel_screen_private *intel);
 
 Bool intel_transform_is_affine(PictTransformPtr t);
 Bool

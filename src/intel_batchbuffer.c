@@ -40,7 +40,7 @@
 #include "i915_drm.h"
 #include "i965_reg.h"
 
-#define DUMP_BATCHBUFFERS NULL /* "/tmp/i915-batchbuffers.dump" */
+#define DUMP_BATCHBUFFERS NULL // "/tmp/i915-batchbuffers.dump"
 
 static void intel_end_vertex(intel_screen_private *intel)
 {
@@ -149,23 +149,23 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	assert (!intel->in_batch_atomic);
 
 	/* Big hammer, look to the pipelined flushes in future. */
-	if (intel->current_batch == BLT_BATCH) {
-		BEGIN_BATCH_BLT(4);
-		OUT_BATCH(MI_FLUSH_DW | 2);
-		OUT_BATCH(0);
-		OUT_BATCH(0);
-		OUT_BATCH(0);
-		ADVANCE_BATCH();
-	} else if ((INTEL_INFO(intel)->gen >= 60)) {
-		BEGIN_BATCH(4);
-		OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2)); /* Mesa does so */
-		OUT_BATCH(BRW_PIPE_CONTROL_IS_FLUSH |
-			  BRW_PIPE_CONTROL_WC_FLUSH |
-			  BRW_PIPE_CONTROL_DEPTH_CACHE_FLUSH |
-			  BRW_PIPE_CONTROL_NOWRITE);
-		OUT_BATCH(0); /* write address */
-		OUT_BATCH(0); /* write data */
-		ADVANCE_BATCH();
+	if ((INTEL_INFO(intel)->gen >= 60)) {
+		if (intel->current_batch == BLT_BATCH) {
+			BEGIN_BATCH_BLT(4);
+			OUT_BATCH(MI_FLUSH_DW | 2);
+			OUT_BATCH(0);
+			OUT_BATCH(0);
+			OUT_BATCH(0);
+			ADVANCE_BATCH();
+		} else  {
+			BEGIN_BATCH(4);
+			OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
+			OUT_BATCH(BRW_PIPE_CONTROL_WC_FLUSH |
+				  BRW_PIPE_CONTROL_NOWRITE);
+			OUT_BATCH(0); /* write address */
+			OUT_BATCH(0); /* write data */
+			ADVANCE_BATCH();
+		}
 	} else {
 		flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 		if (INTEL_INFO(intel)->gen >= 40)
@@ -189,6 +189,9 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 		intel->vertex_flush(intel);
 	intel_end_vertex(intel);
 
+	if (intel->batch_flush)
+		intel->batch_flush(intel);
+
 	if (flush)
 		intel_batch_emit_flush(scrn);
 
@@ -210,11 +213,12 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 	}
 
 	ret = dri_bo_subdata(intel->batch_bo, 0, intel->batch_used*4, intel->batch_ptr);
-	if (ret == 0)
+	if (ret == 0) {
 		ret = drm_intel_bo_mrb_exec(intel->batch_bo,
 				intel->batch_used*4,
 				NULL, 0, 0xffffffff,
-				intel->current_batch);
+				IS_GEN6(intel) ? intel->current_batch: I915_EXEC_DEFAULT);
+	}
 
 	if (ret != 0) {
 		if (ret == -EIO) {
@@ -275,8 +279,10 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
 		intel_batch_wait_last(scrn);
 
-	if (intel->batch_flush_notify)
-		intel->batch_flush_notify(scrn);
+	if (intel->batch_commit_notify)
+		intel->batch_commit_notify(intel);
+
+	intel->current_batch = 0;
 }
 
 /** Waits on the last emitted batchbuffer to be completed. */

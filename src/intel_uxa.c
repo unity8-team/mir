@@ -85,10 +85,16 @@ int uxa_pixmap_index;
 #endif
 
 static void
-ironlake_blt_workaround(ScrnInfoPtr scrn)
+gen6_context_switch(intel_screen_private *intel,
+		    int new_mode)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
+	intel_batch_submit(intel->scrn, FALSE);
+}
 
+static void
+gen5_context_switch(intel_screen_private *intel,
+		    int new_mode)
+{
 	/* Ironlake has a limitation that a 3D or Media command can't
 	 * be the first command after a BLT, unless it's
 	 * non-pipelined.  Instead of trying to track it and emit a
@@ -96,11 +102,24 @@ ironlake_blt_workaround(ScrnInfoPtr scrn)
 	 * non-pipelined 3D instruction after each blit.
 	 */
 
-	if (IS_GEN5(intel)) {
-		BEGIN_BATCH(2);
+	if (new_mode == I915_EXEC_BLT) {
+		OUT_BATCH(MI_FLUSH |
+			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
+			  MI_INHIBIT_RENDER_CACHE_FLUSH);
+	} else {
 		OUT_BATCH(CMD_POLY_STIPPLE_OFFSET << 16);
 		OUT_BATCH(0);
-		ADVANCE_BATCH();
+	}
+}
+
+static void
+gen4_context_switch(intel_screen_private *intel,
+		    int new_mode)
+{
+	if (new_mode == I915_EXEC_BLT) {
+		OUT_BATCH(MI_FLUSH |
+			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
+			  MI_INHIBIT_RENDER_CACHE_FLUSH);
 	}
 }
 
@@ -292,10 +311,7 @@ static void intel_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	pitch = intel_pixmap_pitch(pixmap);
 
 	{
-		if (IS_GEN6(intel))
-			BEGIN_BATCH_BLT(6);
-		else
-			BEGIN_BATCH(6);
+		BEGIN_BATCH_BLT(6);
 
 		cmd = XY_COLOR_BLT_CMD;
 
@@ -319,8 +335,6 @@ static void intel_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 		OUT_BATCH(intel->BR[16]);
 		ADVANCE_BATCH();
 	}
-
-	ironlake_blt_workaround(scrn);
 }
 
 static void intel_uxa_done_solid(PixmapPtr pixmap)
@@ -442,10 +456,7 @@ intel_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	src_pitch = intel_pixmap_pitch(intel->render_source);
 
 	{
-		if (IS_GEN6(intel))
-			BEGIN_BATCH_BLT(8);
-		else
-			BEGIN_BATCH(8);
+		BEGIN_BATCH_BLT(8);
 
 		cmd = XY_SRC_COPY_BLT_CMD;
 
@@ -485,7 +496,6 @@ intel_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 
 		ADVANCE_BATCH();
 	}
-	ironlake_blt_workaround(scrn);
 }
 
 static void intel_uxa_done_copy(PixmapPtr dest)
@@ -1183,6 +1193,8 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->floats_per_vertex = 0;
 	intel->last_floats_per_vertex = 0;
 	intel->vertex_bo = NULL;
+	intel->surface_used = 0;
+	intel->surface_reloc = 0;
 
 	/* Solid fill */
 	intel->uxa_driver->check_solid = intel_uxa_check_solid;
@@ -1205,7 +1217,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->composite = i830_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
 
-		intel->batch_flush_notify = i830_batch_flush_notify;
+		intel->batch_commit_notify = i830_batch_commit_notify;
 	} else if (IS_GEN3(intel)) {
 		intel->uxa_driver->check_composite = i915_check_composite;
 		intel->uxa_driver->check_composite_target = i915_check_composite_target;
@@ -1215,7 +1227,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->done_composite = i830_done_composite;
 
 		intel->vertex_flush = i915_vertex_flush;
-		intel->batch_flush_notify = i915_batch_flush_notify;
+		intel->batch_commit_notify = i915_batch_commit_notify;
 	} else {
 		intel->uxa_driver->check_composite = i965_check_composite;
 		intel->uxa_driver->check_composite_texture = i965_check_composite_texture;
@@ -1224,7 +1236,16 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->done_composite = i830_done_composite;
 
 		intel->vertex_flush = i965_vertex_flush;
-		intel->batch_flush_notify = i965_batch_flush_notify;
+		intel->batch_flush = i965_batch_flush;
+		intel->batch_commit_notify = i965_batch_commit_notify;
+
+		if (IS_GEN4(intel)) {
+			intel->context_switch = gen4_context_switch;
+		} else if (IS_GEN5(intel)) {
+			intel->context_switch = gen5_context_switch;
+		} else {
+			intel->context_switch = gen6_context_switch;
+		}
 	}
 
 	/* PutImage */
