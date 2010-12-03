@@ -102,11 +102,6 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 		intel->batch_bo = NULL;
 	}
 
-	if (intel->last_batch_bo != NULL) {
-		dri_bo_unreference(intel->last_batch_bo);
-		intel->last_batch_bo = NULL;
-	}
-
 	if (intel->vertex_bo) {
 		dri_bo_unreference(intel->vertex_bo);
 		intel->vertex_bo = NULL;
@@ -267,37 +262,16 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 		free(entry);
 	}
 
-	/* Save a ref to the last batch emitted, which we use for syncing
-	 * in debug code.
-	 */
-	dri_bo_unreference(intel->last_batch_bo);
-	intel->last_batch_bo = intel->batch_bo;
-	intel->batch_bo = NULL;
-
-	intel_next_batch(scrn);
-
 	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
-		intel_batch_wait_last(scrn);
+		drm_intel_bo_wait_rendering(intel->batch_bo);
+
+	dri_bo_unreference(intel->batch_bo);
+	intel_next_batch(scrn);
 
 	if (intel->batch_commit_notify)
 		intel->batch_commit_notify(intel);
 
 	intel->current_batch = 0;
-}
-
-/** Waits on the last emitted batchbuffer to be completed. */
-void intel_batch_wait_last(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (intel->last_batch_bo == NULL)
-		return;
-
-	/* Map it CPU write, which guarantees it's done.  This is a completely
-	 * non performance path, so we don't need anything better.
-	 */
-	drm_intel_gem_bo_map_gtt(intel->last_batch_bo);
-	drm_intel_gem_bo_unmap_gtt(intel->last_batch_bo);
 }
 
 void intel_debug_flush(ScrnInfoPtr scrn)

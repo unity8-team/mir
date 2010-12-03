@@ -38,7 +38,6 @@ void intel_batch_teardown(ScrnInfoPtr scrn);
 void intel_batch_emit_flush(ScrnInfoPtr scrn);
 void intel_batch_do_flush(ScrnInfoPtr scrn);
 void intel_batch_submit(ScrnInfoPtr scrn, int flush);
-void intel_batch_wait_last(ScrnInfoPtr scrn);
 
 static inline int intel_batch_space(intel_screen_private *intel)
 {
