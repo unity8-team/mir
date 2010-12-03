@@ -2940,6 +2940,7 @@ RADEONProbeDDC(ScrnInfoPtr pScrn, int indx)
     if (xf86LoadSubModule(pScrn, "vbe")) {
 	pVbe = VBEInit(NULL,indx);
 	ConfiguredMonitor = vbeDoEDID(pVbe, NULL);
+	vbeFree(pVbe);
     }
 }
 
