@@ -700,9 +700,6 @@ EVERGREENDoneCopy(PixmapPtr pDst)
 
 }
 
-
-#define xFixedToFloat(f) (((float) (f)) / 65536)
-
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
