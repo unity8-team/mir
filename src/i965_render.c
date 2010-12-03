@@ -1713,8 +1713,8 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	drm_intel_bo_unreference(composite_op->surface_state_binding_table_bo);
 	composite_op->surface_state_binding_table_bo = surface_state_binding_table_bo;
 
-	intel->scale_units[0][0] = source->drawable.width;
-	intel->scale_units[0][1] = source->drawable.height;
+	intel->scale_units[0][0] = 1. / source->drawable.width;
+	intel->scale_units[0][1] = 1. / source->drawable.height;
 
 	intel->transform[0] = source_picture->transform;
 	composite_op->is_affine = intel_transform_is_affine(intel->transform[0]);
@@ -1725,8 +1725,8 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 		intel->scale_units[1][1] = -1;
 	} else {
 		intel->transform[1] = mask_picture->transform;
-		intel->scale_units[1][0] = mask->drawable.width;
-		intel->scale_units[1][1] = mask->drawable.height;
+		intel->scale_units[1][0] = 1. / mask->drawable.width;
+		intel->scale_units[1][1] = 1. / mask->drawable.height;
 		composite_op->is_affine &=
 		    intel_transform_is_affine(intel->transform[1]);
 	}
@@ -1897,13 +1897,13 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	/* rect (x2,y2) */
 	vb[i++] = (float)(dstX + w);
 	vb[i++] = (float)(dstY + h);
-	vb[i++] = src_x[2] / intel->scale_units[0][0];
-	vb[i++] = src_y[2] / intel->scale_units[0][1];
+	vb[i++] = src_x[2] * intel->scale_units[0][0];
+	vb[i++] = src_y[2] * intel->scale_units[0][1];
 	if (!is_affine)
 		vb[i++] = src_w[2];
 	if (has_mask) {
-		vb[i++] = mask_x[2] / intel->scale_units[1][0];
-		vb[i++] = mask_y[2] / intel->scale_units[1][1];
+		vb[i++] = mask_x[2] * intel->scale_units[1][0];
+		vb[i++] = mask_y[2] * intel->scale_units[1][1];
 		if (!is_affine)
 			vb[i++] = mask_w[2];
 	}
@@ -1911,13 +1911,13 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	/* rect (x1,y2) */
 	vb[i++] = (float)dstX;
 	vb[i++] = (float)(dstY + h);
-	vb[i++] = src_x[1] / intel->scale_units[0][0];
-	vb[i++] = src_y[1] / intel->scale_units[0][1];
+	vb[i++] = src_x[1] * intel->scale_units[0][0];
+	vb[i++] = src_y[1] * intel->scale_units[0][1];
 	if (!is_affine)
 		vb[i++] = src_w[1];
 	if (has_mask) {
-		vb[i++] = mask_x[1] / intel->scale_units[1][0];
-		vb[i++] = mask_y[1] / intel->scale_units[1][1];
+		vb[i++] = mask_x[1] * intel->scale_units[1][0];
+		vb[i++] = mask_y[1] * intel->scale_units[1][1];
 		if (!is_affine)
 			vb[i++] = mask_w[1];
 	}
@@ -1925,13 +1925,13 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	/* rect (x1,y1) */
 	vb[i++] = (float)dstX;
 	vb[i++] = (float)dstY;
-	vb[i++] = src_x[0] / intel->scale_units[0][0];
-	vb[i++] = src_y[0] / intel->scale_units[0][1];
+	vb[i++] = src_x[0] * intel->scale_units[0][0];
+	vb[i++] = src_y[0] * intel->scale_units[0][1];
 	if (!is_affine)
 		vb[i++] = src_w[0];
 	if (has_mask) {
-		vb[i++] = mask_x[0] / intel->scale_units[1][0];
-		vb[i++] = mask_y[0] / intel->scale_units[1][1];
+		vb[i++] = mask_x[0] * intel->scale_units[1][0];
+		vb[i++] = mask_y[0] * intel->scale_units[1][1];
 		if (!is_affine)
 			vb[i++] = mask_w[0];
 	}
