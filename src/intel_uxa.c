@@ -1178,6 +1178,8 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->render_current_dest = NULL;
 	intel->prim_offset = 0;
 	intel->vertex_count = 0;
+	intel->vertex_offset = 0;
+	intel->vertex_used = 0;
 	intel->floats_per_vertex = 0;
 	intel->last_floats_per_vertex = 0;
 	intel->vertex_bo = NULL;
@@ -1221,6 +1223,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->composite = i965_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
 
+		intel->vertex_flush = i965_vertex_flush;
 		intel->batch_flush_notify = i965_batch_flush_notify;
 	}
 

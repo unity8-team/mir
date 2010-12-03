@@ -45,8 +45,10 @@
 static void intel_end_vertex(intel_screen_private *intel)
 {
 	if (intel->vertex_bo) {
-		if (intel->vertex_used)
+		if (intel->vertex_used) {
 			dri_bo_subdata(intel->vertex_bo, 0, intel->vertex_used*4, intel->vertex_ptr);
+			intel->vertex_used = 0;
+		}
 
 		dri_bo_unreference(intel->vertex_bo);
 		intel->vertex_bo = NULL;
@@ -59,7 +61,6 @@ void intel_next_vertex(intel_screen_private *intel)
 
 	intel->vertex_bo =
 		dri_bo_alloc(intel->bufmgr, "vertex", sizeof (intel->vertex_ptr), 4096);
-	intel->vertex_used = 0;
 }
 
 static void intel_next_batch(ScrnInfoPtr scrn)

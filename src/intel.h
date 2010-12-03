@@ -426,9 +426,10 @@ typedef struct intel_screen_private {
 			  int w, int h);
 	int floats_per_vertex;
 	int last_floats_per_vertex;
-	uint32_t vertex_count;
-	uint32_t vertex_index;
-	uint32_t vertex_used;
+	uint16_t vertex_offset;
+	uint16_t vertex_count;
+	uint16_t vertex_index;
+	uint16_t vertex_used;
 	float vertex_ptr[4*1024];
 	dri_bo *vertex_bo;
 
@@ -580,6 +581,7 @@ Bool i965_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 void i965_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
+void i965_vertex_flush(struct intel_screen_private *intel);
 void i965_batch_flush_notify(ScrnInfoPtr scrn);
 
 Bool intel_transform_is_affine(PictTransformPtr t);

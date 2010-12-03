@@ -43,15 +43,6 @@
 #include "brw_defines.h"
 #include "brw_structs.h"
 
-/* 24 = 4 vertices/composite * 3 texcoords/vertex * 2 floats/texcoord
- *
- * This is an upper-bound based on the case of a non-affine
- * transformation and with a mask, but useful for sizing all cases for
- * simplicity.
- */
-#define VERTEX_FLOATS_PER_COMPOSITE	24
-#define VERTEX_BUFFER_SIZE		(256 * VERTEX_FLOATS_PER_COMPOSITE)
-
 struct blendinfo {
 	Bool dst_alpha;
 	Bool src_alpha;
@@ -707,8 +698,6 @@ struct gen4_cc_unit_state {
 	    [BRW_BLENDFACTOR_COUNT];
 };
 
-typedef float gen4_vertex_buffer[VERTEX_BUFFER_SIZE];
-
 typedef struct gen4_composite_op {
 	int op;
 	drm_intel_bo *surface_state_binding_table_bo;
@@ -734,7 +723,6 @@ struct gen4_render_state {
 	drm_intel_bo *wm_kernel_bo[WM_KERNEL_COUNT];
 
 	drm_intel_bo *sip_kernel_bo;
-	dri_bo *vertex_buffer_bo;
 
 	drm_intel_bo *cc_vp_bo;
 	drm_intel_bo *gen6_blend_bo;
@@ -744,9 +732,6 @@ struct gen4_render_state {
 	    [SAMPLER_STATE_FILTER_COUNT]
 	    [SAMPLER_STATE_EXTEND_COUNT];
 	gen4_composite_op composite_op;
-
-	int vb_offset;
-	int vertex_size;
 };
 
 static void gen6_emit_composite_state(ScrnInfoPtr scrn);
@@ -1451,8 +1436,6 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 		uint32_t w_component;
 		uint32_t src_format;
 
-		render_state->vertex_size = 4 * (2 + nelem * selem);
-
 		if (is_affine) {
 			src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
 			w_component = BRW_VFCOMPONENT_STORE_1_FLT;
@@ -1566,8 +1549,8 @@ static Bool i965_composite_check_aperture(ScrnInfoPtr scrn)
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	drm_intel_bo *bo_table[] = {
 		intel->batch_bo,
+		intel->vertex_bo,
 		composite_op->surface_state_binding_table_bo,
-		render_state->vertex_buffer_bo,
 		render_state->vs_state_bo,
 		render_state->sf_state_bo,
 		render_state->sf_mask_state_bo,
@@ -1581,8 +1564,8 @@ static Bool i965_composite_check_aperture(ScrnInfoPtr scrn)
 	};
 	drm_intel_bo *gen6_bo_table[] = {
 		intel->batch_bo,
+		intel->vertex_bo,
 		composite_op->surface_state_binding_table_bo,
-		render_state->vertex_buffer_bo,
 		render_state->wm_kernel_bo[composite_op->wm_kernel],
 		render_state->ps_sampler_state_bo[composite_op->src_filter]
 		    [composite_op->src_extend]
@@ -1764,6 +1747,9 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 			composite_op->wm_kernel = WM_KERNEL_NOMASK_PROJECTIVE;
 	}
 
+	intel->floats_per_vertex =
+		2 + (mask ? 2 : 1) * (composite_op->is_affine ? 2: 3);
+
 	if (!i965_composite_check_aperture(scrn)) {
 		intel_batch_submit(scrn, FALSE);
 		if (!i965_composite_check_aperture(scrn)) {
@@ -1779,31 +1765,37 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	return TRUE;
 }
 
-static drm_intel_bo *i965_get_vb_space(ScrnInfoPtr scrn)
+static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state = intel->gen4_render_state;
+	int vertex_size = intel->floats_per_vertex;
 
-	/* If the vertex buffer is too full, then we free the old and a new one
-	 * gets made.
+	/* Set up the pointer to our (single) vertex buffer */
+	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
+
+	/* XXX could use multiple vbo to reduce relocations if
+	 * frequently switching between vertex sizes, like rgb10text.
 	 */
-	if (render_state->vb_offset + VERTEX_FLOATS_PER_COMPOSITE >
-	    VERTEX_BUFFER_SIZE) {
-		drm_intel_bo_unreference(render_state->vertex_buffer_bo);
-		render_state->vertex_buffer_bo = NULL;
+	if (INTEL_INFO(intel)->gen >= 60) {
+		OUT_BATCH((0 << GEN6_VB0_BUFFER_INDEX_SHIFT) |
+			  GEN6_VB0_VERTEXDATA |
+			  (4*vertex_size << VB0_BUFFER_PITCH_SHIFT));
+	} else {
+		OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
+			  VB0_VERTEXDATA |
+			  (4*vertex_size << VB0_BUFFER_PITCH_SHIFT));
 	}
+	OUT_RELOC(intel->vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
+	if (INTEL_INFO(intel)->gen >= 50)
+		OUT_RELOC(intel->vertex_bo,
+			  I915_GEM_DOMAIN_VERTEX, 0,
+			  sizeof(intel->vertex_ptr) - 1);
+	else
+		OUT_BATCH(0);
+	OUT_BATCH(0);		// ignore for VERTEXDATA, but still there
 
-	/* Alloc a new vertex buffer if necessary. */
-	if (render_state->vertex_buffer_bo == NULL) {
-		render_state->vertex_buffer_bo =
-		    drm_intel_bo_alloc(intel->bufmgr, "vb",
-				       sizeof(gen4_vertex_buffer), 4096);
-		render_state->vb_offset = 0;
-	}
-
-	drm_intel_bo_reference(render_state->vertex_buffer_bo);
-	return render_state->vertex_buffer_bo;
+	intel->last_floats_per_vertex = vertex_size;
 }
+
 
 void
 i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
@@ -1814,9 +1806,6 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	Bool has_mask;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-	int i;
-	drm_intel_bo *vb_bo;
-	float vb[24]; /* 3 * (2 dst + 3 src + 3 mask) */
 	Bool is_affine = render_state->composite_op.is_affine;
 
 	if (is_affine) {
@@ -1850,9 +1839,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 			return;
 	}
 
-	if (intel->scale_units[1][0] == -1 || intel->scale_units[1][1] == -1) {
-		has_mask = FALSE;
-	} else {
+	if (intel->render_mask) {
 		has_mask = TRUE;
 		if (is_affine) {
 			if (!intel_get_transformed_coordinates(maskX, maskY,
@@ -1888,54 +1875,9 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 			     &mask_x[2], &mask_y[2], &mask_w[2]))
 				return;
 		}
+	} else {
+		has_mask = FALSE;
 	}
-
-	vb_bo = i965_get_vb_space(scrn);
-	if (vb_bo == NULL)
-		return;
-	i = 0;
-	/* rect (x2,y2) */
-	vb[i++] = (float)(dstX + w);
-	vb[i++] = (float)(dstY + h);
-	vb[i++] = src_x[2] * intel->scale_units[0][0];
-	vb[i++] = src_y[2] * intel->scale_units[0][1];
-	if (!is_affine)
-		vb[i++] = src_w[2];
-	if (has_mask) {
-		vb[i++] = mask_x[2] * intel->scale_units[1][0];
-		vb[i++] = mask_y[2] * intel->scale_units[1][1];
-		if (!is_affine)
-			vb[i++] = mask_w[2];
-	}
-
-	/* rect (x1,y2) */
-	vb[i++] = (float)dstX;
-	vb[i++] = (float)(dstY + h);
-	vb[i++] = src_x[1] * intel->scale_units[0][0];
-	vb[i++] = src_y[1] * intel->scale_units[0][1];
-	if (!is_affine)
-		vb[i++] = src_w[1];
-	if (has_mask) {
-		vb[i++] = mask_x[1] * intel->scale_units[1][0];
-		vb[i++] = mask_y[1] * intel->scale_units[1][1];
-		if (!is_affine)
-			vb[i++] = mask_w[1];
-	}
-
-	/* rect (x1,y1) */
-	vb[i++] = (float)dstX;
-	vb[i++] = (float)dstY;
-	vb[i++] = src_x[0] * intel->scale_units[0][0];
-	vb[i++] = src_y[0] * intel->scale_units[0][1];
-	if (!is_affine)
-		vb[i++] = src_w[0];
-	if (has_mask) {
-		vb[i++] = mask_x[0] * intel->scale_units[1][0];
-		vb[i++] = mask_y[0] * intel->scale_units[1][1];
-		if (!is_affine)
-			vb[i++] = mask_w[0];
-	}
-	drm_intel_bo_subdata(vb_bo, render_state->vb_offset * 4, i * 4, vb);
 
 	if (!i965_composite_check_aperture(scrn))
 		intel_batch_submit(scrn, FALSE);
@@ -1950,40 +1892,80 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 		OUT_BATCH(MI_FLUSH);
 	}
 
-	/* Set up the pointer to our (single) vertex buffer */
-	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
+	if (intel->vertex_offset == 0) {
+		if (intel->vertex_used &&
+		    intel->floats_per_vertex != intel->last_floats_per_vertex) {
+			intel->vertex_index = (intel->vertex_used + intel->floats_per_vertex - 1) / intel->floats_per_vertex;
+			intel->vertex_used = intel->vertex_index * intel->floats_per_vertex;
+		}
+		if (intel->floats_per_vertex != intel->last_floats_per_vertex ||
+		    intel_vertex_space(intel) < 3*4*intel->floats_per_vertex) {
+			intel_next_vertex(intel);
+			i965_select_vertex_buffer(intel);
+			intel->vertex_index = 0;
+		}
 
-	if (INTEL_INFO(intel)->gen >= 60) {
-		OUT_BATCH((0 << GEN6_VB0_BUFFER_INDEX_SHIFT) |
-			GEN6_VB0_VERTEXDATA |
-			(render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
-	} else {
-		OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
-			VB0_VERTEXDATA |
-			(render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
+		OUT_BATCH(BRW_3DPRIMITIVE |
+			  BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
+			  (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
+			  (0 << 9) |
+			  4);
+		intel->vertex_offset = intel->batch_used;
+		OUT_BATCH(0);	/* vertex count, to be filled in later */
+		OUT_BATCH(intel->vertex_index);
+		OUT_BATCH(1);	/* single instance */
+		OUT_BATCH(0);	/* start instance location */
+		OUT_BATCH(0);	/* index buffer offset, ignored */
+		intel->vertex_count = intel->vertex_index;
 	}
 
-	OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
-		  render_state->vb_offset * 4);
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[2] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[2] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[2]);
+	if (has_mask) {
+		OUT_VERTEX(mask_x[2] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[2] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[2]);
+	}
 
-	if (INTEL_INFO(intel)->gen >= 50)
-		OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
-			  render_state->vb_offset * 4 + i * 4);
-	else
-		OUT_BATCH(3);
+	/* rect (x1,y2) */
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[1] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[1] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[1]);
+	if (has_mask) {
+		OUT_VERTEX(mask_x[1] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[1] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[1]);
+	}
 
-	OUT_BATCH(0);		// ignore for VERTEXDATA, but still there
+	/* rect (x1,y1) */
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(src_x[0] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[0] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[0]);
+	if (has_mask) {
+		OUT_VERTEX(mask_x[0] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[0] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[0]);
+	}
+	intel->vertex_index += 3;
 
-	OUT_BATCH(BRW_3DPRIMITIVE | BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL | (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | (0 << 9) |	/* CTG - indirect vertex count */
-		  4);
-	OUT_BATCH(3);		/* vertex count per instance */
-	OUT_BATCH(0);		/* start vertex offset */
-	OUT_BATCH(1);		/* single instance */
-	OUT_BATCH(0);		/* start instance location */
-	OUT_BATCH(0);		/* index buffer offset, ignored */
-
-	render_state->vb_offset += i;
-	drm_intel_bo_unreference(vb_bo);
+	if (INTEL_INFO(intel)->gen < 50) {
+	    /* XXX OMG! */
+	    i965_vertex_flush(intel);
+	    OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
+	}
 
 	intel_batch_end_atomic(scrn);
 }
@@ -1991,17 +1973,10 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 void i965_batch_flush_notify(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state = intel->gen4_render_state;
-
-	/* Once a batch is emitted, we never want to map again any buffer
-	 * object being referenced by that batch, (which would be very
-	 * expensive). */
-	if (render_state->vertex_buffer_bo) {
-		dri_bo_unreference(render_state->vertex_buffer_bo);
-		render_state->vertex_buffer_bo = NULL;
-	}
 
 	intel->needs_render_state_emit = TRUE;
+	intel->last_floats_per_vertex = 0;
+	intel->vertex_index = 0;
 }
 
 /**
@@ -2022,7 +1997,6 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 		intel->gen4_render_state = calloc(sizeof(*render_state), 1);
 
 	render_state = intel->gen4_render_state;
-	render_state->vb_offset = 0;
 
 	render_state->vs_state_bo = gen4_create_vs_unit_state(scrn);
 
@@ -2136,8 +2110,6 @@ void gen4_render_state_cleanup(ScrnInfoPtr scrn)
 	gen4_composite_op *composite_op = &render_state->composite_op;
 
 	drm_intel_bo_unreference(composite_op->surface_state_binding_table_bo);
-	drm_intel_bo_unreference(render_state->vertex_buffer_bo);
-
 	drm_intel_bo_unreference(render_state->vs_state_bo);
 	drm_intel_bo_unreference(render_state->sf_state_bo);
 	drm_intel_bo_unreference(render_state->sf_mask_state_bo);
@@ -2514,7 +2486,6 @@ static void
 gen6_composite_vertex_element_state(ScrnInfoPtr scrn, Bool has_mask, Bool is_affine)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state = intel->gen4_render_state;
 	/*
 	 * vertex data in vertex buffer
 	 *    position: (x, y)
@@ -2525,8 +2496,6 @@ gen6_composite_vertex_element_state(ScrnInfoPtr scrn, Bool has_mask, Bool is_aff
 	int selem = is_affine ? 2 : 3;
 	uint32_t w_component;
 	uint32_t src_format;
-
-	render_state->vertex_size = 4 * (2 + nelem * selem);
 
 	if (is_affine) {
 		src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
@@ -2546,10 +2515,10 @@ gen6_composite_vertex_element_state(ScrnInfoPtr scrn, Bool has_mask, Bool is_aff
 	 */
 	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
 		((2 * (2 + nelem)) + 1 - 2));
-	
+
 	OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		GEN6_VE0_VALID | 
-		(BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) | 
+		GEN6_VE0_VALID |
+		(BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 		(0 << VE0_OFFSET_SHIFT));
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT) |
 		(BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
@@ -2589,7 +2558,7 @@ gen6_composite_vertex_element_state(ScrnInfoPtr scrn, Bool has_mask, Bool is_aff
 	}
 }
 
-static void 
+static void
 gen6_emit_composite_state(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -2647,7 +2616,7 @@ gen6_emit_composite_state(ScrnInfoPtr scrn)
 	gen6_composite_vertex_element_state(scrn, mask != 0, is_affine);
 }
 
-static void 
+static void
 gen6_render_state_init(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -2659,7 +2628,6 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 		intel->gen4_render_state = calloc(sizeof(*render_state), 1);
 
 	render_state = intel->gen4_render_state;
-	render_state->vb_offset = 0;
 
 	for (m = 0; m < WM_KERNEL_COUNT; m++) {
 		render_state->wm_kernel_bo[m] =
@@ -2680,7 +2648,7 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 									i, j,
 									k, l,
 									border_color_bo);
-				}	
+				}
 			}
 		}
 	}
@@ -2690,4 +2658,13 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 	render_state->cc_state_bo = gen6_composite_create_cc_state(scrn);
 	render_state->gen6_blend_bo = gen6_composite_create_blend_state(scrn);
 	render_state->gen6_depth_stencil_bo = gen6_composite_create_depth_stencil_state(scrn);
+}
+
+void i965_vertex_flush(struct intel_screen_private *intel)
+{
+	if (intel->vertex_offset) {
+		intel->batch_ptr[intel->vertex_offset] =
+			intel->vertex_index - intel->vertex_count;
+		intel->vertex_offset = 0;
+	}
 }
