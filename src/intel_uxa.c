@@ -727,16 +727,17 @@ static Bool intel_uxa_pixmap_put_image(PixmapPtr pixmap,
 {
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	int stride = intel_pixmap_pitch(pixmap);
+	int cpp = pixmap->drawable.bitsPerPixel/8;
 	int ret = FALSE;
 
 	if (priv == NULL || priv->bo == NULL)
 		return FALSE;
 
-	if (src_pitch == stride && w == pixmap->drawable.width && priv->tiling == I915_TILING_NONE) {
-		ret = drm_intel_bo_subdata(priv->bo, y * stride, stride * h, src) == 0;
+	if (priv->tiling == I915_TILING_NONE &&
+	    (h == 1 || (src_pitch == stride && w == pixmap->drawable.width))) {
+		return drm_intel_bo_subdata(priv->bo, y*stride + x*cpp, stride*(h-1) + w*cpp, src) == 0;
 	} else if (drm_intel_gem_bo_map_gtt(priv->bo) == 0) {
 		char *dst = priv->bo->virtual;
-		int cpp = pixmap->drawable.bitsPerPixel/8;
 		int row_length = w * cpp;
 		int num_rows = h;
 		if (row_length == src_pitch && src_pitch == stride)
@@ -843,17 +844,17 @@ static Bool intel_uxa_pixmap_get_image(PixmapPtr pixmap,
 {
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	int stride = intel_pixmap_pitch(pixmap);
+	int cpp = pixmap->drawable.bitsPerPixel/8;
 
-	if (dst_pitch == stride && w == pixmap->drawable.width) {
-		return drm_intel_bo_get_subdata(priv->bo, y * stride, stride * h, dst) == 0;
+	/* assert(priv->tiling == I915_TILING_NONE); */
+	if (h == 1 || (dst_pitch == stride && w == pixmap->drawable.width)) {
+		return drm_intel_bo_get_subdata(priv->bo, y*stride + x*cpp, (h-1)*stride + w*cpp, dst) == 0;
 	} else {
 		char *src;
-		int cpp;
 
-		if (drm_intel_bo_map(priv->bo, FALSE))
+		if (drm_intel_gem_bo_map_gtt(priv->bo))
 		    return FALSE;
 
-		cpp = pixmap->drawable.bitsPerPixel/8;
 		src = (char *) priv->bo->virtual + y * stride + x * cpp;
 		w *= cpp;
 		do {
@@ -862,7 +863,7 @@ static Bool intel_uxa_pixmap_get_image(PixmapPtr pixmap,
 			dst += dst_pitch;
 		} while (--h);
 
-		drm_intel_bo_unmap(priv->bo);
+		drm_intel_gem_bo_unmap_gtt(priv->bo);
 
 		return TRUE;
 	}
