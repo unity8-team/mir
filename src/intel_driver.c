@@ -496,6 +496,17 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 			return FALSE;
 	}
 
+	if (INTEL_INFO(intel)->gen == 60) {
+		struct pci_device *const device = intel->PciInfo;
+
+		/* Sandybridge rev07 locks up easily, even with the
+		 * BLT ring workaround in place.
+		 * Thus use shadowfb by default.
+		 */
+		if (device->revision < 8)
+		    return FALSE;
+	}
+
 	return TRUE;
 }
 
