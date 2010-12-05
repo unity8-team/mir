@@ -1843,6 +1843,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	}
 	if (intel->floats_per_vertex != intel->last_floats_per_vertex ||
 	    intel_vertex_space(intel) < 3*4*intel->floats_per_vertex) {
+		i965_vertex_flush(intel);
 		intel_next_vertex(intel);
 		i965_select_vertex_buffer(intel);
 		intel->vertex_index = 0;
