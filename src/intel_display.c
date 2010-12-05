@@ -442,6 +442,8 @@ intel_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->y = y;
 	crtc->rotation = rotation;
 
+	intel_batch_submit(crtc->scrn, TRUE);
+
 	mode_to_kmode(crtc->scrn, &intel_crtc->kmode, mode);
 	ret = intel_crtc_apply(crtc);
 	if (!ret) {
@@ -1348,6 +1350,8 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
+
+	intel_batch_submit(scrn, TRUE);
 
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
