@@ -421,6 +421,16 @@ typedef struct intel_screen_private {
 		uint32_t dst_format;
 	} i915_render_state;
 
+	struct {
+		int num_sf_outputs;
+		int vertex_size;
+		int vertex_type;
+		int drawrect;
+		uint32_t blend;
+		dri_bo *samplers;
+		dri_bo *kernel;
+	} gen6_render_state;
+
 	uint32_t prim_offset;
 	void (*prim_emit)(PixmapPtr dest,
 			  int srcX, int srcY,
