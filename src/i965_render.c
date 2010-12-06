@@ -2454,7 +2454,8 @@ gen6_composite_drawing_rectangle(intel_screen_private *intel,
 		DRAW_YMAX(dest->drawable.height - 1) |
 		DRAW_XMAX(dest->drawable.width - 1);
 
-	if (intel->gen6_render_state.drawrect == dw)
+	/* XXX cacomposite depends upon the implicit non-pipelined flush */
+	if (0 && intel->gen6_render_state.drawrect == dw)
 		return;
 	intel->gen6_render_state.drawrect = dw;
 
