@@ -359,6 +359,8 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 			       crtc->gamma_blue, crtc->gamma_size);
 #endif
 
+	/* drain any pending waits on the current framebuffer */
+	intel_batch_wait_last(crtc->scrn);
 
 	x = crtc->x;
 	y = crtc->y;
