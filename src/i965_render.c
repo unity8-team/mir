@@ -2175,10 +2175,8 @@ gen6_composite_create_depth_stencil_state(ScrnInfoPtr scrn)
 }
 
 static void
-gen6_composite_invarient_states(ScrnInfoPtr scrn)
+gen6_composite_invariant_states(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
 	OUT_BATCH(GEN6_3DSTATE_MULTISAMPLE | (3 - 2));
@@ -2195,10 +2193,8 @@ gen6_composite_invarient_states(ScrnInfoPtr scrn)
 }
 
 static void
-gen6_composite_state_base_address(ScrnInfoPtr scrn)
+gen6_composite_state_base_address(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_BATCH(BRW_STATE_BASE_ADDRESS | (10 - 2));
 	OUT_BATCH(BASE_ADDRESS_MODIFY); /* General state base address */
 	intel->surface_reloc = intel->batch_used;
@@ -2214,9 +2210,9 @@ gen6_composite_state_base_address(ScrnInfoPtr scrn)
 }
 
 static void
-gen6_composite_viewport_state_pointers(ScrnInfoPtr scrn, drm_intel_bo *cc_vp_bo)
+gen6_composite_viewport_state_pointers(intel_screen_private *intel,
+				       drm_intel_bo *cc_vp_bo)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	OUT_BATCH(GEN6_3DSTATE_VIEWPORT_STATE_POINTERS |
 		GEN6_3DSTATE_VIEWPORT_STATE_MODIFY_CC |
@@ -2227,10 +2223,8 @@ gen6_composite_viewport_state_pointers(ScrnInfoPtr scrn, drm_intel_bo *cc_vp_bo)
 }
 
 static void
-gen6_composite_urb(ScrnInfoPtr scrn)
+gen6_composite_urb(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_BATCH(GEN6_3DSTATE_URB | (3 - 2));
 	OUT_BATCH(((1 - 1) << GEN6_3DSTATE_URB_VS_SIZE_SHIFT) |
 		(24 << GEN6_3DSTATE_URB_VS_ENTRIES_SHIFT)); /* at least 24 on GEN6 */
@@ -2239,16 +2233,14 @@ gen6_composite_urb(ScrnInfoPtr scrn)
 }
 
 static void
-gen6_composite_cc_state_pointers(ScrnInfoPtr scrn,
-				drm_intel_bo *blend_state_bo,
-				uint32_t blend_state_offset,
-				drm_intel_bo *depth_stencil_state_bo,
-				uint32_t depth_stencil_state_offset,
-				drm_intel_bo *cc_state_bo,
-				uint32_t cc_state_offset)
+gen6_composite_cc_state_pointers(intel_screen_private *intel,
+				 drm_intel_bo *blend_state_bo,
+				 uint32_t blend_state_offset,
+				 drm_intel_bo *depth_stencil_state_bo,
+				 uint32_t depth_stencil_state_offset,
+				 drm_intel_bo *cc_state_bo,
+				 uint32_t cc_state_offset)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
 	OUT_RELOC(blend_state_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, blend_state_offset | 1);
 	OUT_RELOC(depth_stencil_state_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, depth_stencil_state_offset | 1);
@@ -2256,10 +2248,9 @@ gen6_composite_cc_state_pointers(ScrnInfoPtr scrn,
 }
 
 static void
-gen6_composite_sampler_state_pointers(ScrnInfoPtr scrn, drm_intel_bo *ps_sampler_state_bo)
+gen6_composite_sampler_state_pointers(intel_screen_private *intel,
+				      drm_intel_bo *ps_sampler_state_bo)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_BATCH(GEN6_3DSTATE_SAMPLER_STATE_POINTERS |
 		GEN6_3DSTATE_SAMPLER_STATE_MODIFY_PS |
 		(4 - 2));
@@ -2268,18 +2259,16 @@ gen6_composite_sampler_state_pointers(ScrnInfoPtr scrn, drm_intel_bo *ps_sampler
 	OUT_RELOC(ps_sampler_state_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 }
 
-static void 
-gen6_composite_vs_state(ScrnInfoPtr scrn)
+static void
+gen6_composite_vs_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	/* disable VS constant buffer */
 	OUT_BATCH(GEN6_3DSTATE_CONSTANT_VS | (5 - 2));
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
-	
+
 	OUT_BATCH(GEN6_3DSTATE_VS | (6 - 2));
 	OUT_BATCH(0); /* without VS kernel */
 	OUT_BATCH(0);
@@ -2288,18 +2277,16 @@ gen6_composite_vs_state(ScrnInfoPtr scrn)
 	OUT_BATCH(0); /* pass-through */
 }
 
-static void 
-gen6_composite_gs_state(ScrnInfoPtr scrn)
+static void
+gen6_composite_gs_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	/* disable GS constant buffer */
 	OUT_BATCH(GEN6_3DSTATE_CONSTANT_GS | (5 - 2));
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
-	
+
 	OUT_BATCH(GEN6_3DSTATE_GS | (7 - 2));
 	OUT_BATCH(0); /* without GS kernel */
 	OUT_BATCH(0);
@@ -2309,21 +2296,19 @@ gen6_composite_gs_state(ScrnInfoPtr scrn)
 	OUT_BATCH(0); /* pass-through */
 }
 
-static void 
-gen6_composite_clip_state(ScrnInfoPtr scrn)
+static void
+gen6_composite_clip_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_BATCH(GEN6_3DSTATE_CLIP | (4 - 2));
 	OUT_BATCH(0);
 	OUT_BATCH(0); /* pass-through */
 	OUT_BATCH(0);
 }
 
-static void 
-gen6_composite_sf_state(ScrnInfoPtr scrn, Bool has_mask)
+static void
+gen6_composite_sf_state(intel_screen_private *intel,
+			Bool has_mask)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int num_sf_outputs = has_mask ? 2 : 1;
 
 	OUT_BATCH(GEN6_3DSTATE_SF | (20 - 2));
@@ -2350,10 +2335,11 @@ gen6_composite_sf_state(ScrnInfoPtr scrn, Bool has_mask)
 	OUT_BATCH(0); /* DW19 */
 }
 
-static void 
-gen6_composite_wm_state(ScrnInfoPtr scrn, Bool has_mask, drm_intel_bo *kernel_bo)
+static void
+gen6_composite_wm_state(intel_screen_private *intel,
+			Bool has_mask,
+			drm_intel_bo *kernel_bo)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int num_surfaces = has_mask ? 3 : 2;
 	int num_sf_outputs = has_mask ? 2 : 1;
 
@@ -2373,19 +2359,17 @@ gen6_composite_wm_state(ScrnInfoPtr scrn, Bool has_mask, drm_intel_bo *kernel_bo
 	OUT_BATCH(0);
 	OUT_BATCH((6 << GEN6_3DSTATE_WM_DISPATCH_START_GRF_0_SHIFT)); /* DW4 */
 	OUT_BATCH(((40 - 1) << GEN6_3DSTATE_WM_MAX_THREADS_SHIFT) |
-		GEN6_3DSTATE_WM_DISPATCH_ENABLE |
-		GEN6_3DSTATE_WM_16_DISPATCH_ENABLE);
+		  GEN6_3DSTATE_WM_DISPATCH_ENABLE |
+		  GEN6_3DSTATE_WM_16_DISPATCH_ENABLE);
 	OUT_BATCH((num_sf_outputs << GEN6_3DSTATE_WM_NUM_SF_OUTPUTS_SHIFT) |
-		GEN6_3DSTATE_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
+		  GEN6_3DSTATE_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 }
 
 static void
-gen6_composite_binding_table_pointers(ScrnInfoPtr scrn)
+gen6_composite_binding_table_pointers(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	/* Binding table pointers */
 	OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS |
 		GEN6_3DSTATE_BINDING_TABLE_MODIFY_PS |
@@ -2397,10 +2381,8 @@ gen6_composite_binding_table_pointers(ScrnInfoPtr scrn)
 }
 
 static void
-gen6_composite_depth_buffer_state(ScrnInfoPtr scrn)
+gen6_composite_depth_buffer_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_BATCH(BRW_3DSTATE_DEPTH_BUFFER | (7 - 2));
 	OUT_BATCH((BRW_SURFACE_NULL << BRW_3DSTATE_DEPTH_BUFFER_TYPE_SHIFT) |
 		(BRW_DEPTHFORMAT_D32_FLOAT << BRW_3DSTATE_DEPTH_BUFFER_FORMAT_SHIFT));
@@ -2415,10 +2397,9 @@ gen6_composite_depth_buffer_state(ScrnInfoPtr scrn)
 }
 
 static void
-gen6_composite_drawing_rectangle(ScrnInfoPtr scrn, PixmapPtr dest)
+gen6_composite_drawing_rectangle(intel_screen_private *intel,
+				 PixmapPtr dest)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | (4 - 2));
 	OUT_BATCH(0x00000000);	/* ymin, xmin */
 	OUT_BATCH(DRAW_YMAX(dest->drawable.height - 1) | DRAW_XMAX(dest->drawable.width - 1));	/* ymax, xmax */
@@ -2426,9 +2407,10 @@ gen6_composite_drawing_rectangle(ScrnInfoPtr scrn, PixmapPtr dest)
 }
 
 static void
-gen6_composite_vertex_element_state(ScrnInfoPtr scrn, Bool has_mask, Bool is_affine)
+gen6_composite_vertex_element_state(intel_screen_private *intel,
+				    Bool has_mask,
+				    Bool is_affine)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	/*
 	 * vertex data in vertex buffer
 	 *    position: (x, y)
@@ -2521,37 +2503,45 @@ gen6_emit_composite_state(ScrnInfoPtr scrn)
 	drm_intel_bo *ps_sampler_state_bo = render_state->ps_sampler_state_bo[src_filter][src_extend][mask_filter][mask_extend];
 
 	intel->needs_render_state_emit = FALSE;
-	IntelEmitInvarientState(scrn);
-	intel->last_3d = LAST_3D_RENDER;
+	if (intel->needs_3d_invariant) {
+		gen6_composite_invariant_states(intel);
+		gen6_composite_viewport_state_pointers(intel,
+						       render_state->cc_vp_bo);
+		gen6_composite_urb(intel);
+
+		gen6_composite_vs_state(intel);
+		gen6_composite_gs_state(intel);
+		gen6_composite_clip_state(intel);
+		gen6_composite_depth_buffer_state(intel);
+
+		intel->needs_3d_invariant = FALSE;
+	}
 
 	i965_get_blend_cntl(op,
 			    mask_picture,
 			    dest_picture->format,
 			    &src_blend,
 			    &dst_blend);
-	assert(intel->in_batch_atomic);
-	gen6_composite_invarient_states(scrn);
+
 	if (intel->surface_reloc == 0)
-		gen6_composite_state_base_address(scrn);
-	gen6_composite_viewport_state_pointers(scrn, render_state->cc_vp_bo);
-	gen6_composite_urb(scrn);
-	gen6_composite_cc_state_pointers(scrn,
+		gen6_composite_state_base_address(intel);
+
+	gen6_composite_cc_state_pointers(intel,
 					render_state->gen6_blend_bo,
 					((src_blend * BRW_BLENDFACTOR_COUNT) + dst_blend) * GEN6_BLEND_STATE_PADDED_SIZE,
 					render_state->gen6_depth_stencil_bo,
 					0,
 					render_state->cc_state_bo,
 					0);
-	gen6_composite_sampler_state_pointers(scrn, ps_sampler_state_bo);
-	gen6_composite_vs_state(scrn);
-	gen6_composite_gs_state(scrn);
-	gen6_composite_clip_state(scrn);
-	gen6_composite_sf_state(scrn, mask != 0);
-	gen6_composite_wm_state(scrn, mask != 0, render_state->wm_kernel_bo[composite_op->wm_kernel]);
-	gen6_composite_binding_table_pointers(scrn);
-	gen6_composite_depth_buffer_state(scrn);
-	gen6_composite_drawing_rectangle(scrn, dest);
-	gen6_composite_vertex_element_state(scrn, mask != 0, is_affine);
+	gen6_composite_sampler_state_pointers(intel, ps_sampler_state_bo);
+	gen6_composite_sf_state(intel, mask != 0);
+	gen6_composite_wm_state(intel,
+				mask != 0,
+				render_state->wm_kernel_bo[composite_op->wm_kernel]);
+	gen6_composite_binding_table_pointers(intel);
+
+	gen6_composite_drawing_rectangle(intel, dest);
+	gen6_composite_vertex_element_state(intel, mask != 0, is_affine);
 }
 
 static void
