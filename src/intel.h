@@ -178,6 +178,7 @@ struct intel_pixmap {
 
 	struct list flush, batch, in_flight;
 
+	uint16_t src_bound, dst_bound;
 	uint16_t stride;
 	uint8_t tiling;
 	int8_t busy :2;

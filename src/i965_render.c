@@ -1125,6 +1125,14 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 	struct brw_surface_state *ss;
 	int offset;
 
+	if (is_dst) {
+		if (priv->dst_bound)
+			return priv->dst_bound;
+	} else {
+		if (priv->src_bound)
+			return priv->src_bound;
+	}
+
 	ss = (struct brw_surface_state *)
 		(intel->surface_data + intel->surface_used);
 
@@ -1173,6 +1181,11 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 
 	offset = intel->surface_used;
 	intel->surface_used += sizeof(struct brw_surface_state_padded);
+
+	if (is_dst)
+		priv->dst_bound = offset;
+	else
+		priv->src_bound = offset;
 
 	return offset;
 }
@@ -1515,6 +1528,8 @@ static Bool i965_composite_check_aperture(ScrnInfoPtr scrn)
 
 static void i965_surface_flush(struct intel_screen_private *intel)
 {
+	struct intel_pixmap *priv;
+
 	drm_intel_bo_subdata(intel->surface_bo,
 			     0, intel->surface_used,
 			     intel->surface_data);
@@ -1531,6 +1546,9 @@ static void i965_surface_flush(struct intel_screen_private *intel)
 	intel->surface_bo =
 		drm_intel_bo_alloc(intel->bufmgr, "surface data",
 				   sizeof(intel->surface_data), 4096);
+
+	list_foreach_entry(priv, struct intel_pixmap, &intel->batch_pixmaps, batch)
+		priv->dst_bound = priv->src_bound = 0;
 }
 
 Bool
