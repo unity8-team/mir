@@ -1123,8 +1123,18 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 {
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	struct brw_surface_state *ss;
+	uint32_t write_domain, read_domains;
 	int offset;
 
+	if (is_dst) {
+		write_domain = I915_GEM_DOMAIN_RENDER;
+		read_domains = I915_GEM_DOMAIN_RENDER;
+	} else {
+		write_domain = 0;
+		read_domains = I915_GEM_DOMAIN_SAMPLER;
+	}
+	intel_batch_mark_pixmap_domains(intel, priv,
+					read_domains, write_domain);
 	if (is_dst) {
 		if (priv->dst_bound)
 			return priv->dst_bound;
@@ -1159,25 +1169,12 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 	ss->ss3.tile_walk = 0;	/* Tiled X */
 	ss->ss3.tiled_surface = intel_pixmap_tiled(pixmap) ? 1 : 0;
 
-	if (priv->bo != NULL) {
-		uint32_t write_domain, read_domains;
-
-		if (is_dst) {
-			write_domain = I915_GEM_DOMAIN_RENDER;
-			read_domains = I915_GEM_DOMAIN_RENDER;
-		} else {
-			write_domain = 0;
-			read_domains = I915_GEM_DOMAIN_SAMPLER;
-		}
-
-		intel_batch_mark_pixmap_domains(intel, priv, read_domains, write_domain);
-		dri_bo_emit_reloc(intel->surface_bo,
-				  read_domains, write_domain,
-				  0,
-				  intel->surface_used +
-				  offsetof(struct brw_surface_state, ss1),
-				  priv->bo);
-	}
+	dri_bo_emit_reloc(intel->surface_bo,
+			  read_domains, write_domain,
+			  0,
+			  intel->surface_used +
+			  offsetof(struct brw_surface_state, ss1),
+			  priv->bo);
 
 	offset = intel->surface_used;
 	intel->surface_used += sizeof(struct brw_surface_state_padded);
