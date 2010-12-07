@@ -1,0 +1,40 @@
+From a2b44cc8d4a9182becaaa00eda1ad3adcea92ee3 Mon Sep 17 00:00:00 2001
+From: Julien Cristau <jcristau@debian.org>
+Date: Thu, 23 Sep 2010 17:17:05 +0200
+Subject: [PATCH] intel_pci_probe: bail if there's no KMS
+
+This allows fallback to vesa when there's no kernel driver bound to the
+intel pci device.
+---
+ src/intel_module.c |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
+
+diff --git a/src/intel_module.c b/src/intel_module.c
+index 53e1cb6..7356ab8 100644
+--- a/src/intel_module.c
++++ b/src/intel_module.c
+@@ -374,6 +374,21 @@ static Bool intel_pci_probe (DriverPtr		driver,
+ 			     intptr_t		match_data)
+ {
+     ScrnInfoPtr scrn = NULL;
++    if (!pci_device_has_kernel_driver(device))
++#if KMS_ONLY
++        return FALSE;
++#else
++        switch (DEVICE_ID(device)) {
++        case PCI_CHIP_I810:
++        case PCI_CHIP_I810_DC100:
++        case PCI_CHIP_I810_E:
++        case PCI_CHIP_I815:
++            break;
++
++        default:
++            return FALSE;
++	}
++#endif
+ 
+     scrn = xf86ConfigPciEntity(scrn, 0, entity_num, intel_pci_chipsets,
+ 			       NULL,
+-- 
+1.7.1
+

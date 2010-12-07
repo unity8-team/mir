@@ -11,10 +11,10 @@ switch.  Debian bug#600405.
  src/intel_display.c |   16 ++++++++++++++--
  1 files changed, 14 insertions(+), 2 deletions(-)
 
-diff --git a/src/intel_display.c b/src/intel_display.c
-index d32224e..d9c4b5b 100644
---- a/src/intel_display.c
-+++ b/src/intel_display.c
+Index: xserver-xorg-video-intel/src/intel_display.c
+===================================================================
+--- xserver-xorg-video-intel.orig/src/intel_display.c
++++ xserver-xorg-video-intel/src/intel_display.c
 @@ -327,7 +327,7 @@ intel_crtc_apply(xf86CrtcPtr crtc)
  	uint32_t *output_ids;
  	int output_count = 0;
@@ -24,7 +24,7 @@ index d32224e..d9c4b5b 100644
  
  	output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
  	if (!output_ids)
-@@ -378,14 +378,26 @@ intel_crtc_apply(xf86CrtcPtr crtc)
+@@ -380,14 +380,26 @@ intel_crtc_apply(xf86CrtcPtr crtc)
  	} else
  		ret = TRUE;
  
@@ -52,6 +52,3 @@ index d32224e..d9c4b5b 100644
  }
  
  static Bool
--- 
-1.7.2.3
-
