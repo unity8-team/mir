@@ -942,7 +942,8 @@ void intel_uxa_block_handler(intel_screen_private *intel)
 		intel_batch_submit(intel->scrn, TRUE);
 
 		DamageEmpty(intel->shadow_damage);
-	}
+	} else
+		intel_batch_submit(intel->scrn, TRUE);
 }
 
 static PixmapPtr
