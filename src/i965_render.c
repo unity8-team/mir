@@ -1927,7 +1927,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	if (INTEL_INFO(intel)->gen < 50) {
 	    /* XXX OMG! */
 	    i965_vertex_flush(intel);
-	    OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
+	    OUT_BATCH(MI_FLUSH);
 	}
 
 	intel_batch_end_atomic(scrn);
