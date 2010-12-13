@@ -206,7 +206,11 @@ ChipID   \- PCI DEVICE ID
 .PP
 In addition, the following driver
 .B Options
-are supported for both UMS (Userspace Modesetting) and KMS (Kernel Modesetting):
+are supported for both
+.B UMS
+(Userspace Modesetting) and
+.B KMS
+(Kernel Modesetting):
 .TP
 .BI "Option \*qSWcursor\*q \*q" boolean \*q
 Selects software cursor.  The default is
