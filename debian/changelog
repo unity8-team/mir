@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.13.901-2ubuntu2) natty; urgency=low
+
+  * Add 106_restore_backlight_at_mode_set.patch: Force DPMS to On for all
+    outputs, to match kernel behavior, and restore the backlight level on
+    resume.
+    (LP: #685767)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 13 Dec 2010 15:26:39 -0800
+
 xserver-xorg-video-intel (2:2.13.901-2ubuntu1) natty; urgency=low
 
   * New upstream release.

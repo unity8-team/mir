@@ -1,3 +1,4 @@
 101_copy-fb.patch
 105_sandybridge_dri_disable.patch
 libdrm-from-sid-is-ok.diff
+106_restore_backlight_at_mode_set.patch
