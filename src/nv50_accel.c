@@ -408,28 +408,6 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 8192 << NV50TCL_SCREEN_SCISSOR_HORIZ_W_SHIFT);
 	OUT_RING  (chan, 8192 << NV50TCL_SCREEN_SCISSOR_VERT_H_SHIFT);
 
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
-	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_DATA,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
-	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_DATA,
-		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
-		MARK_UNDO(chan);
-		return FALSE;
-	}
-	OUT_RING  (chan, (CB_PFP << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
-	OUT_RING  (chan, CB_PFP);
-	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 10);
-	OUT_RINGf (chan,  1.164300);
-	OUT_RINGf (chan, -0.870660);
-	OUT_RINGf (chan,  0.529540);
-	OUT_RINGf (chan, -1.081280);
-	OUT_RINGf (chan,  0.000000);
-	OUT_RINGf (chan, -0.391730);
-	OUT_RINGf (chan,  2.017000);
-	OUT_RINGf (chan,  1.595800);
-	OUT_RINGf (chan, -0.812900);
-	OUT_RINGf (chan,  0.000000);
 	BEGIN_RING(chan, tesla, NV50TCL_SET_PROGRAM_CB, 1);
 	OUT_RING  (chan, 0x00000031 | (CB_PFP << 12));
 
