@@ -352,7 +352,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, (0 << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 28);
+	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 24);
 	OUT_RING  (chan, 0x80000008);
 	OUT_RING  (chan, 0x90000408);
 	OUT_RING  (chan, 0x82010400);
@@ -367,20 +367,17 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0x82040404);
 	OUT_RING  (chan, 0xf0400201);
 	OUT_RING  (chan, 0x0000c784);
-	OUT_RING  (chan, 0xc0840008);
-	OUT_RING  (chan, 0xb002060c);
-	OUT_RING  (chan, 0xc0850008);
-	OUT_RING  (chan, 0xb0020810);
-	OUT_RING  (chan, 0xc0860008);
-	OUT_RING  (chan, 0xb0020a14);
-	OUT_RING  (chan, 0xc0870208);
-	OUT_RING  (chan, 0xb0020600);
-	OUT_RING  (chan, 0xc0890208);
-	OUT_RING  (chan, 0xb0020a08);
-	OUT_RING  (chan, 0xc0880205);
-	OUT_RING  (chan, 0x00000780);
-	OUT_RING  (chan, 0xb0000805);
-	OUT_RING  (chan, 0x00004781);
+	OUT_RING  (chan, 0xe084000c);
+	OUT_RING  (chan, 0xe0850010);
+	OUT_RING  (chan, 0xe0860015);
+	OUT_RING  (chan, 0x00014780);
+	OUT_RING  (chan, 0xe0870201);
+	OUT_RING  (chan, 0x0000c780);
+	OUT_RING  (chan, 0xe0890209);
+	OUT_RING  (chan, 0x00014780);
+	OUT_RING  (chan, 0xe0880205);
+	OUT_RING  (chan, 0x00010781);
+
 	/* HPOS.xy = ($o0, $o1), HPOS.zw = (0.0, 1.0), then map $o2 - $o5 */
 	BEGIN_RING(chan, tesla, NV50TCL_VP_RESULT_MAP(0), 2);
 	OUT_RING  (chan, 0x41400100);
