@@ -629,7 +629,8 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 static Bool
 I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 		     ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
-		     DRI2BufferPtr back, DRI2SwapEventPtr func, void *data)
+		     DRI2BufferPtr back, DRI2SwapEventPtr func, void *data,
+		     unsigned int target_msc)
 {
 	I830DRI2BufferPrivatePtr back_priv;
 	DRI2FrameEventPtr flip_info;
@@ -646,6 +647,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	flip_info->type = DRI2_SWAP;
 	flip_info->event_complete = func;
 	flip_info->event_data = data;
+	flip_info->frame = target_msc;
 
 	/* Page flip the full screen buffer */
 	back_priv = back->driverPrivate;
@@ -712,7 +714,7 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 		    I830DRI2ScheduleFlip(intel,
 					 event->client, drawable, event->front,
 					 event->back, event->event_complete,
-					 event->event_data)) {
+					 event->event_data, event->frame)) {
 			I830DRI2ExchangeBuffers(drawable,
 						event->front, event->back);
 			break;
@@ -783,6 +785,18 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip->type) {
 	case DRI2_SWAP:
+		/* Check for too small vblank count of pageflip completion, taking wraparound
+		 * into account. This usually means some defective kms pageflip completion,
+		 * causing wrong (msc, ust) return values and possible visual corruption.
+		 */
+		if ((frame < flip->frame) && (flip->frame - frame < 5)) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s: Pageflip completion has impossible msc %d < target_msc %d\n",
+				   __func__, frame, flip->frame);
+			/* All-Zero values signal failure of timestamping to client. */
+			frame = tv_sec = tv_usec = 0;
+		}
+
 		DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
 				 DRI2_FLIP_COMPLETE, flip->event_complete,
 				 flip->event_data);
