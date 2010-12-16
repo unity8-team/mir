@@ -634,6 +634,9 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	I830DRI2BufferPrivatePtr back_priv;
 	DRI2FrameEventPtr flip_info;
 
+	/* Main crtc for this drawable shall finally deliver pageflip event. */
+	int ref_crtc_hw_id = I830DRI2DrawablePipe(draw);
+
 	flip_info = calloc(1, sizeof(DRI2FrameEventRec));
 	if (!flip_info)
 	    return FALSE;
@@ -648,7 +651,7 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	back_priv = back->driverPrivate;
 	return intel_do_pageflip(intel,
 				 intel_get_pixmap_bo(back_priv->pixmap),
-				 flip_info);
+				 flip_info, ref_crtc_hw_id);
 }
 
 static Bool

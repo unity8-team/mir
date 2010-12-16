@@ -503,7 +503,7 @@ extern int intel_output_dpms_status(xf86OutputPtr output);
 
 extern Bool intel_do_pageflip(intel_screen_private *intel,
 			      dri_bo *new_front,
-			      void *data);
+			      void *data, int ref_crtc_hw_id);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
