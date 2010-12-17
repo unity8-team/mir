@@ -1671,8 +1671,7 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
     if (src_domain & ~(uint32_t)RADEON_GEM_DOMAIN_VRAM)
 	goto copy;
 
-    if ((info->ChipFamily == CHIP_FAMILY_PALM) &&
-	((w < 128) || (h < 128)))
+    if (info->ChipFamily == CHIP_FAMILY_PALM)
 	goto copy;
 
     size = scratch_pitch * h;
