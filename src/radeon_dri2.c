@@ -595,7 +595,7 @@ static Bool
 radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
 			  DrawablePtr draw, DRI2BufferPtr front,
 			  DRI2BufferPtr back, DRI2SwapEventPtr func,
-			  void *data)
+			  void *data, unsigned int target_msc)
 {
     struct dri2_buffer_priv *back_priv;
     struct radeon_exa_pixmap_priv *exa_priv;
@@ -613,6 +613,8 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
     flip_info->type = DRI2_SWAP;
     flip_info->event_complete = func;
     flip_info->event_data = data;
+    flip_info->frame = target_msc;
+
     xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "%s:%d fevent[%p]\n", __func__, __LINE__, flip_info);
 
@@ -717,7 +719,8 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
 				      event->front,
 				      event->back,
 				      event->event_complete,
-				      event->event_data)) {
+				      event->event_data,
+				      event->frame)) {
 	    radeon_dri2_exchange_buffers(drawable, event->front, event->back);
 	    break;
 	}
