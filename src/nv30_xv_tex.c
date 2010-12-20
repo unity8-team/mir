@@ -37,6 +37,7 @@
 #include "nv_dma.h"
 
 #include "nv30_shaders.h"
+#include "nv04_pushbuf.h"
 
 extern Atom xvSyncToVBlank, xvSetDefaults;
 

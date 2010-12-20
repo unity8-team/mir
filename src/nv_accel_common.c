@@ -21,6 +21,7 @@
  */
 
 #include "nv_include.h"
+#include "nv04_pushbuf.h"
 
 Bool
 nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,

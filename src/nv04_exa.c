@@ -23,6 +23,8 @@
 #include "nv_include.h"
 #include "nv_rop.h"
 
+#include "nv04_pushbuf.h"
+
 static void 
 NV04EXASetPattern(ScrnInfoPtr pScrn, CARD32 clr0, CARD32 clr1,
 		  CARD32 pat0, CARD32 pat1)

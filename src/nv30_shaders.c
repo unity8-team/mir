@@ -22,6 +22,7 @@
 
 
 #include "nv30_shaders.h"
+#include "nv04_pushbuf.h"
 
 void NV30_UploadFragProg(NVPtr pNv, nv_shader_t *shader, int *hw_offset)
 {

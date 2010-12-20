@@ -34,6 +34,8 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
+#include "nv04_pushbuf.h"
+
 #define FOURCC_RGB 0x0000003
 
 #define VSYNC_POSSIBLE (pNv->dev->chipset >= 0x11)

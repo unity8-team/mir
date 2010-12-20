@@ -25,6 +25,7 @@
 
 #include "nv_include.h"
 #include "nv30_shaders.h"
+#include "nv04_pushbuf.h"
 
 typedef struct nv_pict_surface_format {
 	int	 pict_fmt;

@@ -35,6 +35,8 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
+#include "nv04_pushbuf.h"
+
 #include "vl_hwmc.h"
 
 #define IMAGE_MAX_W 2046

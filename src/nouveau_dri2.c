@@ -5,6 +5,7 @@
 
 #include "xorg-server.h"
 #include "nv_include.h"
+#include "nouveau_pushbuf.h"
 #ifdef DRI2
 #include "dri2.h"
 #endif

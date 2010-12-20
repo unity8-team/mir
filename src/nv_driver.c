@@ -24,6 +24,8 @@
 
 #include "nv_include.h"
 
+#include "nouveau_pushbuf.h"
+
 #include "xorg-server.h"
 #include "xf86int10.h"
 #include "xf86drm.h"

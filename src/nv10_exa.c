@@ -28,6 +28,7 @@
 #endif
 
 #include "nv_include.h"
+#include "nv04_pushbuf.h"
 
 /* Texture/Render target formats. */
 static struct pict_format {

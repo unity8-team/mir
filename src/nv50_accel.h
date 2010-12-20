@@ -1,6 +1,8 @@
 #ifndef __NV50_ACCEL_H__
 #define __NV50_ACCEL_H__
 
+#include "nv04_pushbuf.h"
+
 /* "Tesla scratch buffer" offsets */
 #define PVP_OFFSET  0x00000000 /* Vertex program */
 #define PFP_OFFSET  0x00001000 /* Fragment program */

@@ -24,6 +24,7 @@
 #include "nv_include.h"
 #include "nv_rop.h"
 
+#include "nv04_pushbuf.h"
 #include "nv50_accel.h"
 #include "nv50_texture.h"
 

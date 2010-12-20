@@ -21,6 +21,7 @@
  */
 
 #include "nv_include.h"
+#include "nv04_pushbuf.h"
 #include "exa.h"
 
 static inline Bool
