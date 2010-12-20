@@ -356,8 +356,6 @@ NVLeaveVT(int scrnIndex, int flags)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
-	NVSync(pScrn);
-
 	ret = drmDropMaster(nouveau_device(pNv->dev)->fd);
 	if (ret)
 		ErrorF("Error dropping master: %d\n", ret);

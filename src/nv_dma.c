@@ -45,27 +45,6 @@ NVChannelHangNotify(struct nouveau_channel *chan)
 	NVLockedUp(pScrn);
 }
 
-void NVSync(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *gr = pNv->Nv2D ? pNv->Nv2D : pNv->NvImageBlit;
-
-	if (pNv->NoAccel)
-		return;
-
-	/* Wait for nvchannel to go completely idle */
-	nouveau_notifier_reset(pNv->notify0, 0);
-	BEGIN_RING(chan, gr, 0x104, 1);
-	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, gr, 0x100, 1);
-	OUT_RING  (chan, 0);
-	FIRE_RING (chan);
-	if (nouveau_notifier_wait_status(pNv->notify0, 0,
-					 NV_NOTIFY_STATE_STATUS_COMPLETED, 2.0))
-		NVLockedUp(pScrn);
-}
-
 Bool
 NVInitDma(ScrnInfoPtr pScrn)
 {

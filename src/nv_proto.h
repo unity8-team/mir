@@ -36,7 +36,6 @@ void NVSetPortDefaults (ScrnInfoPtr pScrn, NVPortPrivPtr pPriv);
 unsigned int nv_window_belongs_to_crtc(ScrnInfoPtr, int, int, int, int);
 
 /* in nv_dma.c */
-void  NVSync(ScrnInfoPtr pScrn);
 Bool  NVInitDma(ScrnInfoPtr pScrn);
 void  NVTakedownDma(ScrnInfoPtr pScrn);
 
