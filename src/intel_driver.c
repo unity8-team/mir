@@ -470,7 +470,7 @@ static void I830XvInit(ScrnInfoPtr scrn)
 
 static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
-	if (IS_I830(intel) || IS_845G(intel)) {
+	if (0 && (IS_I830(intel) || IS_845G(intel))) {
 		/* These pair of i8xx chipsets have a crippling erratum
 		 * that prevents the use of a PTE entry by the BLT
 		 * engine immediately following updating that
@@ -479,6 +479,8 @@ static Bool can_accelerate_blt(struct intel_screen_private *intel)
 		 * As the BLT is fundamental to our 2D acceleration,
 		 * and the workaround is lost in the midst of time,
 		 * fallback.
+		 *
+		 * XXX disabled for release as causes regressions in GL.
 		 */
 		return FALSE;
 	}
