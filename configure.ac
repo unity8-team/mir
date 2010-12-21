@@ -35,16 +35,16 @@ AM_INIT_AUTOMAKE([foreign dist-bzip2])
 AM_MAINTAINER_MODE
 
 # Require X.Org macros 1.8 or later for MAN_SUBSTS set by XORG_MANPAGE_SECTIONS
-m4_ifndef([XORG_MACROS_VERSION],
-          [m4_fatal([must install xorg-macros 1.8 or later before running autoconf/autogen.
-  Try "apt-get install xutils-dev" or "yum install xorg-x11-util-macros"])])
+m4_define(xorg_macros_help,
+[[must install xorg-macros 1.8 or later before running autoconf/autogen.
+Either install xorg-macros from source,
+git://anongit.freedesktop.org/xorg/util/macros, or try
+"apt-get install xutils-dev" or "yum install xorg-x11-util-macros".]])
+m4_ifndef([XORG_MACROS_VERSION], [m4_fatal(xorg_macros_help)])
+m4_ifndef([XORG_DRIVER_CHECK_EXT], [m4_fatal(xorg_macros_help)])
+
 XORG_MACROS_VERSION(1.8)
 XORG_DEFAULT_OPTIONS
-
-# Require X.Org server macros (i.e. XORG_DRIVER_CHECK_EXT) to check for required modules 
-m4_ifndef([XORG_DRIVER_CHECK_EXT],
-          [m4_fatal([must install xorg-server macros before running autoconf/autogen.
-  Try "apt-get install xserver-xorg-dev" or "yum install xorg-x11-server-devel"])])
 
 # Initialize libtool
 AC_DISABLE_STATIC
