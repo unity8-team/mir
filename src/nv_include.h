@@ -79,5 +79,6 @@
 #include "nouveau_grobj.h"
 #include "nouveau_notifier.h"
 #include "nouveau_local.h"
+#include "nouveau_pushbuf.h"
 
 #endif /* __NV_INCLUDE_H__ */
