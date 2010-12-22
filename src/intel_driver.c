@@ -354,25 +354,21 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct pci_device *dev = intel->PciInfo;
-	char *busid;
 	drmSetVersion sv;
 	struct drm_i915_getparam gp;
 	int err, has_gem;
+	char busid[20];
 
-	/* We wish we had asprintf, but all we get is XNFprintf. */
-	busid = XNFprintf("pci:%04x:%02x:%02x.%d",
-			  dev->domain, dev->bus, dev->dev, dev->func);
+	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
+		 dev->domain, dev->bus, dev->dev, dev->func);
 
 	intel->drmSubFD = drmOpen("i915", busid);
 	if (intel->drmSubFD == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
 			   busid, strerror(errno));
-		free(busid);
 		return FALSE;
 	}
-
-	free(busid);
 
 	/* Check that what we opened was a master or a master-capable FD,
 	 * by setting the version of the interface we'll use to talk to it.
