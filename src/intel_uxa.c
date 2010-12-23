@@ -1220,6 +1220,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->composite = i830_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
 
+		intel->vertex_flush = i830_vertex_flush;
 		intel->batch_commit_notify = i830_batch_commit_notify;
 	} else if (IS_GEN3(intel)) {
 		intel->uxa_driver->check_composite = i915_check_composite;

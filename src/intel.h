@@ -570,9 +570,10 @@ Bool i830_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i830_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
-
 void i830_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i830_vertex_flush(intel_screen_private *intel);
+
 /* i915_render.c */
 Bool i915_check_composite(int op,
 			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
