@@ -261,6 +261,9 @@ void intel_batch_wait_last(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
+	if (intel->last_batch_bo == NULL)
+		return;
+
 	/* Map it CPU write, which guarantees it's done.  This is a completely
 	 * non performance path, so we don't need anything better.
 	 */

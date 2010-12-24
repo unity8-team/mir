@@ -1,2 +1,3 @@
 i8xx-shadow.diff
 libdrm-from-sid-is-ok.diff
+revert-display-outputs-are-enabled-automatically.diff
