@@ -1038,7 +1038,9 @@ I830DRI2GetMSC(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "get vblank counter failed: %s\n", strerror(errno));
+			   "%s:%d get vblank counter failed: %s\n",
+			   __FUNCTION__, __LINE__,
+			   strerror(errno));
 		return FALSE;
 	}
 
@@ -1092,7 +1094,9 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "get vblank counter failed: %s\n", strerror(errno));
+			   "%s:%d get vblank counter failed: %s\n",
+			   __FUNCTION__, __LINE__,
+			   strerror(errno));
 		goto out_complete;
 	}
 
@@ -1120,7 +1124,9 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 		if (ret) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "get vblank counter failed: %s\n", strerror(errno));
+				   "%s:%d get vblank counter failed: %s\n",
+				   __FUNCTION__, __LINE__,
+				   strerror(errno));
 			goto out_complete;
 		}
 
@@ -1153,7 +1159,9 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "get vblank counter failed: %s\n", strerror(errno));
+			   "%s:%d get vblank counter failed: %s\n",
+			   __FUNCTION__, __LINE__,
+			   strerror(errno));
 		goto out_complete;
 	}
 
