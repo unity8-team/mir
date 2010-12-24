@@ -37,6 +37,8 @@
 #include "intel_driver.h"
 #include "legacy/legacy.h"
 
+#include <xf86drmMode.h>
+
 static const SymTabRec _intel_chipsets[] = {
     {PCI_CHIP_I810,		"i810"},
     {PCI_CHIP_I810_DC100,	"i810-dc100"},
@@ -361,6 +363,27 @@ static Bool intel_driver_func(ScrnInfoPtr pScrn,
     }
 }
 
+static Bool has_kernel_mode_setting(struct pci_device *dev)
+{
+	char id[20];
+	int ret;
+
+	snprintf(id, sizeof(id),
+		 "pci:%04x:%02x:%02x.%d",
+		 dev->domain, dev->bus, dev->dev, dev->func);
+
+	ret = drmCheckModesettingSupported(id);
+	if (ret) {
+		if (xf86LoadKernelModule("i915"))
+			ret = drmCheckModesettingSupported(id);
+	}
+	/* Be nice to the user and load fbcon too */
+	if (!ret)
+		(void)xf86LoadKernelModule("fbcon");
+
+	return ret == 0;
+}
+
 /*
  * intel_pci_probe --
  *
@@ -373,11 +396,26 @@ static Bool intel_pci_probe (DriverPtr		driver,
 			     struct pci_device	*device,
 			     intptr_t		match_data)
 {
-    ScrnInfoPtr scrn = NULL;
+    ScrnInfoPtr scrn;
 
-    scrn = xf86ConfigPciEntity(scrn, 0, entity_num, intel_pci_chipsets,
-			       NULL,
-			       NULL, NULL, NULL, NULL);
+    if (!has_kernel_mode_setting(device)) {
+#if KMS_ONLY
+	    return FALSE;
+#else
+	    switch (DEVICE_ID(device)) {
+	    case PCI_CHIP_I810:
+	    case PCI_CHIP_I810_DC100:
+	    case PCI_CHIP_I810_E:
+	    case PCI_CHIP_I815:
+		    break;
+	    default:
+		    return FALSE;
+	    }
+#endif
+    }
+
+    scrn = xf86ConfigPciEntity(NULL, 0, entity_num, intel_pci_chipsets,
+			       NULL, NULL, NULL, NULL, NULL);
     if (scrn != NULL) {
 	scrn->driverVersion = INTEL_VERSION;
 	scrn->driverName = INTEL_DRIVER_NAME;

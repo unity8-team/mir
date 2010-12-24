@@ -1,3 +1,19 @@
+xserver-xorg-video-intel (2:2.13.0-5) unstable; urgency=low
+
+  [ Julien Cristau ]
+  * Drop the intel_pci_probe patch from -4 (closes: #606288).  This relied on
+    i915.ko getting loaded automatically, which doesn't happen if:
+    - the kernel is built without CONFIG_DRM_I915_KMS and lacks modaliases, or
+    - the user kept obsolete /etc/modprobe.d blacklists around.
+  * Use the patch from upstream instead, which tries to load the kernel driver
+    before testing for kms.
+
+  [ Cyril Brulebois ]
+  * The “♫ we wish you a working driver ♫” release.
+  * Build, test, and upload to unstable.
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 24 Dec 2010 19:55:18 +0100
+
 xserver-xorg-video-intel (2:2.13.0-4) unstable; urgency=low
 
   [ Julien Cristau ]
