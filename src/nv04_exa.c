@@ -150,7 +150,6 @@ NV04EXASolid (PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	int width = x2-x1;
 	int height = y2-y1;
 
-	WAIT_RING (chan, 3);
 	BEGIN_RING(chan, rect,
 		   NV04_GDI_RECTANGLE_TEXT_UNCLIPPED_RECTANGLE_POINT(0), 2);
 	OUT_RING  (chan, (x1 << 16) | y1);
@@ -280,7 +279,6 @@ NV04EXACopy(PixmapPtr pDstPixmap, int srcX, int srcY, int dstX, int dstY,
 		dstY = 0;
 	}
 
-	WAIT_RING (chan, 4);
 	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_POINT_IN, 3);
 	OUT_RING  (chan, (srcY << 16) | srcX);
 	OUT_RING  (chan, (dstY << 16) | dstX);
