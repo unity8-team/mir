@@ -73,6 +73,22 @@ typedef struct {
 	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
+static uint32_t pixmap_flink(PixmapPtr pixmap)
+{
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	uint32_t name;
+	dri_bo *bo;
+
+	if (priv->bo == NULL)
+		return 0;
+
+	if (dri_bo_flink(bo, &name) != 0)
+		return 0;
+
+	priv->pinned = 1;
+	return name;
+}
+
 static PixmapPtr get_front_buffer(DrawablePtr drawable)
 {
 	ScreenPtr screen = drawable->pScreen;
@@ -179,10 +195,9 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2BufferPtr buffers;
-	dri_bo *bo;
-	int i;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
+	int i;
 
 	buffers = calloc(count, sizeof *buffers);
 	if (buffers == NULL)
@@ -251,8 +266,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		privates[i].pixmap = pixmap;
 		privates[i].attachment = attachments[i];
 
-		bo = intel_get_pixmap_bo(pixmap);
-		if (bo == NULL || dri_bo_flink(bo, &buffers[i].name) != 0) {
+		if ((buffers[i].name = pixmap_flink(pixmap)) == 0) {
 			/* failed to name buffer */
 			screen->DestroyPixmap(pixmap);
 			goto unwind;
@@ -297,7 +311,6 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2Buffer2Ptr buffer;
-	dri_bo *bo;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap;
 
@@ -358,8 +371,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	privates->pixmap = pixmap;
 	privates->attachment = attachment;
 
-	bo = intel_get_pixmap_bo(pixmap);
-	if (bo == NULL || dri_bo_flink(bo, &buffer->name) != 0) {
+	if ((buffer->name = pixmap_flink(pixmap)) == 0) {
 		/* failed to name buffer */
 		screen->DestroyPixmap(pixmap);
 		free(privates);

@@ -770,7 +770,8 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 	} else {
 		ScreenPtr screen = pixmap->drawable.pScreen;
 
-		if (x == 0 && y == 0 &&
+		if (!priv->pinned &&
+		    x == 0 && y == 0 &&
 		    w == pixmap->drawable.width &&
 		    h == pixmap->drawable.height)
 		{
@@ -1101,7 +1102,7 @@ void intel_uxa_create_screen_resources(ScreenPtr screen)
 	} else {
 		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
 		intel_set_pixmap_bo(pixmap, bo);
-		intel_get_pixmap_private(pixmap)->busy = 1;
+		intel_get_pixmap_private(pixmap)->pinned = 1;
 		screen->ModifyPixmapHeader(pixmap,
 					   scrn->virtualX,
 					   scrn->virtualY,

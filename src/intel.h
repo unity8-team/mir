@@ -184,6 +184,7 @@ struct intel_pixmap {
 	int8_t busy :2;
 	int8_t batch_write :1;
 	int8_t offscreen :1;
+	int8_t pinned :1;
 };
 
 #if HAS_DEVPRIVATEKEYREC
