@@ -79,7 +79,7 @@ static uint32_t pixmap_flink(PixmapPtr pixmap)
 	uint32_t name;
 	dri_bo *bo;
 
-	if (priv->bo == NULL)
+	if (priv == NULL || priv->bo == NULL)
 		return 0;
 
 	if (dri_bo_flink(bo, &name) != 0)
