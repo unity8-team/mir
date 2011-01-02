@@ -77,12 +77,11 @@ static uint32_t pixmap_flink(PixmapPtr pixmap)
 {
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	uint32_t name;
-	dri_bo *bo;
 
 	if (priv == NULL || priv->bo == NULL)
 		return 0;
 
-	if (dri_bo_flink(bo, &name) != 0)
+	if (dri_bo_flink(priv->bo, &name) != 0)
 		return 0;
 
 	priv->pinned = 1;
