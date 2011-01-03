@@ -802,10 +802,19 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 		 * causing wrong (msc, ust) return values and possible visual corruption.
 		 */
 		if ((frame < flip->frame) && (flip->frame - frame < 5)) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s: Pageflip completion has impossible msc %d < target_msc %d\n",
-				   __func__, frame, flip->frame);
-			/* All-Zero values signal failure of timestamping to client. */
+			static int limit = 5;
+
+			/* XXX we are currently hitting this path with older
+			 * kernels, so make it quieter.
+			 */
+			if (limit) {
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+					   "%s: Pageflip completion has impossible msc %d < target_msc %d\n",
+					   __func__, frame, flip->frame);
+				limit--;
+			}
+
+			/* All-0 values signal timestamping failure. */
 			frame = tv_sec = tv_usec = 0;
 		}
 
