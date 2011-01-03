@@ -811,6 +811,9 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	int i, active_outputs = 0;
 
+	if (!crtc->enabled)
+		return FALSE;
+
 	/* Kernel manages CRTC status based out output config */
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
