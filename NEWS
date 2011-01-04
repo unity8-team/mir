@@ -1,3 +1,26 @@
+Snapshot 2.13.903 (2010-01-04)
+==============================
+This is the second release candidate in preparation for the upcoming
+2.14.0 release, and if no showstoppers turn up in wider testing will
+become the next release. Besides the usual bug fixes, we've included
+patches by Mario Kleiner to improve vblank handing which both improve the
+timing accuracy and remove a few potential races -- provided you also
+have the corresponding fixes in the kernel.
+
+Bug fixes
+---------
+
+ * Crash on hot-unpluging with an active fullscreen GL application, e.g. a
+   compositing WM or video player
+   https://bugs.freedesktop.org/show_bug.cgi?id=32770
+
+ * Freeze upon maximising client-side software renderers, e.g. flash.
+   https://bugs.freedesktop.org/show_bug.cgi?id=31367
+
+ * Fix confusion over G35 generation
+   https://bugs.freedesktop.org/show_bug.cgi?id=32478
+
+
 Snapshot 2.13.902 (2010-12-10)
 ==============================
 This is the first release candidate in preparation for the upcoming
