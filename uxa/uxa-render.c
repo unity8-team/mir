@@ -806,6 +806,8 @@ uxa_acquire_drawable(ScreenPtr pScreen,
 		pDst = uxa_render_picture(pScreen, pSrc,
 					  pSrc->format | (BitsPerPixel(pSrc->pDrawable->depth) << 24),
 					  x, y, width, height);
+		if (!pDst)
+			return 0;
 
 		goto done;
 	} else {
@@ -996,11 +998,6 @@ uxa_solid_rects (CARD8		op,
 		return;
 	}
 
-	/* XXX xserver-1.8: CompositeRects is not tracked by Damage, so we must
-	 * manually append the damaged regions ourselves.
-	 */
-	DamageRegionAppend(dst->pDrawable, &region);
-
 	pixman_region_translate(&region, dst_x, dst_y);
 	boxes = pixman_region_rectangles(&region, &num_boxes);
 	extents = pixman_region_extents (&region);
@@ -1089,6 +1086,11 @@ try_solid:
 		uxa_screen->info->done_composite(dst_pixmap);
 		FreePicture(src, 0);
 	}
+
+	/* XXX xserver-1.8: CompositeRects is not tracked by Damage, so we must
+	 * manually append the damaged regions ourselves.
+	 */
+	DamageRegionAppend(dst->pDrawable, &region);
 
 	pixman_region_fini(&region);
 	return;

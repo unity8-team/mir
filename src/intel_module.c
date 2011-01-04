@@ -315,7 +315,7 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
 	break;
     case PCI_CHIP_G35_G:
 	chipset->name = "G35";
-	chipset->info = &intel_g33_info;
+	chipset->info = &intel_i965_info;
 	break;
     case PCI_CHIP_I965_Q:
 	chipset->name = "965Q";

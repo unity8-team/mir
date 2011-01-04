@@ -53,9 +53,17 @@ struct intel_mode {
 	void *event_data;
 	int old_fb_id;
 	int flip_count;
+	unsigned int fe_frame;
+	unsigned int fe_tv_sec;
+	unsigned int fe_tv_usec;
 
 	struct list outputs;
 	struct list crtcs;
+};
+
+struct intel_pageflip {
+	struct intel_mode *mode;
+	Bool dispatch_me;
 };
 
 struct intel_crtc {
@@ -100,6 +108,9 @@ struct intel_output {
 
 static void
 intel_output_dpms(xf86OutputPtr output, int mode);
+
+static void
+intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode);
 
 #define BACKLIGHT_CLASS "/sys/class/backlight"
 
@@ -359,9 +370,6 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 			       crtc->gamma_blue, crtc->gamma_size);
 #endif
 
-	/* drain any pending waits on the current framebuffer */
-	intel_batch_wait_last(crtc->scrn);
-
 	x = crtc->x;
 	y = crtc->y;
 	fb_id = mode->fb_id;
@@ -377,8 +385,24 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(-ret));
 		ret = FALSE;
-	} else
+	} else {
 		ret = TRUE;
+
+		/* Force DPMS to On for all outputs, which the kernel will have done
+		 * with the mode set. Also, restore the backlight level
+		 */
+		for (i = 0; i < xf86_config->num_output; i++) {
+		    xf86OutputPtr output = xf86_config->output[i];
+		    struct intel_output *intel_output;
+
+		    if (output->crtc != crtc)
+			continue;
+
+		    intel_output = output->driver_private;
+		    intel_output_dpms_backlight(output, intel_output->dpms_mode, DPMSModeOn);
+		    intel_output->dpms_mode = DPMSModeOn;
+		}
+	}
 
 	intel_set_gem_max_sizes(scrn);
 
@@ -425,6 +449,8 @@ intel_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->x = x;
 	crtc->y = y;
 	crtc->rotation = rotation;
+
+	intel_batch_submit(crtc->scrn, TRUE);
 
 	mode_to_kmode(crtc->scrn, &intel_crtc->kmode, mode);
 	ret = intel_crtc_apply(crtc);
@@ -1333,6 +1359,8 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
+	intel_batch_submit(scrn, TRUE);
+
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
 	old_pitch = scrn->displayWidth;
@@ -1396,13 +1424,14 @@ fail:
 Bool
 intel_do_pageflip(intel_screen_private *intel,
 		  dri_bo *new_front,
-		  void *data)
+		  void *data, int ref_crtc_hw_id)
 {
 	ScrnInfoPtr scrn = intel->scrn;
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
 	struct intel_crtc *crtc = config->crtc[0]->driver_private;
 	struct intel_mode *mode = crtc->mode;
 	unsigned int pitch = scrn->displayWidth * intel->cpp;
+	struct intel_pageflip *flip;
 	int i, old_fb_id;
 
 	/*
@@ -1423,18 +1452,39 @@ intel_do_pageflip(intel_screen_private *intel,
 	 * Also, flips queued on disabled or incorrectly configured displays
 	 * may never complete; this is a configuration error.
 	 */
+	mode->fe_frame = 0;
+	mode->fe_tv_sec = 0;
+	mode->fe_tv_usec = 0;
+
 	for (i = 0; i < config->num_crtc; i++) {
 		if (!config->crtc[i]->enabled)
 			continue;
 
 		mode->event_data = data;
 		mode->flip_count++;
+
+		crtc = config->crtc[i]->driver_private;
+
+		flip = calloc(1, sizeof(struct intel_pageflip));
+		if (flip == NULL) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "flip queue: carrier alloc failed.\n");
+			goto error_undo;
+		}
+
+		/* Only the reference crtc will finally deliver its page flip
+		 * completion event. All other crtc's events will be discarded.
+		 */
+		flip->dispatch_me = (intel_crtc_to_pipe(crtc->crtc) == ref_crtc_hw_id);
+		flip->mode = mode;
+
 		if (drmModePageFlip(mode->fd,
-				    crtc_id(config->crtc[i]->driver_private),
+				    crtc_id(crtc),
 				    mode->fb_id,
-				    DRM_MODE_PAGE_FLIP_EVENT, mode)) {
+				    DRM_MODE_PAGE_FLIP_EVENT, flip)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));
+			free(flip);
 			goto error_undo;
 		}
 	}
@@ -1467,19 +1517,32 @@ static void
 intel_page_flip_handler(int fd, unsigned int frame, unsigned int tv_sec,
 			  unsigned int tv_usec, void *event_data)
 {
-	struct intel_mode *mode = event_data;
+	struct intel_pageflip *flip = event_data;
+	struct intel_mode *mode = flip->mode;
 
+	/* Is this the event whose info shall be delivered to higher level? */
+	if (flip->dispatch_me) {
+		/* Yes: Cache msc, ust for later delivery. */
+		mode->fe_frame = frame;
+		mode->fe_tv_sec = tv_sec;
+		mode->fe_tv_usec = tv_usec;
+	}
+	free(flip);
 
+	/* Last crtc completed flip? */
 	mode->flip_count--;
 	if (mode->flip_count > 0)
 		return;
 
+	/* Release framebuffer */
 	drmModeRmFB(mode->fd, mode->old_fb_id);
 
 	if (mode->event_data == NULL)
 		return;
 
-	I830DRI2FlipEventHandler(frame, tv_sec, tv_usec, mode->event_data);
+	/* Deliver cached msc, ust from reference crtc to flip event handler */
+	I830DRI2FlipEventHandler(mode->fe_frame, mode->fe_tv_sec,
+				 mode->fe_tv_usec, mode->event_data);
 }
 
 static void

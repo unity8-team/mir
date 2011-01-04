@@ -1,3 +1,16 @@
+xserver-xorg-video-intel (2:2.13.903-1) experimental; urgency=low
+
+  [ Robert Hooker ]
+  * Add libudev-dev to the build deps for monitor hotplug detection
+    events.
+
+  [ Cyril Brulebois ]
+  * New upstream release candidate.
+  * Bump libdrm-dev build-dep.
+  * Drop libdrm-from-sid-is-ok.diff accordingly.
+
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 04 Jan 2011 15:43:17 +0100
+
 xserver-xorg-video-intel (2:2.13.901-2) experimental; urgency=low
 
   * Build against Xserver 1.9.1 rc1.

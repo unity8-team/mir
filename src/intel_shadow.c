@@ -108,7 +108,7 @@ void intel_shadow_blt(intel_screen_private *intel)
 	int n;
 
 	/* Can we trust the BLT? Otherwise do an uncached mmecy. */
-	if (IS_GEN2(intel) || IS_GEN6(intel)) {
+	if (!intel->can_blt || IS_GEN2(intel)) {
 		intel_shadow_memcpy(intel);
 		return;
 	}
@@ -149,7 +149,7 @@ void intel_shadow_blt(intel_screen_private *intel)
 		if (bo == NULL)
 			return;
 
-		BEGIN_BATCH(8);
+		BEGIN_BATCH_BLT(8);
 		OUT_BATCH(blt);
 		OUT_BATCH(br13);
 		OUT_BATCH(box->y1 << 16 | box->x1);

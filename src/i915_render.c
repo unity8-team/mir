@@ -1197,10 +1197,8 @@ i915_vertex_flush(intel_screen_private *intel)
 }
 
 void
-i915_batch_flush_notify(ScrnInfoPtr scrn)
+i915_batch_commit_notify(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	intel->needs_render_state_emit = TRUE;
 	intel->render_current_dest = NULL;
 	intel->last_floats_per_vertex = 0;
