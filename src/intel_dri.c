@@ -73,6 +73,21 @@ typedef struct {
 	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
+static uint32_t pixmap_flink(PixmapPtr pixmap)
+{
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	uint32_t name;
+
+	if (priv == NULL || priv->bo == NULL)
+		return 0;
+
+	if (dri_bo_flink(priv->bo, &name) != 0)
+		return 0;
+
+	priv->pinned = 1;
+	return name;
+}
+
 static PixmapPtr get_front_buffer(DrawablePtr drawable)
 {
 	ScreenPtr screen = drawable->pScreen;
@@ -179,10 +194,9 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2BufferPtr buffers;
-	dri_bo *bo;
-	int i;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap, pDepthPixmap;
+	int i;
 
 	buffers = calloc(count, sizeof *buffers);
 	if (buffers == NULL)
@@ -251,8 +265,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		privates[i].pixmap = pixmap;
 		privates[i].attachment = attachments[i];
 
-		bo = intel_get_pixmap_bo(pixmap);
-		if (bo == NULL || dri_bo_flink(bo, &buffers[i].name) != 0) {
+		if ((buffers[i].name = pixmap_flink(pixmap)) == 0) {
 			/* failed to name buffer */
 			screen->DestroyPixmap(pixmap);
 			goto unwind;
@@ -297,7 +310,6 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	DRI2Buffer2Ptr buffer;
-	dri_bo *bo;
 	I830DRI2BufferPrivatePtr privates;
 	PixmapPtr pixmap;
 
@@ -358,8 +370,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	privates->pixmap = pixmap;
 	privates->attachment = attachment;
 
-	bo = intel_get_pixmap_bo(pixmap);
-	if (bo == NULL || dri_bo_flink(bo, &buffer->name) != 0) {
+	if ((buffer->name = pixmap_flink(pixmap)) == 0) {
 		/* failed to name buffer */
 		screen->DestroyPixmap(pixmap);
 		free(privates);
@@ -421,8 +432,8 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	ValidateGC(dst, gc);
 
 	/* Wait for the scanline to be outside the region to be copied */
-	if (pixmap_is_scanout(get_drawable_pixmap(dst))
-	    && intel->swapbuffers_wait) {
+	if (pixmap_is_scanout(get_drawable_pixmap(dst)) &&
+	    intel->swapbuffers_wait) {
 		BoxPtr box;
 		BoxRec crtcbox;
 		int y1, y2;
@@ -473,7 +484,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 				    event = MI_WAIT_FOR_PIPEB_SVBLANK;
 			}
 
-			if (scrn->currentMode->Flags & V_INTERLACE) {
+			if (crtc->mode.Flags & V_INTERLACE) {
 				/* DSL count field lines */
 				y1 /= 2;
 				y2 /= 2;
@@ -629,10 +640,14 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 static Bool
 I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 		     ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
-		     DRI2BufferPtr back, DRI2SwapEventPtr func, void *data)
+		     DRI2BufferPtr back, DRI2SwapEventPtr func, void *data,
+		     unsigned int target_msc)
 {
 	I830DRI2BufferPrivatePtr back_priv;
 	DRI2FrameEventPtr flip_info;
+
+	/* Main crtc for this drawable shall finally deliver pageflip event. */
+	int ref_crtc_hw_id = I830DRI2DrawablePipe(draw);
 
 	flip_info = calloc(1, sizeof(DRI2FrameEventRec));
 	if (!flip_info)
@@ -643,12 +658,13 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	flip_info->type = DRI2_SWAP;
 	flip_info->event_complete = func;
 	flip_info->event_data = data;
+	flip_info->frame = target_msc;
 
 	/* Page flip the full screen buffer */
 	back_priv = back->driverPrivate;
 	return intel_do_pageflip(intel,
 				 intel_get_pixmap_bo(back_priv->pixmap),
-				 flip_info);
+				 flip_info, ref_crtc_hw_id);
 }
 
 static Bool
@@ -709,7 +725,7 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 		    I830DRI2ScheduleFlip(intel,
 					 event->client, drawable, event->front,
 					 event->back, event->event_complete,
-					 event->event_data)) {
+					 event->event_data, event->frame)) {
 			I830DRI2ExchangeBuffers(drawable,
 						event->front, event->back);
 			break;
@@ -780,6 +796,27 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip->type) {
 	case DRI2_SWAP:
+		/* Check for too small vblank count of pageflip completion, taking wraparound
+		 * into account. This usually means some defective kms pageflip completion,
+		 * causing wrong (msc, ust) return values and possible visual corruption.
+		 */
+		if ((frame < flip->frame) && (flip->frame - frame < 5)) {
+			static int limit = 5;
+
+			/* XXX we are currently hitting this path with older
+			 * kernels, so make it quieter.
+			 */
+			if (limit) {
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+					   "%s: Pageflip completion has impossible msc %d < target_msc %d\n",
+					   __func__, frame, flip->frame);
+				limit--;
+			}
+
+			/* All-0 values signal timestamping failure. */
+			frame = tv_sec = tv_usec = 0;
+		}
+
 		DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
 				 DRI2_FLIP_COMPLETE, flip->event_complete,
 				 flip->event_data);
@@ -1021,7 +1058,9 @@ I830DRI2GetMSC(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "get vblank counter failed: %s\n", strerror(errno));
+			   "%s:%d get vblank counter failed: %s\n",
+			   __FUNCTION__, __LINE__,
+			   strerror(errno));
 		return FALSE;
 	}
 
@@ -1075,7 +1114,9 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "get vblank counter failed: %s\n", strerror(errno));
+			   "%s:%d get vblank counter failed: %s\n",
+			   __FUNCTION__, __LINE__,
+			   strerror(errno));
 		goto out_complete;
 	}
 
@@ -1103,7 +1144,9 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 		if (ret) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "get vblank counter failed: %s\n", strerror(errno));
+				   "%s:%d get vblank counter failed: %s\n",
+				   __FUNCTION__, __LINE__,
+				   strerror(errno));
 			goto out_complete;
 		}
 
@@ -1136,7 +1179,9 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "get vblank counter failed: %s\n", strerror(errno));
+			   "%s:%d get vblank counter failed: %s\n",
+			   __FUNCTION__, __LINE__,
+			   strerror(errno));
 		goto out_complete;
 	}
 

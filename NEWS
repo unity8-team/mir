@@ -1,3 +1,53 @@
+Snapshot 2.13.903 (2010-01-04)
+==============================
+This is the second release candidate in preparation for the upcoming
+2.14.0 release, and if no showstoppers turn up in wider testing will
+become the next release. Besides the usual bug fixes, we've included
+patches by Mario Kleiner to improve vblank handing which both improve the
+timing accuracy and remove a few potential races -- provided you also
+have the corresponding fixes in the kernel.
+
+Bug fixes
+---------
+
+ * Crash on hot-unpluging with an active fullscreen GL application, e.g. a
+   compositing WM or video player
+   https://bugs.freedesktop.org/show_bug.cgi?id=32770
+
+ * Freeze upon maximising client-side software renderers, e.g. flash.
+   https://bugs.freedesktop.org/show_bug.cgi?id=31367
+
+ * Fix confusion over G35 generation
+   https://bugs.freedesktop.org/show_bug.cgi?id=32478
+
+
+Snapshot 2.13.902 (2010-12-10)
+==============================
+This is the first release candidate in preparation for the upcoming
+2.14.0 release. Sandybridge support should be now be ready for use,
+and we will appreciate any feedback we can get from this snapshot.
+Improving the code base for Sandybridge should also have had knock
+on effects for earlier chips as well, in particular Ironlake and to
+a lesser extent i965.
+
+New requirements compared to 2.13
+---------------------------------
+ * Librdrm >= 2.4.23
+
+Bug fixes
+---------
+
+ * Crash after failing to allocate memory
+   https://bugs.freedesktop.org/show_bug.cgi?id=31487
+
+ * EFAULT during pwrite
+   https://bugs.freedesktop.org/show_bug.cgi?id=29752
+
+ * Mark outputs as on and restore backlight after mode-set
+
+ * A hang with i965+ with newer kernels.
+
+
 Snapshot 2.13.901 (2010-11-05)
 ==============================
 This is an intermediate snapshot of ongoing driver development. The
