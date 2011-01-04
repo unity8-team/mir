@@ -1730,8 +1730,7 @@ static void i965_bind_surfaces(struct intel_screen_private *intel)
 {
 	uint32_t *binding_table;
 
-	assert(intel->surface_used + 4 * sizeof(struct brw_surface_state_padded) <
-	       sizeof(intel->surface_data));
+	assert(intel->surface_used + 4 * sizeof(struct brw_surface_state_padded) <= sizeof(intel->surface_data));
 
 	binding_table = (uint32_t*) (intel->surface_data + intel->surface_used);
 	intel->surface_table = intel->surface_used;
