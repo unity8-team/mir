@@ -32,13 +32,26 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 	Bool tiled = (usage_hint & NOUVEAU_CREATE_PIXMAP_TILED);
 	int tile_mode = 0, tile_flags = 0;
 	int flags = NOUVEAU_BO_MAP | (bpp >= 8 ? NOUVEAU_BO_VRAM : 0);
-	int ret;
+	int cpp = bpp / 8, ret;
 
-	if ((scanout && pNv->tiled_scanout) ||
-	    (!scanout && pNv->Architecture >= NV_ARCH_50 && bpp >= 8))
-		tiled = TRUE;
-
-	*pitch = NOUVEAU_ALIGN(width * bpp, 512) / 8;
+	if (pNv->Architecture >= NV_ARCH_50) {
+		if (scanout) {
+			if (pNv->tiled_scanout) {
+				tiled = TRUE;
+				*pitch = NOUVEAU_ALIGN(width * cpp, 64);
+			} else {
+				*pitch = NOUVEAU_ALIGN(width * cpp, 256);
+			}
+		} else {
+			if (bpp >= 8)
+				tiled = TRUE;
+			*pitch = NOUVEAU_ALIGN(width * cpp, 64);
+		}
+	} else {
+		if (scanout && pNv->tiled_scanout)
+			tiled = TRUE;
+		*pitch = NOUVEAU_ALIGN(width * cpp, 64);
+	}
 
 	if (tiled) {
 		if (pNv->Architecture >= NV_ARCH_50) {
