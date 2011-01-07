@@ -1894,6 +1894,14 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	}
     }
 
+    if (IS_DCE5_VARIANT) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Chipset: \"%s\" (ChipID = 0x%04x) requires KMS\n",
+		   pScrn->chipset,
+		   info->Chipset);
+	return FALSE;
+    }
+
     switch (info->Chipset) {
     case PCI_CHIP_RN50_515E:  /* RN50 is based on the RV100 but 3D isn't guaranteed to work.  YMMV. */
     case PCI_CHIP_RN50_5969:

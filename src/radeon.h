@@ -393,6 +393,8 @@ typedef enum {
 
 #define IS_DCE41_VARIANT ((info->ChipFamily >= CHIP_FAMILY_PALM))
 
+#define IS_DCE5_VARIANT ((info->ChipFamily >= CHIP_FAMILY_BARTS))
+
 #define IS_EVERGREEN_3D (info->ChipFamily >= CHIP_FAMILY_CEDAR)
 
 #define IS_R600_3D (info->ChipFamily >= CHIP_FAMILY_R600)
