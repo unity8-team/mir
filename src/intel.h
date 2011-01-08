@@ -639,11 +639,6 @@ static inline drm_intel_bo *intel_bo_alloc_for_data(ScrnInfoPtr scrn,
 	return bo;
 }
 
-/* Flags for memory allocation function */
-#define NEED_PHYSICAL_ADDR		0x00000001
-#define ALLOW_SHARING			0x00000010
-#define DISABLE_REUSE			0x00000020
-
 void intel_debug_flush(ScrnInfoPtr scrn);
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
