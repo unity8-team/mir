@@ -227,8 +227,6 @@ static inline Bool intel_pixmap_tiled(PixmapPtr pixmap)
 dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap);
 void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo);
 
-typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
-
 #include "common.h"
 
 #ifdef XvMCExtension
