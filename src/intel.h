@@ -239,23 +239,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 #define PITCH_NONE 0
 
-/** Record of a linear allocation in the aperture. */
-typedef struct _intel_memory intel_memory;
-struct _intel_memory {
-	/** Description of the allocation, for logging */
-	char *name;
-
-	/** @{
-	 * Memory allocator linked list pointers
-	 */
-	intel_memory *next;
-	intel_memory *prev;
-	/** @} */
-
-	drm_intel_bo *bo;
-	uint32_t gem_name;
-};
-
 typedef struct _I830CrtcPrivateRec {
 	int pipe;
 	int plane;
