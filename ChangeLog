@@ -1,3 +1,23 @@
+commit 40a7bde9140c0ae6412b8f916b1455d44e2af6cf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 7 23:46:07 2011 +0000
+
+    configure: version bump for 2.14.0
+
+commit 8ecbba2aca657da3894eb77e856ac2d4e9efc0cc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 7 23:45:06 2011 +0000
+
+    NEWS: Release notes for 2.14.0
+
+commit 22d7b61791c382088a6c0df5dce3a15405d6c495
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 4 12:32:01 2011 +0000
+
+    i965: Fix off-by-one in assert
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit a7c7a9108f76aa312f3d5efa466052b914c81484
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Tue Jan 4 10:53:30 2011 +0000

@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.14.0-1) experimental; urgency=low
+
+  * New upstream release.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 08 Jan 2011 18:10:23 +0100
+
 xserver-xorg-video-intel (2:2.13.903-1) experimental; urgency=low
 
   [ Robert Hooker ]

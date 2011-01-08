@@ -1,3 +1,18 @@
+Release 2.14.0 (2011-01-07)
+===========================
+We are pleased to announce this major release of the xf86-video-intel
+driver, on schedule at 3 months since 2.13.0. With the many bug fixes
+in this release, we encourage everyone to upgrade to 2.14.
+
+The most notable feature of this release is the inclusion of acceleration
+support, both RENDER and XVIDEO, for Sandy Bridge; note that this requires
+a 2.6.37 kernel. In improving the acceleration code paths to support Sandy
+Bridge, we were also able to improve the performance of the general i965+
+RENDER acceleration. For example on i3, glyph (aa10 and rgb10) performance
+is about 3x faster, as is performing small copies between windows, with the
+improvement becoming negligible once you hit around 100 pixels square.
+
+
 Snapshot 2.13.903 (2010-01-04)
 ==============================
 This is the second release candidate in preparation for the upcoming
