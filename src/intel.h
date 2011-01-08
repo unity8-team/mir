@@ -500,11 +500,7 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 			      unsigned int tv_usec, void *user_data);
 
 extern Bool intel_crtc_on(xf86CrtcPtr crtc);
-static inline int intel_crtc_to_pipe(xf86CrtcPtr crtc)
-{
-	intel_screen_private *intel = intel_get_screen_private(crtc->scrn);
-	return intel_get_pipe_from_crtc_id(intel->bufmgr, crtc);
-}
+int intel_crtc_to_pipe(xf86CrtcPtr crtc);
 
 /* intel_memory.c */
 unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);
