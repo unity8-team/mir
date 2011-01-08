@@ -166,14 +166,6 @@ I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
 
 	for (p = 0; p < xf86_config->num_crtc; p++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[p];
-		I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-
-		/* Initialize to the old lookup table values. */
-		for (i = 0; i < 256; i++) {
-			lut_r[i] = intel_crtc->lut_r[i] << 8;
-			lut_g[i] = intel_crtc->lut_g[i] << 8;
-			lut_b[i] = intel_crtc->lut_b[i] << 8;
-		}
 
 		switch (scrn->depth) {
 		case 15:
@@ -1275,22 +1267,6 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 		ErrorF("I830PMEvent: received APM event %d\n", event);
 	}
 	return TRUE;
-}
-
-xf86CrtcPtr intel_pipe_to_crtc(ScrnInfoPtr scrn, int pipe)
-{
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
-	int c;
-
-	for (c = 0; c < config->num_crtc; c++) {
-		xf86CrtcPtr crtc = config->crtc[c];
-		I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-
-		if (intel_crtc->pipe == pipe)
-			return crtc;
-	}
-
-	return NULL;
 }
 
 void intel_init_scrn(ScrnInfoPtr scrn)

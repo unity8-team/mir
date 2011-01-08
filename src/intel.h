@@ -239,22 +239,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 #define PITCH_NONE 0
 
-typedef struct _I830CrtcPrivateRec {
-	int pipe;
-	int plane;
-
-	Bool enabled;
-
-	int dpms_mode;
-
-	int x, y;
-
-	/* Lookup table values to be set when the CRTC is enabled */
-	uint8_t lut_r[256], lut_g[256], lut_b[256];
-} I830CrtcPrivateRec, *I830CrtcPrivatePtr;
-
-#define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
-
 /** enumeration of 3d consumers so some can maintain invariant state. */
 enum last_3d {
 	LAST_3D_OTHER,
@@ -509,8 +493,6 @@ extern void I830EmitFlush(ScrnInfoPtr scrn);
 extern void I830InitVideo(ScreenPtr pScreen);
 extern xf86CrtcPtr intel_covering_crtc(ScrnInfoPtr scrn, BoxPtr box,
 				      xf86CrtcPtr desired, BoxPtr crtc_box_ret);
-
-extern xf86CrtcPtr intel_pipe_to_crtc(ScrnInfoPtr scrn, int pipe);
 
 Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
