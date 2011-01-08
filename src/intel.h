@@ -271,18 +271,11 @@ enum dri_type {
 
 typedef struct intel_screen_private {
 	ScrnInfoPtr scrn;
-	unsigned char *MMIOBase;
 	int cpp;
 
 #define RENDER_BATCH			I915_EXEC_RENDER
 #define BLT_BATCH			I915_EXEC_BLT
 	unsigned int current_batch;
-
-	unsigned int bufferOffset;	/* for I830SelectBuffer */
-
-	/* These are set in PreInit and never changed. */
-	long FbMapSize;
-	long GTTMapSize;
 
 	void *modes;
 	drm_intel_bo *front_buffer;
@@ -327,7 +320,6 @@ typedef struct intel_screen_private {
 	Bool has_relaxed_fencing;
 
 	int Chipset;
-	unsigned long LinearAddr;
 	EntityInfoPtr pEnt;
 	struct pci_device *PciInfo;
 	struct intel_chipset chipset;

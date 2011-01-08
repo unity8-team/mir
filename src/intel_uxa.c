@@ -1185,7 +1185,6 @@ Bool intel_uxa_init(ScreenPtr screen)
 
 	memset(intel->uxa_driver, 0, sizeof(*intel->uxa_driver));
 
-	intel->bufferOffset = 0;
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
 

@@ -733,50 +733,6 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 	intel_video_block_handler(intel);
 }
 
-static void intel_fixup_mtrrs(ScrnInfoPtr scrn)
-{
-#ifdef HAS_MTRR_SUPPORT
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int fd;
-	struct mtrr_gentry gentry;
-	struct mtrr_sentry sentry;
-
-	if ((fd = open("/proc/mtrr", O_RDONLY, 0)) != -1) {
-		for (gentry.regnum = 0;
-		     ioctl(fd, MTRRIOC_GET_ENTRY, &gentry) == 0;
-		     ++gentry.regnum) {
-
-			if (gentry.size < 1) {
-				/* DISABLED */
-				continue;
-			}
-
-			/* Check the MTRR range is one we like and if not - remove it.
-			 * The Xserver common layer will then setup the right range
-			 * for us.
-			 */
-			if (gentry.base == intel->LinearAddr &&
-			    gentry.size < intel->FbMapSize) {
-
-				xf86DrvMsg(scrn->scrnIndex, X_INFO,
-					   "Removing bad MTRR range (base 0x%lx, size 0x%x)\n",
-					   gentry.base, gentry.size);
-
-				sentry.base = gentry.base;
-				sentry.size = gentry.size;
-				sentry.type = gentry.type;
-
-				if (ioctl(fd, MTRRIOC_DEL_ENTRY, &sentry) == -1) {
-					xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-						   "Failed to remove bad MTRR range\n");
-				}
-			}
-		}
-		close(fd);
-	}
-#endif
-}
-
 static Bool
 intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 {
@@ -961,32 +917,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	struct pci_device *const device = intel->PciInfo;
 	int fb_bar = IS_GEN2(intel) ? 0 : 2;
 
-	/*
-	 * The "VideoRam" config file parameter specifies the maximum amount of
-	 * memory that will be used/allocated.  When not present, we allow the
-	 * driver to allocate as much memory as it wishes to satisfy its
-	 * allocations, but if agpgart support isn't available, it gets limited
-	 * to the amount of pre-allocated ("stolen") memory.
-	 *
-	 * Note that in using this value for allocator initialization, we're
-	 * limiting aperture allocation to the VideoRam option, rather than limiting
-	 * actual memory allocation, so alignment and things will cause less than
-	 * VideoRam to be actually used.
-	 */
-	scrn->videoRam = intel->FbMapSize / KB(1);
-	if (intel->pEnt->device->videoRam != 0) {
-		if (scrn->videoRam != intel->pEnt->device->videoRam) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "VideoRam configuration found, which is no "
-				   "longer used.\n");
-			xf86DrvMsg(scrn->scrnIndex, X_INFO,
-				   "Continuing with (ignored) %dkB VideoRam "
-				   "instead of %d kB.\n",
-				   scrn->videoRam,
-				   intel->pEnt->device->videoRam);
-		}
-	}
-
 	scrn->videoRam = device->regions[fb_bar].size / 1024;
 
 	intel->last_3d = LAST_3D_OTHER;
@@ -998,10 +928,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	 */
 	intel->XvEnabled = TRUE;
 
-	xf86DrvMsg(scrn->scrnIndex,
-		   intel->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
-		   "VideoRam: %d KB\n", scrn->videoRam);
-
 #ifdef DRI2
 	if (intel->directRenderingType == DRI_NONE
 	    && I830DRI2ScreenInit(screen))
@@ -1010,8 +936,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	if (!intel_init_initial_framebuffer(scrn))
 		return FALSE;
-
-	intel_fixup_mtrrs(scrn);
 
 	intel_batch_init(scrn);
 
