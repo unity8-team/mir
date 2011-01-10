@@ -1647,22 +1647,29 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
     Bool flush = FALSE;
     Bool r;
     struct r600_accel_object src_obj, dst_obj;
+    uint32_t tiling_flags = 0, pitch = 0;
 
     if (bpp < 8)
 	return FALSE;
 
     driver_priv = exaGetPixmapDriverPrivate(pSrc);
 
+    ret = radeon_bo_get_tiling(driver_priv->bo, &tiling_flags, &pitch);
+    if (ret)
+	ErrorF("radeon_bo_get_tiling failed\n");
+
     /* If we know the BO won't end up in VRAM anyway, don't bother with a scratch */
     copy_src = driver_priv->bo;
     copy_pitch = pSrc->devKind;
-    if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
-	src_domain = radeon_bo_get_src_domain(driver_priv->bo);
-	if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
-	    (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
-	    src_domain = 0;
-	else /* A write may be scheduled */
-	    flush = TRUE;
+    if (!(tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO))) {
+	if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
+	    src_domain = radeon_bo_get_src_domain(driver_priv->bo);
+	    if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
+		(RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM))
+		src_domain = 0;
+	    else /* A write may be scheduled */
+		flush = TRUE;
+	}
     }
 
     if (!src_domain)

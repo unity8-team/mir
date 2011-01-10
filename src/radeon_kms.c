@@ -70,6 +70,8 @@ const OptionInfoRec RADEONOptions_KMS[] = {
     { OPTION_EXA_VSYNC,      "EXAVSync",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_EXA_PIXMAPS,    "EXAPixmaps",	 OPTV_BOOLEAN,   {0}, FALSE },
     { OPTION_ZAPHOD_HEADS,   "ZaphodHeads",      OPTV_STRING,  {0}, FALSE },
+    { OPTION_PAGE_FLIP,      "EnablePageFlip",   OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_SWAPBUFFERS_WAIT,"SwapbuffersWait", OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -620,6 +622,18 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
 
+    if (info->dri->pKernelDRMVersion->version_minor >= 8) {
+	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
+						   OPTION_PAGE_FLIP, TRUE);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "KMS Pageflipping: %sabled\n", info->allowPageFlip ? "en" : "dis");
+    }
+
+    info->swapBuffersWait = xf86ReturnOptValBool(info->Options,
+						 OPTION_SWAPBUFFERS_WAIT, TRUE);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "SwapBuffers wait for vsync: %sabled\n", info->swapBuffersWait ? "en" : "dis");
+
     if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
 	goto fail;
@@ -678,7 +692,9 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     /* no tiled scanout on r6xx+ yet */
     if (info->allowColorTiling) {
-	if (info->ChipFamily < CHIP_FAMILY_R600)
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    tiling |= RADEON_TILING_MICRO;
+	else
 	    tiling |= RADEON_TILING_MACRO;
     }
     cpp = pScrn->bitsPerPixel / 8;
@@ -1115,9 +1131,10 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	    return FALSE;
     }
 
-    /* no tiled scanout on r6xx+ yet */
     if (info->allowColorTiling) {
-	if (info->ChipFamily < CHIP_FAMILY_R600)
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    tiling_flags |= RADEON_TILING_MICRO;
+	else
 	    tiling_flags |= RADEON_TILING_MACRO;
     }
     pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, cpp, tiling_flags)) * cpp;
