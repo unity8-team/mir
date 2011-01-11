@@ -1118,14 +1118,25 @@ int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling)
 	int pitch_align = 1;
 
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		if (tiling & RADEON_TILING_MACRO)
+		if (tiling & RADEON_TILING_MACRO) {
+			/* general surface requirements */
 			pitch_align = MAX(info->num_banks,
 					  (((info->group_bytes / 8) / bpe) * info->num_banks)) * 8;
-		else if (tiling & RADEON_TILING_MICRO)
+			/* further restrictions for scanout */
+			pitch_align = MAX(info->num_banks * 8, pitch_align);
+		} else if (tiling & RADEON_TILING_MICRO) {
+			/* general surface requirements */
 			pitch_align = MAX(8, (info->group_bytes / (8 * bpe)));
-		else
+			/* further restrictions for scanout */
+			pitch_align = MAX(info->group_bytes / bpe, pitch_align);
+		} else {
+			/* general surface requirements */
 			pitch_align = info->group_bytes / bpe;
+			/* further restrictions for scanout */
+			pitch_align = MAX(32, pitch_align);
+		}
 	} else {
+		/* general surface requirements */
 		if (tiling)
 			pitch_align = 256 / bpe;
 		else
