@@ -204,7 +204,8 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	ScreenPtr pScreen = pScrn->pScreen;
 	int crtc_id = 0;
 	int i;
-	int pitch = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
+	int pitch;
+	uint32_t tiling_flags = 0;
 	Bool ret;
 
 	if (info->accelOn == FALSE)
@@ -222,6 +223,17 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	src = create_pixmap_for_fbcon(drmmode, pScrn, crtc_id);
 	if (!src)
 		return;
+
+	if (info->allowColorTiling) {
+		if (info->ChipFamily >= CHIP_FAMILY_R600)
+			tiling_flags |= RADEON_TILING_MICRO;
+		else
+			tiling_flags |= RADEON_TILING_MACRO;
+	}
+
+	pitch = RADEON_ALIGN(pScrn->displayWidth,
+			     drmmode_get_pitch_align(pScrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
+		info->CurrentLayout.pixel_bytes;
 
 	dst = drmmode_create_bo_pixmap(pScreen, pScrn->virtualX,
 				       pScrn->virtualY, pScrn->depth,
