@@ -1604,7 +1604,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[0]->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	unsigned int pitch = scrn->displayWidth * info->CurrentLayout.pixel_bytes;
+	unsigned int pitch;
 	int i, old_fb_id;
 	uint32_t tiling_flags = 0;
 	int height;
@@ -1617,7 +1617,8 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 			tiling_flags |= RADEON_TILING_MACRO;
 	}
 
-	pitch = RADEON_ALIGN(pitch, drmmode_get_pitch_align(scrn, info->CurrentLayout.pixel_bytes, tiling_flags));
+	pitch = RADEON_ALIGN(scrn->displayWidth, drmmode_get_pitch_align(scrn, info->CurrentLayout.pixel_bytes, tiling_flags)) *
+		info->CurrentLayout.pixel_bytes;
 	height = RADEON_ALIGN(scrn->virtualY, drmmode_get_height_align(scrn, tiling_flags));
 
 	/*
