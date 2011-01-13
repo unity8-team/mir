@@ -377,7 +377,7 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_RS880_9712, "ATI Mobility Radeon HD 4200" },
   { PCI_CHIP_RS880_9713, "ATI Mobility Radeon 4100" },
   { PCI_CHIP_RS880_9714, "ATI Radeon HD 4290" },
-  { PCI_CHIP_RS880_9715, "ATI Radeon HD 4290" },
+  { PCI_CHIP_RS880_9715, "ATI Radeon HD 4250" },
   { PCI_CHIP_PALM_9802, "AMD Radeon HD 6310 Graphics" },
   { PCI_CHIP_PALM_9803, "AMD Radeon HD 6310 Graphics" },
   { PCI_CHIP_PALM_9804, "AMD Radeon HD 6250 Graphics" },
