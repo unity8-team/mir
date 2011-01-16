@@ -207,6 +207,7 @@ static void RADEONBlockHandler_KMS(int i, pointer blockData,
 
     if (info->VideoTimerCallback)
 	(*info->VideoTimerCallback)(pScrn, currentTime.milliseconds);
+    radeon_cs_flush_indirect(pScrn);
 }
 
 static void
