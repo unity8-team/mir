@@ -54,7 +54,26 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 	}
 
 	if (tiled) {
-		if (pNv->Architecture >= NV_ARCH_50) {
+		if (pNv->Architecture >= NV_ARCH_C0) {
+			if (height > 64)
+				tile_mode = 0x40;
+			else if (height > 32)
+				tile_mode = 0x30;
+			else if (height > 16)
+				tile_mode = 0x20;
+			else if (height > 8)
+				tile_mode = 0x10;
+			else
+				tile_mode = 0x00;
+
+			if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
+				tile_flags = 0x1100; /* S8Z24 */
+			else
+				tile_flags = 0xfe00;
+
+			height = NOUVEAU_ALIGN(
+				height, NVC0_TILE_HEIGHT(tile_mode));
+		} else if (pNv->Architecture >= NV_ARCH_50) {
 			if (height > 32)
 				tile_mode = 4;
 			else if (height > 16)
@@ -607,7 +626,8 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 		return TRUE;
 
 	/* General engine objects */
-	INIT_CONTEXT_OBJECT(DmaNotifier0);
+	if (pNv->Architecture < NV_ARCH_C0)
+		INIT_CONTEXT_OBJECT(DmaNotifier0);
 
 	/* 2D engine */
 	if (pNv->Architecture < NV_ARCH_50) {
@@ -621,13 +641,23 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 		INIT_CONTEXT_OBJECT(ScaledImage);
 		INIT_CONTEXT_OBJECT(ClipRectangle);
 		INIT_CONTEXT_OBJECT(ImageFromCpu);
-	} else {
+	} else
+	if (pNv->Architecture < NV_ARCH_C0) {
 		INIT_CONTEXT_OBJECT(2D_NV50);
+	} else {
+		INIT_CONTEXT_OBJECT(2D_NVC0);
 	}
-	INIT_CONTEXT_OBJECT(MemFormat);
+
+	if (pNv->Architecture < NV_ARCH_C0)
+		INIT_CONTEXT_OBJECT(MemFormat);
+	else
+		INIT_CONTEXT_OBJECT(M2MF_NVC0);
 
 	/* 3D init */
 	switch (pNv->Architecture) {
+	case NV_ARCH_C0:
+		INIT_CONTEXT_OBJECT(3D_NVC0);
+		break;
 	case NV_ARCH_50:
 		INIT_CONTEXT_OBJECT(NV50TCL);
 		break;
@@ -658,21 +688,18 @@ void NVAccelFree(ScrnInfoPtr pScrn)
 	nouveau_notifier_free(&pNv->notify0);
 	nouveau_notifier_free(&pNv->vblank_sem);
 
-	if (pNv->Architecture < NV_ARCH_50) {
-		nouveau_grobj_free(&pNv->NvContextSurfaces);
-		nouveau_grobj_free(&pNv->NvContextBeta1);
-		nouveau_grobj_free(&pNv->NvContextBeta4);
-		nouveau_grobj_free(&pNv->NvImagePattern);
-		nouveau_grobj_free(&pNv->NvRop);
-		nouveau_grobj_free(&pNv->NvRectangle);
-		nouveau_grobj_free(&pNv->NvImageBlit);
-		nouveau_grobj_free(&pNv->NvScaledImage);
-		nouveau_grobj_free(&pNv->NvClipRectangle);
-		nouveau_grobj_free(&pNv->NvImageFromCpu);
-	} else
-		nouveau_grobj_free(&pNv->Nv2D);
+	nouveau_grobj_free(&pNv->NvContextSurfaces);
+	nouveau_grobj_free(&pNv->NvContextBeta1);
+	nouveau_grobj_free(&pNv->NvContextBeta4);
+	nouveau_grobj_free(&pNv->NvImagePattern);
+	nouveau_grobj_free(&pNv->NvRop);
+	nouveau_grobj_free(&pNv->NvRectangle);
+	nouveau_grobj_free(&pNv->NvImageBlit);
+	nouveau_grobj_free(&pNv->NvScaledImage);
+	nouveau_grobj_free(&pNv->NvClipRectangle);
+	nouveau_grobj_free(&pNv->NvImageFromCpu);
+	nouveau_grobj_free(&pNv->Nv2D);
 	nouveau_grobj_free(&pNv->NvMemFormat);
-
 	nouveau_grobj_free(&pNv->NvSW);
 	nouveau_grobj_free(&pNv->Nv3D);
 

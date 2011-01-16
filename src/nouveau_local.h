@@ -43,6 +43,9 @@
 
 #define NOUVEAU_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 
+#define NVC0_TILE_PITCH(m) (64 << ((m) & 0xf))
+#define NVC0_TILE_HEIGHT(m) (8 << ((m) >> 4))
+
 static inline int log2i(int i)
 {
 	int r = 0;

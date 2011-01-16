@@ -177,7 +177,10 @@ nouveau_wfb_setup_wrap(ReadMemoryProcPtr *pRead, WriteMemoryProcPtr *pWrite,
 		wfb->pitch = ppix->devKind;
 		/* 8192x8192x4 is 28 bits max, 64 - 28 == 36. */
 		wfb->multiply_factor = (((1ULL << 36) - 1) / wfb->pitch) + 1;
-		wfb->tile_height = bo->tile_mode + 2;
+		if (bo->device->chipset < 0xc0)
+			wfb->tile_height = bo->tile_mode + 2;
+		else
+			wfb->tile_height = (bo->tile_mode >> 4) + 3;
 		wfb->horiz_tiles = wfb->pitch / 64;
 		have_tiled = 1;
 	}

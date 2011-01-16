@@ -58,6 +58,9 @@ nouveau_drv_la_SOURCES = \
 			 nv50_exa.c \
 			 nv50_xv.c \
 			 nv50_texture.h \
+			 nvc0_accel.c nvc0_accel.h \
+			 nvc0_exa.c \
+			 nvc0_xv.c \
 			 drmmode_display.c \
 			 vl_hwmc.c \
 			 vl_hwmc.h

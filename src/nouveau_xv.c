@@ -245,8 +245,13 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 	}
 
 	tile_flags = 0;
-	if (pNv->Architecture >= NV_ARCH_50 && (flags & NOUVEAU_BO_VRAM))
-		tile_flags = 0x7000;
+	if (flags & NOUVEAU_BO_VRAM) {
+		if (pNv->Architecture == NV_ARCH_50)
+			tile_flags = 0x7000;
+		else
+		if (pNv->Architecture == NV_ARCH_C0)
+			tile_flags = 0xfe00;
+	}
 
 	ret = nouveau_bo_new_tile(pNv->dev, flags | NOUVEAU_BO_MAP, 0,
 				  size, 0, tile_flags, pbo);
@@ -1106,6 +1111,12 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 		nouveau_bo_unmap(destination_buffer);
 
+		if (pNv->Architecture >= NV_ARCH_C0) {
+			nvc0_xv_m2mf(m2mf, pPriv->video_mem, uv_offset, dstPitch,
+				     nlines, destination_buffer, line_len);
+			goto put_image;
+		}
+
 		if (MARK_RING(chan, 64, 4))
 			return FALSE;
 
@@ -1245,6 +1256,7 @@ CPU_copy:
 	if (pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE)
 		pPriv->currentHostBuffer ^= 1;
 
+put_image:
 	/* If we're not using the hw overlay, we're rendering into a pixmap
 	 * and need to take a couple of additional steps...
 	 */
@@ -1310,6 +1322,13 @@ CPU_copy:
 		} else
 		if (pNv->Architecture == NV_ARCH_50) {
 			ret = nv50_xv_image_put(pScrn, pPriv->video_mem,
+						offset, uv_offset,
+						id, dstPitch, &dstBox, 0, 0,
+						xb, yb, npixels, nlines,
+						src_w, src_h, drw_w, drw_h,
+						clipBoxes, ppix, pPriv);
+		} else {
+			ret = nvc0_xv_image_put(pScrn, pPriv->video_mem,
 						offset, uv_offset,
 						id, dstPitch, &dstBox, 0, 0,
 						xb, yb, npixels, nlines,
@@ -2041,7 +2060,6 @@ NV50SetupTexturedVideo (ScreenPtr pScreen)
 	return adapt;
 }
 
-
 /**
  * NVInitVideo
  * tries to initialize the various supported adapters
@@ -2084,7 +2102,7 @@ NVInitVideo(ScreenPtr pScreen)
 			textureAdaptor[0] = NV40SetupTexturedVideo(pScreen, FALSE);
 			textureAdaptor[1] = NV40SetupTexturedVideo(pScreen, TRUE);
 		} else
-		if (pNv->Architecture == NV_ARCH_50) {
+		if (pNv->Architecture >= NV_ARCH_50) {
 			textureAdaptor[0] = NV50SetupTexturedVideo(pScreen);
 		}
 	}

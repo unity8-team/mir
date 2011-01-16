@@ -134,6 +134,11 @@ int NV40SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 void NV50SyncToVBlank(PixmapPtr ppix, BoxPtr box);
 Bool NVAccelInitNV50TCL(ScrnInfoPtr pScrn);
 
+/* in nvc0_accel.c */
+Bool NVAccelInitM2MF_NVC0(ScrnInfoPtr pScrn);
+Bool NVAccelInit2D_NVC0(ScrnInfoPtr pScrn);
+Bool NVAccelInit3D_NVC0(ScrnInfoPtr pScrn);
+
 /* in nv50_exa.c */
 Bool NV50EXAPrepareSolid(PixmapPtr, int, Pixel, Pixel);
 void NV50EXASolid(PixmapPtr, int, int, int, int);
@@ -149,6 +154,26 @@ void NV50EXADoneComposite(PixmapPtr);
 Bool NV50EXAUploadSIFC(const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
 
+/* in nvc0_exa.c */
+Bool NVC0AccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
+			 const char *src, int src_pitch);
+Bool NVC0AccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
+			   char *dst, unsigned dst_pitch);
+
+Bool NVC0EXAPrepareSolid(PixmapPtr, int, Pixel, Pixel);
+void NVC0EXASolid(PixmapPtr, int, int, int, int);
+void NVC0EXADoneSolid(PixmapPtr);
+Bool NVC0EXAPrepareCopy(PixmapPtr, PixmapPtr, int, int, int, Pixel);
+void NVC0EXACopy(PixmapPtr, int, int, int, int, int, int);
+void NVC0EXADoneCopy(PixmapPtr);
+Bool NVC0EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+Bool NVC0EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
+				  PixmapPtr, PixmapPtr, PixmapPtr);
+void NVC0EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
+void NVC0EXADoneComposite(PixmapPtr);
+Bool NVC0EXAUploadSIFC(const char *src, int src_pitch,
+		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
+
 /* nv50_xv.c */
 int nv50_xv_image_put(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
 		      BoxPtr, int, int, int, int, uint16_t, uint16_t,
@@ -159,6 +184,15 @@ int nv50_xv_port_attribute_set(ScrnInfoPtr, Atom, INT32, pointer);
 int nv50_xv_port_attribute_get(ScrnInfoPtr, Atom, INT32 *, pointer);
 void nv50_xv_set_port_defaults(ScrnInfoPtr, NVPortPrivPtr);
 void nv50_xv_csc_update(ScrnInfoPtr, NVPortPrivPtr);
+
+/* nvc0_xv.c */
+int nvc0_xv_image_put(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
+		      BoxPtr, int, int, int, int, uint16_t, uint16_t,
+		      uint16_t, uint16_t, uint16_t, uint16_t,
+		      RegionPtr, PixmapPtr, NVPortPrivPtr);
+void nvc0_xv_m2mf(struct nouveau_grobj *, struct nouveau_bo *, int, int, int,
+		  struct nouveau_bo *, int);
+void nvc0_xv_csc_update(NVPtr, float, float *, float *, float *);
 
 /* To support EXA 2.0, 2.1 has this in the header */
 #ifndef exaMoveInPixmap
