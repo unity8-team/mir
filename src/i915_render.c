@@ -546,7 +546,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	Bool is_affine_src, is_affine_mask = TRUE;
+	Bool is_affine_src = TRUE, is_affine_mask = TRUE;
 	int per_vertex, num_floats;
 	int tex_unit = 0;
 	int src_unit = -1, mask_unit = -1;
