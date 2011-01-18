@@ -314,9 +314,8 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     size = dstPitch * dst_height + 2 * dstPitch2 * ((dst_height + 1) >> 1);
     size = RADEON_ALIGN(size, hw_align);
 
-    if (pPriv->video_memory != NULL && size != pPriv->size) {
-	radeon_legacy_free_memory(pScrn, pPriv->video_memory);
-	pPriv->video_memory = NULL;
+    if (size != pPriv->size) {
+	RADEONFreeVideoMemory(pScrn, pPriv);
     }
 
     if (pPriv->video_memory == NULL) {

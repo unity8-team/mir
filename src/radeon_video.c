@@ -1646,6 +1646,23 @@ RADEONSetupImageVideo(ScreenPtr pScreen)
 }
 
 void
+RADEONFreeVideoMemory(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    if (pPriv->video_memory != NULL) {
+	radeon_legacy_free_memory(pScrn, pPriv->video_memory);
+	pPriv->video_memory = NULL;
+
+	if (info->cs && pPriv->textured) {
+	    pPriv->src_bo[0] = NULL;
+	    radeon_legacy_free_memory(pScrn, (void*)&pPriv->src_bo[1]);
+	    pPriv->src_bo[1] = NULL;
+	}
+    }
+}
+
+void
 RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
 {
   RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -1654,10 +1671,7 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
 
   if (pPriv->textured) {
       if (cleanup) {
-	  if (pPriv->video_memory != NULL) {
-	      radeon_legacy_free_memory(pScrn, pPriv->video_memory);
-	      pPriv->video_memory = NULL;
-	  }
+	  RADEONFreeVideoMemory(pScrn, pPriv);
       }
       return;
   }
@@ -1679,10 +1693,7 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
 		if(pPriv->uda1380 != NULL) xf86_uda1380_mute(pPriv->uda1380, TRUE);
         if(pPriv->i2c != NULL) RADEON_board_setmisc(pPriv);
      }
-     if (pPriv->video_memory != NULL) {
-	 radeon_legacy_free_memory(pScrn, pPriv->video_memory);
-	 pPriv->video_memory = NULL;
-     }
+     RADEONFreeVideoMemory(pScrn, pPriv);
      pPriv->videoStatus = 0;
   } else {
      if(pPriv->videoStatus & CLIENT_VIDEO_ON) {
@@ -3152,10 +3163,7 @@ RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now)
 	    }
 	} else {  /* FREE_TIMER */
 	    if(pPriv->freeTime < now) {
-		if (pPriv->video_memory != NULL) {
-		    radeon_legacy_free_memory(pScrn, pPriv->video_memory);
-		    pPriv->video_memory = NULL;
-		}
+		RADEONFreeVideoMemory(pScrn, pPriv);
 		pPriv->videoStatus = 0;
 		info->VideoTimerCallback = NULL;
 	    }
