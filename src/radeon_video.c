@@ -1656,7 +1656,7 @@ RADEONFreeVideoMemory(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	if (info->cs && pPriv->textured) {
 	    pPriv->src_bo[0] = NULL;
-	    radeon_legacy_free_memory(pScrn, (void*)&pPriv->src_bo[1]);
+	    radeon_legacy_free_memory(pScrn, pPriv->src_bo[1]);
 	    pPriv->src_bo[1] = NULL;
 	}
     }
