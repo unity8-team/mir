@@ -295,7 +295,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planev_offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planev_offset;
-	tex_res.size                = accel_state->src_size[0] / 4;
+	tex_res.size                = tex_res.pitch * (pPriv->h >> 1);
 	evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
 	/* U or V sampler */
@@ -316,7 +316,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planeu_offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planeu_offset;
-	tex_res.size                = accel_state->src_size[0] / 4;
+	tex_res.size                = tex_res.pitch * (pPriv->h >> 1);
 	evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
 	/* UV sampler */
