@@ -661,7 +661,7 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
 
 Bool intel_uxa_init(ScreenPtr pScreen);
-void intel_uxa_create_screen_resources(ScreenPtr pScreen);
+Bool intel_uxa_create_screen_resources(ScreenPtr pScreen);
 void intel_uxa_block_handler(intel_screen_private *intel);
 Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			      int num_bos);

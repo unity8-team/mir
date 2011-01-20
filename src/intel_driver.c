@@ -234,9 +234,7 @@ static Bool i830CreateScreenResources(ScreenPtr screen)
 	if (!(*screen->CreateScreenResources) (screen))
 		return FALSE;
 
-	intel_uxa_create_screen_resources(screen);
-
-	return TRUE;
+	return intel_uxa_create_screen_resources(screen);
 }
 
 static void PreInitCleanup(ScrnInfoPtr scrn)
@@ -1046,7 +1044,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	I830UeventInit(scrn);
 #endif
 
-	return uxa_resources_init(screen);
+	return TRUE;
 }
 
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)

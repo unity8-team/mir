@@ -1089,11 +1089,14 @@ static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 	return TRUE;
 }
 
-void intel_uxa_create_screen_resources(ScreenPtr screen)
+Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo = intel->front_buffer;
+
+	if (!uxa_resources_init(screen))
+		return FALSE;
 
 	drm_intel_gem_bo_map_gtt(bo);
 
@@ -1111,6 +1114,8 @@ void intel_uxa_create_screen_resources(ScreenPtr screen)
 					   NULL);
 		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
+
+	return TRUE;
 }
 
 static void
