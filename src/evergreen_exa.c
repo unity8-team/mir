@@ -281,6 +281,8 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     ps_const_conf.size_bytes = 256;
     ps_const_conf.type = SHADER_TYPE_PS;
     ps_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
+    ps_const_conf.bo = accel_state->cbuf.vb_bo;
+    ps_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_offset;
     if (accel_state->dst_obj.bpp == 16) {
 	r = (fg >> 11) & 0x1f;
 	g = (fg >> 5) & 0x3f;
@@ -306,9 +308,6 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	ps_alu_consts[3] = (float)a / 255; /* A */
     }
     radeon_vbo_commit(pScrn, &accel_state->cbuf);
-
-    ps_const_conf.bo = accel_state->cbuf.vb_bo;
-    ps_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_start_op;
     evergreen_set_alu_consts(pScrn, &ps_const_conf, RADEON_GEM_DOMAIN_GTT);
 
     if (accel_state->vsync)
@@ -1412,16 +1411,14 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     vs_const_conf.size_bytes = 256;
     vs_const_conf.type = SHADER_TYPE_VS;
     cbuf = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
+    vs_const_conf.bo = accel_state->cbuf.vb_bo;
+    vs_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_offset;
 
     EVERGREENXFormSetup(pSrcPicture, pSrc, 0, cbuf);
     if (pMask)
         EVERGREENXFormSetup(pMaskPicture, pMask, 1, cbuf);
 
     radeon_vbo_commit(pScrn, &accel_state->cbuf);
-
-    /* VS alu constants */
-    vs_const_conf.bo = accel_state->cbuf.vb_bo;
-    vs_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_start_op;
     evergreen_set_alu_consts(pScrn, &vs_const_conf, RADEON_GEM_DOMAIN_GTT);
 
     if (accel_state->vsync)
