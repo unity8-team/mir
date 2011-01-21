@@ -71,6 +71,9 @@ void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib)
 	END_BATCH();
     }
 
+    info->accel_state->vbo.vb_offset = 0;
+    info->accel_state->vbo.vb_start_op = -1;
+
     //ErrorF("buffer bytes: %d\n", buffer->used);
 
     indirect.idx     = buffer->idx;
@@ -1173,7 +1176,6 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
 
     if (accel_state->vbo.vb_offset == accel_state->vbo.vb_start_op) {
         R600IBDiscard(pScrn, accel_state->ib);
-	radeon_vb_discard(pScrn, &accel_state->vbo);
 	return;
     }
 

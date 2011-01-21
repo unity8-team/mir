@@ -1162,8 +1162,6 @@ void evergreen_finish_op(ScrnInfoPtr pScrn, int vtx_size)
     if (accel_state->vbo.vb_offset == accel_state->vbo.vb_start_op) {
 	radeon_ib_discard(pScrn);
 	radeon_cs_flush_indirect(pScrn);
-	radeon_vb_discard(pScrn, &accel_state->vbo);
-	radeon_vb_discard(pScrn, &accel_state->cbuf);
 	return;
     }
 

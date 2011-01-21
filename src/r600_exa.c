@@ -1334,14 +1334,12 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
     if (!R600TextureSetup(pSrcPicture, pSrc, 0)) {
         R600IBDiscard(pScrn, accel_state->ib);
-        radeon_vb_discard(pScrn, &accel_state->vbo);
         return FALSE;
     }
 
     if (pMask) {
         if (!R600TextureSetup(pMaskPicture, pMask, 1)) {
             R600IBDiscard(pScrn, accel_state->ib);
-            radeon_vb_discard(pScrn, &accel_state->vbo);
             return FALSE;
         }
     } else
@@ -1644,7 +1642,6 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
     }
 
     R600IBDiscard(pScrn, scratch);
-    radeon_vb_discard(pScrn, &accel_state->vbo);
 
     return TRUE;
 }
@@ -1758,7 +1755,6 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
     }
 
     R600IBDiscard(pScrn, scratch);
-    radeon_vb_discard(pScrn, &accel_state->vbo);
 
     return TRUE;
 

@@ -141,11 +141,6 @@ static Bool radeon_vb_get(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-void radeon_vb_discard(ScrnInfoPtr pScrn, struct radeon_vbo_object *vbo)
-{
-    vbo->vb_start_op = -1;
-}
-
 int radeon_cp_start(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);

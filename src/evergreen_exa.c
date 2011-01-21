@@ -1291,8 +1291,6 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     if (!EVERGREENTextureSetup(pSrcPicture, pSrc, 0)) {
         radeon_ib_discard(pScrn);
         radeon_cs_flush_indirect(pScrn);
-        radeon_vb_discard(pScrn, &accel_state->vbo);
-        radeon_vb_discard(pScrn, &accel_state->cbuf);
         return FALSE;
     }
 
@@ -1300,8 +1298,6 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
         if (!EVERGREENTextureSetup(pMaskPicture, pMask, 1)) {
 	    radeon_ib_discard(pScrn);
 	    radeon_cs_flush_indirect(pScrn);
-            radeon_vb_discard(pScrn, &accel_state->vbo);
-            radeon_vb_discard(pScrn, &accel_state->cbuf);
             return FALSE;
         }
     } else

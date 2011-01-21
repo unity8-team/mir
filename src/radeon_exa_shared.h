@@ -72,7 +72,6 @@ static inline void radeon_add_pixmap(struct radeon_cs *cs, PixmapPtr pPix, int r
 extern void radeon_ib_discard(ScrnInfoPtr pScrn);
 #endif /* XF86DRM_MODE */
 
-extern void radeon_vb_discard(ScrnInfoPtr pScrn, struct radeon_vbo_object *vbo);
 extern int radeon_cp_start(ScrnInfoPtr pScrn);
 extern void radeon_vb_no_space(ScrnInfoPtr pScrn, struct radeon_vbo_object *vbo, int vert_size);
 extern void radeon_vbo_done_composite(PixmapPtr pDst);
