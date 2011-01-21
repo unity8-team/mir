@@ -35,19 +35,9 @@ radeon_vbo_space(ScrnInfoPtr pScrn,
 
     vbo->vb_op_vert_size = vert_size;
 #if defined(XF86DRM_MODE)
-    if (info->cs) {
-	int ret;
-	struct radeon_bo *bo = vbo->vb_bo;
-
-	if (!bo->ptr) {
-	    ret = radeon_bo_map(bo, 1);
-	    if (ret) {
-		FatalError("Failed to map vb %d\n", ret);
-		return NULL;
-	    }
-	}
-	vb = (pointer)((char *)bo->ptr + vbo->vb_offset);
-    } else
+    if (info->cs)
+	vb = (pointer)((char *)vbo->vb_bo->ptr + vbo->vb_offset);
+    else
 #endif
 	vb = (pointer)((char *)vbo->vb_ptr + vbo->vb_offset);
     return vb;

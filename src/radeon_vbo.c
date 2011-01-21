@@ -56,8 +56,15 @@ void radeon_vbo_put(ScrnInfoPtr pScrn, struct radeon_vbo_object *vbo)
 
 void radeon_vbo_get(ScrnInfoPtr pScrn, struct radeon_vbo_object *vbo)
 {
+    int ret;
 
     vbo->vb_bo = radeon_vbo_get_bo(pScrn);
+    if (vbo->vb_bo) {
+	radeon_bo_ref(vbo->vb_bo);
+	ret = radeon_bo_map(vbo->vb_bo, 1);
+	if (ret)
+	    FatalError("Failed to map vb %d\n", ret);
+    }
 
     vbo->vb_total = VBO_SIZE;
     vbo->vb_offset = 0;
@@ -195,7 +202,6 @@ again_alloc:
     }
 
     bo = first_elem(&accel_state->bo_reserved)->bo;
-    radeon_bo_ref(bo);
     return bo;
 }
 
