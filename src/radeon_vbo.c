@@ -136,6 +136,11 @@ void radeon_vbo_flush_bos(ScrnInfoPtr pScrn)
 	if (!radeon_bo_is_idle(dma_bo->bo))
 	    continue;
 
+	if (dma_bo->bo->ptr) {
+	    ErrorF("bo with pointer on wait list!\n");
+	    continue;
+	}
+
 	remove_from_list(dma_bo);
 	dma_bo->expire_counter = expire_at;
 	insert_at_tail(&accel_state->bo_free, dma_bo);
