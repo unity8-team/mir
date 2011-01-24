@@ -191,17 +191,17 @@ again_alloc:
 	insert_at_head(&accel_state->bo_reserved, dma_bo);
     }
 
-    /* need a space check */
-    if (radeon_cs_space_check_with_bo(info->cs,
-				      first_elem(&accel_state->bo_reserved)->bo,
-				      RADEON_GEM_DOMAIN_GTT, 0))
-	fprintf(stderr,"failed to revalidated\n");
-
-    if (is_empty_list(&accel_state->bo_reserved)) {
+    if (is_empty_list(&accel_state->bo_reserved))
 	goto again_alloc;
-    }
 
     bo = first_elem(&accel_state->bo_reserved)->bo;
+
+    /* need a space check */
+    if (radeon_cs_space_check_with_bo(info->cs,
+				      bo,
+				      RADEON_GEM_DOMAIN_GTT, 0))
+	ErrorF("failed to revalidate\n");
+
     return bo;
 }
 
