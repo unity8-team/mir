@@ -111,6 +111,9 @@ static void uxa_unrealize_glyph_caches(ScreenPtr pScreen)
 	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
 	int i;
 
+	if (!uxa_screen->glyph_cache_initialized)
+		return;
+
 	for (i = 0; i < UXA_NUM_GLYPH_CACHE_FORMATS; i++) {
 		uxa_glyph_cache_t *cache = &uxa_screen->glyphCaches[i];
 
@@ -120,6 +123,7 @@ static void uxa_unrealize_glyph_caches(ScreenPtr pScreen)
 		if (cache->glyphs)
 			free(cache->glyphs);
 	}
+	uxa_screen->glyph_cache_initialized = FALSE;
 }
 
 void uxa_glyphs_fini(ScreenPtr pScreen)
@@ -145,6 +149,10 @@ static Bool uxa_realize_glyph_caches(ScreenPtr pScreen)
 	};
 	int i;
 
+	if (uxa_screen->glyph_cache_initialized)
+		return TRUE;
+
+	uxa_screen->glyph_cache_initialized = TRUE;
 	memset(uxa_screen->glyphCaches, 0, sizeof(uxa_screen->glyphCaches));
 
 	for (i = 0; i < sizeof(formats)/sizeof(formats[0]); i++) {
@@ -214,17 +222,7 @@ Bool uxa_glyphs_init(ScreenPtr pScreen)
 	if (uxa_get_screen(pScreen)->force_fallback)
 		return TRUE;
 
-	/* We are trying to initialise per screen resources prior to the
-	 * complete initialisation of the screen. So ensure the components
-	 * that we depend upon are initialsed prior to our use.
-	 */
-	if (!CreateScratchPixmapsForScreen(pScreen->myNum))
-		return FALSE;
-
-	if (!uxa_realize_glyph_caches(pScreen))
-		return FALSE;
-
-	return TRUE;
+	return uxa_realize_glyph_caches(pScreen);
 }
 
 /* The most efficient thing to way to upload the glyph to the screen
