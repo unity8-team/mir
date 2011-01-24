@@ -16,7 +16,7 @@ Build-Depends:
  x11proto-xext-dev,
  x11proto-video-dev,
  libx11-dev,
- libdrm-dev (>= 2.4.22-2),
+ libdrm-dev (>= 2.4.23),
  x11proto-xf86dri-dev,
  x11proto-gl-dev,
  libgl1-mesa-dev | libgl-dev,
@@ -30,7 +30,8 @@ Build-Depends:
  libxcb-aux0-dev,
  libxcb-dri2-0-dev,
 # end xvmc
- libudev-dev [linux-any],
+# libudev-dev [linux-any],
+ libudev-dev,
  dpkg-dev (>= 1.14.17),
  quilt,
  automake,
@@ -43,7 +44,7 @@ Vcs-Browser: http://git.debian.org/?p=pkg-xorg/driver/xserver-xorg-video-intel.g
 Package: xserver-xorg-video-intel
 Architecture: amd64 i386
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${xviddriver:Depends}
-Recommends: intel-gpu-tools
+Recommends: intel-gpu-tools, python-dev
 Provides: ${xviddriver:Provides}
 Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
 Conflicts: xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810, 915resolution
@@ -62,7 +63,7 @@ Description: X.Org X server -- Intel i8xx, i9xx display driver
 
 Package: xserver-xorg-video-intel-dbg
 Architecture: amd64 i386
-Depends: xserver-xorg-video-intel (= ${binary:Version}), ${shlibs:Depends}
+Depends: xserver-xorg-video-intel (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 Recommends: intel-gpu-tools
 Section: debug
 Priority: extra

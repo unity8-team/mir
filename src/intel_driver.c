@@ -354,25 +354,21 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct pci_device *dev = intel->PciInfo;
-	char *busid;
 	drmSetVersion sv;
 	struct drm_i915_getparam gp;
 	int err, has_gem;
+	char busid[20];
 
-	/* We wish we had asprintf, but all we get is XNFprintf. */
-	busid = XNFprintf("pci:%04x:%02x:%02x.%d",
-			  dev->domain, dev->bus, dev->dev, dev->func);
+	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
+		 dev->domain, dev->bus, dev->dev, dev->func);
 
 	intel->drmSubFD = drmOpen("i915", busid);
 	if (intel->drmSubFD == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
 			   busid, strerror(errno));
-		free(busid);
 		return FALSE;
 	}
-
-	free(busid);
 
 	/* Check that what we opened was a master or a master-capable FD,
 	 * by setting the version of the interface we'll use to talk to it.
@@ -468,8 +464,23 @@ static void I830XvInit(ScrnInfoPtr scrn)
 		   intel->colorKey);
 }
 
-static Bool can_accelerate_2d(struct intel_screen_private *intel)
+static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
+	if (0 && (IS_I830(intel) || IS_845G(intel))) {
+		/* These pair of i8xx chipsets have a crippling erratum
+		 * that prevents the use of a PTE entry by the BLT
+		 * engine immediately following updating that
+		 * entry in the GATT.
+		 *
+		 * As the BLT is fundamental to our 2D acceleration,
+		 * and the workaround is lost in the midst of time,
+		 * fallback.
+		 *
+		 * XXX disabled for release as causes regressions in GL.
+		 */
+		return FALSE;
+	}
+
 	if (INTEL_INFO(intel)->gen >= 60) {
 		drm_i915_getparam_t gp;
 		int value;
@@ -481,6 +492,17 @@ static Bool can_accelerate_2d(struct intel_screen_private *intel)
 		gp.param = I915_PARAM_HAS_BLT;
 		if (drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp))
 			return FALSE;
+	}
+
+	if (INTEL_INFO(intel)->gen == 60) {
+		struct pci_device *const device = intel->PciInfo;
+
+		/* Sandybridge rev07 locks up easily, even with the
+		 * BLT ring workaround in place.
+		 * Thus use shadowfb by default.
+		 */
+		if (device->revision < 8)
+		    return FALSE;
 	}
 
 	return TRUE;
@@ -592,9 +614,8 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 			intel->tiling = FALSE;
 	}
 
-	intel->use_shadow = FALSE;
-	if (!can_accelerate_2d(intel))
-		intel->use_shadow = TRUE;
+	intel->can_blt = can_accelerate_blt(intel);
+	intel->use_shadow = !intel->can_blt;
 
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
 		intel->use_shadow =
@@ -606,7 +627,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (intel->use_shadow) {
 		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
 			   "Shadow buffer enabled,"
-			   " GPU acceleration disabled.\n");
+			   " 2D GPU acceleration disabled.\n");
 	}
 
 	/* SwapBuffers delays to avoid tearing */
@@ -789,6 +810,9 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 	ScrnInfoPtr scrn = crtc->scrn;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	int i, active_outputs = 0;
+
+	if (!crtc->enabled)
+		return FALSE;
 
 	/* Kernel manages CRTC status based out output config */
 	for (i = 0; i < xf86_config->num_output; i++) {

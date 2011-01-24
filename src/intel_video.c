@@ -1348,7 +1348,7 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 			event = MI_WAIT_FOR_PIPEB_SVBLANK;
 	}
 
-	if (scrn->currentMode->Flags & V_INTERLACE) {
+	if (crtc->mode.Flags & V_INTERLACE) {
 		/* DSL count field lines */
 		y1 /= 2;
 		y2 /= 2;

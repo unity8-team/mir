@@ -1,3 +1,570 @@
+commit 40a7bde9140c0ae6412b8f916b1455d44e2af6cf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 7 23:46:07 2011 +0000
+
+    configure: version bump for 2.14.0
+
+commit 8ecbba2aca657da3894eb77e856ac2d4e9efc0cc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 7 23:45:06 2011 +0000
+
+    NEWS: Release notes for 2.14.0
+
+commit 22d7b61791c382088a6c0df5dce3a15405d6c495
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 4 12:32:01 2011 +0000
+
+    i965: Fix off-by-one in assert
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a7c7a9108f76aa312f3d5efa466052b914c81484
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 4 10:53:30 2011 +0000
+
+    configure: version bump for 2.13.903 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3fbecf34630c3588618900afdfbd9a4266856178
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 4 10:52:44 2011 +0000
+
+    NEWS: Add entry for 2.13.903
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 90538ecfff9c324d61419f451d41d26ab026f232
+Author: U. Artie Eoff <ullysses.a.eoff@intel.com>
+Date:   Tue Dec 21 17:42:38 2010 -0700
+
+    configure: suggest upstream to find macros in case they're missing.
+    
+    added upstream suggestion to error message in case xorg macros or
+    xserver macros are missing. removed package manager references in
+    suggestion since these are 'user' and/or 'distribution' preferences.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6d50f5a140dbefdf86eb25d18d08473aa7e42acc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 3 23:06:14 2011 +0000
+
+    If the crtc is not enabled, then it can't be on
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 145c42a101c3150fb1e2cae8a1780b26e8b56f42
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Mon Jan 3 17:52:27 2011 -0500
+
+    dri2: Fix interlace computation
+    
+    scrn->currentMode is a hack for xf86vidmode and in general is wrong for
+    RANDRful drivers.  Use the mode on the associated CRTC instead.
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+    [ickle: crtc->mode is a ModeRec not Ptr]
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b0d10ff04a24a951256a79710ba22b325b549ba4
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Mon Jan 3 17:52:26 2011 -0500
+
+    xv: Fix interlace computation
+    
+    scrn->currentMode is a hack for xf86vidmode and in general is wrong for
+    RANDRful drivers.  Use the mode on the associated CRTC instead.
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+    [ickle: crtc->mode is a ModeRec]
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0ad6d6e1a678de7d8c2d4cd7c734887e1deb2f9b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 3 16:52:07 2011 +0000
+
+    dri: Only issue a warning for an "impossible" flip return 5 times
+    
+    As it appears that some kernels do indeed return the "wrong" value,
+    issuing a warning 60 times a second is a cruel and unusual punishment.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=32680
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d729ef02f2955f7476df4c65403bc1f8e705b780
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 2 09:11:10 2011 +0000
+
+    dri: Don't wait upon a NULL current mode
+    
+    There is a race condition between the dri swapbuffers code and
+    hotplugging whereby we might attempt to execute a wait upon a
+    non-existent output. This causes a NULL dereference and a loud crash.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=32770
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 537fa55ed2449e91f3dd1e04abc720c6818d7227
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 2 09:06:28 2011 +0000
+
+    dri: Fix the use of the uninitialised bo for flink
+    
+    Reported-by: Jeff Chua <jeff.chua.linux@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dbc542b9d38ff9781efcdf1d5308e97f04499138
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 31 23:29:05 2010 +0000
+
+    dri: Protect against using dri with an non-gem pixmap
+    
+    Reported-by: Jeff Chua <jeff.chua.linux@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 53fbc9f1760ee481cba1f6dceb9e7c97282a2976
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 30 15:32:40 2010 +0000
+
+    Don't replace the scanout bo through PutImage
+    
+    As the bo may be pinned for either use by the scanout or through sharing
+    with another application, under those circumstances we cannot replace
+    the bo itself but must force the blit for PutImage.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=31367
+    Reported-and-tested-by: Bjørn Mork <bjorn@mork.no>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7667ad8432c032aec3a2aa004fc4dfc1877971b3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 24 09:42:29 2010 +0000
+
+    dri: Differentiate identical "get vblank failed" messages with line no
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 875d4828352c501ec5d0169735fb078807e76f2e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 23 19:36:12 2010 +0000
+
+    i830: amalgamate consecutive composites into a single primitive
+    
+    Improve aa10text on i845 from 218kglyphs/s to 234kglyphs/s
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 58d9912e447cf6e29b20747b5ed6ee595687ce8d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 22 13:50:53 2010 +0000
+
+    Remove the deprecated function 'XNFprintf'
+    
+    As we know the maximum length of the string, we can replace our single
+    usage of XNFprintf with snprintf.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e8db77e019e19ace48592b2f6d96af6baa9a228e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 21 23:03:21 2010 +0000
+
+    Revert "Suggest where to find xorg-macros in case it's missing"
+    
+    I failed my reading comprehension and didn't spot that the help strings
+    pointed to two separate downstream packages.
+    
+    Thanks to Carl Worth for pointing out my mistake.
+    
+    This reverts commit ebb7aca66785730737bc739624006e55d43dfe1b.
+
+commit ebb7aca66785730737bc739624006e55d43dfe1b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 21 22:23:24 2010 +0000
+
+    Suggest where to find xorg-macros in case it's missing
+    
+    [Modified version of U. Artie Eoff's commit to remove the duplicated
+    string. The paraphrased commit message is repeated below for clarity.]
+    
+    xorg-macros is often package under an unusual name, so provide some
+    clues as to what name to try on the user's distribution. Installing
+    build-deps would be just too easy...
+    
+    Also include a check for the existence of the XORG_DRIVER_CHECK_EXT
+    macro, otherwise configure might continue in spite of the missing macro
+    and cause obtuse syntax errors.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 90576f95f35e528fa2c667df162c5dc7ec98975d
+Author: U. Artie Eoff <ullysses.a.eoff@intel.com>
+Date:   Tue Dec 21 15:10:41 2010 -0700
+
+    configure: updated m4 macro check in configure.ac
+    
+    Added m4 check for XORG_DRIVER_CHECK_EXT macro definition.  Updated m4 fatal messages to give better hint on how to resolve error when xorg macros are missing.  Previously, configure would continue in spite of the missing macros and the build would fail for syntax errors.
+
+commit 1ac2e04023f84dbf1f3db2ecad1cadd159aa614d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 20 10:55:11 2010 +0000
+
+    Undo: Disable BLT for i830 and 845G
+    
+    Reported-by: György Balló  <ballogy@freestart.hu>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=32482
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6f21405454487adf7623cf22f0fdd9f127099afd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 16:37:55 2010 +0000
+
+    G35 is gen4 and not gen3
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=32478
+    Reported-and-tested-by: Michal Marek <mmarek@suse.cz>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5743c223877fbff710cdd5114cff6d3ee3108309
+Author: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+Date:   Thu Dec 9 03:27:59 2010 +0100
+
+    Check consistency of pageflip completion vblank count.
+    
+    Implements a consistency check on returned vblank
+    count values of pageflip completion. Impossible
+    values are detected, a x-warning is logged and
+    returned (msc,ust) values are marked invalid,
+    so clients could perform error handling. Such
+    a warning would indicate bugs in the pageflip
+    completion routine of future kms drivers or the
+    ddx and thereby aid driver debugging.
+    
+    Signed-off-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2177e6032146f4720f244e98f7c0d6df1b925784
+Author: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+Date:   Thu Dec 9 03:12:35 2010 +0100
+
+    Fix reporting of pageflip completion events on multi-head.
+    
+    When a drawable is page-flipped on multiple crtc's (fullscreen
+    drawable on mirror-mode or multi-head x-screen), only one pageflip
+    event is finally delivered, after the last participating crtc signals
+    flip completion, this to avoid visual corruption.
+    
+    Old code returned vblank count and timestamps of flip completion
+    of this last crtc, instead of the values of the "master crtc", the
+    one that was used for initially scheduling/triggering the pagflip
+    via vblank events. (master = I830DRI2DrawablePipe(drawable))
+    
+    This patch makes sure that the pageflip completion values of the
+    "master" crtc are returned, otherwise client applications will
+    get confused by the random (msc, ust) values returned by whichever
+    crtc was the last to complete its flip. Without this, the returned
+    values change randomly and jump forward and backward in time and
+    count.
+    
+    Signed-off-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 71af40a75fbdd1054b1111e8cbe67ad1f97e6613
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 10 15:55:09 2010 +0000
+
+    NEWS: 2.14, I meant the upcoming 2.14 release!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 556331a22101d08babbd276236f74ffcc380171c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 10 15:28:37 2010 +0000
+
+    configure: version bump for 2.13.902
+    
+    This is actually the first release candidate for 2.14.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e01ea4a45c1cf8953a6d5ff6c600d76dbbe4760d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 10 15:28:00 2010 +0000
+
+    NEWS: Add entry for the 2.13.902 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8df6f0a6082ad762ec69be7789a961db0c74154a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 10 12:26:16 2010 +0000
+
+    configure: Bump required libdrm to 2.4.23
+    
+    To pull in the required headers for BLT and relaxed fencing support.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9b967807c2d240488a715509649663aac3583532
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 20:45:16 2010 +0000
+
+    Revert "i965: The RenderCache flush after every glyph is required for compiz"
+    
+    This reverts commit 03e8351179b1c25d219842ef3e01ee8e176f594f.
+    
+    * sigh.
+    
+    This was only meant to be a temporary debugging hack, not for public
+    consumption (or embarrassment).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 27e33928f87ecb806d1f8c459d4a4ada76b0e30e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 20:42:24 2010 +0000
+
+    i965: Mark sure we mark reused render targets as dirty
+    
+    ... or else we may forget to flush them again.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 03e8351179b1c25d219842ef3e01ee8e176f594f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 19:27:57 2010 +0000
+
+    i965: The RenderCache flush after every glyph is required for compiz
+    
+    ... now who can explain why.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d90c8f4d0bb6b79ecdcaa82f87291169c18c64b9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 19:22:30 2010 +0000
+
+    i965: Invalidate pixmap binding location on reuse.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4a186a612376bdd6f86c026e8b8b442108868a0a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 16:56:57 2010 +0000
+
+    Always flush the batch before blocking for new X requests
+    
+    This should prevent any lag when waiting upon user input, for example
+    whilst logging in with gdm.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1ba983034b3a70fb541dc359189c020ee497c634
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 12:27:29 2010 +0000
+
+    uxa: Emit the damage after the render for the workaround in uxa_solid_rects
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 00c204a7b2df7a6b501db9b57603534a45ecafa9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 16:34:52 2010 +0000
+
+    snb: Only emit CC and DepthStencil bos once per batch
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 084ae43110240c582ae7cd6452966dd9f22350fa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 15:57:19 2010 +0000
+
+    snb: Restore drawrect, we need the implicit flush
+    
+    Something is wrong, we should be tracking when to invalidate the caches
+    as appropriate, yet I can not finding the missing flush to replace the
+    implicit one of DRAW_RECTANGLE.
+    
+    Fixes cacomposite.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f3a47d7f235d18e4529e3898a48673c7c3cbd489
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 14:11:05 2010 +0000
+
+    snb: Cache pixmap binding locations
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4d48fed9aa0c3c7b84e74b4f72f298f580a8973c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 13:50:43 2010 +0000
+
+    snb: Cache state between composite ops
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a58e5a1bdf10be3b96ecaa3d5e3ee288eab1063f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 13:34:53 2010 +0000
+
+    snb: Emit more invariants only once
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e8f41c371024e2f3845c7652b22af8f5900200f2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 5 21:37:23 2010 +0000
+
+    uxa: Prevent reading past the last byte on upload/download
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=29752
+    Reported-by: Sergey Samokhin <prikrutil@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c2fac6ca108734dd9566570b15f01cc476fa53dc
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Fri Nov 19 04:29:57 2010 +0100
+
+    Don't use hardware acceleration on Sandybridge rev 07 hardware or earlier.
+    
+    This is known to lock up the GPU even with the workaround in place.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=31773
+    Signed-off-by: Matthias Hopf <mhopf@suse.de>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8abade8a2139b500251488be5d6390f149666fb2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 5 09:55:43 2010 +0000
+
+    display: Flush any pending batches before changing modes.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8450aba6c731b20e5cd7b55f1d747f00a6523291
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 5 01:08:51 2010 +0000
+
+    i965: Also flush the vertex buffer when restarting the array.
+    
+    As a corollary to filling one vertex array and beginning a new one is
+    remembering to emit the old one before overwriting...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f40f8bcf07bd7f496bfd3069eddfcbeb3d1bf8be
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 5 00:26:22 2010 +0000
+
+    i965: Check for potential vertex array overflow every time
+    
+    There was a reason why we need to check at the start of every composite
+    operation to see if we have enough space in the array to fit the
+    vertices, which I promptly forgot when moving the code around to make
+    it look pretty.
+    
+    * sigh.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 55c5f1876e2329a938955967f5d45c814e50beb5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 3 02:05:05 2010 +0000
+
+    Wait on the current buffer to complete when running synchronously.
+    
+    And remove the vestigal wait upon changing crtc as this is more properly
+    done in the kernel.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3cc74044ce3546cc7dc2e918cbabbb41a77f4026
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 2 12:07:44 2010 +0000
+
+    i965: Amalgamate surface binding tables
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a1fa0dbfdafea32139d4457d81b9d722df955eaf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 2 11:25:05 2010 +0000
+
+    i965: Upload an entire vbo in a single pwrite, rather than per-rectangle
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 23437fe6769322d48cc3d264660717475b5d0d74
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 3 01:16:16 2010 +0000
+
+    i965: Use reciprocal scale factors to avoid the divide per-vertex-element
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0bb135c40e5ac1bf7593ec1d68d2815cbf47aa25
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 23 22:27:38 2010 +0000
+
+    Disable BLT for i830 and 845G
+    
+    This pair of chipsets seem broken beyond repair, specifically the
+    erratum that causes the wrong PTE entry to be invalidated, so disable
+    our incorrect attempts to use the BLT on those devices.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 33c08882c0d551afb28baef643279901dcc65fa9
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Nov 17 16:37:53 2010 +0800
+
+    Mark outputs as DPMSModeOn and restore backlight at mode set
+    
+    The kernel always turns monitors on when doing mode setting, and so no
+    further DPMS action is required. Note this in the mode setting code by
+    marking the updated DPMS mode and restoring any saved backlight level.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit cc930a37612341a1f2457adb339523c215879d82
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 14 19:47:00 2010 +0000
+
+    uxa: Relax fencing some more for gen3
+    
+    Allow fenced allocations even for small pixmaps if the kernel supports
+    relaxing fencing (where only the used pages are allocated).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3c5b1399e29ef577b8b91655b5e1c215d1b6dfbb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 9 20:20:06 2010 +0000
+
+    i915: Disable maximum state addresses
+    
+    As the kernel controls the relocation of state buffers, we should not
+    hard code the maximum permissible value for them.
+    
+    Fixes an eventual hang with full-gtt.
+    
+    Reported-by: Peter Clifton <pcjc2@cam.ac.uk>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 81d355a8dcdfe3d0924bb843bcc0e6546f695391
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 9 09:28:54 2010 +0000
+
+    uxa: Fix crash after allocation failure
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=31487
+    Reported-by: Thomas Fjellstrom <tfjellstrom@shaw.ca>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 861ee17ae662ffec2269292f92da7833df508b1a
 Author: Carl Worth <cworth@cworth.org>
 Date:   Fri Nov 5 12:55:02 2010 -0700

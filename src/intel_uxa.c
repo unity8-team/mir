@@ -85,10 +85,16 @@ int uxa_pixmap_index;
 #endif
 
 static void
-ironlake_blt_workaround(ScrnInfoPtr scrn)
+gen6_context_switch(intel_screen_private *intel,
+		    int new_mode)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
+	intel_batch_submit(intel->scrn, FALSE);
+}
 
+static void
+gen5_context_switch(intel_screen_private *intel,
+		    int new_mode)
+{
 	/* Ironlake has a limitation that a 3D or Media command can't
 	 * be the first command after a BLT, unless it's
 	 * non-pipelined.  Instead of trying to track it and emit a
@@ -96,11 +102,24 @@ ironlake_blt_workaround(ScrnInfoPtr scrn)
 	 * non-pipelined 3D instruction after each blit.
 	 */
 
-	if (IS_GEN5(intel)) {
-		BEGIN_BATCH(2);
+	if (new_mode == I915_EXEC_BLT) {
+		OUT_BATCH(MI_FLUSH |
+			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
+			  MI_INHIBIT_RENDER_CACHE_FLUSH);
+	} else {
 		OUT_BATCH(CMD_POLY_STIPPLE_OFFSET << 16);
 		OUT_BATCH(0);
-		ADVANCE_BATCH();
+	}
+}
+
+static void
+gen4_context_switch(intel_screen_private *intel,
+		    int new_mode)
+{
+	if (new_mode == I915_EXEC_BLT) {
+		OUT_BATCH(MI_FLUSH |
+			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
+			  MI_INHIBIT_RENDER_CACHE_FLUSH);
 	}
 }
 
@@ -146,17 +165,21 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		pitch = ALIGN(pitch, 64);
 		size = pitch * ALIGN (h, 2);
 		if (INTEL_INFO(intel)->gen < 40) {
-			/* Older hardware requires fences to be pot size
-			 * aligned with a minimum of 1 MiB, so causes
-			 * massive overallocation for small textures.
-			 */
-			if (size < 1024*1024/2)
-				*tiling = I915_TILING_NONE;
-
 			/* Gen 2/3 has a maximum stride for tiling of
 			 * 8192 bytes.
 			 */
 			if (pitch > KB(8))
+				*tiling = I915_TILING_NONE;
+
+			/* Narrower than half a tile? */
+			if (pitch < 256)
+				*tiling = I915_TILING_NONE;
+
+			/* Older hardware requires fences to be pot size
+			 * aligned with a minimum of 1 MiB, so causes
+			 * massive overallocation for small textures.
+			 */
+			if (size < 1024*1024/2 && !intel->has_relaxed_fencing)
 				*tiling = I915_TILING_NONE;
 		} else if (!(usage & INTEL_CREATE_PIXMAP_DRI2) && size <= 4096) {
 			/* Disable tiling beneath a page size, we will not see
@@ -288,10 +311,7 @@ static void intel_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	pitch = intel_pixmap_pitch(pixmap);
 
 	{
-		if (IS_GEN6(intel))
-			BEGIN_BATCH_BLT(6);
-		else
-			BEGIN_BATCH(6);
+		BEGIN_BATCH_BLT(6);
 
 		cmd = XY_COLOR_BLT_CMD;
 
@@ -315,8 +335,6 @@ static void intel_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 		OUT_BATCH(intel->BR[16]);
 		ADVANCE_BATCH();
 	}
-
-	ironlake_blt_workaround(scrn);
 }
 
 static void intel_uxa_done_solid(PixmapPtr pixmap)
@@ -438,10 +456,7 @@ intel_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	src_pitch = intel_pixmap_pitch(intel->render_source);
 
 	{
-		if (IS_GEN6(intel))
-			BEGIN_BATCH_BLT(8);
-		else
-			BEGIN_BATCH(8);
+		BEGIN_BATCH_BLT(8);
 
 		cmd = XY_SRC_COPY_BLT_CMD;
 
@@ -481,7 +496,6 @@ intel_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 
 		ADVANCE_BATCH();
 	}
-	ironlake_blt_workaround(scrn);
 }
 
 static void intel_uxa_done_copy(PixmapPtr dest)
@@ -616,6 +630,7 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		if (priv->bo == bo)
 			return;
 
+		priv->dst_bound = priv->src_bound = 0;
 		if (list_is_empty(&priv->batch)) {
 			dri_bo_unreference(priv->bo);
 		} else if (!drm_intel_bo_is_reusable(priv->bo)) {
@@ -713,16 +728,17 @@ static Bool intel_uxa_pixmap_put_image(PixmapPtr pixmap,
 {
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	int stride = intel_pixmap_pitch(pixmap);
+	int cpp = pixmap->drawable.bitsPerPixel/8;
 	int ret = FALSE;
 
 	if (priv == NULL || priv->bo == NULL)
 		return FALSE;
 
-	if (src_pitch == stride && w == pixmap->drawable.width && priv->tiling == I915_TILING_NONE) {
-		ret = drm_intel_bo_subdata(priv->bo, y * stride, stride * h, src) == 0;
+	if (priv->tiling == I915_TILING_NONE &&
+	    (h == 1 || (src_pitch == stride && w == pixmap->drawable.width))) {
+		return drm_intel_bo_subdata(priv->bo, y*stride + x*cpp, stride*(h-1) + w*cpp, src) == 0;
 	} else if (drm_intel_gem_bo_map_gtt(priv->bo) == 0) {
 		char *dst = priv->bo->virtual;
-		int cpp = pixmap->drawable.bitsPerPixel/8;
 		int row_length = w * cpp;
 		int num_rows = h;
 		if (row_length == src_pitch && src_pitch == stride)
@@ -754,7 +770,8 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 	} else {
 		ScreenPtr screen = pixmap->drawable.pScreen;
 
-		if (x == 0 && y == 0 &&
+		if (!priv->pinned &&
+		    x == 0 && y == 0 &&
 		    w == pixmap->drawable.width &&
 		    h == pixmap->drawable.height)
 		{
@@ -829,17 +846,17 @@ static Bool intel_uxa_pixmap_get_image(PixmapPtr pixmap,
 {
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
 	int stride = intel_pixmap_pitch(pixmap);
+	int cpp = pixmap->drawable.bitsPerPixel/8;
 
-	if (dst_pitch == stride && w == pixmap->drawable.width) {
-		return drm_intel_bo_get_subdata(priv->bo, y * stride, stride * h, dst) == 0;
+	/* assert(priv->tiling == I915_TILING_NONE); */
+	if (h == 1 || (dst_pitch == stride && w == pixmap->drawable.width)) {
+		return drm_intel_bo_get_subdata(priv->bo, y*stride + x*cpp, (h-1)*stride + w*cpp, dst) == 0;
 	} else {
 		char *src;
-		int cpp;
 
-		if (drm_intel_bo_map(priv->bo, FALSE))
+		if (drm_intel_gem_bo_map_gtt(priv->bo))
 		    return FALSE;
 
-		cpp = pixmap->drawable.bitsPerPixel/8;
 		src = (char *) priv->bo->virtual + y * stride + x * cpp;
 		w *= cpp;
 		do {
@@ -848,7 +865,7 @@ static Bool intel_uxa_pixmap_get_image(PixmapPtr pixmap,
 			dst += dst_pitch;
 		} while (--h);
 
-		drm_intel_bo_unmap(priv->bo);
+		drm_intel_gem_bo_unmap_gtt(priv->bo);
 
 		return TRUE;
 	}
@@ -927,7 +944,8 @@ void intel_uxa_block_handler(intel_screen_private *intel)
 		intel_batch_submit(intel->scrn, TRUE);
 
 		DamageEmpty(intel->shadow_damage);
-	}
+	} else
+		intel_batch_submit(intel->scrn, TRUE);
 }
 
 static PixmapPtr
@@ -1084,7 +1102,7 @@ void intel_uxa_create_screen_resources(ScreenPtr screen)
 	} else {
 		PixmapPtr pixmap = screen->GetScreenPixmap(screen);
 		intel_set_pixmap_bo(pixmap, bo);
-		intel_get_pixmap_private(pixmap)->busy = 1;
+		intel_get_pixmap_private(pixmap)->pinned = 1;
 		screen->ModifyPixmapHeader(pixmap,
 					   scrn->virtualX,
 					   scrn->virtualY,
@@ -1174,9 +1192,13 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->render_current_dest = NULL;
 	intel->prim_offset = 0;
 	intel->vertex_count = 0;
+	intel->vertex_offset = 0;
+	intel->vertex_used = 0;
 	intel->floats_per_vertex = 0;
 	intel->last_floats_per_vertex = 0;
 	intel->vertex_bo = NULL;
+	intel->surface_used = 0;
+	intel->surface_reloc = 0;
 
 	/* Solid fill */
 	intel->uxa_driver->check_solid = intel_uxa_check_solid;
@@ -1199,7 +1221,8 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->composite = i830_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
 
-		intel->batch_flush_notify = i830_batch_flush_notify;
+		intel->vertex_flush = i830_vertex_flush;
+		intel->batch_commit_notify = i830_batch_commit_notify;
 	} else if (IS_GEN3(intel)) {
 		intel->uxa_driver->check_composite = i915_check_composite;
 		intel->uxa_driver->check_composite_target = i915_check_composite_target;
@@ -1209,7 +1232,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->done_composite = i830_done_composite;
 
 		intel->vertex_flush = i915_vertex_flush;
-		intel->batch_flush_notify = i915_batch_flush_notify;
+		intel->batch_commit_notify = i915_batch_commit_notify;
 	} else {
 		intel->uxa_driver->check_composite = i965_check_composite;
 		intel->uxa_driver->check_composite_texture = i965_check_composite_texture;
@@ -1217,7 +1240,17 @@ Bool intel_uxa_init(ScreenPtr screen)
 		intel->uxa_driver->composite = i965_composite;
 		intel->uxa_driver->done_composite = i830_done_composite;
 
-		intel->batch_flush_notify = i965_batch_flush_notify;
+		intel->vertex_flush = i965_vertex_flush;
+		intel->batch_flush = i965_batch_flush;
+		intel->batch_commit_notify = i965_batch_commit_notify;
+
+		if (IS_GEN4(intel)) {
+			intel->context_switch = gen4_context_switch;
+		} else if (IS_GEN5(intel)) {
+			intel->context_switch = gen5_context_switch;
+		} else {
+			intel->context_switch = gen6_context_switch;
+		}
 	}
 
 	/* PutImage */

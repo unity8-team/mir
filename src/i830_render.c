@@ -669,7 +669,7 @@ i830_emit_composite_primitive(PixmapPtr dest,
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	Bool is_affine_src, is_affine_mask = TRUE;
-	int per_vertex, num_floats;
+	int per_vertex;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
 
 	per_vertex = 2;		/* dest x/y */
@@ -786,9 +786,10 @@ i830_emit_composite_primitive(PixmapPtr dest,
 		}
 	}
 
-	num_floats = 3 * per_vertex;
-
-	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats - 1));
+	if (intel->vertex_count == 0) {
+		intel->vertex_index = intel->batch_used;
+		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
+	}
 	OUT_BATCH_F(dstX + w);
 	OUT_BATCH_F(dstY + h);
 	OUT_BATCH_F(src_x[2] / intel->scale_units[0][0]);
@@ -833,6 +834,17 @@ i830_emit_composite_primitive(PixmapPtr dest,
 			OUT_BATCH_F(mask_w[0]);
 		}
 	}
+
+	intel->vertex_count += 3 * per_vertex;
+
+}
+
+void i830_vertex_flush(intel_screen_private *intel)
+{
+	if (intel->vertex_count) {
+		intel->batch_ptr[intel->vertex_index] |= intel->vertex_count - 1;
+		intel->vertex_count = 0;
+	}
 }
 
 /**
@@ -859,9 +871,7 @@ i830_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	intel_batch_end_atomic(scrn);
 }
 
-void i830_batch_flush_notify(ScrnInfoPtr scrn)
+void i830_batch_commit_notify(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	intel->needs_render_state_emit = TRUE;
 }

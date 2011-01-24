@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-intel],
-        [2.13.901],
+        [2.14.0],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -36,9 +36,18 @@ AM_MAINTAINER_MODE
 
 # Require X.Org macros 1.8 or later for MAN_SUBSTS set by XORG_MANPAGE_SECTIONS
 m4_ifndef([XORG_MACROS_VERSION],
-          [m4_fatal([must install xorg-macros 1.8 or later before running autoconf/autogen])])
+          [m4_fatal([must install xorg-macros 1.8 or later before running autoconf/autogen.
+  Hint: either install from source, git://anongit.freedesktop.org/xorg/util/macros or,
+  depending on you distribution, try package 'xutils-dev' or 'xorg-x11-util-macros'])])
+
 XORG_MACROS_VERSION(1.8)
 XORG_DEFAULT_OPTIONS
+
+# Require X.Org server macros (i.e. XORG_DRIVER_CHECK_EXT) to check for required modules 
+m4_ifndef([XORG_DRIVER_CHECK_EXT],
+          [m4_fatal([must install xorg-server macros before running autoconf/autogen.
+  Hint: either install from source, git://anongit.freedesktop.org/xorg/xserver or,
+  depending on your distribution, try package 'xserver-xorg-dev' or 'xorg-x11-server-devel'])])
 
 # Initialize libtool
 AC_DISABLE_STATIC
@@ -84,7 +93,7 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.22])
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.23])
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
