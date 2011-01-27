@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.14.0-1ubuntu3) natty; urgency=low
+
+  * debian/patches/101_copy-fb.patch: Fix 1.10 video ABI codepath
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Thu, 27 Jan 2011 18:53:35 +1100
+
 xserver-xorg-video-intel (2:2.14.0-1ubuntu2) natty; urgency=low
 
   * debian/patches/101_copy-fb.patch:

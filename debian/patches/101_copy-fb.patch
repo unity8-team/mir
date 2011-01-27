@@ -1,7 +1,7 @@
 Index: xserver-xorg-video-intel/src/intel.h
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel.h	2011-01-27 11:42:50.680785002 +1100
-+++ xserver-xorg-video-intel/src/intel.h	2011-01-27 11:46:07.540785001 +1100
+--- xserver-xorg-video-intel.orig/src/intel.h	2011-01-31 17:55:53.348189809 +1100
++++ xserver-xorg-video-intel/src/intel.h	2011-01-31 17:56:01.018201058 +1100
 @@ -472,6 +472,7 @@
  	OptionInfoPtr Options;
  
@@ -20,8 +20,8 @@ Index: xserver-xorg-video-intel/src/intel.h
  			      dri_bo *new_front,
 Index: xserver-xorg-video-intel/src/intel_display.c
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel_display.c	2011-01-27 11:42:50.670785002 +1100
-+++ xserver-xorg-video-intel/src/intel_display.c	2011-01-27 11:48:03.070785001 +1100
+--- xserver-xorg-video-intel.orig/src/intel_display.c	2011-01-31 17:55:53.328189776 +1100
++++ xserver-xorg-video-intel/src/intel_display.c	2011-01-31 17:56:01.018201058 +1100
 @@ -36,6 +36,8 @@
  #include <errno.h>
  #include <poll.h>
@@ -45,21 +45,19 @@ Index: xserver-xorg-video-intel/src/intel_display.c
  
  	for (i = 0; i < koutput->count_props; i++) {
  		drmModePropertyPtr props;
-@@ -1614,6 +1623,13 @@
+@@ -1614,6 +1623,11 @@
  	}
  
  	intel->modes = mode;
 +
-+#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 9
-+	srcn->pScreen->canDoBGNoneRoot = TRUE;
-+#else
++#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) < 9
 +	scrn->canDoBGNoneRoot = TRUE;
 +#endif
 +
  	return TRUE;
  }
  
-@@ -1684,3 +1700,101 @@
+@@ -1684,3 +1698,101 @@
  {
  	return crtc_id(crtc->driver_private);
  }
@@ -163,9 +161,20 @@ Index: xserver-xorg-video-intel/src/intel_display.c
 +
 Index: xserver-xorg-video-intel/src/intel_driver.c
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel_driver.c	2011-01-27 11:42:50.690785002 +1100
-+++ xserver-xorg-video-intel/src/intel_driver.c	2011-01-27 11:46:07.540785001 +1100
-@@ -1018,6 +1018,8 @@
+--- xserver-xorg-video-intel.orig/src/intel_driver.c	2011-01-31 17:55:53.358189820 +1100
++++ xserver-xorg-video-intel/src/intel_driver.c	2011-01-31 18:01:33.088688114 +1100
+@@ -1008,6 +1008,10 @@
+ 		intel->directRenderingType = DRI_DRI2;
+ #endif
+ 
++#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 9
++	screen->canDoBGNoneRoot = TRUE;
++#endif
++
+ 	if (!intel_init_initial_framebuffer(scrn))
+ 		return FALSE;
+ 
+@@ -1018,6 +1022,8 @@
  	if (INTEL_INFO(intel)->gen >= 40)
  		gen4_render_state_init(scrn);
  
@@ -174,7 +183,7 @@ Index: xserver-xorg-video-intel/src/intel_driver.c
  	miClearVisualTypes();
  	if (!miSetVisualTypes(scrn->depth,
  			      miGetDefaultVisualMask(scrn->depth),
-@@ -1153,6 +1155,7 @@
+@@ -1153,6 +1159,7 @@
  
  	intel_mode_init(intel);
  
@@ -182,7 +191,7 @@ Index: xserver-xorg-video-intel/src/intel_driver.c
  	intel->suspended = FALSE;
  
  #if HAVE_UDEV
-@@ -1222,6 +1225,8 @@
+@@ -1222,6 +1229,8 @@
  
  	intel_set_gem_max_sizes(scrn);
  
