@@ -1618,8 +1618,23 @@ radeon_set_mode_for_property(xf86OutputPtr output)
 	xf86CrtcPtr crtc = output->crtc;
 
 	if (crtc->enabled) {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,1,0)
+	    xf86CrtcSetRec crtc_set_rec;
+
+	    crtc_set_rec.flags = (XF86CrtcSetMode |
+				  XF86CrtcSetOutput |
+				  XF86CrtcSetOrigin |
+				  XF86CrtcSetRotation);
+	    crtc_set_rec.mode = &crtc->desiredMode;
+	    crtc_set_rec.rotation = crtc->desiredRotation;
+	    crtc_set_rec.transform = NULL;
+	    crtc_set_rec.x = crtc->desiredX;
+	    crtc_set_rec.y = crtc->desiredY;
+	    if (!xf86CrtcSet(crtc, &crtc_set_rec)) {
+#else
 	    if (!xf86CrtcSetMode(crtc, &crtc->desiredMode, crtc->desiredRotation,
 				 crtc->desiredX, crtc->desiredY)) {
+#endif
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to set mode after propery change!\n");
 		return FALSE;
