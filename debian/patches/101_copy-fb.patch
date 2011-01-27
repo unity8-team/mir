@@ -1,8 +1,8 @@
-diff --git a/src/intel.h b/src/intel.h
-index 9e8323c..dc5d570 100644
---- a/src/intel.h
-+++ b/src/intel.h
-@@ -420,6 +420,7 @@ typedef struct intel_screen_private {
+Index: xserver-xorg-video-intel/src/intel.h
+===================================================================
+--- xserver-xorg-video-intel.orig/src/intel.h	2011-01-27 11:42:50.680785002 +1100
++++ xserver-xorg-video-intel/src/intel.h	2011-01-27 11:46:07.540785001 +1100
+@@ -472,6 +472,7 @@
  	OptionInfoPtr Options;
  
  	/* Driver phase/state information */
@@ -10,18 +10,18 @@ index 9e8323c..dc5d570 100644
  	Bool suspended;
  
  	enum last_3d last_3d;
-@@ -445,6 +446,7 @@ extern void intel_mode_fini(intel_screen_private *intel);
+@@ -501,6 +502,7 @@
  extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
  extern int intel_crtc_id(xf86CrtcPtr crtc);
  extern int intel_output_dpms_status(xf86OutputPtr output);
 +extern void intel_copy_fb(ScrnInfoPtr scrn);
  
- extern Bool intel_do_pageflip(ScreenPtr screen, dri_bo *new_front, void *data);
- 
-diff --git a/src/intel_display.c b/src/intel_display.c
-index 97c1a0a..13924c0 100644
---- a/src/intel_display.c
-+++ b/src/intel_display.c
+ extern Bool intel_do_pageflip(intel_screen_private *intel,
+ 			      dri_bo *new_front,
+Index: xserver-xorg-video-intel/src/intel_display.c
+===================================================================
+--- xserver-xorg-video-intel.orig/src/intel_display.c	2011-01-27 11:42:50.670785002 +1100
++++ xserver-xorg-video-intel/src/intel_display.c	2011-01-27 11:48:03.070785001 +1100
 @@ -36,6 +36,8 @@
  #include <errno.h>
  #include <poll.h>
@@ -31,7 +31,7 @@ index 97c1a0a..13924c0 100644
  #include "xorgVersion.h"
  
  #include "intel.h"
-@@ -888,6 +890,13 @@ intel_output_dpms(xf86OutputPtr output, int dpms)
+@@ -928,6 +930,13 @@
  	drmModeConnectorPtr koutput = intel_output->mode_output;
  	struct intel_mode *mode = intel_output->mode;
  	int i;
@@ -39,22 +39,27 @@ index 97c1a0a..13924c0 100644
 +
 +	/* xf86Crtc.c calls dpms off in set desired modes, so ignore
 +	 * the request if we're starting up. */
-+	
++
 +	if (intel->starting)
 +		return;
  
  	for (i = 0; i < koutput->count_props; i++) {
  		drmModePropertyPtr props;
-@@ -1523,6 +1532,8 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
+@@ -1614,6 +1623,13 @@
  	}
  
  	intel->modes = mode;
++
++#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 9
++	srcn->pScreen->canDoBGNoneRoot = TRUE;
++#else
 +	scrn->canDoBGNoneRoot = TRUE;
++#endif
 +
  	return TRUE;
  }
  
-@@ -1593,3 +1604,102 @@ intel_crtc_id(xf86CrtcPtr crtc)
+@@ -1684,3 +1700,101 @@
  {
  	return crtc_id(crtc->driver_private);
  }
@@ -150,19 +155,18 @@ index 97c1a0a..13924c0 100644
 +
 +	intel_batch_emit_flush(scrn);
 +	intel_batch_submit(scrn, TRUE);
-+	intel_batch_wait_last(scrn);
 +
 +	(*pScreen->DestroyPixmap)(src);
 +	(*pScreen->DestroyPixmap)(dst);
 +	FreeScratchPixmapsForScreen(pScreen->myNum);
 +}
 +
-diff --git a/src/intel_driver.c b/src/intel_driver.c
-index 9b2fdaf..b4d42a2 100644
---- a/src/intel_driver.c
-+++ b/src/intel_driver.c
-@@ -879,6 +879,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
- 	if (IS_I965G(intel))
+Index: xserver-xorg-video-intel/src/intel_driver.c
+===================================================================
+--- xserver-xorg-video-intel.orig/src/intel_driver.c	2011-01-27 11:42:50.690785002 +1100
++++ xserver-xorg-video-intel/src/intel_driver.c	2011-01-27 11:46:07.540785001 +1100
+@@ -1018,6 +1018,8 @@
+ 	if (INTEL_INFO(intel)->gen >= 40)
  		gen4_render_state_init(scrn);
  
 +	intel->starting = FALSE;
@@ -170,15 +174,15 @@ index 9b2fdaf..b4d42a2 100644
  	miClearVisualTypes();
  	if (!miSetVisualTypes(scrn->depth,
  			      miGetDefaultVisualMask(scrn->depth),
-@@ -1014,6 +1016,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
+@@ -1153,6 +1155,7 @@
  
  	intel_mode_init(intel);
  
 +	intel->starting = FALSE;
  	intel->suspended = FALSE;
  
- 	return uxa_resources_init(screen);
-@@ -1079,6 +1082,8 @@ static Bool I830EnterVT(int scrnIndex, int flags)
+ #if HAVE_UDEV
+@@ -1222,6 +1225,8 @@
  
  	intel_set_gem_max_sizes(scrn);
  
