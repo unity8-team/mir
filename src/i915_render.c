@@ -302,12 +302,10 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	ScrnInfoPtr scrn = xf86Screens[picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, pitch, filter;
-	int w, h, i;
 	uint32_t wrap_mode, tiling_bits;
+	int i;
 
 	pitch = intel_pixmap_pitch(pixmap);
-	w = picture->pDrawable->width;
-	h = picture->pDrawable->height;
 	intel->scale_units[unit][0] = 1. / pixmap->drawable.width;
 	intel->scale_units[unit][1] = 1. / pixmap->drawable.height;
 
