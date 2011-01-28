@@ -547,7 +547,7 @@ i915_emit_composite_primitive(PixmapPtr dest,
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	Bool is_affine_src = TRUE, is_affine_mask = TRUE;
-	int per_vertex, num_floats;
+	int per_vertex;
 	int tex_unit = 0;
 	int src_unit = -1, mask_unit = -1;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
@@ -665,8 +665,6 @@ i915_emit_composite_primitive(PixmapPtr dest,
 			per_vertex += 4;	/* mask x/y/z/w */
 		}
 	}
-
-	num_floats = 3 * per_vertex;
 
 	OUT_VERTEX(dstX + w);
 	OUT_VERTEX(dstY + h);
