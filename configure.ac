@@ -85,6 +85,12 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
 
+AC_ARG_ENABLE(debug,
+	      AS_HELP_STRING([--enable-debug],
+			     [Enables internal debugging [[default=yes]]]),
+              [DEBUG="$enableval"],
+              [DEBUG=yes])
+
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
 XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
@@ -138,13 +144,17 @@ fi
 AC_MSG_CHECKING([whether to include XvMC support])
 AC_MSG_RESULT([$XVMC])
 AM_CONDITIONAL(XVMC, test x$XVMC = xyes)
-if test "$XVMC" = yes; then
+if test "x$XVMC" = xyes; then
 	AC_DEFINE(ENABLE_XVMC,1,[Enable XvMC support])
 fi
 
 AM_CONDITIONAL(KMS_ONLY, test x$KMS_ONLY = xyes)
-if test "$KMS_ONLY" = yes; then
+if test "x$KMS_ONLY" = xyes; then
 	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
+fi
+
+if test "x$DEBUG" = xno; then
+	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi
 
 DRIVER_NAME=intel
