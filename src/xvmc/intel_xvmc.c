@@ -669,12 +669,10 @@ _X_EXPORT Status XvMCPutSurface(Display * display, XvMCSurface * surface,
  */
 _X_EXPORT Status XvMCSyncSurface(Display * display, XvMCSurface * surface)
 {
-	Status ret;
-
 	if (!display || !surface)
 		return XvMCBadSurface;
 
-	return ret;
+	return Success;
 }
 
 /*
