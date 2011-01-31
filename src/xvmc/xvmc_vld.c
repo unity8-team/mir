@@ -785,7 +785,6 @@ static Status begin_surface(Display * display, XvMCContext * context,
 			    XvMCSurface * future,
 			    const XvMCMpegControl * control)
 {
-	struct i965_xvmc_contex *i965_ctx;
 	struct intel_xvmc_surface *priv_target, *priv_past, *priv_future;
 	intel_xvmc_context_ptr intel_ctx = context->privData;
 	Status ret;

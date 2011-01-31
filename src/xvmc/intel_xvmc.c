@@ -105,8 +105,6 @@ unsigned int mb_bytes_420[] = {
 
 void LOCK_HARDWARE(drm_context_t ctx)
 {
-	char __ret = 0;
-
 	PPTHREAD_MUTEX_LOCK();
 	assert(!xvmc_driver->locked);
 
@@ -218,11 +216,6 @@ _X_EXPORT Status XvMCCreateContext(Display * display, XvPortID port,
 	int error_base;
 	int event_base;
 	int priv_count;
-	int isCapable;
-	int screen = DefaultScreen(display);
-	intel_xvmc_context_ptr intel_ctx;
-	int fd;
-	char *driverName = NULL, *deviceName = NULL;
 
 	/* Verify Obvious things first */
 	if (!display || !context)
@@ -482,7 +475,6 @@ _X_EXPORT Status XvMCCreateBlocks(Display * display, XvMCContext * context,
 				  unsigned int num_blocks,
 				  XvMCBlockArray * block)
 {
-	Status ret;
 	if (!display || !context || !num_blocks || !block)
 		return BadValue;
 
@@ -505,7 +497,6 @@ _X_EXPORT Status XvMCCreateBlocks(Display * display, XvMCContext * context,
  */
 _X_EXPORT Status XvMCDestroyBlocks(Display * display, XvMCBlockArray * block)
 {
-	Status ret;
 	if (!display || !block)
 		return BadValue;
 
@@ -679,7 +670,6 @@ _X_EXPORT Status XvMCPutSurface(Display * display, XvMCSurface * surface,
 _X_EXPORT Status XvMCSyncSurface(Display * display, XvMCSurface * surface)
 {
 	Status ret;
-	int stat = 0;
 
 	if (!display || !surface)
 		return XvMCBadSurface;
@@ -739,9 +729,6 @@ _X_EXPORT Status XvMCGetSurfaceStatus(Display * display, XvMCSurface * surface,
  */
 _X_EXPORT Status XvMCHideSurface(Display * display, XvMCSurface * surface)
 {
-	int stat = 0;
-	Status ret;
-
 	if (!display || !surface)
 		return XvMCBadSurface;
 
