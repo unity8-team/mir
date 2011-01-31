@@ -1058,7 +1058,7 @@ _X_EXPORT Status XvMCLoadQMatrix(Display * display, XvMCContext * context,
 _X_EXPORT Status XvMCPutSlice(Display * display, XvMCContext * context,
 			      char *slice, int nbytes)
 {
-	if (xvmc_driver->put_slice(display, context, slice, nbytes)) {
+	if (xvmc_driver->put_slice(display, context, (unsigned char *) slice, nbytes)) {
 		XVMC_ERR("PutSlice fail\n");
 		return BadValue;
 	}
@@ -1069,7 +1069,7 @@ _X_EXPORT Status XvMCPutSlice2(Display * display, XvMCContext * context,
 			       char *slice, int nbytes, int slice_code)
 {
 	if (xvmc_driver->put_slice2
-	    (display, context, slice, nbytes, slice_code)) {
+	    (display, context, (unsigned char *) slice, nbytes, slice_code)) {
 		XVMC_ERR("PutSlice2 fail\n");
 		return BadValue;
 	}
