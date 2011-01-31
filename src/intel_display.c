@@ -119,7 +119,6 @@ intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode);
  * List of available kernel interfaces in priority order
  */
 static const char *backlight_interfaces[] = {
-	"intel", /* prefer our own native backlight driver */
 	"asus-laptop",
 	"eeepc",
 	"thinkpad_screen",
@@ -129,6 +128,7 @@ static const char *backlight_interfaces[] = {
 	"samsung",
 	"acpi_video1", /* finally fallback to the generic acpi drivers */
 	"acpi_video0",
+	"intel_backlight",
 	NULL,
 };
 /*
