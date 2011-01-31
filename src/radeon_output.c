@@ -1618,7 +1618,7 @@ radeon_set_mode_for_property(xf86OutputPtr output)
 	xf86CrtcPtr crtc = output->crtc;
 
 	if (crtc->enabled) {
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,1,0)
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
 	    xf86CrtcSetRec crtc_set_rec;
 
 	    crtc_set_rec.flags = (XF86CrtcSetMode |
