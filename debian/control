@@ -44,7 +44,7 @@ Vcs-Browser: http://git.debian.org/?p=pkg-xorg/driver/xserver-xorg-video-intel.g
 Package: xserver-xorg-video-intel
 Architecture: amd64 i386
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${xviddriver:Depends}
-Recommends: intel-gpu-tools, python-dev
+Recommends: intel-gpu-tools, apport, intel-gpu-tools, python
 Provides: ${xviddriver:Provides}
 Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
 Conflicts: xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810, 915resolution
