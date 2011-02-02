@@ -26,7 +26,6 @@ static RADEONCardInfo RADEONCards[] = {
  { 0x4156, CHIP_FAMILY_RV350, 0, 0, 0, 0, 0 },
  { 0x4237, CHIP_FAMILY_RS200, 0, 1, 0, 0, 1 },
  { 0x4242, CHIP_FAMILY_R200, 0, 0, 0, 1, 0 },
- { 0x4243, CHIP_FAMILY_R200, 0, 0, 0, 1, 0 },
  { 0x4336, CHIP_FAMILY_RS100, 1, 1, 0, 0, 1 },
  { 0x4337, CHIP_FAMILY_RS200, 1, 1, 0, 0, 1 },
  { 0x4437, CHIP_FAMILY_RS200, 1, 1, 0, 0, 1 },
