@@ -1785,19 +1785,28 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     Bool r;
     int i;
     struct r600_accel_object src_obj, dst_obj;
+    uint32_t tiling_flags = 0, pitch = 0;
 
     if (bpp < 8)
 	return FALSE;
 
     driver_priv = exaGetPixmapDriverPrivate(pDst);
+    if (!driver_priv || !driver_priv->bo)
+	return FALSE;
+
+    ret = radeon_bo_get_tiling(driver_priv->bo, &tiling_flags, &pitch);
+    if (ret)
+	ErrorF("radeon_bo_get_tiling failed\n");
 
     /* If we know the BO won't be busy, don't bother with a scratch */
     copy_dst = driver_priv->bo;
     copy_pitch = pDst->devKind;
-    if (!radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
-	flush = FALSE;
-	if (!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
-	    goto copy;
+    if (!(tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO))) {
+	if (!radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
+	    flush = FALSE;
+	    if (!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
+		goto copy;
+	}
     }
 
     size = scratch_pitch * h;
@@ -1897,6 +1906,8 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 	return FALSE;
 
     driver_priv = exaGetPixmapDriverPrivate(pSrc);
+    if (!driver_priv || !driver_priv->bo)
+	return FALSE;
 
     ret = radeon_bo_get_tiling(driver_priv->bo, &tiling_flags, &pitch);
     if (ret)
@@ -1914,13 +1925,13 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 	    else /* A write may be scheduled */
 		flush = TRUE;
 	}
+
+	if (!src_domain)
+	    radeon_bo_is_busy(driver_priv->bo, &src_domain);
+
+	if (src_domain & ~(uint32_t)RADEON_GEM_DOMAIN_VRAM)
+	    goto copy;
     }
-
-    if (!src_domain)
-	radeon_bo_is_busy(driver_priv->bo, &src_domain);
-
-    if (src_domain & ~(uint32_t)RADEON_GEM_DOMAIN_VRAM)
-	goto copy;
 
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
