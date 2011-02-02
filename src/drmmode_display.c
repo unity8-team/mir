@@ -1232,8 +1232,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	}
 #endif
 	if (tiling_flags)
-	    radeon_bo_set_tiling(info->front_bo,
-				 tiling_flags | RADEON_TILING_SURFACE, pitch);
+	    radeon_bo_set_tiling(info->front_bo, tiling_flags, pitch);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
 			   scrn->bitsPerPixel, pitch,

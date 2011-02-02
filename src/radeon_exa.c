@@ -307,6 +307,7 @@ Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
 #endif
     Bool flush = FALSE;
     int ret;
+    uint32_t tiling_flags = 0, pitch = 0;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     /* May need to handle byte swapping in DownloadFrom/UploadToScreen */
@@ -318,16 +319,13 @@ Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index)
     if (!driver_priv)
       return FALSE;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	uint32_t tiling_flags = 0, pitch = 0;
-
-	ret = radeon_bo_get_tiling(driver_priv->bo, &tiling_flags, &pitch);
-	if (ret)
-	    return FALSE;
-	/* untile in DFS/UTS */
-	if (tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO))
-	    return FALSE;
-    }
+    /* check if we are tiled */
+    ret = radeon_bo_get_tiling(driver_priv->bo, &tiling_flags, &pitch);
+    if (ret)
+	return FALSE;
+    /* untile in DFS/UTS */
+    if (tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO))
+	return FALSE;
 
     /* if we have more refs than just the BO then flush */
     if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
