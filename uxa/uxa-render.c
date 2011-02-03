@@ -1090,6 +1090,7 @@ try_solid:
 	/* XXX xserver-1.8: CompositeRects is not tracked by Damage, so we must
 	 * manually append the damaged regions ourselves.
 	 */
+	pixman_region_translate(&region, -dst_x, -dst_y);
 	DamageRegionAppend(dst->pDrawable, &region);
 
 	pixman_region_fini(&region);
