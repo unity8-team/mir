@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.14.0-1ubuntu6) natty; urgency=low
+
+  * 110_from_git_da990536eca09c6de74627541cd56ecfad925eda.patch:
+    - cherry-pick fix from upstream git to fix graphics corruption
+      (LP: #707236)
+
+ -- Michael Vogt <michael.vogt@ubuntu.com>  Thu, 03 Feb 2011 14:49:50 +0100
+
 xserver-xorg-video-intel (2:2.14.0-1ubuntu5) natty; urgency=low
 
   * control: For apport hook, depend on apport, intel-gpu-tools, and
