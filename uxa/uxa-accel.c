@@ -120,6 +120,10 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 
 		solid = uxa_acquire_solid(screen, src->pSourcePict);
 		FreePicture(src, 0);
+		if (!solid) {
+			FreePicture(dst, 0);
+			goto solid;
+		}
 
 		src = solid;
 		src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
@@ -1110,6 +1114,10 @@ try_solid:
 
 			solid = uxa_acquire_solid(screen, src->pSourcePict);
 			FreePicture(src, 0);
+			if (!solid) {
+				FreePicture(dst, 0);
+				goto err;
+			}
 
 			src = solid;
 			src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
