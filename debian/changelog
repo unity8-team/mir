@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.14.0-2) experimental; urgency=low
+
+  * Cherry-pick from upstream to fix many rendering issues
+    (https://bugs.freedesktop.org/show_bug.cgi?id=33650):
+    - uxa: Undo damage translation before appending
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 04 Feb 2011 15:37:47 +0100
+
 xserver-xorg-video-intel (2:2.14.0-1) experimental; urgency=low
 
   * New upstream release.
