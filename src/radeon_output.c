@@ -120,6 +120,8 @@ static void
 radeon_bios_output_crtc(xf86OutputPtr output);
 static void
 radeon_bios_output_lock(xf86OutputPtr output, Bool lock);
+extern void
+atombios_pick_dig_encoder(xf86OutputPtr output);
 
 void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 {
@@ -731,6 +733,8 @@ radeon_mode_prepare(xf86OutputPtr output)
     }
 
     radeon_bios_output_lock(output, TRUE);
+    if (IS_AVIVO_VARIANT)
+	atombios_pick_dig_encoder(output);
     radeon_dpms(output, DPMSModeOff);
     radeon_crtc_dpms(output->crtc, DPMSModeOff);
 
