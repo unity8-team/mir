@@ -1,3 +1,1105 @@
+commit 40a7bde9140c0ae6412b8f916b1455d44e2af6cf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 7 23:46:07 2011 +0000
+
+    configure: version bump for 2.14.0
+
+commit 8ecbba2aca657da3894eb77e856ac2d4e9efc0cc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 7 23:45:06 2011 +0000
+
+    NEWS: Release notes for 2.14.0
+
+commit 22d7b61791c382088a6c0df5dce3a15405d6c495
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 4 12:32:01 2011 +0000
+
+    i965: Fix off-by-one in assert
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a7c7a9108f76aa312f3d5efa466052b914c81484
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 4 10:53:30 2011 +0000
+
+    configure: version bump for 2.13.903 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3fbecf34630c3588618900afdfbd9a4266856178
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 4 10:52:44 2011 +0000
+
+    NEWS: Add entry for 2.13.903
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 90538ecfff9c324d61419f451d41d26ab026f232
+Author: U. Artie Eoff <ullysses.a.eoff@intel.com>
+Date:   Tue Dec 21 17:42:38 2010 -0700
+
+    configure: suggest upstream to find macros in case they're missing.
+    
+    added upstream suggestion to error message in case xorg macros or
+    xserver macros are missing. removed package manager references in
+    suggestion since these are 'user' and/or 'distribution' preferences.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6d50f5a140dbefdf86eb25d18d08473aa7e42acc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 3 23:06:14 2011 +0000
+
+    If the crtc is not enabled, then it can't be on
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 145c42a101c3150fb1e2cae8a1780b26e8b56f42
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Mon Jan 3 17:52:27 2011 -0500
+
+    dri2: Fix interlace computation
+    
+    scrn->currentMode is a hack for xf86vidmode and in general is wrong for
+    RANDRful drivers.  Use the mode on the associated CRTC instead.
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+    [ickle: crtc->mode is a ModeRec not Ptr]
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b0d10ff04a24a951256a79710ba22b325b549ba4
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Mon Jan 3 17:52:26 2011 -0500
+
+    xv: Fix interlace computation
+    
+    scrn->currentMode is a hack for xf86vidmode and in general is wrong for
+    RANDRful drivers.  Use the mode on the associated CRTC instead.
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+    [ickle: crtc->mode is a ModeRec]
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0ad6d6e1a678de7d8c2d4cd7c734887e1deb2f9b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 3 16:52:07 2011 +0000
+
+    dri: Only issue a warning for an "impossible" flip return 5 times
+    
+    As it appears that some kernels do indeed return the "wrong" value,
+    issuing a warning 60 times a second is a cruel and unusual punishment.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=32680
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d729ef02f2955f7476df4c65403bc1f8e705b780
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 2 09:11:10 2011 +0000
+
+    dri: Don't wait upon a NULL current mode
+    
+    There is a race condition between the dri swapbuffers code and
+    hotplugging whereby we might attempt to execute a wait upon a
+    non-existent output. This causes a NULL dereference and a loud crash.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=32770
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 537fa55ed2449e91f3dd1e04abc720c6818d7227
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 2 09:06:28 2011 +0000
+
+    dri: Fix the use of the uninitialised bo for flink
+    
+    Reported-by: Jeff Chua <jeff.chua.linux@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dbc542b9d38ff9781efcdf1d5308e97f04499138
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 31 23:29:05 2010 +0000
+
+    dri: Protect against using dri with an non-gem pixmap
+    
+    Reported-by: Jeff Chua <jeff.chua.linux@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 53fbc9f1760ee481cba1f6dceb9e7c97282a2976
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 30 15:32:40 2010 +0000
+
+    Don't replace the scanout bo through PutImage
+    
+    As the bo may be pinned for either use by the scanout or through sharing
+    with another application, under those circumstances we cannot replace
+    the bo itself but must force the blit for PutImage.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=31367
+    Reported-and-tested-by: Bjørn Mork <bjorn@mork.no>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7667ad8432c032aec3a2aa004fc4dfc1877971b3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 24 09:42:29 2010 +0000
+
+    dri: Differentiate identical "get vblank failed" messages with line no
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 875d4828352c501ec5d0169735fb078807e76f2e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 23 19:36:12 2010 +0000
+
+    i830: amalgamate consecutive composites into a single primitive
+    
+    Improve aa10text on i845 from 218kglyphs/s to 234kglyphs/s
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 58d9912e447cf6e29b20747b5ed6ee595687ce8d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Dec 22 13:50:53 2010 +0000
+
+    Remove the deprecated function 'XNFprintf'
+    
+    As we know the maximum length of the string, we can replace our single
+    usage of XNFprintf with snprintf.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e8db77e019e19ace48592b2f6d96af6baa9a228e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 21 23:03:21 2010 +0000
+
+    Revert "Suggest where to find xorg-macros in case it's missing"
+    
+    I failed my reading comprehension and didn't spot that the help strings
+    pointed to two separate downstream packages.
+    
+    Thanks to Carl Worth for pointing out my mistake.
+    
+    This reverts commit ebb7aca66785730737bc739624006e55d43dfe1b.
+
+commit ebb7aca66785730737bc739624006e55d43dfe1b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 21 22:23:24 2010 +0000
+
+    Suggest where to find xorg-macros in case it's missing
+    
+    [Modified version of U. Artie Eoff's commit to remove the duplicated
+    string. The paraphrased commit message is repeated below for clarity.]
+    
+    xorg-macros is often package under an unusual name, so provide some
+    clues as to what name to try on the user's distribution. Installing
+    build-deps would be just too easy...
+    
+    Also include a check for the existence of the XORG_DRIVER_CHECK_EXT
+    macro, otherwise configure might continue in spite of the missing macro
+    and cause obtuse syntax errors.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 90576f95f35e528fa2c667df162c5dc7ec98975d
+Author: U. Artie Eoff <ullysses.a.eoff@intel.com>
+Date:   Tue Dec 21 15:10:41 2010 -0700
+
+    configure: updated m4 macro check in configure.ac
+    
+    Added m4 check for XORG_DRIVER_CHECK_EXT macro definition.  Updated m4 fatal messages to give better hint on how to resolve error when xorg macros are missing.  Previously, configure would continue in spite of the missing macros and the build would fail for syntax errors.
+
+commit 1ac2e04023f84dbf1f3db2ecad1cadd159aa614d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 20 10:55:11 2010 +0000
+
+    Undo: Disable BLT for i830 and 845G
+    
+    Reported-by: György Balló  <ballogy@freestart.hu>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=32482
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6f21405454487adf7623cf22f0fdd9f127099afd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 16:37:55 2010 +0000
+
+    G35 is gen4 and not gen3
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=32478
+    Reported-and-tested-by: Michal Marek <mmarek@suse.cz>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5743c223877fbff710cdd5114cff6d3ee3108309
+Author: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+Date:   Thu Dec 9 03:27:59 2010 +0100
+
+    Check consistency of pageflip completion vblank count.
+    
+    Implements a consistency check on returned vblank
+    count values of pageflip completion. Impossible
+    values are detected, a x-warning is logged and
+    returned (msc,ust) values are marked invalid,
+    so clients could perform error handling. Such
+    a warning would indicate bugs in the pageflip
+    completion routine of future kms drivers or the
+    ddx and thereby aid driver debugging.
+    
+    Signed-off-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2177e6032146f4720f244e98f7c0d6df1b925784
+Author: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+Date:   Thu Dec 9 03:12:35 2010 +0100
+
+    Fix reporting of pageflip completion events on multi-head.
+    
+    When a drawable is page-flipped on multiple crtc's (fullscreen
+    drawable on mirror-mode or multi-head x-screen), only one pageflip
+    event is finally delivered, after the last participating crtc signals
+    flip completion, this to avoid visual corruption.
+    
+    Old code returned vblank count and timestamps of flip completion
+    of this last crtc, instead of the values of the "master crtc", the
+    one that was used for initially scheduling/triggering the pagflip
+    via vblank events. (master = I830DRI2DrawablePipe(drawable))
+    
+    This patch makes sure that the pageflip completion values of the
+    "master" crtc are returned, otherwise client applications will
+    get confused by the random (msc, ust) values returned by whichever
+    crtc was the last to complete its flip. Without this, the returned
+    values change randomly and jump forward and backward in time and
+    count.
+    
+    Signed-off-by: Mario Kleiner <mario.kleiner@tuebingen.mpg.de>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 71af40a75fbdd1054b1111e8cbe67ad1f97e6613
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 10 15:55:09 2010 +0000
+
+    NEWS: 2.14, I meant the upcoming 2.14 release!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 556331a22101d08babbd276236f74ffcc380171c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 10 15:28:37 2010 +0000
+
+    configure: version bump for 2.13.902
+    
+    This is actually the first release candidate for 2.14.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e01ea4a45c1cf8953a6d5ff6c600d76dbbe4760d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 10 15:28:00 2010 +0000
+
+    NEWS: Add entry for the 2.13.902 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8df6f0a6082ad762ec69be7789a961db0c74154a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 10 12:26:16 2010 +0000
+
+    configure: Bump required libdrm to 2.4.23
+    
+    To pull in the required headers for BLT and relaxed fencing support.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9b967807c2d240488a715509649663aac3583532
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 20:45:16 2010 +0000
+
+    Revert "i965: The RenderCache flush after every glyph is required for compiz"
+    
+    This reverts commit 03e8351179b1c25d219842ef3e01ee8e176f594f.
+    
+    * sigh.
+    
+    This was only meant to be a temporary debugging hack, not for public
+    consumption (or embarrassment).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 27e33928f87ecb806d1f8c459d4a4ada76b0e30e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 20:42:24 2010 +0000
+
+    i965: Mark sure we mark reused render targets as dirty
+    
+    ... or else we may forget to flush them again.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 03e8351179b1c25d219842ef3e01ee8e176f594f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 19:27:57 2010 +0000
+
+    i965: The RenderCache flush after every glyph is required for compiz
+    
+    ... now who can explain why.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d90c8f4d0bb6b79ecdcaa82f87291169c18c64b9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 19:22:30 2010 +0000
+
+    i965: Invalidate pixmap binding location on reuse.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4a186a612376bdd6f86c026e8b8b442108868a0a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 16:56:57 2010 +0000
+
+    Always flush the batch before blocking for new X requests
+    
+    This should prevent any lag when waiting upon user input, for example
+    whilst logging in with gdm.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1ba983034b3a70fb541dc359189c020ee497c634
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Dec 7 12:27:29 2010 +0000
+
+    uxa: Emit the damage after the render for the workaround in uxa_solid_rects
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 00c204a7b2df7a6b501db9b57603534a45ecafa9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 16:34:52 2010 +0000
+
+    snb: Only emit CC and DepthStencil bos once per batch
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 084ae43110240c582ae7cd6452966dd9f22350fa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 15:57:19 2010 +0000
+
+    snb: Restore drawrect, we need the implicit flush
+    
+    Something is wrong, we should be tracking when to invalidate the caches
+    as appropriate, yet I can not finding the missing flush to replace the
+    implicit one of DRAW_RECTANGLE.
+    
+    Fixes cacomposite.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f3a47d7f235d18e4529e3898a48673c7c3cbd489
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 14:11:05 2010 +0000
+
+    snb: Cache pixmap binding locations
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4d48fed9aa0c3c7b84e74b4f72f298f580a8973c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 13:50:43 2010 +0000
+
+    snb: Cache state between composite ops
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a58e5a1bdf10be3b96ecaa3d5e3ee288eab1063f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Dec 6 13:34:53 2010 +0000
+
+    snb: Emit more invariants only once
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e8f41c371024e2f3845c7652b22af8f5900200f2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 5 21:37:23 2010 +0000
+
+    uxa: Prevent reading past the last byte on upload/download
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=29752
+    Reported-by: Sergey Samokhin <prikrutil@gmail.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c2fac6ca108734dd9566570b15f01cc476fa53dc
+Author: Matthias Hopf <mhopf@suse.de>
+Date:   Fri Nov 19 04:29:57 2010 +0100
+
+    Don't use hardware acceleration on Sandybridge rev 07 hardware or earlier.
+    
+    This is known to lock up the GPU even with the workaround in place.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=31773
+    Signed-off-by: Matthias Hopf <mhopf@suse.de>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8abade8a2139b500251488be5d6390f149666fb2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 5 09:55:43 2010 +0000
+
+    display: Flush any pending batches before changing modes.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8450aba6c731b20e5cd7b55f1d747f00a6523291
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 5 01:08:51 2010 +0000
+
+    i965: Also flush the vertex buffer when restarting the array.
+    
+    As a corollary to filling one vertex array and beginning a new one is
+    remembering to emit the old one before overwriting...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f40f8bcf07bd7f496bfd3069eddfcbeb3d1bf8be
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Dec 5 00:26:22 2010 +0000
+
+    i965: Check for potential vertex array overflow every time
+    
+    There was a reason why we need to check at the start of every composite
+    operation to see if we have enough space in the array to fit the
+    vertices, which I promptly forgot when moving the code around to make
+    it look pretty.
+    
+    * sigh.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 55c5f1876e2329a938955967f5d45c814e50beb5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 3 02:05:05 2010 +0000
+
+    Wait on the current buffer to complete when running synchronously.
+    
+    And remove the vestigal wait upon changing crtc as this is more properly
+    done in the kernel.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3cc74044ce3546cc7dc2e918cbabbb41a77f4026
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 2 12:07:44 2010 +0000
+
+    i965: Amalgamate surface binding tables
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a1fa0dbfdafea32139d4457d81b9d722df955eaf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Dec 2 11:25:05 2010 +0000
+
+    i965: Upload an entire vbo in a single pwrite, rather than per-rectangle
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 23437fe6769322d48cc3d264660717475b5d0d74
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 3 01:16:16 2010 +0000
+
+    i965: Use reciprocal scale factors to avoid the divide per-vertex-element
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0bb135c40e5ac1bf7593ec1d68d2815cbf47aa25
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 23 22:27:38 2010 +0000
+
+    Disable BLT for i830 and 845G
+    
+    This pair of chipsets seem broken beyond repair, specifically the
+    erratum that causes the wrong PTE entry to be invalidated, so disable
+    our incorrect attempts to use the BLT on those devices.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 33c08882c0d551afb28baef643279901dcc65fa9
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Nov 17 16:37:53 2010 +0800
+
+    Mark outputs as DPMSModeOn and restore backlight at mode set
+    
+    The kernel always turns monitors on when doing mode setting, and so no
+    further DPMS action is required. Note this in the mode setting code by
+    marking the updated DPMS mode and restoring any saved backlight level.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    Reviewed-by: Eric Anholt <eric@anholt.net>
+
+commit cc930a37612341a1f2457adb339523c215879d82
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Nov 14 19:47:00 2010 +0000
+
+    uxa: Relax fencing some more for gen3
+    
+    Allow fenced allocations even for small pixmaps if the kernel supports
+    relaxing fencing (where only the used pages are allocated).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3c5b1399e29ef577b8b91655b5e1c215d1b6dfbb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 9 20:20:06 2010 +0000
+
+    i915: Disable maximum state addresses
+    
+    As the kernel controls the relocation of state buffers, we should not
+    hard code the maximum permissible value for them.
+    
+    Fixes an eventual hang with full-gtt.
+    
+    Reported-by: Peter Clifton <pcjc2@cam.ac.uk>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 81d355a8dcdfe3d0924bb843bcc0e6546f695391
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Nov 9 09:28:54 2010 +0000
+
+    uxa: Fix crash after allocation failure
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=31487
+    Reported-by: Thomas Fjellstrom <tfjellstrom@shaw.ca>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 861ee17ae662ffec2269292f92da7833df508b1a
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri Nov 5 12:55:02 2010 -0700
+
+    Update version number to 2.13.901
+    
+    In preparation for a snapshot.
+
+commit aaa436b437839a80d340cc5ad598ec4b47ed2eff
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri Nov 5 12:54:16 2010 -0700
+
+    NEWS: Add release notes for 2.13.901 snapshot.
+    
+    An intermediate snapshot to capture recent developments.
+
+commit 6b66b45b1ff207b80b81973745f42a776448f764
+Merge: a44a63d 9f232ad
+Author: Carl Worth <cworth@cworth.org>
+Date:   Fri Nov 5 12:51:55 2010 -0700
+
+    Merge commit '2.13.0'
+    
+    This changes the version number and adds the 2.13.0 release notes,
+    (which were otherwise missing from the master branch).
+
+commit a44a63d2ff6c01c3dc61de6f736dd441ddd25e52
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Nov 5 09:58:45 2010 +0000
+
+    Wait for any pending rendering before switching modes.
+    
+    A perennial problem we have is the accursed WAIT_FOR_EVENT hangs, which
+    occur when we switch the framebuffer before the WAIT_FOR_EVENT completes
+    and upsets the GPU.
+    
+    We have tried more subtle approaches to detected these and fix them up in
+    the kernel, to no avail. What we need to do is to delay the framebuffer
+    flip until the WAIT completes, which is quite tricky in the kernel
+    without new ioctls and round-trips. Instead, apply the big hammer from
+    userspace and synchronise all rendering before changing the framebuffer.
+    I expect this not to cause noticeable latency on switching modes (far
+    less than the actual modeswitch) and should stop these hangs once and
+    for all.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=31401 (...)
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 52b32436b9e14a3e13818f80102150ff5bc3c002
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 3 19:42:26 2010 +0000
+
+    Downgrade tiling allocation failure to a warning
+    
+    We emitted this message as an error even though we fallback and attempt
+    to allocate a non-tiled framebuffer before failing (with an appropriate
+    error message).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 18839aaec505f8bbdb0690fe694162bf09a87d5c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Nov 3 18:14:29 2010 +0000
+
+    Fallback to shadow for Sandybridge if we don't have access to the BLT
+    
+    If we attempt to emit BLT batches without kernel support, we just end up
+    with EINVAL and no rendering. Prevent this, and avoid uncached
+    rendering, by restoring the shadow fallback paths if there is no BLT
+    support.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8ff37667bf864b771d16a58fc5041cb48408b6a8
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Nov 2 10:36:03 2010 -0700
+
+    Remove the intermittent GEM_THROTTLE call.
+    
+    This is a holdover from early GEM work when we weren't syncing on the
+    DRI client side.  It would keep clients from getting too far ahead and
+    killing their interactivity, by bringing everyone to a halt when
+    anyone was too far ahead.
+    
+    Now, GL clients throttle themselves to avoid the problem, and it turns
+    out that in the case that they don't (long rendering to buffers with
+    no swap), this actually reduces X Server interactivity: instead of
+    lagging of X rendering behind input, you get no response for seconds
+    at a time, then a burst of rendering, then nothing again.
+    
+    Reported by ajax.  Tested with moving a window while running
+    cairo-perf-trace on the GL backend (improvement) and X backend (no
+    significant change in responsiveness).
+
+commit 540c5742186c26c3aeccb7b5d3ff0f374722a20c
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Tue Nov 2 11:05:32 2010 +0800
+
+    render: use headerless render target write
+    
+    It is weird that some rendercheck cases only work fine with headerless write.
+    Need to update intel-gen4asm to support headerless write
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 7a3109312e43ce4c2f600a65fe6bc821a8f0ebde
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Wed Oct 27 16:51:28 2010 +0800
+
+    render: acceleration for composite on Sandybridge
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 0ab2c05a291738ee763eb518c46e6dcfe29249a2
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Wed Oct 27 16:49:26 2010 +0800
+
+    render: fragments for composite on Sandybridge
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 21c86548dc2c80632c49ec6ec4da2935a0c99476
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Wed Oct 27 16:47:36 2010 +0800
+
+    render: fix send instruction used in sampling fragments
+    
+    To prepare for composite on Sandybridge
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 8d008ca89d44aa10aeb032d631971aaebb388675
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Mon Oct 25 15:39:39 2010 +0800
+
+    render: set the surface state base address
+    
+    It is the same as commit 73d4c7d7
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit b5ae596a0746e5a37e86f5b0980f9265e0061142
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Nov 1 11:11:09 2010 +0000
+
+    Flush BLT batches before starting an atomic RENDER batch
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 42363134bd38fb406d90cdb9e5b227836a793912
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Mon Nov 1 13:23:36 2010 +0800
+
+    Support BLT acceleration on gen6
+    
+    Signed-off-by: Zou Nan hai <nanhai.zou@intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5bed685f765671d63642b24e17abd70579c40ddf
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Mon Nov 1 13:23:35 2010 +0800
+
+    add BLT ring support
+    
+    gen6+ platform has a BLT engine with seperate
+    command streamer to support BLT commands.
+    
+    Signed-off-by: Zou Nan hai <nanhai.zou@intel.com>
+    [ickle: merge trivial conflict]
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6ec3ff134baeac33d9d5821695d5f80843a96c91
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Fri Oct 15 11:21:09 2010 +0800
+
+    Xv: don't call intel_wait_for_scanline on Sandybridge
+    
+    MI_LOAD_SCAN_LINE_INCL command is not available on sandybridge.
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 9e73cbd7eea61f2fe69692056ca446a4d95e17c2
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Fri Oct 15 11:20:22 2010 +0800
+
+    Xv: enable TextureAdaptor for Sandybridge
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 3213849907bf1b1468872668d10764054c1034fe
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Wed Oct 27 09:54:05 2010 +0800
+
+    Xv: setup pipeline for Xv on Sandybridge
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 9e4dd27aa848acae1b74b77bbbc0a5bb9f6a502a
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Thu Oct 21 16:10:14 2010 +0800
+
+    Xv: fragments for xv on Sandybridge.
+    
+    Need to update intel-gen4asm to build these fragments
+    
+    Signed--off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit e34b3f6ef5811d5e8d156dd6582df8f442e9792e
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Thu Oct 21 13:15:45 2010 +0800
+
+    Xv: Send instruction doesn't use implied move when sampling YUV surface
+    
+    The two fragments will be reused for sampling YUV surface
+    and send doesn't have implied move on Sandybridge
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 73d4c7d7b8efc920ac09885dcace5a536f93b70f
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Wed Oct 13 09:13:50 2010 +0800
+
+    Xv: set the surface state base address
+    
+    To prepare for Xv on Sandybridge. It is easy to fill the binding
+    table without relocation and make sure that the pointer to binding
+    table only uses bits[15:0].
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 5afc7472b155e8e940f12a38baf80c298dc3b364
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Oct 29 12:23:59 2010 +0100
+
+    intel: don't pass a dangling pointer to GET_PARAM
+    
+    I fail at cut'n'paste.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6b3ce2e8701e7c3fcd30ca07fc13a2cdcf62560d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Oct 29 11:07:50 2010 +0100
+
+    uxa: Enable reduced fence sizes for i915
+    
+    Depends on libdrm 362457715faacd3101929e5f0d8ae250d0ad09df (for
+    HAS_RELAXED_FENCING define).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b066ddda31e40afa652ae51ffc35025ac3ef6f2a
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Sun Oct 3 14:42:56 2010 -0700
+
+    intel: Listen for hotplug uevents (V3)
+    
+    This connects the kernel uevent indicating monitor hotplugging to the
+    RandR notification events so that X applications can be notified
+    automatically when monitors are connected or disconnected.
+    
+    This also adds a configuration option to disable hotplug events.
+    
+    V2: missed a #ifdef HAVE_UDEV around some udev-specific declarations
+    
+    V3: document Hotplug option in man page
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit a1c54f69643671ce296c57d132852e9846cc41d3
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 18 13:28:44 2010 -0700
+
+    Fix violation of gen6 requirements for depthbuffer tiling.
+    
+    In general, demoting of tiling of DRI2 buffers seems dubious, as we've
+    got various bits of functionality that won't all work together unless
+    buffers are tiled as expected.  This just covers one instance of the
+    problem, caught by assertions in Mesa.
+    
+    Fixes:
+    fbo-1d
+    fbo-d24s8.
+    glean/readPixSanity
+    glean/rgbTriStrip
+    glean/scissor
+
+commit 33133a1d38a4dce60d2e135663b545895fc85abc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Oct 17 09:21:06 2010 +0100
+
+    display: do not report failure for setting unrecognised properties
+    
+    We need to accept any changes to properties not handled by ourselves -- we
+    can't validate the changes ourselves. Denying those changes breaks EDID
+    reporting, for example.
+    
+    Reported-by: Elvis Pranskevichus <el@prans.net>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8507ef50ba08061ac158848a7c4c136e1755d87e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 13 09:45:59 2010 +0100
+
+    Fix driverName regression for i830 from 4083197a
+    
+    Reported-by: Stefan Glasenhardt <stefan@glasen-hardt.de>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=30808
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 15aab1ef982fb67eb2ea463089f070afd9a2cfe5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 13 09:50:25 2010 +0100
+
+    Move EDID_COMPLETE_RAWDATA define to intel.h to avoid redifinition warning
+    
+    The compiler was simply warning that we defined the name prior to
+    including the original definition, so reorder.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d2bc2212f8be746e697a65555d6d83bc66d9ce43
+Author: Stefan Dirsch <sndirsch@suse.de>
+Date:   Fri Oct 8 17:48:38 2010 +0200
+
+    Make driver compile for 1.6 Xserver series again. Part deux.
+    
+    Signed-off-by: Matthias Hopf <mhopf@suse.de>
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5472359d6860af655a3c286d30558540376c9fdb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Oct 8 15:23:13 2010 +0100
+
+    dri: Check for pixmap privates before dereferencing them
+    
+    It is still possible for the pixmap allocator to return a software only
+    pixmap (i.e. without an associated GEM buffer or intel_pixmap), so check
+    before dereferencing.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=30707
+    Reported-by: Matthias Hopf <mhopf@suse.de>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4083197a44d1a1a05d33654b3c7d6e96d7472fe7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Oct 7 12:45:02 2010 +0100
+
+    Include a chipset generation number to clarify device specific paths.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1444ea35706992a1f094fe029e6a7d9eec0f93c6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 6 12:36:30 2010 +0100
+
+    dri+shadow: Only tweak the acceleration of CopyRegion if using shadow.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f286891d1415fc607f0c1b574e6bce4b3759493e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 6 11:38:48 2010 +0100
+
+    dri: Reattach the fake pixmap for the shadow scanout to the drawable.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 23ee926bcd8ddd7a2785786efdf119e4fae75bfd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 6 10:20:49 2010 +0100
+
+    uxa: Skip a pixmap lookup if there is no driver finish access function
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 707901bf98073fb56179a0b61c806f85ef8f413c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 6 08:47:20 2010 +0100
+
+    uxa: Re-enable acceleration.
+    
+    A side-effect of discriminating offscreen based on the devPrivate.ptr
+    was that it broke uxa_finish_access and so after any fallback to s/w on
+    a Pixmap, it remained in software for the reminder of its life.
+    
+    Introduce an explicit boolean to mark whether or not hardware
+    acceleration is enabled for a pixmap (with a GEM buffer).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 54f545e0631a287f421ef6a6f20831624b212cf2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 6 08:50:13 2010 +0100
+
+    Revert "Clear pixmap->devPrivate.ptr [regression in 7c7294e]"
+    
+    This reverts commit 48b4e224297fa807be0e2bc7a67bf7e94579e8de.
+    
+    The better fix is to manually mark the pixmap when acceleration is and
+    is not permitted. Whilst the devPrivate.ptr are invalid upon creation,
+    it is not worth carring code that serves no purpose.
+
+commit d1925deedd70c6c4374e42de5aa44989fe328b58
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Oct 6 00:17:03 2010 +0100
+
+    Clear pixmap->devPrivate.ptr [regression from 7c7294e]
+    
+    ModifyPixmapHeader(pixdata = NULL) does not clear the
+    pixmap->devPrivate.ptr, instead the NULL value is interpreted as meaning
+    to keep the current value. (This is similar to the interpretation of the
+    other invalid values like depth=-1 which also mean not to change the
+    current property). However pixadata=NULL is indeed a valid value, and in
+    7c7294e, devPrivate.ptr == NULL was used to differentiate a bo pixmap
+    from a system pixmap. Except that we never did clear the ptr as
+    intended, and so X would immediately crash.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4bf2182bf9ee64795e2bf524fedf7b6c36f3cd03
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Oct 5 09:59:04 2010 +0100
+
+    shadow: Use a cacheable shadow for all generations
+    
+    Always avoid direct rendering to the uncached scanout buffer,
+    redirecting all 2D access to the shadow instead. Then for the couple of
+    platforms where either the BLT is not ready or cannot be trusted (i8xx)
+    perform the front buffer fixup using the uncached writes from the CPU.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b27a521214728052b8b10342aaacbaf1622b8e2c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Oct 4 20:31:44 2010 +0100
+
+    shadow: Enable shadow by default on SandyBridge
+    
+    SandyBridge 2D support is far from complete, so instead of
+    permanently falling back and always using uncached GTT mapping for
+    rendering, use the shadow buffer instead.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3e641459f8997f45288cc3cb314e50f2b5a629fd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Oct 4 20:31:01 2010 +0100
+
+    shadow: Disable BLT for SandyBridge
+    
+    The blitting code is incorrect for SandyBridge so disable until
+    the BLT ring is ready.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7c7294ec00d6c3a454a17a1b9983d14d0655162c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Oct 4 11:56:27 2010 +0100
+
+    shadow+dri2: Allow dri2 to be independently enabled with shadow
+    
+    To enable DRI we create GEM buffers for the client to render into with
+    hardware acceleration. In order to maintain coherency between any 2D
+    render operations with the independent 3D clients (this includes the
+    reading of 2D rasterisation by the direct rendering client, e.g.
+    compiz using texture_from_pixmap) we need to replace the shadow pixmap
+    with the GTT mapping. Therefore 2D rendering to a DRI buffer will be to
+    uncached memory and thus penalised -- but the direct rendering clients
+    will have full hardware acceleration.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 16a5d0ee3ca4d41af6a6876a8baf81e3f715781d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Oct 4 11:21:17 2010 +0100
+
+    shadow: Map the scanout directly on i8xx
+    
+    Even with the minimal use of the BLT to copy from the GTT shadow to the
+    GTT scanout, i830 was still hanging. Just write to the scanout directly.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 516d235c5b3bd51e9533925140d95d3b4533129c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Oct 4 11:10:57 2010 +0100
+
+    Split shadow handling routines to their own file.
+    
+    This is about to get messy, so separate out the shadow from the normal
+    code.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 455f2939a661764ebb8d1747d44e16a0a8937808
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Oct 2 13:32:58 2010 +0100
+
+    Do not claim the PCI device if !KMS
+    
+    By returning FALSE whilst probing if we can't find a KMS driver, we
+    allow X to fallback to trying the VESA driver -- rather than failing.
+    
+    The initial idea for this was by Julien Cristau.
+    
+    Reported-by: Julien Cristau <jcristau@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 97fea2fd0c36d78f4e940b124a7886c4a3f3dfc7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Oct 2 10:05:59 2010 +0100
+
+    legacy/i810: Remove pVisualConfigs
+    
+    Completely unused pulling in an undesired glxproto dependency.
+    
+    Reported-by: Cyril Brulebois <kibi@debian.org>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=30554
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8784c4f5a1524fb979b00c7ce7981cbc1dcf0ec0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Oct 1 21:40:36 2010 +0100
+
+    video: Disable TextureAdaptor for Sandybridge
+    
+    The acceleration code does not yet exist, so we try to use gen4 shaders
+    which hangs the chip and makes everybody upset. Disable it until such a
+    time as support is written for Sandybridge XVideo.
+    
+    Reported-by: Matthias Hopf <mhopf@suse.de>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=30500
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 9f232ad67c72b7869dcd112207bc41dc01d7d104
 Author: Carl Worth <cworth@cworth.org>
 Date:   Thu Sep 30 08:45:49 2010 -0700
@@ -13,6 +1115,18 @@ Date:   Thu Sep 30 08:45:15 2010 -0700
     Add release notes for the 2.13.0 release.
     
     Which is functionalliy identical to 2.12.902.
+
+commit 345c963e443ec325f1ff530512a356ddb318ff70
+Author: Zhenyu Wang <zhenyuw@linux.intel.com>
+Date:   Thu Sep 30 10:58:49 2010 +0800
+
+    Always use tiling on Sandybridge
+    
+    Sandybridge requires kind of buffer must be tiling, like depth.
+    And we would or have all tiling cases handled fine. So not allow
+    user to turn off tiling on Sandybridge+ may be fine.
+    
+    Signed-off-by: Zhenyu Wang <zhenyuw@linux.intel.com>
 
 commit d4c013cb9d92d2959c9a98eca20e43ab14ae22e3
 Author: Carl Worth <cworth@cworth.org>

@@ -38,14 +38,17 @@
 #include "intel.h"
 #include "i830_reg.h"
 #include "i915_drm.h"
+#include "i965_reg.h"
 
-#define DUMP_BATCHBUFFERS NULL /* "/tmp/i915-batchbuffers.dump" */
+#define DUMP_BATCHBUFFERS NULL // "/tmp/i915-batchbuffers.dump"
 
 static void intel_end_vertex(intel_screen_private *intel)
 {
 	if (intel->vertex_bo) {
-		if (intel->vertex_used)
+		if (intel->vertex_used) {
 			dri_bo_subdata(intel->vertex_bo, 0, intel->vertex_used*4, intel->vertex_ptr);
+			intel->vertex_used = 0;
+		}
 
 		dri_bo_unreference(intel->vertex_bo);
 		intel->vertex_bo = NULL;
@@ -58,7 +61,6 @@ void intel_next_vertex(intel_screen_private *intel)
 
 	intel->vertex_bo =
 		dri_bo_alloc(intel->bufmgr, "vertex", sizeof (intel->vertex_ptr), 4096);
-	intel->vertex_used = 0;
 }
 
 static void intel_next_batch(ScrnInfoPtr scrn)
@@ -98,11 +100,6 @@ void intel_batch_teardown(ScrnInfoPtr scrn)
 	if (intel->batch_bo != NULL) {
 		dri_bo_unreference(intel->batch_bo);
 		intel->batch_bo = NULL;
-	}
-
-	if (intel->last_batch_bo != NULL) {
-		dri_bo_unreference(intel->last_batch_bo);
-		intel->last_batch_bo = NULL;
 	}
 
 	if (intel->vertex_bo) {
@@ -147,14 +144,32 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	assert (!intel->in_batch_atomic);
 
 	/* Big hammer, look to the pipelined flushes in future. */
-	flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
-	if (IS_I965G(intel))
-		flags = 0;
+	if ((INTEL_INFO(intel)->gen >= 60)) {
+		if (intel->current_batch == BLT_BATCH) {
+			BEGIN_BATCH_BLT(4);
+			OUT_BATCH(MI_FLUSH_DW | 2);
+			OUT_BATCH(0);
+			OUT_BATCH(0);
+			OUT_BATCH(0);
+			ADVANCE_BATCH();
+		} else  {
+			BEGIN_BATCH(4);
+			OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
+			OUT_BATCH(BRW_PIPE_CONTROL_WC_FLUSH |
+				  BRW_PIPE_CONTROL_NOWRITE);
+			OUT_BATCH(0); /* write address */
+			OUT_BATCH(0); /* write data */
+			ADVANCE_BATCH();
+		}
+	} else {
+		flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+		if (INTEL_INFO(intel)->gen >= 40)
+			flags = 0;
 
-	BEGIN_BATCH(1);
-	OUT_BATCH(MI_FLUSH | flags);
-	ADVANCE_BATCH();
-
+		BEGIN_BATCH(1);
+		OUT_BATCH(MI_FLUSH | flags);
+		ADVANCE_BATCH();
+	}
 	intel_batch_do_flush(scrn);
 }
 
@@ -168,6 +183,9 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 	if (intel->vertex_flush)
 		intel->vertex_flush(intel);
 	intel_end_vertex(intel);
+
+	if (intel->batch_flush)
+		intel->batch_flush(intel);
 
 	if (flush)
 		intel_batch_emit_flush(scrn);
@@ -190,11 +208,15 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 	}
 
 	ret = dri_bo_subdata(intel->batch_bo, 0, intel->batch_used*4, intel->batch_ptr);
-	if (ret == 0)
-		ret = dri_bo_exec(intel->batch_bo, intel->batch_used*4,
-				  NULL, 0, 0xffffffff);
+	if (ret == 0) {
+		ret = drm_intel_bo_mrb_exec(intel->batch_bo,
+				intel->batch_used*4,
+				NULL, 0, 0xffffffff,
+				IS_GEN6(intel) ? intel->current_batch: I915_EXEC_DEFAULT);
+	}
+
 	if (ret != 0) {
-		if (ret == -EIO && !IS_I965G(intel)) {
+		if (ret == -EIO) {
 			static int once;
 
 			/* The GPU has hung and unlikely to recover by this point. */
@@ -240,35 +262,16 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 		free(entry);
 	}
 
-	/* Save a ref to the last batch emitted, which we use for syncing
-	 * in debug code.
-	 */
-	dri_bo_unreference(intel->last_batch_bo);
-	intel->last_batch_bo = intel->batch_bo;
-	intel->batch_bo = NULL;
+	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
+		drm_intel_bo_wait_rendering(intel->batch_bo);
 
+	dri_bo_unreference(intel->batch_bo);
 	intel_next_batch(scrn);
 
-	if (intel->debug_flush & DEBUG_FLUSH_WAIT)
-		intel_batch_wait_last(scrn);
+	if (intel->batch_commit_notify)
+		intel->batch_commit_notify(intel);
 
-	if (intel->batch_flush_notify)
-		intel->batch_flush_notify(scrn);
-}
-
-/** Waits on the last emitted batchbuffer to be completed. */
-void intel_batch_wait_last(ScrnInfoPtr scrn)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (intel->last_batch_bo == NULL)
-		return;
-
-	/* Map it CPU write, which guarantees it's done.  This is a completely
-	 * non performance path, so we don't need anything better.
-	 */
-	drm_intel_gem_bo_map_gtt(intel->last_batch_bo);
-	drm_intel_gem_bo_unmap_gtt(intel->last_batch_bo);
+	intel->current_batch = 0;
 }
 
 void intel_debug_flush(ScrnInfoPtr scrn)

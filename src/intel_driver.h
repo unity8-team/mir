@@ -201,74 +201,38 @@
 #define SUBSYS_ID(p)      (p)->subdevice_id
 #define CHIP_REVISION(p)  (p)->revision
 
-#define IS_I810(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810 ||	\
-			DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810_DC100 || \
-			DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I810_E)
-#define IS_I815(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I815)
-#define IS_I830(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I830_M)
-#define IS_845G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_845_G)
-#define IS_I85X(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I855_GM || \
-			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I854)
-#define IS_I852(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I855_GM && (pI810->variant == I852_GM || pI810->variant == I852_GME))
-#define IS_I854(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I854)
-#define IS_I855(pI810)  (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I855_GM && (pI810->variant == I855_GM || pI810->variant == I855_GME))
-#define IS_I865G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I865_G)
-#define IS_I8XX(pI810)	(IS_I830(pI810) || IS_845G(pI810) || IS_I85X(pI810) || IS_I865G(pI810))
+#define INTEL_INFO(intel) ((intel)->chipset.info)
+#define IS_GENx(intel, X) (INTEL_INFO(intel)->gen >= 10*(X) && INTEL_INFO(intel)->gen < 10*((X)+1))
+#define IS_GEN1(intel) IS_GENx(intel, 1)
+#define IS_GEN2(intel) IS_GENx(intel, 2)
+#define IS_GEN3(intel) IS_GENx(intel, 3)
+#define IS_GEN4(intel) IS_GENx(intel, 4)
+#define IS_GEN5(intel) IS_GENx(intel, 5)
+#define IS_GEN6(intel) IS_GENx(intel, 6)
+
+/* Some chips have specific errata (or limits) that we need to workaround. */
+#define IS_I830(intel) (DEVICE_ID((intel)->PciInfo) == PCI_CHIP_I830_M)
+#define IS_845G(intel) (DEVICE_ID((intel)->PciInfo) == PCI_CHIP_845_G)
+#define IS_I865G(intel) (DEVICE_ID((intel)->PciInfo) == PCI_CHIP_I865_G)
 
 #define IS_I915G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I915_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_E7221_G)
 #define IS_I915GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I915_GM)
-#define IS_I945G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_G)
-#define IS_I945GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GME)
-#define IS_IGDGM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_GM)
-#define IS_IGDG(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_G)
-#define IS_IGD(pI810) (IS_IGDG(pI810) || IS_IGDGM(pI810))
-#define IS_GM45(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_GM45_GM)
-#define IS_G4X(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_E_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G45_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q45_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G41_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_B43_G || IS_GM45(pI810))
-#define IS_I965GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME)
+
 #define IS_965_Q(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q)
-#define IS_IGDNG_D(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGDNG_D_G)
-#define IS_IGDNG_M(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGDNG_M_G)
-#define IS_IGDNG(pI810) (IS_IGDNG_D(pI810) || IS_IGDNG_M(pI810))
-#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || \
-			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || \
-			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || \
-			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || \
-			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || \
-			 DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || \
-			 IS_G4X(pI810) || \
-			 IS_IGDNG(pI810) || \
-			 IS_GEN6(pI810))
-#define IS_G33CLASS(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G33_G ||\
- 			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q35_G ||\
-			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q33_G || \
-			    IS_IGD(pI810))
 
-#define IS_I9XX(pI810) (IS_I915G(pI810) ||			\
-			IS_I915GM(pI810) ||			\
-			IS_I945G(pI810) ||			\
-			IS_I945GM(pI810) ||			\
-			IS_I965G(pI810) ||			\
-			IS_G33CLASS(pI810))
-
-#define IS_I915(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_G33CLASS(pI810))
-
-#define IS_GEN6(pI810) ((pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_GT1 || \
-			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_GT2 || \
-			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_GT2_PLUS || \
-			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_M_GT1 ||\
-			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_M_GT2 || \
-			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS ||\
-			(pI810)->PciInfo->device_id == PCI_CHIP_SANDYBRIDGE_S_GT)
-
-#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_GM45(pI810) || IS_IGD(pI810) || IS_IGDNG_M(pI810))
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
-#define SUPPORTS_YTILING(pI810) (IS_I965G(intel))
+#define SUPPORTS_YTILING(pI810) (INTEL_INFO(intel)->gen >= 40)
+
+#define ALWAYS_TILING(intel) IS_GEN6(intel)
 
 extern SymTabRec *intel_chipsets;
 
 struct intel_chipset {
     const char *name;
     int variant;
+    const struct intel_device_info {
+	    int gen;
+    } *info;
 };
 
 void intel_detect_chipset(ScrnInfoPtr scrn,

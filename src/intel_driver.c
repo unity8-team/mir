@@ -107,6 +107,7 @@ typedef enum {
    OPTION_DEBUG_FLUSH_BATCHES,
    OPTION_DEBUG_FLUSH_CACHES,
    OPTION_DEBUG_WAIT,
+   OPTION_HOTPLUG,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -125,6 +126,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_DEBUG_FLUSH_BATCHES, "DebugFlushBatches", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
+   {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -352,25 +354,21 @@ static Bool intel_open_drm_master(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct pci_device *dev = intel->PciInfo;
-	char *busid;
 	drmSetVersion sv;
 	struct drm_i915_getparam gp;
 	int err, has_gem;
+	char busid[20];
 
-	/* We wish we had asprintf, but all we get is XNFprintf. */
-	busid = XNFprintf("pci:%04x:%02x:%02x.%d",
-			  dev->domain, dev->bus, dev->dev, dev->func);
+	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
+		 dev->domain, dev->bus, dev->dev, dev->func);
 
 	intel->drmSubFD = drmOpen("i915", busid);
 	if (intel->drmSubFD == -1) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "[drm] Failed to open DRM device for %s: %s\n",
 			   busid, strerror(errno));
-		free(busid);
 		return FALSE;
 	}
-
-	free(busid);
 
 	/* Check that what we opened was a master or a master-capable FD,
 	 * by setting the version of the interface we'll use to talk to it.
@@ -464,6 +462,50 @@ static void I830XvInit(ScrnInfoPtr scrn)
 	}
 	xf86DrvMsg(scrn->scrnIndex, from, "video overlay key set to 0x%x\n",
 		   intel->colorKey);
+}
+
+static Bool can_accelerate_blt(struct intel_screen_private *intel)
+{
+	if (0 && (IS_I830(intel) || IS_845G(intel))) {
+		/* These pair of i8xx chipsets have a crippling erratum
+		 * that prevents the use of a PTE entry by the BLT
+		 * engine immediately following updating that
+		 * entry in the GATT.
+		 *
+		 * As the BLT is fundamental to our 2D acceleration,
+		 * and the workaround is lost in the midst of time,
+		 * fallback.
+		 *
+		 * XXX disabled for release as causes regressions in GL.
+		 */
+		return FALSE;
+	}
+
+	if (INTEL_INFO(intel)->gen >= 60) {
+		drm_i915_getparam_t gp;
+		int value;
+
+		/* On Sandybridge we need the BLT in order to do anything since
+		 * it so frequently used in the acceleration code paths.
+		 */
+		gp.value = &value;
+		gp.param = I915_PARAM_HAS_BLT;
+		if (drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp))
+			return FALSE;
+	}
+
+	if (INTEL_INFO(intel)->gen == 60) {
+		struct pci_device *const device = intel->PciInfo;
+
+		/* Sandybridge rev07 locks up easily, even with the
+		 * BLT ring workaround in place.
+		 * Thus use shadowfb by default.
+		 */
+		if (device->revision < 8)
+		    return FALSE;
+	}
+
+	return TRUE;
 }
 
 /**
@@ -560,28 +602,32 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 
 	intel->force_fallback =
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE) != 0;
-	intel->use_shadow = FALSE;
 
 	/* Enable tiling by default */
 	intel->tiling = TRUE;
 
 	/* Allow user override if they set a value */
-	if (xf86IsOptionSet(intel->Options, OPTION_TILING)) {
+	if (!ALWAYS_TILING(intel) && xf86IsOptionSet(intel->Options, OPTION_TILING)) {
 		if (xf86ReturnOptValBool(intel->Options, OPTION_TILING, FALSE))
 			intel->tiling = TRUE;
 		else
 			intel->tiling = FALSE;
 	}
 
+	intel->can_blt = can_accelerate_blt(intel);
+	intel->use_shadow = !intel->can_blt;
+
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
-		if (xf86ReturnOptValBool(intel->Options, OPTION_SHADOW, FALSE))
-			intel->force_fallback = intel->use_shadow = TRUE;
+		intel->use_shadow =
+			xf86ReturnOptValBool(intel->Options,
+					     OPTION_SHADOW,
+					     FALSE);
 	}
 
 	if (intel->use_shadow) {
 		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
 			   "Shadow buffer enabled,"
-			   " GPU acceleration disabled.\n");
+			   " 2D GPU acceleration disabled.\n");
 	}
 
 	/* SwapBuffers delays to avoid tearing */
@@ -663,12 +709,10 @@ void IntelEmitInvarientState(ScrnInfoPtr scrn)
 	if (intel->last_3d != LAST_3D_OTHER)
 		return;
 
-	if (!IS_I965G(intel)) {
-		if (IS_I9XX(intel))
-			I915EmitInvarientState(scrn);
-		else
-			I830EmitInvarientState(scrn);
-	}
+	if (IS_GEN2(intel))
+		I830EmitInvarientState(scrn);
+	else if IS_GEN3(intel)
+		I915EmitInvarientState(scrn);
 }
 
 static void
@@ -684,9 +728,6 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 
 	intel->BlockHandler = screen->BlockHandler;
 	screen->BlockHandler = I830BlockHandler;
-
-	if (scrn->vtSema == TRUE)
-		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE);
 
 	intel_uxa_block_handler(intel);
 	intel_video_block_handler(intel);
@@ -770,6 +811,9 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	int i, active_outputs = 0;
 
+	if (!crtc->enabled)
+		return FALSE;
+
 	/* Kernel manages CRTC status based out output config */
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
@@ -801,6 +845,110 @@ intel_flush_callback(CallbackListPtr *list,
 	}
 }
 
+#if HAVE_UDEV
+static void
+I830HandleUEvents(int fd, void *closure)
+{
+    ScrnInfoPtr scrn = closure;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+    struct udev_device *dev;
+    const char *hotplug;
+    struct stat s;
+    dev_t udev_devnum;
+
+    dev = udev_monitor_receive_device(intel->uevent_monitor);
+    if (!dev)
+	return;
+
+    udev_devnum = udev_device_get_devnum(dev);
+    fstat(intel->drmSubFD, &s);
+    /*
+     * Check to make sure this event is directed at our
+     * device (by comparing dev_t values), then make
+     * sure it's a hotplug event (HOTPLUG=1)
+     */
+
+    hotplug = udev_device_get_property_value(dev, "HOTPLUG");
+
+    if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
+	hotplug && atoi(hotplug) == 1)
+	RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+
+    udev_device_unref(dev);
+}
+
+static void
+I830UeventInit(ScrnInfoPtr scrn)
+{
+    intel_screen_private *intel = intel_get_screen_private(scrn);
+    struct udev *u;
+    struct udev_monitor *mon;
+    Bool hotplug;
+    MessageType from = X_CONFIG;
+
+    if (!xf86GetOptValBool(intel->Options, OPTION_HOTPLUG, &hotplug)) {
+	from = X_DEFAULT;
+	hotplug = TRUE;
+    }
+
+    xf86DrvMsg(scrn->scrnIndex, from, "hotplug detection: \"%s\"\n",
+	       hotplug ? "enabled" : "disabled");
+    if (!hotplug)
+	return;
+
+    u = udev_new();
+    if (!u)
+	return;
+
+    mon = udev_monitor_new_from_netlink(u, "udev");
+
+    if (!mon) {
+	udev_unref(u);
+	return;
+    }
+
+    if (udev_monitor_filter_add_match_subsystem_devtype(mon,
+							"drm",
+							"drm_minor") < 0 ||
+	udev_monitor_enable_receiving(mon) < 0)
+    {
+	udev_monitor_unref(mon);
+	udev_unref(u);
+	return;
+    }
+
+    intel->uevent_handler =
+	xf86AddGeneralHandler(udev_monitor_get_fd(mon),
+			      I830HandleUEvents,
+			      scrn);
+    if (!intel->uevent_handler) {
+	udev_monitor_unref(mon);
+	udev_unref(u);
+	return;
+    }
+
+    intel->uevent_monitor = mon;
+}
+
+static void
+I830UeventFini(ScrnInfoPtr scrn)
+{
+    intel_screen_private *intel = intel_get_screen_private(scrn);
+
+    if (intel->uevent_handler)
+    {
+	struct udev *u = udev_monitor_get_udev(intel->uevent_monitor);
+
+	xf86RemoveGeneralHandler(intel->uevent_handler);
+
+	udev_monitor_unref(intel->uevent_monitor);
+	udev_unref(u);
+	intel->uevent_handler = NULL;
+	intel->uevent_monitor = NULL;
+    }
+}
+#endif /* HAVE_UDEV */
+
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 {
@@ -811,7 +959,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	MessageType from;
 #endif
 	struct pci_device *const device = intel->PciInfo;
-	int fb_bar = IS_I9XX(intel) ? 2 : 0;
+	int fb_bar = IS_GEN2(intel) ? 0 : 2;
 
 	/*
 	 * The "VideoRam" config file parameter specifies the maximum amount of
@@ -867,7 +1015,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	intel_batch_init(scrn);
 
-	if (IS_I965G(intel))
+	if (INTEL_INFO(intel)->gen >= 40)
 		gen4_render_state_init(scrn);
 
 	miClearVisualTypes();
@@ -967,7 +1115,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 #ifdef INTEL_XVMC
-	if (IS_I965G(intel))
+	if (INTEL_INFO(intel)->gen >= 40)
 		intel->XvMCEnabled = TRUE;
 	from = ((intel->directRenderingType == DRI_DRI2) &&
 		xf86GetOptValBool(intel->Options, OPTION_XVMC,
@@ -1006,6 +1154,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	intel_mode_init(intel);
 
 	intel->suspended = FALSE;
+
+#if HAVE_UDEV
+	I830UeventInit(scrn);
+#endif
 
 	return uxa_resources_init(screen);
 }
@@ -1088,6 +1240,10 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
+#if HAVE_UDEV
+	I830UeventFini(scrn);
+#endif
+
 	if (scrn->vtSema == TRUE) {
 		I830LeaveVT(scrnIndex, 0);
 	}
@@ -1110,10 +1266,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	}
 
 	if (intel->shadow_buffer) {
-		if (IS_I8XX(intel))
-			drm_intel_bo_unreference(intel->shadow_buffer);
-		else
-			free(intel->shadow_buffer);
+		free(intel->shadow_buffer);
 		intel->shadow_buffer = NULL;
 	}
 
@@ -1126,7 +1279,7 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	intel_batch_teardown(scrn);
 
-	if (IS_I965G(intel))
+	if (INTEL_INFO(intel)->gen >= 40)
 		gen4_render_state_cleanup(scrn);
 
 	xf86_cursors_fini(screen);

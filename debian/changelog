@@ -1,42 +1,69 @@
-xserver-xorg-video-intel (2:2.13.0-5) unstable; urgency=low
+xserver-xorg-video-intel (2:2.14.0-3) unstable; urgency=low
 
-  [ Julien Cristau ]
-  * Drop the intel_pci_probe patch from -4 (closes: #606288).  This relied on
-    i915.ko getting loaded automatically, which doesn't happen if:
-    - the kernel is built without CONFIG_DRM_I915_KMS and lacks modaliases, or
-    - the user kept obsolete /etc/modprobe.d blacklists around.
-  * Use the patch from upstream instead, which tries to load the kernel driver
-    before testing for kms.
+  * Switch to dh:
+    - Use debhelper 8.
+    - Use dh-autoreconf.
+    - Bump xserver-xorg-dev build-dep for dh_xsf_substvars and xsf
+      debhelper sequence.
+    - Specify usr/share/man in .install, remove .manpages accordingly.
+    - Specify NEWS and README in .docs file.
+  * Get rid of maintainer scripts, since they were only used to handle
+    switching between versions with or without KMS. Starting with squeeze,
+    KMS is mandatory, so stop worrying about that.
+  * Remove xsfbs accordingly.
+  * Remove leftovers:
+    - NEWS file is outdated, UMS is no longer available, and that's
+      covered by README.Debian
+    - The .install.hurd-i386 file is no longer relevant, this package is
+      now Linux-only.
+  * Update Uploaders list. Thanks, David & Brice!
+  * Remove long obsolete Replaces.
+  * Wrap Depends/Provides/Recommends.
+  * Bump Standards-Version to 3.9.1 (no changes needed).
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 05 Feb 2011 14:47:04 +0100
+
+xserver-xorg-video-intel (2:2.14.0-2) experimental; urgency=low
+
+  * Cherry-pick from upstream to fix many rendering issues
+    (https://bugs.freedesktop.org/show_bug.cgi?id=33650):
+    - uxa: Undo damage translation before appending
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 04 Feb 2011 15:37:47 +0100
+
+xserver-xorg-video-intel (2:2.14.0-1) experimental; urgency=low
+
+  * New upstream release.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 08 Jan 2011 18:10:23 +0100
+
+xserver-xorg-video-intel (2:2.13.903-1) experimental; urgency=low
+
+  [ Robert Hooker ]
+  * Add libudev-dev to the build deps for monitor hotplug detection
+    events.
 
   [ Cyril Brulebois ]
-  * The “♫ we wish you a working driver ♫” release.
-  * Build, test, and upload to unstable.
+  * New upstream release candidate.
+  * Bump libdrm-dev build-dep.
+  * Drop libdrm-from-sid-is-ok.diff accordingly.
 
- -- Cyril Brulebois <kibi@debian.org>  Fri, 24 Dec 2010 19:55:18 +0100
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 04 Jan 2011 15:43:17 +0100
 
-xserver-xorg-video-intel (2:2.13.0-4) unstable; urgency=low
+xserver-xorg-video-intel (2:2.13.901-2) experimental; urgency=low
 
-  [ Julien Cristau ]
-  * Fail intel_pci_probe if we don't have a kernel mode setting driver.  This
-    allows the X server to fall back to the vesa driver instead.
+  * Build against Xserver 1.9.1 rc1.
 
-  [ Cyril Brulebois ]
-  * Build, test, and upload to unstable.
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 09 Nov 2010 15:53:43 +0100
 
- -- Cyril Brulebois <kibi@debian.org>  Tue, 07 Dec 2010 15:23:32 +0100
+xserver-xorg-video-intel (2:2.13.901-1) experimental; urgency=low
 
-xserver-xorg-video-intel (2:2.13.0-3) unstable; urgency=low
+  * New upstream release candidate.
+  * Bump build-dep on libdrm-dev: 2.4.22-2 contains some cherry-picked
+    changes to allow this release candidate to build and run.
+  * Drop patch: i8xx-shadow.diff
 
-  [ Julien Cristau ]
-  * Revert "display: outputs are enabled automatically by KMS".
-    Closes: #600405.
-
-  [ Cyril Brulebois ]
-  * Cherry-pick from upstream:
-    + a44a63d2: "Wait for any pending rendering before switching modes."
-      Hopefully we should get rid of a number of GPU hangs.
-
- -- Cyril Brulebois <kibi@debian.org>  Mon, 06 Dec 2010 04:05:07 +0100
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 09 Nov 2010 14:54:21 +0100
 
 xserver-xorg-video-intel (2:2.13.0-2) unstable; urgency=low
 

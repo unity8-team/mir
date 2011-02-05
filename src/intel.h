@@ -34,6 +34,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if 0
 #define I830DEBUG
 #endif
@@ -69,6 +73,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 #include "intel_driver.h"
+
+#if HAVE_UDEV
+#include <libudev.h>
+#endif
 
 #include "uxa.h"
 /* XXX
@@ -160,15 +168,23 @@ list_is_empty(struct list *head)
 	     pos = list_entry(pos->member.next, type, member))
 #endif
 
+/* remain compatible to xorg-server 1.6 */
+#ifndef MONITOR_EDID_COMPLETE_RAWDATA
+#define MONITOR_EDID_COMPLETE_RAWDATA EDID_COMPLETE_RAWDATA
+#endif
+
 struct intel_pixmap {
 	dri_bo *bo;
 
 	struct list flush, batch, in_flight;
 
+	uint16_t src_bound, dst_bound;
 	uint16_t stride;
 	uint8_t tiling;
 	int8_t busy :2;
 	int8_t batch_write :1;
+	int8_t offscreen :1;
+	int8_t pinned :1;
 };
 
 #if HAS_DEVPRIVATEKEYREC
@@ -275,6 +291,10 @@ typedef struct intel_screen_private {
 	unsigned char *MMIOBase;
 	int cpp;
 
+#define RENDER_BATCH			I915_EXEC_RENDER
+#define BLT_BATCH			I915_EXEC_BLT
+	unsigned int current_batch;
+
 	unsigned int bufferOffset;	/* for I830SelectBuffer */
 
 	/* These are set in PreInit and never changed. */
@@ -298,7 +318,6 @@ typedef struct intel_screen_private {
 	/** Number of bytes to be emitted in the current BEGIN_BATCH. */
 	uint32_t batch_emitting;
 	dri_bo *batch_bo;
-	dri_bo *last_batch_bo;
 	/** Whether we're in a section of code that can't tolerate flushing */
 	Bool in_batch_atomic;
 	/** Ending batch_used that was verified by intel_start_batch_atomic() */
@@ -322,6 +341,7 @@ typedef struct intel_screen_private {
 
 	Bool tiling;
 	Bool swapbuffers_wait;
+	Bool has_relaxed_fencing;
 
 	int Chipset;
 	unsigned long LinearAddr;
@@ -333,8 +353,11 @@ typedef struct intel_screen_private {
 
 	CloseScreenProcPtr CloseScreen;
 
+	void (*context_switch) (struct intel_screen_private *intel,
+				int new_mode);
 	void (*vertex_flush) (struct intel_screen_private *intel);
-	void (*batch_flush_notify) (ScrnInfoPtr scrn);
+	void (*batch_flush) (struct intel_screen_private *intel);
+	void (*batch_commit_notify) (struct intel_screen_private *intel);
 
 	uxa_driver_t *uxa_driver;
 	Bool need_sync;
@@ -363,6 +386,10 @@ typedef struct intel_screen_private {
 		drm_intel_bo *gen4_cc_vp_bo;
 		drm_intel_bo *gen4_sampler_bo;
 		drm_intel_bo *gen4_sip_kernel_bo;
+		drm_intel_bo *wm_prog_packed_bo;
+		drm_intel_bo *wm_prog_planar_bo;
+		drm_intel_bo *gen6_blend_bo;
+		drm_intel_bo *gen6_depth_stencil_bo;
 	} video;
 
 	/* Render accel state */
@@ -377,6 +404,7 @@ typedef struct intel_screen_private {
 	PixmapPtr render_current_dest;
 	Bool render_source_is_solid;
 	Bool render_mask_is_solid;
+	Bool needs_3d_invariant;
 	Bool needs_render_state_emit;
 	Bool needs_render_vertex_emit;
 	Bool needs_render_ca_pass;
@@ -395,6 +423,16 @@ typedef struct intel_screen_private {
 		uint32_t dst_format;
 	} i915_render_state;
 
+	struct {
+		int num_sf_outputs;
+		int vertex_size;
+		int vertex_type;
+		int drawrect;
+		uint32_t blend;
+		dri_bo *samplers;
+		dri_bo *kernel;
+	} gen6_render_state;
+
 	uint32_t prim_offset;
 	void (*prim_emit)(PixmapPtr dest,
 			  int srcX, int srcY,
@@ -403,11 +441,18 @@ typedef struct intel_screen_private {
 			  int w, int h);
 	int floats_per_vertex;
 	int last_floats_per_vertex;
-	uint32_t vertex_count;
-	uint32_t vertex_index;
-	uint32_t vertex_used;
+	uint16_t vertex_offset;
+	uint16_t vertex_count;
+	uint16_t vertex_index;
+	uint16_t vertex_used;
 	float vertex_ptr[4*1024];
 	dri_bo *vertex_bo;
+
+	uint8_t surface_data[16*1024];
+	uint16_t surface_used;
+	uint16_t surface_table;
+	uint32_t surface_reloc;
+	dri_bo *surface_bo;
 
 	/* 965 render acceleration state */
 	struct gen4_render_state *gen4_render_state;
@@ -420,6 +465,7 @@ typedef struct intel_screen_private {
 
 	Bool use_pageflipping;
 	Bool force_fallback;
+	Bool can_blt;
 	Bool use_shadow;
 
 	/* Broken-out options. */
@@ -435,6 +481,10 @@ typedef struct intel_screen_private {
 	 */
 	Bool fallback_debug;
 	unsigned debug_flush;
+#if HAVE_UDEV
+	struct udev_monitor *uevent_monitor;
+	InputHandlerProc uevent_handler;
+#endif
 } intel_screen_private;
 
 enum {
@@ -454,7 +504,7 @@ extern int intel_output_dpms_status(xf86OutputPtr output);
 
 extern Bool intel_do_pageflip(intel_screen_private *intel,
 			      dri_bo *new_front,
-			      void *data);
+			      void *data, int ref_crtc_hw_id);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -521,9 +571,10 @@ Bool i830_check_composite_texture(ScreenPtr screen, PicturePtr picture);
 Bool i830_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 			    PicturePtr dest, PixmapPtr sourcecPixmap,
 			    PixmapPtr maskPixmap, PixmapPtr destPixmap);
-
 void i830_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i830_vertex_flush(intel_screen_private *intel);
+
 /* i915_render.c */
 Bool i915_check_composite(int op,
 			  PicturePtr sourcec, PicturePtr mask, PicturePtr dest,
@@ -536,8 +587,8 @@ Bool i915_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 void i915_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i915_vertex_flush(intel_screen_private *intel);
-void i915_batch_flush_notify(ScrnInfoPtr scrn);
-void i830_batch_flush_notify(ScrnInfoPtr scrn);
+void i915_batch_commit_notify(intel_screen_private *intel);
+void i830_batch_commit_notify(intel_screen_private *intel);
 /* i965_render.c */
 unsigned int gen4_render_state_size(ScrnInfoPtr scrn);
 void gen4_render_state_init(ScrnInfoPtr scrn);
@@ -552,7 +603,9 @@ Bool i965_prepare_composite(int op, PicturePtr sourcec, PicturePtr mask,
 void i965_composite(PixmapPtr dest, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
-void i965_batch_flush_notify(ScrnInfoPtr scrn);
+void i965_vertex_flush(intel_screen_private *intel);
+void i965_batch_flush(intel_screen_private *intel);
+void i965_batch_commit_notify(intel_screen_private *intel);
 
 Bool intel_transform_is_affine(PictTransformPtr t);
 Bool
@@ -666,5 +719,9 @@ void intel_uxa_create_screen_resources(ScreenPtr pScreen);
 void intel_uxa_block_handler(intel_screen_private *intel);
 Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			      int num_bos);
+
+/* intel_shadow.c */
+void intel_shadow_blt(intel_screen_private *intel);
+void intel_shadow_create(struct intel_screen_private *intel);
 
 #endif /* _I830_H_ */
