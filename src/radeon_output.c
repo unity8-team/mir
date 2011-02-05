@@ -1640,7 +1640,7 @@ radeon_set_mode_for_property(xf86OutputPtr output)
 				 crtc->desiredX, crtc->desiredY)) {
 #endif
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to set mode after propery change!\n");
+			   "Failed to set mode after property change!\n");
 		return FALSE;
 	    }
 	}
