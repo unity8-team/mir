@@ -340,6 +340,7 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		 PixmapPtr pDst, int x, int y, int w, int h, int cpp)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	ScreenPtr pScreen = pDst->drawable.pScreen;
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *clip = pNv->NvClipRectangle;
 	struct nouveau_grobj *ifc = pNv->NvImageFromCpu;
@@ -413,6 +414,9 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	}
 
 	chan->flush_notify = NULL;
+
+	if (pDst == pScreen->GetScreenPixmap(pScreen))
+		FIRE_RING(chan);
 	return TRUE;
 }
 

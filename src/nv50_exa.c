@@ -372,6 +372,7 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 		  PixmapPtr pdpix, int x, int y, int w, int h, int cpp)
 {
 	NV50EXA_LOCALS(pdpix);
+	ScreenPtr pScreen = pdpix->drawable.pScreen;
 	int line_dwords = (w * cpp + 3) / 4;
 	uint32_t sifc_fmt;
 
@@ -428,6 +429,9 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 	}
 
 	chan->flush_notify = NULL;
+
+	if (pdpix == pScreen->GetScreenPixmap(pScreen))
+		FIRE_RING(chan);
 	return TRUE;
 }
 
