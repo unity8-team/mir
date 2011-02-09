@@ -596,6 +596,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	struct nouveau_device *dev;
 	NVPtr pNv;
 	MessageType from;
+	const char *reason;
 	uint64_t v;
 	int ret, i;
 
@@ -812,13 +813,23 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 
 #ifdef NOUVEAU_GETPARAM_HAS_PAGEFLIP
+	reason = ": no kernel support";
+	from = X_DEFAULT;
+
 	ret = nouveau_device_get_param(pNv->dev,
 				       NOUVEAU_GETPARAM_HAS_PAGEFLIP, &v);
-	if (!ret)
-		pNv->has_pageflip = v;
+	if (ret == 0 && v == 1) {
+		pNv->has_pageflip = TRUE;
+		if (xf86GetOptValBool(pNv->Options, OPTION_PAGE_FLIP, &pNv->has_pageflip))
+			from = X_CONFIG;
+		reason = "";
+	}
 #else
-	(void)v;
+	reason = ": not available at build time";
 #endif
+
+	xf86DrvMsg(pScrn->scrnIndex, from, "Page flipping %sabled%s\n",
+		   pNv->has_pageflip ? "en" : "dis", reason);
 
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
