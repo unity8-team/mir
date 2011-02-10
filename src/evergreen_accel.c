@@ -43,6 +43,25 @@
 #include "radeon_vbo.h"
 #include "radeon_exa_shared.h"
 
+static const uint32_t EVERGREEN_ROP[16] = {
+    RADEON_ROP3_ZERO, /* GXclear        */
+    RADEON_ROP3_DSa,  /* Gxand          */
+    RADEON_ROP3_SDna, /* GXandReverse   */
+    RADEON_ROP3_S,    /* GXcopy         */
+    RADEON_ROP3_DSna, /* GXandInverted  */
+    RADEON_ROP3_D,    /* GXnoop         */
+    RADEON_ROP3_DSx,  /* GXxor          */
+    RADEON_ROP3_DSo,  /* GXor           */
+    RADEON_ROP3_DSon, /* GXnor          */
+    RADEON_ROP3_DSxn, /* GXequiv        */
+    RADEON_ROP3_Dn,   /* GXinvert       */
+    RADEON_ROP3_SDno, /* GXorReverse    */
+    RADEON_ROP3_Sn,   /* GXcopyInverted */
+    RADEON_ROP3_DSno, /* GXorInverted   */
+    RADEON_ROP3_DSan, /* GXnand         */
+    RADEON_ROP3_ONE,  /* GXset          */
+};
+
 void
 evergreen_start_3d(ScrnInfoPtr pScrn)
 {
@@ -204,7 +223,7 @@ evergreen_set_render_target(ScrnInfoPtr pScrn, cb_config_t *cb_conf, uint32_t do
     RELOC_BATCH(cb_conf->bo, 0, domain);
     END_BATCH();
 
-    BEGIN_BATCH(24);
+    BEGIN_BATCH(33);
     EREG(CB_COLOR0_PITCH + (0x3c * cb_conf->id), pitch);
     EREG(CB_COLOR0_SLICE + (0x3c * cb_conf->id), slice);
     EREG(CB_COLOR0_VIEW + (0x3c * cb_conf->id), 0);
@@ -216,7 +235,12 @@ evergreen_set_render_target(ScrnInfoPtr pScrn, cb_config_t *cb_conf, uint32_t do
     E32(0);
     E32(0);
     E32(0);
+    EREG(CB_TARGET_MASK,                      (cb_conf->pmask << TARGET0_ENABLE_shift));
+    EREG(CB_COLOR_CONTROL,                    (EVERGREEN_ROP[cb_conf->rop] |
+					       (CB_NORMAL << CB_COLOR_CONTROL__MODE_shift)));
+    EREG(CB_BLEND0_CONTROL,                   cb_conf->blendcntl);
     END_BATCH();
+
 }
 
 static void

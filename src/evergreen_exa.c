@@ -43,25 +43,6 @@
 #include "radeon_exa_shared.h"
 #include "radeon_vbo.h"
 
-uint32_t EVERGREEN_ROP[16] = {
-    RADEON_ROP3_ZERO, /* GXclear        */
-    RADEON_ROP3_DSa,  /* Gxand          */
-    RADEON_ROP3_SDna, /* GXandReverse   */
-    RADEON_ROP3_S,    /* GXcopy         */
-    RADEON_ROP3_DSna, /* GXandInverted  */
-    RADEON_ROP3_D,    /* GXnoop         */
-    RADEON_ROP3_DSx,  /* GXxor          */
-    RADEON_ROP3_DSo,  /* GXor           */
-    RADEON_ROP3_DSon, /* GXnor          */
-    RADEON_ROP3_DSxn, /* GXequiv        */
-    RADEON_ROP3_Dn,   /* GXinvert       */
-    RADEON_ROP3_SDno, /* GXorReverse    */
-    RADEON_ROP3_Sn,   /* GXcopyInverted */
-    RADEON_ROP3_DSno, /* GXorInverted   */
-    RADEON_ROP3_DSan, /* GXnand         */
-    RADEON_ROP3_ONE,  /* GXset          */
-};
-
 Bool
 EVERGREENSetAccelState(ScrnInfoPtr pScrn,
 		       struct r600_accel_object *src0,
@@ -159,7 +140,6 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     struct radeon_accel_state *accel_state = info->accel_state;
     cb_config_t     cb_conf;
     shader_config_t vs_conf, ps_conf;
-    int pmask = 0;
     uint32_t a, r, g, b;
     float *ps_alu_consts;
     const_config_t ps_const_conf;
@@ -239,24 +219,19 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     }
     cb_conf.source_format = EXPORT_4C_16BPC;
     cb_conf.blend_clamp = 1;
-    evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
-
     /* Render setup */
     if (accel_state->planemask & 0x000000ff)
-	pmask |= 4; /* B */
+	cb_conf.pmask |= 4; /* B */
     if (accel_state->planemask & 0x0000ff00)
-	pmask |= 2; /* G */
+	cb_conf.pmask |= 2; /* G */
     if (accel_state->planemask & 0x00ff0000)
-	pmask |= 1; /* R */
+	cb_conf.pmask |= 1; /* R */
     if (accel_state->planemask & 0xff000000)
-	pmask |= 8; /* A */
+	cb_conf.pmask |= 8; /* A */
+    cb_conf.rop = accel_state->rop;
+    evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
-    BEGIN_BATCH(23);
-    EREG(CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
-    EREG(CB_COLOR_CONTROL,                    (EVERGREEN_ROP[accel_state->rop] |
-					       (CB_NORMAL << CB_COLOR_CONTROL__MODE_shift)));
-    EREG(CB_BLEND0_CONTROL,                   0);
-
+    BEGIN_BATCH(14);
     /* Interpolator setup */
     /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
     EREG(SPI_VS_OUT_CONFIG, (0 << VS_EXPORT_COUNT_shift));
@@ -363,7 +338,6 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    int pmask = 0;
     cb_config_t     cb_conf;
     tex_resource_t  tex_res;
     tex_sampler_t   tex_samp;
@@ -465,24 +439,19 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     }
     cb_conf.source_format = EXPORT_4C_16BPC;
     cb_conf.blend_clamp = 1;
-    evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
-
     /* Render setup */
     if (accel_state->planemask & 0x000000ff)
-	pmask |= 4; /* B */
+	cb_conf.pmask |= 4; /* B */
     if (accel_state->planemask & 0x0000ff00)
-	pmask |= 2; /* G */
+	cb_conf.pmask |= 2; /* G */
     if (accel_state->planemask & 0x00ff0000)
-	pmask |= 1; /* R */
+	cb_conf.pmask |= 1; /* R */
     if (accel_state->planemask & 0xff000000)
-	pmask |= 8; /* A */
+	cb_conf.pmask |= 8; /* A */
+    cb_conf.rop = accel_state->rop;
+    evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
-    BEGIN_BATCH(23);
-    EREG(CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
-    EREG(CB_COLOR_CONTROL,                    (EVERGREEN_ROP[accel_state->rop] |
-					       (CB_NORMAL << CB_COLOR_CONTROL__MODE_shift)));
-    EREG(CB_BLEND0_CONTROL,                   0);
-
+    BEGIN_BATCH(14);
     /* Interpolator setup */
     /* export tex coord from VS */
     EREG(SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
@@ -1191,7 +1160,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     ScrnInfoPtr pScrn = xf86Screens[pSrc->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    uint32_t blendcntl, dst_format;
+    uint32_t dst_format;
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
     const_config_t vs_const_conf;
@@ -1361,16 +1330,13 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     }
     cb_conf.source_format = EXPORT_4C_16BPC;
     cb_conf.blend_clamp = 1;
+    cb_conf.blendcntl = EVERGREENGetBlendCntl(op, pMaskPicture, pDstPicture->format);
+    cb_conf.blendcntl |= CB_BLEND0_CONTROL__ENABLE_bit;
+    cb_conf.rop = 3;
+    cb_conf.pmask = 0xf;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
-    blendcntl = EVERGREENGetBlendCntl(op, pMaskPicture, pDstPicture->format);
-
-    BEGIN_BATCH(24);
-    EREG(CB_TARGET_MASK,                      (0xf << TARGET0_ENABLE_shift));
-    EREG(CB_COLOR_CONTROL,                    (EVERGREEN_ROP[3] |
-					       (CB_NORMAL << CB_COLOR_CONTROL__MODE_shift)));
-    EREG(CB_BLEND0_CONTROL,                   blendcntl | CB_BLEND0_CONTROL__ENABLE_bit);
-
+    BEGIN_BATCH(15);
     /* Interpolator setup */
     if (pMask) {
 	/* export 2 tex coords from VS */

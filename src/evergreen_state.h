@@ -86,6 +86,11 @@ typedef struct {
     int fast_clear;
     int compression;
     int rat;
+    /* 2D related CB state */
+    uint32_t pmask;
+    int rop;
+    int blend_enable;
+    uint32_t blendcntl;
     struct radeon_bo *bo;
 } cb_config_t;
 

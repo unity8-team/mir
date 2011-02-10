@@ -423,15 +423,12 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     cb_conf.source_format = EXPORT_4C_16BPC;
     cb_conf.blend_clamp = 1;
+    cb_conf.pmask = 0xf;
+    cb_conf.rop = 3;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
     /* Render setup */
-    BEGIN_BATCH(23);
-    EREG(CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
-    EREG(CB_COLOR_CONTROL,                    ((0xcc << ROP3_shift) |
-					       (CB_NORMAL << CB_COLOR_CONTROL__MODE_shift)));
-    EREG(CB_BLEND0_CONTROL,                   0);
-
+    BEGIN_BATCH(14);
     /* Interpolator setup */
     /* export tex coords from VS */
     EREG(SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
