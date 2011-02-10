@@ -427,23 +427,7 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.rop = 3;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
-    /* Render setup */
-    BEGIN_BATCH(14);
-    /* Interpolator setup */
-    /* export tex coords from VS */
-    EREG(SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
-    EREG(SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
-    EREG(SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
-					       (0x03 << DEFAULT_VAL_shift)));
-
-    /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
-     * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
-    PACK0(SPI_PS_IN_CONTROL_0, 3);
-    E32(((1 << NUM_INTERP_shift) |
-	 LINEAR_GRADIENT_ENA_bit)); // SPI_PS_IN_CONTROL_0
-    E32(0); // SPI_PS_IN_CONTROL_1
-    E32(0); // SPI_INTERP_CONTROL_0
-    END_BATCH();
+    evergreen_set_spi(pScrn, (1 - 1), 1);
 
     /* PS alu constants */
     ps_const_conf.size_bytes = 256;

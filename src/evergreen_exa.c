@@ -231,26 +231,7 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     cb_conf.rop = accel_state->rop;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
-    BEGIN_BATCH(14);
-    /* Interpolator setup */
-    /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
-    EREG(SPI_VS_OUT_CONFIG, (0 << VS_EXPORT_COUNT_shift));
-    EREG(SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
-    /* color semantic id 0 -> GPR[0] */
-    EREG(SPI_PS_INPUT_CNTL_0 + (0 << 2),       ((0    << SEMANTIC_shift)	|
-						(0x03 << DEFAULT_VAL_shift)	|
-						FLAT_SHADE_bit));
-
-    /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
-     * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
-    /* no VS exports as PS input (NUM_INTERP is not zero based, no minus one) */
-    PACK0(SPI_PS_IN_CONTROL_0, 3);
-    E32(((0 << NUM_INTERP_shift) |
-	 LINEAR_GRADIENT_ENA_bit)); // SPI_PS_IN_CONTROL_0
-    E32(0); // SPI_PS_IN_CONTROL_1
-    E32(FLAT_SHADE_ENA_bit); // SPI_INTERP_CONTROL_0
-    END_BATCH();
-
+    evergreen_set_spi(pScrn, 0, 0);
 
     /* PS alu constants */
     ps_const_conf.size_bytes = 256;
@@ -451,24 +432,7 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     cb_conf.rop = accel_state->rop;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
-    BEGIN_BATCH(14);
-    /* Interpolator setup */
-    /* export tex coord from VS */
-    EREG(SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
-    EREG(SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
-    /* color semantic id 0 -> GPR[0] */
-    EREG(SPI_PS_INPUT_CNTL_0 + (0 << 2),       ((0    << SEMANTIC_shift)	|
-						(0x01 << DEFAULT_VAL_shift)));
-
-    /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
-     * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
-    /* input tex coord from VS */
-    PACK0(SPI_PS_IN_CONTROL_0, 3);
-    E32(((1 << NUM_INTERP_shift) |
-	 LINEAR_GRADIENT_ENA_bit)); // SPI_PS_IN_CONTROL_0
-    E32(0); //SPI_PS_IN_CONTROL_1
-    E32(0); // SPI_INTERP_CONTROL_0
-    END_BATCH();
+    evergreen_set_spi(pScrn, (1 - 1), 1);
 
 }
 
@@ -1336,42 +1300,10 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.pmask = 0xf;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
-    BEGIN_BATCH(15);
-    /* Interpolator setup */
-    if (pMask) {
-	/* export 2 tex coords from VS */
-	EREG(SPI_VS_OUT_CONFIG, ((2 - 1) << VS_EXPORT_COUNT_shift));
-	/* src = semantic id 0; mask = semantic id 1 */
-	EREG(SPI_VS_OUT_ID_0, ((0 << SEMANTIC_0_shift) |
-			       (1 << SEMANTIC_1_shift)));
-    } else {
-	/* export 1 tex coords from VS */
-	EREG(SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
-	/* src = semantic id 0 */
-	EREG(SPI_VS_OUT_ID_0,   (0 << SEMANTIC_0_shift));
-    }
-
-    PACK0(SPI_PS_INPUT_CNTL_0 + (0 << 2), 2);
-    /* SPI_PS_INPUT_CNTL_0 maps to GPR[0] - load with semantic id 0 */
-    E32(((0    << SEMANTIC_shift)	|
-	 (0x01 << DEFAULT_VAL_shift)));
-    /* SPI_PS_INPUT_CNTL_1 maps to GPR[1] - load with semantic id 1 */
-    E32(((1    << SEMANTIC_shift)	|
-	 (0x01 << DEFAULT_VAL_shift)));
-
-    PACK0(SPI_PS_IN_CONTROL_0, 3);
-    if (pMask) {
-	/* input 2 tex coords from VS */
-	E32(((2 << NUM_INTERP_shift) |
-	     LINEAR_GRADIENT_ENA_bit)); // SPI_PS_IN_CONTROL_0
-    } else {
-	/* input 1 tex coords from VS */
-	E32(((1 << NUM_INTERP_shift) |
-	     LINEAR_GRADIENT_ENA_bit)); // SPI_PS_IN_CONTROL_0
-    }
-    E32(0); // SPI_PS_IN_CONTROL_1
-    E32(0); // SPI_INTERP_CONTROL_0
-    END_BATCH();
+    if (pMask)
+	evergreen_set_spi(pScrn, (2 - 1), 2);
+    else
+	evergreen_set_spi(pScrn, (1 - 1), 1);
 
     /* VS alu constants */
     vs_const_conf.size_bytes = 256;

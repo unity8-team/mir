@@ -295,6 +295,8 @@ evergreen_set_render_target(ScrnInfoPtr pScrn, cb_config_t *cb_conf, uint32_t do
 void
 evergreen_cp_wait_vline_sync(ScrnInfoPtr pScrn, PixmapPtr pPix, xf86CrtcPtr crtc, int start, int stop);
 void
+evergreen_set_spi(ScrnInfoPtr pScrn, int vs_export_count, int num_interp);
+void
 evergreen_fs_setup(ScrnInfoPtr pScrn, shader_config_t *fs_conf, uint32_t domain);
 void
 evergreen_vs_setup(ScrnInfoPtr pScrn, shader_config_t *vs_conf, uint32_t domain);

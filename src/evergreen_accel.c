@@ -327,6 +327,22 @@ void evergreen_cp_wait_vline_sync(ScrnInfoPtr pScrn, PixmapPtr pPix,
 }
 
 void
+evergreen_set_spi(ScrnInfoPtr pScrn, int vs_export_count, int num_interp)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    BEGIN_BATCH(8);
+    /* Interpolator setup */
+    EREG(SPI_VS_OUT_CONFIG, (vs_export_count << VS_EXPORT_COUNT_shift));
+    PACK0(SPI_PS_IN_CONTROL_0, 3);
+    E32(((num_interp << NUM_INTERP_shift) |
+	 LINEAR_GRADIENT_ENA_bit)); // SPI_PS_IN_CONTROL_0
+    E32(0); // SPI_PS_IN_CONTROL_1
+    E32(0); // SPI_INTERP_CONTROL_0
+    END_BATCH();
+}
+
+void
 evergreen_fs_setup(ScrnInfoPtr pScrn, shader_config_t *fs_conf, uint32_t domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -1043,7 +1059,7 @@ evergreen_set_default_state(ScrnInfoPtr pScrn)
     for (i = 0; i < PA_SC_VPORT_SCISSOR_0_TL_num; i++)
 	evergreen_set_vport_scissor (pScrn, i, 0, 0, 8192, 8192);
 
-    BEGIN_BATCH(50);
+    BEGIN_BATCH(57);
     PACK0(PA_SC_MODE_CNTL_0, 2);
     E32(0); // PA_SC_MODE_CNTL_0
     E32(0); // PA_SC_MODE_CNTL_1
@@ -1086,6 +1102,17 @@ evergreen_set_default_state(ScrnInfoPtr pScrn)
     E32(0);
     E32(0);
     E32(0);
+
+    /* src = semantic id 0; mask = semantic id 1 */
+    EREG(SPI_VS_OUT_ID_0, ((0 << SEMANTIC_0_shift) |
+			   (1 << SEMANTIC_1_shift)));
+    PACK0(SPI_PS_INPUT_CNTL_0 + (0 << 2), 2);
+    /* SPI_PS_INPUT_CNTL_0 maps to GPR[0] - load with semantic id 0 */
+    E32(((0    << SEMANTIC_shift)	|
+	 (0x01 << DEFAULT_VAL_shift)));
+    /* SPI_PS_INPUT_CNTL_1 maps to GPR[1] - load with semantic id 1 */
+    E32(((1    << SEMANTIC_shift)	|
+	 (0x01 << DEFAULT_VAL_shift)));
 
     PACK0(SPI_INPUT_Z, 8);
     E32(0); // SPI_INPUT_Z
