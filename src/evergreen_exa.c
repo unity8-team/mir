@@ -43,108 +43,6 @@
 #include "radeon_exa_shared.h"
 #include "radeon_vbo.h"
 
-Bool
-EVERGREENSetAccelState(ScrnInfoPtr pScrn,
-		       struct r600_accel_object *src0,
-		       struct r600_accel_object *src1,
-		       struct r600_accel_object *dst,
-		       uint32_t vs_offset, uint32_t ps_offset,
-		       int rop, Pixel planemask)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-    uint32_t pitch = 0;
-    int ret;
-
-    if (src0) {
-	memcpy(&accel_state->src_obj[0], src0, sizeof(struct r600_accel_object));
-	accel_state->src_size[0] = src0->pitch * src0->height * (src0->bpp/8);
-	ret = radeon_bo_get_tiling(accel_state->src_obj[0].bo,
-				   &accel_state->src_obj[0].tiling_flags,
-				   &pitch);
-	if (ret)
-	    RADEON_FALLBACK(("src0 radeon_bo_get_tiling failed\n"));
-    } else {
-	memset(&accel_state->src_obj[0], 0, sizeof(struct r600_accel_object));
-	accel_state->src_size[0] = 0;
-    }
-
-    if (src1) {
-	memcpy(&accel_state->src_obj[1], src1, sizeof(struct r600_accel_object));
-	accel_state->src_size[1] = src1->pitch * src1->height * (src1->bpp/8);
-	ret = radeon_bo_get_tiling(accel_state->src_obj[1].bo,
-				   &accel_state->src_obj[1].tiling_flags,
-				   &pitch);
-	if (ret)
-	    RADEON_FALLBACK(("src1 radeon_bo_get_tiling failed\n"));
-    } else {
-	memset(&accel_state->src_obj[1], 0, sizeof(struct r600_accel_object));
-	accel_state->src_size[1] = 0;
-    }
-
-    if (dst) {
-	memcpy(&accel_state->dst_obj, dst, sizeof(struct r600_accel_object));
-	accel_state->dst_size = dst->pitch * dst->height * (dst->bpp/8);
-	ret = radeon_bo_get_tiling(accel_state->dst_obj.bo,
-				   &accel_state->dst_obj.tiling_flags,
-				   &pitch);
-	if (ret)
-	    RADEON_FALLBACK(("dst radeon_bo_get_tiling failed\n"));
-    } else {
-	memset(&accel_state->dst_obj, 0, sizeof(struct r600_accel_object));
-	accel_state->dst_size = 0;
-    }
-
-    accel_state->rop = rop;
-    accel_state->planemask = planemask;
-
-    /* bad pitch */
-    if (accel_state->src_obj[0].pitch & 7)
-	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[0].pitch));
-
-    /* bad offset */
-    if (accel_state->src_obj[0].offset & 0xff)
-	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_obj[0].offset));
-
-    /* bad pitch */
-    if (accel_state->src_obj[1].pitch & 7)
-	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[1].pitch));
-
-    /* bad offset */
-    if (accel_state->src_obj[1].offset & 0xff)
-	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_obj[1].offset));
-
-    if (accel_state->dst_obj.pitch & 7)
-	RADEON_FALLBACK(("Bad dst pitch 0x%08x\n", accel_state->dst_obj.pitch));
-
-    if (accel_state->dst_obj.offset & 0xff)
-	RADEON_FALLBACK(("Bad dst offset 0x%08x\n", accel_state->dst_obj.offset));
-
-    accel_state->vs_size = 512;
-    accel_state->ps_size = 512;
-
-    accel_state->vs_mc_addr = vs_offset;
-    accel_state->ps_mc_addr = ps_offset;
-
-    radeon_cs_space_reset_bos(info->cs);
-    radeon_cs_space_add_persistent_bo(info->cs, accel_state->shaders_bo,
-				      RADEON_GEM_DOMAIN_VRAM, 0);
-    if (accel_state->src_obj[0].bo)
-	radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_obj[0].bo,
-					  accel_state->src_obj[0].domain, 0);
-    if (accel_state->src_obj[1].bo)
-	radeon_cs_space_add_persistent_bo(info->cs, accel_state->src_obj[1].bo,
-					  accel_state->src_obj[1].domain, 0);
-    if (accel_state->dst_obj.bo)
-	radeon_cs_space_add_persistent_bo(info->cs, accel_state->dst_obj.bo,
-					  0, accel_state->dst_obj.domain);
-    ret = radeon_cs_space_check(info->cs);
-    if (ret)
-	RADEON_FALLBACK(("Not enough RAM to hw accel operation\n"));
-
-    return TRUE;
-}
-
 static void
 EVERGREENDoneSolid(PixmapPtr pPix);
 
@@ -177,12 +75,12 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     dst.bpp = pPix->drawable.bitsPerPixel;
     dst.domain = RADEON_GEM_DOMAIN_VRAM;
 
-    if (!EVERGREENSetAccelState(pScrn,
-				NULL,
-				NULL,
-				&dst,
-				accel_state->solid_vs_offset, accel_state->solid_ps_offset,
-				alu, pm))
+    if (!R600SetAccelState(pScrn,
+			   NULL,
+			   NULL,
+			   &dst,
+			   accel_state->solid_vs_offset, accel_state->solid_ps_offset,
+			   alu, pm))
 	return FALSE;
 
     CLEAR (cb_conf);
@@ -552,12 +450,12 @@ EVERGREENPrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     dst_obj.bpp = pDst->drawable.bitsPerPixel;
     dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
 
-    if (!EVERGREENSetAccelState(pScrn,
-				&src_obj,
-				NULL,
-				&dst_obj,
-				accel_state->copy_vs_offset, accel_state->copy_ps_offset,
-				rop, planemask))
+    if (!R600SetAccelState(pScrn,
+			   &src_obj,
+			   NULL,
+			   &dst_obj,
+			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
+			   rop, planemask))
 	return FALSE;
 
     if (accel_state->same_surface == TRUE) {
@@ -1188,12 +1086,12 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
 	mask_obj.bpp = pMask->drawable.bitsPerPixel;
 	mask_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
 
-	if (!EVERGREENSetAccelState(pScrn,
-				    &src_obj,
-				    &mask_obj,
-				    &dst_obj,
-				    accel_state->comp_vs_offset, accel_state->comp_ps_offset,
-				    3, 0xffffffff))
+	if (!R600SetAccelState(pScrn,
+			       &src_obj,
+			       &mask_obj,
+			       &dst_obj,
+			       accel_state->comp_vs_offset, accel_state->comp_ps_offset,
+			       3, 0xffffffff))
 	    return FALSE;
 
 	accel_state->msk_pic = pMaskPicture;
@@ -1208,12 +1106,12 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
 	    accel_state->src_alpha = FALSE;
 	}
     } else {
-	if (!EVERGREENSetAccelState(pScrn,
-				    &src_obj,
-				    NULL,
-				    &dst_obj,
-				    accel_state->comp_vs_offset, accel_state->comp_ps_offset,
-				    3, 0xffffffff))
+	if (!R600SetAccelState(pScrn,
+			       &src_obj,
+			       NULL,
+			       &dst_obj,
+			       accel_state->comp_vs_offset, accel_state->comp_ps_offset,
+			       3, 0xffffffff))
 	    return FALSE;
 
 	accel_state->msk_pic = NULL;
@@ -1506,12 +1404,12 @@ EVERGREENUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
     dst_obj.bo = radeon_get_pixmap_bo(pDst);
 
-    if (!EVERGREENSetAccelState(pScrn,
-				&src_obj,
-				NULL,
-				&dst_obj,
-				accel_state->copy_vs_offset, accel_state->copy_ps_offset,
-				3, 0xffffffff)) {
+    if (!R600SetAccelState(pScrn,
+			   &src_obj,
+			   NULL,
+			   &dst_obj,
+			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
+			   3, 0xffffffff)) {
         goto copy;
     }
     copy_dst = scratch;
@@ -1647,12 +1545,12 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
     dst_obj.bpp = bpp;
     dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
 
-    if (!EVERGREENSetAccelState(pScrn,
-				&src_obj,
-				NULL,
-				&dst_obj,
-				accel_state->copy_vs_offset, accel_state->copy_ps_offset,
-				3, 0xffffffff)) {
+    if (!R600SetAccelState(pScrn,
+			   &src_obj,
+			   NULL,
+			   &dst_obj,
+			   accel_state->copy_vs_offset, accel_state->copy_ps_offset,
+			   3, 0xffffffff)) {
 	goto copy;
     }
 

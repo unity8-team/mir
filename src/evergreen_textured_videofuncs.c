@@ -180,12 +180,12 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     dst_obj.bpp = pPixmap->drawable.bitsPerPixel;
     dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
 
-    if (!EVERGREENSetAccelState(pScrn,
-				&src_obj,
-				NULL,
-				&dst_obj,
-				accel_state->xv_vs_offset, accel_state->xv_ps_offset,
-				3, 0xffffffff))
+    if (!R600SetAccelState(pScrn,
+			   &src_obj,
+			   NULL,
+			   &dst_obj,
+			   accel_state->xv_vs_offset, accel_state->xv_ps_offset,
+			   3, 0xffffffff))
 	return;
 
 #ifdef COMPOSITE
