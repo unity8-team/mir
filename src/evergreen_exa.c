@@ -53,11 +53,17 @@ EVERGREENSetAccelState(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
+    uint32_t pitch = 0;
     int ret;
 
     if (src0) {
 	memcpy(&accel_state->src_obj[0], src0, sizeof(struct r600_accel_object));
 	accel_state->src_size[0] = src0->pitch * src0->height * (src0->bpp/8);
+	ret = radeon_bo_get_tiling(accel_state->src_obj[0].bo,
+				   &accel_state->src_obj[0].tiling_flags,
+				   &pitch);
+	if (ret)
+	    RADEON_FALLBACK(("src0 radeon_bo_get_tiling failed\n"));
     } else {
 	memset(&accel_state->src_obj[0], 0, sizeof(struct r600_accel_object));
 	accel_state->src_size[0] = 0;
@@ -66,6 +72,11 @@ EVERGREENSetAccelState(ScrnInfoPtr pScrn,
     if (src1) {
 	memcpy(&accel_state->src_obj[1], src1, sizeof(struct r600_accel_object));
 	accel_state->src_size[1] = src1->pitch * src1->height * (src1->bpp/8);
+	ret = radeon_bo_get_tiling(accel_state->src_obj[1].bo,
+				   &accel_state->src_obj[1].tiling_flags,
+				   &pitch);
+	if (ret)
+	    RADEON_FALLBACK(("src1 radeon_bo_get_tiling failed\n"));
     } else {
 	memset(&accel_state->src_obj[1], 0, sizeof(struct r600_accel_object));
 	accel_state->src_size[1] = 0;
@@ -74,6 +85,11 @@ EVERGREENSetAccelState(ScrnInfoPtr pScrn,
     if (dst) {
 	memcpy(&accel_state->dst_obj, dst, sizeof(struct r600_accel_object));
 	accel_state->dst_size = dst->pitch * dst->height * (dst->bpp/8);
+	ret = radeon_bo_get_tiling(accel_state->dst_obj.bo,
+				   &accel_state->dst_obj.tiling_flags,
+				   &pitch);
+	if (ret)
+	    RADEON_FALLBACK(("dst radeon_bo_get_tiling failed\n"));
     } else {
 	memset(&accel_state->dst_obj, 0, sizeof(struct r600_accel_object));
 	accel_state->dst_size = 0;
@@ -229,6 +245,8 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (accel_state->planemask & 0xff000000)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
+    if (accel_state->dst_obj.tiling_flags == 0)
+	cb_conf.array_mode = 1;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
     evergreen_set_spi(pScrn, 0, 0);
@@ -391,6 +409,8 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
+    if (accel_state->src_obj[0].tiling_flags == 0)
+	tex_res.array_mode          = 1;
     evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
     tex_samp.id                 = 0;
@@ -430,6 +450,8 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     if (accel_state->planemask & 0xff000000)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
+    if (accel_state->dst_obj.tiling_flags == 0)
+	cb_conf.array_mode = 1;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
     evergreen_set_spi(pScrn, (1 - 1), 1);
@@ -990,6 +1012,8 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
+    if (accel_state->src_obj[unit].tiling_flags == 0)
+	tex_res.array_mode          = 1;
     evergreen_set_tex_resource  (pScrn, &tex_res, accel_state->src_obj[unit].domain);
 
     tex_samp.id                 = unit;
@@ -1298,6 +1322,8 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.blendcntl |= CB_BLEND0_CONTROL__ENABLE_bit;
     cb_conf.rop = 3;
     cb_conf.pmask = 0xf;
+    if (accel_state->dst_obj.tiling_flags == 0)
+	cb_conf.array_mode = 1;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
     if (pMask)

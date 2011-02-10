@@ -683,6 +683,7 @@ struct r600_accel_object {
     int bpp;
     uint32_t domain;
     struct radeon_bo *bo;
+    uint32_t tiling_flags;
 };
 
 struct radeon_vbo_object {

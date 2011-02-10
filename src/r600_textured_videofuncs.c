@@ -280,6 +280,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.last_level          = 0;
 	tex_res.perf_modulation     = 0;
 	tex_res.interlaced          = 0;
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.tile_mode           = 1;
 	r600_set_tex_resource(pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
 	/* Y sampler */
@@ -311,6 +313,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planev_offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planev_offset;
 	tex_res.size                = tex_res.pitch * (pPriv->h >> 1);
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.tile_mode           = 1;
 	r600_set_tex_resource(pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
 	/* U or V sampler */
@@ -332,6 +336,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planeu_offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planeu_offset;
 	tex_res.size                = tex_res.pitch * (pPriv->h >> 1);
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.tile_mode           = 1;
 	r600_set_tex_resource(pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
 	/* UV sampler */
@@ -370,6 +376,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.last_level          = 0;
 	tex_res.perf_modulation     = 0;
 	tex_res.interlaced          = 0;
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.tile_mode           = 1;
 	r600_set_tex_resource(pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
 	/* Y sampler */
@@ -406,6 +414,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.base                = accel_state->src_obj[0].offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset;
 	tex_res.size                = accel_state->src_size[0];
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.tile_mode           = 1;
 	r600_set_tex_resource(pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
 	/* UV sampler */
@@ -442,6 +452,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.blend_clamp = 1;
     cb_conf.pmask = 0xf;
     cb_conf.rop = 3;
+    if (accel_state->dst_obj.tiling_flags == 0)
+	cb_conf.array_mode = 1;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     r600_set_spi(pScrn, accel_state->ib, (1 - 1), 1);

@@ -265,6 +265,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.last_level          = 0;
 	tex_res.perf_modulation     = 0;
 	tex_res.interlaced          = 0;
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.array_mode          = 1;
 	evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
 	/* Y sampler */
@@ -296,6 +298,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planev_offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planev_offset;
 	tex_res.size                = tex_res.pitch * (pPriv->h >> 1);
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.array_mode          = 1;
 	evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
 	/* U or V sampler */
@@ -317,6 +321,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.base                = accel_state->src_obj[0].offset + pPriv->planeu_offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset + pPriv->planeu_offset;
 	tex_res.size                = tex_res.pitch * (pPriv->h >> 1);
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.array_mode          = 1;
 	evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
 	/* UV sampler */
@@ -354,6 +360,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.last_level          = 0;
 	tex_res.perf_modulation     = 0;
 	tex_res.interlaced          = 0;
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.array_mode          = 1;
 	evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
 	/* Y sampler */
@@ -389,6 +397,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.base                = accel_state->src_obj[0].offset;
 	tex_res.mip_base            = accel_state->src_obj[0].offset;
 	tex_res.size                = accel_state->src_size[0];
+	if (accel_state->src_obj[0].tiling_flags == 0)
+	    tex_res.array_mode          = 1;
 	evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
 	/* UV sampler */
@@ -425,6 +435,8 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.blend_clamp = 1;
     cb_conf.pmask = 0xf;
     cb_conf.rop = 3;
+    if (accel_state->dst_obj.tiling_flags == 0)
+	cb_conf.array_mode = 1;
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
     evergreen_set_spi(pScrn, (1 - 1), 1);

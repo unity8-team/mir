@@ -53,10 +53,23 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
+    uint32_t pitch = 0;
+#if defined(XF86DRM_MODE)
+    int ret;
+#endif
 
     if (src0) {
 	memcpy(&accel_state->src_obj[0], src0, sizeof(struct r600_accel_object));
 	accel_state->src_size[0] = src0->pitch * src0->height * (src0->bpp/8);
+#if defined(XF86DRM_MODE)
+	if (info->cs) {
+	    ret = radeon_bo_get_tiling(accel_state->src_obj[0].bo,
+				       &accel_state->src_obj[0].tiling_flags,
+				       &pitch);
+	    if (ret)
+		RADEON_FALLBACK(("src0 radeon_bo_get_tiling failed\n"));
+	}
+#endif
     } else {
 	memset(&accel_state->src_obj[0], 0, sizeof(struct r600_accel_object));
 	accel_state->src_size[0] = 0;
@@ -65,6 +78,15 @@ R600SetAccelState(ScrnInfoPtr pScrn,
     if (src1) {
 	memcpy(&accel_state->src_obj[1], src1, sizeof(struct r600_accel_object));
 	accel_state->src_size[1] = src1->pitch * src1->height * (src1->bpp/8);
+#if defined(XF86DRM_MODE)
+	if (info->cs) {
+	    ret = radeon_bo_get_tiling(accel_state->src_obj[1].bo,
+				       &accel_state->src_obj[1].tiling_flags,
+				       &pitch);
+	    if (ret)
+		RADEON_FALLBACK(("src1 radeon_bo_get_tiling failed\n"));
+	}
+#endif
     } else {
 	memset(&accel_state->src_obj[1], 0, sizeof(struct r600_accel_object));
 	accel_state->src_size[1] = 0;
@@ -73,6 +95,15 @@ R600SetAccelState(ScrnInfoPtr pScrn,
     if (dst) {
 	memcpy(&accel_state->dst_obj, dst, sizeof(struct r600_accel_object));
 	accel_state->dst_size = dst->pitch * dst->height * (dst->bpp/8);
+#if defined(XF86DRM_MODE)
+	if (info->cs) {
+	    ret = radeon_bo_get_tiling(accel_state->dst_obj.bo,
+				       &accel_state->dst_obj.tiling_flags,
+				       &pitch);
+	    if (ret)
+		RADEON_FALLBACK(("dst radeon_bo_get_tiling failed\n"));
+	}
+#endif
     } else {
 	memset(&accel_state->dst_obj, 0, sizeof(struct r600_accel_object));
 	accel_state->dst_size = 0;
@@ -107,7 +138,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
     accel_state->ps_size = 512;
 #if defined(XF86DRM_MODE)
     if (info->cs) {
-	int ret;
 	accel_state->vs_mc_addr = vs_offset;
 	accel_state->ps_mc_addr = ps_offset;
 
@@ -243,6 +273,8 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (accel_state->planemask & 0xff000000)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
+    if (accel_state->dst_obj.tiling_flags == 0)
+	cb_conf.array_mode = 1;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     r600_set_spi(pScrn, accel_state->ib, 0, 0);
@@ -402,6 +434,8 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
+    if (accel_state->src_obj[0].tiling_flags == 0)
+	tex_res.tile_mode           = 1;
     r600_set_tex_resource(pScrn, accel_state->ib, &tex_res, accel_state->src_obj[0].domain);
 
     tex_samp.id                 = 0;
@@ -442,6 +476,8 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     if (accel_state->planemask & 0xff000000)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
+    if (accel_state->dst_obj.tiling_flags == 0)
+	cb_conf.array_mode = 1;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     r600_set_spi(pScrn, accel_state->ib, (1 - 1), 1);
@@ -1003,6 +1039,8 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
+    if (accel_state->src_obj[unit].tiling_flags == 0)
+	tex_res.tile_mode           = 1;
     r600_set_tex_resource(pScrn, accel_state->ib, &tex_res, accel_state->src_obj[unit].domain);
 
     tex_samp.id                 = unit;
@@ -1350,6 +1388,8 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.blend_enable = 1;
     cb_conf.pmask = 0xf;
     cb_conf.rop = 3;
+    if (accel_state->dst_obj.tiling_flags == 0)
+	cb_conf.array_mode = 1;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     if (pMask)

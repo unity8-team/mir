@@ -1130,10 +1130,8 @@ int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling)
 			/* further restrictions for scanout */
 			pitch_align = MAX(info->group_bytes / bpe, pitch_align);
 		} else {
-			/* general surface requirements */
-			pitch_align = info->group_bytes / bpe;
-			/* further restrictions for scanout */
-			pitch_align = MAX(32, pitch_align);
+			/* linear aligned requirements */
+			pitch_align = MAX(64, info->group_bytes / bpe);
 		}
 	} else {
 		/* general surface requirements */
