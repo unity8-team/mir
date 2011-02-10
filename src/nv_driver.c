@@ -384,15 +384,18 @@ NVBlockHandler (
 )
 {
 	ScreenPtr pScreen = screenInfo.screens[i];
-	ScrnInfoPtr pScrnInfo = xf86Screens[i];
-	NVPtr pNv = NVPTR(pScrnInfo);
+	ScrnInfoPtr pScrn = xf86Screens[i];
+	NVPtr pNv = NVPTR(pScrn);
 
 	pScreen->BlockHandler = pNv->BlockHandler;
 	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
 	pScreen->BlockHandler = NVBlockHandler;
 
+	if (pScrn->vtSema && !pNv->NoAccel)
+		FIRE_RING (pNv->chan);
+
 	if (pNv->VideoTimerCallback) 
-		(*pNv->VideoTimerCallback)(pScrnInfo, currentTime.milliseconds);
+		(*pNv->VideoTimerCallback)(pScrn, currentTime.milliseconds);
 }
 
 static Bool
