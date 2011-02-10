@@ -1776,16 +1776,15 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     unsigned size;
     uint32_t dst_domain;
     int bpp = pDst->drawable.bitsPerPixel;
-    uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 256);
+    uint32_t scratch_pitch;
     uint32_t copy_pitch;
-    uint32_t src_pitch_hw = scratch_pitch / (bpp / 8);
     uint32_t dst_pitch_hw = exaGetPixmapPitch(pDst) / (bpp / 8);
     int ret;
     Bool flush = TRUE;
     Bool r;
     int i;
     struct r600_accel_object src_obj, dst_obj;
-    uint32_t tiling_flags = 0, pitch = 0;
+    uint32_t tiling_flags = 0, pitch = 0, height;
 
     if (bpp < 8)
 	return FALSE;
@@ -1809,13 +1808,16 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 	}
     }
 
-    size = scratch_pitch * h;
+    scratch_pitch = RADEON_ALIGN(w, drmmode_get_pitch_align(pScrn, (bpp / 8), 0));
+    height = RADEON_ALIGN(h, drmmode_get_height_align(pScrn, 0));
+
+    size = scratch_pitch * height * (bpp / 8);
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
 	goto copy;
     }
 
-    src_obj.pitch = src_pitch_hw;
+    src_obj.pitch = scratch_pitch;
     src_obj.width = w;
     src_obj.height = h;
     src_obj.offset = 0;
@@ -1840,7 +1842,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
         goto copy;
     }
     copy_dst = scratch;
-    copy_pitch = scratch_pitch;
+    copy_pitch = scratch_pitch * (bpp / 8);
     flush = FALSE;
 
 copy:
@@ -1892,15 +1894,14 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     unsigned size;
     uint32_t src_domain = 0;
     int bpp = pSrc->drawable.bitsPerPixel;
-    uint32_t scratch_pitch = RADEON_ALIGN(w * bpp / 8, 256);
+    uint32_t scratch_pitch;
     uint32_t copy_pitch;
-    uint32_t dst_pitch_hw = scratch_pitch / (bpp / 8);
     uint32_t src_pitch_hw = exaGetPixmapPitch(pSrc) / (bpp / 8);
     int ret;
     Bool flush = FALSE;
     Bool r;
     struct r600_accel_object src_obj, dst_obj;
-    uint32_t tiling_flags = 0, pitch = 0;
+    uint32_t tiling_flags = 0, pitch = 0, height;
 
     if (bpp < 8)
 	return FALSE;
@@ -1933,7 +1934,10 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
 	    goto copy;
     }
 
-    size = scratch_pitch * h;
+    scratch_pitch = RADEON_ALIGN(w, drmmode_get_pitch_align(pScrn, (bpp / 8), 0));
+    height = RADEON_ALIGN(h, drmmode_get_height_align(pScrn, 0));
+
+    size = scratch_pitch * height * (bpp / 8);
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
 	goto copy;
@@ -1958,7 +1962,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
     src_obj.bo = radeon_get_pixmap_bo(pSrc);
 
-    dst_obj.pitch = dst_pitch_hw;
+    dst_obj.pitch = scratch_pitch;
     dst_obj.width = w;
     dst_obj.height = h;
     dst_obj.offset = 0;
@@ -1980,7 +1984,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     R600AppendCopyVertex(pScrn, x, y, 0, 0, w, h);
     R600DoCopy(pScrn);
     copy_src = scratch;
-    copy_pitch = scratch_pitch;
+    copy_pitch = scratch_pitch * (bpp / 8);
     flush = TRUE;
 
 copy:
