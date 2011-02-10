@@ -444,23 +444,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.rop = 3;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
-    /* Render setup */
-    BEGIN_BATCH(14);
-    /* Interpolator setup */
-    /* export tex coords from VS */
-    EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
-    EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
-    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 << 2),       ((0    << SEMANTIC_shift)	|
-								(0x03 << DEFAULT_VAL_shift)	|
-								SEL_CENTROID_bit));
-
-    /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
-     * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
-    PACK0(accel_state->ib, SPI_PS_IN_CONTROL_0, 3);
-    E32(accel_state->ib, ((1 << NUM_INTERP_shift)));
-    E32(accel_state->ib, 0);
-    E32(accel_state->ib, 0);
-    END_BATCH();
+    r600_set_spi(pScrn, accel_state->ib, (1 - 1), 1);
 
     vs_alu_consts[0] = 1.0 / pPriv->w;
     vs_alu_consts[1] = 1.0 / pPriv->h;

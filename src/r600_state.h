@@ -290,6 +290,8 @@ r600_set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf, ui
 void
 r600_cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix, xf86CrtcPtr crtc, int start, int stop);
 void
+r600_set_spi(ScrnInfoPtr pScrn, drmBufPtr ib, int vs_export_count, int num_interp);
+void
 r600_fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf, uint32_t domain);
 void
 r600_vs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *vs_conf, uint32_t domain);

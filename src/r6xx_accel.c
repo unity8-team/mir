@@ -419,6 +419,21 @@ r600_cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
 }
 
 void
+r600_set_spi(ScrnInfoPtr pScrn, drmBufPtr ib, int vs_export_count, int num_interp)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    BEGIN_BATCH(8);
+    /* Interpolator setup */
+    EREG(ib, SPI_VS_OUT_CONFIG, (vs_export_count << VS_EXPORT_COUNT_shift));
+    PACK0(ib, SPI_PS_IN_CONTROL_0, 3);
+    E32(ib, (num_interp << NUM_INTERP_shift));
+    E32(ib, 0);
+    E32(ib, 0);
+    END_BATCH();
+}
+
+void
 r600_fs_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *fs_conf, uint32_t domain)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -1036,7 +1051,7 @@ r600_set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     for (i = 0; i < PA_SC_VPORT_SCISSOR_0_TL_num; i++)
 	r600_set_vport_scissor(pScrn, ib, i, 0, 0, 8192, 8192);
 
-    BEGIN_BATCH(42);
+    BEGIN_BATCH(49);
     PACK0(ib, PA_SC_MPASS_PS_CNTL, 2);
     E32(ib, 0);
     if (info->ChipFamily < CHIP_FAMILY_RV770)
@@ -1079,6 +1094,19 @@ r600_set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
 	EREG(ib, R7xx_SPI_THREAD_GROUPING,        0);
     else
 	EREG(ib, R7xx_SPI_THREAD_GROUPING,        (1 << PS_GROUPING_shift));
+
+    /* default Interpolator setup */
+    EREG(ib, SPI_VS_OUT_ID_0, ((0 << SEMANTIC_0_shift) |
+			       (1 << SEMANTIC_1_shift)));
+    PACK0(ib, SPI_PS_INPUT_CNTL_0 + (0 << 2), 2);
+    /* SPI_PS_INPUT_CNTL_0 maps to GPR[0] - load with semantic id 0 */
+    E32(ib, ((0    << SEMANTIC_shift)	|
+	     (0x01 << DEFAULT_VAL_shift)	|
+	     SEL_CENTROID_bit));
+    /* SPI_PS_INPUT_CNTL_1 maps to GPR[1] - load with semantic id 1 */
+    E32(ib, ((1    << SEMANTIC_shift)	|
+	     (0x01 << DEFAULT_VAL_shift)	|
+	     SEL_CENTROID_bit));
 
     PACK0(ib, SPI_INPUT_Z, 4);
     E32(ib, 0); // SPI_INPUT_Z
