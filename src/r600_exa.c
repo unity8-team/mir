@@ -43,25 +43,6 @@
 
 /* #define SHOW_VERTEXES */
 
-uint32_t R600_ROP[16] = {
-    RADEON_ROP3_ZERO, /* GXclear        */
-    RADEON_ROP3_DSa,  /* Gxand          */
-    RADEON_ROP3_SDna, /* GXandReverse   */
-    RADEON_ROP3_S,    /* GXcopy         */
-    RADEON_ROP3_DSna, /* GXandInverted  */
-    RADEON_ROP3_D,    /* GXnoop         */
-    RADEON_ROP3_DSx,  /* GXxor          */
-    RADEON_ROP3_DSo,  /* GXor           */
-    RADEON_ROP3_DSon, /* GXnor          */
-    RADEON_ROP3_DSxn, /* GXequiv        */
-    RADEON_ROP3_Dn,   /* GXinvert       */
-    RADEON_ROP3_SDno, /* GXorReverse    */
-    RADEON_ROP3_Sn,   /* GXcopyInverted */
-    RADEON_ROP3_DSno, /* GXorInverted   */
-    RADEON_ROP3_DSan, /* GXnand         */
-    RADEON_ROP3_ONE,  /* GXset          */
-};
-
 Bool
 R600SetAccelState(ScrnInfoPtr pScrn,
 		  struct r600_accel_object *src0,
@@ -169,7 +150,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     struct radeon_accel_state *accel_state = info->accel_state;
     cb_config_t     cb_conf;
     shader_config_t vs_conf, ps_conf;
-    int pmask = 0;
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
     struct r600_accel_object dst;
@@ -253,21 +233,19 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
-
     /* Render setup */
     if (accel_state->planemask & 0x000000ff)
-	pmask |= 4; /* B */
+	cb_conf.pmask |= 4; /* B */
     if (accel_state->planemask & 0x0000ff00)
-	pmask |= 2; /* G */
+	cb_conf.pmask |= 2; /* G */
     if (accel_state->planemask & 0x00ff0000)
-	pmask |= 1; /* R */
+	cb_conf.pmask |= 1; /* R */
     if (accel_state->planemask & 0xff000000)
-	pmask |= 8; /* A */
-    BEGIN_BATCH(20);
-    EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
-    EREG(accel_state->ib, CB_COLOR_CONTROL,                    R600_ROP[accel_state->rop]);
+	cb_conf.pmask |= 8; /* A */
+    cb_conf.rop = accel_state->rop;
+    r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
+    BEGIN_BATCH(14);
     /* Interpolator setup */
     /* one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one) */
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, (0 << VS_EXPORT_COUNT_shift));
@@ -472,21 +450,19 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn)
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
-    r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     /* Render setup */
     if (accel_state->planemask & 0x000000ff)
-	pmask |= 4; /* B */
+	cb_conf.pmask |= 4; /* B */
     if (accel_state->planemask & 0x0000ff00)
-	pmask |= 2; /* G */
+	cb_conf.pmask |= 2; /* G */
     if (accel_state->planemask & 0x00ff0000)
-	pmask |= 1; /* R */
+	cb_conf.pmask |= 1; /* R */
     if (accel_state->planemask & 0xff000000)
-	pmask |= 8; /* A */
-    BEGIN_BATCH(20);
-    EREG(accel_state->ib, CB_TARGET_MASK,                      (pmask << TARGET0_ENABLE_shift));
-    EREG(accel_state->ib, CB_COLOR_CONTROL,                    R600_ROP[accel_state->rop]);
-
+	cb_conf.pmask |= 8; /* A */
+    cb_conf.rop = accel_state->rop;
+    r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
+    BEGIN_BATCH(14);
     /* Interpolator setup */
     /* export tex coord from VS */
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
@@ -1226,7 +1202,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     ScrnInfoPtr pScrn = xf86Screens[pSrc->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    uint32_t blendcntl, dst_format;
+    uint32_t dst_format;
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
     struct r600_accel_object src_obj, mask_obj, dst_obj;
@@ -1405,24 +1381,13 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
+    cb_conf.blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
+    cb_conf.blend_enable = 1;
+    cb_conf.pmask = 0xf;
+    cb_conf.rop = 3;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
-    BEGIN_BATCH(24);
-    EREG(accel_state->ib, CB_TARGET_MASK,                      (0xf << TARGET0_ENABLE_shift));
-
-    blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
-
-    if (info->ChipFamily == CHIP_FAMILY_R600) {
-	/* no per-MRT blend on R600 */
-	EREG(accel_state->ib, CB_COLOR_CONTROL,                    R600_ROP[3] | (1 << TARGET_BLEND_ENABLE_shift));
-	EREG(accel_state->ib, CB_BLEND_CONTROL,                    blendcntl);
-    } else {
-	EREG(accel_state->ib, CB_COLOR_CONTROL,                    (R600_ROP[3] |
-								    (1 << TARGET_BLEND_ENABLE_shift) |
-								    PER_MRT_BLEND_bit));
-	EREG(accel_state->ib, CB_BLEND0_CONTROL,                   blendcntl);
-    }
-
+    BEGIN_BATCH(15);
     /* Interpolator setup */
     if (pMask) {
 	/* export 2 tex coords from VS */

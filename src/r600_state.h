@@ -50,6 +50,11 @@ typedef struct {
     int round_mode;
     int tile_compact;
     int source_format;
+    /* 2D related CB state */
+    uint32_t pmask;
+    int rop;
+    int blend_enable;
+    uint32_t blendcntl;
     struct radeon_bo *bo;
 } cb_config_t;
 

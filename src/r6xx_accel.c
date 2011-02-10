@@ -41,6 +41,25 @@
 #include "radeon_vbo.h"
 #include "radeon_exa_shared.h"
 
+static const uint32_t R600_ROP[16] = {
+    RADEON_ROP3_ZERO, /* GXclear        */
+    RADEON_ROP3_DSa,  /* Gxand          */
+    RADEON_ROP3_SDna, /* GXandReverse   */
+    RADEON_ROP3_S,    /* GXcopy         */
+    RADEON_ROP3_DSna, /* GXandInverted  */
+    RADEON_ROP3_D,    /* GXnoop         */
+    RADEON_ROP3_DSx,  /* GXxor          */
+    RADEON_ROP3_DSo,  /* GXor           */
+    RADEON_ROP3_DSon, /* GXnor          */
+    RADEON_ROP3_DSxn, /* GXequiv        */
+    RADEON_ROP3_Dn,   /* GXinvert       */
+    RADEON_ROP3_SDno, /* GXorReverse    */
+    RADEON_ROP3_Sn,   /* GXcopyInverted */
+    RADEON_ROP3_DSno, /* GXorInverted   */
+    RADEON_ROP3_DSan, /* GXnand         */
+    RADEON_ROP3_ONE,  /* GXset          */
+};
+
 /* we try and batch operations together under KMS -
    but it doesn't work yet without misrendering */
 #define KMS_MULTI_OP 1
@@ -203,7 +222,7 @@ r600_sq_setup(ScrnInfoPtr pScrn, drmBufPtr ib, sq_config_t *sq_conf)
 void
 r600_set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf, uint32_t domain)
 {
-    uint32_t cb_color_info;
+    uint32_t cb_color_info, cb_color_control;
     int pitch, slice, h;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
@@ -276,6 +295,21 @@ r600_set_render_target(ScrnInfoPtr pScrn, drmBufPtr ib, cb_config_t *cb_conf, ui
     RELOC_BATCH(cb_conf->bo, 0, domain);
     END_BATCH();
 
+    BEGIN_BATCH(9);
+    EREG(ib, CB_TARGET_MASK,          (cb_conf->pmask << TARGET0_ENABLE_shift));
+    cb_color_control = R600_ROP[cb_conf->rop] |
+	(cb_conf->blend_enable << TARGET_BLEND_ENABLE_shift);
+    if (info->ChipFamily == CHIP_FAMILY_R600) {
+	/* no per-MRT blend on R600 */
+	EREG(ib, CB_COLOR_CONTROL,    cb_color_control);
+	EREG(ib, CB_BLEND_CONTROL,    cb_conf->blendcntl);
+    } else {
+	if (cb_conf->blend_enable)
+	    cb_color_control |= PER_MRT_BLEND_bit;
+	EREG(ib, CB_COLOR_CONTROL,    cb_color_control);
+	EREG(ib, CB_BLEND0_CONTROL,   cb_conf->blendcntl);
+    }
+    END_BATCH();
 }
 
 static void

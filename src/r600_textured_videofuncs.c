@@ -440,13 +440,12 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
+    cb_conf.pmask = 0xf;
+    cb_conf.rop = 3;
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     /* Render setup */
-    BEGIN_BATCH(20);
-    EREG(accel_state->ib, CB_TARGET_MASK,                      (0x0f << TARGET0_ENABLE_shift));
-    EREG(accel_state->ib, CB_COLOR_CONTROL,                    (0xcc << ROP3_shift)); /* copy */
-
+    BEGIN_BATCH(14);
     /* Interpolator setup */
     /* export tex coords from VS */
     EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
