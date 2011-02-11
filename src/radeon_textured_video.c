@@ -284,10 +284,17 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    pPriv->bicubic_enabled = FALSE;
     }
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	hw_align = 256;
+#ifdef XF86DRM_MODE
+    if (info->cs)
+	hw_align = drmmode_get_base_align(pScrn, 2, 0);
     else
-	hw_align = 64;
+#endif
+    {
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    hw_align = 256;
+	else
+	    hw_align = 64;
+    }
 
     switch(id) {
     case FOURCC_YV12:
