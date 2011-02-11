@@ -1357,7 +1357,7 @@ EVERGREENUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     Bool r;
     int i;
     struct r600_accel_object src_obj, dst_obj;
-    uint32_t tiling_flags = 0, pitch = 0, height;
+    uint32_t tiling_flags = 0, pitch = 0, height, base_align;
 
     if (bpp < 8)
 	return FALSE;
@@ -1383,9 +1383,9 @@ EVERGREENUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
 
     scratch_pitch = RADEON_ALIGN(w, drmmode_get_pitch_align(pScrn, (bpp / 8), 0));
     height = RADEON_ALIGN(h, drmmode_get_height_align(pScrn, 0));
-
+    base_align = drmmode_get_base_align(pScrn, (bpp / 8), 0);
     size = scratch_pitch * height * (bpp / 8);
-    scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
+    scratch = radeon_bo_open(info->bufmgr, 0, size, base_align, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
 	goto copy;
     }
@@ -1474,7 +1474,7 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
     Bool flush = FALSE;
     Bool r;
     struct r600_accel_object src_obj, dst_obj;
-    uint32_t tiling_flags = 0, pitch = 0, height;
+    uint32_t tiling_flags = 0, pitch = 0, height, base_align;
 
     if (bpp < 8)
 	return FALSE;
@@ -1513,9 +1513,9 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
 
     scratch_pitch = RADEON_ALIGN(w, drmmode_get_pitch_align(pScrn, (bpp / 8), 0));
     height = RADEON_ALIGN(h, drmmode_get_height_align(pScrn, 0));
-
+    base_align = drmmode_get_base_align(pScrn, (bpp / 8), 0);
     size = scratch_pitch * height * (bpp / 8);
-    scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
+    scratch = radeon_bo_open(info->bufmgr, 0, size, base_align, RADEON_GEM_DOMAIN_GTT, 0);
     if (scratch == NULL) {
 	goto copy;
     }
