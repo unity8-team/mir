@@ -1,3 +1,21 @@
+xserver-xorg-video-intel (2:2.14.0-1ubuntu7) natty; urgency=low
+
+  * Rename 110_from_git_da990536eca09c6de74627541cd56ecfad925eda.patch
+    to 108_undo_dmg_trans_before_append.patch for clarity.
+  * Add 109_dont_reconstruct_glyph_cache_on_rotate.patch: Fixes font
+    corruption (missing glyphs) on rotated screens.  Cherrypick of
+    upstream commit c6dc2756.
+    (fdo #33412)
+  * Add 110_warnings_cleanup.patch:  Tidy up a few build warnings.
+    Cherrypicks from upstream tree.
+  * apport-gpu-error-intel.py:
+    + Include a couple more error codes for GPU freezes
+    + Take any matched error code, not just the first seen
+    + Improve matching of hexadecimal numbers
+    + Strip out appending MachineType to title (it's never set)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 11 Feb 2011 15:57:19 -0800
+
 xserver-xorg-video-intel (2:2.14.0-1ubuntu6) natty; urgency=low
 
   * 110_from_git_da990536eca09c6de74627541cd56ecfad925eda.patch:

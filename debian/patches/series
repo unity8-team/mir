@@ -1,3 +1,4 @@
 101_copy-fb.patch
 107_solid_nullptr_check.patch
-110_from_git_da990536eca09c6de74627541cd56ecfad925eda.patch
+108_undo_dmg_trans_before_append.patch
+109_dont_reconstruct_glyph_cache_on_rotate.patch

@@ -69,14 +69,13 @@ def get_dump_signature(text):
         return None
     m = hashlib.md5()
     m.update(text)
-    errmsg = m.hexdigest()[:8]
-    for k in ["EIR", "PGTBL_ER"]:
-        regex = re.compile(k+": 0x(\d+)")
+    codes = []
+    for k in ["EIR", "ESR", "PGTBL_ER", "IPEHR"]:
+        regex = re.compile(k+": 0x([0-9a-fA-F]+)")
         match = regex.search(text)
         if match and match.group(1) != "00000000":
-            errmsg += " (%s: 0x%s)" %(k, match.group(1))
-            break
-    return errmsg
+            codes.append("%s: 0x%s" %(k, match.group(1)))
+    return "%s (%s)" %( m.hexdigest()[:8], string.join(codes, " ") )
 
 def main(argv=None):
     if argv is None:
@@ -107,8 +106,6 @@ def main(argv=None):
     if dump_signature:
         report['DumpSignature'] = dump_signature
         report['Title'] += " " + report['DumpSignature']
-    if 'MachineType' in report and report['MachineType']:
-        report['Title'] += " on " + report['MachineType']
 
     attach_hardware(report)
     attach_related_packages(report, ["xserver-xorg", "libdrm2", "xserver-xorg-video-intel"])
