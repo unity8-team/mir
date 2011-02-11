@@ -1188,7 +1188,11 @@ evergreen_draw_auto(ScrnInfoPtr pScrn, draw_config_t *draw_conf)
     BEGIN_BATCH(10);
     EREG(VGT_PRIMITIVE_TYPE, draw_conf->prim_type);
     PACK3(IT_INDEX_TYPE, 1);
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    E32(IT_INDEX_TYPE_SWAP_MODE(ENDIAN_8IN32) | draw_conf->index_type);
+#else
     E32(draw_conf->index_type);
+#endif
     PACK3(IT_NUM_INSTANCES, 1);
     E32(draw_conf->num_instances);
     PACK3(IT_DRAW_INDEX_AUTO, 2);
@@ -1227,6 +1231,9 @@ void evergreen_finish_op(ScrnInfoPtr pScrn, int vtx_size)
     vtx_res.dst_sel_y       = SQ_SEL_Y;
     vtx_res.dst_sel_z       = SQ_SEL_Z;
     vtx_res.dst_sel_w       = SQ_SEL_W;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    vtx_res.endian          = SQ_ENDIAN_8IN32;
+#endif
     evergreen_set_vtx_resource(pScrn, &vtx_res, RADEON_GEM_DOMAIN_GTT);
 
     /* Draw */

@@ -127,9 +127,15 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     } else if (accel_state->dst_obj.bpp == 16) {
 	cb_conf.format = COLOR_5_6_5;
 	cb_conf.comp_swap = 2; /* RGB */
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	cb_conf.endian = ENDIAN_8IN16;
+#endif
     } else {
 	cb_conf.format = COLOR_8_8_8_8;
 	cb_conf.comp_swap = 1; /* ARGB */
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	cb_conf.endian = ENDIAN_8IN32;
+#endif
     }
     cb_conf.source_format = EXPORT_4C_16BPC;
     cb_conf.blend_clamp = 1;
@@ -795,6 +801,19 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.bo                  = accel_state->src_obj[unit].bo;
     tex_res.mip_bo              = accel_state->src_obj[unit].bo;
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    switch (accel_state->src_obj[unit].bpp) {
+    case 16:
+	tex_res.endian = SQ_ENDIAN_8IN16;
+	break;
+    case 32:
+	tex_res.endian = SQ_ENDIAN_8IN32;
+	break;
+    default :
+	break;
+    }
+#endif
+
     /* component swizzles */
     switch (pPict->format) {
     case PICT_a1r5g5b5:
@@ -1224,6 +1243,18 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.pmask = 0xf;
     if (accel_state->dst_obj.tiling_flags == 0)
 	cb_conf.array_mode = 1;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    switch (dst_obj.bpp) {
+    case 16:
+	cb_conf.endian = ENDIAN_8IN16;
+	break;
+    case 32:
+	cb_conf.endian = ENDIAN_8IN32;
+	break;
+    default:
+	break;
+    }
+#endif
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
     if (pMask)
