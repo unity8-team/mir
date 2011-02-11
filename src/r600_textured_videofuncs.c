@@ -303,7 +303,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.format              = FMT_8;
 	tex_res.w                   = accel_state->src_obj[0].width >> 1;
 	tex_res.h                   = accel_state->src_obj[0].height >> 1;
-	tex_res.pitch               = RADEON_ALIGN(accel_state->src_obj[0].pitch >> 1, 256);
+	tex_res.pitch               = RADEON_ALIGN(accel_state->src_obj[0].pitch >> 1, pPriv->hw_align);
 	tex_res.dst_sel_x           = SQ_SEL_X; /* V or U */
 	tex_res.dst_sel_y           = SQ_SEL_1;
 	tex_res.dst_sel_z           = SQ_SEL_1;
@@ -326,7 +326,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.format              = FMT_8;
 	tex_res.w                   = accel_state->src_obj[0].width >> 1;
 	tex_res.h                   = accel_state->src_obj[0].height >> 1;
-	tex_res.pitch               = RADEON_ALIGN(accel_state->src_obj[0].pitch >> 1, 256);
+	tex_res.pitch               = RADEON_ALIGN(accel_state->src_obj[0].pitch >> 1, pPriv->hw_align);
 	tex_res.dst_sel_x           = SQ_SEL_X; /* V or U */
 	tex_res.dst_sel_y           = SQ_SEL_1;
 	tex_res.dst_sel_z           = SQ_SEL_1;

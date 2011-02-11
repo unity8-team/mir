@@ -247,7 +247,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     int top, nlines, size;
     BoxRec dstBox;
     int dst_width = width, dst_height = height;
-    int hw_align;
 
     /* make the compiler happy */
     s2offset = s3offset = srcPitch2 = 0;
@@ -286,14 +285,14 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
 #ifdef XF86DRM_MODE
     if (info->cs)
-	hw_align = drmmode_get_base_align(pScrn, 2, 0);
+	pPriv->hw_align = drmmode_get_base_align(pScrn, 2, 0);
     else
 #endif
     {
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
-	    hw_align = 256;
+	    pPriv->hw_align = 256;
 	else
-	    hw_align = 64;
+	    pPriv->hw_align = 64;
     }
 
     switch(id) {
@@ -302,24 +301,24 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	srcPitch = RADEON_ALIGN(width, 4);
 	srcPitch2 = RADEON_ALIGN(width >> 1, 4);
         if (pPriv->bicubic_state != BICUBIC_OFF) {
-	    dstPitch = RADEON_ALIGN(dst_width << 1, hw_align);
+	    dstPitch = RADEON_ALIGN(dst_width << 1, pPriv->hw_align);
 	    dstPitch2 = 0;
 	} else {
-	    dstPitch = RADEON_ALIGN(dst_width, hw_align);
-	    dstPitch2 = RADEON_ALIGN(dstPitch >> 1, hw_align);
+	    dstPitch = RADEON_ALIGN(dst_width, pPriv->hw_align);
+	    dstPitch2 = RADEON_ALIGN(dstPitch >> 1, pPriv->hw_align);
 	}
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	dstPitch = RADEON_ALIGN(dst_width << 1, hw_align);
+	dstPitch = RADEON_ALIGN(dst_width << 1, pPriv->hw_align);
 	srcPitch = (width << 1);
 	srcPitch2 = 0;
 	break;
     }
 
     size = dstPitch * dst_height + 2 * dstPitch2 * ((dst_height + 1) >> 1);
-    size = RADEON_ALIGN(size, hw_align);
+    size = RADEON_ALIGN(size, pPriv->hw_align);
 
     if (size != pPriv->size) {
 	RADEONFreeVideoMemory(pScrn, pPriv);
@@ -328,7 +327,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     if (pPriv->video_memory == NULL) {
 	pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
 							    &pPriv->video_memory,
-							    size, hw_align,
+							    size, pPriv->hw_align,
 							    RADEON_GEM_DOMAIN_GTT);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
@@ -336,7 +335,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	if (info->cs) {
 	    pPriv->src_bo[0] = pPriv->video_memory;
 	    radeon_legacy_allocate_memory(pScrn, (void*)&pPriv->src_bo[1], size,
-					  hw_align,
+					  pPriv->hw_align,
 					  RADEON_GEM_DOMAIN_GTT);
 	}
     }
@@ -397,9 +396,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->src_pitch = dstPitch;
 
     pPriv->planeu_offset = dstPitch * dst_height;
-    pPriv->planeu_offset = RADEON_ALIGN(pPriv->planeu_offset, hw_align);
+    pPriv->planeu_offset = RADEON_ALIGN(pPriv->planeu_offset, pPriv->hw_align);
     pPriv->planev_offset = pPriv->planeu_offset + dstPitch2 * ((dst_height + 1) >> 1);
-    pPriv->planev_offset = RADEON_ALIGN(pPriv->planev_offset, hw_align);
+    pPriv->planev_offset = RADEON_ALIGN(pPriv->planev_offset, pPriv->hw_align);
 
     pPriv->size = size;
     pPriv->pDraw = pDraw;
