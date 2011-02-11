@@ -1190,10 +1190,8 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	    break;
 	}
 #endif
-	if (tiling_flags) {
-            radeon_bo_set_tiling(info->front_bo,
-				 tiling_flags | RADEON_TILING_SURFACE, pitch);
-	}
+	if (tiling_flags)
+            radeon_bo_set_tiling(info->front_bo, tiling_flags, pitch);
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Front buffer size: %dK\n", info->front_bo->size/1024);
