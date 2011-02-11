@@ -459,7 +459,9 @@ EVERGREENPrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	return FALSE;
 
     if (accel_state->same_surface == TRUE) {
-	unsigned long size = pDst->drawable.height * accel_state->dst_obj.pitch * pDst->drawable.bitsPerPixel/8;
+	unsigned height = RADEON_ALIGN(pDst->drawable.height,
+				       drmmode_get_height_align(pScrn, accel_state->dst_obj.tiling_flags));
+	unsigned long size = height * accel_state->dst_obj.pitch * pDst->drawable.bitsPerPixel/8;
 
 	if (accel_state->copy_area_bo) {
 	    radeon_bo_unref(accel_state->copy_area_bo);
