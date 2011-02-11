@@ -1184,7 +1184,11 @@ r600_draw_immd(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf, uint32
     BEGIN_BATCH(8 + count);
     EREG(ib, VGT_PRIMITIVE_TYPE, draw_conf->prim_type);
     PACK3(ib, IT_INDEX_TYPE, 1);
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    E32(ib, IT_INDEX_TYPE_SWAP_MODE(ENDIAN_8IN32) | draw_conf->index_type);
+#else
     E32(ib, draw_conf->index_type);
+#endif
     PACK3(ib, IT_NUM_INSTANCES, 1);
     E32(ib, draw_conf->num_instances);
 
@@ -1214,7 +1218,11 @@ r600_draw_auto(ScrnInfoPtr pScrn, drmBufPtr ib, draw_config_t *draw_conf)
     BEGIN_BATCH(10);
     EREG(ib, VGT_PRIMITIVE_TYPE, draw_conf->prim_type);
     PACK3(ib, IT_INDEX_TYPE, 1);
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    E32(ib, IT_INDEX_TYPE_SWAP_MODE(ENDIAN_8IN32) | draw_conf->index_type);
+#else
     E32(ib, draw_conf->index_type);
+#endif
     PACK3(ib, IT_NUM_INSTANCES, 1);
     E32(ib, draw_conf->num_instances);
     PACK3(ib, IT_DRAW_INDEX_AUTO, 2);
@@ -1249,6 +1257,9 @@ void r600_finish_op(ScrnInfoPtr pScrn, int vtx_size)
     vtx_res.mem_req_size    = 1;
     vtx_res.vb_addr         = accel_state->vbo.vb_mc_addr + accel_state->vbo.vb_start_op;
     vtx_res.bo              = accel_state->vbo.vb_bo;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    vtx_res.endian          = SQ_ENDIAN_8IN32;
+#endif
     r600_set_vtx_resource(pScrn, accel_state->ib, &vtx_res, RADEON_GEM_DOMAIN_GTT);
 
     /* Draw */

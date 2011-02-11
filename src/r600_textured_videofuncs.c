@@ -439,10 +439,16 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    cb_conf.format = COLOR_5_6_5;
 	    cb_conf.comp_swap = 2; /* RGB */
 	}
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	cb_conf.endian = ENDIAN_8IN16;
+#endif
 	break;
     case 32:
 	cb_conf.format = COLOR_8_8_8_8;
 	cb_conf.comp_swap = 1; /* ARGB */
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	cb_conf.endian = ENDIAN_8IN32;
+#endif
 	break;
     default:
 	return;

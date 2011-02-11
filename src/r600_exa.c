@@ -274,9 +274,15 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     } else if (accel_state->dst_obj.bpp == 16) {
 	cb_conf.format = COLOR_5_6_5;
 	cb_conf.comp_swap = 2; /* RGB */
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	cb_conf.endian = ENDIAN_8IN16;
+#endif
     } else {
 	cb_conf.format = COLOR_8_8_8_8;
 	cb_conf.comp_swap = 1; /* ARGB */
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	cb_conf.endian = ENDIAN_8IN32;
+#endif
     }
     cb_conf.source_format = 1;
     cb_conf.blend_clamp = 1;
@@ -941,6 +947,19 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.mip_bo              = accel_state->src_obj[unit].bo;
     tex_res.request_size        = 1;
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    switch (accel_state->src_obj[unit].bpp) {
+    case 16:
+	tex_res.endian = SQ_ENDIAN_8IN16;
+	break;
+    case 32:
+	tex_res.endian = SQ_ENDIAN_8IN32;
+	break;
+    default :
+	break;
+    }
+#endif
+
     /* component swizzles */
     switch (pPict->format) {
     case PICT_a1r5g5b5:
@@ -1409,6 +1428,18 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.rop = 3;
     if (accel_state->dst_obj.tiling_flags == 0)
 	cb_conf.array_mode = 1;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    switch (dst_obj.bpp) {
+    case 16:
+	cb_conf.endian = ENDIAN_8IN16;
+	break;
+    case 32:
+	cb_conf.endian = ENDIAN_8IN32;
+	break;
+    default:
+	break;
+    }
+#endif
     r600_set_render_target(pScrn, accel_state->ib, &cb_conf, accel_state->dst_obj.domain);
 
     if (pMask)
