@@ -54,6 +54,7 @@ R600SetAccelState(ScrnInfoPtr pScrn,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
     uint32_t pitch = 0;
+    uint32_t pitch_align = 0x7, base_align = 0xff;
 #if defined(XF86DRM_MODE)
     int ret;
 #endif
@@ -68,8 +69,22 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 				       &pitch);
 	    if (ret)
 		RADEON_FALLBACK(("src0 radeon_bo_get_tiling failed\n"));
+	    pitch_align = drmmode_get_pitch_align(pScrn,
+						  accel_state->src_obj[0].bpp / 8,
+						  accel_state->src_obj[0].tiling_flags) - 1;
+	    base_align = drmmode_get_base_align(pScrn,
+						accel_state->src_obj[0].bpp / 8,
+						accel_state->src_obj[0].tiling_flags) - 1;
 	}
 #endif
+	/* bad pitch */
+	if (accel_state->src_obj[0].pitch & pitch_align)
+	    RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[0].pitch));
+
+	/* bad offset */
+	if (accel_state->src_obj[0].offset & base_align)
+	    RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_obj[0].offset));
+
     } else {
 	memset(&accel_state->src_obj[0], 0, sizeof(struct r600_accel_object));
 	accel_state->src_size[0] = 0;
@@ -85,8 +100,21 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 				       &pitch);
 	    if (ret)
 		RADEON_FALLBACK(("src1 radeon_bo_get_tiling failed\n"));
+	    pitch_align = drmmode_get_pitch_align(pScrn,
+						  accel_state->src_obj[1].bpp / 8,
+						  accel_state->src_obj[1].tiling_flags) - 1;
+	    base_align = drmmode_get_base_align(pScrn,
+						accel_state->src_obj[1].bpp / 8,
+						accel_state->src_obj[1].tiling_flags) - 1;
 	}
 #endif
+	/* bad pitch */
+	if (accel_state->src_obj[1].pitch & pitch_align)
+	    RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[1].pitch));
+
+	/* bad offset */
+	if (accel_state->src_obj[1].offset & base_align)
+	    RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_obj[1].offset));
     } else {
 	memset(&accel_state->src_obj[1], 0, sizeof(struct r600_accel_object));
 	accel_state->src_size[1] = 0;
@@ -102,8 +130,19 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 				       &pitch);
 	    if (ret)
 		RADEON_FALLBACK(("dst radeon_bo_get_tiling failed\n"));
+	    pitch_align = drmmode_get_pitch_align(pScrn,
+						  accel_state->dst_obj.bpp / 8,
+						  accel_state->dst_obj.tiling_flags) - 1;
+	    base_align = drmmode_get_base_align(pScrn,
+						accel_state->dst_obj.bpp / 8,
+						accel_state->dst_obj.tiling_flags) - 1;
 	}
 #endif
+	if (accel_state->dst_obj.pitch & pitch_align)
+	    RADEON_FALLBACK(("Bad dst pitch 0x%08x\n", accel_state->dst_obj.pitch));
+
+	if (accel_state->dst_obj.offset & base_align)
+	    RADEON_FALLBACK(("Bad dst offset 0x%08x\n", accel_state->dst_obj.offset));
     } else {
 	memset(&accel_state->dst_obj, 0, sizeof(struct r600_accel_object));
 	accel_state->dst_size = 0;
@@ -111,28 +150,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 
     accel_state->rop = rop;
     accel_state->planemask = planemask;
-
-    /* bad pitch */
-    if (accel_state->src_obj[0].pitch & 7)
-	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[0].pitch));
-
-    /* bad offset */
-    if (accel_state->src_obj[0].offset & 0xff)
-	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_obj[0].offset));
-
-    /* bad pitch */
-    if (accel_state->src_obj[1].pitch & 7)
-	RADEON_FALLBACK(("Bad src pitch 0x%08x\n", accel_state->src_obj[1].pitch));
-
-    /* bad offset */
-    if (accel_state->src_obj[1].offset & 0xff)
-	RADEON_FALLBACK(("Bad src offset 0x%08x\n", accel_state->src_obj[1].offset));
-
-    if (accel_state->dst_obj.pitch & 7)
-	RADEON_FALLBACK(("Bad dst pitch 0x%08x\n", accel_state->dst_obj.pitch));
-
-    if (accel_state->dst_obj.offset & 0xff)
-	RADEON_FALLBACK(("Bad dst offset 0x%08x\n", accel_state->dst_obj.offset));
 
     accel_state->vs_size = 512;
     accel_state->ps_size = 512;
