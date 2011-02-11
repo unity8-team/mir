@@ -1148,11 +1148,6 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
                     return FALSE;
                 }
 
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-		radeon_bo_set_tiling(info->cursor_bo[c], RADEON_TILING_SWAP_32BIT |
-				     RADEON_TILING_SURFACE, CURSOR_WIDTH);
-#endif
-
                 if (radeon_bo_map(info->cursor_bo[c], 1)) {
                     ErrorF("Failed to map cursor buffer memory\n");
                 }

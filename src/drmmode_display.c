@@ -411,14 +411,14 @@ static void
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	void *ptr;
+	int i;
+	uint32_t *ptr;
 
 	/* cursor should be mapped already */
-	ptr = drmmode_crtc->cursor_bo->ptr;
+	ptr = (uint32_t *)(drmmode_crtc->cursor_bo->ptr);
 
-	memcpy (ptr, image, 64 * 64 * 4);
-
-	return;
+	for (i = 0; i < 64 * 64; i++)
+		ptr[i] = cpu_to_le32(image[i]);
 }
 
 
