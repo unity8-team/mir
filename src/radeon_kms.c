@@ -513,6 +513,7 @@ static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
 	}
     }
 
+    info->have_tiling_info = TRUE;
     return TRUE;
 }
 
@@ -600,6 +601,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	/* set default group bytes, overridden by kernel info below */
 	info->group_bytes = 256;
+	info->have_tiling_info = FALSE;
 	if (info->dri->pKernelDRMVersion->version_minor >= 6) {
 	    if (r600_get_tile_config(pScrn))
 		info->allowColorTiling = xf86ReturnOptValBool(info->Options,

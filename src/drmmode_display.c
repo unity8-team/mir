@@ -1130,8 +1130,16 @@ int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling)
 			/* further restrictions for scanout */
 			pitch_align = MAX(info->group_bytes / bpe, pitch_align);
 		} else {
-			/* linear aligned requirements */
-			pitch_align = MAX(64, info->group_bytes / bpe);
+			if (info->have_tiling_info)
+				/* linear aligned requirements */
+				pitch_align = MAX(64, info->group_bytes / bpe);
+			else
+				/* default to 512 elements if we don't know the real
+				 * group size otherwise the kernel may reject the CS
+				 * if the group sizes don't match as the pitch won't
+				 * be aligned properly.
+				 */
+				pitch_align = 512;
 		}
 	} else {
 		/* general surface requirements */
@@ -1155,8 +1163,17 @@ int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling)
 		if (tiling & RADEON_TILING_MACRO)
 			base_align = MAX(info->num_banks * info->num_channels * 8 * 8 * bpe,
 					 pixel_align * bpe * height_align);
-		else
-			base_align = info->group_bytes;
+		else {
+			if (info->have_tiling_info)
+				base_align = info->group_bytes;
+			else
+				/* default to 512 if we don't know the real
+				 * group size otherwise the kernel may reject the CS
+				 * if the group sizes don't match as the base won't
+				 * be aligned properly.
+				 */
+				base_align = 512;
+		}
 	}
 	return base_align;
 }

@@ -1067,6 +1067,7 @@ typedef struct {
     uint64_t gart_size;
     drmmode_rec drmmode;
     /* r6xx+ tile config */
+    Bool have_tiling_info;
     uint32_t tile_config;
     int group_bytes;
     int num_channels;
