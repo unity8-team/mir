@@ -601,10 +601,11 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	/* set default group bytes, overridden by kernel info below */
 	info->group_bytes = 256;
 	if (info->dri->pKernelDRMVersion->version_minor >= 6) {
-	    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-							  OPTION_COLOR_TILING, colorTilingDefault);
-	    if (info->allowColorTiling)
-		info->allowColorTiling = r600_get_tile_config(pScrn);
+	    if (r600_get_tile_config(pScrn))
+		info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+							      OPTION_COLOR_TILING, colorTilingDefault);
+	    else
+		info->allowColorTiling = FALSE;
 	} else
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "R6xx+ KMS Color Tiling requires radeon drm 2.6.0 or newer\n");
