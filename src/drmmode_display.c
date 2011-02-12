@@ -489,7 +489,7 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	if (!data)
 		data = drmmode_crtc_shadow_allocate (crtc, width, height);
 
-	rotate_pitch = RADEON_ALIGN(width, 64) * drmmode->cpp;
+	rotate_pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, drmmode->cpp, 0)) * drmmode->cpp;
 
 	rotate_pixmap = drmmode_create_bo_pixmap(pScrn->pScreen,
 						 width, height,
