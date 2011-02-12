@@ -821,20 +821,20 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * surface_state_binding_tab
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* media base addr, don't care */
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Instruction base address */
 		/* general state max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 		/* media object state max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 		/* Instruction max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 	} else {
 		OUT_BATCH(BRW_STATE_BASE_ADDRESS | 4);
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
 		OUT_RELOC(surface_state_binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, BASE_ADDRESS_MODIFY); /* Surface state base address */
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* media base addr, don't care */
 		/* general state max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 		/* media object state max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 	}
 
 	/* Set system instruction pointer */
