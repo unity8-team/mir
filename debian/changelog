@@ -1,3 +1,19 @@
+xserver-xorg-video-intel (2:2.14.0-1ubuntu8) natty; urgency=low
+
+  * 111_fix_clipped_window_plane_offset.patch,
+    112_fix_error_in_4c4ad555.patch: Fixes issue where vertical green line
+    and strange colors shows up when playing gstreamer with certain
+    videos, when dragged.
+    (LP: #460677)
+  * 113_remove_broken_max_base_addresses.patch: Fixes GPU lockup during
+    login with "Bad length (4) in MI_DISPLAY_BUFFER_INFO, [3, 3]" error
+    messages listed in the gpu dump text.
+    (LP: #710321)
+  * 114_warnings_cleanup_part_2.patch: Additional warnings cleanup to the
+    xvmc code, cherrypicked from upstream commit ae8877e3.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 14 Feb 2011 15:45:48 -0800
+
 xserver-xorg-video-intel (2:2.14.0-1ubuntu7) natty; urgency=low
 
   * Rename 110_from_git_da990536eca09c6de74627541cd56ecfad925eda.patch
