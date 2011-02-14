@@ -334,7 +334,7 @@ NVEnterVT(int scrnIndex, int flags)
 
 	ret = drmSetMaster(nouveau_device(pNv->dev)->fd);
 	if (ret)
-		ErrorF("Unable to get master: %d\n", ret);
+		ErrorF("Unable to get master: %s\n", strerror(errno));
 
 	if (!xf86SetDesiredModes(pScrn))
 		return FALSE;
