@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.14.0-1ubuntu9) natty; urgency=low
+
+  * Add 115_quell_vblank_counter_failed.patch: Don't fill up Xorg.0.log
+    with "get vblank counter failed: Invalid argument" warnings.  5 is
+    enough.
+    (LP: #710594)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 15 Feb 2011 19:11:25 -0800
+
 xserver-xorg-video-intel (2:2.14.0-1ubuntu8) natty; urgency=low
 
   * 111_fix_clipped_window_plane_offset.patch,
