@@ -284,9 +284,12 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
 #ifdef XF86DRM_MODE
-    if (info->cs)
-	pPriv->hw_align = drmmode_get_base_align(pScrn, 2, 0);
-    else
+    if (info->cs) {
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    pPriv->hw_align = drmmode_get_base_align(pScrn, 2, 0);
+	else
+	    pPriv->hw_align = 64;
+    } else
 #endif
     {
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
