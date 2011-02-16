@@ -86,7 +86,7 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 				tile_mode = 0;
 
 			if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
-				tile_flags = 0x2800;
+				tile_flags = 0x22800;
 			else if (usage_hint & NOUVEAU_CREATE_PIXMAP_SCANOUT)
 				tile_flags = (bpp == 16 ? 0x7000 : 0x7a00);
 			else
