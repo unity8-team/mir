@@ -71,6 +71,7 @@ typedef struct {
     int format;
     int endian;
     int array_mode;						// tiling
+    int non_disp_tiling;
     int number_type;
     int read_size;
     int comp_swap;

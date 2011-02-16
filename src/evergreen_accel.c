@@ -148,7 +148,7 @@ evergreen_sq_setup(ScrnInfoPtr pScrn, sq_config_t *sq_conf)
 void
 evergreen_set_render_target(ScrnInfoPtr pScrn, cb_config_t *cb_conf, uint32_t domain)
 {
-    uint32_t cb_color_info, cb_color_attrib, cb_color_dim;
+    uint32_t cb_color_info, cb_color_attrib = 0, cb_color_dim;
     int pitch, slice, h;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
@@ -177,7 +177,8 @@ evergreen_set_render_target(ScrnInfoPtr pScrn, cb_config_t *cb_conf, uint32_t do
 	cb_color_info |= RAT_bit;
 
     /* bit 4 needs to be set for linear and depth/stencil surfaces */
-    cb_color_attrib = CB_COLOR0_ATTRIB__NON_DISP_TILING_ORDER_bit;
+    if (cb_conf->non_disp_tiling)
+	cb_color_attrib |= CB_COLOR0_ATTRIB__NON_DISP_TILING_ORDER_bit;
 
     pitch = (cb_conf->w / 8) - 1;
     h = RADEON_ALIGN(cb_conf->h, 8);

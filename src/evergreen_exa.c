@@ -149,8 +149,10 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (accel_state->planemask & 0xff000000)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
-    if (accel_state->dst_obj.tiling_flags == 0)
+    if (accel_state->dst_obj.tiling_flags == 0) {
 	cb_conf.array_mode = 1;
+	cb_conf.non_disp_tiling = 1;
+    }
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
     evergreen_set_spi(pScrn, 0, 0);
@@ -354,8 +356,10 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     if (accel_state->planemask & 0xff000000)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
-    if (accel_state->dst_obj.tiling_flags == 0)
+    if (accel_state->dst_obj.tiling_flags == 0) {
 	cb_conf.array_mode = 1;
+	cb_conf.non_disp_tiling = 1;
+    }
     evergreen_set_render_target(pScrn, &cb_conf, accel_state->dst_obj.domain);
 
     evergreen_set_spi(pScrn, (1 - 1), 1);
@@ -515,12 +519,15 @@ EVERGREENCopy(PixmapPtr pDst,
     if (accel_state->same_surface && accel_state->copy_area) {
 	uint32_t orig_dst_domain = accel_state->dst_obj.domain;
 	uint32_t orig_src_domain = accel_state->src_obj[0].domain;
+	uint32_t orig_src_tiling_flags = accel_state->src_obj[0].tiling_flags;
+	uint32_t orig_dst_tiling_flags = accel_state->dst_obj.tiling_flags;
 	struct radeon_bo *orig_bo = accel_state->dst_obj.bo;
 
 	/* src to tmp */
 	accel_state->dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
 	accel_state->dst_obj.bo = accel_state->copy_area_bo;
 	accel_state->dst_obj.offset = 0;
+	accel_state->dst_obj.tiling_flags = 0;
 	EVERGREENDoPrepareCopy(pScrn);
 	EVERGREENAppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 	EVERGREENDoCopy(pScrn);
@@ -529,9 +536,11 @@ EVERGREENCopy(PixmapPtr pDst,
 	accel_state->src_obj[0].domain = RADEON_GEM_DOMAIN_VRAM;
 	accel_state->src_obj[0].bo = accel_state->copy_area_bo;
 	accel_state->src_obj[0].offset = 0;
+	accel_state->src_obj[0].tiling_flags = 0;
 	accel_state->dst_obj.domain = orig_dst_domain;
 	accel_state->dst_obj.bo = orig_bo;
 	accel_state->dst_obj.offset = 0;
+	accel_state->dst_obj.tiling_flags = orig_dst_tiling_flags;
 	EVERGREENDoPrepareCopy(pScrn);
 	EVERGREENAppendCopyVertex(pScrn, dstX, dstY, dstX, dstY, w, h);
 	EVERGREENDoCopyVline(pDst);
@@ -540,6 +549,7 @@ EVERGREENCopy(PixmapPtr pDst,
 	accel_state->src_obj[0].domain = orig_src_domain;
 	accel_state->src_obj[0].bo = orig_bo;
 	accel_state->src_obj[0].offset = 0;
+	accel_state->src_obj[0].tiling_flags = orig_src_tiling_flags;
     } else
 	EVERGREENAppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 
@@ -1241,8 +1251,10 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.blendcntl |= CB_BLEND0_CONTROL__ENABLE_bit;
     cb_conf.rop = 3;
     cb_conf.pmask = 0xf;
-    if (accel_state->dst_obj.tiling_flags == 0)
+    if (accel_state->dst_obj.tiling_flags == 0) {
 	cb_conf.array_mode = 1;
+	cb_conf.non_disp_tiling = 1;
+    }
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     switch (dst_obj.bpp) {
     case 16:
