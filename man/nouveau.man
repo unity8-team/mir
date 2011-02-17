@@ -90,6 +90,9 @@ For example:
 .B
 Option \*qZaphodHeads\*q \*qLVDS,VGA-0\*q
 will assign xrandr outputs LVDS and VGA-0 to this instance of the driver.
+.TP
+.BI "Option \*qPageFlip\*q \*q" boolean \*q
+Enable DRI2 page flipping. Default: on.
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS
