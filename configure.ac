@@ -20,11 +20,11 @@
 #
 # Process this file with autoconf to produce a configure script
 
-AC_PREREQ(2.57)
+AC_PREREQ([2.60])
 AC_INIT([xf86-video-nouveau],
-        0.0.16,
+        [0.0.16],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
-        xf86-video-nouveau)
+        [xf86-video-nouveau])
 
 AC_DEFINE_UNQUOTED([NV_MAJOR_VERSION],
                    [$(echo $PACKAGE_VERSION | sed -e 's/^\([[0-9]]*\)\.[[0-9]]*\.[[0-9]]*/\1/')],
@@ -40,7 +40,7 @@ AC_DEFINE_UNQUOTED([NV_DRIVER_DATE],
                    [Driver date])
 
 AC_CONFIG_SRCDIR([Makefile.am])
-AM_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR(.)
 
 AM_INIT_AUTOMAKE([dist-bzip2])
@@ -49,13 +49,13 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # Checks for programs.
 AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
+LT_INIT
 AC_PROG_CC
 
 AH_TOP([#include "xorg-server.h"])
 
 AC_ARG_WITH(xorg-module-dir,
-            AC_HELP_STRING([--with-xorg-module-dir=DIR],
+            AS_HELP_STRING([--with-xorg-module-dir=DIR],
                            [Default xorg module directory [[default=$libdir/xorg/modules]]]),
             [moduledir="$withval"],
             [moduledir="$libdir/xorg/modules"])
@@ -113,8 +113,9 @@ AC_SUBST([DRIVER_NAME])
 XORG_MANPAGE_SECTIONS
 XORG_RELEASE_VERSION
 
-AC_OUTPUT([
+AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
 	man/Makefile
 ])
+AC_OUTPUT
