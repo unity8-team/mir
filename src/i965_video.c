@@ -113,7 +113,7 @@ static const uint32_t ps_kernel_planar_static[][4] = {
 #include "exa_wm_write.g4b"
 };
 
-/* new program for IGDNG */
+/* new program for Ironlake */
 static const uint32_t sf_kernel_static_gen5[][4] = {
 #include "exa_sf.g4b.gen5"
 };
@@ -675,7 +675,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 		wm_state->thread1.binding_table_entry_count = 7;
 
 	/* binding table entry count is only used for prefetching, and it has to
-	 * be set 0 for IGDNG
+	 * be set 0 for Ironlake
 	 */
 	if (IS_GEN5(intel))
 		wm_state->thread1.binding_table_entry_count = 0;

@@ -982,18 +982,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 # define DPLL_FPA01_P1_POST_DIV_SHIFT		16
 # define DPLL_FPA01_P1_POST_DIV_SHIFT_IGD	15
-/* IGDNG */
+/* Ironlake */
 # define DPLL_FPA0_P1_POST_DIV_SHIFT		16
 
 # define PLL_P2_DIVIDE_BY_4			(1 << 23) /* i830, required in DVO non-gang */
 # define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
 # define PLL_REF_INPUT_DREFCLK			(0 << 13)
 # define PLL_REF_INPUT_TVCLKINA			(1 << 13) /* i830 */
-# define PLL_REF_INPUT_SUPER_SSC		(1 << 13) /* IGDNG: 120M SSC */
+# define PLL_REF_INPUT_SUPER_SSC		(1 << 13) /* Ironlake: 120M SSC */
 # define PLL_REF_INPUT_TVCLKINBC		(2 << 13) /* SDVO TVCLKIN */
 # define PLLB_REF_INPUT_SPREADSPECTRUMIN	(3 << 13)
 # define PLL_REF_INPUT_MASK			(3 << 13)
-# define PLL_REF_INPUT_DMICLK			(5 << 13) /* IGDNG: DMI refclk */
+# define PLL_REF_INPUT_DMICLK			(5 << 13) /* Ironlake: DMI refclk */
 # define PLL_LOAD_PULSE_PHASE_SHIFT		9
 /*
  * Parallel to Serial Load Pulse phase selection.
@@ -1003,7 +1003,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define PLL_LOAD_PULSE_PHASE_MASK		(0xf << PLL_LOAD_PULSE_PHASE_SHIFT)
 # define DISPLAY_RATE_SELECT_FPA1		(1 << 8)
-/* IGDNG */
+/* Ironlake */
 # define PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT	9
 # define PLL_REF_SDVO_HDMI_MULTIPLIER_MASK	(7 << 9)
 # define PLL_REF_SDVO_HDMI_MULTIPLIER(x)	(((x)-1)<< PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT)
@@ -2157,7 +2157,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPEACONF_PIPE_LOCKED	(1<<25)
 #define PIPEACONF_PALETTE	0
 #define PIPEACONF_GAMMA 	(1<<24)
-/* IGDNG: gamma */
+/* Ironlake: gamma */
 #define PIPECONF_PALETTE_8BIT	(0<<24)
 #define PIPECONF_PALETTE_10BIT	(1<<24)
 #define PIPECONF_PALETTE_12BIT	(2<<24)
@@ -2165,7 +2165,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPECONF_PROGRESSIVE	(0 << 21)
 #define PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
 #define PIPECONF_INTERLACE_FIELD_0_ONLY		(7 << 21)
-/* IGDNG */
+/* Ironlake */
 #define PIPECONF_MSA_TIMING_DELAY	(0<<18) /* for eDP */
 #define PIPECONF_NO_DYNAMIC_RATE_CHANGE	(0 << 16)
 #define PIPECONF_NO_ROTATION		(0<<14)
@@ -2319,9 +2319,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DISPPLANE_8BPP				(0x2<<26)
 #define DISPPLANE_15_16BPP			(0x4<<26)
 #define DISPPLANE_16BPP				(0x5<<26)
-#define DISPPLANE_32BPP_NO_ALPHA 		(0x6<<26) /* IGDNG: BGRX */
-#define DISPPLANE_32BPP				(0x7<<26) /* IGDNG: not support */
-/* IGDNG */
+#define DISPPLANE_32BPP_NO_ALPHA 		(0x6<<26) /* Ironlake: BGRX */
+#define DISPPLANE_32BPP				(0x7<<26) /* Ironlake: not support */
+/* Ironlake */
 #define DISPPLANE_32BPP_10			(0x8<<26) /* 2:10:10:10 */
 #define DISPPLANE_32BPP_BGRX			(0xa<<26)
 #define DISPPLANE_64BPP				(0xc<<26)
@@ -2329,11 +2329,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DISPPLANE_STEREO_ENABLE			(1<<25)
 #define DISPPLANE_STEREO_DISABLE		0
 #define DISPPLANE_SEL_PIPE_MASK			(1<<24)
-#define DISPPLANE_SEL_PIPE_A			0	/* IGDNG: don't use */
+#define DISPPLANE_SEL_PIPE_A			0	/* Ironlake: don't use */
 #define DISPPLANE_SEL_PIPE_B			(1<<24)
 #define DISPPLANE_NORMAL_RANGE			(0<<25)
 #define DISPPLANE_EXT_RANGE			(1<<25)
-/* IGDNG */
+/* Ironlake */
 #define DISPPLANE_CSC_BYPASS			(0<<24)
 #define DISPPLANE_CSC_PASSTHROUGH		(1<<24)
 #define DISPPLANE_SRC_KEY_ENABLE		(1<<22)
@@ -2347,17 +2347,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DISPPLANE_ALPHA_TRANS_DISABLE		0
 #define DISPPLANE_SPRITE_ABOVE_DISPLAYA		0
 #define DISPPLANE_SPRITE_ABOVE_OVERLAY		(1)
-/* IGDNG */
+/* Ironlake */
 #define DISPPLANE_X_TILE			(1<<10)
 #define DISPPLANE_LINEAR			(0<<10)
 
 #define DSPABASE		0x70184
-/* IGDNG */
+/* Ironlake */
 #define DSPALINOFF		0x70184
 #define DSPASTRIDE		0x70188
 
 #define DSPBBASE		0x71184
-/* IGDNG */
+/* Ironlake */
 #define DSPBLINOFF		0x71184
 #define DSPBADDR		DSPBBASE
 #define DSPBSTRIDE		0x71188
@@ -2721,7 +2721,7 @@ typedef enum {
 #define MCHBAR_RENDER_STANDBY	0x111B8
 #define RENDER_STANDBY_ENABLE	(1 << 30)
 
-/* IGDNG */
+/* Ironlake */
 
 /* warmup time in us */
 #define WARMUP_PCH_REF_CLK_SSC_MOD	1
@@ -3054,7 +3054,7 @@ typedef enum {
 #define  FDI_DP_PORT_WIDTH_X3		(2<<19)
 #define  FDI_DP_PORT_WIDTH_X4		(3<<19)
 #define  FDI_TX_ENHANCE_FRAME_ENABLE	(1<<18)
-/* IGDNG: hardwired to 1 */
+/* Ironlake: hardwired to 1 */
 #define  FDI_TX_PLL_ENABLE		(1<<14)
 /* both Tx and Rx */
 #define  FDI_SCRAMBLING_ENABLE		(0<<7)
