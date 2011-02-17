@@ -601,7 +601,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	MessageType from;
 	const char *reason;
 	uint64_t v;
-	int ret, i;
+	int ret;
 
 	if (flags & PROBE_DETECT) {
 		EntityInfoPtr pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
@@ -609,7 +609,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		if (!pEnt)
 			return FALSE;
 
-		i = pEnt->index;
 		free(pEnt);
 
 		return TRUE;
