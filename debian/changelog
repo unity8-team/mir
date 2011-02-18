@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.14.0-4) unstable; urgency=low
+
+  * Cherry-pick from upstream:
+    - uxa: Fallback if the temporary is too large
+  * This fixes a null pointer dereference with some rendering operations
+    involving large pictures (Closes: #613830). Thanks, Enrico!
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 18 Feb 2011 12:44:23 +0100
+
 xserver-xorg-video-intel (2:2.14.0-3) unstable; urgency=low
 
   * Switch to dh:
