@@ -2,11 +2,12 @@ Source: xserver-xorg-video-intel
 Section: x11
 Priority: optional
 Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
-Uploaders: David Nusinow <dnusinow@debian.org>, Drew Parsons <dparsons@debian.org>, Brice Goglin <bgoglin@debian.org>, Cyril Brulebois <kibi@debian.org>
+Uploaders: Drew Parsons <dparsons@debian.org>, Cyril Brulebois <kibi@debian.org>
 Build-Depends:
- debhelper (>= 5),
+ debhelper (>= 8),
+ dh-autoreconf,
  pkg-config,
- xserver-xorg-dev (>= 2:1.9.0.901),
+ xserver-xorg-dev (>= 2:1.9.99.902),
  x11proto-core-dev,
  x11proto-fonts-dev,
  x11proto-xinerama-dev,
@@ -30,21 +31,20 @@ Build-Depends:
  libxcb-dri2-0-dev,
 # end xvmc
  libudev-dev [linux-any],
- dpkg-dev (>= 1.14.17),
  quilt,
- automake,
- libtool,
  xutils-dev (>= 1:7.5+4),
-Standards-Version: 3.8.4
+Standards-Version: 3.9.1
 Vcs-Git: git://git.debian.org/git/pkg-xorg/driver/xserver-xorg-video-intel
 Vcs-Browser: http://git.debian.org/?p=pkg-xorg/driver/xserver-xorg-video-intel.git
 
 Package: xserver-xorg-video-intel
 Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${xviddriver:Depends}
-Provides: ${xviddriver:Provides}
-Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
-Conflicts: xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810, 915resolution
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ ${xviddriver:Depends},
+Provides:
+ ${xviddriver:Provides}
 Description: X.Org X server -- Intel i8xx, i9xx display driver
  This package provides the driver for the Intel i8xx and i9xx family
  of chipsets, including i810, i815, i830, i845, i855, i865, i915, i945
@@ -60,8 +60,11 @@ Description: X.Org X server -- Intel i8xx, i9xx display driver
 
 Package: xserver-xorg-video-intel-dbg
 Architecture: amd64 i386
-Depends: xserver-xorg-video-intel (= ${binary:Version}), ${shlibs:Depends}
-Recommends: intel-gpu-tools
+Depends:
+ xserver-xorg-video-intel (= ${binary:Version}),
+ ${shlibs:Depends},
+Recommends:
+ intel-gpu-tools,
 Section: debug
 Priority: extra
 Description: X.Org X server -- Intel i8xx, i9xx display driver (debug symbols)

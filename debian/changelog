@@ -1,3 +1,43 @@
+xserver-xorg-video-intel (2:2.14.0-4+exp1) experimental; urgency=low
+
+  * Rebuild against Xserver 1.10 rc2.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 20 Feb 2011 12:35:59 +0100
+
+xserver-xorg-video-intel (2:2.14.0-4) unstable; urgency=low
+
+  * Cherry-pick from upstream:
+    - uxa: Fallback if the temporary is too large
+  * This fixes a null pointer dereference with some rendering operations
+    involving large pictures (Closes: #613830). Thanks, Enrico!
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 18 Feb 2011 12:44:23 +0100
+
+xserver-xorg-video-intel (2:2.14.0-3) unstable; urgency=low
+
+  * Switch to dh:
+    - Use debhelper 8.
+    - Use dh-autoreconf.
+    - Bump xserver-xorg-dev build-dep for dh_xsf_substvars and xsf
+      debhelper sequence.
+    - Specify usr/share/man in .install, remove .manpages accordingly.
+    - Specify NEWS and README in .docs file.
+  * Get rid of maintainer scripts, since they were only used to handle
+    switching between versions with or without KMS. Starting with squeeze,
+    KMS is mandatory, so stop worrying about that.
+  * Remove xsfbs accordingly.
+  * Remove leftovers:
+    - NEWS file is outdated, UMS is no longer available, and that's
+      covered by README.Debian
+    - The .install.hurd-i386 file is no longer relevant, this package is
+      now Linux-only.
+  * Update Uploaders list. Thanks, David & Brice!
+  * Remove long obsolete Replaces.
+  * Wrap Depends/Provides/Recommends.
+  * Bump Standards-Version to 3.9.1 (no changes needed).
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 05 Feb 2011 14:47:04 +0100
+
 xserver-xorg-video-intel (2:2.14.0-2) experimental; urgency=low
 
   * Cherry-pick from upstream to fix many rendering issues
