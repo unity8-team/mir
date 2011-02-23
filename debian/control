@@ -7,7 +7,7 @@ Uploaders: David Nusinow <dnusinow@debian.org>, Drew Parsons <dparsons@debian.or
 Build-Depends:
  debhelper (>= 5),
  pkg-config,
- xserver-xorg-dev (>= 2:1.9.0.901),
+ xserver-xorg-dev (>= 2:1.9.99.902-2ubuntu1~),
  x11proto-core-dev,
  x11proto-fonts-dev,
  x11proto-xinerama-dev,

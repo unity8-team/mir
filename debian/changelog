@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.14.0-1ubuntu10) natty; urgency=low
+
+  * Rebuild to pick up new Xserver dependencies
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Wed, 23 Feb 2011 17:53:32 +1100
+
 xserver-xorg-video-intel (2:2.14.0-1ubuntu9) natty; urgency=low
 
   * Add 115_quell_vblank_counter_failed.patch: Don't fill up Xorg.0.log
