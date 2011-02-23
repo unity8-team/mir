@@ -247,6 +247,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     int top, nlines, size;
     BoxRec dstBox;
     int dst_width = width, dst_height = height;
+    int aligned_height;
 
     /* make the compiler happy */
     s2offset = s3offset = srcPitch2 = 0;
@@ -298,6 +299,8 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    pPriv->hw_align = 64;
     }
 
+    aligned_height = RADEON_ALIGN(dst_height, drmmode_get_height_align(pScrn, 0));
+
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
@@ -320,7 +323,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	break;
     }
 
-    size = dstPitch * dst_height + 2 * dstPitch2 * ((dst_height + 1) >> 1);
+    size = dstPitch * aligned_height + 2 * dstPitch2 * ((aligned_height + 1) >> 1);
     size = RADEON_ALIGN(size, pPriv->hw_align);
 
     if (size != pPriv->size) {
