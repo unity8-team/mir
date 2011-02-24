@@ -134,7 +134,16 @@ static Bool
 can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
 {
 	ScrnInfoPtr scrn = xf86Screens[draw->pScreen->myNum];
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	NVPtr pNv = NVPTR(scrn);
+	int i;
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		if (crtc->enabled && crtc->rotatedData)
+			return FALSE;
+
+	}
 
 	return (!nouveau_exa_pixmap_is_onscreen(dst_pix) ||
 		(DRI2CanFlip(draw) && pNv->has_pageflip)) &&
