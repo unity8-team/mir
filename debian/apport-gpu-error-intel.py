@@ -97,7 +97,7 @@ def main(argv=None):
     report['Package'] = 'xserver-xorg-video-intel'
     report['Tags'] += ' freeze'
     report['Lspci'] = command_output(['lspci', '-vvnn'])
-    report['IntelGpuDump'] = command_output(['intel_gpu_dump'])
+    report['IntelGpuDump'] = root_command_output(['intel_gpu_dump'])
     chipset = get_pci_device(report['Lspci'])
     if chipset:
         report['Chipset'] = chipset
