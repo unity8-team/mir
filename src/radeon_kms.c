@@ -408,9 +408,13 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 	info->dri2.drm_fd = pRADEONEnt->fd;
 	goto out;
     }
-
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
+    busid = XNFasprintf("pci:%04x:%02x:%02x.%d",
+			dev->domain, dev->bus, dev->dev, dev->func);
+#else
     busid = XNFprintf("pci:%04x:%02x:%02x.%d",
 		      dev->domain, dev->bus, dev->dev, dev->func);
+#endif
 
     info->dri2.drm_fd = drmOpen("radeon", busid);
     if (info->dri2.drm_fd == -1) {
