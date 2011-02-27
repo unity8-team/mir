@@ -383,17 +383,17 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 
 static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 {
-	if (buffer) {
+	if (buffer && buffer->driverPrivate) {
 		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
 		if (--private->refcnt == 0) {
 			ScreenPtr screen = private->pixmap->drawable.pScreen;
-
 			screen->DestroyPixmap(private->pixmap);
 
 			free(private);
 			free(buffer);
 		}
-	}
+	} else
+		free(buffer);
 }
 
 #endif
