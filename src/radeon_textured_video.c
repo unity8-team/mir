@@ -248,7 +248,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     BoxRec dstBox;
     int dst_width = width, dst_height = height;
     int aligned_height;
-
+    int h_align = drmmode_get_height_align(pScrn, 0);
     /* make the compiler happy */
     s2offset = s3offset = srcPitch2 = 0;
 
@@ -299,7 +299,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    pPriv->hw_align = 64;
     }
 
-    aligned_height = RADEON_ALIGN(dst_height, drmmode_get_height_align(pScrn, 0));
+    aligned_height = RADEON_ALIGN(dst_height, h_align);
 
     switch(id) {
     case FOURCC_YV12:
@@ -323,7 +323,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	break;
     }
 
-    size = dstPitch * aligned_height + 2 * dstPitch2 * ((aligned_height + 1) >> 1);
+    size = dstPitch * aligned_height + 2 * dstPitch2 * RADEON_ALIGN(((aligned_height + 1) >> 1), h_align);
     size = RADEON_ALIGN(size, pPriv->hw_align);
 
     if (size != pPriv->size) {
@@ -401,9 +401,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
     pPriv->src_pitch = dstPitch;
 
-    pPriv->planeu_offset = dstPitch * dst_height;
+    pPriv->planeu_offset = dstPitch * aligned_height;
     pPriv->planeu_offset = RADEON_ALIGN(pPriv->planeu_offset, pPriv->hw_align);
-    pPriv->planev_offset = pPriv->planeu_offset + dstPitch2 * ((dst_height + 1) >> 1);
+    pPriv->planev_offset = pPriv->planeu_offset + dstPitch2 * RADEON_ALIGN(((aligned_height + 1) >> 1), h_align);
     pPriv->planev_offset = RADEON_ALIGN(pPriv->planev_offset, pPriv->hw_align);
 
     pPriv->size = size;
