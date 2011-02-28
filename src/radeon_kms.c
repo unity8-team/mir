@@ -625,25 +625,31 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	goto fail;
     }
 
-    colorTilingDefault = info->ChipFamily >= CHIP_FAMILY_R300 &&
-                         info->ChipFamily <= CHIP_FAMILY_RS740;
+    if (!RADEONPreInitAccel_KMS(pScrn))              goto fail;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	/* set default group bytes, overridden by kernel info below */
-	info->group_bytes = 256;
-	info->have_tiling_info = FALSE;
-	if (info->dri->pKernelDRMVersion->version_minor >= 6) {
-	    if (r600_get_tile_config(pScrn))
-		info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-							      OPTION_COLOR_TILING, colorTilingDefault);
-	    else
-		info->allowColorTiling = FALSE;
+    /* don't enable tiling if accel is not enabled */
+    if (!info->r600_shadow_fb) {
+	colorTilingDefault = info->ChipFamily >= CHIP_FAMILY_R300 &&
+	    info->ChipFamily <= CHIP_FAMILY_RS740;
+
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    /* set default group bytes, overridden by kernel info below */
+	    info->group_bytes = 256;
+	    info->have_tiling_info = FALSE;
+	    if (info->dri->pKernelDRMVersion->version_minor >= 6) {
+		if (r600_get_tile_config(pScrn))
+		    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+								  OPTION_COLOR_TILING, colorTilingDefault);
+		else
+		    info->allowColorTiling = FALSE;
+	    } else
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "R6xx+ KMS Color Tiling requires radeon drm 2.6.0 or newer\n");
 	} else
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "R6xx+ KMS Color Tiling requires radeon drm 2.6.0 or newer\n");
+	    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
+							  OPTION_COLOR_TILING, colorTilingDefault);
     } else
-	info->allowColorTiling = xf86ReturnOptValBool(info->Options,
-						      OPTION_COLOR_TILING, colorTilingDefault);
+	info->allowColorTiling = FALSE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	 "KMS Color Tiling: %sabled\n", info->allowColorTiling ? "en" : "dis");
@@ -739,8 +745,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	if (!xf86LoadSubModule(pScrn, "ramdac")) return FALSE;
     }
-
-    if (!RADEONPreInitAccel_KMS(pScrn))              goto fail;
 
     if (pScrn->modes == NULL) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
