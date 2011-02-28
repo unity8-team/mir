@@ -445,6 +445,8 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 static void *
 drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	int size;
@@ -452,6 +454,13 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	int ret;
 	unsigned long rotate_pitch;
 	int base_align;
+
+	/* rotation requires acceleration */
+	if (info->r600_shadow_fb) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Rotation requires acceleration!\n");
+		return NULL;
+	}
 
 	rotate_pitch =
 		RADEON_ALIGN(width, drmmode_get_pitch_align(crtc->scrn, drmmode->cpp, 0)) * drmmode->cpp;
