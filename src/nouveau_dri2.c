@@ -29,6 +29,7 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 	ScreenPtr pScreen = pDraw->pScreen;
 	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
 	struct nouveau_dri2_buffer *nvbuf;
+	struct nouveau_pixmap *nvpix;
 	PixmapPtr ppix;
 
 	nvbuf = calloc(1, sizeof(*nvbuf));
@@ -70,7 +71,14 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 	nvbuf->base.flags = 0;
 	nvbuf->ppix = ppix;
 
-	nouveau_bo_handle_get(nouveau_pixmap(ppix)->bo, &nvbuf->base.name);
+	nvpix = nouveau_pixmap(ppix);
+	if (!nvpix || !nvpix->bo ||
+	    nouveau_bo_handle_get(nvpix->bo, &nvbuf->base.name)) {
+		pScreen->DestroyPixmap(nvbuf->ppix);
+		free(nvbuf);
+		return NULL;
+	}
+
 	return &nvbuf->base;
 }
 
