@@ -1,6 +1,8 @@
+# placeholder
+
+# Ubuntu patches
 101_copy-fb.patch
 107_solid_nullptr_check.patch
-108_undo_dmg_trans_before_append.patch
 109_dont_reconstruct_glyph_cache_on_rotate.patch
 110_warnings_cleanup.patch
 111_fix_clipped_window_plane_offset.patch

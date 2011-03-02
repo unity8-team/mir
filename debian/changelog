@@ -1,3 +1,93 @@
+xserver-xorg-video-intel (2:2.14.0-4ubuntu1) natty; urgency=low
+
+  * Merge from Debian unstable.  Remaining Ubuntu changes:
+    - debian/apport-gpu-error-intel.py:
+    - debian/control:
+    - debian/rules:
+    - debian/xserver-xorg-video-intel.install:
+    - debian/xserver-xorg-video-intel.udev
+      + Add apport hook, triggered on udev GPU error event
+    - debian/control:
+      + Drop [linux-any] qualifier on libudev-dev build-dep to work around
+        pbuilder bug.
+    - debian/patches/101_copy-fb.patch:
+      + Plymouth integration patch
+    - debian/patches/107_solid_nullptr_check.patch:
+      + Check null return from uxa_acquire_solid()
+    - debian/patches/109_dont_reconstruct_glyph_cache_on_rotate.patch:
+      + Fix font corruption (missing glyphs) on rotated screens.
+    - debian/patches/110_warnings_cleanup.patch:
+    - debian/patches/114_warnings_cleanup_part_2.patch:
+      + Cherry picks to fix a large number of build warnings.
+    - debian/patches/111_fix_clipped_window_plane_offset.patch:
+    - 112_fix_error_in_4c4ad555.patch: 
+      + Fix issue where vertical green line and strange colors shows up when
+        playing gstreamer with certain videos, when dragged.  (LP 460677)
+    - debian/patches/113_remove_broken_max_base_addresses.patch:
+      +  Fixes GPU lockup during login with 
+         "Bad length (4) in MI_DISPLAY_BUFFER_INFO, [3, 3]" error messages
+  	  listed in the gpu dump text. (LP 710321)
+    - debian/patches/115_quell_vblank_counter_failed.patch:
+      +  Don't fill up Xorg.0.log with 
+         "get vblank counter failed: Invalid argument" warnings.
+  	 5 is enough.  (LP 710594)
+    - debian/xserver-xorg-video-intel.preinst.in:
+    - debian/xserver-xorg-video-intel.postinst.in:
+      + Remove obsolete /etc/modprobe.d/i915-kms.conf file on upgrades.  KMS
+        is the kernel default.
+  * Pull prerequisite commit into 
+    109_dont_reconstruct_glyph_cache_on_rotate.patch.  We mostly didn't notice
+    because the copy-fb codepath initialises the resources itself.  Fixes
+    Pixmap assert on Xserver startup when copy-fb fails, such as on hybrid
+    graphics systems. (LP: #718620)
+  * debian/control:
+    - Dropped Ubuntu change: remove a bunch of Conflicts/Replaces against 
+      packages last seen in Hardy.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Wed, 02 Mar 2011 14:12:35 +1100
+
+xserver-xorg-video-intel (2:2.14.0-4) unstable; urgency=low
+
+  * Cherry-pick from upstream:
+    - uxa: Fallback if the temporary is too large
+  * This fixes a null pointer dereference with some rendering operations
+    involving large pictures (Closes: #613830). Thanks, Enrico!
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 18 Feb 2011 12:44:23 +0100
+
+xserver-xorg-video-intel (2:2.14.0-3) unstable; urgency=low
+
+  * Switch to dh:
+    - Use debhelper 8.
+    - Use dh-autoreconf.
+    - Bump xserver-xorg-dev build-dep for dh_xsf_substvars and xsf
+      debhelper sequence.
+    - Specify usr/share/man in .install, remove .manpages accordingly.
+    - Specify NEWS and README in .docs file.
+  * Get rid of maintainer scripts, since they were only used to handle
+    switching between versions with or without KMS. Starting with squeeze,
+    KMS is mandatory, so stop worrying about that.
+  * Remove xsfbs accordingly.
+  * Remove leftovers:
+    - NEWS file is outdated, UMS is no longer available, and that's
+      covered by README.Debian
+    - The .install.hurd-i386 file is no longer relevant, this package is
+      now Linux-only.
+  * Update Uploaders list. Thanks, David & Brice!
+  * Remove long obsolete Replaces.
+  * Wrap Depends/Provides/Recommends.
+  * Bump Standards-Version to 3.9.1 (no changes needed).
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 05 Feb 2011 14:47:04 +0100
+
+xserver-xorg-video-intel (2:2.14.0-2) experimental; urgency=low
+
+  * Cherry-pick from upstream to fix many rendering issues
+    (https://bugs.freedesktop.org/show_bug.cgi?id=33650):
+    - uxa: Undo damage translation before appending
+
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 04 Feb 2011 15:37:47 +0100
+
 xserver-xorg-video-intel (2:2.14.0-1ubuntu11) natty; urgency=low
 
   [Brian Murray]
