@@ -325,6 +325,7 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     tex_samp.clamp_z            = SQ_TEX_WRAP;
     tex_samp.xy_mag_filter      = SQ_TEX_XY_FILTER_POINT;
     tex_samp.xy_min_filter      = SQ_TEX_XY_FILTER_POINT;
+    tex_samp.mc_coord_truncate  = 1;
     tex_samp.z_filter           = SQ_TEX_Z_FILTER_NONE;
     tex_samp.mip_filter         = 0;			/* no mipmap */
     evergreen_set_tex_sampler   (pScrn, &tex_samp);
@@ -973,6 +974,7 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
     case PictFilterNearest:
 	tex_samp.xy_mag_filter      = SQ_TEX_XY_FILTER_POINT;
 	tex_samp.xy_min_filter      = SQ_TEX_XY_FILTER_POINT;
+	tex_samp.mc_coord_truncate  = 1;
 	break;
     case PictFilterBilinear:
 	tex_samp.xy_mag_filter      = SQ_TEX_XY_FILTER_BILINEAR;
