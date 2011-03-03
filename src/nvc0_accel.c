@@ -92,6 +92,9 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 
 	switch (pNv->dev->chipset) {
 	case 0xc0:
+	case 0xc1:
+	case 0xc3:
+	case 0xc4:
 		tclClass = 0x9097;
 		break;
 	default:
