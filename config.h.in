@@ -45,6 +45,9 @@
    */
 #undef LT_OBJDIR
 
+/* Disable internal debugging */
+#undef NDEBUG
+
 /* Name of package */
 #undef PACKAGE
 

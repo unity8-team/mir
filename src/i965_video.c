@@ -113,7 +113,7 @@ static const uint32_t ps_kernel_planar_static[][4] = {
 #include "exa_wm_write.g4b"
 };
 
-/* new program for IGDNG */
+/* new program for Ironlake */
 static const uint32_t sf_kernel_static_gen5[][4] = {
 #include "exa_sf.g4b.gen5"
 };
@@ -414,8 +414,8 @@ static void i965_create_dst_surface_state(ScrnInfoPtr scrn,
 	    intel_emit_reloc(surf_bo, offset + offsetof(struct brw_surface_state, ss1),
 			     pixmap_bo, 0, I915_GEM_DOMAIN_SAMPLER, 0);
 
-	dest_surf_state->ss2.height = scrn->virtualY - 1;
-	dest_surf_state->ss2.width = scrn->virtualX - 1;
+	dest_surf_state->ss2.height = pixmap->drawable.height - 1;
+	dest_surf_state->ss2.width = pixmap->drawable.width - 1;
 	dest_surf_state->ss2.mip_count = 0;
 	dest_surf_state->ss2.render_target_rotation = 0;
 	dest_surf_state->ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
@@ -675,7 +675,7 @@ static drm_intel_bo *i965_create_wm_state(ScrnInfoPtr scrn,
 		wm_state->thread1.binding_table_entry_count = 7;
 
 	/* binding table entry count is only used for prefetching, and it has to
-	 * be set 0 for IGDNG
+	 * be set 0 for Ironlake
 	 */
 	if (IS_GEN5(intel))
 		wm_state->thread1.binding_table_entry_count = 0;
@@ -770,7 +770,7 @@ static drm_intel_bo *i965_create_cc_state(ScrnInfoPtr scrn)
 }
 
 static void
-i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * surface_state_binding_table_bo, int n_src_surf)
+i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * surface_state_binding_table_bo, int n_src_surf, PixmapPtr pixmap)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int urb_vs_start, urb_vs_size;
@@ -821,20 +821,20 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * surface_state_binding_tab
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* media base addr, don't care */
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Instruction base address */
 		/* general state max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 		/* media object state max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 		/* Instruction max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 	} else {
 		OUT_BATCH(BRW_STATE_BASE_ADDRESS | 4);
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* Generate state base address */
 		OUT_RELOC(surface_state_binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, BASE_ADDRESS_MODIFY); /* Surface state base address */
 		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);	/* media base addr, don't care */
 		/* general state max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 		/* media object state max addr, disabled */
-		OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
+		OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
 	}
 
 	/* Set system instruction pointer */
@@ -877,7 +877,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * surface_state_binding_tab
 	 */
 	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);	/* XXX 3 for BLC or CTG */
 	OUT_BATCH(0x00000000);	/* ymin, xmin */
-	OUT_BATCH((scrn->virtualX - 1) | (scrn->virtualY - 1) << 16);	/* ymax, xmax */
+	OUT_BATCH((pixmap->drawable.width - 1) | (pixmap->drawable.height - 1) << 16);	/* ymax, xmax */
 	OUT_BATCH(0x00000000);	/* yorigin, xorigin */
 
 	/* skip the depth buffer */
@@ -1212,7 +1212,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 
 		intel_batch_start_atomic(scrn, 100);
 
-		i965_emit_video_setup(scrn, surface_state_binding_table_bo, n_src_surf);
+		i965_emit_video_setup(scrn, surface_state_binding_table_bo, n_src_surf, pixmap);
 
 		/* Set up the pointer to our vertex buffer */
 		OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
@@ -1517,13 +1517,13 @@ gen6_upload_depth_buffer_state(ScrnInfoPtr scrn)
 }
 
 static void
-gen6_upload_drawing_rectangle(ScrnInfoPtr scrn)
+gen6_upload_drawing_rectangle(ScrnInfoPtr scrn, PixmapPtr pixmap)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);
 	OUT_BATCH(0x00000000);	/* ymin, xmin */
-	OUT_BATCH((scrn->virtualX - 1) | (scrn->virtualY - 1) << 16);	/* ymax, xmax */
+	OUT_BATCH((pixmap->drawable.width - 1) | (pixmap->drawable.height - 1) << 16);	/* ymax, xmax */
 	OUT_BATCH(0x00000000);	/* yorigin, xorigin */
 }
 
@@ -1673,7 +1673,7 @@ gen6_upload_vertex_element_state(ScrnInfoPtr scrn)
 }
 
 static void
-gen6_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo *surface_state_binding_table_bo, int n_src_surf)
+gen6_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo *surface_state_binding_table_bo, int n_src_surf, PixmapPtr pixmap)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
@@ -1694,7 +1694,7 @@ gen6_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo *surface_state_binding_tabl
 	gen6_upload_wm_state(scrn, n_src_surf == 1 ? TRUE : FALSE);
 	gen6_upload_binding_table(scrn, (n_src_surf + 1) * ALIGN(sizeof(struct brw_surface_state), 32));;
 	gen6_upload_depth_buffer_state(scrn);
-	gen6_upload_drawing_rectangle(scrn);
+	gen6_upload_drawing_rectangle(scrn, pixmap);
 	gen6_upload_vertex_element_state(scrn);
 }
 
@@ -1853,7 +1853,7 @@ void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
 			intel_batch_submit(scrn, FALSE);
 
 		intel_batch_start_atomic(scrn, 200);
-		gen6_emit_video_setup(scrn, surface_state_binding_table_bo, n_src_surf);
+		gen6_emit_video_setup(scrn, surface_state_binding_table_bo, n_src_surf, pixmap);
 
 		/* Set up the pointer to our vertex buffer */
 		OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | (5 - 2));

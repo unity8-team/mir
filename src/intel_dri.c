@@ -383,17 +383,17 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 
 static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 {
-	if (buffer) {
+	if (buffer && buffer->driverPrivate) {
 		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
 		if (--private->refcnt == 0) {
 			ScreenPtr screen = private->pixmap->drawable.pScreen;
-
 			screen->DestroyPixmap(private->pixmap);
 
 			free(private);
 			free(buffer);
 		}
-	}
+	} else
+		free(buffer);
 }
 
 #endif
@@ -1057,10 +1057,14 @@ I830DRI2GetMSC(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s:%d get vblank counter failed: %s\n",
-			   __FUNCTION__, __LINE__,
-			   strerror(errno));
+		static int limit = 5;
+		if (limit) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s:%d get vblank counter failed: %s\n",
+				   __FUNCTION__, __LINE__,
+				   strerror(errno));
+			limit--;
+		}
 		return FALSE;
 	}
 
@@ -1113,10 +1117,14 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	vbl.request.sequence = 0;
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s:%d get vblank counter failed: %s\n",
-			   __FUNCTION__, __LINE__,
-			   strerror(errno));
+		static int limit = 5;
+		if (limit) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s:%d get vblank counter failed: %s\n",
+				   __FUNCTION__, __LINE__,
+				   strerror(errno));
+			limit--;
+		}
 		goto out_complete;
 	}
 
@@ -1143,10 +1151,14 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		vbl.request.signal = (unsigned long)wait_info;
 		ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 		if (ret) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "%s:%d get vblank counter failed: %s\n",
-				   __FUNCTION__, __LINE__,
-				   strerror(errno));
+			static int limit = 5;
+			if (limit) {
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+					   "%s:%d get vblank counter failed: %s\n",
+					   __FUNCTION__, __LINE__,
+					   strerror(errno));
+				limit--;
+			}
 			goto out_complete;
 		}
 
@@ -1178,10 +1190,14 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	vbl.request.signal = (unsigned long)wait_info;
 	ret = drmWaitVBlank(intel->drmSubFD, &vbl);
 	if (ret) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s:%d get vblank counter failed: %s\n",
-			   __FUNCTION__, __LINE__,
-			   strerror(errno));
+		static int limit = 5;
+		if (limit) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s:%d get vblank counter failed: %s\n",
+				   __FUNCTION__, __LINE__,
+				   strerror(errno));
+			limit--;
+		}
 		goto out_complete;
 	}
 
