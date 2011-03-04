@@ -37,10 +37,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
-#ifndef PRINT_MODE_INFO
-#define PRINT_MODE_INFO 0
-#endif
-
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -79,10 +75,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/ioctl.h>
 #include "i915_drm.h"
 #include <xf86drmMode.h>
-
-#define BIT(x) (1 << (x))
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#define NB_OF(x) (sizeof (x) / sizeof (*x))
 
 /* *INDENT-OFF* */
 /*
@@ -174,14 +166,6 @@ I830LoadPalette(ScrnInfoPtr scrn, int numColors, int *indices,
 
 	for (p = 0; p < xf86_config->num_crtc; p++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[p];
-		I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-
-		/* Initialize to the old lookup table values. */
-		for (i = 0; i < 256; i++) {
-			lut_r[i] = intel_crtc->lut_r[i] << 8;
-			lut_g[i] = intel_crtc->lut_g[i] << 8;
-			lut_b[i] = intel_crtc->lut_b[i] << 8;
-		}
 
 		switch (scrn->depth) {
 		case 15:
@@ -250,9 +234,7 @@ static Bool i830CreateScreenResources(ScreenPtr screen)
 	if (!(*screen->CreateScreenResources) (screen))
 		return FALSE;
 
-	intel_uxa_create_screen_resources(screen);
-
-	return TRUE;
+	return intel_uxa_create_screen_resources(screen);
 }
 
 static void PreInitCleanup(ScrnInfoPtr scrn)
@@ -607,12 +589,9 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel->tiling = TRUE;
 
 	/* Allow user override if they set a value */
-	if (!ALWAYS_TILING(intel) && xf86IsOptionSet(intel->Options, OPTION_TILING)) {
-		if (xf86ReturnOptValBool(intel->Options, OPTION_TILING, FALSE))
-			intel->tiling = TRUE;
-		else
-			intel->tiling = FALSE;
-	}
+	if (!ALWAYS_TILING(intel))
+		intel->tiling = xf86ReturnOptValBool(intel->Options,
+						     OPTION_TILING, TRUE);
 
 	intel->can_blt = can_accelerate_blt(intel);
 	intel->use_shadow = !intel->can_blt;
@@ -631,19 +610,11 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	}
 
 	/* SwapBuffers delays to avoid tearing */
-	intel->swapbuffers_wait = TRUE;
-
-	/* Allow user override if they set a value */
-	if (xf86IsOptionSet(intel->Options, OPTION_SWAPBUFFERS_WAIT)) {
-		if (xf86ReturnOptValBool
-		    (intel->Options, OPTION_SWAPBUFFERS_WAIT, FALSE))
-			intel->swapbuffers_wait = TRUE;
-		else
-			intel->swapbuffers_wait = FALSE;
-	}
-
+	intel->swapbuffers_wait = xf86ReturnOptValBool(intel->Options,
+						       OPTION_SWAPBUFFERS_WAIT,
+						       TRUE);
 	if (IS_GEN6(intel))
-	    intel->swapbuffers_wait = FALSE;
+		intel->swapbuffers_wait = FALSE;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Tiling %sabled\n",
 		   intel->tiling ? "en" : "dis");
@@ -679,18 +650,11 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	}
 
 	/* Load the dri2 module if requested. */
-	if (xf86ReturnOptValBool(intel->Options, OPTION_DRI, FALSE) &&
-	    intel->directRenderingType != DRI_DISABLED) {
+	if (intel->directRenderingType != DRI_DISABLED)
 		xf86LoadSubModule(scrn, "dri2");
-	}
 
 	return TRUE;
 }
-
-enum pipe {
-	PIPE_A = 0,
-	PIPE_B,
-};
 
 /**
  * Intialiazes the hardware for the 3D pipeline use in the 2D driver.
@@ -733,50 +697,6 @@ I830BlockHandler(int i, pointer blockData, pointer pTimeout, pointer pReadmask)
 	intel_video_block_handler(intel);
 }
 
-static void intel_fixup_mtrrs(ScrnInfoPtr scrn)
-{
-#ifdef HAS_MTRR_SUPPORT
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	int fd;
-	struct mtrr_gentry gentry;
-	struct mtrr_sentry sentry;
-
-	if ((fd = open("/proc/mtrr", O_RDONLY, 0)) != -1) {
-		for (gentry.regnum = 0;
-		     ioctl(fd, MTRRIOC_GET_ENTRY, &gentry) == 0;
-		     ++gentry.regnum) {
-
-			if (gentry.size < 1) {
-				/* DISABLED */
-				continue;
-			}
-
-			/* Check the MTRR range is one we like and if not - remove it.
-			 * The Xserver common layer will then setup the right range
-			 * for us.
-			 */
-			if (gentry.base == intel->LinearAddr &&
-			    gentry.size < intel->FbMapSize) {
-
-				xf86DrvMsg(scrn->scrnIndex, X_INFO,
-					   "Removing bad MTRR range (base 0x%lx, size 0x%x)\n",
-					   gentry.base, gentry.size);
-
-				sentry.base = gentry.base;
-				sentry.size = gentry.size;
-				sentry.type = gentry.type;
-
-				if (ioctl(fd, MTRRIOC_DEL_ENTRY, &sentry) == -1) {
-					xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-						   "Failed to remove bad MTRR range\n");
-				}
-			}
-		}
-		close(fd);
-	}
-#endif
-}
-
 static Bool
 intel_init_initial_framebuffer(ScrnInfoPtr scrn)
 {
@@ -809,7 +729,7 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr scrn = crtc->scrn;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	int i, active_outputs = 0;
+	int i;
 
 	if (!crtc->enabled)
 		return FALSE;
@@ -819,11 +739,9 @@ Bool intel_crtc_on(xf86CrtcPtr crtc)
 		xf86OutputPtr output = xf86_config->output[i];
 		if (output->crtc == crtc &&
 		    intel_output_dpms_status(output) == DPMSModeOn)
-			active_outputs++;
+			return TRUE;
 	}
 
-	if (active_outputs)
-		return TRUE;
 	return FALSE;
 }
 
@@ -849,103 +767,102 @@ intel_flush_callback(CallbackListPtr *list,
 static void
 I830HandleUEvents(int fd, void *closure)
 {
-    ScrnInfoPtr scrn = closure;
+	ScrnInfoPtr scrn = closure;
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-    struct udev_device *dev;
-    const char *hotplug;
-    struct stat s;
-    dev_t udev_devnum;
+	struct udev_device *dev;
+	const char *hotplug;
+	struct stat s;
+	dev_t udev_devnum;
 
-    dev = udev_monitor_receive_device(intel->uevent_monitor);
-    if (!dev)
-	return;
+	dev = udev_monitor_receive_device(intel->uevent_monitor);
+	if (!dev)
+		return;
 
-    udev_devnum = udev_device_get_devnum(dev);
-    fstat(intel->drmSubFD, &s);
-    /*
-     * Check to make sure this event is directed at our
-     * device (by comparing dev_t values), then make
-     * sure it's a hotplug event (HOTPLUG=1)
-     */
+	udev_devnum = udev_device_get_devnum(dev);
+	fstat(intel->drmSubFD, &s);
+	/*
+	 * Check to make sure this event is directed at our
+	 * device (by comparing dev_t values), then make
+	 * sure it's a hotplug event (HOTPLUG=1)
+	 */
 
-    hotplug = udev_device_get_property_value(dev, "HOTPLUG");
+	hotplug = udev_device_get_property_value(dev, "HOTPLUG");
 
-    if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
-	hotplug && atoi(hotplug) == 1)
-	RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
+	if (memcmp(&s.st_rdev, &udev_devnum, sizeof (dev_t)) == 0 &&
+			hotplug && atoi(hotplug) == 1)
+		RRGetInfo(screenInfo.screens[scrn->scrnIndex], TRUE);
 
-    udev_device_unref(dev);
+	udev_device_unref(dev);
 }
 
 static void
 I830UeventInit(ScrnInfoPtr scrn)
 {
-    intel_screen_private *intel = intel_get_screen_private(scrn);
-    struct udev *u;
-    struct udev_monitor *mon;
-    Bool hotplug;
-    MessageType from = X_CONFIG;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct udev *u;
+	struct udev_monitor *mon;
+	Bool hotplug;
+	MessageType from = X_CONFIG;
 
-    if (!xf86GetOptValBool(intel->Options, OPTION_HOTPLUG, &hotplug)) {
-	from = X_DEFAULT;
-	hotplug = TRUE;
-    }
+	if (!xf86GetOptValBool(intel->Options, OPTION_HOTPLUG, &hotplug)) {
+		from = X_DEFAULT;
+		hotplug = TRUE;
+	}
 
-    xf86DrvMsg(scrn->scrnIndex, from, "hotplug detection: \"%s\"\n",
-	       hotplug ? "enabled" : "disabled");
-    if (!hotplug)
-	return;
+	xf86DrvMsg(scrn->scrnIndex, from, "hotplug detection: \"%s\"\n",
+			hotplug ? "enabled" : "disabled");
+	if (!hotplug)
+		return;
 
-    u = udev_new();
-    if (!u)
-	return;
+	u = udev_new();
+	if (!u)
+		return;
 
-    mon = udev_monitor_new_from_netlink(u, "udev");
+	mon = udev_monitor_new_from_netlink(u, "udev");
 
-    if (!mon) {
-	udev_unref(u);
-	return;
-    }
+	if (!mon) {
+		udev_unref(u);
+		return;
+	}
 
-    if (udev_monitor_filter_add_match_subsystem_devtype(mon,
-							"drm",
-							"drm_minor") < 0 ||
-	udev_monitor_enable_receiving(mon) < 0)
-    {
-	udev_monitor_unref(mon);
-	udev_unref(u);
-	return;
-    }
+	if (udev_monitor_filter_add_match_subsystem_devtype(mon,
+				"drm",
+				"drm_minor") < 0 ||
+			udev_monitor_enable_receiving(mon) < 0)
+	{
+		udev_monitor_unref(mon);
+		udev_unref(u);
+		return;
+	}
 
-    intel->uevent_handler =
-	xf86AddGeneralHandler(udev_monitor_get_fd(mon),
-			      I830HandleUEvents,
-			      scrn);
-    if (!intel->uevent_handler) {
-	udev_monitor_unref(mon);
-	udev_unref(u);
-	return;
-    }
+	intel->uevent_handler =
+		xf86AddGeneralHandler(udev_monitor_get_fd(mon),
+				I830HandleUEvents,
+				scrn);
+	if (!intel->uevent_handler) {
+		udev_monitor_unref(mon);
+		udev_unref(u);
+		return;
+	}
 
-    intel->uevent_monitor = mon;
+	intel->uevent_monitor = mon;
 }
 
 static void
 I830UeventFini(ScrnInfoPtr scrn)
 {
-    intel_screen_private *intel = intel_get_screen_private(scrn);
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-    if (intel->uevent_handler)
-    {
-	struct udev *u = udev_monitor_get_udev(intel->uevent_monitor);
+	if (intel->uevent_handler) {
+		struct udev *u = udev_monitor_get_udev(intel->uevent_monitor);
 
-	xf86RemoveGeneralHandler(intel->uevent_handler);
+		xf86RemoveGeneralHandler(intel->uevent_handler);
 
-	udev_monitor_unref(intel->uevent_monitor);
-	udev_unref(u);
-	intel->uevent_handler = NULL;
-	intel->uevent_monitor = NULL;
-    }
+		udev_monitor_unref(intel->uevent_monitor);
+		udev_unref(u);
+		intel->uevent_handler = NULL;
+		intel->uevent_monitor = NULL;
+	}
 }
 #endif /* HAVE_UDEV */
 
@@ -961,32 +878,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	struct pci_device *const device = intel->PciInfo;
 	int fb_bar = IS_GEN2(intel) ? 0 : 2;
 
-	/*
-	 * The "VideoRam" config file parameter specifies the maximum amount of
-	 * memory that will be used/allocated.  When not present, we allow the
-	 * driver to allocate as much memory as it wishes to satisfy its
-	 * allocations, but if agpgart support isn't available, it gets limited
-	 * to the amount of pre-allocated ("stolen") memory.
-	 *
-	 * Note that in using this value for allocator initialization, we're
-	 * limiting aperture allocation to the VideoRam option, rather than limiting
-	 * actual memory allocation, so alignment and things will cause less than
-	 * VideoRam to be actually used.
-	 */
-	scrn->videoRam = intel->FbMapSize / KB(1);
-	if (intel->pEnt->device->videoRam != 0) {
-		if (scrn->videoRam != intel->pEnt->device->videoRam) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "VideoRam configuration found, which is no "
-				   "longer used.\n");
-			xf86DrvMsg(scrn->scrnIndex, X_INFO,
-				   "Continuing with (ignored) %dkB VideoRam "
-				   "instead of %d kB.\n",
-				   scrn->videoRam,
-				   intel->pEnt->device->videoRam);
-		}
-	}
-
 	scrn->videoRam = device->regions[fb_bar].size / 1024;
 
 	intel->last_3d = LAST_3D_OTHER;
@@ -998,10 +889,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	 */
 	intel->XvEnabled = TRUE;
 
-	xf86DrvMsg(scrn->scrnIndex,
-		   intel->pEnt->device->videoRam ? X_CONFIG : X_DEFAULT,
-		   "VideoRam: %d KB\n", scrn->videoRam);
-
 #ifdef DRI2
 	if (intel->directRenderingType == DRI_NONE
 	    && I830DRI2ScreenInit(screen))
@@ -1010,8 +897,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	if (!intel_init_initial_framebuffer(scrn))
 		return FALSE;
-
-	intel_fixup_mtrrs(scrn);
 
 	intel_batch_init(scrn);
 
@@ -1159,7 +1044,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	I830UeventInit(scrn);
 #endif
 
-	return uxa_resources_init(screen);
+	return TRUE;
 }
 
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags)
@@ -1380,22 +1265,6 @@ static Bool I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 		ErrorF("I830PMEvent: received APM event %d\n", event);
 	}
 	return TRUE;
-}
-
-xf86CrtcPtr intel_pipe_to_crtc(ScrnInfoPtr scrn, int pipe)
-{
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
-	int c;
-
-	for (c = 0; c < config->num_crtc; c++) {
-		xf86CrtcPtr crtc = config->crtc[c];
-		I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
-
-		if (intel_crtc->pipe == pipe)
-			return crtc;
-	}
-
-	return NULL;
 }
 
 void intel_init_scrn(ScrnInfoPtr scrn)

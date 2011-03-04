@@ -1,3 +1,382 @@
+commit 34f9a3335f96b16ef9df6213eb0a586c94f8f05b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 2 17:46:19 2011 +0000
+
+    configure: Bump for 2.14.901 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 057783937d7a42a766d0e45174c4c2dc0ffacd40
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 2 17:45:43 2011 +0000
+
+    NEWS: Add entry for 2.14.901 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e889d3a709b55a0731ab098b17a3364b9bf39387
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 27 10:51:50 2011 +0000
+
+    dri: Protect against destroying a foreign DRI drawable
+    
+    I have no clue as to how such an alien drawable reached us, but we have
+    the evidence of a segfault to say it can happen.
+    
+    Reported-by: Bernie Innocenti <bernie@codewiz.org>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=34787
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d21d781466785c317131a8a57606925867265dc8
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Feb 22 18:31:44 2011 +0100
+
+    Fix relaxed tiling on gen2
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 9599fde65a0d8b7e7c85199346f7b620bdd8388d
+Author: Bryce Harrington <bryce@canonical.com>
+Date:   Tue Feb 15 22:30:18 2011 -0800
+
+    Quell excessively verbose vblank counter failed error messages
+    
+    Certain error situations can result in the following printed to
+    Xorg.0.log at a high enough rate to make log file size a problem.
+    
+    (WW) intel(0): I830DRI2GetMSC:1062 get vblank counter failed: Invalid argument
+    (WW) intel(0): I830DRI2ScheduleWaitMSC:1118 get vblank counter failed: Invalid argument
+    
+    Following in the tradition of commit 0ad6d6e1, limit the warnings to be
+    output 5 times, then quell the remainder.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=34322
+    Ref.: https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/710594
+    
+    Signed-off-by: Bryce Harrington <bryce@canonical.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0ca595e9d533019b241666d29b421c7b36f9647a
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Thu Feb 17 15:26:35 2011 -0500
+
+    Fix IGD and IGDNG constants to be comprehensible
+    
+    Since, with GPU-on-package, it's hard to talk about a model number for
+    a specific chipset like 855GM, just use the platform names.
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4c66b28870b050493ad96f7b0fe2d70d7ee539c7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 17 16:48:24 2011 +0000
+
+    uxa: Fallback if the temporary is too large
+    
+    If the render operation requires a temporary source Picture and the
+    operation is large, larger than the maximum permitted bo, then we will
+    fail to allocate the bo. In this case, we need to fallback and perform
+    the operation on the CPU rather than dereference a NULL bo.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=34399
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 23f9b14df7c102c1036134835dd5d1a508059858
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 12 10:42:34 2011 +0000
+
+    i965: Remove broken maximum base addresses from video
+    
+    WRONG.
+    
+    The hardware was never limited to 0x1000000 and the kernel can quite
+    rightly place objects above that limit. Specifying such had no relation
+    to reality, so why did we do it? TWICE!
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=34017
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9184af921bc2f332fcb6c9b47001414378eab8e2
+Author: Javier Jardón <jjardon@gnome.org>
+Date:   Wed Feb 9 00:36:37 2011 +0000
+
+    Update autotools configuration
+    
+    Use new libtool syntax and silent-rules to silent
+    the build output a bit (linux-like)
+
+commit 6e721e098b9181e8e77e314f966729d28e705582
+Author: Bryce Harrington <bryce@canonical.com>
+Date:   Fri Feb 4 00:15:13 2011 -0800
+
+    Check return value of uxa_acquire_solid() since it can return NULL
+    
+    uxa_acquire_solid returns NULL under OOM.  Thus the value of solid
+    must be checked before dereferencing it in the uxa_get_offscreen()
+    call.
+    
+    Signed-off-by: Bryce Harrington <bryce@canonical.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit da990536eca09c6de74627541cd56ecfad925eda
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 3 09:41:48 2011 +0000
+
+    uxa: Undo damage translation before appending
+    
+    The region is used to paint onto the backing pixmap (and thus
+    translated) prior to being passed to the damage layer (wrt to the
+    drawable). So the local translation needs to be undone first.
+    
+    Identified by Christopher James Halse Rogers.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=33650
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ce1e0969058f8c70b624bc85bb8d6698a35794d3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 31 20:27:26 2011 +0000
+
+    Rename 'intel' backlight to match upstream name in 2.6.38
+    
+    (Just waiting for libbacklight to bring sanity...)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 80f59c8a4f51ccc27653a2de2dee2563b1e911f1
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 06:22:39 2011 +0100
+
+    xvmc: Stop using uninitialized variable.
+    
+    The actual code was removed in 5f64122551, where the get_surface_status
+    driver callback was dropped. Just return Success if there were no issues
+    with the parameter.
+    
+    Get rid of the following with CFLAGS="-Wall -Werror":
+    |   CC     intel_xvmc.lo
+    | cc1: warnings being treated as errors
+    | intel_xvmc.c: In function ‘XvMCSyncSurface’:
+    | intel_xvmc.c:677: error: ‘ret’ may be used uninitialized in this function
+    | intel_xvmc.c:672: note: ‘ret’ was declared here
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 86284abafbe1364f82509d2656c82ba11cdce6cc
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 06:22:38 2011 +0100
+
+    xvmc: Silence gcc, adding a cast to work around signedness issues.
+    
+    Both exported XvMCPutSlice/XvMCPutSlice2 functions have a prototype with a
+    parameter whose signedness differs from the one in the put_slice/put_slice2
+    functions they call. Make it unsigned through a cast.
+    
+    Get rid of this accordingly with CFLAGS="-Wall -Werror":
+    |   CC     intel_xvmc.lo
+    | cc1: warnings being treated as errors
+    | intel_xvmc.c: In function ‘XvMCSyncSurface’:
+    | intel_xvmc.c:677: error: ‘ret’ may be used uninitialized in this function
+    | intel_xvmc.c:672: note: ‘ret’ was declared here
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fc2eb64d7a184770ccd708a5b2337a538ca2b9db
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 09:59:04 2011 +0000
+
+    xvmc: Silence gcc, add parentheses around arithmetic.
+    
+    Get rid of those accordingly with CFLAGS="-Wall -Werror":
+    |   CC     i915_xvmc.lo
+    | cc1: warnings being treated as errors
+    | i915_xvmc.c: In function ‘i915_mc_one_time_state_emit’:
+    | i915_xvmc.c:369: error: suggest parentheses around arithmetic in operand of ‘|’
+    | i915_xvmc.c:374: error: suggest parentheses around arithmetic in operand of ‘|’
+    | i915_xvmc.c:379: error: suggest parentheses around arithmetic in operand of ‘|’
+    | i915_xvmc.c: In function ‘i915_mc_load_indirect_render_emit’:
+    | i915_xvmc.c:708: error: suggest parentheses around arithmetic in operand of ‘|’
+    | i915_xvmc.c:713: error: suggest parentheses around arithmetic in operand of ‘|’
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1b9349bceb9172d9bf01638b2df10b9b79e883b4
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 06:22:36 2011 +0100
+
+    xvmc: Silence gcc, add parentheses around assignment.
+    
+    Get rid of the following with CFLAGS="-Wall -Werror":
+    |   CC     intel_xvmc_dump.lo
+    | cc1: warnings being treated as errors
+    | intel_xvmc_dump.c: In function ‘intel_xvmc_dump_open’:
+    | intel_xvmc_dump.c:41: error: suggest parentheses around assignment used as truth value
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ae8877e30707cae586565b4deee4c7fd9ac7d3ed
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 06:22:35 2011 +0100
+
+    xvmc: Get rid of unused variables.
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8bd6a7149fcb5f9ed6580dc2aa0180874938a1ea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 29 12:04:09 2011 +0000
+
+    Enable conditional compilation of asserts
+    
+    With '--disable-debug' we define NDEBUG and so disable the asserts, that
+    is we continue to default to compiling asserts into the code.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a5a1ab7bbc58ec884cd0b90fe7139f402291b92f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 28 17:20:06 2011 +0000
+
+    i915: Remove unused 'w' and 'h'
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2c9b3225d8c7b53e2d921705dbb069710abcea5d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 28 17:19:39 2011 +0000
+
+    i915: Remove unused 'num_floats' variable
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c6dc27562abbc8ca9e873ad502ca49ae010461d2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 24 20:25:27 2011 +0000
+
+    uxa: Only recreate the glyph cache on *generational* updates
+    
+    The screen resources are recreated when the screen is rotated as well,
+    without being finalized. In this case, we do not need to reconstuct the
+    cache (or if we did, we would need to tear it down first).
+    
+    Reported-by: Till Matthiesen <entropy@everymail.net>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=33412
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5baa63c634990810a66c3150b4f2b76fcee2df38
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Fri Jan 21 08:45:52 2011 +0800
+
+    Fix an error in 4c4ad555564a80311df1a4b762eb1e119c6d95fb.
+    
+    See the original patch at https://bugs.freedesktop.org/show_bug.cgi?id=24767
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 3e28a0c0b43823d3104fe8fc50b5994b41fc0cc1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 20 15:07:26 2011 +0000
+
+    Create the UXA generational resources during screen create
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4c4ad555564a80311df1a4b762eb1e119c6d95fb
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Wed Jan 19 15:25:06 2011 +0000
+
+    Correct offset of planes within clipped window
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=24767
+    Reported-and-tested-by: Sitsofe Wheeler <sitsofe@yahoo.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5a22bc999de8555f26c639eaffbe73b680746174
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 17 11:32:37 2011 -0800
+
+    Quiet compiler warning about is_affine_src same way we do is_affine_mask.
+
+commit 3a2a4b0784f0fc96a5457b18931471f15ad745fc
+Author: Simon Farnsworth <simon.farnsworth@onelan.co.uk>
+Date:   Mon Jan 17 17:38:23 2011 +0000
+
+    Fix textured video when destination is larger than screen
+    
+    In our application, the screen is never rotated from the point of view
+    of the driver; instead, the compositor applies a suitable rotation as
+    it composites the display. This works fine on 945, but on 965, videos
+    are limited in height to the actual height of the screen.
+    
+    Change various bits of code so that we use the width and height of the
+    destination pixmap instead of the width and height of the virtual
+    screen. This works correctly both for XVideo to offscreen storage
+    (CompositeRedirect) and for XVideo to the screen (no compositor).
+
+commit fd9235ebe03a01982238cdd6e8b55f613e14b6af
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:58:36 2010 +0000
+
+    Delete unused memory allocation flags.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 03248a798409ca4dd1caf5e25a3d5f5a80173260
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:57:01 2010 +0000
+
+    Cache the fixed crtc<->pipe relationship
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 00a2aee38dc5cbbd4907a593fa8d617f5a20292e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:50:33 2010 +0000
+
+    Remove unused I830Output
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a851879695c48e88d421b053a78f867d9902273f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:48:26 2010 +0000
+
+    Remove bitrotted, but fortunately unused, I830CrtcPrivate
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f8a5d7737e014e99943b947d088a4f9f1b465d46
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:37:47 2010 +0000
+
+    Delete some dead code
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 968151898b807b06953b2f4170ac02889f16c8dc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:18:25 2010 +0000
+
+    Remove unused GTT/Map sizes and addresses
+    
+    These have been made obsolete by KMS and GEM.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 19b5817a54d4a17161340ada9bf20027644ff074
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:15:31 2010 +0000
+
+    Remove unused struct _intel_memory definition
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 40a7bde9140c0ae6412b8f916b1455d44e2af6cf
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Fri Jan 7 23:46:07 2011 +0000

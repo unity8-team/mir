@@ -70,6 +70,7 @@ struct intel_crtc {
 	struct intel_mode *mode;
 	drmModeModeInfo kmode;
 	drmModeCrtcPtr mode_crtc;
+	int pipe;
 	dri_bo *cursor;
 	dri_bo *rotate_bo;
 	uint32_t rotate_pitch;
@@ -118,7 +119,6 @@ intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode);
  * List of available kernel interfaces in priority order
  */
 static const char *backlight_interfaces[] = {
-	"intel", /* prefer our own native backlight driver */
 	"asus-laptop",
 	"eeepc",
 	"thinkpad_screen",
@@ -128,6 +128,7 @@ static const char *backlight_interfaces[] = {
 	"samsung",
 	"acpi_video1", /* finally fallback to the generic acpi drivers */
 	"acpi_video0",
+	"intel_backlight",
 	NULL,
 };
 /*
@@ -677,6 +678,9 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 					       mode->mode_res->crtcs[num]);
 	intel_crtc->mode = mode;
 	crtc->driver_private = intel_crtc;
+
+	intel_crtc->pipe = drm_intel_get_pipe_from_crtc_id(intel->bufmgr,
+							   crtc_id(intel_crtc));
 
 	intel_crtc->cursor = drm_intel_bo_alloc(intel->bufmgr, "ARGB cursor",
 						HWCURSOR_SIZE_ARGB,
@@ -1671,16 +1675,15 @@ intel_mode_fini(intel_screen_private *intel)
 	intel->modes = NULL;
 }
 
-int
-intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc)
-{
-	return drm_intel_get_pipe_from_crtc_id(bufmgr,
-					      	crtc_id(crtc->driver_private));
-}
-
 /* for the mode overlay */
 int
 intel_crtc_id(xf86CrtcPtr crtc)
 {
 	return crtc_id(crtc->driver_private);
+}
+
+int intel_crtc_to_pipe(xf86CrtcPtr crtc)
+{
+	struct intel_crtc *intel_crtc = crtc->driver_private;
+	return intel_crtc->pipe;
 }

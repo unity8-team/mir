@@ -1,14 +1,14 @@
-xserver-xorg-video-intel (2:2.14.0-4+exp2) experimental; urgency=low
-
-  * Rebuild against Xserver 1.10 rc3.
-
- -- Cyril Brulebois <kibi@debian.org>  Fri, 25 Feb 2011 16:10:14 +0100
-
-xserver-xorg-video-intel (2:2.14.0-4+exp1) experimental; urgency=low
+xserver-xorg-video-intel (2:2.14.901-1+exp1) experimental; urgency=low
 
   * Rebuild against Xserver 1.10 rc2.
 
- -- Cyril Brulebois <kibi@debian.org>  Sun, 20 Feb 2011 12:35:59 +0100
+ -- Cyril Brulebois <kibi@debian.org>  Fri, 04 Mar 2011 01:07:43 +0100
+
+xserver-xorg-video-intel (2:2.14.901-1) UNRELEASED; urgency=low
+
+  * New upstream snapshot (2.15 rc1).
+
+ -- Cyril Brulebois <kibi@debian.org>  Wed, 02 Mar 2011 19:40:58 +0100
 
 xserver-xorg-video-intel (2:2.14.0-4) unstable; urgency=low
 
