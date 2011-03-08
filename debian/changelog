@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.14.0-4ubuntu2) natty; urgency=low
+
+  * apport-gpu-error-intel.py:
+    - Omit the hexdigest code from the title if we have two or more
+      non-zero GPU error codes.  A pair of error codes has proven to be an
+      adequately good unique identifier for bugs.
+    - Add latest SandyBridge GPU PCI IDs
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 08 Mar 2011 13:25:45 -0800
+
 xserver-xorg-video-intel (2:2.14.0-4ubuntu1) natty; urgency=low
 
   * Merge from Debian unstable.  Remaining Ubuntu changes:
@@ -20,28 +30,28 @@ xserver-xorg-video-intel (2:2.14.0-4ubuntu1) natty; urgency=low
     - debian/patches/114_warnings_cleanup_part_2.patch:
       + Cherry picks to fix a large number of build warnings.
     - debian/patches/111_fix_clipped_window_plane_offset.patch:
-    - 112_fix_error_in_4c4ad555.patch: 
+    - 112_fix_error_in_4c4ad555.patch:
       + Fix issue where vertical green line and strange colors shows up when
         playing gstreamer with certain videos, when dragged.  (LP 460677)
     - debian/patches/113_remove_broken_max_base_addresses.patch:
-      +  Fixes GPU lockup during login with 
+      +  Fixes GPU lockup during login with
          "Bad length (4) in MI_DISPLAY_BUFFER_INFO, [3, 3]" error messages
   	  listed in the gpu dump text. (LP 710321)
     - debian/patches/115_quell_vblank_counter_failed.patch:
-      +  Don't fill up Xorg.0.log with 
+      +  Don't fill up Xorg.0.log with
          "get vblank counter failed: Invalid argument" warnings.
   	 5 is enough.  (LP 710594)
     - debian/xserver-xorg-video-intel.preinst.in:
     - debian/xserver-xorg-video-intel.postinst.in:
       + Remove obsolete /etc/modprobe.d/i915-kms.conf file on upgrades.  KMS
         is the kernel default.
-  * Pull prerequisite commit into 
+  * Pull prerequisite commit into
     109_dont_reconstruct_glyph_cache_on_rotate.patch.  We mostly didn't notice
     because the copy-fb codepath initialises the resources itself.  Fixes
     Pixmap assert on Xserver startup when copy-fb fails, such as on hybrid
     graphics systems. (LP: #718620)
   * debian/control:
-    - Dropped Ubuntu change: remove a bunch of Conflicts/Replaces against 
+    - Dropped Ubuntu change: remove a bunch of Conflicts/Replaces against
       packages last seen in Hardy.
 
  -- Christopher James Halse Rogers <raof@ubuntu.com>  Wed, 02 Mar 2011 14:12:35 +1100
@@ -87,6 +97,16 @@ xserver-xorg-video-intel (2:2.14.0-2) experimental; urgency=low
     - uxa: Undo damage translation before appending
 
  -- Cyril Brulebois <kibi@debian.org>  Fri, 04 Feb 2011 15:37:47 +0100
+
+xserver-xorg-video-intel (2:2.14.0-1ubuntu12) natty; urgency=low
+
+  * Pull prerequisite commit into
+    109_dont_reconstruct_glyph_cache_on_rotate.patch.  We mostly didn't notice
+    because the copy-fb codepath initialises the resources itself.  Fixes
+    Pixmap assert on Xserver startup when copy-fb fails, such as on hybrid
+    graphics systems. (LP: #718620)
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Wed, 02 Mar 2011 14:12:35 +1100
 
 xserver-xorg-video-intel (2:2.14.0-1ubuntu11) natty; urgency=low
 
