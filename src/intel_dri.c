@@ -674,6 +674,8 @@ can_exchange(DRI2BufferPtr front, DRI2BufferPtr back)
 	I830DRI2BufferPrivatePtr back_priv = back->driverPrivate;
 	PixmapPtr front_pixmap = front_priv->pixmap;
 	PixmapPtr back_pixmap = back_priv->pixmap;
+	struct intel_pixmap *front_intel = intel_get_pixmap_private(front_pixmap);
+	struct intel_pixmap *back_intel = intel_get_pixmap_private(back_pixmap);
 
 	if (front_pixmap->drawable.width != back_pixmap->drawable.width)
 		return FALSE;
@@ -689,6 +691,10 @@ can_exchange(DRI2BufferPtr front, DRI2BufferPtr back)
 	if (front_pixmap->drawable.bitsPerPixel != back_pixmap->drawable.bitsPerPixel)
 		return FALSE;
 #endif
+
+	/* prevent an implicit tiling mode change */
+	if (front_intel->tiling != back_intel->tiling)
+		return FALSE;
 
 	return TRUE;
 }
