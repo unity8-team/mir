@@ -185,7 +185,7 @@ drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 	uint32_t tiling_mode;
 	unsigned long pitch;
 
-	if (intel->tiling)
+	if (intel->tiling & INTEL_TILING_FB)
 		tiling_mode = I915_TILING_X;
 	else
 		tiling_mode = I915_TILING_NONE;
@@ -231,7 +231,7 @@ retry:
 		return NULL;
 	}
 
-	if (intel->tiling && tiling_mode != I915_TILING_X) {
+	if ((intel->tiling & INTEL_TILING_FB) && tiling_mode != I915_TILING_X) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Failed to set tiling on frontbuffer.\n");
 	}

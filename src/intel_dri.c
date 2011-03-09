@@ -219,7 +219,7 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		if (pixmap == NULL) {
 			unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 
-			if (intel->tiling) {
+			if (intel->tiling & INTEL_TILING_3D) {
 				switch (attachments[i]) {
 				case DRI2BufferDepth:
 					if (SUPPORTS_YTILING(intel))
@@ -328,7 +328,7 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	if (pixmap == NULL) {
 		unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
 
-		if (intel->tiling) {
+		if (intel->tiling & INTEL_TILING_3D) {
 			switch (attachment) {
 			case DRI2BufferDepth:
 			case DRI2BufferDepthStencil:

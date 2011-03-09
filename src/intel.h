@@ -297,7 +297,12 @@ typedef struct intel_screen_private {
 
 	Bool need_mi_flush;
 
-	Bool tiling;
+	unsigned int tiling;
+#define INTEL_TILING_FB		0x1
+#define INTEL_TILING_2D		0x2
+#define INTEL_TILING_3D		0x4
+#define INTEL_TILING_ALL (~0)
+
 	Bool swapbuffers_wait;
 	Bool has_relaxed_fencing;
 
