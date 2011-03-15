@@ -651,6 +651,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	    } else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "R6xx+ KMS Color Tiling requires radeon drm 2.6.0 or newer\n");
+
+	    /* don't support tiling on APUs yet */
+	    if (info->ChipFamily == CHIP_FAMILY_PALM)
+		info->allowColorTiling = FALSE;
 	} else
 	    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 							  OPTION_COLOR_TILING, colorTilingDefault);
