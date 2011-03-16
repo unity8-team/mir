@@ -179,7 +179,7 @@ Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, uint32_t *pitch_offset)
  *
  * transform may be null.
  */
-Bool radeon_transform_is_affine(PictTransformPtr t)
+Bool radeon_transform_is_affine_or_scaled(PictTransformPtr t)
 {
 	if (t == NULL)
 		return TRUE;

@@ -1290,7 +1290,7 @@ extern void RADEONPMFini(ScrnInfoPtr pScrn);
 #ifdef USE_EXA
 /* radeon_exa.c */
 extern Bool RADEONSetupMemEXA(ScreenPtr pScreen);
-extern Bool radeon_transform_is_affine(PictTransformPtr t);
+extern Bool radeon_transform_is_affine_or_scaled(PictTransformPtr t);
 
 /* radeon_exa_funcs.c */
 extern void RADEONCopyCP(PixmapPtr pDst, int srcX, int srcY, int dstX,
