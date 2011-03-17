@@ -1,3 +1,16 @@
+xserver-xorg-video-intel (2:2.14.0-4ubuntu3) natty; urgency=low
+
+  [ Bryce Harrington ]
+  * apport-gpu-error-intel.py:
+    - Drop some pci id's which are actually bridge chips
+
+  [ Christopher James Halse Rogers ]
+  * Rebuild against final Xserver 1.10 video ABI
+  * debian/control:
+    - Add version to quilt dependency for dh sequence.  Quietens lintian.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Thu, 17 Mar 2011 09:52:09 +1100
+
 xserver-xorg-video-intel (2:2.14.0-4ubuntu2) natty; urgency=low
 
   * apport-gpu-error-intel.py:
