@@ -4,7 +4,6 @@ import os
 import os.path
 import sys
 import re
-import hashlib
 
 from apport.hookutils import *
 
@@ -72,20 +71,16 @@ def get_pci_device(text):
 def get_dump_signature(text):
     if not text:
         return None
-    m = hashlib.md5()
-    m.update(text)
     codes = []
     for k in ["EIR", "ESR", "PGTBL_ER", "IPEHR"]:
         regex = re.compile(k+": 0x([0-9a-fA-F]+)")
         match = regex.search(text)
         if match and match.group(1) != "00000000":
             codes.append("%s: 0x%s" %(k, match.group(1)))
-    if len(codes) > 1:
+    if len(codes) > 0:
         return "(%s)" %( string.join(codes, " ") )
-    elif len(codes) == 1:
-        return "%s (%s)" %( m.hexdigest()[:8], string.join(codes, " ") )
     else:
-        return "%s" %( m.hexdigest()[:8] )
+        return ""
 
 def main(argv=None):
     if argv is None:
@@ -114,8 +109,8 @@ def main(argv=None):
         report['Title'] = "[%s] GPU lockup" %(report['Chipset'])
     dump_signature = get_dump_signature(report['IntelGpuDump'])
     if dump_signature:
-        report['DumpSignature'] = dump_signature
-        report['Title'] += " " + report['DumpSignature']
+        report['Title'] += " " + dump_signature
+        report['DuplicateSignature'] = dump_signature
 
     attach_hardware(report)
     attach_related_packages(report, ["xserver-xorg", "libdrm2", "xserver-xorg-video-intel"])

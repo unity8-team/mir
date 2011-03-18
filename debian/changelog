@@ -1,3 +1,17 @@
+xserver-xorg-video-intel (2:2.14.0-4ubuntu4) natty; urgency=low
+
+  * apport-gpu-error-intel.py
+    - Add DuplicateSignature, which apport will use for automatic
+      duplicate detection.
+    - Drop use of hash codes as a dump signature.  When there are no error
+      codes the bug report is unactionable anyway, so use of hash codes to
+      defeat duplication has minimal value, and it may inhibit proper
+      duplication detection from working.
+    - Drop DumpSignature since DuplicateSignature fulfils the same
+      purpose.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 18 Mar 2011 13:49:33 -0700
+
 xserver-xorg-video-intel (2:2.14.0-4ubuntu3) natty; urgency=low
 
   [ Bryce Harrington ]
