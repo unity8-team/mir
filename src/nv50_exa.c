@@ -363,7 +363,7 @@ NV50EXAStateSIFCResubmit(struct nouveau_channel *chan)
 	if (MARK_RING(pNv->chan, 32, 2))
 		return;
 
-	if (NV50EXAAcquireSurface2D(pNv->pdpix, 0))
+	if (!NV50EXAAcquireSurface2D(pNv->pdpix, 0))
 		MARK_UNDO(pNv->chan);
 }
 

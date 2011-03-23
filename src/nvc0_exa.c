@@ -541,7 +541,7 @@ NVC0EXAStateSIFCResubmit(struct nouveau_channel *chan)
 	if (MARK_RING(pNv->chan, 32, 2))
 		return;
 
-	if (NVC0EXAAcquireSurface2D(pNv->pdpix, 0))
+	if (!NVC0EXAAcquireSurface2D(pNv->pdpix, 0))
 		MARK_UNDO(pNv->chan);
 }
 
