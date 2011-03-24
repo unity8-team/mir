@@ -1512,7 +1512,7 @@ static const xf86CrtcConfigFuncsRec intel_xf86crtc_config_funcs = {
 
 static void
 intel_vblank_handler(int fd, unsigned int frame, unsigned int tv_sec,
-		       unsigned int tv_usec, DRI2FrameEventPtr event)
+		       unsigned int tv_usec, void *event)
 {
 	I830DRI2FrameEventHandler(frame, tv_sec, tv_usec, event);
 }

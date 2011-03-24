@@ -472,6 +472,7 @@ enum DRI2FrameEventType {
 
 typedef struct _DRI2FrameEvent {
 	XID drawable_id;
+	XID client_id;	/* fake client ID to track client destruction */
 	ClientPtr client;
 	enum DRI2FrameEventType type;
 	int frame;
