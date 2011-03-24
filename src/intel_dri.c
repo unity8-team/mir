@@ -553,24 +553,6 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 
 #if DRI2INFOREC_VERSION >= 4
 
-enum DRI2FrameEventType {
-	DRI2_SWAP,
-	DRI2_FLIP,
-	DRI2_WAITMSC,
-};
-
-typedef struct _DRI2FrameEvent {
-	XID drawable_id;
-	ClientPtr client;
-	enum DRI2FrameEventType type;
-	int frame;
-
-	/* for swaps & flips only */
-	DRI2SwapEventPtr event_complete;
-	void *event_data;
-	DRI2BufferPtr front;
-	DRI2BufferPtr back;
-} DRI2FrameEventRec, *DRI2FrameEventPtr;
 
 static int
 I830DRI2DrawablePipe(DrawablePtr pDraw)
@@ -700,9 +682,8 @@ can_exchange(DRI2BufferPtr front, DRI2BufferPtr back)
 }
 
 void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
-			       unsigned int tv_usec, void *event_data)
+			       unsigned int tv_usec, DRI2FrameEventPtr event)
 {
-	DRI2FrameEventPtr event = event_data;
 	DrawablePtr drawable;
 	ScreenPtr screen;
 	ScrnInfoPtr scrn;
@@ -781,9 +762,8 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 }
 
 void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
-			      unsigned int tv_usec, void *event_data)
+			      unsigned int tv_usec, DRI2FrameEventPtr flip)
 {
-	DRI2FrameEventPtr flip = event_data;
 	DrawablePtr drawable;
 	ScreenPtr screen;
 	ScrnInfoPtr scrn;
