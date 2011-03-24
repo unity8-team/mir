@@ -635,9 +635,9 @@ static void
 i830_dri2_del_frame_event(DRI2FrameEventPtr frame_event)
 {
 	if (frame_event->client_id)
-		FreeResourceByType(frame_event->client_id, frame_event_client_type, FALSE);
+		FreeResourceByType(frame_event->client_id, frame_event_client_type, TRUE);
 	if (frame_event->drawable_id)
-		FreeResourceByType(frame_event->drawable_id, frame_event_drawable_type, FALSE);
+		FreeResourceByType(frame_event->drawable_id, frame_event_drawable_type, TRUE);
 }
 
 static void
