@@ -625,8 +625,10 @@ i830_dri2_add_frame_event(DRI2FrameEventPtr frame_event)
 	if (!AddResource(frame_event->client_id, frame_event_client_type, frame_event))
 		return FALSE;
 
-	if (!AddResource(frame_event->drawable_id, frame_event_drawable_type, frame_event))
+	if (!AddResource(frame_event->drawable_id, frame_event_drawable_type, frame_event)) {
+		FreeResourceByType(frame_event->client_id, frame_event_client_type, TRUE);
 		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -705,7 +707,10 @@ I830DRI2ScheduleFlip(struct intel_screen_private *intel,
 	flip_info->event_data = data;
 	flip_info->frame = target_msc;
 
-	i830_dri2_add_frame_event(flip_info);
+	if (!i830_dri2_add_frame_event(flip_info)) {
+	    free(flip_info);
+	    return FALSE;
+	}
 
 	/* Page flip the full screen buffer */
 	back_priv = back->driverPrivate;
@@ -955,10 +960,15 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	swap_info->event_data = data;
 	swap_info->front = front;
 	swap_info->back = back;
+
+	if (!i830_dri2_add_frame_event(swap_info)) {
+	    free(swap_info);
+	    swap_info = NULL;
+	    goto blit_fallback;
+	}
+
 	I830DRI2ReferenceBuffer(front);
 	I830DRI2ReferenceBuffer(back);
-
-	i830_dri2_add_frame_event(swap_info);
 
 	/* Get current count */
 	vbl.request.type = DRM_VBLANK_RELATIVE;
