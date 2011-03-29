@@ -197,13 +197,12 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 	if (*tiling != I915_TILING_NONE) {
 		int aligned_h, tile_height;
 
-		if (*tiling == I915_TILING_X)
+		if (IS_GEN2(intel))
+			tile_height = 16;
+		else if (*tiling == I915_TILING_X)
 			tile_height = 8;
 		else
 			tile_height = 32;
-		/* i8xx has a 2-row interleaved tile layout */
-		if (IS_GEN2(intel))
-			tile_height *= 2;
 		aligned_h = ALIGN(h, tile_height);
 
 		*stride = intel_get_fence_pitch(intel,
