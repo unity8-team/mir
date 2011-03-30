@@ -470,6 +470,11 @@ enum DRI2FrameEventType {
 	DRI2_WAITMSC,
 };
 
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(1,7,99,3,0)
+typedef void (*DRI2SwapEventPtr)(ClientPtr client, void *data, int type,
+				 CARD64 ust, CARD64 msc, CARD64 sbc);
+#endif
+
 typedef struct _DRI2FrameEvent {
 	XID drawable_id;
 	XID client_id;	/* fake client ID to track client destruction */
