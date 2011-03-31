@@ -223,8 +223,6 @@
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
 #define SUPPORTS_YTILING(pI810) (INTEL_INFO(intel)->gen >= 40)
 
-#define ALWAYS_TILING(intel) IS_GEN6(intel)
-
 extern SymTabRec *intel_chipsets;
 
 struct intel_chipset {
