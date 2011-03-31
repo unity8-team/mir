@@ -4,9 +4,11 @@
 override_dh_auto_install:
 	dh_auto_install --destdir=debian/tmp
 
-# Kill *.la files, and forget no-one:
+# Kill *.la files, libxvmc symlinks, and forget no-one:
 override_dh_install:
 	find debian/tmp -name '*.la' -delete
+	rm -f debian/tmp/usr/lib/libI810XvMC.so
+	rm -f debian/tmp/usr/lib/libIntelXvMC.so
 	dh_install --fail-missing
 
 # Debug package:

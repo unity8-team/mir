@@ -1,12 +1,18 @@
-xserver-xorg-video-intel (2:2.14.901-1+exp1) experimental; urgency=low
+xserver-xorg-video-intel (2:2.14.902-1+exp1) experimental; urgency=low
 
-  * Rebuild against Xserver 1.10 rc2.
+  * Rebuild against Xserver 1.10 rc3.
 
- -- Cyril Brulebois <kibi@debian.org>  Fri, 04 Mar 2011 01:07:43 +0100
+ -- Cyril Brulebois <kibi@debian.org>  Thu, 31 Mar 2011 04:47:57 +0200
 
-xserver-xorg-video-intel (2:2.14.901-1) UNRELEASED; urgency=low
+xserver-xorg-video-intel (2:2.14.902-1) UNRELEASED; urgency=low
 
-  * New upstream snapshot (2.15 rc1).
+  * New upstream snapshot (2.15 rc2).
+  * Apparently, using libXvMC means adding the name of the library (like
+    libI810XvMC.so.1 or libIntelXvMC.so.1) to the libXvMC configuration
+    file (/etc/X11/XvMCConfig). Accordingly, remove extraneous symlinks:
+    - /usr/lib/libI810XvMC.so
+    - /usr/lib/libIntelXvMC.so
+  * Override lintian warning about the libXvMC shared objects.
 
  -- Cyril Brulebois <kibi@debian.org>  Wed, 02 Mar 2011 19:40:58 +0100
 

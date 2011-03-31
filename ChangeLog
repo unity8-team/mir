@@ -1,3 +1,146 @@
+commit a2c8442fcb29ef2d0df41518952a2d8df1671070
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 29 11:38:45 2011 +0100
+
+    configure: version bump for 2.14.902 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2f2680793952876c89796174bed53c824fe6d1cb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 29 11:38:18 2011 +0100
+
+    NEWS: Entry for 2.14.902 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7ccbec801e9ee32fc110db730dfec674a94dea21
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu Mar 24 11:06:57 2011 -0700
+
+    Recover from i830_dri2_add_frame_event out-of-memory condition
+    
+    If adding either the frame or client resources fails, we need to clean
+    up afterwards properly.
+    
+    First, add_frame_event needs to internally clean up after itself by
+    undoing any partial execution. Second, the callers need to look at the
+    return value and free the swap/flip info structure when necessary.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    Reviewed-by: Julien Cristau <jcristau@debian.org>
+
+commit ec133abc4bd8caba15ed54e18621b816afb06981
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Mar 24 15:32:50 2011 +0000
+
+    Use the per-generation batch context switch for atomic sequences
+    
+    A modest boost to throughput and reduction in CPU overhead from
+    not flushing the batch on every transition from BLT to RENDER.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 86f23f21ab57fcbc031bcd2b8f432a08ff4cc320
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Mar 23 17:07:49 2011 -0700
+
+    Skip client and drawable resource delete calls when deleting frame event
+    
+    As the frame_event is about to be freed, there's no point in cleaning
+    up references to the drawable and client.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit e1ff5182304e00c0d392092069422cae7626cf8d
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Mar 9 17:00:41 2011 -0800
+
+    Handle drawable/client destruction in pending swaps/flips
+    
+    A pending swap or flip holds references to drawables and clients which
+    become invalid when destroyed. Add suitable resources to the database
+    to track those lifetimes and clean up the pending data structure then.
+    
+    Later, when the pending swap or flip occurs, handle a missing drawable
+    by just discarding the flip or swap. Handle a missing client by not
+    sending an event or reply.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit aa0328f342177e33f9c863531712eaa4577b5f2b
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Mar 9 16:23:22 2011 -0800
+
+    dri2: Make DRI2FrameEvent public and use instead of void *
+    
+    Instead of using void * for all of the flip_info and swap_info
+    pointers, just make the underlying structure a public data type and
+    use that.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit ee740778f5d5355c04f6fc4564f598993b106d62
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 16 08:37:24 2011 +0000
+
+    i915/video: Clip indirect Xv output
+    
+    In the case of a singular clip box and rendering onto the front buffer
+    larger than 2048, the clip extents were being ignored.  Here we can
+    simply reduce the size of the indirect pixmap to the clip extents.
+    
+    Reported-by: Michael Chang <mchang@novell.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=35346
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 014fc7abb7b2cc2110e3ab9a0bd6f7cff2c64c05
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 9 17:10:50 2011 +0000
+
+    dri: Disable page-flip between a tiled buffer and a linear scanout
+    
+    Keith Packard pointed out a loophole that could cause the DDX to end up
+    with a tiled scanout even if the user required a linear framebuffer;
+    that is by using page-flipping we could replace the scanout pixmap with
+    another of our choosing, and not necessarily tiled.
+    
+    Close that loophole by only allowing an exchange of buffers between
+    identical tiling modes. For the common case, this is fine since they
+    will indeed be allocated with the same tiling. For the linear
+    framebuffer case with mesa using a tiled pixmap, we force it to blit
+    onto the scanout instead.
+    
+    Reported-by: Keith Packard <keith.packard@intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 049ce4397ddf7fd088ce364cbb53cacf5133176f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 9 08:27:02 2011 +0000
+
+    Give each user of tiling separate xorg.conf options
+    
+    So that you can indeed allocate a linear framebuffer if you so desire
+    without breaking mesa.
+    
+    Adds:
+    
+    Section "Driver"
+      Option "LinearFramebuffer" "False|True" # default false
+    EndSection
+    
+    to xorg.conf
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0bb1a5f19e09dc553761ddd90bf6319eab94a597
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 9 08:26:44 2011 +0000
+
+    Update priv->stride after bo reallocation
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 34f9a3335f96b16ef9df6213eb0a586c94f8f05b
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Wed Mar 2 17:46:19 2011 +0000

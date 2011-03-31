@@ -89,7 +89,8 @@ typedef enum {
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
    OPTION_FALLBACKDEBUG,
-   OPTION_TILING,
+   OPTION_TILING_FB,
+   OPTION_TILING_2D,
    OPTION_SHADOW,
    OPTION_SWAPBUFFERS_WAIT,
 #ifdef INTEL_XVMC
@@ -108,7 +109,8 @@ static OptionInfoRec I830Options[] = {
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_FALLBACKDEBUG, "FallbackDebug", OPTV_BOOLEAN, {0},	FALSE},
-   {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_TILING_2D,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef INTEL_XVMC
@@ -586,12 +588,13 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		drmCommandNone(intel->drmSubFD, DRM_I915_GEM_THROTTLE) != 0;
 
 	/* Enable tiling by default */
-	intel->tiling = TRUE;
+	intel->tiling = INTEL_TILING_ALL;
 
 	/* Allow user override if they set a value */
-	if (!ALWAYS_TILING(intel))
-		intel->tiling = xf86ReturnOptValBool(intel->Options,
-						     OPTION_TILING, TRUE);
+	if (!xf86ReturnOptValBool(intel->Options, OPTION_TILING_2D, TRUE))
+		intel->tiling &= ~INTEL_TILING_2D;
+	if (xf86ReturnOptValBool(intel->Options, OPTION_TILING_FB, FALSE))
+		intel->tiling &= ~INTEL_TILING_FB;
 
 	intel->can_blt = can_accelerate_blt(intel);
 	intel->use_shadow = !intel->can_blt;
@@ -616,8 +619,12 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	if (IS_GEN6(intel))
 		intel->swapbuffers_wait = FALSE;
 
-	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Tiling %sabled\n",
-		   intel->tiling ? "en" : "dis");
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
+		   intel->tiling & INTEL_TILING_FB ? "tiled" : "linear");
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Pixmaps %s\n",
+		   intel->tiling & INTEL_TILING_2D ? "tiled" : "linear");
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "3D buffers %s\n",
+		   intel->tiling & INTEL_TILING_3D ? "tiled" : "linear");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "SwapBuffers wait %sabled\n",
 		   intel->swapbuffers_wait ? "en" : "dis");
 

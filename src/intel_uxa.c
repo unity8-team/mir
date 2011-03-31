@@ -668,9 +668,7 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		priv->bo = bo;
 		priv->stride = intel_pixmap_pitch(pixmap);
 
-		ret = drm_intel_bo_get_tiling(bo,
-					      &tiling,
-					      &swizzle_mode);
+		ret = drm_intel_bo_get_tiling(bo, &tiling, &swizzle_mode);
 		if (ret != 0) {
 			FatalError("Couldn't get tiling on bo %p: %s\n",
 				   bo, strerror(-ret));
@@ -796,6 +794,8 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 
 			if (tiling != I915_TILING_NONE)
 				drm_intel_bo_set_tiling(bo, &tiling, stride);
+			priv->stride = stride;
+			priv->tiling = tiling;
 
 			screen->ModifyPixmapHeader(pixmap,
 						   w, h,

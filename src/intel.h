@@ -297,7 +297,12 @@ typedef struct intel_screen_private {
 
 	Bool need_mi_flush;
 
-	Bool tiling;
+	unsigned int tiling;
+#define INTEL_TILING_FB		0x1
+#define INTEL_TILING_2D		0x2
+#define INTEL_TILING_3D		0x4
+#define INTEL_TILING_ALL (~0)
+
 	Bool swapbuffers_wait;
 	Bool has_relaxed_fencing;
 
@@ -459,9 +464,29 @@ extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crt
 extern int intel_crtc_id(xf86CrtcPtr crtc);
 extern int intel_output_dpms_status(xf86OutputPtr output);
 
+enum DRI2FrameEventType {
+	DRI2_SWAP,
+	DRI2_FLIP,
+	DRI2_WAITMSC,
+};
+
+typedef struct _DRI2FrameEvent {
+	XID drawable_id;
+	XID client_id;	/* fake client ID to track client destruction */
+	ClientPtr client;
+	enum DRI2FrameEventType type;
+	int frame;
+
+	/* for swaps & flips only */
+	DRI2SwapEventPtr event_complete;
+	void *event_data;
+	DRI2BufferPtr front;
+	DRI2BufferPtr back;
+} DRI2FrameEventRec, *DRI2FrameEventPtr;
+
 extern Bool intel_do_pageflip(intel_screen_private *intel,
 			      dri_bo *new_front,
-			      void *data, int ref_crtc_hw_id);
+			      DRI2FrameEventPtr flip_info, int ref_crtc_hw_id);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -495,9 +520,9 @@ extern xf86CrtcPtr intel_covering_crtc(ScrnInfoPtr scrn, BoxPtr box,
 Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
 void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
-			       unsigned int tv_usec, void *user_data);
+			       unsigned int tv_usec, DRI2FrameEventPtr flip_info);
 void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
-			      unsigned int tv_usec, void *user_data);
+			      unsigned int tv_usec, DRI2FrameEventPtr flip_info);
 
 extern Bool intel_crtc_on(xf86CrtcPtr crtc);
 int intel_crtc_to_pipe(xf86CrtcPtr crtc);

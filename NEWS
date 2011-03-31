@@ -1,3 +1,24 @@
+Snapshot 2.14.902 (2011-03-29)
+==============================
+This is the second release candidate in preparation for the upcoming
+2.15.0 release. We will appreciate any feedback we can get from
+testing of this snapshot.
+
+As befits testing of release candidates, no major regression was found and
+a couple more bugs have been fixed.
+
+Bugs fixed in this snapshot (compared to 2.14.901)
+--------------------------------------------------
+
+* Clients disappearing with pending swaps
+
+* Incorrect clipping of Xv output on i915 across extended desktops
+  https://bugs.freedesktop.org/show_bug.cgi?id=35346
+
+* Introduction of a LinearFramebuffer option. (Defaults to tiled for
+  performance and power saving.)
+
+
 Snapshot 2.14.901 (2011-03-02)
 ==============================
 This is the first release candidate in preparation for the upcoming
