@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.14.0-4ubuntu5) natty; urgency=low
+
+  * apport-gpu-error-intel.py: Don't file gpu lockup bug reports for older
+    8xx hardware, as per Canonical-X team HW support policies.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 31 Mar 2011 23:49:15 -0700
+
 xserver-xorg-video-intel (2:2.14.0-4ubuntu4) natty; urgency=low
 
   * apport-gpu-error-intel.py

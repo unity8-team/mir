@@ -10,17 +10,17 @@ from apport.hookutils import *
 from apport import unicode_gettext as _
 
 pci_devices = [
-    { 'name':'i810',        're':'(8086:7121)' },
-    { 'name':'i810dc',      're':'(8086:7123)' },
-    { 'name':'i810e',       're':'(8086:7125)' },
-    { 'name':'i815',        're':'(8086:1132|82815)' },
-    { 'name':'i830',        're':'(8086:3577|82830)' },
-    { 'name':'i845',        're':'(8086:2562|82845G)' },
-    { 'name':'i855',        're':'(8086:3582|855GM)' },
-    { 'name':'i865',        're':'(8086:2572|82865G)' },
-    { 'name':'i915g',       're':'(8086:2582)' },
+    { 'name':'i810',        're':'(8086:7121)',        'supported':False },
+    { 'name':'i810dc',      're':'(8086:7123)',        'supported':False },
+    { 'name':'i810e',       're':'(8086:7125)',        'supported':False },
+    { 'name':'i815',        're':'(8086:1132|82815)',  'supported':False },
+    { 'name':'i830',        're':'(8086:3577|82830)',  'supported':False },
+    { 'name':'i845',        're':'(8086:2562|82845G)', 'supported':False },
+    { 'name':'i855',        're':'(8086:3582|855GM)',  'supported':False },
+    { 'name':'i865',        're':'(8086:2572|82865G)', 'supported':False },
+    { 'name':'i915g',       're':'(8086:2582)'       },
     { 'name':'i915gm',      're':'(8086:2592|915GM)' },
-    { 'name':'e7221',       're':'(8086:258a)' },
+    { 'name':'e7221',       're':'(8086:258a)',        'supported':False },
     { 'name':'i945g',       're':'(8086:2772|945G[ \/]|82945G[ \/])' },
     { 'name':'i945gm',      're':'(8086:27a2|945GM[ \/]|82945GM[ \/])' },
     { 'name':'i945gme',     're':'(8086:27ae|945GME|82945GME)' },
@@ -65,7 +65,7 @@ def get_pci_device(text):
             if len(l.strip())>0:
                 for device in pci_devices:
                     if device['rc'].search(l.strip()):
-                        return device['name']
+                        return device
     return None
 
 def get_dump_signature(text):
@@ -102,14 +102,18 @@ def main(argv=None):
     report['Package'] = 'xserver-xorg-video-intel'
     report['Tags'] += ' freeze'
     report['Lspci'] = command_output(['lspci', '-vvnn'])
+    device = get_pci_device(report['Lspci'])
+    if device and 'name' in device:
+        if 'supported' in device and device['supported'] == False:
+            # Unsupported chipset; we don't want bugs reported for this HW
+            return -1
+        report['Chipset'] = device['name']
+        report['Title'] = "[%s] GPU lockup" %(device['name'])
     report['IntelGpuDump'] = root_command_output(['intel_gpu_dump'])
-    chipset = get_pci_device(report['Lspci'])
-    if chipset:
-        report['Chipset'] = chipset
-        report['Title'] = "[%s] GPU lockup" %(report['Chipset'])
     dump_signature = get_dump_signature(report['IntelGpuDump'])
     if dump_signature:
         report['Title'] += " " + dump_signature
+        # TODO: For oneiric set DuplicateSignature to Title
         report['DuplicateSignature'] = dump_signature
 
     attach_hardware(report)
