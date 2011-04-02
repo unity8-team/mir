@@ -771,6 +771,22 @@ cleanup:
     free(event);
 }
 
+static drmVBlankSeqType populate_vbl_request_type(RADEONInfoPtr info, int crtc)
+{
+    drmVBlankSeqType type = 0;
+
+    if (crtc == 1)
+        type |= DRM_VBLANK_SECONDARY;
+    else if (crtc > 1) {
+	if (info->high_crtc_works) {
+	    type |= (crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) &
+		DRM_VBLANK_HIGH_CRTC_MASK;
+	} else
+	    type |= DRM_VBLANK_SECONDARY;
+    }
+    return type; 
+}
+
 /*
  * Get current frame count and frame count timestamp, based on drawable's
  * crtc.
@@ -791,8 +807,7 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
         return TRUE;
     }
     vbl.request.type = DRM_VBLANK_RELATIVE;
-    if (crtc > 0)
-        vbl.request.type |= DRM_VBLANK_SECONDARY;
+    vbl.request.type |= populate_vbl_request_type(info, crtc);
     vbl.request.sequence = 0;
 
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
@@ -855,8 +870,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 
     /* Get current count */
     vbl.request.type = DRM_VBLANK_RELATIVE;
-    if (crtc > 0)
-        vbl.request.type |= DRM_VBLANK_SECONDARY;
+    vbl.request.type |= populate_vbl_request_type(info, crtc);
     vbl.request.sequence = 0;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
     if (ret) {
@@ -882,8 +896,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         if (current_msc >= target_msc)
             target_msc = current_msc;
         vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-        if (crtc > 0)
-            vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type |= populate_vbl_request_type(info, crtc);
         vbl.request.sequence = target_msc;
         vbl.request.signal = (unsigned long)wait_info;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
@@ -903,8 +916,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
      * so we queue an event that will satisfy the divisor/remainder equation.
      */
     vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-    if (crtc > 0)
-        vbl.request.type |= DRM_VBLANK_SECONDARY;
+    vbl.request.type |= populate_vbl_request_type(info, crtc);
 
     vbl.request.sequence = current_msc - (current_msc % divisor) +
         remainder;
@@ -1068,8 +1080,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 
     /* Get current count */
     vbl.request.type = DRM_VBLANK_RELATIVE;
-    if (crtc > 0)
-        vbl.request.type |= DRM_VBLANK_SECONDARY;
+    vbl.request.type |= populate_vbl_request_type(info, crtc);
     vbl.request.sequence = 0;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
     if (ret) {
@@ -1111,8 +1122,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
          */
         if (flip == 0)
             vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-        if (crtc > 0)
-            vbl.request.type |= DRM_VBLANK_SECONDARY;
+	vbl.request.type |= populate_vbl_request_type(info, crtc);
 
         /* If target_msc already reached or passed, set it to
          * current_msc to ensure we return a reasonable value back
@@ -1145,8 +1155,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
     if (flip == 0)
         vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-    if (crtc > 0)
-        vbl.request.type |= DRM_VBLANK_SECONDARY;
+    vbl.request.type |= populate_vbl_request_type(info, crtc);
 
     vbl.request.sequence = current_msc - (current_msc % divisor) +
         remainder;
@@ -1217,6 +1226,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     DRI2InfoRec dri2_info = { 0 };
 #ifdef USE_DRI2_SCHEDULING
     const char *driverNames[1];
+    uint64_t cap_value;
 #endif
 
     if (!info->useEXA) {
@@ -1248,6 +1258,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 #endif
     dri2_info.CopyRegion = radeon_dri2_copy_region;
 
+    info->high_crtc_works = FALSE;
 #ifdef USE_DRI2_SCHEDULING
     if (info->dri->pKernelDRMVersion->version_minor >= 4) {
         dri2_info.version = 4;
@@ -1259,6 +1270,20 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
         driverNames[0] = dri2_info.driverName;
     } else {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for sync extension\n");
+    }
+
+    if (info->drmmode.mode_res->count_crtcs > 2) {
+	if (drmGetCap(info->dri2.drm_fd, DRM_CAP_VBLANK_HIGH_CRTC, &cap_value)) {
+	    info->high_crtc_works = FALSE;
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for VBLANKs on CRTC > 1\n");
+	} else {
+	    if (cap_value) {
+		info->high_crtc_works = TRUE;
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Your kernel does not handle VBLANKs on CRTC > 1\n");
+		info->high_crtc_works = FALSE;
+	    }
+	}
     }
 
     if (pRADEONEnt->dri2_info_cnt == 0) {
