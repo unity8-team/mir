@@ -757,17 +757,8 @@ intel_flush_callback(CallbackListPtr *list,
 		     pointer user_data, pointer call_data)
 {
 	ScrnInfoPtr scrn = user_data;
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (scrn->vtSema) {
-		/* Emit a flush of the rendering cache, or on the 965
-		 * and beyond rendering results may not hit the
-		 * framebuffer until significantly later.
-		 */
-		intel_batch_submit(scrn,
-				   intel->need_mi_flush ||
-				   !list_is_empty(&intel->flush_pixmaps));
-	}
+	if (scrn->vtSema)
+		intel_batch_submit(scrn, FALSE);
 }
 
 #if HAVE_UDEV
