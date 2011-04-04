@@ -758,7 +758,7 @@ intel_flush_callback(CallbackListPtr *list,
 {
 	ScrnInfoPtr scrn = user_data;
 	if (scrn->vtSema)
-		intel_batch_submit(scrn, FALSE);
+		intel_batch_submit(scrn);
 }
 
 #if HAVE_UDEV

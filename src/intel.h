@@ -295,8 +295,6 @@ typedef struct intel_screen_private {
 
 	Bool shadow_present;
 
-	Bool need_mi_flush;
-
 	unsigned int tiling;
 #define INTEL_TILING_FB		0x1
 #define INTEL_TILING_2D		0x2

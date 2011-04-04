@@ -135,8 +135,6 @@ void intel_batch_do_flush(ScrnInfoPtr scrn)
 
 	while (!list_is_empty(&intel->flush_pixmaps))
 		list_del(intel->flush_pixmaps.next);
-
-	intel->need_mi_flush = FALSE;
 }
 
 void intel_batch_emit_flush(ScrnInfoPtr scrn)
@@ -176,7 +174,7 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	intel_batch_do_flush(scrn);
 }
 
-void intel_batch_submit(ScrnInfoPtr scrn, int flush)
+void intel_batch_submit(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
@@ -189,9 +187,6 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 
 	if (intel->batch_flush)
 		intel->batch_flush(intel);
-
-	if (flush)
-		intel_batch_emit_flush(scrn);
 
 	if (intel->batch_used == 0)
 		return;
@@ -249,7 +244,6 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 		list_del(&entry->batch);
 	}
 
-	intel->need_mi_flush |= !list_is_empty(&intel->flush_pixmaps);
 	while (!list_is_empty(&intel->flush_pixmaps))
 		list_del(intel->flush_pixmaps.next);
 
@@ -285,5 +279,5 @@ void intel_debug_flush(ScrnInfoPtr scrn)
 		intel_batch_emit_flush(scrn);
 
 	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
-		intel_batch_submit(scrn, FALSE);
+		intel_batch_submit(scrn);
 }
