@@ -654,22 +654,6 @@ intel_emit_reloc(drm_intel_bo * bo, uint32_t offset,
 	return target_bo->offset + target_offset;
 }
 
-static inline drm_intel_bo *intel_bo_alloc_for_data(ScrnInfoPtr scrn,
-						    void *data,
-						    unsigned int size,
-						    char *name)
-{
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	drm_intel_bo *bo;
-
-	bo = drm_intel_bo_alloc(intel->bufmgr, name, size, 4096);
-	if (!bo)
-		return NULL;
-	drm_intel_bo_subdata(bo, 0, size, data);
-
-	return bo;
-}
-
 void intel_debug_flush(ScrnInfoPtr scrn);
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
