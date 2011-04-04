@@ -497,10 +497,10 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 			 */
 			OUT_BATCH(MI_LOAD_SCAN_LINES_INCL |
 				  load_scan_lines_pipe);
-			OUT_BATCH((y1 << 16) | y2);
+			OUT_BATCH((y1 << 16) | (y2-1));
 			OUT_BATCH(MI_LOAD_SCAN_LINES_INCL |
 				  load_scan_lines_pipe);
-			OUT_BATCH((y1 << 16) | y2);
+			OUT_BATCH((y1 << 16) | (y2-1));
 			OUT_BATCH(MI_WAIT_FOR_EVENT | event);
 			ADVANCE_BATCH();
 		}
