@@ -385,8 +385,6 @@ typedef struct intel_screen_private {
 
 	struct {
 		int num_sf_outputs;
-		int vertex_size;
-		int vertex_type;
 		int drawrect;
 		uint32_t blend;
 		uint32_t samplers;

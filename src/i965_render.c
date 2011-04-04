@@ -1853,12 +1853,12 @@ void i965_batch_commit_notify(intel_screen_private *intel)
 	intel->last_floats_per_vertex = 0;
 	intel->vertex_index = 0;
 
+	intel->gen4_render_state->composite_op.vertex_id = -1;
+
 	intel->gen6_render_state.num_sf_outputs = 0;
 	intel->gen6_render_state.samplers = -1;
 	intel->gen6_render_state.blend = -1;
 	intel->gen6_render_state.kernel = -1;
-	intel->gen6_render_state.vertex_size = 0;
-	intel->gen6_render_state.vertex_type = 0;
 	intel->gen6_render_state.drawrect = -1;
 }
 
@@ -1883,13 +1883,14 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 				   sizeof(intel->surface_data), 4096);
 	intel->surface_used = 0;
 
-	if (INTEL_INFO(intel)->gen >= 60)
-		return gen6_render_state_init(scrn);
-
 	if (intel->gen4_render_state == NULL)
 		intel->gen4_render_state = calloc(sizeof(*render), 1);
 
+	if (INTEL_INFO(intel)->gen >= 60)
+		return gen6_render_state_init(scrn);
+
 	render = intel->gen4_render_state;
+	render->composite_op.vertex_id = -1;
 
 	i965_static_stream_init(general = &stream[0]);
 	if (IS_GEN5(intel))
@@ -2467,17 +2468,13 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 	intel->gen6_render_state.samplers = -1;
 	intel->gen6_render_state.blend = -1;
 	intel->gen6_render_state.kernel = -1;
-	intel->gen6_render_state.vertex_size = 0;
-	intel->gen6_render_state.vertex_type = 0;
 	intel->gen6_render_state.drawrect = -1;
-
-	if (intel->gen4_render_state == NULL)
-		intel->gen4_render_state = calloc(sizeof(*render), 1);
 
 	i965_static_stream_init(&instruction);
 	i965_static_stream_init(&dynamic);
 
 	render = intel->gen4_render_state;
+	render->composite_op.vertex_id = -1;
 
 	for (m = 0; m < WM_KERNEL_COUNT; m++) {
 		render->wm_kernel[m] =
