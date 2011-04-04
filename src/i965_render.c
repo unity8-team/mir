@@ -1768,8 +1768,7 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 			i965_emit_composite_state(scrn);
 	}
 
-	if (intel->vertex_used &&
-	    intel->floats_per_vertex != intel->last_floats_per_vertex) {
+	if (intel->floats_per_vertex != intel->last_floats_per_vertex) {
 		intel->vertex_index = (intel->vertex_used + intel->floats_per_vertex - 1) / intel->floats_per_vertex;
 		intel->vertex_used = intel->vertex_index * intel->floats_per_vertex;
 		intel->last_floats_per_vertex = intel->floats_per_vertex;
