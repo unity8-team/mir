@@ -391,8 +391,8 @@ typedef struct intel_screen_private {
 		int vertex_type;
 		int drawrect;
 		uint32_t blend;
-		dri_bo *samplers;
-		dri_bo *kernel;
+		uint32_t samplers;
+		uint32_t kernel;
 	} gen6_render_state;
 
 	uint32_t prim_offset;
