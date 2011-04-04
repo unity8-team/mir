@@ -53,6 +53,8 @@ static void intel_end_vertex(intel_screen_private *intel)
 		dri_bo_unreference(intel->vertex_bo);
 		intel->vertex_bo = NULL;
 	}
+
+	intel->vertex_id = 0;
 }
 
 void intel_next_vertex(intel_screen_private *intel)
@@ -89,6 +91,7 @@ void intel_batch_init(ScrnInfoPtr scrn)
 
 	intel->batch_emit_start = 0;
 	intel->batch_emitting = 0;
+	intel->vertex_id = 0;
 
 	intel_next_batch(scrn);
 }

@@ -407,6 +407,7 @@ typedef struct intel_screen_private {
 	uint16_t vertex_count;
 	uint16_t vertex_index;
 	uint16_t vertex_used;
+	uint32_t vertex_id;
 	float vertex_ptr[4*1024];
 	dri_bo *vertex_bo;
 

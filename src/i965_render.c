@@ -724,6 +724,7 @@ typedef struct gen4_composite_op {
 	sampler_state_extend_t mask_extend;
 	Bool is_affine;
 	wm_kernel_t wm_kernel;
+	int vertex_id;
 } gen4_composite_op;
 
 /** Private data for gen4 render accel implementation. */
@@ -1127,6 +1128,125 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 	return offset;
 }
 
+static void gen4_composite_vertex_elements(struct intel_screen_private *intel)
+{
+	struct gen4_render_state *render_state = intel->gen4_render_state;
+	gen4_composite_op *composite_op = &render_state->composite_op;
+	Bool has_mask = intel->render_mask != NULL;
+	Bool is_affine = composite_op->is_affine;
+	/*
+	 * number of extra parameters per vertex
+	 */
+	int nelem = has_mask ? 2 : 1;
+	/*
+	 * size of extra parameters:
+	 *  3 for homogenous (xyzw)
+	 *  2 for cartesian (xy)
+	 */
+	int selem = is_affine ? 2 : 3;
+	uint32_t w_component;
+	uint32_t src_format;
+	int id;
+
+	id = has_mask << 1 | is_affine;
+
+	if (composite_op->vertex_id == id)
+		return;
+
+	composite_op->vertex_id = id;
+
+	if (is_affine) {
+		src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
+		w_component = BRW_VFCOMPONENT_STORE_1_FLT;
+	} else {
+		src_format = BRW_SURFACEFORMAT_R32G32B32_FLOAT;
+		w_component = BRW_VFCOMPONENT_STORE_SRC;
+	}
+
+	if (IS_GEN5(intel)) {
+		/*
+		 * The reason to add this extra vertex element in the header is that
+		 * Ironlake has different vertex header definition and origin method to
+		 * set destination element offset doesn't exist anymore, which means
+		 * hardware requires a predefined vertex element layout.
+		 *
+		 * haihao proposed this approach to fill the first vertex element, so
+		 * origin layout for Gen4 doesn't need to change, and origin shader
+		 * programs behavior is also kept.
+		 *
+		 * I think this is not bad. - zhenyu
+		 */
+
+		OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
+			  ((2 * (2 + nelem)) - 1));
+		OUT_BATCH((id << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
+			  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+			  (0 << VE0_OFFSET_SHIFT));
+
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
+	} else {
+		/* Set up our vertex elements, sourced from the single vertex buffer.
+		 * that will be set up later.
+		 */
+		OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
+			  ((2 * (1 + nelem)) - 1));
+	}
+
+	/* x,y */
+	OUT_BATCH((id << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
+		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		  (0 << VE0_OFFSET_SHIFT));
+
+	if (IS_GEN5(intel))
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+	else
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+			  (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+	/* u0, v0, w0 */
+	OUT_BATCH((id << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
+		  (src_format << VE0_FORMAT_SHIFT) |
+		  ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
+
+	if (IS_GEN5(intel))
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+	else
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+			  ((4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
+	/* u1, v1, w1 */
+	if (has_mask) {
+		OUT_BATCH((id << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
+			  (src_format << VE0_FORMAT_SHIFT) |
+			  (((2 + selem) * 4) << VE0_OFFSET_SHIFT));	/* vb offset in bytes */
+
+		if (IS_GEN5(intel))
+			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+				  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+				  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+		else
+			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+				  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+				  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+				  ((4 + 4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
+	}
+}
+
 static void i965_emit_composite_state(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -1141,7 +1261,6 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	sampler_state_filter_t mask_filter = composite_op->mask_filter;
 	sampler_state_extend_t src_extend = composite_op->src_extend;
 	sampler_state_extend_t mask_extend = composite_op->mask_extend;
-	Bool is_affine = composite_op->is_affine;
 	uint32_t src_blend, dst_blend;
 
 	intel->needs_render_state_emit = FALSE;
@@ -1299,111 +1418,7 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			  (URB_CS_ENTRIES << 0));
 	}
 
-	{
-		/*
-		 * number of extra parameters per vertex
-		 */
-		int nelem = mask ? 2 : 1;
-		/*
-		 * size of extra parameters:
-		 *  3 for homogenous (xyzw)
-		 *  2 for cartesian (xy)
-		 */
-		int selem = is_affine ? 2 : 3;
-		uint32_t w_component;
-		uint32_t src_format;
-
-		if (is_affine) {
-			src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
-			w_component = BRW_VFCOMPONENT_STORE_1_FLT;
-		} else {
-			src_format = BRW_SURFACEFORMAT_R32G32B32_FLOAT;
-			w_component = BRW_VFCOMPONENT_STORE_SRC;
-		}
-
-		if (IS_GEN5(intel)) {
-			/*
-			 * The reason to add this extra vertex element in the header is that
-			 * Ironlake has different vertex header definition and origin method to
-			 * set destination element offset doesn't exist anymore, which means
-			 * hardware requires a predefined vertex element layout.
-			 *
-			 * haihao proposed this approach to fill the first vertex element, so
-			 * origin layout for Gen4 doesn't need to change, and origin shader
-			 * programs behavior is also kept.
-			 *
-			 * I think this is not bad. - zhenyu
-			 */
-
-			OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
-				  ((2 * (2 + nelem)) - 1));
-			OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
-				  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-				  (0 << VE0_OFFSET_SHIFT));
-
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
-		} else {
-			/* Set up our vertex elements, sourced from the single vertex buffer.
-			 * that will be set up later.
-			 */
-			OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
-				  ((2 * (1 + nelem)) - 1));
-		}
-
-		/* x,y */
-		OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
-			  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-			  (0 << VE0_OFFSET_SHIFT));
-
-		if (IS_GEN5(intel))
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
-		else
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-				  (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
-		/* u0, v0, w0 */
-		OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
-			  (src_format << VE0_FORMAT_SHIFT) |
-			  ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
-
-		if (IS_GEN5(intel))
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-				  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
-		else
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-				  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-				  ((4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
-		/* u1, v1, w1 */
-		if (mask) {
-			OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
-				  (src_format << VE0_FORMAT_SHIFT) |
-				  (((2 + selem) * 4) << VE0_OFFSET_SHIFT));	/* vb offset in bytes */
-
-			if (IS_GEN5(intel))
-				OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-					  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-					  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
-					  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
-			else
-				OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-					  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-					  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
-					  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-					  ((4 + 4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
-		}
-	}
+	gen4_composite_vertex_elements(intel);
 }
 
 /**
@@ -1597,7 +1612,10 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 
 static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 {
-	int vertex_size = intel->floats_per_vertex;
+	int id = intel->gen4_render_state->composite_op.vertex_id;
+
+	if (intel->vertex_id & (1 << id))
+		return;
 
 	/* Set up the pointer to our (single) vertex buffer */
 	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
@@ -1606,13 +1624,13 @@ static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 	 * frequently switching between vertex sizes, like rgb10text.
 	 */
 	if (INTEL_INFO(intel)->gen >= 60) {
-		OUT_BATCH((0 << GEN6_VB0_BUFFER_INDEX_SHIFT) |
+		OUT_BATCH((id << GEN6_VB0_BUFFER_INDEX_SHIFT) |
 			  GEN6_VB0_VERTEXDATA |
-			  (4*vertex_size << VB0_BUFFER_PITCH_SHIFT));
+			  (4*intel->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
 	} else {
-		OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
+		OUT_BATCH((id << VB0_BUFFER_INDEX_SHIFT) |
 			  VB0_VERTEXDATA |
-			  (4*vertex_size << VB0_BUFFER_PITCH_SHIFT));
+			  (4*intel->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
 	}
 	OUT_RELOC(intel->vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
 	if (INTEL_INFO(intel)->gen >= 50)
@@ -1623,7 +1641,7 @@ static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 		OUT_BATCH(0);
 	OUT_BATCH(0);		// ignore for VERTEXDATA, but still there
 
-	intel->last_floats_per_vertex = vertex_size;
+	intel->vertex_id |= 1 << id;
 }
 
 static void i965_bind_surfaces(struct intel_screen_private *intel)
@@ -1754,14 +1772,14 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	    intel->floats_per_vertex != intel->last_floats_per_vertex) {
 		intel->vertex_index = (intel->vertex_used + intel->floats_per_vertex - 1) / intel->floats_per_vertex;
 		intel->vertex_used = intel->vertex_index * intel->floats_per_vertex;
+		intel->last_floats_per_vertex = intel->floats_per_vertex;
 	}
-	if (intel->floats_per_vertex != intel->last_floats_per_vertex ||
-	    intel_vertex_space(intel) < 3*4*intel->floats_per_vertex) {
+	if (intel_vertex_space(intel) < 3*4*intel->floats_per_vertex) {
 		i965_vertex_flush(intel);
 		intel_next_vertex(intel);
-		i965_select_vertex_buffer(intel);
 		intel->vertex_index = 0;
 	}
+	i965_select_vertex_buffer(intel);
 
 	if (intel->vertex_offset == 0) {
 		OUT_BATCH(BRW_3DPRIMITIVE |
@@ -2306,17 +2324,19 @@ gen6_composite_vertex_element_state(intel_screen_private *intel,
 	 *    texture coordinate 0: (u0, v0) if (is_affine is TRUE) else (u0, v0, w0)
 	 *    texture coordinate 1 if (has_mask is TRUE): same as above
 	 */
+	gen4_composite_op *composite_op = &intel->gen4_render_state->composite_op;
 	int nelem = has_mask ? 2 : 1;
 	int selem = is_affine ? 2 : 3;
 	uint32_t w_component;
 	uint32_t src_format;
+	int id;
 
-	if (intel->gen6_render_state.vertex_size == nelem &&
-	    intel->gen6_render_state.vertex_type == selem)
+	id = has_mask << 1 | is_affine;
+
+	if (composite_op->vertex_id == id)
 		return;
 
-	intel->gen6_render_state.vertex_size = nelem;
-	intel->gen6_render_state.vertex_type = selem;
+	composite_op->vertex_id = id;
 
 	if (is_affine) {
 		src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
@@ -2337,45 +2357,45 @@ gen6_composite_vertex_element_state(intel_screen_private *intel,
 	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
 		((2 * (2 + nelem)) + 1 - 2));
 
-	OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		GEN6_VE0_VALID |
-		(BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		(0 << VE0_OFFSET_SHIFT));
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+		  GEN6_VE0_VALID |
+		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		  (0 << VE0_OFFSET_SHIFT));
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
+		  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
 
 	/* x,y */
-	OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		GEN6_VE0_VALID |
-		(BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		(0 << VE0_OFFSET_SHIFT)); /* offsets vb in bytes */
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+		  GEN6_VE0_VALID |
+		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		  (0 << VE0_OFFSET_SHIFT)); /* offsets vb in bytes */
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+		  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
 
 	/* u0, v0, w0 */
-	OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		GEN6_VE0_VALID |
-		(src_format << VE0_FORMAT_SHIFT) |
-		((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+		  GEN6_VE0_VALID |
+		  (src_format << VE0_FORMAT_SHIFT) |
+		  ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		(w_component << VE1_VFCOMPONENT_2_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+		  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+		  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
 
 	/* u1, v1, w1 */
 	if (has_mask) {
-		OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-			GEN6_VE0_VALID |
-			(src_format << VE0_FORMAT_SHIFT) |
-			(((2 + selem) * 4) << VE0_OFFSET_SHIFT)); /* vb offset in bytes */
+		OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+			  GEN6_VE0_VALID |
+			  (src_format << VE0_FORMAT_SHIFT) |
+			  (((2 + selem) * 4) << VE0_OFFSET_SHIFT)); /* vb offset in bytes */
 		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-			(BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-			(w_component << VE1_VFCOMPONENT_2_SHIFT) |
-			(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
 	}
 }
 
