@@ -381,6 +381,8 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_PALM_9803, "AMD Radeon HD 6310 Graphics" },
   { PCI_CHIP_PALM_9804, "AMD Radeon HD 6250 Graphics" },
   { PCI_CHIP_PALM_9805, "AMD Radeon HD 6250 Graphics" },
+  { PCI_CHIP_PALM_9806, "AMD Radeon HD 6300 Series Graphics" },
+  { PCI_CHIP_PALM_9807, "AMD Radeon HD 6200 Series Graphics" },
   { PCI_CHIP_CYPRESS_6880, "CYPRESS" },
   { PCI_CHIP_CYPRESS_6888, "ATI FirePro (FireGL) Graphics Adapter" },
   { PCI_CHIP_CYPRESS_6889, "ATI FirePro (FireGL) Graphics Adapter" },

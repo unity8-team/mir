@@ -462,6 +462,8 @@
 "0x9803","PALM_9803","PALM",,1,,,1,"AMD Radeon HD 6310 Graphics"
 "0x9804","PALM_9804","PALM",,1,,,1,"AMD Radeon HD 6250 Graphics"
 "0x9805","PALM_9805","PALM",,1,,,1,"AMD Radeon HD 6250 Graphics"
+"0x9806","PALM_9806","PALM",,1,,,1,"AMD Radeon HD 6300 Series Graphics"
+"0x9807","PALM_9807","PALM",,1,,,1,"AMD Radeon HD 6200 Series Graphics"
 "0x6880","CYPRESS_6880","CYPRESS",1,,,,,"CYPRESS"
 "0x6888","CYPRESS_6888","CYPRESS",,,,,,"ATI FirePro (FireGL) Graphics Adapter"
 "0x6889","CYPRESS_6889","CYPRESS",,,,,,"ATI FirePro (FireGL) Graphics Adapter"
