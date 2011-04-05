@@ -1402,7 +1402,7 @@ EVERGREENUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     Bool r;
     int i;
     struct r600_accel_object src_obj, dst_obj;
-    uint32_t tiling_flags = 0, pitch = 0, height, base_align;
+    uint32_t height, base_align;
 
     if (bpp < 8)
 	return FALSE;
@@ -1411,14 +1411,10 @@ EVERGREENUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     if (!driver_priv || !driver_priv->bo)
 	return FALSE;
 
-    ret = radeon_bo_get_tiling(driver_priv->bo, &tiling_flags, &pitch);
-    if (ret)
-	ErrorF("radeon_bo_get_tiling failed\n");
-
     /* If we know the BO won't be busy, don't bother with a scratch */
     copy_dst = driver_priv->bo;
     copy_pitch = pDst->devKind;
-    if (!(tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO))) {
+    if (!(driver_priv->tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO))) {
 	if (!radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
 	    flush = FALSE;
 	    if (!radeon_bo_is_busy(driver_priv->bo, &dst_domain))
@@ -1519,7 +1515,7 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
     Bool flush = FALSE;
     Bool r;
     struct r600_accel_object src_obj, dst_obj;
-    uint32_t tiling_flags = 0, pitch = 0, height, base_align;
+    uint32_t height, base_align;
 
     if (bpp < 8)
 	return FALSE;
@@ -1528,14 +1524,10 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
     if (!driver_priv || !driver_priv->bo)
 	return FALSE;
 
-    ret = radeon_bo_get_tiling(driver_priv->bo, &tiling_flags, &pitch);
-    if (ret)
-	ErrorF("radeon_bo_get_tiling failed\n");
-
     /* If we know the BO won't end up in VRAM anyway, don't bother with a scratch */
     copy_src = driver_priv->bo;
     copy_pitch = pSrc->devKind;
-    if (!(tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO))) {
+    if (!(driver_priv->tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO))) {
 	if (radeon_bo_is_referenced_by_cs(driver_priv->bo, info->cs)) {
 	    src_domain = radeon_bo_get_src_domain(driver_priv->bo);
 	    if ((src_domain & (RADEON_GEM_DOMAIN_GTT | RADEON_GEM_DOMAIN_VRAM)) ==
