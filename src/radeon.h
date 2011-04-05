@@ -931,9 +931,6 @@ typedef struct {
 
     RADEONFBLayout    CurrentLayout;
 
-#ifdef RADEON_DRI2
-    Bool              high_crtc_works;
-#endif
 #ifdef XF86DRI
     Bool              directRenderingEnabled;
     Bool              directRenderingInited;

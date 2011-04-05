@@ -777,13 +777,16 @@ static drmVBlankSeqType populate_vbl_request_type(RADEONInfoPtr info, int crtc)
 
     if (crtc == 1)
         type |= DRM_VBLANK_SECONDARY;
-    else if (crtc > 1) {
-	if (info->high_crtc_works) {
-	    type |= (crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) &
+    else if (crtc > 1)
+#ifdef DRM_VBLANK_HIGH_CRTC_MASK
+	type |= (crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) &
 		DRM_VBLANK_HIGH_CRTC_MASK;
-	} else
-	    type |= DRM_VBLANK_SECONDARY;
-    }
+#else
+	ErrorF("radeon driver bug: %s called for CRTC %d > 1, but "
+	       "DRM_VBLANK_HIGH_CRTC_MASK not defined at build time\n",
+	       __func__, crtc);
+#endif
+
     return type; 
 }
 
@@ -1221,12 +1224,12 @@ Bool
 radeon_dri2_screen_init(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     DRI2InfoRec dri2_info = { 0 };
 #ifdef USE_DRI2_SCHEDULING
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     const char *driverNames[1];
-    uint64_t cap_value;
+    Bool scheduling_works = TRUE;
 #endif
 
     if (!info->useEXA) {
@@ -1258,9 +1261,34 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 #endif
     dri2_info.CopyRegion = radeon_dri2_copy_region;
 
-    info->high_crtc_works = FALSE;
 #ifdef USE_DRI2_SCHEDULING
-    if (info->dri->pKernelDRMVersion->version_minor >= 4) {
+    if (info->dri->pKernelDRMVersion->version_minor < 4) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for "
+		   "sync extension\n");
+	scheduling_works = FALSE;
+    }
+
+    if (scheduling_works && info->drmmode.mode_res->count_crtcs > 2) {
+#ifdef DRM_CAP_VBLANK_HIGH_CRTC
+	uint64_t cap_value;
+
+	if (drmGetCap(info->dri2.drm_fd, DRM_CAP_VBLANK_HIGH_CRTC, &cap_value)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel "
+		       "for VBLANKs on CRTC > 1\n");
+	    scheduling_works = FALSE;
+	} else if (!cap_value) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Your kernel does not "
+		       "handle VBLANKs on CRTC > 1\n");
+	    scheduling_works = FALSE;
+	}
+#else
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need to rebuild against a "
+		   "newer libdrm to handle VBLANKs on CRTC > 1\n");
+	scheduling_works = FALSE;
+#endif
+    }
+
+    if (scheduling_works) {
         dri2_info.version = 4;
         dri2_info.ScheduleSwap = radeon_dri2_schedule_swap;
         dri2_info.GetMSC = radeon_dri2_get_msc;
@@ -1268,40 +1296,29 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
         dri2_info.numDrivers = 1;
         dri2_info.driverNames = driverNames;
         driverNames[0] = dri2_info.driverName;
-    } else {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for sync extension\n");
-    }
 
-    if (info->drmmode.mode_res->count_crtcs > 2) {
-	if (drmGetCap(info->dri2.drm_fd, DRM_CAP_VBLANK_HIGH_CRTC, &cap_value)) {
-	    info->high_crtc_works = FALSE;
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for VBLANKs on CRTC > 1\n");
-	} else {
-	    if (cap_value) {
-		info->high_crtc_works = TRUE;
-	    } else {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Your kernel does not handle VBLANKs on CRTC > 1\n");
-		info->high_crtc_works = FALSE;
-	    }
-	}
-    }
-
-    if (pRADEONEnt->dri2_info_cnt == 0) {
+	if (pRADEONEnt->dri2_info_cnt == 0) {
 #if HAS_DIXREGISTERPRIVATEKEY
-	if (!dixRegisterPrivateKey(DRI2ClientEventsPrivateKey, PRIVATE_CLIENT, sizeof(DRI2ClientEventsRec))) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 registering private key to client failed\n");
-	    return FALSE;
-	}
+	    if (!dixRegisterPrivateKey(DRI2ClientEventsPrivateKey,
+				       PRIVATE_CLIENT, sizeof(DRI2ClientEventsRec))) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 registering "
+			   "private key to client failed\n");
+		return FALSE;
+	    }
 #else
-	if (!dixRequestPrivate(DRI2ClientEventsPrivateKey, sizeof(DRI2ClientEventsRec))) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requesting private key to client failed\n");
-	    return FALSE;
-	}
+	    if (!dixRequestPrivate(DRI2ClientEventsPrivateKey,
+				   sizeof(DRI2ClientEventsRec))) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requesting "
+			   "private key to client failed\n");
+		return FALSE;
+	    }
 #endif
 
-	AddCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
+	    AddCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
+	}
+
+	pRADEONEnt->dri2_info_cnt++;
     }
-    pRADEONEnt->dri2_info_cnt++;
 #endif
 
     info->dri2.enabled = DRI2ScreenInit(pScreen, &dri2_info);
@@ -1312,9 +1329,9 @@ void radeon_dri2_close_screen(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
+#ifdef USE_DRI2_SCHEDULING
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
-#ifdef USE_DRI2_SCHEDULING
     if (--pRADEONEnt->dri2_info_cnt == 0)
     	DeleteCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
 #endif
