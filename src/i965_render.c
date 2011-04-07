@@ -171,7 +171,7 @@ static uint32_t i965_get_dest_format(PicturePtr dest_picture)
 	case PICT_x4r4g4b4:
 		return BRW_SURFACEFORMAT_B4G4R4A4_UNORM;
 	default:
-		return 0;
+		return -1;
 	}
 }
 
@@ -207,7 +207,7 @@ i965_check_composite(int op,
 		}
 	}
 
-	if (!i965_get_dest_format(dest_picture)) {
+	if (i965_get_dest_format(dest_picture) == -1) {
 		intel_debug_fallback(scrn, "Usupported Color buffer format 0x%x\n",
 				     (int)dest_picture->format);
 		return FALSE;
@@ -538,7 +538,7 @@ static const uint32_t ps_kernel_masknoca_projective_static_gen6[][4] = {
 typedef enum {
 	SAMPLER_STATE_FILTER_NEAREST,
 	SAMPLER_STATE_FILTER_BILINEAR,
-	SAMPLER_STATE_FILTER_COUNT
+	FILTER_COUNT
 } sampler_state_filter_t;
 
 typedef enum {
@@ -546,7 +546,7 @@ typedef enum {
 	SAMPLER_STATE_EXTEND_REPEAT,
 	SAMPLER_STATE_EXTEND_PAD,
 	SAMPLER_STATE_EXTEND_REFLECT,
-	SAMPLER_STATE_EXTEND_COUNT
+	EXTEND_COUNT
 } sampler_state_extend_t;
 
 typedef enum {
@@ -558,7 +558,7 @@ typedef enum {
 	WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
 	WM_KERNEL_MASKNOCA_AFFINE,
 	WM_KERNEL_MASKNOCA_PROJECTIVE,
-	WM_KERNEL_COUNT
+	KERNEL_COUNT
 } wm_kernel_t;
 
 #define KERNEL(kernel_enum, kernel, masked) \
@@ -736,8 +736,8 @@ struct gen4_render_state {
 	uint32_t sf_state;
 	uint32_t sf_mask_state;
 	uint32_t cc_state;
-	uint32_t wm_state[WM_KERNEL_COUNT][SAMPLER_STATE_FILTER_COUNT][SAMPLER_STATE_EXTEND_COUNT][SAMPLER_STATE_FILTER_COUNT][SAMPLER_STATE_EXTEND_COUNT];
-	uint32_t wm_kernel[WM_KERNEL_COUNT];
+	uint32_t wm_state;
+	uint32_t wm_kernel[KERNEL_COUNT];
 
 	uint32_t gen6_cc_state;
 	uint32_t gen6_cc_vp;
@@ -746,7 +746,7 @@ struct gen4_render_state {
 	gen4_composite_op composite_op;
 };
 
-static void gen6_emit_composite_state(ScrnInfoPtr scrn);
+static void gen6_emit_composite_state(struct intel_screen_private *intel);
 static void gen6_render_state_init(ScrnInfoPtr scrn);
 
 /**
@@ -876,16 +876,12 @@ static uint32_t gen4_create_sampler_state(struct i965_static_stream *stream,
 	return i965_static_stream_offsetof(stream, sampler_state);
 }
 
-static uint32_t gen4_create_wm_state(struct intel_screen_private *intel,
-				     struct i965_static_stream *stream,
-				     Bool has_mask,
-				     uint32_t kernel,
-				     uint32_t sampler)
+static void gen4_init_wm_state(struct intel_screen_private *intel,
+			       struct brw_wm_unit_state *state,
+			       Bool has_mask,
+			       uint32_t kernel,
+			       uint32_t sampler)
 {
-	struct brw_wm_unit_state *state;
-
-	state = i965_static_stream_map(stream, sizeof(*state), 32);
-
 	state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
 	state->thread0.kernel_start_pointer = kernel >> 6;
 
@@ -932,8 +928,6 @@ static uint32_t gen4_create_wm_state(struct intel_screen_private *intel,
 	 */
 	if (IS_GEN5(intel))
 		state->thread1.binding_table_entry_count = 0;
-
-	return i965_static_stream_offsetof(stream, state);
 }
 
 static uint32_t gen4_create_vs_unit_state(struct intel_screen_private *intel,
@@ -1247,9 +1241,8 @@ static void gen4_composite_vertex_elements(struct intel_screen_private *intel)
 	}
 }
 
-static void i965_emit_composite_state(ScrnInfoPtr scrn)
+static void i965_emit_composite_state(struct intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	int op = composite_op->op;
@@ -1331,46 +1324,46 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	i965_get_blend_cntl(op, mask_picture, dest_picture->format,
 			    &src_blend, &dst_blend);
 
-	{
-		/* Binding table pointers */
-		OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
-		OUT_BATCH(0);	/* vs */
-		OUT_BATCH(0);	/* gs */
-		OUT_BATCH(0);	/* clip */
-		OUT_BATCH(0);	/* sf */
-		/* Only the PS uses the binding table */
-		OUT_BATCH(intel->surface_table);
+	/* Binding table pointers */
+	OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
+	OUT_BATCH(0);	/* vs */
+	OUT_BATCH(0);	/* gs */
+	OUT_BATCH(0);	/* clip */
+	OUT_BATCH(0);	/* sf */
+	/* Only the PS uses the binding table */
+	OUT_BATCH(intel->surface_table);
 
-		/* The drawing rectangle clipping is always on.  Set it to values that
-		 * shouldn't do any clipping.
-		 */
-		OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);
-		OUT_BATCH(0x00000000);	/* ymin, xmin */
-		OUT_BATCH(DRAW_YMAX(dest->drawable.height - 1) |
-			  DRAW_XMAX(dest->drawable.width - 1));	/* ymax, xmax */
-		OUT_BATCH(0x00000000);	/* yorigin, xorigin */
+	/* The drawing rectangle clipping is always on.  Set it to values that
+	 * shouldn't do any clipping.
+	 */
+	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);
+	OUT_BATCH(0x00000000);	/* ymin, xmin */
+	OUT_BATCH(DRAW_YMAX(dest->drawable.height - 1) |
+		  DRAW_XMAX(dest->drawable.width - 1));	/* ymax, xmax */
+	OUT_BATCH(0x00000000);	/* yorigin, xorigin */
 
-		/* skip the depth buffer */
-		/* skip the polygon stipple */
-		/* skip the polygon stipple offset */
-		/* skip the line stipple */
+	/* skip the depth buffer */
+	/* skip the polygon stipple */
+	/* skip the polygon stipple offset */
+	/* skip the line stipple */
 
-		/* Set the pointers to the 3d pipeline state */
-		OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-		OUT_BATCH(render_state->vs_state);
-		OUT_BATCH(BRW_GS_DISABLE);	/* disable GS, resulting in passthrough */
-		OUT_BATCH(BRW_CLIP_DISABLE);	/* disable CLIP, resulting in passthrough */
-		if (mask) {
-			OUT_BATCH(render_state->sf_mask_state);
-		} else {
-			OUT_BATCH(render_state->sf_state);
-		}
+	/* Set the pointers to the 3d pipeline state */
+	OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
+	OUT_BATCH(render_state->vs_state);
+	OUT_BATCH(BRW_GS_DISABLE);	/* disable GS, resulting in passthrough */
+	OUT_BATCH(BRW_CLIP_DISABLE);	/* disable CLIP, resulting in passthrough */
+	if (mask)
+		OUT_BATCH(render_state->sf_mask_state);
+	else
+		OUT_BATCH(render_state->sf_state);
 
-		OUT_BATCH(render_state->wm_state[composite_op->wm_kernel][src_filter][src_extend][mask_filter][mask_extend]);
-		OUT_BATCH(render_state->cc_state +
-			  offsetof(struct gen4_cc_unit_state,
-				   cc_state[src_blend][dst_blend]));
-	}
+	OUT_BATCH(render_state->wm_state +
+		  ((((src_filter * EXTEND_COUNT + src_extend) * FILTER_COUNT +
+		     mask_filter) * EXTEND_COUNT + mask_extend) * KERNEL_COUNT +
+		   composite_op->wm_kernel) * sizeof(struct brw_wm_unit_state_padded));
+	OUT_BATCH(render_state->cc_state +
+		  offsetof(struct gen4_cc_unit_state,
+			   cc_state[src_blend][dst_blend]));
 
 	{
 		int urb_vs_start, urb_vs_size;
@@ -1763,9 +1756,9 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 		i965_bind_surfaces(intel);
 
 		if (INTEL_INFO(intel)->gen >= 60)
-			gen6_emit_composite_state(scrn);
+			gen6_emit_composite_state(intel);
 		else
-			i965_emit_composite_state(scrn);
+			i965_emit_composite_state(intel);
 	}
 
 	if (intel->floats_per_vertex != intel->last_floats_per_vertex) {
@@ -1860,6 +1853,8 @@ void i965_batch_commit_notify(intel_screen_private *intel)
 	intel->gen6_render_state.blend = -1;
 	intel->gen6_render_state.kernel = -1;
 	intel->gen6_render_state.drawrect = -1;
+
+	assert(intel->surface_reloc == 0);
 }
 
 /**
@@ -1872,6 +1867,7 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 	struct i965_static_stream stream[2];
 	struct i965_static_stream *instruction, *general;
 	const struct wm_kernel_info *wm_kernels;
+	struct brw_wm_unit_state_padded *wm_state;
 	uint32_t sf_kernel, sf_kernel_mask;
 	uint32_t border_color;
 	int i, j, k, l, m;
@@ -1925,12 +1921,12 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 					       64);
 	}
 	render->sf_state =
-	       	gen4_create_sf_state(intel, general, sf_kernel);
+		gen4_create_sf_state(intel, general, sf_kernel);
 	render->sf_mask_state =
-	       	gen4_create_sf_state(intel, general, sf_kernel_mask);
+		gen4_create_sf_state(intel, general, sf_kernel_mask);
 
 	wm_kernels = IS_GEN5(intel) ? wm_kernels_gen5 : wm_kernels_gen4;
-	for (m = 0; m < WM_KERNEL_COUNT; m++) {
+	for (m = 0; m < KERNEL_COUNT; m++) {
 		render->wm_kernel[m] =
 			i965_static_stream_add(instruction,
 					       wm_kernels[m].data,
@@ -1942,10 +1938,16 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 	 * kernel.
 	 */
 	border_color = sampler_border_color_create(general);
-	for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
-		for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
-			for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
-				for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
+	wm_state = i965_static_stream_map(general,
+					  sizeof(*wm_state) * KERNEL_COUNT *
+					  FILTER_COUNT * EXTEND_COUNT *
+					  FILTER_COUNT * EXTEND_COUNT,
+					  64);
+	render->wm_state = i965_static_stream_offsetof(general, wm_state);
+	for (i = 0; i < FILTER_COUNT; i++) {
+		for (j = 0; j < EXTEND_COUNT; j++) {
+			for (k = 0; k < FILTER_COUNT; k++) {
+				for (l = 0; l < EXTEND_COUNT; l++) {
 					uint32_t sampler_state;
 
 					sampler_state =
@@ -1954,12 +1956,13 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 									  k, l,
 									  border_color);
 
-					for (m = 0; m < WM_KERNEL_COUNT; m++) {
-						render->wm_state[m][i][j][k][l] =
-							gen4_create_wm_state(intel, general,
-									     wm_kernels[m].has_mask,
-									     render->wm_kernel[m],
-									     sampler_state);
+					for (m = 0; m < KERNEL_COUNT; m++) {
+						gen4_init_wm_state(intel,
+&wm_state->state,
+								   wm_kernels[m].has_mask,
+								   render->wm_kernel[m],
+								   sampler_state);
+						wm_state++;
 					}
 				}
 			}
@@ -2009,30 +2012,28 @@ gen6_composite_create_cc_state(struct i965_static_stream *stream)
 static uint32_t
 gen6_composite_create_blend_state(struct i965_static_stream *stream)
 {
-	char *base;
-	int src_blend, dst_blend;
+	char *base, *ptr;
+	int src, dst;
 
 	base = i965_static_stream_map(stream,
 				       BRW_BLENDFACTOR_COUNT * BRW_BLENDFACTOR_COUNT * GEN6_BLEND_STATE_PADDED_SIZE,
 				       64);
 
-	for (src_blend = 0; src_blend < BRW_BLENDFACTOR_COUNT; src_blend++) {
-		for (dst_blend = 0; dst_blend < BRW_BLENDFACTOR_COUNT; dst_blend++) {
-			struct gen6_blend_state *blend_state = (struct gen6_blend_state *)(base +
-				((src_blend * BRW_BLENDFACTOR_COUNT) + dst_blend) * GEN6_BLEND_STATE_PADDED_SIZE);
+	ptr = base;
+	for (src = 0; src < BRW_BLENDFACTOR_COUNT; src++) {
+		for (dst= 0; dst< BRW_BLENDFACTOR_COUNT; dst++) {
+			struct gen6_blend_state *blend =
+			       	(struct gen6_blend_state *)ptr;
 
-			blend_state->blend0.dest_blend_factor = dst_blend;
-			blend_state->blend0.source_blend_factor = src_blend;
-			blend_state->blend0.blend_func = BRW_BLENDFUNCTION_ADD;
-			blend_state->blend0.ia_blend_enable = 0;
-			blend_state->blend0.blend_enable = 1;
+			blend->blend0.dest_blend_factor = dst;
+			blend->blend0.source_blend_factor = src;
+			blend->blend0.blend_func = BRW_BLENDFUNCTION_ADD;
+			blend->blend0.blend_enable = 1;
 
-			blend_state->blend1.post_blend_clamp_enable = 1;
-			blend_state->blend1.pre_blend_clamp_enable = 1;
-			blend_state->blend1.clamp_range = 0; /* clamp range [0, 1] */
-			blend_state->blend1.dither_enable = 0;
-			blend_state->blend1.logic_op_enable = 0;
-			blend_state->blend1.alpha_test_enable = 0;
+			blend->blend1.post_blend_clamp_enable = 1;
+			blend->blend1.pre_blend_clamp_enable = 1;
+
+			ptr += GEN6_BLEND_STATE_PADDED_SIZE;
 		}
 	}
 
@@ -2069,7 +2070,7 @@ gen6_composite_invariant_states(intel_screen_private *intel)
 	OUT_BATCH(((1 - 1) << GEN6_3DSTATE_URB_VS_SIZE_SHIFT) |
 		  (24 << GEN6_3DSTATE_URB_VS_ENTRIES_SHIFT)); /* at least 24 on GEN6 */
 	OUT_BATCH((0 << GEN6_3DSTATE_URB_GS_SIZE_SHIFT) |
-		(0 << GEN6_3DSTATE_URB_GS_ENTRIES_SHIFT)); /* no GS thread */
+		  (0 << GEN6_3DSTATE_URB_GS_ENTRIES_SHIFT)); /* no GS thread */
 }
 
 static void
@@ -2214,8 +2215,8 @@ gen6_composite_sf_state(intel_screen_private *intel,
 
 	OUT_BATCH(GEN6_3DSTATE_SF | (20 - 2));
 	OUT_BATCH((num_sf_outputs << GEN6_3DSTATE_SF_NUM_OUTPUTS_SHIFT) |
-		(1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_LENGTH_SHIFT) |
-		(1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_OFFSET_SHIFT));
+		  (1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_LENGTH_SHIFT) |
+		  (1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_OFFSET_SHIFT));
 	OUT_BATCH(0);
 	OUT_BATCH(GEN6_3DSTATE_SF_CULL_NONE);
 	OUT_BATCH(2 << GEN6_3DSTATE_SF_TRIFAN_PROVOKE_SHIFT); /* DW4 */
@@ -2252,7 +2253,7 @@ gen6_composite_wm_state(intel_screen_private *intel,
 	OUT_BATCH(GEN6_3DSTATE_WM | (9 - 2));
 	OUT_BATCH(kernel);
 	OUT_BATCH((1 << GEN6_3DSTATE_WM_SAMPLER_COUNT_SHITF) |
-		(num_surfaces << GEN6_3DSTATE_WM_BINDING_TABLE_ENTRY_COUNT_SHIFT));
+		  (num_surfaces << GEN6_3DSTATE_WM_BINDING_TABLE_ENTRY_COUNT_SHIFT));
 	OUT_BATCH(0);
 	OUT_BATCH((6 << GEN6_3DSTATE_WM_DISPATCH_START_GRF_0_SHIFT)); /* DW4 */
 	OUT_BATCH(((40 - 1) << GEN6_3DSTATE_WM_MAX_THREADS_SHIFT) |
@@ -2282,7 +2283,7 @@ gen6_composite_depth_buffer_state(intel_screen_private *intel)
 {
 	OUT_BATCH(BRW_3DSTATE_DEPTH_BUFFER | (7 - 2));
 	OUT_BATCH((BRW_SURFACE_NULL << BRW_3DSTATE_DEPTH_BUFFER_TYPE_SHIFT) |
-		(BRW_DEPTHFORMAT_D32_FLOAT << BRW_3DSTATE_DEPTH_BUFFER_FORMAT_SHIFT));
+		  (BRW_DEPTHFORMAT_D32_FLOAT << BRW_3DSTATE_DEPTH_BUFFER_FORMAT_SHIFT));
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
@@ -2296,7 +2297,6 @@ gen6_composite_depth_buffer_state(intel_screen_private *intel)
 static void
 gen6_composite_drawing_rectangle(intel_screen_private *intel,
 				 PixmapPtr dest)
-
 {
 	uint32_t dw =
 		DRAW_YMAX(dest->drawable.height - 1) |
@@ -2357,8 +2357,7 @@ gen6_composite_vertex_element_state(intel_screen_private *intel,
 	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
 		((2 * (2 + nelem)) + 1 - 2));
 
-	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		  GEN6_VE0_VALID |
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) | GEN6_VE0_VALID |
 		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 		  (0 << VE0_OFFSET_SHIFT));
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT) |
@@ -2367,8 +2366,7 @@ gen6_composite_vertex_element_state(intel_screen_private *intel,
 		  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
 
 	/* x,y */
-	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		  GEN6_VE0_VALID |
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) | GEN6_VE0_VALID |
 		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
 		  (0 << VE0_OFFSET_SHIFT)); /* offsets vb in bytes */
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
@@ -2377,8 +2375,7 @@ gen6_composite_vertex_element_state(intel_screen_private *intel,
 		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
 
 	/* u0, v0, w0 */
-	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		  GEN6_VE0_VALID |
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) | GEN6_VE0_VALID |
 		  (src_format << VE0_FORMAT_SHIFT) |
 		  ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
@@ -2400,22 +2397,17 @@ gen6_composite_vertex_element_state(intel_screen_private *intel,
 }
 
 static void
-gen6_emit_composite_state(ScrnInfoPtr scrn)
+gen6_emit_composite_state(struct intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state = intel->gen4_render_state;
-	gen4_composite_op *composite_op = &render_state->composite_op;
-	int op = composite_op->op;
-	PicturePtr mask_picture = intel->render_mask_picture;
-	PicturePtr dest_picture = intel->render_dest_picture;
-	PixmapPtr mask = intel->render_mask;
-	PixmapPtr dest = intel->render_dest;
+	struct gen4_render_state *render = intel->gen4_render_state;
+	gen4_composite_op *composite_op = &render->composite_op;
 	sampler_state_filter_t src_filter = composite_op->src_filter;
 	sampler_state_filter_t mask_filter = composite_op->mask_filter;
 	sampler_state_extend_t src_extend = composite_op->src_extend;
 	sampler_state_extend_t mask_extend = composite_op->mask_extend;
 	Bool is_affine = composite_op->is_affine;
-	uint32_t src_blend, dst_blend;
+	Bool has_mask = intel->render_mask != NULL;
+	uint32_t src, dst;
 
 	intel->needs_render_state_emit = FALSE;
 	if (intel->needs_3d_invariant) {
@@ -2423,17 +2415,17 @@ gen6_emit_composite_state(ScrnInfoPtr scrn)
 		intel->needs_3d_invariant = FALSE;
 	}
 
-	i965_get_blend_cntl(op,
-			    mask_picture,
-			    dest_picture->format,
-			    &src_blend,
-			    &dst_blend);
+	i965_get_blend_cntl(composite_op->op,
+			    intel->render_mask_picture,
+			    intel->render_dest_picture->format,
+			    &src, &dst);
 
 	if (intel->surface_reloc == 0) {
 		gen6_composite_state_base_address(intel);
 
 		/* need to reload all relocations after modifying base */
-		gen6_composite_viewport_state_pointers(intel, render_state->gen6_cc_vp);
+		gen6_composite_viewport_state_pointers(intel,
+						       render->gen6_cc_vp);
 		gen6_composite_vs_state(intel);
 		gen6_composite_gs_state(intel);
 		gen6_composite_clip_state(intel);
@@ -2442,17 +2434,21 @@ gen6_emit_composite_state(ScrnInfoPtr scrn)
 	}
 
 	gen6_composite_cc_state_pointers(intel,
-					((src_blend * BRW_BLENDFACTOR_COUNT) + dst_blend) * GEN6_BLEND_STATE_PADDED_SIZE);
+					 (src * BRW_BLENDFACTOR_COUNT + dst) * GEN6_BLEND_STATE_PADDED_SIZE);
 	gen6_composite_sampler_state_pointers(intel,
-					      render_state->wm_state[0][src_filter][src_extend][mask_filter][mask_extend]);
-	gen6_composite_sf_state(intel, mask != 0);
+					      render->wm_state +
+					      (((src_filter * EXTEND_COUNT +
+						 src_extend) * FILTER_COUNT +
+						mask_filter) * EXTEND_COUNT +
+					       mask_extend) * 2 * sizeof(struct brw_sampler_state));
+	gen6_composite_sf_state(intel, has_mask);
 	gen6_composite_wm_state(intel,
-				mask != 0,
-				render_state->wm_kernel[composite_op->wm_kernel]);
+				has_mask,
+				render->wm_kernel[composite_op->wm_kernel]);
 	gen6_composite_binding_table_pointers(intel);
 
-	gen6_composite_drawing_rectangle(intel, dest);
-	gen6_composite_vertex_element_state(intel, mask != 0, is_affine);
+	gen6_composite_drawing_rectangle(intel, intel->render_dest);
+	gen6_composite_vertex_element_state(intel, has_mask, is_affine);
 }
 
 static void
@@ -2461,6 +2457,7 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_render_state *render;
 	struct i965_static_stream instruction, dynamic;
+	struct brw_sampler_state *sampler_state;
 	uint32_t border_color;
 	int i, j, k, l, m;
 
@@ -2476,7 +2473,7 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 	render = intel->gen4_render_state;
 	render->composite_op.vertex_id = -1;
 
-	for (m = 0; m < WM_KERNEL_COUNT; m++) {
+	for (m = 0; m < KERNEL_COUNT; m++) {
 		render->wm_kernel[m] =
 			i965_static_stream_add(&instruction,
 					       wm_kernels_gen6[m].data,
@@ -2485,15 +2482,20 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 	}
 
 	border_color = sampler_border_color_create(&dynamic);
-	for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
-		for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
-			for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
-				for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
-					render->wm_state[0][i][j][k][l] =
-						gen4_create_sampler_state(&dynamic,
-									  i, j,
-									  k, l,
-									  border_color);
+	sampler_state = i965_static_stream_map(&dynamic,
+					       sizeof(*sampler_state) *
+					       FILTER_COUNT * EXTEND_COUNT *
+					       FILTER_COUNT * EXTEND_COUNT,
+					       32);
+	render->wm_state = i965_static_stream_offsetof(&dynamic, sampler_state);
+	for (i = 0; i < FILTER_COUNT; i++) {
+		for (j = 0; j < EXTEND_COUNT; j++) {
+			for (k = 0; k < FILTER_COUNT; k++) {
+				for (l = 0; l < EXTEND_COUNT; l++) {
+					sampler_state_init(sampler_state++,
+							   i, j, border_color);
+					sampler_state_init(sampler_state++,
+							   k, l, border_color);
 				}
 			}
 		}
