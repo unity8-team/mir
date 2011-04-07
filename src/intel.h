@@ -392,7 +392,7 @@ typedef struct intel_screen_private {
 	} gen6_render_state;
 
 	uint32_t prim_offset;
-	void (*prim_emit)(PixmapPtr dest,
+	void (*prim_emit)(struct intel_screen_private *intel,
 			  int srcX, int srcY,
 			  int maskX, int maskY,
 			  int dstX, int dstY,

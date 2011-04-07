@@ -1456,6 +1456,237 @@ static void i965_surface_flush(struct intel_screen_private *intel)
 		priv->dst_bound = priv->src_bound = 0;
 }
 
+static void
+i965_emit_composite_primitive_identity_source(intel_screen_private *intel,
+					      int srcX, int srcY,
+					      int maskX, int maskY,
+					      int dstX, int dstY,
+					      int w, int h)
+{
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX((srcX + w) * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX(srcY * intel->scale_units[0][1]);
+}
+
+static void
+i965_emit_composite_primitive_affine_source(intel_screen_private *intel,
+					    int srcX, int srcY,
+					    int maskX, int maskY,
+					    int dstX, int dstY,
+					    int w, int h)
+{
+	float src_x[3], src_y[3];
+
+	if (!intel_get_transformed_coordinates(srcX, srcY,
+					      intel->transform[0],
+					      &src_x[0],
+					      &src_y[0]))
+		return;
+
+	if (!intel_get_transformed_coordinates(srcX, srcY + h,
+					      intel->transform[0],
+					      &src_x[1],
+					      &src_y[1]))
+		return;
+
+	if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
+					      intel->transform[0],
+					      &src_x[2],
+					      &src_y[2]))
+		return;
+
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[2] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[2] * intel->scale_units[0][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[1] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[1] * intel->scale_units[0][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(src_x[0] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[0] * intel->scale_units[0][1]);
+}
+
+static void
+i965_emit_composite_primitive_identity_source_mask(intel_screen_private *intel,
+						   int srcX, int srcY,
+						   int maskX, int maskY,
+						   int dstX, int dstY,
+						   int w, int h)
+{
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX((srcX + w) * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+	OUT_VERTEX((maskX + w) * intel->scale_units[1][0]);
+	OUT_VERTEX((maskY + h) * intel->scale_units[1][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+	OUT_VERTEX(maskX * intel->scale_units[1][0]);
+	OUT_VERTEX((maskY + h) * intel->scale_units[1][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX(srcY * intel->scale_units[0][1]);
+	OUT_VERTEX(maskX * intel->scale_units[1][0]);
+	OUT_VERTEX(maskY * intel->scale_units[1][1]);
+}
+
+static void
+i965_emit_composite_primitive(intel_screen_private *intel,
+			      int srcX, int srcY,
+			      int maskX, int maskY,
+			      int dstX, int dstY,
+			      int w, int h)
+{
+	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
+	Bool is_affine = intel->gen4_render_state->composite_op.is_affine;
+
+	if (! intel->render_source_is_solid) {
+		if (is_affine) {
+			if (!intel_get_transformed_coordinates(srcX, srcY,
+							      intel->transform[0],
+							      &src_x[0],
+							      &src_y[0]))
+				return;
+
+			if (!intel_get_transformed_coordinates(srcX, srcY + h,
+							      intel->transform[0],
+							      &src_x[1],
+							      &src_y[1]))
+				return;
+
+			if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
+							      intel->transform[0],
+							      &src_x[2],
+							      &src_y[2]))
+				return;
+		} else {
+			if (!intel_get_transformed_coordinates_3d(srcX, srcY,
+								 intel->transform[0],
+								 &src_x[0],
+								 &src_y[0],
+								 &src_w[0]))
+				return;
+
+			if (!intel_get_transformed_coordinates_3d(srcX, srcY + h,
+								 intel->transform[0],
+								 &src_x[1],
+								 &src_y[1],
+								 &src_w[1]))
+				return;
+
+			if (!intel_get_transformed_coordinates_3d(srcX + w, srcY + h,
+								 intel->transform[0],
+								 &src_x[2],
+								 &src_y[2],
+								 &src_w[2]))
+				return;
+		}
+	}
+
+	if (intel->render_mask) {
+		if (is_affine) {
+			if (!intel_get_transformed_coordinates(maskX, maskY,
+							      intel->transform[1],
+							      &mask_x[0],
+							      &mask_y[0]))
+				return;
+
+			if (!intel_get_transformed_coordinates(maskX, maskY + h,
+							      intel->transform[1],
+							      &mask_x[1],
+							      &mask_y[1]))
+				return;
+
+			if (!intel_get_transformed_coordinates(maskX + w, maskY + h,
+							      intel->transform[1],
+							      &mask_x[2],
+							      &mask_y[2]))
+				return;
+		} else {
+			if (!intel_get_transformed_coordinates_3d(maskX, maskY,
+								 intel->transform[1],
+								 &mask_x[0],
+								 &mask_y[0],
+								 &mask_w[0]))
+				return;
+
+			if (!intel_get_transformed_coordinates_3d(maskX, maskY + h,
+								 intel->transform[1],
+								 &mask_x[1],
+								 &mask_y[1],
+								 &mask_w[1]))
+				return;
+
+			if (!intel_get_transformed_coordinates_3d(maskX + w, maskY + h,
+								 intel->transform[1],
+								 &mask_x[2],
+								 &mask_y[2],
+								 &mask_w[2]))
+				return;
+		}
+	}
+
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[2] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[2] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[2]);
+	if (intel->render_mask) {
+		OUT_VERTEX(mask_x[2] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[2] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[2]);
+	}
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[1] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[1] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[1]);
+	if (intel->render_mask) {
+		OUT_VERTEX(mask_x[1] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[1] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[1]);
+	}
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(src_x[0] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[0] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[0]);
+	if (intel->render_mask) {
+		OUT_VERTEX(mask_x[0] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[0] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[0]);
+	}
+}
+
 Bool
 i965_prepare_composite(int op, PicturePtr source_picture,
 		       PicturePtr mask_picture, PicturePtr dest_picture,
@@ -1581,6 +1812,17 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 			composite_op->wm_kernel = WM_KERNEL_NOMASK_PROJECTIVE;
 	}
 
+	intel->prim_emit = i965_emit_composite_primitive;
+	if (!mask) {
+		if (intel->transform[0] == NULL)
+			intel->prim_emit = i965_emit_composite_primitive_identity_source;
+		else if (composite_op->is_affine)
+			intel->prim_emit = i965_emit_composite_primitive_affine_source;
+	} else {
+		if (intel->transform[0] == NULL && intel->transform[1] == NULL)
+			intel->prim_emit = i965_emit_composite_primitive_identity_source_mask;
+	}
+
 	intel->floats_per_vertex =
 		2 + (mask ? 2 : 1) * (composite_op->is_affine ? 2: 3);
 
@@ -1672,81 +1914,6 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state = intel->gen4_render_state;
-	Bool has_mask;
-	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-	Bool is_affine = render_state->composite_op.is_affine;
-
-	if (is_affine) {
-		if (!intel_get_transformed_coordinates(srcX, srcY,
-						      intel->transform[0],
-						      &src_x[0], &src_y[0]))
-			return;
-		if (!intel_get_transformed_coordinates(srcX, srcY + h,
-						      intel->transform[0],
-						      &src_x[1], &src_y[1]))
-			return;
-		if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
-						      intel->transform[0],
-						      &src_x[2], &src_y[2]))
-			return;
-	} else {
-		if (!intel_get_transformed_coordinates_3d(srcX, srcY,
-							 intel->transform[0],
-							 &src_x[0], &src_y[0],
-							 &src_w[0]))
-			return;
-		if (!intel_get_transformed_coordinates_3d(srcX, srcY + h,
-							 intel->transform[0],
-							 &src_x[1], &src_y[1],
-							 &src_w[1]))
-			return;
-		if (!intel_get_transformed_coordinates_3d(srcX + w, srcY + h,
-							 intel->transform[0],
-							 &src_x[2], &src_y[2],
-							 &src_w[2]))
-			return;
-	}
-
-	if (intel->render_mask) {
-		has_mask = TRUE;
-		if (is_affine) {
-			if (!intel_get_transformed_coordinates(maskX, maskY,
-							      intel->
-							      transform[1],
-							      &mask_x[0],
-							      &mask_y[0]))
-				return;
-			if (!intel_get_transformed_coordinates(maskX, maskY + h,
-							      intel->
-							      transform[1],
-							      &mask_x[1],
-							      &mask_y[1]))
-				return;
-			if (!intel_get_transformed_coordinates
-			    (maskX + w, maskY + h, intel->transform[1],
-			     &mask_x[2], &mask_y[2]))
-				return;
-		} else {
-			if (!intel_get_transformed_coordinates_3d(maskX, maskY,
-								 intel->
-								 transform[1],
-								 &mask_x[0],
-								 &mask_y[0],
-								 &mask_w[0]))
-				return;
-			if (!intel_get_transformed_coordinates_3d
-			    (maskX, maskY + h, intel->transform[1], &mask_x[1],
-			     &mask_y[1], &mask_w[1]))
-				return;
-			if (!intel_get_transformed_coordinates_3d
-			    (maskX + w, maskY + h, intel->transform[1],
-			     &mask_x[2], &mask_y[2], &mask_w[2]))
-				return;
-		}
-	} else {
-		has_mask = FALSE;
-	}
 
 	if (!i965_composite_check_aperture(intel))
 		intel_batch_submit(scrn);
@@ -1788,46 +1955,11 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 		intel->vertex_count = intel->vertex_index;
 	}
 
-	OUT_VERTEX(dstX + w);
-	OUT_VERTEX(dstY + h);
-	OUT_VERTEX(src_x[2] * intel->scale_units[0][0]);
-	OUT_VERTEX(src_y[2] * intel->scale_units[0][1]);
-	if (!is_affine)
-		OUT_VERTEX(src_w[2]);
-	if (has_mask) {
-		OUT_VERTEX(mask_x[2] * intel->scale_units[1][0]);
-		OUT_VERTEX(mask_y[2] * intel->scale_units[1][1]);
-		if (!is_affine)
-			OUT_VERTEX(mask_w[2]);
-	}
-
-	/* rect (x1,y2) */
-	OUT_VERTEX(dstX);
-	OUT_VERTEX(dstY + h);
-	OUT_VERTEX(src_x[1] * intel->scale_units[0][0]);
-	OUT_VERTEX(src_y[1] * intel->scale_units[0][1]);
-	if (!is_affine)
-		OUT_VERTEX(src_w[1]);
-	if (has_mask) {
-		OUT_VERTEX(mask_x[1] * intel->scale_units[1][0]);
-		OUT_VERTEX(mask_y[1] * intel->scale_units[1][1]);
-		if (!is_affine)
-			OUT_VERTEX(mask_w[1]);
-	}
-
-	/* rect (x1,y1) */
-	OUT_VERTEX(dstX);
-	OUT_VERTEX(dstY);
-	OUT_VERTEX(src_x[0] * intel->scale_units[0][0]);
-	OUT_VERTEX(src_y[0] * intel->scale_units[0][1]);
-	if (!is_affine)
-		OUT_VERTEX(src_w[0]);
-	if (has_mask) {
-		OUT_VERTEX(mask_x[0] * intel->scale_units[1][0]);
-		OUT_VERTEX(mask_y[0] * intel->scale_units[1][1]);
-		if (!is_affine)
-			OUT_VERTEX(mask_w[0]);
-	}
+	intel->prim_emit(intel,
+			 srcX, srcY,
+			 maskX, maskY,
+			 dstX, dstY,
+			 w, h);
 	intel->vertex_index += 3;
 
 	if (INTEL_INFO(intel)->gen < 50) {
