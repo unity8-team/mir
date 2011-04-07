@@ -387,8 +387,8 @@ typedef struct intel_screen_private {
 		int num_sf_outputs;
 		int drawrect;
 		uint32_t blend;
-		uint32_t samplers;
-		uint32_t kernel;
+		dri_bo *samplers;
+		dri_bo *kernel;
 	} gen6_render_state;
 
 	uint32_t prim_offset;
@@ -648,6 +648,19 @@ intel_emit_reloc(drm_intel_bo * bo, uint32_t offset,
 				read_domains, write_domain);
 
 	return target_bo->offset + target_offset;
+}
+
+static inline drm_intel_bo *intel_bo_alloc_for_data(intel_screen_private *intel,
+						    const void *data,
+						    unsigned int size,
+						    char *name)
+{
+	drm_intel_bo *bo;
+
+	bo = drm_intel_bo_alloc(intel->bufmgr, name, size, 4096);
+	if (bo)
+		drm_intel_bo_subdata(bo, 0, size, data);
+	return bo;
 }
 
 void intel_debug_flush(ScrnInfoPtr scrn);

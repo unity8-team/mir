@@ -217,7 +217,7 @@ static Bool intel_has_overlay(intel_screen_private *intel)
 	gp.value = &has_overlay;
 	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
 
-	return ret == 0 && !! has_overlay;
+	return !! has_overlay;
 }
 
 static void intel_overlay_update_attrs(intel_screen_private *intel)
