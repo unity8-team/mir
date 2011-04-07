@@ -157,6 +157,7 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 			BEGIN_BATCH(4);
 			OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
 			OUT_BATCH(BRW_PIPE_CONTROL_WC_FLUSH |
+				  BRW_PIPE_CONTROL_TC_FLUSH |
 				  BRW_PIPE_CONTROL_NOWRITE);
 			OUT_BATCH(0); /* write address */
 			OUT_BATCH(0); /* write data */
