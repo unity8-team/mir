@@ -425,6 +425,8 @@ typedef struct intel_screen_private {
 	Bool use_pageflipping;
 	Bool force_fallback;
 	Bool can_blt;
+	Bool has_kernel_flush;
+	Bool needs_flush;
 	Bool use_shadow;
 
 	/* Broken-out options. */

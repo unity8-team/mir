@@ -937,7 +937,18 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 
 static void intel_flush_rendering(intel_screen_private *intel)
 {
-    drm_intel_bo_busy(intel->front_buffer);
+	if (intel->needs_flush == 0)
+		return;
+
+	if (intel->has_kernel_flush) {
+		intel_batch_submit(intel->scrn);
+		drm_intel_bo_busy(intel->front_buffer);
+	} else {
+		intel_batch_emit_flush(intel->scrn);
+		intel_batch_submit(intel->scrn);
+	}
+
+	intel->needs_flush = 0;
 }
 
 void intel_uxa_block_handler(intel_screen_private *intel)

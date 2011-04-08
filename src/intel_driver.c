@@ -448,6 +448,23 @@ static void I830XvInit(ScrnInfoPtr scrn)
 		   intel->colorKey);
 }
 
+static Bool has_kernel_flush(struct intel_screen_private *intel)
+{
+	drm_i915_getparam_t gp;
+	int value;
+
+	/* The BLT ring was introduced at the same time as the
+	 * automatic flush for the busy-ioctl.
+	 */
+
+	gp.value = &value;
+	gp.param = I915_PARAM_HAS_BLT;
+	if (drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp))
+		return FALSE;
+
+	return value;
+}
+
 static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
 	if (0 && (IS_I830(intel) || IS_845G(intel))) {
@@ -597,6 +614,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		intel->tiling &= ~INTEL_TILING_FB;
 
 	intel->can_blt = can_accelerate_blt(intel);
+	intel->has_kernel_flush = has_kernel_flush(intel);
 	intel->use_shadow = !intel->can_blt;
 
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
