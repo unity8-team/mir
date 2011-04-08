@@ -221,6 +221,7 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 			/* The GPU has hung and unlikely to recover by this point. */
 			if (!once) {
 				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Detected a hung GPU, disabling acceleration.\n");
+				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
 				uxa_set_force_fallback(screenInfo.screens[scrn->scrnIndex], TRUE);
 				intel->force_fallback = TRUE;
 				once = 1;
