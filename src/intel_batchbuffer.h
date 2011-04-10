@@ -63,8 +63,10 @@ static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)
 
 	assert(!intel->in_batch_atomic);
 
-	if (intel->current_batch != RENDER_BATCH)
-		intel_batch_submit(scrn, FALSE);
+	if (intel->current_batch != RENDER_BATCH) {
+		if (intel->current_batch && intel->context_switch)
+			intel->context_switch(intel, RENDER_BATCH);
+	}
 
 	intel_batch_require_space(scrn, intel, sz * 4);
 	intel->current_batch = RENDER_BATCH;

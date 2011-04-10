@@ -195,12 +195,16 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		*tiling = I915_TILING_NONE;
 
 	if (*tiling != I915_TILING_NONE) {
-		int aligned_h;
+		int aligned_h, tile_height;
 
 		if (*tiling == I915_TILING_X)
-			aligned_h = ALIGN(h, 8);
+			tile_height = 8;
 		else
-			aligned_h = ALIGN(h, 32);
+			tile_height = 32;
+		/* i8xx has a 2-row interleaved tile layout */
+		if (IS_GEN2(intel))
+			tile_height *= 2;
+		aligned_h = ALIGN(h, tile_height);
 
 		*stride = intel_get_fence_pitch(intel,
 						ALIGN(pitch, 512),
@@ -664,9 +668,7 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		priv->bo = bo;
 		priv->stride = intel_pixmap_pitch(pixmap);
 
-		ret = drm_intel_bo_get_tiling(bo,
-					      &tiling,
-					      &swizzle_mode);
+		ret = drm_intel_bo_get_tiling(bo, &tiling, &swizzle_mode);
 		if (ret != 0) {
 			FatalError("Couldn't get tiling on bo %p: %s\n",
 				   bo, strerror(-ret));
@@ -792,6 +794,8 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 
 			if (tiling != I915_TILING_NONE)
 				drm_intel_bo_set_tiling(bo, &tiling, stride);
+			priv->stride = stride;
+			priv->tiling = tiling;
 
 			screen->ModifyPixmapHeader(pixmap,
 						   w, h,
@@ -1089,11 +1093,14 @@ static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 	return TRUE;
 }
 
-void intel_uxa_create_screen_resources(ScreenPtr screen)
+Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo = intel->front_buffer;
+
+	if (!uxa_resources_init(screen))
+		return FALSE;
 
 	drm_intel_gem_bo_map_gtt(bo);
 
@@ -1111,6 +1118,8 @@ void intel_uxa_create_screen_resources(ScreenPtr screen)
 					   NULL);
 		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
+
+	return TRUE;
 }
 
 static void
@@ -1185,7 +1194,6 @@ Bool intel_uxa_init(ScreenPtr screen)
 
 	memset(intel->uxa_driver, 0, sizeof(*intel->uxa_driver));
 
-	intel->bufferOffset = 0;
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
 

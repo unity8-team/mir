@@ -996,7 +996,7 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	/* Copy V data for YV12, or U data for I420 */
 	src2 = buf +		/* start of YUV data */
 	    (srcH * srcPitch) +	/* move over Luma plane */
-	    ((top * srcPitch) >> 2) +	/* move down from by top lines */
+	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
 	    (left >> 1);	/* move left by left pixels */
 
 #if 0
@@ -1015,7 +1015,7 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	src3 = buf +		/* start of YUV data */
 	    (srcH * srcPitch) +	/* move over Luma plane */
 	    ((srcH >> 1) * srcPitch2) +	/* move over Chroma plane */
-	    ((top * srcPitch) >> 2) +	/* move down from by top lines */
+	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
 	    (left >> 1);	/* move left by left pixels */
 #if 0
 	ErrorF("src3 is %p, offset is %ld\n", src3,

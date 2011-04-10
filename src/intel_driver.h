@@ -76,11 +76,11 @@
 #define PCI_CHIP_I945_GME_BRIDGE 0x27AC
 #endif
 
-#ifndef PCI_CHIP_IGD_GM
-#define PCI_CHIP_IGD_GM		0xA011
-#define PCI_CHIP_IGD_GM_BRIDGE	0xA010
-#define PCI_CHIP_IGD_G		0xA001
-#define PCI_CHIP_IGD_G_BRIDGE	0xA000
+#ifndef PCI_CHIP_PINEVIEW_M
+#define PCI_CHIP_PINEVIEW_M		0xA011
+#define PCI_CHIP_PINEVIEW_M_BRIDGE	0xA010
+#define PCI_CHIP_PINEVIEW_G		0xA001
+#define PCI_CHIP_PINEVIEW_G_BRIDGE	0xA000
 #endif
 
 #ifndef PCI_CHIP_G35_G
@@ -133,9 +133,9 @@
 #define PCI_CHIP_GM45_BRIDGE    0x2A40
 #endif
 
-#ifndef PCI_CHIP_IGD_E_G
-#define PCI_CHIP_IGD_E_G	0x2E02
-#define PCI_CHIP_IGD_E_G_BRIDGE 0x2E00
+#ifndef PCI_CHIP_G45_E_G
+#define PCI_CHIP_G45_E_G	0x2E02
+#define PCI_CHIP_G45_E_G_BRIDGE 0x2E00
 #endif
 
 #ifndef PCI_CHIP_G45_G
@@ -163,14 +163,14 @@
 #define PCI_CHIP_B43_G1_BRIDGE	0x2E90
 #endif
 
-#ifndef PCI_CHIP_IGDNG_D_G
-#define PCI_CHIP_IGDNG_D_G		0x0042
-#define PCI_CHIP_IGDNG_D_G_BRIDGE	0x0040
+#ifndef PCI_CHIP_IRONLAKE_D_G
+#define PCI_CHIP_IRONLAKE_D_G		0x0042
+#define PCI_CHIP_IRONLAKE_D_G_BRIDGE	0x0040
 #endif
 
-#ifndef PCI_CHIP_IGDNG_M_G
-#define PCI_CHIP_IGDNG_M_G		0x0046
-#define PCI_CHIP_IGDNG_M_G_BRIDGE	0x0044
+#ifndef PCI_CHIP_IRONLAKE_M_G
+#define PCI_CHIP_IRONLAKE_M_G		0x0046
+#define PCI_CHIP_IRONLAKE_M_G_BRIDGE	0x0044
 #endif
 
 #ifndef PCI_CHIP_SANDYBRIDGE_BRIDGE
@@ -222,8 +222,6 @@
 
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
 #define SUPPORTS_YTILING(pI810) (INTEL_INFO(intel)->gen >= 40)
-
-#define ALWAYS_TILING(intel) IS_GEN6(intel)
 
 extern SymTabRec *intel_chipsets;
 

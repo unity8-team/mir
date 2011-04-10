@@ -227,8 +227,6 @@ static inline Bool intel_pixmap_tiled(PixmapPtr pixmap)
 dri_bo *intel_get_pixmap_bo(PixmapPtr pixmap);
 void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo);
 
-typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
-
 #include "common.h"
 
 #ifdef XvMCExtension
@@ -238,39 +236,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #endif
 
 #define PITCH_NONE 0
-
-/** Record of a linear allocation in the aperture. */
-typedef struct _intel_memory intel_memory;
-struct _intel_memory {
-	/** Description of the allocation, for logging */
-	char *name;
-
-	/** @{
-	 * Memory allocator linked list pointers
-	 */
-	intel_memory *next;
-	intel_memory *prev;
-	/** @} */
-
-	drm_intel_bo *bo;
-	uint32_t gem_name;
-};
-
-typedef struct _I830CrtcPrivateRec {
-	int pipe;
-	int plane;
-
-	Bool enabled;
-
-	int dpms_mode;
-
-	int x, y;
-
-	/* Lookup table values to be set when the CRTC is enabled */
-	uint8_t lut_r[256], lut_g[256], lut_b[256];
-} I830CrtcPrivateRec, *I830CrtcPrivatePtr;
-
-#define I830CrtcPrivate(c) ((I830CrtcPrivatePtr) (c)->driver_private)
 
 /** enumeration of 3d consumers so some can maintain invariant state. */
 enum last_3d {
@@ -288,18 +253,11 @@ enum dri_type {
 
 typedef struct intel_screen_private {
 	ScrnInfoPtr scrn;
-	unsigned char *MMIOBase;
 	int cpp;
 
 #define RENDER_BATCH			I915_EXEC_RENDER
 #define BLT_BATCH			I915_EXEC_BLT
 	unsigned int current_batch;
-
-	unsigned int bufferOffset;	/* for I830SelectBuffer */
-
-	/* These are set in PreInit and never changed. */
-	long FbMapSize;
-	long GTTMapSize;
 
 	void *modes;
 	drm_intel_bo *front_buffer;
@@ -339,12 +297,16 @@ typedef struct intel_screen_private {
 
 	Bool need_mi_flush;
 
-	Bool tiling;
+	unsigned int tiling;
+#define INTEL_TILING_FB		0x1
+#define INTEL_TILING_2D		0x2
+#define INTEL_TILING_3D		0x4
+#define INTEL_TILING_ALL (~0)
+
 	Bool swapbuffers_wait;
 	Bool has_relaxed_fencing;
 
 	int Chipset;
-	unsigned long LinearAddr;
 	EntityInfoPtr pEnt;
 	struct pci_device *PciInfo;
 	struct intel_chipset chipset;
@@ -502,9 +464,29 @@ extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crt
 extern int intel_crtc_id(xf86CrtcPtr crtc);
 extern int intel_output_dpms_status(xf86OutputPtr output);
 
+enum DRI2FrameEventType {
+	DRI2_SWAP,
+	DRI2_FLIP,
+	DRI2_WAITMSC,
+};
+
+typedef struct _DRI2FrameEvent {
+	XID drawable_id;
+	XID client_id;	/* fake client ID to track client destruction */
+	ClientPtr client;
+	enum DRI2FrameEventType type;
+	int frame;
+
+	/* for swaps & flips only */
+	DRI2SwapEventPtr event_complete;
+	void *event_data;
+	DRI2BufferPtr front;
+	DRI2BufferPtr back;
+} DRI2FrameEventRec, *DRI2FrameEventPtr;
+
 extern Bool intel_do_pageflip(intel_screen_private *intel,
 			      dri_bo *new_front,
-			      void *data, int ref_crtc_hw_id);
+			      DRI2FrameEventPtr flip_info, int ref_crtc_hw_id);
 
 static inline intel_screen_private *
 intel_get_screen_private(ScrnInfoPtr scrn)
@@ -535,21 +517,15 @@ extern void I830InitVideo(ScreenPtr pScreen);
 extern xf86CrtcPtr intel_covering_crtc(ScrnInfoPtr scrn, BoxPtr box,
 				      xf86CrtcPtr desired, BoxPtr crtc_box_ret);
 
-extern xf86CrtcPtr intel_pipe_to_crtc(ScrnInfoPtr scrn, int pipe);
-
 Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
 void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
-			       unsigned int tv_usec, void *user_data);
+			       unsigned int tv_usec, DRI2FrameEventPtr flip_info);
 void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
-			      unsigned int tv_usec, void *user_data);
+			      unsigned int tv_usec, DRI2FrameEventPtr flip_info);
 
 extern Bool intel_crtc_on(xf86CrtcPtr crtc);
-static inline int intel_crtc_to_pipe(xf86CrtcPtr crtc)
-{
-	intel_screen_private *intel = intel_get_screen_private(crtc->scrn);
-	return intel_get_pipe_from_crtc_id(intel->bufmgr, crtc);
-}
+int intel_crtc_to_pipe(xf86CrtcPtr crtc);
 
 /* intel_memory.c */
 unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);
@@ -688,11 +664,6 @@ static inline drm_intel_bo *intel_bo_alloc_for_data(ScrnInfoPtr scrn,
 	return bo;
 }
 
-/* Flags for memory allocation function */
-#define NEED_PHYSICAL_ADDR		0x00000001
-#define ALLOW_SHARING			0x00000010
-#define DISABLE_REUSE			0x00000020
-
 void intel_debug_flush(ScrnInfoPtr scrn);
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
@@ -715,7 +686,7 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
 
 Bool intel_uxa_init(ScreenPtr pScreen);
-void intel_uxa_create_screen_resources(ScreenPtr pScreen);
+Bool intel_uxa_create_screen_resources(ScreenPtr pScreen);
 void intel_uxa_block_handler(intel_screen_private *intel);
 Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 			      int num_bos);
