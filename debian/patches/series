@@ -2,6 +2,7 @@
 
 # Ubuntu patches
 101_copy-fb.patch
+102_gen6_invalidate_texture_cache.patch
 107_solid_nullptr_check.patch
 109_dont_reconstruct_glyph_cache_on_rotate.patch
 110_warnings_cleanup.patch

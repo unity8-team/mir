@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.14.0-4ubuntu7) natty; urgency=low
+
+  * Add 102_gen6_invalidate_texture_cache.patch: Fix corruption in KDE
+    menus on sandybridge GPUs. (LP: #750964)
+
+ -- Robert Hooker <sarvatt@ubuntu.com>  Mon, 11 Apr 2011 14:00:58 -0400
+
 xserver-xorg-video-intel (2:2.14.0-4ubuntu6) natty; urgency=low
 
   * Add 117_946gz_isreally_965g.patch: 946gz was listed as a 915-family
