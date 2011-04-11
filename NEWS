@@ -1,3 +1,29 @@
+Snapshot 2.14.903 (2011-04-11)
+==============================
+This is the third release candidate in preparation for the upcoming
+2.15.0 release. We will appreciate any feedback we can get from
+testing of this snapshot.
+
+There was a bit of churn since 2.14.902 as a potential fix for a
+performance regression was tried but had to reverted when it was found to
+cause glitches running Compiz on SandyBridge. Otherwise, there were just a
+couple of fixes for building against old xservers and running on an
+obscure chipset.
+
+Bugs fixed in this snapshot (compared to 2.14.902)
+--------------------------------------------------
+
+* Prevent issuing an invalid scanline wait command
+  https://bugs.freedesktop.org/show_bug.cgi?id=35576
+
+* The 946GZ in not a 945, but a 965.
+  https://bugs.freedesktop.org/show_bug.cgi?id=35854
+
+* Fix tile sizes for gen2 (finally).
+
+* Allow building of recent dri2 changes against old xservers.
+
+
 Snapshot 2.14.902 (2011-03-29)
 ==============================
 This is the second release candidate in preparation for the upcoming
