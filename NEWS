@@ -4,7 +4,7 @@ We are pleased to announce this major release of the xf86-video-intel
 driver, roughly on schedule at 3 months since 2.14.0. With the many bug
 fixes in this release, we encourage everyone to upgrade to 2.14.
 
-The priority for this quarter has been simply to unexciting and stabilise
+The priority for this quarter has been simply to be unexciting and stabilise
 the driver further, seeking to capitalise upon the improvements elsewhere
 in the stack.
 
