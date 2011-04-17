@@ -50,14 +50,14 @@ static inline int intel_vertex_space(intel_screen_private *intel)
 }
 
 static inline void
-intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, unsigned int sz)
+intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, int sz)
 {
 	assert(sz < intel->batch_bo->size - 8);
 	if (intel_batch_space(intel) < sz)
 		intel_batch_submit(scrn);
 }
 
-static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)
+static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, int sz)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
