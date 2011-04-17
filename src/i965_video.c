@@ -1210,7 +1210,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 			intel_batch_submit(scrn);
 		}
 
-		intel_batch_start_atomic(scrn, 100);
+		intel_batch_start_atomic(scrn, 150);
 
 		i965_emit_video_setup(scrn, surface_state_binding_table_bo, n_src_surf, pixmap);
 
