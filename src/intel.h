@@ -295,8 +295,6 @@ typedef struct intel_screen_private {
 
 	Bool shadow_present;
 
-	Bool need_mi_flush;
-
 	unsigned int tiling;
 #define INTEL_TILING_FB		0x1
 #define INTEL_TILING_2D		0x2
@@ -387,8 +385,6 @@ typedef struct intel_screen_private {
 
 	struct {
 		int num_sf_outputs;
-		int vertex_size;
-		int vertex_type;
 		int drawrect;
 		uint32_t blend;
 		dri_bo *samplers;
@@ -396,7 +392,7 @@ typedef struct intel_screen_private {
 	} gen6_render_state;
 
 	uint32_t prim_offset;
-	void (*prim_emit)(PixmapPtr dest,
+	void (*prim_emit)(struct intel_screen_private *intel,
 			  int srcX, int srcY,
 			  int maskX, int maskY,
 			  int dstX, int dstY,
@@ -407,6 +403,7 @@ typedef struct intel_screen_private {
 	uint16_t vertex_count;
 	uint16_t vertex_index;
 	uint16_t vertex_used;
+	uint32_t vertex_id;
 	float vertex_ptr[4*1024];
 	dri_bo *vertex_bo;
 
@@ -428,6 +425,8 @@ typedef struct intel_screen_private {
 	Bool use_pageflipping;
 	Bool force_fallback;
 	Bool can_blt;
+	Bool has_kernel_flush;
+	Bool needs_flush;
 	Bool use_shadow;
 
 	/* Broken-out options. */
@@ -469,6 +468,11 @@ enum DRI2FrameEventType {
 	DRI2_FLIP,
 	DRI2_WAITMSC,
 };
+
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(1,7,99,3,0)
+typedef void (*DRI2SwapEventPtr)(ClientPtr client, void *data, int type,
+				 CARD64 ust, CARD64 msc, CARD64 sbc);
+#endif
 
 typedef struct _DRI2FrameEvent {
 	XID drawable_id;
@@ -648,19 +652,16 @@ intel_emit_reloc(drm_intel_bo * bo, uint32_t offset,
 	return target_bo->offset + target_offset;
 }
 
-static inline drm_intel_bo *intel_bo_alloc_for_data(ScrnInfoPtr scrn,
-						    void *data,
+static inline drm_intel_bo *intel_bo_alloc_for_data(intel_screen_private *intel,
+						    const void *data,
 						    unsigned int size,
 						    char *name)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo;
 
 	bo = drm_intel_bo_alloc(intel->bufmgr, name, size, 4096);
-	if (!bo)
-		return NULL;
-	drm_intel_bo_subdata(bo, 0, size, data);
-
+	if (bo)
+		drm_intel_bo_subdata(bo, 0, size, data);
 	return bo;
 }
 

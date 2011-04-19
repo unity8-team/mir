@@ -323,7 +323,7 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
 	break;
     case PCI_CHIP_I946_GZ:
 	chipset->name = "946GZ";
-	chipset->info = &intel_i915_info;
+	chipset->info = &intel_i965_info;
 	break;
     case PCI_CHIP_I965_GM:
 	chipset->name = "965GM";

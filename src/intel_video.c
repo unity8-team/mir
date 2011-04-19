@@ -1358,9 +1358,9 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | pipe);
-	OUT_BATCH((y1 << 16) | y2);
+	OUT_BATCH((y1 << 16) | (y2-1));
 	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | pipe);
-	OUT_BATCH((y1 << 16) | y2);
+	OUT_BATCH((y1 << 16) | (y2-1));
 	OUT_BATCH(MI_WAIT_FOR_EVENT | event);
 	ADVANCE_BATCH();
 }

@@ -1,3 +1,234 @@
+commit 0e425b30e12b11dbf51eea1d3366e3372f8b93af
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 14 10:16:03 2011 +0100
+
+    configure,NEWS: 2.15.0 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 686018f283f1d131073ef5917213e6a8ac013f26
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 12 08:23:04 2011 +0100
+
+    Turn relaxed-fencing off by default for older (pre-G33) chipsets
+    
+    There are still too many unresolved bugs, typically GPU hangs, that are
+    related to using relaxed fencing (i.e. only allocating the minimal
+    amount of memory required for a buffer) on older hardware, so turn off
+    the feature by default for the release.
+    
+    Reported-and-tested-by: Knut Petersen <Knut_Petersen@t-online.de>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=36147
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Acked-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 3d2b79098ccb3fed86be66f619f4ed338741d454
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 11 15:20:16 2011 +0100
+
+    dri: Rearrange code to compile against xorg-server-1.7
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4fa35dd5e13a58070220f787fc0678f1c679808d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 11 10:44:55 2011 +0100
+
+    NEWS: version bump for 2.14.903 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 97e9557619e58ef769eb7cbf1a03fbd52be7f2ed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 8 13:38:48 2011 +0100
+
+    intel: Restore manual flush for old kernels
+    
+    Daniel Vetter pointed out that the automagic flush by the kernel for the
+    busy-ioctl was only introduced upstream in 2.6.37. So we still need to
+    manually emit a flush on old kernels.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fb40bf2b33a6d26f0e6a4e5798d10c905faa8aad
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Fri Apr 8 12:37:35 2011 +0200
+
+    Tell users to grab i915_error_state on gpu hangs
+    
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 59ed6b05db99d7e5144f4f8499c67cee9b833673
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 7 15:28:46 2011 +0100
+
+    Revert "i965: Convert to relative relocations for state"
+    
+    This reverts commit d2106384be6f9df498392127c3ff64d0a2b17457.
+    
+    Breaks compiz (but not mutter/gnome-shell) on gen6. Not sure if this is
+    not seem deep interaction issue with multiple clients sharing the GPU or
+    just with compiz, but for now we have to revert and suffer the inane
+    performance hit. It looks suspiciously like another deferred damage
+    issue...
+    
+    Bugzilla: 51a27e88b073cff229fff4362cb6ac22835c4044
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 25521900df11bc71020ee80db2223f979bec5ec6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 7 15:09:30 2011 +0100
+
+    gen6: Invalidate texture cache
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ad22003033eb502474ae538a97e3b42cf8f83880
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 7 10:29:40 2011 +0100
+
+    i965: Avoid transform overheads for vertex emit where possible
+    
+    Minor improvement as the bottlenecks lie elsewhere. But it was annoying me.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 007c2f86cbb386861a1f711786523657f92e12cb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 7 09:53:34 2011 +0100
+
+    i965: Refactor to use constant sampler_state offsets
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8dc99b305a514dcd42c4260698e685a66dc95518
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 22:30:29 2011 +0100
+
+    i965: Reset vertex_id after every batch
+    
+    So that we always remember to re-emit the initial vertex elements state.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5982ed4da12a964351029c6f786348a11e33dc81
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 19:32:43 2011 +0100
+
+    i965: Always update last_floats_per_vertex
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6f104189bb9439ab0e05f04d4be020813eb04bf9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 19:21:10 2011 +0100
+
+    Take advantage of the kernel flush for dirty bo in the busy ioctl
+    
+    Rather than just creating and submitting a batch that simply contains a
+    flush in order to periodically ensure that rendering reaches the
+    scanout, we can simply ask the kernel whether the scanout is busy. The
+    kernel will then submit a flush on our behalf if it is dirty, which
+    takes advantage of the kernel's dirty state tracking.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 314439860e595c473d168c0cafb2b5b49b7fef30
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 17:20:04 2011 +0100
+
+    Remove unused function 'intel_bo_alloc_for_data'
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ced747cefb5e697e6caa65296dff728904f52b93
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 17:13:50 2011 +0100
+
+    Remove the unnecessary MI_FLUSH from the flush handler
+    
+    The kernel will emit any required flushes between the dri client and the
+    ddx, and we do not rely on the MI_FLUSH here for scanout.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 79444291a39c42039192a5baa3a71d52300cf4ee
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 16:34:58 2011 +0100
+
+    i965: segregate each vertex element into its own buffer
+    
+    Reduce the number of relocations emitted by only emitting one relocation
+    per vertex element per vertex buffer.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=35733
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d2106384be6f9df498392127c3ff64d0a2b17457
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 12:33:04 2011 +0100
+
+    i965: Convert to relative relocations for state
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=35733
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 972569f6fd1e14519f46e9f50d2509faf1d0aa55
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Mar 25 10:46:14 2011 +0000
+
+    MI_LOAD_SCAN_LINES_INCL are inclusive and range [0, display height-1]
+    
+    We have seen GPU hangs with:
+    
+    batchbuffer at 0x0f9b4000:
+    0x0f9b4000:      0x09000000: MI_LOAD_SCAN_LINES_INCL
+    0x0f9b4004:      0x00000300:    dword 1
+    0x0f9b4008:      0x09000000: MI_LOAD_SCAN_LINES_INCL
+    0x0f9b400c:      0x00000300:    dword 1
+    0x0f9b4010:      0x01820000: MI_WAIT_FOR_EVENT
+    0x0f9b4014: HEAD 0x02000006: MI_FLUSH
+    
+    on a 1366x768 display. That according to the specs an invalid command
+    for the pipe.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=35576
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 537a836dd6db384d53b52eb457a7d257c440217f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 1 07:10:25 2011 +0100
+
+    946GZ is a 965G!
+    
+    Sales & Marketing score another victory in confusing me.
+    
+    Bugzila: https://bugs.freedesktop.org/show_bug.cgi?id=35854
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 630d77bf10ba6234bb9c04538636f7d8aa319aea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 30 07:24:42 2011 +0100
+
+    Add a DRI2SwapEventPtr typedef for retro xservers
+    
+    Because people are still trying to build upon our solid historical
+    foundations.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f660df2cb44b310740ed850037ff37891b671f28
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 29 18:02:24 2011 +0200
+
+    Cleanup gen2 tiling confusion
+    
+    A tile on gen2 has a size of 2kb, stride of 128 bytes and 16 rows.
+    
+    Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
 commit a2c8442fcb29ef2d0df41518952a2d8df1671070
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Tue Mar 29 11:38:45 2011 +0100

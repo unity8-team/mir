@@ -101,6 +101,7 @@ typedef enum {
    OPTION_DEBUG_FLUSH_CACHES,
    OPTION_DEBUG_WAIT,
    OPTION_HOTPLUG,
+   OPTION_RELAXED_FENCING,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -121,6 +122,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_RELAXED_FENCING,	"RelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -448,6 +450,33 @@ static void I830XvInit(ScrnInfoPtr scrn)
 		   intel->colorKey);
 }
 
+static Bool drm_has_boolean_param(struct intel_screen_private *intel,
+				  int param)
+{
+	drm_i915_getparam_t gp;
+	int value;
+
+	gp.value = &value;
+	gp.param = param;
+	if (drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp))
+		return FALSE;
+
+	return value;
+}
+
+static Bool has_kernel_flush(struct intel_screen_private *intel)
+{
+	/* The BLT ring was introduced at the same time as the
+	 * automatic flush for the busy-ioctl.
+	 */
+	return drm_has_boolean_param(intel, I915_PARAM_HAS_BLT);
+}
+
+static Bool has_relaxed_fencing(struct intel_screen_private *intel)
+{
+	return drm_has_boolean_param(intel, I915_PARAM_HAS_RELAXED_FENCING);
+}
+
 static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
 	if (0 && (IS_I830(intel) || IS_845G(intel))) {
@@ -597,6 +626,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		intel->tiling &= ~INTEL_TILING_FB;
 
 	intel->can_blt = can_accelerate_blt(intel);
+	intel->has_kernel_flush = has_kernel_flush(intel);
 	intel->use_shadow = !intel->can_blt;
 
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
@@ -611,6 +641,18 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 			   "Shadow buffer enabled,"
 			   " 2D GPU acceleration disabled.\n");
 	}
+
+	intel->has_relaxed_fencing =
+		xf86ReturnOptValBool(intel->Options,
+				     OPTION_RELAXED_FENCING,
+				     INTEL_INFO(intel)->gen >= 33);
+	/* And override the user if there is no kernel support */
+	if (intel->has_relaxed_fencing)
+		intel->has_relaxed_fencing = has_relaxed_fencing(intel);
+
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
+		   "Relaxed fencing %s\n",
+		   intel->has_relaxed_fencing ? "enabled" : "disabled");
 
 	/* SwapBuffers delays to avoid tearing */
 	intel->swapbuffers_wait = xf86ReturnOptValBool(intel->Options,
@@ -757,17 +799,8 @@ intel_flush_callback(CallbackListPtr *list,
 		     pointer user_data, pointer call_data)
 {
 	ScrnInfoPtr scrn = user_data;
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (scrn->vtSema) {
-		/* Emit a flush of the rendering cache, or on the 965
-		 * and beyond rendering results may not hit the
-		 * framebuffer until significantly later.
-		 */
-		intel_batch_submit(scrn,
-				   intel->need_mi_flush ||
-				   !list_is_empty(&intel->flush_pixmaps));
-	}
+	if (scrn->vtSema)
+		intel_batch_submit(scrn);
 }
 
 #if HAVE_UDEV

@@ -53,6 +53,8 @@ static void intel_end_vertex(intel_screen_private *intel)
 		dri_bo_unreference(intel->vertex_bo);
 		intel->vertex_bo = NULL;
 	}
+
+	intel->vertex_id = 0;
 }
 
 void intel_next_vertex(intel_screen_private *intel)
@@ -89,6 +91,7 @@ void intel_batch_init(ScrnInfoPtr scrn)
 
 	intel->batch_emit_start = 0;
 	intel->batch_emitting = 0;
+	intel->vertex_id = 0;
 
 	intel_next_batch(scrn);
 }
@@ -132,8 +135,6 @@ void intel_batch_do_flush(ScrnInfoPtr scrn)
 
 	while (!list_is_empty(&intel->flush_pixmaps))
 		list_del(intel->flush_pixmaps.next);
-
-	intel->need_mi_flush = FALSE;
 }
 
 void intel_batch_emit_flush(ScrnInfoPtr scrn)
@@ -156,6 +157,7 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 			BEGIN_BATCH(4);
 			OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
 			OUT_BATCH(BRW_PIPE_CONTROL_WC_FLUSH |
+				  BRW_PIPE_CONTROL_TC_FLUSH |
 				  BRW_PIPE_CONTROL_NOWRITE);
 			OUT_BATCH(0); /* write address */
 			OUT_BATCH(0); /* write data */
@@ -173,7 +175,14 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	intel_batch_do_flush(scrn);
 }
 
-void intel_batch_submit(ScrnInfoPtr scrn, int flush)
+static Bool intel_batch_needs_flush(intel_screen_private *intel)
+{
+	ScreenPtr screen = intel->scrn->pScreen;
+	PixmapPtr pixmap = screen->GetScreenPixmap(screen);
+	return intel_get_pixmap_private(pixmap)->batch_write;
+}
+
+void intel_batch_submit(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	int ret;
@@ -186,9 +195,6 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 
 	if (intel->batch_flush)
 		intel->batch_flush(intel);
-
-	if (flush)
-		intel_batch_emit_flush(scrn);
 
 	if (intel->batch_used == 0)
 		return;
@@ -222,6 +228,7 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 			/* The GPU has hung and unlikely to recover by this point. */
 			if (!once) {
 				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Detected a hung GPU, disabling acceleration.\n");
+				xf86DrvMsg(scrn->scrnIndex, X_ERROR, "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
 				uxa_set_force_fallback(screenInfo.screens[scrn->scrnIndex], TRUE);
 				intel->force_fallback = TRUE;
 				once = 1;
@@ -233,6 +240,8 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 				   strerror(-ret));
 		}
 	}
+
+	intel->needs_flush |= intel_batch_needs_flush(intel);
 
 	while (!list_is_empty(&intel->batch_pixmaps)) {
 		struct intel_pixmap *entry;
@@ -246,7 +255,6 @@ void intel_batch_submit(ScrnInfoPtr scrn, int flush)
 		list_del(&entry->batch);
 	}
 
-	intel->need_mi_flush |= !list_is_empty(&intel->flush_pixmaps);
 	while (!list_is_empty(&intel->flush_pixmaps))
 		list_del(intel->flush_pixmaps.next);
 
@@ -282,5 +290,5 @@ void intel_debug_flush(ScrnInfoPtr scrn)
 		intel_batch_emit_flush(scrn);
 
 	if (intel->debug_flush & DEBUG_FLUSH_BATCHES)
-		intel_batch_submit(scrn, FALSE);
+		intel_batch_submit(scrn);
 }

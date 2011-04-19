@@ -1207,7 +1207,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 		if (drm_intel_bufmgr_check_aperture_space(bo_table,
 							  ARRAY_SIZE(bo_table))
 		    < 0) {
-			intel_batch_submit(scrn, FALSE);
+			intel_batch_submit(scrn);
 		}
 
 		intel_batch_start_atomic(scrn, 100);
@@ -1850,7 +1850,7 @@ void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
 		 * Assume that it does after being flushed.
 		 */
 		if (drm_intel_bufmgr_check_aperture_space(bo_table, ARRAY_SIZE(bo_table)) < 0)
-			intel_batch_submit(scrn, FALSE);
+			intel_batch_submit(scrn);
 
 		intel_batch_start_atomic(scrn, 200);
 		gen6_emit_video_setup(scrn, surface_state_binding_table_bo, n_src_surf, pixmap);

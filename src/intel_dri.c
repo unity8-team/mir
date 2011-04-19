@@ -398,14 +398,6 @@ static void I830DRI2DestroyBuffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 
 #endif
 
-static void I830DRI2ReferenceBuffer(DRI2Buffer2Ptr buffer)
-{
-	if (buffer) {
-		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
-		private->refcnt++;
-	}
-}
-
 static void
 I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 		   DRI2BufferPtr destBuffer, DRI2BufferPtr sourceBuffer)
@@ -497,10 +489,10 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 			 */
 			OUT_BATCH(MI_LOAD_SCAN_LINES_INCL |
 				  load_scan_lines_pipe);
-			OUT_BATCH((y1 << 16) | y2);
+			OUT_BATCH((y1 << 16) | (y2-1));
 			OUT_BATCH(MI_LOAD_SCAN_LINES_INCL |
 				  load_scan_lines_pipe);
-			OUT_BATCH((y1 << 16) | y2);
+			OUT_BATCH((y1 << 16) | (y2-1));
 			OUT_BATCH(MI_WAIT_FOR_EVENT | event);
 			ADVANCE_BATCH();
 		}
@@ -553,6 +545,13 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 
 #if DRI2INFOREC_VERSION >= 4
 
+static void I830DRI2ReferenceBuffer(DRI2Buffer2Ptr buffer)
+{
+	if (buffer) {
+		I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
+		private->refcnt++;
+	}
+}
 
 static int
 I830DRI2DrawablePipe(DrawablePtr pDraw)
@@ -1291,9 +1290,9 @@ out_complete:
 	DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
 	return TRUE;
 }
-#endif
 
 static int dri2_server_generation;
+#endif
 
 Bool I830DRI2ScreenInit(ScreenPtr screen)
 {
@@ -1321,6 +1320,7 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 		return FALSE;
 	}
 
+#if DRI2INFOREC_VERSION >= 4
 	if (serverGeneration != dri2_server_generation) {
 	    dri2_server_generation = serverGeneration;
 	    if (!i830_dri2_register_frame_event_resource_types()) {
@@ -1329,6 +1329,8 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 		return FALSE;
 	    }
 	}
+#endif
+
 	intel->deviceName = drmGetDeviceNameFromFd(intel->drmSubFD);
 	memset(&info, '\0', sizeof(info));
 	info.fd = intel->drmSubFD;
