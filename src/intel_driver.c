@@ -658,8 +658,6 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel->swapbuffers_wait = xf86ReturnOptValBool(intel->Options,
 						       OPTION_SWAPBUFFERS_WAIT,
 						       TRUE);
-	if (IS_GEN6(intel))
-		intel->swapbuffers_wait = FALSE;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   intel->tiling & INTEL_TILING_FB ? "tiled" : "linear");

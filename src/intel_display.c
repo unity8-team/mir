@@ -1607,7 +1607,7 @@ Bool intel_mode_pre_init(ScrnInfoPtr scrn, int fd, int cpp)
 	gp.value = &has_flipping;
 	(void)drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp,
 				  sizeof(gp));
-	if (has_flipping) {
+	if (has_flipping && intel->swapbuffers_wait) {
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "Kernel page flipping support detected, enabling\n");
 		intel->use_pageflipping = TRUE;
