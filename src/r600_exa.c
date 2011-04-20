@@ -53,7 +53,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    uint32_t pitch = 0;
     uint32_t pitch_align = 0x7, base_align = 0xff;
 #if defined(XF86DRM_MODE)
     int ret;
@@ -64,11 +63,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	accel_state->src_size[0] = src0->pitch * src0->height * (src0->bpp/8);
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
-	    ret = radeon_bo_get_tiling(accel_state->src_obj[0].bo,
-				       &accel_state->src_obj[0].tiling_flags,
-				       &pitch);
-	    if (ret)
-		RADEON_FALLBACK(("src0 radeon_bo_get_tiling failed\n"));
 	    pitch_align = drmmode_get_pitch_align(pScrn,
 						  accel_state->src_obj[0].bpp / 8,
 						  accel_state->src_obj[0].tiling_flags) - 1;
@@ -95,11 +89,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	accel_state->src_size[1] = src1->pitch * src1->height * (src1->bpp/8);
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
-	    ret = radeon_bo_get_tiling(accel_state->src_obj[1].bo,
-				       &accel_state->src_obj[1].tiling_flags,
-				       &pitch);
-	    if (ret)
-		RADEON_FALLBACK(("src1 radeon_bo_get_tiling failed\n"));
 	    pitch_align = drmmode_get_pitch_align(pScrn,
 						  accel_state->src_obj[1].bpp / 8,
 						  accel_state->src_obj[1].tiling_flags) - 1;
@@ -125,11 +114,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	accel_state->dst_size = dst->pitch * dst->height * (dst->bpp/8);
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
-	    ret = radeon_bo_get_tiling(accel_state->dst_obj.bo,
-				       &accel_state->dst_obj.tiling_flags,
-				       &pitch);
-	    if (ret)
-		RADEON_FALLBACK(("dst radeon_bo_get_tiling failed\n"));
 	    pitch_align = drmmode_get_pitch_align(pScrn,
 						  accel_state->dst_obj.bpp / 8,
 						  accel_state->dst_obj.tiling_flags) - 1;
@@ -210,6 +194,7 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (info->cs) {
 	dst.offset = 0;
 	dst.bo = radeon_get_pixmap_bo(pPix);
+	dst.tiling_flags = radeon_get_pixmap_tiling(pPix);
     } else
 #endif
     {
@@ -589,6 +574,8 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	dst_obj.offset = 0;
 	src_obj.bo = radeon_get_pixmap_bo(pSrc);
 	dst_obj.bo = radeon_get_pixmap_bo(pDst);
+	dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
+	src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
 	if (radeon_get_pixmap_bo(pSrc) == radeon_get_pixmap_bo(pDst))
 	    accel_state->same_surface = TRUE;
     } else
@@ -1269,6 +1256,8 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	dst_obj.offset = 0;
 	src_obj.bo = radeon_get_pixmap_bo(pSrc);
 	dst_obj.bo = radeon_get_pixmap_bo(pDst);
+	dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
+	src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
     } else
 #endif
     {
@@ -1295,6 +1284,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	if (info->cs) {
 	    mask_obj.offset = 0;
 	    mask_obj.bo = radeon_get_pixmap_bo(pMask);
+	    mask_obj.tiling_flags = radeon_get_pixmap_tiling(pMask);
 	} else
 #endif
 	{
@@ -1820,6 +1810,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     src_obj.bpp = bpp;
     src_obj.domain = RADEON_GEM_DOMAIN_GTT;
     src_obj.bo = scratch;
+    src_obj.tiling_flags = 0;
 
     dst_obj.pitch = dst_pitch_hw;
     dst_obj.width = pDst->drawable.width;
@@ -1828,6 +1819,7 @@ R600UploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
     dst_obj.bpp = bpp;
     dst_obj.domain = RADEON_GEM_DOMAIN_VRAM;
     dst_obj.bo = radeon_get_pixmap_bo(pDst);
+    dst_obj.tiling_flags = radeon_get_pixmap_tiling(pDst);
 
     if (!R600SetAccelState(pScrn,
 			   &src_obj,
@@ -1953,6 +1945,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     src_obj.bpp = bpp;
     src_obj.domain = RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT;
     src_obj.bo = radeon_get_pixmap_bo(pSrc);
+    src_obj.tiling_flags = radeon_get_pixmap_tiling(pSrc);
 
     dst_obj.pitch = scratch_pitch;
     dst_obj.width = w;
@@ -1961,6 +1954,7 @@ R600DownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     dst_obj.bo = scratch;
     dst_obj.bpp = bpp;
     dst_obj.domain = RADEON_GEM_DOMAIN_GTT;
+    dst_obj.tiling_flags = 0;
 
     if (!R600SetAccelState(pScrn,
 			   &src_obj,

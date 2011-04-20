@@ -1384,6 +1384,7 @@ void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size);
 #endif
 struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix);
 void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo);
+uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);
 
 #ifdef XF86DRI
 #  ifdef USE_XAA

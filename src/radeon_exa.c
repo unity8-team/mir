@@ -532,6 +532,13 @@ struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
     return driver_priv->bo;
 }
 
+uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix)
+{
+    struct radeon_exa_pixmap_priv *driver_priv;
+    driver_priv = exaGetPixmapDriverPrivate(pPix);
+    return driver_priv->tiling_flags;
+}
+
 void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 {
     struct radeon_exa_pixmap_priv *driver_priv;
