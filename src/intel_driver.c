@@ -328,10 +328,10 @@ static void intel_check_dri_option(ScrnInfoPtr scrn)
 	if (!xf86ReturnOptValBool(intel->Options, OPTION_DRI, TRUE))
 		intel->directRenderingType = DRI_DISABLED;
 
-	if (scrn->depth != 16 && scrn->depth != 24) {
+	if (scrn->depth != 16 && scrn->depth != 24 && scrn->depth != 30) {
 		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
 			   "DRI is disabled because it "
-			   "runs only at depths 16 and 24.\n");
+			   "runs only at depths 16, 24, and 30.\n");
 		intel->directRenderingType = DRI_DISABLED;
 	}
 }
@@ -586,6 +586,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	case 15:
 	case 16:
 	case 24:
+	case 30:
 		break;
 	default:
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
