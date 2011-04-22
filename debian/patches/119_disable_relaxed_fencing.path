@@ -1,0 +1,113 @@
+diff --git a/man/intel.man b/man/intel.man
+index db4c145..0c9cc0d 100644
+--- a/man/intel.man
++++ b/man/intel.man
+@@ -187,6 +187,15 @@ performance.
+ .IP
+ Default: enabled.
+ .TP
++.BI "Option \*qRelaxedFencing\*q \*q" boolean \*q
++This option controls whether we attempt to allocate the minimal amount of
++memory required for the buffers. The reduction in working set has a substantial
++improvement on system performance. However, this has been demonstrate to be
++buggy on older hardware (845-865 and 915-945, but ok on PineView and later)
++so on those chipsets defaults to off.
++.IP
++Default: Enabled for G33 (includes PineView), and later, class machines.
++.TP
+ .BI "Option \*qXvMC\*q \*q" boolean \*q
+ Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
+ User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
+diff --git a/src/intel_driver.c b/src/intel_driver.c
+index 1275e4b..2d9bc02 100644
+--- a/src/intel_driver.c
++++ b/src/intel_driver.c
+@@ -108,6 +108,7 @@ typedef enum {
+    OPTION_DEBUG_FLUSH_CACHES,
+    OPTION_DEBUG_WAIT,
+    OPTION_HOTPLUG,
++   OPTION_RELAXED_FENCING,
+ } I830Opts;
+ 
+ static OptionInfoRec I830Options[] = {
+@@ -127,6 +128,7 @@ static OptionInfoRec I830Options[] = {
+    {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
++   {OPTION_RELAXED_FENCING,	"RelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
+    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
+ };
+ /* *INDENT-ON* */
+@@ -464,6 +466,30 @@ static void I830XvInit(ScrnInfoPtr scrn)
+ 		   intel->colorKey);
+ }
+ 
++static Bool drm_has_boolean_param(struct intel_screen_private *intel,
++                                  int param)
++{
++    drm_i915_getparam_t gp;
++    int value;
++ 
++    /* The BLT ring was introduced at the same time as the
++     * automatic flush for the busy-ioctl.
++     */
++
++    gp.value = &value;
++    gp.param = param;
++    if (drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp))
++        return FALSE;
++ 
++    return value;
++}
++
++
++static Bool has_relaxed_fencing(struct intel_screen_private *intel)
++{
++    return drm_has_boolean_param(intel, I915_PARAM_HAS_RELAXED_FENCING);
++}
++
+ static Bool can_accelerate_blt(struct intel_screen_private *intel)
+ {
+ 	if (0 && (IS_I830(intel) || IS_845G(intel))) {
+@@ -630,6 +656,18 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
+ 			   " 2D GPU acceleration disabled.\n");
+ 	}
+ 
++	intel->has_relaxed_fencing =
++		xf86ReturnOptValBool(intel->Options,
++				     OPTION_RELAXED_FENCING,
++				     INTEL_INFO(intel)->gen >= 33);
++	/* And override the user if there is no kernel support */
++	if (intel->has_relaxed_fencing)
++		intel->has_relaxed_fencing = has_relaxed_fencing(intel);
++
++	xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
++		   "Relaxed fencing %s\n",
++		   intel->has_relaxed_fencing ? "enabled" : "disabled");
++
+ 	/* SwapBuffers delays to avoid tearing */
+ 	intel->swapbuffers_wait = TRUE;
+ 
+diff --git a/src/intel_memory.c b/src/intel_memory.c
+index e9ea58d..e88fcef 100644
+--- a/src/intel_memory.c
++++ b/src/intel_memory.c
+@@ -294,8 +294,6 @@ void intel_set_gem_max_sizes(ScrnInfoPtr scrn)
+ {
+ 	intel_screen_private *intel = intel_get_screen_private(scrn);
+ 	struct drm_i915_gem_get_aperture aperture;
+-	drm_i915_getparam_t gp;
+-	int ret, value;
+ 
+ 	aperture.aper_available_size = 0;
+ 	drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
+@@ -303,9 +301,4 @@ void intel_set_gem_max_sizes(ScrnInfoPtr scrn)
+ 	intel_set_max_bo_size(intel, &aperture);
+ 	intel_set_max_gtt_map_size(intel, &aperture);
+ 	intel_set_max_tiling_size(intel, &aperture);
+-
+-	gp.value = &value;
+-	gp.param = I915_PARAM_HAS_RELAXED_FENCING;
+-	ret = drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp);
+-	intel->has_relaxed_fencing = ret == 0;
+ }

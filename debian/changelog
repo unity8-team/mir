@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.14.0-4ubuntu7.1) natty-proposed; urgency=low
+
+  * Add 119_disable_relaxed_fencing.patch: The relaxed fencing
+    optimization is suspected as the cause for various i915/945 gpu lockup
+    issues.  This disables the optimization by default but adds an
+    xorg.conf parameter to let people experiment with it turned on.
+    (LP: #727594, #761143, #761632, #755693)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 22 Apr 2011 19:12:55 -0700
+
 xserver-xorg-video-intel (2:2.14.0-4ubuntu7) natty; urgency=low
 
   * Add 102_gen6_invalidate_texture_cache.patch: Fix corruption in KDE
