@@ -193,6 +193,9 @@ Radeon HD 6570/6670
 .TP 12
 .B CAICOS
 Radeon HD 6450
+.TP 12
+.B CAYMAN
+Radeon HD 6950/6970/6990
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
