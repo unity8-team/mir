@@ -1553,7 +1553,7 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
 
     }
 
-    if (info->ChipFamily == CHIP_FAMILY_PALM)
+    if (!accel_state->allowHWDFS)
 	goto copy;
 
     scratch_pitch = RADEON_ALIGN(w, drmmode_get_pitch_align(pScrn, (bpp / 8), 0));

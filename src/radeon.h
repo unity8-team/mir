@@ -717,6 +717,7 @@ struct radeon_accel_state {
     Bool              XInited3D; /* X itself has the 3D context */
     int               num_gb_pipes;
     Bool              has_tcl;
+    Bool              allowHWDFS;
 
 #ifdef USE_EXA
     /* EXA */

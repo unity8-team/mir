@@ -213,6 +213,28 @@ radeon_flush_callback(CallbackListPtr *list,
     }
 }
 
+static Bool RADEONIsFusionGARTWorking(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct drm_radeon_info ginfo;
+    int r;
+    uint32_t tmp;
+
+#ifndef RADEON_INFO_FUSION_GART_WORKING
+#define RADEON_INFO_FUSION_GART_WORKING 0x0c
+#endif
+    memset(&ginfo, 0, sizeof(ginfo));
+    ginfo.request = RADEON_INFO_FUSION_GART_WORKING;
+    ginfo.value = (uintptr_t)&tmp;
+    r = drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+    if (r) {
+	return FALSE;
+    }
+    if (tmp == 1)
+	return TRUE;
+    return FALSE;
+}
+
 static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -267,6 +289,11 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	    info->r600_shadow_fb = FALSE;
 	return TRUE;
     }
+
+    if (info->ChipFamily == CHIP_FAMILY_PALM) {
+	info->accel_state->allowHWDFS = RADEONIsFusionGARTWorking(pScrn);
+    } else
+	info->accel_state->allowHWDFS = TRUE;
 
     if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
 	(info->ChipFamily == CHIP_FAMILY_RS200) ||
