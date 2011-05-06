@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.15.0-2) unstable; urgency=low
+
+  * xcb-util was split up in 0.3.8 and libxcb-aux has been merged
+    into libxcb-util, thus update Build-Depends accordingly.
+  * Add ${misc:Depends} to xserver-xorg-video-intel-dbg Depends.
+
+ -- Arnaud Fontaine <arnau@debian.org>  Fri, 06 May 2011 23:53:39 +0900
+
 xserver-xorg-video-intel (2:2.15.0-1) unstable; urgency=low
 
   * New upstream release.

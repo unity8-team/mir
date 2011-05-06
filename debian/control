@@ -27,7 +27,7 @@ Build-Depends:
  libxext-dev,
  libxfixes-dev,
  libx11-xcb-dev,
- libxcb-aux0-dev,
+ libxcb-util0-dev,
  libxcb-dri2-0-dev,
 # end xvmc
  libudev-dev [linux-any],
@@ -63,6 +63,7 @@ Architecture: amd64 i386
 Depends:
  xserver-xorg-video-intel (= ${binary:Version}),
  ${shlibs:Depends},
+ ${misc:Depends}
 Recommends:
  intel-gpu-tools,
 Section: debug
