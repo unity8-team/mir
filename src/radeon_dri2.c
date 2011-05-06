@@ -778,7 +778,7 @@ static drmVBlankSeqType populate_vbl_request_type(RADEONInfoPtr info, int crtc)
     if (crtc == 1)
         type |= DRM_VBLANK_SECONDARY;
     else if (crtc > 1)
-#ifdef DRM_VBLANK_HIGH_CRTC_MASK
+#ifdef DRM_VBLANK_HIGH_CRTC_SHIFT
 	type |= (crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) &
 		DRM_VBLANK_HIGH_CRTC_MASK;
 #else
