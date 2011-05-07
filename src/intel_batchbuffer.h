@@ -137,6 +137,8 @@ intel_batch_mark_pixmap_domains(intel_screen_private *intel,
 
 	priv->batch_write |= write_domain != 0;
 	priv->busy = 1;
+
+	intel->needs_flush |= write_domain != 0;
 }
 
 static inline void
