@@ -182,6 +182,8 @@ static PixmapPtr fixup_shadow(DrawablePtr drawable, PixmapPtr pixmap)
 	/* And redirect the pixmap to the new bo (for 3D). */
 	intel_set_pixmap_private(old, priv);
 	old->refcnt++;
+
+	intel_get_screen_private(xf86Screens[screen->myNum])->needs_flush = TRUE;
 	return old;
 }
 
