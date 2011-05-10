@@ -176,51 +176,6 @@ static const struct pci_id_match intel_device_match[] = {
     { 0, 0, 0 },
 };
 
-static PciChipsets intel_pci_chipsets[] = {
-    {PCI_CHIP_I810,		PCI_CHIP_I810,		NULL},
-    {PCI_CHIP_I810_DC100,	PCI_CHIP_I810_DC100,	NULL},
-    {PCI_CHIP_I810_E,		PCI_CHIP_I810_E,	NULL},
-    {PCI_CHIP_I815,		PCI_CHIP_I815,		NULL},
-    {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	NULL},
-    {PCI_CHIP_845_G,		PCI_CHIP_845_G,		NULL},
-    {PCI_CHIP_I854,		PCI_CHIP_I854,		NULL},
-    {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	NULL},
-    {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	NULL},
-    {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	NULL},
-    {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	NULL},
-    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	NULL},
-    {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	NULL},
-    {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	NULL},
-    {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	NULL},
-    {PCI_CHIP_PINEVIEW_M,	PCI_CHIP_PINEVIEW_M,	NULL},
-    {PCI_CHIP_PINEVIEW_G,	PCI_CHIP_PINEVIEW_G,		NULL},
-    {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	NULL},
-    {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		NULL},
-    {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	NULL},
-    {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	NULL},
-    {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	NULL},
-    {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	NULL},
-    {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		NULL},
-    {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		NULL},
-    {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		NULL},
-    {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	NULL},
-    {PCI_CHIP_G45_E_G,		PCI_CHIP_G45_E_G,	NULL},
-    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		NULL},
-    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		NULL},
-    {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		NULL},
-    {PCI_CHIP_B43_G,		PCI_CHIP_B43_G,		NULL},
-    {PCI_CHIP_IRONLAKE_D_G,	PCI_CHIP_IRONLAKE_D_G,	NULL},
-    {PCI_CHIP_IRONLAKE_M_G,	PCI_CHIP_IRONLAKE_M_G,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_GT1,	PCI_CHIP_SANDYBRIDGE_GT1,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_GT2,	PCI_CHIP_SANDYBRIDGE_GT2,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_GT2_PLUS,	PCI_CHIP_SANDYBRIDGE_GT2_PLUS,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_M_GT1,	PCI_CHIP_SANDYBRIDGE_M_GT1,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_M_GT2,	PCI_CHIP_SANDYBRIDGE_M_GT2,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS,	PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS, NULL},
-    {PCI_CHIP_SANDYBRIDGE_S_GT,		PCI_CHIP_SANDYBRIDGE_S_GT,	NULL},
-    {-1,				-1, NULL }
-};
-
 void intel_detect_chipset(ScrnInfoPtr scrn,
 			  struct pci_device *pci,
 			  struct intel_chipset *chipset)
@@ -311,6 +266,8 @@ static Bool intel_pci_probe (DriverPtr		driver,
 			     intptr_t		match_data)
 {
     ScrnInfoPtr scrn;
+    PciChipsets intel_pci_chipsets[ARRAY_SIZE(intel_chipsets)];
+    int i;
 
     chipset_info = (void *)match_data;
 
@@ -328,6 +285,12 @@ static Bool intel_pci_probe (DriverPtr		driver,
 		    return FALSE;
 	    }
 #endif
+    }
+
+    for (i = 0; i < ARRAY_SIZE(intel_chipsets); i++) {
+	    intel_pci_chipsets[i].numChipset = intel_chipsets[i].token;
+	    intel_pci_chipsets[i].PCIid = intel_chipsets[i].token;
+	    intel_pci_chipsets[i].dummy = NULL;
     }
 
     scrn = xf86ConfigPciEntity(NULL, 0, entity_num, intel_pci_chipsets,
