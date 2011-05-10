@@ -225,148 +225,18 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
 			  struct pci_device *pci,
 			  struct intel_chipset *chipset)
 {
-    uint32_t capid;
+    int i;
 
     chipset->info = chipset_info;
 
-    switch (DEVICE_ID(pci)) {
-    case PCI_CHIP_I810:
-	chipset->name = "i810";
-	break;
-    case PCI_CHIP_I810_DC100:
-	chipset->name = "i810-dc100";
-	break;
-    case PCI_CHIP_I810_E:
-	chipset->name = "i810e";
-	break;
-    case PCI_CHIP_I815:
-	chipset->name = "i815";
-	break;
-    case PCI_CHIP_I830_M:
-	chipset->name = "830M";
-	break;
-    case PCI_CHIP_845_G:
-	chipset->name = "845G";
-	break;
-    case PCI_CHIP_I854:
-	chipset->name = "854";
-	break;
-    case PCI_CHIP_I855_GM:
-	/* Check capid register to find the chipset variant */
-	pci_device_cfg_read_u32(pci, &capid, I85X_CAPID);
-	chipset->variant =
-	    (capid >> I85X_VARIANT_SHIFT) & I85X_VARIANT_MASK;
-	switch (chipset->variant) {
-	case I855_GM:
-	    chipset->name = "855GM";
-	    break;
-	case I855_GME:
-	    chipset->name = "855GME";
-	    break;
-	case I852_GM:
-	    chipset->name = "852GM";
-	    break;
-	case I852_GME:
-	    chipset->name = "852GME";
-	    break;
-	default:
-	    xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		       "Unknown 852GM/855GM variant: 0x%x)\n",
-		       chipset->variant);
-	    chipset->name = "852GM/855GM (unknown variant)";
-	    break;
-	}
-	break;
-    case PCI_CHIP_I865_G:
-	chipset->name = "865G";
-	break;
-    case PCI_CHIP_I915_G:
-	chipset->name = "915G";
-	break;
-    case PCI_CHIP_E7221_G:
-	chipset->name = "E7221 (i915)";
-	break;
-    case PCI_CHIP_I915_GM:
-	chipset->name = "915GM";
-	break;
-    case PCI_CHIP_I945_G:
-	chipset->name = "945G";
-	break;
-    case PCI_CHIP_I945_GM:
-	chipset->name = "945GM";
-	break;
-    case PCI_CHIP_I945_GME:
-	chipset->name = "945GME";
-	break;
-    case PCI_CHIP_PINEVIEW_M:
-	chipset->name = "Pineview GM";
-	break;
-    case PCI_CHIP_PINEVIEW_G:
-	chipset->name = "Pineview G";
-	break;
-    case PCI_CHIP_I965_G:
-	chipset->name = "965G";
-	break;
-    case PCI_CHIP_G35_G:
-	chipset->name = "G35";
-	break;
-    case PCI_CHIP_I965_Q:
-	chipset->name = "965Q";
-	break;
-    case PCI_CHIP_I946_GZ:
-	chipset->name = "946GZ";
-	break;
-    case PCI_CHIP_I965_GM:
-	chipset->name = "965GM";
-	break;
-    case PCI_CHIP_I965_GME:
-	chipset->name = "965GME/GLE";
-	break;
-    case PCI_CHIP_G33_G:
-	chipset->name = "G33";
-	break;
-    case PCI_CHIP_Q35_G:
-	chipset->name = "Q35";
-	break;
-    case PCI_CHIP_Q33_G:
-	chipset->name = "Q33";
-	break;
-    case PCI_CHIP_GM45_GM:
-	chipset->name = "GM45";
-	break;
-    case PCI_CHIP_G45_E_G:
-	chipset->name = "4 Series";
-	break;
-    case PCI_CHIP_G45_G:
-	chipset->name = "G45/G43";
-	break;
-    case PCI_CHIP_Q45_G:
-	chipset->name = "Q45/Q43";
-	break;
-    case PCI_CHIP_G41_G:
-	chipset->name = "G41";
-	break;
-    case PCI_CHIP_B43_G:
-	chipset->name = "B43";
-	break;
-    case PCI_CHIP_IRONLAKE_D_G:
-	chipset->name = "Clarkdale";
-	break;
-    case PCI_CHIP_IRONLAKE_M_G:
-	chipset->name = "Arrandale";
-	break;
-    case PCI_CHIP_SANDYBRIDGE_GT1:
-    case PCI_CHIP_SANDYBRIDGE_GT2:
-    case PCI_CHIP_SANDYBRIDGE_GT2_PLUS:
-    case PCI_CHIP_SANDYBRIDGE_M_GT1:
-    case PCI_CHIP_SANDYBRIDGE_M_GT2:
-    case PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS:
-    case PCI_CHIP_SANDYBRIDGE_S_GT:
-	chipset->name = "Sandybridge";
-	break;
-    default:
-	chipset->name = "unknown chipset";
-	break;
+    for (i = 0; intel_chipsets[i].name != NULL; i++) {
+	    if (DEVICE_ID(pci) == intel_chipsets[i].token) {
+		    chipset->name = intel_chipsets[i].name;
+		    break;
+	    }
+    }
+    if (intel_chipsets[i].name == NULL) {
+	    chipset->name = "unknown chipset";
     }
 
     xf86DrvMsg(scrn->scrnIndex, X_INFO,
