@@ -151,9 +151,14 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_I945_GM, &intel_i915_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I945_GME, &intel_i915_info ),
 
-	INTEL_DEVICE_MATCH (PCI_CHIP_G33_G, &intel_g33_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_PINEVIEW_M, &intel_g33_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_PINEVIEW_G, &intel_g33_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_G33_G, &intel_g33_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_Q33_G, &intel_g33_info ),
+	/* Another marketing win: Q35 is another g33 device not a gen4 part
+	 * like its G35 brethren.
+	 */
+	INTEL_DEVICE_MATCH (PCI_CHIP_Q35_G, &intel_g33_info ),
 
 	INTEL_DEVICE_MATCH (PCI_CHIP_I965_G, &intel_i965_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_G35_G, &intel_i965_info ),
@@ -161,8 +166,6 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_I946_GZ, &intel_i965_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I965_GM, &intel_i965_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I965_GME, &intel_i965_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_Q35_G, &intel_i965_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_Q33_G, &intel_i965_info ),
 
 	INTEL_DEVICE_MATCH (PCI_CHIP_GM45_GM, &intel_g4x_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_G45_E_G, &intel_g4x_info ),
@@ -170,6 +173,7 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, &intel_g4x_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_G41_G, &intel_g4x_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_B43_G, &intel_g4x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_B43_G1, &intel_g4x_info ),
 
 	INTEL_DEVICE_MATCH (PCI_CHIP_IRONLAKE_D_G, &intel_ironlake_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_IRONLAKE_M_G, &intel_ironlake_info ),
@@ -181,7 +185,6 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT2, &intel_sandybridge_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS, &intel_sandybridge_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_S_GT, &intel_sandybridge_info ),
-
 
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_M_GT1, &intel_ivybridge_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_M_GT2, &intel_ivybridge_info ),
