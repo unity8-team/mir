@@ -211,7 +211,9 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 		ret = drm_intel_bo_mrb_exec(intel->batch_bo,
 				intel->batch_used*4,
 				NULL, 0, 0xffffffff,
-				IS_GEN6(intel) ? intel->current_batch: I915_EXEC_DEFAULT);
+				(HAS_BLT(intel) ?
+				 intel->current_batch:
+				 I915_EXEC_DEFAULT));
 	}
 
 	if (ret != 0) {

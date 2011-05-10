@@ -73,6 +73,10 @@ static const struct intel_device_info intel_sandybridge_info = {
 	.gen = 60,
 };
 
+static const struct intel_device_info intel_ivybridge_info = {
+	.gen = 70,
+};
+
 static const SymTabRec _intel_chipsets[] = {
     {PCI_CHIP_I810,		"i810"},
     {PCI_CHIP_I810_DC100,	"i810-dc100"},
@@ -116,6 +120,11 @@ static const SymTabRec _intel_chipsets[] = {
     {PCI_CHIP_SANDYBRIDGE_M_GT2,	"Sandybridge" },
     {PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS,	"Sandybridge" },
     {PCI_CHIP_SANDYBRIDGE_S_GT,	"Sandybridge" },
+    {PCI_CHIP_IVYBRIDGE_M_GT1,	"Ivybridge Mobile GT1" },
+    {PCI_CHIP_IVYBRIDGE_M_GT2,	"Ivybridge Mobile GT2" },
+    {PCI_CHIP_IVYBRIDGE_D_GT1,	"Ivybridge Desktop GT1" },
+    {PCI_CHIP_IVYBRIDGE_D_GT2,	"Ivybridge Desktop GT2" },
+    {PCI_CHIP_IVYBRIDGE_S_GT1,	"Ivybridge Server GT1" },
     {-1,				NULL}
 };
 SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
@@ -172,6 +181,13 @@ static const struct pci_id_match intel_device_match[] = {
     INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT2, &intel_sandybridge_info ),
     INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS, &intel_sandybridge_info ),
     INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_S_GT, &intel_sandybridge_info ),
+
+
+    INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_M_GT1, &intel_ivybridge_info ),
+    INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_M_GT2, &intel_ivybridge_info ),
+    INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_D_GT1, &intel_ivybridge_info ),
+    INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_D_GT2, &intel_ivybridge_info ),
+    INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_S_GT1, &intel_ivybridge_info ),
 
     { 0, 0, 0 },
 };
