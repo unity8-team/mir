@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.15.0-3) unstable; urgency=high
+
+  * Temporarily disable xvmc to sidestep the xcb-util mess and move to
+    testing.
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 14 May 2011 19:00:38 +0200
+
 xserver-xorg-video-intel (2:2.15.0-2) unstable; urgency=low
 
   * xcb-util was split up in 0.3.8 and libxcb-aux has been merged
