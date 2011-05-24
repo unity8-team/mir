@@ -1314,7 +1314,6 @@ extern Bool R600DrawInit(ScreenPtr pScreen);
 extern Bool R600LoadShaders(ScrnInfoPtr pScrn);
 #ifdef XF86DRM_MODE
 extern Bool EVERGREENDrawInit(ScreenPtr pScreen);
-extern Bool EVERGREENLoadShaders(ScrnInfoPtr pScrn);
 #endif
 #endif
 

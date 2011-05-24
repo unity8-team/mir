@@ -43,6 +43,18 @@
 #include "radeon_exa_shared.h"
 #include "radeon_vbo.h"
 
+extern int cayman_solid_vs(RADEONChipFamily ChipSet, uint32_t* vs);
+extern int cayman_solid_ps(RADEONChipFamily ChipSet, uint32_t* ps);
+
+extern int cayman_copy_vs(RADEONChipFamily ChipSet, uint32_t* vs);
+extern int cayman_copy_ps(RADEONChipFamily ChipSet, uint32_t* ps);
+
+extern int cayman_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader);
+extern int cayman_xv_ps(RADEONChipFamily ChipSet, uint32_t* shader);
+
+extern int cayman_comp_vs(RADEONChipFamily ChipSet, uint32_t* vs);
+extern int cayman_comp_ps(RADEONChipFamily ChipSet, uint32_t* ps);
+
 static void
 EVERGREENDoneSolid(PixmapPtr pPix);
 
@@ -1685,7 +1697,7 @@ EVERGREENAllocShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     return TRUE;
 }
 
-Bool
+static Bool
 EVERGREENLoadShaders(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -1732,6 +1744,59 @@ EVERGREENLoadShaders(ScrnInfoPtr pScrn)
     /*  xv ps --------------------------------------- */
     accel_state->xv_ps_offset = 3584;
     evergreen_xv_ps(ChipSet, shader + accel_state->xv_ps_offset / 4);
+
+    radeon_bo_unmap(accel_state->shaders_bo);
+
+    return TRUE;
+}
+
+static Bool
+CAYMANLoadShaders(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+    RADEONChipFamily ChipSet = info->ChipFamily;
+    uint32_t *shader;
+    int ret;
+
+    ret = radeon_bo_map(accel_state->shaders_bo, 1);
+    if (ret) {
+	FatalError("failed to map shader %d\n", ret);
+	return FALSE;
+    }
+    shader = accel_state->shaders_bo->ptr;
+
+    /*  solid vs --------------------------------------- */
+    accel_state->solid_vs_offset = 0;
+    cayman_solid_vs(ChipSet, shader + accel_state->solid_vs_offset / 4);
+
+    /*  solid ps --------------------------------------- */
+    accel_state->solid_ps_offset = 512;
+    cayman_solid_ps(ChipSet, shader + accel_state->solid_ps_offset / 4);
+
+    /*  copy vs --------------------------------------- */
+    accel_state->copy_vs_offset = 1024;
+    cayman_copy_vs(ChipSet, shader + accel_state->copy_vs_offset / 4);
+
+    /*  copy ps --------------------------------------- */
+    accel_state->copy_ps_offset = 1536;
+    cayman_copy_ps(ChipSet, shader + accel_state->copy_ps_offset / 4);
+
+    /*  comp vs --------------------------------------- */
+    accel_state->comp_vs_offset = 2048;
+    cayman_comp_vs(ChipSet, shader + accel_state->comp_vs_offset / 4);
+
+    /*  comp ps --------------------------------------- */
+    accel_state->comp_ps_offset = 2560;
+    cayman_comp_ps(ChipSet, shader + accel_state->comp_ps_offset / 4);
+
+    /*  xv vs --------------------------------------- */
+    accel_state->xv_vs_offset = 3072;
+    cayman_xv_vs(ChipSet, shader + accel_state->xv_vs_offset / 4);
+
+    /*  xv ps --------------------------------------- */
+    accel_state->xv_ps_offset = 3584;
+    cayman_xv_ps(ChipSet, shader + accel_state->xv_ps_offset / 4);
 
     radeon_bo_unmap(accel_state->shaders_bo);
 
@@ -1837,8 +1902,13 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     if (!EVERGREENAllocShaders(pScrn, pScreen))
 	return FALSE;
 
-    if (!EVERGREENLoadShaders(pScrn))
-	return FALSE;
+    if (info->ChipFamily == CHIP_FAMILY_CAYMAN) {
+	if (!CAYMANLoadShaders(pScrn))
+	    return FALSE;
+    } else {
+	if (!EVERGREENLoadShaders(pScrn))
+	    return FALSE;
+    }
 
     exaMarkSync(pScreen);
 
