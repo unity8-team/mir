@@ -704,11 +704,35 @@ evergreen_set_tex_sampler (ScrnInfoPtr pScrn, tex_sampler_t *s)
     END_BATCH();
 }
 
+/* workarounds for hw bugs in eg+ */
+/* only affects screen/window/generic/vport.  cliprects are not affected */
+void evergreen_fix_scissor_coordinates(ScrnInfoPtr pScrn, int *x1, int *y1, int *x2, int *y2)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    /* all eg+ asics */
+    if (*x2 == 0)
+	*x1 = 1;
+    if (*y2 == 0)
+	*y1 = 1;
+
+    /* cayman only */
+    if (info->ChipFamily == CHIP_FAMILY_CAYMAN) {
+	/* cliprects aren't affected so we can use them to clip if we need
+	 * a true 1x1 clip region
+	 */
+	if ((*x2 == 1) && (*y2 == 1))
+	    *x2 = 2;
+    }
+}
+
 //XXX deal with clip offsets in clip setup
 void
 evergreen_set_screen_scissor(ScrnInfoPtr pScrn, int x1, int y1, int x2, int y2)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    evergreen_fix_scissor_coordinates(pScrn, &x1, &y1, &x2, &y2);
 
     BEGIN_BATCH(4);
     PACK0(PA_SC_SCREEN_SCISSOR_TL, 2);
@@ -723,6 +747,8 @@ void
 evergreen_set_vport_scissor(ScrnInfoPtr pScrn, int id, int x1, int y1, int x2, int y2)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    evergreen_fix_scissor_coordinates(pScrn, &x1, &y1, &x2, &y2);
 
     BEGIN_BATCH(4);
     PACK0(PA_SC_VPORT_SCISSOR_0_TL + id * PA_SC_VPORT_SCISSOR_0_TL_offset, 2);
@@ -739,6 +765,8 @@ evergreen_set_generic_scissor(ScrnInfoPtr pScrn, int x1, int y1, int x2, int y2)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
+    evergreen_fix_scissor_coordinates(pScrn, &x1, &y1, &x2, &y2);
+
     BEGIN_BATCH(4);
     PACK0(PA_SC_GENERIC_SCISSOR_TL, 2);
     E32(((x1 << PA_SC_GENERIC_SCISSOR_TL__TL_X_shift) |
@@ -753,6 +781,8 @@ void
 evergreen_set_window_scissor(ScrnInfoPtr pScrn, int x1, int y1, int x2, int y2)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    evergreen_fix_scissor_coordinates(pScrn, &x1, &y1, &x2, &y2);
 
     BEGIN_BATCH(4);
     PACK0(PA_SC_WINDOW_SCISSOR_TL, 2);
