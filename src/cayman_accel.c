@@ -158,12 +158,12 @@ cayman_set_default_state(ScrnInfoPtr pScrn)
     for (i = 0; i < PA_SC_VPORT_SCISSOR_0_TL_num; i++)
 	evergreen_set_vport_scissor (pScrn, i, 0, 0, 8192, 8192);
 
-    BEGIN_BATCH(66);
+    BEGIN_BATCH(73);
     PACK0(PA_SC_MODE_CNTL_0, 2);
     E32(0); // PA_SC_MODE_CNTL_0
     E32(0); // PA_SC_MODE_CNTL_1
 
-    PACK0(PA_SC_CENTROID_PRIORITY_0, 34);
+    PACK0(PA_SC_CENTROID_PRIORITY_0, 27);
     E32((0 << DISTANCE_0_shift) |
 	(1 << DISTANCE_1_shift) |
 	(2 << DISTANCE_2_shift) |
