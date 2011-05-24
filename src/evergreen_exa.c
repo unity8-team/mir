@@ -58,6 +58,24 @@ extern int cayman_comp_ps(RADEONChipFamily ChipSet, uint32_t* ps);
 static void
 EVERGREENDoneSolid(PixmapPtr pPix);
 
+/* this is a workaround, but not sure for what -
+ */
+static inline int cayman_adjust_scissor(ScrnInfoPtr pScrn, int height)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    if (info->ChipFamily != CHIP_FAMILY_CAYMAN)
+	return height;
+
+    if (height == 0)
+	return 0;
+
+    /* I've no idea if all scissors need to be even height or if its
+       just a 1 -> 2 problem */
+    if (height & 1)
+	height++;
+    return height;
+}
+
 static Bool
 EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 {
@@ -70,6 +88,7 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     float *ps_alu_consts;
     const_config_t ps_const_conf;
     struct r600_accel_object dst;
+    int scissor_height;
 
     if (info->ChipFamily == CHIP_FAMILY_CAYMAN)
 	return FALSE;
@@ -108,9 +127,10 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 
     evergreen_set_default_state(pScrn);
 
-    evergreen_set_generic_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
-    evergreen_set_screen_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
-    evergreen_set_window_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    scissor_height = cayman_adjust_scissor(pScrn, accel_state->dst_obj.height);
+    evergreen_set_generic_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
+    evergreen_set_screen_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
+    evergreen_set_window_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
 
     /* Shader */
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
@@ -261,6 +281,7 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     tex_resource_t  tex_res;
     tex_sampler_t   tex_samp;
     shader_config_t vs_conf, ps_conf;
+    int scissor_height;
 
     CLEAR (cb_conf);
     CLEAR (tex_res);
@@ -273,9 +294,10 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
 
     evergreen_set_default_state(pScrn);
 
-    evergreen_set_generic_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
-    evergreen_set_screen_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
-    evergreen_set_window_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    scissor_height = cayman_adjust_scissor(pScrn, accel_state->dst_obj.height);
+    evergreen_set_generic_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
+    evergreen_set_screen_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
+    evergreen_set_window_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
 
     /* Shader */
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
@@ -1102,6 +1124,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     const_config_t vs_const_conf;
     struct r600_accel_object src_obj, mask_obj, dst_obj;
     float *cbuf;
+    int scissor_height;
 
     if (info->ChipFamily == CHIP_FAMILY_CAYMAN)
 	return FALSE;
@@ -1192,9 +1215,10 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
 
     evergreen_set_default_state(pScrn);
 
-    evergreen_set_generic_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
-    evergreen_set_screen_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
-    evergreen_set_window_scissor(pScrn, 0, 0, accel_state->dst_obj.width, accel_state->dst_obj.height);
+    scissor_height = cayman_adjust_scissor(pScrn, accel_state->dst_obj.height);
+    evergreen_set_generic_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
+    evergreen_set_screen_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
+    evergreen_set_window_scissor(pScrn, 0, 0, accel_state->dst_obj.width, scissor_height);
 
     if (!EVERGREENTextureSetup(pSrcPicture, pSrc, 0)) {
         radeon_ib_discard(pScrn);
