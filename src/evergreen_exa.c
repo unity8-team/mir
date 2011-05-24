@@ -59,7 +59,8 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     const_config_t ps_const_conf;
     struct r600_accel_object dst;
 
-    //return FALSE;
+    if (info->ChipFamily == CHIP_FAMILY_CAYMAN)
+	return FALSE;
 
     if (!RADEONCheckBPP(pPix->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("EVERGREENCheckDatatype failed\n"));
@@ -431,7 +432,8 @@ EVERGREENPrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     struct radeon_accel_state *accel_state = info->accel_state;
     struct r600_accel_object src_obj, dst_obj;
 
-    //return FALSE;
+    if (info->ChipFamily == CHIP_FAMILY_CAYMAN)
+	return FALSE;
 
     if (!RADEONCheckBPP(pSrc->drawable.bitsPerPixel))
 	RADEON_FALLBACK(("EVERGREENCheckDatatype src failed\n"));
@@ -1089,7 +1091,8 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     struct r600_accel_object src_obj, mask_obj, dst_obj;
     float *cbuf;
 
-    //return FALSE;
+    if (info->ChipFamily == CHIP_FAMILY_CAYMAN)
+	return FALSE;
 
     if (pDst->drawable.bitsPerPixel < 8 || pSrc->drawable.bitsPerPixel < 8)
 	return FALSE;
@@ -1428,6 +1431,9 @@ EVERGREENUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
 	}
     }
 
+    if (info->ChipFamily == CHIP_FAMILY_CAYMAN)
+	goto copy;
+
     scratch_pitch = RADEON_ALIGN(w, drmmode_get_pitch_align(pScrn, (bpp / 8), 0));
     height = RADEON_ALIGN(h, drmmode_get_height_align(pScrn, 0));
     base_align = drmmode_get_base_align(pScrn, (bpp / 8), 0);
@@ -1552,6 +1558,9 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
 	    goto copy;
 
     }
+
+    if (info->ChipFamily == CHIP_FAMILY_CAYMAN)
+	goto copy;
 
     if (!accel_state->allowHWDFS)
 	goto copy;
