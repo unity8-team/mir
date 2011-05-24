@@ -114,9 +114,6 @@ EVERGREENDisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     float *vs_alu_consts;
     const_config_t vs_const_conf;
 
-    if (info->ChipFamily == CHIP_FAMILY_CAYMAN)
-	return;
-
     cont = RTFContrast(pPriv->contrast);
     bright = RTFBrightness(pPriv->brightness);
     gamma = (float)pPriv->gamma / 1000.0;
