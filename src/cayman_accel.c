@@ -163,7 +163,7 @@ cayman_set_default_state(ScrnInfoPtr pScrn)
     E32(0); // PA_SC_MODE_CNTL_0
     E32(0); // PA_SC_MODE_CNTL_1
 
-    PACK0(PA_SC_CENTROID_PRIORITY_0, 27);
+    PACK0(PA_SC_CENTROID_PRIORITY_0, 34);
     E32((0 << DISTANCE_0_shift) |
 	(1 << DISTANCE_1_shift) |
 	(2 << DISTANCE_2_shift) |
@@ -226,6 +226,17 @@ cayman_set_default_state(ScrnInfoPtr pScrn)
     E32(0);
     E32(0);
     E32(0);
+
+    /* src = semantic id 0; mask = semantic id 1 */
+    EREG(SPI_VS_OUT_ID_0, ((0 << SEMANTIC_0_shift) |
+			   (1 << SEMANTIC_1_shift)));
+    PACK0(SPI_PS_INPUT_CNTL_0 + (0 << 2), 2);
+    /* SPI_PS_INPUT_CNTL_0 maps to GPR[0] - load with semantic id 0 */
+    E32(((0    << SEMANTIC_shift)	|
+	 (0x01 << DEFAULT_VAL_shift)));
+    /* SPI_PS_INPUT_CNTL_1 maps to GPR[1] - load with semantic id 1 */
+    E32(((1    << SEMANTIC_shift)	|
+	 (0x01 << DEFAULT_VAL_shift)));
 
     PACK0(SPI_INPUT_Z, 13);
     E32(0); // SPI_INPUT_Z
