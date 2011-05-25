@@ -706,7 +706,8 @@ evergreen_set_tex_sampler (ScrnInfoPtr pScrn, tex_sampler_t *s)
 
 /* workarounds for hw bugs in eg+ */
 /* only affects screen/window/generic/vport.  cliprects are not affected */
-void evergreen_fix_scissor_coordinates(ScrnInfoPtr pScrn, int *x1, int *y1, int *x2, int *y2)
+static void
+evergreen_fix_scissor_coordinates(ScrnInfoPtr pScrn, int *x1, int *y1, int *x2, int *y2)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
