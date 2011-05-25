@@ -116,7 +116,11 @@ int cayman_solid_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+			     ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
 			     ENDIAN_SWAP(ENDIAN_NONE),
+#endif
 			     CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -351,7 +355,11 @@ int cayman_copy_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
 			     ENDIAN_SWAP(ENDIAN_NONE),
+#endif
 			     CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -380,7 +388,11 @@ int cayman_copy_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(8),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
 			     ENDIAN_SWAP(ENDIAN_NONE),
+#endif
 			     CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -722,7 +734,11 @@ int cayman_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
                                  SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
                              ENDIAN_SWAP(ENDIAN_NONE),
+#endif
                              CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -751,7 +767,11 @@ int cayman_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader)
                                  FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
                                  SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(8),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
                              ENDIAN_SWAP(ENDIAN_NONE),
+#endif
                              CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -2355,7 +2375,11 @@ int cayman_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
 			     ENDIAN_SWAP(ENDIAN_NONE),
+#endif
 			     CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -2384,7 +2408,11 @@ int cayman_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(8),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
 			     ENDIAN_SWAP(ENDIAN_NONE),
+#endif
 			     CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -2413,7 +2441,11 @@ int cayman_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(16),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
 			     ENDIAN_SWAP(ENDIAN_NONE),
+#endif
 			     CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -2443,7 +2475,11 @@ int cayman_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(0),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
 			     ENDIAN_SWAP(ENDIAN_NONE),
+#endif
 			     CONST_BUF_NO_STRIDE(0),
 			     ALT_CONST(0),
 			     BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
@@ -2472,7 +2508,11 @@ int cayman_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 				 FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED),
 				 SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
     shader[i++] = VTX_DWORD2(OFFSET(8),
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+                             ENDIAN_SWAP(SQ_ENDIAN_8IN32),
+#else
 			     ENDIAN_SWAP(ENDIAN_NONE),
+#endif
 			     CONST_BUF_NO_STRIDE(0),
                              ALT_CONST(0),
                              BUFFER_INDEX_MODE(SQ_CF_INDEX_NONE));
