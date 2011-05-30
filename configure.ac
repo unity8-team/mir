@@ -77,9 +77,7 @@ AC_ARG_WITH(xorg-module-dir,
             [moduledir="$libdir/xorg/modules"])
 
 AC_ARG_ENABLE(dri, AS_HELP_STRING([--disable-dri],
-                                  [Disable DRI support [[default=auto]]]),
-              [DRI="$enableval"],
-              [DRI=auto])
+                                  [Disable DRI support [[default=auto]]]))
 
 AC_ARG_ENABLE(xvmc, AS_HELP_STRING([--disable-xvmc],
                                   [Disable XvMC support [[default=yes]]]),
@@ -106,40 +104,48 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.23])
+PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
 
-save_CFLAGS="$CFLAGS"
-CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
-CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
-AC_MSG_CHECKING([whether to include DRI support])
-if test x$DRI != xno; then
-        AC_CHECK_FILE([${sdkdir}/dri.h],
-                      [have_dri_h="yes"], [have_dri_h="no"])
-        AC_CHECK_FILE([${sdkdir}/sarea.h],
-                      [have_sarea_h="yes"], [have_sarea_h="no"])
-        AC_CHECK_FILE([${sdkdir}/dristruct.h],
-                      [have_dristruct_h="yes"], [have_dristruct_h="no"])
+if test "x$enable_dri" != "xno"; then
+        save_CFLAGS="$CFLAGS"
+        save_CPPFLAGS="$CPPFLAGS"
+        CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
+        CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $DRM_CFLAGS"
+        AC_CHECK_HEADERS([dri.h sarea.h dristruct.h],, [DRI=no],
+                [/* for dri.h */
+                 #include <xf86str.h>
+                 /* for dristruct.h */
+                 #include <xorg-server.h>
+                 #ifdef HAVE_DRI_H
+                 # include <dri.h>
+                 #endif
+                 #ifdef HAVE_SAREA_H
+                 # include <sarea.h>
+                 #endif
+                ])
+        CFLAGS="$save_CFLAGS $DEBUGFLAGS"
+        CPPFLAGS="$save_CPPFLAGS"
+else
+        DRI=no
 fi
-AC_MSG_CHECKING([whether to include DRI support])
-if test x$DRI = xauto; then
-        if test "$have_dri_h" = yes -a \
-                "$have_sarea_h" = yes -a \
-                "$have_dristruct_h" = yes; then
-                DRI="yes"
-        else
-                DRI="no"
-        fi
-fi
-AC_MSG_RESULT([$DRI])
-CFLAGS="$save_CFLAGS $DEBUGFLAGS"
 
-AM_CONDITIONAL(DRI, test x$DRI = xyes)
-if test "$DRI" = yes; then
-        PKG_CHECK_MODULES(DRI, [xf86driproto])
+AC_MSG_CHECKING([whether to include DRI support])
+AC_MSG_RESULT([${DRI-yes}])
+
+AM_CONDITIONAL(DRI, test x$DRI != xno)
+if test "x$DRI" != "xno"; then
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
+else
+        DRI_CFLAGS=""
+        DRI_LIBS=""
+
+        if test "x$enable_dri" = "xyes"; then
+                AC_MSG_ERROR([DRI requested but prerequisites not found])
+        fi
 fi
 
 if test "$XVMC" = yes; then
