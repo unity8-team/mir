@@ -1124,6 +1124,17 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 #if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) < 9
 	scrn->pixmapPrivate.ptr = ppix->devPrivate.ptr;
 #endif
+
+	if (!pNv->NoAccel) {
+		nouveau_bo_unmap(pNv->scanout);
+		pNv->EXADriverPtr->PrepareSolid(ppix, GXcopy, ~0, 0);
+		pNv->EXADriverPtr->Solid(ppix, 0, 0, width, height);
+		pNv->EXADriverPtr->DoneSolid(ppix);
+		nouveau_bo_map(pNv->scanout, NOUVEAU_BO_RDWR);
+	} else {
+		memset(pNv->scanout->map, 0x00, pNv->scanout->size);
+	}
+
 	nouveau_bo_unmap(pNv->scanout);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
