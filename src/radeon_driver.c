@@ -1475,7 +1475,9 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 	(info->ChipFamily != CHIP_FAMILY_RS740) &&
 	(info->ChipFamily != CHIP_FAMILY_RS780) &&
 	(info->ChipFamily != CHIP_FAMILY_RS880) &&
-	(info->ChipFamily != CHIP_FAMILY_PALM)) {
+	(info->ChipFamily != CHIP_FAMILY_PALM) &&
+	(info->ChipFamily != CHIP_FAMILY_SUMO) &&
+	(info->ChipFamily != CHIP_FAMILY_SUMO2)) {
 	if (info->IsIGP)
 	    info->mc_fb_location = INREG(RADEON_NB_TOM);
 	else
@@ -1894,7 +1896,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	}
     }
 
-    if (IS_DCE5_VARIANT) {
+    if (info->ChipFamily >= CHIP_FAMILY_SUMO) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Chipset: \"%s\" (ChipID = 0x%04x) requires KMS\n",
 		   pScrn->chipset,
