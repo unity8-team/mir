@@ -181,11 +181,28 @@ the framerate of applications that render frames at less than refresh rate.
 Default: enabled.
 .TP
 .BI "Option \*qTiling\*q \*q" boolean \*q
-This option controls whether memory buffers are allocated in tiled mode.  In
+This option controls whether memory buffers for Pixmaps are allocated in tiled mode.  In
 most cases (especially for complex rendering), tiling dramatically improves
 performance.
 .IP
 Default: enabled.
+.TP
+.BI "Option \*qLinearFramebuffer\*q \*q" boolean \*q
+This option controls whether the memory for the scanout (also known as the
+front or frame buffer) is allocated in linear memory. A tiled framebuffer is
+required for power conservation features, but for certain system configurations
+you may wish to override this and force a linear layout.
+.IP
+Default: disabled
+.TP
+.BI "Option \*qRelaxedFencing\*q \*q" boolean \*q
+This option controls whether we attempt to allocate the minimal amount of
+memory required for the buffers. The reduction in working set has a substantial
+improvement on system performance. However, this has been demonstrate to be
+buggy on older hardware (845-865 and 915-945, but ok on PineView and later)
+so on those chipsets defaults to off.
+.IP
+Default: Enabled for G33 (includes PineView), and later, class machines.
 .TP
 .BI "Option \*qXvMC\*q \*q" boolean \*q
 Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.

@@ -50,7 +50,7 @@ struct intel_mode {
 	int cpp;
 
 	drmEventContext event_context;
-	void *event_data;
+	DRI2FrameEventPtr flip_info;
 	int old_fb_id;
 	int flip_count;
 	unsigned int fe_frame;
@@ -70,6 +70,7 @@ struct intel_crtc {
 	struct intel_mode *mode;
 	drmModeModeInfo kmode;
 	drmModeCrtcPtr mode_crtc;
+	int pipe;
 	dri_bo *cursor;
 	dri_bo *rotate_bo;
 	uint32_t rotate_pitch;
@@ -118,7 +119,6 @@ intel_output_dpms_backlight(xf86OutputPtr output, int oldmode, int mode);
  * List of available kernel interfaces in priority order
  */
 static const char *backlight_interfaces[] = {
-	"intel", /* prefer our own native backlight driver */
 	"asus-laptop",
 	"eeepc",
 	"thinkpad_screen",
@@ -128,6 +128,7 @@ static const char *backlight_interfaces[] = {
 	"samsung",
 	"acpi_video1", /* finally fallback to the generic acpi drivers */
 	"acpi_video0",
+	"intel_backlight",
 	NULL,
 };
 /*
@@ -450,7 +451,7 @@ intel_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->y = y;
 	crtc->rotation = rotation;
 
-	intel_batch_submit(crtc->scrn, TRUE);
+	intel_batch_submit(crtc->scrn);
 
 	mode_to_kmode(crtc->scrn, &intel_crtc->kmode, mode);
 	ret = intel_crtc_apply(crtc);
@@ -677,6 +678,9 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 					       mode->mode_res->crtcs[num]);
 	intel_crtc->mode = mode;
 	crtc->driver_private = intel_crtc;
+
+	intel_crtc->pipe = drm_intel_get_pipe_from_crtc_id(intel->bufmgr,
+							   crtc_id(intel_crtc));
 
 	intel_crtc->cursor = drm_intel_bo_alloc(intel->bufmgr, "ARGB cursor",
 						HWCURSOR_SIZE_ARGB,
@@ -1359,7 +1363,7 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
-	intel_batch_submit(scrn, TRUE);
+	intel_batch_submit(scrn);
 
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
@@ -1424,7 +1428,7 @@ fail:
 Bool
 intel_do_pageflip(intel_screen_private *intel,
 		  dri_bo *new_front,
-		  void *data, int ref_crtc_hw_id)
+		  DRI2FrameEventPtr flip_info, int ref_crtc_hw_id)
 {
 	ScrnInfoPtr scrn = intel->scrn;
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
@@ -1460,7 +1464,7 @@ intel_do_pageflip(intel_screen_private *intel,
 		if (!config->crtc[i]->enabled)
 			continue;
 
-		mode->event_data = data;
+		mode->flip_info = flip_info;
 		mode->flip_count++;
 
 		crtc = config->crtc[i]->driver_private;
@@ -1508,9 +1512,9 @@ static const xf86CrtcConfigFuncsRec intel_xf86crtc_config_funcs = {
 
 static void
 intel_vblank_handler(int fd, unsigned int frame, unsigned int tv_sec,
-		       unsigned int tv_usec, void *event_data)
+		       unsigned int tv_usec, void *event)
 {
-	I830DRI2FrameEventHandler(frame, tv_sec, tv_usec, event_data);
+	I830DRI2FrameEventHandler(frame, tv_sec, tv_usec, event);
 }
 
 static void
@@ -1537,12 +1541,12 @@ intel_page_flip_handler(int fd, unsigned int frame, unsigned int tv_sec,
 	/* Release framebuffer */
 	drmModeRmFB(mode->fd, mode->old_fb_id);
 
-	if (mode->event_data == NULL)
+	if (mode->flip_info == NULL)
 		return;
 
 	/* Deliver cached msc, ust from reference crtc to flip event handler */
 	I830DRI2FlipEventHandler(mode->fe_frame, mode->fe_tv_sec,
-				 mode->fe_tv_usec, mode->event_data);
+				 mode->fe_tv_usec, mode->flip_info);
 }
 
 static void
@@ -1671,16 +1675,15 @@ intel_mode_fini(intel_screen_private *intel)
 	intel->modes = NULL;
 }
 
-int
-intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc)
-{
-	return drm_intel_get_pipe_from_crtc_id(bufmgr,
-					      	crtc_id(crtc->driver_private));
-}
-
 /* for the mode overlay */
 int
 intel_crtc_id(xf86CrtcPtr crtc)
 {
 	return crtc_id(crtc->driver_private);
+}
+
+int intel_crtc_to_pipe(xf86CrtcPtr crtc)
+{
+	struct intel_crtc *intel_crtc = crtc->driver_private;
+	return intel_crtc->pipe;
 }

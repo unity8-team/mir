@@ -88,7 +88,7 @@ static void
 gen6_context_switch(intel_screen_private *intel,
 		    int new_mode)
 {
-	intel_batch_submit(intel->scrn, FALSE);
+	intel_batch_submit(intel->scrn);
 }
 
 static void
@@ -136,7 +136,7 @@ intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 
 	bo_table[0] = intel->batch_bo;
 	if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0) {
-		intel_batch_submit(scrn, FALSE);
+		intel_batch_submit(scrn);
 		bo_table[0] = intel->batch_bo;
 		if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) !=
 		    0) {
@@ -195,12 +195,15 @@ intel_uxa_pixmap_compute_size(PixmapPtr pixmap,
 		*tiling = I915_TILING_NONE;
 
 	if (*tiling != I915_TILING_NONE) {
-		int aligned_h;
+		int aligned_h, tile_height;
 
-		if (*tiling == I915_TILING_X)
-			aligned_h = ALIGN(h, 8);
+		if (IS_GEN2(intel))
+			tile_height = 16;
+		else if (*tiling == I915_TILING_X)
+			tile_height = 8;
 		else
-			aligned_h = ALIGN(h, 32);
+			tile_height = 32;
+		aligned_h = ALIGN(h, tile_height);
 
 		*stride = intel_get_fence_pitch(intel,
 						ALIGN(pitch, 512),
@@ -664,9 +667,7 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		priv->bo = bo;
 		priv->stride = intel_pixmap_pitch(pixmap);
 
-		ret = drm_intel_bo_get_tiling(bo,
-					      &tiling,
-					      &swizzle_mode);
+		ret = drm_intel_bo_get_tiling(bo, &tiling, &swizzle_mode);
 		if (ret != 0) {
 			FatalError("Couldn't get tiling on bo %p: %s\n",
 				   bo, strerror(-ret));
@@ -702,7 +703,7 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 
 	if (!list_is_empty(&priv->batch) &&
 	    (access == UXA_ACCESS_RW || priv->batch_write))
-		intel_batch_submit(scrn, FALSE);
+		intel_batch_submit(scrn);
 
 	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
 		ret = drm_intel_gem_bo_map_gtt(bo);
@@ -792,6 +793,8 @@ static Bool intel_uxa_put_image(PixmapPtr pixmap,
 
 			if (tiling != I915_TILING_NONE)
 				drm_intel_bo_set_tiling(bo, &tiling, stride);
+			priv->stride = stride;
+			priv->tiling = tiling;
 
 			screen->ModifyPixmapHeader(pixmap,
 						   w, h,
@@ -918,7 +921,7 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 
 		FreeScratchGC(gc);
 
-		intel_batch_submit(xf86Screens[screen->myNum], FALSE);
+		intel_batch_submit(xf86Screens[screen->myNum]);
 
 		x = y = 0;
 		pixmap = scratch;
@@ -932,20 +935,35 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 	return ret;
 }
 
+static void intel_flush_rendering(intel_screen_private *intel)
+{
+	if (intel->needs_flush == 0)
+		return;
+
+	if (intel->has_kernel_flush) {
+		intel_batch_submit(intel->scrn);
+		drm_intel_bo_busy(intel->front_buffer);
+	} else {
+		intel_batch_emit_flush(intel->scrn);
+		intel_batch_submit(intel->scrn);
+	}
+
+	intel->needs_flush = 0;
+}
+
 void intel_uxa_block_handler(intel_screen_private *intel)
 {
 	if (intel->shadow_damage &&
 	    pixman_region_not_empty(DamageRegion(intel->shadow_damage))) {
 		intel_shadow_blt(intel);
-		/* Emit a flush of the rendering cache, or on the 965
-		 * and beyond rendering results may not hit the
-		 * framebuffer until significantly later.
-		 */
-		intel_batch_submit(intel->scrn, TRUE);
-
 		DamageEmpty(intel->shadow_damage);
-	} else
-		intel_batch_submit(intel->scrn, TRUE);
+	}
+
+	/* Emit a flush of the rendering cache, or on the 965
+	 * and beyond rendering results may not hit the
+	 * framebuffer until significantly later.
+	 */
+	intel_flush_rendering(intel);
 }
 
 static PixmapPtr
@@ -1089,11 +1107,14 @@ static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 	return TRUE;
 }
 
-void intel_uxa_create_screen_resources(ScreenPtr screen)
+Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	dri_bo *bo = intel->front_buffer;
+
+	if (!uxa_resources_init(screen))
+		return FALSE;
 
 	drm_intel_gem_bo_map_gtt(bo);
 
@@ -1111,6 +1132,8 @@ void intel_uxa_create_screen_resources(ScreenPtr screen)
 					   NULL);
 		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
+
+	return TRUE;
 }
 
 static void
@@ -1185,7 +1208,6 @@ Bool intel_uxa_init(ScreenPtr screen)
 
 	memset(intel->uxa_driver, 0, sizeof(*intel->uxa_driver));
 
-	intel->bufferOffset = 0;
 	intel->uxa_driver->uxa_major = 1;
 	intel->uxa_driver->uxa_minor = 0;
 

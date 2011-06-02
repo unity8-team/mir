@@ -139,6 +139,7 @@ typedef struct {
 	unsigned offScreenCounter;
 
 	uxa_glyph_cache_t glyphCaches[UXA_NUM_GLYPH_CACHE_FORMATS];
+	Bool glyph_cache_initialized;
 
 	PicturePtr solid_clear, solid_black, solid_white;
 	uxa_solid_cache_t solid_cache[UXA_NUM_SOLID_CACHE];

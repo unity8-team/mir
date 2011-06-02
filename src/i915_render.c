@@ -302,12 +302,10 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 	ScrnInfoPtr scrn = xf86Screens[picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	uint32_t format, pitch, filter;
-	int w, h, i;
 	uint32_t wrap_mode, tiling_bits;
+	int i;
 
 	pitch = intel_pixmap_pitch(pixmap);
-	w = picture->pDrawable->width;
-	h = picture->pDrawable->height;
 	intel->scale_units[unit][0] = 1. / pixmap->drawable.width;
 	intel->scale_units[unit][1] = 1. / pixmap->drawable.height;
 
@@ -389,15 +387,12 @@ static Bool i915_texture_setup(PicturePtr picture, PixmapPtr pixmap, int unit)
 }
 
 static void
-i915_emit_composite_primitive_constant(PixmapPtr dest,
+i915_emit_composite_primitive_constant(intel_screen_private *intel,
 				       int srcX, int srcY,
 				       int maskX, int maskY,
 				       int dstX, int dstY,
 				       int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_VERTEX(dstX + w);
 	OUT_VERTEX(dstY + h);
 
@@ -409,15 +404,12 @@ i915_emit_composite_primitive_constant(PixmapPtr dest,
 }
 
 static void
-i915_emit_composite_primitive_identity_source(PixmapPtr dest,
+i915_emit_composite_primitive_identity_source(intel_screen_private *intel,
 					      int srcX, int srcY,
 					      int maskX, int maskY,
 					      int dstX, int dstY,
 					      int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_VERTEX(dstX + w);
 	OUT_VERTEX(dstY + h);
 	OUT_VERTEX((srcX + w) * intel->scale_units[0][0]);
@@ -435,14 +427,12 @@ i915_emit_composite_primitive_identity_source(PixmapPtr dest,
 }
 
 static void
-i915_emit_composite_primitive_affine_source(PixmapPtr dest,
+i915_emit_composite_primitive_affine_source(intel_screen_private *intel,
 					    int srcX, int srcY,
 					    int maskX, int maskY,
 					    int dstX, int dstY,
 					    int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	float src_x[3], src_y[3];
 
 	if (!intel_get_transformed_coordinates(srcX, srcY,
@@ -480,15 +470,12 @@ i915_emit_composite_primitive_affine_source(PixmapPtr dest,
 }
 
 static void
-i915_emit_composite_primitive_constant_identity_mask(PixmapPtr dest,
+i915_emit_composite_primitive_constant_identity_mask(intel_screen_private *intel,
 						     int srcX, int srcY,
 						     int maskX, int maskY,
 						     int dstX, int dstY,
 						     int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_VERTEX(dstX + w);
 	OUT_VERTEX(dstY + h);
 	OUT_VERTEX((maskX + w) * intel->scale_units[0][0]);
@@ -506,15 +493,12 @@ i915_emit_composite_primitive_constant_identity_mask(PixmapPtr dest,
 }
 
 static void
-i915_emit_composite_primitive_identity_source_mask(PixmapPtr dest,
+i915_emit_composite_primitive_identity_source_mask(intel_screen_private *intel,
 						   int srcX, int srcY,
 						   int maskX, int maskY,
 						   int dstX, int dstY,
 						   int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
 	OUT_VERTEX(dstX + w);
 	OUT_VERTEX(dstY + h);
 	OUT_VERTEX((srcX + w) * intel->scale_units[0][0]);
@@ -538,16 +522,14 @@ i915_emit_composite_primitive_identity_source_mask(PixmapPtr dest,
 }
 
 static void
-i915_emit_composite_primitive(PixmapPtr dest,
+i915_emit_composite_primitive(intel_screen_private *intel,
 			      int srcX, int srcY,
 			      int maskX, int maskY,
 			      int dstX, int dstY,
 			      int w, int h)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	Bool is_affine_src, is_affine_mask = TRUE;
-	int per_vertex, num_floats;
+	Bool is_affine_src = TRUE, is_affine_mask = TRUE;
+	int per_vertex;
 	int tex_unit = 0;
 	int src_unit = -1, mask_unit = -1;
 	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
@@ -665,8 +647,6 @@ i915_emit_composite_primitive(PixmapPtr dest,
 			per_vertex += 4;	/* mask x/y/z/w */
 		}
 	}
-
-	num_floats = 3 * per_vertex;
 
 	OUT_VERTEX(dstX + w);
 	OUT_VERTEX(dstY + h);
@@ -1164,7 +1144,7 @@ i915_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	}
 	intel->vertex_count += 3;
 
-	intel->prim_emit(dest,
+	intel->prim_emit(intel,
 			 srcX, srcY,
 			 maskX, maskY,
 			 dstX, dstY,

@@ -1,8 +1,8 @@
 Index: xserver-xorg-video-intel/src/intel.h
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel.h	2011-01-31 17:55:53.348189809 +1100
-+++ xserver-xorg-video-intel/src/intel.h	2011-01-31 17:56:01.018201058 +1100
-@@ -472,6 +472,7 @@
+--- xserver-xorg-video-intel.orig/src/intel.h	2011-06-02 17:16:53.871343985 +1000
++++ xserver-xorg-video-intel/src/intel.h	2011-06-02 17:16:59.491377184 +1000
+@@ -433,6 +433,7 @@
  	OptionInfoPtr Options;
  
  	/* Driver phase/state information */
@@ -10,18 +10,18 @@ Index: xserver-xorg-video-intel/src/intel.h
  	Bool suspended;
  
  	enum last_3d last_3d;
-@@ -501,6 +502,7 @@
+@@ -462,6 +463,7 @@
  extern int intel_get_pipe_from_crtc_id(drm_intel_bufmgr *bufmgr, xf86CrtcPtr crtc);
  extern int intel_crtc_id(xf86CrtcPtr crtc);
  extern int intel_output_dpms_status(xf86OutputPtr output);
 +extern void intel_copy_fb(ScrnInfoPtr scrn);
  
- extern Bool intel_do_pageflip(intel_screen_private *intel,
- 			      dri_bo *new_front,
+ enum DRI2FrameEventType {
+ 	DRI2_SWAP,
 Index: xserver-xorg-video-intel/src/intel_display.c
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel_display.c	2011-01-31 17:55:53.328189776 +1100
-+++ xserver-xorg-video-intel/src/intel_display.c	2011-01-31 17:56:01.018201058 +1100
+--- xserver-xorg-video-intel.orig/src/intel_display.c	2011-06-02 17:16:53.841343805 +1000
++++ xserver-xorg-video-intel/src/intel_display.c	2011-06-02 17:16:59.491377184 +1000
 @@ -36,6 +36,8 @@
  #include <errno.h>
  #include <poll.h>
@@ -31,7 +31,7 @@ Index: xserver-xorg-video-intel/src/intel_display.c
  #include "xorgVersion.h"
  
  #include "intel.h"
-@@ -928,6 +930,13 @@
+@@ -932,6 +934,13 @@
  	drmModeConnectorPtr koutput = intel_output->mode_output;
  	struct intel_mode *mode = intel_output->mode;
  	int i;
@@ -45,7 +45,7 @@ Index: xserver-xorg-video-intel/src/intel_display.c
  
  	for (i = 0; i < koutput->count_props; i++) {
  		drmModePropertyPtr props;
-@@ -1614,6 +1623,11 @@
+@@ -1618,6 +1627,11 @@
  	}
  
  	intel->modes = mode;
@@ -57,9 +57,9 @@ Index: xserver-xorg-video-intel/src/intel_display.c
  	return TRUE;
  }
  
-@@ -1684,3 +1698,101 @@
- {
- 	return crtc_id(crtc->driver_private);
+@@ -1687,3 +1701,100 @@
+ 	struct intel_crtc *intel_crtc = crtc->driver_private;
+ 	return intel_crtc->pipe;
  }
 +
 +static PixmapPtr
@@ -151,8 +151,7 @@ Index: xserver-xorg-video-intel/src/intel_display.c
 +
 +	intel->uxa_driver->done_copy(dst);
 +
-+	intel_batch_emit_flush(scrn);
-+	intel_batch_submit(scrn, TRUE);
++	intel_batch_submit_internal(scrn, TRUE);
 +
 +	(*pScreen->DestroyPixmap)(src);
 +	(*pScreen->DestroyPixmap)(dst);
@@ -161,9 +160,9 @@ Index: xserver-xorg-video-intel/src/intel_display.c
 +
 Index: xserver-xorg-video-intel/src/intel_driver.c
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel_driver.c	2011-01-31 17:55:53.358189820 +1100
-+++ xserver-xorg-video-intel/src/intel_driver.c	2011-01-31 18:01:33.088688114 +1100
-@@ -1008,6 +1008,10 @@
+--- xserver-xorg-video-intel.orig/src/intel_driver.c	2011-06-02 17:16:53.891344097 +1000
++++ xserver-xorg-video-intel/src/intel_driver.c	2011-06-02 17:16:59.491377184 +1000
+@@ -935,6 +935,10 @@
  		intel->directRenderingType = DRI_DRI2;
  #endif
  
@@ -174,7 +173,7 @@ Index: xserver-xorg-video-intel/src/intel_driver.c
  	if (!intel_init_initial_framebuffer(scrn))
  		return FALSE;
  
-@@ -1018,6 +1022,8 @@
+@@ -943,6 +947,8 @@
  	if (INTEL_INFO(intel)->gen >= 40)
  		gen4_render_state_init(scrn);
  
@@ -183,7 +182,7 @@ Index: xserver-xorg-video-intel/src/intel_driver.c
  	miClearVisualTypes();
  	if (!miSetVisualTypes(scrn->depth,
  			      miGetDefaultVisualMask(scrn->depth),
-@@ -1153,6 +1159,7 @@
+@@ -1078,6 +1084,7 @@
  
  	intel_mode_init(intel);
  
@@ -191,7 +190,7 @@ Index: xserver-xorg-video-intel/src/intel_driver.c
  	intel->suspended = FALSE;
  
  #if HAVE_UDEV
-@@ -1222,6 +1229,8 @@
+@@ -1147,6 +1154,8 @@
  
  	intel_set_gem_max_sizes(scrn);
  
@@ -200,3 +199,49 @@ Index: xserver-xorg-video-intel/src/intel_driver.c
  	if (!xf86SetDesiredModes(scrn))
  		return FALSE;
  
+Index: xserver-xorg-video-intel/src/intel_batchbuffer.c
+===================================================================
+--- xserver-xorg-video-intel.orig/src/intel_batchbuffer.c	2011-06-02 17:16:53.861343922 +1000
++++ xserver-xorg-video-intel/src/intel_batchbuffer.c	2011-06-02 17:30:50.535856598 +1000
+@@ -182,7 +182,7 @@
+ 	return intel_get_pixmap_private(pixmap)->batch_write;
+ }
+ 
+-void intel_batch_submit(ScrnInfoPtr scrn)
++void intel_batch_submit_internal(ScrnInfoPtr scrn, Bool force_flush)
+ {
+ 	intel_screen_private *intel = intel_get_screen_private(scrn);
+ 	int ret;
+@@ -241,7 +241,7 @@
+ 		}
+ 	}
+ 
+-	intel->needs_flush |= intel_batch_needs_flush(intel);
++	intel->needs_flush |= force_flush ? TRUE : intel_batch_needs_flush(intel);
+ 
+ 	while (!list_is_empty(&intel->batch_pixmaps)) {
+ 		struct intel_pixmap *entry;
+@@ -282,6 +282,11 @@
+ 	intel->current_batch = 0;
+ }
+ 
++void intel_batch_submit(ScrnInfoPtr scrn)
++{
++    intel_batch_submit_internal(scrn, FALSE);
++}
++
+ void intel_debug_flush(ScrnInfoPtr scrn)
+ {
+ 	intel_screen_private *intel = intel_get_screen_private(scrn);
+Index: xserver-xorg-video-intel/src/intel_batchbuffer.h
+===================================================================
+--- xserver-xorg-video-intel.orig/src/intel_batchbuffer.h	2011-06-02 17:16:53.821343687 +1000
++++ xserver-xorg-video-intel/src/intel_batchbuffer.h	2011-06-02 17:16:59.491377184 +1000
+@@ -38,6 +38,7 @@
+ void intel_batch_emit_flush(ScrnInfoPtr scrn);
+ void intel_batch_do_flush(ScrnInfoPtr scrn);
+ void intel_batch_submit(ScrnInfoPtr scrn);
++void intel_batch_submit_internal(ScrnInfoPtr scrn, Bool force_flush);
+ 
+ static inline int intel_batch_space(intel_screen_private *intel)
+ {

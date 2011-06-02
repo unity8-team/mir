@@ -28,7 +28,7 @@ Build-Depends:
  libxext-dev,
  libxfixes-dev,
  libx11-xcb-dev,
- libxcb-aux0-dev,
+ libxcb-util0-dev,
  libxcb-dri2-0-dev,
 # end xvmc
 # libudev-dev [linux-any],
@@ -46,11 +46,6 @@ Depends:
  ${shlibs:Depends},
  ${misc:Depends},
  ${xviddriver:Depends},
-Recommends:
- intel-gpu-tools,
- apport,
- intel-gpu-tools,
- python,
 Provides:
  ${xviddriver:Provides}
 Description: X.Org X server -- Intel i8xx, i9xx display driver
@@ -71,6 +66,7 @@ Architecture: amd64 i386
 Depends:
  xserver-xorg-video-intel (= ${binary:Version}),
  ${shlibs:Depends},
+ ${misc:Depends}
 Recommends:
  intel-gpu-tools,
 Section: debug

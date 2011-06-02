@@ -1,3 +1,80 @@
+xserver-xorg-video-intel (2:2.15.0-3ubuntu1) oneiric; urgency=low
+
+  [ Timo Aaltonen ]
+  * Merge from Debian unstable, remaining changes:
+    - 101_copy-fb.patch
+      + Plymouth integration patch
+    - 120_check_privates.patch
+      + Check for null privates pointer on render_dest_picture.
+    - debian/xserver-xorg-video-intel.preinst.in:
+    - debian/xserver-xorg-video-intel.postinst.in:
+      + Remove obsolete /etc/modprobe.d/i915-kms.conf file on upgrades.  
+        KMS is the kernel default.
+  * Dropped patches:
+    102_gen6_invalidate_texture_cache.patch
+    107_solid_nullptr_check.patch
+    108_undo_dmg_trans_before_append.patch
+    109_dont_reconstruct_glyph_cache_on_rotate.patch
+    111_fix_clipped_window_plane_offset.patch
+    112_fix_error_in_4c4ad555.patch
+    113_remove_broken_max_base_addresses.patch
+    114_warnings_cleanup_part_2.patch
+    115_quell_vblank_counter_failed.patch
+    117_946gz_isreally_965g.patch
+    119_disable_relaxed_fencing.path
+    - all upstream.
+  [ Christopher James Halse Rogers ]
+  * debian/patches/101_copy-fb.patch
+    - Refresh for new upstream.
+  
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Thu, 02 Jun 2011 18:27:35 +1000
+
+xserver-xorg-video-intel (2:2.15.0-3) unstable; urgency=high
+
+  * Temporarily disable xvmc to sidestep the xcb-util mess and move to
+    testing.
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 14 May 2011 19:00:38 +0200
+
+xserver-xorg-video-intel (2:2.15.0-2) unstable; urgency=low
+
+  * xcb-util was split up in 0.3.8 and libxcb-aux has been merged
+    into libxcb-util, thus update Build-Depends accordingly.
+  * Add ${misc:Depends} to xserver-xorg-video-intel-dbg Depends.
+
+ -- Arnaud Fontaine <arnau@debian.org>  Fri, 06 May 2011 23:53:39 +0900
+
+xserver-xorg-video-intel (2:2.15.0-1) unstable; urgency=low
+
+  * New upstream release.
+  * Merge from upstream master up to c9fb69cb25 to fix crashes with i965
+    and kwin in particular, thanks to Julian Andres Klode and Modestas
+    Vainius for their reports in Debian and upstream (Closes: #622653):
+    - NEWS: typo.
+    - intel: Beware the unsigned promotion when checking for batch overflows
+    - i965/video: We need 150 dwords of space for video state emission
+
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 19 Apr 2011 03:37:23 +0200
+
+xserver-xorg-video-intel (2:2.14.902-1) unstable; urgency=low
+
+  * New upstream snapshot (2.15 rc2).
+  * Apparently, using libXvMC means adding the name of the library (like
+    libI810XvMC.so.1 or libIntelXvMC.so.1) to the libXvMC configuration
+    file (/etc/X11/XvMCConfig). Accordingly, remove extraneous symlinks:
+    - /usr/lib/libI810XvMC.so
+    - /usr/lib/libIntelXvMC.so
+  * Override lintian warning about the libXvMC shared objects.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 10 Apr 2011 23:30:19 +0200
+
+xserver-xorg-video-intel (2:2.14.0-4ubuntu9) oneiric; urgency=low
+
+  * debian/apport-gpu-error-intel.py, debian/control, debian/rules:
+    - Migrate apport hook out of video driver, to xdiagnose
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 18 May 2011 05:33:38 +0200
+
 xserver-xorg-video-intel (2:2.14.0-4ubuntu8) oneiric; urgency=low
 
   * Add 120_check_privates.patch:  Check for null privates pointer

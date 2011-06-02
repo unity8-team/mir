@@ -391,7 +391,6 @@ static void i915_mc_static_indirect_state_set(XvMCContext * context,
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
 	struct intel_xvmc_surface *intel_surf = dest->privData;
 	struct i915_mc_static_indirect_state_buffer *buffer_info;
-	unsigned int w = dest->width;
 
 	drm_intel_gem_bo_map_gtt(pI915XvMC->sis_bo);
 	buffer_info = pI915XvMC->sis_bo->virtual;
@@ -688,7 +687,7 @@ static void i915_mc_load_indirect_render_emit(XvMCContext * context)
 {
 	i915XvMCContext *pI915XvMC = (i915XvMCContext *) context->privData;
 	int mem_select;
-	uint32_t load_indirect, buffer_address;
+	uint32_t load_indirect;
 	BATCH_LOCALS;
 
 	BEGIN_BATCH(5);

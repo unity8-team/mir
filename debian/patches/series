@@ -2,15 +2,4 @@
 
 # Ubuntu patches
 101_copy-fb.patch
-102_gen6_invalidate_texture_cache.patch
-107_solid_nullptr_check.patch
-109_dont_reconstruct_glyph_cache_on_rotate.patch
-110_warnings_cleanup.patch
-111_fix_clipped_window_plane_offset.patch
-112_fix_error_in_4c4ad555.patch
-113_remove_broken_max_base_addresses.patch
-114_warnings_cleanup_part_2.patch
-115_quell_vblank_counter_failed.patch
-117_946gz_isreally_965g.patch
-119_disable_relaxed_fencing.path
 120_check_privates.patch

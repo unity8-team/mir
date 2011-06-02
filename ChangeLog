@@ -1,3 +1,788 @@
+commit c9fb69cb2502917dfb2828c90802de7766072899
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Apr 17 10:42:05 2011 +0100
+
+    i965/video: We need 150 dwords of space for video state emission
+    
+    (Actually around 131, with additional 10% just for safety.)
+    
+    Reported-by: Modestas Vainius <geromanas@mailas.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=36319
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a51cd83d25f2f9f2107219d5671194f931601244
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Apr 17 10:36:26 2011 +0100
+
+    intel: Beware the unsigned promotion when checking for batch overflows
+    
+    Reported-by: Modestas Vainius <geromanas@mailas.com>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=36319
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 030aa3d13643a0acb7126fa1fa6c5a8eac134639
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 14 10:25:21 2011 +0100
+
+    NEWS: typo.
+    
+    Spotted too late...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0e425b30e12b11dbf51eea1d3366e3372f8b93af
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 14 10:16:03 2011 +0100
+
+    configure,NEWS: 2.15.0 release
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 686018f283f1d131073ef5917213e6a8ac013f26
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Apr 12 08:23:04 2011 +0100
+
+    Turn relaxed-fencing off by default for older (pre-G33) chipsets
+    
+    There are still too many unresolved bugs, typically GPU hangs, that are
+    related to using relaxed fencing (i.e. only allocating the minimal
+    amount of memory required for a buffer) on older hardware, so turn off
+    the feature by default for the release.
+    
+    Reported-and-tested-by: Knut Petersen <Knut_Petersen@t-online.de>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=36147
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Acked-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 3d2b79098ccb3fed86be66f619f4ed338741d454
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 11 15:20:16 2011 +0100
+
+    dri: Rearrange code to compile against xorg-server-1.7
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4fa35dd5e13a58070220f787fc0678f1c679808d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 11 10:44:55 2011 +0100
+
+    NEWS: version bump for 2.14.903 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 97e9557619e58ef769eb7cbf1a03fbd52be7f2ed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 8 13:38:48 2011 +0100
+
+    intel: Restore manual flush for old kernels
+    
+    Daniel Vetter pointed out that the automagic flush by the kernel for the
+    busy-ioctl was only introduced upstream in 2.6.37. So we still need to
+    manually emit a flush on old kernels.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fb40bf2b33a6d26f0e6a4e5798d10c905faa8aad
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Fri Apr 8 12:37:35 2011 +0200
+
+    Tell users to grab i915_error_state on gpu hangs
+    
+    Acked-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 59ed6b05db99d7e5144f4f8499c67cee9b833673
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 7 15:28:46 2011 +0100
+
+    Revert "i965: Convert to relative relocations for state"
+    
+    This reverts commit d2106384be6f9df498392127c3ff64d0a2b17457.
+    
+    Breaks compiz (but not mutter/gnome-shell) on gen6. Not sure if this is
+    not seem deep interaction issue with multiple clients sharing the GPU or
+    just with compiz, but for now we have to revert and suffer the inane
+    performance hit. It looks suspiciously like another deferred damage
+    issue...
+    
+    Bugzilla: 51a27e88b073cff229fff4362cb6ac22835c4044
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 25521900df11bc71020ee80db2223f979bec5ec6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 7 15:09:30 2011 +0100
+
+    gen6: Invalidate texture cache
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ad22003033eb502474ae538a97e3b42cf8f83880
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 7 10:29:40 2011 +0100
+
+    i965: Avoid transform overheads for vertex emit where possible
+    
+    Minor improvement as the bottlenecks lie elsewhere. But it was annoying me.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 007c2f86cbb386861a1f711786523657f92e12cb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Apr 7 09:53:34 2011 +0100
+
+    i965: Refactor to use constant sampler_state offsets
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8dc99b305a514dcd42c4260698e685a66dc95518
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 22:30:29 2011 +0100
+
+    i965: Reset vertex_id after every batch
+    
+    So that we always remember to re-emit the initial vertex elements state.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5982ed4da12a964351029c6f786348a11e33dc81
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 19:32:43 2011 +0100
+
+    i965: Always update last_floats_per_vertex
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6f104189bb9439ab0e05f04d4be020813eb04bf9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 19:21:10 2011 +0100
+
+    Take advantage of the kernel flush for dirty bo in the busy ioctl
+    
+    Rather than just creating and submitting a batch that simply contains a
+    flush in order to periodically ensure that rendering reaches the
+    scanout, we can simply ask the kernel whether the scanout is busy. The
+    kernel will then submit a flush on our behalf if it is dirty, which
+    takes advantage of the kernel's dirty state tracking.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 314439860e595c473d168c0cafb2b5b49b7fef30
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 17:20:04 2011 +0100
+
+    Remove unused function 'intel_bo_alloc_for_data'
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ced747cefb5e697e6caa65296dff728904f52b93
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 17:13:50 2011 +0100
+
+    Remove the unnecessary MI_FLUSH from the flush handler
+    
+    The kernel will emit any required flushes between the dri client and the
+    ddx, and we do not rely on the MI_FLUSH here for scanout.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 79444291a39c42039192a5baa3a71d52300cf4ee
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 16:34:58 2011 +0100
+
+    i965: segregate each vertex element into its own buffer
+    
+    Reduce the number of relocations emitted by only emitting one relocation
+    per vertex element per vertex buffer.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=35733
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d2106384be6f9df498392127c3ff64d0a2b17457
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Apr 4 12:33:04 2011 +0100
+
+    i965: Convert to relative relocations for state
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=35733
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 972569f6fd1e14519f46e9f50d2509faf1d0aa55
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Mar 25 10:46:14 2011 +0000
+
+    MI_LOAD_SCAN_LINES_INCL are inclusive and range [0, display height-1]
+    
+    We have seen GPU hangs with:
+    
+    batchbuffer at 0x0f9b4000:
+    0x0f9b4000:      0x09000000: MI_LOAD_SCAN_LINES_INCL
+    0x0f9b4004:      0x00000300:    dword 1
+    0x0f9b4008:      0x09000000: MI_LOAD_SCAN_LINES_INCL
+    0x0f9b400c:      0x00000300:    dword 1
+    0x0f9b4010:      0x01820000: MI_WAIT_FOR_EVENT
+    0x0f9b4014: HEAD 0x02000006: MI_FLUSH
+    
+    on a 1366x768 display. That according to the specs an invalid command
+    for the pipe.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=35576
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 537a836dd6db384d53b52eb457a7d257c440217f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Apr 1 07:10:25 2011 +0100
+
+    946GZ is a 965G!
+    
+    Sales & Marketing score another victory in confusing me.
+    
+    Bugzila: https://bugs.freedesktop.org/show_bug.cgi?id=35854
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 630d77bf10ba6234bb9c04538636f7d8aa319aea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 30 07:24:42 2011 +0100
+
+    Add a DRI2SwapEventPtr typedef for retro xservers
+    
+    Because people are still trying to build upon our solid historical
+    foundations.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f660df2cb44b310740ed850037ff37891b671f28
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Mar 29 18:02:24 2011 +0200
+
+    Cleanup gen2 tiling confusion
+    
+    A tile on gen2 has a size of 2kb, stride of 128 bytes and 16 rows.
+    
+    Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit a2c8442fcb29ef2d0df41518952a2d8df1671070
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 29 11:38:45 2011 +0100
+
+    configure: version bump for 2.14.902 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2f2680793952876c89796174bed53c824fe6d1cb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Mar 29 11:38:18 2011 +0100
+
+    NEWS: Entry for 2.14.902 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7ccbec801e9ee32fc110db730dfec674a94dea21
+Author: Keith Packard <keithp@keithp.com>
+Date:   Thu Mar 24 11:06:57 2011 -0700
+
+    Recover from i830_dri2_add_frame_event out-of-memory condition
+    
+    If adding either the frame or client resources fails, we need to clean
+    up afterwards properly.
+    
+    First, add_frame_event needs to internally clean up after itself by
+    undoing any partial execution. Second, the callers need to look at the
+    return value and free the swap/flip info structure when necessary.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    Reviewed-by: Julien Cristau <jcristau@debian.org>
+
+commit ec133abc4bd8caba15ed54e18621b816afb06981
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Mar 24 15:32:50 2011 +0000
+
+    Use the per-generation batch context switch for atomic sequences
+    
+    A modest boost to throughput and reduction in CPU overhead from
+    not flushing the batch on every transition from BLT to RENDER.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 86f23f21ab57fcbc031bcd2b8f432a08ff4cc320
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Mar 23 17:07:49 2011 -0700
+
+    Skip client and drawable resource delete calls when deleting frame event
+    
+    As the frame_event is about to be freed, there's no point in cleaning
+    up references to the drawable and client.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit e1ff5182304e00c0d392092069422cae7626cf8d
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Mar 9 17:00:41 2011 -0800
+
+    Handle drawable/client destruction in pending swaps/flips
+    
+    A pending swap or flip holds references to drawables and clients which
+    become invalid when destroyed. Add suitable resources to the database
+    to track those lifetimes and clean up the pending data structure then.
+    
+    Later, when the pending swap or flip occurs, handle a missing drawable
+    by just discarding the flip or swap. Handle a missing client by not
+    sending an event or reply.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit aa0328f342177e33f9c863531712eaa4577b5f2b
+Author: Keith Packard <keithp@keithp.com>
+Date:   Wed Mar 9 16:23:22 2011 -0800
+
+    dri2: Make DRI2FrameEvent public and use instead of void *
+    
+    Instead of using void * for all of the flip_info and swap_info
+    pointers, just make the underlying structure a public data type and
+    use that.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+
+commit ee740778f5d5355c04f6fc4564f598993b106d62
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 16 08:37:24 2011 +0000
+
+    i915/video: Clip indirect Xv output
+    
+    In the case of a singular clip box and rendering onto the front buffer
+    larger than 2048, the clip extents were being ignored.  Here we can
+    simply reduce the size of the indirect pixmap to the clip extents.
+    
+    Reported-by: Michael Chang <mchang@novell.com>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=35346
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 014fc7abb7b2cc2110e3ab9a0bd6f7cff2c64c05
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 9 17:10:50 2011 +0000
+
+    dri: Disable page-flip between a tiled buffer and a linear scanout
+    
+    Keith Packard pointed out a loophole that could cause the DDX to end up
+    with a tiled scanout even if the user required a linear framebuffer;
+    that is by using page-flipping we could replace the scanout pixmap with
+    another of our choosing, and not necessarily tiled.
+    
+    Close that loophole by only allowing an exchange of buffers between
+    identical tiling modes. For the common case, this is fine since they
+    will indeed be allocated with the same tiling. For the linear
+    framebuffer case with mesa using a tiled pixmap, we force it to blit
+    onto the scanout instead.
+    
+    Reported-by: Keith Packard <keith.packard@intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 049ce4397ddf7fd088ce364cbb53cacf5133176f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 9 08:27:02 2011 +0000
+
+    Give each user of tiling separate xorg.conf options
+    
+    So that you can indeed allocate a linear framebuffer if you so desire
+    without breaking mesa.
+    
+    Adds:
+    
+    Section "Driver"
+      Option "LinearFramebuffer" "False|True" # default false
+    EndSection
+    
+    to xorg.conf
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0bb1a5f19e09dc553761ddd90bf6319eab94a597
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 9 08:26:44 2011 +0000
+
+    Update priv->stride after bo reallocation
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 34f9a3335f96b16ef9df6213eb0a586c94f8f05b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 2 17:46:19 2011 +0000
+
+    configure: Bump for 2.14.901 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 057783937d7a42a766d0e45174c4c2dc0ffacd40
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Mar 2 17:45:43 2011 +0000
+
+    NEWS: Add entry for 2.14.901 snapshot
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e889d3a709b55a0731ab098b17a3364b9bf39387
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Feb 27 10:51:50 2011 +0000
+
+    dri: Protect against destroying a foreign DRI drawable
+    
+    I have no clue as to how such an alien drawable reached us, but we have
+    the evidence of a segfault to say it can happen.
+    
+    Reported-by: Bernie Innocenti <bernie@codewiz.org>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=34787
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d21d781466785c317131a8a57606925867265dc8
+Author: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date:   Tue Feb 22 18:31:44 2011 +0100
+
+    Fix relaxed tiling on gen2
+    
+    Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+
+commit 9599fde65a0d8b7e7c85199346f7b620bdd8388d
+Author: Bryce Harrington <bryce@canonical.com>
+Date:   Tue Feb 15 22:30:18 2011 -0800
+
+    Quell excessively verbose vblank counter failed error messages
+    
+    Certain error situations can result in the following printed to
+    Xorg.0.log at a high enough rate to make log file size a problem.
+    
+    (WW) intel(0): I830DRI2GetMSC:1062 get vblank counter failed: Invalid argument
+    (WW) intel(0): I830DRI2ScheduleWaitMSC:1118 get vblank counter failed: Invalid argument
+    
+    Following in the tradition of commit 0ad6d6e1, limit the warnings to be
+    output 5 times, then quell the remainder.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=34322
+    Ref.: https://bugs.launchpad.net/ubuntu/+source/xserver-xorg-video-intel/+bug/710594
+    
+    Signed-off-by: Bryce Harrington <bryce@canonical.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0ca595e9d533019b241666d29b421c7b36f9647a
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Thu Feb 17 15:26:35 2011 -0500
+
+    Fix IGD and IGDNG constants to be comprehensible
+    
+    Since, with GPU-on-package, it's hard to talk about a model number for
+    a specific chipset like 855GM, just use the platform names.
+    
+    Signed-off-by: Adam Jackson <ajax@redhat.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4c66b28870b050493ad96f7b0fe2d70d7ee539c7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 17 16:48:24 2011 +0000
+
+    uxa: Fallback if the temporary is too large
+    
+    If the render operation requires a temporary source Picture and the
+    operation is large, larger than the maximum permitted bo, then we will
+    fail to allocate the bo. In this case, we need to fallback and perform
+    the operation on the CPU rather than dereference a NULL bo.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=34399
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 23f9b14df7c102c1036134835dd5d1a508059858
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Feb 12 10:42:34 2011 +0000
+
+    i965: Remove broken maximum base addresses from video
+    
+    WRONG.
+    
+    The hardware was never limited to 0x1000000 and the kernel can quite
+    rightly place objects above that limit. Specifying such had no relation
+    to reality, so why did we do it? TWICE!
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=34017
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9184af921bc2f332fcb6c9b47001414378eab8e2
+Author: Javier Jardón <jjardon@gnome.org>
+Date:   Wed Feb 9 00:36:37 2011 +0000
+
+    Update autotools configuration
+    
+    Use new libtool syntax and silent-rules to silent
+    the build output a bit (linux-like)
+
+commit 6e721e098b9181e8e77e314f966729d28e705582
+Author: Bryce Harrington <bryce@canonical.com>
+Date:   Fri Feb 4 00:15:13 2011 -0800
+
+    Check return value of uxa_acquire_solid() since it can return NULL
+    
+    uxa_acquire_solid returns NULL under OOM.  Thus the value of solid
+    must be checked before dereferencing it in the uxa_get_offscreen()
+    call.
+    
+    Signed-off-by: Bryce Harrington <bryce@canonical.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit da990536eca09c6de74627541cd56ecfad925eda
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Feb 3 09:41:48 2011 +0000
+
+    uxa: Undo damage translation before appending
+    
+    The region is used to paint onto the backing pixmap (and thus
+    translated) prior to being passed to the damage layer (wrt to the
+    drawable). So the local translation needs to be undone first.
+    
+    Identified by Christopher James Halse Rogers.
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=33650
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ce1e0969058f8c70b624bc85bb8d6698a35794d3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 31 20:27:26 2011 +0000
+
+    Rename 'intel' backlight to match upstream name in 2.6.38
+    
+    (Just waiting for libbacklight to bring sanity...)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 80f59c8a4f51ccc27653a2de2dee2563b1e911f1
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 06:22:39 2011 +0100
+
+    xvmc: Stop using uninitialized variable.
+    
+    The actual code was removed in 5f64122551, where the get_surface_status
+    driver callback was dropped. Just return Success if there were no issues
+    with the parameter.
+    
+    Get rid of the following with CFLAGS="-Wall -Werror":
+    |   CC     intel_xvmc.lo
+    | cc1: warnings being treated as errors
+    | intel_xvmc.c: In function ‘XvMCSyncSurface’:
+    | intel_xvmc.c:677: error: ‘ret’ may be used uninitialized in this function
+    | intel_xvmc.c:672: note: ‘ret’ was declared here
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 86284abafbe1364f82509d2656c82ba11cdce6cc
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 06:22:38 2011 +0100
+
+    xvmc: Silence gcc, adding a cast to work around signedness issues.
+    
+    Both exported XvMCPutSlice/XvMCPutSlice2 functions have a prototype with a
+    parameter whose signedness differs from the one in the put_slice/put_slice2
+    functions they call. Make it unsigned through a cast.
+    
+    Get rid of this accordingly with CFLAGS="-Wall -Werror":
+    |   CC     intel_xvmc.lo
+    | cc1: warnings being treated as errors
+    | intel_xvmc.c: In function ‘XvMCSyncSurface’:
+    | intel_xvmc.c:677: error: ‘ret’ may be used uninitialized in this function
+    | intel_xvmc.c:672: note: ‘ret’ was declared here
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fc2eb64d7a184770ccd708a5b2337a538ca2b9db
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 09:59:04 2011 +0000
+
+    xvmc: Silence gcc, add parentheses around arithmetic.
+    
+    Get rid of those accordingly with CFLAGS="-Wall -Werror":
+    |   CC     i915_xvmc.lo
+    | cc1: warnings being treated as errors
+    | i915_xvmc.c: In function ‘i915_mc_one_time_state_emit’:
+    | i915_xvmc.c:369: error: suggest parentheses around arithmetic in operand of ‘|’
+    | i915_xvmc.c:374: error: suggest parentheses around arithmetic in operand of ‘|’
+    | i915_xvmc.c:379: error: suggest parentheses around arithmetic in operand of ‘|’
+    | i915_xvmc.c: In function ‘i915_mc_load_indirect_render_emit’:
+    | i915_xvmc.c:708: error: suggest parentheses around arithmetic in operand of ‘|’
+    | i915_xvmc.c:713: error: suggest parentheses around arithmetic in operand of ‘|’
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1b9349bceb9172d9bf01638b2df10b9b79e883b4
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 06:22:36 2011 +0100
+
+    xvmc: Silence gcc, add parentheses around assignment.
+    
+    Get rid of the following with CFLAGS="-Wall -Werror":
+    |   CC     intel_xvmc_dump.lo
+    | cc1: warnings being treated as errors
+    | intel_xvmc_dump.c: In function ‘intel_xvmc_dump_open’:
+    | intel_xvmc_dump.c:41: error: suggest parentheses around assignment used as truth value
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ae8877e30707cae586565b4deee4c7fd9ac7d3ed
+Author: Cyril Brulebois <kibi@debian.org>
+Date:   Mon Jan 31 06:22:35 2011 +0100
+
+    xvmc: Get rid of unused variables.
+    
+    Signed-off-by: Cyril Brulebois <kibi@debian.org>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8bd6a7149fcb5f9ed6580dc2aa0180874938a1ea
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 29 12:04:09 2011 +0000
+
+    Enable conditional compilation of asserts
+    
+    With '--disable-debug' we define NDEBUG and so disable the asserts, that
+    is we continue to default to compiling asserts into the code.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a5a1ab7bbc58ec884cd0b90fe7139f402291b92f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 28 17:20:06 2011 +0000
+
+    i915: Remove unused 'w' and 'h'
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2c9b3225d8c7b53e2d921705dbb069710abcea5d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 28 17:19:39 2011 +0000
+
+    i915: Remove unused 'num_floats' variable
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c6dc27562abbc8ca9e873ad502ca49ae010461d2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 24 20:25:27 2011 +0000
+
+    uxa: Only recreate the glyph cache on *generational* updates
+    
+    The screen resources are recreated when the screen is rotated as well,
+    without being finalized. In this case, we do not need to reconstuct the
+    cache (or if we did, we would need to tear it down first).
+    
+    Reported-by: Till Matthiesen <entropy@everymail.net>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=33412
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5baa63c634990810a66c3150b4f2b76fcee2df38
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Fri Jan 21 08:45:52 2011 +0800
+
+    Fix an error in 4c4ad555564a80311df1a4b762eb1e119c6d95fb.
+    
+    See the original patch at https://bugs.freedesktop.org/show_bug.cgi?id=24767
+    
+    Signed-off-by: Xiang, Haihao <haihao.xiang@intel.com>
+
+commit 3e28a0c0b43823d3104fe8fc50b5994b41fc0cc1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 20 15:07:26 2011 +0000
+
+    Create the UXA generational resources during screen create
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4c4ad555564a80311df1a4b762eb1e119c6d95fb
+Author: Xiang, Haihao <haihao.xiang@intel.com>
+Date:   Wed Jan 19 15:25:06 2011 +0000
+
+    Correct offset of planes within clipped window
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=24767
+    Reported-and-tested-by: Sitsofe Wheeler <sitsofe@yahoo.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5a22bc999de8555f26c639eaffbe73b680746174
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 17 11:32:37 2011 -0800
+
+    Quiet compiler warning about is_affine_src same way we do is_affine_mask.
+
+commit 3a2a4b0784f0fc96a5457b18931471f15ad745fc
+Author: Simon Farnsworth <simon.farnsworth@onelan.co.uk>
+Date:   Mon Jan 17 17:38:23 2011 +0000
+
+    Fix textured video when destination is larger than screen
+    
+    In our application, the screen is never rotated from the point of view
+    of the driver; instead, the compositor applies a suitable rotation as
+    it composites the display. This works fine on 945, but on 965, videos
+    are limited in height to the actual height of the screen.
+    
+    Change various bits of code so that we use the width and height of the
+    destination pixmap instead of the width and height of the virtual
+    screen. This works correctly both for XVideo to offscreen storage
+    (CompositeRedirect) and for XVideo to the screen (no compositor).
+
+commit fd9235ebe03a01982238cdd6e8b55f613e14b6af
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:58:36 2010 +0000
+
+    Delete unused memory allocation flags.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 03248a798409ca4dd1caf5e25a3d5f5a80173260
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:57:01 2010 +0000
+
+    Cache the fixed crtc<->pipe relationship
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 00a2aee38dc5cbbd4907a593fa8d617f5a20292e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:50:33 2010 +0000
+
+    Remove unused I830Output
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a851879695c48e88d421b053a78f867d9902273f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:48:26 2010 +0000
+
+    Remove bitrotted, but fortunately unused, I830CrtcPrivate
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f8a5d7737e014e99943b947d088a4f9f1b465d46
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:37:47 2010 +0000
+
+    Delete some dead code
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 968151898b807b06953b2f4170ac02889f16c8dc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:18:25 2010 +0000
+
+    Remove unused GTT/Map sizes and addresses
+    
+    These have been made obsolete by KMS and GEM.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 19b5817a54d4a17161340ada9bf20027644ff074
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 17 00:15:31 2010 +0000
+
+    Remove unused struct _intel_memory definition
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 40a7bde9140c0ae6412b8f916b1455d44e2af6cf
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Fri Jan 7 23:46:07 2011 +0000

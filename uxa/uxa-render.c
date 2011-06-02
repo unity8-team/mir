@@ -1066,6 +1066,8 @@ try_solid:
 			int src_off_x, src_off_y;
 
 			solid = uxa_acquire_solid(screen, src->pSourcePict);
+			if (!solid)
+				goto err_src;
 			FreePicture(src, 0);
 
 			src = solid;

@@ -861,6 +861,11 @@ struct brw_wm_unit_state
    } wm10;       
 };
 
+struct brw_wm_unit_state_padded {
+	struct brw_wm_unit_state state;
+	char pad[64 - sizeof(struct brw_wm_unit_state)];
+};
+
 /* The hardware supports two different modes for border color. The
  * default (OpenGL) mode uses floating-point color channels, while the
  * legacy mode uses 4 bytes.

@@ -1,14 +1,17 @@
 #!/usr/bin/make -f
 
+override_dh_auto_configure:
+	dh_auto_configure -O--builddirectory=build/ -- --disable-xvmc
+
 # Install in debian/tmp to retain control through dh_install:
 override_dh_auto_install:
 	dh_auto_install --destdir=debian/tmp
-	install -d $(CURDIR)/debian/tmp/usr/share/apport
-	install -m 755 debian/apport-gpu-error-intel.py $(CURDIR)/debian/tmp/usr/share/apport
 
-# Kill *.la files, and forget no-one:
+# Kill *.la files, libxvmc symlinks, and forget no-one:
 override_dh_install:
 	find debian/tmp -name '*.la' -delete
+	rm -f debian/tmp/usr/lib/libI810XvMC.so
+	rm -f debian/tmp/usr/lib/libIntelXvMC.so
 	dh_install --fail-missing
 
 # Debug package:

@@ -996,7 +996,7 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	/* Copy V data for YV12, or U data for I420 */
 	src2 = buf +		/* start of YUV data */
 	    (srcH * srcPitch) +	/* move over Luma plane */
-	    ((top * srcPitch) >> 2) +	/* move down from by top lines */
+	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
 	    (left >> 1);	/* move left by left pixels */
 
 #if 0
@@ -1015,7 +1015,7 @@ I830CopyPlanarData(intel_adaptor_private *adaptor_priv,
 	src3 = buf +		/* start of YUV data */
 	    (srcH * srcPitch) +	/* move over Luma plane */
 	    ((srcH >> 1) * srcPitch2) +	/* move over Chroma plane */
-	    ((top * srcPitch) >> 2) +	/* move down from by top lines */
+	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
 	    (left >> 1);	/* move left by left pixels */
 #if 0
 	ErrorF("src3 is %p, offset is %ld\n", src3,
@@ -1358,9 +1358,9 @@ intel_wait_for_scanline(ScrnInfoPtr scrn, PixmapPtr pixmap,
 	/* The documentation says that the LOAD_SCAN_LINES command
 	 * always comes in pairs. Don't ask me why. */
 	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | pipe);
-	OUT_BATCH((y1 << 16) | y2);
+	OUT_BATCH((y1 << 16) | (y2-1));
 	OUT_BATCH(MI_LOAD_SCAN_LINES_INCL | pipe);
-	OUT_BATCH((y1 << 16) | y2);
+	OUT_BATCH((y1 << 16) | (y2-1));
 	OUT_BATCH(MI_WAIT_FOR_EVENT | event);
 	ADVANCE_BATCH();
 }

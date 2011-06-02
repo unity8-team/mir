@@ -64,8 +64,6 @@ static void i965_end_batch(void)
 
 Bool intelInitBatchBuffer(void)
 {
-	int i;
-
 	if ((xvmc_driver->batch.buf =
 	     drm_intel_bo_alloc(xvmc_driver->bufmgr,
 				"batch buffer", BATCH_SIZE, 0x1000)) == NULL) {
