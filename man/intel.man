@@ -210,6 +210,13 @@ User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
 .IP
 Default: Disabled.
 .TP
+.BI "Option \*qThrottle\*q \*q" boolean \*q
+This option controls whether the driver periodically waits for pending
+drawing operations to complete. Throttling ensures that the GPU does not
+lag too far behind the CPU and thus noticeable delays in user responsible at
+the cost of throughput performance.
+.IP
+Default: enabled.
 .BI "Option \*qHotPlug\*q \*q" boolean \*q
 This option controls whether the driver automatically notifies
 applications when monitors are connected or disconnected.

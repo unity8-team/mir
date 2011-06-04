@@ -35,6 +35,11 @@ intel_drv_ladir = @moduledir@/drivers
 intel_drv_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la legacy/liblegacy.la
 intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 
+if SNA
+SUBDIRS += sna
+intel_drv_la_LIBADD += sna/libsna.la
+endif
+
 NULL:=#
 
 intel_drv_la_SOURCES = \

@@ -1,0 +1,13 @@
+basic-copyarea
+basic-copyarea-size
+basic-fillrect
+basic-putimage
+basic-stress
+render-fill
+render-trapezoid
+render-trapezoid-image
+render-fill-copy
+render-composite-solid
+render-copyarea
+render-copyarea-size
+mixed-stress

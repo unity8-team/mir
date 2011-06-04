@@ -36,6 +36,7 @@
 #include "intel.h"
 #include "intel_driver.h"
 #include "legacy/legacy.h"
+#include "sna/sna_module.h"
 
 #include <xf86drmMode.h>
 
@@ -320,22 +321,49 @@ static Bool intel_pci_probe(DriverPtr		driver,
 		scrn->name = INTEL_NAME;
 		scrn->Probe = NULL;
 
-#if KMS_ONLY
-		intel_init_scrn(scrn);
-#else
 		switch (DEVICE_ID(device)) {
+#if !KMS_ONLY
 		case PCI_CHIP_I810:
 		case PCI_CHIP_I810_DC100:
 		case PCI_CHIP_I810_E:
 		case PCI_CHIP_I815:
 			lg_i810_init(scrn);
 			break;
+#endif
 
+#if SNA
+		case 0:
+#if SNA_GEN3
+		case PCI_CHIP_PINEVIEW_M:
+		case PCI_CHIP_PINEVIEW_G:
+		case PCI_CHIP_G33_G:
+		case PCI_CHIP_Q35_G:
+		case PCI_CHIP_Q33_G:
+#endif
+#if SNA_GEN5
+		case PCI_CHIP_IRONLAKE_D_G:
+		case PCI_CHIP_IRONLAKE_M_G:
+#endif
+#if SNA_GEN6
+		case PCI_CHIP_SANDYBRIDGE_GT1:
+		case PCI_CHIP_SANDYBRIDGE_GT2:
+		case PCI_CHIP_SANDYBRIDGE_GT2_PLUS:
+		case PCI_CHIP_SANDYBRIDGE_M_GT1:
+		case PCI_CHIP_SANDYBRIDGE_M_GT2:
+		case PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS:
+		case PCI_CHIP_SANDYBRIDGE_S_GT:
+#endif
+			sna_init_scrn(scrn);
+			break;
+#endif
 		default:
+#if SNA_DEFAULT
+			sna_init_scrn(scrn);
+#else
 			intel_init_scrn(scrn);
+#endif
 			break;
 		}
-#endif
 	}
 	return scrn != NULL;
 }
@@ -360,20 +388,46 @@ static XF86ModuleVersionInfo intel_version = {
 static const OptionInfoRec *
 intel_available_options(int chipid, int busid)
 {
-#if KMS_ONLY
-	return intel_uxa_available_options(chipid, busid);
-#else
 	switch (chipid) {
+#if !KMS_ONLY
 	case PCI_CHIP_I810:
 	case PCI_CHIP_I810_DC100:
 	case PCI_CHIP_I810_E:
 	case PCI_CHIP_I815:
 		return lg_i810_available_options(chipid, busid);
-
-	default:
-		return intel_uxa_available_options(chipid, busid);
-	}
 #endif
+
+#if SNA
+	case 0:
+#if SNA_GEN3
+	case PCI_CHIP_PINEVIEW_M:
+	case PCI_CHIP_PINEVIEW_G:
+	case PCI_CHIP_G33_G:
+	case PCI_CHIP_Q35_G:
+	case PCI_CHIP_Q33_G:
+#endif
+#if SNA_GEN5
+	case PCI_CHIP_IRONLAKE_D_G:
+	case PCI_CHIP_IRONLAKE_M_G:
+#endif
+#if SNA_GEN6
+	case PCI_CHIP_SANDYBRIDGE_GT1:
+	case PCI_CHIP_SANDYBRIDGE_GT2:
+	case PCI_CHIP_SANDYBRIDGE_GT2_PLUS:
+	case PCI_CHIP_SANDYBRIDGE_M_GT1:
+	case PCI_CHIP_SANDYBRIDGE_M_GT2:
+	case PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS:
+	case PCI_CHIP_SANDYBRIDGE_S_GT:
+#endif
+		return sna_available_options(chipid, busid);
+#endif
+	default:
+#if SNA_DEFAULT
+		return sna_available_options(chipid, busid);
+#else
+		return intel_uxa_available_options(chipid, busid);
+#endif
+	}
 }
 
 static DriverRec intel = {

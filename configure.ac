@@ -67,6 +67,9 @@ if test x"$udev" = xyes; then
 	AC_DEFINE(HAVE_UDEV,1,[Enable udev-based monitor hotplug detection])
 fi
 
+PKG_CHECK_MODULES(X11, [x11 xrender xext pixman-1], [x11=yes], [x11=no])
+AM_CONDITIONAL(HAVE_X11, test x$x11 = xyes)
+
 AH_TOP([#include "xorg-server.h"])
 
 # Define a configure option for an alternate module directory
@@ -89,11 +92,23 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
 
+AC_ARG_ENABLE(sna,
+	      AS_HELP_STRING([--enable-sna],
+			     [Enable SandyBridge's New Acceleration (SNA) [options=default|gen2|gen3|ge4|gen5|gen6]]),
+	      [SNA="$enableval"],
+	      [SNA=no])
+
+AC_ARG_ENABLE(vmap,
+	      AS_HELP_STRING([--enable-vmap],
+			     [Enable use of vmap [default=no]]),
+	      [VMAP="$enableval"],
+	      [VMAP=no])
+
 AC_ARG_ENABLE(debug,
 	      AS_HELP_STRING([--enable-debug],
-			     [Enables internal debugging [[default=yes]]]),
+			     [Enables internal debugging [default=no]]),
               [DEBUG="$enableval"],
-              [DEBUG=yes])
+              [DEBUG=no])
 
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
@@ -165,9 +180,58 @@ if test "x$KMS_ONLY" = xyes; then
 	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
 fi
 
+AM_CONDITIONAL(USE_VMAP, test x$VMAP = xyes)
+if test "x$VMAP" = xyes; then
+	AC_DEFINE(USE_VMAP,1,[Assume VMAP support])
+fi
+
+AM_CONDITIONAL(SNA, test x$SNA != xno)
+AM_CONDITIONAL(SNA_GEN2, [echo $SNA | grep -E -qsi '(yes)|(all)|(gen2)'])
+AM_CONDITIONAL(SNA_GEN3, [echo $SNA | grep -E -qsi '(yes)|(all)|(pnv)|(gen3)'])
+AM_CONDITIONAL(SNA_GEN4, [echo $SNA | grep -E -qsi '(yes)|(all)|(brw)|(gen4)'])
+AM_CONDITIONAL(SNA_GEN5, [echo $SNA | grep -E -qsi '(yes)|(all)|(ilk)|(gen5)'])
+AM_CONDITIONAL(SNA_GEN6, [echo $SNA | grep -E -qsi '(yes)|(all)|(snb)|(gen6)'])
+AC_MSG_CHECKING([whether to include SNA support])
+sna_drivers="no"
+if test "x$SNA" != xno; then
+	sna_drivers=""
+	AC_DEFINE(SNA,1,[Enable SandyBridge's New Architecture])
+	if echo $SNA | grep -E -qsi '(yes)|(default)'; then
+		AC_DEFINE(SNA_DEFAULT,1,[Enable SandyBridge's New Architecture by default])
+		sna_drivers="default $sna_drivers"
+	fi
+	if echo $SNA | grep -E -qsi '(yes)|(all)|(gen2)'; then
+		AC_DEFINE(SNA_GEN2,1,[Enable SandyBridge's New Architecture for GEN2])
+		sna_drivers="i8xx $sna_drivers"
+	fi
+	if echo $SNA | grep -E -qsi '(yes)|(all)|(pnv)|(gen3)'; then
+		AC_DEFINE(SNA_GEN3,1,[Enable SandyBridge's New Architecture for PNV])
+		sna_drivers="pnv $sna_drivers"
+	fi
+	if echo $SNA | grep -E -qsi '(yes)|(all)|(brw)|(gen4)'; then
+		AC_DEFINE(SNA_GEN4,1,[Enable SandyBridge's New Architecture for BRW])
+		sna_drivers="brw $sna_drivers"
+	fi
+	if echo $SNA | grep -E -qsi '(yes)|(all)|(ilk)|(gen5)'; then
+		AC_DEFINE(SNA_GEN5,1,[Enable SandyBridge's New Architecture for ILK])
+		sna_drivers="ilk $sna_drivers"
+	fi
+	if echo $SNA | grep -E -qsi '(yes)|(all)|(snb)|(gen6)'; then
+		AC_DEFINE(SNA_GEN6,1,[Enable SandyBridge's New Architecture for SNB])
+		sna_drivers="snb $sna_drivers"
+	fi
+fi
+AC_MSG_RESULT([$sna_drivers])
+
+AM_CONDITIONAL(DEBUG, test x$DEBUG = xyes)
 if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi
+if test "x$DEBUG" = xyes; then
+	AC_DEFINE(HAS_EXTRA_DEBUG,1,[Enable additional debugging])
+fi
+
+AC_CHECK_HEADERS([sys/timerfd.h])
 
 DRIVER_NAME=intel
 AC_SUBST([DRIVER_NAME])
@@ -184,7 +248,9 @@ AC_CONFIG_FILES([
                 src/legacy/Makefile
                 src/legacy/i810/Makefile
                 src/legacy/i810/xvmc/Makefile
+                src/sna/Makefile
                 man/Makefile
                 src/render_program/Makefile
+		test/Makefile
 ])
 AC_OUTPUT
