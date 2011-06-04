@@ -56,11 +56,16 @@
  * the BLT engine.
  */
 #define PREFER_BLT 1
+#define FLUSH_EVERY_VERTEX 1
 
+#if FLUSH_EVERY_VERTEX
 #define FLUSH() do { \
 	gen4_vertex_flush(sna); \
 	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH); \
 } while (0)
+#else
+#define FLUSH()
+#endif
 
 #define GEN4_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 
@@ -308,6 +313,9 @@ static void gen4_magic_ca_pass(struct sna *sna,
 		return;
 
 	DBG(("%s: CA fixup\n", __FUNCTION__));
+
+	if (FLUSH_EVERY_VERTEX)
+		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	gen4_emit_pipelined_pointers
 		(sna, op, PictOpAdd,
