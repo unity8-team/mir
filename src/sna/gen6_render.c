@@ -2088,6 +2088,9 @@ gen6_render_composite(struct sna *sna,
 {
 
 #if NO_COMPOSITE
+	if (mask)
+		return FALSE;
+
 	return sna_blt_composite(sna, op,
 				 src, dst,
 				 src_x, src_y,

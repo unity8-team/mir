@@ -2114,6 +2114,9 @@ gen3_render_composite(struct sna *sna,
 	DBG(("%s()\n", __FUNCTION__));
 
 #if NO_COMPOSITE
+	if (mask)
+		return FALSE;
+
 	return sna_blt_composite(sna, op,
 				 src, dst,
 				 src_x, src_y,
