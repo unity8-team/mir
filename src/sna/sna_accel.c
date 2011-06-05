@@ -808,7 +808,8 @@ sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	     __FUNCTION__, nbox,
 	     box->x1, box->y1, box->x2, box->y2));
 
-	if (!priv->pinned && nbox == 1 &&
+	if (gc->alu == GXcopy &&
+	    !priv->pinned && nbox == 1 &&
 	    box->x1 <= 0 && box->y1 <= 0 &&
 	    box->x2 >= pixmap->drawable.width &&
 	    box->y2 >= pixmap->drawable.height) {
@@ -868,6 +869,23 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 	if (gc->alu != GXcopy)
 		return false;
+
+	if (priv->gpu_bo->rq == NULL &&
+	    sna_put_image_upload_blt(drawable, gc, region,
+				     x, y, w, h, bits, stride)) {
+		if (region_subsumes_drawable(region, &pixmap->drawable)) {
+			sna_damage_destroy(&priv->cpu_damage);
+			sna_damage_all(&priv->gpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
+		} else {
+			assert_pixmap_contains_box(pixmap, RegionExtents(region));
+			sna_damage_subtract(&priv->cpu_damage, region);
+			sna_damage_add(&priv->gpu_damage, region);
+		}
+
+		return true;
+	}
 
 	if (priv->cpu_bo)
 		kgem_bo_sync(&sna->kgem, priv->cpu_bo, true);
@@ -947,11 +965,11 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		RegionTranslate(clip, -dx, -dy);
 	}
 
-	if (format != ZPixmap ||
-	    !PM_IS_SOLID(drawable, gc->planemask) ||
-	    !sna_put_image_blt(drawable, gc, &region,
-			       x, y, w, h,
-			       bits, PixmapBytePad(w, depth))) {
+	if (RegionNotEmpty(&region) &&
+	    (format != ZPixmap || !PM_IS_SOLID(drawable, gc->planemask) ||
+	     !sna_put_image_blt(drawable, gc, &region,
+				x, y, w, h,
+				bits, PixmapBytePad(w, depth)))) {
 		RegionTranslate(&region, -dx, -dy);
 
 		sna_drawable_move_region_to_cpu(drawable, &region, true);
