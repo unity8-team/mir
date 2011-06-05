@@ -369,7 +369,7 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 	uint32_t tile_width, tile_height;
 	uint32_t size;
 
-	if (kgem->gen == 2) {
+	if (kgem->gen < 20) {
 		if (tiling) {
 			tile_width = 512;
 			tile_height = 16;
@@ -388,7 +388,7 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 		tile_height = 8;
 		break;
 	case I915_TILING_Y:
-		tile_width = 128;
+		tile_width = kgem->gen <= 30 ? 512 : 128;
 		tile_height = 32;
 		break;
 	}

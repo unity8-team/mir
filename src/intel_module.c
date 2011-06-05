@@ -53,6 +53,9 @@ static const struct intel_device_info intel_i8xx_info = {
 static const struct intel_device_info intel_i915_info = {
 	.gen = 30,
 };
+static const struct intel_device_info intel_i945_info = {
+	.gen = 31,
+};
 
 static const struct intel_device_info intel_g33_info = {
 	.gen = 33,
@@ -148,9 +151,9 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_I915_G, &intel_i915_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_E7221_G, &intel_i915_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I915_GM, &intel_i915_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_I945_G, &intel_i915_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_I945_GM, &intel_i915_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_I945_GME, &intel_i915_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I945_G, &intel_i945_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I945_GM, &intel_i945_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I945_GME, &intel_i945_info ),
 
 	INTEL_DEVICE_MATCH (PCI_CHIP_PINEVIEW_M, &intel_g33_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_PINEVIEW_G, &intel_g33_info ),
