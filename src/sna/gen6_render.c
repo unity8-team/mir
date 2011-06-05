@@ -51,8 +51,6 @@
 #define NDEBUG 1
 #endif
 
-#define ALWAYS_EMIT_DRAWRECT 1
-
 #define NO_COMPOSITE 0
 #define NO_COPY 0
 #define NO_COPY_BOXES 0
@@ -583,13 +581,13 @@ gen6_emit_invariant(struct sna *sna)
 	sna->render_state.gen6.needs_invariant = FALSE;
 }
 
-static void
+static bool
 gen6_emit_cc(struct sna *sna, uint32_t blend_offset)
 {
 	struct gen6_render_state *render = &sna->render_state.gen6;
 
 	if (render->blend == blend_offset)
-		return;
+		return false;
 
 	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
 	OUT_BATCH((render->cc_blend + blend_offset) | 1);
@@ -602,6 +600,7 @@ gen6_emit_cc(struct sna *sna, uint32_t blend_offset)
 	}
 
 	render->blend = blend_offset;
+	return true;
 }
 
 static void
@@ -812,13 +811,14 @@ gen6_emit_state(struct sna *sna,
 		uint16_t wm_binding_table)
 
 {
-	bool need_flush =
-		(sna->kgem.batch[sna->kgem.nbatch-1] & (0xff<<23)) != MI_FLUSH;
+	bool flushed =
+		(sna->kgem.batch[sna->kgem.nbatch-1] & (0xff<<23)) == MI_FLUSH;
+	bool need_flush;
 
-	gen6_emit_cc(sna,
-		     gen6_get_blend(op->op,
-				    op->has_component_alpha,
-				    op->dst.format));
+	need_flush = gen6_emit_cc(sna,
+				  gen6_get_blend(op->op,
+						 op->has_component_alpha,
+						 op->dst.format));
 
 	DBG(("%s: sampler src=(%d, %d), mask=(%d, %d), offset=%d\n",
 	     __FUNCTION__,
@@ -841,14 +841,15 @@ gen6_emit_state(struct sna *sna,
 	gen6_emit_vertex_elements(sna, op);
 
 	/* XXX updating the binding table requires a non-pipelined cmd? */
-	need_flush &= gen6_emit_binding_table(sna, wm_binding_table);
-	gen6_emit_drawing_rectangle(sna, op, need_flush);
+	need_flush |= gen6_emit_binding_table(sna, wm_binding_table);
+	gen6_emit_drawing_rectangle(sna, op, need_flush & !flushed);
 }
 
 static void gen6_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
 	struct gen6_render_state *state = &sna->render_state.gen6;
+	bool need_flush;
 
 	if (!op->need_magic_ca_pass)
 		return;
@@ -856,13 +857,20 @@ static void gen6_magic_ca_pass(struct sna *sna,
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
 
-	gen6_emit_cc(sna,
-		     gen6_get_blend(PictOpAdd, TRUE, op->dst.format));
+	need_flush =
+		gen6_emit_cc(sna,
+			     gen6_get_blend(PictOpAdd, TRUE, op->dst.format));
 	gen6_emit_wm(sna,
 		     gen6_choose_composite_kernel(PictOpAdd,
 						  TRUE, TRUE,
 						  op->is_affine),
 		     3, 2);
+
+	/* XXX We apparently need a non-pipelined op to flush the
+	 * pipeline before changing blend state.
+	 */
+	if (need_flush)
+		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	OUT_BATCH(GEN6_3DPRIMITIVE |
 		  GEN6_3DPRIMITIVE_VERTEX_SEQUENTIAL |
