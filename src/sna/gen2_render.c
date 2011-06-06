@@ -370,7 +370,7 @@ gen2_get_blend_factors(const struct sna_composite_op *op,
 
 	if (op->mask.bo) {
 		cblend |= TB0C_ARG2_SEL_TEXEL1;
-		if (op->dst.format == PICT_a8 || op->has_component_alpha)
+		if (op->dst.format == PICT_a8 || !op->has_component_alpha)
 			cblend |= TB0C_ARG2_REPLICATE_ALPHA;
 		ablend |= TB0A_ARG2_SEL_TEXEL1;
 	} else {
