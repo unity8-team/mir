@@ -804,8 +804,8 @@ static void gen2_magic_ca_pass(struct sna *sna,
 
 	memcpy(sna->kgem.batch + sna->kgem.nbatch,
 	       sna->kgem.batch + sna->render_state.gen2.vertex_offset,
-	       (1 + 3*sna->render.vertex_index)*sizeof(uint32_t));
-	sna->kgem.nbatch += 1 + 3*sna->render.vertex_index;
+	       (1 + sna->render.vertex_index)*sizeof(uint32_t));
+	sna->kgem.nbatch += 1 + sna->render.vertex_index;
 }
 
 static void gen2_vertex_flush(struct sna *sna)
@@ -830,6 +830,8 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	struct gen2_render_state *state = &sna->render_state.gen2;
 	int rem = batch_space(sna), size, need;
 
+	assert(op->floats_per_vertex);
+
 	need = 0;
 	size = 3*op->floats_per_vertex;
 	if (op->need_magic_ca_pass)
@@ -851,7 +853,8 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	if (want * size > rem)
 		want = rem / size;
 
-	sna->render.vertex_index += 3*want;
+	assert(want);
+	sna->render.vertex_index += 3*want*op->floats_per_vertex;
 	return want;
 }
 
