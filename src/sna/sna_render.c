@@ -238,18 +238,26 @@ void no_render_init(struct sna *sna)
 }
 
 static Bool
-move_to_gpu(PixmapPtr pixmap, const BoxPtr box)
+move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 {
 	struct sna_pixmap *priv;
 	int count, w, h;
 
-	if (pixmap->usage_hint)
+	if (pixmap->usage_hint) {
+		DBG(("%s: not migrating pixmap due to usage_hint=%d\n",
+		     __FUNCTION__, pixmap->usage_hint));
 		return FALSE;
+	}
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
-	if (w == pixmap->drawable.width || h == pixmap->drawable.height)
+	if (w == pixmap->drawable.width || h == pixmap->drawable.height) {
+		DBG(("%s: migrating whole pixmap (%dx%d) for source\n",
+		     __FUNCTION__,
+		     pixmap->drawble->width,
+		     pixmap->drawable.height));
 		return TRUE;
+	}
 
 	count = SOURCE_BIAS;
 	priv = sna_pixmap(pixmap);
@@ -267,7 +275,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxPtr box)
 }
 
 static Bool
-texture_is_cpu(PixmapPtr pixmap, const BoxPtr box)
+_texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 
@@ -288,6 +296,23 @@ texture_is_cpu(PixmapPtr pixmap, const BoxPtr box)
 
 	return sna_damage_contains_box(priv->cpu_damage, box) != PIXMAN_REGION_OUT;
 }
+
+#if DEBUG_RENDER
+static Bool
+texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
+{
+	Bool ret = _texture_is_cpu(pixmap, box);
+	ErrorF("%s(pixmap=%p, box=((%d, %d), (%d, %d)) = %d\n",
+	       __FUNCTION__, pixmap, box, ret);
+	return ret;
+}
+#else
+static Bool
+texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
+{
+	return _texture_is_cpu(pixmap, box);
+}
+#endif
 
 static struct kgem_bo *upload(struct sna *sna,
 			      struct sna_composite_channel *channel,

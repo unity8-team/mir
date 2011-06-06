@@ -53,7 +53,7 @@ static inline void sna_damage_subtract(struct sna_damage **damage,
 fastcall struct sna_damage *_sna_damage_subtract_box(struct sna_damage *damage,
 						     const BoxRec *box);
 static inline void sna_damage_subtract_box(struct sna_damage **damage,
-					   BoxPtr box)
+					   const BoxRec *box)
 {
 	*damage = _sna_damage_subtract_box(*damage, box);
 }
@@ -62,7 +62,7 @@ Bool sna_damage_intersect(struct sna_damage *damage,
 			  RegionPtr region, RegionPtr result);
 
 int sna_damage_contains_box(struct sna_damage *damage,
-			    const BoxPtr box);
+			    const BoxRec *box);
 
 int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes);
 
