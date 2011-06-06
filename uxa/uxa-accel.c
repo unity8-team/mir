@@ -1,3 +1,4 @@
+
 /*
  * Copyright ® 2001 Keith Packard
  *
@@ -65,7 +66,7 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	BoxPtr pextent, pbox;
 	int nbox;
 	int extentX1, extentX2, extentY1, extentY2;
-	int fullX1, fullX2, fullY1;
+	int x1, x2, y, fullX1, fullX2, fullY1;
 	int partX1, partX2;
 	int off_x, off_y;
 	xRenderColor color;
@@ -216,58 +217,34 @@ solid:
 						 pGC->fgPixel))
 		goto fallback;
 
-	pextent = REGION_EXTENTS(pGC->screen, pClip);
-	extentX1 = pextent->x1;
-	extentY1 = pextent->y1;
-	extentX2 = pextent->x2;
-	extentY2 = pextent->y2;
 	while (n--) {
-		fullX1 = ppt->x;
-		fullY1 = ppt->y;
-		fullX2 = fullX1 + (int)*pwidth;
+		x1 = ppt->x;
+		y = ppt->y;
+		x2 = x1 + (int)*pwidth;
 		ppt++;
 		pwidth++;
 
-		if (fullY1 < extentY1 || extentY2 <= fullY1)
-			continue;
-
-		if (fullX1 < extentX1)
-			fullX1 = extentX1;
-
-		if (fullX2 > extentX2)
-			fullX2 = extentX2;
-
-		if (fullX1 >= fullX2)
-			continue;
-
 		nbox = REGION_NUM_RECTS(pClip);
-		if (nbox == 1) {
+		pbox = REGION_RECTS(pClip);
+		while (nbox--) {
+			if (pbox->y1 > y || pbox->y2 <= y)
+				continue;
+
+			if (x1 < pbox->x1)
+				x1 = pbox->x1;
+
+			if (x2 > pbox->x2)
+				x2 = pbox->x2;
+
+			if (x2 <= x1)
+				continue;
+
 			(*uxa_screen->info->solid) (dst_pixmap,
-						    fullX1 + off_x,
-						    fullY1 + off_y,
-						    fullX2 + off_x,
-						    fullY1 + 1 + off_y);
-		} else {
-			pbox = REGION_RECTS(pClip);
-			while (nbox--) {
-				if (pbox->y1 <= fullY1 && fullY1 < pbox->y2) {
-					partX1 = pbox->x1;
-					if (partX1 < fullX1)
-						partX1 = fullX1;
-					partX2 = pbox->x2;
-					if (partX2 > fullX2)
-						partX2 = fullX2;
-					if (partX2 > partX1) {
-						(*uxa_screen->info->
-						 solid) (dst_pixmap,
-							 partX1 + off_x,
-							 fullY1 + off_y,
-							 partX2 + off_x,
-							 fullY1 + 1 + off_y);
-					}
-				}
-				pbox++;
-			}
+						    x1 + off_x,
+						    y + off_y,
+						    x2 + off_x,
+						    y + 1 + off_y);
+			pbox++;
 		}
 	}
 	(*uxa_screen->info->done_solid) (dst_pixmap);
