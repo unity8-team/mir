@@ -2321,17 +2321,17 @@ gen3_render_composite(struct sna *sna,
 	tmp->floats_per_vertex = 2;
 	if (tmp->src.gen3.type != SHADER_CONSTANT &&
 	    tmp->src.gen3.type != SHADER_ZERO)
-		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 3;
+		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 4;
 	if (tmp->mask.gen3.type != SHADER_NONE &&
 	    tmp->mask.gen3.type != SHADER_CONSTANT)
-		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 3;
+		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 4;
 	DBG(("%s: floats_per_vertex = 2 + %d + %d = %d\n", __FUNCTION__,
 	     (tmp->src.gen3.type != SHADER_CONSTANT &&
 	      tmp->src.gen3.type != SHADER_ZERO) ?
-	     tmp->src.is_affine ? 2 : 3 : 0,
+	     tmp->src.is_affine ? 2 : 4 : 0,
 	     (tmp->mask.gen3.type != SHADER_NONE &&
 	      tmp->mask.gen3.type != SHADER_CONSTANT) ?
-	     tmp->mask.is_affine ? 2 : 3 : 0,
+	     tmp->mask.is_affine ? 2 : 4 : 0,
 	     tmp->floats_per_vertex));
 
 	tmp->blt   = gen3_render_composite_blt;
