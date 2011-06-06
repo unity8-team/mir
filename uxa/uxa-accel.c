@@ -785,10 +785,7 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 	RegionPtr pClip = fbGetCompositeClip(pGC);
 	PixmapPtr pPixmap;
 	register BoxPtr pbox;
-	BoxPtr pextent;
-	int extentX1, extentX2, extentY1, extentY2;
 	int fullX1, fullX2, fullY1, fullY2;
-	int partX1, partX2, partY1, partY2;
 	int xoff, yoff;
 	int xorg, yorg;
 	int n;
@@ -850,11 +847,6 @@ fallback:
 	xorg = pDrawable->x;
 	yorg = pDrawable->y;
 
-	pextent = REGION_EXTENTS(pGC->pScreen, pClip);
-	extentX1 = pextent->x1;
-	extentY1 = pextent->y1;
-	extentX2 = pextent->x2;
-	extentY2 = pextent->y2;
 	while (nrect--) {
 		fullX1 = prect->x + xorg;
 		fullY1 = prect->y + yorg;
@@ -862,62 +854,37 @@ fallback:
 		fullY2 = fullY1 + (int)prect->height;
 		prect++;
 
-		if (fullX1 < extentX1)
-			fullX1 = extentX1;
-
-		if (fullY1 < extentY1)
-			fullY1 = extentY1;
-
-		if (fullX2 > extentX2)
-			fullX2 = extentX2;
-
-		if (fullY2 > extentY2)
-			fullY2 = extentY2;
-
-		if ((fullX1 >= fullX2) || (fullY1 >= fullY2))
-			continue;
 		n = REGION_NUM_RECTS(pClip);
-		if (n == 1) {
+		pbox = REGION_RECTS(pClip);
+		/*
+		 * clip the rectangle to each box in the clip region
+		 * this is logically equivalent to calling Intersect(),
+		 * but rectangles may overlap each other here.
+		 */
+		while (n--) {
+			int x1 = fullX1;
+			int x2 = fullX2;
+			int y1 = fullY1;
+			int y2 = fullY2;
+
+			if (pbox->x1 > x1)
+				x1 = pbox->x1;
+			if (pbox->x2 < x2)
+				x2 = pbox->x2;
+			if (pbox->y1 > y1)
+				y1 = pbox->y1;
+			if (pbox->y2 < y2)
+				y2 = pbox->y2;
+			pbox++;
+
+			if (x1 >= x2 || y1 >= y2)
+				continue;
+
 			(*uxa_screen->info->solid) (pPixmap,
-						    fullX1 + xoff,
-						    fullY1 + yoff,
-						    fullX2 + xoff,
-						    fullY2 + yoff);
-		} else {
-			pbox = REGION_RECTS(pClip);
-			/*
-			 * clip the rectangle to each box in the clip region
-			 * this is logically equivalent to calling Intersect(),
-			 * but rectangles may overlap each other here.
-			 */
-			while (n--) {
-				partX1 = pbox->x1;
-				if (partX1 < fullX1)
-					partX1 = fullX1;
-				partY1 = pbox->y1;
-				if (partY1 < fullY1)
-					partY1 = fullY1;
-				partX2 = pbox->x2;
-				if (partX2 > fullX2)
-					partX2 = fullX2;
-				partY2 = pbox->y2;
-				if (partY2 > fullY2)
-					partY2 = fullY2;
-
-				pbox++;
-
-				if (partX1 < partX2 && partY1 < partY2) {
-					(*uxa_screen->info->solid) (pPixmap,
-								    partX1 +
-								    xoff,
-								    partY1 +
-								    yoff,
-								    partX2 +
-								    xoff,
-								    partY2 +
-								    yoff);
-				}
-			}
+						    x1 + xoff,
+						    y1 + yoff,
+						    x2 + xoff,
+						    y2 + yoff);
 		}
 	}
 	(*uxa_screen->info->done_solid) (pPixmap);
