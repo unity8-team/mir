@@ -2540,22 +2540,11 @@ static void
 gen5_render_context_switch(struct sna *sna,
 			   int new_mode)
 {
-	if (sna->kgem.mode == 0)
-		return;
-
 	/* Ironlake has a limitation that a 3D or Media command can't
 	 * be the first command after a BLT, unless it's
-	 * non-pipelined.  Instead of trying to track it and emit a
-	 * command at the right time, we just emit a dummy
-	 * non-pipelined 3D instruction after each blit.
+	 * non-pipelined.
 	 */
-	if (new_mode == KGEM_BLT) {
-#if 0
-		OUT_BATCH(MI_FLUSH |
-			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
-			  MI_INHIBIT_RENDER_CACHE_FLUSH);
-#endif
-	} else {
+	if (sna->kgem.mode == KGEM_BLT) {
 		OUT_BATCH(CMD_POLY_STIPPLE_OFFSET << 16);
 		OUT_BATCH(0);
 	}
