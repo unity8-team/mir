@@ -336,6 +336,13 @@ static Bool intel_pci_probe(DriverPtr		driver,
 
 #if SNA
 		case 0:
+#if SNA_GEN2
+		case PCI_CHIP_I830_M:
+		case PCI_CHIP_845_G:
+		case PCI_CHIP_I854:
+		case PCI_CHIP_I855_GM:
+		case PCI_CHIP_I865_G:
+#endif
 #if SNA_GEN3
 		case PCI_CHIP_PINEVIEW_M:
 		case PCI_CHIP_PINEVIEW_G:
