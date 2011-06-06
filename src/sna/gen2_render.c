@@ -1165,6 +1165,12 @@ gen2_render_composite(struct sna *sna,
 		}
 	}
 
+	tmp->floats_per_vertex = 2;
+	if (tmp->src.bo)
+		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 3;
+	if (tmp->mask.bo)
+		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 3;
+
 	tmp->blt   = gen2_render_composite_blt;
 	tmp->boxes = gen2_render_composite_boxes;
 	tmp->done  = gen2_render_composite_done;
