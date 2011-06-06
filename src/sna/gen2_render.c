@@ -753,7 +753,8 @@ gen2_emit_composite_vertex(struct sna *sna,
 {
 	gen2_emit_composite_dstcoord(sna, dstX, dstY);
 	gen2_emit_composite_texcoord(sna, &op->src, srcX, srcY);
-	gen2_emit_composite_texcoord(sna, &op->mask, mskX, mskY);
+	if (op->mask.bo)
+		gen2_emit_composite_texcoord(sna, &op->mask, mskX, mskY);
 }
 
 static void
