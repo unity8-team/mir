@@ -2339,6 +2339,8 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
+	tmp.has_component_alpha = 0;
+	tmp.need_magic_ca_pass = 0;
 
 	tmp.u.gen6.wm_kernel = GEN6_WM_KERNEL_NOMASK;
 	tmp.u.gen6.nr_surfaces = 2;
