@@ -736,6 +736,7 @@ void _kgem_submit(struct kgem *kgem)
 
 	assert(kgem->nbatch);
 	assert(kgem->nbatch <= KGEM_BATCH_SIZE(kgem));
+	assert(kgem->nbatch <= kgem->surface);
 
 	sna_kgem_context_switch(kgem, KGEM_NONE);
 
@@ -747,6 +748,7 @@ void _kgem_submit(struct kgem *kgem)
 	     kgem->nreloc, kgem->nexec, kgem->nfence, kgem->aperture));
 
 	assert(kgem->nbatch <= ARRAY_SIZE(kgem->batch));
+	assert(kgem->nbatch <= kgem->surface);
 	assert(kgem->nreloc <= ARRAY_SIZE(kgem->reloc));
 	assert(kgem->nexec < ARRAY_SIZE(kgem->exec));
 	assert(kgem->nfence <= kgem->fence_max);

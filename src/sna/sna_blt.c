@@ -281,7 +281,7 @@ static void sna_blt_copy_one(struct sna *sna,
 		return;
 	}
 
-	if (kgem->nbatch + 8 > KGEM_BATCH_SIZE(kgem) ||
+	if (kgem->nbatch + 8 + KGEM_BATCH_RESERVED > kgem->surface ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem))
 		_kgem_submit(kgem);
 
