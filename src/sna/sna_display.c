@@ -1231,6 +1231,43 @@ static const char *output_names[] = {
 	"eDP",
 };
 
+static bool
+sna_zaphod_match(ScrnInfoPtr scrn, const char *s, const char *output)
+{
+	char t[20];
+	int i = 0;
+
+	do {
+		/* match any outputs in a comma list, stopping at whitespace */
+		switch (*s) {
+		case '\0':
+			t[i] = '\0';
+			return strcmp(t, output) == 0;
+
+		case ',':
+			t[i] ='\0';
+			if (strcmp(t, output) == 0)
+				return TRUE;
+			i = 0;
+			break;
+
+		case ' ':
+		case '\t':
+		case '\n':
+		case '\r':
+			break;
+
+		default:
+			t[i++] = *s;
+			break;
+		}
+
+		s++;
+	} while (i < sizeof(t));
+
+	return FALSE;
+}
+
 static void
 sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
@@ -1240,6 +1277,7 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	drmModeEncoderPtr kencoder;
 	struct sna_output *sna_output;
 	const char *output_name;
+	const char *s;
 	char name[32];
 
 	koutput = drmModeGetConnector(sna->kgem.fd,
@@ -1248,10 +1286,8 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		return;
 
 	kencoder = drmModeGetEncoder(sna->kgem.fd, koutput->encoders[0]);
-	if (!kencoder) {
-		drmModeFreeConnector(koutput);
-		return;
-	}
+	if (!kencoder)
+		goto cleanup_connector;
 
 	if (koutput->connector_type < ARRAY_SIZE(output_names))
 		output_name = output_names[koutput->connector_type];
@@ -1259,20 +1295,22 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		output_name = "UNKNOWN";
 	snprintf(name, 32, "%s%d", output_name, koutput->connector_type_id);
 
-	output = xf86OutputCreate (scrn, &sna_output_funcs, name);
-	if (!output) {
-		drmModeFreeEncoder(kencoder);
-		drmModeFreeConnector(koutput);
-		return;
+	if (xf86IsEntityShared(scrn->entityList[0])) {
+		s = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
+		if (s && !sna_zaphod_match(scrn, s, name)) {
+			ErrorF("output '%s' not matched for zaphod '%s'\n",
+			       name, s);
+			goto cleanup_encoder;
+		}
 	}
 
+	output = xf86OutputCreate(scrn, &sna_output_funcs, name);
+	if (!output)
+		goto cleanup_encoder;
+
 	sna_output = calloc(sizeof(struct sna_output), 1);
-	if (!sna_output) {
-		xf86OutputDestroy(output);
-		drmModeFreeConnector(koutput);
-		drmModeFreeEncoder(kencoder);
-		return;
-	}
+	if (!sna_output)
+		goto cleanup_output;
 
 	sna_output->output_id = mode->mode_res->connectors[num];
 	sna_output->mode_output = koutput;
@@ -1294,6 +1332,15 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 	sna_output->output = output;
 	list_add(&sna_output->link, &mode->outputs);
+
+	return;
+
+cleanup_output:
+	xf86OutputDestroy(output);
+cleanup_connector:
+	drmModeFreeConnector(koutput);
+cleanup_encoder:
+	drmModeFreeEncoder(kencoder);
 }
 
 struct sna_visit_set_pixmap_window {

@@ -81,6 +81,7 @@ static OptionInfoRec sna_options[] = {
    {OPTION_THROTTLE,	"Throttle",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_RELAXED_FENCING,	"UseRelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_VMAP,	"UseVmap",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_ZAPHOD,	"ZaphodHeads",	OPTV_STRING,	{0},	FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 
@@ -257,18 +258,41 @@ static Bool sna_get_early_options(ScrnInfoPtr scrn)
 	return TRUE;
 }
 
+struct sna_device {
+	int fd;
+	int open_count;
+};
+static int sna_device_key;
+
+static inline struct sna_device *sna_device(ScrnInfoPtr scrn)
+{
+	return xf86GetEntityPrivate(scrn->entityList[0], sna_device_key)->ptr;
+}
+
+static inline void sna_set_device(ScrnInfoPtr scrn, struct sna_device *dev)
+{
+	xf86GetEntityPrivate(scrn->entityList[0], sna_device_key)->ptr = dev;
+}
+
 static int sna_open_drm_master(ScrnInfoPtr scrn)
 {
+	struct sna_device *dev;
 	struct sna *sna = to_sna(scrn);
-	struct pci_device *dev = sna->PciInfo;
+	struct pci_device *pci = sna->PciInfo;
 	drmSetVersion sv;
 	struct drm_i915_getparam gp;
 	int err, val;
 	char busid[20];
 	int fd;
 
+	dev = sna_device(scrn);
+	if (dev) {
+		dev->open_count++;
+		return dev->fd;
+	}
+
 	snprintf(busid, sizeof(busid), "pci:%04x:%02x:%02x.%d",
-		 dev->domain, dev->bus, dev->dev, dev->func);
+		 pci->domain, pci->bus, pci->dev, pci->func);
 
 	fd = drmOpen("i915", busid);
 	if (fd == -1) {
@@ -305,22 +329,32 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 		return -1;
 	}
 
+	dev = malloc(sizeof(*dev));
+	if (dev) {
+		dev->fd = fd;
+		dev->open_count = 1;
+		sna_set_device(scrn, dev);
+	}
+
 	return fd;
 }
 
-static void sna_close_drm_master(struct sna *sna)
+static void sna_close_drm_master(ScrnInfoPtr scrn)
 {
-	if (sna && sna->kgem.fd > 0) {
-		drmClose(sna->kgem.fd);
-		sna->kgem.fd = -1;
-	}
+	struct sna_device *dev = sna_device(scrn);
+
+	if (--dev->open_count)
+		return;
+
+	drmClose(dev->fd);
+	sna_set_device(scrn, NULL);
+	free(dev);
 }
 
 static void sna_selftest(void)
 {
 	sna_damage_selftest();
 }
-
 
 /**
  * This is called before ScreenInit to do any require probing of screen
@@ -811,11 +845,12 @@ static void sna_free_screen(int scrnIndex, int flags)
 
 	if (sna) {
 		sna_mode_fini(sna);
-		sna_close_drm_master(sna);
 
 		free(sna);
 		scrn->driverPrivate = NULL;
 	}
+
+	sna_close_drm_master(scrn);
 
 	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
 		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
@@ -911,8 +946,12 @@ static Bool sna_pm_event(int scrnIndex, pmEvent event, Bool undo)
 	return TRUE;
 }
 
-void sna_init_scrn(ScrnInfoPtr scrn)
+void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
+	EntityInfoPtr entity;
+
+	sna_device_key = xf86AllocateEntityPrivateIndex();
+
 	scrn->PreInit = sna_pre_init;
 	scrn->ScreenInit = sna_screen_init;
 	scrn->SwitchMode = sna_switch_mode;
@@ -922,4 +961,12 @@ void sna_init_scrn(ScrnInfoPtr scrn)
 	scrn->FreeScreen = sna_free_screen;
 	scrn->ValidMode = sna_valid_mode;
 	scrn->PMEvent = sna_pm_event;
+
+	xf86SetEntitySharable(scrn->entityList[0]);
+
+	entity = xf86GetEntityInfo(entity_num);
+	xf86SetEntityInstanceForScreen(scrn,
+				       entity->index,
+				       xf86GetNumEntityInstances(entity->index)-1);
+	free(entity);
 }

@@ -363,12 +363,12 @@ static Bool intel_pci_probe(DriverPtr		driver,
 		case PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS:
 		case PCI_CHIP_SANDYBRIDGE_S_GT:
 #endif
-			sna_init_scrn(scrn);
+			sna_init_scrn(scrn, entity_num);
 			break;
 #endif
 		default:
 #if SNA_DEFAULT
-			sna_init_scrn(scrn);
+			sna_init_scrn(scrn, entity_num);
 #else
 			intel_init_scrn(scrn);
 #endif
