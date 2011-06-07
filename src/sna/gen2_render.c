@@ -157,40 +157,27 @@ gen2_get_card_format(struct sna *sna, uint32_t format)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(i8xx_tex_formats); i++) {
+	for (i = 0; i < ARRAY_SIZE(i8xx_tex_formats); i++)
 		if (i8xx_tex_formats[i].fmt == format)
 			return i8xx_tex_formats[i].card_fmt;
-	}
 
-	if (!(IS_I830(sna) || IS_845G(sna))) {
-		for (i = 0; i < ARRAY_SIZE(i85x_tex_formats); i++) {
+	if (IS_I830(sna) || IS_845G(sna)) {
+		/* Whilst these are not directly supported on 830/845,
+		 * we only enable them when we can implicitly convert
+		 * them to a supported variant through the texture
+		 * combiners.
+		 */
+		for (i = 0; i < ARRAY_SIZE(i85x_tex_formats); i++)
+			if (i85x_tex_formats[i].fmt == format)
+				return i8xx_tex_formats[1+i].card_fmt;
+	} else {
+		for (i = 0; i < ARRAY_SIZE(i85x_tex_formats); i++)
 			if (i85x_tex_formats[i].fmt == format)
 				return i85x_tex_formats[i].card_fmt;
-		}
 	}
 
 	assert(0);
 	return 0;
-}
-
-static Bool
-gen2_check_card_format(struct sna *sna, uint32_t format)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(i8xx_tex_formats); i++) {
-		if (i8xx_tex_formats[i].fmt == format)
-			return TRUE;
-	}
-
-	if (!(IS_I830(sna) || IS_845G(sna))) {
-		for (i = 0; i < ARRAY_SIZE(i85x_tex_formats); i++) {
-			if (i85x_tex_formats[i].fmt == format)
-				return TRUE;
-		}
-	}
-
-	return FALSE;
 }
 
 static uint32_t
@@ -275,17 +262,17 @@ gen2_emit_texture(struct sna *sna,
 		assert(0);
 	case PictFilterNearest:
 		filter = (FILTER_NEAREST << TM0S3_MAG_FILTER_SHIFT |
-			  FILTER_NEAREST << TM0S3_MIN_FILTER_SHIFT);
+			  FILTER_NEAREST << TM0S3_MIN_FILTER_SHIFT |
+			  MIPFILTER_NONE << TM0S3_MIP_FILTER_SHIFT);
 		break;
 	case PictFilterBilinear:
 		filter = (FILTER_LINEAR << TM0S3_MAG_FILTER_SHIFT |
-			  FILTER_LINEAR << TM0S3_MIN_FILTER_SHIFT);
+			  FILTER_LINEAR << TM0S3_MIN_FILTER_SHIFT |
+			  MIPFILTER_NONE << TM0S3_MIP_FILTER_SHIFT);
 		break;
 	}
-	filter |= MIPFILTER_NONE << TM0S3_MIP_FILTER_SHIFT;
 
-	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
-		  LOAD_TEXTURE_MAP(unit) | 4);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 | LOAD_TEXTURE_MAP(unit) | 4);
 	OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
 				 channel->bo,
 				 I915_GEM_DOMAIN_SAMPLER << 16,
@@ -365,7 +352,10 @@ gen2_get_blend_factors(const struct sna_composite_op *op,
 			cblend |= TB0C_ARG1_SEL_TEXEL0;
 		else
 			cblend |= TB0C_ARG1_SEL_ONE | TB0C_ARG1_INVERT;	/* 0.0 */
-		ablend |= TB0A_ARG1_SEL_TEXEL0;
+		if (op->src.is_opaque)
+			ablend |= TB0A_ARG1_SEL_ONE;
+		else
+			ablend |= TB0A_ARG1_SEL_TEXEL0;
 	}
 
 	if (op->mask.bo) {
@@ -506,7 +496,6 @@ static void gen2_emit_invariant(struct sna *sna)
 		  TEXBIND_SET1(TEXCOORDSRC_VTXSET_1) |
 		  TEXBIND_SET0(TEXCOORDSRC_VTXSET_0));
 
-	/* copy from mesa */
 	OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD |
 		  DISABLE_INDPT_ALPHA_BLEND |
 		  ENABLE_ALPHA_BLENDFUNC | ABLENDFUNC_ADD);
@@ -552,7 +541,6 @@ static void gen2_emit_invariant(struct sna *sna)
 		  ENABLE_STENCIL_REF_VALUE | STENCIL_REF_VALUE(0));
 
 	OUT_BATCH(_3DSTATE_MODES_5_CMD |
-		  FLUSH_TEXTURE_CACHE |
 		  ENABLE_SPRITE_POINT_TEX | SPRITE_POINT_TEX_OFF |
 		  ENABLE_FIXED_LINE_WIDTH | FIXED_LINE_WIDTH(0x2) | /* 1.0 */
 		  ENABLE_FIXED_POINT_WIDTH | FIXED_POINT_WIDTH(1));
@@ -676,22 +664,11 @@ static void gen2_emit_composite_state(struct sna *sna,
 				      op->dst.format) |
 		  S8_ENABLE_COLOR_BUFFER_WRITE);
 
-	OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
-
 	gen2_get_blend_factors(op, &cblend, &ablend);
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
 	OUT_BATCH(cblend);
 	OUT_BATCH(ablend);
-
-	OUT_BATCH(_3DSTATE_ENABLES_1_CMD | DISABLE_LOGIC_OP |
-		  DISABLE_STENCIL_TEST | DISABLE_DEPTH_BIAS |
-		  DISABLE_SPEC_ADD | DISABLE_FOG | DISABLE_ALPHA_TEST |
-		  ENABLE_COLOR_BLEND | DISABLE_DEPTH_TEST);
-	/* We have to explicitly say we don't want write disabled */
-	OUT_BATCH(_3DSTATE_ENABLES_2_CMD | ENABLE_COLOR_MASK |
-		  DISABLE_STENCIL_WRITE | ENABLE_TEX_CACHE |
-		  DISABLE_DITHER | ENABLE_COLOR_WRITE | DISABLE_DEPTH_WRITE);
 
 	texcoordfmt = 0;
 	if (op->src.is_affine)
@@ -792,9 +769,7 @@ static void gen2_magic_ca_pass(struct sna *sna,
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
 	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |
-		  gen2_get_blend_cntl(PictOpAdd,
-				      op->has_component_alpha,
-				      op->dst.format) |
+		  gen2_get_blend_cntl(PictOpAdd, TRUE, op->dst.format) |
 		  S8_ENABLE_COLOR_BUFFER_WRITE);
 
 	gen2_get_blend_factors(op, &cblend, &ablend);
@@ -939,6 +914,76 @@ gen2_composite_solid_init(struct sna *sna,
 	return channel->bo != NULL;
 }
 
+static Bool source_is_covered(PicturePtr picture,
+			      int x, int y,
+			      int width, int height)
+{
+	int x1, y1, x2, y2;
+
+	if (picture->repeat && picture->repeatType != RepeatNone)
+		return TRUE;
+
+	if (picture->pDrawable == NULL)
+		return FALSE;
+
+	if (picture->transform) {
+		pixman_box16_t sample;
+
+		sample.x1 = x;
+		sample.y1 = y;
+		sample.x2 = x + width;
+		sample.y2 = y + height;
+
+		pixman_transform_bounds(picture->transform, &sample);
+
+		x1 = sample.x1;
+		x2 = sample.x2;
+		y1 = sample.y1;
+		y2 = sample.y2;
+	} else {
+		x1 = x;
+		y1 = y;
+		x2 = x + width;
+		y2 = y + height;
+	}
+
+	return
+		x1 >= 0 && y1 >= 0 &&
+		x2 <= picture->pDrawable->width &&
+		y2 <= picture->pDrawable->height;
+}
+
+static Bool
+gen2_check_card_format(struct sna *sna,
+		       PicturePtr picture,
+		       struct sna_composite_channel *channel,
+		       int x, int y, int w, int h)
+{
+	uint32_t format = picture->format;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(i8xx_tex_formats); i++) {
+		if (i8xx_tex_formats[i].fmt == format)
+			return TRUE;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(i85x_tex_formats); i++) {
+		if (i85x_tex_formats[i].fmt == format) {
+			if (!(IS_I830(sna) || IS_845G(sna)))
+				return TRUE;
+
+			if ( source_is_covered(picture, x, y, w,h)) {
+				channel->is_opaque = true;
+				return TRUE;
+			}
+
+			return FALSE;
+		}
+	}
+
+	return FALSE;
+}
+
 static int
 gen2_composite_picture(struct sna *sna,
 		       PicturePtr picture,
@@ -992,7 +1037,7 @@ gen2_composite_picture(struct sna *sna,
 	} else
 		channel->transform = picture->transform;
 
-	if (!gen2_check_card_format(sna, picture->format))
+	if (!gen2_check_card_format(sna, picture, channel, x,  y, w ,h))
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
 						  x, y, w, h, dst_x, dst_y);
 
