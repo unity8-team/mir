@@ -120,6 +120,7 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.23])
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
+PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6])
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`

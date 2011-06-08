@@ -329,11 +329,16 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		pixmap = get_front_buffer(drawable);
 	if (pixmap == NULL) {
 		unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
+		int pixmap_width = drawable->width;
+		int pixmap_height = drawable->height;
+		int pixmap_cpp = (format != 0) ? format : drawable->depth;
 
 		if (intel->tiling & INTEL_TILING_3D) {
 			switch (attachment) {
 			case DRI2BufferDepth:
 			case DRI2BufferDepthStencil:
+			case DRI2BufferStencil:
+			case DRI2BufferHiz:
 				if (SUPPORTS_YTILING(intel)) {
 					hint |= INTEL_CREATE_PIXMAP_TILING_Y;
 					break;
@@ -354,11 +359,28 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
                         }
 		}
 
+		/*
+		 * The stencil buffer has quirky pitch requirements.  From Vol
+		 * 2a, 11.5.6.2.1 3DSTATE_STENCIL_BUFFER, field "Surface
+		 * Pitch":
+		 *    The pitch must be set to 2x the value computed based on
+		 *    width, as the stencil buffer is stored with two rows
+		 *    interleaved.
+		 * To accomplish this, we resort to the nasty hack of doubling
+		 * the drm region's cpp and halving its height.
+		 *
+		 * If we neglect to double the pitch, then
+		 * drm_intel_gem_bo_map_gtt() maps the memory incorrectly.
+		 */
+		if (attachment == DRI2BufferStencil) {
+			pixmap_height /= 2;
+			pixmap_cpp *= 2;
+		}
+
 		pixmap = screen->CreatePixmap(screen,
-					      drawable->width,
-					      drawable->height,
-					      (format != 0) ? format :
-							      drawable->depth,
+					      pixmap_width,
+					      pixmap_height,
+					      pixmap_cpp,
 					      hint);
 		if (pixmap == NULL || intel_get_pixmap_bo(pixmap) == NULL) {
 			if (pixmap)
