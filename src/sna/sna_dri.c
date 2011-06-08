@@ -186,13 +186,41 @@ sna_dri_create_buffer(DrawablePtr drawable, unsigned int attachment,
 		bpp = pixmap->drawable.bitsPerPixel;
 		break;
 
-	default:
+	case DRI2BufferStencil:
+		/*
+		 * The stencil buffer has quirky pitch requirements.  From Vol
+		 * 2a, 11.5.6.2.1 3DSTATE_STENCIL_BUFFER, field "Surface
+		 * Pitch":
+		 *    The pitch must be set to 2x the value computed based on
+		 *    width, as the stencil buffer is stored with two rows
+		 *    interleaved.
+		 * To accomplish this, we resort to the nasty hack of doubling
+		 * the drm region's cpp and halving its height.
+		 *
+		 * If we neglect to double the pitch, then
+		 * drm_intel_gem_bo_map_gtt() maps the memory incorrectly.
+		 */
+		bpp = format ? format : drawable->bitsPerPixel;
+		bo = kgem_create_2d(&sna->kgem,
+				    drawable->width,
+				    drawable->height/2, 2*bpp,
+				    I915_TILING_Y,
+				    CREATE_EXACT);
+		break;
+
+	case DRI2BufferDepth:
+	case DRI2BufferDepthStencil:
+	case DRI2BufferHiz:
+	case DRI2BufferAccum:
 		bpp = format ? format : drawable->bitsPerPixel,
 		bo = kgem_create_2d(&sna->kgem,
 				    drawable->width, drawable->height, bpp,
 				    //sna->kgem.gen >= 40 ? I915_TILING_Y : I915_TILING_X,
 				    I915_TILING_Y,
 				    CREATE_EXACT);
+		break;
+
+	default:
 		break;
 	}
 	if (bo == NULL)
