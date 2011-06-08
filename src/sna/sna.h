@@ -130,21 +130,6 @@ enum DRI2FrameEventType {
 #define CREATE_PIXMAP_USAGE_SCRATCH_HEADER -1
 #endif
 
-typedef struct _DRI2FrameEvent {
-	XID drawable_id;
-	XID client_id;	/* fake client ID to track client destruction */
-	ClientPtr client;
-	enum DRI2FrameEventType type;
-	int frame;
-	int pipe;
-
-	/* for swaps & flips only */
-	DRI2SwapEventPtr event_complete;
-	void *event_data;
-	DRI2BufferPtr front;
-	DRI2BufferPtr back;
-} DRI2FrameEventRec, *DRI2FrameEventPtr;
-
 #define SNA_CURSOR_X			64
 #define SNA_CURSOR_Y			SNA_CURSOR_X
 
@@ -230,17 +215,16 @@ struct sna {
 		drmModeResPtr mode_res;
 		int cpp;
 
-		drmEventContext event_context;
-		DRI2FrameEventPtr flip_info;
-		int flip_count;
+		struct list outputs;
+		struct list crtcs;
+	} mode;
+
+	struct sna_dri {
 		int flip_pending[2];
 		unsigned int fe_frame;
 		unsigned int fe_tv_sec;
 		unsigned int fe_tv_usec;
-
-		struct list outputs;
-		struct list crtcs;
-	} mode;
+	} dri;
 
 	unsigned int tiling;
 #define SNA_TILING_FB		0x1
@@ -285,16 +269,20 @@ struct sna {
 };
 
 Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna);
-extern void sna_mode_init(struct sna *sna);
 extern void sna_mode_remove_fb(struct sna *sna);
 extern void sna_mode_fini(struct sna *sna);
 
 extern int sna_crtc_id(xf86CrtcPtr crtc);
 extern int sna_output_dpms_status(xf86OutputPtr output);
 
-extern Bool sna_do_pageflip(struct sna *sna,
+extern int sna_do_pageflip(struct sna *sna,
 			    PixmapPtr pixmap,
-			    DRI2FrameEventPtr flip_info, int ref_crtc_hw_id);
+			    void *data,
+			    int ref_crtc_hw_id,
+			    PixmapPtr *old_front,
+			    uint32_t *old_fb);
+
+void sna_mode_delete_fb(struct sna *sna, PixmapPtr pixmap, uint32_t fb);
 
 static inline struct sna *
 to_sna(ScrnInfoPtr scrn)
@@ -326,12 +314,9 @@ extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn, BoxPtr box,
 extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 				  xf86CrtcPtr crtc, RegionPtr clip);
 
-Bool sna_dri2_open(struct sna *sna, ScreenPtr pScreen);
-void sna_dri2_close(struct sna *sna, ScreenPtr pScreen);
-void sna_dri2_frame_event(unsigned int frame, unsigned int tv_sec,
-			  unsigned int tv_usec, DRI2FrameEventPtr flip_info);
-void sna_dri2_flip_event(unsigned int frame, unsigned int tv_sec,
-			 unsigned int tv_usec, DRI2FrameEventPtr flip_info);
+Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
+void sna_dri_wakeup(struct sna *sna);
+void sna_dri_close(struct sna *sna, ScreenPtr pScreen);
 
 extern Bool sna_crtc_on(xf86CrtcPtr crtc);
 int sna_crtc_to_pipe(xf86CrtcPtr crtc);

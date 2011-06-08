@@ -41,6 +41,7 @@
 #include <X11/Xatom.h>
 
 #include "sna.h"
+#include "sna_reg.h"
 
 #if DEBUG_DISPLAY
 #undef DBG
@@ -353,14 +354,12 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	struct sna_mode *mode = &sna->mode;
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-	uint32_t *output_ids;
+	uint32_t output_ids[16];
 	int output_count = 0;
 	int fb_id, x, y;
 	int i, ret = FALSE;
 
-	output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
-	if (!output_ids)
-		return FALSE;
+	assert(xf86_config->num_output < ARRAY_SIZE(output_ids));
 
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
@@ -375,8 +374,10 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		output_count++;
 	}
 
-	if (!xf86CrtcRotate(crtc))
-		goto done;
+	if (!xf86CrtcRotate(crtc)) {
+		DBG(("%s: failed to rotate crtc\n", __FUNCTION__));
+		return FALSE;
+	}
 
 	crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
 			       crtc->gamma_blue, crtc->gamma_size);
@@ -389,6 +390,15 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		x = 0;
 		y = 0;
 	}
+
+	DBG(("%s: applying crtc [%d] mode=%dx%d@%d, fb=%d%s update to %d outputs\n",
+	     __FUNCTION__, crtc_id(sna_crtc),
+	     sna_crtc->kmode.hdisplay,
+	     sna_crtc->kmode.vdisplay,
+	     sna_crtc->kmode.clock,
+	     fb_id, sna_crtc->shadow_fb_id ? " [shadow]" : "",
+	     output_count));
+
 	ret = drmModeSetCrtc(sna->kgem.fd, crtc_id(sna_crtc),
 			     fb_id, x, y, output_ids, output_count,
 			     &sna_crtc->kmode);
@@ -396,14 +406,14 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 			   "failed to set mode: %s\n", strerror(-ret));
 		ret = FALSE;
-	} else
+	} else {
+		sna_crtc->active = 1;
 		ret = TRUE;
+	}
 
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);
 
-done:
-	free(output_ids);
 	return ret;
 }
 
@@ -420,14 +430,16 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	DisplayModeRec saved_mode;
 	int ret = TRUE;
 
-	DBG(("%s(rotation=%d, x=%d, y=%d)\n",
-	     __FUNCTION__, rotation, x, y));
+	DBG(("%s(rotation=%d, x=%d, y=%d, mode=%dx%d@%d)\n",
+	     __FUNCTION__, rotation, x, y,
+	     mode->HDisplay, mode->VDisplay, mode->Clock));
 
 	if (sna_mode->fb_id == 0) {
 		struct kgem_bo *bo = sna_pixmap_pin(sna->front);
 		if (!bo)
 			return FALSE;
 
+		assert(bo->tiling != I915_TILING_Y);
 		ret = drmModeAddFB(sna->kgem.fd,
 				   scrn->virtualX, scrn->virtualY,
 				   scrn->depth, scrn->bitsPerPixel,
@@ -538,6 +550,7 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
+	assert(bo->tiling != I915_TILING_Y);
 	if (drmModeAddFB(sna->kgem.fd,
 			 width, height, scrn->depth, scrn->bitsPerPixel,
 			 bo->pitch, bo->handle,
@@ -747,7 +760,7 @@ sna_output_attach_edid(xf86OutputPtr output)
 
 	xf86OutputSetEDID(output, mon);
 
-	if (edid_blob)
+	if (0&&edid_blob)
 		drmModeFreePropertyBlob(edid_blob);
 }
 
@@ -1362,7 +1375,7 @@ sna_visit_set_window_pixmap(WindowPtr window, pointer data)
 }
 
 static void
-sn_redirect_screen_pixmap(ScrnInfoPtr scrn, PixmapPtr old, PixmapPtr new)
+sna_redirect_screen_pixmap(ScrnInfoPtr scrn, PixmapPtr old, PixmapPtr new)
 {
 	ScreenPtr screen = scrn->pScreen;
 	struct sna_visit_set_pixmap_window visit;
@@ -1375,7 +1388,7 @@ sn_redirect_screen_pixmap(ScrnInfoPtr scrn, PixmapPtr old, PixmapPtr new)
 }
 
 static Bool
-sna_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
+sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
 	struct sna *sna = to_sna(scrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
@@ -1409,6 +1422,7 @@ sna_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (!bo)
 		goto fail;
 
+	assert(bo->tiling != I915_TILING_Y);
 	if (drmModeAddFB(sna->kgem.fd, width, height,
 			 scrn->depth, scrn->bitsPerPixel,
 			 bo->pitch, bo->handle,
@@ -1419,6 +1433,9 @@ sna_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		       scrn->depth, scrn->bitsPerPixel, bo->pitch);
 		goto fail;
 	}
+
+	DBG(("%s: handle %d attached to fb %d\n",
+	     __FUNCTION__, bo->handle, mode->fb_id));
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -1434,7 +1451,9 @@ sna_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualY = height;
 	scrn->displayWidth = bo->pitch / sna->mode.cpp;
 
-	sn_redirect_screen_pixmap(scrn, old_front, sna->front);
+	sna_redirect_screen_pixmap(scrn, old_front, sna->front);
+	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
+	assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
 
 	if (old_fb_id)
 		drmModeRmFB(sna->kgem.fd, old_fb_id);
@@ -1443,6 +1462,7 @@ sna_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	return TRUE;
 
 fail:
+	DBG(("%s: restoring original front pixmap and fb\n", __FUNCTION__));
 	if (old_fb_id != mode->fb_id)
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 	mode->fb_id = old_fb_id;
@@ -1453,10 +1473,10 @@ fail:
 	return FALSE;
 }
 
-static Bool do_page_flip(struct sna *sna,
-			 int ref_crtc_hw_id)
+static int do_page_flip(struct sna *sna, void *data, int ref_crtc_hw_id)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	int count = 0;
 	int i;
 
 	/*
@@ -1470,7 +1490,7 @@ static Bool do_page_flip(struct sna *sna,
 	 */
 	for (i = 0; i < config->num_crtc; i++) {
 		struct sna_crtc *crtc = config->crtc[i]->driver_private;
-		uintptr_t data;
+		uintptr_t evdata;
 
 		if (!config->crtc[i]->enabled)
 			continue;
@@ -1478,41 +1498,54 @@ static Bool do_page_flip(struct sna *sna,
 		/* Only the reference crtc will finally deliver its page flip
 		 * completion event. All other crtc's events will be discarded.
 		 */
+		evdata = (uintptr_t)data;
+		evdata |= sna_crtc_to_pipe(crtc->crtc) == ref_crtc_hw_id;
 
-		data = (uintptr_t)sna;
-		data |= sna_crtc_to_pipe(crtc->crtc) == ref_crtc_hw_id;
-
+		DBG(("%s: crtc %d [ref? %d] --> fb %d\n",
+		     __FUNCTION__, crtc_id(crtc),
+		     sna_crtc_to_pipe(crtc->crtc) == ref_crtc_hw_id,
+		     sna->mode.fb_id));
 		if (drmModePageFlip(sna->kgem.fd,
 				    crtc_id(crtc),
 				    sna->mode.fb_id,
 				    DRM_MODE_PAGE_FLIP_EVENT,
-				    (void*)data)) {
+				    (void*)evdata)) {
 			xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));
-			return FALSE;
+			continue;
 		}
+
+		count++;
 	}
 
-	return TRUE;
+	return count;
 }
 
-Bool
+int
 sna_do_pageflip(struct sna *sna,
 		PixmapPtr pixmap,
-		DRI2FrameEventPtr flip_info, int ref_crtc_hw_id)
+		void *data,
+		int ref_crtc_hw_id,
+		PixmapPtr *old_front,
+		uint32_t *old_fb)
 {
 	ScrnInfoPtr scrn = sna->scrn;
 	struct sna_mode *mode = &sna->mode;
 	struct kgem_bo *bo = sna_pixmap_pin(pixmap);
-	int old_fb_id;
+	int count;
+
+	assert(pixmap != sna->front);
 
 	if (!bo)
-		return FALSE;
+		return 0;
+
+	*old_fb = mode->fb_id;
+	*old_front = sna->front;
 
 	/*
 	 * Create a new handle for the back buffer
 	 */
-	old_fb_id = mode->fb_id;
+	assert(bo->tiling != I915_TILING_Y);
 	if (drmModeAddFB(sna->kgem.fd, scrn->virtualX, scrn->virtualY,
 			 scrn->depth, scrn->bitsPerPixel,
 			 bo->pitch, bo->handle,
@@ -1521,9 +1554,14 @@ sna_do_pageflip(struct sna *sna,
 		       __FUNCTION__,
 		       scrn->virtualX, scrn->virtualY,
 		       scrn->depth, scrn->bitsPerPixel, bo->pitch);
-		return FALSE;
+		return 0;
 	}
 
+	DBG(("%s: handle %d attached to fb %d\n",
+	     __FUNCTION__, bo->handle, mode->fb_id));
+
+	if (kgem_bo_is_dirty(bo))
+		kgem_emit_flush(&sna->kgem);
 	kgem_submit(&sna->kgem);
 
 	/*
@@ -1535,83 +1573,32 @@ sna_do_pageflip(struct sna *sna,
 	 * Also, flips queued on disabled or incorrectly configured displays
 	 * may never complete; this is a configuration error.
 	 */
-	mode->fe_frame = 0;
-	mode->fe_tv_sec = 0;
-	mode->fe_tv_usec = 0;
-
-	mode->flip_info = flip_info;
-	mode->flip_count++;
-
-	if (do_page_flip(sna, ref_crtc_hw_id)) {
-		PixmapPtr old_front = sna->front;
-
+	count = do_page_flip(sna, data, ref_crtc_hw_id);
+	if (count > 0) {
 		sna->front = pixmap;
 		pixmap->refcnt++;
-		sn_redirect_screen_pixmap(scrn, old_front, sna->front);
+		sna_redirect_screen_pixmap(scrn, *old_front, sna->front);
 		scrn->displayWidth = bo->pitch / sna->mode.cpp;
-
-		drmModeRmFB(sna->kgem.fd, old_fb_id);
-		scrn->pScreen->DestroyPixmap(old_front);
-		return TRUE;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
-		mode->fb_id = old_fb_id;
-		return FALSE;
+		mode->fb_id = *old_fb;
 	}
+
+	return count;
 }
 
-static const xf86CrtcConfigFuncsRec sna_xf86crtc_config_funcs = {
-	sna_xf86crtc_resize
+void sna_mode_delete_fb(struct sna *sna, PixmapPtr pixmap, uint32_t fb)
+{
+	if (fb)
+		drmModeRmFB(sna->kgem.fd, fb);
+
+	if (pixmap)
+		pixmap->drawable.pScreen->DestroyPixmap(pixmap);
+}
+
+static const xf86CrtcConfigFuncsRec sna_crtc_config_funcs = {
+	sna_crtc_resize
 };
-
-static void
-sna_vblank_handler(int fd, unsigned int frame, unsigned int tv_sec,
-		       unsigned int tv_usec, void *event_data)
-{
-	sna_dri2_frame_event(frame, tv_sec, tv_usec, event_data);
-}
-
-static void
-sna_page_flip_handler(int fd, unsigned int frame, unsigned int tv_sec,
-		      unsigned int tv_usec, void *event_data)
-{
-	struct sna *sna = (struct sna *)((uintptr_t)event_data & ~1);
-	struct sna_mode *mode = &sna->mode;
-
-	/* Is this the event whose info shall be delivered to higher level? */
-	if ((uintptr_t)event_data & 1) {
-		/* Yes: Cache msc, ust for later delivery. */
-		mode->fe_frame = frame;
-		mode->fe_tv_sec = tv_sec;
-		mode->fe_tv_usec = tv_usec;
-	}
-
-	/* Last crtc completed flip? */
-	if (--mode->flip_count > 0)
-		return;
-
-	if (mode->flip_info == NULL)
-		return;
-
-	/* Deliver cached msc, ust from reference crtc to flip event handler */
-	sna_dri2_flip_event(mode->fe_frame, mode->fe_tv_sec,
-			    mode->fe_tv_usec, mode->flip_info);
-}
-
-static void
-drm_wakeup_handler(pointer data, int err, pointer p)
-{
-	struct sna *sna;
-	fd_set *read_mask;
-
-	if (data == NULL || err < 0)
-		return;
-
-	sna = data;
-	read_mask = p;
-	if (FD_ISSET(sna->kgem.fd, read_mask))
-		drmHandleEvent(sna->kgem.fd, &sna->mode.event_context);
-}
 
 Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 {
@@ -1621,7 +1608,7 @@ Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 	list_init(&mode->crtcs);
 	list_init(&mode->outputs);
 
-	xf86CrtcConfigInit(scrn, &sna_xf86crtc_config_funcs);
+	xf86CrtcConfigInit(scrn, &sna_crtc_config_funcs);
 
 	mode->mode_res = drmModeGetResources(sna->kgem.fd);
 	if (!mode->mode_res) {
@@ -1642,26 +1629,7 @@ Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 
 	xf86InitialConfiguration(scrn, TRUE);
 
-	mode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
-	mode->event_context.vblank_handler = sna_vblank_handler;
-	mode->event_context.page_flip_handler = sna_page_flip_handler;
-
 	return TRUE;
-}
-
-void
-sna_mode_init(struct sna *sna)
-{
-	struct sna_mode *mode = &sna->mode;
-
-	/* We need to re-register the mode->fd for the synchronisation
-	 * feedback on every server generation, so perform the
-	 * registration within ScreenInit and not PreInit.
-	 */
-	mode->flip_count = 0;
-	AddGeneralSocket(sna->kgem.fd);
-	RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
-				       drm_wakeup_handler, sna);
 }
 
 void
@@ -1701,3 +1669,181 @@ sna_mode_fini(struct sna *sna)
 
 	/* mode->shadow_fb_id should have been destroyed already */
 }
+
+static void sna_crtc_box(xf86CrtcPtr crtc, BoxPtr crtc_box)
+{
+	if (crtc->enabled) {
+		crtc_box->x1 = crtc->x;
+		crtc_box->x2 =
+		    crtc->x + xf86ModeWidth(&crtc->mode, crtc->rotation);
+		crtc_box->y1 = crtc->y;
+		crtc_box->y2 =
+		    crtc->y + xf86ModeHeight(&crtc->mode, crtc->rotation);
+	} else
+		crtc_box->x1 = crtc_box->x2 = crtc_box->y1 = crtc_box->y2 = 0;
+}
+
+static void sna_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
+{
+	dest->x1 = a->x1 > b->x1 ? a->x1 : b->x1;
+	dest->x2 = a->x2 < b->x2 ? a->x2 : b->x2;
+	dest->y1 = a->y1 > b->y1 ? a->y1 : b->y1;
+	dest->y2 = a->y2 < b->y2 ? a->y2 : b->y2;
+	if (dest->x1 >= dest->x2 || dest->y1 >= dest->y2)
+		dest->x1 = dest->x2 = dest->y1 = dest->y2 = 0;
+}
+
+static int sna_box_area(BoxPtr box)
+{
+	return (int)(box->x2 - box->x1) * (int)(box->y2 - box->y1);
+}
+
+/*
+ * Return the crtc covering 'box'. If two crtcs cover a portion of
+ * 'box', then prefer 'desired'. If 'desired' is NULL, then prefer the crtc
+ * with greater coverage
+ */
+xf86CrtcPtr
+sna_covering_crtc(ScrnInfoPtr scrn,
+		  BoxPtr box, xf86CrtcPtr desired, BoxPtr crtc_box_ret)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	xf86CrtcPtr crtc, best_crtc;
+	int coverage, best_coverage;
+	int c;
+	BoxRec crtc_box, cover_box;
+
+	DBG(("%s for box=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
+
+	best_crtc = NULL;
+	best_coverage = 0;
+	crtc_box_ret->x1 = 0;
+	crtc_box_ret->x2 = 0;
+	crtc_box_ret->y1 = 0;
+	crtc_box_ret->y2 = 0;
+	for (c = 0; c < xf86_config->num_crtc; c++) {
+		crtc = xf86_config->crtc[c];
+
+		/* If the CRTC is off, treat it as not covering */
+		if (!sna_crtc_on(crtc)) {
+			DBG(("%s: crtc %d off, skipping\n", __FUNCTION__, c));
+			continue;
+		}
+
+		sna_crtc_box(crtc, &crtc_box);
+		sna_box_intersect(&cover_box, &crtc_box, box);
+		coverage = sna_box_area(&cover_box);
+		if (coverage && crtc == desired) {
+			DBG(("%s: box is on desired crtc [%p]\n",
+			     __FUNCTION__, crtc));
+			*crtc_box_ret = crtc_box;
+			return crtc;
+		}
+		if (coverage > best_coverage) {
+			*crtc_box_ret = crtc_box;
+			best_crtc = crtc;
+			best_coverage = coverage;
+		}
+	}
+	DBG(("%s: best crtc = %p\n", __FUNCTION__, best_crtc));
+	return best_crtc;
+}
+
+bool
+sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
+		      xf86CrtcPtr crtc, RegionPtr clip)
+{
+	pixman_box16_t box, crtc_box;
+	int pipe, event;
+	Bool full_height;
+	int y1, y2;
+	uint32_t *b;
+
+	/* XXX no wait for scanline support on SNB? */
+	if (sna->kgem.gen >= 60)
+		return false;
+
+	if (!pixmap_is_scanout(pixmap))
+		return false;
+
+	if (crtc == NULL) {
+		if (clip) {
+			crtc_box = *REGION_EXTENTS(NULL, clip);
+		} else {
+			crtc_box.x1 = 0; /* XXX drawable offsets? */
+			crtc_box.y1 = 0;
+			crtc_box.x2 = pixmap->drawable.width;
+			crtc_box.y2 = pixmap->drawable.height;
+		}
+		crtc = sna_covering_crtc(sna->scrn, &crtc_box, NULL, &crtc_box);
+	}
+
+	if (crtc == NULL)
+		return false;
+
+	if (clip) {
+		box = *REGION_EXTENTS(unused, clip);
+
+		if (crtc->transform_in_use)
+			pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc, &box);
+
+		/* We could presume the clip was correctly computed... */
+		sna_crtc_box(crtc, &crtc_box);
+		sna_box_intersect(&box, &crtc_box, &box);
+
+		/*
+		 * Make sure we don't wait for a scanline that will
+		 * never occur
+		 */
+		y1 = (crtc_box.y1 <= box.y1) ? box.y1 - crtc_box.y1 : 0;
+		y2 = (box.y2 <= crtc_box.y2) ?
+			box.y2 - crtc_box.y1 : crtc_box.y2 - crtc_box.y1;
+		if (y2 <= y1)
+			return false;
+
+		full_height = FALSE;
+		if (y1 == 0 && y2 == (crtc_box.y2 - crtc_box.y1))
+			full_height = TRUE;
+	} else {
+		sna_crtc_box(crtc, &crtc_box);
+		y1 = crtc_box.y1;
+		y2 = crtc_box.y2;
+		full_height = TRUE;
+	}
+
+	/*
+	 * Pre-965 doesn't have SVBLANK, so we need a bit
+	 * of extra time for the blitter to start up and
+	 * do its job for a full height blit
+	 */
+	if (sna_crtc_to_pipe(crtc) == 0) {
+		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
+		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
+		if (full_height)
+			event = MI_WAIT_FOR_PIPEA_SVBLANK;
+	} else {
+		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEB;
+		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
+		if (full_height)
+			event = MI_WAIT_FOR_PIPEB_SVBLANK;
+	}
+
+	if (crtc->mode.Flags & V_INTERLACE) {
+		/* DSL count field lines */
+		y1 /= 2;
+		y2 /= 2;
+	}
+
+	b = kgem_get_batch(&sna->kgem, 5);
+	/* The documentation says that the LOAD_SCAN_LINES command
+	 * always comes in pairs. Don't ask me why. */
+	b[0] = MI_LOAD_SCAN_LINES_INCL | pipe;
+	b[1] = (y1 << 16) | (y2-1);
+	b[2] = MI_LOAD_SCAN_LINES_INCL | pipe;
+	b[3] = (y1 << 16) | (y2-1);
+	b[4] = MI_WAIT_FOR_EVENT | event;
+	kgem_advance_batch(&sna->kgem, 5);
+	return true;
+}
+

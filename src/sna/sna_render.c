@@ -254,7 +254,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	if (w == pixmap->drawable.width || h == pixmap->drawable.height) {
 		DBG(("%s: migrating whole pixmap (%dx%d) for source\n",
 		     __FUNCTION__,
-		     pixmap->drawble->width,
+		     pixmap->drawable.width,
 		     pixmap->drawable.height));
 		return TRUE;
 	}
@@ -303,7 +303,7 @@ texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
 {
 	Bool ret = _texture_is_cpu(pixmap, box);
 	ErrorF("%s(pixmap=%p, box=((%d, %d), (%d, %d)) = %d\n",
-	       __FUNCTION__, pixmap, box, ret);
+	       __FUNCTION__, pixmap, box->x1, box->y1, box->x2, box->y2, ret);
 	return ret;
 }
 #else

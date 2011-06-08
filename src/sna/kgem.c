@@ -199,7 +199,6 @@ gem_madvise(int fd, uint32_t handle, uint32_t state)
 	madv.madv = state;
 	madv.retained = 1;
 	ret = drmIoctl(fd, DRM_IOCTL_I915_GEM_MADVISE, &madv);
-	assert(ret == 0);
 
 	return madv.retained;
 	(void)ret;

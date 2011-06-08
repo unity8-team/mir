@@ -3203,6 +3203,7 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	list_init(&sna->dirty_pixmaps);
 	list_init(&sna->deferred_free);
 
+	AddGeneralSocket(sna->kgem.fd);
 	sna_accel_install_timers(sna);
 
 	screen->CreateGC = sna_create_gc;

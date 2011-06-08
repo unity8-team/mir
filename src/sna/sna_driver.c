@@ -561,7 +561,14 @@ sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 	sna->WakeupHandler = screen->WakeupHandler;
 	screen->WakeupHandler = sna_wakeup_handler;
 
+	/* despite all appearances, result is just a signed int */
+	if ((int)result < 0)
+		return;
+
 	sna_accel_wakeup_handler(sna);
+
+	if (FD_ISSET(sna->kgem.fd, (fd_set*)read_mask))
+		sna_dri_wakeup(sna);
 }
 
 #if HAVE_UDEV
@@ -704,7 +711,7 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 	(*screen->CloseScreen) (scrnIndex, screen);
 
 	if (sna->directRenderingOpen) {
-		sna_dri2_close(sna, screen);
+		sna_dri_close(sna, screen);
 		sna->directRenderingOpen = FALSE;
 	}
 
@@ -725,7 +732,7 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	scrn->videoRam = device->regions[2].size / 1024;
 
 #ifdef DRI2
-	sna->directRenderingOpen = sna_dri2_open(sna, screen);
+	sna->directRenderingOpen = sna_dri_open(sna, screen);
 	if (sna->directRenderingOpen)
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
 			   "direct rendering: DRI2 Enabled\n");
@@ -822,8 +829,6 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
-
-	sna_mode_init(sna);
 
 	sna->suspended = FALSE;
 
