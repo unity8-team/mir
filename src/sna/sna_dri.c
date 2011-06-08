@@ -66,6 +66,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "dri2.h"
 
+#if DRI2INFOREC_VERSION < 2
+#error DRI2 version supported by the Xserver is too old
+#endif
+
 #if DEBUG_DRI
 #undef DBG
 #define DBG(x) ErrorF x
@@ -129,123 +133,6 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	priv->pinned = 1;
 	return priv->gpu_bo;
 }
-
-#if DRI2INFOREC_VERSION < 2
-static DRI2BufferPtr
-sna_dri_create_buffers(DrawablePtr drawable, unsigned int *attachments,
-		      int count)
-{
-	ScreenPtr screen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	struct sna *sna = to_sna(scrn);
-	DRI2BufferPtr buffers;
-	struct sna_dri_private *privates;
-	int depth = -1;
-	int i;
-
-	buffers = calloc(count, sizeof *buffers);
-	if (buffers == NULL)
-		return NULL;
-	privates = calloc(count, sizeof *privates);
-	if (privates == NULL) {
-		free(buffers);
-		return NULL;
-	}
-
-	for (i = 0; i < count; i++) {
-		PixmapPtr pixmap = NULL;
-		if (attachments[i] == DRI2BufferFrontLeft) {
-			pixmap = get_drawable_pixmap(drawable);
-			pixmap->refcnt++;
-			bo = sna_pixmap_set_dri(sna, pixmap);
-		} else if (attachments[i] == DRI2BufferBackLeft) {
-			pixmap = screen->CreatePixmap(screen,
-						      drawable->width, drawable->height, drawable->depth,
-						      0);
-			if (!pixmap)
-				goto unwind;
-
-			bo = sna_pixmap_set_dri(sna, pixmap);
-		} else if (attachments[i] == DRI2BufferStencil && depth != -1) {
-			buffers[i] = buffers[depth];
-			buffers[i].attachment = attachments[i];
-			privates[depth].refcnt++;
-			continue;
-		} else {
-			unsigned int tiling = I915_TILING_X;
-			if (SUPPORTS_YTILING(intel)) {
-				switch (attachment) {
-				case DRI2BufferDepth:
-				case DRI2BufferDepthStencil:
-					tiling = I915_TILING_Y;
-					break;
-				}
-			}
-
-			bo = kgem_create_2d(&intel->kgem,
-					    drawable->width,
-					    drawable->height,
-					    32, tiling);
-			if (!bo)
-				goto unwind;
-		}
-
-		if (attachments[i] == DRI2BufferDepth)
-			depth = i;
-
-		buffers[i].attachment = attachments[i];
-		buffers[i].pitch = pitch;
-		buffers[i].cpp = bpp / 8;
-		buffers[i].driverPrivate = &privates[i];
-		buffers[i].flags = 0;	/* not tiled */
-		buffers[i].name = kgem_bo_flink(&intel->kgem, bo);
-		privates[i].refcnt = 1;
-		privates[i].pixmap = pixmap;
-		privates[i].bo = bo;
-		privates[i].attachment = attachments[i];
-
-		if (buffers[i].name == 0)
-			goto unwind;
-	}
-
-	return buffers;
-
-unwind:
-	do {
-		if (--privates[i].refcnt == 0) {
-			if (privates[i].pixmap)
-				screen->DestroyPixmap(privates[i].pixmap);
-			else
-				gem_close(privates[i].handle);
-		}
-	} while (i--);
-	free(privates);
-	free(buffers);
-	return NULL;
-}
-
-static void
-sna_dri_destroy_buffers(DrawablePtr drawable, DRI2BufferPtr buffers, int count)
-{
-	ScreenPtr screen = drawable->pScreen;
-	sna_dri_private *private;
-	int i;
-
-	for (i = 0; i < count; i++) {
-		private = buffers[i].driverPrivate;
-		if (private->pixmap)
-			screen->DestroyPixmap(private->pixmap);
-		else
-			kgem_delete(&intel->kgem, private->bo);
-	}
-
-	if (buffers) {
-		free(buffers[0].driverPrivate);
-		free(buffers);
-	}
-}
-
-#else
 
 static DRI2Buffer2Ptr
 sna_dri_create_buffer(DrawablePtr drawable, unsigned int attachment,
@@ -357,8 +244,6 @@ static void sna_dri_destroy_buffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 	} else
 		free(buffer);
 }
-
-#endif
 
 static void sna_dri_reference_buffer(DRI2Buffer2Ptr buffer)
 {
@@ -1587,22 +1472,9 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 	DBG(("%s: loading dri driver '%s' [gen=%d] for device '%s'\n",
 	     __FUNCTION__, info.driverName, sna->kgem.gen, info.deviceName));
 
-#if DRI2INFOREC_VERSION == 1
-	info.version = 1;
-	info.CreateBuffers = sna_dri_create_buffers;
-	info.DestroyBuffers = sna_dri_destroy_buffers;
-#elif DRI2INFOREC_VERSION == 2
-	/* The ABI between 2 and 3 was broken so we could get rid of
-	 * the multi-buffer alloc functions.  Make sure we indicate the
-	 * right version so DRI2 can reject us if it's version 3 or above. */
-	info.version = 2;
-	info.CreateBuffer = sna_dri_create_buffer;
-	info.DestroyBuffer = sna_dri_destroy_buffer;
-#else
 	info.version = 3;
 	info.CreateBuffer = sna_dri_create_buffer;
 	info.DestroyBuffer = sna_dri_destroy_buffer;
-#endif
 
 	info.CopyRegion = sna_dri_copy_region;
 #if DRI2INFOREC_VERSION >= 4
