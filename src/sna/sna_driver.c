@@ -68,6 +68,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "intel_driver.h"
 
 #include <sys/ioctl.h>
+#include <sys/fcntl.h>
 #include "i915_drm.h"
 
 static OptionInfoRec sna_options[] = {
@@ -331,6 +332,13 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 
 	dev = malloc(sizeof(*dev));
 	if (dev) {
+		int flags;
+
+		/* make the fd nonblocking to handle event loops */
+		flags = fcntl(fd, F_GETFL, 0);
+		if (flags != -1)
+			fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
 		dev->fd = fd;
 		dev->open_count = 1;
 		sna_set_device(scrn, dev);
