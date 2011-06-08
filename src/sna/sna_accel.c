@@ -3097,9 +3097,9 @@ static Bool sna_accel_do_flush(struct sna *sna)
 	to.it_value.tv_sec = 0;
 	to.it_value.tv_nsec = 10 * 1000 * 1000;
 
-	/* Then periodic updates at 50Hz.*/
+	/* Then periodic updates at 25Hz.*/
 	to.it_interval.tv_sec = 0;
-	to.it_interval.tv_nsec = 20 * 1000 * 1000;
+	to.it_interval.tv_nsec = 40 * 1000 * 1000;
 	timerfd_settime(sna->timer[FLUSH_TIMER], 0, &to, NULL);
 
 	sna->timer_active |= 1 << FLUSH_TIMER;
@@ -3122,8 +3122,8 @@ static Bool sna_accel_do_expire(struct sna *sna)
 	to.it_value.tv_sec = 5;
 	to.it_value.tv_nsec = 0;
 
-	/* Then periodic update every 1s.*/
-	to.it_interval.tv_sec = 1;
+	/* Then periodic update every 10s.*/
+	to.it_interval.tv_sec = 10;
 	to.it_interval.tv_nsec = 0;
 	timerfd_settime(sna->timer[EXPIRE_TIMER], 0, &to, NULL);
 
