@@ -156,6 +156,7 @@ sna_dri_create_buffer(DrawablePtr drawable, unsigned int attachment,
 	private = (struct sna_dri_private *)(buffer + 1);
 
 	pixmap = NULL;
+	bo = NULL;
 	usage = CREATE_PIXMAP_USAGE_SCRATCH;
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
