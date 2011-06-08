@@ -338,10 +338,20 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 					hint |= INTEL_CREATE_PIXMAP_TILING_Y;
 					break;
 				}
-			default:
+			case DRI2BufferAccum:
+			case DRI2BufferBackLeft:
+			case DRI2BufferBackRight:
+			case DRI2BufferFakeFrontLeft:
+			case DRI2BufferFakeFrontRight:
+			case DRI2BufferFrontLeft:
+			case DRI2BufferFrontRight:
 				hint |= INTEL_CREATE_PIXMAP_TILING_X;
 				break;
-			}
+			default:
+				free(privates);
+				free(buffer);
+				return NULL;
+                        }
 		}
 
 		pixmap = screen->CreatePixmap(screen,
