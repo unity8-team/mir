@@ -902,6 +902,8 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
 		sna_damage_subtract(&priv->gpu_damage, region);
 		sna_damage_add(&priv->cpu_damage, region);
+		if (priv->flush)
+			list_move(&priv->list, &sna->dirty_pixmaps);
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -1181,6 +1183,9 @@ fallback:
 							    &region);
 					sna_damage_add(&dst_priv->cpu_damage,
 						       &region);
+					if (dst_priv->flush)
+						list_move(&dst_priv->list,
+							  &sna->dirty_pixmaps);
 				}
 			} else
 				sna_drawable_move_region_to_cpu(&dst_pixmap->drawable,
