@@ -86,8 +86,7 @@ struct kgem {
 		KGEM_BLT,
 	} mode, ring;
 
-	struct list active;
-	struct list inactive[16];
+	struct list active, flushing, inactive[16];
 	struct list partial;
 	struct list requests;
 	struct kgem_request *next_request;
@@ -98,7 +97,6 @@ struct kgem {
 	uint16_t nreloc;
 	uint16_t nfence;
 
-	uint32_t retire;
 	uint32_t flush;
 	uint32_t need_purge;
 
@@ -155,12 +153,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int tiling,
 			       uint32_t flags);
 
-void _kgem_retire(struct kgem *kgem);
-static inline void kgem_retire(struct kgem *kgem)
-{
-	if (kgem->retire)
-		_kgem_retire(kgem);
-}
+void kgem_retire(struct kgem *kgem);
 
 void _kgem_submit(struct kgem *kgem);
 static inline void kgem_submit(struct kgem *kgem)
@@ -290,7 +283,6 @@ static inline bool kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 	if (!bo->gpu)
 		return false;
 
-	kgem_retire(kgem);
 	return bo->rq != NULL;
 }
 

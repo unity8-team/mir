@@ -158,7 +158,8 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
 		return FALSE;
 
-	_kgem_retire(kgem);
+	if (bo->gpu)
+		kgem_retire(kgem);
 	return TRUE;
 }
 
@@ -292,6 +293,7 @@ void kgem_init(struct kgem *kgem, int fd, int gen)
 	list_init(&kgem->partial);
 	list_init(&kgem->requests);
 	list_init(&kgem->active);
+	list_init(&kgem->flushing);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		list_init(&kgem->inactive[i]);
 
@@ -500,6 +502,11 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	list_move(&bo->list, (bo->rq || bo->needs_flush) ? &kgem->active : inactive(kgem, bo->size));
+	if (bo->rq == NULL && bo->needs_flush) {
+		assert(list_is_empty(&bo->request));
+		list_add(&bo->request, &kgem->flushing);
+	}
+
 	return;
 
 destroy:
@@ -516,16 +523,19 @@ static void kgem_bo_unref(struct kgem *kgem, struct kgem_bo *bo)
 		__kgem_bo_destroy(kgem, bo);
 }
 
-void _kgem_retire(struct kgem *kgem)
+void kgem_retire(struct kgem *kgem)
 {
 	struct kgem_bo *bo, *next;
 
-	list_for_each_entry_safe(bo, next, &kgem->active, list) {
-		if (bo->rq == NULL && !kgem_busy(kgem, bo->handle)) {
+	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
+		if (!kgem_busy(kgem, bo->handle)) {
+			assert(bo->rq == NULL);
 			assert(bo->needs_flush);
 			assert(bo->deleted);
 			bo->needs_flush = 0;
+			bo->gpu = false;
 			list_move(&bo->list, inactive(kgem, bo->size));
+			list_del(&bo->request);
 		}
 	}
 
@@ -544,11 +554,13 @@ void _kgem_retire(struct kgem *kgem)
 					      request);
 			list_del(&bo->request);
 			bo->rq = NULL;
-			bo->gpu = false;
 
-			if (bo->refcnt == 0 && !bo->needs_flush) {
+			if (bo->refcnt == 0) {
 				assert(bo->deleted);
-				if (bo->reusable) {
+				if (bo->needs_flush) {
+					list_add(&bo->request, &kgem->flushing);
+				} else if (bo->reusable) {
+					bo->gpu = false;
 					list_move(&bo->list,
 						  inactive(kgem, bo->size));
 				} else {
@@ -573,8 +585,6 @@ void _kgem_retire(struct kgem *kgem)
 		list_del(&rq->list);
 		free(rq);
 	}
-
-	kgem->retire = 0;
 }
 
 static void kgem_commit(struct kgem *kgem)
@@ -897,8 +907,6 @@ void _kgem_submit(struct kgem *kgem)
 	kgem->mode = KGEM_NONE;
 	kgem->flush = 0;
 
-	kgem->retire = 1;
-
 	sna_kgem_reset(kgem);
 }
 
@@ -930,7 +938,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 	bool idle;
 	int i;
 
-	_kgem_retire(kgem);
+	kgem_retire(kgem);
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
 
@@ -994,12 +1002,7 @@ search_linear_cache(struct kgem *kgem, int size, bool active)
 	struct kgem_bo *bo, *next;
 	struct list *cache;
 
-	if (!active) {
-		cache = inactive(kgem, size);
-		kgem_retire(kgem);
-	} else
-		cache = &kgem->active;
-
+	cache = active ? &kgem->active : inactive(kgem, size);
 	list_for_each_entry_safe(bo, next, cache, list) {
 		if (size > bo->size)
 			continue;
@@ -1008,6 +1011,8 @@ search_linear_cache(struct kgem *kgem, int size, bool active)
 			continue;
 
 		list_del(&bo->list);
+		if (bo->rq == NULL)
+			list_del(&bo->request);
 
 		if (bo->deleted) {
 			if (!gem_madvise(kgem->fd, bo->handle,
@@ -1245,6 +1250,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		}
 
 		list_del(&bo->list);
+		if (bo->rq == NULL)
+			list_del(&bo->request);
 
 		if (bo->deleted) {
 			if (!gem_madvise(kgem->fd, bo->handle,
@@ -1293,6 +1300,7 @@ skip_active_search:
 		bo->tiling = tiling;
 
 		list_del(&bo->list);
+		assert(list_is_empty(&bo->request));
 
 		if (bo->deleted) {
 			if (!gem_madvise(kgem->fd, bo->handle,
@@ -1571,7 +1579,8 @@ void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write)
 	set_domain.write_domain = for_write ? I915_GEM_DOMAIN_CPU : 0;
 
 	drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
-	_kgem_retire(kgem);
+	if (bo->gpu)
+		kgem_retire(kgem);
 	bo->cpu_read = true;
 	if (for_write)
 		bo->cpu_write = true;
@@ -1767,7 +1776,8 @@ void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *_bo)
 				  0, bo->used, bo+1);
 		else
 			gem_read(kgem->fd, bo->base.handle, bo+1, bo->used);
-		_kgem_retire(kgem);
+		if (bo->base.gpu)
+			kgem_retire(kgem);
 		bo->need_io = 0;
 	}
 

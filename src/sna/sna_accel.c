@@ -3306,7 +3306,7 @@ void sna_accel_block_handler(struct sna *sna)
 
 void sna_accel_wakeup_handler(struct sna *sna)
 {
-	_kgem_retire(&sna->kgem);
+	kgem_retire(&sna->kgem);
 	sna_deferred_free(sna);
 
 	if (sna->kgem.need_purge)
