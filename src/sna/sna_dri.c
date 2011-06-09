@@ -376,7 +376,12 @@ sna_dri_copy_region(DrawablePtr drawable, RegionPtr region,
 	}
 	ValidateGC(dst, gc);
 
-	/* Invalidate src to reflect unknown modifications made by the client */
+	/* Invalidate src to reflect unknown modifications made by the client
+	 *
+	 * XXX But what about any conflicting shadow writes made by others
+	 * between the last flush and this request? Hopefully nobody will
+	 * hit that race window to find out...
+	 */
 	damage(src, region);
 
 	/* Wait for the scanline to be outside the region to be copied */
