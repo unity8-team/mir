@@ -1045,8 +1045,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 		DBG(("%s: create dst GPU bo for copy\n", __FUNCTION__));
 
-		if (!sna->kgem.wedged &&
-		    kgem_can_create_2d(&sna->kgem,
+		if (kgem_can_create_2d(&sna->kgem,
 				       dst_pixmap->drawable.width,
 				       dst_pixmap->drawable.height,
 				       dst_pixmap->drawable.bitsPerPixel,
