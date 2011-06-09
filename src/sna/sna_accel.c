@@ -1541,8 +1541,10 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
-	if (sna->kgem.wedged)
+	if (sna->kgem.wedged) {
+		DBG(("%s: fallback -- wedged\n"));
 		goto fallback;
+	}
 
 	if (gc->fillStyle == FillSolid &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
@@ -1734,8 +1736,10 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
-	if (sna->kgem.wedged)
+	if (sna->kgem.wedged) {
+		DBG(("%s: fallback -- wedged\n"));
 		goto fallback;
+	}
 
 	if (gc->fillStyle == FillSolid &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
@@ -1951,8 +1955,10 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
-	if (sna->kgem.wedged)
+	if (sna->kgem.wedged) {
+		DBG(("%s: fallback -- wedged\n"));
 		goto fallback;
+	}
 
 	if (gc->fillStyle == FillSolid &&
 	    gc->lineStyle == LineSolid &&
@@ -2162,8 +2168,10 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
-	if (sna->kgem.wedged)
+	if (sna->kgem.wedged) {
+		DBG(("%s: fallback -- wedged\n"));
 		goto fallback;
+	}
 
 	if (gc->fillStyle == FillSolid &&
 	    gc->lineStyle == LineSolid &&
@@ -2643,8 +2651,10 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (sna_poly_fill_rect_extents(draw, gc, n, rect, &extents))
 		return;
 
-	if (sna->kgem.wedged)
+	if (sna->kgem.wedged) {
+		DBG(("%s: fallback -- wedged\n"));
 		goto fallback;
+	}
 
 	if (!PM_IS_SOLID(draw, gc->planemask))
 		goto fallback;
@@ -2950,6 +2960,7 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 	DBG(("%s origin=(%d, %d)\n", __FUNCTION__, origin.x, origin.y));
 
 	if (sna->kgem.wedged) {
+		DBG(("%s: fallback -- wedged\n"));
 		sna_pixmap_move_to_cpu(pixmap, true);
 		fbCopyWindow(win, origin, src);
 		return;
