@@ -200,7 +200,6 @@ struct sna_render {
 
 	void (*flush)(struct sna *sna);
 	void (*reset)(struct sna *sna);
-	void (*context_switch)(struct sna *sna, int new_mode);
 	void (*fini)(struct sna *sna);
 
 	struct sna_solid_cache {

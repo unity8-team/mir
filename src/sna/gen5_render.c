@@ -2537,16 +2537,16 @@ gen5_render_flush(struct sna *sna)
 }
 
 static void
-gen5_render_context_switch(struct sna *sna,
+gen5_render_context_switch(struct kgem *kgem,
 			   int new_mode)
 {
 	/* Ironlake has a limitation that a 3D or Media command can't
 	 * be the first command after a BLT, unless it's
 	 * non-pipelined.
 	 */
-	if (sna->kgem.mode == KGEM_BLT) {
-		OUT_BATCH(CMD_POLY_STIPPLE_OFFSET << 16);
-		OUT_BATCH(0);
+	if (kgem->mode == KGEM_BLT) {
+		kgem->batch[kgem->nbatch++] = CMD_POLY_STIPPLE_OFFSET << 16;
+		kgem->batch[kgem->nbatch++] = 0;
 	}
 }
 
@@ -2810,6 +2810,7 @@ Bool gen5_render_init(struct sna *sna)
 		return FALSE;
 
 	gen5_render_reset(sna);
+	sna->kgem.context_switch = gen5_render_context_switch;
 
 	sna->render.composite = gen5_render_composite;
 	sna->render.video = gen5_render_video;
@@ -2821,7 +2822,6 @@ Bool gen5_render_init(struct sna *sna)
 	sna->render.fill = gen5_render_fill;
 
 	sna->render.flush = gen5_render_flush;
-	sna->render.context_switch = gen5_render_context_switch;
 	sna->render.reset = gen5_render_reset;
 	sna->render.fini = gen5_render_fini;
 

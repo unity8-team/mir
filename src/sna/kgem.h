@@ -106,6 +106,7 @@ struct kgem {
 	uint16_t fence_max;
 	uint32_t aperture_high, aperture_low, aperture;
 
+	void (*context_switch)(struct kgem *kgem, int new_mode);
 	uint32_t batch[4*1024];
 	struct drm_i915_gem_exec_object2 exec[256];
 	struct drm_i915_gem_relocation_entry reloc[384];
@@ -192,7 +193,6 @@ static inline void kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 void kgem_emit_flush(struct kgem *kgem);
 void kgem_clear_dirty(struct kgem *kgem);
 
-extern void sna_kgem_context_switch(struct kgem *kgem, int new_mode);
 static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
 #if DEBUG_FLUSH_CACHE
@@ -206,8 +206,7 @@ static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 	if (kgem->mode == mode)
 		return;
 
-	sna_kgem_context_switch(kgem, mode);
-
+	kgem->context_switch(kgem, mode);
 	kgem->mode = mode;
 }
 

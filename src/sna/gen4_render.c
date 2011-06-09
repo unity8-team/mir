@@ -2479,22 +2479,6 @@ gen4_render_flush(struct sna *sna)
 	gen4_vertex_finish(sna, TRUE);
 }
 
-static void
-gen4_render_context_switch(struct sna *sna,
-			   int new_mode)
-{
-	if (sna->kgem.mode == 0)
-		return;
-
-	if (new_mode == KGEM_BLT) {
-#if 0
-		OUT_BATCH(MI_FLUSH |
-			  MI_STATE_INSTRUCTION_CACHE_FLUSH |
-			  MI_INHIBIT_RENDER_CACHE_FLUSH);
-#endif
-	}
-}
-
 static void gen4_render_reset(struct sna *sna)
 {
 	sna->render_state.gen4.needs_invariant = TRUE;
@@ -2761,7 +2745,6 @@ Bool gen4_render_init(struct sna *sna)
 	sna->render.fill = gen4_render_fill;
 
 	sna->render.flush = gen4_render_flush;
-	sna->render.context_switch = gen4_render_context_switch;
 	sna->render.reset = gen4_render_reset;
 	sna->render.fini = gen4_render_fini;
 

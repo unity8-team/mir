@@ -42,30 +42,6 @@
 #define NO_FIXUP 0
 #define NO_EXTRACT 0
 
-void sna_kgem_reset(struct kgem *kgem)
-{
-	struct sna *sna = container_of(kgem, struct sna, kgem);
-
-	sna->render.reset(sna);
-}
-
-void sna_kgem_flush(struct kgem *kgem)
-{
-	struct sna *sna = container_of(kgem, struct sna, kgem);
-
-	sna->render.flush(sna);
-
-	if (sna->render.solid_cache.dirty)
-		sna_render_flush_solid(sna);
-}
-
-void sna_kgem_context_switch(struct kgem *kgem, int new_mode)
-{
-	struct sna *sna = container_of(kgem, struct sna, kgem);
-
-	sna->render.context_switch(sna, new_mode);
-}
-
 CARD32
 sna_format_for_depth(int depth)
 {
@@ -206,7 +182,7 @@ static void no_render_flush(struct sna *sna)
 }
 
 static void
-no_render_context_switch(struct sna *sna,
+no_render_context_switch(struct kgem *kgem,
 			 int new_mode)
 {
 }
@@ -230,9 +206,9 @@ void no_render_init(struct sna *sna)
 
 	render->reset = no_render_reset;
 	render->flush = no_render_flush;
-	render->context_switch = no_render_context_switch;
 	render->fini = no_render_fini;
 
+	sna->kgem.context_switch = no_render_context_switch;
 	if (sna->kgem.gen >= 60)
 		sna->kgem.ring = KGEM_BLT;
 }

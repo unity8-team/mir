@@ -84,6 +84,24 @@ struct kgem_partial_bo {
 
 static struct drm_i915_gem_exec_object2 _kgem_dummy_exec;
 
+static void kgem_sna_reset(struct kgem *kgem)
+{
+	struct sna *sna = container_of(kgem, struct sna, kgem);
+
+	sna->render.reset(sna);
+}
+
+static void kgem_sna_flush(struct kgem *kgem)
+{
+	struct sna *sna = container_of(kgem, struct sna, kgem);
+
+	sna->render.flush(sna);
+
+	if (sna->render.solid_cache.dirty)
+		sna_render_flush_solid(sna);
+}
+
+
 static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 {
 	struct drm_i915_gem_set_tiling set_tiling;
@@ -462,6 +480,8 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 
 static uint32_t kgem_end_batch(struct kgem *kgem)
 {
+	kgem->context_switch(kgem, KGEM_NONE);
+
 	kgem->batch[kgem->nbatch++] = MI_BATCH_BUFFER_END;
 	if (kgem->nbatch & 1)
 		kgem->batch[kgem->nbatch++] = MI_NOOP;
@@ -747,10 +767,8 @@ void _kgem_submit(struct kgem *kgem)
 	assert(kgem->nbatch <= KGEM_BATCH_SIZE(kgem));
 	assert(kgem->nbatch <= kgem->surface);
 
-	sna_kgem_context_switch(kgem, KGEM_NONE);
-
 	batch_end = kgem_end_batch(kgem);
-	sna_kgem_flush(kgem);
+	kgem_sna_flush(kgem);
 
 	DBG(("batch[%d/%d]: %d %d %d, nreloc=%d, nexec=%d, nfence=%d, aperture=%d\n",
 	     kgem->mode, kgem->ring, batch_end, kgem->nbatch, kgem->surface,
@@ -907,7 +925,7 @@ void _kgem_submit(struct kgem *kgem)
 	kgem->mode = KGEM_NONE;
 	kgem->flush = 0;
 
-	sna_kgem_reset(kgem);
+	kgem_sna_reset(kgem);
 }
 
 void kgem_throttle(struct kgem *kgem)

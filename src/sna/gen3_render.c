@@ -3660,12 +3660,6 @@ static void gen3_render_flush(struct sna *sna)
 }
 
 static void
-gen3_render_context_switch(struct sna *sna,
-			   int new_mode)
-{
-}
-
-static void
 gen3_render_fini(struct sna *sna)
 {
 }
@@ -3689,7 +3683,6 @@ Bool gen3_render_init(struct sna *sna)
 
 	render->reset = gen3_render_reset;
 	render->flush = gen3_render_flush;
-	render->context_switch = gen3_render_context_switch;
 	render->fini = gen3_render_fini;
 
 	render->max_3d_size = 2048;

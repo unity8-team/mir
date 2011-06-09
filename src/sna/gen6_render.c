@@ -2769,16 +2769,16 @@ static void gen6_render_flush(struct sna *sna)
 }
 
 static void
-gen6_render_context_switch(struct sna *sna,
+gen6_render_context_switch(struct kgem *kgem,
 			   int new_mode)
 {
 	if (!new_mode)
 		return;
 
-	if (sna->kgem.mode)
-		_kgem_submit(&sna->kgem);
+	if (kgem->mode)
+		_kgem_submit(kgem);
 
-	sna->kgem.ring = new_mode;
+	kgem->ring = new_mode;
 }
 
 static void gen6_render_reset(struct sna *sna)
@@ -2853,6 +2853,7 @@ Bool gen6_render_init(struct sna *sna)
 		return FALSE;
 
 	gen6_render_reset(sna);
+	sna->kgem.context_switch = gen6_render_context_switch;
 
 	sna->render.composite = gen6_render_composite;
 	sna->render.video = gen6_render_video;
@@ -2864,7 +2865,6 @@ Bool gen6_render_init(struct sna *sna)
 	sna->render.fill = gen6_render_fill;
 
 	sna->render.flush = gen6_render_flush;
-	sna->render.context_switch = gen6_render_context_switch;
 	sna->render.reset = gen6_render_reset;
 	sna->render.fini = gen6_render_fini;
 
