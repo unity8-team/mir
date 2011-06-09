@@ -685,7 +685,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 					      pixmap->drawable.height,
 					      pixmap->drawable.bitsPerPixel,
 					      sna_pixmap_choose_tiling(pixmap),
-					      0);
+					      priv->cpu_damage ? CREATE_INACTIVE : 0);
 		if (priv->gpu_bo == NULL)
 			return NULL;
 
