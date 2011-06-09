@@ -912,7 +912,18 @@ void _kgem_submit(struct kgem *kgem)
 
 void kgem_throttle(struct kgem *kgem)
 {
+	static int warned;
+
 	kgem->wedged |= drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE) == -EIO;
+
+	if (kgem->wedged && !warned) {
+		struct sna *sna = container_of(kgem, struct sna, kgem);
+		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+			   "Detected a hung GPU, disabling acceleration.\n");
+		xf86DrvMsg(sna->scrn->scrnIndex, X_ERROR,
+			   "When reporting this, please include i915_error_state from debugfs and the full dmesg.\n");
+		warned = 1;
+	}
 }
 
 bool kgem_needs_expire(struct kgem *kgem)
