@@ -1542,7 +1542,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
 	if (sna->kgem.wedged) {
-		DBG(("%s: fallback -- wedged\n"));
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -1737,7 +1737,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
 	if (sna->kgem.wedged) {
-		DBG(("%s: fallback -- wedged\n"));
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -1956,7 +1956,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
 	if (sna->kgem.wedged) {
-		DBG(("%s: fallback -- wedged\n"));
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -2169,7 +2169,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
 	if (sna->kgem.wedged) {
-		DBG(("%s: fallback -- wedged\n"));
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -2652,7 +2652,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		return;
 
 	if (sna->kgem.wedged) {
-		DBG(("%s: fallback -- wedged\n"));
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -2960,7 +2960,7 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 	DBG(("%s origin=(%d, %d)\n", __FUNCTION__, origin.x, origin.y));
 
 	if (sna->kgem.wedged) {
-		DBG(("%s: fallback -- wedged\n"));
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		sna_pixmap_move_to_cpu(pixmap, true);
 		fbCopyWindow(win, origin, src);
 		return;
