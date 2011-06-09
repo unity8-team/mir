@@ -224,12 +224,15 @@ if test "x$SNA" != xno; then
 fi
 AC_MSG_RESULT([$sna_drivers])
 
-AM_CONDITIONAL(DEBUG, test x$DEBUG = xyes)
+AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)
 if test "x$DEBUG" = xno; then
 	AC_DEFINE(NDEBUG,1,[Disable internal debugging])
 fi
-if test "x$DEBUG" = xyes; then
+if test "x$DEBUG" != xno; then
 	AC_DEFINE(HAS_EXTRA_DEBUG,1,[Enable additional debugging])
+fi
+if test "x$DEBUG" = xfull; then
+	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
 fi
 
 AC_CHECK_HEADERS([sys/timerfd.h])
