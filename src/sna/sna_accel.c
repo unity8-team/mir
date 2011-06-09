@@ -773,6 +773,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 	priv->cpu_damage = NULL;
 
 done:
+	sna_damage_reduce(&priv->gpu_damage);
 	list_del(&priv->list);
 	return priv;
 }
