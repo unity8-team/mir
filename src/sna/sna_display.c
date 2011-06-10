@@ -1846,4 +1846,3 @@ sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 	kgem_advance_batch(&sna->kgem, 5);
 	return true;
 }
-

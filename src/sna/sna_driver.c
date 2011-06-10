@@ -763,6 +763,7 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 		sna->directRenderingOpen = FALSE;
 	}
 
+	sna_mode_remove_fb(sna);
 	xf86GARTCloseScreen(scrnIndex);
 
 	scrn->vtSema = FALSE;
