@@ -282,6 +282,7 @@ struct gen4_render_state {
 	uint16_t last_pipelined_pointers;
 
 	Bool needs_invariant;
+	Bool needs_urb;
 };
 
 struct gen5_render_state {

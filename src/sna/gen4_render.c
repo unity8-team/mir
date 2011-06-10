@@ -58,6 +58,12 @@
 #define PREFER_BLT 1
 #define FLUSH_EVERY_VERTEX 1
 
+#define NO_COMPOSITE 0
+#define NO_COPY 0
+#define NO_COPY_BOXES 0
+#define NO_FILL 0
+#define NO_FILL_BOXES 0
+
 #if FLUSH_EVERY_VERTEX
 #define FLUSH() do { \
 	gen4_vertex_flush(sna); \
@@ -276,7 +282,7 @@ static const struct formatinfo {
 #define SAMPLER_OFFSET(sf, se, mf, me, k) \
 	((((((sf) * EXTEND_COUNT + (se)) * FILTER_COUNT + (mf)) * EXTEND_COUNT + (me)) * KERNEL_COUNT + (k)) * 64)
 
-static bool
+static void
 gen4_emit_pipelined_pointers(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     int blend, int kernel);
@@ -313,14 +319,15 @@ static void gen4_magic_ca_pass(struct sna *sna,
 		return;
 
 	DBG(("%s: CA fixup\n", __FUNCTION__));
+	assert(op->mask.bo != NULL);
+	assert(op->has_component_alpha);
 
 	if (FLUSH_EVERY_VERTEX)
 		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
-	gen4_emit_pipelined_pointers
-		(sna, op, PictOpAdd,
-		 gen4_choose_composite_kernel(PictOpAdd,
-					      TRUE, TRUE, op->is_affine));
+	gen4_emit_pipelined_pointers(sna, op, PictOpAdd,
+				     gen4_choose_composite_kernel(PictOpAdd,
+								  TRUE, TRUE, op->is_affine));
 
 	OUT_BATCH(GEN4_3DPRIMITIVE |
 		  GEN4_3DPRIMITIVE_VERTEX_SEQUENTIAL |
@@ -447,9 +454,10 @@ static uint32_t gen4_get_blend(int op,
 static uint32_t gen4_get_dest_format(PictFormat format)
 {
 	switch (format) {
+	default:
+		assert(0);
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
-	default:
 		return GEN4_SURFACEFORMAT_B8G8R8A8_UNORM;
 	case PICT_a8b8g8r8:
 	case PICT_x8b8g8r8:
@@ -1068,7 +1076,7 @@ static int gen4_get_rectangles__flush(struct sna *sna)
 	gen4_vertex_finish(sna, FALSE);
 	sna->render.vertex_index = 0;
 
-	return  ARRAY_SIZE(sna->render.vertex_data);
+	return ARRAY_SIZE(sna->render.vertex_data);
 }
 
 inline static int gen4_get_rectangles(struct sna *sna,
@@ -1088,7 +1096,7 @@ inline static int gen4_get_rectangles(struct sna *sna,
 	if (!gen4_rectangle_begin(sna, op))
 		return 0;
 
-	if (want * op->floats_per_vertex*3 > rem)
+	if (want > 1 && want * op->floats_per_vertex*3 > rem)
 		want = rem / (3*op->floats_per_vertex);
 
 	sna->render.vertex_index += 3*want;
@@ -1099,19 +1107,15 @@ static uint32_t *gen4_composite_get_binding_table(struct sna *sna,
 						  const struct sna_composite_op *op,
 						  uint16_t *offset)
 {
-	uint32_t *table;
-
 	sna->kgem.surface -=
 		sizeof(struct gen4_surface_state_padded) / sizeof(uint32_t);
-	/* Clear all surplus entries to zero in case of prefetch */
-	table = memset(sna->kgem.batch + sna->kgem.surface,
-		       0, sizeof(struct gen4_surface_state_padded));
-
-	*offset = sna->kgem.surface;
 
 	DBG(("%s(%x)\n", __FUNCTION__, 4*sna->kgem.surface));
 
-	return table;
+	/* Clear all surplus entries to zero in case of prefetch */
+	*offset = sna->kgem.surface;
+	return memset(sna->kgem.batch + sna->kgem.surface,
+		      0, sizeof(struct gen4_surface_state_padded));
 }
 
 static void
@@ -1130,6 +1134,9 @@ gen4_emit_urb(struct sna *sna)
 	int urb_clip_start, urb_clip_size;
 	int urb_sf_start, urb_sf_size;
 	int urb_cs_start, urb_cs_size;
+
+	if (!sna->render_state.gen4.needs_urb)
+		return;
 
 	urb_vs_start = 0;
 	urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -1158,6 +1165,8 @@ gen4_emit_urb(struct sna *sna)
 	/* Constant buffer state */
 	OUT_BATCH(GEN4_CS_URB_STATE | 0);
 	OUT_BATCH((URB_CS_ENTRY_SIZE - 1) << 4 | URB_CS_ENTRIES << 0);
+
+	sna->render_state.gen4.needs_urb = false;
 }
 
 static void
@@ -1246,12 +1255,18 @@ gen4_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(offset*4);
 }
 
-static bool
+static void
 gen4_emit_pipelined_pointers(struct sna *sna,
 			     const struct sna_composite_op *op,
 			     int blend, int kernel)
 {
 	uint16_t offset = sna->kgem.nbatch, last;
+
+	DBG(("%s: has_mask=%d, src=(%d, %d), mask=(%d, %d),kernel=%d, blend=%d, ca=%d, format=%x\n",
+	     __FUNCTION__, op->mask.bo != NULL,
+	     op->src.filter, op->src.repeat,
+	     op->mask.filter, op->mask.repeat,
+	     kernel, blend, op->has_component_alpha, op->dst.format));
 
 	OUT_BATCH(GEN4_3DSTATE_PIPELINED_POINTERS | 5);
 	OUT_BATCH(sna->render_state.gen4.vs);
@@ -1267,16 +1282,13 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 
 	last = sna->render_state.gen4.last_pipelined_pointers;
 	if (last &&
-	    sna->kgem.batch[offset + 1] == sna->kgem.batch[last + 1] &&
-	    sna->kgem.batch[offset + 3] == sna->kgem.batch[last + 3] &&
 	    sna->kgem.batch[offset + 4] == sna->kgem.batch[last + 4] &&
 	    sna->kgem.batch[offset + 5] == sna->kgem.batch[last + 5] &&
 	    sna->kgem.batch[offset + 6] == sna->kgem.batch[last + 6]) {
 		sna->kgem.nbatch = offset;
-		return false;
 	} else {
 		sna->render_state.gen4.last_pipelined_pointers = offset;
-		return true;
+		gen4_emit_urb(sna);
 	}
 }
 
@@ -1377,8 +1389,7 @@ gen4_emit_state(struct sna *sna,
 	       	uint16_t wm_binding_table)
 {
 	gen4_emit_binding_table(sna, wm_binding_table);
-	if (gen4_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel))
-		gen4_emit_urb(sna);
+	gen4_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
 	gen4_emit_vertex_elements(sna, op);
 	gen4_emit_drawing_rectangle(sna, op);
 }
@@ -1413,6 +1424,14 @@ gen4_bind_surfaces(struct sna *sna,
 				     op->mask.card_format,
 				     FALSE);
 
+	if (sna->kgem.surface == offset &&
+	    *(uint64_t *)(sna->kgem.batch + sna->render_state.gen4.surface_table) == *(uint64_t*)binding_table &&
+	    (op->mask.bo == NULL ||
+	     sna->kgem.batch[sna->render_state.gen4.surface_table+2] == binding_table[2])) {
+		sna->kgem.surface += sizeof(struct gen4_surface_state_padded) / sizeof(uint32_t);
+		offset = sna->render_state.gen4.surface_table;
+	}
+
 	gen4_emit_state(sna, op, offset);
 }
 
@@ -1427,6 +1446,11 @@ gen4_render_composite_blt(struct sna *sna,
 	     r->mask.x, r->mask.y, op->mask.offset[0], op->mask.offset[1],
 	     r->dst.x, r->dst.y, op->dst.x, op->dst.y,
 	     r->width, r->height));
+
+	if (FLUSH_EVERY_VERTEX && op->need_magic_ca_pass)
+		/* We have to reset the state after every FLUSH */
+		gen4_emit_pipelined_pointers(sna, op,
+					     op->op, op->u.gen4.wm_kernel);
 
 	if (!gen4_get_rectangles(sna, op, 1)) {
 		gen4_bind_surfaces(sna, op);
@@ -1828,17 +1852,14 @@ picture_is_cpu(PicturePtr picture)
 	return is_cpu(picture->pDrawable);
 }
 
+static inline bool prefer_blt(struct sna *sna)
+{
 #if PREFER_BLT
-static inline bool prefer_blt(struct sna *sna)
-{
 	return true;
-}
 #else
-static inline bool prefer_blt(struct sna *sna)
-{
 	return sna->kgem.mode != KGEM_RENDER;
-}
 #endif
+}
 
 static Bool
 try_blt(struct sna *sna,
@@ -1875,6 +1896,17 @@ gen4_render_composite(struct sna *sna,
 {
 	DBG(("%s: %dx%d, current mode=%d\n", __FUNCTION__,
 	     width, height, sna->kgem.mode));
+
+#if NO_COMPOSITE
+	if (mask)
+		return FALSE;
+
+	return sna_blt_composite(sna, op,
+				 src, dst,
+				 src_x, src_y,
+				 dst_x, dst_y,
+				 width, height, tmp);
+#endif
 
 	if (mask == NULL &&
 	    try_blt(sna, dst, src, width, height) &&
@@ -2107,6 +2139,14 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 {
 	struct sna_composite_op tmp;
 
+#if NO_COPY_BOXES
+	return sna_blt_copy_boxes(sna, alu,
+				  src_bo, src_dx, src_dy,
+				  dst_bo, dst_dx, dst_dy,
+				  dst->drawable.bitsPerPixel,
+				  box, n);
+#endif
+
 	if (prefer_blt(sna) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -2198,6 +2238,13 @@ gen4_render_copy(struct sna *sna, uint8_t alu,
 		 PixmapPtr dst, struct kgem_bo *dst_bo,
 		 struct sna_copy_op *op)
 {
+#if NO_COPY
+	return sna_blt_copy(sna, alu,
+			    src_bo, dst_bo,
+			    dst->drawable.bitsPerPixel,
+			    op);
+#endif
+
 	if (prefer_blt(sna) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
@@ -2357,6 +2404,10 @@ gen4_render_fill_boxes(struct sna *sna,
 			return FALSE;
 	}
 
+#if NO_FILL_BOXES
+	return FALSE;
+#endif
+
 	if (!sna_get_pixel_from_rgba(&pixel,
 				     color->red,
 				     color->green,
@@ -2425,6 +2476,13 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 		 uint32_t color,
 		 struct sna_fill_op *op)
 {
+#if NO_FILL
+	return sna_blt_fill(sna, alu,
+			    dst_bo, dst->drawable.bitsPerPixel,
+			    color,
+			    op);
+#endif
+
 	if (prefer_blt(sna) &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
@@ -2482,6 +2540,7 @@ gen4_render_flush(struct sna *sna)
 static void gen4_render_reset(struct sna *sna)
 {
 	sna->render_state.gen4.needs_invariant = TRUE;
+	sna->render_state.gen4.needs_urb = TRUE;
 	sna->render_state.gen4.vb_id = 0;
 	sna->render_state.gen4.ve_id = -1;
 	sna->render_state.gen4.last_primitive = -1;
