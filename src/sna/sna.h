@@ -309,8 +309,10 @@ to_sna_from_drawable(DrawablePtr drawable)
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
 #define MIN(a,b)	((a) < (b) ? (a) : (b))
 
-extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn, BoxPtr box,
-				      xf86CrtcPtr desired, BoxPtr crtc_box_ret);
+extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
+				     const BoxRec *box,
+				     xf86CrtcPtr desired,
+				     BoxPtr crtc_box_ret);
 
 extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 				  xf86CrtcPtr crtc, RegionPtr clip);

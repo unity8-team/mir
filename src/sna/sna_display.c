@@ -1683,17 +1683,22 @@ static void sna_crtc_box(xf86CrtcPtr crtc, BoxPtr crtc_box)
 		crtc_box->x1 = crtc_box->x2 = crtc_box->y1 = crtc_box->y2 = 0;
 }
 
-static void sna_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
+static void sna_box_intersect(BoxPtr r, const BoxRec *a, const BoxRec *b)
 {
-	dest->x1 = a->x1 > b->x1 ? a->x1 : b->x1;
-	dest->x2 = a->x2 < b->x2 ? a->x2 : b->x2;
-	dest->y1 = a->y1 > b->y1 ? a->y1 : b->y1;
-	dest->y2 = a->y2 < b->y2 ? a->y2 : b->y2;
-	if (dest->x1 >= dest->x2 || dest->y1 >= dest->y2)
-		dest->x1 = dest->x2 = dest->y1 = dest->y2 = 0;
+	r->x1 = a->x1 > b->x1 ? a->x1 : b->x1;
+	r->x2 = a->x2 < b->x2 ? a->x2 : b->x2;
+	r->y1 = a->y1 > b->y1 ? a->y1 : b->y1;
+	r->y2 = a->y2 < b->y2 ? a->y2 : b->y2;
+	DBG(("%s: (%d, %d), (%d, %d) intersect (%d, %d), (%d, %d) = (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     a->x1, a->y1, a->x2, a->y2,
+	     b->x1, b->y1, b->x2, b->y2,
+	     r->x1, r->y1, r->x2, r->y2));
+	if (r->x1 >= r->x2 || r->y1 >= r->y2)
+		r->x1 = r->x2 = r->y1 = r->y2 = 0;
 }
 
-static int sna_box_area(BoxPtr box)
+static int sna_box_area(const BoxRec *box)
 {
 	return (int)(box->x2 - box->x1) * (int)(box->y2 - box->y1);
 }
@@ -1705,25 +1710,28 @@ static int sna_box_area(BoxPtr box)
  */
 xf86CrtcPtr
 sna_covering_crtc(ScrnInfoPtr scrn,
-		  BoxPtr box, xf86CrtcPtr desired, BoxPtr crtc_box_ret)
+		  const BoxRec *box,
+		  xf86CrtcPtr desired,
+		  BoxPtr crtc_box_ret)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	xf86CrtcPtr crtc, best_crtc;
-	int coverage, best_coverage;
-	int c;
-	BoxRec crtc_box, cover_box;
+	xf86CrtcPtr best_crtc;
+	int best_coverage, c;
+	BoxRec best_crtc_box;
 
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
 
 	best_crtc = NULL;
 	best_coverage = 0;
-	crtc_box_ret->x1 = 0;
-	crtc_box_ret->x2 = 0;
-	crtc_box_ret->y1 = 0;
-	crtc_box_ret->y2 = 0;
+	best_crtc_box.x1 = 0;
+	best_crtc_box.x2 = 0;
+	best_crtc_box.y1 = 0;
+	best_crtc_box.y2 = 0;
 	for (c = 0; c < xf86_config->num_crtc; c++) {
-		crtc = xf86_config->crtc[c];
+		xf86CrtcPtr crtc = xf86_config->crtc[c];
+		BoxRec crtc_box, cover_box;
+		int coverage;
 
 		/* If the CRTC is off, treat it as not covering */
 		if (!sna_crtc_on(crtc)) {
@@ -1732,8 +1740,20 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 		}
 
 		sna_crtc_box(crtc, &crtc_box);
+		DBG(("%s: crtc %d: (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, c,
+		     crtc_box.x1, crtc_box.y1,
+		     crtc_box.x2, crtc_box.y2));
+
 		sna_box_intersect(&cover_box, &crtc_box, box);
+		DBG(("%s: box instersects (%d, %d), (%d, %d) of crtc %d\n",
+		     __FUNCTION__,
+		     cover_box.x1, cover_box.y1,
+		     cover_box.x2, cover_box.y2,
+		     c));
 		coverage = sna_box_area(&cover_box);
+		DBG(("%s: box covers %d of crtc %d\n",
+		     __FUNCTION__, coverage, c));
 		if (coverage && crtc == desired) {
 			DBG(("%s: box is on desired crtc [%p]\n",
 			     __FUNCTION__, crtc));
@@ -1741,12 +1761,14 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 			return crtc;
 		}
 		if (coverage > best_coverage) {
-			*crtc_box_ret = crtc_box;
+			best_crtc_box = crtc_box;
 			best_crtc = crtc;
 			best_coverage = coverage;
 		}
 	}
-	DBG(("%s: best crtc = %p\n", __FUNCTION__, best_crtc));
+	DBG(("%s: best crtc = %p, coverage = %d\n",
+	     __FUNCTION__, best_crtc, best_coverage));
+	*crtc_box_ret = best_crtc_box;
 	return best_crtc;
 }
 
