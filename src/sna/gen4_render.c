@@ -1046,12 +1046,17 @@ static bool gen4_rectangle_begin(struct sna *sna,
 	int ndwords;
 
 	ndwords = 0;
+	if (FLUSH_EVERY_VERTEX)
+		ndwords = 1;
 	if ((sna->render_state.gen4.vb_id & (1 << id)) == 0)
 		ndwords += 5;
 	if (sna->render_state.gen4.vertex_offset == 0)
-		ndwords += op->need_magic_ca_pass ? 20 : 6;
+		ndwords += 6;
 	if (ndwords == 0)
 		return true;
+
+	if (op->need_magic_ca_pass)
+		ndwords += 12; /* pipelined pointers + primitive + flush */
 
 	if (!kgem_check_batch(&sna->kgem, ndwords))
 		return false;
