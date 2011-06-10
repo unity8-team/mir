@@ -296,13 +296,14 @@ void kgem_init(struct kgem *kgem, int fd, int gen)
 	struct drm_i915_gem_get_aperture aperture;
 	int i;
 
+	/* We presume we are partt of a zeroed structure
+	memset(kgem, 0, sizeof(*kgem));
+	*/
+
 	kgem->fd = fd;
 	kgem->gen = gen;
 	kgem->wedged = drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE) == -EIO;
 	kgem->wedged |= DBG_NO_HW;
-
-	kgem->ring = kgem->mode = KGEM_NONE;
-	kgem->flush = 0;
 
 	list_init(&kgem->partial);
 	list_init(&kgem->requests);
@@ -313,7 +314,6 @@ void kgem_init(struct kgem *kgem, int fd, int gen)
 
 	kgem->next_request = __kgem_request_alloc();
 
-	kgem->has_vmap = 0;
 #if defined(USE_VMAP) && defined(I915_PARAM_HAS_VMAP)
 	if (!DBG_NO_VMAP) {
 		drm_i915_getparam_t gp;
@@ -328,7 +328,6 @@ void kgem_init(struct kgem *kgem, int fd, int gen)
 	DBG(("%s: using vmap=%d\n", __FUNCTION__, kgem->has_vmap));
 
 	if (gen < 40) {
-		kgem->has_relaxed_fencing = 0;
 		if (!DBG_NO_RELAXED_FENCING) {
 			drm_i915_getparam_t gp;
 
@@ -351,7 +350,6 @@ void kgem_init(struct kgem *kgem, int fd, int gen)
 
 	kgem->aperture_high = aperture.aper_available_size * 3/4;
 	kgem->aperture_low = aperture.aper_available_size * 1/4;
-	kgem->aperture = 0;
 	DBG(("%s: aperture low=%d, high=%d\n", __FUNCTION__,
 	     kgem->aperture_low, kgem->aperture_high));
 
