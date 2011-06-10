@@ -774,7 +774,6 @@ void _kgem_submit(struct kgem *kgem)
 	assert(kgem->nbatch);
 	assert(kgem->nbatch <= KGEM_BATCH_SIZE(kgem));
 	assert(kgem->nbatch <= kgem->surface);
-	assert(kgem->mode == KGEM_NONE || kgem->mode == kgem->ring);
 
 	batch_end = kgem_end_batch(kgem);
 	kgem_sna_flush(kgem);
