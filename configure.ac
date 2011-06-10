@@ -188,6 +188,9 @@ fi
 
 AM_CONDITIONAL(SNA, test x$SNA != xno)
 AC_MSG_CHECKING([whether to include SNA support])
+if test "x$SNA" != "xno"; then
+	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
+fi
 AC_MSG_RESULT([$SNA])
 
 AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)

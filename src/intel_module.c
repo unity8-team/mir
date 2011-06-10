@@ -335,7 +335,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 #endif
 
 		default:
-#if SNA
+#if USE_SNA
 			sna_init_scrn(scrn, entity_num);
 #else
 			intel_init_scrn(scrn);
@@ -376,7 +376,7 @@ intel_available_options(int chipid, int busid)
 #endif
 
 	default:
-#if SNA
+#if USE_SNA
 		return sna_available_options(chipid, busid);
 #else
 		return intel_uxa_available_options(chipid, busid);
