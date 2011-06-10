@@ -1178,6 +1178,21 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	case 8: break;
 	}
 
+	/* All too frequently one blt completely overwrites the previous */
+	if (kgem->nbatch >= 6 &&
+	    (alu == GXcopy || alu == GXclear) &&
+	    kgem->batch[kgem->nbatch-6] == cmd &&
+	    kgem->batch[kgem->nbatch-4] == (box[0].y1 << 16 | box[0].x1) &&
+	    kgem->batch[kgem->nbatch-3] == (box[0].y2 << 16 | box[0].x2) &&
+	    kgem->reloc[kgem->nreloc-1].target_handle == bo->handle) {
+		DBG(("%s: replacing last fill\n", __FUNCTION__));
+		kgem->batch[kgem->nbatch-5] = br13;
+		kgem->batch[kgem->nbatch-1] = color;
+		if (--nbox == 0)
+			return TRUE;
+		box++;
+	}
+
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 6) ||
 	    !kgem_check_bo_fenced(kgem, bo, NULL) ||
