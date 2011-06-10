@@ -300,6 +300,10 @@ static struct kgem_bo *upload(struct sna *sna,
 
 	DBG(("%s: origin=(%d, %d), box=(%d, %d), (%d, %d), pixmap=%dx%d\n",
 	     __FUNCTION__, x, y, box->x1, box->y1, box->x2, box->y2, pixmap->drawable.width, pixmap->drawable.height));
+	assert(box->x1 >= 0);
+	assert(box->y1 >= 0);
+	assert(box->x2 <= pixmap->drawable.width);
+	assert(box->y2 <= pixmap->drawable.height);
 
 	bo = kgem_upload_source_image(&sna->kgem,
 				      pixmap->devPrivate.ptr,

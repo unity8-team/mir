@@ -82,12 +82,11 @@ struct sna_composite_op {
 			uint32_t inplace :1;
 			uint32_t overwrites:1;
 
-			int hdr;
 			uint32_t cmd;
 			uint32_t br13;
 			uint32_t pitch[2];
 			uint32_t pixel;
-			struct kgem_bo *bo[3];
+			struct kgem_bo *bo[2];
 		} blt;
 
 		struct {
