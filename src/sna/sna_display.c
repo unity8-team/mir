@@ -1575,10 +1575,19 @@ sna_do_pageflip(struct sna *sna,
 	 */
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	if (count > 0) {
+		int id = sna->front->drawable.serialNumber;
+
 		sna->front = pixmap;
 		pixmap->refcnt++;
+
 		sna_redirect_screen_pixmap(scrn, *old_front, sna->front);
 		scrn->displayWidth = bo->pitch / sna->mode.cpp;
+
+		/* DRI2 uses the serialNumber as a means for detecting
+		 * when to revoke its buffers after a reconfigureatin event.
+		 * For the ScreenPixmap this means set_size.
+		  */
+		pixmap->drawable.serialNumber = id;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;
