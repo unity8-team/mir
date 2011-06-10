@@ -71,6 +71,13 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/fcntl.h>
 #include "i915_drm.h"
 
+#if DEBUG_DRIVER
+#undef DBG
+#define DBG(x) ErrorF x
+#else
+#define NDEBUG 1
+#endif
+
 static OptionInfoRec sna_options[] = {
    {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_TILING_2D,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
@@ -104,6 +111,8 @@ sna_load_palette(ScrnInfoPtr scrn, int numColors, int *indices,
 	int i, j, index;
 	int p;
 	uint16_t lut_r[256], lut_g[256], lut_b[256];
+
+	DBG(("%s\n", __FUNCTION__));
 
 	for (p = 0; p < xf86_config->num_crtc; p++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[p];
@@ -170,6 +179,8 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	struct sna *sna = to_sna(scrn);
+
+	DBG(("%s\n", __FUNCTION__));
 
 	free(screen->devPrivate);
 	screen->devPrivate = NULL;
@@ -286,6 +297,8 @@ static int sna_open_drm_master(ScrnInfoPtr scrn)
 	char busid[20];
 	int fd;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	dev = sna_device(scrn);
 	if (dev) {
 		dev->open_count++;
@@ -351,6 +364,8 @@ static void sna_close_drm_master(ScrnInfoPtr scrn)
 {
 	struct sna_device *dev = sna_device(scrn);
 
+	DBG(("%s(open_count=%d)\n", __FUNCTION__, dev->open_count));
+
 	if (--dev->open_count)
 		return;
 
@@ -385,6 +400,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	int flags24;
 	Gamma zeros = { 0.0, 0.0, 0.0 };
 	int fd;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	sna_selftest();
 
@@ -545,6 +562,8 @@ sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 	ScrnInfoPtr scrn = xf86Screens[i];
 	struct sna *sna = to_sna(scrn);
 
+	DBG(("%s\n", __FUNCTION__));
+
 	screen->BlockHandler = sna->BlockHandler;
 
 	(*screen->BlockHandler) (i, data, timeout, read_mask);
@@ -561,6 +580,8 @@ sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 	ScreenPtr screen = screenInfo.screens[i];
 	ScrnInfoPtr scrn = xf86Screens[i];
 	struct sna *sna = to_sna(scrn);
+
+	DBG(("%s\n", __FUNCTION__));
 
 	screen->WakeupHandler = sna->WakeupHandler;
 
@@ -589,6 +610,8 @@ sna_handle_uevents(int fd, void *closure)
 	const char *hotplug;
 	struct stat s;
 	dev_t udev_devnum;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	dev = udev_monitor_receive_device(sna->uevent_monitor);
 	if (!dev)
@@ -619,6 +642,8 @@ sna_uevent_init(ScrnInfoPtr scrn)
 	struct udev_monitor *mon;
 	Bool hotplug;
 	MessageType from = X_CONFIG;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	if (!xf86GetOptValBool(sna->Options, OPTION_HOTPLUG, &hotplug)) {
 		from = X_DEFAULT;
@@ -688,6 +713,8 @@ static void sna_leave_vt(int scrnIndex, int flags)
 	struct sna *sna = to_sna(scrn);
 	int ret;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	xf86RotateFreeShadow(scrn);
 
 	xf86_hide_cursors(scrn);
@@ -703,6 +730,8 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	struct sna *sna = to_sna(scrn);
+
+	DBG(("%s\n", __FUNCTION__));
 
 #if HAVE_UDEV
 	sna_uevent_fini(scrn);
@@ -736,6 +765,8 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	struct sna *sna = to_sna(scrn);
 	VisualPtr visual;
 	struct pci_device *const device = sna->PciInfo;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	scrn->videoRam = device->regions[2].size / 1024;
 
@@ -856,6 +887,8 @@ static void sna_free_screen(int scrnIndex, int flags)
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	struct sna *sna = to_sna(scrn);
 
+	DBG(("%s\n", __FUNCTION__));
+
 	if (sna) {
 		sna_mode_fini(sna);
 
@@ -877,6 +910,8 @@ static Bool sna_enter_vt(int scrnIndex, int flags)
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	struct sna *sna = to_sna(scrn);
 
+	DBG(("%s\n", __FUNCTION__));
+
 	if (drmSetMaster(sna->kgem.fd)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "drmSetMaster failed: %s\n",
@@ -888,6 +923,7 @@ static Bool sna_enter_vt(int scrnIndex, int flags)
 
 static Bool sna_switch_mode(int scrnIndex, DisplayModePtr mode, int flags)
 {
+	DBG(("%s\n", __FUNCTION__));
 	return xf86SetSingleMode(xf86Screens[scrnIndex], mode, RR_Rotate_0);
 }
 
@@ -913,6 +949,8 @@ static Bool sna_pm_event(int scrnIndex, pmEvent event, Bool undo)
 {
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	struct sna *sna = to_sna(scrn);
+
+	DBG(("%s\n", __FUNCTION__));
 
 	switch (event) {
 	case XF86_APM_SYS_SUSPEND:
@@ -962,6 +1000,8 @@ static Bool sna_pm_event(int scrnIndex, pmEvent event, Bool undo)
 void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
 	EntityInfoPtr entity;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	sna_device_key = xf86AllocateEntityPrivateIndex();
 
