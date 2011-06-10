@@ -1267,8 +1267,6 @@ Bool gen2_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
-	gen2_render_reset(sna);
-
 	/* Use the BLT (and overlay) for everything except when forced to
 	 * use the texture combiners.
 	 */

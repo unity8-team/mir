@@ -3270,6 +3270,8 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	DBG(("%s(backend=%s, have_render=%d)\n",
 	     __FUNCTION__, backend, sna->have_render));
 
+	kgem_reset(&sna->kgem);
+
 	xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
 		   "SNA initialized with %s backend\n",
 		   backend);

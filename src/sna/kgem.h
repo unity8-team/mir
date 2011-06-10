@@ -122,6 +122,7 @@ struct kgem {
 #define KGEM_RELOC_SIZE(K) (ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
 
 void kgem_init(struct kgem *kgem, int fd, int gen);
+void kgem_reset(struct kgem *kgem);
 
 struct kgem_bo *kgem_create_map(struct kgem *kgem,
 				void *ptr, uint32_t size,

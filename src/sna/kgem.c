@@ -304,10 +304,6 @@ void kgem_init(struct kgem *kgem, int fd, int gen)
 	kgem->ring = kgem->mode = KGEM_NONE;
 	kgem->flush = 0;
 
-	kgem->nbatch = 0;
-	kgem->nreloc = 0;
-	kgem->nexec = 0;
-	kgem->surface = ARRAY_SIZE(kgem->batch);
 	list_init(&kgem->partial);
 	list_init(&kgem->requests);
 	list_init(&kgem->active);
@@ -757,6 +753,20 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle)
 			kgem->batch + kgem->surface);
 }
 
+void kgem_reset(struct kgem *kgem)
+{
+	kgem->nfence = 0;
+	kgem->nexec = 0;
+	kgem->nreloc = 0;
+	kgem->aperture = 0;
+	kgem->nbatch = 0;
+	kgem->surface = ARRAY_SIZE(kgem->batch);
+	kgem->mode = KGEM_NONE;
+	kgem->flush = 0;
+
+	kgem_sna_reset(kgem);
+}
+
 void _kgem_submit(struct kgem *kgem)
 {
 	struct kgem_request *rq;
@@ -917,16 +927,7 @@ void _kgem_submit(struct kgem *kgem)
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
 
-	kgem->nfence = 0;
-	kgem->nexec = 0;
-	kgem->nreloc = 0;
-	kgem->aperture = 0;
-	kgem->nbatch = 0;
-	kgem->surface = ARRAY_SIZE(kgem->batch);
-	kgem->mode = KGEM_NONE;
-	kgem->flush = 0;
-
-	kgem_sna_reset(kgem);
+	kgem_reset(kgem);
 }
 
 void kgem_throttle(struct kgem *kgem)

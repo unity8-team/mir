@@ -2792,8 +2792,6 @@ Bool gen4_render_init(struct sna *sna)
 	if (!gen4_render_setup(sna))
 		return FALSE;
 
-	gen4_render_reset(sna);
-
 	sna->render.composite = gen4_render_composite;
 	sna->render.video = gen4_render_video;
 

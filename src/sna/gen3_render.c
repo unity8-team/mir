@@ -3668,8 +3668,6 @@ Bool gen3_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
-	gen3_render_reset(sna);
-
 	render->composite = gen3_render_composite;
 	render->composite_spans = gen3_render_composite_spans;
 

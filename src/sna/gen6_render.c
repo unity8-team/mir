@@ -2852,7 +2852,6 @@ Bool gen6_render_init(struct sna *sna)
 	if (!gen6_render_setup(sna))
 		return FALSE;
 
-	gen6_render_reset(sna);
 	sna->kgem.context_switch = gen6_render_context_switch;
 
 	sna->render.composite = gen6_render_composite;
