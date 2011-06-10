@@ -737,6 +737,10 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 	sna_uevent_fini(scrn);
 #endif
 
+	/* drain the event queues */
+	sna_accel_wakeup_handler(sna);
+	sna_dri_wakeup(sna);
+
 	if (scrn->vtSema == TRUE)
 		sna_leave_vt(scrnIndex, 0);
 
