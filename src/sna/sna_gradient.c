@@ -218,6 +218,7 @@ sna_render_flush_solid(struct sna *sna)
 	kgem_bo_write(&sna->kgem, cache->cache_bo,
 		      cache->color, cache->size*sizeof(uint32_t));
 	cache->dirty = 0;
+	cache->last = 0;
 }
 
 static void
@@ -227,16 +228,21 @@ sna_render_finish_solid(struct sna *sna, bool force)
 	int i;
 
 	DBG(("sna_render_finish_solid(force=%d, busy=%d, dirty=%d)\n",
-	     force, cache->cache_bo->gpu, cache->dirty));
+	     force, cache->cache_bo->rq != NULL, cache->dirty));
 
-	if (!force && !cache->cache_bo->gpu)
+	if (!force && !cache->cache_bo->rq)
 		return;
 
 	if (cache->dirty)
 		sna_render_flush_solid(sna);
 
-	for (i = 0; i < cache->size; i++)
+	for (i = 0; i < cache->size; i++) {
+		if (cache->bo[i] == NULL)
+			continue;
+
 		kgem_bo_destroy(&sna->kgem, cache->bo[i]);
+		cache->bo[i] = NULL;
+	}
 	kgem_bo_destroy(&sna->kgem, cache->cache_bo);
 
 	DBG(("sna_render_finish_solid reset\n"));
@@ -244,7 +250,8 @@ sna_render_finish_solid(struct sna *sna, bool force)
 	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(cache->color));
 	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
-	cache->size = 1;
+	if (force)
+		cache->size = 1;
 }
 
 struct kgem_bo *
@@ -266,9 +273,15 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 
 	for (i = 1; i < cache->size; i++) {
 		if (cache->color[i] == color) {
-			DBG(("sna_render_get_solid(%d) = %x (old)\n",
-			     i, color));
-			goto done;
+			if (cache->bo[i] == NULL) {
+				DBG(("sna_render_get_solid(%d) = %x (recreate)\n",
+				     i, color));
+				goto create;
+			} else {
+				DBG(("sna_render_get_solid(%d) = %x (old)\n",
+				     i, color));
+				goto done;
+			}
 		}
 	}
 
@@ -276,11 +289,13 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 
 	i = cache->size++;
 	cache->color[i] = color;
+	DBG(("sna_render_get_solid(%d) = %x (new)\n", i, color));
+
+create:
 	cache->bo[i] = kgem_create_proxy(cache->cache_bo,
 					 i*sizeof(uint32_t), sizeof(uint32_t));
 	cache->bo[i]->pitch = 4;
 	cache->dirty = 1;
-	DBG(("sna_render_get_solid(%d) = %x (new)\n", i, color));
 
 done:
 	cache->last = i;
@@ -314,8 +329,10 @@ void sna_gradients_close(struct sna *sna)
 
 	if (sna->render.solid_cache.cache_bo)
 		kgem_bo_destroy(&sna->kgem, sna->render.solid_cache.cache_bo);
-	for (i = 0; i < sna->render.solid_cache.size; i++)
-		kgem_bo_destroy(&sna->kgem, sna->render.solid_cache.bo[i]);
+	for (i = 0; i < sna->render.solid_cache.size; i++) {
+		if (sna->render.solid_cache.bo[i])
+			kgem_bo_destroy(&sna->kgem, sna->render.solid_cache.bo[i]);
+	}
 	sna->render.solid_cache.cache_bo = 0;
 	sna->render.solid_cache.size = 0;
 	sna->render.solid_cache.dirty = 0;
