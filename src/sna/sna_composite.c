@@ -45,19 +45,14 @@
 
 static void dst_move_area_to_cpu(PicturePtr picture,
 				 uint8_t op,
-				 int x, int y,
-				 int width, int height)
+				 BoxPtr box)
 {
 	RegionRec area;
-	BoxRec box;
 
-	DBG(("%s: (%d, %d), (%d %d)\n", __FUNCTION__, x, y, width, height));
+	DBG(("%s: (%d, %d), (%d %d)\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
 
-	box.x1 = x;
-	box.y1 = y;
-	box.x2 = x + width;
-	box.y2 = y + height;
-	RegionInit(&area, &box, 1);
+	RegionInit(&area, box, 1);
 	if (picture->pCompositeClip)
 		RegionIntersect(&area, &area, picture->pCompositeClip);
 	sna_drawable_move_region_to_cpu(picture->pDrawable, &area, true);
@@ -101,11 +96,11 @@ clip_to_dst(pixman_region16_t *region,
 	} else if (!pixman_region_not_empty(clip)) {
 		return FALSE;
 	} else {
-		if (dx || dy)
+		if (dx | dy)
 			pixman_region_translate(region, -dx, -dy);
 		if (!pixman_region_intersect(region, region, clip))
 			return FALSE;
-		if (dx || dy)
+		if (dx | dy)
 			pixman_region_translate(region, dx, dy);
 	}
 	return pixman_region_not_empty(region);
@@ -405,6 +400,7 @@ sna_composite(CARD8 op,
 	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
 	struct sna_composite_op tmp;
 	RegionRec region;
+	int dx, dy;
 
 	DBG(("%s(%d src=(%d, %d), mask=(%d, %d), dst=(%d, %d)+(%d, %d), size=(%d, %d)\n",
 	     __FUNCTION__, op,
@@ -412,6 +408,14 @@ sna_composite(CARD8 op,
 	     mask_x, mask_y,
 	     dst_x, dst_y, dst->pDrawable->x, dst->pDrawable->y,
 	     width, height));
+
+	if (!sna_compute_composite_region(&region,
+					  src, mask, dst,
+					  src_x,  src_y,
+					  mask_x, mask_y,
+					  dst_x, dst_y,
+					  width,  height))
+		return;
 
 	if (sna->kgem.wedged) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
@@ -429,16 +433,12 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	if (!sna_compute_composite_region(&region,
-					  src, mask, dst,
-					  src_x,  src_y,
-					  mask_x, mask_y,
-					  dst_x, dst_y,
-					  width,  height))
-		return;
+	dx = region.extents.x1 - (dst_x + dst->pDrawable->x);
+	dy = region.extents.y1 - (dst_y + dst->pDrawable->y);
 
-	DBG(("%s: composite region extents: (%d, %d), (%d, %d) + (%d, %d)\n",
+	DBG(("%s: composite region extents:+(%d, %d) -> (%d, %d), (%d, %d) + (%d, %d)\n",
 	     __FUNCTION__,
+	     dx, dy,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2,
 	     get_drawable_dx(dst->pDrawable),
@@ -447,11 +447,12 @@ sna_composite(CARD8 op,
 	memset(&tmp, 0, sizeof(tmp));
 	if (!sna->render.composite(sna,
 				   op, src, mask, dst,
-				   src_x,  src_y,
-				   mask_x, mask_y,
-				   dst_x + dst->pDrawable->x,
-				   dst_y + dst->pDrawable->y,
-				   width,  height,
+				   src_x + dx,  src_y + dy,
+				   mask_x + dx, mask_y + dy,
+				   region.extents.x1,
+				   region.extents.y1,
+				   region.extents.x2 - region.extents.x1,
+				   region.extents.y2 - region.extents.y1,
 				   &tmp)) {
 		DBG(("%s: fallback due unhandled composite op\n", __FUNCTION__));
 		goto fallback;
@@ -473,10 +474,7 @@ fallback:
 	     dst->pDrawable->x, dst->pDrawable->y,
 	     width, height));
 
-	dst_move_area_to_cpu(dst, op,
-			     dst_x + dst->pDrawable->x,
-			     dst_y + dst->pDrawable->y,
-			     width, height);
+	dst_move_area_to_cpu(dst, op, &region.extents);
 	if (src->pDrawable)
 		sna_drawable_move_to_cpu(src->pDrawable, false);
 	if (mask && mask->pDrawable)
