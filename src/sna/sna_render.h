@@ -384,35 +384,11 @@ Bool sna_picture_is_solid(PicturePtr picture, uint32_t *color);
 
 void no_render_init(struct sna *sna);
 
-#ifdef SNA_GEN2
 Bool gen2_render_init(struct sna *sna);
-#else
-static inline Bool gen2_render_init(struct sna *sna) { return FALSE; }
-#endif
-
-#ifdef SNA_GEN3
 Bool gen3_render_init(struct sna *sna);
-#else
-static inline Bool gen3_render_init(struct sna *sna) { return FALSE; }
-#endif
-
-#ifdef SNA_GEN4
 Bool gen4_render_init(struct sna *sna);
-#else
-static inline Bool gen4_render_init(struct sna *sna) { return FALSE; }
-#endif
-
-#ifdef SNA_GEN5
 Bool gen5_render_init(struct sna *sna);
-#else
-static inline Bool gen5_render_init(struct sna *sna) { return FALSE; }
-#endif
-
-#ifdef SNA_GEN6
 Bool gen6_render_init(struct sna *sna);
-#else
-static inline Bool gen6_render_init(struct sna *sna) { return FALSE; }
-#endif
 
 Bool sna_tiling_composite(struct sna *sna,
 			  uint32_t op,

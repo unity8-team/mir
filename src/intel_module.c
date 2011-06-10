@@ -334,40 +334,8 @@ static Bool intel_pci_probe(DriverPtr		driver,
 			break;
 #endif
 
-#if SNA
-		case 0:
-#if SNA_GEN2
-		case PCI_CHIP_I830_M:
-		case PCI_CHIP_845_G:
-		case PCI_CHIP_I854:
-		case PCI_CHIP_I855_GM:
-		case PCI_CHIP_I865_G:
-#endif
-#if SNA_GEN3
-		case PCI_CHIP_PINEVIEW_M:
-		case PCI_CHIP_PINEVIEW_G:
-		case PCI_CHIP_G33_G:
-		case PCI_CHIP_Q35_G:
-		case PCI_CHIP_Q33_G:
-#endif
-#if SNA_GEN5
-		case PCI_CHIP_IRONLAKE_D_G:
-		case PCI_CHIP_IRONLAKE_M_G:
-#endif
-#if SNA_GEN6
-		case PCI_CHIP_SANDYBRIDGE_GT1:
-		case PCI_CHIP_SANDYBRIDGE_GT2:
-		case PCI_CHIP_SANDYBRIDGE_GT2_PLUS:
-		case PCI_CHIP_SANDYBRIDGE_M_GT1:
-		case PCI_CHIP_SANDYBRIDGE_M_GT2:
-		case PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS:
-		case PCI_CHIP_SANDYBRIDGE_S_GT:
-#endif
-			sna_init_scrn(scrn, entity_num);
-			break;
-#endif
 		default:
-#if SNA_DEFAULT
+#if SNA
 			sna_init_scrn(scrn, entity_num);
 #else
 			intel_init_scrn(scrn);
@@ -407,32 +375,8 @@ intel_available_options(int chipid, int busid)
 		return lg_i810_available_options(chipid, busid);
 #endif
 
-#if SNA
-	case 0:
-#if SNA_GEN3
-	case PCI_CHIP_PINEVIEW_M:
-	case PCI_CHIP_PINEVIEW_G:
-	case PCI_CHIP_G33_G:
-	case PCI_CHIP_Q35_G:
-	case PCI_CHIP_Q33_G:
-#endif
-#if SNA_GEN5
-	case PCI_CHIP_IRONLAKE_D_G:
-	case PCI_CHIP_IRONLAKE_M_G:
-#endif
-#if SNA_GEN6
-	case PCI_CHIP_SANDYBRIDGE_GT1:
-	case PCI_CHIP_SANDYBRIDGE_GT2:
-	case PCI_CHIP_SANDYBRIDGE_GT2_PLUS:
-	case PCI_CHIP_SANDYBRIDGE_M_GT1:
-	case PCI_CHIP_SANDYBRIDGE_M_GT2:
-	case PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS:
-	case PCI_CHIP_SANDYBRIDGE_S_GT:
-#endif
-		return sna_available_options(chipid, busid);
-#endif
 	default:
-#if SNA_DEFAULT
+#if SNA
 		return sna_available_options(chipid, busid);
 #else
 		return intel_uxa_available_options(chipid, busid);

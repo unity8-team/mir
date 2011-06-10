@@ -54,38 +54,17 @@ libsna_la_SOURCES = \
 	sna_video.h \
 	sna_video_overlay.c \
 	sna_video_textured.c \
-	$(NULL)
-
-if SNA_GEN2
-libsna_la_SOURCES += \
 	gen2_render.c \
 	gen2_render.h \
-	$(NULL)
-endif
-if SNA_GEN3
-libsna_la_SOURCES += \
 	gen3_render.c \
 	gen3_render.h \
-	$(NULL)
-endif
-if SNA_GEN4
-libsna_la_SOURCES += \
 	gen4_render.c \
 	gen4_render.h \
-	$(NULL)
-endif
-if SNA_GEN5
-libsna_la_SOURCES += \
 	gen5_render.c \
 	gen5_render.h \
-	$(NULL)
-endif
-if SNA_GEN6
-libsna_la_SOURCES += \
 	gen6_render.c \
 	gen6_render.h \
 	$(NULL)
-endif
 
 if DRI
 libsna_la_SOURCES += \
