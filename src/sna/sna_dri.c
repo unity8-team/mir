@@ -707,7 +707,12 @@ can_flip(struct sna * sna,
 		return FALSE;
 	}
 
-	if (draw->width != front_pixmap->drawable.width ||
+	if (draw->x != 0 || draw->y != 0 ||
+#ifdef COMPOSITE
+	    draw->x != front_pixmap->screen_x ||
+	    draw->y != front_pixmap->screen_y ||
+#endif
+	    draw->width != front_pixmap->drawable.width ||
 	    draw->height != front_pixmap->drawable.height) {
 		DBG(("%s: no, window is not full size (%dx%d)!=(%dx%d)\n",
 		     __FUNCTION__,
