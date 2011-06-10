@@ -744,6 +744,13 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 
 	xf86_cursors_fini(screen);
 
+	/* XXX unhook devPrivate otherwise fbCloseScreen frees it! */
+	if (sna->front) {
+		screen->DestroyPixmap(sna->front);
+		sna->front = NULL;
+		screen->devPrivate = NULL;
+	}
+
 	screen->CloseScreen = sna->CloseScreen;
 	(*screen->CloseScreen) (scrnIndex, screen);
 
