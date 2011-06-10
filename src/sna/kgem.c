@@ -1141,6 +1141,9 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 		}
 	}
 
+	if (tiling < 0)
+		return tiling;
+
 	if (tiling == I915_TILING_Y && height < 16) {
 		DBG(("%s: too short [%d] for TILING_Y\n",
 		     __FUNCTION__,height));

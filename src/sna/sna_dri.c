@@ -135,8 +135,9 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 }
 
 static DRI2Buffer2Ptr
-sna_dri_create_buffer(DrawablePtr drawable, unsigned int attachment,
-		       unsigned int format)
+sna_dri_create_buffer(DrawablePtr drawable,
+		      unsigned int attachment,
+		      unsigned int format)
 {
 	ScreenPtr screen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
@@ -172,7 +173,13 @@ sna_dri_create_buffer(DrawablePtr drawable, unsigned int attachment,
 	case DRI2BufferBackLeft:
 	case DRI2BufferBackRight:
 	case DRI2BufferFrontRight:
+		/* Allocate a normal window, perhaps flippable */
 		usage = 0;
+		if (drawable->width == sna->front->drawable.width &&
+		    drawable->height == sna->front->drawable.height &&
+		    drawable->bitsPerPixel == sna->front->drawable.bitsPerPixel)
+			usage = SNA_CREATE_FB;
+
 	case DRI2BufferFakeFrontLeft:
 	case DRI2BufferFakeFrontRight:
 		pixmap = screen->CreatePixmap(screen,

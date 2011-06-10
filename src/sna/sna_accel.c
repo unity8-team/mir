@@ -127,6 +127,9 @@ static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
 	if ((sna->tiling && (1 << bit)) == 0)
 		tiling = I915_TILING_NONE;
 
+	if (pixmap->usage_hint == SNA_CREATE_FB)
+		tiling = -tiling;
+
 	/* Also adjust tiling if it is not supported or likely to
 	 * slow us down,
 	 */
