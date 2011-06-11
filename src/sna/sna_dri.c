@@ -980,11 +980,11 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	enum DRI2FrameEventType swap_type = DRI2_SWAP;
 	CARD64 current_msc;
 
-	DBG(("%s()\n", __FUNCTION__));
+	DBG(("%s(target_msc=%llu)\n", __FUNCTION__, (long long)*target_msc));
 
 	/* Drawable not displayed... just complete the swap */
 	if (pipe == -1)
-		goto blit_fallback;
+		goto xchg_fallback;
 
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
@@ -1137,6 +1137,12 @@ blit_fallback:
 	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
 	if (swap_info)
 		sna_dri_frame_event_info(swap_info);
+	*target_msc = 0; /* offscreen, so zero out target vblank count */
+	return TRUE;
+
+xchg_fallback:
+	sna_dri_exchange_buffers(draw, front, back);
+	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_EXCHANGE_COMPLETE, func, data);
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
 }
