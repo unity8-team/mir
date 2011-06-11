@@ -66,7 +66,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "dri2.h"
 
-#if DRI2INFOREC_VERSION < 2
+#if DRI2INFOREC_VERSION <= 2
 #error DRI2 version supported by the Xserver is too old
 #endif
 
@@ -975,14 +975,15 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	struct sna *sna = to_sna(scrn);
 	drmVBlank vbl;
-	int ret, pipe = sna_dri_get_pipe(draw), flip = 0;
-	struct sna_dri_frame_event *swap_info = NULL;
+	int ret, pipe, flip = 0;
+	struct sna_dri_frame_event *info;
 	enum DRI2FrameEventType swap_type = DRI2_SWAP;
 	CARD64 current_msc;
 
 	DBG(("%s(target_msc=%llu)\n", __FUNCTION__, (long long)*target_msc));
 
 	/* Drawable not displayed... just complete the swap */
+	pipe = sna_dri_get_pipe(draw);
 	if (pipe == -1)
 		goto xchg_fallback;
 
@@ -992,22 +993,21 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	divisor &= 0xffffffff;
 	remainder &= 0xffffffff;
 
-	swap_info = calloc(1, sizeof(struct sna_dri_frame_event));
-	if (!swap_info)
-		goto blit_fallback;
+	info = calloc(1, sizeof(struct sna_dri_frame_event));
+	if (!info)
+		goto xchg_fallback;
 
-	swap_info->sna = sna;
-	swap_info->drawable_id = draw->id;
-	swap_info->client = client;
-	swap_info->event_complete = func;
-	swap_info->event_data = data;
-	swap_info->front = front;
-	swap_info->back = back;
+	info->sna = sna;
+	info->drawable_id = draw->id;
+	info->client = client;
+	info->event_complete = func;
+	info->event_data = data;
+	info->front = front;
+	info->back = back;
 
-	if (!sna_dri_add_frame_event(swap_info)) {
-		free(swap_info);
-		swap_info = NULL;
-		goto blit_fallback;
+	if (!sna_dri_add_frame_event(info)) {
+		free(info);
+		goto xchg_fallback;
 	}
 
 	sna_dri_reference_buffer(front);
@@ -1035,14 +1035,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		flip = 1;
 	}
 
-	swap_info->type = swap_type;
-
-	/* Correct target_msc by 'flip' if swap_type == DRI2_FLIP.
-	 * Do it early, so handling of different timing constraints
-	 * for divisor, remainder and msc vs. target_msc works.
-	 */
-	if (*target_msc > 0)
-		*target_msc -= flip;
+	info->type = swap_type;
 
 	/*
 	 * If divisor is zero, or current_msc is smaller than target_msc
@@ -1050,6 +1043,25 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 * the swap.
 	 */
 	if (divisor == 0 || current_msc < *target_msc) {
+		/* If target_msc already reached or passed, set it to
+		 * current_msc to ensure we return a reasonable value back
+		 * to the caller. This makes swap_interval logic more robust.
+		 */
+		if (current_msc >= *target_msc)
+			*target_msc = current_msc;
+
+		info->frame = *target_msc;
+		if (flip && sna_dri_schedule_flip(sna, draw, info)) {
+			sna_dri_exchange_buffers(draw, front, back);
+			return TRUE;
+		}
+
+		DBG(("%s: waiting before swapping: current=%d, target=%d,  divisor=%d\n",
+		     __FUNCTION__,
+		     (int)current_msc,
+		     (int)*target_msc,
+		     (int)divisor));
+
 		vbl.request.type =  DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 		if (pipe > 0)
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
@@ -1063,27 +1075,29 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		if (pipe > 0)
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
 
-		/* If target_msc already reached or passed, set it to
-		 * current_msc to ensure we return a reasonable value back
-		 * to the caller. This makes swap_interval logic more robust.
-		 */
-		if (current_msc >= *target_msc)
-			*target_msc = current_msc;
-
 		vbl.request.sequence = *target_msc;
-		vbl.request.signal = (unsigned long)swap_info;
-		ret = drmWaitVBlank(sna->kgem.fd, &vbl);
-		if (ret) {
+		vbl.request.signal = (unsigned long)info;
+		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "divisor 0 get vblank counter failed: %s\n",
 				   strerror(errno));
 			goto blit_fallback;
 		}
-
-		*target_msc = vbl.reply.sequence + flip;
-		swap_info->frame = *target_msc;
 		return TRUE;
 	}
+
+	/* Correct target_msc by 'flip' if swap_type == DRI2_FLIP.
+	 * Do it early, so handling of different timing constraints
+	 * for divisor, remainder and msc vs. target_msc works.
+	 */
+	if (flip && *target_msc > 0)
+		--*target_msc;
+
+	DBG(("%s: missed target, queueing event for next: current=%d, target=%d,  divisor=%d\n",
+		     __FUNCTION__,
+		     (int)current_msc,
+		     (int)*target_msc,
+		     (int)divisor));
 
 	/*
 	 * If we get here, target_msc has already passed or we don't have one,
@@ -1096,8 +1110,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 
-	vbl.request.sequence = current_msc - (current_msc % divisor) +
-		remainder;
+	vbl.request.sequence = current_msc - current_msc % divisor + remainder;
 
 	/*
 	 * If the calculated deadline vbl.request.sequence is smaller than
@@ -1116,9 +1129,8 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	/* Account for 1 frame extra pageflip delay if flip > 0 */
 	vbl.request.sequence -= flip;
 
-	vbl.request.signal = (unsigned long)swap_info;
-	ret = drmWaitVBlank(sna->kgem.fd, &vbl);
-	if (ret) {
+	vbl.request.signal = (unsigned long)info;
+	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "final get vblank counter failed: %s\n",
 			   strerror(errno));
@@ -1127,22 +1139,20 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	/* Adjust returned value for 1 fame pageflip offset of flip > 0 */
 	*target_msc = vbl.reply.sequence + flip;
-	swap_info->frame = *target_msc;
+	info->frame = *target_msc;
 	return TRUE;
 
 blit_fallback:
 	DBG(("%s -- blit\n", __FUNCTION__));
 	sna_dri_copy_region(draw, NULL, front, back);
-
-	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
-	if (swap_info)
-		sna_dri_frame_event_info(swap_info);
-	*target_msc = 0; /* offscreen, so zero out target vblank count */
-	return TRUE;
-
+	sna_dri_frame_event_info(info);
+	swap_type = DRI2_BLIT_COMPLETE;
+	goto fallback;
 xchg_fallback:
+	swap_type = DRI2_EXCHANGE_COMPLETE;
 	sna_dri_exchange_buffers(draw, front, back);
-	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_EXCHANGE_COMPLETE, func, data);
+fallback:
+	DRI2SwapComplete(client, draw, 0, 0, 0, swap_type, func, data);
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
 }
