@@ -975,7 +975,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	struct sna *sna = to_sna(scrn);
 	drmVBlank vbl;
-	int ret, pipe, flip = 0;
+	int pipe, flip;
 	struct sna_dri_frame_event *info;
 	enum DRI2FrameEventType swap_type = DRI2_SWAP;
 	CARD64 current_msc;
@@ -1013,13 +1013,23 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	sna_dri_reference_buffer(front);
 	sna_dri_reference_buffer(back);
 
+	flip = 0;
+	if (can_flip(sna, draw, front, back)) {
+		DBG(("%s: can flip\n", __FUNCTION__));
+		swap_type = DRI2_FLIP;
+		flip = 1;
+	}
+
+	info->type = swap_type;
+	if (divisor == 0)
+		goto immediate;
+
 	/* Get current count */
 	vbl.request.type = DRM_VBLANK_RELATIVE;
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 	vbl.request.sequence = 0;
-	ret = drmWaitVBlank(sna->kgem.fd, &vbl);
-	if (ret) {
+	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "first get vblank counter failed: %s\n",
 			   strerror(errno));
@@ -1028,21 +1038,18 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	current_msc = vbl.reply.sequence;
 
-	/* Flips need to be submitted one frame before */
-	if (can_flip(sna, draw, front, back)) {
-		DBG(("%s: can flip\n", __FUNCTION__));
-		swap_type = DRI2_FLIP;
-		flip = 1;
-	}
-
-	info->type = swap_type;
-
 	/*
 	 * If divisor is zero, or current_msc is smaller than target_msc
 	 * we just need to make sure target_msc passes before initiating
 	 * the swap.
 	 */
-	if (divisor == 0 || current_msc < *target_msc) {
+	if (current_msc < *target_msc) {
+		DBG(("%s: performing immediate swap: current=%d, target=%d,  divisor=%d\n",
+		     __FUNCTION__,
+		     (int)current_msc,
+		     (int)*target_msc,
+		     (int)divisor));
+
 		/* If target_msc already reached or passed, set it to
 		 * current_msc to ensure we return a reasonable value back
 		 * to the caller. This makes swap_interval logic more robust.
@@ -1050,40 +1057,15 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		if (current_msc >= *target_msc)
 			*target_msc = current_msc;
 
+immediate:
 		info->frame = *target_msc;
 		if (flip && sna_dri_schedule_flip(sna, draw, info)) {
 			sna_dri_exchange_buffers(draw, front, back);
 			return TRUE;
 		}
 
-		DBG(("%s: waiting before swapping: current=%d, target=%d,  divisor=%d\n",
-		     __FUNCTION__,
-		     (int)current_msc,
-		     (int)*target_msc,
-		     (int)divisor));
-
-		vbl.request.type =  DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
-
-		/* If non-pageflipping, but blitting/exchanging, we need to use
-		 * DRM_VBLANK_NEXTONMISS to avoid unreliable timestamping later
-		 * on.
-		 */
-		if (flip == 0)
-			vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-		if (pipe > 0)
-			vbl.request.type |= DRM_VBLANK_SECONDARY;
-
-		vbl.request.sequence = *target_msc;
-		vbl.request.signal = (unsigned long)info;
-		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "divisor 0 get vblank counter failed: %s\n",
-				   strerror(errno));
-			goto blit_fallback;
-		}
-		return TRUE;
+		/* Similarly, the CopyRegion blit is coupled to vsync. */
+		goto blit_fallback;
 	}
 
 	/* Correct target_msc by 'flip' if swap_type == DRI2_FLIP.
