@@ -594,10 +594,10 @@ sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 	if ((int)result < 0)
 		return;
 
-	sna_accel_wakeup_handler(sna);
-
 	if (FD_ISSET(sna->kgem.fd, (fd_set*)read_mask))
 		sna_dri_wakeup(sna);
+
+	sna_accel_wakeup_handler(sna);
 }
 
 #if HAVE_UDEV
