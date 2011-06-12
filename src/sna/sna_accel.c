@@ -150,6 +150,9 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 
 	switch (pixmap->usage_hint) {
 	case CREATE_PIXMAP_USAGE_GLYPH_PICTURE:
+#if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
+	case CREATE_PIXMAP_USAGE_SCRATCH_HEADER:
+#endif
 		return NULL;
 	}
 
@@ -248,6 +251,11 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		return sna_pixmap_create_scratch(screen,
 						 width, height, depth,
 						 I915_TILING_Y);
+
+#if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
+	if (width == 0 || height == 0)
+		usage = CREATE_PIXMAP_USAGE_SCRATCH_HEADER;
+#endif
 
 	/* XXX could use last deferred free? */
 
