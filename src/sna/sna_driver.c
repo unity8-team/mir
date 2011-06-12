@@ -84,7 +84,6 @@ static OptionInfoRec sna_options[] = {
    {OPTION_PREFER_OVERLAY, "XvPreferOverlay", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_THROTTLE,	"Throttle",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_RELAXED_FENCING,	"UseRelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
@@ -502,8 +501,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	sna->flags = 0;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_THROTTLE, TRUE))
 		sna->flags |= SNA_NO_THROTTLE;
-	if (xf86ReturnOptValBool(sna->Options, OPTION_SWAPBUFFERS_WAIT, TRUE))
-		sna->flags |= SNA_SWAP_WAIT;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   sna->tiling & SNA_TILING_FB ? "tiled" : "linear");
@@ -511,8 +508,6 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		   sna->tiling & SNA_TILING_2D ? "tiled" : "linear");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "3D buffers %s\n",
 		   sna->tiling & SNA_TILING_3D ? "tiled" : "linear");
-	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "SwapBuffers wait %sabled\n",
-		   sna->flags & SNA_SWAP_WAIT ? "en" : "dis");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Throttling %sabled\n",
 		   sna->flags & SNA_NO_THROTTLE ? "dis" : "en");
 
@@ -558,18 +553,11 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 static void
 sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 {
-	ScreenPtr screen = screenInfo.screens[i];
-	ScrnInfoPtr scrn = xf86Screens[i];
-	struct sna *sna = to_sna(scrn);
+	struct sna *sna = data;
 
 	DBG(("%s\n", __FUNCTION__));
 
-	screen->BlockHandler = sna->BlockHandler;
-
-	(*screen->BlockHandler) (i, data, timeout, read_mask);
-
-	sna->BlockHandler = screen->BlockHandler;
-	screen->BlockHandler = sna_block_handler;
+	sna->BlockHandler(i, sna->BlockData, timeout, read_mask);
 
 	sna_accel_block_handler(sna);
 }
@@ -577,18 +565,9 @@ sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 static void
 sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 {
-	ScreenPtr screen = screenInfo.screens[i];
-	ScrnInfoPtr scrn = xf86Screens[i];
-	struct sna *sna = to_sna(scrn);
+	struct sna *sna = data;
 
 	DBG(("%s\n", __FUNCTION__));
-
-	screen->WakeupHandler = sna->WakeupHandler;
-
-	(*screen->WakeupHandler) (i, data, result, read_mask);
-
-	sna->WakeupHandler = screen->WakeupHandler;
-	screen->WakeupHandler = sna_wakeup_handler;
 
 	/* despite all appearances, result is just a signed int */
 	if ((int)result < 0)
@@ -596,6 +575,8 @@ sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 
 	if (FD_ISSET(sna->kgem.fd, (fd_set*)read_mask))
 		sna_dri_wakeup(sna);
+
+	sna->WakeupHandler(i, sna->WakeupData, result, read_mask);
 
 	sna_accel_wakeup_handler(sna);
 }
@@ -852,10 +833,14 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	scrn->vtSema = TRUE;
 
 	sna->BlockHandler = screen->BlockHandler;
+	sna->BlockData = screen->blockData;
 	screen->BlockHandler = sna_block_handler;
+	screen->blockData = sna;
 
 	sna->WakeupHandler = screen->WakeupHandler;
+	sna->WakeupData = screen->wakeupData;
 	screen->WakeupHandler = sna_wakeup_handler;
+	screen->wakeupData = sna;
 
 	screen->SaveScreen = xf86SaveScreen;
 	sna->CloseScreen = screen->CloseScreen;

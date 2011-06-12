@@ -3131,7 +3131,7 @@ static Bool sna_accel_do_expire(struct sna *sna)
 
 	return_if_timer_active(EXPIRE_TIMER);
 
-	if (!kgem_needs_expire(&sna->kgem))
+	if (!sna->kgem.need_expire)
 		return FALSE;
 
 	if (sna->timer[EXPIRE_TIMER] == -1)

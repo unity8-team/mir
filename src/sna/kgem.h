@@ -97,8 +97,9 @@ struct kgem {
 	uint16_t nreloc;
 	uint16_t nfence;
 
-	uint32_t flush;
-	uint32_t need_purge;
+	uint32_t flush:1;
+	uint32_t need_expire:1;
+	uint32_t need_purge:1;
 
 	uint32_t has_vmap :1;
 	uint32_t has_relaxed_fencing :1;
@@ -312,7 +313,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_throttle(struct kgem *kgem);
-bool kgem_needs_expire(struct kgem *kgem);
 bool kgem_expire_cache(struct kgem *kgem);
 
 #if HAS_EXTRA_DEBUG

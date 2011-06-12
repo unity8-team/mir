@@ -120,13 +120,6 @@ static inline void list_add_tail(struct list *new, struct list *head)
 	__list_add(new, head->prev, head);
 }
 
-enum DRI2FrameEventType {
-	DRI2_SWAP,
-	DRI2_ASYNC_SWAP,
-	DRI2_FLIP,
-	DRI2_WAITMSC,
-};
-
 #ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 #define CREATE_PIXMAP_USAGE_SCRATCH_HEADER -1
 #endif
@@ -182,7 +175,6 @@ enum {
 	OPTION_PREFER_OVERLAY,
 	OPTION_COLOR_KEY,
 	OPTION_VIDEO_KEY,
-	OPTION_SWAPBUFFERS_WAIT,
 	OPTION_HOTPLUG,
 	OPTION_THROTTLE,
 	OPTION_RELAXED_FENCING,
@@ -201,7 +193,6 @@ struct sna {
 
 	unsigned flags;
 #define SNA_NO_THROTTLE		0x1
-#define SNA_SWAP_WAIT		0x2
 
 	int timer[NUM_TIMERS];
 	int timer_active;
@@ -222,9 +213,6 @@ struct sna {
 
 	struct sna_dri {
 		int flip_pending[2];
-		unsigned int fe_frame;
-		unsigned int fe_tv_sec;
-		unsigned int fe_tv_usec;
 	} dri;
 
 	unsigned int tiling;
@@ -239,7 +227,9 @@ struct sna {
 	struct intel_chipset chipset;
 
 	ScreenBlockHandlerProcPtr BlockHandler;
+	void *BlockData;
 	ScreenWakeupHandlerProcPtr WakeupHandler;
+	void *WakeupData;
 	CloseScreenProcPtr CloseScreen;
 
 	union {
@@ -315,7 +305,7 @@ extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
 				     BoxPtr crtc_box_ret);
 
 extern bool sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
-				  xf86CrtcPtr crtc, RegionPtr clip);
+				  xf86CrtcPtr crtc, const BoxRec *clip);
 
 Bool sna_dri_open(struct sna *sna, ScreenPtr pScreen);
 void sna_dri_wakeup(struct sna *sna);

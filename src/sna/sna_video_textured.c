@@ -238,6 +238,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
 	int top, left, npixels, nlines;
+	Bool flush = false;
 
 	if (!sna_video_clip_helper(scrn, video, &crtc, &dstBox,
 				   src_x, src_y, drw_x, drw_y,
@@ -267,7 +268,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	}
 
 	if (crtc && video->SyncToVblank != 0)
-		sna_wait_for_scanline(sna, pixmap, crtc, clip);
+		flush = sna_wait_for_scanline(sna, pixmap, crtc,
+					      &clip->extents);
 
 	sna->render.video(sna, video, &frame, clip,
 			  src_w, src_h,
@@ -281,7 +283,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	/* Push the frame to the GPU as soon as possible so
 	 * we can hit the next vsync.
 	 */
-	kgem_submit(&sna->kgem);
+	if (flush)
+		kgem_submit(&sna->kgem);
 
 	return Success;
 }

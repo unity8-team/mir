@@ -1310,11 +1310,8 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 	if (xf86IsEntityShared(scrn->entityList[0])) {
 		s = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
-		if (s && !sna_zaphod_match(scrn, s, name)) {
-			ErrorF("output '%s' not matched for zaphod '%s'\n",
-			       name, s);
+		if (s && !sna_zaphod_match(scrn, s, name))
 			goto cleanup_encoder;
-		}
 	}
 
 	output = xf86OutputCreate(scrn, &sna_output_funcs, name);
@@ -1492,7 +1489,8 @@ static int do_page_flip(struct sna *sna, void *data, int ref_crtc_hw_id)
 		struct sna_crtc *crtc = config->crtc[i]->driver_private;
 		uintptr_t evdata;
 
-		if (!config->crtc[i]->enabled)
+		DBG(("%s: crtc %d active? %d\n",__FUNCTION__, i,crtc->active));
+		if (!crtc->active)
 			continue;
 
 		/* Only the reference crtc will finally deliver its page flip
@@ -1510,8 +1508,12 @@ static int do_page_flip(struct sna *sna, void *data, int ref_crtc_hw_id)
 				    sna->mode.fb_id,
 				    DRM_MODE_PAGE_FLIP_EVENT,
 				    (void*)evdata)) {
+			int err = errno;
+			DBG(("%s: flip [fb=%d] on crtc %d [%d] failed - %d\n",
+			     __FUNCTION__, sna->mode.fb_id,
+			     i, crtc_id(crtc), err));
 			xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-				   "flip queue failed: %s\n", strerror(errno));
+				   "flip queue failed: %s\n", strerror(err));
 			continue;
 		}
 
@@ -1531,11 +1533,12 @@ sna_do_pageflip(struct sna *sna,
 {
 	ScrnInfoPtr scrn = sna->scrn;
 	struct sna_mode *mode = &sna->mode;
-	struct kgem_bo *bo = sna_pixmap_pin(pixmap);
+	struct kgem_bo *bo;
 	int count;
 
 	assert(pixmap != sna->front);
 
+	bo = sna_pixmap_pin(pixmap);
 	if (!bo)
 		return 0;
 
@@ -1574,20 +1577,13 @@ sna_do_pageflip(struct sna *sna,
 	 * may never complete; this is a configuration error.
 	 */
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
+	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count > 0) {
-		int id = sna->front->drawable.serialNumber;
-
 		sna->front = pixmap;
 		pixmap->refcnt++;
 
 		sna_redirect_screen_pixmap(scrn, *old_front, sna->front);
 		scrn->displayWidth = bo->pitch / sna->mode.cpp;
-
-		/* DRI2 uses the serialNumber as a means for detecting
-		 * when to revoke its buffers after a reconfigureatin event.
-		 * For the ScreenPixmap this means set_size.
-		  */
-		pixmap->drawable.serialNumber = id;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;
@@ -1683,11 +1679,23 @@ static void sna_crtc_box(xf86CrtcPtr crtc, BoxPtr crtc_box)
 {
 	if (crtc->enabled) {
 		crtc_box->x1 = crtc->x;
-		crtc_box->x2 =
-		    crtc->x + xf86ModeWidth(&crtc->mode, crtc->rotation);
 		crtc_box->y1 = crtc->y;
-		crtc_box->y2 =
-		    crtc->y + xf86ModeHeight(&crtc->mode, crtc->rotation);
+
+		switch (crtc->rotation & 0xf) {
+		default:
+			assert(0);
+		case RR_Rotate_0:
+		case RR_Rotate_180:
+			crtc_box->x2 = crtc->x + crtc->mode.HDisplay;
+			crtc_box->y2 = crtc->y + crtc->mode.VDisplay;
+			break;
+
+		case RR_Rotate_90:
+		case RR_Rotate_270:
+			crtc_box->x2 = crtc->x + crtc->mode.VDisplay;
+			crtc_box->y2 = crtc->y + crtc->mode.HDisplay;
+			break;
+		}
 	} else
 		crtc_box->x1 = crtc_box->x2 = crtc_box->y1 = crtc_box->y2 = 0;
 }
@@ -1781,74 +1789,51 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 	return best_crtc;
 }
 
-bool
-sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
-		      xf86CrtcPtr crtc, RegionPtr clip)
+/* Gen6 wait for scan line support */
+#define MI_LOAD_REGISTER_IMM			(0x22<<23)
+
+/* gen6: Scan lines register */
+#define GEN6_PIPEA_SLC			(0x7004)
+#define GEN6_PIPEB_SLC			(0x7104)
+
+static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
+					    int pipe, int y1, int y2,
+					    bool full_height)
 {
-	pixman_box16_t box, crtc_box;
-	int pipe, event;
-	Bool full_height;
-	int y1, y2;
+	uint32_t event;
 	uint32_t *b;
 
-	/* XXX no wait for scanline support on SNB? */
-	if (sna->kgem.gen >= 60)
-		return false;
-
-	if (!pixmap_is_scanout(pixmap))
-		return false;
-
-	if (crtc == NULL) {
-		if (clip) {
-			crtc_box = *REGION_EXTENTS(NULL, clip);
-		} else {
-			crtc_box.x1 = 0; /* XXX drawable offsets? */
-			crtc_box.y1 = 0;
-			crtc_box.x2 = pixmap->drawable.width;
-			crtc_box.y2 = pixmap->drawable.height;
-		}
-		crtc = sna_covering_crtc(sna->scrn, &crtc_box, NULL, &crtc_box);
-	}
-
-	if (crtc == NULL)
-		return false;
-
-	if (clip) {
-		box = *REGION_EXTENTS(unused, clip);
-
-		if (crtc->transform_in_use)
-			pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc, &box);
-
-		/* We could presume the clip was correctly computed... */
-		sna_crtc_box(crtc, &crtc_box);
-		sna_box_intersect(&box, &crtc_box, &box);
-
-		/*
-		 * Make sure we don't wait for a scanline that will
-		 * never occur
-		 */
-		y1 = (crtc_box.y1 <= box.y1) ? box.y1 - crtc_box.y1 : 0;
-		y2 = (box.y2 <= crtc_box.y2) ?
-			box.y2 - crtc_box.y1 : crtc_box.y2 - crtc_box.y1;
-		if (y2 <= y1)
-			return false;
-
-		full_height = FALSE;
-		if (y1 == 0 && y2 == (crtc_box.y2 - crtc_box.y1))
-			full_height = TRUE;
+	/* We just wait until the trace passes the roi */
+	if (pipe == 0) {
+		pipe = GEN6_PIPEA_SLC;
+		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
 	} else {
-		sna_crtc_box(crtc, &crtc_box);
-		y1 = crtc_box.y1;
-		y2 = crtc_box.y2;
-		full_height = TRUE;
+		pipe = GEN6_PIPEB_SLC;
+		event = MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW;
 	}
+
+	kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	b = kgem_get_batch(&sna->kgem, 4);
+	b[0] = MI_LOAD_REGISTER_IMM | 1;
+	b[1] = pipe;
+	b[2] = y2 - 1;
+	b[3] = MI_WAIT_FOR_EVENT | event;
+	kgem_advance_batch(&sna->kgem, 4);
+}
+
+static void sna_emit_wait_for_scanline_gen2(struct sna *sna,
+					    int pipe, int y1, int y2,
+					    bool full_height)
+{
+	uint32_t event;
+	uint32_t *b;
 
 	/*
 	 * Pre-965 doesn't have SVBLANK, so we need a bit
 	 * of extra time for the blitter to start up and
 	 * do its job for a full height blit
 	 */
-	if (sna_crtc_to_pipe(crtc) == 0) {
+	if (pipe == 0) {
 		pipe = MI_LOAD_SCAN_LINES_DISPLAY_PIPEA;
 		event = MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW;
 		if (full_height)
@@ -1860,11 +1845,8 @@ sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 			event = MI_WAIT_FOR_PIPEB_SVBLANK;
 	}
 
-	if (crtc->mode.Flags & V_INTERLACE) {
-		/* DSL count field lines */
-		y1 /= 2;
-		y2 /= 2;
-	}
+	if (sna->kgem.mode == KGEM_NONE)
+		kgem_set_mode(&sna->kgem, KGEM_BLT);
 
 	b = kgem_get_batch(&sna->kgem, 5);
 	/* The documentation says that the LOAD_SCAN_LINES command
@@ -1875,5 +1857,66 @@ sna_wait_for_scanline(struct sna *sna, PixmapPtr pixmap,
 	b[3] = (y1 << 16) | (y2-1);
 	b[4] = MI_WAIT_FOR_EVENT | event;
 	kgem_advance_batch(&sna->kgem, 5);
+}
+
+bool
+sna_wait_for_scanline(struct sna *sna,
+		      PixmapPtr pixmap,
+		      xf86CrtcPtr crtc,
+		      const BoxRec *clip)
+{
+	pixman_box16_t box, crtc_box;
+	Bool full_height;
+	int y1, y2, pipe;
+
+	if (sna->kgem.gen >= 60)
+		return false;
+
+	if (!pixmap_is_scanout(pixmap))
+		return false;
+
+	if (crtc == NULL) {
+		crtc = sna_covering_crtc(sna->scrn, clip, NULL, &crtc_box);
+		assert(crtc);
+	} else
+		sna_crtc_box(crtc, &crtc_box);
+
+	if (crtc->transform_in_use) {
+		box = *clip;
+		pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc, &box);
+		clip = &box;
+	}
+
+	/*
+	 * Make sure we don't wait for a scanline that will
+	 * never occur
+	 */
+	y1 = clip->y1 - crtc_box.y1;
+	if (y1 < 0)
+		y1 = 0;
+	y2 = clip->y2 - crtc_box.y1;
+	if (y2 > crtc_box.y2 - crtc_box.y1)
+		y2 = crtc_box.y2 - crtc_box.y1;
+	DBG(("%s: clipped range = %d, %d\n", __FUNCTION__, y1, y2));
+	if (y2 <= y1)
+		return false;
+
+	full_height = y1 == 0 && y2 == crtc_box.y2 - crtc_box.y1;
+
+	if (crtc->mode.Flags & V_INTERLACE) {
+		/* DSL count field lines */
+		y1 /= 2;
+		y2 /= 2;
+	}
+
+	pipe = sna_crtc_to_pipe(crtc);
+	DBG(("%s: pipe=%d, y1=%d, y2=%d, full_height?=%d\n",
+	     __FUNCTION__, pipe, y1, y2, full_height));
+
+	if (sna->kgem.gen >= 60)
+		sna_emit_wait_for_scanline_gen6(sna, pipe, y1, y2, full_height);
+	else
+		sna_emit_wait_for_scanline_gen2(sna, pipe, y1, y2, full_height);
+
 	return true;
 }

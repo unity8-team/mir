@@ -515,6 +515,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		bo->deleted = 1;
 	}
 
+	kgem->need_expire = true;
 	list_move(&bo->list, (bo->rq || bo->needs_flush) ? &kgem->active : inactive(kgem, bo->size));
 	if (bo->rq == NULL && bo->needs_flush) {
 		assert(list_is_empty(&bo->request));
@@ -943,21 +944,6 @@ void kgem_throttle(struct kgem *kgem)
 	}
 }
 
-bool kgem_needs_expire(struct kgem *kgem)
-{
-	int i;
-
-	if (!list_is_empty(&kgem->active))
-		return true;
-
-	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
-		if (!list_is_empty(&kgem->inactive[i]))
-			return true;
-	}
-
-	return false;
-}
-
 bool kgem_expire_cache(struct kgem *kgem)
 {
 	time_t now, expire;
@@ -1018,6 +1004,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 
 	DBG(("%s: purge? %d -- expired %d objects, %d bytes\n", __FUNCTION__, kgem->need_purge,  count, size));
 
+	kgem->need_expire = !idle;
 	kgem->need_purge = false;
 	return idle;
 	(void)count;
@@ -1539,7 +1526,11 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 	if (ret)
 		return 0;
 
-	bo->reusable = false;
+	/* Ordinarily giving the name aware makes the buffer non-reusable.
+	 * However, we track the lifetime of all clients and their hold
+	 * on the buffer, and *presuming* they do not pass it on to a third
+	 * party, we track the lifetime accurately.
+	 */
 	return flink.name;
 }
 
