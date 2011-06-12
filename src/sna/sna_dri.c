@@ -670,7 +670,8 @@ can_flip(struct sna * sna,
 
 	ScreenPtr screen = draw->pScreen;
 
-	assert(draw->type == DRAWABLE_WINDOW);
+	if (draw->type == DRAWABLE_PIXMAP)
+		return FALSE;
 
 	if (front->format != back->format) {
 		DBG(("%s: no, format mismatch, front = %d, back = %d\n",
@@ -969,10 +970,30 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	     (long long)divisor,
 	     (long long)remainder));
 
+	flip = 0;
+	if (can_flip(sna, draw, front, back)) {
+		DBG(("%s: can flip\n", __FUNCTION__));
+		swap_type = DRI2_FLIP;
+		flip = 1;
+	}
+
 	/* Drawable not displayed... just complete the swap */
 	pipe = sna_dri_get_pipe(draw);
-	if (pipe == -1)
-		goto blit_fallback;
+	if (pipe == -1) {
+		struct sna_dri_private *back_priv = back->driverPrivate;
+		PixmapPtr pixmap;
+
+		if (!flip)
+			goto blit_fallback;
+
+		pixmap = sna_set_screen_pixmap(sna, back_priv->pixmap);
+		pixmap->refcnt--;
+		assert(pixmap->refcnt > 0);
+		sna_dri_exchange_buffers(draw, front, back);
+		DRI2SwapComplete(client, draw, 0, 0, 0,
+				 DRI2_EXCHANGE_COMPLETE, func, data);
+		return TRUE;
+	}
 
 	/* Truncate to match kernel interfaces; means occasional overflow
 	 * misses, but that's generally not a big deal */
@@ -1001,13 +1022,6 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 
 	sna_dri_reference_buffer(front);
 	sna_dri_reference_buffer(back);
-
-	flip = 0;
-	if (can_flip(sna, draw, front, back)) {
-		DBG(("%s: can flip\n", __FUNCTION__));
-		swap_type = DRI2_FLIP;
-		flip = 1;
-	}
 
 	info->type = swap_type;
 	if (divisor == 0)
@@ -1155,9 +1169,7 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	/* Drawable not displayed... just complete the swap */
-	pipe = sna_dri_get_pipe(draw);
-	if (pipe == -1 || !can_flip(sna, draw, front, back)) {
+	if (!can_flip(sna, draw, front, back)) {
 		BoxRec box, *boxes;
 		int n;
 
@@ -1192,6 +1204,15 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 		DRI2SwapComplete(client, draw, 0, 0, 0,
 				 DRI2_BLIT_COMPLETE, func, data);
 		return;
+	}
+
+	pipe = sna_dri_get_pipe(draw);
+	if (pipe == -1) {
+		/* Drawable not displayed... just complete the swap */
+		pixmap = sna_set_screen_pixmap(sna, back_priv->pixmap);
+		pixmap->refcnt--;
+		assert(pixmap->refcnt > 0);
+		goto exchange;
 	}
 
 	if (!sna->dri.flip_pending[pipe]) {

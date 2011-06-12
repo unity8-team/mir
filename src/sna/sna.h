@@ -274,6 +274,8 @@ extern int sna_do_pageflip(struct sna *sna,
 			    PixmapPtr *old_front,
 			    uint32_t *old_fb);
 
+extern PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap);
+
 void sna_mode_delete_fb(struct sna *sna, PixmapPtr pixmap, uint32_t fb);
 
 static inline struct sna *

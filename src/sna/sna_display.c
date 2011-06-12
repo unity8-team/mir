@@ -1523,6 +1523,20 @@ static int do_page_flip(struct sna *sna, void *data, int ref_crtc_hw_id)
 	return count;
 }
 
+PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap)
+{
+	PixmapPtr old = sna->front;
+	ScrnInfoPtr scrn = sna->scrn;
+
+	sna->front = pixmap;
+	pixmap->refcnt++;
+
+	sna_redirect_screen_pixmap(scrn, old, sna->front);
+	scrn->displayWidth = sna_pixmap_get_bo(pixmap)->pitch / sna->mode.cpp;
+
+	return old;
+}
+
 int
 sna_do_pageflip(struct sna *sna,
 		PixmapPtr pixmap,
