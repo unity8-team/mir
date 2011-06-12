@@ -1877,9 +1877,11 @@ sna_wait_for_scanline(struct sna *sna,
 
 	if (crtc == NULL) {
 		crtc = sna_covering_crtc(sna->scrn, clip, NULL, &crtc_box);
-		assert(crtc);
+		if (crtc == NULL)
+			return false;
 	} else
 		sna_crtc_box(crtc, &crtc_box);
+	assert(sna_crtc_on(crtc));
 
 	if (crtc->transform_in_use) {
 		box = *clip;
