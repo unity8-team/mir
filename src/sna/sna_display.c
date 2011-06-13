@@ -49,6 +49,7 @@
 #endif
 
 struct sna_crtc {
+	struct sna *sna;
 	drmModeModeInfo kmode;
 	drmModeCrtcPtr mode_crtc;
 	PixmapPtr shadow;
@@ -337,15 +338,6 @@ mode_to_kmode(ScrnInfoPtr scrn,
 	kmode->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 }
 
-static void
-sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
-{
-	struct sna_crtc *sna_crtc = crtc->driver_private;
-	DBG(("%s(pipe %d, dpms mode -> %d):= active=%d\n",
-	     __FUNCTION__, sna_crtc->pipe, mode, mode == DPMSModeOn));
-	sna_crtc->active = mode == DPMSModeOn;
-}
-
 static Bool
 sna_crtc_apply(xf86CrtcPtr crtc)
 {
@@ -417,6 +409,60 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	return ret;
 }
 
+static void
+sna_crtc_restore(struct sna *sna)
+{
+	ScrnInfoPtr scrn = sna->scrn;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	struct kgem_bo *bo;
+	int i;
+
+	bo = sna_pixmap_pin(sna->front);
+	if (!bo)
+		return;
+
+	assert(bo->tiling != I915_TILING_Y);
+	if (drmModeAddFB(sna->kgem.fd,
+			 sna->front->drawable.width,
+			 sna->front->drawable.height,
+			 scrn->depth, scrn->bitsPerPixel,
+			 bo->pitch, bo->handle,
+			 &sna->mode.fb_id))
+		return;
+
+	DBG(("%s: handle %d attached to fb %d\n",
+	     __FUNCTION__, bo->handle, mode->fb_id));
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+		if (!crtc->enabled)
+			continue;
+
+		if (!sna_crtc_apply(crtc))
+			return;
+	}
+
+	scrn->displayWidth = bo->pitch / sna->mode.cpp;
+	sna->mode.fb_pixmap = sna->front->drawable.serialNumber;
+}
+
+static void
+sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
+{
+	struct sna_crtc *sna_crtc = crtc->driver_private;
+
+	DBG(("%s(pipe %d, dpms mode -> %d):= active=%d\n",
+	     __FUNCTION__, sna_crtc->pipe, mode, mode == DPMSModeOn));
+
+	sna_crtc->active = mode == DPMSModeOn;
+	if (mode == DPMSModeOn) {
+		struct sna *sna = sna_crtc->sna;
+		if (sna->front->drawable.serialNumber != sna->mode.fb_pixmap)
+			sna_crtc_restore(sna);
+	}
+}
+
 static Bool
 sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			  Rotation rotation, int x, int y)
@@ -433,6 +479,9 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	DBG(("%s(rotation=%d, x=%d, y=%d, mode=%dx%d@%d)\n",
 	     __FUNCTION__, rotation, x, y,
 	     mode->HDisplay, mode->VDisplay, mode->Clock));
+
+	if (sna_mode->fb_pixmap != sna->front->drawable.serialNumber)
+		sna_mode_remove_fb(sna);
 
 	if (sna_mode->fb_id == 0) {
 		struct kgem_bo *bo = sna_pixmap_pin(sna->front);
@@ -455,6 +504,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		DBG(("%s: handle %d attached to fb %d\n",
 		     __FUNCTION__, bo->handle, sna_mode->fb_id));
+		sna_mode->fb_pixmap = sna->front->drawable.serialNumber;
 	}
 
 	saved_mode = crtc->mode;
@@ -662,6 +712,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 	sna_crtc->cursor = gem_create(sna->kgem.fd, 64*64*4);
 
+	sna_crtc->sna = sna;
 	sna_crtc->crtc = crtc;
 	list_add(&sna_crtc->link, &mode->crtcs);
 }
@@ -1448,6 +1499,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualY = height;
 	scrn->displayWidth = bo->pitch / sna->mode.cpp;
 
+	sna->mode.fb_pixmap = sna->front->drawable.serialNumber;
 	sna_redirect_screen_pixmap(scrn, old_front, sna->front);
 	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
 	assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
@@ -1589,6 +1641,7 @@ sna_do_pageflip(struct sna *sna,
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
+		sna->mode.fb_pixmap = pixmap->drawable.serialNumber;
 		bo->cpu_read = bo->cpu_write = false;
 		bo->gpu = true;
 		bo->needs_flush = true;
@@ -1653,14 +1706,13 @@ sna_mode_remove_fb(struct sna *sna)
 	if (mode->fb_id) {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = 0;
+		mode->fb_pixmap = 0;
 	}
 }
 
 void
 sna_mode_fini(struct sna *sna)
 {
-	struct sna_mode *mode = &sna->mode;
-
 #if 0
 	while (!list_is_empty(&mode->crtcs)) {
 		xf86CrtcDestroy(list_first_entry(&mode->crtcs,
@@ -1675,10 +1727,7 @@ sna_mode_fini(struct sna *sna)
 	}
 #endif
 
-	if (mode->fb_id) {
-		drmModeRmFB(sna->kgem.fd, mode->fb_id);
-		mode->fb_id = 0;
-	}
+	sna_mode_remove_fb(sna);
 
 	/* mode->shadow_fb_id should have been destroyed already */
 }

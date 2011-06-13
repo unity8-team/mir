@@ -205,6 +205,7 @@ struct sna {
 
 	struct sna_mode {
 		uint32_t fb_id;
+		uint32_t fb_pixmap;
 		drmModeResPtr mode_res;
 		int cpp;
 
