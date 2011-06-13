@@ -267,9 +267,8 @@ ColorTiling is not currently supported on R/RV/RS1XX, R/RV/RS2XX, and RS3XX.
 .br
 The default value is
 .B on
-for R/RV3XX, R/RV4XX, R/RV5XX, RS6XX, RS740 and
-.B off
-for R/RV6XX, R/RV7XX, RS780, RS880, and EVERGREEN.
+for R/RV3XX, R/RV4XX, R/RV5XX, RS6XX, RS740, R/RV6XX, R/RV7XX, RS780, RS880,
+EVERGREEN, and CAYMAN.
 .TP
 .BI "Option \*qEXAPixmaps\*q \*q" boolean \*q
 Under KMS, to avoid thrashing pixmaps in/out of VRAM on low memory cards,
