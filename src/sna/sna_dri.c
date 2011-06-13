@@ -845,16 +845,6 @@ static void sna_dri_flip_event(struct sna *sna,
 	     flip->fe_tv_usec,
 	     flip->type));
 
-	if (!flip->drawable_id)
-		return;
-
-	status = dixLookupDrawable(&drawable,
-				   flip->drawable_id,
-				   serverClient,
-				   M_ANY, DixWriteAccess);
-	if (status != Success)
-		return;
-
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip->type) {
 	case DRI2_FLIP:
@@ -863,6 +853,16 @@ static void sna_dri_flip_event(struct sna *sna,
 		 * into account. This usually means some defective kms pageflip completion,
 		 * causing wrong (msc, ust) return values and possible visual corruption.
 		 */
+		if (!flip->drawable_id)
+			return;
+
+		status = dixLookupDrawable(&drawable,
+					   flip->drawable_id,
+					   serverClient,
+					   M_ANY, DixWriteAccess);
+		if (status != Success)
+			return;
+
 		if ((flip->fe_frame < flip->frame) &&
 		    (flip->frame - flip->fe_frame < 5)) {
 			static int limit = 5;
@@ -1067,7 +1067,8 @@ immediate:
 			return TRUE;
 		}
 
-		DBG(("%s: emitting immediate vsync'ed blit, throttling client\n"));
+		DBG(("%s: emitting immediate vsync'ed blit, throttling client\n",
+		     __FUNCTION__));
 
 		 info->type = DRI2_SWAP_THROTTLE;
 
@@ -1215,6 +1216,8 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 		goto exchange;
 	}
 
+	DBG(("%s: flip pending on pipe %d? %d\n",
+	     __FUNCTION__, pipe, sna->dri.flip_pending[pipe]));
 	if (!sna->dri.flip_pending[pipe]) {
 		struct sna_dri_frame_event *info;
 		DRI2BufferPtr t;
@@ -1266,6 +1269,7 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 					   draw->height,
 					   draw->depth,
 					   SNA_CREATE_FB))) {
+		DBG(("%s: new back buffer\n", __FUNCTION__));
 		screen->DestroyPixmap(front_priv->pixmap);
 		front_priv->pixmap = pixmap;
 		front_priv->bo = sna_pixmap_set_dri(sna, pixmap);
@@ -1275,6 +1279,7 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 
 exchange:
 	sna_dri_exchange_buffers(draw, front, back);
+	assert(((struct sna_dri_private *)front->driverPrivate)->pixmap != sna->front);
 	DRI2SwapComplete(client, draw, 0, 0, 0, type, func, data);
 }
 #endif
