@@ -1,4 +1,4 @@
-TESTS = \
+stress_TESTS = \
 	basic-fillrect \
 	basic-copyarea \
 	basic-copyarea-size \
@@ -14,7 +14,7 @@ TESTS = \
 	mixed-stress \
 	$(NULL)
 
-check_PROGRAMS = $(TESTS)
+check_PROGRAMS = $(stress_TESTS)
 
 AM_CFLAGS = @CWARNFLAGS@ @X11_CFLAGS@
 LDADD = libtest.la @X11_LIBS@
