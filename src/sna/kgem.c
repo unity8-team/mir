@@ -973,8 +973,11 @@ bool kgem_expire_cache(struct kgem *kgem)
 		}
 	}
 	if (!kgem->need_purge) {
-		if (idle)
+		if (idle) {
+			DBG(("%s: idle\n", __FUNCTION__));
+			kgem->need_expire = false;
 			return false;
+		}
 		if (expire == 0)
 			return true;
 	}
@@ -985,12 +988,11 @@ bool kgem_expire_cache(struct kgem *kgem)
 			bo = list_last_entry(&kgem->inactive[i],
 					     struct kgem_bo, list);
 
-			if (!gem_madvise(kgem->fd, bo->handle,
-					 I915_MADV_DONTNEED)) {
-				if (bo->delta > expire) {
-					idle = false;
-					break;
-				}
+			if (gem_madvise(kgem->fd, bo->handle,
+					I915_MADV_DONTNEED) &&
+			    bo->delta > expire) {
+				idle = false;
+				break;
 			}
 
 			count++;
@@ -1002,11 +1004,12 @@ bool kgem_expire_cache(struct kgem *kgem)
 		}
 	}
 
-	DBG(("%s: purge? %d -- expired %d objects, %d bytes\n", __FUNCTION__, kgem->need_purge,  count, size));
+	DBG(("%s: purge? %d -- expired %d objects, %d bytes, idle? %d\n",
+	     __FUNCTION__, kgem->need_purge,  count, size, idle));
 
-	kgem->need_expire = !idle;
 	kgem->need_purge = false;
-	return idle;
+	kgem->need_expire = !idle;
+	return !idle;
 	(void)count;
 	(void)size;
 }

@@ -1271,7 +1271,7 @@ gen4_emit_pipelined_pointers(struct sna *sna,
 	     __FUNCTION__, op->mask.bo != NULL,
 	     op->src.filter, op->src.repeat,
 	     op->mask.filter, op->mask.repeat,
-	     kernel, blend, op->has_component_alpha, op->dst.format));
+	     kernel, blend, op->has_component_alpha, (int)op->dst.format));
 
 	OUT_BATCH(GEN4_3DSTATE_PIPELINED_POINTERS | 5);
 	OUT_BATCH(sna->render_state.gen4.vs);

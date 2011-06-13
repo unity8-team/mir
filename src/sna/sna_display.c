@@ -1528,10 +1528,12 @@ PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap)
 	PixmapPtr old = sna->front;
 	ScrnInfoPtr scrn = sna->scrn;
 
+	assert(sna->front != pixmap);
+
 	sna->front = pixmap;
 	pixmap->refcnt++;
 
-	sna_redirect_screen_pixmap(scrn, old, sna->front);
+	sna_redirect_screen_pixmap(scrn, old, pixmap);
 	scrn->displayWidth = sna_pixmap_get_bo(pixmap)->pitch / sna->mode.cpp;
 
 	return old;
@@ -1542,7 +1544,6 @@ sna_do_pageflip(struct sna *sna,
 		PixmapPtr pixmap,
 		void *data,
 		int ref_crtc_hw_id,
-		PixmapPtr *old_front,
 		uint32_t *old_fb)
 {
 	ScrnInfoPtr scrn = sna->scrn;
@@ -1550,14 +1551,11 @@ sna_do_pageflip(struct sna *sna,
 	struct kgem_bo *bo;
 	int count;
 
-	assert(pixmap != sna->front);
-
 	bo = sna_pixmap_pin(pixmap);
 	if (!bo)
 		return 0;
 
 	*old_fb = mode->fb_id;
-	*old_front = sna->front;
 
 	/*
 	 * Create a new handle for the back buffer
@@ -1577,8 +1575,6 @@ sna_do_pageflip(struct sna *sna,
 	DBG(("%s: handle %d attached to fb %d\n",
 	     __FUNCTION__, bo->handle, mode->fb_id));
 
-	if (kgem_bo_is_dirty(bo))
-		kgem_emit_flush(&sna->kgem);
 	kgem_submit(&sna->kgem);
 
 	/*
@@ -1592,12 +1588,10 @@ sna_do_pageflip(struct sna *sna,
 	 */
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
-	if (count > 0) {
-		sna->front = pixmap;
-		pixmap->refcnt++;
-
-		sna_redirect_screen_pixmap(scrn, *old_front, sna->front);
-		scrn->displayWidth = bo->pitch / sna->mode.cpp;
+	if (count) {
+		bo->cpu_read = bo->cpu_write = false;
+		bo->gpu = true;
+		bo->needs_flush = true;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;

@@ -213,7 +213,7 @@ struct sna {
 	} mode;
 
 	struct sna_dri {
-		int flip_pending[2];
+		void *flip_pending[2];
 	} dri;
 
 	unsigned int tiling;
@@ -271,7 +271,6 @@ extern int sna_do_pageflip(struct sna *sna,
 			    PixmapPtr pixmap,
 			    void *data,
 			    int ref_crtc_hw_id,
-			    PixmapPtr *old_front,
 			    uint32_t *old_fb);
 
 extern PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap);
