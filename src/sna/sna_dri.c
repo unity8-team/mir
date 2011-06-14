@@ -326,9 +326,7 @@ static void damage(DrawablePtr drawable, PixmapPtr pixmap, RegionPtr region)
 	if (region) {
 		BoxPtr box;
 
-		RegionTranslate(region,
-				drawable->x + dx,
-				drawable->y + dy);
+		RegionTranslate(region, dx, dy);
 		box = RegionExtents(region);
 		if (RegionNumRects(region) == 1 &&
 		    box->x1 <= 0 && box->y1 <= 0 &&
@@ -343,9 +341,7 @@ static void damage(DrawablePtr drawable, PixmapPtr pixmap, RegionPtr region)
 			sna_damage_subtract(&priv->cpu_damage, region);
 		}
 
-		RegionTranslate(region,
-				-(drawable->x + dx),
-				-(drawable->y + dy));
+		RegionTranslate(region, -dx, -dy);
 	} else {
 		BoxRec box;
 
@@ -380,6 +376,7 @@ sna_dri_copy_region(DrawablePtr draw,
 	PixmapPtr src = src_priv->pixmap;
 	PixmapPtr dst = dst_priv->pixmap;
 	pixman_region16_t clip;
+	int16_t dx, dy;
 
 	DBG(("%s(region=(%d, %d), (%d, %d)))\n", __FUNCTION__,
 	     region ? REGION_EXTENTS(NULL, region)->x1 : 0,
@@ -401,6 +398,8 @@ sna_dri_copy_region(DrawablePtr draw,
 	if (draw->type == DRAWABLE_WINDOW) {
 		WindowPtr win = (WindowPtr)draw;
 
+		pixman_region_translate(region, draw->x, draw->y);
+
 		pixman_region_init(&clip);
 		pixman_region_intersect(&clip, &win->clipList, region);
 		if (!pixman_region_not_empty(&clip)) {
@@ -408,7 +407,10 @@ sna_dri_copy_region(DrawablePtr draw,
 			return;
 		}
 		region = &clip;
-	}
+
+		get_drawable_deltas(draw, dst, &dx, &dy);
+	} else
+		dx = dy = 0;
 
 	assert(sna_pixmap(src)->cpu_damage == NULL);
 	assert(sna_pixmap(dst)->cpu_damage == NULL);
@@ -424,31 +426,26 @@ sna_dri_copy_region(DrawablePtr draw,
 	 * again.
 	 */
 	sna->render.copy_boxes(sna, GXcopy,
-			       src, src_priv->bo, draw->x, draw->y,
-			       dst, dst_priv->bo, draw->x, draw->y,
+			       src, src_priv->bo, -draw->x, -draw->y,
+			       dst, dst_priv->bo, dx, dy,
 			       REGION_RECTS(region),
 			       REGION_NUM_RECTS(region));
 
-	/* Invalidate src to reflect unknown modifications made by the client
-	 *
-	 * XXX But what about any conflicting shadow writes made by others
-	 * between the last flush and this request? Hopefully nobody will
-	 * hit that race window to find out...
-	 */
-	damage(draw, src, region);
 	damage(draw, dst, region);
 	if (region == &clip)
 		pixman_region_fini(&clip);
 }
 
 static void
-sna_dri_swap_blit(struct sna *sna, DrawablePtr draw, DRI2BufferPtr back)
+sna_dri_swap_blit(struct sna *sna, DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPtr back)
 {
 	struct sna_dri_private *src_priv = back->driverPrivate;
+	struct sna_dri_private *dst_priv = front->driverPrivate;
 	PixmapPtr src = src_priv->pixmap;
-	PixmapPtr dst = sna->front;
+	PixmapPtr dst = dst_priv->pixmap;
 	bool flush = false;
 	BoxRec box, *boxes;
+	int16_t dx, dy;
 	int n;
 
 	DBG(("%s: back -- attachment=%d, name=%d, handle=%d\n",
@@ -464,6 +461,7 @@ sna_dri_swap_blit(struct sna *sna, DrawablePtr draw, DRI2BufferPtr back)
 
 		boxes = &box;
 		n = 1;
+		dx = dy = 0;
 	} else {
 		WindowPtr win = (WindowPtr)draw;
 
@@ -474,6 +472,8 @@ sna_dri_swap_blit(struct sna *sna, DrawablePtr draw, DRI2BufferPtr back)
 
 		flush = sna_wait_for_scanline(sna, sna->front,
 					      NULL, &win->clipList.extents);
+
+		get_drawable_deltas(draw, dst, &dx, &dy);
 	}
 
 	/* It's important that this copy gets submitted before the
@@ -487,17 +487,10 @@ sna_dri_swap_blit(struct sna *sna, DrawablePtr draw, DRI2BufferPtr back)
 	 * again.
 	 */
 	sna->render.copy_boxes(sna, GXcopy,
-			       src, src_priv->bo, draw->x, draw->y,
-			       dst, sna_pixmap_get_bo(dst), draw->x, draw->y,
+			       src, src_priv->bo, -draw->x, -draw->y,
+			       dst, dst_priv->bo, dx, dy,
 			       boxes, n);
 
-	/* Invalidate src to reflect unknown modifications made by the client
-	 *
-	 * XXX But what about any conflicting shadow writes made by others
-	 * between the last flush and this request? Hopefully nobody will
-	 * hit that race window to find out...
-	 */
-	damage(draw, src, NULL);
 	damage(draw, dst, NULL);
 
 	DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
@@ -817,7 +810,7 @@ static void sna_dri_vblank_handle(int fd,
 		}
 		/* else fall through to exchange/blit */
 	case DRI2_SWAP:
-		sna_dri_swap_blit(sna, draw, info->back);
+		sna_dri_swap_blit(sna, draw, info->front, info->back);
 	case DRI2_SWAP_THROTTLE:
 		DRI2SwapComplete(info->client,
 				 draw, frame,
@@ -1121,7 +1114,7 @@ immediate:
 		 if (drmWaitVBlank(sna->kgem.fd, &vbl))
 			 sna_dri_frame_event_info_free(info);
 
-		 sna_dri_swap_blit(sna, draw, back);
+		 sna_dri_swap_blit(sna, draw, front, back);
 		 return TRUE;
 	}
 
@@ -1183,7 +1176,7 @@ immediate:
 
 blit_fallback:
 	DBG(("%s -- blit\n", __FUNCTION__));
-	sna_dri_swap_blit(sna, draw, back);
+	sna_dri_swap_blit(sna, draw, front, back);
 	if (info)
 		sna_dri_frame_event_info_free(info);
 	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
@@ -1210,6 +1203,7 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 
 	if (!can_flip(sna, draw, front, back)) {
 		BoxRec box, *boxes;
+		int16_t dx, dy;
 		int n;
 
 		if (draw->type == DRAWABLE_PIXMAP) {
@@ -1219,11 +1213,14 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 
 			boxes = &box;
 			n = 1;
+			dx = dy = 0;
 		} else {
 			WindowPtr win = (WindowPtr)draw;
 
+			assert(front_priv->pixmap == sna->front);
 			boxes = REGION_RECTS(&win->clipList);
 			n = REGION_NUM_RECTS(&win->clipList);
+			get_drawable_deltas(draw, front_priv->pixmap, &dx, &dy);
 		}
 
 		DBG(("%s: fallback blit: %dx%d\n",
@@ -1233,10 +1230,10 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 			sna->render.copy_boxes(sna, GXcopy,
 					       back_priv->pixmap,
 					       back_priv->bo,
-					       0, 0,
+					       -draw->x, -draw->y,
 					       front_priv->pixmap,
 					       front_priv->bo,
-					       0, 0,
+					       dx, dy,
 					       boxes, n);
 		}
 
