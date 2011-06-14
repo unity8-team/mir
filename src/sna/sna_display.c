@@ -345,7 +345,7 @@ sna_crtc_apply(xf86CrtcPtr crtc)
 	struct sna *sna = to_sna(scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	struct sna_mode *mode = &sna->mode;
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	uint32_t output_ids[16];
 	int output_count = 0;
 	int fb_id, x, y;
@@ -467,7 +467,7 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 static Bool
 sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
-			  Rotation rotation, int x, int y)
+			Rotation rotation, int x, int y)
 {
 	ScrnInfoPtr scrn = crtc->scrn;
 	struct sna *sna = to_sna(scrn);
@@ -695,12 +695,6 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (sna_crtc == NULL)
 		return;
 
-	crtc = xf86CrtcCreate(scrn, &sna_crtc_funcs);
-	if (crtc == NULL) {
-		free(sna_crtc);
-		return;
-	}
-
 	sna_crtc->mode_crtc = drmModeGetCrtc(sna->kgem.fd,
 					     mode->mode_res->crtcs[num]);
 	get_pipe.pipe = 0;
@@ -710,6 +704,18 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 		 &get_pipe);
 	sna_crtc->pipe = get_pipe.pipe;
 
+	if (xf86IsEntityShared(scrn->entityList[0]) &&
+	    scrn->confScreen->device->screen != sna_crtc->pipe) {
+		free(sna_crtc);
+		return;
+	}
+
+	crtc = xf86CrtcCreate(scrn, &sna_crtc_funcs);
+	if (crtc == NULL) {
+		free(sna_crtc);
+		return;
+	}
+
 	crtc->driver_private = sna_crtc;
 
 	sna_crtc->cursor = gem_create(sna->kgem.fd, 64*64*4);
@@ -717,6 +723,9 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	sna_crtc->sna = sna;
 	sna_crtc->crtc = crtc;
 	list_add(&sna_crtc->link, &mode->crtcs);
+
+	DBG(("%s: attached crtc[%d] id=%d, pipe=%d\n",
+	     __FUNCTION__, num, sna_crtc->mode_crtc->crtc_id, sna_crtc->pipe));
 }
 
 static Bool
