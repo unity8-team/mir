@@ -417,11 +417,16 @@ sna_crtc_restore(struct sna *sna)
 	struct kgem_bo *bo;
 	int i;
 
+	if (sna->mode.fb_pixmap == sna->front->drawable.serialNumber)
+		return;
+
 	bo = sna_pixmap_pin(sna->front);
 	if (!bo)
 		return;
 
 	assert(bo->tiling != I915_TILING_Y);
+
+	sna_mode_remove_fb(sna);
 	if (drmModeAddFB(sna->kgem.fd,
 			 sna->front->drawable.width,
 			 sna->front->drawable.height,
@@ -431,7 +436,7 @@ sna_crtc_restore(struct sna *sna)
 		return;
 
 	DBG(("%s: handle %d attached to fb %d\n",
-	     __FUNCTION__, bo->handle, mode->fb_id));
+	     __FUNCTION__, bo->handle, sna->mode.fb_id));
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -456,11 +461,8 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	     __FUNCTION__, sna_crtc->pipe, mode, mode == DPMSModeOn));
 
 	sna_crtc->active = mode == DPMSModeOn;
-	if (mode == DPMSModeOn) {
-		struct sna *sna = sna_crtc->sna;
-		if (sna->front->drawable.serialNumber != sna->mode.fb_pixmap)
-			sna_crtc_restore(sna);
-	}
+	if (mode == DPMSModeOn)
+		sna_crtc_restore(sna_crtc->sna);
 }
 
 static Bool
