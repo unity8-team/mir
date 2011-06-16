@@ -145,7 +145,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 		list_add(&priv->list, &sna->dirty_pixmaps);
 
 	/* The bo is outside of our control, so presume it is written to */
-	priv->gpu_bo->need_flush = 1;
+	priv->gpu_bo->needs_flush = 1;
 
 	/* We need to submit any modifications to and reads from this
 	 * buffer before we send any reply to the Client.

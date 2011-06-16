@@ -800,6 +800,51 @@ static void sna_gc_move_to_cpu(GCPtr gc)
 		sna_drawable_move_to_cpu(&gc->tile.pixmap->drawable, false);
 }
 
+#define TRIM_BOX(box, d) do { \
+	if (box.x1 < 0) box.x1 = 0; \
+	if (box.x2 > d->width) box.x2 = d->width; \
+	if (box.y1 < 0) box.y1 = 0; \
+	if (box.y2 > d->height) box.y2 = d->height; \
+} while (0)
+
+#define CLIP_BOX(box, gc) \
+	if (gc->pCompositeClip) { \
+		BoxPtr extents = &gc->pCompositeClip->extents;\
+		if (box.x1 < extents->x1) box.x1 = extents->x1; \
+		if (box.x2 > extents->x2) box.x2 = extents->x2; \
+		if (box.y1 < extents->y1) box.y1 = extents->y1; \
+		if (box.y2 > extents->y2) box.y2 = extents->y2; \
+	}
+
+#define TRANSLATE_BOX(box, d) do { \
+	box.x1 += d->x; \
+	box.x2 += d->x; \
+	box.y1 += d->y; \
+	box.y2 += d->y; \
+} while (0)
+
+#define TRIM_AND_TRANSLATE_BOX(box, d, gc) do { \
+	TRIM_BOX(box, d); \
+	TRANSLATE_BOX(box, d); \
+	CLIP_BOX(box, gc); \
+} while (0)
+
+#define BOX_ADD_PT(box, x, y) do { \
+	if (box.x1 > x) box.x1 = x; \
+	else if (box.x2 < x) box.x2 = x; \
+	if (box.y1 > y) box.y1 = y; \
+	else if (box.y2 < y) box.y2 = y; \
+} while (0)
+
+#define BOX_ADD_RECT(box, x, y, w, h) do { \
+	if (box.x1 > x) box.x1 = x; \
+	else if (box.x2 < x + w) box.x2 = x + w; \
+	if (box.y1 > y) box.y1 = y; \
+	else if (box.y2 < y + h) box.y2 = y + h; \
+} while (0)
+
+#define BOX_EMPTY(box) (box.x2 <= box.x1 || box.y2 <= box.y1)
+
 static Bool
 sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			 int x, int y, int w, int  h, char *bits, int stride)
@@ -1305,51 +1350,6 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			dst_x, dst_y,
 			sna_copy_boxes, 0, NULL);
 }
-
-#define TRIM_BOX(box, d) do { \
-	if (box.x1 < 0) box.x1 = 0; \
-	if (box.x2 > d->width) box.x2 = d->width; \
-	if (box.y1 < 0) box.y1 = 0; \
-	if (box.y2 > d->height) box.y2 = d->height; \
-} while (0)
-
-#define CLIP_BOX(box, gc) \
-	if (gc->pCompositeClip) { \
-		BoxPtr extents = &gc->pCompositeClip->extents;\
-		if (box.x1 < extents->x1) box.x1 = extents->x1; \
-		if (box.x2 > extents->x2) box.x2 = extents->x2; \
-		if (box.y1 < extents->y1) box.y1 = extents->y1; \
-		if (box.y2 > extents->y2) box.y2 = extents->y2; \
-	}
-
-#define TRANSLATE_BOX(box, d) do { \
-	box.x1 += d->x; \
-	box.x2 += d->x; \
-	box.y1 += d->y; \
-	box.y2 += d->y; \
-} while (0)
-
-#define TRIM_AND_TRANSLATE_BOX(box, d, gc) do { \
-	TRIM_BOX(box, d); \
-	TRANSLATE_BOX(box, d); \
-	CLIP_BOX(box, gc); \
-} while (0)
-
-#define BOX_ADD_PT(box, x, y) do { \
-	if (box.x1 > x) box.x1 = x; \
-	else if (box.x2 < x) box.x2 = x; \
-	if (box.y1 > y) box.y1 = y; \
-	else if (box.y2 < y) box.y2 = y; \
-} while (0)
-
-#define BOX_ADD_RECT(box, x, y, w, h) do { \
-	if (box.x1 > x) box.x1 = x; \
-	else if (box.x2 < x + w) box.x2 = x + w; \
-	if (box.y1 > y) box.y1 = y; \
-	else if (box.y2 < y + h) box.y2 = y + h; \
-} while (0)
-
-#define BOX_EMPTY(box) (box.x2 <= box.x1 || box.y2 <= box.y1)
 
 static Bool
 box_intersect(BoxPtr a, const BoxPtr b)
