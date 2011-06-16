@@ -849,13 +849,18 @@ static inline void trim_and_translate_box(BoxPtr box, DrawablePtr d, GCPtr gc)
 	clip_box(box, gc);
 }
 
-#define BOX_ADD_PT(box, x, y) do { \
-	if (box.x1 > x) box.x1 = x; \
-	else if (box.x2 < x) box.x2 = x; \
-	if (box.y1 > y) box.y1 = y; \
-	else if (box.y2 < y) box.y2 = y; \
-} while (0)
+static inline void box_add_pt(BoxPtr box, int16_t x, int16_t y)
+{
+	if (box->x1 > x)
+		box->x1 = x;
+	else if (box->x2 < x)
+		box->x2 = x;
 
+	if (box->y1 > y)
+		box->y1 = y;
+	else if (box->y2 < y)
+		box->y2 = y;
+}
 #define BOX_ADD_RECT(box, x, y, w, h) do { \
 	if (box.x1 > x) box.x1 = x; \
 	else if (box.x2 < x + w) box.x2 = x + w; \
@@ -1750,7 +1755,7 @@ sna_poly_point_extents(DrawablePtr drawable, GCPtr gc,
 	box.y2 = box.y1 = pt->y;
 	while (--n) {
 		pt++;
-		BOX_ADD_PT(box, pt->x, pt->y);
+		box_add_pt(&box, pt->x, pt->y);
 	}
 	box.x2++;
 	box.y2++;
@@ -1956,12 +1961,12 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 			pt++;
 			x += pt->x;
 			y += pt->y;
-			BOX_ADD_PT(box, x, y);
+			box_add_pt(&box, x, y);
 		}
 	} else {
 		while (--n) {
 			pt++;
-			BOX_ADD_PT(box, pt->x, pt->y);
+			box_add_pt(&box, pt->x, pt->y);
 		}
 	}
 	box.x2++;
