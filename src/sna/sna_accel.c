@@ -833,16 +833,18 @@ static inline void clip_box(BoxPtr box, GCPtr gc)
 		box->y2 = clip->y2;
 }
 
-#define TRANSLATE_BOX(box, d) do { \
-	box.x1 += d->x; \
-	box.x2 += d->x; \
-	box.y1 += d->y; \
-	box.y2 += d->y; \
-} while (0)
+static inline void translate_box(BoxPtr box, DrawablePtr d)
+{
+	box->x1 += d->x;
+	box->x2 += d->x;
+
+	box->y1 += d->y;
+	box->y2 += d->y;
+}
 
 #define TRIM_AND_TRANSLATE_BOX(box, d, gc) do { \
 	trim_box(&box, d); \
-	TRANSLATE_BOX(box, d); \
+	translate_box(&box, d); \
 	clip_box(&box, gc); \
 } while (0)
 
@@ -1555,7 +1557,7 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 
 	if (gc) {
 		if (!gc->miTranslate)
-			TRANSLATE_BOX(box, drawable);
+			translate_box(&box, drawable);
 		clip_box(&box, gc);
 	}
 	*out = box;
@@ -2780,7 +2782,7 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	trim_box(&box, drawable);
 	if (box_empty(&box))
 		return;
-	TRANSLATE_BOX(box, drawable);
+	translate_box(&box, drawable);
 
 	DBG(("%s: extents(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
@@ -2819,7 +2821,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	trim_box(&box, drawable);
 	if (box_empty(&box))
 		return;
-	TRANSLATE_BOX(box, drawable);
+	translate_box(&box, drawable);
 
 	DBG(("%s: extents(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
