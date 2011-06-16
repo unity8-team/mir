@@ -861,12 +861,19 @@ static inline void box_add_pt(BoxPtr box, int16_t x, int16_t y)
 	else if (box->y2 < y)
 		box->y2 = y;
 }
-#define BOX_ADD_RECT(box, x, y, w, h) do { \
-	if (box.x1 > x) box.x1 = x; \
-	else if (box.x2 < x + w) box.x2 = x + w; \
-	if (box.y1 > y) box.y1 = y; \
-	else if (box.y2 < y + h) box.y2 = y + h; \
-} while (0)
+
+static inline void box_add_rect(BoxPtr box, const xRectangle *r)
+{
+	if (box->x1 > r->x)
+		box->x1 = r->x;
+	if (box->x2 < r->x + r->width)
+		box->x2 = r->x + r->width;
+
+	if (box->y1 > r->y)
+		box->y1 = r->y;
+	if (box->y2 < r->y + r->height)
+		box->y2 = r->y + r->height;
+}
 
 static inline bool box_empty(const BoxRec *box)
 {
@@ -2672,7 +2679,7 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 
 	while (--n) {
 		rect++;
-		BOX_ADD_RECT(box, rect->x, rect->y, rect->width, rect->height);
+		box_add_rect(&box, rect);
 	}
 
 	trim_and_translate_box(&box, drawable, gc);
