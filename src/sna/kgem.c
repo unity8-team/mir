@@ -510,7 +510,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	if (!bo->deleted && !bo->exec) {
 		if (!gem_madvise(kgem->fd, bo->handle, I915_MADV_DONTNEED)) {
-			kgem->need_purge = 1;
+			kgem->need_purge |= bo->gpu;
 			goto destroy;
 		}
 
@@ -1037,7 +1037,7 @@ search_linear_cache(struct kgem *kgem, int size, bool active)
 		if (bo->deleted) {
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_WILLNEED)) {
-				kgem->need_purge = 1;
+				kgem->need_purge |= bo->gpu;
 				goto next_bo;
 			}
 
@@ -1282,7 +1282,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		if (bo->deleted) {
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_WILLNEED)) {
-				kgem->need_purge = 1;
+				kgem->need_purge |= bo->gpu;
 				gem_close(kgem->fd, bo->handle);
 				list_del(&bo->request);
 				free(bo);
@@ -1331,7 +1331,7 @@ skip_active_search:
 		if (bo->deleted) {
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_WILLNEED)) {
-				kgem->need_purge = 1;
+				kgem->need_purge |= bo->gpu;
 				goto next_bo;
 			}
 
