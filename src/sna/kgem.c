@@ -177,9 +177,9 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		return FALSE;
 
 	bo->needs_flush = false;
-	if (bo->gpu)
+	if (bo->rq)
 		kgem_retire(kgem);
-	assert(bo->gpu == false);
+	bo->gpu = false;
 	return TRUE;
 }
 
@@ -546,9 +546,6 @@ void kgem_retire(struct kgem *kgem)
 
 	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
 		if (!kgem_busy(kgem, bo->handle)) {
-			assert(bo->rq == NULL);
-			assert(bo->needs_flush);
-			assert(bo->deleted);
 			bo->needs_flush = 0;
 			bo->gpu = false;
 			list_move(&bo->list, inactive(kgem, bo->size));
@@ -1610,9 +1607,9 @@ void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write)
 
 	drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 	bo->needs_flush = false;
-	if (bo->gpu)
+	if (bo->rq)
 		kgem_retire(kgem);
-	assert(bo->gpu == false);
+	bo->gpu = false;
 	bo->cpu_read = true;
 	if (for_write)
 		bo->cpu_write = true;
@@ -1809,9 +1806,9 @@ void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		else
 			gem_read(kgem->fd, bo->base.handle, bo+1, bo->used);
 		bo->base.needs_flush = false;
-		if (bo->base.gpu)
+		if (bo->base.rq)
 			kgem_retire(kgem);
-		assert(bo->base.gpu == false);
+		bo->base.gpu = false;
 		bo->need_io = 0;
 	}
 
