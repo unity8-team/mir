@@ -843,7 +843,10 @@ static void sna_gc_move_to_cpu(GCPtr gc)
 	else if (box.y2 < y + h) box.y2 = y + h; \
 } while (0)
 
-#define BOX_EMPTY(box) (box.x2 <= box.x1 || box.y2 <= box.y1)
+static inline bool box_empty(const BoxRec *box)
+{
+	return box->x2 <= box->x1 || box->y2 <= box->y1;
+}
 
 static Bool
 sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
@@ -1014,7 +1017,7 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		box.x2 = pixmap->drawable.width;
 	if (box.y2 > pixmap->drawable.height)
 		box.y2 = pixmap->drawable.height;
-	if (BOX_EMPTY(box))
+	if (box_empty(&box))
 		return;
 
 	RegionInit(&region, &box, 1);
@@ -1539,7 +1542,7 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 		CLIP_BOX(box, gc);
 	}
 	*out = box;
-	return BOX_EMPTY(box);
+	return box_empty(&box);
 }
 
 static void
@@ -1734,7 +1737,7 @@ sna_poly_point_extents(DrawablePtr drawable, GCPtr gc,
 
 	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
 	*out = box;
-	return BOX_EMPTY(box);
+	return box_empty(&box);
 }
 
 static void
@@ -1953,7 +1956,7 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 
 	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
 	*out = box;
-	return BOX_EMPTY(box);
+	return box_empty(&box);
 }
 
 static void
@@ -2167,7 +2170,7 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 
 	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
 	*out = box;
-	return BOX_EMPTY(box);
+	return box_empty(&box);
 }
 
 static void
@@ -2271,7 +2274,7 @@ sna_poly_arc_extents(DrawablePtr drawable, GCPtr gc,
 
 	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
 	*out = box;
-	return BOX_EMPTY(box);
+	return box_empty(&box);
 }
 
 static void
@@ -2649,7 +2652,7 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 
 	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
 	*out = box;
-	return BOX_EMPTY(box);
+	return box_empty(&box);
 }
 
 static void
@@ -2758,7 +2761,7 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	box.y1 = y - FONTASCENT(gc->font);
 	box.y2 = y + FONTDESCENT(gc->font);
 	TRIM_BOX(box, drawable);
-	if (BOX_EMPTY(box))
+	if (box_empty(&box))
 		return;
 	TRANSLATE_BOX(box, drawable);
 
@@ -2797,7 +2800,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	box.y2 = y + extents.overallDescent;
 
 	TRIM_BOX(box, drawable);
-	if (BOX_EMPTY(box))
+	if (box_empty(&box))
 		return;
 	TRANSLATE_BOX(box, drawable);
 
@@ -2840,7 +2843,7 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 	box.y2 = box.y1 + h;
 
 	CLIP_BOX(box, gc);
-	if (BOX_EMPTY(box))
+	if (box_empty(&box))
 		return;
 
 	DBG(("%s: extents(%d, %d), (%d, %d)\n",
