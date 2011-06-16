@@ -179,7 +179,7 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 		aligned_height = RADEON_ALIGN(size / pitch_bytes, height_align);
 
 		pixmap = (*pScreen->CreatePixmap)(pScreen,
-						  drawable->width,
+						  aligned_width,
 						  aligned_height,
 						  drawable->depth,
 						  flags);
@@ -332,7 +332,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	    aligned_height = RADEON_ALIGN(size / pitch_bytes, height_align);
 
 	    pixmap = (*pScreen->CreatePixmap)(pScreen,
-					      drawable->width,
+					      aligned_width,
 					      aligned_height,
 					      (format != 0)?format:drawable->depth,
 					      flags);
