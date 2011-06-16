@@ -37,24 +37,6 @@
 #include "uxa.h"
 #include "mipict.h"
 
-static CARD32
-format_for_depth(int depth)
-{
-	switch (depth) {
-	case 1: return PICT_a1;
-	case 4: return PICT_a4;
-	case 8: return PICT_a8;
-	case 15: return PICT_x1r5g5b5;
-	case 16: return PICT_r5g6b5;
-	default:
-	case 24: return PICT_x8r8g8b8;
-#if XORG_VERSION_CURRENT >= 10699900
-	case 30: return PICT_x2r10g10b10;
-#endif
-	case 32: return PICT_a8r8g8b8;
-	}
-}
-
 static void
 uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	       DDXPointPtr ppt, int *pwidth, int fSorted)
@@ -62,15 +44,11 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	ScreenPtr screen = pDrawable->pScreen;
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 	RegionPtr pClip = fbGetCompositeClip(pGC);
-	PixmapPtr dst_pixmap, src_pixmap = NULL;
+	PixmapPtr dst_pixmap;
 	BoxPtr pbox;
 	int nbox;
 	int x1, x2, y;
 	int off_x, off_y;
-	xRenderColor color;
-	PictFormatPtr format;
-	PicturePtr dst, src;
-	int error;
 
 	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
 		goto fallback;
@@ -82,102 +60,6 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	if (!dst_pixmap)
 		goto fallback;
 
-	if (pGC->alu != GXcopy || !UXA_PM_IS_SOLID(pDrawable, pGC->planemask))
-		goto solid;
-
-	format = PictureMatchFormat(screen,
-				    dst_pixmap->drawable.depth,
-				    format_for_depth(dst_pixmap->drawable.depth));
-	dst = CreatePicture(0, &dst_pixmap->drawable, format, 0, 0, serverClient, &error);
-	if (!dst)
-		goto solid;
-
-	ValidatePicture(dst);
-
-	uxa_get_rgba_from_pixel(pGC->fgPixel,
-				&color.red,
-				&color.green,
-				&color.blue,
-				&color.alpha,
-				format_for_depth(dst_pixmap->drawable.depth));
-	src = CreateSolidPicture(0, &color, &error);
-	if (!src) {
-		FreePicture(dst, 0);
-		goto solid;
-	}
-
-	if (!uxa_screen->info->check_composite(PictOpSrc, src, NULL, dst, 0, 0)) {
-		FreePicture(src, 0);
-		FreePicture(dst, 0);
-		goto solid;
-	}
-
-	if (!uxa_screen->info->check_composite_texture ||
-	    !uxa_screen->info->check_composite_texture(screen, src)) {
-		PicturePtr solid;
-		int src_off_x, src_off_y;
-
-		solid = uxa_acquire_solid(screen, src->pSourcePict);
-		FreePicture(src, 0);
-		if (!solid) {
-			FreePicture(dst, 0);
-			goto solid;
-		}
-
-		src = solid;
-		src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
-						      &src_off_x, &src_off_y);
-		if (!src_pixmap) {
-			FreePicture(src, 0);
-			FreePicture(dst, 0);
-			goto solid;
-		}
-	}
-
-	if (!uxa_screen->info->prepare_composite(PictOpSrc, src, NULL, dst, src_pixmap, NULL, dst_pixmap)) {
-		FreePicture(src, 0);
-		FreePicture(dst, 0);
-		goto solid;
-	}
-
-	while (n--) {
-		x1 = ppt->x;
-		y = ppt->y;
-		x2 = x1 + (int)*pwidth;
-		ppt++;
-		pwidth++;
-
-		nbox = REGION_NUM_RECTS(pClip);
-		pbox = REGION_RECTS(pClip);
-		while (nbox--) {
-			if (pbox->y1 > y || pbox->y2 <= y)
-				continue;
-
-			if (x1 < pbox->x1)
-				x1 = pbox->x1;
-
-			if (x2 > pbox->x2)
-				x2 = pbox->x2;
-
-			if (x2 <= x1)
-				continue;
-
-			uxa_screen->info->composite(dst_pixmap,
-						    0, 0,
-						    0, 0,
-						    x1 + off_x, y + off_y,
-						    x2 - x1, 1);
-
-			pbox++;
-		}
-	}
-
-	uxa_screen->info->done_composite(dst_pixmap);
-	FreePicture(src, 0);
-	FreePicture(dst, 0);
-	return;
-
-solid:
 	if (uxa_screen->info->check_solid &&
 	    !uxa_screen->info->check_solid(pDrawable, pGC->alu, pGC->planemask))
 		goto fallback;
@@ -953,7 +835,7 @@ uxa_fill_region_solid(DrawablePtr pDrawable,
 	PixmapPtr pixmap;
 	int xoff, yoff;
 	int nbox;
-	BoxPtr pBox, extents;
+	BoxPtr pBox;
 	Bool ret = FALSE;
 
 	pixmap = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);
@@ -964,105 +846,21 @@ uxa_fill_region_solid(DrawablePtr pDrawable,
 
 	nbox = REGION_NUM_RECTS(pRegion);
 	pBox = REGION_RECTS(pRegion);
-	extents = REGION_EXTENTS(screen, pRegion);
 
-	/* Using GEM, the relocation costs outweigh the advantages of the blitter */
-	if (nbox == 1 || (alu != GXcopy && alu != GXclear) || !UXA_PM_IS_SOLID(&pixmap->drawable, planemask)) {
-try_solid:
-		if (uxa_screen->info->check_solid &&
-		    !uxa_screen->info->check_solid(&pixmap->drawable, alu, planemask))
-			goto err;
+	if (uxa_screen->info->check_solid &&
+	    !uxa_screen->info->check_solid(&pixmap->drawable, alu, planemask))
+		goto err;
 
-		if (!uxa_screen->info->prepare_solid(pixmap, alu, planemask, pixel))
-			goto err;
+	if (!uxa_screen->info->prepare_solid(pixmap, alu, planemask, pixel))
+		goto err;
 
-		while (nbox--) {
-			uxa_screen->info->solid(pixmap,
-						pBox->x1, pBox->y1,
-						pBox->x2, pBox->y2);
-			pBox++;
-		}
-
-		uxa_screen->info->done_solid(pixmap);
-	} else {
-		PicturePtr dst, src;
-		PixmapPtr src_pixmap = NULL;
-		xRenderColor color;
-		int error;
-
-		dst = CreatePicture(0, &pixmap->drawable,
-				    PictureMatchFormat(screen,
-						       pixmap->drawable.depth,
-						       format_for_depth(pixmap->drawable.depth)),
-				    0, 0, serverClient, &error);
-		if (!dst)
-			goto err;
-
-		ValidatePicture(dst);
-
-		uxa_get_rgba_from_pixel(pixel,
-					&color.red,
-					&color.green,
-					&color.blue,
-					&color.alpha,
-					format_for_depth(pixmap->drawable.depth));
-		src = CreateSolidPicture(0, &color, &error);
-		if (!src) {
-			FreePicture(dst, 0);
-			goto err;
-		}
-
-		if (!uxa_screen->info->check_composite(PictOpSrc, src, NULL, dst,
-						       extents->x2 - extents->x1,
-						       extents->y2 - extents->y1)) {
-			FreePicture(src, 0);
-			FreePicture(dst, 0);
-			goto try_solid;
-		}
-
-		if (!uxa_screen->info->check_composite_texture ||
-		    !uxa_screen->info->check_composite_texture(screen, src)) {
-			PicturePtr solid;
-			int src_off_x, src_off_y;
-
-			solid = uxa_acquire_solid(screen, src->pSourcePict);
-			FreePicture(src, 0);
-			if (!solid) {
-				FreePicture(dst, 0);
-				goto err;
-			}
-
-			src = solid;
-			src_pixmap = uxa_get_offscreen_pixmap(src->pDrawable,
-							      &src_off_x, &src_off_y);
-			if (!src_pixmap) {
-				FreePicture(src, 0);
-				FreePicture(dst, 0);
-				goto err;
-			}
-		}
-
-		if (!uxa_screen->info->prepare_composite(PictOpSrc, src, NULL, dst, src_pixmap, NULL, pixmap)) {
-			FreePicture(src, 0);
-			FreePicture(dst, 0);
-			goto err;
-		}
-
-		while (nbox--) {
-			uxa_screen->info->composite(pixmap,
-						    0, 0, 0, 0,
-						    pBox->x1,
-						    pBox->y1,
-						    pBox->x2 - pBox->x1,
-						    pBox->y2 - pBox->y1);
-			pBox++;
-		}
-
-		uxa_screen->info->done_composite(pixmap);
-		FreePicture(src, 0);
-		FreePicture(dst, 0);
+	while (nbox--) {
+		uxa_screen->info->solid(pixmap,
+					pBox->x1, pBox->y1,
+					pBox->x2, pBox->y2);
+		pBox++;
 	}
-
+	uxa_screen->info->done_solid(pixmap);
 	ret = TRUE;
 
 err:
