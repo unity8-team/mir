@@ -1014,7 +1014,7 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		box.x2 = pixmap->drawable.width;
 	if (box.y2 > pixmap->drawable.height)
 		box.y2 = pixmap->drawable.height;
-	if (BOX_EMPTY(&box))
+	if (BOX_EMPTY(box))
 		return;
 
 	RegionInit(&region, &box, 1);
