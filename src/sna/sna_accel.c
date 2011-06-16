@@ -969,6 +969,8 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		box.x2 = pixmap->drawable.width;
 	if (box.y2 > pixmap->drawable.height)
 		box.y2 = pixmap->drawable.height;
+	if (BOX_EMPTY(&box))
+		return;
 
 	RegionInit(&region, &box, 1);
 
@@ -2756,6 +2758,8 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	box.y1 = y - FONTASCENT(gc->font);
 	box.y2 = y + FONTDESCENT(gc->font);
 	TRIM_BOX(box, drawable);
+	if (BOX_EMPTY(box))
+		return;
 	TRANSLATE_BOX(box, drawable);
 
 	DBG(("%s: extents(%d, %d), (%d, %d)\n",
@@ -2793,6 +2797,8 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	box.y2 = y + extents.overallDescent;
 
 	TRIM_BOX(box, drawable);
+	if (BOX_EMPTY(box))
+		return;
 	TRANSLATE_BOX(box, drawable);
 
 	DBG(("%s: extents(%d, %d), (%d, %d)\n",
