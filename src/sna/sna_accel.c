@@ -800,12 +800,18 @@ static void sna_gc_move_to_cpu(GCPtr gc)
 		sna_drawable_move_to_cpu(&gc->tile.pixmap->drawable, false);
 }
 
-#define TRIM_BOX(box, d) do { \
-	if (box.x1 < 0) box.x1 = 0; \
-	if (box.x2 > d->width) box.x2 = d->width; \
-	if (box.y1 < 0) box.y1 = 0; \
-	if (box.y2 > d->height) box.y2 = d->height; \
-} while (0)
+static inline void trim_box(BoxPtr box, DrawablePtr d)
+{
+	if (box->x1 < 0)
+		box->x1 = 0;
+	if (box->x2 > d->width)
+		box->x2 = d->width;
+
+	if (box->y1 < 0)
+		box->y1 = 0;
+	if (box->y2 > d->height)
+		box->y2 = d->height;
+}
 
 static inline void clip_box(BoxPtr box, GCPtr gc)
 {
@@ -835,7 +841,7 @@ static inline void clip_box(BoxPtr box, GCPtr gc)
 } while (0)
 
 #define TRIM_AND_TRANSLATE_BOX(box, d, gc) do { \
-	TRIM_BOX(box, d); \
+	trim_box(&box, d); \
 	TRANSLATE_BOX(box, d); \
 	clip_box(&box, gc); \
 } while (0)
@@ -2771,7 +2777,7 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	}
 	box.y1 = y - FONTASCENT(gc->font);
 	box.y2 = y + FONTDESCENT(gc->font);
-	TRIM_BOX(box, drawable);
+	trim_box(&box, drawable);
 	if (box_empty(&box))
 		return;
 	TRANSLATE_BOX(box, drawable);
@@ -2810,7 +2816,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	box.x2 = x + extents.overallRight;
 	box.y2 = y + extents.overallDescent;
 
-	TRIM_BOX(box, drawable);
+	trim_box(&box, drawable);
 	if (box_empty(&box))
 		return;
 	TRANSLATE_BOX(box, drawable);
