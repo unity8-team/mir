@@ -807,14 +807,25 @@ static void sna_gc_move_to_cpu(GCPtr gc)
 	if (box.y2 > d->height) box.y2 = d->height; \
 } while (0)
 
-#define CLIP_BOX(box, gc) \
-	if (gc->pCompositeClip) { \
-		BoxPtr extents = &gc->pCompositeClip->extents;\
-		if (box.x1 < extents->x1) box.x1 = extents->x1; \
-		if (box.x2 > extents->x2) box.x2 = extents->x2; \
-		if (box.y1 < extents->y1) box.y1 = extents->y1; \
-		if (box.y2 > extents->y2) box.y2 = extents->y2; \
-	}
+static inline void clip_box(BoxPtr box, GCPtr gc)
+{
+	const BoxRec *clip;
+
+	if (!gc->pCompositeClip)
+		return;
+
+	clip = &gc->pCompositeClip->extents;
+
+	if (box->x1 < clip->x1)
+		box->x1 = clip->x1;
+	if (box->x2 > clip->x2)
+		box->x2 = clip->x2;
+
+	if (box->y1 < clip->y1)
+		box->y1 = clip->y1;
+	if (box->y2 > clip->y2)
+		box->y2 = clip->y2;
+}
 
 #define TRANSLATE_BOX(box, d) do { \
 	box.x1 += d->x; \
@@ -826,7 +837,7 @@ static void sna_gc_move_to_cpu(GCPtr gc)
 #define TRIM_AND_TRANSLATE_BOX(box, d, gc) do { \
 	TRIM_BOX(box, d); \
 	TRANSLATE_BOX(box, d); \
-	CLIP_BOX(box, gc); \
+	clip_box(&box, gc); \
 } while (0)
 
 #define BOX_ADD_PT(box, x, y) do { \
@@ -1539,7 +1550,7 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 	if (gc) {
 		if (!gc->miTranslate)
 			TRANSLATE_BOX(box, drawable);
-		CLIP_BOX(box, gc);
+		clip_box(&box, gc);
 	}
 	*out = box;
 	return box_empty(&box);
@@ -2842,7 +2853,7 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 	box.x2 = box.x1 + w;
 	box.y2 = box.y1 + h;
 
-	CLIP_BOX(box, gc);
+	clip_box(&box, gc);
 	if (box_empty(&box))
 		return;
 
