@@ -842,11 +842,12 @@ static inline void translate_box(BoxPtr box, DrawablePtr d)
 	box->y2 += d->y;
 }
 
-#define TRIM_AND_TRANSLATE_BOX(box, d, gc) do { \
-	trim_box(&box, d); \
-	translate_box(&box, d); \
-	clip_box(&box, gc); \
-} while (0)
+static inline void trim_and_translate_box(BoxPtr box, DrawablePtr d, GCPtr gc)
+{
+	trim_box(box, d);
+	translate_box(box, d);
+	clip_box(box, gc);
+}
 
 #define BOX_ADD_PT(box, x, y) do { \
 	if (box.x1 > x) box.x1 = x; \
@@ -1754,7 +1755,7 @@ sna_poly_point_extents(DrawablePtr drawable, GCPtr gc,
 	box.x2++;
 	box.y2++;
 
-	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
+	trim_and_translate_box(&box, drawable, gc);
 	*out = box;
 	return box_empty(&box);
 }
@@ -1973,7 +1974,7 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 		box.y2 += extra;
 	}
 
-	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
+	trim_and_translate_box(&box, drawable, gc);
 	*out = box;
 	return box_empty(&box);
 }
@@ -2187,7 +2188,7 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 		box.y2 += extra;
 	}
 
-	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
+	trim_and_translate_box(&box, drawable, gc);
 	*out = box;
 	return box_empty(&box);
 }
@@ -2291,7 +2292,7 @@ sna_poly_arc_extents(DrawablePtr drawable, GCPtr gc,
 	box.x2++;
 	box.y2++;
 
-	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
+	trim_and_translate_box(&box, drawable, gc);
 	*out = box;
 	return box_empty(&box);
 }
@@ -2669,7 +2670,7 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 		BOX_ADD_RECT(box, rect->x, rect->y, rect->width, rect->height);
 	}
 
-	TRIM_AND_TRANSLATE_BOX(box, drawable, gc);
+	trim_and_translate_box(&box, drawable, gc);
 	*out = box;
 	return box_empty(&box);
 }
