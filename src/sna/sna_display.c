@@ -51,11 +51,12 @@
 struct sna_crtc {
 	struct sna *sna;
 	drmModeModeInfo kmode;
-	drmModeCrtcPtr mode_crtc;
 	PixmapPtr shadow;
 	uint32_t shadow_fb_id;
 	uint32_t cursor;
 	xf86CrtcPtr crtc;
+	int num;
+	int id;
 	int pipe;
 	int active;
 	struct list link;
@@ -121,7 +122,7 @@ static const char *backlight_interfaces[] = {
 static inline int
 crtc_id(struct sna_crtc *crtc)
 {
-	return crtc->mode_crtc->crtc_id;
+	return crtc->id;
 }
 
 int sna_crtc_id(xf86CrtcPtr crtc)
@@ -687,6 +688,7 @@ static void
 sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 {
 	struct sna *sna = to_sna(scrn);
+	drmModeCrtcPtr mode_crtc;
 	xf86CrtcPtr crtc;
 	struct sna_crtc *sna_crtc;
 	struct drm_i915_get_pipe_from_crtc_id get_pipe;
@@ -695,10 +697,14 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	if (sna_crtc == NULL)
 		return;
 
-	sna_crtc->mode_crtc = drmModeGetCrtc(sna->kgem.fd,
-					     mode->mode_res->crtcs[num]);
+	sna_crtc->num = num;
+
+	mode_crtc = drmModeGetCrtc(sna->kgem.fd, mode->mode_res->crtcs[num]);
+	sna_crtc->id = mode_crtc->crtc_id;
+	drmModeFreeCrtc(mode_crtc);
+
 	get_pipe.pipe = 0;
-	get_pipe.crtc_id = sna_crtc->mode_crtc->crtc_id;
+	get_pipe.crtc_id = sna_crtc->id;
 	drmIoctl(sna->kgem.fd,
 		 DRM_IOCTL_I915_GET_PIPE_FROM_CRTC_ID,
 		 &get_pipe);
