@@ -261,6 +261,7 @@ NVPciProbe(DriverPtr drv, int entity_num, struct pci_device *pci_dev,
 	case 0x90:
 	case 0xa0:
 	case 0xc0:
+	case 0xd0:
 		break;
 	default:
 		xf86DrvMsg(-1, X_ERROR, "Unknown chipset: NV%02x\n", chipset);
@@ -686,6 +687,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		pNv->Architecture = NV_ARCH_50;
 		break;
 	case 0xc0:
+	case 0xd0:
 		pNv->Architecture = NV_ARCH_C0;
 		break;
 	default:
