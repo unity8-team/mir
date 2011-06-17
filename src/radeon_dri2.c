@@ -151,7 +151,7 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 
 	    if (flags & RADEON_CREATE_PIXMAP_TILING_MICRO)
 		tiling |= RADEON_TILING_MICRO;
-	    if (flags & RADEON_CREATE_PIXMAP_TILING_MICRO)
+	    if (flags & RADEON_CREATE_PIXMAP_TILING_MACRO)
 		tiling |= RADEON_TILING_MACRO;
 
 	    if (need_enlarge) {
@@ -303,7 +303,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 
 	if (flags & RADEON_CREATE_PIXMAP_TILING_MICRO)
 	    tiling |= RADEON_TILING_MICRO;
-	if (flags & RADEON_CREATE_PIXMAP_TILING_MICRO)
+	if (flags & RADEON_CREATE_PIXMAP_TILING_MACRO)
 	    tiling |= RADEON_TILING_MACRO;
 
 	if (need_enlarge) {
