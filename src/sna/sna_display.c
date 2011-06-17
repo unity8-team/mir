@@ -466,6 +466,82 @@ sna_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		sna_crtc_restore(sna_crtc->sna);
 }
 
+static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
+					       drmModeFBPtr fbcon)
+{
+	struct drm_gem_flink flink;
+	struct kgem_bo *bo;
+	int ret;
+
+	/* Create a new reference for the fbcon so that we can track it
+	 * using a normal bo and so that when we call gem_close on it we
+	 * delete our reference and not fbcon's!
+	 */
+	memset(&flink, 0, sizeof(flink));
+	flink.handle = fbcon->handle;
+	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_GEM_FLINK, &flink);
+	if (ret)
+		return NULL;
+
+	bo = kgem_create_for_name(&sna->kgem, flink.name);
+	if (bo == NULL)
+		return NULL;
+
+	bo->pitch = fbcon->pitch;
+	return bo;
+}
+
+/* Copy the current framebuffer contents into the front-buffer for a seamless
+ * transition from e.g. plymouth.
+ */
+void sna_copy_fbcon(struct sna *sna)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	drmModeFBPtr fbcon;
+	struct kgem_bo *fbcon_bo;
+	BoxRec box;
+	int i;
+
+	/* Scan the connectors for a framebuffer and assume that is the fbcon */
+	fbcon = NULL;
+	for (i = 0; fbcon == NULL && i < xf86_config->num_crtc; i++) {
+		struct sna_crtc *crtc = xf86_config->crtc[i]->driver_private;
+		drmModeCrtcPtr mode_crtc;
+
+		mode_crtc = drmModeGetCrtc(sna->kgem.fd,
+					   sna->mode.mode_res->crtcs[crtc->num]);
+		if (mode_crtc->buffer_id)
+			fbcon = drmModeGetFB(sna->kgem.fd,
+					     mode_crtc->buffer_id);
+		drmModeFreeCrtc(mode_crtc);
+	}
+	if (fbcon == NULL)
+		return;
+
+	if (fbcon->depth != sna->front->drawable.depth)
+		goto cleanup_fbcon;
+
+	box.x1 = box.y1 = 0;
+	box.x2 = fbcon->width;
+	box.y2 = fbcon->height;
+
+	fbcon_bo = sna_create_bo_for_fbcon(sna, fbcon);
+	if (fbcon_bo == NULL)
+		goto cleanup_fbcon;
+
+	sna->render.copy_boxes(sna, GXcopy,
+			       sna->front, fbcon_bo, 0, 0,
+			       sna->front, sna_pixmap_get_bo(sna->front),
+			       (sna->front->drawable.width - fbcon->width)/2,
+			       (sna->front->drawable.height - fbcon->height)/2,
+			       &box, 1);
+
+	kgem_bo_destroy(&sna->kgem, fbcon_bo);
+
+cleanup_fbcon:
+	drmModeFreeFB(fbcon);
+}
+
 static Bool
 sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			Rotation rotation, int x, int y)

@@ -200,6 +200,8 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 	if (!sna_accel_create(sna))
 		goto cleanup_front;
 
+	sna_copy_fbcon(sna);
+
 	if (!sna_enter_vt(screen->myNum, 0))
 		goto cleanup_front;
 
