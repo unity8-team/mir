@@ -87,22 +87,10 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *fermi, *m2mf;
 	struct nouveau_bo *bo;
-	uint32_t tclClass;
 	int ret, i;
 
-	switch (pNv->dev->chipset) {
-	case 0xc0:
-	case 0xc1:
-	case 0xc3:
-	case 0xc4:
-		tclClass = 0x9097;
-		break;
-	default:
-		return FALSE;
-	}
-
 	if (!pNv->Nv3D) {
-		ret = nouveau_grobj_alloc(chan, tclClass, tclClass, &pNv->Nv3D);
+		ret = nouveau_grobj_alloc(chan, 0x9097, 0x9097, &pNv->Nv3D);
 		if (ret)
 			return FALSE;
 
