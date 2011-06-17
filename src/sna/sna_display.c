@@ -501,6 +501,7 @@ void sna_copy_fbcon(struct sna *sna)
 	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
 	BoxRec box;
+	bool ok;
 	int i;
 
 	/* Scan the connectors for a framebuffer and assume that is the fbcon */
@@ -533,15 +534,17 @@ void sna_copy_fbcon(struct sna *sna)
 	priv = sna_pixmap(sna->front);
 	assert(priv && priv->gpu_bo);
 
-	sna->render.copy_boxes(sna, GXcopy,
-			       sna->front, bo, 0, 0,
-			       sna->front, priv->gpu_bo,
-			       (sna->front->drawable.width - fbcon->width)/2,
-			       (sna->front->drawable.height - fbcon->height)/2,
-			       &box, 1);
+	ok = sna->render.copy_boxes(sna, GXcopy,
+				    sna->front, bo, 0, 0,
+				    sna->front, priv->gpu_bo,
+				    (sna->front->drawable.width - fbcon->width)/2,
+				    (sna->front->drawable.height - fbcon->height)/2,
+				    &box, 1);
 	sna_damage_add_box(&priv->gpu_damage, &box);
 
 	kgem_bo_destroy(&sna->kgem, bo);
+
+	sna->scrn->pScreen->canDoBGNoneRoot = ok;
 
 cleanup_fbcon:
 	drmModeFreeFB(fbcon);
