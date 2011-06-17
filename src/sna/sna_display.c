@@ -498,7 +498,8 @@ void sna_copy_fbcon(struct sna *sna)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
 	drmModeFBPtr fbcon;
-	struct kgem_bo *fbcon_bo;
+	struct sna_pixmap *priv;
+	struct kgem_bo *bo;
 	BoxRec box;
 	int i;
 
@@ -525,18 +526,22 @@ void sna_copy_fbcon(struct sna *sna)
 	box.x2 = fbcon->width;
 	box.y2 = fbcon->height;
 
-	fbcon_bo = sna_create_bo_for_fbcon(sna, fbcon);
-	if (fbcon_bo == NULL)
+	bo = sna_create_bo_for_fbcon(sna, fbcon);
+	if (bo == NULL)
 		goto cleanup_fbcon;
 
+	priv = sna_pixmap(sna->front);
+	assert(priv && priv->gpu_bo);
+
 	sna->render.copy_boxes(sna, GXcopy,
-			       sna->front, fbcon_bo, 0, 0,
-			       sna->front, sna_pixmap_get_bo(sna->front),
+			       sna->front, bo, 0, 0,
+			       sna->front, priv->gpu_bo,
 			       (sna->front->drawable.width - fbcon->width)/2,
 			       (sna->front->drawable.height - fbcon->height)/2,
 			       &box, 1);
+	sna_damage_add_box(&priv->gpu_damage, &box);
 
-	kgem_bo_destroy(&sna->kgem, fbcon_bo);
+	kgem_bo_destroy(&sna->kgem, bo);
 
 cleanup_fbcon:
 	drmModeFreeFB(fbcon);
