@@ -1068,6 +1068,7 @@ next_bo:
 struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name)
 {
 	struct drm_gem_open open_arg;
+	struct kgem_bo *bo;
 
 	DBG(("%s(name=%d)\n", __FUNCTION__, name));
 
@@ -1077,7 +1078,14 @@ struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name)
 		return NULL;
 
 	DBG(("%s: new handle=%d\n", __FUNCTION__, open_arg.handle));
-	return __kgem_bo_alloc(open_arg.handle, 0);
+	bo = __kgem_bo_alloc(open_arg.handle, 0);
+	if (bo == NULL) {
+		gem_close(kgem->fd, open_arg.handle);
+		return NULL;
+	}
+
+	bo->reusable = false;
+	return bo;
 }
 
 struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
