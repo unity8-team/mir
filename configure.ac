@@ -20,6 +20,8 @@
 #
 # Process this file with autoconf to produce a configure script
 
+required_xorg_xserver_version=1.6
+
 # Initialize Autoconf
 AC_PREREQ([2.63])
 AC_INIT([xf86-video-intel],
@@ -97,12 +99,25 @@ AC_ARG_ENABLE(sna,
 			     [Enable SandyBridge's New Acceleration (SNA) [default=no]]),
 	      [SNA="$enableval"],
 	      [SNA=no])
+AM_CONDITIONAL(SNA, test x$SNA != xno)
+AC_MSG_CHECKING([whether to include SNA support])
+if test "x$SNA" != "xno"; then
+	required_xorg_xserver_version=1.10
+	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
+fi
+AC_MSG_RESULT([$SNA])
+
 
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
 			     [Enable use of vmap [default=no]]),
 	      [VMAP="$enableval"],
 	      [VMAP=no])
+AM_CONDITIONAL(USE_VMAP, test x$VMAP = xyes)
+if test "x$VMAP" = xyes; then
+	AC_DEFINE(USE_VMAP,1,[Assume VMAP support])
+fi
+
 
 AC_ARG_ENABLE(debug,
 	      AS_HELP_STRING([--enable-debug],
@@ -117,7 +132,7 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.23])
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
 PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6])
@@ -180,18 +195,6 @@ AM_CONDITIONAL(KMS_ONLY, test x$KMS_ONLY = xyes)
 if test "x$KMS_ONLY" = xyes; then
 	AC_DEFINE(KMS_ONLY,1,[Assume KMS support])
 fi
-
-AM_CONDITIONAL(USE_VMAP, test x$VMAP = xyes)
-if test "x$VMAP" = xyes; then
-	AC_DEFINE(USE_VMAP,1,[Assume VMAP support])
-fi
-
-AM_CONDITIONAL(SNA, test x$SNA != xno)
-AC_MSG_CHECKING([whether to include SNA support])
-if test "x$SNA" != "xno"; then
-	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
-fi
-AC_MSG_RESULT([$SNA])
 
 AM_CONDITIONAL(DEBUG, test x$DEBUG != xno)
 if test "x$DEBUG" = xno; then
