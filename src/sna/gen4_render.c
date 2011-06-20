@@ -1453,10 +1453,14 @@ gen4_render_composite_blt(struct sna *sna,
 	     r->dst.x, r->dst.y, op->dst.x, op->dst.y,
 	     r->width, r->height));
 
-	if (FLUSH_EVERY_VERTEX && op->need_magic_ca_pass)
+	if (FLUSH_EVERY_VERTEX && op->need_magic_ca_pass) {
 		/* We have to reset the state after every FLUSH */
-		gen4_emit_pipelined_pointers(sna, op,
-					     op->op, op->u.gen4.wm_kernel);
+		if (kgem_check_batch(&sna->kgem, 20)) {
+			gen4_emit_pipelined_pointers(sna, op, op->op,
+						     op->u.gen4.wm_kernel);
+		} else
+			gen4_bind_surfaces(sna, op);
+	}
 
 	if (!gen4_get_rectangles(sna, op, 1)) {
 		gen4_bind_surfaces(sna, op);
