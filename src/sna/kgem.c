@@ -771,6 +771,8 @@ void _kgem_submit(struct kgem *kgem)
 	uint32_t batch_end;
 	int size;
 
+	assert(!DBG_NO_HW);
+
 	assert(kgem->nbatch);
 	assert(kgem->nbatch <= KGEM_BATCH_SIZE(kgem));
 	assert(kgem->nbatch <= kgem->surface);

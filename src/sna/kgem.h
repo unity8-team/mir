@@ -197,6 +197,8 @@ void kgem_clear_dirty(struct kgem *kgem);
 
 static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
+	assert(!kgem->wedged);
+
 #if DEBUG_FLUSH_CACHE
 	kgem_emit_flush(kgem);
 #endif
