@@ -139,6 +139,21 @@ static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
 				  pixmap->drawable.bitsPerPixel);
 }
 
+static struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv;
+
+	priv = calloc(1, sizeof(*priv));
+	if (!priv)
+		return NULL;
+
+	list_init(&priv->list);
+	priv->pixmap = pixmap;
+
+	sna_set_pixmap(pixmap, priv);
+	return priv;
+}
+
 struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 {
 	struct sna *sna;
@@ -164,15 +179,7 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 				sna_pixmap_choose_tiling(pixmap)))
 		return NULL;
 
-	priv = calloc(1, sizeof(*priv));
-	if (!priv)
-		return NULL;
-
-	list_init(&priv->list);
-	priv->pixmap = pixmap;
-
-	sna_set_pixmap(pixmap, priv);
-	return priv;
+	return _sna_pixmap_attach(pixmap);
 }
 
 static PixmapPtr
@@ -677,7 +684,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
-		priv = sna_pixmap_attach(pixmap);
+		priv = _sna_pixmap_attach(pixmap);
 		if (priv == NULL)
 			return NULL;
 
