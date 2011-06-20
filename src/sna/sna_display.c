@@ -504,6 +504,9 @@ void sna_copy_fbcon(struct sna *sna)
 	bool ok;
 	int i;
 
+	if (sna->kgem.wedged)
+		return;
+
 	/* Scan the connectors for a framebuffer and assume that is the fbcon */
 	fbcon = NULL;
 	for (i = 0; fbcon == NULL && i < xf86_config->num_crtc; i++) {
