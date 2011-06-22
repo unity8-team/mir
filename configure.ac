@@ -20,8 +20,6 @@
 #
 # Process this file with autoconf to produce a configure script
 
-required_xorg_xserver_version=1.6
-
 # Initialize Autoconf
 AC_PREREQ([2.63])
 AC_INIT([xf86-video-intel],
@@ -101,6 +99,8 @@ AC_ARG_ENABLE(sna,
 	      [SNA=no])
 AM_CONDITIONAL(SNA, test x$SNA != xno)
 AC_MSG_CHECKING([whether to include SNA support])
+
+required_xorg_xserver_version=1.6
 if test "x$SNA" != "xno"; then
 	required_xorg_xserver_version=1.10
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
