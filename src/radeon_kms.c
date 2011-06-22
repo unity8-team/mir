@@ -522,7 +522,19 @@ static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
                 return FALSE;
 	    }
 
-	    info->num_banks = (info->tile_config & 0xf0) >> 4;
+	    switch((info->tile_config & 0xf0) >> 4) {
+	    case 0:
+		info->num_banks = 4;
+		break;
+	    case 1:
+		info->num_banks = 8;
+		break;
+	    case 2:
+		info->num_banks = 16;
+		break;
+	    default:
+		return FALSE;
+	    }
 
 	    switch ((info->tile_config & 0xf00) >> 8) {
 	    case 0:
