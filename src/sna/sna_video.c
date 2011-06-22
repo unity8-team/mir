@@ -236,16 +236,12 @@ sna_video_frame_init(struct sna *sna,
 		frame->pitch[1] = 0;
 	}
 
-	frame->YBufOffset = 0;
-
 	if (video->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-		frame->UBufOffset =
-			frame->YBufOffset + frame->pitch[1] * width;
+		frame->UBufOffset = frame->pitch[1] * width;
 		frame->VBufOffset =
 			frame->UBufOffset + frame->pitch[0] * width / 2;
 	} else {
-		frame->UBufOffset =
-			frame->YBufOffset + frame->pitch[1] * height;
+		frame->UBufOffset = frame->pitch[1] * height;
 		frame->VBufOffset =
 			frame->UBufOffset + frame->pitch[0] * height / 2;
 	}
@@ -319,52 +315,50 @@ static void sna_memcpy_plane(unsigned char *dst, unsigned char *src,
 static void
 sna_copy_planar_data(struct sna *sna,
 		     struct sna_video *video,
-		     struct sna_video_frame *frame,
-		     unsigned char *buf,
+		     const struct sna_video_frame *frame,
+		     unsigned char *src,
 		     unsigned char *dst,
 		     int srcPitch, int srcPitch2,
 		     int srcH, int top, int left)
 {
-	unsigned char *src1, *src2, *src3, *dst1, *dst2, *dst3;
+	unsigned char *src1, *dst1;
 
 	/* Copy Y data */
-	src1 = buf + (top * srcPitch) + left;
+	src1 = src + (top * srcPitch) + left;
 
-	dst1 = dst + frame->YBufOffset;
-
-	sna_memcpy_plane(dst1, src1,
+	sna_memcpy_plane(dst, src1,
 			 frame->height, frame->width,
 			 frame->pitch[1], srcPitch,
 			 video->rotation);
 
 	/* Copy V data for YV12, or U data for I420 */
-	src2 = buf +		/* start of YUV data */
+	src1 = src +		/* start of YUV data */
 	    (srcH * srcPitch) +	/* move over Luma plane */
 	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
 	    (left >> 1);	/* move left by left pixels */
 
 	if (frame->id == FOURCC_I420)
-		dst2 = dst + frame->UBufOffset;
+		dst1 = dst + frame->UBufOffset;
 	else
-		dst2 = dst + frame->VBufOffset;
+		dst1 = dst + frame->VBufOffset;
 
-	sna_memcpy_plane(dst2, src2,
+	sna_memcpy_plane(dst1, src1,
 			 frame->height / 2, frame->width / 2,
 			 frame->pitch[0], srcPitch2,
 			 video->rotation);
 
 	/* Copy U data for YV12, or V data for I420 */
-	src3 = buf +		/* start of YUV data */
+	src1 = src +		/* start of YUV data */
 	    (srcH * srcPitch) +	/* move over Luma plane */
 	    ((srcH >> 1) * srcPitch2) +	/* move over Chroma plane */
 	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
 	    (left >> 1);	/* move left by left pixels */
 	if (frame->id == FOURCC_I420)
-		dst3 = dst + frame->VBufOffset;
+		dst1 = dst + frame->VBufOffset;
 	else
-		dst3 = dst + frame->UBufOffset;
+		dst1 = dst + frame->UBufOffset;
 
-	sna_memcpy_plane(dst3, src3,
+	sna_memcpy_plane(dst1, src1,
 			 frame->height / 2, frame->width / 2,
 			 frame->pitch[0], srcPitch2,
 			 video->rotation);
@@ -373,99 +367,99 @@ sna_copy_planar_data(struct sna *sna,
 static void
 sna_copy_packed_data(struct sna *sna,
 		     struct sna_video *video,
-		     struct sna_video_frame *frame,
+		     const struct sna_video_frame *frame,
 		     unsigned char *buf,
 		     unsigned char *dst,
 		     int srcPitch,
 		     int top, int left)
 {
+	int w = frame->width;
+	int h = frame->height;
 	unsigned char *src;
 	unsigned char *s;
 	int i, j;
 
 	src = buf + (top * srcPitch) + (left << 1);
 
-	dst += frame->YBufOffset;
-
 	switch (video->rotation) {
 	case RR_Rotate_0:
-		frame->width <<= 1;
-		for (i = 0; i < frame->height; i++) {
-			memcpy(dst, src, frame->width);
+		w <<= 1;
+		for (i = 0; i < h; i++) {
+			memcpy(dst, src, w);
 			src += srcPitch;
 			dst += frame->pitch[0];
 		}
 		break;
 	case RR_Rotate_90:
-		frame->height <<= 1;
-		for (i = 0; i < frame->height; i += 2) {
+		h <<= 1;
+		for (i = 0; i < h; i += 2) {
 			s = src;
-			for (j = 0; j < frame->width; j++) {
+			for (j = 0; j < w; j++) {
 				/* Copy Y */
-				dst[(i + 0) + ((frame->width - j - 1) * frame->pitch[0])] = *s++;
+				dst[(i + 0) + ((w - j - 1) * frame->pitch[0])] = *s++;
 				(void)*s++;
 			}
 			src += srcPitch;
 		}
-		frame->height >>= 1;
+		h >>= 1;
 		src = buf + (top * srcPitch) + (left << 1);
-		for (i = 0; i < frame->height; i += 2) {
-			for (j = 0; j < frame->width; j += 2) {
+		for (i = 0; i < h; i += 2) {
+			for (j = 0; j < w; j += 2) {
 				/* Copy U */
-				dst[((i * 2) + 1) + ((frame->width - j - 1) * frame->pitch[0])] =
+				dst[((i * 2) + 1) + ((w - j - 1) * frame->pitch[0])] =
 				    src[(j * 2) + 1 + (i * srcPitch)];
-				dst[((i * 2) + 1) + ((frame->width - j - 2) * frame->pitch[0])] =
+				dst[((i * 2) + 1) + ((w - j - 2) * frame->pitch[0])] =
 				    src[(j * 2) + 1 + ((i + 1) * srcPitch)];
 				/* Copy V */
-				dst[((i * 2) + 3) + ((frame->width - j - 1) * frame->pitch[0])] =
+				dst[((i * 2) + 3) + ((w - j - 1) * frame->pitch[0])] =
 				    src[(j * 2) + 3 + (i * srcPitch)];
-				dst[((i * 2) + 3) + ((frame->width - j - 2) * frame->pitch[0])] =
+				dst[((i * 2) + 3) + ((w - j - 2) * frame->pitch[0])] =
 				    src[(j * 2) + 3 + ((i + 1) * srcPitch)];
 			}
 		}
 		break;
 	case RR_Rotate_180:
-		frame->width <<= 1;
-		for (i = 0; i < frame->height; i++) {
+		w <<= 1;
+		for (i = 0; i < h; i++) {
 			s = src;
-			for (j = 0; j < frame->width; j += 4) {
-				dst[(frame->width - j - 4) + ((frame->height - i - 1) * frame->pitch[0])] =
+			for (j = 0; j < w; j += 4) {
+				dst[(w - j - 4) + ((h - i - 1) * frame->pitch[0])] =
 				    *s++;
-				dst[(frame->width - j - 3) + ((frame->height - i - 1) * frame->pitch[0])] =
+				dst[(w - j - 3) + ((h - i - 1) * frame->pitch[0])] =
 				    *s++;
-				dst[(frame->width - j - 2) + ((frame->height - i - 1) * frame->pitch[0])] =
+				dst[(w - j - 2) + ((h - i - 1) * frame->pitch[0])] =
 				    *s++;
-				dst[(frame->width - j - 1) + ((frame->height - i - 1) * frame->pitch[0])] =
+				dst[(w - j - 1) + ((h - i - 1) * frame->pitch[0])] =
 				    *s++;
 			}
 			src += srcPitch;
 		}
 		break;
 	case RR_Rotate_270:
-		frame->height <<= 1;
-		for (i = 0; i < frame->height; i += 2) {
+		h <<= 1;
+		for (i = 0; i < h; i += 2) {
 			s = src;
-			for (j = 0; j < frame->width; j++) {
+			for (j = 0; j < w; j++) {
 				/* Copy Y */
-				dst[(frame->height - i - 2) + (j * frame->pitch[0])] = *s++;
+				dst[(h - i - 2) + (j * frame->pitch[0])] = *s++;
 				(void)*s++;
 			}
 			src += srcPitch;
 		}
-		frame->height >>= 1;
+		h >>= 1;
 		src = buf + (top * srcPitch) + (left << 1);
-		for (i = 0; i < frame->height; i += 2) {
-			for (j = 0; j < frame->width; j += 2) {
+		for (i = 0; i < h; i += 2) {
+			for (j = 0; j < w; j += 2) {
 				/* Copy U */
-				dst[(((frame->height - i) * 2) - 3) + (j * frame->pitch[0])] =
+				dst[(((h - i) * 2) - 3) + (j * frame->pitch[0])] =
 				    src[(j * 2) + 1 + (i * srcPitch)];
-				dst[(((frame->height - i) * 2) - 3) +
+				dst[(((h - i) * 2) - 3) +
 				    ((j + 1) * frame->pitch[0])] =
 				    src[(j * 2) + 1 + ((i + 1) * srcPitch)];
 				/* Copy V */
-				dst[(((frame->height - i) * 2) - 1) + (j * frame->pitch[0])] =
+				dst[(((h - i) * 2) - 1) + (j * frame->pitch[0])] =
 				    src[(j * 2) + 3 + (i * srcPitch)];
-				dst[(((frame->height - i) * 2) - 1) +
+				dst[(((h - i) * 2) - 1) +
 				    ((j + 1) * frame->pitch[0])] =
 				    src[(j * 2) + 3 + ((i + 1) * srcPitch)];
 			}
@@ -487,6 +481,38 @@ sna_video_copy_data(struct sna *sna,
 	frame->bo = sna_video_buffer(sna, video, frame);
 	if (frame->bo == NULL)
 		return FALSE;
+
+	/* In the common case, we can simply the upload to a single pwrite */
+	if (video->rotation == RR_Rotate_0) {
+		if (is_planar_fourcc(frame->id)) {
+			uint16_t pitch[2] = {
+				ALIGN((frame->width >> 1), 0x4),
+				ALIGN(frame->width, 0x4),
+			};
+			if (pitch[0] == frame->pitch[0] &&
+			    pitch[1] == frame->pitch[1] &&
+			    top == 0 && left == 0) {
+				kgem_bo_write(&sna->kgem, frame->bo,
+					      buf,
+					      pitch[1]*frame->height +
+					      pitch[0]*frame->height);
+				if (frame->id != FOURCC_I420) {
+					uint32_t tmp;
+					tmp = frame->VBufOffset;
+					frame->VBufOffset = frame->UBufOffset;
+					frame->UBufOffset = tmp;
+				}
+				return TRUE;
+			}
+		} else {
+			if (frame->width*2 == frame->pitch[0]) {
+				kgem_bo_write(&sna->kgem, frame->bo,
+					      buf + (top * frame->width*2) + (left << 1),
+					      frame->height*frame->width*2);
+				return TRUE;
+			}
+		}
+	}
 
 	/* copy data */
 	dst = kgem_bo_map(&sna->kgem, frame->bo, PROT_READ | PROT_WRITE);

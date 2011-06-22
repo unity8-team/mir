@@ -2837,7 +2837,7 @@ gen3_emit_video_state(struct sna *sna,
 		OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
 					 frame->bo,
 					 I915_GEM_DOMAIN_SAMPLER << 16,
-					 frame->YBufOffset));
+					 0));
 
 		ms3 = MAPSURF_422;
 		switch (frame->id) {
@@ -2951,7 +2951,7 @@ gen3_emit_video_state(struct sna *sna,
 		OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
 					 frame->bo,
 					 I915_GEM_DOMAIN_SAMPLER << 16,
-					 frame->YBufOffset));
+					 0));
 
 		ms3 = MAPSURF_8BIT | MT_8BIT_I8;
 		ms3 |= (frame->height - 1) << MS3_HEIGHT_SHIFT;

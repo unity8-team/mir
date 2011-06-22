@@ -1559,8 +1559,8 @@ static void gen5_video_bind_surfaces(struct sna *sna,
 	uint16_t offset;
 
 
-	src_surf_base[0] = frame->YBufOffset;
-	src_surf_base[1] = frame->YBufOffset;
+	src_surf_base[0] = 0;
+	src_surf_base[1] = 0;
 	src_surf_base[2] = frame->VBufOffset;
 	src_surf_base[3] = frame->VBufOffset;
 	src_surf_base[4] = frame->UBufOffset;

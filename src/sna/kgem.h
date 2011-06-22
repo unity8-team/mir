@@ -274,10 +274,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
-Bool kgem_bo_write(struct kgem *kgem,
-		   struct kgem_bo *bo,
-		   const void *data,
-		   int length);
+Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
+		   const void *data, int length);
 
 static inline bool kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
 {

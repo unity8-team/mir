@@ -398,7 +398,7 @@ sna_video_overlay_show(struct sna *sna,
 		request.stride_Y = frame->pitch[0];
 		request.stride_UV = 0;
 	}
-	request.offset_Y = frame->YBufOffset;
+	request.offset_Y = 0;
 	request.offset_U = frame->UBufOffset;
 	request.offset_V = frame->VBufOffset;
 	DBG(("%s: handle=%d, stride_Y=%d, stride_UV=%d, off_Y: %i, off_U: %i, off_V: %i\n",

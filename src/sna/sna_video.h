@@ -64,13 +64,12 @@ struct sna_video {
 
 struct sna_video_frame {
 	struct kgem_bo *bo;
-	int id;
-	int width, height;
-	int pitch[2];
-	int size;
-	uint32_t YBufOffset;
+	uint32_t id;
+	uint32_t size;
 	uint32_t UBufOffset;
 	uint32_t VBufOffset;
+	uint16_t width, height;
+	uint16_t pitch[2];
 };
 
 void sna_video_init(struct sna *sna, ScreenPtr screen);
