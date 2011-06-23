@@ -1177,8 +1177,11 @@ static bool _kgem_can_create_2d(struct kgem *kgem,
 	if (bpp < 8)
 		return false;
 
-	if (kgem->wedged)
+	if (tiling >= 0 && kgem->wedged)
 		return false;
+
+	if (tiling < 0)
+		tiling = -tiling;
 
 	size = kgem_surface_size(kgem, width, height, bpp, tiling, &pitch);
 	if (size == 0 || size > kgem->aperture_low)

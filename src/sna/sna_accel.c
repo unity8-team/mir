@@ -684,7 +684,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
-		priv = _sna_pixmap_attach(pixmap);
+		priv = sna_pixmap_attach(pixmap);
 		if (priv == NULL)
 			return NULL;
 
