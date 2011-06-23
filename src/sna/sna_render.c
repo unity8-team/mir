@@ -714,27 +714,35 @@ sna_render_picture_convert(struct sna *sna,
 	return -1;
 #endif
 
-	box.x1 = x;
-	box.y1 = y;
-	box.x2 = x + w;
-	box.y2 = y + h;
+	if (w != 0 && h != 0) {
+		box.x1 = x;
+		box.y1 = y;
+		box.x2 = x + w;
+		box.y2 = y + h;
 
-	if (channel->transform) {
-		DBG(("%s: has transform, uploading whole surface\n",
+		if (channel->transform) {
+			DBG(("%s: has transform, converting whole surface\n",
+			     __FUNCTION__));
+			box.x1 = box.y1 = 0;
+			box.x2 = pixmap->drawable.width;
+			box.y2 = pixmap->drawable.height;
+		}
+
+		if (box.x1 < 0)
+			box.x1 = 0;
+		if (box.y1 < 0)
+			box.y1 = 0;
+		if (box.x2 > pixmap->drawable.width)
+			box.x2 = pixmap->drawable.width;
+		if (box.y2 > pixmap->drawable.height)
+			box.y2 = pixmap->drawable.height;
+	} else {
+		DBG(("%s: op no bounds, converting whole surface\n",
 		     __FUNCTION__));
 		box.x1 = box.y1 = 0;
 		box.x2 = pixmap->drawable.width;
 		box.y2 = pixmap->drawable.height;
 	}
-
-	if (box.x1 < 0)
-		box.x1 = 0;
-	if (box.y1 < 0)
-		box.y1 = 0;
-	if (box.x2 > pixmap->drawable.width)
-		box.x2 = pixmap->drawable.width;
-	if (box.y2 > pixmap->drawable.height)
-		box.y2 = pixmap->drawable.height;
 
 	w = box.x2 - box.x1;
 	h = box.y2 - box.y1;
@@ -743,6 +751,12 @@ sna_render_picture_convert(struct sna *sna,
 	     __FUNCTION__, box.x1, box.y1, w, h,
 	     pixmap->drawable.width,
 	     pixmap->drawable.height));
+
+	if (w == 0 || h == 0) {
+		DBG(("%s: sample extents lie outside of source, using clear\n",
+		     __FUNCTION__));
+		return 0;
+	}
 
 	sna_pixmap_move_to_cpu(pixmap, false);
 
