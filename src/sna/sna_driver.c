@@ -68,6 +68,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
+#include <sys/poll.h>
 #include "i915_drm.h"
 
 #if DEBUG_DRIVER
@@ -707,6 +708,17 @@ static void sna_leave_vt(int scrnIndex, int flags)
 			   "drmDropMaster failed: %s\n", strerror(errno));
 }
 
+/* In order to workaround a kernel bug in not honouring O_NONBLOCK,
+ * check that the fd is readable before attempting to read the next
+ * event from drm.
+ */
+static Bool sna_dri_has_pending_events(struct sna *sna)
+{
+	struct pollfd pfd;
+	pfd.fd = sna->kgem.fd;
+	pfd.events = POLLIN;
+	return poll(&pfd, 1, 0) == 1;
+}
 
 static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 {
@@ -721,7 +733,8 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 
 	/* drain the event queues */
 	sna_accel_wakeup_handler(sna);
-	sna_dri_wakeup(sna);
+	if (sna_dri_has_pending_events(sna))
+		sna_dri_wakeup(sna);
 
 	if (scrn->vtSema == TRUE)
 		sna_leave_vt(scrnIndex, 0);
