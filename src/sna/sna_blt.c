@@ -1155,8 +1155,11 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %08x, %d) x %d\n",
 	     __FUNCTION__, bpp, color, alu, nbox));
 
-	if (bo->tiling == I915_TILING_Y)
+	if (bo->tiling == I915_TILING_Y) {
+		DBG(("%s: fallback -- dst uses Y-tiling\n",
+		     __FUNCTION__));
 		return FALSE;
+	}
 
 	cmd = XY_COLOR_BLT_CMD;
 	if (bpp == 32)
@@ -1167,8 +1170,11 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
-	if (br13 > MAXSHORT)
+	if (br13 > MAXSHORT) {
+		DBG(("%s: fallback -- pitch is too large %d [%d]\n",
+		     __FUNCTION__, bo->pitch, br13));
 		return FALSE;
+	}
 
 	br13 |= fill_ROP[alu] << 16;
 	switch (bpp) {

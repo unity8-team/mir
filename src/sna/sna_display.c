@@ -818,7 +818,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	list_add(&sna_crtc->link, &mode->crtcs);
 
 	DBG(("%s: attached crtc[%d] id=%d, pipe=%d\n",
-	     __FUNCTION__, num, sna_crtc->mode_crtc->crtc_id, sna_crtc->pipe));
+	     __FUNCTION__, num, sna_crtc->id, sna_crtc->pipe));
 }
 
 static Bool

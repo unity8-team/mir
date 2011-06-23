@@ -482,7 +482,7 @@ sna_video_copy_data(struct sna *sna,
 	if (frame->bo == NULL)
 		return FALSE;
 
-	/* In the common case, we can simply the upload to a single pwrite */
+	/* In the common case, we can simply the upload in a single pwrite */
 	if (video->rotation == RR_Rotate_0) {
 		if (is_planar_fourcc(frame->id)) {
 			uint16_t pitch[2] = {

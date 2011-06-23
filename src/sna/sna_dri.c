@@ -388,16 +388,18 @@ sna_dri_copy_region(DrawablePtr draw,
 	int16_t dx, dy;
 
 	DBG(("%s(region=(%d, %d), (%d, %d)))\n", __FUNCTION__,
-	     region ? REGION_EXTENTS(NULL, region)->x1 : 0,
-	     region ? REGION_EXTENTS(NULL, region)->y1 : 0,
-	     region ? REGION_EXTENTS(NULL, region)->x2 : draw->width,
-	     region ? REGION_EXTENTS(NULL, region)->y2 : draw->height));
+	     REGION_EXTENTS(NULL, region)->x1,
+	     REGION_EXTENTS(NULL, region)->y1,
+	     REGION_EXTENTS(NULL, region)->x2,
+	     REGION_EXTENTS(NULL, region)->y2));
 
-	DBG(("%s: dst -- attachment=%d, name=%d, handle=%d\n",
+	DBG(("%s: draw (%d, %d)\n", __FUNCTION__, draw->x, draw->y));
+	DBG(("%s: dst -- attachment=%d, name=%d, handle=%d [screen %d]\n",
 	     __FUNCTION__,
 	     dst_buffer->attachment,
 	     dst_buffer->name,
-	     dst_priv->bo->handle));
+	     dst_priv->bo->handle,
+	     sna_pixmap(sna->front)->gpu_bo->handle));
 	DBG(("%s: src -- attachment=%d, name=%d, handle=%d\n",
 	     __FUNCTION__,
 	     src_buffer->attachment,
@@ -407,6 +409,9 @@ sna_dri_copy_region(DrawablePtr draw,
 	if (draw->type == DRAWABLE_WINDOW) {
 		WindowPtr win = (WindowPtr)draw;
 
+		DBG(("%s: draw=(%d, %d), delta=(%d, %d)\n",
+		     __FUNCTION__, draw->x, draw->y,
+		     get_drawable_dx(draw), get_drawable_dy(draw)));
 		pixman_region_translate(region, draw->x, draw->y);
 
 		pixman_region_init(&clip);
@@ -418,8 +423,23 @@ sna_dri_copy_region(DrawablePtr draw,
 		region = &clip;
 
 		get_drawable_deltas(draw, dst, &dx, &dy);
-	} else
+
+		DBG(("%s clipped=(%d, %d), (%d, %d)x%d\n", __FUNCTION__,
+		     REGION_EXTENTS(NULL, region)->x1,
+		     REGION_EXTENTS(NULL, region)->y1,
+		     REGION_EXTENTS(NULL, region)->x2,
+		     REGION_EXTENTS(NULL, region)->y2,
+		     REGION_NUM_RECTS(region)));
+
+		if (dst_buffer->attachment == DRI2BufferFrontLeft) {
+			assert(dst == sna->front);
+			assert(dst_priv->bo == sna_pixmap(sna->front)->gpu_bo);
+		}
+	} else {
+		assert(draw->x == 0);
+		assert(draw->y == 0);
 		dx = dy = 0;
+	}
 
 	assert(sna_pixmap(src)->cpu_damage == NULL);
 	assert(sna_pixmap(dst)->cpu_damage == NULL);

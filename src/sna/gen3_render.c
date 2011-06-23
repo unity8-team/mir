@@ -3394,7 +3394,7 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 	return sna_blt_copy(sna, alu,
 			    src_bo, dst_bo,
 			    dst->drawable.bitsPerPixel,
-			    op);
+			    tmp);
 #endif
 
 	/* Prefer to use the BLT */
@@ -3499,8 +3499,8 @@ gen3_render_fill_boxes(struct sna *sna,
 					      box, n);
 #endif
 
-	DBG(("%s (op=%d, color=(%04x,%04x,%04x, %04x))\n",
-	     __FUNCTION__, op,
+	DBG(("%s (op=%d, format=%x, color=(%04x,%04x,%04x, %04x))\n",
+	     __FUNCTION__, op, (int)format,
 	     color->red, color->green, color->blue, color->alpha));
 
 	if (op >= ARRAY_SIZE(gen3_blend_op)) {
@@ -3511,7 +3511,8 @@ gen3_render_fill_boxes(struct sna *sna,
 
 	if (dst->drawable.width > 2048 ||
 	    dst->drawable.height > 2048 ||
-	    dst_bo->pitch > 8192)
+	    dst_bo->pitch > 8192 ||
+	    !gen3_check_dst_format(format))
 		return gen3_render_fill_boxes_try_blt(sna, op, format, color,
 						      dst, dst_bo,
 						      box, n);
@@ -3529,6 +3530,12 @@ gen3_render_fill_boxes(struct sna *sna,
 				     PICT_a8r8g8b8))
 		return FALSE;
 
+	DBG(("%s: using shader for op=%d, format=%x, pixel=%x\n",
+	     __FUNCTION__, op, (int)format, pixel));
+
+	if (pixel == 0)
+		op = PictOpClear;
+
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.op = op;
 	tmp.dst.pixmap = dst;
@@ -3538,7 +3545,7 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.dst.bo = dst_bo;
 	tmp.floats_per_vertex = 2;
 
-	tmp.src.gen3.type = SHADER_CONSTANT;
+	tmp.src.gen3.type = op == PictOpClear ? SHADER_ZERO : SHADER_CONSTANT;
 	tmp.src.gen3.mode = pixel;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo))
@@ -3556,8 +3563,8 @@ gen3_render_fill_boxes(struct sna *sna,
 		n -= n_this_time;
 
 		do {
-			DBG(("	(%d, %d), (%d, %d)\n",
-			     box->x1, box->y1, box->x2, box->y2));
+			DBG(("	(%d, %d), (%d, %d): %x\n",
+			     box->x1, box->y1, box->x2, box->y2, pixel));
 			OUT_VERTEX(box->x2);
 			OUT_VERTEX(box->y2);
 			OUT_VERTEX(box->x1);
@@ -3608,7 +3615,7 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	return sna_blt_fill(sna, alu,
 			    dst_bo, dst->drawable.bitsPerPixel,
 			    color,
-			    op);
+			    tmp);
 #endif
 
 	/* Prefer to use the BLT if already engaged */
