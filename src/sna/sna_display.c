@@ -502,6 +502,8 @@ void sna_copy_fbcon(struct sna *sna)
 	struct kgem_bo *bo;
 	BoxRec box;
 	bool ok;
+	int sx, sy;
+	int dx, dy;
 	int i;
 
 	if (sna->kgem.wedged)
@@ -527,8 +529,8 @@ void sna_copy_fbcon(struct sna *sna)
 		goto cleanup_fbcon;
 
 	box.x1 = box.y1 = 0;
-	box.x2 = fbcon->width;
-	box.y2 = fbcon->height;
+	box.x2 = min(fbcon->width, sna->front->drawable.width);
+	box.y2 = min(fbcon->height, sna->front->drawable.height);
 
 	bo = sna_create_bo_for_fbcon(sna, fbcon);
 	if (bo == NULL)
@@ -537,11 +539,21 @@ void sna_copy_fbcon(struct sna *sna)
 	priv = sna_pixmap(sna->front);
 	assert(priv && priv->gpu_bo);
 
+	sx = dx = 0;
+	if (box.x2 < fbcon->width)
+		sx = (fbcon->width - box.x2) / 2.;
+	if (box.x2 < sna->front->drawable.width)
+		dx = (sna->front->drawable.width - box.x2) / 2.;
+
+	sy = dy = 0;
+	if (box.y2 < fbcon->height)
+		sy = (fbcon->height - box.y2) / 2.;
+	if (box.y2 < sna->front->drawable.height)
+		dy = (sna->front->drawable.height - box.y2) / 2.;
+
 	ok = sna->render.copy_boxes(sna, GXcopy,
-				    sna->front, bo, 0, 0,
-				    sna->front, priv->gpu_bo,
-				    (sna->front->drawable.width - fbcon->width)/2,
-				    (sna->front->drawable.height - fbcon->height)/2,
+				    sna->front, bo, sx, sy,
+				    sna->front, priv->gpu_bo, dx, dy,
 				    &box, 1);
 	sna_damage_add_box(&priv->gpu_damage, &box);
 
