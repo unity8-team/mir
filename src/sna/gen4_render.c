@@ -2150,7 +2150,7 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 	struct sna_composite_op tmp;
 
 #if NO_COPY_BOXES
-	if (src->drawable.depth != dst->drawable.depth)
+	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 		return FALSE;
 
 	return sna_blt_copy_boxes(sna, alu,
@@ -2161,7 +2161,7 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 #endif
 
 	if (prefer_blt(sna) &&
-	    src->drawable.depth == dst->drawable.depth &&
+	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
 			       dst_bo, dst_dx, dst_dy,
@@ -2172,7 +2172,7 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
 	    src->drawable.width > 8192 || src->drawable.height > 8192 ||
 	    dst->drawable.width > 8192 || dst->drawable.height > 8192) {
-		if (src->drawable.depth != dst->drawable.depth)
+		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
 		return sna_blt_copy_boxes(sna, alu,
@@ -2257,7 +2257,7 @@ gen4_render_copy(struct sna *sna, uint8_t alu,
 		 struct sna_copy_op *op)
 {
 #if NO_COPY
-	if (src->drawable.depth != dst->drawable.depth)
+	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 		return FALSE;
 
 	return sna_blt_copy(sna, alu,
@@ -2267,7 +2267,7 @@ gen4_render_copy(struct sna *sna, uint8_t alu,
 #endif
 
 	if (prefer_blt(sna) &&
-	    src->drawable.depth == dst->drawable.depth &&
+	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
 			 dst->drawable.bitsPerPixel,
@@ -2277,7 +2277,7 @@ gen4_render_copy(struct sna *sna, uint8_t alu,
 	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
 	    src->drawable.width > 8192 || src->drawable.height > 8192 ||
 	    dst->drawable.width > 8192 || dst->drawable.height > 8192) {
-		if (src->drawable.depth != dst->drawable.depth)
+		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
 		return sna_blt_copy(sna, alu, src_bo, dst_bo,

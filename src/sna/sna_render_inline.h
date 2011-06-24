@@ -99,4 +99,21 @@ picture_is_gpu(PicturePtr picture)
 	return is_gpu(picture->pDrawable);
 }
 
+static inline Bool sna_blt_compare_depth(DrawablePtr src, DrawablePtr dst)
+{
+	if (src->depth == dst->depth)
+		return TRUE;
+
+	/* Also allow for the alpha to be discarded on a copy */
+	if (src->bitsPerPixel != dst->bitsPerPixel)
+		return FALSE;
+
+	if (dst->depth == 24 && src->depth == 32)
+		return TRUE;
+
+	/* Note that a depth-16 pixmap is r5g6b5, not x1r5g5b5. */
+
+	return FALSE;
+}
+
 #endif /* SNA_RENDER_INLINE_H */

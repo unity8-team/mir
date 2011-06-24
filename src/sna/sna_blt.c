@@ -34,6 +34,7 @@
 
 #include "sna.h"
 #include "sna_render.h"
+#include "sna_render_inline.h"
 #include "sna_reg.h"
 
 #include <mipict.h>
@@ -977,7 +978,7 @@ sna_blt_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	if (src->pDrawable->depth != dst->pDrawable->depth) {
+	if (!sna_blt_compare_depth(src->pDrawable, dst->pDrawable)) {
 		DBG(("%s: mismatching depth src=%d/%d, dst=%d/%d\n",
 		     __FUNCTION__,
 		     src->pDrawable->depth, src->pDrawable->bitsPerPixel,

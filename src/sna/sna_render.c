@@ -27,6 +27,7 @@
 
 #include "sna.h"
 #include "sna_render.h"
+#include "sna_render_inline.h"
 
 #include <fb.h>
 
@@ -51,7 +52,7 @@ sna_format_for_depth(int depth)
 	case 8: return PICT_a8;
 	case 15: return PICT_x1r5g5b5;
 	case 16: return PICT_r5g6b5;
-	default:
+	default: assert(0);
 	case 24: return PICT_x8r8g8b8;
 	case 30: return PICT_x2r10g10b10;
 	case 32: return PICT_a8r8g8b8;
@@ -92,7 +93,7 @@ no_render_copy_boxes(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s (n=%d)\n", __FUNCTION__, n));
 
-	if (src->drawable.depth != dst->drawable.depth)
+	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 		return FALSE;
 
 	return sna_blt_copy_boxes(sna, alu,
@@ -110,7 +111,7 @@ no_render_copy(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s ()\n", __FUNCTION__));
 
-	if (src->drawable.depth == dst->drawable.depth &&
+	if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo, dst->drawable.bitsPerPixel,
 			 tmp))
