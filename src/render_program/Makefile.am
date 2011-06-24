@@ -20,7 +20,9 @@ INTEL_G4A =				\
 INTEL_G4I =				\
 	exa_wm.g4i			\
 	exa_wm_affine.g4i		\
-	exa_wm_projective.g4i
+	exa_wm_projective.g4i		\
+	exa_wm_sample_planar.g4i	\
+	exa_wm_src_sample_argb.g4i
 
 INTEL_G4B = 				\
 	exa_sf.g4b 			\
@@ -61,6 +63,10 @@ INTEL_G4B_GEN5 = 				\
 	exa_wm_yuv_rgb.g4b.gen5			\
 	exa_wm_xy.g4b.gen5
 
+INTEL_G6I =				\
+	exa_wm_affine.g6i		\
+	exa_wm_write.g6i
+
 INTEL_G6A =				\
 	exa_wm_src_affine.g6a 		\
 	exa_wm_src_projective.g6a	\
@@ -99,7 +105,8 @@ EXTRA_DIST = 		\
 	$(INTEL_G4B)	\
 	$(INTEL_G4B_GEN5)\
 	$(INTEL_G6A)	\
-	$(INTEL_G6B)
+	$(INTEL_G6B)	\
+	$(INTEL_G6I)
 
 if HAVE_GEN4ASM
 
@@ -111,7 +118,7 @@ SUFFIXES = .g4a .g4b .g6a .g6b
 	m4 -I$(srcdir) -s $< > $*.g6m && intel-gen4asm -g 6 -o $@ $*.g6m && rm $*.g6m
 
 $(INTEL_G4B): $(INTEL_G4I)
-$(INTEL_G6B): $(INTEL_G4I)
+$(INTEL_G6B): $(INTEL_G4I) $(INTEL_G6I)
 
 BUILT_SOURCES= $(INTEL_G4B) $(INTEL_G6B)
 
