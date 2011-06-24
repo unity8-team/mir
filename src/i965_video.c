@@ -149,6 +149,21 @@ static const uint32_t ps_kernel_planar_static_gen6[][4] = {
 #include "exa_wm_write.g6b"
 };
 
+/* programs for Ivybridge */
+static const uint32_t ps_kernel_packed_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_yuv_rgb.g7b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_planar_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_planar.g7b"
+#include "exa_wm_yuv_rgb.g7b"
+#include "exa_wm_write.g7b"
+};
+
 #ifndef MAX2
 #define MAX2(a,b) ((a) > (b) ? (a) : (b))
 #endif
@@ -1459,13 +1474,22 @@ gen6_create_vidoe_objects(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *(*create_sampler_state)(ScrnInfoPtr);
-
+	const uint32_t *packed_ps_kernel, *planar_ps_kernel;
+	unsigned int packed_ps_size, planar_ps_size;
+	
 	if (INTEL_INFO(intel)->gen >= 70) {
 		create_sampler_state = gen7_create_sampler_state;
+		packed_ps_kernel = &ps_kernel_packed_static_gen7[0][0];
+		packed_ps_size = sizeof(ps_kernel_packed_static_gen7);
+		planar_ps_kernel = &ps_kernel_planar_static_gen7[0][0];
+		planar_ps_size = sizeof(ps_kernel_planar_static_gen7);
 	} else {
 		create_sampler_state = i965_create_sampler_state;
+		packed_ps_kernel = &ps_kernel_packed_static_gen6[0][0];
+		packed_ps_size = sizeof(ps_kernel_packed_static_gen6);
+		planar_ps_kernel = &ps_kernel_planar_static_gen6[0][0];
+		planar_ps_size = sizeof(ps_kernel_planar_static_gen6);
 	}
-
 
 	if (intel->video.gen4_sampler_bo == NULL)
 		intel->video.gen4_sampler_bo = create_sampler_state(scrn);
@@ -1473,14 +1497,14 @@ gen6_create_vidoe_objects(ScrnInfoPtr scrn)
 	if (intel->video.wm_prog_packed_bo == NULL)
 		intel->video.wm_prog_packed_bo =
 			i965_create_program(scrn,
-					&ps_kernel_packed_static_gen6[0][0],
-					sizeof(ps_kernel_packed_static_gen6));
+					packed_ps_kernel,
+					packed_ps_size);
 		
 	if (intel->video.wm_prog_planar_bo == NULL)
 		intel->video.wm_prog_planar_bo =
 			i965_create_program(scrn,
-					&ps_kernel_planar_static_gen6[0][0],
-					sizeof(ps_kernel_planar_static_gen6));
+					planar_ps_kernel,
+					planar_ps_size);
 
 	if (intel->video.gen4_cc_vp_bo == NULL)
 		intel->video.gen4_cc_vp_bo = i965_create_cc_vp_state(scrn);
