@@ -1445,6 +1445,7 @@ gen6_create_blend_state(ScrnInfoPtr scrn)
 
 	blend_state->blend1.logic_op_enable = 1;
 	blend_state->blend1.logic_op_func = 0xc;
+	blend_state->blend1.pre_blend_clamp_enable = 1;
 
 	drm_intel_bo_unmap(blend_bo);
 	return blend_bo;
@@ -1811,8 +1812,44 @@ gen6_upload_vertex_element_state(ScrnInfoPtr scrn)
 		(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
 }
 
+static void 
+gen6_upload_vertex_buffer(ScrnInfoPtr scrn, drm_intel_bo *vertex_bo, uint32_t end_address_offset)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	/* Set up the pointer to our vertex buffer */
+	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | (5 - 2));
+	/* four 32-bit floats per vertex */
+	OUT_BATCH((0 << GEN6_VB0_BUFFER_INDEX_SHIFT) |
+		GEN6_VB0_VERTEXDATA | 
+		((4 * 4) << VB0_BUFFER_PITCH_SHIFT));
+	OUT_RELOC(vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
+	OUT_RELOC(vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, end_address_offset);
+	OUT_BATCH(0);	/* reserved */
+}
+
 static void
-gen6_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo *surface_state_binding_table_bo, int n_src_surf, PixmapPtr pixmap)
+gen6_upload_primitive(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(BRW_3DPRIMITIVE | 
+		BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL | 
+		(_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | 
+		(0 << 9) | /* Internal Vertex Count */
+		(6 - 2));
+	OUT_BATCH(3);	/* vertex count per instance */
+	OUT_BATCH(0);	/* start vertex offset */
+	OUT_BATCH(1);	/* single instance */
+	OUT_BATCH(0);	/* start instance location */
+	OUT_BATCH(0);	/* index buffer offset, ignored */
+}
+
+static void
+gen6_emit_video_setup(ScrnInfoPtr scrn,
+		drm_intel_bo *surface_state_binding_table_bo, int n_src_surf,
+		PixmapPtr pixmap,
+		drm_intel_bo *vertex_bo, uint32_t end_address_offset)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
@@ -1835,6 +1872,382 @@ gen6_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo *surface_state_binding_tabl
 	gen6_upload_depth_buffer_state(scrn);
 	gen6_upload_drawing_rectangle(scrn, pixmap);
 	gen6_upload_vertex_element_state(scrn);
+	gen6_upload_vertex_buffer(scrn, vertex_bo, end_address_offset);
+	gen6_upload_primitive(scrn);
+}
+
+static void
+gen7_upload_invarient_states(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(BRW_PIPE_CONTROL_IS_FLUSH |
+		BRW_PIPE_CONTROL_WC_FLUSH |
+		BRW_PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+		BRW_PIPE_CONTROL_NOWRITE);
+	OUT_BATCH(0); /* write address */
+	OUT_BATCH(0); /* write data */
+
+	OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+
+	OUT_BATCH(GEN6_3DSTATE_MULTISAMPLE | (4 - 2));
+	OUT_BATCH(GEN6_3DSTATE_MULTISAMPLE_PIXEL_LOCATION_CENTER |
+		GEN6_3DSTATE_MULTISAMPLE_NUMSAMPLES_1); /* 1 sample/pixel */
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN6_3DSTATE_SAMPLE_MASK | (2 - 2));
+	OUT_BATCH(1);
+
+	/* Set system instruction pointer */
+	OUT_BATCH(BRW_STATE_SIP | 0);
+	OUT_BATCH(0);
+}
+
+static void
+gen7_upload_viewport_state_pointers(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(GEN7_3DSTATE_VIEWPORT_STATE_POINTERS_CC | (2 - 2));
+	OUT_RELOC(intel->video.gen4_cc_vp_bo, 
+		I915_GEM_DOMAIN_INSTRUCTION, 0,
+		0);
+
+	OUT_BATCH(GEN7_3DSTATE_VIEWPORT_STATE_POINTERS_SF_CL | (2 - 2));
+	OUT_BATCH(0);
+}
+
+/*
+ * URB layout for Xv on GEN7 
+ * ----------------------------------------
+ * | PS Push Constants (8KB) | VS entries |
+ * ----------------------------------------
+ */
+static void
+gen7_upload_urb(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(GEN7_3DSTATE_PUSH_CONSTANT_ALLOC_PS | (2 - 2));
+	OUT_BATCH(8); /* in 1KBs */
+
+	OUT_BATCH(GEN7_3DSTATE_URB_VS | (2 - 2));
+	OUT_BATCH(
+		(32 << GEN7_URB_ENTRY_NUMBER_SHIFT) | /* at least 32 */
+		(2 - 1) << GEN7_URB_ENTRY_SIZE_SHIFT |
+		(1 << GEN7_URB_STARTING_ADDRESS_SHIFT));
+
+	OUT_BATCH(GEN7_3DSTATE_URB_GS | (2 - 2));
+	OUT_BATCH((0 << GEN7_URB_ENTRY_SIZE_SHIFT) |
+		(1 << GEN7_URB_STARTING_ADDRESS_SHIFT));
+
+	OUT_BATCH(GEN7_3DSTATE_URB_HS | (2 - 2));
+	OUT_BATCH((0 << GEN7_URB_ENTRY_SIZE_SHIFT) |
+		(2 << GEN7_URB_STARTING_ADDRESS_SHIFT));
+
+	OUT_BATCH(GEN7_3DSTATE_URB_DS | (2 - 2));
+	OUT_BATCH((0 << GEN7_URB_ENTRY_SIZE_SHIFT) |
+		(2 << GEN7_URB_STARTING_ADDRESS_SHIFT));
+}
+
+static void
+gen7_upload_cc_state_pointers(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (2 - 2));
+	OUT_RELOC(intel->video.gen4_cc_bo,
+		I915_GEM_DOMAIN_INSTRUCTION, 0,
+		1);
+
+	OUT_BATCH(GEN7_3DSTATE_BLEND_STATE_POINTERS | (2 - 2));
+	OUT_RELOC(intel->video.gen6_blend_bo,
+		I915_GEM_DOMAIN_INSTRUCTION, 0,
+		1);
+
+	OUT_BATCH(GEN7_3DSTATE_DEPTH_STENCIL_STATE_POINTERS | (2 - 2));
+	OUT_RELOC(intel->video.gen6_depth_stencil_bo,
+		I915_GEM_DOMAIN_INSTRUCTION, 0, 
+		1);
+}
+
+static void
+gen7_upload_sampler_state_pointers(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(GEN7_3DSTATE_SAMPLER_STATE_POINTERS_PS | (2 - 2));
+	OUT_RELOC(intel->video.gen4_sampler_bo,
+		I915_GEM_DOMAIN_INSTRUCTION, 0,
+		0);
+}
+
+static void 
+gen7_upload_bypass_states(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	/* bypass GS */
+	OUT_BATCH(GEN6_3DSTATE_CONSTANT_GS | (7 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN6_3DSTATE_GS | (7 - 2));
+	OUT_BATCH(0); /* without GS kernel */
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0); /* pass-through */
+
+	OUT_BATCH(GEN7_3DSTATE_BINDING_TABLE_POINTERS_GS | (2 - 2));
+	OUT_BATCH(0);
+
+	/* disable HS */
+	OUT_BATCH(GEN7_3DSTATE_CONSTANT_HS | (7 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN7_3DSTATE_HS | (7 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN7_3DSTATE_BINDING_TABLE_POINTERS_HS | (2 - 2));
+	OUT_BATCH(0);
+
+	/* Disable TE */
+	OUT_BATCH(GEN7_3DSTATE_TE | (4 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	/* Disable DS */
+	OUT_BATCH(GEN7_3DSTATE_CONSTANT_DS | (7 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN7_3DSTATE_DS | (6 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN7_3DSTATE_BINDING_TABLE_POINTERS_DS | (2 - 2));
+	OUT_BATCH(0);
+
+	/* Disable STREAMOUT */
+	OUT_BATCH(GEN7_3DSTATE_STREAMOUT | (3 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+}
+
+static void 
+gen7_upload_vs_state(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	/* disable VS constant buffer */
+	OUT_BATCH(GEN6_3DSTATE_CONSTANT_VS | (7 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	
+	OUT_BATCH(GEN6_3DSTATE_VS | (6 - 2));
+	OUT_BATCH(0); /* without VS kernel */
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0); /* pass-through */
+}
+
+static void 
+gen7_upload_sf_state(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(GEN7_3DSTATE_SBE | (14 - 2));
+	OUT_BATCH((1 << GEN7_SBE_NUM_OUTPUTS_SHIFT) |
+		(1 << GEN7_SBE_URB_ENTRY_READ_LENGTH_SHIFT) |
+		(0 << GEN7_SBE_URB_ENTRY_READ_OFFSET_SHIFT));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0); /* DW4 */
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0); /* DW9 */
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN6_3DSTATE_SF | (7 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(GEN6_3DSTATE_SF_CULL_NONE);
+	OUT_BATCH(2 << GEN6_3DSTATE_SF_TRIFAN_PROVOKE_SHIFT);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+}
+
+static void 
+gen7_upload_wm_state(ScrnInfoPtr scrn, Bool is_packed)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	/* disable WM constant buffer */
+	OUT_BATCH(GEN6_3DSTATE_CONSTANT_PS | (7 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN6_3DSTATE_WM | (3 - 2));
+	OUT_BATCH(GEN7_WM_DISPATCH_ENABLE |
+		GEN7_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN7_3DSTATE_PS | (8 - 2));
+
+	if (is_packed) {
+		OUT_RELOC(intel->video.wm_prog_packed_bo,
+			I915_GEM_DOMAIN_INSTRUCTION, 0,
+			0);
+		OUT_BATCH((1 << GEN7_PS_SAMPLER_COUNT_SHIFT) |
+			(2 << GEN7_PS_BINDING_TABLE_ENTRY_COUNT_SHIFT));
+	} else {
+		OUT_RELOC(intel->video.wm_prog_planar_bo,
+			I915_GEM_DOMAIN_INSTRUCTION, 0,
+			0);
+		OUT_BATCH((1 << GEN7_PS_SAMPLER_COUNT_SHIFT) |
+			(7 << GEN7_PS_BINDING_TABLE_ENTRY_COUNT_SHIFT));
+	}
+
+	OUT_BATCH(0); /* scratch space base offset */
+	OUT_BATCH(
+		((86 - 1) << GEN7_PS_MAX_THREADS_SHIFT) |
+		GEN7_PS_ATTRIBUTE_ENABLE |
+		GEN7_PS_16_DISPATCH_ENABLE);
+	OUT_BATCH(
+		(6 << GEN7_PS_DISPATCH_START_GRF_SHIFT_0));
+	OUT_BATCH(0); /* kernel 1 pointer */
+	OUT_BATCH(0); /* kernel 2 pointer */
+}
+
+static void
+gen7_upload_binding_table(ScrnInfoPtr scrn, uint32_t ps_binding_table_offset)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(GEN7_3DSTATE_BINDING_TABLE_POINTERS_PS | (2 - 2));
+	OUT_BATCH(ps_binding_table_offset);
+}
+
+static void
+gen7_upload_depth_buffer_state(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(GEN7_3DSTATE_DEPTH_BUFFER | (7 - 2));
+	OUT_BATCH((BRW_DEPTHFORMAT_D32_FLOAT << 18) |
+		(BRW_SURFACE_NULL << 29));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN7_3DSTATE_CLEAR_PARAMS | (3 - 2));
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+}
+
+static void 
+gen7_upload_vertex_buffer(ScrnInfoPtr scrn, drm_intel_bo *vertex_bo, uint32_t end_address_offset)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	/* Set up the pointer to our vertex buffer */
+	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | (5 - 2));
+	/* four 32-bit floats per vertex */
+	OUT_BATCH((0 << GEN6_VB0_BUFFER_INDEX_SHIFT) |
+		GEN6_VB0_VERTEXDATA | 
+		GEN7_VB0_ADDRESS_MODIFYENABLE |
+		((4 * 4) << VB0_BUFFER_PITCH_SHIFT));
+	OUT_RELOC(vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
+	OUT_RELOC(vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, end_address_offset);
+	OUT_BATCH(0);	/* reserved */
+}
+
+static void
+gen7_upload_primitive(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	OUT_BATCH(BRW_3DPRIMITIVE | (7 - 2));
+	OUT_BATCH(_3DPRIM_RECTLIST |
+		GEN7_3DPRIM_VERTEXBUFFER_ACCESS_SEQUENTIAL);
+	OUT_BATCH(3); /* vertex count per instance */
+	OUT_BATCH(0); /* start vertex offset */
+	OUT_BATCH(1); /* single instance */
+	OUT_BATCH(0); /* start instance location */
+	OUT_BATCH(0);
+}
+
+static void
+gen7_emit_video_setup(ScrnInfoPtr scrn,
+		drm_intel_bo *surface_state_binding_table_bo, int n_src_surf,
+		PixmapPtr pixmap,
+		drm_intel_bo *vertex_bo, uint32_t end_address_offset)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	assert(n_src_surf == 1 || n_src_surf == 6);
+	IntelEmitInvarientState(scrn);
+	intel->last_3d = LAST_3D_VIDEO;
+
+	gen7_upload_invarient_states(scrn);
+	gen6_upload_state_base_address(scrn, surface_state_binding_table_bo);
+	gen7_upload_viewport_state_pointers(scrn);
+	gen7_upload_urb(scrn);
+	gen7_upload_cc_state_pointers(scrn);
+	gen7_upload_sampler_state_pointers(scrn);
+	gen7_upload_bypass_states(scrn);
+	gen7_upload_vs_state(scrn);
+	gen6_upload_clip_state(scrn);
+	gen7_upload_sf_state(scrn);
+	gen7_upload_wm_state(scrn, n_src_surf == 1 ? TRUE : FALSE);
+	gen7_upload_binding_table(scrn, (n_src_surf + 1) * SURFACE_STATE_PADDED_SIZE);
+	gen7_upload_depth_buffer_state(scrn);
+	gen6_upload_drawing_rectangle(scrn, pixmap);
+	gen6_upload_vertex_element_state(scrn);
+	gen7_upload_vertex_buffer(scrn, vertex_bo, end_address_offset);
+	gen7_upload_primitive(scrn);
 }
 
 void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
@@ -1866,13 +2279,19 @@ void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
 					uint32_t, int, 
 					int, int, uint32_t, 
 					drm_intel_bo *, uint32_t);
+	void (*emit_video_setup)(ScrnInfoPtr,
+				drm_intel_bo *, int,
+				PixmapPtr,
+				drm_intel_bo *, uint32_t);
 
 	if (INTEL_INFO(intel)->gen >= 70) {
 		create_dst_surface_state = gen7_create_dst_surface_state;
 		create_src_surface_state = gen7_create_src_surface_state;
+		emit_video_setup = gen7_emit_video_setup;
 	} else {
 		create_dst_surface_state = i965_create_dst_surface_state;
 		create_src_surface_state = i965_create_src_surface_state;
+		emit_video_setup = gen6_emit_video_setup;
 	}
 
 	src_surf_base[0] = adaptor_priv->YBufOffset;
@@ -2009,30 +2428,9 @@ void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
 			intel_batch_submit(scrn);
 
 		intel_batch_start_atomic(scrn, 200);
-		gen6_emit_video_setup(scrn, surface_state_binding_table_bo, n_src_surf, pixmap);
-
-		/* Set up the pointer to our vertex buffer */
-		OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | (5 - 2));
-		/* four 32-bit floats per vertex */
-		OUT_BATCH((0 << GEN6_VB0_BUFFER_INDEX_SHIFT) |
-			GEN6_VB0_VERTEXDATA | 
-			((4 * 4) << VB0_BUFFER_PITCH_SHIFT));
-		OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
-		OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, i * 4);
-		OUT_BATCH(0);	/* reserved */
-
-		OUT_BATCH(BRW_3DPRIMITIVE | 
-			BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL | 
-			(_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) | 
-			(0 << 9) | /* Internal Vertex Count */
-			(6 - 2));
-		OUT_BATCH(3);	/* vertex count per instance */
-		OUT_BATCH(0);	/* start vertex offset */
-		OUT_BATCH(1);	/* single instance */
-		OUT_BATCH(0);	/* start instance location */
-		OUT_BATCH(0);	/* index buffer offset, ignored */
-
+		emit_video_setup(scrn, surface_state_binding_table_bo, n_src_surf, pixmap, vb_bo, i * 4);
 		intel_batch_end_atomic(scrn);
+
 		drm_intel_bo_unreference(vb_bo);
 	}
 
