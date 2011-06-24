@@ -506,6 +506,7 @@ void sna_copy_fbcon(struct sna *sna)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
 	drmModeFBPtr fbcon;
+	PixmapPtr scratch;
 	struct sna_pixmap *priv;
 	struct kgem_bo *bo;
 	BoxRec box;
@@ -533,7 +534,15 @@ void sna_copy_fbcon(struct sna *sna)
 	if (fbcon == NULL)
 		return;
 
-	if (fbcon->depth != sna->front->drawable.depth)
+	/* Wrap the fbcon in a pixmap so that we select the right formats
+	 * in the render copy in case we need to preserve the fbcon
+	 * across a depth change upon starting X.
+	 */
+	scratch = GetScratchPixmapHeader(sna->scrn->pScreen,
+					fbcon->width, fbcon->height,
+					fbcon->depth, fbcon->bpp,
+					0, NULL);
+	if (scratch == NullPixmap)
 		goto cleanup_fbcon;
 
 	box.x1 = box.y1 = 0;
@@ -542,7 +551,7 @@ void sna_copy_fbcon(struct sna *sna)
 
 	bo = sna_create_bo_for_fbcon(sna, fbcon);
 	if (bo == NULL)
-		goto cleanup_fbcon;
+		goto cleanup_scratch;
 
 	priv = sna_pixmap(sna->front);
 	assert(priv && priv->gpu_bo);
@@ -560,7 +569,7 @@ void sna_copy_fbcon(struct sna *sna)
 		dy = (sna->front->drawable.height - box.y2) / 2.;
 
 	ok = sna->render.copy_boxes(sna, GXcopy,
-				    sna->front, bo, sx, sy,
+				    scratch, bo, sx, sy,
 				    sna->front, priv->gpu_bo, dx, dy,
 				    &box, 1);
 	sna_damage_add_box(&priv->gpu_damage, &box);
@@ -569,6 +578,8 @@ void sna_copy_fbcon(struct sna *sna)
 
 	sna->scrn->pScreen->canDoBGNoneRoot = ok;
 
+cleanup_scratch:
+	FreeScratchPixmapHeader(scratch);
 cleanup_fbcon:
 	drmModeFreeFB(fbcon);
 }
