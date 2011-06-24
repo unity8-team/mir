@@ -59,7 +59,7 @@ m4_ifndef([XORG_DRIVER_CHECK_EXT],
 LT_PREREQ([2.2])
 LT_INIT([disable-static])
 
-PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.1], [gen4asm=yes], [gen4asm=no])
+PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 PKG_CHECK_MODULES(UDEV, [libudev], [udev=yes], [udev=no])
