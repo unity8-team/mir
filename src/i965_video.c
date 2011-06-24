@@ -149,6 +149,15 @@ static const uint32_t ps_kernel_planar_static_gen6[][4] = {
 #include "exa_wm_write.g6b"
 };
 
+#ifndef MAX2
+#define MAX2(a,b) ((a) > (b) ? (a) : (b))
+#endif
+
+#define SURFACE_STATE_PADDED_SIZE_I965  ALIGN(sizeof(struct brw_surface_state), 32)
+#define SURFACE_STATE_PADDED_SIZE_GEN7  ALIGN(sizeof(struct gen7_surface_state), 32)
+#define SURFACE_STATE_PADDED_SIZE       MAX2(SURFACE_STATE_PADDED_SIZE_I965, SURFACE_STATE_PADDED_SIZE_GEN7)
+#define SURFACE_STATE_OFFSET(index)     (SURFACE_STATE_PADDED_SIZE * index)
+
 static uint32_t float_to_uint(float f)
 {
 	union {
@@ -475,6 +484,84 @@ static void i965_create_src_surface_state(ScrnInfoPtr scrn,
 	drm_intel_bo_unmap(surface_bo);
 }
 
+static void gen7_create_dst_surface_state(ScrnInfoPtr scrn,
+					PixmapPtr pixmap,
+					drm_intel_bo *surf_bo,
+					uint32_t offset)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct gen7_surface_state *dest_surf_state;
+	drm_intel_bo *pixmap_bo = intel_get_pixmap_bo(pixmap);
+
+	if (drm_intel_bo_map(surf_bo, TRUE) != 0)
+		return;
+
+	dest_surf_state = (struct gen7_surface_state *)((char *)surf_bo->virtual + offset);
+	memset(dest_surf_state, 0, sizeof(*dest_surf_state));
+
+	dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
+	dest_surf_state->ss0.tiled_surface = intel_pixmap_tiled(pixmap);
+	dest_surf_state->ss0.tile_walk = 0;	/* TileX */
+
+	if (intel->cpp == 2) {
+		dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
+	} else {
+		dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
+	}
+
+	dest_surf_state->ss1.base_addr =
+		intel_emit_reloc(surf_bo, 
+				offset + offsetof(struct gen7_surface_state, ss1),
+				pixmap_bo, 0, 
+				I915_GEM_DOMAIN_SAMPLER, 0);
+
+	dest_surf_state->ss2.height = pixmap->drawable.height - 1;
+	dest_surf_state->ss2.width = pixmap->drawable.width - 1;
+
+	dest_surf_state->ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
+
+	drm_intel_bo_unmap(surf_bo); 
+}
+
+static void gen7_create_src_surface_state(ScrnInfoPtr scrn,
+					drm_intel_bo * src_bo,
+					uint32_t src_offset,
+					int src_width,
+					int src_height,
+					int src_pitch,
+					uint32_t src_surf_format,
+					drm_intel_bo *surface_bo,
+					uint32_t offset)
+{
+	struct gen7_surface_state *src_surf_state;
+
+	if (drm_intel_bo_map(surface_bo, TRUE) != 0)
+		return;
+
+	src_surf_state = (struct gen7_surface_state *)((char *)surface_bo->virtual + offset);
+	memset(src_surf_state, 0, sizeof(*src_surf_state));
+
+	src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
+	src_surf_state->ss0.surface_format = src_surf_format;
+
+	if (src_bo) {
+		src_surf_state->ss1.base_addr =
+			intel_emit_reloc(surface_bo,
+					offset + offsetof(struct gen7_surface_state, ss1),
+					src_bo, src_offset,
+					I915_GEM_DOMAIN_SAMPLER, 0);
+	} else {
+		src_surf_state->ss1.base_addr = src_offset;
+	}
+
+	src_surf_state->ss2.width = src_width - 1;
+	src_surf_state->ss2.height = src_height - 1;
+
+	src_surf_state->ss3.pitch = src_pitch - 1;
+
+	drm_intel_bo_unmap(surface_bo);
+}
+
 static void i965_create_binding_table(ScrnInfoPtr scrn,
 				drm_intel_bo *bind_bo,
 				int n_surf)
@@ -486,10 +573,10 @@ static void i965_create_binding_table(ScrnInfoPtr scrn,
 	if (drm_intel_bo_map(bind_bo, TRUE) != 0)
 		return;
 
-	binding_table = (uint32_t*)((char *)bind_bo->virtual + n_surf * ALIGN(sizeof(struct brw_surface_state), 32));
+	binding_table = (uint32_t*)((char *)bind_bo->virtual + n_surf * SURFACE_STATE_PADDED_SIZE);
 
 	for (i = 0; i < n_surf; i++)
-		binding_table[i] = i * ALIGN(sizeof(struct brw_surface_state), 32);
+		binding_table[i] = i * SURFACE_STATE_PADDED_SIZE;
 
 	drm_intel_bo_unmap(bind_bo);
 }
@@ -509,6 +596,26 @@ static drm_intel_bo *i965_create_sampler_state(ScrnInfoPtr scrn)
 	sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 	sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 	sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+
+	drm_intel_bo_unmap(sampler_bo);
+	return sampler_bo;
+}
+
+static drm_intel_bo *gen7_create_sampler_state(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+	drm_intel_bo *sampler_bo;
+	struct gen7_sampler_state *sampler_state;
+
+	if (intel_alloc_and_map(intel, "textured video sampler state", 4096,
+				&sampler_bo, &sampler_state) != 0)
+		return NULL;
+
+	sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
+	sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+	sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+	sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+	sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 
 	drm_intel_bo_unmap(sampler_bo);
 	return sampler_bo;
@@ -863,7 +970,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * surface_state_binding_tab
 	OUT_BATCH(0);		/* clip */
 	OUT_BATCH(0);		/* sf */
 	/* Only the PS uses the binding table */
-	OUT_BATCH((n_src_surf + 1) * ALIGN(sizeof(struct brw_surface_state), 32));
+	OUT_BATCH((n_src_surf + 1) * SURFACE_STATE_PADDED_SIZE);
 
 	/* Blend constant color (magenta is fun) */
 	OUT_BATCH(BRW_3DSTATE_CONSTANT_COLOR | 3);
@@ -1056,7 +1163,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 	surface_state_binding_table_bo = 
 		drm_intel_bo_alloc(intel->bufmgr,
 				"surface state & binding table",
-				(n_src_surf + 1) * (ALIGN(sizeof(struct brw_surface_state), 32) + sizeof(uint32_t)),
+				(n_src_surf + 1) * (SURFACE_STATE_PADDED_SIZE + sizeof(uint32_t)),
 				4096);
 
 	if (!surface_state_binding_table_bo)
@@ -1073,7 +1180,7 @@ I965DisplayVideoTextured(ScrnInfoPtr scrn,
 					src_pitch[src_surf],
 					src_surf_format,
 					surface_state_binding_table_bo,
-					(src_surf + 1) * ALIGN(sizeof(struct brw_surface_state), 32));
+					(src_surf + 1) * SURFACE_STATE_PADDED_SIZE);
 	}
 
 	i965_create_binding_table(scrn, surface_state_binding_table_bo, n_src_surf + 1);
@@ -1351,9 +1458,17 @@ static Bool
 gen6_create_vidoe_objects(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	drm_intel_bo *(*create_sampler_state)(ScrnInfoPtr);
+
+	if (INTEL_INFO(intel)->gen >= 70) {
+		create_sampler_state = gen7_create_sampler_state;
+	} else {
+		create_sampler_state = i965_create_sampler_state;
+	}
+
 
 	if (intel->video.gen4_sampler_bo == NULL)
-		intel->video.gen4_sampler_bo = i965_create_sampler_state(scrn);
+		intel->video.gen4_sampler_bo = create_sampler_state(scrn);
 		
 	if (intel->video.wm_prog_packed_bo == NULL)
 		intel->video.wm_prog_packed_bo =
@@ -1692,7 +1807,7 @@ gen6_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo *surface_state_binding_tabl
 	gen6_upload_clip_state(scrn);
 	gen6_upload_sf_state(scrn);
 	gen6_upload_wm_state(scrn, n_src_surf == 1 ? TRUE : FALSE);
-	gen6_upload_binding_table(scrn, (n_src_surf + 1) * ALIGN(sizeof(struct brw_surface_state), 32));;
+	gen6_upload_binding_table(scrn, (n_src_surf + 1) * SURFACE_STATE_PADDED_SIZE);
 	gen6_upload_depth_buffer_state(scrn);
 	gen6_upload_drawing_rectangle(scrn, pixmap);
 	gen6_upload_vertex_element_state(scrn);
@@ -1718,6 +1833,23 @@ void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
 	int src_height[6];
 	int src_pitch[6];
 	drm_intel_bo *surface_state_binding_table_bo;
+	void (*create_dst_surface_state)(ScrnInfoPtr,
+					PixmapPtr, 
+					drm_intel_bo *, 
+					uint32_t);
+	void (*create_src_surface_state)(ScrnInfoPtr,
+					drm_intel_bo *,
+					uint32_t, int, 
+					int, int, uint32_t, 
+					drm_intel_bo *, uint32_t);
+
+	if (INTEL_INFO(intel)->gen >= 70) {
+		create_dst_surface_state = gen7_create_dst_surface_state;
+		create_src_surface_state = gen7_create_src_surface_state;
+	} else {
+		create_dst_surface_state = i965_create_dst_surface_state;
+		create_src_surface_state = i965_create_src_surface_state;
+	}
 
 	src_surf_base[0] = adaptor_priv->YBufOffset;
 	src_surf_base[1] = adaptor_priv->YBufOffset;
@@ -1753,16 +1885,16 @@ void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
 	surface_state_binding_table_bo = 
 		drm_intel_bo_alloc(intel->bufmgr,
 				"surface state & binding table",
-				(n_src_surf + 1) * (ALIGN(sizeof(struct brw_surface_state), 32) + sizeof(uint32_t)),
+				(n_src_surf + 1) * (SURFACE_STATE_PADDED_SIZE + sizeof(uint32_t)),
 				4096);
 
 	if (!surface_state_binding_table_bo)
 		return;
 				
-	i965_create_dst_surface_state(scrn, pixmap, surface_state_binding_table_bo, 0);
+	create_dst_surface_state(scrn, pixmap, surface_state_binding_table_bo, 0);
 
 	for (src_surf = 0; src_surf < n_src_surf; src_surf++) {
-		i965_create_src_surface_state(scrn,
+		create_src_surface_state(scrn,
 					adaptor_priv->buf,
 					src_surf_base[src_surf],
 					src_width[src_surf],
@@ -1770,7 +1902,7 @@ void Gen6DisplayVideoTextured(ScrnInfoPtr scrn,
 					src_pitch[src_surf],
 					src_surf_format,
 					surface_state_binding_table_bo,
-					(src_surf + 1) * ALIGN(sizeof(struct brw_surface_state), 32));
+					(src_surf + 1) * SURFACE_STATE_PADDED_SIZE);
 	}
 
 	i965_create_binding_table(scrn, surface_state_binding_table_bo, n_src_surf + 1);
