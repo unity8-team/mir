@@ -1359,9 +1359,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	DBG(("%s: src=(%d, %d)x(%d, %d) -> dst=(%d, %d)\n",
 	     __FUNCTION__, src_x, src_y, width, height, dst_x, dst_y));
 
-	if (sna->kgem.wedged ||
-	    src->bitsPerPixel != dst->bitsPerPixel ||
-	    !PM_IS_SOLID(dst, gc->planemask)) {
+	if (sna->kgem.wedged || !PM_IS_SOLID(dst, gc->planemask)) {
 		BoxRec box;
 		RegionRec region;
 

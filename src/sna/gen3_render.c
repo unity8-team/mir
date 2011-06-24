@@ -3254,6 +3254,9 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	struct sna_composite_op tmp;
 
 #if NO_COPY_BOXES
+	if (src->drawable.depth != dst->drawable->depth)
+		return FALSE;
+
 	return sna_blt_copy_boxes(sna, alu,
 				  src_bo, src_dx, src_dy,
 				  dst_bo, dst_dx, dst_dy,
@@ -3264,7 +3267,8 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n));
 
-	if (sna_blt_copy_boxes(sna, alu,
+	if (src->drawable.depth == dst->drawable.depth &&
+	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
 			       dst_bo, dst_dx, dst_dy,
 			       dst->drawable.bitsPerPixel,
@@ -3278,12 +3282,16 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	    src->drawable.height > 2048 ||
 	    dst_bo->pitch > 8192 ||
 	    dst->drawable.width > 2048 ||
-	    dst->drawable.height > 2048)
+	    dst->drawable.height > 2048) {
+		if (src->drawable.depth != dst->drawable.depth)
+			return FALSE;
+
 		return sna_blt_copy_boxes(sna, alu,
 					  src_bo, src_dx, src_dy,
 					  dst_bo, dst_dx, dst_dy,
 					  dst->drawable.bitsPerPixel,
 					  box, n);
+	}
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo))
 		kgem_submit(&sna->kgem);
@@ -3391,6 +3399,9 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 		 struct sna_copy_op *tmp)
 {
 #if NO_COPY
+	if (src->drawable.depth != dst->drawable.depth)
+		return FALSE;
+
 	return sna_blt_copy(sna, alu,
 			    src_bo, dst_bo,
 			    dst->drawable.bitsPerPixel,
@@ -3399,7 +3410,7 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 
 	/* Prefer to use the BLT */
 	if (sna->kgem.mode == KGEM_BLT &&
-	    src->drawable.bitsPerPixel == dst->drawable.bitsPerPixel &&
+	    src->drawable.depth == dst->drawable.depth &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
 			 dst->drawable.bitsPerPixel,
@@ -3411,7 +3422,7 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 	    src->drawable.width > 2048 || src->drawable.height > 2048 ||
 	    dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
 	    src_bo->pitch > 8192 || dst_bo->pitch > 8192) {
-		if (src->drawable.bitsPerPixel != dst->drawable.bitsPerPixel)
+		if (src->drawable.depth != dst->drawable.depth)
 			return FALSE;
 
 		return sna_blt_copy(sna, alu, src_bo, dst_bo,

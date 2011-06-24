@@ -977,11 +977,11 @@ sna_blt_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	if (src->pDrawable->bitsPerPixel != dst->pDrawable->bitsPerPixel) {
-		DBG(("%s: mismatching bpp src=%d, dst=%d\n",
+	if (src->pDrawable->depth != dst->pDrawable->depth) {
+		DBG(("%s: mismatching depth src=%d/%d, dst=%d/%d\n",
 		     __FUNCTION__,
-		     src->pDrawable->bitsPerPixel,
-		     dst->pDrawable->bitsPerPixel));
+		     src->pDrawable->depth, src->pDrawable->bitsPerPixel,
+		     dst->pDrawable->depth, dst->pDrawable->bitsPerPixel));
 		return FALSE;
 	}
 

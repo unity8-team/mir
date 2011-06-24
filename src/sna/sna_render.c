@@ -92,6 +92,9 @@ no_render_copy_boxes(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s (n=%d)\n", __FUNCTION__, n));
 
+	if (src->drawable.depth != dst->drawable.depth)
+		return FALSE;
+
 	return sna_blt_copy_boxes(sna, alu,
 				  src_bo, src_dx, src_dy,
 				  dst_bo, dst_dx, dst_dy,
@@ -107,7 +110,7 @@ no_render_copy(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s ()\n", __FUNCTION__));
 
-	if (src->drawable.bitsPerPixel != dst->drawable.bitsPerPixel &&
+	if (src->drawable.depth == dst->drawable.depth &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo, dst->drawable.bitsPerPixel,
 			 tmp))

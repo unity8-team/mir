@@ -206,7 +206,7 @@ sna_dri_create_buffer(DrawablePtr drawable,
 		usage = 0;
 		if (drawable->width == sna->front->drawable.width &&
 		    drawable->height == sna->front->drawable.height &&
-		    drawable->bitsPerPixel == sna->front->drawable.bitsPerPixel)
+		    drawable->depth == sna->front->drawable.depth)
 			usage = SNA_CREATE_FB;
 
 	case DRI2BufferFakeFrontLeft:
@@ -777,10 +777,12 @@ can_flip(struct sna * sna,
 		return FALSE;
 	}
 
-	if (front_pixmap->drawable.bitsPerPixel != back_pixmap->drawable.bitsPerPixel) {
-		DBG(("%s -- no, depth mismatch: front bpp=%d, back=%d\n",
+	if (front_pixmap->drawable.depth != back_pixmap->drawable.depth) {
+		DBG(("%s -- no, depth mismatch: front bpp=%d/%d, back=%d/%d\n",
 		     __FUNCTION__,
+		     front_pixmap->drawable.depth,
 		     front_pixmap->drawable.bitsPerPixel,
+		     back_pixmap->drawable.depth,
 		     back_pixmap->drawable.bitsPerPixel));
 		return FALSE;
 	}
