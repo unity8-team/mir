@@ -176,10 +176,10 @@ sna_load_palette(ScrnInfoPtr scrn, int numColors, int *indices,
  */
 static Bool sna_create_screen_resources(ScreenPtr screen)
 {
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	struct sna *sna = to_sna(scrn);
+	struct sna *sna = to_sna_from_screen(screen);
 
-	DBG(("%s\n", __FUNCTION__));
+	DBG(("%s(%dx%d@%d)\n", __FUNCTION__,
+	     screen->width, screen->height, screen->rootDepth));
 
 	free(screen->devPrivate);
 	screen->devPrivate = NULL;
@@ -453,6 +453,7 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	case 15:
 	case 16:
 	case 24:
+	case 30:
 		break;
 	default:
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,

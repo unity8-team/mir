@@ -427,11 +427,19 @@ sna_crtc_restore(struct sna *sna)
 
 	assert(bo->tiling != I915_TILING_Y);
 
+	DBG(("%s: create fb %dx%d@%d/%d\n",
+	     __FUNCTION__,
+	     sna->front->drawable.width,
+	     sna->front->drawable.height,
+	     sna->front->drawable.depth,
+	     sna->front->drawable.bitsPerPixel));
+
 	sna_mode_remove_fb(sna);
 	if (drmModeAddFB(sna->kgem.fd,
 			 sna->front->drawable.width,
 			 sna->front->drawable.height,
-			 scrn->depth, scrn->bitsPerPixel,
+			 sna->front->drawable.depth,
+			 sna->front->drawable.bitsPerPixel,
 			 bo->pitch, bo->handle,
 			 &sna->mode.fb_id))
 		return;
@@ -589,6 +597,11 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		struct kgem_bo *bo = sna_pixmap_pin(sna->front);
 		if (!bo)
 			return FALSE;
+
+		DBG(("%s: create fb %dx%d@%d/%d\n",
+		     __FUNCTION__,
+		     scrn->virtualX, scrn->virtualY,
+		     scrn->depth, scrn->bitsPerPixel));
 
 		assert(bo->tiling != I915_TILING_Y);
 		ret = drmModeAddFB(sna->kgem.fd,
