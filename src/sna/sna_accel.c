@@ -1741,7 +1741,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 				BoxRec box;
 
 				box.x1 = x + dx;
-				box.y1 = x + dx;
+				box.y1 = y + dy;
 				box.x2 = box.x1 + 1;
 				box.y2 = box.y1 + 1;
 
