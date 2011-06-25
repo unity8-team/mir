@@ -324,52 +324,24 @@ static void sna_dri_reference_buffer(DRI2Buffer2Ptr buffer)
 static void damage(DrawablePtr drawable, PixmapPtr pixmap, RegionPtr region)
 {
 	struct sna_pixmap *priv;
-	int16_t dx, dy;
-
-	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	BoxPtr box;
 
 	priv = sna_pixmap(pixmap);
 	if (priv->gpu_only)
 		return;
 
-	if (region) {
-		BoxPtr box;
-
-		RegionTranslate(region, dx, dy);
-		box = RegionExtents(region);
-		if (RegionNumRects(region) == 1 &&
-		    box->x1 <= 0 && box->y1 <= 0 &&
-		    box->x2 >= pixmap->drawable.width &&
-		    box->y2 >= pixmap->drawable.height) {
-			sna_damage_all(&priv->gpu_damage,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height);
-			sna_damage_destroy(&priv->cpu_damage);
-		} else {
-			sna_damage_add(&priv->gpu_damage, region);
-			sna_damage_subtract(&priv->cpu_damage, region);
-		}
-
-		RegionTranslate(region, -dx, -dy);
+	box = RegionExtents(region);
+	if (RegionNumRects(region) == 1 &&
+	    box->x1 <= 0 && box->y1 <= 0 &&
+	    box->x2 >= pixmap->drawable.width &&
+	    box->y2 >= pixmap->drawable.height) {
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
+		sna_damage_destroy(&priv->cpu_damage);
 	} else {
-		BoxRec box;
-
-		box.x1 = drawable->x + dx;
-		box.x2 = box.x1 + drawable->width;
-
-		box.y1 = drawable->y + dy;
-		box.y2 = box.y1 + drawable->height;
-		if (box.x1 == 0 && box.y1 == 0 &&
-		    box.x2 == pixmap->drawable.width &&
-		    box.y2 == pixmap->drawable.height) {
-			sna_damage_all(&priv->gpu_damage,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height);
-			sna_damage_destroy(&priv->cpu_damage);
-		} else {
-			sna_damage_add_box(&priv->gpu_damage, &box);
-			sna_damage_subtract_box(&priv->gpu_damage, &box);
-		}
+		sna_damage_add(&priv->gpu_damage, region);
+		sna_damage_subtract(&priv->cpu_damage, region);
 	}
 }
 
@@ -386,7 +358,7 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	pixman_region16_t clip;
 	bool flush = false;
 	BoxRec box, *boxes;
-	int16_t dx, dy;
+	int16_t dx, dy, sx, sy;
 	int n;
 
 	DBG(("%s: dst -- attachment=%d, name=%d, handle=%d [screen=%d]\n",
@@ -400,58 +372,71 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	     src_buffer->attachment,
 	     src_buffer->name,
 	     src_priv->bo->handle));
+	if (region) {
+		DBG(("%s: clip (%d, %d), (%d, %d) x %d\n",
+		     __FUNCTION__,
+		     region->extents.x1, region->extents.y1,
+		     region->extents.x2, region->extents.y2,
+		     REGION_NUM_RECTS(region)));
+	}
 
-	if (draw->type == DRAWABLE_PIXMAP) {
-		if (region) {
-			boxes = REGION_RECTS(region);
-			n = REGION_NUM_RECTS(region);
-			if (n == 0)
-				return;
-		} else {
-			box.x1 = box.y1 = 0;
-			box.x2 = draw->width;
-			box.y2 = draw->height;
+	box.x1 = draw->x;
+	box.y1 = draw->y;
+	box.x2 = draw->x + draw->width;
+	box.y2 = draw->y + draw->height;
 
-			boxes = &box;
-			n = 1;
+	get_drawable_deltas(draw, src, &sx, &sy);
+	sx -= draw->x;
+	sy -= draw->y;
+
+	if (region) {
+		pixman_region_translate(region, draw->x, draw->y);
+		pixman_region_init_rects(&clip, &box, 1);
+		pixman_region_intersect(&clip, &clip, region);
+		region = &clip;
+
+		if (!pixman_region_not_empty(region)) {
+			DBG(("%s: all clipped\n", __FUNCTION__));
+			return;
 		}
-		dx = dy = 0;
-	} else {
+	}
+
+	dx = dy = 0;
+	if (draw->type != DRAWABLE_PIXMAP) {
 		WindowPtr win = (WindowPtr)draw;
 
-		DBG(("%s: draw=(%d, %d), delta=(%d, %d)\n",
+		DBG(("%s: draw=(%d, %d), delta=(%d, %d), clip.extents=(%d, %d), (%d, %d)\n",
 		     __FUNCTION__, draw->x, draw->y,
-		     get_drawable_dx(draw), get_drawable_dy(draw)));
-		if (region) {
-			pixman_region_translate(region, draw->x, draw->y);
+		     get_drawable_dx(draw), get_drawable_dy(draw),
+		     win->clipList.extents.x1, win->clipList.extents.y1,
+		     win->clipList.extents.x2, win->clipList.extents.y2));
 
-			pixman_region_init(&clip);
-			pixman_region_intersect(&clip, &win->clipList, region);
-			if (!pixman_region_not_empty(&clip)) {
-				DBG(("%s: all clipped\n", __FUNCTION__));
-				return;
-			}
+		if (region == NULL) {
+			pixman_region_init_rects(&clip, &box, 1);
 			region = &clip;
-
-			boxes = REGION_RECTS(region);
-			n = REGION_NUM_RECTS(region);
-		} else {
-			boxes = REGION_RECTS(&win->clipList);
-			n = REGION_NUM_RECTS(&win->clipList);
-			region = &win->clipList;
 		}
-		if (n == 0)
-			return;
 
-		if (sync)
-			flush = sna_wait_for_scanline(sna, sna->front, NULL,
+		pixman_region_intersect(region, &win->clipList, region);
+		if (!pixman_region_not_empty(region)) {
+			DBG(("%s: all clipped\n", __FUNCTION__));
+			return;
+		}
+
+		if (dst == sna->front && sync)
+			flush = sna_wait_for_scanline(sna, dst, NULL,
 						      &region->extents);
 
-		dst = sna->front;
-		dst_bo = sna_pixmap_get_bo(sna->front);
 		get_drawable_deltas(draw, dst, &dx, &dy);
 	}
 
+	if (region) {
+		boxes = REGION_RECTS(region);
+		n = REGION_NUM_RECTS(region);
+		assert(n);
+	} else {
+		boxes = &box;
+		n = 1;
+	}
 	/* It's important that this copy gets submitted before the
 	 * direct rendering client submits rendering for the next
 	 * frame, but we don't actually need to submit right now.  The
@@ -463,15 +448,20 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	 * again.
 	 */
 	sna->render.copy_boxes(sna, GXcopy,
-			       src, src_priv->bo, -draw->x, -draw->y,
+			       src, src_priv->bo, sx, sy,
 			       dst, dst_bo, dx, dy,
 			       boxes, n);
-
-	damage(draw, dst, region);
 
 	DBG(("%s: flushing? %d\n", __FUNCTION__, flush));
 	if (flush) /* STAT! */
 		kgem_submit(&sna->kgem);
+
+	if (region) {
+		pixman_region_translate(region, dx, dy);
+		DamageRegionAppend(&dst->drawable, region);
+		DamageRegionProcessPending(&dst->drawable);
+		damage(draw, dst, region);
+	}
 
 	if (region == &clip)
 		pixman_region_fini(&clip);
@@ -1427,8 +1417,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (pipe > 0)
 		vbl.request.type |= DRM_VBLANK_SECONDARY;
 
-	vbl.request.sequence = current_msc - (current_msc % divisor) +
-	    remainder;
+	vbl.request.sequence = current_msc - current_msc % divisor + remainder;
 
 	/*
 	 * If calculated remainder is larger than requested remainder,
@@ -1437,7 +1426,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	 * that will happen.
 	 */
 	if ((current_msc % divisor) >= remainder)
-	    vbl.request.sequence += divisor;
+		vbl.request.sequence += divisor;
 
 	vbl.request.signal = (unsigned long)info;
 	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
