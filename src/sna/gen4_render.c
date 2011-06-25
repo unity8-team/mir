@@ -2194,6 +2194,8 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.dst.height = dst->drawable.height;
 	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = dst_bo;
+	tmp.dst.x = dst_dx;
+	tmp.dst.y = dst_dy;
 
 	tmp.src.bo = src_bo;
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
@@ -2225,7 +2227,7 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 		gen4_render_copy_one(sna, &tmp,
 				     box->x1 + src_dx, box->y1 + src_dy,
 				     box->x2 - box->x1, box->y2 - box->y1,
-				     box->x1 + dst_dx, box->y1 + dst_dy);
+				     box->x1, box->y1);
 		box++;
 	} while (--n);
 

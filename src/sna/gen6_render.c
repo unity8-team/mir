@@ -2332,6 +2332,8 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.dst.height = dst->drawable.height;
 	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = dst_bo;
+	tmp.dst.x = dst_dx;
+	tmp.dst.y = dst_dy;
 
 	tmp.src.bo = src_bo;
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
@@ -2385,9 +2387,9 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 			     box->x1 + src_dx, box->y1 + src_dy,
 			     box->x1 + dst_dx, box->y1 + dst_dy,
 			     box->x2 - box->x1, box->y2 - box->y1));
-			v[0] = pack_2s(box->x2 + dst_dx, box->y2 + dst_dy);
-			v[3] = pack_2s(box->x1 + dst_dx, box->y2 + dst_dy);
-			v[6] = pack_2s(box->x1 + dst_dx, box->y1 + dst_dy);
+			v[0] = pack_2s(box->x2, box->y2);
+			v[3] = pack_2s(box->x1, box->y2);
+			v[6] = pack_2s(box->x1, box->y1);
 
 			v[1] = (box->x2 + src_dx) * tmp.src.scale[0];
 			v[7] = v[4] = (box->x1 + src_dx) * tmp.src.scale[0];
