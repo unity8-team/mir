@@ -526,6 +526,9 @@ void sna_copy_fbcon(struct sna *sna)
 
 		mode_crtc = drmModeGetCrtc(sna->kgem.fd,
 					   sna->mode.mode_res->crtcs[crtc->num]);
+		if (mode_crtc == NULL)
+			continue;
+
 		if (mode_crtc->buffer_id)
 			fbcon = drmModeGetFB(sna->kgem.fd,
 					     mode_crtc->buffer_id);
