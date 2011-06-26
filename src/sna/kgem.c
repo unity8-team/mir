@@ -240,7 +240,7 @@ static struct kgem_bo *__kgem_bo_init(struct kgem_bo *bo,
 
 	bo->refcnt = 1;
 	bo->handle = handle;
-	bo->aperture_size = bo->size = size;
+	bo->size = size;
 	bo->reusable = true;
 	bo->cpu_read = true;
 	bo->cpu_write = true;
@@ -292,7 +292,13 @@ static struct list *inactive(struct kgem *kgem,
 	return &kgem->inactive[order];
 }
 
-void kgem_init(struct kgem *kgem, int fd, int gen)
+static size_t
+agp_aperture_size(struct pci_device *dev)
+{
+	return dev->regions[2].size;
+}
+
+void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	drm_i915_getparam_t gp;
 	struct drm_i915_gem_get_aperture aperture;
@@ -347,13 +353,17 @@ void kgem_init(struct kgem *kgem, int fd, int gen)
 	DBG(("%s: has relaxed fencing=%d\n", __FUNCTION__,
 	     kgem->has_relaxed_fencing));
 
-	aperture.aper_available_size = 64*1024*1024;
+	aperture.aper_size = 64*1024*1024;
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
 
-	kgem->aperture_high = aperture.aper_available_size * 3/4;
-	kgem->aperture_low = aperture.aper_available_size * 1/4;
+	kgem->aperture_high = aperture.aper_size * 3/4;
+	kgem->aperture_low = aperture.aper_size * 1/4;
 	DBG(("%s: aperture low=%d, high=%d\n", __FUNCTION__,
 	     kgem->aperture_low, kgem->aperture_high));
+
+	kgem->aperture_mappable = agp_aperture_size(dev);
+	if (kgem->aperture_mappable == 0)
+		kgem->aperture_mappable = aperture.aper_size;
 
 	i = 8;
 	gp.param = I915_PARAM_NUM_FENCES_AVAIL;
@@ -461,7 +471,7 @@ kgem_add_handle(struct kgem *kgem, struct kgem_bo *bo)
 	exec->handle = bo->handle;
 	exec->offset = bo->presumed_offset;
 
-	kgem->aperture += bo->aperture_size;
+	kgem->aperture += bo->size;
 
 	return exec;
 }
@@ -757,6 +767,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nexec = 0;
 	kgem->nreloc = 0;
 	kgem->aperture = 0;
+	kgem->aperture_fenced = 0;
 	kgem->nbatch = 0;
 	kgem->surface = ARRAY_SIZE(kgem->batch);
 	kgem->mode = KGEM_NONE;
@@ -1051,7 +1062,6 @@ search_linear_cache(struct kgem *kgem, int size, bool active)
 		bo->tiling = I915_TILING_NONE;
 		bo->pitch = 0;
 		bo->delta = 0;
-		bo->aperture_size = bo->size;
 		DBG(("  %s: found handle=%d (size=%d) in linear %s cache\n",
 		     __FUNCTION__, bo->handle, bo->size,
 		     active ? "active" : "inactive"));
@@ -1184,9 +1194,9 @@ static bool _kgem_can_create_2d(struct kgem *kgem,
 		tiling = -tiling;
 
 	size = kgem_surface_size(kgem, width, height, bpp, tiling, &pitch);
-	if (size == 0 || size > kgem->aperture_low)
+	if (size == 0 || size > kgem->aperture_mappable/2)
 		size = kgem_surface_size(kgem, width, height, bpp, I915_TILING_NONE, &pitch);
-	return size > 0 && size <= kgem->aperture_low;
+	return size > 0 && size <= kgem->aperture_mappable/2;
 }
 
 #if DEBUG_KGEM
@@ -1206,20 +1216,20 @@ bool kgem_can_create_2d(struct kgem *kgem,
 }
 #endif
 
-static int kgem_bo_aperture_size(struct kgem *kgem, struct kgem_bo *bo)
+static int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo)
 {
 	int size;
 
-	if (kgem->gen >= 40 || bo->tiling == I915_TILING_NONE) {
-		size = bo->size;
-	} else {
-		if (kgem->gen < 30)
-			size = 512 * 1024;
-		else
-			size = 1024 * 1024;
-		while (size < bo->size)
-			size *= 2;
-	}
+	assert(bo->tiling);
+	assert(kgem->gem < 40);
+
+	if (kgem->gen < 30)
+		size = 512 * 1024;
+	else
+		size = 1024 * 1024;
+	while (size < bo->size)
+		size *= 2;
+
 	return size;
 }
 
@@ -1246,7 +1256,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 
 	assert(_kgem_can_create_2d(kgem, width, height, bpp, tiling));
 	size = kgem_surface_size(kgem, width, height, bpp, tiling, &pitch);
-	assert(size && size <= kgem->aperture_low);
+	assert(size && size <= kgem->aperture_mappable/2);
 	if (flags & CREATE_INACTIVE)
 		goto skip_active_search;
 
@@ -1304,7 +1314,6 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 
 		bo->unique_id = kgem_get_unique_id(kgem);
 		bo->delta = 0;
-		bo->aperture_size = kgem_bo_aperture_size(kgem, bo);
 		DBG(("  from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 		     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 		assert(bo->refcnt == 0);
@@ -1350,7 +1359,6 @@ skip_active_search:
 
 		bo->delta = 0;
 		bo->unique_id = kgem_get_unique_id(kgem);
-		bo->aperture_size = kgem_bo_aperture_size(kgem, bo);
 		assert(bo->pitch);
 		DBG(("  from inactive: pitch=%d, tiling=%d: handle=%d, id=%d\n",
 		     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
@@ -1379,7 +1387,6 @@ next_bo:
 	bo->pitch = pitch;
 	if (tiling != I915_TILING_NONE)
 		bo->tiling = gem_set_tiling(kgem->fd, handle, tiling, pitch);
-	bo->aperture_size = kgem_bo_aperture_size(kgem, bo);
 
 	DBG(("  new pitch=%d, tiling=%d, handle=%d, id=%d\n",
 	     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
@@ -1431,6 +1438,7 @@ bool kgem_check_bo_fenced(struct kgem *kgem, ...)
 	int num_fence = 0;
 	int num_exec = 0;
 	int size = 0;
+	int fenced_size = 0;
 
 	if (kgem->aperture > kgem->aperture_low)
 		return false;
@@ -1441,18 +1449,25 @@ bool kgem_check_bo_fenced(struct kgem *kgem, ...)
 			if (kgem->gen >= 40 || bo->tiling == I915_TILING_NONE)
 				continue;
 
-			if ((bo->exec->flags & EXEC_OBJECT_NEEDS_FENCE) == 0)
+			if ((bo->exec->flags & EXEC_OBJECT_NEEDS_FENCE) == 0) {
+				fenced_size += kgem_bo_fenced_size(kgem, bo);
 				num_fence++;
+			}
 
 			continue;
 		}
 
 		size += bo->size;
 		num_exec++;
-		if (kgem->gen < 40 && bo->tiling)
+		if (kgem->gen < 40 && bo->tiling) {
+			fenced_size += kgem_bo_fenced_size(kgem, bo);
 			num_fence++;
+		}
 	}
 	va_end(ap);
+
+	if (fenced_size + kgem->aperture_fenced > kgem->aperture_mappable)
+		return false;
 
 	if (size + kgem->aperture > kgem->aperture_high)
 		return false;
@@ -1501,6 +1516,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			if (bo->tiling &&
 			    (bo->exec->flags & EXEC_OBJECT_NEEDS_FENCE) == 0) {
 				assert(kgem->nfence < kgem->fence_max);
+				kgem->aperture_fenced +=
+					kgem_bo_fenced_size(kgem, bo);
 				kgem->nfence++;
 			}
 			bo->exec->flags |= EXEC_OBJECT_NEEDS_FENCE;

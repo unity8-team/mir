@@ -106,6 +106,7 @@ struct kgem {
 
 	uint16_t fence_max;
 	uint32_t aperture_high, aperture_low, aperture;
+	uint32_t aperture_fenced, aperture_mappable;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
 	uint32_t batch[4*1024];
@@ -122,7 +123,7 @@ struct kgem {
 #define KGEM_EXEC_SIZE(K) (ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
 #define KGEM_RELOC_SIZE(K) (ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
 
-void kgem_init(struct kgem *kgem, int fd, int gen);
+void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen);
 void kgem_reset(struct kgem *kgem);
 
 struct kgem_bo *kgem_create_map(struct kgem *kgem,

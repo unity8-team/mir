@@ -474,7 +474,7 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 
 	sna_check_chipset_option(scrn);
-	kgem_init(&sna->kgem, fd, sna->chipset.info->gen);
+	kgem_init(&sna->kgem, fd, sna->PciInfo, sna->chipset.info->gen);
 	if (!xf86ReturnOptValBool(sna->Options,
 				  OPTION_RELAXED_FENCING,
 				  sna->kgem.has_relaxed_fencing)) {
