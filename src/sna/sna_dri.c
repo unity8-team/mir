@@ -346,6 +346,20 @@ static void damage(DrawablePtr drawable, PixmapPtr pixmap, RegionPtr region)
 	}
 }
 
+static void damage_all(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv;
+
+	priv = sna_pixmap(pixmap);
+	if (priv->gpu_only)
+		return;
+
+	sna_damage_all(&priv->gpu_damage,
+		       pixmap->drawable.width,
+		       pixmap->drawable.height);
+	sna_damage_destroy(&priv->cpu_damage);
+}
+
 static void
 sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	     DRI2BufferPtr dst_buffer, DRI2BufferPtr src_buffer,
@@ -628,6 +642,7 @@ sna_dri_schedule_flip(struct sna *sna,
 
 	/* Page flip the full screen buffer */
 	back_priv = info->back->driverPrivate;
+	damage_all(back_priv->pixmap);
 	info->count = sna_do_pageflip(sna,
 				      back_priv->pixmap,
 				      info, info->pipe,
@@ -1264,6 +1279,7 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 	}
 
 exchange:
+	damage_all(back_priv->pixmap);
 	pixmap = sna_set_screen_pixmap(sna, back_priv->pixmap);
 	screen->DestroyPixmap(pixmap);
 
