@@ -177,7 +177,8 @@ sna_dri_create_buffer(DrawablePtr drawable,
 	int bpp, usage;
 
 	DBG(("%s(attachment=%d, format=%d, drawable=%dx%d)\n",
-	     __FUNCTION__, attachment, format,drawable->width,drawable->height));
+	     __FUNCTION__, attachment, format,
+	     drawable->width, drawable->height));
 
 	buffer = calloc(1, sizeof *buffer + sizeof *private);
 	if (buffer == NULL)
@@ -793,6 +794,8 @@ static void sna_dri_vblank_handle(int fd,
 	case DRI2_SWAP:
 		sna_dri_copy(sna, draw, NULL, info->front, info->back, true);
 	case DRI2_SWAP_THROTTLE:
+		DBG(("%s: %d complete, frame=%d tv=%d.%06d\n",
+		     __FUNCTION__, info->type, frame, tv_sec, tv_usec));
 		DRI2SwapComplete(info->client,
 				 draw, frame,
 				 tv_sec, tv_usec,
@@ -1034,8 +1037,36 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	sna_dri_reference_buffer(back);
 
 	info->type = swap_type;
-	if (divisor == 0)
-		goto immediate;
+	if (divisor == 0) {
+		DBG(("%s: performing immediate swap\n", __FUNCTION__));
+		if (flip && sna_dri_schedule_flip(sna, draw, info)) {
+			info->old_front =
+				sna_set_screen_pixmap(sna, get_pixmap(back));
+			sna_dri_exchange_buffers(draw, front, back);
+			return TRUE;
+		}
+
+		DBG(("%s: emitting immediate vsync'ed blit, throttling client\n",
+		     __FUNCTION__));
+
+		 info->type = DRI2_SWAP_THROTTLE;
+
+		 vbl.request.type =
+			 DRM_VBLANK_RELATIVE |
+			 DRM_VBLANK_EVENT |
+			 DRM_VBLANK_NEXTONMISS;
+		 if (pipe > 0)
+			 vbl.request.type |= DRM_VBLANK_SECONDARY;
+		 vbl.request.sequence = 0;
+		 vbl.request.signal = (unsigned long)info;
+		 if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
+			 sna_dri_frame_event_info_free(info);
+			 DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
+		 }
+
+		 sna_dri_copy(sna, draw, NULL, front, back, true);
+		 return TRUE;
+	}
 
 	/* Get current count */
 	vbl.request.type = DRM_VBLANK_RELATIVE;
@@ -1057,66 +1088,39 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 * the swap.
 	 */
 	if (current_msc < *target_msc) {
-		DBG(("%s: performing immediate swap: current=%d, target=%d,  divisor=%d\n",
+		DBG(("%s: waiting for swap: current=%d, target=%d,  divisor=%d\n",
 		     __FUNCTION__,
 		     (int)current_msc,
 		     (int)*target_msc,
 		     (int)divisor));
 
-		/* If target_msc already reached or passed, set it to
-		 * current_msc to ensure we return a reasonable value back
-		 * to the caller. This makes swap_interval logic more robust.
-		 */
-		if (current_msc >= *target_msc)
-			*target_msc = current_msc;
-
-immediate:
 		info->frame = *target_msc;
-		if (flip && sna_dri_schedule_flip(sna, draw, info)) {
-			info->old_front =
-				sna_set_screen_pixmap(sna, get_pixmap(back));
-			sna_dri_exchange_buffers(draw, front, back);
-			return TRUE;
-		}
-
-		DBG(("%s: emitting immediate vsync'ed blit, throttling client\n",
-		     __FUNCTION__));
-
-		 info->type = DRI2_SWAP_THROTTLE;
+		info->type = flip ? DRI2_FLIP : DRI2_SWAP;
 
 		 vbl.request.type =
-			 DRM_VBLANK_RELATIVE |
-			 DRM_VBLANK_EVENT |
-			 DRM_VBLANK_NEXTONMISS;
+			 DRM_VBLANK_ABSOLUTE |
+			 DRM_VBLANK_EVENT;
 		 if (pipe > 0)
 			 vbl.request.type |= DRM_VBLANK_SECONDARY;
-		 vbl.request.sequence = 0;
+		 vbl.request.sequence = *target_msc - flip;
 		 vbl.request.signal = (unsigned long)info;
 		 if (drmWaitVBlank(sna->kgem.fd, &vbl))
-			 sna_dri_frame_event_info_free(info);
+			 goto blit_fallback;
 
-		 sna_dri_copy(sna, draw, NULL, front, back, true);
 		 return TRUE;
 	}
-
-	/* Correct target_msc by 'flip' if swap_type == DRI2_FLIP.
-	 * Do it early, so handling of different timing constraints
-	 * for divisor, remainder and msc vs. target_msc works.
-	 */
-	if (flip && *target_msc > 0)
-		--*target_msc;
-
-	DBG(("%s: missed target, queueing event for next: current=%d, target=%d,  divisor=%d\n",
-		     __FUNCTION__,
-		     (int)current_msc,
-		     (int)*target_msc,
-		     (int)divisor));
 
 	/*
 	 * If we get here, target_msc has already passed or we don't have one,
 	 * and we need to queue an event that will satisfy the divisor/remainder
 	 * equation.
 	 */
+	DBG(("%s: missed target, queueing event for next: current=%d, target=%d,  divisor=%d\n",
+		     __FUNCTION__,
+		     (int)current_msc,
+		     (int)*target_msc,
+		     (int)divisor));
+
 	vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 	if (flip == 0)
 		vbl.request.type |= DRM_VBLANK_NEXTONMISS;
@@ -1131,7 +1135,7 @@ immediate:
 	 * when effective onset frame seq could satisfy
 	 * seq % divisor == remainder, so we need to wait for the next time
 	 * this will happen.
-
+	 *
 	 * This comparison takes the 1 frame swap delay in pageflipping mode
 	 * into account, as well as a potential DRM_VBLANK_NEXTONMISS delay
 	 * if we are blitting/exchanging instead of flipping.
@@ -1279,7 +1283,7 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	drmVBlank vbl;
 	int pipe = sna_dri_get_pipe(draw);
 
-	DBG(("%s()\n", __FUNCTION__));
+	DBG(("%s(pipe=%d)\n", __FUNCTION__, pipe));
 
 	/* Drawable not displayed, make up a value */
 	if (pipe == -1) {
@@ -1308,6 +1312,8 @@ sna_dri_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 
 	*ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
 	*msc = vbl.reply.sequence;
+	DBG(("%s: msc=%llu, ust=%llu\n", __FUNCTION__,
+	     (long long)*msc, (long long)*ust));
 	return TRUE;
 }
 
@@ -1321,16 +1327,14 @@ static int
 sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 			   CARD64 divisor, CARD64 remainder)
 {
-	ScreenPtr screen = draw->pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	struct sna *sna = to_sna(scrn);
-	struct sna_dri_frame_event *info;
-	drmVBlank vbl;
+	struct sna *sna = to_sna_from_drawable(draw);
+	struct sna_dri_frame_event *info = NULL;
 	int pipe = sna_dri_get_pipe(draw);
 	CARD64 current_msc;
+	drmVBlank vbl;
 
-	DBG(("%s(target_msc=%llu, divisor=%llu, rem=%llu)\n",
-	     __FUNCTION__,
+	DBG(("%s(pipe=%d, target_msc=%llu, divisor=%llu, rem=%llu)\n",
+	     __FUNCTION__, pipe,
 	     (long long)target_msc,
 	     (long long)divisor,
 	     (long long)remainder));
@@ -1345,15 +1349,6 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (pipe == -1)
 		goto out_complete;
 
-	info = calloc(1, sizeof(struct sna_dri_frame_event));
-	if (!info)
-		goto out_complete;
-
-	info->sna = sna;
-	info->drawable_id = draw->id;
-	info->client = client;
-	info->type = DRI2_WAITMSC;
-
 	/* Get current count */
 	vbl.request.type = DRM_VBLANK_RELATIVE;
 	if (pipe > 0)
@@ -1362,7 +1357,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
 		static int limit = 5;
 		if (limit) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 				   "%s:%d get vblank counter failed: %s\n",
 				   __FUNCTION__, __LINE__,
 				   strerror(errno));
@@ -1373,20 +1368,32 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 
 	current_msc = vbl.reply.sequence;
 
+	/* If target_msc already reached or passed, set it to
+	 * current_msc to ensure we return a reasonable value back
+	 * to the caller. This keeps the client from continually
+	 * sending us MSC targets from the past by forcibly updating
+	 * their count on this call.
+	 */
+	if (divisor == 0 && current_msc >= target_msc) {
+		target_msc = current_msc;
+		goto out_complete;
+	}
+
+	info = calloc(1, sizeof(struct sna_dri_frame_event));
+	if (!info)
+		goto out_complete;
+
+	info->sna = sna;
+	info->drawable_id = draw->id;
+	info->client = client;
+	info->type = DRI2_WAITMSC;
+
 	/*
 	 * If divisor is zero, or current_msc is smaller than target_msc,
-	 * we just need to make sure target_msc passes  before waking up the
+	 * we just need to make sure target_msc passes before waking up the
 	 * client.
 	 */
 	if (divisor == 0 || current_msc < target_msc) {
-		/* If target_msc already reached or passed, set it to
-		 * current_msc to ensure we return a reasonable value back
-		 * to the caller. This keeps the client from continually
-		 * sending us MSC targets from the past by forcibly updating
-		 * their count on this call.
-		 */
-		if (current_msc >= target_msc)
-			target_msc = current_msc;
 		vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 		if (pipe > 0)
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
@@ -1395,7 +1402,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 		if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
 			static int limit = 5;
 			if (limit) {
-				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 					   "%s:%d get vblank counter failed: %s\n",
 					   __FUNCTION__, __LINE__,
 					   strerror(errno));
@@ -1432,7 +1439,7 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (drmWaitVBlank(sna->kgem.fd, &vbl)) {
 		static int limit = 5;
 		if (limit) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
 				   "%s:%d get vblank counter failed: %s\n",
 				   __FUNCTION__, __LINE__,
 				   strerror(errno));
@@ -1443,10 +1450,10 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 
 	info->frame = vbl.reply.sequence;
 	DRI2BlockClient(client, draw);
-
 	return TRUE;
 
 out_complete:
+	free(info);
 	DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
 	return TRUE;
 }
