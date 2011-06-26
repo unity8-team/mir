@@ -1221,7 +1221,7 @@ static int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo)
 	int size;
 
 	assert(bo->tiling);
-	assert(kgem->gem < 40);
+	assert(kgem->gen < 40);
 
 	if (kgem->gen < 30)
 		size = 512 * 1024;
