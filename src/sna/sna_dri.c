@@ -1490,7 +1490,7 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 
 	if (sna->kgem.wedged) {
 		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-			   "cannot enable DRI2 whilst forcing software fallbacks\n");
+			   "cannot enable DRI2 whilst the GPU is wedged\n");
 		return FALSE;
 	}
 
