@@ -1643,7 +1643,7 @@ gen5_render_video(struct sna *sna,
 	tmp.dst.bo = priv->gpu_bo;
 
 	tmp.src.filter = SAMPLER_FILTER_BILINEAR;
-	tmp.src.repeat = SAMPLER_EXTEND_NONE;
+	tmp.src.repeat = SAMPLER_EXTEND_PAD;
 	tmp.u.gen5.wm_kernel =
 		is_planar_fourcc(frame->id) ? WM_KERNEL_VIDEO_PLANAR : WM_KERNEL_VIDEO_PACKED;
 	tmp.u.gen5.ve_id = 1;

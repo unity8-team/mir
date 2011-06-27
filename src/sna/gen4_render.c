@@ -1631,7 +1631,7 @@ gen4_render_video(struct sna *sna,
 	tmp.dst.bo = priv->gpu_bo;
 
 	tmp.src.filter = SAMPLER_FILTER_BILINEAR;
-	tmp.src.repeat = SAMPLER_EXTEND_NONE;
+	tmp.src.repeat = SAMPLER_EXTEND_PAD;
 	tmp.u.gen4.wm_kernel =
 		is_planar_fourcc(frame->id) ? WM_KERNEL_VIDEO_PLANAR : WM_KERNEL_VIDEO_PACKED;
 	tmp.is_affine = TRUE;

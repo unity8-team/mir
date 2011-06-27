@@ -1824,7 +1824,7 @@ gen6_render_video(struct sna *sna,
 	tmp.dst.bo = priv->gpu_bo;
 
 	tmp.src.filter = SAMPLER_FILTER_BILINEAR;
-	tmp.src.repeat = SAMPLER_EXTEND_NONE;
+	tmp.src.repeat = SAMPLER_EXTEND_PAD;
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
