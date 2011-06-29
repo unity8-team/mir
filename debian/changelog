@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.15.0-3ubuntu2) oneiric; urgency=low
+
+  [ Sameer Morar ]
+  * Add 121_fdo-28798-fix.patch: Remove the use of the 3D pipeline for
+    UXA core rendering. This fixes incorrect rendering in some UI
+    elements (LP: #803012).
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Wed, 29 Jun 2011 14:53:37 +0300
+
 xserver-xorg-video-intel (2:2.15.0-3ubuntu1) oneiric; urgency=low
 
   [ Timo Aaltonen ]
