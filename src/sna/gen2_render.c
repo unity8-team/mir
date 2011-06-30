@@ -161,7 +161,7 @@ gen2_get_card_format(struct sna *sna, uint32_t format)
 		if (i8xx_tex_formats[i].fmt == format)
 			return i8xx_tex_formats[i].card_fmt;
 
-	if (IS_I830(sna) || IS_845G(sna)) {
+	if (sna->kgem.gen < 21) {
 		/* Whilst these are not directly supported on 830/845,
 		 * we only enable them when we can implicitly convert
 		 * them to a supported variant through the texture
@@ -969,7 +969,7 @@ gen2_check_card_format(struct sna *sna,
 
 	for (i = 0; i < ARRAY_SIZE(i85x_tex_formats); i++) {
 		if (i85x_tex_formats[i].fmt == format) {
-			if (!(IS_I830(sna) || IS_845G(sna)))
+			if (sna->kgem.gen >= 21)
 				return TRUE;
 
 			if ( source_is_covered(picture, x, y, w,h)) {

@@ -196,7 +196,7 @@ sna_video_frame_init(struct sna *sna,
 			 * stride must be at least 512 bytes. Take the easy fix
 			 * and align on 512 bytes unconditionally. */
 			align = 512;
-		else if (IS_I830(sna) || IS_845G(sna))
+		else if (sna->kgem.gen < 21)
 			/* Harsh, errata on these chipsets limit the stride
 			 * to be a multiple of 256 bytes.
 			 */

@@ -540,7 +540,7 @@ sna_video_overlay_query_video_attributes(ScrnInfoPtr scrn,
 
 	DBG(("%s: w is %d, h is %d\n", __FUNCTION__, *w, *h));
 
-	if (IS_845G(sna) || IS_I830(sna)) {
+	if (sna->kgem.gen < 21) {
 		if (*w > IMAGE_MAX_WIDTH_LEGACY)
 			*w = IMAGE_MAX_WIDTH_LEGACY;
 		if (*h > IMAGE_MAX_HEIGHT_LEGACY)
@@ -651,7 +651,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	adaptor->nEncodings = 1;
 	adaptor->pEncodings = xnfalloc(sizeof(DummyEncoding));
 	memcpy(adaptor->pEncodings, DummyEncoding, sizeof(DummyEncoding));
-	if (IS_845G(sna) || IS_I830(sna)) {
+	if (sna->kgem.gen < 21) {
 		adaptor->pEncodings->width = IMAGE_MAX_WIDTH_LEGACY;
 		adaptor->pEncodings->height = IMAGE_MAX_HEIGHT_LEGACY;
 	}

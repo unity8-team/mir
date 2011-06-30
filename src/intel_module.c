@@ -46,8 +46,17 @@ static const struct intel_device_info intel_i81x_info = {
 	.gen = 10,
 };
 
-static const struct intel_device_info intel_i8xx_info = {
+static const struct intel_device_info intel_i830_info = {
 	.gen = 20,
+};
+static const struct intel_device_info intel_i845_info = {
+	.gen = 20,
+};
+static const struct intel_device_info intel_i855_info = {
+	.gen = 21,
+};
+static const struct intel_device_info intel_i865_info = {
+	.gen = 21,
 };
 
 static const struct intel_device_info intel_i915_info = {
@@ -142,11 +151,11 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_DEVICE_MATCH (PCI_CHIP_I810_E, &intel_i81x_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_I815, &intel_i81x_info ),
 
-	INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, &intel_i8xx_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_845_G, &intel_i8xx_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_I854, &intel_i8xx_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_I855_GM, &intel_i8xx_info ),
-	INTEL_DEVICE_MATCH (PCI_CHIP_I865_G, &intel_i8xx_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, &intel_i830_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_845_G, &intel_i845_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I854, &intel_i855_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I855_GM, &intel_i855_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I865_G, &intel_i865_info ),
 
 	INTEL_DEVICE_MATCH (PCI_CHIP_I915_G, &intel_i915_info ),
 	INTEL_DEVICE_MATCH (PCI_CHIP_E7221_G, &intel_i915_info ),
