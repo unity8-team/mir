@@ -293,9 +293,9 @@ static struct list *inactive(struct kgem *kgem,
 }
 
 static size_t
-agp_aperture_size(struct pci_device *dev)
+agp_aperture_size(struct pci_device *dev, int gen)
 {
-	return dev->regions[2].size;
+	return dev->regions[gen < 30 ? 0 :2].size;
 }
 
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
@@ -358,12 +358,15 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->aperture_high = aperture.aper_size * 3/4;
 	kgem->aperture_low = aperture.aper_size * 1/4;
-	DBG(("%s: aperture low=%d, high=%d\n", __FUNCTION__,
-	     kgem->aperture_low, kgem->aperture_high));
+	DBG(("%s: aperture low=%d [%d], high=%d [%d]\n", __FUNCTION__,
+	     kgem->aperture_low, kgem->aperture_low / (1024*1024),
+	     kgem->aperture_high, kgem->aperture_high / (1024*1024)));
 
-	kgem->aperture_mappable = agp_aperture_size(dev);
+	kgem->aperture_mappable = agp_aperture_size(dev, gen);
 	if (kgem->aperture_mappable == 0)
 		kgem->aperture_mappable = aperture.aper_size;
+	DBG(("%s: aperture mappable=%d [%d]\n", __FUNCTION__,
+	     kgem->aperture_mappable, kgem->aperture_mappable / (1024*1024)));
 
 	i = 8;
 	gp.param = I915_PARAM_NUM_FENCES_AVAIL;
