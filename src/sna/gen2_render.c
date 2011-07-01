@@ -325,6 +325,7 @@ gen2_emit_texture(struct sna *sna,
 
 static void
 gen2_get_blend_factors(const struct sna_composite_op *op,
+		       int blend,
 		       uint32_t *c_out,
 		       uint32_t *a_out)
 {
@@ -348,7 +349,7 @@ gen2_get_blend_factors(const struct sna_composite_op *op,
 
 
 	/* Get the source picture's channels into TBx_ARG1 */
-	if ((op->has_component_alpha && gen2_blend_op[op->op].src_alpha) ||
+	if ((op->has_component_alpha && gen2_blend_op[blend].src_alpha) ||
 	    op->dst.format == PICT_a8) {
 		/* Producing source alpha value, so the first set of channels
 		 * is src.A instead of src.X.  We also do this if the destination
@@ -626,7 +627,7 @@ static void gen2_emit_composite_state(struct sna *sna,
 
 	gen2_disable_logic_op(sna);
 
-	gen2_get_blend_factors(op, &cblend, &ablend);
+	gen2_get_blend_factors(op, op->op, &cblend, &ablend);
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
 	OUT_BATCH(cblend);
@@ -839,7 +840,7 @@ static void gen2_magic_ca_pass(struct sna *sna,
 		  gen2_get_blend_cntl(PictOpAdd, TRUE, op->dst.format) |
 		  S8_ENABLE_COLOR_BUFFER_WRITE);
 
-	gen2_get_blend_factors(op, &cblend, &ablend);
+	gen2_get_blend_factors(op, PictOpAdd, &cblend, &ablend);
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
 	OUT_BATCH(cblend);
