@@ -355,28 +355,43 @@ gen2_get_blend_factors(const struct sna_composite_op *op,
 		 * is a8, in which case src.G is what's written, and the other
 		 * channels are ignored.
 		 */
-		ablend |= TB0A_ARG1_SEL_TEXEL0;
-		cblend |= TB0C_ARG1_SEL_TEXEL0 | TB0C_ARG1_REPLICATE_ALPHA;
+		if (op->src.is_solid) {
+			ablend |= TB0A_ARG1_SEL_DIFFUSE;
+			cblend |= TB0C_ARG1_SEL_DIFFUSE | TB0C_ARG1_REPLICATE_ALPHA;
+		} else {
+			ablend |= TB0A_ARG1_SEL_TEXEL0;
+			cblend |= TB0C_ARG1_SEL_TEXEL0 | TB0C_ARG1_REPLICATE_ALPHA;
+		}
 	} else {
-		if (PICT_FORMAT_RGB(op->src.pict_format) != 0)
+		if (op->src.is_solid)
+			cblend |= TB0C_ARG1_SEL_DIFFUSE;
+		else if (PICT_FORMAT_RGB(op->src.pict_format) != 0)
 			cblend |= TB0C_ARG1_SEL_TEXEL0;
 		else
 			cblend |= TB0C_ARG1_SEL_ONE | TB0C_ARG1_INVERT;	/* 0.0 */
-		if (op->src.is_opaque)
+		if (op->src.is_solid)
+			ablend |= TB0A_ARG1_SEL_DIFFUSE;
+		else if (op->src.is_opaque)
 			ablend |= TB0A_ARG1_SEL_ONE;
 		else
 			ablend |= TB0A_ARG1_SEL_TEXEL0;
 	}
 
 	if (op->mask.bo) {
-		cblend |= TB0C_OP_MODULATE;
-		cblend |= TB0C_ARG2_SEL_TEXEL1;
+		if (op->src.is_solid) {
+			cblend |= TB0C_ARG2_SEL_TEXEL0;
+			ablend |= TB0A_ARG2_SEL_TEXEL0;
+		} else {
+			cblend |= TB0C_ARG2_SEL_TEXEL1;
+			ablend |= TB0A_ARG2_SEL_TEXEL1;
+		}
+
 		if (op->dst.format == PICT_a8 ||
 		    !op->has_component_alpha ||
 		    PICT_FORMAT_RGB(op->mask.pict_format) == 0)
 			cblend |= TB0C_ARG2_REPLICATE_ALPHA;
 
-		ablend |= TB0A_ARG2_SEL_TEXEL1;
+		cblend |= TB0C_OP_MODULATE;
 		ablend |= TB0A_OP_MODULATE;
 	} else {
 		cblend |= TB0C_OP_ARG1;
@@ -594,13 +609,14 @@ static void gen2_emit_composite_state(struct sna *sna,
 {
 	uint32_t texcoordfmt;
 	uint32_t cblend, ablend;
+	int tex;
 
 	gen2_get_batch(sna, op);
 	gen2_emit_target(sna, op);
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
-	OUT_BATCH((1 + (op->mask.bo != NULL)) << 12);
+	OUT_BATCH((!op->src.is_solid + (op->mask.bo != NULL)) << 12);
 	OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
 	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |
 		  gen2_get_blend_cntl(op->op,
@@ -616,22 +632,25 @@ static void gen2_emit_composite_state(struct sna *sna,
 	OUT_BATCH(cblend);
 	OUT_BATCH(ablend);
 
-	texcoordfmt = 0;
-	if (op->src.is_affine)
-		texcoordfmt |= TEXCOORDFMT_2D << 0;
-	else
-		texcoordfmt |= TEXCOORDFMT_3D << 0;
+	tex = texcoordfmt = 0;
+	if (!op->src.is_solid) {
+		if (op->src.is_affine)
+			texcoordfmt |= TEXCOORDFMT_2D << (2*tex);
+		else
+			texcoordfmt |= TEXCOORDFMT_3D << (2*tex);
+		gen2_emit_texture(sna, &op->src, tex++);
+	} else {
+		OUT_BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
+		OUT_BATCH(op->src.u.gen2.pixel);
+	}
 	if (op->mask.bo) {
 		if (op->mask.is_affine)
-			texcoordfmt |= TEXCOORDFMT_2D << 2;
+			texcoordfmt |= TEXCOORDFMT_2D << (2*tex);
 		else
-			texcoordfmt |= TEXCOORDFMT_3D << 2;
+			texcoordfmt |= TEXCOORDFMT_3D << (2*tex);
+		gen2_emit_texture(sna, &op->mask, tex++);
 	}
 	OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD | texcoordfmt);
-
-	gen2_emit_texture(sna, &op->src, 0);
-	if (op->mask.bo)
-		gen2_emit_texture(sna, &op->mask, 1);
 }
 
 static inline void
@@ -675,34 +694,136 @@ gen2_emit_composite_vertex(struct sna *sna,
 			   int16_t dstX, int16_t dstY)
 {
 	gen2_emit_composite_dstcoord(sna, dstX, dstY);
-	gen2_emit_composite_texcoord(sna, &op->src, srcX, srcY);
+	if (!op->src.is_solid)
+		gen2_emit_composite_texcoord(sna, &op->src, srcX, srcY);
 	if (op->mask.bo)
 		gen2_emit_composite_texcoord(sna, &op->mask, mskX, mskY);
 }
 
-static void
+fastcall static void
 gen2_emit_composite_primitive(struct sna *sna,
 			      const struct sna_composite_op *op,
-			      int16_t srcX, int16_t srcY,
-			      int16_t mskX, int16_t mskY,
-			      int16_t dstX, int16_t dstY,
-			      int16_t w, int16_t h)
+			      const struct sna_composite_rectangles *r)
 {
-	dstX += op->dst.x;
-	dstY += op->dst.y;
+	gen2_emit_composite_vertex(sna, op,
+				   r->src.x + r->width,
+				   r->src.y + r->height,
+				   r->mask.x + r->width,
+				   r->mask.y + r->height,
+				   op->dst.x + r->dst.x + r->width,
+				   op->dst.y + r->dst.y + r->height);
+	gen2_emit_composite_vertex(sna, op,
+				   r->src.x,
+				   r->src.y + r->height,
+				   r->mask.x,
+				   r->mask.y + r->height,
+				   op->dst.x + r->dst.x,
+				   op->dst.y + r->dst.y + r->height);
+	gen2_emit_composite_vertex(sna, op,
+				   r->src.x,
+				   r->src.y,
+				   r->mask.x,
+				   r->mask.y,
+				   op->dst.x + r->dst.x,
+				   op->dst.y + r->dst.y);
+}
 
-	gen2_emit_composite_vertex(sna, op,
-				   srcX + w, srcY + h,
-				   mskX + w, mskY + h,
-				   dstX + w, dstY + h);
-	gen2_emit_composite_vertex(sna, op,
-				   srcX, srcY + h,
-				   mskX, mskY + h,
-				   dstX, dstY + h);
-	gen2_emit_composite_vertex(sna, op,
-				   srcX, srcY,
-				   mskX, mskY,
-				   dstX, dstY);
+fastcall static void
+gen2_emit_composite_primitive_constant(struct sna *sna,
+				       const struct sna_composite_op *op,
+				       const struct sna_composite_rectangles *r)
+{
+	int16_t dst_x = r->dst.x + op->dst.x;
+	int16_t dst_y = r->dst.y + op->dst.y;
+
+	gen2_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
+	gen2_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
+	gen2_emit_composite_dstcoord(sna, dst_x, dst_y);
+}
+
+fastcall static void
+gen2_emit_composite_primitive_identity(struct sna *sna,
+				       const struct sna_composite_op *op,
+				       const struct sna_composite_rectangles *r)
+{
+	float w = r->width;
+	float h = r->height;
+	float *v;
+
+	v = (float *)sna->kgem.batch + sna->kgem.nbatch;
+	sna->kgem.nbatch += 12;
+
+	v[8] = v[4] = r->dst.x + op->dst.x;
+	v[0] = v[4] + w;
+
+	v[9] = r->dst.y + op->dst.y;
+	v[5] = v[1] = v[9] + h;
+
+	v[10] = v[6] = (r->src.x + op->src.offset[0]) * op->src.scale[0];
+	v[2] = v[6] + w * op->src.scale[0];
+
+	v[11] = (r->src.y + op->src.offset[1]) * op->src.scale[1];
+	v[7] = v[3] = v[11] + h * op->src.scale[1];
+}
+
+fastcall static void
+gen2_emit_composite_primitive_affine(struct sna *sna,
+				     const struct sna_composite_op *op,
+				     const struct sna_composite_rectangles *r)
+{
+	PictTransform *transform = op->src.transform;
+	int16_t dst_x = r->dst.x + op->dst.x;
+	int16_t dst_y = r->dst.y + op->dst.y;
+	int src_x = r->src.x + (int)op->src.offset[0];
+	int src_y = r->src.y + (int)op->src.offset[1];
+	float sx, sy;
+
+	_sna_get_transformed_coordinates(src_x + r->width, src_y + r->height,
+					 transform,
+					 &sx, &sy);
+
+	gen2_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
+	OUT_VERTEX(sx * op->src.scale[0]);
+	OUT_VERTEX(sy * op->src.scale[1]);
+
+	_sna_get_transformed_coordinates(src_x, src_y + r->height,
+					 transform,
+					 &sx, &sy);
+	gen2_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
+	OUT_VERTEX(sx * op->src.scale[0]);
+	OUT_VERTEX(sy * op->src.scale[1]);
+
+	_sna_get_transformed_coordinates(src_x, src_y,
+					 transform,
+					 &sx, &sy);
+	gen2_emit_composite_dstcoord(sna, dst_x, dst_y);
+	OUT_VERTEX(sx * op->src.scale[0]);
+	OUT_VERTEX(sy * op->src.scale[1]);
+}
+
+fastcall static void
+gen2_emit_composite_primitive_constant_identity_mask(struct sna *sna,
+						     const struct sna_composite_op *op,
+						     const struct sna_composite_rectangles *r)
+{
+	float w = r->width;
+	float h = r->height;
+	float *v;
+
+	v = (float *)sna->kgem.batch + sna->kgem.nbatch;
+	sna->kgem.nbatch += 12;
+
+	v[8] = v[4] = r->dst.x + op->dst.x;
+	v[0] = v[4] + w;
+
+	v[9] = r->dst.y + op->dst.y;
+	v[5] = v[1] = v[9] + h;
+
+	v[10] = v[6] = (r->mask.x + op->mask.offset[0]) * op->mask.scale[0];
+	v[2] = v[6] + w * op->mask.scale[0];
+
+	v[11] = (r->mask.y + op->mask.offset[1]) * op->mask.scale[1];
+	v[7] = v[3] = v[11] + h * op->mask.scale[1];
 }
 
 static void gen2_magic_ca_pass(struct sna *sna,
@@ -790,11 +911,7 @@ gen2_render_composite_blt(struct sna *sna,
 		gen2_get_rectangles(sna, op, 1);
 	}
 
-	gen2_emit_composite_primitive(sna, op,
-				      r->src.x, r->src.y,
-				      r->mask.x, r->mask.y,
-				      r->dst.x, r->dst.y,
-				      r->width, r->height);
+	op->prim_emit(sna, op, r);
 }
 
 static void
@@ -813,12 +930,19 @@ gen2_render_composite_boxes(struct sna *sna,
 		nbox -= nbox_this_time;
 
 		do {
-			gen2_emit_composite_primitive(sna, op,
-						      box->x1, box->y1,
-						      box->x1, box->y1,
-						      box->x1, box->y1,
-						      box->x2 - box->x1,
-						      box->y2 - box->y1);
+			struct sna_composite_rectangles r;
+
+			DBG(("  %s: (%d, %d) x (%d, %d)\n", __FUNCTION__,
+			     box->x1, box->y1,
+			     box->x2 - box->x1,
+			     box->y2 - box->y1));
+
+			r.dst.x  = box->x1; r.dst.y  = box->y1;
+			r.width = box->x2 - box->x1;
+			r.height = box->y2 - box->y1;
+			r.src = r.mask = r.dst;
+
+			op->prim_emit(sna, op, &r);
 			box++;
 		} while (--nbox_this_time);
 	} while (nbox);
@@ -1099,8 +1223,6 @@ gen2_render_composite(struct sna *sna,
 					    width,  height,
 					    tmp);
 
-	memset(&tmp->u.gen2, 0, sizeof(tmp->u.gen2));
-
 	if (!gen2_composite_set_target(sna, tmp, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
@@ -1159,10 +1281,25 @@ gen2_render_composite(struct sna *sna,
 	}
 
 	tmp->floats_per_vertex = 2;
-	if (tmp->src.bo)
+	if (!tmp->src.is_solid)
 		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 3;
 	if (tmp->mask.bo)
 		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 3;
+
+	tmp->prim_emit = gen2_emit_composite_primitive;
+	if (tmp->mask.bo) {
+		if (tmp->mask.transform == NULL) {
+			if (tmp->src.is_solid)
+				tmp->prim_emit = gen2_emit_composite_primitive_constant_identity_mask;
+		}
+	} else {
+		if (tmp->src.is_solid)
+			tmp->prim_emit = gen2_emit_composite_primitive_constant;
+		else if (tmp->src.transform == NULL)
+			tmp->prim_emit = gen2_emit_composite_primitive_identity;
+		else if (tmp->src.is_affine)
+			tmp->prim_emit = gen2_emit_composite_primitive_affine;
+	}
 
 	tmp->blt   = gen2_render_composite_blt;
 	tmp->boxes = gen2_render_composite_boxes;
