@@ -936,6 +936,7 @@ gen2_composite_solid_init(struct sna *sna,
 	channel->pict_format = PICT_a8r8g8b8;
 
 	channel->bo = sna_render_get_solid(sna, color);
+	channel->u.gen2.pixel = color;
 
 	channel->scale[0]  = channel->scale[1]  = 1;
 	channel->offset[0] = channel->offset[1] = 0;
@@ -1282,6 +1283,101 @@ cleanup_dst:
 }
 
 static void
+gen2_emit_composite_spans_primitive_constant(struct sna *sna,
+					     const struct sna_composite_spans_op *op,
+					     const BoxRec *box,
+					     float opacity)
+{
+	float *v = (float *)sna->kgem.batch + sna->kgem.nbatch;
+	uint32_t alpha = (uint8_t)(255 * opacity) << 24;
+	sna->kgem.nbatch += 9;
+
+	v[0] = op->base.dst.x + box->x2;
+	v[1] = op->base.dst.y + box->y2;
+	*((uint32_t *)v + 2) = alpha;
+
+	v[3] = op->base.dst.x + box->x1;
+	v[4] = v[1];
+	*((uint32_t *)v + 5) = alpha;
+
+	v[6] = v[3];
+	v[7] = op->base.dst.y + box->y1;
+	*((uint32_t *)v + 8) = alpha;
+}
+
+static void
+gen2_emit_composite_spans_primitive_identity_source(struct sna *sna,
+						    const struct sna_composite_spans_op *op,
+						    const BoxRec *box,
+						    float opacity)
+{
+	float *v = (float *)sna->kgem.batch + sna->kgem.nbatch;
+	uint32_t alpha = (uint8_t)(255 * opacity) << 24;
+	sna->kgem.nbatch += 15;
+
+	v[0] = op->base.dst.x + box->x2;
+	v[1] = op->base.dst.y + box->y2;
+	*((uint32_t *)v + 2) = alpha;
+	v[3] = (op->base.src.offset[0] + box->x2) * op->base.src.scale[0];
+	v[4] = (op->base.src.offset[1] + box->y2) * op->base.src.scale[1];
+
+	v[5] = op->base.dst.x + box->x1;
+	v[6] = v[1];
+	*((uint32_t *)v + 7) = alpha;
+	v[8] = (op->base.src.offset[0] + box->x1) * op->base.src.scale[0];
+	v[9] = v[4];
+
+	v[10] = v[5];
+	v[11] = op->base.dst.y + box->y1;
+	*((uint32_t *)v + 12) = alpha;
+	v[13] = v[8];
+	v[14] = (op->base.src.offset[1] + box->y1) * op->base.src.scale[1];
+}
+
+static void
+gen2_emit_composite_spans_primitive_affine_source(struct sna *sna,
+						  const struct sna_composite_spans_op *op,
+						  const BoxRec *box,
+						  float opacity)
+{
+	PictTransform *transform = op->base.src.transform;
+	uint32_t alpha = (uint8_t)(255 * opacity) << 24;
+	float x, y, *v;
+       
+	v = (float *)sna->kgem.batch + sna->kgem.nbatch;
+	sna->kgem.nbatch += 15;
+
+	v[0]  = op->base.dst.x + box->x2;
+	v[6]  = v[1] = op->base.dst.y + box->y2;
+	v[10] = v[5] = op->base.dst.x + box->x1;
+	v[11] = op->base.dst.y + box->y1;
+	*((uint32_t *)v + 2) = alpha;
+	*((uint32_t *)v + 7) = alpha;
+	*((uint32_t *)v + 12) = alpha;
+
+	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x2,
+					 (int)op->base.src.offset[1] + box->y2,
+					 transform,
+					 &x, &y);
+	v[3] = x * op->base.src.scale[0];
+	v[4] = y * op->base.src.scale[1];
+
+	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x1,
+					 (int)op->base.src.offset[1] + box->y2,
+					 transform,
+					 &x, &y);
+	v[8] = x * op->base.src.scale[0];
+	v[9] = y * op->base.src.scale[1];
+
+	_sna_get_transformed_coordinates((int)op->base.src.offset[0] + box->x1,
+					 (int)op->base.src.offset[1] + box->y1,
+					 transform,
+					 &x, &y);
+	v[13] = x * op->base.src.scale[0];
+	v[14] = y * op->base.src.scale[1];
+}
+
+static void
 gen2_emit_composite_spans_vertex(struct sna *sna,
 				 const struct sna_composite_spans_op *op,
 				 int16_t x, int16_t y,
@@ -1318,9 +1414,14 @@ gen2_emit_spans_pipeline(struct sna *sna,
 		TB0A_ARG1_SEL_DIFFUSE |
 		TB0A_OUTPUT_WRITE_CURRENT;
 
-	if (op->base.dst.format == PICT_a8) {
+	if (op->base.src.is_solid) {
+		ablend |= TB0A_ARG2_SEL_SPECULAR;
+		cblend |= TB0C_ARG2_SEL_SPECULAR;
+		if (op->base.dst.format == PICT_a8)
+			cblend |= TB0C_ARG2_REPLICATE_ALPHA;
+	} else if (op->base.dst.format == PICT_a8) {
 		ablend |= TB0A_ARG2_SEL_TEXEL0;
-		cblend |= TB0C_ARG2_SEL_TEXEL0 | TB0C_ARG2_REPLICATE_ALPHA;;
+		cblend |= TB0C_ARG2_SEL_TEXEL0 | TB0C_ARG2_REPLICATE_ALPHA;
 	} else {
 		if (PICT_FORMAT_RGB(op->base.src.pict_format) != 0)
 			cblend |= TB0C_ARG2_SEL_TEXEL0;
@@ -1347,18 +1448,23 @@ static void gen2_emit_composite_spans_state(struct sna *sna,
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
-	OUT_BATCH(1 << 12);
+	OUT_BATCH(!op->base.src.is_solid << 12);
 	OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY | S3_DIFFUSE_PRESENT);
 	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |
 		  gen2_get_blend_cntl(op->base.op, FALSE, op->base.dst.format) |
 		  S8_ENABLE_COLOR_BUFFER_WRITE);
 
+	gen2_disable_logic_op(sna);
 	gen2_emit_spans_pipeline(sna, op);
 
-	OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD |
-		  (op->base.src.is_affine ? TEXCOORDFMT_2D : TEXCOORDFMT_3D));
-
-	gen2_emit_texture(sna, &op->base.src, 0);
+	if (op->base.src.is_solid) {
+		OUT_BATCH(_3DSTATE_DFLT_SPECULAR_CMD);
+		OUT_BATCH(op->base.src.u.gen2.pixel);
+	} else {
+		OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD |
+			  (op->base.src.is_affine ? TEXCOORDFMT_2D : TEXCOORDFMT_3D));
+		gen2_emit_texture(sna, &op->base.src, 0);
+	}
 }
 
 static void
@@ -1469,8 +1575,27 @@ gen2_render_composite_spans(struct sna *sna,
 
 	tmp->prim_emit = gen2_emit_composite_spans_primitive;
 	tmp->base.floats_per_vertex = 3;
-	if (tmp->base.src.bo)
+	if (tmp->base.src.is_solid) {
+		tmp->prim_emit = gen2_emit_composite_spans_primitive_constant;
+	} else {
+		assert(tmp->base.src.bo);
 		tmp->base.floats_per_vertex += tmp->base.src.is_affine ? 2 : 3;
+		if (tmp->base.src.transform == NULL)
+			tmp->prim_emit = gen2_emit_composite_spans_primitive_identity_source;
+		else if (tmp->base.src.is_affine)
+			tmp->prim_emit = gen2_emit_composite_spans_primitive_affine_source;
+
+		if (kgem_bo_is_dirty(tmp->base.src.bo)) {
+			if (tmp->base.src.bo == tmp->base.dst.bo) {
+				kgem_emit_flush(&sna->kgem);
+			} else {
+				OUT_BATCH(_3DSTATE_MODES_5_CMD |
+					  PIPELINE_FLUSH_RENDER_CACHE |
+					  PIPELINE_FLUSH_TEXTURE_CACHE);
+				kgem_clear_dirty(&sna->kgem);
+			}
+		}
+	}
 
 	tmp->boxes = gen2_render_composite_spans_boxes;
 	tmp->done  = gen2_render_composite_spans_done;
@@ -1479,17 +1604,6 @@ gen2_render_composite_spans(struct sna *sna,
 		kgem_submit(&sna->kgem);
 	if (!kgem_check_bo(&sna->kgem, tmp->base.src.bo))
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(tmp->base.src.bo)) {
-		if (tmp->base.src.bo == tmp->base.dst.bo) {
-			kgem_emit_flush(&sna->kgem);
-		} else {
-			OUT_BATCH(_3DSTATE_MODES_5_CMD |
-				  PIPELINE_FLUSH_RENDER_CACHE |
-				  PIPELINE_FLUSH_TEXTURE_CACHE);
-			kgem_clear_dirty(&sna->kgem);
-		}
-	}
 
 	gen2_emit_composite_spans_state(sna, tmp);
 	return TRUE;

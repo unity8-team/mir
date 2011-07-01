@@ -80,7 +80,7 @@
 
 #define _3DSTATE_DFLT_DIFFUSE_CMD	(CMD_3D | (0x1d<<24) | (0x99<<16))
 
-#define _3DSTATE_DFLT_SPEC_CMD		(CMD_3D | (0x1d<<24) | (0x9a<<16))
+#define _3DSTATE_DFLT_SPECULAR_CMD	(CMD_3D | (0x1d<<24) | (0x9a<<16))
 
 #define _3DSTATE_DFLT_Z_CMD		(CMD_3D | (0x1d<<24) | (0x98<<16))
 
@@ -745,6 +745,8 @@
 #define TB0C_ARG2_REPLICATE_ALPHA	(1<<17)
 #define TB0C_ARG2_INVERT		(1<<16)
 #define TB0C_ARG2_SEL_ONE		(0 << 12)
+#define TB0C_ARG2_SEL_DIFFUSE		(3 << 12)
+#define TB0C_ARG2_SEL_SPECULAR		(4 << 12)
 #define TB0C_ARG2_SEL_FACTOR		(1 << 12)
 #define TB0C_ARG2_SEL_TEXEL0		(6 << 12)
 #define TB0C_ARG2_SEL_TEXEL1		(7 << 12)
@@ -754,6 +756,7 @@
 #define TB0C_ARG1_INVERT		(1<<10)
 #define TB0C_ARG1_SEL_ONE		(0 << 6)
 #define TB0C_ARG1_SEL_DIFFUSE		(3 << 6)
+#define TB0C_ARG1_SEL_SPECULAR		(4 << 6)
 #define TB0C_ARG1_SEL_TEXEL0		(6 << 6)
 #define TB0C_ARG1_SEL_TEXEL1		(7 << 6)
 #define TB0C_ARG1_SEL_TEXEL2		(8 << 6)
@@ -775,6 +778,7 @@
 #define TB0A_ARG2_INVERT		(1<<16)
 #define TB0A_ARG2_SEL_ONE		(0 << 12)
 #define TB0A_ARG2_SEL_DIFFUSE		(3 << 12)
+#define TB0A_ARG2_SEL_SPECULAR		(4 << 12)
 #define TB0A_ARG2_SEL_TEXEL0		(6 << 12)
 #define TB0A_ARG2_SEL_TEXEL1		(7 << 12)
 #define TB0A_ARG2_SEL_TEXEL2		(8 << 12)
@@ -782,6 +786,7 @@
 #define TB0A_ARG1_INVERT		(1<<10)
 #define TB0A_ARG1_SEL_ONE		(0 << 6)
 #define TB0A_ARG1_SEL_DIFFUSE		(3 << 6)
+#define TB0A_ARG1_SEL_SPECULAR		(4 << 6)
 #define TB0A_ARG1_SEL_TEXEL0		(6 << 6)
 #define TB0A_ARG1_SEL_TEXEL1		(7 << 6)
 #define TB0A_ARG1_SEL_TEXEL2		(8 << 6)

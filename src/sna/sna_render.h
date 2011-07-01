@@ -53,11 +53,16 @@ struct sna_composite_op {
 		int16_t offset[2];
 		float scale[2];
 
-		struct gen3_shader_channel {
-			int type;
-			uint32_t mode;
-			uint32_t constants;
-		} gen3;
+		union {
+			struct {
+				uint32_t pixel;
+			} gen2;
+			struct gen3_shader_channel {
+				int type;
+				uint32_t mode;
+				uint32_t constants;
+			} gen3;
+		} u;
 	} src, mask;
 	uint32_t is_affine : 1;
 	uint32_t has_component_alpha : 1;

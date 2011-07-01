@@ -616,7 +616,7 @@ gen3_emit_composite_texcoord(struct sna *sna,
 {
 	float s = 0, t = 0, w = 1;
 
-	switch (channel->gen3.type) {
+	switch (channel->u.gen3.type) {
 	case SHADER_OPACITY:
 	case SHADER_NONE:
 	case SHADER_ZERO:
@@ -701,7 +701,7 @@ gen3_linear_coord(struct sna *sna,
 		  const struct sna_composite_channel *channel,
 		  int in, int out)
 {
-	int c = channel->gen3.constants;
+	int c = channel->u.gen3.constants;
 
 	if (!channel->is_affine) {
 		gen3_2d_perspective(sna, in, FS_U0);
@@ -719,14 +719,14 @@ gen3_radial_coord(struct sna *sna,
 		  const struct sna_composite_channel *channel,
 		  int in, int out)
 {
-	int c = channel->gen3.constants;
+	int c = channel->u.gen3.constants;
 
 	if (!channel->is_affine) {
 		gen3_2d_perspective(sna, in, FS_U0);
 		in = FS_U0;
 	}
 
-	switch (channel->gen3.mode) {
+	switch (channel->u.gen3.mode) {
 	case RADIAL_ONE:
 		/*
 		   pdx = (x - c1x) / dr, pdy = (y - c1y) / dr;
@@ -806,7 +806,7 @@ gen3_composite_emit_shader(struct sna *sna,
 
 	src = &op->src;
 	mask = &op->mask;
-	if (mask->gen3.type == SHADER_NONE)
+	if (mask->u.gen3.type == SHADER_NONE)
 		mask = NULL;
 
 	if (mask && src->is_opaque &&
@@ -816,12 +816,12 @@ gen3_composite_emit_shader(struct sna *sna,
 		mask = NULL;
 	}
 
-	id = (src->gen3.type |
+	id = (src->u.gen3.type |
 	      src->is_affine << 4 |
 	      src->alpha_fixup << 5 |
 	      src->rb_reversed << 6);
 	if (mask) {
-		id |= (mask->gen3.type << 8 |
+		id |= (mask->u.gen3.type << 8 |
 		       mask->is_affine << 12 |
 		       gen3_blend_op[blend].src_alpha << 13 |
 		       op->has_component_alpha << 14 |
@@ -838,7 +838,7 @@ gen3_composite_emit_shader(struct sna *sna,
 
 	shader_offset = sna->kgem.nbatch++;
 	t = 0;
-	switch (src->gen3.type) {
+	switch (src->u.gen3.type) {
 	case SHADER_NONE:
 	case SHADER_OPACITY:
 		assert(0);
@@ -858,7 +858,7 @@ gen3_composite_emit_shader(struct sna *sna,
 	}
 
 	if (mask == NULL) {
-		if (src->gen3.type == SHADER_ZERO) {
+		if (src->u.gen3.type == SHADER_ZERO) {
 			gen3_fs_mov(FS_OC, gen3_fs_operand_zero());
 			goto done;
 		}
@@ -867,13 +867,13 @@ gen3_composite_emit_shader(struct sna *sna,
 			goto done;
 		}
 		/* No mask, so load directly to output color */
-		if (src->gen3.type != SHADER_CONSTANT) {
+		if (src->u.gen3.type != SHADER_CONSTANT) {
 			if (dst_is_alpha || src->rb_reversed ^ op->rb_reversed)
 				src_reg = FS_R0;
 			else
 				src_reg = FS_OC;
 		}
-		switch (src->gen3.type) {
+		switch (src->u.gen3.type) {
 		case SHADER_LINEAR:
 			gen3_linear_coord(sna, src, FS_T0, FS_R0);
 			gen3_fs_texld(src_reg, FS_S0, FS_R0);
@@ -916,7 +916,7 @@ gen3_composite_emit_shader(struct sna *sna,
 		if (op->rb_reversed)
 			out_reg = FS_U0;
 
-		switch (mask->gen3.type) {
+		switch (mask->u.gen3.type) {
 		case SHADER_CONSTANT:
 			gen3_fs_dcl(FS_T9);
 			mask_reg = FS_T9;
@@ -935,7 +935,7 @@ gen3_composite_emit_shader(struct sna *sna,
 		}
 
 		t = 0;
-		switch (src->gen3.type) {
+		switch (src->u.gen3.type) {
 		case SHADER_LINEAR:
 			gen3_linear_coord(sna, src, FS_T0, FS_R0);
 			gen3_fs_texld(FS_R0, FS_S0, FS_R0);
@@ -969,7 +969,7 @@ gen3_composite_emit_shader(struct sna *sna,
 		if (src->rb_reversed)
 			gen3_fs_mov(src_reg, gen3_fs_operand(src_reg, Z, Y, X, W));
 
-		switch (mask->gen3.type) {
+		switch (mask->u.gen3.type) {
 		case SHADER_LINEAR:
 			gen3_linear_coord(sna, mask, FS_T0 + t, FS_R1);
 			gen3_fs_texld(FS_R1, FS_S0 + t, FS_R1);
@@ -1188,17 +1188,17 @@ static void gen3_emit_composite_state(struct sna *sna,
 
 	ss2 = ~0;
 	tex_count = 0;
-	switch (op->src.gen3.type) {
+	switch (op->src.u.gen3.type) {
 	case SHADER_OPACITY:
 	case SHADER_NONE:
 		assert(0);
 	case SHADER_ZERO:
 		break;
 	case SHADER_CONSTANT:
-		if (op->src.gen3.mode != state->last_diffuse) {
+		if (op->src.u.gen3.mode != state->last_diffuse) {
 			OUT_BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
-			OUT_BATCH(op->src.gen3.mode);
-			state->last_diffuse = op->src.gen3.mode;
+			OUT_BATCH(op->src.u.gen3.mode);
+			state->last_diffuse = op->src.u.gen3.mode;
 		}
 		break;
 	case SHADER_LINEAR:
@@ -1223,15 +1223,15 @@ static void gen3_emit_composite_state(struct sna *sna,
 		tex_count++;
 		break;
 	}
-	switch (op->mask.gen3.type) {
+	switch (op->mask.u.gen3.type) {
 	case SHADER_NONE:
 	case SHADER_ZERO:
 		break;
 	case SHADER_CONSTANT:
-		if (op->mask.gen3.mode != state->last_specular) {
+		if (op->mask.u.gen3.mode != state->last_specular) {
 			OUT_BATCH(_3DSTATE_DFLT_SPEC_CMD);
-			OUT_BATCH(op->mask.gen3.mode);
-			state->last_specular = op->mask.gen3.mode;
+			OUT_BATCH(op->mask.u.gen3.mode);
+			state->last_specular = op->mask.u.gen3.mode;
 		}
 		break;
 	case SHADER_LINEAR:
@@ -1731,10 +1731,10 @@ gen3_init_solid(struct sna *sna,
 		struct sna_composite_channel *channel,
 		uint32_t color)
 {
-	channel->gen3.mode = color;
-	channel->gen3.type = SHADER_CONSTANT;
+	channel->u.gen3.mode = color;
+	channel->u.gen3.type = SHADER_CONSTANT;
 	if (color == 0)
-		channel->gen3.type = SHADER_ZERO;
+		channel->u.gen3.type = SHADER_ZERO;
 	if ((color & 0xff000000) == 0xff000000)
 		channel->is_opaque = true;
 
@@ -1749,7 +1749,7 @@ gen3_init_solid(struct sna *sna,
 
 static void gen3_composite_channel_convert(struct sna_composite_channel *channel)
 {
-	if (channel->gen3.type == SHADER_TEXTURE)
+	if (channel->u.gen3.type == SHADER_TEXTURE)
 		channel->repeat = gen3_texture_repeat(channel->repeat);
 	else
 		channel->repeat = gen3_gradient_repeat(channel->repeat);
@@ -1837,7 +1837,7 @@ gen3_init_linear(struct sna *sna,
 	offset = dx*x0 + dy*y0;
 
 	n = op->u.gen3.num_constants;
-	channel->gen3.constants = FS_C0 + n / 4;
+	channel->u.gen3.constants = FS_C0 + n / 4;
 	op->u.gen3.constants[n++] = dx;
 	op->u.gen3.constants[n++] = dy;
 	op->u.gen3.constants[n++] = -offset;
@@ -1846,11 +1846,11 @@ gen3_init_linear(struct sna *sna,
 	if (!gen3_gradient_setup(sna, picture, channel, ox, oy))
 		return 0;
 
-	channel->gen3.type = SHADER_LINEAR;
+	channel->u.gen3.type = SHADER_LINEAR;
 	op->u.gen3.num_constants = n;
 
 	DBG(("%s: dx=%f, dy=%f, offset=%f, constants=%d\n",
-	     __FUNCTION__, dx, dy, -offset, channel->gen3.constants - FS_C0));
+	     __FUNCTION__, dx, dy, -offset, channel->u.gen3.constants - FS_C0));
 	return 1;
 }
 
@@ -1872,7 +1872,7 @@ gen3_init_radial(struct sna *sna,
 	r1 = xFixedToDouble(radial->c1.radius);
 
 	n = op->u.gen3.num_constants;
-	channel->gen3.constants = FS_C0 + n / 4;
+	channel->u.gen3.constants = FS_C0 + n / 4;
 	if (radial->c2.x == radial->c1.x && radial->c2.y == radial->c1.y) {
 		if (radial->c2.radius == radial->c1.radius)
 			return 0;
@@ -1882,7 +1882,7 @@ gen3_init_radial(struct sna *sna,
 		op->u.gen3.constants[n++] = 1. / dr;
 		op->u.gen3.constants[n++] = -r1 / dr;
 
-		channel->gen3.mode = RADIAL_ONE;
+		channel->u.gen3.mode = RADIAL_ONE;
 	} else {
 		op->u.gen3.constants[n++] = -xFixedToDouble(radial->c1.x);
 		op->u.gen3.constants[n++] = -xFixedToDouble(radial->c1.y);
@@ -1894,13 +1894,13 @@ gen3_init_radial(struct sna *sna,
 		op->u.gen3.constants[n++] = -2 * r1 * dr;
 		op->u.gen3.constants[n++] = 1 / (2 * (dx*dx + dy*dy - dr*dr));
 
-		channel->gen3.mode = RADIAL_TWO;
+		channel->u.gen3.mode = RADIAL_TWO;
 	}
 
 	if (!gen3_gradient_setup(sna, picture, channel, ox, oy))
 		return 0;
 
-	channel->gen3.type = SHADER_RADIAL;
+	channel->u.gen3.type = SHADER_RADIAL;
 	op->u.gen3.num_constants = n;
 	return 1;
 }
@@ -2175,7 +2175,7 @@ gen3_render_composite(struct sna *sna,
 			return FALSE;
 	}
 
-	tmp->src.gen3.type = SHADER_TEXTURE;
+	tmp->src.u.gen3.type = SHADER_TEXTURE;
 	tmp->src.is_affine = TRUE;
 	DBG(("%s: preparing source\n", __FUNCTION__));
 	switch (gen3_composite_picture(sna, src, tmp, &tmp->src,
@@ -2185,20 +2185,20 @@ gen3_render_composite(struct sna *sna,
 	case -1:
 		goto cleanup_dst;
 	case 0:
-		tmp->src.gen3.type = SHADER_ZERO;
+		tmp->src.u.gen3.type = SHADER_ZERO;
 		break;
 	case 1:
 		gen3_composite_channel_convert(&tmp->src);
 		break;
 	}
-	DBG(("%s: source type=%d\n", __FUNCTION__, tmp->src.gen3.type));
+	DBG(("%s: source type=%d\n", __FUNCTION__, tmp->src.u.gen3.type));
 
-	tmp->mask.gen3.type = SHADER_NONE;
+	tmp->mask.u.gen3.type = SHADER_NONE;
 	tmp->mask.is_affine = TRUE;
 	tmp->need_magic_ca_pass = FALSE;
 	tmp->has_component_alpha = FALSE;
-	if (mask && tmp->src.gen3.type != SHADER_ZERO) {
-		tmp->mask.gen3.type = SHADER_TEXTURE;
+	if (mask && tmp->src.u.gen3.type != SHADER_ZERO) {
+		tmp->mask.u.gen3.type = SHADER_TEXTURE;
 		DBG(("%s: preparing mask\n", __FUNCTION__));
 		switch (gen3_composite_picture(sna, mask, tmp, &tmp->mask,
 					       mask_x, mask_y,
@@ -2207,68 +2207,68 @@ gen3_render_composite(struct sna *sna,
 		case -1:
 			goto cleanup_src;
 		case 0:
-			tmp->mask.gen3.type = SHADER_ZERO;
+			tmp->mask.u.gen3.type = SHADER_ZERO;
 			break;
 		case 1:
 			gen3_composite_channel_convert(&tmp->mask);
 			break;
 		}
-		DBG(("%s: mask type=%d\n", __FUNCTION__, tmp->mask.gen3.type));
+		DBG(("%s: mask type=%d\n", __FUNCTION__, tmp->mask.u.gen3.type));
 
-		if (tmp->mask.gen3.type == SHADER_ZERO) {
+		if (tmp->mask.u.gen3.type == SHADER_ZERO) {
 			if (tmp->src.bo) {
 				kgem_bo_destroy(&sna->kgem,
 						tmp->src.bo);
 				tmp->src.bo = NULL;
 			}
-			tmp->src.gen3.type = SHADER_ZERO;
-			tmp->mask.gen3.type = SHADER_NONE;
+			tmp->src.u.gen3.type = SHADER_ZERO;
+			tmp->mask.u.gen3.type = SHADER_NONE;
 		}
 
-		if (tmp->mask.gen3.type != SHADER_NONE &&
+		if (tmp->mask.u.gen3.type != SHADER_NONE &&
 		    mask->componentAlpha && PICT_FORMAT_RGB(mask->format)) {
 			/* Check if it's component alpha that relies on a source alpha
 			 * and on the source value.  We can only get one of those
 			 * into the single source value that we get to blend with.
 			 */
 			tmp->has_component_alpha = TRUE;
-			if (tmp->mask.gen3.type == SHADER_CONSTANT &&
-			    tmp->mask.gen3.mode == 0xffffffff) {
-				tmp->mask.gen3.type = SHADER_NONE;
+			if (tmp->mask.u.gen3.type == SHADER_CONSTANT &&
+			    tmp->mask.u.gen3.mode == 0xffffffff) {
+				tmp->mask.u.gen3.type = SHADER_NONE;
 				tmp->has_component_alpha = FALSE;
-			} else if (tmp->src.gen3.type == SHADER_CONSTANT &&
-				   tmp->src.gen3.mode == 0xffffffff) {
+			} else if (tmp->src.u.gen3.type == SHADER_CONSTANT &&
+				   tmp->src.u.gen3.mode == 0xffffffff) {
 				tmp->src = tmp->mask;
-				tmp->mask.gen3.type = SHADER_NONE;
+				tmp->mask.u.gen3.type = SHADER_NONE;
 				tmp->mask.bo = NULL;
 				tmp->has_component_alpha = FALSE;
-			} else if (tmp->src.gen3.type == SHADER_CONSTANT &&
-				   tmp->mask.gen3.type == SHADER_CONSTANT) {
+			} else if (tmp->src.u.gen3.type == SHADER_CONSTANT &&
+				   tmp->mask.u.gen3.type == SHADER_CONSTANT) {
 				uint32_t a,r,g,b;
 
-				a = mult(tmp->src.gen3.mode,
-					 tmp->mask.gen3.mode,
+				a = mult(tmp->src.u.gen3.mode,
+					 tmp->mask.u.gen3.mode,
 					 24);
-				r = mult(tmp->src.gen3.mode,
-					 tmp->mask.gen3.mode,
+				r = mult(tmp->src.u.gen3.mode,
+					 tmp->mask.u.gen3.mode,
 					 16);
-				g = mult(tmp->src.gen3.mode,
-					 tmp->mask.gen3.mode,
+				g = mult(tmp->src.u.gen3.mode,
+					 tmp->mask.u.gen3.mode,
 					 8);
-				b = mult(tmp->src.gen3.mode,
-					 tmp->mask.gen3.mode,
+				b = mult(tmp->src.u.gen3.mode,
+					 tmp->mask.u.gen3.mode,
 					 0);
 
 				DBG(("%s: combining constant source/mask: %x x %x -> %x\n",
 				     __FUNCTION__,
-				     tmp->src.gen3.mode,
-				     tmp->mask.gen3.mode,
+				     tmp->src.u.gen3.mode,
+				     tmp->mask.u.gen3.mode,
 				     a << 24 | r << 16 | g << 8 | b));
 
-				tmp->src.gen3.mode =
+				tmp->src.u.gen3.mode =
 					a << 24 | r << 16 | g << 8 | b;
 
-				tmp->mask.gen3.type = SHADER_NONE;
+				tmp->mask.u.gen3.type = SHADER_NONE;
 				tmp->has_component_alpha = FALSE;
 			} else if (gen3_blend_op[op].src_alpha &&
 				   (gen3_blend_op[op].src_blend != BLENDFACT_ZERO)) {
@@ -2282,13 +2282,13 @@ gen3_render_composite(struct sna *sna,
 		}
 	}
 	DBG(("%s: final src/mask type=%d/%d, affine=%d/%d\n", __FUNCTION__,
-	     tmp->src.gen3.type, tmp->mask.gen3.type,
+	     tmp->src.u.gen3.type, tmp->mask.u.gen3.type,
 	     tmp->src.is_affine, tmp->mask.is_affine));
 
 	tmp->prim_emit = gen3_emit_composite_primitive;
-	if (tmp->mask.gen3.type == SHADER_NONE ||
-	    tmp->mask.gen3.type == SHADER_CONSTANT) {
-		switch (tmp->src.gen3.type) {
+	if (tmp->mask.u.gen3.type == SHADER_NONE ||
+	    tmp->mask.u.gen3.type == SHADER_CONSTANT) {
+		switch (tmp->src.u.gen3.type) {
 		case SHADER_NONE:
 		case SHADER_CONSTANT:
 			tmp->prim_emit = gen3_emit_composite_primitive_constant;
@@ -2307,9 +2307,9 @@ gen3_render_composite(struct sna *sna,
 				tmp->prim_emit = gen3_emit_composite_primitive_affine_source;
 			break;
 		}
-	} else if (tmp->mask.gen3.type == SHADER_TEXTURE) {
+	} else if (tmp->mask.u.gen3.type == SHADER_TEXTURE) {
 		if (tmp->mask.transform == NULL) {
-			if (tmp->src.gen3.type == SHADER_CONSTANT)
+			if (tmp->src.u.gen3.type == SHADER_CONSTANT)
 				tmp->prim_emit = gen3_emit_composite_primitive_constant_identity_mask;
 			else if (tmp->src.transform == NULL)
 				tmp->prim_emit = gen3_emit_composite_primitive_identity_source_mask;
@@ -2319,18 +2319,18 @@ gen3_render_composite(struct sna *sna,
 	}
 
 	tmp->floats_per_vertex = 2;
-	if (tmp->src.gen3.type != SHADER_CONSTANT &&
-	    tmp->src.gen3.type != SHADER_ZERO)
+	if (tmp->src.u.gen3.type != SHADER_CONSTANT &&
+	    tmp->src.u.gen3.type != SHADER_ZERO)
 		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 4;
-	if (tmp->mask.gen3.type != SHADER_NONE &&
-	    tmp->mask.gen3.type != SHADER_CONSTANT)
+	if (tmp->mask.u.gen3.type != SHADER_NONE &&
+	    tmp->mask.u.gen3.type != SHADER_CONSTANT)
 		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 4;
 	DBG(("%s: floats_per_vertex = 2 + %d + %d = %d\n", __FUNCTION__,
-	     (tmp->src.gen3.type != SHADER_CONSTANT &&
-	      tmp->src.gen3.type != SHADER_ZERO) ?
+	     (tmp->src.u.gen3.type != SHADER_CONSTANT &&
+	      tmp->src.u.gen3.type != SHADER_ZERO) ?
 	     tmp->src.is_affine ? 2 : 4 : 0,
-	     (tmp->mask.gen3.type != SHADER_NONE &&
-	      tmp->mask.gen3.type != SHADER_CONSTANT) ?
+	     (tmp->mask.u.gen3.type != SHADER_NONE &&
+	      tmp->mask.u.gen3.type != SHADER_CONSTANT) ?
 	     tmp->mask.is_affine ? 2 : 4 : 0,
 	     tmp->floats_per_vertex));
 
@@ -2670,7 +2670,7 @@ gen3_render_composite_spans(struct sna *sna,
 			return FALSE;
 	}
 
-	tmp->base.src.gen3.type = SHADER_TEXTURE;
+	tmp->base.src.u.gen3.type = SHADER_TEXTURE;
 	tmp->base.src.is_affine = TRUE;
 	DBG(("%s: preparing source\n", __FUNCTION__));
 	switch (gen3_composite_picture(sna, src, &tmp->base, &tmp->base.src,
@@ -2680,19 +2680,19 @@ gen3_render_composite_spans(struct sna *sna,
 	case -1:
 		goto cleanup_dst;
 	case 0:
-		tmp->base.src.gen3.type = SHADER_ZERO;
+		tmp->base.src.u.gen3.type = SHADER_ZERO;
 		break;
 	case 1:
 		gen3_composite_channel_convert(&tmp->base.src);
 		break;
 	}
-	DBG(("%s: source type=%d\n", __FUNCTION__, tmp->base.src.gen3.type));
+	DBG(("%s: source type=%d\n", __FUNCTION__, tmp->base.src.u.gen3.type));
 
-	if (tmp->base.src.gen3.type != SHADER_ZERO)
-		tmp->base.mask.gen3.type = SHADER_OPACITY;
+	if (tmp->base.src.u.gen3.type != SHADER_ZERO)
+		tmp->base.mask.u.gen3.type = SHADER_OPACITY;
 
 	tmp->prim_emit = gen3_emit_composite_spans_primitive;
-	switch (tmp->base.src.gen3.type) {
+	switch (tmp->base.src.u.gen3.type) {
 	case SHADER_NONE:
 		assert(0);
 	case SHADER_ZERO:
@@ -2717,11 +2717,11 @@ gen3_render_composite_spans(struct sna *sna,
 	}
 
 	tmp->base.floats_per_vertex = 2;
-	if (tmp->base.src.gen3.type != SHADER_CONSTANT &&
-	    tmp->base.src.gen3.type != SHADER_ZERO)
+	if (tmp->base.src.u.gen3.type != SHADER_CONSTANT &&
+	    tmp->base.src.u.gen3.type != SHADER_ZERO)
 		tmp->base.floats_per_vertex += tmp->base.src.is_affine ? 2 : 3;
 	tmp->base.floats_per_vertex +=
-		tmp->base.mask.gen3.type == SHADER_OPACITY;
+		tmp->base.mask.u.gen3.type == SHADER_OPACITY;
 
 	tmp->boxes = gen3_render_composite_spans_boxes;
 	tmp->done  = gen3_render_composite_spans_done;
@@ -3230,7 +3230,7 @@ gen3_render_copy_setup_source(struct sna *sna,
 			      PixmapPtr pixmap,
 			      struct kgem_bo *bo)
 {
-	channel->gen3.type = SHADER_TEXTURE;
+	channel->u.gen3.type = SHADER_TEXTURE;
 	channel->filter = gen3_filter(PictFilterNearest);
 	channel->repeat = gen3_texture_repeat(RepeatNone);
 	channel->width  = pixmap->drawable.width;
@@ -3313,7 +3313,7 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	gen3_render_copy_setup_source(sna, &tmp.src, src, src_bo);
 
 	tmp.floats_per_vertex = 4;
-	tmp.mask.gen3.type = SHADER_NONE;
+	tmp.mask.u.gen3.type = SHADER_NONE;
 
 	gen3_emit_composite_state(sna, &tmp);
 	gen3_align_vertex(sna, &tmp);
@@ -3441,7 +3441,7 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 	gen3_render_copy_setup_source(sna, &tmp->base.src, src, src_bo);
 
 	tmp->base.floats_per_vertex = 4;
-	tmp->base.mask.gen3.type = SHADER_NONE;
+	tmp->base.mask.u.gen3.type = SHADER_NONE;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo))
 		kgem_submit(&sna->kgem);
@@ -3559,8 +3559,8 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.dst.bo = dst_bo;
 	tmp.floats_per_vertex = 2;
 
-	tmp.src.gen3.type = op == PictOpClear ? SHADER_ZERO : SHADER_CONSTANT;
-	tmp.src.gen3.mode = pixel;
+	tmp.src.u.gen3.type = op == PictOpClear ? SHADER_ZERO : SHADER_CONSTANT;
+	tmp.src.u.gen3.mode = pixel;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo))
 		kgem_submit(&sna->kgem);
@@ -3660,8 +3660,8 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.dst.bo = dst_bo;
 	tmp->base.floats_per_vertex = 2;
 
-	tmp->base.src.gen3.type = SHADER_CONSTANT;
-	tmp->base.src.gen3.mode =
+	tmp->base.src.u.gen3.type = SHADER_CONSTANT;
+	tmp->base.src.u.gen3.mode =
 		sna_rgba_for_color(color, dst->drawable.depth);
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo))
