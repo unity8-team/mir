@@ -90,7 +90,7 @@ struct sna_composite_op {
 		} blt;
 
 		struct {
-			int nothing;
+			uint32_t pixel;
 		} gen2;
 
 		struct {
@@ -238,6 +238,7 @@ struct sna_render {
 struct gen2_render_state {
 	uint32_t target;
 	Bool need_invariant;
+	Bool logic_op_enabled;
 	uint16_t vertex_offset;
 };
 

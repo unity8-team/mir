@@ -585,6 +585,7 @@
 #define S3_ENABLE_LOCAL_DEPTH_BIAS	     (1<<3)
 #define S3_ENABLE_SPRITE_POINT		     (1<<1)
 #define S3_ENABLE_ANTIALIASING		     1
+#define S7_ENABLE_LOGIC_OP		     (1<<0)
 #define S8_ENABLE_ALPHA_TEST		     (1<<31)
 #define S8_ALPHA_TEST_FUNC_SHIFT	     28
 #define S8_ALPHA_REFVALUE_SHIFT		     20

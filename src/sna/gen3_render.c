@@ -3448,6 +3448,9 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 	if (!kgem_check_bo(&sna->kgem, src_bo))
 		kgem_submit(&sna->kgem);
 
+	if (kgem_bo_is_dirty(src_bo))
+		kgem_emit_flush(&sna->kgem);
+
 	tmp->blt  = gen3_render_copy_blt;
 	tmp->done = gen3_render_copy_done;
 
