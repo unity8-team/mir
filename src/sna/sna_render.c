@@ -427,6 +427,212 @@ sna_render_pixmap_bo(struct sna *sna,
 	return bo != NULL;
 }
 
+static int sna_render_picture_downsample(struct sna *sna,
+					 PicturePtr picture,
+					 struct sna_composite_channel *channel,
+					 int16_t x, int16_t y,
+					 int16_t w, int16_t h,
+					 int16_t dst_x, int16_t dst_y)
+{
+	struct kgem_bo *bo = NULL;
+	PixmapPtr pixmap = get_drawable_pixmap(picture->pDrawable);
+	int16_t ox, oy, ow, oh;
+	BoxRec box;
+
+	assert(w && h);
+
+	DBG(("%s (%d, %d)x(%d, %d) [dst=(%d, %d)]\n",
+	     __FUNCTION__, x, y, w, h, dst_x, dst_y));
+
+	ow = w;
+	oh = h;
+
+	ox = box.x1 = x;
+	oy = box.y1 = y;
+	box.x2 = x + w;
+	box.y2 = y + h;
+	if (channel->transform) {
+		pixman_vector_t v;
+
+		pixman_transform_bounds(channel->transform, &box);
+
+		v.vector[0] = ox << 16;
+		v.vector[1] = oy << 16;
+		v.vector[2] =  1 << 16;
+		pixman_transform_point(channel->transform, &v);
+		ox = v.vector[0] / v.vector[2];
+		oy = v.vector[1] / v.vector[2];
+	}
+
+	if (channel->repeat != RepeatNone) {
+		if (box.x1 < 0 ||
+		    box.y1 < 0 ||
+		    box.x2 > pixmap->drawable.width ||
+		    box.y2 > pixmap->drawable.height) {
+			/* XXX tiled repeats? */
+			box.x1 = box.y1 = 0;
+			box.x2 = pixmap->drawable.width;
+			box.y2 = pixmap->drawable.height;
+
+			if (!channel->is_affine) {
+				DBG(("%s: fallback -- repeating project transform too large for texture\n",
+				     __FUNCTION__));
+				return sna_render_picture_fixup(sna,
+								picture,
+								channel,
+								x, y, ow, oh,
+								dst_x, dst_y);
+			}
+		}
+	} else {
+		if (box.x1 < 0)
+			box.x1 = 0;
+		if (box.y1 < 0)
+			box.y1 = 0;
+		if (box.x2 > pixmap->drawable.width)
+			box.x2 = pixmap->drawable.width;
+		if (box.y2 > pixmap->drawable.height)
+			box.y2 = pixmap->drawable.height;
+	}
+
+	w = box.x2 - box.x1;
+	h = box.y2 - box.y1;
+	assert(w && h);
+	if (w > 2*sna->render.max_3d_size || h > 2*sna->render.max_3d_size)
+		goto fixup;
+
+	if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
+		bo = kgem_upload_source_image_halved(&sna->kgem,
+						     picture->format,
+						     pixmap->devPrivate.ptr,
+						     box.x1, box.y1, w, h,
+						     pixmap->devKind,
+						     pixmap->drawable.bitsPerPixel);
+		if (!bo) {
+			DBG(("%s: failed to upload source image, using clear\n",
+			     __FUNCTION__));
+			return 0;
+		}
+	} else {
+		ScreenPtr screen = pixmap->drawable.pScreen;
+		PicturePtr tmp_src, tmp_dst;
+		PictFormatPtr format;
+		struct sna_pixmap *priv;
+		pixman_transform_t t;
+		PixmapPtr tmp;
+		int error, i, j, ww, hh;
+
+		if (!sna_pixmap_force_to_gpu(pixmap))
+			goto fixup;
+
+		tmp = screen->CreatePixmap(screen,
+					   w/2, h/2, pixmap->drawable.depth,
+					   CREATE_PIXMAP_USAGE_SCRATCH);
+		if (!tmp)
+			goto fixup;
+
+		priv = sna_pixmap(tmp);
+		if (!priv) {
+			screen->DestroyPixmap(tmp);
+			goto fixup;
+		}
+
+		format = PictureMatchFormat(screen,
+					    pixmap->drawable.depth,
+					    picture->format);
+
+		tmp_dst = CreatePicture(0, &tmp->drawable, format, 0, NULL,
+					serverClient, &error);
+
+		tmp_src = CreatePicture(0, &pixmap->drawable, format, 0, NULL,
+					serverClient, &error);
+		tmp_src->filter = PictFilterBilinear;
+		memset(&t, 0, sizeof(t));
+		t.matrix[0][0] = 2 << 16;
+		t.matrix[1][1] = 2 << 16;
+		t.matrix[2][2] = 1 << 16;
+		tmp_src->transform = &t;
+
+		ValidatePicture(tmp_dst);
+		ValidatePicture(tmp_src);
+
+		ww = w/4; hh = h/4;
+
+		DBG(("%s downsampling using %dx%d GPU tiles\n",
+		     __FUNCTION__, ww, hh));
+
+		for (i = 0; i < 2; i++) {
+			for (j = 0; j < 2; j++) {
+				struct sna_composite_op op;
+				BoxRec b;
+
+				memset(&op, 0, sizeof(op));
+				if (!sna->render.composite(sna,
+							   PictOpSrc,
+							   tmp_src, NULL, tmp_dst,
+							   box.x1 + ww*j, box.y1 + hh*i,
+							   0, 0,
+							   ww*j, hh*i,
+							   ww, hh,
+							   &op)) {
+					tmp_src->transform = NULL;
+					FreePicture(tmp_src, 0);
+					FreePicture(tmp_dst, 0);
+					screen->DestroyPixmap(tmp);
+					goto fixup;
+				}
+
+				b.x1 = ww*j;
+				b.y1 = hh*i;
+				b.x2 = b.x1 + ww;
+				b.y2 = b.y1 + hh;
+
+				op.boxes(sna, &op, &b, 1);
+				op.done(sna, &op);
+			}
+		}
+
+		bo = kgem_bo_reference(priv->gpu_bo);
+
+		tmp_src->transform = NULL;
+		FreePicture(tmp_src, 0);
+		FreePicture(tmp_dst, 0);
+		screen->DestroyPixmap(tmp);
+	}
+
+	if (ox == x && oy == y) {
+		x = y = 0;
+	} else if (channel->transform) {
+		pixman_vector_t v;
+		pixman_transform_t m;
+
+		v.vector[0] = (ox - box.x1) << 16;
+		v.vector[1] = (oy - box.y1) << 16;
+		v.vector[2] = 1 << 16;
+		pixman_transform_invert(&m, channel->transform);
+		pixman_transform_point(&m, &v);
+		x = v.vector[0] / v.vector[2];
+		y = v.vector[1] / v.vector[2];
+	} else {
+		x = ox - box.x1;
+		y = oy - box.y1;
+	}
+
+	channel->offset[0] = x - dst_x;
+	channel->offset[1] = y - dst_y;
+	channel->scale[0] = 1./w;
+	channel->scale[1] = 1./h;
+	channel->width  = w / 2;
+	channel->height = h / 2;
+	channel->bo = bo;
+	return 1;
+
+fixup:
+	return sna_render_picture_fixup(sna, picture, channel,
+					x, y, w, h,
+					dst_x, dst_y);
+}
+
 int
 sna_render_picture_extract(struct sna *sna,
 			   PicturePtr picture,
@@ -517,8 +723,9 @@ sna_render_picture_extract(struct sna *sna,
 	if (w > sna->render.max_3d_size || h > sna->render.max_3d_size) {
 		DBG(("%s: fallback -- sample too large for texture (%d, %d)x(%d, %d)\n",
 		     __FUNCTION__, box.x1, box.y1, w, h));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, ow, oh, dst_x, dst_y);
+		return sna_render_picture_downsample(sna, picture, channel,
+						     x, y, ow, oh,
+						     dst_x, dst_y);
 	}
 
 	if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {

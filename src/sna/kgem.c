@@ -1819,6 +1819,64 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 	return bo;
 }
 
+struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
+						pixman_format_code_t format,
+						const void *data,
+						int x, int y,
+						int width, int height,
+						int stride, int bpp)
+{
+	int dst_stride = ALIGN(width * bpp / 2, 32) >> 3;
+	int size = dst_stride * height / 2;
+	struct kgem_bo *bo;
+	pixman_image_t *src_image, *dst_image;
+	pixman_transform_t t;
+	void *dst;
+
+	DBG(("%s : (%d, %d), (%d, %d), stride=%d, bpp=%d\n",
+	     __FUNCTION__, x, y, width, height, stride, bpp));
+
+	bo = kgem_create_buffer(kgem, size, KGEM_BUFFER_WRITE, &dst);
+	if (bo == NULL)
+		return NULL;
+
+	dst_image = pixman_image_create_bits(format, width/2, height/2,
+					     dst, dst_stride);
+	if (dst_image == NULL)
+		goto cleanup_bo;
+
+	src_image = pixman_image_create_bits(format, width, height,
+					     (uint32_t*)data, stride);
+	if (src_image == NULL)
+		goto cleanup_dst;
+
+	memset(&t, 0, sizeof(t));
+	t.matrix[0][0] = 2 << 16;
+	t.matrix[1][1] = 2 << 16;
+	t.matrix[2][2] = 1 << 16;
+	pixman_image_set_transform(src_image, &t);
+	pixman_image_set_filter(src_image, PIXMAN_FILTER_BILINEAR, NULL, 0);
+
+	pixman_image_composite(PIXMAN_OP_SRC,
+			       src_image, NULL, dst_image,
+			       x, y,
+			       0, 0,
+			       0, 0,
+			       width/2, height/2);
+
+	pixman_image_unref(src_image);
+	pixman_image_unref(dst_image);
+
+	bo->pitch = dst_stride;
+	return bo;
+
+cleanup_dst:
+	pixman_image_unref(dst_image);
+cleanup_bo:
+	kgem_bo_destroy(kgem, bo);
+	return NULL;
+}
+
 void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *_bo)
 {
 	struct kgem_partial_bo *bo;

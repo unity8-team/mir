@@ -90,6 +90,7 @@ if DEBUG
 libsna_la_SOURCES += \
 	kgem_debug.c \
 	kgem_debug.h \
+	kgem_debug_gen2.c \
 	kgem_debug_gen3.c \
 	kgem_debug_gen4.c \
 	kgem_debug_gen5.c \

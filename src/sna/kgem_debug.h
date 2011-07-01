@@ -25,4 +25,7 @@ void kgem_gen4_finish_state(struct kgem *kgem);
 int kgem_gen3_decode_3d(struct kgem *kgem, uint32_t offset);
 void kgem_gen3_finish_state(struct kgem *kgem);
 
+int kgem_gen2_decode_3d(struct kgem *kgem, uint32_t offset);
+void kgem_gen2_finish_state(struct kgem *kgem);
+
 #endif

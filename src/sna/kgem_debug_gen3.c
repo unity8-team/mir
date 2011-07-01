@@ -1552,9 +1552,6 @@ out:
 
 int kgem_gen3_decode_3d(struct kgem *kgem, uint32_t offset)
 {
-    uint32_t opcode;
-    unsigned int idx;
-
     struct {
 	uint32_t opcode;
 	int min_len;
@@ -1572,6 +1569,8 @@ int kgem_gen3_decode_3d(struct kgem *kgem, uint32_t offset)
 	{ 0x07, 1, 1, "3DSTATE_RASTERIZATION_RULES" },
     };
     uint32_t *data = kgem->batch + offset;
+    uint32_t opcode;
+    unsigned int idx;
 
     opcode = (data[0] & 0x1f000000) >> 24;
 
