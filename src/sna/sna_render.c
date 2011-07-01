@@ -437,7 +437,7 @@ sna_render_picture_extract(struct sna *sna,
 {
 	struct kgem_bo *bo = NULL;
 	PixmapPtr pixmap = get_drawable_pixmap(picture->pDrawable);
-	int16_t ox, oy;
+	int16_t ox, oy, ow, oh;
 	BoxRec box;
 
 #if NO_EXTRACT
@@ -451,6 +451,9 @@ sna_render_picture_extract(struct sna *sna,
 		DBG(("%s: fallback -- unknown bounds\n", __FUNCTION__));
 		return -1;
 	}
+
+	ow = w;
+	oh = h;
 
 	ox = box.x1 = x;
 	oy = box.y1 = y;
@@ -482,7 +485,11 @@ sna_render_picture_extract(struct sna *sna,
 			if (!channel->is_affine) {
 				DBG(("%s: fallback -- repeating project transform too large for texture\n",
 				     __FUNCTION__));
-				return -1;
+				return sna_render_picture_fixup(sna,
+								picture,
+								channel,
+								x, y, ow, oh,
+								dst_x, dst_y);
 			}
 		}
 	} else {
@@ -510,7 +517,8 @@ sna_render_picture_extract(struct sna *sna,
 	if (w > sna->render.max_3d_size || h > sna->render.max_3d_size) {
 		DBG(("%s: fallback -- sample too large for texture (%d, %d)x(%d, %d)\n",
 		     __FUNCTION__, box.x1, box.y1, w, h));
-		return -1;
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, ow, oh, dst_x, dst_y);
 	}
 
 	if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
@@ -528,7 +536,8 @@ sna_render_picture_extract(struct sna *sna,
 		if (!sna_pixmap_move_to_gpu(pixmap)) {
 			DBG(("%s: falback -- pixmap is not on the GPU\n",
 			     __FUNCTION__));
-			return -1;
+			return sna_render_picture_fixup(sna, picture, channel,
+							x, y, ow, oh, dst_x, dst_y);
 		}
 
 		bo = kgem_create_2d(&sna->kgem, w, h,
@@ -550,7 +559,8 @@ sna_render_picture_extract(struct sna *sna,
 					&box, 1)) {
 			DBG(("%s: fallback -- unable to copy boxes\n",
 			     __FUNCTION__));
-			return -1;
+			return sna_render_picture_fixup(sna, picture, channel,
+							x, y, ow, oh, dst_x, dst_y);
 		}
 	}
 

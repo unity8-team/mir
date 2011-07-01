@@ -236,6 +236,7 @@ struct sna_render {
 };
 
 struct gen2_render_state {
+	uint32_t target;
 	Bool need_invariant;
 	uint16_t vertex_offset;
 };

@@ -330,12 +330,9 @@ gen2_get_blend_factors(const struct sna_composite_op *op,
 	 * pictures, but we need to implement it for 830/845 and there's no
 	 * harm done in leaving it in.
 	 */
-	cblend =
-		TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_MODULE |
-		TB0C_OUTPUT_WRITE_CURRENT;
-	ablend =
-		TB0A_RESULT_SCALE_1X | TB0A_OP_MODULE |
-		TB0A_OUTPUT_WRITE_CURRENT;
+	cblend = TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OUTPUT_WRITE_CURRENT;
+	ablend = TB0A_RESULT_SCALE_1X | TB0A_OUTPUT_WRITE_CURRENT;
+
 
 	/* Get the source picture's channels into TBx_ARG1 */
 	if ((op->has_component_alpha && gen2_blend_op[op->op].src_alpha) ||
@@ -359,13 +356,18 @@ gen2_get_blend_factors(const struct sna_composite_op *op,
 	}
 
 	if (op->mask.bo) {
+		cblend |= TB0C_OP_MODULATE;
 		cblend |= TB0C_ARG2_SEL_TEXEL1;
-		if (op->dst.format == PICT_a8 || !op->has_component_alpha)
+		if (op->dst.format == PICT_a8 ||
+		    !op->has_component_alpha ||
+		    PICT_FORMAT_RGB(op->mask.pict_format) == 0)
 			cblend |= TB0C_ARG2_REPLICATE_ALPHA;
+
 		ablend |= TB0A_ARG2_SEL_TEXEL1;
+		ablend |= TB0A_OP_MODULATE;
 	} else {
-		cblend |= TB0C_ARG2_SEL_ONE;
-		ablend |= TB0A_ARG2_SEL_ONE;
+		cblend |= TB0C_OP_ARG1;
+		ablend |= TB0A_OP_ARG1;
 	}
 
 	*c_out = cblend;
@@ -413,21 +415,6 @@ static void gen2_emit_invariant(struct sna *sna)
 	OUT_BATCH(_3DSTATE_MAP_CUBE | MAP_UNIT(2));
 	OUT_BATCH(_3DSTATE_MAP_CUBE | MAP_UNIT(3));
 
-	OUT_BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
-	OUT_BATCH(0);
-
-	OUT_BATCH(_3DSTATE_DFLT_SPEC_CMD);
-	OUT_BATCH(0);
-
-	OUT_BATCH(_3DSTATE_DFLT_Z_CMD);
-	OUT_BATCH(0);
-
-	OUT_BATCH(_3DSTATE_FOG_MODE_CMD);
-	OUT_BATCH(FOGFUNC_ENABLE |
-		  FOG_LINEAR_CONST | FOGSRC_INDEX_Z | ENABLE_FOG_DENSITY);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-
 	OUT_BATCH(_3DSTATE_MAP_TEX_STREAM_CMD |
 		  MAP_UNIT(0) |
 		  DISABLE_TEX_STREAM_BUMP |
@@ -473,12 +460,10 @@ static void gen2_emit_invariant(struct sna *sna)
 		  ENABLE_TRI_FAN_PROVOKE_VRTX |
 		  ENABLE_TRI_STRIP_PROVOKE_VRTX |
 		  LINE_STRIP_PROVOKE_VRTX(1) |
-		  TRI_FAN_PROVOKE_VRTX(2) | TRI_STRIP_PROVOKE_VRTX(2));
+		  TRI_FAN_PROVOKE_VRTX(2) |
+		  TRI_STRIP_PROVOKE_VRTX(2));
 
 	OUT_BATCH(_3DSTATE_SCISSOR_ENABLE_CMD | DISABLE_SCISSOR_RECT);
-	OUT_BATCH(_3DSTATE_SCISSOR_RECT_0_CMD);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
 
 	OUT_BATCH(_3DSTATE_VERTEX_TRANSFORM);
 	OUT_BATCH(DISABLE_VIEWPORT_TRANSFORM | DISABLE_PERSPECTIVE_DIVIDE);
@@ -486,9 +471,6 @@ static void gen2_emit_invariant(struct sna *sna)
 	OUT_BATCH(_3DSTATE_W_STATE_CMD);
 	OUT_BATCH(MAGIC_W_STATE_DWORD1);
 	OUT_BATCH_F(1.0);
-
-	OUT_BATCH(_3DSTATE_COLOR_FACTOR_CMD);
-	OUT_BATCH(0x80808080);	/* .5 required in alpha for GL_DOT3_RGBA_EXT */
 
 	OUT_BATCH(_3DSTATE_MAP_COORD_SETBIND_CMD);
 	OUT_BATCH(TEXBIND_SET3(TEXCOORDSRC_VTXSET_3) |
@@ -500,50 +482,21 @@ static void gen2_emit_invariant(struct sna *sna)
 		  DISABLE_INDPT_ALPHA_BLEND |
 		  ENABLE_ALPHA_BLENDFUNC | ABLENDFUNC_ADD);
 
-	OUT_BATCH(_3DSTATE_FOG_COLOR_CMD |
-		  FOG_COLOR_RED(0) | FOG_COLOR_GREEN(0) | FOG_COLOR_BLUE(0));
-
 	OUT_BATCH(_3DSTATE_CONST_BLEND_COLOR_CMD);
 	OUT_BATCH(0);
 
 	OUT_BATCH(_3DSTATE_MODES_1_CMD |
 		  ENABLE_COLR_BLND_FUNC |
 		  BLENDFUNC_ADD |
-		  ENABLE_SRC_BLND_FACTOR |
-		  SRC_BLND_FACT(BLENDFACTOR_ONE) |
+		  ENABLE_SRC_BLND_FACTOR | SRC_BLND_FACT(BLENDFACTOR_ONE) |
 		  ENABLE_DST_BLND_FACTOR | DST_BLND_FACT(BLENDFACTOR_ZERO));
-	OUT_BATCH(_3DSTATE_MODES_2_CMD |
-		  ENABLE_GLOBAL_DEPTH_BIAS |
-		  GLOBAL_DEPTH_BIAS(0) |
-		  ENABLE_ALPHA_TEST_FUNC |
-		  ALPHA_TEST_FUNC(0) |	/* always */
-		  ALPHA_REF_VALUE(0));
+	OUT_BATCH(_3DSTATE_MODES_2_CMD);
 	OUT_BATCH(_3DSTATE_MODES_3_CMD |
-		  ENABLE_DEPTH_TEST_FUNC |
-		  DEPTH_TEST_FUNC(0x2) |	/* COMPAREFUNC_LESS */
 		  ENABLE_ALPHA_SHADE_MODE | ALPHA_SHADE_MODE(SHADE_MODE_LINEAR) |
 		  ENABLE_FOG_SHADE_MODE | FOG_SHADE_MODE(SHADE_MODE_LINEAR) |
 		  ENABLE_SPEC_SHADE_MODE | SPEC_SHADE_MODE(SHADE_MODE_LINEAR) |
 		  ENABLE_COLOR_SHADE_MODE | COLOR_SHADE_MODE(SHADE_MODE_LINEAR) |
 		  ENABLE_CULL_MODE | CULLMODE_NONE);
-
-	OUT_BATCH(_3DSTATE_MODES_4_CMD |
-		  ENABLE_LOGIC_OP_FUNC | LOGIC_OP_FUNC(LOGICOP_COPY) |
-		  ENABLE_STENCIL_TEST_MASK | STENCIL_TEST_MASK(0xff) |
-		  ENABLE_STENCIL_WRITE_MASK | STENCIL_WRITE_MASK(0xff));
-
-	OUT_BATCH(_3DSTATE_STENCIL_TEST_CMD |
-		  ENABLE_STENCIL_PARMS |
-		  STENCIL_FAIL_OP(0) |	/* STENCILOP_KEEP */
-		  STENCIL_PASS_DEPTH_FAIL_OP(0) |	/* STENCILOP_KEEP */
-		  STENCIL_PASS_DEPTH_PASS_OP(0) |	/* STENCILOP_KEEP */
-		  ENABLE_STENCIL_TEST_FUNC | STENCIL_TEST_FUNC(0) |	/* COMPAREFUNC_ALWAYS */
-		  ENABLE_STENCIL_REF_VALUE | STENCIL_REF_VALUE(0));
-
-	OUT_BATCH(_3DSTATE_MODES_5_CMD |
-		  ENABLE_SPRITE_POINT_TEX | SPRITE_POINT_TEX_OFF |
-		  ENABLE_FIXED_LINE_WIDTH | FIXED_LINE_WIDTH(0x2) | /* 1.0 */
-		  ENABLE_FIXED_POINT_WIDTH | FIXED_POINT_WIDTH(1));
 
 	OUT_BATCH(_3DSTATE_ENABLES_1_CMD |
 		  DISABLE_LOGIC_OP |
@@ -567,22 +520,30 @@ static void gen2_emit_invariant(struct sna *sna)
 	/* Set default blend state */
 	OUT_BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
 		  TEXPIPE_COLOR |
-		  ENABLE_TEXOUTPUT_WRT_SEL | TEXOP_OUTPUT_CURRENT |
+		  ENABLE_TEXOUTPUT_WRT_SEL |
+		  TEXOP_OUTPUT_CURRENT |
 		  DISABLE_TEX_CNTRL_STAGE |
-		  TEXOP_SCALE_1X | TEXOP_MODIFY_PARMS |
-		  TEXOP_LAST_STAGE | TEXBLENDOP_ARG1);
+		  TEXOP_SCALE_1X |
+		  TEXOP_MODIFY_PARMS |
+		  TEXOP_LAST_STAGE |
+		  TEXBLENDOP_ARG1);
 	OUT_BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
 		  TEXPIPE_ALPHA |
-		  ENABLE_TEXOUTPUT_WRT_SEL | TEXOP_OUTPUT_CURRENT |
-		  TEXOP_SCALE_1X | TEXOP_MODIFY_PARMS | TEXBLENDOP_ARG1);
+		  ENABLE_TEXOUTPUT_WRT_SEL |
+		  TEXOP_OUTPUT_CURRENT |
+		  TEXOP_SCALE_1X |
+		  TEXOP_MODIFY_PARMS |
+		  TEXBLENDOP_ARG1);
 	OUT_BATCH(_3DSTATE_MAP_BLEND_ARG_CMD(0) |
 		  TEXPIPE_COLOR |
 		  TEXBLEND_ARG1 |
-		  TEXBLENDARG_MODIFY_PARMS | TEXBLENDARG_DIFFUSE);
+		  TEXBLENDARG_MODIFY_PARMS |
+		  TEXBLENDARG_DIFFUSE);
 	OUT_BATCH(_3DSTATE_MAP_BLEND_ARG_CMD(0) |
 		  TEXPIPE_ALPHA |
 		  TEXBLEND_ARG1 |
-		  TEXBLENDARG_MODIFY_PARMS | TEXBLENDARG_DIFFUSE);
+		  TEXBLENDARG_MODIFY_PARMS |
+		  TEXBLENDARG_DIFFUSE);
 
 	OUT_BATCH(_3DSTATE_AA_CMD |
 		  AA_LINE_ECAAR_WIDTH_ENABLE |
@@ -626,13 +587,12 @@ gen2_get_batch(struct sna *sna,
 		gen2_emit_invariant(sna);
 }
 
-static void gen2_emit_composite_state(struct sna *sna,
-				      const struct sna_composite_op *op)
+static void gen2_emit_target(struct sna *sna, const struct sna_composite_op *op)
 {
-	uint32_t texcoordfmt;
-	uint32_t cblend, ablend;
-
-	gen2_get_batch(sna, op);
+	if (sna->render_state.gen2.target == op->dst.bo->unique_id) {
+		kgem_bo_mark_dirty(op->dst.bo);
+		return;
+	}
 
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 	OUT_BATCH(BUF_3D_ID_COLOR_BACK |
@@ -653,6 +613,18 @@ static void gen2_emit_composite_state(struct sna *sna,
 	OUT_BATCH(DRAW_YMAX(op->dst.height - 1) |
 		  DRAW_XMAX(op->dst.width - 1));
 	OUT_BATCH(0);	/* yorig, xorig */
+
+	sna->render_state.gen2.target = op->dst.bo->unique_id;
+}
+
+static void gen2_emit_composite_state(struct sna *sna,
+				      const struct sna_composite_op *op)
+{
+	uint32_t texcoordfmt;
+	uint32_t cblend, ablend;
+
+	gen2_get_batch(sna, op);
+	gen2_emit_target(sna, op);
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
@@ -1042,7 +1014,7 @@ gen2_composite_picture(struct sna *sna,
 						  x, y, w, h, dst_x, dst_y);
 
 	channel->pict_format = picture->format;
-	if (pixmap->drawable.width > 8192 || pixmap->drawable.height > 8192)
+	if (pixmap->drawable.width > 2048 || pixmap->drawable.height > 2048)
 		return sna_render_picture_extract(sna, picture, channel,
 						  x, y, w, h, dst_x, dst_y);
 
@@ -1228,8 +1200,16 @@ gen2_render_composite(struct sna *sna,
 	if (!kgem_check_bo(&sna->kgem, tmp->mask.bo))
 		kgem_submit(&sna->kgem);
 
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
-		kgem_emit_flush(&sna->kgem);
+	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
+		if (tmp->src.bo == tmp->dst.bo || tmp->mask.bo == tmp->dst.bo) {
+			kgem_emit_flush(&sna->kgem);
+		} else {
+			OUT_BATCH(_3DSTATE_MODES_5_CMD |
+				  PIPELINE_FLUSH_RENDER_CACHE |
+				  PIPELINE_FLUSH_TEXTURE_CACHE);
+			kgem_clear_dirty(&sna->kgem);
+		}
+	}
 
 	gen2_emit_composite_state(sna, tmp);
 
@@ -1246,21 +1226,441 @@ cleanup_dst:
 }
 
 static void
+gen2_emit_composite_spans_vertex(struct sna *sna,
+				 const struct sna_composite_spans_op *op,
+				 int16_t x, int16_t y,
+				 float opacity)
+{
+	gen2_emit_composite_dstcoord(sna, x + op->base.dst.x, y + op->base.dst.y);
+	OUT_BATCH((uint8_t)(opacity * 255) << 24);
+	gen2_emit_composite_texcoord(sna, &op->base.src, x, y);
+}
+
+static void
+gen2_emit_composite_spans_primitive(struct sna *sna,
+				    const struct sna_composite_spans_op *op,
+				    const BoxRec *box,
+				    float opacity)
+{
+	gen2_emit_composite_spans_vertex(sna, op, box->x2, box->y2, opacity);
+	gen2_emit_composite_spans_vertex(sna, op, box->x1, box->y2, opacity);
+	gen2_emit_composite_spans_vertex(sna, op, box->x1, box->y1, opacity);
+}
+
+#if 0
+static void gen2_emit_fill_blend_op(struct sna *sna)
+{
+	/* Set default blend state */
+	OUT_BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
+		  TEXPIPE_COLOR |
+		  ENABLE_TEXOUTPUT_WRT_SEL |
+		  TEXOP_OUTPUT_CURRENT |
+		  DISABLE_TEX_CNTRL_STAGE |
+		  TEXOP_SCALE_1X |
+		  TEXOP_MODIFY_PARMS |
+		  TEXOP_LAST_STAGE |
+		  TEXBLENDOP_ARG1);
+	OUT_BATCH(_3DSTATE_MAP_BLEND_OP_CMD(0) |
+		  TEXPIPE_ALPHA |
+		  ENABLE_TEXOUTPUT_WRT_SEL |
+		  TEXOP_OUTPUT_CURRENT |
+		  TEXOP_SCALE_1X |
+		  TEXOP_MODIFY_PARMS |
+		  TEXBLENDOP_ARG1);
+	OUT_BATCH(_3DSTATE_MAP_BLEND_ARG_CMD(0) |
+		  TEXPIPE_COLOR |
+		  TEXBLEND_ARG1 |
+		  TEXBLENDARG_MODIFY_PARMS |
+		  TEXBLENDARG_DIFFUSE);
+	OUT_BATCH(_3DSTATE_MAP_BLEND_ARG_CMD(0) |
+		  TEXPIPE_ALPHA |
+		  TEXBLEND_ARG1 |
+		  TEXBLENDARG_MODIFY_PARMS |
+		  TEXBLENDARG_DIFFUSE);
+}
+#endif
+
+static void
+gen2_emit_spans_blend_op(struct sna *sna,
+			 const struct sna_composite_spans_op *op)
+{
+	uint32_t cblend, ablend;
+
+	cblend =
+		TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_MODULATE |
+	       	TB0C_ARG1_SEL_DIFFUSE | TB0C_ARG1_REPLICATE_ALPHA |
+		TB0C_OUTPUT_WRITE_CURRENT;
+	ablend =
+		TB0A_RESULT_SCALE_1X | TB0A_OP_MODULATE |
+		TB0A_ARG1_SEL_DIFFUSE |
+		TB0A_OUTPUT_WRITE_CURRENT;
+
+	if (op->base.dst.format == PICT_a8) {
+		ablend |= TB0A_ARG2_SEL_TEXEL0;
+		cblend |= TB0C_ARG2_SEL_TEXEL0 | TB0C_ARG2_REPLICATE_ALPHA;;
+	} else {
+		if (PICT_FORMAT_RGB(op->base.src.pict_format) != 0)
+			cblend |= TB0C_ARG2_SEL_TEXEL0;
+		else
+			cblend |= TB0C_ARG2_SEL_ONE | TB0C_ARG2_INVERT;
+
+		if (op->base.src.is_opaque)
+			ablend |= TB0A_ARG2_SEL_ONE;
+		else
+			ablend |= TB0A_ARG2_SEL_TEXEL0;
+	}
+
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
+		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
+	OUT_BATCH(cblend);
+	OUT_BATCH(ablend);
+}
+
+static void gen2_emit_composite_spans_state(struct sna *sna,
+					    const struct sna_composite_spans_op *op)
+{
+	gen2_get_batch(sna, &op->base);
+	gen2_emit_target(sna, &op->base);
+
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
+		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
+	OUT_BATCH(1 << 12);
+	OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY | S3_DIFFUSE_PRESENT);
+	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |
+		  gen2_get_blend_cntl(op->base.op, FALSE, op->base.dst.format) |
+		  S8_ENABLE_COLOR_BUFFER_WRITE);
+
+	gen2_emit_spans_blend_op(sna, op);
+
+	OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD |
+		  (op->base.src.is_affine ? TEXCOORDFMT_2D : TEXCOORDFMT_3D));
+
+	gen2_emit_texture(sna, &op->base.src, 0);
+}
+
+static void
+gen2_render_composite_spans_boxes(struct sna *sna,
+				  const struct sna_composite_spans_op *op,
+				  const BoxRec *box, int nbox,
+				  float opacity)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), opacity=%f, dst=+(%d, %d)\n",
+	     __FUNCTION__, nbox,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     opacity,
+	     op->base.dst.x, op->base.dst.y));
+
+	do {
+		int nbox_this_time;
+
+		nbox_this_time = gen2_get_rectangles(sna, &op->base, nbox);
+		if (nbox_this_time == 0) {
+			gen2_emit_composite_spans_state(sna, op);
+			nbox_this_time = gen2_get_rectangles(sna, &op->base, nbox);
+		}
+		nbox -= nbox_this_time;
+
+		do {
+			DBG(("  %s: (%d, %d) x (%d, %d)\n", __FUNCTION__,
+			     box->x1, box->y1,
+			     box->x2 - box->x1,
+			     box->y2 - box->y1));
+
+			op->prim_emit(sna, op, box++, opacity);
+		} while (--nbox_this_time);
+	} while (nbox);
+}
+
+static void
+gen2_render_composite_spans_done(struct sna *sna,
+				 const struct sna_composite_spans_op *op)
+{
+	gen2_vertex_flush(sna);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+
+	DBG(("%s()\n", __FUNCTION__));
+
+	sna_render_composite_redirect_done(sna, &op->base);
+	if (op->base.src.bo)
+		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
+}
+
+static Bool
+gen2_render_composite_spans(struct sna *sna,
+			    uint8_t op,
+			    PicturePtr src,
+			    PicturePtr dst,
+			    int16_t src_x,  int16_t src_y,
+			    int16_t dst_x,  int16_t dst_y,
+			    int16_t width,  int16_t height,
+			    struct sna_composite_spans_op *tmp)
+{
+	DBG(("%s(src=(%d, %d), dst=(%d, %d), size=(%d, %d))\n", __FUNCTION__,
+	     src_x, src_y, dst_x, dst_y, width, height));
+
+#if NO_COMPOSITE_SPANS
+	return FALSE;
+#endif
+
+	if (op >= ARRAY_SIZE(gen2_blend_op)) {
+		DBG(("%s: fallback due to unhandled blend op: %d\n",
+		     __FUNCTION__, op));
+		return FALSE;
+	}
+
+	if (!gen2_check_dst_format(dst->format)) {
+		DBG(("%s: fallback due to unhandled dst format: %x\n",
+		     __FUNCTION__, dst->format));
+		return FALSE;
+	}
+
+	if (need_tiling(sna, width, height))
+		return FALSE;
+
+	if (!gen2_composite_set_target(sna, &tmp->base, dst)) {
+		DBG(("%s: unable to set render target\n",
+		     __FUNCTION__));
+		return FALSE;
+	}
+
+	tmp->base.op = op;
+	if (tmp->base.dst.width > 2048 ||
+	    tmp->base.dst.height > 2048 ||
+	    tmp->base.dst.bo->pitch > 8192) {
+		if (!sna_render_composite_redirect(sna, &tmp->base,
+						   dst_x, dst_y, width, height))
+			return FALSE;
+	}
+
+	switch (gen2_composite_picture(sna, src, &tmp->base.src,
+				       src_x, src_y,
+				       width, height,
+				       dst_x, dst_y)) {
+	case -1:
+		goto cleanup_dst;
+	case 0:
+		gen2_composite_solid_init(sna, &tmp->base.src, 0);
+	case 1:
+		break;
+	}
+
+	tmp->prim_emit = gen2_emit_composite_spans_primitive;
+	tmp->base.floats_per_vertex = 3;
+	if (tmp->base.src.bo)
+		tmp->base.floats_per_vertex += tmp->base.src.is_affine ? 2 : 3;
+
+	tmp->boxes = gen2_render_composite_spans_boxes;
+	tmp->done  = gen2_render_composite_spans_done;
+
+	if (!kgem_check_bo(&sna->kgem, tmp->base.dst.bo))
+		kgem_submit(&sna->kgem);
+	if (!kgem_check_bo(&sna->kgem, tmp->base.src.bo))
+		kgem_submit(&sna->kgem);
+
+	if (kgem_bo_is_dirty(tmp->base.src.bo)) {
+		if (tmp->base.src.bo == tmp->base.dst.bo) {
+			kgem_emit_flush(&sna->kgem);
+		} else {
+			OUT_BATCH(_3DSTATE_MODES_5_CMD |
+				  PIPELINE_FLUSH_RENDER_CACHE |
+				  PIPELINE_FLUSH_TEXTURE_CACHE);
+			kgem_clear_dirty(&sna->kgem);
+		}
+	}
+
+	gen2_emit_composite_spans_state(sna, tmp);
+	return TRUE;
+
+cleanup_dst:
+	if (tmp->base.redirect.real_bo)
+		kgem_bo_destroy(&sna->kgem, tmp->base.dst.bo);
+	return FALSE;
+}
+
+static void
+gen2_emit_fill_blend_op(struct sna *sna, const struct sna_composite_op *op)
+{
+	uint32_t blend;
+
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
+		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
+	blend = TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_ARG1 |
+		TB0C_ARG1_SEL_DIFFUSE |
+		TB0C_OUTPUT_WRITE_CURRENT;
+
+	if (op->dst.format == PICT_a8)
+		blend |= TB0C_ARG1_REPLICATE_ALPHA;
+
+	OUT_BATCH(blend);
+	OUT_BATCH(TB0A_RESULT_SCALE_1X | TB0A_OP_ARG1 |
+		  TB0A_ARG1_SEL_DIFFUSE |
+		  TB0A_OUTPUT_WRITE_CURRENT);
+}
+
+static void gen2_emit_fill_composite_state(struct sna *sna,
+					   const struct sna_composite_op *op,
+					   uint32_t pixel)
+{
+	gen2_get_batch(sna, op);
+	gen2_emit_target(sna, op);
+
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
+		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
+	OUT_BATCH(0);
+	OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
+	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |
+		  gen2_get_blend_cntl(op->op, FALSE, op->dst.format) |
+		  S8_ENABLE_COLOR_BUFFER_WRITE);
+
+	gen2_emit_fill_blend_op(sna, op);
+
+	OUT_BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
+	OUT_BATCH(pixel);
+}
+
+static Bool
+gen2_render_fill_boxes_try_blt(struct sna *sna,
+			       CARD8 op, PictFormat format,
+			       const xRenderColor *color,
+			       PixmapPtr dst, struct kgem_bo *dst_bo,
+			       const BoxRec *box, int n)
+{
+	uint8_t alu = GXcopy;
+	uint32_t pixel;
+
+	if (!sna_get_pixel_from_rgba(&pixel,
+				     color->red,
+				     color->green,
+				     color->blue,
+				     color->alpha,
+				     format))
+		return FALSE;
+
+	if (op == PictOpClear) {
+		alu = GXclear;
+		pixel = 0;
+		op = PictOpSrc;
+	}
+
+	if (op == PictOpOver) {
+		if ((pixel & 0xff000000) == 0xff000000)
+			op = PictOpSrc;
+	}
+
+	if (op != PictOpSrc)
+		return FALSE;
+
+	return sna_blt_fill_boxes(sna, alu,
+				  dst_bo, dst->drawable.bitsPerPixel,
+				  pixel, box, n);
+}
+
+static Bool
+gen2_render_fill_boxes(struct sna *sna,
+		       CARD8 op,
+		       PictFormat format,
+		       const xRenderColor *color,
+		       PixmapPtr dst, struct kgem_bo *dst_bo,
+		       const BoxRec *box, int n)
+{
+	struct sna_composite_op tmp;
+	uint32_t pixel;
+
+#if NO_FILL_BOXES
+	return gen2_render_fill_boxes_try_blt(sna, op, format, color,
+					      dst, dst_bo,
+					      box, n);
+#endif
+
+	DBG(("%s (op=%d, format=%x, color=(%04x,%04x,%04x, %04x))\n",
+	     __FUNCTION__, op, (int)format,
+	     color->red, color->green, color->blue, color->alpha));
+
+	if (op >= ARRAY_SIZE(gen2_blend_op)) {
+		DBG(("%s: fallback due to unhandled blend op: %d\n",
+		     __FUNCTION__, op));
+		return FALSE;
+	}
+
+	if (dst->drawable.width > 2048 ||
+	    dst->drawable.height > 2048 ||
+	    dst_bo->pitch > 8192 ||
+	    !gen2_check_dst_format(format))
+		return gen2_render_fill_boxes_try_blt(sna, op, format, color,
+						      dst, dst_bo,
+						      box, n);
+
+	if (gen2_render_fill_boxes_try_blt(sna, op, format, color,
+					   dst, dst_bo,
+					   box, n))
+		return TRUE;
+
+	if (!sna_get_pixel_from_rgba(&pixel,
+				     color->red,
+				     color->green,
+				     color->blue,
+				     color->alpha,
+				     PICT_a8r8g8b8))
+		return FALSE;
+
+	DBG(("%s: using shader for op=%d, format=%x, pixel=%x\n",
+	     __FUNCTION__, op, (int)format, pixel));
+
+	if (pixel == 0)
+		op = PictOpClear;
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.op = op;
+	tmp.dst.pixmap = dst;
+	tmp.dst.width = dst->drawable.width;
+	tmp.dst.height = dst->drawable.height;
+	tmp.dst.format = format;
+	tmp.dst.bo = dst_bo;
+	tmp.floats_per_vertex = 2;
+
+	if (!kgem_check_bo(&sna->kgem, dst_bo))
+		kgem_submit(&sna->kgem);
+
+	gen2_emit_fill_composite_state(sna, &tmp, pixel);
+
+	do {
+		int n_this_time = gen2_get_rectangles(sna, &tmp, n);
+		if (n_this_time == 0) {
+			gen2_emit_fill_composite_state(sna, &tmp, pixel);
+			n_this_time = gen2_get_rectangles(sna, &tmp, n);
+		}
+		n -= n_this_time;
+
+		do {
+			DBG(("	(%d, %d), (%d, %d): %x\n",
+			     box->x1, box->y1, box->x2, box->y2, pixel));
+			OUT_VERTEX(box->x2);
+			OUT_VERTEX(box->y2);
+			OUT_VERTEX(box->x1);
+			OUT_VERTEX(box->y2);
+			OUT_VERTEX(box->x1);
+			OUT_VERTEX(box->y1);
+			box++;
+		} while (--n_this_time);
+	} while (n);
+
+	gen2_vertex_flush(sna);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	return TRUE;
+}
+
+static void
 gen2_render_reset(struct sna *sna)
 {
 	sna->render_state.gen2.need_invariant = TRUE;
 	sna->render_state.gen2.vertex_offset = 0;
+	sna->render_state.gen2.target = 0;
 }
 
 static void
 gen2_render_flush(struct sna *sna)
 {
 	gen2_vertex_flush(sna);
-}
-
-static void
-gen2_render_fini(struct sna *sna)
-{
 }
 
 Bool gen2_render_init(struct sna *sna)
@@ -1271,12 +1671,13 @@ Bool gen2_render_init(struct sna *sna)
 	 * use the texture combiners.
 	 */
 	render->composite = gen2_render_composite;
+	render->composite_spans = gen2_render_composite_spans;
+	render->fill_boxes = gen2_render_fill_boxes;
 
 	/* XXX Y-tiling copies */
 
 	render->reset = gen2_render_reset;
 	render->flush = gen2_render_flush;
-	render->fini = gen2_render_fini;
 
 	render->max_3d_size = 2048;
 	return TRUE;

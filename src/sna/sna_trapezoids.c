@@ -2073,7 +2073,7 @@ composite_unaligned_boxes(CARD8 op,
 
 	DBG(("%s\n", __FUNCTION__));
 
-	/* XXX need a span converter to handle overlapping traps */
+	/* need a span converter to handle overlapping traps */
 	if (ntrap > 1 && maskFormat)
 		return false;
 
