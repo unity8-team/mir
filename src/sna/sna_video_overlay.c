@@ -632,7 +632,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 	XF86AttributePtr att;
 
 	if (!sna_has_overlay(sna)) {
-		xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(sna->scrn->scrnIndex, X_INFO,
 			   "Overlay video not supported on this hardware\n");
 		return NULL;
 	}
