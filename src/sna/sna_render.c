@@ -520,7 +520,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 		struct sna_pixmap *priv;
 		pixman_transform_t t;
 		PixmapPtr tmp;
-		int error, i, j, ww, hh;
+		int error, i, j, ww, hh, ni, nj;
 
 		if (!sna_pixmap_force_to_gpu(pixmap))
 			goto fixup;
@@ -556,24 +556,51 @@ static int sna_render_picture_downsample(struct sna *sna,
 		ValidatePicture(tmp_dst);
 		ValidatePicture(tmp_src);
 
-		ww = w/4; hh = h/4;
+		if (w > sna->render.max_3d_size) {
+			ww = w/4;
+			nj = 2;
+		} else {
+			ww = w/2;
+			nj = 1;
+		}
+
+		if (h > sna->render.max_3d_size) {
+			hh = h/4;
+			ni = 2;
+		} else {
+			hh = h/2;
+			ni = 1;
+		}
 
 		DBG(("%s downsampling using %dx%d GPU tiles\n",
 		     __FUNCTION__, ww, hh));
 
-		for (i = 0; i < 2; i++) {
-			for (j = 0; j < 2; j++) {
+		for (i = 0; i < ni; i++) {
+			BoxRec b;
+
+			b.y1 = hh*i;
+			if (i == ni - 1)
+				b.y2 = h/2;
+			else
+				b.y2 = b.y1 + hh;
+
+			for (j = 0; j < nj; j++) {
 				struct sna_composite_op op;
-				BoxRec b;
+
+				b.x1 = ww*j;
+				if (j == nj - 1)
+					b.x2 = w/2;
+				else
+					b.x2 = b.x1 + ww;
 
 				memset(&op, 0, sizeof(op));
 				if (!sna->render.composite(sna,
 							   PictOpSrc,
 							   tmp_src, NULL, tmp_dst,
-							   box.x1 + ww*j, box.y1 + hh*i,
+							   box.x1 + b.x1, box.y1 + b.y1,
 							   0, 0,
-							   ww*j, hh*i,
-							   ww, hh,
+							   b.x1, b.y1,
+							   b.x2 - b.x1, b.y2 - b.y1,
 							   &op)) {
 					tmp_src->transform = NULL;
 					FreePicture(tmp_src, 0);
@@ -581,11 +608,6 @@ static int sna_render_picture_downsample(struct sna *sna,
 					screen->DestroyPixmap(tmp);
 					goto fixup;
 				}
-
-				b.x1 = ww*j;
-				b.y1 = hh*i;
-				b.x2 = b.x1 + ww;
-				b.y2 = b.y1 + hh;
 
 				op.boxes(sna, &op, &b, 1);
 				op.done(sna, &op);
