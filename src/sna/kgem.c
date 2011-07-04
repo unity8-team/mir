@@ -120,6 +120,7 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
 {
 	struct drm_i915_gem_mmap_gtt mmap_arg;
+	struct drm_i915_gem_set_domain set_domain;
 	void *ptr;
 
 	DBG(("%s(handle=%d, size=%d, prot=%s)\n", __FUNCTION__,
@@ -136,6 +137,11 @@ static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
 		assert(0);
 		ptr = NULL;
 	}
+
+	set_domain.handle = handle;
+	set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+	set_domain.write_domain = prot & PROT_WRITE ? I915_GEM_DOMAIN_GTT : 0;
+	drmIoctl(fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 
 	return ptr;
 }
