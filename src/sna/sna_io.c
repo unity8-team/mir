@@ -411,22 +411,15 @@ struct kgem_bo *sna_replace(struct sna *sna,
 	struct kgem *kgem = &sna->kgem;
 	void *dst;
 
-	DBG(("%s(%dx%d, bpp=%d, tiling=%d)\n",
-	     __FUNCTION__, width, height, bpp, bo->tiling));
+	DBG(("%s(handle=%d, %dx%d, bpp=%d, tiling=%d)\n",
+	     __FUNCTION__, bo->handle, width, height, bpp, bo->tiling));
 
 	assert(bo->reusable);
 	if (kgem_bo_is_busy(kgem, bo)) {
 		struct kgem_bo *new_bo;
-		int tiling = bo->tiling;
-
-		/* As we use fences for GPU BLTs, we often have
-		 * lots of contention upon the limited number of fences.
-		 */
-		if (sna->kgem.gen < 40)
-			tiling = I915_TILING_NONE;
 
 		new_bo = kgem_create_2d(kgem,
-					width, height, bpp, tiling,
+					width, height, bpp, bo->tiling,
 					CREATE_INACTIVE);
 		if (new_bo) {
 			kgem_bo_destroy(kgem, bo);
