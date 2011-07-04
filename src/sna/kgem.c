@@ -347,12 +347,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 			gp.param = I915_PARAM_HAS_RELAXED_FENCING;
 			gp.value = &i;
-			if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp) == 0) {
-				if (gen < 33)
-					kgem->has_relaxed_fencing = i >= 2;
-				else
-					kgem->has_relaxed_fencing = i > 0;
-			}
+			if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp) == 0)
+				kgem->has_relaxed_fencing = i > 0;
 		}
 	} else
 		kgem->has_relaxed_fencing = 1;
