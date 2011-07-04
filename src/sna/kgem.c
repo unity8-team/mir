@@ -1557,7 +1557,18 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
-	return gem_mmap(kgem->fd, bo->handle, bo->size, prot);
+	void *ptr = gem_mmap(kgem->fd, bo->handle, bo->size, prot);
+	if (ptr == NULL)
+		return NULL;
+
+	bo->needs_flush = false;
+	if (prot & PROT_WRITE) {
+		if (bo->rq)
+			kgem_retire(kgem);
+		bo->gpu = false;
+	}
+
+	return ptr;
 }
 
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
