@@ -107,6 +107,7 @@ struct kgem {
 	uint16_t fence_max;
 	uint32_t aperture_high, aperture_low, aperture;
 	uint32_t aperture_fenced, aperture_mappable;
+	uint32_t max_object_size;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
 	uint32_t batch[4*1024];

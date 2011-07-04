@@ -365,10 +365,16 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	     kgem->aperture_high, kgem->aperture_high / (1024*1024)));
 
 	kgem->aperture_mappable = agp_aperture_size(dev, gen);
-	if (kgem->aperture_mappable == 0)
+	if (kgem->aperture_mappable == 0 ||
+	    kgem->aperture_mappable > aperture.aper_size)
 		kgem->aperture_mappable = aperture.aper_size;
 	DBG(("%s: aperture mappable=%d [%d]\n", __FUNCTION__,
 	     kgem->aperture_mappable, kgem->aperture_mappable / (1024*1024)));
+
+	kgem->max_object_size = kgem->aperture_mappable / 2;
+	if (kgem->max_object_size > kgem->aperture_low)
+		kgem->max_object_size = kgem->aperture_low;
+	DBG(("%s: max object size %d\n", __FUNCTION__, kgem->max_object_size));
 
 	i = 8;
 	gp.param = I915_PARAM_NUM_FENCES_AVAIL;
@@ -1207,9 +1213,9 @@ static bool _kgem_can_create_2d(struct kgem *kgem,
 		tiling = -tiling;
 
 	size = kgem_surface_size(kgem, width, height, bpp, tiling, &pitch);
-	if (size == 0 || size > kgem->aperture_mappable/2)
+	if (size == 0 || size > kgem->max_object_size)
 		size = kgem_surface_size(kgem, width, height, bpp, I915_TILING_NONE, &pitch);
-	return size > 0 && size <= kgem->aperture_mappable/2;
+	return size > 0 && size <= kgem->max_object_size;
 }
 
 #if DEBUG_KGEM
@@ -1269,7 +1275,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 
 	assert(_kgem_can_create_2d(kgem, width, height, bpp, tiling));
 	size = kgem_surface_size(kgem, width, height, bpp, tiling, &pitch);
-	assert(size && size <= kgem->aperture_mappable/2);
+	assert(size && size <= kgem->max_object_size);
 	if (flags & CREATE_INACTIVE)
 		goto skip_active_search;
 
