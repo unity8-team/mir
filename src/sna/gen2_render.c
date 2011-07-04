@@ -61,6 +61,19 @@
 #define OUT_BATCH_F(v) batch_emit_float(sna, v)
 #define OUT_VERTEX(v) batch_emit_float(sna, v)
 
+/* TODO: Remaining items for the sufficiently motivated reader
+ *
+ * - Linear gradients (radial do require pixel shaders)
+ *   - generate 1-d ramp for texture
+ *   - compute 1-d texture coordinate using a linear projection matrix
+ *   - issues? 1-stop, degenerate, fallback.
+ *
+ * - vmap
+ *   - the texture sampler can use any type of memory apparently.
+ *
+ * - memory compaction?
+ */
+
 static const struct blendinfo {
 	Bool dst_alpha;
 	Bool src_alpha;
@@ -506,9 +519,9 @@ gen2_get_batch(struct sna *sna,
 {
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
-	if (!kgem_check_batch(&sna->kgem, 50)) {
+	if (!kgem_check_batch(&sna->kgem, 28+40)) {
 		DBG(("%s: flushing batch: size %d > %d\n",
-		     __FUNCTION__, 50,
+		     __FUNCTION__, 28+40,
 		     sna->kgem.surface-sna->kgem.nbatch));
 		kgem_submit(&sna->kgem);
 	}
@@ -876,25 +889,21 @@ inline static int gen2_get_rectangles(struct sna *sna,
 
 	assert(op->floats_per_vertex);
 
-	need = 0;
+	need = 1;
 	size = 3*op->floats_per_vertex;
 	if (op->need_magic_ca_pass)
-		need += 5, size *= 2;
+		need += 6 + size*sna->render.vertex_index, size *= 2;
 
-	need += size;
-	if (state->vertex_offset == 0)
-		need += 2;
-
-	if (rem < need)
+	if (rem < need + size)
 		return 0;
 
+	rem -= need;
 	if (state->vertex_offset == 0) {
 		state->vertex_offset = sna->kgem.nbatch;
 		OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
-		rem--;
 	}
 
-	if (want * size > rem)
+	if (want > 1 && want * size > rem)
 		want = rem / size;
 
 	assert(want);
@@ -1077,17 +1086,26 @@ gen2_composite_picture(struct sna *sna,
 	if (sna_picture_is_solid(picture, &color))
 		return gen2_composite_solid_init(sna, channel, color);
 
-	if (picture->pDrawable == NULL)
+	if (picture->pDrawable == NULL) {
+		DBG(("%s -- fallback, unhandled source %d\n",
+		     __FUNCTION__, picture->pSourcePict->type));
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
+	}
 
-	if (!gen2_check_repeat(picture))
+	if (!gen2_check_repeat(picture)) {
+		DBG(("%s -- fallback, unhandled repeat %d\n",
+		     __FUNCTION__, picture->repeat));
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
+	}
 
-	if (!gen2_check_filter(picture))
+	if (!gen2_check_filter(picture)) {
+		DBG(("%s -- fallback, unhandled filter %d\n",
+		     __FUNCTION__, picture->filter));
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
+	}
 
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
 	channel->filter = picture->filter;
