@@ -46,6 +46,9 @@
 #endif
 
 #define NO_ACCEL 0
+#define NO_ALIGNED_BOXES 0
+#define NO_UNALIGNED_BOXES 0
+#define NO_SCAN_CONVERTER 0
 
 #define unlikely(x) x
 
@@ -1632,6 +1635,9 @@ composite_aligned_boxes(CARD8 op,
 	Bool ret = true;
 	int dx, dy, n, num_boxes;
 
+	if (NO_ALIGNED_BOXES)
+		return false;
+
 	DBG(("%s\n", __FUNCTION__));
 
 	boxes = stack_boxes;
@@ -2071,6 +2077,9 @@ composite_unaligned_boxes(CARD8 op,
 	int dst_x, dst_y;
 	int dx, dy, n;
 
+	if (NO_UNALIGNED_BOXES)
+		return false;
+
 	DBG(("%s\n", __FUNCTION__));
 
 	/* need a span converter to handle overlapping traps */
@@ -2172,6 +2181,9 @@ tor_scan_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	int16_t dst_x, dst_y;
 	int16_t dx, dy;
 	int n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
 
 	/* XXX strict adhernce to the Reneder specification */
 	if (dst->polyMode == PolyModePrecise) {
