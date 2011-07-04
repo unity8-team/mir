@@ -80,6 +80,17 @@ static int kgem_debug_handle_is_fenced(struct kgem *kgem, uint32_t handle)
 	return 0;
 }
 
+static int kgem_debug_handle_tiling(struct kgem *kgem, uint32_t handle)
+{
+	struct kgem_bo *bo;
+
+	list_for_each_entry(bo, &kgem->next_request->buffers, request)
+		if (bo->handle == handle)
+			return bo->tiling;
+
+	return 0;
+}
+
 void
 kgem_debug_print(const uint32_t *data,
 		 uint32_t offset, unsigned int index,
@@ -254,11 +265,12 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 			  data[3] & 0xffff, data[3] >> 16);
 		reloc = kgem_debug_get_reloc_entry(kgem, offset+4);
 		assert(reloc);
-		kgem_debug_print(data, offset, 4, "dst offset 0x%08x [handle=%d, delta=%d, read=%x, write=%x (fenced? %d)]\n",
+		kgem_debug_print(data, offset, 4, "dst offset 0x%08x [handle=%d, delta=%d, read=%x, write=%x (fenced? %d, tiling? %d)]\n",
 				 data[4],
 				 reloc->target_handle, reloc->delta,
 				 reloc->read_domains, reloc->write_domain,
-				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
+				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
+				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
 		kgem_debug_print(data, offset, 5, "color\n");
 		return len;
 
@@ -299,22 +311,24 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 data[3] & 0xffff, data[3] >> 16);
 		reloc = kgem_debug_get_reloc_entry(kgem, offset+4);
 		assert(reloc);
-		kgem_debug_print(data, offset, 4, "dst offset 0x%08x [handle=%d, delta=%d, read=%x, write=%x, (fenced? %d)]\n",
+		kgem_debug_print(data, offset, 4, "dst offset 0x%08x [handle=%d, delta=%d, read=%x, write=%x, (fenced? %d, tiling? %d)]\n",
 				 data[4],
 				 reloc->target_handle, reloc->delta,
 				 reloc->read_domains, reloc->write_domain,
-				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
+				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
+				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
 		kgem_debug_print(data, offset, 5, "src (%d,%d)\n",
 				 data[5] & 0xffff, data[5] >> 16);
 		kgem_debug_print(data, offset, 6, "src pitch %d\n",
 				 (short)(data[6] & 0xffff));
 		reloc = kgem_debug_get_reloc_entry(kgem, offset+7);
 		assert(reloc);
-		kgem_debug_print(data, offset, 7, "src offset 0x%08x [handle=%d, delta=%d, read=%x, write=%x (fenced? %d)]\n",
+		kgem_debug_print(data, offset, 7, "src offset 0x%08x [handle=%d, delta=%d, read=%x, write=%x (fenced? %d, tiling? %d)]\n",
 				 data[7],
 				 reloc->target_handle, reloc->delta,
 				 reloc->read_domains, reloc->write_domain,
-				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
+				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
+				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
 		return len;
 	}
 

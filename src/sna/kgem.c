@@ -1156,6 +1156,14 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 	if (tiling < 0)
 		return tiling;
 
+	if (tiling && width * bpp > 8 * 4096) {
+		DBG(("%s: TLB miss between lines %dx%d (pitch=%d), forcing tiling %d\n",
+		     __FUNCTION__,
+		     width, height, width*bpp/8,
+		     tiling));
+		return -tiling;
+	}
+
 	if (tiling == I915_TILING_Y && height < 16) {
 		DBG(("%s: too short [%d] for TILING_Y\n",
 		     __FUNCTION__,height));

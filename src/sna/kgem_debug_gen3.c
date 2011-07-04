@@ -1155,13 +1155,19 @@ gen3_decode_3d_1d(struct kgem *kgem, uint32_t offset)
 		for (map = 0; map <= 15; map++) {
 			if (data[1] & (1 << map)) {
 				int width, height, pitch, dword;
+				struct drm_i915_gem_relocation_entry *reloc;
+				struct kgem_bo *bo = NULL;
 				const char *tiling;
 
+				reloc = kgem_debug_get_reloc_entry(kgem, &data[i] - kgem->batch);
+				assert(reloc->target_handle);
+
 				dword = data[i];
-				kgem_debug_print(data, offset, i++, "map %d MS2 %s%s%s\n", map,
+				kgem_debug_print(data, offset, i++, "map %d MS2 %s%s%s, handle=%d\n", map,
 					  dword&(1<<31)?"untrusted surface, ":"",
 					  dword&(1<<1)?"vertical line stride enable, ":"",
-					  dword&(1<<0)?"vertical ofs enable, ":"");
+					  dword&(1<<0)?"vertical ofs enable, ":"",
+					  reloc->target_handle);
 
 				dword = data[i];
 				width = ((dword >> 10) & ((1 << 11) - 1))+1;
