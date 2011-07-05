@@ -49,7 +49,6 @@ struct kgem_bo {
 	uint32_t handle;
 	uint32_t presumed_offset;
 	uint32_t size;
-	uint32_t aperture_size;
 	uint32_t delta;
 
 	uint32_t pitch : 16;
