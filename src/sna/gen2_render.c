@@ -1922,7 +1922,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (!PREFER_FILL && sna->kgem.mode == KGEM_BLT &&
+	if (!PREFER_FILL && sna->kgem.mode != KGEM_RENDER &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
@@ -2186,7 +2186,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT */
-	if (!PREFER_COPY && sna->kgem.mode == KGEM_BLT &&
+	if (!PREFER_COPY && sna->kgem.mode != KGEM_RENDER &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
