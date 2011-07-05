@@ -686,8 +686,15 @@ static void kgem_finish_partials(struct kgem *kgem)
 	struct kgem_partial_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
-		if (!bo->base.exec)
+		if (!bo->base.exec) {
+			if (bo->base.refcnt == 1) {
+				DBG(("%s: discarding unused partial array: %d/%d\n",
+				     __FUNCTION__, bo->used, bo->alloc));
+				goto unref;
+			}
+
 			continue;
+		}
 
 		if (bo->write && bo->need_io) {
 			DBG(("%s: handle=%d, uploading %d/%d\n",
@@ -697,6 +704,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 			bo->need_io = 0;
 		}
 
+unref:
 		list_del(&bo->base.list);
 		kgem_bo_unref(kgem, &bo->base);
 	}
@@ -967,6 +975,21 @@ void kgem_throttle(struct kgem *kgem)
 	}
 }
 
+static void kgem_expire_partial(struct kgem *kgem)
+{
+	struct kgem_partial_bo *bo, *next;
+
+	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
+		if (bo->base.refcnt > 1)
+			continue;
+
+		DBG(("%s: discarding unused partial array: %d/%d\n",
+		     __FUNCTION__, bo->used, bo->alloc));
+		list_del(&bo->base.list);
+		kgem_bo_unref(kgem, &bo->base);
+	}
+}
+
 bool kgem_expire_cache(struct kgem *kgem)
 {
 	time_t now, expire;
@@ -978,6 +1001,8 @@ bool kgem_expire_cache(struct kgem *kgem)
 	kgem_retire(kgem);
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
+
+	kgem_expire_partial(kgem);
 
 	time(&now);
 	expire = 0;
