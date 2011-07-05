@@ -1773,78 +1773,84 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 {
 	struct kgem_partial_bo *bo;
 	bool write = !!(flags & KGEM_BUFFER_WRITE);
-	int offset = 0;
+	int offset, alloc;
+	uint32_t handle;
 
 	DBG(("%s: size=%d, flags=%x\n", __FUNCTION__, size, flags));
 
 	list_for_each_entry(bo, &kgem->partial, base.list) {
 		if (bo->write != write)
 			continue;
+
+		if (bo->base.refcnt == 1)
+			/* no users, so reset */
+			bo->used = 0;
+
 		if (bo->used + size < bo->alloc) {
-			DBG(("%s: reusing partial buffer? used=%d, total=%d\n",
-			     __FUNCTION__, bo->used, bo->alloc));
+			DBG(("%s: reusing partial buffer? used=%d + size=%d, total=%d\n",
+			     __FUNCTION__, bo->used, size, bo->alloc));
 			offset = bo->used;
 			bo->used += size;
-			break;
+			if (kgem->partial.next != &bo->base.list)
+				list_move(&bo->base.list, &kgem->partial);
+			goto done;
 		}
 	}
 
-	if (offset == 0) {
-		uint32_t handle;
-		int alloc;
 
-		alloc = (flags & KGEM_BUFFER_LAST) ? 4096 : 32 * 1024;
-		alloc = ALIGN(size, alloc);
+	alloc = (flags & KGEM_BUFFER_LAST) ? 4096 : 32 * 1024;
+	alloc = ALIGN(size, alloc);
 
-		bo = malloc(sizeof(*bo) + alloc);
-		if (bo == NULL)
-			return NULL;
+	bo = malloc(sizeof(*bo) + alloc);
+	if (bo == NULL)
+		return NULL;
 
-		handle = 0;
-		if (kgem->has_vmap)
-			handle = gem_vmap(kgem->fd, bo+1, alloc, write);
-		if (handle == 0) {
-			struct kgem_bo *old;
+	handle = 0;
+	if (kgem->has_vmap)
+		handle = gem_vmap(kgem->fd, bo+1, alloc, write);
+	if (handle == 0) {
+		struct kgem_bo *old;
 
-			old = NULL;
-			if (!write)
-				old = search_linear_cache(kgem, alloc, true);
-			if (old == NULL)
-				old = search_linear_cache(kgem, alloc, false);
-			if (old) {
-				memcpy(&bo->base, old, sizeof(*old));
-				if (old->rq)
-					list_replace(&old->request,
-						     &bo->base.request);
-				else
-					list_init(&bo->base.request);
-				free(old);
-				bo->base.refcnt = 1;
-			} else {
-				if (!__kgem_bo_init(&bo->base,
-					       gem_create(kgem->fd, alloc),
-					       alloc)) {
-					free(bo);
-					return NULL;
-				}
-			}
-			bo->need_io = true;
+		old = NULL;
+		if (!write)
+			old = search_linear_cache(kgem, alloc, true);
+		if (old == NULL)
+			old = search_linear_cache(kgem, alloc, false);
+		if (old) {
+			memcpy(&bo->base, old, sizeof(*old));
+			if (old->rq)
+				list_replace(&old->request,
+					     &bo->base.request);
+			else
+				list_init(&bo->base.request);
+			free(old);
+			bo->base.refcnt = 1;
 		} else {
-			__kgem_bo_init(&bo->base, handle, alloc);
-			bo->base.reusable = false;
-			bo->base.sync = true;
-			bo->need_io = 0;
+			if (!__kgem_bo_init(&bo->base,
+					    gem_create(kgem->fd, alloc),
+					    alloc)) {
+				free(bo);
+				return NULL;
+			}
 		}
-
-		bo->alloc = alloc;
-		bo->used = size;
-		bo->write = write;
-
-		list_add(&bo->base.list, &kgem->partial);
-		DBG(("%s(size=%d) new handle=%d\n",
-		     __FUNCTION__, alloc, bo->base.handle));
+		bo->need_io = true;
+	} else {
+		__kgem_bo_init(&bo->base, handle, alloc);
+		bo->base.reusable = false;
+		bo->base.sync = true;
+		bo->need_io = 0;
 	}
 
+	bo->alloc = alloc;
+	bo->used = size;
+	bo->write = write;
+	offset = 0;
+
+	list_add(&bo->base.list, &kgem->partial);
+	DBG(("%s(size=%d) new handle=%d\n",
+	     __FUNCTION__, alloc, bo->base.handle));
+
+done:
 	*ret = (char *)(bo+1) + offset;
 	return kgem_create_proxy(&bo->base, offset, size);
 }
