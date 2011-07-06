@@ -452,11 +452,14 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 	return tile_width;
 }
 
-static uint32_t kgem_aligned_height(uint32_t height, uint32_t tiling)
+static uint32_t kgem_aligned_height(struct kgem *kgem,
+				    uint32_t height, uint32_t tiling)
 {
 	uint32_t tile_height;
 
-	switch (tiling) {
+	if (kgem->gen < 30) {
+		tile_height = tiling ? 16 : 2;
+	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
 		tile_height = 2;
@@ -1311,7 +1314,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		goto skip_active_search;
 
 	for (i = 0; i <= I915_TILING_Y; i++)
-		tiled_height[i] = kgem_aligned_height(height, i);
+		tiled_height[i] = kgem_aligned_height(kgem, height, i);
 
 	search = 0;
 	/* Best active match first */
