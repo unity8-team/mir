@@ -983,7 +983,7 @@ static void kgem_expire_partial(struct kgem *kgem)
 	struct kgem_partial_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
-		if (bo->base.refcnt > 1)
+		if (bo->base.refcnt > 1 || bo->base.exec)
 			continue;
 
 		DBG(("%s: discarding unused partial array: %d/%d\n",
@@ -1785,7 +1785,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (bo->write != write)
 			continue;
 
-		if (bo->base.refcnt == 1)
+		if (bo->base.refcnt == 1 && bo->base.exec == NULL)
 			/* no users, so reset */
 			bo->used = 0;
 
