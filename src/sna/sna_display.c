@@ -1787,6 +1787,12 @@ sna_do_pageflip(struct sna *sna,
 		sna->mode.fb_pixmap = pixmap->drawable.serialNumber;
 		bo->cpu_read = bo->cpu_write = false;
 		bo->gpu = true;
+
+		/* Although the kernel performs an implicit flush upon
+		 * page-flipping, marking the bo as requiring a flush
+		 * here ensures that the buffer goes into the active cache
+		 * upon release.
+		 */
 		bo->needs_flush = true;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
