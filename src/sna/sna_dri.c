@@ -316,10 +316,8 @@ static void sna_dri_destroy_buffer(DrawablePtr drawable, DRI2Buffer2Ptr buffer)
 
 static void sna_dri_reference_buffer(DRI2Buffer2Ptr buffer)
 {
-	if (buffer) {
-		struct sna_dri_private *private = buffer->driverPrivate;
-		private->refcnt++;
-	}
+	struct sna_dri_private *private = buffer->driverPrivate;
+	private->refcnt++;
 }
 
 static void damage(DrawablePtr drawable, PixmapPtr pixmap, RegionPtr region)
