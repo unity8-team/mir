@@ -1082,12 +1082,13 @@ static void gen3_emit_invariant(struct sna *sna)
 		  CSB_TCB(6, 6) |
 		  CSB_TCB(7, 7));
 
-	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | I1_LOAD_S(4) | 1);
-	OUT_BATCH(0x00000000);	/* Disable texture coordinate wrap-shortest */
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | I1_LOAD_S(4) | I1_LOAD_S(5) | 1);
+	OUT_BATCH(0); /* Disable texture coordinate wrap-shortest */
 	OUT_BATCH((1 << S4_POINT_WIDTH_SHIFT) |
 		  S4_LINE_WIDTH_ONE |
 		  S4_CULLMODE_NONE |
 		  S4_VFMT_XY);
+	OUT_BATCH(0); /* Disable fog/stencil. *Enable* write mask. */
 
 	OUT_BATCH(_3DSTATE_SCISSOR_ENABLE_CMD | DISABLE_SCISSOR_RECT);
 	OUT_BATCH(_3DSTATE_DEPTH_SUBRECT_DISABLE);
