@@ -1082,7 +1082,7 @@ static void gen3_emit_invariant(struct sna *sna)
 		  CSB_TCB(6, 6) |
 		  CSB_TCB(7, 7));
 
-	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | I1_LOAD_S(4) | I1_LOAD_S(5) | 1);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | I1_LOAD_S(4) | I1_LOAD_S(5) | 2);
 	OUT_BATCH(0); /* Disable texture coordinate wrap-shortest */
 	OUT_BATCH((1 << S4_POINT_WIDTH_SHIFT) |
 		  S4_LINE_WIDTH_ONE |
@@ -1094,6 +1094,9 @@ static void gen3_emit_invariant(struct sna *sna)
 	OUT_BATCH(_3DSTATE_DEPTH_SUBRECT_DISABLE);
 
 	OUT_BATCH(_3DSTATE_LOAD_INDIRECT);
+	OUT_BATCH(0x00000000);
+
+	OUT_BATCH(_3DSTATE_STIPPLE);
 	OUT_BATCH(0x00000000);
 
 	sna->render_state.gen3.need_invariant = FALSE;
