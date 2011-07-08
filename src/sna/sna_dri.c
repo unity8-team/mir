@@ -862,7 +862,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 			return sna_dri_schedule_flip(sna, draw, info);
 		}
 
-		DBG(("%s: chaining flip\n", __FUNCION__));
+		DBG(("%s: chaining flip\n", __FUNCTION__));
 		assert(pending->chain == NULL);
 		pending->chain = info;
 		return TRUE;

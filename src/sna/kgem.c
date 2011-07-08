@@ -634,6 +634,7 @@ static void kgem_commit(struct kgem *kgem)
 		bo->src_bound = bo->dst_bound = 0;
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
+		bo->needs_flush |= bo->dirty;
 		bo->dirty = false;
 		bo->gpu = true;
 		bo->cpu_read = false;
@@ -1581,7 +1582,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].presumed_offset = bo->presumed_offset;
 
 		if (read_write_domain & 0x7fff)
-			bo->needs_flush = bo->dirty = true;
+			bo->dirty = true;
 
 		delta += bo->presumed_offset;
 	} else {
@@ -1597,7 +1598,9 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
-	void *ptr = gem_mmap(kgem->fd, bo->handle, bo->size, prot);
+	void *ptr;
+
+	ptr = gem_mmap(kgem->fd, bo->handle, bo->size, prot);
 	if (ptr == NULL)
 		return NULL;
 

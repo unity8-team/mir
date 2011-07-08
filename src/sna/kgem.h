@@ -181,10 +181,11 @@ static inline void kgem_bo_submit(struct kgem *kgem, struct kgem_bo *bo)
 void __kgem_flush(struct kgem *kgem, struct kgem_bo *bo);
 static inline void kgem_bo_flush(struct kgem *kgem, struct kgem_bo *bo)
 {
+	kgem_bo_submit(kgem, bo);
+
 	if (!bo->needs_flush)
 		return;
 
-	kgem_bo_submit(kgem, bo);
 	__kgem_flush(kgem, bo);
 
 	bo->needs_flush = false;
