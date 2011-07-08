@@ -76,11 +76,14 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define NDEBUG 1
 #endif
 
+#define NO_TRIPPLE_BUFFER 0
+
 enum frame_event_type {
 	DRI2_SWAP,
 	DRI2_SWAP_THROTTLE,
 	DRI2_ASYNC_FLIP,
 	DRI2_FLIP,
+	DRI2_FLIP_THROTTLE,
 	DRI2_WAITMSC,
 };
 
@@ -113,6 +116,8 @@ struct sna_dri_frame_event {
 	PixmapPtr old_front;
 	PixmapPtr next_front;
 	uint32_t old_fb;
+
+	struct sna_dri_frame_event *chain;
 };
 
 static inline struct sna_dri_frame_event *
@@ -833,10 +838,69 @@ done:
 	sna_dri_frame_event_info_free(info);
 }
 
+static int
+sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info)
+{
+	struct sna_dri_private *front_priv = info->front->driverPrivate;
+	struct sna_dri_frame_event *pending;
+	ScreenPtr screen = draw->pScreen;
+	PixmapPtr pixmap;
+
+	if (NO_TRIPPLE_BUFFER)
+		return sna_dri_schedule_flip(sna, draw, info);
+
+	info->type = DRI2_FLIP_THROTTLE;
+
+	pending = sna->dri.flip_pending[info->pipe];
+	if (pending) {
+		if (pending->type != DRI2_FLIP_THROTTLE) {
+			/* We need to first wait (one vblank) for the
+			 * async flips to complete beofore this client can
+			 * take over.
+			 */
+			info->type = DRI2_FLIP;
+			return sna_dri_schedule_flip(sna, draw, info);
+		}
+
+		DBG(("%s: chaining flip\n", __FUNCION__));
+		assert(pending->chain == NULL);
+		pending->chain = info;
+		return TRUE;
+	}
+
+	if (!sna_dri_schedule_flip(sna, draw, info))
+		return FALSE;
+
+	info->old_front =
+		sna_set_screen_pixmap(sna, get_pixmap(info->back));
+	sna->dri.flip_pending[info->pipe] = info;
+
+	if ((pixmap = screen->CreatePixmap(screen,
+					   draw->width,
+					   draw->height,
+					   draw->depth,
+					   SNA_CREATE_FB))) {
+		DBG(("%s: new back buffer\n", __FUNCTION__));
+		front_priv->pixmap->refcnt--;
+		front_priv->pixmap = pixmap;
+		front_priv->bo = sna_pixmap_set_dri(sna, pixmap);
+		info->front->name = kgem_bo_flink(&sna->kgem, front_priv->bo);
+		info->front->pitch = front_priv->bo->pitch;
+	}
+
+	sna_dri_exchange_buffers(draw, info->front, info->back);
+	DRI2SwapComplete(info->client, draw, 0, 0, 0,
+			 DRI2_EXCHANGE_COMPLETE,
+			 info->event_complete,
+			 info->event_data);
+	return TRUE;
+}
+
 static void sna_dri_flip_event(struct sna *sna,
 			       struct sna_dri_frame_event *flip)
 {
 	DrawablePtr drawable;
+	struct sna_dri_frame_event *chain;
 	int status;
 
 	DBG(("%s(frame=%d, tv=%d.%06d, type=%d)\n",
@@ -854,45 +918,76 @@ static void sna_dri_flip_event(struct sna *sna,
 		 * into account. This usually means some defective kms pageflip completion,
 		 * causing wrong (msc, ust) return values and possible visual corruption.
 		 */
-		if (!flip->drawable_id)
-			return;
+		if (flip->drawable_id) {
+			status = dixLookupDrawable(&drawable,
+						   flip->drawable_id,
+						   serverClient,
+						   M_ANY, DixWriteAccess);
+			if (status == Success) {
+				if ((flip->fe_frame < flip->frame) &&
+				    (flip->frame - flip->fe_frame < 5)) {
+					static int limit = 5;
 
-		status = dixLookupDrawable(&drawable,
-					   flip->drawable_id,
-					   serverClient,
-					   M_ANY, DixWriteAccess);
-		if (status != Success)
-			return;
+					/* XXX we are currently hitting this path with older
+					 * kernels, so make it quieter.
+					 */
+					if (limit) {
+						xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
+							   "%s: Pageflip completion has impossible msc %d < target_msc %d\n",
+							   __func__, flip->fe_frame, flip->frame);
+						limit--;
+					}
 
-		if ((flip->fe_frame < flip->frame) &&
-		    (flip->frame - flip->fe_frame < 5)) {
-			static int limit = 5;
+					/* All-0 values signal timestamping failure. */
+					flip->fe_frame = flip->fe_tv_sec = flip->fe_tv_usec = 0;
+				}
 
-			/* XXX we are currently hitting this path with older
-			 * kernels, so make it quieter.
-			 */
-			if (limit) {
-				xf86DrvMsg(sna->scrn->scrnIndex, X_WARNING,
-					   "%s: Pageflip completion has impossible msc %d < target_msc %d\n",
-					   __func__, flip->fe_frame, flip->frame);
-				limit--;
+				DBG(("%s: flip complete\n", __FUNCTION__));
+				DRI2SwapComplete(flip->client, drawable,
+						 flip->fe_frame,
+						 flip->fe_tv_sec,
+						 flip->fe_tv_usec,
+						 DRI2_FLIP_COMPLETE,
+						 flip->client ? flip->event_complete : NULL,
+						 flip->event_data);
 			}
-
-			/* All-0 values signal timestamping failure. */
-			flip->fe_frame = flip->fe_tv_sec = flip->fe_tv_usec = 0;
 		}
-
-		DBG(("%s: flip complete\n", __FUNCTION__));
-		DRI2SwapComplete(flip->client, drawable,
-				 flip->fe_frame,
-				 flip->fe_tv_sec,
-				 flip->fe_tv_usec,
-				 DRI2_FLIP_COMPLETE,
-				 flip->client ? flip->event_complete : NULL,
-				 flip->event_data);
 
 		sna_mode_delete_fb(flip->sna, flip->old_front, flip->old_fb);
 		sna_dri_frame_event_info_free(flip);
+		break;
+
+	case DRI2_FLIP_THROTTLE:
+		assert(sna->dri.flip_pending[flip->pipe] == flip);
+		sna->dri.flip_pending[flip->pipe] = NULL;
+
+		chain = flip->chain;
+
+		sna_mode_delete_fb(flip->sna, flip->old_front, flip->old_fb);
+		sna_dri_frame_event_info_free(flip);
+
+		if (chain) {
+			status = dixLookupDrawable(&drawable,
+						   chain->drawable_id,
+						   serverClient,
+						   M_ANY, DixWriteAccess);
+			if (status == Success) {
+				if (!(can_flip(chain->sna, drawable,
+					       chain->front, chain->back) &&
+				      sna_dri_flip(chain->sna, drawable, chain))) {
+					sna_dri_copy(sna, drawable, NULL,
+						     chain->front, chain->back, true);
+					DRI2SwapComplete(chain->client,
+							 drawable,
+							 0, 0, 0,
+							 DRI2_BLIT_COMPLETE,
+							 chain->client ? chain->event_complete : NULL,
+							 chain->event_data);
+					sna_dri_frame_event_info_free(chain);
+				}
+			} else
+				sna_dri_frame_event_info_free(chain);
+		}
 		break;
 
 	case DRI2_ASYNC_FLIP:
@@ -1052,12 +1147,8 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	info->type = swap_type;
 	if (divisor == 0) {
 		DBG(("%s: performing immediate swap\n", __FUNCTION__));
-		if (flip && sna_dri_schedule_flip(sna, draw, info)) {
-			info->old_front =
-				sna_set_screen_pixmap(sna, get_pixmap(back));
-			sna_dri_exchange_buffers(draw, front, back);
+		if (flip && sna_dri_flip(sna, draw, info))
 			return TRUE;
-		}
 
 		DBG(("%s: emitting immediate vsync'ed blit, throttling client\n",
 		     __FUNCTION__));
@@ -1200,6 +1291,7 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 	DBG(("%s()\n", __FUNCTION__));
 
 	if (!can_flip(sna, draw, front, back)) {
+blit:
 		sna_dri_copy(sna, draw, NULL, front, back, false);
 		DRI2SwapComplete(client, draw, 0, 0, 0,
 				 DRI2_BLIT_COMPLETE, func, data);
@@ -1259,6 +1351,11 @@ sna_dri_async_swap(ClientPtr client, DrawablePtr draw,
 			front->name = kgem_bo_flink(&sna->kgem, front_priv->bo);
 			front->pitch = front_priv->bo->pitch;
 		}
+	} else if (info->type != DRI2_ASYNC_FLIP) {
+		/* A normal vsync'ed client is finishing, wait for it
+		 * to unpin the old framebuffer before taking* pver.
+		 */
+		goto blit;
 	}
 
 	if (front_priv->pixmap == info->next_front &&
