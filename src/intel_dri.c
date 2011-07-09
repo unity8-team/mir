@@ -69,7 +69,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct {
 	int refcnt;
 	PixmapPtr pixmap;
-	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
 static uint32_t pixmap_flink(PixmapPtr pixmap)
@@ -264,7 +263,6 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		buffers[i].flags = 0;	/* not tiled */
 		privates[i].refcnt = 1;
 		privates[i].pixmap = pixmap;
-		privates[i].attachment = attachments[i];
 
 		if ((buffers[i].name = pixmap_flink(pixmap)) == 0) {
 			/* failed to name buffer */
@@ -401,7 +399,6 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	buffer->flags = 0;	/* not tiled */
 	privates->refcnt = 1;
 	privates->pixmap = pixmap;
-	privates->attachment = attachment;
 
 	if ((buffer->name = pixmap_flink(pixmap)) == 0) {
 		/* failed to name buffer */
@@ -440,9 +437,9 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	ScreenPtr screen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
+	DrawablePtr src = (sourceBuffer->attachment == DRI2BufferFrontLeft)
 		? drawable : &srcPrivate->pixmap->drawable;
-	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
+	DrawablePtr dst = (destBuffer->attachment == DRI2BufferFrontLeft)
 		? drawable : &dstPrivate->pixmap->drawable;
 	RegionPtr pCopyClip;
 	GCPtr gc;
