@@ -488,6 +488,14 @@ fallback:
 		    width, height);
 }
 
+static int16_t bound(int16_t a, uint16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	return v;
+}
+
 static Bool
 _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 				       int num_rects, xRectangle *rects,
@@ -513,12 +521,12 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
 		if (boxes[j].y1 < 0)
 			boxes[j].y1 = 0;
 
-		boxes[j].x2 = rects[i].x + rects[i].width;
+		boxes[j].x2 = bound(rects[i].x, rects[i].width);
 		if (boxes[j].x2 > maxx)
 			boxes[j].x2 = maxx;
 		boxes[j].x2 += tx;
 
-		boxes[j].y2 = rects[i].y + rects[i].height;
+		boxes[j].y2 = bound(rects[i].y, rects[i].height);
 		if (boxes[j].y2 > maxy)
 			boxes[j].y2 = maxy;
 		boxes[j].y2 += ty;

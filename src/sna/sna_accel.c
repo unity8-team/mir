@@ -869,17 +869,29 @@ static inline void box_add_pt(BoxPtr box, int16_t x, int16_t y)
 		box->y2 = y;
 }
 
+static int16_t bound(int16_t a, uint16_t b)
+{
+	int v = (int)a + (int)b;
+	if (v > MAXSHORT)
+		return MAXSHORT;
+	return v;
+}
+
 static inline void box_add_rect(BoxPtr box, const xRectangle *r)
 {
+	int v;
+
 	if (box->x1 > r->x)
 		box->x1 = r->x;
-	if (box->x2 < r->x + r->width)
-		box->x2 = r->x + r->width;
+	v = bound(r->x, r->width);
+	if (box->x2 < v)
+		box->x2 = v;
 
 	if (box->y1 > r->y)
 		box->y1 = r->y;
-	if (box->y2 < r->y + r->height)
-		box->y2 = r->y + r->height;
+	v =bound(r->y, r->height);
+	if (box->y2 < v)
+		box->y2 = v;
 }
 
 static inline bool box_empty(const BoxRec *box)
@@ -1037,6 +1049,8 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		return;
 
 	if (priv == NULL) {
+		DBG(("%s: fbPutImage, unattached(%d, %d, %d, %d)\n",
+		     __FUNCTION__, x, y, w, h));
 		fbPutImage(drawable, gc, depth, x, y, w, h, left, format, bits);
 		return;
 	}
@@ -2286,25 +2300,28 @@ sna_poly_arc_extents(DrawablePtr drawable, GCPtr gc,
 {
 	int extra = gc->lineWidth >> 1;
 	BoxRec box;
+	int v;
 
 	if (n == 0)
 		return true;
 
 	box.x1 = arc->x;
-	box.x2 = box.x1 + arc->width;
+	box.x2 = bound(box.x1, arc->width);
 	box.y1 = arc->y;
-	box.y2 = box.y1 + arc->height;
+	box.y2 = bound(box.y1, arc->height);
 
 	while (--n) {
 		arc++;
 		if (box.x1 > arc->x)
 			box.x1 = arc->x;
-		if (box.x2 < arc->x + arc->width)
-			box.x2 = arc->x + arc->width;
+		v = bound(arc->x, arc->width);
+		if (box.x2 < v)
+			box.x2 = v;
 		if (box.y1 > arc->y)
 			box.y1 = arc->y;
-		if (box.y2 < arc->y + arc->height)
-			box.y2 = arc->y + arc->height;
+		v = bound(arc->y, arc->height);
+		if (box.y2 < v)
+			box.y2 = v;
 	}
 
 	if (extra) {
@@ -2377,8 +2394,8 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 
 			r.x1 = rect->x + drawable->x;
 			r.y1 = rect->y + drawable->y;
-			r.x2 = r.x1 + rect->width;
-			r.y2 = r.y1 + rect->height;
+			r.x2 = bound(r.x1, rect->width);
+			r.y2 = bound(r.y1, rect->height);
 			rect++;
 
 			if (box_intersect(&r, box)) {
@@ -2403,8 +2420,8 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 
 			r.x1 = rect->x + drawable->x;
 			r.y1 = rect->y + drawable->y;
-			r.x2 = r.x1 + rect->width;
-			r.y2 = r.y1 + rect->height;
+			r.x2 = bound(r.x1, rect->width);
+			r.y2 = bound(r.y1, rect->height);
 			rect++;
 
 			RegionInit(&region, &r, 1);
@@ -2485,8 +2502,8 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 
 				r.x1 = rect->x + drawable->x;
 				r.y1 = rect->y + drawable->y;
-				r.x2 = r.x1 + rect->width;
-				r.y2 = r.y1 + rect->height;
+				r.x2 = bound(r.x1, rect->width);
+				r.y2 = bound(r.y1, rect->height);
 				rect++;
 
 				if (box_intersect(&r, box)) {
@@ -2511,8 +2528,8 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 
 				r.x1 = rect->x + drawable->x;
 				r.y1 = rect->y + drawable->y;
-				r.x2 = r.x1 + rect->width;
-				r.y2 = r.y1 + rect->height;
+				r.x2 = bound(r.x1, rect->width);
+				r.y2 = bound(r.y1, rect->height);
 				rect++;
 
 				RegionInit(&region, &r, 1);
@@ -2561,8 +2578,8 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 
 				r.x1 = rect->x + drawable->x;
 				r.y1 = rect->y + drawable->y;
-				r.x2 = r.x1 + rect->width;
-				r.y2 = r.y1 + rect->height;
+				r.x2 = bound(r.x1, rect->width);
+				r.y2 = bound(r.y1, rect->height);
 				rect++;
 
 				if (box_intersect(&r, box)) {
@@ -2614,8 +2631,8 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 
 				r.x1 = rect->x + drawable->x;
 				r.y1 = rect->y + drawable->y;
-				r.x2 = r.x1 + rect->width;
-				r.y2 = r.y1 + rect->height;
+				r.x2 = bound(r.x1, rect->width);
+				r.y2 = bound(r.y1, rect->height);
 				rect++;
 
 				RegionInit(&region, &r, 1);
@@ -2685,10 +2702,12 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 	if (n == 0)
 		return true;
 
+	DBG(("%s: [0] = (%d, %d)x(%d, %d)\n",
+	     __FUNCTION__, rect->x, rect->y, rect->width, rect->height));
 	box.x1 = rect->x;
-	box.x2 = box.x1 + rect->width;
+	box.x2 = bound(box.x1, rect->width);
 	box.y1 = rect->y;
-	box.y2 = box.y1 + rect->height;
+	box.y2 = bound(box.y1, rect->height);
 
 	while (--n) {
 		rect++;
@@ -2714,8 +2733,10 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	     gc->fillStyle, gc->tileIsPixel,
 	     gc->alu));
 
-	if (sna_poly_fill_rect_extents(draw, gc, n, rect, &extents))
+	if (sna_poly_fill_rect_extents(draw, gc, n, rect, &extents)) {
+		DBG(("%s, nothing to do\n", __FUNCTION__));
 		return;
+	}
 
 	if (sna->kgem.wedged) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
@@ -2772,8 +2793,10 @@ fallback:
 	RegionInit(&region, &extents, 1);
 	if (gc->pCompositeClip)
 		RegionIntersect(&region, &region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	if (!RegionNotEmpty(&region)) {
+		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
 		return;
+	}
 
 	sna_gc_move_to_cpu(gc);
 	sna_drawable_move_region_to_cpu(draw, &region, true);
