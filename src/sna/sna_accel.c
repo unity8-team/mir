@@ -1295,14 +1295,14 @@ fallback:
 		dst_stride = dst_pixmap->devKind;
 		src_stride = src_pixmap->devKind;
 
-		dst_bits = (FbBits *)
-			((char *)dst_pixmap->devPrivate.ptr +
-			 dst_dy * dst_stride + dst_dx * bpp / 8);
-		src_bits = (FbBits *)
-			((char *)src_pixmap->devPrivate.ptr +
-			 src_dy * src_stride + src_dx * bpp / 8);
-
 		if (alu == GXcopy && !reverse && !upsidedown && bpp >= 8) {
+			dst_bits = (FbBits *)
+				((char *)dst_pixmap->devPrivate.ptr +
+				 dst_dy * dst_stride + dst_dx * bpp / 8);
+			src_bits = (FbBits *)
+				((char *)src_pixmap->devPrivate.ptr +
+				 src_dy * src_stride + src_dx * bpp / 8);
+
 			do {
 				DBG(("%s: memcpy_blt(box=(%d, %d), (%d, %d), src=(%d, %d), dst=(%d, %d), pitches=(%d, %d))\n",
 				     __FUNCTION__,
@@ -1321,6 +1321,9 @@ fallback:
 				box++;
 			} while (--n);
 		} else {
+			dst_bits = dst_pixmap->devPrivate.ptr;
+			src_bits = src_pixmap->devPrivate.ptr;
+
 			dst_stride /= sizeof(FbBits);
 			src_stride /= sizeof(FbBits);
 			do {
@@ -1328,13 +1331,13 @@ fallback:
 				     __FUNCTION__,
 				     box->x1, box->y1,
 				     box->x2, box->y2));
-				fbBlt(src_bits + box->y1 * src_stride,
+				fbBlt(src_bits + (box->y1 + src_dy) * src_stride,
 				      src_stride,
-				      box->x1 * bpp,
+				      (box->x1 + src_dx) * bpp,
 
-				      dst_bits + box->y1 * dst_stride,
+				      dst_bits + (box->y1 + dst_dy) * dst_stride,
 				      dst_stride,
-				      box->x1 * bpp,
+				      (box->x1 + dst_dx) * bpp,
 
 				      (box->x2 - box->x1) * bpp,
 				      (box->y2 - box->y1),
@@ -1362,6 +1365,11 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (sna->kgem.wedged || !PM_IS_SOLID(dst, gc->planemask)) {
 		BoxRec box;
 		RegionRec region;
+
+		DBG(("%s: -- fallback, wedged=%d, solid=%d [%x]\n",
+		     __FUNCTION__, sna->kgem.wedged,
+		     PM_IS_SOLID(dst, gc->planemask),
+		     (unsigned)gc->planemask));
 
 		box.x1 = dst_x + dst->x;
 		box.y1 = dst_y + dst->y;
