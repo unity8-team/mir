@@ -91,6 +91,7 @@ typedef enum {
    OPTION_TILING_2D,
    OPTION_SHADOW,
    OPTION_SWAPBUFFERS_WAIT,
+   OPTION_TRIPLE_BUFFER,
 #ifdef INTEL_XVMC
    OPTION_XVMC,
 #endif
@@ -111,6 +112,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_TRIPLE_BUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
@@ -656,6 +658,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel->swapbuffers_wait = xf86ReturnOptValBool(intel->Options,
 						       OPTION_SWAPBUFFERS_WAIT,
 						       TRUE);
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Wait on SwapBuffers? %s\n",
+		   intel->swapbuffers_wait ? "enabled" : "disabled");
+
+	intel->use_triple_buffer =
+		xf86ReturnOptValBool(intel->Options,
+				     OPTION_TRIPLE_BUFFER,
+				     TRUE);
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Triple buffering? %s\n",
+		   intel->use_triple_buffer ? "enabled" : "disabled");
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   intel->tiling & INTEL_TILING_FB ? "tiled" : "linear");
@@ -1175,6 +1186,11 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		uxa_driver_fini(screen);
 		free(intel->uxa_driver);
 		intel->uxa_driver = NULL;
+	}
+
+	if (intel->back_buffer) {
+		drm_intel_bo_unreference(intel->back_buffer);
+		intel->back_buffer = NULL;
 	}
 
 	if (intel->front_buffer) {

@@ -260,7 +260,7 @@ typedef struct intel_screen_private {
 	unsigned int current_batch;
 
 	void *modes;
-	drm_intel_bo *front_buffer;
+	drm_intel_bo *front_buffer, *back_buffer;
 	long front_pitch, front_tiling;
 	void *shadow_buffer;
 	int shadow_stride;
@@ -423,11 +423,14 @@ typedef struct intel_screen_private {
 	char *deviceName;
 
 	Bool use_pageflipping;
+	Bool use_triple_buffer;
 	Bool force_fallback;
 	Bool can_blt;
 	Bool has_kernel_flush;
 	Bool needs_flush;
 	Bool use_shadow;
+
+	struct _DRI2FrameEvent *pending_flip[2];
 
 	/* Broken-out options. */
 	OptionInfoPtr Options;
@@ -465,6 +468,7 @@ extern int intel_output_dpms_status(xf86OutputPtr output);
 
 enum DRI2FrameEventType {
 	DRI2_SWAP,
+	DRI2_SWAP_CHAIN,
 	DRI2_FLIP,
 	DRI2_WAITMSC,
 };
@@ -475,10 +479,13 @@ typedef void (*DRI2SwapEventPtr)(ClientPtr client, void *data, int type,
 #endif
 
 typedef struct _DRI2FrameEvent {
+	struct intel_screen_private *intel;
+
 	XID drawable_id;
 	ClientPtr client;
 	enum DRI2FrameEventType type;
 	int frame;
+	int pipe;
 
 	struct list drawable_resource, client_resource;
 
@@ -487,6 +494,8 @@ typedef struct _DRI2FrameEvent {
 	void *event_data;
 	DRI2BufferPtr front;
 	DRI2BufferPtr back;
+
+	struct _DRI2FrameEvent *chain;
 } DRI2FrameEventRec, *DRI2FrameEventPtr;
 
 extern Bool intel_do_pageflip(intel_screen_private *intel,

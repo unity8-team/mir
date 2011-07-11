@@ -1371,6 +1371,11 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	old_fb_id = mode->fb_id;
 	old_front = intel->front_buffer;
 
+	if (intel->back_buffer) {
+		drm_intel_bo_unreference(intel->back_buffer);
+		intel->back_buffer = NULL;
+	}
+
 	intel->front_buffer = intel_allocate_framebuffer(scrn,
 							 width, height,
 							 intel->cpp,
@@ -1446,6 +1451,8 @@ intel_do_pageflip(intel_screen_private *intel,
 			 scrn->depth, scrn->bitsPerPixel, pitch,
 			 new_front->handle, &mode->fb_id))
 		goto error_out;
+
+	intel_batch_submit(scrn);
 
 	/*
 	 * Queue flips on all enabled CRTCs
