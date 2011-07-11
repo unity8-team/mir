@@ -71,6 +71,8 @@ typedef struct {
 	PixmapPtr pixmap;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
+static DevPrivateKeyRec i830_client_key;
+
 static uint32_t pixmap_flink(PixmapPtr pixmap)
 {
 	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
@@ -608,22 +610,73 @@ I830DRI2DrawablePipe(DrawablePtr pDraw)
 
 static RESTYPE	frame_event_client_type, frame_event_drawable_type;
 
+struct i830_dri2_resource {
+	XID id;
+	RESTYPE type;
+	struct list list;
+};
+
+static struct i830_dri2_resource *
+get_resource(XID id, RESTYPE type)
+{
+	struct i830_dri2_resource *resource;
+	void *ptr;
+
+	ptr = NULL;
+	dixLookupResourceByType(&ptr, id, type, NULL, DixWriteAccess);
+	if (ptr)
+		return ptr;
+
+	resource = malloc(sizeof(*resource));
+	if (resource == NULL)
+		return NULL;
+
+	if (!AddResource(id, type, resource)) {
+		free(resource);
+		return NULL;
+	}
+
+	resource->id = id;
+	resource->type = type;
+	list_init(&resource->list);
+	return resource;
+}
+
 static int
 i830_dri2_frame_event_client_gone(void *data, XID id)
 {
-	DRI2FrameEventPtr	frame_event = data;
+	struct i830_dri2_resource *resource = data;
 
-	frame_event->client = NULL;
-	frame_event->client_id = None;
+	while (!list_is_empty(&resource->list)) {
+		DRI2FrameEventPtr info =
+			list_first_entry(&resource->list,
+					 DRI2FrameEventRec,
+					 client_resource);
+
+		list_del(&info->client_resource);
+		info->client = NULL;
+	}
+	free(resource);
+
 	return Success;
 }
 
 static int
 i830_dri2_frame_event_drawable_gone(void *data, XID id)
 {
-	DRI2FrameEventPtr	frame_event = data;
+	struct i830_dri2_resource *resource = data;
 
-	frame_event->drawable_id = None;
+	while (!list_is_empty(&resource->list)) {
+		DRI2FrameEventPtr info =
+			list_first_entry(&resource->list,
+					 DRI2FrameEventRec,
+					 drawable_resource);
+
+		list_del(&info->drawable_resource);
+		info->drawable_id = None;
+	}
+	free(resource);
+
 	return Success;
 }
 
@@ -641,34 +694,48 @@ i830_dri2_register_frame_event_resource_types(void)
 	return TRUE;
 }
 
+static XID
+get_client_id(ClientPtr client)
+{
+	XID *ptr = dixGetPrivateAddr(&client->devPrivates, &i830_client_key);
+	if (*ptr == 0)
+		*ptr = FakeClientID(client->index);
+	return *ptr;
+}
+
 /*
  * Hook this frame event into the server resource
  * database so we can clean it up if the drawable or
  * client exits while the swap is pending
  */
 static Bool
-i830_dri2_add_frame_event(DRI2FrameEventPtr frame_event)
+i830_dri2_add_frame_event(DRI2FrameEventPtr info)
 {
-	frame_event->client_id = FakeClientID(frame_event->client->index);
+	struct i830_dri2_resource *resource;
 
-	if (!AddResource(frame_event->client_id, frame_event_client_type, frame_event))
+	resource = get_resource(get_client_id(info->client),
+				frame_event_client_type);
+	if (resource == NULL)
 		return FALSE;
 
-	if (!AddResource(frame_event->drawable_id, frame_event_drawable_type, frame_event)) {
-		FreeResourceByType(frame_event->client_id, frame_event_client_type, TRUE);
+	list_add(&info->client_resource, &resource->list);
+
+	resource = get_resource(info->drawable_id, frame_event_drawable_type);
+	if (resource == NULL) {
+		list_del(&info->client_resource);
 		return FALSE;
 	}
+
+	list_add(&info->drawable_resource, &resource->list);
 
 	return TRUE;
 }
 
 static void
-i830_dri2_del_frame_event(DRI2FrameEventPtr frame_event)
+i830_dri2_del_frame_event(DRI2FrameEventPtr info)
 {
-	if (frame_event->client_id)
-		FreeResourceByType(frame_event->client_id, frame_event_client_type, TRUE);
-	if (frame_event->drawable_id)
-		FreeResourceByType(frame_event->drawable_id, frame_event_drawable_type, TRUE);
+	list_del(&info->client_resource);
+	list_del(&info->drawable_resource);
 }
 
 static void
@@ -1349,6 +1416,10 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 			   "DRI2 requires DRI2 module version 1.1.0 or later\n");
 		return FALSE;
 	}
+
+	if (!dixRegisterPrivateKey(&i830_client_key, PRIVATE_CLIENT, sizeof(XID)))
+		return FALSE;
+
 
 #if DRI2INFOREC_VERSION >= 4
 	if (serverGeneration != dri2_server_generation) {

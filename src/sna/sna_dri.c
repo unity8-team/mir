@@ -93,15 +93,23 @@ struct sna_dri_private {
 	struct kgem_bo *bo;
 };
 
+struct sna_dri_resource {
+	XID id;
+	RESTYPE type;
+	struct list list;
+};
+
 struct sna_dri_frame_event {
 	struct sna *sna;
 	XID drawable_id;
-	XID client_id;	/* fake client ID to track client destruction */
 	ClientPtr client;
 	enum frame_event_type type;
 	int frame;
 	int pipe;
 	int count;
+
+	struct list drawable_resource;
+	struct list client_resource;
 
 	/* for swaps & flips only */
 	DRI2SwapEventPtr event_complete;
@@ -119,6 +127,8 @@ struct sna_dri_frame_event {
 
 	struct sna_dri_frame_event *chain;
 };
+
+static DevPrivateKeyRec sna_client_key;
 
 static inline struct sna_dri_frame_event *
 to_frame_event(void *data)
@@ -531,22 +541,67 @@ sna_dri_get_pipe(DrawablePtr pDraw)
 
 static RESTYPE frame_event_client_type, frame_event_drawable_type;
 
+static struct sna_dri_resource *
+get_resource(XID id, RESTYPE type)
+{
+	struct sna_dri_resource *resource;
+	void *ptr;
+
+	ptr = NULL;
+	dixLookupResourceByType(&ptr, id, type, NULL, DixWriteAccess);
+	if (ptr)
+		return ptr;
+
+	resource = malloc(sizeof(*resource));
+	if (resource == NULL)
+		return NULL;
+
+	if (!AddResource(id, type, resource)) {
+		free(resource);
+		return NULL;
+	}
+
+	resource->id = id;
+	resource->type = type;
+	list_init(&resource->list);
+	return resource;
+}
+
 static int
 sna_dri_frame_event_client_gone(void *data, XID id)
 {
-	struct sna_dri_frame_event *frame_event = data;
+	struct sna_dri_resource *resource = data;
 
-	frame_event->client = NULL;
-	frame_event->client_id = None;
+	while (!list_is_empty(&resource->list)) {
+		struct sna_dri_frame_event *info =
+			list_first_entry(&resource->list,
+					 struct sna_dri_frame_event,
+					 client_resource);
+
+		list_del(&info->client_resource);
+		info->client = NULL;
+	}
+	free(resource);
+
 	return Success;
 }
 
 static int
 sna_dri_frame_event_drawable_gone(void *data, XID id)
 {
-	struct sna_dri_frame_event *frame_event = data;
+	struct sna_dri_resource *resource = data;
 
-	frame_event->drawable_id = None;
+	while (!list_is_empty(&resource->list)) {
+		struct sna_dri_frame_event *info =
+			list_first_entry(&resource->list,
+					 struct sna_dri_frame_event,
+					 drawable_resource);
+
+		list_del(&info->drawable_resource);
+		info->drawable_id = None;
+	}
+	free(resource);
+
 	return Success;
 }
 
@@ -568,29 +623,39 @@ sna_dri_register_frame_event_resource_types(void)
 	return TRUE;
 }
 
+static XID
+get_client_id(ClientPtr client)
+{
+	XID *ptr = dixGetPrivateAddr(&client->devPrivates, &sna_client_key);
+	if (*ptr == 0)
+		*ptr = FakeClientID(client->index);
+	return *ptr;
+}
+
 /*
  * Hook this frame event into the server resource
  * database so we can clean it up if the drawable or
  * client exits while the swap is pending
  */
 static Bool
-sna_dri_add_frame_event(struct sna_dri_frame_event *frame_event)
+sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 {
-	frame_event->client_id = FakeClientID(frame_event->client->index);
+	struct sna_dri_resource *resource;
 
-	if (!AddResource(frame_event->client_id,
-			 frame_event_client_type,
-			 frame_event))
+	resource = get_resource(get_client_id(info->client),
+				frame_event_client_type);
+	if (resource == NULL)
 		return FALSE;
 
-	if (!AddResource(frame_event->drawable_id,
-			 frame_event_drawable_type,
-			 frame_event)) {
-		FreeResourceByType(frame_event->client_id,
-				   frame_event_client_type,
-				   TRUE);
+	list_add(&info->client_resource, &resource->list);
+
+	resource = get_resource(info->drawable_id, frame_event_drawable_type);
+	if (resource == NULL) {
+		list_del(&info->client_resource);
 		return FALSE;
 	}
+
+	list_add(&info->drawable_resource, &resource->list);
 
 	return TRUE;
 }
@@ -598,15 +663,8 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *frame_event)
 static void
 sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 {
-	if (info->client_id)
-		FreeResourceByType(info->client_id,
-				   frame_event_client_type,
-				   TRUE);
-
-	if (info->drawable_id)
-		FreeResourceByType(info->drawable_id,
-				   frame_event_drawable_type,
-				   TRUE);
+	list_del(&info->client_resource);
+	list_del(&info->drawable_resource);
 
 	if (info->front)
 		_sna_dri_destroy_buffer(info->sna, info->front);
@@ -1606,6 +1664,10 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 		return FALSE;
 	    }
 	}
+
+	if (!dixRegisterPrivateKey(&sna_client_key, PRIVATE_CLIENT, sizeof(XID)))
+		return FALSE;
+
 	sna->deviceName = drmGetDeviceNameFromFd(sna->kgem.fd);
 	memset(&info, '\0', sizeof(info));
 	info.fd = sna->kgem.fd;

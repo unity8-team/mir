@@ -476,10 +476,11 @@ typedef void (*DRI2SwapEventPtr)(ClientPtr client, void *data, int type,
 
 typedef struct _DRI2FrameEvent {
 	XID drawable_id;
-	XID client_id;	/* fake client ID to track client destruction */
 	ClientPtr client;
 	enum DRI2FrameEventType type;
 	int frame;
+
+	struct list drawable_resource, client_resource;
 
 	/* for swaps & flips only */
 	DRI2SwapEventPtr event_complete;
