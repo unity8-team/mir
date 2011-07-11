@@ -896,10 +896,21 @@ done:
 	sna_dri_frame_event_info_free(info);
 }
 
+static void set_pixmap(struct sna *sna, DRI2BufferPtr buffer, PixmapPtr pixmap)
+{
+	struct sna_dri_private *priv = buffer->driverPrivate;
+
+	assert(priv->pixmap->refcnt > 1);
+	priv->pixmap->refcnt--;
+	priv->pixmap = pixmap;
+	priv->bo = sna_pixmap_set_dri(sna, pixmap);
+	buffer->name = kgem_bo_flink(&sna->kgem, priv->bo);
+	buffer->pitch = priv->bo->pitch;
+}
+
 static int
 sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info)
 {
-	struct sna_dri_private *front_priv = info->front->driverPrivate;
 	struct sna_dri_frame_event *pending;
 	ScreenPtr screen = draw->pScreen;
 	PixmapPtr pixmap;
@@ -939,11 +950,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 					   draw->depth,
 					   SNA_CREATE_FB))) {
 		DBG(("%s: new back buffer\n", __FUNCTION__));
-		front_priv->pixmap->refcnt--;
-		front_priv->pixmap = pixmap;
-		front_priv->bo = sna_pixmap_set_dri(sna, pixmap);
-		info->front->name = kgem_bo_flink(&sna->kgem, front_priv->bo);
-		info->front->pitch = front_priv->bo->pitch;
+		set_pixmap(sna, info->front, pixmap);
 	}
 
 	sna_dri_exchange_buffers(draw, info->front, info->back);
@@ -1402,12 +1409,7 @@ blit:
 						   draw->depth,
 						   SNA_CREATE_FB))) {
 			DBG(("%s: new back buffer\n", __FUNCTION__));
-			assert(front_priv->pixmap->refcnt > 1);
-			front_priv->pixmap->refcnt--;
-			front_priv->pixmap = pixmap;
-			front_priv->bo = sna_pixmap_set_dri(sna, pixmap);
-			front->name = kgem_bo_flink(&sna->kgem, front_priv->bo);
-			front->pitch = front_priv->bo->pitch;
+			set_pixmap(sna, front, pixamp);
 		}
 	} else if (info->type != DRI2_ASYNC_FLIP) {
 		/* A normal vsync'ed client is finishing, wait for it
@@ -1423,12 +1425,7 @@ blit:
 					   draw->depth,
 					   SNA_CREATE_FB))) {
 		DBG(("%s: new back buffer\n", __FUNCTION__));
-		assert(front_priv->pixmap->refcnt > 1);
-		front_priv->pixmap->refcnt--;
-		front_priv->pixmap = pixmap;
-		front_priv->bo = sna_pixmap_set_dri(sna, pixmap);
-		front->name = kgem_bo_flink(&sna->kgem, front_priv->bo);
-		front->pitch = front_priv->bo->pitch;
+		set_pixmap(sna, front, pixamp);
 	}
 
 exchange:
