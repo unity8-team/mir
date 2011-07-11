@@ -504,8 +504,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 	if (data) {
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
-		if (!pNv->NoAccel)
-			nouveau_bo_ref(NULL, &drmmode_crtc->rotate_bo);
+		nouveau_bo_ref(NULL, &drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_pixmap = NULL;
 	}
 }
