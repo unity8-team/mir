@@ -557,6 +557,8 @@ get_resource(XID id, RESTYPE type)
 		return NULL;
 
 	if (!AddResource(id, type, resource)) {
+		DBG(("%s: failed to add resource (%ld, %ld)\n",
+		     __FUNCTION__, (long)id, (long)type));
 		free(resource);
 		return NULL;
 	}
@@ -571,6 +573,8 @@ static int
 sna_dri_frame_event_client_gone(void *data, XID id)
 {
 	struct sna_dri_resource *resource = data;
+
+	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
 
 	while (!list_is_empty(&resource->list)) {
 		struct sna_dri_frame_event *info =
@@ -590,6 +594,8 @@ static int
 sna_dri_frame_event_drawable_gone(void *data, XID id)
 {
 	struct sna_dri_resource *resource = data;
+
+	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
 
 	while (!list_is_empty(&resource->list)) {
 		struct sna_dri_frame_event *info =
@@ -644,13 +650,16 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 
 	resource = get_resource(get_client_id(info->client),
 				frame_event_client_type);
-	if (resource == NULL)
+	if (resource == NULL) {
+		DBG(("%s: failed to get client resource\n", __FUNCTION__));
 		return FALSE;
+	}
 
 	list_add(&info->client_resource, &resource->list);
 
 	resource = get_resource(info->drawable_id, frame_event_drawable_type);
 	if (resource == NULL) {
+		DBG(("%s: failed to get drawable resource\n", __FUNCTION__));
 		list_del(&info->client_resource);
 		return FALSE;
 	}
@@ -1169,6 +1178,8 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		struct sna_dri_private *back_priv = back->driverPrivate;
 		PixmapPtr pixmap;
 
+		DBG(("%s: off-screen, immediate update\n", __FUNCTION__));
+
 		if (!flip)
 			goto blit_fallback;
 
@@ -1201,6 +1212,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	info->pipe = pipe;
 
 	if (!sna_dri_add_frame_event(info)) {
+		DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
 		free(info);
 		info = NULL;
 		goto blit_fallback;
