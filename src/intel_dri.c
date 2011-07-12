@@ -1336,6 +1336,12 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	wait_info->client = client;
 	wait_info->type = DRI2_WAITMSC;
 
+	if (!i830_dri2_add_frame_event(wait_info)) {
+	    free(wait_info);
+	    wait_info = NULL;
+	    goto out_complete;
+	}
+
 	/* Get current count */
 	vbl.request.type = DRM_VBLANK_RELATIVE;
 	if (pipe > 0)

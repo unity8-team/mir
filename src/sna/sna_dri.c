@@ -1395,6 +1395,14 @@ blit:
 		info->sna = sna;
 		info->type = DRI2_ASYNC_FLIP;
 		info->pipe = pipe;
+		info->client = client;
+
+		if (!sna_dri_add_frame_event(info)) {
+			DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
+			free(info);
+			info = NULL;
+			goto exchange;
+		}
 
 		info->count = sna_do_pageflip(sna, back_priv->pixmap,
 					      info, pipe,
@@ -1565,6 +1573,12 @@ sna_dri_schedule_wait_msc(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	info->drawable_id = draw->id;
 	info->client = client;
 	info->type = DRI2_WAITMSC;
+	if (!sna_dri_add_frame_event(info)) {
+		DBG(("%s: failed to hook up frame event\n", __FUNCTION__));
+		free(info);
+		info = NULL;
+		goto out_complete;
+	}
 
 	/*
 	 * If divisor is zero, or current_msc is smaller than target_msc,
