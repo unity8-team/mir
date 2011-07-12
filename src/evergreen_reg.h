@@ -118,6 +118,7 @@ enum {
     SQ_LDS_ALLOC_PS                                       = 0x288ec,
     SQ_DYN_GPR_RESOURCE_LIMIT_1                           = 0x28838,
     SQ_DYN_GPR_CNTL_PS_FLUSH_REQ                          = 0x8d8c,
+    SQ_LDS_RESOURCE_MGMT				  = 0x8e2c,
 
     WAIT_UNTIL                                            = 0x8040,
 	WAIT_CP_DMA_IDLE_bit                              = 1 << 8,

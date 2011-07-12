@@ -1068,8 +1068,9 @@ evergreen_set_default_state(ScrnInfoPtr pScrn)
 
     evergreen_sq_setup(pScrn, &sq_conf);
 
-    BEGIN_BATCH(24);
+    BEGIN_BATCH(27);
     EREG(SQ_LDS_ALLOC_PS, 0);
+    EREG(SQ_LDS_RESOURCE_MGMT, 0x10001000);
     EREG(SQ_DYN_GPR_RESOURCE_LIMIT_1, 0);
 
     PACK0(SQ_ESGS_RING_ITEMSIZE, 6);
