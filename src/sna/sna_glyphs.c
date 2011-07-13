@@ -305,8 +305,10 @@ glyph_cache(ScreenPtr screen,
 	int size, mask, pos, s;
 
 	if (glyph->info.width > GLYPH_MAX_SIZE ||
-	    glyph->info.height > GLYPH_MAX_SIZE)
+	    glyph->info.height > GLYPH_MAX_SIZE) {
+		((PixmapPtr)glyph_picture->pDrawable)->usage_hint = 0;
 		return FALSE;
+	}
 
 	for (size = GLYPH_MIN_SIZE; size <= GLYPH_MAX_SIZE; size *= 2)
 		if (glyph->info.width <= size && glyph->info.height <= size)
