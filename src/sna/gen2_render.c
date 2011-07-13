@@ -1560,6 +1560,28 @@ static void gen2_emit_composite_spans_state(struct sna *sna,
 }
 
 static void
+gen2_render_composite_spans_box(struct sna *sna,
+				const struct sna_composite_spans_op *op,
+				const BoxRec *box, float opacity)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), opacity=%f, dst=+(%d, %d), box=(%d, %d) x (%d, %d)\n",
+	     __FUNCTION__,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     opacity,
+	     op->base.dst.x, op->base.dst.y,
+	     box->x1, box->y1,
+	     box->x2 - box->x1,
+	     box->y2 - box->y1));
+
+	if (gen2_get_rectangles(sna, &op->base, 1) == 0) {
+		gen2_emit_composite_spans_state(sna, op);
+		gen2_get_rectangles(sna, &op->base, 1);
+	}
+
+	op->prim_emit(sna, op, box, opacity);
+}
+
+static void
 gen2_render_composite_spans_boxes(struct sna *sna,
 				  const struct sna_composite_spans_op *op,
 				  const BoxRec *box, int nbox,
@@ -1689,6 +1711,7 @@ gen2_render_composite_spans(struct sna *sna,
 		}
 	}
 
+	tmp->box   = gen2_render_composite_spans_box;
 	tmp->boxes = gen2_render_composite_spans_boxes;
 	tmp->done  = gen2_render_composite_spans_done;
 

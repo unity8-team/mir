@@ -2561,6 +2561,28 @@ gen3_emit_composite_spans_primitive(struct sna *sna,
 }
 
 static void
+gen3_render_composite_spans_box(struct sna *sna,
+				const struct sna_composite_spans_op *op,
+				const BoxRec *box, float opacity)
+{
+	DBG(("%s: src=+(%d, %d), opacity=%f, dst=+(%d, %d), box=(%d, %d) x (%d, %d)\n",
+	     __FUNCTION__,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     opacity,
+	     op->base.dst.x, op->base.dst.y,
+	     box->x1, box->y1,
+	     box->x2 - box->x1,
+	     box->y2 - box->y1));
+
+	if (gen3_get_rectangles(sna, &op->base, 1) == 0) {
+		gen3_emit_composite_state(sna, &op->base);
+		gen3_get_rectangles(sna, &op->base, 1);
+	}
+
+	op->prim_emit(sna, op, box, opacity);
+}
+
+static void
 gen3_render_composite_spans_boxes(struct sna *sna,
 				  const struct sna_composite_spans_op *op,
 				  const BoxRec *box, int nbox,
@@ -2707,6 +2729,7 @@ gen3_render_composite_spans(struct sna *sna,
 	tmp->base.floats_per_vertex +=
 		tmp->base.mask.u.gen3.type == SHADER_OPACITY;
 
+	tmp->box   = gen3_render_composite_spans_box;
 	tmp->boxes = gen3_render_composite_spans_boxes;
 	tmp->done  = gen3_render_composite_spans_done;
 

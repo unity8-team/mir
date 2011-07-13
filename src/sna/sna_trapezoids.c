@@ -1253,7 +1253,7 @@ tor_blt_span(struct sna *sna,
 {
 	DBG(("%s: %d -> %d @ %d\n", __FUNCTION__, box->x1, box->x2, coverage));
 
-	op->boxes(sna, op, box, 1, AREA_TO_ALPHA(coverage));
+	op->box(sna, op, box, AREA_TO_ALPHA(coverage));
 	apply_damage_box(&op->base, box);
 }
 

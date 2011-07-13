@@ -127,6 +127,8 @@ struct sna_composite_op {
 struct sna_composite_spans_op {
 	struct sna_composite_op base;
 
+	void (*box)(struct sna *sna, const struct sna_composite_spans_op *op,
+		    const BoxRec *box, float opacity);
 	void (*boxes)(struct sna *sna, const struct sna_composite_spans_op *op,
 		      const BoxRec *box, int nbox,
 		      float opacity);
