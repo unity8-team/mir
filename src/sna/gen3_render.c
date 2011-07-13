@@ -2410,16 +2410,10 @@ gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 	sna->render.vertex_used += 9;
 
 	v[0] = op->base.dst.x + box->x2;
-	v[1] = op->base.dst.y + box->y2;
-	v[2] = opacity;
-
-	v[3] = op->base.dst.x + box->x1;
-	v[4] = v[1];
-	v[5] = opacity;
-
-	v[6] = v[3];
+	v[6] = v[3] = op->base.dst.x + box->x1;
+	v[4] = v[1] = op->base.dst.y + box->y2;
 	v[7] = op->base.dst.y + box->y1;
-	v[8] = opacity;
+	v[8] = v[5] = v[2] = opacity;
 }
 
 static void
