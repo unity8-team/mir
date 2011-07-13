@@ -410,17 +410,21 @@ sna_render_pixmap_bo(struct sna *sna,
 		}
 
 		if (bo == NULL) {
-			DBG(("%s: uploading CPU box\n", __FUNCTION__));
+			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
+			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 			bo = upload(sna, channel, pixmap, x,y, w,h, &box);
 		}
 	}
 
 	if (bo == NULL) {
 		priv = sna_pixmap_force_to_gpu(pixmap);
-		if (priv)
+		if (priv) {
 			bo = kgem_bo_reference(priv->gpu_bo);
-		else
+		} else {
+			DBG(("%s: failed to upload pixmap to gpu, uploading CPU box (%d, %d), (%d, %d) instead\n",
+			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 			bo = upload(sna, channel, pixmap, x,y, w,h, &box);
+		}
 	}
 
 	channel->bo = bo;
