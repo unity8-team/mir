@@ -1421,7 +1421,7 @@ blit:
 						   draw->depth,
 						   SNA_CREATE_FB))) {
 			DBG(("%s: new back buffer\n", __FUNCTION__));
-			set_pixmap(sna, front, pixamp);
+			set_pixmap(sna, front, pixmap);
 		}
 	} else if (info->type != DRI2_ASYNC_FLIP) {
 		/* A normal vsync'ed client is finishing, wait for it
@@ -1437,7 +1437,7 @@ blit:
 					   draw->depth,
 					   SNA_CREATE_FB))) {
 		DBG(("%s: new back buffer\n", __FUNCTION__));
-		set_pixmap(sna, front, pixamp);
+		set_pixmap(sna, front, pixmap);
 	}
 
 exchange:
