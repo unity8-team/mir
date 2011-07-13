@@ -93,12 +93,6 @@ struct sna_dri_private {
 	struct kgem_bo *bo;
 };
 
-struct sna_dri_resource {
-	XID id;
-	RESTYPE type;
-	struct list list;
-};
-
 struct sna_dri_frame_event {
 	struct sna *sna;
 	XID drawable_id;
@@ -541,10 +535,10 @@ sna_dri_get_pipe(DrawablePtr pDraw)
 
 static RESTYPE frame_event_client_type, frame_event_drawable_type;
 
-static struct sna_dri_resource *
+static struct list *
 get_resource(XID id, RESTYPE type)
 {
-	struct sna_dri_resource *resource;
+	struct list *resource;
 	void *ptr;
 
 	ptr = NULL;
@@ -563,22 +557,20 @@ get_resource(XID id, RESTYPE type)
 		return NULL;
 	}
 
-	resource->id = id;
-	resource->type = type;
-	list_init(&resource->list);
+	list_init(resource);
 	return resource;
 }
 
 static int
 sna_dri_frame_event_client_gone(void *data, XID id)
 {
-	struct sna_dri_resource *resource = data;
+	struct list *resource = data;
 
 	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
 
-	while (!list_is_empty(&resource->list)) {
+	while (!list_is_empty(resource)) {
 		struct sna_dri_frame_event *info =
-			list_first_entry(&resource->list,
+			list_first_entry(resource,
 					 struct sna_dri_frame_event,
 					 client_resource);
 
@@ -593,13 +585,13 @@ sna_dri_frame_event_client_gone(void *data, XID id)
 static int
 sna_dri_frame_event_drawable_gone(void *data, XID id)
 {
-	struct sna_dri_resource *resource = data;
+	struct list *resource = data;
 
 	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
 
-	while (!list_is_empty(&resource->list)) {
+	while (!list_is_empty(resource)) {
 		struct sna_dri_frame_event *info =
-			list_first_entry(&resource->list,
+			list_first_entry(resource,
 					 struct sna_dri_frame_event,
 					 drawable_resource);
 
@@ -646,7 +638,7 @@ get_client_id(ClientPtr client)
 static Bool
 sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 {
-	struct sna_dri_resource *resource;
+	struct list *resource;
 
 	resource = get_resource(get_client_id(info->client),
 				frame_event_client_type);
@@ -655,7 +647,7 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 		return FALSE;
 	}
 
-	list_add(&info->client_resource, &resource->list);
+	list_add(&info->client_resource, resource);
 
 	resource = get_resource(info->drawable_id, frame_event_drawable_type);
 	if (resource == NULL) {
@@ -664,7 +656,7 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 		return FALSE;
 	}
 
-	list_add(&info->drawable_resource, &resource->list);
+	list_add(&info->drawable_resource, resource);
 
 	return TRUE;
 }
