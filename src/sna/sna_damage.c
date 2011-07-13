@@ -134,6 +134,7 @@ static struct sna_damage *_sna_damage_create(void)
 	struct sna_damage *damage;
 
 	damage = malloc(sizeof(*damage));
+	damage->all = 0;
 	damage->n = 0;
 	damage->size = 16;
 	damage->elts = malloc(sizeof(*damage->elts) * damage->size);
@@ -454,14 +455,35 @@ struct sna_damage *_sna_damage_all(struct sna_damage *damage,
 		pixman_region_fini(&damage->region);
 		damage->n = 0;
 		damage->last_box = NULL;
+		damage->all = 1;
 	} else
 		damage = _sna_damage_create();
 
 	pixman_region_init_rect(&damage->region, 0, 0, width, height);
 	damage->extents = damage->region.extents;
 	damage->mode = ADD;
+	damage->all = 1;
 
 	return damage;
+}
+
+struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
+				      int width, int height)
+{
+	BoxRec box;
+
+	if (damage->mode == SUBTRACT)
+		__sna_damage_reduce(damage);
+
+	box.x1 = box.y1 = 0;
+	box.x2 = width;
+	box.y2 = height;
+	
+	if (pixman_region_contains_rectangle(&damage->region,
+					     &box) != PIXMAN_REGION_IN)
+		return damage;
+
+	return _sna_damage_all(damage, width, height);
 }
 
 static inline Bool sna_damage_maybe_contains_box(struct sna_damage *damage,
@@ -516,6 +538,7 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 		}
 	}
 
+	damage->all = 0;
 	damage->mode = SUBTRACT;
 	_sna_damage_create_elt(damage, SUBTRACT,
 			       REGION_RECTS(region),

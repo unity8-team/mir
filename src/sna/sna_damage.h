@@ -11,7 +11,7 @@ struct sna_damage_box;
 
 struct sna_damage {
 	BoxRec extents;
-	int n, size, mode;
+	int n, size, mode, all;
 	pixman_region16_t region;
 	struct sna_damage_elt *elts;
 	struct sna_damage_box *last_box;
@@ -32,6 +32,21 @@ static inline void sna_damage_add_box(struct sna_damage **damage,
 				      const BoxRec *box)
 {
 	*damage = _sna_damage_add_box(*damage, box);
+}
+
+struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
+				       int width, int height);
+static inline bool sna_damage_is_all(struct sna_damage **damage,
+				     int width, int height)
+{
+	if (*damage == NULL)
+		return false;
+
+	if ((*damage)->all)
+		return true;
+
+	*damage = _sna_damage_is_all(*damage, width, height);
+	return (*damage)->all;
 }
 
 struct sna_damage *_sna_damage_all(struct sna_damage *damage,

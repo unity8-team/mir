@@ -2060,20 +2060,14 @@ gen3_composite_set_target(struct sna *sna,
 	op->dst.height = op->dst.pixmap->drawable.height;
 	priv = sna_pixmap(op->dst.pixmap);
 
-	op->dst.bo = NULL;
-	if (priv && priv->gpu_bo == NULL) {
-		op->dst.bo = priv->cpu_bo;
-		op->damage = &priv->cpu_damage;
-	}
-	if (op->dst.bo == NULL) {
-		priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
-		if (priv == NULL)
-			return FALSE;
+	priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
+	if (priv == NULL)
+		return FALSE;
 
-		op->dst.bo = priv->gpu_bo;
-		if (!priv->gpu_only)
-			op->damage = &priv->gpu_damage;
-	}
+	op->dst.bo = priv->gpu_bo;
+	if (!priv->gpu_only &&
+	    !sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
+		op->damage = &priv->gpu_damage;
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
