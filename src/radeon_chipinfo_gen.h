@@ -477,6 +477,7 @@ static RADEONCardInfo RADEONCards[] = {
  { 0x6750, CHIP_FAMILY_TURKS, 0, 0, 0, 0, 0 },
  { 0x6758, CHIP_FAMILY_TURKS, 0, 0, 0, 0, 0 },
  { 0x6759, CHIP_FAMILY_TURKS, 0, 0, 0, 0, 0 },
+ { 0x675F, CHIP_FAMILY_TURKS, 0, 0, 0, 0, 0 },
  { 0x6760, CHIP_FAMILY_CAICOS, 1, 0, 0, 0, 0 },
  { 0x6761, CHIP_FAMILY_CAICOS, 1, 0, 0, 0, 0 },
  { 0x6762, CHIP_FAMILY_CAICOS, 0, 0, 0, 0, 0 },
@@ -487,5 +488,6 @@ static RADEONCardInfo RADEONCards[] = {
  { 0x6767, CHIP_FAMILY_CAICOS, 0, 0, 0, 0, 0 },
  { 0x6768, CHIP_FAMILY_CAICOS, 0, 0, 0, 0, 0 },
  { 0x6770, CHIP_FAMILY_CAICOS, 0, 0, 0, 0, 0 },
+ { 0x6778, CHIP_FAMILY_CAICOS, 0, 0, 0, 0, 0 },
  { 0x6779, CHIP_FAMILY_CAICOS, 0, 0, 0, 0, 0 },
 };
