@@ -1185,8 +1185,8 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
 	xf86CrtcSetSizeRange(pScrn, 320, 200, drmmode->mode_res->max_width,
 			     drmmode->mode_res->max_height);
 	for (i = 0; i < drmmode->mode_res->count_crtcs; i++) {
-		if (!xf86IsEntityShared(pScrn->entityList[0] ||
-		     pScrn->confScreen->device->screen == i))
+		if (!xf86IsEntityShared(pScrn->entityList[0]) ||
+		     (pScrn->confScreen->device->screen == i))
 			drmmode_crtc_init(pScrn, drmmode, i);
 	}
 
