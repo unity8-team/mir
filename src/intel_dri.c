@@ -336,7 +336,6 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 			switch (attachment) {
 			case DRI2BufferDepth:
 			case DRI2BufferDepthStencil:
-			case DRI2BufferStencil:
 			case DRI2BufferHiz:
 				if (SUPPORTS_YTILING(intel)) {
 					hint |= INTEL_CREATE_PIXMAP_TILING_Y;
@@ -350,6 +349,14 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 			case DRI2BufferFrontLeft:
 			case DRI2BufferFrontRight:
 				hint |= INTEL_CREATE_PIXMAP_TILING_X;
+				break;
+			case DRI2BufferStencil:
+				/*
+				 * The stencil buffer is W tiled. However, we
+				 * request from the kernel a non-tiled buffer
+				 * because the GTT is incapable of W fencing.
+				 */
+				hint |= INTEL_CREATE_PIXMAP_TILING_NONE;
 				break;
 			default:
 				free(privates);
@@ -368,11 +375,12 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		 * To accomplish this, we resort to the nasty hack of doubling
 		 * the drm region's cpp and halving its height.
 		 *
-		 * If we neglect to double the pitch, then
-		 * drm_intel_gem_bo_map_gtt() maps the memory incorrectly.
+		 * If we neglect to double the pitch, then render corruption
+		 * occurs.
 		 */
 		if (attachment == DRI2BufferStencil) {
-			pixmap_height /= 2;
+			pixmap_width = ALIGN(pixmap_width, 64);
+			pixmap_height = ALIGN((pixmap_height + 1) / 2, 64);
 			pixmap_cpp *= 2;
 		}
 
