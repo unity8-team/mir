@@ -604,6 +604,11 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	     __FUNCTION__, rotation, x, y,
 	     mode->HDisplay, mode->VDisplay, mode->Clock));
 
+	DBG(("%s: current fb pixmap = %d, front is %lu\n",
+	     __FUNCTION__,
+	     sna_mode->fb_pixmap,
+	     sna->front->drawable.serialNumber));
+
 	if (sna_mode->fb_pixmap != sna->front->drawable.serialNumber)
 		sna_mode_remove_fb(sna);
 
@@ -1597,6 +1602,9 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
+	assert(scrn->pScreen->GetScreenPixmap(scrn->pScreen) == sna->front);
+	assert(scrn->pScreen->GetWindowPixmap(scrn->pScreen->root) == sna->front);
+
 	kgem_submit(&sna->kgem);
 
 	old_fb_id = mode->fb_id;
@@ -1625,8 +1633,9 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 	}
 
-	DBG(("%s: handle %d attached to fb %d\n",
-	     __FUNCTION__, bo->handle, mode->fb_id));
+	DBG(("%s: handle %d, pixmap serial %lu attached to fb %d\n",
+	     __FUNCTION__, bo->handle,
+	     sna->front->drawable.serialNumber, mode->fb_id));
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -1852,6 +1861,9 @@ sna_mode_remove_fb(struct sna *sna)
 {
 	struct sna_mode *mode = &sna->mode;
 
+	DBG(("%s: deleting fb id %d for pixmap serial %d\n",
+	     __FUNCTION__, mode->fb_id,mode->fb_pixmap));
+
 	if (mode->fb_id) {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = 0;
@@ -2009,6 +2021,8 @@ static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
 	uint32_t event;
 	uint32_t *b;
 
+	assert (y2 > 0);
+
 	/* We just wait until the trace passes the roi */
 	if (pipe == 0) {
 		pipe = GEN6_PIPEA_SLC;
@@ -2074,9 +2088,6 @@ sna_wait_for_scanline(struct sna *sna,
 	pixman_box16_t box, crtc_box;
 	Bool full_height;
 	int y1, y2, pipe;
-
-	if (sna->kgem.gen >= 60)
-		return false;
 
 	if (!pixmap_is_scanout(pixmap))
 		return false;
