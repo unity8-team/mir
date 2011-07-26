@@ -2089,6 +2089,10 @@ sna_wait_for_scanline(struct sna *sna,
 	Bool full_height;
 	int y1, y2, pipe;
 
+	/* XXX WAIT_EVENT is still causing hangs on SNB */
+	if (sna->kgem.gen >= 60)
+		return false;
+
 	if (!pixmap_is_scanout(pixmap))
 		return false;
 
