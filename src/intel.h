@@ -597,6 +597,35 @@ void i965_vertex_flush(intel_screen_private *intel);
 void i965_batch_flush(intel_screen_private *intel);
 void i965_batch_commit_notify(intel_screen_private *intel);
 
+/* i965_3d.c */
+void gen6_upload_invariant_states(intel_screen_private *intel);
+void gen6_upload_viewport_state_pointers(intel_screen_private *intel,
+					 drm_intel_bo *cc_vp_bo);
+void gen7_upload_viewport_state_pointers(intel_screen_private *intel,
+					 drm_intel_bo *cc_vp_bo);
+void gen6_upload_urb(intel_screen_private *intel);
+void gen7_upload_urb(intel_screen_private *intel);
+void gen6_upload_cc_state_pointers(intel_screen_private *intel,
+				   drm_intel_bo *blend_bo, drm_intel_bo *cc_bo,
+				   drm_intel_bo *depth_stencil_bo);
+void gen7_upload_cc_state_pointers(intel_screen_private *intel,
+				   drm_intel_bo *blend_bo, drm_intel_bo *cc_bo,
+				   drm_intel_bo *depth_stencil_bo);
+void gen6_upload_sampler_state_pointers(intel_screen_private *intel,
+					drm_intel_bo *sampler_bo);
+void gen7_upload_sampler_state_pointers(intel_screen_private *intel,
+					drm_intel_bo *sampler_bo);
+void gen7_upload_bypass_states(intel_screen_private *intel);
+void gen6_upload_gs_state(intel_screen_private *intel);
+void gen6_upload_vs_state(intel_screen_private *intel);
+void gen6_upload_clip_state(intel_screen_private *intel);
+void gen6_upload_sf_state(intel_screen_private *intel);
+void gen7_upload_sf_state(intel_screen_private *intel);
+void gen6_upload_binding_table(intel_screen_private *intel, uint32_t ps_binding_table_offset);
+void gen7_upload_binding_table(intel_screen_private *intel, uint32_t ps_binding_table_offset);
+void gen6_upload_depth_buffer_state(intel_screen_private *intel);
+void gen7_upload_depth_buffer_state(intel_screen_private *intel);
+
 Bool intel_transform_is_affine(PictTransformPtr t);
 Bool
 intel_get_transformed_coordinates(int x, int y, PictTransformPtr transform,

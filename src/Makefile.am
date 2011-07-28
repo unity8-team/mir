@@ -67,6 +67,7 @@ intel_drv_la_SOURCES = \
 	 i915_render.c \
 	 i915_video.c \
 	 i965_reg.h \
+	 i965_3d.c \
 	 i965_video.c \
 	 i965_render.c \
 	 $(NULL)
