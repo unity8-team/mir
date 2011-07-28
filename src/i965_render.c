@@ -2262,11 +2262,17 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 	i965_select_vertex_buffer(intel);
 
 	if (intel->vertex_offset == 0) {
-		OUT_BATCH(BRW_3DPRIMITIVE |
-			  BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-			  (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
-			  (0 << 9) |
-			  4);
+		if (INTEL_INFO(intel)->gen >= 70) {
+			OUT_BATCH(BRW_3DPRIMITIVE | (7 - 2));
+			OUT_BATCH(BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
+				  _3DPRIM_RECTLIST);
+		} else {
+			OUT_BATCH(BRW_3DPRIMITIVE |
+				  BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
+				  (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
+				  (0 << 9) |
+				  4);
+		}
 		intel->vertex_offset = intel->batch_used;
 		OUT_BATCH(0);	/* vertex count, to be filled in later */
 		OUT_BATCH(intel->vertex_index);
