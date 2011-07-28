@@ -2538,24 +2538,6 @@ gen6_composite_create_depth_stencil_state(intel_screen_private *intel)
 }
 
 static void
-gen6_composite_invariant_states(intel_screen_private *intel)
-{
-	OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
-
-	OUT_BATCH(GEN6_3DSTATE_MULTISAMPLE | (3 - 2));
-	OUT_BATCH(GEN6_3DSTATE_MULTISAMPLE_PIXEL_LOCATION_CENTER |
-		  GEN6_3DSTATE_MULTISAMPLE_NUMSAMPLES_1); /* 1 sample/pixel */
-	OUT_BATCH(0);
-
-	OUT_BATCH(GEN6_3DSTATE_SAMPLE_MASK | (2 - 2));
-	OUT_BATCH(1);
-
-	/* Set system instruction pointer */
-	OUT_BATCH(BRW_STATE_SIP | 0);
-	OUT_BATCH(0);
-}
-
-static void
 gen6_composite_state_base_address(intel_screen_private *intel)
 {
 	OUT_BATCH(BRW_STATE_BASE_ADDRESS | (10 - 2));
@@ -2573,52 +2555,21 @@ gen6_composite_state_base_address(intel_screen_private *intel)
 }
 
 static void
-gen6_composite_viewport_state_pointers(intel_screen_private *intel,
-				       drm_intel_bo *cc_vp_bo)
-{
-
-	OUT_BATCH(GEN6_3DSTATE_VIEWPORT_STATE_POINTERS |
-		  GEN6_3DSTATE_VIEWPORT_STATE_MODIFY_CC |
-		  (4 - 2));
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_RELOC(cc_vp_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-}
-
-static void
-gen6_composite_urb(intel_screen_private *intel)
-{
-	OUT_BATCH(GEN6_3DSTATE_URB | (3 - 2));
-	OUT_BATCH(((1 - 1) << GEN6_3DSTATE_URB_VS_SIZE_SHIFT) |
-		  (24 << GEN6_3DSTATE_URB_VS_ENTRIES_SHIFT)); /* at least 24 on GEN6 */
-	OUT_BATCH((0 << GEN6_3DSTATE_URB_GS_SIZE_SHIFT) |
-		(0 << GEN6_3DSTATE_URB_GS_ENTRIES_SHIFT)); /* no GS thread */
-}
-
-static void
 gen6_composite_cc_state_pointers(intel_screen_private *intel,
 				 uint32_t blend_offset)
 {
 	struct gen4_render_state *render_state = intel->gen4_render_state;
+	drm_intel_bo *cc_bo = NULL;
+	drm_intel_bo *depth_stencil_bo = NULL;
 
 	if (intel->gen6_render_state.blend == blend_offset)
 		return;
 
-	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
-	OUT_RELOC(render_state->gen6_blend_bo,
-		  I915_GEM_DOMAIN_INSTRUCTION, 0,
-		  blend_offset | 1);
 	if (intel->gen6_render_state.blend == -1) {
-		OUT_RELOC(render_state->gen6_depth_stencil_bo,
-			  I915_GEM_DOMAIN_INSTRUCTION, 0,
-			  1);
-		OUT_RELOC(render_state->cc_state_bo,
-			  I915_GEM_DOMAIN_INSTRUCTION, 0,
-			  1);
-	} else {
-		OUT_BATCH(0);
-		OUT_BATCH(0);
+		cc_bo = render_state->cc_state_bo;
+		depth_stencil_bo = render_state->gen6_depth_stencil_bo;
 	}
+	gen6_upload_cc_state_pointers(intel, render_state->gen6_blend_bo, cc_bo, depth_stencil_bo, blend_offset);
 
 	intel->gen6_render_state.blend = blend_offset;
 }
@@ -2632,49 +2583,7 @@ gen6_composite_sampler_state_pointers(intel_screen_private *intel,
 
 	intel->gen6_render_state.samplers = bo;
 
-	OUT_BATCH(GEN6_3DSTATE_SAMPLER_STATE_POINTERS |
-		  GEN6_3DSTATE_SAMPLER_STATE_MODIFY_PS |
-		  (4 - 2));
-	OUT_BATCH(0); /* VS */
-	OUT_BATCH(0); /* GS */
-	OUT_RELOC(bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-}
-
-static void
-gen6_composite_vs_state(intel_screen_private *intel)
-{
-	/* disable VS constant buffer */
-	OUT_BATCH(GEN6_3DSTATE_CONSTANT_VS | (5 - 2));
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-
-	OUT_BATCH(GEN6_3DSTATE_VS | (6 - 2));
-	OUT_BATCH(0); /* without VS kernel */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* pass-through */
-}
-
-static void
-gen6_composite_gs_state(intel_screen_private *intel)
-{
-	/* disable GS constant buffer */
-	OUT_BATCH(GEN6_3DSTATE_CONSTANT_GS | (5 - 2));
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-
-	OUT_BATCH(GEN6_3DSTATE_GS | (7 - 2));
-	OUT_BATCH(0); /* without GS kernel */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* pass-through */
+	gen6_upload_sampler_state_pointers(intel, bo);
 }
 
 static void
@@ -2689,15 +2598,6 @@ gen6_composite_wm_constants(intel_screen_private *intel)
 }
 
 static void
-gen6_composite_clip_state(intel_screen_private *intel)
-{
-	OUT_BATCH(GEN6_3DSTATE_CLIP | (4 - 2));
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* pass-through */
-	OUT_BATCH(0);
-}
-
-static void
 gen6_composite_sf_state(intel_screen_private *intel,
 			Bool has_mask)
 {
@@ -2708,28 +2608,7 @@ gen6_composite_sf_state(intel_screen_private *intel,
 
 	intel->gen6_render_state.num_sf_outputs = num_sf_outputs;
 
-	OUT_BATCH(GEN6_3DSTATE_SF | (20 - 2));
-	OUT_BATCH((num_sf_outputs << GEN6_3DSTATE_SF_NUM_OUTPUTS_SHIFT) |
-		  (1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_LENGTH_SHIFT) |
-		  (1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_OFFSET_SHIFT));
-	OUT_BATCH(0);
-	OUT_BATCH(GEN6_3DSTATE_SF_CULL_NONE);
-	OUT_BATCH(2 << GEN6_3DSTATE_SF_TRIFAN_PROVOKE_SHIFT); /* DW4 */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* DW9 */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* DW14 */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* DW19 */
+	gen6_upload_sf_state(intel, num_sf_outputs, 1);
 }
 
 static void
@@ -2759,35 +2638,6 @@ gen6_composite_wm_state(intel_screen_private *intel,
 	OUT_BATCH((num_sf_outputs << GEN6_3DSTATE_WM_NUM_SF_OUTPUTS_SHIFT) |
 		  GEN6_3DSTATE_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
 	OUT_BATCH(0);
-	OUT_BATCH(0);
-}
-
-static void
-gen6_composite_binding_table_pointers(intel_screen_private *intel)
-{
-	/* Binding table pointers */
-	OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS |
-		  GEN6_3DSTATE_BINDING_TABLE_MODIFY_PS |
-		  (4 - 2));
-	OUT_BATCH(0);		/* vs */
-	OUT_BATCH(0);		/* gs */
-	/* Only the PS uses the binding table */
-	OUT_BATCH(intel->surface_table);
-}
-
-static void
-gen6_composite_depth_buffer_state(intel_screen_private *intel)
-{
-	OUT_BATCH(BRW_3DSTATE_DEPTH_BUFFER | (7 - 2));
-	OUT_BATCH((BRW_SURFACE_NULL << BRW_3DSTATE_DEPTH_BUFFER_TYPE_SHIFT) |
-		  (BRW_DEPTHFORMAT_D32_FLOAT << BRW_3DSTATE_DEPTH_BUFFER_FORMAT_SHIFT));
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-
-	OUT_BATCH(BRW_3DSTATE_CLEAR_PARAMS | (2 - 2));
 	OUT_BATCH(0);
 }
 
@@ -2909,16 +2759,15 @@ gen6_emit_composite_state(struct intel_screen_private *intel)
 
 	intel->needs_render_state_emit = FALSE;
 	if (intel->needs_3d_invariant) {
-		gen6_composite_invariant_states(intel);
-		gen6_composite_viewport_state_pointers(intel,
-						       render->cc_vp_bo);
-		gen6_composite_urb(intel);
+		gen6_upload_invariant_states(intel);
+		gen6_upload_viewport_state_pointers(intel, render->cc_vp_bo);
+		gen6_upload_urb(intel);
 
-		gen6_composite_vs_state(intel);
-		gen6_composite_gs_state(intel);
-		gen6_composite_clip_state(intel);
+		gen6_upload_vs_state(intel);
+		gen6_upload_gs_state(intel);
+		gen6_upload_clip_state(intel);
 		gen6_composite_wm_constants(intel);
-		gen6_composite_depth_buffer_state(intel);
+		gen6_upload_depth_buffer_state(intel);
 
 		intel->needs_3d_invariant = FALSE;
 	}
@@ -2938,7 +2787,7 @@ gen6_emit_composite_state(struct intel_screen_private *intel)
 	gen6_composite_wm_state(intel,
 				has_mask,
 				render->wm_kernel_bo[composite_op->wm_kernel]);
-	gen6_composite_binding_table_pointers(intel);
+	gen6_upload_binding_table(intel, intel->surface_table);
 
 	gen6_composite_drawing_rectangle(intel, intel->render_dest);
 	gen6_composite_vertex_element_state(intel, has_mask, is_affine);

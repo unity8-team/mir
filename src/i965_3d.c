@@ -130,11 +130,13 @@ void
 gen6_upload_cc_state_pointers(intel_screen_private *intel,
 			      drm_intel_bo *blend_bo,
 			      drm_intel_bo *cc_bo,
-			      drm_intel_bo *depth_stencil_bo)
+			      drm_intel_bo *depth_stencil_bo,
+			      uint32_t blend_offset)
 {
 	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
 	if (blend_bo)
-		OUT_RELOC(blend_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 1);
+		OUT_RELOC(blend_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+			  blend_offset | 1);
 	else
 		OUT_BATCH(0);
 
@@ -153,11 +155,13 @@ void
 gen7_upload_cc_state_pointers(intel_screen_private *intel,
 			      drm_intel_bo *blend_bo,
 			      drm_intel_bo *cc_bo,
-			      drm_intel_bo *depth_stencil_bo)
+			      drm_intel_bo *depth_stencil_bo,
+			      uint32_t blend_offset)
 {
 	OUT_BATCH(GEN7_3DSTATE_BLEND_STATE_POINTERS | (2 - 2));
 	if (blend_bo)
-		OUT_RELOC(blend_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 1);
+		OUT_RELOC(blend_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+			  blend_offset | 1);
 	else
 		OUT_BATCH(0);
 
@@ -320,12 +324,14 @@ gen6_upload_clip_state(intel_screen_private *intel)
 }
 
 void
-gen6_upload_sf_state(intel_screen_private *intel)
+gen6_upload_sf_state(intel_screen_private *intel,
+		     int num_sf_outputs,
+		     int read_offset)
 {
 	OUT_BATCH(GEN6_3DSTATE_SF | (20 - 2));
-	OUT_BATCH((1 << GEN6_3DSTATE_SF_NUM_OUTPUTS_SHIFT) |
+	OUT_BATCH((num_sf_outputs << GEN6_3DSTATE_SF_NUM_OUTPUTS_SHIFT) |
 		(1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_LENGTH_SHIFT) |
-		(0 << GEN6_3DSTATE_SF_URB_ENTRY_READ_OFFSET_SHIFT));
+		(read_offset << GEN6_3DSTATE_SF_URB_ENTRY_READ_OFFSET_SHIFT));
 	OUT_BATCH(0);
 	OUT_BATCH(GEN6_3DSTATE_SF_CULL_NONE);
 	OUT_BATCH(2 << GEN6_3DSTATE_SF_TRIFAN_PROVOKE_SHIFT); /* DW4 */
@@ -347,12 +353,14 @@ gen6_upload_sf_state(intel_screen_private *intel)
 }
 
 void
-gen7_upload_sf_state(intel_screen_private *intel)
+gen7_upload_sf_state(intel_screen_private *intel,
+		     int num_sf_outputs,
+		     int read_offset)
 {
 	OUT_BATCH(GEN7_3DSTATE_SBE | (14 - 2));
-	OUT_BATCH((1 << GEN7_SBE_NUM_OUTPUTS_SHIFT) |
+	OUT_BATCH((num_sf_outputs << GEN7_SBE_NUM_OUTPUTS_SHIFT) |
 		(1 << GEN7_SBE_URB_ENTRY_READ_LENGTH_SHIFT) |
-		(0 << GEN7_SBE_URB_ENTRY_READ_OFFSET_SHIFT));
+		(read_offset << GEN7_SBE_URB_ENTRY_READ_OFFSET_SHIFT));
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0); /* DW4 */

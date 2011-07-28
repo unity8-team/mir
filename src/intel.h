@@ -607,10 +607,12 @@ void gen6_upload_urb(intel_screen_private *intel);
 void gen7_upload_urb(intel_screen_private *intel);
 void gen6_upload_cc_state_pointers(intel_screen_private *intel,
 				   drm_intel_bo *blend_bo, drm_intel_bo *cc_bo,
-				   drm_intel_bo *depth_stencil_bo);
+				   drm_intel_bo *depth_stencil_bo,
+				   uint32_t blend_offset);
 void gen7_upload_cc_state_pointers(intel_screen_private *intel,
 				   drm_intel_bo *blend_bo, drm_intel_bo *cc_bo,
-				   drm_intel_bo *depth_stencil_bo);
+				   drm_intel_bo *depth_stencil_bo,
+				   uint32_t blend_offset);
 void gen6_upload_sampler_state_pointers(intel_screen_private *intel,
 					drm_intel_bo *sampler_bo);
 void gen7_upload_sampler_state_pointers(intel_screen_private *intel,
@@ -619,8 +621,8 @@ void gen7_upload_bypass_states(intel_screen_private *intel);
 void gen6_upload_gs_state(intel_screen_private *intel);
 void gen6_upload_vs_state(intel_screen_private *intel);
 void gen6_upload_clip_state(intel_screen_private *intel);
-void gen6_upload_sf_state(intel_screen_private *intel);
-void gen7_upload_sf_state(intel_screen_private *intel);
+void gen6_upload_sf_state(intel_screen_private *intel, int num_sf_outputs, int read_offset);
+void gen7_upload_sf_state(intel_screen_private *intel, int num_sf_outputs, int read_offset);
 void gen6_upload_binding_table(intel_screen_private *intel, uint32_t ps_binding_table_offset);
 void gen7_upload_binding_table(intel_screen_private *intel, uint32_t ps_binding_table_offset);
 void gen6_upload_depth_buffer_state(intel_screen_private *intel);
