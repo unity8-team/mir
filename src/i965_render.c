@@ -723,10 +723,10 @@ typedef struct _brw_cc_unit_state_padded {
 	char pad[64 - sizeof(struct brw_cc_unit_state)];
 } brw_cc_unit_state_padded;
 
-typedef struct brw_surface_state_padded {
-	struct brw_surface_state state;
-	char pad[32 - sizeof(struct brw_surface_state)];
-} brw_surface_state_padded;
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#define SURFACE_STATE_PADDED_SIZE ALIGN(MAX(sizeof(struct brw_surface_state), sizeof(struct gen7_surface_state)), 32)
 
 struct gen4_cc_unit_state {
 	/* Index by [src_blend][dst_blend] */
@@ -1161,7 +1161,7 @@ static sampler_state_extend_t sampler_state_extend_from_picture(int repeat_type)
  * picture in the given surface state buffer.
  */
 static int
-i965_set_picture_surface_state(intel_screen_private *intel,
+gen4_set_picture_surface_state(intel_screen_private *intel,
 			       PicturePtr picture, PixmapPtr pixmap,
 			       Bool is_dst)
 {
@@ -1215,7 +1215,7 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 			  priv->bo);
 
 	offset = intel->surface_used;
-	intel->surface_used += sizeof(struct brw_surface_state_padded);
+	intel->surface_used += SURFACE_STATE_PADDED_SIZE;
 
 	if (is_dst)
 		priv->dst_bound = offset;
@@ -1223,6 +1223,79 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 		priv->src_bound = offset;
 
 	return offset;
+}
+
+static int
+gen7_set_picture_surface_state(intel_screen_private *intel,
+			       PicturePtr picture, PixmapPtr pixmap,
+			       Bool is_dst)
+{
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	struct gen7_surface_state *ss;
+	uint32_t write_domain, read_domains;
+	int offset;
+
+	if (is_dst) {
+		write_domain = I915_GEM_DOMAIN_RENDER;
+		read_domains = I915_GEM_DOMAIN_RENDER;
+	} else {
+		write_domain = 0;
+		read_domains = I915_GEM_DOMAIN_SAMPLER;
+	}
+	intel_batch_mark_pixmap_domains(intel, priv,
+					read_domains, write_domain);
+	if (is_dst) {
+		if (priv->dst_bound)
+			return priv->dst_bound;
+	} else {
+		if (priv->src_bound)
+			return priv->src_bound;
+	}
+
+	ss = (struct gen7_surface_state *)
+		(intel->surface_data + intel->surface_used);
+
+	memset(ss, 0, sizeof(*ss));
+	ss->ss0.surface_type = BRW_SURFACE_2D;
+	if (is_dst)
+		ss->ss0.surface_format = i965_get_dest_format(picture);
+	else
+		ss->ss0.surface_format = i965_get_card_format(picture);
+
+	ss->ss0.tile_walk = 0;	/* Tiled X */
+	ss->ss0.tiled_surface = intel_pixmap_tiled(pixmap) ? 1 : 0;
+	ss->ss1.base_addr = priv->bo->offset;
+
+	ss->ss2.height = pixmap->drawable.height - 1;
+	ss->ss2.width = pixmap->drawable.width - 1;
+	ss->ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
+
+	dri_bo_emit_reloc(intel->surface_bo,
+			  read_domains, write_domain,
+			  0,
+			  intel->surface_used +
+			  offsetof(struct gen7_surface_state, ss1),
+			  priv->bo);
+
+	offset = intel->surface_used;
+	intel->surface_used += SURFACE_STATE_PADDED_SIZE;
+
+	if (is_dst)
+		priv->dst_bound = offset;
+	else
+		priv->src_bound = offset;
+
+	return offset;
+}
+
+static inline int
+i965_set_picture_surface_state(intel_screen_private *intel,
+			       PicturePtr picture, PixmapPtr pixmap,
+			       Bool is_dst)
+{
+    if (INTEL_INFO(intel)->gen < 70)
+        return gen4_set_picture_surface_state(intel, picture, pixmap, is_dst);
+    return gen7_set_picture_surface_state(intel, picture, pixmap, is_dst);
 }
 
 static void gen4_composite_vertex_elements(struct intel_screen_private *intel)
@@ -1968,7 +2041,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	}
 
 	if (sizeof(intel->surface_data) - intel->surface_used <
-	    4 * sizeof(struct brw_surface_state_padded))
+	    4 * SURFACE_STATE_PADDED_SIZE)
 		i965_surface_flush(intel);
 
 	intel->needs_render_state_emit = TRUE;
@@ -2014,11 +2087,11 @@ static void i965_bind_surfaces(struct intel_screen_private *intel)
 {
 	uint32_t *binding_table;
 
-	assert(intel->surface_used + 4 * sizeof(struct brw_surface_state_padded) <= sizeof(intel->surface_data));
+	assert(intel->surface_used + 4 * SURFACE_STATE_PADDED_SIZE <= sizeof(intel->surface_data));
 
 	binding_table = (uint32_t*) (intel->surface_data + intel->surface_used);
 	intel->surface_table = intel->surface_used;
-	intel->surface_used += sizeof(struct brw_surface_state_padded);
+	intel->surface_used += SURFACE_STATE_PADDED_SIZE;
 
 	binding_table[0] =
 		i965_set_picture_surface_state(intel,
