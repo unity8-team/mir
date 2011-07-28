@@ -2657,6 +2657,37 @@ gen6_composite_wm_state(intel_screen_private *intel,
 }
 
 static void
+gen7_composite_wm_state(intel_screen_private *intel,
+			Bool has_mask,
+			drm_intel_bo *bo)
+{
+	int num_surfaces = has_mask ? 3 : 2;
+
+	if (intel->gen6_render_state.kernel == bo)
+		return;
+
+	intel->gen6_render_state.kernel = bo;
+
+	OUT_BATCH(GEN6_3DSTATE_WM | (3 - 2));
+	OUT_BATCH(GEN7_WM_DISPATCH_ENABLE |
+		  GEN7_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN7_3DSTATE_PS | (8 - 2));
+	OUT_RELOC(bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+	OUT_BATCH((1 << GEN7_PS_SAMPLER_COUNT_SHIFT) |
+		  (num_surfaces << GEN7_PS_BINDING_TABLE_ENTRY_COUNT_SHIFT));
+	OUT_BATCH(0); /* scratch space base offset */
+	OUT_BATCH(((86 - 1) << GEN7_PS_MAX_THREADS_SHIFT) |
+		  GEN7_PS_ATTRIBUTE_ENABLE |
+		  GEN7_PS_16_DISPATCH_ENABLE);
+	OUT_BATCH((6 << GEN7_PS_DISPATCH_START_GRF_SHIFT_0));
+	OUT_BATCH(0); /* kernel 1 pointer */
+	OUT_BATCH(0); /* kernel 2 pointer */
+}
+
+
+static void
 gen6_composite_drawing_rectangle(intel_screen_private *intel,
 				 PixmapPtr dest)
 {
@@ -2809,12 +2840,13 @@ gen6_emit_composite_state(struct intel_screen_private *intel)
 					(src * BRW_BLENDFACTOR_COUNT + dst) * GEN6_BLEND_STATE_PADDED_SIZE);
 	gen6_composite_sampler_state_pointers(intel, ps_sampler_state_bo);
 	gen6_composite_sf_state(intel, has_mask);
-	gen6_composite_wm_state(intel,
-				has_mask,
-				render->wm_kernel_bo[composite_op->wm_kernel]);
 	if (ivb) {
+		gen7_composite_wm_state(intel, has_mask,
+					render->wm_kernel_bo[composite_op->wm_kernel]);
 		gen7_upload_binding_table(intel, intel->surface_table);
 	} else {
+		gen6_composite_wm_state(intel, has_mask,
+					render->wm_kernel_bo[composite_op->wm_kernel]);
 		gen6_upload_binding_table(intel, intel->surface_table);
 	}
 	gen6_composite_drawing_rectangle(intel, intel->render_dest);
