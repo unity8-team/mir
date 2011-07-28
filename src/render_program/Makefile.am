@@ -100,14 +100,26 @@ INTEL_G6B =				\
 	exa_wm_yuv_rgb.g6b
 
 INTEL_G7A =				\
+	exa_wm_mask_affine.g7a		\
+	exa_wm_mask_projective.g7a	\
+	exa_wm_mask_sample_a.g7a	\
+	exa_wm_mask_sample_argb.g7a	\
 	exa_wm_src_affine.g7a 		\
+	exa_wm_src_projective.g7a	\
+	exa_wm_src_sample_a.g7a		\
 	exa_wm_src_sample_argb.g7a 	\
 	exa_wm_src_sample_planar.g7a 	\
 	exa_wm_write.g7a 		\
 	exa_wm_yuv_rgb.g7a
 
 INTEL_G7B =				\
+	exa_wm_mask_affine.g7b		\
+	exa_wm_mask_projective.g7b	\
+	exa_wm_mask_sample_a.g7b	\
+	exa_wm_mask_sample_argb.g7b	\
 	exa_wm_src_affine.g7b 		\
+	exa_wm_src_projective.g7b	\
+	exa_wm_src_sample_a.g7b		\
 	exa_wm_src_sample_argb.g7b 	\
 	exa_wm_src_sample_planar.g7b 	\
 	exa_wm_write.g7b 		\

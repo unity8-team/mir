@@ -538,6 +538,74 @@ static const uint32_t ps_kernel_masknoca_projective_static_gen6[][4] = {
 #include "exa_wm_write.g6b"
 };
 
+/* programs for GEN7 */
+static const uint32_t ps_kernel_nomask_affine_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_nomask_projective_static_gen7[][4] = {
+#include "exa_wm_src_projective.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_maskca_affine_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_mask_affine.g7b"
+#include "exa_wm_mask_sample_argb.g7b"
+#include "exa_wm_ca.g6b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_maskca_projective_static_gen7[][4] = {
+#include "exa_wm_src_projective.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_mask_projective.g7b"
+#include "exa_wm_mask_sample_argb.g7b"
+#include "exa_wm_ca.g4b.gen5"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_maskca_srcalpha_affine_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_a.g7b"
+#include "exa_wm_mask_affine.g7b"
+#include "exa_wm_mask_sample_argb.g7b"
+#include "exa_wm_ca_srcalpha.g6b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_maskca_srcalpha_projective_static_gen7[][4] = {
+#include "exa_wm_src_projective.g7b"
+#include "exa_wm_src_sample_a.g7b"
+#include "exa_wm_mask_projective.g7b"
+#include "exa_wm_mask_sample_argb.g7b"
+#include "exa_wm_ca_srcalpha.g6b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_masknoca_affine_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_mask_affine.g7b"
+#include "exa_wm_mask_sample_a.g7b"
+#include "exa_wm_noca.g6b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_masknoca_projective_static_gen7[][4] = {
+#include "exa_wm_src_projective.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_mask_projective.g7b"
+#include "exa_wm_mask_sample_a.g7b"
+#include "exa_wm_noca.g6b"
+#include "exa_wm_write.g7b"
+};
+
+
 typedef enum {
 	SAMPLER_STATE_FILTER_NEAREST,
 	SAMPLER_STATE_FILTER_BILINEAR,
@@ -627,6 +695,25 @@ static const struct wm_kernel_info wm_kernels_gen6[] = {
 	       ps_kernel_masknoca_affine_static_gen6, TRUE),
 	KERNEL(WM_KERNEL_MASKNOCA_PROJECTIVE,
 	       ps_kernel_masknoca_projective_static_gen6, TRUE),
+};
+
+static const struct wm_kernel_info wm_kernels_gen7[] = {
+	KERNEL(WM_KERNEL_NOMASK_AFFINE,
+	       ps_kernel_nomask_affine_static_gen7, FALSE),
+	KERNEL(WM_KERNEL_NOMASK_PROJECTIVE,
+	       ps_kernel_nomask_projective_static_gen7, FALSE),
+	KERNEL(WM_KERNEL_MASKCA_AFFINE,
+	       ps_kernel_maskca_affine_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKCA_PROJECTIVE,
+	       ps_kernel_maskca_projective_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKCA_SRCALPHA_AFFINE,
+	       ps_kernel_maskca_srcalpha_affine_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
+	       ps_kernel_maskca_srcalpha_projective_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKNOCA_AFFINE,
+	       ps_kernel_masknoca_affine_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKNOCA_PROJECTIVE,
+	       ps_kernel_masknoca_projective_static_gen7, TRUE),
 };
 
 #undef KERNEL
@@ -2665,6 +2752,7 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 	struct gen4_render_state *render;
 	int i, j, k, l, m;
 	drm_intel_bo *border_color_bo;
+	const struct wm_kernel_info *wm_kernels;
 
 	render= intel->gen4_render_state;
 	render->composite_op.vertex_id = -1;
@@ -2675,12 +2763,13 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 	intel->gen6_render_state.kernel = NULL;
 	intel->gen6_render_state.drawrect = -1;
 
+	wm_kernels = IS_GEN7(intel) ? wm_kernels_gen7 : wm_kernels_gen6;
 	for (m = 0; m < KERNEL_COUNT; m++) {
 		render->wm_kernel_bo[m] =
 			intel_bo_alloc_for_data(intel,
-					wm_kernels_gen6[m].data,
-					wm_kernels_gen6[m].size,
-					"WM kernel gen6");
+					wm_kernels[m].data,
+					wm_kernels[m].size,
+					"WM kernel gen6/7");
 	}
 
 	border_color_bo = sampler_border_color_create(intel);
