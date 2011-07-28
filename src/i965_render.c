@@ -2167,9 +2167,13 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 {
 	int id = intel->gen4_render_state->composite_op.vertex_id;
+	int modifyenable = 0;
 
 	if (intel->vertex_id & (1 << id))
 		return;
+
+	if (INTEL_INFO(intel)->gen >= 70)
+		modifyenable = GEN7_VB0_ADDRESS_MODIFYENABLE;
 
 	/* Set up the pointer to our (single) vertex buffer */
 	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
@@ -2180,6 +2184,7 @@ static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 	if (INTEL_INFO(intel)->gen >= 60) {
 		OUT_BATCH((id << GEN6_VB0_BUFFER_INDEX_SHIFT) |
 			  GEN6_VB0_VERTEXDATA |
+			  modifyenable |
 			  (4*intel->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
 	} else {
 		OUT_BATCH((id << VB0_BUFFER_INDEX_SHIFT) |
