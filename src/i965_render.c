@@ -184,9 +184,6 @@ i965_check_composite(int op,
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
-	if (IS_GEN7(intel))
-		return FALSE;
-
 	/* Check for unsupported compositing operations. */
 	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0])) {
 		intel_debug_fallback(scrn,
