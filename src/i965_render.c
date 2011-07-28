@@ -842,7 +842,7 @@ static drm_intel_bo *sampler_border_color_create(intel_screen_private *intel)
 }
 
 static void
-sampler_state_init(drm_intel_bo * sampler_state_bo,
+gen4_sampler_state_init(drm_intel_bo * sampler_state_bo,
 		   struct brw_sampler_state *sampler_state,
 		   sampler_state_filter_t filter,
 		   sampler_state_extend_t extend,
@@ -907,6 +907,74 @@ sampler_state_init(drm_intel_bo * sampler_state_bo,
 	sampler_state->ss3.chroma_key_enable = 0;	/* disable chromakey */
 }
 
+static void
+gen7_sampler_state_init(drm_intel_bo * sampler_state_bo,
+		   struct gen7_sampler_state *sampler_state,
+		   sampler_state_filter_t filter,
+		   sampler_state_extend_t extend,
+		   drm_intel_bo * border_color_bo)
+{
+	uint32_t sampler_state_offset;
+
+	sampler_state_offset = (char *)sampler_state -
+	    (char *)sampler_state_bo->virtual;
+
+	/* PS kernel use this sampler */
+	memset(sampler_state, 0, sizeof(*sampler_state));
+
+	sampler_state->ss0.lod_preclamp = 1;	/* GL mode */
+
+	/* We use the legacy mode to get the semantics specified by
+	 * the Render extension. */
+	sampler_state->ss0.default_color_mode = BRW_BORDER_COLOR_MODE_LEGACY;
+
+	switch (filter) {
+	default:
+	case SAMPLER_STATE_FILTER_NEAREST:
+		sampler_state->ss0.min_filter = BRW_MAPFILTER_NEAREST;
+		sampler_state->ss0.mag_filter = BRW_MAPFILTER_NEAREST;
+		break;
+	case SAMPLER_STATE_FILTER_BILINEAR:
+		sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
+		sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+		break;
+	}
+
+	switch (extend) {
+	default:
+	case SAMPLER_STATE_EXTEND_NONE:
+		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+		break;
+	case SAMPLER_STATE_EXTEND_REPEAT:
+		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+		break;
+	case SAMPLER_STATE_EXTEND_PAD:
+		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+		break;
+	case SAMPLER_STATE_EXTEND_REFLECT:
+		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+		break;
+	}
+
+	sampler_state->ss2.default_color_pointer =
+	    intel_emit_reloc(sampler_state_bo, sampler_state_offset +
+			     offsetof(struct gen7_sampler_state, ss2),
+			     border_color_bo, 0,
+			     I915_GEM_DOMAIN_SAMPLER, 0) >> 5;
+
+	sampler_state->ss3.chroma_key_enable = 0;	/* disable chromakey */
+}
+
+
+
 static drm_intel_bo *gen4_create_sampler_state(intel_screen_private *intel,
 					       sampler_state_filter_t src_filter,
 					       sampler_state_extend_t src_extend,
@@ -923,17 +991,64 @@ static drm_intel_bo *gen4_create_sampler_state(intel_screen_private *intel,
 	drm_intel_bo_map(sampler_state_bo, TRUE);
 	sampler_state = sampler_state_bo->virtual;
 
-	sampler_state_init(sampler_state_bo,
-			   &sampler_state[0],
-			   src_filter, src_extend, border_color_bo);
-	sampler_state_init(sampler_state_bo,
-			   &sampler_state[1],
-			   mask_filter, mask_extend, border_color_bo);
+	gen4_sampler_state_init(sampler_state_bo,
+				&sampler_state[0],
+				src_filter, src_extend, border_color_bo);
+	gen4_sampler_state_init(sampler_state_bo,
+				&sampler_state[1],
+				mask_filter, mask_extend, border_color_bo);
 
 	drm_intel_bo_unmap(sampler_state_bo);
 
 	return sampler_state_bo;
 }
+
+static drm_intel_bo *
+gen7_create_sampler_state(intel_screen_private *intel,
+			  sampler_state_filter_t src_filter,
+			  sampler_state_extend_t src_extend,
+			  sampler_state_filter_t mask_filter,
+			  sampler_state_extend_t mask_extend,
+			  drm_intel_bo * border_color_bo)
+{
+	drm_intel_bo *sampler_state_bo;
+	struct gen7_sampler_state *sampler_state;
+
+	sampler_state_bo =
+	    drm_intel_bo_alloc(intel->bufmgr, "gen7 sampler state",
+			       sizeof(struct gen7_sampler_state) * 2, 4096);
+	drm_intel_bo_map(sampler_state_bo, TRUE);
+	sampler_state = sampler_state_bo->virtual;
+
+	gen7_sampler_state_init(sampler_state_bo,
+				&sampler_state[0],
+				src_filter, src_extend, border_color_bo);
+	gen7_sampler_state_init(sampler_state_bo,
+				&sampler_state[1],
+				mask_filter, mask_extend, border_color_bo);
+
+	drm_intel_bo_unmap(sampler_state_bo);
+
+	return sampler_state_bo;
+}
+
+static inline drm_intel_bo *
+i965_create_sampler_state(intel_screen_private *intel,
+			  sampler_state_filter_t src_filter,
+			  sampler_state_extend_t src_extend,
+			  sampler_state_filter_t mask_filter,
+			  sampler_state_extend_t mask_extend,
+			  drm_intel_bo * border_color_bo)
+{
+	if (INTEL_INFO(intel)->gen < 70)
+		return gen4_create_sampler_state(intel, src_filter, src_extend,
+						 mask_filter, mask_extend,
+						 border_color_bo);
+	return gen7_create_sampler_state(intel, src_filter, src_extend,
+					 mask_filter, mask_extend,
+					 border_color_bo);
+}
+
 
 static void
 cc_state_init(drm_intel_bo * cc_state_bo,
@@ -2267,7 +2382,7 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 					drm_intel_bo *sampler_state_bo;
 
 					sampler_state_bo =
-					    gen4_create_sampler_state(intel,
+					    i965_create_sampler_state(intel,
 								      i, j,
 								      k, l,
 								      border_color_bo);
@@ -2852,7 +2967,7 @@ gen6_render_state_init(ScrnInfoPtr scrn)
 			for (k = 0; k < FILTER_COUNT; k++) {
 				for (l = 0; l < EXTEND_COUNT; l++) {
 					render->ps_sampler_state_bo[i][j][k][l] =
-						gen4_create_sampler_state(intel,
+						i965_create_sampler_state(intel,
 								i, j,
 								k, l,
 								border_color_bo);
