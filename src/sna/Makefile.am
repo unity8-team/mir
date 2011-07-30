@@ -39,13 +39,13 @@ libsna_la_SOURCES = \
 	sna_blt.c \
 	sna_composite.c \
 	sna_damage.c \
-	snd_damage.h \
+	sna_damage.h \
 	sna_display.c \
 	sna_driver.c \
-	sna_driver.h \
 	sna_glyphs.c \
 	sna_gradient.c \
 	sna_io.c \
+	sna_module.h \
 	sna_render.c \
 	sna_render.h \
 	sna_render_inline.h \

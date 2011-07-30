@@ -21,6 +21,7 @@ LDADD = libtest.la @X11_LIBS@
 
 noinst_LTLIBRARIES = libtest.la
 libtest_la_SOURCES = \
+	test.h \
 	test_display.c \
 	test_image.c \
 	test_log.c \
