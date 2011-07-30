@@ -422,8 +422,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	struct sna_pixmap *priv;
 	int16_t dx, dy;
 
-	DBG(("%s(pixmap=%p, [(%d, %d), (%d, %d)], write=%d)\n",
+	DBG(("%s(pixmap=%p (%dx%d), [(%d, %d), (%d, %d)], write=%d)\n",
 	     __FUNCTION__, pixmap,
+	     pixmap->drawable.width, pixmap->drawable.height,
 	     RegionExtents(region)->x1, RegionExtents(region)->y1,
 	     RegionExtents(region)->x2, RegionExtents(region)->y2,
 	     write));
