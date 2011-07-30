@@ -246,12 +246,22 @@ sna_dri_create_buffer(DrawablePtr drawable,
 		 *
 		 * If we neglect to double the pitch, then
 		 * drm_intel_gem_bo_map_gtt() maps the memory incorrectly.
+		 *
+		 * The alignment for W-tiling is quite different to the
+		 * nominal no-tiling case, so we have to account for
+		 * the tiled access pattern explicitly.
+		 *
+		 * The stencil buffer is W tiled. However, we request from
+		 * the kernel a non-tiled buffer because the kernel does
+		 * not understand W tiling and the GTT is incapable of
+		 * W fencing.
 		 */
 		bpp = format ? format : drawable->bitsPerPixel;
 		bo = kgem_create_2d(&sna->kgem,
-				    drawable->width,
-				    drawable->height/2, 2*bpp,
-				    I915_TILING_Y,
+				    ALIGN(drawable->width, 64),
+				    ALIGN((drawable->height + 1) / 2, 64),
+				    2*bpp,
+				    I915_TILING_NONE,
 				    CREATE_EXACT);
 		break;
 
