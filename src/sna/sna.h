@@ -240,6 +240,7 @@ struct sna {
 		struct gen4_render_state gen4;
 		struct gen5_render_state gen5;
 		struct gen6_render_state gen6;
+		struct gen7_render_state gen7;
 	} render_state;
 	uint32_t have_render;
 

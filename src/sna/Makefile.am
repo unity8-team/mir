@@ -68,6 +68,8 @@ libsna_la_SOURCES = \
 	gen5_render.h \
 	gen6_render.c \
 	gen6_render.h \
+	gen7_render.c \
+	gen7_render.h \
 	$(NULL)
 
 if DRI

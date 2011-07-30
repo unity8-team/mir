@@ -3338,10 +3338,13 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	no_render_init(sna);
 
 #if !DEBUG_NO_RENDER
-	if (sna->chipset.info->gen >= 70) {
+	if (sna->chipset.info->gen >= 80) {
+	} else if (sna->chipset.info->gen >= 70) {
+		if ((sna->have_render = gen7_render_init(sna)))
+			backend = "IvyBridge";
 	} else if (sna->chipset.info->gen >= 60) {
 		if ((sna->have_render = gen6_render_init(sna)))
-			backend = "Sandybridge";
+			backend = "SandyBridge";
 	} else if (sna->chipset.info->gen >= 50) {
 		if ((sna->have_render = gen5_render_init(sna)))
 			backend = "Ironlake";
