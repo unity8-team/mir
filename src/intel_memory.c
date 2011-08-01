@@ -294,8 +294,6 @@ void intel_set_gem_max_sizes(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct drm_i915_gem_get_aperture aperture;
-	drm_i915_getparam_t gp;
-	int ret, value;
 
 	aperture.aper_available_size = 0;
 	drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
@@ -303,9 +301,4 @@ void intel_set_gem_max_sizes(ScrnInfoPtr scrn)
 	intel_set_max_bo_size(intel, &aperture);
 	intel_set_max_gtt_map_size(intel, &aperture);
 	intel_set_max_tiling_size(intel, &aperture);
-
-	gp.value = &value;
-	gp.param = I915_PARAM_HAS_RELAXED_FENCING;
-	ret = drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp);
-	intel->has_relaxed_fencing = ret == 0;
 }

@@ -37,7 +37,7 @@ void intel_batch_init(ScrnInfoPtr scrn);
 void intel_batch_teardown(ScrnInfoPtr scrn);
 void intel_batch_emit_flush(ScrnInfoPtr scrn);
 void intel_batch_do_flush(ScrnInfoPtr scrn);
-void intel_batch_submit(ScrnInfoPtr scrn, int flush);
+void intel_batch_submit(ScrnInfoPtr scrn);
 
 static inline int intel_batch_space(intel_screen_private *intel)
 {
@@ -50,14 +50,14 @@ static inline int intel_vertex_space(intel_screen_private *intel)
 }
 
 static inline void
-intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, unsigned int sz)
+intel_batch_require_space(ScrnInfoPtr scrn, intel_screen_private *intel, int sz)
 {
 	assert(sz < intel->batch_bo->size - 8);
 	if (intel_batch_space(intel) < sz)
-		intel_batch_submit(scrn, FALSE);
+		intel_batch_submit(scrn);
 }
 
-static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, unsigned int sz)
+static inline void intel_batch_start_atomic(ScrnInfoPtr scrn, int sz)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
@@ -137,6 +137,8 @@ intel_batch_mark_pixmap_domains(intel_screen_private *intel,
 
 	priv->batch_write |= write_domain != 0;
 	priv->busy = 1;
+
+	intel->needs_flush |= write_domain != 0;
 }
 
 static inline void

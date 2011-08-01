@@ -184,6 +184,13 @@
 #define PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS	0x0126
 #define PCI_CHIP_SANDYBRIDGE_BRIDGE_S	0x0108	/* Server */
 #define PCI_CHIP_SANDYBRIDGE_S_GT	0x010A
+
+#define PCI_CHIP_IVYBRIDGE_M_GT1	0x0156
+#define PCI_CHIP_IVYBRIDGE_M_GT2	0x0166
+#define PCI_CHIP_IVYBRIDGE_D_GT1	0x0152
+#define PCI_CHIP_IVYBRIDGE_D_GT2	0x0162
+#define PCI_CHIP_IVYBRIDGE_S_GT1	0x015a
+
 #endif
 
 #define I85X_CAPID			0x44
@@ -209,6 +216,7 @@
 #define IS_GEN4(intel) IS_GENx(intel, 4)
 #define IS_GEN5(intel) IS_GENx(intel, 5)
 #define IS_GEN6(intel) IS_GENx(intel, 6)
+#define IS_GEN7(intel) IS_GENx(intel, 7)
 
 /* Some chips have specific errata (or limits) that we need to workaround. */
 #define IS_I830(intel) (DEVICE_ID((intel)->PciInfo) == PCI_CHIP_I830_M)
@@ -222,6 +230,7 @@
 
 /* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
 #define SUPPORTS_YTILING(pI810) (INTEL_INFO(intel)->gen >= 40)
+#define HAS_BLT(pI810) (INTEL_INFO(intel)->gen >= 60)
 
 extern SymTabRec *intel_chipsets;
 
