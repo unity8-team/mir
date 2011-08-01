@@ -1,10 +1,39 @@
-xserver-xorg-video-intel (2:2.14.902-1+exp1) experimental; urgency=low
+xserver-xorg-video-intel (2:2.15.901-1) experimental; urgency=low
 
-  * Rebuild against Xserver 1.10 rc3.
+  * Re-enable XvMC.
+  * New upstream snapshot.
+  * Build against xserver 1.10.99.x.
 
- -- Cyril Brulebois <kibi@debian.org>  Thu, 31 Mar 2011 04:47:57 +0200
+ -- Julien Cristau <jcristau@debian.org>  Mon, 01 Aug 2011 01:37:49 +0200
 
-xserver-xorg-video-intel (2:2.14.902-1) UNRELEASED; urgency=low
+xserver-xorg-video-intel (2:2.15.0-3) unstable; urgency=high
+
+  * Temporarily disable xvmc to sidestep the xcb-util mess and move to
+    testing.
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 14 May 2011 19:00:38 +0200
+
+xserver-xorg-video-intel (2:2.15.0-2) unstable; urgency=low
+
+  * xcb-util was split up in 0.3.8 and libxcb-aux has been merged
+    into libxcb-util, thus update Build-Depends accordingly.
+  * Add ${misc:Depends} to xserver-xorg-video-intel-dbg Depends.
+
+ -- Arnaud Fontaine <arnau@debian.org>  Fri, 06 May 2011 23:53:39 +0900
+
+xserver-xorg-video-intel (2:2.15.0-1) unstable; urgency=low
+
+  * New upstream release.
+  * Merge from upstream master up to c9fb69cb25 to fix crashes with i965
+    and kwin in particular, thanks to Julian Andres Klode and Modestas
+    Vainius for their reports in Debian and upstream (Closes: #622653):
+    - NEWS: typo.
+    - intel: Beware the unsigned promotion when checking for batch overflows
+    - i965/video: We need 150 dwords of space for video state emission
+
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 19 Apr 2011 03:37:23 +0200
+
+xserver-xorg-video-intel (2:2.14.902-1) unstable; urgency=low
 
   * New upstream snapshot (2.15 rc2).
   * Apparently, using libXvMC means adding the name of the library (like
@@ -14,7 +43,7 @@ xserver-xorg-video-intel (2:2.14.902-1) UNRELEASED; urgency=low
     - /usr/lib/libIntelXvMC.so
   * Override lintian warning about the libXvMC shared objects.
 
- -- Cyril Brulebois <kibi@debian.org>  Wed, 02 Mar 2011 19:40:58 +0100
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 10 Apr 2011 23:30:19 +0200
 
 xserver-xorg-video-intel (2:2.14.0-4) unstable; urgency=low
 

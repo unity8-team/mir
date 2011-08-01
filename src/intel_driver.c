@@ -47,7 +47,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86Priv.h"
 #include "xf86cmap.h"
 #include "compiler.h"
 #include "mibstore.h"
@@ -84,7 +83,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 typedef enum {
-   OPTION_ACCELMETHOD,
    OPTION_DRI,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
@@ -93,6 +91,7 @@ typedef enum {
    OPTION_TILING_2D,
    OPTION_SHADOW,
    OPTION_SWAPBUFFERS_WAIT,
+   OPTION_TRIPLE_BUFFER,
 #ifdef INTEL_XVMC
    OPTION_XVMC,
 #endif
@@ -101,10 +100,10 @@ typedef enum {
    OPTION_DEBUG_FLUSH_CACHES,
    OPTION_DEBUG_WAIT,
    OPTION_HOTPLUG,
+   OPTION_RELAXED_FENCING,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
-   {OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_ANYSTR,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
@@ -113,6 +112,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_TRIPLE_BUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
@@ -121,6 +121,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_DEBUG_FLUSH_CACHES, "DebugFlushCaches", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_DEBUG_WAIT, "DebugWait", OPTV_BOOLEAN, {0}, FALSE},
    {OPTION_HOTPLUG,	"HotPlug",	OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_RELAXED_FENCING,	"RelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -326,10 +327,10 @@ static void intel_check_dri_option(ScrnInfoPtr scrn)
 	if (!xf86ReturnOptValBool(intel->Options, OPTION_DRI, TRUE))
 		intel->directRenderingType = DRI_DISABLED;
 
-	if (scrn->depth != 16 && scrn->depth != 24) {
+	if (scrn->depth != 16 && scrn->depth != 24 && scrn->depth != 30) {
 		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
 			   "DRI is disabled because it "
-			   "runs only at depths 16 and 24.\n");
+			   "runs only at depths 16, 24, and 30.\n");
 		intel->directRenderingType = DRI_DISABLED;
 	}
 }
@@ -448,6 +449,33 @@ static void I830XvInit(ScrnInfoPtr scrn)
 		   intel->colorKey);
 }
 
+static Bool drm_has_boolean_param(struct intel_screen_private *intel,
+				  int param)
+{
+	drm_i915_getparam_t gp;
+	int value;
+
+	gp.value = &value;
+	gp.param = param;
+	if (drmIoctl(intel->drmSubFD, DRM_IOCTL_I915_GETPARAM, &gp))
+		return FALSE;
+
+	return value;
+}
+
+static Bool has_kernel_flush(struct intel_screen_private *intel)
+{
+	/* The BLT ring was introduced at the same time as the
+	 * automatic flush for the busy-ioctl.
+	 */
+	return drm_has_boolean_param(intel, I915_PARAM_HAS_BLT);
+}
+
+static Bool has_relaxed_fencing(struct intel_screen_private *intel)
+{
+	return drm_has_boolean_param(intel, I915_PARAM_HAS_RELAXED_FENCING);
+}
+
 static Bool can_accelerate_blt(struct intel_screen_private *intel)
 {
 	if (0 && (IS_I830(intel) || IS_845G(intel))) {
@@ -557,6 +585,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	case 15:
 	case 16:
 	case 24:
+	case 30:
 		break;
 	default:
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -597,6 +626,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		intel->tiling &= ~INTEL_TILING_FB;
 
 	intel->can_blt = can_accelerate_blt(intel);
+	intel->has_kernel_flush = has_kernel_flush(intel);
 	intel->use_shadow = !intel->can_blt;
 
 	if (xf86IsOptionSet(intel->Options, OPTION_SHADOW)) {
@@ -612,12 +642,31 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 			   " 2D GPU acceleration disabled.\n");
 	}
 
+	intel->has_relaxed_fencing =
+		xf86ReturnOptValBool(intel->Options,
+				     OPTION_RELAXED_FENCING,
+				     INTEL_INFO(intel)->gen >= 33);
+	/* And override the user if there is no kernel support */
+	if (intel->has_relaxed_fencing)
+		intel->has_relaxed_fencing = has_relaxed_fencing(intel);
+
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
+		   "Relaxed fencing %s\n",
+		   intel->has_relaxed_fencing ? "enabled" : "disabled");
+
 	/* SwapBuffers delays to avoid tearing */
 	intel->swapbuffers_wait = xf86ReturnOptValBool(intel->Options,
 						       OPTION_SWAPBUFFERS_WAIT,
 						       TRUE);
-	if (IS_GEN6(intel))
-		intel->swapbuffers_wait = FALSE;
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Wait on SwapBuffers? %s\n",
+		   intel->swapbuffers_wait ? "enabled" : "disabled");
+
+	intel->use_triple_buffer =
+		xf86ReturnOptValBool(intel->Options,
+				     OPTION_TRIPLE_BUFFER,
+				     TRUE);
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Triple buffering? %s\n",
+		   intel->use_triple_buffer ? "enabled" : "disabled");
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   intel->tiling & INTEL_TILING_FB ? "tiled" : "linear");
@@ -757,17 +806,8 @@ intel_flush_callback(CallbackListPtr *list,
 		     pointer user_data, pointer call_data)
 {
 	ScrnInfoPtr scrn = user_data;
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-
-	if (scrn->vtSema) {
-		/* Emit a flush of the rendering cache, or on the 965
-		 * and beyond rendering results may not hit the
-		 * framebuffer until significantly later.
-		 */
-		intel_batch_submit(scrn,
-				   intel->need_mi_flush ||
-				   !list_is_empty(&intel->flush_pixmaps));
-	}
+	if (scrn->vtSema)
+		intel_batch_submit(scrn);
 }
 
 #if HAVE_UDEV
@@ -1146,6 +1186,11 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		uxa_driver_fini(screen);
 		free(intel->uxa_driver);
 		intel->uxa_driver = NULL;
+	}
+
+	if (intel->back_buffer) {
+		drm_intel_bo_unreference(intel->back_buffer);
+		intel->back_buffer = NULL;
 	}
 
 	if (intel->front_buffer) {

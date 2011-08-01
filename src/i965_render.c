@@ -43,22 +43,15 @@
 #include "brw_defines.h"
 #include "brw_structs.h"
 
-struct blendinfo {
+// refer vol2, 3d rasterization 3.8.1
+
+/* defined in brw_defines.h */
+static const struct blendinfo {
 	Bool dst_alpha;
 	Bool src_alpha;
 	uint32_t src_blend;
 	uint32_t dst_blend;
-};
-
-struct formatinfo {
-	int fmt;
-	uint32_t card_fmt;
-};
-
-// refer vol2, 3d rasterization 3.8.1
-
-/* defined in brw_defines.h */
-static struct blendinfo i965_blend_op[] = {
+} i965_blend_op[] = {
 	/* Clear */
 	{0, 0, BRW_BLENDFACTOR_ZERO, BRW_BLENDFACTOR_ZERO},
 	/* Src */
@@ -99,7 +92,10 @@ static struct blendinfo i965_blend_op[] = {
 /* FIXME: surface format defined in brw_defines.h, shared Sampling engine
  * 1.7.2
  */
-static struct formatinfo i965_tex_formats[] = {
+static const struct formatinfo {
+	int fmt;
+	uint32_t card_fmt;
+} i965_tex_formats[] = {
 	{PICT_a8, BRW_SURFACEFORMAT_A8_UNORM},
 	{PICT_a8r8g8b8, BRW_SURFACEFORMAT_B8G8R8A8_UNORM},
 	{PICT_x8r8g8b8, BRW_SURFACEFORMAT_B8G8R8X8_UNORM},
@@ -149,46 +145,33 @@ static void i965_get_blend_cntl(int op, PicturePtr mask, uint32_t dst_format,
 
 }
 
-static Bool i965_get_dest_format(PicturePtr dest_picture, uint32_t * dst_format)
+static uint32_t i965_get_dest_format(PicturePtr dest_picture)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
-
 	switch (dest_picture->format) {
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
-		*dst_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
-		break;
+		return BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
 	case PICT_a8b8g8r8:
 	case PICT_x8b8g8r8:
-		*dst_format = BRW_SURFACEFORMAT_R8G8B8A8_UNORM;
-		break;
+		return BRW_SURFACEFORMAT_R8G8B8A8_UNORM;
 #if XORG_VERSION_CURRENT >= 10699900
 	case PICT_a2r10g10b10:
 	case PICT_x2r10g10b10:
-		*dst_format = BRW_SURFACEFORMAT_B10G10R10A2_UNORM;
-		break;
+		return BRW_SURFACEFORMAT_B10G10R10A2_UNORM;
 #endif
 	case PICT_r5g6b5:
-		*dst_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
-		break;
+		return BRW_SURFACEFORMAT_B5G6R5_UNORM;
 	case PICT_x1r5g5b5:
 	case PICT_a1r5g5b5:
-		*dst_format = BRW_SURFACEFORMAT_B5G5R5A1_UNORM;
-		break;
+		return BRW_SURFACEFORMAT_B5G5R5A1_UNORM;
 	case PICT_a8:
-		*dst_format = BRW_SURFACEFORMAT_A8_UNORM;
-		break;
+		return BRW_SURFACEFORMAT_A8_UNORM;
 	case PICT_a4r4g4b4:
 	case PICT_x4r4g4b4:
-		*dst_format = BRW_SURFACEFORMAT_B4G4R4A4_UNORM;
-		break;
+		return BRW_SURFACEFORMAT_B4G4R4A4_UNORM;
 	default:
-		intel_debug_fallback(scrn, "Unsupported dest format 0x%x\n",
-				     (int)dest_picture->format);
-		return FALSE;
+		return -1;
 	}
-
-	return TRUE;
 }
 
 Bool
@@ -199,7 +182,7 @@ i965_check_composite(int op,
 		     int width, int height)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
-	uint32_t tmp1;
+	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Check for unsupported compositing operations. */
 	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0])) {
@@ -224,8 +207,9 @@ i965_check_composite(int op,
 		}
 	}
 
-	if (!i965_get_dest_format(dest_picture, &tmp1)) {
-		intel_debug_fallback(scrn, "Get Color buffer format\n");
+	if (i965_get_dest_format(dest_picture) == -1) {
+		intel_debug_fallback(scrn, "Usupported Color buffer format 0x%x\n",
+				     (int)dest_picture->format);
 		return FALSE;
 	}
 
@@ -551,23 +535,78 @@ static const uint32_t ps_kernel_masknoca_projective_static_gen6[][4] = {
 #include "exa_wm_write.g6b"
 };
 
-#define WM_STATE_DECL(kernel) \
-    struct brw_wm_unit_state wm_state_ ## kernel[SAMPLER_STATE_FILTER_COUNT] \
-						[SAMPLER_STATE_EXTEND_COUNT] \
-						[SAMPLER_STATE_FILTER_COUNT] \
-						[SAMPLER_STATE_EXTEND_COUNT]
+/* programs for GEN7 */
+static const uint32_t ps_kernel_nomask_affine_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_write.g7b"
+};
 
-/* Many of the fields in the state structure must be aligned to a
- * 64-byte boundary, (or a 32-byte boundary, but 64 is good enough for
- * those too).
- */
-#define PAD64_MULTI(previous, idx, factor) char previous ## _pad ## idx [(64 - (sizeof(struct previous) * (factor)) % 64) % 64]
-#define PAD64(previous, idx) PAD64_MULTI(previous, idx, 1)
+static const uint32_t ps_kernel_nomask_projective_static_gen7[][4] = {
+#include "exa_wm_src_projective.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_maskca_affine_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_mask_affine.g7b"
+#include "exa_wm_mask_sample_argb.g7b"
+#include "exa_wm_ca.g6b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_maskca_projective_static_gen7[][4] = {
+#include "exa_wm_src_projective.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_mask_projective.g7b"
+#include "exa_wm_mask_sample_argb.g7b"
+#include "exa_wm_ca.g4b.gen5"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_maskca_srcalpha_affine_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_a.g7b"
+#include "exa_wm_mask_affine.g7b"
+#include "exa_wm_mask_sample_argb.g7b"
+#include "exa_wm_ca_srcalpha.g6b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_maskca_srcalpha_projective_static_gen7[][4] = {
+#include "exa_wm_src_projective.g7b"
+#include "exa_wm_src_sample_a.g7b"
+#include "exa_wm_mask_projective.g7b"
+#include "exa_wm_mask_sample_argb.g7b"
+#include "exa_wm_ca_srcalpha.g6b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_masknoca_affine_static_gen7[][4] = {
+#include "exa_wm_src_affine.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_mask_affine.g7b"
+#include "exa_wm_mask_sample_a.g7b"
+#include "exa_wm_noca.g6b"
+#include "exa_wm_write.g7b"
+};
+
+static const uint32_t ps_kernel_masknoca_projective_static_gen7[][4] = {
+#include "exa_wm_src_projective.g7b"
+#include "exa_wm_src_sample_argb.g7b"
+#include "exa_wm_mask_projective.g7b"
+#include "exa_wm_mask_sample_a.g7b"
+#include "exa_wm_noca.g6b"
+#include "exa_wm_write.g7b"
+};
+
 
 typedef enum {
 	SAMPLER_STATE_FILTER_NEAREST,
 	SAMPLER_STATE_FILTER_BILINEAR,
-	SAMPLER_STATE_FILTER_COUNT
+	FILTER_COUNT
 } sampler_state_filter_t;
 
 typedef enum {
@@ -575,7 +614,7 @@ typedef enum {
 	SAMPLER_STATE_EXTEND_REPEAT,
 	SAMPLER_STATE_EXTEND_PAD,
 	SAMPLER_STATE_EXTEND_REFLECT,
-	SAMPLER_STATE_EXTEND_COUNT
+	EXTEND_COUNT
 } sampler_state_extend_t;
 
 typedef enum {
@@ -587,18 +626,18 @@ typedef enum {
 	WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
 	WM_KERNEL_MASKNOCA_AFFINE,
 	WM_KERNEL_MASKNOCA_PROJECTIVE,
-	WM_KERNEL_COUNT
+	KERNEL_COUNT
 } wm_kernel_t;
 
 #define KERNEL(kernel_enum, kernel, masked) \
     [kernel_enum] = {&kernel, sizeof(kernel), masked}
 struct wm_kernel_info {
-	void *data;
+	const void *data;
 	unsigned int size;
 	Bool has_mask;
 };
 
-static struct wm_kernel_info wm_kernels[] = {
+static const struct wm_kernel_info wm_kernels_gen4[] = {
 	KERNEL(WM_KERNEL_NOMASK_AFFINE,
 	       ps_kernel_nomask_affine_static, FALSE),
 	KERNEL(WM_KERNEL_NOMASK_PROJECTIVE,
@@ -617,7 +656,7 @@ static struct wm_kernel_info wm_kernels[] = {
 	       ps_kernel_masknoca_projective_static, TRUE),
 };
 
-static struct wm_kernel_info wm_kernels_gen5[] = {
+static const struct wm_kernel_info wm_kernels_gen5[] = {
 	KERNEL(WM_KERNEL_NOMASK_AFFINE,
 	       ps_kernel_nomask_affine_static_gen5, FALSE),
 	KERNEL(WM_KERNEL_NOMASK_PROJECTIVE,
@@ -636,7 +675,7 @@ static struct wm_kernel_info wm_kernels_gen5[] = {
 	       ps_kernel_masknoca_projective_static_gen5, TRUE),
 };
 
-static struct wm_kernel_info wm_kernels_gen6[] = {
+static const struct wm_kernel_info wm_kernels_gen6[] = {
 	KERNEL(WM_KERNEL_NOMASK_AFFINE,
 	       ps_kernel_nomask_affine_static_gen6, FALSE),
 	KERNEL(WM_KERNEL_NOMASK_PROJECTIVE,
@@ -655,6 +694,25 @@ static struct wm_kernel_info wm_kernels_gen6[] = {
 	       ps_kernel_masknoca_projective_static_gen6, TRUE),
 };
 
+static const struct wm_kernel_info wm_kernels_gen7[] = {
+	KERNEL(WM_KERNEL_NOMASK_AFFINE,
+	       ps_kernel_nomask_affine_static_gen7, FALSE),
+	KERNEL(WM_KERNEL_NOMASK_PROJECTIVE,
+	       ps_kernel_nomask_projective_static_gen7, FALSE),
+	KERNEL(WM_KERNEL_MASKCA_AFFINE,
+	       ps_kernel_maskca_affine_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKCA_PROJECTIVE,
+	       ps_kernel_maskca_projective_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKCA_SRCALPHA_AFFINE,
+	       ps_kernel_maskca_srcalpha_affine_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE,
+	       ps_kernel_maskca_srcalpha_projective_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKNOCA_AFFINE,
+	       ps_kernel_masknoca_affine_static_gen7, TRUE),
+	KERNEL(WM_KERNEL_MASKNOCA_PROJECTIVE,
+	       ps_kernel_masknoca_projective_static_gen7, TRUE),
+};
+
 #undef KERNEL
 
 typedef struct _brw_cc_unit_state_padded {
@@ -662,15 +720,14 @@ typedef struct _brw_cc_unit_state_padded {
 	char pad[64 - sizeof(struct brw_cc_unit_state)];
 } brw_cc_unit_state_padded;
 
-typedef struct brw_surface_state_padded {
-	struct brw_surface_state state;
-	char pad[32 - sizeof(struct brw_surface_state)];
-} brw_surface_state_padded;
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#define SURFACE_STATE_PADDED_SIZE ALIGN(MAX(sizeof(struct brw_surface_state), sizeof(struct gen7_surface_state)), 32)
 
 struct gen4_cc_unit_state {
 	/* Index by [src_blend][dst_blend] */
-	brw_cc_unit_state_padded cc_state[BRW_BLENDFACTOR_COUNT]
-	    [BRW_BLENDFACTOR_COUNT];
+	brw_cc_unit_state_padded cc_state[BRW_BLENDFACTOR_COUNT][BRW_BLENDFACTOR_COUNT];
 };
 
 typedef struct gen4_composite_op {
@@ -681,6 +738,7 @@ typedef struct gen4_composite_op {
 	sampler_state_extend_t mask_extend;
 	Bool is_affine;
 	wm_kernel_t wm_kernel;
+	int vertex_id;
 } gen4_composite_op;
 
 /** Private data for gen4 render accel implementation. */
@@ -689,24 +747,22 @@ struct gen4_render_state {
 	drm_intel_bo *sf_state_bo;
 	drm_intel_bo *sf_mask_state_bo;
 	drm_intel_bo *cc_state_bo;
-	drm_intel_bo *wm_state_bo[WM_KERNEL_COUNT]
-	    [SAMPLER_STATE_FILTER_COUNT]
-	    [SAMPLER_STATE_EXTEND_COUNT]
-	    [SAMPLER_STATE_FILTER_COUNT]
-	    [SAMPLER_STATE_EXTEND_COUNT];
-	drm_intel_bo *wm_kernel_bo[WM_KERNEL_COUNT];
+	drm_intel_bo *wm_state_bo[KERNEL_COUNT]
+	    [FILTER_COUNT] [EXTEND_COUNT]
+	    [FILTER_COUNT] [EXTEND_COUNT];
+	drm_intel_bo *wm_kernel_bo[KERNEL_COUNT];
 
 	drm_intel_bo *cc_vp_bo;
 	drm_intel_bo *gen6_blend_bo;
 	drm_intel_bo *gen6_depth_stencil_bo;
-	drm_intel_bo *ps_sampler_state_bo[SAMPLER_STATE_FILTER_COUNT]
-	    [SAMPLER_STATE_EXTEND_COUNT]
-	    [SAMPLER_STATE_FILTER_COUNT]
-	    [SAMPLER_STATE_EXTEND_COUNT];
+	drm_intel_bo *ps_sampler_state_bo[FILTER_COUNT]
+	    [EXTEND_COUNT]
+	    [FILTER_COUNT]
+	    [EXTEND_COUNT];
 	gen4_composite_op composite_op;
 };
 
-static void gen6_emit_composite_state(ScrnInfoPtr scrn);
+static void gen6_emit_composite_state(struct intel_screen_private *intel);
 static void gen6_render_state_init(ScrnInfoPtr scrn);
 
 /**
@@ -716,10 +772,9 @@ static void gen6_render_state_init(ScrnInfoPtr scrn);
  * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
  * back to SF which then hands pixels off to WM.
  */
-static drm_intel_bo *gen4_create_sf_state(ScrnInfoPtr scrn,
+static drm_intel_bo *gen4_create_sf_state(intel_screen_private *intel,
 					  drm_intel_bo * kernel_bo)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_sf_unit_state *sf_state;
 	drm_intel_bo *sf_state_bo;
 
@@ -754,7 +809,6 @@ static drm_intel_bo *gen4_create_sf_state(ScrnInfoPtr scrn,
 	sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
 	sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
 	sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
-	sf_state->thread4.stats_enable = 1;
 	sf_state->sf5.viewport_transform = FALSE;	/* skip viewport */
 	sf_state->sf6.cull_mode = BRW_CULLMODE_NONE;
 	sf_state->sf6.scissor = 0;
@@ -767,7 +821,7 @@ static drm_intel_bo *gen4_create_sf_state(ScrnInfoPtr scrn,
 	return sf_state_bo;
 }
 
-static drm_intel_bo *sampler_border_color_create(ScrnInfoPtr scrn)
+static drm_intel_bo *sampler_border_color_create(intel_screen_private *intel)
 {
 	struct brw_sampler_legacy_border_color sampler_border_color;
 
@@ -778,14 +832,14 @@ static drm_intel_bo *sampler_border_color_create(ScrnInfoPtr scrn)
 	sampler_border_color.color[2] = 0;	/* B */
 	sampler_border_color.color[3] = 0;	/* A */
 
-	return intel_bo_alloc_for_data(scrn,
+	return intel_bo_alloc_for_data(intel,
 				       &sampler_border_color,
 				       sizeof(sampler_border_color),
 				       "gen4 render sampler border color");
 }
 
 static void
-sampler_state_init(drm_intel_bo * sampler_state_bo,
+gen4_sampler_state_init(drm_intel_bo * sampler_state_bo,
 		   struct brw_sampler_state *sampler_state,
 		   sampler_state_filter_t filter,
 		   sampler_state_extend_t extend,
@@ -850,18 +904,81 @@ sampler_state_init(drm_intel_bo * sampler_state_bo,
 	sampler_state->ss3.chroma_key_enable = 0;	/* disable chromakey */
 }
 
-static drm_intel_bo *gen4_create_sampler_state(ScrnInfoPtr scrn,
-					       sampler_state_filter_t
-					       src_filter,
-					       sampler_state_extend_t
-					       src_extend,
-					       sampler_state_filter_t
-					       mask_filter,
-					       sampler_state_extend_t
-					       mask_extend,
+static void
+gen7_sampler_state_init(drm_intel_bo * sampler_state_bo,
+		   struct gen7_sampler_state *sampler_state,
+		   sampler_state_filter_t filter,
+		   sampler_state_extend_t extend,
+		   drm_intel_bo * border_color_bo)
+{
+	uint32_t sampler_state_offset;
+
+	sampler_state_offset = (char *)sampler_state -
+	    (char *)sampler_state_bo->virtual;
+
+	/* PS kernel use this sampler */
+	memset(sampler_state, 0, sizeof(*sampler_state));
+
+	sampler_state->ss0.lod_preclamp = 1;	/* GL mode */
+
+	/* We use the legacy mode to get the semantics specified by
+	 * the Render extension. */
+	sampler_state->ss0.default_color_mode = BRW_BORDER_COLOR_MODE_LEGACY;
+
+	switch (filter) {
+	default:
+	case SAMPLER_STATE_FILTER_NEAREST:
+		sampler_state->ss0.min_filter = BRW_MAPFILTER_NEAREST;
+		sampler_state->ss0.mag_filter = BRW_MAPFILTER_NEAREST;
+		break;
+	case SAMPLER_STATE_FILTER_BILINEAR:
+		sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
+		sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+		break;
+	}
+
+	switch (extend) {
+	default:
+	case SAMPLER_STATE_EXTEND_NONE:
+		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
+		break;
+	case SAMPLER_STATE_EXTEND_REPEAT:
+		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+		break;
+	case SAMPLER_STATE_EXTEND_PAD:
+		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+		break;
+	case SAMPLER_STATE_EXTEND_REFLECT:
+		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+		break;
+	}
+
+	sampler_state->ss2.default_color_pointer =
+	    intel_emit_reloc(sampler_state_bo, sampler_state_offset +
+			     offsetof(struct gen7_sampler_state, ss2),
+			     border_color_bo, 0,
+			     I915_GEM_DOMAIN_SAMPLER, 0) >> 5;
+
+	sampler_state->ss3.chroma_key_enable = 0;	/* disable chromakey */
+}
+
+
+
+static drm_intel_bo *gen4_create_sampler_state(intel_screen_private *intel,
+					       sampler_state_filter_t src_filter,
+					       sampler_state_extend_t src_extend,
+					       sampler_state_filter_t mask_filter,
+					       sampler_state_extend_t mask_extend,
 					       drm_intel_bo * border_color_bo)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *sampler_state_bo;
 	struct brw_sampler_state *sampler_state;
 
@@ -871,17 +988,64 @@ static drm_intel_bo *gen4_create_sampler_state(ScrnInfoPtr scrn,
 	drm_intel_bo_map(sampler_state_bo, TRUE);
 	sampler_state = sampler_state_bo->virtual;
 
-	sampler_state_init(sampler_state_bo,
-			   &sampler_state[0],
-			   src_filter, src_extend, border_color_bo);
-	sampler_state_init(sampler_state_bo,
-			   &sampler_state[1],
-			   mask_filter, mask_extend, border_color_bo);
+	gen4_sampler_state_init(sampler_state_bo,
+				&sampler_state[0],
+				src_filter, src_extend, border_color_bo);
+	gen4_sampler_state_init(sampler_state_bo,
+				&sampler_state[1],
+				mask_filter, mask_extend, border_color_bo);
 
 	drm_intel_bo_unmap(sampler_state_bo);
 
 	return sampler_state_bo;
 }
+
+static drm_intel_bo *
+gen7_create_sampler_state(intel_screen_private *intel,
+			  sampler_state_filter_t src_filter,
+			  sampler_state_extend_t src_extend,
+			  sampler_state_filter_t mask_filter,
+			  sampler_state_extend_t mask_extend,
+			  drm_intel_bo * border_color_bo)
+{
+	drm_intel_bo *sampler_state_bo;
+	struct gen7_sampler_state *sampler_state;
+
+	sampler_state_bo =
+	    drm_intel_bo_alloc(intel->bufmgr, "gen7 sampler state",
+			       sizeof(struct gen7_sampler_state) * 2, 4096);
+	drm_intel_bo_map(sampler_state_bo, TRUE);
+	sampler_state = sampler_state_bo->virtual;
+
+	gen7_sampler_state_init(sampler_state_bo,
+				&sampler_state[0],
+				src_filter, src_extend, border_color_bo);
+	gen7_sampler_state_init(sampler_state_bo,
+				&sampler_state[1],
+				mask_filter, mask_extend, border_color_bo);
+
+	drm_intel_bo_unmap(sampler_state_bo);
+
+	return sampler_state_bo;
+}
+
+static inline drm_intel_bo *
+i965_create_sampler_state(intel_screen_private *intel,
+			  sampler_state_filter_t src_filter,
+			  sampler_state_extend_t src_extend,
+			  sampler_state_filter_t mask_filter,
+			  sampler_state_extend_t mask_extend,
+			  drm_intel_bo * border_color_bo)
+{
+	if (INTEL_INFO(intel)->gen < 70)
+		return gen4_create_sampler_state(intel, src_filter, src_extend,
+						 mask_filter, mask_extend,
+						 border_color_bo);
+	return gen7_create_sampler_state(intel, src_filter, src_extend,
+					 mask_filter, mask_extend,
+					 border_color_bo);
+}
+
 
 static void
 cc_state_init(drm_intel_bo * cc_state_bo,
@@ -924,104 +1088,98 @@ cc_state_init(drm_intel_bo * cc_state_bo,
 	cc_state->cc6.dest_blend_factor = dst_blend;
 }
 
-static drm_intel_bo *gen4_create_wm_state(ScrnInfoPtr scrn,
+static drm_intel_bo *gen4_create_wm_state(intel_screen_private *intel,
 					  Bool has_mask,
 					  drm_intel_bo * kernel_bo,
 					  drm_intel_bo * sampler_bo)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct brw_wm_unit_state *wm_state;
+	struct brw_wm_unit_state *state;
 	drm_intel_bo *wm_state_bo;
 
 	wm_state_bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 WM state",
-					 sizeof(*wm_state), 4096);
+					 sizeof(*state), 4096);
 	drm_intel_bo_map(wm_state_bo, TRUE);
-	wm_state = wm_state_bo->virtual;
+	state = wm_state_bo->virtual;
 
-	memset(wm_state, 0, sizeof(*wm_state));
-	wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
-	wm_state->thread0.kernel_start_pointer =
+	memset(state, 0, sizeof(*state));
+	state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
+	state->thread0.kernel_start_pointer =
 	    intel_emit_reloc(wm_state_bo,
 			     offsetof(struct brw_wm_unit_state, thread0),
-			     kernel_bo, wm_state->thread0.grf_reg_count << 1,
+			     kernel_bo, state->thread0.grf_reg_count << 1,
 			     I915_GEM_DOMAIN_INSTRUCTION, 0) >> 6;
 
-	wm_state->thread1.single_program_flow = 0;
+	state->thread1.single_program_flow = 0;
 
 	/* scratch space is not used in our kernel */
-	wm_state->thread2.scratch_space_base_pointer = 0;
-	wm_state->thread2.per_thread_scratch_space = 0;
+	state->thread2.scratch_space_base_pointer = 0;
+	state->thread2.per_thread_scratch_space = 0;
 
-	wm_state->thread3.const_urb_entry_read_length = 0;
-	wm_state->thread3.const_urb_entry_read_offset = 0;
+	state->thread3.const_urb_entry_read_length = 0;
+	state->thread3.const_urb_entry_read_offset = 0;
 
-	wm_state->thread3.urb_entry_read_offset = 0;
+	state->thread3.urb_entry_read_offset = 0;
 	/* wm kernel use urb from 3, see wm_program in compiler module */
-	wm_state->thread3.dispatch_grf_start_reg = 3;	/* must match kernel */
-
-	wm_state->wm4.stats_enable = 1;	/* statistic */
+	state->thread3.dispatch_grf_start_reg = 3;	/* must match kernel */
 
 	if (IS_GEN5(intel))
-		wm_state->wm4.sampler_count = 0;	/* hardware requirement */
+		state->wm4.sampler_count = 0;	/* hardware requirement */
 	else
-		wm_state->wm4.sampler_count = 1;	/* 1-4 samplers used */
+		state->wm4.sampler_count = 1;	/* 1-4 samplers used */
 
-	wm_state->wm4.sampler_state_pointer =
+	state->wm4.sampler_state_pointer =
 	    intel_emit_reloc(wm_state_bo,
 			     offsetof(struct brw_wm_unit_state, wm4),
 			     sampler_bo,
-			     wm_state->wm4.stats_enable +
-			     (wm_state->wm4.sampler_count << 2),
+			     state->wm4.sampler_count << 2,
 			     I915_GEM_DOMAIN_INSTRUCTION, 0) >> 5;
-	wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
-	wm_state->wm5.transposed_urb_read = 0;
-	wm_state->wm5.thread_dispatch_enable = 1;
+	state->wm5.max_threads = PS_MAX_THREADS - 1;
+	state->wm5.transposed_urb_read = 0;
+	state->wm5.thread_dispatch_enable = 1;
 	/* just use 16-pixel dispatch (4 subspans), don't need to change kernel
 	 * start point
 	 */
-	wm_state->wm5.enable_16_pix = 1;
-	wm_state->wm5.enable_8_pix = 0;
-	wm_state->wm5.early_depth_test = 1;
+	state->wm5.enable_16_pix = 1;
+	state->wm5.enable_8_pix = 0;
+	state->wm5.early_depth_test = 1;
 
 	/* Each pair of attributes (src/mask coords) is two URB entries */
 	if (has_mask) {
-		wm_state->thread1.binding_table_entry_count = 3;	/* 2 tex and fb */
-		wm_state->thread3.urb_entry_read_length = 4;
+		state->thread1.binding_table_entry_count = 3;	/* 2 tex and fb */
+		state->thread3.urb_entry_read_length = 4;
 	} else {
-		wm_state->thread1.binding_table_entry_count = 2;	/* 1 tex and fb */
-		wm_state->thread3.urb_entry_read_length = 2;
+		state->thread1.binding_table_entry_count = 2;	/* 1 tex and fb */
+		state->thread3.urb_entry_read_length = 2;
 	}
 
 	/* binding table entry count is only used for prefetching, and it has to
 	 * be set 0 for Ironlake
 	 */
 	if (IS_GEN5(intel))
-		wm_state->thread1.binding_table_entry_count = 0;
+		state->thread1.binding_table_entry_count = 0;
 
 	drm_intel_bo_unmap(wm_state_bo);
 
 	return wm_state_bo;
 }
 
-static drm_intel_bo *gen4_create_cc_viewport(ScrnInfoPtr scrn)
+static drm_intel_bo *gen4_create_cc_viewport(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo;
-	struct brw_cc_viewport cc_viewport;
+	struct brw_cc_viewport vp;
 
-	cc_viewport.min_depth = -1.e35;
-	cc_viewport.max_depth = 1.e35;
+	vp.min_depth = -1.e35;
+	vp.max_depth = 1.e35;
 
 	bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 render unit state",
-				sizeof(cc_viewport), 4096);
-	drm_intel_bo_subdata(bo, 0, sizeof(cc_viewport), &cc_viewport);
+				sizeof(vp), 4096);
+	drm_intel_bo_subdata(bo, 0, sizeof(vp), &vp);
 
 	return bo;
 }
 
-static drm_intel_bo *gen4_create_vs_unit_state(ScrnInfoPtr scrn)
+static drm_intel_bo *gen4_create_vs_unit_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_vs_unit_state vs_state;
 	memset(&vs_state, 0, sizeof(vs_state));
 
@@ -1034,7 +1192,7 @@ static drm_intel_bo *gen4_create_vs_unit_state(ScrnInfoPtr scrn)
 	vs_state.vs6.vs_enable = 0;
 	vs_state.vs6.vert_cache_disable = 1;
 
-	return intel_bo_alloc_for_data(scrn, &vs_state, sizeof(vs_state),
+	return intel_bo_alloc_for_data(intel, &vs_state, sizeof(vs_state),
 				       "gen4 render VS state");
 }
 
@@ -1042,19 +1200,17 @@ static drm_intel_bo *gen4_create_vs_unit_state(ScrnInfoPtr scrn)
  * Set up all combinations of cc state: each blendfactor for source and
  * dest.
  */
-static drm_intel_bo *gen4_create_cc_unit_state(ScrnInfoPtr scrn)
+static drm_intel_bo *gen4_create_cc_unit_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_cc_unit_state *cc_state;
 	drm_intel_bo *cc_state_bo, *cc_vp_bo;
 	int i, j;
 
-	cc_vp_bo = gen4_create_cc_viewport(scrn);
+	cc_vp_bo = gen4_create_cc_viewport(intel);
 
 	cc_state_bo = drm_intel_bo_alloc(intel->bufmgr, "gen4 CC state",
-					 sizeof(*cc_state), 4096);
+					 sizeof(struct gen4_cc_unit_state),
+					 4096);
 	drm_intel_bo_map(cc_state_bo, TRUE);
-	cc_state = cc_state_bo->virtual;
 	for (i = 0; i < BRW_BLENDFACTOR_COUNT; i++) {
 		for (j = 0; j < BRW_BLENDFACTOR_COUNT; j++) {
 			cc_state_init(cc_state_bo,
@@ -1117,7 +1273,7 @@ static sampler_state_extend_t sampler_state_extend_from_picture(int repeat_type)
  * picture in the given surface state buffer.
  */
 static int
-i965_set_picture_surface_state(intel_screen_private *intel,
+gen4_set_picture_surface_state(intel_screen_private *intel,
 			       PicturePtr picture, PixmapPtr pixmap,
 			       Bool is_dst)
 {
@@ -1148,16 +1304,10 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 
 	memset(ss, 0, sizeof(*ss));
 	ss->ss0.surface_type = BRW_SURFACE_2D;
-	if (is_dst) {
-		uint32_t dst_format = 0;
-		Bool ret;
-
-		ret = i965_get_dest_format(picture, &dst_format);
-		assert(ret == TRUE);
-		ss->ss0.surface_format = dst_format;
-	} else {
+	if (is_dst)
+		ss->ss0.surface_format = i965_get_dest_format(picture);
+	else
 		ss->ss0.surface_format = i965_get_card_format(picture);
-	}
 
 	ss->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
 	ss->ss0.color_blend = 1;
@@ -1177,7 +1327,7 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 			  priv->bo);
 
 	offset = intel->surface_used;
-	intel->surface_used += sizeof(struct brw_surface_state_padded);
+	intel->surface_used += SURFACE_STATE_PADDED_SIZE;
 
 	if (is_dst)
 		priv->dst_bound = offset;
@@ -1187,9 +1337,200 @@ i965_set_picture_surface_state(intel_screen_private *intel,
 	return offset;
 }
 
-static void i965_emit_composite_state(ScrnInfoPtr scrn)
+static int
+gen7_set_picture_surface_state(intel_screen_private *intel,
+			       PicturePtr picture, PixmapPtr pixmap,
+			       Bool is_dst)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	struct gen7_surface_state *ss;
+	uint32_t write_domain, read_domains;
+	int offset;
+
+	if (is_dst) {
+		write_domain = I915_GEM_DOMAIN_RENDER;
+		read_domains = I915_GEM_DOMAIN_RENDER;
+	} else {
+		write_domain = 0;
+		read_domains = I915_GEM_DOMAIN_SAMPLER;
+	}
+	intel_batch_mark_pixmap_domains(intel, priv,
+					read_domains, write_domain);
+	if (is_dst) {
+		if (priv->dst_bound)
+			return priv->dst_bound;
+	} else {
+		if (priv->src_bound)
+			return priv->src_bound;
+	}
+
+	ss = (struct gen7_surface_state *)
+		(intel->surface_data + intel->surface_used);
+
+	memset(ss, 0, sizeof(*ss));
+	ss->ss0.surface_type = BRW_SURFACE_2D;
+	if (is_dst)
+		ss->ss0.surface_format = i965_get_dest_format(picture);
+	else
+		ss->ss0.surface_format = i965_get_card_format(picture);
+
+	ss->ss0.tile_walk = 0;	/* Tiled X */
+	ss->ss0.tiled_surface = intel_pixmap_tiled(pixmap) ? 1 : 0;
+	ss->ss1.base_addr = priv->bo->offset;
+
+	ss->ss2.height = pixmap->drawable.height - 1;
+	ss->ss2.width = pixmap->drawable.width - 1;
+	ss->ss3.pitch = intel_pixmap_pitch(pixmap) - 1;
+
+	dri_bo_emit_reloc(intel->surface_bo,
+			  read_domains, write_domain,
+			  0,
+			  intel->surface_used +
+			  offsetof(struct gen7_surface_state, ss1),
+			  priv->bo);
+
+	offset = intel->surface_used;
+	intel->surface_used += SURFACE_STATE_PADDED_SIZE;
+
+	if (is_dst)
+		priv->dst_bound = offset;
+	else
+		priv->src_bound = offset;
+
+	return offset;
+}
+
+static inline int
+i965_set_picture_surface_state(intel_screen_private *intel,
+			       PicturePtr picture, PixmapPtr pixmap,
+			       Bool is_dst)
+{
+    if (INTEL_INFO(intel)->gen < 70)
+        return gen4_set_picture_surface_state(intel, picture, pixmap, is_dst);
+    return gen7_set_picture_surface_state(intel, picture, pixmap, is_dst);
+}
+
+static void gen4_composite_vertex_elements(struct intel_screen_private *intel)
+{
+	struct gen4_render_state *render_state = intel->gen4_render_state;
+	gen4_composite_op *composite_op = &render_state->composite_op;
+	Bool has_mask = intel->render_mask != NULL;
+	Bool is_affine = composite_op->is_affine;
+	/*
+	 * number of extra parameters per vertex
+	 */
+	int nelem = has_mask ? 2 : 1;
+	/*
+	 * size of extra parameters:
+	 *  3 for homogenous (xyzw)
+	 *  2 for cartesian (xy)
+	 */
+	int selem = is_affine ? 2 : 3;
+	uint32_t w_component;
+	uint32_t src_format;
+	int id;
+
+	id = has_mask << 1 | is_affine;
+
+	if (composite_op->vertex_id == id)
+		return;
+
+	composite_op->vertex_id = id;
+
+	if (is_affine) {
+		src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
+		w_component = BRW_VFCOMPONENT_STORE_1_FLT;
+	} else {
+		src_format = BRW_SURFACEFORMAT_R32G32B32_FLOAT;
+		w_component = BRW_VFCOMPONENT_STORE_SRC;
+	}
+
+	if (IS_GEN5(intel)) {
+		/*
+		 * The reason to add this extra vertex element in the header is that
+		 * Ironlake has different vertex header definition and origin method to
+		 * set destination element offset doesn't exist anymore, which means
+		 * hardware requires a predefined vertex element layout.
+		 *
+		 * haihao proposed this approach to fill the first vertex element, so
+		 * origin layout for Gen4 doesn't need to change, and origin shader
+		 * programs behavior is also kept.
+		 *
+		 * I think this is not bad. - zhenyu
+		 */
+
+		OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
+			  ((2 * (2 + nelem)) - 1));
+		OUT_BATCH((id << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
+			  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+			  (0 << VE0_OFFSET_SHIFT));
+
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
+	} else {
+		/* Set up our vertex elements, sourced from the single vertex buffer.
+		 * that will be set up later.
+		 */
+		OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
+			  ((2 * (1 + nelem)) - 1));
+	}
+
+	/* x,y */
+	OUT_BATCH((id << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
+		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		  (0 << VE0_OFFSET_SHIFT));
+
+	if (IS_GEN5(intel))
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+	else
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+			  (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+	/* u0, v0, w0 */
+	OUT_BATCH((id << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
+		  (src_format << VE0_FORMAT_SHIFT) |
+		  ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
+
+	if (IS_GEN5(intel))
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+	else
+		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+			  ((4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
+	/* u1, v1, w1 */
+	if (has_mask) {
+		OUT_BATCH((id << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID |
+			  (src_format << VE0_FORMAT_SHIFT) |
+			  (((2 + selem) * 4) << VE0_OFFSET_SHIFT));	/* vb offset in bytes */
+
+		if (IS_GEN5(intel))
+			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+				  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+				  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+		else
+			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+				  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+				  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+				  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+				  ((4 + 4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
+	}
+}
+
+static void i965_emit_composite_state(struct intel_screen_private *intel)
+{
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	int op = composite_op->op;
@@ -1201,7 +1542,6 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	sampler_state_filter_t mask_filter = composite_op->mask_filter;
 	sampler_state_extend_t src_extend = composite_op->src_extend;
 	sampler_state_extend_t mask_extend = composite_op->mask_extend;
-	Bool is_affine = composite_op->is_affine;
 	uint32_t src_blend, dst_blend;
 
 	intel->needs_render_state_emit = FALSE;
@@ -1266,54 +1606,52 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 	i965_get_blend_cntl(op, mask_picture, dest_picture->format,
 			    &src_blend, &dst_blend);
 
-	{
-		/* Binding table pointers */
-		OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
-		OUT_BATCH(0);	/* vs */
-		OUT_BATCH(0);	/* gs */
-		OUT_BATCH(0);	/* clip */
-		OUT_BATCH(0);	/* sf */
-		/* Only the PS uses the binding table */
-		OUT_BATCH(intel->surface_table);
+	/* Binding table pointers */
+	OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
+	OUT_BATCH(0);	/* vs */
+	OUT_BATCH(0);	/* gs */
+	OUT_BATCH(0);	/* clip */
+	OUT_BATCH(0);	/* sf */
+	/* Only the PS uses the binding table */
+	OUT_BATCH(intel->surface_table);
 
-		/* The drawing rectangle clipping is always on.  Set it to values that
-		 * shouldn't do any clipping.
-		 */
-		OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);
-		OUT_BATCH(0x00000000);	/* ymin, xmin */
-		OUT_BATCH(DRAW_YMAX(dest->drawable.height - 1) |
-			  DRAW_XMAX(dest->drawable.width - 1));	/* ymax, xmax */
-		OUT_BATCH(0x00000000);	/* yorigin, xorigin */
+	/* The drawing rectangle clipping is always on.  Set it to values that
+	 * shouldn't do any clipping.
+	 */
+	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2);
+	OUT_BATCH(0x00000000);	/* ymin, xmin */
+	OUT_BATCH(DRAW_YMAX(dest->drawable.height - 1) |
+		  DRAW_XMAX(dest->drawable.width - 1));	/* ymax, xmax */
+	OUT_BATCH(0x00000000);	/* yorigin, xorigin */
 
-		/* skip the depth buffer */
-		/* skip the polygon stipple */
-		/* skip the polygon stipple offset */
-		/* skip the line stipple */
+	/* skip the depth buffer */
+	/* skip the polygon stipple */
+	/* skip the polygon stipple offset */
+	/* skip the line stipple */
 
-		/* Set the pointers to the 3d pipeline state */
-		OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-		OUT_RELOC(render_state->vs_state_bo,
+	/* Set the pointers to the 3d pipeline state */
+	OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
+	OUT_RELOC(render_state->vs_state_bo,
+		  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+	OUT_BATCH(BRW_GS_DISABLE);	/* disable GS, resulting in passthrough */
+	OUT_BATCH(BRW_CLIP_DISABLE);	/* disable CLIP, resulting in passthrough */
+	if (mask) {
+		OUT_RELOC(render_state->sf_mask_state_bo,
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-		OUT_BATCH(BRW_GS_DISABLE);	/* disable GS, resulting in passthrough */
-		OUT_BATCH(BRW_CLIP_DISABLE);	/* disable CLIP, resulting in passthrough */
-		if (mask) {
-			OUT_RELOC(render_state->sf_mask_state_bo,
-				  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-		} else {
-			OUT_RELOC(render_state->sf_state_bo,
-				  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-		}
-
-		OUT_RELOC(render_state->wm_state_bo[composite_op->wm_kernel]
-			  [src_filter][src_extend]
-			  [mask_filter][mask_extend],
+	} else {
+		OUT_RELOC(render_state->sf_state_bo,
 			  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-
-		OUT_RELOC(render_state->cc_state_bo,
-			  I915_GEM_DOMAIN_INSTRUCTION, 0,
-			  offsetof(struct gen4_cc_unit_state,
-				   cc_state[src_blend][dst_blend]));
 	}
+
+	OUT_RELOC(render_state->wm_state_bo[composite_op->wm_kernel]
+		  [src_filter][src_extend]
+		  [mask_filter][mask_extend],
+		  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+
+	OUT_RELOC(render_state->cc_state_bo,
+		  I915_GEM_DOMAIN_INSTRUCTION, 0,
+		  offsetof(struct gen4_cc_unit_state,
+			   cc_state[src_blend][dst_blend]));
 
 	{
 		int urb_vs_start, urb_vs_size;
@@ -1361,129 +1699,15 @@ static void i965_emit_composite_state(ScrnInfoPtr scrn)
 			  (URB_CS_ENTRIES << 0));
 	}
 
-	{
-		/*
-		 * number of extra parameters per vertex
-		 */
-		int nelem = mask ? 2 : 1;
-		/*
-		 * size of extra parameters:
-		 *  3 for homogenous (xyzw)
-		 *  2 for cartesian (xy)
-		 */
-		int selem = is_affine ? 2 : 3;
-		uint32_t w_component;
-		uint32_t src_format;
-
-		if (is_affine) {
-			src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
-			w_component = BRW_VFCOMPONENT_STORE_1_FLT;
-		} else {
-			src_format = BRW_SURFACEFORMAT_R32G32B32_FLOAT;
-			w_component = BRW_VFCOMPONENT_STORE_SRC;
-		}
-
-		if (IS_GEN5(intel)) {
-			/*
-			 * The reason to add this extra vertex element in the header is that
-			 * Ironlake has different vertex header definition and origin method to
-			 * set destination element offset doesn't exist anymore, which means
-			 * hardware requires a predefined vertex element layout.
-			 *
-			 * haihao proposed this approach to fill the first vertex element, so
-			 * origin layout for Gen4 doesn't need to change, and origin shader
-			 * programs behavior is also kept.
-			 *
-			 * I think this is not bad. - zhenyu
-			 */
-
-			OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
-				  ((2 * (2 + nelem)) - 1));
-			OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-				  VE0_VALID | (BRW_SURFACEFORMAT_R32G32_FLOAT <<
-					       VE0_FORMAT_SHIFT) | (0 <<
-								    VE0_OFFSET_SHIFT));
-
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_0 <<
-				   VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_0 <<
-				   VE1_VFCOMPONENT_1_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_0 <<
-				   VE1_VFCOMPONENT_2_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_0 <<
-				   VE1_VFCOMPONENT_3_SHIFT));
-		} else {
-			/* Set up our vertex elements, sourced from the single vertex buffer.
-			 * that will be set up later.
-			 */
-			OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
-				  ((2 * (1 + nelem)) - 1));
-		}
-
-		/* x,y */
-		OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-			  VE0_VALID |
-			  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-			  (0 << VE0_OFFSET_SHIFT));
-
-		if (IS_GEN5(intel))
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
-				   VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_SRC <<
-				   VE1_VFCOMPONENT_1_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT <<
-				   VE1_VFCOMPONENT_2_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT <<
-				   VE1_VFCOMPONENT_3_SHIFT));
-		else
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
-				   VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_SRC <<
-				   VE1_VFCOMPONENT_1_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT <<
-				   VE1_VFCOMPONENT_2_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_1_FLT <<
-				   VE1_VFCOMPONENT_3_SHIFT) | (4 <<
-							       VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
-		/* u0, v0, w0 */
-		OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID | (src_format << VE0_FORMAT_SHIFT) | ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
-
-		if (IS_GEN5(intel))
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
-				   VE1_VFCOMPONENT_0_SHIFT) |
-				  (BRW_VFCOMPONENT_STORE_SRC <<
-				   VE1_VFCOMPONENT_1_SHIFT) | (w_component <<
-							       VE1_VFCOMPONENT_2_SHIFT)
-				  | (BRW_VFCOMPONENT_STORE_1_FLT <<
-				     VE1_VFCOMPONENT_3_SHIFT));
-		else
-			OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) | (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) | (w_component << VE1_VFCOMPONENT_2_SHIFT) | (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) | ((4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
-		/* u1, v1, w1 */
-		if (mask) {
-			OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) | VE0_VALID | (src_format << VE0_FORMAT_SHIFT) | (((2 + selem) * 4) << VE0_OFFSET_SHIFT));	/* vb offset in bytes */
-
-			if (IS_GEN5(intel))
-				OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC <<
-					   VE1_VFCOMPONENT_0_SHIFT) |
-					  (BRW_VFCOMPONENT_STORE_SRC <<
-					   VE1_VFCOMPONENT_1_SHIFT) |
-					  (w_component <<
-					   VE1_VFCOMPONENT_2_SHIFT) |
-					  (BRW_VFCOMPONENT_STORE_1_FLT <<
-					   VE1_VFCOMPONENT_3_SHIFT));
-			else
-				OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) | (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) | (w_component << VE1_VFCOMPONENT_2_SHIFT) | (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) | ((4 + 4 + 4) << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));	/* VUE offset in dwords */
-		}
-	}
+	gen4_composite_vertex_elements(intel);
 }
 
 /**
  * Returns whether the current set of composite state plus vertex buffer is
  * expected to fit in the aperture.
  */
-static Bool i965_composite_check_aperture(ScrnInfoPtr scrn)
+static Bool i965_composite_check_aperture(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen4_render_state *render_state = intel->gen4_render_state;
 	gen4_composite_op *composite_op = &render_state->composite_op;
 	drm_intel_bo *bo_table[] = {
@@ -1514,7 +1738,7 @@ static Bool i965_composite_check_aperture(ScrnInfoPtr scrn)
 		render_state->gen6_blend_bo,
 		render_state->gen6_depth_stencil_bo,
 	};
-	
+
 	if (INTEL_INFO(intel)->gen >= 60)
 		return drm_intel_bufmgr_check_aperture_space(gen6_bo_table,
 							ARRAY_SIZE(gen6_bo_table)) == 0;
@@ -1546,6 +1770,237 @@ static void i965_surface_flush(struct intel_screen_private *intel)
 
 	list_foreach_entry(priv, struct intel_pixmap, &intel->batch_pixmaps, batch)
 		priv->dst_bound = priv->src_bound = 0;
+}
+
+static void
+i965_emit_composite_primitive_identity_source(intel_screen_private *intel,
+					      int srcX, int srcY,
+					      int maskX, int maskY,
+					      int dstX, int dstY,
+					      int w, int h)
+{
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX((srcX + w) * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX(srcY * intel->scale_units[0][1]);
+}
+
+static void
+i965_emit_composite_primitive_affine_source(intel_screen_private *intel,
+					    int srcX, int srcY,
+					    int maskX, int maskY,
+					    int dstX, int dstY,
+					    int w, int h)
+{
+	float src_x[3], src_y[3];
+
+	if (!intel_get_transformed_coordinates(srcX, srcY,
+					      intel->transform[0],
+					      &src_x[0],
+					      &src_y[0]))
+		return;
+
+	if (!intel_get_transformed_coordinates(srcX, srcY + h,
+					      intel->transform[0],
+					      &src_x[1],
+					      &src_y[1]))
+		return;
+
+	if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
+					      intel->transform[0],
+					      &src_x[2],
+					      &src_y[2]))
+		return;
+
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[2] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[2] * intel->scale_units[0][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[1] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[1] * intel->scale_units[0][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(src_x[0] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[0] * intel->scale_units[0][1]);
+}
+
+static void
+i965_emit_composite_primitive_identity_source_mask(intel_screen_private *intel,
+						   int srcX, int srcY,
+						   int maskX, int maskY,
+						   int dstX, int dstY,
+						   int w, int h)
+{
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX((srcX + w) * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+	OUT_VERTEX((maskX + w) * intel->scale_units[1][0]);
+	OUT_VERTEX((maskY + h) * intel->scale_units[1][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX((srcY + h) * intel->scale_units[0][1]);
+	OUT_VERTEX(maskX * intel->scale_units[1][0]);
+	OUT_VERTEX((maskY + h) * intel->scale_units[1][1]);
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(srcX * intel->scale_units[0][0]);
+	OUT_VERTEX(srcY * intel->scale_units[0][1]);
+	OUT_VERTEX(maskX * intel->scale_units[1][0]);
+	OUT_VERTEX(maskY * intel->scale_units[1][1]);
+}
+
+static void
+i965_emit_composite_primitive(intel_screen_private *intel,
+			      int srcX, int srcY,
+			      int maskX, int maskY,
+			      int dstX, int dstY,
+			      int w, int h)
+{
+	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
+	Bool is_affine = intel->gen4_render_state->composite_op.is_affine;
+
+	if (! intel->render_source_is_solid) {
+		if (is_affine) {
+			if (!intel_get_transformed_coordinates(srcX, srcY,
+							      intel->transform[0],
+							      &src_x[0],
+							      &src_y[0]))
+				return;
+
+			if (!intel_get_transformed_coordinates(srcX, srcY + h,
+							      intel->transform[0],
+							      &src_x[1],
+							      &src_y[1]))
+				return;
+
+			if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
+							      intel->transform[0],
+							      &src_x[2],
+							      &src_y[2]))
+				return;
+		} else {
+			if (!intel_get_transformed_coordinates_3d(srcX, srcY,
+								 intel->transform[0],
+								 &src_x[0],
+								 &src_y[0],
+								 &src_w[0]))
+				return;
+
+			if (!intel_get_transformed_coordinates_3d(srcX, srcY + h,
+								 intel->transform[0],
+								 &src_x[1],
+								 &src_y[1],
+								 &src_w[1]))
+				return;
+
+			if (!intel_get_transformed_coordinates_3d(srcX + w, srcY + h,
+								 intel->transform[0],
+								 &src_x[2],
+								 &src_y[2],
+								 &src_w[2]))
+				return;
+		}
+	}
+
+	if (intel->render_mask) {
+		if (is_affine) {
+			if (!intel_get_transformed_coordinates(maskX, maskY,
+							      intel->transform[1],
+							      &mask_x[0],
+							      &mask_y[0]))
+				return;
+
+			if (!intel_get_transformed_coordinates(maskX, maskY + h,
+							      intel->transform[1],
+							      &mask_x[1],
+							      &mask_y[1]))
+				return;
+
+			if (!intel_get_transformed_coordinates(maskX + w, maskY + h,
+							      intel->transform[1],
+							      &mask_x[2],
+							      &mask_y[2]))
+				return;
+		} else {
+			if (!intel_get_transformed_coordinates_3d(maskX, maskY,
+								 intel->transform[1],
+								 &mask_x[0],
+								 &mask_y[0],
+								 &mask_w[0]))
+				return;
+
+			if (!intel_get_transformed_coordinates_3d(maskX, maskY + h,
+								 intel->transform[1],
+								 &mask_x[1],
+								 &mask_y[1],
+								 &mask_w[1]))
+				return;
+
+			if (!intel_get_transformed_coordinates_3d(maskX + w, maskY + h,
+								 intel->transform[1],
+								 &mask_x[2],
+								 &mask_y[2],
+								 &mask_w[2]))
+				return;
+		}
+	}
+
+	OUT_VERTEX(dstX + w);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[2] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[2] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[2]);
+	if (intel->render_mask) {
+		OUT_VERTEX(mask_x[2] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[2] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[2]);
+	}
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY + h);
+	OUT_VERTEX(src_x[1] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[1] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[1]);
+	if (intel->render_mask) {
+		OUT_VERTEX(mask_x[1] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[1] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[1]);
+	}
+
+	OUT_VERTEX(dstX);
+	OUT_VERTEX(dstY);
+	OUT_VERTEX(src_x[0] * intel->scale_units[0][0]);
+	OUT_VERTEX(src_y[0] * intel->scale_units[0][1]);
+	if (!is_affine)
+		OUT_VERTEX(src_w[0]);
+	if (intel->render_mask) {
+		OUT_VERTEX(mask_x[0] * intel->scale_units[1][0]);
+		OUT_VERTEX(mask_y[0] * intel->scale_units[1][1]);
+		if (!is_affine)
+			OUT_VERTEX(mask_w[0]);
+	}
 }
 
 Bool
@@ -1673,12 +2128,23 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 			composite_op->wm_kernel = WM_KERNEL_NOMASK_PROJECTIVE;
 	}
 
+	intel->prim_emit = i965_emit_composite_primitive;
+	if (!mask) {
+		if (intel->transform[0] == NULL)
+			intel->prim_emit = i965_emit_composite_primitive_identity_source;
+		else if (composite_op->is_affine)
+			intel->prim_emit = i965_emit_composite_primitive_affine_source;
+	} else {
+		if (intel->transform[0] == NULL && intel->transform[1] == NULL)
+			intel->prim_emit = i965_emit_composite_primitive_identity_source_mask;
+	}
+
 	intel->floats_per_vertex =
 		2 + (mask ? 2 : 1) * (composite_op->is_affine ? 2: 3);
 
-	if (!i965_composite_check_aperture(scrn)) {
-		intel_batch_submit(scrn, FALSE);
-		if (!i965_composite_check_aperture(scrn)) {
+	if (!i965_composite_check_aperture(intel)) {
+		intel_batch_submit(scrn);
+		if (!i965_composite_check_aperture(intel)) {
 			intel_debug_fallback(scrn,
 					     "Couldn't fit render operation "
 					     "in aperture\n");
@@ -1687,7 +2153,7 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 	}
 
 	if (sizeof(intel->surface_data) - intel->surface_used <
-	    4 * sizeof(struct brw_surface_state_padded))
+	    4 * SURFACE_STATE_PADDED_SIZE)
 		i965_surface_flush(intel);
 
 	intel->needs_render_state_emit = TRUE;
@@ -1697,7 +2163,14 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 
 static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 {
-	int vertex_size = intel->floats_per_vertex;
+	int id = intel->gen4_render_state->composite_op.vertex_id;
+	int modifyenable = 0;
+
+	if (intel->vertex_id & (1 << id))
+		return;
+
+	if (INTEL_INFO(intel)->gen >= 70)
+		modifyenable = GEN7_VB0_ADDRESS_MODIFYENABLE;
 
 	/* Set up the pointer to our (single) vertex buffer */
 	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
@@ -1706,13 +2179,14 @@ static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 	 * frequently switching between vertex sizes, like rgb10text.
 	 */
 	if (INTEL_INFO(intel)->gen >= 60) {
-		OUT_BATCH((0 << GEN6_VB0_BUFFER_INDEX_SHIFT) |
+		OUT_BATCH((id << GEN6_VB0_BUFFER_INDEX_SHIFT) |
 			  GEN6_VB0_VERTEXDATA |
-			  (4*vertex_size << VB0_BUFFER_PITCH_SHIFT));
+			  modifyenable |
+			  (4*intel->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
 	} else {
-		OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
+		OUT_BATCH((id << VB0_BUFFER_INDEX_SHIFT) |
 			  VB0_VERTEXDATA |
-			  (4*vertex_size << VB0_BUFFER_PITCH_SHIFT));
+			  (4*intel->floats_per_vertex << VB0_BUFFER_PITCH_SHIFT));
 	}
 	OUT_RELOC(intel->vertex_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
 	if (INTEL_INFO(intel)->gen >= 50)
@@ -1723,18 +2197,18 @@ static void i965_select_vertex_buffer(struct intel_screen_private *intel)
 		OUT_BATCH(0);
 	OUT_BATCH(0);		// ignore for VERTEXDATA, but still there
 
-	intel->last_floats_per_vertex = vertex_size;
+	intel->vertex_id |= 1 << id;
 }
 
 static void i965_bind_surfaces(struct intel_screen_private *intel)
 {
 	uint32_t *binding_table;
 
-	assert(intel->surface_used + 4 * sizeof(struct brw_surface_state_padded) <= sizeof(intel->surface_data));
+	assert(intel->surface_used + 4 * SURFACE_STATE_PADDED_SIZE <= sizeof(intel->surface_data));
 
 	binding_table = (uint32_t*) (intel->surface_data + intel->surface_used);
 	intel->surface_table = intel->surface_used;
-	intel->surface_used += sizeof(struct brw_surface_state_padded);
+	intel->surface_used += SURFACE_STATE_PADDED_SIZE;
 
 	binding_table[0] =
 		i965_set_picture_surface_state(intel,
@@ -1761,114 +2235,41 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 {
 	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state = intel->gen4_render_state;
-	Bool has_mask;
-	float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-	Bool is_affine = render_state->composite_op.is_affine;
-
-	if (is_affine) {
-		if (!intel_get_transformed_coordinates(srcX, srcY,
-						      intel->transform[0],
-						      &src_x[0], &src_y[0]))
-			return;
-		if (!intel_get_transformed_coordinates(srcX, srcY + h,
-						      intel->transform[0],
-						      &src_x[1], &src_y[1]))
-			return;
-		if (!intel_get_transformed_coordinates(srcX + w, srcY + h,
-						      intel->transform[0],
-						      &src_x[2], &src_y[2]))
-			return;
-	} else {
-		if (!intel_get_transformed_coordinates_3d(srcX, srcY,
-							 intel->transform[0],
-							 &src_x[0], &src_y[0],
-							 &src_w[0]))
-			return;
-		if (!intel_get_transformed_coordinates_3d(srcX, srcY + h,
-							 intel->transform[0],
-							 &src_x[1], &src_y[1],
-							 &src_w[1]))
-			return;
-		if (!intel_get_transformed_coordinates_3d(srcX + w, srcY + h,
-							 intel->transform[0],
-							 &src_x[2], &src_y[2],
-							 &src_w[2]))
-			return;
-	}
-
-	if (intel->render_mask) {
-		has_mask = TRUE;
-		if (is_affine) {
-			if (!intel_get_transformed_coordinates(maskX, maskY,
-							      intel->
-							      transform[1],
-							      &mask_x[0],
-							      &mask_y[0]))
-				return;
-			if (!intel_get_transformed_coordinates(maskX, maskY + h,
-							      intel->
-							      transform[1],
-							      &mask_x[1],
-							      &mask_y[1]))
-				return;
-			if (!intel_get_transformed_coordinates
-			    (maskX + w, maskY + h, intel->transform[1],
-			     &mask_x[2], &mask_y[2]))
-				return;
-		} else {
-			if (!intel_get_transformed_coordinates_3d(maskX, maskY,
-								 intel->
-								 transform[1],
-								 &mask_x[0],
-								 &mask_y[0],
-								 &mask_w[0]))
-				return;
-			if (!intel_get_transformed_coordinates_3d
-			    (maskX, maskY + h, intel->transform[1], &mask_x[1],
-			     &mask_y[1], &mask_w[1]))
-				return;
-			if (!intel_get_transformed_coordinates_3d
-			    (maskX + w, maskY + h, intel->transform[1],
-			     &mask_x[2], &mask_y[2], &mask_w[2]))
-				return;
-		}
-	} else {
-		has_mask = FALSE;
-	}
-
-	if (!i965_composite_check_aperture(scrn))
-		intel_batch_submit(scrn, FALSE);
 
 	intel_batch_start_atomic(scrn, 200);
 	if (intel->needs_render_state_emit) {
 		i965_bind_surfaces(intel);
 
 		if (INTEL_INFO(intel)->gen >= 60)
-			gen6_emit_composite_state(scrn);
+			gen6_emit_composite_state(intel);
 		else
-			i965_emit_composite_state(scrn);
+			i965_emit_composite_state(intel);
 	}
 
-	if (intel->vertex_used &&
-	    intel->floats_per_vertex != intel->last_floats_per_vertex) {
+	if (intel->floats_per_vertex != intel->last_floats_per_vertex) {
 		intel->vertex_index = (intel->vertex_used + intel->floats_per_vertex - 1) / intel->floats_per_vertex;
 		intel->vertex_used = intel->vertex_index * intel->floats_per_vertex;
+		intel->last_floats_per_vertex = intel->floats_per_vertex;
 	}
-	if (intel->floats_per_vertex != intel->last_floats_per_vertex ||
-	    intel_vertex_space(intel) < 3*4*intel->floats_per_vertex) {
+	if (intel_vertex_space(intel) < 3*4*intel->floats_per_vertex) {
 		i965_vertex_flush(intel);
 		intel_next_vertex(intel);
-		i965_select_vertex_buffer(intel);
 		intel->vertex_index = 0;
 	}
+	i965_select_vertex_buffer(intel);
 
 	if (intel->vertex_offset == 0) {
-		OUT_BATCH(BRW_3DPRIMITIVE |
-			  BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-			  (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
-			  (0 << 9) |
-			  4);
+		if (INTEL_INFO(intel)->gen >= 70) {
+			OUT_BATCH(BRW_3DPRIMITIVE | (7 - 2));
+			OUT_BATCH(BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
+				  _3DPRIM_RECTLIST);
+		} else {
+			OUT_BATCH(BRW_3DPRIMITIVE |
+				  BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
+				  (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
+				  (0 << 9) |
+				  4);
+		}
 		intel->vertex_offset = intel->batch_used;
 		OUT_BATCH(0);	/* vertex count, to be filled in later */
 		OUT_BATCH(intel->vertex_index);
@@ -1878,46 +2279,11 @@ i965_composite(PixmapPtr dest, int srcX, int srcY, int maskX, int maskY,
 		intel->vertex_count = intel->vertex_index;
 	}
 
-	OUT_VERTEX(dstX + w);
-	OUT_VERTEX(dstY + h);
-	OUT_VERTEX(src_x[2] * intel->scale_units[0][0]);
-	OUT_VERTEX(src_y[2] * intel->scale_units[0][1]);
-	if (!is_affine)
-		OUT_VERTEX(src_w[2]);
-	if (has_mask) {
-		OUT_VERTEX(mask_x[2] * intel->scale_units[1][0]);
-		OUT_VERTEX(mask_y[2] * intel->scale_units[1][1]);
-		if (!is_affine)
-			OUT_VERTEX(mask_w[2]);
-	}
-
-	/* rect (x1,y2) */
-	OUT_VERTEX(dstX);
-	OUT_VERTEX(dstY + h);
-	OUT_VERTEX(src_x[1] * intel->scale_units[0][0]);
-	OUT_VERTEX(src_y[1] * intel->scale_units[0][1]);
-	if (!is_affine)
-		OUT_VERTEX(src_w[1]);
-	if (has_mask) {
-		OUT_VERTEX(mask_x[1] * intel->scale_units[1][0]);
-		OUT_VERTEX(mask_y[1] * intel->scale_units[1][1]);
-		if (!is_affine)
-			OUT_VERTEX(mask_w[1]);
-	}
-
-	/* rect (x1,y1) */
-	OUT_VERTEX(dstX);
-	OUT_VERTEX(dstY);
-	OUT_VERTEX(src_x[0] * intel->scale_units[0][0]);
-	OUT_VERTEX(src_y[0] * intel->scale_units[0][1]);
-	if (!is_affine)
-		OUT_VERTEX(src_w[0]);
-	if (has_mask) {
-		OUT_VERTEX(mask_x[0] * intel->scale_units[1][0]);
-		OUT_VERTEX(mask_y[0] * intel->scale_units[1][1]);
-		if (!is_affine)
-			OUT_VERTEX(mask_w[0]);
-	}
+	intel->prim_emit(intel,
+			 srcX, srcY,
+			 maskX, maskY,
+			 dstX, dstY,
+			 w, h);
 	intel->vertex_index += 3;
 
 	if (INTEL_INFO(intel)->gen < 50) {
@@ -1936,14 +2302,15 @@ void i965_batch_commit_notify(intel_screen_private *intel)
 	intel->last_floats_per_vertex = 0;
 	intel->vertex_index = 0;
 
+	intel->gen4_render_state->composite_op.vertex_id = -1;
+
 	intel->gen6_render_state.num_sf_outputs = 0;
 	intel->gen6_render_state.samplers = NULL;
 	intel->gen6_render_state.blend = -1;
-	intel->gen6_render_state.blend = -1;
 	intel->gen6_render_state.kernel = NULL;
-	intel->gen6_render_state.vertex_size = 0;
-	intel->gen6_render_state.vertex_type = 0;
 	intel->gen6_render_state.drawrect = -1;
+
+	assert(intel->surface_reloc == 0);
 }
 
 /**
@@ -1952,7 +2319,8 @@ void i965_batch_commit_notify(intel_screen_private *intel)
 void gen4_render_state_init(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state;
+	struct gen4_render_state *render;
+	const struct wm_kernel_info *wm_kernels;
 	int i, j, k, l, m;
 	drm_intel_bo *sf_kernel_bo, *sf_kernel_mask_bo;
 	drm_intel_bo *border_color_bo;
@@ -1964,108 +2332,85 @@ void gen4_render_state_init(ScrnInfoPtr scrn)
 				   sizeof(intel->surface_data), 4096);
 	intel->surface_used = 0;
 
+	if (intel->gen4_render_state == NULL)
+		intel->gen4_render_state = calloc(sizeof(*render), 1);
+
 	if (INTEL_INFO(intel)->gen >= 60)
 		return gen6_render_state_init(scrn);
 
-	if (intel->gen4_render_state == NULL)
-		intel->gen4_render_state = calloc(sizeof(*render_state), 1);
+	render = intel->gen4_render_state;
+	render->composite_op.vertex_id = -1;
 
-	render_state = intel->gen4_render_state;
-
-	render_state->vs_state_bo = gen4_create_vs_unit_state(scrn);
+	render->vs_state_bo = gen4_create_vs_unit_state(intel);
 
 	/* Set up the two SF states (one for blending with a mask, one without) */
 	if (IS_GEN5(intel)) {
-		sf_kernel_bo = intel_bo_alloc_for_data(scrn,
+		sf_kernel_bo = intel_bo_alloc_for_data(intel,
 						       sf_kernel_static_gen5,
 						       sizeof
 						       (sf_kernel_static_gen5),
 						       "sf kernel gen5");
 		sf_kernel_mask_bo =
-		    intel_bo_alloc_for_data(scrn, sf_kernel_mask_static_gen5,
+		    intel_bo_alloc_for_data(intel, sf_kernel_mask_static_gen5,
 					    sizeof(sf_kernel_mask_static_gen5),
 					    "sf mask kernel");
 	} else {
-		sf_kernel_bo = intel_bo_alloc_for_data(scrn,
+		sf_kernel_bo = intel_bo_alloc_for_data(intel,
 						       sf_kernel_static,
 						       sizeof(sf_kernel_static),
 						       "sf kernel");
-		sf_kernel_mask_bo = intel_bo_alloc_for_data(scrn,
+		sf_kernel_mask_bo = intel_bo_alloc_for_data(intel,
 							    sf_kernel_mask_static,
 							    sizeof
 							    (sf_kernel_mask_static),
 							    "sf mask kernel");
 	}
-	render_state->sf_state_bo = gen4_create_sf_state(scrn, sf_kernel_bo);
-	render_state->sf_mask_state_bo = gen4_create_sf_state(scrn,
-							      sf_kernel_mask_bo);
+	render->sf_state_bo = gen4_create_sf_state(intel, sf_kernel_bo);
+	render->sf_mask_state_bo = gen4_create_sf_state(intel, sf_kernel_mask_bo);
 	drm_intel_bo_unreference(sf_kernel_bo);
 	drm_intel_bo_unreference(sf_kernel_mask_bo);
 
-	for (m = 0; m < WM_KERNEL_COUNT; m++) {
-		if (IS_GEN5(intel))
-			render_state->wm_kernel_bo[m] =
-			    intel_bo_alloc_for_data(scrn,
-						    wm_kernels_gen5[m].data,
-						    wm_kernels_gen5[m].size,
-						    "WM kernel gen5");
-		else
-			render_state->wm_kernel_bo[m] =
-			    intel_bo_alloc_for_data(scrn,
-						    wm_kernels[m].data,
-						    wm_kernels[m].size,
-						    "WM kernel");
+	wm_kernels = IS_GEN5(intel) ? wm_kernels_gen5 : wm_kernels_gen4;
+	for (m = 0; m < KERNEL_COUNT; m++) {
+		render->wm_kernel_bo[m] =
+			intel_bo_alloc_for_data(intel,
+					wm_kernels[m].data,
+					wm_kernels[m].size,
+					"WM kernel");
 	}
 
 	/* Set up the WM states: each filter/extend type for source and mask, per
 	 * kernel.
 	 */
-	border_color_bo = sampler_border_color_create(scrn);
-	for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
-		for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
-			for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
-				for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
+	border_color_bo = sampler_border_color_create(intel);
+	for (i = 0; i < FILTER_COUNT; i++) {
+		for (j = 0; j < EXTEND_COUNT; j++) {
+			for (k = 0; k < FILTER_COUNT; k++) {
+				for (l = 0; l < EXTEND_COUNT; l++) {
 					drm_intel_bo *sampler_state_bo;
 
 					sampler_state_bo =
-					    gen4_create_sampler_state(scrn,
+					    i965_create_sampler_state(intel,
 								      i, j,
 								      k, l,
 								      border_color_bo);
 
-					for (m = 0; m < WM_KERNEL_COUNT; m++) {
-						if (IS_GEN5(intel))
-							render_state->
-							    wm_state_bo[m][i][j]
-							    [k][l] =
-							    gen4_create_wm_state
-							    (scrn,
-							     wm_kernels_gen5[m].
-							     has_mask,
-							     render_state->
-							     wm_kernel_bo[m],
-							     sampler_state_bo);
-						else
-							render_state->
-							    wm_state_bo[m][i][j]
-							    [k][l] =
-							    gen4_create_wm_state
-							    (scrn,
-							     wm_kernels[m].
-							     has_mask,
-							     render_state->
-							     wm_kernel_bo[m],
-							     sampler_state_bo);
+					for (m = 0; m < KERNEL_COUNT; m++) {
+						render->wm_state_bo[m][i][j][k][l] =
+							gen4_create_wm_state
+							(intel,
+							 wm_kernels[m]. has_mask,
+							 render->wm_kernel_bo[m],
+							 sampler_state_bo);
 					}
-					drm_intel_bo_unreference
-					    (sampler_state_bo);
+					drm_intel_bo_unreference(sampler_state_bo);
 				}
 			}
 		}
 	}
 	drm_intel_bo_unreference(border_color_bo);
 
-	render_state->cc_state_bo = gen4_create_cc_unit_state(scrn);
+	render->cc_state_bo = gen4_create_cc_unit_state(intel);
 }
 
 /**
@@ -2082,23 +2427,23 @@ void gen4_render_state_cleanup(ScrnInfoPtr scrn)
 	drm_intel_bo_unreference(render_state->sf_state_bo);
 	drm_intel_bo_unreference(render_state->sf_mask_state_bo);
 
-	for (i = 0; i < WM_KERNEL_COUNT; i++)
+	for (i = 0; i < KERNEL_COUNT; i++)
 		drm_intel_bo_unreference(render_state->wm_kernel_bo[i]);
 
-	for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++)
-		for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++)
-			for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++)
-				for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++)
-					for (m = 0; m < WM_KERNEL_COUNT; m++)
+	for (i = 0; i < FILTER_COUNT; i++)
+		for (j = 0; j < EXTEND_COUNT; j++)
+			for (k = 0; k < FILTER_COUNT; k++)
+				for (l = 0; l < EXTEND_COUNT; l++)
+					for (m = 0; m < KERNEL_COUNT; m++)
 						drm_intel_bo_unreference
 						    (render_state->
 						     wm_state_bo[m][i][j][k]
 						     [l]);
 
-	for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++)
-		for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++)
-			for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++)
-				for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++)
+	for (i = 0; i < FILTER_COUNT; i++)
+		for (j = 0; j < EXTEND_COUNT; j++)
+			for (k = 0; k < FILTER_COUNT; k++)
+				for (l = 0; l < EXTEND_COUNT; l++)
 					drm_intel_bo_unreference(render_state->ps_sampler_state_bo[i][j][k][l]);
 
 	drm_intel_bo_unreference(render_state->cc_state_bo);
@@ -2117,35 +2462,32 @@ void gen4_render_state_cleanup(ScrnInfoPtr scrn)
 #define GEN6_BLEND_STATE_PADDED_SIZE	ALIGN(sizeof(struct gen6_blend_state), 64)
 
 static drm_intel_bo *
-gen6_composite_create_cc_state(ScrnInfoPtr scrn)
+gen6_composite_create_cc_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen6_color_calc_state *cc_state;
+	struct gen6_color_calc_state *state;
 	drm_intel_bo *cc_bo;
 
 	cc_bo = drm_intel_bo_alloc(intel->bufmgr,
 				"gen6 CC state",
-				sizeof(*cc_state), 
+				sizeof(*state),
 				4096);
 	drm_intel_bo_map(cc_bo, TRUE);
-	cc_state = cc_bo->virtual;
-	memset(cc_state, 0, sizeof(*cc_state));
-	cc_state->constant_r = 1.0;
-	cc_state->constant_g = 0.0;
-	cc_state->constant_b = 1.0;
-	cc_state->constant_a = 1.0;
+	state = cc_bo->virtual;
+	memset(state, 0, sizeof(*state));
+	state->constant_r = 1.0;
+	state->constant_g = 0.0;
+	state->constant_b = 1.0;
+	state->constant_a = 1.0;
 	drm_intel_bo_unmap(cc_bo);
 
 	return cc_bo;
 }
 
 static drm_intel_bo *
-gen6_composite_create_blend_state(ScrnInfoPtr scrn)
+gen6_composite_create_blend_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen6_blend_state *blend_state;
 	drm_intel_bo *blend_bo;
-	int src_blend, dst_blend;
+	int src, dst;
 
 	blend_bo = drm_intel_bo_alloc(intel->bufmgr,
 				"gen6 BLEND state",
@@ -2154,23 +2496,19 @@ gen6_composite_create_blend_state(ScrnInfoPtr scrn)
 	drm_intel_bo_map(blend_bo, TRUE);
 	memset(blend_bo->virtual, 0, blend_bo->size);
 
-	for (src_blend = 0; src_blend < BRW_BLENDFACTOR_COUNT; src_blend++) {
-		for (dst_blend = 0; dst_blend < BRW_BLENDFACTOR_COUNT; dst_blend++) {
-			uint32_t blend_state_offset = ((src_blend * BRW_BLENDFACTOR_COUNT) + dst_blend) * GEN6_BLEND_STATE_PADDED_SIZE;
+	for (src = 0; src < BRW_BLENDFACTOR_COUNT; src++) {
+		for (dst = 0; dst < BRW_BLENDFACTOR_COUNT; dst++) {
+			uint32_t blend_state_offset = (src * BRW_BLENDFACTOR_COUNT + dst) * GEN6_BLEND_STATE_PADDED_SIZE;
+			struct gen6_blend_state *blend;
 
-			blend_state = (struct gen6_blend_state *)((char *)blend_bo->virtual + blend_state_offset);
-			blend_state->blend0.dest_blend_factor = dst_blend;
-			blend_state->blend0.source_blend_factor = src_blend;
-			blend_state->blend0.blend_func = BRW_BLENDFUNCTION_ADD;
-			blend_state->blend0.ia_blend_enable = 0;
-			blend_state->blend0.blend_enable = 1;
+			blend = (struct gen6_blend_state *)((char *)blend_bo->virtual + blend_state_offset);
+			blend->blend0.dest_blend_factor = dst;
+			blend->blend0.source_blend_factor = src;
+			blend->blend0.blend_func = BRW_BLENDFUNCTION_ADD;
+			blend->blend0.blend_enable = 1;
 
-			blend_state->blend1.post_blend_clamp_enable = 1;
-			blend_state->blend1.pre_blend_clamp_enable = 1;
-			blend_state->blend1.clamp_range = 0; /* clamp range [0, 1] */
-			blend_state->blend1.dither_enable = 0;
-			blend_state->blend1.logic_op_enable = 0;
-			blend_state->blend1.alpha_test_enable = 0;
+			blend->blend1.post_blend_clamp_enable = 1;
+			blend->blend1.pre_blend_clamp_enable = 1;
 		}
 	}
 
@@ -2179,40 +2517,21 @@ gen6_composite_create_blend_state(ScrnInfoPtr scrn)
 }
 
 static drm_intel_bo *
-gen6_composite_create_depth_stencil_state(ScrnInfoPtr scrn)
+gen6_composite_create_depth_stencil_state(intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen6_depth_stencil_state *depth_stencil_state;
+	struct gen6_depth_stencil_state *state;
 	drm_intel_bo *depth_stencil_bo;
 
 	depth_stencil_bo = drm_intel_bo_alloc(intel->bufmgr,
 					"gen6 DEPTH_STENCIL state",
-					sizeof(*depth_stencil_state),
+					sizeof(*state),
 					4096);
 	drm_intel_bo_map(depth_stencil_bo, TRUE);
-	depth_stencil_state = depth_stencil_bo->virtual;
-	memset(depth_stencil_state, 0, sizeof(*depth_stencil_state));
+	state = depth_stencil_bo->virtual;
+	memset(state, 0, sizeof(*state));
 	drm_intel_bo_unmap(depth_stencil_bo);
 
 	return depth_stencil_bo;
-}
-
-static void
-gen6_composite_invariant_states(intel_screen_private *intel)
-{
-	OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
-
-	OUT_BATCH(GEN6_3DSTATE_MULTISAMPLE | (3 - 2));
-	OUT_BATCH(GEN6_3DSTATE_MULTISAMPLE_PIXEL_LOCATION_CENTER |
-		  GEN6_3DSTATE_MULTISAMPLE_NUMSAMPLES_1); /* 1 sample/pixel */
-	OUT_BATCH(0);
-
-	OUT_BATCH(GEN6_3DSTATE_SAMPLE_MASK | (2 - 2));
-	OUT_BATCH(1);
-
-	/* Set system instruction pointer */
-	OUT_BATCH(BRW_STATE_SIP | 0);
-	OUT_BATCH(0);
 }
 
 static void
@@ -2233,51 +2552,24 @@ gen6_composite_state_base_address(intel_screen_private *intel)
 }
 
 static void
-gen6_composite_viewport_state_pointers(intel_screen_private *intel,
-				       drm_intel_bo *cc_vp_bo)
-{
-
-	OUT_BATCH(GEN6_3DSTATE_VIEWPORT_STATE_POINTERS |
-		  GEN6_3DSTATE_VIEWPORT_STATE_MODIFY_CC |
-		  (4 - 2));
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_RELOC(cc_vp_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-}
-
-static void
-gen6_composite_urb(intel_screen_private *intel)
-{
-	OUT_BATCH(GEN6_3DSTATE_URB | (3 - 2));
-	OUT_BATCH(((1 - 1) << GEN6_3DSTATE_URB_VS_SIZE_SHIFT) |
-		  (24 << GEN6_3DSTATE_URB_VS_ENTRIES_SHIFT)); /* at least 24 on GEN6 */
-	OUT_BATCH((0 << GEN6_3DSTATE_URB_GS_SIZE_SHIFT) |
-		(0 << GEN6_3DSTATE_URB_GS_ENTRIES_SHIFT)); /* no GS thread */
-}
-
-static void
 gen6_composite_cc_state_pointers(intel_screen_private *intel,
 				 uint32_t blend_offset)
 {
 	struct gen4_render_state *render_state = intel->gen4_render_state;
+	drm_intel_bo *cc_bo = NULL;
+	drm_intel_bo *depth_stencil_bo = NULL;
 
 	if (intel->gen6_render_state.blend == blend_offset)
 		return;
 
-	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
-	OUT_RELOC(render_state->gen6_blend_bo,
-		  I915_GEM_DOMAIN_INSTRUCTION, 0,
-		  blend_offset | 1);
 	if (intel->gen6_render_state.blend == -1) {
-		OUT_RELOC(render_state->gen6_depth_stencil_bo,
-			  I915_GEM_DOMAIN_INSTRUCTION, 0,
-			  1);
-		OUT_RELOC(render_state->cc_state_bo,
-			  I915_GEM_DOMAIN_INSTRUCTION, 0,
-			  1);
+		cc_bo = render_state->cc_state_bo;
+		depth_stencil_bo = render_state->gen6_depth_stencil_bo;
+	}
+	if (INTEL_INFO(intel)->gen >= 70) {
+		gen7_upload_cc_state_pointers(intel, render_state->gen6_blend_bo, cc_bo, depth_stencil_bo, blend_offset);
 	} else {
-		OUT_BATCH(0);
-		OUT_BATCH(0);
+		gen6_upload_cc_state_pointers(intel, render_state->gen6_blend_bo, cc_bo, depth_stencil_bo, blend_offset);
 	}
 
 	intel->gen6_render_state.blend = blend_offset;
@@ -2292,69 +2584,26 @@ gen6_composite_sampler_state_pointers(intel_screen_private *intel,
 
 	intel->gen6_render_state.samplers = bo;
 
-	OUT_BATCH(GEN6_3DSTATE_SAMPLER_STATE_POINTERS |
-		  GEN6_3DSTATE_SAMPLER_STATE_MODIFY_PS |
-		  (4 - 2));
-	OUT_BATCH(0); /* VS */
-	OUT_BATCH(0); /* GS */
-	OUT_RELOC(bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-}
-
-static void
-gen6_composite_vs_state(intel_screen_private *intel)
-{
-	/* disable VS constant buffer */
-	OUT_BATCH(GEN6_3DSTATE_CONSTANT_VS | (5 - 2));
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-
-	OUT_BATCH(GEN6_3DSTATE_VS | (6 - 2));
-	OUT_BATCH(0); /* without VS kernel */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* pass-through */
-}
-
-static void
-gen6_composite_gs_state(intel_screen_private *intel)
-{
-	/* disable GS constant buffer */
-	OUT_BATCH(GEN6_3DSTATE_CONSTANT_GS | (5 - 2));
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-
-	OUT_BATCH(GEN6_3DSTATE_GS | (7 - 2));
-	OUT_BATCH(0); /* without GS kernel */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* pass-through */
+	if (INTEL_INFO(intel)->gen >= 70)
+		gen7_upload_sampler_state_pointers(intel, bo);
+	else
+		gen6_upload_sampler_state_pointers(intel, bo);
 }
 
 static void
 gen6_composite_wm_constants(intel_screen_private *intel)
 {
+	Bool ivb = INTEL_INFO(intel)->gen >= 70;
 	/* disable WM constant buffer */
-	OUT_BATCH(GEN6_3DSTATE_CONSTANT_PS | (5 - 2));
+	OUT_BATCH(GEN6_3DSTATE_CONSTANT_PS | ((ivb ? 7 : 5) - 2));
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
-}
-
-static void
-gen6_composite_clip_state(intel_screen_private *intel)
-{
-	OUT_BATCH(GEN6_3DSTATE_CLIP | (4 - 2));
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* pass-through */
-	OUT_BATCH(0);
+	if (ivb) {
+		OUT_BATCH(0);
+		OUT_BATCH(0);
+	}
 }
 
 static void
@@ -2368,28 +2617,10 @@ gen6_composite_sf_state(intel_screen_private *intel,
 
 	intel->gen6_render_state.num_sf_outputs = num_sf_outputs;
 
-	OUT_BATCH(GEN6_3DSTATE_SF | (20 - 2));
-	OUT_BATCH((num_sf_outputs << GEN6_3DSTATE_SF_NUM_OUTPUTS_SHIFT) |
-		(1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_LENGTH_SHIFT) |
-		(1 << GEN6_3DSTATE_SF_URB_ENTRY_READ_OFFSET_SHIFT));
-	OUT_BATCH(0);
-	OUT_BATCH(GEN6_3DSTATE_SF_CULL_NONE);
-	OUT_BATCH(2 << GEN6_3DSTATE_SF_TRIFAN_PROVOKE_SHIFT); /* DW4 */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* DW9 */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* DW14 */
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0); /* DW19 */
+	if (INTEL_INFO(intel)->gen >= 70)
+		gen7_upload_sf_state(intel, num_sf_outputs, 1);
+	else
+		gen6_upload_sf_state(intel, num_sf_outputs, 1);
 }
 
 static void
@@ -2410,7 +2641,7 @@ gen6_composite_wm_state(intel_screen_private *intel,
 		I915_GEM_DOMAIN_INSTRUCTION, 0,
 		0);
 	OUT_BATCH((1 << GEN6_3DSTATE_WM_SAMPLER_COUNT_SHITF) |
-		(num_surfaces << GEN6_3DSTATE_WM_BINDING_TABLE_ENTRY_COUNT_SHIFT));
+		  (num_surfaces << GEN6_3DSTATE_WM_BINDING_TABLE_ENTRY_COUNT_SHIFT));
 	OUT_BATCH(0);
 	OUT_BATCH((6 << GEN6_3DSTATE_WM_DISPATCH_START_GRF_0_SHIFT)); /* DW4 */
 	OUT_BATCH(((40 - 1) << GEN6_3DSTATE_WM_MAX_THREADS_SHIFT) |
@@ -2423,38 +2654,39 @@ gen6_composite_wm_state(intel_screen_private *intel,
 }
 
 static void
-gen6_composite_binding_table_pointers(intel_screen_private *intel)
+gen7_composite_wm_state(intel_screen_private *intel,
+			Bool has_mask,
+			drm_intel_bo *bo)
 {
-	/* Binding table pointers */
-	OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS |
-		  GEN6_3DSTATE_BINDING_TABLE_MODIFY_PS |
-		  (4 - 2));
-	OUT_BATCH(0);		/* vs */
-	OUT_BATCH(0);		/* gs */
-	/* Only the PS uses the binding table */
-	OUT_BATCH(intel->surface_table);
-}
+	int num_surfaces = has_mask ? 3 : 2;
 
-static void
-gen6_composite_depth_buffer_state(intel_screen_private *intel)
-{
-	OUT_BATCH(BRW_3DSTATE_DEPTH_BUFFER | (7 - 2));
-	OUT_BATCH((BRW_SURFACE_NULL << BRW_3DSTATE_DEPTH_BUFFER_TYPE_SHIFT) |
-		(BRW_DEPTHFORMAT_D32_FLOAT << BRW_3DSTATE_DEPTH_BUFFER_FORMAT_SHIFT));
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
-	OUT_BATCH(0);
+	if (intel->gen6_render_state.kernel == bo)
+		return;
+
+	intel->gen6_render_state.kernel = bo;
+
+	OUT_BATCH(GEN6_3DSTATE_WM | (3 - 2));
+	OUT_BATCH(GEN7_WM_DISPATCH_ENABLE |
+		  GEN7_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
 	OUT_BATCH(0);
 
-	OUT_BATCH(BRW_3DSTATE_CLEAR_PARAMS | (2 - 2));
-	OUT_BATCH(0);
+	OUT_BATCH(GEN7_3DSTATE_PS | (8 - 2));
+	OUT_RELOC(bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+	OUT_BATCH((1 << GEN7_PS_SAMPLER_COUNT_SHIFT) |
+		  (num_surfaces << GEN7_PS_BINDING_TABLE_ENTRY_COUNT_SHIFT));
+	OUT_BATCH(0); /* scratch space base offset */
+	OUT_BATCH(((86 - 1) << GEN7_PS_MAX_THREADS_SHIFT) |
+		  GEN7_PS_ATTRIBUTE_ENABLE |
+		  GEN7_PS_16_DISPATCH_ENABLE);
+	OUT_BATCH((6 << GEN7_PS_DISPATCH_START_GRF_SHIFT_0));
+	OUT_BATCH(0); /* kernel 1 pointer */
+	OUT_BATCH(0); /* kernel 2 pointer */
 }
+
 
 static void
 gen6_composite_drawing_rectangle(intel_screen_private *intel,
 				 PixmapPtr dest)
-
 {
 	uint32_t dw =
 		DRAW_YMAX(dest->drawable.height - 1) |
@@ -2482,17 +2714,19 @@ gen6_composite_vertex_element_state(intel_screen_private *intel,
 	 *    texture coordinate 0: (u0, v0) if (is_affine is TRUE) else (u0, v0, w0)
 	 *    texture coordinate 1 if (has_mask is TRUE): same as above
 	 */
+	gen4_composite_op *composite_op = &intel->gen4_render_state->composite_op;
 	int nelem = has_mask ? 2 : 1;
 	int selem = is_affine ? 2 : 3;
 	uint32_t w_component;
 	uint32_t src_format;
+	int id;
 
-	if (intel->gen6_render_state.vertex_size == nelem &&
-	    intel->gen6_render_state.vertex_type == selem)
+	id = has_mask << 1 | is_affine;
+
+	if (composite_op->vertex_id == id)
 		return;
 
-	intel->gen6_render_state.vertex_size = nelem;
-	intel->gen6_render_state.vertex_type = selem;
+	composite_op->vertex_id = id;
 
 	if (is_affine) {
 		src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
@@ -2513,155 +2747,157 @@ gen6_composite_vertex_element_state(intel_screen_private *intel,
 	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS |
 		((2 * (2 + nelem)) + 1 - 2));
 
-	OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		GEN6_VE0_VALID |
-		(BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		(0 << VE0_OFFSET_SHIFT));
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) | GEN6_VE0_VALID |
+		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		  (0 << VE0_OFFSET_SHIFT));
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_0_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
+		  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_1_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_0 << VE1_VFCOMPONENT_3_SHIFT));
 
 	/* x,y */
-	OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		GEN6_VE0_VALID |
-		(BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		(0 << VE0_OFFSET_SHIFT)); /* offsets vb in bytes */
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) | GEN6_VE0_VALID |
+		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		  (0 << VE0_OFFSET_SHIFT)); /* offsets vb in bytes */
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+		  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
 
 	/* u0, v0, w0 */
-	OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		GEN6_VE0_VALID |
-		(src_format << VE0_FORMAT_SHIFT) |
-		((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
+	OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) | GEN6_VE0_VALID |
+		  (src_format << VE0_FORMAT_SHIFT) |
+		  ((2 * 4) << VE0_OFFSET_SHIFT));	/* offset vb in bytes */
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		(w_component << VE1_VFCOMPONENT_2_SHIFT) |
-		(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+		  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+		  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
 
 	/* u1, v1, w1 */
 	if (has_mask) {
-		OUT_BATCH((0 << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-			GEN6_VE0_VALID |
-			(src_format << VE0_FORMAT_SHIFT) |
-			(((2 + selem) * 4) << VE0_OFFSET_SHIFT)); /* vb offset in bytes */
+		OUT_BATCH((id << GEN6_VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+			  GEN6_VE0_VALID |
+			  (src_format << VE0_FORMAT_SHIFT) |
+			  (((2 + selem) * 4) << VE0_OFFSET_SHIFT)); /* vb offset in bytes */
 		OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-			(BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-			(w_component << VE1_VFCOMPONENT_2_SHIFT) |
-			(BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
+			  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+			  (w_component << VE1_VFCOMPONENT_2_SHIFT) |
+			  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT));
 	}
 }
 
 static void
-gen6_emit_composite_state(ScrnInfoPtr scrn)
+gen6_emit_composite_state(struct intel_screen_private *intel)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state = intel->gen4_render_state;
-	gen4_composite_op *composite_op = &render_state->composite_op;
-	int op = composite_op->op;
-	PicturePtr mask_picture = intel->render_mask_picture;
-	PicturePtr dest_picture = intel->render_dest_picture;
-	PixmapPtr mask = intel->render_mask;
-	PixmapPtr dest = intel->render_dest;
+	struct gen4_render_state *render = intel->gen4_render_state;
+	gen4_composite_op *composite_op = &render->composite_op;
 	sampler_state_filter_t src_filter = composite_op->src_filter;
 	sampler_state_filter_t mask_filter = composite_op->mask_filter;
 	sampler_state_extend_t src_extend = composite_op->src_extend;
 	sampler_state_extend_t mask_extend = composite_op->mask_extend;
 	Bool is_affine = composite_op->is_affine;
-	uint32_t src_blend, dst_blend;
-	drm_intel_bo *ps_sampler_state_bo = render_state->ps_sampler_state_bo[src_filter][src_extend][mask_filter][mask_extend];
+	Bool has_mask = intel->render_mask != NULL;
+	Bool ivb = INTEL_INFO(intel)->gen >= 70;
+	uint32_t src, dst;
+	drm_intel_bo *ps_sampler_state_bo = render->ps_sampler_state_bo[src_filter][src_extend][mask_filter][mask_extend];
 
 	intel->needs_render_state_emit = FALSE;
 	if (intel->needs_3d_invariant) {
-		gen6_composite_invariant_states(intel);
-		gen6_composite_viewport_state_pointers(intel,
-						       render_state->cc_vp_bo);
-		gen6_composite_urb(intel);
+		gen6_upload_invariant_states(intel);
 
-		gen6_composite_vs_state(intel);
-		gen6_composite_gs_state(intel);
-		gen6_composite_clip_state(intel);
+		if (ivb) {
+			gen7_upload_viewport_state_pointers(intel, render->cc_vp_bo);
+			gen7_upload_urb(intel);
+			gen7_upload_bypass_states(intel);
+			gen7_upload_depth_buffer_state(intel);
+		} else {
+			gen6_upload_invariant_states(intel);
+			gen6_upload_viewport_state_pointers(intel, render->cc_vp_bo);
+			gen6_upload_urb(intel);
+
+			gen6_upload_gs_state(intel);
+			gen6_upload_depth_buffer_state(intel);
+		}
 		gen6_composite_wm_constants(intel);
-		gen6_composite_depth_buffer_state(intel);
+		gen6_upload_vs_state(intel);
+		gen6_upload_clip_state(intel);
 
 		intel->needs_3d_invariant = FALSE;
 	}
 
-	i965_get_blend_cntl(op,
-			    mask_picture,
-			    dest_picture->format,
-			    &src_blend,
-			    &dst_blend);
+	i965_get_blend_cntl(composite_op->op,
+			    intel->render_mask_picture,
+			    intel->render_dest_picture->format,
+			    &src, &dst);
 
 	if (intel->surface_reloc == 0)
 		gen6_composite_state_base_address(intel);
 
 	gen6_composite_cc_state_pointers(intel,
-					((src_blend * BRW_BLENDFACTOR_COUNT) + dst_blend) * GEN6_BLEND_STATE_PADDED_SIZE);
+					(src * BRW_BLENDFACTOR_COUNT + dst) * GEN6_BLEND_STATE_PADDED_SIZE);
 	gen6_composite_sampler_state_pointers(intel, ps_sampler_state_bo);
-	gen6_composite_sf_state(intel, mask != 0);
-	gen6_composite_wm_state(intel,
-				mask != 0,
-				render_state->wm_kernel_bo[composite_op->wm_kernel]);
-	gen6_composite_binding_table_pointers(intel);
-
-	gen6_composite_drawing_rectangle(intel, dest);
-	gen6_composite_vertex_element_state(intel, mask != 0, is_affine);
+	gen6_composite_sf_state(intel, has_mask);
+	if (ivb) {
+		gen7_composite_wm_state(intel, has_mask,
+					render->wm_kernel_bo[composite_op->wm_kernel]);
+		gen7_upload_binding_table(intel, intel->surface_table);
+	} else {
+		gen6_composite_wm_state(intel, has_mask,
+					render->wm_kernel_bo[composite_op->wm_kernel]);
+		gen6_upload_binding_table(intel, intel->surface_table);
+	}
+	gen6_composite_drawing_rectangle(intel, intel->render_dest);
+	gen6_composite_vertex_element_state(intel, has_mask, is_affine);
 }
 
 static void
 gen6_render_state_init(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	struct gen4_render_state *render_state;
+	struct gen4_render_state *render;
 	int i, j, k, l, m;
 	drm_intel_bo *border_color_bo;
+	const struct wm_kernel_info *wm_kernels;
+
+	render= intel->gen4_render_state;
+	render->composite_op.vertex_id = -1;
 
 	intel->gen6_render_state.num_sf_outputs = 0;
 	intel->gen6_render_state.samplers = NULL;
 	intel->gen6_render_state.blend = -1;
 	intel->gen6_render_state.kernel = NULL;
-	intel->gen6_render_state.vertex_size = 0;
-	intel->gen6_render_state.vertex_type = 0;
 	intel->gen6_render_state.drawrect = -1;
 
-	if (intel->gen4_render_state == NULL)
-		intel->gen4_render_state = calloc(sizeof(*render_state), 1);
-
-	render_state = intel->gen4_render_state;
-
-	for (m = 0; m < WM_KERNEL_COUNT; m++) {
-		render_state->wm_kernel_bo[m] =
-			intel_bo_alloc_for_data(scrn,
-						wm_kernels_gen6[m].data,
-						wm_kernels_gen6[m].size,
-						"WM kernel gen6");
+	wm_kernels = IS_GEN7(intel) ? wm_kernels_gen7 : wm_kernels_gen6;
+	for (m = 0; m < KERNEL_COUNT; m++) {
+		render->wm_kernel_bo[m] =
+			intel_bo_alloc_for_data(intel,
+					wm_kernels[m].data,
+					wm_kernels[m].size,
+					"WM kernel gen6/7");
 	}
 
-	border_color_bo = sampler_border_color_create(scrn);
+	border_color_bo = sampler_border_color_create(intel);
 
-	for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
-		for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
-			for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
-				for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
-					render_state->ps_sampler_state_bo[i][j][k][l] =
-						gen4_create_sampler_state(scrn,
-									i, j,
-									k, l,
-									border_color_bo);
+	for (i = 0; i < FILTER_COUNT; i++) {
+		for (j = 0; j < EXTEND_COUNT; j++) {
+			for (k = 0; k < FILTER_COUNT; k++) {
+				for (l = 0; l < EXTEND_COUNT; l++) {
+					render->ps_sampler_state_bo[i][j][k][l] =
+						i965_create_sampler_state(intel,
+								i, j,
+								k, l,
+								border_color_bo);
 				}
 			}
 		}
 	}
 
 	drm_intel_bo_unreference(border_color_bo);
-	render_state->cc_vp_bo = gen4_create_cc_viewport(scrn);
-	render_state->cc_state_bo = gen6_composite_create_cc_state(scrn);
-	render_state->gen6_blend_bo = gen6_composite_create_blend_state(scrn);
-	render_state->gen6_depth_stencil_bo = gen6_composite_create_depth_stencil_state(scrn);
+	render->cc_vp_bo = gen4_create_cc_viewport(intel);
+	render->cc_state_bo = gen6_composite_create_cc_state(intel);
+	render->gen6_blend_bo = gen6_composite_create_blend_state(intel);
+	render->gen6_depth_stencil_bo = gen6_composite_create_depth_stencil_state(intel);
 }
 
 void i965_vertex_flush(struct intel_screen_private *intel)

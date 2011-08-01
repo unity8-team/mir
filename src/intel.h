@@ -260,7 +260,7 @@ typedef struct intel_screen_private {
 	unsigned int current_batch;
 
 	void *modes;
-	drm_intel_bo *front_buffer;
+	drm_intel_bo *front_buffer, *back_buffer;
 	long front_pitch, front_tiling;
 	void *shadow_buffer;
 	int shadow_stride;
@@ -294,8 +294,6 @@ typedef struct intel_screen_private {
 	CreateScreenResourcesProcPtr CreateScreenResources;
 
 	Bool shadow_present;
-
-	Bool need_mi_flush;
 
 	unsigned int tiling;
 #define INTEL_TILING_FB		0x1
@@ -387,8 +385,6 @@ typedef struct intel_screen_private {
 
 	struct {
 		int num_sf_outputs;
-		int vertex_size;
-		int vertex_type;
 		int drawrect;
 		uint32_t blend;
 		dri_bo *samplers;
@@ -396,7 +392,7 @@ typedef struct intel_screen_private {
 	} gen6_render_state;
 
 	uint32_t prim_offset;
-	void (*prim_emit)(PixmapPtr dest,
+	void (*prim_emit)(struct intel_screen_private *intel,
 			  int srcX, int srcY,
 			  int maskX, int maskY,
 			  int dstX, int dstY,
@@ -407,6 +403,7 @@ typedef struct intel_screen_private {
 	uint16_t vertex_count;
 	uint16_t vertex_index;
 	uint16_t vertex_used;
+	uint32_t vertex_id;
 	float vertex_ptr[4*1024];
 	dri_bo *vertex_bo;
 
@@ -426,9 +423,14 @@ typedef struct intel_screen_private {
 	char *deviceName;
 
 	Bool use_pageflipping;
+	Bool use_triple_buffer;
 	Bool force_fallback;
 	Bool can_blt;
+	Bool has_kernel_flush;
+	Bool needs_flush;
 	Bool use_shadow;
+
+	struct _DRI2FrameEvent *pending_flip[2];
 
 	/* Broken-out options. */
 	OptionInfoPtr Options;
@@ -466,22 +468,34 @@ extern int intel_output_dpms_status(xf86OutputPtr output);
 
 enum DRI2FrameEventType {
 	DRI2_SWAP,
+	DRI2_SWAP_CHAIN,
 	DRI2_FLIP,
 	DRI2_WAITMSC,
 };
 
+#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(1,7,99,3,0)
+typedef void (*DRI2SwapEventPtr)(ClientPtr client, void *data, int type,
+				 CARD64 ust, CARD64 msc, CARD64 sbc);
+#endif
+
 typedef struct _DRI2FrameEvent {
+	struct intel_screen_private *intel;
+
 	XID drawable_id;
-	XID client_id;	/* fake client ID to track client destruction */
 	ClientPtr client;
 	enum DRI2FrameEventType type;
 	int frame;
+	int pipe;
+
+	struct list drawable_resource, client_resource;
 
 	/* for swaps & flips only */
 	DRI2SwapEventPtr event_complete;
 	void *event_data;
 	DRI2BufferPtr front;
 	DRI2BufferPtr back;
+
+	struct _DRI2FrameEvent *chain;
 } DRI2FrameEventRec, *DRI2FrameEventPtr;
 
 extern Bool intel_do_pageflip(intel_screen_private *intel,
@@ -583,6 +597,37 @@ void i965_vertex_flush(intel_screen_private *intel);
 void i965_batch_flush(intel_screen_private *intel);
 void i965_batch_commit_notify(intel_screen_private *intel);
 
+/* i965_3d.c */
+void gen6_upload_invariant_states(intel_screen_private *intel);
+void gen6_upload_viewport_state_pointers(intel_screen_private *intel,
+					 drm_intel_bo *cc_vp_bo);
+void gen7_upload_viewport_state_pointers(intel_screen_private *intel,
+					 drm_intel_bo *cc_vp_bo);
+void gen6_upload_urb(intel_screen_private *intel);
+void gen7_upload_urb(intel_screen_private *intel);
+void gen6_upload_cc_state_pointers(intel_screen_private *intel,
+				   drm_intel_bo *blend_bo, drm_intel_bo *cc_bo,
+				   drm_intel_bo *depth_stencil_bo,
+				   uint32_t blend_offset);
+void gen7_upload_cc_state_pointers(intel_screen_private *intel,
+				   drm_intel_bo *blend_bo, drm_intel_bo *cc_bo,
+				   drm_intel_bo *depth_stencil_bo,
+				   uint32_t blend_offset);
+void gen6_upload_sampler_state_pointers(intel_screen_private *intel,
+					drm_intel_bo *sampler_bo);
+void gen7_upload_sampler_state_pointers(intel_screen_private *intel,
+					drm_intel_bo *sampler_bo);
+void gen7_upload_bypass_states(intel_screen_private *intel);
+void gen6_upload_gs_state(intel_screen_private *intel);
+void gen6_upload_vs_state(intel_screen_private *intel);
+void gen6_upload_clip_state(intel_screen_private *intel);
+void gen6_upload_sf_state(intel_screen_private *intel, int num_sf_outputs, int read_offset);
+void gen7_upload_sf_state(intel_screen_private *intel, int num_sf_outputs, int read_offset);
+void gen6_upload_binding_table(intel_screen_private *intel, uint32_t ps_binding_table_offset);
+void gen7_upload_binding_table(intel_screen_private *intel, uint32_t ps_binding_table_offset);
+void gen6_upload_depth_buffer_state(intel_screen_private *intel);
+void gen7_upload_depth_buffer_state(intel_screen_private *intel);
+
 Bool intel_transform_is_affine(PictTransformPtr t);
 Bool
 intel_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
@@ -648,19 +693,16 @@ intel_emit_reloc(drm_intel_bo * bo, uint32_t offset,
 	return target_bo->offset + target_offset;
 }
 
-static inline drm_intel_bo *intel_bo_alloc_for_data(ScrnInfoPtr scrn,
-						    void *data,
+static inline drm_intel_bo *intel_bo_alloc_for_data(intel_screen_private *intel,
+						    const void *data,
 						    unsigned int size,
 						    char *name)
 {
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 	drm_intel_bo *bo;
 
 	bo = drm_intel_bo_alloc(intel->bufmgr, name, size, 4096);
-	if (!bo)
-		return NULL;
-	drm_intel_bo_subdata(bo, 0, size, data);
-
+	if (bo)
+		drm_intel_bo_subdata(bo, 0, size, data);
 	return bo;
 }
 

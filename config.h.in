@@ -5,14 +5,29 @@
 /* Enable XvMC support */
 #undef ENABLE_XVMC
 
+/* Enable all debugging */
+#undef HAS_DEBUG_FULL
+
+/* Enable additional debugging */
+#undef HAS_EXTRA_DEBUG
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <dristruct.h> header file. */
+#undef HAVE_DRISTRUCT_H
+
+/* Define to 1 if you have the <dri.h> header file. */
+#undef HAVE_DRI_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <sarea.h> header file. */
+#undef HAVE_SAREA_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -28,6 +43,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/timerfd.h> header file. */
+#undef HAVE_SYS_TIMERFD_H
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
@@ -80,6 +98,12 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Enable SNA support */
+#undef USE_SNA
+
+/* Assume VMAP support */
+#undef USE_VMAP
 
 /* Version number of package */
 #undef VERSION
