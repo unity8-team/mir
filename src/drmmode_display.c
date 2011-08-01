@@ -1331,31 +1331,34 @@ drmmode_flip_handler(int fd, unsigned int frame, unsigned int tv_sec,
 		     unsigned int tv_usec, void *event_data)
 {
 	drmmode_flipevtcarrier_ptr flipcarrier = event_data;
-	drmmode_ptr drmmode = flipcarrier->drmmode;
+	drmmode_flipdata_ptr flipdata = flipcarrier->flipdata;
+	drmmode_ptr drmmode = flipdata->drmmode;
 
 	/* Is this the event whose info shall be delivered to higher level? */
 	if (flipcarrier->dispatch_me) {
 		/* Yes: Cache msc, ust for later delivery. */
-		drmmode->fe_frame = frame;
-		drmmode->fe_tv_sec = tv_sec;
-		drmmode->fe_tv_usec = tv_usec;
+		flipdata->fe_frame = frame;
+		flipdata->fe_tv_sec = tv_sec;
+		flipdata->fe_tv_usec = tv_usec;
 	}
 	free(flipcarrier);
 
 	/* Last crtc completed flip? */
-	drmmode->flip_count--;
-	if (drmmode->flip_count > 0)
+	flipdata->flip_count--;
+	if (flipdata->flip_count > 0)
 		return;
 
 	/* Release framebuffer */
-	drmModeRmFB(drmmode->fd, drmmode->old_fb_id);
+	drmModeRmFB(drmmode->fd, flipdata->old_fb_id);
 
-	if (drmmode->event_data == NULL)
+	if (flipdata->event_data == NULL)
 		return;
 
 	/* Deliver cached msc, ust from reference crtc to flip event handler */
-	radeon_dri2_flip_event_handler(drmmode->fe_frame, drmmode->fe_tv_sec,
-				       drmmode->fe_tv_usec, drmmode->event_data);
+	radeon_dri2_flip_event_handler(flipdata->fe_frame, flipdata->fe_tv_sec,
+				       flipdata->fe_tv_usec, flipdata->event_data);
+
+	free(flipdata);
 }
 
 
@@ -1399,12 +1402,10 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 
 	xf86InitialConfiguration(pScrn, TRUE);
 
-	drmmode->flip_count = 0;
 	drmmode->event_context.version = DRM_EVENT_CONTEXT_VERSION;
 	drmmode->event_context.vblank_handler = drmmode_vblank_handler;
 	drmmode->event_context.page_flip_handler = drmmode_flip_handler;
 	if (!pRADEONEnt->fd_wakeup_registered && info->dri->pKernelDRMVersion->version_minor >= 4) {
-		drmmode->flip_count = 0;
 		AddGeneralSocket(drmmode->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
@@ -1654,6 +1655,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 	int i, old_fb_id;
 	uint32_t tiling_flags = 0;
 	int height;
+	drmmode_flipdata_ptr flipdata;
 	drmmode_flipevtcarrier_ptr flipcarrier;
 
 	if (info->allowColorTiling) {
@@ -1676,6 +1678,12 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 			 new_front->handle, &drmmode->fb_id))
 		goto error_out;
 
+        flipdata = calloc(1, sizeof(drmmode_flipdata_rec));
+        if (!flipdata) {
+             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+                        "flip queue: data alloc failed.\n");
+             goto error_undo;
+        }
 	/*
 	 * Queue flips on all enabled CRTCs
 	 * Note that if/when we get per-CRTC buffers, we'll have to update this.
@@ -1685,16 +1693,15 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 	 * Also, flips queued on disabled or incorrectly configured displays
 	 * may never complete; this is a configuration error.
 	 */
-	drmmode->fe_frame = 0;
-	drmmode->fe_tv_sec = 0;
-	drmmode->fe_tv_usec = 0;
+
+        flipdata->event_data = data;
+        flipdata->drmmode = drmmode;
 
 	for (i = 0; i < config->num_crtc; i++) {
 		if (!config->crtc[i]->enabled)
 			continue;
 
-		drmmode->event_data = data;
-		drmmode->flip_count++;
+		flipdata->flip_count++;
 		drmmode_crtc = config->crtc[i]->driver_private;
 
 		flipcarrier = calloc(1, sizeof(drmmode_flipevtcarrier_rec));
@@ -1708,7 +1715,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 		 * completion event. All other crtc's events will be discarded.
 		 */
 		flipcarrier->dispatch_me = (drmmode_crtc->hw_id == ref_crtc_hw_id);
-		flipcarrier->drmmode = drmmode;
+		flipcarrier->flipdata = flipdata;
 
 		if (drmModePageFlip(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 				    drmmode->fb_id, DRM_MODE_PAGE_FLIP_EVENT, flipcarrier)) {
@@ -1719,7 +1726,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 		}
 	}
 
-	drmmode->old_fb_id = old_fb_id;
+	flipdata->old_fb_id = old_fb_id;
 	return TRUE;
 
 error_undo:
