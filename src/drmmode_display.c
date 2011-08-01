@@ -1654,7 +1654,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 	unsigned int pitch;
 	int i, old_fb_id;
 	uint32_t tiling_flags = 0;
-	int height;
+	int height, emitted = 0;
 	drmmode_flipdata_ptr flipdata;
 	drmmode_flipevtcarrier_ptr flipcarrier;
 
@@ -1708,6 +1708,8 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 		if (!flipcarrier) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue: carrier alloc failed.\n");
+			if (emitted == 0)
+				free(flipdata);
 			goto error_undo;
 		}
 
@@ -1722,8 +1724,11 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *dat
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));
 			free(flipcarrier);
+			if (emitted == 0)
+				free(flipdata);
 			goto error_undo;
 		}
+		emitted++;
 	}
 
 	flipdata->old_fb_id = old_fb_id;
