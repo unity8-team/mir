@@ -35,12 +35,14 @@
 
 static int subpicture_index_list[] =
 {
-	FOURCC_RGB
+	FOURCC_RGB,
+	FOURCC_IA44,
+	FOURCC_AI44
 };
 
 static XF86MCImageIDList subpicture_list =
 {
-	1,
+	3,
 	subpicture_index_list
 };
 
@@ -53,29 +55,48 @@ static XF86MCSurfaceInfoRec yv12_mpeg2_surface =
 	2048,
 	2048,
 	2048,
-	/*XVMC_IDCT*/ XVMC_MOCOMP | XVMC_MPEG_2,
-	XVMC_INTRA_UNSIGNED | XVMC_SUBPICTURE_INDEPENDENT_SCALING | XVMC_BACKEND_SUBPICTURE,
+	XVMC_IDCT | XVMC_MOCOMP | XVMC_MPEG_2,
+	XVMC_SUBPICTURE_INDEPENDENT_SCALING | XVMC_BACKEND_SUBPICTURE,
+	&subpicture_list
+};
+
+static XF86MCSurfaceInfoRec uyvy_mpeg2_surface =
+{
+	FOURCC_UYVY,
+	XVMC_CHROMA_FORMAT_422,
+	0,
+	2048,
+	2048,
+	2048,
+	2048,
+	XVMC_IDCT | XVMC_MOCOMP | XVMC_MPEG_2,
+	XVMC_SUBPICTURE_INDEPENDENT_SCALING | XVMC_BACKEND_SUBPICTURE,
 	&subpicture_list
 };
 
 static XF86MCSurfaceInfoPtr surfaces[] =
 {
-	(XF86MCSurfaceInfoPtr)&yv12_mpeg2_surface
+	(XF86MCSurfaceInfoPtr)&yv12_mpeg2_surface,
+	(XF86MCSurfaceInfoPtr)&uyvy_mpeg2_surface
 };
 
 static XF86ImageRec rgb_subpicture = XVIMAGE_RGB;
+static XF86ImageRec ia44_subpicture = XVIMAGE_IA44;
+static XF86ImageRec ai44_subpicture = XVIMAGE_AI44;
 
 static XF86ImagePtr subpictures[] =
 {
-	(XF86ImagePtr)&rgb_subpicture
+	(XF86ImagePtr)&rgb_subpicture,
+	(XF86ImagePtr)&ia44_subpicture,
+	(XF86ImagePtr)&ai44_subpicture
 };
 
 static XF86MCAdaptorRec adaptor_template =
 {
 	"",
-	1,
+	2,
 	surfaces,
-	1,
+	3,
 	subpictures,
 	(xf86XvMCCreateContextProcPtr)NULL,
 	(xf86XvMCDestroyContextProcPtr)NULL,
