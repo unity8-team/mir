@@ -373,6 +373,10 @@ r600_cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
     if (start > crtc->mode.VDisplay)
         return;
 
+    /* on r5xx+ vline starts at viewport_y */
+    start += crtc->y;
+    stop += crtc->y;
+
 #if defined(XF86DRM_MODE)
     if (info->cs) {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;

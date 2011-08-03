@@ -312,6 +312,10 @@ void evergreen_cp_wait_vline_sync(ScrnInfoPtr pScrn, PixmapPtr pPix,
     if (start > crtc->mode.VDisplay)
         return;
 
+    /* on r5xx+ vline starts at viewport_y */
+    start += crtc->y;
+    stop += crtc->y;
+
     BEGIN_BATCH(11);
     /* set the VLINE range */
     EREG(EVERGREEN_VLINE_START_END, /* this is just a marker */

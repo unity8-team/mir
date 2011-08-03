@@ -867,6 +867,12 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
     if (start > crtc->mode.VDisplay)
 	return;
 
+    if (IS_AVIVO_VARIANT) {
+	/* on r5xx+ vline starts at viewport_y */
+	start += crtc->y;
+	stop += crtc->y;
+    }
+
 #if defined(ACCEL_CP) && defined(XF86DRM_MODE)
     if (info->cs) {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
