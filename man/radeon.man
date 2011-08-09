@@ -719,8 +719,10 @@ It has two values: 'off'(0) and 'on'(1). The default is
 XV_CRTC is used to control which display controller (crtc) the textured
 adapter synchronizes the screen update with when XV_VSYNC is enabled.
 The default, 'auto'(-1), will sync to the display controller that more
-of the video is on.  This attribute is useful for things like clone mode
-where the user can best decide which display should be synced.
+of the video is on; when this is ambiguous, the display controller associated
+with the RandR primary output is preferred.  This attribute is useful for
+things like clone mode where the user can best decide which display should be
+synced.
 The default is
 .B 'auto'(-1).
 

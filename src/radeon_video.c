@@ -142,19 +142,27 @@ radeon_pick_best_crtc(ScrnInfoPtr pScrn,
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int			coverage, best_coverage, c;
     BoxRec		box, crtc_box, cover_box;
-    xf86CrtcPtr         best_crtc = NULL;
+    RROutputPtr         primary_output;
+    xf86CrtcPtr         best_crtc = NULL, primary_crtc = NULL;
 
     box.x1 = x1;
     box.x2 = x2;
     box.y1 = y1;
     box.y2 = y2;
     best_coverage = 0;
+
+    /* Prefer the CRTC of the primary output */
+    primary_output = RRFirstOutput(pScrn->pScreen);
+    if (primary_output && primary_output->crtc)
+	primary_crtc = primary_output->crtc->devPrivate;
+
     for (c = 0; c < xf86_config->num_crtc; c++) {
 	xf86CrtcPtr crtc = xf86_config->crtc[c];
 	radeon_crtc_box(crtc, &crtc_box);
 	radeon_box_intersect(&cover_box, &crtc_box, &box);
 	coverage = radeon_box_area(&cover_box);
-	if (coverage > best_coverage) {
+	if (coverage > best_coverage ||
+	    (coverage == best_coverage && crtc == primary_crtc)) {
 	    best_crtc = crtc;
 	    best_coverage = coverage;
 	}
