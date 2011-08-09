@@ -1,7 +1,7 @@
 Index: xserver-xorg-video-intel/src/intel.h
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel.h	2011-08-08 11:07:56.000000000 +1000
-+++ xserver-xorg-video-intel/src/intel.h	2011-08-08 11:08:50.721290693 +1000
+--- xserver-xorg-video-intel.orig/src/intel.h	2011-08-09 10:04:02.184071019 +1000
++++ xserver-xorg-video-intel/src/intel.h	2011-08-09 21:39:33.292370844 +1000
 @@ -436,6 +436,7 @@
  	OptionInfoPtr Options;
  
@@ -20,8 +20,8 @@ Index: xserver-xorg-video-intel/src/intel.h
  	DRI2_SWAP,
 Index: xserver-xorg-video-intel/src/intel_display.c
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel_display.c	2011-07-25 16:21:36.000000000 +1000
-+++ xserver-xorg-video-intel/src/intel_display.c	2011-08-08 11:08:50.721290693 +1000
+--- xserver-xorg-video-intel.orig/src/intel_display.c	2011-08-09 10:04:02.164071017 +1000
++++ xserver-xorg-video-intel/src/intel_display.c	2011-08-09 21:40:03.962371167 +1000
 @@ -36,6 +36,8 @@
  #include <errno.h>
  #include <poll.h>
@@ -151,7 +151,7 @@ Index: xserver-xorg-video-intel/src/intel_display.c
 +
 +	intel->uxa_driver->done_copy(dst);
 +
-+	intel_batch_submit_internal(scrn, TRUE);
++	intel_batch_submit(scrn);
 +
 +	(*pScreen->DestroyPixmap)(src);
 +	(*pScreen->DestroyPixmap)(dst);
@@ -160,8 +160,8 @@ Index: xserver-xorg-video-intel/src/intel_display.c
 +
 Index: xserver-xorg-video-intel/src/intel_driver.c
 ===================================================================
---- xserver-xorg-video-intel.orig/src/intel_driver.c	2011-07-25 16:21:36.000000000 +1000
-+++ xserver-xorg-video-intel/src/intel_driver.c	2011-08-08 11:08:50.721290693 +1000
+--- xserver-xorg-video-intel.orig/src/intel_driver.c	2011-08-09 10:04:02.144071018 +1000
++++ xserver-xorg-video-intel/src/intel_driver.c	2011-08-09 21:39:33.292370844 +1000
 @@ -942,6 +942,10 @@
  		intel->directRenderingType = DRI_DRI2;
  #endif
