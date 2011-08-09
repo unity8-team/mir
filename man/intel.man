@@ -180,6 +180,17 @@ the framerate of applications that render frames at less than refresh rate.
 .IP
 Default: enabled.
 .TP
+.BI "Option \*qTripleBuffer\*q \*q" boolean \*q
+This option enables the use of a third buffer for page-flipping. The third
+buffer allows applications to run at vrefresh rates even if they occasionally
+fail to swapbuffers on time. The effect of such missed swaps is the output
+jitters between 60fps and 30fps, and in the worst case appears frame-locked
+to 30fps. The disadvantage of triple buffering is that there is an extra
+frame of latency, due to the pre-rendered frame sitting in the swap queue,
+between input and any display update.
+.IP
+Default: enabled.
+.TP
 .BI "Option \*qTiling\*q \*q" boolean \*q
 This option controls whether memory buffers for Pixmaps are allocated in tiled mode.  In
 most cases (especially for complex rendering), tiling dramatically improves
@@ -210,11 +221,28 @@ User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
 .IP
 Default: Disabled.
 .TP
+.BI "Option \*qThrottle\*q \*q" boolean \*q
+This option controls whether the driver periodically waits for pending
+drawing operations to complete. Throttling ensures that the GPU does not
+lag too far behind the CPU and thus noticeable delays in user responsible at
+the cost of throughput performance.
+.IP
+Default: enabled.
 .BI "Option \*qHotPlug\*q \*q" boolean \*q
 This option controls whether the driver automatically notifies
 applications when monitors are connected or disconnected.
 .IP
 Default: enabled.
+.BI "Option \*qZaphodHeads\*q \*q" string \*q
+.IP
+Specify the randr output(s) to use with zaphod mode for a particular driver
+instance.  If you this option you must use it with all instances of the
+driver
+.br
+For example:
+.B
+Option \*qZaphodHeads\*q \*qLVDS1,VGA1\*q
+will assign xrandr outputs LVDS1 and VGA0 to this instance of the driver.
 
 .SH OUTPUT CONFIGURATION
 On 830M and better chipsets, the driver supports runtime configuration of

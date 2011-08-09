@@ -1,3 +1,31 @@
+xserver-xorg-video-intel (2:2.15.901-1ubuntu1) oneiric; urgency=low
+
+  [ Robert Hooker ]
+  * Merge from debian-experimental, remaining changes:
+    - 101_copy-fb.patch
+      + Plymouth integration patch
+    - 120_check_privates.patch
+      + Check for null privates pointer on render_dest_picture.
+    - debian/xserver-xorg-video-intel.preinst.in:
+    - debian/xserver-xorg-video-intel.postinst.in:
+      + Remove obsolete /etc/modprobe.d/i915-kms.conf file on upgrades.
+        KMS is the kernel default.
+  * Dropped patches:
+    - 121_fdo-28798-fix.patch (upstream)
+
+  [ Christopher James Halse Rogers ]
+  * Refresh 101_copy-fb.patch.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Tue, 09 Aug 2011 10:10:02 +1000
+
+xserver-xorg-video-intel (2:2.15.901-1) experimental; urgency=low
+
+  * Re-enable XvMC.
+  * New upstream snapshot.
+  * Build against xserver 1.10.99.x.
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 01 Aug 2011 01:37:49 +0200
+
 xserver-xorg-video-intel (2:2.15.0-3ubuntu2) oneiric; urgency=low
 
   [ Sameer Morar ]

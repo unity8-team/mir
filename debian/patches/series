@@ -3,4 +3,3 @@
 # Ubuntu patches
 101_copy-fb.patch
 120_check_privates.patch
-121_fdo-28798-fix.patch

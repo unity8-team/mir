@@ -1,8 +1,5 @@
 #!/usr/bin/make -f
 
-override_dh_auto_configure:
-	dh_auto_configure -O--builddirectory=build/ -- --disable-xvmc
-
 # Install in debian/tmp to retain control through dh_install:
 override_dh_auto_install:
 	dh_auto_install --destdir=debian/tmp

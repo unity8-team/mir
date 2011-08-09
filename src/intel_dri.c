@@ -50,7 +50,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86Priv.h"
 
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
@@ -70,8 +69,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct {
 	int refcnt;
 	PixmapPtr pixmap;
-	unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
+
+static DevPrivateKeyRec i830_client_key;
 
 static uint32_t pixmap_flink(PixmapPtr pixmap)
 {
@@ -182,6 +182,8 @@ static PixmapPtr fixup_shadow(DrawablePtr drawable, PixmapPtr pixmap)
 	/* And redirect the pixmap to the new bo (for 3D). */
 	intel_set_pixmap_private(old, priv);
 	old->refcnt++;
+
+	intel_get_screen_private(xf86Screens[screen->myNum])->needs_flush = TRUE;
 	return old;
 }
 
@@ -263,7 +265,6 @@ I830DRI2CreateBuffers(DrawablePtr drawable, unsigned int *attachments,
 		buffers[i].flags = 0;	/* not tiled */
 		privates[i].refcnt = 1;
 		privates[i].pixmap = pixmap;
-		privates[i].attachment = attachments[i];
 
 		if ((buffers[i].name = pixmap_flink(pixmap)) == 0) {
 			/* failed to name buffer */
@@ -327,26 +328,66 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 		pixmap = get_front_buffer(drawable);
 	if (pixmap == NULL) {
 		unsigned int hint = INTEL_CREATE_PIXMAP_DRI2;
+		int pixmap_width = drawable->width;
+		int pixmap_height = drawable->height;
+		int pixmap_cpp = (format != 0) ? format : drawable->depth;
 
 		if (intel->tiling & INTEL_TILING_3D) {
 			switch (attachment) {
 			case DRI2BufferDepth:
 			case DRI2BufferDepthStencil:
+			case DRI2BufferHiz:
 				if (SUPPORTS_YTILING(intel)) {
 					hint |= INTEL_CREATE_PIXMAP_TILING_Y;
 					break;
 				}
-			default:
+			case DRI2BufferAccum:
+			case DRI2BufferBackLeft:
+			case DRI2BufferBackRight:
+			case DRI2BufferFakeFrontLeft:
+			case DRI2BufferFakeFrontRight:
+			case DRI2BufferFrontLeft:
+			case DRI2BufferFrontRight:
 				hint |= INTEL_CREATE_PIXMAP_TILING_X;
 				break;
-			}
+			case DRI2BufferStencil:
+				/*
+				 * The stencil buffer is W tiled. However, we
+				 * request from the kernel a non-tiled buffer
+				 * because the GTT is incapable of W fencing.
+				 */
+				hint |= INTEL_CREATE_PIXMAP_TILING_NONE;
+				break;
+			default:
+				free(privates);
+				free(buffer);
+				return NULL;
+                        }
+		}
+
+		/*
+		 * The stencil buffer has quirky pitch requirements.  From Vol
+		 * 2a, 11.5.6.2.1 3DSTATE_STENCIL_BUFFER, field "Surface
+		 * Pitch":
+		 *    The pitch must be set to 2x the value computed based on
+		 *    width, as the stencil buffer is stored with two rows
+		 *    interleaved.
+		 * To accomplish this, we resort to the nasty hack of doubling
+		 * the drm region's cpp and halving its height.
+		 *
+		 * If we neglect to double the pitch, then render corruption
+		 * occurs.
+		 */
+		if (attachment == DRI2BufferStencil) {
+			pixmap_width = ALIGN(pixmap_width, 64);
+			pixmap_height = ALIGN((pixmap_height + 1) / 2, 64);
+			pixmap_cpp *= 2;
 		}
 
 		pixmap = screen->CreatePixmap(screen,
-					      drawable->width,
-					      drawable->height,
-					      (format != 0) ? format :
-							      drawable->depth,
+					      pixmap_width,
+					      pixmap_height,
+					      pixmap_cpp,
 					      hint);
 		if (pixmap == NULL || intel_get_pixmap_bo(pixmap) == NULL) {
 			if (pixmap)
@@ -368,7 +409,6 @@ I830DRI2CreateBuffer(DrawablePtr drawable, unsigned int attachment,
 	buffer->flags = 0;	/* not tiled */
 	privates->refcnt = 1;
 	privates->pixmap = pixmap;
-	privates->attachment = attachment;
 
 	if ((buffer->name = pixmap_flink(pixmap)) == 0) {
 		/* failed to name buffer */
@@ -407,9 +447,9 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 	ScreenPtr screen = drawable->pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	DrawablePtr src = (srcPrivate->attachment == DRI2BufferFrontLeft)
+	DrawablePtr src = (sourceBuffer->attachment == DRI2BufferFrontLeft)
 		? drawable : &srcPrivate->pixmap->drawable;
-	DrawablePtr dst = (dstPrivate->attachment == DRI2BufferFrontLeft)
+	DrawablePtr dst = (destBuffer->attachment == DRI2BufferFrontLeft)
 		? drawable : &dstPrivate->pixmap->drawable;
 	RegionPtr pCopyClip;
 	GCPtr gc;
@@ -425,7 +465,7 @@ I830DRI2CopyRegion(DrawablePtr drawable, RegionPtr pRegion,
 
 	/* Wait for the scanline to be outside the region to be copied */
 	if (pixmap_is_scanout(get_drawable_pixmap(dst)) &&
-	    intel->swapbuffers_wait) {
+	    intel->swapbuffers_wait && INTEL_INFO(intel)->gen < 60) {
 		BoxPtr box;
 		BoxRec crtcbox;
 		int y1, y2;
@@ -578,22 +618,73 @@ I830DRI2DrawablePipe(DrawablePtr pDraw)
 
 static RESTYPE	frame_event_client_type, frame_event_drawable_type;
 
+struct i830_dri2_resource {
+	XID id;
+	RESTYPE type;
+	struct list list;
+};
+
+static struct i830_dri2_resource *
+get_resource(XID id, RESTYPE type)
+{
+	struct i830_dri2_resource *resource;
+	void *ptr;
+
+	ptr = NULL;
+	dixLookupResourceByType(&ptr, id, type, NULL, DixWriteAccess);
+	if (ptr)
+		return ptr;
+
+	resource = malloc(sizeof(*resource));
+	if (resource == NULL)
+		return NULL;
+
+	if (!AddResource(id, type, resource)) {
+		free(resource);
+		return NULL;
+	}
+
+	resource->id = id;
+	resource->type = type;
+	list_init(&resource->list);
+	return resource;
+}
+
 static int
 i830_dri2_frame_event_client_gone(void *data, XID id)
 {
-	DRI2FrameEventPtr	frame_event = data;
+	struct i830_dri2_resource *resource = data;
 
-	frame_event->client = NULL;
-	frame_event->client_id = None;
+	while (!list_is_empty(&resource->list)) {
+		DRI2FrameEventPtr info =
+			list_first_entry(&resource->list,
+					 DRI2FrameEventRec,
+					 client_resource);
+
+		list_del(&info->client_resource);
+		info->client = NULL;
+	}
+	free(resource);
+
 	return Success;
 }
 
 static int
 i830_dri2_frame_event_drawable_gone(void *data, XID id)
 {
-	DRI2FrameEventPtr	frame_event = data;
+	struct i830_dri2_resource *resource = data;
 
-	frame_event->drawable_id = None;
+	while (!list_is_empty(&resource->list)) {
+		DRI2FrameEventPtr info =
+			list_first_entry(&resource->list,
+					 DRI2FrameEventRec,
+					 drawable_resource);
+
+		list_del(&info->drawable_resource);
+		info->drawable_id = None;
+	}
+	free(resource);
+
 	return Success;
 }
 
@@ -611,39 +702,59 @@ i830_dri2_register_frame_event_resource_types(void)
 	return TRUE;
 }
 
+static XID
+get_client_id(ClientPtr client)
+{
+	XID *ptr = dixGetPrivateAddr(&client->devPrivates, &i830_client_key);
+	if (*ptr == 0)
+		*ptr = FakeClientID(client->index);
+	return *ptr;
+}
+
 /*
  * Hook this frame event into the server resource
  * database so we can clean it up if the drawable or
  * client exits while the swap is pending
  */
 static Bool
-i830_dri2_add_frame_event(DRI2FrameEventPtr frame_event)
+i830_dri2_add_frame_event(DRI2FrameEventPtr info)
 {
-	frame_event->client_id = FakeClientID(frame_event->client->index);
+	struct i830_dri2_resource *resource;
 
-	if (!AddResource(frame_event->client_id, frame_event_client_type, frame_event))
+	resource = get_resource(get_client_id(info->client),
+				frame_event_client_type);
+	if (resource == NULL)
 		return FALSE;
 
-	if (!AddResource(frame_event->drawable_id, frame_event_drawable_type, frame_event)) {
-		FreeResourceByType(frame_event->client_id, frame_event_client_type, TRUE);
+	list_add(&info->client_resource, &resource->list);
+
+	resource = get_resource(info->drawable_id, frame_event_drawable_type);
+	if (resource == NULL) {
+		list_del(&info->client_resource);
 		return FALSE;
 	}
+
+	list_add(&info->drawable_resource, &resource->list);
 
 	return TRUE;
 }
 
 static void
-i830_dri2_del_frame_event(DRI2FrameEventPtr frame_event)
+i830_dri2_del_frame_event(DrawablePtr drawable, DRI2FrameEventPtr info)
 {
-	if (frame_event->client_id)
-		FreeResourceByType(frame_event->client_id, frame_event_client_type, TRUE);
-	if (frame_event->drawable_id)
-		FreeResourceByType(frame_event->drawable_id, frame_event_drawable_type, TRUE);
+	list_del(&info->client_resource);
+	list_del(&info->drawable_resource);
+
+	if (info->front)
+		I830DRI2DestroyBuffer(drawable, info->front);
+	if (info->back)
+		I830DRI2DestroyBuffer(drawable, info->back);
+
+	free(info);
 }
 
 static void
-I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
-			DRI2BufferPtr back)
+I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPtr back)
 {
 	I830DRI2BufferPrivatePtr front_priv, back_priv;
 	struct intel_pixmap *front_intel, *back_intel;
@@ -663,20 +774,18 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
 	front_intel = intel_get_pixmap_private(front_priv->pixmap);
 	back_intel = intel_get_pixmap_private(back_priv->pixmap);
 	intel_set_pixmap_private(front_priv->pixmap, back_intel);
-	intel_set_pixmap_private(back_priv->pixmap, front_intel); /* should be screen */
+	intel_set_pixmap_private(back_priv->pixmap, front_intel);
 
-	/* Do we need to update the Screen? */
 	screen = draw->pScreen;
 	intel = intel_get_screen_private(xf86Screens[screen->myNum]);
-	if (front_intel->bo == intel->front_buffer) {
-	    dri_bo_unreference (intel->front_buffer);
-	    intel->front_buffer = back_intel->bo;
-	    dri_bo_reference (intel->front_buffer);
-	    intel_set_pixmap_private(screen->GetScreenPixmap(screen),
-				     back_intel);
-	    back_intel->busy = 1;
-	    front_intel->busy = -1;
-	}
+
+	dri_bo_unreference (intel->front_buffer);
+	intel->front_buffer = back_intel->bo;
+	dri_bo_reference (intel->front_buffer);
+
+	intel_set_pixmap_private(screen->GetScreenPixmap(screen), back_intel);
+	back_intel->busy = 1;
+	front_intel->busy = -1;
 }
 
 /*
@@ -685,53 +794,97 @@ I830DRI2ExchangeBuffers(DrawablePtr draw, DRI2BufferPtr front,
  */
 static Bool
 I830DRI2ScheduleFlip(struct intel_screen_private *intel,
-		     ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
-		     DRI2BufferPtr back, DRI2SwapEventPtr func, void *data,
-		     unsigned int target_msc)
+		     DrawablePtr draw,
+		     DRI2FrameEventPtr info)
 {
-	I830DRI2BufferPrivatePtr back_priv;
-	DRI2FrameEventPtr flip_info;
+	I830DRI2BufferPrivatePtr priv = info->back->driverPrivate;
+	drm_intel_bo *new_back, *old_back;
 
-	/* Main crtc for this drawable shall finally deliver pageflip event. */
-	int ref_crtc_hw_id = I830DRI2DrawablePipe(draw);
+	if (!intel->use_triple_buffer) {
+		if (!intel_do_pageflip(intel,
+				       intel_get_pixmap_bo(priv->pixmap),
+				       info, info->pipe))
+			return FALSE;
 
-	flip_info = calloc(1, sizeof(DRI2FrameEventRec));
-	if (!flip_info)
-	    return FALSE;
-
-	flip_info->drawable_id = draw->id;
-	flip_info->client = client;
-	flip_info->type = DRI2_SWAP;
-	flip_info->event_complete = func;
-	flip_info->event_data = data;
-	flip_info->frame = target_msc;
-
-	if (!i830_dri2_add_frame_event(flip_info)) {
-	    free(flip_info);
-	    return FALSE;
+		info->type = DRI2_SWAP;
+		I830DRI2ExchangeBuffers(draw, info->front, info->back);
+		return TRUE;
 	}
 
-	/* Page flip the full screen buffer */
-	back_priv = back->driverPrivate;
-	if (intel_do_pageflip(intel,
-			      intel_get_pixmap_bo(back_priv->pixmap),
-			      flip_info, ref_crtc_hw_id))
+	if (intel->pending_flip[info->pipe]) {
+		assert(intel->pending_flip[info->pipe]->chain == NULL);
+		intel->pending_flip[info->pipe]->chain = info;
 		return TRUE;
+	}
 
-	i830_dri2_del_frame_event(flip_info);
-	free(flip_info);
-	return FALSE;
+	if (intel->back_buffer == NULL) {
+		new_back = drm_intel_bo_alloc(intel->bufmgr, "front buffer",
+					      intel->front_buffer->size, 0);
+		if (new_back == NULL)
+			return FALSE;
+
+		if (intel->front_tiling != I915_TILING_NONE) {
+			uint32_t tiling = intel->front_tiling;
+			drm_intel_bo_set_tiling(new_back, &tiling, intel->front_pitch);
+			if (tiling != intel->front_tiling) {
+				drm_intel_bo_unreference(new_back);
+				return FALSE;
+			}
+		}
+
+		drm_intel_bo_disable_reuse(new_back);
+	} else {
+		new_back = intel->back_buffer;
+		intel->back_buffer = NULL;
+	}
+
+	old_back = intel_get_pixmap_bo(priv->pixmap);
+	if (!intel_do_pageflip(intel, old_back, info, info->pipe)) {
+		intel->back_buffer = new_back;
+		return FALSE;
+	}
+	info->type = DRI2_SWAP_CHAIN;
+	intel->pending_flip[info->pipe] = info;
+
+	/* Exchange the current front-buffer with the fresh bo */
+	intel->back_buffer = intel->front_buffer;
+	drm_intel_bo_reference(intel->back_buffer);
+
+	priv = info->front->driverPrivate;
+	intel_set_pixmap_bo(priv->pixmap, new_back);
+	dri_bo_flink(new_back, &info->front->name);
+
+	/* Then flip DRI2 pointers and update the screen pixmap */
+	I830DRI2ExchangeBuffers(draw, info->front, info->back);
+	DRI2SwapComplete(info->client, draw, 0, 0, 0,
+			 DRI2_EXCHANGE_COMPLETE,
+			 info->event_complete,
+			 info->event_data);
+	return TRUE;
 }
 
 static Bool
-can_exchange(DRI2BufferPtr front, DRI2BufferPtr back)
+can_exchange(DrawablePtr drawable, DRI2BufferPtr front, DRI2BufferPtr back)
 {
+	struct intel_screen_private *intel = intel_get_screen_private(xf86Screens[drawable->pScreen->myNum]);
 	I830DRI2BufferPrivatePtr front_priv = front->driverPrivate;
 	I830DRI2BufferPrivatePtr back_priv = back->driverPrivate;
 	PixmapPtr front_pixmap = front_priv->pixmap;
 	PixmapPtr back_pixmap = back_priv->pixmap;
 	struct intel_pixmap *front_intel = intel_get_pixmap_private(front_pixmap);
 	struct intel_pixmap *back_intel = intel_get_pixmap_private(back_pixmap);
+
+	if (drawable == NULL)
+		return FALSE;
+
+	if (!DRI2CanFlip(drawable))
+		return FALSE;
+
+	if (intel->shadow_present)
+		return FALSE;
+
+	if (!intel->use_pageflipping)
+		return FALSE;
 
 	if (front_pixmap->drawable.width != back_pixmap->drawable.width)
 		return FALSE;
@@ -758,10 +911,8 @@ can_exchange(DRI2BufferPtr front, DRI2BufferPtr back)
 void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 			       unsigned int tv_usec, DRI2FrameEventPtr swap_info)
 {
+	intel_screen_private *intel = swap_info->intel;
 	DrawablePtr drawable;
-	ScreenPtr screen;
-	ScrnInfoPtr scrn;
-	intel_screen_private *intel;
 	int status;
 
 	if (!swap_info->drawable_id)
@@ -770,56 +921,33 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 		status = dixLookupDrawable(&drawable, swap_info->drawable_id, serverClient,
 					   M_ANY, DixWriteAccess);
 	if (status != Success) {
-		i830_dri2_del_frame_event(swap_info);
-		I830DRI2DestroyBuffer(NULL, swap_info->front);
-		I830DRI2DestroyBuffer(NULL, swap_info->back);
-		free(swap_info);
+		i830_dri2_del_frame_event(NULL, swap_info);
 		return;
 	}
 
-	screen = drawable->pScreen;
-	scrn = xf86Screens[screen->myNum];
-	intel = intel_get_screen_private(scrn);
 
 	switch (swap_info->type) {
 	case DRI2_FLIP:
 		/* If we can still flip... */
-		if (DRI2CanFlip(drawable) && !intel->shadow_present &&
-		    intel->use_pageflipping &&
-		    can_exchange(swap_info->front, swap_info->back) &&
-		    I830DRI2ScheduleFlip(intel,
-					 swap_info->client, drawable, swap_info->front,
-					 swap_info->back, swap_info->event_complete,
-					 swap_info->event_data, swap_info->frame)) {
-			I830DRI2ExchangeBuffers(drawable,
-						swap_info->front, swap_info->back);
-			break;
-		}
+		if (can_exchange(drawable, swap_info->front, swap_info->back) &&
+		    I830DRI2ScheduleFlip(intel, drawable, swap_info))
+			return;
+
 		/* else fall through to exchange/blit */
 	case DRI2_SWAP: {
-		int swap_type;
+		BoxRec box;
+		RegionRec region;
 
-		if (DRI2CanExchange(drawable) && can_exchange(swap_info->front,
-							      swap_info->back)) {
-			I830DRI2ExchangeBuffers(drawable,
-						swap_info->front, swap_info->back);
-			swap_type = DRI2_EXCHANGE_COMPLETE;
-		} else {
-			BoxRec	    box;
-			RegionRec	    region;
+		box.x1 = 0;
+		box.y1 = 0;
+		box.x2 = drawable->width;
+		box.y2 = drawable->height;
+		REGION_INIT(pScreen, &region, &box, 0);
 
-			box.x1 = 0;
-			box.y1 = 0;
-			box.x2 = drawable->width;
-			box.y2 = drawable->height;
-			REGION_INIT(pScreen, &region, &box, 0);
-
-			I830DRI2CopyRegion(drawable,
-					   &region, swap_info->front, swap_info->back);
-			swap_type = DRI2_BLIT_COMPLETE;
-		}
+		I830DRI2CopyRegion(drawable,
+				   &region, swap_info->front, swap_info->back);
 		DRI2SwapComplete(swap_info->client, drawable, frame, tv_sec, tv_usec,
-				 swap_type,
+				 DRI2_BLIT_COMPLETE,
 				 swap_info->client ? swap_info->event_complete : NULL,
 				 swap_info->event_data);
 		break;
@@ -830,43 +958,34 @@ void I830DRI2FrameEventHandler(unsigned int frame, unsigned int tv_sec,
 					    frame, tv_sec, tv_usec);
 		break;
 	default:
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(intel->scrn->scrnIndex, X_WARNING,
 			   "%s: unknown vblank event received\n", __func__);
 		/* Unknown type */
 		break;
 	}
 
-	i830_dri2_del_frame_event(swap_info);
-	I830DRI2DestroyBuffer(drawable, swap_info->front);
-	I830DRI2DestroyBuffer(drawable, swap_info->back);
-	free(swap_info);
+	i830_dri2_del_frame_event(drawable, swap_info);
 }
 
 void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 			      unsigned int tv_usec, DRI2FrameEventPtr flip_info)
 {
+	struct intel_screen_private *intel = flip_info->intel;
 	DrawablePtr drawable;
-	ScreenPtr screen;
-	ScrnInfoPtr scrn;
-	int status;
+	DRI2FrameEventPtr chain;
 
-	if (!flip_info->drawable_id)
-		status = BadDrawable;
-	else
-		status = dixLookupDrawable(&drawable, flip_info->drawable_id, serverClient,
-					   M_ANY, DixWriteAccess);
-	if (status != Success) {
-		i830_dri2_del_frame_event(flip_info);
-		free(flip_info);
-		return;
-	}
+	drawable = NULL;
+	if (flip_info->drawable_id)
+		dixLookupDrawable(&drawable, flip_info->drawable_id, serverClient,
+				  M_ANY, DixWriteAccess);
 
-	screen = drawable->pScreen;
-	scrn = xf86Screens[screen->myNum];
 
 	/* We assume our flips arrive in order, so we don't check the frame */
 	switch (flip_info->type) {
 	case DRI2_SWAP:
+		if (!drawable)
+			break;
+
 		/* Check for too small vblank count of pageflip completion, taking wraparound
 		 * into account. This usually means some defective kms pageflip completion,
 		 * causing wrong (msc, ust) return values and possible visual corruption.
@@ -878,7 +997,7 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 			 * kernels, so make it quieter.
 			 */
 			if (limit) {
-				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				xf86DrvMsg(intel->scrn->scrnIndex, X_WARNING,
 					   "%s: Pageflip completion has impossible msc %d < target_msc %d\n",
 					   __func__, frame, flip_info->frame);
 				limit--;
@@ -891,16 +1010,52 @@ void I830DRI2FlipEventHandler(unsigned int frame, unsigned int tv_sec,
 		DRI2SwapComplete(flip_info->client, drawable, frame, tv_sec, tv_usec,
 				 DRI2_FLIP_COMPLETE, flip_info->client ? flip_info->event_complete : NULL,
 				 flip_info->event_data);
-	break;
+		break;
+
+	case DRI2_SWAP_CHAIN:
+		assert(intel->pending_flip[flip_info->pipe] == flip_info);
+		intel->pending_flip[flip_info->pipe] = NULL;
+
+		chain = flip_info->chain;
+		if (chain) {
+			DrawablePtr chain_drawable = NULL;
+			if (chain->drawable_id)
+				 dixLookupDrawable(&chain_drawable,
+						   chain->drawable_id,
+						   serverClient,
+						   M_ANY, DixWriteAccess);
+			if (chain_drawable == NULL) {
+				i830_dri2_del_frame_event(chain_drawable, chain);
+			} else if (!can_exchange(chain_drawable, chain->front, chain->back) ||
+				   !I830DRI2ScheduleFlip(intel, chain_drawable, chain)) {
+				BoxRec box;
+				RegionRec region;
+
+				box.x1 = 0;
+				box.y1 = 0;
+				box.x2 = chain_drawable->width;
+				box.y2 = chain_drawable->height;
+				REGION_INIT(pScreen, &region, &box, 0);
+
+				I830DRI2CopyRegion(chain_drawable, &region,
+						   chain->front, chain->back);
+				DRI2SwapComplete(chain->client, chain_drawable, frame, tv_sec, tv_usec,
+						 DRI2_BLIT_COMPLETE,
+						 chain->client ? chain->event_complete : NULL,
+						 chain->event_data);
+				i830_dri2_del_frame_event(chain_drawable, chain);
+			}
+		}
+		break;
+
 	default:
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(intel->scrn->scrnIndex, X_WARNING,
 			   "%s: unknown vblank event received\n", __func__);
 		/* Unknown type */
 		break;
 	}
 
-	i830_dri2_del_frame_event(flip_info);
-	free(flip_info);
+	i830_dri2_del_frame_event(drawable, flip_info);
 }
 
 /*
@@ -953,12 +1108,14 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	if (!swap_info)
 	    goto blit_fallback;
 
+	swap_info->intel = intel;
 	swap_info->drawable_id = draw->id;
 	swap_info->client = client;
 	swap_info->event_complete = func;
 	swap_info->event_data = data;
 	swap_info->front = front;
 	swap_info->back = back;
+	swap_info->pipe = I830DRI2DrawablePipe(draw);
 
 	if (!i830_dri2_add_frame_event(swap_info)) {
 	    free(swap_info);
@@ -985,10 +1142,7 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	current_msc = vbl.reply.sequence;
 
 	/* Flips need to be submitted one frame before */
-	if (intel->use_pageflipping &&
-	    !intel->shadow_present &&
-	    DRI2CanFlip(draw) &&
-	    can_exchange(front, back)) {
+	if (can_exchange(draw, front, back)) {
 	    swap_type = DRI2_FLIP;
 	    flip = 1;
 	}
@@ -1008,6 +1162,9 @@ I830DRI2ScheduleSwap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 	 * the swap.
 	 */
 	if (divisor == 0 || current_msc < *target_msc) {
+		if (flip && I830DRI2ScheduleFlip(intel, draw, swap_info))
+			return TRUE;
+
 		vbl.request.type =  DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 		if (pipe > 0)
 			vbl.request.type |= DRM_VBLANK_SECONDARY;
@@ -1100,12 +1257,8 @@ blit_fallback:
 	I830DRI2CopyRegion(draw, &region, front, back);
 
 	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
-	if (swap_info) {
-	    i830_dri2_del_frame_event(swap_info);
-	    I830DRI2DestroyBuffer(draw, swap_info->front);
-	    I830DRI2DestroyBuffer(draw, swap_info->back);
-	    free(swap_info);
-	}
+	if (swap_info)
+	    i830_dri2_del_frame_event(draw, swap_info);
 	*target_msc = 0; /* offscreen, so zero out target vblank count */
 	return TRUE;
 }
@@ -1186,9 +1339,16 @@ I830DRI2ScheduleWaitMSC(ClientPtr client, DrawablePtr draw, CARD64 target_msc,
 	if (!wait_info)
 		goto out_complete;
 
+	wait_info->intel = intel;
 	wait_info->drawable_id = draw->id;
 	wait_info->client = client;
 	wait_info->type = DRI2_WAITMSC;
+
+	if (!i830_dri2_add_frame_event(wait_info)) {
+	    free(wait_info);
+	    wait_info = NULL;
+	    goto out_complete;
+	}
 
 	/* Get current count */
 	vbl.request.type = DRM_VBLANK_RELATIVE;
@@ -1319,6 +1479,10 @@ Bool I830DRI2ScreenInit(ScreenPtr screen)
 			   "DRI2 requires DRI2 module version 1.1.0 or later\n");
 		return FALSE;
 	}
+
+	if (!dixRegisterPrivateKey(&i830_client_key, PRIVATE_CLIENT, sizeof(XID)))
+		return FALSE;
+
 
 #if DRI2INFOREC_VERSION >= 4
 	if (serverGeneration != dri2_server_generation) {

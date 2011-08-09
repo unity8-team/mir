@@ -1,8 +1,38 @@
+Snapshot 2.15.901 (2011-07-30)
+==============================
+This is the first release candidate in preparation for the upcoming
+2.16.0 release. We will appreciate any feedback we can get from
+testing of this snapshot.
+
+The highlight of this snapshot is the full enabling of IvyBridge with
+acceleration for Render and Xv, along with handling of the shared render
+buffer allocations required for Mesa. Also of note is that deep-color
+support is enabled (for all chipsets), which allows you to drive your
+30-bit monitor at its native colour depth.
+
+Bugs fixed in this snapshot (compared to 2.15.0)
+--------------------------------------------------
+
+* Misuse of the Resource database causing crashes after DRI clients close
+  https://bugs.freedesktop.org/show_bug.cgi?id=37700
+
+* Crash on large strings
+  https://bugs.freedesktop.org/show_bug.cgi?id=36860
+
+* Incorrect rendering for some core drawing operations
+  http://bugs.freedesktop.org/show_bug.cgi?id=28768
+  http://bugs.freedesktop.org/show_bug.cgi?id=28798
+  http://bugs.freedesktop.org/show_bug.cgi?id=28908
+  http://bugs.freedesktop.org/show_bug.cgi?id=29401
+
+* Crash in Xv due to insufficient checks on batch space
+  https://bugs.freedesktop.org/show_bug.cgi?id=36319
+
 Release 2.15.0 (2011-04-14)
 ==============================
 We are pleased to announce this major release of the xf86-video-intel
 driver, roughly on schedule at 3 months since 2.14.0. With the many bug
-fixes in this release, we encourage everyone to upgrade to 2.14.
+fixes in this release, we encourage everyone to upgrade to 2.15.
 
 The priority for this quarter has been simply to be unexciting and stabilise
 the driver further, seeking to capitalise upon the improvements elsewhere

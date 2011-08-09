@@ -937,6 +937,11 @@ uxa_glyphs_via_mask(CARD8 op,
 	if (!pixmap)
 		return 1;
 
+	if (!uxa_pixmap_is_offscreen(pixmap)) {
+		screen->DestroyPixmap(pixmap);
+		return -1;
+	}
+
 	uxa_clear_pixmap(screen, uxa_screen, pixmap);
 
 	component_alpha = NeedsComponent(maskFormat->format);
@@ -1128,6 +1133,11 @@ fallback:
 					      CREATE_PIXMAP_USAGE_SCRATCH);
 		if (!pixmap)
 			return;
+
+		if (!uxa_pixmap_is_offscreen(pixmap)) {
+			screen->DestroyPixmap(pixmap);
+			goto fallback;
+		}
 
 		gc = GetScratchGC(depth, screen);
 		if (!gc) {

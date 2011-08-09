@@ -38,40 +38,4 @@ define(`slot_a_00',     `m8')
 define(`slot_a_01',     `m9')
 define(`data_port_msg_2_ind',	`2')
 
-mov (8) slot_r_00<1>F     src_sample_r_01<8,8,1>F { align1 };
-mov (8) slot_r_01<1>F     src_sample_r_23<8,8,1>F { align1 };
-
-mov (8) slot_g_00<1>F     src_sample_g_01<8,8,1>F { align1 };
-mov (8) slot_g_01<1>F     src_sample_g_23<8,8,1>F { align1 };
-
-mov (8) slot_b_00<1>F     src_sample_b_01<8,8,1>F { align1 };
-mov (8) slot_b_01<1>F     src_sample_b_23<8,8,1>F { align1 };
-
-mov (8) slot_a_00<1>F     src_sample_a_01<8,8,1>F { align1 };
-mov (8) slot_a_01<1>F     src_sample_a_23<8,8,1>F { align1 };
-
-/* write */
-send (16) 
-	data_port_msg_2_ind 
-	acc0<1>UW 
-	null
-	write (
-	       0,  /* binding_table */
-	       16,  /* pixel scordboard clear, msg type simd16 single source */
-	       12,  /* render target write */
-	       0,   /* no write commit message */
-	       0  /* headerless render target write */
-	) 
-	mlen 8
-	rlen 0
-	{ align1 EOT };
-
-nop;
-nop;
-nop;
-nop;
-nop;
-nop;
-nop;
-nop;
-
+include(`exa_wm_write.g6i')
