@@ -27,7 +27,7 @@
  *    Eric Anholt <anholt@FreeBSD.org>
  *    Zack Rusin <zrusin@trolltech.com>
  *    Benjamin Herrenschmidt <benh@kernel.crashing.org>
- *    Michel Dänzer <michel@tungstengraphics.com>
+ *    Michel Dänzer <michel@daenzer.net>
  *
  */
 

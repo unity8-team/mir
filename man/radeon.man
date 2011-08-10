@@ -779,7 +779,7 @@ Kevin E. Martin          \fIkem@freedesktop.org\fP
 Alan Hourihane           \fIalanh@fairlite.demon.co.uk\fP
 Marc Aurele La France    \fItsi@xfree86.org\fP
 Benjamin Herrenschmidt   \fIbenh@kernel.crashing.org\fP
-Michel D\(:anzer            \fImichel@tungstengraphics.com\fP
+Michel D\(:anzer            \fImichel@daenzer.net\fP
 Alex Deucher             \fIalexdeucher@gmail.com\fP
 Bogdan D.                \fIbogdand@users.sourceforge.net\fP
 Eric Anholt              \fIeric@anholt.net\fP
