@@ -325,6 +325,9 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 	if (!damage)
 		damage = _sna_damage_create();
 
+	if (damage->all)
+		return damage;
+
 	if (damage->mode == SUBTRACT)
 		__sna_damage_reduce(damage);
 	damage->mode = ADD;
@@ -390,6 +393,9 @@ inline static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
 
 	if (!damage)
 		damage = _sna_damage_create();
+
+	if (damage->all)
+		return damage;
 
 	if (damage->mode == SUBTRACT)
 		__sna_damage_reduce(damage);
