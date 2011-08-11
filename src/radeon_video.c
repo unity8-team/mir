@@ -2996,7 +2996,7 @@ RADEONPutImage(
     /* copy data */
    top = ya >> 16;
    left = (xa >> 16) & ~1;
-   npixels = (RADEON_ALIGN((xb + 0xffff) >> 16, 2)) - left;
+   npixels = ((xb + 0xffff) >> 16) - left;
 
    offset = (pPriv->video_offset) + (top * dstPitch);
 
@@ -3055,7 +3055,7 @@ RADEONPutImage(
 		s2offset = s3offset;
 		s3offset = tmp;
 	    }
-	    nlines = (RADEON_ALIGN((yb + 0xffff) >> 16, 2)) - top;
+	    nlines = ((yb + 0xffff) >> 16) - top;
 	    RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
 				 buf + s2offset, buf + s3offset, dst_start,
 				 srcPitch, srcPitch2, dstPitch, nlines, npixels);

@@ -383,7 +383,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     /* copy data */
     top = (y1 >> 16) & ~1;
-    nlines = RADEON_ALIGN((y2 + 0xffff) >> 16, 2) - top;
+    nlines = ((y2 + 0xffff) >> 16) - top;
 
     pPriv->src_offset = pPriv->video_offset;
     if (info->cs) {
