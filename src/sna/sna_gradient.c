@@ -52,7 +52,7 @@ sna_gradient_sample_width(PictGradient *gradient)
 		int ramp;
 
 		if (dx == 0)
-			return 0;
+			return 1024;
 
 		max = gradient->stops[n].color.red -
 			gradient->stops[n-1].color.red;
@@ -72,7 +72,7 @@ sna_gradient_sample_width(PictGradient *gradient)
 		if (delta > max)
 			max = delta;
 
-		ramp = 128 * max / xFixedToDouble(dx);
+		ramp = 128 * max / dx;
 		if (ramp > width)
 			width = ramp;
 	}
