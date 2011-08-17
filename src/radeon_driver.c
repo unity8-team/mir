@@ -2336,6 +2336,7 @@ static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    Bool           ret;
     MessageType    from;
     char          *reason;
 
@@ -2402,8 +2403,9 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     info->dri->pLibDRMVersion = NULL;
     info->dri->pKernelDRMVersion = NULL;
 
-    if (!RADEONDRIGetVersion(pScrn))
-	return FALSE;
+    ret = RADEONDRIGetVersion(pScrn);
+    if (ret <= 0)
+	return ret;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "[dri] Found DRI library version %d.%d.%d and kernel"
@@ -3166,6 +3168,8 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
      * memory map
      */
     info->directRenderingEnabled = RADEONPreInitDRI(pScrn);
+    if (info->directRenderingEnabled < 0)
+	goto fail;
 #endif
     if (!info->directRenderingEnabled) {
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
