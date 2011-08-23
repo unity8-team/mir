@@ -153,8 +153,7 @@ can_exchange(DrawablePtr draw, PixmapPtr dst_pix, PixmapPtr src_pix)
 
 	}
 
-	return (!nouveau_exa_pixmap_is_onscreen(dst_pix) ||
-		(DRI2CanFlip(draw) && pNv->has_pageflip)) &&
+	return ((DRI2CanFlip(draw) && pNv->has_pageflip)) &&
 		dst_pix->drawable.width == src_pix->drawable.width &&
 		dst_pix->drawable.height == src_pix->drawable.height &&
 		dst_pix->drawable.depth == src_pix->drawable.depth &&
