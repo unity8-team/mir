@@ -351,16 +351,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		box.x2 = x + w;
 		box.y2 = y + h;
 
-		if (channel->repeat != RepeatNone) {
-			if (box.x1 < 0 ||
-			    box.y1 < 0 ||
-			    box.x2 > pixmap->drawable.width ||
-			    box.y2 > pixmap->drawable.height) {
-				box.x1 = box.y1 = 0;
-				box.x2 = pixmap->drawable.width;
-				box.y2 = pixmap->drawable.height;
-			}
-		} else {
+		if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
 			if (box.x1 < 0)
 				box.x1 = 0;
 			if (box.y1 < 0)
@@ -369,6 +360,15 @@ sna_render_pixmap_bo(struct sna *sna,
 				box.x2 = pixmap->drawable.width;
 			if (box.y2 > pixmap->drawable.height)
 				box.y2 = pixmap->drawable.height;
+		} else {
+			if (box.x1 < 0 ||
+			    box.y1 < 0 ||
+			    box.x2 > pixmap->drawable.width ||
+			    box.y2 > pixmap->drawable.height) {
+				box.x1 = box.y1 = 0;
+				box.x2 = pixmap->drawable.width;
+				box.y2 = pixmap->drawable.height;
+			}
 		}
 	}
 
@@ -468,7 +468,16 @@ static int sna_render_picture_downsample(struct sna *sna,
 		oy = v.vector[1] / v.vector[2];
 	}
 
-	if (channel->repeat != RepeatNone) {
+	if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
+		if (box.x1 < 0)
+			box.x1 = 0;
+		if (box.y1 < 0)
+			box.y1 = 0;
+		if (box.x2 > pixmap->drawable.width)
+			box.x2 = pixmap->drawable.width;
+		if (box.y2 > pixmap->drawable.height)
+			box.y2 = pixmap->drawable.height;
+	} else {
 		if (box.x1 < 0 ||
 		    box.y1 < 0 ||
 		    box.x2 > pixmap->drawable.width ||
@@ -488,15 +497,6 @@ static int sna_render_picture_downsample(struct sna *sna,
 								dst_x, dst_y);
 			}
 		}
-	} else {
-		if (box.x1 < 0)
-			box.x1 = 0;
-		if (box.y1 < 0)
-			box.y1 = 0;
-		if (box.x2 > pixmap->drawable.width)
-			box.x2 = pixmap->drawable.width;
-		if (box.y2 > pixmap->drawable.height)
-			box.y2 = pixmap->drawable.height;
 	}
 
 	w = box.x2 - box.x1;
@@ -704,7 +704,21 @@ sna_render_picture_extract(struct sna *sna,
 		oy = v.vector[1] / v.vector[2];
 	}
 
-	if (channel->repeat != RepeatNone) {
+	DBG(("%s sample=(%d, %d), (%d, %d): (%d, %d)/(%d, %d), repeat=%d\n", __FUNCTION__,
+	     box.x1, box.y1, box.x2, box.y2, w, h,
+	     pixmap->drawable.width, pixmap->drawable.height,
+	     channel->repeat));
+
+	if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
+		if (box.x1 < 0)
+			box.x1 = 0;
+		if (box.y1 < 0)
+			box.y1 = 0;
+		if (box.x2 > pixmap->drawable.width)
+			box.x2 = pixmap->drawable.width;
+		if (box.y2 > pixmap->drawable.height)
+			box.y2 = pixmap->drawable.height;
+	} else {
 		if (box.x1 < 0 ||
 		    box.y1 < 0 ||
 		    box.x2 > pixmap->drawable.width ||
@@ -724,15 +738,6 @@ sna_render_picture_extract(struct sna *sna,
 								dst_x, dst_y);
 			}
 		}
-	} else {
-		if (box.x1 < 0)
-			box.x1 = 0;
-		if (box.y1 < 0)
-			box.y1 = 0;
-		if (box.x2 > pixmap->drawable.width)
-			box.x2 = pixmap->drawable.width;
-		if (box.y2 > pixmap->drawable.height)
-			box.y2 = pixmap->drawable.height;
 	}
 
 	w = box.x2 - box.x1;
