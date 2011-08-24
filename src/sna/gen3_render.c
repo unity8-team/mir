@@ -1365,6 +1365,8 @@ static void gen3_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL |
 		  (sna->render.vertex_index - sna->render.vertex_start));
 	OUT_BATCH(sna->render.vertex_start);
+
+	sna->render_state.gen3.last_blend = 0;
 }
 
 static void gen3_vertex_flush(struct sna *sna)
