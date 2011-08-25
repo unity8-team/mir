@@ -567,6 +567,9 @@ get_resource(XID id, RESTYPE type)
 		return NULL;
 	}
 
+	DBG(("%s(%ld): new(%ld)=%p\n", __FUNCTION__,
+	     (long)id, (long)type, resource));
+
 	list_init(resource);
 	return resource;
 }
@@ -576,13 +579,16 @@ sna_dri_frame_event_client_gone(void *data, XID id)
 {
 	struct list *resource = data;
 
-	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
+	DBG(("%s(%ld): %p\n", __FUNCTION__, (long)id, data));
 
 	while (!list_is_empty(resource)) {
 		struct sna_dri_frame_event *info =
 			list_first_entry(resource,
 					 struct sna_dri_frame_event,
 					 client_resource);
+
+		DBG(("%s: marking client gone [%p]: %p\n",
+		     __FUNCTION__, info, info->client));
 
 		list_del(&info->client_resource);
 		info->client = NULL;
@@ -597,13 +603,16 @@ sna_dri_frame_event_drawable_gone(void *data, XID id)
 {
 	struct list *resource = data;
 
-	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
+	DBG(("%s(%ld): resource=%p\n", __FUNCTION__, (long)id, resource));
 
 	while (!list_is_empty(resource)) {
 		struct sna_dri_frame_event *info =
 			list_first_entry(resource,
 					 struct sna_dri_frame_event,
 					 drawable_resource);
+
+		DBG(("%s: marking drawable gone [%p]: %ld\n",
+		     __FUNCTION__, info, info->drawable_id));
 
 		list_del(&info->drawable_resource);
 		info->drawable_id = None;
@@ -668,12 +677,18 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 
 	list_add(&info->drawable_resource, resource);
 
+	DBG(("%s: add[%p] (%p, %ld)\n", __FUNCTION__,
+	     info, info->client, info->drawable_id));
+
 	return TRUE;
 }
 
 static void
 sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 {
+	DBG(("%s: del[%p] (%p, %ld)\n", __FUNCTION__,
+	     info, info->client, info->drawable_id));
+
 	list_del(&info->client_resource);
 	list_del(&info->drawable_resource);
 
