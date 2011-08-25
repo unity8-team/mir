@@ -200,6 +200,8 @@ void no_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
 
+	memset (render,0, sizeof (*render));
+
 	render->composite = no_render_composite;
 
 	render->copy_boxes = no_render_copy_boxes;

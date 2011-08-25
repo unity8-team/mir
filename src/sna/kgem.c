@@ -310,9 +310,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	struct drm_i915_gem_get_aperture aperture;
 	int i;
 
-	/* We presume we are partt of a zeroed structure
 	memset(kgem, 0, sizeof(*kgem));
-	*/
 
 	kgem->fd = fd;
 	kgem->gen = gen;
