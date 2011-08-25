@@ -1596,6 +1596,7 @@ static void gen6_emit_composite_state(struct sna *sna,
 static void
 gen6_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 {
+	assert (sna->render_state.gen6.vertex_offset == 0);
 	if (op->floats_per_vertex != sna->render_state.gen6.floats_per_vertex) {
 		DBG(("aligning vertex: was %d, now %d floats per vertex, %d->%d\n",
 		     sna->render_state.gen6.floats_per_vertex,
@@ -1900,6 +1901,8 @@ gen6_render_video(struct sna *sna,
 		box++;
 	}
 
+	gen6_vertex_flush(sna);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	return TRUE;
 }
 

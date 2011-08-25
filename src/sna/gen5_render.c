@@ -1711,6 +1711,8 @@ gen5_render_video(struct sna *sna,
 		box++;
 	}
 
+	gen5_vertex_flush(sna);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	return TRUE;
 }
 
