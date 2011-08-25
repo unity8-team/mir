@@ -764,6 +764,11 @@ sna_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr pixmap, void *data)
 	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 
+	/* We may have not called shadow_create() on the data yet and
+	 * be cleaning up a NULL shadow_pixmap.
+	 */
+	pixmap = data;
+
 	DBG(("%s(fb=%d, handle=%d)\n", __FUNCTION__,
 	     sna_crtc->shadow_fb_id, sna_pixmap_get_bo(pixmap)->handle));
 
