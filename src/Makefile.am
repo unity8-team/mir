@@ -35,6 +35,11 @@ intel_drv_ladir = @moduledir@/drivers
 intel_drv_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la legacy/liblegacy.la
 intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 
+if SNA
+SUBDIRS += sna
+intel_drv_la_LIBADD += sna/libsna.la
+endif
+
 NULL:=#
 
 intel_drv_la_SOURCES = \
@@ -62,6 +67,7 @@ intel_drv_la_SOURCES = \
 	 i915_render.c \
 	 i915_video.c \
 	 i965_reg.h \
+	 i965_3d.c \
 	 i965_video.c \
 	 i965_render.c \
 	 $(NULL)

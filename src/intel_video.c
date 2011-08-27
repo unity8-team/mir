@@ -1599,6 +1599,7 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 					 pixmap);
 	}
 
+	intel_get_screen_private(scrn)->needs_flush = TRUE;
 	DamageDamageRegion(drawable, clipBoxes);
 
 	return Success;

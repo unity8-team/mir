@@ -47,7 +47,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86Priv.h"
 #include "xf86cmap.h"
 #include "compiler.h"
 #include "mibstore.h"
@@ -84,7 +83,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 typedef enum {
-   OPTION_ACCELMETHOD,
    OPTION_DRI,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
@@ -93,6 +91,7 @@ typedef enum {
    OPTION_TILING_2D,
    OPTION_SHADOW,
    OPTION_SWAPBUFFERS_WAIT,
+   OPTION_TRIPLE_BUFFER,
 #ifdef INTEL_XVMC
    OPTION_XVMC,
 #endif
@@ -105,7 +104,6 @@ typedef enum {
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
-   {OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_ANYSTR,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
@@ -114,6 +112,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SHADOW,	"Shadow",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SWAPBUFFERS_WAIT, "SwapbuffersWait", OPTV_BOOLEAN,	{0},	TRUE},
+   {OPTION_TRIPLE_BUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
@@ -328,10 +327,10 @@ static void intel_check_dri_option(ScrnInfoPtr scrn)
 	if (!xf86ReturnOptValBool(intel->Options, OPTION_DRI, TRUE))
 		intel->directRenderingType = DRI_DISABLED;
 
-	if (scrn->depth != 16 && scrn->depth != 24) {
+	if (scrn->depth != 16 && scrn->depth != 24 && scrn->depth != 30) {
 		xf86DrvMsg(scrn->scrnIndex, X_CONFIG,
 			   "DRI is disabled because it "
-			   "runs only at depths 16 and 24.\n");
+			   "runs only at depths 16, 24, and 30.\n");
 		intel->directRenderingType = DRI_DISABLED;
 	}
 }
@@ -586,6 +585,7 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	case 15:
 	case 16:
 	case 24:
+	case 30:
 		break;
 	default:
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -658,8 +658,15 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 	intel->swapbuffers_wait = xf86ReturnOptValBool(intel->Options,
 						       OPTION_SWAPBUFFERS_WAIT,
 						       TRUE);
-	if (IS_GEN6(intel))
-		intel->swapbuffers_wait = FALSE;
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Wait on SwapBuffers? %s\n",
+		   intel->swapbuffers_wait ? "enabled" : "disabled");
+
+	intel->use_triple_buffer =
+		xf86ReturnOptValBool(intel->Options,
+				     OPTION_TRIPLE_BUFFER,
+				     TRUE);
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Triple buffering? %s\n",
+		   intel->use_triple_buffer ? "enabled" : "disabled");
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   intel->tiling & INTEL_TILING_FB ? "tiled" : "linear");
@@ -1179,6 +1186,11 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 		uxa_driver_fini(screen);
 		free(intel->uxa_driver);
 		intel->uxa_driver = NULL;
+	}
+
+	if (intel->back_buffer) {
+		drm_intel_bo_unreference(intel->back_buffer);
+		intel->back_buffer = NULL;
 	}
 
 	if (intel->front_buffer) {

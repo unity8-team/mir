@@ -175,13 +175,6 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 	intel_batch_do_flush(scrn);
 }
 
-static Bool intel_batch_needs_flush(intel_screen_private *intel)
-{
-	ScreenPtr screen = intel->scrn->pScreen;
-	PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-	return intel_get_pixmap_private(pixmap)->batch_write;
-}
-
 void intel_batch_submit(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -218,7 +211,9 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 		ret = drm_intel_bo_mrb_exec(intel->batch_bo,
 				intel->batch_used*4,
 				NULL, 0, 0xffffffff,
-				IS_GEN6(intel) ? intel->current_batch: I915_EXEC_DEFAULT);
+				(HAS_BLT(intel) ?
+				 intel->current_batch:
+				 I915_EXEC_DEFAULT));
 	}
 
 	if (ret != 0) {
@@ -240,8 +235,6 @@ void intel_batch_submit(ScrnInfoPtr scrn)
 				   strerror(-ret));
 		}
 	}
-
-	intel->needs_flush |= intel_batch_needs_flush(intel);
 
 	while (!list_is_empty(&intel->batch_pixmaps)) {
 		struct intel_pixmap *entry;

@@ -36,19 +36,34 @@
 #include "intel.h"
 #include "intel_driver.h"
 #include "legacy/legacy.h"
+#include "sna/sna_module.h"
 
 #include <xf86drmMode.h>
+
+static struct intel_device_info *chipset_info;
 
 static const struct intel_device_info intel_i81x_info = {
 	.gen = 10,
 };
 
-static const struct intel_device_info intel_i8xx_info = {
+static const struct intel_device_info intel_i830_info = {
 	.gen = 20,
+};
+static const struct intel_device_info intel_i845_info = {
+	.gen = 20,
+};
+static const struct intel_device_info intel_i855_info = {
+	.gen = 21,
+};
+static const struct intel_device_info intel_i865_info = {
+	.gen = 21,
 };
 
 static const struct intel_device_info intel_i915_info = {
 	.gen = 30,
+};
+static const struct intel_device_info intel_i945_info = {
+	.gen = 31,
 };
 
 static const struct intel_device_info intel_g33_info = {
@@ -71,329 +86,148 @@ static const struct intel_device_info intel_sandybridge_info = {
 	.gen = 60,
 };
 
+static const struct intel_device_info intel_ivybridge_info = {
+	.gen = 70,
+};
+
 static const SymTabRec _intel_chipsets[] = {
-    {PCI_CHIP_I810,		"i810"},
-    {PCI_CHIP_I810_DC100,	"i810-dc100"},
-    {PCI_CHIP_I810_E,		"i810e"},
-    {PCI_CHIP_I815,		"i815"},
-    {PCI_CHIP_I830_M,		"i830M"},
-    {PCI_CHIP_845_G,		"845G"},
-    {PCI_CHIP_I854,		"854"},
-    {PCI_CHIP_I855_GM,		"852GM/855GM"},
-    {PCI_CHIP_I865_G,		"865G"},
-    {PCI_CHIP_I915_G,		"915G"},
-    {PCI_CHIP_E7221_G,		"E7221 (i915)"},
-    {PCI_CHIP_I915_GM,		"915GM"},
-    {PCI_CHIP_I945_G,		"945G"},
-    {PCI_CHIP_I945_GM,		"945GM"},
-    {PCI_CHIP_I945_GME,		"945GME"},
-    {PCI_CHIP_PINEVIEW_M,	"Pineview GM"},
-    {PCI_CHIP_PINEVIEW_G,	"Pineview G"},
-    {PCI_CHIP_I965_G,		"965G"},
-    {PCI_CHIP_G35_G,		"G35"},
-    {PCI_CHIP_I965_Q,		"965Q"},
-    {PCI_CHIP_I946_GZ,		"946GZ"},
-    {PCI_CHIP_I965_GM,		"965GM"},
-    {PCI_CHIP_I965_GME,		"965GME/GLE"},
-    {PCI_CHIP_G33_G,		"G33"},
-    {PCI_CHIP_Q35_G,		"Q35"},
-    {PCI_CHIP_Q33_G,		"Q33"},
-    {PCI_CHIP_GM45_GM,		"GM45"},
-    {PCI_CHIP_G45_E_G,		"4 Series"},
-    {PCI_CHIP_G45_G,		"G45/G43"},
-    {PCI_CHIP_Q45_G,		"Q45/Q43"},
-    {PCI_CHIP_G41_G,		"G41"},
-    {PCI_CHIP_B43_G,		"B43"},
-    {PCI_CHIP_B43_G1,		"B43"},
-    {PCI_CHIP_IRONLAKE_D_G,		"Clarkdale"},
-    {PCI_CHIP_IRONLAKE_M_G,		"Arrandale"},
-    {PCI_CHIP_SANDYBRIDGE_GT1,	"Sandybridge" },
-    {PCI_CHIP_SANDYBRIDGE_GT2,	"Sandybridge" },
-    {PCI_CHIP_SANDYBRIDGE_GT2_PLUS,	"Sandybridge" },
-    {PCI_CHIP_SANDYBRIDGE_M_GT1,	"Sandybridge" },
-    {PCI_CHIP_SANDYBRIDGE_M_GT2,	"Sandybridge" },
-    {PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS,	"Sandybridge" },
-    {PCI_CHIP_SANDYBRIDGE_S_GT,	"Sandybridge" },
-    {-1,				NULL}
+	{PCI_CHIP_I810,				"i810"},
+	{PCI_CHIP_I810_DC100,			"i810-dc100"},
+	{PCI_CHIP_I810_E,			"i810e"},
+	{PCI_CHIP_I815,				"i815"},
+	{PCI_CHIP_I830_M,			"i830M"},
+	{PCI_CHIP_845_G,			"845G"},
+	{PCI_CHIP_I854,				"854"},
+	{PCI_CHIP_I855_GM,			"852GM/855GM"},
+	{PCI_CHIP_I865_G,			"865G"},
+	{PCI_CHIP_I915_G,			"915G"},
+	{PCI_CHIP_E7221_G,			"E7221 (i915)"},
+	{PCI_CHIP_I915_GM,			"915GM"},
+	{PCI_CHIP_I945_G,			"945G"},
+	{PCI_CHIP_I945_GM,			"945GM"},
+	{PCI_CHIP_I945_GME,			"945GME"},
+	{PCI_CHIP_PINEVIEW_M,			"Pineview GM"},
+	{PCI_CHIP_PINEVIEW_G,			"Pineview G"},
+	{PCI_CHIP_I965_G,			"965G"},
+	{PCI_CHIP_G35_G,			"G35"},
+	{PCI_CHIP_I965_Q,			"965Q"},
+	{PCI_CHIP_I946_GZ,			"946GZ"},
+	{PCI_CHIP_I965_GM,			"965GM"},
+	{PCI_CHIP_I965_GME,			"965GME/GLE"},
+	{PCI_CHIP_G33_G,			"G33"},
+	{PCI_CHIP_Q35_G,			"Q35"},
+	{PCI_CHIP_Q33_G,			"Q33"},
+	{PCI_CHIP_GM45_GM,			"GM45"},
+	{PCI_CHIP_G45_E_G,			"4 Series"},
+	{PCI_CHIP_G45_G,			"G45/G43"},
+	{PCI_CHIP_Q45_G,			"Q45/Q43"},
+	{PCI_CHIP_G41_G,			"G41"},
+	{PCI_CHIP_B43_G,			"B43"},
+	{PCI_CHIP_B43_G1,			"B43"},
+	{PCI_CHIP_IRONLAKE_D_G,			"Clarkdale"},
+	{PCI_CHIP_IRONLAKE_M_G,			"Arrandale"},
+	{PCI_CHIP_SANDYBRIDGE_GT1,		"Sandybridge Desktop (GT1)" },
+	{PCI_CHIP_SANDYBRIDGE_GT2,		"Sandybridge Desktop (GT2)" },
+	{PCI_CHIP_SANDYBRIDGE_GT2_PLUS,		"Sandybridge Desktop (GT2+)" },
+	{PCI_CHIP_SANDYBRIDGE_M_GT1,		"Sandybridge Mobile (GT1)" },
+	{PCI_CHIP_SANDYBRIDGE_M_GT2,		"Sandybridge Mobile (GT2)" },
+	{PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS,	"Sandybridge Mobile (GT2+)" },
+	{PCI_CHIP_SANDYBRIDGE_S_GT,		"Sandybridge Server" },
+	{PCI_CHIP_IVYBRIDGE_M_GT1,		"Ivybridge Mobile (GT1)" },
+	{PCI_CHIP_IVYBRIDGE_M_GT2,		"Ivybridge Mobile (GT2)" },
+	{PCI_CHIP_IVYBRIDGE_D_GT1,		"Ivybridge Desktop (GT1)" },
+	{PCI_CHIP_IVYBRIDGE_D_GT2,		"Ivybridge Desktop (GT2)" },
+	{PCI_CHIP_IVYBRIDGE_S_GT1,		"Ivybridge Server" },
+	{-1,					NULL}
 };
 SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
 
 #define INTEL_DEVICE_MATCH(d,i) \
-{ 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, (i) }
+    { 0x8086, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, (intptr_t)(i) }
 
 static const struct pci_id_match intel_device_match[] = {
-    INTEL_DEVICE_MATCH (PCI_CHIP_I810, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I810_DC100, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I810_E, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I815, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_845_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I854, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I855_GM, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I865_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I915_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_E7221_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I915_GM, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I945_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I945_GM, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I945_GME, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_PINEVIEW_M, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_PINEVIEW_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I965_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_G35_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I965_Q, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I946_GZ, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I965_GM, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_I965_GME, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_G33_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_Q35_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_Q33_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_GM45_GM, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_G45_E_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_G45_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_G41_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_B43_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_IRONLAKE_D_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_IRONLAKE_M_G, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_GT1, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_GT2, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_GT2_PLUS, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT1, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT2, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS, 0 ),
-    INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_S_GT, 0 ),
-    { 0, 0, 0 },
-};
+	INTEL_DEVICE_MATCH (PCI_CHIP_I810, &intel_i81x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I810_DC100, &intel_i81x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I810_E, &intel_i81x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I815, &intel_i81x_info ),
 
-static PciChipsets intel_pci_chipsets[] = {
-    {PCI_CHIP_I810,		PCI_CHIP_I810,		NULL},
-    {PCI_CHIP_I810_DC100,	PCI_CHIP_I810_DC100,	NULL},
-    {PCI_CHIP_I810_E,		PCI_CHIP_I810_E,	NULL},
-    {PCI_CHIP_I815,		PCI_CHIP_I815,		NULL},
-    {PCI_CHIP_I830_M,		PCI_CHIP_I830_M,	NULL},
-    {PCI_CHIP_845_G,		PCI_CHIP_845_G,		NULL},
-    {PCI_CHIP_I854,		PCI_CHIP_I854,		NULL},
-    {PCI_CHIP_I855_GM,		PCI_CHIP_I855_GM,	NULL},
-    {PCI_CHIP_I865_G,		PCI_CHIP_I865_G,	NULL},
-    {PCI_CHIP_I915_G,		PCI_CHIP_I915_G,	NULL},
-    {PCI_CHIP_E7221_G,		PCI_CHIP_E7221_G,	NULL},
-    {PCI_CHIP_I915_GM,		PCI_CHIP_I915_GM,	NULL},
-    {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	NULL},
-    {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	NULL},
-    {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	NULL},
-    {PCI_CHIP_PINEVIEW_M,	PCI_CHIP_PINEVIEW_M,	NULL},
-    {PCI_CHIP_PINEVIEW_G,	PCI_CHIP_PINEVIEW_G,		NULL},
-    {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	NULL},
-    {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		NULL},
-    {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	NULL},
-    {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	NULL},
-    {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	NULL},
-    {PCI_CHIP_I965_GME,		PCI_CHIP_I965_GME,	NULL},
-    {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		NULL},
-    {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		NULL},
-    {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		NULL},
-    {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	NULL},
-    {PCI_CHIP_G45_E_G,		PCI_CHIP_G45_E_G,	NULL},
-    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		NULL},
-    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		NULL},
-    {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		NULL},
-    {PCI_CHIP_B43_G,		PCI_CHIP_B43_G,		NULL},
-    {PCI_CHIP_IRONLAKE_D_G,	PCI_CHIP_IRONLAKE_D_G,	NULL},
-    {PCI_CHIP_IRONLAKE_M_G,	PCI_CHIP_IRONLAKE_M_G,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_GT1,	PCI_CHIP_SANDYBRIDGE_GT1,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_GT2,	PCI_CHIP_SANDYBRIDGE_GT2,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_GT2_PLUS,	PCI_CHIP_SANDYBRIDGE_GT2_PLUS,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_M_GT1,	PCI_CHIP_SANDYBRIDGE_M_GT1,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_M_GT2,	PCI_CHIP_SANDYBRIDGE_M_GT2,	NULL},
-    {PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS,	PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS, NULL},
-    {PCI_CHIP_SANDYBRIDGE_S_GT,		PCI_CHIP_SANDYBRIDGE_S_GT,	NULL},
-    {-1,				-1, NULL }
+	INTEL_DEVICE_MATCH (PCI_CHIP_I830_M, &intel_i830_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_845_G, &intel_i845_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I854, &intel_i855_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I855_GM, &intel_i855_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I865_G, &intel_i865_info ),
+
+	INTEL_DEVICE_MATCH (PCI_CHIP_I915_G, &intel_i915_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_E7221_G, &intel_i915_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I915_GM, &intel_i915_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I945_G, &intel_i945_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I945_GM, &intel_i945_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I945_GME, &intel_i945_info ),
+
+	INTEL_DEVICE_MATCH (PCI_CHIP_PINEVIEW_M, &intel_g33_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_PINEVIEW_G, &intel_g33_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_G33_G, &intel_g33_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_Q33_G, &intel_g33_info ),
+	/* Another marketing win: Q35 is another g33 device not a gen4 part
+	 * like its G35 brethren.
+	 */
+	INTEL_DEVICE_MATCH (PCI_CHIP_Q35_G, &intel_g33_info ),
+
+	INTEL_DEVICE_MATCH (PCI_CHIP_I965_G, &intel_i965_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_G35_G, &intel_i965_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I965_Q, &intel_i965_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I946_GZ, &intel_i965_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I965_GM, &intel_i965_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_I965_GME, &intel_i965_info ),
+
+	INTEL_DEVICE_MATCH (PCI_CHIP_GM45_GM, &intel_g4x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_G45_E_G, &intel_g4x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_G45_G, &intel_g4x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, &intel_g4x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_G41_G, &intel_g4x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_B43_G, &intel_g4x_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_B43_G1, &intel_g4x_info ),
+
+	INTEL_DEVICE_MATCH (PCI_CHIP_IRONLAKE_D_G, &intel_ironlake_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_IRONLAKE_M_G, &intel_ironlake_info ),
+
+	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_GT1, &intel_sandybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_GT2, &intel_sandybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_GT2_PLUS, &intel_sandybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT1, &intel_sandybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT2, &intel_sandybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS, &intel_sandybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_SANDYBRIDGE_S_GT, &intel_sandybridge_info ),
+
+	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_M_GT1, &intel_ivybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_M_GT2, &intel_ivybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_D_GT1, &intel_ivybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_D_GT2, &intel_ivybridge_info ),
+	INTEL_DEVICE_MATCH (PCI_CHIP_IVYBRIDGE_S_GT1, &intel_ivybridge_info ),
+
+	{ 0, 0, 0 },
 };
 
 void intel_detect_chipset(ScrnInfoPtr scrn,
 			  struct pci_device *pci,
 			  struct intel_chipset *chipset)
 {
-    uint32_t capid;
+	int i;
 
-    switch (DEVICE_ID(pci)) {
-    case PCI_CHIP_I810:
-	chipset->name = "i810";
-	chipset->info = &intel_i81x_info;
-	break;
-    case PCI_CHIP_I810_DC100:
-	chipset->name = "i810-dc100";
-	chipset->info = &intel_i81x_info;
-	break;
-    case PCI_CHIP_I810_E:
-	chipset->name = "i810e";
-	chipset->info = &intel_i81x_info;
-	break;
-    case PCI_CHIP_I815:
-	chipset->name = "i815";
-	chipset->info = &intel_i81x_info;
-	break;
-    case PCI_CHIP_I830_M:
-	chipset->name = "830M";
-	chipset->info = &intel_i8xx_info;
-	break;
-    case PCI_CHIP_845_G:
-	chipset->name = "845G";
-	chipset->info = &intel_i8xx_info;
-	break;
-    case PCI_CHIP_I854:
-	chipset->name = "854";
-	chipset->info = &intel_i8xx_info;
-	break;
-    case PCI_CHIP_I855_GM:
-	/* Check capid register to find the chipset variant */
-	pci_device_cfg_read_u32(pci, &capid, I85X_CAPID);
-	chipset->variant =
-	    (capid >> I85X_VARIANT_SHIFT) & I85X_VARIANT_MASK;
-	switch (chipset->variant) {
-	case I855_GM:
-	    chipset->name = "855GM";
-	    break;
-	case I855_GME:
-	    chipset->name = "855GME";
-	    break;
-	case I852_GM:
-	    chipset->name = "852GM";
-	    break;
-	case I852_GME:
-	    chipset->name = "852GME";
-	    break;
-	default:
-	    xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		       "Unknown 852GM/855GM variant: 0x%x)\n",
-		       chipset->variant);
-	    chipset->name = "852GM/855GM (unknown variant)";
-	    break;
+	chipset->info = chipset_info;
+
+	for (i = 0; intel_chipsets[i].name != NULL; i++) {
+		if (DEVICE_ID(pci) == intel_chipsets[i].token) {
+			chipset->name = intel_chipsets[i].name;
+			break;
+		}
 	}
-	chipset->info = &intel_i8xx_info;
-	break;
-    case PCI_CHIP_I865_G:
-	chipset->name = "865G";
-	chipset->info = &intel_i8xx_info;
-	break;
-    case PCI_CHIP_I915_G:
-	chipset->name = "915G";
-	chipset->info = &intel_i915_info;
-	break;
-    case PCI_CHIP_E7221_G:
-	chipset->name = "E7221 (i915)";
-	chipset->info = &intel_i915_info;
-	break;
-    case PCI_CHIP_I915_GM:
-	chipset->name = "915GM";
-	chipset->info = &intel_i915_info;
-	break;
-    case PCI_CHIP_I945_G:
-	chipset->name = "945G";
-	chipset->info = &intel_i915_info;
-	break;
-    case PCI_CHIP_I945_GM:
-	chipset->name = "945GM";
-	chipset->info = &intel_i915_info;
-	break;
-    case PCI_CHIP_I945_GME:
-	chipset->name = "945GME";
-	chipset->info = &intel_i915_info;
-	break;
-    case PCI_CHIP_PINEVIEW_M:
-	chipset->name = "Pineview GM";
-	chipset->info = &intel_g33_info;
-	break;
-    case PCI_CHIP_PINEVIEW_G:
-	chipset->name = "Pineview G";
-	chipset->info = &intel_g33_info;
-	break;
-    case PCI_CHIP_I965_G:
-	chipset->name = "965G";
-	chipset->info = &intel_i965_info;
-	break;
-    case PCI_CHIP_G35_G:
-	chipset->name = "G35";
-	chipset->info = &intel_i965_info;
-	break;
-    case PCI_CHIP_I965_Q:
-	chipset->name = "965Q";
-	chipset->info = &intel_i965_info;
-	break;
-    case PCI_CHIP_I946_GZ:
-	chipset->name = "946GZ";
-	chipset->info = &intel_i965_info;
-	break;
-    case PCI_CHIP_I965_GM:
-	chipset->name = "965GM";
-	chipset->info = &intel_i965_info;
-	break;
-    case PCI_CHIP_I965_GME:
-	chipset->name = "965GME/GLE";
-	chipset->info = &intel_i965_info;
-	break;
-    case PCI_CHIP_G33_G:
-	chipset->name = "G33";
-	chipset->info = &intel_g33_info;
-	break;
-    case PCI_CHIP_Q35_G:
-	chipset->name = "Q35";
-	chipset->info = &intel_g33_info;
-	break;
-    case PCI_CHIP_Q33_G:
-	chipset->name = "Q33";
-	chipset->info = &intel_g33_info;
-	break;
-    case PCI_CHIP_GM45_GM:
-	chipset->name = "GM45";
-	chipset->info = &intel_g4x_info;
-	break;
-    case PCI_CHIP_G45_E_G:
-	chipset->name = "4 Series";
-	chipset->info = &intel_g4x_info;
-	break;
-    case PCI_CHIP_G45_G:
-	chipset->name = "G45/G43";
-	chipset->info = &intel_g4x_info;
-	break;
-    case PCI_CHIP_Q45_G:
-	chipset->name = "Q45/Q43";
-	chipset->info = &intel_g4x_info;
-	break;
-    case PCI_CHIP_G41_G:
-	chipset->name = "G41";
-	chipset->info = &intel_g4x_info;
-	break;
-    case PCI_CHIP_B43_G:
-	chipset->name = "B43";
-	chipset->info = &intel_g4x_info;
-	break;
-    case PCI_CHIP_IRONLAKE_D_G:
-	chipset->name = "Clarkdale";
-	chipset->info = &intel_ironlake_info;
-	break;
-    case PCI_CHIP_IRONLAKE_M_G:
-	chipset->name = "Arrandale";
-	chipset->info = &intel_ironlake_info;
-	break;
-    case PCI_CHIP_SANDYBRIDGE_GT1:
-    case PCI_CHIP_SANDYBRIDGE_GT2:
-    case PCI_CHIP_SANDYBRIDGE_GT2_PLUS:
-    case PCI_CHIP_SANDYBRIDGE_M_GT1:
-    case PCI_CHIP_SANDYBRIDGE_M_GT2:
-    case PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS:
-    case PCI_CHIP_SANDYBRIDGE_S_GT:
-	chipset->name = "Sandybridge";
-	chipset->info = &intel_sandybridge_info;
-	break;
-    default:
-	chipset->name = "unknown chipset";
-	break;
-    }
+	if (intel_chipsets[i].name == NULL) {
+		chipset->name = "unknown chipset";
+	}
 
-    xf86DrvMsg(scrn->scrnIndex, X_INFO,
-	       "Integrated Graphics Chipset: Intel(R) %s\n", chipset->name);
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "Integrated Graphics Chipset: Intel(R) %s\n", chipset->name);
 }
 
 /*
@@ -404,30 +238,30 @@ void intel_detect_chipset(ScrnInfoPtr scrn,
  */
 static void intel_identify(int flags)
 {
-    xf86PrintChipsets(INTEL_NAME,
-		      "Driver for Intel Integrated Graphics Chipsets",
-		      intel_chipsets);
+	xf86PrintChipsets(INTEL_NAME,
+			  "Driver for Intel Integrated Graphics Chipsets",
+			  intel_chipsets);
 }
 
 static Bool intel_driver_func(ScrnInfoPtr pScrn,
 			      xorgDriverFuncOp op,
 			      pointer ptr)
 {
-    xorgHWFlags *flag;
+	xorgHWFlags *flag;
 
-    switch (op) {
-    case GET_REQUIRED_HW_INTERFACES:
-	flag = (CARD32*)ptr;
+	switch (op) {
+	case GET_REQUIRED_HW_INTERFACES:
+		flag = (CARD32*)ptr;
 #ifdef KMS_ONLY
-	(*flag) = 0;
+		(*flag) = 0;
 #else
-	(*flag) = HW_IO | HW_MMIO;
+		(*flag) = HW_IO | HW_MMIO;
 #endif
-	return TRUE;
-    default:
-	/* Unknown or deprecated function */
-	return FALSE;
-    }
+		return TRUE;
+	default:
+		/* Unknown or deprecated function */
+		return FALSE;
+	}
 }
 
 static Bool has_kernel_mode_setting(struct pci_device *dev)
@@ -458,55 +292,67 @@ static Bool has_kernel_mode_setting(struct pci_device *dev)
  * Setup the dispatch table for the rest of the driver functions.
  *
  */
-static Bool intel_pci_probe (DriverPtr		driver,
-			     int		entity_num,
-			     struct pci_device	*device,
-			     intptr_t		match_data)
+static Bool intel_pci_probe(DriverPtr		driver,
+			    int			entity_num,
+			    struct pci_device	*device,
+			    intptr_t		match_data)
 {
-    ScrnInfoPtr scrn;
+	ScrnInfoPtr scrn;
+	PciChipsets intel_pci_chipsets[ARRAY_SIZE(intel_chipsets)];
+	int i;
 
-    if (!has_kernel_mode_setting(device)) {
+	chipset_info = (void *)match_data;
+
+	if (!has_kernel_mode_setting(device)) {
 #if KMS_ONLY
-	    return FALSE;
+		return FALSE;
 #else
-	    switch (DEVICE_ID(device)) {
-	    case PCI_CHIP_I810:
-	    case PCI_CHIP_I810_DC100:
-	    case PCI_CHIP_I810_E:
-	    case PCI_CHIP_I815:
-		    break;
-	    default:
-		    return FALSE;
-	    }
+		switch (DEVICE_ID(device)) {
+		case PCI_CHIP_I810:
+		case PCI_CHIP_I810_DC100:
+		case PCI_CHIP_I810_E:
+		case PCI_CHIP_I815:
+			break;
+		default:
+			return FALSE;
+		}
 #endif
-    }
-
-    scrn = xf86ConfigPciEntity(NULL, 0, entity_num, intel_pci_chipsets,
-			       NULL, NULL, NULL, NULL, NULL);
-    if (scrn != NULL) {
-	scrn->driverVersion = INTEL_VERSION;
-	scrn->driverName = INTEL_DRIVER_NAME;
-	scrn->name = INTEL_NAME;
-	scrn->Probe = NULL;
-
-#if KMS_ONLY
-	intel_init_scrn(scrn);
-#else
-	switch (DEVICE_ID(device)) {
-	case PCI_CHIP_I810:
-	case PCI_CHIP_I810_DC100:
-	case PCI_CHIP_I810_E:
-	case PCI_CHIP_I815:
-	    lg_i810_init(scrn);
-	    break;
-
-	default:
-	    intel_init_scrn(scrn);
-	    break;
 	}
+
+	for (i = 0; i < ARRAY_SIZE(intel_chipsets); i++) {
+		intel_pci_chipsets[i].numChipset = intel_chipsets[i].token;
+		intel_pci_chipsets[i].PCIid = intel_chipsets[i].token;
+		intel_pci_chipsets[i].dummy = NULL;
+	}
+
+	scrn = xf86ConfigPciEntity(NULL, 0, entity_num, intel_pci_chipsets,
+				   NULL, NULL, NULL, NULL, NULL);
+	if (scrn != NULL) {
+		scrn->driverVersion = INTEL_VERSION;
+		scrn->driverName = INTEL_DRIVER_NAME;
+		scrn->name = INTEL_NAME;
+		scrn->Probe = NULL;
+
+		switch (DEVICE_ID(device)) {
+#if !KMS_ONLY
+		case PCI_CHIP_I810:
+		case PCI_CHIP_I810_DC100:
+		case PCI_CHIP_I810_E:
+		case PCI_CHIP_I815:
+			lg_i810_init(scrn);
+			break;
 #endif
-    }
-    return scrn != NULL;
+
+		default:
+#if USE_SNA
+			sna_init_scrn(scrn, entity_num);
+#else
+			intel_init_scrn(scrn);
+#endif
+			break;
+		}
+	}
+	return scrn != NULL;
 }
 
 #ifdef XFree86LOADER
@@ -514,48 +360,50 @@ static Bool intel_pci_probe (DriverPtr		driver,
 static MODULESETUPPROTO(intel_setup);
 
 static XF86ModuleVersionInfo intel_version = {
-    "intel",
-    MODULEVENDORSTRING,
-    MODINFOSTRING1,
-    MODINFOSTRING2,
-    XORG_VERSION_CURRENT,
-    INTEL_VERSION_MAJOR, INTEL_VERSION_MINOR, INTEL_VERSION_PATCH,
-    ABI_CLASS_VIDEODRV,
-    ABI_VIDEODRV_VERSION,
-    MOD_CLASS_VIDEODRV,
-    {0, 0, 0, 0}
+	"intel",
+	MODULEVENDORSTRING,
+	MODINFOSTRING1,
+	MODINFOSTRING2,
+	XORG_VERSION_CURRENT,
+	INTEL_VERSION_MAJOR, INTEL_VERSION_MINOR, INTEL_VERSION_PATCH,
+	ABI_CLASS_VIDEODRV,
+	ABI_VIDEODRV_VERSION,
+	MOD_CLASS_VIDEODRV,
+	{0, 0, 0, 0}
 };
 
 static const OptionInfoRec *
 intel_available_options(int chipid, int busid)
 {
-#if KMS_ONLY
-	return intel_uxa_available_options(chipid, busid);
-#else
 	switch (chipid) {
+#if !KMS_ONLY
 	case PCI_CHIP_I810:
 	case PCI_CHIP_I810_DC100:
 	case PCI_CHIP_I810_E:
 	case PCI_CHIP_I815:
 		return lg_i810_available_options(chipid, busid);
+#endif
 
 	default:
+#if USE_SNA
+		return sna_available_options(chipid, busid);
+#else
 		return intel_uxa_available_options(chipid, busid);
-	}
 #endif
+	}
 }
 
 static DriverRec intel = {
-    INTEL_VERSION,
-    INTEL_DRIVER_NAME,
-    intel_identify,
-    NULL,
-    intel_available_options,
-    NULL,
-    0,
-    intel_driver_func,
-    intel_device_match,
-    intel_pci_probe
+	INTEL_VERSION,
+	INTEL_DRIVER_NAME,
+	intel_identify,
+	NULL,
+	intel_available_options,
+	NULL,
+	0,
+	intel_driver_func,
+	intel_device_match,
+	intel_pci_probe
 };
 
 static pointer intel_setup(pointer module,
@@ -563,24 +411,24 @@ static pointer intel_setup(pointer module,
 			   int *errmaj,
 			   int *errmin)
 {
-    static Bool setupDone = 0;
+	static Bool setupDone = 0;
 
-    /* This module should be loaded only once, but check to be sure.
-    */
-    if (!setupDone) {
-	setupDone = 1;
-	xf86AddDriver(&intel, module, HaveDriverFuncs);
+	/* This module should be loaded only once, but check to be sure.
+	*/
+	if (!setupDone) {
+		setupDone = 1;
+		xf86AddDriver(&intel, module, HaveDriverFuncs);
 
-	/*
-	 * The return value must be non-NULL on success even though there
-	 * is no TearDownProc.
-	 */
-	return (pointer) 1;
-    } else {
-	if (errmaj)
-	    *errmaj = LDR_ONCEONLY;
-	return NULL;
-    }
+		/*
+		 * The return value must be non-NULL on success even though there
+		 * is no TearDownProc.
+		 */
+		return (pointer) 1;
+	} else {
+		if (errmaj)
+			*errmaj = LDR_ONCEONLY;
+		return NULL;
+	}
 }
 
 _X_EXPORT XF86ModuleData intelModuleData = { &intel_version, intel_setup, NULL };

@@ -54,15 +54,17 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@DRI_TRUE@am__append_1 = \
+@SNA_TRUE@am__append_1 = sna
+@SNA_TRUE@am__append_2 = sna/libsna.la
+@DRI_TRUE@am__append_3 = \
 @DRI_TRUE@	intel_dri.c \
 @DRI_TRUE@	$(NULL)
 
-@DRI_TRUE@am__append_2 = \
+@DRI_TRUE@am__append_4 = \
 @DRI_TRUE@	$(DRI_LIBS) \
 @DRI_TRUE@	$(NULL)
 
-@XVMC_TRUE@am__append_3 = \
+@XVMC_TRUE@am__append_5 = \
 @XVMC_TRUE@	intel_hwmc.h \
 @XVMC_TRUE@	intel_hwmc.c \
 @XVMC_TRUE@	$(NULL)
@@ -107,7 +109,7 @@ am__DEPENDENCIES_1 =
 @DRI_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) \
 @DRI_TRUE@	$(am__DEPENDENCIES_1)
 intel_drv_la_DEPENDENCIES = ../uxa/libuxa.la legacy/liblegacy.la \
-	$(am__DEPENDENCIES_2)
+	$(am__append_2) $(am__DEPENDENCIES_2)
 am__intel_drv_la_SOURCES_DIST = brw_defines.h brw_structs.h common.h \
 	intel.h intel_module.c intel_batchbuffer.c intel_batchbuffer.h \
 	intel_display.c intel_driver.c intel_driver.h intel_memory.c \
@@ -173,7 +175,7 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 	distdir
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = xvmc render_program legacy sna
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 am__relativize = \
   dir0=`pwd`; \
@@ -222,6 +224,9 @@ CWARNFLAGS = @CWARNFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DLLTOOL = @DLLTOOL@
+DRI2_CFLAGS = @DRI2_CFLAGS@
+DRI2_LIBS = @DRI2_LIBS@
 DRIVER_MAN_DIR = @DRIVER_MAN_DIR@
 DRIVER_MAN_SUFFIX = @DRIVER_MAN_SUFFIX@
 DRIVER_NAME = @DRIVER_NAME@
@@ -260,6 +265,7 @@ LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
+MANIFEST_TOOL = @MANIFEST_TOOL@
 MAN_SUBSTS = @MAN_SUBSTS@
 MISC_MAN_DIR = @MISC_MAN_DIR@
 MISC_MAN_SUFFIX = @MISC_MAN_SUFFIX@
@@ -287,10 +293,13 @@ RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+STRICT_CFLAGS = @STRICT_CFLAGS@
 STRIP = @STRIP@
 UDEV_CFLAGS = @UDEV_CFLAGS@
 UDEV_LIBS = @UDEV_LIBS@
 VERSION = @VERSION@
+X11_CFLAGS = @X11_CFLAGS@
+X11_LIBS = @X11_LIBS@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
 XORG_MAN_PAGE = @XORG_MAN_PAGE@
@@ -300,6 +309,7 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
+ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
@@ -332,7 +342,6 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 moduledir = @moduledir@
@@ -349,7 +358,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = xvmc render_program legacy
+SUBDIRS = xvmc render_program legacy $(am__append_1)
 
 # this is obnoxious:
 # -module lets us name the module exactly how we want
@@ -364,7 +373,7 @@ intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
 intel_drv_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ -ldrm_intel \
 	../uxa/libuxa.la legacy/liblegacy.la @PCIACCESS_LIBS@ \
-	$(am__append_2)
+	$(am__append_2) $(am__append_4)
 NULL := #
 intel_drv_la_SOURCES = brw_defines.h brw_structs.h common.h intel.h \
 	intel_module.c intel_batchbuffer.c intel_batchbuffer.h \
@@ -372,7 +381,7 @@ intel_drv_la_SOURCES = brw_defines.h brw_structs.h common.h intel.h \
 	intel_shadow.c intel_uxa.c intel_video.c intel_video.h \
 	i830_3d.c i830_render.c i830_reg.h i915_3d.h i915_reg.h \
 	i915_3d.c i915_render.c i915_video.c i965_reg.h i965_video.c \
-	i965_render.c $(NULL) $(am__append_1) $(am__append_3)
+	i965_render.c $(NULL) $(am__append_3) $(am__append_5)
 all: all-recursive
 
 .SUFFIXES:

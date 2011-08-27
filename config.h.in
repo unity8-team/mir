@@ -5,14 +5,26 @@
 /* Enable XvMC support */
 #undef ENABLE_XVMC
 
+/* Enable additional debugging */
+#undef HAS_EXTRA_DEBUG
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <dristruct.h> header file. */
+#undef HAVE_DRISTRUCT_H
+
+/* Define to 1 if you have the <dri.h> header file. */
+#undef HAVE_DRI_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <sarea.h> header file. */
+#undef HAVE_SAREA_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -28,6 +40,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/timerfd.h> header file. */
+#undef HAVE_SYS_TIMERFD_H
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
@@ -78,8 +93,32 @@
 /* Patch version of this package */
 #undef PACKAGE_VERSION_PATCHLEVEL
 
+/* Enable SandyBridge's New Architecture */
+#undef SNA
+
+/* Enable SandyBridge's New Architecture by default */
+#undef SNA_DEFAULT
+
+/* Enable SandyBridge's New Architecture for GEN2 */
+#undef SNA_GEN2
+
+/* Enable SandyBridge's New Architecture for PNV */
+#undef SNA_GEN3
+
+/* Enable SandyBridge's New Architecture for BRW */
+#undef SNA_GEN4
+
+/* Enable SandyBridge's New Architecture for ILK */
+#undef SNA_GEN5
+
+/* Enable SandyBridge's New Architecture for SNB */
+#undef SNA_GEN6
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Assume VMAP support */
+#undef USE_VMAP
 
 /* Version number of package */
 #undef VERSION
