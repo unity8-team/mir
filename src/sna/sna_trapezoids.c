@@ -55,8 +55,8 @@
 #define SAMPLES_X 17
 #define SAMPLES_Y 15
 
-#define FAST_SAMPLES_X_shift 8
-#define FAST_SAMPLES_Y_shift 4
+#define FAST_SAMPLES_X_shift 2
+#define FAST_SAMPLES_Y_shift 2
 
 #define FAST_SAMPLES_X (1<<FAST_SAMPLES_X_shift)
 #define FAST_SAMPLES_Y (1<<FAST_SAMPLES_Y_shift)
@@ -525,8 +525,6 @@ cell_list_find(struct cell_list *cells, int x)
 {
 	struct cell *tail = cells->cursor;
 
-	assert(x >= tail->x);
-
 	if (tail->x == x)
 		return tail;
 
@@ -952,7 +950,7 @@ active_list_can_step_full_row(struct active_list *active)
 				++x.quo;
 		}
 
-		if (x.quo <= prev_x)
+		if (x.quo < prev_x)
 			return false;
 
 		prev_x = x.quo;
@@ -1065,13 +1063,13 @@ nonzero_row(struct active_list *active, struct cell_list *coverages)
 		right = left->next;
 		do {
 			right->height_left -= FAST_SAMPLES_Y;
-			if (! right->height_left) {
+			if (!right->height_left) {
 				right->prev->next = right->next;
 				right->next->prev = right->prev;
 			}
 
 			winding += right->dir;
-			if (0 == winding && right->next->x.quo != right->x.quo)
+			if (0 == winding)
 				break;
 
 			if (!right->vertical) {
@@ -1133,8 +1131,7 @@ tor_add_edge(struct tor *converter,
 
 	y1 = dy + (edge->p1.y >> (16 - FAST_SAMPLES_Y_shift));
 	y2 = dy + (edge->p2.y >> (16 - FAST_SAMPLES_Y_shift));
-	if (y1 == y2)
-		return;
+	assert (y1 < y2);
 
 	x1 = dx + (edge->p1.x >> (16 - FAST_SAMPLES_X_shift));
 	x2 = dx + (edge->p2.x >> (16 - FAST_SAMPLES_X_shift));
@@ -1286,12 +1283,12 @@ tor_blt(struct sna *sna,
 	for (; cell != NULL; cell = cell->next) {
 		int x = cell->x;
 
+		if (x >= xmax)
+			break;
+
 		DBG(("%s: cell=(%d, %d, %d), cover=%d, max=%d\n", __FUNCTION__,
 		     cell->x, cell->covered_height, cell->uncovered_area,
 		     cover, xmax));
-
-		if (x >= xmax)
-			break;
 
 		box.x2 = x;
 		if (box.x2 > box.x1 && (unbounded || cover))
