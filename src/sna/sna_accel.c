@@ -464,67 +464,79 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (sna_damage_contains_box(priv->gpu_damage,
 				    REGION_EXTENTS(NULL, region))) {
-		RegionRec want, need, *r;
+		DBG(("%s: region (%dx%d) intersects gpu damage\n",
+		     __FUNCTION__,
+		     region->extents.x2 - region->extents.x1,
+		     region->extents.y2 - region->extents.y1));
 
-		DBG(("%s: region intersects gpu damage\n", __FUNCTION__));
+		if (region->extents.x2 - region->extents.x1 == 1 &&
+		    region->extents.y2 - region->extents.y1 == 1) {
+			/*  Oftenassociated with synchonrisation, KISS */
+			sna_read_boxes(sna,
+				       priv->gpu_bo, 0, 0,
+				       pixmap, 0, 0,
+				       &region->extents, 1);
+		} else {
+			RegionRec want, need, *r;
 
-		r = region;
-		/* expand the region to move 32x32 pixel blocks at a time */
-		if (priv->cpu_damage == NULL) {
-			int n = REGION_NUM_RECTS(region), i;
-			BoxPtr boxes = REGION_RECTS(region);
-			BoxPtr blocks = malloc(sizeof(BoxRec) * REGION_NUM_RECTS(region));
-			if (blocks) {
-				for (i = 0; i < n; i++) {
-					blocks[i].x1 = boxes[i].x1 & ~31;
-					if (blocks[i].x1 < 0)
-						blocks[i].x1 = 0;
+			r = region;
+			/* expand the region to move 32x32 pixel blocks at a time */
+			if (priv->cpu_damage == NULL) {
+				int n = REGION_NUM_RECTS(region), i;
+				BoxPtr boxes = REGION_RECTS(region);
+				BoxPtr blocks = malloc(sizeof(BoxRec) * REGION_NUM_RECTS(region));
+				if (blocks) {
+					for (i = 0; i < n; i++) {
+						blocks[i].x1 = boxes[i].x1 & ~31;
+						if (blocks[i].x1 < 0)
+							blocks[i].x1 = 0;
 
-					blocks[i].x2 = (boxes[i].x2 + 31) & ~31;
-					if (blocks[i].x2 > pixmap->drawable.width)
-						blocks[i].x2 = pixmap->drawable.width;
+						blocks[i].x2 = (boxes[i].x2 + 31) & ~31;
+						if (blocks[i].x2 > pixmap->drawable.width)
+							blocks[i].x2 = pixmap->drawable.width;
 
-					blocks[i].y1 = boxes[i].y1 & ~31;
-					if (blocks[i].y1 < 0)
-						blocks[i].y1 = 0;
+						blocks[i].y1 = boxes[i].y1 & ~31;
+						if (blocks[i].y1 < 0)
+							blocks[i].y1 = 0;
 
-					blocks[i].y2 = (boxes[i].y2 + 31) & ~31;
-					if (blocks[i].y2 > pixmap->drawable.height)
-						blocks[i].y2 = pixmap->drawable.height;
+						blocks[i].y2 = (boxes[i].y2 + 31) & ~31;
+						if (blocks[i].y2 > pixmap->drawable.height)
+							blocks[i].y2 = pixmap->drawable.height;
+					}
+					if (pixman_region_init_rects(&want, blocks, i))
+						r = &want;
+					free(blocks);
 				}
-				if (pixman_region_init_rects(&want, blocks, i))
-					r = &want;
-				free(blocks);
 			}
+
+			pixman_region_init(&need);
+			if (sna_damage_intersect(priv->gpu_damage, r, &need)) {
+				BoxPtr box = REGION_RECTS(&need);
+				int n = REGION_NUM_RECTS(&need);
+				struct kgem_bo *dst_bo;
+				Bool ok = FALSE;
+
+				dst_bo = NULL;
+				if (sna->kgem.gen >= 30)
+					dst_bo = pixmap_vmap(&sna->kgem, pixmap);
+				if (dst_bo)
+					ok = sna->render.copy_boxes(sna, GXcopy,
+								    pixmap, priv->gpu_bo, 0, 0,
+								    pixmap, dst_bo, 0, 0,
+								    box, n);
+				if (!ok)
+					sna_read_boxes(sna,
+						       priv->gpu_bo, 0, 0,
+						       pixmap, 0, 0,
+						       box, n);
+
+				sna_damage_subtract(&priv->gpu_damage,
+						    n <= REGION_NUM_RECTS(r) ? &need : r);
+				RegionUninit(&need);
+			}
+			if (r == &want)
+				pixman_region_fini(&want);
 		}
-
-		pixman_region_init(&need);
-		if (sna_damage_intersect(priv->gpu_damage, r, &need)) {
-			BoxPtr box = REGION_RECTS(&need);
-			int n = REGION_NUM_RECTS(&need);
-			struct kgem_bo *dst_bo;
-			Bool ok = FALSE;
-
-			dst_bo = NULL;
-			if (sna->kgem.gen >= 30)
-				dst_bo = pixmap_vmap(&sna->kgem, pixmap);
-			if (dst_bo)
-				ok = sna->render.copy_boxes(sna, GXcopy,
-							    pixmap, priv->gpu_bo, 0, 0,
-							    pixmap, dst_bo, 0, 0,
-							    box, n);
-			if (!ok)
-				sna_read_boxes(sna,
-					       priv->gpu_bo, 0, 0,
-					       pixmap, 0, 0,
-					       box, n);
-
-			sna_damage_subtract(&priv->gpu_damage,
-					    n <= REGION_NUM_RECTS(r) ? &need : r);
-			RegionUninit(&need);
-		}
-		if (r == &want)
-			pixman_region_fini(&want);
 	}
 
 done:
