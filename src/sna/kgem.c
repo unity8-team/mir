@@ -692,7 +692,10 @@ static void kgem_finish_partials(struct kgem *kgem)
 			if (bo->base.refcnt == 1) {
 				DBG(("%s: discarding unused partial array: %d/%d\n",
 				     __FUNCTION__, bo->used, bo->alloc));
-				goto unref;
+
+				list_del(&bo->base.list);
+				gem_close(kgem->fd, bo->base.handle);
+				free(bo);
 			}
 
 			continue;
@@ -706,7 +709,6 @@ static void kgem_finish_partials(struct kgem *kgem)
 			bo->need_io = 0;
 		}
 
-unref:
 		list_del(&bo->base.list);
 		kgem_bo_unref(kgem, &bo->base);
 	}
@@ -1840,7 +1842,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		}
 	}
 
-
 	alloc = (flags & KGEM_BUFFER_LAST) ? 4096 : 32 * 1024;
 	alloc = ALIGN(size, alloc);
 
@@ -1879,10 +1880,10 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		bo->need_io = true;
 	} else {
 		__kgem_bo_init(&bo->base, handle, alloc);
-		bo->base.reusable = false;
 		bo->base.sync = true;
 		bo->need_io = 0;
 	}
+	bo->base.reusable = false;
 
 	bo->alloc = alloc;
 	bo->used = size;
