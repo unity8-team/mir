@@ -701,15 +701,29 @@ static void kgem_finish_partials(struct kgem *kgem)
 			continue;
 		}
 
+		list_del(&bo->base.list);
+
 		if (bo->write && bo->need_io) {
 			DBG(("%s: handle=%d, uploading %d/%d\n",
 			     __FUNCTION__, bo->base.handle, bo->used, bo->alloc));
 			gem_write(kgem->fd, bo->base.handle,
 				  0, bo->used, bo+1);
 			bo->need_io = 0;
+
+			/* transfer the handle to a minimum bo */
+			if (bo->base.refcnt == 1) {
+				struct kgem_bo *base = malloc(sizeof(*base));
+				if (base) {
+					memcpy(base, &bo->base, sizeof (*base));
+					list_init(&base->list);
+					list_replace(&bo->base.request,
+						     &base->request);
+					free(bo);
+					bo = (struct kgem_partial_bo *)base;
+				}
+			}
 		}
 
-		list_del(&bo->base.list);
 		kgem_bo_unref(kgem, &bo->base);
 	}
 }
