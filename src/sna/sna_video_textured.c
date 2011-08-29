@@ -240,6 +240,9 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	int top, left, npixels, nlines;
 	Bool flush = false;
 
+	if (!sna_pixmap(pixmap))
+		return BadAlloc;
+
 	if (!sna_video_clip_helper(scrn, video, &crtc, &dstBox,
 				   src_x, src_y, drw_x, drw_y,
 				   src_w, src_h, drw_w, drw_h,
