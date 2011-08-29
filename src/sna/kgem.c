@@ -1064,6 +1064,45 @@ bool kgem_expire_cache(struct kgem *kgem)
 	(void)size;
 }
 
+void kgem_cleanup_cache(struct kgem *kgem)
+{
+	struct kgem_bo *bo;
+	int i;
+
+	/* sync to the most recent request */
+	if (!list_is_empty(&kgem->requests)) {
+		struct kgem_request *rq;
+		struct drm_i915_gem_set_domain set_domain;
+
+		rq = list_first_entry(&kgem->requests,
+				      struct kgem_request,
+				      list);
+
+		set_domain.handle = rq->bo->handle;
+		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
+		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
+	}
+
+	kgem_retire(kgem);
+	kgem_cleanup(kgem);
+	kgem_expire_partial(kgem);
+
+	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
+		while (!list_is_empty(&kgem->inactive[i])) {
+			bo = list_last_entry(&kgem->inactive[i],
+					     struct kgem_bo, list);
+
+			gem_close(kgem->fd, bo->handle);
+			list_del(&bo->list);
+			free(bo);
+		}
+	}
+
+	kgem->need_purge = false;
+	kgem->need_expire = false;
+}
+
 static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, int size, bool active)
 {

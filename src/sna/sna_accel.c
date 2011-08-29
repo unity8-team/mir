@@ -3400,6 +3400,8 @@ void sna_accel_close(struct sna *sna)
 	sna_gradients_close(sna);
 
 	DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
+
+	kgem_cleanup_cache(&sna->kgem);
 }
 
 static void sna_accel_throttle(struct sna *sna)

@@ -327,6 +327,7 @@ void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_throttle(struct kgem *kgem);
 bool kgem_expire_cache(struct kgem *kgem);
+void kgem_cleanup_cache(struct kgem *kgem);
 
 #if HAS_EXTRA_DEBUG
 void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch);
