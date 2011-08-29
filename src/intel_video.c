@@ -1530,6 +1530,9 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 	xf86CrtcPtr crtc;
 	int top, left, npixels, nlines;
 
+	if (!intel_pixmap_is_offscreen(pixmap))
+		return BadAlloc;
+
 #if 0
 	ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
 	       "width %d, height %d\n", src_x, src_y, src_w, src_h, drw_x,

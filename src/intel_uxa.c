@@ -689,8 +689,7 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 static Bool intel_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 {
-	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
-	return priv && priv->offscreen;
+	return intel_pixmap_is_offscreen(pixmap);
 }
 
 static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)

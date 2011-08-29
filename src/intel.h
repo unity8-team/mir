@@ -737,4 +737,10 @@ Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 void intel_shadow_blt(intel_screen_private *intel);
 void intel_shadow_create(struct intel_screen_private *intel);
 
+static inline Bool intel_pixmap_is_offscreen(PixmapPtr pixmap)
+{
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	return priv && priv->offscreen;
+}
+
 #endif /* _I830_H_ */
