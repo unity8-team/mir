@@ -178,7 +178,6 @@ struct edge {
 
 	/* Advance of the current x when moving down a subsample line. */
 	struct quorem dxdy;
-	struct quorem dxdy_full;
 	grid_scaled_y_t dy;
 
 	/* The clipped y of the top of the edge. */
@@ -306,7 +305,7 @@ floored_divrem(int a, int b)
 	struct quorem qr;
 	qr.quo = a/b;
 	qr.rem = a%b;
-	if ((a^b)<0 && qr.rem) {
+	if (qr.rem && (a^b)<0) {
 		qr.quo -= 1;
 		qr.rem += b;
 	}
@@ -322,7 +321,7 @@ floored_muldivrem(int x, int a, int b)
 	long long xa = (long long)x*a;
 	qr.quo = xa/b;
 	qr.rem = xa%b;
-	if ((xa>=0) != (b>=0) && qr.rem) {
+	if (qr.rem && (xa>=0) != (b>=0)) {
 		qr.quo -= 1;
 		qr.rem += b;
 	}
@@ -569,129 +568,20 @@ cell_list_add_subspan(struct cell_list *cells,
 		cell->uncovered_area += 2*(fx1-fx2);
 }
 
-/* Adds the analytical coverage of an edge crossing the current pixel
- * row to the coverage cells and advances the edge's x position to the
- * following row.
- *
- * This function is only called when we know that during this pixel row:
- *
- * 1) The relative order of all edges on the active list doesn't
- * change.  In particular, no edges intersect within this row to pixel
- * precision.
- *
- * 2) No new edges start in this row.
- *
- * 3) No existing edges end mid-row.
- *
- * This function depends on being called with all edges from the
- * active list in the order they appear on the list (i.e. with
- * non-decreasing x-coordinate.)  */
 static void
 cell_list_render_edge(struct cell_list *cells, struct edge *edge, int sign)
 {
-	grid_scaled_y_t y1, y2, dy;
-	grid_scaled_x_t fx1, fx2, dx;
-	int ix1, ix2;
-	struct quorem x1 = edge->x;
-	struct quorem x2 = x1;
+	struct cell *cell;
+	grid_scaled_x_t fx;
+	int ix;
 
-	if (!edge->vertical) {
-		x2.quo += edge->dxdy_full.quo;
-		x2.rem += edge->dxdy_full.rem;
-		if (x2.rem >= 0) {
-			++x2.quo;
-			x2.rem -= edge->dy;
-		}
+	FAST_SAMPLES_X_TO_INT_FRAC(edge->x.quo, ix, fx);
 
-		edge->x = x2;
-	}
-
-	FAST_SAMPLES_X_TO_INT_FRAC(x1.quo, ix1, fx1);
-	FAST_SAMPLES_X_TO_INT_FRAC(x2.quo, ix2, fx2);
-
-	DBG(("%s: x1=%d (%d+%d), x2=%d (%d+%d)\n", __FUNCTION__,
-	     x1.quo, ix1, fx1, x2.quo, ix2, fx2));
-
-	/* Edge is entirely within a column? */
-	if (ix1 == ix2) {
-		/* We always know that ix1 is >= the cell list cursor in this
-		 * case due to the no-intersections precondition.  */
-		struct cell *cell = cell_list_find(cells, ix1);
-		cell->covered_height += sign*FAST_SAMPLES_Y;
-		cell->uncovered_area += sign*(fx1 + fx2)*FAST_SAMPLES_Y;
-		return;
-	}
-
-	/* Orient the edge left-to-right. */
-	dx = x2.quo - x1.quo;
-	if (dx >= 0) {
-		y1 = 0;
-		y2 = FAST_SAMPLES_Y;
-	} else {
-		int tmp;
-		tmp = ix1; ix1 = ix2; ix2 = tmp;
-		tmp = fx1; fx1 = fx2; fx2 = tmp;
-		dx = -dx;
-		sign = -sign;
-		y1 = FAST_SAMPLES_Y;
-		y2 = 0;
-	}
-	dy = y2 - y1;
-
-	/* Add coverage for all pixels [ix1,ix2] on this row crossed
-	 * by the edge. */
-	{
-		struct quorem y = floored_divrem((FAST_SAMPLES_X - fx1)*dy, dx);
-		struct cell *cell;
-
-		/* When rendering a previous edge on the active list we may
-		 * advance the cell list cursor past the leftmost pixel of the
-		 * current edge even though the two edges don't intersect.
-		 * e.g. consider two edges going down and rightwards:
-		 *
-		 *  --\_+---\_+-----+-----+----
-		 *      \_    \_    |     |
-		 *      | \_  | \_  |     |
-		 *      |   \_|   \_|     |
-		 *      |     \_    \_    |
-		 *  ----+-----+-\---+-\---+----
-		 *
-		 * The left edge touches cells past the starting cell of the
-		 * right edge.  Fortunately such cases are rare.
-		 *
-		 * The rewinding is never necessary if the current edge stays
-		 * within a single column because we've checked before calling
-		 * this function that the active list order won't change. */
-		cell_list_maybe_rewind(cells, ix1);
-
-		cell = cell_list_find(cells, ix1);
-		cell->uncovered_area += sign*y.quo*(FAST_SAMPLES_X + fx1);
-		cell->covered_height += sign*y.quo;
-		y.quo += y1;
-
-		cell = cell_list_find(cells, ++ix1);
-		if (ix1 < ix2) {
-			struct quorem dydx_full = floored_divrem(FAST_SAMPLES_X*dy, dx);
-			do {
-				grid_scaled_y_t y_skip = dydx_full.quo;
-				y.rem += dydx_full.rem;
-				if (y.rem >= dx) {
-					++y_skip;
-					y.rem -= dx;
-				}
-
-				y.quo += y_skip;
-
-				y_skip *= sign;
-				cell->uncovered_area += y_skip*FAST_SAMPLES_X;
-				cell->covered_height += y_skip;
-
-				cell = cell_list_find(cells, ++ix1);
-			} while (ix1 != ix2);
-		}
-		cell->uncovered_area += sign*(y2 - y.quo)*fx2;
-		cell->covered_height += sign*(y2 - y.quo);
-	}
+	/* We always know that ix1 is >= the cell list cursor in this
+	 * case due to the no-intersections precondition.  */
+	cell = cell_list_find(cells, ix);
+	cell->covered_height += sign*FAST_SAMPLES_Y;
+	cell->uncovered_area += sign*2*fx*FAST_SAMPLES_Y;
 }
 
 static void
@@ -783,8 +673,6 @@ polygon_add_edge(struct polygon *polygon,
 		e->x.rem = 0;
 		e->dxdy.quo = 0;
 		e->dxdy.rem = 0;
-		e->dxdy_full.quo = 0;
-		e->dxdy_full.rem = 0;
 	} else {
 		e->vertical = false;
 		e->dxdy = floored_divrem(dx, dy);
@@ -794,13 +682,6 @@ polygon_add_edge(struct polygon *polygon,
 		} else {
 			e->x = floored_muldivrem(ytop - y1, dx, dy);
 			e->x.quo += x1;
-		}
-
-		if (e->height_left >= FAST_SAMPLES_Y) {
-			e->dxdy_full = floored_muldivrem(FAST_SAMPLES_Y, dx, dy);
-		} else {
-			e->dxdy_full.quo = 0;
-			e->dxdy_full.rem = 0;
 		}
 	}
 
@@ -915,10 +796,9 @@ merge_unsorted_edges (struct edge *head, struct edge *unsorted)
 /* Test if the edges on the active list can be safely advanced by a
  * full row without intersections or any edges ending. */
 inline static bool
-active_list_can_step_full_row(struct active_list *active)
+can_full_step(struct active_list *active)
 {
 	const struct edge *e;
-	int prev_x = INT_MIN;
 
 	/* Recomputes the minimum height of all edges on the active
 	 * list if we have been dropping edges. */
@@ -939,24 +819,7 @@ active_list_can_step_full_row(struct active_list *active)
 	if (active->min_height < FAST_SAMPLES_Y)
 		return false;
 
-	/* Check for intersections as no edges end during the next row. */
-	for (e = active->head.next; &active->tail != e; e = e->next) {
-		struct quorem x = e->x;
-
-		if (!e->vertical) {
-			x.quo += e->dxdy_full.quo;
-			x.rem += e->dxdy_full.rem;
-			if (x.rem >= 0)
-				++x.quo;
-		}
-
-		if (x.quo < prev_x)
-			return false;
-
-		prev_x = x.quo;
-	}
-
-	return true;
+	return active->is_vertical;
 }
 
 inline static void
@@ -995,8 +858,8 @@ inline static void
 nonzero_subrow(struct active_list *active, struct cell_list *coverages)
 {
 	struct edge *edge = active->head.next;
-	grid_scaled_x_t prev_x = INT_MIN;
-	int winding = 0, xstart = INT_MIN;
+	grid_scaled_x_t prev_x = -1;
+	int winding = 0, xstart = -1;
 
 	cell_list_rewind (coverages);
 
@@ -1008,9 +871,9 @@ nonzero_subrow(struct active_list *active, struct cell_list *coverages)
 			if (edge->next->x.quo != edge->x.quo) {
 				cell_list_add_subspan(coverages,
 						      xstart, edge->x.quo);
-				xstart = INT_MIN;
+				xstart = -1;
 			}
-		} else if (xstart == INT_MIN)
+		} else if (xstart < 0)
 			xstart = edge->x.quo;
 
 		if (--edge->height_left) {
@@ -1050,6 +913,8 @@ nonzero_row(struct active_list *active, struct cell_list *coverages)
 {
 	struct edge *left = active->head.next;
 
+	assert(active->is_vertical);
+
 	while (&active->tail != left) {
 		struct edge *right;
 		int winding = left->dir;
@@ -1071,15 +936,6 @@ nonzero_row(struct active_list *active, struct cell_list *coverages)
 			winding += right->dir;
 			if (0 == winding)
 				break;
-
-			if (!right->vertical) {
-				right->x.quo += right->dxdy_full.quo;
-				right->x.rem += right->dxdy_full.rem;
-				if (right->x.rem >= 0) {
-					++right->x.quo;
-					right->x.rem -= right->dy;
-				}
-			}
 
 			right = right->next;
 		} while (1);
@@ -1232,7 +1088,7 @@ tor_blt_span_mono_unbounded(struct sna *sna,
 			    int coverage)
 {
 	tor_blt_span(sna, op, clip, box,
-		     coverage < FAST_SAMPLES_XY/2 ? 0 :FAST_SAMPLES_XY);
+		     coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
 }
 
 static void
@@ -1243,7 +1099,7 @@ tor_blt_span_mono_unbounded_clipped(struct sna *sna,
 				    int coverage)
 {
 	tor_blt_span_clipped(sna, op, clip, box,
-			     coverage < FAST_SAMPLES_XY/2 ? 0 :FAST_SAMPLES_XY);
+			     coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
 }
 
 static void
@@ -1378,7 +1234,7 @@ tor_render(struct sna *sna,
 				continue;
 			}
 
-			do_full_step = active_list_can_step_full_row(active);
+			do_full_step = can_full_step(active);
 		}
 
 		DBG(("%s: y=%d [%d], do_full_step=%d, new edges=%d, min_height=%d, vertical=%d\n",
@@ -2081,7 +1937,7 @@ composite_unaligned_boxes(CARD8 op,
 }
 
 static bool
-tor_scan_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+tor_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		   PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
 		   int ntrap, xTrapezoid *traps)
 {
@@ -2102,7 +1958,7 @@ tor_scan_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	/* XXX strict adhernce to the Reneder specification */
+	/* XXX strict adherence to the Render specification */
 	if (dst->polyMode == PolyModePrecise) {
 		DBG(("%s: fallback -- precise rasterisation requested\n",
 		     __FUNCTION__));
@@ -2122,6 +1978,14 @@ tor_scan_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	miTrapezoidBounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
+
+#if 0
+	if (extents.y2 - extents.y1 < 64 && extents.x2 - extents.x1 < 64) {
+		DBG(("%s: fallback -- traps extents too small %dx%d\n",
+		     __FUNCTION__, extents.y2 - extents.y1, extents.x2 - extents.x1));
+		return false;
+	}
+#endif
 
 	DBG(("%s: extents (%d, %d), (%d, %d)\n",
 	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
@@ -2216,6 +2080,197 @@ skip:
 	return true;
 }
 
+static void
+tor_blt_mask_mono(struct sna *sna,
+		  struct sna_composite_spans_op *op,
+		  pixman_region16_t *clip,
+		  const BoxRec *box,
+		  int coverage)
+{
+	uint8_t *ptr = (uint8_t *)op;
+	int stride = (intptr_t)clip;
+	int h, w;
+
+	coverage = coverage < FAST_SAMPLES_XY/2 ? 0 : 255;
+
+	ptr += box->y1 * stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	if (w == 1) {
+		while (h--) {
+			*ptr = coverage;
+			ptr += stride;
+		}
+	} else {
+		while (h--) {
+			memset(ptr, coverage, w);
+			ptr += stride;
+		}
+	}
+}
+
+static void
+tor_blt_mask(struct sna *sna,
+	     struct sna_composite_spans_op *op,
+	     pixman_region16_t *clip,
+	     const BoxRec *box,
+	     int coverage)
+{
+	uint8_t *ptr = (uint8_t *)op;
+	int stride = (intptr_t)clip;
+	int h, w;
+
+	coverage = 256 * coverage / FAST_SAMPLES_XY;
+	coverage -= coverage >> 8;
+
+	ptr += box->y1 * stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	if (w == 1) {
+		while (h--) {
+			*ptr = coverage;
+			ptr += stride;
+		}
+	} else {
+		while (h--) {
+			memset(ptr, coverage, w);
+			ptr += stride;
+		}
+	}
+}
+
+static bool
+tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+		   PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+		   int ntrap, xTrapezoid *traps)
+{
+	struct tor tor;
+	void (*span)(struct sna *sna,
+		     struct sna_composite_spans_op *op,
+		     pixman_region16_t *clip,
+		     const BoxRec *box,
+		     int coverage);
+	ScreenPtr screen = dst->pDrawable->pScreen;
+	PixmapPtr scratch;
+	PicturePtr mask;
+	BoxRec extents;
+	int16_t dst_x, dst_y;
+	int16_t dx, dy;
+	int depth, error;
+	pixman_format_code_t format;
+	int n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	if (dst->polyMode == PolyModePrecise) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if (maskFormat == NULL && ntrap > 1) {
+		DBG(("%s: fallback -- individual rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	miTrapezoidBounds(ntrap, traps, &extents);
+	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	if (!sna_compute_composite_extents(&extents,
+					   src, NULL, dst,
+					   src_x, src_y,
+					   0, 0,
+					   extents.x1, extents.y1,
+					   extents.x2 - extents.x1,
+					   extents.y2 - extents.y1))
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	extents.y2 -= extents.y1;
+	extents.x2 -= extents.x1;
+	extents.x1 -= dst->pDrawable->x;
+	extents.y1 -= dst->pDrawable->y;
+	dst_x = extents.x1;
+	dst_y = extents.y1;
+	dx = -extents.x1 * FAST_SAMPLES_X;
+	dy = -extents.y1 * FAST_SAMPLES_Y;
+	extents.x1 = extents.y1 = 0;
+
+	depth = maskFormat->depth;
+	format = maskFormat->format | (BitsPerPixel(depth) << 24);
+
+	DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
+	     __FUNCTION__, extents.x2, extents.y2, depth, format));
+	scratch = sna_pixmap_create_upload(screen,
+					   extents.x2, extents.y2, depth);
+	if (!scratch)
+		return true;
+
+	DBG(("%s: created buffer %p, stride %d\n",
+	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
+
+	if (tor_init(&tor, &extents, 2*ntrap)) {
+		screen->DestroyPixmap(scratch);
+		return true;
+	}
+
+	for (n = 0; n < ntrap; n++) {
+		int top, bottom;
+
+		if (!xTrapezoidValid(&traps[n]))
+			continue;
+
+		if (pixman_fixed_to_int(traps[n].top) - dst_y >= extents.y2 ||
+		    pixman_fixed_to_int(traps[n].bottom) - dst_y < 0)
+			continue;
+
+		top = dy + (traps[n].top >> (16 - FAST_SAMPLES_Y_shift));
+		bottom = dy + (traps[n].bottom >> (16 - FAST_SAMPLES_Y_shift));
+		if (top >= bottom)
+			continue;
+
+		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].left, 1);
+		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].right, -1);
+	}
+
+	if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+		span = tor_blt_mask_mono;
+	else
+		span = tor_blt_mask;
+
+	tor_render(NULL, &tor,
+		   scratch->devPrivate.ptr,
+		   (void *)(intptr_t)scratch->devKind,
+		   span, true);
+
+	mask = CreatePicture(0, &scratch->drawable,
+			     PictureMatchFormat(screen, depth, format),
+			     0, 0, serverClient, &error);
+	screen->DestroyPixmap(scratch);
+	if (mask) {
+		CompositePicture(op, src, mask, dst,
+				 src_x + dst_x - pixman_fixed_to_int(traps[0].left.p1.x),
+				 src_y + dst_y - pixman_fixed_to_int(traps[0].left.p1.y),
+				 0, 0,
+				 dst_x, dst_y,
+				 extents.x2, extents.y2);
+		FreePicture(mask, 0);
+	}
+	tor_fini(&tor);
+
+	return true;
+}
+
 void
 sna_composite_trapezoids(CARD8 op,
 			 PicturePtr src,
@@ -2291,7 +2346,11 @@ sna_composite_trapezoids(CARD8 op,
 		}
 	}
 
-	if (tor_scan_converter(op, src, dst, maskFormat,
+	if (tor_span_converter(op, src, dst, maskFormat,
+			       xSrc, ySrc, ntrap, traps))
+		return;
+
+	if (tor_mask_converter(op, src, dst, maskFormat,
 			       xSrc, ySrc, ntrap, traps))
 		return;
 
