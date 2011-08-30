@@ -1147,8 +1147,14 @@ tor_blt(struct sna *sna,
 		     cover, xmax));
 
 		box.x2 = x;
-		if (box.x2 > box.x1 && (unbounded || cover))
+		if (box.x2 > box.x1 && (unbounded || cover)) {
+			DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+			     box.x1, box.y1,
+			     box.x2 - box.x1,
+			     box.y2 - box.y1,
+			     cover));
 			span(sna, op, clip, &box, cover);
+		}
 		box.x1 = box.x2;
 
 		cover += cell->covered_height*FAST_SAMPLES_X*2;
@@ -1156,15 +1162,27 @@ tor_blt(struct sna *sna,
 		if (cell->uncovered_area) {
 			int area = cover - cell->uncovered_area;
 			box.x2 = x + 1;
-			if (unbounded || area)
+			if (unbounded || area) {
+				DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+				     box.x1, box.y1,
+				     box.x2 - box.x1,
+				     box.y2 - box.y1,
+				     area));
 				span(sna, op, clip, &box, area);
+			}
 			box.x1 = box.x2;
 		}
 	}
 
 	box.x2 = xmax;
-	if (box.x2 > box.x1 && (unbounded || cover))
+	if (box.x2 > box.x1 && (unbounded || cover)) {
+		DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+		     box.x1, box.y1,
+		     box.x2 - box.x1,
+		     box.y2 - box.y1,
+		     cover));
 		span(sna, op, clip, &box, cover);
+	}
 }
 
 static void
@@ -2081,36 +2099,6 @@ skip:
 }
 
 static void
-tor_blt_mask_mono(struct sna *sna,
-		  struct sna_composite_spans_op *op,
-		  pixman_region16_t *clip,
-		  const BoxRec *box,
-		  int coverage)
-{
-	uint8_t *ptr = (uint8_t *)op;
-	int stride = (intptr_t)clip;
-	int h, w;
-
-	coverage = coverage < FAST_SAMPLES_XY/2 ? 0 : 255;
-
-	ptr += box->y1 * stride + box->x1;
-
-	h = box->y2 - box->y1;
-	w = box->x2 - box->x1;
-	if (w == 1) {
-		while (h--) {
-			*ptr = coverage;
-			ptr += stride;
-		}
-	} else {
-		while (h--) {
-			memset(ptr, coverage, w);
-			ptr += stride;
-		}
-	}
-}
-
-static void
 tor_blt_mask(struct sna *sna,
 	     struct sna_composite_spans_op *op,
 	     pixman_region16_t *clip,
@@ -2141,6 +2129,17 @@ tor_blt_mask(struct sna *sna,
 	}
 }
 
+static void
+tor_blt_mask_mono(struct sna *sna,
+		  struct sna_composite_spans_op *op,
+		  pixman_region16_t *clip,
+		  const BoxRec *box,
+		  int coverage)
+{
+	tor_blt_mask(sna, op, clip, box,
+		     coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
 static bool
 tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		   PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
@@ -2158,8 +2157,7 @@ tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	int16_t dst_x, dst_y;
 	int16_t dx, dy;
-	int depth, error;
-	pixman_format_code_t format;
+	int error;
 	int n;
 
 	if (NO_SCAN_CONVERTER)
@@ -2206,13 +2204,9 @@ tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	dy = -extents.y1 * FAST_SAMPLES_Y;
 	extents.x1 = extents.y1 = 0;
 
-	depth = maskFormat->depth;
-	format = maskFormat->format | (BitsPerPixel(depth) << 24);
-
-	DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
-	     __FUNCTION__, extents.x2, extents.y2, depth, format));
-	scratch = sna_pixmap_create_upload(screen,
-					   extents.x2, extents.y2, depth);
+	DBG(("%s: mask (%dx%d)\n",
+	     __FUNCTION__, extents.x2, extents.y2));
+	scratch = sna_pixmap_create_upload(screen, extents.x2, extents.y2, 8);
 	if (!scratch)
 		return true;
 
@@ -2254,7 +2248,7 @@ tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		   span, true);
 
 	mask = CreatePicture(0, &scratch->drawable,
-			     PictureMatchFormat(screen, depth, format),
+			     PictureMatchFormat(screen, 8, PICT_a8),
 			     0, 0, serverClient, &error);
 	screen->DestroyPixmap(scratch);
 	if (mask) {
