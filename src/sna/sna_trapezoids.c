@@ -987,18 +987,15 @@ tor_add_edge(struct tor *converter,
 
 	y1 = dy + (edge->p1.y >> (16 - FAST_SAMPLES_Y_shift));
 	y2 = dy + (edge->p2.y >> (16 - FAST_SAMPLES_Y_shift));
-	assert (y1 < y2);
 
 	x1 = dx + (edge->p1.x >> (16 - FAST_SAMPLES_X_shift));
 	x2 = dx + (edge->p2.x >> (16 - FAST_SAMPLES_X_shift));
 
 	DBG(("%s: edge=(%d, %d), (%d, %d), top=%d, bottom=%d, dir=%d\n",
 	     __FUNCTION__, x1, y1, x2, y2, top, bottom, dir));
-	polygon_add_edge(converter->polygon,
-			 x1, x2,
-			 y1, y2,
-			 top, bottom,
-			 dir);
+	assert (y1 < y2);
+
+	polygon_add_edge(converter->polygon, x1, x2, y1, y2, top, bottom, dir);
 }
 
 static void
@@ -1954,6 +1951,14 @@ composite_unaligned_boxes(CARD8 op,
 	return true;
 }
 
+static inline bool
+fast_trapezoid_valid(xTrapezoid *t)
+{
+	return ((t->left.p1.y >> (16 - FAST_SAMPLES_Y_shift)) != (t->left.p2.y >> (16 - FAST_SAMPLES_Y_shift)) &&
+		(t->right.p1.y >> (16 - FAST_SAMPLES_Y_shift)) != (t->right.p2.y >> (16 - FAST_SAMPLES_Y_shift)) &&
+		(t->bottom >> (16 - FAST_SAMPLES_Y_shift)) > (t->top >> (16 - FAST_SAMPLES_Y_shift)));
+}
+
 static bool
 tor_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		   PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
@@ -2054,7 +2059,7 @@ tor_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	for (n = 0; n < ntrap; n++) {
 		int top, bottom;
 
-		if (!xTrapezoidValid(&traps[n]))
+		if (!fast_trapezoid_valid(&traps[n]))
 			continue;
 
 		if (pixman_fixed_to_int(traps[n].top) + dst->pDrawable->y >= extents.y2 ||
@@ -2063,8 +2068,6 @@ tor_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 		top = dy + (traps[n].top >> (16 - FAST_SAMPLES_Y_shift));
 		bottom = dy + (traps[n].bottom >> (16 - FAST_SAMPLES_Y_shift));
-		if (top >= bottom)
-			continue;
 
 		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].left, 1);
 		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].right, -1);
@@ -2221,7 +2224,7 @@ tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	for (n = 0; n < ntrap; n++) {
 		int top, bottom;
 
-		if (!xTrapezoidValid(&traps[n]))
+		if (!fast_trapezoid_valid(&traps[n]))
 			continue;
 
 		if (pixman_fixed_to_int(traps[n].top) - dst_y >= extents.y2 ||
@@ -2230,8 +2233,6 @@ tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 		top = dy + (traps[n].top >> (16 - FAST_SAMPLES_Y_shift));
 		bottom = dy + (traps[n].bottom >> (16 - FAST_SAMPLES_Y_shift));
-		if (top >= bottom)
-			continue;
 
 		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].left, 1);
 		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].right, -1);
