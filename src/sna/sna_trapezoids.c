@@ -659,6 +659,10 @@ polygon_add_edge(struct polygon *polygon,
 	grid_scaled_y_t ymin = polygon->ymin;
 	grid_scaled_y_t ymax = polygon->ymax;
 
+	DBG(("%s: edge=(%d, %d), (%d, %d), top=%d, bottom=%d, dir=%d\n",
+	     __FUNCTION__, x1, y1, x2, y2, top, bottom, dir));
+	assert (dy > 0);
+
 	e->dy = dy;
 	e->dir = dir;
 
@@ -977,25 +981,15 @@ tor_init(struct tor *converter, const BoxRec *box, int num_edges)
 
 static void
 tor_add_edge(struct tor *converter,
-	     int dx, int dy,
-	     int top, int bottom,
+	     const xTrapezoid *t,
 	     const xLineFixed *edge,
 	     int dir)
 {
-	int x1, x2;
-	int y1, y2;
-
-	y1 = dy + (edge->p1.y >> (16 - FAST_SAMPLES_Y_shift));
-	y2 = dy + (edge->p2.y >> (16 - FAST_SAMPLES_Y_shift));
-
-	x1 = dx + (edge->p1.x >> (16 - FAST_SAMPLES_X_shift));
-	x2 = dx + (edge->p2.x >> (16 - FAST_SAMPLES_X_shift));
-
-	DBG(("%s: edge=(%d, %d), (%d, %d), top=%d, bottom=%d, dir=%d\n",
-	     __FUNCTION__, x1, y1, x2, y2, top, bottom, dir));
-	assert (y1 < y2);
-
-	polygon_add_edge(converter->polygon, x1, x2, y1, y2, top, bottom, dir);
+	polygon_add_edge(converter->polygon,
+			 edge->p1.x, edge->p2.x,
+			 edge->p1.y, edge->p2.y,
+			 t->top, t->bottom,
+			 dir);
 }
 
 static void
@@ -1952,11 +1946,24 @@ composite_unaligned_boxes(CARD8 op,
 }
 
 static inline bool
-fast_trapezoid_valid(xTrapezoid *t)
+project_trapezoid_onto_grid(const xTrapezoid *in,
+			    int dx, int dy,
+			    xTrapezoid *out)
 {
-	return ((t->left.p1.y >> (16 - FAST_SAMPLES_Y_shift)) != (t->left.p2.y >> (16 - FAST_SAMPLES_Y_shift)) &&
-		(t->right.p1.y >> (16 - FAST_SAMPLES_Y_shift)) != (t->right.p2.y >> (16 - FAST_SAMPLES_Y_shift)) &&
-		(t->bottom >> (16 - FAST_SAMPLES_Y_shift)) > (t->top >> (16 - FAST_SAMPLES_Y_shift)));
+	out->left.p1.x = dx + (in->left.p1.x >> (16 - FAST_SAMPLES_X_shift));
+	out->left.p1.y = dy + (in->left.p1.y >> (16 - FAST_SAMPLES_Y_shift));
+	out->left.p2.x = dx + (in->left.p2.x >> (16 - FAST_SAMPLES_X_shift));
+	out->left.p2.y = dy + (in->left.p2.y >> (16 - FAST_SAMPLES_Y_shift));
+
+	out->right.p1.x = dx + (in->right.p1.x >> (16 - FAST_SAMPLES_X_shift));
+	out->right.p1.y = dy + (in->right.p1.y >> (16 - FAST_SAMPLES_Y_shift));
+	out->right.p2.x = dx + (in->right.p2.x >> (16 - FAST_SAMPLES_X_shift));
+	out->right.p2.y = dy + (in->right.p2.y >> (16 - FAST_SAMPLES_Y_shift));
+
+	out->top = dy + (in->top >> (16 - FAST_SAMPLES_Y_shift));
+	out->bottom = dy + (in->bottom >> (16 - FAST_SAMPLES_Y_shift));
+
+	return xTrapezoidValid(out);
 }
 
 static bool
@@ -2057,20 +2064,17 @@ tor_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		goto skip;
 
 	for (n = 0; n < ntrap; n++) {
-		int top, bottom;
+		xTrapezoid t;
 
-		if (!fast_trapezoid_valid(&traps[n]))
+		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
 			continue;
 
 		if (pixman_fixed_to_int(traps[n].top) + dst->pDrawable->y >= extents.y2 ||
 		    pixman_fixed_to_int(traps[n].bottom) + dst->pDrawable->y < extents.y1)
 			continue;
 
-		top = dy + (traps[n].top >> (16 - FAST_SAMPLES_Y_shift));
-		bottom = dy + (traps[n].bottom >> (16 - FAST_SAMPLES_Y_shift));
-
-		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].left, 1);
-		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].right, -1);
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
 	}
 
 	if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp) {
@@ -2222,20 +2226,17 @@ tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	for (n = 0; n < ntrap; n++) {
-		int top, bottom;
+		xTrapezoid t;
 
-		if (!fast_trapezoid_valid(&traps[n]))
+		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
 			continue;
 
 		if (pixman_fixed_to_int(traps[n].top) - dst_y >= extents.y2 ||
 		    pixman_fixed_to_int(traps[n].bottom) - dst_y < 0)
 			continue;
 
-		top = dy + (traps[n].top >> (16 - FAST_SAMPLES_Y_shift));
-		bottom = dy + (traps[n].bottom >> (16 - FAST_SAMPLES_Y_shift));
-
-		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].left, 1);
-		tor_add_edge(&tor, dx, dy, top, bottom, &traps[n].right, -1);
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
 	}
 
 	if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
