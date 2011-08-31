@@ -461,6 +461,22 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		get_drawable_deltas(draw, dst, &dx, &dy);
 	}
 
+	if (sna->kgem.gen >= 60) {
+		/* Sandybridge introduced a separate ring which it uses to
+		 * perform blits. Switching rendering between rings incurs
+		 * a stall as we wait upon the old ring to finish and
+		 * flush its render cache before we can proceed on with
+		 * the operation on the new ring.
+		 *
+		 * As this buffer, we presume, has just been written to by
+		 * the DRI client using the RENDER ring, we want to perform
+		 * our operation on the same ring, and ideally on the same
+		 * ring as we will flip from (which should be the RENDER ring
+		 * as well).
+		 */
+		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	}
+
 	if (region) {
 		boxes = REGION_RECTS(region);
 		n = REGION_NUM_RECTS(region);
