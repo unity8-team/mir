@@ -994,6 +994,10 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (gc->alu != GXcopy)
 		return false;
 
+	/* XXX performing the upload inplace is currently about 20x slower
+	 * for putimage10 on gen6 -- mostly due to slow page faulting in kernel.
+	 */
+#if 0
 	if (priv->gpu_bo->rq == NULL &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
@@ -1010,6 +1014,7 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 		return true;
 	}
+#endif
 
 	if (priv->cpu_bo)
 		kgem_bo_sync(&sna->kgem, priv->cpu_bo, true);
