@@ -602,7 +602,7 @@ polygon_init(struct polygon *polygon,
 {
 	unsigned h = ymax - ymin;
 	unsigned num_buckets =
-	       	EDGE_Y_BUCKET_INDEX(ymax+EDGE_Y_BUCKET_HEIGHT-1, ymin);
+		EDGE_Y_BUCKET_INDEX(ymax+EDGE_Y_BUCKET_HEIGHT-1, ymin);
 
 	if (unlikely(h > 0x7FFFFFFFU - EDGE_Y_BUCKET_HEIGHT))
 		goto bail_no_mem; /* even if you could, you wouldn't want to. */
@@ -862,8 +862,8 @@ inline static void
 nonzero_subrow(struct active_list *active, struct cell_list *coverages)
 {
 	struct edge *edge = active->head.next;
-	grid_scaled_x_t prev_x = -1;
-	int winding = 0, xstart = -1;
+	grid_scaled_x_t prev_x = INT_MIN;
+	int winding = 0, xstart = INT_MIN;
 
 	cell_list_rewind (coverages);
 
@@ -875,7 +875,7 @@ nonzero_subrow(struct active_list *active, struct cell_list *coverages)
 			if (edge->next->x.quo != edge->x.quo) {
 				cell_list_add_subspan(coverages,
 						      xstart, edge->x.quo);
-				xstart = -1;
+				xstart = INT_MIN;
 			}
 		} else if (xstart < 0)
 			xstart = edge->x.quo;
