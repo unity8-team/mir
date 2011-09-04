@@ -63,11 +63,10 @@
 #define SAMPLES_X 17
 #define SAMPLES_Y 15
 
-#define FAST_SAMPLES_X_shift 2
-#define FAST_SAMPLES_Y_shift 2
-
-#define FAST_SAMPLES_X (1<<FAST_SAMPLES_X_shift)
-#define FAST_SAMPLES_Y (1<<FAST_SAMPLES_Y_shift)
+#define FAST_SAMPLES_shift 2
+#define FAST_SAMPLES_X (1<<FAST_SAMPLES_shift)
+#define FAST_SAMPLES_Y (1<<FAST_SAMPLES_shift)
+#define FAST_SAMPLES_mask ((1<<FAST_SAMPLES_shift)-1)
 
 typedef void (*span_func_t)(struct sna *sna,
 			    struct sna_composite_spans_op *op,
@@ -129,11 +128,14 @@ typedef int grid_scaled_x_t;
 typedef int grid_scaled_y_t;
 
 #define FAST_SAMPLES_X_TO_INT_FRAC(x, i, f) \
-	_GRID_TO_INT_FRAC_shift(x, i, f, FAST_SAMPLES_X_shift)
+	_GRID_TO_INT_FRAC_shift(x, i, f, FAST_SAMPLES_shift)
+
+#define FAST_SAMPLES_INT(x) ((x) >> (FAST_SAMPLES_shift))
+#define FAST_SAMPLES_FRAC(x) ((x) & (FAST_SAMPLES_mask))
 
 #define _GRID_TO_INT_FRAC_shift(t, i, f, b) do {	\
-    (f) = (t) & ((1 << (b)) - 1);			\
-    (i) = (t) >> (b);					\
+    (f) = FAST_SAMPLES_FRAC(t);				\
+    (i) = FAST_SAMPLES_INT(t);				\
 } while (0)
 
 /* A grid area is a real in [0,1] scaled by 2*SAMPLES_X*SAMPLES_Y.  We want
@@ -673,8 +675,15 @@ polygon_add_edge(struct polygon *polygon,
 	grid_scaled_y_t ymin = polygon->ymin;
 	grid_scaled_y_t ymax = polygon->ymax;
 
-	DBG(("%s: edge=(%d, %d), (%d, %d), top=%d, bottom=%d, dir=%d\n",
-	     __FUNCTION__, x1, y1, x2, y2, top, bottom, dir));
+	DBG(("%s: edge=(%d [%d.%d], %d [%d.%d]), (%d [%d.%d], %d [%d.%d]), top=%d [%d.%d], bottom=%d [%d.%d], dir=%d\n",
+	     __FUNCTION__,
+	     x1, FAST_SAMPLES_INT(x1), FAST_SAMPLES_FRAC(x1),
+	     y1, FAST_SAMPLES_INT(y1), FAST_SAMPLES_FRAC(y1),
+	     x2, FAST_SAMPLES_INT(x2), FAST_SAMPLES_FRAC(x2),
+	     y2, FAST_SAMPLES_INT(y2), FAST_SAMPLES_FRAC(y2),
+	     top, FAST_SAMPLES_INT(top), FAST_SAMPLES_FRAC(top),
+	     bottom, FAST_SAMPLES_INT(bottom), FAST_SAMPLES_FRAC(bottom),
+	     dir));
 	assert (dy > 0);
 
 	e->dy = dy;
@@ -2040,23 +2049,28 @@ composite_unaligned_boxes(CARD8 op,
 	return true;
 }
 
+static inline int pixman_fixed_to_grid (pixman_fixed_t v)
+{
+	return (v + FAST_SAMPLES_mask/2) >> (16 - FAST_SAMPLES_shift);
+}
+
 static inline bool
 project_trapezoid_onto_grid(const xTrapezoid *in,
 			    int dx, int dy,
 			    xTrapezoid *out)
 {
-	out->left.p1.x = dx + (in->left.p1.x >> (16 - FAST_SAMPLES_X_shift));
-	out->left.p1.y = dy + (in->left.p1.y >> (16 - FAST_SAMPLES_Y_shift));
-	out->left.p2.x = dx + (in->left.p2.x >> (16 - FAST_SAMPLES_X_shift));
-	out->left.p2.y = dy + (in->left.p2.y >> (16 - FAST_SAMPLES_Y_shift));
+	out->left.p1.x = dx + pixman_fixed_to_grid(in->left.p1.x);
+	out->left.p1.y = dy + pixman_fixed_to_grid(in->left.p1.y);
+	out->left.p2.x = dx + pixman_fixed_to_grid(in->left.p2.x);
+	out->left.p2.y = dy + pixman_fixed_to_grid(in->left.p2.y);
 
-	out->right.p1.x = dx + (in->right.p1.x >> (16 - FAST_SAMPLES_X_shift));
-	out->right.p1.y = dy + (in->right.p1.y >> (16 - FAST_SAMPLES_Y_shift));
-	out->right.p2.x = dx + (in->right.p2.x >> (16 - FAST_SAMPLES_X_shift));
-	out->right.p2.y = dy + (in->right.p2.y >> (16 - FAST_SAMPLES_Y_shift));
+	out->right.p1.x = dx + pixman_fixed_to_grid(in->right.p1.x);
+	out->right.p1.y = dy + pixman_fixed_to_grid(in->right.p1.y);
+	out->right.p2.x = dx + pixman_fixed_to_grid(in->right.p2.x);
+	out->right.p2.y = dy + pixman_fixed_to_grid(in->right.p2.y);
 
-	out->top = dy + (in->top >> (16 - FAST_SAMPLES_Y_shift));
-	out->bottom = dy + (in->bottom >> (16 - FAST_SAMPLES_Y_shift));
+	out->top = dy + pixman_fixed_to_grid(in->top);
+	out->bottom = dy + pixman_fixed_to_grid(in->bottom);
 
 	return xTrapezoidValid(out);
 }
@@ -2375,8 +2389,7 @@ sna_composite_trapezoids(CARD8 op,
 			 int ntrap, xTrapezoid *traps)
 {
 	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
-	bool rectilinear = true;
-	bool pixel_aligned = true;
+	bool rectilinear, pixel_aligned;
 	int n;
 
 	DBG(("%s(op=%d, src=(%d, %d), mask=%08x, ntrap=%d)\n", __FUNCTION__,
@@ -2411,21 +2424,41 @@ sna_composite_trapezoids(CARD8 op,
 	}
 
 	/* scan through for fast rectangles */
-	for (n = 0; n < ntrap && rectilinear; n++) {
-		rectilinear &=
-			traps[n].left.p1.x == traps[n].left.p2.x &&
-			traps[n].right.p1.x == traps[n].right.p2.x;
-		pixel_aligned &=
-			((traps[n].top | traps[n].bottom |
-			  traps[n].left.p1.x | traps[n].left.p2.x |
-			  traps[n].right.p1.x | traps[n].right.p2.x)
-			 & pixman_fixed_1_minus_e) == 0;
+	rectilinear = pixel_aligned = true;
+	if (maskFormat ? maskFormat->depth == 1 : dst->polyEdge == PolyEdgeSharp) {
+		for (n = 0; n < ntrap && rectilinear; n++) {
+			int lx1 = pixman_fixed_to_int(traps[n].left.p1.x + pixman_fixed_1_minus_e/2);
+			int lx2 = pixman_fixed_to_int(traps[n].left.p2.x + pixman_fixed_1_minus_e/2);
+			int rx1 = pixman_fixed_to_int(traps[n].left.p1.x + pixman_fixed_1_minus_e/2);
+			int rx2 = pixman_fixed_to_int(traps[n].left.p2.x + pixman_fixed_1_minus_e/2);
+			rectilinear &= lx1 == lx2 && rx1 == rx2;
+		}
+	} else if (dst->polyMode != PolyModePrecise) {
+		for (n = 0; n < ntrap && rectilinear; n++) {
+			int lx1 = pixman_fixed_to_grid(traps[n].left.p1.x);
+			int lx2 = pixman_fixed_to_grid(traps[n].right.p2.x);
+			int rx1 = pixman_fixed_to_grid(traps[n].left.p1.x);
+			int rx2 = pixman_fixed_to_grid(traps[n].right.p2.x);
+			int top = pixman_fixed_to_grid(traps[n].top);
+			int bot = pixman_fixed_to_grid(traps[n].bottom);
+
+			rectilinear &= lx1 == lx2 && rx1 == rx2;
+			pixel_aligned &= ((top | bot | lx1 | lx2 | rx1 | rx2) & FAST_SAMPLES_mask) == 0;
+		}
+	} else {
+		for (n = 0; n < ntrap && rectilinear; n++) {
+			rectilinear &=
+				traps[n].left.p1.x == traps[n].left.p2.x &&
+				traps[n].right.p1.x == traps[n].right.p2.x;
+			pixel_aligned &=
+				((traps[n].top | traps[n].bottom |
+				  traps[n].left.p1.x | traps[n].left.p2.x |
+				  traps[n].right.p1.x | traps[n].right.p2.x)
+				 & pixman_fixed_1_minus_e) == 0;
+		}
 	}
 
 	if (rectilinear) {
-		pixel_aligned |= maskFormat ?
-			maskFormat->depth == 1 :
-			dst->polyEdge == PolyEdgeSharp;
 		if (pixel_aligned) {
 			if (composite_aligned_boxes(op, src, dst,
 						    maskFormat,
@@ -2462,8 +2495,8 @@ project_point_onto_grid(const xPointFixed *in,
 			int dx, int dy,
 			xPointFixed *out)
 {
-	out->x = dx + (in->x >> (16 - FAST_SAMPLES_X_shift));
-	out->y = dy + (in->y >> (16 - FAST_SAMPLES_Y_shift));
+	out->x = dx + pixman_fixed_to_grid(in->x);
+	out->y = dy + pixman_fixed_to_grid(in->y);
 }
 
 static inline bool
