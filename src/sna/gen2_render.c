@@ -566,6 +566,8 @@ gen2_get_batch(struct sna *sna,
 
 static void gen2_emit_target(struct sna *sna, const struct sna_composite_op *op)
 {
+	assert (sna->render_state.gen2.vertex_offset == 0);
+
 	if (sna->render_state.gen2.target == op->dst.bo->unique_id) {
 		kgem_bo_mark_dirty(op->dst.bo);
 		return;
@@ -905,6 +907,9 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	struct gen2_render_state *state = &sna->render_state.gen2;
 	int rem = batch_space(sna), size, need;
 
+	DBG(("%s: want=%d, floats_per_vertex=%d, rem=%d\n",
+	     __FUNCTION__, want, op->floats_per_vertex, rem));
+
 	assert(op->floats_per_vertex);
 
 	need = 1;
@@ -912,8 +917,12 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	if (op->need_magic_ca_pass)
 		need += 6 + size*sna->render.vertex_index, size *= 2;
 
-	if (rem < need + size)
+	DBG(("%s: want=%d, need=%d,size=%d, rem=%d\n",
+	     __FUNCTION__, want, need, size, rem));
+	if (rem < need + size) {
+		kgem_submit (&sna->kgem);
 		return 0;
+	}
 
 	rem -= need;
 	if (state->vertex_offset == 0) {
@@ -1564,7 +1573,7 @@ gen2_render_composite_spans_box(struct sna *sna,
 				const struct sna_composite_spans_op *op,
 				const BoxRec *box, float opacity)
 {
-	DBG(("%s: nbox=%d, src=+(%d, %d), opacity=%f, dst=+(%d, %d), box=(%d, %d) x (%d, %d)\n",
+	DBG(("%s: src=+(%d, %d), opacity=%f, dst=+(%d, %d), box=(%d, %d) x (%d, %d)\n",
 	     __FUNCTION__,
 	     op->base.src.offset[0], op->base.src.offset[1],
 	     opacity,
