@@ -523,6 +523,26 @@ void sna_composite_trapezoids(CARD8 op,
 			      PictFormatPtr maskFormat,
 			      INT16 xSrc, INT16 ySrc,
 			      int ntrap, xTrapezoid *traps);
+void sna_composite_triangles(CARD8 op,
+			     PicturePtr src,
+			     PicturePtr dst,
+			     PictFormatPtr maskFormat,
+			     INT16 xSrc, INT16 ySrc,
+			     int ntri, xTriangle *tri);
+
+void sna_composite_tristrip(CARD8 op,
+			    PicturePtr src,
+			    PicturePtr dst,
+			    PictFormatPtr maskFormat,
+			    INT16 xSrc, INT16 ySrc,
+			    int npoints, xPointFixed *points);
+
+void sna_composite_trifan(CARD8 op,
+			  PicturePtr src,
+			  PicturePtr dst,
+			  PictFormatPtr maskFormat,
+			  INT16 xSrc, INT16 ySrc,
+			  int npoints, xPointFixed *points);
 
 Bool sna_gradients_create(struct sna *sna);
 void sna_gradients_close(struct sna *sna);

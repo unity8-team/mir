@@ -3346,6 +3346,11 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 			ps->UnrealizeGlyph = sna_glyph_unrealize;
 			ps->AddTraps = sna_add_traps;
 			ps->Trapezoids = sna_composite_trapezoids;
+			ps->Triangles = sna_composite_triangles;
+#if PICTURE_SCREEN_VERSION >= 2
+			ps->TriStrip = sna_composite_tristrip;
+			ps->TriFan = sna_composite_trifan;
+#endif
 		}
 	}
 #endif

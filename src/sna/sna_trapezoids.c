@@ -52,6 +52,14 @@
 
 #define unlikely(x) x
 
+#ifndef MAX
+#define MAX(x,y) ((x) >= (y) ? (x) : (y))
+#endif
+
+#ifndef MIN
+#define MIN(x,y) ((x) <= (y) ? (x) : (y))
+#endif
+
 #define SAMPLES_X 17
 #define SAMPLES_Y 15
 
@@ -60,6 +68,12 @@
 
 #define FAST_SAMPLES_X (1<<FAST_SAMPLES_X_shift)
 #define FAST_SAMPLES_Y (1<<FAST_SAMPLES_Y_shift)
+
+typedef void (*span_func_t)(struct sna *sna,
+			    struct sna_composite_spans_op *op,
+			    pixman_region16_t *clip,
+			    const BoxRec *box,
+			    int coverage);
 
 #if DEBUG_TRAPEZOIDS
 static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char *function)
@@ -694,6 +708,87 @@ polygon_add_edge(struct polygon *polygon,
 	e->x.rem -= dy; /* Bias the remainder for faster edge advancement. */
 }
 
+inline static void
+polygon_add_line(struct polygon *polygon,
+		 const xPointFixed *p1,
+		 const xPointFixed *p2)
+{
+	struct edge *e = &polygon->edges[polygon->num_edges];
+	grid_scaled_x_t dx = p2->x - p1->x;
+	grid_scaled_y_t dy = p2->y - p1->y;
+	grid_scaled_y_t top, bot;
+
+	if (dy == 0)
+		return;
+
+	DBG(("%s: line=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__, (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y));
+
+	e->dir = 1;
+	if (dy < 0) {
+		const xPointFixed *t;
+
+		dx = -dx;
+		dy = -dy;
+
+		e->dir = -1;
+
+		t = p1;
+		p1 = p2;
+		p2 = t;
+	}
+	assert (dy > 0);
+	e->dy = dy;
+
+	top = MAX(p1->y, polygon->ymin);
+	bot = MIN(p2->y, polygon->ymax);
+	if (bot <= top)
+		return;
+
+	e->ytop = top;
+	e->height_left = bot - top;
+
+	if (dx == 0) {
+		e->vertical = true;
+		e->x.quo = p1->x;
+		e->x.rem = 0;
+		e->dxdy.quo = 0;
+		e->dxdy.rem = 0;
+	} else {
+		e->vertical = false;
+		e->dxdy = floored_divrem(dx, dy);
+		if (top == p1->y) {
+			e->x.quo = p1->x;
+			e->x.rem = -dy;
+		} else {
+			e->x = floored_muldivrem(top - p1->y, dx, dy);
+			e->x.quo += p1->x;
+			e->x.rem -= dy;
+		}
+	}
+
+	if (polygon->num_edges > 0) {
+		struct edge *prev = &polygon->edges[polygon->num_edges-1];
+		/* detect degenerate triangles inserted into tristrips */
+		if (e->dir == -prev->dir &&
+		    e->ytop == prev->ytop &&
+		    e->height_left == prev->height_left &&
+		    e->x.quo == prev->x.quo &&
+		    e->x.rem == prev->x.rem &&
+		    e->dxdy.quo == prev->dxdy.quo &&
+		    e->dxdy.rem == prev->dxdy.rem) {
+			unsigned ix = EDGE_Y_BUCKET_INDEX(e->ytop,
+							  polygon->ymin);
+			polygon->y_buckets[ix] = prev->next;
+			polygon->num_edges--;
+			return;
+		}
+	}
+
+	_polygon_insert_edge_into_its_y_bucket(polygon, e);
+	polygon->num_edges++;
+}
+
 static void
 active_list_reset(struct active_list *active)
 {
@@ -788,7 +883,6 @@ sort_edges(struct edge  *list,
 
 	return remaining;
 }
-
 
 static struct edge *
 merge_unsorted_edges (struct edge *head, struct edge *unsorted)
@@ -961,10 +1055,11 @@ tor_fini(struct tor *converter)
 static int
 tor_init(struct tor *converter, const BoxRec *box, int num_edges)
 {
-	DBG(("%s: (%d, %d),(%d, %d) x (%d, %d)\n",
+	DBG(("%s: (%d, %d),(%d, %d) x (%d, %d), num_edges=%d\n",
 	     __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2,
-	     FAST_SAMPLES_X, FAST_SAMPLES_Y));
+	     FAST_SAMPLES_X, FAST_SAMPLES_Y,
+	     num_edges));
 
 	converter->xmin = box->x1;
 	converter->ymin = box->y1;
@@ -1966,19 +2061,43 @@ project_trapezoid_onto_grid(const xTrapezoid *in,
 	return xTrapezoidValid(out);
 }
 
+static span_func_t
+choose_span(PicturePtr dst,
+	    PictFormatPtr maskFormat,
+	    uint8_t op,
+	    RegionPtr clip)
+{
+	span_func_t span;
+
+	if (maskFormat ? maskFormat->depth<8 : dst->polyEdge==PolyEdgeSharp) {
+		/* XXX An imprecise approximation */
+		if (maskFormat && !operator_is_bounded(op)) {
+			span = tor_blt_span_mono_unbounded;
+			if (REGION_NUM_RECTS(clip) > 1)
+				span = tor_blt_span_mono_unbounded_clipped;
+		} else {
+			span = tor_blt_span_mono;
+			if (REGION_NUM_RECTS(clip) > 1)
+				span = tor_blt_span_mono_clipped;
+		}
+	} else {
+		span = tor_blt_span;
+		if (REGION_NUM_RECTS(clip) > 1)
+			span = tor_blt_span_clipped;
+	}
+
+	return span;
+}
+
+
 static bool
-tor_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
-		   PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
-		   int ntrap, xTrapezoid *traps)
+trap_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+		    PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+		    int ntrap, xTrapezoid *traps)
 {
 	struct sna *sna;
 	struct sna_composite_spans_op tmp;
 	struct tor tor;
-	void (*span)(struct sna *sna,
-		     struct sna_composite_spans_op *op,
-		     pixman_region16_t *clip,
-		     const BoxRec *box,
-		     int coverage);
 	BoxRec extents;
 	pixman_region16_t clip;
 	int16_t dst_x, dst_y;
@@ -2077,24 +2196,8 @@ tor_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		tor_add_edge(&tor, &t, &t.right, -1);
 	}
 
-	if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp) {
-		/* XXX An imprecise approximation */
-		if (maskFormat && !operator_is_bounded(op)) {
-			span = tor_blt_span_mono_unbounded;
-			if (REGION_NUM_RECTS(&clip) > 1)
-				span = tor_blt_span_mono_unbounded_clipped;
-		} else {
-			span = tor_blt_span_mono;
-			if (REGION_NUM_RECTS(&clip) > 1)
-				span = tor_blt_span_mono_clipped;
-		}
-	} else {
-		span = tor_blt_span;
-		if (REGION_NUM_RECTS(&clip) > 1)
-			span = tor_blt_span_clipped;
-	}
-
-	tor_render(sna, &tor, &tmp, &clip, span,
+	tor_render(sna, &tor, &tmp, &clip,
+		   choose_span(dst, maskFormat, op, &clip),
 		   maskFormat && !operator_is_bounded(op));
 
 skip:
@@ -2148,16 +2251,12 @@ tor_blt_mask_mono(struct sna *sna,
 }
 
 static bool
-tor_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
-		   PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
-		   int ntrap, xTrapezoid *traps)
+trap_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+		    PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+		    int ntrap, xTrapezoid *traps)
 {
 	struct tor tor;
-	void (*span)(struct sna *sna,
-		     struct sna_composite_spans_op *op,
-		     pixman_region16_t *clip,
-		     const BoxRec *box,
-		     int coverage);
+	span_func_t span;
 	ScreenPtr screen = dst->pDrawable->pScreen;
 	PixmapPtr scratch;
 	PicturePtr mask;
@@ -2342,12 +2441,12 @@ sna_composite_trapezoids(CARD8 op,
 		}
 	}
 
-	if (tor_span_converter(op, src, dst, maskFormat,
-			       xSrc, ySrc, ntrap, traps))
+	if (trap_span_converter(op, src, dst, maskFormat,
+				xSrc, ySrc, ntrap, traps))
 		return;
 
-	if (tor_mask_converter(op, src, dst, maskFormat,
-			       xSrc, ySrc, ntrap, traps))
+	if (trap_mask_converter(op, src, dst, maskFormat,
+				xSrc, ySrc, ntrap, traps))
 		return;
 
 fallback:
@@ -2356,4 +2455,786 @@ fallback:
 	trapezoids_fallback(op, src, dst, maskFormat,
 			    xSrc, ySrc,
 			    ntrap, traps);
+}
+
+static inline void
+project_point_onto_grid(const xPointFixed *in,
+			int dx, int dy,
+			xPointFixed *out)
+{
+	out->x = dx + (in->x >> (16 - FAST_SAMPLES_X_shift));
+	out->y = dy + (in->y >> (16 - FAST_SAMPLES_Y_shift));
+}
+
+static inline bool
+xTriangleValid(const xTriangle *t)
+{
+	xPointFixed v1, v2;
+
+	v1.x = t->p2.x - t->p1.x;
+	v1.y = t->p2.y - t->p1.y;
+
+	v2.x = t->p3.x - t->p1.x;
+	v2.y = t->p3.y - t->p1.y;
+
+	/* if the length of any edge is zero, the area must be zero */
+	if (v1.x == 0 && v1.y == 0)
+		return FALSE;
+	if (v2.x == 0 && v2.y == 0)
+		return FALSE;
+
+	/* if the cross-product is zero, so it the size */
+	return v2.y * v1.x != v1.y * v2.x;
+}
+
+static inline bool
+project_triangle_onto_grid(const xTriangle *in,
+			   int dx, int dy,
+			   xTriangle *out)
+{
+	project_point_onto_grid(&in->p1, dx, dy, &out->p1);
+	project_point_onto_grid(&in->p2, dx, dy, &out->p2);
+	project_point_onto_grid(&in->p3, dx, dy, &out->p3);
+
+	return xTriangleValid(out);
+}
+
+static bool
+triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+			 PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+			 int count, xTriangle *tri)
+{
+	struct sna *sna;
+	struct sna_composite_spans_op tmp;
+	struct tor tor;
+	BoxRec extents;
+	pixman_region16_t clip;
+	int16_t dst_x, dst_y;
+	int16_t dx, dy;
+	int n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	/* XXX strict adherence to the Render specification */
+	if (dst->polyMode == PolyModePrecise) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	sna = to_sna_from_drawable(dst->pDrawable);
+	if (!sna->render.composite_spans) {
+		DBG(("%s: fallback -- composite spans not supported\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	dst_x = pixman_fixed_to_int(tri[0].p1.x);
+	dst_y = pixman_fixed_to_int(tri[0].p1.y);
+
+	miTriangleBounds(count, tri, &extents);
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
+		return true;
+
+#if 0
+	if (extents.y2 - extents.y1 < 64 && extents.x2 - extents.x1 < 64) {
+		DBG(("%s: fallback -- traps extents too small %dx%d\n",
+		     __FUNCTION__, extents.y2 - extents.y1, extents.x2 - extents.x1));
+		return false;
+	}
+#endif
+
+	if (!sna_compute_composite_region(&clip,
+					  src, NULL, dst,
+					  src_x + extents.x1 - dst_x,
+					  src_y + extents.y1 - dst_y,
+					  0, 0,
+					  extents.x1, extents.y1,
+					  extents.x2 - extents.x1,
+					  extents.y2 - extents.y1)) {
+		DBG(("%s: triangles do not intersect drawable clips\n",
+		     __FUNCTION__)) ;
+		return true;
+	}
+
+	extents = *RegionExtents(&clip);
+	dx = dst->pDrawable->x;
+	dy = dst->pDrawable->y;
+
+	DBG(("%s: after clip -- extents (%d, %d), (%d, %d), delta=(%d, %d) src -> (%d, %d)\n",
+	     __FUNCTION__,
+	     extents.x1, extents.y1,
+	     extents.x2, extents.y2,
+	     dx, dy,
+	     src_x + extents.x1 - dst_x - dx,
+	     src_y + extents.y1 - dst_y - dy));
+
+	memset(&tmp, 0, sizeof(tmp));
+	if (!sna->render.composite_spans(sna, op, src, dst,
+					 src_x + extents.x1 - dst_x - dx,
+					 src_y + extents.y1 - dst_y - dy,
+					 extents.x1,  extents.y1,
+					 extents.x2 - extents.x1,
+					 extents.y2 - extents.y1,
+					 &tmp)) {
+		DBG(("%s: fallback -- composite spans render op not supported\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	dx *= FAST_SAMPLES_X;
+	dy *= FAST_SAMPLES_Y;
+	if (tor_init(&tor, &extents, 3*count))
+		goto skip;
+
+	for (n = 0; n < count; n++) {
+		xTriangle t;
+
+		if (!project_triangle_onto_grid(&tri[n], dx, dy, &t))
+			continue;
+
+		polygon_add_line(tor.polygon, &t.p1, &t.p2);
+		polygon_add_line(tor.polygon, &t.p2, &t.p3);
+		polygon_add_line(tor.polygon, &t.p3, &t.p1);
+	}
+
+	tor_render(sna, &tor, &tmp, &clip,
+		   choose_span(dst, maskFormat, op, &clip),
+		   maskFormat && !operator_is_bounded(op));
+
+skip:
+	tor_fini(&tor);
+	tmp.done(sna, &tmp);
+
+	REGION_UNINIT(NULL, &clip);
+	return true;
+}
+
+static bool
+triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+			 PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+			 int count, xTriangle *tri)
+{
+	struct tor tor;
+	void (*span)(struct sna *sna,
+		     struct sna_composite_spans_op *op,
+		     pixman_region16_t *clip,
+		     const BoxRec *box,
+		     int coverage);
+	ScreenPtr screen = dst->pDrawable->pScreen;
+	PixmapPtr scratch;
+	PicturePtr mask;
+	BoxRec extents;
+	int16_t dst_x, dst_y;
+	int16_t dx, dy;
+	int error;
+	int n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	if (dst->polyMode == PolyModePrecise) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if (maskFormat == NULL && count > 1) {
+		DBG(("%s: fallback -- individual rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	miTriangleBounds(count, tri, &extents);
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
+		return true;
+
+	if (!sna_compute_composite_extents(&extents,
+					   src, NULL, dst,
+					   src_x, src_y,
+					   0, 0,
+					   extents.x1, extents.y1,
+					   extents.x2 - extents.x1,
+					   extents.y2 - extents.y1))
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	extents.y2 -= extents.y1;
+	extents.x2 -= extents.x1;
+	extents.x1 -= dst->pDrawable->x;
+	extents.y1 -= dst->pDrawable->y;
+	dst_x = extents.x1;
+	dst_y = extents.y1;
+	dx = -extents.x1 * FAST_SAMPLES_X;
+	dy = -extents.y1 * FAST_SAMPLES_Y;
+	extents.x1 = extents.y1 = 0;
+
+	DBG(("%s: mask (%dx%d)\n",
+	     __FUNCTION__, extents.x2, extents.y2));
+	scratch = sna_pixmap_create_upload(screen, extents.x2, extents.y2, 8);
+	if (!scratch)
+		return true;
+
+	DBG(("%s: created buffer %p, stride %d\n",
+	     __FUNCTION__, scratch->devPrivate.ptr, scratch->devKind));
+
+	if (tor_init(&tor, &extents, 3*count)) {
+		screen->DestroyPixmap(scratch);
+		return true;
+	}
+
+	for (n = 0; n < count; n++) {
+		xTriangle t;
+
+		if (!project_triangle_onto_grid(&tri[n], dx, dy, &t))
+			continue;
+
+		polygon_add_line(tor.polygon, &t.p1, &t.p2);
+		polygon_add_line(tor.polygon, &t.p2, &t.p3);
+		polygon_add_line(tor.polygon, &t.p3, &t.p1);
+	}
+
+	if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+		span = tor_blt_mask_mono;
+	else
+		span = tor_blt_mask;
+
+	tor_render(NULL, &tor,
+		   scratch->devPrivate.ptr,
+		   (void *)(intptr_t)scratch->devKind,
+		   span, true);
+
+	mask = CreatePicture(0, &scratch->drawable,
+			     PictureMatchFormat(screen, 8, PICT_a8),
+			     0, 0, serverClient, &error);
+	screen->DestroyPixmap(scratch);
+	if (mask) {
+		CompositePicture(op, src, mask, dst,
+				 src_x + dst_x - pixman_fixed_to_int(tri[0].p1.x),
+				 src_y + dst_y - pixman_fixed_to_int(tri[0].p1.y),
+				 0, 0,
+				 dst_x, dst_y,
+				 extents.x2, extents.y2);
+		FreePicture(mask, 0);
+	}
+	tor_fini(&tor);
+
+	return true;
+}
+
+static void
+triangles_fallback(CARD8 op,
+		   PicturePtr src,
+		   PicturePtr dst,
+		   PictFormatPtr maskFormat,
+		   INT16 xSrc, INT16 ySrc,
+		   int n, xTriangle *tri)
+{
+	ScreenPtr screen = dst->pDrawable->pScreen;
+
+	DBG(("%s op=%d, count=%d\n", __FUNCTION__, op, n));
+
+	if (maskFormat) {
+		PixmapPtr scratch;
+		PicturePtr mask;
+		INT16 dst_x, dst_y;
+		BoxRec bounds;
+		int width, height, depth;
+		pixman_image_t *image;
+		pixman_format_code_t format;
+		int error;
+
+		dst_x = pixman_fixed_to_int(tri[0].p1.x);
+		dst_y = pixman_fixed_to_int(tri[0].p1.y);
+
+		miTriangleBounds(n, tri, &bounds);
+		DBG(("%s: bounds (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+
+		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
+			return;
+
+		if (!sna_compute_composite_extents(&bounds,
+						   src, NULL, dst,
+						   xSrc, ySrc,
+						   0, 0,
+						   bounds.x1, bounds.y1,
+						   bounds.x2 - bounds.x1,
+						   bounds.y2 - bounds.y1))
+			return;
+
+		DBG(("%s: extents (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+
+		width  = bounds.x2 - bounds.x1;
+		height = bounds.y2 - bounds.y1;
+		bounds.x1 -= dst->pDrawable->x;
+		bounds.y1 -= dst->pDrawable->y;
+		depth = maskFormat->depth;
+		format = maskFormat->format | (BitsPerPixel(depth) << 24);
+
+		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
+		     __FUNCTION__, width, height, depth, format));
+		scratch = sna_pixmap_create_upload(screen,
+						   width, height, depth);
+		if (!scratch)
+			return;
+
+		memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
+		image = pixman_image_create_bits(format, width, height,
+						 scratch->devPrivate.ptr,
+						 scratch->devKind);
+		if (image) {
+			pixman_add_triangles(image,
+					     -bounds.x1, -bounds.y1,
+					     n, (pixman_triangle_t *)tri);
+			pixman_image_unref(image);
+		}
+
+		mask = CreatePicture(0, &scratch->drawable,
+				     PictureMatchFormat(screen, depth, format),
+				     0, 0, serverClient, &error);
+		screen->DestroyPixmap(scratch);
+		if (!mask)
+			return;
+
+		CompositePicture(op, src, mask, dst,
+				 xSrc + bounds.x1 - dst_x,
+				 ySrc + bounds.y1 - dst_y,
+				 0, 0,
+				 bounds.x1, bounds.y1,
+				 width, height);
+		FreePicture(mask, 0);
+	} else {
+		if (dst->polyEdge == PolyEdgeSharp)
+			maskFormat = PictureMatchFormat(screen, 1, PICT_a1);
+		else
+			maskFormat = PictureMatchFormat(screen, 8, PICT_a8);
+
+		for (; n--; tri++)
+			triangles_fallback(op,
+					   src, dst, maskFormat,
+					   xSrc, ySrc, 1, tri);
+	}
+}
+
+void
+sna_composite_triangles(CARD8 op,
+			 PicturePtr src,
+			 PicturePtr dst,
+			 PictFormatPtr maskFormat,
+			 INT16 xSrc, INT16 ySrc,
+			 int n, xTriangle *tri)
+{
+	if (triangles_span_converter(op, src, dst, maskFormat,
+				     xSrc, ySrc,
+				     n, tri))
+		return;
+
+	if (triangles_mask_converter(op, src, dst, maskFormat,
+				     xSrc, ySrc,
+				     n, tri))
+		return;
+
+	triangles_fallback(op, src, dst, maskFormat, xSrc, ySrc, n, tri);
+}
+
+static bool
+tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+			PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+			int count, xPointFixed *points)
+{
+	struct sna *sna;
+	struct sna_composite_spans_op tmp;
+	struct tor tor;
+	BoxRec extents;
+	pixman_region16_t clip;
+	xPointFixed p[4];
+	int16_t dst_x, dst_y;
+	int16_t dx, dy;
+	int cw, ccw, n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	/* XXX strict adherence to the Render specification */
+	if (dst->polyMode == PolyModePrecise) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	sna = to_sna_from_drawable(dst->pDrawable);
+	if (!sna->render.composite_spans) {
+		DBG(("%s: fallback -- composite spans not supported\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	dst_x = pixman_fixed_to_int(points[0].x);
+	dst_y = pixman_fixed_to_int(points[0].y);
+
+	miPointFixedBounds(count, points, &extents);
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
+		return true;
+
+#if 0
+	if (extents.y2 - extents.y1 < 64 && extents.x2 - extents.x1 < 64) {
+		DBG(("%s: fallback -- traps extents too small %dx%d\n",
+		     __FUNCTION__, extents.y2 - extents.y1, extents.x2 - extents.x1));
+		return false;
+	}
+#endif
+
+	if (!sna_compute_composite_region(&clip,
+					  src, NULL, dst,
+					  src_x + extents.x1 - dst_x,
+					  src_y + extents.y1 - dst_y,
+					  0, 0,
+					  extents.x1, extents.y1,
+					  extents.x2 - extents.x1,
+					  extents.y2 - extents.y1)) {
+		DBG(("%s: triangles do not intersect drawable clips\n",
+		     __FUNCTION__)) ;
+		return true;
+	}
+
+	extents = *RegionExtents(&clip);
+	dx = dst->pDrawable->x;
+	dy = dst->pDrawable->y;
+
+	DBG(("%s: after clip -- extents (%d, %d), (%d, %d), delta=(%d, %d) src -> (%d, %d)\n",
+	     __FUNCTION__,
+	     extents.x1, extents.y1,
+	     extents.x2, extents.y2,
+	     dx, dy,
+	     src_x + extents.x1 - dst_x - dx,
+	     src_y + extents.y1 - dst_y - dy));
+
+	memset(&tmp, 0, sizeof(tmp));
+	if (!sna->render.composite_spans(sna, op, src, dst,
+					 src_x + extents.x1 - dst_x - dx,
+					 src_y + extents.y1 - dst_y - dy,
+					 extents.x1,  extents.y1,
+					 extents.x2 - extents.x1,
+					 extents.y2 - extents.y1,
+					 &tmp)) {
+		DBG(("%s: fallback -- composite spans render op not supported\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	dx *= FAST_SAMPLES_X;
+	dy *= FAST_SAMPLES_Y;
+	if (tor_init(&tor, &extents, 2*count))
+		goto skip;
+
+	cw = ccw = 0;
+	project_point_onto_grid(&points[0], dx, dy, &p[cw]);
+	project_point_onto_grid(&points[1], dx, dy, &p[2+ccw]);
+	polygon_add_line(tor.polygon, &p[cw], &p[2+ccw]);
+	n = 2;
+	do {
+		cw = !cw;
+		project_point_onto_grid(&points[n], dx, dy, &p[cw]);
+		polygon_add_line(tor.polygon, &p[!cw], &p[cw]);
+		if (++n == count)
+			break;
+
+		ccw = !ccw;
+		project_point_onto_grid(&points[n], dx, dy, &p[2+ccw]);
+		polygon_add_line(tor.polygon, &p[2+ccw], &p[2+!ccw]);
+		if (++n == count)
+			break;
+	} while (1);
+	polygon_add_line(tor.polygon, &p[2+ccw], &p[cw]);
+	assert(tor.polygon->num_edges <= 2*count);
+
+	tor_render(sna, &tor, &tmp, &clip,
+		   choose_span(dst, maskFormat, op, &clip),
+		   maskFormat && !operator_is_bounded(op));
+
+skip:
+	tor_fini(&tor);
+	tmp.done(sna, &tmp);
+
+	REGION_UNINIT(NULL, &clip);
+	return true;
+}
+
+static void
+tristrip_fallback(CARD8 op,
+		  PicturePtr src,
+		  PicturePtr dst,
+		  PictFormatPtr maskFormat,
+		  INT16 xSrc, INT16 ySrc,
+		  int n, xPointFixed *points)
+{
+	ScreenPtr screen = dst->pDrawable->pScreen;
+
+	if (maskFormat) {
+		PixmapPtr scratch;
+		PicturePtr mask;
+		INT16 dst_x, dst_y;
+		BoxRec bounds;
+		int width, height, depth;
+		pixman_image_t *image;
+		pixman_format_code_t format;
+		int error;
+
+		dst_x = pixman_fixed_to_int(points->x);
+		dst_y = pixman_fixed_to_int(points->y);
+
+		miPointFixedBounds(n, points, &bounds);
+		DBG(("%s: bounds (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+
+		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
+			return;
+
+		if (!sna_compute_composite_extents(&bounds,
+						   src, NULL, dst,
+						   xSrc, ySrc,
+						   0, 0,
+						   bounds.x1, bounds.y1,
+						   bounds.x2 - bounds.x1,
+						   bounds.y2 - bounds.y1))
+			return;
+
+		DBG(("%s: extents (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+
+		width  = bounds.x2 - bounds.x1;
+		height = bounds.y2 - bounds.y1;
+		bounds.x1 -= dst->pDrawable->x;
+		bounds.y1 -= dst->pDrawable->y;
+		depth = maskFormat->depth;
+		format = maskFormat->format | (BitsPerPixel(depth) << 24);
+
+		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
+		     __FUNCTION__, width, height, depth, format));
+		scratch = sna_pixmap_create_upload(screen,
+						   width, height, depth);
+		if (!scratch)
+			return;
+
+		memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
+		image = pixman_image_create_bits(format, width, height,
+						 scratch->devPrivate.ptr,
+						 scratch->devKind);
+		if (image) {
+			xTriangle tri;
+			xPointFixed *p[3] = { &tri.p1, &tri.p2, &tri.p3 };
+			int i;
+
+			*p[0] = points[0];
+			*p[1] = points[1];
+			*p[2] = points[2];
+			pixman_add_triangles(image,
+					     -bounds.x1, -bounds.y1,
+					     1, (pixman_triangle_t *)&tri);
+			for (i = 3; i < n; i++) {
+				*p[i%3] = points[i];
+				pixman_add_triangles(image,
+						     -bounds.x1, -bounds.y1,
+						     1, (pixman_triangle_t *)&tri);
+			}
+			pixman_image_unref(image);
+		}
+
+		mask = CreatePicture(0, &scratch->drawable,
+				     PictureMatchFormat(screen, depth, format),
+				     0, 0, serverClient, &error);
+		screen->DestroyPixmap(scratch);
+		if (!mask)
+			return;
+
+		CompositePicture(op, src, mask, dst,
+				 xSrc + bounds.x1 - dst_x,
+				 ySrc + bounds.y1 - dst_y,
+				 0, 0,
+				 bounds.x1, bounds.y1,
+				 width, height);
+		FreePicture(mask, 0);
+	} else {
+		xTriangle tri;
+		xPointFixed *p[3] = { &tri.p1, &tri.p2, &tri.p3 };
+		int i;
+
+		if (dst->polyEdge == PolyEdgeSharp)
+			maskFormat = PictureMatchFormat(screen, 1, PICT_a1);
+		else
+			maskFormat = PictureMatchFormat(screen, 8, PICT_a8);
+
+		*p[0] = points[0];
+		*p[1] = points[1];
+		*p[2] = points[2];
+		triangles_fallback(op,
+				   src, dst, maskFormat,
+				   xSrc, ySrc, 1, &tri);
+		for (i = 3; i < n; i++) {
+			*p[i%3] = points[i];
+			/* Should xSrc,ySrc be updated? */
+			triangles_fallback(op,
+					   src, dst, maskFormat,
+					   xSrc, ySrc, 1, &tri);
+		}
+	}
+}
+
+void
+sna_composite_tristrip(CARD8 op,
+		       PicturePtr src,
+		       PicturePtr dst,
+		       PictFormatPtr maskFormat,
+		       INT16 xSrc, INT16 ySrc,
+		       int n, xPointFixed *points)
+{
+	if (tristrip_span_converter(op, src, dst, maskFormat, xSrc, ySrc, n, points))
+		return;
+
+	tristrip_fallback(op, src, dst, maskFormat, xSrc, ySrc, n, points);
+}
+
+static void
+trifan_fallback(CARD8 op,
+		PicturePtr src,
+		PicturePtr dst,
+		PictFormatPtr maskFormat,
+		INT16 xSrc, INT16 ySrc,
+		int n, xPointFixed *points)
+{
+	ScreenPtr screen = dst->pDrawable->pScreen;
+
+	if (maskFormat) {
+		PixmapPtr scratch;
+		PicturePtr mask;
+		INT16 dst_x, dst_y;
+		BoxRec bounds;
+		int width, height, depth;
+		pixman_image_t *image;
+		pixman_format_code_t format;
+		int error;
+
+		dst_x = pixman_fixed_to_int(points->x);
+		dst_y = pixman_fixed_to_int(points->y);
+
+		miPointFixedBounds(n, points, &bounds);
+		DBG(("%s: bounds (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+
+		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
+			return;
+
+		if (!sna_compute_composite_extents(&bounds,
+						   src, NULL, dst,
+						   xSrc, ySrc,
+						   0, 0,
+						   bounds.x1, bounds.y1,
+						   bounds.x2 - bounds.x1,
+						   bounds.y2 - bounds.y1))
+			return;
+
+		DBG(("%s: extents (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+
+		width  = bounds.x2 - bounds.x1;
+		height = bounds.y2 - bounds.y1;
+		bounds.x1 -= dst->pDrawable->x;
+		bounds.y1 -= dst->pDrawable->y;
+		depth = maskFormat->depth;
+		format = maskFormat->format | (BitsPerPixel(depth) << 24);
+
+		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
+		     __FUNCTION__, width, height, depth, format));
+		scratch = sna_pixmap_create_upload(screen,
+						   width, height, depth);
+		if (!scratch)
+			return;
+
+		memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
+		image = pixman_image_create_bits(format, width, height,
+						 scratch->devPrivate.ptr,
+						 scratch->devKind);
+		if (image) {
+			xTriangle tri;
+			xPointFixed *p[3] = { &tri.p1, &tri.p2, &tri.p3 };
+			int i;
+
+			*p[0] = points[0];
+			*p[1] = points[1];
+			*p[2] = points[2];
+			pixman_add_triangles(image,
+					     -bounds.x1, -bounds.y1,
+					     1, (pixman_triangle_t *)&tri);
+			for (i = 3; i < n; i++) {
+				*p[1+ (i%2)] = points[i];
+				pixman_add_triangles(image,
+						     -bounds.x1, -bounds.y1,
+						     1, (pixman_triangle_t *)&tri);
+			}
+			pixman_image_unref(image);
+		}
+
+		mask = CreatePicture(0, &scratch->drawable,
+				     PictureMatchFormat(screen, depth, format),
+				     0, 0, serverClient, &error);
+		screen->DestroyPixmap(scratch);
+		if (!mask)
+			return;
+
+		CompositePicture(op, src, mask, dst,
+				 xSrc + bounds.x1 - dst_x,
+				 ySrc + bounds.y1 - dst_y,
+				 0, 0,
+				 bounds.x1, bounds.y1,
+				 width, height);
+		FreePicture(mask, 0);
+	} else {
+		xTriangle tri;
+		xPointFixed *p[3] = { &tri.p1, &tri.p2, &tri.p3 };
+		int i;
+
+		if (dst->polyEdge == PolyEdgeSharp)
+			maskFormat = PictureMatchFormat(screen, 1, PICT_a1);
+		else
+			maskFormat = PictureMatchFormat(screen, 8, PICT_a8);
+
+		*p[0] = points[0];
+		*p[1] = points[1];
+		*p[2] = points[2];
+		triangles_fallback(op,
+				   src, dst, maskFormat,
+				   xSrc, ySrc, 1, &tri);
+		for (i = 3; i < n; i++) {
+			*p[1 + (i%2)] = points[i];
+			/* Should xSrc,ySrc be updated? */
+			triangles_fallback(op,
+					   src, dst, maskFormat,
+					   xSrc, ySrc, 1, &tri);
+		}
+	}
+}
+
+void
+sna_composite_trifan(CARD8 op,
+		     PicturePtr src,
+		     PicturePtr dst,
+		     PictFormatPtr maskFormat,
+		     INT16 xSrc, INT16 ySrc,
+		     int n, xPointFixed *points)
+{
+	trifan_fallback(op, src, dst, maskFormat, xSrc, ySrc, n, points);
 }
