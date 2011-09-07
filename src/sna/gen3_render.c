@@ -1138,6 +1138,46 @@ gen3_get_batch(struct sna *sna,
 #undef MAX_OBJECTS
 }
 
+static void gen3_emit_target(struct sna *sna,
+			     struct kgem_bo *bo,
+			     int width,
+			     int height,
+			     int format)
+{
+	struct gen3_render_state *state = &sna->render_state.gen3;
+
+	/* BUF_INFO is an implicit flush, so skip if the target is unchanged. */
+	if (bo->unique_id != state->current_dst) {
+		uint32_t v;
+
+		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
+		OUT_BATCH(BUF_3D_ID_COLOR_BACK |
+			  gen3_buf_tiling(bo->tiling) |
+			  bo->pitch);
+		OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
+					 bo,
+					 I915_GEM_DOMAIN_RENDER << 16 |
+					 I915_GEM_DOMAIN_RENDER,
+					 0));
+
+		OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
+		OUT_BATCH(gen3_get_dst_format(format));
+
+		v = DRAW_YMAX(height - 1) | DRAW_XMAX(width - 1);
+		if (v != state->last_drawrect_limit) {
+			OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
+			OUT_BATCH(0); /* XXX dither origin? */
+			OUT_BATCH(0);
+			OUT_BATCH(v);
+			OUT_BATCH(0);
+			state->last_drawrect_limit = v;
+		}
+
+		state->current_dst = bo->unique_id;
+	}
+	kgem_bo_mark_dirty(bo);
+}
+
 static void gen3_emit_composite_state(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
@@ -1150,37 +1190,11 @@ static void gen3_emit_composite_state(struct sna *sna,
 
 	gen3_get_batch(sna, op);
 
-	/* BUF_INFO is an implicit flush, so skip if the target is unchanged. */
-	if (op->dst.bo->unique_id != state->current_dst) {
-		uint32_t v;
-
-		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
-		OUT_BATCH(BUF_3D_ID_COLOR_BACK |
-			  gen3_buf_tiling(op->dst.bo->tiling) |
-			  op->dst.bo->pitch);
-		OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
-					 op->dst.bo,
-					 I915_GEM_DOMAIN_RENDER << 16 |
-					 I915_GEM_DOMAIN_RENDER,
-					 0));
-
-		OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
-		OUT_BATCH(gen3_get_dst_format(op->dst.format));
-
-		v = (DRAW_YMAX(op->dst.height - 1) |
-		     DRAW_XMAX(op->dst.width - 1));
-		if (v != state->last_drawrect_limit) {
-			OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
-			OUT_BATCH(0);
-			OUT_BATCH(0);
-			OUT_BATCH(v);
-			OUT_BATCH(0);
-			state->last_drawrect_limit = v;
-		}
-
-		state->current_dst = op->dst.bo->unique_id;
-	}
-	kgem_bo_mark_dirty(op->dst.bo);
+	gen3_emit_target(sna,
+			 op->dst.bo,
+			 op->dst.width,
+			 op->dst.height,
+			 op->dst.format);
 
 	ss2 = ~0;
 	tex_count = 0;
@@ -2770,20 +2784,15 @@ gen3_emit_video_state(struct sna *sna,
 		      int width, int height)
 {
 	uint32_t shader_offset;
-	uint32_t ms3, s5;
+	uint32_t ms3;
 
-	/* draw rect -- just clipping */
-	OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
-	OUT_BATCH(DRAW_DITHER_OFS_X(pixmap->drawable.x & 3) |
-		  DRAW_DITHER_OFS_Y(pixmap->drawable.y & 3));
-	OUT_BATCH(0x00000000);	/* ymin, xmin */
-	/* ymax, xmax */
-	OUT_BATCH((width - 1) | (height - 1) << 16);
-	OUT_BATCH(0x00000000);	/* yorigin, xorigin */
+	gen3_emit_target(sna, dst_bo, width, height,
+			 sna_format_for_depth(pixmap->drawable.depth));
 
+	/* XXX share with composite? Is it worth the effort? */
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
-		  I1_LOAD_S(1) | I1_LOAD_S(2) | I1_LOAD_S(5) | I1_LOAD_S(6) |
-		  3);
+		  I1_LOAD_S(1) | I1_LOAD_S(2) | I1_LOAD_S(6) |
+		  2);
 	OUT_BATCH((4 << S1_VERTEX_WIDTH_SHIFT) | (4 << S1_VERTEX_PITCH_SHIFT));
 	OUT_BATCH(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
 		  S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
@@ -2793,31 +2802,14 @@ gen3_emit_video_state(struct sna *sna,
 		  S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
 		  S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
 		  S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
-	s5 = 0x0;
-	if (pixmap->drawable.depth < 24)
-		s5 |= S5_COLOR_DITHER_ENABLE;
-	OUT_BATCH(s5);
 	OUT_BATCH((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
 		  (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
 		  (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) |
 		  S6_COLOR_WRITE_ENABLE | (2 << S6_TRISTRIP_PV_SHIFT));
 
-	OUT_BATCH(_3DSTATE_CONST_BLEND_COLOR_CMD);
-	OUT_BATCH(0x00000000);
-
-	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
-	OUT_BATCH(gen3_get_dst_format(sna_format_for_depth(pixmap->drawable.depth)));
-
-	/* front buffer, pitch, offset */
-	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
-	OUT_BATCH(BUF_3D_ID_COLOR_BACK |
-		  gen3_buf_tiling(dst_bo->tiling) |
-		  dst_bo->pitch);
-	OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
-				 dst_bo,
-				 I915_GEM_DOMAIN_RENDER << 16 |
-				 I915_GEM_DOMAIN_RENDER,
-				 0));
+	sna->render_state.gen3.last_blend = 0;
+	sna->render_state.gen3.last_sampler = 0;
+	sna->render_state.gen3.floats_per_vertex = 4;
 
 	if (!is_planar_fourcc(frame->id)) {
 		OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
@@ -3054,11 +3046,6 @@ gen3_emit_video_state(struct sna *sna,
 	sna->kgem.batch[shader_offset] =
 		_3DSTATE_PIXEL_SHADER_PROGRAM |
 		(sna->kgem.nbatch - shader_offset - 2);
-
-	/* video is the last operation in the batch, so state gets reset
-	 * afterwards automatically
-	 * gen3_reset();
-	 */
 }
 
 static void
