@@ -2608,6 +2608,89 @@ skip:
 	return true;
 }
 
+#define pixman_fixed_integer_floor(V) pixman_fixed_to_int(pixman_fixed_floor(V))
+#define pixman_fixed_integer_ceil(V) pixman_fixed_to_int(pixman_fixed_ceil(V))
+
+static bool
+trap_upload(PicturePtr picture,
+	    INT16 x, INT16 y,
+	    int ntrap, xTrap *trap)
+{
+	ScreenPtr screen = picture->pDrawable->pScreen;
+	struct sna *sna = to_sna_from_screen(screen);
+	PixmapPtr pixmap = get_drawable_pixmap(picture->pDrawable);
+	PixmapPtr scratch;
+	struct sna_pixmap *priv;
+	BoxRec extents;
+	pixman_image_t *image;
+	int width, height, depth;
+	int n;
+
+	priv = sna_pixmap_move_to_gpu(pixmap);
+	if (priv == NULL)
+		return false;
+
+	extents = *RegionExtents(picture->pCompositeClip);
+	for (n = 0; n < ntrap; n++) {
+		int v;
+
+		v = x + pixman_fixed_integer_floor (MIN(trap[n].top.l, trap[n].bot.l));
+		if (v < extents.x1)
+			extents.x1 = v;
+
+		v = x + pixman_fixed_integer_ceil (MAX(trap[n].top.r, trap[n].bot.r));
+		if (v > extents.x2)
+			extents.x2 = v;
+
+		v = y + pixman_fixed_integer_floor (trap[n].top.y);
+		if (v < extents.y1)
+			extents.y1 = v;
+
+		v = y + pixman_fixed_integer_ceil (trap[n].bot.y);
+		if (v > extents.y2)
+			extents.y2 = v;
+	}
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	width  = extents.x2 - extents.x1;
+	height = extents.y2 - extents.y1;
+	depth = picture->pDrawable->depth;
+
+	DBG(("%s: tmp (%dx%d) depth=%d\n",
+	     __FUNCTION__, width, height, depth));
+	scratch = sna_pixmap_create_upload(screen, width, height, depth);
+	if (!scratch)
+		return true;
+
+	memset(scratch->devPrivate.ptr, 0, scratch->devKind*height);
+	image = pixman_image_create_bits(picture->format, width, height,
+					 scratch->devPrivate.ptr,
+					 scratch->devKind);
+	if (image) {
+		pixman_add_traps (image, -extents.x1, -extents.y1,
+				  ntrap, (pixman_trap_t *)trap);
+
+		pixman_image_unref(image);
+	}
+
+	/* XXX clip boxes */
+	get_drawable_deltas(picture->pDrawable, pixmap, &x, &y);
+	sna->render.copy_boxes(sna, GXcopy,
+			       scratch, sna_pixmap_get_bo(scratch), -extents.x1, -extents.x1,
+			       pixmap, priv->gpu_bo, x, y,
+			       &extents, 1);
+	if (!priv->gpu_only) {
+		extents.x1 += x; extents.x2 += x;
+		extents.y1 += y; extents.y2 += y;
+		sna_damage_add_box(&priv->gpu_damage, &extents);
+	}
+
+	screen->DestroyPixmap(scratch);
+	return true;
+}
+
 void
 sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 {
@@ -2615,6 +2698,9 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 
 	if (picture_is_gpu (picture)) {
 		if (trap_span_converter(picture, x, y, n, t))
+			return;
+
+		if (trap_upload(picture, x, y, n, t))
 			return;
 	}
 
