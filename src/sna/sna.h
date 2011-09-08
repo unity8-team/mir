@@ -523,6 +523,8 @@ void sna_composite_trapezoids(CARD8 op,
 			      PictFormatPtr maskFormat,
 			      INT16 xSrc, INT16 ySrc,
 			      int ntrap, xTrapezoid *traps);
+void sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t);
+
 void sna_composite_triangles(CARD8 op,
 			     PicturePtr src,
 			     PicturePtr dst,

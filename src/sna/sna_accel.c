@@ -3115,16 +3115,6 @@ static Bool sna_change_window_attributes(WindowPtr win, unsigned long mask)
 }
 
 static void
-sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
-{
-	DBG(("%s (%d, %d) x %d\n", __FUNCTION__, x, y, n));
-
-	sna_drawable_move_to_cpu(picture->pDrawable, true);
-
-	fbAddTraps(picture, x, y, n, t);
-}
-
-static void
 sna_accel_flush_callback(CallbackListPtr *list,
 			 pointer user_data, pointer call_data)
 {

@@ -2103,11 +2103,10 @@ choose_span(PicturePtr dst,
 	return span;
 }
 
-
 static bool
-trap_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
-		    PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
-		    int ntrap, xTrapezoid *traps)
+trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+			 PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+			 int ntrap, xTrapezoid *traps)
 {
 	struct sna *sna;
 	struct sna_composite_spans_op tmp;
@@ -2265,9 +2264,9 @@ tor_blt_mask_mono(struct sna *sna,
 }
 
 static bool
-trap_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
-		    PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
-		    int ntrap, xTrapezoid *traps)
+trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+			 PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+			 int ntrap, xTrapezoid *traps)
 {
 	struct tor tor;
 	span_func_t span;
@@ -2474,12 +2473,12 @@ sna_composite_trapezoids(CARD8 op,
 		}
 	}
 
-	if (trap_span_converter(op, src, dst, maskFormat,
-				xSrc, ySrc, ntrap, traps))
+	if (trapezoid_span_converter(op, src, dst, maskFormat,
+				     xSrc, ySrc, ntrap, traps))
 		return;
 
-	if (trap_mask_converter(op, src, dst, maskFormat,
-				xSrc, ySrc, ntrap, traps))
+	if (trapezoid_mask_converter(op, src, dst, maskFormat,
+				     xSrc, ySrc, ntrap, traps))
 		return;
 
 fallback:
@@ -2488,6 +2487,140 @@ fallback:
 	trapezoids_fallback(op, src, dst, maskFormat,
 			    xSrc, ySrc,
 			    ntrap, traps);
+}
+
+static inline bool
+project_trap_onto_grid(const xTrap *in,
+		       int dx, int dy,
+		       xTrap *out)
+{
+	out->top.l = dx + pixman_fixed_to_grid(in->top.l);
+	out->top.r = dx + pixman_fixed_to_grid(in->top.r);
+	out->top.y = dy + pixman_fixed_to_grid(in->top.y);
+
+	out->bot.l = dx + pixman_fixed_to_grid(in->bot.l);
+	out->bot.r = dx + pixman_fixed_to_grid(in->bot.r);
+	out->bot.y = dy + pixman_fixed_to_grid(in->bot.y);
+
+	return out->bot.y > out->top.y;
+}
+
+static bool
+trap_span_converter(PicturePtr dst,
+		    INT16 src_x, INT16 src_y,
+		    int ntrap, xTrap *trap)
+{
+	struct sna *sna;
+	struct sna_composite_spans_op tmp;
+	struct tor tor;
+	BoxRec extents;
+	PicturePtr src;
+	xRenderColor white;
+	pixman_region16_t *clip;
+	int16_t dx, dy;
+	int n, error;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	/* XXX strict adherence to the Render specification */
+	if (dst->polyMode == PolyModePrecise) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	sna = to_sna_from_drawable(dst->pDrawable);
+	if (!sna->render.composite_spans) {
+		DBG(("%s: fallback -- composite spans not supported\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	clip = dst->pCompositeClip;
+	extents = *RegionExtents(clip);
+	dx = dst->pDrawable->x;
+	dy = dst->pDrawable->y;
+
+	DBG(("%s: after clip -- extents (%d, %d), (%d, %d), delta=(%d, %d)\n",
+	     __FUNCTION__,
+	     extents.x1, extents.y1,
+	     extents.x2, extents.y2,
+	     dx, dy));
+
+	white.red = white.green = white.blue = white.alpha = 0xffff;
+	src = CreateSolidPicture(0, &white, &error);
+	if (src == NULL)
+		return true;
+
+	memset(&tmp, 0, sizeof(tmp));
+	if (!sna->render.composite_spans(sna, PictOpAdd, src, dst,
+					 0, 0,
+					 extents.x1,  extents.y1,
+					 extents.x2 - extents.x1,
+					 extents.y2 - extents.y1,
+					 &tmp)) {
+		DBG(("%s: fallback -- composite spans render op not supported\n",
+		     __FUNCTION__));
+		FreePicture(src, 0);
+		return false;
+	}
+
+	dx *= FAST_SAMPLES_X;
+	dy *= FAST_SAMPLES_Y;
+	if (tor_init(&tor, &extents, 2*ntrap))
+		goto skip;
+
+	for (n = 0; n < ntrap; n++) {
+		xTrap t;
+		xPointFixed p1, p2;
+
+		if (!project_trap_onto_grid(&trap[n], dx, dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(trap[n].top.y) + dst->pDrawable->y >= extents.y2 ||
+		    pixman_fixed_to_int(trap[n].bot.y) + dst->pDrawable->y < extents.y1)
+			continue;
+
+		p1.y = t.top.y;
+		p2.y = t.bot.y;
+		p1.x = t.top.l;
+		p2.x = t.bot.l;
+		polygon_add_line(tor.polygon, &p1, &p2);
+
+		p1.y = t.bot.y;
+		p2.y = t.top.y;
+		p1.x = t.top.r;
+		p2.x = t.bot.r;
+		polygon_add_line(tor.polygon, &p1, &p2);
+	}
+
+	tor_render(sna, &tor, &tmp, clip,
+		   choose_span(dst, NULL, PictOpAdd, clip), false);
+
+skip:
+	tor_fini(&tor);
+	tmp.done(sna, &tmp);
+	FreePicture(src, 0);
+	return true;
+}
+
+void
+sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
+{
+	DBG(("%s (%d, %d) x %d\n", __FUNCTION__, x, y, n));
+
+	if (picture_is_gpu (picture)) {
+		if (trap_span_converter(picture, x, y, n, t))
+			return;
+	}
+
+	DBG(("%s -- fallback\n", __FUNCTION__));
+	sna_drawable_move_to_cpu(picture->pDrawable, true);
+	fbAddTraps(picture, x, y, n, t);
 }
 
 static inline void
