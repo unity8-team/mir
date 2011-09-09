@@ -715,6 +715,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 				struct kgem_bo *base = malloc(sizeof(*base));
 				if (base) {
 					memcpy(base, &bo->base, sizeof (*base));
+					base->reusable = true;
 					list_init(&base->list);
 					list_replace(&bo->base.request,
 						     &base->request);
