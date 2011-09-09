@@ -1886,8 +1886,10 @@ gen3_init_radial(struct sna *sna,
 	n = op->u.gen3.num_constants;
 	channel->u.gen3.constants = FS_C0 + n / 4;
 	if (radial->c2.x == radial->c1.x && radial->c2.y == radial->c1.y) {
-		if (radial->c2.radius == radial->c1.radius)
-			return 0;
+		if (radial->c2.radius == radial->c1.radius) {
+			channel->u.gen3.type = SHADER_ZERO;
+			return 1;
+		}
 
 		op->u.gen3.constants[n++] = xFixedToDouble(radial->c1.x) / dr;
 		op->u.gen3.constants[n++] = xFixedToDouble(radial->c1.y) / dr;
