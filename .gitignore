@@ -43,6 +43,7 @@ stamp-h?
 symlink-tree
 texinfo.tex
 ylwrap
+src/sna/git_version.h
 
 #	Do not edit the following section
 # 	Edit Compile Debug Document Distribute
