@@ -2355,7 +2355,7 @@ gen5_render_fill_boxes(struct sna *sna,
 		return FALSE;
 	}
 
-	if (sna->kgem.mode == KGEM_BLT ||
+	if (sna->kgem.mode != KGEM_RENDER ||
 	    dst->drawable.width > 8192 ||
 	    dst->drawable.height > 8192 ||
 	    !gen5_check_dst_format(format)) {
@@ -2497,7 +2497,7 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s(alu=%d, color=%08x)\n", __FUNCTION__, alu, color));
 
-	if (sna->kgem.mode == KGEM_BLT &&
+	if (sna->kgem.mode != KGEM_RENDER &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
