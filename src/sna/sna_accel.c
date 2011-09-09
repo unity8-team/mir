@@ -982,7 +982,11 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	char *dst_bits;
+	int dst_stride;
+	BoxRec *box;
 	int16_t dx, dy;
+	int n;
 
 	if (!priv->gpu_bo)
 		return false;
@@ -1035,18 +1039,27 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	dx += drawable->x;
-	dy += drawable->y;
+	x += dx + drawable->x;
+	y += dx + drawable->y;
 
-	DBG(("%s: fbPutZImage(%d[+%d], %d[+%d], %d, %d)\n",
-	     __FUNCTION__,
-	     x+dx, pixmap->drawable.x,
-	     y+dy, pixmap->drawable.y,
-	     w, h));
-	fbPutZImage(&pixmap->drawable, region,
-		    GXcopy, ~0U,
-		    x + dx, y + dy, w, h,
-		    (FbStip*)bits, stride/sizeof(FbStip));
+	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
+
+	dst_stride = pixmap->devKind;
+	dst_bits = pixmap->devPrivate.ptr;
+
+	/* Region is pre-clipped and translated into pixmap space */
+	box = REGION_RECTS(region);
+	n = REGION_NUM_RECTS(region);
+	do {
+		memcpy_blt(bits, dst_bits,
+			   pixmap->drawable.bitsPerPixel,
+			   stride, dst_stride,
+			   box->x1 - x, box->y1 - y,
+			   box->x1, box->y1,
+			   box->x2 - box->x1, box->y2 - box->y1);
+		box++;
+	} while (--n);
+
 	return true;
 }
 
@@ -1353,6 +1366,8 @@ fallback:
 				box++;
 			} while (--n);
 		} else {
+			DBG(("%s: alu==GXcopy? %d, reverse? %d, upsidedown? %d, bpp? %d\n",
+			     __FUNCTION__, alu == GXcopy, reverse, upsidedown, bpp));
 			dst_bits = dst_pixmap->devPrivate.ptr;
 			src_bits = src_pixmap->devPrivate.ptr;
 
