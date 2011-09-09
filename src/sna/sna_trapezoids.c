@@ -2611,6 +2611,143 @@ skip:
 #define pixman_fixed_integer_floor(V) pixman_fixed_to_int(pixman_fixed_floor(V))
 #define pixman_fixed_integer_ceil(V) pixman_fixed_to_int(pixman_fixed_ceil(V))
 
+static void mark_damaged(PixmapPtr pixmap, struct sna_pixmap *priv,
+			 BoxPtr box, int16_t x, int16_t y)
+{
+	if (!priv->gpu_only) {
+		box->x1 += x; box->x2 += x;
+		box->y1 += y; box->y2 += y;
+		if (box->x1 <= 0 && box->y1 <= 0 &&
+		    box->x2 >= pixmap->drawable.width &&
+		    box->y2 >= pixmap->drawable.height) {
+			sna_damage_destroy(&priv->cpu_damage);
+			sna_damage_all(&priv->gpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
+		} else {
+			sna_damage_add_box(&priv->gpu_damage, box);
+			sna_damage_subtract_box(&priv->cpu_damage, box);
+		}
+	}
+}
+
+static bool
+trap_mask_converter(PicturePtr picture,
+		    INT16 x, INT16 y,
+		    int ntrap, xTrap *trap)
+{
+	struct sna *sna;
+	struct tor tor;
+	ScreenPtr screen = picture->pDrawable->pScreen;
+	PixmapPtr scratch, pixmap;
+	struct sna_pixmap *priv;
+	BoxRec extents;
+	span_func_t span;
+	int16_t dx, dy;
+	int n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	pixmap = get_drawable_pixmap(picture->pDrawable);
+	priv = sna_pixmap_move_to_gpu(pixmap);
+
+	/* XXX strict adherence to the Render specification */
+	if (picture->polyMode == PolyModePrecise) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	extents = *RegionExtents(picture->pCompositeClip);
+	for (n = 0; n < ntrap; n++) {
+		int v;
+
+		v = x + pixman_fixed_integer_floor (MIN(trap[n].top.l, trap[n].bot.l));
+		if (v < extents.x1)
+			extents.x1 = v;
+
+		v = x + pixman_fixed_integer_ceil (MAX(trap[n].top.r, trap[n].bot.r));
+		if (v > extents.x2)
+			extents.x2 = v;
+
+		v = y + pixman_fixed_integer_floor (trap[n].top.y);
+		if (v < extents.y1)
+			extents.y1 = v;
+
+		v = y + pixman_fixed_integer_ceil (trap[n].bot.y);
+		if (v > extents.y2)
+			extents.y2 = v;
+	}
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	scratch = sna_pixmap_create_upload(screen,
+					   extents.x2-extents.x1,
+					   extents.y2-extents.y1,
+					   8);
+	if (!scratch)
+		return true;
+
+	dx = picture->pDrawable->x;
+	dy = picture->pDrawable->y;
+	dx *= FAST_SAMPLES_X;
+	dy *= FAST_SAMPLES_Y;
+	if (tor_init(&tor, &extents, 2*ntrap)) {
+		screen->DestroyPixmap(scratch);
+		return true;
+	}
+
+	for (n = 0; n < ntrap; n++) {
+		xTrap t;
+		xPointFixed p1, p2;
+
+		if (!project_trap_onto_grid(&trap[n], dx, dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(trap[n].top.y) + picture->pDrawable->y >= extents.y2 ||
+		    pixman_fixed_to_int(trap[n].bot.y) + picture->pDrawable->y < extents.y1)
+			continue;
+
+		p1.y = t.top.y;
+		p2.y = t.bot.y;
+		p1.x = t.top.l;
+		p2.x = t.bot.l;
+		polygon_add_line(tor.polygon, &p1, &p2);
+
+		p1.y = t.bot.y;
+		p2.y = t.top.y;
+		p1.x = t.top.r;
+		p2.x = t.bot.r;
+		polygon_add_line(tor.polygon, &p1, &p2);
+	}
+
+	if (picture->polyEdge == PolyEdgeSharp)
+		span = tor_blt_mask_mono;
+	else
+		span = tor_blt_mask;
+
+	tor_render(NULL, &tor,
+		   scratch->devPrivate.ptr,
+		   (void *)(intptr_t)scratch->devKind,
+		   span, true);
+
+	tor_fini(&tor);
+
+	/* XXX clip boxes */
+	get_drawable_deltas(picture->pDrawable, pixmap, &x, &y);
+	sna = to_sna_from_screen(screen);
+	sna->render.copy_boxes(sna, GXcopy,
+			       scratch, sna_pixmap_get_bo(scratch), -extents.x1, -extents.x1,
+			       pixmap, priv->gpu_bo, x, y,
+			       &extents, 1);
+	mark_damaged(pixmap, priv, &extents ,x, y);
+
+	screen->DestroyPixmap(scratch);
+	return true;
+}
+
 static bool
 trap_upload(PicturePtr picture,
 	    INT16 x, INT16 y,
@@ -2681,11 +2818,7 @@ trap_upload(PicturePtr picture,
 			       scratch, sna_pixmap_get_bo(scratch), -extents.x1, -extents.x1,
 			       pixmap, priv->gpu_bo, x, y,
 			       &extents, 1);
-	if (!priv->gpu_only) {
-		extents.x1 += x; extents.x2 += x;
-		extents.y1 += y; extents.y2 += y;
-		sna_damage_add_box(&priv->gpu_damage, &extents);
-	}
+	mark_damaged(pixmap, priv, &extents, x, y);
 
 	screen->DestroyPixmap(scratch);
 	return true;
@@ -2698,6 +2831,9 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 
 	if (picture_is_gpu (picture)) {
 		if (trap_span_converter(picture, x, y, n, t))
+			return;
+
+		if (trap_mask_converter(picture, x, y, n, t))
 			return;
 
 		if (trap_upload(picture, x, y, n, t))
