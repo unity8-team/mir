@@ -59,6 +59,14 @@ m4_ifndef([XORG_DRIVER_CHECK_EXT],
 LT_PREREQ([2.2])
 LT_INIT([disable-static])
 
+# Are we in a git checkout?
+dot_git=no
+if test -e .git; then
+	AC_DEFINE(HAVE_DOT_GIT, 1, [Are we in a git checkout?])
+	dot_git=yes
+fi
+AM_CONDITIONAL(HAVE_DOT_GIT, test x$dot_git = xyes)
+
 PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 

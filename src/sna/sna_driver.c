@@ -71,6 +71,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/poll.h>
 #include "i915_drm.h"
 
+#if HAVE_DOT_GIT
+#include "git_version.h"
+#endif
+
 #if DEBUG_DRIVER
 #undef DBG
 #define DBG(x) ErrorF x
@@ -1012,6 +1016,12 @@ static Bool sna_pm_event(int scrnIndex, pmEvent event, Bool undo)
 void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
 	EntityInfoPtr entity;
+
+#if HAVE_DOT_GIT
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled from %s\n",
+		   git_version);
+#endif
 
 	DBG(("%s\n", __FUNCTION__));
 
