@@ -1561,7 +1561,7 @@ composite_aligned_boxes(CARD8 op,
 	}
 
 	if (num_boxes == 0)
-		return true;
+		goto free_boxes;
 
 	DBG(("%s: extents (%d, %d), (%d, %d) offset of (%d, %d)\n",
 	     __FUNCTION__,
@@ -1629,6 +1629,7 @@ composite_aligned_boxes(CARD8 op,
 
 done:
 	REGION_UNINIT(NULL, &clip);
+free_boxes:
 	if (boxes != stack_boxes)
 		free(boxes);
 
