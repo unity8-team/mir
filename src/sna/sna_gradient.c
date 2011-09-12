@@ -335,11 +335,17 @@ static Bool sna_solid_cache_init(struct sna *sna)
 	if (!cache->cache_bo)
 		return FALSE;
 
+	/*
+	 * Initialise [0] with white since it is very common and filling the
+	 * zeroth slot simplifies some of the checks.
+	 */
 	cache->color[0] = 0xffffffff;
 	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
+	cache->dirty = 1;
 	cache->size = 1;
 	cache->last = 0;
+
 	return TRUE;
 }
 

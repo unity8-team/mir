@@ -645,6 +645,17 @@ static bool gen5_check_repeat(PicturePtr picture)
 	}
 }
 
+static uint32_t
+gen5_tiling_bits(uint32_t tiling)
+{
+	switch (tiling) {
+	default: assert(0);
+	case I915_TILING_NONE: return 0;
+	case I915_TILING_X: return GEN5_SURFACE_TILED;
+	case I915_TILING_Y: return GEN5_SURFACE_TILED | GEN5_SURFACE_TILED_Y;
+	}
+}
+
 /**
  * Sets up the common fields for a surface state buffer for the given
  * picture in the given surface state buffer.
@@ -657,9 +668,9 @@ gen5_bind_bo(struct sna *sna,
 	     uint32_t format,
 	     Bool is_dst)
 {
-	struct gen5_surface_state *ss;
 	uint32_t domains;
 	uint16_t offset;
+	uint32_t *ss;
 
 	/* After the first bind, we manage the cache domains within the batch */
 	if (is_dst) {
@@ -687,23 +698,22 @@ gen5_bind_bo(struct sna *sna,
 
 	sna->kgem.surface -=
 		sizeof(struct gen5_surface_state_padded) / sizeof(uint32_t);
-	ss = memset(sna->kgem.batch + sna->kgem.surface, 0, sizeof(*ss));
+	ss = sna->kgem.batch + sna->kgem.surface;
 
-	ss->ss0.surface_type = GEN5_SURFACE_2D;
-	ss->ss0.surface_format = format;
+	ss[0] = (GEN5_SURFACE_2D << GEN5_SURFACE_TYPE_SHIFT |
+		 GEN5_SURFACE_BLEND_ENABLED |
+		 format << GEN5_SURFACE_FORMAT_SHIFT);
 
-	ss->ss0.data_return_format = GEN5_SURFACERETURNFORMAT_FLOAT32;
-	ss->ss0.color_blend = 1;
-	ss->ss1.base_addr =
-		kgem_add_reloc(&sna->kgem,
+	ss[1] = kgem_add_reloc(&sna->kgem,
 			       sna->kgem.surface + 1,
 			       bo, domains, 0);
 
-	ss->ss2.height = height - 1;
-	ss->ss2.width  = width - 1;
-	ss->ss3.pitch = bo->pitch - 1;
-	ss->ss3.tile_walk = bo->tiling == I915_TILING_Y;
-	ss->ss3.tiled_surface = bo->tiling != I915_TILING_NONE;
+	ss[2] = ((width - 1)  << GEN5_SURFACE_WIDTH_SHIFT |
+		 (height - 1) << GEN5_SURFACE_HEIGHT_SHIFT);
+	ss[3] = (gen5_tiling_bits(bo->tiling) |
+		 (bo->pitch - 1) << GEN5_SURFACE_PITCH_SHIFT);
+	ss[4] = 0;
+	ss[5] = 0;
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss->ss1.base_addr,
