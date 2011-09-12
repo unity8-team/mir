@@ -2307,8 +2307,7 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu,
 	     src_bo == dst_bo));
 
-	/* XXX benchmark me! */
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (sna->kgem.mode == KGEM_BLT &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -2465,8 +2464,7 @@ gen6_render_copy(struct sna *sna, uint8_t alu,
 	     src->drawable.width, src->drawable.height,
 	     dst->drawable.width, dst->drawable.height));
 
-	/* XXX benchmark me! */
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (sna->kgem.mode == KGEM_BLT &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
