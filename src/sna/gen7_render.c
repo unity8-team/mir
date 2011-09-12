@@ -2633,8 +2633,8 @@ gen7_render_copy(struct sna *sna, uint8_t alu,
 		gen7_get_card_format_for_depth(src->drawable.depth),
 	op->base.src.width  = src->drawable.width;
 	op->base.src.height = src->drawable.height;
-	op->base.src.scale[0] = 1./src->drawable.width;
-	op->base.src.scale[1] = 1./src->drawable.height;
+	op->base.src.scale[0] = 1.f/src->drawable.width;
+	op->base.src.scale[1] = 1.f/src->drawable.height;
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 

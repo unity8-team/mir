@@ -2224,8 +2224,8 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 	gen4_copy_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
 
-	tmp.src.scale[0] = 1. / src->drawable.width;
-	tmp.src.scale[1] = 1. / src->drawable.height;
+	tmp.src.scale[0] = 1.f/src->drawable.width;
+	tmp.src.scale[1] = 1.f/src->drawable.height;
 	do {
 		gen4_render_copy_one(sna, &tmp,
 				     box->x1 + src_dx, box->y1 + src_dy,
@@ -2303,8 +2303,8 @@ gen4_render_copy(struct sna *sna, uint8_t alu,
 		gen4_get_card_format_for_depth(src->drawable.depth),
 	op->base.src.width  = src->drawable.width;
 	op->base.src.height = src->drawable.height;
-	op->base.src.scale[0] = 1./src->drawable.width;
-	op->base.src.scale[1] = 1./src->drawable.height;
+	op->base.src.scale[0] = 1.f/src->drawable.width;
+	op->base.src.scale[1] = 1.f/src->drawable.height;
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 

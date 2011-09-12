@@ -2019,8 +2019,8 @@ gen2_render_copy_setup_source(struct sna *sna,
 	channel->repeat = RepeatNone;
 	channel->width  = pixmap->drawable.width;
 	channel->height = pixmap->drawable.height;
-	channel->scale[0] = 1./pixmap->drawable.width;
-	channel->scale[1] = 1./pixmap->drawable.height;
+	channel->scale[0] = 1.f/pixmap->drawable.width;
+	channel->scale[1] = 1.f/pixmap->drawable.height;
 	channel->offset[0] = 0;
 	channel->offset[1] = 0;
 	channel->pict_format = sna_format_for_depth(pixmap->drawable.depth);

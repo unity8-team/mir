@@ -319,8 +319,8 @@ static struct kgem_bo *upload(struct sna *sna,
 	if (bo) {
 		channel->offset[0] -= box->x1;
 		channel->offset[1] -= box->y1;
-		channel->scale[0] = 1./w;
-		channel->scale[1] = 1./h;
+		channel->scale[0] = 1.f/w;
+		channel->scale[1] = 1.f/h;
 		channel->width  = w;
 		channel->height = h;
 	}
@@ -387,8 +387,8 @@ sna_render_pixmap_bo(struct sna *sna,
 
 	channel->height = pixmap->drawable.height;
 	channel->width  = pixmap->drawable.width;
-	channel->scale[0] = 1. / pixmap->drawable.width;
-	channel->scale[1] = 1. / pixmap->drawable.height;
+	channel->scale[0] = 1.f / pixmap->drawable.width;
+	channel->scale[1] = 1.f / pixmap->drawable.height;
 	channel->offset[0] = x - dst_x;
 	channel->offset[1] = y - dst_y;
 
@@ -648,8 +648,8 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 	channel->offset[0] = x - dst_x;
 	channel->offset[1] = y - dst_y;
-	channel->scale[0] = 1./w;
-	channel->scale[1] = 1./h;
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
 	channel->width  = w / 2;
 	channel->height = h / 2;
 	channel->bo = bo;
@@ -824,8 +824,8 @@ sna_render_picture_extract(struct sna *sna,
 
 	channel->offset[0] = x - dst_x;
 	channel->offset[1] = y - dst_y;
-	channel->scale[0] = 1./w;
-	channel->scale[1] = 1./h;
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
 	channel->width  = w;
 	channel->height = h;
 	channel->bo = bo;
@@ -941,8 +941,8 @@ sna_render_picture_fixup(struct sna *sna,
 	channel->repeat = RepeatNone;
 	channel->is_affine = TRUE;
 
-	channel->scale[0] = 1./w;
-	channel->scale[1] = 1./h;
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
 	channel->offset[0] = -dst_x;
 	channel->offset[1] = -dst_y;
 	channel->transform = NULL;
@@ -1061,8 +1061,8 @@ sna_render_picture_convert(struct sna *sna,
 	channel->width  = w;
 	channel->height = h;
 
-	channel->scale[0] = 1. / w;
-	channel->scale[1] = 1. / h;
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
 	channel->offset[0] = x - dst_x - box.x1;
 	channel->offset[1] = y - dst_y - box.y1;
 
