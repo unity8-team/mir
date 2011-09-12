@@ -3274,7 +3274,7 @@ static void sna_accel_create_timers(struct sna *sna)
 		sna->timer[id] = -1;
 }
 static Bool sna_accel_do_flush(struct sna *sna) { return sna_accel_scanout(sna) != NULL; }
-static Bool sna_accel_arm_expire(struct sna *sna) { return TRUE; }
+static Bool sna_accel_do_expire(struct sna *sna) { return sna->kgem.need_expire; }
 static void _sna_accel_disarm_timer(struct sna *sna, int id) { }
 #endif
 
