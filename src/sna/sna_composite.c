@@ -61,6 +61,12 @@ static void dst_move_area_to_cpu(PicturePtr picture,
 
 #define BOUND(v)	(INT16) ((v) < MINSHORT ? MINSHORT : (v) > MAXSHORT ? MAXSHORT : (v))
 
+static inline bool
+region_is_singular(pixman_region16_t *region)
+{
+	return region->data == NULL;
+}
+
 static inline pixman_bool_t
 clip_to_dst(pixman_region16_t *region,
 	    pixman_region16_t *clip,
@@ -76,10 +82,9 @@ clip_to_dst(pixman_region16_t *region,
 	     clip->extents.x1, clip->extents.y1,
 	     clip->extents.x2, clip->extents.y2));
 
-	if (pixman_region_n_rects(region) == 1 &&
-	    pixman_region_n_rects(clip) == 1) {
-		pixman_box16_t *r = pixman_region_rectangles(region, NULL);
-		pixman_box16_t *c = pixman_region_rectangles(clip, NULL);
+	if (region_is_singular(region) && region_is_singular(clip)) {
+		pixman_box16_t *r = &region->extents;
+		pixman_box16_t *c = &clip->extents;
 		int v;
 
 		if (r->x1 < (v = c->x1 + dx))
@@ -91,8 +96,12 @@ clip_to_dst(pixman_region16_t *region,
 		if (r->y2 > (v = c->y2 + dy))
 			r->y2 = BOUND(v);
 
-		if (r->x1 >= r->x2 || r->y1 >= r->y2)
+		if (r->x1 >= r->x2 || r->y1 >= r->y2) {
 			pixman_region_init(region);
+			return FALSE;
+		}
+
+		return TRUE;
 	} else if (!pixman_region_not_empty(clip)) {
 		return FALSE;
 	} else {
@@ -102,8 +111,9 @@ clip_to_dst(pixman_region16_t *region,
 			return FALSE;
 		if (dx | dy)
 			pixman_region_translate(region, dx, dy);
+
+		return pixman_region_not_empty(region);
 	}
-	return pixman_region_not_empty(region);
 }
 
 static inline Bool
