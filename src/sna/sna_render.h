@@ -215,6 +215,11 @@ struct sna_render {
 	void (*reset)(struct sna *sna);
 	void (*fini)(struct sna *sna);
 
+	struct sna_alpha_cache {
+		struct kgem_bo *cache_bo;
+		struct kgem_bo *bo[256];
+	} alpha_cache;
+
 	struct sna_solid_cache {
 		struct kgem_bo *cache_bo;
 		uint32_t color[1024];

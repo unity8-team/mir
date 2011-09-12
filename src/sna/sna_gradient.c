@@ -260,8 +260,11 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 	unsigned int i;
 
-	if (color == 0) {
-		DBG(("%s(clear)\n", __FUNCTION__));
+	if ((color & 0xffffff) == 0) /* alpha only */
+		return kgem_bo_reference(sna->render.alpha_cache.bo[color>>24]);
+
+	if (color == 0xffffffff) {
+		DBG(("%s(white)\n", __FUNCTION__));
 		return kgem_bo_reference(cache->bo[0]);
 	}
 
@@ -302,6 +305,27 @@ done:
 	return kgem_bo_reference(cache->bo[i]);
 }
 
+static Bool sna_alpha_cache_init(struct sna *sna)
+{
+	struct sna_alpha_cache *cache = &sna->render.alpha_cache;
+	uint32_t color[256];
+	int i;
+
+	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(color));
+	if (!cache->cache_bo)
+		return FALSE;
+
+	for (i = 0; i < 256; i++) {
+		color[i] = i << 24;
+		cache->bo[i] = kgem_create_proxy(cache->cache_bo,
+						 sizeof(uint32_t)*i,
+						 sizeof(uint32_t));
+		cache->bo[i]->pitch = 4;
+	}
+	kgem_bo_write(&sna->kgem, cache->cache_bo, color, sizeof(color));
+	return TRUE;
+}
+
 static Bool sna_solid_cache_init(struct sna *sna)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
@@ -311,6 +335,7 @@ static Bool sna_solid_cache_init(struct sna *sna)
 	if (!cache->cache_bo)
 		return FALSE;
 
+	cache->color[0] = 0xffffffff;
 	cache->bo[0] = kgem_create_proxy(cache->cache_bo, 0, sizeof(uint32_t));
 	cache->bo[0]->pitch = 4;
 	cache->size = 1;
@@ -320,12 +345,25 @@ static Bool sna_solid_cache_init(struct sna *sna)
 
 Bool sna_gradients_create(struct sna *sna)
 {
-	return sna_solid_cache_init(sna);
+	if (!sna_alpha_cache_init(sna))
+		return FALSE;
+
+	if (!sna_solid_cache_init(sna))
+		return FALSE;
+
+	return TRUE;
 }
 
 void sna_gradients_close(struct sna *sna)
 {
 	int i;
+
+	for (i = 0; i < 256; i++) {
+		if (sna->render.alpha_cache.bo[i])
+			kgem_bo_destroy(&sna->kgem, sna->render.alpha_cache.bo[i]);
+	}
+	if (sna->render.alpha_cache.cache_bo)
+		kgem_bo_destroy(&sna->kgem, sna->render.alpha_cache.cache_bo);
 
 	if (sna->render.solid_cache.cache_bo)
 		kgem_bo_destroy(&sna->kgem, sna->render.solid_cache.cache_bo);
