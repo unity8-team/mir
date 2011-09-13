@@ -50,6 +50,8 @@
 #define NO_UNALIGNED_BOXES 0
 #define NO_SCAN_CONVERTER 0
 
+/* TODO: Emit unantialiased and MSAA triangles. */
+
 #define unlikely(x) x
 
 #ifndef MAX
@@ -1401,6 +1403,417 @@ tor_render(struct sna *sna,
 	}
 }
 
+struct mono_edge {
+	struct mono_edge *next, *prev;
+
+	int32_t height_left;
+	int32_t dir;
+	int32_t vertical;
+
+	int32_t dy;
+	struct quorem x;
+	struct quorem dxdy;
+};
+
+struct mono_polygon {
+	int num_edges;
+	struct mono_edge *edges;
+	struct mono_edge **y_buckets;
+
+	struct mono_edge *y_buckets_embedded[64];
+	struct mono_edge edges_embedded[32];
+};
+
+struct mono {
+	/* Leftmost edge on the current scan line. */
+	struct mono_edge head, tail;
+	int is_vertical;
+
+	struct sna *sna;
+	struct sna_composite_op op;
+	pixman_region16_t clip;
+
+	struct mono_polygon polygon;
+};
+
+#define I(x) pixman_fixed_to_int ((x) + pixman_fixed_1_minus_e/2)
+
+static bool
+mono_polygon_init (struct mono_polygon *polygon, BoxPtr box, int num_edges)
+{
+	unsigned h = box->y2 - box->y1;
+
+	polygon->y_buckets = polygon->y_buckets_embedded;
+	if (h > ARRAY_SIZE (polygon->y_buckets_embedded)) {
+		polygon->y_buckets = malloc (h * sizeof (struct mono_edge *));
+		if (unlikely (NULL == polygon->y_buckets))
+			return false;
+	}
+
+	polygon->num_edges = 0;
+	polygon->edges = polygon->edges_embedded;
+	if (num_edges > ARRAY_SIZE (polygon->edges_embedded)) {
+		polygon->edges = malloc (num_edges * sizeof (struct mono_edge));
+		if (unlikely (polygon->edges == NULL)) {
+			if (polygon->y_buckets != polygon->y_buckets_embedded)
+				free(polygon->y_buckets);
+			return false;
+		}
+	}
+
+	memset(polygon->y_buckets, 0, h * sizeof (struct edge *));
+	return true;
+}
+
+static void
+mono_polygon_fini(struct mono_polygon *polygon)
+{
+	if (polygon->y_buckets != polygon->y_buckets_embedded)
+		free(polygon->y_buckets);
+
+	if (polygon->edges != polygon->edges_embedded)
+		free(polygon->edges);
+}
+
+static void
+mono_add_line(struct mono *mono,
+	      int dst_x, int dst_y,
+	      xFixed top, xFixed bottom,
+	      xPointFixed *p1, xPointFixed *p2,
+	      int dir)
+{
+	struct mono_polygon *polygon = &mono->polygon;
+	struct mono_edge *e;
+	pixman_fixed_t dx;
+	pixman_fixed_t dy;
+	int y, ytop, ybot;
+
+	DBG(("%s: top=%d, bottom=%d, line=(%d, %d), (%d, %d) delta=%dx%d, dir=%d\n",
+	     __FUNCTION__,
+	     top, bottom,
+	     p1->x, p1->y, p2->x, p2->y,
+	     dst_x, dst_y,
+	     dir));
+
+	if (top > bottom) {
+		xPointFixed *t;
+
+		y = top;
+		top = bottom;
+		bottom = y;
+
+		t = p1;
+		p1 = p2;
+		p2 = t;
+
+		dir = -dir;
+	}
+
+	y = I(top) + dst_y;
+	ytop = MAX(y, mono->clip.extents.y1);
+
+	y = I(bottom) + dst_y;
+	ybot = MIN(y, mono->clip.extents.y2);
+
+	if (ybot <= ytop)
+		return;
+
+	e = polygon->edges + polygon->num_edges++;
+	e->height_left = ybot - ytop;
+	e->dir = dir;
+
+	dx = p2->x - p1->x;
+	dy = p2->y - p1->y;
+
+	if (dx == 0) {
+		e->vertical = TRUE;
+		e->x.quo = p1->x;
+		e->x.rem = 0;
+		e->dxdy.quo = 0;
+		e->dxdy.rem = 0;
+		e->dy = 0;
+	} else {
+		e->vertical = FALSE;
+		e->dxdy = floored_muldivrem (dx, pixman_fixed_1, dy);
+		e->dy = dy;
+
+		e->x = floored_muldivrem (ytop * pixman_fixed_1 + pixman_fixed_1_minus_e/2 - (p1->y + dst_y*pixman_fixed_1),
+					  dx, dy);
+		e->x.quo += p1->x;
+		e->x.rem -= dy;
+	}
+	e->x.quo += dst_x*pixman_fixed_1;
+
+	{
+		struct mono_edge **ptail = &polygon->y_buckets[ytop - mono->clip.extents.y1];
+		if (*ptail)
+			(*ptail)->prev = e;
+		e->next = *ptail;
+		e->prev = NULL;
+		*ptail = e;
+	}
+}
+
+static struct mono_edge *
+mono_merge_sorted_edges (struct mono_edge *head_a, struct mono_edge *head_b)
+{
+	struct mono_edge *head, **next, *prev;
+	int32_t x;
+
+	prev = head_a->prev;
+	next = &head;
+	if (head_a->x.quo <= head_b->x.quo) {
+		head = head_a;
+	} else {
+		head = head_b;
+		head_b->prev = prev;
+		goto start_with_b;
+	}
+
+	do {
+		x = head_b->x.quo;
+		while (head_a != NULL && head_a->x.quo <= x) {
+			prev = head_a;
+			next = &head_a->next;
+			head_a = head_a->next;
+		}
+
+		head_b->prev = prev;
+		*next = head_b;
+		if (head_a == NULL)
+			return head;
+
+start_with_b:
+		x = head_a->x.quo;
+		while (head_b != NULL && head_b->x.quo <= x) {
+			prev = head_b;
+			next = &head_b->next;
+			head_b = head_b->next;
+		}
+
+		head_a->prev = prev;
+		*next = head_a;
+		if (head_b == NULL)
+			return head;
+	} while (1);
+}
+
+static struct mono_edge *
+mono_sort_edges (struct mono_edge *list,
+	    unsigned int level,
+	    struct mono_edge **head_out)
+{
+	struct mono_edge *head_other, *remaining;
+	unsigned int i;
+
+	head_other = list->next;
+
+	if (head_other == NULL) {
+		*head_out = list;
+		return NULL;
+	}
+
+	remaining = head_other->next;
+	if (list->x.quo <= head_other->x.quo) {
+		*head_out = list;
+		head_other->next = NULL;
+	} else {
+		*head_out = head_other;
+		head_other->prev = list->prev;
+		head_other->next = list;
+		list->prev = head_other;
+		list->next = NULL;
+	}
+
+	for (i = 0; i < level && remaining; i++) {
+		remaining = mono_sort_edges (remaining, i, &head_other);
+		*head_out = mono_merge_sorted_edges (*head_out, head_other);
+	}
+
+	return remaining;
+}
+
+static struct mono_edge *
+mono_merge_unsorted_edges (struct mono_edge *head, struct mono_edge *unsorted)
+{
+	mono_sort_edges (unsorted, UINT_MAX, &unsorted);
+	return mono_merge_sorted_edges (head, unsorted);
+}
+
+inline static void
+mono_merge_edges (struct mono *c, struct mono_edge *edges)
+{
+	struct mono_edge *e;
+
+	for (e = edges; c->is_vertical && e; e = e->next)
+		c->is_vertical = e->vertical;
+
+	c->head.next = mono_merge_unsorted_edges (c->head.next, edges);
+}
+
+inline static void
+mono_span (struct mono *c, int x1, int x2, BoxPtr box)
+{
+	if (x1 < c->clip.extents.x1)
+		x1 = c->clip.extents.x1;
+	if (x2 > c->clip.extents.x2)
+		x2 = c->clip.extents.x2;
+	if (x2 <= x1)
+		return;
+
+	box->x1 = x1;
+	box->x2 = x2;
+
+	if (c->clip.data) {
+		pixman_region16_t region;
+
+		pixman_region_init_rects(&region, box, 1);
+		RegionIntersect(&region, &region, &c->clip);
+		if (REGION_NUM_RECTS(&region)) {
+			c->op.boxes(c->sna, &c->op,
+				    REGION_RECTS(&region),
+				    REGION_NUM_RECTS(&region));
+			apply_damage(&c->op, &region);
+		}
+		pixman_region_fini(&region);
+	} else {
+		c->op.boxes(c->sna, &c->op, box, 1);
+		apply_damage_box(&c->op, box);
+	}
+}
+
+inline static void
+mono_row(struct mono *c, int16_t y, int16_t h)
+{
+	struct mono_edge *edge = c->head.next;
+	int16_t xstart = INT16_MIN, prev_x = INT16_MIN;
+	int winding = 0;
+	BoxRec box;
+
+	box.y1 = c->clip.extents.y1 + y;
+	box.y2 = box.y1 + h;
+
+	while (&c->tail != edge) {
+		struct mono_edge *next = edge->next;
+		int16_t xend = I(edge->x.quo);
+
+		if (--edge->height_left) {
+			edge->x.quo += edge->dxdy.quo;
+			edge->x.rem += edge->dxdy.rem;
+			if (edge->x.rem >= 0) {
+				++edge->x.quo;
+				edge->x.rem -= edge->dy;
+			}
+
+			if (edge->x.quo < prev_x) {
+				struct mono_edge *pos = edge->prev;
+				pos->next = next;
+				next->prev = pos;
+				do {
+					pos = pos->prev;
+				} while (edge->x.quo < pos->x.quo);
+				pos->next->prev = edge;
+				edge->next = pos->next;
+				edge->prev = pos;
+				pos->next = edge;
+			} else
+				prev_x = edge->x.quo;
+		} else {
+			edge->prev->next = next;
+			next->prev = edge->prev;
+		}
+
+		winding += edge->dir;
+		if (winding == 0) {
+			if (I(next->x.quo) != xend) {
+				mono_span(c, xstart, xend, &box);
+				xstart = INT16_MIN;
+			}
+		} else if (xstart == INT16_MIN)
+			xstart = xend;
+
+		edge = next;
+	}
+}
+
+static bool
+mono_init(struct mono *c, int num_edges)
+{
+	if (!mono_polygon_init (&c->polygon, &c->clip.extents, num_edges))
+		return false;
+
+	c->head.vertical = 1;
+	c->head.height_left = INT_MAX;
+	c->head.x.quo = INT_MIN;
+	c->head.prev = NULL;
+	c->head.next = &c->tail;
+	c->tail.prev = &c->head;
+	c->tail.next = NULL;
+	c->tail.x.quo = INT_MAX;
+	c->tail.height_left = INT_MAX;
+	c->tail.vertical = 1;
+
+	c->is_vertical = 1;
+
+	return true;
+}
+
+static void
+mono_fini(struct mono *mono)
+{
+	mono_polygon_fini(&mono->polygon);
+}
+
+static void
+mono_step_edges(struct mono *c, int count)
+{
+	struct mono_edge *edge;
+
+	for (edge = c->head.next; edge != &c->tail; edge = edge->next) {
+		edge->height_left -= count;
+		if (! edge->height_left) {
+			edge->prev->next = edge->next;
+			edge->next->prev = edge->prev;
+		}
+	}
+}
+
+static void
+mono_render(struct mono *mono)
+{
+	struct mono_polygon *polygon = &mono->polygon;
+	int i, j, h = mono->clip.extents.y2 - mono->clip.extents.y1;
+
+	for (i = 0; i < h; i = j) {
+		j = i + 1;
+
+		if (polygon->y_buckets[i])
+			mono_merge_edges(mono, polygon->y_buckets[i]);
+
+		if (mono->is_vertical) {
+			struct mono_edge *e = mono->head.next;
+			int min_height = e->height_left;
+
+			while (e != &mono->tail) {
+				if (e->height_left < min_height)
+					min_height = e->height_left;
+				e = e->next;
+			}
+
+			while (--min_height >= 1 && polygon->y_buckets[j] == NULL)
+				j++;
+			if (j != i + 1)
+				mono_step_edges(mono, j - (i + 1));
+		}
+
+		mono_row(mono, i, j-i);
+
+		/* XXX recompute after dropping edges? */
+		if (mono->head.next == &mono->tail)
+			mono->is_vertical = 1;
+	}
+}
+
 static int operator_is_bounded(uint8_t op)
 {
 	switch (op) {
@@ -2076,6 +2489,12 @@ project_trapezoid_onto_grid(const xTrapezoid *in,
 	return xTrapezoidValid(out);
 }
 
+static bool
+is_mono(PicturePtr dst, PictFormatPtr mask)
+{
+	return mask ? mask->depth < 8 : dst->polyEdge==PolyEdgeSharp;
+}
+
 static span_func_t
 choose_span(PicturePtr dst,
 	    PictFormatPtr maskFormat,
@@ -2084,7 +2503,7 @@ choose_span(PicturePtr dst,
 {
 	span_func_t span;
 
-	if (maskFormat ? maskFormat->depth<8 : dst->polyEdge==PolyEdgeSharp) {
+	if (is_mono(dst, maskFormat)) {
 		/* XXX An imprecise approximation */
 		if (maskFormat && !operator_is_bounded(op)) {
 			span = tor_blt_span_mono_unbounded;
@@ -2105,6 +2524,140 @@ choose_span(PicturePtr dst,
 }
 
 static bool
+mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+			       INT16 src_x, INT16 src_y,
+			       int ntrap, xTrapezoid *traps)
+{
+	struct mono mono;
+	BoxRec extents;
+	int16_t dst_x, dst_y;
+	int16_t dx, dy;
+	int n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
+	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
+
+	miTrapezoidBounds(ntrap, traps, &extents);
+	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	if (!sna_compute_composite_region(&mono.clip,
+					  src, NULL, dst,
+					  src_x + extents.x1 - dst_x,
+					  src_y + extents.y1 - dst_y,
+					  0, 0,
+					  extents.x1, extents.y1,
+					  extents.x2 - extents.x1,
+					  extents.y2 - extents.y1)) {
+		DBG(("%s: trapezoids do not intersect drawable clips\n",
+		     __FUNCTION__)) ;
+		return true;
+	}
+
+	dx = dst->pDrawable->x;
+	dy = dst->pDrawable->y;
+
+	DBG(("%s: after clip -- extents (%d, %d), (%d, %d), delta=(%d, %d) src -> (%d, %d)\n",
+	     __FUNCTION__,
+	     mono.clip.extents.x1, mono.clip.extents.y1,
+	     mono.clip.extents.x2, mono.clip.extents.y2,
+	     dx, dy,
+	     src_x + mono.clip.extents.x1 - dst_x - dx,
+	     src_y + mono.clip.extents.y1 - dst_y - dy));
+
+	mono.sna = to_sna_from_drawable(dst->pDrawable);
+	if (!mono_init(&mono, 2*ntrap))
+		return false;
+
+	for (n = 0; n < ntrap; n++) {
+		if (!xTrapezoidValid(&traps[n]))
+			continue;
+
+		if (pixman_fixed_to_int(traps[n].top) + dy >= mono.clip.extents.y2 ||
+		    pixman_fixed_to_int(traps[n].bottom) + dy < mono.clip.extents.y1)
+			continue;
+
+		mono_add_line(&mono, dx, dy,
+			      traps[n].top, traps[n].bottom,
+			      &traps[n].left.p1, &traps[n].left.p2, 1);
+		mono_add_line(&mono, dx, dy,
+			      traps[n].top, traps[n].bottom,
+			      &traps[n].right.p1, &traps[n].right.p2, -1);
+	}
+
+	memset(&mono.op, 0, sizeof(mono.op));
+	if (mono.sna->render.composite(mono.sna, op, src, NULL, dst,
+				       src_x + mono.clip.extents.x1 - dst_x - dx,
+				       src_y + mono.clip.extents.y1 - dst_y - dy,
+				       0, 0,
+				       mono.clip.extents.x1,  mono.clip.extents.y1,
+				       mono.clip.extents.x2 - mono.clip.extents.x1,
+				       mono.clip.extents.y2 - mono.clip.extents.y1,
+				       &mono.op)) {
+		mono_render(&mono);
+		mono.op.done(mono.sna, &mono.op);
+	}
+	mono_fini(&mono);
+
+	if (!operator_is_bounded(op)) {
+		xPointFixed p1, p2;
+
+		if (!mono_init(&mono, 2+2*ntrap))
+			return false;
+
+		p1.y = mono.clip.extents.y1 * pixman_fixed_1;
+		p2.y = mono.clip.extents.y2 * pixman_fixed_1;
+
+		p1.x = mono.clip.extents.x1 * pixman_fixed_1;
+		p2.x = mono.clip.extents.x1 * pixman_fixed_1;
+		mono_add_line(&mono, 0, 0, p1.y, p2.y, &p1, &p2, -1);
+
+		p1.x = mono.clip.extents.x2 * pixman_fixed_1;
+		p2.x = mono.clip.extents.x2 * pixman_fixed_1;
+		mono_add_line(&mono, 0, 0, p1.y, p2.y, &p1, &p2, 1);
+
+		for (n = 0; n < ntrap; n++) {
+			if (!xTrapezoidValid(&traps[n]))
+				continue;
+
+			if (pixman_fixed_to_int(traps[n].top) + dy >= mono.clip.extents.y2 ||
+			    pixman_fixed_to_int(traps[n].bottom) + dy < mono.clip.extents.y1)
+				continue;
+
+			mono_add_line(&mono, dx, dy,
+				      traps[n].top, traps[n].bottom,
+				      &traps[n].left.p1, &traps[n].left.p2, 1);
+			mono_add_line(&mono, dx, dy,
+				      traps[n].top, traps[n].bottom,
+				      &traps[n].right.p1, &traps[n].right.p2, -1);
+		}
+		memset(&mono.op, 0, sizeof(mono.op));
+		if (mono.sna->render.composite(mono.sna,
+					       PictOpClear,
+					       src, NULL, dst,
+					       0, 0,
+					       0, 0,
+					       mono.clip.extents.x1,  mono.clip.extents.y1,
+					       mono.clip.extents.x2 - mono.clip.extents.x1,
+					       mono.clip.extents.y2 - mono.clip.extents.y1,
+					       &mono.op)) {
+			mono_render(&mono);
+			mono.op.done(mono.sna, &mono.op);
+		}
+		mono_fini(&mono);
+	}
+
+	REGION_UNINIT(NULL, &mono.clip);
+	return true;
+}
+
+static bool
 trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			 PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
 			 int ntrap, xTrapezoid *traps)
@@ -2120,6 +2673,11 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	if (NO_SCAN_CONVERTER)
 		return false;
+
+	if (is_mono(dst, maskFormat))
+		return mono_trapezoids_span_converter(op, src, dst,
+						      src_x, src_y,
+						      ntrap, traps);
 
 	/* XXX strict adherence to the Render specification */
 	if (dst->polyMode == PolyModePrecise) {
@@ -2507,6 +3065,76 @@ project_trap_onto_grid(const xTrap *in,
 }
 
 static bool
+mono_trap_span_converter(PicturePtr dst,
+			 INT16 x, INT16 y,
+			 int ntrap, xTrap *traps)
+{
+	struct mono mono;
+	xRenderColor white;
+	PicturePtr src;
+	int error;
+	int n;
+
+	white.red = white.green = white.blue = white.alpha = 0xffff;
+	src = CreateSolidPicture(0, &white, &error);
+	if (src == NULL)
+		return true;
+
+	mono.clip = *dst->pCompositeClip;
+	x += dst->pDrawable->x;
+	y += dst->pDrawable->y;
+
+	DBG(("%s: after clip -- extents (%d, %d), (%d, %d), delta=(%d, %d)\n",
+	     __FUNCTION__,
+	     mono.clip.extents.x1, mono.clip.extents.y1,
+	     mono.clip.extents.x2, mono.clip.extents.y2,
+	     x, y));
+
+	mono.sna = to_sna_from_drawable(dst->pDrawable);
+	if (!mono_init(&mono, 2*ntrap))
+		return false;
+
+	for (n = 0; n < ntrap; n++) {
+		xPointFixed p1, p2;
+
+		if (pixman_fixed_to_int(traps[n].top.y) + y >= mono.clip.extents.y2 ||
+		    pixman_fixed_to_int(traps[n].bot.y) + y < mono.clip.extents.y1)
+			continue;
+
+		p1.y = traps[n].top.y;
+		p2.y = traps[n].bot.y;
+
+		p1.x = traps[n].top.l;
+		p2.x = traps[n].bot.l;
+		mono_add_line(&mono, x, y,
+			      traps[n].top.y, traps[n].bot.y,
+			      &p1, &p2, 1);
+
+		p1.x = traps[n].top.r;
+		p2.x = traps[n].bot.r;
+		mono_add_line(&mono, x, y,
+			      traps[n].top.y, traps[n].bot.y,
+			      &p1, &p2, -1);
+	}
+
+	memset(&mono.op, 0, sizeof(mono.op));
+	if (mono.sna->render.composite(mono.sna, PictOpAdd, src, NULL, dst,
+					0, 0,
+					0, 0,
+					mono.clip.extents.x1,  mono.clip.extents.y1,
+					mono.clip.extents.x2 - mono.clip.extents.x1,
+					mono.clip.extents.y2 - mono.clip.extents.y1,
+					&mono.op)) {
+		mono_render(&mono);
+		mono.op.done(mono.sna, &mono.op);
+	}
+
+	mono_fini(&mono);
+	FreePicture(src, 0);
+	return true;
+}
+
+static bool
 trap_span_converter(PicturePtr dst,
 		    INT16 src_x, INT16 src_y,
 		    int ntrap, xTrap *trap)
@@ -2524,12 +3152,11 @@ trap_span_converter(PicturePtr dst,
 	if (NO_SCAN_CONVERTER)
 		return false;
 
-	/* XXX strict adherence to the Render specification */
-	if (dst->polyMode == PolyModePrecise) {
-		DBG(("%s: fallback -- precise rasterisation requested\n",
-		     __FUNCTION__));
+	if (dst->pDrawable->depth < 8)
 		return false;
-	}
+
+	if (dst->polyEdge == PolyEdgeSharp)
+		return mono_trap_span_converter(dst, src_x, src_y, ntrap, trap);
 
 	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.composite_spans) {
@@ -2889,6 +3516,131 @@ project_triangle_onto_grid(const xTriangle *in,
 }
 
 static bool
+mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
+			      INT16 src_x, INT16 src_y,
+			      int count, xTriangle *tri)
+{
+	struct mono mono;
+	BoxRec extents;
+	int16_t dst_x, dst_y;
+	int16_t dx, dy;
+	int n;
+
+	mono.sna = to_sna_from_drawable(dst->pDrawable);
+
+	dst_x = pixman_fixed_to_int(tri[0].p1.x);
+	dst_y = pixman_fixed_to_int(tri[0].p1.y);
+
+	miTriangleBounds(count, tri, &extents);
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, extents.x1, extents.y1, extents.x2, extents.y2));
+
+	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
+		return true;
+
+	if (!sna_compute_composite_region(&mono.clip,
+					  src, NULL, dst,
+					  src_x + extents.x1 - dst_x,
+					  src_y + extents.y1 - dst_y,
+					  0, 0,
+					  extents.x1, extents.y1,
+					  extents.x2 - extents.x1,
+					  extents.y2 - extents.y1)) {
+		DBG(("%s: triangles do not intersect drawable clips\n",
+		     __FUNCTION__)) ;
+		return true;
+	}
+
+	dx = dst->pDrawable->x;
+	dy = dst->pDrawable->y;
+
+	DBG(("%s: after clip -- extents (%d, %d), (%d, %d), delta=(%d, %d) src -> (%d, %d)\n",
+	     __FUNCTION__,
+	     mono.clip.extents.x1, mono.clip.extents.y1,
+	     mono.clip.extents.x2, mono.clip.extents.y2,
+	     dx, dy,
+	     src_x + mono.clip.extents.x1 - dst_x - dx,
+	     src_y + mono.clip.extents.y1 - dst_y - dy));
+
+	if (mono_init(&mono, 3*count))
+		return false;
+
+	for (n = 0; n < count; n++) {
+		mono_add_line(&mono, dx, dy,
+			      tri[n].p1.y, tri[n].p2.y,
+			      &tri[n].p1, &tri[n].p2, 1);
+		mono_add_line(&mono, dx, dy,
+			      tri[n].p2.y, tri[n].p3.y,
+			      &tri[n].p2, &tri[n].p3, 1);
+		mono_add_line(&mono, dx, dy,
+			      tri[n].p3.y, tri[n].p1.y,
+			      &tri[n].p3, &tri[n].p1, 1);
+	}
+
+	memset(&mono.op, 0, sizeof(mono.op));
+	if (mono.sna->render.composite(mono.sna, op, src, NULL, dst,
+				       src_x + mono.clip.extents.x1 - dst_x - dx,
+				       src_y + mono.clip.extents.y1 - dst_y - dy,
+				       0, 0,
+				       mono.clip.extents.x1,  mono.clip.extents.y1,
+				       mono.clip.extents.x2 - mono.clip.extents.x1,
+				       mono.clip.extents.y2 - mono.clip.extents.y1,
+				       &mono.op)) {
+		mono_render(&mono);
+		mono.op.done(mono.sna, &mono.op);
+	}
+
+	if (!operator_is_bounded(op)) {
+		xPointFixed p1, p2;
+
+		if (!mono_init(&mono, 2+3*count))
+			return false;
+
+		p1.y = mono.clip.extents.y1 * pixman_fixed_1;
+		p2.y = mono.clip.extents.y2 * pixman_fixed_1;
+
+		p1.x = mono.clip.extents.x1 * pixman_fixed_1;
+		p2.x = mono.clip.extents.x1 * pixman_fixed_1;
+		mono_add_line(&mono, 0, 0, p1.y, p2.y, &p1, &p2, -1);
+
+		p1.x = mono.clip.extents.x2 * pixman_fixed_1;
+		p2.x = mono.clip.extents.x2 * pixman_fixed_1;
+		mono_add_line(&mono, 0, 0, p1.y, p2.y, &p1, &p2, 1);
+
+		for (n = 0; n < count; n++) {
+			mono_add_line(&mono, dx, dy,
+				      tri[n].p1.y, tri[n].p2.y,
+				      &tri[n].p1, &tri[n].p2, 1);
+			mono_add_line(&mono, dx, dy,
+				      tri[n].p2.y, tri[n].p3.y,
+				      &tri[n].p2, &tri[n].p3, 1);
+			mono_add_line(&mono, dx, dy,
+				      tri[n].p3.y, tri[n].p1.y,
+				      &tri[n].p3, &tri[n].p1, 1);
+		}
+
+		memset(&mono.op, 0, sizeof(mono.op));
+		if (mono.sna->render.composite(mono.sna,
+					       PictOpClear,
+					       src, NULL, dst,
+					       0, 0,
+					       0, 0,
+					       mono.clip.extents.x1,  mono.clip.extents.y1,
+					       mono.clip.extents.x2 - mono.clip.extents.x1,
+					       mono.clip.extents.y2 - mono.clip.extents.y1,
+					       &mono.op)) {
+			mono_render(&mono);
+			mono.op.done(mono.sna, &mono.op);
+		}
+		mono_fini(&mono);
+	}
+
+	mono_fini(&mono);
+	REGION_UNINIT(NULL, &mono.clip);
+	return true;
+}
+
+static bool
 triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			 PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
 			 int count, xTriangle *tri)
@@ -2904,6 +3656,11 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	if (NO_SCAN_CONVERTER)
 		return false;
+
+	if (is_mono(dst, maskFormat))
+		return mono_triangles_span_converter(op, src, dst,
+						     src_x, src_y,
+						     count, tri);
 
 	/* XXX strict adherence to the Render specification */
 	if (dst->polyMode == PolyModePrecise) {
