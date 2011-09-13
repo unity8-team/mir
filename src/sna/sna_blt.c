@@ -186,7 +186,9 @@ static void sna_blt_fill_one(struct sna *sna,
 	b[3] = ((y + height) << 16) | (x + width);
 	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4,
 			      blt->bo[0],
-			      I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER | KGEM_RELOC_FENCED,
+			      I915_GEM_DOMAIN_RENDER << 16 |
+			      I915_GEM_DOMAIN_RENDER |
+			      KGEM_RELOC_FENCED,
 			      0);
 	b[5] = blt->pixel;
 	kgem->nbatch += 6;
@@ -276,7 +278,8 @@ static void sna_blt_copy_one(struct sna *sna,
 		b[6] = blt->pitch[0];
 		b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7 - 6,
 				      blt->bo[0],
-				      I915_GEM_DOMAIN_RENDER << 16 | KGEM_RELOC_FENCED,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      KGEM_RELOC_FENCED,
 				      0);
 		kgem->nbatch += 8 - 6;
 		return;
@@ -293,13 +296,16 @@ static void sna_blt_copy_one(struct sna *sna,
 	b[3] = ((dst_y + height) << 16) | (dst_x + width);
 	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4,
 			      blt->bo[1],
-			      I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER | KGEM_RELOC_FENCED,
+			      I915_GEM_DOMAIN_RENDER << 16 |
+			      I915_GEM_DOMAIN_RENDER |
+			      KGEM_RELOC_FENCED,
 			      0);
 	b[5] = (src_y << 16) | src_x;
 	b[6] = blt->pitch[0];
 	b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7,
 			      blt->bo[0],
-			      I915_GEM_DOMAIN_RENDER << 16 | KGEM_RELOC_FENCED,
+			      I915_GEM_DOMAIN_RENDER << 16 |
+			      KGEM_RELOC_FENCED,
 			      0);
 	kgem->nbatch += 8;
 }

@@ -815,6 +815,22 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle)
 
 void kgem_reset(struct kgem *kgem)
 {
+	struct kgem_request *rq = kgem->next_request;
+	struct kgem_bo *bo;
+
+	while (!list_is_empty(&rq->buffers)) {
+		bo = list_first_entry(&rq->buffers, struct kgem_bo, request);
+
+		bo->src_bound = bo->dst_bound = 0;
+		bo->exec = NULL;
+		bo->dirty = false;
+		bo->gpu = true;
+		bo->cpu_read = false;
+		bo->cpu_write = false;
+
+		list_del(&bo->request);
+	}
+
 	kgem->nfence = 0;
 	kgem->nexec = 0;
 	kgem->nreloc = 0;
@@ -1613,6 +1629,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t delta)
 {
 	int index;
+
+	assert ((read_write_domain & 0x7fff) == 0 || bo != NULL);
 
 	index = kgem->nreloc++;
 	assert(index < ARRAY_SIZE(kgem->reloc));
