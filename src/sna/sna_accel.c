@@ -664,7 +664,9 @@ sna_pixmap_create_upload(ScreenPtr screen,
 		return NullPixmap;
 	}
 
-	priv->gpu_bo = kgem_create_buffer(&sna->kgem, pad*height, true, &ptr);
+	priv->gpu_bo = kgem_create_buffer(&sna->kgem,
+					  pad*height, KGEM_BUFFER_WRITE,
+					  &ptr);
 	if (!priv->gpu_bo) {
 		free(priv);
 		fbDestroyPixmap(pixmap);
