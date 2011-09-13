@@ -540,10 +540,15 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	kgem->need_expire = true;
-	list_move(&bo->list, (bo->rq || bo->needs_flush) ? &kgem->active : inactive(kgem, bo->size));
-	if (bo->rq == NULL && bo->needs_flush) {
+	if (bo->rq) {
+		list_move(&bo->list, &kgem->active);
+	} else if (bo->needs_flush) {
 		assert(list_is_empty(&bo->request));
 		list_add(&bo->request, &kgem->flushing);
+		list_move(&bo->list, &kgem->active);
+	} else {
+		assert(!kgem_busy(kgem, bo->handle));
+		list_move(&bo->list, inactive(kgem, bo->size));
 	}
 
 	return;
@@ -590,6 +595,12 @@ void kgem_retire(struct kgem *kgem)
 					      request);
 			list_del(&bo->request);
 			bo->rq = NULL;
+
+#if 0
+			/* XXX we loose track of a write-flush somewhere? */
+			if (!bo->needs_flush)
+				bo->needs_flush = kgem_busy(kgem, bo->handle);
+#endif
 			bo->gpu = bo->needs_flush;
 
 			if (bo->refcnt == 0) {
@@ -597,6 +608,7 @@ void kgem_retire(struct kgem *kgem)
 				if (bo->needs_flush) {
 					list_add(&bo->request, &kgem->flushing);
 				} else if (bo->reusable) {
+					assert(!kgem_busy(kgem, bo->handle));
 					list_move(&bo->list,
 						  inactive(kgem, bo->size));
 				} else {
@@ -632,7 +644,6 @@ static void kgem_commit(struct kgem *kgem)
 		bo->src_bound = bo->dst_bound = 0;
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
-		bo->needs_flush |= bo->dirty;
 		bo->dirty = false;
 		bo->gpu = true;
 		bo->cpu_read = false;
@@ -706,6 +717,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 		if (bo->write && bo->need_io) {
 			DBG(("%s: handle=%d, uploading %d/%d\n",
 			     __FUNCTION__, bo->base.handle, bo->used, bo->alloc));
+			assert(!kgem_busy(kgem, bo->base.handle));
 			gem_write(kgem->fd, bo->base.handle,
 				  0, bo->used, bo+1);
 			bo->need_io = 0;
@@ -773,6 +785,8 @@ static void kgem_cleanup(struct kgem *kgem)
 static int kgem_batch_write(struct kgem *kgem, uint32_t handle)
 {
 	int ret;
+
+	assert(!kgem_busy(kgem, handle));
 
 	/* If there is no surface data, just upload the batch */
 	if (kgem->surface == ARRAY_SIZE(kgem->batch))
@@ -1161,6 +1175,7 @@ search_linear_cache(struct kgem *kgem, int size, bool active)
 		     active ? "active" : "inactive"));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
+		assert(active || !kgem_busy(kgem, bo->handle));
 		return bo;
 next_bo:
 		list_del(&bo->request);
@@ -1636,7 +1651,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		kgem->reloc[index].presumed_offset = bo->presumed_offset;
 
 		if (read_write_domain & 0x7fff)
-			bo->dirty = true;
+			bo->needs_flush = bo->dirty = true;
 
 		delta += bo->presumed_offset;
 	} else {
