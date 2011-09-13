@@ -149,13 +149,6 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
 	{XvSettable | XvGettable, -1, 1, "XV_PIPE"}
 };
 
-#define NUM_TEXTURED_ATTRIBUTES 3
-static XF86AttributeRec TexturedAttributes[NUM_TEXTURED_ATTRIBUTES] = {
-	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
-	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
-	{XvSettable | XvGettable, -1, 1, "XV_SYNC_TO_VBLANK"},
-};
-
 #define GAMMA_ATTRIBUTES 6
 static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA0"},
@@ -526,26 +519,19 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr adapt;
-	XF86AttributePtr attrs;
 	intel_adaptor_private *adaptor_privs;
 	DevUnion *devUnions;
 	int nports = 16, i;
-	int nAttributes;
 
 	OVERLAY_DEBUG("I830SetupImageVideoOverlay\n");
-
-	nAttributes = NUM_TEXTURED_ATTRIBUTES;
 
 	adapt = calloc(1, sizeof(XF86VideoAdaptorRec));
 	adaptor_privs = calloc(nports, sizeof(intel_adaptor_private));
 	devUnions = calloc(nports, sizeof(DevUnion));
-	attrs = calloc(nAttributes, sizeof(XF86AttributeRec));
-	if (adapt == NULL || adaptor_privs == NULL || devUnions == NULL ||
-	    attrs == NULL) {
+	if (adapt == NULL || adaptor_privs == NULL || devUnions == NULL) {
 		free(adapt);
 		free(adaptor_privs);
 		free(devUnions);
-		free(attrs);
 		return NULL;
 	}
 
@@ -559,10 +545,8 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 	adapt->pFormats = Formats;
 	adapt->nPorts = nports;
 	adapt->pPortPrivates = devUnions;
-	adapt->nAttributes = nAttributes;
-	adapt->pAttributes = attrs;
-	memcpy(attrs, TexturedAttributes,
-	       nAttributes * sizeof(XF86AttributeRec));
+	adapt->nAttributes = 0;
+	adapt->pAttributes = NULL;
 	if (IS_I915G(intel) || IS_I915GM(intel))
 		adapt->nImages = NUM_IMAGES - XVMC_IMAGE;
 	else
