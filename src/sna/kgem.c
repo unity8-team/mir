@@ -1364,11 +1364,10 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       uint32_t flags)
 {
 	struct list *cache;
-	struct kgem_bo *bo, *next;
-	uint32_t pitch, tiled_height[3], size;
+	struct kgem_bo *bo, *next, *best;
+	uint32_t pitch, tiled_height[3], size, best_size;
 	uint32_t handle;
 	int exact = flags & CREATE_EXACT;
-	int search;
 	int i;
 
 	if (tiling < 0)
@@ -1386,12 +1385,14 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	for (i = 0; i <= I915_TILING_Y; i++)
 		tiled_height[i] = kgem_aligned_height(kgem, height, i);
 
-	search = 0;
-	/* Best active match first */
+search_active: /* Best active match first */
+	best = NULL;
+	best_size = -1;
 	list_for_each_entry_safe(bo, next, &kgem->active, list) {
 		uint32_t s;
 
-		search++;
+		if (bo->size > best_size)
+			continue;
 
 		if (exact) {
 			if (bo->tiling != tiling)
@@ -1412,39 +1413,38 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			bo->pitch = pitch;
 
 		s = bo->pitch * tiled_height[bo->tiling];
-		if (s > bo->size) {
-			DBG(("size too small: %d < %d\n",
-			     bo->size, s));
-			continue;
+		if (s <= bo->size) {
+			best_size = s;
+			best = bo;
 		}
+	}
+	if (best) {
+		list_del(&best->list);
+		if (best->rq == NULL)
+			list_del(&best->request);
 
-		list_del(&bo->list);
-		if (bo->rq == NULL)
-			list_del(&bo->request);
-
-		if (bo->deleted) {
-			if (!gem_madvise(kgem->fd, bo->handle,
+		if (best->deleted) {
+			if (!gem_madvise(kgem->fd, best->handle,
 					 I915_MADV_WILLNEED)) {
-				kgem->need_purge |= bo->gpu;
-				gem_close(kgem->fd, bo->handle);
-				list_del(&bo->request);
-				free(bo);
-				continue;
+				kgem->need_purge |= best->gpu;
+				gem_close(kgem->fd, best->handle);
+				list_del(&best->request);
+				free(best);
+				best = NULL;
+				goto search_active;
 			}
 
-			bo->deleted = 0;
+			best->deleted = 0;
 		}
 
-		bo->unique_id = kgem_get_unique_id(kgem);
-		bo->delta = 0;
+		best->unique_id = kgem_get_unique_id(kgem);
+		best->delta = 0;
 		DBG(("  from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
-		     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
-		assert(bo->refcnt == 0);
-		assert(bo->reusable);
-		return kgem_bo_reference(bo);
+		     best->pitch, best->tiling, best->handle, best->unique_id));
+		assert(best->refcnt == 0);
+		assert(best->reusable);
+		return kgem_bo_reference(best);
 	}
-
-	DBG(("searched %d active, no match\n", search));
 
 skip_active_search:
 	/* Now just look for a close match and prefer any currently active */
@@ -1510,6 +1510,8 @@ next_bo:
 	bo->pitch = pitch;
 	if (tiling != I915_TILING_NONE)
 		bo->tiling = gem_set_tiling(kgem->fd, handle, tiling, pitch);
+
+	assert (bo->size >= bo->pitch * kgem_aligned_height(kgem, height, bo->tiling));
 
 	DBG(("  new pitch=%d, tiling=%d, handle=%d, id=%d\n",
 	     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
