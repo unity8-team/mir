@@ -1642,7 +1642,7 @@ gen3_render_reset(struct sna *sna)
 	state->last_blend = 0;
 	state->last_constants = 0;
 	state->last_sampler = 0;
-	state->last_shader = 0;
+	state->last_shader = -1;
 	state->last_diffuse = 0xcc00ffee;
 	state->last_specular = 0xcc00ffee;
 
@@ -2812,6 +2812,7 @@ gen3_emit_video_state(struct sna *sna,
 	sna->render_state.gen3.last_blend = 0;
 	sna->render_state.gen3.last_sampler = 0;
 	sna->render_state.gen3.floats_per_vertex = 4;
+	sna->render_state.gen3.last_shader = -1;
 
 	if (!is_planar_fourcc(frame->id)) {
 		OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
