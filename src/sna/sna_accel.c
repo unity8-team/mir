@@ -3211,16 +3211,21 @@ static Bool sna_accel_do_flush(struct sna *sna)
 	return_if_timer_active(FLUSH_TIMER);
 
 	priv = sna_accel_scanout(sna);
-	if (priv == NULL)
+	if (priv == NULL) {
+		DBG(("%s -- no scanout attached\n", __FUNCTION__));
 		return FALSE;
+	}
 
-	if (priv->cpu_damage == NULL && priv->gpu_bo->rq == NULL)
+	if (priv->cpu_damage == NULL && priv->gpu_bo->rq == NULL) {
+		DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
 		return FALSE;
+	}
 
 	if (sna->timer[FLUSH_TIMER] == -1)
 		return TRUE;
 
-	DBG(("%s, time=%ld\n", __FUNCTION__, (long)GetTimeInMillis()));
+	DBG(("%s, starting flush timer, at time=%ld\n",
+	     __FUNCTION__, (long)GetTimeInMillis()));
 
 	/* Initial redraw after 10ms. */
 	to.it_value.tv_sec = 0;
