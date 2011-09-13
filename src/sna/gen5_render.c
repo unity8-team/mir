@@ -716,8 +716,8 @@ gen5_bind_bo(struct sna *sna,
 	ss[5] = 0;
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
-	     offset, bo->handle, ss->ss1.base_addr,
-	     ss->ss0.surface_format, width, height, bo->pitch, bo->tiling,
+	     offset, bo->handle, ss[1],
+	    format, width, height, bo->pitch, bo->tiling,
 	     domains & 0xffff ? "render" : "sampler"));
 
 	return offset;
