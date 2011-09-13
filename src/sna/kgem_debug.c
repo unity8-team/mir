@@ -272,6 +272,8 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
 		kgem_debug_print(data, offset, 5, "color\n");
+		assert(kgem->gen >= 40 ||
+		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
 		return len;
 
 	case 0x53:
@@ -317,6 +319,9 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 reloc->read_domains, reloc->write_domain,
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
+		assert(kgem->gen >= 40 ||
+		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
+
 		kgem_debug_print(data, offset, 5, "src (%d,%d)\n",
 				 data[5] & 0xffff, data[5] >> 16);
 		kgem_debug_print(data, offset, 6, "src pitch %d\n",
@@ -329,6 +334,9 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 reloc->read_domains, reloc->write_domain,
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
+		assert(kgem->gen >= 40 ||
+		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
+
 		return len;
 	}
 
