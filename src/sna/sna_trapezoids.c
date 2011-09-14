@@ -1490,8 +1490,8 @@ mono_add_line(struct mono *mono,
 
 	DBG(("%s: top=%d, bottom=%d, line=(%d, %d), (%d, %d) delta=%dx%d, dir=%d\n",
 	     __FUNCTION__,
-	     top, bottom,
-	     p1->x, p1->y, p2->x, p2->y,
+	     (int)top, (int)bottom,
+	     (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y,
 	     dst_x, dst_y,
 	     dir));
 
@@ -1661,6 +1661,8 @@ mono_span (struct mono *c, int x1, int x2, BoxPtr box)
 	if (x2 <= x1)
 		return;
 
+	DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
+
 	box->x1 = x1;
 	box->x2 = x2;
 
@@ -1725,7 +1727,8 @@ mono_row(struct mono *c, int16_t y, int16_t h)
 
 		winding += edge->dir;
 		if (winding == 0) {
-			if (I(next->x.quo) != xend) {
+			assert(I(next->x.quo) >= xend);
+			if (I(next->x.quo) > xend + 1) {
 				mono_span(c, xstart, xend, &box);
 				xstart = INT16_MIN;
 			}
@@ -1744,12 +1747,12 @@ mono_init(struct mono *c, int num_edges)
 
 	c->head.vertical = 1;
 	c->head.height_left = INT_MAX;
-	c->head.x.quo = INT_MIN;
+	c->head.x.quo = INT16_MIN << 16;
 	c->head.prev = NULL;
 	c->head.next = &c->tail;
 	c->tail.prev = &c->head;
 	c->tail.next = NULL;
-	c->tail.x.quo = INT_MAX;
+	c->tail.x.quo = INT16_MAX << 16;
 	c->tail.height_left = INT_MAX;
 	c->tail.vertical = 1;
 
