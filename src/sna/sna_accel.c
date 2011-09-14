@@ -1042,7 +1042,7 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	x += dx + drawable->x;
-	y += dx + drawable->y;
+	y += dy + drawable->y;
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
