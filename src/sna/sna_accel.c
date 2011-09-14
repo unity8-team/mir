@@ -1053,6 +1053,16 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	box = REGION_RECTS(region);
 	n = REGION_NUM_RECTS(region);
 	do {
+		assert(box->x1 >= 0);
+		assert(box->y1 >= 0);
+		assert(box->x2 <= pixmap->drawable.width);
+		assert(box->y2 <= pixmap->drawable.height);
+
+		assert(box->x1 - x >= 0);
+		assert(box->y1 - y >= 0);
+		assert(box->x2 - x <= w);
+		assert(box->y2 - y <= h);
+
 		memcpy_blt(bits, dst_bits,
 			   pixmap->drawable.bitsPerPixel,
 			   stride, dst_stride,
