@@ -1017,10 +1017,12 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
 	EntityInfoPtr entity;
 
-#if HAVE_DOT_GIT
+#if defined(USE_GIT_DESCRIBE)
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		   "SNA compiled from %s\n",
-		   git_version);
+		   "SNA compiled from %s\n", git_version);
+#elif BUILDER_DESCRIPTION
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
 #endif
 
 	DBG(("%s\n", __FUNCTION__));

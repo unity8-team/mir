@@ -67,6 +67,26 @@ if test -e .git; then
 fi
 AM_CONDITIONAL(HAVE_DOT_GIT, test x$dot_git = xyes)
 
+# If so, we include the git description in our logs for sanity checking.
+#
+# However, for people not running their own drivers this is just noise.
+# So we copy the xserver's builderstring idiom to allow for this to be
+# overridden and perhaps replaced with something more useful.
+AC_ARG_WITH(builderstring,
+	    AS_HELP_STRING([--with-builderstring=BUILDERSTRING],
+			   [Additional builder string (default: use git describe)]),
+	    [BUILDERSTRING="$withval"],
+	    [BUILDERSTRING="x-magic-git-describe"])
+
+if test "x$BUILDERSTRING" = xx-magic-git-describe -a x$dot_git = xyes; then
+	AC_DEFINE(USE_GIT_DESCRIBE, 1, [Use automagic builder description])
+else
+  if test "x$BUILDERSTRING" != x -a "x$BUILDERSTRING" != xno -a "x$BUILDERSTRING" != xx-magic-git-describe; then
+	  AC_DEFINE_UNQUOTED(BUILDER_DESCRIPTION, ["$BUILDERSTRING"], [Builder description])
+  fi
+fi
+
+
 PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
