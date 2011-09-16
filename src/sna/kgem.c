@@ -1157,26 +1157,22 @@ void kgem_cleanup_cache(struct kgem *kgem)
 static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, int size, bool active)
 {
-	struct kgem_bo *bo, *next;
+	struct kgem_bo *bo;
 	struct list *cache;
 
 	cache = active ? &kgem->active : inactive(kgem, size);
-	list_for_each_entry_safe(bo, next, cache, list) {
+	list_for_each_entry(bo, cache, list) {
 		if (size > bo->size)
 			continue;
 
 		if (active && bo->tiling != I915_TILING_NONE)
 			continue;
 
-		list_del(&bo->list);
-		if (bo->rq == NULL)
-			list_del(&bo->request);
-
 		if (bo->deleted) {
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_WILLNEED)) {
 				kgem->need_purge |= bo->gpu;
-				goto next_bo;
+				continue;
 			}
 
 			bo->deleted = 0;
@@ -1185,7 +1181,11 @@ search_linear_cache(struct kgem *kgem, int size, bool active)
 		if (I915_TILING_NONE != bo->tiling &&
 		    gem_set_tiling(kgem->fd, bo->handle,
 				   I915_TILING_NONE, 0) != I915_TILING_NONE)
-			goto next_bo;
+			continue;
+
+		list_del(&bo->list);
+		if (bo->rq == NULL)
+			list_del(&bo->request);
 
 		bo->tiling = I915_TILING_NONE;
 		bo->pitch = 0;
@@ -1197,10 +1197,6 @@ search_linear_cache(struct kgem *kgem, int size, bool active)
 		assert(bo->reusable);
 		assert(active || !kgem_busy(kgem, bo->handle));
 		return bo;
-next_bo:
-		list_del(&bo->request);
-		gem_close(kgem->fd, bo->handle);
-		free(bo);
 	}
 
 	return NULL;
