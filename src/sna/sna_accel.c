@@ -1272,7 +1272,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			if (!dst_priv->pinned && replaces) {
 				stride = src_pixmap->devKind;
 				bits = src_pixmap->devPrivate.ptr;
-				bits += src_dy * stride + src_dx * bpp / 8;
+				bits += (src_dy + box->y1) * stride + (src_dx + box->x1) * bpp / 8;
+				assert(src_dy + dst_pixmap->drawable.height <= src_pixmap->drawable.height);
+				assert(src_dx + dst_pixmap->drawable.width <= src_pixmap->drawable.width);
 
 				dst_priv->gpu_bo =
 					sna_replace(sna,
