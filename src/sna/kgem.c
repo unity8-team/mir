@@ -62,6 +62,7 @@ static inline void list_replace(struct list *old,
 
 
 #define DBG_NO_HW 0
+#define DBG_NO_TILING 0
 #define DBG_NO_VMAP 0
 #define DBG_NO_RELAXED_FENCING 0
 #define DBG_DUMP 0
@@ -106,6 +107,9 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 {
 	struct drm_i915_gem_set_tiling set_tiling;
 	int ret;
+
+	if (DBG_NO_TILING)
+		return I915_TILING_NONE;
 
 	do {
 		set_tiling.handle = handle;
@@ -1247,6 +1251,9 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
 
 int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int bpp)
 {
+	if (DBG_NO_TILING)
+		return I915_TILING_NONE;
+
 	if (kgem->gen < 40) {
 		if (tiling) {
 			if (width * bpp > 8192 * 8) {
