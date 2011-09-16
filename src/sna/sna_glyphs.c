@@ -958,8 +958,11 @@ glyphs_fallback(CARD8 op,
 	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
 	if (src->pDrawable)
 		sna_drawable_move_to_cpu(src->pDrawable, false);
+	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);
 
 	dst_image = image_from_pict(dst, TRUE, &x, &y);
+	if (dst_image == NULL)
+		goto cleanup_region;
 	DBG(("%s: dst offset (%d, %d)\n", __FUNCTION__, x, y));
 	if (x | y) {
 		region.extents.x1 += x;
@@ -969,28 +972,40 @@ glyphs_fallback(CARD8 op,
 	}
 
 	src_image = image_from_pict(src, FALSE, &dx, &dy);
+	if (src_image == NULL)
+		goto cleanup_dst;
 	DBG(("%s: src offset (%d, %d)\n", __FUNCTION__, dx, dy));
-	src_x += dx - list->xOff - x;
-	src_y += dy - list->yOff - y;
+	src_x += dx - list->xOff;
+	src_y += dy - list->yOff;
 
 	if (mask_format) {
-		DBG(("%s: create mask %dx%dca? %d\n",
+		DBG(("%s: create mask (%d, %d)x(%d,%d) + (%d,%d) + (%d,%d), depth=%d, format=%lx [%lx], ca? %d\n",
 		     __FUNCTION__,
+		     region.extents.x1, region.extents.y1,
 		     region.extents.x2 - region.extents.x1,
 		     region.extents.y2 - region.extents.y1,
+		     dst->pDrawable->x, dst->pDrawable->y,
+		     x, y,
+		     mask_format->depth, mask_format->format,
+		     mask_format->depth << 24 | mask_format->format,
 		     NeedsComponent(mask_format->format)));
 		mask_image =
 			pixman_image_create_bits(mask_format->depth << 24 | mask_format->format,
 						 region.extents.x2 - region.extents.x1,
 						 region.extents.y2 - region.extents.y1,
 						 NULL, 0);
+		if (mask_image == NULL)
+			goto cleanup_src;
 		if (NeedsComponent(mask_format->format))
 			pixman_image_set_component_alpha(mask_image, TRUE);
 
 		x -= region.extents.x1;
 		y -= region.extents.y1;
-	} else
+	} else {
 		mask_image = dst_image;
+		src_x -= x;
+		src_y -= y;
+	}
 
 	do {
 		int n = list->len;
@@ -1063,16 +1078,14 @@ next_glyph:
 	} while (--nlist);
 
 	if (mask_format) {
-		DBG(("%s: glyph mask composite src=(%d,%d) dst=(%d, %d)x(%d, %d)\n",
+		DBG(("%s: glyph mask composite src=(%d+%d,%d+%d) dst=(%d, %d)x(%d, %d)\n",
 		     __FUNCTION__,
-		     src_x + region.extents.x1,
-		     src_y + region.extents.y1,
+		     src_x, region.extents.x1, src_y, region.extents.y1,
 		     region.extents.x1, region.extents.y1,
 		     region.extents.x2 - region.extents.x1,
 		     region.extents.y2 - region.extents.y1));
 		pixman_image_composite(op, src_image, mask_image, dst_image,
-				       src_x + region.extents.x1,
-				       src_y + region.extents.y1,
+				       src_x, src_y,
 				       0, 0,
 				       region.extents.x1, region.extents.y1,
 				       region.extents.x2 - region.extents.x1,
@@ -1080,8 +1093,11 @@ next_glyph:
 		pixman_image_unref(mask_image);
 	}
 
+cleanup_src:
 	free_pixman_pict(src, src_image);
+cleanup_dst:
 	free_pixman_pict(dst, dst_image);
+cleanup_region:
 	RegionUninit(&region);
 }
 
