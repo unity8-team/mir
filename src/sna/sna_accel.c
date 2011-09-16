@@ -54,6 +54,8 @@
 #define NDEBUG 1
 #endif
 
+#define FORCE_GPU_ONLY 0
+
 DevPrivateKeyRec sna_pixmap_index;
 
 #define PM_IS_SOLID(_draw, _pm) \
@@ -209,7 +211,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	if (!pixmap)
 		return NullPixmap;
 
-	priv = malloc(sizeof(*priv));
+	priv = _sna_pixmap_attach(pixmap);
 	if (!priv) {
 		fbDestroyPixmap(pixmap);
 		return NullPixmap;
@@ -224,16 +226,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		return NullPixmap;
 	}
 
-	priv->source_count = 0;
-	priv->cpu_bo = NULL;
-	priv->cpu_damage = priv->gpu_damage = NULL;
 	priv->gpu_only = 1;
-	priv->pinned = 0;
-	priv->mapped = 0;
-	list_init(&priv->list);
-
-	priv->pixmap = pixmap;
-	sna_set_pixmap(pixmap, priv);
 
 	miModifyPixmapHeader(pixmap,
 			     width, height, depth, bpp,
@@ -242,7 +235,6 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 
 	return pixmap;
 }
-
 
 static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 				   int width, int height, int depth,
@@ -258,6 +250,11 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		return sna_pixmap_create_scratch(screen,
 						 width, height, depth,
 						 I915_TILING_Y);
+
+	if (FORCE_GPU_ONLY && width && height)
+		return sna_pixmap_create_scratch(screen,
+						 width, height, depth,
+						 I915_TILING_X);
 
 #if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 	if (width == 0 || height == 0)
