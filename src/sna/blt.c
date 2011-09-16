@@ -50,8 +50,6 @@ memcpy_blt(const void *src, void *dst, int bpp,
 
 	assert(width && height);
 	assert(bpp >= 8);
-	assert((src_x + width) * bpp <= 8 * src_stride);
-	assert((dst_x + width) * bpp <= 8 * dst_stride);
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d, pitch=%d/%d\n",
 	     __FUNCTION__, src_x, src_y, dst_x, dst_y, width, height, src_stride, dst_stride));
