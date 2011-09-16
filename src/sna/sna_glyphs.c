@@ -78,6 +78,7 @@
 #endif
 
 #define FALLBACK 0
+#define NO_GLYPH_CACHE 0
 #define NO_GLYPHS_TO_DST 0
 #define NO_GLYPHS_VIA_MASK 0
 #define NO_GLYPHS_SLOW 0
@@ -303,6 +304,9 @@ glyph_cache(ScreenPtr screen,
 	struct sna_glyph_cache *cache = &render->glyph[PICT_FORMAT_RGB(glyph_picture->format) != 0];
 	struct sna_glyph *priv;
 	int size, mask, pos, s;
+
+	if (NO_GLYPH_CACHE)
+		return FALSE;
 
 	if (glyph->info.width > GLYPH_MAX_SIZE ||
 	    glyph->info.height > GLYPH_MAX_SIZE) {
