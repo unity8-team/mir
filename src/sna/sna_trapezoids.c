@@ -1795,7 +1795,7 @@ mono_render(struct mono *mono)
 
 		if (mono->is_vertical) {
 			struct mono_edge *e = mono->head.next;
-			int min_height = e->height_left;
+			int min_height = h - i;
 
 			while (e != &mono->tail) {
 				if (e->height_left < min_height)
