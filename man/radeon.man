@@ -52,7 +52,8 @@ R/RV/RS3xx, R/RV/RS4xx);
 .SH SUPPORTED HARDWARE
 The
 .B radeon
-driver supports PCI, AGP, and PCIE video cards based on the following ATI chips:
+driver supports PCI, AGP, and PCIE video cards based on the following ATI chips
+(note: list is non-exhaustive):
 .PP
 .PD 0
 .TP 12
