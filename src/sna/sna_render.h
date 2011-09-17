@@ -459,8 +459,7 @@ Bool gen5_render_init(struct sna *sna);
 Bool gen6_render_init(struct sna *sna);
 Bool gen7_render_init(struct sna *sna);
 
-Bool sna_tiling_composite(struct sna *sna,
-			  uint32_t op,
+Bool sna_tiling_composite(uint32_t op,
 			  PicturePtr src,
 			  PicturePtr mask,
 			  PicturePtr dst,

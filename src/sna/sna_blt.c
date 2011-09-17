@@ -94,6 +94,8 @@ static const uint8_t fill_ROP[] = {
 
 static void nop_done(struct sna *sna, const struct sna_composite_op *op)
 {
+	(void)sna;
+	(void)op;
 }
 
 static void blt_done(struct sna *sna, const struct sna_composite_op *op)
@@ -102,6 +104,7 @@ static void blt_done(struct sna *sna, const struct sna_composite_op *op)
 
 	DBG(("%s: nbatch=%d\n", __FUNCTION__, kgem->nbatch));
 	_kgem_set_mode(kgem, KGEM_BLT);
+	(void)op;
 }
 
 static bool sna_blt_fill_init(struct sna *sna,
@@ -166,8 +169,8 @@ static void sna_blt_fill_one(struct sna *sna,
 	if (kgem->nbatch >= 6 &&
 	    blt->overwrites &&
 	    kgem->batch[kgem->nbatch-6] == blt->cmd &&
-	    kgem->batch[kgem->nbatch-4] == (y << 16 | x) &&
-	    kgem->batch[kgem->nbatch-3] == ((y+height) << 16 | (x+width)) &&
+	    kgem->batch[kgem->nbatch-4] == ((uint32_t)y << 16 | (uint16_t)x) &&
+	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(y+height) << 16 | (uint16_t)(x+width)) &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == blt->bo[0]->handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-5] = blt->br13;
@@ -267,8 +270,8 @@ static void sna_blt_copy_one(struct sna *sna,
 	if (kgem->nbatch >= 6 &&
 	    blt->overwrites &&
 	    kgem->batch[kgem->nbatch-6] == ((blt->cmd & ~XY_SRC_COPY_BLT_CMD) | XY_COLOR_BLT_CMD) &&
-	    kgem->batch[kgem->nbatch-4] == (dst_y << 16 | dst_x) &&
-	    kgem->batch[kgem->nbatch-3] == ((dst_y+height) << 16 | (dst_x+width)) &&
+	    kgem->batch[kgem->nbatch-4] == ((uint32_t)dst_y << 16 | (uint16_t)dst_x) &&
+	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(dst_y+height) << 16 | (uint16_t)(dst_x+width)) &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == blt->bo[1]->handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		b = kgem->batch + kgem->nbatch - 6;
@@ -528,7 +531,7 @@ sna_picture_is_solid(PicturePtr picture, uint32_t *color)
 static Bool
 pixel_is_opaque(uint32_t pixel, uint32_t format)
 {
-	int abits;
+	unsigned int abits;
 
 	abits = PICT_FORMAT_A(format);
 	if (!abits)
@@ -536,11 +539,11 @@ pixel_is_opaque(uint32_t pixel, uint32_t format)
 
 	if (PICT_FORMAT_TYPE(format) == PICT_TYPE_A ||
 	    PICT_FORMAT_TYPE(format) == PICT_TYPE_BGRA) {
-		return (pixel & ((1 << abits) - 1)) == ((1 << abits) - 1);
+		return (pixel & ((1 << abits) - 1)) == (unsigned)((1 << abits) - 1);
 	} else if (PICT_FORMAT_TYPE(format) == PICT_TYPE_ARGB ||
 		   PICT_FORMAT_TYPE(format) == PICT_TYPE_ABGR) {
-		int ashift = PICT_FORMAT_BPP(format) - abits;
-		return (pixel >> ashift) == ((1 << abits) - 1);
+		unsigned int ashift = PICT_FORMAT_BPP(format) - abits;
+		return (pixel >> ashift) == (unsigned)((1 << abits) - 1);
 	} else
 		return FALSE;
 }
@@ -1153,7 +1156,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 			const BoxRec *box, int nbox)
 {
 	struct kgem *kgem = &sna->kgem;
-	int br13, cmd;
+	uint32_t br13, cmd;
 
 #if DEBUG_NO_BLT || NO_BLT_FILL_BOXES
 	return FALSE;
@@ -1195,8 +1198,8 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	if (kgem->nbatch >= 6 &&
 	    (alu == GXcopy || alu == GXclear) &&
 	    kgem->batch[kgem->nbatch-6] == cmd &&
-	    kgem->batch[kgem->nbatch-4] == (box[0].y1 << 16 | box[0].x1) &&
-	    kgem->batch[kgem->nbatch-3] == (box[0].y2 << 16 | box[0].x2) &&
+	    kgem->batch[kgem->nbatch-4] == ((uint32_t)box[0].y1 << 16 | (uint16_t)box[0].x1) &&
+	    kgem->batch[kgem->nbatch-3] == ((uint32_t)box[0].y2 << 16 | (uint16_t)box[0].x2) &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == bo->handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-5] = br13;

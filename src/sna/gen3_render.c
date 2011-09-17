@@ -92,7 +92,7 @@ static const struct blendinfo {
 };
 
 static const struct formatinfo {
-	int fmt, xfmt;
+	unsigned int fmt, xfmt;
 	uint32_t card_fmt;
 	Bool rb_reversed;
 } gen3_tex_formats[] = {
@@ -1103,8 +1103,7 @@ static void gen3_emit_invariant(struct sna *sna)
 }
 
 static void
-gen3_get_batch(struct sna *sna,
-	       const struct sna_composite_op *op)
+gen3_get_batch(struct sna *sna)
 {
 #define MAX_OBJECTS 3 /* worst case: dst + src + mask  */
 
@@ -1185,10 +1184,10 @@ static void gen3_emit_composite_state(struct sna *sna,
 	uint32_t map[4];
 	uint32_t sampler[4];
 	struct kgem_bo *bo[2];
-	int tex_count, n;
+	unsigned int tex_count, n;
 	uint32_t ss2;
 
-	gen3_get_batch(sna, op);
+	gen3_get_batch(sna);
 
 	gen3_emit_target(sna,
 			 op->dst.bo,
@@ -1659,7 +1658,7 @@ gen3_render_reset(struct sna *sna)
 static Bool gen3_composite_channel_set_format(struct sna_composite_channel *channel,
 					      CARD32 format)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(gen3_tex_formats); i++) {
 		if (gen3_tex_formats[i].fmt == format) {
@@ -1715,7 +1714,7 @@ static Bool gen3_composite_channel_set_xformat(PicturePtr picture,
 					       int x, int y,
 					       int width, int height)
 {
-	int i;
+	unsigned int i;
 
 	if (PICT_FORMAT_A(picture->format) != 0)
 		return FALSE;
@@ -1739,9 +1738,7 @@ static Bool gen3_composite_channel_set_xformat(PicturePtr picture,
 }
 
 static int
-gen3_init_solid(struct sna *sna,
-		struct sna_composite_channel *channel,
-		uint32_t color)
+gen3_init_solid(struct sna_composite_channel *channel, uint32_t color)
 {
 	channel->u.gen3.mode = color;
 	channel->u.gen3.type = SHADER_CONSTANT;
@@ -1943,8 +1940,7 @@ gen3_composite_picture(struct sna *sna,
 
 		switch (source->type) {
 		case SourcePictTypeSolidFill:
-			ret = gen3_init_solid(sna, channel,
-					      source->solidFill.color);
+			ret = gen3_init_solid(channel, source->solidFill.color);
 			break;
 
 		case SourcePictTypeLinear:
@@ -1965,7 +1961,7 @@ gen3_composite_picture(struct sna *sna,
 	}
 
 	if (sna_picture_is_solid(picture, &color))
-		return gen3_init_solid(sna, channel, color);
+		return gen3_init_solid(channel, color);
 
 	if (!gen3_check_repeat(picture->repeat))
 		return sna_render_picture_fixup(sna, picture, channel,
@@ -2026,7 +2022,6 @@ picture_is_cpu(PicturePtr picture)
 
 static Bool
 try_blt(struct sna *sna,
-	PicturePtr dst,
 	PicturePtr source,
 	int width, int height)
 {
@@ -2066,9 +2061,7 @@ gen3_align_vertex(struct sna *sna,
 }
 
 static Bool
-gen3_composite_set_target(struct sna *sna,
-			  struct sna_composite_op *op,
-			  PicturePtr dst)
+gen3_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 {
 	struct sna_pixmap *priv;
 
@@ -2136,7 +2129,7 @@ gen3_render_composite(struct sna *sna,
 	 * 3D -> 2D context switch.
 	 */
 	if (mask == NULL &&
-	    try_blt(sna, dst, src, width, height) &&
+	    try_blt(sna, src, width, height) &&
 	    sna_blt_composite(sna,
 			      op, src, dst,
 			      src_x, src_y,
@@ -2158,8 +2151,7 @@ gen3_render_composite(struct sna *sna,
 	}
 
 	if (need_tiling(sna, width, height))
-		return sna_tiling_composite(sna,
-					    op, src, mask, dst,
+		return sna_tiling_composite(op, src, mask, dst,
 					    src_x,  src_y,
 					    mask_x, mask_y,
 					    dst_x,  dst_y,
@@ -2168,7 +2160,7 @@ gen3_render_composite(struct sna *sna,
 
 	memset(&tmp->u.gen3, 0, sizeof(tmp->u.gen3));
 
-	if (!gen3_composite_set_target(sna, tmp, dst)) {
+	if (!gen3_composite_set_target(tmp, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
@@ -2679,7 +2671,7 @@ gen3_render_composite_spans(struct sna *sna,
 	if (need_tiling(sna, width, height))
 		return FALSE;
 
-	if (!gen3_composite_set_target(sna, &tmp->base, dst)) {
+	if (!gen3_composite_set_target(&tmp->base, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
@@ -3224,8 +3216,7 @@ gen3_render_video(struct sna *sna,
 }
 
 static void
-gen3_render_copy_setup_source(struct sna *sna,
-			      struct sna_composite_channel *channel,
+gen3_render_copy_setup_source(struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
 			      struct kgem_bo *bo)
 {
@@ -3309,7 +3300,7 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = dst_bo;
 
-	gen3_render_copy_setup_source(sna, &tmp.src, src, src_bo);
+	gen3_render_copy_setup_source(&tmp.src, src, src_bo);
 
 	tmp.floats_per_vertex = 4;
 	tmp.mask.u.gen3.type = SHADER_NONE;
@@ -3437,7 +3428,7 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 	tmp->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp->base.dst.bo = dst_bo;
 
-	gen3_render_copy_setup_source(sna, &tmp->base.src, src, src_bo);
+	gen3_render_copy_setup_source(&tmp->base.src, src, src_bo);
 
 	tmp->base.floats_per_vertex = 4;
 	tmp->base.mask.u.gen3.type = SHADER_NONE;

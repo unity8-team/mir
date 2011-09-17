@@ -92,6 +92,7 @@ sna_tiling_composite_blt(struct sna *sna,
 			 const struct sna_composite_rectangles *r)
 {
 	sna_tiling_composite_add_rect(op->u.priv, r);
+	(void)sna;
 }
 
 static void
@@ -112,6 +113,7 @@ sna_tiling_composite_boxes(struct sna *sna,
 		sna_tiling_composite_add_rect(op->u.priv, &r);
 		box++;
 	}
+	(void)sna;
 }
 
 static void
@@ -212,8 +214,7 @@ static inline int split(int x, int y)
 }
 
 Bool
-sna_tiling_composite(struct sna *sna,
-		     uint32_t op,
+sna_tiling_composite(uint32_t op,
 		     PicturePtr src,
 		     PicturePtr mask,
 		     PicturePtr dst,

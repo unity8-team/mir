@@ -120,8 +120,8 @@ struct kgem {
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
 #define KGEM_BATCH_SIZE(K) (ARRAY_SIZE((K)->batch)-KGEM_BATCH_RESERVED)
-#define KGEM_EXEC_SIZE(K) (ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
-#define KGEM_RELOC_SIZE(K) (ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
+#define KGEM_EXEC_SIZE(K) (int)(ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
+#define KGEM_RELOC_SIZE(K) (int)(ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
 
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen);
 void kgem_reset(struct kgem *kgem);
@@ -138,8 +138,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
-					 int x, int y,
-					 int width, int height,
+					 BoxPtr box,
 					 int stride, int bpp);
 struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
 						pixman_format_code_t format,
@@ -290,7 +289,7 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length);
 
-static inline bool kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
+static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
 	if (bo->exec)
 		return true;
@@ -332,7 +331,11 @@ void kgem_cleanup_cache(struct kgem *kgem);
 #if HAS_EXTRA_DEBUG
 void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch);
 #else
-static inline void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch) {}
+static inline void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch)
+{
+	(void)kgem;
+	(void)nbatch;
+}
 #endif
 
 #endif /* KGEM_H */

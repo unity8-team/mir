@@ -79,7 +79,7 @@ static inline Bool sna_video_xvmc_setup(struct sna *sna,
 
 void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(video->old_buf); i++) {
 		if (video->old_buf[i]) {
@@ -313,8 +313,7 @@ static void sna_memcpy_plane(unsigned char *dst, unsigned char *src,
 }
 
 static void
-sna_copy_planar_data(struct sna *sna,
-		     struct sna_video *video,
+sna_copy_planar_data(struct sna_video *video,
 		     const struct sna_video_frame *frame,
 		     unsigned char *src,
 		     unsigned char *dst,
@@ -365,8 +364,7 @@ sna_copy_planar_data(struct sna *sna,
 }
 
 static void
-sna_copy_packed_data(struct sna *sna,
-		     struct sna_video *video,
+sna_copy_packed_data(struct sna_video *video,
 		     const struct sna_video_frame *frame,
 		     unsigned char *buf,
 		     unsigned char *dst,
@@ -523,14 +521,14 @@ sna_video_copy_data(struct sna *sna,
 		int srcPitch = ALIGN(frame->width, 0x4);
 		int srcPitch2 = ALIGN((frame->width >> 1), 0x4);
 
-		sna_copy_planar_data(sna, video, frame,
+		sna_copy_planar_data(video, frame,
 				     buf, dst,
 				     srcPitch, srcPitch2,
 				     nlines, top, left);
 	} else {
 		int srcPitch = frame->width << 1;
 
-		sna_copy_packed_data(sna, video, frame,
+		sna_copy_packed_data(video, frame,
 				     buf, dst,
 				     srcPitch,
 				     top, left);

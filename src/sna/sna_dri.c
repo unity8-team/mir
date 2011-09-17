@@ -339,7 +339,7 @@ static void sna_dri_reference_buffer(DRI2Buffer2Ptr buffer)
 	private->refcnt++;
 }
 
-static void damage(DrawablePtr drawable, PixmapPtr pixmap, RegionPtr region)
+static void damage(PixmapPtr pixmap, RegionPtr region)
 {
 	struct sna_pixmap *priv;
 	BoxPtr box;
@@ -508,7 +508,7 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		pixman_region_translate(region, dx, dy);
 		DamageRegionAppend(&dst->drawable, region);
 		DamageRegionProcessPending(&dst->drawable);
-		damage(draw, dst, region);
+		damage(dst, region);
 	}
 
 	if (region == &clip)
@@ -716,9 +716,7 @@ sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 }
 
 static void
-sna_dri_exchange_buffers(DrawablePtr draw,
-			 DRI2BufferPtr front,
-			 DRI2BufferPtr back)
+sna_dri_exchange_buffers(DRI2BufferPtr front, DRI2BufferPtr back)
 {
 	int tmp;
 
@@ -735,9 +733,7 @@ sna_dri_exchange_buffers(DrawablePtr draw,
  * flipping buffers as necessary.
  */
 static Bool
-sna_dri_schedule_flip(struct sna *sna,
-		      DrawablePtr draw,
-		      struct sna_dri_frame_event *info)
+sna_dri_schedule_flip(struct sna *sna, struct sna_dri_frame_event *info)
 {
 	struct sna_dri_private *back_priv;
 
@@ -904,8 +900,8 @@ static void sna_dri_vblank_handle(int fd,
 	case DRI2_FLIP:
 		/* If we can still flip... */
 		if (can_flip(sna, draw, info->front, info->back) &&
-		    sna_dri_schedule_flip(sna, draw, info)) {
-			sna_dri_exchange_buffers(draw, info->front, info->back);
+		    sna_dri_schedule_flip(sna, info)) {
+			sna_dri_exchange_buffers(info->front, info->back);
 			return;
 		}
 		/* else fall through to exchange/blit */
@@ -958,7 +954,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 	PixmapPtr pixmap;
 
 	if (NO_TRIPPLE_BUFFER)
-		return sna_dri_schedule_flip(sna, draw, info);
+		return sna_dri_schedule_flip(sna, info);
 
 	info->type = DRI2_FLIP_THROTTLE;
 
@@ -970,7 +966,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 			 * take over.
 			 */
 			info->type = DRI2_FLIP;
-			return sna_dri_schedule_flip(sna, draw, info);
+			return sna_dri_schedule_flip(sna, info);
 		}
 
 		DBG(("%s: chaining flip\n", __FUNCTION__));
@@ -979,7 +975,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 		return TRUE;
 	}
 
-	if (!sna_dri_schedule_flip(sna, draw, info))
+	if (!sna_dri_schedule_flip(sna, info))
 		return FALSE;
 
 	info->old_front =
@@ -995,7 +991,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 		set_pixmap(sna, info->front, pixmap);
 	}
 
-	sna_dri_exchange_buffers(draw, info->front, info->back);
+	sna_dri_exchange_buffers(info->front, info->back);
 	DRI2SwapComplete(info->client, draw, 0, 0, 0,
 			 DRI2_EXCHANGE_COMPLETE,
 			 info->event_complete,
@@ -1219,7 +1215,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		pixmap = sna_set_screen_pixmap(sna, back_priv->pixmap);
 		assert(pixmap->refcnt > 1);
 		pixmap->refcnt--;
-		sna_dri_exchange_buffers(draw, front, back);
+		sna_dri_exchange_buffers(front, back);
 		DRI2SwapComplete(client, draw, 0, 0, 0,
 				 DRI2_EXCHANGE_COMPLETE, func, data);
 		return TRUE;
@@ -1486,7 +1482,7 @@ exchange:
 	pixmap = sna_set_screen_pixmap(sna, back_priv->pixmap);
 	screen->DestroyPixmap(pixmap);
 
-	sna_dri_exchange_buffers(draw, front, back);
+	sna_dri_exchange_buffers(front, back);
 	DRI2SwapComplete(client, draw, 0, 0, 0, type, func, data);
 }
 #endif
@@ -1684,7 +1680,7 @@ out_complete:
 }
 #endif
 
-static int dri2_server_generation;
+static unsigned int dri2_server_generation;
 
 Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 {

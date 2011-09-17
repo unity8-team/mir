@@ -57,6 +57,9 @@ static void dst_move_area_to_cpu(PicturePtr picture,
 		RegionIntersect(&area, &area, picture->pCompositeClip);
 	sna_drawable_move_region_to_cpu(picture->pDrawable, &area, true);
 	RegionUninit(&area);
+
+	/* XXX use op to avoid a readback? */
+	(void)op;
 }
 
 #define BOUND(v)	(INT16) ((v) < MINSHORT ? MINSHORT : (v) > MAXSHORT ? MAXSHORT : (v))
@@ -437,7 +440,7 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(sna, dst->pDrawable) &&
+	if (too_small(dst->pDrawable) &&
 	    !picture_is_gpu(src) && !picture_is_gpu(mask)) {
 		DBG(("%s: fallback due to too small\n", __FUNCTION__));
 		goto fallback;
@@ -508,13 +511,14 @@ static int16_t bound(int16_t a, uint16_t b)
 
 static Bool
 _pixman_region_init_clipped_rectangles(pixman_region16_t *region,
-				       int num_rects, xRectangle *rects,
+				       unsigned int num_rects,
+				       xRectangle *rects,
 				       int tx, int ty,
 				       int maxx, int maxy)
 {
 	pixman_box16_t stack_boxes[64], *boxes = stack_boxes;
 	pixman_bool_t ret;
-	int i, j;
+	unsigned int i, j;
 
 	if (num_rects > ARRAY_SIZE(stack_boxes)) {
 		boxes = malloc(sizeof(pixman_box16_t) * num_rects);
@@ -650,7 +654,7 @@ sna_composite_rectangles(CARD8		 op,
 		op = PictOpSrc;
 	}
 
-	if (too_small(sna, dst->pDrawable)) {
+	if (too_small(dst->pDrawable)) {
 		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
 		goto fallback;
 	}

@@ -629,7 +629,7 @@ polygon_init(struct polygon *polygon,
 	polygon->y_buckets = polygon->y_buckets_embedded;
 
 	polygon->num_edges = 0;
-	if (num_edges > ARRAY_SIZE(polygon->edges_embedded)) {
+	if (num_edges > (int)ARRAY_SIZE(polygon->edges_embedded)) {
 		polygon->edges = malloc(sizeof(struct edge)*num_edges);
 		if (unlikely(NULL == polygon->edges))
 			goto bail_no_mem;
@@ -1452,7 +1452,7 @@ mono_polygon_init (struct mono_polygon *polygon, BoxPtr box, int num_edges)
 
 	polygon->num_edges = 0;
 	polygon->edges = polygon->edges_embedded;
-	if (num_edges > ARRAY_SIZE (polygon->edges_embedded)) {
+	if (num_edges > (int)ARRAY_SIZE (polygon->edges_embedded)) {
 		polygon->edges = malloc (num_edges * sizeof (struct mono_edge));
 		if (unlikely (polygon->edges == NULL)) {
 			if (polygon->y_buckets != polygon->y_buckets_embedded)
@@ -1943,7 +1943,7 @@ composite_aligned_boxes(CARD8 op,
 	DBG(("%s\n", __FUNCTION__));
 
 	boxes = stack_boxes;
-	if (ntrap > ARRAY_SIZE(stack_boxes))
+	if (ntrap > (int)ARRAY_SIZE(stack_boxes))
 		boxes = malloc(sizeof(BoxRec)*ntrap);
 
 	dx = dst->pDrawable->x;
@@ -2976,7 +2976,7 @@ sna_composite_trapezoids(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(sna, dst->pDrawable) && !picture_is_gpu(src)) {
+	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
 		DBG(("%s: fallback -- dst is too small, %dx%d\n",
 		     __FUNCTION__,
 		     dst->pDrawable->width,

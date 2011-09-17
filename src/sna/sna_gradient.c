@@ -42,8 +42,7 @@
 static int
 sna_gradient_sample_width(PictGradient *gradient)
 {
-	unsigned int n;
-	int width;
+	int n, width;
 
 	width = 2;
 	for (n = 1; n < gradient->nstops; n++) {
@@ -102,7 +101,7 @@ sna_render_get_gradient(struct sna *sna,
 	struct sna_gradient_cache *cache;
 	pixman_image_t *gradient, *image;
 	pixman_point_fixed_t p1, p2;
-	unsigned int i, width;
+	int i, width;
 	struct kgem_bo *bo;
 
 	DBG(("%s: %dx[%f:%x...%f:%x...%f:%x]\n", __FUNCTION__,
@@ -258,7 +257,7 @@ struct kgem_bo *
 sna_render_get_solid(struct sna *sna, uint32_t color)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
-	unsigned int i;
+	int i;
 
 	if ((color & 0xffffff) == 0) /* alpha only */
 		return kgem_bo_reference(sna->render.alpha_cache.bo[color>>24]);

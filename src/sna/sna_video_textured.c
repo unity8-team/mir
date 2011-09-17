@@ -121,6 +121,7 @@ static int xvmc_passthrough(int id)
 	return id == FOURCC_XVMC;
 #else
 	return 0;
+	(void)id;
 #endif
 }
 

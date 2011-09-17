@@ -105,7 +105,7 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 
 	if (priv->cpu_bo) {
 		if (pixmap->usage_hint != CREATE_PIXMAP_USAGE_SCRATCH_HEADER &&
-		    kgem_bo_is_busy(&sna->kgem, priv->cpu_bo)) {
+		    kgem_bo_is_busy(priv->cpu_bo)) {
 			list_add_tail(&priv->list, &sna->deferred_free);
 			return false;
 		}
@@ -913,7 +913,7 @@ static inline bool box_empty(const BoxRec *box)
 
 static Bool
 sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
-			 int x, int y, int w, int  h, char *bits, int stride)
+			 int x, int y, int w, int h, char *bits, int stride)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);

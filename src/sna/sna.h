@@ -122,7 +122,7 @@ static inline void list_add_tail(struct list *new, struct list *head)
 
 #ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 #define FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER 1
-#define CREATE_PIXMAP_USAGE_SCRATCH_HEADER -1
+#define CREATE_PIXMAP_USAGE_SCRATCH_HEADER (unsigned)-1
 #endif
 
 #define SNA_CURSOR_X			64

@@ -126,7 +126,7 @@ static inline struct sna_glyph *glyph_get_private(GlyphPtr glyph)
 static void unrealize_glyph_caches(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
-	int i;
+	unsigned int i;
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -157,7 +157,7 @@ static Bool realize_glyph_caches(struct sna *sna)
 		PIXMAN_a8,
 		PIXMAN_a8r8g8b8,
 	};
-	int i;
+	unsigned int i;
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -842,6 +842,7 @@ Bool sna_glyphs_init(ScreenPtr screen)
 		return FALSE;
 
 	return TRUE;
+	(void)screen;
 }
 
 Bool sna_glyphs_create(struct sna *sna)
@@ -883,17 +884,9 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 			}
 
 			x1 = x - glyph->info.x;
-			if (x1 < MINSHORT)
-				x1 = MINSHORT;
 			y1 = y - glyph->info.y;
-			if (y1 < MINSHORT)
-				y1 = MINSHORT;
 			x2 = x1 + glyph->info.width;
-			if (x2 > MAXSHORT)
-				x2 = MAXSHORT;
 			y2 = y1 + glyph->info.height;
-			if (y2 > MAXSHORT)
-				y2 = MAXSHORT;
 
 			if (first) {
 				extents.x1 = x1;
@@ -1131,7 +1124,7 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(sna, dst->pDrawable) && !picture_is_gpu(src)) {
+	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
 		DBG(("%s: fallback -- too small (%dx%d)\n",
 		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
 		goto fallback;

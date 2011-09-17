@@ -109,7 +109,7 @@ static const struct blendinfo {
 };
 
 static const struct formatinfo {
-	int fmt;
+	unsigned int fmt;
 	uint32_t card_fmt;
 } i8xx_tex_formats[] = {
 	{PICT_a8, MAPSURF_8BIT | MT_8BIT_A8},
@@ -181,7 +181,7 @@ gen2_check_dst_format(uint32_t format)
 static uint32_t
 gen2_get_card_format(struct sna *sna, uint32_t format)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(i8xx_tex_formats); i++)
 		if (i8xx_tex_formats[i].fmt == format)
@@ -532,8 +532,7 @@ static void gen2_emit_invariant(struct sna *sna)
 }
 
 static void
-gen2_get_batch(struct sna *sna,
-	       const struct sna_composite_op *op)
+gen2_get_batch(struct sna *sna)
 {
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
@@ -645,7 +644,7 @@ static void gen2_emit_composite_state(struct sna *sna,
 	uint32_t cblend, ablend;
 	int tex;
 
-	gen2_get_batch(sna, op);
+	gen2_get_batch(sna);
 	gen2_emit_target(sna, op);
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
@@ -1068,7 +1067,7 @@ gen2_check_card_format(struct sna *sna,
 		       int x, int y, int w, int h)
 {
 	uint32_t format = picture->format;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(i8xx_tex_formats); i++) {
 		if (i8xx_tex_formats[i].fmt == format)
@@ -1168,8 +1167,7 @@ gen2_composite_picture(struct sna *sna,
 }
 
 static Bool
-gen2_composite_set_target(struct sna *sna,
-			  struct sna_composite_op *op,
+gen2_composite_set_target(struct sna_composite_op *op,
 			  PicturePtr dst)
 {
 	struct sna_pixmap *priv;
@@ -1194,7 +1192,6 @@ gen2_composite_set_target(struct sna *sna,
 
 static Bool
 try_blt(struct sna *sna,
-	PicturePtr dst,
 	PicturePtr source,
 	int width, int height)
 {
@@ -1239,7 +1236,7 @@ gen2_render_composite(struct sna *sna,
 	 * 3D -> 2D context switch.
 	 */
 	if (mask == NULL &&
-	    try_blt(sna, dst, src, width, height) &&
+	    try_blt(sna, src, width, height) &&
 	    sna_blt_composite(sna,
 			      op, src, dst,
 			      src_x, src_y,
@@ -1261,15 +1258,14 @@ gen2_render_composite(struct sna *sna,
 	}
 
 	if (need_tiling(sna, width, height))
-		return sna_tiling_composite(sna,
-					    op, src, mask, dst,
+		return sna_tiling_composite(op, src, mask, dst,
 					    src_x,  src_y,
 					    mask_x, mask_y,
 					    dst_x,  dst_y,
 					    width,  height,
 					    tmp);
 
-	if (!gen2_composite_set_target(sna, tmp, dst)) {
+	if (!gen2_composite_set_target(tmp, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
@@ -1544,7 +1540,7 @@ gen2_emit_spans_pipeline(struct sna *sna,
 static void gen2_emit_composite_spans_state(struct sna *sna,
 					    const struct sna_composite_spans_op *op)
 {
-	gen2_get_batch(sna, &op->base);
+	gen2_get_batch(sna);
 	gen2_emit_target(sna, &op->base);
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
@@ -1669,7 +1665,7 @@ gen2_render_composite_spans(struct sna *sna,
 	if (need_tiling(sna, width, height))
 		return FALSE;
 
-	if (!gen2_composite_set_target(sna, &tmp->base, dst)) {
+	if (!gen2_composite_set_target(&tmp->base, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
@@ -1762,7 +1758,7 @@ static void gen2_emit_fill_composite_state(struct sna *sna,
 					   const struct sna_composite_op *op,
 					   uint32_t pixel)
 {
-	gen2_get_batch(sna, op);
+	gen2_get_batch(sna);
 	gen2_emit_target(sna, op);
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
@@ -1914,7 +1910,7 @@ gen2_render_fill_boxes(struct sna *sna,
 static void gen2_emit_fill_state(struct sna *sna,
 				 const struct sna_composite_op *op)
 {
-	gen2_get_batch(sna, op);
+	gen2_get_batch(sna);
 	gen2_emit_target(sna, op);
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
@@ -2010,8 +2006,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 }
 
 static void
-gen2_render_copy_setup_source(struct sna *sna,
-			      struct sna_composite_channel *channel,
+gen2_render_copy_setup_source(struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
 			      struct kgem_bo *bo)
 {
@@ -2057,7 +2052,7 @@ gen2_emit_copy_pipeline(struct sna *sna, const struct sna_composite_op *op)
 
 static void gen2_emit_copy_state(struct sna *sna, const struct sna_composite_op *op)
 {
-	gen2_get_batch(sna, op);
+	gen2_get_batch(sna);
 	gen2_emit_target(sna, op);
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
@@ -2143,7 +2138,7 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	tmp.floats_per_vertex = 4;
 
-	gen2_render_copy_setup_source(sna, &tmp.src, src, src_bo);
+	gen2_render_copy_setup_source(&tmp.src, src, src_bo);
 	gen2_emit_copy_state(sna, &tmp);
 	do {
 		int n_this_time;
@@ -2264,7 +2259,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	tmp->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp->base.dst.bo = dst_bo;
 
-	gen2_render_copy_setup_source(sna, &tmp->base.src, src, src_bo);
+	gen2_render_copy_setup_source(&tmp->base.src, src, src_bo);
 
 	tmp->base.floats_per_vertex = 4;
 

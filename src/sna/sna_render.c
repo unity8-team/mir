@@ -83,6 +83,8 @@ no_render_composite(struct sna *sna,
 		return TRUE;
 
 	return FALSE;
+	(void)mask_x;
+	(void)mask_y;
 }
 
 static Bool
@@ -179,21 +181,26 @@ no_render_fill(struct sna *sna, uint8_t alu,
 
 static void no_render_reset(struct sna *sna)
 {
+	(void)sna;
 }
 
 static void no_render_flush(struct sna *sna)
 {
+	(void)sna;
 }
 
 static void
 no_render_context_switch(struct kgem *kgem,
 			 int new_mode)
 {
+	(void)kgem;
+	(void)new_mode;
 }
 
 static void
 no_render_fini(struct sna *sna)
 {
+	(void)sna;
 }
 
 void no_render_init(struct sna *sna)
@@ -299,7 +306,6 @@ texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
 static struct kgem_bo *upload(struct sna *sna,
 			      struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
-			      int16_t x, int16_t y, int16_t w, int16_t h,
 			      BoxPtr box)
 {
 	struct kgem_bo *bo;
@@ -312,17 +318,16 @@ static struct kgem_bo *upload(struct sna *sna,
 	assert(box->y2 <= pixmap->drawable.height);
 
 	bo = kgem_upload_source_image(&sna->kgem,
-				      pixmap->devPrivate.ptr,
-				      box->x1, box->y1, w, h,
+				      pixmap->devPrivate.ptr, box,
 				      pixmap->devKind,
 				      pixmap->drawable.bitsPerPixel);
 	if (bo) {
+		channel->width  = box->x2 - box->x1;
+		channel->height = box->y2 - box->y1;
 		channel->offset[0] -= box->x1;
 		channel->offset[1] -= box->y1;
-		channel->scale[0] = 1.f/w;
-		channel->scale[1] = 1.f/h;
-		channel->width  = w;
-		channel->height = h;
+		channel->scale[0] = 1.f/channel->width;
+		channel->scale[1] = 1.f/channel->height;
 	}
 
 	return bo;
@@ -414,7 +419,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		if (bo == NULL) {
 			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
 			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-			bo = upload(sna, channel, pixmap, x,y, w,h, &box);
+			bo = upload(sna, channel, pixmap, &box);
 		}
 	}
 
@@ -425,7 +430,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		} else {
 			DBG(("%s: failed to upload pixmap to gpu, uploading CPU box (%d, %d), (%d, %d) instead\n",
 			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-			bo = upload(sna, channel, pixmap, x,y, w,h, &box);
+			bo = upload(sna, channel, pixmap, &box);
 		}
 	}
 
@@ -764,7 +769,7 @@ sna_render_picture_extract(struct sna *sna,
 	if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
 		bo = kgem_upload_source_image(&sna->kgem,
 					      pixmap->devPrivate.ptr,
-					      box.x1, box.y1, w, h,
+					      &box,
 					      pixmap->devKind,
 					      pixmap->drawable.bitsPerPixel);
 		if (!bo) {

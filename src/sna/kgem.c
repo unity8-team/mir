@@ -312,7 +312,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	drm_i915_getparam_t gp;
 	struct drm_i915_gem_get_aperture aperture;
-	int i;
+	unsigned int i;
+	int v;
 
 	memset(kgem, 0, sizeof(*kgem));
 
@@ -335,10 +336,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		drm_i915_getparam_t gp;
 
 		gp.param = I915_PARAM_HAS_VMAP;
-		gp.value = &i;
+		gp.value = &v;
 		kgem->has_vmap =
 			drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp) == 0 &&
-			i > 0;
+			v > 0;
 	}
 #endif
 	DBG(("%s: using vmap=%d\n", __FUNCTION__, kgem->has_vmap));
@@ -348,9 +349,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 			drm_i915_getparam_t gp;
 
 			gp.param = I915_PARAM_HAS_RELAXED_FENCING;
-			gp.value = &i;
+			gp.value = &v;
 			if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp) == 0)
-				kgem->has_relaxed_fencing = i > 0;
+				kgem->has_relaxed_fencing = v > 0;
 		}
 	} else
 		kgem->has_relaxed_fencing = 1;
@@ -378,11 +379,11 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		kgem->max_object_size = kgem->aperture_low;
 	DBG(("%s: max object size %d\n", __FUNCTION__, kgem->max_object_size));
 
-	i = 8;
+	v = 8;
 	gp.param = I915_PARAM_NUM_FENCES_AVAIL;
-	gp.value = &i;
+	gp.value = &v;
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp);
-	kgem->fence_max = i - 2;
+	kgem->fence_max = v - 2;
 
 	DBG(("%s: max fences=%d\n", __FUNCTION__, kgem->fence_max));
 }
@@ -692,7 +693,7 @@ static void kgem_close_list(struct kgem *kgem, struct list *head)
 
 static void kgem_close_inactive(struct kgem *kgem)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		kgem_close_list(kgem, &kgem->inactive[i]);
@@ -1049,7 +1050,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 	struct kgem_bo *bo;
 	unsigned int size = 0, count = 0;
 	bool idle;
-	int i;
+	unsigned int i;
 
 	kgem_retire(kgem);
 	if (kgem->wedged)
@@ -1118,7 +1119,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 void kgem_cleanup_cache(struct kgem *kgem)
 {
 	struct kgem_bo *bo;
-	int i;
+	unsigned int i;
 
 	/* sync to the most recent request */
 	if (!list_is_empty(&kgem->requests)) {
@@ -1155,7 +1156,7 @@ void kgem_cleanup_cache(struct kgem *kgem)
 }
 
 static struct kgem_bo *
-search_linear_cache(struct kgem *kgem, int size, bool active)
+search_linear_cache(struct kgem *kgem, unsigned int size, bool active)
 {
 	struct kgem_bo *bo;
 	struct list *cache;
@@ -1360,7 +1361,7 @@ bool kgem_can_create_2d(struct kgem *kgem,
 
 static int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo)
 {
-	int size;
+	unsigned int size;
 
 	assert(bo->tiling);
 	assert(kgem->gen < 40);
@@ -1772,6 +1773,10 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 {
 	return 0;
+	(void)fd;
+	(void)ptr;
+	(void)size;
+	(void)read_only;
 }
 
 struct kgem_bo *kgem_create_map(struct kgem *kgem,
@@ -1779,6 +1784,10 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 				bool read_only)
 {
 	return NULL;
+	(void)kgem;
+	(void)ptr;
+	(void)size;
+	(void)read_only;
 }
 #endif
 
@@ -1954,10 +1963,11 @@ done:
 
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
-					 int x, int y,
-					 int width, int height,
+					 BoxPtr box,
 					 int stride, int bpp)
 {
+	int width = box->x2 - box->x1;
+	int height = box->y2 - box->y1;
 	int dst_stride = ALIGN(width * bpp, 32) >> 3;
 	int size = dst_stride * height;
 	struct kgem_bo *bo;
@@ -1972,7 +1982,7 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 
 	memcpy_blt(data, dst, bpp,
 		   stride, dst_stride,
-		   x, y,
+		   box->x1, box->y1,
 		   0, 0,
 		   width, height);
 

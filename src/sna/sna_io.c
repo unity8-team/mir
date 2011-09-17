@@ -93,7 +93,7 @@ void sna_read_boxes(struct sna *sna,
 	     dst->drawable.width, dst->drawable.height, dst_dx, dst_dy));
 
 	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_is_busy(kgem, src_bo) ||
+	    !kgem_bo_is_busy(src_bo) ||
 	    src_bo->tiling == I915_TILING_Y) {
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
@@ -285,7 +285,7 @@ void sna_write_boxes(struct sna *sna,
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
 	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_is_busy(kgem, dst_bo) ||
+	    !kgem_bo_is_busy(dst_bo) ||
 	    dst_bo->tiling == I915_TILING_Y) {
 		write_boxes_inplace(kgem,
 				    src, stride, bpp, src_dx, src_dy,
@@ -415,7 +415,7 @@ struct kgem_bo *sna_replace(struct sna *sna,
 	     __FUNCTION__, bo->handle, width, height, bpp, bo->tiling));
 
 	assert(bo->reusable);
-	if (kgem_bo_is_busy(kgem, bo)) {
+	if (kgem_bo_is_busy(bo)) {
 		struct kgem_bo *new_bo;
 
 		new_bo = kgem_create_2d(kgem,

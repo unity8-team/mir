@@ -362,7 +362,7 @@ static void gen4_vertex_flush(struct sna *sna)
 static void gen4_vertex_finish(struct sna *sna, Bool last)
 {
 	struct kgem_bo *bo;
-	int i, delta;
+	unsigned int i, delta;
 
 	gen4_vertex_flush(sna);
 	if (!sna->render.vertex_used)
@@ -575,7 +575,7 @@ sampler_state_init(struct gen4_sampler_state *sampler_state,
 
 static uint32_t gen4_get_card_format(PictFormat format)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(gen4_tex_formats); i++) {
 		if (gen4_tex_formats[i].pict_fmt == format)
@@ -1110,7 +1110,6 @@ inline static int gen4_get_rectangles(struct sna *sna,
 }
 
 static uint32_t *gen4_composite_get_binding_table(struct sna *sna,
-						  const struct sna_composite_op *op,
 						  uint16_t *offset)
 {
 	sna->kgem.surface -=
@@ -1409,7 +1408,7 @@ gen4_bind_surfaces(struct sna *sna,
 
 	gen4_get_batch(sna);
 
-	binding_table = gen4_composite_get_binding_table(sna, op, &offset);
+	binding_table = gen4_composite_get_binding_table(sna, &offset);
 
 	binding_table[0] =
 		gen4_bind_bo(sna,
@@ -1579,7 +1578,7 @@ static void gen4_video_bind_surfaces(struct sna *sna,
 
 	gen4_get_batch(sna);
 
-	binding_table = gen4_composite_get_binding_table(sna, op, &offset);
+	binding_table = gen4_composite_get_binding_table(sna, &offset);
 
 	binding_table[0] =
 		gen4_bind_bo(sna,
@@ -1781,7 +1780,7 @@ gen4_composite_picture(struct sna *sna,
 		channel->transform = picture->transform;
 
 	channel->card_format = gen4_get_card_format(picture->format);
-	if (channel->card_format == -1)
+	if (channel->card_format == (unsigned)-1)
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
 						  x, y, w, h, dst_x, dst_y);
 
@@ -1797,7 +1796,7 @@ static void gen4_composite_channel_convert(struct sna_composite_channel *channel
 {
 	channel->repeat = gen4_repeat(channel->repeat);
 	channel->filter = gen4_filter(channel->filter);
-	if (channel->card_format == -1)
+	if (channel->card_format == (unsigned)-1)
 		channel->card_format = gen4_get_card_format(channel->pict_format);
 }
 
@@ -1820,9 +1819,7 @@ gen4_render_composite_done(struct sna *sna,
 }
 
 static Bool
-gen4_composite_set_target(struct sna *sna,
-			  PicturePtr dst,
-			  struct sna_composite_op *op)
+gen4_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
 {
 	struct sna_pixmap *priv;
 
@@ -1869,6 +1866,7 @@ static inline bool prefer_blt(struct sna *sna)
 {
 #if PREFER_BLT
 	return true;
+	(void)sna;
 #else
 	return sna->kgem.mode != KGEM_RENDER;
 #endif
@@ -1876,7 +1874,6 @@ static inline bool prefer_blt(struct sna *sna)
 
 static Bool
 try_blt(struct sna *sna,
-	PicturePtr dst,
 	PicturePtr source,
 	int width, int height)
 {
@@ -1922,7 +1919,7 @@ gen4_render_composite(struct sna *sna,
 #endif
 
 	if (mask == NULL &&
-	    try_blt(sna, dst, src, width, height) &&
+	    try_blt(sna, src, width, height) &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,
@@ -1934,15 +1931,14 @@ gen4_render_composite(struct sna *sna,
 		return FALSE;
 
 	if (need_tiling(sna, width, height))
-		return sna_tiling_composite(sna,
-					    op, src, mask, dst,
+		return sna_tiling_composite(op, src, mask, dst,
 					    src_x, src_y,
 					    msk_x, msk_y,
 					    dst_x, dst_y,
 					    width, height,
 					    tmp);
 
-	if (!gen4_composite_set_target(sna, dst, tmp))
+	if (!gen4_composite_set_target(dst, tmp))
 		return FALSE;
 
 	if (tmp->dst.width > 8192 || tmp->dst.height > 8192) {
@@ -2095,7 +2091,7 @@ gen4_copy_bind_surfaces(struct sna *sna, const struct sna_composite_op *op)
 
 	gen4_get_batch(sna);
 
-	binding_table = gen4_composite_get_binding_table(sna, op, &offset);
+	binding_table = gen4_composite_get_binding_table(sna, &offset);
 
 	binding_table[0] =
 		gen4_bind_bo(sna,
@@ -2337,7 +2333,7 @@ gen4_fill_bind_surfaces(struct sna *sna, const struct sna_composite_op *op)
 
 	gen4_get_batch(sna);
 
-	binding_table = gen4_composite_get_binding_table(sna, op, &offset);
+	binding_table = gen4_composite_get_binding_table(sna, &offset);
 
 	binding_table[0] =
 		gen4_bind_bo(sna,
