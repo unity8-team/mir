@@ -1974,7 +1974,7 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 	void *dst;
 
 	DBG(("%s : (%d, %d), (%d, %d), stride=%d, bpp=%d\n",
-	     __FUNCTION__, x, y, width, height, stride, bpp));
+	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2, stride, bpp));
 
 	bo = kgem_create_buffer(kgem, size, KGEM_BUFFER_WRITE, &dst);
 	if (bo == NULL)

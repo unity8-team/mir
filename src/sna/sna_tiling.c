@@ -228,7 +228,8 @@ sna_tiling_composite(uint32_t op,
 	struct sna_pixmap *priv;
 
 	DBG(("%s size=(%d, %d), tile=%d\n",
-	     __FUNCTION__, width, height, sna->render.max_3d_size));
+	     __FUNCTION__, width, height,
+	     to_sna_from_drawable(dst->pDrawable)->render.max_3d_size));
 
 	priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
 	if (priv == NULL || priv->gpu_bo == NULL)
