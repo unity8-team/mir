@@ -1439,7 +1439,7 @@ struct mono {
 #define I(x) pixman_fixed_to_int ((x) + pixman_fixed_1_minus_e/2)
 
 static bool
-mono_polygon_init (struct mono_polygon *polygon, BoxPtr box, int num_edges)
+mono_polygon_init(struct mono_polygon *polygon, BoxPtr box, int num_edges)
 {
 	unsigned h = box->y2 - box->y1;
 
@@ -1515,8 +1515,10 @@ mono_add_line(struct mono *mono,
 	y = I(bottom) + dst_y;
 	ybot = MIN(y, mono->clip.extents.y2);
 
-	if (ybot <= ytop)
+	if (ybot <= ytop) {
+		DBG(("discard clipped line\n"));
 		return;
+	}
 
 	e = polygon->edges + polygon->num_edges++;
 	e->height_left = ybot - ytop;
@@ -1555,7 +1557,7 @@ mono_add_line(struct mono *mono,
 }
 
 static struct mono_edge *
-mono_merge_sorted_edges (struct mono_edge *head_a, struct mono_edge *head_b)
+mono_merge_sorted_edges(struct mono_edge *head_a, struct mono_edge *head_b)
 {
 	struct mono_edge *head, **next, *prev;
 	int32_t x;
@@ -1599,7 +1601,7 @@ start_with_b:
 }
 
 static struct mono_edge *
-mono_sort_edges (struct mono_edge *list,
+mono_sort_edges(struct mono_edge *list,
 	    unsigned int level,
 	    struct mono_edge **head_out)
 {
@@ -1626,33 +1628,67 @@ mono_sort_edges (struct mono_edge *list,
 	}
 
 	for (i = 0; i < level && remaining; i++) {
-		remaining = mono_sort_edges (remaining, i, &head_other);
-		*head_out = mono_merge_sorted_edges (*head_out, head_other);
+		remaining = mono_sort_edges(remaining, i, &head_other);
+		*head_out = mono_merge_sorted_edges(*head_out, head_other);
 	}
 
 	return remaining;
 }
 
 static struct mono_edge *
-mono_merge_unsorted_edges (struct mono_edge *head, struct mono_edge *unsorted)
+mono_merge_unsorted_edges(struct mono_edge *head, struct mono_edge *unsorted)
 {
-	mono_sort_edges (unsorted, UINT_MAX, &unsorted);
-	return mono_merge_sorted_edges (head, unsorted);
+	mono_sort_edges(unsorted, UINT_MAX, &unsorted);
+	return mono_merge_sorted_edges(head, unsorted);
 }
 
+#if DEBUG_TRAPEZOIDS
+static inline void
+__dbg_mono_edges(const char *function, struct mono_edge *edges)
+{
+	ErrorF("%s: ", function);
+	while (edges) {
+		if (edges->x.quo < INT16_MAX << 16) {
+			ErrorF("(%d.%06d)+(%d.%06d)x%d, ",
+			       edges->x.quo, edges->x.rem,
+			       edges->dxdy.quo, edges->dxdy.rem,
+			       edges->dy*edges->dir);
+		}
+		edges = edges->next;
+	}
+	ErrorF("\n");
+}
+#define DBG_MONO_EDGES(x) __dbg_mono_edges(__FUNCTION__, x)
+static inline void
+VALIDATE_MONO_EDGES(struct mono_edge *edges)
+{
+	int prev_x = edges->x.quo;
+	while ((edges = edges->next)) {
+		assert(edges->x.quo >= prev_x);
+		prev_x = edges->x.quo;
+	}
+}
+
+#else
+#define DBG_MONO_EDGES(x)
+#define VALIDATE_MONO_EDGES(x)
+#endif
+
 inline static void
-mono_merge_edges (struct mono *c, struct mono_edge *edges)
+mono_merge_edges(struct mono *c, struct mono_edge *edges)
 {
 	struct mono_edge *e;
+
+	DBG_MONO_EDGES(edges);
 
 	for (e = edges; c->is_vertical && e; e = e->next)
 		c->is_vertical = e->vertical;
 
-	c->head.next = mono_merge_unsorted_edges (c->head.next, edges);
+	c->head.next = mono_merge_unsorted_edges(c->head.next, edges);
 }
 
 inline static void
-mono_span (struct mono *c, int x1, int x2, BoxPtr box)
+mono_span(struct mono *c, int x1, int x2, BoxPtr box)
 {
 	if (x1 < c->clip.extents.x1)
 		x1 = c->clip.extents.x1;
@@ -1688,9 +1724,13 @@ inline static void
 mono_row(struct mono *c, int16_t y, int16_t h)
 {
 	struct mono_edge *edge = c->head.next;
-	int16_t xstart = INT16_MIN, prev_x = INT16_MIN;
+	int prev_x = INT_MIN;
+	int16_t xstart = INT16_MIN;
 	int winding = 0;
 	BoxRec box;
+
+	DBG_MONO_EDGES(edge);
+	VALIDATE_MONO_EDGES(&c->head);
 
 	box.y1 = c->clip.extents.y1 + y;
 	box.y2 = box.y1 + h;
@@ -1737,12 +1777,15 @@ mono_row(struct mono *c, int16_t y, int16_t h)
 
 		edge = next;
 	}
+
+	DBG_MONO_EDGES(c->head.next);
+	VALIDATE_MONO_EDGES(&c->head);
 }
 
 static bool
 mono_init(struct mono *c, int num_edges)
 {
-	if (!mono_polygon_init (&c->polygon, &c->clip.extents, num_edges))
+	if (!mono_polygon_init(&c->polygon, &c->clip.extents, num_edges))
 		return false;
 
 	c->head.vertical = 1;
