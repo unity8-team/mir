@@ -85,7 +85,7 @@ struct kgem {
 		KGEM_BLT,
 	} mode, ring;
 
-	struct list active, flushing, inactive[16];
+	struct list flushing, active[16], inactive[16];
 	struct list partial;
 	struct list requests;
 	struct kgem_request *next_request;

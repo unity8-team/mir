@@ -302,6 +302,15 @@ static struct list *inactive(struct kgem *kgem,
 	return &kgem->inactive[order];
 }
 
+static struct list *active(struct kgem *kgem,
+			     int size)
+{
+	uint32_t order = __fls(size / PAGE_SIZE);
+	if (order >= ARRAY_SIZE(kgem->inactive))
+		order = ARRAY_SIZE(kgem->inactive)-1;
+	return &kgem->active[order];
+}
+
 static size_t
 agp_aperture_size(struct pci_device *dev, int gen)
 {
@@ -324,10 +333,11 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	list_init(&kgem->partial);
 	list_init(&kgem->requests);
-	list_init(&kgem->active);
 	list_init(&kgem->flushing);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		list_init(&kgem->inactive[i]);
+	for (i = 0; i < ARRAY_SIZE(kgem->active); i++)
+		list_init(&kgem->active[i]);
 
 	kgem->next_request = __kgem_request_alloc();
 
@@ -546,11 +556,11 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 	kgem->need_expire = true;
 	if (bo->rq) {
-		list_move(&bo->list, &kgem->active);
+		list_move(&bo->list, active(kgem, bo->size));
 	} else if (bo->needs_flush) {
 		assert(list_is_empty(&bo->request));
 		list_add(&bo->request, &kgem->flushing);
-		list_move(&bo->list, &kgem->active);
+		list_move(&bo->list, active(kgem, bo->size));
 	} else {
 		assert(!kgem_busy(kgem, bo->handle));
 		list_move(&bo->list, inactive(kgem, bo->size));
@@ -1155,17 +1165,17 @@ void kgem_cleanup_cache(struct kgem *kgem)
 }
 
 static struct kgem_bo *
-search_linear_cache(struct kgem *kgem, unsigned int size, bool active)
+search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 {
 	struct kgem_bo *bo;
 	struct list *cache;
 
-	cache = active ? &kgem->active : inactive(kgem, size);
+	cache = use_active ? active(kgem, size): inactive(kgem, size);
 	list_for_each_entry(bo, cache, list) {
 		if (size > bo->size)
 			continue;
 
-		if (active && bo->tiling != I915_TILING_NONE)
+		if (use_active && bo->tiling != I915_TILING_NONE)
 			continue;
 
 		if (bo->deleted) {
@@ -1192,10 +1202,10 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool active)
 		bo->delta = 0;
 		DBG(("  %s: found handle=%d (size=%d) in linear %s cache\n",
 		     __FUNCTION__, bo->handle, bo->size,
-		     active ? "active" : "inactive"));
+		     use_active ? "active" : "inactive"));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
-		assert(active || !kgem_busy(kgem, bo->handle));
+		assert(use_active || !kgem_busy(kgem, bo->handle));
 		return bo;
 	}
 
@@ -1383,8 +1393,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       uint32_t flags)
 {
 	struct list *cache;
-	struct kgem_bo *bo, *next, *best;
-	uint32_t pitch, tiled_height[3], size, best_size;
+	struct kgem_bo *bo, *next;
+	uint32_t pitch, tiled_height[3], size;
 	uint32_t handle;
 	int exact = flags & CREATE_EXACT;
 	int i;
@@ -1405,13 +1415,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		tiled_height[i] = kgem_aligned_height(kgem, height, i);
 
 search_active: /* Best active match first */
-	best = NULL;
-	best_size = -1;
-	list_for_each_entry_safe(bo, next, &kgem->active, list) {
+	list_for_each_entry(bo, active(kgem, size), list) {
 		uint32_t s;
-
-		if (bo->size > best_size)
-			continue;
 
 		if (exact) {
 			if (bo->tiling != tiling)
@@ -1433,36 +1438,32 @@ search_active: /* Best active match first */
 
 		s = bo->pitch * tiled_height[bo->tiling];
 		if (s <= bo->size) {
-			best_size = s;
-			best = bo;
-		}
-	}
-	if (best) {
-		list_del(&best->list);
-		if (best->rq == NULL)
-			list_del(&best->request);
+			list_del(&bo->list);
+			if (bo->rq == NULL)
+				list_del(&bo->request);
 
-		if (best->deleted) {
-			if (!gem_madvise(kgem->fd, best->handle,
-					 I915_MADV_WILLNEED)) {
-				kgem->need_purge |= best->gpu;
-				gem_close(kgem->fd, best->handle);
-				list_del(&best->request);
-				free(best);
-				best = NULL;
-				goto search_active;
+			if (bo->deleted) {
+				if (!gem_madvise(kgem->fd, bo->handle,
+						 I915_MADV_WILLNEED)) {
+					kgem->need_purge |= bo->gpu;
+					gem_close(kgem->fd, bo->handle);
+					list_del(&bo->request);
+					free(bo);
+					bo = NULL;
+					goto search_active;
+				}
+
+				bo->deleted = 0;
 			}
 
-			best->deleted = 0;
+			bo->unique_id = kgem_get_unique_id(kgem);
+			bo->delta = 0;
+			DBG(("  from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			assert(bo->refcnt == 0);
+			assert(bo->reusable);
+			return kgem_bo_reference(bo);
 		}
-
-		best->unique_id = kgem_get_unique_id(kgem);
-		best->delta = 0;
-		DBG(("  from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
-		     best->pitch, best->tiling, best->handle, best->unique_id));
-		assert(best->refcnt == 0);
-		assert(best->reusable);
-		return kgem_bo_reference(best);
 	}
 
 skip_active_search:
