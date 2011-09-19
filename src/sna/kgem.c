@@ -613,7 +613,6 @@ void kgem_retire(struct kgem *kgem)
 				if (bo->needs_flush) {
 					list_add(&bo->request, &kgem->flushing);
 				} else if (bo->reusable) {
-					assert(!kgem_busy(kgem, bo->handle));
 					list_move(&bo->list,
 						  inactive(kgem, bo->size));
 				} else {
@@ -1507,6 +1506,8 @@ skip_active_search:
 		     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
+		assert((flags & CREATE_INACTIVE) == 0 ||
+		       !kgem_busy(kgem, bo->handle));
 		return kgem_bo_reference(bo);
 
 next_bo:
