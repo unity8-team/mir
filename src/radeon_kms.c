@@ -1204,7 +1204,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     int cpp = info->CurrentLayout.pixel_bytes;
     int screen_size;
     int pitch, base_align;
-    int total_size_bytes = 0, remain_size_bytes;
+    int total_size_bytes = 0;
     uint32_t tiling_flags = 0;
 
     if (info->accel_state->exa != NULL) {
@@ -1254,9 +1254,6 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     screen_size = RADEON_ALIGN(screen_size, RADEON_GPU_PAGE_SIZE);
     /* keep area front front buffer - but don't allocate it yet */
     total_size_bytes += screen_size;
-
-    /* work out from the mm size what the exa / tex sizes need to be */
-    remain_size_bytes = info->vram_size - total_size_bytes;
 
     info->dri->textureSize = 0;
 
