@@ -480,6 +480,8 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+#ifdef EXA_MIXED_PIXMAPS
+
 static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
@@ -591,13 +593,14 @@ static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+#endif /* EXA_MIXED_PIXMAPS */
+
 Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 {
     RADEONInfoPtr     info;
     RADEONEntPtr pRADEONEnt;
     DevUnion* pPriv;
     Gamma  zeros = { 0.0, 0.0, 0.0 };
-    Bool colorTilingDefault;
     uint32_t tiling = 0;
     int cpp;
 
@@ -671,9 +674,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitAccel_KMS(pScrn))              goto fail;
 
+#ifdef EXA_MIXED_PIXMAPS
     /* don't enable tiling if accel is not enabled */
     if (!info->r600_shadow_fb) {
-	colorTilingDefault = info->ChipFamily >= CHIP_FAMILY_R300 &&
+	Bool colorTilingDefault = info->ChipFamily >= CHIP_FAMILY_R300 &&
 	    info->ChipFamily <= CHIP_FAMILY_CAYMAN;
 
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -697,6 +701,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 							  OPTION_COLOR_TILING, colorTilingDefault);
     } else
+#else
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "KMS Color Tiling requires xserver which supports EXA_MIXED_PIXMAPS\n");
+#endif
 	info->allowColorTiling = FALSE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
