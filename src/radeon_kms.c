@@ -876,7 +876,8 @@ static Bool RADEONCloseScreen_KMS(int scrnIndex, ScreenPtr pScreen)
     if (info->cursor) xf86DestroyCursorInfoRec(info->cursor);
     info->cursor = NULL;
 
-    radeon_dri2_close_screen(pScreen);
+    if (info->dri2.enabled)
+	radeon_dri2_close_screen(pScreen);
 
     pScrn->vtSema = FALSE;
     xf86ClearPrimInitDone(info->pEnt->index);
