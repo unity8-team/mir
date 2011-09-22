@@ -562,7 +562,6 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		list_add(&bo->request, &kgem->flushing);
 		list_move(&bo->list, active(kgem, bo->size));
 	} else {
-		assert(!kgem_busy(kgem, bo->handle));
 		list_move(&bo->list, inactive(kgem, bo->size));
 	}
 
