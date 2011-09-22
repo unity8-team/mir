@@ -154,6 +154,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 
 	/* The bo is outside of our control, so presume it is written to */
 	priv->gpu_bo->needs_flush = 1;
+	priv->gpu_bo->reusable = false;
 
 	/* We need to submit any modifications to and reads from this
 	 * buffer before we send any reply to the Client.
@@ -202,6 +203,7 @@ sna_dri_create_buffer(DrawablePtr drawable,
 		pixmap = get_drawable_pixmap(drawable);
 		pixmap->refcnt++;
 		bo = sna_pixmap_set_dri(sna, pixmap);
+		bo->reusable = true;
 		bpp = pixmap->drawable.bitsPerPixel;
 		DBG(("%s: attaching to front buffer %dx%d [%p:%d]\n",
 		     __FUNCTION__,
@@ -942,6 +944,7 @@ static void set_pixmap(struct sna *sna, DRI2BufferPtr buffer, PixmapPtr pixmap)
 	priv->pixmap->refcnt--;
 	priv->pixmap = pixmap;
 	priv->bo = sna_pixmap_set_dri(sna, pixmap);
+	priv->bo->reusable = true;
 	buffer->name = kgem_bo_flink(&sna->kgem, priv->bo);
 	buffer->pitch = priv->bo->pitch;
 }
