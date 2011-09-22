@@ -1738,19 +1738,24 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 
 	info.CopyRegion = sna_dri_copy_region;
 #if DRI2INFOREC_VERSION >= 4
-	{
-	    info.version = 4;
-	    info.ScheduleSwap = sna_dri_schedule_swap;
-	    info.GetMSC = sna_dri_get_msc;
-	    info.ScheduleWaitMSC = sna_dri_schedule_wait_msc;
-	    info.numDrivers = 1;
-	    info.driverNames = driverNames;
-	    driverNames[0] = info.driverName;
-#if DRI2INFOREC_VERSION >= 6
-	    info.version = 6;
-	    info.AsyncSwap = sna_dri_async_swap;
+	info.version = 4;
+	info.ScheduleSwap = sna_dri_schedule_swap;
+	info.GetMSC = sna_dri_get_msc;
+	info.ScheduleWaitMSC = sna_dri_schedule_wait_msc;
+	info.numDrivers = 1;
+	info.driverNames = driverNames;
+	driverNames[0] = info.driverName;
 #endif
-	}
+
+#if DRI2INFOREC_VERSION >= 6
+	info.version = 6;
+	info.SwapLimitValidate = NULL;
+	info.ReuseBufferNotify = NULL;
+#endif
+
+#if DRI2INFOREC_VERSION >= 7
+	info.version = 7;
+	info.AsyncSwap = sna_dri_async_swap;
 #endif
 
 	return DRI2ScreenInit(screen, &info);
