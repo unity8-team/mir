@@ -1649,6 +1649,9 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 }
 
 static void
+sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect);
+
+static void
 sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	       DDXPointPtr pt, int *width, int sorted)
 {
@@ -1670,8 +1673,13 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 		goto fallback;
 	}
 
-	if (gc->fillStyle == FillSolid &&
-	    PM_IS_SOLID(drawable, gc->planemask)) {
+	DBG(("%s: fillStyle=%x [%d], mask=%lx [%d]\n", __FUNCTION__,
+	     gc->fillStyle, gc->fillStyle == FillSolid,
+	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask)));
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto fallback;
+
+	if (gc->fillStyle == FillSolid) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
 		DBG(("%s: trying solid fill [alu=%d, pixel=%08lx] blt paths\n",
@@ -1689,6 +1697,27 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				       priv->cpu_bo, &priv->cpu_damage,
 				       gc, n, pt, width, sorted))
 			return;
+	} else if (gc->fillStyle == FillTiled) {
+		xRectangle *rect;
+		int i;
+
+		/* Try converting these to a set of rectangles instead */
+		DBG(("%s: converting to rectagnles\n", __FUNCTION__));
+
+		rect = malloc (n * sizeof (xRectangle));
+		if (rect == NULL)
+			return;
+
+		for (i = 0; i < n; i++) {
+			rect[i].x = pt[i].x;
+			rect[i].width = width[i];
+			rect[i].y = pt[i].y;
+			rect[i].height = 1;
+		}
+
+		sna_poly_fill_rect(drawable, gc, n, rect);
+		free (rect);
+		return;
 	}
 
 fallback:
