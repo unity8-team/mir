@@ -528,8 +528,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 						       pixmap, 0, 0,
 						       box, n);
 
-				sna_damage_subtract(&priv->gpu_damage,
-						    n <= REGION_NUM_RECTS(r) ? &need : r);
+				sna_damage_subtract(&priv->gpu_damage, r);
 				RegionUninit(&need);
 			}
 			if (r == &want)
