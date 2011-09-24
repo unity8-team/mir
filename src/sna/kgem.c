@@ -67,6 +67,8 @@ static inline void list_replace(struct list *old,
 #define DBG_NO_RELAXED_FENCING 0
 #define DBG_DUMP 0
 
+#define NO_CACHE 0
+
 #if DEBUG_KGEM
 #undef DBG
 #define DBG(x) ErrorF x
@@ -541,6 +543,9 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->refcnt == 0);
 
 	bo->src_bound = bo->dst_bound = 0;
+
+	if (NO_CACHE)
+		goto destroy;
 
 	if(!bo->reusable)
 		goto destroy;
