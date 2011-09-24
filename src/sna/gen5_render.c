@@ -51,6 +51,9 @@
 #define NDEBUG 1
 #endif
 
+#define DBG_NO_STATE_CACHE 0
+#define DBG_NO_SURFACE_CACHE 0
+
 #define GEN5_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 
 /* Set up a default static partitioning of the URB, which is supposed to
@@ -685,12 +688,12 @@ gen5_bind_bo(struct sna *sna,
 	offset *= sizeof(uint32_t);
 
 	if (is_dst) {
-		if (bo->dst_bound)
+		if (!DBG_NO_SURFACE_CACHE && bo->dst_bound)
 			return bo->dst_bound;
 
 		bo->dst_bound = offset;
 	} else {
-		if (bo->src_bound)
+		if (!DBG_NO_SURFACE_CACHE && bo->src_bound)
 			return bo->src_bound;
 
 		bo->src_bound = offset;
@@ -1260,7 +1263,8 @@ gen5_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 static void
 gen5_emit_binding_table(struct sna *sna, uint16_t offset)
 {
-	if (sna->render_state.gen5.surface_table == offset)
+	if (!DBG_NO_STATE_CACHE &&
+	    sna->render_state.gen5.surface_table == offset)
 		return;
 
 	sna->render_state.gen5.surface_table = offset;
@@ -1295,7 +1299,7 @@ gen5_emit_pipelined_pointers(struct sna *sna,
 		  gen5_get_blend(blend, op->has_component_alpha, op->dst.format));
 
 	last = sna->render_state.gen5.last_pipelined_pointers;
-	if (last &&
+	if (!DBG_NO_STATE_CACHE && last &&
 	    sna->kgem.batch[offset + 1] == sna->kgem.batch[last + 1] &&
 	    sna->kgem.batch[offset + 3] == sna->kgem.batch[last + 3] &&
 	    sna->kgem.batch[offset + 4] == sna->kgem.batch[last + 4] &&
@@ -1315,7 +1319,8 @@ gen5_emit_drawing_rectangle(struct sna *sna, const struct sna_composite_op *op)
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
 
-	if (sna->render_state.gen5.drawrect_limit == limit &&
+	if (!DBG_NO_STATE_CACHE &&
+	    sna->render_state.gen5.drawrect_limit == limit &&
 	    sna->render_state.gen5.drawrect_offset == offset)
 		return;
 	sna->render_state.gen5.drawrect_offset = offset;
@@ -1346,7 +1351,7 @@ gen5_emit_vertex_elements(struct sna *sna,
 	uint32_t src_format;
 	int id = op->u.gen5.ve_id;;
 
-	if (render->ve_id == id)
+	if (!DBG_NO_STATE_CACHE && render->ve_id == id)
 		return;
 
 	render->ve_id = id;
