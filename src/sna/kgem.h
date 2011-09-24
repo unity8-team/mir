@@ -228,6 +228,14 @@ static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 
 static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
+#if DEBUG_FLUSH_CACHE
+	kgem_emit_flush(kgem);
+#endif
+
+#if DEBUG_FLUSH_BATCH
+	kgem_submit(kgem);
+#endif
+
 	if (kgem->nbatch)
 		kgem->mode = mode;
 }
