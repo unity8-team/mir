@@ -721,13 +721,10 @@ glyphs_via_mask(struct sna *sna,
 	src_x += box.x1 - list->xOff;
 	src_y += box.y1 - list->yOff;
 
-	if (format->depth == 1) {
-		PictFormatPtr a8Format =
-			PictureMatchFormat(screen, 8, PICT_a8);
-		if (!a8Format)
+	if (format->depth < 8) {
+		format = PictureMatchFormat(screen, 8, PICT_a8);
+		if (!format)
 			return FALSE;
-
-		format = a8Format;
 	}
 
 	pixmap = screen->CreatePixmap(screen,
