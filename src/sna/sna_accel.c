@@ -55,6 +55,7 @@
 #endif
 
 #define FORCE_GPU_ONLY 0
+#define FORCE_FALLBACK 0
 
 DevPrivateKeyRec sna_pixmap_index;
 
@@ -1668,6 +1669,9 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
+	if (FORCE_FALLBACK)
+		goto fallback;
+
 	if (sna->kgem.wedged) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
@@ -1889,6 +1893,9 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
+	if (FORCE_FALLBACK)
+		goto fallback;
+
 	if (sna->kgem.wedged) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
@@ -2108,6 +2115,9 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
+	if (FORCE_FALLBACK)
+		goto fallback;
+
 	if (sna->kgem.wedged) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
@@ -2320,6 +2330,9 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
+
+	if (FORCE_FALLBACK)
+		goto fallback;
 
 	if (sna->kgem.wedged) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
@@ -2810,6 +2823,9 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		DBG(("%s, nothing to do\n", __FUNCTION__));
 		return;
 	}
+
+	if (FORCE_FALLBACK)
+		goto fallback;
 
 	if (sna->kgem.wedged) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
