@@ -1826,7 +1826,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 		pt++;
 		if (mode == CoordModePrevious) {
 			x += last.x;
-			y += last.x;
+			y += last.y;
 			last.x = x;
 			last.y = y;
 		} else {
@@ -1992,7 +1992,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 		pt++;
 		if (mode == CoordModePrevious) {
 			x += last.x;
-			y += last.x;
+			y += last.y;
 		} else {
 			x += drawable->x;
 			y += drawable->y;
