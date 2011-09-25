@@ -1139,7 +1139,7 @@ sna_glyphs(CARD8 op,
 
 	/* XXX discard the mask for non-overlapping glyphs? */
 
-	if (!mask) {
+	if (!mask || (op == PictOpAdd && dst->format == mask->format)) {
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
 				  src_x, src_y,
