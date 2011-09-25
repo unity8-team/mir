@@ -1970,9 +1970,7 @@ gen7_render_video(struct sna *sna,
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, frame->bo))
+	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(frame->bo))
@@ -2355,11 +2353,9 @@ gen7_render_composite(struct sna *sna,
 	tmp->boxes = gen7_render_composite_boxes;
 	tmp->done  = gen7_render_composite_done;
 
-	if (!kgem_check_bo(&sna->kgem, tmp->dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->src.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->mask.bo))
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
+			   NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
@@ -2490,9 +2486,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
@@ -2640,9 +2634,7 @@ gen7_render_copy(struct sna *sna, uint8_t alu,
 	op->base.u.gen7.nr_inputs = 1;
 	op->base.u.gen7.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
@@ -2785,7 +2777,7 @@ gen7_render_fill_boxes(struct sna *sna,
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	gen7_emit_fill_state(sna, &tmp);
@@ -2912,7 +2904,7 @@ gen7_render_fill(struct sna *sna, uint8_t alu,
 	op->base.u.gen7.nr_inputs = 1;
 	op->base.u.gen7.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	gen7_emit_fill_state(sna, &op->base);

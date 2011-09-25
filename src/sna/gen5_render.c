@@ -720,7 +720,7 @@ gen5_bind_bo(struct sna *sna,
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss[1],
-	    format, width, height, bo->pitch, bo->tiling,
+	     format, width, height, bo->pitch, bo->tiling,
 	     domains & 0xffff ? "render" : "sampler"));
 
 	return offset;
@@ -1664,9 +1664,7 @@ gen5_render_video(struct sna *sna,
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
 
-	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, frame->bo))
+	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (!kgem_bo_is_dirty(frame->bo))
@@ -2045,11 +2043,8 @@ gen5_render_composite(struct sna *sna,
 	tmp->boxes = gen5_render_composite_boxes;
 	tmp->done  = gen5_render_composite_done;
 
-	if (!kgem_check_bo(&sna->kgem, tmp->dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->src.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->mask.bo))
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
@@ -2159,9 +2154,7 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
 	tmp.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
@@ -2295,9 +2288,7 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
 	op->base.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
@@ -2368,17 +2359,17 @@ gen5_render_fill_boxes(struct sna *sna,
 	    dst->drawable.height > 8192 ||
 	    !gen5_check_dst_format(format)) {
 		uint8_t alu = GXcopy;
+		uint8_t _op = op;
 
-		if (op == PictOpClear) {
+		if (_op == PictOpClear) {
 			alu = GXclear;
-			pixel = 0;
-			op = PictOpSrc;
+			_op = PictOpSrc;
 		}
 
-		if (op == PictOpOver && color->alpha >= 0xff00)
-			op = PictOpSrc;
+		if (_op == PictOpOver && color->alpha >= 0xff00)
+			_op = PictOpSrc;
 
-		if (op == PictOpSrc &&
+		if (_op == PictOpSrc &&
 		    sna_get_pixel_from_rgba(&pixel,
 					    color->red,
 					    color->green,
@@ -2423,7 +2414,7 @@ gen5_render_fill_boxes(struct sna *sna,
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
 	tmp.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	gen5_fill_bind_surfaces(sna, &tmp);
@@ -2542,7 +2533,7 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
 	op->base.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	gen5_fill_bind_surfaces(sna, &op->base);

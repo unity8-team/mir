@@ -1209,7 +1209,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		     use_active ? "active" : "inactive"));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
-		assert(use_active || !kgem_busy(kgem, bo->handle));
+		//assert(use_active || !kgem_busy(kgem, bo->handle));
 		return bo;
 	}
 
@@ -1562,21 +1562,30 @@ void __kgem_flush(struct kgem *kgem, struct kgem_bo *bo)
 	kgem_busy(kgem, bo->handle);
 }
 
-bool kgem_check_bo(struct kgem *kgem, struct kgem_bo *bo)
+bool kgem_check_bo(struct kgem *kgem, ...)
 {
-	if (bo == NULL)
-		return true;
-
-	if (bo->exec)
-		return true;
+	va_list ap;
+	struct kgem_bo *bo;
+	int num_exec = 0;
+	int size = 0;
 
 	if (kgem->aperture > kgem->aperture_low)
 		return false;
 
-	if (bo->size + kgem->aperture > kgem->aperture_high)
+	va_start(ap, kgem);
+	while ((bo = va_arg(ap, struct kgem_bo *))) {
+		if (bo->exec)
+			continue;
+
+		size += bo->size;
+		num_exec++;
+	}
+	va_end(ap);
+
+	if (size + kgem->aperture > kgem->aperture_high)
 		return false;
 
-	if (kgem->nexec == KGEM_EXEC_SIZE(kgem))
+	if (kgem->nexec + num_exec >= KGEM_EXEC_SIZE(kgem))
 		return false;
 
 	return true;

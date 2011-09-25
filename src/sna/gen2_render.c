@@ -1347,11 +1347,9 @@ gen2_render_composite(struct sna *sna,
 	tmp->boxes = gen2_render_composite_boxes;
 	tmp->done  = gen2_render_composite_done;
 
-	if (!kgem_check_bo(&sna->kgem, tmp->dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->src.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->mask.bo))
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
+			   NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
@@ -1720,9 +1718,9 @@ gen2_render_composite_spans(struct sna *sna,
 	tmp->boxes = gen2_render_composite_spans_boxes;
 	tmp->done  = gen2_render_composite_spans_done;
 
-	if (!kgem_check_bo(&sna->kgem, tmp->base.dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->base.src.bo))
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->base.dst.bo, tmp->base.src.bo,
+			   NULL))
 		kgem_submit(&sna->kgem);
 
 	gen2_emit_composite_spans_state(sna, tmp);
@@ -1876,7 +1874,7 @@ gen2_render_fill_boxes(struct sna *sna,
 	tmp.dst.bo = dst_bo;
 	tmp.floats_per_vertex = 2;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	gen2_emit_fill_composite_state(sna, &tmp, pixel);
@@ -1995,7 +1993,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.u.gen2.pixel =
 		sna_rgba_for_color(color, dst->drawable.depth);
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	tmp->blt  = gen2_render_fill_blt;
@@ -2119,9 +2117,7 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 					  box, n);
 	}
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
@@ -2263,9 +2259,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 
 	tmp->base.floats_per_vertex = 4;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
