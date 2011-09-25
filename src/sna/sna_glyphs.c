@@ -1121,6 +1121,11 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
+	if (!is_gpu(dst->pDrawable)) {
+		DBG(("%s: fallback -- no destination bo\n", __FUNCTION__));
+		goto fallback;
+	}
+
 	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
 		DBG(("%s: fallback -- too small (%dx%d)\n",
 		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
