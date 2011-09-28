@@ -591,12 +591,13 @@ void kgem_retire(struct kgem *kgem)
 	struct kgem_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
-		if (!kgem_busy(kgem, bo->handle)) {
-			bo->needs_flush = 0;
-			bo->gpu = false;
-			list_move(&bo->list, inactive(kgem, bo->size));
-			list_del(&bo->request);
-		}
+		if (kgem_busy(kgem, bo->handle))
+			break;
+
+		bo->needs_flush = 0;
+		bo->gpu = false;
+		list_move(&bo->list, inactive(kgem, bo->size));
+		list_del(&bo->request);
 	}
 
 	while (!list_is_empty(&kgem->requests)) {
@@ -1019,6 +1020,7 @@ void _kgem_submit(struct kgem *kgem)
 		}
 	}
 
+	kgem_retire(kgem);
 	kgem_commit(kgem);
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
