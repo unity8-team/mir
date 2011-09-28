@@ -626,7 +626,7 @@ gen7_disable_streamout(struct sna *sna)
 static void
 gen7_emit_sf_invariant(struct sna *sna)
 {
-	OUT_BATCH(GEN7_3DSTATE_SF | (6 - 2));
+	OUT_BATCH(GEN7_3DSTATE_SF | (7 - 2));
 	OUT_BATCH(0);
 	OUT_BATCH(GEN7_3DSTATE_SF_CULL_NONE);
 	OUT_BATCH(2 << GEN7_3DSTATE_SF_TRIFAN_PROVOKE_SHIFT);
@@ -666,7 +666,7 @@ gen7_disable_clip(struct sna *sna)
 static void
 gen7_emit_wm_invariant(struct sna *sna)
 {
-	OUT_BATCH(GEN7_3DSTATE_WM | (2 - 2));
+	OUT_BATCH(GEN7_3DSTATE_WM | (3 - 2));
 	OUT_BATCH(GEN7_WM_DISPATCH_ENABLE |
 		  GEN7_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
 	OUT_BATCH(0);
@@ -703,7 +703,7 @@ gen7_emit_invariant(struct sna *sna)
 {
 	OUT_BATCH(GEN7_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
-	OUT_BATCH(GEN7_3DSTATE_MULTISAMPLE | (3 - 2));
+	OUT_BATCH(GEN7_3DSTATE_MULTISAMPLE | (4 - 2));
 	OUT_BATCH(GEN7_3DSTATE_MULTISAMPLE_PIXEL_LOCATION_CENTER |
 		  GEN7_3DSTATE_MULTISAMPLE_NUMSAMPLES_1); /* 1 sample/pixel */
 	OUT_BATCH(0);
