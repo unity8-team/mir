@@ -2014,8 +2014,8 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 #define MI_LOAD_REGISTER_IMM			(0x22<<23)
 
 /* gen6: Scan lines register */
-#define GEN6_PIPEA_SLC			(0x7004)
-#define GEN6_PIPEB_SLC			(0x7104)
+#define GEN6_PIPEA_SLC			(0x70004)
+#define GEN6_PIPEB_SLC			(0x71004)
 
 static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
 					    int pipe, int y1, int y2,
