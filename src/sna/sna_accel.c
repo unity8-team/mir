@@ -2381,6 +2381,33 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 			return;
 	}
 
+	/* XXX Do we really want to base this decision on the amalgam ? */
+	if (sna_drawable_use_gpu_bo(drawable, &extents)) {
+		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
+		int i;
+
+		DBG(("%s: converting segments into spans\n", __FUNCTION__));
+
+		switch (gc->lineStyle) {
+		default:
+		case LineSolid:
+			if (gc->lineWidth == 0)
+				line = miZeroLine;
+			else
+				line = miWideLine;
+			break;
+		case LineOnOffDash:
+		case LineDoubleDash:
+			line = miWideDash;
+			break;
+		}
+
+		for (i = 0; i < n; i++)
+			line(drawable, gc, CoordModeOrigin, 2,
+			     (DDXPointPtr)&seg[i]);
+		return;
+	}
+
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	RegionInit(&region, &extents, 1);
