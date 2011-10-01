@@ -2148,6 +2148,23 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 			return;
 	}
 
+	if (sna_drawable_use_gpu_bo(drawable, &extents)) {
+		DBG(("%s: converting line into spans\n", __FUNCTION__));
+		switch (gc->lineStyle) {
+		case LineSolid:
+			if (gc->lineWidth == 0)
+				miZeroLine(drawable, gc, mode, n, pt);
+			else
+				miWideLine(drawable, gc, mode, n, pt);
+			break;
+		case LineOnOffDash:
+		case LineDoubleDash:
+			miWideDash(drawable, gc, mode, n, pt);
+			break;
+		}
+		return;
+	}
+
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	RegionInit(&region, &extents, 1);
