@@ -1652,6 +1652,15 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 static void
 sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect);
 
+static bool
+can_fill_spans(DrawablePtr drawable, GCPtr gc)
+{
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		return false;
+
+	return gc->fillStyle == FillSolid || gc->fillStyle == FillTiled;
+}
+
 static void
 sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	       DDXPointPtr pt, int *width, int sorted)
@@ -2148,7 +2157,8 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 			return;
 	}
 
-	if (sna_drawable_use_gpu_bo(drawable, &extents)) {
+	if (can_fill_spans(drawable, gc) &&
+	    sna_drawable_use_gpu_bo(drawable, &extents)) {
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		switch (gc->lineStyle) {
 		case LineSolid:
@@ -2382,7 +2392,8 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	}
 
 	/* XXX Do we really want to base this decision on the amalgam ? */
-	if (sna_drawable_use_gpu_bo(drawable, &extents)) {
+	if (can_fill_spans(drawable, gc) &&
+	    sna_drawable_use_gpu_bo(drawable, &extents)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
 		int i;
 
@@ -2487,6 +2498,7 @@ arc_to_spans(GCPtr gc, int n)
 static void
 sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 {
+	struct sna *sna = to_sna_from_drawable(drawable);
 	BoxRec extents;
 	RegionRec region;
 
@@ -2496,14 +2508,23 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
+	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (sna->kgem.wedged) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
+		goto fallback;
+	}
+
 	/* For "simple" cases use the miPolyArc to spans path */
-	if (arc_to_spans(gc, n) &&
+	if (arc_to_spans(gc, n) && can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &extents)) {
 		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
 		miPolyArc(drawable, gc, n, arc);
 		return;
 	}
 
+fallback:
 	RegionInit(&region, &extents, 1);
 	if (gc->pCompositeClip)
 		RegionIntersect(&region, &region, gc->pCompositeClip);
