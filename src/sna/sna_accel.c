@@ -1504,10 +1504,11 @@ sna_fill_spans_blt(DrawablePtr drawable,
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	struct sna_fill_op fill;
-	BoxPtr extents, clip;
-	int nclip;
+	BoxPtr extents;
+	int nclip = REGION_NUM_RECTS(gc->pCompositeClip);
+	int need_translation = !gc->miTranslate;
 	int16_t dx, dy;
+	struct sna_fill_op fill;
 
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return false;
@@ -1525,7 +1526,7 @@ sna_fill_spans_blt(DrawablePtr drawable,
 		int y = pt->y;
 		int X2 = X1 + (int)*width;
 
-		if (!gc->miTranslate) {
+		if (need_translation) {
 			X1 += drawable->x;
 			X2 += drawable->x;
 			y += drawable->y;
@@ -1546,22 +1547,19 @@ sna_fill_spans_blt(DrawablePtr drawable,
 		if (X1 >= X2)
 			continue;
 
-		nclip = REGION_NUM_RECTS(gc->pCompositeClip);
+		y += dy;
 		if (nclip == 1) {
 			X1 += dx;
-			if (X1 < 0)
-				X1 = 0;
 			X2 += dx;
-			if (X2 > pixmap->drawable.width)
-				X2 = pixmap->drawable.width;
+			assert(X1 >= 0 && X2 <= pixmap->drawable.width);
 			if (X2 > X1) {
-				fill.blt(sna, &fill, X1, y+dy, X2-X1, 1);
+				fill.blt(sna, &fill, X1, y, X2-X1, 1);
 				if (damage) {
 					BoxRec box;
 
 					box.x1 = X1;
 					box.x2 = X2;
-					box.y1 = y + dy;
+					box.y1 = y;
 					box.y2 = box.y1 + 1;
 
 					assert_pixmap_contains_box(pixmap, &box);
@@ -1569,8 +1567,9 @@ sna_fill_spans_blt(DrawablePtr drawable,
 				}
 			}
 		} else {
-			clip = REGION_RECTS(gc->pCompositeClip);
-			while (nclip--) {
+			int nc = nclip;
+			BoxPtr clip = REGION_RECTS(gc->pCompositeClip);
+			while (nc--) {
 				if (clip->y1 <= y && y < clip->y2) {
 					int x1 = clip->x1;
 					int x2 = clip->x2;
@@ -1588,13 +1587,12 @@ sna_fill_spans_blt(DrawablePtr drawable,
 
 					if (x2 > x1) {
 						fill.blt(sna, &fill,
-							 x1, y + dy,
-							 x2-x1, 1);
+							 x1, y, x2-x1, 1);
 						if (damage) {
 							BoxRec box;
 
 							box.x1 = x1;
-							box.y1 = y + dy;
+							box.y1 = y;
 							box.x2 = x2;
 							box.y2 = box.y1 + 1;
 
