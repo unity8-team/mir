@@ -339,7 +339,7 @@ void sna_write_boxes(struct sna *sna,
 		}
 
 		src_bo = kgem_create_buffer(kgem, offset,
-					    KGEM_BUFFER_WRITE | KGEM_BUFFER_LAST,
+					    KGEM_BUFFER_WRITE | (nbox ? KGEM_BUFFER_LAST : 0),
 					    &ptr);
 		if (!src_bo)
 			break;
