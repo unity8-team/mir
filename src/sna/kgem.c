@@ -732,7 +732,6 @@ static void kgem_finish_partials(struct kgem *kgem)
 		}
 
 		list_del(&bo->base.list);
-
 		if (bo->write && bo->need_io) {
 			DBG(("%s: handle=%d, uploading %d/%d\n",
 			     __FUNCTION__, bo->base.handle, bo->used, bo->alloc));
@@ -740,22 +739,20 @@ static void kgem_finish_partials(struct kgem *kgem)
 			gem_write(kgem->fd, bo->base.handle,
 				  0, bo->used, bo+1);
 			bo->need_io = 0;
-
-			/* transfer the handle to a minimum bo */
-			if (bo->base.refcnt == 1) {
-				struct kgem_bo *base = malloc(sizeof(*base));
-				if (base) {
-					memcpy(base, &bo->base, sizeof (*base));
-					base->reusable = true;
-					list_init(&base->list);
-					list_replace(&bo->base.request,
-						     &base->request);
-					free(bo);
-					bo = (struct kgem_partial_bo *)base;
-				}
-			}
 		}
 
+		/* transfer the handle to a minimum bo */
+		if (bo->base.refcnt == 1) {
+			struct kgem_bo *base = malloc(sizeof(*base));
+			if (base) {
+				memcpy(base, &bo->base, sizeof (*base));
+				base->reusable = true;
+				list_init(&base->list);
+				list_replace(&bo->base.request, &base->request);
+				free(bo);
+				bo = (struct kgem_partial_bo *)base;
+			}
+		}
 		kgem_bo_unref(kgem, &bo->base);
 	}
 }
@@ -1891,6 +1888,30 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	return bo;
 }
 
+#ifndef NDEBUG
+static bool validate_partials(struct kgem *kgem)
+{
+	struct kgem_partial_bo *bo, *next;
+
+	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
+		if (bo->base.list.next == &kgem->partial)
+			return true;
+		if (bo->alloc - bo->used < next->alloc - next->used) {
+			ErrorF("this rem: %d, next rem: %d\n",
+			       bo->alloc - bo->used,
+			       next->alloc - next->used);
+			goto err;
+		}
+	}
+	return true;
+
+err:
+	list_for_each_entry(bo, &kgem->partial, base.list)
+		ErrorF("bo: used=%d / %d\n", bo->used, bo->alloc);
+	return false;
+}
+#endif
+
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
 				   void **ret)
@@ -1900,11 +1921,15 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	int offset, alloc;
 	uint32_t handle;
 
-	DBG(("%s: size=%d, flags=%x\n", __FUNCTION__, size, flags));
+	DBG(("%s: size=%d, flags=%x [write=%d, last=%d]\n",
+	     __FUNCTION__, size, flags, write, flags & KGEM_BUFFER_LAST));
 
 	list_for_each_entry(bo, &kgem->partial, base.list) {
-		if (bo->write != write)
+		if (bo->write != write) {
+			DBG(("%s: skip write %d buffer, need %d\n",
+			     __FUNCTION__, bo->write, write));
 			continue;
+		}
 
 		if (bo->base.refcnt == 1 && bo->base.exec == NULL)
 			/* no users, so reset */
@@ -1915,10 +1940,12 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			     __FUNCTION__, bo->used, size, bo->alloc));
 			offset = bo->used;
 			bo->used += size;
-			if (kgem->partial.next != &bo->base.list)
-				list_move(&bo->base.list, &kgem->partial);
 			goto done;
 		}
+
+		DBG(("%s: too small (%d < %d)\n",
+		     __FUNCTION__, bo->alloc - bo->used, size));
+		break;
 	}
 
 	alloc = (flags & KGEM_BUFFER_LAST) ? 4096 : 32 * 1024;
@@ -1974,6 +2001,28 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	     __FUNCTION__, alloc, bo->base.handle));
 
 done:
+	/* adjust the position within the list to maintain decreasing order */
+	alloc = bo->alloc - bo->used;
+	{
+		struct kgem_partial_bo *p, *first;
+
+		first = p = list_first_entry(&bo->base.list,
+					     struct kgem_partial_bo,
+					     base.list);
+		while (&p->base.list != &kgem->partial &&
+		       alloc < p->alloc - p->used) {
+			DBG(("%s: this=%d, right=%d\n",
+			     __FUNCTION__, alloc, p->alloc -p->used));
+			p = list_first_entry(&p->base.list,
+					     struct kgem_partial_bo,
+					     base.list);
+		}
+		if (p != first) {
+			__list_del(bo->base.list.prev, bo->base.list.next);
+			list_add_tail(&bo->base.list, &kgem->partial);
+		}
+		assert(validate_partials(kgem));
+	}
 	*ret = (char *)(bo+1) + offset;
 	return kgem_create_proxy(&bo->base, offset, size);
 }

@@ -34,6 +34,12 @@
 #ifndef KGEM_H
 #define KGEM_H
 
+#if DEBUG_KGEM
+#define DBG_HDR(x) ErrorF x
+#else
+#define DBG_HDR(x)
+#endif
+
 struct kgem_bo {
 	struct kgem_bo *proxy;
 
@@ -299,6 +305,9 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
+	DBG_HDR(("%s: exec? %d, gpu? %d, rq? %d\n",
+		 __FUNCTION__, bo->exec != NULL, bo->gpu, bo->rq != NULL));
+
 	if (bo->exec)
 		return true;
 	if (!bo->gpu)
@@ -345,5 +354,7 @@ static inline void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch)
 	(void)nbatch;
 }
 #endif
+
+#undef DBG_HDR
 
 #endif /* KGEM_H */
