@@ -3428,14 +3428,19 @@ static void _sna_accel_disarm_timer(struct sna *sna, int id) { }
 static void sna_accel_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
+	bool nothing_to_do =
+		priv->cpu_damage == NULL && priv->gpu_bo->rq == NULL;
 
-	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)GetTimeInMillis()));
+	DBG(("%s (time=%ld), nothing_to_do=%d\n",
+	     __FUNCTION__, (long)GetTimeInMillis(), nothing_to_do));
+
+	if (nothing_to_do) {
+		_sna_accel_disarm_timer(sna, FLUSH_TIMER);
+		return;
+	}
 
 	sna_pixmap_move_to_gpu(priv->pixmap);
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
-
-	if (priv->gpu_bo->rq == NULL)
-		_sna_accel_disarm_timer(sna, FLUSH_TIMER);
 }
 
 static void sna_accel_expire(struct sna *sna)
