@@ -2469,6 +2469,21 @@ sna_poly_arc_extents(DrawablePtr drawable, GCPtr gc,
 	return box_empty(&box);
 }
 
+static bool
+arc_to_spans(GCPtr gc, int n)
+{
+	if (gc->lineStyle != LineSolid)
+		return false;
+
+	if (gc->lineWidth == 0)
+		return true;
+
+	if (n == 1)
+		return true;
+
+	return false;
+}
+
 static void
 sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 {
@@ -2480,6 +2495,14 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
+
+	/* For "simple" cases use the miPolyArc to spans path */
+	if (arc_to_spans(gc, n) &&
+	    sna_drawable_use_gpu_bo(drawable, &extents)) {
+		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
+		miPolyArc(drawable, gc, n, arc);
+		return;
+	}
 
 	RegionInit(&region, &extents, 1);
 	if (gc->pCompositeClip)
