@@ -3589,13 +3589,13 @@ static void sna_accel_throttle(struct sna *sna)
 
 void sna_accel_block_handler(struct sna *sna)
 {
-	if (sna_accel_do_flush(sna))
+	if (sna_accel_do_flush(sna)) {
 		sna_accel_flush(sna);
+		sna_accel_throttle(sna);
+	}
 
 	if (sna_accel_do_expire(sna))
 		sna_accel_expire(sna);
-
-	sna_accel_throttle(sna);
 }
 
 void sna_accel_wakeup_handler(struct sna *sna)
