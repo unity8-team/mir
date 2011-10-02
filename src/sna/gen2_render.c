@@ -2003,6 +2003,87 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 	return TRUE;
 }
 
+static Bool
+gen2_render_fill_one_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+			     uint32_t color,
+			     int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+			     uint8_t alu)
+{
+	BoxRec box;
+
+	box.x1 = x1;
+	box.y1 = y1;
+	box.x2 = x2;
+	box.y2 = y2;
+
+	return sna_blt_fill_boxes(sna, alu,
+				  bo, dst->drawable.bitsPerPixel,
+				  color, &box, 1);
+}
+
+static Bool
+gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+		     uint32_t color,
+		     int16_t x1, int16_t y1,
+		     int16_t x2, int16_t y2,
+		     uint8_t alu)
+{
+	struct sna_composite_op tmp;
+
+#if NO_FILL_BOXES
+	return gen2_render_fill_one_try_blt(sna, dst, bo, color,
+					    x1, y1, x2, y2, alu);
+#endif
+
+	/* Prefer to use the BLT if already engaged */
+	if (sna->kgem.mode != KGEM_RENDER &&
+	    gen2_render_fill_one_try_blt(sna, dst, bo, color,
+					 x1, y1, x2, y2, alu))
+		return TRUE;
+
+	/* Must use the BLT if we can't RENDER... */
+	if (!(alu == GXcopy || alu == GXclear) ||
+	    dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
+	    bo->pitch > 8192)
+		return gen2_render_fill_one_try_blt(sna, dst, bo, color,
+						    x1, y1, x2, y2, alu);
+
+	if (alu == GXclear)
+		color = 0;
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.op = color == 0 ? PictOpClear : PictOpSrc;
+	tmp.dst.pixmap = dst;
+	tmp.dst.width = dst->drawable.width;
+	tmp.dst.height = dst->drawable.height;
+	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
+	tmp.dst.bo = bo;
+	tmp.floats_per_vertex = 2;
+
+	tmp.src.u.gen2.pixel =
+		sna_rgba_for_color(color, dst->drawable.depth);
+
+	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
+		kgem_submit(&sna->kgem);
+		if (gen2_render_fill_one_try_blt(sna, dst, bo, color,
+						 x1, y1, x2, y2, alu))
+			return TRUE;
+	}
+
+	gen2_emit_fill_state(sna, &tmp);
+	gen2_get_rectangles(sna, &tmp, 1);
+	DBG(("	(%d, %d), (%d, %d): %x\n", x1, y1, x2, y2, pixel));
+	OUT_VERTEX(x2);
+	OUT_VERTEX(y2);
+	OUT_VERTEX(x1);
+	OUT_VERTEX(y2);
+	OUT_VERTEX(x1);
+	OUT_VERTEX(y1);
+	gen2_vertex_flush(sna);
+
+	return TRUE;
+}
+
 static void
 gen2_render_copy_setup_source(struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
@@ -2297,8 +2378,8 @@ Bool gen2_render_init(struct sna *sna)
 	render->composite = gen2_render_composite;
 	render->composite_spans = gen2_render_composite_spans;
 	render->fill_boxes = gen2_render_fill_boxes;
-
 	render->fill = gen2_render_fill;
+	render->fill_one = gen2_render_fill_one;
 	render->copy = gen2_render_copy;
 	render->copy_boxes = gen2_render_copy_boxes;
 

@@ -179,6 +179,26 @@ no_render_fill(struct sna *sna, uint8_t alu,
 			    tmp);
 }
 
+static Bool
+no_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+		   uint32_t color,
+		   int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+		   uint8_t alu)
+{
+	BoxRec box;
+
+	box.x1 = x1;
+	box.y1 = y1;
+	box.x2 = x2;
+	box.y2 = y2;
+
+	DBG(("%s (alu=%d, color=%08x) (%d,%d), (%d, %d)\n",
+	     __FUNCTION__, alu, color, x1, y1, x2, y2));
+	return sna_blt_fill_boxes(sna, alu,
+				  bo, dst->drawable.bitsPerPixel,
+				  color, &box, 1);
+}
+
 static void no_render_reset(struct sna *sna)
 {
 	(void)sna;
@@ -216,6 +236,7 @@ void no_render_init(struct sna *sna)
 
 	render->fill_boxes = no_render_fill_boxes;
 	render->fill = no_render_fill;
+	render->fill_one = no_render_fill_one;
 
 	render->reset = no_render_reset;
 	render->flush = no_render_flush;

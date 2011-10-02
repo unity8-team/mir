@@ -201,6 +201,10 @@ struct sna_render {
 		     PixmapPtr dst, struct kgem_bo *dst_bo,
 		     uint32_t color,
 		     struct sna_fill_op *tmp);
+	Bool (*fill_one)(struct sna *sna, PixmapPtr dst, struct kgem_bo *dst_bo,
+			 uint32_t color,
+			 int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+			 uint8_t alu);
 
 	Bool (*copy_boxes)(struct sna *sna, uint8_t alu,
 			   PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,

@@ -3659,6 +3659,90 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	return TRUE;
 }
 
+
+static Bool
+gen3_render_fill_one_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+			     uint32_t color,
+			     int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+			     uint8_t alu)
+{
+	BoxRec box;
+
+	box.x1 = x1;
+	box.y1 = y1;
+	box.x2 = x2;
+	box.y2 = y2;
+
+	return sna_blt_fill_boxes(sna, alu,
+				  bo, dst->drawable.bitsPerPixel,
+				  color, &box, 1);
+}
+
+static Bool
+gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+		     uint32_t color,
+		     int16_t x1, int16_t y1,
+		     int16_t x2, int16_t y2,
+		     uint8_t alu)
+{
+	struct sna_composite_op tmp;
+
+#if NO_FILL_BOXES
+	return gen3_render_fill_one_try_blt(sna, dst, bo, color,
+					    x1, y1, x2, y2, alu);
+#endif
+
+	/* Prefer to use the BLT if already engaged */
+	if (sna->kgem.mode != KGEM_RENDER &&
+	    gen3_render_fill_one_try_blt(sna, dst, bo, color,
+					 x1, y1, x2, y2, alu))
+		return TRUE;
+
+	/* Must use the BLT if we can't RENDER... */
+	if (!(alu == GXcopy || alu == GXclear) ||
+	    dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
+	    bo->pitch > 8192)
+		return gen3_render_fill_one_try_blt(sna, dst, bo, color,
+						    x1, y1, x2, y2, alu);
+
+	if (alu == GXclear)
+		color = 0;
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.op = color == 0 ? PictOpClear : PictOpSrc;
+	tmp.dst.pixmap = dst;
+	tmp.dst.width = dst->drawable.width;
+	tmp.dst.height = dst->drawable.height;
+	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
+	tmp.dst.bo = bo;
+	tmp.floats_per_vertex = 2;
+
+	tmp.src.u.gen3.type = SHADER_CONSTANT;
+	tmp.src.u.gen3.mode =
+		sna_rgba_for_color(color, dst->drawable.depth);
+
+	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
+		kgem_submit(&sna->kgem);
+		if (gen3_render_fill_one_try_blt(sna, dst, bo, color,
+						 x1, y1, x2, y2, alu))
+			return TRUE;
+	}
+
+	gen3_emit_composite_state(sna, &tmp);
+	gen3_align_vertex(sna, &tmp);
+	gen3_get_rectangles(sna, &tmp, 1);
+	DBG(("	(%d, %d), (%d, %d): %x\n", x1, y1, x2, y2, pixel));
+	OUT_VERTEX(x2);
+	OUT_VERTEX(y2);
+	OUT_VERTEX(x1);
+	OUT_VERTEX(y2);
+	OUT_VERTEX(x1);
+	OUT_VERTEX(y1);
+	gen3_vertex_flush(sna);
+
+	return TRUE;
+}
+
 static void gen3_render_flush(struct sna *sna)
 {
 	gen3_vertex_finish(sna, TRUE);
@@ -3683,6 +3767,7 @@ Bool gen3_render_init(struct sna *sna)
 
 	render->fill_boxes = gen3_render_fill_boxes;
 	render->fill = gen3_render_fill;
+	render->fill_one = gen3_render_fill_one;
 
 	render->reset = gen3_render_reset;
 	render->flush = gen3_render_flush;

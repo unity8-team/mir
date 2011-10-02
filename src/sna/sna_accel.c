@@ -1650,6 +1650,29 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 	return box_empty(&box);
 }
 
+static struct sna_damage **
+reduce_damage(DrawablePtr drawable,
+	      struct sna_damage **damage,
+	      const BoxRec *box)
+{
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	int16_t dx, dy;
+	BoxRec r;
+
+	if (*damage == NULL)
+		return damage;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+
+	r = *box;
+	r.x1 += dx; r.x2 += dx;
+	r.y1 += dy; r.y2 += dy;
+	if (sna_damage_contains_box(*damage, &r) == PIXMAN_REGION_IN)
+		return NULL;
+	else
+		return damage;
+}
+
 static void
 sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect);
 
@@ -1702,13 +1725,14 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 		if (sna_drawable_use_gpu_bo(drawable, &extents) &&
 		    sna_fill_spans_blt(drawable,
 				       priv->gpu_bo,
-				       priv->gpu_only ? NULL : &priv->gpu_damage,
+				       priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &extents),
 				       gc, n, pt, width, sorted))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &extents) &&
 		    sna_fill_spans_blt(drawable,
-				       priv->cpu_bo, &priv->cpu_damage,
+				       priv->cpu_bo,
+				       reduce_damage(drawable, &priv->cpu_damage, &extents),
 				       gc, n, pt, width, sorted))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
@@ -2556,6 +2580,33 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	DBG(("%s x %d [(%d, %d)+(%d, %d)...]\n",
 	     __FUNCTION__, n, rect->x, rect->y, rect->width, rect->height));
 
+	if (n == 1 && REGION_NUM_RECTS(clip) == 1) {
+		BoxPtr box = REGION_RECTS(clip);
+		BoxRec r;
+		bool success = true;
+
+		r.x1 = rect->x + drawable->x;
+		r.y1 = rect->y + drawable->y;
+		r.x2 = bound(r.x1, rect->width);
+		r.y2 = bound(r.y1, rect->height);
+		if (box_intersect(&r, box)) {
+			get_drawable_deltas(drawable, pixmap, &dx, &dy);
+			r.x1 += dx; r.y1 += dy;
+			r.x2 += dx; r.y2 += dy;
+			if (sna->render.fill_one(sna, pixmap, bo, pixel,
+						 r.x1, r.y1, r.x2, r.y2,
+						 gc->alu)) {
+				if (damage) {
+					assert_pixmap_contains_box(pixmap, &r);
+					sna_damage_add_box(damage, &r);
+				}
+			} else
+				success = false;
+		}
+
+		return success;
+	}
+
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, pixel)) {
 		DBG(("%s: unsupported blt\n", __FUNCTION__));
 		return FALSE;
@@ -2935,14 +2986,14 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		if (sna_drawable_use_gpu_bo(draw, &extents) &&
 		    sna_poly_fill_rect_blt(draw,
 					   priv->gpu_bo,
-					   priv->gpu_only ? NULL : &priv->gpu_damage,
+					   priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &extents),
 					   gc, n, rect))
 			return;
 
 		if (sna_drawable_use_cpu_bo(draw, &extents) &&
 		    sna_poly_fill_rect_blt(draw,
 					   priv->cpu_bo,
-					   &priv->cpu_damage,
+					   reduce_damage(draw, &priv->cpu_damage, &extents),
 					   gc, n, rect))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
@@ -2953,14 +3004,14 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		if (sna_drawable_use_gpu_bo(draw, &extents) &&
 		    sna_poly_fill_rect_tiled(draw,
 					     priv->gpu_bo,
-					     priv->gpu_only ? NULL : &priv->gpu_damage,
+					     priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &extents),
 					     gc, n, rect))
 			return;
 
 		if (sna_drawable_use_cpu_bo(draw, &extents) &&
 		    sna_poly_fill_rect_tiled(draw,
 					     priv->cpu_bo,
-					     &priv->cpu_damage,
+					     reduce_damage(draw, &priv->cpu_damage, &extents),
 					     gc, n, rect))
 			return;
 	}
