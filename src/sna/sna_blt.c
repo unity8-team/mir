@@ -144,7 +144,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_bo_fenced(kgem, bo, NULL) ||
-	    !kgem_check_batch(kgem, 3)) {
+	    !kgem_check_batch(kgem, 9)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
