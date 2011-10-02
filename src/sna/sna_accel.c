@@ -559,7 +559,7 @@ done:
 }
 
 static inline Bool
-_sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxPtr box)
+_sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxRec *box)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -588,7 +588,7 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxPtr box)
 }
 
 static inline Bool
-sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxPtr box)
+sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxRec *box)
 {
 	Bool ret = _sna_drawable_use_gpu_bo(drawable, box);
 	DBG(("%s((%d, %d), (%d, %d)) = %d\n", __FUNCTION__,
@@ -597,7 +597,7 @@ sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxPtr box)
 }
 
 static inline Bool
-_sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxPtr box)
+_sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxRec *box)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -625,7 +625,7 @@ _sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxPtr box)
 }
 
 static inline Bool
-sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxPtr box)
+sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxRec *box)
 {
 	Bool ret = _sna_drawable_use_cpu_bo(drawable, box);
 	DBG(("%s((%d, %d), (%d, %d)) = %d\n", __FUNCTION__,
@@ -1462,7 +1462,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 }
 
 static Bool
-box_intersect(BoxPtr a, const BoxPtr b)
+box_intersect(BoxPtr a, const BoxRec *b)
 {
 	if (a->x1 < b->x1)
 		a->x1 = b->x1;
@@ -2747,7 +2747,7 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 		}
 
 		if (REGION_NUM_RECTS(clip) == 1) {
-			const BoxPtr box = REGION_RECTS(clip);
+			const BoxRec *box = REGION_RECTS(clip);
 			while (n--) {
 				BoxRec r;
 
