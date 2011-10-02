@@ -56,6 +56,7 @@
 
 #define FORCE_GPU_ONLY 0
 #define FORCE_FALLBACK 0
+#define FORCE_FLUSH 0
 
 #define USE_SPANS 0
 
@@ -3310,14 +3311,6 @@ static void sna_deferred_free(struct sna *sna)
 	}
 }
 
-static uint64_t read_timer(int fd)
-{
-	uint64_t count = 0;
-	int ret = read(fd, &count, sizeof(count));
-	return count;
-	(void)ret;
-}
-
 static struct sna_pixmap *sna_accel_scanout(struct sna *sna)
 {
 	PixmapPtr front = sna->shadow ? sna->shadow : sna->front;
@@ -3325,9 +3318,17 @@ static struct sna_pixmap *sna_accel_scanout(struct sna *sna)
 	return priv && priv->gpu_bo ? priv : NULL;
 }
 
-#if HAVE_SYS_TIMERFD_H
+#if HAVE_SYS_TIMERFD_H && !FORCE_FLUSH
 #include <sys/timerfd.h>
 #include <errno.h>
+
+static uint64_t read_timer(int fd)
+{
+	uint64_t count = 0;
+	int ret = read(fd, &count, sizeof(count));
+	return count;
+	(void)ret;
+}
 
 static void _sna_accel_disarm_timer(struct sna *sna, int id)
 {
