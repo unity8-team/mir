@@ -57,6 +57,8 @@
 #define FORCE_GPU_ONLY 0
 #define FORCE_FALLBACK 0
 
+#define USE_SPANS 0
+
 DevPrivateKeyRec sna_pixmap_index;
 
 #define PM_IS_SOLID(_draw, _pm) \
@@ -2155,7 +2157,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 			return;
 	}
 
-	if (can_fill_spans(drawable, gc) &&
+	if (USE_SPANS && can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &extents)) {
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		switch (gc->lineStyle) {
@@ -2390,7 +2392,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	}
 
 	/* XXX Do we really want to base this decision on the amalgam ? */
-	if (can_fill_spans(drawable, gc) &&
+	if (USE_SPANS && can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &extents)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
 		int i;
@@ -2515,7 +2517,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	}
 
 	/* For "simple" cases use the miPolyArc to spans path */
-	if (arc_to_spans(gc, n) && can_fill_spans(drawable, gc) &&
+	if (USE_SPANS && arc_to_spans(gc, n) && can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &extents)) {
 		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
 		miPolyArc(drawable, gc, n, arc);
