@@ -92,6 +92,7 @@ static void kgem_sna_reset(struct kgem *kgem)
 	struct sna *sna = container_of(kgem, struct sna, kgem);
 
 	sna->render.reset(sna);
+	sna->blt_state.fill_bo = 0;
 }
 
 static void kgem_sna_flush(struct kgem *kgem)

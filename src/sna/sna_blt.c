@@ -149,6 +149,8 @@ static bool sna_blt_fill_init(struct sna *sna,
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
+	if (sna->blt_state.fill_bo != bo->handle ||
+	    sna->blt_state.fill_pixel != pixel)
 	{
 		uint32_t *b = kgem->batch + kgem->nbatch;
 		b[0] = blt->cmd;
@@ -165,6 +167,9 @@ static bool sna_blt_fill_init(struct sna *sna,
 		b[7] = 0;
 		b[8] = 0;
 		kgem->nbatch += 9;
+
+		sna->blt_state.fill_bo = bo->handle;
+		sna->blt_state.fill_pixel = pixel;
 	}
 
 	return TRUE;
@@ -260,6 +265,7 @@ static Bool sna_blt_copy_init(struct sna *sna,
 	if (!kgem_check_bo_fenced(kgem, src, dst, NULL))
 		_kgem_submit(kgem);
 
+	sna->blt_state.fill_bo = 0;
 	return TRUE;
 }
 
@@ -1273,6 +1279,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	} while (nbox);
 
 	_kgem_set_mode(kgem, KGEM_BLT);
+	sna->blt_state.fill_bo = 0;
 	return TRUE;
 }
 

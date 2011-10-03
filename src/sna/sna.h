@@ -234,6 +234,10 @@ struct sna {
 	void *WakeupData;
 	CloseScreenProcPtr CloseScreen;
 
+	struct {
+		uint32_t fill_bo;
+		uint32_t fill_pixel;
+	} blt_state;
 	union {
 		struct gen2_render_state gen2;
 		struct gen3_render_state gen3;

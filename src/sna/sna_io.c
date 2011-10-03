@@ -234,6 +234,7 @@ void sna_read_boxes(struct sna *sna,
 	} while (--nbox);
 	assert(src - (char *)ptr == dst_bo->size);
 	kgem_bo_destroy(kgem, dst_bo);
+	sna->blt_state.fill_bo = 0;
 }
 
 static void write_boxes_inplace(struct kgem *kgem,
@@ -401,6 +402,7 @@ void sna_write_boxes(struct sna *sna,
 	} while (nbox);
 
 	_kgem_set_mode(kgem, KGEM_BLT);
+	sna->blt_state.fill_bo = 0;
 }
 
 struct kgem_bo *sna_replace(struct sna *sna,
