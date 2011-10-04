@@ -2072,7 +2072,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	gen2_emit_fill_state(sna, &tmp);
 	gen2_get_rectangles(sna, &tmp, 1);
-	DBG(("	(%d, %d), (%d, %d): %x\n", x1, y1, x2, y2, pixel));
+	DBG(("	(%d, %d), (%d, %d): %x\n", x1, y1, x2, y2, color));
 	OUT_VERTEX(x2);
 	OUT_VERTEX(y2);
 	OUT_VERTEX(x1);

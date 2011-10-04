@@ -3731,7 +3731,7 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	gen3_emit_composite_state(sna, &tmp);
 	gen3_align_vertex(sna, &tmp);
 	gen3_get_rectangles(sna, &tmp, 1);
-	DBG(("	(%d, %d), (%d, %d): %x\n", x1, y1, x2, y2, pixel));
+	DBG(("	(%d, %d), (%d, %d): %x\n", x1, y1, x2, y2, color));
 	OUT_VERTEX(x2);
 	OUT_VERTEX(y2);
 	OUT_VERTEX(x1);
