@@ -120,7 +120,7 @@ struct kgem {
 	struct drm_i915_gem_relocation_entry reloc[384];
 };
 
-#define KGEM_BATCH_RESERVED 2
+#define KGEM_BATCH_RESERVED 4 /* need a bit of extra room for workarounds */
 #define KGEM_RELOC_RESERVED 4
 #define KGEM_EXEC_RESERVED 1
 
