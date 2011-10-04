@@ -1142,6 +1142,15 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	RegionUninit(&region);
 }
 
+static Bool
+move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv, const BoxRec *box)
+{
+	int w = box->x2 - box->x1;
+	int h = box->y2 - box->y1;
+
+	return ++priv->source_count * w*h >= 2 * pixmap->drawable.width * pixmap->drawable.height;
+}
+
 static void
 sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       BoxPtr box, int n,
@@ -1233,7 +1242,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			goto fallback;
 		}
 
-		if (src_priv && src_priv->gpu_bo &&
+		if (src_priv &&
+		    move_to_gpu(src_pixmap, src_priv, &region.extents) &&
 		    sna_pixmap_move_to_gpu(src_pixmap)) {
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->gpu_bo, src_dx, src_dy,
