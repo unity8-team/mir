@@ -1426,7 +1426,15 @@ NVQueryImageAttributes(ScrnInfoPtr pScrn, int id,
 			pitches[0] = size; // 4*width
 		size *= *h; // 4*width*height
 		break;
+	case FOURCC_AI44:
+	case FOURCC_IA44:
+		size = *w; // width
+		if (pitches)
+			pitches[0] = size; // width
+		size *= *h; // width*height
+		break;
 	default:
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown colorspace: %x\n", id);
 		*w = *h = size = 0;
 		break;
 	}
