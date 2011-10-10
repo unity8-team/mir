@@ -428,11 +428,17 @@ nouveau_dri2_init(ScreenPtr pScreen)
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	DRI2InfoRec dri2 = { 0 };
+	const char *drivernames[2][2] = {
+		{ "nouveau", "nouveau" },
+		{ "nouveau_vieux", "nouveau_vieux" }
+	};
 
 	if (pNv->Architecture >= NV_ARCH_30)
-		dri2.driverName = "nouveau";
+		dri2.driverNames = drivernames[0];
 	else
-		dri2.driverName = "nouveau_vieux";
+		dri2.driverNames = drivernames[1];
+	dri2.numDrivers = 2;
+	dri2.driverName = dri2.driverNames[0];
 
 	dri2.fd = nouveau_device(pNv->dev)->fd;
 	dri2.deviceName = pNv->drm_device_name;
