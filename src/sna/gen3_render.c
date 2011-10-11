@@ -3603,7 +3603,8 @@ gen3_render_fill_boxes(struct sna *sna,
 						      dst, dst_bo,
 						      box, n);
 
-	if (gen3_render_fill_boxes_try_blt(sna, op, format, color,
+	if (sna->kgem.mode != KGEM_RENDER &&
+	    gen3_render_fill_boxes_try_blt(sna, op, format, color,
 					   dst, dst_bo,
 					   box, n))
 		return TRUE;
