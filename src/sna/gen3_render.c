@@ -2454,6 +2454,21 @@ gen3_emit_composite_spans_primitive_zero(struct sna *sna,
 }
 
 static void
+gen3_emit_composite_spans_primitive_zero_no_offset(struct sna *sna,
+						   const struct sna_composite_spans_op *op,
+						   const BoxRec *box,
+						   float opacity)
+{
+	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	sna->render.vertex_used += 6;
+
+	v[0] = box->x2;
+	v[3] = v[1] = box->y2;
+	v[4] = v[2] = box->x1;
+	v[5] = box->y1;
+}
+
+static void
 gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 					     const struct sna_composite_spans_op *op,
 					     const BoxRec *box,
@@ -2466,6 +2481,22 @@ gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 	v[6] = v[3] = op->base.dst.x + box->x1;
 	v[4] = v[1] = op->base.dst.y + box->y2;
 	v[7] = op->base.dst.y + box->y1;
+	v[8] = v[5] = v[2] = opacity;
+}
+
+static void
+gen3_emit_composite_spans_primitive_constant_no_offset(struct sna *sna,
+						       const struct sna_composite_spans_op *op,
+						       const BoxRec *box,
+						       float opacity)
+{
+	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	sna->render.vertex_used += 9;
+
+	v[0] = box->x2;
+	v[6] = v[3] = box->x1;
+	v[4] = v[1] = box->y2;
+	v[7] = box->y1;
 	v[8] = v[5] = v[2] = opacity;
 }
 
@@ -2698,6 +2729,8 @@ gen3_render_composite_spans(struct sna *sna,
 			    int16_t width,  int16_t height,
 			    struct sna_composite_spans_op *tmp)
 {
+	bool no_offset;
+
 	DBG(("%s(src=(%d, %d), dst=(%d, %d), size=(%d, %d))\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, width, height));
 
@@ -2759,15 +2792,16 @@ gen3_render_composite_spans(struct sna *sna,
 	if (tmp->base.src.u.gen3.type != SHADER_ZERO)
 		tmp->base.mask.u.gen3.type = SHADER_OPACITY;
 
+	no_offset = tmp->base.dst.x == 0 && tmp->base.dst.y == 0;
 	tmp->prim_emit = gen3_emit_composite_spans_primitive;
 	switch (tmp->base.src.u.gen3.type) {
 	case SHADER_NONE:
 		assert(0);
 	case SHADER_ZERO:
-		tmp->prim_emit = gen3_emit_composite_spans_primitive_zero;
+		tmp->prim_emit = no_offset ? gen3_emit_composite_spans_primitive_zero_no_offset : gen3_emit_composite_spans_primitive_zero;
 		break;
 	case SHADER_CONSTANT:
-		tmp->prim_emit = gen3_emit_composite_spans_primitive_constant;
+		tmp->prim_emit = no_offset ? gen3_emit_composite_spans_primitive_constant_no_offset : gen3_emit_composite_spans_primitive_constant;
 		break;
 	case SHADER_LINEAR:
 	case SHADER_RADIAL:
