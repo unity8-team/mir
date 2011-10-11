@@ -1908,7 +1908,8 @@ static bool validate_partials(struct kgem *kgem)
 
 err:
 	list_for_each_entry(bo, &kgem->partial, base.list)
-		ErrorF("bo: used=%d / %d\n", bo->used, bo->alloc);
+		ErrorF("bo: used=%d / %d, rem=%d\n",
+		       bo->used, bo->alloc, bo->alloc - bo->used);
 	return false;
 }
 #endif
@@ -2020,7 +2021,7 @@ done:
 		}
 		if (p != first) {
 			__list_del(bo->base.list.prev, bo->base.list.next);
-			list_add_tail(&bo->base.list, &kgem->partial);
+			list_add_tail(&bo->base.list, &p->base.list);
 		}
 		assert(validate_partials(kgem));
 	}
