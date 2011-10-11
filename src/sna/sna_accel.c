@@ -2250,15 +2250,75 @@ static Bool
 sna_poly_segment_blt(DrawablePtr drawable,
 		     struct kgem_bo *bo,
 		     struct sna_damage **damage,
-		     GCPtr gc, int n, xSegment *seg)
+		     GCPtr gc, int n, xSegment *seg,
+		     const BoxRec *extents)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	RegionPtr clip = fbGetCompositeClip(gc);
+	RegionRec clip;
 	struct sna_fill_op fill;
 	int16_t dx, dy;
 
 	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
+
+	RegionInit(&clip, (BoxPtr)extents, 1);
+	if (gc->pCompositeClip && gc->pCompositeClip->data)
+		RegionIntersect(&clip, &clip, gc->pCompositeClip);
+
+	if (n == 1 && clip.data == NULL) {
+		BoxRec r;
+		int width, height;
+		bool success = true;
+
+		DBG(("%s: trying single fill fast-path\n", __FUNCTION__));
+
+		if (seg->x1 < seg->x2) {
+			r.x1 = seg->x1;
+			width = seg->x2;
+		} else {
+			r.x1 = seg->x2;
+			width = seg->x1;
+		}
+		width -= r.x1 - 1;
+		r.x1 += drawable->x;
+
+		if (seg->y1 < seg->y2) {
+			r.y1 = seg->y1;
+			height = seg->y2;
+		} else {
+			r.y1 = seg->y2;
+			height = seg->y1;
+		}
+		height -= r.y1- 1;
+		r.y1 += drawable->y;
+
+		/* don't paint last pixel */
+		if (gc->capStyle == CapNotLast) {
+			if (width == 1)
+				height--;
+			else
+				width--;
+		}
+		r.x2 = r.x1 + width;
+		r.y2 = r.y1 + height;
+
+		if (box_intersect(&r, &clip.extents)) {
+			get_drawable_deltas(drawable, pixmap, &dx, &dy);
+			r.x1 += dx; r.y1 += dy;
+			r.x2 += dx; r.y2 += dy;
+			if (sna->render.fill_one(sna, pixmap, bo, gc->fgPixel,
+						 r.x1, r.y1, r.x2, r.y2,
+						 gc->alu)) {
+				if (damage) {
+					assert_pixmap_contains_box(pixmap, &r);
+					sna_damage_add_box(damage, &r);
+				}
+			} else
+				success = false;
+		}
+
+		return success;
+	}
 
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
@@ -2298,7 +2358,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 
 		DBG(("%s: [%d] (%d, %d)x(%d, %d) + (%d, %d)\n", __FUNCTION__, n,
 		     x, y, width, height, dx, dy));
-		for (nclip = REGION_NUM_RECTS(clip), box = REGION_RECTS(clip); nclip--; box++) {
+		for (nclip = REGION_NUM_RECTS(&clip), box = REGION_RECTS(&clip); nclip--; box++) {
 			BoxRec r = { x, y, x + width, y + height };
 			if (box_intersect(&r, box)) {
 				r.x1 += dx;
@@ -2422,15 +2482,15 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 		if (sna_drawable_use_gpu_bo(drawable, &extents) &&
 		    sna_poly_segment_blt(drawable,
 					 priv->gpu_bo,
-					 priv->gpu_only ? NULL : &priv->gpu_damage,
-					 gc, n, seg))
+					 priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &extents),
+					 gc, n, seg, &extents))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &extents) &&
 		    sna_poly_segment_blt(drawable,
 					 priv->cpu_bo,
-					 &priv->cpu_damage,
-					 gc, n, seg))
+					 reduce_damage(drawable, &priv->cpu_damage, &extents),
+					 gc, n, seg, &extents))
 			return;
 	}
 
