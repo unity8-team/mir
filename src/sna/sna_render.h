@@ -137,17 +137,21 @@ struct sna_composite_op {
 struct sna_composite_spans_op {
 	struct sna_composite_op base;
 
-	void (*box)(struct sna *sna, const struct sna_composite_spans_op *op,
-		    const BoxRec *box, float opacity);
-	void (*boxes)(struct sna *sna, const struct sna_composite_spans_op *op,
+	fastcall void (*box)(struct sna *sna,
+			     const struct sna_composite_spans_op *op,
+			     const BoxRec *box,
+			     float opacity);
+	void (*boxes)(struct sna *sna,
+		      const struct sna_composite_spans_op *op,
 		      const BoxRec *box, int nbox,
 		      float opacity);
-	void (*done)(struct sna *sna, const struct sna_composite_spans_op *op);
+	fastcall void (*done)(struct sna *sna,
+			      const struct sna_composite_spans_op *op);
 
-	void (*prim_emit)(struct sna *sna,
-			  const struct sna_composite_spans_op *op,
-			  const BoxRec *box,
-			  float opacity);
+	fastcall void (*prim_emit)(struct sna *sna,
+				   const struct sna_composite_spans_op *op,
+				   const BoxRec *box,
+				   float opacity);
 };
 
 struct sna_fill_op {

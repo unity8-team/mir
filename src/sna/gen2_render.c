@@ -1403,7 +1403,7 @@ cleanup_dst:
 	return FALSE;
 }
 
-static void
+fastcall static void
 gen2_emit_composite_spans_primitive_constant(struct sna *sna,
 					     const struct sna_composite_spans_op *op,
 					     const BoxRec *box,
@@ -1426,7 +1426,7 @@ gen2_emit_composite_spans_primitive_constant(struct sna *sna,
 	*((uint32_t *)v + 8) = alpha;
 }
 
-static void
+fastcall static void
 gen2_emit_composite_spans_primitive_identity_source(struct sna *sna,
 						    const struct sna_composite_spans_op *op,
 						    const BoxRec *box,
@@ -1455,7 +1455,7 @@ gen2_emit_composite_spans_primitive_identity_source(struct sna *sna,
 	v[14] = (op->base.src.offset[1] + box->y1) * op->base.src.scale[1];
 }
 
-static void
+fastcall static void
 gen2_emit_composite_spans_primitive_affine_source(struct sna *sna,
 						  const struct sna_composite_spans_op *op,
 						  const BoxRec *box,
@@ -1509,7 +1509,7 @@ gen2_emit_composite_spans_vertex(struct sna *sna,
 	gen2_emit_composite_texcoord(sna, &op->base.src, x, y);
 }
 
-static void
+fastcall static void
 gen2_emit_composite_spans_primitive(struct sna *sna,
 				    const struct sna_composite_spans_op *op,
 				    const BoxRec *box,
@@ -1588,7 +1588,7 @@ static void gen2_emit_composite_spans_state(struct sna *sna,
 	}
 }
 
-static void
+fastcall static void
 gen2_render_composite_spans_box(struct sna *sna,
 				const struct sna_composite_spans_op *op,
 				const BoxRec *box, float opacity)
@@ -1643,7 +1643,7 @@ gen2_render_composite_spans_boxes(struct sna *sna,
 	} while (nbox);
 }
 
-static void
+fastcall static void
 gen2_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {

@@ -2434,7 +2434,7 @@ gen3_emit_composite_spans_vertex(struct sna *sna,
 	OUT_VERTEX(opacity);
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_zero(struct sna *sna,
 					 const struct sna_composite_spans_op *op,
 					 const BoxRec *box,
@@ -2453,7 +2453,7 @@ gen3_emit_composite_spans_primitive_zero(struct sna *sna,
 	v[5] = op->base.dst.x + box->y1;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_zero_no_offset(struct sna *sna,
 						   const struct sna_composite_spans_op *op,
 						   const BoxRec *box,
@@ -2468,7 +2468,7 @@ gen3_emit_composite_spans_primitive_zero_no_offset(struct sna *sna,
 	v[5] = box->y1;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 					     const struct sna_composite_spans_op *op,
 					     const BoxRec *box,
@@ -2484,7 +2484,7 @@ gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 	v[8] = v[5] = v[2] = opacity;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_constant_no_offset(struct sna *sna,
 						       const struct sna_composite_spans_op *op,
 						       const BoxRec *box,
@@ -2500,7 +2500,7 @@ gen3_emit_composite_spans_primitive_constant_no_offset(struct sna *sna,
 	v[8] = v[5] = v[2] = opacity;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_identity_source(struct sna *sna,
 						    const struct sna_composite_spans_op *op,
 						    const BoxRec *box,
@@ -2528,7 +2528,7 @@ gen3_emit_composite_spans_primitive_identity_source(struct sna *sna,
 	v[14] = opacity;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_affine_source(struct sna *sna,
 						  const struct sna_composite_spans_op *op,
 						  const BoxRec *box,
@@ -2570,7 +2570,7 @@ gen3_emit_composite_spans_primitive_affine_source(struct sna *sna,
 	v[13] = y * op->base.src.scale[1];
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_identity_gradient(struct sna *sna,
 						      const struct sna_composite_spans_op *op,
 						      const BoxRec *box,
@@ -2598,7 +2598,7 @@ gen3_emit_composite_spans_primitive_identity_gradient(struct sna *sna,
 	v[14] = opacity;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_affine_gradient(struct sna *sna,
 						    const struct sna_composite_spans_op *op,
 						    const BoxRec *box,
@@ -2633,7 +2633,7 @@ gen3_emit_composite_spans_primitive_affine_gradient(struct sna *sna,
 	v[14] = opacity;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive(struct sna *sna,
 				    const struct sna_composite_spans_op *op,
 				    const BoxRec *box,
@@ -2650,7 +2650,7 @@ gen3_emit_composite_spans_primitive(struct sna *sna,
 					 opacity);
 }
 
-static void
+fastcall static void
 gen3_render_composite_spans_box(struct sna *sna,
 				const struct sna_composite_spans_op *op,
 				const BoxRec *box, float opacity)
@@ -2705,7 +2705,7 @@ gen3_render_composite_spans_boxes(struct sna *sna,
 	} while (nbox);
 }
 
-static void
+fastcall static void
 gen3_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {
