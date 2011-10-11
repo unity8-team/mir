@@ -2797,6 +2797,114 @@ gen6_render_fill(struct sna *sna, uint8_t alu,
 	return TRUE;
 }
 
+static Bool
+gen6_render_fill_one_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+			     uint32_t color,
+			     int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+			     uint8_t alu)
+{
+	BoxRec box;
+
+	box.x1 = x1;
+	box.y1 = y1;
+	box.x2 = x2;
+	box.y2 = y2;
+
+	return sna_blt_fill_boxes(sna, alu,
+				  bo, dst->drawable.bitsPerPixel,
+				  color, &box, 1);
+}
+
+static Bool
+gen6_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+		     uint32_t color,
+		     int16_t x1, int16_t y1,
+		     int16_t x2, int16_t y2,
+		     uint8_t alu)
+{
+	struct sna_composite_op tmp;
+
+#if NO_FILL_BOXES
+	return gen6_render_fill_one_try_blt(sna, dst, bo, color,
+					    x1, y1, x2, y2, alu);
+#endif
+
+	/* Prefer to use the BLT if already engaged */
+	if (sna->kgem.mode != KGEM_RENDER &&
+	    gen6_render_fill_one_try_blt(sna, dst, bo, color,
+					 x1, y1, x2, y2, alu))
+		return TRUE;
+
+	/* Must use the BLT if we can't RENDER... */
+	if (!(alu == GXcopy || alu == GXclear) ||
+	    dst->drawable.width > 8192 || dst->drawable.height > 8192)
+		return gen6_render_fill_one_try_blt(sna, dst, bo, color,
+						    x1, y1, x2, y2, alu);
+
+	if (alu == GXclear)
+		color = 0;
+
+	tmp.op = color == 0 ? PictOpClear : PictOpSrc;
+
+	tmp.dst.pixmap = dst;
+	tmp.dst.width  = dst->drawable.width;
+	tmp.dst.height = dst->drawable.height;
+	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
+	tmp.dst.bo = bo;
+	tmp.dst.x = tmp.dst.y = 0;
+
+	tmp.src.bo =
+		sna_render_get_solid(sna,
+				     sna_rgba_for_color(color,
+							dst->drawable.depth));
+	tmp.src.filter = SAMPLER_FILTER_NEAREST;
+	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
+
+	tmp.mask.bo = NULL;
+	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
+	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
+
+	tmp.is_affine = TRUE;
+	tmp.floats_per_vertex = 3;
+	tmp.has_component_alpha = 0;
+	tmp.need_magic_ca_pass = FALSE;
+
+	tmp.u.gen6.wm_kernel = GEN6_WM_KERNEL_NOMASK;
+	tmp.u.gen6.nr_surfaces = 2;
+	tmp.u.gen6.nr_inputs = 1;
+	tmp.u.gen6.ve_id = 1;
+
+	if (!kgem_check_bo(&sna->kgem, bo, NULL))
+		_kgem_submit(&sna->kgem);
+
+	gen6_emit_fill_state(sna, &tmp);
+	gen6_align_vertex(sna, &tmp);
+
+	if (!gen6_get_rectangles(sna, &tmp, 1)) {
+		gen6_emit_fill_state(sna, &tmp);
+		gen6_get_rectangles(sna, &tmp, 1);
+	}
+
+	DBG(("	(%d, %d), (%d, %d)\n", x1, y1, x2, y2));
+	OUT_VERTEX(x2, y2);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(x1, y2);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(x1, y1);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
+
+	gen6_vertex_flush(sna);
+	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+
+	return TRUE;
+}
+
 static void gen6_render_flush(struct sna *sna)
 {
 	gen6_vertex_finish(sna, TRUE);
@@ -2896,6 +3004,7 @@ Bool gen6_render_init(struct sna *sna)
 
 	sna->render.fill_boxes = gen6_render_fill_boxes;
 	sna->render.fill = gen6_render_fill;
+	sna->render.fill_one = gen6_render_fill_one;
 
 	sna->render.flush = gen6_render_flush;
 	sna->render.reset = gen6_render_reset;
