@@ -137,6 +137,35 @@ void intel_batch_do_flush(ScrnInfoPtr scrn)
 		list_del(intel->flush_pixmaps.next);
 }
 
+static void intel_emit_post_sync_nonzero_flush(ScrnInfoPtr scrn)
+{
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	/* keep this entire sequence of 3 PIPE_CONTROL cmds in one batch to
+	 * avoid upsetting the gpu. */
+	BEGIN_BATCH(3*4);
+	OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(BRW_PIPE_CONTROL_CS_STALL |
+		  BRW_PIPE_CONTROL_STALL_AT_SCOREBOARD);
+	OUT_BATCH(0); /* address */
+	OUT_BATCH(0); /* write data */
+
+	OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(BRW_PIPE_CONTROL_WRITE_QWORD);
+	OUT_RELOC(intel->wa_scratch_bo,
+		  I915_GEM_DOMAIN_INSTRUCTION, I915_GEM_DOMAIN_INSTRUCTION, 0);
+	OUT_BATCH(0); /* write data */
+
+	/* now finally the _real flush */
+	OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(BRW_PIPE_CONTROL_WC_FLUSH |
+		  BRW_PIPE_CONTROL_TC_FLUSH |
+		  BRW_PIPE_CONTROL_NOWRITE);
+	OUT_BATCH(0); /* write address */
+	OUT_BATCH(0); /* write data */
+	ADVANCE_BATCH();
+}
+
 void intel_batch_emit_flush(ScrnInfoPtr scrn)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
@@ -154,14 +183,19 @@ void intel_batch_emit_flush(ScrnInfoPtr scrn)
 			OUT_BATCH(0);
 			ADVANCE_BATCH();
 		} else  {
-			BEGIN_BATCH(4);
-			OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
-			OUT_BATCH(BRW_PIPE_CONTROL_WC_FLUSH |
-				  BRW_PIPE_CONTROL_TC_FLUSH |
-				  BRW_PIPE_CONTROL_NOWRITE);
-			OUT_BATCH(0); /* write address */
-			OUT_BATCH(0); /* write data */
-			ADVANCE_BATCH();
+			if ((INTEL_INFO(intel)->gen == 60)) {
+				/* HW-Workaround for Sandybdrige */
+				intel_emit_post_sync_nonzero_flush(scrn);
+			} else {
+				BEGIN_BATCH(4);
+				OUT_BATCH(BRW_PIPE_CONTROL | (4 - 2));
+				OUT_BATCH(BRW_PIPE_CONTROL_WC_FLUSH |
+					  BRW_PIPE_CONTROL_TC_FLUSH |
+					  BRW_PIPE_CONTROL_NOWRITE);
+				OUT_BATCH(0); /* write address */
+				OUT_BATCH(0); /* write data */
+				ADVANCE_BATCH();
+			}
 		}
 	} else {
 		flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
