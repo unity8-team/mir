@@ -1143,11 +1143,14 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	RegionUninit(&region);
 }
 
-static Bool
+static bool
 move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv, const BoxRec *box)
 {
 	int w = box->x2 - box->x1;
 	int h = box->y2 - box->y1;
+
+	if (priv->gpu_bo)
+		return TRUE;
 
 	return ++priv->source_count * w*h >= 2 * pixmap->drawable.width * pixmap->drawable.height;
 }
