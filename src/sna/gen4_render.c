@@ -1472,6 +1472,22 @@ gen4_render_composite_blt(struct sna *sna,
 	FLUSH();
 }
 
+fastcall static void
+gen4_render_composite_box(struct sna *sna,
+			  const struct sna_composite_op *op,
+			  const BoxRec *box)
+{
+	struct sna_composite_rectangles r;
+
+	r.dst.x = box->x1;
+	r.dst.y = box->y1;
+	r.width  = box->x2 - box->x1;
+	r.height = box->y2 - box->y1;
+	r.mask = r.src = r.dst;
+
+	gen4_render_composite_blt(sna, op, &r);
+}
+
 static void
 gen4_render_composite_boxes(struct sna *sna,
 			    const struct sna_composite_op *op,
@@ -2029,6 +2045,7 @@ gen4_render_composite(struct sna *sna,
 	tmp->u.gen4.ve_id = (tmp->mask.bo != NULL) << 1 | tmp->is_affine;
 
 	tmp->blt   = gen4_render_composite_blt;
+	tmp->box   = gen4_render_composite_box;
 	tmp->boxes = gen4_render_composite_boxes;
 	tmp->done  = gen4_render_composite_done;
 

@@ -1620,6 +1620,31 @@ gen6_render_composite_blt(struct sna *sna,
 	op->prim_emit(sna, op, r);
 }
 
+fastcall static void
+gen6_render_composite_box(struct sna *sna,
+			  const struct sna_composite_op *op,
+			  const BoxRec *box)
+{
+	struct sna_composite_rectangles r;
+
+	if (!gen6_get_rectangles(sna, op, 1)) {
+		gen6_emit_composite_state(sna, op);
+		gen6_get_rectangles(sna, op, 1);
+	}
+
+	DBG(("  %s: (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
+
+	r.dst.x = box->x1;
+	r.dst.y = box->y1;
+	r.width  = box->x2 - box->x1;
+	r.height = box->y2 - box->y1;
+	r.src = r.mask = r.dst;
+
+	op->prim_emit(sna, op, &r);
+}
+
 static void
 gen6_render_composite_boxes(struct sna *sna,
 			    const struct sna_composite_op *op,
@@ -2217,6 +2242,7 @@ gen6_render_composite(struct sna *sna,
 	tmp->u.gen6.ve_id = gen6_choose_composite_vertex_buffer(tmp);
 
 	tmp->blt   = gen6_render_composite_blt;
+	tmp->box   = gen6_render_composite_box;
 	tmp->boxes = gen6_render_composite_boxes;
 	tmp->done  = gen6_render_composite_done;
 

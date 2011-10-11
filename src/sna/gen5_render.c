@@ -1486,6 +1486,31 @@ gen5_render_composite_blt(struct sna *sna,
 	op->prim_emit(sna, op, r);
 }
 
+fastcall static void
+gen5_render_composite_box(struct sna *sna,
+			  const struct sna_composite_op *op,
+			  const BoxRec *box)
+{
+	struct sna_composite_rectangles r;
+
+	DBG(("  %s: (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
+
+	if (!gen5_get_rectangles(sna, op, 1)) {
+		gen5_bind_surfaces(sna, op);
+		gen5_get_rectangles(sna, op, 1);
+	}
+
+	r.dst.x = box->x1;
+	r.dst.y = box->y1;
+	r.width  = box->x2 - box->x1;
+	r.height = box->y2 - box->y1;
+	r.mask = r.src = r.dst;
+
+	op->prim_emit(sna, op, &r);
+}
+
 static void
 gen5_render_composite_boxes(struct sna *sna,
 			    const struct sna_composite_op *op,
@@ -2040,6 +2065,7 @@ gen5_render_composite(struct sna *sna,
 	tmp->u.gen5.ve_id = (tmp->mask.bo != NULL) << 1 | tmp->is_affine;
 
 	tmp->blt   = gen5_render_composite_blt;
+	tmp->box   = gen5_render_composite_box;
 	tmp->boxes = gen5_render_composite_boxes;
 	tmp->done  = gen5_render_composite_done;
 

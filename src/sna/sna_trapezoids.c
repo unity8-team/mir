@@ -1539,7 +1539,7 @@ mono_add_line(struct mono *mono,
 		e->dxdy = floored_muldivrem (dx, pixman_fixed_1, dy);
 		e->dy = dy;
 
-		e->x = floored_muldivrem (ytop * pixman_fixed_1 + pixman_fixed_1_minus_e/2 - (p1->y + dst_y*pixman_fixed_1),
+		e->x = floored_muldivrem ((ytop-dst_y) * pixman_fixed_1 + pixman_fixed_1_minus_e/2 - p1->y,
 					  dx, dy);
 		e->x.quo += p1->x;
 		e->x.rem -= dy;
@@ -1602,8 +1602,8 @@ start_with_b:
 
 static struct mono_edge *
 mono_sort_edges(struct mono_edge *list,
-	    unsigned int level,
-	    struct mono_edge **head_out)
+		unsigned int level,
+		struct mono_edge **head_out)
 {
 	struct mono_edge *head_other, *remaining;
 	unsigned int i;
@@ -1715,7 +1715,7 @@ mono_span(struct mono *c, int x1, int x2, BoxPtr box)
 		}
 		pixman_region_fini(&region);
 	} else {
-		c->op.boxes(c->sna, &c->op, box, 1);
+		c->op.box(c->sna, &c->op, box);
 		apply_damage_box(&c->op, box);
 	}
 }

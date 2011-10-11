@@ -20,6 +20,9 @@ struct sna_composite_rectangles {
 struct sna_composite_op {
 	fastcall void (*blt)(struct sna *sna, const struct sna_composite_op *op,
 			     const struct sna_composite_rectangles *r);
+	fastcall void (*box)(struct sna *sna,
+			     const struct sna_composite_op *op,
+			     const BoxRec *box);
 	void (*boxes)(struct sna *sna, const struct sna_composite_op *op,
 		      const BoxRec *box, int nbox);
 	void (*done)(struct sna *sna, const struct sna_composite_op *op);

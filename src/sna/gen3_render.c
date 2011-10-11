@@ -1568,6 +1568,33 @@ gen3_render_composite_blt(struct sna *sna,
 	op->prim_emit(sna, op, r);
 }
 
+fastcall static void
+gen3_render_composite_box(struct sna *sna,
+			  const struct sna_composite_op *op,
+			  const BoxRec *box)
+{
+	struct sna_composite_rectangles r;
+
+	DBG(("%s: src=+(%d, %d), mask=+(%d, %d), dst=+(%d, %d)\n",
+	     __FUNCTION__,
+	     op->src.offset[0], op->src.offset[1],
+	     op->mask.offset[0], op->mask.offset[1],
+	     op->dst.x, op->dst.y));
+
+	if (!gen3_get_rectangles(sna, op, 1)) {
+		gen3_emit_composite_state(sna, op);
+		gen3_get_rectangles(sna, op, 1);
+	}
+
+	r.dst.x  = box->x1;
+	r.dst.y  = box->y1;
+	r.width  = box->x2 - box->x1;
+	r.height = box->y2 - box->y1;
+	r.src = r.mask = r.dst;
+
+	op->prim_emit(sna, op, &r);
+}
+
 static void
 gen3_render_composite_boxes(struct sna *sna,
 			    const struct sna_composite_op *op,
@@ -2060,6 +2087,26 @@ gen3_align_vertex(struct sna *sna,
 	}
 }
 
+static void
+reduce_damage(struct sna_composite_op *op,
+	      int dst_x, int dst_y,
+	      int width, int height)
+{
+	BoxRec r;
+
+	if (op->damage == NULL)
+		return;
+
+	r.x1 = dst_x + op->dst.x;
+	r.x2 = r.x1 + width;
+
+	r.y1 = dst_y + op->dst.y;
+	r.y2 = r.y1 + height;
+
+	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+		op->damage = NULL;
+}
+
 static Bool
 gen3_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 {
@@ -2165,6 +2212,9 @@ gen3_render_composite(struct sna *sna,
 		     __FUNCTION__));
 		return FALSE;
 	}
+
+	if (width && height)
+		reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	tmp->op = op;
 	tmp->rb_reversed = gen3_dst_rb_reversed(tmp->dst.format);
@@ -2335,6 +2385,7 @@ gen3_render_composite(struct sna *sna,
 	     tmp->floats_per_vertex));
 
 	tmp->blt   = gen3_render_composite_blt;
+	tmp->box   = gen3_render_composite_box;
 	tmp->boxes = gen3_render_composite_boxes;
 	tmp->done  = gen3_render_composite_done;
 
@@ -2674,6 +2725,9 @@ gen3_render_composite_spans(struct sna *sna,
 		     __FUNCTION__));
 		return FALSE;
 	}
+
+	if (width && height)
+		reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
 	tmp->base.op = op;
 	tmp->base.rb_reversed = gen3_dst_rb_reversed(tmp->base.dst.format);
