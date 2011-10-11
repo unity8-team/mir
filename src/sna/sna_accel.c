@@ -405,7 +405,7 @@ region_subsumes_drawable(RegionPtr region, DrawablePtr drawable)
 {
 	const BoxRec *extents;
 
-	if (REGION_NUM_RECTS(region) != 1)
+	if (region->data)
 		return false;
 
 	extents = RegionExtents(region);
@@ -2658,8 +2658,8 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	DBG(("%s x %d [(%d, %d)+(%d, %d)...]\n",
 	     __FUNCTION__, n, rect->x, rect->y, rect->width, rect->height));
 
-	if (n == 1 && REGION_NUM_RECTS(clip) == 1) {
-		BoxPtr box = REGION_RECTS(clip);
+	if (n == 1 && clip->data == NULL) {
+		BoxPtr box = &clip->extents;
 		BoxRec r;
 		bool success = true;
 
@@ -2691,8 +2691,8 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	if (REGION_NUM_RECTS(clip) == 1) {
-		BoxPtr box = REGION_RECTS(clip);
+	if (clip->data == NULL) {
+		BoxPtr box = &clip->extents;
 		while (n--) {
 			BoxRec r;
 
@@ -2799,8 +2799,8 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 			return FALSE;
 		}
 
-		if (REGION_NUM_RECTS(clip) == 1) {
-			BoxPtr box = REGION_RECTS(clip);
+		if (clip->data == NULL) {
+			BoxPtr box = &clip->extents;
 			while (n--) {
 				BoxRec r;
 
@@ -2875,8 +2875,8 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 			return FALSE;
 		}
 
-		if (REGION_NUM_RECTS(clip) == 1) {
-			const BoxRec *box = REGION_RECTS(clip);
+		if (clip->data == NULL) {
+			const BoxRec *box = &clip->extents;
 			while (n--) {
 				BoxRec r;
 
@@ -3172,7 +3172,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		RegionIntersect(&clip, &clip, gc->pCompositeClip);
 
 	/* XXX loop over clips using SETUP_CLIP? */
-	if (REGION_NUM_RECTS(&clip) != 1) {
+	if (clip.data != NULL) {
 		RegionUninit(&clip);
 		return false;
 	}
