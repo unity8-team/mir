@@ -110,12 +110,9 @@ static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 	sna_damage_add(op->damage, region);
 }
 
-static void apply_damage_box(struct sna_composite_op *op, const BoxRec *box)
+static void _apply_damage_box(struct sna_composite_op *op, const BoxRec *box)
 {
 	BoxRec r;
-
-	if (op->damage == NULL)
-		return;
 
 	r.x1 = box->x1 + op->dst.x;
 	r.x2 = box->x2 + op->dst.x;
@@ -124,6 +121,12 @@ static void apply_damage_box(struct sna_composite_op *op, const BoxRec *box)
 
 	assert_pixmap_contains_box(op->dst.pixmap, &r);
 	sna_damage_add_box(op->damage, &r);
+}
+
+inline static void apply_damage_box(struct sna_composite_op *op, const BoxRec *box)
+{
+	if (op->damage)
+		_apply_damage_box(op, box);
 }
 
 typedef int grid_scaled_x_t;
