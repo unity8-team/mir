@@ -2330,8 +2330,10 @@ sna_poly_segment_blt(DrawablePtr drawable,
 		return success;
 	}
 
-	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel)) {
+		RegionUninit(&clip);
 		return FALSE;
+	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	while (n--) {
@@ -2388,6 +2390,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 		seg++;
 	}
 	fill.done(sna, &fill);
+	RegionUninit(&clip);
 	return TRUE;
 }
 
