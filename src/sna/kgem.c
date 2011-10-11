@@ -309,15 +309,15 @@ static struct list *active(struct kgem *kgem,
 			     int size)
 {
 	uint32_t order = __fls(size / PAGE_SIZE);
-	if (order >= ARRAY_SIZE(kgem->inactive))
-		order = ARRAY_SIZE(kgem->inactive)-1;
+	if (order >= ARRAY_SIZE(kgem->active))
+		order = ARRAY_SIZE(kgem->active)-1;
 	return &kgem->active[order];
 }
 
 static size_t
 agp_aperture_size(struct pci_device *dev, int gen)
 {
-	return dev->regions[gen < 30 ? 0 :2].size;
+	return dev->regions[gen < 30 ? 0 : 2].size;
 }
 
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
