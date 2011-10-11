@@ -63,6 +63,18 @@
 
 DevPrivateKeyRec sna_pixmap_index;
 
+static inline void region_set(RegionRec *r, const BoxRec *b)
+{
+	r->extents = *b;
+	r->data = NULL;
+}
+
+static inline void region_maybe_clip(RegionRec *r, RegionRec *clip)
+{
+	if (clip && clip->data)
+		RegionIntersect(r, r, clip);
+}
+
 #define PM_IS_SOLID(_draw, _pm) \
 	(((_pm) & FbFullMask((_draw)->depth)) == FbFullMask((_draw)->depth))
 
@@ -1118,7 +1130,7 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	if (box_empty(&box))
 		return;
 
-	RegionInit(&region, &box, 1);
+	region_set(&region, &box);
 
 	clip = fbGetCompositeClip(gc);
 	if (clip) {
@@ -1451,8 +1463,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		box.y1 = dst_y + dst->y;
 		box.x2 = box.x1 + width;
 		box.y2 = box.y1 + height;
-		RegionInit(&region, &box, 1);
-
+		region_set(&region, &box);
 		if (gc->pCompositeClip)
 			RegionIntersect(&region, &region, gc->pCompositeClip);
 
@@ -1517,12 +1528,12 @@ static Bool
 sna_fill_spans_blt(DrawablePtr drawable,
 		   struct kgem_bo *bo, struct sna_damage **damage,
 		   GCPtr gc, int n,
-		   DDXPointPtr pt, int *width, int sorted)
+		   DDXPointPtr pt, int *width, int sorted,
+		   const BoxRec *extents)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	BoxPtr extents;
-	int nclip = REGION_NUM_RECTS(gc->pCompositeClip);
+	RegionRec clip;
 	int need_translation = !gc->miTranslate;
 	int16_t dx, dy;
 	struct sna_fill_op fill;
@@ -1530,10 +1541,12 @@ sna_fill_spans_blt(DrawablePtr drawable,
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return false;
 
-	extents = REGION_EXTENTS(gc->screen, gc->pCompositeClip);
+	region_set(&clip, extents);
+	region_maybe_clip(&clip, gc->pCompositeClip);
+
 	DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
 	     __FUNCTION__,
-	     REGION_NUM_RECTS(gc->pCompositeClip),
+	     REGION_NUM_RECTS(&clip),
 	     extents->x1, extents->y1, extents->x2, extents->y2,
 	     n, pt->x, pt->y));
 
@@ -1565,7 +1578,7 @@ sna_fill_spans_blt(DrawablePtr drawable,
 			continue;
 
 		y += dy;
-		if (nclip == 1) {
+		if (clip.data == NULL) {
 			X1 += dx;
 			X2 += dx;
 			assert(X1 >= 0 && X2 <= pixmap->drawable.width);
@@ -1584,12 +1597,12 @@ sna_fill_spans_blt(DrawablePtr drawable,
 				}
 			}
 		} else {
-			int nc = nclip;
-			BoxPtr clip = REGION_RECTS(gc->pCompositeClip);
+			int nc = clip.data->numRects;
+			const BoxRec *b = RegionBoxptr(&clip);
 			while (nc--) {
-				if (clip->y1 <= y && y < clip->y2) {
-					int x1 = clip->x1;
-					int x2 = clip->x2;
+				if (b->y1 <= y && y < b->y2) {
+					int x1 = b->x1;
+					int x2 = b->x2;
 
 					if (x1 < X1)
 						x1 = X1;
@@ -1618,11 +1631,12 @@ sna_fill_spans_blt(DrawablePtr drawable,
 						}
 					}
 				}
-				clip++;
+				b++;
 			}
 		}
 	}
 	fill.done(sna, &fill);
+	RegionUninit(&clip);
 	return TRUE;
 }
 
@@ -1744,14 +1758,16 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 		    sna_fill_spans_blt(drawable,
 				       priv->gpu_bo,
 				       priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &extents),
-				       gc, n, pt, width, sorted))
+				       gc, n, pt, width, sorted,
+				       &extents))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &extents) &&
 		    sna_fill_spans_blt(drawable,
 				       priv->cpu_bo,
 				       reduce_damage(drawable, &priv->cpu_damage, &extents),
-				       gc, n, pt, width, sorted))
+				       gc, n, pt, width, sorted,
+				       &extents))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
 		xRectangle *rect;
@@ -1778,9 +1794,8 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	RegionInit(&region, &extents, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &extents);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -1804,9 +1819,8 @@ sna_set_spans(DrawablePtr drawable, GCPtr gc, char *src,
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
 
-	RegionInit(&region, &extents, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &extents);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -1834,9 +1848,8 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	box.x2 = box.x1 + w;
 	box.y2 = box.y1 + h;
 
-	RegionInit(&region, &box, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &box);
+	region_maybe_clip(&region, gc->pCompositeClip);
 
 	sna_drawable_move_region_to_cpu(dst, &region, true);
 	RegionTranslate(&region,
@@ -1977,9 +1990,8 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	RegionInit(&region, &extents, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &extents);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -2220,9 +2232,8 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	RegionInit(&region, &extents, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &extents);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -2261,9 +2272,8 @@ sna_poly_segment_blt(DrawablePtr drawable,
 
 	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
 
-	RegionInit(&clip, (BoxPtr)extents, 1);
-	if (gc->pCompositeClip && gc->pCompositeClip->data)
-		RegionIntersect(&clip, &clip, gc->pCompositeClip);
+	region_set(&clip, extents);
+	region_maybe_clip(&clip, gc->pCompositeClip);
 
 	if (n == 1 && clip.data == NULL) {
 		BoxRec r;
@@ -2524,9 +2534,8 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	RegionInit(&region, &extents, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &extents);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -2628,9 +2637,8 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	}
 
 fallback:
-	RegionInit(&region, &extents, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &extents);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -2728,7 +2736,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 			r.y2 = bound(r.y1, rect->height);
 			rect++;
 
-			RegionInit(&region, &r, 1);
+			region_set(&region, &r);
 			RegionIntersect(&region, &region, clip);
 
 			nbox = REGION_NUM_RECTS(&region);
@@ -2836,7 +2844,7 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 				r.y2 = bound(r.y1, rect->height);
 				rect++;
 
-				RegionInit(&region, &r, 1);
+				region_set(&region, &r);
 				RegionIntersect(&region, &region, clip);
 
 				nbox = REGION_NUM_RECTS(&region);
@@ -2939,7 +2947,7 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 				r.y2 = bound(r.y1, rect->height);
 				rect++;
 
-				RegionInit(&region, &r, 1);
+				region_set(&region, &r);
 				RegionIntersect(&region, &region, clip);
 
 				nbox = REGION_NUM_RECTS(&region);
@@ -3097,9 +3105,8 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 fallback:
 	DBG(("%s: fallback (%d, %d), (%d, %d)\n", __FUNCTION__,
 	     extents.x1, extents.y1, extents.x2, extents.y2));
-	RegionInit(&region, &extents, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &extents);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region)) {
 		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
 		return;
@@ -3167,9 +3174,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	if (priv->gpu_bo->tiling == I915_TILING_Y)
 		return false;
 
-	RegionInit(&clip, (BoxPtr)extents, 1);
-	if (gc->pCompositeClip && gc->pCompositeClip->data)
-		RegionIntersect(&clip, &clip, gc->pCompositeClip);
+	region_set(&clip, extents);
+	region_maybe_clip(&clip, gc->pCompositeClip);
 
 	/* XXX loop over clips using SETUP_CLIP? */
 	if (clip.data != NULL) {
@@ -3339,9 +3345,8 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 		return;
 
 fallback:
-	RegionInit(&region, &box, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &box);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -3390,13 +3395,11 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 
 	if (sna_drawable_use_gpu_bo(drawable, &box) &&
 	    sna_glyph_blt(drawable, gc, x, y, n, info, base, true, &box))
-
 		return;
 
 fallback:
-	RegionInit(&region, &box, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &box);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -3437,9 +3440,8 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 	DBG(("%s: extents(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 
-	RegionInit(&region, &box, 1);
-	if (gc->pCompositeClip)
-		RegionIntersect(&region, &region, gc->pCompositeClip);
+	region_set(&region, &box);
+	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
 
@@ -3537,7 +3539,7 @@ sna_get_image(DrawablePtr drawable,
 	extents.y1 = y + drawable->y;
 	extents.x2 = extents.x1 + w;
 	extents.y2 = extents.y1 + h;
-	RegionInit(&region, &extents, 1);
+	region_set(&region, &extents);
 
 	sna_drawable_move_region_to_cpu(drawable, &region, false);
 	fbGetImage(drawable, x, y, w, h, format, mask, dst);
@@ -3555,7 +3557,7 @@ sna_get_spans(DrawablePtr drawable, int wMax,
 	if (sna_spans_extents(drawable, NULL, n, pt, width, &extents))
 		return;
 
-	RegionInit(&region, &extents, 1);
+	region_set(&region, &extents);
 	sna_drawable_move_region_to_cpu(drawable, &region, false);
 	RegionUninit(&region);
 
