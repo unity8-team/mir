@@ -310,30 +310,12 @@ gen2_emit_texture(struct sna *sna,
 	OUT_BATCH((channel->bo->pitch / 4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
 	OUT_BATCH(filter);
 	OUT_BATCH(0);	/* default color */
+
 	OUT_BATCH(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
 		  ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
 		  texcoordtype |
 		  ENABLE_ADDR_V_CNTL | TEXCOORD_ADDR_V_MODE(wrap_mode) |
 		  ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
-	/* map texel stream */
-	OUT_BATCH(_3DSTATE_MAP_COORD_SETBIND_CMD);
-	if (unit == 0)
-		OUT_BATCH(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
-			  TEXBIND_SET1(TEXCOORDSRC_KEEP) |
-			  TEXBIND_SET2(TEXCOORDSRC_KEEP) |
-			  TEXBIND_SET3(TEXCOORDSRC_KEEP));
-	else
-		OUT_BATCH(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
-			  TEXBIND_SET1(TEXCOORDSRC_VTXSET_1) |
-			  TEXBIND_SET2(TEXCOORDSRC_KEEP) |
-			  TEXBIND_SET3(TEXCOORDSRC_KEEP));
-	OUT_BATCH(_3DSTATE_MAP_TEX_STREAM_CMD |
-		  (unit << 16) |
-		  DISABLE_TEX_STREAM_BUMP |
-		  ENABLE_TEX_STREAM_COORD_SET |
-		  TEX_STREAM_COORD_SET(unit) |
-		  ENABLE_TEX_STREAM_MAP_IDX |
-		  TEX_STREAM_MAP_IDX(unit));
 }
 
 static void
@@ -640,13 +622,14 @@ static void gen2_enable_logic_op(struct sna *sna, int op)
 static void gen2_emit_composite_state(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
-	uint32_t texcoordfmt;
+	uint32_t texcoordfmt, v, unwind;
 	uint32_t cblend, ablend;
 	int tex;
 
 	gen2_get_batch(sna);
 	gen2_emit_target(sna, op);
 
+	unwind = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
 	OUT_BATCH((!op->src.is_solid + (op->mask.bo != NULL)) << 12);
@@ -656,14 +639,27 @@ static void gen2_emit_composite_state(struct sna *sna,
 				      op->has_component_alpha,
 				      op->dst.format) |
 		  S8_ENABLE_COLOR_BUFFER_WRITE);
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls1,
+		    sna->kgem.batch + unwind,
+		    4 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = unwind;
+	else
+		sna->render_state.gen2.ls1 = unwind;
 
 	gen2_disable_logic_op(sna);
 
 	gen2_get_blend_factors(op, op->op, &cblend, &ablend);
+	unwind = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
 	OUT_BATCH(cblend);
 	OUT_BATCH(ablend);
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls2 + 1,
+		    sna->kgem.batch + unwind + 1,
+		    2 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = unwind;
+	else
+		sna->render_state.gen2.ls2 = unwind;
 
 	tex = texcoordfmt = 0;
 	if (!op->src.is_solid) {
@@ -683,7 +679,12 @@ static void gen2_emit_composite_state(struct sna *sna,
 			texcoordfmt |= TEXCOORDFMT_3D << (2*tex);
 		gen2_emit_texture(sna, &op->mask, tex++);
 	}
-	OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD | texcoordfmt);
+
+	v = _3DSTATE_VERTEX_FORMAT_2_CMD | texcoordfmt;
+	if (sna->render_state.gen2.vft != v) {
+		OUT_BATCH(v);
+		sna->render_state.gen2.vft = v;
+	}
 }
 
 static inline void
@@ -871,12 +872,14 @@ static void gen2_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |
 		  gen2_get_blend_cntl(PictOpAdd, TRUE, op->dst.format) |
 		  S8_ENABLE_COLOR_BUFFER_WRITE);
+	sna->render_state.gen2.ls1 = 0;
 
 	gen2_get_blend_factors(op, PictOpAdd, &cblend, &ablend);
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
 	OUT_BATCH(cblend);
 	OUT_BATCH(ablend);
+	sna->render_state.gen2.ls2 = 0;
 
 	memcpy(sna->kgem.batch + sna->kgem.nbatch,
 	       sna->kgem.batch + sna->render_state.gen2.vertex_offset,
@@ -1525,6 +1528,7 @@ gen2_emit_spans_pipeline(struct sna *sna,
 			 const struct sna_composite_spans_op *op)
 {
 	uint32_t cblend, ablend;
+	uint32_t unwind;
 
 	cblend =
 		TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_MODULATE |
@@ -1555,18 +1559,28 @@ gen2_emit_spans_pipeline(struct sna *sna,
 			ablend |= TB0A_ARG2_SEL_TEXEL0;
 	}
 
+	unwind = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
 	OUT_BATCH(cblend);
 	OUT_BATCH(ablend);
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls2 + 1,
+		    sna->kgem.batch + unwind + 1,
+		    2 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = unwind;
+	else
+		sna->render_state.gen2.ls2 = unwind;
 }
 
 static void gen2_emit_composite_spans_state(struct sna *sna,
 					    const struct sna_composite_spans_op *op)
 {
+	uint32_t unwind;
+
 	gen2_get_batch(sna);
 	gen2_emit_target(sna, &op->base);
 
+	unwind = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
 	OUT_BATCH(!op->base.src.is_solid << 12);
@@ -1574,6 +1588,12 @@ static void gen2_emit_composite_spans_state(struct sna *sna,
 	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |
 		  gen2_get_blend_cntl(op->base.op, FALSE, op->base.dst.format) |
 		  S8_ENABLE_COLOR_BUFFER_WRITE);
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls1,
+		    sna->kgem.batch + unwind,
+		    4 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = unwind;
+	else
+		sna->render_state.gen2.ls1 = unwind;
 
 	gen2_disable_logic_op(sna);
 	gen2_emit_spans_pipeline(sna, op);
@@ -1582,8 +1602,12 @@ static void gen2_emit_composite_spans_state(struct sna *sna,
 		OUT_BATCH(_3DSTATE_DFLT_SPECULAR_CMD);
 		OUT_BATCH(op->base.src.u.gen2.pixel);
 	} else {
-		OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD |
-			  (op->base.src.is_affine ? TEXCOORDFMT_2D : TEXCOORDFMT_3D));
+		uint32_t v =_3DSTATE_VERTEX_FORMAT_2_CMD |
+			(op->base.src.is_affine ? TEXCOORDFMT_2D : TEXCOORDFMT_3D);
+		if (sna->render_state.gen2.vft != v) {
+			OUT_BATCH(v);
+			sna->render_state.gen2.vft = v;
+		}
 		gen2_emit_texture(sna, &op->base.src, 0);
 	}
 }
@@ -1761,8 +1785,9 @@ cleanup_dst:
 static void
 gen2_emit_fill_pipeline(struct sna *sna, const struct sna_composite_op *op)
 {
-	uint32_t blend;
+	uint32_t blend, unwind;
 
+	unwind = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
 
@@ -1776,15 +1801,25 @@ gen2_emit_fill_pipeline(struct sna *sna, const struct sna_composite_op *op)
 	OUT_BATCH(TB0A_RESULT_SCALE_1X | TB0A_OP_ARG1 |
 		  TB0A_ARG1_SEL_DIFFUSE |
 		  TB0A_OUTPUT_WRITE_CURRENT);
+
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls2 + 1,
+		    sna->kgem.batch + unwind + 1,
+		    2 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = unwind;
+	else
+		sna->render_state.gen2.ls2 = unwind;
 }
 
 static void gen2_emit_fill_composite_state(struct sna *sna,
 					   const struct sna_composite_op *op,
 					   uint32_t pixel)
 {
+	uint32_t ls1;
+
 	gen2_get_batch(sna);
 	gen2_emit_target(sna, op);
 
+	ls1 = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
 		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
 	OUT_BATCH(0);
@@ -1792,6 +1827,12 @@ static void gen2_emit_fill_composite_state(struct sna *sna,
 	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD |
 		  gen2_get_blend_cntl(op->op, FALSE, op->dst.format) |
 		  S8_ENABLE_COLOR_BUFFER_WRITE);
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls1,
+		    sna->kgem.batch + ls1,
+		    4 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = ls1;
+	else
+		sna->render_state.gen2.ls1 = ls1;
 
 	gen2_emit_fill_pipeline(sna, op);
 
@@ -1934,17 +1975,23 @@ gen2_render_fill_boxes(struct sna *sna,
 static void gen2_emit_fill_state(struct sna *sna,
 				 const struct sna_composite_op *op)
 {
+	uint32_t ls1;
+
 	gen2_get_batch(sna);
 	gen2_emit_target(sna, op);
 
+	ls1 = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
-		  I1_LOAD_S(2) |
-		  I1_LOAD_S(3) |
-		  I1_LOAD_S(8) |
-		  2);
+		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
 	OUT_BATCH(0);
 	OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
 	OUT_BATCH(S8_ENABLE_COLOR_BUFFER_WRITE);
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls1,
+		    sna->kgem.batch + ls1,
+		    4 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = ls1;
+	else
+		sna->render_state.gen2.ls1 = ls1;
 
 	gen2_enable_logic_op(sna, op->op);
 	gen2_emit_fill_pipeline(sna, op);
@@ -2131,8 +2178,9 @@ gen2_render_copy_setup_source(struct sna_composite_channel *channel,
 static void
 gen2_emit_copy_pipeline(struct sna *sna, const struct sna_composite_op *op)
 {
-	uint32_t blend;
+	uint32_t blend, unwind;
 
+	unwind = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
 		  LOAD_TEXTURE_BLEND_STAGE(0) | 1);
 
@@ -2153,26 +2201,44 @@ gen2_emit_copy_pipeline(struct sna *sna, const struct sna_composite_op *op)
 	else
 		blend |= TB0A_ARG1_SEL_TEXEL0;
 	OUT_BATCH(blend);
+
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls2 + 1,
+		    sna->kgem.batch + unwind + 1,
+		    2 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = unwind;
+	else
+		sna->render_state.gen2.ls2 = unwind;
 }
 
 static void gen2_emit_copy_state(struct sna *sna, const struct sna_composite_op *op)
 {
+	uint32_t ls1, v;
+
 	gen2_get_batch(sna);
 	gen2_emit_target(sna, op);
 
+	ls1 = sna->kgem.nbatch;
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
-		  I1_LOAD_S(2) |
-		  I1_LOAD_S(3) |
-		  I1_LOAD_S(8) |
-		  2);
+		  I1_LOAD_S(2) | I1_LOAD_S(3) | I1_LOAD_S(8) | 2);
 	OUT_BATCH(1<<12);
 	OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
 	OUT_BATCH(S8_ENABLE_COLOR_BUFFER_WRITE);
+	if (memcmp (sna->kgem.batch + sna->render_state.gen2.ls1,
+		    sna->kgem.batch + ls1,
+		    4 * sizeof(uint32_t)) == 0)
+		sna->kgem.nbatch = ls1;
+	else
+		sna->render_state.gen2.ls1 = ls1;
 
 	gen2_enable_logic_op(sna, op->op);
 	gen2_emit_copy_pipeline(sna, op);
 
-	OUT_BATCH(_3DSTATE_VERTEX_FORMAT_2_CMD | TEXCOORDFMT_2D);
+	v = _3DSTATE_VERTEX_FORMAT_2_CMD | TEXCOORDFMT_2D;
+	if (sna->render_state.gen2.vft != v) {
+		OUT_BATCH(v);
+		sna->render_state.gen2.vft = v;
+	}
+
 	gen2_emit_texture(sna, &op->src, 0);
 }
 
@@ -2386,6 +2452,10 @@ gen2_render_reset(struct sna *sna)
 	sna->render_state.gen2.logic_op_enabled = FALSE;
 	sna->render_state.gen2.vertex_offset = 0;
 	sna->render_state.gen2.target = 0;
+
+	sna->render_state.gen2.ls1 = 0;
+	sna->render_state.gen2.ls2 = 0;
+	sna->render_state.gen2.vft = 0;
 }
 
 static void

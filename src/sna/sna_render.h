@@ -269,6 +269,7 @@ struct gen2_render_state {
 	uint32_t target;
 	Bool need_invariant;
 	Bool logic_op_enabled;
+	uint32_t ls1, ls2, vft;
 	uint16_t vertex_offset;
 };
 
