@@ -60,7 +60,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86drmMode.h"
 
 #define _XF86DRI_SERVER_
-#include "dri.h"
 #include "dri2.h"
 #include "i915_drm.h"
 
