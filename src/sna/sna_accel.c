@@ -3339,6 +3339,9 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	if (box_empty(&box))
 		return;
 	translate_box(&box, drawable);
+	clip_box(&box, gc);
+	if (box_empty(&box))
+		return;
 
 	DBG(("%s: extents(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
@@ -3392,6 +3395,9 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	if (box_empty(&box))
 		return;
 	translate_box(&box, drawable);
+	clip_box(&box, gc);
+	if (box_empty(&box))
+		return;
 
 	DBG(("%s: extents(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
