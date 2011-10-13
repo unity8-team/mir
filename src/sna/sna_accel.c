@@ -3174,16 +3174,20 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	uint8_t rop = transparent ? ROP[gc->alu] : ROP_S;
 	RegionRec clip;
 
-	if (priv->gpu_bo->tiling == I915_TILING_Y)
+	if (priv->gpu_bo->tiling == I915_TILING_Y) {
+		DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
 		return false;
+	}
 
 	region_set(&clip, extents);
 	region_maybe_clip(&clip, gc->pCompositeClip);
-	if (RegionNotEmpty(&clip))
-		return false;
+	if (!RegionNotEmpty(&clip))
+		return true;
 
 	/* XXX loop over clips using SETUP_CLIP? */
 	if (clip.data != NULL) {
+		DBG(("%s -- fallback too many clip rects [%d]\n",
+		     __FUNCTION__, REGION_NUM_RECTS(&clip)));
 		RegionUninit(&clip);
 		return false;
 	}
