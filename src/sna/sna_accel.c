@@ -3179,6 +3179,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	region_set(&clip, extents);
 	region_maybe_clip(&clip, gc->pCompositeClip);
+	if (RegionNotEmpty(&clip))
+		return false;
 
 	/* XXX loop over clips using SETUP_CLIP? */
 	if (clip.data != NULL) {
@@ -3192,6 +3194,11 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	x += drawable->x + dx;
 	y += drawable->y + dy;
+
+	clip.extents.x1 += dx;
+	clip.extents.x2 += dx;
+	clip.extents.y1 += dy;
+	clip.extents.y2 += dy;
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
@@ -3209,8 +3216,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		b[1] >>= 2;
 	}
 	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
-	b[2] = (dy + clip.extents.y1) << 16 | (dx + clip.extents.x1);
-	b[3] = (dy + clip.extents.y2) << 16 | (dx + clip.extents.x2);
+	b[2] = clip.extents.y1 << 16 | clip.extents.x1;
+	b[3] = clip.extents.y2 << 16 | clip.extents.x2;
 	b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
 			      priv->gpu_bo,
 			      I915_GEM_DOMAIN_RENDER << 16 |
@@ -3255,8 +3262,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				b[1] >>= 2;
 			}
 			b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
-			b[2] = (dy + clip.extents.y1) << 16 | (dx + clip.extents.x1);
-			b[3] = (dy + clip.extents.y2) << 16 | (dx + clip.extents.x2);
+			b[2] = clip.extents.y1 << 16 | clip.extents.x1;
+			b[3] = clip.extents.y2 << 16 | clip.extents.x2;
 			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
 					      priv->gpu_bo,
 					      I915_GEM_DOMAIN_RENDER << 16 |
@@ -3297,7 +3304,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			r.y1 = y1;
 			r.x2 = x1 + w;
 			r.y2 = y1 + h;
-			if (box_intersect(&r, extents))
+			if (box_intersect(&r, &clip.extents))
 				sna_damage_add_box(damage, &r);
 		}
 skip:
