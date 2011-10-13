@@ -152,7 +152,14 @@ static bool sna_blt_fill_init(struct sna *sna,
 	if (sna->blt_state.fill_bo != bo->handle ||
 	    sna->blt_state.fill_pixel != pixel)
 	{
-		uint32_t *b = kgem->batch + kgem->nbatch;
+		uint32_t *b;
+
+		if (kgem->nreloc + 1 > KGEM_RELOC_SIZE(kgem)) {
+			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		}
+
+		b = kgem->batch + kgem->nbatch;
 		b[0] = blt->cmd;
 		b[1] = blt->br13;
 		b[2] = 0;
