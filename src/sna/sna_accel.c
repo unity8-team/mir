@@ -3195,7 +3195,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
-	    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL)) {
+	    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+	    !kgem_check_reloc(&sna->kgem, 1)) {
 		_kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
