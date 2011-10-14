@@ -580,6 +580,20 @@ pixel_is_opaque(uint32_t pixel, uint32_t format)
 }
 
 static Bool
+pixel_is_white(uint32_t pixel, uint32_t format)
+{
+	switch (PICT_FORMAT_TYPE(format)) {
+	case PICT_TYPE_A:
+	case PICT_TYPE_ARGB:
+	case PICT_TYPE_ABGR:
+	case PICT_TYPE_BGRA:
+		return pixel == ((1 << PICT_FORMAT_BPP(format)) - 1);
+	default:
+		return FALSE;
+	}
+}
+
+static Bool
 is_opaque_solid(PicturePtr picture)
 {
 	if (picture->pSourcePict) {
@@ -587,6 +601,16 @@ is_opaque_solid(PicturePtr picture)
 		return (fill->color >> 24) == 0xff;
 	} else
 		return pixel_is_opaque(get_pixel(picture), picture->format);
+}
+
+static Bool
+is_white(PicturePtr picture)
+{
+	if (picture->pSourcePict) {
+		PictSolidFill *fill = (PictSolidFill *) picture->pSourcePict;
+		return fill->color == 0xffffffff;
+	} else
+		return pixel_is_white(get_pixel(picture), picture->format);
 }
 
 fastcall
@@ -1096,6 +1120,10 @@ sna_blt_composite(struct sna *sna,
 	if (is_solid(src)) {
 		if (op == PictOpOver && is_opaque_solid(src))
 			op = PictOpSrc;
+		if (op == PictOpAdd && is_white(src))
+			op = PictOpSrc;
+		if (op == PictOpOutReverse && is_opaque_solid(src))
+			return prepare_blt_clear(sna, tmp);
 
 		if (op != PictOpSrc) {
 			DBG(("%s: unsuported op [%d] for blitting\n",
