@@ -3793,7 +3793,7 @@ static Bool sna_accel_do_expire(struct sna *sna) { return sna->kgem.need_expire;
 static void _sna_accel_disarm_timer(struct sna *sna, int id) { }
 #endif
 
-static void sna_accel_flush(struct sna *sna)
+static bool sna_accel_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
 	bool nothing_to_do =
@@ -3802,13 +3802,12 @@ static void sna_accel_flush(struct sna *sna)
 	DBG(("%s (time=%ld), nothing_to_do=%d\n",
 	     __FUNCTION__, (long)GetTimeInMillis(), nothing_to_do));
 
-	if (nothing_to_do) {
+	if (nothing_to_do)
 		_sna_accel_disarm_timer(sna, FLUSH_TIMER);
-		return;
-	}
-
-	sna_pixmap_move_to_gpu(priv->pixmap);
+	else
+		sna_pixmap_move_to_gpu(priv->pixmap);
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
+	return !nothing_to_do;
 }
 
 static void sna_accel_expire(struct sna *sna)
@@ -3955,8 +3954,8 @@ static void sna_accel_throttle(struct sna *sna)
 void sna_accel_block_handler(struct sna *sna)
 {
 	if (sna_accel_do_flush(sna)) {
-		sna_accel_flush(sna);
-		sna_accel_throttle(sna);
+		if (sna_accel_flush(sna))
+			sna_accel_throttle(sna);
 	}
 
 	if (sna_accel_do_expire(sna))
