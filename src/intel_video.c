@@ -210,14 +210,13 @@ static Bool intel_has_overlay(intel_screen_private *intel)
 	gp.value = &has_overlay;
 	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
 
-	return !! has_overlay;
+	return ret == 0 && !! has_overlay;
 }
 
-static void intel_overlay_update_attrs(intel_screen_private *intel)
+static Bool intel_overlay_update_attrs(intel_screen_private *intel)
 {
 	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(intel);
 	struct drm_intel_overlay_attrs attrs;
-	int ret;
 
 	attrs.flags = I915_OVERLAY_UPDATE_ATTRS;
 	attrs.brightness = adaptor_priv->brightness;
@@ -231,8 +230,8 @@ static void intel_overlay_update_attrs(intel_screen_private *intel)
 	attrs.gamma4 = adaptor_priv->gamma4;
 	attrs.gamma5 = adaptor_priv->gamma5;
 
-	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
-				  &attrs, sizeof(attrs));
+	return drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
+				   &attrs, sizeof(attrs)) == 0;
 }
 
 static void intel_overlay_off(intel_screen_private *intel)
@@ -244,6 +243,7 @@ static void intel_overlay_off(intel_screen_private *intel)
 
 	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
 			      &request, sizeof(request));
+	(void) ret;
 }
 
 static Bool
@@ -713,7 +713,8 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 		OVERLAY_DEBUG("GAMMA\n");
 	}
 
-	intel_overlay_update_attrs(intel);
+	if (!intel_overlay_update_attrs(intel))
+		return BadValue;
 
 	if (attribute == xvColorKey)
 		REGION_EMPTY(scrn->pScreen, &adaptor_priv->clip);

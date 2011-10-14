@@ -182,7 +182,6 @@ i965_check_composite(int op,
 		     int width, int height)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Check for unsupported compositing operations. */
 	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0])) {
