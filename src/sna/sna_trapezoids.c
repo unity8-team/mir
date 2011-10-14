@@ -2641,7 +2641,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	memset(&mono.op, 0, sizeof(mono.op));
-	if (mono.sna->render.composite(mono.sna, op, src, NULL, dst,
+	if (!mono.sna->render.composite(mono.sna, op, src, NULL, dst,
 				       src_x + mono.clip.extents.x1 - dst_x - dx,
 				       src_y + mono.clip.extents.y1 - dst_y - dy,
 				       0, 0,
@@ -2649,9 +2649,11 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 				       mono.clip.extents.x2 - mono.clip.extents.x1,
 				       mono.clip.extents.y2 - mono.clip.extents.y1,
 				       &mono.op)) {
-		mono_render(&mono);
-		mono.op.done(mono.sna, &mono.op);
+		mono_fini(&mono);
+		return false;
 	}
+	mono_render(&mono);
+	mono.op.done(mono.sna, &mono.op);
 	mono_fini(&mono);
 
 	if (!operator_is_bounded(op)) {
