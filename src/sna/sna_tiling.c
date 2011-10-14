@@ -95,6 +95,24 @@ sna_tiling_composite_blt(struct sna *sna,
 	(void)sna;
 }
 
+fastcall static void
+sna_tiling_composite_box(struct sna *sna,
+			 const struct sna_composite_op *op,
+			 const BoxRec *box)
+{
+	struct sna_composite_rectangles r;
+
+	r.dst.x = box->x1;
+	r.dst.y = box->y1;
+	r.mask = r.src = r.dst;
+
+	r.width  = box->x2 - box->x1;
+	r.height = box->y2 - box->y1;
+
+	sna_tiling_composite_add_rect(op->u.priv, &r);
+	(void)sna;
+}
+
 static void
 sna_tiling_composite_boxes(struct sna *sna,
 			   const struct sna_composite_op *op,
@@ -258,6 +276,7 @@ sna_tiling_composite(uint32_t op,
 	tile->rect_size = ARRAY_SIZE(tile->rects_embedded);
 
 	tmp->blt   = sna_tiling_composite_blt;
+	tmp->box   = sna_tiling_composite_box;
 	tmp->boxes = sna_tiling_composite_boxes;
 	tmp->done  = sna_tiling_composite_done;
 
