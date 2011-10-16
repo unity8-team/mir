@@ -190,9 +190,8 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		return FALSE;
 
 	bo->needs_flush = false;
-	if (bo->rq)
+	if (bo->gpu)
 		kgem_retire(kgem);
-	bo->gpu = false;
 	return TRUE;
 }
 
@@ -510,6 +509,7 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 {
 	bo->exec = kgem_add_handle(kgem, bo);
 	bo->rq = kgem->next_request;
+	bo->gpu = true;
 	list_move(&bo->request, &kgem->next_request->buffers);
 	kgem->flush |= bo->flush;
 }
@@ -665,7 +665,6 @@ static void kgem_commit(struct kgem *kgem)
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
 		bo->dirty = false;
-		bo->gpu = true;
 		bo->cpu_read = false;
 		bo->cpu_write = false;
 
@@ -841,7 +840,6 @@ void kgem_reset(struct kgem *kgem)
 		bo->src_bound = bo->dst_bound = 0;
 		bo->exec = NULL;
 		bo->dirty = false;
-		bo->gpu = true;
 		bo->cpu_read = false;
 		bo->cpu_write = false;
 
@@ -1713,11 +1711,8 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 		return NULL;
 
 	bo->needs_flush = false;
-	if (prot & PROT_WRITE) {
-		if (bo->rq)
-			kgem_retire(kgem);
-		bo->gpu = false;
-	}
+	if (prot & PROT_WRITE && bo->gpu)
+		kgem_retire(kgem);
 
 	return ptr;
 }
@@ -1820,9 +1815,8 @@ void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write)
 
 	drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 	bo->needs_flush = false;
-	if (bo->rq)
+	if (bo->gpu)
 		kgem_retire(kgem);
-	bo->gpu = false;
 	bo->cpu_read = true;
 	if (for_write)
 		bo->cpu_write = true;
@@ -2136,9 +2130,8 @@ void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		else
 			gem_read(kgem->fd, bo->base.handle, bo+1, bo->used);
 		bo->base.needs_flush = false;
-		if (bo->base.rq)
+		if (bo->base.gpu)
 			kgem_retire(kgem);
-		bo->base.gpu = false;
 		bo->need_io = 0;
 	}
 

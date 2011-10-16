@@ -305,15 +305,12 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: exec? %d, gpu? %d, rq? %d\n",
-		 __FUNCTION__, bo->exec != NULL, bo->gpu, bo->rq != NULL));
+	DBG_HDR(("%s: gpu? %d exec? %d, rq? %d\n",
+		 __FUNCTION__, bo->gpu, bo->exec != NULL, bo->rq != NULL));
 
-	if (bo->exec)
-		return true;
-	if (!bo->gpu)
-		return false;
-
-	return bo->rq != NULL;
+	assert(bo->proxy == NULL);
+	assert(bo->gpu || bo->rq == NULL);
+	return bo->gpu;
 }
 
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
