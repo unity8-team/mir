@@ -793,8 +793,11 @@ gen7_emit_sf(struct sna *sna, Bool has_mask)
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
+	OUT_BATCH(0); /* dw8 */
 	OUT_BATCH(0);
-	OUT_BATCH(0); /* DW9 */
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+	OUT_BATCH(0); /* dw12 */
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 }
