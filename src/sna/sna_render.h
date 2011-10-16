@@ -98,10 +98,6 @@ struct sna_composite_op {
 		} blt;
 
 		struct {
-			uint32_t pixel;
-		} gen2;
-
-		struct {
 			float constants[8];
 			uint32_t num_constants;
 		} gen3;
