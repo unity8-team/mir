@@ -2365,6 +2365,14 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	}
 
 fallback:
+	if (gc->lineWidth) {
+		if (gc->lineStyle != LineSolid)
+			miWideDash(drawable, gc, mode, n, pt);
+		else
+			miWideLine(drawable, gc, mode, n, pt);
+		return;
+	}
+
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region_set(&region, &extents);
 	region_maybe_clip(&region, gc->pCompositeClip);
@@ -2670,6 +2678,11 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	}
 
 fallback:
+	if (gc->lineWidth) {
+		miPolySegment(drawable, gc, n, seg);
+		return;
+	}
+
 	DBG(("%s: fallback\n", __FUNCTION__));
 	region_set(&region, &extents);
 	region_maybe_clip(&region, gc->pCompositeClip);
@@ -2774,6 +2787,11 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	}
 
 fallback:
+	if (gc->lineWidth) {
+		miPolyArc(drawable, gc, n, arc);
+		return;
+	}
+
 	region_set(&region, &extents);
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
@@ -2783,6 +2801,7 @@ fallback:
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
+	/* XXX may still fallthrough to miZeroPolyArc */
 	fbPolyArc(drawable, gc, n, arc);
 }
 
