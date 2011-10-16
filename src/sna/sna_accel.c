@@ -1285,13 +1285,63 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 							    &region);
 				RegionTranslate(&region, -dst_dx, -dst_dy);
 			}
-		} else {
-			if (alu != GXcopy) {
-				DBG(("%s: fallback - not a copy and source is on the CPU\n",
-				     __FUNCTION__));
-				goto fallback;
+		} else if (alu != GXcopy) {
+			PixmapPtr tmp;
+			int i;
+
+			assert (src_pixmap->drawable.depth != 1);
+
+			DBG(("%s: creating temporary source upload for non-copy alu [%d]\n",
+			     __FUNCTION__, alu));
+
+			tmp = sna_pixmap_create_upload(src->pScreen,
+						       src->width,
+						       src->height,
+						       src->depth);
+			if (tmp == NullPixmap)
+				return;
+
+			for (i = 0; i < n; i++) {
+				assert(box->x1 + src_dx >= 0);
+				assert(box->y1 + src_dy >= 0);
+				assert(box->x2 + src_dx <= src_pixmap->drawable.width);
+				assert(box->y2 + src_dy <= src_pixmap->drawable.height);
+
+				assert(box->x1 + dx >= 0);
+				assert(box->y1 + dy >= 0);
+				assert(box->x2 + dx <= tmp->drawable.width);
+				assert(box->y2 + dy <= tmp->drawable.height);
+
+				memcpy_blt(src_pixmap->devPrivate.ptr,
+					   tmp->devPrivate.ptr,
+					   src_pixmap->drawable.bitsPerPixel,
+					   src_pixmap->devKind,
+					   tmp->devKind,
+					   box[i].x1 + src_dx,
+					   box[i].y1 + src_dy,
+					   box[i].x1 + dx,
+					   box[i].y1 + dy,
+					   box[i].x2 - box[i].x1,
+					   box[i].y2 - box[i].y1);
 			}
 
+			if (!sna->render.copy_boxes(sna, alu,
+						    tmp, sna_pixmap_get_bo(tmp), dx, dy,
+						    dst_pixmap, dst_priv->gpu_bo, dst_dx, dst_dy,
+						    box, n)) {
+				DBG(("%s: fallback - accelerated copy boxes failed\n",
+				     __FUNCTION__));
+				tmp->drawable.pScreen->DestroyPixmap(tmp);
+				goto fallback;
+			}
+			tmp->drawable.pScreen->DestroyPixmap(tmp);
+
+			RegionTranslate(&region, dst_dx, dst_dy);
+			assert_pixmap_contains_box(dst_pixmap,
+						   RegionExtents(&region));
+			sna_damage_add(&dst_priv->gpu_damage, &region);
+			RegionTranslate(&region, -dst_dx, -dst_dy);
+		} else {
 			if (src_priv) {
 				RegionTranslate(&region, src_dx, src_dy);
 				sna_drawable_move_region_to_cpu(&src_pixmap->drawable,

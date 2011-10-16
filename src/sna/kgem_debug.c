@@ -255,8 +255,9 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 			break;
 		}
 
-		kgem_debug_print(data, offset, 1, "format %s, pitch %d, "
+		kgem_debug_print(data, offset, 1, "format %s, rop %x, pitch %d, "
 			  "clipping %sabled\n", format,
+			  (data[1] >> 16) & 0xff,
 			  (short)(data[1] & 0xffff),
 			  data[1] & (1 << 30) ? "en" : "dis");
 		kgem_debug_print(data, offset, 2, "(%d,%d)\n",
@@ -303,8 +304,9 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 			break;
 		}
 
-		kgem_debug_print(data, offset, 1, "format %s, dst pitch %d, "
+		kgem_debug_print(data, offset, 1, "format %s, rop %x, dst pitch %d, "
 				 "clipping %sabled\n", format,
+				 (data[1] >> 16) & 0xff,
 				 (short)(data[1] & 0xffff),
 				 data[1] & (1 << 30) ? "en" : "dis");
 		kgem_debug_print(data, offset, 2, "dst (%d,%d)\n",
