@@ -410,6 +410,8 @@ done:
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
 	}
+
+	priv->gpu = false;
 }
 
 static Bool
@@ -569,6 +571,72 @@ done:
 
 	if (dx | dy)
 		RegionTranslate(region, -dx, -dy);
+
+	priv->gpu = false;
+}
+
+static void
+sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
+{
+	struct sna *sna = to_sna_from_drawable(&pixmap->drawable);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	RegionRec i, r;
+
+	DBG(("%s()\n", __FUNCTION__));
+
+	assert(priv->gpu);
+	assert(priv->gpu_bo);
+
+	sna_damage_reduce(&priv->cpu_damage);
+	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
+
+	if (priv->cpu_damage == NULL)
+		goto done;
+
+	region_set(&r, box);
+	if (sna_damage_intersect(priv->cpu_damage, &r, &i)) {
+		BoxPtr box = REGION_RECTS(&i);
+		int n = REGION_NUM_RECTS(&i);
+		struct kgem_bo *src_bo;
+		Bool ok = FALSE;
+
+		src_bo = pixmap_vmap(&sna->kgem, pixmap);
+		if (src_bo)
+			ok = sna->render.copy_boxes(sna, GXcopy,
+						    pixmap, src_bo, 0, 0,
+						    pixmap, priv->gpu_bo, 0, 0,
+						    box, n);
+		if (!ok) {
+			if (n == 1 && !priv->pinned &&
+			    box->x1 <= 0 && box->y1 <= 0 &&
+			    box->x2 >= pixmap->drawable.width &&
+			    box->y2 >= pixmap->drawable.height) {
+				priv->gpu_bo =
+					sna_replace(sna,
+						    priv->gpu_bo,
+						    pixmap->drawable.width,
+						    pixmap->drawable.height,
+						    pixmap->drawable.bitsPerPixel,
+						    pixmap->devPrivate.ptr,
+						    pixmap->devKind);
+			} else {
+				sna_write_boxes(sna,
+						priv->gpu_bo, 0, 0,
+						pixmap->devPrivate.ptr,
+						pixmap->devKind,
+						pixmap->drawable.bitsPerPixel,
+						0, 0,
+						box, n);
+			}
+		}
+
+		sna_damage_subtract(&priv->cpu_damage, &r);
+		RegionUninit(&i);
+	}
+
+done:
+	if (priv->cpu_damage == NULL)
+		list_del(&priv->list);
 }
 
 static inline Bool
@@ -596,8 +664,19 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxRec *box)
 	extents.y1 += dy;
 	extents.y2 += dy;
 
-	return sna_damage_contains_box(priv->cpu_damage,
-				       &extents) == PIXMAN_REGION_OUT;
+	if (sna_damage_contains_box(priv->cpu_damage,
+				    &extents) == PIXMAN_REGION_OUT)
+		return TRUE;
+
+	if (!priv->gpu || priv->gpu_damage == NULL)
+		return FALSE;
+
+	if (sna_damage_contains_box(priv->gpu_damage,
+				    &extents) == PIXMAN_REGION_OUT)
+		return FALSE;
+
+	sna_pixmap_move_area_to_gpu(pixmap, &extents);
+	return TRUE;
 }
 
 static inline Bool
@@ -822,6 +901,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 	sna_damage_reduce(&priv->gpu_damage);
 done:
 	list_del(&priv->list);
+	priv->gpu = true;
 	return priv;
 }
 

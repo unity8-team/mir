@@ -140,6 +140,7 @@ struct sna_pixmap {
 	uint8_t pinned :1;
 	uint8_t gpu_only :1;
 	uint8_t flush :1;
+	uint8_t gpu :1;
 };
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
