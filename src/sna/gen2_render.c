@@ -652,8 +652,11 @@ static void gen2_emit_composite_state(struct sna *sna,
 			texcoordfmt |= TEXCOORDFMT_3D << (2*tex);
 		gen2_emit_texture(sna, &op->src, tex++);
 	} else {
-		BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
-		BATCH(op->src.u.gen2.pixel);
+		if (op->src.u.gen2.pixel != sna->render_state.gen2.diffuse) {
+			BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
+			BATCH(op->src.u.gen2.pixel);
+			sna->render_state.gen2.diffuse = op->src.u.gen2.pixel;
+		}
 	}
 	if (op->mask.bo) {
 		if (op->mask.is_affine)
@@ -911,8 +914,17 @@ inline static int gen2_get_rectangles(struct sna *sna,
 
 	rem -= need;
 	if (state->vertex_offset == 0) {
-		state->vertex_offset = sna->kgem.nbatch;
-		BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
+		if ((sna->kgem.batch[sna->kgem.nbatch-1] & ~0xffff) ==
+		    (PRIM3D_INLINE | PRIM3D_RECTLIST)) {
+			uint32_t *b = &sna->kgem.batch[sna->kgem.nbatch-1];
+			sna->render.vertex_index = 1 + (*b & 0xffff);
+			*b = PRIM3D_INLINE | PRIM3D_RECTLIST;
+			state->vertex_offset = sna->kgem.nbatch - 1;
+			assert(!op->need_magic_ca_pass);
+		} else {
+			state->vertex_offset = sna->kgem.nbatch;
+			BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST);
+		}
 	}
 
 	if (want > 1 && want * size > rem)
@@ -1819,8 +1831,11 @@ static void gen2_emit_fill_composite_state(struct sna *sna,
 
 	gen2_emit_fill_pipeline(sna, op);
 
-	BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
-	BATCH(pixel);
+	if (pixel != sna->render_state.gen2.diffuse) {
+		BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
+		BATCH(pixel);
+		sna->render_state.gen2.diffuse = pixel;
+	}
 }
 
 static Bool
@@ -1895,7 +1910,7 @@ gen2_render_fill_boxes(struct sna *sna,
 						      dst, dst_bo,
 						      box, n);
 
-	if (!PREFER_3D_FILL_BOXES &&
+	if (!PREFER_3D_FILL_BOXES && sna->kgem.mode != KGEM_RENDER &&
 	    gen2_render_fill_boxes_try_blt(sna, op, format, color,
 					   dst, dst_bo,
 					   box, n))
@@ -1979,8 +1994,11 @@ static void gen2_emit_fill_state(struct sna *sna,
 	gen2_enable_logic_op(sna, op->op);
 	gen2_emit_fill_pipeline(sna, op);
 
-	BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
-	BATCH(op->src.u.gen2.pixel);
+	if (op->src.u.gen2.pixel != sna->render_state.gen2.diffuse) {
+		BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
+		BATCH(op->src.u.gen2.pixel);
+		sna->render_state.gen2.diffuse = op->src.u.gen2.pixel;
+	}
 }
 
 static void
@@ -2441,6 +2459,8 @@ gen2_render_reset(struct sna *sna)
 	sna->render_state.gen2.ls1 = 0;
 	sna->render_state.gen2.ls2 = 0;
 	sna->render_state.gen2.vft = 0;
+
+	sna->render_state.gen2.diffuse = 0x0c0ffee0;
 }
 
 static void
