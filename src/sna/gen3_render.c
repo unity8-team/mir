@@ -3629,7 +3629,6 @@ gen3_render_fill_boxes(struct sna *sna,
 	if (pixel == 0)
 		op = PictOpClear;
 
-	memset(&tmp, 0, sizeof(tmp));
 	tmp.op = op;
 	tmp.dst.pixmap = dst;
 	tmp.dst.width = dst->drawable.width;
@@ -3641,6 +3640,8 @@ gen3_render_fill_boxes(struct sna *sna,
 
 	tmp.src.u.gen3.type = op == PictOpClear ? SHADER_ZERO : SHADER_CONSTANT;
 	tmp.src.u.gen3.mode = pixel;
+	tmp.mask.u.gen3.type = SHADER_NONE;
+	tmp.u.gen3.num_constants = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
