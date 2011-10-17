@@ -1252,6 +1252,102 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 }
 
 static void
+sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
+		    BoxPtr box, int n,
+		    int dx, int dy,
+		    Bool reverse, Bool upsidedown, Pixel bitplane,
+		    void *closure)
+{
+	struct sna *sna = to_sna_from_drawable(src);
+	PixmapPtr pixmap = get_drawable_pixmap(src);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	int alu = gc ? gc->alu : GXcopy;
+	RegionRec region;
+	int16_t tx, ty;
+
+	if (n == 0 || (dx | dy) == 0)
+		return;
+
+	DBG(("%s (boxes=%dx[(%d, %d), (%d, %d)...], src=+(%d, %d), alu=%d, pix.size=%dx%d)\n",
+	     __FUNCTION__, n,
+	     box[0].x1, box[0].y1, box[0].x2, box[0].y2,
+	     dx, dy, alu,
+	     pixmap->drawable.width, pixmap->drawable.height));
+
+	pixman_region_init_rects(&region, box, n);
+	get_drawable_deltas(dst, pixmap, &tx, &ty);
+	RegionTranslate(&region, tx, ty);
+	assert_pixmap_contains_box(pixmap, RegionExtents(&region));
+
+	if (priv && priv->gpu_bo) {
+		if (!sna_pixmap_move_to_gpu(pixmap)) {
+			DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
+			     __FUNCTION__));
+			goto fallback;
+		}
+
+		if (!sna->render.copy_boxes(sna, alu,
+					    pixmap, priv->gpu_bo, dx, dy,
+					    pixmap, priv->gpu_bo, 0, 0,
+					    box, n)) {
+			DBG(("%s: fallback - accelerated copy boxes failed\n",
+			     __FUNCTION__));
+			goto fallback;
+		}
+
+		sna_damage_add(&priv->gpu_damage, &region);
+	} else {
+		FbBits *dst_bits, *src_bits;
+		int stride, bpp;
+
+fallback:
+		DBG(("%s: fallback", __FUNCTION__));
+		sna_pixmap_move_to_cpu(pixmap, true);
+
+		stride = pixmap->devKind;
+		bpp = pixmap->drawable.bitsPerPixel;
+		if (alu == GXcopy && !reverse && !upsidedown && bpp >= 8) {
+			dst_bits = pixmap->devPrivate.ptr;
+			src_bits = (FbBits *)
+				((char *)pixmap->devPrivate.ptr +
+				 dy * stride + dx * bpp / 8);
+
+			do {
+				memcpy_blt(src_bits, dst_bits, bpp,
+					   stride, stride,
+					   box->x1, box->y1,
+					   box->x1, box->y1,
+					   box->x2 - box->x1,
+					   box->y2 - box->y1);
+				box++;
+			} while (--n);
+		} else {
+			DBG(("%s: alu==GXcopy? %d, reverse? %d, upsidedown? %d, bpp? %d\n",
+			     __FUNCTION__, alu == GXcopy, reverse, upsidedown, bpp));
+			dst_bits = pixmap->devPrivate.ptr;
+			stride /= sizeof(FbBits);
+			do {
+				fbBlt(dst_bits + (box->y1 + dy) * stride,
+				      stride,
+				      (box->x1 + dx) * bpp,
+
+				      dst_bits + box->y1 * stride,
+				      stride,
+				      box->x1 * bpp,
+
+				      (box->x2 - box->x1) * bpp,
+				      (box->y2 - box->y1),
+
+				      alu, -1, bpp,
+				      reverse, upsidedown);
+				box++;
+			}while (--n);
+		}
+	}
+	RegionUninit(&region);
+}
+
+static void
 sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       BoxPtr box, int n,
 	       int dx, int dy,
@@ -1273,6 +1369,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	if (n == 0)
 		return;
+
+	if (src_pixmap == dst_pixmap)
+		return sna_self_copy_boxes(src, dst, gc,
+					   box, n,
+					   dx, dy,
+					   reverse, upsidedown, bitplane,
+					   closure);
 
 	DBG(("%s (boxes=%dx[(%d, %d), (%d, %d)...], src=+(%d, %d), alu=%d, src.size=%dx%d, dst.size=%dx%d)\n",
 	     __FUNCTION__, n,
@@ -1617,7 +1720,8 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			src_x, src_y,
 			width, height,
 			dst_x, dst_y,
-			sna_copy_boxes, 0, NULL);
+			src == dst ? sna_self_copy_boxes : sna_copy_boxes,
+			0, NULL);
 }
 
 static Bool
@@ -3775,7 +3879,7 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 #endif
 
 	miCopyRegion(&pixmap->drawable, &pixmap->drawable,
-		     NULL, &dst, dx, dy, sna_copy_boxes, 0, NULL);
+		     NULL, &dst, dx, dy, sna_self_copy_boxes, 0, NULL);
 
 	RegionUninit(&dst);
 }
