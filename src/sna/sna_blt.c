@@ -433,6 +433,20 @@ sna_get_pixel_from_rgba(uint32_t * pixel,
 	int rbits, bbits, gbits, abits;
 	int rshift, bshift, gshift, ashift;
 
+	switch (format) {
+	case PICT_x8r8g8b8:
+		alpha = 0xffff;
+	case PICT_a8r8g8b8:
+		*pixel = ((alpha >> 8 << 24) |
+			  (red >> 8 << 16) |
+			  (green & 0xff00) |
+			  (blue >> 8));
+		return TRUE;
+	case PICT_a8:
+		*pixel = alpha >> 8;
+		return TRUE;
+	}
+
 	rbits = PICT_FORMAT_R(format);
 	gbits = PICT_FORMAT_G(format);
 	bbits = PICT_FORMAT_B(format);
