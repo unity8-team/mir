@@ -3745,6 +3745,8 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.src.u.gen3.type = SHADER_CONSTANT;
 	tmp->base.src.u.gen3.mode =
 		sna_rgba_for_color(color, dst->drawable.depth);
+	tmp->base.mask.u.gen3.type = SHADER_NONE;
+	tmp->base.u.gen3.num_constants = 0;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
@@ -3756,7 +3758,6 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	gen3_align_vertex(sna, &tmp->base);
 	return TRUE;
 }
-
 
 static Bool
 gen3_render_fill_one_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
@@ -3806,7 +3807,6 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	if (alu == GXclear)
 		color = 0;
 
-	memset(&tmp, 0, sizeof(tmp));
 	tmp.op = color == 0 ? PictOpClear : PictOpSrc;
 	tmp.dst.pixmap = dst;
 	tmp.dst.width = dst->drawable.width;
@@ -3819,6 +3819,8 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.src.u.gen3.type = SHADER_CONSTANT;
 	tmp.src.u.gen3.mode =
 		sna_rgba_for_color(color, dst->drawable.depth);
+	tmp.mask.u.gen3.mode = SHADER_NONE;
+	tmp.u.gen3.num_constants = 0;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		kgem_submit(&sna->kgem);
