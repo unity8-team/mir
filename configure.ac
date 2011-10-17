@@ -129,8 +129,10 @@ AM_CONDITIONAL(SNA, test x$SNA != xno)
 AC_MSG_CHECKING([whether to include SNA support])
 
 required_xorg_xserver_version=1.6
+required_pixman_version=0.16
 if test "x$SNA" != "xno"; then
 	required_xorg_xserver_version=1.10
+	required_pixman_version=0.23
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
 fi
 AC_MSG_RESULT([$SNA])
@@ -160,7 +162,7 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.23])
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
 PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6])
