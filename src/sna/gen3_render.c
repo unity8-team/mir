@@ -54,6 +54,8 @@
 enum {
 	SHADER_NONE = 0,
 	SHADER_ZERO,
+	SHADER_BLACK,
+	SHADER_WHITE,
 	SHADER_CONSTANT,
 	SHADER_LINEAR,
 	SHADER_RADIAL,
@@ -620,6 +622,8 @@ gen3_emit_composite_texcoord(struct sna *sna,
 	case SHADER_OPACITY:
 	case SHADER_NONE:
 	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 	case SHADER_CONSTANT:
 		break;
 
@@ -843,6 +847,8 @@ gen3_composite_emit_shader(struct sna *sna,
 	case SHADER_OPACITY:
 		assert(0);
 	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 		break;
 	case SHADER_CONSTANT:
 		gen3_fs_dcl(FS_T8);
@@ -858,8 +864,15 @@ gen3_composite_emit_shader(struct sna *sna,
 	}
 
 	if (mask == NULL) {
-		if (src->u.gen3.type == SHADER_ZERO) {
+		switch (src->u.gen3.type) {
+		case SHADER_ZERO:
 			gen3_fs_mov(FS_OC, gen3_fs_operand_zero());
+			goto done;
+		case SHADER_BLACK:
+			gen3_fs_mov(FS_OC, gen3_fs_operand(FS_R0, ZERO, ZERO, ZERO, ONE));
+			goto done;
+		case SHADER_WHITE:
+			gen3_fs_mov(FS_OC, gen3_fs_operand_one());
 			goto done;
 		}
 		if (src->alpha_fixup && dst_is_alpha) {
@@ -893,7 +906,10 @@ gen3_composite_emit_shader(struct sna *sna,
 
 		case SHADER_NONE:
 		case SHADER_CONSTANT:
+		case SHADER_WHITE:
+		case SHADER_BLACK:
 		case SHADER_ZERO:
+			assert(0);
 			break;
 		}
 
@@ -930,6 +946,8 @@ gen3_composite_emit_shader(struct sna *sna,
 			break;
 		case SHADER_NONE:
 		case SHADER_ZERO:
+		case SHADER_BLACK:
+		case SHADER_WHITE:
 			assert(0);
 			break;
 		}
@@ -962,6 +980,8 @@ gen3_composite_emit_shader(struct sna *sna,
 		case SHADER_CONSTANT:
 		case SHADER_NONE:
 		case SHADER_ZERO:
+		case SHADER_BLACK:
+		case SHADER_WHITE:
 			break;
 		}
 		if (src->alpha_fixup)
@@ -991,20 +1011,36 @@ gen3_composite_emit_shader(struct sna *sna,
 			break;
 
 		case SHADER_OPACITY:
-			if (dst_is_alpha) {
-				gen3_fs_mul(out_reg,
-					    gen3_fs_operand(src_reg, W, W, W, W),
-					    gen3_fs_operand(FS_T0 + t, X, X, X, X));
-			} else {
-				gen3_fs_mul(out_reg,
-					    gen3_fs_operand(src_reg, X, Y, Z, W),
-					    gen3_fs_operand(FS_T0 + t, X, X, X, X));
+			switch (src->u.gen3.type) {
+			case SHADER_BLACK:
+			case SHADER_WHITE:
+				if (dst_is_alpha || src->u.gen3.type == SHADER_WHITE) {
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand(FS_T0 + t, X, X, X, X));
+				} else {
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand(FS_T0 + t, ZERO, ZERO, ZERO, X));
+				}
+				break;
+			default:
+				if (dst_is_alpha) {
+					gen3_fs_mul(out_reg,
+						    gen3_fs_operand(src_reg, W, W, W, W),
+						    gen3_fs_operand(FS_T0 + t, X, X, X, X));
+				} else {
+					gen3_fs_mul(out_reg,
+						    gen3_fs_operand(src_reg, X, Y, Z, W),
+						    gen3_fs_operand(FS_T0 + t, X, X, X, X));
+				}
 			}
 			goto mask_done;
 
 		case SHADER_CONSTANT:
-		case SHADER_NONE:
 		case SHADER_ZERO:
+		case SHADER_BLACK:
+		case SHADER_WHITE:
+			assert(0);
+		case SHADER_NONE:
 			break;
 		}
 		if (mask->alpha_fixup)
@@ -1013,9 +1049,18 @@ gen3_composite_emit_shader(struct sna *sna,
 			gen3_fs_mov(mask_reg, gen3_fs_operand(mask_reg, Z, Y, X, W));
 
 		if (dst_is_alpha) {
-			gen3_fs_mul(out_reg,
-				    gen3_fs_operand(src_reg, W, W, W, W),
-				    gen3_fs_operand(mask_reg, W, W, W, W));
+			switch (src->u.gen3.type) {
+			case SHADER_BLACK:
+			case SHADER_WHITE:
+				gen3_fs_mov(out_reg,
+					    gen3_fs_operand(mask_reg, W, W, W, W));
+				break;
+			default:
+				gen3_fs_mul(out_reg,
+					    gen3_fs_operand(src_reg, W, W, W, W),
+					    gen3_fs_operand(mask_reg, W, W, W, W));
+				break;
+			}
 		} else {
 			/* If component alpha is active in the mask and the blend
 			 * operation uses the source alpha, then we know we don't
@@ -1028,18 +1073,43 @@ gen3_composite_emit_shader(struct sna *sna,
 			 * source value (src.X * mask.A).
 			 */
 			if (op->has_component_alpha) {
-				if (gen3_blend_op[blend].src_alpha)
-					gen3_fs_mul(out_reg,
-						    gen3_fs_operand(src_reg, W, W, W, W),
-						    gen3_fs_operand_reg(mask_reg));
-				else
+				switch (src->u.gen3.type) {
+				case SHADER_WHITE:
+				case SHADER_BLACK:
+					if (gen3_blend_op[blend].src_alpha)
+						gen3_fs_mov(out_reg,
+							    gen3_fs_operand_reg(mask_reg));
+					else
+						gen3_fs_mov(out_reg,
+							    gen3_fs_operand(mask_reg, ZERO, ZERO, ZERO, W));
+					break;
+				default:
+					if (gen3_blend_op[blend].src_alpha)
+						gen3_fs_mul(out_reg,
+							    gen3_fs_operand(src_reg, W, W, W, W),
+							    gen3_fs_operand_reg(mask_reg));
+					else
+						gen3_fs_mul(out_reg,
+							    gen3_fs_operand_reg(src_reg),
+							    gen3_fs_operand_reg(mask_reg));
+					break;
+				}
+			} else {
+				switch (src->u.gen3.type) {
+				case SHADER_WHITE:
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand(mask_reg, W, W, W, W));
+					break;
+				case SHADER_BLACK:
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand(mask_reg, ZERO, ZERO, ZERO, W));
+					break;
+				default:
 					gen3_fs_mul(out_reg,
 						    gen3_fs_operand_reg(src_reg),
-						    gen3_fs_operand_reg(mask_reg));
-			} else {
-				gen3_fs_mul(out_reg,
-					    gen3_fs_operand_reg(src_reg),
-					    gen3_fs_operand(mask_reg, W, W, W, W));
+						    gen3_fs_operand(mask_reg, W, W, W, W));
+					break;
+				}
 			}
 		}
 mask_done:
@@ -1202,6 +1272,8 @@ static void gen3_emit_composite_state(struct sna *sna,
 	case SHADER_NONE:
 		assert(0);
 	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 		break;
 	case SHADER_CONSTANT:
 		if (op->src.u.gen3.mode != state->last_diffuse) {
@@ -1235,6 +1307,8 @@ static void gen3_emit_composite_state(struct sna *sna,
 	switch (op->mask.u.gen3.type) {
 	case SHADER_NONE:
 	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 		break;
 	case SHADER_CONSTANT:
 		if (op->mask.u.gen3.mode != state->last_specular) {
@@ -1765,6 +1839,10 @@ gen3_init_solid(struct sna_composite_channel *channel, uint32_t color)
 	channel->u.gen3.type = SHADER_CONSTANT;
 	if (color == 0)
 		channel->u.gen3.type = SHADER_ZERO;
+	else if (color == 0xff000000)
+		channel->u.gen3.type = SHADER_BLACK;
+	else if (color == 0xffffffff)
+		channel->u.gen3.type = SHADER_WHITE;
 	if ((color & 0xff000000) == 0xff000000)
 		channel->is_opaque = true;
 
@@ -2141,6 +2219,20 @@ static inline uint8_t mult(uint32_t s, uint32_t m, int shift)
 	return (s * m) >> 8;
 }
 
+static inline bool is_constant_ps(uint32_t type)
+{
+	switch (type) {
+	case SHADER_NONE: /* be warned! */
+	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
+	case SHADER_CONSTANT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static Bool
 gen3_render_composite(struct sna *sna,
 		      uint8_t op,
@@ -2276,18 +2368,16 @@ gen3_render_composite(struct sna *sna,
 			 * into the single source value that we get to blend with.
 			 */
 			tmp->has_component_alpha = TRUE;
-			if (tmp->mask.u.gen3.type == SHADER_CONSTANT &&
-			    tmp->mask.u.gen3.mode == 0xffffffff) {
+			if (tmp->mask.u.gen3.type == SHADER_WHITE) {
 				tmp->mask.u.gen3.type = SHADER_NONE;
 				tmp->has_component_alpha = FALSE;
-			} else if (tmp->src.u.gen3.type == SHADER_CONSTANT &&
-				   tmp->src.u.gen3.mode == 0xffffffff) {
+			} else if (tmp->src.u.gen3.type == SHADER_WHITE) {
 				tmp->src = tmp->mask;
 				tmp->mask.u.gen3.type = SHADER_NONE;
 				tmp->mask.bo = NULL;
 				tmp->has_component_alpha = FALSE;
-			} else if (tmp->src.u.gen3.type == SHADER_CONSTANT &&
-				   tmp->mask.u.gen3.type == SHADER_CONSTANT) {
+			} else if (is_constant_ps(tmp->src.u.gen3.type) &&
+				   is_constant_ps(tmp->mask.u.gen3.type)) {
 				uint32_t a,r,g,b;
 
 				a = mult(tmp->src.u.gen3.mode,
@@ -2309,6 +2399,7 @@ gen3_render_composite(struct sna *sna,
 				     tmp->mask.u.gen3.mode,
 				     a << 24 | r << 16 | g << 8 | b));
 
+				tmp->src.u.gen3.type = SHADER_CONSTANT;
 				tmp->src.u.gen3.mode =
 					a << 24 | r << 16 | g << 8 | b;
 
@@ -2330,10 +2421,12 @@ gen3_render_composite(struct sna *sna,
 	     tmp->src.is_affine, tmp->mask.is_affine));
 
 	tmp->prim_emit = gen3_emit_composite_primitive;
-	if (tmp->mask.u.gen3.type == SHADER_NONE ||
-	    tmp->mask.u.gen3.type == SHADER_CONSTANT) {
+	if (is_constant_ps(tmp->mask.u.gen3.type)) {
 		switch (tmp->src.u.gen3.type) {
 		case SHADER_NONE:
+		case SHADER_ZERO:
+		case SHADER_BLACK:
+		case SHADER_WHITE:
 		case SHADER_CONSTANT:
 			tmp->prim_emit = gen3_emit_composite_primitive_constant;
 			break;
@@ -2353,7 +2446,7 @@ gen3_render_composite(struct sna *sna,
 		}
 	} else if (tmp->mask.u.gen3.type == SHADER_TEXTURE) {
 		if (tmp->mask.transform == NULL) {
-			if (tmp->src.u.gen3.type == SHADER_CONSTANT)
+			if (is_constant_ps(tmp->src.u.gen3.type))
 				tmp->prim_emit = gen3_emit_composite_primitive_constant_identity_mask;
 			else if (tmp->src.transform == NULL)
 				tmp->prim_emit = gen3_emit_composite_primitive_identity_source_mask;
@@ -2363,19 +2456,13 @@ gen3_render_composite(struct sna *sna,
 	}
 
 	tmp->floats_per_vertex = 2;
-	if (tmp->src.u.gen3.type != SHADER_CONSTANT &&
-	    tmp->src.u.gen3.type != SHADER_ZERO)
+	if (!is_constant_ps(tmp->src.u.gen3.type))
 		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 4;
-	if (tmp->mask.u.gen3.type != SHADER_NONE &&
-	    tmp->mask.u.gen3.type != SHADER_CONSTANT)
+	if (!is_constant_ps(tmp->mask.u.gen3.type))
 		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 4;
 	DBG(("%s: floats_per_vertex = 2 + %d + %d = %d\n", __FUNCTION__,
-	     (tmp->src.u.gen3.type != SHADER_CONSTANT &&
-	      tmp->src.u.gen3.type != SHADER_ZERO) ?
-	     tmp->src.is_affine ? 2 : 4 : 0,
-	     (tmp->mask.u.gen3.type != SHADER_NONE &&
-	      tmp->mask.u.gen3.type != SHADER_CONSTANT) ?
-	     tmp->mask.is_affine ? 2 : 4 : 0,
+	     !is_constant_ps(tmp->src.u.gen3.type) ? tmp->src.is_affine ? 2 : 4 : 0,
+	     !is_constant_ps(tmp->mask.u.gen3.type) ? tmp->mask.is_affine ? 2 : 4 : 0,
 	     tmp->floats_per_vertex));
 	tmp->floats_per_rect = 3 * tmp->floats_per_vertex;
 
@@ -2795,6 +2882,8 @@ gen3_render_composite_spans(struct sna *sna,
 	case SHADER_ZERO:
 		tmp->prim_emit = no_offset ? gen3_emit_composite_spans_primitive_zero_no_offset : gen3_emit_composite_spans_primitive_zero;
 		break;
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 	case SHADER_CONSTANT:
 		tmp->prim_emit = no_offset ? gen3_emit_composite_spans_primitive_constant_no_offset : gen3_emit_composite_spans_primitive_constant;
 		break;
@@ -2814,8 +2903,7 @@ gen3_render_composite_spans(struct sna *sna,
 	}
 
 	tmp->base.floats_per_vertex = 2;
-	if (tmp->base.src.u.gen3.type != SHADER_CONSTANT &&
-	    tmp->base.src.u.gen3.type != SHADER_ZERO)
+	if (!is_constant_ps(tmp->base.src.u.gen3.type))
 		tmp->base.floats_per_vertex += tmp->base.src.is_affine ? 2 : 3;
 	tmp->base.floats_per_vertex +=
 		tmp->base.mask.u.gen3.type == SHADER_OPACITY;
@@ -2887,6 +2975,7 @@ gen3_emit_video_state(struct sna *sna,
 	sna->render_state.gen3.last_sampler = 0;
 	sna->render_state.gen3.floats_per_vertex = 4;
 	sna->render_state.gen3.last_shader = -1;
+	sna->render_state.gen3.last_constants = 0;
 
 	if (!is_planar_fourcc(frame->id)) {
 		OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
