@@ -183,10 +183,22 @@ static int gem_read(int fd, uint32_t handle, const void *dst, int length)
 	return drmIoctl(fd, DRM_IOCTL_I915_GEM_PREAD, &pread);
 }
 
+static bool
+kgem_busy(struct kgem *kgem, int handle)
+{
+	struct drm_i915_gem_busy busy;
+
+	busy.handle = handle;
+	busy.busy = !kgem->wedged;
+	(void)drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_BUSY, &busy);
+
+	return busy.busy;
+}
+
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length)
 {
-	assert(!gem_busy(kgem->fd, bo->handle));
+	assert(!kgem_busy(kgem, bo->handle));
 
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
 		return FALSE;
@@ -210,18 +222,6 @@ static uint32_t gem_create(int fd, int size)
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_CREATE, &create);
 
 	return create.handle;
-}
-
-static bool
-kgem_busy(struct kgem *kgem, int handle)
-{
-	struct drm_i915_gem_busy busy;
-
-	busy.handle = handle;
-	busy.busy = !kgem->wedged;
-	(void)drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_BUSY, &busy);
-
-	return busy.busy;
 }
 
 static bool
@@ -570,6 +570,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		list_add(&bo->request, &kgem->flushing);
 		list_move(&bo->list, active(kgem, bo->size));
 	} else {
+		assert(bo->gpu == 0);
 		list_move(&bo->list, inactive(kgem, bo->size));
 	}
 
@@ -593,10 +594,14 @@ void kgem_retire(struct kgem *kgem)
 {
 	struct kgem_bo *bo, *next;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
 		if (kgem_busy(kgem, bo->handle))
 			break;
 
+		DBG(("%s: moving %d from flush to inactive\n",
+		     __FUNCTION__, bo->handle));
 		bo->needs_flush = 0;
 		bo->gpu = false;
 		list_move(&bo->list, inactive(kgem, bo->size));
@@ -611,6 +616,9 @@ void kgem_retire(struct kgem *kgem)
 				      list);
 		if (kgem_busy(kgem, rq->bo->handle))
 			break;
+
+		DBG(("%s: request %d complete\n",
+		     __FUNCTION__, rq->bo->handle));
 
 		while (!list_is_empty(&rq->buffers)) {
 			bo = list_first_entry(&rq->buffers,
@@ -629,11 +637,17 @@ void kgem_retire(struct kgem *kgem)
 			if (bo->refcnt == 0) {
 				assert(bo->deleted);
 				if (bo->needs_flush) {
+					DBG(("%s: moving %d to flushing\n",
+					     __FUNCTION__, bo->handle));
 					list_add(&bo->request, &kgem->flushing);
 				} else if (bo->reusable) {
+					DBG(("%s: moving %d to inactive\n",
+					     __FUNCTION__, bo->handle));
 					list_move(&bo->list,
 						  inactive(kgem, bo->size));
 				} else {
+					DBG(("%s: closing %d\n",
+					     __FUNCTION__, bo->handle));
 					gem_close(kgem->fd, bo->handle);
 					free(bo);
 				}
@@ -644,6 +658,7 @@ void kgem_retire(struct kgem *kgem)
 		assert(rq->bo->refcnt == 0);
 		if (gem_madvise(kgem->fd, rq->bo->handle, I915_MADV_DONTNEED)) {
 			rq->bo->deleted = 1;
+			assert(rq->bo->gpu == 0);
 			list_move(&rq->bo->list,
 				  inactive(kgem, rq->bo->size));
 		} else {
@@ -915,6 +930,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem_fixup_self_relocs(kgem, rq->bo);
 		kgem_finish_partials(kgem);
 
+		assert(rq->bo->gpu == 0);
 		if (kgem_batch_write(kgem, handle) == 0) {
 			struct drm_i915_gem_execbuffer2 execbuf;
 			int ret;
@@ -1210,6 +1226,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		     use_active ? "active" : "inactive"));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
+		assert(use_active || bo->gpu == 0);
 		//assert(use_active || !kgem_busy(kgem, bo->handle));
 		return bo;
 	}
@@ -1512,6 +1529,7 @@ skip_active_search:
 		     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
+		assert((flags & CREATE_INACTIVE) == 0 || bo->gpu == 0);
 		assert((flags & CREATE_INACTIVE) == 0 ||
 		       !kgem_busy(kgem, bo->handle));
 		return kgem_bo_reference(bo);
