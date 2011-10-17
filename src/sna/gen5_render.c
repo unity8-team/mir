@@ -1418,11 +1418,13 @@ gen5_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t offset)
 {
+	/* drawrect must be first for Ironlake BLT workaround */
+	gen5_emit_drawing_rectangle(sna, op);
+
 	gen5_emit_binding_table(sna, offset);
 	if (gen5_emit_pipelined_pointers(sna, op, op->op, op->u.gen5.wm_kernel))
 		gen5_emit_urb(sna);
 	gen5_emit_vertex_elements(sna, op);
-	gen5_emit_drawing_rectangle(sna, op);
 }
 
 static void gen5_bind_surfaces(struct sna *sna,
@@ -2119,7 +2121,7 @@ gen5_copy_bind_surfaces(struct sna *sna,
 		offset = sna->render_state.gen5.surface_table;
 	}
 
-	gen5_emit_state(sna, op,offset);
+	gen5_emit_state(sna, op, offset);
 }
 
 static Bool
@@ -2186,7 +2188,6 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 	if (kgem_bo_is_dirty(src_bo))
 		kgem_emit_flush(&sna->kgem);
 
-	gen5_get_batch(sna);
 	gen5_copy_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
 
@@ -2583,10 +2584,13 @@ gen5_render_context_switch(struct kgem *kgem,
 	/* Ironlake has a limitation that a 3D or Media command can't
 	 * be the first command after a BLT, unless it's
 	 * non-pipelined.
+	 *
+	 * We do this by ensuring that the non-pipelined drawrect
+	 * is always emitted first following a switch from BLT.
 	 */
 	if (kgem->mode == KGEM_BLT) {
-		kgem->batch[kgem->nbatch++] = CMD_POLY_STIPPLE_OFFSET << 16;
-		kgem->batch[kgem->nbatch++] = 0;
+		struct sna *sna = to_sna_from_kgem(kgem);
+		sna->render_state.gen5.drawrect_limit = -1;
 	}
 }
 

@@ -301,6 +301,12 @@ to_sna_from_drawable(DrawablePtr drawable)
 	return to_sna_from_screen(drawable->pScreen);
 }
 
+static inline struct sna *
+to_sna_from_kgem(struct kgem *kgem)
+{
+	return container_of(kgem, struct sna, kgem);
+}
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #endif
