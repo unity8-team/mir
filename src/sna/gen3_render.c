@@ -1524,12 +1524,12 @@ inline static int gen3_get_rectangles(struct sna *sna,
 	int rem = vertex_space(sna);
 
 	DBG(("%s: want=%d, rem=%d\n",
-	     __FUNCTION__, 3*want*op->floats_per_vertex, rem));
+	     __FUNCTION__, want*op->floats_per_rect, rem));
 
 	assert(sna->render.vertex_index * op->floats_per_vertex == sna->render.vertex_used);
-	if (op->floats_per_vertex*3 > rem) {
+	if (op->floats_per_rect > rem) {
 		DBG(("flushing vbo for %s: %d < %d\n",
-		     __FUNCTION__, rem, 3*op->floats_per_vertex));
+		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen3_get_rectangles__flush(sna, op->need_magic_ca_pass);
 		if (rem == 0)
 			return 0;
@@ -1540,8 +1540,8 @@ inline static int gen3_get_rectangles(struct sna *sna,
 		return 0;
 	}
 
-	if (want > 1 && want * op->floats_per_vertex*3 > rem)
-		want = rem / (3*op->floats_per_vertex);
+	if (want > 1 && want * op->floats_per_rect > rem)
+		want = rem / op->floats_per_rect;
 	sna->render.vertex_index += 3*want;
 
 	assert(want);
@@ -2383,6 +2383,7 @@ gen3_render_composite(struct sna *sna,
 	      tmp->mask.u.gen3.type != SHADER_CONSTANT) ?
 	     tmp->mask.is_affine ? 2 : 4 : 0,
 	     tmp->floats_per_vertex));
+	tmp->floats_per_rect = 3 * tmp->floats_per_vertex;
 
 	tmp->blt   = gen3_render_composite_blt;
 	tmp->box   = gen3_render_composite_box;
@@ -2824,6 +2825,7 @@ gen3_render_composite_spans(struct sna *sna,
 		tmp->base.floats_per_vertex += tmp->base.src.is_affine ? 2 : 3;
 	tmp->base.floats_per_vertex +=
 		tmp->base.mask.u.gen3.type == SHADER_OPACITY;
+	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
 
 	tmp->box   = gen3_render_composite_spans_box;
 	tmp->boxes = gen3_render_composite_spans_boxes;
@@ -3387,6 +3389,7 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	gen3_render_copy_setup_source(&tmp.src, src, src_bo);
 
 	tmp.floats_per_vertex = 4;
+	tmp.floats_per_rect = 12;
 	tmp.mask.u.gen3.type = SHADER_NONE;
 
 	gen3_emit_composite_state(sna, &tmp);
@@ -3515,6 +3518,7 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 	gen3_render_copy_setup_source(&tmp->base.src, src, src_bo);
 
 	tmp->base.floats_per_vertex = 4;
+	tmp->base.floats_per_rect = 12;
 	tmp->base.mask.u.gen3.type = SHADER_NONE;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
@@ -3639,6 +3643,7 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
 	tmp.floats_per_vertex = 2;
+	tmp.floats_per_rect = 6;
 
 	tmp.src.u.gen3.type = op == PictOpClear ? SHADER_ZERO : SHADER_CONSTANT;
 	tmp.src.u.gen3.mode = pixel;
@@ -3740,6 +3745,7 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp->base.dst.bo = dst_bo;
 	tmp->base.floats_per_vertex = 2;
+	tmp->base.floats_per_rect = 6;
 
 	tmp->base.src.u.gen3.type = SHADER_CONSTANT;
 	tmp->base.src.u.gen3.mode =
@@ -3813,6 +3819,7 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = bo;
 	tmp.floats_per_vertex = 2;
+	tmp.floats_per_rect = 6;
 
 	tmp.src.u.gen3.type = SHADER_CONSTANT;
 	tmp.src.u.gen3.mode =

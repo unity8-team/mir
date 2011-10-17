@@ -72,7 +72,8 @@ struct sna_composite_op {
 	uint32_t need_magic_ca_pass : 1;
 	uint32_t rb_reversed : 1;
 
-	int floats_per_vertex;
+	int16_t floats_per_vertex;
+	int16_t floats_per_rect;
 	fastcall void (*prim_emit)(struct sna *sna,
 				   const struct sna_composite_op *op,
 				   const struct sna_composite_rectangles *r);
