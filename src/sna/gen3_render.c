@@ -1457,21 +1457,16 @@ static void gen3_vertex_finish(struct sna *sna, Bool last)
 static bool gen3_rectangle_begin(struct sna *sna,
 				 const struct sna_composite_op *op)
 {
-	int ndwords, i1_cmd = 0, i1_len = 0;
 	struct gen3_render_state *state = &sna->render_state.gen3;
+	int ndwords, i1_cmd = 0, i1_len = 0;
 
-	ndwords = 0;
-	if (state->vertex_offset == 0) {
-		ndwords += 2;
-		if (op->need_magic_ca_pass)
-			ndwords += 100;
-	}
+	ndwords = 2;
+	if (op->need_magic_ca_pass)
+		ndwords += 100;
 	if (sna->render.vertex_reloc[0] == 0)
 		i1_len++, i1_cmd |= I1_LOAD_S(0), ndwords++;
 	if (state->floats_per_vertex != op->floats_per_vertex)
 		i1_len++, i1_cmd |= I1_LOAD_S(1), ndwords++;
-	if (ndwords == 0)
-		return true;
 
 	if (!kgem_check_batch(&sna->kgem, ndwords+1))
 		return false;
@@ -1487,16 +1482,14 @@ static bool gen3_rectangle_begin(struct sna *sna,
 		}
 	}
 
-	if (state->vertex_offset == 0) {
-		if (sna->kgem.nbatch == 2 + state->last_vertex_offset) {
-			state->vertex_offset = state->last_vertex_offset;
-		} else {
-			state->vertex_offset = sna->kgem.nbatch;
-			OUT_BATCH(MI_NOOP); /* to be filled later */
-			OUT_BATCH(MI_NOOP);
-			sna->render.vertex_start = sna->render.vertex_index;
-			state->last_vertex_offset = state->vertex_offset;
-		}
+	if (sna->kgem.nbatch == 2 + state->last_vertex_offset) {
+		state->vertex_offset = state->last_vertex_offset;
+	} else {
+		state->vertex_offset = sna->kgem.nbatch;
+		OUT_BATCH(MI_NOOP); /* to be filled later */
+		OUT_BATCH(MI_NOOP);
+		sna->render.vertex_start = sna->render.vertex_index;
+		state->last_vertex_offset = state->vertex_offset;
 	}
 
 	return true;
@@ -1535,7 +1528,8 @@ inline static int gen3_get_rectangles(struct sna *sna,
 			return 0;
 	}
 
-	if (!gen3_rectangle_begin(sna, op)) {
+	if (sna->render_state.gen3.vertex_offset == 0 &&
+	    !gen3_rectangle_begin(sna, op)) {
 		DBG(("%s: flushing batch\n", __FUNCTION__));
 		return 0;
 	}
