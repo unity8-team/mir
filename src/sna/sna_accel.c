@@ -2304,8 +2304,8 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	BoxRec extents;
 	RegionRec region;
 
-	DBG(("%s(mode=%d, n=%d, pt[0]=(%d, %d)\n",
-	     __FUNCTION__, mode, n, pt[0].x, pt[0].y));
+	DBG(("%s(mode=%d, n=%d, pt[0]=(%d, %d), lineWidth=%d\n",
+	     __FUNCTION__, mode, n, pt[0].x, pt[0].y, gc->lineWidth));
 
 	if (sna_poly_line_extents(drawable, gc, mode, n, pt, &extents))
 		return;
@@ -2365,6 +2365,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	}
 
 fallback:
+	DBG(("%s: fallback\n", __FUNCTION__));
 	if (gc->lineWidth) {
 		if (gc->lineStyle != LineSolid)
 			miWideDash(drawable, gc, mode, n, pt);
@@ -2373,7 +2374,6 @@ fallback:
 		return;
 	}
 
-	DBG(("%s: fallback\n", __FUNCTION__));
 	region_set(&region, &extents);
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
@@ -2383,6 +2383,7 @@ fallback:
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
+	DBG(("%s: fbPolyLine\n", __FUNCTION__));
 	fbPolyLine(drawable, gc, mode, n, pt);
 }
 
@@ -2607,8 +2608,10 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	BoxRec extents;
 	RegionRec region;
 
-	DBG(("%s(n=%d, first=((%d, %d), (%d, %d))\n", __FUNCTION__,
-	     n, seg->x1, seg->y1, seg->x2, seg->y2));
+	DBG(("%s(n=%d, first=((%d, %d), (%d, %d)), lineWidth=%d\n",
+	     __FUNCTION__,
+	     n, seg->x1, seg->y1, seg->x2, seg->y2,
+	     gc->lineWidth));
 
 	if (sna_poly_segment_extents(drawable, gc, n, seg, &extents))
 		return;
@@ -2678,12 +2681,12 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	}
 
 fallback:
+	DBG(("%s: fallback\n", __FUNCTION__));
 	if (gc->lineWidth) {
 		miPolySegment(drawable, gc, n, seg);
 		return;
 	}
 
-	DBG(("%s: fallback\n", __FUNCTION__));
 	region_set(&region, &extents);
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
@@ -2693,6 +2696,7 @@ fallback:
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
+	DBG(("%s: fbPolySegment\n", __FUNCTION__));
 	fbPolySegment(drawable, gc, n, seg);
 }
 
@@ -2764,6 +2768,8 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	BoxRec extents;
 	RegionRec region;
 
+	DBG(("%s(n=%d, lineWidth=%d\n", __FUNCTION__, n, gc->lineWidth));
+
 	if (sna_poly_arc_extents(drawable, gc, n, arc, &extents))
 		return;
 
@@ -2787,6 +2793,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	}
 
 fallback:
+	DBG(("%s -- fallback\n", __FUNCTION__));
 	if (gc->lineWidth) {
 		miPolyArc(drawable, gc, n, arc);
 		return;
@@ -2802,6 +2809,7 @@ fallback:
 	RegionUninit(&region);
 
 	/* XXX may still fallthrough to miZeroPolyArc */
+	DBG(("%s -- fbPolyArc\n", __FUNCTION__));
 	fbPolyArc(drawable, gc, n, arc);
 }
 
