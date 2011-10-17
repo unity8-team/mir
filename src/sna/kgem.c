@@ -186,6 +186,8 @@ static int gem_read(int fd, uint32_t handle, const void *dst, int length)
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length)
 {
+	assert(!gem_busy(kgem->fd, bo->handle));
+
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
 		return FALSE;
 
@@ -1022,6 +1024,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem_cleanup(kgem);
 
 	kgem_reset(kgem);
+	kgem->busy = 1;
 }
 
 void kgem_throttle(struct kgem *kgem)

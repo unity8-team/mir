@@ -4064,13 +4064,15 @@ static bool sna_accel_flush(struct sna *sna)
 	bool nothing_to_do =
 		priv->cpu_damage == NULL && priv->gpu_bo->rq == NULL;
 
-	DBG(("%s (time=%ld), nothing_to_do=%d\n",
-	     __FUNCTION__, (long)GetTimeInMillis(), nothing_to_do));
+	DBG(("%s (time=%ld), nothing_to_do=%d, busy? %d\n",
+	     __FUNCTION__, (long)GetTimeInMillis(),
+	     nothing_to_do, sna->kgem.busy));
 
-	if (nothing_to_do)
+	if (nothing_to_do && !sna->kgem.busy)
 		_sna_accel_disarm_timer(sna, FLUSH_TIMER);
 	else
 		sna_pixmap_move_to_gpu(priv->pixmap);
+	sna->kgem.busy = 0;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 	return !nothing_to_do;
 }
