@@ -1855,6 +1855,10 @@ gen4_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
 	if (!priv->gpu_only &&
 	    !sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
 		op->damage = &priv->gpu_damage;
+	DBG(("%s: gpu_only=%d, all-damaged=%d, damage=%p\n",
+	     __FUNCTION__, priv->gpu_only,
+	     sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height),
+	    op->damage));
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);

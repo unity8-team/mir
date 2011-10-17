@@ -388,13 +388,17 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 
 static void apply_damage(struct sna_composite_op *op, RegionPtr region)
 {
-	DBG(("%s: damage=%p, region=%d\n",
-	     __FUNCTION__, op->damage, REGION_NUM_RECTS(region)));
+	DBG(("%s: damage=%p, region=%d [(%d, %d), (%d, %d) + (%d, %d)]\n",
+	     __FUNCTION__, op->damage, REGION_NUM_RECTS(region),
+	     region->extents.x1, region->extents.y1,
+	     region->extents.x2, region->extents.y2,
+	     op->dst.x, op->dst.y));
 
 	if (op->damage == NULL)
 		return;
 
-	RegionTranslate(region, op->dst.x, op->dst.y);
+	if (op->dst.x | op->dst.y)
+		RegionTranslate(region, op->dst.x, op->dst.y);
 
 	assert_pixmap_contains_box(op->dst.pixmap, RegionExtents(region));
 	sna_damage_add(op->damage, region);
