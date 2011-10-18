@@ -899,7 +899,7 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	assert(op->floats_per_vertex);
 
 	need = 1;
-	size = 3*op->floats_per_vertex;
+	size = op->floats_per_rect;
 	if (op->need_magic_ca_pass)
 		need += 6 + size*sna->render.vertex_index, size *= 2;
 
@@ -929,7 +929,7 @@ inline static int gen2_get_rectangles(struct sna *sna,
 		want = rem / size;
 
 	assert(want);
-	sna->render.vertex_index += 3*want*op->floats_per_vertex;
+	sna->render.vertex_index += want*op->floats_per_rect;
 	return want;
 }
 
@@ -1348,6 +1348,7 @@ gen2_render_composite(struct sna *sna,
 		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 3;
 	if (tmp->mask.bo)
 		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 3;
+	tmp->floats_per_rect = 3*tmp->floats_per_vertex;
 
 	tmp->prim_emit = gen2_emit_composite_primitive;
 	if (tmp->mask.bo) {
@@ -1756,6 +1757,7 @@ gen2_render_composite_spans(struct sna *sna,
 			}
 		}
 	}
+	tmp->base.floats_per_rect = 3*tmp->base.floats_per_vertex;
 
 	tmp->box   = gen2_render_composite_spans_box;
 	tmp->boxes = gen2_render_composite_spans_boxes;
@@ -1954,6 +1956,7 @@ gen2_render_fill_boxes(struct sna *sna,
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
 	tmp.floats_per_vertex = 2;
+	tmp.floats_per_rect = 6;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
@@ -2079,6 +2082,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp->base.dst.bo = dst_bo;
 	tmp->base.floats_per_vertex = 2;
+	tmp->base.floats_per_rect = 6;
 
 	tmp->base.src.u.gen2.pixel =
 		sna_rgba_for_color(color, dst->drawable.depth);
@@ -2156,6 +2160,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = bo;
 	tmp.floats_per_vertex = 2;
+	tmp.floats_per_rect = 6;
 	tmp.need_magic_ca_pass = false;
 
 	tmp.src.u.gen2.pixel =
@@ -2325,6 +2330,7 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.dst.bo = dst_bo;
 
 	tmp.floats_per_vertex = 4;
+	tmp.floats_per_rect = 12;
 
 	gen2_render_copy_setup_source(&tmp.src, src, src_bo);
 	gen2_emit_copy_state(sna, &tmp);
@@ -2450,6 +2456,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	gen2_render_copy_setup_source(&tmp->base.src, src, src_bo);
 
 	tmp->base.floats_per_vertex = 4;
+	tmp->base.floats_per_rect = 12;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
