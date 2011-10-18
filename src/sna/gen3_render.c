@@ -2127,7 +2127,7 @@ try_blt(struct sna *sna,
 	PicturePtr source,
 	int width, int height)
 {
-	if (sna->kgem.mode == KGEM_BLT) {
+	if (sna->kgem.mode != KGEM_RENDER) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return TRUE;
 	}
