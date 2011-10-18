@@ -2086,7 +2086,7 @@ gen6_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 static Bool
 try_blt(struct sna *sna, int width, int height)
 {
-	if (sna->kgem.mode == KGEM_BLT) {
+	if (sna->kgem.ring == KGEM_BLT) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return TRUE;
 	}
@@ -2125,7 +2125,7 @@ gen6_render_composite(struct sna *sna,
 #endif
 
 	DBG(("%s: %dx%d, current mode=%d\n", __FUNCTION__,
-	     width, height, sna->kgem.mode));
+	     width, height, sna->kgem.ring));
 
 	if (mask == NULL &&
 	    try_blt(sna, width, height) &&
@@ -2318,7 +2318,7 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu,
 	     src_bo == dst_bo));
 
-	if (sna->kgem.mode == KGEM_BLT &&
+	if (sna->kgem.ring == KGEM_BLT &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -2473,7 +2473,7 @@ gen6_render_copy(struct sna *sna, uint8_t alu,
 	     src->drawable.width, src->drawable.height,
 	     dst->drawable.width, dst->drawable.height));
 
-	if (sna->kgem.mode == KGEM_BLT &&
+	if (sna->kgem.ring == KGEM_BLT &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
@@ -2584,7 +2584,7 @@ gen6_render_fill_boxes(struct sna *sna,
 		return FALSE;
 	}
 
-	if (sna->kgem.mode != KGEM_RENDER ||
+	if (sna->kgem.ring != KGEM_RENDER ||
 	    dst->drawable.width > 8192 ||
 	    dst->drawable.height > 8192 ||
 	    !gen6_check_dst_format(format)) {
@@ -2741,7 +2741,7 @@ gen6_render_fill(struct sna *sna, uint8_t alu,
 			    op);
 #endif
 
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (sna->kgem.ring != KGEM_RENDER &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
@@ -2825,7 +2825,7 @@ gen6_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (sna->kgem.ring != KGEM_RENDER &&
 	    gen6_render_fill_one_try_blt(sna, dst, bo, color,
 					 x1, y1, x2, y2, alu))
 		return TRUE;
@@ -2911,6 +2911,8 @@ gen6_render_context_switch(struct kgem *kgem,
 {
 	if (!new_mode)
 		return;
+
+	 DBG(("%s: from %d to %d\n", __FUNCTION__, kgem->mode, new_mode));
 
 	if (kgem->mode)
 		_kgem_submit(kgem);
