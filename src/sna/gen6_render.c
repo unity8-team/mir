@@ -1448,25 +1448,19 @@ static void gen6_emit_primitive(struct sna *sna)
 static bool gen6_rectangle_begin(struct sna *sna,
 				 const struct sna_composite_op *op)
 {
-	int id = op->u.gen6.ve_id;
+	int id = 1 << op->u.gen6.ve_id;
 	int ndwords;
 
-	ndwords = 0;
-	if ((sna->render_state.gen6.vb_id & (1 << id)) == 0)
+	ndwords = op->need_magic_ca_pass ? 60 : 6;
+	if ((sna->render_state.gen6.vb_id & id) == 0)
 		ndwords += 5;
-	if (sna->render_state.gen6.vertex_offset == 0)
-		ndwords += op->need_magic_ca_pass ? 60 : 6;
-	if (ndwords == 0)
-		return true;
-
 	if (!kgem_check_batch(&sna->kgem, ndwords))
 		return false;
 
-	if ((sna->render_state.gen6.vb_id & (1 << id)) == 0)
+	if ((sna->render_state.gen6.vb_id & id) == 0)
 		gen6_emit_vertex_buffer(sna, op);
-	if (sna->render_state.gen6.vertex_offset == 0)
-		gen6_emit_primitive(sna);
 
+	gen6_emit_primitive(sna);
 	return true;
 }
 
@@ -1499,7 +1493,8 @@ inline static int gen6_get_rectangles(struct sna *sna,
 			return 0;
 	}
 
-	if (!gen6_rectangle_begin(sna, op))
+	if (sna->render_state.gen6.vertex_offset == 0 &&
+	    !gen6_rectangle_begin(sna, op))
 		return 0;
 
 	if (want > 1 && want * op->floats_per_vertex*3 > rem)
