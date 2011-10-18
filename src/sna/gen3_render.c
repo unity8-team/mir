@@ -49,7 +49,10 @@
 #define NO_COPY 0
 #define NO_COPY_BOXES 0
 #define NO_FILL 0
+#define NO_FILL_ONE 0
 #define NO_FILL_BOXES 0
+
+#define PREFER_BLT_FILL 1
 
 enum {
 	SHADER_NONE = 0,
@@ -2966,10 +2969,9 @@ gen3_emit_video_state(struct sna *sna,
 		  S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
 		  S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
 		  S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
-	OUT_BATCH((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
-		  (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+	OUT_BATCH((2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
 		  (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) |
-		  S6_COLOR_WRITE_ENABLE | (2 << S6_TRISTRIP_PV_SHIFT));
+		  S6_COLOR_WRITE_ENABLE);
 
 	sna->render_state.gen3.last_blend = 0;
 	sna->render_state.gen3.last_sampler = 0;
@@ -3663,6 +3665,15 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 				  pixel, box, n);
 }
 
+static inline Bool prefer_fill_blt(struct sna *sna)
+{
+#if PREFER_BLT_FILL
+	return true;
+#else
+	return sna->kgem.mode != KGEM_RENDER;
+#endif
+}
+
 static Bool
 gen3_render_fill_boxes(struct sna *sna,
 		       CARD8 op,
@@ -3698,7 +3709,7 @@ gen3_render_fill_boxes(struct sna *sna,
 						      dst, dst_bo,
 						      box, n);
 
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_fill_blt(sna) &&
 	    gen3_render_fill_boxes_try_blt(sna, op, format, color,
 					   dst, dst_bo,
 					   box, n))
@@ -3803,7 +3814,7 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_fill_blt(sna) &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
@@ -3875,13 +3886,13 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 {
 	struct sna_composite_op tmp;
 
-#if NO_FILL_BOXES
+#if NO_FILL_ONE
 	return gen3_render_fill_one_try_blt(sna, dst, bo, color,
 					    x1, y1, x2, y2, alu);
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_fill_blt(sna) &&
 	    gen3_render_fill_one_try_blt(sna, dst, bo, color,
 					 x1, y1, x2, y2, alu))
 		return TRUE;
@@ -3905,10 +3916,17 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.floats_per_vertex = 2;
 	tmp.floats_per_rect = 6;
 
-	tmp.src.u.gen3.type = SHADER_CONSTANT;
-	tmp.src.u.gen3.mode =
-		sna_rgba_for_color(color, dst->drawable.depth);
-	tmp.mask.u.gen3.mode = SHADER_NONE;
+	color = sna_rgba_for_color(color, dst->drawable.depth);
+	if (color == 0)
+		tmp.src.u.gen3.type = SHADER_ZERO;
+	else if (color == 0xff000000)
+		tmp.src.u.gen3.type = SHADER_BLACK;
+	else if (color == 0xffffffff)
+		tmp.src.u.gen3.type = SHADER_WHITE;
+	else
+		tmp.src.u.gen3.type = SHADER_CONSTANT;
+	tmp.src.u.gen3.mode = color;
+	tmp.mask.u.gen3.type = SHADER_NONE;
 	tmp.u.gen3.num_constants = 0;
 
 	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {

@@ -651,19 +651,16 @@ next_glyph:
 	return TRUE;
 }
 
-static Bool
-clear_pixmap(struct sna *sna, PixmapPtr pixmap, PictFormat format)
+static void
+clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 {
-	BoxRec box;
-	xRenderColor color = { 0 };
-
-	box.x1 = box.y1 = 0;
-	box.x2 = pixmap->drawable.width;
-	box.y2 = pixmap->drawable.height;
-
-	return sna->render.fill_boxes(sna, PictOpClear, format, &color,
-				      pixmap, sna_pixmap_get_bo(pixmap),
-				      &box, 1);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	assert(priv->gpu_only);
+	sna->render.fill_one(sna, pixmap, priv->gpu_bo, 0,
+			     0, 0,
+			     pixmap->drawable.width,
+			     pixmap->drawable.height,
+			     GXclear);
 }
 
 static Bool
@@ -742,11 +739,7 @@ glyphs_via_mask(struct sna *sna,
 		return FALSE;
 
 	ValidatePicture(mask);
-
-	if (!clear_pixmap(sna, pixmap, mask->format)) {
-		FreePicture(mask, 0);
-		return FALSE;
-	}
+	clear_pixmap(sna, pixmap);
 
 	memset(&tmp, 0, sizeof(tmp));
 	glyph_atlas = NULL;
