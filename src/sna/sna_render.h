@@ -90,6 +90,7 @@ struct sna_composite_op {
 
 			uint32_t inplace :1;
 			uint32_t overwrites:1;
+			uint32_t bpp : 6;
 
 			uint32_t cmd;
 			uint32_t br13;

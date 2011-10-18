@@ -119,19 +119,15 @@ static bool sna_blt_fill_init(struct sna *sna,
 
 	blt->bo[0] = bo;
 
-	blt->cmd = XY_SETUP_MONO_PATTERN_SL_BLT;
-	if (bpp == 32)
-		blt->cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
-
 	pitch = bo->pitch;
-	if (kgem->gen >= 40 && bo->tiling) {
-		blt->cmd |= BLT_DST_TILED;
+	blt->cmd = XY_SCANLINE_BLT;
+	if (kgem->gen >= 40 && blt->bo[0]->tiling) {
+		blt->cmd |= 1 << 11;
 		pitch >>= 2;
 	}
 	if (pitch > MAXSHORT)
 		return FALSE;
 
-	blt->overwrites = alu == GXcopy || alu == GXclear;
 	blt->br13 = 1<<31 | (fill_ROP[alu] << 16) | pitch;
 	switch (bpp) {
 	default: assert(0);
@@ -141,6 +137,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 	}
 
 	blt->pixel = pixel;
+	blt->bpp = bpp;
 
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_bo_fenced(kgem, bo, NULL) ||
@@ -160,7 +157,9 @@ static bool sna_blt_fill_init(struct sna *sna,
 		}
 
 		b = kgem->batch + kgem->nbatch;
-		b[0] = blt->cmd;
+		b[0] = XY_SETUP_MONO_PATTERN_SL_BLT;
+		if (bpp == 32)
+			b[0] |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 		b[1] = blt->br13;
 		b[2] = 0;
 		b[3] = 0;
@@ -202,7 +201,9 @@ static void sna_blt_fill_one(struct sna *sna,
 		_kgem_set_mode(kgem, KGEM_BLT);
 
 		b = kgem->batch + kgem->nbatch;
-		b[0] = blt->cmd;
+		b[0] = XY_SETUP_MONO_PATTERN_SL_BLT;
+		if (blt->bpp == 32)
+			b[0] |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 		b[1] = blt->br13;
 		b[2] = 0;
 		b[3] = 0;
@@ -219,9 +220,7 @@ static void sna_blt_fill_one(struct sna *sna,
 	}
 
 	b = kgem->batch + kgem->nbatch;
-	b[0] = XY_SCANLINE_BLT;
-	if (kgem->gen >= 40 && blt->bo[0]->tiling)
-		b[0] |= 1 << 11;
+	b[0] = blt->cmd;
 	b[1] = (y << 16) | x;
 	b[2] = ((y + height) << 16) | (x + width);
 	kgem->nbatch += 3;
