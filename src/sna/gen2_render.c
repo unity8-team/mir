@@ -53,10 +53,8 @@
 #define NO_FILL_ONE 0
 #define NO_FILL_BOXES 0
 
-#define PREFER_3D_COPY 0
-#define PREFER_3D_COPY_BOXES 0
-#define PREFER_3D_FILL 0
-#define PREFER_3D_FILL_BOXES 0
+#define PREFER_BLT_FILL 1
+#define PREFER_BLT_COPY 1
 
 #define BATCH(v) batch_emit(sna, v)
 #define BATCH_F(v) batch_emit_float(sna, v)
@@ -1220,7 +1218,7 @@ try_blt(struct sna *sna,
 {
 	uint32_t color;
 
-	if (sna->kgem.mode == KGEM_BLT) {
+	if (sna->kgem.mode != KGEM_RENDER) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return TRUE;
 	}
@@ -1875,6 +1873,24 @@ gen2_render_fill_boxes_try_blt(struct sna *sna,
 				  pixel, box, n);
 }
 
+static inline Bool prefer_blt_fill(struct sna *sna)
+{
+#if PREFER_BLT_FILL
+	return true;
+#else
+	return sna->kgem.mode != KGEM_RENDER;
+#endif
+}
+
+static inline Bool prefer_blt_copy(struct sna *sna)
+{
+#if PREFER_BLT_COPY
+	return true;
+#else
+	return sna->kgem.mode != KGEM_RENDER;
+#endif
+}
+
 static Bool
 gen2_render_fill_boxes(struct sna *sna,
 		       CARD8 op,
@@ -1910,7 +1926,7 @@ gen2_render_fill_boxes(struct sna *sna,
 						      dst, dst_bo,
 						      box, n);
 
-	if (!PREFER_3D_FILL_BOXES && sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_blt_fill(sna) &&
 	    gen2_render_fill_boxes_try_blt(sna, op, format, color,
 					   dst, dst_bo,
 					   box, n))
@@ -2040,7 +2056,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (!PREFER_3D_FILL && sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_blt_fill(sna) &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
@@ -2115,7 +2131,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (!PREFER_3D_FILL && sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_blt_fill(sna) &&
 	    gen2_render_fill_one_try_blt(sna, dst, bo, color,
 					 x1, y1, x2, y2, alu))
 		return TRUE;
@@ -2267,7 +2283,7 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n));
 
-	if (!PREFER_3D_COPY_BOXES &&
+	if (prefer_blt_copy(sna) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -2403,7 +2419,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT */
-	if (!PREFER_3D_COPY && sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_blt_copy(sna) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
