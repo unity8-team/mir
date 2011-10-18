@@ -1485,9 +1485,9 @@ inline static int gen6_get_rectangles(struct sna *sna,
 {
 	int rem = vertex_space(sna);
 
-	if (rem < 3*op->floats_per_vertex) {
+	if (rem < op->floats_per_rect) {
 		DBG(("flushing vbo for %s: %d < %d\n",
-		     __FUNCTION__, rem, 3*op->floats_per_vertex));
+		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen6_get_rectangles__flush(sna, op->need_magic_ca_pass);
 		if (rem == 0)
 			return 0;
@@ -1497,8 +1497,8 @@ inline static int gen6_get_rectangles(struct sna *sna,
 	    !gen6_rectangle_begin(sna, op))
 		return 0;
 
-	if (want > 1 && want * op->floats_per_vertex*3 > rem)
-		want = rem / (3*op->floats_per_vertex);
+	if (want > 1 && want * op->floats_per_rect > rem)
+		want = rem / op->floats_per_rect;
 
 	sna->render.vertex_index += 3*want;
 	return want;
@@ -1847,6 +1847,7 @@ gen6_render_video(struct sna *sna,
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 
 	if (is_planar_fourcc(frame->id)) {
 		tmp.u.gen6.wm_kernel = GEN6_WM_KERNEL_VIDEO_PLANAR;
@@ -2226,6 +2227,7 @@ gen6_render_composite(struct sna *sna,
 
 		tmp->floats_per_vertex = 3 + !tmp->is_affine;
 	}
+	tmp->floats_per_rect = 3 * tmp->floats_per_vertex;
 
 	tmp->u.gen6.wm_kernel =
 		gen6_choose_composite_kernel(tmp->op,
@@ -2364,6 +2366,7 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 	tmp.has_component_alpha = 0;
 	tmp.need_magic_ca_pass = 0;
 
@@ -2512,6 +2515,7 @@ gen6_render_copy(struct sna *sna, uint8_t alu,
 
 	op->base.is_affine = true;
 	op->base.floats_per_vertex = 3;
+	op->base.floats_per_rect = 9;
 
 	op->base.u.gen6.wm_kernel = GEN6_WM_KERNEL_NOMASK;
 	op->base.u.gen6.nr_surfaces = 2;
@@ -2649,6 +2653,7 @@ gen6_render_fill_boxes(struct sna *sna,
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 
 	tmp.u.gen6.wm_kernel = GEN6_WM_KERNEL_NOMASK;
 	tmp.u.gen6.nr_surfaces = 2;
@@ -2775,6 +2780,7 @@ gen6_render_fill(struct sna *sna, uint8_t alu,
 
 	op->base.is_affine = TRUE;
 	op->base.floats_per_vertex = 3;
+	op->base.floats_per_rect = 9;
 
 	op->base.u.gen6.wm_kernel = GEN6_WM_KERNEL_NOMASK;
 	op->base.u.gen6.nr_surfaces = 2;
@@ -2861,6 +2867,7 @@ gen6_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
 	tmp.has_component_alpha = 0;
 	tmp.need_magic_ca_pass = FALSE;
 
