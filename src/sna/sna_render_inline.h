@@ -87,7 +87,7 @@ is_dirty_gpu(DrawablePtr drawable)
 static inline Bool
 too_small(DrawablePtr drawable)
 {
-	return (drawable->width * drawable->height <= 256) &&
+	return (drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) &&
 		!is_dirty_gpu(drawable);
 }
 
