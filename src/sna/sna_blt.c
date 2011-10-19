@@ -102,7 +102,21 @@ static void blt_done(struct sna *sna, const struct sna_composite_op *op)
 {
 	struct kgem *kgem = &sna->kgem;
 
-	DBG(("%s: nbatch=%d\n", __FUNCTION__, kgem->nbatch));
+	_kgem_set_mode(kgem, KGEM_BLT);
+	(void)op;
+}
+
+static void gen6_blt_copy_done(struct sna *sna, const struct sna_composite_op *op)
+{
+	struct kgem *kgem = &sna->kgem;
+
+	if (kgem_check_batch(kgem, 3)) {
+		uint32_t *b = kgem->batch + kgem->nbatch;
+		b[0] = XY_SETUP_CLIP;
+		b[1] = b[2] = 0;
+		kgem->nbatch += 3;
+	}
+
 	_kgem_set_mode(kgem, KGEM_BLT);
 	(void)op;
 }
@@ -815,7 +829,10 @@ prepare_blt_copy(struct sna *sna,
 	op->blt   = blt_copy_composite;
 	op->box   = blt_copy_composite_box;
 	op->boxes = blt_copy_composite_boxes;
-	op->done  = blt_done;
+	if (sna->kgem.gen >= 60)
+		op->done  = gen6_blt_copy_done;
+	else
+		op->done  = blt_done;
 
 	return sna_blt_copy_init(sna, &op->u.blt,
 				 priv->gpu_bo,
@@ -1297,6 +1314,12 @@ static void sna_blt_copy_op_done(struct sna *sna,
 	blt_done(sna, &op->base);
 }
 
+static void gen6_blt_copy_op_done(struct sna *sna,
+				  const struct sna_copy_op *op)
+{
+	gen6_blt_copy_done(sna, &op->base);
+}
+
 bool sna_blt_copy(struct sna *sna, uint8_t alu,
 		  struct kgem_bo *src,
 		  struct kgem_bo *dst,
@@ -1319,7 +1342,10 @@ bool sna_blt_copy(struct sna *sna, uint8_t alu,
 		return FALSE;
 
 	op->blt  = sna_blt_copy_op_blt;
-	op->done = sna_blt_copy_op_done;
+	if (sna->kgem.gen >= 60)
+		op->done = gen6_blt_copy_op_done;
+	else
+		op->done = sna_blt_copy_op_done;
 	return TRUE;
 }
 
@@ -1538,6 +1564,13 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		if (nbox)
 			_kgem_submit(kgem);
 	} while (nbox);
+
+	if (kgem->gen >= 60 && kgem_check_batch(kgem, 3)) {
+		uint32_t *b = kgem->batch + kgem->nbatch;
+		b[0] = XY_SETUP_CLIP;
+		b[1] = b[2] = 0;
+		kgem->nbatch += 3;
+	}
 
 	_kgem_set_mode(kgem, KGEM_BLT);
 	return TRUE;
