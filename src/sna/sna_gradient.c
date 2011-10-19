@@ -227,9 +227,9 @@ sna_render_finish_solid(struct sna *sna, bool force)
 	int i;
 
 	DBG(("sna_render_finish_solid(force=%d, busy=%d, dirty=%d)\n",
-	     force, cache->cache_bo->rq != NULL, cache->dirty));
+	     force, cache->cache_bo->gpu, cache->dirty));
 
-	if (!force && !cache->cache_bo->rq)
+	if (!force && !cache->cache_bo->gpu)
 		return;
 
 	if (cache->dirty)
@@ -291,13 +291,13 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 
 	i = cache->size++;
 	cache->color[i] = color;
+	cache->dirty = 1;
 	DBG(("sna_render_get_solid(%d) = %x (new)\n", i, color));
 
 create:
 	cache->bo[i] = kgem_create_proxy(cache->cache_bo,
 					 i*sizeof(uint32_t), sizeof(uint32_t));
 	cache->bo[i]->pitch = 4;
-	cache->dirty = 1;
 
 done:
 	cache->last = i;
