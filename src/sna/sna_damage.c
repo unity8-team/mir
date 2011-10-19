@@ -480,7 +480,7 @@ struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 	BoxRec box;
 
 	if (damage->mode == SUBTRACT)
-		__sna_damage_reduce(damage);
+		return damage;
 
 	box.x1 = box.y1 = 0;
 	box.x2 = width;
@@ -658,8 +658,16 @@ static int _sna_damage_contains_box(struct sna_damage *damage,
 	if (!sna_damage_maybe_contains_box(damage, box))
 		return PIXMAN_REGION_OUT;
 
-	if (damage->n)
+	if (damage->n) {
+		if (damage->mode != SUBTRACT) {
+			int ret = pixman_region_contains_rectangle(&damage->region,
+								   (BoxPtr)box);
+			if (ret == PIXMAN_REGION_IN)
+				return PIXMAN_REGION_IN;
+		}
+
 		__sna_damage_reduce(damage);
+	}
 
 	return pixman_region_contains_rectangle(&damage->region, (BoxPtr)box);
 }
