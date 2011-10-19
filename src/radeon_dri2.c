@@ -1299,7 +1299,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     DRI2InfoRec dri2_info = { 0 };
 #ifdef USE_DRI2_SCHEDULING
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
-    const char *driverNames[1];
+    const char *driverNames[2];
     Bool scheduling_works = TRUE;
 #endif
 
@@ -1364,9 +1364,9 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
         dri2_info.ScheduleSwap = radeon_dri2_schedule_swap;
         dri2_info.GetMSC = radeon_dri2_get_msc;
         dri2_info.ScheduleWaitMSC = radeon_dri2_schedule_wait_msc;
-        dri2_info.numDrivers = 1;
+        dri2_info.numDrivers = RADEON_ARRAY_SIZE(driverNames);
         dri2_info.driverNames = driverNames;
-        driverNames[0] = dri2_info.driverName;
+        driverNames[0] = driverNames[1] = dri2_info.driverName;
 
 	if (pRADEONEnt->dri2_info_cnt == 0) {
 #if HAS_DIXREGISTERPRIVATEKEY
