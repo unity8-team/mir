@@ -202,7 +202,7 @@ void sna_read_boxes(struct sna *sna,
 	} while (tmp_nbox);
 	assert(offset == dst_bo->size);
 
-	kgem_buffer_sync(kgem, dst_bo);
+	kgem_buffer_read_sync(kgem, dst_bo);
 
 	src = ptr;
 	do {

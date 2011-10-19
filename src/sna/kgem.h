@@ -330,7 +330,7 @@ void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write);
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
 				   void **ret);
-void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *bo);
+void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_throttle(struct kgem *kgem);
 bool kgem_expire_cache(struct kgem *kgem);

@@ -1944,6 +1944,16 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	     __FUNCTION__, size, flags, write, flags & KGEM_BUFFER_LAST));
 
 	list_for_each_entry(bo, &kgem->partial, base.list) {
+		if (flags == KGEM_BUFFER_LAST && bo->write) {
+			/* We can reuse any write buffer which we can fit */
+			if (size < bo->alloc) {
+				DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
+				     __FUNCTION__, size, bo->used, bo->alloc));
+				offset = 0;
+				goto done;
+			}
+		}
+
 		if (bo->write != write) {
 			DBG(("%s: skip write %d buffer, need %d\n",
 			     __FUNCTION__, bo->write, write));
@@ -2133,31 +2143,25 @@ cleanup_bo:
 	return NULL;
 }
 
-void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *_bo)
+void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 {
 	struct kgem_partial_bo *bo;
+	uint32_t offset = _bo->delta, length = _bo->size;
 
 	if (_bo->proxy)
 		_bo = _bo->proxy;
 
 	bo = (struct kgem_partial_bo *)_bo;
 
-	DBG(("%s(need_io=%s, sync=%d)\n", __FUNCTION__,
-	     bo->need_io ? bo->write ? "write" : "read" : "none",
-	     bo->base.sync));
+	DBG(("%s(offset=%d, length=%d, sync=%d)\n", __FUNCTION__,
+	     offset, length, bo->base.sync));
 
-	if (bo->need_io) {
-		if (bo->write)
-			gem_write(kgem->fd, bo->base.handle,
-				  0, bo->used, bo+1);
-		else
-			gem_read(kgem->fd, bo->base.handle, bo+1, bo->used);
+	if (!bo->base.sync) {
+		gem_read(kgem->fd, bo->base.handle,
+			 (char *)(bo+1)+offset, length);
 		bo->base.needs_flush = false;
 		if (bo->base.gpu)
 			kgem_retire(kgem);
-		bo->need_io = 0;
-	}
-
-	if (bo->base.sync)
-		kgem_bo_sync(kgem, &bo->base, bo->write);
+	} else
+		kgem_bo_sync(kgem, &bo->base, false);
 }
