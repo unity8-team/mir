@@ -670,6 +670,9 @@ void kgem_retire(struct kgem *kgem)
 		list_del(&rq->list);
 		free(rq);
 	}
+
+	if (kgem->ring && list_is_empty(&kgem->requests))
+		kgem->ring = kgem->mode;
 }
 
 static void kgem_commit(struct kgem *kgem)
