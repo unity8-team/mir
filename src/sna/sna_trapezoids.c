@@ -3010,7 +3010,7 @@ sna_composite_trapezoids(CARD8 op,
 	if (NO_ACCEL)
 		goto fallback;
 
-	if (sna->kgem.wedged || !sna->have_render) {
+	if (wedged(sna) || !sna->have_render) {
 		DBG(("%s: fallback -- wedged=%d, have_render=%d\n",
 		     __FUNCTION__, sna->kgem.wedged, sna->have_render));
 		goto fallback;

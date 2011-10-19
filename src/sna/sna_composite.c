@@ -434,7 +434,7 @@ sna_composite(CARD8 op,
 					  width,  height))
 		return;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -641,7 +641,7 @@ sna_composite_rectangles(CARD8		 op,
 	     RegionExtents(&region)->x1, RegionExtents(&region)->y1,
 	     RegionExtents(&region)->x2, RegionExtents(&region)->y2));
 
-	if (sna->kgem.wedged)
+	if (wedged(sna))
 		goto fallback;
 
 	if (dst->alphaMap) {

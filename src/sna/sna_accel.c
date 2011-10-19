@@ -842,7 +842,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
 
 	if (priv->gpu_bo == NULL) {
-		if (!sna->kgem.wedged)
+		if (!wedged(sna))
 			priv->gpu_bo =
 				kgem_create_2d(&sna->kgem,
 					       pixmap->drawable.width,
@@ -1687,7 +1687,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	DBG(("%s: src=(%d, %d)x(%d, %d) -> dst=(%d, %d)\n",
 	     __FUNCTION__, src_x, src_y, width, height, dst_x, dst_y));
 
-	if (sna->kgem.wedged || !PM_IS_SOLID(dst, gc->planemask)) {
+	if (wedged(sna) || !PM_IS_SOLID(dst, gc->planemask)) {
 		BoxRec box;
 		RegionRec region;
 
@@ -2197,7 +2197,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	if (FORCE_FALLBACK)
 		goto fallback;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -2418,7 +2418,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	if (FORCE_FALLBACK)
 		goto fallback;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -2724,7 +2724,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	if (FORCE_FALLBACK)
 		goto fallback;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -2881,7 +2881,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	if (FORCE_FALLBACK)
 		goto fallback;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -3319,7 +3319,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (FORCE_FALLBACK)
 		goto fallback;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -3616,7 +3616,7 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	if (FORCE_FALLBACK)
 		goto fallback;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -3672,7 +3672,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	if (FORCE_FALLBACK)
 		goto fallback;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -3858,7 +3858,7 @@ sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 
 	DBG(("%s origin=(%d, %d)\n", __FUNCTION__, origin.x, origin.y));
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		sna_pixmap_move_to_cpu(pixmap, true);
 		fbCopyWindow(win, origin, src);
