@@ -2233,13 +2233,20 @@ sna_poly_line_can_blt(int mode, int n, DDXPointPtr pt)
 
 	if (mode == CoordModePrevious) {
 		for (i = 1; i < n; i++) {
-			if (pt[i].x != 0 && pt[i].y != 0)
+			if (pt[i].x != 0 && pt[i].y != 0) {
+				DBG(("%s: diagonal segment[%d]=(%d,%d)\n",
+				     __FUNCTION__, i, pt[i].x, pt[i].y));
 				return FALSE;
+			}
 		}
 	} else {
 		for (i = 1; i < n; i++) {
-			if (pt[i].x != pt[i-1].x && pt[i].y != pt[i-1].y)
+			if (pt[i].x != pt[i-1].x && pt[i].y != pt[i-1].y) {
+				DBG(("%s: diagonal segment[%d]=(%d,%d)->(%d,%d)\n",
+				     __FUNCTION__, i,
+				     pt[i-1].x, pt[i-1].y, pt[i].x, pt[i].y));
 				return FALSE;
+			}
 		}
 	}
 
@@ -2412,6 +2419,13 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 		goto fallback;
 	}
 
+	DBG(("%s: fill=%d [%d], line=%d [%d], width=%d, mask=%lu [%d], rectlinear=%d\n",
+	     __FUNCTION__,
+	     gc->fillStyle, gc->fillStyle == FillSolid,
+	     gc->lineStyle, gc->lineStyle == LineSolid,
+	     gc->lineWidth,
+	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask),
+	     sna_poly_line_can_blt(mode, n, pt)));
 	if (gc->fillStyle == FillSolid &&
 	    gc->lineStyle == LineSolid &&
 	    (gc->lineWidth == 0 || gc->lineWidth == 1) &&
@@ -2482,8 +2496,11 @@ static Bool
 sna_poly_segment_can_blt(int n, xSegment *seg)
 {
 	while (n--) {
-		if (seg->x1 != seg->x2 && seg->y1 != seg->y2)
+		if (seg->x1 != seg->x2 && seg->y1 != seg->y2) {
+			DBG(("%s: (%d, %d) -> (%d, %d)\n",
+			     __FUNCTION__, seg->x1, seg->y1, seg->x2, seg->y2));
 			return FALSE;
+		}
 
 		seg++;
 	}
@@ -2718,9 +2735,16 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 		goto fallback;
 	}
 
+	DBG(("%s: fill=%d [%d], line=%d [%d], width=%d, mask=%lu [%d], rectlinear=%d\n",
+	     __FUNCTION__,
+	     gc->fillStyle, gc->fillStyle == FillSolid,
+	     gc->lineStyle, gc->lineStyle == LineSolid,
+	     gc->lineWidth,
+	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask),
+	     sna_poly_segment_can_blt(n, seg)));
 	if (gc->fillStyle == FillSolid &&
 	    gc->lineStyle == LineSolid &&
-	    gc->lineWidth == 0 &&
+	    (gc->lineWidth == 0 || gc->lineWidth == 1) &&
 	    PM_IS_SOLID(drawable, gc->planemask) &&
 	    sna_poly_segment_can_blt(n, seg)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
