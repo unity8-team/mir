@@ -973,8 +973,9 @@ glyphs_fallback(CARD8 op,
 		     region.extents.y2 - region.extents.y1,
 		     dst->pDrawable->x, dst->pDrawable->y,
 		     x, y,
-		     mask_format->depth, mask_format->format,
-		     mask_format->depth << 24 | mask_format->format,
+		     mask_format->depth,
+		     (long)mask_format->format,
+		     (long)(mask_format->depth << 24 | mask_format->format),
 		     NeedsComponent(mask_format->format)));
 		mask_image =
 			pixman_image_create_bits(mask_format->depth << 24 | mask_format->format,
