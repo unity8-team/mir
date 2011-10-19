@@ -290,8 +290,10 @@ static Bool sna_blt_copy_init(struct sna *sna,
 	}
 
 	kgem_set_mode(kgem, KGEM_BLT);
-	if (!kgem_check_bo_fenced(kgem, src, dst, NULL))
+	if (!kgem_check_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
 
 	sna->blt_state.fill_bo = 0;
 	return TRUE;
@@ -340,8 +342,10 @@ static void sna_blt_copy_one(struct sna *sna,
 		return;
 	}
 
-	if (!kgem_check_batch(kgem, 8) || !kgem_check_reloc(kgem, 2))
+	if (!kgem_check_batch(kgem, 8) || !kgem_check_reloc(kgem, 2)) {
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
 
 	b = kgem->batch + kgem->nbatch;
 	b[0] = blt->cmd;
@@ -821,8 +825,10 @@ prepare_blt_copy(struct sna *sna,
 	if (priv->gpu_bo->tiling == I915_TILING_Y)
 		return FALSE;
 
-	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL))
+	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_BLT);
+	}
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -1148,8 +1154,10 @@ sna_blt_composite(struct sna *sna,
 	if (width && height)
 		reduce_damage(tmp, dst_x, dst_y, width, height);
 
-	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL))
+	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_BLT);
+	}
 
 	if (op == PictOpClear)
 		return prepare_blt_clear(sna, tmp);
@@ -1349,26 +1357,20 @@ bool sna_blt_copy(struct sna *sna, uint8_t alu,
 	return TRUE;
 }
 
-Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
-			struct kgem_bo *bo, int bpp,
-			uint32_t color,
-			const BoxRec *box, int nbox)
+static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
+			     struct kgem_bo *bo, int bpp,
+			     uint32_t color,
+			     const BoxRec *box)
 {
 	struct kgem *kgem = &sna->kgem;
 	uint32_t br13, cmd;
+	uint32_t *b;
 
-#if DEBUG_NO_BLT || NO_BLT_FILL_BOXES
-	return FALSE;
-#endif
+	DBG(("%s: box=((%d, %d), (%d, %d))\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
 
-	DBG(("%s (%d, %08x, %d) x %d\n",
-	     __FUNCTION__, bpp, color, alu, nbox));
-
-	if (bo->tiling == I915_TILING_Y) {
-		DBG(("%s: fallback -- dst uses Y-tiling\n",
-		     __FUNCTION__));
-		return FALSE;
-	}
+	assert(box->x1 >= 0);
+	assert(box->y1 >= 0);
 
 	cmd = XY_COLOR_BLT_CMD;
 	if (bpp == 32)
@@ -1403,58 +1405,171 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-5] = br13;
 		kgem->batch[kgem->nbatch-1] = color;
-		if (--nbox == 0)
-			return TRUE;
-		box++;
+		return TRUE;
 	}
 
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 6) ||
 	    !kgem_check_reloc(kgem, 1) ||
-	    !kgem_check_bo_fenced(kgem, bo, NULL))
+	    !kgem_check_bo_fenced(kgem, bo, NULL)) {
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
+
+	b = kgem->batch + kgem->nbatch;
+
+	b[0] = cmd;
+	b[1] = br13;
+	b[2] = box->y1 << 16 | box->x1;
+	b[3] = box->y2 << 16 | box->x2;
+	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4,
+			      bo,
+			      I915_GEM_DOMAIN_RENDER << 16 |
+			      I915_GEM_DOMAIN_RENDER |
+			      KGEM_RELOC_FENCED,
+			      0);
+	b[5] = color;
+	kgem->nbatch += 6;
+
+	sna->blt_state.fill_bo = 0;
+	return TRUE;
+}
+
+Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
+			struct kgem_bo *bo, int bpp,
+			uint32_t pixel,
+			const BoxRec *box, int nbox)
+{
+	struct kgem *kgem = &sna->kgem;
+	uint32_t br13, cmd;
+
+#if DEBUG_NO_BLT || NO_BLT_FILL_BOXES
+	return FALSE;
+#endif
+
+	DBG(("%s (%d, %08x, %d) x %d\n",
+	     __FUNCTION__, bpp, pixel, alu, nbox));
+
+	if (bo->tiling == I915_TILING_Y) {
+		DBG(("%s: fallback -- dst uses Y-tiling\n", __FUNCTION__));
+		return FALSE;
+	}
+
+	if (nbox == 1)
+		return sna_blt_fill_box(sna, alu, bo, bpp, pixel, box);
+
+	br13 = bo->pitch;
+	cmd = XY_SCANLINE_BLT;
+	if (kgem->gen >= 40 && bo->tiling) {
+		cmd |= 1 << 11;
+		br13 >>= 2;
+	}
+	if (br13 > MAXSHORT)
+		return FALSE;
+
+	br13 |= 1<<31 | fill_ROP[alu] << 16;
+	switch (bpp) {
+	default: assert(0);
+	case 32: br13 |= 1 << 25; /* RGB8888 */
+	case 16: br13 |= 1 << 24; /* RGB565 */
+	case 8: break;
+	}
+
+	kgem_set_mode(kgem, KGEM_BLT);
+	if (!kgem_check_bo_fenced(kgem, bo, NULL) ||
+	    !kgem_check_batch(kgem, 12)) {
+		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
+
+	if (sna->blt_state.fill_bo != bo->handle ||
+	    sna->blt_state.fill_pixel != pixel)
+	{
+		uint32_t *b;
+
+		if (!kgem_check_reloc(kgem, 1)) {
+			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		}
+
+		b = kgem->batch + kgem->nbatch;
+		b[0] = XY_SETUP_MONO_PATTERN_SL_BLT;
+		if (bpp == 32)
+			b[0] |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
+		b[1] = br13;
+		b[2] = 0;
+		b[3] = 0;
+		b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, bo,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      I915_GEM_DOMAIN_RENDER |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[5] = pixel;
+		b[6] = pixel;
+		b[7] = 0;
+		b[8] = 0;
+		kgem->nbatch += 9;
+
+		sna->blt_state.fill_bo = bo->handle;
+		sna->blt_state.fill_pixel = pixel;
+	}
 
 	do {
 		int nbox_this_time;
 
 		nbox_this_time = nbox;
-		if (6*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
-			nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 6;
-		if (nbox_this_time > KGEM_RELOC_SIZE(kgem) - kgem->nreloc)
-			nbox_this_time = KGEM_RELOC_SIZE(kgem) - kgem->nreloc;
+		if (3*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+			nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 3;
 		assert(nbox_this_time);
 		nbox -= nbox_this_time;
 
 		do {
 			uint32_t *b = kgem->batch + kgem->nbatch;
 
-			DBG(("%s: box=((%d, %d), (%d, %d))\n", __FUNCTION__,
-			     box->x1, box->y1, box->x2, box->y2));
+			DBG(("%s: (%d, %d), (%d, %d): %08x\n",
+			     __FUNCTION__,
+			     box->x1, box->y1,
+			     box->x2, box->y2,
+			     pixel));
 
 			assert(box->x1 >= 0);
 			assert(box->y1 >= 0);
+			assert(box->y2 * bo->pitch <= bo->size);
 
+			b = kgem->batch + kgem->nbatch;
+			kgem->nbatch += 3;
 			b[0] = cmd;
+			b[1] = box->y1 << 16 | box->x1;
+			b[2] = box->y2 << 16 | box->x2;
+			box++;
+		} while (--nbox_this_time);
+
+		if (nbox) {
+			uint32_t *b;
+
+			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+
+			b = kgem->batch + kgem->nbatch;
+			b[0] = XY_SETUP_MONO_PATTERN_SL_BLT;
+			if (bpp == 32)
+				b[0] |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 			b[1] = br13;
-			b[2] = box->y1 << 16 | box->x1;
-			b[3] = box->y2 << 16 | box->x2;
-			b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4,
-					      bo,
+			b[2] = 0;
+			b[3] = 0;
+			b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, bo,
 					      I915_GEM_DOMAIN_RENDER << 16 |
 					      I915_GEM_DOMAIN_RENDER |
 					      KGEM_RELOC_FENCED,
 					      0);
-			b[5] = color;
-			kgem->nbatch += 6;
-			box++;
-		} while (--nbox_this_time);
-
-		if (nbox)
-			_kgem_submit(kgem);
+			b[5] = pixel;
+			b[6] = pixel;
+			b[7] = 0;
+			b[8] = 0;
+			kgem->nbatch += 9;
+		}
 	} while (nbox);
 
-	_kgem_set_mode(kgem, KGEM_BLT);
-	sna->blt_state.fill_bo = 0;
 	return TRUE;
 }
 
@@ -1512,8 +1627,10 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc(kgem, 2) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL))
+	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
 
 	do {
 		int nbox_this_time;
@@ -1561,8 +1678,10 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			box++;
 		} while (--nbox_this_time);
 
-		if (nbox)
+		if (nbox) {
 			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		}
 	} while (nbox);
 
 	if (kgem->gen >= 60 && kgem_check_batch(kgem, 3)) {
@@ -1572,6 +1691,5 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		kgem->nbatch += 3;
 	}
 
-	_kgem_set_mode(kgem, KGEM_BLT);
 	return TRUE;
 }
