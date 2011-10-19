@@ -1621,7 +1621,7 @@ bool kgem_check_bo_fenced(struct kgem *kgem, ...)
 	int size = 0;
 	int fenced_size = 0;
 
-	if (kgem->aperture > kgem->aperture_low)
+	if (unlikely (kgem->aperture > kgem->aperture_low))
 		return false;
 
 	va_start(ap, kgem);
