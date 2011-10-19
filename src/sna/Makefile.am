@@ -32,6 +32,7 @@ NULL:=#
 
 libsna_la_SOURCES = \
 	blt.c \
+	compiler.h \
 	kgem.c \
 	kgem.h \
 	sna.h \

@@ -34,14 +34,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+#ifndef _SNA_H_
+#define _SNA_H_
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <stdint.h>
-
-#ifndef _SNA_H_
-#define _SNA_H_
 
 #include "xf86_OSproc.h"
 #include "compiler.h"
@@ -66,6 +66,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if HAVE_UDEV
 #include <libudev.h>
 #endif
+
+#include "compiler.h"
 
 #define DBG(x)
 
@@ -474,6 +476,10 @@ Bool sna_transform_is_integer_translation(const PictTransform *t,
 Bool sna_transform_is_translation(const PictTransform *t,
 				  pixman_fixed_t *tx, pixman_fixed_t *ty);
 
+static inline bool wedged(struct sna *sna)
+{
+	return unlikely(sna->kgem.wedged);
+}
 
 static inline uint32_t pixmap_size(PixmapPtr pixmap)
 {

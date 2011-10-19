@@ -1,9 +1,9 @@
 #ifndef SNA_RENDER_H
 #define SNA_RENDER_H
 
-#define GRADIENT_CACHE_SIZE 16
+#include "compiler.h"
 
-#define fastcall __attribute__((regparm(3)))
+#define GRADIENT_CACHE_SIZE 16
 
 struct sna;
 struct sna_glyph;

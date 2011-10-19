@@ -25,14 +25,16 @@
  *
  */
 
+#ifndef KGEM_H
+#define KGEM_H
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
 
 #include <i915_drm.h>
 
-#ifndef KGEM_H
-#define KGEM_H
+#include "compiler.h"
 
 #if DEBUG_KGEM
 #define DBG_HDR(x) ErrorF x
@@ -249,12 +251,12 @@ static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 
 static inline bool kgem_check_batch(struct kgem *kgem, int num_dwords)
 {
-	return kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED <= kgem->surface;
+	return likely(kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED <= kgem->surface);
 }
 
 static inline bool kgem_check_reloc(struct kgem *kgem, int num_reloc)
 {
-	return kgem->nreloc + num_reloc <= KGEM_RELOC_SIZE(kgem);
+	return likely(kgem->nreloc + num_reloc <= KGEM_RELOC_SIZE(kgem));
 }
 
 static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,

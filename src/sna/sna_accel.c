@@ -1772,7 +1772,6 @@ sna_fill_spans_blt(DrawablePtr drawable,
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	RegionRec clip;
-	int need_translation = !gc->miTranslate;
 	int16_t dx, dy;
 	struct sna_fill_op fill;
 
@@ -1788,17 +1787,21 @@ sna_fill_spans_blt(DrawablePtr drawable,
 	     extents->x1, extents->y1, extents->x2, extents->y2,
 	     n, pt->x, pt->y));
 
-	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	while (n--) {
-		int X1 = pt->x;
-		int y = pt->y;
-		int X2 = X1 + (int)*width;
+	if (!gc->miTranslate) {
+		int i;
 
-		if (need_translation) {
-			X1 += drawable->x;
-			X2 += drawable->x;
-			y += drawable->y;
+		for (i = 0; i < n; i++) {
+			/* XXX overflow? */
+			pt->x += drawable->x;
+			pt->y += drawable->y;
 		}
+	}
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	do {
+		int16_t X1 = pt->x;
+		int16_t y = pt->y;
+		int16_t X2 = X1 + (int)*width;
 
 		pt++;
 		width++;
@@ -1817,22 +1820,17 @@ sna_fill_spans_blt(DrawablePtr drawable,
 
 		y += dy;
 		if (clip.data == NULL) {
-			X1 += dx;
-			X2 += dx;
-			assert(X1 >= 0 && X2 <= pixmap->drawable.width);
-			if (X2 > X1) {
-				fill.blt(sna, &fill, X1, y, X2-X1, 1);
-				if (damage) {
-					BoxRec box;
+			fill.blt(sna, &fill, X1 + dx, y, X2-X1, 1);
+			if (damage) {
+				BoxRec box;
 
-					box.x1 = X1;
-					box.x2 = X2;
-					box.y1 = y;
-					box.y2 = box.y1 + 1;
+				box.x1 = X1 + dx;
+				box.x2 = X2 + dx;
+				box.y1 = y;
+				box.y2 = box.y1 + 1;
 
-					assert_pixmap_contains_box(pixmap, &box);
-					sna_damage_add_box(damage, &box);
-				}
+				assert_pixmap_contains_box(pixmap, &box);
+				sna_damage_add_box(damage, &box);
 			}
 		} else {
 			int nc = clip.data->numRects;
@@ -1872,7 +1870,7 @@ sna_fill_spans_blt(DrawablePtr drawable,
 				b++;
 			}
 		}
-	}
+	} while (--n);
 	fill.done(sna, &fill);
 	RegionUninit(&clip);
 	return TRUE;
@@ -1960,22 +1958,22 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	       DDXPointPtr pt, int *width, int sorted)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
-	BoxRec extents;
 	RegionRec region;
 
 	DBG(("%s(n=%d, pt[0]=(%d, %d)\n",
 	     __FUNCTION__, n, pt[0].x, pt[0].y));
 
-	if (sna_spans_extents(drawable, gc, n, pt, width, &extents))
+	if (sna_spans_extents(drawable, gc, n, pt, width, &region.extents))
 		return;
 
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
-	     extents.x1, extents.y1, extents.x2, extents.y2));
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
 
 	if (FORCE_FALLBACK)
 		goto fallback;
 
-	if (sna->kgem.wedged) {
+	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -1992,20 +1990,20 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 		DBG(("%s: trying solid fill [alu=%d, pixel=%08lx] blt paths\n",
 		     __FUNCTION__, gc->alu, gc->fgPixel));
 
-		if (sna_drawable_use_gpu_bo(drawable, &extents) &&
+		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_fill_spans_blt(drawable,
 				       priv->gpu_bo,
-				       priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &extents),
+				       priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 				       gc, n, pt, width, sorted,
-				       &extents))
+				       &region.extents))
 			return;
 
-		if (sna_drawable_use_cpu_bo(drawable, &extents) &&
+		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
 		    sna_fill_spans_blt(drawable,
 				       priv->cpu_bo,
-				       reduce_damage(drawable, &priv->cpu_damage, &extents),
+				       reduce_damage(drawable, &priv->cpu_damage, &region.extents),
 				       gc, n, pt, width, sorted,
-				       &extents))
+				       &region.extents))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
 		xRectangle *rect;
@@ -2032,7 +2030,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	region_set(&region, &extents);
+	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;

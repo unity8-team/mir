@@ -52,8 +52,6 @@
 
 /* TODO: Emit unantialiased and MSAA triangles. */
 
-#define unlikely(x) x
-
 #ifndef MAX
 #define MAX(x,y) ((x) >= (y) ? (x) : (y))
 #endif

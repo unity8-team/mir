@@ -141,7 +141,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_bo_fenced(kgem, bo, NULL) ||
-	    !kgem_check_batch(kgem, 9)) {
+	    !kgem_check_batch(kgem, 12)) {
 		_kgem_submit(kgem);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
@@ -151,7 +151,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 	{
 		uint32_t *b;
 
-		if (kgem->nreloc + 1 > KGEM_RELOC_SIZE(kgem)) {
+		if (!kgem_check_reloc(kgem, 1)) {
 			_kgem_submit(kgem);
 			_kgem_set_mode(kgem, KGEM_BLT);
 		}
@@ -181,10 +181,38 @@ static bool sna_blt_fill_init(struct sna *sna,
 	return TRUE;
 }
 
+noinline static void sna_blt_fill_begin(struct sna *sna,
+					const struct sna_blt_state *blt)
+{
+	struct kgem *kgem = &sna->kgem;
+	uint32_t *b;
+
+	_kgem_submit(kgem);
+	_kgem_set_mode(kgem, KGEM_BLT);
+
+	b = kgem->batch + kgem->nbatch;
+	b[0] = XY_SETUP_MONO_PATTERN_SL_BLT;
+	if (blt->bpp == 32)
+		b[0] |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
+	b[1] = blt->br13;
+	b[2] = 0;
+	b[3] = 0;
+	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, blt->bo[0],
+			      I915_GEM_DOMAIN_RENDER << 16 |
+			      I915_GEM_DOMAIN_RENDER |
+			      KGEM_RELOC_FENCED,
+			      0);
+	b[5] = blt->pixel;
+	b[6] = blt->pixel;
+	b[7] = 0;
+	b[8] = 0;
+	kgem->nbatch += 9;
+}
+
 static void sna_blt_fill_one(struct sna *sna,
 			     const struct sna_blt_state *blt,
-			     int x, int y,
-			     int width, int height)
+			     int16_t x, int16_t y,
+			     int16_t width, int16_t height)
 {
 	struct kgem *kgem = &sna->kgem;
 	uint32_t *b;
@@ -196,33 +224,13 @@ static void sna_blt_fill_one(struct sna *sna,
 	assert(y >= 0);
 	assert((y+height) * blt->bo[0]->pitch <= blt->bo[0]->size);
 
-	if (!kgem_check_batch(kgem, 3)) {
-		_kgem_submit(kgem);
-		_kgem_set_mode(kgem, KGEM_BLT);
-
-		b = kgem->batch + kgem->nbatch;
-		b[0] = XY_SETUP_MONO_PATTERN_SL_BLT;
-		if (blt->bpp == 32)
-			b[0] |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
-		b[1] = blt->br13;
-		b[2] = 0;
-		b[3] = 0;
-		b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, blt->bo[0],
-				      I915_GEM_DOMAIN_RENDER << 16 |
-				      I915_GEM_DOMAIN_RENDER |
-				      KGEM_RELOC_FENCED,
-				      0);
-		b[5] = blt->pixel;
-		b[6] = blt->pixel;
-		b[7] = 0;
-		b[8] = 0;
-		kgem->nbatch += 9;
-	}
+	if (!kgem_check_batch(kgem, 3))
+		sna_blt_fill_begin(sna, blt);
 
 	b = kgem->batch + kgem->nbatch;
 	b[0] = blt->cmd;
-	b[1] = (y << 16) | x;
-	b[2] = ((y + height) << 16) | (x + width);
+	b[1] = y << 16 | x;
+	b[2] = b[1] + (height << 16 | width);
 	kgem->nbatch += 3;
 }
 
@@ -318,8 +326,7 @@ static void sna_blt_copy_one(struct sna *sna,
 		return;
 	}
 
-	if (kgem->nbatch + 8 + KGEM_BATCH_RESERVED > kgem->surface ||
-	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem))
+	if (!kgem_check_batch(kgem, 8) || !kgem_check_reloc(kgem, 2))
 		_kgem_submit(kgem);
 
 	b = kgem->batch + kgem->nbatch;
@@ -1377,8 +1384,8 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 6) ||
-	    !kgem_check_bo_fenced(kgem, bo, NULL) ||
-	    kgem->nreloc + 1 > KGEM_RELOC_SIZE(kgem))
+	    !kgem_check_reloc(kgem, 1) ||
+	    !kgem_check_bo_fenced(kgem, bo, NULL))
 		_kgem_submit(kgem);
 
 	do {
@@ -1478,8 +1485,8 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL) ||
-	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem))
+	    !kgem_check_reloc(kgem, 2) ||
+	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL))
 		_kgem_submit(kgem);
 
 	do {
