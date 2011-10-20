@@ -231,6 +231,73 @@ _sna_damage_create_elt(struct sna_damage *damage,
 			  boxes, count * sizeof(BoxRec));
 }
 
+static void
+_sna_damage_create_elt_with_translation(struct sna_damage *damage,
+					enum mode mode,
+					const BoxRec *boxes, int count,
+					int16_t dx, int16_t dy)
+{
+	struct sna_damage_elt *elt;
+	int i;
+
+	DBG(("    %s(%s): n=%d, prev=(%s, remain %d)\n", __FUNCTION__,
+	     mode == ADD ? "add" : "subtract",
+	     damage->n,
+	     damage->n ? damage->elts[damage->n-1].mode == ADD ? "add" : "subtract" : "none",
+	     damage->last_box ? damage->last_box->remain : 0));
+
+	if (damage->last_box && damage->elts[damage->n-1].mode == mode) {
+		int n;
+		BoxRec *b;
+
+		n = count;
+		if (n > damage->last_box->remain)
+			n = damage->last_box->remain;
+
+		elt = damage->elts + damage->n-1;
+		b = elt->box + elt->n;
+		for (i = 0; i < n; i++) {
+			b[i].x1 = boxes[i].x1 + dx;
+			b[i].x2 = boxes[i].x2 + dx;
+			b[i].y1 = boxes[i].y1 + dy;
+			b[i].y2 = boxes[i].y2 + dy;
+		}
+		elt->n += n;
+		damage->last_box->remain -= n;
+		if (damage->last_box->remain == 0)
+			damage->last_box = NULL;
+
+		count -=n;
+		boxes += n;
+		if (count == 0)
+			return;
+	}
+
+	if (damage->n == damage->size) {
+		int newsize = damage->size * 2;
+		struct sna_damage_elt *newelts = realloc(damage->elts,
+							 newsize*sizeof(*elt));
+		if (newelts == NULL)
+			return;
+
+		damage->elts = newelts;
+		damage->size = newsize;
+	}
+
+	DBG(("    %s(): new elt\n", __FUNCTION__));
+
+	elt = damage->elts + damage->n++;
+	elt->mode = mode;
+	elt->n = count;
+	elt->box = _sna_damage_create_boxes(damage, count);
+	for (i = 0; i < count; i++) {
+		elt->box[i].x1 = boxes[i].x1 + dx;
+		elt->box[i].x2 = boxes[i].x2 + dx;
+		elt->box[i].y1 = boxes[i].y1 + dy;
+		elt->box[i].y2 = boxes[i].y2 + dy;
+	}
+}
+
 static void free_list(struct list *head)
 {
 	while (!list_is_empty(head)) {
@@ -384,6 +451,92 @@ fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
 					    RegionPtr region)
 {
 	return __sna_damage_add(damage, region);
+}
+#endif
+
+inline static struct sna_damage *
+__sna_damage_add_boxes(struct sna_damage *damage,
+		       const BoxRec *box, int n,
+		       int16_t dx, int16_t dy)
+{
+	BoxRec extents;
+	int i;
+
+	assert(n);
+
+	extents = box[0];
+	for (i = 1; i < n; i++) {
+		if (extents.x1 > box[i].x1)
+			extents.x1 = box[i].x1;
+		if (extents.x2 < box[i].x2)
+			extents.x2 = box[i].x2;
+		if (extents.y1 > box[i].y1)
+			extents.y1 = box[i].y1;
+		if (extents.y2 < box[i].y2)
+			extents.y2 = box[i].y2;
+	}
+
+	if (extents.y2 <= extents.y1 || extents.x2 <= extents.x1)
+		return damage;
+
+	extents.x1 += dx;
+	extents.x2 += dx;
+	extents.y1 += dy;
+	extents.y2 += dy;
+
+	if (!damage)
+		damage = _sna_damage_create();
+
+	if (damage->all)
+		return damage;
+
+	if (damage->mode == SUBTRACT)
+		__sna_damage_reduce(damage);
+	damage->mode = ADD;
+
+	if (pixman_region_contains_rectangle(&damage->region,
+					     &extents) == PIXMAN_REGION_IN)
+		return damage;
+
+	_sna_damage_create_elt_with_translation(damage, ADD, box, n, dx, dy);
+
+	if (damage->extents.x1 > extents.x1)
+		damage->extents.x1 = extents.x1;
+	if (damage->extents.x2 < extents.x2)
+		damage->extents.x2 = extents.x2;
+
+	if (damage->extents.y1 > extents.y1)
+		damage->extents.y1 = extents.y1;
+	if (damage->extents.y2 < extents.y2)
+		damage->extents.y2 = extents.y2;
+
+	return damage;
+}
+
+#if DEBUG_DAMAGE
+struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
+					 const BoxRec *box, int n,
+					 int16_t dx, int16_t dy)
+{
+	char damage_buf[1000];
+
+	DBG(("%s(%s + [(%d, %d), (%d, %d) ... x %d])\n", __FUNCTION__,
+	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
+	     box->x1, box->y1, box->x2, box->y2, n));
+
+	damage = __sna_damage_add_box(damage, boxes, n, dx, dy);
+
+	ErrorF("  = %s\n",
+	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+
+	return damage;
+}
+#else
+struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
+					 const BoxRec *box, int n,
+					 int16_t dx, int16_t dy)
+{
+	return __sna_damage_add_boxes(damage, box, n, dx, dy);
 }
 #endif
 

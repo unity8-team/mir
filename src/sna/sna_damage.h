@@ -34,6 +34,16 @@ static inline void sna_damage_add_box(struct sna_damage **damage,
 	*damage = _sna_damage_add_box(*damage, box);
 }
 
+struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
+					 const BoxRec *box, int n,
+					 int16_t dx, int16_t dy);
+static inline void sna_damage_add_boxes(struct sna_damage **damage,
+					const BoxRec *box, int n,
+					int16_t dx, int16_t dy)
+{
+	*damage = _sna_damage_add_boxes(*damage, box, n, dx, dy);
+}
+
 struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 				       int width, int height);
 static inline bool sna_damage_is_all(struct sna_damage **damage,

@@ -1254,7 +1254,6 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	PixmapPtr pixmap = get_drawable_pixmap(src);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	int alu = gc ? gc->alu : GXcopy;
-	RegionRec region;
 	int16_t tx, ty;
 
 	if (n == 0 || (dx | dy) == 0)
@@ -1266,10 +1265,11 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     dx, dy, alu,
 	     pixmap->drawable.width, pixmap->drawable.height));
 
-	pixman_region_init_rects(&region, box, n);
-	get_drawable_deltas(dst, pixmap, &tx, &ty);
-	RegionTranslate(&region, tx, ty);
-	assert_pixmap_contains_box(pixmap, RegionExtents(&region));
+	get_drawable_deltas(src, pixmap, &tx, &ty);
+	dx += tx;
+	dy += ty;
+	if (dst != src)
+		get_drawable_deltas(dst, pixmap, &tx, &ty);
 
 	if (priv && priv->gpu_bo) {
 		if (!sna_pixmap_move_to_gpu(pixmap)) {
@@ -1280,14 +1280,14 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 		if (!sna->render.copy_boxes(sna, alu,
 					    pixmap, priv->gpu_bo, dx, dy,
-					    pixmap, priv->gpu_bo, 0, 0,
+					    pixmap, priv->gpu_bo, tx, ty,
 					    box, n)) {
 			DBG(("%s: fallback - accelerated copy boxes failed\n",
 			     __FUNCTION__));
 			goto fallback;
 		}
 
-		sna_damage_add(&priv->gpu_damage, &region);
+		sna_damage_add_boxes(&priv->gpu_damage, box, n, tx, ty);
 	} else {
 		FbBits *dst_bits, *src_bits;
 		int stride, bpp;
@@ -1299,7 +1299,9 @@ fallback:
 		stride = pixmap->devKind;
 		bpp = pixmap->drawable.bitsPerPixel;
 		if (alu == GXcopy && !reverse && !upsidedown && bpp >= 8) {
-			dst_bits = pixmap->devPrivate.ptr;
+			dst_bits = (FbBits *)
+				((char *)pixmap->devPrivate.ptr +
+				 ty * stride + tx * bpp / 8);
 			src_bits = (FbBits *)
 				((char *)pixmap->devPrivate.ptr +
 				 dy * stride + dx * bpp / 8);
@@ -1323,9 +1325,9 @@ fallback:
 				      stride,
 				      (box->x1 + dx) * bpp,
 
-				      dst_bits + box->y1 * stride,
+				      dst_bits + (box->y1 + ty) * stride,
 				      stride,
-				      box->x1 * bpp,
+				      (box->x1 + tx) * bpp,
 
 				      (box->x2 - box->x1) * bpp,
 				      (box->y2 - box->y1),
@@ -1336,7 +1338,6 @@ fallback:
 			}while (--n);
 		}
 	}
-	RegionUninit(&region);
 }
 
 static void
