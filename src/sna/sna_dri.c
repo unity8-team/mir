@@ -153,8 +153,9 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 		list_add(&priv->list, &sna->dirty_pixmaps);
 
 	/* The bo is outside of our control, so presume it is written to */
-	priv->gpu_bo->needs_flush = 1;
+	priv->gpu_bo->needs_flush = true;
 	priv->gpu_bo->reusable = false;
+	priv->gpu_bo->gpu = true;
 
 	/* We need to submit any modifications to and reads from this
 	 * buffer before we send any reply to the Client.
@@ -317,8 +318,18 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 	struct sna_dri_private *private = buffer->driverPrivate;
 
 	if (--private->refcnt == 0) {
+		private->bo->gpu = private->bo->needs_flush || private->bo->rq != NULL;
+		private->bo->flush = 0;
+
 		if (private->pixmap) {
 			ScreenPtr screen = private->pixmap->drawable.pScreen;
+			struct sna_pixmap *priv = sna_pixmap(private->pixmap);
+
+			/* Undo the DRI markings on this pixmap */
+			list_del(&priv->list);
+			priv->pinned = private->pixmap == sna->front;
+			priv->flush = 0;
+
 			screen->DestroyPixmap(private->pixmap);
 		} else
 			kgem_bo_destroy(&sna->kgem, private->bo);

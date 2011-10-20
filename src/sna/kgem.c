@@ -105,7 +105,6 @@ static void kgem_sna_flush(struct kgem *kgem)
 		sna_render_flush_solid(sna);
 }
 
-
 static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 {
 	struct drm_i915_gem_set_tiling set_tiling;
