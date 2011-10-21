@@ -2237,33 +2237,6 @@ fallback:
 }
 
 static Bool
-sna_poly_line_can_blt(int mode, int n, DDXPointPtr pt)
-{
-	int i;
-
-	if (mode == CoordModePrevious) {
-		for (i = 1; i < n; i++) {
-			if (pt[i].x != 0 && pt[i].y != 0) {
-				DBG(("%s: diagonal segment[%d]=(%d,%d)\n",
-				     __FUNCTION__, i, pt[i].x, pt[i].y));
-				return FALSE;
-			}
-		}
-	} else {
-		for (i = 1; i < n; i++) {
-			if (pt[i].x != pt[i-1].x && pt[i].y != pt[i-1].y) {
-				DBG(("%s: diagonal segment[%d]=(%d,%d)->(%d,%d)\n",
-				     __FUNCTION__, i,
-				     pt[i-1].x, pt[i-1].y, pt[i].x, pt[i].y));
-				return FALSE;
-			}
-		}
-	}
-
-	return TRUE;
-}
-
-static Bool
 sna_poly_line_blt(DrawablePtr drawable,
 		  struct kgem_bo *bo,
 		  struct sna_damage **damage,
@@ -2408,16 +2381,17 @@ sna_poly_line_blt(DrawablePtr drawable,
 	return TRUE;
 }
 
-static Bool
+static unsigned
 sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 		      int mode, int n, DDXPointPtr pt,
-		      BoxPtr out, bool *clipped)
+		      BoxPtr out)
 {
 	BoxRec box;
 	int extra = gc->lineWidth >> 1;
+	bool clip, blt = true;
 
 	if (n == 0)
-		return true;
+		return 0;
 
 	if (n > 1) {
 		if (gc->joinStyle == JoinMiter)
@@ -2435,11 +2409,20 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 			pt++;
 			x += pt->x;
 			y += pt->y;
+			if (blt)
+				blt &= pt->x == 0 || pt->y == 0;
 			box_add_pt(&box, x, y);
 		}
 	} else {
+		int x = box.x1;
+		int y = box.y1;
 		while (--n) {
 			pt++;
+			if (blt) {
+				blt &= pt->x == x || pt->y == y;
+				x = pt->x;
+				y = pt->y;
+			}
 			box_add_pt(&box, pt->x, pt->y);
 		}
 	}
@@ -2453,9 +2436,12 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 		box.y2 += extra;
 	}
 
-	*clipped = trim_and_translate_box(&box, drawable, gc);
+	clip = trim_and_translate_box(&box, drawable, gc);
+	if (box_empty(&box))
+		return 0;
+
 	*out = box;
-	return box_empty(&box);
+	return 1 | blt << 1 | clip << 2;
 }
 
 static void
@@ -2464,13 +2450,14 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	RegionRec region;
-	bool clipped;
+	unsigned flags;
 
 	DBG(("%s(mode=%d, n=%d, pt[0]=(%d, %d), lineWidth=%d\n",
 	     __FUNCTION__, mode, n, pt[0].x, pt[0].y, gc->lineWidth));
 
-	if (sna_poly_line_extents(drawable, gc, mode, n, pt,
-				  &region.extents, &clipped))
+	flags = sna_poly_line_extents(drawable, gc, mode, n, pt,
+				      &region.extents);
+	if (flags == 0)
 		return;
 
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
@@ -2491,12 +2478,12 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	     gc->lineStyle, gc->lineStyle == LineSolid,
 	     gc->lineWidth,
 	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask),
-	     sna_poly_line_can_blt(mode, n, pt)));
+	     flags & 2));
 	if (gc->fillStyle == FillSolid &&
 	    gc->lineStyle == LineSolid &&
 	    (gc->lineWidth == 0 || gc->lineWidth == 1) &&
 	    PM_IS_SOLID(drawable, gc->planemask) &&
-	    sna_poly_line_can_blt(mode, n, pt)) {
+	    flags & 2) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
 		DBG(("%s: trying solid fill [%08lx]\n",
@@ -2506,14 +2493,14 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 		    sna_poly_line_blt(drawable,
 				      priv->gpu_bo,
 				      priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
-				      gc, mode, n, pt, clipped))
+				      gc, mode, n, pt, flags & 4))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
 		    sna_poly_line_blt(drawable,
 				      priv->cpu_bo,
 				      reduce_damage(drawable, &priv->cpu_damage, &region.extents),
-				      gc, mode, n, pt, clipped))
+				      gc, mode, n, pt, flags & 4))
 			return;
 	}
 
