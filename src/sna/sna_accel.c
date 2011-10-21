@@ -916,37 +916,45 @@ static void sna_gc_move_to_cpu(GCPtr gc)
 		sna_drawable_move_to_cpu(&gc->tile.pixmap->drawable, false);
 }
 
-static inline void trim_box(BoxPtr box, DrawablePtr d)
+static inline bool trim_box(BoxPtr box, DrawablePtr d)
 {
+	bool clipped = false;
+
 	if (box->x1 < 0)
-		box->x1 = 0;
+		box->x1 = 0, clipped = true;
 	if (box->x2 > d->width)
-		box->x2 = d->width;
+		box->x2 = d->width, clipped = true;
 
 	if (box->y1 < 0)
-		box->y1 = 0;
+		box->y1 = 0, clipped = true;
 	if (box->y2 > d->height)
-		box->y2 = d->height;
+		box->y2 = d->height, clipped = true;
+
+	return clipped;
 }
 
-static inline void clip_box(BoxPtr box, GCPtr gc)
+static inline bool clip_box(BoxPtr box, GCPtr gc)
 {
 	const BoxRec *clip;
+	bool clipped;
 
 	if (!gc->pCompositeClip)
-		return;
+		return false;
 
 	clip = &gc->pCompositeClip->extents;
 
+	clipped = gc->pCompositeClip->data != NULL;
 	if (box->x1 < clip->x1)
-		box->x1 = clip->x1;
+		box->x1 = clip->x1, clipped = true;
 	if (box->x2 > clip->x2)
-		box->x2 = clip->x2;
+		box->x2 = clip->x2, clipped = true;
 
 	if (box->y1 < clip->y1)
-		box->y1 = clip->y1;
+		box->y1 = clip->y1, clipped = true;
 	if (box->y2 > clip->y2)
-		box->y2 = clip->y2;
+		box->y2 = clip->y2, clipped = true;
+
+	return clipped;
 }
 
 static inline void translate_box(BoxPtr box, DrawablePtr d)
@@ -958,11 +966,12 @@ static inline void translate_box(BoxPtr box, DrawablePtr d)
 	box->y2 += d->y;
 }
 
-static inline void trim_and_translate_box(BoxPtr box, DrawablePtr d, GCPtr gc)
+static inline bool trim_and_translate_box(BoxPtr box, DrawablePtr d, GCPtr gc)
 {
-	trim_box(box, d);
+	bool clipped = trim_box(box, d);
 	translate_box(box, d);
-	clip_box(box, gc);
+	clipped |= clip_box(box, gc);
+	return clipped;
 }
 
 static inline void box_add_pt(BoxPtr box, int16_t x, int16_t y)
@@ -2258,7 +2267,8 @@ static Bool
 sna_poly_line_blt(DrawablePtr drawable,
 		  struct kgem_bo *bo,
 		  struct sna_damage **damage,
-		  GCPtr gc, int mode, int n, DDXPointPtr pt)
+		  GCPtr gc, int mode, int n, DDXPointPtr pt,
+		  bool clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -2275,71 +2285,124 @@ sna_poly_line_blt(DrawablePtr drawable,
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-	last.x = drawable->x;
-	last.y = drawable->y;
-	first = 1;
-
-	while (n--) {
-		int nclip;
-		BoxPtr box;
+	if (!clipped) {
 		int x, y;
 
-		x = pt->x;
-		y = pt->y;
+		dx += drawable->x;
+		dy += drawable->y;
+
+		last.x = pt->x + dx;
+		last.y = pt->y + dy;
 		pt++;
-		if (mode == CoordModePrevious) {
-			x += last.x;
-			y += last.y;
-		} else {
-			x += drawable->x;
-			y += drawable->y;
+
+		while (--n) {
+			BoxRec r;
+
+			x = pt->x;
+			y = pt->y;
+			pt++;
+			if (mode == CoordModePrevious) {
+				x += last.x;
+				y += last.y;
+			} else {
+				x += dx;
+				y += dy;
+			}
+			if (last.x == x) {
+				r.x1 = last.x;
+				r.x2 = last.x + 1;
+			} else {
+				r.x1 = last.x < x ? last.x : x;
+				r.x2 = last.x > x ? last.x : x;
+			}
+			if (last.y == y) {
+				r.y1 = last.y;
+				r.y2 = last.y + 1;
+			} else {
+				r.y1 = last.y < y ? last.y : y;
+				r.y2 = last.y > y ? last.y : y;
+			}
+			DBG(("%s: blt (%d, %d), (%d, %d)\n",
+			     __FUNCTION__,
+			     r.x1, r.y1, r.x2, r.y2));
+			fill.blt(sna, &fill,
+				 r.x1, r.y1,
+				 r.x2-r.x1, r.y2-r.y1);
+			if (damage) {
+				assert_pixmap_contains_box(pixmap, &r);
+				sna_damage_add_box(damage, &r);
+			}
+
+			last.x = x;
+			last.y = y;
 		}
+	} else {
+		last.x = drawable->x;
+		last.y = drawable->y;
+		first = 1;
 
-		if (!first) {
-			for (nclip = REGION_NUM_RECTS(clip), box = REGION_RECTS(clip); nclip--; box++) {
-				BoxRec r;
+		while (n--) {
+			int nclip;
+			BoxPtr box;
+			int x, y;
 
-				if (last.x == x) {
-					r.x1 = last.x;
-					r.x2 = last.x + 1;
-				} else {
-					r.x1 = last.x < x ? last.x : x;
-					r.x2 = last.x > x ? last.x : x;
-				}
-				if (last.y == y) {
-					r.y1 = last.y;
-					r.y2 = last.y + 1;
-				} else {
-					r.y1 = last.y < y ? last.y : y;
-					r.y2 = last.y > y ? last.y : y;
-				}
-				DBG(("%s: (%d, %d) -> (%d, %d) clipping line (%d, %d), (%d, %d) against box (%d, %d), (%d, %d)\n",
-				     __FUNCTION__,
-				     last.x, last.y, x, y,
-				     r.x1, r.y1, r.x2, r.y2,
-				     box->x1, box->y1, box->x2, box->y2));
-				if (box_intersect(&r, box)) {
-					r.x1 += dx;
-					r.x2 += dx;
-					r.y1 += dy;
-					r.y2 += dy;
-					DBG(("%s: blt (%d, %d), (%d, %d)\n",
+			x = pt->x;
+			y = pt->y;
+			pt++;
+			if (mode == CoordModePrevious) {
+				x += last.x;
+				y += last.y;
+			} else {
+				x += drawable->x;
+				y += drawable->y;
+			}
+
+			if (!first) {
+				for (nclip = REGION_NUM_RECTS(clip), box = REGION_RECTS(clip); nclip--; box++) {
+					BoxRec r;
+
+					if (last.x == x) {
+						r.x1 = last.x;
+						r.x2 = last.x + 1;
+					} else {
+						r.x1 = last.x < x ? last.x : x;
+						r.x2 = last.x > x ? last.x : x;
+					}
+					if (last.y == y) {
+						r.y1 = last.y;
+						r.y2 = last.y + 1;
+					} else {
+						r.y1 = last.y < y ? last.y : y;
+						r.y2 = last.y > y ? last.y : y;
+					}
+					DBG(("%s: (%d, %d) -> (%d, %d) clipping line (%d, %d), (%d, %d) against box (%d, %d), (%d, %d)\n",
 					     __FUNCTION__,
-					     r.x1, r.y1, r.x2, r.y2));
-					fill.blt(sna, &fill,
-						 r.x1, r.y1,
-						 r.x2-r.x1, r.y2-r.y1);
-					if (damage) {
-						assert_pixmap_contains_box(pixmap, &r);
-						sna_damage_add_box(damage, &r);
+					     last.x, last.y, x, y,
+					     r.x1, r.y1, r.x2, r.y2,
+					     box->x1, box->y1, box->x2, box->y2));
+					if (box_intersect(&r, box)) {
+						r.x1 += dx;
+						r.x2 += dx;
+						r.y1 += dy;
+						r.y2 += dy;
+						DBG(("%s: blt (%d, %d), (%d, %d)\n",
+						     __FUNCTION__,
+						     r.x1, r.y1, r.x2, r.y2));
+						fill.blt(sna, &fill,
+							 r.x1, r.y1,
+							 r.x2-r.x1, r.y2-r.y1);
+						if (damage) {
+							assert_pixmap_contains_box(pixmap, &r);
+							sna_damage_add_box(damage, &r);
+						}
 					}
 				}
 			}
-		}
 
-		last.x = x;
-		last.y = y;
-		first = 0;
+			last.x = x;
+			last.y = y;
+			first = 0;
+		}
 	}
 	fill.done(sna, &fill);
 	return TRUE;
@@ -2348,7 +2411,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 static Bool
 sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 		      int mode, int n, DDXPointPtr pt,
-		      BoxPtr out)
+		      BoxPtr out, bool *clipped)
 {
 	BoxRec box;
 	int extra = gc->lineWidth >> 1;
@@ -2390,7 +2453,7 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 		box.y2 += extra;
 	}
 
-	trim_and_translate_box(&box, drawable, gc);
+	*clipped = trim_and_translate_box(&box, drawable, gc);
 	*out = box;
 	return box_empty(&box);
 }
@@ -2401,11 +2464,13 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	RegionRec region;
+	bool clipped;
 
 	DBG(("%s(mode=%d, n=%d, pt[0]=(%d, %d), lineWidth=%d\n",
 	     __FUNCTION__, mode, n, pt[0].x, pt[0].y, gc->lineWidth));
 
-	if (sna_poly_line_extents(drawable, gc, mode, n, pt, &region.extents))
+	if (sna_poly_line_extents(drawable, gc, mode, n, pt,
+				  &region.extents, &clipped))
 		return;
 
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
@@ -2440,15 +2505,15 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_line_blt(drawable,
 				      priv->gpu_bo,
-				      priv->gpu_only ? NULL : &priv->gpu_damage,
-				      gc, mode, n, pt))
+				      priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+				      gc, mode, n, pt, clipped))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
 		    sna_poly_line_blt(drawable,
 				      priv->cpu_bo,
-				      &priv->cpu_damage,
-				      gc, mode, n, pt))
+				      reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+				      gc, mode, n, pt, clipped))
 			return;
 	}
 
