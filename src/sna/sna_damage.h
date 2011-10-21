@@ -60,12 +60,26 @@ static inline void sna_damage_add_rectangles(struct sna_damage **damage,
 		*damage = _sna_damage_add_rectangles(*damage, r, n, dx, dy);
 }
 
+struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
+					  const DDXPointRec *p, int n,
+					  int16_t dx, int16_t dy);
+static inline void sna_damage_add_points(struct sna_damage **damage,
+					 const DDXPointRec *p, int n,
+					 int16_t dx, int16_t dy)
+{
+	if (damage)
+		*damage = _sna_damage_add_points(*damage, p, n, dx, dy);
+}
+
 struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 				       int width, int height);
 static inline bool sna_damage_is_all(struct sna_damage **damage,
 				     int width, int height)
 {
 	if (*damage == NULL)
+		return false;
+
+	if ((*damage)->n)
 		return false;
 
 	switch ((*damage)->mode) {

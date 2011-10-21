@@ -371,6 +371,69 @@ _sna_damage_create_elt_from_rectangles(struct sna_damage *damage,
 	}
 }
 
+static void
+_sna_damage_create_elt_from_points(struct sna_damage *damage,
+				   const DDXPointRec *p, int count,
+				   int16_t dx, int16_t dy)
+{
+	struct sna_damage_elt *elt;
+	int i;
+
+	DBG(("    %s: n=%d, prev=(remain %d)\n", __FUNCTION__,
+	     damage->n,
+	     damage->last_box ? damage->last_box->remain : 0));
+
+	if (damage->last_box) {
+		int n;
+		BoxRec *b;
+
+		n = count;
+		if (n > damage->last_box->remain)
+			n = damage->last_box->remain;
+
+		elt = damage->elts + damage->n-1;
+		b = elt->box + elt->n;
+		for (i = 0; i < n; i++) {
+			b[i].x1 = p[i].x + dx;
+			b[i].x2 = b[i].x1 + 1;
+			b[i].y1 = p[i].y + dy;
+			b[i].y2 = b[i].y1 + 1;
+		}
+		elt->n += n;
+		damage->last_box->remain -= n;
+		if (damage->last_box->remain == 0)
+			damage->last_box = NULL;
+
+		count -=n;
+		p += n;
+		if (count == 0)
+			return;
+	}
+
+	if (damage->n == damage->size) {
+		int newsize = damage->size * 2;
+		struct sna_damage_elt *newelts = realloc(damage->elts,
+							 newsize*sizeof(*elt));
+		if (newelts == NULL)
+			return;
+
+		damage->elts = newelts;
+		damage->size = newsize;
+	}
+
+	DBG(("    %s(): new elt\n", __FUNCTION__));
+
+	elt = damage->elts + damage->n++;
+	elt->n = count;
+	elt->box = _sna_damage_create_boxes(damage, count);
+	for (i = 0; i < count; i++) {
+		elt->box[i].x1 = p[i].x + dx;
+		elt->box[i].x2 = elt->box[i].x1 + 1;
+		elt->box[i].y1 = p[i].y + dy;
+		elt->box[i].y2 = elt->box[i].y1 + 1;
+	}
+}
+
 static void free_list(struct list *head)
 {
 	while (!list_is_empty(head)) {
@@ -621,8 +684,7 @@ __sna_damage_add_rectangles(struct sna_damage *damage,
 			extents.y2 = r[i].y + r[i].height;
 	}
 
-	if (extents.y2 <= extents.y1 || extents.x2 <= extents.x1)
-		return damage;
+	assert(extents.y2 > extents.y1 && extents.x2 > extents.x1);
 
 	extents.x1 += dx;
 	extents.x2 += dx;
@@ -689,6 +751,98 @@ struct sna_damage *_sna_damage_add_rectangles(struct sna_damage *damage,
 					      int16_t dx, int16_t dy)
 {
 	return __sna_damage_add_rectangles(damage, r, n, dx, dy);
+}
+#endif
+
+/* XXX pass in extents? */
+inline static struct sna_damage *
+__sna_damage_add_points(struct sna_damage *damage,
+			const DDXPointRec *p, int n,
+			int16_t dx, int16_t dy)
+{
+	BoxRec extents;
+	int i;
+
+	assert(n);
+
+	extents.x2 = extents.x1 = p[0].x;
+	extents.y2 = extents.y1 = p[0].y;
+	for (i = 1; i < n; i++) {
+		if (extents.x1 > p[i].x)
+			extents.x1 = p[i].x;
+		else if (extents.x2 < p[i].x)
+			extents.x2 = p[i].x;
+		if (extents.y1 > p[i].y)
+			extents.y1 = p[i].y;
+		else if (extents.y2 < p[i].y)
+			extents.y2 = p[i].y;
+	}
+
+	extents.x1 += dx;
+	extents.x2 += dx + 1;
+	extents.y1 += dy;
+	extents.y2 += dy + 1;
+
+	if (!damage)
+		damage = _sna_damage_create();
+	else switch (damage->mode) {
+	case DAMAGE_ALL:
+		return damage;
+	case DAMAGE_SUBTRACT:
+		__sna_damage_reduce(damage);
+	case DAMAGE_ADD:
+		break;
+	}
+
+	if (pixman_region_contains_rectangle(&damage->region,
+					     &extents) == PIXMAN_REGION_IN)
+		return damage;
+
+	_sna_damage_create_elt_from_points(damage, p, n, dx, dy);
+
+	if (REGION_NUM_RECTS(&damage->region) == 0) {
+		damage->region.extents = *damage->elts[0].box;
+		damage->region.data = NULL;
+		damage->extents = extents;
+	} else {
+		if (damage->extents.x1 > extents.x1)
+			damage->extents.x1 = extents.x1;
+		if (damage->extents.x2 < extents.x2)
+			damage->extents.x2 = extents.x2;
+
+		if (damage->extents.y1 > extents.y1)
+			damage->extents.y1 = extents.y1;
+		if (damage->extents.y2 < extents.y2)
+			damage->extents.y2 = extents.y2;
+	}
+
+	return damage;
+}
+
+#if DEBUG_DAMAGE
+struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
+					  const DDXPointRec *p, int n,
+					  int16_t dx, int16_t dy)
+{
+	char damage_buf[1000];
+
+	DBG(("%s(%s + [(%d, %d), (%d, %d) ... x %d])\n", __FUNCTION__,
+	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
+	     box->x1, box->y1, box->x2, box->y2, n));
+
+	damage = __sna_damage_add_points(damage, p, n, dx, dy);
+
+	ErrorF("  = %s\n",
+	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+
+	return damage;
+}
+#else
+struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
+					  const DDXPointRec *p, int n,
+					  int16_t dx, int16_t dy)
+{
+	return __sna_damage_add_points(damage, p, n, dx, dy);
 }
 #endif
 

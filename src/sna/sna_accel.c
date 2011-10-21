@@ -2140,7 +2140,8 @@ static Bool
 sna_poly_point_blt(DrawablePtr drawable,
 		   struct kgem_bo *bo,
 		   struct sna_damage **damage,
-		   GCPtr gc, int mode, int n, DDXPointPtr pt)
+		   GCPtr gc, int mode, int n, DDXPointPtr pt,
+		   bool clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -2149,7 +2150,8 @@ sna_poly_point_blt(DrawablePtr drawable,
 	DDXPointRec last;
 	int16_t dx, dy;
 
-	DBG(("%s: alu=%d, pixel=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
+	DBG(("%s: alu=%d, pixel=%08lx, clipped?=%d\n",
+	     __FUNCTION__, gc->alu, gc->fgPixel, clipped));
 
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
@@ -2159,7 +2161,30 @@ sna_poly_point_blt(DrawablePtr drawable,
 	last.x = drawable->x;
 	last.y = drawable->y;
 
-	while (n--) {
+	if (!clipped) {
+		last.x += dx;
+		last.y += dy;
+
+		sna_damage_add_points(damage, pt, n, last.x, last.y);
+		do {
+			BoxRec r;
+
+			r.x1 = pt->x;
+			r.y1 = pt->y;
+			pt++;
+
+			r.x1 += last.x;
+			r.y1 += last.y;
+			if (mode == CoordModePrevious) {
+				last.x = r.x1;
+				last.y = r.y1;
+			}
+
+			r.x2 = r.x1 + 1;
+			r.y2 = r.y1 + 1;
+			fill.box(sna, &fill, &r);
+		} while (--n);
+	} else while (n--) {
 		int x, y;
 
 		x = pt->x;
@@ -2194,14 +2219,15 @@ sna_poly_point_blt(DrawablePtr drawable,
 	return TRUE;
 }
 
-static Bool
+static unsigned
 sna_poly_point_extents(DrawablePtr drawable, GCPtr gc,
 		       int mode, int n, DDXPointPtr pt, BoxPtr out)
 {
 	BoxRec box;
+	bool clipped;
 
 	if (n == 0)
-		return true;
+		return 0;
 
 	box.x2 = box.x1 = pt->x;
 	box.y2 = box.y1 = pt->y;
@@ -2212,9 +2238,12 @@ sna_poly_point_extents(DrawablePtr drawable, GCPtr gc,
 	box.x2++;
 	box.y2++;
 
-	trim_and_translate_box(&box, drawable, gc);
+	clipped = trim_and_translate_box(&box, drawable, gc);
+	if (box_empty(&box))
+		return 0;
+
 	*out = box;
-	return box_empty(&box);
+	return 1 | clipped << 1;
 }
 
 static void
@@ -2223,16 +2252,19 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	RegionRec region;
+	unsigned flags;
 
 	DBG(("%s(mode=%d, n=%d, pt[0]=(%d, %d)\n",
 	     __FUNCTION__, mode, n, pt[0].x, pt[0].y));
 
-	if (sna_poly_point_extents(drawable, gc, mode, n, pt, &region.extents))
+	flags = sna_poly_point_extents(drawable, gc, mode, n, pt, &region.extents);
+	if (flags == 0)
 		return;
 
-	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
+	DBG(("%s: extents (%d, %d), (%d, %d), flags=%x\n", __FUNCTION__,
 	     region.extents.x1, region.extents.y1,
-	     region.extents.x2, region.extents.y2));
+	     region.extents.x2, region.extents.y2,
+	     flags));
 
 	if (FORCE_FALLBACK)
 		goto fallback;
@@ -2252,15 +2284,15 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_point_blt(drawable,
 				       priv->gpu_bo,
-				       priv->gpu_only ? NULL : &priv->gpu_damage,
-				       gc, mode, n, pt))
+				      priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+				       gc, mode, n, pt, flags & 2))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
 		    sna_poly_point_blt(drawable,
 				       priv->cpu_bo,
-				       &priv->cpu_damage,
-				       gc, mode, n, pt))
+				       reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+				       gc, mode, n, pt, flags & 2))
 			return;
 	}
 
