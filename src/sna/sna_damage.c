@@ -628,16 +628,16 @@ __sna_damage_add_boxes(struct sna_damage *damage,
 
 #if DEBUG_DAMAGE
 struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
-					 const BoxRec *box, int n,
+					 const BoxRec *b, int n,
 					 int16_t dx, int16_t dy)
 {
 	char damage_buf[1000];
 
 	DBG(("%s(%s + [(%d, %d), (%d, %d) ... x %d])\n", __FUNCTION__,
 	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
-	     box->x1, box->y1, box->x2, box->y2, n));
+	     b->x1, b->y1, b->x2, b->y2, n));
 
-	damage = __sna_damage_add_boxes(damage, boxes, n, dx, dy);
+	damage = __sna_damage_add_boxes(damage, b, n, dx, dy);
 
 	ErrorF("  = %s\n",
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
@@ -646,10 +646,10 @@ struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
 }
 #else
 struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
-					 const BoxRec *box, int n,
+					 const BoxRec *b, int n,
 					 int16_t dx, int16_t dy)
 {
-	return __sna_damage_add_boxes(damage, box, n, dx, dy);
+	return __sna_damage_add_boxes(damage, b, n, dx, dy);
 }
 #endif
 
@@ -734,9 +734,9 @@ struct sna_damage *_sna_damage_add_rectangles(struct sna_damage *damage,
 {
 	char damage_buf[1000];
 
-	DBG(("%s(%s + [(%d, %d), (%d, %d) ... x %d])\n", __FUNCTION__,
+	DBG(("%s(%s + [(%d, %d)x(%d, %d) ... x %d])\n", __FUNCTION__,
 	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
-	     box->x1, box->y1, box->x2, box->y2, n));
+	     r->x, r->y, r->width, r->height, n));
 
 	damage = __sna_damage_add_rectangles(damage, r, n, dx, dy);
 
@@ -826,9 +826,9 @@ struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
 {
 	char damage_buf[1000];
 
-	DBG(("%s(%s + [(%d, %d), (%d, %d) ... x %d])\n", __FUNCTION__,
+	DBG(("%s(%s + [(%d, %d) ... x %d])\n", __FUNCTION__,
 	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
-	     box->x1, box->y1, box->x2, box->y2, n));
+	     p->x, p->y, n));
 
 	damage = __sna_damage_add_points(damage, p, n, dx, dy);
 
