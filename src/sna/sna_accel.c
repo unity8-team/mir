@@ -1768,7 +1768,7 @@ sna_fill_spans_blt(DrawablePtr drawable,
 		   struct kgem_bo *bo, struct sna_damage **damage,
 		   GCPtr gc, int n,
 		   DDXPointPtr pt, int *width, int sorted,
-		   const BoxRec *extents)
+		   const BoxRec *extents, bool clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -1799,7 +1799,36 @@ sna_fill_spans_blt(DrawablePtr drawable,
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	do {
+	if (!clipped) {
+		if (damage) {
+			do {
+				BoxRec box;
+
+				box.x1 = pt->x + dx;
+				box.x2 = box.x1 + *width++;
+				box.y1 = pt->y + dy;
+				box.y2 = box.y1 + 1;
+				pt++;
+
+				fill.box(sna, &fill, &box);
+
+				assert_pixmap_contains_box(pixmap, &box);
+				sna_damage_add_box(damage, &box);
+			} while (--n);
+		} else {
+			do {
+				BoxRec box;
+
+				box.x1 = pt->x + dx;
+				box.x2 = box.x1 + *width++;
+				box.y1 = pt->y + dy;
+				box.y2 = box.y1 + 1;
+				pt++;
+
+				fill.box(sna, &fill, &box);
+			} while (--n);
+		}
+	} else do {
 		int16_t X1 = pt->x;
 		int16_t y = pt->y;
 		int16_t X2 = X1 + (int)*width;
@@ -1877,15 +1906,16 @@ sna_fill_spans_blt(DrawablePtr drawable,
 	return TRUE;
 }
 
-static Bool
+static unsigned
 sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 		  int n, DDXPointPtr pt, int *width,
 		  BoxPtr out)
 {
 	BoxRec box;
+	bool clipped = false;
 
 	if (n == 0)
-		return true;
+		return 0;
 
 	box.x1 = pt->x;
 	box.x2 = box.x1 + *width;
@@ -1909,10 +1939,13 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 	if (gc) {
 		if (!gc->miTranslate)
 			translate_box(&box, drawable);
-		clip_box(&box, gc);
+		clipped = clip_box(&box, gc);
 	}
+	if (box_empty(&box))
+		return 0;
+
 	*out = box;
-	return box_empty(&box);
+	return 1 | clipped << 1;
 }
 
 static struct sna_damage **
@@ -1960,11 +1993,14 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	RegionRec region;
+	unsigned flags;
 
 	DBG(("%s(n=%d, pt[0]=(%d, %d)\n",
 	     __FUNCTION__, n, pt[0].x, pt[0].y));
 
-	if (sna_spans_extents(drawable, gc, n, pt, width, &region.extents))
+
+	flags = sna_spans_extents(drawable, gc, n, pt, width, &region.extents);
+	if (flags == 0)
 		return;
 
 	DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
@@ -1996,7 +2032,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				       priv->gpu_bo,
 				       priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 				       gc, n, pt, width, sorted,
-				       &region.extents))
+				       &region.extents, flags & 2))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
@@ -2004,7 +2040,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				       priv->cpu_bo,
 				       reduce_damage(drawable, &priv->cpu_damage, &region.extents),
 				       gc, n, pt, width, sorted,
-				       &region.extents))
+				       &region.extents, flags & 2))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
 		xRectangle *rect;
@@ -2049,7 +2085,7 @@ sna_set_spans(DrawablePtr drawable, GCPtr gc, char *src,
 {
 	RegionRec region;
 
-	if (sna_spans_extents(drawable, gc, n, pt, width, &region.extents))
+	if (sna_spans_extents(drawable, gc, n, pt, width, &region.extents) == 0)
 		return;
 
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
@@ -3886,7 +3922,7 @@ sna_get_spans(DrawablePtr drawable, int wMax,
 {
 	RegionRec region;
 
-	if (sna_spans_extents(drawable, NULL, n, pt, width, &region.extents))
+	if (sna_spans_extents(drawable, NULL, n, pt, width, &region.extents) == 0)
 		return;
 
 	region.data = NULL;
