@@ -2258,8 +2258,6 @@ sna_poly_line_blt(DrawablePtr drawable,
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
 	if (!clipped) {
-		int x, y;
-
 		dx += drawable->x;
 		dy += drawable->y;
 
@@ -2269,30 +2267,35 @@ sna_poly_line_blt(DrawablePtr drawable,
 
 		while (--n) {
 			BoxRec r;
+			DDXPointRec p;
 
-			x = pt->x;
-			y = pt->y;
-			pt++;
+			p = *pt++;
 			if (mode == CoordModePrevious) {
-				x += last.x;
-				y += last.y;
+				p.x += last.x;
+				p.y += last.y;
 			} else {
-				x += dx;
-				y += dy;
+				p.x += dx;
+				p.y += dy;
 			}
-			if (last.x == x) {
+			if (last.x == p.x) {
 				r.x1 = last.x;
 				r.x2 = last.x + 1;
+			} else if (last.x < p.x) {
+				r.x1 = last.x;
+				r.x2 = p.x;
 			} else {
-				r.x1 = last.x < x ? last.x : x;
-				r.x2 = last.x > x ? last.x : x;
+				r.x1 = p.x;
+				r.x2 = last.x;
 			}
-			if (last.y == y) {
+			if (last.y == p.y) {
 				r.y1 = last.y;
 				r.y2 = last.y + 1;
+			} else if (last.y < p.y) {
+				r.y1 = last.y;
+				r.y2 = p.y;
 			} else {
-				r.y1 = last.y < y ? last.y : y;
-				r.y2 = last.y > y ? last.y : y;
+				r.y1 = p.y;
+				r.y2 = last.y;
 			}
 			DBG(("%s: blt (%d, %d), (%d, %d)\n",
 			     __FUNCTION__,
@@ -2303,8 +2306,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 				sna_damage_add_box(damage, &r);
 			}
 
-			last.x = x;
-			last.y = y;
+			last = p;
 		}
 	} else {
 		last.x = drawable->x;
@@ -2314,36 +2316,40 @@ sna_poly_line_blt(DrawablePtr drawable,
 		while (n--) {
 			int nclip;
 			BoxPtr box;
-			int x, y;
+			DDXPointRec p;
 
-			x = pt->x;
-			y = pt->y;
-			pt++;
+			p = *pt++;
 			if (mode == CoordModePrevious) {
-				x += last.x;
-				y += last.y;
+				p.x += last.x;
+				p.y += last.y;
 			} else {
-				x += drawable->x;
-				y += drawable->y;
+				p.x += drawable->x;
+				p.y += drawable->y;
 			}
 
 			if (!first) {
 				for (nclip = REGION_NUM_RECTS(clip), box = REGION_RECTS(clip); nclip--; box++) {
 					BoxRec r;
 
-					if (last.x == x) {
+					if (last.x == p.x) {
 						r.x1 = last.x;
 						r.x2 = last.x + 1;
+					} else if (last.x < p.x) {
+						r.x1 = last.x;
+						r.x2 = p.x;
 					} else {
-						r.x1 = last.x < x ? last.x : x;
-						r.x2 = last.x > x ? last.x : x;
+						r.x1 = p.x;
+						r.x2 = last.x;
 					}
-					if (last.y == y) {
+					if (last.y == p.y) {
 						r.y1 = last.y;
 						r.y2 = last.y + 1;
+					} else if (last.y < p.y) {
+						r.y1 = last.y;
+						r.y2 = p.y;
 					} else {
-						r.y1 = last.y < y ? last.y : y;
-						r.y2 = last.y > y ? last.y : y;
+						r.y1 = p.y;
+						r.y2 = last.y;
 					}
 					DBG(("%s: (%d, %d) -> (%d, %d) clipping line (%d, %d), (%d, %d) against box (%d, %d), (%d, %d)\n",
 					     __FUNCTION__,
@@ -2367,8 +2373,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 				}
 			}
 
-			last.x = x;
-			last.y = y;
+			last = p;
 			first = 0;
 		}
 	}
