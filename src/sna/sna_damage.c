@@ -48,6 +48,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * cheapy discard no-ops.
  */
 
+static struct sna_damage *__freed_damage;
+
 #if DEBUG_DAMAGE
 #undef DBG
 #define DBG(x) ErrorF x
@@ -146,7 +148,11 @@ static struct sna_damage *_sna_damage_create(void)
 {
 	struct sna_damage *damage;
 
-	damage = malloc(sizeof(*damage));
+	if (__freed_damage) {
+		damage = __freed_damage;
+		__freed_damage = NULL;
+	} else
+		damage = malloc(sizeof(*damage));
 	damage->n = 0;
 	damage->size = 16;
 	damage->elts = malloc(sizeof(*damage->elts) * damage->size);
@@ -958,7 +964,10 @@ void __sna_damage_destroy(struct sna_damage *damage)
 	free_list(&damage->boxes);
 
 	pixman_region_fini(&damage->region);
-	free(damage);
+	if (__freed_damage == NULL)
+		__freed_damage = damage;
+	else
+		free(damage);
 }
 
 #if DEBUG_DAMAGE && TEST_DAMAGE
