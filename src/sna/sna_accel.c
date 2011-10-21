@@ -1960,6 +1960,11 @@ reduce_damage(DrawablePtr drawable,
 	if (*damage == NULL)
 		return damage;
 
+	if (sna_damage_is_all(damage,
+			      pixmap->drawable.width,
+			      pixmap->drawable.height))
+		return NULL;
+
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
 	r = *box;
