@@ -4,15 +4,20 @@
 #include <regionstr.h>
 #include <list.h>
 
-#define fastcall __attribute__((regparm(3)))
+#include "compiler.h"
 
 struct sna_damage_elt;
 struct sna_damage_box;
 
 struct sna_damage {
 	BoxRec extents;
-	int n, size, mode, all;
 	pixman_region16_t region;
+	enum sna_damage_mode {
+		DAMAGE_ADD = 0,
+		DAMAGE_SUBTRACT,
+		DAMAGE_ALL,
+	} mode;
+	int n, size;
 	struct sna_damage_elt *elts;
 	struct sna_damage_box *last_box;
 	struct list boxes;
@@ -52,11 +57,16 @@ static inline bool sna_damage_is_all(struct sna_damage **damage,
 	if (*damage == NULL)
 		return false;
 
-	if ((*damage)->all)
+	switch ((*damage)->mode) {
+	case DAMAGE_ALL:
 		return true;
-
-	*damage = _sna_damage_is_all(*damage, width, height);
-	return (*damage)->all;
+	case DAMAGE_SUBTRACT:
+		return false;
+	default:
+	case DAMAGE_ADD:
+		*damage = _sna_damage_is_all(*damage, width, height);
+		return (*damage)->mode == DAMAGE_ALL;
+	}
 }
 
 struct sna_damage *_sna_damage_all(struct sna_damage *damage,
