@@ -1617,10 +1617,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	    src_bo->tiling, dst_bo->tiling,
 	    src_bo->pitch, dst_bo->pitch));
 
-	if (src_bo->tiling == I915_TILING_Y)
-		return FALSE;
-
-	if (dst_bo->tiling == I915_TILING_Y)
+	if (src_bo->tiling == I915_TILING_Y || dst_bo->tiling == I915_TILING_Y)
 		return FALSE;
 
 	cmd = XY_SRC_COPY_BLT_CMD;
@@ -1688,16 +1685,14 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			b[1] = br13;
 			b[2] = ((box->y1 + dst_dy) << 16) | (box->x1 + dst_dx);
 			b[3] = ((box->y2 + dst_dy) << 16) | (box->x2 + dst_dx);
-			b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4,
-					      dst_bo,
+			b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, dst_bo,
 					      I915_GEM_DOMAIN_RENDER << 16 |
 					      I915_GEM_DOMAIN_RENDER |
 					      KGEM_RELOC_FENCED,
 					      0);
 			b[5] = ((box->y1 + src_dy) << 16) | (box->x1 + src_dx);
 			b[6] = src_pitch;
-			b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7,
-					      src_bo,
+			b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src_bo,
 					      I915_GEM_DOMAIN_RENDER << 16 |
 					      KGEM_RELOC_FENCED,
 					      0);
@@ -1705,11 +1700,12 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			box++;
 		} while (--nbox_this_time);
 
-		if (nbox) {
-			_kgem_submit(kgem);
-			_kgem_set_mode(kgem, KGEM_BLT);
-		}
-	} while (nbox);
+		if (!nbox)
+			break;
+
+		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	} while (1);
 
 	if (kgem->gen >= 60 && kgem_check_batch(kgem, 3)) {
 		uint32_t *b = kgem->batch + kgem->nbatch;

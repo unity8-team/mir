@@ -246,9 +246,9 @@ _sna_damage_create_elt(struct sna_damage *damage,
 }
 
 static void
-_sna_damage_create_elt_with_translation(struct sna_damage *damage,
-					const BoxRec *boxes, int count,
-					int16_t dx, int16_t dy)
+_sna_damage_create_elt_from_boxes(struct sna_damage *damage,
+				  const BoxRec *boxes, int count,
+				  int16_t dx, int16_t dy)
 {
 	struct sna_damage_elt *elt;
 	int i;
@@ -305,6 +305,69 @@ _sna_damage_create_elt_with_translation(struct sna_damage *damage,
 		elt->box[i].x2 = boxes[i].x2 + dx;
 		elt->box[i].y1 = boxes[i].y1 + dy;
 		elt->box[i].y2 = boxes[i].y2 + dy;
+	}
+}
+
+static void
+_sna_damage_create_elt_from_rectangles(struct sna_damage *damage,
+				       const xRectangle *r, int count,
+				       int16_t dx, int16_t dy)
+{
+	struct sna_damage_elt *elt;
+	int i;
+
+	DBG(("    %s: n=%d, prev=(remain %d)\n", __FUNCTION__,
+	     damage->n,
+	     damage->last_box ? damage->last_box->remain : 0));
+
+	if (damage->last_box) {
+		int n;
+		BoxRec *b;
+
+		n = count;
+		if (n > damage->last_box->remain)
+			n = damage->last_box->remain;
+
+		elt = damage->elts + damage->n-1;
+		b = elt->box + elt->n;
+		for (i = 0; i < n; i++) {
+			b[i].x1 = r[i].x + dx;
+			b[i].x2 = b[i].x1 + r[i].width;
+			b[i].y1 = r[i].y + dy;
+			b[i].y2 = b[i].y1 + r[i].height;
+		}
+		elt->n += n;
+		damage->last_box->remain -= n;
+		if (damage->last_box->remain == 0)
+			damage->last_box = NULL;
+
+		count -=n;
+		r += n;
+		if (count == 0)
+			return;
+	}
+
+	if (damage->n == damage->size) {
+		int newsize = damage->size * 2;
+		struct sna_damage_elt *newelts = realloc(damage->elts,
+							 newsize*sizeof(*elt));
+		if (newelts == NULL)
+			return;
+
+		damage->elts = newelts;
+		damage->size = newsize;
+	}
+
+	DBG(("    %s(): new elt\n", __FUNCTION__));
+
+	elt = damage->elts + damage->n++;
+	elt->n = count;
+	elt->box = _sna_damage_create_boxes(damage, count);
+	for (i = 0; i < count; i++) {
+		elt->box[i].x1 = r[i].x + dx;
+		elt->box[i].x2 = elt->box[i].x1 + r[i].width;
+		elt->box[i].y1 = r[i].y + dy;
+		elt->box[i].y2 = elt->box[i].y1 + r[i].height;
 	}
 }
 
@@ -445,6 +508,17 @@ __sna_damage_add_boxes(struct sna_damage *damage,
 
 	assert(n);
 
+	if (!damage)
+		damage = _sna_damage_create();
+	else switch (damage->mode) {
+	case DAMAGE_ALL:
+		return damage;
+	case DAMAGE_SUBTRACT:
+		__sna_damage_reduce(damage);
+	case DAMAGE_ADD:
+		break;
+	}
+
 	extents = box[0];
 	for (i = 1; i < n; i++) {
 		if (extents.x1 > box[i].x1)
@@ -457,33 +531,23 @@ __sna_damage_add_boxes(struct sna_damage *damage,
 			extents.y2 = box[i].y2;
 	}
 
-	if (extents.y2 <= extents.y1 || extents.x2 <= extents.x1)
-		return damage;
+	assert(extents.y2 > extents.y1 && extents.x2 > extents.x1);
 
 	extents.x1 += dx;
 	extents.x2 += dx;
 	extents.y1 += dy;
 	extents.y2 += dy;
 
-	if (!damage)
-		damage = _sna_damage_create();
-	else switch (damage->mode) {
-	case DAMAGE_ALL:
-		return damage;
-	case DAMAGE_SUBTRACT:
-		__sna_damage_reduce(damage);
-	case DAMAGE_ADD:
-		break;
-	}
-
 	if (pixman_region_contains_rectangle(&damage->region,
 					     &extents) == PIXMAN_REGION_IN)
 		return damage;
 
-	_sna_damage_create_elt_with_translation(damage, box, n, dx, dy);
+	_sna_damage_create_elt_from_boxes(damage, box, n, dx, dy);
 
-	if (REGION_NUM_RECTS(&damage->region) <= 1) {
-		__sna_damage_reduce(damage);
+	if (REGION_NUM_RECTS(&damage->region) == 0) {
+		damage->region.extents = *damage->elts[0].box;
+		damage->region.data = NULL;
+		damage->extents = extents;
 	} else {
 		if (damage->extents.x1 > extents.x1)
 			damage->extents.x1 = extents.x1;
@@ -531,6 +595,102 @@ static void _pixman_region_union_box(RegionRec *region, const BoxRec *box)
 	RegionRec u = { *box, NULL };
 	pixman_region_union(region, region, &u);
 }
+
+inline static struct sna_damage *
+__sna_damage_add_rectangles(struct sna_damage *damage,
+			    const xRectangle *r, int n,
+			    int16_t dx, int16_t dy)
+{
+	BoxRec extents;
+	int i;
+
+	assert(n);
+
+	extents.x1 = r[0].x;
+	extents.x2 = r[0].x + r[0].width;
+	extents.y1 = r[0].y;
+	extents.y2 = r[0].y + r[0].height;
+	for (i = 1; i < n; i++) {
+		if (extents.x1 > r[i].x)
+			extents.x1 = r[i].x;
+		if (extents.x2 < r[i].x + r[i].width)
+			extents.x2 = r[i].x + r[i].width;
+		if (extents.y1 > r[i].y)
+			extents.y1 = r[i].y;
+		if (extents.y2 < r[i].y + r[i].height)
+			extents.y2 = r[i].y + r[i].height;
+	}
+
+	if (extents.y2 <= extents.y1 || extents.x2 <= extents.x1)
+		return damage;
+
+	extents.x1 += dx;
+	extents.x2 += dx;
+	extents.y1 += dy;
+	extents.y2 += dy;
+
+	if (!damage)
+		damage = _sna_damage_create();
+	else switch (damage->mode) {
+	case DAMAGE_ALL:
+		return damage;
+	case DAMAGE_SUBTRACT:
+		__sna_damage_reduce(damage);
+	case DAMAGE_ADD:
+		break;
+	}
+
+	if (pixman_region_contains_rectangle(&damage->region,
+					     &extents) == PIXMAN_REGION_IN)
+		return damage;
+
+	_sna_damage_create_elt_from_rectangles(damage, r, n, dx, dy);
+
+	if (REGION_NUM_RECTS(&damage->region) == 0) {
+		damage->region.extents = *damage->elts[0].box;
+		damage->region.data = NULL;
+		damage->extents = extents;
+	} else {
+		if (damage->extents.x1 > extents.x1)
+			damage->extents.x1 = extents.x1;
+		if (damage->extents.x2 < extents.x2)
+			damage->extents.x2 = extents.x2;
+
+		if (damage->extents.y1 > extents.y1)
+			damage->extents.y1 = extents.y1;
+		if (damage->extents.y2 < extents.y2)
+			damage->extents.y2 = extents.y2;
+	}
+
+	return damage;
+}
+
+#if DEBUG_DAMAGE
+struct sna_damage *_sna_damage_add_rectangles(struct sna_damage *damage,
+					      const xRectangle *r, int n,
+					      int16_t dx, int16_t dy)
+{
+	char damage_buf[1000];
+
+	DBG(("%s(%s + [(%d, %d), (%d, %d) ... x %d])\n", __FUNCTION__,
+	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
+	     box->x1, box->y1, box->x2, box->y2, n));
+
+	damage = __sna_damage_add_rectangles(damage, r, n, dx, dy);
+
+	ErrorF("  = %s\n",
+	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+
+	return damage;
+}
+#else
+struct sna_damage *_sna_damage_add_rectangles(struct sna_damage *damage,
+					      const xRectangle *r, int n,
+					      int16_t dx, int16_t dy)
+{
+	return __sna_damage_add_rectangles(damage, r, n, dx, dy);
+}
+#endif
 
 inline static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
 						      const BoxRec *box)

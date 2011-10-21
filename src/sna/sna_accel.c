@@ -2395,7 +2395,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 					}
 					DBG(("%s: (%d, %d) -> (%d, %d) clipping line (%d, %d), (%d, %d) against box (%d, %d), (%d, %d)\n",
 					     __FUNCTION__,
-					     last.x, last.y, x, y,
+					     last.x, last.y, p.x, p.y,
 					     r.x1, r.y1, r.x2, r.y2,
 					     box->x1, box->y1, box->x2, box->y2));
 					if (box_intersect(&r, box)) {
@@ -3026,7 +3026,8 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 		       struct kgem_bo *bo,
 		       struct sna_damage **damage,
 		       GCPtr gc, int n,
-		       xRectangle *rect)
+		       xRectangle *rect,
+		       bool clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -3035,8 +3036,10 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	uint32_t pixel = gc->fillStyle == FillSolid ? gc->fgPixel : gc->tile.pixel;
 	int16_t dx, dy;
 
-	DBG(("%s x %d [(%d, %d)+(%d, %d)...]\n",
-	     __FUNCTION__, n, rect->x, rect->y, rect->width, rect->height));
+	DBG(("%s x %d [(%d, %d)+(%d, %d)...], clipped?=%d\n",
+	     __FUNCTION__,
+	     n, rect->x, rect->y, rect->width, rect->height,
+	     clipped));
 
 	if (n == 1 && clip->data == NULL) {
 		BoxPtr box = &clip->extents;
@@ -3071,7 +3074,23 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	if (clip->data == NULL) {
+	if (!clipped) {
+		dx += drawable->x;
+		dy += drawable->y;
+
+		sna_damage_add_rectangles(damage, rect, n, dx, dy);
+		do {
+			BoxRec r;
+
+			r.x1 = rect->x + dx;
+			r.y1 = rect->y + dy;
+			r.x2 = bound(r.x1, rect->width);
+			r.y2 = bound(r.y1, rect->height);
+			rect++;
+
+			fill.box(sna, &fill, &r);
+		} while (--n);
+	} else if (clip->data == NULL) {
 		BoxPtr box = &clip->extents;
 		while (n--) {
 			BoxRec r;
@@ -3367,15 +3386,16 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 	return TRUE;
 }
 
-static Bool
+static unsigned
 sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 			   int n, xRectangle *rect,
 			   BoxPtr out)
 {
 	BoxRec box;
+	bool clipped;
 
 	if (n == 0)
-		return true;
+		return 0;
 
 	DBG(("%s: [0] = (%d, %d)x(%d, %d)\n",
 	     __FUNCTION__, rect->x, rect->y, rect->width, rect->height));
@@ -3389,9 +3409,12 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 		box_add_rect(&box, rect);
 	}
 
-	trim_and_translate_box(&box, drawable, gc);
+	clipped = trim_and_translate_box(&box, drawable, gc);
+	if (box_empty(&box))
+		return 0;
+
 	*out = box;
-	return box_empty(&box);
+	return 1 | clipped << 1;
 }
 
 static void
@@ -3399,6 +3422,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 {
 	struct sna *sna = to_sna_from_drawable(draw);
 	RegionRec region;
+	unsigned flags;
 
 	DBG(("%s(n=%d, PlaneMask: %lx (solid %d), solid fill: %d [style=%d, tileIsPixel=%d], alu=%d)\n", __FUNCTION__,
 	     n, gc->planemask, !!PM_IS_SOLID(draw, gc->planemask),
@@ -3407,10 +3431,16 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	     gc->fillStyle, gc->tileIsPixel,
 	     gc->alu));
 
-	if (sna_poly_fill_rect_extents(draw, gc, n, rect, &region.extents)) {
+	flags = sna_poly_fill_rect_extents(draw, gc, n, rect, &region.extents);
+	if (flags == 0) {
 		DBG(("%s, nothing to do\n", __FUNCTION__));
 		return;
 	}
+
+	DBG(("%s: extents(%d, %d), (%d, %d), flags=%x\n", __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2,
+	     flags));
 
 	if (FORCE_FALLBACK)
 		goto fallback;
@@ -3435,14 +3465,14 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		    sna_poly_fill_rect_blt(draw,
 					   priv->gpu_bo,
 					   priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &region.extents),
-					   gc, n, rect))
+					   gc, n, rect, flags & 2))
 			return;
 
 		if (sna_drawable_use_cpu_bo(draw, &region.extents) &&
 		    sna_poly_fill_rect_blt(draw,
 					   priv->cpu_bo,
 					   reduce_damage(draw, &priv->cpu_damage, &region.extents),
-					   gc, n, rect))
+					   gc, n, rect, flags & 2))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
