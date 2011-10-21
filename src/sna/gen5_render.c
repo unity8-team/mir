@@ -1219,8 +1219,11 @@ gen5_emit_invariant(struct sna *sna)
 {
 	/* Ironlake errata workaround: Before disabling the clipper,
 	 * you have to MI_FLUSH to get the pipeline idle.
+	 *
+	 * However, the kernel flushes the pipeline between batches,
+	 * so we should be safe....
+	 * OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 	 */
-	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 	OUT_BATCH(GEN5_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
 	gen5_emit_sip(sna);
@@ -2573,6 +2576,7 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	op->base.dst.height = dst->drawable.height;
 	op->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	op->base.dst.bo = dst_bo;
+	op->base.dst.x = op->base.dst.y = 0;
 
 	op->base.src.bo =
 		sna_render_get_solid(sna,
@@ -2580,6 +2584,10 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 							dst->drawable.depth));
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_REPEAT;
+
+	op->base.mask.bo = NULL;
+	op->base.mask.filter = SAMPLER_FILTER_NEAREST;
+	op->base.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	op->base.is_affine = TRUE;
 	op->base.floats_per_vertex = 3;

@@ -2099,6 +2099,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.dst.height = dst->drawable.height;
 	tmp->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp->base.dst.bo = dst_bo;
+	tmp->base.dst.x = tmp->base.dst.y = 0;
 	tmp->base.floats_per_vertex = 2;
 	tmp->base.floats_per_rect = 6;
 

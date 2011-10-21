@@ -2793,6 +2793,7 @@ gen6_render_fill(struct sna *sna, uint8_t alu,
 	op->base.dst.height = dst->drawable.height;
 	op->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	op->base.dst.bo = dst_bo;
+	op->base.dst.x = op->base.dst.y = 0;
 
 	op->base.src.bo =
 		sna_render_get_solid(sna,
@@ -2800,6 +2801,10 @@ gen6_render_fill(struct sna *sna, uint8_t alu,
 							dst->drawable.depth));
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_REPEAT;
+
+	op->base.mask.bo = NULL;
+	op->base.mask.filter = SAMPLER_FILTER_NEAREST;
+	op->base.mask.repeat = SAMPLER_EXTEND_NONE;
 
 	op->base.is_affine = TRUE;
 	op->base.floats_per_vertex = 3;

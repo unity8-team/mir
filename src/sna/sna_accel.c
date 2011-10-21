@@ -1740,7 +1740,7 @@ box_intersect(BoxPtr a, const BoxRec *b)
 	return a->x1 < a->x2 && a->y1 < a->y2;
 }
 
-static Bool
+inline static bool
 sna_fill_init_blt(struct sna_fill_op *fill,
 		  struct sna *sna,
 		  PixmapPtr pixmap,
@@ -1748,7 +1748,6 @@ sna_fill_init_blt(struct sna_fill_op *fill,
 		  uint8_t alu,
 		  uint32_t pixel)
 {
-	memset(fill, 0, sizeof(*fill));
 	return sna->render.fill(sna, alu, pixmap, bo, pixel, fill);
 }
 
