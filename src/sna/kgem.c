@@ -564,12 +564,11 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	kgem->need_expire = true;
 	if (bo->rq) {
 		list_move(&bo->list, active(kgem, bo->size));
-	} else if (bo->needs_flush) {
+	} else if (bo->needs_flush | bo->gpu) {
 		assert(list_is_empty(&bo->request));
 		list_add(&bo->request, &kgem->flushing);
 		list_move(&bo->list, active(kgem, bo->size));
 	} else {
-		assert(bo->gpu == 0);
 		list_move(&bo->list, inactive(kgem, bo->size));
 	}
 
