@@ -145,14 +145,23 @@ struct sna_pixmap {
 	uint8_t gpu :1;
 };
 
+extern DevPrivateKey sna_window_key;
+
+static inline PixmapPtr get_window_pixmap(WindowPtr window)
+{
+#if 0
+	return window->drawable.pScreen->GetWindowPixmap(window)
+#else
+	return dixGetPrivate(&window->devPrivates, sna_window_key);
+#endif
+}
+
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 {
-	ScreenPtr screen = drawable->pScreen;
-
 	if (drawable->type == DRAWABLE_PIXMAP)
 		return (PixmapPtr)drawable;
 	else
-		return screen->GetWindowPixmap((WindowPtr)drawable);
+		return get_window_pixmap((WindowPtr)drawable);
 }
 
 extern DevPrivateKeyRec sna_pixmap_index;

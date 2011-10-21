@@ -62,6 +62,7 @@
 #define USE_SPANS 0
 
 DevPrivateKeyRec sna_pixmap_index;
+DevPrivateKey sna_window_key;
 
 static inline void region_set(RegionRec *r, const BoxRec *b)
 {
@@ -4156,6 +4157,8 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 
 	if (!sna_glyphs_init(screen))
 		return FALSE;
+
+	sna_window_key = fbGetWinPrivateKey();
 
 	list_init(&sna->dirty_pixmaps);
 	list_init(&sna->deferred_free);
