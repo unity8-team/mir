@@ -2504,6 +2504,32 @@ gen5_render_fill_blt(struct sna *sna,
 	OUT_VERTEX_F(0);
 }
 
+fastcall static void
+gen5_render_fill_box(struct sna *sna,
+		     const struct sna_fill_op *op,
+		     const BoxRec *box)
+{
+	DBG(("%s: (%d, %d),(%d, %d)\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
+
+	if (!gen5_get_rectangles(sna, &op->base, 1)) {
+		gen5_fill_bind_surfaces(sna, &op->base);
+		gen5_get_rectangles(sna, &op->base, 1);
+	}
+
+	OUT_VERTEX(box->x2, box->y2);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y2);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y1);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
+}
+
 static void
 gen5_render_fill_done(struct sna *sna,
 		      const struct sna_fill_op *op)
@@ -2567,6 +2593,7 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	gen5_align_vertex(sna, &op->base);
 
 	op->blt  = gen5_render_fill_blt;
+	op->box  = gen5_render_fill_box;
 	op->done = gen5_render_fill_done;
 	return TRUE;
 }

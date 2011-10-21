@@ -2038,6 +2038,24 @@ gen2_render_fill_blt(struct sna *sna,
 	VERTEX(y);
 }
 
+fastcall static void
+gen2_render_fill_box(struct sna *sna,
+		     const struct sna_fill_op *op,
+		     const BoxRec *box)
+{
+	if (!gen2_get_rectangles(sna, &op->base, 1)) {
+		gen2_emit_fill_state(sna, &op->base);
+		gen2_get_rectangles(sna, &op->base, 1);
+	}
+
+	VERTEX(box->x2);
+	VERTEX(box->y2);
+	VERTEX(box->x1);
+	VERTEX(box->y2);
+	VERTEX(box->x1);
+	VERTEX(box->y1);
+}
+
 static void
 gen2_render_fill_done(struct sna *sna, const struct sna_fill_op *op)
 {
@@ -2096,6 +2114,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 	}
 
 	tmp->blt  = gen2_render_fill_blt;
+	tmp->box  = gen2_render_fill_box;
 	tmp->done = gen2_render_fill_done;
 
 	gen2_emit_fill_state(sna, &tmp->base);

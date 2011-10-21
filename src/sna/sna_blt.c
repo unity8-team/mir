@@ -1272,6 +1272,32 @@ static void sna_blt_fill_op_blt(struct sna *sna,
 	sna_blt_fill_one(sna, &op->base.u.blt, x, y, width, height);
 }
 
+fastcall static void sna_blt_fill_op_box(struct sna *sna,
+					 const struct sna_fill_op *op,
+					 const BoxRec *box)
+{
+	struct kgem *kgem = &sna->kgem;
+	uint32_t *b;
+
+	DBG(("%s: (%d, %d), (%d, %d): %08x\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2,
+	     op->base.u.blt.pixel));
+
+	assert(box->x1 >= 0);
+	assert(box->y1 >= 0);
+	assert(box->y2 * op->base.u.blt.bo[0]->pitch <= op->base.u.blt.bo[0]->size);
+
+	if (!kgem_check_batch(kgem, 3))
+		sna_blt_fill_begin(sna, &op->base.u.blt);
+
+	b = kgem->batch + kgem->nbatch;
+	kgem->nbatch += 3;
+
+	b[0] = op->base.u.blt.cmd;
+	b[1] = box->y1 << 16 | box->x1;
+	b[2] = box->y2 << 16 | box->x2;
+}
+
 static void sna_blt_fill_op_done(struct sna *sna,
 				 const struct sna_fill_op *fill)
 {
@@ -1300,6 +1326,7 @@ bool sna_blt_fill(struct sna *sna, uint8_t alu,
 		return FALSE;
 
 	fill->blt  = sna_blt_fill_op_blt;
+	fill->box  = sna_blt_fill_op_box;
 	fill->done = sna_blt_fill_op_done;
 	return TRUE;
 }

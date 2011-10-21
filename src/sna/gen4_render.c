@@ -2503,6 +2503,16 @@ gen4_render_fill_blt(struct sna *sna, const struct sna_fill_op *op,
 	gen4_render_fill_rectangle(sna, &op->base, x, y, w, h);
 }
 
+fastcall static void
+gen4_render_fill_box(struct sna *sna,
+		     const struct sna_fill_op *op,
+		     const BoxRec *box)
+{
+	gen4_render_fill_rectangle(sna, &op->base,
+				   box->x1, box->y1,
+				   box->x2-box->x1, box->y2-box->y1);
+}
+
 static void
 gen4_render_fill_done(struct sna *sna, const struct sna_fill_op *op)
 {
@@ -2568,6 +2578,7 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 	gen4_align_vertex(sna, &op->base);
 
 	op->blt  = gen4_render_fill_blt;
+	op->box  = gen4_render_fill_box;
 	op->done = gen4_render_fill_done;
 	return TRUE;
 }

@@ -3793,6 +3793,24 @@ gen3_render_fill_blt(struct sna *sna,
 	OUT_VERTEX(y);
 }
 
+fastcall static void
+gen3_render_fill_box(struct sna *sna,
+		     const struct sna_fill_op *op,
+		     const BoxRec *box)
+{
+	if (!gen3_get_rectangles(sna, &op->base, 1)) {
+		gen3_emit_composite_state(sna, &op->base);
+		gen3_get_rectangles(sna, &op->base, 1);
+	}
+
+	OUT_VERTEX(box->x2);
+	OUT_VERTEX(box->y2);
+	OUT_VERTEX(box->x1);
+	OUT_VERTEX(box->y2);
+	OUT_VERTEX(box->x1);
+	OUT_VERTEX(box->y1);
+}
+
 static void
 gen3_render_fill_done(struct sna *sna, const struct sna_fill_op *op)
 {
@@ -3852,6 +3870,7 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 		kgem_submit(&sna->kgem);
 
 	tmp->blt  = gen3_render_fill_blt;
+	tmp->box  = gen3_render_fill_box;
 	tmp->done = gen3_render_fill_done;
 
 	gen3_emit_composite_state(sna, &tmp->base);

@@ -2298,9 +2298,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 			DBG(("%s: blt (%d, %d), (%d, %d)\n",
 			     __FUNCTION__,
 			     r.x1, r.y1, r.x2, r.y2));
-			fill.blt(sna, &fill,
-				 r.x1, r.y1,
-				 r.x2-r.x1, r.y2-r.y1);
+			fill.box(sna, &fill, &r);
 			if (damage) {
 				assert_pixmap_contains_box(pixmap, &r);
 				sna_damage_add_box(damage, &r);
@@ -2361,9 +2359,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 						DBG(("%s: blt (%d, %d), (%d, %d)\n",
 						     __FUNCTION__,
 						     r.x1, r.y1, r.x2, r.y2));
-						fill.blt(sna, &fill,
-							 r.x1, r.y1,
-							 r.x2-r.x1, r.y2-r.y1);
+						fill.box(sna, &fill, &r);
 						if (damage) {
 							assert_pixmap_contains_box(pixmap, &r);
 							sna_damage_add_box(damage, &r);
@@ -2681,9 +2677,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 				r.x2 += dx;
 				r.y1 += dy;
 				r.y2 += dy;
-				fill.blt(sna, &fill,
-					 r.x1, r.y1,
-					 r.x2-r.x1, r.y2-r.y1);
+				fill.box(sna, &fill, &r);
 				if (damage) {
 					assert_pixmap_contains_box(pixmap, &r);
 					sna_damage_add_box(damage, &r);
@@ -3047,9 +3041,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 				r.x2 += dx;
 				r.y1 += dy;
 				r.y2 += dy;
-				fill.blt(sna, &fill,
-					 r.x1, r.y1,
-					 r.x2-r.x1, r.y2-r.y1);
+				fill.box(sna, &fill, &r);
 				if (damage) {
 					assert_pixmap_contains_box(pixmap, &r);
 					sna_damage_add_box(damage, &r);
@@ -3078,9 +3070,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 				box->x2 += dx;
 				box->y1 += dy;
 				box->y2 += dy;
-				fill.blt(sna, &fill,
-					 box->x1, box->y1,
-					 box->x2-box->x1, box->y2-box->y1);
+				fill.box(sna, &fill, box);
 				if (damage) {
 					assert_pixmap_contains_box(pixmap, box);
 					sna_damage_add_box(damage, box);
@@ -3155,9 +3145,7 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 					r.x2 += dx;
 					r.y1 += dy;
 					r.y2 += dy;
-					fill.blt(sna, &fill,
-						 r.x1, r.y1,
-						 r.x2-r.x1, r.y2-r.y1);
+					fill.box(sna, &fill, &r);
 					if (damage) {
 						assert_pixmap_contains_box(pixmap, &r);
 						sna_damage_add_box(damage, &r);
@@ -3186,10 +3174,7 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 					box->x2 += dx;
 					box->y1 += dy;
 					box->y2 += dy;
-					fill.blt(sna, &fill,
-						 box->x1, box->y1,
-						 box->x2-box->x1,
-						 box->y2-box->y1);
+					fill.box(sna, &fill, box);
 					if (damage) {
 						assert_pixmap_contains_box(pixmap, box);
 						sna_damage_add_box(damage, box);

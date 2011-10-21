@@ -157,6 +157,9 @@ struct sna_fill_op {
 
 	void (*blt)(struct sna *sna, const struct sna_fill_op *op,
 		    int16_t x, int16_t y, int16_t w, int16_t h);
+	fastcall void (*box)(struct sna *sna,
+			     const struct sna_fill_op *op,
+			     const BoxRec *box);
 	void (*done)(struct sna *sna, const struct sna_fill_op *op);
 };
 
