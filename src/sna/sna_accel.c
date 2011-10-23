@@ -1768,123 +1768,244 @@ sna_fill_spans_blt(DrawablePtr drawable,
 		   struct kgem_bo *bo, struct sna_damage **damage,
 		   GCPtr gc, int n,
 		   DDXPointPtr pt, int *width, int sorted,
-		   const BoxRec *extents, bool clipped)
+		   const BoxRec *extents, unsigned clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	RegionRec clip;
 	int16_t dx, dy;
 	struct sna_fill_op fill;
+	static void * const jump[] = {
+		&&no_damage_translate,
+		&&damage_translate,
+		&&no_damage_clipped_translate,
+		&&damage_clipped_translate,
+
+		&&no_damage,
+		&&damage,
+		&&no_damage_clipped,
+		&&damage_clipped,
+	};
+	unsigned v;
+
+	DBG(("%s: alu=%d, fg=%08lx, damge=%p, clipped?=%d\n",
+	     __FUNCTION__, gc->alu, gc->fgPixel, damage, clipped));
 
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return false;
 
-	region_set(&clip, extents);
-	region_maybe_clip(&clip, gc->pCompositeClip);
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-	DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
-	     __FUNCTION__,
-	     REGION_NUM_RECTS(&clip),
-	     extents->x1, extents->y1, extents->x2, extents->y2,
-	     n, pt->x, pt->y));
+	v = (damage != NULL) | clipped | gc->miTranslate << 2;
+	goto *jump[v];
 
-	if (!gc->miTranslate) {
+no_damage_translate:
+	dx += drawable->x;
+	dy += drawable->y;
+no_damage:
+	do {
+		BoxRec box;
+
+		box.x1 = pt->x + dx;
+		box.x2 = box.x1 + *width++;
+		box.y1 = pt->y + dy;
+		box.y2 = box.y1 + 1;
+		pt++;
+
+		fill.box(sna, &fill, &box);
+	} while (--n);
+	goto done;
+
+damage_translate:
+	dx += drawable->x;
+	dy += drawable->y;
+damage:
+	do {
+		BoxRec box;
+
+		box.x1 = pt->x + dx;
+		box.x2 = box.x1 + *width++;
+		box.y1 = pt->y + dy;
+		box.y2 = box.y1 + 1;
+		pt++;
+
+		fill.box(sna, &fill, &box);
+		assert_pixmap_contains_box(pixmap, &box);
+		sna_damage_add_box(damage, &box);
+	} while (--n);
+	goto done;
+
+	{
+		RegionRec clip;
 		int i;
 
+no_damage_clipped_translate:
 		for (i = 0; i < n; i++) {
 			/* XXX overflow? */
 			pt->x += drawable->x;
 			pt->y += drawable->y;
 		}
+
+no_damage_clipped:
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
+
+		DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
+		     __FUNCTION__,
+		     REGION_NUM_RECTS(&clip),
+		     clip.extents.x1, clip.extents.y1, clip.extents.x2, clip.extents.y2,
+		     n, pt->x, pt->y));
+
+		if (clip.data == NULL) {
+			do {
+				BoxRec box;
+
+				box.x1 = pt->x;
+				box.y1 = pt->y;
+				box.x2 = box.x1 + (int)*width++;
+				box.y2 = box.y1 + 1;
+				pt++;
+
+				if (box_intersect(&box, &clip.extents)) {
+					box.x1 += dx;
+					box.x2 += dx;
+					box.y1 += dy;
+					box.y2 += dy;
+					fill.box(sna, &fill, &box);
+				}
+			} while (--n);
+		} else {
+			do {
+				int nc = clip.data->numRects;
+				const BoxRec *b = RegionBoxptr(&clip);
+				int16_t X1 = pt->x;
+				int16_t y = pt->y;
+				int16_t X2 = X1 + (int)*width;
+
+				pt++;
+				width++;
+
+				if (y < extents->y1 || extents->y2 <= y)
+					continue;
+
+				if (X1 < extents->x1)
+					X1 = extents->x1;
+
+				if (X2 > extents->x2)
+					X2 = extents->x2;
+
+				if (X1 >= X2)
+					continue;
+
+				y += dy;
+				do {
+					if (b->y1 <= y && y < b->y2) {
+						int x1 = b->x1;
+						int x2 = b->x2;
+
+						if (x1 < X1)
+							x1 = X1;
+						x1 += dx;
+						if (x1 < 0)
+							x1 = 0;
+						if (x2 > X2)
+							x2 = X2;
+						x2 += dx;
+						if (x2 > pixmap->drawable.width)
+							x2 = pixmap->drawable.width;
+
+						if (x2 > x1)
+							fill.blt(sna, &fill, x1, y, x2-x1, 1);
+					}
+					b++;
+				} while (--nc);
+			} while (--n);
+			RegionUninit(&clip);
+		}
+		goto done;
 	}
 
-	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	if (!clipped) {
-		if (damage) {
-			do {
-				BoxRec box;
+	{
+		RegionRec clip;
+		int i;
 
-				box.x1 = pt->x + dx;
-				box.x2 = box.x1 + *width++;
-				box.y1 = pt->y + dy;
-				box.y2 = box.y1 + 1;
-				pt++;
-
-				fill.box(sna, &fill, &box);
-
-				assert_pixmap_contains_box(pixmap, &box);
-				sna_damage_add_box(damage, &box);
-			} while (--n);
-		} else {
-			do {
-				BoxRec box;
-
-				box.x1 = pt->x + dx;
-				box.x2 = box.x1 + *width++;
-				box.y1 = pt->y + dy;
-				box.y2 = box.y1 + 1;
-				pt++;
-
-				fill.box(sna, &fill, &box);
-			} while (--n);
+damage_clipped_translate:
+		for (i = 0; i < n; i++) {
+			/* XXX overflow? */
+			pt->x += drawable->x;
+			pt->y += drawable->y;
 		}
-	} else do {
-		int16_t X1 = pt->x;
-		int16_t y = pt->y;
-		int16_t X2 = X1 + (int)*width;
 
-		pt++;
-		width++;
+damage_clipped:
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
 
-		if (y < extents->y1 || extents->y2 <= y)
-			continue;
+		DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
+		     __FUNCTION__,
+		     REGION_NUM_RECTS(&clip),
+		     clip.extents.x1, clip.extents.y1, clip.extents.x2, clip.extents.y2,
+		     n, pt->x, pt->y));
 
-		if (X1 < extents->x1)
-			X1 = extents->x1;
-
-		if (X2 > extents->x2)
-			X2 = extents->x2;
-
-		if (X1 >= X2)
-			continue;
-
-		y += dy;
 		if (clip.data == NULL) {
-			fill.blt(sna, &fill, X1 + dx, y, X2-X1, 1);
-			if (damage) {
+			do {
 				BoxRec box;
 
-				box.x1 = X1 + dx;
-				box.x2 = X2 + dx;
-				box.y1 = y;
+				box.x1 = pt->x;
+				box.y1 = pt->y;
+				box.x2 = box.x1 + (int)*width++;
 				box.y2 = box.y1 + 1;
+				pt++;
 
-				assert_pixmap_contains_box(pixmap, &box);
-				sna_damage_add_box(damage, &box);
-			}
+				if (box_intersect(&box, &clip.extents)) {
+					box.x1 += dx;
+					box.x2 += dx;
+					box.y1 += dy;
+					box.y2 += dy;
+					fill.box(sna, &fill, &box);
+					assert_pixmap_contains_box(pixmap, &box);
+					sna_damage_add_box(damage, &box);
+				}
+			} while (--n);
 		} else {
-			int nc = clip.data->numRects;
-			const BoxRec *b = RegionBoxptr(&clip);
-			while (nc--) {
-				if (b->y1 <= y && y < b->y2) {
-					int x1 = b->x1;
-					int x2 = b->x2;
+			do {
+				int nc = clip.data->numRects;
+				const BoxRec *b = RegionBoxptr(&clip);
+				int16_t X1 = pt->x;
+				int16_t y = pt->y;
+				int16_t X2 = X1 + (int)*width;
 
-					if (x1 < X1)
-						x1 = X1;
-					x1 += dx;
-					if (x1 < 0)
-						x1 = 0;
-					if (x2 > X2)
-						x2 = X2;
-					x2 += dx;
-					if (x2 > pixmap->drawable.width)
-						x2 = pixmap->drawable.width;
+				pt++;
+				width++;
 
-					if (x2 > x1) {
-						fill.blt(sna, &fill,
-							 x1, y, x2-x1, 1);
-						if (damage) {
+				if (y < extents->y1 || extents->y2 <= y)
+					continue;
+
+				if (X1 < extents->x1)
+					X1 = extents->x1;
+
+				if (X2 > extents->x2)
+					X2 = extents->x2;
+
+				if (X1 >= X2)
+					continue;
+
+				y += dy;
+				do {
+					if (b->y1 <= y && y < b->y2) {
+						int x1 = b->x1;
+						int x2 = b->x2;
+
+						if (x1 < X1)
+							x1 = X1;
+						x1 += dx;
+						if (x1 < 0)
+							x1 = 0;
+						if (x2 > X2)
+							x2 = X2;
+						x2 += dx;
+						if (x2 > pixmap->drawable.width)
+							x2 = pixmap->drawable.width;
+
+						if (x2 > x1) {
 							BoxRec box;
 
 							box.x1 = x1;
@@ -1892,17 +2013,21 @@ sna_fill_spans_blt(DrawablePtr drawable,
 							box.x2 = x2;
 							box.y2 = box.y1 + 1;
 
+							fill.box(sna, &fill, &box);
 							assert_pixmap_contains_box(pixmap, &box);
 							sna_damage_add_box(damage, &box);
 						}
 					}
-				}
-				b++;
-			}
+					b++;
+				} while (--nc);
+			} while (--n);
+			RegionUninit(&clip);
 		}
-	} while (--n);
+		goto done;
+	}
+
+done:
 	fill.done(sna, &fill);
-	RegionUninit(&clip);
 	return TRUE;
 }
 
