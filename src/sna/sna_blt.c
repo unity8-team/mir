@@ -1294,8 +1294,7 @@ fastcall static void sna_blt_fill_op_box(struct sna *sna,
 	kgem->nbatch += 3;
 
 	b[0] = op->base.u.blt.cmd;
-	b[1] = box->y1 << 16 | box->x1;
-	b[2] = box->y2 << 16 | box->x2;
+	*(uint64_t *)(b+1) = *(uint64_t *)box;
 }
 
 static void sna_blt_fill_op_done(struct sna *sna,
@@ -1447,8 +1446,7 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 
 	b[0] = cmd;
 	b[1] = br13;
-	b[2] = box->y1 << 16 | box->x1;
-	b[3] = box->y2 << 16 | box->x2;
+	*(uint64_t *)(b+2) = *(uint64_t *)box;
 	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4,
 			      bo,
 			      I915_GEM_DOMAIN_RENDER << 16 |
@@ -1566,8 +1564,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 			b = kgem->batch + kgem->nbatch;
 			kgem->nbatch += 3;
 			b[0] = cmd;
-			b[1] = box->y1 << 16 | box->x1;
-			b[2] = box->y2 << 16 | box->x2;
+			*(uint64_t *)(b+1) = *(uint64_t *)box;
 			box++;
 		} while (--nbox_this_time);
 
