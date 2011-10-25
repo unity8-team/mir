@@ -205,9 +205,17 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 	exaMoveInPixmap(pixmap);
 	info->exa_force_create = FALSE;
         driver_priv = exaGetPixmapDriverPrivate(pixmap);
-	r = radeon_gem_get_kernel_name(driver_priv->bo, &buffers[i].name);
-	if (r)
-		return r;
+	if (!driver_priv ||
+	    radeon_gem_get_kernel_name(driver_priv->bo, &buffers[i].name) != 0) {
+	    int j;
+
+	    for (j = 0; j < i; j++)
+		(*pScreen->DestroyPixmap)(privates[j].pixmap);
+	    (*pScreen->DestroyPixmap)(pixmap);
+	    free(privates);
+	    free(buffers);
+	    return NULL;
+	}
 
         buffers[i].attachment = attachments[i];
         buffers[i].pitch = pixmap->devKind;
@@ -232,7 +240,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
     struct radeon_exa_pixmap_priv *driver_priv;
-    int r, need_enlarge = 0;
+    int need_enlarge = 0;
     int flags;
     unsigned front_width;
     uint32_t tiling = 0;
@@ -240,17 +248,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     pixmap = pScreen->GetScreenPixmap(pScreen);
     front_width = pixmap->drawable.width;
 
-    buffers = calloc(1, sizeof *buffers);
-    if (buffers == NULL) {
-        return NULL;
-    }
-    privates = calloc(1, sizeof(struct dri2_buffer_priv));
-    if (privates == NULL) {
-        free(buffers);
-        return NULL;
-    }
-
-    depth_pixmap = NULL;
+    pixmap = depth_pixmap = NULL;
 
     if (attachment == DRI2BufferFrontLeft) {
         if (drawable->type == DRAWABLE_PIXMAP) {
@@ -351,6 +349,13 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 	}
     }
 
+    if (!pixmap)
+        return NULL;
+
+    buffers = calloc(1, sizeof *buffers);
+    if (buffers == NULL)
+        goto error;
+
     if (attachment == DRI2BufferDepth) {
         depth_pixmap = pixmap;
     }
@@ -358,9 +363,13 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     exaMoveInPixmap(pixmap);
     info->exa_force_create = FALSE;
     driver_priv = exaGetPixmapDriverPrivate(pixmap);
-    r = radeon_gem_get_kernel_name(driver_priv->bo, &buffers->name);
-    if (r)
-	    return NULL;
+    if (!driver_priv ||
+	(radeon_gem_get_kernel_name(driver_priv->bo, &buffers->name) != 0))
+        goto error;
+
+    privates = calloc(1, sizeof(struct dri2_buffer_priv));
+    if (privates == NULL)
+        goto error;
 
     buffers->attachment = attachment;
     buffers->pitch = pixmap->devKind;
@@ -373,6 +382,12 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
     privates->refcnt = 1;
 
     return buffers;
+
+error:
+    free(buffers);
+    if (pixmap)
+        (*pScreen->DestroyPixmap)(pixmap);
+    return NULL;
 }
 #endif
 
