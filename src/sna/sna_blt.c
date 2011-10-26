@@ -653,7 +653,7 @@ is_white(PicturePtr picture)
 }
 
 fastcall
-static void blt_fill_composite(struct sna *sna,
+static void blt_composite_fill(struct sna *sna,
 			       const struct sna_composite_op *op,
 			       const struct sna_composite_rectangles *r)
 {
@@ -764,21 +764,21 @@ inline static void _sna_blt_fill_boxes(struct sna *sna,
 	} while (1);
 }
 
-fastcall static void blt_fill_composite_box_no_offset(struct sna *sna,
+fastcall static void blt_composite_fill_box_no_offset(struct sna *sna,
 						      const struct sna_composite_op *op,
 						      const BoxRec *box)
 {
 	_sna_blt_fill_box(sna, &op->u.blt, box);
 }
 
-static void blt_fill_composite_boxes_no_offset(struct sna *sna,
+static void blt_composite_fill_boxes_no_offset(struct sna *sna,
 					       const struct sna_composite_op *op,
 					       const BoxRec *box, int n)
 {
 	_sna_blt_fill_boxes(sna, &op->u.blt, box, n);
 }
 
-fastcall static void blt_fill_composite_box(struct sna *sna,
+fastcall static void blt_composite_fill_box(struct sna *sna,
 					    const struct sna_composite_op *op,
 					    const BoxRec *box)
 {
@@ -789,7 +789,7 @@ fastcall static void blt_fill_composite_box(struct sna *sna,
 			 box->y2 - box->y1);
 }
 
-static void blt_fill_composite_boxes(struct sna *sna,
+static void blt_composite_fill_boxes(struct sna *sna,
 				     const struct sna_composite_op *op,
 				     const BoxRec *box, int n)
 {
@@ -807,13 +807,13 @@ prepare_blt_clear(struct sna *sna,
 {
 	DBG(("%s\n", __FUNCTION__));
 
-	op->blt   = blt_fill_composite;
+	op->blt   = blt_composite_fill;
 	if (op->dst.x|op->dst.y) {
-		op->box   = blt_fill_composite_box;
-		op->boxes = blt_fill_composite_boxes;
+		op->box   = blt_composite_fill_box;
+		op->boxes = blt_composite_fill_boxes;
 	} else {
-		op->box   = blt_fill_composite_box_no_offset;
-		op->boxes = blt_fill_composite_boxes_no_offset;
+		op->box   = blt_composite_fill_box_no_offset;
+		op->boxes = blt_composite_fill_boxes_no_offset;
 	}
 	op->done  = blt_done;
 
@@ -830,13 +830,13 @@ prepare_blt_fill(struct sna *sna,
 {
 	DBG(("%s\n", __FUNCTION__));
 
-	op->blt   = blt_fill_composite;
+	op->blt   = blt_composite_fill;
 	if (op->dst.x|op->dst.y) {
-		op->box   = blt_fill_composite_box;
-		op->boxes = blt_fill_composite_boxes;
+		op->box   = blt_composite_fill_box;
+		op->boxes = blt_composite_fill_boxes;
 	} else {
-		op->box   = blt_fill_composite_box_no_offset;
-		op->boxes = blt_fill_composite_boxes_no_offset;
+		op->box   = blt_composite_fill_box_no_offset;
+		op->boxes = blt_composite_fill_boxes_no_offset;
 	}
 	op->done  = blt_done;
 
@@ -847,7 +847,7 @@ prepare_blt_fill(struct sna *sna,
 }
 
 fastcall static void
-blt_copy_composite(struct sna *sna,
+blt_composite_copy(struct sna *sna,
 		   const struct sna_composite_op *op,
 		   const struct sna_composite_rectangles *r)
 {
@@ -893,7 +893,7 @@ blt_copy_composite(struct sna *sna,
 			 x1, y1);
 }
 
-fastcall static void blt_copy_composite_box(struct sna *sna,
+fastcall static void blt_composite_copy_box(struct sna *sna,
 					    const struct sna_composite_op *op,
 					    const BoxRec *box)
 {
@@ -908,7 +908,7 @@ fastcall static void blt_copy_composite_box(struct sna *sna,
 			 box->y1 + op->dst.y);
 }
 
-static void blt_copy_composite_boxes(struct sna *sna,
+static void blt_composite_copy_boxes(struct sna *sna,
 				     const struct sna_composite_op *op,
 				     const BoxRec *box, int nbox)
 {
@@ -941,9 +941,9 @@ prepare_blt_copy(struct sna *sna,
 
 	DBG(("%s\n", __FUNCTION__));
 
-	op->blt   = blt_copy_composite;
-	op->box   = blt_copy_composite_box;
-	op->boxes = blt_copy_composite_boxes;
+	op->blt   = blt_composite_copy;
+	op->box   = blt_composite_copy_box;
+	op->boxes = blt_composite_copy_boxes;
 	if (sna->kgem.gen >= 60)
 		op->done  = gen6_blt_copy_done;
 	else
@@ -1119,9 +1119,9 @@ prepare_blt_put(struct sna *sna,
 		free_bo = src_bo;
 	}
 	if (src_bo) {
-		op->blt   = blt_copy_composite;
-		op->box   = blt_copy_composite_box;
-		op->boxes = blt_copy_composite_boxes;
+		op->blt   = blt_composite_copy;
+		op->box   = blt_composite_copy_box;
+		op->boxes = blt_composite_copy_boxes;
 
 		op->u.blt.src_pixmap = (void *)free_bo;
 		op->done = blt_vmap_done;
