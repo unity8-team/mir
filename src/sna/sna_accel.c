@@ -1766,6 +1766,33 @@ sna_copy_init_blt(struct sna_copy_op *copy,
 	return sna->render.copy(sna, alu, src, src_bo, dst, dst_bo, copy);
 }
 
+static const BoxRec *
+find_clip_box_for_y(const BoxRec *begin, const BoxRec *end, int16_t y)
+{
+    const BoxRec *mid;
+
+    if (end == begin)
+	return end;
+
+    if (end - begin == 1) {
+	if (begin->y2 > y)
+	    return begin;
+	else
+	    return end;
+    }
+
+    mid = begin + (end - begin) / 2;
+    if (mid->y2 > y)
+	/* If no box is found in [begin, mid], the function
+	 * will return @mid, which is then known to be the
+	 * correct answer.
+	 */
+	return find_clip_box_for_y(begin, mid, y);
+    else
+	return find_clip_box_for_y(mid, end, y);
+}
+
+
 static Bool
 sna_fill_spans_blt(DrawablePtr drawable,
 		   struct kgem_bo *bo, struct sna_damage **damage,
@@ -1777,6 +1804,7 @@ sna_fill_spans_blt(DrawablePtr drawable,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	int16_t dx, dy;
 	struct sna_fill_op fill;
+	BoxRec box[512], *b = box, *const last_box = box + ARRAY_SIZE(box);
 	static void * const jump[] = {
 		&&no_damage_translate,
 		&&damage_translate,
@@ -1805,17 +1833,25 @@ no_damage_translate:
 	dx += drawable->x;
 	dy += drawable->y;
 no_damage:
-	do {
-		BoxRec box;
+	{
+		unsigned offset = dx|dy;
+		do {
+			*(DDXPointRec *)b = *pt++;
+			if (offset) {
+				b->x1 += dx;
+				b->y1 += dy;
+			}
+			b->x2 = b->x1 + (int)*width++;
+			b->y2 = b->y1 + 1;
 
-		box.x1 = pt->x + dx;
-		box.x2 = box.x1 + *width++;
-		box.y1 = pt->y + dy;
-		box.y2 = box.y1 + 1;
-		pt++;
-
-		fill.box(sna, &fill, &box);
-	} while (--n);
+			if (++b == last_box) {
+				fill.boxes(sna, &fill, box, last_box - box);
+				b = box;
+			}
+		} while (--n);
+		if (b != box)
+			fill.boxes(sna, &fill, box, b - box);
+	}
 	goto done;
 
 damage_translate:
@@ -1823,18 +1859,22 @@ damage_translate:
 	dy += drawable->y;
 damage:
 	do {
-		BoxRec box;
+		*(DDXPointRec *)b = *pt++;
+		b->x1 += dx;
+		b->y1 += dy;
+		b->x2 = b->x1 + (int)*width++;
+		b->y2 = b->y1 + 1;
 
-		box.x1 = pt->x + dx;
-		box.x2 = box.x1 + *width++;
-		box.y1 = pt->y + dy;
-		box.y2 = box.y1 + 1;
-		pt++;
-
-		fill.box(sna, &fill, &box);
-		assert_pixmap_contains_box(pixmap, &box);
-		sna_damage_add_box(damage, &box);
+		if (++b == last_box) {
+			fill.boxes(sna, &fill, box, last_box - box);
+			sna_damage_add_boxes(damage, box, last_box - box, 0, 0);
+			b = box;
+		}
 	} while (--n);
+	if (b != box) {
+		fill.boxes(sna, &fill, box, b - box);
+		sna_damage_add_boxes(damage, box, b - box, 0, 0);
+	}
 	goto done;
 
 	{
@@ -1860,29 +1900,29 @@ no_damage_clipped:
 
 		if (clip.data == NULL) {
 			do {
-				BoxRec box;
+				*(DDXPointRec *)b = *pt++;
+				b->x2 = b->x1 + (int)*width++;
+				b->y2 = b->y1 + 1;
 
-				box.x1 = pt->x;
-				box.y1 = pt->y;
-				box.x2 = box.x1 + (int)*width++;
-				box.y2 = box.y1 + 1;
-				pt++;
-
-				if (box_intersect(&box, &clip.extents)) {
-					box.x1 += dx;
-					box.x2 += dx;
-					box.y1 += dy;
-					box.y2 += dy;
-					fill.box(sna, &fill, &box);
+				if (box_intersect(b, &clip.extents)) {
+					b->x1 += dx;
+					b->x2 += dx;
+					b->y1 += dy;
+					b->y2 += dy;
+					if (++b == last_box) {
+						fill.boxes(sna, &fill, box, last_box - box);
+						b = box;
+					}
 				}
 			} while (--n);
 		} else {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
 			do {
-				int nc = clip.data->numRects;
-				const BoxRec *b = RegionBoxptr(&clip);
 				int16_t X1 = pt->x;
 				int16_t y = pt->y;
 				int16_t X2 = X1 + (int)*width;
+				const BoxRec *c;
 
 				pt++;
 				width++;
@@ -1899,31 +1939,41 @@ no_damage_clipped:
 				if (X1 >= X2)
 					continue;
 
-				y += dy;
-				do {
-					if (b->y1 <= y && y < b->y2) {
-						int x1 = b->x1;
-						int x2 = b->x2;
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							y);
+				while (c != clip_end) {
+					if (y + 1 <= c->y1)
+						break;
 
-						if (x1 < X1)
-							x1 = X1;
-						x1 += dx;
-						if (x1 < 0)
-							x1 = 0;
-						if (x2 > X2)
-							x2 = X2;
-						x2 += dx;
-						if (x2 > pixmap->drawable.width)
-							x2 = pixmap->drawable.width;
+					if (X2 <= c->x1)
+						continue;
+					if (X1 >= c->x2)
+						break;
 
-						if (x2 > x1)
-							fill.blt(sna, &fill, x1, y, x2-x1, 1);
+					b->x1 = c->x1;
+					b->x2 = c->x2;
+					c++;
+
+					if (b->x1 < X1)
+						b->x1 = X1;
+					if (b->x2 > X2)
+						b->x2 = X2;
+
+					b->x1 += dx;
+					b->x2 += dx;
+					b->y1 = y + dy;
+					b->y2 = b->y1 + 1;
+					if (++b == last_box) {
+						fill.boxes(sna, &fill, box, last_box - box);
+						b = box;
 					}
-					b++;
-				} while (--nc);
+				}
 			} while (--n);
 			RegionUninit(&clip);
 		}
+		if (b != box)
+			fill.boxes(sna, &fill, box, b - box);
 		goto done;
 	}
 
@@ -1950,31 +2000,30 @@ damage_clipped:
 
 		if (clip.data == NULL) {
 			do {
-				BoxRec box;
+				*(DDXPointRec *)b = *pt++;
+				b->x2 = b->x1 + (int)*width++;
+				b->y2 = b->y1 + 1;
 
-				box.x1 = pt->x;
-				box.y1 = pt->y;
-				box.x2 = box.x1 + (int)*width++;
-				box.y2 = box.y1 + 1;
-				pt++;
-
-				if (box_intersect(&box, &clip.extents)) {
-					box.x1 += dx;
-					box.x2 += dx;
-					box.y1 += dy;
-					box.y2 += dy;
-					fill.box(sna, &fill, &box);
-					assert_pixmap_contains_box(pixmap, &box);
-					sna_damage_add_box(damage, &box);
+				if (box_intersect(b, &clip.extents)) {
+					b->x1 += dx;
+					b->x2 += dx;
+					b->y1 += dy;
+					b->y2 += dy;
+					if (++b == last_box) {
+						fill.boxes(sna, &fill, box, last_box - box);
+						sna_damage_add_boxes(damage, box, b - box, 0, 0);
+						b = box;
+					}
 				}
 			} while (--n);
 		} else {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
 			do {
-				int nc = clip.data->numRects;
-				const BoxRec *b = RegionBoxptr(&clip);
 				int16_t X1 = pt->x;
 				int16_t y = pt->y;
 				int16_t X2 = X1 + (int)*width;
+				const BoxRec *c;
 
 				pt++;
 				width++;
@@ -1991,40 +2040,43 @@ damage_clipped:
 				if (X1 >= X2)
 					continue;
 
-				y += dy;
-				do {
-					if (b->y1 <= y && y < b->y2) {
-						int x1 = b->x1;
-						int x2 = b->x2;
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							y);
+				while (c != clip_end) {
+					if (y + 1 <= c->y1)
+						break;
 
-						if (x1 < X1)
-							x1 = X1;
-						x1 += dx;
-						if (x1 < 0)
-							x1 = 0;
-						if (x2 > X2)
-							x2 = X2;
-						x2 += dx;
-						if (x2 > pixmap->drawable.width)
-							x2 = pixmap->drawable.width;
+					if (X2 <= c->x1)
+						continue;
+					if (X1 >= c->x2)
+						break;
 
-						if (x2 > x1) {
-							BoxRec box;
+					b->x1 = c->x1;
+					b->x2 = c->x2;
+					c++;
 
-							box.x1 = x1;
-							box.y1 = y;
-							box.x2 = x2;
-							box.y2 = box.y1 + 1;
+					if (b->x1 < X1)
+						b->x1 = X1;
+					if (b->x2 > X2)
+						b->x2 = X2;
 
-							fill.box(sna, &fill, &box);
-							assert_pixmap_contains_box(pixmap, &box);
-							sna_damage_add_box(damage, &box);
-						}
+					b->x1 += dx;
+					b->x2 += dx;
+					b->y1 = y + dy;
+					b->y2 = b->y1 + 1;
+					if (++b == last_box) {
+						fill.boxes(sna, &fill, box, last_box - box);
+						sna_damage_add_boxes(damage, box, last_box - box, 0, 0);
+						b = box;
 					}
-					b++;
-				} while (--nc);
+				}
 			} while (--n);
 			RegionUninit(&clip);
+		}
+		if (b != box) {
+			fill.boxes(sna, &fill, box, b - box);
+			sna_damage_add_boxes(damage, box, b - box, 0, 0);
 		}
 		goto done;
 	}
