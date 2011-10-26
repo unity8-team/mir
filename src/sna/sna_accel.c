@@ -3893,49 +3893,37 @@ no_damage_zero:
 	dy += drawable->y;
 
 	do {
-		BoxRec box;
+		BoxRec box[4];
 
 		if (r->width <= 1 || r->height <= 1) {
-			box.x1 = r->x + dx;
-			box.y1 = r->y + dy;
-			box.x2 = box.x1 + r->width + 1;
-			box.y2 = box.y1 + r->height + 1;
+			box[0].x1 = r->x + dx;
+			box[0].y1 = r->y + dy;
+			box[0].x2 = box[0].x1 + r->width + 1;
+			box[0].y2 = box[0].y1 + r->height + 1;
 			DBG(("%s: blt (%d, %d), (%d, %d)\n",
 			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
+			     box[0].x1, box[0].y1, box[0].x2, box[0].y2));
+			fill.box(sna, &fill, &box[0]);
 		} else {
-			box.x1 = r->x + dx;
-			box.y1 = r->y + dy;
-			box.x2 = box.x1 + r->width + 1;
-			box.y2 = box.y1 + 1;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
+			box[0].x1 = r->x + dx;
+			box[0].y1 = r->y + dy;
+			box[0].x2 = box[0].x1 + r->width + 1;
+			box[0].y2 = box[0].y1 + 1;
 
-			box.y1 += r->height;
-			box.y2 += r->height;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
+			box[1] = box[0];
+			box[1].y1 += r->height;
+			box[1].y2 += r->height;
 
-			box.y1 = r->y + dy + 1;
-			box.y2 = box.y1 + r->height - 1;
-			box.x1 = r->x + dx;
-			box.x2 = box.x1 + 1;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
+			box[2].y1 = r->y + dy + 1;
+			box[2].y2 = box[2].y1 + r->height - 1;
+			box[2].x1 = r->x + dx;
+			box[2].x2 = box[2].x1 + 1;
 
-			box.x1 += r->width;
-			box.x2 += r->width;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
+			box[3] = box[2];
+			box[3].x1 += r->width;
+			box[3].x2 += r->width;
+
+			fill.boxes(sna, &fill, box, 4);
 		}
 		r++;
 	} while (--n);
@@ -4092,7 +4080,7 @@ no_damage_wide:
 		dy += drawable->y;
 
 		do {
-			BoxRec box;
+			BoxRec box[4];
 			int16_t x = r->x + dx;
 			int16_t y = r->y + dy;
 			int16_t width = r->width;
@@ -4101,42 +4089,40 @@ no_damage_wide:
 
 			if (height < offset2 || width < offset1) {
 				if (height == 0) {
-					box.x1 = x;
-					box.x2 = x + width + 1;
+					box[0].x1 = x;
+					box[0].x2 = x + width + 1;
 				} else {
-					box.x1 = x - offset1;
-					box.x2 = box.x1 + width + offset2;
+					box[0].x1 = x - offset1;
+					box[0].x2 = box[0].x1 + width + offset2;
 				}
 				if (width == 0) {
-					box.y1 = y;
-					box.y2 = y + height + 1;
+					box[0].y1 = y;
+					box[0].y2 = y + height + 1;
 				} else {
-					box.y1 = y - offset1;
-					box.y2 = box.y1 + height + offset2;
+					box[0].y1 = y - offset1;
+					box[0].y2 = box[0].y1 + height + offset2;
 				}
-				fill.box(sna, &fill, &box);
+				fill.box(sna, &fill, &box[0]);
 			} else {
-				box.x1 = x - offset1;
-				box.x2 = box.x1 + width + offset2;
-				box.y1 = y - offset1;
-				box.y2 = box.y1 + offset2;
-				fill.box(sna, &fill, &box);
+				box[0].x1 = x - offset1;
+				box[0].x2 = box[0].x1 + width + offset2;
+				box[0].y1 = y - offset1;
+				box[0].y2 = box[0].y1 + offset2;
 
-				box.x1 = x - offset1;
-				box.x2 = box.x1 + offset2;
-				box.y1 = y + offset3;
-				box.y2 = y + height - offset1;
-				fill.box(sna, &fill, &box);
+				box[1] = box[0];
+				box[1].y1 = y + height - offset1;
+				box[1].y2 = box[1].y1 + offset2;
 
-				box.x1 = x + width - offset1;
-				box.x2 = box.x1 + offset2;
-				fill.box(sna, &fill, &box);
+				box[2].x1 = x - offset1;
+				box[2].x2 = box[2].x1 + offset2;
+				box[2].y1 = y + offset3;
+				box[2].y2 = y + height - offset1;
 
-				box.x1 = x - offset1;
-				box.x2 = box.x1 + width + offset2;
-				box.y1 = y + height - offset1;
-				box.y2 = box.y1 + offset2;
-				fill.box(sna, &fill, &box);
+				box[3] = box[2];
+				box[3].x1 = x + width - offset1;
+				box[3].x2 = box[3].x1 + offset2;
+
+				fill.boxes(sna, &fill, box, 4);
 			}
 
 		} while (--n);
