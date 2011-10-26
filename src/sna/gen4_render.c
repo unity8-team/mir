@@ -2497,24 +2497,38 @@ gen4_render_fill_boxes(struct sna *sna,
 }
 
 static void
-gen4_render_fill_blt(struct sna *sna, const struct sna_fill_op *op,
-		     int16_t x, int16_t y, int16_t w, int16_t h)
+gen4_render_fill_op_blt(struct sna *sna, const struct sna_fill_op *op,
+			int16_t x, int16_t y, int16_t w, int16_t h)
 {
 	gen4_render_fill_rectangle(sna, &op->base, x, y, w, h);
 }
 
 fastcall static void
-gen4_render_fill_box(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     const BoxRec *box)
+gen4_render_fill_op_box(struct sna *sna,
+			const struct sna_fill_op *op,
+			const BoxRec *box)
 {
 	gen4_render_fill_rectangle(sna, &op->base,
 				   box->x1, box->y1,
 				   box->x2-box->x1, box->y2-box->y1);
 }
 
+fastcall static void
+gen4_render_fill_op_boxes(struct sna *sna,
+			  const struct sna_fill_op *op,
+			  const BoxRec *box,
+			  int nbox)
+{
+	do {
+		gen4_render_fill_rectangle(sna, &op->base,
+					   box->x1, box->y1,
+					   box->x2-box->x1, box->y2-box->y1);
+		box++;
+	} while (--nbox);
+}
+
 static void
-gen4_render_fill_done(struct sna *sna, const struct sna_fill_op *op)
+gen4_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
@@ -2573,6 +2587,8 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 
 	op->base.is_affine = TRUE;
 	op->base.floats_per_vertex = 3;
+	op->base.need_magic_ca_pass = 0;
+	op->base.has_component_alpha = 0;
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
 	op->base.u.gen4.ve_id = 1;
 
@@ -2582,9 +2598,10 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 	gen4_fill_bind_surfaces(sna, &op->base);
 	gen4_align_vertex(sna, &op->base);
 
-	op->blt  = gen4_render_fill_blt;
-	op->box  = gen4_render_fill_box;
-	op->done = gen4_render_fill_done;
+	op->blt   = gen4_render_fill_op_blt;
+	op->box   = gen4_render_fill_op_box;
+	op->boxes = gen4_render_fill_op_boxes;
+	op->done  = gen4_render_fill_op_done;
 	return TRUE;
 }
 

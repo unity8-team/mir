@@ -160,6 +160,10 @@ struct sna_fill_op {
 	fastcall void (*box)(struct sna *sna,
 			     const struct sna_fill_op *op,
 			     const BoxRec *box);
+	fastcall void (*boxes)(struct sna *sna,
+			       const struct sna_fill_op *op,
+			       const BoxRec *box,
+			       int count);
 	void (*done)(struct sna *sna, const struct sna_fill_op *op);
 };
 

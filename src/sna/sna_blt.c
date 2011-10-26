@@ -1297,6 +1297,66 @@ fastcall static void sna_blt_fill_op_box(struct sna *sna,
 	*(uint64_t *)(b+1) = *(uint64_t *)box;
 }
 
+fastcall static void sna_blt_fill_op_boxes(struct sna *sna,
+					   const struct sna_fill_op *op,
+					   const BoxRec *box,
+					   int nbox)
+{
+	struct kgem *kgem = &sna->kgem;
+	uint32_t cmd = op->base.u.blt.cmd;
+
+	DBG(("%s: %08x x %d\n", __FUNCTION__,
+	     op->base.u.blt.pixel, nbox));
+
+	if (!kgem_check_batch(kgem, 3))
+		sna_blt_fill_begin(sna, &op->base.u.blt);
+
+	do {
+		uint32_t *b = kgem->batch + kgem->nbatch;
+		int nbox_this_time;
+
+		nbox_this_time = nbox;
+		if (3*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+			nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 3;
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		kgem->nbatch += 3 * nbox_this_time;
+		while (nbox_this_time >= 8) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
+			b[6] = cmd; *(uint64_t *)(b+7) = *(uint64_t *)box++;
+			b[9] = cmd; *(uint64_t *)(b+10) = *(uint64_t *)box++;
+			b[12] = cmd; *(uint64_t *)(b+13) = *(uint64_t *)box++;
+			b[15] = cmd; *(uint64_t *)(b+16) = *(uint64_t *)box++;
+			b[18] = cmd; *(uint64_t *)(b+19) = *(uint64_t *)box++;
+			b[21] = cmd; *(uint64_t *)(b+22) = *(uint64_t *)box++;
+			b += 24;
+			nbox_this_time -= 8;
+		}
+		if (nbox_this_time & 4) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
+			b[6] = cmd; *(uint64_t *)(b+7) = *(uint64_t *)box++;
+			b[9] = cmd; *(uint64_t *)(b+10) = *(uint64_t *)box++;
+			b += 12;
+		}
+		if (nbox_this_time & 2) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
+			b += 6;
+		}
+		if (nbox_this_time & 1) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+		}
+
+		if (!nbox)
+			return;
+
+		sna_blt_fill_begin(sna, &op->base.u.blt);
+	} while (1);
+}
+
 static void sna_blt_fill_op_done(struct sna *sna,
 				 const struct sna_fill_op *fill)
 {
@@ -1324,9 +1384,10 @@ bool sna_blt_fill(struct sna *sna, uint8_t alu,
 			       bo, bpp, alu, pixel))
 		return FALSE;
 
-	fill->blt  = sna_blt_fill_op_blt;
-	fill->box  = sna_blt_fill_op_box;
-	fill->done = sna_blt_fill_op_done;
+	fill->blt   = sna_blt_fill_op_blt;
+	fill->box   = sna_blt_fill_op_box;
+	fill->boxes = sna_blt_fill_op_boxes;
+	fill->done  = sna_blt_fill_op_done;
 	return TRUE;
 }
 

@@ -2483,9 +2483,9 @@ gen5_render_fill_boxes(struct sna *sna,
 }
 
 static void
-gen5_render_fill_blt(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     int16_t x, int16_t y, int16_t w, int16_t h)
+gen5_render_fill_op_blt(struct sna *sna,
+			const struct sna_fill_op *op,
+			int16_t x, int16_t y, int16_t w, int16_t h)
 {
 	DBG(("%s (%d, %d)x(%d, %d)\n", __FUNCTION__, x,y,w,h));
 
@@ -2508,9 +2508,9 @@ gen5_render_fill_blt(struct sna *sna,
 }
 
 fastcall static void
-gen5_render_fill_box(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     const BoxRec *box)
+gen5_render_fill_op_box(struct sna *sna,
+			const struct sna_fill_op *op,
+			const BoxRec *box)
 {
 	DBG(("%s: (%d, %d),(%d, %d)\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
@@ -2533,9 +2533,43 @@ gen5_render_fill_box(struct sna *sna,
 	OUT_VERTEX_F(0);
 }
 
+fastcall static void
+gen5_render_fill_op_boxes(struct sna *sna,
+			  const struct sna_fill_op *op,
+			  const BoxRec *box,
+			  int nbox)
+{
+	DBG(("%s: (%d, %d),(%d, %d)... x %d\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2, n));
+
+	do {
+		int nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox);
+		if (nbox_this_time == 0) {
+			gen5_fill_bind_surfaces(sna, &op->base);
+			nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox);
+		}
+		nbox -= nbox_this_time;
+
+		do {
+			OUT_VERTEX(box->x2, box->y2);
+			OUT_VERTEX_F(1);
+			OUT_VERTEX_F(1);
+
+			OUT_VERTEX(box->x1, box->y2);
+			OUT_VERTEX_F(0);
+			OUT_VERTEX_F(1);
+
+			OUT_VERTEX(box->x1, box->y1);
+			OUT_VERTEX_F(0);
+			OUT_VERTEX_F(0);
+			box++;
+		} while (--nbox_this_time);
+	} while (nbox);
+}
+
 static void
-gen5_render_fill_done(struct sna *sna,
-		      const struct sna_fill_op *op)
+gen5_render_fill_op_done(struct sna *sna,
+			 const struct sna_fill_op *op)
 {
 	gen5_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
@@ -2578,6 +2612,9 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	op->base.dst.bo = dst_bo;
 	op->base.dst.x = op->base.dst.y = 0;
 
+	op->base.need_magic_ca_pass = 0;
+	op->base.has_component_alpha = 0;
+
 	op->base.src.bo =
 		sna_render_get_solid(sna,
 				     sna_rgba_for_color(color,
@@ -2600,9 +2637,10 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	gen5_fill_bind_surfaces(sna, &op->base);
 	gen5_align_vertex(sna, &op->base);
 
-	op->blt  = gen5_render_fill_blt;
-	op->box  = gen5_render_fill_box;
-	op->done = gen5_render_fill_done;
+	op->blt   = gen5_render_fill_op_blt;
+	op->box   = gen5_render_fill_op_box;
+	op->boxes = gen5_render_fill_op_boxes;
+	op->done  = gen5_render_fill_op_done;
 	return TRUE;
 }
 

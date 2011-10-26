@@ -3776,9 +3776,9 @@ gen3_render_fill_boxes(struct sna *sna,
 }
 
 static void
-gen3_render_fill_blt(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     int16_t x, int16_t y, int16_t w, int16_t h)
+gen3_render_fill_op_blt(struct sna *sna,
+			const struct sna_fill_op *op,
+			int16_t x, int16_t y, int16_t w, int16_t h)
 {
 	if (!gen3_get_rectangles(sna, &op->base, 1)) {
 		gen3_emit_composite_state(sna, &op->base);
@@ -3794,9 +3794,9 @@ gen3_render_fill_blt(struct sna *sna,
 }
 
 fastcall static void
-gen3_render_fill_box(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     const BoxRec *box)
+gen3_render_fill_op_box(struct sna *sna,
+			const struct sna_fill_op *op,
+			const BoxRec *box)
 {
 	if (!gen3_get_rectangles(sna, &op->base, 1)) {
 		gen3_emit_composite_state(sna, &op->base);
@@ -3811,8 +3811,37 @@ gen3_render_fill_box(struct sna *sna,
 	OUT_VERTEX(box->y1);
 }
 
+fastcall static void
+gen3_render_fill_op_boxes(struct sna *sna,
+			  const struct sna_fill_op *op,
+			  const BoxRec *box,
+			  int nbox)
+{
+	DBG(("%s: (%d, %d),(%d, %d)... x %d\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2, n));
+
+	do {
+		int nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
+		if (nbox_this_time == 0) {
+			gen3_emit_composite_state(sna, &op->base);
+			nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
+		}
+		nbox -= nbox_this_time;
+
+		do {
+			OUT_VERTEX(box->x2);
+			OUT_VERTEX(box->y2);
+			OUT_VERTEX(box->x1);
+			OUT_VERTEX(box->y2);
+			OUT_VERTEX(box->x1);
+			OUT_VERTEX(box->y1);
+			box++;
+		} while (--nbox_this_time);
+	} while (nbox);
+}
+
 static void
-gen3_render_fill_done(struct sna *sna, const struct sna_fill_op *op)
+gen3_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
 	gen3_vertex_flush(sna);
 	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
@@ -3859,6 +3888,8 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.dst.bo = dst_bo;
 	tmp->base.floats_per_vertex = 2;
 	tmp->base.floats_per_rect = 6;
+	tmp->base.need_magic_ca_pass = 0;
+	tmp->base.has_component_alpha = 0;
 
 	tmp->base.src.u.gen3.type = SHADER_CONSTANT;
 	tmp->base.src.u.gen3.mode =
@@ -3869,9 +3900,10 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
-	tmp->blt  = gen3_render_fill_blt;
-	tmp->box  = gen3_render_fill_box;
-	tmp->done = gen3_render_fill_done;
+	tmp->blt   = gen3_render_fill_op_blt;
+	tmp->box   = gen3_render_fill_op_box;
+	tmp->boxes = gen3_render_fill_op_boxes;
+	tmp->done  = gen3_render_fill_op_done;
 
 	gen3_emit_composite_state(sna, &tmp->base);
 	gen3_align_vertex(sna, &tmp->base);

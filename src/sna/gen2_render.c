@@ -2021,9 +2021,9 @@ static void gen2_emit_fill_state(struct sna *sna,
 }
 
 static void
-gen2_render_fill_blt(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     int16_t x, int16_t y, int16_t w, int16_t h)
+gen2_render_fill_op_blt(struct sna *sna,
+			const struct sna_fill_op *op,
+			int16_t x, int16_t y, int16_t w, int16_t h)
 {
 	if (!gen2_get_rectangles(sna, &op->base, 1)) {
 		gen2_emit_fill_state(sna, &op->base);
@@ -2039,9 +2039,9 @@ gen2_render_fill_blt(struct sna *sna,
 }
 
 fastcall static void
-gen2_render_fill_box(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     const BoxRec *box)
+gen2_render_fill_op_box(struct sna *sna,
+			const struct sna_fill_op *op,
+			const BoxRec *box)
 {
 	if (!gen2_get_rectangles(sna, &op->base, 1)) {
 		gen2_emit_fill_state(sna, &op->base);
@@ -2056,8 +2056,37 @@ gen2_render_fill_box(struct sna *sna,
 	VERTEX(box->y1);
 }
 
+fastcall static void
+gen2_render_fill_op_boxes(struct sna *sna,
+			  const struct sna_fill_op *op,
+			  const BoxRec *box,
+			  int nbox)
+{
+	DBG(("%s: (%d, %d),(%d, %d)... x %d\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2, n));
+
+	do {
+		int nbox_this_time = gen2_get_rectangles(sna, &op->base, nbox);
+		if (nbox_this_time == 0) {
+			gen2_emit_fill_state(sna, &op->base);
+			nbox_this_time = gen2_get_rectangles(sna, &op->base, nbox);
+		}
+		nbox -= nbox_this_time;
+
+		do {
+			VERTEX(box->x2);
+			VERTEX(box->y2);
+			VERTEX(box->x1);
+			VERTEX(box->y2);
+			VERTEX(box->x1);
+			VERTEX(box->y1);
+			box++;
+		} while (--nbox_this_time);
+	} while (nbox);
+}
+
 static void
-gen2_render_fill_done(struct sna *sna, const struct sna_fill_op *op)
+gen2_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
 	gen2_vertex_flush(sna);
 	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
@@ -2114,9 +2143,10 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 				    tmp);
 	}
 
-	tmp->blt  = gen2_render_fill_blt;
-	tmp->box  = gen2_render_fill_box;
-	tmp->done = gen2_render_fill_done;
+	tmp->blt   = gen2_render_fill_op_blt;
+	tmp->box   = gen2_render_fill_op_box;
+	tmp->boxes = gen2_render_fill_op_boxes;
+	tmp->done  = gen2_render_fill_op_done;
 
 	gen2_emit_fill_state(sna, &tmp->base);
 	return TRUE;

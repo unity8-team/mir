@@ -43,6 +43,7 @@
 #include <mipict.h>
 #include <fbpict.h>
 #endif
+#include <miline.h>
 
 #include <sys/time.h>
 #include <sys/mman.h>
@@ -60,6 +61,7 @@
 #define FORCE_FLUSH 0
 
 #define USE_SPANS 0
+#define USE_ZERO_SPANS 1
 
 DevPrivateKeyRec sna_pixmap_index;
 DevPrivateKey sna_window_key;
@@ -2434,6 +2436,363 @@ fallback:
 	fbPolyPoint(drawable, gc, mode, n, pt);
 }
 
+static bool
+sna_poly_zero_line_blt(DrawablePtr drawable,
+		       struct kgem_bo *bo,
+		       struct sna_damage **damage,
+		       GCPtr gc, int mode, const int _n, const DDXPointRec * const _pt,
+		       const BoxRec *extents, unsigned clipped)
+{
+	static void * const _jump[] = {
+		&&no_damage,
+		&&damage,
+
+		&&no_damage_offset,
+		&&damage_offset,
+	};
+
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	int x2, y2, xstart, ystart;
+	int oc2, pt2_clipped = 0;
+	unsigned int bias = miGetZeroLineBias(drawable->pScreen);
+	bool degenerate = true;
+	struct sna_fill_op fill;
+	RegionRec clip;
+	BoxRec box[512], *b, * const last_box = box + ARRAY_SIZE(box);
+	const BoxRec *last_extents;
+	int16_t dx, dy;
+	void *jump, *ret;
+
+	DBG(("%s: alu=%d, pixel=%lx, n=%d, clipped=%d, damage=%p\n",
+	     __FUNCTION__, gc->alu, gc->fgPixel, n, clipped, damage));
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
+		return FALSE;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+
+	region_set(&clip, extents);
+	if (clipped)
+		region_maybe_clip(&clip, gc->pCompositeClip);
+
+	jump = _jump[(damage != NULL) | !!(dx|dy) << 1];
+	DBG(("%s: [clipped] extents=(%d, %d), (%d, %d), delta=(%d, %d)\n",
+	     __FUNCTION__,
+	     clip.extents.x1, clip.extents.y1,
+	     clip.extents.x2, clip.extents.y2,
+	     dx, dy));
+
+	extents = REGION_RECTS(&clip);
+	last_extents = extents + REGION_NUM_RECTS(&clip);
+
+	b = box;
+	do {
+		int n = _n;
+		const DDXPointRec *pt = _pt;
+
+		xstart = pt->x + drawable->x;
+		ystart = pt->y + drawable->y;
+
+		/* x2, y2, oc2 copied to x1, y1, oc1 at top of loop to simplify
+		 * iteration logic
+		 */
+		x2 = xstart;
+		y2 = ystart;
+		oc2 = 0;
+		MIOUTCODES(oc2, x2, y2,
+			   clip.extents.x1,
+			   clip.extents.y1,
+			   clip.extents.x2,
+			   clip.extents.y2);
+
+		while (--n) {
+			int16_t sdx, sdy;
+			int16_t adx, ady;
+			int16_t e, e1, e2, e3;
+			int16_t length;
+			int x1 = x2, x;
+			int y1 = y2, y;
+			int oc1 = oc2;
+			int octant;
+
+			++pt;
+
+			x2 = pt->x;
+			y2 = pt->y;
+			if (mode == CoordModePrevious) {
+				x2 += x1;
+				y2 += y1;
+			} else {
+				x2 += drawable->x;
+				y2 += drawable->y;
+			}
+			DBG(("%s: segment (%d, %d) to (%d, %d)\n",
+			     __FUNCTION__, x1, y1, x2, y2));
+			if (x2 == x1 && y2 == y1)
+				continue;
+
+			degenerate = false;
+
+			oc2 = 0;
+			MIOUTCODES(oc2, x2, y2,
+				   clip.extents.x1,
+				   clip.extents.y1,
+				   clip.extents.x2,
+				   clip.extents.y2);
+			if (oc1 & oc2)
+				continue;
+
+			CalcLineDeltas(x1, y1, x2, y2,
+				       adx, ady, sdx, sdy,
+				       1, 1, octant);
+
+			DBG(("%s: adx=(%d, %d), sdx=(%d, %d)\n",
+			     __FUNCTION__, adx, ady, sdx, sdy));
+			if (adx == 0 || ady == 0) {
+				if (x1 <= x2) {
+					b->x1 = x1;
+					b->x2 = x2;
+				} else {
+					b->x1 = x2;
+					b->x2 = x1;
+				}
+				if (y1 <= y2) {
+					b->y1 = y1;
+					b->y2 = y2;
+				} else {
+					b->y1 = y2;
+					b->y2 = y1;
+				}
+				b->x2++;
+				b->y2++;
+				if (oc1 | oc2)
+					box_intersect(b, &clip.extents);
+				if (++b == last_box) {
+					ret = &&rectangle_continue;
+					goto *jump;
+rectangle_continue:
+					b = box;
+				}
+			} else if (adx >= ady) {
+				/* X-major segment */
+				e1 = ady << 1;
+				e2 = e1 - (adx << 1);
+				e  = e1 - adx;
+				length = adx;	/* don't draw endpoint in main loop */
+
+				FIXUP_ERROR(e, octant, bias);
+
+				x = x1;
+				y = y1;
+				pt2_clipped = 0;
+
+				if (oc1 | oc2) {
+					int x2_clipped = x2, y2_clipped = y2;
+					int pt1_clipped;
+
+					if (miZeroClipLine(clip.extents.x1, clip.extents.y1,
+							   clip.extents.x2, clip.extents.y2,
+							   &x, &y, &x2_clipped, &y2_clipped,
+							   adx, ady,
+							   &pt1_clipped, &pt2_clipped,
+							   octant, bias, oc1, oc2) == -1)
+						continue;
+
+					length = abs(x2_clipped - x);
+
+					/* if we've clipped the endpoint, always draw the full length
+					 * of the segment, because then the capstyle doesn't matter
+					 */
+					if (pt2_clipped)
+						length++;
+
+					if (pt1_clipped) {
+						int clipdx = abs(x - x1);
+						int clipdy = abs(y - y1);
+						e += clipdy * e2 + (clipdx - clipdy) * e1;
+					}
+				}
+				if (length == 0)
+					continue;
+
+				e3 = e2 - e1;
+				e  = e - e1;
+
+				b->x1 = x;
+				b->y2 = b->y1 = y;
+				while (length--) {
+					e += e1;
+					if (e >= 0) {
+						b->x2 = x;
+						if (b->x2 < b->x1) {
+							int16_t t = b->x1;
+							b->x1 = b->x2;
+							b->x2 = t;
+						}
+						b->x2++;
+						b->y2++;
+						if (++b == last_box) {
+							ret = &&X_continue;
+							goto *jump;
+X_continue:
+							b = box;
+						}
+						y += sdy;
+						e += e3;
+						b->y2 = b->y1 = y;
+						b->x1 = x;
+					}
+					x += sdx;
+				}
+			} else {
+				/* Y-major segment */
+				e1 = adx << 1;
+				e2 = e1 - (ady << 1);
+				e  = e1 - ady;
+				length  = ady;	/* don't draw endpoint in main loop */
+
+				SetYMajorOctant(octant);
+				FIXUP_ERROR(e, octant, bias);
+
+				x = x1;
+				y = y1;
+				pt2_clipped = 0;
+
+				if (oc1 | oc2) {
+					int x2_clipped = x2, y2_clipped = y2;
+					int pt1_clipped;
+
+					if (miZeroClipLine(clip.extents.x1,
+							   clip.extents.y1,
+							   clip.extents.x2,
+							   clip.extents.y2,
+							   &x, &y, &x2_clipped, &y2_clipped,
+							   adx, ady,
+							   &pt1_clipped, &pt2_clipped,
+							   octant, bias, oc1, oc2) == -1)
+						continue;
+
+					length = abs(y2 - y);
+
+					/* if we've clipped the endpoint, always draw the full length
+					 * of the segment, because then the capstyle doesn't matter
+					 */
+					if (pt2_clipped)
+						length++;
+
+					if (pt1_clipped) {
+						int clipdx = abs(x - x1);
+						int clipdy = abs(y - y1);
+						e += clipdx * e2 + (clipdy - clipdx) * e1;
+					}
+				}
+				if (length == 0)
+					continue;
+
+				e3 = e2 - e1;
+				e  = e - e1;
+
+				b->x2 = b->x1 = x;
+				b->y1 = y;
+				while (length--) {
+					e += e1;
+					if (e >= 0) {
+						b->y2 = y;
+						if (b->y2 < b->y1) {
+							int16_t t = b->y1;
+							b->y1 = b->y2;
+							b->y2 = t;
+						}
+						b->x2++;
+						b->y2++;
+						if (++b == last_box) {
+							ret = &&Y_continue;
+							goto *jump;
+Y_continue:
+							b = box;
+						}
+						x += sdx;
+						e += e3;
+						b->x2 = b->x1 = x;
+						b->y1 = y;
+					}
+					y += sdy;
+				}
+			}
+		}
+
+#if 0
+		/* Only do the CapNotLast check on the last segment
+		 * and only if the endpoint wasn't clipped.  And then, if the last
+		 * point is the same as the first point, do not draw it, unless the
+		 * line is degenerate
+		 */
+		if (!pt2_clipped &&
+		    gc->capStyle != CapNotLast &&
+		    !(xstart == x2 && ystart == y2 && !degenerate))
+		{
+			b->x2 = x2;
+			b->y2 = y2;
+			if (b->x2 < b->x1) {
+				int16_t t = b->x1;
+				b->x1 = b->x2;
+				b->x2 = t;
+			}
+			if (b->y2 < b->y1) {
+				int16_t t = b->y1;
+				b->y1 = b->y2;
+				b->y2 = t;
+			}
+			b->x2++;
+			b->y2++;
+			b++;
+		}
+#endif
+	} while (++extents != last_extents);
+
+	if (b != box) {
+		ret = &&done;
+		goto *jump;
+	}
+
+done:
+	fill.done(sna, &fill);
+	return true;
+
+damage:
+	sna_damage_add_boxes(damage, box, b-box, 0, 0);
+no_damage:
+	fill.boxes(sna, &fill, box, b-box);
+	goto *ret;
+
+no_damage_offset:
+	{
+		BoxRec *bb = box;
+		do {
+			bb->x1 += dx;
+			bb->x2 += dx;
+			bb->y1 += dy;
+			bb->y2 += dy;
+		} while (++bb != b);
+		fill.boxes(sna, &fill, box, b - box);
+	}
+	goto *ret;
+
+damage_offset:
+	{
+		BoxRec *bb = box;
+		do {
+			bb->x1 += dx;
+			bb->x2 += dx;
+			bb->y1 += dy;
+			bb->y2 += dy;
+		} while (++bb != b);
+		fill.boxes(sna, &fill, box, b - box);
+		sna_damage_add_boxes(damage, box, b - box, 0, 0);
+	}
+	goto *ret;
+}
+
 static Bool
 sna_poly_line_blt(DrawablePtr drawable,
 		  struct kgem_bo *bo,
@@ -2680,14 +3039,14 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	     flags & 2));
 	if (gc->fillStyle == FillSolid &&
 	    gc->lineStyle == LineSolid &&
-	    (gc->lineWidth == 0 || gc->lineWidth == 1) &&
-	    PM_IS_SOLID(drawable, gc->planemask) &&
-	    flags & 2) {
+	    gc->lineWidth <= 1 &&
+	    PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
 		DBG(("%s: trying solid fill [%08lx]\n",
 		     __FUNCTION__, gc->fgPixel));
 
+	    if (flags & 2) {
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_line_blt(drawable,
 				      priv->gpu_bo,
@@ -2701,6 +3060,17 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 				      reduce_damage(drawable, &priv->cpu_damage, &region.extents),
 				      gc, mode, n, pt, flags & 4))
 			return;
+	    } else { /* !rectilinear */
+		if (USE_ZERO_SPANS &&
+		    sna_drawable_use_gpu_bo(drawable, &region.extents) &&
+		    sna_poly_zero_line_blt(drawable,
+					   priv->gpu_bo,
+					   priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+					   gc, mode, n, pt,
+					   &region.extents, flags & 4))
+			return;
+
+	    }
 	}
 
 	if (USE_SPANS && can_fill_spans(drawable, gc) &&
@@ -2742,22 +3112,6 @@ fallback:
 
 	DBG(("%s: fbPolyLine\n", __FUNCTION__));
 	fbPolyLine(drawable, gc, mode, n, pt);
-}
-
-static Bool
-sna_poly_segment_can_blt(int n, xSegment *seg)
-{
-	while (n--) {
-		if (seg->x1 != seg->x2 && seg->y1 != seg->y2) {
-			DBG(("%s: (%d, %d) -> (%d, %d)\n",
-			     __FUNCTION__, seg->x1, seg->y1, seg->x2, seg->y2));
-			return FALSE;
-		}
-
-		seg++;
-	}
-
-	return TRUE;
 }
 
 static Bool
@@ -2895,16 +3249,320 @@ sna_poly_segment_blt(DrawablePtr drawable,
 	return TRUE;
 }
 
-static Bool
+static bool
+sna_poly_zero_segment_blt(DrawablePtr drawable,
+			  struct kgem_bo *bo,
+			  struct sna_damage **damage,
+			  GCPtr gc, const int _n, const xSegment *_s,
+			  const BoxRec *extents, unsigned clipped)
+{
+	static void * const _jump[] = {
+		&&no_damage,
+		&&damage,
+
+		&&no_damage_offset,
+		&&damage_offset,
+	};
+
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	unsigned int bias = miGetZeroLineBias(drawable->pScreen);
+	struct sna_fill_op fill;
+	RegionRec clip;
+	const BoxRec *last_extents;
+	BoxRec box[512], *b;
+	BoxRec *const last_box = box + ARRAY_SIZE(box);
+	int16_t dx, dy;
+	void *jump, *ret;
+
+	DBG(("%s: alu=%d, pixel=%lx, n=%d, clipped=%d, damage=%p\n",
+	     __FUNCTION__, gc->alu, gc->fgPixel, n, clipped, damage));
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
+		return FALSE;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+
+	region_set(&clip, extents);
+	if (clipped)
+		region_maybe_clip(&clip, gc->pCompositeClip);
+	DBG(("%s: [clipped] extents=(%d, %d), (%d, %d), delta=(%d, %d)\n",
+	     __FUNCTION__,
+	     clip.extents.x1, clip.extents.y1,
+	     clip.extents.x2, clip.extents.y2,
+	     dx, dy));
+
+	jump = _jump[(damage != NULL) | !!(dx|dy) << 1];
+
+	b = box;
+	extents = REGION_RECTS(&clip);
+	last_extents = extents + REGION_NUM_RECTS(&clip);
+	do {
+		int n = _n;
+		const xSegment *s = _s;
+		do {
+			int16_t sdx, sdy;
+			int16_t adx, ady;
+			int16_t e, e1, e2, e3;
+			int16_t length;
+			int x1, x2;
+			int y1, y2;
+			int oc1, oc2;
+			int octant;
+
+			x1 = s->x1 + drawable->x;
+			y1 = s->y1 + drawable->y;
+			x2 = s->x2 + drawable->x;
+			y2 = s->y2 + drawable->y;
+			s++;
+
+			DBG(("%s: segment (%d, %d) to (%d, %d)\n",
+			     __FUNCTION__, x1, y1, x2, y2));
+			if (x2 == x1 && y2 == y1)
+				continue;
+
+			oc1 = 0;
+			MIOUTCODES(oc1, x1, y1,
+				   extents->x1,
+				   extents->y1,
+				   extents->x2,
+				   extents->y2);
+			oc2 = 0;
+			MIOUTCODES(oc2, x2, y2,
+				   extents->x1,
+				   extents->y1,
+				   extents->x2,
+				   extents->y2);
+			if (oc1 & oc2)
+				continue;
+
+			CalcLineDeltas(x1, y1, x2, y2,
+				       adx, ady, sdx, sdy,
+				       1, 1, octant);
+
+			DBG(("%s: adx=(%d, %d), sdx=(%d, %d)\n",
+			     __FUNCTION__, adx, ady, sdx, sdy));
+			if (adx == 0 || ady == 0) {
+				if (x1 <= x2) {
+					b->x1 = x1;
+					b->x2 = x2;
+				} else {
+					b->x1 = x2;
+					b->x2 = x1;
+				}
+				if (y1 <= y2) {
+					b->y1 = y1;
+					b->y2 = y2;
+				} else {
+					b->y1 = y2;
+					b->y2 = y1;
+				}
+				b->x2++;
+				b->y2++;
+				if (box_intersect(b, extents)) {
+					if (++b == last_box) {
+						ret = &&rectangle_continue;
+						goto *jump;
+rectangle_continue:
+						b = box;
+					}
+				}
+			} else if (adx >= ady) {
+				/* X-major segment */
+				e1 = ady << 1;
+				e2 = e1 - (adx << 1);
+				e  = e1 - adx;
+				length = adx;	/* don't draw endpoint in main loop */
+
+				FIXUP_ERROR(e, octant, bias);
+
+				if (oc1 | oc2) {
+					int pt1_clipped, pt2_clipped;
+					int x = x1, y = y1;
+
+					if (miZeroClipLine(extents->x1,
+							   extents->y1,
+							   extents->x2,
+							   extents->y2,
+							   &x1, &y1, &x2, &y2,
+							   adx, ady,
+							   &pt1_clipped, &pt2_clipped,
+							   octant, bias, oc1, oc2) == -1)
+						continue;
+
+					length = abs(x2 - x1);
+
+					/* if we've clipped the endpoint, always draw the full length
+					 * of the segment, because then the capstyle doesn't matter
+					 */
+					if (pt2_clipped)
+						length++;
+
+					if (pt1_clipped) {
+						int clipdx = abs(x1 - x);
+						int clipdy = abs(y1 - y);
+						e += clipdy * e2 + (clipdx - clipdy) * e1;
+					}
+				}
+				if (length == 0)
+					continue;
+
+				e3 = e2 - e1;
+				e  = e - e1;
+
+				b->x1 = x1;
+				b->y2 = b->y1 = y1;
+				while (length--) {
+					e += e1;
+					if (e >= 0) {
+						b->x2 = x1;
+						if (b->x2 < b->x1) {
+							int16_t t = b->x1;
+							b->x1 = b->x2;
+							b->x2 = t;
+						}
+						b->x2++;
+						b->y2++;
+						if (++b == last_box) {
+							ret = &&X_continue;
+							goto *jump;
+X_continue:
+							b = box;
+						}
+						y1 += sdy;
+						e += e3;
+						b->y2 = b->y1 = y1;
+						b->x1 = x1;
+					}
+					x1 += sdx;
+				}
+			} else {
+				/* Y-major segment */
+				e1 = adx << 1;
+				e2 = e1 - (ady << 1);
+				e  = e1 - ady;
+				length  = ady;	/* don't draw endpoint in main loop */
+
+				SetYMajorOctant(octant);
+				FIXUP_ERROR(e, octant, bias);
+
+				if (oc1 | oc2) {
+					int pt1_clipped, pt2_clipped;
+					int x = x1, y = y1;
+
+					if (miZeroClipLine(extents->x1,
+							   extents->y1,
+							   extents->x2,
+							   extents->y2,
+							   &x1, &y1, &x2, &y2,
+							   adx, ady,
+							   &pt1_clipped, &pt2_clipped,
+							   octant, bias, oc1, oc2) == -1)
+						continue;
+
+					length = abs(y2 - y1);
+
+					/* if we've clipped the endpoint, always draw the full length
+					 * of the segment, because then the capstyle doesn't matter
+					 */
+					if (pt2_clipped)
+						length++;
+
+					if (pt1_clipped) {
+						int clipdx = abs(x1 - x);
+						int clipdy = abs(y1 - y);
+						e += clipdx * e2 + (clipdy - clipdx) * e1;
+					}
+				}
+				if (length == 0)
+					continue;
+
+				e3 = e2 - e1;
+				e  = e - e1;
+
+				b->x2 = b->x1 = x1;
+				b->y1 = y1;
+				while (length--) {
+					e += e1;
+					if (e >= 0) {
+						b->y2 = y1;
+						if (b->y2 < b->y1) {
+							int16_t t = b->y1;
+							b->y1 = b->y2;
+							b->y2 = t;
+						}
+						b->x2++;
+						b->y2++;
+						if (++b == last_box) {
+							ret = &&Y_continue;
+							goto *jump;
+Y_continue:
+							b = box;
+						}
+						x1 += sdx;
+						e += e3;
+						b->x2 = b->x1 = x1;
+						b->y1 = y1;
+					}
+					y1 += sdy;
+				}
+			}
+		} while (--n);
+	} while (++extents != last_extents);
+
+	if (b != box) {
+		ret = &&done;
+		goto *jump;
+	}
+
+done:
+	fill.done(sna, &fill);
+	return true;
+
+damage:
+	sna_damage_add_boxes(damage, box, b-box, 0, 0);
+no_damage:
+	fill.boxes(sna, &fill, box, b-box);
+	goto *ret;
+
+no_damage_offset:
+	{
+		BoxRec *bb = box;
+		do {
+			bb->x1 += dx;
+			bb->x2 += dx;
+			bb->y1 += dy;
+			bb->y2 += dy;
+		} while (++bb != b);
+		fill.boxes(sna, &fill, box, b - box);
+	}
+	goto *ret;
+
+damage_offset:
+	{
+		BoxRec *bb = box;
+		do {
+			bb->x1 += dx;
+			bb->x2 += dx;
+			bb->y1 += dy;
+			bb->y2 += dy;
+		} while (++bb != b);
+		fill.boxes(sna, &fill, box, b - box);
+		sna_damage_add_boxes(damage, box, b - box, 0, 0);
+	}
+	goto *ret;
+}
+
+static unsigned
 sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 			 int n, xSegment *seg,
 			 BoxPtr out)
 {
 	BoxRec box;
 	int extra = gc->lineWidth;
+	bool clipped, can_blit;
 
 	if (n == 0)
-		return true;
+		return 0;
 
 	if (gc->capStyle != CapProjecting)
 		extra >>= 1;
@@ -2925,6 +3583,7 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 		box.y1 = seg->y2;
 	}
 
+	can_blit = seg->x1 == seg->x2 || seg->y1 == seg->y2;
 	while (--n) {
 		seg++;
 		if (seg->x2 > seg->x1) {
@@ -2942,6 +3601,9 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 			if (seg->y2 < box.y1) box.y1 = seg->y2;
 			if (seg->y1 > box.y2) box.y2 = seg->y1;
 		}
+
+		if (can_blit && !(seg->x1 == seg->x2 || seg->y1 == seg->y2))
+			can_blit = false;
 	}
 
 	box.x2++;
@@ -2954,9 +3616,11 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 		box.y2 += extra;
 	}
 
-	trim_and_translate_box(&box, drawable, gc);
+	clipped = trim_and_translate_box(&box, drawable, gc);
+	if (box_empty(&box))
+		return 0;
 	*out = box;
-	return box_empty(&box);
+	return 1 | clipped << 1 | can_blit << 2;
 }
 
 static void
@@ -2964,13 +3628,15 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	RegionRec region;
+	unsigned flags;
 
 	DBG(("%s(n=%d, first=((%d, %d), (%d, %d)), lineWidth=%d\n",
 	     __FUNCTION__,
 	     n, seg->x1, seg->y1, seg->x2, seg->y2,
 	     gc->lineWidth));
 
-	if (sna_poly_segment_extents(drawable, gc, n, seg, &region.extents))
+	flags = sna_poly_segment_extents(drawable, gc, n, seg, &region.extents);
+	if (flags == 0)
 		return;
 
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
@@ -2991,17 +3657,17 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	     gc->lineStyle, gc->lineStyle == LineSolid,
 	     gc->lineWidth,
 	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask),
-	     sna_poly_segment_can_blt(n, seg)));
+	     flags & 4));
 	if (gc->fillStyle == FillSolid &&
 	    gc->lineStyle == LineSolid &&
-	    (gc->lineWidth == 0 || gc->lineWidth == 1) &&
-	    PM_IS_SOLID(drawable, gc->planemask) &&
-	    sna_poly_segment_can_blt(n, seg)) {
+	    gc->lineWidth <= 1 &&
+	    PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
 		     __FUNCTION__, gc->fgPixel));
 
+	    if (flags & 4) {
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_segment_blt(drawable,
 					 priv->gpu_bo,
@@ -3015,6 +3681,15 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 					 reduce_damage(drawable, &priv->cpu_damage, &region.extents),
 					 gc, n, seg, &region.extents))
 			return;
+	    } else {
+		    if (USE_ZERO_SPANS &&
+			sna_drawable_use_gpu_bo(drawable, &region.extents) &&
+			sna_poly_zero_segment_blt(drawable,
+						  priv->gpu_bo,
+						  priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+						  gc, n, seg, &region.extents, flags & 2))
+			    return;
+	    }
 	}
 
 	/* XXX Do we really want to base this decision on the amalgam ? */
