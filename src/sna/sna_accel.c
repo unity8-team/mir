@@ -2274,6 +2274,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	RegionPtr clip = fbGetCompositeClip(gc);
+	BoxRec box[512], *b = box, * const last_box = box + ARRAY_SIZE(box);
 	struct sna_fill_op fill;
 	DDXPointRec last;
 	int16_t dx, dy;
@@ -2295,52 +2296,60 @@ sna_poly_point_blt(DrawablePtr drawable,
 
 		sna_damage_add_points(damage, pt, n, last.x, last.y);
 		do {
-			BoxRec r;
-
-			r.x1 = pt->x;
-			r.y1 = pt->y;
+			b->x1 = pt->x;
+			b->y1 = pt->y;
 			pt++;
 
-			r.x1 += last.x;
-			r.y1 += last.y;
+			b->x1 += last.x;
+			b->y1 += last.y;
 			if (mode == CoordModePrevious) {
-				last.x = r.x1;
-				last.y = r.y1;
+				last.x = b->x1;
+				last.y = b->y1;
 			}
 
-			r.x2 = r.x1 + 1;
-			r.y2 = r.y1 + 1;
-			fill.box(sna, &fill, &r);
+			b->x2 = b->x1 + 1;
+			b->y2 = b->y1 + 1;
+			if (++b == last_box) {
+				fill.boxes(sna, &fill, box, last_box - box);
+				b = box;
+			}
 		} while (--n);
-	} else while (n--) {
-		int x, y;
+		if (b != box)
+			fill.boxes(sna, &fill, box, last_box - box);
+	} else {
+		while (n--) {
+			int x, y;
 
-		x = pt->x;
-		y = pt->y;
-		pt++;
-		if (mode == CoordModePrevious) {
-			x += last.x;
-			y += last.y;
-			last.x = x;
-			last.y = y;
-		} else {
-			x += drawable->x;
-			y += drawable->y;
-		}
-
-		if (RegionContainsPoint(clip, x, y, NULL)) {
-			fill.blt(sna, &fill, x + dx, y + dy, 1, 1);
-			if (damage) {
-				BoxRec box;
-
-				box.x1 = x + dx;
-				box.y1 = y + dy;
-				box.x2 = box.x1 + 1;
-				box.y2 = box.y1 + 1;
-
-				assert_pixmap_contains_box(pixmap, &box);
-				sna_damage_add_box(damage, &box);
+			x = pt->x;
+			y = pt->y;
+			pt++;
+			if (mode == CoordModePrevious) {
+				x += last.x;
+				y += last.y;
+				last.x = x;
+				last.y = y;
+			} else {
+				x += drawable->x;
+				y += drawable->y;
 			}
+
+			if (RegionContainsPoint(clip, x, y, NULL)) {
+				b->x1 = x + dx;
+				b->y1 = y + dy;
+				b->x2 = b->x1 + 1;
+				b->y2 = b->y1 + 1;
+				if (++b == last_box){
+					fill.boxes(sna, &fill, box, last_box - box);
+					if (damage)
+						sna_damage_add_boxes(damage, box, last_box-box, 0, 0);
+					b = box;
+				}
+			}
+		}
+		if (b != box){
+			fill.boxes(sna, &fill, box, b - box);
+			if (damage)
+				sna_damage_add_boxes(damage, box, b-box, 0, 0);
 		}
 	}
 	fill.done(sna, &fill);
