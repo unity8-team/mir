@@ -1299,7 +1299,8 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			goto fallback;
 		}
 
-		sna_damage_add_boxes(&priv->gpu_damage, box, n, tx, ty);
+		if (!priv->gpu_only)
+			sna_damage_add_boxes(&priv->gpu_damage, box, n, tx, ty);
 	} else {
 		FbBits *dst_bits, *src_bits;
 		int stride, bpp;
