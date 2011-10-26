@@ -1729,7 +1729,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			0, NULL);
 }
 
-static Bool
+inline static Bool
 box_intersect(BoxPtr a, const BoxRec *b)
 {
 	if (a->x1 < b->x1)
