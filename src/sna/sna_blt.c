@@ -223,10 +223,10 @@ noinline static void sna_blt_fill_begin(struct sna *sna,
 	kgem->nbatch += 9;
 }
 
-static void sna_blt_fill_one(struct sna *sna,
-			     const struct sna_blt_state *blt,
-			     int16_t x, int16_t y,
-			     int16_t width, int16_t height)
+inline static void sna_blt_fill_one(struct sna *sna,
+				    const struct sna_blt_state *blt,
+				    int16_t x, int16_t y,
+				    int16_t width, int16_t height)
 {
 	struct kgem *kgem = &sna->kgem;
 	uint32_t *b;
@@ -242,10 +242,11 @@ static void sna_blt_fill_one(struct sna *sna,
 		sna_blt_fill_begin(sna, blt);
 
 	b = kgem->batch + kgem->nbatch;
+	kgem->nbatch += 3;
+
 	b[0] = blt->cmd;
 	b[1] = y << 16 | x;
 	b[2] = b[1] + (height << 16 | width);
-	kgem->nbatch += 3;
 }
 
 static Bool sna_blt_copy_init(struct sna *sna,
@@ -679,6 +680,104 @@ static void blt_fill_composite(struct sna *sna,
 	sna_blt_fill_one(sna, &op->u.blt, x1, y1, x2-x1, y2-y1);
 }
 
+inline static void _sna_blt_fill_box(struct sna *sna,
+				     const struct sna_blt_state *blt,
+				     const BoxRec *box)
+{
+	struct kgem *kgem = &sna->kgem;
+	uint32_t *b;
+
+	DBG(("%s: (%d, %d), (%d, %d): %08x\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2,
+	     blt->pixel));
+
+	assert(box->x1 >= 0);
+	assert(box->y1 >= 0);
+	assert(box->y2 * blt->bo[0]->pitch <= blt->bo[0]->size);
+
+	if (!kgem_check_batch(kgem, 3))
+		sna_blt_fill_begin(sna, blt);
+
+	b = kgem->batch + kgem->nbatch;
+	kgem->nbatch += 3;
+
+	b[0] = blt->cmd;
+	*(uint64_t *)(b+1) = *(uint64_t *)box;
+}
+
+inline static void _sna_blt_fill_boxes(struct sna *sna,
+				       const struct sna_blt_state *blt,
+				       const BoxRec *box,
+				       int nbox)
+{
+	struct kgem *kgem = &sna->kgem;
+	uint32_t cmd = blt->cmd;
+
+	DBG(("%s: %08x x %d\n", __FUNCTION__, blt->pixel, nbox));
+
+	if (!kgem_check_batch(kgem, 3))
+		sna_blt_fill_begin(sna, blt);
+
+	do {
+		uint32_t *b = kgem->batch + kgem->nbatch;
+		int nbox_this_time;
+
+		nbox_this_time = nbox;
+		if (3*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
+			nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 3;
+		assert(nbox_this_time);
+		nbox -= nbox_this_time;
+
+		kgem->nbatch += 3 * nbox_this_time;
+		while (nbox_this_time >= 8) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
+			b[6] = cmd; *(uint64_t *)(b+7) = *(uint64_t *)box++;
+			b[9] = cmd; *(uint64_t *)(b+10) = *(uint64_t *)box++;
+			b[12] = cmd; *(uint64_t *)(b+13) = *(uint64_t *)box++;
+			b[15] = cmd; *(uint64_t *)(b+16) = *(uint64_t *)box++;
+			b[18] = cmd; *(uint64_t *)(b+19) = *(uint64_t *)box++;
+			b[21] = cmd; *(uint64_t *)(b+22) = *(uint64_t *)box++;
+			b += 24;
+			nbox_this_time -= 8;
+		}
+		if (nbox_this_time & 4) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
+			b[6] = cmd; *(uint64_t *)(b+7) = *(uint64_t *)box++;
+			b[9] = cmd; *(uint64_t *)(b+10) = *(uint64_t *)box++;
+			b += 12;
+		}
+		if (nbox_this_time & 2) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
+			b += 6;
+		}
+		if (nbox_this_time & 1) {
+			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
+		}
+
+		if (!nbox)
+			return;
+
+		sna_blt_fill_begin(sna, blt);
+	} while (1);
+}
+
+fastcall static void blt_fill_composite_box_no_offset(struct sna *sna,
+						      const struct sna_composite_op *op,
+						      const BoxRec *box)
+{
+	_sna_blt_fill_box(sna, &op->u.blt, box);
+}
+
+static void blt_fill_composite_boxes_no_offset(struct sna *sna,
+					       const struct sna_composite_op *op,
+					       const BoxRec *box, int n)
+{
+	_sna_blt_fill_boxes(sna, &op->u.blt, box, n);
+}
+
 fastcall static void blt_fill_composite_box(struct sna *sna,
 					    const struct sna_composite_op *op,
 					    const BoxRec *box)
@@ -709,8 +808,13 @@ prepare_blt_clear(struct sna *sna,
 	DBG(("%s\n", __FUNCTION__));
 
 	op->blt   = blt_fill_composite;
-	op->box   = blt_fill_composite_box;
-	op->boxes = blt_fill_composite_boxes;
+	if (op->dst.x|op->dst.y) {
+		op->box   = blt_fill_composite_box;
+		op->boxes = blt_fill_composite_boxes;
+	} else {
+		op->box   = blt_fill_composite_box_no_offset;
+		op->boxes = blt_fill_composite_boxes_no_offset;
+	}
 	op->done  = blt_done;
 
 	return sna_blt_fill_init(sna, &op->u.blt,
@@ -727,8 +831,13 @@ prepare_blt_fill(struct sna *sna,
 	DBG(("%s\n", __FUNCTION__));
 
 	op->blt   = blt_fill_composite;
-	op->box   = blt_fill_composite_box;
-	op->boxes = blt_fill_composite_boxes;
+	if (op->dst.x|op->dst.y) {
+		op->box   = blt_fill_composite_box;
+		op->boxes = blt_fill_composite_boxes;
+	} else {
+		op->box   = blt_fill_composite_box_no_offset;
+		op->boxes = blt_fill_composite_boxes_no_offset;
+	}
 	op->done  = blt_done;
 
 	return sna_blt_fill_init(sna, &op->u.blt, op->dst.bo,
@@ -1276,25 +1385,7 @@ fastcall static void sna_blt_fill_op_box(struct sna *sna,
 					 const struct sna_fill_op *op,
 					 const BoxRec *box)
 {
-	struct kgem *kgem = &sna->kgem;
-	uint32_t *b;
-
-	DBG(("%s: (%d, %d), (%d, %d): %08x\n", __FUNCTION__,
-	     box->x1, box->y1, box->x2, box->y2,
-	     op->base.u.blt.pixel));
-
-	assert(box->x1 >= 0);
-	assert(box->y1 >= 0);
-	assert(box->y2 * op->base.u.blt.bo[0]->pitch <= op->base.u.blt.bo[0]->size);
-
-	if (!kgem_check_batch(kgem, 3))
-		sna_blt_fill_begin(sna, &op->base.u.blt);
-
-	b = kgem->batch + kgem->nbatch;
-	kgem->nbatch += 3;
-
-	b[0] = op->base.u.blt.cmd;
-	*(uint64_t *)(b+1) = *(uint64_t *)box;
+	_sna_blt_fill_box(sna, &op->base.u.blt, box);
 }
 
 fastcall static void sna_blt_fill_op_boxes(struct sna *sna,
@@ -1302,59 +1393,7 @@ fastcall static void sna_blt_fill_op_boxes(struct sna *sna,
 					   const BoxRec *box,
 					   int nbox)
 {
-	struct kgem *kgem = &sna->kgem;
-	uint32_t cmd = op->base.u.blt.cmd;
-
-	DBG(("%s: %08x x %d\n", __FUNCTION__,
-	     op->base.u.blt.pixel, nbox));
-
-	if (!kgem_check_batch(kgem, 3))
-		sna_blt_fill_begin(sna, &op->base.u.blt);
-
-	do {
-		uint32_t *b = kgem->batch + kgem->nbatch;
-		int nbox_this_time;
-
-		nbox_this_time = nbox;
-		if (3*nbox_this_time > kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED)
-			nbox_this_time = (kgem->surface - kgem->nbatch - KGEM_BATCH_RESERVED) / 3;
-		assert(nbox_this_time);
-		nbox -= nbox_this_time;
-
-		kgem->nbatch += 3 * nbox_this_time;
-		while (nbox_this_time >= 8) {
-			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
-			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
-			b[6] = cmd; *(uint64_t *)(b+7) = *(uint64_t *)box++;
-			b[9] = cmd; *(uint64_t *)(b+10) = *(uint64_t *)box++;
-			b[12] = cmd; *(uint64_t *)(b+13) = *(uint64_t *)box++;
-			b[15] = cmd; *(uint64_t *)(b+16) = *(uint64_t *)box++;
-			b[18] = cmd; *(uint64_t *)(b+19) = *(uint64_t *)box++;
-			b[21] = cmd; *(uint64_t *)(b+22) = *(uint64_t *)box++;
-			b += 24;
-			nbox_this_time -= 8;
-		}
-		if (nbox_this_time & 4) {
-			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
-			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
-			b[6] = cmd; *(uint64_t *)(b+7) = *(uint64_t *)box++;
-			b[9] = cmd; *(uint64_t *)(b+10) = *(uint64_t *)box++;
-			b += 12;
-		}
-		if (nbox_this_time & 2) {
-			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
-			b[3] = cmd; *(uint64_t *)(b+4) = *(uint64_t *)box++;
-			b += 6;
-		}
-		if (nbox_this_time & 1) {
-			b[0] = cmd; *(uint64_t *)(b+1) = *(uint64_t *)box++;
-		}
-
-		if (!nbox)
-			return;
-
-		sna_blt_fill_begin(sna, &op->base.u.blt);
-	} while (1);
+	_sna_blt_fill_boxes(sna, &op->base.u.blt, box, nbox);
 }
 
 static void sna_blt_fill_op_done(struct sna *sna,
