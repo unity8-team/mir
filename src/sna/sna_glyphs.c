@@ -177,7 +177,7 @@ static Bool realize_glyph_caches(struct sna *sna)
 					      CACHE_PICTURE_SIZE,
 					      CACHE_PICTURE_SIZE,
 					      depth,
-					      CREATE_PIXMAP_USAGE_SCRATCH);
+					      SNA_CREATE_SCRATCH);
 		if (!pixmap)
 			goto bail;
 
@@ -726,7 +726,7 @@ glyphs_via_mask(struct sna *sna,
 
 	pixmap = screen->CreatePixmap(screen,
 				      width, height, format->depth,
-				      CREATE_PIXMAP_USAGE_SCRATCH);
+				      SNA_CREATE_SCRATCH);
 	if (!pixmap)
 		return FALSE;
 

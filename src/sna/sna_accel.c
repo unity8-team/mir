@@ -268,6 +268,11 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	if (usage == CREATE_PIXMAP_USAGE_SCRATCH)
 		return fbCreatePixmap(screen, width, height, depth, usage);
 
+	if (usage == SNA_CREATE_SCRATCH)
+		return sna_pixmap_create_scratch(screen,
+						 width, height, depth,
+						 I915_TILING_Y);
+
 	if (FORCE_GPU_ONLY && width && height)
 		return sna_pixmap_create_scratch(screen,
 						 width, height, depth,

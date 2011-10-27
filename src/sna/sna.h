@@ -624,5 +624,6 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	   uint16_t width, uint16_t height);
 
 #define SNA_CREATE_FB 0x10
+#define SNA_CREATE_SCRATCH 0x11
 
 #endif /* _SNA_H */

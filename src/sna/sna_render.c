@@ -559,7 +559,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 		tmp = screen->CreatePixmap(screen,
 					   w/2, h/2, pixmap->drawable.depth,
-					   CREATE_PIXMAP_USAGE_SCRATCH);
+					   SNA_CREATE_SCRATCH);
 		if (!tmp)
 			goto fixup;
 

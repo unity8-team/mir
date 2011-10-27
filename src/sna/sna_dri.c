@@ -198,7 +198,7 @@ sna_dri_create_buffer(DrawablePtr drawable,
 
 	pixmap = NULL;
 	bo = NULL;
-	usage = CREATE_PIXMAP_USAGE_SCRATCH;
+	usage = SNA_CREATE_SCRATCH;
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(drawable);
