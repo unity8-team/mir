@@ -2377,7 +2377,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 			}
 		} while (--n);
 		if (b != box)
-			fill.boxes(sna, &fill, box, last_box - box);
+			fill.boxes(sna, &fill, box, b - box);
 	} else {
 		while (n--) {
 			int x, y;
@@ -4372,7 +4372,7 @@ wide:
 			if (b+4 > last_box) {
 				fill.boxes(sna, &fill, boxes, last_box-boxes);
 				if (damage)
-					sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+					sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
 				b = boxes;
 			}
 
@@ -4711,7 +4711,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 					if (++b == last_box) {
 						fill.boxes(sna, &fill, boxes, last_box-boxes);
 						if (damage)
-							sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+							sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
 						b = boxes;
 					}
 				}
