@@ -4686,8 +4686,8 @@ static Bool
 sna_poly_fill_rect_blt(DrawablePtr drawable,
 		       struct kgem_bo *bo,
 		       struct sna_damage **damage,
-		       GCPtr gc, int n,
-		       xRectangle *rect,
+		       GCPtr gc, uint32_t pixel,
+		       int n, xRectangle *rect,
 		       const BoxRec *extents,
 		       bool clipped)
 {
@@ -4695,7 +4695,6 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_fill_op fill;
 	BoxRec boxes[512], *b = boxes, *const last_box = boxes+ARRAY_SIZE(boxes);
-	uint32_t pixel = gc->fillStyle == FillSolid ? gc->fgPixel : gc->tile.pixel;
 	int16_t dx, dy;
 
 	DBG(("%s x %d [(%d, %d)+(%d, %d)...], clipped?=%d\n",
@@ -4844,14 +4843,14 @@ static Bool
 sna_poly_fill_rect_tiled(DrawablePtr drawable,
 			 struct kgem_bo *bo,
 			 struct sna_damage **damage,
-			 GCPtr gc, int n,
-			 xRectangle *rect)
+			 GCPtr gc, int n, xRectangle *rect,
+			 const BoxRec *extents, unsigned clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	PixmapPtr tile = gc->tile.pixmap;
-	RegionPtr clip = fbGetCompositeClip(gc);
-	DDXPointPtr origin = &gc->patOrg;
+	const DDXPointRec * const origin = &gc->patOrg;
+	struct sna_copy_op copy;
 	CARD32 alu = gc->alu;
 	int tile_width, tile_height;
 	int16_t dx, dy;
@@ -4861,90 +4860,71 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 
 	tile_width = tile->drawable.width;
 	tile_height = tile->drawable.height;
+	if (tile_width == 1 && tile_height == 1)
+		return sna_poly_fill_rect_blt(drawable, bo, damage,
+					      gc, get_pixel(tile),
+					      n, rect,
+					      extents, clipped);
+
+	if (!sna_pixmap_move_to_gpu(tile))
+		return FALSE;
+
+	if (!sna_copy_init_blt(&copy, sna,
+			       tile, sna_pixmap_get_bo(tile),
+			       pixmap, bo,
+			       alu)) {
+		DBG(("%s: unsupported blt\n", __FUNCTION__));
+		return FALSE;
+	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	if (!clipped) {
+		dx += drawable->x;
+		dy += drawable->y;
 
-	if (tile_width == 1 && tile_height == 1) {
-		struct sna_fill_op fill;
+		sna_damage_add_rectangles(damage, rect, n, dx, dy);
+		do {
+			xRectangle r = *rect++;
+			int16_t tile_y = (r.y - origin->y) % tile_height;
 
-		if (!sna_fill_init_blt(&fill, sna, pixmap, bo, alu, get_pixel(tile))) {
-			DBG(("%s: unsupported blt\n", __FUNCTION__));
-			return FALSE;
-		}
+			r.y += dy;
+			do {
+				int16_t width = r.width;
+				int16_t x = r.x + dx;
+				int16_t tile_x = (r.x - origin->x) % tile_width;
+				int16_t h = tile_height - tile_y;
+				if (h > r.height)
+					h = r.height;
+				r.height -= h;
 
-		if (clip->data == NULL) {
-			BoxPtr box = &clip->extents;
-			while (n--) {
-				BoxRec r;
+				do {
+					int16_t w = tile_width - tile_x;
+					if (w > width)
+						w = width;
+					width -= w;
 
-				r.x1 = rect->x + drawable->x;
-				r.y1 = rect->y + drawable->y;
-				r.x2 = bound(r.x1, rect->width);
-				r.y2 = bound(r.y1, rect->height);
-				rect++;
+					copy.blt(sna, &copy,
+						 tile_x, tile_y,
+						 w, h,
+						 x, r.y);
 
-				if (box_intersect(&r, box)) {
-					r.x1 += dx;
-					r.x2 += dx;
-					r.y1 += dy;
-					r.y2 += dy;
-					fill.box(sna, &fill, &r);
-					if (damage) {
-						assert_pixmap_contains_box(pixmap, &r);
-						sna_damage_add_box(damage, &r);
-					}
-				}
-			}
-		} else {
-			while (n--) {
-				RegionRec region;
-				BoxRec *box;
-				int nbox;
-
-				region.extents.x1 = rect->x + drawable->x;
-				region.extents.y1 = rect->y + drawable->y;
-				region.extents.x2 = bound(region.extents.x1, rect->width);
-				region.extents.y2 = bound(region.extents.y1, rect->height);
-				rect++;
-
-				region.data = NULL;
-				RegionIntersect(&region, &region, clip);
-
-				nbox = REGION_NUM_RECTS(&region);
-				box = REGION_RECTS(&region);
-				while (nbox--) {
-					box->x1 += dx;
-					box->x2 += dx;
-					box->y1 += dy;
-					box->y2 += dy;
-					fill.box(sna, &fill, box);
-					if (damage) {
-						assert_pixmap_contains_box(pixmap, box);
-						sna_damage_add_box(damage, box);
-					}
-					box++;
-				}
-
-				RegionUninit(&region);
-			}
-		}
-		fill.done(sna, &fill);
+					x += w;
+					tile_x = 0;
+				} while (width);
+				r.y += h;
+				tile_y = 0;
+			} while (r.height);
+		} while (--n);
 	} else {
-		struct sna_copy_op copy;
+		RegionRec clip;
 
-		if (!sna_pixmap_move_to_gpu(tile))
-			return FALSE;
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			goto done;
 
-		if (!sna_copy_init_blt(&copy, sna,
-				       tile, sna_pixmap_get_bo(tile),
-				       pixmap, bo,
-				       alu)) {
-			DBG(("%s: unsupported blt\n", __FUNCTION__));
-			return FALSE;
-		}
-
-		if (clip->data == NULL) {
-			const BoxRec *box = &clip->extents;
+		if (clip.data == NULL) {
+			const BoxRec *box = &clip.extents;
 			while (n--) {
 				BoxRec r;
 
@@ -5008,7 +4988,7 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 				rect++;
 
 				region.data = NULL;
-				RegionIntersect(&region, &region, clip);
+				RegionIntersect(&region, &region, &clip);
 
 				nbox = REGION_NUM_RECTS(&region);
 				box = REGION_RECTS(&region);
@@ -5059,8 +5039,11 @@ sna_poly_fill_rect_tiled(DrawablePtr drawable,
 				RegionUninit(&region);
 			}
 		}
-		copy.done(sna, &copy);
+
+		RegionUninit(&clip);
 	}
+done:
+	copy.done(sna, &copy);
 	return TRUE;
 }
 
@@ -5131,6 +5114,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (gc->fillStyle == FillSolid ||
 	    (gc->fillStyle == FillTiled && gc->tileIsPixel)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
+		uint32_t color = gc->fillStyle == FillSolid ? gc->fgPixel : gc->tile.pixel;
 
 		DBG(("%s: solid fill [%08lx], testing for blt\n",
 		     __FUNCTION__,
@@ -5140,7 +5124,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		    sna_poly_fill_rect_blt(draw,
 					   priv->gpu_bo,
 					   priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &region.extents),
-					   gc, n, rect,
+					   gc, color, n, rect,
 					   &region.extents, flags & 2))
 			return;
 
@@ -5148,7 +5132,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		    sna_poly_fill_rect_blt(draw,
 					   priv->cpu_bo,
 					   reduce_damage(draw, &priv->cpu_damage, &region.extents),
-					   gc, n, rect,
+					   gc, color, n, rect,
 					   &region.extents, flags & 2))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
@@ -5160,14 +5144,16 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		    sna_poly_fill_rect_tiled(draw,
 					     priv->gpu_bo,
 					     priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &region.extents),
-					     gc, n, rect))
+					     gc, n, rect,
+					     &region.extents, flags & 2))
 			return;
 
 		if (sna_drawable_use_cpu_bo(draw, &region.extents) &&
 		    sna_poly_fill_rect_tiled(draw,
 					     priv->cpu_bo,
 					     reduce_damage(draw, &priv->cpu_damage, &region.extents),
-					     gc, n, rect))
+					     gc, n, rect,
+					     &region.extents, flags & 2))
 			return;
 	}
 
