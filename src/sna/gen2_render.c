@@ -1593,8 +1593,11 @@ static void gen2_emit_composite_spans_state(struct sna *sna,
 	gen2_emit_spans_pipeline(sna, op);
 
 	if (op->base.src.is_solid) {
-		BATCH(_3DSTATE_DFLT_SPECULAR_CMD);
-		BATCH(op->base.src.u.gen2.pixel);
+		if (op->base.src.u.gen2.pixel != sna->render_state.gen2.specular) {
+			BATCH(_3DSTATE_DFLT_SPECULAR_CMD);
+			BATCH(op->base.src.u.gen2.pixel);
+			sna->render_state.gen2.specular = op->base.src.u.gen2.pixel;
+		}
 	} else {
 		uint32_t v =_3DSTATE_VERTEX_FORMAT_2_CMD |
 			(op->base.src.is_affine ? TEXCOORDFMT_2D : TEXCOORDFMT_3D);
@@ -2534,6 +2537,7 @@ gen2_render_reset(struct sna *sna)
 	sna->render_state.gen2.vft = 0;
 
 	sna->render_state.gen2.diffuse = 0x0c0ffee0;
+	sna->render_state.gen2.specular = 0x0c0ffee0;
 }
 
 static void
