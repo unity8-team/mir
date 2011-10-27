@@ -207,7 +207,8 @@ noinline static void sna_blt_fill_begin(struct sna *sna,
 	_kgem_submit(kgem);
 	_kgem_set_mode(kgem, KGEM_BLT);
 
-	b = kgem->batch + kgem->nbatch;
+	assert(kgem->nbatch == 0);
+	b = kgem->batch;
 	b[0] = XY_SETUP_MONO_PATTERN_SL_BLT;
 	if (blt->bpp == 32)
 		b[0] |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
@@ -223,7 +224,7 @@ noinline static void sna_blt_fill_begin(struct sna *sna,
 	b[6] = blt->pixel;
 	b[7] = 0;
 	b[8] = 0;
-	kgem->nbatch += 9;
+	kgem->nbatch = 9;
 }
 
 inline static void sna_blt_fill_one(struct sna *sna,
