@@ -3046,7 +3046,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 						break;
 
 					*b = box;
-					if (box_intersect(b, c)) {
+					if (box_intersect(b, c++)) {
 						b->x1 += dx;
 						b->x2 += dx;
 						b->y1 += dy;
@@ -3376,7 +3376,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 						break;
 
 					*b = box;
-					if (box_intersect(b, c)) {
+					if (box_intersect(b, c++)) {
 						b->x1 += dx;
 						b->x2 += dx;
 						b->y1 += dy;
@@ -4135,7 +4135,7 @@ zero_clipped:
 							break;
 
 						*b = box[count];
-						if (box_intersect(b, c)) {
+						if (box_intersect(b, c++)) {
 							b->x1 += dx;
 							b->x2 += dx;
 							b->y1 += dy;
@@ -4275,7 +4275,7 @@ wide_clipped:
 							break;
 
 						*b = box[count];
-						if (box_intersect(b, c)) {
+						if (box_intersect(b, c++)) {
 							b->x1 += dx;
 							b->x2 += dx;
 							b->y1 += dy;
@@ -4738,7 +4738,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 						break;
 
 					*b = box;
-					if (box_intersect(b, c)) {
+					if (box_intersect(b, c++)) {
 						b->x1 += dx;
 						b->x2 += dx;
 						b->y1 += dy;
