@@ -998,10 +998,10 @@ void _kgem_submit(struct kgem *kgem)
 					       i,
 					       kgem->exec[i].handle,
 					       (int)kgem->exec[i].offset,
-					       found ? found->size : 0,
-					       found ? found->tiling : 0,
+					       found ? found->size : -1,
+					       found ? found->tiling : -1,
 					       (int)(kgem->exec[i].flags & EXEC_OBJECT_NEEDS_FENCE),
-					       found ? found->deleted : 1);
+					       found ? found->deleted : -1);
 				}
 				for (i = 0; i < kgem->nreloc; i++) {
 					ErrorF("reloc[%d] = pos:%d, target:%d, delta:%d, read:%x, write:%x, offset:%x\n",

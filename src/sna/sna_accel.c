@@ -2537,7 +2537,7 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 	void *jump, *ret;
 
 	DBG(("%s: alu=%d, pixel=%lx, n=%d, clipped=%d, damage=%p\n",
-	     __FUNCTION__, gc->alu, gc->fgPixel, n, clipped, damage));
+	     __FUNCTION__, gc->alu, gc->fgPixel, _n, clipped, damage));
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
 
@@ -3348,7 +3348,7 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 	void *jump, *ret;
 
 	DBG(("%s: alu=%d, pixel=%lx, n=%d, clipped=%d, damage=%p\n",
-	     __FUNCTION__, gc->alu, gc->fgPixel, n, clipped, damage));
+	     __FUNCTION__, gc->alu, gc->fgPixel, _n, clipped, damage));
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
 

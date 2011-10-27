@@ -3818,7 +3818,7 @@ gen3_render_fill_op_boxes(struct sna *sna,
 			  int nbox)
 {
 	DBG(("%s: (%d, %d),(%d, %d)... x %d\n", __FUNCTION__,
-	     box->x1, box->y1, box->x2, box->y2, n));
+	     box->x1, box->y1, box->x2, box->y2, nbox));
 
 	do {
 		int nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
