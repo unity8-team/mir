@@ -1708,6 +1708,8 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		region.data = NULL;
 		if (gc->pCompositeClip)
 			RegionIntersect(&region, &region, gc->pCompositeClip);
+		if (!RegionNotEmpty(&region))
+			return NULL;
 
 		sna_drawable_move_region_to_cpu(dst, &region, true);
 		RegionTranslate(&region,
@@ -1891,6 +1893,10 @@ no_damage_clipped_translate:
 no_damage_clipped:
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		assert(clip.extents.x1 >= 0);
+		assert(clip.extents.y1 >= 0);
+		assert(clip.extents.x2 <= pixmap->drawable.width);
+		assert(clip.extents.y2 <= pixmap->drawable.height);
 
 		DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
 		     __FUNCTION__,
@@ -1991,6 +1997,10 @@ damage_clipped_translate:
 damage_clipped:
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		assert(clip.extents.x1 >= 0);
+		assert(clip.extents.y1 >= 0);
+		assert(clip.extents.x2 <= pixmap->drawable.width);
+		assert(clip.extents.y2 <= pixmap->drawable.height);
 
 		DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
 		     __FUNCTION__,
