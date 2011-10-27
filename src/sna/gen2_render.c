@@ -2546,9 +2546,21 @@ gen2_render_flush(struct sna *sna)
 	gen2_vertex_flush(sna);
 }
 
+static void
+gen2_render_context_switch(struct kgem *kgem,
+			   int new_mode)
+{
+	struct sna *sna = container_of(kgem, struct sna, kgem);
+
+	/* Reload BLT registers following a lost context */
+	sna->blt_state.fill_bo = 0;
+}
+
 Bool gen2_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
+
+	sna->kgem.context_switch = gen2_render_context_switch;
 
 	/* Use the BLT (and overlay) for everything except when forced to
 	 * use the texture combiners.
