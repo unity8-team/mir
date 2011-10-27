@@ -426,6 +426,9 @@ sna_composite(CARD8 op,
 	     dst_x, dst_y, dst->pDrawable->x, dst->pDrawable->y,
 	     width, height));
 
+	if (mask && sna_composite_mask_is_opaque(mask))
+		mask = NULL;
+
 	if (!sna_compute_composite_region(&region,
 					  src, mask, dst,
 					  src_x,  src_y,

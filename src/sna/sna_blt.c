@@ -652,6 +652,17 @@ is_white(PicturePtr picture)
 		return pixel_is_white(get_pixel(picture), picture->format);
 }
 
+bool
+sna_composite_mask_is_opaque(PicturePtr mask)
+{
+	if (mask->componentAlpha && PICT_FORMAT_RGB(mask->format))
+		return is_solid(mask) && is_white(mask);
+	else if (!PICT_FORMAT_A(mask->format))
+		return TRUE;
+	else
+		return is_solid(mask) && is_opaque_solid(mask);
+}
+
 fastcall
 static void blt_composite_fill(struct sna *sna,
 			       const struct sna_composite_op *op,

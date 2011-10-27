@@ -569,4 +569,7 @@ void
 sna_render_composite_redirect_done(struct sna *sna,
 				   const struct sna_composite_op *op);
 
+bool
+sna_composite_mask_is_opaque(PicturePtr mask);
+
 #endif /* SNA_RENDER_H */
