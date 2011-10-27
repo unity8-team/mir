@@ -142,6 +142,9 @@ static bool sna_blt_fill_init(struct sna *sna,
 	if (pitch > MAXSHORT)
 		return FALSE;
 
+	if (pixel == 0)
+		alu = GXclear;
+
 	blt->br13 = 1<<31 | (fill_ROP[alu] << 16) | pitch;
 	switch (bpp) {
 	default: assert(0);
@@ -1524,6 +1527,9 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 		return FALSE;
 	}
 
+	if (color == 0)
+		alu = GXclear;
+
 	br13 |= fill_ROP[alu] << 16;
 	switch (bpp) {
 	default: assert(0);
@@ -1602,6 +1608,9 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	}
 	if (br13 > MAXSHORT)
 		return FALSE;
+
+	if (pixel == 0)
+		alu = GXclear;
 
 	br13 |= 1<<31 | fill_ROP[alu] << 16;
 	switch (bpp) {
