@@ -2870,15 +2870,14 @@ sna_poly_line_blt(DrawablePtr drawable,
 		  struct kgem_bo *bo,
 		  struct sna_damage **damage,
 		  GCPtr gc, int mode, int n, DDXPointPtr pt,
-		  bool clipped)
+		  const BoxRec *extents, bool clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	RegionPtr clip = fbGetCompositeClip(gc);
+	BoxRec boxes[512], *b = boxes, * const last_box = boxes + ARRAY_SIZE(boxes);
 	struct sna_fill_op fill;
 	DDXPointRec last;
 	int16_t dx, dy;
-	int first;
 
 	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
 
@@ -2896,7 +2895,6 @@ sna_poly_line_blt(DrawablePtr drawable,
 		pt++;
 
 		while (--n) {
-			BoxRec r;
 			DDXPointRec p;
 
 			p = *pt++;
@@ -2908,104 +2906,169 @@ sna_poly_line_blt(DrawablePtr drawable,
 				p.y += dy;
 			}
 			if (last.x == p.x) {
-				r.x1 = last.x;
-				r.x2 = last.x + 1;
+				b->x1 = last.x;
+				b->x2 = last.x + 1;
 			} else if (last.x < p.x) {
-				r.x1 = last.x;
-				r.x2 = p.x;
+				b->x1 = last.x;
+				b->x2 = p.x;
 			} else {
-				r.x1 = p.x;
-				r.x2 = last.x;
+				b->x1 = p.x;
+				b->x2 = last.x;
 			}
 			if (last.y == p.y) {
-				r.y1 = last.y;
-				r.y2 = last.y + 1;
+				b->y1 = last.y;
+				b->y2 = last.y + 1;
 			} else if (last.y < p.y) {
-				r.y1 = last.y;
-				r.y2 = p.y;
+				b->y1 = last.y;
+				b->y2 = p.y;
 			} else {
-				r.y1 = p.y;
-				r.y2 = last.y;
+				b->y1 = p.y;
+				b->y2 = last.y;
 			}
 			DBG(("%s: blt (%d, %d), (%d, %d)\n",
 			     __FUNCTION__,
-			     r.x1, r.y1, r.x2, r.y2));
-			fill.box(sna, &fill, &r);
-			if (damage) {
-				assert_pixmap_contains_box(pixmap, &r);
-				sna_damage_add_box(damage, &r);
+			     b->x1, b->y1, b->x2, b->y2));
+			if (++b == last_box) {
+				fill.boxes(sna, &fill, boxes, last_box - boxes);
+				if (damage)
+					sna_damage_add_boxes(damage, boxes, last_box - boxes, 0, 0);
+				b = boxes;
 			}
 
 			last = p;
 		}
 	} else {
-		last.x = drawable->x;
-		last.y = drawable->y;
-		first = 1;
+		RegionRec clip;
 
-		while (n--) {
-			int nclip;
-			BoxPtr box;
-			DDXPointRec p;
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
 
-			p = *pt++;
-			if (mode == CoordModePrevious) {
-				p.x += last.x;
-				p.y += last.y;
-			} else {
-				p.x += drawable->x;
-				p.y += drawable->y;
+		last.x = pt->x + drawable->x;
+		last.y = pt->y + drawable->y;
+		pt++;
+
+		if (clip.data == NULL) {
+			while (--n) {
+				DDXPointRec p;
+
+				p = *pt++;
+				if (mode == CoordModePrevious) {
+					p.x += last.x;
+					p.y += last.y;
+				} else {
+					p.x += drawable->x;
+					p.y += drawable->y;
+				}
+				if (last.x == p.x) {
+					b->x1 = last.x;
+					b->x2 = last.x + 1;
+				} else if (last.x < p.x) {
+					b->x1 = last.x;
+					b->x2 = p.x;
+				} else {
+					b->x1 = p.x;
+					b->x2 = last.x;
+				}
+				if (last.y == p.y) {
+					b->y1 = last.y;
+					b->y2 = last.y + 1;
+				} else if (last.y < p.y) {
+					b->y1 = last.y;
+					b->y2 = p.y;
+				} else {
+					b->y1 = p.y;
+					b->y2 = last.y;
+				}
+				DBG(("%s: blt (%d, %d), (%d, %d)\n",
+				     __FUNCTION__,
+				     b->x1, b->y1, b->x2, b->y2));
+				if (box_intersect(b, &clip.extents)) {
+					b->x1 += dx;
+					b->x2 += dx;
+					b->y1 += dy;
+					b->y2 += dy;
+					if (++b == last_box) {
+						fill.boxes(sna, &fill, boxes, last_box - boxes);
+						if (damage)
+							sna_damage_add_boxes(damage, boxes, last_box - boxes, 0, 0);
+						b = boxes;
+					}
+				}
+
+				last = p;
 			}
+		} else {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
+			const BoxRec *c;
 
-			if (!first) {
-				for (nclip = REGION_NUM_RECTS(clip), box = REGION_RECTS(clip); nclip--; box++) {
-					BoxRec r;
+			while (--n) {
+				DDXPointRec p;
+				BoxRec box;
 
-					if (last.x == p.x) {
-						r.x1 = last.x;
-						r.x2 = last.x + 1;
-					} else if (last.x < p.x) {
-						r.x1 = last.x;
-						r.x2 = p.x;
-					} else {
-						r.x1 = p.x;
-						r.x2 = last.x;
-					}
-					if (last.y == p.y) {
-						r.y1 = last.y;
-						r.y2 = last.y + 1;
-					} else if (last.y < p.y) {
-						r.y1 = last.y;
-						r.y2 = p.y;
-					} else {
-						r.y1 = p.y;
-						r.y2 = last.y;
-					}
-					DBG(("%s: (%d, %d) -> (%d, %d) clipping line (%d, %d), (%d, %d) against box (%d, %d), (%d, %d)\n",
-					     __FUNCTION__,
-					     last.x, last.y, p.x, p.y,
-					     r.x1, r.y1, r.x2, r.y2,
-					     box->x1, box->y1, box->x2, box->y2));
-					if (box_intersect(&r, box)) {
-						r.x1 += dx;
-						r.x2 += dx;
-						r.y1 += dy;
-						r.y2 += dy;
-						DBG(("%s: blt (%d, %d), (%d, %d)\n",
-						     __FUNCTION__,
-						     r.x1, r.y1, r.x2, r.y2));
-						fill.box(sna, &fill, &r);
-						if (damage) {
-							assert_pixmap_contains_box(pixmap, &r);
-							sna_damage_add_box(damage, &r);
+				p = *pt++;
+				if (mode == CoordModePrevious) {
+					p.x += last.x;
+					p.y += last.y;
+				} else {
+					p.x += drawable->x;
+					p.y += drawable->y;
+				}
+				if (last.x == p.x) {
+					box.x1 = last.x;
+					box.x2 = last.x + 1;
+				} else if (last.x < p.x) {
+					box.x1 = last.x;
+					box.x2 = p.x;
+				} else {
+					box.x1 = p.x;
+					box.x2 = last.x;
+				}
+				if (last.y == p.y) {
+					box.y1 = last.y;
+					box.y2 = last.y + 1;
+				} else if (last.y < p.y) {
+					box.y1 = last.y;
+					box.y2 = p.y;
+				} else {
+					box.y1 = p.y;
+					box.y2 = last.y;
+				}
+				DBG(("%s: blt (%d, %d), (%d, %d)\n",
+				     __FUNCTION__,
+				     box.x1, box.y1, box.x2, box.y2));
+
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							box.y1);
+				while (c != clip_end) {
+					if (box.y2 <= c->y1)
+						break;
+
+					*b = box;
+					if (box_intersect(b, c)) {
+						b->x1 += dx;
+						b->x2 += dx;
+						b->y1 += dy;
+						b->y2 += dy;
+						if (++b == last_box) {
+							fill.boxes(sna, &fill, boxes, last_box-boxes);
+							if (damage)
+								sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
+							b = boxes;
 						}
 					}
 				}
-			}
 
-			last = p;
-			first = 0;
+				last = p;
+			}
 		}
+		RegionUninit(&clip);
+	}
+	if (b != boxes) {
+		fill.boxes(sna, &fill, boxes, b - boxes);
+		if (damage)
+			sna_damage_add_boxes(damage, boxes, b - boxes, 0, 0);
 	}
 	fill.done(sna, &fill);
 	return TRUE;
@@ -3123,14 +3186,16 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 		    sna_poly_line_blt(drawable,
 				      priv->gpu_bo,
 				      priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
-				      gc, mode, n, pt, flags & 4))
+				      gc, mode, n, pt,
+				      &region.extents, flags & 4))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
 		    sna_poly_line_blt(drawable,
 				      priv->cpu_bo,
 				      reduce_damage(drawable, &priv->cpu_damage, &region.extents),
-				      gc, mode, n, pt, flags & 4))
+				      gc, mode, n, pt,
+				      &region.extents, flags & 4))
 			return;
 	    } else { /* !rectilinear */
 		if (USE_ZERO_SPANS &&
@@ -3191,133 +3256,205 @@ sna_poly_segment_blt(DrawablePtr drawable,
 		     struct kgem_bo *bo,
 		     struct sna_damage **damage,
 		     GCPtr gc, int n, xSegment *seg,
-		     const BoxRec *extents)
+		     const BoxRec *extents, unsigned clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	RegionRec clip;
+	BoxRec boxes[512], *b = boxes, * const last_box = boxes + ARRAY_SIZE(boxes);
 	struct sna_fill_op fill;
 	int16_t dx, dy;
 
 	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
 
-	region_set(&clip, extents);
-	region_maybe_clip(&clip, gc->pCompositeClip);
-
-	if (n == 1 && clip.data == NULL) {
-		BoxRec r;
-		int width, height;
-		bool success = true;
-
-		DBG(("%s: trying single fill fast-path\n", __FUNCTION__));
-
-		if (seg->x1 < seg->x2) {
-			r.x1 = seg->x1;
-			width = seg->x2;
-		} else {
-			r.x1 = seg->x2;
-			width = seg->x1;
-		}
-		width -= r.x1 - 1;
-		r.x1 += drawable->x;
-
-		if (seg->y1 < seg->y2) {
-			r.y1 = seg->y1;
-			height = seg->y2;
-		} else {
-			r.y1 = seg->y2;
-			height = seg->y1;
-		}
-		height -= r.y1- 1;
-		r.y1 += drawable->y;
-
-		/* don't paint last pixel */
-		if (gc->capStyle == CapNotLast) {
-			if (width == 1)
-				height--;
-			else
-				width--;
-		}
-		r.x2 = r.x1 + width;
-		r.y2 = r.y1 + height;
-
-		if (box_intersect(&r, &clip.extents)) {
-			get_drawable_deltas(drawable, pixmap, &dx, &dy);
-			r.x1 += dx; r.y1 += dy;
-			r.x2 += dx; r.y2 += dy;
-			if (sna->render.fill_one(sna, pixmap, bo, gc->fgPixel,
-						 r.x1, r.y1, r.x2, r.y2,
-						 gc->alu)) {
-				if (damage) {
-					assert_pixmap_contains_box(pixmap, &r);
-					sna_damage_add_box(damage, &r);
-				}
-			} else
-				success = false;
-		}
-
-		return success;
-	}
-
-	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel)) {
-		RegionUninit(&clip);
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
-	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	while (n--) {
-		int x, y, width, height, nclip;
-		BoxPtr box;
 
-		if (seg->x1 < seg->x2) {
-			x = seg->x1;
-			width = seg->x2;
-		} else {
-			x = seg->x2;
-			width = seg->x1;
-		}
-		width -= x - 1;
-		x += drawable->x;
+	if (!clipped) {
+		dx += drawable->x;
+		dy += drawable->y;
+		do {
+			int x, y, width, height;
 
-		if (seg->y1 < seg->y2) {
-			y = seg->y1;
-			height = seg->y2;
-		} else {
-			y = seg->y2;
-			height = seg->y1;
-		}
-		height -= y - 1;
-		y += drawable->y;
-
-		/* don't paint last pixel */
-		if (gc->capStyle == CapNotLast) {
-			if (width == 1)
-				height--;
-			else
-				width--;
-		}
-
-		DBG(("%s: [%d] (%d, %d)x(%d, %d) + (%d, %d)\n", __FUNCTION__, n,
-		     x, y, width, height, dx, dy));
-		for (nclip = REGION_NUM_RECTS(&clip), box = REGION_RECTS(&clip); nclip--; box++) {
-			BoxRec r = { x, y, x + width, y + height };
-			if (box_intersect(&r, box)) {
-				r.x1 += dx;
-				r.x2 += dx;
-				r.y1 += dy;
-				r.y2 += dy;
-				fill.box(sna, &fill, &r);
-				if (damage) {
-					assert_pixmap_contains_box(pixmap, &r);
-					sna_damage_add_box(damage, &r);
-				}
+			if (seg->x1 < seg->x2) {
+				x = seg->x1;
+				width = seg->x2;
+			} else {
+				x = seg->x2;
+				width = seg->x1;
 			}
-		}
+			width -= x - 1;
 
-		seg++;
+			if (seg->y1 < seg->y2) {
+				y = seg->y1;
+				height = seg->y2;
+			} else {
+				y = seg->y2;
+				height = seg->y1;
+			}
+			height -= y - 1;
+
+			/* don't paint last pixel */
+			if (gc->capStyle == CapNotLast) {
+				if (width == 1)
+					height--;
+				else
+					width--;
+			}
+
+			DBG(("%s: [%d] (%d, %d)x(%d, %d) + (%d, %d)\n", __FUNCTION__, n,
+			     x, y, width, height, dx, dy));
+
+			b->x1 = x + dx;
+			b->x2 = b->x1 + width;
+			b->y1 = y + dy;
+			b->y2 = b->y1 + height;
+			if (++b == last_box) {
+				fill.boxes(sna, &fill, boxes, last_box-boxes);
+				if (damage)
+					sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
+				b = boxes;
+			}
+
+			seg++;
+		} while (--n);
+	} else {
+		RegionRec clip;
+
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
+
+		if (!RegionNotEmpty(&clip))
+			goto done;
+
+		if (clip.data) {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
+			const BoxRec *c;
+			do {
+				int x, y, width, height;
+				BoxRec box;
+
+				if (seg->x1 < seg->x2) {
+					x = seg->x1;
+					width = seg->x2;
+				} else {
+					x = seg->x2;
+					width = seg->x1;
+				}
+				width -= x - 1;
+
+				if (seg->y1 < seg->y2) {
+					y = seg->y1;
+					height = seg->y2;
+				} else {
+					y = seg->y2;
+					height = seg->y1;
+				}
+				height -= y - 1;
+
+				/* don't paint last pixel */
+				if (gc->capStyle == CapNotLast) {
+					if (width == 1)
+						height--;
+					else
+						width--;
+				}
+
+				DBG(("%s: [%d] (%d, %d)x(%d, %d) + (%d, %d)\n", __FUNCTION__, n,
+				     x, y, width, height, dx+drawable->x, dy+drawable->y));
+				box.x1 = x + drawable->x;
+				box.x2 = box.x1 + width;
+				box.y1 = y + drawable->y;
+				box.y2 = box.y1 + height;
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							box.y1);
+				while (c != clip_end) {
+					if (box.y2 <= c->y1)
+						break;
+
+					*b = box;
+					if (box_intersect(b, c)) {
+						b->x1 += dx;
+						b->x2 += dx;
+						b->y1 += dy;
+						b->y2 += dy;
+						if (++b == last_box) {
+							fill.boxes(sna, &fill, boxes, last_box-boxes);
+							if (damage)
+								sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
+							b = boxes;
+						}
+					}
+				}
+
+				seg++;
+			} while (--n);
+		} else {
+			do {
+				int x, y, width, height;
+
+				if (seg->x1 < seg->x2) {
+					x = seg->x1;
+					width = seg->x2;
+				} else {
+					x = seg->x2;
+					width = seg->x1;
+				}
+				width -= x - 1;
+
+				if (seg->y1 < seg->y2) {
+					y = seg->y1;
+					height = seg->y2;
+				} else {
+					y = seg->y2;
+					height = seg->y1;
+				}
+				height -= y - 1;
+
+				/* don't paint last pixel */
+				if (gc->capStyle == CapNotLast) {
+					if (width == 1)
+						height--;
+					else
+						width--;
+				}
+
+				DBG(("%s: [%d] (%d, %d)x(%d, %d) + (%d, %d)\n", __FUNCTION__, n,
+				     x, y, width, height, dx+drawable->x, dy+drawable->y));
+
+				b->x1 = x + drawable->x;
+				b->x2 = b->x1 + width;
+				b->y1 = y + drawable->y;
+				b->y2 = b->y1 + height;
+
+				if (box_intersect(b, &clip.extents)) {
+					b->x1 += dx;
+					b->x2 += dx;
+					b->y1 += dy;
+					b->y2 += dy;
+					if (++b == last_box) {
+						fill.boxes(sna, &fill, boxes, last_box-boxes);
+						if (damage)
+							sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
+						b = boxes;
+					}
+				}
+
+				seg++;
+			} while (--n);
+		}
+		RegionUninit(&clip);
 	}
+	if (b != boxes) {
+		fill.boxes(sna, &fill, boxes, b - boxes);
+		if (damage)
+			sna_damage_add_boxes(damage, boxes, b - boxes, 0, 0);
+	}
+done:
 	fill.done(sna, &fill);
-	RegionUninit(&clip);
 	return TRUE;
 }
 
@@ -3744,14 +3881,16 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 		    sna_poly_segment_blt(drawable,
 					 priv->gpu_bo,
 					 priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
-					 gc, n, seg, &region.extents))
+					 gc, n, seg,
+					 &region.extents, flags & 2))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
 		    sna_poly_segment_blt(drawable,
 					 priv->cpu_bo,
 					 reduce_damage(drawable, &priv->cpu_damage, &region.extents),
-					 gc, n, seg, &region.extents))
+					 gc, n, seg,
+					 &region.extents, flags & 2))
 			return;
 	    } else {
 		    if (USE_ZERO_SPANS &&
