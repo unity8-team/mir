@@ -1756,6 +1756,18 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	case 8: break;
 	}
 
+	/* Compare first box against a previous fill */
+	if (kgem->nbatch >= 6 &&
+	    (alu == GXcopy || alu == GXclear) &&
+	    kgem->reloc[kgem->nreloc-1].target_handle == dst_bo->handle &&
+	    kgem->batch[kgem->nbatch-6] == ((cmd & ~XY_SRC_COPY_BLT_CMD) | XY_COLOR_BLT_CMD) &&
+	    kgem->batch[kgem->nbatch-4] == ((uint32_t)(box->y1 + dst_dy) << 16 | (uint16_t)(box->x1 + dst_dx)) &&
+	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(box->y2 + dst_dy) << 16 | (uint16_t)(box->x2 + dst_dx))) {
+		DBG(("%s: deleting last fill\n", __FUNCTION__));
+		kgem->nbatch -= 6;
+		kgem->nreloc--;
+	}
+
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 8) ||
 	    !kgem_check_reloc(kgem, 2) ||
