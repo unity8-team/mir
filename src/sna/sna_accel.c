@@ -3430,13 +3430,13 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 				}
 				b->x2++;
 				b->y2++;
-				if (box_intersect(b, extents)) {
-					if (++b == last_box) {
-						ret = &&rectangle_continue;
-						goto *jump;
+				if (oc1 | oc2)
+					box_intersect(b, &clip.extents);
+				if (++b == last_box) {
+					ret = &&rectangle_continue;
+					goto *jump;
 rectangle_continue:
-						b = box;
-					}
+					b = box;
 				}
 			} else if (adx >= ady) {
 				/* X-major segment */
@@ -3943,59 +3943,111 @@ zero:
 zero_clipped:
 	{
 		RegionRec clip;
-		const BoxRec *clip_start, *clip_end, *c;
 		BoxRec box[4];
-		int count, i;
+		int count;
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
 		if (!RegionNotEmpty(&clip))
-			return true;
+			goto done;
 
-		clip_start = RegionBoxptr(&clip);
-		clip_end = clip_start + clip.data->numRects;
-		do {
-			xRectangle rr = *r++;
-			rr.x += drawable->x;
-			rr.y += drawable->y;
+		if (clip.data) {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
+			const BoxRec *c;
+			do {
+				xRectangle rr = *r++;
+				rr.x += drawable->x;
+				rr.y += drawable->y;
 
-			if (rr.width <= 1 || rr.height <= 1) {
-				box[0].x1 = rr.x;
-				box[0].y1 = rr.y;
-				box[0].x2 = rr.x + rr.width + 1;
-				box[0].y2 = rr.y + r->height + 1;
-				count = 1;
-			} else {
-				box[0].x1 = rr.x;
-				box[0].y1 = rr.y;
-				box[0].x2 = rr.x + rr.width + 1;
-				box[0].y2 = rr.y + 1;
+				if (rr.width <= 1 || rr.height <= 1) {
+					box[0].x1 = rr.x;
+					box[0].y1 = rr.y;
+					box[0].x2 = rr.x + rr.width + 1;
+					box[0].y2 = rr.y + r->height + 1;
+					count = 1;
+				} else {
+					box[0].x1 = rr.x;
+					box[0].y1 = rr.y;
+					box[0].x2 = rr.x + rr.width + 1;
+					box[0].y2 = rr.y + 1;
 
-				box[1] = box[0];
-				box[1].y1 += rr.height;
-				box[1].y2 += rr.height;
+					box[1] = box[0];
+					box[1].y1 += rr.height;
+					box[1].y2 += rr.height;
 
-				box[2].y1 = rr.y + 1;
-				box[2].y2 = box[2].y1 + rr.height - 1;
-				box[2].x1 = rr.x;
-				box[2].x2 = rr.x + 1;
+					box[2].y1 = rr.y + 1;
+					box[2].y2 = box[2].y1 + rr.height - 1;
+					box[2].x1 = rr.x;
+					box[2].x2 = rr.x + 1;
 
-				box[3] = box[2];
-				box[3].x1 += rr.width;
-				box[3].x2 += rr.width;
-				count = 4;
-			}
+					box[3] = box[2];
+					box[3].x1 += rr.width;
+					box[3].x2 += rr.width;
+					count = 4;
+				}
 
-			for (i = 0; i < count; i++) {
-				c = find_clip_box_for_y(clip_start,
-							clip_end,
-							box[i].y1);
-				while (c != clip_end) {
-					if (box[i].y2 <= c->y1)
-						break;
+				while (count--) {
+					c = find_clip_box_for_y(clip_start,
+								clip_end,
+								box[count].y1);
+					while (c != clip_end) {
+						if (box[count].y2 <= c->y1)
+							break;
 
-					*b = box[i];
-					if (box_intersect(b, c)) {
+						*b = box[count];
+						if (box_intersect(b, c)) {
+							b->x1 += dx;
+							b->x2 += dx;
+							b->y1 += dy;
+							b->y2 += dy;
+							if (++b == last_box) {
+								fill.boxes(sna, &fill, boxes, last_box-boxes);
+								if (damage)
+									sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+								b = boxes;
+							}
+						}
+
+					}
+				}
+			} while (--n);
+		} else {
+			do {
+				xRectangle rr = *r++;
+				rr.x += drawable->x;
+				rr.y += drawable->y;
+
+				if (rr.width <= 1 || rr.height <= 1) {
+					box[0].x1 = rr.x;
+					box[0].y1 = rr.y;
+					box[0].x2 = rr.x + rr.width + 1;
+					box[0].y2 = rr.y + r->height + 1;
+					count = 1;
+				} else {
+					box[0].x1 = rr.x;
+					box[0].y1 = rr.y;
+					box[0].x2 = rr.x + rr.width + 1;
+					box[0].y2 = rr.y + 1;
+
+					box[1] = box[0];
+					box[1].y1 += rr.height;
+					box[1].y2 += rr.height;
+
+					box[2].y1 = rr.y + 1;
+					box[2].y2 = box[2].y1 + rr.height - 1;
+					box[2].x1 = rr.x;
+					box[2].x2 = rr.x + 1;
+
+					box[3] = box[2];
+					box[3].x1 += rr.width;
+					box[3].x2 += rr.width;
+					count = 4;
+				}
+
+				while (count--) {
+					*b = box[count];
+					if (box_intersect(b, &clip.extents)) {
 						b->x1 += dx;
 						b->x2 += dx;
 						b->y1 += dy;
@@ -4009,9 +4061,8 @@ zero_clipped:
 					}
 
 				}
-			}
-			r++;
-		} while (--n);
+			} while (--n);
+		}
 	}
 	goto done;
 
@@ -4019,7 +4070,6 @@ wide_clipped:
 	{
 		RegionRec clip;
 		BoxRec box[4];
-		const BoxRec *clip_start, *clip_end, *c;
 		int16_t offset2 = gc->lineWidth;
 		int16_t offset1 = offset2 >> 1;
 		int16_t offset3 = offset2 - offset1;
@@ -4027,64 +4077,128 @@ wide_clipped:
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
 		if (!RegionNotEmpty(&clip))
-			return true;
+			goto done;
 
-		clip_start = RegionBoxptr(&clip);
-		clip_end = clip_start + clip.data->numRects;
-		do {
-			xRectangle rr = *r++;
-			int count;
-			rr.x += drawable->x;
-			rr.y += drawable->y;
+		if (clip.data) {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
+			const BoxRec *c;
+			do {
+				xRectangle rr = *r++;
+				int count;
+				rr.x += drawable->x;
+				rr.y += drawable->y;
 
-			if (rr.height < offset2 || rr.width < offset1) {
-				if (rr.height == 0) {
-					box[0].x1 = rr.x;
-					box[0].x2 = rr.x + rr.width + 1;
+				if (rr.height < offset2 || rr.width < offset1) {
+					if (rr.height == 0) {
+						box[0].x1 = rr.x;
+						box[0].x2 = rr.x + rr.width + 1;
+					} else {
+						box[0].x1 = rr.x - offset1;
+						box[0].x2 = box[0].x1 + rr.width + offset2;
+					}
+					if (rr.width == 0) {
+						box[0].y1 = rr.y;
+						box[0].y2 = rr.y + rr.height + 1;
+					} else {
+						box[0].y1 = rr.y - offset1;
+						box[0].y2 = box[0].y1 + rr.height + offset2;
+					}
+					count = 1;
 				} else {
 					box[0].x1 = rr.x - offset1;
 					box[0].x2 = box[0].x1 + rr.width + offset2;
-				}
-				if (rr.width == 0) {
-					box[0].y1 = rr.y;
-					box[0].y2 = rr.y + rr.height + 1;
-				} else {
 					box[0].y1 = rr.y - offset1;
-					box[0].y2 = box[0].y1 + rr.height + offset2;
+					box[0].y2 = box[0].y1 + offset2;
+
+					box[1].x1 = rr.x - offset1;
+					box[1].x2 = box[1].x1 + offset2;
+					box[1].y1 = rr.y + offset3;
+					box[1].y2 = rr.y + rr.height - offset1;
+
+					box[2].x1 = rr.x + rr.width - offset1;
+					box[2].x2 = box[2].x1 + offset2;
+					box[2].y1 = rr.y + offset3;
+					box[2].y2 = rr.y + rr.height - offset1;
+
+					box[3] = box[1];
+					box[3].y1 += rr.height;
+					box[3].y2 += rr.height;
+					count = 4;
 				}
-				count = 1;
-			} else {
-				box[0].x1 = rr.x - offset1;
-				box[0].x2 = box[0].x1 + rr.width + offset2;
-				box[0].y1 = rr.y - offset1;
-				box[0].y2 = box[0].y1 + offset2;
 
-				box[1].x1 = rr.x - offset1;
-				box[1].x2 = box[1].x1 + offset2;
-				box[1].y1 = rr.y + offset3;
-				box[1].y2 = rr.y + rr.height - offset1;
+				while (count--) {
+					c = find_clip_box_for_y(clip_start,
+								clip_end,
+								box[count].y1);
+					while (c != clip_end) {
+						if (box[count].y2 <= c->y1)
+							break;
 
-				box[2].x1 = rr.x + rr.width - offset1;
-				box[2].x2 = box[2].x1 + offset2;
-				box[2].y1 = rr.y + offset3;
-				box[2].y2 = rr.y + rr.height - offset1;
+						*b = box[count];
+						if (box_intersect(b, c)) {
+							b->x1 += dx;
+							b->x2 += dx;
+							b->y1 += dy;
+							b->y2 += dy;
+							if (++b == last_box) {
+								fill.boxes(sna, &fill, boxes, last_box-boxes);
+								if (damage)
+									sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+								b = boxes;
+							}
+						}
+					}
+				}
+			} while (--n);
+		} else {
+			do {
+				xRectangle rr = *r++;
+				int count;
+				rr.x += drawable->x;
+				rr.y += drawable->y;
 
-				box[3] = box[1];
-				box[3].y1 += rr.height;
-				box[3].y2 += rr.height;
-				count = 4;
-			}
+				if (rr.height < offset2 || rr.width < offset1) {
+					if (rr.height == 0) {
+						box[0].x1 = rr.x;
+						box[0].x2 = rr.x + rr.width + 1;
+					} else {
+						box[0].x1 = rr.x - offset1;
+						box[0].x2 = box[0].x1 + rr.width + offset2;
+					}
+					if (rr.width == 0) {
+						box[0].y1 = rr.y;
+						box[0].y2 = rr.y + rr.height + 1;
+					} else {
+						box[0].y1 = rr.y - offset1;
+						box[0].y2 = box[0].y1 + rr.height + offset2;
+					}
+					count = 1;
+				} else {
+					box[0].x1 = rr.x - offset1;
+					box[0].x2 = box[0].x1 + rr.width + offset2;
+					box[0].y1 = rr.y - offset1;
+					box[0].y2 = box[0].y1 + offset2;
 
-			while (count--) {
-				c = find_clip_box_for_y(clip_start,
-							clip_end,
-							box[count].y1);
-				while (c != clip_end) {
-					if (box[count].y2 <= c->y1)
-						break;
+					box[1].x1 = rr.x - offset1;
+					box[1].x2 = box[1].x1 + offset2;
+					box[1].y1 = rr.y + offset3;
+					box[1].y2 = rr.y + rr.height - offset1;
 
+					box[2].x1 = rr.x + rr.width - offset1;
+					box[2].x2 = box[2].x1 + offset2;
+					box[2].y1 = rr.y + offset3;
+					box[2].y2 = rr.y + rr.height - offset1;
+
+					box[3] = box[1];
+					box[3].y1 += rr.height;
+					box[3].y2 += rr.height;
+					count = 4;
+				}
+
+				while (count--) {
 					*b = box[count];
-					if (box_intersect(b, c)) {
+					if (box_intersect(b, &clip.extents)) {
 						b->x1 += dx;
 						b->x2 += dx;
 						b->y1 += dy;
@@ -4097,8 +4211,8 @@ wide_clipped:
 						}
 					}
 				}
-			}
-		} while (--n);
+			} while (--n);
+		}
 	}
 	goto done;
 
