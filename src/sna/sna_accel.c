@@ -2692,7 +2692,7 @@ rectangle_continue:
 
 				b->x1 = x;
 				b->y2 = b->y1 = y;
-				while (length--) {
+				while (--length) {
 					e += e1;
 					if (e >= 0) {
 						b->x2 = x;
@@ -2712,9 +2712,24 @@ X_continue:
 						y += sdy;
 						e += e3;
 						b->y2 = b->y1 = y;
-						b->x1 = x;
+						b->x1 = x + dx;
 					}
 					x += sdx;
+				}
+
+				b->x2 = x;
+				if (b->x2 < b->x1) {
+					int16_t t = b->x1;
+					b->x1 = b->x2;
+					b->x2 = t;
+				}
+				b->x2++;
+				b->y2++;
+				if (++b == last_box) {
+					ret = &&X_continue2;
+					goto *jump;
+X_continue2:
+					b = box;
 				}
 			} else {
 				/* Y-major segment */
@@ -2766,7 +2781,7 @@ X_continue:
 
 				b->x2 = b->x1 = x;
 				b->y1 = y;
-				while (length--) {
+				while (--length) {
 					e += e1;
 					if (e >= 0) {
 						b->y2 = y;
@@ -2786,9 +2801,24 @@ Y_continue:
 						x += sdx;
 						e += e3;
 						b->x2 = b->x1 = x;
-						b->y1 = y;
+						b->y1 = y + sdy;
 					}
 					y += sdy;
+				}
+
+				b->y2 = y;
+				if (b->y2 < b->y1) {
+					int16_t t = b->y1;
+					b->y1 = b->y2;
+					b->y2 = t;
+				}
+				b->x2++;
+				b->y2++;
+				if (++b == last_box) {
+					ret = &&Y_continue2;
+					goto *jump;
+Y_continue2:
+					b = box;
 				}
 			}
 		}
@@ -3620,7 +3650,7 @@ rectangle_continue:
 
 				b->x1 = x1;
 				b->y2 = b->y1 = y1;
-				while (length--) {
+				while (--length) {
 					e += e1;
 					if (e >= 0) {
 						b->x2 = x1;
@@ -3640,9 +3670,25 @@ X_continue:
 						y1 += sdy;
 						e += e3;
 						b->y2 = b->y1 = y1;
-						b->x1 = x1;
+						b->x1 = x1 + sdx;
 					}
 					x1 += sdx;
+				}
+
+				b->x2 = x1;
+				if (b->x2 < b->x1) {
+					int16_t t = b->x1;
+					b->x1 = b->x2;
+					b->x2 = t;
+				}
+				if (gc->capStyle != CapNotLast)
+					b->x2++;
+				b->y2++;
+				if (++b == last_box) {
+					ret = &&X_continue2;
+					goto *jump;
+X_continue2:
+					b = box;
 				}
 			} else {
 				/* Y-major segment */
@@ -3690,7 +3736,7 @@ X_continue:
 
 				b->x2 = b->x1 = x1;
 				b->y1 = y1;
-				while (length--) {
+				while (--length) {
 					e += e1;
 					if (e >= 0) {
 						b->y2 = y1;
@@ -3710,9 +3756,25 @@ Y_continue:
 						x1 += sdx;
 						e += e3;
 						b->x2 = b->x1 = x1;
-						b->y1 = y1;
+						b->y1 = y1 + sdy;
 					}
 					y1 += sdy;
+				}
+
+				b->y2 = y1;
+				if (b->y2 < b->y1) {
+					int16_t t = b->y1;
+					b->y1 = b->y2;
+					b->y2 = t;
+				}
+				b->x2++;
+				if (gc->capStyle != CapNotLast)
+					b->y2++;
+				if (++b == last_box) {
+					ret = &&Y_continue2;
+					goto *jump;
+Y_continue2:
+					b = box;
 				}
 			}
 		} while (--n);
