@@ -143,8 +143,10 @@ void sna_read_boxes(struct sna *sna,
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL))
+	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
 
 	tmp_nbox = nbox;
 	tmp_box = box;
@@ -196,10 +198,14 @@ void sna_read_boxes(struct sna *sna,
 
 			offset += pitch * height;
 		}
-		tmp_box += nbox_this_time;
 
 		_kgem_submit(kgem);
-	} while (tmp_nbox);
+		if (!tmp_nbox)
+			break;
+
+		_kgem_set_mode(kgem, KGEM_BLT);
+		tmp_box += nbox_this_time;
+	} while (1);
 	assert(offset == dst_bo->size);
 
 	kgem_buffer_read_sync(kgem, dst_bo);
@@ -315,8 +321,10 @@ void sna_write_boxes(struct sna *sna,
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, NULL))
+	    !kgem_check_bo_fenced(kgem, dst_bo, NULL)) {
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
 
 	do {
 		int nbox_this_time;
@@ -395,13 +403,14 @@ void sna_write_boxes(struct sna *sna,
 		} while (--nbox_this_time);
 		assert(offset == src_bo->size);
 
-		if (nbox)
+		if (nbox) {
 			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		}
 
 		kgem_bo_destroy(kgem, src_bo);
 	} while (nbox);
 
-	_kgem_set_mode(kgem, KGEM_BLT);
 	sna->blt_state.fill_bo = 0;
 }
 
