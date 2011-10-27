@@ -3869,17 +3869,13 @@ sna_poly_rectangle_blt(DrawablePtr drawable,
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_fill_op fill;
+	BoxRec boxes[512], *b = boxes, *const last_box = boxes+ARRAY_SIZE(boxes);
 	int16_t dx, dy;
 	static void * const jump[] = {
-		&&no_damage_zero,
-		&&maybe_damage_zero_clipped,
-		&&no_damage_wide,
-		&&maybe_damage_wide_clipped,
-
-		&&damage_zero,
-		&&maybe_damage_zero_clipped,
-		&&damage_wide,
-		&&maybe_damage_wide_clipped,
+		&&zero,
+		&&zero_clipped,
+		&&wide,
+		&&wide_clipped,
 	};
 	unsigned v;
 
@@ -3893,167 +3889,125 @@ sna_poly_rectangle_blt(DrawablePtr drawable,
 
 	v = !!clipped;
 	v |= (gc->lineWidth != 0) << 1;
-	v |= (damage != NULL) << 2;
 	goto *jump[v];
 
-damage_zero:
+zero:
 	dx += drawable->x;
 	dy += drawable->y;
 
 	do {
-		BoxRec box;
+		xRectangle rr = *r++;
+		rr.x += dx;
+		rr.y += dy;
 
-		if (r->width <= 1 || r->height <= 1) {
-			box.x1 = r->x + dx;
-			box.y1 = r->y + dy;
-			box.x2 = box.x1 + r->width + 1;
-			box.y2 = box.y1 + r->height + 1;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
-			assert_pixmap_contains_box(pixmap, &box);
-			sna_damage_add_box(damage, &box);
-		} else {
-			box.x1 = r->x + dx;
-			box.y1 = r->y + dy;
-			box.x2 = box.x1 + r->width + 1;
-			box.y2 = box.y1 + 1;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
-			assert_pixmap_contains_box(pixmap, &box);
-			sna_damage_add_box(damage, &box);
-
-			box.y1 += r->height;
-			box.y2 += r->height;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
-			assert_pixmap_contains_box(pixmap, &box);
-			sna_damage_add_box(damage, &box);
-
-			box.y1 = r->y + dy + 1;
-			box.y2 = box.y1 + r->height - 1;
-			box.x1 = r->x + dx;
-			box.x2 = box.x1 + 1;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
-			assert_pixmap_contains_box(pixmap, &box);
-			sna_damage_add_box(damage, &box);
-
-			box.x1 += r->width;
-			box.x2 += r->width;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box.x1, box.y1, box.x2, box.y2));
-			fill.box(sna, &fill, &box);
-			assert_pixmap_contains_box(pixmap, &box);
-			sna_damage_add_box(damage, &box);
+		if (b+4 > last_box) {
+			fill.boxes(sna, &fill, boxes, b-boxes);
+			if (damage)
+				sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+			b = boxes;
 		}
-		r++;
+
+		if (rr.width <= 1 || rr.height <= 1) {
+			b->x1 = rr.x;
+			b->y1 = rr.y;
+			b->x2 = rr.x + rr.width + 1;
+			b->y2 = rr.y + rr.height + 1;
+			DBG(("%s: blt (%d, %d), (%d, %d)\n",
+			     __FUNCTION__,
+			     b->x1, b->y1, b->x2,b->y2));
+			b++;
+		} else {
+			b[0].x1 = rr.x;
+			b[0].y1 = rr.y;
+			b[0].x2 = rr.x + rr.width + 1;
+			b[0].y2 = rr.y + 1;
+
+			b[1] = b[0];
+			b[1].y1 += rr.height;
+			b[1].y2 += rr.height;
+
+			b[2].y1 = rr.y + 1;
+			b[2].y2 = rr.y + rr.height - 1;
+			b[2].x1 = rr.x;
+			b[2].x2 = rr.x + 1;
+
+			b[3] = b[2];
+			b[3].x1 += rr.width;
+			b[3].x2 += rr.width;
+
+			b += 4;
+		}
 	} while (--n);
 	goto done;
 
-no_damage_zero:
-	dx += drawable->x;
-	dy += drawable->y;
-
-	do {
-		BoxRec box[4];
-
-		if (r->width <= 1 || r->height <= 1) {
-			box[0].x1 = r->x + dx;
-			box[0].y1 = r->y + dy;
-			box[0].x2 = box[0].x1 + r->width + 1;
-			box[0].y2 = box[0].y1 + r->height + 1;
-			DBG(("%s: blt (%d, %d), (%d, %d)\n",
-			     __FUNCTION__,
-			     box[0].x1, box[0].y1, box[0].x2, box[0].y2));
-			fill.box(sna, &fill, &box[0]);
-		} else {
-			box[0].x1 = r->x + dx;
-			box[0].y1 = r->y + dy;
-			box[0].x2 = box[0].x1 + r->width + 1;
-			box[0].y2 = box[0].y1 + 1;
-
-			box[1] = box[0];
-			box[1].y1 += r->height;
-			box[1].y2 += r->height;
-
-			box[2].y1 = r->y + dy + 1;
-			box[2].y2 = box[2].y1 + r->height - 1;
-			box[2].x1 = r->x + dx;
-			box[2].x2 = box[2].x1 + 1;
-
-			box[3] = box[2];
-			box[3].x1 += r->width;
-			box[3].x2 += r->width;
-
-			fill.boxes(sna, &fill, box, 4);
-		}
-		r++;
-	} while (--n);
-	goto done;
-
-maybe_damage_zero_clipped:
+zero_clipped:
 	{
 		RegionRec clip;
-		BoxRec box[4], *b, *c;
-		int count = 0, i, j;
+		const BoxRec *clip_start, *clip_end, *c;
+		BoxRec box[4];
+		int count, i;
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return true;
 
+		clip_start = RegionBoxptr(&clip);
+		clip_end = clip_start + clip.data->numRects;
 		do {
-			if (r->width <= 1 || r->height <= 1) {
-				box[0].x1 = r->x + drawable->x;
-				box[0].y1 = r->y + drawable->y;
-				box[0].x2 = box[0].x1 + r->width + 1;
-				box[0].y2 = box[0].y1 + r->height + 1;
+			xRectangle rr = *r++;
+			rr.x += drawable->x;
+			rr.y += drawable->y;
+
+			if (rr.width <= 1 || rr.height <= 1) {
+				box[0].x1 = rr.x;
+				box[0].y1 = rr.y;
+				box[0].x2 = rr.x + rr.width + 1;
+				box[0].y2 = rr.y + r->height + 1;
 				count = 1;
 			} else {
-				box[0].x1 = r->x + drawable->x;
-				box[0].y1 = r->y + drawable->y;
-				box[0].x2 = box[0].x1 + r->width + 1;
-				box[0].y2 = box[0].y1 + 1;
+				box[0].x1 = rr.x;
+				box[0].y1 = rr.y;
+				box[0].x2 = rr.x + rr.width + 1;
+				box[0].y2 = rr.y + 1;
 
 				box[1] = box[0];
-				box[1].y1 += r->height;
-				box[1].y2 += r->height;
+				box[1].y1 += rr.height;
+				box[1].y2 += rr.height;
 
-				box[2].y1 = r->y + drawable->y + 1;
-				box[2].y2 = box[2].y1 + r->height - 1;
-				box[2].x1 = r->x + drawable->x;
-				box[2].x2 = box[2].x1 + 1;
+				box[2].y1 = rr.y + 1;
+				box[2].y2 = box[2].y1 + rr.height - 1;
+				box[2].x1 = rr.x;
+				box[2].x2 = rr.x + 1;
 
 				box[3] = box[2];
-				box[3].x1 += r->width;
-				box[3].x2 += r->width;
+				box[3].x1 += rr.width;
+				box[3].x2 += rr.width;
 				count = 4;
 			}
 
-			for (i = REGION_NUM_RECTS(&clip), c = REGION_RECTS(&clip); i--; c++) {
-				for (j = count, b = box; j--; b++) {
-					BoxRec clipped = *b;
-					if (box_intersect(&clipped, c)) {
-						clipped.x1 += dx;
-						clipped.x2 += dx;
-						clipped.y1 += dy;
-						clipped.y2 += dy;
-						DBG(("%s: blt (%d, %d), (%d, %d)\n",
-						     __FUNCTION__,
-						     clipped.x1, clipped.y1, clipped.x2, clipped.y2));
-						fill.box(sna, &fill, &clipped);
-						if (damage) {
-							assert_pixmap_contains_box(pixmap, &clipped);
-							sna_damage_add_box(damage, &clipped);
+			for (i = 0; i < count; i++) {
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							box[i].y1);
+				while (c != clip_end) {
+					if (box[i].y2 <= c->y1)
+						break;
+
+					*b = box[i];
+					if (box_intersect(b, c)) {
+						b->x1 += dx;
+						b->x2 += dx;
+						b->y1 += dy;
+						b->y2 += dy;
+						if (++b == last_box) {
+							fill.boxes(sna, &fill, boxes, last_box-boxes);
+							if (damage)
+								sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+							b = boxes;
 						}
 					}
+
 				}
 			}
 			r++;
@@ -4061,78 +4015,85 @@ maybe_damage_zero_clipped:
 	}
 	goto done;
 
-maybe_damage_wide_clipped:
+wide_clipped:
 	{
 		RegionRec clip;
+		BoxRec box[4];
+		const BoxRec *clip_start, *clip_end, *c;
 		int16_t offset2 = gc->lineWidth;
 		int16_t offset1 = offset2 >> 1;
 		int16_t offset3 = offset2 - offset1;
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return true;
 
+		clip_start = RegionBoxptr(&clip);
+		clip_end = clip_start + clip.data->numRects;
 		do {
-			BoxRec box[4], *c, *b;
-			int16_t x = r->x + drawable->x;
-			int16_t y = r->y + drawable->y;
-			int16_t width = r->width;
-			int16_t height = r->height;
-			int count, i, j;
-			r++;
+			xRectangle rr = *r++;
+			int count;
+			rr.x += drawable->x;
+			rr.y += drawable->y;
 
-			if (height < offset2 || width < offset1) {
-				if (height == 0) {
-					box[0].x1 = x;
-					box[0].x2 = x + width + 1;
+			if (rr.height < offset2 || rr.width < offset1) {
+				if (rr.height == 0) {
+					box[0].x1 = rr.x;
+					box[0].x2 = rr.x + rr.width + 1;
 				} else {
-					box[0].x1 = x - offset1;
-					box[0].x2 = box[0].x1 + width + offset2;
+					box[0].x1 = rr.x - offset1;
+					box[0].x2 = box[0].x1 + rr.width + offset2;
 				}
-				if (width == 0) {
-					box[0].y1 = y;
-					box[0].y2 = y + height + 1;
+				if (rr.width == 0) {
+					box[0].y1 = rr.y;
+					box[0].y2 = rr.y + rr.height + 1;
 				} else {
-					box[0].y1 = y - offset1;
-					box[0].y2 = box[0].y1 + height + offset2;
+					box[0].y1 = rr.y - offset1;
+					box[0].y2 = box[0].y1 + rr.height + offset2;
 				}
 				count = 1;
 			} else {
-				box[0].x1 = x - offset1;
-				box[0].x2 = box[0].x1 + width + offset2;
-				box[0].y1 = y - offset1;
+				box[0].x1 = rr.x - offset1;
+				box[0].x2 = box[0].x1 + rr.width + offset2;
+				box[0].y1 = rr.y - offset1;
 				box[0].y2 = box[0].y1 + offset2;
 
-				box[1].x1 = x - offset1;
+				box[1].x1 = rr.x - offset1;
 				box[1].x2 = box[1].x1 + offset2;
-				box[1].y1 = y + offset3;
-				box[1].y2 = y + height - offset1;
+				box[1].y1 = rr.y + offset3;
+				box[1].y2 = rr.y + rr.height - offset1;
 
-				box[2].x1 = x + width - offset1;
+				box[2].x1 = rr.x + rr.width - offset1;
 				box[2].x2 = box[2].x1 + offset2;
-				box[2].y1 = y + offset3;
-				box[2].y2 = y + height - offset1;
+				box[2].y1 = rr.y + offset3;
+				box[2].y2 = rr.y + rr.height - offset1;
 
 				box[3] = box[1];
-				box[3].y1 += height;
-				box[3].y2 += height;
+				box[3].y1 += rr.height;
+				box[3].y2 += rr.height;
 				count = 4;
 			}
 
-			for (i = REGION_NUM_RECTS(&clip), c = REGION_RECTS(&clip); i--; c++) {
-				for (j = count, b = box; j--; b++) {
-					BoxRec clipped = *b;
-					if (box_intersect(&clipped, c)) {
-						clipped.x1 += dx;
-						clipped.x2 += dx;
-						clipped.y1 += dy;
-						clipped.y2 += dy;
-						DBG(("%s: blt (%d, %d), (%d, %d)\n",
-						     __FUNCTION__,
-						     clipped.x1, clipped.y1, clipped.x2, clipped.y2));
-						fill.box(sna, &fill, &clipped);
-						if (damage) {
-							assert_pixmap_contains_box(pixmap, &clipped);
-							sna_damage_add_box(damage, &clipped);
+			while (count--) {
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							box[count].y1);
+				while (c != clip_end) {
+					if (box[count].y2 <= c->y1)
+						break;
+
+					*b = box[count];
+					if (box_intersect(b, c)) {
+						b->x1 += dx;
+						b->x2 += dx;
+						b->y1 += dy;
+						b->y2 += dy;
+						if (++b == last_box) {
+							fill.boxes(sna, &fill, boxes, last_box-boxes);
+							if (damage)
+								sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+							b = boxes;
 						}
 					}
 				}
@@ -4141,7 +4102,7 @@ maybe_damage_wide_clipped:
 	}
 	goto done;
 
-no_damage_wide:
+wide:
 	{
 		int offset2 = gc->lineWidth;
 		int offset1 = offset2 >> 1;
@@ -4151,126 +4112,63 @@ no_damage_wide:
 		dy += drawable->y;
 
 		do {
-			BoxRec box[4];
-			int16_t x = r->x + dx;
-			int16_t y = r->y + dy;
-			int16_t width = r->width;
-			int16_t height = r->height;
-			r++;
+			xRectangle rr = *r++;
+			rr.x += dx;
+			rr.y += dy;
 
-			if (height < offset2 || width < offset1) {
-				if (height == 0) {
-					box[0].x1 = x;
-					box[0].x2 = x + width + 1;
-				} else {
-					box[0].x1 = x - offset1;
-					box[0].x2 = box[0].x1 + width + offset2;
-				}
-				if (width == 0) {
-					box[0].y1 = y;
-					box[0].y2 = y + height + 1;
-				} else {
-					box[0].y1 = y - offset1;
-					box[0].y2 = box[0].y1 + height + offset2;
-				}
-				fill.box(sna, &fill, &box[0]);
-			} else {
-				box[0].x1 = x - offset1;
-				box[0].x2 = box[0].x1 + width + offset2;
-				box[0].y1 = y - offset1;
-				box[0].y2 = box[0].y1 + offset2;
-
-				box[1] = box[0];
-				box[1].y1 = y + height - offset1;
-				box[1].y2 = box[1].y1 + offset2;
-
-				box[2].x1 = x - offset1;
-				box[2].x2 = box[2].x1 + offset2;
-				box[2].y1 = y + offset3;
-				box[2].y2 = y + height - offset1;
-
-				box[3] = box[2];
-				box[3].x1 = x + width - offset1;
-				box[3].x2 = box[3].x1 + offset2;
-
-				fill.boxes(sna, &fill, box, 4);
+			if (b+4 > last_box) {
+				fill.boxes(sna, &fill, boxes, last_box-boxes);
+				if (damage)
+					sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+				b = boxes;
 			}
 
-		} while (--n);
-	}
-	goto done;
-
-damage_wide:
-	{
-		int offset2 = gc->lineWidth;
-		int offset1 = offset2 >> 1;
-		int offset3 = offset2 - offset1;
-
-		dx += drawable->x;
-		dy += drawable->y;
-
-		do {
-			BoxRec box;
-			int16_t x = r->x + dx;
-			int16_t y = r->y + dy;
-			int16_t width = r->width;
-			int16_t height = r->height;
-			r++;
-
-			if (height < offset2 || width < offset1) {
-				if (height == 0) {
-					box.x1 = x;
-					box.x2 = x + width + 1;
+			if (rr.height < offset2 || rr.width < offset1) {
+				if (rr.height == 0) {
+					b->x1 = rr.x;
+					b->x2 = rr.x + rr.width + 1;
 				} else {
-					box.x1 = x - offset1;
-					box.x2 = box.x1 + width + offset2;
+					b->x1 = rr.x - offset1;
+					b->x2 = rr.x + rr.width + offset2;
 				}
-				if (width == 0) {
-					box.y1 = y;
-					box.y2 = y + height + 1;
+				if (rr.width == 0) {
+					b->y1 = rr.y;
+					b->y2 = rr.y + rr.height + 1;
 				} else {
-					box.y1 = y - offset1;
-					box.y2 = box.y1 + height + offset2;
+					b->y1 = rr.y - offset1;
+					b->y2 = rr.y + rr.height + offset2;
 				}
-				fill.box(sna, &fill, &box);
-				assert_pixmap_contains_box(pixmap, &box);
-				sna_damage_add_box(damage, &box);
+				b++;
 			} else {
-				box.x1 = x - offset1;
-				box.x2 = box.x1 + width + offset2;
-				box.y1 = y - offset1;
-				box.y2 = box.y1 + offset2;
-				fill.box(sna, &fill, &box);
-				assert_pixmap_contains_box(pixmap, &box);
-				sna_damage_add_box(damage, &box);
+				b[0].x1 = rr.x - offset1;
+				b[0].x2 = b[0].x1 + rr.width + offset2;
+				b[0].y1 = rr.y - offset1;
+				b[0].y2 = b[0].y1 + offset2;
 
-				box.x1 = x - offset1;
-				box.x2 = box.x1 + offset2;
-				box.y1 = y + offset3;
-				box.y2 = y + height - offset1;
-				fill.box(sna, &fill, &box);
-				assert_pixmap_contains_box(pixmap, &box);
-				sna_damage_add_box(damage, &box);
+				b[1] = b[0];
+				b[1].y1 = rr.y + rr.height - offset1;
+				b[1].y2 = b[1].y1 + offset2;
 
-				box.x1 = x + width - offset1;
-				box.x2 = box.x1 + offset2;
-				fill.box(sna, &fill, &box);
-				assert_pixmap_contains_box(pixmap, &box);
-				sna_damage_add_box(damage, &box);
+				b[2].x1 = rr.x - offset1;
+				b[2].x2 = b[2].x1 + offset2;
+				b[2].y1 = rr.y + offset3;
+				b[2].y2 = rr.y + rr.height - offset1;
 
-				box.x1 = x - offset1;
-				box.x2 = box.x1 + width + offset2;
-				box.y1 = y + height - offset1;
-				box.y2 = box.y1 + offset2;
-				fill.box(sna, &fill, &box);
-				assert_pixmap_contains_box(pixmap, &box);
-				sna_damage_add_box(damage, &box);
+				b[3] = b[2];
+				b[3].x1 = rr.x + rr.width - offset1;
+				b[3].x2 = b[3].x1 + offset2;
+				b += 4;
 			}
 		} while (--n);
 	}
 	goto done;
 
 done:
+	if (b != boxes) {
+		fill.boxes(sna, &fill, boxes, b-boxes);
+		if (damage)
+			sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+	}
 	fill.done(sna, &fill);
 	return TRUE;
 }
