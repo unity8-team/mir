@@ -735,12 +735,13 @@ struct radeon_accel_state {
     // UTS/DFS
     drmBufPtr         scratch;
 
-    // copy
+    // solid/copy
     ExaOffscreenArea  *copy_area;
     struct radeon_bo  *copy_area_bo;
     Bool              same_surface;
     int               rop;
     uint32_t          planemask;
+    uint32_t          fg;
 
     // composite
     Bool              component_alpha;

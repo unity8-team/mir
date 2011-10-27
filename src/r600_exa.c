@@ -132,6 +132,11 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 	accel_state->dst_size = 0;
     }
 
+#ifdef XF86DRM_MODE
+    if (info->cs && CS_FULL(info->cs))
+	radeon_cs_flush_indirect(pScrn);
+#endif
+
     accel_state->rop = rop;
     accel_state->planemask = planemask;
 
@@ -169,9 +174,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 
     return TRUE;
 }
-
-static void
-R600DoneSolid(PixmapPtr pPix);
 
 static Bool
 R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
@@ -318,33 +320,10 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (accel_state->vsync)
 	RADEONVlineHelperClear(pScrn);
 
+    accel_state->dst_pix = pPix;
+    accel_state->fg = fg;
+
     return TRUE;
-}
-
-
-static void
-R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-    float *vb;
-
-    if (accel_state->vsync)
-	RADEONVlineHelperSet(pScrn, x1, y1, x2, y2);
-
-    vb = radeon_vbo_space(pScrn, &accel_state->vbo, 8);
-
-    vb[0] = (float)x1;
-    vb[1] = (float)y1;
-
-    vb[2] = (float)x1;
-    vb[3] = (float)y2;
-
-    vb[4] = (float)x2;
-    vb[5] = (float)y2;
-
-    radeon_vbo_commit(pScrn, &accel_state->vbo);
 }
 
 static void
@@ -361,6 +340,42 @@ R600DoneSolid(PixmapPtr pPix)
 				accel_state->vline_y2);
 
     r600_finish_op(pScrn, 8);
+}
+
+static void
+R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+    float *vb;
+
+#ifdef XF86DRM_MODE
+    if (info->cs && CS_FULL(info->cs)) {
+	R600DoneSolid(info->accel_state->dst_pix);
+	radeon_cs_flush_indirect(pScrn);
+	R600PrepareSolid(accel_state->dst_pix,
+			 accel_state->rop,
+			 accel_state->planemask,
+			 accel_state->fg);
+    }
+#endif
+
+    if (accel_state->vsync)
+	RADEONVlineHelperSet(pScrn, x1, y1, x2, y2);
+
+    vb = radeon_vbo_space(pScrn, &accel_state->vbo, 8);
+
+    vb[0] = (float)x1;
+    vb[1] = (float)y1;
+
+    vb[2] = (float)x1;
+    vb[3] = (float)y2;
+
+    vb[4] = (float)x2;
+    vb[5] = (float)y2;
+
+    radeon_vbo_commit(pScrn, &accel_state->vbo);
 }
 
 static void
@@ -653,7 +668,30 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     if (accel_state->vsync)
 	RADEONVlineHelperClear(pScrn);
 
+    accel_state->dst_pix = pDst;
+    accel_state->src_pix = pSrc;
+    accel_state->xdir = xdir;
+    accel_state->ydir = ydir;
+
     return TRUE;
+}
+
+static void
+R600DoneCopy(PixmapPtr pDst)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+
+    if (!accel_state->same_surface)
+	R600DoCopyVline(pDst);
+
+    if (accel_state->copy_area) {
+	if (!info->cs)
+	    exaOffscreenFree(pDst->drawable.pScreen, accel_state->copy_area);
+	accel_state->copy_area = NULL;
+    }
+
 }
 
 static void
@@ -668,6 +706,19 @@ R600Copy(PixmapPtr pDst,
 
     if (accel_state->same_surface && (srcX == dstX) && (srcY == dstY))
 	return;
+
+#ifdef XF86DRM_MODE
+    if (info->cs && CS_FULL(info->cs)) {
+	R600DoneCopy(info->accel_state->dst_pix);
+	radeon_cs_flush_indirect(pScrn);
+	R600PrepareCopy(accel_state->src_pix,
+			accel_state->dst_pix,
+			accel_state->xdir,
+			accel_state->ydir,
+			accel_state->rop,
+			accel_state->planemask);
+    }
+#endif
 
     if (accel_state->vsync)
 	RADEONVlineHelperSet(pScrn, dstX, dstY, dstX + w, dstY + h);
@@ -720,24 +771,6 @@ R600Copy(PixmapPtr pDst,
 	accel_state->src_obj[0].tiling_flags = orig_src_tiling_flags;
     } else
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
-
-}
-
-static void
-R600DoneCopy(PixmapPtr pDst)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-
-    if (!accel_state->same_surface)
-	R600DoCopyVline(pDst);
-
-    if (accel_state->copy_area) {
-	if (!info->cs)
-	    exaOffscreenFree(pDst->drawable.pScreen, accel_state->copy_area);
-	accel_state->copy_area = NULL;
-    }
 
 }
 
@@ -1452,7 +1485,32 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     if (accel_state->vsync)
 	RADEONVlineHelperClear(pScrn);
 
+    accel_state->composite_op = op;
+    accel_state->dst_pic = pDstPicture;
+    accel_state->src_pic = pSrcPicture;
+    accel_state->dst_pix = pDst;
+    accel_state->msk_pix = pMask;
+    accel_state->src_pix = pSrc;
+
     return TRUE;
+}
+
+static void R600DoneComposite(PixmapPtr pDst)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+    int vtx_size;
+
+    if (accel_state->vsync)
+       r600_cp_wait_vline_sync(pScrn, accel_state->ib, pDst,
+			       accel_state->vline_crtc,
+			       accel_state->vline_y1,
+			       accel_state->vline_y2);
+
+    vtx_size = accel_state->msk_pic ? 24 : 16;
+
+    r600_finish_op(pScrn, vtx_size);
 }
 
 static void R600Composite(PixmapPtr pDst,
@@ -1468,6 +1526,20 @@ static void R600Composite(PixmapPtr pDst,
 
     /* ErrorF("R600Composite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
+
+#ifdef XF86DRM_MODE
+    if (info->cs && CS_FULL(info->cs)) {
+	R600DoneComposite(info->accel_state->dst_pix);
+	radeon_cs_flush_indirect(pScrn);
+	R600PrepareComposite(info->accel_state->composite_op,
+			     info->accel_state->src_pic,
+			     info->accel_state->msk_pic,
+			     info->accel_state->dst_pic,
+			     info->accel_state->src_pix,
+			     info->accel_state->msk_pix,
+			     info->accel_state->dst_pix);
+    }
+#endif
 
     if (accel_state->vsync)
 	RADEONVlineHelperSet(pScrn, dstX, dstY, dstX + w, dstY + h);
@@ -1522,24 +1594,6 @@ static void R600Composite(PixmapPtr pDst,
     }
 
 
-}
-
-static void R600DoneComposite(PixmapPtr pDst)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-    int vtx_size;
-
-    if (accel_state->vsync)
-       r600_cp_wait_vline_sync(pScrn, accel_state->ib, pDst,
-			       accel_state->vline_crtc,
-			       accel_state->vline_y1,
-			       accel_state->vline_y2);
-
-    vtx_size = accel_state->msk_pic ? 24 : 16;
-
-    r600_finish_op(pScrn, vtx_size);
 }
 
 Bool
