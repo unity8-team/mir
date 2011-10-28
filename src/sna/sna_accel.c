@@ -4683,13 +4683,18 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	if (USE_SPANS && arc_to_spans(gc, n) && can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents)) {
 		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
-		miPolyArc(drawable, gc, n, arc);
+		/* XXX still around 10x slower for x11perf -ellipse */
+		if (gc->lineWidth == 0)
+			miZeroPolyArc(drawable, gc, n, arc);
+		else
+			miPolyArc(drawable, gc, n, arc);
 		return;
 	}
 
 fallback:
 	DBG(("%s -- fallback\n", __FUNCTION__));
 	if (gc->lineWidth) {
+		DBG(("%s -- miPolyArc\n", __FUNCTION__));
 		miPolyArc(drawable, gc, n, arc);
 		return;
 	}
