@@ -4765,17 +4765,41 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 		dy += drawable->y;
 
 		sna_damage_add_rectangles(damage, rect, n, dx, dy);
-		do {
-			b->x1 = rect->x + dx;
-			b->y1 = rect->y + dy;
-			b->x2 = b->x1 + rect->width;
-			b->y2 = b->y1 + rect->height;
-			rect++;
-			if (++b == last_box) {
-				fill.boxes(sna, &fill, boxes, last_box-boxes);
+		if (dx|dy) {
+			do {
+				int nbox = n;
+				if (nbox > ARRAY_SIZE(boxes))
+					nbox = ARRAY_SIZE(boxes);
+				n -= nbox;
+				do {
+					b->x1 = rect->x + dx;
+					b->y1 = rect->y + dy;
+					b->x2 = b->x1 + rect->width;
+					b->y2 = b->y1 + rect->height;
+					b++;
+					rect++;
+				} while (--nbox);
+				fill.boxes(sna, &fill, boxes, b-boxes);
 				b = boxes;
-			}
-		} while (--n);
+			} while (n);
+		} else {
+			do {
+				int nbox = n;
+				if (nbox > ARRAY_SIZE(boxes))
+					nbox = ARRAY_SIZE(boxes);
+				n -= nbox;
+				do {
+					b->x1 = rect->x;
+					b->y1 = rect->y;
+					b->x2 = b->x1 + rect->width;
+					b->y2 = b->y1 + rect->height;
+					b++;
+					rect++;
+				} while (--nbox);
+				fill.boxes(sna, &fill, boxes, b-boxes);
+				b = boxes;
+			} while (n);
+		}
 	} else {
 		RegionRec clip;
 
