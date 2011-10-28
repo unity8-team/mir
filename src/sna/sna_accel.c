@@ -3332,51 +3332,95 @@ sna_poly_segment_blt(DrawablePtr drawable,
 	if (!clipped) {
 		dx += drawable->x;
 		dy += drawable->y;
-		do {
-			int x, y, width, height;
+		if (dx|dy) {
+			do {
+				int nbox = n;
+				if (nbox > ARRAY_SIZE(boxes))
+					nbox = ARRAY_SIZE(boxes);
+				n -= nbox;
+				do {
+					if (seg->x1 < seg->x2) {
+						b->x1 = seg->x1;
+						b->x2 = seg->x2;
+					} else {
+						b->x1 = seg->x2;
+						b->x2 = seg->x1;
+					}
+					b->x2++;
 
-			if (seg->x1 < seg->x2) {
-				x = seg->x1;
-				width = seg->x2;
-			} else {
-				x = seg->x2;
-				width = seg->x1;
-			}
-			width -= x - 1;
+					if (seg->y1 < seg->y2) {
+						b->y1 = seg->y1;
+						b->y2 = seg->y2;
+					} else {
+						b->y1 = seg->y2;
+						b->y2 = seg->y1;
+					}
+					b->y2++;
 
-			if (seg->y1 < seg->y2) {
-				y = seg->y1;
-				height = seg->y2;
-			} else {
-				y = seg->y2;
-				height = seg->y1;
-			}
-			height -= y - 1;
+					/* don't paint last pixel */
+					if (gc->capStyle == CapNotLast) {
+						if (seg->x1 == seg->x2)
+							b->y2--;
+						else
+							b->x2--;
+					}
 
-			/* don't paint last pixel */
-			if (gc->capStyle == CapNotLast) {
-				if (width == 1)
-					height--;
-				else
-					width--;
-			}
+					b->x1 += dx;
+					b->x2 += dx;
+					b->y1 += dy;
+					b->y2 += dy;
+					b++;
+					seg++;
+				} while (--nbox);
 
-			DBG(("%s: [%d] (%d, %d)x(%d, %d) + (%d, %d)\n", __FUNCTION__, n,
-			     x, y, width, height, dx, dy));
-
-			b->x1 = x + dx;
-			b->x2 = b->x1 + width;
-			b->y1 = y + dy;
-			b->y2 = b->y1 + height;
-			if (++b == last_box) {
-				fill.boxes(sna, &fill, boxes, last_box-boxes);
+				fill.boxes(sna, &fill, boxes, b-boxes);
 				if (damage)
-					sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
+					sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
 				b = boxes;
-			}
+			} while (n);
+		} else {
+			do {
+				int nbox = n;
+				if (nbox > ARRAY_SIZE(boxes))
+					nbox = ARRAY_SIZE(boxes);
+				n -= nbox;
+				do {
+					if (seg->x1 < seg->x2) {
+						b->x1 = seg->x1;
+						b->x2 = seg->x2;
+					} else {
+						b->x1 = seg->x2;
+						b->x2 = seg->x1;
+					}
+					b->x2++;
 
-			seg++;
-		} while (--n);
+					if (seg->y1 < seg->y2) {
+						b->y1 = seg->y1;
+						b->y2 = seg->y2;
+					} else {
+						b->y1 = seg->y2;
+						b->y2 = seg->y1;
+					}
+					b->y2++;
+
+					/* don't paint last pixel */
+					if (gc->capStyle == CapNotLast) {
+						if (seg->x1 == seg->x2)
+							b->y2--;
+						else
+							b->x2--;
+					}
+
+					b++;
+					seg++;
+				} while (--nbox);
+
+				fill.boxes(sna, &fill, boxes, b-boxes);
+				if (damage)
+					sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+				b = boxes;
+			} while (n);
+		}
 	} else {
 		RegionRec clip;
 
