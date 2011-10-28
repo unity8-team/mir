@@ -2182,8 +2182,12 @@ reduce_damage(DrawablePtr drawable,
 		return damage;
 }
 
-static void
-sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect);
+static Bool
+sna_poly_fill_rect_tiled(DrawablePtr drawable,
+			 struct kgem_bo *bo,
+			 struct sna_damage **damage,
+			 GCPtr gc, int n, xRectangle *rect,
+			 const BoxRec *extents, unsigned clipped);
 
 static bool
 can_fill_spans(DrawablePtr drawable, GCPtr gc)
@@ -2253,26 +2257,36 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				       &region.extents, flags & 2))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
-		xRectangle *rect;
-		int i;
-
 		/* Try converting these to a set of rectangles instead */
-		DBG(("%s: converting to rectagnles\n", __FUNCTION__));
 
-		rect = malloc (n * sizeof (xRectangle));
-		if (rect == NULL)
-			return;
+		if (sna_drawable_use_gpu_bo(drawable, &region.extents)) {
+			struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+			xRectangle *rect;
+			int i;
 
-		for (i = 0; i < n; i++) {
-			rect[i].x = pt[i].x;
-			rect[i].width = width[i];
-			rect[i].y = pt[i].y;
-			rect[i].height = 1;
+			DBG(("%s: converting to rectagnles\n", __FUNCTION__));
+
+			rect = malloc (n * sizeof (xRectangle));
+			if (rect == NULL)
+				return;
+
+			for (i = 0; i < n; i++) {
+				rect[i].x = pt[i].x;
+				rect[i].width = width[i];
+				rect[i].y = pt[i].y;
+				rect[i].height = 1;
+			}
+
+			i = sna_poly_fill_rect_tiled(drawable,
+						     priv->gpu_bo,
+						     priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+						     gc, n, rect,
+						     &region.extents, flags & 2);
+			free (rect);
+
+			if (i)
+				return;
 		}
-
-		sna_poly_fill_rect(drawable, gc, n, rect);
-		free (rect);
-		return;
 	}
 
 fallback:
