@@ -2058,7 +2058,8 @@ gen4_render_composite(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
+	if ((tmp->src.bo != tmp->dst.bo && kgem_bo_is_dirty(tmp->src.bo)) ||
+	    (tmp->mask.bo && tmp->mask.bo != tmp->dst.bo && kgem_bo_is_dirty(tmp->mask.bo)))
 		kgem_emit_flush(&sna->kgem);
 
 	gen4_bind_surfaces(sna, tmp);
