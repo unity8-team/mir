@@ -1837,24 +1837,38 @@ no_damage_translate:
 	dx += drawable->x;
 	dy += drawable->y;
 no_damage:
-	{
-		unsigned offset = dx|dy;
+	if (dx|dy) {
 		do {
-			*(DDXPointRec *)b = *pt++;
-			if (offset) {
+			int nbox = n;
+			if (nbox > last_box - box)
+				nbox = last_box - box;
+			n -= nbox;
+			do {
+				*(DDXPointRec *)b = *pt++;
 				b->x1 += dx;
 				b->y1 += dy;
-			}
-			b->x2 = b->x1 + (int)*width++;
-			b->y2 = b->y1 + 1;
-
-			if (++b == last_box) {
-				fill.boxes(sna, &fill, box, last_box - box);
-				b = box;
-			}
-		} while (--n);
-		if (b != box)
+				b->x2 = b->x1 + (int)*width++;
+				b->y2 = b->y1 + 1;
+				b++;
+			} while (--nbox);
 			fill.boxes(sna, &fill, box, b - box);
+			b = box;
+		} while (n);
+	} else {
+		do {
+			int nbox = n;
+			if (nbox > last_box - box)
+				nbox = last_box - box;
+			n -= nbox;
+			do {
+				*(DDXPointRec *)b = *pt++;
+				b->x2 = b->x1 + (int)*width++;
+				b->y2 = b->y1 + 1;
+				b++;
+			} while (--nbox);
+			fill.boxes(sna, &fill, box, b - box);
+			b = box;
+		} while (n);
 	}
 	goto done;
 
@@ -2192,9 +2206,8 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	RegionRec region;
 	unsigned flags;
 
-	DBG(("%s(n=%d, pt[0]=(%d, %d)\n",
-	     __FUNCTION__, n, pt[0].x, pt[0].y));
-
+	DBG(("%s(n=%d, pt[0]=(%d, %d)+%d, sorted=%d\n",
+	     __FUNCTION__, n, pt[0].x, pt[0].y, width[0], sorted));
 
 	flags = sna_spans_extents(drawable, gc, n, pt, width, &region.extents);
 	if (flags == 0)
