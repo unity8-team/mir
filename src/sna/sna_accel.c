@@ -2387,26 +2387,25 @@ sna_poly_point_blt(DrawablePtr drawable,
 
 		sna_damage_add_points(damage, pt, n, last.x, last.y);
 		do {
-			b->x1 = pt->x;
-			b->y1 = pt->y;
-			pt++;
+			int nbox = n;
+			if (nbox > ARRAY_SIZE(box))
+				nbox = ARRAY_SIZE(box);
+			n -= nbox;
+			do {
+				*(DDXPointRec *)b = *pt++;
 
-			b->x1 += last.x;
-			b->y1 += last.y;
-			if (mode == CoordModePrevious) {
-				last.x = b->x1;
-				last.y = b->y1;
-			}
+				b->x1 += last.x;
+				b->y1 += last.y;
+				if (mode == CoordModePrevious)
+					last = *(DDXPointRec *)b;
 
-			b->x2 = b->x1 + 1;
-			b->y2 = b->y1 + 1;
-			if (++b == last_box) {
-				fill.boxes(sna, &fill, box, last_box - box);
-				b = box;
-			}
-		} while (--n);
-		if (b != box)
+				b->x2 = b->x1 + 1;
+				b->y2 = b->y1 + 1;
+				b++;
+			} while (--nbox);
 			fill.boxes(sna, &fill, box, b - box);
+			b = box;
+		} while (n);
 	} else {
 		while (n--) {
 			int x, y;
@@ -4846,9 +4845,9 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 		}
 
 		RegionUninit(&clip);
+		if (b != boxes)
+			fill.boxes(sna, &fill, boxes, b-boxes);
 	}
-	if (b != boxes)
-		fill.boxes(sna, &fill, boxes, b-boxes);
 done:
 	fill.done(sna, &fill);
 	return TRUE;
