@@ -1270,6 +1270,13 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
 	if (bo)
 		return kgem_bo_reference(bo);
 
+	if (!list_is_empty(&kgem->requests)) {
+		kgem_retire(kgem);
+		bo = search_linear_cache(kgem, size, false);
+		if (bo)
+			return kgem_bo_reference(bo);
+	}
+
 	handle = gem_create(kgem->fd, size);
 	if (handle == 0)
 		return NULL;
@@ -1539,6 +1546,12 @@ next_bo:
 		list_del(&bo->request);
 		free(bo);
 		continue;
+	}
+
+	if (flags & CREATE_INACTIVE && !list_is_empty(&kgem->requests)) {
+		kgem_retire(kgem);
+		flags &= ~CREATE_INACTIVE;
+		goto skip_active_search;
 	}
 
 	handle = gem_create(kgem->fd, size);
