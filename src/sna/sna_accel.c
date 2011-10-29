@@ -1909,6 +1909,9 @@ no_damage_clipped_translate:
 no_damage_clipped:
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return TRUE;
+
 		assert(clip.extents.x1 >= 0);
 		assert(clip.extents.y1 >= 0);
 		assert(clip.extents.x2 <= pixmap->drawable.width);
@@ -2017,6 +2020,9 @@ damage_clipped_translate:
 damage_clipped:
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return TRUE;
+
 		assert(clip.extents.x1 >= 0);
 		assert(clip.extents.y1 >= 0);
 		assert(clip.extents.x2 <= pixmap->drawable.width);
@@ -2353,6 +2359,8 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	region.extents.y2 = region.extents.y1 + h;
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&region))
+		return NULL;
 
 	sna_drawable_move_region_to_cpu(dst, &region, true);
 	RegionTranslate(&region,
@@ -2580,8 +2588,11 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
 	region_set(&clip, extents);
-	if (clipped)
+	if (clipped) {
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return TRUE;
+	}
 
 	jump = _jump[(damage != NULL) | !!(dx|dy) << 1];
 	DBG(("%s: [clipped] extents=(%d, %d), (%d, %d), delta=(%d, %d)\n",
@@ -2608,10 +2619,10 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 		y2 = ystart;
 		oc2 = 0;
 		MIOUTCODES(oc2, x2, y2,
-			   clip.extents.x1,
-			   clip.extents.y1,
-			   clip.extents.x2,
-			   clip.extents.y2);
+			   extents->x1,
+			   extents->y1,
+			   extents->x2,
+			   extents->y2);
 
 		while (--n) {
 			int16_t sdx, sdy;
@@ -2643,10 +2654,10 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 
 			oc2 = 0;
 			MIOUTCODES(oc2, x2, y2,
-				   clip.extents.x1,
-				   clip.extents.y1,
-				   clip.extents.x2,
-				   clip.extents.y2);
+				   extents->x1,
+				   extents->y1,
+				   extents->x2,
+				   extents->y2);
 			if (oc1 & oc2)
 				continue;
 
@@ -2698,8 +2709,8 @@ rectangle_continue:
 					int x2_clipped = x2, y2_clipped = y2;
 					int pt1_clipped;
 
-					if (miZeroClipLine(clip.extents.x1, clip.extents.y1,
-							   clip.extents.x2, clip.extents.y2,
+					if (miZeroClipLine(extents->x1, extents->y1,
+							   extents->x2, extents->y2,
 							   &x, &y, &x2_clipped, &y2_clipped,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
@@ -2785,10 +2796,8 @@ X_continue2:
 					int x2_clipped = x2, y2_clipped = y2;
 					int pt1_clipped;
 
-					if (miZeroClipLine(clip.extents.x1,
-							   clip.extents.y1,
-							   clip.extents.x2,
-							   clip.extents.y2,
+					if (miZeroClipLine(extents->x1, extents->y1,
+							   extents->x2, extents->y2,
 							   &x, &y, &x2_clipped, &y2_clipped,
 							   adx, ady,
 							   &pt1_clipped, &pt2_clipped,
@@ -3008,6 +3017,8 @@ sna_poly_line_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return TRUE;
 
 		last.x = pt->x + drawable->x;
 		last.y = pt->y + drawable->y;
@@ -3434,7 +3445,6 @@ sna_poly_segment_blt(DrawablePtr drawable,
 
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
-
 		if (!RegionNotEmpty(&clip))
 			goto done;
 
@@ -3602,8 +3612,11 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
 	region_set(&clip, extents);
-	if (clipped)
+	if (clipped) {
 		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return TRUE;
+	}
 	DBG(("%s: [clipped] extents=(%d, %d), (%d, %d), delta=(%d, %d)\n",
 	     __FUNCTION__,
 	     clip.extents.x1, clip.extents.y1,
