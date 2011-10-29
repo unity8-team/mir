@@ -3634,14 +3634,6 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 	if (dst_bo->tiling == I915_TILING_Y)
 		return FALSE;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     format))
-		return FALSE;
-
 	if (color->alpha >= 0xff00) {
 		if (op == PictOpOver)
 			op = PictOpSrc;
@@ -3652,14 +3644,22 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 			op = PictOpSrc;
 	}
 
+	pixel = 0;
 	if (op == PictOpClear) {
 		alu = GXclear;
-		pixel = 0;
-		op = PictOpSrc;
-	}
-
-	if (op != PictOpSrc)
+	} else if (op == PictOpSrc) {
+		if (color->alpha <= 0x00ff)
+			alu = GXclear;
+		else if (!sna_get_pixel_from_rgba(&pixel,
+						    color->red,
+						    color->green,
+						    color->blue,
+						    color->alpha,
+						    format))
+			return FALSE;
+	} else
 		return FALSE;
+
 
 	return sna_blt_fill_boxes(sna, alu,
 				  dst_bo, dst->drawable.bitsPerPixel,

@@ -2598,16 +2598,21 @@ gen6_render_fill_boxes(struct sna *sna,
 		if (op == PictOpClear || (op == PictOpOutReverse && color->alpha >= 0xff00))
 			alu = GXclear;
 
-		if (op == PictOpSrc || (op == PictOpOver && color->alpha >= 0xff00))
+		if (op == PictOpSrc || (op == PictOpOver && color->alpha >= 0xff00)) {
 			alu = GXcopy;
+			if (color->alpha <= 0x00ff)
+				alu = GXclear;
+		}
 
-		if (alu != -1 &&
-		    sna_get_pixel_from_rgba(&pixel,
-					    color->red,
-					    color->green,
-					    color->blue,
-					    color->alpha,
-					    format) &&
+		pixel = 0;
+		if ((alu == GXclear ||
+		     (alu == GXcopy &&
+		      sna_get_pixel_from_rgba(&pixel,
+					      color->red,
+					      color->green,
+					      color->blue,
+					      color->alpha,
+					      format))) &&
 		    sna_blt_fill_boxes(sna, alu,
 				       dst_bo, dst->drawable.bitsPerPixel,
 				       pixel, box, n))

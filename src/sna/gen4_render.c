@@ -2416,24 +2416,26 @@ gen4_render_fill_boxes(struct sna *sna,
 	    dst->drawable.width > 8192 ||
 	    dst->drawable.height > 8192 ||
 	    !gen4_check_dst_format(format)) {
-		uint8_t alu = GXcopy;
+		uint8_t alu = -1;
 
-		if (op == PictOpClear) {
+		if (op == PictOpClear || (op == PictOpOutReverse && color->alpha >= 0xff00))
 			alu = GXclear;
-			pixel = 0;
-			op = PictOpSrc;
+
+		if (op == PictOpSrc || (op == PictOpOver && color->alpha >= 0xff00)) {
+			alu = GXcopy;
+			if (color->alpha <= 0x00ff)
+				alu = GXclear;
 		}
 
-		if (op == PictOpOver && color->alpha >= 0xff00)
-			op = PictOpSrc;
-
-		if (op == PictOpSrc &&
-		    sna_get_pixel_from_rgba(&pixel,
-					    color->red,
-					    color->green,
-					    color->blue,
-					    color->alpha,
-					    format) &&
+		pixel = 0;
+		if ((alu == GXclear ||
+		     (alu == GXcopy &&
+		      sna_get_pixel_from_rgba(&pixel,
+					      color->red,
+					      color->green,
+					      color->blue,
+					      color->alpha,
+					      format))) &&
 		    sna_blt_fill_boxes(sna, alu,
 				       dst_bo, dst->drawable.bitsPerPixel,
 				       pixel, box, n))
