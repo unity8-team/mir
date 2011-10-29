@@ -4182,7 +4182,7 @@ sna_poly_rectangle_blt(DrawablePtr drawable,
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
 	v = !!clipped;
-	v |= (gc->lineWidth != 0) << 1;
+	v |= (gc->lineWidth <= 1) << 1;
 	goto *jump[v];
 
 zero:
@@ -4201,7 +4201,7 @@ zero:
 			b = boxes;
 		}
 
-		if (rr.width <= 1 || rr.height <= 1) {
+		if (rr.width <= 2 || rr.height <= 2) {
 			b->x1 = rr.x;
 			b->y1 = rr.y;
 			b->x2 = rr.x + rr.width + 1;
@@ -4254,11 +4254,11 @@ zero_clipped:
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
-				if (rr.width <= 1 || rr.height <= 1) {
+				if (rr.width <= 2 || rr.height <= 2) {
 					box[0].x1 = rr.x;
 					box[0].y1 = rr.y;
 					box[0].x2 = rr.x + rr.width + 1;
-					box[0].y2 = rr.y + r->height + 1;
+					box[0].y2 = rr.y + rr.height + 1;
 					count = 1;
 				} else {
 					box[0].x1 = rr.x;
@@ -4312,11 +4312,11 @@ zero_clipped:
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
-				if (rr.width <= 1 || rr.height <= 1) {
+				if (rr.width <= 2 || rr.height <= 2) {
 					box[0].x1 = rr.x;
 					box[0].y1 = rr.y;
 					box[0].x2 = rr.x + rr.width + 1;
-					box[0].y2 = rr.y + r->height + 1;
+					box[0].y2 = rr.y + rr.height + 1;
 					count = 1;
 				} else {
 					box[0].x1 = rr.x;
@@ -4383,7 +4383,7 @@ wide_clipped:
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
-				if (rr.height < offset2 || rr.width < offset1) {
+				if (rr.height <= offset2 || rr.width <= offset2) {
 					if (rr.height == 0) {
 						box[0].x1 = rr.x;
 						box[0].x2 = rr.x + rr.width + 1;
@@ -4452,7 +4452,7 @@ wide_clipped:
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
-				if (rr.height < offset2 || rr.width < offset1) {
+				if (rr.height <= offset2 || rr.width <= offset2) {
 					if (rr.height == 0) {
 						box[0].x1 = rr.x;
 						box[0].x2 = rr.x + rr.width + 1;
@@ -4531,7 +4531,7 @@ wide:
 				b = boxes;
 			}
 
-			if (rr.height < offset2 || rr.width < offset1) {
+			if (rr.height <= offset2 || rr.width <= offset2) {
 				if (rr.height == 0) {
 					b->x1 = rr.x;
 					b->x2 = rr.x + rr.width + 1;
