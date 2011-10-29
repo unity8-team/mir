@@ -3738,9 +3738,13 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.dst.bo = dst_bo;
 	tmp.floats_per_vertex = 2;
 	tmp.floats_per_rect = 6;
+	tmp.rb_reversed = 0;
 
 	tmp.src.u.gen3.type = op == PictOpClear ? SHADER_ZERO : SHADER_CONSTANT;
 	tmp.src.u.gen3.mode = pixel;
+	tmp.src.is_affine = 0;
+	tmp.src.alpha_fixup = 0;
+	tmp.src.rb_reversed = 0;
 	tmp.mask.u.gen3.type = SHADER_NONE;
 	tmp.u.gen3.num_constants = 0;
 
@@ -3891,10 +3895,14 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.floats_per_rect = 6;
 	tmp->base.need_magic_ca_pass = 0;
 	tmp->base.has_component_alpha = 0;
+	tmp->base.rb_reversed = 0;
 
 	tmp->base.src.u.gen3.type = SHADER_CONSTANT;
 	tmp->base.src.u.gen3.mode =
 		sna_rgba_for_color(color, dst->drawable.depth);
+	tmp->base.src.is_affine = 0;
+	tmp->base.src.alpha_fixup = 0;
+	tmp->base.src.rb_reversed = 0;
 	tmp->base.mask.u.gen3.type = SHADER_NONE;
 	tmp->base.u.gen3.num_constants = 0;
 
@@ -3967,6 +3975,9 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.dst.bo = bo;
 	tmp.floats_per_vertex = 2;
 	tmp.floats_per_rect = 6;
+	tmp.need_magic_ca_pass = 0;
+	tmp.has_component_alpha = 0;
+	tmp.rb_reversed = 0;
 
 	color = sna_rgba_for_color(color, dst->drawable.depth);
 	if (color == 0)
@@ -3978,6 +3989,9 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	else
 		tmp.src.u.gen3.type = SHADER_CONSTANT;
 	tmp.src.u.gen3.mode = color;
+	tmp.src.is_affine = 0;
+	tmp.src.alpha_fixup = 0;
+	tmp.src.rb_reversed = 0;
 	tmp.mask.u.gen3.type = SHADER_NONE;
 	tmp.u.gen3.num_constants = 0;
 
