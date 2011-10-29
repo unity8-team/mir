@@ -1968,10 +1968,12 @@ no_damage_clipped:
 					if (y + 1 <= c->y1)
 						break;
 
-					if (X2 <= c->x1)
-						continue;
 					if (X1 >= c->x2)
 						break;
+					if (X2 <= c->x1) {
+						c++;
+						continue;
+					}
 
 					b->x1 = c->x1;
 					b->x2 = c->x2;
@@ -1981,6 +1983,8 @@ no_damage_clipped:
 						b->x1 = X1;
 					if (b->x2 > X2)
 						b->x2 = X2;
+					if (b->x2 <= b->x1)
+						continue;
 
 					b->x1 += dx;
 					b->x2 += dx;
@@ -2073,10 +2077,12 @@ damage_clipped:
 					if (y + 1 <= c->y1)
 						break;
 
-					if (X2 <= c->x1)
-						continue;
 					if (X1 >= c->x2)
 						break;
+					if (X2 <= c->x1) {
+						c++;
+						continue;
+					}
 
 					b->x1 = c->x1;
 					b->x2 = c->x2;
@@ -2086,6 +2092,8 @@ damage_clipped:
 						b->x1 = X1;
 					if (b->x2 > X2)
 						b->x2 = X2;
+					if (b->x2 <= b->x1)
+						continue;
 
 					b->x1 += dx;
 					b->x2 += dx;
