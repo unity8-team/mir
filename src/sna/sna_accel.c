@@ -5375,8 +5375,8 @@ static uint8_t blt_depth(int depth)
 
 static bool
 sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
-	      int x, int y, unsigned int n,
-	      CharInfoPtr *info, pointer base,
+	      int _x, int _y, unsigned int _n,
+	      CharInfoPtr *_info, pointer _base,
 	      bool transparent,
 	      const BoxRec *extents)
 {
@@ -5384,6 +5384,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	struct sna_damage **damage;
+	const BoxRec *last_extents;
 	uint32_t *b;
 	int16_t dx, dy;
 
@@ -5419,25 +5420,16 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	if (!RegionNotEmpty(&clip))
 		return true;
 
-	/* XXX loop over clips using SETUP_CLIP? */
-	if (clip.data != NULL) {
-		DBG(("%s -- fallback too many clip rects [%d]\n",
-		     __FUNCTION__, REGION_NUM_RECTS(&clip)));
-		RegionUninit(&clip);
-		return false;
-	}
-
 	damage = priv->gpu_only ? NULL :
 		reduce_damage(drawable, &priv->gpu_damage, extents),
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	x += drawable->x + dx;
-	y += drawable->y + dy;
+	_x += drawable->x + dx;
+	_y += drawable->y + dy;
 
-	clip.extents.x1 += dx;
-	clip.extents.x2 += dx;
-	clip.extents.y1 += dy;
-	clip.extents.y2 += dy;
+	RegionTranslate(&clip, dx, dy);
+	extents = REGION_RECTS(&clip);
+	last_extents = extents + REGION_NUM_RECTS(&clip);
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
@@ -5455,8 +5447,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		b[1] >>= 2;
 	}
 	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
-	b[2] = clip.extents.y1 << 16 | clip.extents.x1;
-	b[3] = clip.extents.y2 << 16 | clip.extents.x2;
+	b[2] = extents->y1 << 16 | extents->x1;
+	b[3] = extents->y2 << 16 | extents->x2;
 	b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
 			      priv->gpu_bo,
 			      I915_GEM_DOMAIN_RENDER << 16 |
@@ -5468,87 +5460,110 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	b[7] = 0;
 	sna->kgem.nbatch += 8;
 
-	while (n--) {
-		CharInfoPtr c = *info++;
-		uint8_t *glyph = FONTGLYPHBITS(base, c);
-		int w = GLYPHWIDTHPIXELS(c);
-		int h = GLYPHHEIGHTPIXELS(c);
-		int stride = GLYPHWIDTHBYTESPADDED(c);
-		int w8 = (w + 7) >> 3;
-		int x1, y1, len, i;
-		uint8_t *byte;
+	do {
+		CharInfoPtr *info = _info;
+		int x = _x, y = _y, n = _n;
 
-		if (w == 0 || h == 0)
-			goto skip;
+		do {
+			CharInfoPtr c = *info++;
+			uint8_t *glyph = FONTGLYPHBITS(base, c);
+			int w = GLYPHWIDTHPIXELS(c);
+			int h = GLYPHHEIGHTPIXELS(c);
+			int stride = GLYPHWIDTHBYTESPADDED(c);
+			int w8 = (w + 7) >> 3;
+			int x1, y1, len, i;
+			uint8_t *byte;
 
-		len = (w8 * h + 7) >> 3 << 1;
-		DBG(("%s glyph: (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
-		     x,y, w, w8, h, len));
+			if (w == 0 || h == 0)
+				goto skip;
 
-		x1 = x + c->metrics.leftSideBearing;
-		y1 = y - c->metrics.ascent;
+			len = (w8 * h + 7) >> 3 << 1;
+			DBG(("%s glyph: (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
+			     x,y, w, w8, h, len));
 
-		if (!kgem_check_batch(&sna->kgem, 3+len)) {
-			_kgem_submit(&sna->kgem);
-			_kgem_set_mode(&sna->kgem, KGEM_BLT);
+			x1 = x + c->metrics.leftSideBearing;
+			y1 = y - c->metrics.ascent;
+
+			if (x1 >= extents->x2 || y1 >= extents->y2)
+				goto skip;
+			if (x1 + w <= extents->x1 || y1 + h <= extents->y1)
+				goto skip;
+
+			if (!kgem_check_batch(&sna->kgem, 3+len)) {
+				_kgem_submit(&sna->kgem);
+				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+				b = sna->kgem.batch + sna->kgem.nbatch;
+				b[0] = XY_SETUP_BLT | 1 << 20;
+				b[1] = priv->gpu_bo->pitch;
+				if (sna->kgem.gen >= 40) {
+					if (priv->gpu_bo->tiling)
+						b[0] |= 1 << 11;
+					b[1] >>= 2;
+				}
+				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+				b[2] = extents->y1 << 16 | extents->x1;
+				b[3] = extents->y2 << 16 | extents->x2;
+				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+						      priv->gpu_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = gc->bgPixel;
+				b[6] = gc->fgPixel;
+				b[7] = 0;
+				sna->kgem.nbatch += 8;
+			}
 
 			b = sna->kgem.batch + sna->kgem.nbatch;
-			b[0] = XY_SETUP_BLT | 1 << 20;
-			b[1] = priv->gpu_bo->pitch;
-			if (sna->kgem.gen >= 40) {
-				if (priv->gpu_bo->tiling)
-					b[0] |= 1 << 11;
-				b[1] >>= 2;
-			}
-			b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
-			b[2] = clip.extents.y1 << 16 | clip.extents.x1;
-			b[3] = clip.extents.y2 << 16 | clip.extents.x2;
-			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
-					      priv->gpu_bo,
-					      I915_GEM_DOMAIN_RENDER << 16 |
-					      I915_GEM_DOMAIN_RENDER |
-					      KGEM_RELOC_FENCED,
-					      0);
-			b[5] = gc->bgPixel;
-			b[6] = gc->fgPixel;
-			b[7] = 0;
-			sna->kgem.nbatch += 8;
-		}
+			sna->kgem.nbatch += 3 + len;
 
-		b = sna->kgem.batch + sna->kgem.nbatch;
-		b[0] = XY_TEXT_IMMEDIATE_BLT | (1 + len);
-		if (priv->gpu_bo->tiling && sna->kgem.gen >= 40)
-			b[0] |= 1 << 11;
-		b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
-		b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
+			b[0] = XY_TEXT_IMMEDIATE_BLT | (1 + len);
+			if (priv->gpu_bo->tiling && sna->kgem.gen >= 40)
+				b[0] |= 1 << 11;
+			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
+			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
 
-		byte = (uint8_t *)&b[3];
-		stride -= w8;
-		do {
-			i = w8;
+			byte = (uint8_t *)&b[3];
+			stride -= w8;
 			do {
-				*byte++ = byte_reverse(*glyph++);
-			} while (--i);
-			glyph += stride;
-		} while (--h);
-		while ((byte - (uint8_t *)&b[3]) & 7)
-			*byte++ = 0;
-		sna->kgem.nbatch += 3 + len;
-		assert((uint32_t *)byte == sna->kgem.batch + sna->kgem.nbatch);
+				i = w8;
+				do {
+					*byte++ = byte_reverse(*glyph++);
+				} while (--i);
+				glyph += stride;
+			} while (--h);
+			while ((byte - (uint8_t *)&b[3]) & 7)
+				*byte++ = 0;
+			assert((uint32_t *)byte == sna->kgem.batch + sna->kgem.nbatch);
 
-		if (damage) {
-			BoxRec r;
+			if (damage) {
+				BoxRec r;
 
-			r.x1 = x1;
-			r.y1 = y1;
-			r.x2 = x1 + w;
-			r.y2 = y1 + h;
-			if (box_intersect(&r, &clip.extents))
-				sna_damage_add_box(damage, &r);
-		}
+				r.x1 = x1;
+				r.y1 = y1;
+				r.x2 = x1 + w;
+				r.y2 = y1 + h;
+				if (box_intersect(&r, extents))
+					sna_damage_add_box(damage, &r);
+			}
 skip:
-		x += c->metrics.characterWidth;
-	}
+			x += c->metrics.characterWidth;
+		} while (--n);
+
+		if (++extents == last_extents)
+			break;
+
+		if (kgem_check_batch(&sna->kgem, 3)) {
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			sna->kgem.nbatch += 3;
+
+			b[0] = XY_SETUP_CLIP;
+			b[1] = extents->y1 << 16 | extents->x1;
+			b[2] = extents->y2 << 16 | extents->x2;
+		}
+	} while (1);
 
 	RegionUninit(&clip);
 	sna->blt_state.fill_bo = 0;
