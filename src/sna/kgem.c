@@ -586,9 +586,10 @@ static void kgem_bo_unref(struct kgem *kgem, struct kgem_bo *bo)
 		__kgem_bo_destroy(kgem, bo);
 }
 
-void kgem_retire(struct kgem *kgem)
+bool kgem_retire(struct kgem *kgem)
 {
 	struct kgem_bo *bo, *next;
+	bool retired = false;
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -602,6 +603,7 @@ void kgem_retire(struct kgem *kgem)
 		bo->gpu = false;
 		list_move(&bo->list, inactive(kgem, bo->size));
 		list_del(&bo->request);
+		retired = true;
 	}
 
 	while (!list_is_empty(&kgem->requests)) {
@@ -641,6 +643,7 @@ void kgem_retire(struct kgem *kgem)
 					     __FUNCTION__, bo->handle));
 					list_move(&bo->list,
 						  inactive(kgem, bo->size));
+					retired = true;
 				} else {
 					DBG(("%s: closing %d\n",
 					     __FUNCTION__, bo->handle));
@@ -657,6 +660,7 @@ void kgem_retire(struct kgem *kgem)
 			assert(rq->bo->gpu == 0);
 			list_move(&rq->bo->list,
 				  inactive(kgem, rq->bo->size));
+			retired = true;
 		} else {
 			kgem->need_purge = 1;
 			gem_close(kgem->fd, rq->bo->handle);
@@ -669,6 +673,8 @@ void kgem_retire(struct kgem *kgem)
 
 	if (kgem->ring && list_is_empty(&kgem->requests))
 		kgem->ring = kgem->mode;
+
+	return retired;
 }
 
 static void kgem_commit(struct kgem *kgem)
@@ -1269,10 +1275,11 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
 		return kgem_bo_reference(bo);
 
 	if (!list_is_empty(&kgem->requests)) {
-		kgem_retire(kgem);
-		bo = search_linear_cache(kgem, size, false);
-		if (bo)
-			return kgem_bo_reference(bo);
+		if (kgem_retire(kgem)) {
+			bo = search_linear_cache(kgem, size, false);
+			if (bo)
+				return kgem_bo_reference(bo);
+		}
 	}
 
 	handle = gem_create(kgem->fd, size);
@@ -1547,9 +1554,10 @@ next_bo:
 	}
 
 	if (flags & CREATE_INACTIVE && !list_is_empty(&kgem->requests)) {
-		kgem_retire(kgem);
-		flags &= ~CREATE_INACTIVE;
-		goto skip_active_search;
+		if (kgem_retire(kgem)) {
+			flags &= ~CREATE_INACTIVE;
+			goto skip_active_search;
+		}
 	}
 
 	handle = gem_create(kgem->fd, size);

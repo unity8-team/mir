@@ -171,7 +171,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int tiling,
 			       uint32_t flags);
 
-void kgem_retire(struct kgem *kgem);
+bool kgem_retire(struct kgem *kgem);
 
 void _kgem_submit(struct kgem *kgem);
 static inline void kgem_submit(struct kgem *kgem)
