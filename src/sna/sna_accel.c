@@ -4186,7 +4186,7 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 			   int n, xRectangle *r,
 			   BoxPtr out)
 {
-	BoxRec box;
+	Box32Rec box;
 	int extra = gc->lineWidth >> 1;
 	bool clipped;
 
@@ -4195,20 +4195,11 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 
 	box.x1 = r->x;
 	box.y1 = r->y;
-	box.x2 = r->x + r->width;
-	box.y2 = r->y + r->height;
+	box.x2 = box.x1 + r->width;
+	box.y2 = box.y1 + r->height;
 
-	while (--n) {
-		r++;
-		if (r->x < box.x1)
-			box.x1 = r->x;
-		if (r->x + r->width > box.x2)
-			box.x2 = r->x + r->width;
-		if (r->y < box.y1)
-			box.y1 = r->y;
-		if (r->y + r->width > box.y2)
-			box.y2 = r->y + r->height;
-	}
+	while (--n)
+		box32_add_rect(&box, r++);
 
 	box.x2++;
 	box.y2++;
@@ -4220,11 +4211,10 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 		box.y2 += extra;
 	}
 
-	if (box_empty(&box))
+	clipped = box32_trim_and_translate(&box, drawable, gc);
+	if (!box32_to_box16(&box, out))
 		return 0;
 
-	clipped = trim_and_translate_box(&box, drawable, gc);
-	*out = box;
 	return 1 | clipped << 1;
 }
 
