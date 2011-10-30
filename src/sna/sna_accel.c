@@ -4284,7 +4284,7 @@ zero:
 			b[1].y2 += rr.height;
 
 			b[2].y1 = rr.y + 1;
-			b[2].y2 = rr.y + rr.height - 1;
+			b[2].y2 = rr.y + rr.height;
 			b[2].x1 = rr.x;
 			b[2].x2 = rr.x + 1;
 
@@ -4334,7 +4334,7 @@ zero_clipped:
 					box[1].y2 += rr.height;
 
 					box[2].y1 = rr.y + 1;
-					box[2].y2 = box[2].y1 + rr.height - 1;
+					box[2].y2 = box[2].y1 + rr.height;
 					box[2].x1 = rr.x;
 					box[2].x2 = rr.x + 1;
 
@@ -4392,7 +4392,7 @@ zero_clipped:
 					box[1].y2 += rr.height;
 
 					box[2].y1 = rr.y + 1;
-					box[2].y2 = box[2].y1 + rr.height - 1;
+					box[2].y2 = box[2].y1 + rr.height;
 					box[2].x1 = rr.x;
 					box[2].x2 = rr.x + 1;
 
