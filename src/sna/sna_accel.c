@@ -1086,7 +1086,7 @@ static inline void box32_add_rect(Box32Rec *box, const xRectangle *r)
 
 	v = r->y;
 	if (box->y1 > v)
-		box->y1 = ;
+		box->y1 = v;
 	v += r->height;
 	if (box->y2 < v)
 		box->y2 = v;
