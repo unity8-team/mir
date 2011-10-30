@@ -234,7 +234,6 @@ I810DoDDC(ScrnInfoPtr pScrn, int index)
 static Bool
 I810PreInit(ScrnInfoPtr pScrn, int flags)
 {
-   vgaHWPtr hwp;
    I810Ptr pI810;
    ClockRangePtr clockRanges;
    int i;
@@ -270,8 +269,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    /* Allocate a vgaHWRec */
    if (!vgaHWGetHWRec(pScrn))
       return FALSE;
-   hwp = VGAHWPTR(pScrn);
-   pI810->ioBase = hwp->PIOOffset;
 
    pI810->PciInfo = xf86GetPciInfoForEntity(pI810->pEnt->index);
 
@@ -377,9 +374,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
     * because it is controlled by options [no]vbe and [no]ddc
     */
    I810DoDDC(pScrn, pI810->pEnt->index);
-
-   /* We have to use PIO to probe, because we haven't mapped yet */
-   I810SetPIOAccess(pI810);
 
    intel_detect_chipset(pScrn, pI810->PciInfo, &chipset);
 

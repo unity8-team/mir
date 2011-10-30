@@ -45,43 +45,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define moutb(p,v) *(volatile uint8_t *)(pI810->MMIOBase + (p)) = (v)
 
 static void
-I810WriteControlPIO(I810Ptr pI810, IOADDRESS addr, uint8_t index, uint8_t val)
-{
-   addr += pI810->ioBase;
-   outb(addr, index);
-   outb(addr + 1, val);
-}
-
-static uint8_t
-I810ReadControlPIO(I810Ptr pI810, IOADDRESS addr, uint8_t index)
-{
-   addr += pI810->ioBase;
-   outb(addr, index);
-   return inb(addr + 1);
-}
-
-static void
-I810WriteStandardPIO(I810Ptr pI810, IOADDRESS addr, uint8_t val)
-{
-   outb(pI810->ioBase + addr, val);
-}
-
-static uint8_t
-I810ReadStandardPIO(I810Ptr pI810, IOADDRESS addr)
-{
-   return inb(pI810->ioBase + addr);
-}
-
-void
-I810SetPIOAccess(I810Ptr pI810)
-{
-   pI810->writeControl = I810WriteControlPIO;
-   pI810->readControl = I810ReadControlPIO;
-   pI810->writeStandard = I810WriteStandardPIO;
-   pI810->readStandard = I810ReadStandardPIO;
-}
-
-static void
 I810WriteControlMMIO(I810Ptr pI810, IOADDRESS addr, uint8_t index, uint8_t val)
 {
    moutb(addr, index);

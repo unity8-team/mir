@@ -178,7 +178,6 @@ typedef struct _I810Rec {
    int Chipset;
    unsigned long LinearAddr;
    unsigned long MMIOAddr;
-   IOADDRESS ioBase;
    EntityInfoPtr pEnt;
    struct pci_device *PciInfo;
 
