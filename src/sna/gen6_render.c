@@ -2628,7 +2628,9 @@ gen6_render_fill_boxes(struct sna *sna,
 	return FALSE;
 #endif
 
-	if (!sna_get_pixel_from_rgba(&pixel,
+	if (op == PictOpClear)
+		pixel = 0;
+	else if (!sna_get_pixel_from_rgba(&pixel,
 				     color->red,
 				     color->green,
 				     color->blue,

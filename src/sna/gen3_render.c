@@ -3675,6 +3675,23 @@ static inline Bool prefer_fill_blt(struct sna *sna)
 #endif
 }
 
+static inline void set_fill_shader(struct sna_composite_channel *c,
+				   uint32_t pixel)
+{
+	if (pixel == 0)
+		c->u.gen3.type = SHADER_ZERO;
+	else if (pixel == 0xff000000)
+		c->u.gen3.type = SHADER_BLACK;
+	else if (pixel == 0xffffffff)
+		c->u.gen3.type = SHADER_WHITE;
+	else
+		c->u.gen3.type = SHADER_CONSTANT;
+	c->u.gen3.mode = pixel;
+	c->is_affine = 1;
+	c->alpha_fixup = 0;
+	c->rb_reversed = 0;
+}
+
 static Bool
 gen3_render_fill_boxes(struct sna *sna,
 		       CARD8 op,
@@ -3716,19 +3733,19 @@ gen3_render_fill_boxes(struct sna *sna,
 					   box, n))
 		return TRUE;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     PICT_a8r8g8b8))
-		return FALSE;
-
+	if (op == PictOpClear) {
+		pixel = 0;
+	} else {
+		if (!sna_get_pixel_from_rgba(&pixel,
+					     color->red,
+					     color->green,
+					     color->blue,
+					     color->alpha,
+					     PICT_a8r8g8b8))
+			return FALSE;
+	}
 	DBG(("%s: using shader for op=%d, format=%x, pixel=%x\n",
 	     __FUNCTION__, op, (int)format, pixel));
-
-	if (pixel == 0)
-		op = PictOpClear;
 
 	tmp.op = op;
 	tmp.dst.pixmap = dst;
@@ -3740,11 +3757,7 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.floats_per_rect = 6;
 	tmp.rb_reversed = 0;
 
-	tmp.src.u.gen3.type = op == PictOpClear ? SHADER_ZERO : SHADER_CONSTANT;
-	tmp.src.u.gen3.mode = pixel;
-	tmp.src.is_affine = 0;
-	tmp.src.alpha_fixup = 0;
-	tmp.src.rb_reversed = 0;
+	set_fill_shader(&tmp.src, pixel);
 	tmp.mask.u.gen3.type = SHADER_NONE;
 	tmp.u.gen3.num_constants = 0;
 
@@ -3897,12 +3910,8 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.has_component_alpha = 0;
 	tmp->base.rb_reversed = 0;
 
-	tmp->base.src.u.gen3.type = SHADER_CONSTANT;
-	tmp->base.src.u.gen3.mode =
-		sna_rgba_for_color(color, dst->drawable.depth);
-	tmp->base.src.is_affine = 0;
-	tmp->base.src.alpha_fixup = 0;
-	tmp->base.src.rb_reversed = 0;
+	set_fill_shader(&tmp->base.src,
+			sna_rgba_for_color(color, dst->drawable.depth));
 	tmp->base.mask.u.gen3.type = SHADER_NONE;
 	tmp->base.u.gen3.num_constants = 0;
 
@@ -3979,19 +3988,8 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.has_component_alpha = 0;
 	tmp.rb_reversed = 0;
 
-	color = sna_rgba_for_color(color, dst->drawable.depth);
-	if (color == 0)
-		tmp.src.u.gen3.type = SHADER_ZERO;
-	else if (color == 0xff000000)
-		tmp.src.u.gen3.type = SHADER_BLACK;
-	else if (color == 0xffffffff)
-		tmp.src.u.gen3.type = SHADER_WHITE;
-	else
-		tmp.src.u.gen3.type = SHADER_CONSTANT;
-	tmp.src.u.gen3.mode = color;
-	tmp.src.is_affine = 0;
-	tmp.src.alpha_fixup = 0;
-	tmp.src.rb_reversed = 0;
+	set_fill_shader(&tmp.src,
+			sna_rgba_for_color(color, dst->drawable.depth));
 	tmp.mask.u.gen3.type = SHADER_NONE;
 	tmp.u.gen3.num_constants = 0;
 

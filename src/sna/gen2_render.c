@@ -1938,19 +1938,18 @@ gen2_render_fill_boxes(struct sna *sna,
 					   box, n))
 		return TRUE;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     PICT_a8r8g8b8))
+	if (op == PictOpClear)
+		pixel = 0;
+	else if (!sna_get_pixel_from_rgba(&pixel,
+					  color->red,
+					  color->green,
+					  color->blue,
+					  color->alpha,
+					  PICT_a8r8g8b8))
 		return FALSE;
 
 	DBG(("%s: using shader for op=%d, format=%x, pixel=%x\n",
 	     __FUNCTION__, op, (int)format, pixel));
-
-	if (pixel == 0)
-		op = PictOpClear;
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.op = op;

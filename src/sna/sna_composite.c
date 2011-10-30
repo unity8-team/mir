@@ -601,6 +601,42 @@ sna_composite_rectangles(CARD8		 op,
 	if (!num_rects)
 		return;
 
+	if (color->alpha <= 0x00ff) {
+		switch (op) {
+		case PictOpOver:
+		case PictOpOutReverse:
+		case PictOpAdd:
+			return;
+		case  PictOpInReverse:
+		case  PictOpSrc:
+			op = PictOpClear;
+			break;
+		case  PictOpAtopReverse:
+			op = PictOpOut;
+			break;
+		case  PictOpXor:
+			op = PictOpOverReverse;
+			break;
+		}
+	} else if (color->alpha >= 0xff00) {
+		switch (op) {
+		case PictOpOver:
+			op = PictOpSrc;
+			break;
+		case PictOpInReverse:
+			return;
+		case PictOpOutReverse:
+			op = PictOpClear;
+			break;
+		case  PictOpAtopReverse:
+			op = PictOpOverReverse;
+			break;
+		case  PictOpXor:
+			op = PictOpOut;
+			break;
+		}
+	}
+
 	if (!pixman_region_not_empty(dst->pCompositeClip)) {
 		DBG(("%s: empty clip, skipping\n", __FUNCTION__));
 		return;
