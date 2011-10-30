@@ -213,6 +213,7 @@ struct sna {
 	struct list dirty_pixmaps;
 
 	PixmapPtr front, shadow;
+	PixmapPtr freed_pixmap;
 
 	struct sna_mode {
 		uint32_t fb_id;

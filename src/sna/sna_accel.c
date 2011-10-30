@@ -135,8 +135,16 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 	}
 
+	if (!sna->freed_pixmap) {
+		sna->freed_pixmap = pixmap;
+		priv->gpu_bo = NULL;
+		priv->cpu_bo = NULL;
+		priv->mapped = 0;
+		return false;
+	}
+
 	free(priv);
-	return TRUE;
+	return true;
 }
 
 static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
@@ -228,15 +236,25 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 				      CREATE_PIXMAP_USAGE_SCRATCH);
 
 	/* you promise never to access this via the cpu... */
-	pixmap = fbCreatePixmap(screen, 0, 0, depth,
-				CREATE_PIXMAP_USAGE_SCRATCH);
-	if (!pixmap)
-		return NullPixmap;
+	if (sna->freed_pixmap) {
+		pixmap = sna->freed_pixmap;
+		sna->freed_pixmap = NULL;
 
-	priv = _sna_pixmap_attach(pixmap);
-	if (!priv) {
-		fbDestroyPixmap(pixmap);
-		return NullPixmap;
+		priv = sna_pixmap(pixmap);
+		memset(priv, 0, sizeof(*priv));
+		list_init(&priv->list);
+		priv->pixmap = pixmap;
+	} else {
+		pixmap = fbCreatePixmap(screen, 0, 0, depth,
+					CREATE_PIXMAP_USAGE_SCRATCH);
+		if (!pixmap)
+			return NullPixmap;
+
+		priv = _sna_pixmap_attach(pixmap);
+		if (!priv) {
+			fbDestroyPixmap(pixmap);
+			return NullPixmap;
+		}
 	}
 
 	priv->gpu_bo = kgem_create_2d(&sna->kgem,
@@ -753,15 +771,22 @@ sna_pixmap_create_upload(ScreenPtr screen,
 		return fbCreatePixmap(screen, width, height, depth,
 				      CREATE_PIXMAP_USAGE_SCRATCH);
 
-	pixmap = fbCreatePixmap(screen, 0, 0, depth,
-				CREATE_PIXMAP_USAGE_SCRATCH);
-	if (!pixmap)
-		return NullPixmap;
+	if (sna->freed_pixmap) {
+		pixmap = sna->freed_pixmap;
+		sna->freed_pixmap = NULL;
 
-	priv = malloc(sizeof(*priv));
-	if (!priv) {
-		fbDestroyPixmap(pixmap);
-		return NullPixmap;
+		priv = sna_pixmap(pixmap);
+	} else {
+		pixmap = fbCreatePixmap(screen, 0, 0, depth,
+					CREATE_PIXMAP_USAGE_SCRATCH);
+		if (!pixmap)
+			return NullPixmap;
+
+		priv = malloc(sizeof(*priv));
+		if (!priv) {
+			fbDestroyPixmap(pixmap);
+			return NullPixmap;
+		}
 	}
 
 	priv->gpu_bo = kgem_create_buffer(&sna->kgem,
@@ -6175,6 +6200,12 @@ Bool sna_accel_create(struct sna *sna)
 
 void sna_accel_close(struct sna *sna)
 {
+	if (sna->freed_pixmap) {
+		assert(sna->freed_pixmap->refcnt == 1);
+		sna_destroy_pixmap(sna->freed_pixmap);
+		sna->freed_pixmap = NULL;
+	}
+
 	sna_glyphs_close(sna);
 	sna_gradients_close(sna);
 
