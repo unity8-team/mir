@@ -78,6 +78,10 @@ static inline void region_maybe_clip(RegionRec *r, RegionRec *clip)
 		RegionIntersect(r, r, clip);
 }
 
+typedef struct box32 {
+	int32_t x1, y1, x2, y2;
+} Box32Rec;
+
 #define PM_IS_SOLID(_draw, _pm) \
 	(((_pm) & FbFullMask((_draw)->depth)) == FbFullMask((_draw)->depth))
 
@@ -979,6 +983,65 @@ static inline bool trim_and_translate_box(BoxPtr box, DrawablePtr d, GCPtr gc)
 	return clipped;
 }
 
+static inline bool box32_trim(Box32Rec *box, DrawablePtr d)
+{
+	bool clipped = false;
+
+	if (box->x1 < 0)
+		box->x1 = 0, clipped = true;
+	if (box->x2 > d->width)
+		box->x2 = d->width, clipped = true;
+
+	if (box->y1 < 0)
+		box->y1 = 0, clipped = true;
+	if (box->y2 > d->height)
+		box->y2 = d->height, clipped = true;
+
+	return clipped;
+}
+
+static inline bool box32_clip(Box32Rec *box, GCPtr gc)
+{
+	bool clipped = gc->pCompositeClip->data != NULL;
+	const BoxRec *clip = &gc->pCompositeClip->extents;
+
+	if (box->x1 < clip->x1)
+		box->x1 = clip->x1, clipped = true;
+	if (box->x2 > clip->x2)
+		box->x2 = clip->x2, clipped = true;
+
+	if (box->y1 < clip->y1)
+		box->y1 = clip->y1, clipped = true;
+	if (box->y2 > clip->y2)
+		box->y2 = clip->y2, clipped = true;
+
+	return clipped;
+}
+
+static inline void box32_translate(Box32Rec *box, DrawablePtr d)
+{
+	box->x1 += d->x;
+	box->x2 += d->x;
+
+	box->y1 += d->y;
+	box->y2 += d->y;
+}
+
+static inline bool box32_trim_and_translate(Box32Rec *box, DrawablePtr d, GCPtr gc)
+{
+	bool clipped;
+
+	if (likely (gc->pCompositeClip)) {
+		box32_translate(box, d);
+		clipped = box32_clip(box, gc);
+	} else {
+		clipped = box32_trim(box, d);
+		box32_translate(box, d);
+	}
+
+	return clipped;
+}
+
 static inline void box_add_pt(BoxPtr box, int16_t x, int16_t y)
 {
 	if (box->x1 > x)
@@ -1000,19 +1063,29 @@ static int16_t bound(int16_t a, uint16_t b)
 	return v;
 }
 
-static inline void box_add_rect(BoxPtr box, const xRectangle *r)
+static inline bool box32_to_box16(const Box32Rec *b32, BoxRec *b16)
 {
-	int v;
+	b16->x1 = b32->x1;
+	b16->y1 = b32->y1;
+	b16->x2 = b32->x2;
+	b16->y2 = b32->y2;
+
+	return b16->x2 > b16->x1 && b16->y2 > b16->y1;
+}
+
+static inline void box32_add_rect(Box32Rec *box, const xRectangle *r)
+{
+	int32_t v;
 
 	if (box->x1 > r->x)
 		box->x1 = r->x;
-	v = bound(r->x, r->width);
+	v = r->x + r->width;
 	if (box->x2 < v)
 		box->x2 = v;
 
 	if (box->y1 > r->y)
 		box->y1 = r->y;
-	v =bound(r->y, r->height);
+	v = r->y + r->height;
 	if (box->y2 < v)
 		box->y2 = v;
 }
@@ -5172,7 +5245,7 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 			   int n, xRectangle *rect,
 			   BoxPtr out)
 {
-	BoxRec box;
+	Box32Rec box;
 	bool clipped;
 
 	if (n == 0)
@@ -5181,17 +5254,16 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 	DBG(("%s: [0] = (%d, %d)x(%d, %d)\n",
 	     __FUNCTION__, rect->x, rect->y, rect->width, rect->height));
 	box.x1 = rect->x;
-	box.x2 = bound(box.x1, rect->width);
+	box.x2 = box.x1 + rect->width;
 	box.y1 = rect->y;
-	box.y2 = bound(box.y1, rect->height);
+	box.y2 = box.y1 + rect->height;
 	while (--n)
-		box_add_rect(&box, ++rect);
+		box32_add_rect(&box, ++rect);
 
-	clipped = trim_and_translate_box(&box, drawable, gc);
-	if (box_empty(&box))
+	clipped = box32_trim_and_translate(&box, drawable, gc);
+	if (!box32_to_box16(&box, out))
 		return 0;
 
-	*out = box;
 	return 1 | clipped << 1;
 }
 
