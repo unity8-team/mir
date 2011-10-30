@@ -2388,8 +2388,7 @@ gen7_render_composite(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
-	if ((tmp->src.bo != tmp->dst.bo && kgem_bo_is_dirty(tmp->src.bo)) ||
-	    (tmp->mask.bo && tmp->mask.bo != tmp->dst.bo && kgem_bo_is_dirty(tmp->mask.bo)))
+	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
 		kgem_emit_flush(&sna->kgem);
 
 	gen7_emit_composite_state(sna, tmp);
