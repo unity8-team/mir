@@ -1,3 +1,27 @@
+Snapshot 2.16.901 (2011-10-30)
+==============================
+This is the first release candidate in preparation for the upcoming
+2.17.0 release. We will appreciate any feedback we can get from
+testing of this snapshot.
+
+The basis of this release are to push out a couple of critical stability
+fixes for SandyBridge and IvyBridge. There is very little else to see
+here. Those 200+ other commits do not exist...
+
+Bugs fixed in this snapshot (compared to 2.16.0)
+--------------------------------------------------
+
+ * Workaround blitter hang on SandyBridge and IvyBridge
+   https://bugzilla.kernel.org/show_bug.cgi?id=27892
+   https://bugs.freedesktop.org/show_bug.cgi
+
+ * Workaround pipe control issues on SandyBridge
+
+ * Use correct maximum PS thread count on IvyBridge
+
+ * Protect against failed pixmap allocation for XV
+   https://bugs.freedesktop.org/show_bug.cgi?id=40439
+
 Release 2.16.0 (2011-08-09)
 ==============================
 A new quarter, a new release! The key feature of this release, looking past
