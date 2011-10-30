@@ -47,8 +47,6 @@
 #if DEBUG_RENDER
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 /* gen4 has a serious issue with its shaders that we need to flush

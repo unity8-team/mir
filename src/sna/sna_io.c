@@ -38,8 +38,6 @@
 #if DEBUG_IO
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define PITCH(x, y) ALIGN((x)*(y), 4)

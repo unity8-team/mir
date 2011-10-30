@@ -72,8 +72,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if DEBUG_DRI
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define NO_TRIPPLE_BUFFER 0

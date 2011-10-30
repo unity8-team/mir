@@ -78,8 +78,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if DEBUG_DRIVER
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 static OptionInfoRec sna_options[] = {

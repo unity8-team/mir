@@ -44,8 +44,6 @@
 #if DEBUG_BLT
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define NO_BLT_COMPOSITE 0

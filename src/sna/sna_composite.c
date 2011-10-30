@@ -39,8 +39,6 @@
 #if DEBUG_COMPOSITE
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 static void dst_move_area_to_cpu(PicturePtr picture,

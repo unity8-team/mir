@@ -52,8 +52,6 @@
 #if DEBUG_ACCEL
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define FORCE_GPU_ONLY 0

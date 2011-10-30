@@ -41,8 +41,6 @@
 #if DEBUG_TRAPEZOIDS
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define NO_ACCEL 0

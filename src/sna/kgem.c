@@ -72,8 +72,6 @@ static inline void list_replace(struct list *old,
 #if DEBUG_KGEM
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define PAGE_SIZE 4096

@@ -73,8 +73,6 @@
 #if DEBUG_GLYPHS
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define FALLBACK 0
