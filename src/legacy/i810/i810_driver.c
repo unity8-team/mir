@@ -652,8 +652,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    }
 #endif
 
-   /*  We won't be using the VGA access after the probe */
-   I810SetMMIOAccess(pI810);
    return TRUE;
 }
 
