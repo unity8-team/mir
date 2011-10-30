@@ -39,23 +39,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86_OSproc.h"
 #include "compiler.h"
 
-#ifdef BUILD_FOR_I830
-#include "i830.h"
-#define pI810 pI830
-#define I810Ptr I830Ptr
-#define I810WriteControlPIO I830WriteControlPIO
-#define I810ReadControlPIO I830ReadControlPIO
-#define I810WriteStandardPIO I830WriteStandardPIO
-#define I810ReadStandardPIO I830ReadStandardPIO
-#define I810SetPIOAccess I830SetPIOAccess
-#define I810WriteControlMMIO I830WriteControlMMIO
-#define I810ReadControlMMIO I830ReadControlMMIO
-#define I810WriteStandardMMIO I830WriteStandardMMIO
-#define I810ReadStandardMMIO I830ReadStandardMMIO
-#define I810SetMMIOAccess I830SetMMIOAccess
-#else
 #include "i810.h"
-#endif
 
 #define minb(p) *(volatile uint8_t *)(pI810->MMIOBase + (p))
 #define moutb(p,v) *(volatile uint8_t *)(pI810->MMIOBase + (p)) = (v)
