@@ -145,8 +145,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	 * For overlay video, compute the relevant CRTC and
 	 * clip video to that
 	 */
-	crtc = sna_covering_crtc(scrn, dst, video->desired_crtc,
-				   &crtc_box);
+	crtc = sna_covering_crtc(scrn, dst, video->desired_crtc, &crtc_box);
 
 	/* For textured video, we don't actually want to clip at all. */
 	if (crtc && !video->textured) {
@@ -262,24 +261,24 @@ sna_video_buffer(struct sna *sna,
 	return video->buf;
 }
 
-static void sna_memcpy_plane(unsigned char *dst, unsigned char *src,
-			       int height, int width,
-			       int dstPitch, int srcPitch, Rotation rotation)
+static void sna_memcpy_plane(uint8_t *dst, const uint8_t *src,
+			     int height, int width,
+			     int dstPitch, int srcPitch,
+			     Rotation rotation)
 {
+	const uint8_t *s;
 	int i, j = 0;
-	unsigned char *s;
 
 	switch (rotation) {
 	case RR_Rotate_0:
 		/* optimise for the case of no clipping */
 		if (srcPitch == dstPitch && srcPitch == width)
 			memcpy(dst, src, srcPitch * height);
-		else
-			for (i = 0; i < height; i++) {
-				memcpy(dst, src, width);
-				src += srcPitch;
-				dst += dstPitch;
-			}
+		else while (height--) {
+			memcpy(dst, src, width);
+			src += srcPitch;
+			dst += dstPitch;
+		}
 		break;
 	case RR_Rotate_90:
 		for (i = 0; i < height; i++) {
@@ -315,51 +314,37 @@ static void sna_memcpy_plane(unsigned char *dst, unsigned char *src,
 static void
 sna_copy_planar_data(struct sna_video *video,
 		     const struct sna_video_frame *frame,
-		     unsigned char *src,
-		     unsigned char *dst,
+		     const uint8_t *src,
+		     uint8_t *dst,
 		     int srcPitch, int srcPitch2,
-		     int srcH, int top, int left)
+		     int srcH, int top, int left, int h, int w)
 {
-	unsigned char *src1, *dst1;
+	uint8_t *d;
 
-	/* Copy Y data */
-	src1 = src + (top * srcPitch) + left;
-
-	sna_memcpy_plane(dst, src1,
-			 frame->height, frame->width,
-			 frame->pitch[1], srcPitch,
+	sna_memcpy_plane(dst, src + top * srcPitch + left,
+			 h, w, frame->pitch[1], srcPitch,
 			 video->rotation);
 
-	/* Copy V data for YV12, or U data for I420 */
-	src1 = src +		/* start of YUV data */
-	    (srcH * srcPitch) +	/* move over Luma plane */
-	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
-	    (left >> 1);	/* move left by left pixels */
+	src += srcH * srcPitch; /* move over Luma plane */
 
 	if (frame->id == FOURCC_I420)
-		dst1 = dst + frame->UBufOffset;
+		d = dst + frame->UBufOffset;
 	else
-		dst1 = dst + frame->VBufOffset;
+		d = dst + frame->VBufOffset;
 
-	sna_memcpy_plane(dst1, src1,
-			 frame->height / 2, frame->width / 2,
-			 frame->pitch[0], srcPitch2,
+	sna_memcpy_plane(d, src + (top >> 1) * srcPitch2 + (left >> 1),
+			 h / 2, w / 2, frame->pitch[0], srcPitch2,
 			 video->rotation);
 
-	/* Copy U data for YV12, or V data for I420 */
-	src1 = src +		/* start of YUV data */
-	    (srcH * srcPitch) +	/* move over Luma plane */
-	    ((srcH >> 1) * srcPitch2) +	/* move over Chroma plane */
-	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
-	    (left >> 1);	/* move left by left pixels */
-	if (frame->id == FOURCC_I420)
-		dst1 = dst + frame->VBufOffset;
-	else
-		dst1 = dst + frame->UBufOffset;
+	src += (srcH >> 1) * srcPitch2; /* move over Chroma plane */
 
-	sna_memcpy_plane(dst1, src1,
-			 frame->height / 2, frame->width / 2,
-			 frame->pitch[0], srcPitch2,
+	if (frame->id == FOURCC_I420)
+		d = dst + frame->VBufOffset;
+	else
+		d = dst + frame->UBufOffset;
+
+	sna_memcpy_plane(d, src + (top >> 1) * srcPitch2 + (left >> 1),
+			 h / 2, w / 2, frame->pitch[0], srcPitch2,
 			 video->rotation);
 }
 
@@ -369,10 +354,8 @@ sna_copy_packed_data(struct sna_video *video,
 		     unsigned char *buf,
 		     unsigned char *dst,
 		     int srcPitch,
-		     int top, int left)
+		     int top, int left, int h, int w)
 {
-	int w = frame->width;
-	int h = frame->height;
 	unsigned char *src;
 	unsigned char *s;
 	int i, j;
@@ -524,14 +507,14 @@ sna_video_copy_data(struct sna *sna,
 		sna_copy_planar_data(video, frame,
 				     buf, dst,
 				     srcPitch, srcPitch2,
-				     nlines, top, left);
+				     frame->height, top, left, nlines, npixels);
 	} else {
 		int srcPitch = frame->width << 1;
 
 		sna_copy_packed_data(video, frame,
 				     buf, dst,
 				     srcPitch,
-				     top, left);
+				     top, left, nlines, npixels);
 	}
 
 	munmap(dst, video->buf->size);
