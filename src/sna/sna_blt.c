@@ -142,6 +142,8 @@ static bool sna_blt_fill_init(struct sna *sna,
 
 	if (alu == GXclear)
 		pixel = 0;
+	if (alu == GXcopy && pixel == 0)
+		alu = GXclear;
 
 	blt->br13 = 1<<31 | (fill_ROP[alu] << 16) | pitch;
 	switch (bpp) {
@@ -1612,6 +1614,8 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 
 	if (alu == GXclear)
 		pixel = 0;
+	if (alu == GXcopy && pixel == 0)
+		alu = GXclear;
 
 	br13 |= 1<<31 | fill_ROP[alu] << 16;
 	switch (bpp) {
