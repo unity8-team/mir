@@ -5995,6 +5995,9 @@ static Bool sna_accel_do_flush(struct sna *sna)
 		return FALSE;
 	}
 
+	if (sna->flags & SNA_NO_DELAYED_FLUSH)
+		return TRUE;
+
 	if (sna->timer[FLUSH_TIMER] == -1)
 		return TRUE;
 

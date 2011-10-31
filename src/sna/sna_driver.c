@@ -91,6 +91,7 @@ static OptionInfoRec sna_options[] = {
    {OPTION_RELAXED_FENCING,	"UseRelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_VMAP,	"UseVmap",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_ZAPHOD,	"ZaphodHeads",	OPTV_STRING,	{0},	FALSE},
+   {OPTION_DELAYED_FLUSH,	"DelayedFlush",	OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 
@@ -506,6 +507,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	sna->flags = 0;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_THROTTLE, TRUE))
 		sna->flags |= SNA_NO_THROTTLE;
+	if (!xf86ReturnOptValBool(sna->Options, OPTION_DELAYED_FLUSH, TRUE))
+		sna->flags |= SNA_NO_DELAYED_FLUSH;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   sna->tiling & SNA_TILING_FB ? "tiled" : "linear");
@@ -515,6 +518,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		   sna->tiling & SNA_TILING_3D ? "tiled" : "linear");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Throttling %sabled\n",
 		   sna->flags & SNA_NO_THROTTLE ? "dis" : "en");
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Delayed flush %sabled\n",
+		   sna->flags & SNA_NO_DELAYED_FLUSH ? "dis" : "en");
 
 	if (!sna_mode_pre_init(scrn, sna)) {
 		PreInitCleanup(scrn);

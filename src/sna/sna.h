@@ -192,6 +192,8 @@ enum {
 	OPTION_RELAXED_FENCING,
 	OPTION_VMAP,
 	OPTION_ZAPHOD,
+	OPTION_DELAYED_FLUSH,
+	NUM_OPTIONS
 };
 
 enum {
@@ -205,6 +207,7 @@ struct sna {
 
 	unsigned flags;
 #define SNA_NO_THROTTLE		0x1
+#define SNA_NO_DELAYED_FLUSH	0x2
 
 	int timer[NUM_TIMERS];
 	int timer_active;
