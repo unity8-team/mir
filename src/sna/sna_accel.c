@@ -6005,9 +6005,9 @@ static Bool sna_accel_do_flush(struct sna *sna)
 	to.it_value.tv_sec = 0;
 	to.it_value.tv_nsec = 10 * 1000 * 1000;
 
-	/* Then periodic updates at 25Hz.*/
+	/* Then periodic updates at half-vrefresh (update every other vblank) */
 	to.it_interval.tv_sec = 0;
-	to.it_interval.tv_nsec = 40 * 1000 * 1000;
+	to.it_interval.tv_nsec = sna->flush_interval;
 	timerfd_settime(sna->timer[FLUSH_TIMER], 0, &to, NULL);
 
 	sna->timer_active |= 1 << FLUSH_TIMER;

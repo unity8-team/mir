@@ -585,6 +585,27 @@ cleanup_fbcon:
 	drmModeFreeFB(fbcon);
 }
 
+static void update_flush_interval(struct sna *sna)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	int i, max_vrefresh = 0;
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		if (!xf86_config->crtc[i]->enabled)
+			continue;
+
+		max_vrefresh = max(max_vrefresh,
+				   xf86ModeVRefresh(&xf86_config->crtc[i]->mode));
+	}
+
+	if (max_vrefresh == 0)
+		max_vrefresh = 40;
+
+	sna->flush_interval = 2000 * 1000 * 1000 / max_vrefresh;
+	DBG(("max_vrefresh=%d, flush_interval=%d ns\n",
+	       max_vrefresh, sna->flush_inteval));
+}
+
 static Bool
 sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			Rotation rotation, int x, int y)
@@ -652,15 +673,16 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	kgem_submit(&sna->kgem);
 
 	mode_to_kmode(&sna_crtc->kmode, mode);
-	ret = sna_crtc_apply(crtc);
-	if (!ret) {
+	if (!sna_crtc_apply(crtc)) {
 		crtc->x = saved_x;
 		crtc->y = saved_y;
 		crtc->rotation = saved_rotation;
 		crtc->mode = saved_mode;
+		return FALSE;
 	}
 
-	return ret;
+	update_flush_interval(sna);
+	return TRUE;
 }
 
 static void
