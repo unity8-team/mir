@@ -4356,7 +4356,7 @@ zero_clipped:
 					box[1].y2 += rr.height;
 
 					box[2].y1 = rr.y + 1;
-					box[2].y2 = box[2].y1 + rr.height;
+					box[2].y2 = rr.y + rr.height;
 					box[2].x1 = rr.x;
 					box[2].x2 = rr.x + 1;
 
@@ -4414,7 +4414,7 @@ zero_clipped:
 					box[1].y2 += rr.height;
 
 					box[2].y1 = rr.y + 1;
-					box[2].y2 = box[2].y1 + rr.height;
+					box[2].y2 = rr.y + rr.height;
 					box[2].x1 = rr.x;
 					box[2].x2 = rr.x + 1;
 
@@ -4495,12 +4495,11 @@ wide_clipped:
 					box[1].y1 = rr.y + offset3;
 					box[1].y2 = rr.y + rr.height - offset1;
 
-					box[2].x1 = rr.x + rr.width - offset1;
-					box[2].x2 = box[2].x1 + offset2;
-					box[2].y1 = rr.y + offset3;
-					box[2].y2 = rr.y + rr.height - offset1;
+					box[2] = box[1];
+					box[3].x1 += rr.width;
+					box[3].x2 += rr.width;
 
-					box[3] = box[1];
+					box[3] = box[0];
 					box[3].y1 += rr.height;
 					box[3].y2 += rr.height;
 					count = 4;
@@ -4564,12 +4563,11 @@ wide_clipped:
 					box[1].y1 = rr.y + offset3;
 					box[1].y2 = rr.y + rr.height - offset1;
 
-					box[2].x1 = rr.x + rr.width - offset1;
-					box[2].x2 = box[2].x1 + offset2;
-					box[2].y1 = rr.y + offset3;
-					box[2].y2 = rr.y + rr.height - offset1;
+					box[2] = box[1];
+					box[3].x1 += rr.width;
+					box[3].x2 += rr.width;
 
-					box[3] = box[1];
+					box[3] = box[0];
 					box[3].y1 += rr.height;
 					box[3].y2 += rr.height;
 					count = 4;
