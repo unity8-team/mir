@@ -1368,7 +1368,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	int alu = gc ? gc->alu : GXcopy;
 	int16_t tx, ty;
 
-	if (n == 0 || (dx | dy) == 0)
+	if (n == 0 || ((dx | dy) == 0 && alu == GXcopy))
 		return;
 
 	DBG(("%s (boxes=%dx[(%d, %d), (%d, %d)...], src=+(%d, %d), alu=%d, pix.size=%dx%d)\n",
@@ -5022,8 +5022,11 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 		}
 
 		RegionUninit(&clip);
-		if (b != boxes)
+		if (b != boxes) {
 			fill.boxes(sna, &fill, boxes, b-boxes);
+			if (damage)
+				sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
+		}
 	}
 done:
 	fill.done(sna, &fill);

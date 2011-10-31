@@ -603,7 +603,7 @@ static void update_flush_interval(struct sna *sna)
 
 	sna->flush_interval = 2000 * 1000 * 1000 / max_vrefresh;
 	DBG(("max_vrefresh=%d, flush_interval=%d ns\n",
-	       max_vrefresh, sna->flush_inteval));
+	       max_vrefresh, sna->flush_interval));
 }
 
 static Bool
