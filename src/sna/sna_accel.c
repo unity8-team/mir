@@ -4247,7 +4247,7 @@ sna_poly_rectangle_blt(DrawablePtr drawable,
 		       struct kgem_bo *bo,
 		       struct sna_damage **damage,
 		       GCPtr gc, int n, xRectangle *r,
-		       const BoxRec *extents, bool clipped)
+		       const BoxRec *extents, unsigned clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -4255,24 +4255,20 @@ sna_poly_rectangle_blt(DrawablePtr drawable,
 	BoxRec boxes[512], *b = boxes, *const last_box = boxes+ARRAY_SIZE(boxes);
 	int16_t dx, dy;
 	static void * const jump[] = {
-		&&zero,
-		&&zero_clipped,
 		&&wide,
+		&&zero,
 		&&wide_clipped,
+		&&zero_clipped,
 	};
-	unsigned v;
 
 	DBG(("%s: alu=%d, width=%d, fg=%08lx, damge=%p, clipped?=%d\n",
 	     __FUNCTION__, gc->alu, gc->lineWidth, gc->fgPixel, damage, clipped));
-
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-	v = !!clipped;
-	v |= (gc->lineWidth <= 1) << 1;
-	goto *jump[v];
+	goto *jump[(gc->lineWidth <= 1) | clipped];
 
 zero:
 	dx += drawable->x;
