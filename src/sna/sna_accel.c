@@ -4383,7 +4383,7 @@ zero_clipped:
 							if (++b == last_box) {
 								fill.boxes(sna, &fill, boxes, last_box-boxes);
 								if (damage)
-									sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+									sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
 								b = boxes;
 							}
 						}
@@ -4434,7 +4434,7 @@ zero_clipped:
 						if (++b == last_box) {
 							fill.boxes(sna, &fill, boxes, last_box-boxes);
 							if (damage)
-								sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+								sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
 							b = boxes;
 						}
 					}
@@ -4522,7 +4522,7 @@ wide_clipped:
 							if (++b == last_box) {
 								fill.boxes(sna, &fill, boxes, last_box-boxes);
 								if (damage)
-									sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+									sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
 								b = boxes;
 							}
 						}
@@ -4583,7 +4583,7 @@ wide_clipped:
 						if (++b == last_box) {
 							fill.boxes(sna, &fill, boxes, last_box-boxes);
 							if (damage)
-								sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+								sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
 							b = boxes;
 						}
 					}
@@ -5025,7 +5025,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 		if (b != boxes) {
 			fill.boxes(sna, &fill, boxes, b-boxes);
 			if (damage)
-				sna_damage_add_boxes(damage, boxes, last_box-boxes, 0, 0);
+				sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
 		}
 	}
 done:
