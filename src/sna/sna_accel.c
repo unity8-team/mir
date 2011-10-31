@@ -3820,6 +3820,8 @@ rectangle_continue:
 					 */
 					if (pt2_clipped)
 						length++;
+					if (length == 0)
+						continue;
 
 					if (pt1_clipped) {
 						int clipdx = abs(x1 - x);
@@ -3827,24 +3829,22 @@ rectangle_continue:
 						e += clipdy * e2 + (clipdx - clipdy) * e1;
 					}
 				}
-				if (length == 0)
-					continue;
-
 				e3 = e2 - e1;
 				e  = e - e1;
+
+				if (sdx < 0) {
+					x1 = x2;
+					y1 = y2;
+					sdy = -sdy;
+				}
 
 				b->x1 = x1;
 				b->y2 = b->y1 = y1;
 				while (--length) {
 					e += e1;
+					x1++;
 					if (e >= 0) {
 						b->x2 = x1;
-						if (b->x2 < b->x1) {
-							int16_t t = b->x1;
-							b->x1 = b->x2;
-							b->x2 = t;
-						}
-						b->x2++;
 						b->y2++;
 						if (++b == last_box) {
 							ret = &&X_continue;
@@ -3855,19 +3855,11 @@ X_continue:
 						y1 += sdy;
 						e += e3;
 						b->y2 = b->y1 = y1;
-						b->x1 = x1 + sdx;
+						b->x1 = x1;
 					}
-					x1 += sdx;
 				}
 
-				b->x2 = x1;
-				if (b->x2 < b->x1) {
-					int16_t t = b->x1;
-					b->x1 = b->x2;
-					b->x2 = t;
-				}
-				if (gc->capStyle != CapNotLast)
-					b->x2++;
+				b->x2 = ++x1;
 				b->y2++;
 				if (++b == last_box) {
 					ret = &&X_continue2;
@@ -3906,6 +3898,8 @@ X_continue2:
 					 */
 					if (pt2_clipped)
 						length++;
+					if (length == 0)
+						continue;
 
 					if (pt1_clipped) {
 						int clipdx = abs(x1 - x);
@@ -3913,16 +3907,21 @@ X_continue2:
 						e += clipdx * e2 + (clipdy - clipdx) * e1;
 					}
 				}
-				if (length == 0)
-					continue;
 
 				e3 = e2 - e1;
 				e  = e - e1;
+
+				if (sdx < 0) {
+					x1 = x2;
+					y1 = y2;
+					sdy = -sdy;
+				}
 
 				b->x2 = b->x1 = x1;
 				b->y1 = y1;
 				while (--length) {
 					e += e1;
+					y1 += sdy;
 					if (e >= 0) {
 						b->y2 = y1;
 						if (b->y2 < b->y1) {
@@ -3931,30 +3930,25 @@ X_continue2:
 							b->y2 = t;
 						}
 						b->x2++;
-						b->y2++;
 						if (++b == last_box) {
 							ret = &&Y_continue;
 							goto *jump;
 Y_continue:
 							b = box;
 						}
-						x1 += sdx;
 						e += e3;
-						b->x2 = b->x1 = x1;
-						b->y1 = y1 + sdy;
+						b->x2 = b->x1 = ++x1;
+						b->y1 = y1;
 					}
-					y1 += sdy;
 				}
 
-				b->y2 = y1;
+				b->y2 = y1 + sdy;
 				if (b->y2 < b->y1) {
 					int16_t t = b->y1;
 					b->y1 = b->y2;
 					b->y2 = t;
 				}
 				b->x2++;
-				if (gc->capStyle != CapNotLast)
-					b->y2++;
 				if (++b == last_box) {
 					ret = &&Y_continue2;
 					goto *jump;
