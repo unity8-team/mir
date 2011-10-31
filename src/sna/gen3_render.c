@@ -906,11 +906,11 @@ gen3_composite_emit_shader(struct sna *sna,
 			break;
 
 		case SHADER_NONE:
-		case SHADER_CONSTANT:
 		case SHADER_WHITE:
 		case SHADER_BLACK:
 		case SHADER_ZERO:
 			assert(0);
+		case SHADER_CONSTANT:
 			break;
 		}
 
