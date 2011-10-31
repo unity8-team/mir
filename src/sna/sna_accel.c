@@ -3439,7 +3439,8 @@ sna_poly_segment_blt(DrawablePtr drawable,
 	struct sna_fill_op fill;
 	int16_t dx, dy;
 
-	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
+	DBG(("%s: n=%d, alu=%d, fg=%08lx, clipped=%d\n",
+	     __FUNCTION__, n, gc->alu, gc->fgPixel, clipped));
 
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
@@ -3456,7 +3457,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
 				do {
-					if (seg->x1 < seg->x2) {
+					if (seg->x1 <= seg->x2) {
 						b->x1 = seg->x1;
 						b->x2 = seg->x2;
 					} else {
@@ -3465,7 +3466,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 					}
 					b->x2++;
 
-					if (seg->y1 < seg->y2) {
+					if (seg->y1 <= seg->y2) {
 						b->y1 = seg->y1;
 						b->y2 = seg->y2;
 					} else {
@@ -3502,7 +3503,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
 				do {
-					if (seg->x1 < seg->x2) {
+					if (seg->x1 <= seg->x2) {
 						b->x1 = seg->x1;
 						b->x2 = seg->x2;
 					} else {
@@ -3511,7 +3512,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 					}
 					b->x2++;
 
-					if (seg->y1 < seg->y2) {
+					if (seg->y1 <= seg->y2) {
 						b->y1 = seg->y1;
 						b->y2 = seg->y2;
 					} else {

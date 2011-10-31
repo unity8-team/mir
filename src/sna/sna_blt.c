@@ -140,8 +140,8 @@ static bool sna_blt_fill_init(struct sna *sna,
 	if (pitch > MAXSHORT)
 		return FALSE;
 
-	if (pixel == 0)
-		alu = GXclear;
+	if (alu == GXclear)
+		pixel = 0;
 
 	blt->br13 = 1<<31 | (fill_ROP[alu] << 16) | pitch;
 	switch (bpp) {
@@ -162,7 +162,8 @@ static bool sna_blt_fill_init(struct sna *sna,
 	}
 
 	if (sna->blt_state.fill_bo != bo->handle ||
-	    sna->blt_state.fill_pixel != pixel)
+	    sna->blt_state.fill_pixel != pixel ||
+	    sna->blt_state.fill_alu != alu)
 	{
 		uint32_t *b;
 
@@ -191,6 +192,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 
 		sna->blt_state.fill_bo = bo->handle;
 		sna->blt_state.fill_pixel = pixel;
+		sna->blt_state.fill_alu = alu;
 	}
 
 	return TRUE;
@@ -1608,8 +1610,8 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	if (br13 > MAXSHORT)
 		return FALSE;
 
-	if (pixel == 0)
-		alu = GXclear;
+	if (alu == GXclear)
+		pixel = 0;
 
 	br13 |= 1<<31 | fill_ROP[alu] << 16;
 	switch (bpp) {
@@ -1627,7 +1629,8 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	}
 
 	if (sna->blt_state.fill_bo != bo->handle ||
-	    sna->blt_state.fill_pixel != pixel)
+	    sna->blt_state.fill_pixel != pixel ||
+	    sna->blt_state.fill_alu != alu)
 	{
 		uint32_t *b;
 
@@ -1656,6 +1659,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 
 		sna->blt_state.fill_bo = bo->handle;
 		sna->blt_state.fill_pixel = pixel;
+		sna->blt_state.fill_alu = alu;
 	}
 
 	do {

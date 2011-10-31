@@ -252,6 +252,7 @@ struct sna {
 	struct {
 		uint32_t fill_bo;
 		uint32_t fill_pixel;
+		uint32_t fill_alu;
 	} blt_state;
 	union {
 		struct gen2_render_state gen2;
