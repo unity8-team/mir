@@ -43,7 +43,7 @@
 #define BLT_DST_TILED		(1<<11)
 
 #define COLOR_BLT_CMD			((2<<29)|(0x40<<22)|(0x3))
-#define XY_COLOR_BLT_CMD		((2<<29)|(0x50<<22)|(0x4))
+#define XY_COLOR_BLT			((2<<29)|(0x50<<22)|(0x4))
 #define XY_SETUP_BLT			((2<<29)|(1<<22)|6)
 #define XY_SETUP_MONO_PATTERN_SL_BLT	((2<<29)|(0x11<<22)|7)
 #define XY_SETUP_CLIP			((2<<29)|(3<<22)|1)
@@ -55,6 +55,7 @@
 #define XY_MONO_PAT			((0x2<<29)|(0x52<<22)|0x7)
 #define XY_MONO_SRC_COPY		((0x2<<29)|(0x54<<22)|(0x6))
 #define XY_MONO_SRC_COPY_IMM		((0x2<<29)|(0x71<<22))
+#define XY_FULL_MONO_PATTERN_MONO_SRC_BLT	((0x2<<29)|(0x58<<22)|0xa)
 
 /* FLUSH commands */
 #define BRW_3D(Pipeline,Opcode,Subopcode) \

@@ -330,7 +330,7 @@ static void sna_blt_copy_one(struct sna *sna,
 	/* Compare against a previous fill */
 	if (kgem->nbatch >= 6 &&
 	    blt->overwrites &&
-	    kgem->batch[kgem->nbatch-6] == ((blt->cmd & ~XY_SRC_COPY_BLT_CMD) | XY_COLOR_BLT_CMD) &&
+	    kgem->batch[kgem->nbatch-6] == ((blt->cmd & ~XY_SRC_COPY_BLT_CMD) | XY_COLOR_BLT) &&
 	    kgem->batch[kgem->nbatch-4] == ((uint32_t)dst_y << 16 | (uint16_t)dst_x) &&
 	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(dst_y+height) << 16 | (uint16_t)(dst_x+width)) &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == blt->bo[1]->handle) {
@@ -1515,7 +1515,7 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	assert(box->x1 >= 0);
 	assert(box->y1 >= 0);
 
-	cmd = XY_COLOR_BLT_CMD;
+	cmd = XY_COLOR_BLT;
 	if (bpp == 32)
 		cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 
@@ -1776,7 +1776,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	if (kgem->nbatch >= 6 &&
 	    (alu == GXcopy || alu == GXclear) &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == dst_bo->handle &&
-	    kgem->batch[kgem->nbatch-6] == ((cmd & ~XY_SRC_COPY_BLT_CMD) | XY_COLOR_BLT_CMD) &&
+	    kgem->batch[kgem->nbatch-6] == ((cmd & ~XY_SRC_COPY_BLT_CMD) | XY_COLOR_BLT) &&
 	    kgem->batch[kgem->nbatch-4] == ((uint32_t)(box->y1 + dst_dy) << 16 | (uint16_t)(box->x1 + dst_dx)) &&
 	    kgem->batch[kgem->nbatch-3] == ((uint32_t)(box->y2 + dst_dy) << 16 | (uint16_t)(box->x2 + dst_dx))) {
 		DBG(("%s: deleting last fill\n", __FUNCTION__));

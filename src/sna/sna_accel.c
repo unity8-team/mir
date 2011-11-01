@@ -140,6 +140,28 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 #define assert_pixmap_contains_box(p, b)
 #endif
 
+inline static bool
+sna_fill_init_blt(struct sna_fill_op *fill,
+		  struct sna *sna,
+		  PixmapPtr pixmap,
+		  struct kgem_bo *bo,
+		  uint8_t alu,
+		  uint32_t pixel)
+{
+	return sna->render.fill(sna, alu, pixmap, bo, pixel, fill);
+}
+
+static Bool
+sna_copy_init_blt(struct sna_copy_op *copy,
+		  struct sna *sna,
+		  PixmapPtr src, struct kgem_bo *src_bo,
+		  PixmapPtr dst, struct kgem_bo *dst_bo,
+		  uint8_t alu)
+{
+	memset(copy, 0, sizeof(*copy));
+	return sna->render.copy(sna, alu, src, src_bo, dst, dst_bo, copy);
+}
+
 static void sna_pixmap_destroy_gpu_bo(struct sna *sna, struct sna_pixmap *priv)
 {
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
@@ -1446,6 +1468,133 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	return true;
 }
 
+static Bool
+sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
+		    int x, int y, int w, int  h, int left,char *bits)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct kgem_bo *bo = priv->gpu_bo;
+	int16_t dx, dy;
+	unsigned i, skip;
+
+	if (gc->alu != GXcopy)
+		return false;
+
+	if (!sna_drawable_use_gpu_bo(&pixmap->drawable, &region->extents))
+		return false;
+
+	if (bo->tiling == I915_TILING_Y)
+		return false;
+
+	assert_pixmap_contains_box(pixmap, RegionExtents(region));
+	if (!priv->gpu_only)
+		sna_damage_add(&priv->gpu_damage, region);
+
+	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	x += dx + drawable->x;
+	y += dy + drawable->y;
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+	skip = h * BitmapBytePad(w + left);
+	for (i = 1 << (gc->depth-1); i; i >>= 1, bits += skip) {
+		const BoxRec *box = REGION_RECTS(region);
+		int n = REGION_NUM_RECTS(region);
+
+		if ((gc->planemask & i) == 0)
+			continue;
+
+		/* Region is pre-clipped and translated into pixmap space */
+		do {
+			int bx1 = (box->x1 - x) & ~7;
+			int bx2 = (box->x2 - x + 7) & ~7;
+			int bw = (bx2 - bx1)/8;
+			int bh = box->y2 - box->y1;
+			int bstride = ALIGN(bw, 2);
+			int src_stride;
+			uint8_t *dst, *src;
+			uint32_t *b;
+			struct kgem_bo *upload;
+			void *ptr;
+
+			if (!kgem_check_batch(&sna->kgem, 12) ||
+			    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+			    !kgem_check_reloc(&sna->kgem, 2)) {
+				_kgem_submit(&sna->kgem);
+				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+			}
+
+			upload = kgem_create_buffer(&sna->kgem,
+						    bstride*bh,
+						    KGEM_BUFFER_WRITE,
+						    &ptr);
+			if (!upload)
+				break;
+
+			dst = ptr;
+			bstride -= bw;
+
+			src_stride = BitmapBytePad(w);
+			src = (uint8_t*)bits + (box->y1 - y) * src_stride + bx1/8;
+			src_stride -= bw;
+			do {
+				int i = bw;
+				do {
+					*dst++ = byte_reverse(*src++);
+				} while (--i);
+				dst += bstride;
+				src += src_stride;
+			} while (--bh);
+
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			b[0] = XY_FULL_MONO_PATTERN_MONO_SRC_BLT;
+			if (drawable->bitsPerPixel >=3224)
+				b[0] |= 3 << 20;
+			b[0] |= ((box->x1 - x) & 7) << 17;
+			b[1] = bo->pitch;
+			if (sna->kgem.gen >= 40) {
+				if (bo->tiling)
+					b[0] |= BLT_DST_TILED;
+				b[1] >>= 2;
+			}
+			b[1] |= 1 << 31; /* solid pattern */
+			b[1] |= blt_depth(drawable->depth) << 24;
+			b[1] |= 0xce << 16; /* S or (D and !P) */
+			b[2] = box->y1 << 16 | box->x1;
+			b[3] = box->y2 << 16 | box->x2;
+			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+					      bo,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      I915_GEM_DOMAIN_RENDER |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+					      upload,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[6] = 0;
+			b[7] = i;
+			b[8] = i;
+			b[9] = i;
+			b[10] = -1;
+			b[11] = -1;
+
+			sna->kgem.nbatch += 12;
+			kgem_bo_destroy(&sna->kgem, upload);
+
+			box++;
+		} while (--n);
+	}
+
+	sna->blt_state.fill_bo = 0;
+	return true;
+}
+
 static void
 sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	      int x, int y, int w, int h, int left, int format,
@@ -1491,11 +1640,11 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	if (!RegionNotEmpty(&region))
 		return;
 
-	if (!PM_IS_SOLID(drawable, gc->planemask))
-		goto fallback;
-
 	switch (format) {
 	case ZPixmap:
+		if (!PM_IS_SOLID(drawable, gc->planemask))
+			goto fallback;
+
 		if (sna_put_zpixmap_blt(drawable, gc, &region,
 					x, y, w, h,
 					bits, PixmapBytePad(w, depth)))
@@ -1503,8 +1652,18 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		break;
 
 	case XYBitmap:
+		if (!PM_IS_SOLID(drawable, gc->planemask))
+			goto fallback;
+
 		if (sna_put_xybitmap_blt(drawable, gc, &region,
 					 x, y, w, h,
+					 bits))
+			return;
+		break;
+
+	case XYPixmap:
+		if (sna_put_xypixmap_blt(drawable, gc, &region,
+					 x, y, w, h, left,
 					 bits))
 			return;
 		break;
@@ -2030,28 +2189,6 @@ box_intersect(BoxPtr a, const BoxRec *b)
 		a->y2 = b->y2;
 
 	return a->x1 < a->x2 && a->y1 < a->y2;
-}
-
-inline static bool
-sna_fill_init_blt(struct sna_fill_op *fill,
-		  struct sna *sna,
-		  PixmapPtr pixmap,
-		  struct kgem_bo *bo,
-		  uint8_t alu,
-		  uint32_t pixel)
-{
-	return sna->render.fill(sna, alu, pixmap, bo, pixel, fill);
-}
-
-static Bool
-sna_copy_init_blt(struct sna_copy_op *copy,
-		  struct sna *sna,
-		  PixmapPtr src, struct kgem_bo *src_bo,
-		  PixmapPtr dst, struct kgem_bo *dst_bo,
-		  uint8_t alu)
-{
-	memset(copy, 0, sizeof(*copy));
-	return sna->render.copy(sna, alu, src, src_bo, dst, dst_bo, copy);
 }
 
 static const BoxRec *
