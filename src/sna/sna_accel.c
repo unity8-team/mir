@@ -60,6 +60,7 @@
 
 #define USE_SPANS 0
 #define USE_ZERO_SPANS 1
+#define USE_BO_FOR_SCRATCH_PIXMAP 1
 
 DevPrivateKeyRec sna_pixmap_index;
 DevPrivateKey sna_window_key;
@@ -345,7 +346,13 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	     width, height, depth, usage));
 
 	if (usage == CREATE_PIXMAP_USAGE_SCRATCH)
+#if USE_BO_FOR_SCRATCH_PIXMAP
+		return sna_pixmap_create_scratch(screen,
+						 width, height, depth,
+						 I915_TILING_X);
+#else
 		return fbCreatePixmap(screen, width, height, depth, usage);
+#endif
 
 	if (usage == SNA_CREATE_SCRATCH)
 		return sna_pixmap_create_scratch(screen,
