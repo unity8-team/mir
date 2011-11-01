@@ -2872,6 +2872,212 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 	sna->blt_state.fill_bo = 0;
 }
 
+static void
+sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
+		   BoxPtr box, int n,
+		   int sx, int sy,
+		   Bool reverse, Bool upsidedown, Pixel bitplane,
+		   void *closure)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr dst_pixmap = get_drawable_pixmap(drawable);
+	PixmapPtr src_pixmap = get_drawable_pixmap(source);
+	struct sna_pixmap *priv = sna_pixmap(dst_pixmap);
+	int16_t dx, dy;
+	int bit = ffs(bitplane) - 1;
+	uint32_t br00, br13;
+
+	DBG(("%s: plane=%x [%d] x%d\n", __FUNCTION__,
+	     (unsigned)bitplane, bit, n));
+
+	if (n == 0)
+		return;
+
+	sna_pixmap_move_to_cpu(src_pixmap, false);
+	get_drawable_deltas(source, src_pixmap, &dx, &dy);
+	sx += dx;
+	sy += dy;
+
+	get_drawable_deltas(drawable, dst_pixmap, &dx, &dy);
+	if (closure)
+		sna_damage_add_boxes(closure, box, n, dx, dy);
+
+	br00 = XY_MONO_SRC_COPY;
+	if (drawable->bitsPerPixel == 32)
+		br00 |= 3 << 20;
+	br13 = priv->gpu_bo->pitch;
+	if (sna->kgem.gen >= 40) {
+		if (priv->gpu_bo->tiling)
+			br00 |= BLT_DST_TILED;
+		br13 >>= 2;
+	}
+	br13 |= blt_depth(drawable->depth) << 24;
+	br13 |= copy_ROP[gc->alu] << 16;
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	do {
+		int bx1 = (box->x1 + sx) & ~7;
+		int bx2 = (box->x2 + sx + 7) & ~7;
+		int bw = (bx2 - bx1)/8;
+		int bh = box->y2 - box->y1;
+		int bstride = ALIGN(bw, 2);
+		uint32_t *b;
+		struct kgem_bo *upload;
+		void *ptr;
+
+		DBG(("%s: box(%d, %d), (%d, %d), sx=(%d,%d) bx=[%d, %d]\n",
+		     __FUNCTION__,
+		     box->x1, box->y1,
+		     box->x2, box->y2,
+		     sx, sy, bx1, bx2));
+
+		if (!kgem_check_batch(&sna->kgem, 8) ||
+		    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+		    !kgem_check_reloc(&sna->kgem, 2)) {
+			_kgem_submit(&sna->kgem);
+			_kgem_set_mode(&sna->kgem, KGEM_BLT);
+		}
+
+		upload = kgem_create_buffer(&sna->kgem,
+					    bstride*bh,
+					    KGEM_BUFFER_WRITE,
+					    &ptr);
+		if (!upload)
+			break;
+
+		switch (source->bitsPerPixel) {
+		case 32:
+			{
+				uint32_t *src = src_pixmap->devPrivate.ptr;
+				uint32_t src_stride = src_pixmap->devKind/sizeof(uint32_t);
+				uint8_t *dst = ptr;
+
+				src += (box->y1 + sy) * src_stride;
+				src += bx1;
+
+				src_stride -= bw * 8;
+				bstride -= bw;
+
+				do {
+					int i = bw;
+					do {
+						uint8_t v = 0;
+
+						v |= ((*src++ >> bit) & 1) << 7;
+						v |= ((*src++ >> bit) & 1) << 6;
+						v |= ((*src++ >> bit) & 1) << 5;
+						v |= ((*src++ >> bit) & 1) << 4;
+						v |= ((*src++ >> bit) & 1) << 3;
+						v |= ((*src++ >> bit) & 1) << 2;
+						v |= ((*src++ >> bit) & 1) << 1;
+						v |= ((*src++ >> bit) & 1) << 0;
+
+						*dst++ = v;
+					} while (--i);
+					dst += bstride;
+					src += src_stride;
+				} while (--bh);
+				break;
+			}
+		case 16:
+			{
+				uint16_t *src = src_pixmap->devPrivate.ptr;
+				uint16_t src_stride = src_pixmap->devKind/sizeof(uint16_t);
+				uint8_t *dst = ptr;
+
+				src += (box->y1 + sy) * src_stride;
+				src += bx1;
+
+				src_stride -= bw * 8;
+				bstride -= bw;
+
+				do {
+					int i = bw;
+					do {
+						uint8_t v = 0;
+
+						v |= ((*src++ >> bit) & 1) << 7;
+						v |= ((*src++ >> bit) & 1) << 6;
+						v |= ((*src++ >> bit) & 1) << 5;
+						v |= ((*src++ >> bit) & 1) << 4;
+						v |= ((*src++ >> bit) & 1) << 3;
+						v |= ((*src++ >> bit) & 1) << 2;
+						v |= ((*src++ >> bit) & 1) << 1;
+						v |= ((*src++ >> bit) & 1) << 0;
+
+						*dst++ = v;
+					} while (--i);
+					dst += bstride;
+					src += src_stride;
+				} while (--bh);
+				break;
+			}
+		case 8:
+			{
+				uint8_t *src = src_pixmap->devPrivate.ptr;
+				uint8_t src_stride = src_pixmap->devKind/sizeof(uint8_t);
+				uint8_t *dst = ptr;
+
+				src += (box->y1 + sy) * src_stride;
+				src += bx1;
+
+				src_stride -= bw * 8;
+				bstride -= bw;
+
+				do {
+					int i = bw;
+					do {
+						uint8_t v = 0;
+
+						v |= ((*src++ >> bit) & 1) << 7;
+						v |= ((*src++ >> bit) & 1) << 6;
+						v |= ((*src++ >> bit) & 1) << 5;
+						v |= ((*src++ >> bit) & 1) << 4;
+						v |= ((*src++ >> bit) & 1) << 3;
+						v |= ((*src++ >> bit) & 1) << 2;
+						v |= ((*src++ >> bit) & 1) << 1;
+						v |= ((*src++ >> bit) & 1) << 0;
+
+						*dst++ = v;
+					} while (--i);
+					dst += bstride;
+					src += src_stride;
+				} while (--bh);
+				break;
+			}
+		default:
+			assert(0);
+			return;
+		}
+
+		b = sna->kgem.batch + sna->kgem.nbatch;
+		b[0] = br00 | ((box->x1 + sx) & 7) << 17;
+		b[1] = br13;
+		b[2] = (box->y1 + dy) << 16 | (box->x1 + dx);
+		b[3] = (box->y2 + dy) << 16 | (box->x2 + dx);
+		b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+				      priv->gpu_bo,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      I915_GEM_DOMAIN_RENDER |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+				      upload,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[6] = gc->bgPixel;
+		b[7] = gc->fgPixel;
+
+		sna->kgem.nbatch += 8;
+		kgem_bo_destroy(&sna->kgem, upload);
+
+		box++;
+	} while (--n);
+
+	sna->blt_state.fill_bo = 0;
+}
+
 static RegionPtr
 sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       int src_x, int src_y,
@@ -2901,13 +3107,13 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	if (sna_drawable_use_gpu_bo(dst, &region.extents)) {
 		struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(dst));
-		if (src->depth == 1 && priv->gpu_bo->tiling != I915_TILING_Y) {
+		if (priv->gpu_bo->tiling != I915_TILING_Y) {
 			RegionUninit(&region);
 			return miDoCopy(src, dst, gc,
 					src_x, src_y,
 					w, h,
 					dst_x, dst_y,
-					sna_copy_bitmap_blt,
+					src->depth == 1 ? sna_copy_bitmap_blt :sna_copy_plane_blt,
 					(Pixel)bit,
 					priv->gpu_only ? NULL : reduce_damage(dst, &priv->gpu_damage, &region.extents));
 		}
