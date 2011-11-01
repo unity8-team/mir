@@ -82,6 +82,24 @@ static const uint8_t copy_ROP[] = {
 	ROP_DSan,               /* GXnand */
 	ROP_1                   /* GXset */
 };
+static const uint8_t fill_ROP[] = {
+	ROP_0,
+	ROP_DPa,
+	ROP_PDna,
+	ROP_P,
+	ROP_DPna,
+	ROP_D,
+	ROP_DPx,
+	ROP_DPo,
+	ROP_DPon,
+	ROP_PDxn,
+	ROP_Dn,
+	ROP_PDno,
+	ROP_Pn,
+	ROP_DPno,
+	ROP_DPan,
+	ROP_1
+};
 
 static inline void region_set(RegionRec *r, const BoxRec *b)
 {
@@ -5542,6 +5560,198 @@ done:
 }
 
 static bool
+sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
+				    struct kgem_bo *bo,
+				    struct sna_damage **damage,
+				    GCPtr gc, int n, xRectangle *r,
+				    const BoxRec *extents, unsigned clipped)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	uint32_t pat[2], br00, br13;
+	int16_t dx, dy;
+
+	DBG(("%s: alu=%d, upload (%d, %d), (%d, %d), origin (%d, %d)\n",
+	     __FUNCTION__, gc->alu,
+	     extents->x1, extents->y1,
+	     extents->x2, extents->y2,
+	     gc->patOrg.x, gc->patOrg.y));
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	{
+		unsigned px = (gc->patOrg.x - dx) & 7;
+		unsigned py = (gc->patOrg.y - dy) & 7;
+		DBG(("%s: pat offset (%d, %d)\n", __FUNCTION__ ,px, py));
+		br00 = XY_MONO_PAT | px << 12 | py << 8;
+		if (drawable->bitsPerPixel == 32)
+			br00 |= 3 << 20;
+
+		br13 = bo->pitch;
+		if (sna->kgem.gen >= 40) {
+			if (bo->tiling)
+				br00 |= BLT_DST_TILED;
+			br13 >>= 2;
+		}
+		br13 |= (gc->fillStyle == FillStippled) << 28;
+		br13 |= blt_depth(drawable->depth) << 24;
+		br13 |= fill_ROP[gc->alu] << 16;
+	}
+
+	{
+		uint8_t *dst = (uint8_t *)pat;
+		const uint8_t *src = gc->stipple->devPrivate.ptr;
+		int stride = gc->stipple->devKind;
+		int n = 8;
+		do {
+			*dst++ = byte_reverse(*src);
+			src += stride;
+		} while (--n);
+	}
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	if (!clipped) {
+		dx += drawable->x;
+		dy += drawable->y;
+
+		sna_damage_add_rectangles(damage, r, n, dx, dy);
+		do {
+			uint32_t *b;
+
+			DBG(("%s: rect (%d, %d)x(%d, %d)\n",
+			     __FUNCTION__, r->x + dx, r->y + dy, r->width, r->height));
+
+			if (!kgem_check_batch(&sna->kgem, 9) ||
+			    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+			    !kgem_check_reloc(&sna->kgem, 1)) {
+				_kgem_submit(&sna->kgem);
+				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+			}
+
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			b[0] = br00;
+			b[1] = br13;
+			b[2] = (r->y + dy) << 16 | (r->x + dx);
+			b[3] = (r->y + r->height + dy) << 16 | (r->x + r->width + dx);
+			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      I915_GEM_DOMAIN_RENDER |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[5] = gc->bgPixel;
+			b[6] = gc->fgPixel;
+			b[7] = pat[0];
+			b[8] = pat[1];
+			sna->kgem.nbatch += 9;
+
+			r++;
+		} while (--n);
+	} else {
+		RegionRec clip;
+
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return true;
+
+		/* XXX XY_SETUP_BLT + XY_SCANLINE_BLT */
+
+		if (clip.data == NULL) {
+			do {
+				BoxRec box;
+
+				box.x1 = r->x + drawable->x;
+				box.y1 = r->y + drawable->y;
+				box.x2 = bound(box.x1, r->width);
+				box.y2 = bound(box.y1, r->height);
+				r++;
+
+				if (box_intersect(&box, &clip.extents)) {
+					uint32_t *b;
+
+					if (!kgem_check_batch(&sna->kgem, 9) ||
+					    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+					    !kgem_check_reloc(&sna->kgem, 1)) {
+						_kgem_submit(&sna->kgem);
+						_kgem_set_mode(&sna->kgem, KGEM_BLT);
+					}
+
+					b = sna->kgem.batch + sna->kgem.nbatch;
+					b[0] = br00;
+					b[1] = br13;
+					b[2] = (box.y1 + dy) << 16 | (box.x1 + dx);
+					b[3] = (box.y2 + dy) << 16 | (box.x2 + dx);
+					b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
+							      I915_GEM_DOMAIN_RENDER << 16 |
+							      I915_GEM_DOMAIN_RENDER |
+							      KGEM_RELOC_FENCED,
+							      0);
+					b[5] = gc->bgPixel;
+					b[6] = gc->fgPixel;
+					b[7] = pat[0];
+					b[8] = pat[1];
+					sna->kgem.nbatch += 9;
+				}
+			} while (n--);
+		} else {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
+			const BoxRec *c;
+
+			do {
+				BoxRec box;
+
+				box.x1 = r->x + drawable->x;
+				box.y1 = r->y + drawable->y;
+				box.x2 = bound(box.x1, r->width);
+				box.y2 = bound(box.y1, r->height);
+				r++;
+
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							box.y1);
+				while (c != clip_end) {
+					BoxRec bb;
+					if (box.y2 <= c->y1)
+						break;
+
+					bb = box;
+					if (box_intersect(&bb, c++)) {
+						uint32_t *b;
+
+						if (!kgem_check_batch(&sna->kgem, 9) ||
+						    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+						    !kgem_check_reloc(&sna->kgem, 1)) {
+							_kgem_submit(&sna->kgem);
+							_kgem_set_mode(&sna->kgem, KGEM_BLT);
+						}
+
+						b = sna->kgem.batch + sna->kgem.nbatch;
+						b[0] = br00;
+						b[1] = br13;
+						b[2] = (bb.y1 + dy) << 16 | (bb.x1 + dx);
+						b[3] = (bb.y2 + dy) << 16 | (bb.x2 + dx);
+						b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
+								      I915_GEM_DOMAIN_RENDER << 16 |
+								      I915_GEM_DOMAIN_RENDER |
+								      KGEM_RELOC_FENCED,
+								      0);
+						b[5] = gc->bgPixel;
+						b[6] = gc->fgPixel;
+						b[7] = pat[0];
+						b[8] = pat[1];
+						sna->kgem.nbatch += 9;
+					}
+
+				}
+			} while (--n);
+		}
+	}
+
+	sna->blt_state.fill_bo = 0;
+	return true;
+}
+
+static bool
 sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 				  struct kgem_bo *bo,
 				  struct sna_damage **damage,
@@ -5679,6 +5889,11 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 	     extents->y2 - gc->patOrg.y - drawable->y,
 	     stipple->drawable.width, stipple->drawable.height));
 
+	if (stipple->drawable.width == 8 && stipple->drawable.height == 8)
+		return sna_poly_fill_rect_stippled_8x8_blt(drawable, bo, damage,
+							   gc, n, rect,
+							   extents, clipped);
+
 	if (extents->x2 - gc->patOrg.x - drawable->x <= stipple->drawable.width &&
 	    extents->y2 - gc->patOrg.y - drawable->y <= stipple->drawable.height)
 		return sna_poly_fill_rect_stippled_1_blt(drawable, bo, damage,
@@ -5752,13 +5967,13 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		goto fallback;
 
 	if (gc->fillStyle == FillSolid ||
-	    (gc->fillStyle == FillTiled && gc->tileIsPixel)) {
+	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
+	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
-		uint32_t color = gc->fillStyle == FillSolid ? gc->fgPixel : gc->tile.pixel;
+		uint32_t color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
 
 		DBG(("%s: solid fill [%08lx], testing for blt\n",
-		     __FUNCTION__,
-		     gc->fillStyle == FillSolid ? gc->fgPixel : gc->tile.pixel));
+		     __FUNCTION__, color));
 
 		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
 		    sna_poly_fill_rect_blt(draw,
@@ -5851,26 +6066,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	uint32_t *b;
 	int16_t dx, dy;
 
-	/* XXX sna_blt! */
-	static const uint8_t ROP[] = {
-		ROP_0,                  /* GXclear */
-		ROP_DSa,                /* GXand */
-		ROP_SDna,               /* GXandReverse */
-		ROP_S,                  /* GXcopy */
-		ROP_DSna,               /* GXandInverted */
-		ROP_D,                  /* GXnoop */
-		ROP_DSx,                /* GXxor */
-		ROP_DSo,                /* GXor */
-		ROP_DSon,               /* GXnor */
-		ROP_DSxn,               /* GXequiv */
-		ROP_Dn,                 /* GXinvert */
-		ROP_SDno,               /* GXorReverse */
-		ROP_Sn,                 /* GXcopyInverted */
-		ROP_DSno,               /* GXorInverted */
-		ROP_DSan,               /* GXnand */
-		ROP_1                   /* GXset */
-	};
-	uint8_t rop = transparent ? ROP[gc->alu] : ROP_S;
+	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
 	RegionRec clip;
 
 	if (priv->gpu_bo->tiling == I915_TILING_Y) {
