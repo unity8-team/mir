@@ -64,6 +64,25 @@
 DevPrivateKeyRec sna_pixmap_index;
 DevPrivateKey sna_window_key;
 
+static const uint8_t copy_ROP[] = {
+	ROP_0,                  /* GXclear */
+	ROP_DSa,                /* GXand */
+	ROP_SDna,               /* GXandReverse */
+	ROP_S,                  /* GXcopy */
+	ROP_DSna,               /* GXandInverted */
+	ROP_D,                  /* GXnoop */
+	ROP_DSx,                /* GXxor */
+	ROP_DSo,                /* GXor */
+	ROP_DSon,               /* GXnor */
+	ROP_DSxn,               /* GXequiv */
+	ROP_Dn,                 /* GXinvert */
+	ROP_SDno,               /* GXorReverse */
+	ROP_Sn,                 /* GXcopyInverted */
+	ROP_DSno,               /* GXorInverted */
+	ROP_DSan,               /* GXnand */
+	ROP_1                   /* GXset */
+};
+
 static inline void region_set(RegionRec *r, const BoxRec *b)
 {
 	r->extents = *b;
@@ -1184,8 +1203,8 @@ sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 }
 
 static Bool
-sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
-		  int x, int y, int w, int  h, char *bits, int stride)
+sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
+		    int x, int y, int w, int  h, char *bits, int stride)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -1281,6 +1300,134 @@ sna_put_image_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	return true;
 }
 
+static inline uint8_t byte_reverse(uint8_t b)
+{
+	return ((b * 0x80200802ULL) & 0x0884422110ULL) * 0x0101010101ULL >> 32;
+}
+
+static inline uint8_t blt_depth(int depth)
+{
+	switch (depth) {
+	case 8: return 0;
+	case 15: return 0x2;
+	case 16: return 0x1;
+	default: return 0x3;
+	}
+}
+
+static Bool
+sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
+		    int x, int y, int w, int  h, char *bits)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	BoxRec *box;
+	int16_t dx, dy;
+	int n;
+	uint8_t rop = copy_ROP[gc->alu];
+
+	if (!sna_drawable_use_gpu_bo(&pixmap->drawable, &region->extents))
+		return false;
+
+	if (priv->gpu_bo->tiling == I915_TILING_Y)
+		return false;
+
+	assert_pixmap_contains_box(pixmap, RegionExtents(region));
+	if (!priv->gpu_only)
+		sna_damage_add(&priv->gpu_damage, region);
+
+	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	x += dx + drawable->x;
+	y += dy + drawable->y;
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+	/* Region is pre-clipped and translated into pixmap space */
+	box = REGION_RECTS(region);
+	n = REGION_NUM_RECTS(region);
+	do {
+		int bx1 = (box->x1 - x) & ~7;
+		int bx2 = (box->x2 - x + 7) & ~7;
+		int bw = (bx2 - bx1)/8;
+		int bh = box->y2 - box->y1;
+		int bstride = ALIGN(bw, 2);
+		int src_stride;
+		uint8_t *dst, *src;
+		uint32_t *b;
+		struct kgem_bo *upload;
+		void *ptr;
+
+		if (!kgem_check_batch(&sna->kgem, 8) ||
+		    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+		    !kgem_check_reloc(&sna->kgem, 2)) {
+			_kgem_submit(&sna->kgem);
+			_kgem_set_mode(&sna->kgem, KGEM_BLT);
+		}
+
+		upload = kgem_create_buffer(&sna->kgem,
+					    bstride*bh,
+					    KGEM_BUFFER_WRITE,
+					    &ptr);
+		if (!upload)
+			break;
+
+		dst = ptr;
+		bstride -= bw;
+
+		src_stride = BitmapBytePad(w);
+		src = (uint8_t*)bits + (box->y1 - y) * src_stride + bx1/8;
+		src_stride -= bw;
+		do {
+			int i = bw;
+			do {
+				*dst++ = byte_reverse(*src++);
+			} while (--i);
+			dst += bstride;
+			src += src_stride;
+		} while (--bh);
+
+		b = sna->kgem.batch + sna->kgem.nbatch;
+		b[0] = XY_MONO_SRC_COPY;
+		if (drawable->bitsPerPixel == 32)
+			b[0] |= 3 << 20;
+		b[0] |= ((box->x1 - x) & 7) << 17;
+		b[1] = priv->gpu_bo->pitch;
+		if (sna->kgem.gen >= 40) {
+			if (priv->gpu_bo->tiling)
+				b[0] |= BLT_DST_TILED;
+			b[1] >>= 2;
+		}
+		b[1] |= blt_depth(drawable->depth) << 24;
+		b[1] |= rop << 16;
+		b[2] = box->y1 << 16 | box->x1;
+		b[3] = box->y2 << 16 | box->x2;
+		b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+				      priv->gpu_bo,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      I915_GEM_DOMAIN_RENDER |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+				      upload,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[6] = gc->bgPixel;
+		b[7] = gc->fgPixel;
+
+		sna->kgem.nbatch += 8;
+		kgem_bo_destroy(&sna->kgem, upload);
+
+		box++;
+	} while (--n);
+
+	sna->blt_state.fill_bo = 0;
+	return true;
+}
+
 static void
 sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	      int x, int y, int w, int h, int left, int format,
@@ -1323,20 +1470,41 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		RegionTranslate(clip, -dx, -dy);
 	}
 
-	if (RegionNotEmpty(&region) &&
-	    (format != ZPixmap || !PM_IS_SOLID(drawable, gc->planemask) ||
-	     !sna_put_image_blt(drawable, gc, &region,
-				x, y, w, h,
-				bits, PixmapBytePad(w, depth)))) {
-		RegionTranslate(&region, -dx, -dy);
+	if (!RegionNotEmpty(&region))
+		return;
 
-		sna_drawable_move_region_to_cpu(drawable, &region, true);
-		DBG(("%s: fbPutImage(%d, %d, %d, %d)\n",
-		     __FUNCTION__, x, y, w, h));
-		fbPutImage(drawable, gc, depth, x, y, w, h, left, format, bits);
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto fallback;
+
+	switch (format) {
+	case ZPixmap:
+		if (sna_put_zpixmap_blt(drawable, gc, &region,
+					x, y, w, h,
+					bits, PixmapBytePad(w, depth)))
+			return;
+		break;
+
+	case XYBitmap:
+		if (sna_put_xybitmap_blt(drawable, gc, &region,
+					 x, y, w, h,
+					 bits))
+			return;
+		break;
+
+	default:
+		break;
 	}
 
+fallback:
+	DBG(("%s: fallback\n", __FUNCTION__));
+	RegionTranslate(&region, -dx, -dy);
+
+	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
+
+	DBG(("%s: fbPutImage(%d, %d, %d, %d)\n",
+	     __FUNCTION__, x, y, w, h));
+	fbPutImage(drawable, gc, depth, x, y, w, h, left, format, bits);
 }
 
 static bool
@@ -2439,6 +2607,116 @@ sna_set_spans(DrawablePtr drawable, GCPtr gc, char *src,
 	fbSetSpans(drawable, gc, src, pt, width, n, sorted);
 }
 
+static void
+sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
+		    BoxPtr box, int n,
+		    int sx, int sy,
+		    Bool reverse, Bool upsidedown, Pixel bitplane,
+		    void *closure)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	PixmapPtr bitmap = (PixmapPtr)_bitmap;
+	int16_t dx, dy;
+	uint8_t rop = copy_ROP[gc->alu];
+
+	DBG(("%s: plane=%x x%d\n", __FUNCTION__, (unsigned)bitplane, n));
+
+	if (n == 0)
+		return;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	if (closure)
+		sna_damage_add_boxes(closure, box, n, dx, dy);
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	do {
+		int bx1 = (box->x1 + sx) & ~7;
+		int bx2 = (box->x2 + sx + 7) & ~7;
+		int bw = (bx2 - bx1)/8;
+		int bh = box->y2 - box->y1;
+		int bstride = ALIGN(bw, 2);
+		int src_stride;
+		uint8_t *dst, *src;
+		uint32_t *b;
+		struct kgem_bo *upload;
+		void *ptr;
+
+		DBG(("%s: box(%d, %d), (%d, %d), sx=(%d,%d) bx=[%d, %d]\n",
+		     __FUNCTION__,
+		     box->x1, box->y1,
+		     box->x2, box->y2,
+		     sx, sy, bx1, bx2));
+
+		if (!kgem_check_batch(&sna->kgem, 8) ||
+		    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+		    !kgem_check_reloc(&sna->kgem, 2)) {
+			_kgem_submit(&sna->kgem);
+			_kgem_set_mode(&sna->kgem, KGEM_BLT);
+		}
+
+		upload = kgem_create_buffer(&sna->kgem,
+					    bstride*bh,
+					    KGEM_BUFFER_WRITE,
+					    &ptr);
+		if (!upload)
+			break;
+
+		dst = ptr;
+		bstride -= bw;
+
+		src_stride = bitmap->devKind;
+		src = (uint8_t*)bitmap->devPrivate.ptr;
+		src += (box->y1 + sy) * src_stride + bx1/8;
+		src_stride -= bw;
+		do {
+			int i = bw;
+			do {
+				*dst++ = byte_reverse(*src++);
+			} while (--i);
+			dst += bstride;
+			src += src_stride;
+		} while (--bh);
+
+		b = sna->kgem.batch + sna->kgem.nbatch;
+		b[0] = XY_MONO_SRC_COPY;
+		if (drawable->bitsPerPixel == 32)
+			b[0] |= 3 << 20;
+		b[0] |= ((box->x1 + sx) & 7) << 17;
+		b[1] = priv->gpu_bo->pitch;
+		if (sna->kgem.gen >= 40) {
+			if (priv->gpu_bo->tiling)
+				b[0] |= BLT_DST_TILED;
+			b[1] >>= 2;
+		}
+		b[1] |= blt_depth(drawable->depth) << 24;
+		b[1] |= rop << 16;
+		b[2] = (box->y1 + dy) << 16 | (box->x1 + dx);
+		b[3] = (box->y2 + dy) << 16 | (box->x2 + dx);
+		b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+				      priv->gpu_bo,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      I915_GEM_DOMAIN_RENDER |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+				      upload,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[6] = gc->bgPixel;
+		b[7] = gc->fgPixel;
+
+		sna->kgem.nbatch += 8;
+		kgem_bo_destroy(&sna->kgem, upload);
+
+		box++;
+	} while (--n);
+
+	sna->blt_state.fill_bo = 0;
+}
+
 static RegionPtr
 sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       int src_x, int src_y,
@@ -2451,6 +2729,12 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, w, h));
 
+	if (src->bitsPerPixel == 1 && (bit&1) == 0)
+		return miHandleExposures(src, dst, gc,
+					 src_x, src_y,
+					 w, h,
+					 dst_x, dst_y, bit);
+
 	region.extents.x1 = dst_x + dst->x;
 	region.extents.y1 = dst_y + dst->y;
 	region.extents.x2 = region.extents.x1 + w;
@@ -2460,12 +2744,29 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (!RegionNotEmpty(&region))
 		return NULL;
 
+	if (sna_drawable_use_gpu_bo(dst, &region.extents)) {
+		struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(dst));
+		if (src->depth == 1 && priv->gpu_bo->tiling != I915_TILING_Y) {
+			RegionUninit(&region);
+			return miDoCopy(src, dst, gc,
+					src_x, src_y,
+					w, h,
+					dst_x, dst_y,
+					sna_copy_bitmap_blt,
+					(Pixel)bit,
+					priv->gpu_only ? NULL : reduce_damage(dst, &priv->gpu_damage, &region.extents));
+		}
+	}
+
+	DBG(("%s: fallback\n", __FUNCTION__));
 	sna_drawable_move_region_to_cpu(dst, &region, true);
 	RegionTranslate(&region,
 			src_x - dst_x - dst->x + src->x,
 			src_y - dst_y - dst->y + src->y);
 	sna_drawable_move_region_to_cpu(src, &region, false);
 
+	DBG(("%s: fbCopyPlane(%d, %d, %d, %d, %d,%d) %x\n",
+	     __FUNCTION__, src_x, src_y, w, h, dst_x, dst_y, (unsigned)bit));
 	return fbCopyPlane(src, dst, gc, src_x, src_y, w, h, dst_x, dst_y, bit);
 }
 
@@ -5240,6 +5541,153 @@ done:
 	return TRUE;
 }
 
+static bool
+sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
+				  struct kgem_bo *bo,
+				  struct sna_damage **damage,
+				  GCPtr gc, int n, xRectangle *r,
+				  const BoxRec *extents, unsigned clipped)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	PixmapPtr stipple = gc->stipple;
+	const DDXPointRec *origin = &gc->patOrg;
+	int16_t dx, dy;
+	uint8_t rop = copy_ROP[gc->alu];
+
+	DBG(("%s: upload (%d, %d), (%d, %d), origin (%d, %d)\n", __FUNCTION__,
+	     extents->x1, extents->y1,
+	     extents->x2, extents->y2,
+	     origin->x, origin->y));
+
+	if (clipped) {
+		DBG(("%s: fallback -- clipped\n", __FUNCTION__));
+		return false;
+	}
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	dx += drawable->x;
+	dy += drawable->y;
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+	sna_damage_add_rectangles(damage, r, n, dx, dy);
+	do {
+		int bx1 = (r->x - origin->x) & ~7;
+		int bx2 = (r->x + r->width - origin->x + 7) & ~7;
+		int bw = (bx2 - bx1)/8;
+		int bh = r->height;
+		int bstride = ALIGN(bw, 2);
+		int src_stride;
+		uint8_t *dst, *src;
+		uint32_t *b;
+		struct kgem_bo *upload;
+		void *ptr;
+
+		DBG(("%s: rect (%d, %d)x(%d, %d) stipple [%d,%d]\n",
+		     __FUNCTION__,
+		     r->x, r->y, r->width, r->height,
+		     bx1, bx2));
+
+		if (!kgem_check_batch(&sna->kgem, 8) ||
+		    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+		    !kgem_check_reloc(&sna->kgem, 2)) {
+			_kgem_submit(&sna->kgem);
+			_kgem_set_mode(&sna->kgem, KGEM_BLT);
+		}
+
+		upload = kgem_create_buffer(&sna->kgem,
+					    bstride*bh,
+					    KGEM_BUFFER_WRITE,
+					    &ptr);
+		if (!upload)
+			break;
+
+		dst = ptr;
+		bstride -= bw;
+
+		src_stride = stipple->devKind;
+		src = (uint8_t*)stipple->devPrivate.ptr;
+		src += (r->y - origin->y) * src_stride + bx1/8;
+		src_stride -= bw;
+		do {
+			int i = bw;
+			do {
+				*dst++ = byte_reverse(*src++);
+			} while (--i);
+			dst += bstride;
+			src += src_stride;
+		} while (--bh);
+
+		b = sna->kgem.batch + sna->kgem.nbatch;
+		b[0] = XY_MONO_SRC_COPY;
+		if (drawable->bitsPerPixel == 32)
+			b[0] |= 3 << 20;
+		b[0] |= ((r->x - origin->x) & 7) << 17;
+		b[1] = priv->gpu_bo->pitch;
+		if (sna->kgem.gen >= 40) {
+			if (priv->gpu_bo->tiling)
+				b[0] |= BLT_DST_TILED;
+			b[1] >>= 2;
+		}
+		b[1] |= (gc->fillStyle == FillStippled) << 29;
+		b[1] |= blt_depth(drawable->depth) << 24;
+		b[1] |= rop << 16;
+		b[2] = (r->y + dy) << 16 | (r->x + dx);
+		b[3] = (r->y + r->height + dy) << 16 | (r->x + r->width + dx);
+		b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+				      priv->gpu_bo,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      I915_GEM_DOMAIN_RENDER |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+				      upload,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[6] = gc->bgPixel;
+		b[7] = gc->fgPixel;
+
+		sna->kgem.nbatch += 8;
+		kgem_bo_destroy(&sna->kgem, upload);
+
+		r++;
+	} while (--n);
+
+	sna->blt_state.fill_bo = 0;
+	return true;
+}
+
+static bool
+sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
+				struct kgem_bo *bo,
+				struct sna_damage **damage,
+				GCPtr gc, int n, xRectangle *rect,
+				const BoxRec *extents, unsigned clipped)
+{
+
+	PixmapPtr stipple = gc->stipple;
+
+	if (bo->tiling == I915_TILING_Y)
+		return false;
+
+	DBG(("%s: origin (%d, %d), extents (stipple): (%d, %d), stipple size %dx%d\n",
+	     __FUNCTION__, gc->patOrg.x, gc->patOrg.y,
+	     extents->x2 - gc->patOrg.x - drawable->x,
+	     extents->y2 - gc->patOrg.y - drawable->y,
+	     stipple->drawable.width, stipple->drawable.height));
+
+	if (extents->x2 - gc->patOrg.x - drawable->x <= stipple->drawable.width &&
+	    extents->y2 - gc->patOrg.y - drawable->y <= stipple->drawable.height)
+		return sna_poly_fill_rect_stippled_1_blt(drawable, bo, damage,
+							 gc, n, rect,
+							 extents, clipped);
+
+	return false;
+}
+
 static unsigned
 sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 			   int n, xRectangle *rect,
@@ -5347,6 +5795,26 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 					     gc, n, rect,
 					     &region.extents, flags & 2))
 			return;
+	} else {
+		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
+
+		DBG(("%s: stippled fill, testing for blt\n", __FUNCTION__));
+
+		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
+		    sna_poly_fill_rect_stippled_blt(draw,
+						    priv->gpu_bo,
+						    priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &region.extents),
+						    gc, n, rect,
+						    &region.extents, flags & 2))
+			return;
+
+		if (sna_drawable_use_cpu_bo(draw, &region.extents) &&
+		    sna_poly_fill_rect_stippled_blt(draw,
+						    priv->cpu_bo,
+						    reduce_damage(draw, &priv->cpu_damage, &region.extents),
+						    gc, n, rect,
+						    &region.extents, flags & 2))
+			return;
 	}
 
 fallback:
@@ -5366,21 +5834,6 @@ fallback:
 
 	DBG(("%s: fallback - fbPolyFillRect\n", __FUNCTION__));
 	fbPolyFillRect(draw, gc, n, rect);
-}
-
-static uint8_t byte_reverse(uint8_t b)
-{
-	return ((b * 0x80200802ULL) & 0x0884422110ULL) * 0x0101010101ULL >> 32;
-}
-
-static uint8_t blt_depth(int depth)
-{
-	switch (depth) {
-	case 8: return 0;
-	case 15: return 0x2;
-	case 16: return 0x1;
-	default: return 0x3;
-	}
 }
 
 static bool
@@ -5453,7 +5906,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	b[1] = priv->gpu_bo->pitch;
 	if (sna->kgem.gen >= 40) {
 		if (priv->gpu_bo->tiling)
-			b[0] |= 1 << 11;
+			b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
 	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
@@ -5508,7 +5961,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				b[1] = priv->gpu_bo->pitch;
 				if (sna->kgem.gen >= 40) {
 					if (priv->gpu_bo->tiling)
-						b[0] |= 1 << 11;
+						b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
 				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
@@ -5531,7 +5984,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 			b[0] = XY_TEXT_IMMEDIATE_BLT | (1 + len);
 			if (priv->gpu_bo->tiling && sna->kgem.gen >= 40)
-				b[0] |= 1 << 11;
+				b[0] |= BLT_DST_TILED;
 			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
 			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
 
@@ -5688,6 +6141,124 @@ fallback:
 	fbPolyGlyphBlt(drawable, gc, x, y, n, info, base);
 }
 
+static bool
+sna_push_pixels_solid_blt(GCPtr gc,
+			  PixmapPtr bitmap,
+			  DrawablePtr drawable,
+			  RegionPtr region)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	BoxRec *box;
+	int16_t dx, dy;
+	int n;
+	uint8_t rop = copy_ROP[gc->alu];
+
+	if (priv->gpu_bo->tiling == I915_TILING_Y)
+		return false;
+
+	if (!sna_drawable_use_gpu_bo(drawable, &region->extents))
+		return false;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	RegionTranslate(region, dx, dy);
+
+	assert_pixmap_contains_box(pixmap, RegionExtents(region));
+	if (!priv->gpu_only)
+		sna_damage_add(&priv->gpu_damage, region);
+
+	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__,
+	     region->extents.x1, region->extents.y1,
+	     region->extents.x2, region->extents.y2));
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+	/* Region is pre-clipped and translated into pixmap space */
+	box = REGION_RECTS(region);
+	n = REGION_NUM_RECTS(region);
+	do {
+		int bx1 = (box->x1 - region->extents.x1) & ~7;
+		int bx2 = (box->x2 - region->extents.x1 + 7) & ~7;
+		int bw = (bx2 - bx1)/8;
+		int bh = box->y2 - box->y1;
+		int bstride = ALIGN(bw, 2);
+		int src_stride;
+		uint8_t *dst, *src;
+		uint32_t *b;
+		struct kgem_bo *upload;
+		void *ptr;
+
+		if (!kgem_check_batch(&sna->kgem, 8) ||
+		    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+		    !kgem_check_reloc(&sna->kgem, 2)) {
+			_kgem_submit(&sna->kgem);
+			_kgem_set_mode(&sna->kgem, KGEM_BLT);
+		}
+
+		upload = kgem_create_buffer(&sna->kgem,
+					    bstride*bh,
+					    KGEM_BUFFER_WRITE,
+					    &ptr);
+		if (!upload)
+			break;
+
+		dst = ptr;
+		bstride -= bw;
+
+		src_stride = bitmap->devKind;
+		src = (uint8_t*)bitmap->devPrivate.ptr;
+		src += (box->y1 - region->extents.y1) * src_stride + bx1/8;
+		src_stride -= bw;
+		do {
+			int i = bw;
+			do {
+				*dst++ = byte_reverse(*src++);
+			} while (--i);
+			dst += bstride;
+			src += src_stride;
+		} while (--bh);
+
+		b = sna->kgem.batch + sna->kgem.nbatch;
+		b[0] = XY_MONO_SRC_COPY;
+		if (drawable->bitsPerPixel == 32)
+			b[0] |= 3 << 20;
+		b[0] |= ((box->x1 - region->extents.x1) & 7) << 17;
+		b[1] = priv->gpu_bo->pitch;
+		if (sna->kgem.gen >= 40) {
+			if (priv->gpu_bo->tiling)
+				b[0] |= BLT_DST_TILED;
+			b[1] >>= 2;
+		}
+		b[1] |= 1 << 29;
+		b[1] |= blt_depth(drawable->depth) << 24;
+		b[1] |= rop << 16;
+		b[2] = box->y1 << 16 | box->x1;
+		b[3] = box->y2 << 16 | box->x2;
+		b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+				      priv->gpu_bo,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      I915_GEM_DOMAIN_RENDER |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+				      upload,
+				      I915_GEM_DOMAIN_RENDER << 16 |
+				      KGEM_RELOC_FENCED,
+				      0);
+		b[6] = gc->bgPixel;
+		b[7] = gc->fgPixel;
+
+		sna->kgem.nbatch += 8;
+		kgem_bo_destroy(&sna->kgem, upload);
+
+		box++;
+	} while (--n);
+
+	sna->blt_state.fill_bo = 0;
+	return true;
+}
+
 static void
 sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 		int w, int h,
@@ -5722,11 +6293,23 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 	if (!RegionNotEmpty(&region))
 		return;
 
+	switch (gc->fillStyle) {
+	case FillSolid:
+		if (sna_push_pixels_solid_blt(gc, bitmap, drawable, &region))
+			return;
+		break;
+	default:
+		break;
+	}
+
+	DBG(("%s: fallback\n", __FUNCTION__));
 	sna_gc_move_to_cpu(gc);
 	sna_pixmap_move_to_cpu(bitmap, false);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
+	DBG(("%s: fallback, fbPushPixels(%d, %d, %d %d)\n",
+	     __FUNCTION__, w, h, x, y));
 	fbPushPixels(gc, bitmap, drawable, w, h, x, y);
 }
 
