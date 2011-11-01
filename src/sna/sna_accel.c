@@ -2333,10 +2333,10 @@ no_damage_clipped:
 		if (!RegionNotEmpty(&clip))
 			return TRUE;
 
-		assert(clip.extents.x1 >= 0);
-		assert(clip.extents.y1 >= 0);
-		assert(clip.extents.x2 <= pixmap->drawable.width);
-		assert(clip.extents.y2 <= pixmap->drawable.height);
+		assert(dx + clip.extents.x1 >= 0);
+		assert(dy + clip.extents.y1 >= 0);
+		assert(dx + clip.extents.x2 <= pixmap->drawable.width);
+		assert(dy + clip.extents.y2 <= pixmap->drawable.height);
 
 		DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
 		     __FUNCTION__,
@@ -2444,10 +2444,10 @@ damage_clipped:
 		if (!RegionNotEmpty(&clip))
 			return TRUE;
 
-		assert(clip.extents.x1 >= 0);
-		assert(clip.extents.y1 >= 0);
-		assert(clip.extents.x2 <= pixmap->drawable.width);
-		assert(clip.extents.y2 <= pixmap->drawable.height);
+		assert(dx + clip.extents.x1 >= 0);
+		assert(dy + clip.extents.y1 >= 0);
+		assert(dx + clip.extents.x2 <= pixmap->drawable.width);
+		assert(dy + clip.extents.y2 <= pixmap->drawable.height);
 
 		DBG(("%s: clip %d x [(%d, %d), (%d, %d)] x %d [(%d, %d)...]\n",
 		     __FUNCTION__,
