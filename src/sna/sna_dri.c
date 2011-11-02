@@ -96,7 +96,7 @@ struct sna_dri_frame_event {
 	XID drawable_id;
 	ClientPtr client;
 	enum frame_event_type type;
-	int frame;
+	unsigned frame;
 	int pipe;
 	int count;
 

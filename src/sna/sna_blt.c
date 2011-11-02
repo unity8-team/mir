@@ -632,7 +632,7 @@ pixel_is_white(uint32_t pixel, uint32_t format)
 	case PICT_TYPE_ARGB:
 	case PICT_TYPE_ABGR:
 	case PICT_TYPE_BGRA:
-		return pixel == ((1 << PICT_FORMAT_BPP(format)) - 1);
+		return pixel == ((1U << PICT_FORMAT_BPP(format)) - 1);
 	default:
 		return FALSE;
 	}
@@ -1730,7 +1730,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			int bpp, const BoxRec *box, int nbox)
 {
 	struct kgem *kgem = &sna->kgem;
-	int src_pitch, br13, cmd;
+	unsigned src_pitch, br13, cmd;
 
 #if DEBUG_NO_BLT || NO_BLT_COPY_BOXES
 	return FALSE;

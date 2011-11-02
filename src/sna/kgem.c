@@ -1954,7 +1954,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 {
 	struct kgem_partial_bo *bo;
 	bool write = !!(flags & KGEM_BUFFER_WRITE);
-	int offset, alloc;
+	unsigned offset, alloc;
 	uint32_t handle;
 
 	DBG(("%s: size=%d, flags=%x [write=%d, last=%d]\n",

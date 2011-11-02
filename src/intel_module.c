@@ -299,7 +299,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 {
 	ScrnInfoPtr scrn;
 	PciChipsets intel_pci_chipsets[ARRAY_SIZE(_intel_chipsets)];
-	int i;
+	unsigned i;
 
 	chipset_info = (void *)match_data;
 

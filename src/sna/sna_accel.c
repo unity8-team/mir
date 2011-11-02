@@ -1559,7 +1559,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 			b = sna->kgem.batch + sna->kgem.nbatch;
 			b[0] = XY_FULL_MONO_PATTERN_MONO_SRC_BLT;
-			if (drawable->bitsPerPixel >=3224)
+			if (drawable->bitsPerPixel == 32)
 				b[0] |= 3 << 20;
 			b[0] |= ((box->x1 - x) & 7) << 17;
 			b[1] = bo->pitch;
@@ -3170,7 +3170,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 
 		sna_damage_add_points(damage, pt, n, last.x, last.y);
 		do {
-			int nbox = n;
+			unsigned nbox = n;
 			if (nbox > ARRAY_SIZE(box))
 				nbox = ARRAY_SIZE(box);
 			n -= nbox;
@@ -4114,7 +4114,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 		dy += drawable->y;
 		if (dx|dy) {
 			do {
-				int nbox = n;
+				unsigned nbox = n;
 				if (nbox > ARRAY_SIZE(boxes))
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
@@ -4160,7 +4160,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 			} while (n);
 		} else {
 			do {
-				int nbox = n;
+				unsigned nbox = n;
 				if (nbox > ARRAY_SIZE(boxes))
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
@@ -5576,7 +5576,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 		sna_damage_add_rectangles(damage, rect, n, dx, dy);
 		if (dx|dy) {
 			do {
-				int nbox = n;
+				unsigned nbox = n;
 				if (nbox > ARRAY_SIZE(boxes))
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
@@ -5593,7 +5593,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 			} while (n);
 		} else {
 			do {
-				int nbox = n;
+				unsigned nbox = n;
 				if (nbox > ARRAY_SIZE(boxes))
 					nbox = ARRAY_SIZE(boxes);
 				n -= nbox;
