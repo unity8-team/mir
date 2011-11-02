@@ -7410,7 +7410,7 @@ static bool sna_accel_flush(struct sna *sna)
 		_sna_accel_disarm_timer(sna, FLUSH_TIMER);
 	else
 		sna_pixmap_move_to_gpu(priv->pixmap);
-	sna->kgem.busy = 0;
+	sna->kgem.busy = !nothing_to_do;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 	return !nothing_to_do;
 }
