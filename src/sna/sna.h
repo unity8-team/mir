@@ -43,25 +43,26 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stdint.h>
 
-#include "xf86_OSproc.h"
 #include "compiler.h"
-#include "xf86PciInfo.h"
-#include "xf86Pci.h"
-#include "xf86Cursor.h"
-#include "xf86xv.h"
-#include "vgaHW.h"
-#include "xf86Crtc.h"
-#include "xf86RandR12.h"
+#include <xf86_OSproc.h>
+#include <xf86PciInfo.h>
+#include <xf86Pci.h>
+#include <xf86Cursor.h>
+#include <xf86xv.h>
+#include <vgaHW.h>
+#include <xf86Crtc.h>
+#include <xf86RandR12.h>
+#include <gcstruct.h>
 
-#include "xorg-server.h"
+#include <xorg-server.h>
 #include <pciaccess.h>
 
-#include "xf86drm.h"
-#include "xf86drmMode.h"
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
 #define _XF86DRI_SERVER_
-#include "dri2.h"
-#include "i915_drm.h"
+#include <dri2.h>
+#include <i915_drm.h>
 
 #if HAVE_UDEV
 #include <libudev.h>
@@ -179,6 +180,18 @@ static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
 static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
 {
 	dixSetPrivate(&pixmap->devPrivates, &sna_pixmap_index, sna);
+}
+
+struct sna_gc {
+	long changes;
+	long serial;
+};
+
+extern DevPrivateKeyRec sna_gc_index;
+
+static inline struct sna_gc *sna_gc(GCPtr gc)
+{
+	return dixGetPrivateAddr(&gc->devPrivates, &sna_gc_index);
 }
 
 enum {

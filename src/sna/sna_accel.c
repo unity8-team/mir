@@ -63,6 +63,7 @@
 #define USE_BO_FOR_SCRATCH_PIXMAP 1
 
 DevPrivateKeyRec sna_pixmap_index;
+DevPrivateKeyRec sna_gc_index;
 DevPrivateKey sna_window_key;
 
 static const uint8_t copy_ROP[] = {
@@ -1003,9 +1004,51 @@ done:
 	return priv;
 }
 
-static void sna_gc_move_to_cpu(GCPtr gc)
+static void sna_validate_pixmap(DrawablePtr draw, PixmapPtr pixmap)
 {
-	DBG(("%s\n", __FUNCTION__));
+	if (draw->bitsPerPixel == pixmap->drawable.bitsPerPixel &&
+	    FbEvenTile(pixmap->drawable.width *
+		       pixmap->drawable.bitsPerPixel)) {
+		DBG(("%s: flushing pixmap\n", __FUNCTION__));
+		sna_pixmap_move_to_cpu(pixmap, true);
+	}
+}
+
+static void sna_gc_move_to_cpu(GCPtr gc, DrawablePtr drawable)
+{
+	struct sna_gc *sgc = sna_gc(gc);
+	long changes = sgc->changes;
+
+	DBG(("%s, changes=%d\n", __FUNCTION_, changes_));
+
+	if (gc->clientClipType == CT_PIXMAP) {
+		PixmapPtr clip = gc->clientClip;
+		gc->clientClip = BitmapToRegion(gc->pScreen, clip);
+		gc->pScreen->DestroyPixmap(clip);
+		gc->clientClipType = gc->clientClip ? CT_REGION : CT_NONE;
+		changes |= GCClipMask;
+	} else
+		changes &= ~GCClipMask;
+
+	if (changes || drawable->serialNumber != sgc->serial) {
+		gc->serialNumber = sgc->serial;
+
+		if (changes & GCTile && !gc->tileIsPixel) {
+			DBG(("%s: flushing tile pixmap\n", __FUNCTION__));
+			sna_validate_pixmap(drawable, gc->tile.pixmap);
+		}
+
+		if (changes & GCStipple && gc->stipple) {
+			DBG(("%s: flushing stipple pixmap\n", __FUNCTION__));
+			sna_pixmap_move_to_cpu(gc->stipple, false);
+		}
+
+		fbValidateGC(gc, changes, drawable);
+
+		gc->serialNumber = drawable->serialNumber;
+		sgc->serial = drawable->serialNumber;
+	}
+	sgc->changes = 0;
 
 	if (gc->stipple)
 		sna_drawable_move_to_cpu(&gc->stipple->drawable, false);
@@ -1621,6 +1664,7 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	if (priv == NULL) {
 		DBG(("%s: fbPutImage, unattached(%d, %d, %d, %d)\n",
 		     __FUNCTION__, x, y, w, h));
+		sna_gc_move_to_cpu(gc, drawable);
 		fbPutImage(drawable, gc, depth, x, y, w, h, left, format, bits);
 		return;
 	}
@@ -1683,6 +1727,7 @@ fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	RegionTranslate(&region, -dx, -dy);
 
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -1869,12 +1914,11 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	/* Try to maintain the data on the GPU */
 	if (dst_priv && dst_priv->gpu_bo == NULL &&
-	    src_priv && src_priv->gpu_bo != NULL &&
-	    alu == GXcopy) {
+	    src_priv && src_priv->gpu_bo != NULL) {
 		uint32_t tiling =
 			sna_pixmap_choose_tiling(dst_pixmap);
 
-		DBG(("%s: create dst GPU bo for copy\n", __FUNCTION__));
+		DBG(("%s: create dst GPU bo for upload\n", __FUNCTION__));
 
 		if (kgem_can_create_2d(&sna->kgem,
 				       dst_pixmap->drawable.width,
@@ -2163,6 +2207,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		if (!RegionNotEmpty(&region))
 			return NULL;
 
+		sna_gc_move_to_cpu(gc, dst);
 		sna_drawable_move_region_to_cpu(dst, &region, true);
 		RegionTranslate(&region,
 				src_x - dst_x - dst->x + src->x,
@@ -2738,7 +2783,7 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -2763,6 +2808,7 @@ sna_set_spans(DrawablePtr drawable, GCPtr gc, char *src,
 	if (!RegionNotEmpty(&region))
 		return;
 
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -3127,6 +3173,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	}
 
 	DBG(("%s: fallback\n", __FUNCTION__));
+	sna_gc_move_to_cpu(gc, dst);
 	sna_drawable_move_region_to_cpu(dst, &region, true);
 	RegionTranslate(&region,
 			src_x - dst_x - dst->x + src->x,
@@ -3313,9 +3360,11 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
+	DBG(("%s: fbPolyPoint\n", __FUNCTION__));
 	fbPolyPoint(drawable, gc, mode, n, pt);
 }
 
@@ -4080,7 +4129,7 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -4853,7 +4902,7 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -5391,7 +5440,7 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -5508,7 +5557,7 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -6447,6 +6496,8 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 	if (bo->tiling == I915_TILING_Y)
 		return false;
 
+	sna_drawable_move_to_cpu(&stipple->drawable, false);
+
 	DBG(("%s: origin (%d, %d), extents (stipple): (%d, %d), stipple size %dx%d\n",
 	     __FUNCTION__, gc->patOrg.x, gc->patOrg.y,
 	     extents->x2 - gc->patOrg.x - drawable->x,
@@ -6613,7 +6664,7 @@ fallback:
 		return;
 	}
 
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, draw);
 	sna_drawable_move_region_to_cpu(draw, &region, true);
 	RegionUninit(&region);
 
@@ -6845,7 +6896,7 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -6899,7 +6950,7 @@ fallback:
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
 
@@ -7069,7 +7120,7 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 	}
 
 	DBG(("%s: fallback\n", __FUNCTION__));
-	sna_gc_move_to_cpu(gc);
+	sna_gc_move_to_cpu(gc, drawable);
 	sna_pixmap_move_to_cpu(bitmap, false);
 	sna_drawable_move_region_to_cpu(drawable, &region, true);
 	RegionUninit(&region);
@@ -7102,32 +7153,17 @@ static const GCOps sna_gc_ops = {
 	sna_push_pixels,
 };
 
-static void sna_validate_pixmap(DrawablePtr draw, PixmapPtr pixmap)
-{
-	if (draw->bitsPerPixel == pixmap->drawable.bitsPerPixel &&
-	    FbEvenTile(pixmap->drawable.width *
-		       pixmap->drawable.bitsPerPixel)) {
-		DBG(("%s: flushing pixmap\n", __FUNCTION__));
-		sna_pixmap_move_to_cpu(pixmap, true);
-	}
-}
-
 static void
 sna_validate_gc(GCPtr gc, unsigned long changes, DrawablePtr drawable)
 {
 	DBG(("%s\n", __FUNCTION__));
 
-	if (changes & GCTile && !gc->tileIsPixel) {
-		DBG(("%s: flushing tile pixmap\n", __FUNCTION__));
-		sna_validate_pixmap(drawable, gc->tile.pixmap);
-	}
+	if (changes & (GCClipMask|GCSubwindowMode) ||
+	    drawable->serialNumber != (gc->serialNumber & DRAWABLE_SERIAL_BITS) ||
+	    (gc->clientClipType != CT_NONE && (changes & (GCClipXOrigin | GCClipYOrigin))))
+		miComputeCompositeClip(gc, drawable);
 
-	if (changes & GCStipple && gc->stipple) {
-		DBG(("%s: flushing stipple pixmap\n", __FUNCTION__));
-		sna_pixmap_move_to_cpu(gc->stipple, true);
-	}
-
-	fbValidateGC(gc, changes, drawable);
+	sna_gc(gc)->changes |= changes;
 }
 
 static const GCFuncs sna_gc_funcs = {
@@ -7443,6 +7479,8 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	const char *backend;
 
 	if (!dixRegisterPrivateKey(&sna_pixmap_index, PRIVATE_PIXMAP, 0))
+		return FALSE;
+	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC, sizeof(struct sna_gc)))
 		return FALSE;
 
 	if (!AddCallback(&FlushCallback, sna_accel_flush_callback, sna))
