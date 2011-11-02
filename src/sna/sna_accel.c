@@ -5918,7 +5918,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	uint32_t pat[2], br00, br13;
+	uint32_t pat[2] = {0, 0}, br00, br13;
 	int16_t dx, dy;
 
 	DBG(("%s: alu=%d, upload (%d, %d), (%d, %d), origin (%d, %d)\n",
@@ -5951,7 +5951,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 		uint8_t *dst = (uint8_t *)pat;
 		const uint8_t *src = gc->stipple->devPrivate.ptr;
 		int stride = gc->stipple->devKind;
-		int n = 8;
+		int n = gc->stipple->drawable.height;
 		do {
 			*dst++ = byte_reverse(*src);
 			src += stride;
@@ -6459,10 +6459,16 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 							   extents, clipped);
 
 	if (extents->x2 - gc->patOrg.x - drawable->x <= stipple->drawable.width &&
-	    extents->y2 - gc->patOrg.y - drawable->y <= stipple->drawable.height)
-		return sna_poly_fill_rect_stippled_1_blt(drawable, bo, damage,
-							 gc, n, rect,
-							 extents, clipped);
+	    extents->y2 - gc->patOrg.y - drawable->y <= stipple->drawable.height) {
+		if (stipple->drawable.width <= 8 && stipple->drawable.height <= 8)
+			return sna_poly_fill_rect_stippled_8x8_blt(drawable, bo, damage,
+								   gc, n, rect,
+								   extents, clipped);
+		else
+			return sna_poly_fill_rect_stippled_1_blt(drawable, bo, damage,
+								 gc, n, rect,
+								 extents, clipped);
+	}
 
 	return false;
 }
