@@ -567,12 +567,14 @@ static void
 sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 {
 	struct sna *sna = data;
+	struct timeval *tv = timeout;
 
 	DBG(("%s\n", __FUNCTION__));
 
 	sna->BlockHandler(i, sna->BlockData, timeout, read_mask);
 
-	sna_accel_block_handler(sna);
+	if (tv == NULL || (tv->tv_usec | tv->tv_sec))
+		sna_accel_block_handler(sna);
 }
 
 static void
