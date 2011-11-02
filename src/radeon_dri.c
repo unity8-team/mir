@@ -1581,7 +1581,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->ddxDriverMajorVersion      = info->allowColorTiling ? 5 : 4;
     pDRIInfo->ddxDriverMinorVersion      = 3;
     pDRIInfo->ddxDriverPatchVersion      = 0;
-    pDRIInfo->frameBufferPhysicalAddress = (void *)info->LinearAddr + info->dri->frontOffset;
+    pDRIInfo->frameBufferPhysicalAddress = (void *)(uintptr_t)info->LinearAddr + info->dri->frontOffset;
     pDRIInfo->frameBufferSize            = info->FbMapSize - info->FbSecureSize;
     pDRIInfo->frameBufferStride          = (pScrn->displayWidth *
 					    info->CurrentLayout.pixel_bytes);
