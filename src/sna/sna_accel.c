@@ -5929,8 +5929,8 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	{
-		unsigned px = (gc->patOrg.x - dx) & 7;
-		unsigned py = (gc->patOrg.y - dy) & 7;
+		unsigned px = (0 - gc->patOrg.x - dx) & 7;
+		unsigned py = (0 - gc->patOrg.y - dy) & 7;
 		DBG(("%s: pat offset (%d, %d)\n", __FUNCTION__ ,px, py));
 		br00 = XY_MONO_PAT | px << 12 | py << 8;
 		if (drawable->bitsPerPixel == 32)
