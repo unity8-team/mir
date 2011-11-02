@@ -1959,6 +1959,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 	DBG(("%s: size=%d, flags=%x [write=%d, last=%d]\n",
 	     __FUNCTION__, size, flags, write, flags & KGEM_BUFFER_LAST));
+	assert(size);
 
 	list_for_each_entry(bo, &kgem->partial, base.list) {
 		if (flags == KGEM_BUFFER_LAST && bo->write) {

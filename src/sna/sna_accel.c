@@ -6121,100 +6121,314 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 	     extents->x2, extents->y2,
 	     origin->x, origin->y));
 
-	if (clipped) {
-		DBG(("%s: fallback -- clipped\n", __FUNCTION__));
-		return false;
-	}
-
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-	dx += drawable->x;
-	dy += drawable->y;
-
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 
-	sna_damage_add_rectangles(damage, r, n, dx, dy);
-	do {
-		int bx1 = (r->x - origin->x) & ~7;
-		int bx2 = (r->x + r->width - origin->x + 7) & ~7;
-		int bw = (bx2 - bx1)/8;
-		int bh = r->height;
-		int bstride = ALIGN(bw, 2);
-		int src_stride;
-		uint8_t *dst, *src;
-		uint32_t *b;
-		struct kgem_bo *upload;
-		void *ptr;
+	if (!clipped) {
+		dx += drawable->x;
+		dy += drawable->y;
 
-		DBG(("%s: rect (%d, %d)x(%d, %d) stipple [%d,%d]\n",
-		     __FUNCTION__,
-		     r->x, r->y, r->width, r->height,
-		     bx1, bx2));
-
-		if (!kgem_check_batch(&sna->kgem, 8) ||
-		    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
-		    !kgem_check_reloc(&sna->kgem, 2)) {
-			_kgem_submit(&sna->kgem);
-			_kgem_set_mode(&sna->kgem, KGEM_BLT);
-		}
-
-		upload = kgem_create_buffer(&sna->kgem,
-					    bstride*bh,
-					    KGEM_BUFFER_WRITE,
-					    &ptr);
-		if (!upload)
-			break;
-
-		dst = ptr;
-		bstride -= bw;
-
-		src_stride = stipple->devKind;
-		src = (uint8_t*)stipple->devPrivate.ptr;
-		src += (r->y - origin->y) * src_stride + bx1/8;
-		src_stride -= bw;
+		sna_damage_add_rectangles(damage, r, n, dx, dy);
 		do {
-			int i = bw;
+			int bx1 = (r->x - origin->x) & ~7;
+			int bx2 = (r->x + r->width - origin->x + 7) & ~7;
+			int bw = (bx2 - bx1)/8;
+			int bh = r->height;
+			int bstride = ALIGN(bw, 2);
+			int src_stride;
+			uint8_t *dst, *src;
+			uint32_t *b;
+			struct kgem_bo *upload;
+			void *ptr;
+
+			DBG(("%s: rect (%d, %d)x(%d, %d) stipple [%d,%d]\n",
+			     __FUNCTION__,
+			     r->x, r->y, r->width, r->height,
+			     bx1, bx2));
+
+			if (!kgem_check_batch(&sna->kgem, 8) ||
+			    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+			    !kgem_check_reloc(&sna->kgem, 2)) {
+				_kgem_submit(&sna->kgem);
+				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+			}
+
+			upload = kgem_create_buffer(&sna->kgem,
+						    bstride*bh,
+						    KGEM_BUFFER_WRITE,
+						    &ptr);
+			if (!upload)
+				break;
+
+			dst = ptr;
+			bstride -= bw;
+
+			src_stride = stipple->devKind;
+			src = (uint8_t*)stipple->devPrivate.ptr;
+			src += (r->y - origin->y) * src_stride + bx1/8;
+			src_stride -= bw;
 			do {
-				*dst++ = byte_reverse(*src++);
-			} while (--i);
-			dst += bstride;
-			src += src_stride;
-		} while (--bh);
+				int i = bw;
+				do {
+					*dst++ = byte_reverse(*src++);
+				} while (--i);
+				dst += bstride;
+				src += src_stride;
+			} while (--bh);
 
-		b = sna->kgem.batch + sna->kgem.nbatch;
-		b[0] = XY_MONO_SRC_COPY;
-		if (drawable->bitsPerPixel == 32)
-			b[0] |= 3 << 20;
-		b[0] |= ((r->x - origin->x) & 7) << 17;
-		b[1] = priv->gpu_bo->pitch;
-		if (sna->kgem.gen >= 40) {
-			if (priv->gpu_bo->tiling)
-				b[0] |= BLT_DST_TILED;
-			b[1] >>= 2;
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			b[0] = XY_MONO_SRC_COPY;
+			if (drawable->bitsPerPixel == 32)
+				b[0] |= 3 << 20;
+			b[0] |= ((r->x - origin->x) & 7) << 17;
+			b[1] = priv->gpu_bo->pitch;
+			if (sna->kgem.gen >= 40) {
+				if (priv->gpu_bo->tiling)
+					b[0] |= BLT_DST_TILED;
+				b[1] >>= 2;
+			}
+			b[1] |= (gc->fillStyle == FillStippled) << 29;
+			b[1] |= blt_depth(drawable->depth) << 24;
+			b[1] |= rop << 16;
+			b[2] = (r->y + dy) << 16 | (r->x + dx);
+			b[3] = (r->y + r->height + dy) << 16 | (r->x + r->width + dx);
+			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+					      priv->gpu_bo,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      I915_GEM_DOMAIN_RENDER |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+					      upload,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[6] = gc->bgPixel;
+			b[7] = gc->fgPixel;
+
+			sna->kgem.nbatch += 8;
+			kgem_bo_destroy(&sna->kgem, upload);
+
+			r++;
+		} while (--n);
+	} else {
+		RegionRec clip;
+		DDXPointRec pat;
+
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return true;
+
+		pat.x = origin->x + drawable->x;
+		pat.y = origin->y + drawable->y;
+
+		if (clip.data == NULL) {
+			do {
+				BoxRec box;
+				int bx1, bx2, bw, bh, bstride;
+				int src_stride;
+				uint8_t *dst, *src;
+				uint32_t *b;
+				struct kgem_bo *upload;
+				void *ptr;
+
+				box.x1 = r->x + drawable->x;
+				box.x2 = bound(r->x, r->width);
+				box.y1 = r->y + drawable->y;
+				box.y2 = bound(r->y, r->height);
+				r++;
+
+				if (!box_intersect(&box, &clip.extents))
+					continue;
+
+				bx1 = (box.x1 - pat.x) & ~7;
+				bx2 = (box.x2 - pat.x + 7) & ~7;
+				bw = (bx2 - bx1)/8;
+				bh = box.y2 - box.y1;
+				bstride = ALIGN(bw, 8);
+
+				DBG(("%s: rect (%d, %d)x(%d, %d), box (%d,%d),(%d,%d) stipple [%d,%d], pitch=%d, stride=%d\n",
+				     __FUNCTION__,
+				     r->x, r->y, r->width, r->height,
+				     box.x1, box.y1, box.x2, box.y2,
+				     bx1, bx2, bw, bstride));
+
+				if (!kgem_check_batch(&sna->kgem, 8) ||
+				    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+				    !kgem_check_reloc(&sna->kgem, 2)) {
+					_kgem_submit(&sna->kgem);
+					_kgem_set_mode(&sna->kgem, KGEM_BLT);
+				}
+
+				upload = kgem_create_buffer(&sna->kgem,
+							    bstride*bh,
+							    KGEM_BUFFER_WRITE,
+							    &ptr);
+				if (!upload)
+					break;
+
+				dst = ptr;
+				bstride -= bw;
+
+				src_stride = stipple->devKind;
+				src = (uint8_t*)stipple->devPrivate.ptr;
+				src += (box.y1 - pat.y) * src_stride + bx1/8;
+				src_stride -= bw;
+				do {
+					int i = bw;
+					do {
+						*dst++ = byte_reverse(*src++);
+					} while (--i);
+					dst += bstride;
+					src += src_stride;
+				} while (--bh);
+
+				b = sna->kgem.batch + sna->kgem.nbatch;
+				b[0] = XY_MONO_SRC_COPY;
+				if (drawable->bitsPerPixel == 32)
+					b[0] |= 3 << 20;
+				b[0] |= ((box.x1 - pat.x) & 7) << 17;
+				b[1] = priv->gpu_bo->pitch;
+				if (sna->kgem.gen >= 40) {
+					if (priv->gpu_bo->tiling)
+						b[0] |= BLT_DST_TILED;
+					b[1] >>= 2;
+				}
+				b[1] |= (gc->fillStyle == FillStippled) << 29;
+				b[1] |= blt_depth(drawable->depth) << 24;
+				b[1] |= rop << 16;
+				b[2] = (box.y1 + dy) << 16 | (box.x1 + dx);
+				b[3] = (box.y2 + dy) << 16 | (box.x2 + dx);
+				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+						      priv->gpu_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+						      upload,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[6] = gc->bgPixel;
+				b[7] = gc->fgPixel;
+
+				sna->kgem.nbatch += 8;
+				kgem_bo_destroy(&sna->kgem, upload);
+			} while (--n);
+		} else {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
+			const BoxRec *c;
+
+			do {
+				BoxRec unclipped;
+				int bx1, bx2, bw, bh, bstride;
+				int src_stride;
+				uint8_t *dst, *src;
+				uint32_t *b;
+				struct kgem_bo *upload;
+				void *ptr;
+
+				unclipped.x1 = r->x + drawable->x;
+				unclipped.x2 = bound(r->x, r->width);
+				unclipped.y1 = r->y + drawable->y;
+				unclipped.y2 = bound(r->y, r->height);
+				r++;
+
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							unclipped.y1);
+				while (c != clip_end) {
+					BoxRec box;
+
+					if (unclipped.y2 <= c->y1)
+						break;
+
+					box = unclipped;
+					if (!box_intersect(&box, c++))
+						continue;
+
+					bx1 = (box.x1 - pat.x) & ~7;
+					bx2 = (box.x2 - pat.x + 7) & ~7;
+					bw = (bx2 - bx1)/8;
+					bh = box.y2 - box.y1;
+					bstride = ALIGN(bw, 8);
+
+					DBG(("%s: rect (%d, %d)x(%d, %d), box (%d,%d),(%d,%d) stipple [%d,%d]\n",
+					     __FUNCTION__,
+					     r->x, r->y, r->width, r->height,
+					     box.x1, box.y1, box.x2, box.y2,
+					     bx1, bx2));
+
+					if (!kgem_check_batch(&sna->kgem, 8) ||
+					    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+					    !kgem_check_reloc(&sna->kgem, 2)) {
+						_kgem_submit(&sna->kgem);
+						_kgem_set_mode(&sna->kgem, KGEM_BLT);
+					}
+
+					upload = kgem_create_buffer(&sna->kgem,
+								    bstride*bh,
+								    KGEM_BUFFER_WRITE,
+								    &ptr);
+					if (!upload)
+						break;
+
+					dst = ptr;
+					bstride -= bw;
+
+					src_stride = stipple->devKind;
+					src = (uint8_t*)stipple->devPrivate.ptr;
+					src += (box.y1 - pat.y) * src_stride + bx1/8;
+					src_stride -= bw;
+					do {
+						int i = bw;
+						do {
+							*dst++ = byte_reverse(*src++);
+						} while (--i);
+						dst += bstride;
+						src += src_stride;
+					} while (--bh);
+
+					b = sna->kgem.batch + sna->kgem.nbatch;
+					b[0] = XY_MONO_SRC_COPY;
+					if (drawable->bitsPerPixel == 32)
+						b[0] |= 3 << 20;
+					b[0] |= ((box.x1 - pat.x) & 7) << 17;
+					b[1] = priv->gpu_bo->pitch;
+					if (sna->kgem.gen >= 40) {
+						if (priv->gpu_bo->tiling)
+							b[0] |= BLT_DST_TILED;
+						b[1] >>= 2;
+					}
+					b[1] |= (gc->fillStyle == FillStippled) << 29;
+					b[1] |= blt_depth(drawable->depth) << 24;
+					b[1] |= rop << 16;
+					b[2] = (box.y1 + dy) << 16 | (box.x1 + dx);
+					b[3] = (box.y2 + dy) << 16 | (box.x2 + dx);
+					b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+							      priv->gpu_bo,
+							      I915_GEM_DOMAIN_RENDER << 16 |
+							      I915_GEM_DOMAIN_RENDER |
+							      KGEM_RELOC_FENCED,
+							      0);
+					b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+							      upload,
+							      I915_GEM_DOMAIN_RENDER << 16 |
+							      KGEM_RELOC_FENCED,
+							      0);
+					b[6] = gc->bgPixel;
+					b[7] = gc->fgPixel;
+
+					sna->kgem.nbatch += 8;
+					kgem_bo_destroy(&sna->kgem, upload);
+				}
+			} while (--n);
+
 		}
-		b[1] |= (gc->fillStyle == FillStippled) << 29;
-		b[1] |= blt_depth(drawable->depth) << 24;
-		b[1] |= rop << 16;
-		b[2] = (r->y + dy) << 16 | (r->x + dx);
-		b[3] = (r->y + r->height + dy) << 16 | (r->x + r->width + dx);
-		b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
-				      priv->gpu_bo,
-				      I915_GEM_DOMAIN_RENDER << 16 |
-				      I915_GEM_DOMAIN_RENDER |
-				      KGEM_RELOC_FENCED,
-				      0);
-		b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
-				      upload,
-				      I915_GEM_DOMAIN_RENDER << 16 |
-				      KGEM_RELOC_FENCED,
-				      0);
-		b[6] = gc->bgPixel;
-		b[7] = gc->fgPixel;
-
-		sna->kgem.nbatch += 8;
-		kgem_bo_destroy(&sna->kgem, upload);
-
-		r++;
-	} while (--n);
+	}
 
 	sna->blt_state.fill_bo = 0;
 	return true;
@@ -6322,7 +6536,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
 		uint32_t color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
 
-		DBG(("%s: solid fill [%08lx], testing for blt\n",
+		DBG(("%s: solid fill [%08x], testing for blt\n",
 		     __FUNCTION__, color));
 
 		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
