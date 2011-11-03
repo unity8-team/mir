@@ -733,8 +733,38 @@ done:
 		list_del(&priv->list);
 }
 
+static struct sna_damage **
+reduce_damage(DrawablePtr drawable,
+	      struct sna_damage **damage,
+	      const BoxRec *box)
+{
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	int16_t dx, dy;
+	BoxRec r;
+
+	if (*damage == NULL)
+		return damage;
+
+	if (sna_damage_is_all(damage,
+			      pixmap->drawable.width,
+			      pixmap->drawable.height))
+		return NULL;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+
+	r = *box;
+	r.x1 += dx; r.x2 += dx;
+	r.y1 += dy; r.y2 += dy;
+	if (sna_damage_contains_box(*damage, &r) == PIXMAN_REGION_IN)
+		return NULL;
+	else
+		return damage;
+}
+
 static inline Bool
-_sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxRec *box)
+_sna_drawable_use_gpu_bo(DrawablePtr drawable,
+			 const BoxRec *box,
+			 struct sna_damage ***damage)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -746,10 +776,6 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxRec *box)
 	if (priv->gpu_bo == NULL)
 		return FALSE;
 
-	if (priv->cpu_damage == NULL)
-		return TRUE;
-
-	assert(!priv->gpu_only);
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
 	extents = *box;
@@ -758,9 +784,14 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxRec *box)
 	extents.y1 += dy;
 	extents.y2 += dy;
 
+	if (priv->cpu_damage == NULL)
+		goto done;
+
+	assert(!priv->gpu_only);
+
 	if (sna_damage_contains_box(priv->cpu_damage,
 				    &extents) == PIXMAN_REGION_OUT)
-		return TRUE;
+		goto done;
 
 	if (!priv->gpu || priv->gpu_damage == NULL)
 		return FALSE;
@@ -770,13 +801,27 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxRec *box)
 		return FALSE;
 
 	sna_pixmap_move_area_to_gpu(pixmap, &extents);
+done:
+	if (damage) {
+		if (!sna_damage_is_all(&priv->gpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height) &&
+		    sna_damage_contains_box(priv->gpu_damage,
+					    &extents) != PIXMAN_REGION_IN)
+			*damage = &priv->gpu_damage;
+		else
+			*damage = NULL;
+	}
+
 	return TRUE;
 }
 
 static inline Bool
-sna_drawable_use_gpu_bo(DrawablePtr drawable, const BoxRec *box)
+sna_drawable_use_gpu_bo(DrawablePtr drawable,
+			const BoxRec *box,
+			struct sna_damage ***damage)
 {
-	Bool ret = _sna_drawable_use_gpu_bo(drawable, box);
+	Bool ret = _sna_drawable_use_gpu_bo(drawable, box, damage);
 	DBG(("%s((%d, %d), (%d, %d)) = %d\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2, ret));
 	return ret;
@@ -1366,19 +1411,22 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna_damage **damage;
 	BoxRec *box;
 	int16_t dx, dy;
 	int n;
 	uint8_t rop = copy_ROP[gc->alu];
 
-	if (!sna_drawable_use_gpu_bo(&pixmap->drawable, &region->extents))
+	if (!sna_drawable_use_gpu_bo(&pixmap->drawable,
+				     &region->extents,
+				     &damage))
 		return false;
 
 	if (priv->gpu_bo->tiling == I915_TILING_Y)
 		return false;
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
-	sna_damage_add(&priv->gpu_damage, region);
+	sna_damage_add(damage, region);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
@@ -1478,6 +1526,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna_damage **damage;
 	struct kgem_bo *bo = priv->gpu_bo;
 	int16_t dx, dy;
 	unsigned i, skip;
@@ -1485,14 +1534,16 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (gc->alu != GXcopy)
 		return false;
 
-	if (!sna_drawable_use_gpu_bo(&pixmap->drawable, &region->extents))
+	if (!sna_drawable_use_gpu_bo(&pixmap->drawable,
+				     &region->extents,
+				     &damage))
 		return false;
 
 	if (bo->tiling == I915_TILING_Y)
 		return false;
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
-	sna_damage_add(&priv->gpu_damage, region);
+	sna_damage_add(damage, region);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
@@ -2553,34 +2604,6 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 	return 1 | clipped << 1;
 }
 
-static struct sna_damage **
-reduce_damage(DrawablePtr drawable,
-	      struct sna_damage **damage,
-	      const BoxRec *box)
-{
-	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	int16_t dx, dy;
-	BoxRec r;
-
-	if (*damage == NULL)
-		return damage;
-
-	if (sna_damage_is_all(damage,
-			      pixmap->drawable.width,
-			      pixmap->drawable.height))
-		return NULL;
-
-	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-
-	r = *box;
-	r.x1 += dx; r.x2 += dx;
-	r.y1 += dy; r.y2 += dy;
-	if (sna_damage_contains_box(*damage, &r) == PIXMAN_REGION_IN)
-		return NULL;
-	else
-		return damage;
-}
-
 static Bool
 sna_poly_fill_rect_tiled(DrawablePtr drawable,
 			 struct kgem_bo *bo,
@@ -2636,14 +2659,14 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 
 	if (gc->fillStyle == FillSolid) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_damage **damage;
 
 		DBG(("%s: trying solid fill [alu=%d, pixel=%08lx] blt paths\n",
 		     __FUNCTION__, gc->alu, gc->fgPixel));
 
-		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
+		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
 		    sna_fill_spans_blt(drawable,
-				       priv->gpu_bo,
-				       reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+				       priv->gpu_bo, damage,
 				       gc, n, pt, width, sorted,
 				       &region.extents, flags & 2))
 			return;
@@ -2656,10 +2679,11 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				       &region.extents, flags & 2))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
-		/* Try converting these to a set of rectangles instead */
+		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_damage **damage;
 
-		if (sna_drawable_use_gpu_bo(drawable, &region.extents)) {
-			struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		/* Try converting these to a set of rectangles instead */
+		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 			xRectangle *rect;
 			int i;
 
@@ -2677,8 +2701,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 			}
 
 			i = sna_poly_fill_rect_tiled(drawable,
-						     priv->gpu_bo,
-						     reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+						     priv->gpu_bo, damage,
 						     gc, n, rect,
 						     &region.extents, flags & 2);
 			free (rect);
@@ -3105,6 +3128,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       unsigned long bit)
 {
 	RegionRec region;
+	struct sna_damage **damage;
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, w, h));
@@ -3124,7 +3148,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (!RegionNotEmpty(&region))
 		return NULL;
 
-	if (sna_drawable_use_gpu_bo(dst, &region.extents)) {
+	if (sna_drawable_use_gpu_bo(dst, &region.extents, &damage)) {
 		struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(dst));
 		if (priv->gpu_bo->tiling != I915_TILING_Y) {
 			RegionUninit(&region);
@@ -3133,8 +3157,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					w, h,
 					dst_x, dst_y,
 					src->depth == 1 ? sna_copy_bitmap_blt :sna_copy_plane_blt,
-					(Pixel)bit,
-					reduce_damage(dst, &priv->gpu_damage, &region.extents));
+					(Pixel)bit, damage);
 		}
 	}
 
@@ -3300,14 +3323,14 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	if (gc->fillStyle == FillSolid &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_damage **damage;
 
 		DBG(("%s: trying solid fill [%08lx] blt paths\n",
 		     __FUNCTION__, gc->fgPixel));
 
-		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
+		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
 		    sna_poly_point_blt(drawable,
-				       priv->gpu_bo,
-				       reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+				       priv->gpu_bo, damage,
 				       gc, mode, n, pt, flags & 2))
 			return;
 
@@ -4029,41 +4052,45 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	    gc->lineWidth <= 1 &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_damage **damage;
 
 		DBG(("%s: trying solid fill [%08lx]\n",
 		     __FUNCTION__, gc->fgPixel));
 
-	    if (flags & 2) {
-		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
-		    sna_poly_line_blt(drawable,
-				      priv->gpu_bo,
-				      reduce_damage(drawable, &priv->gpu_damage, &region.extents),
-				      gc, mode, n, pt,
-				      &region.extents, flags & 4))
-			return;
+		if (flags & 2) {
+			if (sna_drawable_use_gpu_bo(drawable,
+						    &region.extents,
+						    &damage) &&
+			    sna_poly_line_blt(drawable,
+					      priv->gpu_bo, damage,
+					      gc, mode, n, pt,
+					      &region.extents, flags & 4))
+				return;
 
-		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
-		    sna_poly_line_blt(drawable,
-				      priv->cpu_bo,
-				      reduce_damage(drawable, &priv->cpu_damage, &region.extents),
-				      gc, mode, n, pt,
-				      &region.extents, flags & 4))
-			return;
-	    } else { /* !rectilinear */
-		if (USE_ZERO_SPANS &&
-		    sna_drawable_use_gpu_bo(drawable, &region.extents) &&
-		    sna_poly_zero_line_blt(drawable,
-					   priv->gpu_bo,
-					   reduce_damage(drawable, &priv->gpu_damage, &region.extents),
-					   gc, mode, n, pt,
-					   &region.extents, flags & 4))
-			return;
+			if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
+			    sna_poly_line_blt(drawable,
+					      priv->cpu_bo,
+					      reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+					      gc, mode, n, pt,
+					      &region.extents, flags & 4))
+				return;
+		} else { /* !rectilinear */
+			if (USE_ZERO_SPANS &&
+			    sna_drawable_use_gpu_bo(drawable,
+						    &region.extents,
+						    &damage) &&
+			    sna_poly_zero_line_blt(drawable,
+						   priv->gpu_bo, damage,
+						   gc, mode, n, pt,
+						   &region.extents, flags & 4))
+				return;
 
-	    }
+		}
 	}
 
-	if (USE_SPANS && can_fill_spans(drawable, gc) &&
-	    sna_drawable_use_gpu_bo(drawable, &region.extents)) {
+	if (USE_SPANS &&
+	    can_fill_spans(drawable, gc) &&
+	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		switch (gc->lineStyle) {
 		case LineSolid:
@@ -4797,40 +4824,44 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	    gc->lineWidth <= 1 &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_damage **damage;
 
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
 		     __FUNCTION__, gc->fgPixel));
 
-	    if (flags & 4) {
-		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
-		    sna_poly_segment_blt(drawable,
-					 priv->gpu_bo,
-					 reduce_damage(drawable, &priv->gpu_damage, &region.extents),
-					 gc, n, seg,
-					 &region.extents, flags & 2))
-			return;
+		if (flags & 4) {
+			if (sna_drawable_use_gpu_bo(drawable,
+						    &region.extents,
+						    &damage) &&
+			    sna_poly_segment_blt(drawable,
+						 priv->gpu_bo, damage,
+						 gc, n, seg,
+						 &region.extents, flags & 2))
+				return;
 
-		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
-		    sna_poly_segment_blt(drawable,
-					 priv->cpu_bo,
-					 reduce_damage(drawable, &priv->cpu_damage, &region.extents),
-					 gc, n, seg,
-					 &region.extents, flags & 2))
-			return;
-	    } else {
-		    if (USE_ZERO_SPANS &&
-			sna_drawable_use_gpu_bo(drawable, &region.extents) &&
-			sna_poly_zero_segment_blt(drawable,
-						  priv->gpu_bo,
-						  reduce_damage(drawable, &priv->gpu_damage, &region.extents),
-						  gc, n, seg, &region.extents, flags & 2))
-			    return;
-	    }
+			if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
+			    sna_poly_segment_blt(drawable,
+						 priv->cpu_bo,
+						 reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+						 gc, n, seg,
+						 &region.extents, flags & 2))
+				return;
+		} else {
+			if (USE_ZERO_SPANS &&
+			    sna_drawable_use_gpu_bo(drawable,
+						    &region.extents,
+						    &damage) &&
+			    sna_poly_zero_segment_blt(drawable,
+						      priv->gpu_bo, damage,
+						      gc, n, seg, &region.extents, flags & 2))
+				return;
+		}
 	}
 
 	/* XXX Do we really want to base this decision on the amalgam ? */
-	if (USE_SPANS && can_fill_spans(drawable, gc) &&
-	    sna_drawable_use_gpu_bo(drawable, &region.extents)) {
+	if (USE_SPANS &&
+	    can_fill_spans(drawable, gc) &&
+	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
 		int i;
 
@@ -5373,13 +5404,13 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	    gc->joinStyle == JoinMiter &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_damage **damage;
 
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
 		     __FUNCTION__, gc->fgPixel));
 
-		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
-		    sna_poly_rectangle_blt(drawable, priv->gpu_bo,
-					   reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
+		    sna_poly_rectangle_blt(drawable, priv->gpu_bo, damage,
 					   gc, n, r, &region.extents, flags&2))
 			return;
 
@@ -5393,7 +5424,7 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	/* Not a trivial outline, but we still maybe able to break it
 	 * down into simpler operations that we can accelerate.
 	 */
-	if (sna_drawable_use_gpu_bo(drawable, &region.extents)) {
+	if (sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
 		miPolyRectangle(drawable, gc, n, r);
 		return;
 	}
@@ -5500,7 +5531,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 
 	/* For "simple" cases use the miPolyArc to spans path */
 	if (USE_SPANS && arc_to_spans(gc, n) && can_fill_spans(drawable, gc) &&
-	    sna_drawable_use_gpu_bo(drawable, &region.extents)) {
+	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
 		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
 		/* XXX still around 10x slower for x11perf -ellipse */
 		if (gc->lineWidth == 0)
@@ -6664,15 +6695,15 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
 	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
+		struct sna_damage **damage;
 		uint32_t color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
 
 		DBG(("%s: solid fill [%08x], testing for blt\n",
 		     __FUNCTION__, color));
 
-		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
+		if (sna_drawable_use_gpu_bo(draw, &region.extents, &damage) &&
 		    sna_poly_fill_rect_blt(draw,
-					   priv->gpu_bo,
-					   reduce_damage(draw, &priv->gpu_damage, &region.extents),
+					   priv->gpu_bo, damage,
 					   gc, color, n, rect,
 					   &region.extents, flags & 2))
 			return;
@@ -6686,13 +6717,13 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 			return;
 	} else if (gc->fillStyle == FillTiled) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
+		struct sna_damage **damage;
 
 		DBG(("%s: tiled fill, testing for blt\n", __FUNCTION__));
 
-		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
+		if (sna_drawable_use_gpu_bo(draw, &region.extents, &damage) &&
 		    sna_poly_fill_rect_tiled(draw,
-					     priv->gpu_bo,
-					     reduce_damage(draw, &priv->gpu_damage, &region.extents),
+					     priv->gpu_bo, damage,
 					     gc, n, rect,
 					     &region.extents, flags & 2))
 			return;
@@ -6706,13 +6737,13 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 			return;
 	} else {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
+		struct sna_damage **damage;
 
 		DBG(("%s: stippled fill, testing for blt\n", __FUNCTION__));
 
-		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
+		if (sna_drawable_use_gpu_bo(draw, &region.extents, &damage) &&
 		    sna_poly_fill_rect_stippled_blt(draw,
-						    priv->gpu_bo,
-						    reduce_damage(draw, &priv->gpu_damage, &region.extents),
+						    priv->gpu_bo, damage,
 						    gc, n, rect,
 						    &region.extents, flags & 2))
 			return;
@@ -6801,7 +6832,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
 
-	if (!sna_drawable_use_gpu_bo(drawable, &clip->extents))
+	if (!sna_drawable_use_gpu_bo(drawable, &clip->extents, &damage))
 		return false;
 
 	bo = priv->gpu_bo;
@@ -6809,8 +6840,6 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
 		return false;
 	}
-
-	damage = reduce_damage(drawable, &priv->gpu_damage, &clip->extents),
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	_x += drawable->x + dx;
@@ -7318,6 +7347,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna_damage **damage;
 	BoxRec *box;
 	int16_t dx, dy;
 	int n;
@@ -7326,14 +7356,14 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	if (priv->gpu_bo->tiling == I915_TILING_Y)
 		return false;
 
-	if (!sna_drawable_use_gpu_bo(drawable, &region->extents))
+	if (!sna_drawable_use_gpu_bo(drawable, &region->extents, &damage))
 		return false;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	RegionTranslate(region, dx, dy);
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
-	sna_damage_add(&priv->gpu_damage, region);
+	sna_damage_add(damage, region);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__,
 	     region->extents.x1, region->extents.y1,
