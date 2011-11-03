@@ -2224,11 +2224,6 @@ sna_fill_spans_blt(DrawablePtr drawable,
 	struct sna_fill_op fill;
 	BoxRec box[512], *b = box, *const last_box = box + ARRAY_SIZE(box);
 	static void * const jump[] = {
-		&&no_damage_translate,
-		&&damage_translate,
-		&&no_damage_clipped_translate,
-		&&damage_clipped_translate,
-
 		&&no_damage,
 		&&damage,
 		&&no_damage_clipped,
@@ -2244,12 +2239,9 @@ sna_fill_spans_blt(DrawablePtr drawable,
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-	v = (damage != NULL) | clipped | gc->miTranslate << 2;
+	v = (damage != NULL) | clipped;
 	goto *jump[v];
 
-no_damage_translate:
-	dx += drawable->x;
-	dy += drawable->y;
 no_damage:
 	if (dx|dy) {
 		do {
@@ -2286,9 +2278,6 @@ no_damage:
 	}
 	goto done;
 
-damage_translate:
-	dx += drawable->x;
-	dy += drawable->y;
 damage:
 	do {
 		*(DDXPointRec *)b = *pt++;
@@ -2309,18 +2298,10 @@ damage:
 	}
 	goto done;
 
+no_damage_clipped:
 	{
 		RegionRec clip;
-		int i;
 
-no_damage_clipped_translate:
-		for (i = 0; i < n; i++) {
-			/* XXX overflow? */
-			pt->x += drawable->x;
-			pt->y += drawable->y;
-		}
-
-no_damage_clipped:
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
 		if (!RegionNotEmpty(&clip))
@@ -2420,18 +2401,10 @@ no_damage_clipped:
 		goto done;
 	}
 
+damage_clipped:
 	{
 		RegionRec clip;
-		int i;
 
-damage_clipped_translate:
-		for (i = 0; i < n; i++) {
-			/* XXX overflow? */
-			pt->x += drawable->x;
-			pt->y += drawable->y;
-		}
-
-damage_clipped:
 		region_set(&clip, extents);
 		region_maybe_clip(&clip, gc->pCompositeClip);
 		if (!RegionNotEmpty(&clip))
@@ -2570,11 +2543,8 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 	}
 	box.y2++;
 
-	if (gc) {
-		if (!gc->miTranslate)
-			translate_box(&box, drawable);
+	if (gc)
 		clipped = clip_box(&box, gc);
-	}
 	if (box_empty(&box))
 		return 0;
 
@@ -7188,10 +7158,6 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 
 	region.extents.x1 = x;
 	region.extents.y1 = y;
-	if (!gc->miTranslate) {
-		region.extents.x1 += drawable->x;
-		region.extents.y1 += drawable->y;
-	}
 	region.extents.x2 = region.extents.x1 + w;
 	region.extents.y2 = region.extents.y1 + h;
 
