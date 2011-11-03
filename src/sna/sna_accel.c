@@ -7548,18 +7548,18 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 
-	if (FORCE_FALLBACK)
-		goto fallback_clip;
-
-	if (wedged(sna)) {
-		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
-		goto fallback_clip;
-	}
-
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
+
+	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (wedged(sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
+		goto fallback;
+	}
 
 	if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
@@ -7577,14 +7577,6 @@ fallback:
 	DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 	fbImageGlyphBlt(drawable, gc, x, y, n, info, base);
 	return;
-
-fallback_clip:
-	region.data = NULL;
-	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
-		return;
-
-	goto fallback;
 }
 
 static void
@@ -7615,18 +7607,18 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 
-	if (FORCE_FALLBACK)
-		goto fallback_clip;
-
-	if (wedged(sna)) {
-		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
-		goto fallback_clip;
-	}
-
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
+
+	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (wedged(sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
+		goto fallback;
+	}
 
 	if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
@@ -7643,13 +7635,6 @@ fallback:
 
 	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 	fbPolyGlyphBlt(drawable, gc, x, y, n, info, base);
-
-fallback_clip:
-	region.data = NULL;
-	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
-		return;
-	goto fallback;
 
 }
 
