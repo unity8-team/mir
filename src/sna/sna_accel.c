@@ -1057,7 +1057,7 @@ static void sna_gc_move_to_cpu(GCPtr gc, DrawablePtr drawable)
 	struct sna_gc *sgc = sna_gc(gc);
 	long changes = sgc->changes;
 
-	DBG(("%s, changes=%d\n", __FUNCTION_, changes_));
+	DBG(("%s, changes=%lx\n", __FUNCTION__, changes));
 
 	if (gc->clientClipType == CT_PIXMAP) {
 		PixmapPtr clip = gc->clientClip;
@@ -6819,6 +6819,9 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
 
+	DBG(("%s (%d, %d) x %d, transparent? %d, alu=%d\n",
+	     __FUNCTION__, _x, _y, _n, transparent, alu));
+
 	if (!sna_drawable_use_gpu_bo(drawable, &clip->extents, &damage))
 		return false;
 
@@ -7125,6 +7128,7 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	return x + extents.overallRight;
 
 fallback:
+	DBG(("%s: fallback -- depth=%d\n", __FUNCTION__, drawable->depth));
 	gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 			     Linear8Bit, &n, info);
 	if (n == 0)
@@ -7133,6 +7137,8 @@ fallback:
 	extents.overallWidth = x;
 	for (i = 0; i < n; i++)
 		extents.overallWidth += info[i]->metrics.characterWidth;
+
+	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 	fbPolyGlyphBlt(drawable, gc, x, y, n, info, FONTGLYPHS(gc->font));
 
 	return extents.overallWidth;
@@ -7193,6 +7199,7 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	return x + extents.overallRight;
 
 fallback:
+	DBG(("%s: fallback -- depth=%d\n", __FUNCTION__, drawable->depth));
 	gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 			     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
 			     &n, info);
@@ -7202,6 +7209,8 @@ fallback:
 	extents.overallWidth = x;
 	for (i = 0; i < n; i++)
 		extents.overallWidth += info[i]->metrics.characterWidth;
+
+	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 	fbPolyGlyphBlt(drawable, gc, x, y, n, info, FONTGLYPHS(gc->font));
 
 	return extents.overallWidth;
@@ -7257,12 +7266,16 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 				info, FONTGLYPHS(gc->font));
 	}
 	RegionUninit(&region);
+	return;
 
 fallback:
+	DBG(("%s: fallback, depth=%d\n", __FUNCTION__, drawable->depth));
 	gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 			     Linear8Bit, &n, info);
-	if (n)
+	if (n) {
+		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 		fbImageGlyphBlt(drawable, gc, x, y, n, info, FONTGLYPHS(gc->font));
+	}
 }
 
 static void
@@ -7316,13 +7329,17 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 				info, FONTGLYPHS(gc->font));
 	}
 	RegionUninit(&region);
+	return;
 
 fallback:
+	DBG(("%s: fallback -- depth=%d\n", __FUNCTION__, drawable->depth));
 	gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 			     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
 			     &n, info);
-	if (n)
+	if (n) {
+		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 		fbImageGlyphBlt(drawable, gc, x, y, n, info, FONTGLYPHS(gc->font));
+	}
 }
 
 static bool
