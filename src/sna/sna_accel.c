@@ -328,6 +328,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	}
 
 	priv->gpu_only = 1;
+	sna_damage_all(&priv->gpu_damage, width, height);
 
 	miModifyPixmapHeader(pixmap,
 			     width, height, depth, bpp,
@@ -1421,8 +1422,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		return false;
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
-	if (!priv->gpu_only)
-		sna_damage_add(&priv->gpu_damage, region);
+	sna_damage_add(&priv->gpu_damage, region);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
@@ -1536,8 +1536,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		return false;
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
-	if (!priv->gpu_only)
-		sna_damage_add(&priv->gpu_damage, region);
+	sna_damage_add(&priv->gpu_damage, region);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
@@ -1793,8 +1792,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			goto fallback;
 		}
 
-		if (!priv->gpu_only)
-			sna_damage_add_boxes(&priv->gpu_damage, box, n, tx, ty);
+		sna_damage_add_boxes(&priv->gpu_damage, box, n, tx, ty);
 	} else {
 		FbBits *dst_bits, *src_bits;
 		int stride, bpp;
@@ -2727,7 +2725,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_fill_spans_blt(drawable,
 				       priv->gpu_bo,
-				       priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+				       reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 				       gc, n, pt, width, sorted,
 				       &region.extents, flags & 2))
 			return;
@@ -2762,7 +2760,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 
 			i = sna_poly_fill_rect_tiled(drawable,
 						     priv->gpu_bo,
-						     priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+						     reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 						     gc, n, rect,
 						     &region.extents, flags & 2);
 			free (rect);
@@ -3218,7 +3216,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					dst_x, dst_y,
 					src->depth == 1 ? sna_copy_bitmap_blt :sna_copy_plane_blt,
 					(Pixel)bit,
-					priv->gpu_only ? NULL : reduce_damage(dst, &priv->gpu_damage, &region.extents));
+					reduce_damage(dst, &priv->gpu_damage, &region.extents));
 		}
 	}
 
@@ -3391,7 +3389,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_point_blt(drawable,
 				       priv->gpu_bo,
-				      priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+				       reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 				       gc, mode, n, pt, flags & 2))
 			return;
 
@@ -4121,7 +4119,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_line_blt(drawable,
 				      priv->gpu_bo,
-				      priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+				      reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 				      gc, mode, n, pt,
 				      &region.extents, flags & 4))
 			return;
@@ -4138,7 +4136,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 		    sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_zero_line_blt(drawable,
 					   priv->gpu_bo,
-					   priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+					   reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 					   gc, mode, n, pt,
 					   &region.extents, flags & 4))
 			return;
@@ -4889,7 +4887,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_segment_blt(drawable,
 					 priv->gpu_bo,
-					 priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+					 reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 					 gc, n, seg,
 					 &region.extents, flags & 2))
 			return;
@@ -4906,7 +4904,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 			sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 			sna_poly_zero_segment_blt(drawable,
 						  priv->gpu_bo,
-						  priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+						  reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 						  gc, n, seg, &region.extents, flags & 2))
 			    return;
 	    }
@@ -5463,7 +5461,7 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents) &&
 		    sna_poly_rectangle_blt(drawable, priv->gpu_bo,
-					   priv->gpu_only ? NULL : reduce_damage(drawable, &priv->gpu_damage, &region.extents),
+					   reduce_damage(drawable, &priv->gpu_damage, &region.extents),
 					   gc, n, r, &region.extents, flags&2))
 			return;
 
@@ -6756,7 +6754,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
 		    sna_poly_fill_rect_blt(draw,
 					   priv->gpu_bo,
-					   priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &region.extents),
+					   reduce_damage(draw, &priv->gpu_damage, &region.extents),
 					   gc, color, n, rect,
 					   &region.extents, flags & 2))
 			return;
@@ -6776,7 +6774,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
 		    sna_poly_fill_rect_tiled(draw,
 					     priv->gpu_bo,
-					     priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &region.extents),
+					     reduce_damage(draw, &priv->gpu_damage, &region.extents),
 					     gc, n, rect,
 					     &region.extents, flags & 2))
 			return;
@@ -6796,7 +6794,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		if (sna_drawable_use_gpu_bo(draw, &region.extents) &&
 		    sna_poly_fill_rect_stippled_blt(draw,
 						    priv->gpu_bo,
-						    priv->gpu_only ? NULL : reduce_damage(draw, &priv->gpu_damage, &region.extents),
+						    reduce_damage(draw, &priv->gpu_damage, &region.extents),
 						    gc, n, rect,
 						    &region.extents, flags & 2))
 			return;
@@ -6857,8 +6855,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	if (!RegionNotEmpty(&clip))
 		return true;
 
-	damage = priv->gpu_only ? NULL :
-		reduce_damage(drawable, &priv->gpu_damage, extents),
+	damage = reduce_damage(drawable, &priv->gpu_damage, extents),
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	_x += drawable->x + dx;
@@ -7139,8 +7136,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	RegionTranslate(region, dx, dy);
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
-	if (!priv->gpu_only)
-		sna_damage_add(&priv->gpu_damage, region);
+	sna_damage_add(&priv->gpu_damage, region);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__,
 	     region->extents.x1, region->extents.y1,
