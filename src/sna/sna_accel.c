@@ -733,34 +733,6 @@ done:
 		list_del(&priv->list);
 }
 
-static struct sna_damage **
-reduce_damage(DrawablePtr drawable,
-	      struct sna_damage **damage,
-	      const BoxRec *box)
-{
-	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	int16_t dx, dy;
-	BoxRec r;
-
-	if (*damage == NULL)
-		return damage;
-
-	if (sna_damage_is_all(damage,
-			      pixmap->drawable.width,
-			      pixmap->drawable.height))
-		return NULL;
-
-	get_drawable_deltas(drawable, pixmap, &dx, &dy);
-
-	r = *box;
-	r.x1 += dx; r.x2 += dx;
-	r.y1 += dy; r.y2 += dy;
-	if (sna_damage_contains_box(*damage, &r) == PIXMAN_REGION_IN)
-		return NULL;
-	else
-		return damage;
-}
-
 static inline Bool
 _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 			 const BoxRec *box,
@@ -828,7 +800,9 @@ sna_drawable_use_gpu_bo(DrawablePtr drawable,
 }
 
 static inline Bool
-_sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxRec *box)
+_sna_drawable_use_cpu_bo(DrawablePtr drawable,
+			 const BoxRec *box,
+			 struct sna_damage ***damage)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -840,9 +814,6 @@ _sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxRec *box)
 	if (priv->cpu_bo == NULL)
 		return FALSE;
 
-	if (priv->gpu_damage == NULL)
-		return TRUE;
-
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
 	extents = *box;
@@ -851,14 +822,34 @@ _sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxRec *box)
 	extents.y1 += dy;
 	extents.y2 += dy;
 
-	return sna_damage_contains_box(priv->gpu_damage,
-				       &extents) == PIXMAN_REGION_OUT;
+	if (priv->gpu_damage == NULL)
+		goto done;
+
+	if (sna_damage_contains_box(priv->gpu_damage,
+				       &extents) != PIXMAN_REGION_OUT)
+		return FALSE;
+
+done:
+	if (damage) {
+		if (!sna_damage_is_all(&priv->cpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height) &&
+		    sna_damage_contains_box(priv->cpu_damage,
+					    &extents) != PIXMAN_REGION_IN)
+			*damage = &priv->cpu_damage;
+		else
+			*damage = NULL;
+	}
+
+	return TRUE;
 }
 
 static inline Bool
-sna_drawable_use_cpu_bo(DrawablePtr drawable, const BoxRec *box)
+sna_drawable_use_cpu_bo(DrawablePtr drawable,
+			const BoxRec *box,
+			struct sna_damage ***damage)
 {
-	Bool ret = _sna_drawable_use_cpu_bo(drawable, box);
+	Bool ret = _sna_drawable_use_cpu_bo(drawable, box, damage);
 	DBG(("%s((%d, %d), (%d, %d)) = %d\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2, ret));
 	return ret;
@@ -2671,10 +2662,9 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				       &region.extents, flags & 2))
 			return;
 
-		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
+		if (sna_drawable_use_cpu_bo(drawable, &region.extents, &damage) &&
 		    sna_fill_spans_blt(drawable,
-				       priv->cpu_bo,
-				       reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+				       priv->cpu_bo, damage,
 				       gc, n, pt, width, sorted,
 				       &region.extents, flags & 2))
 			return;
@@ -3334,10 +3324,9 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 				       gc, mode, n, pt, flags & 2))
 			return;
 
-		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
+		if (sna_drawable_use_cpu_bo(drawable, &region.extents, &damage) &&
 		    sna_poly_point_blt(drawable,
-				       priv->cpu_bo,
-				       reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+				       priv->cpu_bo, damage,
 				       gc, mode, n, pt, flags & 2))
 			return;
 	}
@@ -4067,10 +4056,11 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 					      &region.extents, flags & 4))
 				return;
 
-			if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
+			if (sna_drawable_use_cpu_bo(drawable,
+						    &region.extents,
+						    &damage) &&
 			    sna_poly_line_blt(drawable,
-					      priv->cpu_bo,
-					      reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+					      priv->cpu_bo, damage,
 					      gc, mode, n, pt,
 					      &region.extents, flags & 4))
 				return;
@@ -4839,10 +4829,11 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 						 &region.extents, flags & 2))
 				return;
 
-			if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
+			if (sna_drawable_use_cpu_bo(drawable,
+						    &region.extents,
+						    &damage) &&
 			    sna_poly_segment_blt(drawable,
-						 priv->cpu_bo,
-						 reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+						 priv->cpu_bo, damage,
 						 gc, n, seg,
 						 &region.extents, flags & 2))
 				return;
@@ -5414,9 +5405,8 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 					   gc, n, r, &region.extents, flags&2))
 			return;
 
-		if (sna_drawable_use_cpu_bo(drawable, &region.extents) &&
-		    sna_poly_rectangle_blt(drawable, priv->cpu_bo,
-					   reduce_damage(drawable, &priv->cpu_damage, &region.extents),
+		if (sna_drawable_use_cpu_bo(drawable, &region.extents, &damage) &&
+		    sna_poly_rectangle_blt(drawable, priv->cpu_bo, damage,
 					   gc, n, r, &region.extents, flags&2))
 			return;
 	}
@@ -6708,10 +6698,9 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 					   &region.extents, flags & 2))
 			return;
 
-		if (sna_drawable_use_cpu_bo(draw, &region.extents) &&
+		if (sna_drawable_use_cpu_bo(draw, &region.extents, &damage) &&
 		    sna_poly_fill_rect_blt(draw,
-					   priv->cpu_bo,
-					   reduce_damage(draw, &priv->cpu_damage, &region.extents),
+					   priv->cpu_bo, damage,
 					   gc, color, n, rect,
 					   &region.extents, flags & 2))
 			return;
@@ -6728,10 +6717,9 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 					     &region.extents, flags & 2))
 			return;
 
-		if (sna_drawable_use_cpu_bo(draw, &region.extents) &&
+		if (sna_drawable_use_cpu_bo(draw, &region.extents, &damage) &&
 		    sna_poly_fill_rect_tiled(draw,
-					     priv->cpu_bo,
-					     reduce_damage(draw, &priv->cpu_damage, &region.extents),
+					     priv->cpu_bo, damage,
 					     gc, n, rect,
 					     &region.extents, flags & 2))
 			return;
@@ -6748,10 +6736,9 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 						    &region.extents, flags & 2))
 			return;
 
-		if (sna_drawable_use_cpu_bo(draw, &region.extents) &&
+		if (sna_drawable_use_cpu_bo(draw, &region.extents, &damage) &&
 		    sna_poly_fill_rect_stippled_blt(draw,
-						    priv->cpu_bo,
-						    reduce_damage(draw, &priv->cpu_damage, &region.extents),
+						    priv->cpu_bo, damage,
 						    gc, n, rect,
 						    &region.extents, flags & 2))
 			return;
