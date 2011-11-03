@@ -671,7 +671,8 @@ bool kgem_retire(struct kgem *kgem)
 		free(rq);
 	}
 
-	if (kgem->ring && list_is_empty(&kgem->requests))
+	kgem->need_retire = !list_is_empty(&kgem->requests);
+	if (!kgem->need_retire && kgem->ring)
 		kgem->ring = kgem->mode;
 
 	return retired;
@@ -712,6 +713,7 @@ destroy:
 
 	list_add_tail(&rq->list, &kgem->requests);
 	kgem->next_request = __kgem_request_alloc();
+	kgem->need_retire = 1;
 }
 
 static void kgem_close_list(struct kgem *kgem, struct list *head)

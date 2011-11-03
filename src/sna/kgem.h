@@ -107,6 +107,7 @@ struct kgem {
 	uint32_t flush:1;
 	uint32_t need_expire:1;
 	uint32_t need_purge:1;
+	uint32_t need_retire:1;
 	uint32_t busy:1;
 
 	uint32_t has_vmap :1;
