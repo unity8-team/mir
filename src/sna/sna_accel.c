@@ -6882,9 +6882,6 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			int w8 = (w + 7) >> 3;
 			int x1, y1, len;
 
-			if (w == 0 || h == 0)
-				goto skip;
-
 			len = (w8 * h + 7) >> 3 << 1;
 			DBG(("%s glyph: (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
 			     x,y, w, w8, h, len));
@@ -7014,6 +7011,11 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 	int h = GLYPHHEIGHTPIXELS(in);
 	int stride = GLYPHWIDTHBYTESPADDED(in);
 	uint8_t *dst, *src;
+
+	if (w == 0 || h == 0) {
+		out->bits = (void *)-1;
+		return false;
+	}
 
 	w = (w + 7) >> 3;
 
