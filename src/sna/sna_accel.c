@@ -6877,7 +6877,6 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 		do {
 			CharInfoPtr c = *info++;
-			uint8_t *glyph = FONTGLYPHBITS(base, c);
 			int w = GLYPHWIDTHPIXELS(c);
 			int h = GLYPHHEIGHTPIXELS(c);
 			int w8 = (w + 7) >> 3;
@@ -6930,7 +6929,16 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			b[0] = br00 | (1 + len);
 			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
 			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
-			memcpy(b+3, glyph, w8*h);
+			{
+				uint32_t *glyph = (uint32_t*)c->bits;
+				b += 3;
+				do  {
+					*b++ = *glyph++;
+					*b++ = *glyph++;
+
+					len -= 2;
+				} while (len);
+			}
 
 			if (damage) {
 				BoxRec r;
