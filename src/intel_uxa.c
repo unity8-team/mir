@@ -636,7 +636,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		if (priv->bo == bo)
 			return;
 
-		priv->dst_bound = priv->src_bound = 0;
 		if (list_is_empty(&priv->batch)) {
 			dri_bo_unreference(priv->bo);
 		} else if (!drm_intel_bo_is_reusable(priv->bo)) {
