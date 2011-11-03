@@ -4916,7 +4916,7 @@ sna_poly_rectangle_extents(DrawablePtr drawable, GCPtr gc,
 	box.y2 = box.y1 + r->height;
 
 	while (--n)
-		box32_add_rect(&box, r++);
+		box32_add_rect(&box, ++r);
 
 	box.x2++;
 	box.y2++;
@@ -4954,8 +4954,8 @@ sna_poly_rectangle_blt(DrawablePtr drawable,
 		&&zero_clipped,
 	};
 
-	DBG(("%s: alu=%d, width=%d, fg=%08lx, damge=%p, clipped?=%d\n",
-	     __FUNCTION__, gc->alu, gc->lineWidth, gc->fgPixel, damage, clipped));
+	DBG(("%s: n=%d, alu=%d, width=%d, fg=%08lx, damge=%p, clipped?=%d\n",
+	     __FUNCTION__, n, gc->alu, gc->lineWidth, gc->fgPixel, damage, clipped));
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
 		return FALSE;
 
@@ -4969,6 +4969,9 @@ zero:
 
 	do {
 		xRectangle rr = *r++;
+
+		DBG(("%s - zero : r[%d] = (%d, %d) x (%d, %d)\n", __FUNCTION__,
+		     n, rr.x, rr.y, rr.width, rr.height));
 		rr.x += dx;
 		rr.y += dy;
 
@@ -5029,6 +5032,9 @@ zero_clipped:
 			const BoxRec *c;
 			do {
 				xRectangle rr = *r++;
+
+				DBG(("%s - zero, clipped complex: r[%d] = (%d, %d) x (%d, %d)\n", __FUNCTION__,
+				     n, rr.x, rr.y, rr.width, rr.height));
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
@@ -5087,6 +5093,8 @@ zero_clipped:
 		} else {
 			do {
 				xRectangle rr = *r++;
+				DBG(("%s - zero, clip: r[%d] = (%d, %d) x (%d, %d)\n", __FUNCTION__,
+				     n, rr.x, rr.y, rr.width, rr.height));
 				rr.x += drawable->x;
 				rr.y += drawable->y;
 
