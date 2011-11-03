@@ -1,0 +1,119 @@
+From 2174f840158aa9cfa370ade38be28f8dc8e4b526 Mon Sep 17 00:00:00 2001
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Date: Thu, 03 Nov 2011 20:41:31 +0000
+Subject: uxa: Remove caching of surface binding location
+
+If the pixmap were to be used multiple times within a batch with
+mulitple formats, the cache would only return the initial location with
+the incorrect format and so cause rendering glitches. For instance, GTK+
+uses the same pixmap as an xrgb source and as an argb mask in order to
+premultiply and composite in a single pass. Rather than introduce an
+overly complication caching (handle, format) mechanism, kiss and remove
+the invalid implementation.
+
+Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=40926
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+---
+diff --git a/src/i965_render.c b/src/i965_render.c
+index 825fc13..8907139 100644
+--- a/src/i965_render.c
++++ b/src/i965_render.c
+@@ -1292,14 +1292,6 @@ gen4_set_picture_surface_state(intel_screen_private *intel,
+ 	}
+ 	intel_batch_mark_pixmap_domains(intel, priv,
+ 					read_domains, write_domain);
+-	if (is_dst) {
+-		if (priv->dst_bound)
+-			return priv->dst_bound;
+-	} else {
+-		if (priv->src_bound)
+-			return priv->src_bound;
+-	}
+-
+ 	ss = (struct brw_surface_state *)
+ 		(intel->surface_data + intel->surface_used);
+ 
+@@ -1330,11 +1322,6 @@ gen4_set_picture_surface_state(intel_screen_private *intel,
+ 	offset = intel->surface_used;
+ 	intel->surface_used += SURFACE_STATE_PADDED_SIZE;
+ 
+-	if (is_dst)
+-		priv->dst_bound = offset;
+-	else
+-		priv->src_bound = offset;
+-
+ 	return offset;
+ }
+ 
+@@ -1357,14 +1344,6 @@ gen7_set_picture_surface_state(intel_screen_private *intel,
+ 	}
+ 	intel_batch_mark_pixmap_domains(intel, priv,
+ 					read_domains, write_domain);
+-	if (is_dst) {
+-		if (priv->dst_bound)
+-			return priv->dst_bound;
+-	} else {
+-		if (priv->src_bound)
+-			return priv->src_bound;
+-	}
+-
+ 	ss = (struct gen7_surface_state *)
+ 		(intel->surface_data + intel->surface_used);
+ 
+@@ -1393,11 +1372,6 @@ gen7_set_picture_surface_state(intel_screen_private *intel,
+ 	offset = intel->surface_used;
+ 	intel->surface_used += SURFACE_STATE_PADDED_SIZE;
+ 
+-	if (is_dst)
+-		priv->dst_bound = offset;
+-	else
+-		priv->src_bound = offset;
+-
+ 	return offset;
+ }
+ 
+@@ -1750,8 +1724,6 @@ static Bool i965_composite_check_aperture(intel_screen_private *intel)
+ 
+ static void i965_surface_flush(struct intel_screen_private *intel)
+ {
+-	struct intel_pixmap *priv;
+-
+ 	drm_intel_bo_subdata(intel->surface_bo,
+ 			     0, intel->surface_used,
+ 			     intel->surface_data);
+@@ -1768,9 +1740,6 @@ static void i965_surface_flush(struct intel_screen_private *intel)
+ 	intel->surface_bo =
+ 		drm_intel_bo_alloc(intel->bufmgr, "surface data",
+ 				   sizeof(intel->surface_data), 4096);
+-
+-	list_foreach_entry(priv, struct intel_pixmap, &intel->batch_pixmaps, batch)
+-		priv->dst_bound = priv->src_bound = 0;
+ }
+ 
+ static void
+diff --git a/src/intel.h b/src/intel.h
+index 4acd0f2..3b3f87d 100644
+--- a/src/intel.h
++++ b/src/intel.h
+@@ -176,7 +176,6 @@ struct intel_pixmap {
+ 
+ 	struct list flush, batch, in_flight;
+ 
+-	uint16_t src_bound, dst_bound;
+ 	uint16_t stride;
+ 	uint8_t tiling;
+ 	int8_t busy :2;
+diff --git a/src/intel_uxa.c b/src/intel_uxa.c
+index 9e58c69..8c6f754 100644
+--- a/src/intel_uxa.c
++++ b/src/intel_uxa.c
+@@ -636,7 +636,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
+ 		if (priv->bo == bo)
+ 			return;
+ 
+-		priv->dst_bound = priv->src_bound = 0;
+ 		if (list_is_empty(&priv->batch)) {
+ 			dri_bo_unreference(priv->bo);
+ 		} else if (!drm_intel_bo_is_reusable(priv->bo)) {
+--
+cgit v0.9.0.2-2-gbebe

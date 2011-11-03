@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.15.901-1ubuntu3) precise; urgency=low
+
+  * Add 102_remove_surface_binding_cache.patch:
+    Backport of upstream commit 2174f8401 to fix transparency on
+    LTSP. (LP: #785280)
+
+ -- Robert Hooker <sarvatt@ubuntu.com>  Thu, 03 Nov 2011 19:01:44 -0400
+
 xserver-xorg-video-intel (2:2.15.901-1ubuntu2) oneiric; urgency=low
 
   * 101_copy-fb.patch: intel_batch_submit_internal is no longer added by
