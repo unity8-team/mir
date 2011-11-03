@@ -51,7 +51,12 @@ struct kgem_bo {
 	struct kgem_request *rq;
 	struct drm_i915_gem_exec_object2 *exec;
 
-	uint16_t src_bound, dst_bound;
+	struct kgem_bo_binding {
+		struct kgem_bo_binding *next;
+		uint32_t format;
+		uint16_t offset;
+	} binding;
+
 	uint32_t unique_id;
 	uint32_t refcnt;
 	uint32_t handle;
@@ -171,6 +176,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int bpp,
 			       int tiling,
 			       uint32_t flags);
+
+uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format);
+void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset);
 
 bool kgem_retire(struct kgem *kgem);
 

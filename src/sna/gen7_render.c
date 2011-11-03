@@ -342,22 +342,6 @@ static uint32_t gen7_get_card_format_for_depth(int depth)
 	}
 }
 
-static bool gen7_format_is_dst(uint32_t format)
-{
-	switch (format) {
-	case GEN7_SURFACEFORMAT_B8G8R8A8_UNORM:
-	case GEN7_SURFACEFORMAT_R8G8B8A8_UNORM:
-	case GEN7_SURFACEFORMAT_B10G10R10A2_UNORM:
-	case GEN7_SURFACEFORMAT_B5G6R5_UNORM:
-	case GEN7_SURFACEFORMAT_B5G5R5A1_UNORM:
-	case GEN7_SURFACEFORMAT_A8_UNORM:
-	case GEN7_SURFACEFORMAT_B4G4R4A4_UNORM:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static uint32_t gen7_filter(uint32_t filter)
 {
 	switch (filter) {
@@ -1208,25 +1192,15 @@ gen7_bind_bo(struct sna *sna,
 	if (is_dst) {
 		domains = I915_GEM_DOMAIN_RENDER << 16 |I915_GEM_DOMAIN_RENDER;
 		kgem_bo_mark_dirty(bo);
-	} else {
+	} else
 		domains = I915_GEM_DOMAIN_SAMPLER << 16;
-		is_dst = gen7_format_is_dst(format);
-	}
+
+	offset = kgem_bo_get_binding(bo, format);
+	if (offset)
+		return offset;
 
 	offset = sna->kgem.surface - sizeof(struct gen7_surface_state_padded) / sizeof(uint32_t);
 	offset *= sizeof(uint32_t);
-
-	if (is_dst) {
-		if (bo->dst_bound)
-			return bo->dst_bound;
-
-		bo->dst_bound = offset;
-	} else {
-		if (bo->src_bound)
-			return bo->src_bound;
-
-		bo->src_bound = offset;
-	}
 
 	sna->kgem.surface -=
 		sizeof(struct gen7_surface_state_padded) / sizeof(uint32_t);
@@ -1244,6 +1218,8 @@ gen7_bind_bo(struct sna *sna,
 	ss[5] = 0;
 	ss[6] = 0;
 	ss[7] = 0;
+
+	kgem_bo_set_binding(bo, format, offset);
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss[1],

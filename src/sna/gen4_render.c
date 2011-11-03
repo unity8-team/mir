@@ -496,22 +496,6 @@ static Bool gen4_check_dst_format(PictFormat format)
 	return FALSE;
 }
 
-static bool gen4_format_is_dst(uint32_t format)
-{
-	switch (format) {
-	case GEN4_SURFACEFORMAT_B8G8R8A8_UNORM:
-	case GEN4_SURFACEFORMAT_R8G8B8A8_UNORM:
-	case GEN4_SURFACEFORMAT_B10G10R10A2_UNORM:
-	case GEN4_SURFACEFORMAT_B5G6R5_UNORM:
-	case GEN4_SURFACEFORMAT_B5G5R5A1_UNORM:
-	case GEN4_SURFACEFORMAT_A8_UNORM:
-	case GEN4_SURFACEFORMAT_B4G4R4A4_UNORM:
-		return true;
-	default:
-		return false;
-	}
-}
-
 typedef struct gen4_surface_state_padded {
 	struct gen4_surface_state state;
 	char pad[32 - sizeof(struct gen4_surface_state)];
@@ -657,25 +641,15 @@ gen4_bind_bo(struct sna *sna,
 	if (is_dst) {
 		domains = I915_GEM_DOMAIN_RENDER << 16 | I915_GEM_DOMAIN_RENDER;
 		kgem_bo_mark_dirty(bo);
-	} else {
+	} else
 		domains = I915_GEM_DOMAIN_SAMPLER << 16;
-		is_dst = gen4_format_is_dst(format);
-	}
+
+	offset = kgem_bo_get_binding(bo, format);
+	if (offset)
+		return offset;
 
 	offset = sna->kgem.surface - sizeof(struct gen4_surface_state_padded) / sizeof(uint32_t);
 	offset *= sizeof(uint32_t);
-
-	if (is_dst) {
-		if (bo->dst_bound)
-			return bo->dst_bound;
-
-		bo->dst_bound = offset;
-	} else {
-		if (bo->src_bound)
-			return bo->src_bound;
-
-		bo->src_bound = offset;
-	}
 
 	sna->kgem.surface -=
 		sizeof(struct gen4_surface_state_padded) / sizeof(uint32_t);
@@ -696,6 +670,8 @@ gen4_bind_bo(struct sna *sna,
 	ss->ss3.pitch  = bo->pitch - 1;
 	ss->ss3.tiled_surface = bo->tiling != I915_TILING_NONE;
 	ss->ss3.tile_walk     = bo->tiling == I915_TILING_Y;
+
+	kgem_bo_set_binding(bo, format, offset);
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
 	     offset, bo->handle, ss->ss1.base_addr,

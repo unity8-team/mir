@@ -537,12 +537,29 @@ static void kgem_fixup_self_relocs(struct kgem *kgem, struct kgem_bo *bo)
 	}
 }
 
+static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
+{
+	struct kgem_bo_binding *b;
+
+	b = bo->binding.next;
+	while (b) {
+		struct kgem_bo_binding *next = b->next;
+		free (b);
+		b = next;
+	}
+
+	list_del(&bo->list);
+	list_del(&bo->request);
+	gem_close(kgem->fd, bo->handle);
+	free(bo);
+}
+
 static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	assert(list_is_empty(&bo->list));
 	assert(bo->refcnt == 0);
 
-	bo->src_bound = bo->dst_bound = 0;
+	bo->binding.offset = 0;
 
 	if (NO_CACHE)
 		goto destroy;
@@ -573,11 +590,8 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	return;
 
 destroy:
-	if (!bo->exec) {
-		list_del(&bo->request);
-		gem_close(kgem->fd, bo->handle);
-		free(bo);
-	}
+	if (!bo->exec)
+		kgem_bo_free(kgem, bo);
 }
 
 static void kgem_bo_unref(struct kgem *kgem, struct kgem_bo *bo)
@@ -647,8 +661,7 @@ bool kgem_retire(struct kgem *kgem)
 				} else {
 					DBG(("%s: closing %d\n",
 					     __FUNCTION__, bo->handle));
-					gem_close(kgem->fd, bo->handle);
-					free(bo);
+					kgem_bo_free(kgem, bo);
 				}
 			}
 		}
@@ -684,8 +697,8 @@ static void kgem_commit(struct kgem *kgem)
 	struct kgem_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &rq->buffers, request) {
-		bo->src_bound = bo->dst_bound = 0;
 		bo->presumed_offset = bo->exec->offset;
+		bo->binding.offset = 0;
 		bo->exec = NULL;
 		bo->dirty = false;
 		bo->cpu_read = false;
@@ -693,11 +706,7 @@ static void kgem_commit(struct kgem *kgem)
 
 		if (!bo->refcnt) {
 			if (!bo->reusable) {
-destroy:
-				list_del(&bo->list);
-				list_del(&bo->request);
-				gem_close(kgem->fd, bo->handle);
-				free(bo);
+destroy:			kgem_bo_free(kgem, bo);
 				continue;
 			}
 			if (!bo->deleted) {
@@ -718,15 +727,8 @@ destroy:
 
 static void kgem_close_list(struct kgem *kgem, struct list *head)
 {
-	while (!list_is_empty(head)) {
-		struct kgem_bo *bo;
-
-		bo = list_first_entry(head, struct kgem_bo, list);
-		gem_close(kgem->fd, bo->handle);
-		list_del(&bo->list);
-		list_del(&bo->request);
-		free(bo);
-	}
+	while (!list_is_empty(head))
+		kgem_bo_free(kgem, list_first_entry(head, struct kgem_bo, list));
 }
 
 static void kgem_close_inactive(struct kgem *kgem)
@@ -747,9 +749,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 				DBG(("%s: discarding unused partial array: %d/%d\n",
 				     __FUNCTION__, bo->used, bo->alloc));
 
-				list_del(&bo->base.list);
-				gem_close(kgem->fd, bo->base.handle);
-				free(bo);
+				kgem_bo_free(kgem, &bo->base);
 			}
 
 			continue;
@@ -808,11 +808,8 @@ static void kgem_cleanup(struct kgem *kgem)
 			list_del(&bo->request);
 			bo->rq = NULL;
 			bo->gpu = false;
-			if (bo->refcnt == 0) {
-				list_del(&bo->list);
-				gem_close(kgem->fd, bo->handle);
-				free(bo);
-			}
+			if (bo->refcnt == 0)
+				kgem_bo_free(kgem, bo);
 		}
 
 		list_del(&rq->list);
@@ -861,7 +858,7 @@ void kgem_reset(struct kgem *kgem)
 	while (!list_is_empty(&rq->buffers)) {
 		bo = list_first_entry(&rq->buffers, struct kgem_bo, request);
 
-		bo->src_bound = bo->dst_bound = 0;
+		bo->binding.offset = 0;
 		bo->exec = NULL;
 		bo->dirty = false;
 		bo->cpu_read = false;
@@ -1137,9 +1134,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 			count++;
 			size += bo->size;
 
-			gem_close(kgem->fd, bo->handle);
-			list_del(&bo->list);
-			free(bo);
+			kgem_bo_free(kgem, bo);
 		}
 	}
 
@@ -1155,7 +1150,6 @@ bool kgem_expire_cache(struct kgem *kgem)
 
 void kgem_cleanup_cache(struct kgem *kgem)
 {
-	struct kgem_bo *bo;
 	unsigned int i;
 
 	/* sync to the most recent request */
@@ -1178,14 +1172,10 @@ void kgem_cleanup_cache(struct kgem *kgem)
 	kgem_expire_partial(kgem);
 
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
-		while (!list_is_empty(&kgem->inactive[i])) {
-			bo = list_last_entry(&kgem->inactive[i],
-					     struct kgem_bo, list);
-
-			gem_close(kgem->fd, bo->handle);
-			list_del(&bo->list);
-			free(bo);
-		}
+		while (!list_is_empty(&kgem->inactive[i]))
+			kgem_bo_free(kgem,
+				     list_last_entry(&kgem->inactive[i],
+						     struct kgem_bo, list));
 	}
 
 	kgem->need_purge = false;
@@ -1482,9 +1472,7 @@ search_active: /* Best active match first */
 				if (!gem_madvise(kgem->fd, bo->handle,
 						 I915_MADV_WILLNEED)) {
 					kgem->need_purge |= bo->gpu;
-					gem_close(kgem->fd, bo->handle);
-					list_del(&bo->request);
-					free(bo);
+					kgem_bo_free(kgem, bo);
 					bo = NULL;
 					goto search_active;
 				}
@@ -1549,9 +1537,7 @@ skip_active_search:
 		return kgem_bo_reference(bo);
 
 next_bo:
-		gem_close(kgem->fd, bo->handle);
-		list_del(&bo->request);
-		free(bo);
+		kgem_bo_free(kgem, bo);
 		continue;
 	}
 
@@ -1588,6 +1574,8 @@ void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	if (bo->proxy) {
 		kgem_bo_unref(kgem, bo->proxy);
+
+		assert(bo->binding.next == NULL);
 		list_del(&bo->request);
 		free(bo);
 		return;
@@ -2184,4 +2172,41 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 			kgem_retire(kgem);
 	} else
 		kgem_bo_sync(kgem, &bo->base, false);
+}
+
+uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format)
+{
+	struct kgem_bo_binding *b;
+
+	for (b = &bo->binding; b && b->offset; b = b->next)
+		if (format == b->format)
+			return b->offset;
+
+	return 0;
+}
+
+void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset)
+{
+	struct kgem_bo_binding *b;
+
+	for (b = &bo->binding; b; b = b->next) {
+		if (b->offset)
+			continue;
+
+		b->offset = offset;
+		b->format = format;
+
+		if (b->next)
+			b->next->offset = 0;
+
+		return;
+	}
+
+	b = malloc(sizeof(*b));
+	if (b) {
+		b->next = bo->binding.next;
+		b->format = format;
+		b->offset = offset;
+		bo->binding.next = b;
+	}
 }

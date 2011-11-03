@@ -6820,7 +6820,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
 
 	DBG(("%s (%d, %d) x %d, transparent? %d, alu=%d\n",
-	     __FUNCTION__, _x, _y, _n, transparent, alu));
+	     __FUNCTION__, _x, _y, _n, transparent, rop));
 
 	if (!sna_drawable_use_gpu_bo(drawable, &clip->extents, &damage))
 		return false;
