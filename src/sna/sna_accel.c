@@ -111,7 +111,7 @@ static inline void region_set(RegionRec *r, const BoxRec *b)
 
 static inline void region_maybe_clip(RegionRec *r, RegionRec *clip)
 {
-	if (clip && clip->data)
+	if (clip->data)
 		RegionIntersect(r, r, clip);
 }
 
@@ -1078,9 +1078,6 @@ static inline bool clip_box(BoxPtr box, GCPtr gc)
 {
 	const BoxRec *clip;
 	bool clipped;
-
-	if (!gc->pCompositeClip)
-		return false;
 
 	clip = &gc->pCompositeClip->extents;
 
@@ -2202,8 +2199,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		region.extents.x2 = region.extents.x1 + width;
 		region.extents.y2 = region.extents.y1 + height;
 		region.data = NULL;
-		if (gc->pCompositeClip)
-			RegionIntersect(&region, &region, gc->pCompositeClip);
+		RegionIntersect(&region, &region, gc->pCompositeClip);
 		if (!RegionNotEmpty(&region))
 			return NULL;
 
