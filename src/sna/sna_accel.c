@@ -1058,23 +1058,6 @@ static void sna_gc_move_to_cpu(GCPtr gc, DrawablePtr drawable)
 		sna_drawable_move_to_cpu(&gc->tile.pixmap->drawable, false);
 }
 
-static inline bool trim_box(BoxPtr box, DrawablePtr d)
-{
-	bool clipped = false;
-
-	if (box->x1 < 0)
-		box->x1 = 0, clipped = true;
-	if (box->x2 > d->width)
-		box->x2 = d->width, clipped = true;
-
-	if (box->y1 < 0)
-		box->y1 = 0, clipped = true;
-	if (box->y2 > d->height)
-		box->y2 = d->height, clipped = true;
-
-	return clipped;
-}
-
 static inline bool clip_box(BoxPtr box, GCPtr gc)
 {
 	const BoxRec *clip;
@@ -1107,27 +1090,8 @@ static inline void translate_box(BoxPtr box, DrawablePtr d)
 
 static inline bool trim_and_translate_box(BoxPtr box, DrawablePtr d, GCPtr gc)
 {
-	bool clipped = trim_box(box, d);
 	translate_box(box, d);
-	clipped |= clip_box(box, gc);
-	return clipped;
-}
-
-static inline bool box32_trim(Box32Rec *box, DrawablePtr d)
-{
-	bool clipped = false;
-
-	if (box->x1 < 0)
-		box->x1 = 0, clipped = true;
-	if (box->x2 > d->width)
-		box->x2 = d->width, clipped = true;
-
-	if (box->y1 < 0)
-		box->y1 = 0, clipped = true;
-	if (box->y2 > d->height)
-		box->y2 = d->height, clipped = true;
-
-	return clipped;
+	return clip_box(box, gc);
 }
 
 static inline bool box32_clip(Box32Rec *box, GCPtr gc)
@@ -1159,17 +1123,8 @@ static inline void box32_translate(Box32Rec *box, DrawablePtr d)
 
 static inline bool box32_trim_and_translate(Box32Rec *box, DrawablePtr d, GCPtr gc)
 {
-	bool clipped;
-
-	if (likely (gc->pCompositeClip)) {
-		box32_translate(box, d);
-		clipped = box32_clip(box, gc);
-	} else {
-		clipped = box32_trim(box, d);
-		box32_translate(box, d);
-	}
-
-	return clipped;
+	box32_translate(box, d);
+	return box32_clip(box, gc);
 }
 
 static inline void box_add_pt(BoxPtr box, int16_t x, int16_t y)
@@ -1648,7 +1603,7 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	RegionRec region, *clip;
+	RegionRec region;
 	int16_t dx, dy;
 
 	DBG(("%s((%d, %d)x(%d, %d), depth=%d, format=%d)\n",
@@ -1667,25 +1622,17 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
-	region.extents.x1 = x + drawable->x + dx;
-	region.extents.y1 = y + drawable->y + dy;
+	region.extents.x1 = x + drawable->x;
+	region.extents.y1 = y + drawable->y;
 	region.extents.x2 = region.extents.x1 + w;
 	region.extents.y2 = region.extents.y1 + h;
-
-	trim_box(&region.extents, &pixmap->drawable);
-	if (box_empty(&region.extents))
-		return;
-
 	region.data = NULL;
-	clip = fbGetCompositeClip(gc);
-	if (clip) {
-		RegionTranslate(clip, dx, dy);
-		RegionIntersect(&region, &region, clip);
-		RegionTranslate(clip, -dx, -dy);
-	}
 
+	RegionIntersect(&region, &region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
+
+	RegionTranslate(&region, dx, dy);
 
 	switch (format) {
 	case ZPixmap:
@@ -7022,7 +6969,6 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	region.extents.x2 = x + extents.overallRight;
 	region.extents.y2 = y + extents.overallDescent;
 
-	trim_box(&region.extents, drawable);
 	translate_box(&region.extents, drawable);
 	clip_box(&region.extents, gc);
 	if (box_empty(&region.extents))
@@ -7076,7 +7022,6 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	region.extents.x2 = x + extents.overallRight;
 	region.extents.y2 = y + extents.overallDescent;
 
-	trim_box(&region.extents, drawable);
 	translate_box(&region.extents, drawable);
 	clip_box(&region.extents, gc);
 	if (box_empty(&region.extents))
