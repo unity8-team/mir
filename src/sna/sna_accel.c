@@ -2844,8 +2844,6 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 		int src_stride;
 		uint8_t *dst, *src;
 		uint32_t *b;
-		struct kgem_bo *upload;
-		void *ptr;
 
 		DBG(("%s: box(%d, %d), (%d, %d), sx=(%d,%d) bx=[%d, %d]\n",
 		     __FUNCTION__,
@@ -2853,67 +2851,123 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 		     box->x2, box->y2,
 		     sx, sy, bx1, bx2));
 
-		if (!kgem_check_batch(&sna->kgem, 8) ||
-		    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
-		    !kgem_check_reloc(&sna->kgem, 2)) {
-			_kgem_submit(&sna->kgem);
-			_kgem_set_mode(&sna->kgem, KGEM_BLT);
-		}
+		src_stride = bstride*bh;
+		if (src_stride <= 128) {
+			src_stride = ALIGN(src_stride, 8) / 4;
+			if (!kgem_check_batch(&sna->kgem, 7+src_stride) ||
+			    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+			    !kgem_check_reloc(&sna->kgem, 1)) {
+				_kgem_submit(&sna->kgem);
+				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+			}
 
-		upload = kgem_create_buffer(&sna->kgem,
-					    bstride*bh,
-					    KGEM_BUFFER_WRITE,
-					    &ptr);
-		if (!upload)
-			break;
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			b[0] = XY_MONO_SRC_COPY_IMM | (5 + src_stride);
+			if (drawable->bitsPerPixel == 32)
+				b[0] |= 3 << 20;
+			b[0] |= ((box->x1 + sx) & 7) << 17;
+			b[1] = priv->gpu_bo->pitch;
+			if (sna->kgem.gen >= 40) {
+				if (priv->gpu_bo->tiling)
+					b[0] |= BLT_DST_TILED;
+				b[1] >>= 2;
+			}
+			b[1] |= blt_depth(drawable->depth) << 24;
+			b[1] |= rop << 16;
+			b[2] = (box->y1 + dy) << 16 | (box->x1 + dx);
+			b[3] = (box->y2 + dy) << 16 | (box->x2 + dx);
+			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+					      priv->gpu_bo,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      I915_GEM_DOMAIN_RENDER |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[5] = gc->bgPixel;
+			b[6] = gc->fgPixel;
 
-		dst = ptr;
-		bstride -= bw;
+			sna->kgem.nbatch += 7 + src_stride;
 
-		src_stride = bitmap->devKind;
-		src = (uint8_t*)bitmap->devPrivate.ptr;
-		src += (box->y1 + sy) * src_stride + bx1/8;
-		src_stride -= bw;
-		do {
-			int i = bw;
+			dst = (uint8_t *)&b[7];
+			bstride -= bw;
+
+			src_stride = bitmap->devKind;
+			src = (uint8_t*)bitmap->devPrivate.ptr;
+			src += (box->y1 + sy) * src_stride + bx1/8;
+			src_stride -= bw;
 			do {
-				*dst++ = byte_reverse(*src++);
-			} while (--i);
-			dst += bstride;
-			src += src_stride;
-		} while (--bh);
+				int i = bw;
+				do {
+					*dst++ = byte_reverse(*src++);
+				} while (--i);
+				dst += bstride;
+				src += src_stride;
+			} while (--bh);
+		} else {
+			struct kgem_bo *upload;
+			void *ptr;
 
-		b = sna->kgem.batch + sna->kgem.nbatch;
-		b[0] = XY_MONO_SRC_COPY;
-		if (drawable->bitsPerPixel == 32)
-			b[0] |= 3 << 20;
-		b[0] |= ((box->x1 + sx) & 7) << 17;
-		b[1] = priv->gpu_bo->pitch;
-		if (sna->kgem.gen >= 40) {
-			if (priv->gpu_bo->tiling)
-				b[0] |= BLT_DST_TILED;
-			b[1] >>= 2;
+			if (!kgem_check_batch(&sna->kgem, 8) ||
+			    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+			    !kgem_check_reloc(&sna->kgem, 2)) {
+				_kgem_submit(&sna->kgem);
+				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+			}
+
+			upload = kgem_create_buffer(&sna->kgem,
+						    bstride*bh,
+						    KGEM_BUFFER_WRITE,
+						    &ptr);
+			if (!upload)
+				break;
+
+			dst = ptr;
+			bstride -= bw;
+
+			src_stride = bitmap->devKind;
+			src = (uint8_t*)bitmap->devPrivate.ptr;
+			src += (box->y1 + sy) * src_stride + bx1/8;
+			src_stride -= bw;
+			do {
+				int i = bw;
+				do {
+					*dst++ = byte_reverse(*src++);
+				} while (--i);
+				dst += bstride;
+				src += src_stride;
+			} while (--bh);
+
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			b[0] = XY_MONO_SRC_COPY;
+			if (drawable->bitsPerPixel == 32)
+				b[0] |= 3 << 20;
+			b[0] |= ((box->x1 + sx) & 7) << 17;
+			b[1] = priv->gpu_bo->pitch;
+			if (sna->kgem.gen >= 40) {
+				if (priv->gpu_bo->tiling)
+					b[0] |= BLT_DST_TILED;
+				b[1] >>= 2;
+			}
+			b[1] |= blt_depth(drawable->depth) << 24;
+			b[1] |= rop << 16;
+			b[2] = (box->y1 + dy) << 16 | (box->x1 + dx);
+			b[3] = (box->y2 + dy) << 16 | (box->x2 + dx);
+			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+					      priv->gpu_bo,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      I915_GEM_DOMAIN_RENDER |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+					      upload,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[6] = gc->bgPixel;
+			b[7] = gc->fgPixel;
+
+			sna->kgem.nbatch += 8;
+			kgem_bo_destroy(&sna->kgem, upload);
 		}
-		b[1] |= blt_depth(drawable->depth) << 24;
-		b[1] |= rop << 16;
-		b[2] = (box->y1 + dy) << 16 | (box->x1 + dx);
-		b[3] = (box->y2 + dy) << 16 | (box->x2 + dx);
-		b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
-				      priv->gpu_bo,
-				      I915_GEM_DOMAIN_RENDER << 16 |
-				      I915_GEM_DOMAIN_RENDER |
-				      KGEM_RELOC_FENCED,
-				      0);
-		b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
-				      upload,
-				      I915_GEM_DOMAIN_RENDER << 16 |
-				      KGEM_RELOC_FENCED,
-				      0);
-		b[6] = gc->bgPixel;
-		b[7] = gc->fgPixel;
-
-		sna->kgem.nbatch += 8;
-		kgem_bo_destroy(&sna->kgem, upload);
 
 		box++;
 	} while (--n);
@@ -6183,76 +6237,130 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 			int src_stride;
 			uint8_t *dst, *src;
 			uint32_t *b;
-			struct kgem_bo *upload;
-			void *ptr;
 
 			DBG(("%s: rect (%d, %d)x(%d, %d) stipple [%d,%d]\n",
 			     __FUNCTION__,
 			     r->x, r->y, r->width, r->height,
 			     bx1, bx2));
 
-			if (!kgem_check_batch(&sna->kgem, 8) ||
-			    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
-			    !kgem_check_reloc(&sna->kgem, 2)) {
-				_kgem_submit(&sna->kgem);
-				_kgem_set_mode(&sna->kgem, KGEM_BLT);
-			}
+			src_stride = bstride*bh;
+			if (src_stride <= 128) {
+				src_stride = ALIGN(src_stride, 8) / 4;
+				if (!kgem_check_batch(&sna->kgem, 7+src_stride) ||
+				    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+				    !kgem_check_reloc(&sna->kgem, 1)) {
+					_kgem_submit(&sna->kgem);
+					_kgem_set_mode(&sna->kgem, KGEM_BLT);
+				}
 
-			upload = kgem_create_buffer(&sna->kgem,
-						    bstride*bh,
-						    KGEM_BUFFER_WRITE,
-						    &ptr);
-			if (!upload)
-				break;
+				b = sna->kgem.batch + sna->kgem.nbatch;
+				b[0] = XY_MONO_SRC_COPY_IMM | (5 + src_stride);
+				if (drawable->bitsPerPixel == 32)
+					b[0] |= 3 << 20;
+				b[0] |= ((r->x - origin->x) & 7) << 17;
+				b[1] = priv->gpu_bo->pitch;
+				if (sna->kgem.gen >= 40) {
+					if (priv->gpu_bo->tiling)
+						b[0] |= BLT_DST_TILED;
+					b[1] >>= 2;
+				}
+				b[1] |= (gc->fillStyle == FillStippled) << 29;
+				b[1] |= blt_depth(drawable->depth) << 24;
+				b[1] |= rop << 16;
+				b[2] = (r->y + dy) << 16 | (r->x + dx);
+				b[3] = (r->y + r->height + dy) << 16 | (r->x + r->width + dx);
+				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+						      priv->gpu_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = gc->bgPixel;
+				b[6] = gc->fgPixel;
 
-			dst = ptr;
-			bstride -= bw;
+				sna->kgem.nbatch += 7 + src_stride;
 
-			src_stride = stipple->devKind;
-			src = (uint8_t*)stipple->devPrivate.ptr;
-			src += (r->y - origin->y) * src_stride + bx1/8;
-			src_stride -= bw;
-			do {
-				int i = bw;
+				dst = (uint8_t *)&b[7];
+				bstride -= bw;
+
+				src_stride = stipple->devKind;
+				src = (uint8_t*)stipple->devPrivate.ptr;
+				src += (r->y - origin->y) * src_stride + bx1/8;
+				src_stride -= bw;
 				do {
-					*dst++ = byte_reverse(*src++);
-				} while (--i);
-				dst += bstride;
-				src += src_stride;
-			} while (--bh);
+					int i = bw;
+					do {
+						*dst++ = byte_reverse(*src++);
+					} while (--i);
+					dst += bstride;
+					src += src_stride;
+				} while (--bh);
+			} else {
+				struct kgem_bo *upload;
+				void *ptr;
 
-			b = sna->kgem.batch + sna->kgem.nbatch;
-			b[0] = XY_MONO_SRC_COPY;
-			if (drawable->bitsPerPixel == 32)
-				b[0] |= 3 << 20;
-			b[0] |= ((r->x - origin->x) & 7) << 17;
-			b[1] = priv->gpu_bo->pitch;
-			if (sna->kgem.gen >= 40) {
-				if (priv->gpu_bo->tiling)
-					b[0] |= BLT_DST_TILED;
-				b[1] >>= 2;
+				if (!kgem_check_batch(&sna->kgem, 8) ||
+				    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+				    !kgem_check_reloc(&sna->kgem, 2)) {
+					_kgem_submit(&sna->kgem);
+					_kgem_set_mode(&sna->kgem, KGEM_BLT);
+				}
+
+				upload = kgem_create_buffer(&sna->kgem,
+							    bstride*bh,
+							    KGEM_BUFFER_WRITE,
+							    &ptr);
+				if (!upload)
+					break;
+
+				dst = ptr;
+				bstride -= bw;
+
+				src_stride = stipple->devKind;
+				src = (uint8_t*)stipple->devPrivate.ptr;
+				src += (r->y - origin->y) * src_stride + bx1/8;
+				src_stride -= bw;
+				do {
+					int i = bw;
+					do {
+						*dst++ = byte_reverse(*src++);
+					} while (--i);
+					dst += bstride;
+					src += src_stride;
+				} while (--bh);
+				b = sna->kgem.batch + sna->kgem.nbatch;
+				b[0] = XY_MONO_SRC_COPY;
+				if (drawable->bitsPerPixel == 32)
+					b[0] |= 3 << 20;
+				b[0] |= ((r->x - origin->x) & 7) << 17;
+				b[1] = priv->gpu_bo->pitch;
+				if (sna->kgem.gen >= 40) {
+					if (priv->gpu_bo->tiling)
+						b[0] |= BLT_DST_TILED;
+					b[1] >>= 2;
+				}
+				b[1] |= (gc->fillStyle == FillStippled) << 29;
+				b[1] |= blt_depth(drawable->depth) << 24;
+				b[1] |= rop << 16;
+				b[2] = (r->y + dy) << 16 | (r->x + dx);
+				b[3] = (r->y + r->height + dy) << 16 | (r->x + r->width + dx);
+				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+						      priv->gpu_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+						      upload,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[6] = gc->bgPixel;
+				b[7] = gc->fgPixel;
+
+				sna->kgem.nbatch += 8;
+				kgem_bo_destroy(&sna->kgem, upload);
 			}
-			b[1] |= (gc->fillStyle == FillStippled) << 29;
-			b[1] |= blt_depth(drawable->depth) << 24;
-			b[1] |= rop << 16;
-			b[2] = (r->y + dy) << 16 | (r->x + dx);
-			b[3] = (r->y + r->height + dy) << 16 | (r->x + r->width + dx);
-			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
-					      priv->gpu_bo,
-					      I915_GEM_DOMAIN_RENDER << 16 |
-					      I915_GEM_DOMAIN_RENDER |
-					      KGEM_RELOC_FENCED,
-					      0);
-			b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
-					      upload,
-					      I915_GEM_DOMAIN_RENDER << 16 |
-					      KGEM_RELOC_FENCED,
-					      0);
-			b[6] = gc->bgPixel;
-			b[7] = gc->fgPixel;
-
-			sna->kgem.nbatch += 8;
-			kgem_bo_destroy(&sna->kgem, upload);
 
 			r++;
 		} while (--n);
@@ -6299,68 +6407,121 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 				     box.x1, box.y1, box.x2, box.y2,
 				     bx1, bx2, bw, bstride));
 
-				if (!kgem_check_batch(&sna->kgem, 8) ||
-				    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
-				    !kgem_check_reloc(&sna->kgem, 2)) {
-					_kgem_submit(&sna->kgem);
-					_kgem_set_mode(&sna->kgem, KGEM_BLT);
-				}
+				src_stride = bstride*bh;
+				if (src_stride <= 128) {
+					src_stride = ALIGN(src_stride, 8) / 4;
+					if (!kgem_check_batch(&sna->kgem, 7+src_stride) ||
+					    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+					    !kgem_check_reloc(&sna->kgem, 1)) {
+						_kgem_submit(&sna->kgem);
+						_kgem_set_mode(&sna->kgem, KGEM_BLT);
+					}
 
-				upload = kgem_create_buffer(&sna->kgem,
-							    bstride*bh,
-							    KGEM_BUFFER_WRITE,
-							    &ptr);
-				if (!upload)
-					break;
+					b = sna->kgem.batch + sna->kgem.nbatch;
+					b[0] = XY_MONO_SRC_COPY_IMM | (5 + src_stride);
+					if (drawable->bitsPerPixel == 32)
+						b[0] |= 3 << 20;
+					b[0] |= ((box.x1 - pat.x) & 7) << 17;
+					b[1] = priv->gpu_bo->pitch;
+					if (sna->kgem.gen >= 40) {
+						if (priv->gpu_bo->tiling)
+							b[0] |= BLT_DST_TILED;
+						b[1] >>= 2;
+					}
+					b[1] |= blt_depth(drawable->depth) << 24;
+					b[1] |= rop << 16;
+					b[2] = (box.y1 + dy) << 16 | (box.x1 + dx);
+					b[3] = (box.y2 + dy) << 16 | (box.x2 + dx);
+					b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+							      priv->gpu_bo,
+							      I915_GEM_DOMAIN_RENDER << 16 |
+							      I915_GEM_DOMAIN_RENDER |
+							      KGEM_RELOC_FENCED,
+							      0);
+					b[5] = gc->bgPixel;
+					b[6] = gc->fgPixel;
 
-				dst = ptr;
-				bstride -= bw;
+					sna->kgem.nbatch += 7 + src_stride;
 
-				src_stride = stipple->devKind;
-				src = (uint8_t*)stipple->devPrivate.ptr;
-				src += (box.y1 - pat.y) * src_stride + bx1/8;
-				src_stride -= bw;
-				do {
-					int i = bw;
+					dst = (uint8_t *)&b[7];
+					bstride -= bw;
+
+					src_stride = stipple->devKind;
+					src = (uint8_t*)stipple->devPrivate.ptr;
+					src += (box.y1 - pat.y) * src_stride + bx1/8;
+					src_stride -= bw;
 					do {
-						*dst++ = byte_reverse(*src++);
-					} while (--i);
-					dst += bstride;
-					src += src_stride;
-				} while (--bh);
+						int i = bw;
+						do {
+							*dst++ = byte_reverse(*src++);
+						} while (--i);
+						dst += bstride;
+						src += src_stride;
+					} while (--bh);
+				} else {
+					if (!kgem_check_batch(&sna->kgem, 8) ||
+					    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+					    !kgem_check_reloc(&sna->kgem, 2)) {
+						_kgem_submit(&sna->kgem);
+						_kgem_set_mode(&sna->kgem, KGEM_BLT);
+					}
 
-				b = sna->kgem.batch + sna->kgem.nbatch;
-				b[0] = XY_MONO_SRC_COPY;
-				if (drawable->bitsPerPixel == 32)
-					b[0] |= 3 << 20;
-				b[0] |= ((box.x1 - pat.x) & 7) << 17;
-				b[1] = priv->gpu_bo->pitch;
-				if (sna->kgem.gen >= 40) {
-					if (priv->gpu_bo->tiling)
-						b[0] |= BLT_DST_TILED;
-					b[1] >>= 2;
+					upload = kgem_create_buffer(&sna->kgem,
+								    bstride*bh,
+								    KGEM_BUFFER_WRITE,
+								    &ptr);
+					if (!upload)
+						break;
+
+					dst = ptr;
+					bstride -= bw;
+
+					src_stride = stipple->devKind;
+					src = (uint8_t*)stipple->devPrivate.ptr;
+					src += (box.y1 - pat.y) * src_stride + bx1/8;
+					src_stride -= bw;
+					do {
+						int i = bw;
+						do {
+							*dst++ = byte_reverse(*src++);
+						} while (--i);
+						dst += bstride;
+						src += src_stride;
+					} while (--bh);
+
+					b = sna->kgem.batch + sna->kgem.nbatch;
+					b[0] = XY_MONO_SRC_COPY;
+					if (drawable->bitsPerPixel == 32)
+						b[0] |= 3 << 20;
+					b[0] |= ((box.x1 - pat.x) & 7) << 17;
+					b[1] = priv->gpu_bo->pitch;
+					if (sna->kgem.gen >= 40) {
+						if (priv->gpu_bo->tiling)
+							b[0] |= BLT_DST_TILED;
+						b[1] >>= 2;
+					}
+					b[1] |= (gc->fillStyle == FillStippled) << 29;
+					b[1] |= blt_depth(drawable->depth) << 24;
+					b[1] |= rop << 16;
+					b[2] = (box.y1 + dy) << 16 | (box.x1 + dx);
+					b[3] = (box.y2 + dy) << 16 | (box.x2 + dx);
+					b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+							      priv->gpu_bo,
+							      I915_GEM_DOMAIN_RENDER << 16 |
+							      I915_GEM_DOMAIN_RENDER |
+							      KGEM_RELOC_FENCED,
+							      0);
+					b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
+							      upload,
+							      I915_GEM_DOMAIN_RENDER << 16 |
+							      KGEM_RELOC_FENCED,
+							      0);
+					b[6] = gc->bgPixel;
+					b[7] = gc->fgPixel;
+
+					sna->kgem.nbatch += 8;
+					kgem_bo_destroy(&sna->kgem, upload);
 				}
-				b[1] |= (gc->fillStyle == FillStippled) << 29;
-				b[1] |= blt_depth(drawable->depth) << 24;
-				b[1] |= rop << 16;
-				b[2] = (box.y1 + dy) << 16 | (box.x1 + dx);
-				b[3] = (box.y2 + dy) << 16 | (box.x2 + dx);
-				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
-						      priv->gpu_bo,
-						      I915_GEM_DOMAIN_RENDER << 16 |
-						      I915_GEM_DOMAIN_RENDER |
-						      KGEM_RELOC_FENCED,
-						      0);
-				b[5] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 5,
-						      upload,
-						      I915_GEM_DOMAIN_RENDER << 16 |
-						      KGEM_RELOC_FENCED,
-						      0);
-				b[6] = gc->bgPixel;
-				b[7] = gc->fgPixel;
-
-				sna->kgem.nbatch += 8;
-				kgem_bo_destroy(&sna->kgem, upload);
 			} while (--n);
 		} else {
 			const BoxRec * const clip_start = RegionBoxptr(&clip);
