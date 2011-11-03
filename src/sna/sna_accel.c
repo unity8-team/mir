@@ -7352,6 +7352,307 @@ fallback:
 	}
 }
 
+/* XXX Damage bypasses the Text interface and so we lose our custom gluphs */
+static bool
+sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
+		       int _x, int _y, unsigned int _n,
+		       CharInfoPtr *_info, pointer _base,
+		       struct sna_damage **damage,
+		       RegionPtr clip,
+		       bool transparent)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	const BoxRec *extents, *last_extents;
+	uint32_t *b;
+	int16_t dx, dy;
+	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
+
+	if (priv->gpu_bo->tiling == I915_TILING_Y) {
+		DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
+		return false;
+	}
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	_x += drawable->x + dx;
+	_y += drawable->y + dy;
+
+	RegionTranslate(clip, dx, dy);
+	extents = REGION_RECTS(clip);
+	last_extents = extents + REGION_NUM_RECTS(clip);
+
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+	if (!kgem_check_batch(&sna->kgem, 16) ||
+	    !kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL) ||
+	    !kgem_check_reloc(&sna->kgem, 1)) {
+		_kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_BLT);
+	}
+	b = sna->kgem.batch + sna->kgem.nbatch;
+	b[0] = XY_SETUP_BLT | 1 << 20;
+	b[1] = priv->gpu_bo->pitch;
+	if (sna->kgem.gen >= 40) {
+		if (priv->gpu_bo->tiling)
+			b[0] |= BLT_DST_TILED;
+		b[1] >>= 2;
+	}
+	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+	b[2] = extents->y1 << 16 | extents->x1;
+	b[3] = extents->y2 << 16 | extents->x2;
+	b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+			      priv->gpu_bo,
+			      I915_GEM_DOMAIN_RENDER << 16 |
+			      I915_GEM_DOMAIN_RENDER |
+			      KGEM_RELOC_FENCED,
+			      0);
+	b[5] = gc->bgPixel;
+	b[6] = gc->fgPixel;
+	b[7] = 0;
+	sna->kgem.nbatch += 8;
+
+	do {
+		CharInfoPtr *info = _info;
+		int x = _x, y = _y, n = _n;
+
+		do {
+			CharInfoPtr c = *info++;
+			uint8_t *glyph = FONTGLYPHBITS(base, c);
+			int w = GLYPHWIDTHPIXELS(c);
+			int h = GLYPHHEIGHTPIXELS(c);
+			int stride = GLYPHWIDTHBYTESPADDED(c);
+			int w8 = (w + 7) >> 3;
+			int x1, y1, len, i;
+			uint8_t *byte;
+
+			if (w == 0 || h == 0)
+				goto skip;
+
+			len = (w8 * h + 7) >> 3 << 1;
+			DBG(("%s glyph: (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
+			     x,y, w, w8, h, len));
+
+			x1 = x + c->metrics.leftSideBearing;
+			y1 = y - c->metrics.ascent;
+
+			if (x1 >= extents->x2 || y1 >= extents->y2)
+				goto skip;
+			if (x1 + w <= extents->x1 || y1 + h <= extents->y1)
+				goto skip;
+
+			if (!kgem_check_batch(&sna->kgem, 3+len)) {
+				_kgem_submit(&sna->kgem);
+				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+				b = sna->kgem.batch + sna->kgem.nbatch;
+				b[0] = XY_SETUP_BLT | 1 << 20;
+				b[1] = priv->gpu_bo->pitch;
+				if (sna->kgem.gen >= 40) {
+					if (priv->gpu_bo->tiling)
+						b[0] |= BLT_DST_TILED;
+					b[1] >>= 2;
+				}
+				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+				b[2] = extents->y1 << 16 | extents->x1;
+				b[3] = extents->y2 << 16 | extents->x2;
+				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+						      priv->gpu_bo,
+						      I915_GEM_DOMAIN_RENDER << 16 |
+						      I915_GEM_DOMAIN_RENDER |
+						      KGEM_RELOC_FENCED,
+						      0);
+				b[5] = gc->bgPixel;
+				b[6] = gc->fgPixel;
+				b[7] = 0;
+				sna->kgem.nbatch += 8;
+			}
+
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			sna->kgem.nbatch += 3 + len;
+
+			b[0] = XY_TEXT_IMMEDIATE_BLT | (1 + len);
+			if (priv->gpu_bo->tiling && sna->kgem.gen >= 40)
+				b[0] |= BLT_DST_TILED;
+			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
+			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
+
+			byte = (uint8_t *)&b[3];
+			stride -= w8;
+			do {
+				i = w8;
+				do {
+					*byte++ = byte_reverse(*glyph++);
+				} while (--i);
+				glyph += stride;
+			} while (--h);
+			while ((byte - (uint8_t *)&b[3]) & 7)
+				*byte++ = 0;
+			assert((uint32_t *)byte == sna->kgem.batch + sna->kgem.nbatch);
+
+			if (damage) {
+				BoxRec r;
+
+				r.x1 = x1;
+				r.y1 = y1;
+				r.x2 = x1 + w;
+				r.y2 = y1 + h;
+				if (box_intersect(&r, extents))
+					sna_damage_add_box(damage, &r);
+			}
+skip:
+			x += c->metrics.characterWidth;
+		} while (--n);
+
+		if (++extents == last_extents)
+			break;
+
+		if (kgem_check_batch(&sna->kgem, 3)) {
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			sna->kgem.nbatch += 3;
+
+			b[0] = XY_SETUP_CLIP;
+			b[1] = extents->y1 << 16 | extents->x1;
+			b[2] = extents->y2 << 16 | extents->x2;
+		}
+	} while (1);
+
+	sna->blt_state.fill_bo = 0;
+	return true;
+}
+
+static void
+sna_image_glyph(DrawablePtr drawable, GCPtr gc,
+		int x, int y, unsigned int n,
+		CharInfoPtr *info, pointer base)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	ExtentInfoRec extents;
+	RegionRec region;
+	struct sna_damage **damage;
+
+	if (n == 0)
+		return;
+
+	QueryGlyphExtents(gc->font, info, n, &extents);
+	region.extents.x1 = x + extents.overallLeft;
+	region.extents.y1 = y - extents.overallAscent;
+	region.extents.x2 = x + extents.overallRight;
+	region.extents.y2 = y + extents.overallDescent;
+
+	translate_box(&region.extents, drawable);
+	clip_box(&region.extents, gc);
+	if (box_empty(&region.extents))
+		return;
+
+	DBG(("%s: extents(%d, %d), (%d, %d)\n", __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (FORCE_FALLBACK)
+		goto fallback_clip;
+
+	if (wedged(sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
+		goto fallback_clip;
+	}
+
+	region.data = NULL;
+	region_maybe_clip(&region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&region))
+		return;
+
+	if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
+	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
+				   damage, &region, false)) {
+		RegionUninit(&region);
+		return;
+	}
+
+fallback:
+	DBG(("%s: fallback\n", __FUNCTION__));
+	sna_gc_move_to_cpu(gc, drawable);
+	sna_drawable_move_region_to_cpu(drawable, &region, true);
+	RegionUninit(&region);
+
+	DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
+	fbImageGlyphBlt(drawable, gc, x, y, n, info, base);
+	return;
+
+fallback_clip:
+	region.data = NULL;
+	region_maybe_clip(&region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&region))
+		return;
+
+	goto fallback;
+}
+
+static void
+sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
+	       int x, int y, unsigned int n,
+	       CharInfoPtr *info, pointer base)
+{
+	struct sna *sna = to_sna_from_drawable(drawable);
+	ExtentInfoRec extents;
+	RegionRec region;
+	struct sna_damage **damage;
+
+	if (n == 0)
+		return;
+
+	QueryGlyphExtents(gc->font, info, n, &extents);
+	region.extents.x1 = x + extents.overallLeft;
+	region.extents.y1 = y - extents.overallAscent;
+	region.extents.x2 = x + extents.overallRight;
+	region.extents.y2 = y + extents.overallDescent;
+
+	translate_box(&region.extents, drawable);
+	clip_box(&region.extents, gc);
+	if (box_empty(&region.extents))
+		return;
+
+	DBG(("%s: extents(%d, %d), (%d, %d)\n", __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (FORCE_FALLBACK)
+		goto fallback_clip;
+
+	if (wedged(sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
+		goto fallback_clip;
+	}
+
+	region.data = NULL;
+	region_maybe_clip(&region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&region))
+		return;
+
+	if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
+	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
+				   damage, &region, true)) {
+		RegionUninit(&region);
+		return;
+	}
+
+fallback:
+	DBG(("%s: fallback\n", __FUNCTION__));
+	sna_gc_move_to_cpu(gc, drawable);
+	sna_drawable_move_region_to_cpu(drawable, &region, true);
+	RegionUninit(&region);
+
+	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
+	fbPolyGlyphBlt(drawable, gc, x, y, n, info, base);
+
+fallback_clip:
+	region.data = NULL;
+	region_maybe_clip(&region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&region))
+		return;
+	goto fallback;
+
+}
+
 static bool
 sna_push_pixels_solid_blt(GCPtr gc,
 			  PixmapPtr bitmap,
@@ -7538,8 +7839,8 @@ static const GCOps sna_gc_ops = {
 	sna_poly_text16,
 	sna_image_text8,
 	sna_image_text16,
-	NULL,
-	NULL,
+	sna_image_glyph,
+	sna_poly_glyph,
 	sna_push_pixels,
 };
 
