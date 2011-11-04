@@ -142,8 +142,12 @@ static bool sna_blt_fill_init(struct sna *sna,
 
 	if (alu == GXclear)
 		pixel = 0;
-	if (alu == GXcopy && pixel == 0)
-		alu = GXclear;
+	else if (alu == GXcopy) {
+		if (pixel == 0)
+			alu = GXclear;
+		else if (pixel == -1)
+			alu = GXset;
+	}
 
 	blt->br13 = 1<<31 | (fill_ROP[alu] << 16) | pitch;
 	switch (bpp) {
@@ -287,7 +291,7 @@ static Bool sna_blt_copy_init(struct sna *sna,
 	if (blt->pitch[1] > MAXSHORT)
 		return FALSE;
 
-	blt->overwrites = alu == GXcopy || alu == GXclear;
+	blt->overwrites = alu == GXcopy || alu == GXclear || alu == GXset;
 	blt->br13 = (copy_ROP[alu] << 16) | blt->pitch[1];
 	switch (bpp) {
 	default: assert(0);
@@ -1538,7 +1542,7 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 
 	/* All too frequently one blt completely overwrites the previous */
 	if (kgem->nbatch >= 6 &&
-	    (alu == GXcopy || alu == GXclear) &&
+	    (alu == GXcopy || alu == GXclear || alu == GXset) &&
 	    kgem->batch[kgem->nbatch-6] == cmd &&
 	    kgem->batch[kgem->nbatch-4] == ((uint32_t)box[0].y1 << 16 | (uint16_t)box[0].x1) &&
 	    kgem->batch[kgem->nbatch-3] == ((uint32_t)box[0].y2 << 16 | (uint16_t)box[0].x2) &&
@@ -1609,8 +1613,12 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 
 	if (alu == GXclear)
 		pixel = 0;
-	if (alu == GXcopy && pixel == 0)
-		alu = GXclear;
+	else if (alu == GXcopy) {
+		if (pixel == 0)
+			alu = GXclear;
+		else if (pixel == -1)
+			alu = GXset;
+	}
 
 	br13 |= 1<<31 | fill_ROP[alu] << 16;
 	switch (bpp) {
@@ -1769,7 +1777,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 
 	/* Compare first box against a previous fill */
 	if (kgem->nbatch >= 6 &&
-	    (alu == GXcopy || alu == GXclear) &&
+	    (alu == GXcopy || alu == GXclear || alu == GXset) &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == dst_bo->handle &&
 	    kgem->batch[kgem->nbatch-6] == ((cmd & ~XY_SRC_COPY_BLT_CMD) | XY_COLOR_BLT) &&
 	    kgem->batch[kgem->nbatch-4] == ((uint32_t)(box->y1 + dst_dy) << 16 | (uint16_t)(box->x1 + dst_dx)) &&
