@@ -941,8 +941,13 @@ glyphs_fallback(CARD8 op,
 		return;
 
 	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
-	if (src->pDrawable)
+	if (dst->alphaMap)
+		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+	if (src->pDrawable) {
 		sna_drawable_move_to_cpu(src->pDrawable, false);
+		if (src->alphaMap)
+			sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false);
+	}
 	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);
 
 	dst_image = image_from_pict(dst, TRUE, &x, &y);

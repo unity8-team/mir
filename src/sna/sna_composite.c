@@ -493,10 +493,18 @@ fallback:
 	     width, height));
 
 	dst_move_area_to_cpu(dst, op, &region.extents);
-	if (src->pDrawable)
+	if (dst->alphaMap)
+		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+	if (src->pDrawable) {
 		sna_drawable_move_to_cpu(src->pDrawable, false);
-	if (mask && mask->pDrawable)
+		if (src->alphaMap)
+			sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false);
+	}
+	if (mask && mask->pDrawable) {
 		sna_drawable_move_to_cpu(mask->pDrawable, false);
+		if (mask->alphaMap)
+			sna_drawable_move_to_cpu(mask->alphaMap->pDrawable, false);
+	}
 
 	DBG(("%s: fallback -- fbCompposite\n", __FUNCTION__));
 	fbComposite(op, src, mask, dst,
@@ -733,6 +741,8 @@ sna_composite_rectangles(CARD8		 op,
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, true);
+	if (dst->alphaMap)
+		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
 
 	if (op == PictOpSrc || op == PictOpClear) {
 		PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
