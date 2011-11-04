@@ -50,6 +50,7 @@
 #endif
 
 #define NO_COMPOSITE 0
+#define NO_COMPOSITE_SPANS 1
 #define NO_COPY 0
 #define NO_COPY_BOXES 0
 #define NO_FILL 0
@@ -2244,6 +2245,305 @@ cleanup_dst:
 	return FALSE;
 }
 
+/* A poor man's span interface. But better than nothing? */
+#if !NO_COMPOSITE_SPANS
+static Bool
+gen6_composite_alpha_gradient_init(struct sna *sna,
+				   struct sna_composite_channel *channel)
+{
+	DBG(("%s\n", __FUNCTION__));
+
+	channel->filter = PictFilterNearest;
+	channel->repeat = RepeatPad;
+	channel->is_affine = TRUE;
+	channel->is_solid  = FALSE;
+	channel->transform = NULL;
+	channel->width  = 256;
+	channel->height = 1;
+	channel->card_format = GEN6_SURFACEFORMAT_B8G8R8A8_UNORM;
+
+	channel->bo = sna_render_get_alpha_gradient(sna);
+
+	channel->scale[0]  = channel->scale[1]  = 1;
+	channel->offset[0] = channel->offset[1] = 0;
+	return channel->bo != NULL;
+}
+
+inline static void
+gen6_emit_composite_texcoord(struct sna *sna,
+			     const struct sna_composite_channel *channel,
+			     int16_t x, int16_t y)
+{
+	float t[3];
+
+	if (channel->is_affine) {
+		sna_get_transformed_coordinates(x + channel->offset[0],
+						y + channel->offset[1],
+						channel->transform,
+						&t[0], &t[1]);
+		OUT_VERTEX_F(t[0] * channel->scale[0]);
+		OUT_VERTEX_F(t[1] * channel->scale[1]);
+	} else {
+		t[0] = t[1] = 0; t[2] = 1;
+		sna_get_transformed_coordinates_3d(x + channel->offset[0],
+						   y + channel->offset[1],
+						   channel->transform,
+						   &t[0], &t[1], &t[2]);
+		OUT_VERTEX_F(t[0] * channel->scale[0]);
+		OUT_VERTEX_F(t[1] * channel->scale[1]);
+		OUT_VERTEX_F(t[2]);
+	}
+}
+
+inline static void
+gen6_emit_composite_texcoord_affine(struct sna *sna,
+				    const struct sna_composite_channel *channel,
+				    int16_t x, int16_t y)
+{
+	float t[2];
+
+	sna_get_transformed_coordinates(x + channel->offset[0],
+					y + channel->offset[1],
+					channel->transform,
+					&t[0], &t[1]);
+	OUT_VERTEX_F(t[0] * channel->scale[0]);
+	OUT_VERTEX_F(t[1] * channel->scale[1]);
+}
+
+inline static void
+gen6_emit_composite_spans_vertex(struct sna *sna,
+				 const struct sna_composite_spans_op *op,
+				 int16_t x, int16_t y)
+{
+	OUT_VERTEX(x, y);
+	gen6_emit_composite_texcoord(sna, &op->base.src, x, y);
+}
+
+fastcall static void
+gen6_emit_composite_spans_primitive(struct sna *sna,
+				    const struct sna_composite_spans_op *op,
+				    const BoxRec *box,
+				    float opacity)
+{
+	gen6_emit_composite_spans_vertex(sna, op, box->x2, box->y2);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(1);
+	if (!op->base.is_affine)
+		OUT_VERTEX_F(1);
+
+	gen6_emit_composite_spans_vertex(sna, op, box->x1, box->y2);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(1);
+	if (!op->base.is_affine)
+		OUT_VERTEX_F(1);
+
+	gen6_emit_composite_spans_vertex(sna, op, box->x1, box->y1);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(0);
+	if (!op->base.is_affine)
+		OUT_VERTEX_F(1);
+}
+
+fastcall static void
+gen6_emit_composite_spans_solid(struct sna *sna,
+				const struct sna_composite_spans_op *op,
+				const BoxRec *box,
+				float opacity)
+{
+	OUT_VERTEX(box->x2, box->y2);
+	OUT_VERTEX_F(1); OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y2);
+	OUT_VERTEX_F(0); OUT_VERTEX_F(1);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y1);
+	OUT_VERTEX_F(0); OUT_VERTEX_F(0);
+	OUT_VERTEX_F(opacity); OUT_VERTEX_F(0);
+}
+
+fastcall static void
+gen6_emit_composite_spans_affine(struct sna *sna,
+				 const struct sna_composite_spans_op *op,
+				 const BoxRec *box,
+				 float opacity)
+{
+	OUT_VERTEX(box->x2, box->y2);
+	gen6_emit_composite_texcoord_affine(sna, &op->base.src,
+					    box->x2, box->y2);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y2);
+	gen6_emit_composite_texcoord_affine(sna, &op->base.src,
+					    box->x1, box->y2);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y1);
+	gen6_emit_composite_texcoord_affine(sna, &op->base.src,
+					    box->x1, box->y1);
+	OUT_VERTEX_F(opacity);
+	OUT_VERTEX_F(0);
+}
+
+fastcall static void
+gen6_render_composite_spans_box(struct sna *sna,
+				const struct sna_composite_spans_op *op,
+				const BoxRec *box, float opacity)
+{
+	DBG(("%s: src=+(%d, %d), opacity=%f, dst=+(%d, %d), box=(%d, %d) x (%d, %d)\n",
+	     __FUNCTION__,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     opacity,
+	     op->base.dst.x, op->base.dst.y,
+	     box->x1, box->y1,
+	     box->x2 - box->x1,
+	     box->y2 - box->y1));
+
+	if (gen6_get_rectangles(sna, &op->base, 1) == 0) {
+		gen6_emit_composite_state(sna, &op->base);
+		gen6_get_rectangles(sna, &op->base, 1);
+	}
+
+	op->prim_emit(sna, op, box, opacity);
+}
+
+static void
+gen6_render_composite_spans_boxes(struct sna *sna,
+				  const struct sna_composite_spans_op *op,
+				  const BoxRec *box, int nbox,
+				  float opacity)
+{
+	DBG(("%s: nbox=%d, src=+(%d, %d), opacity=%f, dst=+(%d, %d)\n",
+	     __FUNCTION__, nbox,
+	     op->base.src.offset[0], op->base.src.offset[1],
+	     opacity,
+	     op->base.dst.x, op->base.dst.y));
+
+	do {
+		int nbox_this_time;
+
+		nbox_this_time = gen6_get_rectangles(sna, &op->base, nbox);
+		if (nbox_this_time == 0) {
+			gen6_emit_composite_state(sna, &op->base);
+			nbox_this_time = gen6_get_rectangles(sna, &op->base, nbox);
+		}
+		nbox -= nbox_this_time;
+
+		do {
+			DBG(("  %s: (%d, %d) x (%d, %d)\n", __FUNCTION__,
+			     box->x1, box->y1,
+			     box->x2 - box->x1,
+			     box->y2 - box->y1));
+
+			op->prim_emit(sna, op, box++, opacity);
+		} while (--nbox_this_time);
+	} while (nbox);
+}
+
+fastcall static void
+gen6_render_composite_spans_done(struct sna *sna,
+				 const struct sna_composite_spans_op *op)
+{
+	gen6_vertex_flush(sna);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+
+	DBG(("%s()\n", __FUNCTION__));
+
+	sna_render_composite_redirect_done(sna, &op->base);
+	if (op->base.src.bo)
+		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
+}
+
+static Bool
+gen6_render_composite_spans(struct sna *sna,
+			    uint8_t op,
+			    PicturePtr src,
+			    PicturePtr dst,
+			    int16_t src_x,  int16_t src_y,
+			    int16_t dst_x,  int16_t dst_y,
+			    int16_t width,  int16_t height,
+			    struct sna_composite_spans_op *tmp)
+{
+	DBG(("%s: %dx%d, current mode=%d\n", __FUNCTION__,
+	     width, height, sna->kgem.ring));
+
+	if (op >= ARRAY_SIZE(gen6_blend_op))
+		return FALSE;
+
+	if (need_tiling(sna, width, height))
+		return FALSE;
+
+	tmp->base.op = op;
+	if (!gen6_composite_set_target(&tmp->base, dst))
+		return FALSE;
+
+	if (tmp->base.dst.width > 8192 || tmp->base.dst.height > 8192) {
+		if (!sna_render_composite_redirect(sna, &tmp->base,
+						   dst_x, dst_y, width, height))
+			return FALSE;
+	}
+
+	switch (gen6_composite_picture(sna, src, &tmp->base.src,
+				       src_x, src_y,
+				       width, height,
+				       dst_x, dst_y)) {
+	case -1:
+		goto cleanup_dst;
+	case 0:
+		gen6_composite_solid_init(sna, &tmp->base.src, 0);
+	case 1:
+		gen6_composite_channel_convert(&tmp->base.src);
+		break;
+	}
+
+	tmp->base.is_affine = tmp->base.src.is_affine;
+	tmp->base.has_component_alpha = FALSE;
+	tmp->base.need_magic_ca_pass = FALSE;
+
+	gen6_composite_alpha_gradient_init(sna, &tmp->base.mask);
+
+	tmp->prim_emit = gen6_emit_composite_spans_primitive;
+	if (tmp->base.src.is_solid)
+		tmp->prim_emit = gen6_emit_composite_spans_solid;
+	else if (tmp->base.is_affine)
+		tmp->prim_emit = gen6_emit_composite_spans_affine;
+	tmp->base.floats_per_vertex = 5 + 2*!tmp->base.is_affine;
+	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
+
+	tmp->base.u.gen6.wm_kernel =
+		gen6_choose_composite_kernel(tmp->base.op,
+					     TRUE, FALSE,
+					     tmp->base.is_affine);
+	tmp->base.u.gen6.nr_surfaces = 3;
+	tmp->base.u.gen6.nr_inputs = 2;
+	tmp->base.u.gen6.ve_id = 1 << 1 | tmp->base.is_affine;
+
+	tmp->box   = gen6_render_composite_spans_box;
+	tmp->boxes = gen6_render_composite_spans_boxes;
+	tmp->done  = gen6_render_composite_spans_done;
+
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->base.dst.bo, tmp->base.src.bo,
+			   NULL))
+		kgem_submit(&sna->kgem);
+
+	if (kgem_bo_is_dirty(tmp->base.src.bo))
+		kgem_emit_flush(&sna->kgem);
+
+	gen6_emit_composite_state(sna, &tmp->base);
+	gen6_align_vertex(sna, &tmp->base);
+	return TRUE;
+
+cleanup_dst:
+	if (tmp->base.redirect.real_bo)
+		kgem_bo_destroy(&sna->kgem, tmp->base.dst.bo);
+	return FALSE;
+}
+#endif
+
 static void
 gen6_emit_copy_state(struct sna *sna,
 		     const struct sna_composite_op *op)
@@ -3052,6 +3352,9 @@ Bool gen6_render_init(struct sna *sna)
 	sna->kgem.context_switch = gen6_render_context_switch;
 
 	sna->render.composite = gen6_render_composite;
+#if !NO_COMPOSITE_SPANS
+	sna->render.composite_spans = gen6_render_composite_spans;
+#endif
 	sna->render.video = gen6_render_video;
 
 	sna->render.copy_boxes = gen6_render_copy_boxes;

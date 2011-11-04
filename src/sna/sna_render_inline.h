@@ -116,4 +116,10 @@ static inline Bool sna_blt_compare_depth(DrawablePtr src, DrawablePtr dst)
 	return FALSE;
 }
 
+static inline struct kgem_bo *
+sna_render_get_alpha_gradient(struct sna *sna)
+{
+	return kgem_bo_reference(sna->render.alpha_cache.cache_bo);
+}
+
 #endif /* SNA_RENDER_INLINE_H */
