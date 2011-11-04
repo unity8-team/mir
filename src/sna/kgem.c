@@ -766,7 +766,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 		}
 
 		/* transfer the handle to a minimum bo */
-		if (bo->base.refcnt == 1) {
+		if (bo->base.refcnt == 1 && !bo->base.sync) {
 			struct kgem_bo *base = malloc(sizeof(*base));
 			if (base) {
 				memcpy(base, &bo->base, sizeof (*base));
