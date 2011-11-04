@@ -512,7 +512,7 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 
 	list_move(&bo->request, &kgem->next_request->buffers);
 
-	/* XXX is it worth working around gcc here?
+	/* XXX is it worth working around gcc here? */
 	kgem->flush |= bo->flush;
 	kgem->sync |= bo->sync;
 }
