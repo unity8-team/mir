@@ -504,8 +504,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (xf86ReturnOptValBool(sna->Options, OPTION_TILING_FB, FALSE))
 		sna->tiling &= ~SNA_TILING_FB;
 
-	/* Default fail-safe value of 25 Hz */
-	sna->flush_interval = 40 * 1000 * 1000;
+	/* Default fail-safe value of 75 Hz */
+	sna->vblank_interval = 1000 * 1000 * 1000 / 75;
 
 	sna->flags = 0;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_THROTTLE, TRUE))

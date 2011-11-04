@@ -601,7 +601,7 @@ static void update_flush_interval(struct sna *sna)
 	if (max_vrefresh == 0)
 		max_vrefresh = 40;
 
-	sna->flush_interval = 2000 * 1000 * 1000 / max_vrefresh;
+	sna->vblank_interval = 1000 * 1000 * 1000 / max_vrefresh; /* Hz -> ns */
 	DBG(("max_vrefresh=%d, flush_interval=%d ns\n",
 	       max_vrefresh, sna->flush_interval));
 }

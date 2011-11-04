@@ -8089,13 +8089,13 @@ static Bool sna_accel_do_flush(struct sna *sna)
 	DBG(("%s, starting flush timer, at time=%ld\n",
 	     __FUNCTION__, (long)GetTimeInMillis()));
 
-	/* Initial redraw after 10ms. */
+	/* Initial redraw hopefully before this vblank */
 	to.it_value.tv_sec = 0;
-	to.it_value.tv_nsec = 10 * 1000 * 1000;
+	to.it_value.tv_nsec = sna->vblank_interval / 2;
 
-	/* Then periodic updates at half-vrefresh (update every other vblank) */
+	/* Then periodic updates for every vblank */
 	to.it_interval.tv_sec = 0;
-	to.it_interval.tv_nsec = sna->flush_interval;
+	to.it_interval.tv_nsec = sna->vblank_interval;
 	timerfd_settime(sna->timer[FLUSH_TIMER], 0, &to, NULL);
 
 	sna->timer_active |= 1 << FLUSH_TIMER;

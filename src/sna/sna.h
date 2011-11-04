@@ -225,7 +225,7 @@ struct sna {
 	int timer[NUM_TIMERS];
 	int timer_active;
 
-	int flush_interval;
+	int vblank_interval;
 
 	struct list deferred_free;
 	struct list dirty_pixmaps;
