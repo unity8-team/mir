@@ -2494,6 +2494,7 @@ composite_unaligned_boxes(CARD8 op,
 					 extents.x1,  extents.y1,
 					 extents.x2 - extents.x1,
 					 extents.y2 - extents.y1,
+					 COMPOSITE_SPANS_RECTILINEAR,
 					 &tmp)) {
 		DBG(("%s: composite spans render op not supported\n",
 		     __FUNCTION__));
@@ -2790,6 +2791,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 					 extents.x1,  extents.y1,
 					 extents.x2 - extents.x1,
 					 extents.y2 - extents.y1,
+					 0,
 					 &tmp)) {
 		DBG(("%s: fallback -- composite spans render op not supported\n",
 		     __FUNCTION__));
@@ -3237,6 +3239,7 @@ trap_span_converter(PicturePtr dst,
 					 extents.x1,  extents.y1,
 					 extents.x2 - extents.x1,
 					 extents.y2 - extents.y1,
+					 0,
 					 &tmp)) {
 		DBG(("%s: fallback -- composite spans render op not supported\n",
 		     __FUNCTION__));
@@ -3773,6 +3776,7 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 					 extents.x1,  extents.y1,
 					 extents.x2 - extents.x1,
 					 extents.y2 - extents.y1,
+					 0,
 					 &tmp)) {
 		DBG(("%s: fallback -- composite spans render op not supported\n",
 		     __FUNCTION__));
@@ -4123,6 +4127,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 					 extents.x1,  extents.y1,
 					 extents.x2 - extents.x1,
 					 extents.y2 - extents.y1,
+					 0,
 					 &tmp)) {
 		DBG(("%s: fallback -- composite spans render op not supported\n",
 		     __FUNCTION__));

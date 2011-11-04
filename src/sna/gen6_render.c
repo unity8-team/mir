@@ -50,7 +50,7 @@
 #endif
 
 #define NO_COMPOSITE 0
-#define NO_COMPOSITE_SPANS 1
+#define NO_COMPOSITE_SPANS 0
 #define NO_COPY 0
 #define NO_COPY_BOXES 0
 #define NO_FILL 0
@@ -2465,10 +2465,14 @@ gen6_render_composite_spans(struct sna *sna,
 			    int16_t src_x,  int16_t src_y,
 			    int16_t dst_x,  int16_t dst_y,
 			    int16_t width,  int16_t height,
+			    unsigned flags,
 			    struct sna_composite_spans_op *tmp)
 {
-	DBG(("%s: %dx%d, current mode=%d\n", __FUNCTION__,
-	     width, height, sna->kgem.ring));
+	DBG(("%s: %dx%d with flags=%x, current mode=%d\n", __FUNCTION__,
+	     width, height, flags, sna->kgem.ring));
+
+	if ((flags & COMPOSITE_SPANS_RECTILINEAR) == 0)
+		return FALSE;
 
 	if (op >= ARRAY_SIZE(gen6_blend_op))
 		return FALSE;

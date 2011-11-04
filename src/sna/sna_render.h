@@ -193,7 +193,9 @@ struct sna_render {
 				int16_t src_x, int16_t src_y,
 				int16_t dst_x, int16_t dst_y,
 				int16_t w, int16_t h,
+				unsigned flags,
 				struct sna_composite_spans_op *tmp);
+#define COMPOSITE_SPANS_RECTILINEAR 0x1
 
 	Bool (*video)(struct sna *sna,
 		      struct sna_video *video,

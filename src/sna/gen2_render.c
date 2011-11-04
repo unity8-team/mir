@@ -1684,6 +1684,7 @@ gen2_render_composite_spans(struct sna *sna,
 			    int16_t src_x,  int16_t src_y,
 			    int16_t dst_x,  int16_t dst_y,
 			    int16_t width,  int16_t height,
+			    unsigned flags,
 			    struct sna_composite_spans_op *tmp)
 {
 	DBG(("%s(src=(%d, %d), dst=(%d, %d), size=(%d, %d))\n", __FUNCTION__,
