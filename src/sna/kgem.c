@@ -509,8 +509,12 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 	bo->exec = kgem_add_handle(kgem, bo);
 	bo->rq = kgem->next_request;
 	bo->gpu = true;
+
 	list_move(&bo->request, &kgem->next_request->buffers);
+
+	/* XXX is it worth working around gcc here?
 	kgem->flush |= bo->flush;
+	kgem->sync |= bo->sync;
 }
 
 static uint32_t kgem_end_batch(struct kgem *kgem)
@@ -766,7 +770,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 		}
 
 		/* transfer the handle to a minimum bo */
-		if (bo->base.refcnt == 1 && !bo->base.sync) {
+		if (bo->base.refcnt == 1 && !bo->base.vmap) {
 			struct kgem_bo *base = malloc(sizeof(*base));
 			if (base) {
 				memcpy(base, &bo->base, sizeof (*base));
@@ -1845,11 +1849,33 @@ void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write)
 
 	drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 	bo->needs_flush = false;
-	if (bo->gpu)
+	if (bo->gpu) {
+		kgem->sync = false;
 		kgem_retire(kgem);
+	}
 	bo->cpu_read = true;
 	if (for_write)
 		bo->cpu_write = true;
+}
+
+void kgem_sync(struct kgem *kgem)
+{
+	if (!list_is_empty(&kgem->requests)) {
+		struct drm_i915_gem_set_domain set_domain;
+		struct kgem_request *rq;
+
+		rq = list_first_entry(&kgem->requests,
+				      struct kgem_request,
+				      list);
+		set_domain.handle = rq->bo->handle;
+		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
+
+		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
+		kgem_retire(kgem);
+	}
+
+	kgem->sync = false;
 }
 
 void kgem_clear_dirty(struct kgem *kgem)
@@ -2023,7 +2049,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		bo->need_io = true;
 	} else {
 		__kgem_bo_init(&bo->base, handle, alloc);
-		bo->base.sync = true;
+		bo->base.vmap = true;
 		bo->need_io = 0;
 	}
 	bo->base.reusable = false;
@@ -2161,10 +2187,10 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 
 	bo = (struct kgem_partial_bo *)_bo;
 
-	DBG(("%s(offset=%d, length=%d, sync=%d)\n", __FUNCTION__,
-	     offset, length, bo->base.sync));
+	DBG(("%s(offset=%d, length=%d, vmap=%d)\n", __FUNCTION__,
+	     offset, length, bo->base.vmap));
 
-	if (!bo->base.sync) {
+	if (!bo->base.vmap) {
 		gem_read(kgem->fd, bo->base.handle,
 			 (char *)(bo+1)+offset, length);
 		bo->base.needs_flush = false;

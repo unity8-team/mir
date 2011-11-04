@@ -72,6 +72,7 @@ struct kgem_bo {
 	uint32_t needs_flush : 1;
 	uint32_t cpu_read : 1;
 	uint32_t cpu_write : 1;
+	uint32_t vmap : 1;
 	uint32_t flush : 1;
 	uint32_t sync : 1;
 	uint32_t deleted : 1;
@@ -110,6 +111,7 @@ struct kgem {
 	uint16_t nfence;
 
 	uint32_t flush:1;
+	uint32_t sync:1;
 	uint32_t need_expire:1;
 	uint32_t need_purge:1;
 	uint32_t need_retire:1;
@@ -334,6 +336,7 @@ static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 }
 
 void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write);
+void kgem_sync(struct kgem *kgem);
 
 #define KGEM_BUFFER_WRITE	0x1
 #define KGEM_BUFFER_LAST	0x2

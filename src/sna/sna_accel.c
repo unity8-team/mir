@@ -188,8 +188,7 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 
 	if (priv->cpu_bo) {
-		if (pixmap->usage_hint != CREATE_PIXMAP_USAGE_SCRATCH_HEADER &&
-		    kgem_bo_is_busy(priv->cpu_bo)) {
+		if (kgem_bo_is_busy(priv->cpu_bo)) {
 			list_add_tail(&priv->list, &sna->deferred_free);
 			return false;
 		}
@@ -7965,7 +7964,8 @@ sna_accel_flush_callback(CallbackListPtr *list,
 {
 	struct sna *sna = user_data;
 
-	if (sna->kgem.flush == 0 && list_is_empty(&sna->dirty_pixmaps))
+	if ((sna->kgem.sync|sna->kgem.flush) == 0 &&
+	    list_is_empty(&sna->dirty_pixmaps))
 		return;
 
 	DBG(("%s\n", __FUNCTION__));
@@ -7979,6 +7979,21 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	}
 
 	kgem_submit(&sna->kgem);
+
+	if (sna->kgem.sync) {
+		kgem_sync(&sna->kgem);
+
+		while (!list_is_empty(&sna->deferred_free)) {
+			struct sna_pixmap *priv =
+				list_first_entry(&sna->deferred_free,
+						 struct sna_pixmap,
+						 list);
+			list_del(&priv->list);
+			kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
+			fbDestroyPixmap(priv->pixmap);
+			free(priv);
+		}
+	}
 }
 
 static void sna_deferred_free(struct sna *sna)

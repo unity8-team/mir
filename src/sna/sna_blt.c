@@ -1120,13 +1120,8 @@ prepare_blt_put(struct sna *sna,
 	if (priv) {
 		if (!priv->gpu_only) {
 			src_bo = priv->cpu_bo;
-			if (!src_bo) {
-				src_bo = kgem_create_map(&sna->kgem,
-							 src->devPrivate.ptr,
-							 pixmap_size(src),
-							 1);
-				priv->cpu_bo = src_bo;
-			}
+			if (!src_bo)
+				src_bo = pixmap_vmap(&sna->kgem, src);
 		}
 	} else {
 		src_bo = kgem_create_map(&sna->kgem,
