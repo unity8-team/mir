@@ -8036,6 +8036,9 @@ static Bool sna_accel_do_flush(struct sna *sna)
 	struct itimerspec to;
 	struct sna_pixmap *priv;
 
+	if (sna->kgem.flush_now)
+		return TRUE;
+
 	return_if_timer_active(FLUSH_TIMER);
 
 	priv = sna_accel_scanout(sna);
@@ -8132,6 +8135,7 @@ static bool sna_accel_flush(struct sna *sna)
 		sna_pixmap_move_to_gpu(priv->pixmap);
 	sna->kgem.busy = !nothing_to_do;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
+	sna->kgem.flush_now = 0;
 	return !nothing_to_do;
 }
 

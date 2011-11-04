@@ -1044,7 +1044,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem_cleanup(kgem);
 
 	kgem_reset(kgem);
-	kgem->busy = 1;
+	kgem->flush_now = kgem->busy = 1;
 }
 
 void kgem_throttle(struct kgem *kgem)
