@@ -678,12 +678,9 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     /* don't enable tiling if accel is not enabled */
     if (!info->r600_shadow_fb) {
 	Bool colorTilingDefault =
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,4,901,0)
+	    xorgGetVersion() >= XORG_VERSION_NUMERIC(1,9,4,901,0) &&
 	    info->ChipFamily >= CHIP_FAMILY_R300 &&
 	    info->ChipFamily <= CHIP_FAMILY_CAYMAN;
-#else
-	FALSE;
-#endif
 
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	    /* set default group bytes, overridden by kernel info below */
