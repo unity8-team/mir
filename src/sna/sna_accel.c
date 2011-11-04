@@ -8035,6 +8035,12 @@ static uint64_t read_timer(int fd)
 	(void)ret;
 }
 
+static void sna_accel_drain_timer(struct sna *sna, int id)
+{
+	if (sna->timer_active & (1<<id))
+		read_timer(sna->timer[id]);
+}
+
 static void _sna_accel_disarm_timer(struct sna *sna, int id)
 {
 	struct itimerspec to;
@@ -8056,8 +8062,10 @@ static Bool sna_accel_do_flush(struct sna *sna)
 	struct itimerspec to;
 	struct sna_pixmap *priv;
 
-	if (sna->kgem.flush_now)
+	if (sna->kgem.flush_now) {
+		sna_accel_drain_timer(sna, FLUSH_TIMER);
 		return TRUE;
+	}
 
 	return_if_timer_active(FLUSH_TIMER);
 
@@ -8136,6 +8144,7 @@ static void sna_accel_create_timers(struct sna *sna)
 }
 static Bool sna_accel_do_flush(struct sna *sna) { return sna_accel_scanout(sna) != NULL; }
 static Bool sna_accel_do_expire(struct sna *sna) { return sna->kgem.need_expire; }
+static void sna_accel_drain_timer(struct sna *sna, int id) { }
 static void _sna_accel_disarm_timer(struct sna *sna, int id) { }
 #endif
 
