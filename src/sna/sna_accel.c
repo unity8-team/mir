@@ -6829,6 +6829,11 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	DBG(("%s (%d, %d) x %d, transparent? %d, alu=%d\n",
 	     __FUNCTION__, _x, _y, _n, transparent, rop));
 
+	if (wedged(sna)) {
+		DBG(("%s -- fallback, wedged\n", __FUNCTION__));
+		return false;
+	}
+
 	if (!sna_drawable_use_gpu_bo(drawable, &clip->extents, &damage))
 		return false;
 
