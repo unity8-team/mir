@@ -568,10 +568,10 @@ uxa_picture_from_pixman_image(ScreenPtr screen,
 		}
 		ValidatePicture(src);
 
-		if (uxa_prepare_access(picture->pDrawable, UXA_ACCESS_RW)) {
+		if (uxa_picture_prepare_access(picture, UXA_ACCESS_RW)) {
 			fbComposite(PictOpSrc, src, NULL, picture,
 				    0, 0, 0, 0, 0, 0, width, height);
-			uxa_finish_access(picture->pDrawable);
+			uxa_picture_finish_access(picture);
 		}
 
 		FreePicture(src, 0);
@@ -699,10 +699,10 @@ uxa_acquire_pattern(ScreenPtr pScreen,
 	if (!pDst)
 		return 0;
 
-	if (uxa_prepare_access(pDst->pDrawable, UXA_ACCESS_RW)) {
+	if (uxa_picture_prepare_access(pDst, UXA_ACCESS_RW)) {
 		fbComposite(PictOpSrc, pSrc, NULL, pDst,
 			    x, y, 0, 0, 0, 0, width, height);
-		uxa_finish_access(pDst->pDrawable);
+		uxa_picture_finish_access(pDst);
 		return pDst;
 	} else {
 		FreePicture(pDst, 0);
@@ -756,14 +756,14 @@ uxa_render_picture(ScreenPtr screen,
 	if (!picture)
 		return 0;
 
-	if (uxa_prepare_access(picture->pDrawable, UXA_ACCESS_RW)) {
-		if (uxa_prepare_access(src->pDrawable, UXA_ACCESS_RO)) {
+	if (uxa_picture_prepare_access(picture, UXA_ACCESS_RW)) {
+		if (uxa_picture_prepare_access(src, UXA_ACCESS_RO)) {
 			ret = 1;
 			fbComposite(PictOpSrc, src, NULL, picture,
 				    x, y, 0, 0, 0, 0, width, height);
-			uxa_finish_access(src->pDrawable);
+			uxa_picture_finish_access(src);
 		}
-		uxa_finish_access(picture->pDrawable);
+		uxa_picture_finish_access(picture);
 	}
 
 	if (!ret) {
