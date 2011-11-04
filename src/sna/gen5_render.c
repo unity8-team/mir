@@ -51,6 +51,8 @@
 
 #define NO_COMPOSITE_SPANS 0
 
+#define PREFER_BLT_FILL 1
+
 #define DBG_NO_STATE_CACHE 0
 #define DBG_NO_SURFACE_CACHE 0
 
@@ -2643,6 +2645,15 @@ gen5_fill_bind_surfaces(struct sna *sna,
 	gen5_emit_state(sna, op, offset);
 }
 
+static inline bool prefer_blt_fill(struct sna *sna)
+{
+#if PREFER_BLT_FILL
+	return true;
+#else
+	return sna->kgem.mode != KGEM_RENDER;
+#endif
+}
+
 static Bool
 gen5_render_fill_boxes(struct sna *sna,
 		       CARD8 op,
@@ -2663,7 +2674,7 @@ gen5_render_fill_boxes(struct sna *sna,
 		return FALSE;
 	}
 
-	if (sna->kgem.mode != KGEM_RENDER ||
+	if (prefer_blt_fill(sna) ||
 	    dst->drawable.width > 8192 ||
 	    dst->drawable.height > 8192 ||
 	    !gen5_check_dst_format(format)) {
@@ -2869,7 +2880,7 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s(alu=%d, color=%08x)\n", __FUNCTION__, alu, color));
 
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_blt_fill(sna) &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
