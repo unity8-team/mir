@@ -23,11 +23,13 @@ static inline int vertex_space(struct sna *sna)
 }
 static inline void vertex_emit(struct sna *sna, float v)
 {
+	assert(sna->render.vertex_used < ARRAY_SIZE(sna->render.vertex_data));
 	sna->render.vertex_data[sna->render.vertex_used++] = v;
 }
 static inline void vertex_emit_2s(struct sna *sna, int16_t x, int16_t y)
 {
 	int16_t *v = (int16_t *)&sna->render.vertex_data[sna->render.vertex_used++];
+	assert(sna->render.vertex_used <= ARRAY_SIZE(sna->render.vertex_data));
 	v[0] = x;
 	v[1] = y;
 }
@@ -50,6 +52,7 @@ static inline int batch_space(struct sna *sna)
 
 static inline void batch_emit(struct sna *sna, uint32_t dword)
 {
+	assert(sna->kgem.nbatch < sna->kgem.surface);
 	sna->kgem.batch[sna->kgem.nbatch++] = dword;
 }
 
