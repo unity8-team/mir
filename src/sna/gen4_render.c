@@ -1899,6 +1899,9 @@ gen4_render_composite(struct sna *sna,
 	DBG(("%s: %dx%d, current mode=%d\n", __FUNCTION__,
 	     width, height, sna->kgem.mode));
 
+	if (op >= ARRAY_SIZE(gen4_blend_op))
+		return FALSE;
+
 #if NO_COMPOSITE
 	if (mask)
 		return FALSE;
@@ -1918,9 +1921,6 @@ gen4_render_composite(struct sna *sna,
 			      dst_x, dst_y,
 			      width, height, tmp))
 		return TRUE;
-
-	if (op >= ARRAY_SIZE(gen4_blend_op))
-		return FALSE;
 
 	if (need_tiling(sna, width, height))
 		return sna_tiling_composite(op, src, mask, dst,

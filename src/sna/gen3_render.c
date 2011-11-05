@@ -2254,6 +2254,12 @@ gen3_render_composite(struct sna *sna,
 {
 	DBG(("%s()\n", __FUNCTION__));
 
+	if (op >= ARRAY_SIZE(gen3_blend_op)) {
+		DBG(("%s: fallback due to unhandled blend op: %d\n",
+		     __FUNCTION__, op));
+		return FALSE;
+	}
+
 #if NO_COMPOSITE
 	if (mask)
 		return FALSE;
@@ -2277,12 +2283,6 @@ gen3_render_composite(struct sna *sna,
 			      width, height,
 			      tmp))
 		return TRUE;
-
-	if (op >= ARRAY_SIZE(gen3_blend_op)) {
-		DBG(("%s: fallback due to unhandled blend op: %d\n",
-		     __FUNCTION__, op));
-		return FALSE;
-	}
 
 	if (!gen3_check_dst_format(dst->format)) {
 		DBG(("%s: fallback due to unhandled dst format: %x\n",
@@ -3690,6 +3690,12 @@ gen3_render_fill_boxes(struct sna *sna,
 	struct sna_composite_op tmp;
 	uint32_t pixel;
 
+	if (op >= ARRAY_SIZE(gen3_blend_op)) {
+		DBG(("%s: fallback due to unhandled blend op: %d\n",
+		     __FUNCTION__, op));
+		return FALSE;
+	}
+
 #if NO_FILL_BOXES
 	return gen3_render_fill_boxes_try_blt(sna, op, format, color,
 					      dst, dst_bo,
@@ -3699,12 +3705,6 @@ gen3_render_fill_boxes(struct sna *sna,
 	DBG(("%s (op=%d, format=%x, color=(%04x,%04x,%04x, %04x))\n",
 	     __FUNCTION__, op, (int)format,
 	     color->red, color->green, color->blue, color->alpha));
-
-	if (op >= ARRAY_SIZE(gen3_blend_op)) {
-		DBG(("%s: fallback due to unhandled blend op: %d\n",
-		     __FUNCTION__, op));
-		return FALSE;
-	}
 
 	if (dst->drawable.width > 2048 ||
 	    dst->drawable.height > 2048 ||

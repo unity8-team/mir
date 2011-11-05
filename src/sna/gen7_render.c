@@ -2228,6 +2228,8 @@ gen7_render_composite(struct sna *sna,
 		      int16_t width, int16_t height,
 		      struct sna_composite_op *tmp)
 {
+	if (op >= ARRAY_SIZE(gen7_blend_op))
+		return FALSE;
 
 #if NO_COMPOSITE
 	if (mask)
@@ -2251,9 +2253,6 @@ gen7_render_composite(struct sna *sna,
 			      dst_x, dst_y,
 			      width, height, tmp))
 		return TRUE;
-
-	if (op >= ARRAY_SIZE(gen7_blend_op))
-		return FALSE;
 
 	if (need_tiling(sna, width, height))
 		return sna_tiling_composite(op, src, mask, dst,
