@@ -443,16 +443,31 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 		break;
 	}
 
+	/* If it is too wide for the blitter, don't even bother.  */
 	*pitch = ALIGN(width * bpp / 8, tile_width);
-	if (kgem->gen < 40 && tiling != I915_TILING_NONE) {
-		if (*pitch > 8192)
+	if (kgem->gen < 40) {
+		if(tiling != I915_TILING_NONE) {
+			if (*pitch > 8192)
+				return 0;
+			for (size = tile_width; size < *pitch; size <<= 1)
+				;
+			*pitch = size;
+		} else {
+			if (*pitch >= 32768)
+				return 0;
+		}
+	} else {
+		int limit = 32768;
+		if (tiling)
+			limit *= 4;
+		if (*pitch >= limit)
 			return 0;
-		for (size = tile_width; size < *pitch; size <<= 1)
-			;
-		*pitch = size;
 	}
+	height = ALIGN(height, tile_height);
+	if (height >= 65536)
+		return 0;
 
-	size = *pitch * ALIGN(height, tile_height);
+	size = *pitch * height;
 	if (kgem->has_relaxed_fencing || tiling == I915_TILING_NONE)
 		return ALIGN(size, PAGE_SIZE);
 
