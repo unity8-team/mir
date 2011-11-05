@@ -64,7 +64,7 @@ struct kgem_bo {
 	uint32_t size;
 	uint32_t delta;
 
-	uint32_t pitch : 16;
+	uint32_t pitch : 20; /* max 128k */
 	uint32_t tiling : 2;
 	uint32_t reusable : 1;
 	uint32_t dirty : 1;
