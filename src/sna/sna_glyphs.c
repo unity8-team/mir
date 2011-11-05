@@ -722,94 +722,183 @@ glyphs_via_mask(struct sna *sna,
 			return FALSE;
 	}
 
-	pixmap = screen->CreatePixmap(screen,
-				      width, height, format->depth,
-				      SNA_CREATE_SCRATCH);
-	if (!pixmap)
-		return FALSE;
-
 	component_alpha = NeedsComponent(format->format);
-	mask = CreatePicture(0, &pixmap->drawable,
-			     format, CPComponentAlpha,
-			     &component_alpha, serverClient, &error);
-	screen->DestroyPixmap(pixmap);
-	if (!mask)
-		return FALSE;
+	if (width * height * format->depth < 8 * 256) {
+		pixman_image_t *mask_image;
+		int s = dst->pDrawable->pScreen->myNum;
 
-	ValidatePicture(mask);
-	clear_pixmap(sna, pixmap);
+		DBG(("%s: smal mask, rendering glyphs to upload buffer\n",
+		     __FUNCTION__));
 
-	memset(&tmp, 0, sizeof(tmp));
-	glyph_atlas = NULL;
-	do {
-		int n = list->len;
-		x += list->xOff;
-		y += list->yOff;
-		while (n--) {
-			GlyphPtr glyph = *glyphs++;
-			struct sna_glyph *priv;
-			PicturePtr this_atlas;
-			struct sna_composite_rectangles r;
+		pixmap = sna_pixmap_create_upload(screen,
+						   width, height,
+						   format->depth);
+		if (!pixmap)
+			return FALSE;
 
-			if (glyph->info.width == 0 || glyph->info.height == 0)
-				goto next_glyph;
+		memset(pixmap->devPrivate.ptr, 0, pixmap->devKind*height);
+		mask_image =
+			pixman_image_create_bits(format->depth << 24 | format->format,
+						 width, height,
+						 pixmap->devPrivate.ptr,
+						 pixmap->devKind);
+		do {
+			int n = list->len;
+			x += list->xOff;
+			y += list->yOff;
+			while (n--) {
+				GlyphPtr g = *glyphs++;
+				PicturePtr picture;
+				pixman_image_t *glyph_image;
+				int16_t xi, yi;
+				int dx, dy;
 
-			priv = GET_PRIVATE(glyph);
-			if (priv->atlas != NULL) {
-				this_atlas = priv->atlas;
-				r.src = priv->coordinate;
-			} else {
-				if (glyph_atlas) {
-					tmp.done(sna, &tmp);
-					glyph_atlas = NULL;
-				}
-				if (glyph_cache(screen, &sna->render, glyph)) {
+				if (g->info.width == 0 || g->info.height == 0)
+					goto next_image;
+
+				/* If the mask has been cropped, it is likely
+				 * that some of the glyphs fall outside.
+				 */
+				xi = x - g->info.x;
+				yi = y - g->info.y;
+				if (xi < width || yi < height)
+					goto next_image;
+				if (xi + g->info.width >= 0 ||
+				    yi + g->info.height >= 0)
+					goto next_image;
+
+				picture = GlyphPicture(g)[s];
+				if (picture == NULL)
+					goto next_image;
+
+				glyph_image = image_from_pict(picture, FALSE, &dx, &dy);
+				if (!glyph_image)
+					goto next_image;
+
+				DBG(("%s: glyph+(%d,%d) to mask (%d, %d)x(%d, %d)\n",
+				     __FUNCTION__,
+				     dx,dy,
+				     xi, yi,
+				     g->info.width,
+				     g->info.height));
+
+				pixman_image_composite(PictOpAdd,
+						       glyph_image,
+						       NULL,
+						       mask_image,
+						       dx, dy,
+						       0, 0,
+						       xi,
+						       yi,
+						       g->info.width,
+						       g->info.height);
+				free_pixman_pict(picture, glyph_image);
+
+next_image:
+				x += g->info.xOff;
+				y += g->info.yOff;
+			}
+			list++;
+		} while (--nlist);
+		pixman_image_unref(mask_image);
+
+		mask = CreatePicture(0, &pixmap->drawable,
+				     format, CPComponentAlpha,
+				     &component_alpha, serverClient, &error);
+		screen->DestroyPixmap(pixmap);
+		if (!mask)
+			return FALSE;
+
+		ValidatePicture(mask);
+	} else {
+		pixmap = screen->CreatePixmap(screen,
+					      width, height, format->depth,
+					      SNA_CREATE_SCRATCH);
+		if (!pixmap)
+			return FALSE;
+
+		mask = CreatePicture(0, &pixmap->drawable,
+				     format, CPComponentAlpha,
+				     &component_alpha, serverClient, &error);
+		screen->DestroyPixmap(pixmap);
+		if (!mask)
+			return FALSE;
+
+		ValidatePicture(mask);
+		clear_pixmap(sna, pixmap);
+
+		memset(&tmp, 0, sizeof(tmp));
+		glyph_atlas = NULL;
+		do {
+			int n = list->len;
+			x += list->xOff;
+			y += list->yOff;
+			while (n--) {
+				GlyphPtr glyph = *glyphs++;
+				struct sna_glyph *priv;
+				PicturePtr this_atlas;
+				struct sna_composite_rectangles r;
+
+				if (glyph->info.width == 0 || glyph->info.height == 0)
+					goto next_glyph;
+
+				priv = GET_PRIVATE(glyph);
+				if (priv->atlas != NULL) {
 					this_atlas = priv->atlas;
 					r.src = priv->coordinate;
 				} else {
-					/* no cache for this glyph */
-					this_atlas = GlyphPicture(glyph)[index];
-					r.src.x = r.src.y = 0;
-				}
-			}
-
-			if (this_atlas != glyph_atlas) {
-				if (glyph_atlas)
-					tmp.done(sna, &tmp);
-
-				if (!sna->render.composite(sna, PictOpAdd,
-							   this_atlas, NULL, mask,
-							   0, 0, 0, 0, 0, 0,
-							   0, 0,
-							   &tmp)) {
-					FreePicture(mask, 0);
-					return FALSE;
+					if (glyph_atlas) {
+						tmp.done(sna, &tmp);
+						glyph_atlas = NULL;
+					}
+					if (glyph_cache(screen, &sna->render, glyph)) {
+						this_atlas = priv->atlas;
+						r.src = priv->coordinate;
+					} else {
+						/* no cache for this glyph */
+						this_atlas = GlyphPicture(glyph)[index];
+						r.src.x = r.src.y = 0;
+					}
 				}
 
-				glyph_atlas = this_atlas;
-			}
+				if (this_atlas != glyph_atlas) {
+					if (glyph_atlas)
+						tmp.done(sna, &tmp);
 
-			DBG(("%s: blt glyph origin (%d, %d), offset (%d, %d), src (%d, %d), size (%d, %d)\n",
-			     __FUNCTION__,
-			     x, y,
-			     glyph->info.x, glyph->info.y,
-			     r.src.x, r.src.y,
-			     glyph->info.width, glyph->info.height));
+					if (!sna->render.composite(sna, PictOpAdd,
+								   this_atlas, NULL, mask,
+								   0, 0, 0, 0, 0, 0,
+								   0, 0,
+								   &tmp)) {
+						FreePicture(mask, 0);
+						return FALSE;
+					}
 
-			r.dst.x = x - glyph->info.x;
-			r.dst.y = y - glyph->info.y;
-			r.width  = glyph->info.width;
-			r.height = glyph->info.height;
-			tmp.blt(sna, &tmp, &r);
+					glyph_atlas = this_atlas;
+				}
+
+				DBG(("%s: blt glyph origin (%d, %d), offset (%d, %d), src (%d, %d), size (%d, %d)\n",
+				     __FUNCTION__,
+				     x, y,
+				     glyph->info.x, glyph->info.y,
+				     r.src.x, r.src.y,
+				     glyph->info.width, glyph->info.height));
+
+				r.dst.x = x - glyph->info.x;
+				r.dst.y = y - glyph->info.y;
+				r.width  = glyph->info.width;
+				r.height = glyph->info.height;
+				tmp.blt(sna, &tmp, &r);
 
 next_glyph:
-			x += glyph->info.xOff;
-			y += glyph->info.yOff;
-		}
-		list++;
-	} while (--nlist);
-	if (glyph_atlas)
-		tmp.done(sna, &tmp);
+				x += glyph->info.xOff;
+				y += glyph->info.yOff;
+			}
+			list++;
+		} while (--nlist);
+		if (glyph_atlas)
+			tmp.done(sna, &tmp);
+	}
 
 	sna_composite(op,
 		      src, mask, dst,
