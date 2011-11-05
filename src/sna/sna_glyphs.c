@@ -731,17 +731,22 @@ glyphs_via_mask(struct sna *sna,
 		     __FUNCTION__));
 
 		pixmap = sna_pixmap_create_upload(screen,
-						   width, height,
-						   format->depth);
+						  width, height,
+						  format->depth);
 		if (!pixmap)
 			return FALSE;
 
-		memset(pixmap->devPrivate.ptr, 0, pixmap->devKind*height);
 		mask_image =
 			pixman_image_create_bits(format->depth << 24 | format->format,
 						 width, height,
 						 pixmap->devPrivate.ptr,
 						 pixmap->devKind);
+		if (mask_image == NULL) {
+			screen->DestroyPixmap(pixmap);
+			return FALSE;
+		}
+
+		memset(pixmap->devPrivate.ptr, 0, pixmap->devKind*height);
 		do {
 			int n = list->len;
 			x += list->xOff;
@@ -761,10 +766,10 @@ glyphs_via_mask(struct sna *sna,
 				 */
 				xi = x - g->info.x;
 				yi = y - g->info.y;
-				if (xi < width || yi < height)
+				if (xi >= width || yi >= height)
 					goto next_image;
-				if (xi + g->info.width >= 0 ||
-				    yi + g->info.height >= 0)
+				if (xi + g->info.width  <= 0 ||
+				    yi + g->info.height <= 0)
 					goto next_image;
 
 				picture = GlyphPicture(g)[s];
