@@ -602,8 +602,8 @@ static void update_flush_interval(struct sna *sna)
 		max_vrefresh = 40;
 
 	sna->vblank_interval = 1000 * 1000 * 1000 / max_vrefresh; /* Hz -> ns */
-	DBG(("max_vrefresh=%d, flush_interval=%d ns\n",
-	       max_vrefresh, sna->flush_interval));
+	DBG(("max_vrefresh=%d, vblank_interval=%d ns\n",
+	       max_vrefresh, sna->vblank_interval));
 }
 
 static Bool
