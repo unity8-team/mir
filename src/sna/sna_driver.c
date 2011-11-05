@@ -1034,6 +1034,7 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 #endif
 
 	DBG(("%s\n", __FUNCTION__));
+	DBG(("pixman version: %d\n", pixman_version_string()));
 
 	sna_device_key = xf86AllocateEntityPrivateIndex();
 
