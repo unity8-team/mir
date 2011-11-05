@@ -3534,7 +3534,7 @@ rectangle_continue:
 
 				b->x1 = x;
 				b->y2 = b->y1 = y;
-				while (--length) {
+				while (length--) {
 					e += e1;
 					x++;
 					if (e >= 0) {
@@ -3615,7 +3615,7 @@ X_continue2:
 
 				b->x2 = b->x1 = x;
 				b->y1 = y;
-				while (--length) {
+				while (length--) {
 					e += e1;
 					y += sdy;
 					if (e >= 0) {
@@ -4540,7 +4540,7 @@ rectangle_continue:
 
 				b->x1 = x1;
 				b->y2 = b->y1 = y1;
-				while (--length) {
+				while (length--) {
 					e += e1;
 					x1++;
 					if (e >= 0) {
@@ -4619,7 +4619,7 @@ X_continue2:
 
 				b->x2 = b->x1 = x1;
 				b->y1 = y1;
-				while (--length) {
+				while (length--) {
 					e += e1;
 					y1 += sdy;
 					if (e >= 0) {
