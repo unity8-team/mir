@@ -4037,7 +4037,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	     flags & 2));
 	if (gc->fillStyle == FillSolid &&
 	    gc->lineStyle == LineSolid &&
-	    gc->lineWidth <= 1 &&
+	    (gc->lineWidth == 0 || (gc->lineWidth == 1 && n == 1)) &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 		struct sna_damage **damage;
