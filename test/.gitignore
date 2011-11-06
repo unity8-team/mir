@@ -2,6 +2,7 @@ basic-copyarea
 basic-copyarea-size
 basic-fillrect
 basic-putimage
+basic-lines
 basic-stress
 render-fill
 render-trapezoid

@@ -183,7 +183,8 @@ static void rect_tests(struct test *test, int iterations, enum target target)
 	test_compare(test,
 		     real.draw, real.format,
 		     ref.draw, ref.format,
-		     0, 0, real.width, real.height);
+		     0, 0, real.width, real.height,
+		     "");
 
 	printf("passed [%d iterations]\n", n);
 
