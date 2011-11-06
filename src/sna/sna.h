@@ -641,7 +641,7 @@ sna_compute_composite_region(RegionPtr region,
 
 void
 memcpy_blt(const void *src, void *dst, int bpp,
-	   uint32_t src_stride, uint32_t dst_stride,
+	   int32_t src_stride, int32_t dst_stride,
 	   int16_t src_x, int16_t src_y,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height);
