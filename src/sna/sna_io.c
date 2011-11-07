@@ -131,8 +131,6 @@ void sna_read_boxes(struct sna *sna,
 	}
 
 	cmd = XY_SRC_COPY_BLT_CMD;
-	if (cpp == 4)
-		cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 	src_pitch = src_bo->pitch;
 	if (kgem->gen >= 40 && src_bo->tiling) {
 		cmd |= BLT_SRC_TILED;
@@ -142,7 +140,8 @@ void sna_read_boxes(struct sna *sna,
 	br13 = 0xcc << 16;
 	switch (cpp) {
 	default:
-	case 4: br13 |= 1 << 25; /* RGB8888 */
+	case 4: cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
+		br13 |= 1 << 25; /* RGB8888 */
 	case 2: br13 |= 1 << 24; /* RGB565 */
 	case 1: break;
 	}
