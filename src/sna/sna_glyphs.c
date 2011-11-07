@@ -723,7 +723,7 @@ glyphs_via_mask(struct sna *sna,
 	}
 
 	component_alpha = NeedsComponent(format->format);
-	if (width * height * format->depth < 8 * 256) {
+	if ((uint32_t)width * height * format->depth < 8 * 256) {
 		pixman_image_t *mask_image;
 		int s;
 
@@ -1137,27 +1137,30 @@ glyphs_fallback(CARD8 op,
 						       g->info.width,
 						       g->info.height);
 			} else {
-				DBG(("%s: glyph+(%d, %d) to dst (%d, %d)x(%d, %d)\n",
+				int xi = x - g->info.x;
+				int yi = y - g->info.y;
+
+				DBG(("%s: glyph+(%d, %d) to dst (%d, %d)x(%d, %d), src (%d, %d) [op=%d]\n",
 				     __FUNCTION__,
 				     dx, dy,
-				     x - g->info.x,
-				     y - g->info.y,
-				     g->info.width,
-				     g->info.height));
+				     xi, yi,
+				     g->info.width, g->info.height,
+				     src_x + xi,
+				     src_y + yi,
+				     op));
 
 				pixman_image_composite(op,
 						       src_image,
 						       glyph_image,
 						       dst_image,
-						       src_x + (x - g->info.x),
-						       src_y + (y - g->info.y),
+						       src_x + xi,
+						       src_y + yi,
 						       dx, dy,
-						       x - g->info.x,
-						       y - g->info.y,
+						       xi, yi,
 						       g->info.width,
 						       g->info.height);
 			}
-			free_pixman_pict(picture,glyph_image);
+			free_pixman_pict(picture, glyph_image);
 
 next_glyph:
 			x += g->info.xOff;
@@ -1207,7 +1210,7 @@ sna_glyphs(CARD8 op,
 	if (REGION_NUM_RECTS(dst->pCompositeClip) == 0)
 		return;
 
-	if (FALLBACK)
+	if (FALLBACK || DEBUG_NO_RENDER)
 		goto fallback;
 
 	if (sna->kgem.wedged || !sna->have_render) {
