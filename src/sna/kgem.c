@@ -166,7 +166,8 @@ static int gem_write(int fd, uint32_t handle,
 	return drmIoctl(fd, DRM_IOCTL_I915_GEM_PWRITE, &pwrite);
 }
 
-static int gem_read(int fd, uint32_t handle, const void *dst, int length)
+static int gem_read(int fd, uint32_t handle, const void *dst,
+		    int offset, int length)
 {
 	struct drm_i915_gem_pread pread;
 
@@ -174,7 +175,7 @@ static int gem_read(int fd, uint32_t handle, const void *dst, int length)
 	     handle, length));
 
 	pread.handle = handle;
-	pread.offset = 0;
+	pread.offset = offset;
 	pread.size = length;
 	pread.data_ptr = (uintptr_t)dst;
 	return drmIoctl(fd, DRM_IOCTL_I915_GEM_PREAD, &pread);
@@ -775,7 +776,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 		}
 
 		list_del(&bo->base.list);
-		if (bo->write && bo->need_io) {
+		if (bo->need_io) {
 			DBG(("%s: handle=%d, uploading %d/%d\n",
 			     __FUNCTION__, bo->base.handle, bo->used, bo->alloc));
 			assert(!kgem_busy(kgem, bo->base.handle));
@@ -1995,11 +1996,18 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	list_for_each_entry(bo, &kgem->partial, base.list) {
 		if (flags == KGEM_BUFFER_LAST && bo->write) {
 			/* We can reuse any write buffer which we can fit */
-			if (size < bo->alloc) {
-				DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
-				     __FUNCTION__, size, bo->used, bo->alloc));
-				offset = 0;
-				goto done;
+			if (size <= bo->alloc) {
+				if (bo->base.refcnt == 1 && bo->base.exec) {
+					DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
+					     __FUNCTION__, size, bo->used, bo->alloc));
+					offset = 0;
+					goto done;
+				} else if (bo->used + size <= bo->alloc) {
+					DBG(("%s: reusing unfinished write buffer for read of %d bytes? used=%d, total=%d\n",
+					     __FUNCTION__, size, bo->used, bo->alloc));
+					offset = bo->used;
+					goto done;
+				}
 			}
 		}
 
@@ -2013,7 +2021,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			/* no users, so reset */
 			bo->used = 0;
 
-		if (bo->used + size < bo->alloc) {
+		if (bo->used + size <= bo->alloc) {
 			DBG(("%s: reusing partial buffer? used=%d + size=%d, total=%d\n",
 			     __FUNCTION__, bo->used, size, bo->alloc));
 			offset = bo->used;
@@ -2061,7 +2069,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				return NULL;
 			}
 		}
-		bo->need_io = true;
+		bo->need_io = write;
 	} else {
 		__kgem_bo_init(&bo->base, handle, alloc);
 		bo->base.vmap = true;
@@ -2206,8 +2214,9 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	     offset, length, bo->base.vmap));
 
 	if (!bo->base.vmap) {
-		gem_read(kgem->fd, bo->base.handle,
-			 (char *)(bo+1)+offset, length);
+		gem_read(kgem->fd,
+			 bo->base.handle, (char *)(bo+1)+offset,
+			 offset, length);
 		bo->base.needs_flush = false;
 		if (bo->base.gpu)
 			kgem_retire(kgem);
