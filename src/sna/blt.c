@@ -45,6 +45,7 @@ memcpy_blt(const void *src, void *dst, int bpp,
 {
 	uint8_t *src_bytes;
 	uint8_t *dst_bytes;
+	int byte_width;
 
 	assert(width && height);
 	assert(bpp >= 8);
@@ -53,18 +54,18 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	     __FUNCTION__, src_x, src_y, dst_x, dst_y, width, height, src_stride, dst_stride));
 
 	bpp /= 8;
-	width *= bpp;
 
 	src_bytes = (uint8_t *)src + src_stride * src_y + src_x * bpp;
 	dst_bytes = (uint8_t *)dst + dst_stride * dst_y + dst_x * bpp;
 
-	if (width == src_stride && width == dst_stride) {
-		memcpy(dst_bytes, src_bytes, width * height);
+	byte_width = width * bpp;
+	if (byte_width == src_stride && byte_width == dst_stride) {
+		memcpy(dst_bytes, src_bytes, byte_width * height);
 		return;
 	}
 
 	do {
-		memcpy(dst_bytes, src_bytes, width);
+		memcpy(dst_bytes, src_bytes, byte_width);
 		src_bytes += src_stride;
 		dst_bytes += dst_stride;
 	} while (--height);
