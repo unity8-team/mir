@@ -1078,7 +1078,6 @@ gen3_composite_emit_shader(struct sna *sna,
 			 */
 			if (op->has_component_alpha) {
 				switch (src->u.gen3.type) {
-				case SHADER_WHITE:
 				case SHADER_BLACK:
 					if (gen3_blend_op[blend].src_alpha)
 						gen3_fs_mov(out_reg,
@@ -1086,6 +1085,10 @@ gen3_composite_emit_shader(struct sna *sna,
 					else
 						gen3_fs_mov(out_reg,
 							    gen3_fs_operand(mask_reg, ZERO, ZERO, ZERO, W));
+					break;
+				case SHADER_WHITE:
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand_reg(mask_reg));
 					break;
 				default:
 					if (gen3_blend_op[blend].src_alpha)
@@ -1853,6 +1856,9 @@ gen3_init_solid(struct sna_composite_channel *channel, uint32_t color)
 	channel->alpha_fixup = 0;
 	channel->rb_reversed = 0;
 
+	DBG(("%s: color=%08x, is_opaque=%d, type=%d\n",
+	     __FUNCTION__, color, channel->is_opaque, channel->u.gen3.type));
+
 	/* for consistency */
 	channel->repeat = RepeatNormal;
 	channel->filter = PictFilterNearest;
@@ -2182,7 +2188,10 @@ reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+	if (sna_damage_is_all(op->damage,
+			      op->dst.pixmap->drawable.width,
+			      op->dst.pixmap->drawable.width) ||
+	    sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
 		op->damage = NULL;
 }
 
@@ -2377,11 +2386,6 @@ gen3_render_composite(struct sna *sna,
 			tmp->has_component_alpha = TRUE;
 			if (tmp->mask.u.gen3.type == SHADER_WHITE) {
 				tmp->mask.u.gen3.type = SHADER_NONE;
-				tmp->has_component_alpha = FALSE;
-			} else if (tmp->src.u.gen3.type == SHADER_WHITE) {
-				tmp->src = tmp->mask;
-				tmp->mask.u.gen3.type = SHADER_NONE;
-				tmp->mask.bo = NULL;
 				tmp->has_component_alpha = FALSE;
 			} else if (is_constant_ps(tmp->src.u.gen3.type) &&
 				   is_constant_ps(tmp->mask.u.gen3.type)) {
