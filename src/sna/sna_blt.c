@@ -137,8 +137,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 		blt->cmd |= 1 << 11;
 		pitch >>= 2;
 	}
-	if (pitch > MAXSHORT)
-		return FALSE;
+	assert(pitch < MAXSHORT);
 
 	if (alu == GXclear)
 		pixel = 0;
@@ -280,16 +279,14 @@ static Bool sna_blt_copy_init(struct sna *sna,
 		blt->cmd |= BLT_SRC_TILED;
 		blt->pitch[0] >>= 2;
 	}
-	if (blt->pitch[0] > MAXSHORT)
-		return FALSE;
+	assert(blt->pitch[0] < MAXSHORT);
 
 	blt->pitch[1] = dst->pitch;
 	if (kgem->gen >= 40 && dst->tiling) {
 		blt->cmd |= BLT_DST_TILED;
 		blt->pitch[1] >>= 2;
 	}
-	if (blt->pitch[1] > MAXSHORT)
-		return FALSE;
+	assert(blt->pitch[1] < MAXSHORT);
 
 	blt->overwrites = alu == GXcopy || alu == GXclear || alu == GXset;
 	blt->br13 = (copy_ROP[alu] << 16) | blt->pitch[1];
@@ -1078,9 +1075,10 @@ static void blt_put_composite_boxes(struct sna *sna,
 	PixmapPtr src = op->u.blt.src_pixmap;
 	struct sna_pixmap *dst_priv = sna_pixmap(op->dst.pixmap);
 
-	DBG(("%s: src=(%d, %d), dst=(%d, %d) x %d\n", __FUNCTION__,
+	DBG(("%s: src=(%d, %d), dst=(%d, %d), [(%d, %d), (%d, %d) x %d]\n", __FUNCTION__,
 	     op->u.blt.sx, op->u.blt.sy,
-	     op->dst.x, op->dst.y, n));
+	     op->dst.x, op->dst.y,
+	     box->x1, box->y1, box->x2, box->y2, n));
 
 	if (n == 1 && !dst_priv->pinned &&
 	    box->x2 - box->x1 == op->dst.width &&
@@ -1176,6 +1174,7 @@ has_gpu_area(PixmapPtr pixmap, int x, int y, int w, int h)
 	area.y1 = y;
 	area.x2 = x + w;
 	area.y2 = y + h;
+
 	return sna_damage_contains_box(priv->cpu_damage,
 				       &area) == PIXMAN_REGION_OUT;
 }
@@ -1220,7 +1219,10 @@ reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+	if (sna_damage_is_all(op->damage,
+			      op->dst.pixmap->drawable.width,
+			      op->dst.pixmap->drawable.width) ||
+	    sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
 		op->damage = NULL;
 }
 
@@ -1310,11 +1312,9 @@ sna_blt_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	if (!sna_blt_compare_depth(src->pDrawable, dst->pDrawable)) {
-		DBG(("%s: mismatching depth src=%d/%d, dst=%d/%d\n",
-		     __FUNCTION__,
-		     src->pDrawable->depth, src->pDrawable->bitsPerPixel,
-		     dst->pDrawable->depth, dst->pDrawable->bitsPerPixel));
+	if (src->filter == PictFilterConvolution) {
+		DBG(("%s: convolutions filters not handled\n",
+		     __FUNCTION__));
 		return FALSE;
 	}
 
@@ -1324,12 +1324,6 @@ sna_blt_composite(struct sna *sna,
 	if (op != PictOpSrc) {
 		DBG(("%s: unsuported op [%d] for blitting\n",
 		     __FUNCTION__, op));
-		return FALSE;
-	}
-
-	if (src->filter == PictFilterConvolution) {
-		DBG(("%s: convolutions filters not handled\n",
-		     __FUNCTION__));
 		return FALSE;
 	}
 
@@ -1505,8 +1499,7 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 			     const BoxRec *box)
 {
 	struct kgem *kgem = &sna->kgem;
-	uint32_t br13, cmd;
-	uint32_t *b;
+	uint32_t br13, cmd, *b;
 
 	DBG(("%s: box=((%d, %d), (%d, %d))\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
@@ -1515,27 +1508,27 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	assert(box->y1 >= 0);
 
 	cmd = XY_COLOR_BLT;
-	if (bpp == 32)
-		cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
-
 	br13 = bo->pitch;
 	if (kgem->gen >= 40 && bo->tiling) {
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
-	if (br13 > MAXSHORT) {
-		DBG(("%s: fallback -- pitch is too large %d [%d]\n",
-		     __FUNCTION__, bo->pitch, br13));
-		return FALSE;
-	}
+	assert(br13 < MAXSHORT);
 
-	if (color == 0)
-		alu = GXclear;
+	if (alu == GXclear)
+		color = 0;
+	else if (alu == GXcopy) {
+		if (color == 0)
+			alu = GXclear;
+		else if (color == -1)
+			alu = GXset;
+	}
 
 	br13 |= fill_ROP[alu] << 16;
 	switch (bpp) {
 	default: assert(0);
-	case 32: br13 |= 1 << 25; /* RGB8888 */
+	case 32: cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
+		 br13 |= 1 << 25; /* RGB8888 */
 	case 16: br13 |= 1 << 24; /* RGB565 */
 	case 8: break;
 	}
@@ -1544,8 +1537,7 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	if (kgem->nbatch >= 6 &&
 	    (alu == GXcopy || alu == GXclear || alu == GXset) &&
 	    kgem->batch[kgem->nbatch-6] == cmd &&
-	    kgem->batch[kgem->nbatch-4] == ((uint32_t)box[0].y1 << 16 | (uint16_t)box[0].x1) &&
-	    kgem->batch[kgem->nbatch-3] == ((uint32_t)box[0].y2 << 16 | (uint16_t)box[0].x2) &&
+	    *(uint64_t *)&kgem->batch[kgem->nbatch-4] == *(uint64_t *)box &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == bo->handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-5] = br13;
@@ -1562,12 +1554,10 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	}
 
 	b = kgem->batch + kgem->nbatch;
-
 	b[0] = cmd;
 	b[1] = br13;
 	*(uint64_t *)(b+2) = *(uint64_t *)box;
-	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4,
-			      bo,
+	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, bo,
 			      I915_GEM_DOMAIN_RENDER << 16 |
 			      I915_GEM_DOMAIN_RENDER |
 			      KGEM_RELOC_FENCED,
@@ -1608,8 +1598,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		cmd |= 1 << 11;
 		br13 >>= 2;
 	}
-	if (br13 > MAXSHORT)
-		return FALSE;
+	assert(br13 < MAXSHORT);
 
 	if (alu == GXclear)
 		pixel = 0;
@@ -1756,16 +1745,14 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		cmd |= BLT_SRC_TILED;
 		src_pitch >>= 2;
 	}
-	if (src_pitch > MAXSHORT)
-		return FALSE;
+	assert(src_pitch < MAXSHORT);
 
 	br13 = dst_bo->pitch;
 	if (kgem->gen >= 40 && dst_bo->tiling) {
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
-	if (br13 > MAXSHORT)
-		return FALSE;
+	assert(br13 < MAXSHORT);
 
 	br13 |= copy_ROP[alu] << 16;
 	switch (bpp) {
