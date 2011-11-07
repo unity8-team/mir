@@ -265,7 +265,7 @@ static void rect_tests(struct test *t, int reps, int sets, enum target target, i
 			     real.draw, real.format,
 			     ref.draw, ref.format,
 			     0, 0, real.width, real.height,
-			     ""
+			     "");
 	}
 
 	printf("passed [%d iterations x %d]\n", reps, sets);
