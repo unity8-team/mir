@@ -95,10 +95,10 @@ am__DEPENDENCIES_1 =
 @DRI_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) \
 @DRI_TRUE@	$(am__DEPENDENCIES_1)
 libsna_la_DEPENDENCIES = $(am__DEPENDENCIES_2)
-am__libsna_la_SOURCES_DIST = blt.c kgem.c kgem.h sna.h sna_accel.c \
-	sna_blt.c sna_composite.c sna_damage.c sna_damage.h \
-	sna_display.c sna_driver.c sna_glyphs.c sna_gradient.c \
-	sna_io.c sna_module.h sna_render.c sna_render.h \
+am__libsna_la_SOURCES_DIST = blt.c compiler.h kgem.c kgem.h sna.h \
+	sna_accel.c sna_blt.c sna_composite.c sna_damage.c \
+	sna_damage.h sna_display.c sna_driver.c sna_glyphs.c \
+	sna_gradient.c sna_io.c sna_module.h sna_render.c sna_render.h \
 	sna_render_inline.h sna_reg.h sna_stream.c sna_trapezoids.c \
 	sna_tiling.c sna_transform.c sna_video.c sna_video.h \
 	sna_video_overlay.c sna_video_textured.c gen2_render.c \
@@ -324,17 +324,17 @@ AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ \
 noinst_LTLIBRARIES = libsna.la
 libsna_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ $(am__append_2)
 NULL := #
-libsna_la_SOURCES = blt.c kgem.c kgem.h sna.h sna_accel.c sna_blt.c \
-	sna_composite.c sna_damage.c sna_damage.h sna_display.c \
-	sna_driver.c sna_glyphs.c sna_gradient.c sna_io.c sna_module.h \
-	sna_render.c sna_render.h sna_render_inline.h sna_reg.h \
-	sna_stream.c sna_trapezoids.c sna_tiling.c sna_transform.c \
-	sna_video.c sna_video.h sna_video_overlay.c \
-	sna_video_textured.c gen2_render.c gen2_render.h gen3_render.c \
-	gen3_render.h gen4_render.c gen4_render.h gen5_render.c \
-	gen5_render.h gen6_render.c gen6_render.h gen7_render.c \
-	gen7_render.h $(NULL) $(am__append_1) $(am__append_3) \
-	$(am__append_4)
+libsna_la_SOURCES = blt.c compiler.h kgem.c kgem.h sna.h sna_accel.c \
+	sna_blt.c sna_composite.c sna_damage.c sna_damage.h \
+	sna_display.c sna_driver.c sna_glyphs.c sna_gradient.c \
+	sna_io.c sna_module.h sna_render.c sna_render.h \
+	sna_render_inline.h sna_reg.h sna_stream.c sna_trapezoids.c \
+	sna_tiling.c sna_transform.c sna_video.c sna_video.h \
+	sna_video_overlay.c sna_video_textured.c gen2_render.c \
+	gen2_render.h gen3_render.c gen3_render.h gen4_render.c \
+	gen4_render.h gen5_render.c gen5_render.h gen6_render.c \
+	gen6_render.h gen7_render.c gen7_render.h $(NULL) \
+	$(am__append_1) $(am__append_3) $(am__append_4)
 all: all-am
 
 .SUFFIXES:
@@ -648,6 +648,11 @@ uninstall-am:
 	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
 	pdf pdf-am ps ps-am tags uninstall uninstall-am
 
+
+@HAVE_DOT_GIT_TRUE@git_version.h: $(top_builddir)/.git/HEAD $(shell sed -e '/ref:/!d' -e 's#ref: *#$(top_builddir)/.git/#' < $(top_builddir)/.git/HEAD)
+@HAVE_DOT_GIT_TRUE@	@echo "Recording git-tree used for compilation: `git describe`"
+@HAVE_DOT_GIT_TRUE@	@V=`git describe`; echo "static const char git_version[] = \"$$V\";" > git_version.h
+@HAVE_DOT_GIT_TRUE@sna_driver.c: git_version.h
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

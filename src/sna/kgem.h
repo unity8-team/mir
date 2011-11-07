@@ -25,14 +25,22 @@
  *
  */
 
+#ifndef KGEM_H
+#define KGEM_H
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
 
 #include <i915_drm.h>
 
-#ifndef KGEM_H
-#define KGEM_H
+#include "compiler.h"
+
+#if DEBUG_KGEM
+#define DBG_HDR(x) ErrorF x
+#else
+#define DBG_HDR(x)
+#endif
 
 struct kgem_bo {
 	struct kgem_bo *proxy;
@@ -85,7 +93,7 @@ struct kgem {
 		KGEM_BLT,
 	} mode, ring;
 
-	struct list active, flushing, inactive[16];
+	struct list flushing, active[16], inactive[16];
 	struct list partial;
 	struct list requests;
 	struct kgem_request *next_request;
@@ -99,6 +107,7 @@ struct kgem {
 	uint32_t flush:1;
 	uint32_t need_expire:1;
 	uint32_t need_purge:1;
+	uint32_t busy:1;
 
 	uint32_t has_vmap :1;
 	uint32_t has_relaxed_fencing :1;
@@ -114,14 +123,14 @@ struct kgem {
 	struct drm_i915_gem_relocation_entry reloc[384];
 };
 
-#define KGEM_BATCH_RESERVED 2
+#define KGEM_BATCH_RESERVED 1
 #define KGEM_RELOC_RESERVED 4
 #define KGEM_EXEC_RESERVED 1
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
 #define KGEM_BATCH_SIZE(K) (ARRAY_SIZE((K)->batch)-KGEM_BATCH_RESERVED)
-#define KGEM_EXEC_SIZE(K) (ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
-#define KGEM_RELOC_SIZE(K) (ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
+#define KGEM_EXEC_SIZE(K) (int)(ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
+#define KGEM_RELOC_SIZE(K) (int)(ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
 
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen);
 void kgem_reset(struct kgem *kgem);
@@ -138,8 +147,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
-					 int x, int y,
-					 int width, int height,
+					 BoxPtr box,
 					 int stride, int bpp);
 struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
 						pixman_format_code_t format,
@@ -229,18 +237,17 @@ static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 
 static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
-	if (kgem->nbatch)
-		kgem->mode = mode;
+	kgem->mode = mode;
 }
 
 static inline bool kgem_check_batch(struct kgem *kgem, int num_dwords)
 {
-	return kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED <= kgem->surface;
+	return likely(kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED <= kgem->surface);
 }
 
 static inline bool kgem_check_reloc(struct kgem *kgem, int num_reloc)
 {
-	return kgem->nreloc + num_reloc <= KGEM_RELOC_SIZE(kgem);
+	return likely(kgem->nreloc + num_reloc <= KGEM_RELOC_SIZE(kgem));
 }
 
 static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,
@@ -264,7 +271,7 @@ static inline void kgem_advance_batch(struct kgem *kgem, int num_dwords)
 	kgem->nbatch += num_dwords;
 }
 
-bool kgem_check_bo(struct kgem *kgem, struct kgem_bo *bo);
+bool kgem_check_bo(struct kgem *kgem, ...) __attribute__((sentinel(NULL)));
 bool kgem_check_bo_fenced(struct kgem *kgem, ...) __attribute__((sentinel(NULL)));
 
 void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo);
@@ -290,14 +297,14 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length);
 
-static inline bool kgem_bo_is_busy(struct kgem *kgem, struct kgem_bo *bo)
+static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
-	if (bo->exec)
-		return true;
-	if (!bo->gpu)
-		return false;
+	DBG_HDR(("%s: gpu? %d exec? %d, rq? %d\n",
+		 __FUNCTION__, bo->gpu, bo->exec != NULL, bo->rq != NULL));
 
-	return bo->rq != NULL;
+	assert(bo->proxy == NULL);
+	assert(bo->gpu || bo->rq == NULL);
+	return bo->gpu;
 }
 
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
@@ -323,15 +330,22 @@ void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write);
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
 				   void **ret);
-void kgem_buffer_sync(struct kgem *kgem, struct kgem_bo *bo);
+void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_throttle(struct kgem *kgem);
 bool kgem_expire_cache(struct kgem *kgem);
+void kgem_cleanup_cache(struct kgem *kgem);
 
 #if HAS_EXTRA_DEBUG
 void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch);
 #else
-static inline void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch) {}
+static inline void __kgem_batch_debug(struct kgem *kgem, uint32_t nbatch)
+{
+	(void)kgem;
+	(void)nbatch;
+}
 #endif
+
+#undef DBG_HDR
 
 #endif /* KGEM_H */

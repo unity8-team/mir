@@ -46,7 +46,7 @@
 #define XY_COLOR_BLT_WRITE_RGB		(1<<20)
 #define XY_COLOR_BLT_TILED		(1<<11)
 
-#define XY_SETUP_CLIP_BLT_CMD		((2<<29)|(3<<22)|1)
+#define XY_SETUP_CLIP			((2<<29)|(3<<22)|1)
 
 #define XY_SRC_COPY_BLT_CMD		((2<<29)|(0x53<<22)|6)
 #define XY_SRC_COPY_BLT_WRITE_ALPHA	(1<<21)
@@ -78,7 +78,11 @@
 
 #define COLOR_BLT_CMD		((2<<29)|(0x40<<22)|(0x3))
 #define XY_COLOR_BLT_CMD		((2<<29)|(0x50<<22)|(0x4))
+#define XY_SETUP_BLT			((2<<29)|(1<<22)|6)
+#define XY_SETUP_MONO_PATTERN_SL_BLT	((2<<29)|(0x11<<22)|7)
 #define XY_SETUP_CLIP_BLT_CMD		((2<<29)|(3<<22)|1)
+#define XY_SCANLINE_BLT			((2<<29)|(0x25<<22)|1)
+#define XY_TEXT_IMMEDIATE_BLT		((2<<29)|(0x31<<22)|(1<<16))
 #define XY_SRC_COPY_BLT_CMD		((2<<29)|(0x53<<22)|6)
 #define SRC_COPY_BLT_CMD		((2<<29)|(0x43<<22)|0x4)
 #define XY_PAT_BLT_IMMEDIATE		((2<<29)|(0x72<<22))

@@ -239,26 +239,29 @@ I810SetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 {
    int tmp;
    I810Ptr pI810 = I810PTR(pScrn);
+   vgaHWPtr hwp;
 
 #ifdef ARGB_CURSOR
    if (pI810->CursorIsARGB)
       return;
 #endif
 
+   hwp = VGAHWPTR(pScrn);
+
    tmp = INREG8(PIXPIPE_CONFIG_0);
    tmp |= EXTENDED_PALETTE;
    OUTREG8(PIXPIPE_CONFIG_0, tmp);
 
-   pI810->writeStandard(pI810, DACMASK, 0xFF);
-   pI810->writeStandard(pI810, DACWX, 0x04);
+   hwp->writeDacMask(hwp, 0xFF);
+   hwp->writeDacWriteAddr(hwp, 0x04);
 
-   pI810->writeStandard(pI810, DACDATA, (bg & 0x00FF0000) >> 16);
-   pI810->writeStandard(pI810, DACDATA, (bg & 0x0000FF00) >> 8);
-   pI810->writeStandard(pI810, DACDATA, (bg & 0x000000FF));
+   hwp->writeDacData(hwp, (bg & 0x00FF0000) >> 16);
+   hwp->writeDacData(hwp, (bg & 0x0000FF00) >> 8);
+   hwp->writeDacData(hwp, (bg & 0x000000FF));
 
-   pI810->writeStandard(pI810, DACDATA, (fg & 0x00FF0000) >> 16);
-   pI810->writeStandard(pI810, DACDATA, (fg & 0x0000FF00) >> 8);
-   pI810->writeStandard(pI810, DACDATA, (fg & 0x000000FF));
+   hwp->writeDacData(hwp, (fg & 0x00FF0000) >> 16);
+   hwp->writeDacData(hwp, (fg & 0x0000FF00) >> 8);
+   hwp->writeDacData(hwp, (fg & 0x000000FF));
 
    tmp = INREG8(PIXPIPE_CONFIG_0);
    tmp &= ~EXTENDED_PALETTE;

@@ -49,11 +49,16 @@
 #define NO_COPY 0
 #define NO_COPY_BOXES 0
 #define NO_FILL 0
+#define NO_FILL_ONE 0
 #define NO_FILL_BOXES 0
+
+#define PREFER_BLT_FILL 1
 
 enum {
 	SHADER_NONE = 0,
 	SHADER_ZERO,
+	SHADER_BLACK,
+	SHADER_WHITE,
 	SHADER_CONSTANT,
 	SHADER_LINEAR,
 	SHADER_RADIAL,
@@ -92,7 +97,7 @@ static const struct blendinfo {
 };
 
 static const struct formatinfo {
-	int fmt, xfmt;
+	unsigned int fmt, xfmt;
 	uint32_t card_fmt;
 	Bool rb_reversed;
 } gen3_tex_formats[] = {
@@ -620,6 +625,8 @@ gen3_emit_composite_texcoord(struct sna *sna,
 	case SHADER_OPACITY:
 	case SHADER_NONE:
 	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 	case SHADER_CONSTANT:
 		break;
 
@@ -843,6 +850,8 @@ gen3_composite_emit_shader(struct sna *sna,
 	case SHADER_OPACITY:
 		assert(0);
 	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 		break;
 	case SHADER_CONSTANT:
 		gen3_fs_dcl(FS_T8);
@@ -858,8 +867,15 @@ gen3_composite_emit_shader(struct sna *sna,
 	}
 
 	if (mask == NULL) {
-		if (src->u.gen3.type == SHADER_ZERO) {
+		switch (src->u.gen3.type) {
+		case SHADER_ZERO:
 			gen3_fs_mov(FS_OC, gen3_fs_operand_zero());
+			goto done;
+		case SHADER_BLACK:
+			gen3_fs_mov(FS_OC, gen3_fs_operand(FS_R0, ZERO, ZERO, ZERO, ONE));
+			goto done;
+		case SHADER_WHITE:
+			gen3_fs_mov(FS_OC, gen3_fs_operand_one());
 			goto done;
 		}
 		if (src->alpha_fixup && dst_is_alpha) {
@@ -893,7 +909,10 @@ gen3_composite_emit_shader(struct sna *sna,
 
 		case SHADER_NONE:
 		case SHADER_CONSTANT:
+		case SHADER_WHITE:
+		case SHADER_BLACK:
 		case SHADER_ZERO:
+			assert(0);
 			break;
 		}
 
@@ -930,6 +949,8 @@ gen3_composite_emit_shader(struct sna *sna,
 			break;
 		case SHADER_NONE:
 		case SHADER_ZERO:
+		case SHADER_BLACK:
+		case SHADER_WHITE:
 			assert(0);
 			break;
 		}
@@ -962,6 +983,8 @@ gen3_composite_emit_shader(struct sna *sna,
 		case SHADER_CONSTANT:
 		case SHADER_NONE:
 		case SHADER_ZERO:
+		case SHADER_BLACK:
+		case SHADER_WHITE:
 			break;
 		}
 		if (src->alpha_fixup)
@@ -991,20 +1014,36 @@ gen3_composite_emit_shader(struct sna *sna,
 			break;
 
 		case SHADER_OPACITY:
-			if (dst_is_alpha) {
-				gen3_fs_mul(out_reg,
-					    gen3_fs_operand(src_reg, W, W, W, W),
-					    gen3_fs_operand(FS_T0 + t, X, X, X, X));
-			} else {
-				gen3_fs_mul(out_reg,
-					    gen3_fs_operand(src_reg, X, Y, Z, W),
-					    gen3_fs_operand(FS_T0 + t, X, X, X, X));
+			switch (src->u.gen3.type) {
+			case SHADER_BLACK:
+			case SHADER_WHITE:
+				if (dst_is_alpha || src->u.gen3.type == SHADER_WHITE) {
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand(FS_T0 + t, X, X, X, X));
+				} else {
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand(FS_T0 + t, ZERO, ZERO, ZERO, X));
+				}
+				break;
+			default:
+				if (dst_is_alpha) {
+					gen3_fs_mul(out_reg,
+						    gen3_fs_operand(src_reg, W, W, W, W),
+						    gen3_fs_operand(FS_T0 + t, X, X, X, X));
+				} else {
+					gen3_fs_mul(out_reg,
+						    gen3_fs_operand(src_reg, X, Y, Z, W),
+						    gen3_fs_operand(FS_T0 + t, X, X, X, X));
+				}
 			}
 			goto mask_done;
 
 		case SHADER_CONSTANT:
-		case SHADER_NONE:
 		case SHADER_ZERO:
+		case SHADER_BLACK:
+		case SHADER_WHITE:
+			assert(0);
+		case SHADER_NONE:
 			break;
 		}
 		if (mask->alpha_fixup)
@@ -1013,9 +1052,18 @@ gen3_composite_emit_shader(struct sna *sna,
 			gen3_fs_mov(mask_reg, gen3_fs_operand(mask_reg, Z, Y, X, W));
 
 		if (dst_is_alpha) {
-			gen3_fs_mul(out_reg,
-				    gen3_fs_operand(src_reg, W, W, W, W),
-				    gen3_fs_operand(mask_reg, W, W, W, W));
+			switch (src->u.gen3.type) {
+			case SHADER_BLACK:
+			case SHADER_WHITE:
+				gen3_fs_mov(out_reg,
+					    gen3_fs_operand(mask_reg, W, W, W, W));
+				break;
+			default:
+				gen3_fs_mul(out_reg,
+					    gen3_fs_operand(src_reg, W, W, W, W),
+					    gen3_fs_operand(mask_reg, W, W, W, W));
+				break;
+			}
 		} else {
 			/* If component alpha is active in the mask and the blend
 			 * operation uses the source alpha, then we know we don't
@@ -1028,18 +1076,43 @@ gen3_composite_emit_shader(struct sna *sna,
 			 * source value (src.X * mask.A).
 			 */
 			if (op->has_component_alpha) {
-				if (gen3_blend_op[blend].src_alpha)
-					gen3_fs_mul(out_reg,
-						    gen3_fs_operand(src_reg, W, W, W, W),
-						    gen3_fs_operand_reg(mask_reg));
-				else
+				switch (src->u.gen3.type) {
+				case SHADER_WHITE:
+				case SHADER_BLACK:
+					if (gen3_blend_op[blend].src_alpha)
+						gen3_fs_mov(out_reg,
+							    gen3_fs_operand_reg(mask_reg));
+					else
+						gen3_fs_mov(out_reg,
+							    gen3_fs_operand(mask_reg, ZERO, ZERO, ZERO, W));
+					break;
+				default:
+					if (gen3_blend_op[blend].src_alpha)
+						gen3_fs_mul(out_reg,
+							    gen3_fs_operand(src_reg, W, W, W, W),
+							    gen3_fs_operand_reg(mask_reg));
+					else
+						gen3_fs_mul(out_reg,
+							    gen3_fs_operand_reg(src_reg),
+							    gen3_fs_operand_reg(mask_reg));
+					break;
+				}
+			} else {
+				switch (src->u.gen3.type) {
+				case SHADER_WHITE:
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand(mask_reg, W, W, W, W));
+					break;
+				case SHADER_BLACK:
+					gen3_fs_mov(out_reg,
+						    gen3_fs_operand(mask_reg, ZERO, ZERO, ZERO, W));
+					break;
+				default:
 					gen3_fs_mul(out_reg,
 						    gen3_fs_operand_reg(src_reg),
-						    gen3_fs_operand_reg(mask_reg));
-			} else {
-				gen3_fs_mul(out_reg,
-					    gen3_fs_operand_reg(src_reg),
-					    gen3_fs_operand(mask_reg, W, W, W, W));
+						    gen3_fs_operand(mask_reg, W, W, W, W));
+					break;
+				}
 			}
 		}
 mask_done:
@@ -1103,8 +1176,7 @@ static void gen3_emit_invariant(struct sna *sna)
 }
 
 static void
-gen3_get_batch(struct sna *sna,
-	       const struct sna_composite_op *op)
+gen3_get_batch(struct sna *sna)
 {
 #define MAX_OBJECTS 3 /* worst case: dst + src + mask  */
 
@@ -1138,6 +1210,46 @@ gen3_get_batch(struct sna *sna,
 #undef MAX_OBJECTS
 }
 
+static void gen3_emit_target(struct sna *sna,
+			     struct kgem_bo *bo,
+			     int width,
+			     int height,
+			     int format)
+{
+	struct gen3_render_state *state = &sna->render_state.gen3;
+
+	/* BUF_INFO is an implicit flush, so skip if the target is unchanged. */
+	if (bo->unique_id != state->current_dst) {
+		uint32_t v;
+
+		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
+		OUT_BATCH(BUF_3D_ID_COLOR_BACK |
+			  gen3_buf_tiling(bo->tiling) |
+			  bo->pitch);
+		OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
+					 bo,
+					 I915_GEM_DOMAIN_RENDER << 16 |
+					 I915_GEM_DOMAIN_RENDER,
+					 0));
+
+		OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
+		OUT_BATCH(gen3_get_dst_format(format));
+
+		v = DRAW_YMAX(height - 1) | DRAW_XMAX(width - 1);
+		if (v != state->last_drawrect_limit) {
+			OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
+			OUT_BATCH(0); /* XXX dither origin? */
+			OUT_BATCH(0);
+			OUT_BATCH(v);
+			OUT_BATCH(0);
+			state->last_drawrect_limit = v;
+		}
+
+		state->current_dst = bo->unique_id;
+	}
+	kgem_bo_mark_dirty(bo);
+}
+
 static void gen3_emit_composite_state(struct sna *sna,
 				      const struct sna_composite_op *op)
 {
@@ -1145,42 +1257,16 @@ static void gen3_emit_composite_state(struct sna *sna,
 	uint32_t map[4];
 	uint32_t sampler[4];
 	struct kgem_bo *bo[2];
-	int tex_count, n;
+	unsigned int tex_count, n;
 	uint32_t ss2;
 
-	gen3_get_batch(sna, op);
+	gen3_get_batch(sna);
 
-	/* BUF_INFO is an implicit flush, so skip if the target is unchanged. */
-	if (op->dst.bo->unique_id != state->current_dst) {
-		uint32_t v;
-
-		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
-		OUT_BATCH(BUF_3D_ID_COLOR_BACK |
-			  gen3_buf_tiling(op->dst.bo->tiling) |
-			  op->dst.bo->pitch);
-		OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
-					 op->dst.bo,
-					 I915_GEM_DOMAIN_RENDER << 16 |
-					 I915_GEM_DOMAIN_RENDER,
-					 0));
-
-		OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
-		OUT_BATCH(gen3_get_dst_format(op->dst.format));
-
-		v = (DRAW_YMAX(op->dst.height - 1) |
-		     DRAW_XMAX(op->dst.width - 1));
-		if (v != state->last_drawrect_limit) {
-			OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
-			OUT_BATCH(0);
-			OUT_BATCH(0);
-			OUT_BATCH(v);
-			OUT_BATCH(0);
-			state->last_drawrect_limit = v;
-		}
-
-		state->current_dst = op->dst.bo->unique_id;
-	}
-	kgem_bo_mark_dirty(op->dst.bo);
+	gen3_emit_target(sna,
+			 op->dst.bo,
+			 op->dst.width,
+			 op->dst.height,
+			 op->dst.format);
 
 	ss2 = ~0;
 	tex_count = 0;
@@ -1189,6 +1275,8 @@ static void gen3_emit_composite_state(struct sna *sna,
 	case SHADER_NONE:
 		assert(0);
 	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 		break;
 	case SHADER_CONSTANT:
 		if (op->src.u.gen3.mode != state->last_diffuse) {
@@ -1222,6 +1310,8 @@ static void gen3_emit_composite_state(struct sna *sna,
 	switch (op->mask.u.gen3.type) {
 	case SHADER_NONE:
 	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 		break;
 	case SHADER_CONSTANT:
 		if (op->mask.u.gen3.mode != state->last_specular) {
@@ -1365,6 +1455,8 @@ static void gen3_magic_ca_pass(struct sna *sna,
 	OUT_BATCH(PRIM3D_RECTLIST | PRIM3D_INDIRECT_SEQUENTIAL |
 		  (sna->render.vertex_index - sna->render.vertex_start));
 	OUT_BATCH(sna->render.vertex_start);
+
+	sna->render_state.gen3.last_blend = 0;
 }
 
 static void gen3_vertex_flush(struct sna *sna)
@@ -1442,21 +1534,16 @@ static void gen3_vertex_finish(struct sna *sna, Bool last)
 static bool gen3_rectangle_begin(struct sna *sna,
 				 const struct sna_composite_op *op)
 {
-	int ndwords, i1_cmd = 0, i1_len = 0;
 	struct gen3_render_state *state = &sna->render_state.gen3;
+	int ndwords, i1_cmd = 0, i1_len = 0;
 
-	ndwords = 0;
-	if (state->vertex_offset == 0) {
-		ndwords += 2;
-		if (op->need_magic_ca_pass)
-			ndwords += 100;
-	}
+	ndwords = 2;
+	if (op->need_magic_ca_pass)
+		ndwords += 100;
 	if (sna->render.vertex_reloc[0] == 0)
 		i1_len++, i1_cmd |= I1_LOAD_S(0), ndwords++;
 	if (state->floats_per_vertex != op->floats_per_vertex)
 		i1_len++, i1_cmd |= I1_LOAD_S(1), ndwords++;
-	if (ndwords == 0)
-		return true;
 
 	if (!kgem_check_batch(&sna->kgem, ndwords+1))
 		return false;
@@ -1472,16 +1559,14 @@ static bool gen3_rectangle_begin(struct sna *sna,
 		}
 	}
 
-	if (state->vertex_offset == 0) {
-		if (sna->kgem.nbatch == 2 + state->last_vertex_offset) {
-			state->vertex_offset = state->last_vertex_offset;
-		} else {
-			state->vertex_offset = sna->kgem.nbatch;
-			OUT_BATCH(MI_NOOP); /* to be filled later */
-			OUT_BATCH(MI_NOOP);
-			sna->render.vertex_start = sna->render.vertex_index;
-			state->last_vertex_offset = state->vertex_offset;
-		}
+	if (sna->kgem.nbatch == 2 + state->last_vertex_offset) {
+		state->vertex_offset = state->last_vertex_offset;
+	} else {
+		state->vertex_offset = sna->kgem.nbatch;
+		OUT_BATCH(MI_NOOP); /* to be filled later */
+		OUT_BATCH(MI_NOOP);
+		sna->render.vertex_start = sna->render.vertex_index;
+		state->last_vertex_offset = state->vertex_offset;
 	}
 
 	return true;
@@ -1509,24 +1594,25 @@ inline static int gen3_get_rectangles(struct sna *sna,
 	int rem = vertex_space(sna);
 
 	DBG(("%s: want=%d, rem=%d\n",
-	     __FUNCTION__, 3*want*op->floats_per_vertex, rem));
+	     __FUNCTION__, want*op->floats_per_rect, rem));
 
 	assert(sna->render.vertex_index * op->floats_per_vertex == sna->render.vertex_used);
-	if (op->floats_per_vertex*3 > rem) {
+	if (op->floats_per_rect > rem) {
 		DBG(("flushing vbo for %s: %d < %d\n",
-		     __FUNCTION__, rem, 3*op->floats_per_vertex));
+		     __FUNCTION__, rem, op->floats_per_rect));
 		rem = gen3_get_rectangles__flush(sna, op->need_magic_ca_pass);
 		if (rem == 0)
 			return 0;
 	}
 
-	if (!gen3_rectangle_begin(sna, op)) {
+	if (sna->render_state.gen3.vertex_offset == 0 &&
+	    !gen3_rectangle_begin(sna, op)) {
 		DBG(("%s: flushing batch\n", __FUNCTION__));
 		return 0;
 	}
 
-	if (want > 1 && want * op->floats_per_vertex*3 > rem)
-		want = rem / (3*op->floats_per_vertex);
+	if (want > 1 && want * op->floats_per_rect > rem)
+		want = rem / op->floats_per_rect;
 	sna->render.vertex_index += 3*want;
 
 	assert(want);
@@ -1551,6 +1637,33 @@ gen3_render_composite_blt(struct sna *sna,
 	}
 
 	op->prim_emit(sna, op, r);
+}
+
+fastcall static void
+gen3_render_composite_box(struct sna *sna,
+			  const struct sna_composite_op *op,
+			  const BoxRec *box)
+{
+	struct sna_composite_rectangles r;
+
+	DBG(("%s: src=+(%d, %d), mask=+(%d, %d), dst=+(%d, %d)\n",
+	     __FUNCTION__,
+	     op->src.offset[0], op->src.offset[1],
+	     op->mask.offset[0], op->mask.offset[1],
+	     op->dst.x, op->dst.y));
+
+	if (!gen3_get_rectangles(sna, op, 1)) {
+		gen3_emit_composite_state(sna, op);
+		gen3_get_rectangles(sna, op, 1);
+	}
+
+	r.dst.x  = box->x1;
+	r.dst.y  = box->y1;
+	r.width  = box->x2 - box->x1;
+	r.height = box->y2 - box->y1;
+	r.src = r.mask = r.dst;
+
+	op->prim_emit(sna, op, &r);
 }
 
 static void
@@ -1626,7 +1739,7 @@ gen3_render_reset(struct sna *sna)
 	state->last_blend = 0;
 	state->last_constants = 0;
 	state->last_sampler = 0;
-	state->last_shader = 0;
+	state->last_shader = -1;
 	state->last_diffuse = 0xcc00ffee;
 	state->last_specular = 0xcc00ffee;
 
@@ -1643,7 +1756,7 @@ gen3_render_reset(struct sna *sna)
 static Bool gen3_composite_channel_set_format(struct sna_composite_channel *channel,
 					      CARD32 format)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(gen3_tex_formats); i++) {
 		if (gen3_tex_formats[i].fmt == format) {
@@ -1699,7 +1812,7 @@ static Bool gen3_composite_channel_set_xformat(PicturePtr picture,
 					       int x, int y,
 					       int width, int height)
 {
-	int i;
+	unsigned int i;
 
 	if (PICT_FORMAT_A(picture->format) != 0)
 		return FALSE;
@@ -1723,14 +1836,16 @@ static Bool gen3_composite_channel_set_xformat(PicturePtr picture,
 }
 
 static int
-gen3_init_solid(struct sna *sna,
-		struct sna_composite_channel *channel,
-		uint32_t color)
+gen3_init_solid(struct sna_composite_channel *channel, uint32_t color)
 {
 	channel->u.gen3.mode = color;
 	channel->u.gen3.type = SHADER_CONSTANT;
 	if (color == 0)
 		channel->u.gen3.type = SHADER_ZERO;
+	else if (color == 0xff000000)
+		channel->u.gen3.type = SHADER_BLACK;
+	else if (color == 0xffffffff)
+		channel->u.gen3.type = SHADER_WHITE;
 	if ((color & 0xff000000) == 0xff000000)
 		channel->is_opaque = true;
 
@@ -1870,8 +1985,10 @@ gen3_init_radial(struct sna *sna,
 	n = op->u.gen3.num_constants;
 	channel->u.gen3.constants = FS_C0 + n / 4;
 	if (radial->c2.x == radial->c1.x && radial->c2.y == radial->c1.y) {
-		if (radial->c2.radius == radial->c1.radius)
-			return 0;
+		if (radial->c2.radius == radial->c1.radius) {
+			channel->u.gen3.type = SHADER_ZERO;
+			return 1;
+		}
 
 		op->u.gen3.constants[n++] = xFixedToDouble(radial->c1.x) / dr;
 		op->u.gen3.constants[n++] = xFixedToDouble(radial->c1.y) / dr;
@@ -1925,8 +2042,7 @@ gen3_composite_picture(struct sna *sna,
 
 		switch (source->type) {
 		case SourcePictTypeSolidFill:
-			ret = gen3_init_solid(sna, channel,
-					      source->solidFill.color);
+			ret = gen3_init_solid(channel, source->solidFill.color);
 			break;
 
 		case SourcePictTypeLinear:
@@ -1947,7 +2063,7 @@ gen3_composite_picture(struct sna *sna,
 	}
 
 	if (sna_picture_is_solid(picture, &color))
-		return gen3_init_solid(sna, channel, color);
+		return gen3_init_solid(channel, color);
 
 	if (!gen3_check_repeat(picture->repeat))
 		return sna_render_picture_fixup(sna, picture, channel,
@@ -2008,11 +2124,10 @@ picture_is_cpu(PicturePtr picture)
 
 static Bool
 try_blt(struct sna *sna,
-	PicturePtr dst,
 	PicturePtr source,
 	int width, int height)
 {
-	if (sna->kgem.mode == KGEM_BLT) {
+	if (sna->kgem.mode != KGEM_RENDER) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return TRUE;
 	}
@@ -2047,10 +2162,28 @@ gen3_align_vertex(struct sna *sna,
 	}
 }
 
+static void
+reduce_damage(struct sna_composite_op *op,
+	      int dst_x, int dst_y,
+	      int width, int height)
+{
+	BoxRec r;
+
+	if (op->damage == NULL)
+		return;
+
+	r.x1 = dst_x + op->dst.x;
+	r.x2 = r.x1 + width;
+
+	r.y1 = dst_y + op->dst.y;
+	r.y2 = r.y1 + height;
+
+	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+		op->damage = NULL;
+}
+
 static Bool
-gen3_composite_set_target(struct sna *sna,
-			  struct sna_composite_op *op,
-			  PicturePtr dst)
+gen3_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 {
 	struct sna_pixmap *priv;
 
@@ -2089,6 +2222,20 @@ static inline uint8_t mult(uint32_t s, uint32_t m, int shift)
 	return (s * m) >> 8;
 }
 
+static inline bool is_constant_ps(uint32_t type)
+{
+	switch (type) {
+	case SHADER_NONE: /* be warned! */
+	case SHADER_ZERO:
+	case SHADER_BLACK:
+	case SHADER_WHITE:
+	case SHADER_CONSTANT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static Bool
 gen3_render_composite(struct sna *sna,
 		      uint8_t op,
@@ -2118,7 +2265,7 @@ gen3_render_composite(struct sna *sna,
 	 * 3D -> 2D context switch.
 	 */
 	if (mask == NULL &&
-	    try_blt(sna, dst, src, width, height) &&
+	    try_blt(sna, src, width, height) &&
 	    sna_blt_composite(sna,
 			      op, src, dst,
 			      src_x, src_y,
@@ -2140,8 +2287,7 @@ gen3_render_composite(struct sna *sna,
 	}
 
 	if (need_tiling(sna, width, height))
-		return sna_tiling_composite(sna,
-					    op, src, mask, dst,
+		return sna_tiling_composite(op, src, mask, dst,
 					    src_x,  src_y,
 					    mask_x, mask_y,
 					    dst_x,  dst_y,
@@ -2150,11 +2296,14 @@ gen3_render_composite(struct sna *sna,
 
 	memset(&tmp->u.gen3, 0, sizeof(tmp->u.gen3));
 
-	if (!gen3_composite_set_target(sna, tmp, dst)) {
+	if (!gen3_composite_set_target(tmp, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
 	}
+
+	if (width && height)
+		reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	tmp->op = op;
 	tmp->rb_reversed = gen3_dst_rb_reversed(tmp->dst.format);
@@ -2222,18 +2371,16 @@ gen3_render_composite(struct sna *sna,
 			 * into the single source value that we get to blend with.
 			 */
 			tmp->has_component_alpha = TRUE;
-			if (tmp->mask.u.gen3.type == SHADER_CONSTANT &&
-			    tmp->mask.u.gen3.mode == 0xffffffff) {
+			if (tmp->mask.u.gen3.type == SHADER_WHITE) {
 				tmp->mask.u.gen3.type = SHADER_NONE;
 				tmp->has_component_alpha = FALSE;
-			} else if (tmp->src.u.gen3.type == SHADER_CONSTANT &&
-				   tmp->src.u.gen3.mode == 0xffffffff) {
+			} else if (tmp->src.u.gen3.type == SHADER_WHITE) {
 				tmp->src = tmp->mask;
 				tmp->mask.u.gen3.type = SHADER_NONE;
 				tmp->mask.bo = NULL;
 				tmp->has_component_alpha = FALSE;
-			} else if (tmp->src.u.gen3.type == SHADER_CONSTANT &&
-				   tmp->mask.u.gen3.type == SHADER_CONSTANT) {
+			} else if (is_constant_ps(tmp->src.u.gen3.type) &&
+				   is_constant_ps(tmp->mask.u.gen3.type)) {
 				uint32_t a,r,g,b;
 
 				a = mult(tmp->src.u.gen3.mode,
@@ -2255,6 +2402,7 @@ gen3_render_composite(struct sna *sna,
 				     tmp->mask.u.gen3.mode,
 				     a << 24 | r << 16 | g << 8 | b));
 
+				tmp->src.u.gen3.type = SHADER_CONSTANT;
 				tmp->src.u.gen3.mode =
 					a << 24 | r << 16 | g << 8 | b;
 
@@ -2276,10 +2424,12 @@ gen3_render_composite(struct sna *sna,
 	     tmp->src.is_affine, tmp->mask.is_affine));
 
 	tmp->prim_emit = gen3_emit_composite_primitive;
-	if (tmp->mask.u.gen3.type == SHADER_NONE ||
-	    tmp->mask.u.gen3.type == SHADER_CONSTANT) {
+	if (is_constant_ps(tmp->mask.u.gen3.type)) {
 		switch (tmp->src.u.gen3.type) {
 		case SHADER_NONE:
+		case SHADER_ZERO:
+		case SHADER_BLACK:
+		case SHADER_WHITE:
 		case SHADER_CONSTANT:
 			tmp->prim_emit = gen3_emit_composite_primitive_constant;
 			break;
@@ -2299,7 +2449,7 @@ gen3_render_composite(struct sna *sna,
 		}
 	} else if (tmp->mask.u.gen3.type == SHADER_TEXTURE) {
 		if (tmp->mask.transform == NULL) {
-			if (tmp->src.u.gen3.type == SHADER_CONSTANT)
+			if (is_constant_ps(tmp->src.u.gen3.type))
 				tmp->prim_emit = gen3_emit_composite_primitive_constant_identity_mask;
 			else if (tmp->src.transform == NULL)
 				tmp->prim_emit = gen3_emit_composite_primitive_identity_source_mask;
@@ -2309,30 +2459,24 @@ gen3_render_composite(struct sna *sna,
 	}
 
 	tmp->floats_per_vertex = 2;
-	if (tmp->src.u.gen3.type != SHADER_CONSTANT &&
-	    tmp->src.u.gen3.type != SHADER_ZERO)
+	if (!is_constant_ps(tmp->src.u.gen3.type))
 		tmp->floats_per_vertex += tmp->src.is_affine ? 2 : 4;
-	if (tmp->mask.u.gen3.type != SHADER_NONE &&
-	    tmp->mask.u.gen3.type != SHADER_CONSTANT)
+	if (!is_constant_ps(tmp->mask.u.gen3.type))
 		tmp->floats_per_vertex += tmp->mask.is_affine ? 2 : 4;
 	DBG(("%s: floats_per_vertex = 2 + %d + %d = %d\n", __FUNCTION__,
-	     (tmp->src.u.gen3.type != SHADER_CONSTANT &&
-	      tmp->src.u.gen3.type != SHADER_ZERO) ?
-	     tmp->src.is_affine ? 2 : 4 : 0,
-	     (tmp->mask.u.gen3.type != SHADER_NONE &&
-	      tmp->mask.u.gen3.type != SHADER_CONSTANT) ?
-	     tmp->mask.is_affine ? 2 : 4 : 0,
+	     !is_constant_ps(tmp->src.u.gen3.type) ? tmp->src.is_affine ? 2 : 4 : 0,
+	     !is_constant_ps(tmp->mask.u.gen3.type) ? tmp->mask.is_affine ? 2 : 4 : 0,
 	     tmp->floats_per_vertex));
+	tmp->floats_per_rect = 3 * tmp->floats_per_vertex;
 
 	tmp->blt   = gen3_render_composite_blt;
+	tmp->box   = gen3_render_composite_box;
 	tmp->boxes = gen3_render_composite_boxes;
 	tmp->done  = gen3_render_composite_done;
 
-	if (!kgem_check_bo(&sna->kgem, tmp->dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->src.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->mask.bo))
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
+			   NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
@@ -2375,7 +2519,7 @@ gen3_emit_composite_spans_vertex(struct sna *sna,
 	OUT_VERTEX(opacity);
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_zero(struct sna *sna,
 					 const struct sna_composite_spans_op *op,
 					 const BoxRec *box,
@@ -2394,7 +2538,22 @@ gen3_emit_composite_spans_primitive_zero(struct sna *sna,
 	v[5] = op->base.dst.x + box->y1;
 }
 
-static void
+fastcall static void
+gen3_emit_composite_spans_primitive_zero_no_offset(struct sna *sna,
+						   const struct sna_composite_spans_op *op,
+						   const BoxRec *box,
+						   float opacity)
+{
+	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	sna->render.vertex_used += 6;
+
+	v[0] = box->x2;
+	v[3] = v[1] = box->y2;
+	v[4] = v[2] = box->x1;
+	v[5] = box->y1;
+}
+
+fastcall static void
 gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 					     const struct sna_composite_spans_op *op,
 					     const BoxRec *box,
@@ -2410,7 +2569,23 @@ gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 	v[8] = v[5] = v[2] = opacity;
 }
 
-static void
+fastcall static void
+gen3_emit_composite_spans_primitive_constant_no_offset(struct sna *sna,
+						       const struct sna_composite_spans_op *op,
+						       const BoxRec *box,
+						       float opacity)
+{
+	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	sna->render.vertex_used += 9;
+
+	v[0] = box->x2;
+	v[6] = v[3] = box->x1;
+	v[4] = v[1] = box->y2;
+	v[7] = box->y1;
+	v[8] = v[5] = v[2] = opacity;
+}
+
+fastcall static void
 gen3_emit_composite_spans_primitive_identity_source(struct sna *sna,
 						    const struct sna_composite_spans_op *op,
 						    const BoxRec *box,
@@ -2438,7 +2613,7 @@ gen3_emit_composite_spans_primitive_identity_source(struct sna *sna,
 	v[14] = opacity;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_affine_source(struct sna *sna,
 						  const struct sna_composite_spans_op *op,
 						  const BoxRec *box,
@@ -2480,7 +2655,7 @@ gen3_emit_composite_spans_primitive_affine_source(struct sna *sna,
 	v[13] = y * op->base.src.scale[1];
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_identity_gradient(struct sna *sna,
 						      const struct sna_composite_spans_op *op,
 						      const BoxRec *box,
@@ -2508,7 +2683,7 @@ gen3_emit_composite_spans_primitive_identity_gradient(struct sna *sna,
 	v[14] = opacity;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive_affine_gradient(struct sna *sna,
 						    const struct sna_composite_spans_op *op,
 						    const BoxRec *box,
@@ -2543,7 +2718,7 @@ gen3_emit_composite_spans_primitive_affine_gradient(struct sna *sna,
 	v[14] = opacity;
 }
 
-static void
+fastcall static void
 gen3_emit_composite_spans_primitive(struct sna *sna,
 				    const struct sna_composite_spans_op *op,
 				    const BoxRec *box,
@@ -2560,7 +2735,7 @@ gen3_emit_composite_spans_primitive(struct sna *sna,
 					 opacity);
 }
 
-static void
+fastcall static void
 gen3_render_composite_spans_box(struct sna *sna,
 				const struct sna_composite_spans_op *op,
 				const BoxRec *box, float opacity)
@@ -2615,7 +2790,7 @@ gen3_render_composite_spans_boxes(struct sna *sna,
 	} while (nbox);
 }
 
-static void
+fastcall static void
 gen3_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {
@@ -2639,6 +2814,8 @@ gen3_render_composite_spans(struct sna *sna,
 			    int16_t width,  int16_t height,
 			    struct sna_composite_spans_op *tmp)
 {
+	bool no_offset;
+
 	DBG(("%s(src=(%d, %d), dst=(%d, %d), size=(%d, %d))\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, width, height));
 
@@ -2661,11 +2838,14 @@ gen3_render_composite_spans(struct sna *sna,
 	if (need_tiling(sna, width, height))
 		return FALSE;
 
-	if (!gen3_composite_set_target(sna, &tmp->base, dst)) {
+	if (!gen3_composite_set_target(&tmp->base, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
 	}
+
+	if (width && height)
+		reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
 	tmp->base.op = op;
 	tmp->base.rb_reversed = gen3_dst_rb_reversed(tmp->base.dst.format);
@@ -2697,15 +2877,18 @@ gen3_render_composite_spans(struct sna *sna,
 	if (tmp->base.src.u.gen3.type != SHADER_ZERO)
 		tmp->base.mask.u.gen3.type = SHADER_OPACITY;
 
+	no_offset = tmp->base.dst.x == 0 && tmp->base.dst.y == 0;
 	tmp->prim_emit = gen3_emit_composite_spans_primitive;
 	switch (tmp->base.src.u.gen3.type) {
 	case SHADER_NONE:
 		assert(0);
 	case SHADER_ZERO:
-		tmp->prim_emit = gen3_emit_composite_spans_primitive_zero;
+		tmp->prim_emit = no_offset ? gen3_emit_composite_spans_primitive_zero_no_offset : gen3_emit_composite_spans_primitive_zero;
 		break;
+	case SHADER_BLACK:
+	case SHADER_WHITE:
 	case SHADER_CONSTANT:
-		tmp->prim_emit = gen3_emit_composite_spans_primitive_constant;
+		tmp->prim_emit = no_offset ? gen3_emit_composite_spans_primitive_constant_no_offset : gen3_emit_composite_spans_primitive_constant;
 		break;
 	case SHADER_LINEAR:
 	case SHADER_RADIAL:
@@ -2723,19 +2906,19 @@ gen3_render_composite_spans(struct sna *sna,
 	}
 
 	tmp->base.floats_per_vertex = 2;
-	if (tmp->base.src.u.gen3.type != SHADER_CONSTANT &&
-	    tmp->base.src.u.gen3.type != SHADER_ZERO)
+	if (!is_constant_ps(tmp->base.src.u.gen3.type))
 		tmp->base.floats_per_vertex += tmp->base.src.is_affine ? 2 : 3;
 	tmp->base.floats_per_vertex +=
 		tmp->base.mask.u.gen3.type == SHADER_OPACITY;
+	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
 
 	tmp->box   = gen3_render_composite_spans_box;
 	tmp->boxes = gen3_render_composite_spans_boxes;
 	tmp->done  = gen3_render_composite_spans_done;
 
-	if (!kgem_check_bo(&sna->kgem, tmp->base.dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->base.src.bo))
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->base.dst.bo, tmp->base.src.bo,
+			   NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(tmp->base.src.bo)) {
@@ -2768,20 +2951,15 @@ gen3_emit_video_state(struct sna *sna,
 		      int width, int height)
 {
 	uint32_t shader_offset;
-	uint32_t ms3, s5;
+	uint32_t ms3;
 
-	/* draw rect -- just clipping */
-	OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
-	OUT_BATCH(DRAW_DITHER_OFS_X(pixmap->drawable.x & 3) |
-		  DRAW_DITHER_OFS_Y(pixmap->drawable.y & 3));
-	OUT_BATCH(0x00000000);	/* ymin, xmin */
-	/* ymax, xmax */
-	OUT_BATCH((width - 1) | (height - 1) << 16);
-	OUT_BATCH(0x00000000);	/* yorigin, xorigin */
+	gen3_emit_target(sna, dst_bo, width, height,
+			 sna_format_for_depth(pixmap->drawable.depth));
 
+	/* XXX share with composite? Is it worth the effort? */
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
-		  I1_LOAD_S(1) | I1_LOAD_S(2) | I1_LOAD_S(5) | I1_LOAD_S(6) |
-		  3);
+		  I1_LOAD_S(1) | I1_LOAD_S(2) | I1_LOAD_S(6) |
+		  2);
 	OUT_BATCH((4 << S1_VERTEX_WIDTH_SHIFT) | (4 << S1_VERTEX_PITCH_SHIFT));
 	OUT_BATCH(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
 		  S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
@@ -2791,31 +2969,15 @@ gen3_emit_video_state(struct sna *sna,
 		  S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
 		  S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
 		  S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
-	s5 = 0x0;
-	if (pixmap->drawable.depth < 24)
-		s5 |= S5_COLOR_DITHER_ENABLE;
-	OUT_BATCH(s5);
-	OUT_BATCH((2 << S6_DEPTH_TEST_FUNC_SHIFT) |
-		  (2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+	OUT_BATCH((2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
 		  (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) |
-		  S6_COLOR_WRITE_ENABLE | (2 << S6_TRISTRIP_PV_SHIFT));
+		  S6_COLOR_WRITE_ENABLE);
 
-	OUT_BATCH(_3DSTATE_CONST_BLEND_COLOR_CMD);
-	OUT_BATCH(0x00000000);
-
-	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
-	OUT_BATCH(gen3_get_dst_format(sna_format_for_depth(pixmap->drawable.depth)));
-
-	/* front buffer, pitch, offset */
-	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
-	OUT_BATCH(BUF_3D_ID_COLOR_BACK |
-		  gen3_buf_tiling(dst_bo->tiling) |
-		  dst_bo->pitch);
-	OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
-				 dst_bo,
-				 I915_GEM_DOMAIN_RENDER << 16 |
-				 I915_GEM_DOMAIN_RENDER,
-				 0));
+	sna->render_state.gen3.last_blend = 0;
+	sna->render_state.gen3.last_sampler = 0;
+	sna->render_state.gen3.floats_per_vertex = 4;
+	sna->render_state.gen3.last_shader = -1;
+	sna->render_state.gen3.last_constants = 0;
 
 	if (!is_planar_fourcc(frame->id)) {
 		OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
@@ -3052,11 +3214,6 @@ gen3_emit_video_state(struct sna *sna,
 	sna->kgem.batch[shader_offset] =
 		_3DSTATE_PIXEL_SHADER_PROGRAM |
 		(sna->kgem.nbatch - shader_offset - 2);
-
-	/* video is the last operation in the batch, so state gets reset
-	 * afterwards automatically
-	 * gen3_reset();
-	 */
 }
 
 static void
@@ -3232,8 +3389,7 @@ gen3_render_video(struct sna *sna,
 }
 
 static void
-gen3_render_copy_setup_source(struct sna *sna,
-			      struct sna_composite_channel *channel,
+gen3_render_copy_setup_source(struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
 			      struct kgem_bo *bo)
 {
@@ -3242,8 +3398,8 @@ gen3_render_copy_setup_source(struct sna *sna,
 	channel->repeat = gen3_texture_repeat(RepeatNone);
 	channel->width  = pixmap->drawable.width;
 	channel->height = pixmap->drawable.height;
-	channel->scale[0] = 1./pixmap->drawable.width;
-	channel->scale[1] = 1./pixmap->drawable.height;
+	channel->scale[0] = 1.f/pixmap->drawable.width;
+	channel->scale[1] = 1.f/pixmap->drawable.height;
 	channel->offset[0] = 0;
 	channel->offset[1] = 0;
 	gen3_composite_channel_set_format(channel,
@@ -3300,9 +3456,7 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 					  box, n);
 	}
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
@@ -3317,9 +3471,10 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = dst_bo;
 
-	gen3_render_copy_setup_source(sna, &tmp.src, src, src_bo);
+	gen3_render_copy_setup_source(&tmp.src, src, src_bo);
 
 	tmp.floats_per_vertex = 4;
+	tmp.floats_per_rect = 12;
 	tmp.mask.u.gen3.type = SHADER_NONE;
 
 	gen3_emit_composite_state(sna, &tmp);
@@ -3445,14 +3600,13 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 	tmp->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp->base.dst.bo = dst_bo;
 
-	gen3_render_copy_setup_source(sna, &tmp->base.src, src, src_bo);
+	gen3_render_copy_setup_source(&tmp->base.src, src, src_bo);
 
 	tmp->base.floats_per_vertex = 4;
+	tmp->base.floats_per_rect = 12;
 	tmp->base.mask.u.gen3.type = SHADER_NONE;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
@@ -3476,31 +3630,65 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 	uint8_t alu = GXcopy;
 	uint32_t pixel;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     format))
+	if (dst_bo->tiling == I915_TILING_Y)
 		return FALSE;
 
-	if (op == PictOpClear) {
-		alu = GXclear;
-		pixel = 0;
-		op = PictOpSrc;
-	}
-
-	if (op == PictOpOver) {
-		if ((pixel & 0xff000000) == 0xff000000)
+	if (color->alpha >= 0xff00) {
+		if (op == PictOpOver)
+			op = PictOpSrc;
+		else if (op == PictOpOutReverse)
+			op = PictOpClear;
+		else if (op == PictOpAdd &&
+			 (color->red & color->green & color->blue) >= 0xff00)
 			op = PictOpSrc;
 	}
 
-	if (op != PictOpSrc)
+	pixel = 0;
+	if (op == PictOpClear) {
+		alu = GXclear;
+	} else if (op == PictOpSrc) {
+		if (color->alpha <= 0x00ff)
+			alu = GXclear;
+		else if (!sna_get_pixel_from_rgba(&pixel,
+						    color->red,
+						    color->green,
+						    color->blue,
+						    color->alpha,
+						    format))
+			return FALSE;
+	} else
 		return FALSE;
+
 
 	return sna_blt_fill_boxes(sna, alu,
 				  dst_bo, dst->drawable.bitsPerPixel,
 				  pixel, box, n);
+}
+
+static inline Bool prefer_fill_blt(struct sna *sna)
+{
+#if PREFER_BLT_FILL
+	return true;
+#else
+	return sna->kgem.mode != KGEM_RENDER;
+#endif
+}
+
+static inline void set_fill_shader(struct sna_composite_channel *c,
+				   uint32_t pixel)
+{
+	if (pixel == 0)
+		c->u.gen3.type = SHADER_ZERO;
+	else if (pixel == 0xff000000)
+		c->u.gen3.type = SHADER_BLACK;
+	else if (pixel == 0xffffffff)
+		c->u.gen3.type = SHADER_WHITE;
+	else
+		c->u.gen3.type = SHADER_CONSTANT;
+	c->u.gen3.mode = pixel;
+	c->is_affine = 1;
+	c->alpha_fixup = 0;
+	c->rb_reversed = 0;
 }
 
 static Bool
@@ -3538,26 +3726,26 @@ gen3_render_fill_boxes(struct sna *sna,
 						      dst, dst_bo,
 						      box, n);
 
-	if (gen3_render_fill_boxes_try_blt(sna, op, format, color,
+	if (prefer_fill_blt(sna) &&
+	    gen3_render_fill_boxes_try_blt(sna, op, format, color,
 					   dst, dst_bo,
 					   box, n))
 		return TRUE;
 
-	if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     PICT_a8r8g8b8))
-		return FALSE;
-
+	if (op == PictOpClear) {
+		pixel = 0;
+	} else {
+		if (!sna_get_pixel_from_rgba(&pixel,
+					     color->red,
+					     color->green,
+					     color->blue,
+					     color->alpha,
+					     PICT_a8r8g8b8))
+			return FALSE;
+	}
 	DBG(("%s: using shader for op=%d, format=%x, pixel=%x\n",
 	     __FUNCTION__, op, (int)format, pixel));
 
-	if (pixel == 0)
-		op = PictOpClear;
-
-	memset(&tmp, 0, sizeof(tmp));
 	tmp.op = op;
 	tmp.dst.pixmap = dst;
 	tmp.dst.width = dst->drawable.width;
@@ -3565,11 +3753,14 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.dst.format = format;
 	tmp.dst.bo = dst_bo;
 	tmp.floats_per_vertex = 2;
+	tmp.floats_per_rect = 6;
+	tmp.rb_reversed = 0;
 
-	tmp.src.u.gen3.type = op == PictOpClear ? SHADER_ZERO : SHADER_CONSTANT;
-	tmp.src.u.gen3.mode = pixel;
+	set_fill_shader(&tmp.src, pixel);
+	tmp.mask.u.gen3.type = SHADER_NONE;
+	tmp.u.gen3.num_constants = 0;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	gen3_emit_composite_state(sna, &tmp);
@@ -3602,9 +3793,9 @@ gen3_render_fill_boxes(struct sna *sna,
 }
 
 static void
-gen3_render_fill_blt(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     int16_t x, int16_t y, int16_t w, int16_t h)
+gen3_render_fill_op_blt(struct sna *sna,
+			const struct sna_fill_op *op,
+			int16_t x, int16_t y, int16_t w, int16_t h)
 {
 	if (!gen3_get_rectangles(sna, &op->base, 1)) {
 		gen3_emit_composite_state(sna, &op->base);
@@ -3619,8 +3810,55 @@ gen3_render_fill_blt(struct sna *sna,
 	OUT_VERTEX(y);
 }
 
+fastcall static void
+gen3_render_fill_op_box(struct sna *sna,
+			const struct sna_fill_op *op,
+			const BoxRec *box)
+{
+	if (!gen3_get_rectangles(sna, &op->base, 1)) {
+		gen3_emit_composite_state(sna, &op->base);
+		gen3_get_rectangles(sna, &op->base, 1);
+	}
+
+	OUT_VERTEX(box->x2);
+	OUT_VERTEX(box->y2);
+	OUT_VERTEX(box->x1);
+	OUT_VERTEX(box->y2);
+	OUT_VERTEX(box->x1);
+	OUT_VERTEX(box->y1);
+}
+
+fastcall static void
+gen3_render_fill_op_boxes(struct sna *sna,
+			  const struct sna_fill_op *op,
+			  const BoxRec *box,
+			  int nbox)
+{
+	DBG(("%s: (%d, %d),(%d, %d)... x %d\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2, nbox));
+
+	do {
+		int nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
+		if (nbox_this_time == 0) {
+			gen3_emit_composite_state(sna, &op->base);
+			nbox_this_time = gen3_get_rectangles(sna, &op->base, nbox);
+		}
+		nbox -= nbox_this_time;
+
+		do {
+			OUT_VERTEX(box->x2);
+			OUT_VERTEX(box->y2);
+			OUT_VERTEX(box->x1);
+			OUT_VERTEX(box->y2);
+			OUT_VERTEX(box->x1);
+			OUT_VERTEX(box->y1);
+			box++;
+		} while (--nbox_this_time);
+	} while (nbox);
+}
+
 static void
-gen3_render_fill_done(struct sna *sna, const struct sna_fill_op *op)
+gen3_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
 	gen3_vertex_flush(sna);
 	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
@@ -3640,7 +3878,7 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_fill_blt(sna) &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
@@ -3666,19 +3904,113 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	tmp->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp->base.dst.bo = dst_bo;
 	tmp->base.floats_per_vertex = 2;
+	tmp->base.floats_per_rect = 6;
+	tmp->base.need_magic_ca_pass = 0;
+	tmp->base.has_component_alpha = 0;
+	tmp->base.rb_reversed = 0;
 
-	tmp->base.src.u.gen3.type = SHADER_CONSTANT;
-	tmp->base.src.u.gen3.mode =
-		sna_rgba_for_color(color, dst->drawable.depth);
+	set_fill_shader(&tmp->base.src,
+			sna_rgba_for_color(color, dst->drawable.depth));
+	tmp->base.mask.u.gen3.type = SHADER_NONE;
+	tmp->base.u.gen3.num_constants = 0;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
-	tmp->blt  = gen3_render_fill_blt;
-	tmp->done = gen3_render_fill_done;
+	tmp->blt   = gen3_render_fill_op_blt;
+	tmp->box   = gen3_render_fill_op_box;
+	tmp->boxes = gen3_render_fill_op_boxes;
+	tmp->done  = gen3_render_fill_op_done;
 
 	gen3_emit_composite_state(sna, &tmp->base);
 	gen3_align_vertex(sna, &tmp->base);
+	return TRUE;
+}
+
+static Bool
+gen3_render_fill_one_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+			     uint32_t color,
+			     int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+			     uint8_t alu)
+{
+	BoxRec box;
+
+	box.x1 = x1;
+	box.y1 = y1;
+	box.x2 = x2;
+	box.y2 = y2;
+
+	return sna_blt_fill_boxes(sna, alu,
+				  bo, dst->drawable.bitsPerPixel,
+				  color, &box, 1);
+}
+
+static Bool
+gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+		     uint32_t color,
+		     int16_t x1, int16_t y1,
+		     int16_t x2, int16_t y2,
+		     uint8_t alu)
+{
+	struct sna_composite_op tmp;
+
+#if NO_FILL_ONE
+	return gen3_render_fill_one_try_blt(sna, dst, bo, color,
+					    x1, y1, x2, y2, alu);
+#endif
+
+	/* Prefer to use the BLT if already engaged */
+	if (prefer_fill_blt(sna) &&
+	    gen3_render_fill_one_try_blt(sna, dst, bo, color,
+					 x1, y1, x2, y2, alu))
+		return TRUE;
+
+	/* Must use the BLT if we can't RENDER... */
+	if (!(alu == GXcopy || alu == GXclear) ||
+	    dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
+	    bo->pitch > 8192)
+		return gen3_render_fill_one_try_blt(sna, dst, bo, color,
+						    x1, y1, x2, y2, alu);
+
+	if (alu == GXclear)
+		color = 0;
+
+	tmp.op = color == 0 ? PictOpClear : PictOpSrc;
+	tmp.dst.pixmap = dst;
+	tmp.dst.width = dst->drawable.width;
+	tmp.dst.height = dst->drawable.height;
+	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
+	tmp.dst.bo = bo;
+	tmp.floats_per_vertex = 2;
+	tmp.floats_per_rect = 6;
+	tmp.need_magic_ca_pass = 0;
+	tmp.has_component_alpha = 0;
+	tmp.rb_reversed = 0;
+
+	set_fill_shader(&tmp.src,
+			sna_rgba_for_color(color, dst->drawable.depth));
+	tmp.mask.u.gen3.type = SHADER_NONE;
+	tmp.u.gen3.num_constants = 0;
+
+	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
+		kgem_submit(&sna->kgem);
+		if (gen3_render_fill_one_try_blt(sna, dst, bo, color,
+						 x1, y1, x2, y2, alu))
+			return TRUE;
+	}
+
+	gen3_emit_composite_state(sna, &tmp);
+	gen3_align_vertex(sna, &tmp);
+	gen3_get_rectangles(sna, &tmp, 1);
+	DBG(("	(%d, %d), (%d, %d): %x\n", x1, y1, x2, y2, color));
+	OUT_VERTEX(x2);
+	OUT_VERTEX(y2);
+	OUT_VERTEX(x1);
+	OUT_VERTEX(y2);
+	OUT_VERTEX(x1);
+	OUT_VERTEX(y1);
+	gen3_vertex_flush(sna);
+
 	return TRUE;
 }
 
@@ -3706,6 +4038,7 @@ Bool gen3_render_init(struct sna *sna)
 
 	render->fill_boxes = gen3_render_fill_boxes;
 	render->fill = gen3_render_fill;
+	render->fill_one = gen3_render_fill_one;
 
 	render->reset = gen3_render_reset;
 	render->flush = gen3_render_flush;

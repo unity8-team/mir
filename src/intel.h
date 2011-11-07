@@ -65,9 +65,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <pciaccess.h>
 
 #include "xf86drm.h"
-#include "sarea.h"
 #define _XF86DRI_SERVER_
-#include "dri.h"
 #include "dri2.h"
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
@@ -283,6 +281,7 @@ typedef struct intel_screen_private {
 	struct list batch_pixmaps;
 	struct list flush_pixmaps;
 	struct list in_flight;
+	drm_intel_bo *wa_scratch_bo;
 
 	/* For Xvideo */
 	Bool use_overlay;
@@ -736,5 +735,11 @@ Bool intel_get_aperture_space(ScrnInfoPtr scrn, drm_intel_bo ** bo_table,
 /* intel_shadow.c */
 void intel_shadow_blt(intel_screen_private *intel);
 void intel_shadow_create(struct intel_screen_private *intel);
+
+static inline Bool intel_pixmap_is_offscreen(PixmapPtr pixmap)
+{
+	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
+	return priv && priv->offscreen;
+}
 
 #endif /* _I830_H_ */

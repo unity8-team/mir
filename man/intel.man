@@ -228,11 +228,13 @@ lag too far behind the CPU and thus noticeable delays in user responsible at
 the cost of throughput performance.
 .IP
 Default: enabled.
+.TP
 .BI "Option \*qHotPlug\*q \*q" boolean \*q
 This option controls whether the driver automatically notifies
 applications when monitors are connected or disconnected.
 .IP
 Default: enabled.
+.TP
 .BI "Option \*qZaphodHeads\*q \*q" string \*q
 .IP
 Specify the randr output(s) to use with zaphod mode for a particular driver

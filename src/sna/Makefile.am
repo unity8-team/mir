@@ -32,6 +32,7 @@ NULL:=#
 
 libsna_la_SOURCES = \
 	blt.c \
+	compiler.h \
 	kgem.c \
 	kgem.h \
 	sna.h \
@@ -98,4 +99,11 @@ libsna_la_SOURCES += \
 	kgem_debug_gen5.c \
 	kgem_debug_gen6.c \
 	$(NULL)
+endif
+
+if HAVE_DOT_GIT
+git_version.h: $(top_builddir)/.git/HEAD $(shell sed -e '/ref:/!d' -e 's#ref: *#$(top_builddir)/.git/#' < $(top_builddir)/.git/HEAD)
+	@echo "Recording git-tree used for compilation: `git describe`"
+	@V=`git describe`; echo "static const char git_version[] = \"$$V\";" > git_version.h
+sna_driver.c: git_version.h
 endif

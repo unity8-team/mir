@@ -34,14 +34,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+#ifndef _SNA_H_
+#define _SNA_H_
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <stdint.h>
-
-#ifndef _SNA_H_
-#define _SNA_H_
 
 #include "xf86_OSproc.h"
 #include "compiler.h"
@@ -60,13 +60,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86drmMode.h"
 
 #define _XF86DRI_SERVER_
-#include "dri.h"
 #include "dri2.h"
 #include "i915_drm.h"
 
 #if HAVE_UDEV
 #include <libudev.h>
 #endif
+
+#include "compiler.h"
 
 #define DBG(x)
 
@@ -122,7 +123,7 @@ static inline void list_add_tail(struct list *new, struct list *head)
 
 #ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 #define FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER 1
-#define CREATE_PIXMAP_USAGE_SCRATCH_HEADER -1
+#define CREATE_PIXMAP_USAGE_SCRATCH_HEADER (unsigned)-1
 #endif
 
 #define SNA_CURSOR_X			64
@@ -141,16 +142,26 @@ struct sna_pixmap {
 	uint8_t pinned :1;
 	uint8_t gpu_only :1;
 	uint8_t flush :1;
+	uint8_t gpu :1;
 };
+
+extern DevPrivateKey sna_window_key;
+
+static inline PixmapPtr get_window_pixmap(WindowPtr window)
+{
+#if 0
+	return window->drawable.pScreen->GetWindowPixmap(window)
+#else
+	return dixGetPrivate(&window->devPrivates, sna_window_key);
+#endif
+}
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 {
-	ScreenPtr screen = drawable->pScreen;
-
 	if (drawable->type == DRAWABLE_PIXMAP)
 		return (PixmapPtr)drawable;
 	else
-		return screen->GetWindowPixmap((WindowPtr)drawable);
+		return get_window_pixmap((WindowPtr)drawable);
 }
 
 extern DevPrivateKeyRec sna_pixmap_index;
@@ -234,6 +245,10 @@ struct sna {
 	void *WakeupData;
 	CloseScreenProcPtr CloseScreen;
 
+	struct {
+		uint32_t fill_bo;
+		uint32_t fill_pixel;
+	} blt_state;
 	union {
 		struct gen2_render_state gen2;
 		struct gen3_render_state gen3;
@@ -295,6 +310,12 @@ static inline struct sna *
 to_sna_from_drawable(DrawablePtr drawable)
 {
 	return to_sna_from_screen(drawable->pScreen);
+}
+
+static inline struct sna *
+to_sna_from_kgem(struct kgem *kgem)
+{
+	return container_of(kgem, struct sna, kgem);
 }
 
 #ifndef ARRAY_SIZE
@@ -464,6 +485,10 @@ Bool sna_transform_is_integer_translation(const PictTransform *t,
 Bool sna_transform_is_translation(const PictTransform *t,
 				  pixman_fixed_t *tx, pixman_fixed_t *ty);
 
+static inline bool wedged(struct sna *sna)
+{
+	return unlikely(sna->kgem.wedged);
+}
 
 static inline uint32_t pixmap_size(PixmapPtr pixmap)
 {
@@ -523,6 +548,28 @@ void sna_composite_trapezoids(CARD8 op,
 			      PictFormatPtr maskFormat,
 			      INT16 xSrc, INT16 ySrc,
 			      int ntrap, xTrapezoid *traps);
+void sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t);
+
+void sna_composite_triangles(CARD8 op,
+			     PicturePtr src,
+			     PicturePtr dst,
+			     PictFormatPtr maskFormat,
+			     INT16 xSrc, INT16 ySrc,
+			     int ntri, xTriangle *tri);
+
+void sna_composite_tristrip(CARD8 op,
+			    PicturePtr src,
+			    PicturePtr dst,
+			    PictFormatPtr maskFormat,
+			    INT16 xSrc, INT16 ySrc,
+			    int npoints, xPointFixed *points);
+
+void sna_composite_trifan(CARD8 op,
+			  PicturePtr src,
+			  PicturePtr dst,
+			  PictFormatPtr maskFormat,
+			  INT16 xSrc, INT16 ySrc,
+			  int npoints, xPointFixed *points);
 
 Bool sna_gradients_create(struct sna *sna);
 void sna_gradients_close(struct sna *sna);
@@ -577,5 +624,6 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	   uint16_t width, uint16_t height);
 
 #define SNA_CREATE_FB 0x10
+#define SNA_CREATE_SCRATCH 0x11
 
 #endif /* _SNA_H */
