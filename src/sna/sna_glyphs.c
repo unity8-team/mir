@@ -727,8 +727,8 @@ glyphs_via_mask(struct sna *sna,
 		pixman_image_t *mask_image;
 		int s;
 
-		DBG(("%s: smal mask, rendering glyphs to upload buffer\n",
-		     __FUNCTION__));
+		DBG(("%s: small mask [format=%lx, depth=%d], rendering glyphs to upload buffer\n",
+		     __FUNCTION__, format->format, format->depth));
 
 upload:
 		pixmap = sna_pixmap_create_upload(screen,
@@ -1237,7 +1237,9 @@ sna_glyphs(CARD8 op,
 
 	/* XXX discard the mask for non-overlapping glyphs? */
 
-	if (!mask || (op == PictOpAdd && dst->format == mask->format)) {
+	if (!mask ||
+	    (((nlist == 1 && list->len == 1) || op == PictOpAdd) &&
+	     dst->format == (mask->depth << 24 | mask->format))) {
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
 				  src_x, src_y,
