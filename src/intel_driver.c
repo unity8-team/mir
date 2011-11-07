@@ -416,11 +416,18 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 	list_init(&intel->flush_pixmaps);
 	list_init(&intel->in_flight);
 
+	if ((INTEL_INFO(intel)->gen == 60)) {
+		intel->wa_scratch_bo =
+			drm_intel_bo_alloc(intel->bufmgr, "wa scratch",
+					   4096, 4096);
+	}
+
 	return TRUE;
 }
 
 static void intel_bufmgr_fini(intel_screen_private *intel)
 {
+	drm_intel_bo_unreference(intel->wa_scratch_bo);
 	drm_intel_bufmgr_destroy(intel->bufmgr);
 }
 

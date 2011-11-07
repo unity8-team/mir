@@ -78,6 +78,7 @@
 #endif
 
 #define FALLBACK 0
+#define NO_GLYPH_CACHE 0
 #define NO_GLYPHS_TO_DST 0
 #define NO_GLYPHS_VIA_MASK 0
 #define NO_GLYPHS_SLOW 0
@@ -125,7 +126,7 @@ static inline struct sna_glyph *glyph_get_private(GlyphPtr glyph)
 static void unrealize_glyph_caches(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
-	int i;
+	unsigned int i;
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -156,7 +157,7 @@ static Bool realize_glyph_caches(struct sna *sna)
 		PIXMAN_a8,
 		PIXMAN_a8r8g8b8,
 	};
-	int i;
+	unsigned int i;
 
 	DBG(("%s\n", __FUNCTION__));
 
@@ -176,7 +177,7 @@ static Bool realize_glyph_caches(struct sna *sna)
 					      CACHE_PICTURE_SIZE,
 					      CACHE_PICTURE_SIZE,
 					      depth,
-					      CREATE_PIXMAP_USAGE_SCRATCH);
+					      SNA_CREATE_SCRATCH);
 		if (!pixmap)
 			goto bail;
 
@@ -303,6 +304,9 @@ glyph_cache(ScreenPtr screen,
 	struct sna_glyph_cache *cache = &render->glyph[PICT_FORMAT_RGB(glyph_picture->format) != 0];
 	struct sna_glyph *priv;
 	int size, mask, pos, s;
+
+	if (NO_GLYPH_CACHE)
+		return FALSE;
 
 	if (glyph->info.width > GLYPH_MAX_SIZE ||
 	    glyph->info.height > GLYPH_MAX_SIZE) {
@@ -647,19 +651,16 @@ next_glyph:
 	return TRUE;
 }
 
-static Bool
-clear_pixmap(struct sna *sna, PixmapPtr pixmap, PictFormat format)
+static void
+clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 {
-	BoxRec box;
-	xRenderColor color = { 0 };
-
-	box.x1 = box.y1 = 0;
-	box.x2 = pixmap->drawable.width;
-	box.y2 = pixmap->drawable.height;
-
-	return sna->render.fill_boxes(sna, PictOpClear, format, &color,
-				      pixmap, sna_pixmap_get_bo(pixmap),
-				      &box, 1);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	assert(priv->gpu_only);
+	sna->render.fill_one(sna, pixmap, priv->gpu_bo, 0,
+			     0, 0,
+			     pixmap->drawable.width,
+			     pixmap->drawable.height,
+			     GXclear);
 }
 
 static Bool
@@ -717,18 +718,15 @@ glyphs_via_mask(struct sna *sna,
 	src_x += box.x1 - list->xOff;
 	src_y += box.y1 - list->yOff;
 
-	if (format->depth == 1) {
-		PictFormatPtr a8Format =
-			PictureMatchFormat(screen, 8, PICT_a8);
-		if (!a8Format)
+	if (format->depth < 8) {
+		format = PictureMatchFormat(screen, 8, PICT_a8);
+		if (!format)
 			return FALSE;
-
-		format = a8Format;
 	}
 
 	pixmap = screen->CreatePixmap(screen,
 				      width, height, format->depth,
-				      CREATE_PIXMAP_USAGE_SCRATCH);
+				      SNA_CREATE_SCRATCH);
 	if (!pixmap)
 		return FALSE;
 
@@ -741,11 +739,7 @@ glyphs_via_mask(struct sna *sna,
 		return FALSE;
 
 	ValidatePicture(mask);
-
-	if (!clear_pixmap(sna, pixmap, mask->format)) {
-		FreePicture(mask, 0);
-		return FALSE;
-	}
+	clear_pixmap(sna, pixmap);
 
 	memset(&tmp, 0, sizeof(tmp));
 	glyph_atlas = NULL;
@@ -838,6 +832,7 @@ Bool sna_glyphs_init(ScreenPtr screen)
 		return FALSE;
 
 	return TRUE;
+	(void)screen;
 }
 
 Bool sna_glyphs_create(struct sna *sna)
@@ -879,17 +874,9 @@ glyphs_format(int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 			}
 
 			x1 = x - glyph->info.x;
-			if (x1 < MINSHORT)
-				x1 = MINSHORT;
 			y1 = y - glyph->info.y;
-			if (y1 < MINSHORT)
-				y1 = MINSHORT;
 			x2 = x1 + glyph->info.width;
-			if (x2 > MAXSHORT)
-				x2 = MAXSHORT;
 			y2 = y1 + glyph->info.height;
-			if (y2 > MAXSHORT)
-				y2 = MAXSHORT;
 
 			if (first) {
 				extents.x1 = x1;
@@ -958,8 +945,11 @@ glyphs_fallback(CARD8 op,
 	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
 	if (src->pDrawable)
 		sna_drawable_move_to_cpu(src->pDrawable, false);
+	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);
 
 	dst_image = image_from_pict(dst, TRUE, &x, &y);
+	if (dst_image == NULL)
+		goto cleanup_region;
 	DBG(("%s: dst offset (%d, %d)\n", __FUNCTION__, x, y));
 	if (x | y) {
 		region.extents.x1 += x;
@@ -969,28 +959,41 @@ glyphs_fallback(CARD8 op,
 	}
 
 	src_image = image_from_pict(src, FALSE, &dx, &dy);
+	if (src_image == NULL)
+		goto cleanup_dst;
 	DBG(("%s: src offset (%d, %d)\n", __FUNCTION__, dx, dy));
-	src_x += dx - list->xOff - x;
-	src_y += dy - list->yOff - y;
+	src_x += dx - list->xOff;
+	src_y += dy - list->yOff;
 
 	if (mask_format) {
-		DBG(("%s: create mask %dx%dca? %d\n",
+		DBG(("%s: create mask (%d, %d)x(%d,%d) + (%d,%d) + (%d,%d), depth=%d, format=%lx [%lx], ca? %d\n",
 		     __FUNCTION__,
+		     region.extents.x1, region.extents.y1,
 		     region.extents.x2 - region.extents.x1,
 		     region.extents.y2 - region.extents.y1,
+		     dst->pDrawable->x, dst->pDrawable->y,
+		     x, y,
+		     mask_format->depth,
+		     (long)mask_format->format,
+		     (long)(mask_format->depth << 24 | mask_format->format),
 		     NeedsComponent(mask_format->format)));
 		mask_image =
 			pixman_image_create_bits(mask_format->depth << 24 | mask_format->format,
 						 region.extents.x2 - region.extents.x1,
 						 region.extents.y2 - region.extents.y1,
 						 NULL, 0);
+		if (mask_image == NULL)
+			goto cleanup_src;
 		if (NeedsComponent(mask_format->format))
 			pixman_image_set_component_alpha(mask_image, TRUE);
 
 		x -= region.extents.x1;
 		y -= region.extents.y1;
-	} else
+	} else {
 		mask_image = dst_image;
+		src_x -= x;
+		src_y -= y;
+	}
 
 	do {
 		int n = list->len;
@@ -1063,16 +1066,14 @@ next_glyph:
 	} while (--nlist);
 
 	if (mask_format) {
-		DBG(("%s: glyph mask composite src=(%d,%d) dst=(%d, %d)x(%d, %d)\n",
+		DBG(("%s: glyph mask composite src=(%d+%d,%d+%d) dst=(%d, %d)x(%d, %d)\n",
 		     __FUNCTION__,
-		     src_x + region.extents.x1,
-		     src_y + region.extents.y1,
+		     src_x, region.extents.x1, src_y, region.extents.y1,
 		     region.extents.x1, region.extents.y1,
 		     region.extents.x2 - region.extents.x1,
 		     region.extents.y2 - region.extents.y1));
 		pixman_image_composite(op, src_image, mask_image, dst_image,
-				       src_x + region.extents.x1,
-				       src_y + region.extents.y1,
+				       src_x, src_y,
 				       0, 0,
 				       region.extents.x1, region.extents.y1,
 				       region.extents.x2 - region.extents.x1,
@@ -1080,8 +1081,11 @@ next_glyph:
 		pixman_image_unref(mask_image);
 	}
 
+cleanup_src:
 	free_pixman_pict(src, src_image);
+cleanup_dst:
 	free_pixman_pict(dst, dst_image);
+cleanup_region:
 	RegionUninit(&region);
 }
 
@@ -1111,7 +1115,12 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (too_small(sna, dst->pDrawable) && !picture_is_gpu(src)) {
+	if (!is_gpu(dst->pDrawable)) {
+		DBG(("%s: fallback -- no destination bo\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
 		DBG(("%s: fallback -- too small (%dx%d)\n",
 		     __FUNCTION__, dst->pDrawable->width, dst->pDrawable->height));
 		goto fallback;
@@ -1124,7 +1133,7 @@ sna_glyphs(CARD8 op,
 
 	/* XXX discard the mask for non-overlapping glyphs? */
 
-	if (!mask) {
+	if (!mask || (op == PictOpAdd && dst->format == mask->format)) {
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
 				  src_x, src_y,

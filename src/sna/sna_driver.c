@@ -71,6 +71,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/poll.h>
 #include "i915_drm.h"
 
+#if HAVE_DOT_GIT
+#include "git_version.h"
+#endif
+
 #if DEBUG_DRIVER
 #undef DBG
 #define DBG(x) ErrorF x
@@ -745,11 +749,7 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 	xf86_cursors_fini(screen);
 
 	/* XXX unhook devPrivate otherwise fbCloseScreen frees it! */
-	if (sna->front) {
-		screen->DestroyPixmap(sna->front);
-		sna->front = NULL;
-		screen->devPrivate = NULL;
-	}
+	screen->devPrivate = NULL;
 
 	screen->CloseScreen = sna->CloseScreen;
 	(*screen->CloseScreen) (scrnIndex, screen);
@@ -760,6 +760,10 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 	}
 
 	sna_mode_remove_fb(sna);
+	if (sna->front) {
+		screen->DestroyPixmap(sna->front);
+		sna->front = NULL;
+	}
 	xf86GARTCloseScreen(scrnIndex);
 
 	scrn->vtSema = FALSE;
@@ -1012,6 +1016,14 @@ static Bool sna_pm_event(int scrnIndex, pmEvent event, Bool undo)
 void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
 	EntityInfoPtr entity;
+
+#if defined(USE_GIT_DESCRIBE)
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled from %s\n", git_version);
+#elif BUILDER_DESCRIPTION
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
+#endif
 
 	DBG(("%s\n", __FUNCTION__));
 

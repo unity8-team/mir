@@ -182,7 +182,6 @@ i965_check_composite(int op,
 		     int width, int height)
 {
 	ScrnInfoPtr scrn = xf86Screens[dest_picture->pDrawable->pScreen->myNum];
-	intel_screen_private *intel = intel_get_screen_private(scrn);
 
 	/* Check for unsupported compositing operations. */
 	if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0])) {
@@ -604,17 +603,19 @@ static const uint32_t ps_kernel_masknoca_projective_static_gen7[][4] = {
 
 
 typedef enum {
-	SAMPLER_STATE_FILTER_NEAREST,
-	SAMPLER_STATE_FILTER_BILINEAR,
-	FILTER_COUNT
+	SS_INVALID_FILTER = -1,
+	SS_FILTER_NEAREST,
+	SS_FILTER_BILINEAR,
+	FILTER_COUNT,
 } sampler_state_filter_t;
 
 typedef enum {
-	SAMPLER_STATE_EXTEND_NONE,
-	SAMPLER_STATE_EXTEND_REPEAT,
-	SAMPLER_STATE_EXTEND_PAD,
-	SAMPLER_STATE_EXTEND_REFLECT,
-	EXTEND_COUNT
+	SS_INVALID_EXTEND = -1,
+	SS_EXTEND_NONE,
+	SS_EXTEND_REPEAT,
+	SS_EXTEND_PAD,
+	SS_EXTEND_REFLECT,
+	EXTEND_COUNT,
 } sampler_state_extend_t;
 
 typedef enum {
@@ -861,11 +862,11 @@ gen4_sampler_state_init(drm_intel_bo * sampler_state_bo,
 
 	switch (filter) {
 	default:
-	case SAMPLER_STATE_FILTER_NEAREST:
+	case SS_FILTER_NEAREST:
 		sampler_state->ss0.min_filter = BRW_MAPFILTER_NEAREST;
 		sampler_state->ss0.mag_filter = BRW_MAPFILTER_NEAREST;
 		break;
-	case SAMPLER_STATE_FILTER_BILINEAR:
+	case SS_FILTER_BILINEAR:
 		sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
 		sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
 		break;
@@ -873,22 +874,22 @@ gen4_sampler_state_init(drm_intel_bo * sampler_state_bo,
 
 	switch (extend) {
 	default:
-	case SAMPLER_STATE_EXTEND_NONE:
+	case SS_EXTEND_NONE:
 		sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
 		sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
 		sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
 		break;
-	case SAMPLER_STATE_EXTEND_REPEAT:
+	case SS_EXTEND_REPEAT:
 		sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 		sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 		sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 		break;
-	case SAMPLER_STATE_EXTEND_PAD:
+	case SS_EXTEND_PAD:
 		sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 		sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 		sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 		break;
-	case SAMPLER_STATE_EXTEND_REFLECT:
+	case SS_EXTEND_REFLECT:
 		sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
 		sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
 		sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
@@ -927,11 +928,11 @@ gen7_sampler_state_init(drm_intel_bo * sampler_state_bo,
 
 	switch (filter) {
 	default:
-	case SAMPLER_STATE_FILTER_NEAREST:
+	case SS_FILTER_NEAREST:
 		sampler_state->ss0.min_filter = BRW_MAPFILTER_NEAREST;
 		sampler_state->ss0.mag_filter = BRW_MAPFILTER_NEAREST;
 		break;
-	case SAMPLER_STATE_FILTER_BILINEAR:
+	case SS_FILTER_BILINEAR:
 		sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
 		sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
 		break;
@@ -939,22 +940,22 @@ gen7_sampler_state_init(drm_intel_bo * sampler_state_bo,
 
 	switch (extend) {
 	default:
-	case SAMPLER_STATE_EXTEND_NONE:
+	case SS_EXTEND_NONE:
 		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
 		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
 		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
 		break;
-	case SAMPLER_STATE_EXTEND_REPEAT:
+	case SS_EXTEND_REPEAT:
 		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 		break;
-	case SAMPLER_STATE_EXTEND_PAD:
+	case SS_EXTEND_PAD:
 		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 		break;
-	case SAMPLER_STATE_EXTEND_REFLECT:
+	case SS_EXTEND_REFLECT:
 		sampler_state->ss3.r_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
 		sampler_state->ss3.s_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
 		sampler_state->ss3.t_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
@@ -1244,11 +1245,11 @@ static sampler_state_filter_t sampler_state_filter_from_picture(int filter)
 {
 	switch (filter) {
 	case PictFilterNearest:
-		return SAMPLER_STATE_FILTER_NEAREST;
+		return SS_FILTER_NEAREST;
 	case PictFilterBilinear:
-		return SAMPLER_STATE_FILTER_BILINEAR;
+		return SS_FILTER_BILINEAR;
 	default:
-		return -1;
+		return SS_INVALID_FILTER;
 	}
 }
 
@@ -1256,15 +1257,15 @@ static sampler_state_extend_t sampler_state_extend_from_picture(int repeat_type)
 {
 	switch (repeat_type) {
 	case RepeatNone:
-		return SAMPLER_STATE_EXTEND_NONE;
+		return SS_EXTEND_NONE;
 	case RepeatNormal:
-		return SAMPLER_STATE_EXTEND_REPEAT;
+		return SS_EXTEND_REPEAT;
 	case RepeatPad:
-		return SAMPLER_STATE_EXTEND_PAD;
+		return SS_EXTEND_PAD;
 	case RepeatReflect:
-		return SAMPLER_STATE_EXTEND_REFLECT;
+		return SS_EXTEND_REFLECT;
 	default:
-		return -1;
+		return SS_INVALID_EXTEND;
 	}
 }
 
@@ -2015,14 +2016,14 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 
 	composite_op->src_filter =
 	    sampler_state_filter_from_picture(source_picture->filter);
-	if (composite_op->src_filter < 0) {
+	if (composite_op->src_filter == SS_INVALID_FILTER) {
 		intel_debug_fallback(scrn, "Bad src filter 0x%x\n",
 				     source_picture->filter);
 		return FALSE;
 	}
 	composite_op->src_extend =
 	    sampler_state_extend_from_picture(source_picture->repeatType);
-	if (composite_op->src_extend < 0) {
+	if (composite_op->src_extend == SS_INVALID_EXTEND) {
 		intel_debug_fallback(scrn, "Bad src repeat 0x%x\n",
 				     source_picture->repeatType);
 		return FALSE;
@@ -2047,21 +2048,21 @@ i965_prepare_composite(int op, PicturePtr source_picture,
 
 		composite_op->mask_filter =
 		    sampler_state_filter_from_picture(mask_picture->filter);
-		if (composite_op->mask_filter < 0) {
+		if (composite_op->mask_filter == SS_INVALID_FILTER) {
 			intel_debug_fallback(scrn, "Bad mask filter 0x%x\n",
 					     mask_picture->filter);
 			return FALSE;
 		}
 		composite_op->mask_extend =
 		    sampler_state_extend_from_picture(mask_picture->repeatType);
-		if (composite_op->mask_extend < 0) {
+		if (composite_op->mask_extend == SS_INVALID_EXTEND) {
 			intel_debug_fallback(scrn, "Bad mask repeat 0x%x\n",
 					     mask_picture->repeatType);
 			return FALSE;
 		}
 	} else {
-		composite_op->mask_filter = SAMPLER_STATE_FILTER_NEAREST;
-		composite_op->mask_extend = SAMPLER_STATE_EXTEND_NONE;
+		composite_op->mask_filter = SS_FILTER_NEAREST;
+		composite_op->mask_extend = SS_EXTEND_NONE;
 	}
 
 	/* Flush any pending writes prior to relocating the textures. */

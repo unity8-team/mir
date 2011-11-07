@@ -298,7 +298,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 			    intptr_t		match_data)
 {
 	ScrnInfoPtr scrn;
-	PciChipsets intel_pci_chipsets[ARRAY_SIZE(intel_chipsets)];
+	PciChipsets intel_pci_chipsets[ARRAY_SIZE(_intel_chipsets)];
 	int i;
 
 	chipset_info = (void *)match_data;
@@ -319,7 +319,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 #endif
 	}
 
-	for (i = 0; i < ARRAY_SIZE(intel_chipsets); i++) {
+	for (i = 0; i < ARRAY_SIZE(_intel_chipsets); i++) {
 		intel_pci_chipsets[i].numChipset = intel_chipsets[i].token;
 		intel_pci_chipsets[i].PCIid = intel_chipsets[i].token;
 		intel_pci_chipsets[i].dummy = NULL;

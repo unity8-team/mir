@@ -1,9 +1,9 @@
 #ifndef SNA_RENDER_H
 #define SNA_RENDER_H
 
-#define GRADIENT_CACHE_SIZE 16
+#include "compiler.h"
 
-#define fastcall __attribute__((regparm(3)))
+#define GRADIENT_CACHE_SIZE 16
 
 struct sna;
 struct sna_glyph;
@@ -20,6 +20,9 @@ struct sna_composite_rectangles {
 struct sna_composite_op {
 	fastcall void (*blt)(struct sna *sna, const struct sna_composite_op *op,
 			     const struct sna_composite_rectangles *r);
+	fastcall void (*box)(struct sna *sna,
+			     const struct sna_composite_op *op,
+			     const BoxRec *box);
 	void (*boxes)(struct sna *sna, const struct sna_composite_op *op,
 		      const BoxRec *box, int nbox);
 	void (*done)(struct sna *sna, const struct sna_composite_op *op);
@@ -69,7 +72,8 @@ struct sna_composite_op {
 	uint32_t need_magic_ca_pass : 1;
 	uint32_t rb_reversed : 1;
 
-	int floats_per_vertex;
+	int16_t floats_per_vertex;
+	int16_t floats_per_rect;
 	fastcall void (*prim_emit)(struct sna *sna,
 				   const struct sna_composite_op *op,
 				   const struct sna_composite_rectangles *r);
@@ -86,6 +90,7 @@ struct sna_composite_op {
 
 			uint32_t inplace :1;
 			uint32_t overwrites:1;
+			uint32_t bpp : 6;
 
 			uint32_t cmd;
 			uint32_t br13;
@@ -93,10 +98,6 @@ struct sna_composite_op {
 			uint32_t pixel;
 			struct kgem_bo *bo[2];
 		} blt;
-
-		struct {
-			uint32_t pixel;
-		} gen2;
 
 		struct {
 			float constants[8];
@@ -134,17 +135,21 @@ struct sna_composite_op {
 struct sna_composite_spans_op {
 	struct sna_composite_op base;
 
-	void (*box)(struct sna *sna, const struct sna_composite_spans_op *op,
-		    const BoxRec *box, float opacity);
-	void (*boxes)(struct sna *sna, const struct sna_composite_spans_op *op,
+	fastcall void (*box)(struct sna *sna,
+			     const struct sna_composite_spans_op *op,
+			     const BoxRec *box,
+			     float opacity);
+	void (*boxes)(struct sna *sna,
+		      const struct sna_composite_spans_op *op,
 		      const BoxRec *box, int nbox,
 		      float opacity);
-	void (*done)(struct sna *sna, const struct sna_composite_spans_op *op);
+	fastcall void (*done)(struct sna *sna,
+			      const struct sna_composite_spans_op *op);
 
-	void (*prim_emit)(struct sna *sna,
-			  const struct sna_composite_spans_op *op,
-			  const BoxRec *box,
-			  float opacity);
+	fastcall void (*prim_emit)(struct sna *sna,
+				   const struct sna_composite_spans_op *op,
+				   const BoxRec *box,
+				   float opacity);
 };
 
 struct sna_fill_op {
@@ -152,6 +157,13 @@ struct sna_fill_op {
 
 	void (*blt)(struct sna *sna, const struct sna_fill_op *op,
 		    int16_t x, int16_t y, int16_t w, int16_t h);
+	fastcall void (*box)(struct sna *sna,
+			     const struct sna_fill_op *op,
+			     const BoxRec *box);
+	fastcall void (*boxes)(struct sna *sna,
+			       const struct sna_fill_op *op,
+			       const BoxRec *box,
+			       int count);
 	void (*done)(struct sna *sna, const struct sna_fill_op *op);
 };
 
@@ -201,6 +213,10 @@ struct sna_render {
 		     PixmapPtr dst, struct kgem_bo *dst_bo,
 		     uint32_t color,
 		     struct sna_fill_op *tmp);
+	Bool (*fill_one)(struct sna *sna, PixmapPtr dst, struct kgem_bo *dst_bo,
+			 uint32_t color,
+			 int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+			 uint8_t alu);
 
 	Bool (*copy_boxes)(struct sna *sna, uint8_t alu,
 			   PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
@@ -214,6 +230,11 @@ struct sna_render {
 	void (*flush)(struct sna *sna);
 	void (*reset)(struct sna *sna);
 	void (*fini)(struct sna *sna);
+
+	struct sna_alpha_cache {
+		struct kgem_bo *cache_bo;
+		struct kgem_bo *bo[256];
+	} alpha_cache;
 
 	struct sna_solid_cache {
 		struct kgem_bo *cache_bo;
@@ -253,6 +274,9 @@ struct gen2_render_state {
 	uint32_t target;
 	Bool need_invariant;
 	Bool logic_op_enabled;
+	uint32_t ls1, ls2, vft;
+	uint32_t diffuse;
+	uint32_t specular;
 	uint16_t vertex_offset;
 };
 
@@ -454,8 +478,7 @@ Bool gen5_render_init(struct sna *sna);
 Bool gen6_render_init(struct sna *sna);
 Bool gen7_render_init(struct sna *sna);
 
-Bool sna_tiling_composite(struct sna *sna,
-			  uint32_t op,
+Bool sna_tiling_composite(uint32_t op,
 			  PicturePtr src,
 			  PicturePtr mask,
 			  PicturePtr dst,
@@ -546,5 +569,8 @@ sna_render_composite_redirect(struct sna *sna,
 void
 sna_render_composite_redirect_done(struct sna *sna,
 				   const struct sna_composite_op *op);
+
+bool
+sna_composite_mask_is_opaque(PicturePtr mask);
 
 #endif /* SNA_RENDER_H */

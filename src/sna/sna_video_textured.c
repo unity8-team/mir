@@ -66,8 +66,9 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] = {
 	{15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
-#define NUM_TEXTURED_ATTRIBUTES 3
-static XF86AttributeRec TexturedAttributes[NUM_TEXTURED_ATTRIBUTES] = {
+//#define NUM_TEXTURED_ATTRIBUTES 3
+#define NUM_TEXTURED_ATTRIBUTES 0
+static XF86AttributeRec TexturedAttributes[] = {
 	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
 	{XvSettable | XvGettable, -1, 1, "XV_SYNC_TO_VBLANK"},
@@ -120,6 +121,7 @@ static int xvmc_passthrough(int id)
 	return id == FOURCC_XVMC;
 #else
 	return 0;
+	(void)id;
 #endif
 }
 
@@ -239,6 +241,9 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	xf86CrtcPtr crtc;
 	int top, left, npixels, nlines;
 	Bool flush = false;
+
+	if (!sna_pixmap(pixmap))
+		return BadAlloc;
 
 	if (!sna_video_clip_helper(scrn, video, &crtc, &dstBox,
 				   src_x, src_y, drw_x, drw_y,
@@ -377,6 +382,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	adaptor = calloc(1, sizeof(XF86VideoAdaptorRec));
 	video = calloc(nports, sizeof(struct sna_video));
 	devUnions = calloc(nports, sizeof(DevUnion));
+#if NUM_TEXTURED_ATTRIBUTES
 	attrs = calloc(NUM_TEXTURED_ATTRIBUTES, sizeof(XF86AttributeRec));
 	if (adaptor == NULL ||
 	    video == NULL ||
@@ -388,6 +394,15 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 		free(attrs);
 		return NULL;
 	}
+#else
+	if (adaptor == NULL || video == NULL || devUnions == NULL) {
+		free(adaptor);
+		free(video);
+		free(devUnions);
+		return NULL;
+	}
+	attrs = NULL;
+#endif
 
 	adaptor->type = XvWindowMask | XvInputMask | XvImageMask;
 	adaptor->flags = 0;

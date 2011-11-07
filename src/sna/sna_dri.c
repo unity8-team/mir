@@ -153,7 +153,9 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 		list_add(&priv->list, &sna->dirty_pixmaps);
 
 	/* The bo is outside of our control, so presume it is written to */
-	priv->gpu_bo->needs_flush = 1;
+	priv->gpu_bo->needs_flush = true;
+	priv->gpu_bo->reusable = false;
+	priv->gpu_bo->gpu = true;
 
 	/* We need to submit any modifications to and reads from this
 	 * buffer before we send any reply to the Client.
@@ -196,12 +198,13 @@ sna_dri_create_buffer(DrawablePtr drawable,
 
 	pixmap = NULL;
 	bo = NULL;
-	usage = CREATE_PIXMAP_USAGE_SCRATCH;
+	usage = SNA_CREATE_SCRATCH;
 	switch (attachment) {
 	case DRI2BufferFrontLeft:
 		pixmap = get_drawable_pixmap(drawable);
 		pixmap->refcnt++;
 		bo = sna_pixmap_set_dri(sna, pixmap);
+		bo->reusable = true;
 		bpp = pixmap->drawable.bitsPerPixel;
 		DBG(("%s: attaching to front buffer %dx%d [%p:%d]\n",
 		     __FUNCTION__,
@@ -315,8 +318,18 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 	struct sna_dri_private *private = buffer->driverPrivate;
 
 	if (--private->refcnt == 0) {
+		private->bo->gpu = private->bo->needs_flush || private->bo->rq != NULL;
+		private->bo->flush = 0;
+
 		if (private->pixmap) {
 			ScreenPtr screen = private->pixmap->drawable.pScreen;
+			struct sna_pixmap *priv = sna_pixmap(private->pixmap);
+
+			/* Undo the DRI markings on this pixmap */
+			list_del(&priv->list);
+			priv->pinned = private->pixmap == sna->front;
+			priv->flush = 0;
+
 			screen->DestroyPixmap(private->pixmap);
 		} else
 			kgem_bo_destroy(&sna->kgem, private->bo);
@@ -339,7 +352,7 @@ static void sna_dri_reference_buffer(DRI2Buffer2Ptr buffer)
 	private->refcnt++;
 }
 
-static void damage(DrawablePtr drawable, PixmapPtr pixmap, RegionPtr region)
+static void damage(PixmapPtr pixmap, RegionPtr region)
 {
 	struct sna_pixmap *priv;
 	BoxPtr box;
@@ -461,6 +474,22 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		get_drawable_deltas(draw, dst, &dx, &dy);
 	}
 
+	if (sna->kgem.gen >= 60) {
+		/* Sandybridge introduced a separate ring which it uses to
+		 * perform blits. Switching rendering between rings incurs
+		 * a stall as we wait upon the old ring to finish and
+		 * flush its render cache before we can proceed on with
+		 * the operation on the new ring.
+		 *
+		 * As this buffer, we presume, has just been written to by
+		 * the DRI client using the RENDER ring, we want to perform
+		 * our operation on the same ring, and ideally on the same
+		 * ring as we will flip from (which should be the RENDER ring
+		 * as well).
+		 */
+		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	}
+
 	if (region) {
 		boxes = REGION_RECTS(region);
 		n = REGION_NUM_RECTS(region);
@@ -492,7 +521,7 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		pixman_region_translate(region, dx, dy);
 		DamageRegionAppend(&dst->drawable, region);
 		DamageRegionProcessPending(&dst->drawable);
-		damage(draw, dst, region);
+		damage(dst, region);
 	}
 
 	if (region == &clip)
@@ -567,6 +596,9 @@ get_resource(XID id, RESTYPE type)
 		return NULL;
 	}
 
+	DBG(("%s(%ld): new(%ld)=%p\n", __FUNCTION__,
+	     (long)id, (long)type, resource));
+
 	list_init(resource);
 	return resource;
 }
@@ -576,13 +608,16 @@ sna_dri_frame_event_client_gone(void *data, XID id)
 {
 	struct list *resource = data;
 
-	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
+	DBG(("%s(%ld): %p\n", __FUNCTION__, (long)id, data));
 
 	while (!list_is_empty(resource)) {
 		struct sna_dri_frame_event *info =
 			list_first_entry(resource,
 					 struct sna_dri_frame_event,
 					 client_resource);
+
+		DBG(("%s: marking client gone [%p]: %p\n",
+		     __FUNCTION__, info, info->client));
 
 		list_del(&info->client_resource);
 		info->client = NULL;
@@ -597,13 +632,16 @@ sna_dri_frame_event_drawable_gone(void *data, XID id)
 {
 	struct list *resource = data;
 
-	DBG(("%s(%ld)\n", __FUNCTION__, (long)id));
+	DBG(("%s(%ld): resource=%p\n", __FUNCTION__, (long)id, resource));
 
 	while (!list_is_empty(resource)) {
 		struct sna_dri_frame_event *info =
 			list_first_entry(resource,
 					 struct sna_dri_frame_event,
 					 drawable_resource);
+
+		DBG(("%s: marking drawable gone [%p]: %ld\n",
+		     __FUNCTION__, info, (long)info->drawable_id));
 
 		list_del(&info->drawable_resource);
 		info->drawable_id = None;
@@ -668,12 +706,18 @@ sna_dri_add_frame_event(struct sna_dri_frame_event *info)
 
 	list_add(&info->drawable_resource, resource);
 
+	DBG(("%s: add[%p] (%p, %ld)\n", __FUNCTION__,
+	     info, info->client, (long)info->drawable_id));
+
 	return TRUE;
 }
 
 static void
 sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 {
+	DBG(("%s: del[%p] (%p, %ld)\n", __FUNCTION__,
+	     info, info->client, (long)info->drawable_id));
+
 	list_del(&info->client_resource);
 	list_del(&info->drawable_resource);
 
@@ -685,9 +729,7 @@ sna_dri_frame_event_info_free(struct sna_dri_frame_event *info)
 }
 
 static void
-sna_dri_exchange_buffers(DrawablePtr draw,
-			 DRI2BufferPtr front,
-			 DRI2BufferPtr back)
+sna_dri_exchange_buffers(DRI2BufferPtr front, DRI2BufferPtr back)
 {
 	int tmp;
 
@@ -704,9 +746,7 @@ sna_dri_exchange_buffers(DrawablePtr draw,
  * flipping buffers as necessary.
  */
 static Bool
-sna_dri_schedule_flip(struct sna *sna,
-		      DrawablePtr draw,
-		      struct sna_dri_frame_event *info)
+sna_dri_schedule_flip(struct sna *sna, struct sna_dri_frame_event *info)
 {
 	struct sna_dri_private *back_priv;
 
@@ -873,8 +913,8 @@ static void sna_dri_vblank_handle(int fd,
 	case DRI2_FLIP:
 		/* If we can still flip... */
 		if (can_flip(sna, draw, info->front, info->back) &&
-		    sna_dri_schedule_flip(sna, draw, info)) {
-			sna_dri_exchange_buffers(draw, info->front, info->back);
+		    sna_dri_schedule_flip(sna, info)) {
+			sna_dri_exchange_buffers(info->front, info->back);
 			return;
 		}
 		/* else fall through to exchange/blit */
@@ -915,6 +955,7 @@ static void set_pixmap(struct sna *sna, DRI2BufferPtr buffer, PixmapPtr pixmap)
 	priv->pixmap->refcnt--;
 	priv->pixmap = pixmap;
 	priv->bo = sna_pixmap_set_dri(sna, pixmap);
+	priv->bo->reusable = true;
 	buffer->name = kgem_bo_flink(&sna->kgem, priv->bo);
 	buffer->pitch = priv->bo->pitch;
 }
@@ -927,7 +968,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 	PixmapPtr pixmap;
 
 	if (NO_TRIPPLE_BUFFER)
-		return sna_dri_schedule_flip(sna, draw, info);
+		return sna_dri_schedule_flip(sna, info);
 
 	info->type = DRI2_FLIP_THROTTLE;
 
@@ -939,7 +980,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 			 * take over.
 			 */
 			info->type = DRI2_FLIP;
-			return sna_dri_schedule_flip(sna, draw, info);
+			return sna_dri_schedule_flip(sna, info);
 		}
 
 		DBG(("%s: chaining flip\n", __FUNCTION__));
@@ -948,7 +989,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 		return TRUE;
 	}
 
-	if (!sna_dri_schedule_flip(sna, draw, info))
+	if (!sna_dri_schedule_flip(sna, info))
 		return FALSE;
 
 	info->old_front =
@@ -964,7 +1005,7 @@ sna_dri_flip(struct sna *sna, DrawablePtr draw, struct sna_dri_frame_event *info
 		set_pixmap(sna, info->front, pixmap);
 	}
 
-	sna_dri_exchange_buffers(draw, info->front, info->back);
+	sna_dri_exchange_buffers(info->front, info->back);
 	DRI2SwapComplete(info->client, draw, 0, 0, 0,
 			 DRI2_EXCHANGE_COMPLETE,
 			 info->event_complete,
@@ -1188,7 +1229,7 @@ sna_dri_schedule_swap(ClientPtr client, DrawablePtr draw, DRI2BufferPtr front,
 		pixmap = sna_set_screen_pixmap(sna, back_priv->pixmap);
 		assert(pixmap->refcnt > 1);
 		pixmap->refcnt--;
-		sna_dri_exchange_buffers(draw, front, back);
+		sna_dri_exchange_buffers(front, back);
 		DRI2SwapComplete(client, draw, 0, 0, 0,
 				 DRI2_EXCHANGE_COMPLETE, func, data);
 		return TRUE;
@@ -1455,7 +1496,7 @@ exchange:
 	pixmap = sna_set_screen_pixmap(sna, back_priv->pixmap);
 	screen->DestroyPixmap(pixmap);
 
-	sna_dri_exchange_buffers(draw, front, back);
+	sna_dri_exchange_buffers(front, back);
 	DRI2SwapComplete(client, draw, 0, 0, 0, type, func, data);
 }
 #endif
@@ -1653,7 +1694,7 @@ out_complete:
 }
 #endif
 
-static int dri2_server_generation;
+static unsigned int dri2_server_generation;
 
 Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 {
@@ -1708,19 +1749,24 @@ Bool sna_dri_open(struct sna *sna, ScreenPtr screen)
 
 	info.CopyRegion = sna_dri_copy_region;
 #if DRI2INFOREC_VERSION >= 4
-	{
-	    info.version = 4;
-	    info.ScheduleSwap = sna_dri_schedule_swap;
-	    info.GetMSC = sna_dri_get_msc;
-	    info.ScheduleWaitMSC = sna_dri_schedule_wait_msc;
-	    info.numDrivers = 1;
-	    info.driverNames = driverNames;
-	    driverNames[0] = info.driverName;
-#if DRI2INFOREC_VERSION >= 6
-	    info.version = 6;
-	    info.AsyncSwap = sna_dri_async_swap;
+	info.version = 4;
+	info.ScheduleSwap = sna_dri_schedule_swap;
+	info.GetMSC = sna_dri_get_msc;
+	info.ScheduleWaitMSC = sna_dri_schedule_wait_msc;
+	info.numDrivers = 1;
+	info.driverNames = driverNames;
+	driverNames[0] = info.driverName;
 #endif
-	}
+
+#if DRI2INFOREC_VERSION >= 6
+	info.version = 6;
+	info.SwapLimitValidate = NULL;
+	info.ReuseBufferNotify = NULL;
+#endif
+
+#if DRI2INFOREC_VERSION >= 7
+	info.version = 7;
+	info.AsyncSwap = sna_dri_async_swap;
 #endif
 
 	return DRI2ScreenInit(screen, &info);

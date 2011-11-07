@@ -93,7 +93,7 @@ void sna_read_boxes(struct sna *sna,
 	     dst->drawable.width, dst->drawable.height, dst_dx, dst_dy));
 
 	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_is_busy(kgem, src_bo) ||
+	    !kgem_bo_is_busy(src_bo) ||
 	    src_bo->tiling == I915_TILING_Y) {
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
@@ -143,8 +143,10 @@ void sna_read_boxes(struct sna *sna,
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL))
+	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
 
 	tmp_nbox = nbox;
 	tmp_box = box;
@@ -196,13 +198,17 @@ void sna_read_boxes(struct sna *sna,
 
 			offset += pitch * height;
 		}
-		tmp_box += nbox_this_time;
 
 		_kgem_submit(kgem);
-	} while (tmp_nbox);
+		if (!tmp_nbox)
+			break;
+
+		_kgem_set_mode(kgem, KGEM_BLT);
+		tmp_box += nbox_this_time;
+	} while (1);
 	assert(offset == dst_bo->size);
 
-	kgem_buffer_sync(kgem, dst_bo);
+	kgem_buffer_read_sync(kgem, dst_bo);
 
 	src = ptr;
 	do {
@@ -234,6 +240,7 @@ void sna_read_boxes(struct sna *sna,
 	} while (--nbox);
 	assert(src - (char *)ptr == dst_bo->size);
 	kgem_bo_destroy(kgem, dst_bo);
+	sna->blt_state.fill_bo = 0;
 }
 
 static void write_boxes_inplace(struct kgem *kgem,
@@ -285,7 +292,7 @@ void sna_write_boxes(struct sna *sna,
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
 	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_is_busy(kgem, dst_bo) ||
+	    !kgem_bo_is_busy(dst_bo) ||
 	    dst_bo->tiling == I915_TILING_Y) {
 		write_boxes_inplace(kgem,
 				    src, stride, bpp, src_dx, src_dy,
@@ -314,8 +321,10 @@ void sna_write_boxes(struct sna *sna,
 	if (kgem->nexec + 2 > KGEM_EXEC_SIZE(kgem) ||
 	    kgem->nreloc + 2 > KGEM_RELOC_SIZE(kgem) ||
 	    !kgem_check_batch(kgem, 8) ||
-	    !kgem_check_bo_fenced(kgem, dst_bo, NULL))
+	    !kgem_check_bo_fenced(kgem, dst_bo, NULL)) {
 		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
 
 	do {
 		int nbox_this_time;
@@ -339,7 +348,7 @@ void sna_write_boxes(struct sna *sna,
 		}
 
 		src_bo = kgem_create_buffer(kgem, offset,
-					    KGEM_BUFFER_WRITE | KGEM_BUFFER_LAST,
+					    KGEM_BUFFER_WRITE | (nbox ? KGEM_BUFFER_LAST : 0),
 					    &ptr);
 		if (!src_bo)
 			break;
@@ -394,13 +403,15 @@ void sna_write_boxes(struct sna *sna,
 		} while (--nbox_this_time);
 		assert(offset == src_bo->size);
 
-		if (nbox)
+		if (nbox) {
 			_kgem_submit(kgem);
+			_kgem_set_mode(kgem, KGEM_BLT);
+		}
 
 		kgem_bo_destroy(kgem, src_bo);
 	} while (nbox);
 
-	_kgem_set_mode(kgem, KGEM_BLT);
+	sna->blt_state.fill_bo = 0;
 }
 
 struct kgem_bo *sna_replace(struct sna *sna,
@@ -415,7 +426,7 @@ struct kgem_bo *sna_replace(struct sna *sna,
 	     __FUNCTION__, bo->handle, width, height, bpp, bo->tiling));
 
 	assert(bo->reusable);
-	if (kgem_bo_is_busy(kgem, bo)) {
+	if (kgem_bo_is_busy(bo)) {
 		struct kgem_bo *new_bo;
 
 		new_bo = kgem_create_2d(kgem,

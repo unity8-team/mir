@@ -51,6 +51,9 @@
 #define NDEBUG 1
 #endif
 
+#define DBG_NO_STATE_CACHE 0
+#define DBG_NO_SURFACE_CACHE 0
+
 #define GEN5_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 
 /* Set up a default static partitioning of the URB, which is supposed to
@@ -339,7 +342,7 @@ static void gen5_vertex_flush(struct sna *sna)
 static void gen5_vertex_finish(struct sna *sna, Bool last)
 {
 	struct kgem_bo *bo;
-	int i, delta;
+	unsigned int i, delta;
 
 	gen5_vertex_flush(sna);
 	if (!sna->render.vertex_used)
@@ -581,7 +584,7 @@ sampler_state_init(struct gen5_sampler_state *sampler_state,
 
 static uint32_t gen5_get_card_format(PictFormat format)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(gen5_tex_formats); i++) {
 		if (gen5_tex_formats[i].pict_fmt == format)
@@ -645,6 +648,17 @@ static bool gen5_check_repeat(PicturePtr picture)
 	}
 }
 
+static uint32_t
+gen5_tiling_bits(uint32_t tiling)
+{
+	switch (tiling) {
+	default: assert(0);
+	case I915_TILING_NONE: return 0;
+	case I915_TILING_X: return GEN5_SURFACE_TILED;
+	case I915_TILING_Y: return GEN5_SURFACE_TILED | GEN5_SURFACE_TILED_Y;
+	}
+}
+
 /**
  * Sets up the common fields for a surface state buffer for the given
  * picture in the given surface state buffer.
@@ -657,9 +671,9 @@ gen5_bind_bo(struct sna *sna,
 	     uint32_t format,
 	     Bool is_dst)
 {
-	struct gen5_surface_state *ss;
 	uint32_t domains;
 	uint16_t offset;
+	uint32_t *ss;
 
 	/* After the first bind, we manage the cache domains within the batch */
 	if (is_dst) {
@@ -674,12 +688,12 @@ gen5_bind_bo(struct sna *sna,
 	offset *= sizeof(uint32_t);
 
 	if (is_dst) {
-		if (bo->dst_bound)
+		if (!DBG_NO_SURFACE_CACHE && bo->dst_bound)
 			return bo->dst_bound;
 
 		bo->dst_bound = offset;
 	} else {
-		if (bo->src_bound)
+		if (!DBG_NO_SURFACE_CACHE && bo->src_bound)
 			return bo->src_bound;
 
 		bo->src_bound = offset;
@@ -687,27 +701,26 @@ gen5_bind_bo(struct sna *sna,
 
 	sna->kgem.surface -=
 		sizeof(struct gen5_surface_state_padded) / sizeof(uint32_t);
-	ss = memset(sna->kgem.batch + sna->kgem.surface, 0, sizeof(*ss));
+	ss = sna->kgem.batch + sna->kgem.surface;
 
-	ss->ss0.surface_type = GEN5_SURFACE_2D;
-	ss->ss0.surface_format = format;
+	ss[0] = (GEN5_SURFACE_2D << GEN5_SURFACE_TYPE_SHIFT |
+		 GEN5_SURFACE_BLEND_ENABLED |
+		 format << GEN5_SURFACE_FORMAT_SHIFT);
 
-	ss->ss0.data_return_format = GEN5_SURFACERETURNFORMAT_FLOAT32;
-	ss->ss0.color_blend = 1;
-	ss->ss1.base_addr =
-		kgem_add_reloc(&sna->kgem,
+	ss[1] = kgem_add_reloc(&sna->kgem,
 			       sna->kgem.surface + 1,
 			       bo, domains, 0);
 
-	ss->ss2.height = height - 1;
-	ss->ss2.width  = width - 1;
-	ss->ss3.pitch = bo->pitch - 1;
-	ss->ss3.tile_walk = bo->tiling == I915_TILING_Y;
-	ss->ss3.tiled_surface = bo->tiling != I915_TILING_NONE;
+	ss[2] = ((width - 1)  << GEN5_SURFACE_WIDTH_SHIFT |
+		 (height - 1) << GEN5_SURFACE_HEIGHT_SHIFT);
+	ss[3] = (gen5_tiling_bits(bo->tiling) |
+		 (bo->pitch - 1) << GEN5_SURFACE_PITCH_SHIFT);
+	ss[4] = 0;
+	ss[5] = 0;
 
 	DBG(("[%x] bind bo(handle=%d, addr=%d), format=%d, width=%d, height=%d, pitch=%d, tiling=%d -> %s\n",
-	     offset, bo->handle, ss->ss1.base_addr,
-	     ss->ss0.surface_format, width, height, bo->pitch, bo->tiling,
+	     offset, bo->handle, ss[1],
+	     format, width, height, bo->pitch, bo->tiling,
 	     domains & 0xffff ? "render" : "sampler"));
 
 	return offset;
@@ -1111,7 +1124,6 @@ inline static int gen5_get_rectangles(struct sna *sna,
 
 static uint32_t *
 gen5_composite_get_binding_table(struct sna *sna,
-				 const struct sna_composite_op *op,
 				 uint16_t *offset)
 {
 	uint32_t *table;
@@ -1207,8 +1219,11 @@ gen5_emit_invariant(struct sna *sna)
 {
 	/* Ironlake errata workaround: Before disabling the clipper,
 	 * you have to MI_FLUSH to get the pipeline idle.
+	 *
+	 * However, the kernel flushes the pipeline between batches,
+	 * so we should be safe....
+	 * OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 	 */
-	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 	OUT_BATCH(GEN5_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
 	gen5_emit_sip(sna);
@@ -1251,7 +1266,8 @@ gen5_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 static void
 gen5_emit_binding_table(struct sna *sna, uint16_t offset)
 {
-	if (sna->render_state.gen5.surface_table == offset)
+	if (!DBG_NO_STATE_CACHE &&
+	    sna->render_state.gen5.surface_table == offset)
 		return;
 
 	sna->render_state.gen5.surface_table = offset;
@@ -1286,7 +1302,7 @@ gen5_emit_pipelined_pointers(struct sna *sna,
 		  gen5_get_blend(blend, op->has_component_alpha, op->dst.format));
 
 	last = sna->render_state.gen5.last_pipelined_pointers;
-	if (last &&
+	if (!DBG_NO_STATE_CACHE && last &&
 	    sna->kgem.batch[offset + 1] == sna->kgem.batch[last + 1] &&
 	    sna->kgem.batch[offset + 3] == sna->kgem.batch[last + 3] &&
 	    sna->kgem.batch[offset + 4] == sna->kgem.batch[last + 4] &&
@@ -1306,7 +1322,8 @@ gen5_emit_drawing_rectangle(struct sna *sna, const struct sna_composite_op *op)
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
 
-	if (sna->render_state.gen5.drawrect_limit == limit &&
+	if (!DBG_NO_STATE_CACHE &&
+	    sna->render_state.gen5.drawrect_limit == limit &&
 	    sna->render_state.gen5.drawrect_offset == offset)
 		return;
 	sna->render_state.gen5.drawrect_offset = offset;
@@ -1337,7 +1354,7 @@ gen5_emit_vertex_elements(struct sna *sna,
 	uint32_t src_format;
 	int id = op->u.gen5.ve_id;;
 
-	if (render->ve_id == id)
+	if (!DBG_NO_STATE_CACHE && render->ve_id == id)
 		return;
 
 	render->ve_id = id;
@@ -1404,11 +1421,13 @@ gen5_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t offset)
 {
+	/* drawrect must be first for Ironlake BLT workaround */
+	gen5_emit_drawing_rectangle(sna, op);
+
 	gen5_emit_binding_table(sna, offset);
 	if (gen5_emit_pipelined_pointers(sna, op, op->op, op->u.gen5.wm_kernel))
 		gen5_emit_urb(sna);
 	gen5_emit_vertex_elements(sna, op);
-	gen5_emit_drawing_rectangle(sna, op);
 }
 
 static void gen5_bind_surfaces(struct sna *sna,
@@ -1419,7 +1438,7 @@ static void gen5_bind_surfaces(struct sna *sna,
 
 	gen5_get_batch(sna);
 
-	binding_table = gen5_composite_get_binding_table(sna, op, &offset);
+	binding_table = gen5_composite_get_binding_table(sna, &offset);
 
 	binding_table[0] =
 		gen5_bind_bo(sna,
@@ -1470,6 +1489,31 @@ gen5_render_composite_blt(struct sna *sna,
 	}
 
 	op->prim_emit(sna, op, r);
+}
+
+fastcall static void
+gen5_render_composite_box(struct sna *sna,
+			  const struct sna_composite_op *op,
+			  const BoxRec *box)
+{
+	struct sna_composite_rectangles r;
+
+	DBG(("  %s: (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
+
+	if (!gen5_get_rectangles(sna, op, 1)) {
+		gen5_bind_surfaces(sna, op);
+		gen5_get_rectangles(sna, op, 1);
+	}
+
+	r.dst.x = box->x1;
+	r.dst.y = box->y1;
+	r.width  = box->x2 - box->x1;
+	r.height = box->y2 - box->y1;
+	r.mask = r.src = r.dst;
+
+	op->prim_emit(sna, op, &r);
 }
 
 static void
@@ -1591,7 +1635,7 @@ static void gen5_video_bind_surfaces(struct sna *sna,
 	}
 
 	gen5_get_batch(sna);
-	binding_table = gen5_composite_get_binding_table(sna, op, &offset);
+	binding_table = gen5_composite_get_binding_table(sna, &offset);
 
 	binding_table[0] =
 		gen5_bind_bo(sna,
@@ -1650,9 +1694,7 @@ gen5_render_video(struct sna *sna,
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
 
-	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, frame->bo))
+	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (!kgem_bo_is_dirty(frame->bo))
@@ -1711,6 +1753,8 @@ gen5_render_video(struct sna *sna,
 		box++;
 	}
 
+	gen5_vertex_flush(sna);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	return TRUE;
 }
 
@@ -1789,7 +1833,7 @@ gen5_composite_picture(struct sna *sna,
 		channel->transform = picture->transform;
 
 	channel->card_format = gen5_get_card_format(picture->format);
-	if (channel->card_format == -1)
+	if (channel->card_format == (unsigned)-1)
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
 						  x, y, w, h, dst_x, dst_y);
 
@@ -1805,7 +1849,7 @@ static void gen5_composite_channel_convert(struct sna_composite_channel *channel
 {
 	channel->repeat = gen5_repeat(channel->repeat);
 	channel->filter = gen5_filter(channel->filter);
-	if (channel->card_format == -1)
+	if (channel->card_format == (unsigned)-1)
 		channel->card_format = gen5_get_card_format(channel->pict_format);
 }
 
@@ -1828,9 +1872,7 @@ gen5_render_composite_done(struct sna *sna,
 }
 
 static Bool
-gen5_composite_set_target(struct sna *sna,
-			  PicturePtr dst,
-			  struct sna_composite_op *op)
+gen5_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
 {
 	struct sna_pixmap *priv;
 
@@ -1882,10 +1924,7 @@ picture_is_cpu(PicturePtr picture)
 }
 
 static Bool
-try_blt(struct sna *sna,
-	PicturePtr dst,
-	PicturePtr source,
-	int width, int height)
+try_blt(struct sna *sna, PicturePtr source, int width, int height)
 {
 	if (sna->kgem.mode == KGEM_BLT) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
@@ -1918,7 +1957,7 @@ gen5_render_composite(struct sna *sna,
 	     width, height, sna->kgem.mode));
 
 	if (mask == NULL &&
-	    try_blt(sna, dst, src, width, height) &&
+	    try_blt(sna, src, width, height) &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,
@@ -1932,15 +1971,14 @@ gen5_render_composite(struct sna *sna,
 	}
 
 	if (need_tiling(sna, width, height))
-		return sna_tiling_composite(sna,
-					    op, src, mask, dst,
+		return sna_tiling_composite(op, src, mask, dst,
 					    src_x, src_y,
 					    msk_x, msk_y,
 					    dst_x, dst_y,
 					    width, height,
 					    tmp);
 
-	if (!gen5_composite_set_target(sna, dst, tmp)) {
+	if (!gen5_composite_set_target(dst, tmp)) {
 		DBG(("%s: failed to set composite target\n", __FUNCTION__));
 		return FALSE;
 	}
@@ -2032,14 +2070,12 @@ gen5_render_composite(struct sna *sna,
 	tmp->u.gen5.ve_id = (tmp->mask.bo != NULL) << 1 | tmp->is_affine;
 
 	tmp->blt   = gen5_render_composite_blt;
+	tmp->box   = gen5_render_composite_box;
 	tmp->boxes = gen5_render_composite_boxes;
 	tmp->done  = gen5_render_composite_done;
 
-	if (!kgem_check_bo(&sna->kgem, tmp->dst.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->src.bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, tmp->mask.bo))
+	if (!kgem_check_bo(&sna->kgem,
+			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
@@ -2069,7 +2105,7 @@ gen5_copy_bind_surfaces(struct sna *sna,
 
 	gen5_get_batch(sna);
 
-	binding_table = gen5_composite_get_binding_table(sna, op, &offset);
+	binding_table = gen5_composite_get_binding_table(sna, &offset);
 
 	binding_table[0] =
 		gen5_bind_bo(sna,
@@ -2088,7 +2124,7 @@ gen5_copy_bind_surfaces(struct sna *sna,
 		offset = sna->render_state.gen5.surface_table;
 	}
 
-	gen5_emit_state(sna, op,offset);
+	gen5_emit_state(sna, op, offset);
 }
 
 static Bool
@@ -2149,20 +2185,17 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
 	tmp.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
 		kgem_emit_flush(&sna->kgem);
 
-	gen5_get_batch(sna);
 	gen5_copy_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
 
-	tmp.src.scale[0] = 1. / src->drawable.width;
-	tmp.src.scale[1] = 1. / src->drawable.height;
+	tmp.src.scale[0] = 1.f/src->drawable.width;
+	tmp.src.scale[1] = 1.f/src->drawable.height;
 	do {
 		int n_this_time = gen5_get_rectangles(sna, &tmp, n);
 		if (n_this_time == 0) {
@@ -2275,8 +2308,8 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 		gen5_get_card_format_for_depth(src->drawable.depth),
 	op->base.src.width  = src->drawable.width;
 	op->base.src.height = src->drawable.height;
-	op->base.src.scale[0] = 1./src->drawable.width;
-	op->base.src.scale[1] = 1./src->drawable.height;
+	op->base.src.scale[0] = 1.f/src->drawable.width;
+	op->base.src.scale[1] = 1.f/src->drawable.height;
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 
@@ -2285,9 +2318,7 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
 	op->base.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
-		kgem_submit(&sna->kgem);
-	if (!kgem_check_bo(&sna->kgem, src_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	if (kgem_bo_is_dirty(src_bo))
@@ -2310,7 +2341,7 @@ gen5_fill_bind_surfaces(struct sna *sna,
 
 	gen5_get_batch(sna);
 
-	binding_table = gen5_composite_get_binding_table(sna, op, &offset);
+	binding_table = gen5_composite_get_binding_table(sna, &offset);
 
 	binding_table[0] =
 		gen5_bind_bo(sna,
@@ -2353,28 +2384,30 @@ gen5_render_fill_boxes(struct sna *sna,
 		return FALSE;
 	}
 
-	if (sna->kgem.mode == KGEM_BLT ||
+	if (sna->kgem.mode != KGEM_RENDER ||
 	    dst->drawable.width > 8192 ||
 	    dst->drawable.height > 8192 ||
 	    !gen5_check_dst_format(format)) {
-		uint8_t alu = GXcopy;
+		uint8_t alu = -1;
 
-		if (op == PictOpClear) {
+		if (op == PictOpClear || (op == PictOpOutReverse && color->alpha >= 0xff00))
 			alu = GXclear;
-			pixel = 0;
-			op = PictOpSrc;
+
+		if (op == PictOpSrc || (op == PictOpOver && color->alpha >= 0xff00)) {
+			alu = GXcopy;
+			if (color->alpha <= 0x00ff)
+				alu = GXclear;
 		}
 
-		if (op == PictOpOver && color->alpha >= 0xff00)
-			op = PictOpSrc;
-
-		if (op == PictOpSrc &&
-		    sna_get_pixel_from_rgba(&pixel,
-					    color->red,
-					    color->green,
-					    color->blue,
-					    color->alpha,
-					    format) &&
+		pixel = 0;
+		if ((alu == GXclear ||
+		     (alu == GXcopy &&
+		      sna_get_pixel_from_rgba(&pixel,
+					      color->red,
+					      color->green,
+					      color->blue,
+					      color->alpha,
+					      format))) &&
 		    sna_blt_fill_boxes(sna, alu,
 				       dst_bo, dst->drawable.bitsPerPixel,
 				       pixel, box, n))
@@ -2386,7 +2419,9 @@ gen5_render_fill_boxes(struct sna *sna,
 			return FALSE;
 	}
 
-	if (!sna_get_pixel_from_rgba(&pixel,
+	if (op == PictOpClear)
+		pixel = 0;
+	else if (!sna_get_pixel_from_rgba(&pixel,
 				     color->red,
 				     color->green,
 				     color->blue,
@@ -2413,7 +2448,7 @@ gen5_render_fill_boxes(struct sna *sna,
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
 	tmp.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	gen5_fill_bind_surfaces(sna, &tmp);
@@ -2452,9 +2487,9 @@ gen5_render_fill_boxes(struct sna *sna,
 }
 
 static void
-gen5_render_fill_blt(struct sna *sna,
-		     const struct sna_fill_op *op,
-		     int16_t x, int16_t y, int16_t w, int16_t h)
+gen5_render_fill_op_blt(struct sna *sna,
+			const struct sna_fill_op *op,
+			int16_t x, int16_t y, int16_t w, int16_t h)
 {
 	DBG(("%s (%d, %d)x(%d, %d)\n", __FUNCTION__, x,y,w,h));
 
@@ -2476,9 +2511,69 @@ gen5_render_fill_blt(struct sna *sna,
 	OUT_VERTEX_F(0);
 }
 
+fastcall static void
+gen5_render_fill_op_box(struct sna *sna,
+			const struct sna_fill_op *op,
+			const BoxRec *box)
+{
+	DBG(("%s: (%d, %d),(%d, %d)\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
+
+	if (!gen5_get_rectangles(sna, &op->base, 1)) {
+		gen5_fill_bind_surfaces(sna, &op->base);
+		gen5_get_rectangles(sna, &op->base, 1);
+	}
+
+	OUT_VERTEX(box->x2, box->y2);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y2);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(box->x1, box->y1);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
+}
+
+fastcall static void
+gen5_render_fill_op_boxes(struct sna *sna,
+			  const struct sna_fill_op *op,
+			  const BoxRec *box,
+			  int nbox)
+{
+	DBG(("%s: (%d, %d),(%d, %d)... x %d\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2, nbox));
+
+	do {
+		int nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox);
+		if (nbox_this_time == 0) {
+			gen5_fill_bind_surfaces(sna, &op->base);
+			nbox_this_time = gen5_get_rectangles(sna, &op->base, nbox);
+		}
+		nbox -= nbox_this_time;
+
+		do {
+			OUT_VERTEX(box->x2, box->y2);
+			OUT_VERTEX_F(1);
+			OUT_VERTEX_F(1);
+
+			OUT_VERTEX(box->x1, box->y2);
+			OUT_VERTEX_F(0);
+			OUT_VERTEX_F(1);
+
+			OUT_VERTEX(box->x1, box->y1);
+			OUT_VERTEX_F(0);
+			OUT_VERTEX_F(0);
+			box++;
+		} while (--nbox_this_time);
+	} while (nbox);
+}
+
 static void
-gen5_render_fill_done(struct sna *sna,
-		      const struct sna_fill_op *op)
+gen5_render_fill_op_done(struct sna *sna,
+			 const struct sna_fill_op *op)
 {
 	gen5_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, op->base.src.bo);
@@ -2495,7 +2590,7 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s(alu=%d, color=%08x)\n", __FUNCTION__, alu, color));
 
-	if (sna->kgem.mode == KGEM_BLT &&
+	if (sna->kgem.mode != KGEM_RENDER &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
@@ -2519,6 +2614,10 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	op->base.dst.height = dst->drawable.height;
 	op->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	op->base.dst.bo = dst_bo;
+	op->base.dst.x = op->base.dst.y = 0;
+
+	op->base.need_magic_ca_pass = 0;
+	op->base.has_component_alpha = 0;
 
 	op->base.src.bo =
 		sna_render_get_solid(sna,
@@ -2527,19 +2626,131 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_REPEAT;
 
+	op->base.mask.bo = NULL;
+	op->base.mask.filter = SAMPLER_FILTER_NEAREST;
+	op->base.mask.repeat = SAMPLER_EXTEND_NONE;
+
 	op->base.is_affine = TRUE;
 	op->base.floats_per_vertex = 3;
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
 	op->base.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
 		kgem_submit(&sna->kgem);
 
 	gen5_fill_bind_surfaces(sna, &op->base);
 	gen5_align_vertex(sna, &op->base);
 
-	op->blt  = gen5_render_fill_blt;
-	op->done = gen5_render_fill_done;
+	op->blt   = gen5_render_fill_op_blt;
+	op->box   = gen5_render_fill_op_box;
+	op->boxes = gen5_render_fill_op_boxes;
+	op->done  = gen5_render_fill_op_done;
+	return TRUE;
+}
+
+static Bool
+gen5_render_fill_one_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+			     uint32_t color,
+			     int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+			     uint8_t alu)
+{
+	BoxRec box;
+
+	box.x1 = x1;
+	box.y1 = y1;
+	box.x2 = x2;
+	box.y2 = y2;
+
+	return sna_blt_fill_boxes(sna, alu,
+				  bo, dst->drawable.bitsPerPixel,
+				  color, &box, 1);
+}
+
+static Bool
+gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+		     uint32_t color,
+		     int16_t x1, int16_t y1,
+		     int16_t x2, int16_t y2,
+		     uint8_t alu)
+{
+	struct sna_composite_op tmp;
+
+#if NO_FILL_ONE
+	return gen5_render_fill_one_try_blt(sna, dst, bo, color,
+					    x1, y1, x2, y2, alu);
+#endif
+
+	/* Prefer to use the BLT if already engaged */
+	if (sna->kgem.mode != KGEM_RENDER &&
+	    gen5_render_fill_one_try_blt(sna, dst, bo, color,
+					 x1, y1, x2, y2, alu))
+		return TRUE;
+
+	/* Must use the BLT if we can't RENDER... */
+	if (!(alu == GXcopy || alu == GXclear) ||
+	    dst->drawable.width > 8192 || dst->drawable.height > 8192)
+		return gen5_render_fill_one_try_blt(sna, dst, bo, color,
+						    x1, y1, x2, y2, alu);
+
+	if (alu == GXclear)
+		color = 0;
+
+	tmp.op = color == 0 ? PictOpClear : PictOpSrc;
+
+	tmp.dst.pixmap = dst;
+	tmp.dst.width  = dst->drawable.width;
+	tmp.dst.height = dst->drawable.height;
+	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
+	tmp.dst.bo = bo;
+	tmp.dst.x = tmp.dst.y = 0;
+
+	tmp.src.bo =
+		sna_render_get_solid(sna,
+				     sna_rgba_for_color(color,
+							dst->drawable.depth));
+	tmp.src.filter = SAMPLER_FILTER_NEAREST;
+	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
+
+	tmp.mask.bo = NULL;
+	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
+	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
+
+	tmp.is_affine = TRUE;
+	tmp.floats_per_vertex = 3;
+	tmp.has_component_alpha = 0;
+	tmp.need_magic_ca_pass = FALSE;
+
+	tmp.u.gen5.wm_kernel = WM_KERNEL;
+	tmp.u.gen5.ve_id = 1;
+
+	if (!kgem_check_bo(&sna->kgem, bo, NULL))
+		_kgem_submit(&sna->kgem);
+
+	gen5_fill_bind_surfaces(sna, &tmp);
+	gen5_align_vertex(sna, &tmp);
+
+	if (!gen5_get_rectangles(sna, &tmp, 1)) {
+		gen5_fill_bind_surfaces(sna, &tmp);
+		gen5_get_rectangles(sna, &tmp, 1);
+	}
+
+	DBG(("	(%d, %d), (%d, %d)\n", x1, y1, x2, y2));
+	OUT_VERTEX(x2, y2);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(x1, y2);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(x1, y1);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
+
+	gen5_vertex_flush(sna);
+	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+
 	return TRUE;
 }
 
@@ -2556,10 +2767,13 @@ gen5_render_context_switch(struct kgem *kgem,
 	/* Ironlake has a limitation that a 3D or Media command can't
 	 * be the first command after a BLT, unless it's
 	 * non-pipelined.
+	 *
+	 * We do this by ensuring that the non-pipelined drawrect
+	 * is always emitted first following a switch from BLT.
 	 */
 	if (kgem->mode == KGEM_BLT) {
-		kgem->batch[kgem->nbatch++] = CMD_POLY_STIPPLE_OFFSET << 16;
-		kgem->batch[kgem->nbatch++] = 0;
+		struct sna *sna = to_sna_from_kgem(kgem);
+		sna->render_state.gen5.drawrect_limit = -1;
 	}
 }
 
@@ -2832,6 +3046,7 @@ Bool gen5_render_init(struct sna *sna)
 
 	sna->render.fill_boxes = gen5_render_fill_boxes;
 	sna->render.fill = gen5_render_fill;
+	sna->render.fill_one = gen5_render_fill_one;
 
 	sna->render.flush = gen5_render_flush;
 	sna->render.reset = gen5_render_reset;

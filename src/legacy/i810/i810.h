@@ -74,14 +74,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef struct _I810Rec *I810Ptr;
 
-typedef void (*I810WriteIndexedByteFunc)(I810Ptr pI810, IOADDRESS addr,
-					 uint8_t index, uint8_t value);
-typedef uint8_t(*I810ReadIndexedByteFunc)(I810Ptr pI810, IOADDRESS addr,
-					  uint8_t index);
-typedef void (*I810WriteByteFunc)(I810Ptr pI810, IOADDRESS addr,
-				  uint8_t value);
-typedef uint8_t(*I810ReadByteFunc)(I810Ptr pI810, IOADDRESS addr);
-
 extern void I810SetTiledMemory(ScrnInfoPtr pScrn, int nr, unsigned start,
 			       unsigned pitch, unsigned size);
 
@@ -178,7 +170,6 @@ typedef struct _I810Rec {
    int Chipset;
    unsigned long LinearAddr;
    unsigned long MMIOAddr;
-   IOADDRESS ioBase;
    EntityInfoPtr pEnt;
    struct pci_device *PciInfo;
 
@@ -215,11 +206,6 @@ typedef struct _I810Rec {
    xf86CursorInfoPtr CursorInfoRec;
    CloseScreenProcPtr CloseScreen;
    ScreenBlockHandlerProcPtr BlockHandler;
-
-   I810WriteIndexedByteFunc writeControl;
-   I810ReadIndexedByteFunc readControl;
-   I810WriteByteFunc writeStandard;
-   I810ReadByteFunc readStandard;
 
    Bool directRenderingDisabled;        /* DRI disabled in PreInit */
    Bool directRenderingEnabled;		/* false if XF86DRI not defined. */

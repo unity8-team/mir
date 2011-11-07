@@ -314,9 +314,7 @@ mode_from_kmode(ScrnInfoPtr scrn,
 }
 
 static void
-mode_to_kmode(ScrnInfoPtr scrn,
-	      drmModeModeInfoPtr kmode,
-	      DisplayModePtr mode)
+mode_to_kmode(drmModeModeInfoPtr kmode, DisplayModePtr mode)
 {
 	memset(kmode, 0, sizeof(*kmode));
 
@@ -560,13 +558,13 @@ void sna_copy_fbcon(struct sna *sna)
 	assert(priv && priv->gpu_bo);
 
 	sx = dx = 0;
-	if (box.x2 < fbcon->width)
+	if (box.x2 < (uint16_t)fbcon->width)
 		sx = (fbcon->width - box.x2) / 2.;
 	if (box.x2 < sna->front->drawable.width)
 		dx = (sna->front->drawable.width - box.x2) / 2.;
 
 	sy = dy = 0;
-	if (box.y2 < fbcon->height)
+	if (box.y2 < (uint16_t)fbcon->height)
 		sy = (fbcon->height - box.y2) / 2.;
 	if (box.y2 < sna->front->drawable.height)
 		dy = (sna->front->drawable.height - box.y2) / 2.;
@@ -653,7 +651,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	kgem_submit(&sna->kgem);
 
-	mode_to_kmode(scrn, &sna_crtc->kmode, mode);
+	mode_to_kmode(&sna_crtc->kmode, mode);
 	ret = sna_crtc_apply(crtc);
 	if (!ret) {
 		crtc->x = saved_x;
@@ -763,6 +761,11 @@ sna_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr pixmap, void *data)
 {
 	struct sna *sna = to_sna(crtc->scrn);
 	struct sna_crtc *sna_crtc = crtc->driver_private;
+
+	/* We may have not called shadow_create() on the data yet and
+	 * be cleaning up a NULL shadow_pixmap.
+	 */
+	pixmap = data;
 
 	DBG(("%s(fb=%d, handle=%d)\n", __FUNCTION__,
 	     sna_crtc->shadow_fb_id, sna_pixmap_get_bo(pixmap)->handle));
@@ -1444,10 +1447,10 @@ static const char *output_names[] = {
 };
 
 static bool
-sna_zaphod_match(ScrnInfoPtr scrn, const char *s, const char *output)
+sna_zaphod_match(const char *s, const char *output)
 {
 	char t[20];
-	int i = 0;
+	unsigned int i = 0;
 
 	do {
 		/* match any outputs in a comma list, stopping at whitespace */
@@ -1509,7 +1512,7 @@ sna_output_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 
 	if (xf86IsEntityShared(scrn->entityList[0])) {
 		s = xf86GetOptValString(sna->Options, OPTION_ZAPHOD);
-		if (s && !sna_zaphod_match(scrn, s, name))
+		if (s && !sna_zaphod_match(s, name))
 			goto cleanup_encoder;
 	}
 
@@ -1827,7 +1830,7 @@ static const xf86CrtcConfigFuncsRec sna_crtc_config_funcs = {
 Bool sna_mode_pre_init(ScrnInfoPtr scrn, struct sna *sna)
 {
 	struct sna_mode *mode = &sna->mode;
-	unsigned int i;
+	int i;
 
 	list_init(&mode->crtcs);
 	list_init(&mode->outputs);
@@ -2011,8 +2014,8 @@ sna_covering_crtc(ScrnInfoPtr scrn,
 #define MI_LOAD_REGISTER_IMM			(0x22<<23)
 
 /* gen6: Scan lines register */
-#define GEN6_PIPEA_SLC			(0x7004)
-#define GEN6_PIPEB_SLC			(0x7104)
+#define GEN6_PIPEA_SLC			(0x70004)
+#define GEN6_PIPEB_SLC			(0x71004)
 
 static void sna_emit_wait_for_scanline_gen6(struct sna *sna,
 					    int pipe, int y1, int y2,

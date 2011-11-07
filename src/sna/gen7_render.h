@@ -145,7 +145,7 @@
 #define GEN7_VB0_VERTEXDATA		(0 << 20)
 #define GEN7_VB0_INSTANCEDATA		(1 << 20)
 #define GEN7_VB0_BUFFER_PITCH_SHIFT	0
-#define GEN7_VB0_ADDRESS_MODIFY_ENABLE	(1 < 14)
+#define GEN7_VB0_ADDRESS_MODIFY_ENABLE	(1 << 14)
 
 /* VERTEX_ELEMENT_STATE Structure */
 #define GEN7_VE0_VERTEX_BUFFER_INDEX_SHIFT		26
@@ -1646,7 +1646,7 @@ struct gen7_sampler_state {
 # define GEN7_PS_FLOATING_POINT_MODE_ALT                (1 << 16)
 /* DW3: scratch space */
 /* DW4 */
-# define GEN7_PS_MAX_THREADS_SHIFT                      23
+# define GEN7_PS_MAX_THREADS_SHIFT                      24
 # define GEN7_PS_PUSH_CONSTANT_ENABLE                   (1 << 11)
 # define GEN7_PS_ATTRIBUTE_ENABLE                       (1 << 10)
 # define GEN7_PS_OMASK_TO_RENDER_TARGET                 (1 << 9)

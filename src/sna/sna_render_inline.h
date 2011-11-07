@@ -78,17 +78,17 @@ is_cpu(DrawablePtr drawable)
 }
 
 static inline Bool
-is_dirty_gpu(struct sna *sna, DrawablePtr drawable)
+is_dirty_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 	return priv && priv->gpu_bo && priv->gpu_damage;
 }
 
 static inline Bool
-too_small(struct sna *sna, DrawablePtr drawable)
+too_small(DrawablePtr drawable)
 {
-	return (drawable->width * drawable->height <= 256) &&
-		!is_dirty_gpu(sna, drawable);
+	return (drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) &&
+		!is_dirty_gpu(drawable);
 }
 
 static inline Bool

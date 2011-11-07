@@ -21,6 +21,7 @@ Build-Depends:
  x11proto-gl-dev,
  libgl1-mesa-dev | libgl-dev,
  libpciaccess-dev (>= 0.8.0+git20071002),
+ libpixman-1-dev (>= 0.16),
 # following are only needed for xvmc:
  x11proto-dri2-dev,
  libxvmc-dev (>= 1:1.0.1),

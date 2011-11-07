@@ -149,13 +149,6 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
 	{XvSettable | XvGettable, -1, 1, "XV_PIPE"}
 };
 
-#define NUM_TEXTURED_ATTRIBUTES 3
-static XF86AttributeRec TexturedAttributes[NUM_TEXTURED_ATTRIBUTES] = {
-	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
-	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
-	{XvSettable | XvGettable, -1, 1, "XV_SYNC_TO_VBLANK"},
-};
-
 #define GAMMA_ATTRIBUTES 6
 static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA0"},
@@ -217,14 +210,13 @@ static Bool intel_has_overlay(intel_screen_private *intel)
 	gp.value = &has_overlay;
 	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_GETPARAM, &gp, sizeof(gp));
 
-	return !! has_overlay;
+	return ret == 0 && !! has_overlay;
 }
 
-static void intel_overlay_update_attrs(intel_screen_private *intel)
+static Bool intel_overlay_update_attrs(intel_screen_private *intel)
 {
 	intel_adaptor_private *adaptor_priv = intel_get_adaptor_private(intel);
 	struct drm_intel_overlay_attrs attrs;
-	int ret;
 
 	attrs.flags = I915_OVERLAY_UPDATE_ATTRS;
 	attrs.brightness = adaptor_priv->brightness;
@@ -238,8 +230,8 @@ static void intel_overlay_update_attrs(intel_screen_private *intel)
 	attrs.gamma4 = adaptor_priv->gamma4;
 	attrs.gamma5 = adaptor_priv->gamma5;
 
-	ret = drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
-				  &attrs, sizeof(attrs));
+	return drmCommandWriteRead(intel->drmSubFD, DRM_I915_OVERLAY_ATTRS,
+				   &attrs, sizeof(attrs)) == 0;
 }
 
 static void intel_overlay_off(intel_screen_private *intel)
@@ -251,6 +243,7 @@ static void intel_overlay_off(intel_screen_private *intel)
 
 	ret = drmCommandWrite(intel->drmSubFD, DRM_I915_OVERLAY_PUT_IMAGE,
 			      &request, sizeof(request));
+	(void) ret;
 }
 
 static Bool
@@ -526,26 +519,19 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	XF86VideoAdaptorPtr adapt;
-	XF86AttributePtr attrs;
 	intel_adaptor_private *adaptor_privs;
 	DevUnion *devUnions;
 	int nports = 16, i;
-	int nAttributes;
 
 	OVERLAY_DEBUG("I830SetupImageVideoOverlay\n");
-
-	nAttributes = NUM_TEXTURED_ATTRIBUTES;
 
 	adapt = calloc(1, sizeof(XF86VideoAdaptorRec));
 	adaptor_privs = calloc(nports, sizeof(intel_adaptor_private));
 	devUnions = calloc(nports, sizeof(DevUnion));
-	attrs = calloc(nAttributes, sizeof(XF86AttributeRec));
-	if (adapt == NULL || adaptor_privs == NULL || devUnions == NULL ||
-	    attrs == NULL) {
+	if (adapt == NULL || adaptor_privs == NULL || devUnions == NULL) {
 		free(adapt);
 		free(adaptor_privs);
 		free(devUnions);
-		free(attrs);
 		return NULL;
 	}
 
@@ -559,10 +545,8 @@ static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr screen)
 	adapt->pFormats = Formats;
 	adapt->nPorts = nports;
 	adapt->pPortPrivates = devUnions;
-	adapt->nAttributes = nAttributes;
-	adapt->pAttributes = attrs;
-	memcpy(attrs, TexturedAttributes,
-	       nAttributes * sizeof(XF86AttributeRec));
+	adapt->nAttributes = 0;
+	adapt->pAttributes = NULL;
 	if (IS_I915G(intel) || IS_I915GM(intel))
 		adapt->nImages = NUM_IMAGES - XVMC_IMAGE;
 	else
@@ -729,7 +713,8 @@ I830SetPortAttributeOverlay(ScrnInfoPtr scrn,
 		OVERLAY_DEBUG("GAMMA\n");
 	}
 
-	intel_overlay_update_attrs(intel);
+	if (!intel_overlay_update_attrs(intel))
+		return BadValue;
 
 	if (attribute == xvColorKey)
 		REGION_EMPTY(scrn->pScreen, &adaptor_priv->clip);
@@ -1529,6 +1514,9 @@ I830PutImageTextured(ScrnInfoPtr scrn,
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
 	int top, left, npixels, nlines;
+
+	if (!intel_pixmap_is_offscreen(pixmap))
+		return BadAlloc;
 
 #if 0
 	ErrorF("I830PutImage: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d)\n"
