@@ -649,16 +649,16 @@ next_glyph:
 	return TRUE;
 }
 
-static void
+static bool
 clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	assert(priv->gpu_only);
-	sna->render.fill_one(sna, pixmap, priv->gpu_bo, 0,
-			     0, 0,
-			     pixmap->drawable.width,
-			     pixmap->drawable.height,
-			     GXclear);
+	return sna->render.fill_one(sna, pixmap, priv->gpu_bo, 0,
+				    0, 0,
+				    pixmap->drawable.width,
+				    pixmap->drawable.height,
+				    GXclear);
 }
 
 static Bool
@@ -725,11 +725,12 @@ glyphs_via_mask(struct sna *sna,
 	component_alpha = NeedsComponent(format->format);
 	if (width * height * format->depth < 8 * 256) {
 		pixman_image_t *mask_image;
-		int s = dst->pDrawable->pScreen->myNum;
+		int s;
 
 		DBG(("%s: smal mask, rendering glyphs to upload buffer\n",
 		     __FUNCTION__));
 
+upload:
 		pixmap = sna_pixmap_create_upload(screen,
 						  width, height,
 						  format->depth);
@@ -747,6 +748,7 @@ glyphs_via_mask(struct sna *sna,
 		}
 
 		memset(pixmap->devPrivate.ptr, 0, pixmap->devKind*height);
+		s = dst->pDrawable->pScreen->myNum;
 		do {
 			int n = list->len;
 			x += list->xOff;
@@ -793,8 +795,7 @@ glyphs_via_mask(struct sna *sna,
 						       mask_image,
 						       dx, dy,
 						       0, 0,
-						       xi,
-						       yi,
+						       xi, yi,
 						       g->info.width,
 						       g->info.height);
 				free_pixman_pict(picture, glyph_image);
@@ -830,7 +831,10 @@ next_image:
 			return FALSE;
 
 		ValidatePicture(mask);
-		clear_pixmap(sna, pixmap);
+		if (!clear_pixmap(sna, pixmap)) {
+			FreePicture(mask, 0);
+			goto upload;
+		}
 
 		memset(&tmp, 0, sizeof(tmp));
 		glyph_atlas = NULL;
