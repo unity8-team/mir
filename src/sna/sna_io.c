@@ -61,6 +61,16 @@ static void read_boxes_inplace(struct kgem *kgem,
 		return;
 
 	do {
+		assert(box->x1 + src_dx >= 0);
+		assert(box->y1 + src_dy >= 0);
+		assert(box->x2 + src_dx <= pixmap->drawable.width);
+		assert(box->y2 + src_dy <= pixmap->drawable.height);
+
+		assert(box->x1 + dst_dx >= 0);
+		assert(box->y1 + dst_dy >= 0);
+		assert(box->x2 + dst_dx <= pixmap->drawable.width);
+		assert(box->y2 + dst_dy <= pixmap->drawable.height);
+
 		memcpy_blt(src, dst, bpp,
 			   src_pitch, dst_pitch,
 			   box->x1 + src_dx, box->y1 + src_dy,

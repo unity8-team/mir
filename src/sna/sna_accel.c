@@ -1087,11 +1087,15 @@ static void sna_gc_move_to_cpu(GCPtr gc, DrawablePtr drawable)
 	}
 	sgc->changes = 0;
 
-	if (gc->stipple)
-		sna_drawable_move_to_cpu(&gc->stipple->drawable, false);
-
-	if (gc->fillStyle == FillTiled)
+	switch (gc->fillStyle) {
+	case FillTiled:
 		sna_drawable_move_to_cpu(&gc->tile.pixmap->drawable, false);
+		break;
+	case FillStippled:
+	case FillOpaqueStippled:
+		sna_drawable_move_to_cpu(&gc->stipple->drawable, false);
+		break;
+	}
 }
 
 static inline bool clip_box(BoxPtr box, GCPtr gc)
@@ -2142,6 +2146,10 @@ fallback:
 				     __FUNCTION__,
 				     box->x1, box->y1,
 				     box->x2, box->y2));
+				assert(box->x1 + src_dx >= 0);
+				assert(box->y1 + src_dy >= 0);
+				assert(box->x1 + dst_dx >= 0);
+				assert(box->y1 + dst_dy >= 0);
 				fbBlt(src_bits + (box->y1 + src_dy) * src_stride,
 				      src_stride,
 				      (box->x1 + src_dx) * bpp,
@@ -4717,7 +4725,7 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 	if (gc->capStyle != CapProjecting)
 		extra >>= 1;
 
-	if (seg->x2 > seg->x1) {
+	if (seg->x2 >= seg->x1) {
 		box.x1 = seg->x1;
 		box.x2 = seg->x2;
 	} else {
@@ -4725,7 +4733,7 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 		box.x1 = seg->x2;
 	}
 
-	if (seg->y2 > seg->y1) {
+	if (seg->y2 >= seg->y1) {
 		box.y1 = seg->y1;
 		box.y2 = seg->y2;
 	} else {
@@ -4766,9 +4774,13 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 		box.y2 += extra;
 	}
 
+	DBG(("%s: unclipped, untranslated extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
+
 	clipped = trim_and_translate_box(&box, drawable, gc);
 	if (box_empty(&box))
 		return 0;
+
 	*out = box;
 	return 1 | clipped << 1 | can_blit << 2;
 }
@@ -5575,9 +5587,10 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	BoxRec boxes[512], *b = boxes, *const last_box = boxes+ARRAY_SIZE(boxes);
 	int16_t dx, dy;
 
-	DBG(("%s x %d [(%d, %d)+(%d, %d)...], clipped?=%d\n",
-	     __FUNCTION__,
-	     n, rect->x, rect->y, rect->width, rect->height,
+	DBG(("%s x %d [(%d, %d)x(%d, %d)...]+(%d,%d), clipped?=%d\n",
+	     __FUNCTION__, n,
+	     rect->x, rect->y, rect->width, rect->height,
+	     drawable->x, drawable->y,
 	     clipped));
 
 	if (n == 1 && gc->pCompositeClip->data == NULL) {
@@ -6764,10 +6777,66 @@ fallback:
 
 	sna_gc_move_to_cpu(gc, draw);
 	sna_drawable_move_region_to_cpu(draw, &region, true);
-	RegionUninit(&region);
 
 	DBG(("%s: fallback - fbPolyFillRect\n", __FUNCTION__));
-	fbPolyFillRect(draw, gc, n, rect);
+	if (region.data == NULL) {
+		do {
+			BoxRec box;
+
+			box.x1 = rect->x + draw->x;
+			box.y1 = rect->y + draw->y;
+			box.x2 = bound(box.x1, rect->width);
+			box.y2 = bound(box.y1, rect->height);
+			rect++;
+
+			if (box_intersect(&box, &region.extents)) {
+				DBG(("%s: fallback - fbFill((%d, %d), (%d, %d))\n",
+				     __FUNCTION__,
+				     box.x1, box.y1,
+				     box.x2-box.x1, box.y2-box.y1));
+				fbFill(draw, gc,
+				       box.x1, box.y1,
+				       box.x2-box.x1, box.y2-box.y1);
+			}
+		} while (--n);
+	} else {
+		const BoxRec * const clip_start = RegionBoxptr(&region);
+		const BoxRec * const clip_end = clip_start + region.data->numRects;
+		const BoxRec *c;
+
+		do {
+			BoxRec box;
+
+			box.x1 = rect->x + draw->x;
+			box.y1 = rect->y + draw->y;
+			box.x2 = bound(box.x1, rect->width);
+			box.y2 = bound(box.y1, rect->height);
+			rect++;
+
+			c = find_clip_box_for_y(clip_start,
+						clip_end,
+						box.y1);
+
+			while (c != clip_end) {
+				BoxRec b;
+
+				if (box.y2 <= c->y1)
+					break;
+
+				b = box;
+				if (box_intersect(&b, c++)) {
+					DBG(("%s: fallback - fbFill((%d, %d), (%d, %d))\n",
+					     __FUNCTION__,
+					       b.x1, b.y1,
+					       b.x2-b.x1, b.y2-b.y1));
+					fbFill(draw, gc,
+					       b.x1, b.y1,
+					       b.x2-b.x1, b.y2-b.y1);
+				}
+			}
+		} while (--n);
+	}
+	RegionUninit(&region);
 }
 
 struct sna_font {
