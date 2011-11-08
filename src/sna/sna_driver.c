@@ -192,21 +192,40 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 					  screen->height,
 					  screen->rootDepth,
 					  SNA_CREATE_FB);
-	if (!sna->front)
-		return FALSE;
+	if (!sna->front) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Unable to create front buffer %dx%d at depth %d\n",
+			   screen->width,
+			   screen->height,
+			   screen->rootDepth);
 
-	if (!sna_pixmap_force_to_gpu(sna->front))
+		return FALSE;
+	}
+
+	if (!sna_pixmap_force_to_gpu(sna->front)) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Failed to allocate video resources for front buffer %dx%d at depth %d\n",
+			   screen->width,
+			   screen->height,
+			   screen->rootDepth);
 		goto cleanup_front;
+	}
 
 	screen->SetScreenPixmap(sna->front);
 
-	if (!sna_accel_create(sna))
+	if (!sna_accel_create(sna)) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Failed to initialise acceleration routines\n");
 		goto cleanup_front;
+	}
 
 	sna_copy_fbcon(sna);
 
-	if (!sna_enter_vt(screen->myNum, 0))
+	if (!sna_enter_vt(screen->myNum, 0)) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Failed to become DRM master\n");
 		goto cleanup_front;
+	}
 
 	return TRUE;
 
