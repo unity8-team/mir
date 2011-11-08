@@ -6941,7 +6941,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 	b = sna->kgem.batch + sna->kgem.nbatch;
-	b[0] = XY_SETUP_BLT | 1 << 20;
+	b[0] = XY_SETUP_BLT | 3 << 20;
 	b[1] = bo->pitch;
 	if (sna->kgem.gen >= 40) {
 		if (bo->tiling)
@@ -6993,7 +6993,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				_kgem_set_mode(&sna->kgem, KGEM_BLT);
 
 				b = sna->kgem.batch + sna->kgem.nbatch;
-				b[0] = XY_SETUP_BLT | 1 << 20;
+				b[0] = XY_SETUP_BLT | 3 << 20;
 				b[1] = bo->pitch;
 				if (sna->kgem.gen >= 40) {
 					if (bo->tiling)
