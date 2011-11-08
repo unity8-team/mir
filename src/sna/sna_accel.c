@@ -2620,11 +2620,18 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 }
 
 static Bool
-sna_poly_fill_rect_tiled(DrawablePtr drawable,
-			 struct kgem_bo *bo,
-			 struct sna_damage **damage,
-			 GCPtr gc, int n, xRectangle *rect,
-			 const BoxRec *extents, unsigned clipped);
+sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
+			     struct kgem_bo *bo,
+			     struct sna_damage **damage,
+			     GCPtr gc, int n, xRectangle *rect,
+			     const BoxRec *extents, unsigned clipped);
+
+static bool
+sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
+				struct kgem_bo *bo,
+				struct sna_damage **damage,
+				GCPtr gc, int n, xRectangle *rect,
+				const BoxRec *extents, unsigned clipped);
 
 static bool
 can_fill_spans(DrawablePtr drawable, GCPtr gc)
@@ -2692,7 +2699,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				       gc, n, pt, width, sorted,
 				       &region.extents, flags & 2))
 			return;
-	} else if (gc->fillStyle == FillTiled) {
+	} else {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 		struct sna_damage **damage;
 
@@ -2714,10 +2721,17 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				rect[i].height = 1;
 			}
 
-			i = sna_poly_fill_rect_tiled(drawable,
-						     priv->gpu_bo, damage,
-						     gc, n, rect,
-						     &region.extents, flags & 2);
+			if (gc->fillStyle == FillTiled) {
+				i = sna_poly_fill_rect_tiled_blt(drawable,
+								 priv->gpu_bo, damage,
+								 gc, n, rect,
+								 &region.extents, flags & 2);
+			} else {
+				i = sna_poly_fill_rect_stippled_blt(drawable,
+								    priv->gpu_bo, damage,
+								    gc, n, rect,
+								    &region.extents, flags & 2);
+			}
 			free (rect);
 
 			if (i)
@@ -5770,11 +5784,11 @@ get_pixel(PixmapPtr pixmap)
 }
 
 static Bool
-sna_poly_fill_rect_tiled(DrawablePtr drawable,
-			 struct kgem_bo *bo,
-			 struct sna_damage **damage,
-			 GCPtr gc, int n, xRectangle *rect,
-			 const BoxRec *extents, unsigned clipped)
+sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
+			     struct kgem_bo *bo,
+			     struct sna_damage **damage,
+			     GCPtr gc, int n, xRectangle *rect,
+			     const BoxRec *extents, unsigned clipped)
 {
 	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -6743,17 +6757,17 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		DBG(("%s: tiled fill, testing for blt\n", __FUNCTION__));
 
 		if (sna_drawable_use_gpu_bo(draw, &region.extents, &damage) &&
-		    sna_poly_fill_rect_tiled(draw,
-					     priv->gpu_bo, damage,
-					     gc, n, rect,
-					     &region.extents, flags & 2))
+		    sna_poly_fill_rect_tiled_blt(draw,
+						 priv->gpu_bo, damage,
+						 gc, n, rect,
+						 &region.extents, flags & 2))
 			return;
 
 		if (sna_drawable_use_cpu_bo(draw, &region.extents, &damage) &&
-		    sna_poly_fill_rect_tiled(draw,
-					     priv->cpu_bo, damage,
-					     gc, n, rect,
-					     &region.extents, flags & 2))
+		    sna_poly_fill_rect_tiled_blt(draw,
+						 priv->cpu_bo, damage,
+						 gc, n, rect,
+						 &region.extents, flags & 2))
 			return;
 	} else {
 		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
