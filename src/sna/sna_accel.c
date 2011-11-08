@@ -262,15 +262,21 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 	case CREATE_PIXMAP_USAGE_SCRATCH_HEADER:
 #endif
 		return NULL;
-	}
 
-	sna = to_sna_from_drawable(&pixmap->drawable);
-	if (!kgem_can_create_2d(&sna->kgem,
-				pixmap->drawable.width,
-				pixmap->drawable.height,
-				pixmap->drawable.bitsPerPixel,
-				sna_pixmap_choose_tiling(pixmap)))
-		return NULL;
+	case SNA_CREATE_FB:
+		/* We assume that the Screen pixmap will be pre-validated */
+		break;
+
+	default:
+		sna = to_sna_from_drawable(&pixmap->drawable);
+		if (!kgem_can_create_2d(&sna->kgem,
+					pixmap->drawable.width,
+					pixmap->drawable.height,
+					pixmap->drawable.bitsPerPixel,
+					sna_pixmap_choose_tiling(pixmap)))
+			return NULL;
+		break;
+	}
 
 	return _sna_pixmap_attach(pixmap);
 }
@@ -941,13 +947,20 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 
 	if (priv->gpu_bo == NULL) {
 		struct sna *sna = to_sna_from_drawable(&pixmap->drawable);
+		unsigned flags;
+
+		flags = 0;
+		if (priv->cpu_damage)
+			flags |= CREATE_INACTIVE;
+		if (pixmap->usage_hint == SNA_CREATE_FB)
+			flags |= CREATE_EXACT;
 
 		priv->gpu_bo = kgem_create_2d(&sna->kgem,
 					      pixmap->drawable.width,
 					      pixmap->drawable.height,
 					      pixmap->drawable.bitsPerPixel,
 					      sna_pixmap_choose_tiling(pixmap),
-					      priv->cpu_damage ? CREATE_INACTIVE : 0);
+					      flags);
 		if (priv->gpu_bo == NULL)
 			return NULL;
 
