@@ -1451,7 +1451,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d)\n", __FUNCTION__,
 	     width, height, bpp, tiling, !!exact, !!(flags & CREATE_INACTIVE)));
 
-	assert(_kgem_can_create_2d(kgem, width, height, bpp, tiling));
+	assert(_kgem_can_create_2d(kgem, width, height, bpp, exact ? -tiling : tiling));
 	size = kgem_surface_size(kgem, width, height, bpp, tiling, &pitch);
 	assert(size && size <= kgem->max_object_size);
 	if (flags & CREATE_INACTIVE)

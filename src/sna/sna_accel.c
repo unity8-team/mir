@@ -1647,6 +1647,7 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	      int x, int y, int w, int h, int left, int format,
 	      char *bits)
 {
+	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	RegionRec region;
@@ -1679,6 +1680,9 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 		return;
 
 	RegionTranslate(&region, dx, dy);
+
+	if (wedged(sna))
+		goto fallback;
 
 	switch (format) {
 	case ZPixmap:
@@ -3124,6 +3128,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       int dst_x, int dst_y,
 	       unsigned long bit)
 {
+	struct sna *sna = to_sna_from_drawable(dst);
 	RegionRec region;
 	struct sna_damage **damage;
 
@@ -3145,6 +3150,9 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (!RegionNotEmpty(&region))
 		return NULL;
 
+	if (wedged(sna))
+		goto fallback;
+
 	if (sna_drawable_use_gpu_bo(dst, &region.extents, &damage)) {
 		struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(dst));
 		if (priv->gpu_bo->tiling != I915_TILING_Y) {
@@ -3158,6 +3166,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		}
 	}
 
+fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
 	sna_gc_move_to_cpu(gc, dst);
 	sna_drawable_move_region_to_cpu(dst, &region, true);
