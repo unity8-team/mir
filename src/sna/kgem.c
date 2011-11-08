@@ -2017,9 +2017,12 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			continue;
 		}
 
-		if (bo->base.refcnt == 1 && bo->base.exec == NULL)
+		if (bo->base.refcnt == 1 && bo->base.exec == NULL) {
+			DBG(("%s: discarding unfinished buffer? used=%d, total=%d\n",
+			     __FUNCTION__, bo->used, bo->alloc));
 			/* no users, so reset */
 			bo->used = 0;
+		}
 
 		if (bo->used + size <= bo->alloc) {
 			DBG(("%s: reusing partial buffer? used=%d + size=%d, total=%d\n",

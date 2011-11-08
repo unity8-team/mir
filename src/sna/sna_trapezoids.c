@@ -2716,8 +2716,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	pixman_region16_t clip;
 	int16_t dst_x, dst_y;
-	int16_t dx, dy;
-	int n;
+	int dx, dy, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -2848,15 +2847,15 @@ tor_blt_mask(struct sna *sna,
 	h = box->y2 - box->y1;
 	w = box->x2 - box->x1;
 	if (w == 1) {
-		while (h--) {
+		do {
 			*ptr = coverage;
 			ptr += stride;
-		}
+		} while (--h);
 	} else {
-		while (h--) {
+		do {
 			memset(ptr, coverage, w);
 			ptr += stride;
-		}
+		} while (--h);
 	}
 }
 
@@ -2883,9 +2882,8 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	PicturePtr mask;
 	BoxRec extents;
 	int16_t dst_x, dst_y;
-	int16_t dx, dy;
-	int error;
-	int n;
+	int dx, dy;
+	int error, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -2897,9 +2895,15 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	if (maskFormat == NULL && ntrap > 1) {
-		DBG(("%s: fallback -- individual rasterisation requested\n",
+		DBG(("%s: individual rasterisation requested\n",
 		     __FUNCTION__));
-		return false;
+		do {
+			/* XXX unwind errors? */
+			if (!trapezoid_mask_converter(op, src, dst, NULL,
+						 src_x, src_y, 1, traps++))
+				return false;
+		} while (--ntrap);
+		return true;
 	}
 
 	miTrapezoidBounds(ntrap, traps, &extents);
@@ -2931,8 +2935,8 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	dy = -extents.y1 * FAST_SAMPLES_Y;
 	extents.x1 = extents.y1 = 0;
 
-	DBG(("%s: mask (%dx%d)\n",
-	     __FUNCTION__, extents.x2, extents.y2));
+	DBG(("%s: mask (%dx%d), dx=(%d, %d)\n",
+	     __FUNCTION__, extents.x2, extents.y2, dx, dy));
 	scratch = sna_pixmap_create_upload(screen, extents.x2, extents.y2, 8);
 	if (!scratch)
 		return true;
@@ -3065,6 +3069,8 @@ sna_composite_trapezoids(CARD8 op,
 		}
 	}
 
+	DBG(("%s: rectlinear? %d, pixel-aligned? %d\n",
+	     __FUNCTION__, rectilinear, pixel_aligned));
 	if (rectilinear) {
 		if (pixel_aligned) {
 			if (composite_aligned_boxes(op, src, dst,
@@ -3195,7 +3201,7 @@ trap_span_converter(PicturePtr dst,
 	PicturePtr src;
 	xRenderColor white;
 	pixman_region16_t *clip;
-	int16_t dx, dy;
+	int dx, dy;
 	int n, error;
 
 	if (NO_SCAN_CONVERTER)
@@ -3321,8 +3327,7 @@ trap_mask_converter(PicturePtr picture,
 	struct sna_pixmap *priv;
 	BoxRec extents;
 	span_func_t span;
-	int16_t dx, dy;
-	int n;
+	int dx, dy, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -3701,8 +3706,7 @@ triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	pixman_region16_t clip;
 	int16_t dst_x, dst_y;
-	int16_t dx, dy;
-	int n;
+	int dx, dy, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -3827,9 +3831,8 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	PicturePtr mask;
 	BoxRec extents;
 	int16_t dst_x, dst_y;
-	int16_t dx, dy;
-	int error;
-	int n;
+	int dx, dy;
+	int error, n;
 
 	if (NO_SCAN_CONVERTER)
 		return false;
@@ -4057,7 +4060,7 @@ tristrip_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	pixman_region16_t clip;
 	xPointFixed p[4];
 	int16_t dst_x, dst_y;
-	int16_t dx, dy;
+	int dx, dy;
 	int cw, ccw, n;
 
 	if (NO_SCAN_CONVERTER)
