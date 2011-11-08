@@ -146,6 +146,7 @@ static uint32_t gem_create(int fd, int size)
 {
 	struct drm_i915_gem_create create;
 
+	VG_CLEAR(create);
 	create.handle = 0;
 	create.size = ALIGN(size, 4096);
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_CREATE, &create);
@@ -157,6 +158,7 @@ static void gem_close(int fd, uint32_t handle)
 {
 	struct drm_gem_close close;
 
+	VG_CLEAR(close);
 	close.handle = handle;
 	(void)drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close);
 }
@@ -483,7 +485,7 @@ static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
 	 * using a normal bo and so that when we call gem_close on it we
 	 * delete our reference and not fbcon's!
 	 */
-	memset(&flink, 0, sizeof(flink));
+	VG_CLEAR(flink);
 	flink.handle = fbcon->handle;
 	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_GEM_FLINK, &flink);
 	if (ret)
@@ -707,6 +709,7 @@ sna_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	struct drm_i915_gem_pwrite pwrite;
 
+	VG_CLEAR(pwrite);
 	pwrite.handle = sna_crtc->cursor;
 	pwrite.offset = 0;
 	pwrite.size = 64*64*4;
@@ -859,6 +862,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	sna_crtc->id = mode_crtc->crtc_id;
 	drmModeFreeCrtc(mode_crtc);
 
+	VG_CLEAR(get_pipe);
 	get_pipe.pipe = 0;
 	get_pipe.crtc_id = sna_crtc->id;
 	drmIoctl(sna->kgem.fd,

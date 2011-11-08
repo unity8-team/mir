@@ -111,6 +111,7 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 	if (DBG_NO_TILING)
 		return I915_TILING_NONE;
 
+	VG_CLEAR(set_tiling);
 	do {
 		set_tiling.handle = handle;
 		set_tiling.tiling_mode = tiling;
@@ -130,6 +131,7 @@ static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
 	DBG(("%s(handle=%d, size=%d, prot=%s)\n", __FUNCTION__,
 	     handle, size, prot & PROT_WRITE ? "read/write" : "read-only"));
 
+	VG_CLEAR(mmap_arg);
 	mmap_arg.handle = handle;
 	if (drmIoctl(fd, DRM_IOCTL_I915_GEM_MMAP_GTT, &mmap_arg)) {
 		assert(0);
@@ -142,6 +144,7 @@ static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
 		ptr = NULL;
 	}
 
+	VG_CLEAR(set_domain);
 	set_domain.handle = handle;
 	set_domain.read_domains = I915_GEM_DOMAIN_GTT;
 	set_domain.write_domain = prot & PROT_WRITE ? I915_GEM_DOMAIN_GTT : 0;
@@ -159,6 +162,7 @@ static int gem_write(int fd, uint32_t handle,
 	DBG(("%s(handle=%d, offset=%d, len=%d)\n", __FUNCTION__,
 	     handle, offset, length));
 
+	VG_CLEAR(pwrite);
 	pwrite.handle = handle;
 	pwrite.offset = offset;
 	pwrite.size = length;
@@ -174,6 +178,7 @@ static int gem_read(int fd, uint32_t handle, const void *dst,
 	DBG(("%s(handle=%d, len=%d)\n", __FUNCTION__,
 	     handle, length));
 
+	VG_CLEAR(pread);
 	pread.handle = handle;
 	pread.offset = offset;
 	pread.size = length;
@@ -186,6 +191,7 @@ kgem_busy(struct kgem *kgem, int handle)
 {
 	struct drm_i915_gem_busy busy;
 
+	VG_CLEAR(busy);
 	busy.handle = handle;
 	busy.busy = !kgem->wedged;
 	(void)drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_BUSY, &busy);
@@ -215,6 +221,7 @@ static uint32_t gem_create(int fd, int size)
 	assert((size & (PAGE_SIZE-1)) == 0);
 #endif
 
+	VG_CLEAR(create);
 	create.handle = 0;
 	create.size = size;
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_CREATE, &create);
@@ -228,6 +235,7 @@ gem_madvise(int fd, uint32_t handle, uint32_t state)
 	struct drm_i915_gem_madvise madv;
 	int ret;
 
+	VG_CLEAR(madv);
 	madv.handle = handle;
 	madv.madv = state;
 	madv.retained = 1;
@@ -241,6 +249,7 @@ static void gem_close(int fd, uint32_t handle)
 {
 	struct drm_gem_close close;
 
+	VG_CLEAR(close);
 	close.handle = handle;
 	(void)drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close);
 }
@@ -347,11 +356,12 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	if (!DBG_NO_VMAP) {
 		drm_i915_getparam_t gp;
 
+		v = 0;
+		VG_CLEAR(gp);
 		gp.param = I915_PARAM_HAS_VMAP;
 		gp.value = &v;
-		kgem->has_vmap =
-			drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp) == 0 &&
-			v > 0;
+		drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp);
+		kgem->has_vmap = v > 0;
 	}
 #endif
 	DBG(("%s: using vmap=%d\n", __FUNCTION__, kgem->has_vmap));
@@ -360,16 +370,19 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		if (!DBG_NO_RELAXED_FENCING) {
 			drm_i915_getparam_t gp;
 
+			v = 0;
+			VG_CLEAR(gp);
 			gp.param = I915_PARAM_HAS_RELAXED_FENCING;
 			gp.value = &v;
-			if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp) == 0)
-				kgem->has_relaxed_fencing = v > 0;
+			drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp);
+			kgem->has_relaxed_fencing = v > 0;
 		}
 	} else
 		kgem->has_relaxed_fencing = 1;
 	DBG(("%s: has relaxed fencing=%d\n", __FUNCTION__,
 	     kgem->has_relaxed_fencing));
 
+	VG_CLEAR(aperture);
 	aperture.aper_size = 64*1024*1024;
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
 
@@ -392,6 +405,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: max object size %d\n", __FUNCTION__, kgem->max_object_size));
 
 	v = 8;
+	VG_CLEAR(gp);
 	gp.param = I915_PARAM_NUM_FENCES_AVAIL;
 	gp.value = &v;
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp);
@@ -959,6 +973,7 @@ void _kgem_submit(struct kgem *kgem)
 			struct drm_i915_gem_execbuffer2 execbuf;
 			int ret;
 
+			VG_CLEAR(execbuf);
 			execbuf.buffers_ptr = (uintptr_t)kgem->exec;
 			execbuf.buffer_count = kgem->nexec;
 			execbuf.batch_start_offset = 0;
@@ -1045,6 +1060,7 @@ void _kgem_submit(struct kgem *kgem)
 				struct drm_i915_gem_set_domain set_domain;
 				int ret;
 
+				VG_CLEAR(set_domain);
 				set_domain.handle = handle;
 				set_domain.read_domains = I915_GEM_DOMAIN_GTT;
 				set_domain.write_domain = I915_GEM_DOMAIN_GTT;
@@ -1181,6 +1197,7 @@ void kgem_cleanup_cache(struct kgem *kgem)
 				      struct kgem_request,
 				      list);
 
+		VG_CLEAR(set_domain);
 		set_domain.handle = rq->bo->handle;
 		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
 		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
@@ -1258,7 +1275,7 @@ struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name)
 
 	DBG(("%s(name=%d)\n", __FUNCTION__, name));
 
-	memset(&open_arg, 0, sizeof(open_arg));
+	VG_CLEAR(open_arg);
 	open_arg.name = name;
 	if (drmIoctl(kgem->fd, DRM_IOCTL_GEM_OPEN, &open_arg))
 		return NULL;
@@ -1772,7 +1789,7 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 	struct drm_gem_flink flink;
 	int ret;
 
-	memset(&flink, 0, sizeof(flink));
+	VG_CLEAR(flink);
 	flink.handle = bo->handle;
 	ret = drmIoctl(kgem->fd, DRM_IOCTL_GEM_FLINK, &flink);
 	if (ret)
@@ -1791,6 +1808,7 @@ static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 {
 	struct drm_i915_gem_vmap vmap;
 
+	VG_CLEAR(vmap);
 	vmap.user_ptr = (uintptr_t)ptr;
 	vmap.user_size = size;
 	vmap.flags = 0;
@@ -1859,6 +1877,7 @@ void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write)
 	if (for_write ? bo->cpu_write : bo->cpu_read)
 		return;
 
+	VG_CLEAR(set_domain);
 	set_domain.handle = bo->handle;
 	set_domain.read_domains = I915_GEM_DOMAIN_CPU;
 	set_domain.write_domain = for_write ? I915_GEM_DOMAIN_CPU : 0;
@@ -1883,6 +1902,8 @@ void kgem_sync(struct kgem *kgem)
 		rq = list_first_entry(&kgem->requests,
 				      struct kgem_request,
 				      list);
+
+		VG_CLEAR(set_domain);
 		set_domain.handle = rq->bo->handle;
 		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
 		set_domain.write_domain = I915_GEM_DOMAIN_GTT;

@@ -40,4 +40,12 @@
 #define fastcall
 #endif
 
+#ifdef HAVE_VALGRIND_H
+#define VG(x) x
+#else
+#define VG(x)
+#endif
+
+#define VG_CLEAR(s) VG(memset(&s, 0, sizeof(s)))
+
 #endif /* _SNA_COMPILER_H_ */
