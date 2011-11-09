@@ -737,6 +737,7 @@ bool kgem_retire(struct kgem *kgem)
 	kgem->need_retire = !list_is_empty(&kgem->requests);
 	if (!kgem->need_retire && kgem->ring)
 		kgem->ring = kgem->mode;
+	kgem->busy &= kgem->need_retire;
 
 	return retired;
 }
