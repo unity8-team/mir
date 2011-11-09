@@ -681,17 +681,19 @@ bool kgem_retire(struct kgem *kgem)
 			bo->gpu = bo->needs_flush;
 
 			if (bo->refcnt == 0) {
-				assert(bo->deleted);
-				if (bo->needs_flush) {
-					DBG(("%s: moving %d to flushing\n",
-					     __FUNCTION__, bo->handle));
-					list_add(&bo->request, &kgem->flushing);
-				} else if (bo->reusable) {
-					DBG(("%s: moving %d to inactive\n",
-					     __FUNCTION__, bo->handle));
-					list_move(&bo->list,
-						  inactive(kgem, bo->size));
-					retired = true;
+				if (bo->reusable) {
+					assert(bo->deleted);
+					if (bo->needs_flush) {
+						DBG(("%s: moving %d to flushing\n",
+						     __FUNCTION__, bo->handle));
+						list_add(&bo->request, &kgem->flushing);
+					} else {
+						DBG(("%s: moving %d to inactive\n",
+						     __FUNCTION__, bo->handle));
+						list_move(&bo->list,
+							  inactive(kgem, bo->size));
+						retired = true;
+					}
 				} else {
 					DBG(("%s: closing %d\n",
 					     __FUNCTION__, bo->handle));
