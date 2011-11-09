@@ -119,7 +119,7 @@ sna_video_copy_data(struct sna *sna,
 		    struct sna_video_frame *frame,
 		    int top, int left,
 		    int npixels, int nlines,
-		    unsigned char *buf);
+		    const uint8_t *buf);
 
 void sna_video_frame_fini(struct sna *sna,
 			  struct sna_video *video,
