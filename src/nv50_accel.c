@@ -102,6 +102,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 					   &pNv->vblank_sem)) {
 			nouveau_grobj_free(&pNv->NvSW);
 			nouveau_grobj_free(&pNv->Nv3D);
+			return FALSE;
 		}
 
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, 65536,
