@@ -48,16 +48,6 @@
 
 static Atom xvBrightness, xvContrast, xvSyncToVblank;
 
-/* client libraries expect an encoding */
-static const XF86VideoEncodingRec DummyEncoding[1] = {
-	{
-		0,
-		"XV_IMAGE",
-		8192, 8192,
-		{1, 1}
-	}
-};
-
 #define NUM_FORMATS 3
 
 static XF86VideoFormatRec Formats[NUM_FORMATS] = {
@@ -65,11 +55,11 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] = {
 };
 
 //#define NUM_TEXTURED_ATTRIBUTES 3
-#define NUM_TEXTURED_ATTRIBUTES 0
+#define NUM_TEXTURED_ATTRIBUTES 1
 static XF86AttributeRec TexturedAttributes[] = {
+	{XvSettable | XvGettable, -1, 1, "XV_SYNC_TO_VBLANK"},
 	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
-	{XvSettable | XvGettable, -1, 1, "XV_SYNC_TO_VBLANK"},
 };
 
 #ifdef SNA_XVMC
@@ -408,8 +398,13 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	adaptor->flags = 0;
 	adaptor->name = "Intel(R) Textured Video";
 	adaptor->nEncodings = 1;
-	adaptor->pEncodings = xnfalloc(sizeof(DummyEncoding));
-	memcpy(adaptor->pEncodings, DummyEncoding, sizeof(DummyEncoding));
+	adaptor->pEncodings = xnfalloc(sizeof(XF86VideoEncodingRec));
+	adaptor->pEncodings[0].id = 0;
+	adaptor->pEncodings[0].name = "XV_IMAGE";
+	adaptor->pEncodings[0].width = sna->render.max_3d_size;
+	adaptor->pEncodings[0].height = sna->render.max_3d_size;
+	adaptor->pEncodings[0].rate.numerator = 1;
+	adaptor->pEncodings[0].rate.denominator = 1;
 	adaptor->nFormats = NUM_FORMATS;
 	adaptor->pFormats = Formats;
 	adaptor->nPorts = nports;
