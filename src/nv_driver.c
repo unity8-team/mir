@@ -603,6 +603,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	const char *reason;
 	uint64_t v;
 	int ret;
+	int defaultDepth = 0;
 
 	if (flags & PROBE_DETECT) {
 		EntityInfoPtr pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
@@ -701,7 +702,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	 * The first thing we should figure out is the depth, bpp, etc.
 	 */
 
-	if (!xf86SetDepthBpp(pScrn, 0, 0, 0, Support32bppFb)) {
+	if (dev->vm_vram_size <= 16 * 1024 * 1024)
+		defaultDepth = 16;
+	if (!xf86SetDepthBpp(pScrn, defaultDepth, 0, 0, Support32bppFb)) {
 		NVPreInitFail("\n");
 	} else {
 		/* Check that the returned depth is one we support */
