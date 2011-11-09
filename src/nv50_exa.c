@@ -838,7 +838,7 @@ NV50EXAPrepareComposite(int op,
 	NV50EXA_LOCALS(pspix);
 	const unsigned shd_flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_RD;
 
-	if (MARK_RING (chan, 128, 4 + 2 + 2 * 10))
+	if (MARK_RING (chan, 144, 4 + 2 + 2 * 10))
 		NOUVEAU_FALLBACK("ring space\n");
 
 	BEGIN_RING(chan, eng2d, 0x0110, 1);
@@ -949,7 +949,7 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 	NV50EXA_LOCALS(pdpix);
 	float sX0, sX1, sX2, sY0, sY1, sY2;
 
-	WAIT_RING (chan, 64);
+	WAIT_RING (chan, 28);
 	BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ(0), 2);
 	OUT_RING  (chan, (dx + w) << 16 | dx);
 	OUT_RING  (chan, (dy + h) << 16 | dy);
