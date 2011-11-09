@@ -94,16 +94,25 @@ void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
 	}
 }
 
-void sna_video_frame_fini(struct sna *sna,
-			  struct sna_video *video,
-			  struct sna_video_frame *frame)
+struct kgem_bo *
+sna_video_buffer(struct sna *sna,
+		 struct sna_video *video,
+		 struct sna_video_frame *frame)
+{
+	/* Free the current buffer if we're going to have to reallocate */
+	if (video->buf && video->buf->size < frame->size)
+		sna_video_free_buffers(sna, video);
+
+	if (video->buf == NULL)
+		video->buf = kgem_create_linear(&sna->kgem, frame->size);
+
+	return video->buf;
+}
+
+void sna_video_buffer_fini(struct sna *sna,
+			   struct sna_video *video)
 {
 	struct kgem_bo *bo;
-
-	if (!frame->bo->reusable) {
-		kgem_bo_destroy(&sna->kgem, frame->bo);
-		return;
-	}
 
 	bo = video->old_buf[1];
 	video->old_buf[1] = video->old_buf[0];
@@ -243,21 +252,6 @@ sna_video_frame_init(struct sna *sna,
 		frame->VBufOffset =
 			frame->UBufOffset + frame->pitch[0] * height / 2;
 	}
-}
-
-static struct kgem_bo *
-sna_video_buffer(struct sna *sna,
-		 struct sna_video *video,
-		 struct sna_video_frame *frame)
-{
-	/* Free the current buffer if we're going to have to reallocate */
-	if (video->buf && video->buf->size < frame->size)
-		sna_video_free_buffers(sna, video);
-
-	if (video->buf == NULL)
-		video->buf = kgem_create_linear(&sna->kgem, frame->size);
-
-	return video->buf;
 }
 
 static void sna_memcpy_plane(uint8_t *dst, const uint8_t *src,
@@ -442,7 +436,6 @@ sna_video_copy_data(struct sna *sna,
 {
 	uint8_t *dst;
 
-	frame->bo = sna_video_buffer(sna, video, frame);
 	if (frame->bo == NULL)
 		return FALSE;
 

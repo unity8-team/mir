@@ -117,15 +117,20 @@ sna_video_frame_init(struct sna *sna,
 		     int id, short width, short height,
 		     struct sna_video_frame *frame);
 
+struct kgem_bo *
+sna_video_buffer(struct sna *sna,
+		 struct sna_video *video,
+		 struct sna_video_frame *frame);
+
 Bool
 sna_video_copy_data(struct sna *sna,
 		    struct sna_video *video,
 		    struct sna_video_frame *frame,
 		    const uint8_t *buf);
 
-void sna_video_frame_fini(struct sna *sna,
-			  struct sna_video *video,
-			  struct sna_video_frame *frame);
+void sna_video_buffer_fini(struct sna *sna,
+			   struct sna_video *video);
+
 void sna_video_free_buffers(struct sna *sna, struct sna_video *video);
 
 #endif /* SNA_VIDEO_H */

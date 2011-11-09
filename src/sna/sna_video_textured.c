@@ -262,8 +262,14 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		if (frame.bo == NULL)
 			return BadAlloc;
 	} else {
-		if (!sna_video_copy_data(sna, video, &frame, buf))
+		frame.bo = kgem_create_linear(&sna->kgem, frame.size);
+		if (frame.bo == NULL)
 			return BadAlloc;
+
+		if (!sna_video_copy_data(sna, video, &frame, buf)) {
+			kgem_bo_destroy(&sna->kgem, frame.bo);
+			return BadAlloc;
+		}
 	}
 
 	if (crtc && video->SyncToVblank != 0)
@@ -275,7 +281,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 			  drw_w, drw_h,
 			  pixmap);
 
-	sna_video_frame_fini(sna, video, &frame);
+	kgem_bo_destroy(&sna->kgem, frame.bo);
 
 	DamageDamageRegion(drawable, clip);
 

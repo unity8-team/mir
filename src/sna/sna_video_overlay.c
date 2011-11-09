@@ -504,6 +504,13 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 
 	/* overlay can't handle rotation natively, store it for the copy func */
 	video->rotation = crtc->rotation;
+
+	frame.bo = sna_video_buffer(sna, video, &frame);
+	if (frame.bo == NULL) {
+		DBG(("%s: failed to allocate video bo\n", __FUNCTION__));
+		return BadAlloc;
+	}
+
 	if (!sna_video_copy_data(sna, video, &frame, buf)) {
 		DBG(("%s: failed to copy video data\n", __FUNCTION__));
 		return BadAlloc;
@@ -515,7 +522,7 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 		return BadAlloc;
 	}
 
-	sna_video_frame_fini(sna, video, &frame);
+	sna_video_buffer_fini(sna, video);
 
 	/* update cliplist */
 	if (!REGION_EQUAL(scrn->pScreen, &video->clip, clip)) {
