@@ -467,7 +467,6 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 	struct sna_video_frame frame;
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
-	int top, left, npixels, nlines;
 
 	DBG(("%s: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d), width %d, height %d\n",
 	     __FUNCTION__,
@@ -483,15 +482,16 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 	if (src_h >= (drw_h * 8))
 		drw_h = src_h / 7;
 
+	sna_video_frame_init(sna, video, id, width, height, &frame);
+
 	if (!sna_video_clip_helper(scrn,
 				   video,
+				   &frame,
 				   &crtc,
 				   &dstBox,
 				   src_x, src_y, drw_x, drw_y,
 				   src_w, src_h, drw_w, drw_h,
-				   id,
-				   &top, &left, &npixels, &nlines, clip,
-				   width, height))
+				   clip))
 		return Success;
 
 	if (!crtc) {
@@ -502,12 +502,9 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 		return Success;
 	}
 
-	sna_video_frame_init(sna, video, id, width, height, &frame);
-
 	/* overlay can't handle rotation natively, store it for the copy func */
 	video->rotation = crtc->rotation;
-	if (!sna_video_copy_data(sna, video, &frame,
-				 top, left, npixels, nlines, buf)) {
+	if (!sna_video_copy_data(sna, video, &frame, buf)) {
 		DBG(("%s: failed to copy video data\n", __FUNCTION__));
 		return BadAlloc;
 	}

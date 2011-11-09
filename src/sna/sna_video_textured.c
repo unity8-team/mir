@@ -237,21 +237,19 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
-	int top, left, npixels, nlines;
 	Bool flush = false;
 
 	if (!sna_pixmap(pixmap))
 		return BadAlloc;
 
-	if (!sna_video_clip_helper(scrn, video, &crtc, &dstBox,
+	sna_video_frame_init(sna, video, id, width, height, &frame);
+
+	if (!sna_video_clip_helper(scrn, video, &frame,
+				   &crtc, &dstBox,
 				   src_x, src_y, drw_x, drw_y,
 				   src_w, src_h, drw_w, drw_h,
-				   id,
-				   &top, &left, &npixels, &nlines,
-				   clip, width, height))
+				   clip))
 		return Success;
-
-	sna_video_frame_init(sna, video, id, width, height, &frame);
 
 	if (xvmc_passthrough(id)) {
 		if (IS_I915G(sna) || IS_I915GM(sna)) {
@@ -264,9 +262,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		if (frame.bo == NULL)
 			return BadAlloc;
 	} else {
-		if (!sna_video_copy_data(sna, video, &frame,
-					 top, left, npixels, nlines,
-					 buf))
+		if (!sna_video_copy_data(sna, video, &frame, buf))
 			return BadAlloc;
 	}
 

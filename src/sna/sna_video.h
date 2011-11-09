@@ -68,8 +68,13 @@ struct sna_video_frame {
 	uint32_t size;
 	uint32_t UBufOffset;
 	uint32_t VBufOffset;
+
 	uint16_t width, height;
 	uint16_t pitch[2];
+
+	/* extents */
+	uint16_t top, left;
+	uint16_t npixels, nlines;
 };
 
 void sna_video_init(struct sna *sna, ScreenPtr screen);
@@ -97,15 +102,14 @@ static inline int is_planar_fourcc(int id)
 Bool
 sna_video_clip_helper(ScrnInfoPtr scrn,
 		      struct sna_video *adaptor_priv,
+		      struct sna_video_frame *frame,
 		      xf86CrtcPtr * crtc_ret,
 		      BoxPtr dst,
 		      short src_x, short src_y,
 		      short drw_x, short drw_y,
 		      short src_w, short src_h,
 		      short drw_w, short drw_h,
-		      int id,
-		      int *top, int* left, int* npixels, int *nlines,
-		      RegionPtr reg, INT32 width, INT32 height);
+		      RegionPtr reg);
 
 void
 sna_video_frame_init(struct sna *sna,
@@ -117,8 +121,6 @@ Bool
 sna_video_copy_data(struct sna *sna,
 		    struct sna_video *video,
 		    struct sna_video_frame *frame,
-		    int top, int left,
-		    int npixels, int nlines,
 		    const uint8_t *buf);
 
 void sna_video_frame_fini(struct sna *sna,
