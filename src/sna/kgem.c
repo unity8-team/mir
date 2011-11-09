@@ -1800,6 +1800,7 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 	 * on the buffer, and *presuming* they do not pass it on to a third
 	 * party, we track the lifetime accurately.
 	 */
+	bo->reusable = false;
 	return flink.name;
 }
 
