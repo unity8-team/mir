@@ -2959,36 +2959,36 @@ gen3_emit_video_state(struct sna *sna,
 		      struct kgem_bo *dst_bo,
 		      int width, int height)
 {
-	uint32_t shader_offset;
-	uint32_t ms3;
+	struct gen3_render_state *state = &sna->render_state.gen3;
+	uint32_t id, ms3, rewind;
 
 	gen3_emit_target(sna, dst_bo, width, height,
 			 sna_format_for_depth(pixmap->drawable.depth));
 
 	/* XXX share with composite? Is it worth the effort? */
-	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
-		  I1_LOAD_S(1) | I1_LOAD_S(2) | I1_LOAD_S(6) |
-		  2);
-	OUT_BATCH((4 << S1_VERTEX_WIDTH_SHIFT) | (4 << S1_VERTEX_PITCH_SHIFT));
-	OUT_BATCH(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
-		  S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
-		  S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
-		  S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
-		  S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
-		  S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
-		  S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
-		  S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
-	OUT_BATCH((2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
-		  (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) |
-		  S6_COLOR_WRITE_ENABLE);
+	if ((state->last_shader & (1<<31)) == 0) {
+		OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 |
+			  I1_LOAD_S(1) | I1_LOAD_S(2) | I1_LOAD_S(6) |
+			  2);
+		OUT_BATCH((4 << S1_VERTEX_WIDTH_SHIFT) | (4 << S1_VERTEX_PITCH_SHIFT));
+		OUT_BATCH(S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D) |
+			  S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT) |
+			  S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT) |
+			  S2_TEXCOORD_FMT(3, TEXCOORDFMT_NOT_PRESENT) |
+			  S2_TEXCOORD_FMT(4, TEXCOORDFMT_NOT_PRESENT) |
+			  S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT) |
+			  S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT) |
+			  S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT));
+		OUT_BATCH((2 << S6_CBUF_SRC_BLEND_FACT_SHIFT) |
+			  (1 << S6_CBUF_DST_BLEND_FACT_SHIFT) |
+			  S6_COLOR_WRITE_ENABLE);
 
-	sna->render_state.gen3.last_blend = 0;
-	sna->render_state.gen3.last_sampler = 0;
-	sna->render_state.gen3.floats_per_vertex = 4;
-	sna->render_state.gen3.last_shader = -1;
-	sna->render_state.gen3.last_constants = 0;
+		state->last_blend = 0;
+		state->floats_per_vertex = 4;
+	}
 
 	if (!is_planar_fourcc(frame->id)) {
+		rewind = sna->kgem.nbatch;
 		OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
 		OUT_BATCH(0x0000001);	/* constant 0 */
 		/* constant 0: brightness/contrast */
@@ -2996,7 +2996,15 @@ gen3_emit_video_state(struct sna *sna,
 		OUT_BATCH_F(video->contrast / 255.0);
 		OUT_BATCH_F(0.0);
 		OUT_BATCH_F(0.0);
+		if (state->last_constants &&
+		    memcmp(&sna->kgem.batch[state->last_constants],
+			   &sna->kgem.batch[rewind],
+			   6*sizeof(uint32_t)) == 0)
+			sna->kgem.nbatch = rewind;
+		else
+			state->last_constants = rewind;
 
+		rewind = sna->kgem.nbatch;
 		OUT_BATCH(_3DSTATE_SAMPLER_STATE | 3);
 		OUT_BATCH(0x00000001);
 		OUT_BATCH(SS2_COLORSPACE_CONVERSION |
@@ -3009,6 +3017,13 @@ gen3_emit_video_state(struct sna *sna,
 			  (0 << SS3_TEXTUREMAP_INDEX_SHIFT) |
 			  SS3_NORMALIZED_COORDS);
 		OUT_BATCH(0x00000000);
+		if (state->last_sampler &&
+		    memcmp(&sna->kgem.batch[state->last_sampler],
+			   &sna->kgem.batch[rewind],
+			   5*sizeof(uint32_t)) == 0)
+			sna->kgem.nbatch = rewind;
+		else
+			state->last_sampler = rewind;
 
 		OUT_BATCH(_3DSTATE_MAP_STATE | 3);
 		OUT_BATCH(0x00000001);	/* texture map #1 */
@@ -3031,15 +3046,23 @@ gen3_emit_video_state(struct sna *sna,
 		OUT_BATCH(ms3);
 		OUT_BATCH(((frame->pitch[0] / 4) - 1) << MS4_PITCH_SHIFT);
 
-		shader_offset = sna->kgem.nbatch++;
+		id = 1<<31 | 1<<1 | !!video->brightness;
+		if (state->last_shader != id) {
+			state->last_shader = id;
+			id = sna->kgem.nbatch++;
 
-		gen3_fs_dcl(FS_S0);
-		gen3_fs_dcl(FS_T0);
-		gen3_fs_texld(FS_OC, FS_S0, FS_T0);
-		if (video->brightness != 0) {
-			gen3_fs_add(FS_OC,
-				    gen3_fs_operand_reg(FS_OC),
-				    gen3_fs_operand(FS_C0, X, X, X, ZERO));
+			gen3_fs_dcl(FS_S0);
+			gen3_fs_dcl(FS_T0);
+			gen3_fs_texld(FS_OC, FS_S0, FS_T0);
+			if (video->brightness != 0) {
+				gen3_fs_add(FS_OC,
+					    gen3_fs_operand_reg(FS_OC),
+					    gen3_fs_operand(FS_C0, X, X, X, ZERO));
+			}
+
+			sna->kgem.batch[id] =
+				_3DSTATE_PIXEL_SHADER_PROGRAM |
+				(sna->kgem.nbatch - id - 2);
 		}
 	} else {
 		/* For the planar formats, we set up three samplers --
@@ -3062,6 +3085,7 @@ gen3_emit_video_state(struct sna *sna,
 		 * r3 = (v,v,v,v)
 		 * OC = (r,g,b,1)
 		 */
+		rewind = sna->kgem.nbatch;
 		OUT_BATCH(_3DSTATE_PIXEL_SHADER_CONSTANTS | (22 - 2));
 		OUT_BATCH(0x000001f);	/* constants 0-4 */
 		/* constant 0: normalization offsets */
@@ -3089,7 +3113,15 @@ gen3_emit_video_state(struct sna *sna,
 		OUT_BATCH_F(video->contrast / 255.0);
 		OUT_BATCH_F(0.0);
 		OUT_BATCH_F(0.0);
+		if (state->last_constants &&
+		    memcmp(&sna->kgem.batch[state->last_constants],
+			   &sna->kgem.batch[rewind],
+			   22*sizeof(uint32_t)) == 0)
+			sna->kgem.nbatch = rewind;
+		else
+			state->last_constants = rewind;
 
+		rewind = sna->kgem.nbatch;
 		OUT_BATCH(_3DSTATE_SAMPLER_STATE | 9);
 		OUT_BATCH(0x00000007);
 		/* sampler 0 */
@@ -3122,6 +3154,13 @@ gen3_emit_video_state(struct sna *sna,
 			  (2 << SS3_TEXTUREMAP_INDEX_SHIFT) |
 			  SS3_NORMALIZED_COORDS);
 		OUT_BATCH(0x00000000);
+		if (state->last_sampler &&
+		    memcmp(&sna->kgem.batch[state->last_sampler],
+			   &sna->kgem.batch[rewind],
+			   11*sizeof(uint32_t)) == 0)
+			sna->kgem.nbatch = rewind;
+		else
+			state->last_sampler = rewind;
 
 		OUT_BATCH(_3DSTATE_MAP_STATE | 9);
 		OUT_BATCH(0x00000007);
@@ -3166,63 +3205,68 @@ gen3_emit_video_state(struct sna *sna,
 		OUT_BATCH(ms3);
 		OUT_BATCH(((frame->pitch[0] / 4) - 1) << MS4_PITCH_SHIFT);
 
-		shader_offset = sna->kgem.nbatch++;
+		id = 1<<31 | 2<<1 | !!video->brightness;
+		if (state->last_shader != id) {
+			state->last_shader = id;
+			id = sna->kgem.nbatch++;
 
-		/* Declare samplers */
-		gen3_fs_dcl(FS_S0);	/* Y */
-		gen3_fs_dcl(FS_S1);	/* U */
-		gen3_fs_dcl(FS_S2);	/* V */
-		gen3_fs_dcl(FS_T0);	/* normalized coords */
+			/* Declare samplers */
+			gen3_fs_dcl(FS_S0);	/* Y */
+			gen3_fs_dcl(FS_S1);	/* U */
+			gen3_fs_dcl(FS_S2);	/* V */
+			gen3_fs_dcl(FS_T0);	/* normalized coords */
 
-		/* Load samplers to temporaries. */
-		gen3_fs_texld(FS_R1, FS_S0, FS_T0);
-		gen3_fs_texld(FS_R2, FS_S1, FS_T0);
-		gen3_fs_texld(FS_R3, FS_S2, FS_T0);
+			/* Load samplers to temporaries. */
+			gen3_fs_texld(FS_R1, FS_S0, FS_T0);
+			gen3_fs_texld(FS_R2, FS_S1, FS_T0);
+			gen3_fs_texld(FS_R3, FS_S2, FS_T0);
 
-		/* Move the sampled YUV data in R[123] to the first
-		 * 3 channels of R0.
-		 */
-		gen3_fs_mov_masked(FS_R0, MASK_X,
-				   gen3_fs_operand_reg(FS_R1));
-		gen3_fs_mov_masked(FS_R0, MASK_Y,
-				   gen3_fs_operand_reg(FS_R2));
-		gen3_fs_mov_masked(FS_R0, MASK_Z,
-				   gen3_fs_operand_reg(FS_R3));
+			/* Move the sampled YUV data in R[123] to the first
+			 * 3 channels of R0.
+			 */
+			gen3_fs_mov_masked(FS_R0, MASK_X,
+					   gen3_fs_operand_reg(FS_R1));
+			gen3_fs_mov_masked(FS_R0, MASK_Y,
+					   gen3_fs_operand_reg(FS_R2));
+			gen3_fs_mov_masked(FS_R0, MASK_Z,
+					   gen3_fs_operand_reg(FS_R3));
 
-		/* Normalize the YUV data */
-		gen3_fs_add(FS_R0, gen3_fs_operand_reg(FS_R0),
-			    gen3_fs_operand_reg(FS_C0));
-		/* dot-product the YUV data in R0 by the vectors of
-		 * coefficients for calculating R, G, and B, storing
-		 * the results in the R, G, or B channels of the output
-		 * color.  The OC results are implicitly clamped
-		 * at the end of the program.
-		 */
-		gen3_fs_dp3(FS_OC, MASK_X,
-			    gen3_fs_operand_reg(FS_R0),
-			    gen3_fs_operand_reg(FS_C1));
-		gen3_fs_dp3(FS_OC, MASK_Y,
-			    gen3_fs_operand_reg(FS_R0),
-			    gen3_fs_operand_reg(FS_C2));
-		gen3_fs_dp3(FS_OC, MASK_Z,
-			    gen3_fs_operand_reg(FS_R0),
-			    gen3_fs_operand_reg(FS_C3));
-		/* Set alpha of the output to 1.0, by wiring W to 1
-		 * and not actually using the source.
-		 */
-		gen3_fs_mov_masked(FS_OC, MASK_W,
-				   gen3_fs_operand_one());
+			/* Normalize the YUV data */
+			gen3_fs_add(FS_R0, gen3_fs_operand_reg(FS_R0),
+				    gen3_fs_operand_reg(FS_C0));
+			/* dot-product the YUV data in R0 by the vectors of
+			 * coefficients for calculating R, G, and B, storing
+			 * the results in the R, G, or B channels of the output
+			 * color.  The OC results are implicitly clamped
+			 * at the end of the program.
+			 */
+			gen3_fs_dp3(FS_OC, MASK_X,
+				    gen3_fs_operand_reg(FS_R0),
+				    gen3_fs_operand_reg(FS_C1));
+			gen3_fs_dp3(FS_OC, MASK_Y,
+				    gen3_fs_operand_reg(FS_R0),
+				    gen3_fs_operand_reg(FS_C2));
+			gen3_fs_dp3(FS_OC, MASK_Z,
+				    gen3_fs_operand_reg(FS_R0),
+				    gen3_fs_operand_reg(FS_C3));
+			/* Set alpha of the output to 1.0, by wiring W to 1
+			 * and not actually using the source.
+			 */
+			gen3_fs_mov_masked(FS_OC, MASK_W,
+					   gen3_fs_operand_one());
 
-		if (video->brightness != 0) {
-			gen3_fs_add(FS_OC,
-				    gen3_fs_operand_reg(FS_OC),
-				    gen3_fs_operand(FS_C4, X, X, X, ZERO));
+			if (video->brightness != 0) {
+				gen3_fs_add(FS_OC,
+					    gen3_fs_operand_reg(FS_OC),
+					    gen3_fs_operand(FS_C4, X, X, X, ZERO));
+			}
+
+			sna->kgem.batch[id] =
+				_3DSTATE_PIXEL_SHADER_PROGRAM |
+				(sna->kgem.nbatch - id - 2);
 		}
 	}
 
-	sna->kgem.batch[shader_offset] =
-		_3DSTATE_PIXEL_SHADER_PROGRAM |
-		(sna->kgem.nbatch - shader_offset - 2);
 }
 
 static void
