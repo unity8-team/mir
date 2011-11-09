@@ -263,6 +263,7 @@ static struct kgem_bo *__kgem_bo_init(struct kgem_bo *bo,
 	bo->handle = handle;
 	bo->size = size;
 	bo->reusable = true;
+	bo->purgeable = true;
 	bo->cpu_read = true;
 	bo->cpu_write = true;
 	list_init(&bo->request);
@@ -601,24 +602,26 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	if(!bo->reusable)
 		goto destroy;
 
-	if (!bo->deleted && !bo->exec) {
+	if (bo->purgeable && !bo->rq) {
+		assert(!bo->purged);
+
 		if (!gem_madvise(kgem->fd, bo->handle, I915_MADV_DONTNEED)) {
 			kgem->need_purge |= bo->gpu;
 			goto destroy;
 		}
 
-		bo->deleted = 1;
+		bo->purged = true;
 	}
 
 	kgem->need_expire = true;
 	if (bo->rq) {
 		list_move(&bo->list, active(kgem, bo->size));
-	} else if (bo->needs_flush | bo->gpu) {
+	} else if (bo->purged) {
+		list_move(&bo->list, inactive(kgem, bo->size));
+	} else {
 		assert(list_is_empty(&bo->request));
 		list_add(&bo->request, &kgem->flushing);
 		list_move(&bo->list, active(kgem, bo->size));
-	} else {
-		list_move(&bo->list, inactive(kgem, bo->size));
 	}
 
 	return;
@@ -647,10 +650,16 @@ bool kgem_retire(struct kgem *kgem)
 
 		DBG(("%s: moving %d from flush to inactive\n",
 		     __FUNCTION__, bo->handle));
-		bo->needs_flush = 0;
-		bo->gpu = false;
-		list_move(&bo->list, inactive(kgem, bo->size));
-		list_del(&bo->request);
+		if (bo->purgeable &&
+		    gem_madvise(kgem->fd, bo->handle, I915_MADV_DONTNEED)) {
+			bo->purged = true;
+			bo->needs_flush = false;
+			bo->gpu = false;
+			list_move(&bo->list, inactive(kgem, bo->size));
+			list_del(&bo->request);
+		} else
+			kgem_bo_free(kgem, bo);
+
 		retired = true;
 	}
 
@@ -682,17 +691,23 @@ bool kgem_retire(struct kgem *kgem)
 
 			if (bo->refcnt == 0) {
 				if (bo->reusable) {
-					assert(bo->deleted);
-					if (bo->needs_flush) {
+					if (bo->needs_flush || !bo->purgeable) {
 						DBG(("%s: moving %d to flushing\n",
 						     __FUNCTION__, bo->handle));
 						list_add(&bo->request, &kgem->flushing);
-					} else {
+					} else if(gem_madvise(kgem->fd,
+							      bo->handle,
+							      I915_MADV_DONTNEED)) {
 						DBG(("%s: moving %d to inactive\n",
 						     __FUNCTION__, bo->handle));
+						bo->purged = true;
 						list_move(&bo->list,
 							  inactive(kgem, bo->size));
 						retired = true;
+					} else {
+						DBG(("%s: closing %d\n",
+						     __FUNCTION__, bo->handle));
+						kgem_bo_free(kgem, bo);
 					}
 				} else {
 					DBG(("%s: closing %d\n",
@@ -705,10 +720,9 @@ bool kgem_retire(struct kgem *kgem)
 		rq->bo->refcnt--;
 		assert(rq->bo->refcnt == 0);
 		if (gem_madvise(kgem->fd, rq->bo->handle, I915_MADV_DONTNEED)) {
-			rq->bo->deleted = 1;
+			rq->bo->purged = true;
 			assert(rq->bo->gpu == 0);
-			list_move(&rq->bo->list,
-				  inactive(kgem, rq->bo->size));
+			list_move(&rq->bo->list, inactive(kgem, rq->bo->size));
 			retired = true;
 		} else {
 			kgem->need_purge = 1;
@@ -740,19 +754,9 @@ static void kgem_commit(struct kgem *kgem)
 		bo->cpu_read = false;
 		bo->cpu_write = false;
 
-		if (!bo->refcnt) {
-			if (!bo->reusable) {
-destroy:			kgem_bo_free(kgem, bo);
-				continue;
-			}
-			if (!bo->deleted) {
-				if (!gem_madvise(kgem->fd, bo->handle,
-						 I915_MADV_DONTNEED)) {
-					kgem->need_purge = 1;
-					goto destroy;
-				}
-				bo->deleted = 1;
-			}
+		if (!bo->refcnt && !bo->reusable) {
+			kgem_bo_free(kgem, bo);
+			continue;
 		}
 	}
 
@@ -807,6 +811,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 			if (base) {
 				memcpy(base, &bo->base, sizeof (*base));
 				base->reusable = true;
+				base->purgeable = true;
 				list_init(&base->list);
 				list_replace(&bo->base.request, &base->request);
 				free(bo);
@@ -1041,7 +1046,7 @@ void _kgem_submit(struct kgem *kgem)
 					       found ? found->size : -1,
 					       found ? found->tiling : -1,
 					       (int)(kgem->exec[i].flags & EXEC_OBJECT_NEEDS_FENCE),
-					       found ? found->deleted : -1);
+					       found ? found->purged : -1);
 				}
 				for (i = 0; i < kgem->nreloc; i++) {
 					ErrorF("reloc[%d] = pos:%d, target:%d, delta:%d, read:%x, write:%x, offset:%x\n",
@@ -1137,7 +1142,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
 		idle &= list_is_empty(&kgem->inactive[i]);
 		list_for_each_entry(bo, &kgem->inactive[i], list) {
-			assert(bo->deleted);
+			assert(bo->purged);
 			if (bo->delta) {
 				expire = now - 5;
 				break;
@@ -1235,14 +1240,14 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		if (use_active && bo->tiling != I915_TILING_NONE)
 			continue;
 
-		if (bo->deleted) {
+		if (bo->purged) {
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_WILLNEED)) {
 				kgem->need_purge |= bo->gpu;
 				continue;
 			}
 
-			bo->deleted = 0;
+			bo->purged = false;
 		}
 
 		if (I915_TILING_NONE != bo->tiling &&
@@ -1262,6 +1267,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		     use_active ? "active" : "inactive"));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
+		assert(use_active || bo->purgeable);
 		assert(use_active || bo->gpu == 0);
 		//assert(use_active || !kgem_busy(kgem, bo->handle));
 		return bo;
@@ -1290,6 +1296,7 @@ struct kgem_bo *kgem_create_for_name(struct kgem *kgem, uint32_t name)
 	}
 
 	bo->reusable = false;
+	bo->purgeable = false;
 	return bo;
 }
 
@@ -1507,7 +1514,7 @@ search_active: /* Best active match first */
 			if (bo->rq == NULL)
 				list_del(&bo->request);
 
-			if (bo->deleted) {
+			if (bo->purged) {
 				if (!gem_madvise(kgem->fd, bo->handle,
 						 I915_MADV_WILLNEED)) {
 					kgem->need_purge |= bo->gpu;
@@ -1516,7 +1523,7 @@ search_active: /* Best active match first */
 					goto search_active;
 				}
 
-				bo->deleted = 0;
+				bo->purged = false;
 			}
 
 			bo->unique_id = kgem_get_unique_id(kgem);
@@ -1553,14 +1560,14 @@ skip_active_search:
 		list_del(&bo->list);
 		assert(list_is_empty(&bo->request));
 
-		if (bo->deleted) {
+		if (bo->purged) {
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_WILLNEED)) {
 				kgem->need_purge |= bo->gpu;
 				goto next_bo;
 			}
 
-			bo->deleted = 0;
+			bo->purged = false;
 		}
 
 		bo->delta = 0;
@@ -1570,6 +1577,7 @@ skip_active_search:
 		     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
+		assert(bo->purgeable);
 		assert((flags & CREATE_INACTIVE) == 0 || bo->gpu == 0);
 		assert((flags & CREATE_INACTIVE) == 0 ||
 		       !kgem_busy(kgem, bo->handle));
@@ -1722,7 +1730,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 	assert(index < ARRAY_SIZE(kgem->reloc));
 	kgem->reloc[index].offset = pos * sizeof(kgem->batch[0]);
 	if (bo) {
-		assert(!bo->deleted);
+		assert(!bo->purged);
 
 		delta += bo->delta;
 		if (bo->proxy) {
@@ -1732,7 +1740,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			bo = bo->proxy;
 		}
 
-		assert(!bo->deleted);
+		assert(!bo->purged);
 
 		if (bo->exec == NULL) {
 			_kgem_add_bo(kgem, bo);
@@ -1802,7 +1810,7 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 	 * on the buffer, and *presuming* they do not pass it on to a third
 	 * party, we track the lifetime accurately.
 	 */
-	bo->reusable = false;
+	bo->purgeable = false;
 	return flink.name;
 }
 
@@ -1844,7 +1852,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 		return NULL;
 	}
 
-	bo->reusable = false;
+	bo->purgeable = bo->reusable = false;
 	bo->sync = true;
 	DBG(("%s(ptr=%p, size=%d, read_only=%d) => handle=%d\n",
 	     __FUNCTION__, ptr, size, read_only, handle));
@@ -1973,7 +1981,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	if (bo == NULL)
 		return NULL;
 
-	bo->reusable = false;
+	bo->purgeable = bo->reusable = false;
 	bo->proxy = kgem_bo_reference(target);
 	bo->delta = offset;
 	return bo;
@@ -2102,7 +2110,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		bo->base.vmap = true;
 		bo->need_io = 0;
 	}
-	bo->base.reusable = false;
+	bo->base.purgeable = bo->base.reusable = false;
 
 	bo->alloc = alloc;
 	bo->used = size;
