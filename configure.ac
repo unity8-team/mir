@@ -235,6 +235,7 @@ if test "x$DEBUG" != xno; then
 fi
 if test "x$DEBUG" = xfull; then
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
+        CFLAGS="$CFLAGS -O0 -ggdb3"
 fi
 
 AC_CHECK_HEADERS([sys/timerfd.h])
