@@ -602,7 +602,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	if(!bo->reusable)
 		goto destroy;
 
-	if (bo->purgeable && !bo->rq) {
+	if (bo->purgeable && !bo->rq && !bo->needs_flush) {
 		assert(!bo->purged);
 
 		if (!gem_madvise(kgem->fd, bo->handle, I915_MADV_DONTNEED)) {
