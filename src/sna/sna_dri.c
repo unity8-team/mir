@@ -351,22 +351,25 @@ static void sna_dri_reference_buffer(DRI2Buffer2Ptr buffer)
 static void damage(PixmapPtr pixmap, RegionPtr region)
 {
 	struct sna_pixmap *priv;
-	BoxPtr box;
 
 	priv = sna_pixmap(pixmap);
 	if (priv->gpu_only)
 		return;
 
-	box = RegionExtents(region);
-	if (RegionNumRects(region) == 1 &&
-	    box->x1 <= 0 && box->y1 <= 0 &&
-	    box->x2 >= pixmap->drawable.width &&
-	    box->y2 >= pixmap->drawable.height) {
+	if (region == NULL) {
+damage_all:
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
 		sna_damage_destroy(&priv->cpu_damage);
 	} else {
+		BoxPtr box = RegionExtents(region);
+		if (region->data == NULL &&
+		    box->x1 <= 0 && box->y1 <= 0 &&
+		    box->x2 >= pixmap->drawable.width &&
+		    box->y2 >= pixmap->drawable.height)
+			goto damage_all;
+
 		sna_damage_add(&priv->gpu_damage, region);
 		sna_damage_subtract(&priv->cpu_damage, region);
 	}
@@ -402,12 +405,13 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	int16_t dx, dy, sx, sy;
 	int n;
 
-	DBG(("%s: dst -- attachment=%d, name=%d, handle=%d [screen=%d]\n",
+	DBG(("%s: dst -- attachment=%d, name=%d, handle=%d [screen=%d, sync=%d]\n",
 	     __FUNCTION__,
 	     dst_buffer->attachment,
 	     dst_buffer->name,
 	     dst_priv->bo->handle,
-	     sna_pixmap_get_bo(sna->front)->handle));
+	     sna_pixmap_get_bo(sna->front)->handle,
+	     sync));
 	DBG(("%s: src -- attachment=%d, name=%d, handle=%d\n",
 	     __FUNCTION__,
 	     src_buffer->attachment,
@@ -486,11 +490,14 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
+	damage(dst, region);
 	if (region) {
 		boxes = REGION_RECTS(region);
 		n = REGION_NUM_RECTS(region);
 		assert(n);
 	} else {
+		pixman_region_init_rects(&clip, &box, 1);
+		region = &clip;
 		boxes = &box;
 		n = 1;
 	}
@@ -513,12 +520,9 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 	if (flush) /* STAT! */
 		kgem_submit(&sna->kgem);
 
-	if (region) {
-		pixman_region_translate(region, dx, dy);
-		DamageRegionAppend(&dst->drawable, region);
-		DamageRegionProcessPending(&dst->drawable);
-		damage(dst, region);
-	}
+	pixman_region_translate(region, dx, dy);
+	DamageRegionAppend(&dst->drawable, region);
+	DamageRegionProcessPending(&dst->drawable);
 
 	if (region == &clip)
 		pixman_region_fini(&clip);
