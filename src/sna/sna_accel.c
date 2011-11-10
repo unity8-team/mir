@@ -62,9 +62,6 @@
 #define USE_ZERO_SPANS 1
 #define USE_BO_FOR_SCRATCH_PIXMAP 1
 
-DevPrivateKeyRec sna_pixmap_index;
-DevPrivateKeyRec sna_gc_index;
-DevPrivateKey sna_window_key;
 static int sna_font_key;
 
 static const uint8_t copy_ROP[] = {
@@ -173,7 +170,7 @@ static void sna_pixmap_destroy_gpu_bo(struct sna *sna, struct sna_pixmap *priv)
 
 static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 {
-	struct sna *sna = to_sna_from_drawable(&pixmap->drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 
 	list_del(&priv->list);
 
@@ -210,7 +207,7 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 
 static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
 {
-	struct sna *sna = to_sna_from_drawable(&pixmap->drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	uint32_t tiling, bit;
 
 	/* Use tiling by default, but disable per user request */
@@ -230,6 +227,11 @@ static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
 				  pixmap->drawable.width,
 				  pixmap->drawable.height,
 				  pixmap->drawable.bitsPerPixel);
+}
+
+static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
+{
+	dixSetPrivate(&pixmap->devPrivates, &sna_pixmap_index, sna);
 }
 
 static struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
@@ -268,7 +270,7 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 		break;
 
 	default:
-		sna = to_sna_from_drawable(&pixmap->drawable);
+		sna = to_sna_from_pixmap(pixmap);
 		if (!kgem_can_create_2d(&sna->kgem,
 					pixmap->drawable.width,
 					pixmap->drawable.height,
@@ -279,6 +281,22 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 	}
 
 	return _sna_pixmap_attach(pixmap);
+}
+
+static inline PixmapPtr
+create_pixmap(struct sna *sna, ScreenPtr screen,
+	      int width, int height, int depth,
+	      unsigned usage)
+{
+	PixmapPtr pixmap;
+
+	pixmap = fbCreatePixmap(screen, width, height, depth, usage);
+	if (pixmap == NullPixmap)
+		return NullPixmap;
+
+	assert(sna_private_index.offset == 0);
+	dixSetPrivate(&pixmap->devPrivates, &sna_private_index, sna);
+	return pixmap;
 }
 
 static PixmapPtr
@@ -299,8 +317,8 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 
 	tiling = kgem_choose_tiling(&sna->kgem, tiling, width, height, bpp);
 	if (!kgem_can_create_2d(&sna->kgem, width, height, bpp, tiling))
-		return fbCreatePixmap(screen, width, height, depth,
-				      CREATE_PIXMAP_USAGE_SCRATCH);
+		return create_pixmap(sna, screen, width, height, depth,
+				     CREATE_PIXMAP_USAGE_SCRATCH);
 
 	/* you promise never to access this via the cpu... */
 	if (sna->freed_pixmap) {
@@ -312,8 +330,8 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		list_init(&priv->list);
 		priv->pixmap = pixmap;
 	} else {
-		pixmap = fbCreatePixmap(screen, 0, 0, depth,
-					CREATE_PIXMAP_USAGE_SCRATCH);
+		pixmap = create_pixmap(sna, screen, 0, 0, depth,
+				       CREATE_PIXMAP_USAGE_SCRATCH);
 		if (!pixmap)
 			return NullPixmap;
 
@@ -359,7 +377,9 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 						 width, height, depth,
 						 I915_TILING_X);
 #else
-		return fbCreatePixmap(screen, width, height, depth, usage);
+		return create_pixmap(to_sna_from_screen(screen), screen,
+				     width, height, depth,
+				     usage),
 #endif
 
 	if (usage == SNA_CREATE_SCRATCH)
@@ -379,7 +399,8 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 
 	/* XXX could use last deferred free? */
 
-	pixmap = fbCreatePixmap(screen, width, height, depth, usage);
+	pixmap = create_pixmap(to_sna_from_screen(screen), screen,
+			       width, height, depth, usage);
 	if (pixmap == NullPixmap)
 		return NullPixmap;
 
@@ -437,7 +458,7 @@ static inline void list_move(struct list *list, struct list *head)
 void
 sna_pixmap_move_to_cpu(PixmapPtr pixmap, bool write)
 {
-	struct sna *sna = to_sna_from_drawable(&pixmap->drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
 
 	DBG(("%s(pixmap=%p, write=%d)\n", __FUNCTION__, pixmap, write));
@@ -532,8 +553,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				RegionPtr region,
 				Bool write)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
 	int16_t dx, dy;
 
@@ -677,7 +698,7 @@ done:
 static void
 sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 {
-	struct sna *sna = to_sna_from_drawable(&pixmap->drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	RegionRec i, r;
 
@@ -878,8 +899,8 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	    !kgem_can_create_2d(&sna->kgem,
 				width, height, bpp,
 				I915_TILING_NONE))
-		return fbCreatePixmap(screen, width, height, depth,
-				      CREATE_PIXMAP_USAGE_SCRATCH);
+		return create_pixmap(sna, screen, width, height, depth,
+				     CREATE_PIXMAP_USAGE_SCRATCH);
 
 	if (sna->freed_pixmap) {
 		pixmap = sna->freed_pixmap;
@@ -887,8 +908,8 @@ sna_pixmap_create_upload(ScreenPtr screen,
 
 		priv = sna_pixmap(pixmap);
 	} else {
-		pixmap = fbCreatePixmap(screen, 0, 0, depth,
-					CREATE_PIXMAP_USAGE_SCRATCH);
+		pixmap = create_pixmap(sna, screen, 0, 0, depth,
+				       CREATE_PIXMAP_USAGE_SCRATCH);
 		if (!pixmap)
 			return NullPixmap;
 
@@ -946,7 +967,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 	}
 
 	if (priv->gpu_bo == NULL) {
-		struct sna *sna = to_sna_from_drawable(&pixmap->drawable);
+		struct sna *sna = to_sna_from_pixmap(pixmap);
 		unsigned flags;
 
 		flags = 0;
@@ -976,7 +997,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 struct sna_pixmap *
 sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 {
-	struct sna *sna = to_sna_from_drawable(&pixmap->drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
 	BoxPtr box;
 	int n;
@@ -1239,8 +1260,8 @@ static Bool
 sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			 int x, int y, int w, int h, char *bits, int stride)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	struct kgem_bo *src_bo;
 	Bool ok = FALSE;
@@ -1302,8 +1323,8 @@ static Bool
 sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		    int x, int y, int w, int  h, char *bits, int stride)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	char *dst_bits;
 	int dst_stride;
@@ -1415,8 +1436,8 @@ static Bool
 sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		    int x, int y, int w, int  h, char *bits)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	struct sna_damage **damage;
 	BoxRec *box;
@@ -1531,8 +1552,8 @@ static Bool
 sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		    int x, int y, int w, int  h, int left,char *bits)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	struct sna_damage **damage;
 	struct kgem_bo *bo = priv->gpu_bo;
@@ -1662,8 +1683,8 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	      int x, int y, int w, int h, int left, int format,
 	      char *bits)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	RegionRec region;
 	int16_t dx, dy;
@@ -1767,8 +1788,8 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		    Bool reverse, Bool upsidedown, Pixel bitplane,
 		    void *closure)
 {
-	struct sna *sna = to_sna_from_drawable(src);
 	PixmapPtr pixmap = get_drawable_pixmap(src);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	int alu = gc ? gc->alu : GXcopy;
 	int16_t tx, ty;
@@ -1864,11 +1885,11 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       Bool reverse, Bool upsidedown, Pixel bitplane,
 	       void *closure)
 {
-	struct sna *sna = to_sna_from_drawable(dst);
 	PixmapPtr src_pixmap = get_drawable_pixmap(src);
-	PixmapPtr dst_pixmap = get_drawable_pixmap(dst);
 	struct sna_pixmap *src_priv = sna_pixmap(src_pixmap);
+	PixmapPtr dst_pixmap = get_drawable_pixmap(dst);
 	struct sna_pixmap *dst_priv = sna_pixmap(dst_pixmap);
+	struct sna *sna = to_sna_from_pixmap(src_pixmap);
 	int alu = gc ? gc->alu : GXcopy;
 	int16_t src_dx, src_dy;
 	int16_t dst_dx, dst_dy;
@@ -2287,8 +2308,8 @@ sna_fill_spans_blt(DrawablePtr drawable,
 		   DDXPointPtr pt, int *width, int sorted,
 		   const BoxRec *extents, unsigned clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	int16_t dx, dy;
 	struct sna_fill_op fill;
 	BoxRec box[512], *b = box, *const last_box = box + ARRAY_SIZE(box);
@@ -2652,7 +2673,8 @@ static void
 sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	       DDXPointPtr pt, int *width, int sorted)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
 
@@ -2682,7 +2704,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 		goto fallback;
 
 	if (gc->fillStyle == FillSolid) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		DBG(("%s: trying solid fill [alu=%d, pixel=%08lx] blt paths\n",
@@ -2702,7 +2724,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				       &region.extents, flags & 2))
 			return;
 	} else {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		/* Try converting these to a set of rectangles instead */
@@ -2787,8 +2809,8 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 		    Bool reverse, Bool upsidedown, Pixel bitplane,
 		    void *closure)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	PixmapPtr bitmap = (PixmapPtr)_bitmap;
 	uint32_t br00, br13;
@@ -2942,10 +2964,10 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 		   Bool reverse, Bool upsidedown, Pixel bitplane,
 		   void *closure)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr dst_pixmap = get_drawable_pixmap(drawable);
 	PixmapPtr src_pixmap = get_drawable_pixmap(source);
 	struct sna_pixmap *priv = sna_pixmap(dst_pixmap);
+	struct sna *sna = to_sna_from_pixmap(dst_pixmap);
 	int16_t dx, dy;
 	int bit = ffs(bitplane) - 1;
 	uint32_t br00, br13;
@@ -3148,7 +3170,8 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	       int dst_x, int dst_y,
 	       unsigned long bit)
 {
-	struct sna *sna = to_sna_from_drawable(dst);
+	PixmapPtr pixmap = get_drawable_pixmap(dst);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	struct sna_damage **damage;
 
@@ -3174,7 +3197,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		goto fallback;
 
 	if (sna_drawable_use_gpu_bo(dst, &region.extents, &damage)) {
-		struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(dst));
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		if (priv->gpu_bo->tiling != I915_TILING_Y) {
 			RegionUninit(&region);
 			return miDoCopy(src, dst, gc,
@@ -3207,9 +3230,8 @@ sna_poly_point_blt(DrawablePtr drawable,
 		   GCPtr gc, int mode, int n, DDXPointPtr pt,
 		   bool clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	RegionPtr clip = fbGetCompositeClip(gc);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	BoxRec box[512], *b = box, * const last_box = box + ARRAY_SIZE(box);
 	struct sna_fill_op fill;
 	DDXPointRec last;
@@ -3252,6 +3274,8 @@ sna_poly_point_blt(DrawablePtr drawable,
 			b = box;
 		} while (n);
 	} else {
+		RegionPtr clip = fbGetCompositeClip(gc);
+
 		while (n--) {
 			int x, y;
 
@@ -3322,7 +3346,8 @@ static void
 sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	       int mode, int n, DDXPointPtr pt)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
 
@@ -3348,7 +3373,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 
 	if (gc->fillStyle == FillSolid &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		DBG(("%s: trying solid fill [%08lx] blt paths\n",
@@ -3397,8 +3422,8 @@ sna_poly_zero_line_blt(DrawablePtr drawable,
 		&&damage_offset,
 	};
 
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	int x2, y2, xstart, ystart;
 	int oc2, pt2_clipped = 0;
 	unsigned int bias = miGetZeroLineBias(drawable->pScreen);
@@ -3770,8 +3795,8 @@ sna_poly_line_blt(DrawablePtr drawable,
 		  GCPtr gc, int mode, int n, DDXPointPtr pt,
 		  const BoxRec *extents, bool clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	BoxRec boxes[512], *b = boxes, * const last_box = boxes + ARRAY_SIZE(boxes);
 	struct sna_fill_op fill;
 	DDXPointRec last;
@@ -4041,7 +4066,8 @@ static void
 sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	      int mode, int n, DDXPointPtr pt)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
 
@@ -4075,7 +4101,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	if (gc->fillStyle == FillSolid && gc->lineStyle == LineSolid &&
 	    (gc->lineWidth == 0 || (gc->lineWidth == 1 && (n == 1 || gc->alu == GXcopy))) &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		DBG(("%s: trying solid fill [%08lx]\n",
@@ -4162,8 +4188,8 @@ sna_poly_segment_blt(DrawablePtr drawable,
 		     GCPtr gc, int n, xSegment *seg,
 		     const BoxRec *extents, unsigned clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	BoxRec boxes[512], *b = boxes, * const last_box = boxes + ARRAY_SIZE(boxes);
 	struct sna_fill_op fill;
 	int16_t dx, dy;
@@ -4421,8 +4447,8 @@ sna_poly_zero_segment_blt(DrawablePtr drawable,
 		&&damage_offset,
 	};
 
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	unsigned int bias = miGetZeroLineBias(drawable->pScreen);
 	struct sna_fill_op fill;
 	RegionRec clip;
@@ -4816,7 +4842,8 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 static void
 sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
 
@@ -4852,7 +4879,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	    gc->lineStyle == LineSolid &&
 	    gc->lineWidth <= 1 &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
@@ -4981,8 +5008,8 @@ sna_poly_rectangle_blt(DrawablePtr drawable,
 		       GCPtr gc, int n, xRectangle *r,
 		       const BoxRec *extents, unsigned clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_fill_op fill;
 	BoxRec boxes[512], *b = boxes, *const last_box = boxes+ARRAY_SIZE(boxes);
 	int16_t dx, dy;
@@ -5407,7 +5434,8 @@ done:
 static void
 sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
 
@@ -5441,7 +5469,7 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	if (gc->lineStyle == LineSolid &&
 	    gc->joinStyle == JoinMiter &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
@@ -5546,7 +5574,8 @@ arc_to_spans(GCPtr gc, int n)
 static void
 sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 
 	DBG(("%s(n=%d, lineWidth=%d\n", __FUNCTION__, n, gc->lineWidth));
@@ -5609,8 +5638,8 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 		       const BoxRec *extents,
 		       bool clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_fill_op fill;
 	BoxRec boxes[512], *b = boxes, *const last_box = boxes+ARRAY_SIZE(boxes);
 	int16_t dx, dy;
@@ -5792,8 +5821,8 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 			     GCPtr gc, int n, xRectangle *rect,
 			     const BoxRec *extents, unsigned clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	PixmapPtr tile = gc->tile.pixmap;
 	const DDXPointRec * const origin = &gc->patOrg;
 	struct sna_copy_op copy;
@@ -6000,8 +6029,8 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 				    GCPtr gc, int n, xRectangle *r,
 				    const BoxRec *extents, unsigned clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	uint32_t pat[2] = {0, 0}, br00, br13;
 	int16_t dx, dy;
 
@@ -6192,8 +6221,8 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 				  GCPtr gc, int n, xRectangle *r,
 				  const BoxRec *extents, unsigned clipped)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	PixmapPtr stipple = gc->stipple;
 	const DDXPointRec *origin = &gc->patOrg;
@@ -6696,7 +6725,8 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 static void
 sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 {
-	struct sna *sna = to_sna_from_drawable(draw);
+	PixmapPtr pixmap = get_drawable_pixmap(draw);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
 
@@ -6732,7 +6762,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (gc->fillStyle == FillSolid ||
 	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
 	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 		uint32_t color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
 
@@ -6753,7 +6783,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 					   &region.extents, flags & 2))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		DBG(("%s: tiled fill, testing for blt\n", __FUNCTION__));
@@ -6772,7 +6802,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 						 &region.extents, flags & 2))
 			return;
 	} else {
-		struct sna_pixmap *priv = sna_pixmap_from_drawable(draw);
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		DBG(("%s: stippled fill, testing for blt\n", __FUNCTION__));
@@ -6911,8 +6941,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	      RegionRec *clip,
 	      bool transparent)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	struct kgem_bo *bo;
 	struct sna_damage **damage;
@@ -7470,8 +7500,8 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		       RegionPtr clip,
 		       bool transparent)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	const BoxRec *extents, *last_extents;
 	uint32_t *b;
@@ -7634,7 +7664,8 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 		int x, int y, unsigned int n,
 		CharInfoPtr *info, pointer base)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	ExtentInfoRec extents;
 	RegionRec region;
 	struct sna_damage **damage;
@@ -7693,7 +7724,8 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	       int x, int y, unsigned int n,
 	       CharInfoPtr *info, pointer base)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	ExtentInfoRec extents;
 	RegionRec region;
 	struct sna_damage **damage;
@@ -7753,8 +7785,8 @@ sna_push_pixels_solid_blt(GCPtr gc,
 			  DrawablePtr drawable,
 			  RegionPtr region)
 {
-	struct sna *sna = to_sna_from_drawable(drawable);
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	struct sna_damage **damage;
 	BoxRec *box;
@@ -8009,8 +8041,8 @@ sna_get_spans(DrawablePtr drawable, int wMax,
 static void
 sna_copy_window(WindowPtr win, DDXPointRec origin, RegionPtr src)
 {
-	struct sna *sna = to_sna_from_drawable(&win->drawable);
-	PixmapPtr pixmap = fbGetWindowPixmap(win);
+	PixmapPtr pixmap = get_window_pixmap(win);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec dst;
 	int dx, dy;
 
@@ -8292,18 +8324,11 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 {
 	const char *backend;
 
-	if (!dixRegisterPrivateKey(&sna_pixmap_index, PRIVATE_PIXMAP, 0))
-		return FALSE;
-	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC, sizeof(struct sna_gc)))
-		return FALSE;
-
 	if (!AddCallback(&FlushCallback, sna_accel_flush_callback, sna))
 		return FALSE;
 
 	if (!sna_glyphs_init(screen))
 		return FALSE;
-
-	sna_window_key = fbGetWinPrivateKey();
 
 	sna_font_key = AllocateFontPrivateIndex();
 	screen->RealizeFont = sna_realize_font;

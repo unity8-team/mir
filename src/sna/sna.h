@@ -146,14 +146,15 @@ struct sna_pixmap {
 	uint8_t gpu :1;
 };
 
-extern DevPrivateKey sna_window_key;
+extern DevPrivateKeyRec sna_private_index;
+extern DevPrivateKeyRec sna_pixmap_index;
 
 static inline PixmapPtr get_window_pixmap(WindowPtr window)
 {
 #if 0
 	return window->drawable.pScreen->GetWindowPixmap(window)
 #else
-	return dixGetPrivate(&window->devPrivates, sna_window_key);
+	return *(void **)window->devPrivates;
 #endif
 }
 
@@ -165,21 +166,14 @@ static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 		return get_window_pixmap((WindowPtr)drawable);
 }
 
-extern DevPrivateKeyRec sna_pixmap_index;
-
 static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
-	return dixGetPrivate(&pixmap->devPrivates, &sna_pixmap_index);
+	return ((void **)pixmap->devPrivates)[1];
 }
 
 static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
 {
 	return sna_pixmap(get_drawable_pixmap(drawable));
-}
-
-static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
-{
-	dixSetPrivate(&pixmap->devPrivates, &sna_pixmap_index, sna);
 }
 
 struct sna_gc {
@@ -191,7 +185,7 @@ extern DevPrivateKeyRec sna_gc_index;
 
 static inline struct sna_gc *sna_gc(GCPtr gc)
 {
-	return dixGetPrivateAddr(&gc->devPrivates, &sna_gc_index);
+	return (struct sna_gc *)gc->devPrivates;
 }
 
 enum {
@@ -324,6 +318,12 @@ static inline struct sna *
 to_sna_from_screen(ScreenPtr screen)
 {
 	return to_sna(xf86Screens[screen->myNum]);
+}
+
+static inline struct sna *
+to_sna_from_pixmap(PixmapPtr pixmap)
+{
+	return *(void **)pixmap->devPrivates;
 }
 
 static inline struct sna *

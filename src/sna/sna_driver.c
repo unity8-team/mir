@@ -80,6 +80,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DBG(x) ErrorF x
 #endif
 
+DevPrivateKeyRec sna_private_index;
+DevPrivateKeyRec sna_pixmap_index;
+DevPrivateKeyRec sna_gc_index;
+
 static OptionInfoRec sna_options[] = {
    {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_TILING_2D,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
@@ -798,6 +802,24 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 }
 
 static Bool
+sna_register_all_privates(void)
+{
+	if (!dixRegisterPrivateKey(&sna_private_index, PRIVATE_PIXMAP, 0))
+		return FALSE;
+	assert(sna_private_index.offset == 0);
+
+	if (!dixRegisterPrivateKey(&sna_pixmap_index, PRIVATE_PIXMAP, 0))
+		return FALSE;
+	assert(sna_pixmap_index.offset == sizeof(void*));
+
+	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC, sizeof(struct sna_gc)))
+		return FALSE;
+	assert(sna_gc_index.offset == 0);
+
+	return TRUE;
+}
+
+static Bool
 sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
@@ -807,14 +829,10 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	scrn->videoRam = device->regions[2].size / 1024;
+	if (!sna_register_all_privates())
+		return FALSE;
 
-#ifdef DRI2
-	sna->directRenderingOpen = sna_dri_open(sna, screen);
-	if (sna->directRenderingOpen)
-		xf86DrvMsg(scrn->scrnIndex, X_INFO,
-			   "direct rendering: DRI2 Enabled\n");
-#endif
+	scrn->videoRam = device->regions[2].size / 1024;
 
 	miClearVisualTypes();
 	if (!miSetVisualTypes(scrn->depth,
@@ -829,6 +847,7 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 			  scrn->xDpi, scrn->yDpi,
 			  scrn->displayWidth, scrn->bitsPerPixel))
 		return FALSE;
+	assert(fbGetWinPrivateKey()->offset == 0);
 
 	if (scrn->bitsPerPixel > 8) {
 		/* Fixup RGB ordering */
@@ -908,6 +927,12 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 	sna_video_init(sna, screen);
+#ifdef DRI2
+	sna->directRenderingOpen = sna_dri_open(sna, screen);
+	if (sna->directRenderingOpen)
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "direct rendering: DRI2 Enabled\n");
+#endif
 
 	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
