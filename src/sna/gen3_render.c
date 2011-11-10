@@ -948,11 +948,11 @@ gen3_composite_emit_shader(struct sna *sna,
 		case SHADER_OPACITY:
 			gen3_fs_dcl(FS_T0 + t);
 			break;
-		case SHADER_NONE:
 		case SHADER_ZERO:
 		case SHADER_BLACK:
-		case SHADER_WHITE:
 			assert(0);
+		case SHADER_NONE:
+		case SHADER_WHITE:
 			break;
 		}
 
@@ -1043,7 +1043,6 @@ gen3_composite_emit_shader(struct sna *sna,
 		case SHADER_ZERO:
 		case SHADER_BLACK:
 		case SHADER_WHITE:
-			assert(0);
 		case SHADER_NONE:
 			break;
 		}
