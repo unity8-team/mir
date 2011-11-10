@@ -1743,7 +1743,7 @@ gen3_render_reset(struct sna *sna)
 	state->last_blend = 0;
 	state->last_constants = 0;
 	state->last_sampler = 0;
-	state->last_shader = -1;
+	state->last_shader = 0x7fffffff;
 	state->last_diffuse = 0xcc00ffee;
 	state->last_specular = 0xcc00ffee;
 
