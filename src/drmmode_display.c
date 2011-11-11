@@ -251,6 +251,9 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	info->accel_state->exa->DoneCopy (dst);
 	radeon_cs_flush_indirect(pScrn);
 
+#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
+	pScreen->canDoBGNoneRoot = TRUE;
+#endif
 	drmmode_destroy_bo_pixmap(dst);
  out_free_src:
 	drmmode_destroy_bo_pixmap(src);
