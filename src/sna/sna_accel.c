@@ -166,6 +166,9 @@ static void sna_pixmap_destroy_gpu_bo(struct sna *sna, struct sna_pixmap *priv)
 {
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = NULL;
+
+	/* and reset the upload counter */
+	priv->source_count = SOURCE_BIAS;
 }
 
 static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
