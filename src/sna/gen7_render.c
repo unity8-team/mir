@@ -770,7 +770,6 @@ gen7_emit_sf(struct sna *sna, Bool has_mask)
 		  1 << GEN7_SBE_URB_ENTRY_READ_LENGTH_SHIFT |
 		  1 << GEN7_SBE_URB_ENTRY_READ_OFFSET_SHIFT);
 	OUT_BATCH(0);
-	OUT_BATCH(0);
 	OUT_BATCH(0); /* dw4 */
 	OUT_BATCH(0);
 	OUT_BATCH(0);
