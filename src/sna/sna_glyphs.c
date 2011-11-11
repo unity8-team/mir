@@ -711,12 +711,13 @@ glyphs_via_mask(struct sna *sna,
 	}
 
 	component_alpha = NeedsComponent(format->format);
-	if ((uint32_t)width * height * format->depth < 8 * 256) {
+	if ((uint32_t)width * height * format->depth < 8 * 4096) {
 		pixman_image_t *mask_image;
 		int s;
 
-		DBG(("%s: small mask [format=%lx, depth=%d], rendering glyphs to upload buffer\n",
-		     __FUNCTION__, (unsigned long)format->format, format->depth));
+		DBG(("%s: small mask [format=%lx, depth=%d, size=%d], rendering glyphs to upload buffer\n",
+		     __FUNCTION__, (unsigned long)format->format, format->depth
+		     (uint32_t)width*height*format->depth));
 
 upload:
 		pixmap = sna_pixmap_create_upload(screen,
