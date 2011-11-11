@@ -98,6 +98,7 @@ libsna_la_SOURCES += \
 	kgem_debug_gen4.c \
 	kgem_debug_gen5.c \
 	kgem_debug_gen6.c \
+	kgem_debug_gen7.c \
 	$(NULL)
 endif
 
