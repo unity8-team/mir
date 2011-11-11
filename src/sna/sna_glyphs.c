@@ -106,17 +106,9 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 #define assert_pixmap_contains_box(p, b)
 #endif
 
-struct sna_glyph {
-	PicturePtr atlas;
-	struct sna_coordinate coordinate;
-	uint16_t size, pos;
-};
-
-static DevPrivateKeyRec sna_glyph_key;
-
-static inline struct sna_glyph *glyph_get_private(GlyphPtr glyph)
+static inline struct sna_glyph *sna_glyph(GlyphPtr glyph)
 {
-	return dixGetPrivateAddr(&glyph->devPrivates, &sna_glyph_key);
+	return (struct sna_glyph *)glyph->devPrivates;
 }
 
 #define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)
@@ -354,7 +346,7 @@ glyph_cache(ScreenPtr screen,
 	}
 	assert(cache->glyphs[pos] == NULL);
 
-	priv = glyph_get_private(glyph);
+	priv = sna_glyph(glyph);
 	cache->glyphs[pos] = priv;
 	priv->atlas = cache->picture;
 	priv->size = size;
@@ -393,7 +385,6 @@ static void apply_damage(struct sna_composite_op *op,
 	sna_damage_add_box(op->damage, &box);
 }
 
-#define GET_PRIVATE(g) ((struct sna_glyph *)((char *)(g)->devPrivates + priv_offset))
 static Bool
 glyphs_to_dst(struct sna *sna,
 	      CARD8 op,
@@ -404,7 +395,6 @@ glyphs_to_dst(struct sna *sna,
 {
 	struct sna_composite_op tmp;
 	ScreenPtr screen = dst->pDrawable->pScreen;
-	const int priv_offset = sna_glyph_key.offset;
 	int index = screen->myNum;
 	PicturePtr glyph_atlas;
 	BoxPtr rects;
@@ -441,7 +431,7 @@ glyphs_to_dst(struct sna *sna,
 			if (glyph->info.width == 0 || glyph->info.height == 0)
 				goto next_glyph;
 
-			priv = *GET_PRIVATE(glyph);
+			priv = *sna_glyph(glyph);
 			if (priv.atlas == NULL) {
 				if (glyph_atlas) {
 					tmp.done(sna, &tmp);
@@ -452,7 +442,7 @@ glyphs_to_dst(struct sna *sna,
 					priv.atlas = GlyphPicture(glyph)[index];
 					priv.coordinate.x = priv.coordinate.y = 0;
 				} else
-					priv = *GET_PRIVATE(glyph);
+					priv = *sna_glyph(glyph);
 			}
 
 			if (priv.atlas != glyph_atlas) {
@@ -534,7 +524,6 @@ glyphs_slow(struct sna *sna,
 {
 	struct sna_composite_op tmp;
 	ScreenPtr screen = dst->pDrawable->pScreen;
-	const int priv_offset = sna_glyph_key.offset;
 	int index = screen->myNum;
 	int16_t x, y;
 
@@ -565,14 +554,14 @@ glyphs_slow(struct sna *sna,
 			if (glyph->info.width == 0 || glyph->info.height == 0)
 				goto next_glyph;
 
-			priv = *GET_PRIVATE(glyph);
+			priv = *sna_glyph(glyph);
 			if (priv.atlas == NULL) {
 				if (!glyph_cache(screen, &sna->render, glyph)) {
 					/* no cache for this glyph */
 					priv.atlas = GlyphPicture(glyph)[index];
 					priv.coordinate.x = priv.coordinate.y = 0;
 				} else
-					priv = *GET_PRIVATE(glyph);
+					priv = *sna_glyph(glyph);
 			}
 
 			DBG(("%s: glyph=(%d, %d)x(%d, %d), src=(%d, %d), mask=(%d, %d)\n",
@@ -672,7 +661,6 @@ glyphs_via_mask(struct sna *sna,
 {
 	ScreenPtr screen = dst->pDrawable->pScreen;
 	struct sna_composite_op tmp;
-	const int priv_offset = sna_glyph_key.offset;
 	int index = screen->myNum;
 	CARD32 component_alpha;
 	PixmapPtr pixmap;
@@ -728,7 +716,7 @@ glyphs_via_mask(struct sna *sna,
 		int s;
 
 		DBG(("%s: small mask [format=%lx, depth=%d], rendering glyphs to upload buffer\n",
-		     __FUNCTION__, format->format, format->depth));
+		     __FUNCTION__, (unsigned long)format->format, format->depth));
 
 upload:
 		pixmap = sna_pixmap_create_upload(screen,
@@ -758,7 +746,6 @@ upload:
 				PicturePtr picture;
 				pixman_image_t *glyph_image;
 				int16_t xi, yi;
-				int dx, dy;
 
 				if (g->info.width == 0 || g->info.height == 0)
 					goto next_image;
@@ -774,17 +761,26 @@ upload:
 				    yi + g->info.height <= 0)
 					goto next_image;
 
-				picture = GlyphPicture(g)[s];
-				if (picture == NULL)
-					goto next_image;
+				glyph_image = sna_glyph(g)->image;
+				if (glyph_image == NULL) {
+					int dx, dy;
 
-				glyph_image = image_from_pict(picture, FALSE, &dx, &dy);
-				if (!glyph_image)
-					goto next_image;
+					picture = GlyphPicture(g)[s];
+					if (picture == NULL)
+						goto next_image;
 
-				DBG(("%s: glyph+(%d,%d) to mask (%d, %d)x(%d, %d)\n",
+					glyph_image = image_from_pict(picture,
+								      FALSE,
+								      &dx, &dy);
+					if (!glyph_image)
+						goto next_image;
+
+					assert(dx == 0 && dy == 0);
+					sna_glyph(g)->image = glyph_image;
+				}
+
+				DBG(("%s: glyph to mask (%d, %d)x(%d, %d)\n",
 				     __FUNCTION__,
-				     dx,dy,
 				     xi, yi,
 				     g->info.width,
 				     g->info.height));
@@ -793,12 +789,11 @@ upload:
 						       glyph_image,
 						       NULL,
 						       mask_image,
-						       dx, dy,
+						       0, 0,
 						       0, 0,
 						       xi, yi,
 						       g->info.width,
 						       g->info.height);
-				free_pixman_pict(picture, glyph_image);
 
 next_image:
 				x += g->info.xOff;
@@ -851,7 +846,7 @@ next_image:
 				if (glyph->info.width == 0 || glyph->info.height == 0)
 					goto next_glyph;
 
-				priv = GET_PRIVATE(glyph);
+				priv = sna_glyph(glyph);
 				if (priv->atlas != NULL) {
 					this_atlas = priv->atlas;
 					r.src = priv->coordinate;
@@ -918,17 +913,6 @@ next_glyph:
 
 	FreePicture(mask, 0);
 	return TRUE;
-}
-
-Bool sna_glyphs_init(ScreenPtr screen)
-{
-	if (!dixRegisterPrivateKey(&sna_glyph_key,
-				   PRIVATE_GLYPH,
-				   sizeof(struct sna_glyph)))
-		return FALSE;
-
-	return TRUE;
-	(void)screen;
 }
 
 Bool sna_glyphs_create(struct sna *sna)
@@ -1271,19 +1255,20 @@ fallback:
 void
 sna_glyph_unrealize(ScreenPtr screen, GlyphPtr glyph)
 {
-	struct sna_glyph_cache *cache;
-	struct sna_glyph *priv;
-	struct sna *sna;
+	struct sna_glyph *priv = sna_glyph(glyph);
 
-	priv = glyph_get_private(glyph);
-	if (priv->atlas == NULL)
-		return;
+	if (priv->image) {
+		pixman_image_unref(priv->image);
+		priv->image = NULL;
+	}
 
-	sna = to_sna_from_screen(screen);
-	cache = &sna->render.glyph[priv->pos & 1];
-	assert(cache->glyphs[priv->pos >> 1] == priv);
-	cache->glyphs[priv->pos >> 1] = NULL;
-	priv->atlas = NULL;
+	if (priv->atlas) {
+		struct sna *sna = to_sna_from_screen(screen);
+		struct sna_glyph_cache *cache = &sna->render.glyph[priv->pos&1];
+		assert(cache->glyphs[priv->pos >> 1] == priv);
+		cache->glyphs[priv->pos >> 1] = NULL;
+		priv->atlas = NULL;
+	}
 }
 
 void sna_glyphs_close(struct sna *sna)

@@ -83,6 +83,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 DevPrivateKeyRec sna_private_index;
 DevPrivateKeyRec sna_pixmap_index;
 DevPrivateKeyRec sna_gc_index;
+DevPrivateKeyRec sna_glyph_key;
+DevPrivateKeyRec sna_glyph_image_key;
 
 static OptionInfoRec sna_options[] = {
    {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
@@ -812,9 +814,15 @@ sna_register_all_privates(void)
 		return FALSE;
 	assert(sna_pixmap_index.offset == sizeof(void*));
 
-	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC, sizeof(struct sna_gc)))
+	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC,
+				   sizeof(struct sna_gc)))
 		return FALSE;
 	assert(sna_gc_index.offset == 0);
+
+	if (!dixRegisterPrivateKey(&sna_glyph_key, PRIVATE_GLYPH,
+				   sizeof(struct sna_glyph)))
+		return FALSE;
+	assert(sna_glyph_key.offset == 0);
 
 	return TRUE;
 }

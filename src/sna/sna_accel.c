@@ -8327,9 +8327,6 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	if (!AddCallback(&FlushCallback, sna_accel_flush_callback, sna))
 		return FALSE;
 
-	if (!sna_glyphs_init(screen))
-		return FALSE;
-
 	sna_font_key = AllocateFontPrivateIndex();
 	screen->RealizeFont = sna_realize_font;
 	screen->UnrealizeFont = sna_unrealize_font;

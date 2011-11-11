@@ -146,8 +146,17 @@ struct sna_pixmap {
 	uint8_t gpu :1;
 };
 
+struct sna_glyph {
+	PicturePtr atlas;
+	pixman_image_t *image;
+	struct sna_coordinate coordinate;
+	uint16_t size, pos;
+};
+
 extern DevPrivateKeyRec sna_private_index;
 extern DevPrivateKeyRec sna_pixmap_index;
+extern DevPrivateKeyRec sna_gc_index;
+extern DevPrivateKeyRec sna_glyph_key;
 
 static inline PixmapPtr get_window_pixmap(WindowPtr window)
 {
@@ -180,8 +189,6 @@ struct sna_gc {
 	long changes;
 	long serial;
 };
-
-extern DevPrivateKeyRec sna_gc_index;
 
 static inline struct sna_gc *sna_gc(GCPtr gc)
 {
@@ -597,7 +604,6 @@ void sna_composite_trifan(CARD8 op,
 Bool sna_gradients_create(struct sna *sna);
 void sna_gradients_close(struct sna *sna);
 
-Bool sna_glyphs_init(ScreenPtr screen);
 Bool sna_glyphs_create(struct sna *sna);
 void sna_glyphs(CARD8 op,
 		PicturePtr src,
