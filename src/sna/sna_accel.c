@@ -1778,7 +1778,7 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 	if (alu != GXcopy)
 		return TRUE;
 
-	return ++priv->source_count * w*h >= 2 * pixmap->drawable.width * pixmap->drawable.height;
+	return ++priv->source_count * w*h >= (SOURCE_BIAS+2) * (int)pixmap->drawable.width * pixmap->drawable.height;
 }
 
 static void
