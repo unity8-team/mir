@@ -710,7 +710,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 	assert(priv->gpu);
 	assert(priv->gpu_bo);
 
-	sna_damage_reduce(&priv->cpu_damage);
+	sna_damage_reduce(&priv->cpu_damage,
+			  pixmap->drawable.width, pixmap->drawable.height);
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
 
 	if (priv->cpu_damage == NULL)
@@ -804,10 +805,7 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	sna_pixmap_move_area_to_gpu(pixmap, &extents);
 done:
 	if (damage) {
-		if (!sna_damage_is_all(&priv->gpu_damage,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height) &&
-		    sna_damage_contains_box(priv->gpu_damage,
+		if (sna_damage_contains_box(priv->gpu_damage,
 					    &extents) != PIXMAN_REGION_IN)
 			*damage = &priv->gpu_damage;
 		else
@@ -860,10 +858,7 @@ _sna_drawable_use_cpu_bo(DrawablePtr drawable,
 
 done:
 	if (damage) {
-		if (!sna_damage_is_all(&priv->cpu_damage,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height) &&
-		    sna_damage_contains_box(priv->cpu_damage,
+		if (sna_damage_contains_box(priv->cpu_damage,
 					    &extents) != PIXMAN_REGION_IN)
 			*damage = &priv->cpu_damage;
 		else
@@ -1011,7 +1006,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 	if (priv == NULL)
 		return NULL;
 
-	sna_damage_reduce(&priv->cpu_damage);
+	sna_damage_reduce(&priv->cpu_damage,
+			  pixmap->drawable.width, pixmap->drawable.height);
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
 
 	if (priv->gpu_bo == NULL) {
@@ -1071,7 +1067,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 	__sna_damage_destroy(priv->cpu_damage);
 	priv->cpu_damage = NULL;
 
-	sna_damage_reduce(&priv->gpu_damage);
+	sna_damage_reduce(&priv->gpu_damage,
+			  pixmap->drawable.width, pixmap->drawable.height);
 done:
 	list_del(&priv->list);
 	priv->gpu = true;

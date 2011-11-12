@@ -2177,8 +2177,8 @@ gen7_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 			return FALSE;
 
 		op->dst.bo = priv->gpu_bo;
-		if (!priv->gpu_only &&
-		    !sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
+		if (!sna_damage_is_all(&priv->gpu_damage,
+				       op->dst.width, op->dst.height))
 			op->damage = &priv->gpu_damage;
 	}
 

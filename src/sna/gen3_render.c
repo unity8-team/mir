@@ -2187,10 +2187,7 @@ reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_is_all(op->damage,
-			      op->dst.pixmap->drawable.width,
-			      op->dst.pixmap->drawable.width) ||
-	    sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
 		op->damage = NULL;
 }
 

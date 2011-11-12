@@ -941,14 +941,10 @@ struct sna_damage *_sna_damage_all(struct sna_damage *damage,
 struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 				      int width, int height)
 {
-	BoxRec box;
+	if (damage->n)
+		__sna_damage_reduce(damage);
 
-	box.x1 = box.y1 = 0;
-	box.x2 = width;
-	box.y2 = height;
-
-	if (pixman_region_contains_rectangle(&damage->region,
-					     &box) != PIXMAN_REGION_IN)
+	if (damage->region.data)
 		return damage;
 
 	return _sna_damage_all(damage, width, height);
@@ -1114,6 +1110,8 @@ fastcall struct sna_damage *_sna_damage_subtract_box(struct sna_damage *damage,
 static int _sna_damage_contains_box(struct sna_damage *damage,
 				    const BoxRec *box)
 {
+	int ret;
+
 	if (!damage)
 		return PIXMAN_REGION_OUT;
 
@@ -1123,18 +1121,14 @@ static int _sna_damage_contains_box(struct sna_damage *damage,
 	if (!sna_damage_maybe_contains_box(damage, box))
 		return PIXMAN_REGION_OUT;
 
-	if (damage->n) {
-		if (damage->mode != DAMAGE_SUBTRACT) {
-			int ret = pixman_region_contains_rectangle(&damage->region,
-								   (BoxPtr)box);
-			if (ret == PIXMAN_REGION_IN)
-				return PIXMAN_REGION_IN;
-		}
-
+	if (damage->mode == DAMAGE_SUBTRACT)
 		__sna_damage_reduce(damage);
-	}
 
-	return pixman_region_contains_rectangle(&damage->region, (BoxPtr)box);
+	ret = pixman_region_contains_rectangle(&damage->region, (BoxPtr)box);
+	if (damage->n == 0)
+		return ret;
+
+	return ret == PIXMAN_REGION_IN ? PIXMAN_REGION_IN : PIXMAN_REGION_OUT;
 }
 
 #if DEBUG_DAMAGE
@@ -1235,9 +1229,10 @@ static int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 	return REGION_NUM_RECTS(&damage->region);
 }
 
-struct sna_damage *_sna_damage_reduce(struct sna_damage *damage)
+struct sna_damage *_sna_damage_reduce(struct sna_damage *damage,
+				      int width, int height)
 {
-	DBG(("%s()\n", __FUNCTION__));
+	DBG(("%s(width=%d, height=%d)\n", __FUNCTION__, width, height));
 
 	if (damage->n)
 		__sna_damage_reduce(damage);
@@ -1245,6 +1240,13 @@ struct sna_damage *_sna_damage_reduce(struct sna_damage *damage)
 	if (!pixman_region_not_empty(&damage->region)) {
 		__sna_damage_destroy(damage);
 		damage = NULL;
+	} else {
+		if (damage->region.data == NULL &&
+		    damage->extents.x1 <= 0 &&
+		    damage->extents.y1 <= 0 &&
+		    damage->extents.x2 >= width &&
+		    damage->extents.y2 >= height)
+			damage = _sna_damage_all(damage, width, height);
 	}
 
 	return damage;

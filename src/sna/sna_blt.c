@@ -1219,10 +1219,7 @@ reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_is_all(op->damage,
-			      op->dst.pixmap->drawable.width,
-			      op->dst.pixmap->drawable.width) ||
-	    sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
 		op->damage = NULL;
 }
 
@@ -1274,8 +1271,7 @@ sna_blt_composite(struct sna *sna,
 	get_drawable_deltas(dst->pDrawable, tmp->dst.pixmap,
 			    &tmp->dst.x, &tmp->dst.y);
 	tmp->dst.bo = priv->gpu_bo;
-	if (!priv->gpu_only &&
-	    !sna_damage_is_all(&priv->gpu_damage,
+	if (!sna_damage_is_all(&priv->gpu_damage,
 			       tmp->dst.width, tmp->dst.height))
 		tmp->damage = &priv->gpu_damage;
 	if (width && height)

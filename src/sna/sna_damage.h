@@ -79,9 +79,6 @@ static inline bool sna_damage_is_all(struct sna_damage **damage,
 	if (*damage == NULL)
 		return false;
 
-	if ((*damage)->n)
-		return false;
-
 	switch ((*damage)->mode) {
 	case DAMAGE_ALL:
 		return true;
@@ -89,6 +86,10 @@ static inline bool sna_damage_is_all(struct sna_damage **damage,
 		return false;
 	default:
 	case DAMAGE_ADD:
+		if ((*damage)->extents.x2 < width  || (*damage)->extents.x1 > 0)
+			return false;
+		if ((*damage)->extents.y2 < height || (*damage)->extents.y1 > 0)
+			return false;
 		*damage = _sna_damage_is_all(*damage, width, height);
 		return (*damage)->mode == DAMAGE_ALL;
 	}
@@ -126,13 +127,15 @@ int sna_damage_contains_box(struct sna_damage *damage,
 
 int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes);
 
-struct sna_damage *_sna_damage_reduce(struct sna_damage *damage);
-static inline void sna_damage_reduce(struct sna_damage **damage)
+struct sna_damage *_sna_damage_reduce(struct sna_damage *damage,
+				     int width, int height);
+static inline void sna_damage_reduce(struct sna_damage **damage,
+				     int width, int height)
 {
 	if (*damage == NULL)
 		return;
 
-	*damage = _sna_damage_reduce(*damage);
+	*damage = _sna_damage_reduce(*damage, width, height);
 }
 
 void __sna_damage_destroy(struct sna_damage *damage);

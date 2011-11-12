@@ -1877,8 +1877,8 @@ gen5_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
 
 
 	op->dst.bo = priv->gpu_bo;
-	if (!priv->gpu_only &&
-	    !sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
+	if (!sna_damage_is_all(&priv->gpu_damage,
+			       op->dst.width, op->dst.height))
 		op->damage = &priv->gpu_damage;
 
 	DBG(("%s: bo=%p, damage=%p\n", __FUNCTION__, op->dst.bo, op->damage));
