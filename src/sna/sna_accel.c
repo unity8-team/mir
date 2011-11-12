@@ -1381,9 +1381,16 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
 		sna_damage_subtract(&priv->gpu_damage, region);
 		sna_damage_add(&priv->cpu_damage, region);
-		if (priv->flush)
-			list_move(&priv->list, &sna->dirty_pixmaps);
+		if (sna_damage_is_all(&priv->cpu_damage,
+				      pixmap->drawable.width,
+				      pixmap->drawable.height)) {
+			sna_damage_destroy(&priv->gpu_damage);
+			if (priv->gpu_bo && !priv->pinned)
+				sna_pixmap_destroy_gpu_bo(sna, priv);
+		}
 	}
+	if (priv->flush)
+		list_move(&priv->list, &sna->dirty_pixmaps);
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	x += dx + drawable->x;
