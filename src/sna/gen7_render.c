@@ -991,8 +991,7 @@ static void gen7_magic_ca_pass(struct sna *sna,
 		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	OUT_BATCH(GEN7_3DPRIMITIVE | (7- 2));
-	OUT_BATCH(GEN7_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-		  _3DPRIM_RECTLIST << GEN7_3DPRIMITIVE_TOPOLOGY_SHIFT);
+	OUT_BATCH(GEN7_3DPRIMITIVE_VERTEX_SEQUENTIAL | _3DPRIM_RECTLIST);
 	OUT_BATCH(sna->render.vertex_index - sna->render.vertex_start);
 	OUT_BATCH(sna->render.vertex_start);
 	OUT_BATCH(1);	/* single instance */
@@ -1540,11 +1539,8 @@ static void gen7_emit_primitive(struct sna *sna)
 		return;
 	}
 
-	OUT_BATCH(GEN7_3DPRIMITIVE |
-		  GEN7_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-		  _3DPRIM_RECTLIST << GEN7_3DPRIMITIVE_TOPOLOGY_SHIFT |
-		  0 << 9 |
-		  4);
+	OUT_BATCH(GEN7_3DPRIMITIVE | (7- 2));
+	OUT_BATCH(GEN7_3DPRIMITIVE_VERTEX_SEQUENTIAL | _3DPRIM_RECTLIST);
 	sna->render_state.gen7.vertex_offset = sna->kgem.nbatch;
 	OUT_BATCH(0);	/* vertex count, to be filled in later */
 	OUT_BATCH(sna->render.vertex_index);

@@ -161,8 +161,6 @@
 /* 3DPRIMITIVE bits */
 #define GEN7_3DPRIMITIVE_VERTEX_SEQUENTIAL (0 << 15)
 #define GEN7_3DPRIMITIVE_VERTEX_RANDOM	  (1 << 15)
-/* Primitive types are in gen7_defines.h */
-#define GEN7_3DPRIMITIVE_TOPOLOGY_SHIFT	  10
 
 #define GEN7_SVG_CTL		       0x7400
 
