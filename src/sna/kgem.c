@@ -426,6 +426,7 @@ static uint32_t kgem_get_unique_id(struct kgem *kgem)
 }
 
 static uint32_t kgem_surface_size(struct kgem *kgem,
+				  bool relaxed_fencing,
 				  uint32_t width,
 				  uint32_t height,
 				  uint32_t bpp,
@@ -484,7 +485,7 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 		return 0;
 
 	size = *pitch * height;
-	if (kgem->has_relaxed_fencing || tiling == I915_TILING_NONE)
+	if (relaxed_fencing || tiling == I915_TILING_NONE || kgem->gen >= 40)
 		return ALIGN(size, PAGE_SIZE);
 
 	/*  We need to allocate a pot fence region for a tiled buffer. */
@@ -1418,9 +1419,12 @@ static bool _kgem_can_create_2d(struct kgem *kgem,
 	if (tiling < 0)
 		tiling = -tiling;
 
-	size = kgem_surface_size(kgem, width, height, bpp, tiling, &pitch);
-	if (size == 0 || size > kgem->max_object_size)
-		size = kgem_surface_size(kgem, width, height, bpp, I915_TILING_NONE, &pitch);
+	size = kgem_surface_size(kgem, false,
+				 width, height, bpp, tiling, &pitch);
+	if (size == 0 || size >= kgem->max_object_size)
+		size = kgem_surface_size(kgem, false,
+					 width, height, bpp,
+					 I915_TILING_NONE, &pitch);
 	return size > 0 && size <= kgem->max_object_size;
 }
 
@@ -1479,7 +1483,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	     width, height, bpp, tiling, !!exact, !!(flags & CREATE_INACTIVE)));
 
 	assert(_kgem_can_create_2d(kgem, width, height, bpp, exact ? -tiling : tiling));
-	size = kgem_surface_size(kgem, width, height, bpp, tiling, &pitch);
+	size = kgem_surface_size(kgem, kgem->has_relaxed_fencing,
+				 width, height, bpp, tiling, &pitch);
 	assert(size && size <= kgem->max_object_size);
 	if (flags & CREATE_INACTIVE)
 		goto skip_active_search;
