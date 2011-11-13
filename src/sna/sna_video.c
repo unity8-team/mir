@@ -481,7 +481,7 @@ sna_video_copy_data(struct sna *sna,
 	else
 		sna_copy_packed_data(video, frame, buf, dst);
 
-	munmap(dst, video->buf->size);
+	munmap(dst, frame->bo->size);
 	return TRUE;
 }
 
