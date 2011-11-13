@@ -125,4 +125,24 @@ sna_render_get_alpha_gradient(struct sna *sna)
 	return kgem_bo_reference(sna->render.alpha_cache.cache_bo);
 }
 
+static inline void
+sna_render_reduce_damage(struct sna_composite_op *op,
+			 int dst_x, int dst_y,
+			 int width, int height)
+{
+	BoxRec r;
+
+	if (width == 0 || height == 0 || op->damage == NULL)
+		return;
+
+	r.x1 = dst_x + op->dst.x;
+	r.x2 = r.x1 + width;
+
+	r.y1 = dst_y + op->dst.y;
+	r.y2 = r.y1 + height;
+
+	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+		op->damage = NULL;
+}
+
 #endif /* SNA_RENDER_INLINE_H */

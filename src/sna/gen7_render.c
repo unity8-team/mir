@@ -2260,6 +2260,7 @@ gen7_render_composite(struct sna *sna,
 	tmp->op = op;
 	if (!gen7_composite_set_target(tmp, dst))
 		return FALSE;
+	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	if (tmp->dst.width > GEN7_MAX_SIZE || tmp->dst.height > GEN7_MAX_SIZE) {
 		if (!sna_render_composite_redirect(sna, tmp,

@@ -1932,6 +1932,7 @@ gen4_render_composite(struct sna *sna,
 
 	if (!gen4_composite_set_target(dst, tmp))
 		return FALSE;
+	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	if (tmp->dst.width > 8192 || tmp->dst.height > 8192) {
 		if (!sna_render_composite_redirect(sna, tmp,

@@ -1962,6 +1962,7 @@ gen5_render_composite(struct sna *sna,
 		DBG(("%s: failed to set composite target\n", __FUNCTION__));
 		return FALSE;
 	}
+	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	if (tmp->dst.width > 8192 || tmp->dst.height > 8192) {
 		if (!sna_render_composite_redirect(sna, tmp,
@@ -2314,6 +2315,7 @@ gen5_render_composite_spans(struct sna *sna,
 	tmp->base.op = op;
 	if (!gen5_composite_set_target(dst, &tmp->base))
 		return FALSE;
+	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
 	if (tmp->base.dst.width > 8192 || tmp->base.dst.height > 8192) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,

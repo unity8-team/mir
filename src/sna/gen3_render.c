@@ -2171,26 +2171,6 @@ gen3_align_vertex(struct sna *sna,
 	}
 }
 
-static void
-reduce_damage(struct sna_composite_op *op,
-	      int dst_x, int dst_y,
-	      int width, int height)
-{
-	BoxRec r;
-
-	if (op->damage == NULL)
-		return;
-
-	r.x1 = dst_x + op->dst.x;
-	r.x2 = r.x1 + width;
-
-	r.y1 = dst_y + op->dst.y;
-	r.y2 = r.y1 + height;
-
-	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
-		op->damage = NULL;
-}
-
 static Bool
 gen3_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 {
@@ -2207,8 +2187,8 @@ gen3_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 		return FALSE;
 
 	op->dst.bo = priv->gpu_bo;
-	if (!priv->gpu_only &&
-	    !sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
+	if (!sna_damage_is_all(&priv->gpu_damage,
+			       op->dst.width, op->dst.height))
 		op->damage = &priv->gpu_damage;
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
@@ -2310,9 +2290,7 @@ gen3_render_composite(struct sna *sna,
 		     __FUNCTION__));
 		return FALSE;
 	}
-
-	if (width && height)
-		reduce_damage(tmp, dst_x, dst_y, width, height);
+	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	tmp->op = op;
 	tmp->rb_reversed = gen3_dst_rb_reversed(tmp->dst.format);
@@ -2848,9 +2826,7 @@ gen3_render_composite_spans(struct sna *sna,
 		     __FUNCTION__));
 		return FALSE;
 	}
-
-	if (width && height)
-		reduce_damage(&tmp->base, dst_x, dst_y, width, height);
+	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
 	tmp->base.op = op;
 	tmp->base.rb_reversed = gen3_dst_rb_reversed(tmp->base.dst.format);

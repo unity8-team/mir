@@ -1201,7 +1201,8 @@ gen2_composite_set_target(struct sna_composite_op *op,
 		return FALSE;
 
 	op->dst.bo = priv->gpu_bo;
-	if (!priv->gpu_only)
+	if (!sna_damage_is_all(&priv->gpu_damage,
+			       op->dst.width, op->dst.height))
 		op->damage = &priv->gpu_damage;
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
@@ -1289,6 +1290,7 @@ gen2_render_composite(struct sna *sna,
 		     __FUNCTION__));
 		return FALSE;
 	}
+	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	tmp->op = op;
 	if (tmp->dst.width > 2048 ||
@@ -1714,6 +1716,7 @@ gen2_render_composite_spans(struct sna *sna,
 		     __FUNCTION__));
 		return FALSE;
 	}
+	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
 	tmp->base.op = op;
 	if (tmp->base.dst.width > 2048 ||
