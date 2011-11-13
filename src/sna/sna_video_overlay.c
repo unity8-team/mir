@@ -70,13 +70,12 @@ static const XF86VideoEncodingRec DummyEncoding[1] = {
 };
 
 #define NUM_FORMATS 3
-
-static XF86VideoFormatRec Formats[NUM_FORMATS] = {
+static const XF86VideoFormatRec Formats[NUM_FORMATS] = {
 	{15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
 #define NUM_ATTRIBUTES 5
-static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
+static const XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
 	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
@@ -85,7 +84,7 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
 };
 
 #define GAMMA_ATTRIBUTES 6
-static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
+static const XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA0"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA1"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA2"},
@@ -95,8 +94,7 @@ static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 };
 
 #define NUM_IMAGES 4
-
-static XF86ImageRec Images[NUM_IMAGES] = {
+static const XF86ImageRec Images[NUM_IMAGES] = {
 	XVIMAGE_YUY2,
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
@@ -660,7 +658,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 		adaptor->pEncodings->height = IMAGE_MAX_HEIGHT_LEGACY;
 	}
 	adaptor->nFormats = NUM_FORMATS;
-	adaptor->pFormats = Formats;
+	adaptor->pFormats = (XF86VideoFormatPtr)Formats;
 	adaptor->nPorts = 1;
 	adaptor->pPortPrivates = (DevUnion *)&adaptor[1];
 
@@ -682,7 +680,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 		att += GAMMA_ATTRIBUTES;
 	}
 	adaptor->nImages = NUM_IMAGES;
-	adaptor->pImages = Images;
+	adaptor->pImages = (XF86ImagePtr)Images;
 	adaptor->PutVideo = NULL;
 	adaptor->PutStill = NULL;
 	adaptor->GetVideo = NULL;

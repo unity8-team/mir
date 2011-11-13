@@ -49,14 +49,13 @@
 static Atom xvBrightness, xvContrast, xvSyncToVblank;
 
 #define NUM_FORMATS 3
-
-static XF86VideoFormatRec Formats[NUM_FORMATS] = {
+static const XF86VideoFormatRec Formats[NUM_FORMATS] = {
 	{15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
 //#define NUM_TEXTURED_ATTRIBUTES 3
 #define NUM_TEXTURED_ATTRIBUTES 1
-static XF86AttributeRec TexturedAttributes[] = {
+static const XF86AttributeRec TexturedAttributes[] = {
 	{XvSettable | XvGettable, -1, 1, "XV_SYNC_TO_VBLANK"},
 	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
@@ -70,7 +69,7 @@ static XF86AttributeRec TexturedAttributes[] = {
 #define XVMC_IMAGE 0
 #endif
 
-static XF86ImageRec Images[NUM_IMAGES] = {
+static const XF86ImageRec Images[NUM_IMAGES] = {
 	XVIMAGE_YUY2,
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
@@ -406,7 +405,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	adaptor->pEncodings[0].rate.numerator = 1;
 	adaptor->pEncodings[0].rate.denominator = 1;
 	adaptor->nFormats = NUM_FORMATS;
-	adaptor->pFormats = Formats;
+	adaptor->pFormats = (XF86VideoFormatPtr)Formats;
 	adaptor->nPorts = nports;
 	adaptor->pPortPrivates = devUnions;
 	adaptor->nAttributes = NUM_TEXTURED_ATTRIBUTES;
@@ -414,7 +413,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	memcpy(attrs, TexturedAttributes,
 	       NUM_TEXTURED_ATTRIBUTES * sizeof(XF86AttributeRec));
 	adaptor->nImages = NUM_IMAGES;
-	adaptor->pImages = Images;
+	adaptor->pImages = (XF86ImagePtr)Images;
 	adaptor->PutVideo = NULL;
 	adaptor->PutStill = NULL;
 	adaptor->GetVideo = NULL;
