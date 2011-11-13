@@ -241,7 +241,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		return Success;
 
 	if (xvmc_passthrough(id)) {
-		if (IS_I915G(sna) || IS_I915GM(sna)) {
+		if (sna->kgem.gen == 30) {
 			/* XXX: i915 is not support and needs some
 			 * serious care.  grep for KMS in i915_hwmc.c */
 			return BadAlloc;
