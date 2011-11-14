@@ -4879,10 +4879,11 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	     gc->lineWidth,
 	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask),
 	     flags & 4));
-	if (gc->fillStyle == FillSolid &&
-	    gc->lineStyle == LineSolid &&
-	    gc->lineWidth <= 1 &&
-	    PM_IS_SOLID(drawable, gc->planemask)) {
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto fallback;
+	if (gc->lineStyle != LineSolid || gc->lineWidth > 1)
+		goto spans_fallback;
+	if (gc->fillStyle == FillSolid) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
@@ -4917,9 +4918,72 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 						      gc, n, seg, &region.extents, flags & 2))
 				return;
 		}
+	} else if (flags &4) {
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
+		struct sna_damage **damage;
+
+		/* Try converting these to a set of rectangles instead */
+		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
+			xRectangle *rect;
+			int i;
+
+			DBG(("%s: converting to rectagnles\n", __FUNCTION__));
+
+			rect = malloc (n * sizeof (xRectangle));
+			if (rect == NULL)
+				return;
+
+			for (i = 0; i < n; i++) {
+				if (seg[i].x1 < seg[i].x2) {
+					rect[i].x = seg[i].x1;
+					rect[i].width = seg[i].x2 - seg[i].x1;
+				} else if (seg[i].x1 > seg[i].x2) {
+					rect[i].x = seg[i].x2;
+					rect[i].width = seg[i].x1 - seg[i].x2;
+				} else {
+					rect[i].x = seg[i].x1;
+					rect[i].width = 1;
+				}
+				if (seg[i].y1 < seg[i].y2) {
+					rect[i].y = seg[i].y1;
+					rect[i].height = seg[i].y2 - seg[i].y1;
+				} else if (seg[i].x1 > seg[i].y2) {
+					rect[i].y = seg[i].y2;
+					rect[i].height = seg[i].y1 - seg[i].y2;
+				} else {
+					rect[i].y = seg[i].y1;
+					rect[i].height = 1;
+				}
+
+				/* don't paint last pixel */
+				if (gc->capStyle == CapNotLast) {
+					if (seg->x1 == seg->x2)
+						rect[i].height--;
+					else
+						rect[i].width--;
+				}
+			}
+
+			if (gc->fillStyle == FillTiled) {
+				i = sna_poly_fill_rect_tiled_blt(drawable,
+								 priv->gpu_bo, damage,
+								 gc, n, rect,
+								 &region.extents, flags & 2);
+			} else {
+				i = sna_poly_fill_rect_stippled_blt(drawable,
+								    priv->gpu_bo, damage,
+								    gc, n, rect,
+								    &region.extents, flags & 2);
+			}
+			free (rect);
+
+			if (i)
+				return;
+		}
 	}
 
 	/* XXX Do we really want to base this decision on the amalgam ? */
+spans_fallback:
 	if (USE_SPANS &&
 	    can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
