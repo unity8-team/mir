@@ -2660,19 +2660,6 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 				GCPtr gc, int n, xRectangle *rect,
 				const BoxRec *extents, unsigned clipped);
 
-static bool
-can_fill_spans(DrawablePtr drawable, GCPtr gc)
-{
-	DBG(("%s: is-solid-mask? %d\n", __FUNCTION__,
-	     PM_IS_SOLID(drawable, gc->planemask)));
-	if (!PM_IS_SOLID(drawable, gc->planemask))
-		return false;
-
-	DBG(("%s: non-stipple fill? %d\n", __FUNCTION__,
-	     gc->fillStyle != FillStippled));
-	return gc->fillStyle == FillSolid || gc->fillStyle == FillTiled;
-}
-
 static void
 sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	       DDXPointPtr pt, int *width, int sorted)
@@ -4224,7 +4211,6 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 
 spans_fallback:
 	if (USE_SPANS &&
-	    can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		switch (gc->lineStyle) {
@@ -5065,7 +5051,6 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	/* XXX Do we really want to base this decision on the amalgam ? */
 spans_fallback:
 	if (USE_SPANS &&
-	    can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
 		int i;
@@ -5743,8 +5728,11 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 		goto fallback;
 	}
 
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto fallback;
+
 	/* For "simple" cases use the miPolyArc to spans path */
-	if (USE_SPANS && arc_to_spans(gc, n) && can_fill_spans(drawable, gc) &&
+	if (USE_SPANS && arc_to_spans(gc, n) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
 		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
 		/* XXX still around 10x slower for x11perf -ellipse */
