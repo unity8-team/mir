@@ -1332,6 +1332,8 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
 
 int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int bpp)
 {
+	uint32_t pitch;
+
 	if (DBG_NO_TILING)
 		return I915_TILING_NONE;
 
@@ -1399,6 +1401,16 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 			     __FUNCTION__, width));
 			tiling = I915_TILING_NONE;
 		}
+	}
+
+	/* And finally check that we can fence the whole object */
+	if (tiling &&
+	    kgem_surface_size(kgem, false,
+			      width, height, bpp, tiling,
+			      &pitch) >= kgem->max_object_size) {
+		DBG(("%s: too large (%dx%d) to be fenced, discarding tiling\n",
+		     __FUNCTION__, width, height));
+		tiling = I915_TILING_NONE;
 	}
 
 	DBG(("%s: %dx%d -> %d\n", __FUNCTION__, width, height, tiling));
