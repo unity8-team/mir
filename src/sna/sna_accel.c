@@ -604,7 +604,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		goto done;
 
 	if (sna_damage_contains_box(priv->gpu_damage,
-				    REGION_EXTENTS(NULL, region))) {
+				    REGION_EXTENTS(NULL, region)) != PIXMAN_REGION_OUT) {
 		DBG(("%s: region (%dx%d) intersects gpu damage\n",
 		     __FUNCTION__,
 		     region->extents.x2 - region->extents.x1,
