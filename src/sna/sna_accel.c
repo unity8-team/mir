@@ -4063,7 +4063,7 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 		return 0;
 
 	*out = box;
-	return 1 | blt << 1 | clip << 2;
+	return 1 | blt << 2 | clip << 1;
 }
 
 static void
@@ -4101,24 +4101,32 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	     gc->lineStyle, gc->lineStyle == LineSolid,
 	     gc->lineWidth,
 	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask),
-	     flags & 2));
-	if (gc->fillStyle == FillSolid && gc->lineStyle == LineSolid &&
-	    (gc->lineWidth == 0 || (gc->lineWidth == 1 && (n == 1 || gc->alu == GXcopy))) &&
-	    PM_IS_SOLID(drawable, gc->planemask)) {
+	     flags & 4));
+
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto fallback;
+
+	if (gc->lineStyle != LineSolid)
+		goto spans_fallback;
+	if (!(gc->lineWidth == 0 ||
+	      (gc->lineWidth == 1 && (n == 1 || gc->alu == GXcopy))))
+		goto spans_fallback;
+
+	if (gc->fillStyle == FillSolid) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
 		DBG(("%s: trying solid fill [%08lx]\n",
 		     __FUNCTION__, gc->fgPixel));
 
-		if (flags & 2) {
+		if (flags & 4) {
 			if (sna_drawable_use_gpu_bo(drawable,
 						    &region.extents,
 						    &damage) &&
 			    sna_poly_line_blt(drawable,
 					      priv->gpu_bo, damage,
 					      gc, mode, n, pt,
-					      &region.extents, flags & 4))
+					      &region.extents, flags & 2))
 				return;
 
 			if (sna_drawable_use_cpu_bo(drawable,
@@ -4127,7 +4135,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 			    sna_poly_line_blt(drawable,
 					      priv->cpu_bo, damage,
 					      gc, mode, n, pt,
-					      &region.extents, flags & 4))
+					      &region.extents, flags & 2))
 				return;
 		} else { /* !rectilinear */
 			if (USE_ZERO_SPANS &&
@@ -4137,12 +4145,84 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 			    sna_poly_zero_line_blt(drawable,
 						   priv->gpu_bo, damage,
 						   gc, mode, n, pt,
-						   &region.extents, flags & 4))
+						   &region.extents, flags & 2))
 				return;
 
 		}
+	} else if (flags & 4) {
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
+		struct sna_damage **damage;
+
+		/* Try converting these to a set of rectangles instead */
+		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
+			DDXPointRec p1, p2;
+			xRectangle *rect;
+			int i;
+
+			DBG(("%s: converting to rectagnles\n", __FUNCTION__));
+
+			rect = malloc (n * sizeof (xRectangle));
+			if (rect == NULL)
+				return;
+
+			p1 = pt[0];
+			for (i = 1; i < n; i++) {
+				if (mode == CoordModePrevious) {
+					p2.x = p1.x + pt[i].x;
+					p2.y = p1.y + pt[i].y;
+				} else {
+					p2 = pt[i];
+				}
+				if (p1.x < p2.x) {
+					rect[i].x = p1.x;
+					rect[i].width = p2.x - p1.x;
+				} else if (p1.x > p2.x) {
+					rect[i].x = p2.x;
+					rect[i].width = p1.x - p2.x;
+				} else {
+					rect[i].x = p1.x;
+					rect[i].width = 1;
+				}
+				if (p1.y < p2.y) {
+					rect[i].y = p1.y;
+					rect[i].height = p2.y - p1.y;
+				} else if (p1.y > p2.y) {
+					rect[i].y = p2.y;
+					rect[i].height = p1.y - p2.y;
+				} else {
+					rect[i].y = p1.y;
+					rect[i].height = 1;
+				}
+
+				/* don't paint last pixel */
+				if (gc->capStyle == CapNotLast) {
+					if (p1.x == p2.x)
+						rect[i].height--;
+					else
+						rect[i].width--;
+				}
+				p1 = p2;
+			}
+
+			if (gc->fillStyle == FillTiled) {
+				i = sna_poly_fill_rect_tiled_blt(drawable,
+								 priv->gpu_bo, damage,
+								 gc, n - 1, rect + 1,
+								 &region.extents, flags & 2);
+			} else {
+				i = sna_poly_fill_rect_stippled_blt(drawable,
+								    priv->gpu_bo, damage,
+								    gc, n - 1, rect + 1,
+								    &region.extents, flags & 2);
+			}
+			free (rect);
+
+			if (i)
+				return;
+		}
 	}
 
+spans_fallback:
 	if (USE_SPANS &&
 	    can_fill_spans(drawable, gc) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
