@@ -1242,10 +1242,9 @@ static int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 	return REGION_NUM_RECTS(&damage->region);
 }
 
-struct sna_damage *_sna_damage_reduce(struct sna_damage *damage,
-				      int width, int height)
+struct sna_damage *_sna_damage_reduce(struct sna_damage *damage)
 {
-	DBG(("%s(width=%d, height=%d)\n", __FUNCTION__, width, height));
+	DBG(("%s\n", __FUNCTION__));
 
 	if (damage->n)
 		__sna_damage_reduce(damage);
@@ -1253,13 +1252,6 @@ struct sna_damage *_sna_damage_reduce(struct sna_damage *damage,
 	if (!pixman_region_not_empty(&damage->region)) {
 		__sna_damage_destroy(damage);
 		damage = NULL;
-	} else {
-		if (damage->region.data == NULL &&
-		    damage->extents.x1 <= 0 &&
-		    damage->extents.y1 <= 0 &&
-		    damage->extents.x2 >= width &&
-		    damage->extents.y2 >= height)
-			damage = _sna_damage_all(damage, width, height);
 	}
 
 	return damage;

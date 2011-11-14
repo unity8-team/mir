@@ -127,15 +127,34 @@ int sna_damage_contains_box(struct sna_damage *damage,
 
 int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes);
 
-struct sna_damage *_sna_damage_reduce(struct sna_damage *damage,
-				     int width, int height);
-static inline void sna_damage_reduce(struct sna_damage **damage,
-				     int width, int height)
+struct sna_damage *_sna_damage_reduce(struct sna_damage *damage);
+static inline void sna_damage_reduce(struct sna_damage **damage)
 {
 	if (*damage == NULL)
 		return;
 
-	*damage = _sna_damage_reduce(*damage, width, height);
+	if ((*damage)->mode != DAMAGE_ALL)
+		*damage = _sna_damage_reduce(*damage);
+}
+
+static inline void sna_damage_reduce_all(struct sna_damage **damage,
+					 int width, int height)
+{
+	DBG(("%s(width=%d, height=%d)\n", __FUNCTION__, width, height));
+
+	if (*damage == NULL)
+		return;
+
+	if ((*damage)->mode == DAMAGE_ADD &&
+	    (*damage)->extents.x1 <= 0 &&
+	    (*damage)->extents.y1 <= 0 &&
+	    (*damage)->extents.x2 >= width &&
+	    (*damage)->extents.y2 >= height) {
+		if ((*damage)->n)
+			*damage = _sna_damage_reduce(*damage);
+		if ((*damage)->region.data == NULL)
+			*damage = _sna_damage_all(*damage, width, height);
+	}
 }
 
 void __sna_damage_destroy(struct sna_damage *damage);
