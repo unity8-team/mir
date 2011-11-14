@@ -716,8 +716,8 @@ glyphs_via_mask(struct sna *sna,
 		int s;
 
 		DBG(("%s: small mask [format=%lx, depth=%d, size=%d], rendering glyphs to upload buffer\n",
-		     __FUNCTION__, (unsigned long)format->format, format->depth
-		     (uint32_t)width*height*format->depth));
+		     __FUNCTION__, (unsigned long)format->format,
+		     format->depth, (uint32_t)width*height*format->depth));
 
 upload:
 		pixmap = sna_pixmap_create_upload(screen,
