@@ -164,8 +164,12 @@ sna_copy_init_blt(struct sna_copy_op *copy,
 
 static void sna_pixmap_destroy_gpu_bo(struct sna *sna, struct sna_pixmap *priv)
 {
-	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
-	priv->gpu_bo = NULL;
+	sna_damage_destroy(&priv->gpu_damage);
+
+	if (priv->gpu_bo && !priv->pinned) {
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = NULL;
+	}
 
 	/* and reset the upload counter */
 	priv->source_count = SOURCE_BIAS;
@@ -526,9 +530,7 @@ done:
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
-
-		if (priv->gpu_bo && !priv->pinned)
-			sna_pixmap_destroy_gpu_bo(sna, priv);
+		sna_pixmap_destroy_gpu_bo(sna, priv);
 
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
@@ -1368,23 +1370,18 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		kgem_bo_sync(&sna->kgem, priv->cpu_bo, true);
 
 	if (region_subsumes_drawable(region, &pixmap->drawable)) {
-		sna_damage_destroy(&priv->gpu_damage);
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
-		if (priv->gpu_bo && !priv->pinned)
-			sna_pixmap_destroy_gpu_bo(sna, priv);
+		sna_pixmap_destroy_gpu_bo(sna, priv);
 	} else {
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
 		sna_damage_subtract(&priv->gpu_damage, region);
 		sna_damage_add(&priv->cpu_damage, region);
 		if (sna_damage_is_all(&priv->cpu_damage,
 				      pixmap->drawable.width,
-				      pixmap->drawable.height)) {
-			sna_damage_destroy(&priv->gpu_damage);
-			if (priv->gpu_bo && !priv->pinned)
-				sna_pixmap_destroy_gpu_bo(sna, priv);
-		}
+				      pixmap->drawable.height))
+			sna_pixmap_destroy_gpu_bo(sna, priv);
 	}
 	if (priv->flush)
 		list_move(&priv->list, &sna->dirty_pixmaps);
@@ -2130,12 +2127,10 @@ fallback:
 		if (dst_priv) {
 			if (alu == GXcopy) {
 				if (replaces) {
-					sna_damage_destroy(&dst_priv->gpu_damage);
 					sna_damage_all(&dst_priv->cpu_damage,
 						       dst_pixmap->drawable.width,
 						       dst_pixmap->drawable.height);
-					if (dst_priv->gpu_bo && !dst_priv->pinned)
-						sna_pixmap_destroy_gpu_bo(sna, dst_priv);
+					sna_pixmap_destroy_gpu_bo(sna, dst_priv);
 				} else {
 					assert_pixmap_contains_box(dst_pixmap,
 								   RegionExtents(&region));
