@@ -133,7 +133,7 @@ static inline void sna_damage_reduce(struct sna_damage **damage)
 	if (*damage == NULL)
 		return;
 
-	if ((*damage)->mode != DAMAGE_ALL)
+	if ((*damage)->n)
 		*damage = _sna_damage_reduce(*damage);
 }
 

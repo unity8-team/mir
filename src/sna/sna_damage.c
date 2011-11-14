@@ -1138,10 +1138,11 @@ static int _sna_damage_contains_box(struct sna_damage *damage,
 		__sna_damage_reduce(damage);
 
 	ret = pixman_region_contains_rectangle(&damage->region, (BoxPtr)box);
-	if (damage->n == 0)
+	if (ret != PIXMAN_REGION_OUT || damage->n == 0)
 		return ret;
 
-	return ret == PIXMAN_REGION_IN ? PIXMAN_REGION_IN : PIXMAN_REGION_OUT;
+	__sna_damage_reduce(damage);
+	return pixman_region_contains_rectangle(&damage->region, (BoxPtr)box);
 }
 
 #if DEBUG_DAMAGE
@@ -1246,9 +1247,7 @@ struct sna_damage *_sna_damage_reduce(struct sna_damage *damage)
 {
 	DBG(("%s\n", __FUNCTION__));
 
-	if (damage->n)
-		__sna_damage_reduce(damage);
-
+	__sna_damage_reduce(damage);
 	if (!pixman_region_not_empty(&damage->region)) {
 		__sna_damage_destroy(damage);
 		damage = NULL;
