@@ -64,9 +64,45 @@ memcpy_blt(const void *src, void *dst, int bpp,
 		return;
 	}
 
-	do {
-		memcpy(dst_bytes, src_bytes, byte_width);
-		src_bytes += src_stride;
-		dst_bytes += dst_stride;
-	} while (--height);
+	switch (byte_width) {
+	case 1:
+		do {
+			*dst_bytes = *src_bytes;
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+
+	case 2:
+		do {
+			*(uint16_t *)dst_bytes = *(uint16_t *)src_bytes;
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+
+	case 4:
+		do {
+			*(uint32_t *)dst_bytes = *(uint32_t *)src_bytes;
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+
+	case 8:
+		do {
+			*(uint64_t *)dst_bytes = *(uint64_t *)src_bytes;
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+
+	default:
+		do {
+			memcpy(dst_bytes, src_bytes, byte_width);
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+	}
 }
