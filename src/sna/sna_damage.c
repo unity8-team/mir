@@ -121,13 +121,21 @@ static const char *_debug_describe_damage(char *buf, int max,
 	if (str_max > sizeof(damage_str))
 		str_max = sizeof(damage_str);
 
-	sprintf(damage_str, "[%d : ...]", damage->n);
-	snprintf(buf, max, "[[(%d, %d), (%d, %d)]:  %s + %s]",
-		 damage->extents.x1, damage->extents.y1,
-		 damage->extents.x2, damage->extents.y2,
-		 _debug_describe_region(region_str, str_max,
-					&damage->region),
-		 damage_str);
+	if (damage->mode == DAMAGE_ALL) {
+		snprintf(buf, max, "[[(%d, %d), (%d, %d)]: all]",
+			 damage->extents.x1, damage->extents.y1,
+			 damage->extents.x2, damage->extents.y2);
+		assert(damage->n == 0);
+	} else {
+		sprintf(damage_str, "[%d : ...]", damage->n);
+		snprintf(buf, max, "[[(%d, %d), (%d, %d)]:  %s %c %s]",
+			 damage->extents.x1, damage->extents.y1,
+			 damage->extents.x2, damage->extents.y2,
+			 _debug_describe_region(region_str, str_max,
+						&damage->region),
+			 damage->mode == DAMAGE_SUBTRACT ? '-' : '+',
+			 damage_str);
+	}
 
 	return buf;
 }

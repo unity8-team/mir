@@ -1370,6 +1370,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		kgem_bo_sync(&sna->kgem, priv->cpu_bo, true);
 
 	if (region_subsumes_drawable(region, &pixmap->drawable)) {
+		DBG(("%s: replacing entire pixmap\n", __FUNCTION__));
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
@@ -1380,8 +1381,10 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		sna_damage_add(&priv->cpu_damage, region);
 		if (sna_damage_is_all(&priv->cpu_damage,
 				      pixmap->drawable.width,
-				      pixmap->drawable.height))
+				      pixmap->drawable.height)) {
+			DBG(("%s: replaced entire pixmap\n", __FUNCTION__));
 			sna_pixmap_destroy_gpu_bo(sna, priv);
+		}
 	}
 	if (priv->flush)
 		list_move(&priv->list, &sna->dirty_pixmaps);
