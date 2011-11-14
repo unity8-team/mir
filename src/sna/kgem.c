@@ -1345,28 +1345,52 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 				return I915_TILING_NONE;
 			}
 
-			if (width > 2048 || height > 2048) {
+			if ((width > 2048 || height > 2048) &&
+			    kgem_surface_size(kgem, false,
+					      width, height, bpp, I915_TILING_X,
+					      &pitch) < kgem->max_object_size) {
 				DBG(("%s: large buffer (%dx%d), forcing TILING_X\n",
 				     __FUNCTION__, width, height));
 				return -I915_TILING_X;
 			}
 		}
 	} else {
-		if (width*bpp > (MAXSHORT-512) * 8) {
+		if (width*bpp > (MAXSHORT-512) * 8 &&
+		    kgem_surface_size(kgem, false,
+				      width, height, bpp, I915_TILING_X,
+				      &pitch) < kgem->max_object_size) {
 			DBG(("%s: large pitch [%d], forcing TILING_X\n",
 			     __FUNCTION__, width*bpp/8));
 			return -I915_TILING_X;
 		}
 
-		if (tiling && (width > 8192 || height > 8192)) {
+		if (tiling && (width > 8192 || height > 8192) &&
+		    kgem_surface_size(kgem, false,
+				      width, height, bpp, I915_TILING_X,
+				      &pitch) < kgem->max_object_size) {
 			DBG(("%s: large tiled buffer [%dx%d], forcing TILING_X\n",
 			     __FUNCTION__, width, height));
 			return -I915_TILING_X;
 		}
 	}
 
-	if (tiling < 0)
+	if (tiling < 0) {
+		assert(kgem_surface_size(kgem, false,
+					 width, height, bpp, -tiling,
+					 &pitch) < kgem->max_object_size);
 		return tiling;
+	}
+
+	/* First check that we can fence the whole object */
+	if (tiling &&
+	    kgem_surface_size(kgem, false,
+			      width, height, bpp, tiling,
+			      &pitch) >= kgem->max_object_size) {
+		DBG(("%s: too large (%dx%d) to be fenced, discarding tiling\n",
+		     __FUNCTION__, width, height));
+		tiling = I915_TILING_NONE;
+		goto done;
+	}
 
 	if (tiling == I915_TILING_Y && height <= 16) {
 		DBG(("%s: too short [%d] for TILING_Y\n",
@@ -1384,6 +1408,7 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 		DBG(("%s: too short [%d] for TILING_X\n",
 		     __FUNCTION__, height));
 		tiling = I915_TILING_NONE;
+		goto done;
 	}
 
 	/* Before the G33, we only have a small GTT to play with and tiled
@@ -1395,24 +1420,17 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 			DBG(("%s: too thin [%d] for TILING_X\n",
 			     __FUNCTION__, width));
 			tiling = I915_TILING_NONE;
+			goto done;
 		}
 		if (tiling == I915_TILING_Y && width * bpp < 8*32/2) {
 			DBG(("%s: too thin [%d] for TILING_Y\n",
 			     __FUNCTION__, width));
 			tiling = I915_TILING_NONE;
+			goto done;
 		}
 	}
 
-	/* And finally check that we can fence the whole object */
-	if (tiling &&
-	    kgem_surface_size(kgem, false,
-			      width, height, bpp, tiling,
-			      &pitch) >= kgem->max_object_size) {
-		DBG(("%s: too large (%dx%d) to be fenced, discarding tiling\n",
-		     __FUNCTION__, width, height));
-		tiling = I915_TILING_NONE;
-	}
-
+done:
 	DBG(("%s: %dx%d -> %d\n", __FUNCTION__, width, height, tiling));
 	return tiling;
 }
