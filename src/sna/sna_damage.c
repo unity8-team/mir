@@ -947,6 +947,11 @@ struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 	if (damage->region.data)
 		return damage;
 
+	assert(damage->extents.x1 == 0 &&
+	       damage->extents.y1 == 0 &&
+	       damage->extents.x2 == width &&
+	       damage->extents.y2 == height);
+
 	return _sna_damage_all(damage, width, height);
 }
 
