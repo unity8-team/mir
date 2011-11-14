@@ -53,6 +53,7 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_RV250_Ld, "ATI FireGL Mobility 9000 (M9) Ld (AGP)" },
   { PCI_CHIP_RV250_Lf, "ATI Radeon Mobility 9000 (M9) Lf (AGP)" },
   { PCI_CHIP_RV250_Lg, "ATI Radeon Mobility 9000 (M9) Lg (AGP)" },
+  { PCI_CHIP_RV280_4C6E, "ATI FireMV 2400 PCI" },
   { PCI_CHIP_R300_ND, "ATI Radeon 9700 Pro ND (AGP)" },
   { PCI_CHIP_R300_NE, "ATI Radeon 9700/9500Pro NE (AGP)" },
   { PCI_CHIP_R300_NF, "ATI Radeon 9600TX NF (AGP)" },

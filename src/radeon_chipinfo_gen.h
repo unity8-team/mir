@@ -53,6 +53,7 @@ static RADEONCardInfo RADEONCards[] = {
  { 0x4C64, CHIP_FAMILY_RV250, 1, 0, 0, 0, 0 },
  { 0x4C66, CHIP_FAMILY_RV250, 1, 0, 0, 0, 0 },
  { 0x4C67, CHIP_FAMILY_RV250, 1, 0, 0, 0, 0 },
+ { 0x4C6E, CHIP_FAMILY_RV280, 1, 0, 0, 0, 0 },
  { 0x4E44, CHIP_FAMILY_R300, 0, 0, 0, 0, 0 },
  { 0x4E45, CHIP_FAMILY_R300, 0, 0, 0, 0, 0 },
  { 0x4E46, CHIP_FAMILY_R300, 0, 0, 0, 0, 0 },

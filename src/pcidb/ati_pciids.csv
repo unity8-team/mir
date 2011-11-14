@@ -86,6 +86,7 @@
 "0x4C64","RV250_Ld","RV250",1,,,,,"ATI FireGL Mobility 9000 (M9) Ld (AGP)"
 "0x4C66","RV250_Lf","RV250",1,,,,,"ATI Radeon Mobility 9000 (M9) Lf (AGP)"
 "0x4C67","RV250_Lg","RV250",1,,,,,"ATI Radeon Mobility 9000 (M9) Lg (AGP)"
+"0x4C6E","RV280_4C6E","RV280",1,,,,,"ATI FireMV 2400 PCI"
 "0x4D46","RAGE128MF","R128",,,,,,
 "0x4D4C","RAGE128ML","R128",,,,,,
 "0x4E44","R300_ND","R300",,,,,,"ATI Radeon 9700 Pro ND (AGP)"
