@@ -695,13 +695,8 @@ intel_crtc_init(ScrnInfoPtr scrn, struct intel_mode *mode, int num)
 static Bool
 is_panel(int type)
 {
-#if 0
-	/* XXX https://bugs.freedesktop.org/show_bug.cgi?id=38012 */
 	return (type == DRM_MODE_CONNECTOR_LVDS ||
 		type == DRM_MODE_CONNECTOR_eDP);
-#else
-	return type == DRM_MODE_CONNECTOR_LVDS;
-#endif
 }
 
 static xf86OutputStatus
