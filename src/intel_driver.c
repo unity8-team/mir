@@ -70,6 +70,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include "legacy/legacy.h"
+#include "uxa.h"
 
 #include <sys/ioctl.h>
 #include "i915_drm.h"

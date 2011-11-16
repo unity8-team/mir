@@ -75,7 +75,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <libudev.h>
 #endif
 
-#include "uxa.h"
 /* XXX
  * The X server gained an *almost* identical implementation in 1.9.
  *
@@ -316,7 +315,7 @@ typedef struct intel_screen_private {
 	void (*batch_flush) (struct intel_screen_private *intel);
 	void (*batch_commit_notify) (struct intel_screen_private *intel);
 
-	uxa_driver_t *uxa_driver;
+	struct _UxaDriver *uxa_driver;
 	Bool need_sync;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;

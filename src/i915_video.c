@@ -33,6 +33,7 @@
 #include "xf86_OSproc.h"
 #include "xf86xv.h"
 #include "fourcc.h"
+#include "gcstruct.h"
 
 #include "intel.h"
 #include "intel_video.h"

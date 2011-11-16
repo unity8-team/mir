@@ -346,8 +346,10 @@ static Bool intel_pci_probe(DriverPtr		driver,
 		default:
 #if USE_SNA
 			sna_init_scrn(scrn, entity_num);
-#else
+#elif USE_UXA
 			intel_init_scrn(scrn);
+#else
+			scrn = NULL;
 #endif
 			break;
 		}
@@ -387,8 +389,10 @@ intel_available_options(int chipid, int busid)
 	default:
 #if USE_SNA
 		return sna_available_options(chipid, busid);
-#else
+#elif USE_UXA
 		return intel_uxa_available_options(chipid, busid);
+#else
+		return NULL;
 #endif
 	}
 }

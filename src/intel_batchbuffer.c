@@ -40,6 +40,8 @@
 #include "i915_drm.h"
 #include "i965_reg.h"
 
+#include "uxa.h"
+
 #define DUMP_BATCHBUFFERS NULL // "/tmp/i915-batchbuffers.dump"
 
 static void intel_end_vertex(intel_screen_private *intel)

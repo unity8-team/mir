@@ -120,14 +120,13 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
 
+AC_MSG_CHECKING([whether to include SNA support])
 AC_ARG_ENABLE(sna,
 	      AS_HELP_STRING([--enable-sna],
 			     [Enable SandyBridge's New Acceleration (SNA) [default=no]]),
 	      [SNA="$enableval"],
 	      [SNA=no])
 AM_CONDITIONAL(SNA, test x$SNA != xno)
-AC_MSG_CHECKING([whether to include SNA support])
-
 required_xorg_xserver_version=1.6
 required_pixman_version=0.16
 if test "x$SNA" != "xno"; then
@@ -137,6 +136,17 @@ if test "x$SNA" != "xno"; then
 fi
 AC_MSG_RESULT([$SNA])
 
+AC_MSG_CHECKING([whether to include UXA support])
+AC_ARG_ENABLE(uxa,
+	      AS_HELP_STRING([--enable-uxa],
+			     [Enable Unified Acceleration Architecture (UXA) [default=yes]]),
+	      [UXA="$enableval"],
+	      [UXA=yes])
+AM_CONDITIONAL(UXA, test x$UXA != xno)
+if test "x$UXA" != "xno"; then
+	AC_DEFINE(USE_UXA, 1, [Enable UXA support])
+fi
+AC_MSG_RESULT([$UXA])
 
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],

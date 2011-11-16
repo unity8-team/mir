@@ -40,6 +40,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <errno.h>
 
+#include "uxa.h"
+
 static const int I830CopyROP[16] = {
 	ROP_0,			/* GXclear */
 	ROP_DSa,		/* GXand */
