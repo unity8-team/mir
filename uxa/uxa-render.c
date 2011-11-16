@@ -571,7 +571,7 @@ uxa_picture_from_pixman_image(ScreenPtr screen,
 		if (uxa_picture_prepare_access(picture, UXA_ACCESS_RW)) {
 			fbComposite(PictOpSrc, src, NULL, picture,
 				    0, 0, 0, 0, 0, 0, width, height);
-			uxa_picture_finish_access(picture);
+			uxa_picture_finish_access(picture, UXA_ACCESS_RW);
 		}
 
 		FreePicture(src, 0);
@@ -599,7 +599,7 @@ uxa_create_solid(ScreenPtr screen, uint32_t color)
 		return 0;
 	}
 	*((uint32_t *)pixmap->devPrivate.ptr) = color;
-	uxa_finish_access((DrawablePtr)pixmap);
+	uxa_finish_access((DrawablePtr)pixmap, UXA_ACCESS_RW);
 
 	picture = CreatePicture(0, &pixmap->drawable,
 				PictureMatchFormat(screen, 32, PICT_a8r8g8b8),
@@ -702,7 +702,7 @@ uxa_acquire_pattern(ScreenPtr pScreen,
 	if (uxa_picture_prepare_access(pDst, UXA_ACCESS_RW)) {
 		fbComposite(PictOpSrc, pSrc, NULL, pDst,
 			    x, y, 0, 0, 0, 0, width, height);
-		uxa_picture_finish_access(pDst);
+		uxa_picture_finish_access(pDst, UXA_ACCESS_RW);
 		return pDst;
 	} else {
 		FreePicture(pDst, 0);
@@ -761,9 +761,9 @@ uxa_render_picture(ScreenPtr screen,
 			ret = 1;
 			fbComposite(PictOpSrc, src, NULL, picture,
 				    x, y, 0, 0, 0, 0, width, height);
-			uxa_picture_finish_access(src);
+			uxa_picture_finish_access(src, UXA_ACCESS_RO);
 		}
-		uxa_picture_finish_access(picture);
+		uxa_picture_finish_access(picture, UXA_ACCESS_RW);
 	}
 
 	if (!ret) {
@@ -1902,7 +1902,7 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 
 			for (; ntrap; ntrap--, traps++)
 				(*ps->RasterizeTrapezoid) (dst, traps, 0, 0);
-			uxa_finish_access(pDraw);
+			uxa_finish_access(pDraw, UXA_ACCESS_RW);
 		}
 	} else if (maskFormat) {
 		PixmapPtr scratch = NULL;
@@ -2013,7 +2013,7 @@ uxa_triangles(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 		DrawablePtr pDraw = pDst->pDrawable;
 		if (uxa_prepare_access(pDraw, UXA_ACCESS_RW)) {
 			(*ps->AddTriangles) (pDst, 0, 0, ntri, tris);
-			uxa_finish_access(pDraw);
+			uxa_finish_access(pDraw, UXA_ACCESS_RW);
 		}
 	} else if (maskFormat) {
 		PicturePtr pPicture;
@@ -2049,7 +2049,7 @@ uxa_triangles(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 		if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
 			(*ps->AddTriangles) (pPicture, -bounds.x1, -bounds.y1,
 					     ntri, tris);
-			uxa_finish_access(pPicture->pDrawable);
+			uxa_finish_access(pPicture->pDrawable, UXA_ACCESS_RW);
 		}
 
 		xRel = bounds.x1 + xSrc - xDst;

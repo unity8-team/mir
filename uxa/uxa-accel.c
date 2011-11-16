@@ -187,7 +187,7 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 				  (x1 + dstXoff) * dstBpp, (x2 - x1) * dstBpp,
 				  y2 - y1, GXcopy, FB_ALLONES, dstBpp);
 
-			uxa_finish_access(pDrawable);
+			uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 		}
 	}
 
@@ -481,9 +481,9 @@ fallback:
 				   dx, dy, reverse, upsidedown, bitplane,
 				   closure);
 			if (pSrcDrawable != pDstDrawable)
-				uxa_finish_access(pSrcDrawable);
+				uxa_finish_access(pSrcDrawable, UXA_ACCESS_RO);
 		}
-		uxa_finish_access(pDstDrawable);
+		uxa_finish_access(pDstDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -1013,7 +1013,7 @@ fallback:
 
 	if (uxa_prepare_access(pDrawable, UXA_ACCESS_RO)) {
 		fbGetImage(pDrawable, x, y, w, h, format, planeMask, d);
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RO);
 	}
 
 	return;

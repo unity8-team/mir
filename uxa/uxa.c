@@ -160,7 +160,7 @@ Bool uxa_prepare_access(DrawablePtr pDrawable, uxa_access_t access)
  *
  * It deals with calling the driver's finish_access() only if necessary.
  */
-void uxa_finish_access(DrawablePtr pDrawable)
+void uxa_finish_access(DrawablePtr pDrawable, uxa_access_t access)
 {
 	ScreenPtr pScreen = pDrawable->pScreen;
 	uxa_screen_t *uxa_screen = uxa_get_screen(pScreen);
@@ -173,7 +173,7 @@ void uxa_finish_access(DrawablePtr pDrawable)
 	if (!uxa_pixmap_is_offscreen(pPixmap))
 		return;
 
-	(*uxa_screen->info->finish_access) (pPixmap);
+	(*uxa_screen->info->finish_access) (pPixmap, access);
 }
 
 /**
@@ -217,7 +217,7 @@ uxa_validate_gc(GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 					    fb24_32ReformatTile(pOldTile,
 								pDrawable->
 								bitsPerPixel);
-					uxa_finish_access(&pOldTile->drawable);
+					uxa_finish_access(&pOldTile->drawable, UXA_ACCESS_RO);
 				}
 			}
 			if (pNewTile) {
@@ -235,7 +235,7 @@ uxa_validate_gc(GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 			if (uxa_prepare_access
 			    (&pGC->tile.pixmap->drawable, UXA_ACCESS_RW)) {
 				fbPadPixmap(pGC->tile.pixmap);
-				uxa_finish_access(&pGC->tile.pixmap->drawable);
+				uxa_finish_access(&pGC->tile.pixmap->drawable, UXA_ACCESS_RW);
 			}
 		}
 		/* Mask out the GCTile change notification, now that we've
@@ -250,7 +250,7 @@ uxa_validate_gc(GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 		 */
 		if (uxa_prepare_access(&pGC->stipple->drawable, UXA_ACCESS_RW)) {
 			fbValidateGC(pGC, changes, pDrawable);
-			uxa_finish_access(&pGC->stipple->drawable);
+			uxa_finish_access(&pGC->stipple->drawable, UXA_ACCESS_RW);
 		}
 	} else {
 		fbValidateGC(pGC, changes, pDrawable);
@@ -296,7 +296,7 @@ Bool uxa_prepare_access_window(WindowPtr pWin)
 		    (&pWin->border.pixmap->drawable, UXA_ACCESS_RO)) {
 			if (pWin->backgroundState == BackgroundPixmap)
 				uxa_finish_access(&pWin->background.pixmap->
-						  drawable);
+						  drawable, UXA_ACCESS_RO);
 			return FALSE;
 		}
 	}
@@ -306,10 +306,10 @@ Bool uxa_prepare_access_window(WindowPtr pWin)
 void uxa_finish_access_window(WindowPtr pWin)
 {
 	if (pWin->backgroundState == BackgroundPixmap)
-		uxa_finish_access(&pWin->background.pixmap->drawable);
+		uxa_finish_access(&pWin->background.pixmap->drawable, UXA_ACCESS_RO);
 
 	if (pWin->borderIsPixel == FALSE)
-		uxa_finish_access(&pWin->border.pixmap->drawable);
+		uxa_finish_access(&pWin->border.pixmap->drawable, UXA_ACCESS_RO);
 }
 
 static Bool uxa_change_window_attributes(WindowPtr pWin, unsigned long mask)
@@ -329,7 +329,7 @@ static RegionPtr uxa_bitmap_to_region(PixmapPtr pPix)
 	if (!uxa_prepare_access(&pPix->drawable, UXA_ACCESS_RO))
 		return NULL;
 	ret = fbPixmapToRegion(pPix);
-	uxa_finish_access(&pPix->drawable);
+	uxa_finish_access(&pPix->drawable, UXA_ACCESS_RO);
 	return ret;
 }
 
