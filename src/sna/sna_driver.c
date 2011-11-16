@@ -582,13 +582,14 @@ static void
 sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 {
 	struct sna *sna = data;
-	struct timeval *tv = timeout;
+	struct timeval **tv = timeout;
 
-	DBG(("%s\n", __FUNCTION__));
+	DBG(("%s (tv=%ld.%06ld)\n", __FUNCTION__,
+	     *tv ? (*tv)->tv_sec : -1, *tv ? (*tv)->tv_usec : 0));
 
 	sna->BlockHandler(i, sna->BlockData, timeout, read_mask);
 
-	if (tv == NULL || (tv->tv_usec | tv->tv_sec))
+	if (*tv == NULL || ((*tv)->tv_usec | (*tv)->tv_sec))
 		sna_accel_block_handler(sna);
 }
 
