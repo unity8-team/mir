@@ -75,7 +75,6 @@ struct kgem_bo {
 	uint32_t vmap : 1;
 	uint32_t flush : 1;
 	uint32_t sync : 1;
-	uint32_t purgeable : 1;
 	uint32_t purged : 1;
 };
 

@@ -305,15 +305,15 @@ extern void sna_mode_fini(struct sna *sna);
 extern int sna_crtc_id(xf86CrtcPtr crtc);
 extern int sna_output_dpms_status(xf86OutputPtr output);
 
-extern int sna_do_pageflip(struct sna *sna,
-			    PixmapPtr pixmap,
-			    void *data,
-			    int ref_crtc_hw_id,
-			    uint32_t *old_fb);
+extern int sna_page_flip(struct sna *sna,
+			 struct kgem_bo *bo,
+			 void *data,
+			 int ref_crtc_hw_id,
+			 uint32_t *old_fb);
 
 extern PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap);
 
-void sna_mode_delete_fb(struct sna *sna, PixmapPtr pixmap, uint32_t fb);
+void sna_mode_delete_fb(struct sna *sna, uint32_t fb);
 
 static inline struct sna *
 to_sna(ScrnInfoPtr scrn)

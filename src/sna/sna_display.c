@@ -1773,20 +1773,15 @@ PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap)
 }
 
 int
-sna_do_pageflip(struct sna *sna,
-		PixmapPtr pixmap,
-		void *data,
-		int ref_crtc_hw_id,
-		uint32_t *old_fb)
+sna_page_flip(struct sna *sna,
+	      struct kgem_bo *bo,
+	      void *data,
+	      int ref_crtc_hw_id,
+	      uint32_t *old_fb)
 {
 	ScrnInfoPtr scrn = sna->scrn;
 	struct sna_mode *mode = &sna->mode;
-	struct kgem_bo *bo;
 	int count;
-
-	bo = sna_pixmap_pin(pixmap);
-	if (!bo)
-		return 0;
 
 	*old_fb = mode->fb_id;
 
@@ -1822,7 +1817,6 @@ sna_do_pageflip(struct sna *sna,
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
-		sna->mode.fb_pixmap = pixmap->drawable.serialNumber;
 		bo->cpu_read = bo->cpu_write = false;
 		bo->gpu = true;
 
@@ -1832,6 +1826,7 @@ sna_do_pageflip(struct sna *sna,
 		 * upon release.
 		 */
 		bo->needs_flush = true;
+		bo->reusable = true;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;
@@ -1840,13 +1835,10 @@ sna_do_pageflip(struct sna *sna,
 	return count;
 }
 
-void sna_mode_delete_fb(struct sna *sna, PixmapPtr pixmap, uint32_t fb)
+void sna_mode_delete_fb(struct sna *sna, uint32_t fb)
 {
 	if (fb)
 		drmModeRmFB(sna->kgem.fd, fb);
-
-	if (pixmap)
-		pixmap->drawable.pScreen->DestroyPixmap(pixmap);
 }
 
 static const xf86CrtcConfigFuncsRec sna_crtc_config_funcs = {

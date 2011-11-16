@@ -432,7 +432,6 @@ struct kgem_bo *sna_replace(struct sna *sna,
 	DBG(("%s(handle=%d, %dx%d, bpp=%d, tiling=%d)\n",
 	     __FUNCTION__, bo->handle, width, height, bpp, bo->tiling));
 
-	assert(bo->reusable);
 	if (kgem_bo_is_busy(bo)) {
 		struct kgem_bo *new_bo;
 
