@@ -74,7 +74,7 @@ libsna_la_SOURCES = \
 	gen7_render.h \
 	$(NULL)
 
-if DRI
+if DRI2
 libsna_la_SOURCES += \
 	sna_dri.c \
 	$(NULL)

@@ -175,7 +175,7 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.23])
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
-PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6])
+PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6],, DRI2=no)
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
@@ -217,6 +217,10 @@ else
         if test "x$enable_dri" = "xyes"; then
                 AC_MSG_ERROR([DRI requested but prerequisites not found])
         fi
+fi
+AM_CONDITIONAL(DRI2, test x$DRI2 != xno)
+if test "x$DRI2" != "xno"; then
+        AC_DEFINE(USE_DRI2,1,[Enable DRI2 driver support])
 fi
 
 if test "$XVMC" = yes; then

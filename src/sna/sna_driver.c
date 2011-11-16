@@ -925,7 +925,7 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 	sna_video_init(sna, screen);
-#ifdef DRI2
+#if USE_DRI2
 	sna->directRenderingOpen = sna_dri_open(sna, screen);
 	if (sna->directRenderingOpen)
 		xf86DrvMsg(scrn->scrnIndex, X_INFO,
