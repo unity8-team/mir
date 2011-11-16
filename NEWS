@@ -1,3 +1,14 @@
+Release 2.17.0 (2011-11-16)
+==============================
+A few months have passed, and we have accumulated a surprising number of
+bug fixes. Oops! We would strongly encourage everyone to upgrade.
+
+Bugs fixed in this snapshot (compared to 2.16.902)
+--------------------------------------------------
+
+* Video clobbering composite batch state
+  http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=635953
+
 Snapshot 2.16.902 (2011-11-13)
 ==============================
 This is the second release candidate in preparation for the upcoming
