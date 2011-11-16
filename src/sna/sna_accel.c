@@ -31,11 +31,11 @@
 
 #include "sna.h"
 #include "sna_reg.h"
+#include "rop.h"
 
 #include <X11/fonts/font.h>
 #include <X11/fonts/fontstruct.h>
 
-#include <xaarop.h>
 #include <fb.h>
 #include <dixfontstr.h>
 

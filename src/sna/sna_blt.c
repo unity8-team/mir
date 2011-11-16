@@ -36,10 +36,10 @@
 #include "sna_render.h"
 #include "sna_render_inline.h"
 #include "sna_reg.h"
+#include "rop.h"
 
 #include <mipict.h>
 #include <fbpict.h>
-#include <xaarop.h>
 
 #if DEBUG_BLT
 #undef DBG

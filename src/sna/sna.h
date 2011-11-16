@@ -49,7 +49,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xf86Pci.h>
 #include <xf86Cursor.h>
 #include <xf86xv.h>
-#include <vgaHW.h>
 #include <xf86Crtc.h>
 #include <xf86RandR12.h>
 #include <gcstruct.h>

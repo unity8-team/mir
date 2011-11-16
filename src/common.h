@@ -109,7 +109,7 @@ static inline void memcpy_volatile(volatile void *dst, const void *src,
     size_t i;
 
     for (i = 0; i < len; i++)
-	((volatile char *)dst)[i] = ((volatile char *)src)[i];
+	((volatile char *)dst)[i] = ((const volatile char *)src)[i];
 }
 
 /* Memory mapped register access macros */

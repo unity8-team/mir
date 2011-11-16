@@ -45,21 +45,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 #include <errno.h>
 
-#include "xf86.h"
-#include "xf86_OSproc.h"
-#include "xf86cmap.h"
+#include <xf86cmap.h>
+#include <micmap.h>
+#include <fb.h>
+
 #include "compiler.h"
-#include "mibstore.h"
-#include "vgaHW.h"
-#include "mipointer.h"
-#include "micmap.h"
-#include "shadowfb.h"
-#include <X11/extensions/randr.h>
-#include "fb.h"
-#include "miscstruct.h"
-#include "dixstruct.h"
-#include "xf86xv.h"
-#include <X11/extensions/Xv.h>
 #include "sna.h"
 #include "sna_module.h"
 #include "sna_video.h"
@@ -973,9 +963,6 @@ static void sna_free_screen(int scrnIndex, int flags)
 	}
 
 	sna_close_drm_master(scrn);
-
-	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
 
 /*

@@ -726,7 +726,6 @@ fallback:
 		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
 
 	if (op == PictOpSrc || op == PictOpClear) {
-		PixmapPtr pixmap = get_drawable_pixmap(dst->pDrawable);
 		int nbox = REGION_NUM_RECTS(&region);
 		BoxPtr box = REGION_RECTS(&region);
 		uint32_t pixel;

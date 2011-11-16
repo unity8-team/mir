@@ -39,6 +39,8 @@
 
 #include <xorgVersion.h>
 #include <X11/Xatom.h>
+#include <X11/extensions/dpmsconst.h>
+#include <xf86DDC.h>
 
 #include "sna.h"
 #include "sna_reg.h"

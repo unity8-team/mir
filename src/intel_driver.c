@@ -50,11 +50,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86cmap.h"
 #include "compiler.h"
 #include "mibstore.h"
-#include "vgaHW.h"
 #include "mipointer.h"
 #include "micmap.h"
 #include "shadowfb.h"
 #include <X11/extensions/randr.h>
+#include <X11/extensions/dpmsconst.h>
 #include "fb.h"
 #include "miscstruct.h"
 #include "dixstruct.h"
@@ -1118,9 +1118,6 @@ static void I830FreeScreen(int scrnIndex, int flags)
 		free(intel);
 		scrn->driverPrivate = NULL;
 	}
-
-	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
 
 static void I830LeaveVT(int scrnIndex, int flags)

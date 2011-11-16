@@ -57,7 +57,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86Pci.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
-#include "vgaHW.h"
 #include "xf86Crtc.h"
 #include "xf86RandR12.h"
 
@@ -636,7 +635,7 @@ intel_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 				    float *x_out, float *y_out, float *z_out);
 
 static inline void
-intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)
+intel_debug_fallback(ScrnInfoPtr scrn, const char *format, ...)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	va_list ap;

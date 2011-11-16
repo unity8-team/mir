@@ -35,6 +35,7 @@ libsna_la_SOURCES = \
 	compiler.h \
 	kgem.c \
 	kgem.h \
+	rop.h \
 	sna.h \
 	sna_accel.c \
 	sna_blt.c \
