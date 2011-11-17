@@ -79,6 +79,8 @@ intel_drv_la_SOURCES += \
 	 $(NULL)
 
 if GLAMOR
+AM_CFLAGS += @LIBGLAMOR_CFLAGS@
+intel_drv_la_LIBADD += @LIBGLAMOR_LIBS@
 intel_drv_la_SOURCES += \
 	 intel_glamor.c \
 	 $(NULL)
