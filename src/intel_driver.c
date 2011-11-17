@@ -76,6 +76,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 #include <xf86drmMode.h>
 
+#include "intel_glamor.h"
+
 /* *INDENT-OFF* */
 /*
  * Note: "ColorKey" is provided for compatibility with the i810 driver.
@@ -713,6 +715,13 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 	}
 
+	if (!intel_glamor_pre_init(scrn)) {
+		PreInitCleanup(scrn);
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			"Failed to pre init glamor display.\n");
+		return FALSE;
+	}
+
 	/* Load the dri2 module if requested. */
 	if (intel->directRenderingType != DRI_DISABLED)
 		xf86LoadSubModule(scrn, "dri2");
@@ -814,8 +823,10 @@ intel_flush_callback(CallbackListPtr *list,
 		     pointer user_data, pointer call_data)
 {
 	ScrnInfoPtr scrn = user_data;
-	if (scrn->vtSema)
+	if (scrn->vtSema) {
 		intel_batch_submit(scrn);
+		intel_glamor_flush(intel_get_screen_private(scrn));
+	}
 }
 
 #if HAVE_UDEV
@@ -1111,6 +1122,8 @@ static void I830FreeScreen(int scrnIndex, int flags)
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
+	intel_glamor_free_screen(scrnIndex, flags);
+
 	if (intel) {
 		intel_mode_fini(intel);
 		intel_close_drm_master(intel);
@@ -1186,6 +1199,8 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	}
 
 	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
+
+	intel_glamor_close_screen(screen);
 
 	if (intel->uxa_driver) {
 		uxa_driver_fini(screen);

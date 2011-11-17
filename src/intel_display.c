@@ -45,6 +45,8 @@
 #include "X11/extensions/dpmsconst.h"
 #include "xf86DDC.h"
 
+#include "intel_glamor.h"
+
 struct intel_mode {
 	int fd;
 	uint32_t fb_id;
@@ -453,6 +455,7 @@ intel_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->y = y;
 	crtc->rotation = rotation;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(crtc->scrn);
 
 	mode_to_kmode(crtc->scrn, &intel_crtc->kmode, mode);
@@ -1365,6 +1368,7 @@ intel_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(scrn);
 
 	old_width = scrn->virtualX;
@@ -1454,6 +1458,7 @@ intel_do_pageflip(intel_screen_private *intel,
 			 new_front->handle, &mode->fb_id))
 		goto error_out;
 
+	intel_glamor_flush(intel);
 	intel_batch_submit(scrn);
 
 	/*

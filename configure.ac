@@ -148,6 +148,20 @@ if test "x$UXA" != "xno"; then
 fi
 AC_MSG_RESULT([$UXA])
 
+AC_MSG_CHECKING([whether to include GLAMOR support])
+AC_ARG_ENABLE(glamor,
+	      AS_HELP_STRING([--enable-glamor],
+			     [Enable glamor, a new GL-based acceleration [default=no]]),
+	      [GLAMOR="$enableval"],
+	      [GLAMOR=no])
+AC_MSG_RESULT([$GLAMOR])
+AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
+if test "x$GLAMOR" != "xno"; then
+	PKG_CHECK_MODULES(LIBGLAMOR, [glamor])
+	PKG_CHECK_MODULES(LIBGLAMOR_EGL, [glamor-egl])
+	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
+fi
+
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
 			     [Enable use of vmap [default=no]]),

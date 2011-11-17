@@ -58,6 +58,7 @@ intel_drv_la_SOURCES += \
 	 intel_display.c \
          intel_driver.c \
          intel_driver.h \
+	 intel_glamor.h \
          intel_memory.c \
 	 intel_shadow.c \
 	 intel_uxa.c \
@@ -76,6 +77,12 @@ intel_drv_la_SOURCES += \
 	 i965_video.c \
 	 i965_render.c \
 	 $(NULL)
+
+if GLAMOR
+intel_drv_la_SOURCES += \
+	 intel_glamor.c \
+	 $(NULL)
+endif
 
 if DRI
 intel_drv_la_SOURCES += \

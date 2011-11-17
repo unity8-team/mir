@@ -316,6 +316,7 @@ typedef struct intel_screen_private {
 	void (*batch_commit_notify) (struct intel_screen_private *intel);
 
 	struct _UxaDriver *uxa_driver;
+	int uxa_flags;
 	Bool need_sync;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;

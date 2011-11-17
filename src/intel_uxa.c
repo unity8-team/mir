@@ -31,16 +31,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
-#include "xf86.h"
-#include "xaarop.h"
-#include "intel.h"
-#include "i830_reg.h"
-#include "i915_drm.h"
-#include "brw_defines.h"
+#include <xf86.h>
+#include <xaarop.h>
 #include <string.h>
 #include <errno.h>
 
+#include "intel.h"
+#include "intel_glamor.h"
 #include "uxa.h"
+
+#include "i830_reg.h"
+#include "i915_drm.h"
+#include "brw_defines.h"
 
 static const int I830CopyROP[16] = {
 	ROP_0,			/* GXclear */
@@ -705,8 +707,14 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	int ret;
 
 	if (!list_is_empty(&priv->batch) &&
-	    (access == UXA_ACCESS_RW || priv->batch_write))
+	    ((access == UXA_ACCESS_RW || access == UXA_GLAMOR_ACCESS_RW)
+	     || priv->batch_write))
 		intel_batch_submit(scrn);
+
+	if (access == UXA_GLAMOR_ACCESS_RW || access == UXA_GLAMOR_ACCESS_RO)
+		return TRUE;
+
+	intel_glamor_flush(intel);
 
 	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
 		ret = drm_intel_gem_bo_map_gtt(bo);
@@ -966,6 +974,7 @@ void intel_uxa_block_handler(intel_screen_private *intel)
 	 * and beyond rendering results may not hit the
 	 * framebuffer until significantly later.
 	 */
+	intel_glamor_flush(intel);
 	intel_flush_rendering(intel);
 }
 
@@ -1097,6 +1106,8 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		list_init(&priv->batch);
 		list_init(&priv->flush);
 		intel_set_pixmap_private(pixmap, priv);
+
+		intel_glamor_create_textured_pixmap(pixmap);
 	}
 
 	return pixmap;
@@ -1104,8 +1115,10 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 {
-	if (pixmap->refcnt == 1)
+	if (pixmap->refcnt == 1) {
+		intel_glamor_destroy_pixmap(pixmap);
 		intel_set_pixmap_bo(pixmap, NULL);
+	}
 	fbDestroyPixmap(pixmap);
 	return TRUE;
 }
@@ -1135,6 +1148,9 @@ Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 					   NULL);
 		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
+
+	if (!intel_glamor_create_screen_resources(screen))
+		return FALSE;
 
 	return TRUE;
 }
@@ -1297,6 +1313,8 @@ Bool intel_uxa_init(ScreenPtr screen)
 
 	uxa_set_fallback_debug(screen, intel->fallback_debug);
 	uxa_set_force_fallback(screen, intel->force_fallback);
+
+	intel_glamor_init(screen);
 
 	return TRUE;
 }
