@@ -10,6 +10,7 @@ libuxa_la_SOURCES = \
 	uxa.c \
 	uxa.h \
 	uxa-accel.c \
+	uxa-glamor.h \
 	uxa-glyphs.c \
 	uxa-render.c \
 	uxa-priv.h \

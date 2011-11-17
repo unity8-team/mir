@@ -32,6 +32,7 @@
 #include <dix-config.h>
 #endif
 #include "uxa-priv.h"
+#include "uxa-glamor.h"
 #include <X11/fonts/fontstruct.h>
 #include "dixfontstr.h"
 #include "uxa.h"
@@ -49,6 +50,17 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	int nbox;
 	int x1, x2, y;
 	int off_x, off_y;
+
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
+		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (glamor_fill_spans_nf(pDrawable,
+					 pGC, n, ppt, pwidth, fSorted)) {
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+			return;
+		}
+		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RO);
+		goto fallback;
+	}
 
 	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
 		goto fallback;
@@ -672,6 +684,17 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 	int xorg, yorg;
 	int n;
 	RegionPtr pReg = RECTS_TO_REGION(pScreen, nrect, prect, CT_UNSORTED);
+
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
+		uxa_prepare_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+		if (glamor_poly_fill_rect_nf(pDrawable,
+					     pGC, nrect, prect)) {
+			uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
+			return;
+		}
+		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RO);
+		goto fallback;
+	}
 
 	/* Compute intersection of rects and clip region */
 	REGION_TRANSLATE(pScreen, pReg, pDrawable->x, pDrawable->y);
