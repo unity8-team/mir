@@ -417,14 +417,6 @@ gen7_choose_composite_kernel(int op, Bool has_mask, Bool is_ca, Bool is_affine)
 }
 
 static void
-gen7_emit_sip(struct sna *sna)
-{
-	/* Set system instruction pointer */
-	OUT_BATCH(GEN7_STATE_SIP | 0);
-	OUT_BATCH(0);
-}
-
-static void
 gen7_emit_urb(struct sna *sna)
 {
 	OUT_BATCH(GEN7_3DSTATE_PUSH_CONSTANT_ALLOC_PS | (2 - 2));
@@ -653,6 +645,7 @@ gen7_emit_wm_invariant(struct sna *sna)
 		  GEN7_WM_PERSPECTIVE_PIXEL_BARYCENTRIC);
 	OUT_BATCH(0);
 
+#if 0
 	/* XXX length bias of 7 in old spec? */
 	OUT_BATCH(GEN7_3DSTATE_CONSTANT_PS | (7 - 2));
 	OUT_BATCH(0);
@@ -661,6 +654,7 @@ gen7_emit_wm_invariant(struct sna *sna)
 	OUT_BATCH(0);
 	OUT_BATCH(0);
 	OUT_BATCH(0);
+#endif
 }
 
 static void
@@ -694,7 +688,6 @@ gen7_emit_invariant(struct sna *sna)
 	OUT_BATCH(GEN7_3DSTATE_SAMPLE_MASK | (2 - 2));
 	OUT_BATCH(1);
 
-	gen7_emit_sip(sna);
 	gen7_emit_urb(sna);
 
 	gen7_emit_state_base_address(sna);
@@ -1079,11 +1072,6 @@ static void gen7_vertex_finish(struct sna *sna, Bool last)
 	sna->render_state.gen7.vb_id = 0;
 }
 
-typedef struct gen7_surface_state_padded {
-	struct gen7_surface_state state;
-	char pad[32 - sizeof(struct gen7_surface_state)];
-} gen7_surface_state_padded;
-
 static void null_create(struct sna_static_stream *stream)
 {
 	/* A bunch of zeros useful for legacy border color and depth-stencil */
@@ -1186,6 +1174,8 @@ gen7_bind_bo(struct sna *sna,
 	uint32_t domains;
 	uint16_t offset;
 
+	COMPILE_TIME_ASSERT(sizeof(struct gen7_surface_state) == 32);
+
 	/* After the first bind, we manage the cache domains within the batch */
 	if (is_dst) {
 		domains = I915_GEM_DOMAIN_RENDER << 16 |I915_GEM_DOMAIN_RENDER;
@@ -1197,11 +1187,11 @@ gen7_bind_bo(struct sna *sna,
 	if (offset)
 		return offset;
 
-	offset = sna->kgem.surface - sizeof(struct gen7_surface_state_padded) / sizeof(uint32_t);
+	offset = sna->kgem.surface - sizeof(struct gen7_surface_state) / sizeof(uint32_t);
 	offset *= sizeof(uint32_t);
 
 	sna->kgem.surface -=
-		sizeof(struct gen7_surface_state_padded) / sizeof(uint32_t);
+		sizeof(struct gen7_surface_state) / sizeof(uint32_t);
 	ss = sna->kgem.batch + sna->kgem.surface;
 	ss[0] = (GEN7_SURFACE_2D << GEN7_SURFACE_TYPE_SHIFT |
 		 gen7_tiling_bits(bo->tiling) |
@@ -1622,10 +1612,10 @@ inline static uint32_t *gen7_composite_get_binding_table(struct sna *sna,
 	uint32_t *table;
 
 	sna->kgem.surface -=
-		sizeof(struct gen7_surface_state_padded) / sizeof(uint32_t);
+		sizeof(struct gen7_surface_state) / sizeof(uint32_t);
 	/* Clear all surplus entries to zero in case of prefetch */
 	table = memset(sna->kgem.batch + sna->kgem.surface,
-		       0, sizeof(struct gen7_surface_state_padded));
+		       0, sizeof(struct gen7_surface_state));
 
 	DBG(("%s(%x)\n", __FUNCTION__, 4*sna->kgem.surface));
 
@@ -1691,7 +1681,7 @@ static void gen7_emit_composite_state(struct sna *sna,
 	    *(uint64_t *)(sna->kgem.batch + sna->render_state.gen7.surface_table) == *(uint64_t*)binding_table &&
 	    (op->mask.bo == NULL ||
 	     sna->kgem.batch[sna->render_state.gen7.surface_table+2] == binding_table[2])) {
-		sna->kgem.surface += sizeof(struct gen7_surface_state_padded) / sizeof(uint32_t);
+		sna->kgem.surface += sizeof(struct gen7_surface_state) / sizeof(uint32_t);
 		offset = sna->render_state.gen7.surface_table;
 	}
 
@@ -1829,7 +1819,7 @@ static uint32_t gen7_bind_video_source(struct sna *sna,
 {
 	struct gen7_surface_state *ss;
 
-	sna->kgem.surface -= sizeof(struct gen7_surface_state_padded) / sizeof(uint32_t);
+	sna->kgem.surface -= sizeof(struct gen7_surface_state) / sizeof(uint32_t);
 
 	ss = memset(sna->kgem.batch + sna->kgem.surface, 0, sizeof(*ss));
 	ss->ss0.surface_type = GEN7_SURFACE_2D;
@@ -2400,7 +2390,7 @@ gen7_emit_copy_state(struct sna *sna,
 
 	if (sna->kgem.surface == offset &&
 	    *(uint64_t *)(sna->kgem.batch + sna->render_state.gen7.surface_table) == *(uint64_t*)binding_table) {
-		sna->kgem.surface += sizeof(struct gen7_surface_state_padded) / sizeof(uint32_t);
+		sna->kgem.surface += sizeof(struct gen7_surface_state) / sizeof(uint32_t);
 		offset = sna->render_state.gen7.surface_table;
 	}
 
@@ -2678,7 +2668,7 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 	if (sna->kgem.surface == offset &&
 	    *(uint64_t *)(sna->kgem.batch + sna->render_state.gen7.surface_table) == *(uint64_t*)binding_table) {
 		sna->kgem.surface +=
-			sizeof(struct gen7_surface_state_padded)/sizeof(uint32_t);
+			sizeof(struct gen7_surface_state)/sizeof(uint32_t);
 		offset = sna->render_state.gen7.surface_table;
 	}
 

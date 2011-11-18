@@ -48,4 +48,6 @@
 
 #define VG_CLEAR(s) VG(memset(&s, 0, sizeof(s)))
 
+#define COMPILE_TIME_ASSERT(E) ((void)sizeof(char[1 - 2*!(E)]))
+
 #endif /* _SNA_COMPILER_H_ */
