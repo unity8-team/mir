@@ -1033,6 +1033,19 @@ next_glyph:
 	return 0;
 }
 
+static Bool
+is_solid(PicturePtr picture)
+{
+	if (picture->pSourcePict) {
+		SourcePict *source = picture->pSourcePict;
+		return source->type == SourcePictTypeSolidFill;
+	} else {
+		return (picture->repeat &&
+			picture->pDrawable->width  == 1 &&
+			picture->pDrawable->height == 1);
+	}
+}
+
 void
 uxa_glyphs(CARD8 op,
 	   PicturePtr pSrc,
@@ -1053,7 +1066,9 @@ uxa_glyphs(CARD8 op,
 	    uxa_screen->swappedOut ||
 	    uxa_screen->force_fallback ||
 	    !uxa_drawable_is_offscreen(pDst->pDrawable) ||
-	    pDst->alphaMap || pSrc->alphaMap) {
+	    pDst->alphaMap || pSrc->alphaMap ||
+	    /* XXX we fail to handle (rare) non-solid sources correctly. */
+	    !is_solid(pSrc)) {
 fallback:
 	    uxa_check_glyphs(op, pSrc, pDst, maskFormat, xSrc, ySrc, nlist, list, glyphs);
 	    return;

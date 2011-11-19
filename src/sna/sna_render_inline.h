@@ -23,11 +23,13 @@ static inline int vertex_space(struct sna *sna)
 }
 static inline void vertex_emit(struct sna *sna, float v)
 {
+	assert(sna->render.vertex_used < ARRAY_SIZE(sna->render.vertex_data));
 	sna->render.vertex_data[sna->render.vertex_used++] = v;
 }
 static inline void vertex_emit_2s(struct sna *sna, int16_t x, int16_t y)
 {
 	int16_t *v = (int16_t *)&sna->render.vertex_data[sna->render.vertex_used++];
+	assert(sna->render.vertex_used <= ARRAY_SIZE(sna->render.vertex_data));
 	v[0] = x;
 	v[1] = y;
 }
@@ -50,6 +52,7 @@ static inline int batch_space(struct sna *sna)
 
 static inline void batch_emit(struct sna *sna, uint32_t dword)
 {
+	assert(sna->kgem.nbatch < sna->kgem.surface);
 	sna->kgem.batch[sna->kgem.nbatch++] = dword;
 }
 
@@ -78,17 +81,17 @@ is_cpu(DrawablePtr drawable)
 }
 
 static inline Bool
-is_dirty_gpu(struct sna *sna, DrawablePtr drawable)
+is_dirty_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
 	return priv && priv->gpu_bo && priv->gpu_damage;
 }
 
 static inline Bool
-too_small(struct sna *sna, DrawablePtr drawable)
+too_small(DrawablePtr drawable)
 {
-	return (drawable->width * drawable->height <= 256) &&
-		!is_dirty_gpu(sna, drawable);
+	return ((uint32_t)drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) &&
+		!is_dirty_gpu(drawable);
 }
 
 static inline Bool
@@ -114,6 +117,32 @@ static inline Bool sna_blt_compare_depth(DrawablePtr src, DrawablePtr dst)
 	/* Note that a depth-16 pixmap is r5g6b5, not x1r5g5b5. */
 
 	return FALSE;
+}
+
+static inline struct kgem_bo *
+sna_render_get_alpha_gradient(struct sna *sna)
+{
+	return kgem_bo_reference(sna->render.alpha_cache.cache_bo);
+}
+
+static inline void
+sna_render_reduce_damage(struct sna_composite_op *op,
+			 int dst_x, int dst_y,
+			 int width, int height)
+{
+	BoxRec r;
+
+	if (width == 0 || height == 0 || op->damage == NULL)
+		return;
+
+	r.x1 = dst_x + op->dst.x;
+	r.x2 = r.x1 + width;
+
+	r.y1 = dst_y + op->dst.y;
+	r.y2 = r.y1 + height;
+
+	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+		op->damage = NULL;
 }
 
 #endif /* SNA_RENDER_INLINE_H */

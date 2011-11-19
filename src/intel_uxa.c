@@ -40,6 +40,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <errno.h>
 
+#include "uxa.h"
+
 static const int I830CopyROP[16] = {
 	ROP_0,			/* GXclear */
 	ROP_DSa,		/* GXand */
@@ -340,13 +342,6 @@ static void intel_uxa_solid(PixmapPtr pixmap, int x1, int y1, int x2, int y2)
 	}
 }
 
-static void intel_uxa_done_solid(PixmapPtr pixmap)
-{
-	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-
-	intel_debug_flush(scrn);
-}
-
 /**
  * TODO:
  *   - support planemask using FULL_BLT_CMD?
@@ -501,9 +496,19 @@ intel_uxa_copy(PixmapPtr dest, int src_x1, int src_y1, int dst_x1,
 	}
 }
 
-static void intel_uxa_done_copy(PixmapPtr dest)
+static void intel_uxa_done(PixmapPtr pixmap)
 {
-	ScrnInfoPtr scrn = xf86Screens[dest->drawable.pScreen->myNum];
+	ScrnInfoPtr scrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+	intel_screen_private *intel = intel_get_screen_private(scrn);
+
+	if (IS_GEN6(intel) || IS_GEN7(intel)) {
+		/* workaround a random BLT hang */
+		BEGIN_BATCH_BLT(3);
+		OUT_BATCH(XY_SETUP_CLIP_BLT_CMD);
+		OUT_BATCH(0);
+		OUT_BATCH(0);
+		ADVANCE_BATCH();
+	}
 
 	intel_debug_flush(scrn);
 }
@@ -633,7 +638,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		if (priv->bo == bo)
 			return;
 
-		priv->dst_bound = priv->src_bound = 0;
 		if (list_is_empty(&priv->batch)) {
 			dri_bo_unreference(priv->bo);
 		} else if (!drm_intel_bo_is_reusable(priv->bo)) {
@@ -689,8 +693,7 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 
 static Bool intel_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 {
-	struct intel_pixmap *priv = intel_get_pixmap_private(pixmap);
-	return priv && priv->offscreen;
+	return intel_pixmap_is_offscreen(pixmap);
 }
 
 static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
@@ -1226,13 +1229,13 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->check_solid = intel_uxa_check_solid;
 	intel->uxa_driver->prepare_solid = intel_uxa_prepare_solid;
 	intel->uxa_driver->solid = intel_uxa_solid;
-	intel->uxa_driver->done_solid = intel_uxa_done_solid;
+	intel->uxa_driver->done_solid = intel_uxa_done;
 
 	/* Copy */
 	intel->uxa_driver->check_copy = intel_uxa_check_copy;
 	intel->uxa_driver->prepare_copy = intel_uxa_prepare_copy;
 	intel->uxa_driver->copy = intel_uxa_copy;
-	intel->uxa_driver->done_copy = intel_uxa_done_copy;
+	intel->uxa_driver->done_copy = intel_uxa_done;
 
 	/* Composite */
 	if (IS_GEN2(intel)) {

@@ -1,3 +1,59 @@
+Release 2.17.0 (2011-11-16)
+==============================
+A few months have passed, and we have accumulated a surprising number of
+bug fixes. Oops! We would strongly encourage everyone to upgrade.
+
+Bugs fixed in this snapshot (compared to 2.16.902)
+--------------------------------------------------
+
+* Video clobbering composite batch state
+  http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=635953
+
+Snapshot 2.16.902 (2011-11-13)
+==============================
+This is the second release candidate in preparation for the upcoming
+2.17.0 release. We will appreciate any feedback we can get from
+testing of this snapshot, and thanks to everyone who tested and reported
+upon issues in the last snapshot.
+
+A very old bug demonstrating that nobody has ever used alpha maps, and a
+couple of more recent mistakes were found.
+
+Bugs fixed in this snapshot (compared to 2.16.901)
+--------------------------------------------------
+
+ * Incorrect reuse of surface bindings within a batch for multiple formats
+   https://bugs.freedesktop.org/show_bug.cgi?id=40926
+
+ * Nothing was rendered for text with procedural sources
+   https://bugs.freedesktop.org/show_bug.cgi?id=31819
+
+ * Handle fallbacks involving alpha maps
+
+Snapshot 2.16.901 (2011-10-30)
+==============================
+This is the first release candidate in preparation for the upcoming
+2.17.0 release. We will appreciate any feedback we can get from
+testing of this snapshot.
+
+The basis of this release are to push out a couple of critical stability
+fixes for SandyBridge and IvyBridge. There is very little else to see
+here. Those 200+ other commits do not exist...
+
+Bugs fixed in this snapshot (compared to 2.16.0)
+--------------------------------------------------
+
+ * Workaround blitter hang on SandyBridge and IvyBridge
+   https://bugzilla.kernel.org/show_bug.cgi?id=27892
+   https://bugs.freedesktop.org/show_bug.cgi
+
+ * Workaround pipe control issues on SandyBridge
+
+ * Use correct maximum PS thread count on IvyBridge
+
+ * Protect against failed pixmap allocation for XV
+   https://bugs.freedesktop.org/show_bug.cgi?id=40439
+
 Release 2.16.0 (2011-08-09)
 ==============================
 A new quarter, a new release! The key feature of this release, looking past

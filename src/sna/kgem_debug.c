@@ -255,8 +255,9 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 			break;
 		}
 
-		kgem_debug_print(data, offset, 1, "format %s, pitch %d, "
+		kgem_debug_print(data, offset, 1, "format %s, rop %x, pitch %d, "
 			  "clipping %sabled\n", format,
+			  (data[1] >> 16) & 0xff,
 			  (short)(data[1] & 0xffff),
 			  data[1] & (1 << 30) ? "en" : "dis");
 		kgem_debug_print(data, offset, 2, "(%d,%d)\n",
@@ -272,6 +273,8 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
 		kgem_debug_print(data, offset, 5, "color\n");
+		assert(kgem->gen >= 40 ||
+		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
 		return len;
 
 	case 0x53:
@@ -301,8 +304,9 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 			break;
 		}
 
-		kgem_debug_print(data, offset, 1, "format %s, dst pitch %d, "
+		kgem_debug_print(data, offset, 1, "format %s, rop %x, dst pitch %d, "
 				 "clipping %sabled\n", format,
+				 (data[1] >> 16) & 0xff,
 				 (short)(data[1] & 0xffff),
 				 data[1] & (1 << 30) ? "en" : "dis");
 		kgem_debug_print(data, offset, 2, "dst (%d,%d)\n",
@@ -317,6 +321,9 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 reloc->read_domains, reloc->write_domain,
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
+		assert(kgem->gen >= 40 ||
+		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
+
 		kgem_debug_print(data, offset, 5, "src (%d,%d)\n",
 				 data[5] & 0xffff, data[5] >> 16);
 		kgem_debug_print(data, offset, 6, "src pitch %d\n",
@@ -329,6 +336,9 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 				 reloc->read_domains, reloc->write_domain,
 				 kgem_debug_handle_is_fenced(kgem, reloc->target_handle),
 				 kgem_debug_handle_tiling(kgem, reloc->target_handle));
+		assert(kgem->gen >= 40 ||
+		       kgem_debug_handle_is_fenced(kgem, reloc->target_handle));
+
 		return len;
 	}
 
@@ -358,7 +368,10 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 
 static int (*decode_3d(int gen))(struct kgem*, uint32_t)
 {
-	if (gen >= 60) {
+	if (gen >= 80) {
+	} else if (gen >= 70) {
+		return kgem_gen7_decode_3d;
+	} else if (gen >= 60) {
 		return kgem_gen6_decode_3d;
 	} else if (gen >= 50) {
 		return kgem_gen5_decode_3d;
@@ -374,7 +387,10 @@ static int (*decode_3d(int gen))(struct kgem*, uint32_t)
 
 static void (*finish_state(int gen))(struct kgem*)
 {
-	if (gen >= 60) {
+	if (gen >= 80) {
+	} else if (gen >= 70) {
+		return kgem_gen7_finish_state;
+	} else if (gen >= 60) {
 		return kgem_gen6_finish_state;
 	} else if (gen >= 50) {
 		return kgem_gen5_finish_state;

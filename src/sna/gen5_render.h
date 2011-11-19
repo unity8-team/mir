@@ -2131,7 +2131,54 @@ struct gen5_surface_state
    } ss5;
 };
 
+/* Surface state DW0 */
+#define GEN5_SURFACE_RC_READ_WRITE       (1 << 8)
+#define GEN5_SURFACE_MIPLAYOUT_SHIFT     10
+#define GEN5_SURFACE_MIPMAPLAYOUT_BELOW   0
+#define GEN5_SURFACE_MIPMAPLAYOUT_RIGHT   1
+#define GEN5_SURFACE_CUBEFACE_ENABLES    0x3f
+#define GEN5_SURFACE_BLEND_ENABLED       (1 << 13)
+#define GEN5_SURFACE_WRITEDISABLE_B_SHIFT        14
+#define GEN5_SURFACE_WRITEDISABLE_G_SHIFT        15
+#define GEN5_SURFACE_WRITEDISABLE_R_SHIFT        16
+#define GEN5_SURFACE_WRITEDISABLE_A_SHIFT        17
+#define GEN5_SURFACE_FORMAT_SHIFT        18
+#define GEN5_SURFACE_FORMAT_MASK         INTEL_MASK(26, 18)
 
+#define GEN5_SURFACE_TYPE_SHIFT          29
+#define GEN5_SURFACE_TYPE_MASK           GEN5_MASK(31, 29)
+#define GEN5_SURFACE_1D      0
+#define GEN5_SURFACE_2D      1
+#define GEN5_SURFACE_3D      2
+#define GEN5_SURFACE_CUBE    3
+#define GEN5_SURFACE_BUFFER  4
+#define GEN5_SURFACE_NULL    7
+
+/* Surface state DW2 */
+#define GEN5_SURFACE_HEIGHT_SHIFT        19
+#define GEN5_SURFACE_HEIGHT_MASK         GEN5_MASK(31, 19)
+#define GEN5_SURFACE_WIDTH_SHIFT         6
+#define GEN5_SURFACE_WIDTH_MASK          GEN5_MASK(18, 6)
+#define GEN5_SURFACE_LOD_SHIFT           2
+#define GEN5_SURFACE_LOD_MASK            GEN5_MASK(5, 2)
+
+/* Surface state DW3 */
+#define GEN5_SURFACE_DEPTH_SHIFT         21
+#define GEN5_SURFACE_DEPTH_MASK          GEN5_MASK(31, 21)
+#define GEN5_SURFACE_PITCH_SHIFT         3
+#define GEN5_SURFACE_PITCH_MASK          GEN5_MASK(19, 3)
+#define GEN5_SURFACE_TILED               (1 << 1)
+#define GEN5_SURFACE_TILED_Y             (1 << 0)
+
+/* Surface state DW4 */
+#define GEN5_SURFACE_MIN_LOD_SHIFT       28
+#define GEN5_SURFACE_MIN_LOD_MASK        GEN5_MASK(31, 28)
+
+/* Surface state DW5 */
+#define GEN5_SURFACE_X_OFFSET_SHIFT      25
+#define GEN5_SURFACE_X_OFFSET_MASK       GEN5_MASK(31, 25)
+#define GEN5_SURFACE_Y_OFFSET_SHIFT      20
+#define GEN5_SURFACE_Y_OFFSET_MASK       GEN5_MASK(23, 20)
 
 struct gen5_vertex_buffer_state
 {

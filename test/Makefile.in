@@ -58,11 +58,11 @@ am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
 am__v_lt_0 = --silent
 am__EXEEXT_1 = basic-fillrect$(EXEEXT) basic-copyarea$(EXEEXT) \
 	basic-copyarea-size$(EXEEXT) basic-putimage$(EXEEXT) \
-	basic-stress$(EXEEXT) render-fill$(EXEEXT) \
-	render-trapezoid$(EXEEXT) render-trapezoid-image$(EXEEXT) \
-	render-fill-copy$(EXEEXT) render-composite-solid$(EXEEXT) \
-	render-copyarea$(EXEEXT) render-copyarea-size$(EXEEXT) \
-	mixed-stress$(EXEEXT)
+	basic-lines$(EXEEXT) basic-stress$(EXEEXT) \
+	render-fill$(EXEEXT) render-trapezoid$(EXEEXT) \
+	render-trapezoid-image$(EXEEXT) render-fill-copy$(EXEEXT) \
+	render-composite-solid$(EXEEXT) render-copyarea$(EXEEXT) \
+	render-copyarea-size$(EXEEXT) mixed-stress$(EXEEXT)
 basic_copyarea_SOURCES = basic-copyarea.c
 basic_copyarea_OBJECTS = basic-copyarea.$(OBJEXT)
 basic_copyarea_LDADD = $(LDADD)
@@ -75,6 +75,10 @@ basic_fillrect_SOURCES = basic-fillrect.c
 basic_fillrect_OBJECTS = basic-fillrect.$(OBJEXT)
 basic_fillrect_LDADD = $(LDADD)
 basic_fillrect_DEPENDENCIES = libtest.la
+basic_lines_SOURCES = basic-lines.c
+basic_lines_OBJECTS = basic-lines.$(OBJEXT)
+basic_lines_LDADD = $(LDADD)
+basic_lines_DEPENDENCIES = libtest.la
 basic_putimage_SOURCES = basic-putimage.c
 basic_putimage_OBJECTS = basic-putimage.$(OBJEXT)
 basic_putimage_LDADD = $(LDADD)
@@ -142,15 +146,16 @@ AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(libtest_la_SOURCES) basic-copyarea.c basic-copyarea-size.c \
-	basic-fillrect.c basic-putimage.c basic-stress.c \
+	basic-fillrect.c basic-lines.c basic-putimage.c basic-stress.c \
 	mixed-stress.c render-composite-solid.c render-copyarea.c \
 	render-copyarea-size.c render-fill.c render-fill-copy.c \
 	render-trapezoid.c render-trapezoid-image.c
 DIST_SOURCES = $(libtest_la_SOURCES) basic-copyarea.c \
-	basic-copyarea-size.c basic-fillrect.c basic-putimage.c \
-	basic-stress.c mixed-stress.c render-composite-solid.c \
-	render-copyarea.c render-copyarea-size.c render-fill.c \
-	render-fill-copy.c render-trapezoid.c render-trapezoid-image.c
+	basic-copyarea-size.c basic-fillrect.c basic-lines.c \
+	basic-putimage.c basic-stress.c mixed-stress.c \
+	render-composite-solid.c render-copyarea.c \
+	render-copyarea-size.c render-fill.c render-fill-copy.c \
+	render-trapezoid.c render-trapezoid-image.c
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -315,6 +320,7 @@ stress_TESTS = \
 	basic-copyarea \
 	basic-copyarea-size \
 	basic-putimage \
+	basic-lines \
 	basic-stress \
 	render-fill \
 	render-trapezoid \
@@ -401,6 +407,9 @@ basic-copyarea-size$(EXEEXT): $(basic_copyarea_size_OBJECTS) $(basic_copyarea_si
 basic-fillrect$(EXEEXT): $(basic_fillrect_OBJECTS) $(basic_fillrect_DEPENDENCIES) 
 	@rm -f basic-fillrect$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(basic_fillrect_OBJECTS) $(basic_fillrect_LDADD) $(LIBS)
+basic-lines$(EXEEXT): $(basic_lines_OBJECTS) $(basic_lines_DEPENDENCIES) 
+	@rm -f basic-lines$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(basic_lines_OBJECTS) $(basic_lines_LDADD) $(LIBS)
 basic-putimage$(EXEEXT): $(basic_putimage_OBJECTS) $(basic_putimage_DEPENDENCIES) 
 	@rm -f basic-putimage$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(basic_putimage_OBJECTS) $(basic_putimage_LDADD) $(LIBS)
@@ -441,6 +450,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-copyarea-size.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-copyarea.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-fillrect.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-lines.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-putimage.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic-stress.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mixed-stress.Po@am__quote@

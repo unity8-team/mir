@@ -50,11 +50,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86cmap.h"
 #include "compiler.h"
 #include "mibstore.h"
-#include "vgaHW.h"
 #include "mipointer.h"
 #include "micmap.h"
 #include "shadowfb.h"
 #include <X11/extensions/randr.h>
+#include <X11/extensions/dpmsconst.h>
 #include "fb.h"
 #include "miscstruct.h"
 #include "dixstruct.h"
@@ -70,6 +70,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include "legacy/legacy.h"
+#include "uxa.h"
 
 #include <sys/ioctl.h>
 #include "i915_drm.h"
@@ -416,11 +417,18 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 	list_init(&intel->flush_pixmaps);
 	list_init(&intel->in_flight);
 
+	if ((INTEL_INFO(intel)->gen == 60)) {
+		intel->wa_scratch_bo =
+			drm_intel_bo_alloc(intel->bufmgr, "wa scratch",
+					   4096, 4096);
+	}
+
 	return TRUE;
 }
 
 static void intel_bufmgr_fini(intel_screen_private *intel)
 {
+	drm_intel_bo_unreference(intel->wa_scratch_bo);
 	drm_intel_bufmgr_destroy(intel->bufmgr);
 }
 
@@ -1111,9 +1119,6 @@ static void I830FreeScreen(int scrnIndex, int flags)
 		free(intel);
 		scrn->driverPrivate = NULL;
 	}
-
-	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
 
 static void I830LeaveVT(int scrnIndex, int flags)

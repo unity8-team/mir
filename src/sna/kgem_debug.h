@@ -13,6 +13,9 @@ struct kgem_bo *
 kgem_debug_get_bo_for_reloc_entry(struct kgem *kgem,
 				  struct drm_i915_gem_relocation_entry *reloc);
 
+int kgem_gen7_decode_3d(struct kgem *kgem, uint32_t offset);
+void kgem_gen7_finish_state(struct kgem *kgem);
+
 int kgem_gen6_decode_3d(struct kgem *kgem, uint32_t offset);
 void kgem_gen6_finish_state(struct kgem *kgem);
 
