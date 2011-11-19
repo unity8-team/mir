@@ -7979,18 +7979,18 @@ sna_push_pixels_solid_blt(GCPtr gc,
 			break;
 
 		dst = ptr;
-		bstride -= bw;
 
 		src_stride = bitmap->devKind;
 		src = (uint8_t*)bitmap->devPrivate.ptr;
 		src += (box->y1 - region->extents.y1) * src_stride + bx1/8;
-		src_stride -= bw;
+		src_stride -= bstride;
 		do {
-			int i = bw;
+			int i = bstride;
 			do {
 				*dst++ = byte_reverse(*src++);
-			} while (--i);
-			dst += bstride;
+				*dst++ = byte_reverse(*src++);
+				i -= 2;
+			} while (i);
 			src += src_stride;
 		} while (--bh);
 
