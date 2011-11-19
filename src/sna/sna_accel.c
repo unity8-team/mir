@@ -7940,7 +7940,8 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	RegionTranslate(region, dx, dy);
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
-	sna_damage_add(damage, region);
+	if (damage)
+		sna_damage_add(damage, region);
 
 	DBG(("%s: upload(%d, %d, %d, %d)\n", __FUNCTION__,
 	     region->extents.x1, region->extents.y1,
