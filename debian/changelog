@@ -1,8 +1,15 @@
+xserver-xorg-video-intel (2:2.17.0-1) unstable; urgency=low
+
+  [ Timo Aaltonen ]
+  * New upstream release. (Closes: #635953)
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 19 Nov 2011 12:46:57 +0100
+
 xserver-xorg-video-intel (2:2.16.0-1) unstable; urgency=low
 
   * New upstream release.
 
- -- Cyril Brulebois <kibi@debian.org>  Sat, 27 Aug 2011 18:55:26 +0200
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 28 Aug 2011 13:15:24 +0200
 
 xserver-xorg-video-intel (2:2.15.901-1) experimental; urgency=low
 

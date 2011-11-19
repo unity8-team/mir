@@ -145,7 +145,7 @@
 #define GEN7_VB0_VERTEXDATA		(0 << 20)
 #define GEN7_VB0_INSTANCEDATA		(1 << 20)
 #define GEN7_VB0_BUFFER_PITCH_SHIFT	0
-#define GEN7_VB0_ADDRESS_MODIFY_ENABLE	(1 < 14)
+#define GEN7_VB0_ADDRESS_MODIFY_ENABLE	(1 << 14)
 
 /* VERTEX_ELEMENT_STATE Structure */
 #define GEN7_VE0_VERTEX_BUFFER_INDEX_SHIFT		26
@@ -161,8 +161,6 @@
 /* 3DPRIMITIVE bits */
 #define GEN7_3DPRIMITIVE_VERTEX_SEQUENTIAL (0 << 15)
 #define GEN7_3DPRIMITIVE_VERTEX_RANDOM	  (1 << 15)
-/* Primitive types are in gen7_defines.h */
-#define GEN7_3DPRIMITIVE_TOPOLOGY_SHIFT	  10
 
 #define GEN7_SVG_CTL		       0x7400
 
@@ -1646,7 +1644,7 @@ struct gen7_sampler_state {
 # define GEN7_PS_FLOATING_POINT_MODE_ALT                (1 << 16)
 /* DW3: scratch space */
 /* DW4 */
-# define GEN7_PS_MAX_THREADS_SHIFT                      23
+# define GEN7_PS_MAX_THREADS_SHIFT                      24
 # define GEN7_PS_PUSH_CONSTANT_ENABLE                   (1 << 11)
 # define GEN7_PS_ATTRIBUTE_ENABLE                       (1 << 10)
 # define GEN7_PS_OMASK_TO_RENDER_TARGET                 (1 << 9)

@@ -56,8 +56,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "windowstr.h"
 #include "shadow.h"
-
 #include "xaarop.h"
+#include "fb.h"
 
 #include "intel.h"
 #include "i830_reg.h"

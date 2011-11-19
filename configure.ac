@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.63])
 AC_INIT([xf86-video-intel],
-        [2.16.0],
+        [2.17.0],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -59,6 +59,34 @@ m4_ifndef([XORG_DRIVER_CHECK_EXT],
 LT_PREREQ([2.2])
 LT_INIT([disable-static])
 
+# Are we in a git checkout?
+dot_git=no
+if test -e .git; then
+	AC_DEFINE(HAVE_DOT_GIT, 1, [Are we in a git checkout?])
+	dot_git=yes
+fi
+AM_CONDITIONAL(HAVE_DOT_GIT, test x$dot_git = xyes)
+
+# If so, we include the git description in our logs for sanity checking.
+#
+# However, for people not running their own drivers this is just noise.
+# So we copy the xserver's builderstring idiom to allow for this to be
+# overridden and perhaps replaced with something more useful.
+AC_ARG_WITH(builderstring,
+	    AS_HELP_STRING([--with-builderstring=BUILDERSTRING],
+			   [Additional builder string (default: use git describe)]),
+	    [BUILDERSTRING="$withval"],
+	    [BUILDERSTRING="x-magic-git-describe"])
+
+if test "x$BUILDERSTRING" = xx-magic-git-describe -a x$dot_git = xyes; then
+	AC_DEFINE(USE_GIT_DESCRIBE, 1, [Use automagic builder description])
+else
+  if test "x$BUILDERSTRING" != x -a "x$BUILDERSTRING" != xno -a "x$BUILDERSTRING" != xx-magic-git-describe; then
+	  AC_DEFINE_UNQUOTED(BUILDER_DESCRIPTION, ["$BUILDERSTRING"], [Builder description])
+  fi
+fi
+
+
 PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
@@ -92,21 +120,33 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
 
+AC_MSG_CHECKING([whether to include SNA support])
 AC_ARG_ENABLE(sna,
 	      AS_HELP_STRING([--enable-sna],
 			     [Enable SandyBridge's New Acceleration (SNA) [default=no]]),
 	      [SNA="$enableval"],
 	      [SNA=no])
 AM_CONDITIONAL(SNA, test x$SNA != xno)
-AC_MSG_CHECKING([whether to include SNA support])
-
 required_xorg_xserver_version=1.6
+required_pixman_version=0.16
 if test "x$SNA" != "xno"; then
 	required_xorg_xserver_version=1.10
+	required_pixman_version=0.23
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
 fi
 AC_MSG_RESULT([$SNA])
 
+AC_MSG_CHECKING([whether to include UXA support])
+AC_ARG_ENABLE(uxa,
+	      AS_HELP_STRING([--enable-uxa],
+			     [Enable Unified Acceleration Architecture (UXA) [default=yes]]),
+	      [UXA="$enableval"],
+	      [UXA=yes])
+AM_CONDITIONAL(UXA, test x$UXA != xno)
+if test "x$UXA" != "xno"; then
+	AC_DEFINE(USE_UXA, 1, [Enable UXA support])
+fi
+AC_MSG_RESULT([$UXA])
 
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
@@ -132,10 +172,10 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
 PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.23])
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
-PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6])
+PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6],, DRI2=no)
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
@@ -178,6 +218,10 @@ else
                 AC_MSG_ERROR([DRI requested but prerequisites not found])
         fi
 fi
+AM_CONDITIONAL(DRI2, test x$DRI2 != xno)
+if test "x$DRI2" != "xno"; then
+        AC_DEFINE(USE_DRI2,1,[Enable DRI2 driver support])
+fi
 
 if test "$XVMC" = yes; then
 	PKG_CHECK_MODULES(XVMCLIB,
@@ -205,6 +249,7 @@ if test "x$DEBUG" != xno; then
 fi
 if test "x$DEBUG" = xfull; then
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
+        CFLAGS="$CFLAGS -O0 -ggdb3"
 fi
 
 AC_CHECK_HEADERS([sys/timerfd.h])

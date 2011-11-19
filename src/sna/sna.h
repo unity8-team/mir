@@ -34,39 +34,40 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+#ifndef _SNA_H_
+#define _SNA_H_
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <stdint.h>
 
-#ifndef _SNA_H_
-#define _SNA_H_
-
-#include "xf86_OSproc.h"
 #include "compiler.h"
-#include "xf86PciInfo.h"
-#include "xf86Pci.h"
-#include "xf86Cursor.h"
-#include "xf86xv.h"
-#include "vgaHW.h"
-#include "xf86Crtc.h"
-#include "xf86RandR12.h"
+#include <xf86_OSproc.h>
+#include <xf86PciInfo.h>
+#include <xf86Pci.h>
+#include <xf86Cursor.h>
+#include <xf86xv.h>
+#include <xf86Crtc.h>
+#include <xf86RandR12.h>
+#include <gcstruct.h>
 
-#include "xorg-server.h"
+#include <xorg-server.h>
 #include <pciaccess.h>
 
-#include "xf86drm.h"
-#include "xf86drmMode.h"
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
 #define _XF86DRI_SERVER_
-#include "dri.h"
-#include "dri2.h"
-#include "i915_drm.h"
+#include <dri2.h>
+#include <i915_drm.h>
 
 #if HAVE_UDEV
 #include <libudev.h>
 #endif
+
+#include "compiler.h"
 
 #define DBG(x)
 
@@ -122,7 +123,7 @@ static inline void list_add_tail(struct list *new, struct list *head)
 
 #ifndef CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 #define FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER 1
-#define CREATE_PIXMAP_USAGE_SCRATCH_HEADER -1
+#define CREATE_PIXMAP_USAGE_SCRATCH_HEADER (unsigned)-1
 #endif
 
 #define SNA_CURSOR_X			64
@@ -141,23 +142,41 @@ struct sna_pixmap {
 	uint8_t pinned :1;
 	uint8_t gpu_only :1;
 	uint8_t flush :1;
+	uint8_t gpu :1;
 };
+
+struct sna_glyph {
+	PicturePtr atlas;
+	pixman_image_t *image;
+	struct sna_coordinate coordinate;
+	uint16_t size, pos;
+};
+
+extern DevPrivateKeyRec sna_private_index;
+extern DevPrivateKeyRec sna_pixmap_index;
+extern DevPrivateKeyRec sna_gc_index;
+extern DevPrivateKeyRec sna_glyph_key;
+
+static inline PixmapPtr get_window_pixmap(WindowPtr window)
+{
+#if 0
+	return window->drawable.pScreen->GetWindowPixmap(window)
+#else
+	return *(void **)window->devPrivates;
+#endif
+}
 
 static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 {
-	ScreenPtr screen = drawable->pScreen;
-
 	if (drawable->type == DRAWABLE_PIXMAP)
 		return (PixmapPtr)drawable;
 	else
-		return screen->GetWindowPixmap((WindowPtr)drawable);
+		return get_window_pixmap((WindowPtr)drawable);
 }
-
-extern DevPrivateKeyRec sna_pixmap_index;
 
 static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
-	return dixGetPrivate(&pixmap->devPrivates, &sna_pixmap_index);
+	return ((void **)pixmap->devPrivates)[1];
 }
 
 static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
@@ -165,9 +184,14 @@ static inline struct sna_pixmap *sna_pixmap_from_drawable(DrawablePtr drawable)
 	return sna_pixmap(get_drawable_pixmap(drawable));
 }
 
-static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
+struct sna_gc {
+	long changes;
+	long serial;
+};
+
+static inline struct sna_gc *sna_gc(GCPtr gc)
 {
-	dixSetPrivate(&pixmap->devPrivates, &sna_pixmap_index, sna);
+	return (struct sna_gc *)gc->devPrivates;
 }
 
 enum {
@@ -181,6 +205,8 @@ enum {
 	OPTION_RELAXED_FENCING,
 	OPTION_VMAP,
 	OPTION_ZAPHOD,
+	OPTION_DELAYED_FLUSH,
+	NUM_OPTIONS
 };
 
 enum {
@@ -194,14 +220,18 @@ struct sna {
 
 	unsigned flags;
 #define SNA_NO_THROTTLE		0x1
+#define SNA_NO_DELAYED_FLUSH	0x2
 
 	int timer[NUM_TIMERS];
 	int timer_active;
+
+	int vblank_interval;
 
 	struct list deferred_free;
 	struct list dirty_pixmaps;
 
 	PixmapPtr front, shadow;
+	PixmapPtr freed_pixmap;
 
 	struct sna_mode {
 		uint32_t fb_id;
@@ -234,6 +264,11 @@ struct sna {
 	void *WakeupData;
 	CloseScreenProcPtr CloseScreen;
 
+	struct {
+		uint32_t fill_bo;
+		uint32_t fill_pixel;
+		uint32_t fill_alu;
+	} blt_state;
 	union {
 		struct gen2_render_state gen2;
 		struct gen3_render_state gen3;
@@ -269,15 +304,15 @@ extern void sna_mode_fini(struct sna *sna);
 extern int sna_crtc_id(xf86CrtcPtr crtc);
 extern int sna_output_dpms_status(xf86OutputPtr output);
 
-extern int sna_do_pageflip(struct sna *sna,
-			    PixmapPtr pixmap,
-			    void *data,
-			    int ref_crtc_hw_id,
-			    uint32_t *old_fb);
+extern int sna_page_flip(struct sna *sna,
+			 struct kgem_bo *bo,
+			 void *data,
+			 int ref_crtc_hw_id,
+			 uint32_t *old_fb);
 
 extern PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap);
 
-void sna_mode_delete_fb(struct sna *sna, PixmapPtr pixmap, uint32_t fb);
+void sna_mode_delete_fb(struct sna *sna, uint32_t fb);
 
 static inline struct sna *
 to_sna(ScrnInfoPtr scrn)
@@ -292,9 +327,21 @@ to_sna_from_screen(ScreenPtr screen)
 }
 
 static inline struct sna *
+to_sna_from_pixmap(PixmapPtr pixmap)
+{
+	return *(void **)pixmap->devPrivates;
+}
+
+static inline struct sna *
 to_sna_from_drawable(DrawablePtr drawable)
 {
 	return to_sna_from_screen(drawable->pScreen);
+}
+
+static inline struct sna *
+to_sna_from_kgem(struct kgem *kgem)
+{
+	return container_of(kgem, struct sna, kgem);
 }
 
 #ifndef ARRAY_SIZE
@@ -464,6 +511,10 @@ Bool sna_transform_is_integer_translation(const PictTransform *t,
 Bool sna_transform_is_translation(const PictTransform *t,
 				  pixman_fixed_t *tx, pixman_fixed_t *ty);
 
+static inline bool wedged(struct sna *sna)
+{
+	return unlikely(sna->kgem.wedged);
+}
 
 static inline uint32_t pixmap_size(PixmapPtr pixmap)
 {
@@ -475,7 +526,7 @@ static inline struct kgem_bo *pixmap_vmap(struct kgem *kgem, PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
 
-	if (kgem->wedged)
+	if (unlikely(kgem->wedged))
 		return NULL;
 
 	priv = sna_pixmap_attach(pixmap);
@@ -487,8 +538,11 @@ static inline struct kgem_bo *pixmap_vmap(struct kgem *kgem, PixmapPtr pixmap)
 					       pixmap->devPrivate.ptr,
 					       pixmap_size(pixmap),
 					       0);
-		if (priv->cpu_bo)
+		if (priv->cpu_bo) {
 			priv->cpu_bo->pitch = pixmap->devKind;
+			if (pixmap->usage_hint == CREATE_PIXMAP_USAGE_SCRATCH_HEADER)
+				priv->cpu_bo->sync = true;
+		}
 	}
 
 	return priv->cpu_bo;
@@ -523,11 +577,32 @@ void sna_composite_trapezoids(CARD8 op,
 			      PictFormatPtr maskFormat,
 			      INT16 xSrc, INT16 ySrc,
 			      int ntrap, xTrapezoid *traps);
+void sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t);
+
+void sna_composite_triangles(CARD8 op,
+			     PicturePtr src,
+			     PicturePtr dst,
+			     PictFormatPtr maskFormat,
+			     INT16 xSrc, INT16 ySrc,
+			     int ntri, xTriangle *tri);
+
+void sna_composite_tristrip(CARD8 op,
+			    PicturePtr src,
+			    PicturePtr dst,
+			    PictFormatPtr maskFormat,
+			    INT16 xSrc, INT16 ySrc,
+			    int npoints, xPointFixed *points);
+
+void sna_composite_trifan(CARD8 op,
+			  PicturePtr src,
+			  PicturePtr dst,
+			  PictFormatPtr maskFormat,
+			  INT16 xSrc, INT16 ySrc,
+			  int npoints, xPointFixed *points);
 
 Bool sna_gradients_create(struct sna *sna);
 void sna_gradients_close(struct sna *sna);
 
-Bool sna_glyphs_init(ScreenPtr screen);
 Bool sna_glyphs_create(struct sna *sna);
 void sna_glyphs(CARD8 op,
 		PicturePtr src,
@@ -571,11 +646,12 @@ sna_compute_composite_region(RegionPtr region,
 
 void
 memcpy_blt(const void *src, void *dst, int bpp,
-	   uint16_t src_stride, uint16_t dst_stride,
+	   int32_t src_stride, int32_t dst_stride,
 	   int16_t src_x, int16_t src_y,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height);
 
 #define SNA_CREATE_FB 0x10
+#define SNA_CREATE_SCRATCH 0x11
 
 #endif /* _SNA_H */

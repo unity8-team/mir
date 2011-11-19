@@ -37,8 +37,6 @@
 #if DEBUG_RENDER
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 struct sna_tile_state {
@@ -92,6 +90,25 @@ sna_tiling_composite_blt(struct sna *sna,
 			 const struct sna_composite_rectangles *r)
 {
 	sna_tiling_composite_add_rect(op->u.priv, r);
+	(void)sna;
+}
+
+fastcall static void
+sna_tiling_composite_box(struct sna *sna,
+			 const struct sna_composite_op *op,
+			 const BoxRec *box)
+{
+	struct sna_composite_rectangles r;
+
+	r.dst.x = box->x1;
+	r.dst.y = box->y1;
+	r.mask = r.src = r.dst;
+
+	r.width  = box->x2 - box->x1;
+	r.height = box->y2 - box->y1;
+
+	sna_tiling_composite_add_rect(op->u.priv, &r);
+	(void)sna;
 }
 
 static void
@@ -112,6 +129,7 @@ sna_tiling_composite_boxes(struct sna *sna,
 		sna_tiling_composite_add_rect(op->u.priv, &r);
 		box++;
 	}
+	(void)sna;
 }
 
 static void
@@ -212,8 +230,7 @@ static inline int split(int x, int y)
 }
 
 Bool
-sna_tiling_composite(struct sna *sna,
-		     uint32_t op,
+sna_tiling_composite(uint32_t op,
 		     PicturePtr src,
 		     PicturePtr mask,
 		     PicturePtr dst,
@@ -227,7 +244,8 @@ sna_tiling_composite(struct sna *sna,
 	struct sna_pixmap *priv;
 
 	DBG(("%s size=(%d, %d), tile=%d\n",
-	     __FUNCTION__, width, height, sna->render.max_3d_size));
+	     __FUNCTION__, width, height,
+	     to_sna_from_drawable(dst->pDrawable)->render.max_3d_size));
 
 	priv = sna_pixmap(get_drawable_pixmap(dst->pDrawable));
 	if (priv == NULL || priv->gpu_bo == NULL)
@@ -256,6 +274,7 @@ sna_tiling_composite(struct sna *sna,
 	tile->rect_size = ARRAY_SIZE(tile->rects_embedded);
 
 	tmp->blt   = sna_tiling_composite_blt;
+	tmp->box   = sna_tiling_composite_box;
 	tmp->boxes = sna_tiling_composite_boxes;
 	tmp->done  = sna_tiling_composite_done;
 

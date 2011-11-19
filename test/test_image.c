@@ -117,7 +117,8 @@ static void test_compare_fallback(struct test *t,
 void test_compare(struct test *t,
 		  Drawable real_draw, XRenderPictFormat *real_format,
 		  Drawable ref_draw, XRenderPictFormat *ref_format,
-		  int x, int y, int w, int h)
+		  int x, int y, int w, int h,
+		  const char *info)
 {
 	XImage real_image, ref_image;
 	Pixmap tmp;
@@ -172,8 +173,8 @@ void test_compare(struct test *t,
 				show_pixels(buf,
 					    &real_image, &ref_image,
 					    i, j, w, h);
-				die("discrepancy found at (%d+%d, %d+%d): found %08x, expected %08x (delta: %d)\n%s",
-				    x,i, y,j, a, b, pixel_difference(a, b), buf);
+				die("discrepancy found at (%d+%d, %d+%d): found %08x, expected %08x (delta: %d)\n%s%s\n",
+				    x,i, y,j, a, b, pixel_difference(a, b), buf, info);
 			}
 		}
 		real += real_image.bytes_per_line;

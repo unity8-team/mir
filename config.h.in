@@ -2,14 +2,23 @@
 
 #include "xorg-server.h"
 
+/* Builder description */
+#undef BUILDER_DESCRIPTION
+
 /* Enable XvMC support */
 #undef ENABLE_XVMC
+
+/* Enable all debugging */
+#undef HAS_DEBUG_FULL
 
 /* Enable additional debugging */
 #undef HAS_EXTRA_DEBUG
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
+
+/* Are we in a git checkout? */
+#undef HAVE_DOT_GIT
 
 /* Define to 1 if you have the <dristruct.h> header file. */
 #undef HAVE_DRISTRUCT_H
@@ -93,29 +102,20 @@
 /* Patch version of this package */
 #undef PACKAGE_VERSION_PATCHLEVEL
 
-/* Enable SandyBridge's New Architecture */
-#undef SNA
-
-/* Enable SandyBridge's New Architecture by default */
-#undef SNA_DEFAULT
-
-/* Enable SandyBridge's New Architecture for GEN2 */
-#undef SNA_GEN2
-
-/* Enable SandyBridge's New Architecture for PNV */
-#undef SNA_GEN3
-
-/* Enable SandyBridge's New Architecture for BRW */
-#undef SNA_GEN4
-
-/* Enable SandyBridge's New Architecture for ILK */
-#undef SNA_GEN5
-
-/* Enable SandyBridge's New Architecture for SNB */
-#undef SNA_GEN6
-
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Enable DRI2 driver support */
+#undef USE_DRI2
+
+/* Use automagic builder description */
+#undef USE_GIT_DESCRIBE
+
+/* Enable SNA support */
+#undef USE_SNA
+
+/* Enable UXA support */
+#undef USE_UXA
 
 /* Assume VMAP support */
 #undef USE_VMAP

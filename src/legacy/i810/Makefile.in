@@ -59,14 +59,14 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 liblegacy_i810_la_LIBADD =
 am__liblegacy_i810_la_SOURCES_DIST = i810_accel.c i810_common.h \
-	i810_cursor.c i810_dga.c i810_driver.c i810.h i810_io.c \
-	i810_memory.c i810_reg.h i810_ring.h i810_video.c i810_wmark.c \
-	i810_dri.c i810_dri.h i810_hwmc.c
+	i810_cursor.c i810_dga.c i810_driver.c i810.h i810_memory.c \
+	i810_reg.h i810_ring.h i810_video.c i810_wmark.c i810_dri.c \
+	i810_dri.h i810_hwmc.c
 @DRI_TRUE@am__objects_1 = i810_dri.lo
 @XVMC_TRUE@am__objects_2 = i810_hwmc.lo
 am_liblegacy_i810_la_OBJECTS = i810_accel.lo i810_cursor.lo \
-	i810_dga.lo i810_driver.lo i810_io.lo i810_memory.lo \
-	i810_video.lo i810_wmark.lo $(am__objects_1) $(am__objects_2)
+	i810_dga.lo i810_driver.lo i810_memory.lo i810_video.lo \
+	i810_wmark.lo $(am__objects_1) $(am__objects_2)
 liblegacy_i810_la_OBJECTS = $(am_liblegacy_i810_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
@@ -304,9 +304,9 @@ AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ @PCIACCESS_CFLA
 	    $(NULL)
 
 liblegacy_i810_la_SOURCES = i810_accel.c i810_common.h i810_cursor.c \
-	i810_dga.c i810_driver.c i810.h i810_io.c i810_memory.c \
-	i810_reg.h i810_ring.h i810_video.c i810_wmark.c \
-	$(am__append_1) $(am__append_2)
+	i810_dga.c i810_driver.c i810.h i810_memory.c i810_reg.h \
+	i810_ring.h i810_video.c i810_wmark.c $(am__append_1) \
+	$(am__append_2)
 all: all-recursive
 
 .SUFFIXES:
@@ -365,7 +365,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i810_dri.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i810_driver.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i810_hwmc.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i810_io.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i810_memory.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i810_video.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i810_wmark.Plo@am__quote@

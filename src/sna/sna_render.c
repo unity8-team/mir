@@ -34,8 +34,6 @@
 #if DEBUG_RENDER
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define NO_REDIRECT 0
@@ -83,6 +81,8 @@ no_render_composite(struct sna *sna,
 		return TRUE;
 
 	return FALSE;
+	(void)mask_x;
+	(void)mask_y;
 }
 
 static Bool
@@ -177,28 +177,55 @@ no_render_fill(struct sna *sna, uint8_t alu,
 			    tmp);
 }
 
+static Bool
+no_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
+		   uint32_t color,
+		   int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+		   uint8_t alu)
+{
+	BoxRec box;
+
+	box.x1 = x1;
+	box.y1 = y1;
+	box.x2 = x2;
+	box.y2 = y2;
+
+	DBG(("%s (alu=%d, color=%08x) (%d,%d), (%d, %d)\n",
+	     __FUNCTION__, alu, color, x1, y1, x2, y2));
+	return sna_blt_fill_boxes(sna, alu,
+				  bo, dst->drawable.bitsPerPixel,
+				  color, &box, 1);
+}
+
 static void no_render_reset(struct sna *sna)
 {
+	(void)sna;
 }
 
 static void no_render_flush(struct sna *sna)
 {
+	(void)sna;
 }
 
 static void
 no_render_context_switch(struct kgem *kgem,
 			 int new_mode)
 {
+	(void)kgem;
+	(void)new_mode;
 }
 
 static void
 no_render_fini(struct sna *sna)
 {
+	(void)sna;
 }
 
 void no_render_init(struct sna *sna)
 {
 	struct sna_render *render = &sna->render;
+
+	memset (render,0, sizeof (*render));
 
 	render->composite = no_render_composite;
 
@@ -207,6 +234,7 @@ void no_render_init(struct sna *sna)
 
 	render->fill_boxes = no_render_fill_boxes;
 	render->fill = no_render_fill;
+	render->fill_one = no_render_fill_one;
 
 	render->reset = no_render_reset;
 	render->flush = no_render_flush;
@@ -297,30 +325,28 @@ texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
 static struct kgem_bo *upload(struct sna *sna,
 			      struct sna_composite_channel *channel,
 			      PixmapPtr pixmap,
-			      int16_t x, int16_t y, int16_t w, int16_t h,
 			      BoxPtr box)
 {
 	struct kgem_bo *bo;
 
-	DBG(("%s: origin=(%d, %d), box=(%d, %d), (%d, %d), pixmap=%dx%d\n",
-	     __FUNCTION__, x, y, box->x1, box->y1, box->x2, box->y2, pixmap->drawable.width, pixmap->drawable.height));
+	DBG(("%s: box=(%d, %d), (%d, %d), pixmap=%dx%d\n",
+	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2, pixmap->drawable.width, pixmap->drawable.height));
 	assert(box->x1 >= 0);
 	assert(box->y1 >= 0);
 	assert(box->x2 <= pixmap->drawable.width);
 	assert(box->y2 <= pixmap->drawable.height);
 
 	bo = kgem_upload_source_image(&sna->kgem,
-				      pixmap->devPrivate.ptr,
-				      box->x1, box->y1, w, h,
+				      pixmap->devPrivate.ptr, box,
 				      pixmap->devKind,
 				      pixmap->drawable.bitsPerPixel);
 	if (bo) {
+		channel->width  = box->x2 - box->x1;
+		channel->height = box->y2 - box->y1;
 		channel->offset[0] -= box->x1;
 		channel->offset[1] -= box->y1;
-		channel->scale[0] = 1./w;
-		channel->scale[1] = 1./h;
-		channel->width  = w;
-		channel->height = h;
+		channel->scale[0] = 1.f/channel->width;
+		channel->scale[1] = 1.f/channel->height;
 	}
 
 	return bo;
@@ -351,16 +377,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		box.x2 = x + w;
 		box.y2 = y + h;
 
-		if (channel->repeat != RepeatNone) {
-			if (box.x1 < 0 ||
-			    box.y1 < 0 ||
-			    box.x2 > pixmap->drawable.width ||
-			    box.y2 > pixmap->drawable.height) {
-				box.x1 = box.y1 = 0;
-				box.x2 = pixmap->drawable.width;
-				box.y2 = pixmap->drawable.height;
-			}
-		} else {
+		if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
 			if (box.x1 < 0)
 				box.x1 = 0;
 			if (box.y1 < 0)
@@ -369,6 +386,15 @@ sna_render_pixmap_bo(struct sna *sna,
 				box.x2 = pixmap->drawable.width;
 			if (box.y2 > pixmap->drawable.height)
 				box.y2 = pixmap->drawable.height;
+		} else {
+			if (box.x1 < 0 ||
+			    box.y1 < 0 ||
+			    box.x2 > pixmap->drawable.width ||
+			    box.y2 > pixmap->drawable.height) {
+				box.x1 = box.y1 = 0;
+				box.x2 = pixmap->drawable.width;
+				box.y2 = pixmap->drawable.height;
+			}
 		}
 	}
 
@@ -385,8 +411,8 @@ sna_render_pixmap_bo(struct sna *sna,
 
 	channel->height = pixmap->drawable.height;
 	channel->width  = pixmap->drawable.width;
-	channel->scale[0] = 1. / pixmap->drawable.width;
-	channel->scale[1] = 1. / pixmap->drawable.height;
+	channel->scale[0] = 1.f / pixmap->drawable.width;
+	channel->scale[1] = 1.f / pixmap->drawable.height;
 	channel->offset[0] = x - dst_x;
 	channel->offset[1] = y - dst_y;
 
@@ -412,7 +438,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		if (bo == NULL) {
 			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
 			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-			bo = upload(sna, channel, pixmap, x,y, w,h, &box);
+			bo = upload(sna, channel, pixmap, &box);
 		}
 	}
 
@@ -423,7 +449,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		} else {
 			DBG(("%s: failed to upload pixmap to gpu, uploading CPU box (%d, %d), (%d, %d) instead\n",
 			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-			bo = upload(sna, channel, pixmap, x,y, w,h, &box);
+			bo = upload(sna, channel, pixmap, &box);
 		}
 	}
 
@@ -468,7 +494,16 @@ static int sna_render_picture_downsample(struct sna *sna,
 		oy = v.vector[1] / v.vector[2];
 	}
 
-	if (channel->repeat != RepeatNone) {
+	if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
+		if (box.x1 < 0)
+			box.x1 = 0;
+		if (box.y1 < 0)
+			box.y1 = 0;
+		if (box.x2 > pixmap->drawable.width)
+			box.x2 = pixmap->drawable.width;
+		if (box.y2 > pixmap->drawable.height)
+			box.y2 = pixmap->drawable.height;
+	} else {
 		if (box.x1 < 0 ||
 		    box.y1 < 0 ||
 		    box.x2 > pixmap->drawable.width ||
@@ -488,15 +523,6 @@ static int sna_render_picture_downsample(struct sna *sna,
 								dst_x, dst_y);
 			}
 		}
-	} else {
-		if (box.x1 < 0)
-			box.x1 = 0;
-		if (box.y1 < 0)
-			box.y1 = 0;
-		if (box.x2 > pixmap->drawable.width)
-			box.x2 = pixmap->drawable.width;
-		if (box.y2 > pixmap->drawable.height)
-			box.y2 = pixmap->drawable.height;
 	}
 
 	w = box.x2 - box.x1;
@@ -531,7 +557,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 		tmp = screen->CreatePixmap(screen,
 					   w/2, h/2, pixmap->drawable.depth,
-					   CREATE_PIXMAP_USAGE_SCRATCH);
+					   SNA_CREATE_SCRATCH);
 		if (!tmp)
 			goto fixup;
 
@@ -646,8 +672,8 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 	channel->offset[0] = x - dst_x;
 	channel->offset[1] = y - dst_y;
-	channel->scale[0] = 1./w;
-	channel->scale[1] = 1./h;
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
 	channel->width  = w / 2;
 	channel->height = h / 2;
 	channel->bo = bo;
@@ -704,7 +730,21 @@ sna_render_picture_extract(struct sna *sna,
 		oy = v.vector[1] / v.vector[2];
 	}
 
-	if (channel->repeat != RepeatNone) {
+	DBG(("%s sample=(%d, %d), (%d, %d): (%d, %d)/(%d, %d), repeat=%d\n", __FUNCTION__,
+	     box.x1, box.y1, box.x2, box.y2, w, h,
+	     pixmap->drawable.width, pixmap->drawable.height,
+	     channel->repeat));
+
+	if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
+		if (box.x1 < 0)
+			box.x1 = 0;
+		if (box.y1 < 0)
+			box.y1 = 0;
+		if (box.x2 > pixmap->drawable.width)
+			box.x2 = pixmap->drawable.width;
+		if (box.y2 > pixmap->drawable.height)
+			box.y2 = pixmap->drawable.height;
+	} else {
 		if (box.x1 < 0 ||
 		    box.y1 < 0 ||
 		    box.x2 > pixmap->drawable.width ||
@@ -724,15 +764,6 @@ sna_render_picture_extract(struct sna *sna,
 								dst_x, dst_y);
 			}
 		}
-	} else {
-		if (box.x1 < 0)
-			box.x1 = 0;
-		if (box.y1 < 0)
-			box.y1 = 0;
-		if (box.x2 > pixmap->drawable.width)
-			box.x2 = pixmap->drawable.width;
-		if (box.y2 > pixmap->drawable.height)
-			box.y2 = pixmap->drawable.height;
 	}
 
 	w = box.x2 - box.x1;
@@ -757,7 +788,7 @@ sna_render_picture_extract(struct sna *sna,
 	if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
 		bo = kgem_upload_source_image(&sna->kgem,
 					      pixmap->devPrivate.ptr,
-					      box.x1, box.y1, w, h,
+					      &box,
 					      pixmap->devKind,
 					      pixmap->drawable.bitsPerPixel);
 		if (!bo) {
@@ -817,8 +848,8 @@ sna_render_picture_extract(struct sna *sna,
 
 	channel->offset[0] = x - dst_x;
 	channel->offset[1] = y - dst_y;
-	channel->scale[0] = 1./w;
-	channel->scale[1] = 1./h;
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
 	channel->width  = w;
 	channel->height = h;
 	channel->bo = bo;
@@ -934,8 +965,8 @@ sna_render_picture_fixup(struct sna *sna,
 	channel->repeat = RepeatNone;
 	channel->is_affine = TRUE;
 
-	channel->scale[0] = 1./w;
-	channel->scale[1] = 1./h;
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
 	channel->offset[0] = -dst_x;
 	channel->offset[1] = -dst_y;
 	channel->transform = NULL;
@@ -1054,8 +1085,8 @@ sna_render_picture_convert(struct sna *sna,
 	channel->width  = w;
 	channel->height = h;
 
-	channel->scale[0] = 1. / w;
-	channel->scale[1] = 1. / h;
+	channel->scale[0] = 1.f/w;
+	channel->scale[1] = 1.f/h;
 	channel->offset[0] = x - dst_x - box.x1;
 	channel->offset[1] = y - dst_y - box.y1;
 
