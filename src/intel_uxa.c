@@ -706,15 +706,19 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	dri_bo *bo = priv->bo;
 	int ret;
 
-	if (!list_is_empty(&priv->batch) &&
-	    ((access == UXA_ACCESS_RW || access == UXA_GLAMOR_ACCESS_RW)
-	     || priv->batch_write))
-		intel_batch_submit(scrn);
-
-	if (access == UXA_GLAMOR_ACCESS_RW || access == UXA_GLAMOR_ACCESS_RO)
+	/* Transitioning to glamor acceleration, we need to flush all pending
+	 * usage by UXA. */
+	if (access == UXA_GLAMOR_ACCESS_RW || access == UXA_GLAMOR_ACCESS_RO) {
+		if (!list_is_empty(&priv->batch))
+			intel_batch_submit(scrn);
 		return TRUE;
+	}
 
+	/* When falling back to swrast, flush all pending operations */
 	intel_glamor_flush(intel);
+	if (!list_is_empty(&priv->batch) &&
+	    (access == UXA_ACCESS_RW || priv->batch_write))
+		intel_batch_submit(scrn);
 
 	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
 		ret = drm_intel_gem_bo_map_gtt(bo);
@@ -722,8 +726,10 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s: bo map failed: %s\n",
+			   "%s: bo map (use gtt? %d, access %d) failed: %s\n",
 			   __FUNCTION__,
+			   priv->tiling || bo->size <= intel->max_gtt_map_size,
+			   access,
 			   strerror(-ret));
 		return FALSE;
 	}
