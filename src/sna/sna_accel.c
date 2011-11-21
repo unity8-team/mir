@@ -4162,20 +4162,20 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 				}
 				if (p1.x < p2.x) {
 					rect[i].x = p1.x;
-					rect[i].width = p2.x - p1.x;
+					rect[i].width = p2.x - p1.x + 1;
 				} else if (p1.x > p2.x) {
 					rect[i].x = p2.x;
-					rect[i].width = p1.x - p2.x;
+					rect[i].width = p1.x - p2.x + 1;
 				} else {
 					rect[i].x = p1.x;
 					rect[i].width = 1;
 				}
 				if (p1.y < p2.y) {
 					rect[i].y = p1.y;
-					rect[i].height = p2.y - p1.y;
+					rect[i].height = p2.y - p1.y + 1;
 				} else if (p1.y > p2.y) {
 					rect[i].y = p2.y;
-					rect[i].height = p1.y - p2.y;
+					rect[i].height = p1.y - p2.y + 1;
 				} else {
 					rect[i].y = p1.y;
 					rect[i].height = 1;
@@ -4984,7 +4984,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 						      gc, n, seg, &region.extents, flags & 2))
 				return;
 		}
-	} else if (flags &4) {
+	} else if (flags & 4) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
@@ -5002,20 +5002,20 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 			for (i = 0; i < n; i++) {
 				if (seg[i].x1 < seg[i].x2) {
 					rect[i].x = seg[i].x1;
-					rect[i].width = seg[i].x2 - seg[i].x1;
+					rect[i].width = seg[i].x2 - seg[i].x1 + 1;
 				} else if (seg[i].x1 > seg[i].x2) {
 					rect[i].x = seg[i].x2;
-					rect[i].width = seg[i].x1 - seg[i].x2;
+					rect[i].width = seg[i].x1 - seg[i].x2 + 1;
 				} else {
 					rect[i].x = seg[i].x1;
 					rect[i].width = 1;
 				}
 				if (seg[i].y1 < seg[i].y2) {
 					rect[i].y = seg[i].y1;
-					rect[i].height = seg[i].y2 - seg[i].y1;
+					rect[i].height = seg[i].y2 - seg[i].y1 + 1;
 				} else if (seg[i].x1 > seg[i].y2) {
 					rect[i].y = seg[i].y2;
-					rect[i].height = seg[i].y1 - seg[i].y2;
+					rect[i].height = seg[i].y1 - seg[i].y2 + 1;
 				} else {
 					rect[i].y = seg[i].y1;
 					rect[i].height = 1;
@@ -5023,7 +5023,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 
 				/* don't paint last pixel */
 				if (gc->capStyle == CapNotLast) {
-					if (seg->x1 == seg->x2)
+					if (seg[i].x1 == seg[i].x2)
 						rect[i].height--;
 					else
 						rect[i].width--;
