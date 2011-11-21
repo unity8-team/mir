@@ -2662,23 +2662,7 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	gen4_fill_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
 
-	if (!gen4_get_rectangles(sna, &tmp, 1)) {
-		gen4_fill_bind_surfaces(sna, &tmp);
-		gen4_get_rectangles(sna, &tmp, 1);
-	}
-
-	DBG(("	(%d, %d), (%d, %d)\n", x1, y1, x2, y2));
-	OUT_VERTEX(x2, y2);
-	OUT_VERTEX_F(1);
-	OUT_VERTEX_F(1);
-
-	OUT_VERTEX(x1, y2);
-	OUT_VERTEX_F(0);
-	OUT_VERTEX_F(1);
-
-	OUT_VERTEX(x1, y1);
-	OUT_VERTEX_F(0);
-	OUT_VERTEX_F(0);
+	gen4_render_fill_rectangle(sna, &tmp, x1, y1, x2 - x1, y2 - y1);
 
 	gen4_vertex_flush(sna);
 	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
