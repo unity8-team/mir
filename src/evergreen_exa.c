@@ -172,6 +172,7 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     ps_alu_consts = radeon_vbo_space(pScrn, &accel_state->cbuf, 256);
     ps_const_conf.bo = accel_state->cbuf.vb_bo;
     ps_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_offset;
+    ps_const_conf.cpu_ptr = (uint32_t *)(char *)ps_alu_consts;
     if (accel_state->dst_obj.bpp == 16) {
 	r = (fg >> 11) & 0x1f;
 	g = (fg >> 5) & 0x3f;
@@ -1320,6 +1321,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     vs_const_conf.bo = accel_state->cbuf.vb_bo;
     vs_const_conf.const_addr = accel_state->cbuf.vb_mc_addr + accel_state->cbuf.vb_offset;
 
+    vs_const_conf.cpu_ptr = (uint32_t *)(char *)cbuf;
     EVERGREENXFormSetup(pSrcPicture, pSrc, 0, cbuf);
     if (pMask)
         EVERGREENXFormSetup(pMaskPicture, pMask, 1, cbuf);

@@ -120,6 +120,7 @@ typedef struct {
     int size_bytes;
     uint64_t const_addr;
     struct radeon_bo *bo;
+    uint32_t *cpu_ptr;
 } const_config_t;
 
 /* Vertex buffer / vtx resource */

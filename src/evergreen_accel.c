@@ -479,6 +479,17 @@ evergreen_set_alu_consts(ScrnInfoPtr pScrn, const_config_t *const_conf, uint32_t
     if (size == 0)
 	size = 1;
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    {
+	    uint32_t count = size << 4, *p = const_conf->cpu_ptr;
+
+	    while(count--) {
+		    *p = cpu_to_le32(*p);
+		    p++;
+	    }
+    }
+#endif
+
     /* flush SQ cache */
     evergreen_cp_set_surface_sync(pScrn, SH_ACTION_ENA_bit,
 				  const_conf->size_bytes, const_conf->const_addr,
