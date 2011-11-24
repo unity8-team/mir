@@ -2471,8 +2471,17 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
-	if (kgem_bo_is_dirty(src_bo))
+	if (kgem_bo_is_dirty(src_bo)) {
+		if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+		    sna_blt_copy_boxes(sna, alu,
+				       src_bo, src_dx, src_dy,
+				       dst_bo, dst_dx, dst_dy,
+				       dst->drawable.bitsPerPixel,
+				       box, n))
+			return TRUE;
+
 		kgem_emit_flush(&sna->kgem);
+	}
 
 	gen5_copy_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
