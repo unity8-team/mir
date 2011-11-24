@@ -745,8 +745,7 @@ bool kgem_retire(struct kgem *kgem)
 	kgem->need_retire = !list_is_empty(&kgem->requests);
 	if (!kgem->need_retire && kgem->ring)
 		kgem->ring = kgem->mode;
-	kgem->busy &= kgem->need_retire;
-	DBG(("%s -- busy=%d\n", __FUNCTION__, kgem->busy));
+	DBG(("%s -- need_retire=%d\n", __FUNCTION__, kgem->need_retire));
 
 	return retired;
 }
@@ -1096,7 +1095,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem_cleanup(kgem);
 
 	kgem_reset(kgem);
-	kgem->flush_now = kgem->busy = 1;
+	kgem->flush_now = 1;
 }
 
 void kgem_throttle(struct kgem *kgem)

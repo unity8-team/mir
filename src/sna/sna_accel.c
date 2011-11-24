@@ -8328,18 +8328,22 @@ static Bool sna_accel_do_flush(struct sna *sna)
 	struct itimerspec to;
 	struct sna_pixmap *priv;
 
-	if (sna->kgem.flush_now) {
-		sna_accel_drain_timer(sna, FLUSH_TIMER);
-		return TRUE;
-	}
-
-	return_if_timer_active(FLUSH_TIMER);
-
 	priv = sna_accel_scanout(sna);
 	if (priv == NULL) {
 		DBG(("%s -- no scanout attached\n", __FUNCTION__));
 		return FALSE;
 	}
+
+	if (sna->kgem.flush_now) {
+		sna->kgem.flush_now = 0;
+		if (priv->gpu_bo->rq != NULL) {
+			DBG(("%s -- forcing flush\n", __FUNCTION__));
+			sna_accel_drain_timer(sna, FLUSH_TIMER);
+			return TRUE;
+		}
+	}
+
+	return_if_timer_active(FLUSH_TIMER);
 
 	if (priv->cpu_damage == NULL && priv->gpu_bo->rq == NULL) {
 		DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
@@ -8419,6 +8423,7 @@ static bool sna_accel_flush(struct sna *sna)
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
 	bool nothing_to_do =
 		priv->cpu_damage == NULL && priv->gpu_bo->rq == NULL;
+	bool need_throttle = sna->kgem.busy;
 
 	DBG(("%s (time=%ld), nothing_to_do=%d, busy? %d\n",
 	     __FUNCTION__, (long)GetTimeInMillis(),
@@ -8430,8 +8435,7 @@ static bool sna_accel_flush(struct sna *sna)
 		sna_pixmap_move_to_gpu(priv->pixmap);
 	sna->kgem.busy = !nothing_to_do;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
-	sna->kgem.flush_now = 0;
-	return !nothing_to_do;
+	return need_throttle;
 }
 
 static void sna_accel_expire(struct sna *sna)
