@@ -252,6 +252,41 @@ static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap, uint32_t tiling)
 				  pixmap->drawable.bitsPerPixel);
 }
 
+static bool sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct kgem_bo *bo;
+	BoxRec box;
+
+	if (priv->pinned)
+		return false;
+
+	bo = kgem_create_2d(&sna->kgem,
+			    pixmap->drawable.width,
+			    pixmap->drawable.height,
+			    pixmap->drawable.bitsPerPixel,
+			    tiling, 0);
+	if (bo == NULL)
+		return false;
+
+	box.x1 = box.y1 = 0;
+	box.x2 = pixmap->drawable.width;
+	box.y2 = pixmap->drawable.height;
+
+	if (!sna->render.copy_boxes(sna, GXcopy,
+				    pixmap, priv->gpu_bo, 0, 0,
+				    pixmap, bo, 0, 0,
+				    &box, 1)) {
+		kgem_bo_destroy(&sna->kgem, bo);
+		return false;
+	}
+
+	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+	priv->gpu_bo = bo;
+	return true;
+}
+
 static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
 {
 	dixSetPrivate(&pixmap->devPrivates, &sna_pixmap_index, sna);
@@ -1474,8 +1509,10 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 				     &damage))
 		return false;
 
-	if (priv->gpu_bo->tiling == I915_TILING_Y)
-		return false;
+	if (priv->gpu_bo->tiling == I915_TILING_Y) {
+		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
+			return false;
+	}
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
 	if (damage)
@@ -1592,8 +1629,12 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 				     &damage))
 		return false;
 
-	if (bo->tiling == I915_TILING_Y)
-		return false;
+	if (bo->tiling == I915_TILING_Y) {
+		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
+			return false;
+
+		bo = priv->gpu_bo;
+	}
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(region));
 	if (damage)
@@ -3208,7 +3249,8 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	if (sna_drawable_use_gpu_bo(dst, &region.extents, &damage)) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		if (priv->gpu_bo->tiling != I915_TILING_Y) {
+		if (priv->gpu_bo->tiling != I915_TILING_Y ||
+		    sna_pixmap_change_tiling(pixmap, I915_TILING_X)) {
 			RegionUninit(&region);
 			return miDoCopy(src, dst, gc,
 					src_x, src_y,
@@ -6819,8 +6861,17 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 
 	PixmapPtr stipple = gc->stipple;
 
-	if (bo->tiling == I915_TILING_Y)
-		return false;
+	if (bo->tiling == I915_TILING_Y) {
+		PixmapPtr pixmap = get_drawable_pixmap(drawable);
+
+		/* This is cheating, but only the gpu_bo can be tiled */
+		assert(bo == sna_pixmap(pixmap)->gpu_bo);
+
+		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
+			return false;
+
+		bo = sna_pixmap(pixmap)->gpu_bo;
+	}
 
 	sna_drawable_move_to_cpu(&stipple->drawable, false);
 
@@ -7121,8 +7172,11 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	bo = priv->gpu_bo;
 	if (bo->tiling == I915_TILING_Y) {
-		DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
-		return false;
+		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X)) {
+			DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
+			return false;
+		}
+		bo = priv->gpu_bo;
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -7664,8 +7718,10 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
 
 	if (priv->gpu_bo->tiling == I915_TILING_Y) {
-		DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
-		return false;
+		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X)) {
+			DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
+			return false;
+		}
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -7949,8 +8005,10 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	int n;
 	uint8_t rop = copy_ROP[gc->alu];
 
-	if (priv->gpu_bo->tiling == I915_TILING_Y)
-		return false;
+	if (priv->gpu_bo->tiling == I915_TILING_Y) {
+		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
+			return false;
+	}
 
 	if (!sna_drawable_use_gpu_bo(drawable, &region->extents, &damage))
 		return false;
