@@ -746,6 +746,7 @@ bool kgem_retire(struct kgem *kgem)
 	if (!kgem->need_retire && kgem->ring)
 		kgem->ring = kgem->mode;
 	kgem->busy &= kgem->need_retire;
+	DBG(("%s -- busy=%d\n", __FUNCTION__, kgem->busy));
 
 	return retired;
 }
@@ -1827,7 +1828,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 		return NULL;
 
 	bo->needs_flush = false;
-	if (prot & PROT_WRITE && bo->gpu)
+	if (bo->gpu)
 		kgem_retire(kgem);
 
 	return ptr;
