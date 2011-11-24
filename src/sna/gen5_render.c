@@ -88,101 +88,101 @@
 #define PS_MAX_THREADS	    48
 
 static const uint32_t sf_kernel[][4] = {
-#include "exa_sf.g4b.gen5"
+#include "exa_sf.g5b"
 };
 
 static const uint32_t sf_kernel_mask[][4] = {
-#include "exa_sf_mask.g4b.gen5"
+#include "exa_sf_mask.g5b"
 };
 
 static const uint32_t ps_kernel_nomask_affine[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_affine.g4b.gen5"
-#include "exa_wm_src_sample_argb.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_affine.g5b"
+#include "exa_wm_src_sample_argb.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_nomask_projective[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_projective.g4b.gen5"
-#include "exa_wm_src_sample_argb.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_projective.g5b"
+#include "exa_wm_src_sample_argb.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_maskca_affine[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_affine.g4b.gen5"
-#include "exa_wm_src_sample_argb.g4b.gen5"
-#include "exa_wm_mask_affine.g4b.gen5"
-#include "exa_wm_mask_sample_argb.g4b.gen5"
-#include "exa_wm_ca.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_affine.g5b"
+#include "exa_wm_src_sample_argb.g5b"
+#include "exa_wm_mask_affine.g5b"
+#include "exa_wm_mask_sample_argb.g5b"
+#include "exa_wm_ca.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_maskca_projective[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_projective.g4b.gen5"
-#include "exa_wm_src_sample_argb.g4b.gen5"
-#include "exa_wm_mask_projective.g4b.gen5"
-#include "exa_wm_mask_sample_argb.g4b.gen5"
-#include "exa_wm_ca.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_projective.g5b"
+#include "exa_wm_src_sample_argb.g5b"
+#include "exa_wm_mask_projective.g5b"
+#include "exa_wm_mask_sample_argb.g5b"
+#include "exa_wm_ca.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_maskca_srcalpha_affine[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_affine.g4b.gen5"
-#include "exa_wm_src_sample_a.g4b.gen5"
-#include "exa_wm_mask_affine.g4b.gen5"
-#include "exa_wm_mask_sample_argb.g4b.gen5"
-#include "exa_wm_ca_srcalpha.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_affine.g5b"
+#include "exa_wm_src_sample_a.g5b"
+#include "exa_wm_mask_affine.g5b"
+#include "exa_wm_mask_sample_argb.g5b"
+#include "exa_wm_ca_srcalpha.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_maskca_srcalpha_projective[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_projective.g4b.gen5"
-#include "exa_wm_src_sample_a.g4b.gen5"
-#include "exa_wm_mask_projective.g4b.gen5"
-#include "exa_wm_mask_sample_argb.g4b.gen5"
-#include "exa_wm_ca_srcalpha.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_projective.g5b"
+#include "exa_wm_src_sample_a.g5b"
+#include "exa_wm_mask_projective.g5b"
+#include "exa_wm_mask_sample_argb.g5b"
+#include "exa_wm_ca_srcalpha.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_masknoca_affine[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_affine.g4b.gen5"
-#include "exa_wm_src_sample_argb.g4b.gen5"
-#include "exa_wm_mask_affine.g4b.gen5"
-#include "exa_wm_mask_sample_a.g4b.gen5"
-#include "exa_wm_noca.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_affine.g5b"
+#include "exa_wm_src_sample_argb.g5b"
+#include "exa_wm_mask_affine.g5b"
+#include "exa_wm_mask_sample_a.g5b"
+#include "exa_wm_noca.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_masknoca_projective[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_projective.g4b.gen5"
-#include "exa_wm_src_sample_argb.g4b.gen5"
-#include "exa_wm_mask_projective.g4b.gen5"
-#include "exa_wm_mask_sample_a.g4b.gen5"
-#include "exa_wm_noca.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_projective.g5b"
+#include "exa_wm_src_sample_argb.g5b"
+#include "exa_wm_mask_projective.g5b"
+#include "exa_wm_mask_sample_a.g5b"
+#include "exa_wm_noca.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_packed_static[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_affine.g4b.gen5"
-#include "exa_wm_src_sample_argb.g4b.gen5"
-#include "exa_wm_yuv_rgb.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_affine.g5b"
+#include "exa_wm_src_sample_argb.g5b"
+#include "exa_wm_yuv_rgb.g5b"
+#include "exa_wm_write.g5b"
 };
 
 static const uint32_t ps_kernel_planar_static[][4] = {
-#include "exa_wm_xy.g4b.gen5"
-#include "exa_wm_src_affine.g4b.gen5"
-#include "exa_wm_src_sample_planar.g4b.gen5"
-#include "exa_wm_yuv_rgb.g4b.gen5"
-#include "exa_wm_write.g4b.gen5"
+#include "exa_wm_xy.g5b"
+#include "exa_wm_src_affine.g5b"
+#include "exa_wm_src_sample_planar.g5b"
+#include "exa_wm_yuv_rgb.g5b"
+#include "exa_wm_write.g5b"
 };
 
 #define KERNEL(kernel_enum, kernel, masked) \
