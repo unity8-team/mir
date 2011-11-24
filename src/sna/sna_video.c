@@ -493,6 +493,9 @@ void sna_video_init(struct sna *sna, ScreenPtr screen)
 	int prefer_overlay =
 	    xf86ReturnOptValBool(sna->Options, OPTION_PREFER_OVERLAY, FALSE);
 
+	if (!xf86LoaderCheckSymbol("xf86XVListGenericAdaptors"))
+		return;
+
 	num_adaptors = xf86XVListGenericAdaptors(sna->scrn, &adaptors);
 	newAdaptors =
 	    malloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
