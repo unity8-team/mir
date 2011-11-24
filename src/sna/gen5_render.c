@@ -1121,14 +1121,6 @@ gen5_composite_get_binding_table(struct sna *sna,
 }
 
 static void
-gen5_emit_sip(struct sna *sna)
-{
-	/* Set system instruction pointer */
-	OUT_BATCH(GEN5_STATE_SIP | 0);
-	OUT_BATCH(0);
-}
-
-static void
 gen5_emit_urb(struct sna *sna)
 {
 	int urb_vs_start, urb_vs_size;
@@ -1206,7 +1198,6 @@ gen5_emit_invariant(struct sna *sna)
 	 */
 	OUT_BATCH(GEN5_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
-	gen5_emit_sip(sna);
 	gen5_emit_state_base_address(sna);
 
 	sna->render_state.gen5.needs_invariant = FALSE;
