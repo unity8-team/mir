@@ -278,6 +278,7 @@ struct sna {
 		struct gen7_render_state gen7;
 	} render_state;
 	uint32_t have_render;
+	uint32_t default_tiling;
 
 	Bool directRenderingOpen;
 	char *deviceName;

@@ -212,15 +212,31 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 	return true;
 }
 
-static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
+static inline uint32_t default_tiling(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+
+	/* Try to avoid hitting the Y-tiling GTT mapping bug on 855GM */
+	if (sna->kgem.gen == 21)
+		return I915_TILING_X;
+
+	return sna_damage_is_all(&priv->cpu_damage,
+				 pixmap->drawable.width,
+				 pixmap->drawable.height) ? I915_TILING_Y : sna->default_tiling;
+}
+
+static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap, uint32_t tiling)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
-	uint32_t tiling, bit;
+	uint32_t bit;
 
 	/* Use tiling by default, but disable per user request */
-	tiling = I915_TILING_X;
-	bit = pixmap->usage_hint == SNA_CREATE_FB ?
-		SNA_TILING_FB : SNA_TILING_2D;
+	if (pixmap->usage_hint == SNA_CREATE_FB) {
+		tiling = I915_TILING_X;
+		bit = SNA_TILING_FB;
+	} else
+		bit = SNA_TILING_2D;
 	if ((sna->tiling && (1 << bit)) == 0)
 		tiling = I915_TILING_NONE;
 
@@ -282,7 +298,7 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 					pixmap->drawable.width,
 					pixmap->drawable.height,
 					pixmap->drawable.bitsPerPixel,
-					sna_pixmap_choose_tiling(pixmap)))
+					I915_TILING_NONE))
 			return NULL;
 		break;
 	}
@@ -979,7 +995,8 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 					      pixmap->drawable.width,
 					      pixmap->drawable.height,
 					      pixmap->drawable.bitsPerPixel,
-					      sna_pixmap_choose_tiling(pixmap),
+					      sna_pixmap_choose_tiling(pixmap,
+								       default_tiling(pixmap)),
 					      flags);
 		if (priv->gpu_bo == NULL)
 			return NULL;
@@ -1017,7 +1034,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 					       pixmap->drawable.width,
 					       pixmap->drawable.height,
 					       pixmap->drawable.bitsPerPixel,
-					       sna_pixmap_choose_tiling(pixmap),
+					       sna_pixmap_choose_tiling(pixmap,
+									default_tiling(pixmap)),
 					       priv->cpu_damage ? CREATE_INACTIVE : 0);
 		if (priv->gpu_bo == NULL) {
 			assert(list_is_empty(&priv->list));
@@ -1950,7 +1968,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (dst_priv && dst_priv->gpu_bo == NULL &&
 	    src_priv && src_priv->gpu_bo != NULL) {
 		uint32_t tiling =
-			sna_pixmap_choose_tiling(dst_pixmap);
+			sna_pixmap_choose_tiling(dst_pixmap,
+						 src_priv->gpu_bo->tiling);
 
 		DBG(("%s: create dst GPU bo for upload\n", __FUNCTION__));
 
@@ -8507,6 +8526,7 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 
 	backend = "no";
 	sna->have_render = false;
+	sna->default_tiling = I915_TILING_X;
 	no_render_init(sna);
 
 #if !DEBUG_NO_RENDER

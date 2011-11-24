@@ -56,7 +56,7 @@ static const struct intel_device_info intel_i855_info = {
 	.gen = 21,
 };
 static const struct intel_device_info intel_i865_info = {
-	.gen = 21,
+	.gen = 22,
 };
 
 static const struct intel_device_info intel_i915_info = {

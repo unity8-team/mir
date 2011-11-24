@@ -42,6 +42,8 @@
 
 #define PITCH(x, y) ALIGN((x)*(y), 4)
 
+/* XXX Need to avoid using GTT fenced access for I915_TILING_Y on 855GM */
+
 static void read_boxes_inplace(struct kgem *kgem,
 			       struct kgem_bo *bo, int16_t src_dx, int16_t src_dy,
 			       PixmapPtr pixmap, int16_t dst_dx, int16_t dst_dy,
