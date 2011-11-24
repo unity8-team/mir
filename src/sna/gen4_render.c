@@ -1630,7 +1630,7 @@ gen4_render_video(struct sna *sna,
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
 		kgem_submit(&sna->kgem);
 
-	if (!kgem_bo_is_dirty(frame->bo))
+	if (kgem_bo_is_dirty(frame->bo))
 		kgem_emit_flush(&sna->kgem);
 
 	gen4_video_bind_surfaces(sna, &tmp, frame);
