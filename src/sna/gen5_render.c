@@ -2973,7 +2973,7 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (sna->kgem.mode != KGEM_RENDER &&
+	if (prefer_blt_fill(sna) &&
 	    gen5_render_fill_one_try_blt(sna, dst, bo, color,
 					 x1, y1, x2, y2, alu))
 		return TRUE;
