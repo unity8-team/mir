@@ -2790,9 +2790,9 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 				return;
 
 			for (i = 0; i < n; i++) {
-				rect[i].x = pt[i].x;
+				rect[i].x = pt[i].x - drawable->x;
 				rect[i].width = width[i];
-				rect[i].y = pt[i].y;
+				rect[i].y = pt[i].y - drawable->y;
 				rect[i].height = 1;
 			}
 
