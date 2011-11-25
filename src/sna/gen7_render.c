@@ -2701,6 +2701,15 @@ gen7_emit_copy_state(struct sna *sna,
 	gen7_emit_state(sna, op, offset);
 }
 
+static inline bool prefer_blt_copy(struct sna *sna,
+				   struct kgem_bo *src_bo,
+				   struct kgem_bo *dst_bo)
+{
+	return (src_bo->tiling == I915_TILING_NONE ||
+		dst_bo->tiling == I915_TILING_NONE ||
+		sna->kgem.ring == KGEM_BLT);
+}
+
 static Bool
 gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
@@ -2724,7 +2733,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu,
 	     src_bo == dst_bo));
 
-	if (sna->kgem.ring == KGEM_BLT &&
+	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -2880,7 +2889,7 @@ gen7_render_copy(struct sna *sna, uint8_t alu,
 	     src->drawable.width, src->drawable.height,
 	     dst->drawable.width, dst->drawable.height));
 
-	if (sna->kgem.ring == KGEM_BLT &&
+	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,

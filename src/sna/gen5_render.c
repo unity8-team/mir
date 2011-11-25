@@ -2401,6 +2401,15 @@ gen5_copy_bind_surfaces(struct sna *sna,
 	gen5_emit_state(sna, op, offset);
 }
 
+static inline bool prefer_blt_copy(struct sna *sna,
+				   struct kgem_bo *src_bo,
+				   struct kgem_bo *dst_bo)
+{
+	return (src_bo->tiling == I915_TILING_NONE ||
+		dst_bo->tiling == I915_TILING_NONE ||
+		sna->kgem.mode == KGEM_BLT);
+}
+
 static Bool
 gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
@@ -2409,7 +2418,7 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 {
 	struct sna_composite_op tmp;
 
-	if (sna->kgem.mode == KGEM_BLT &&
+	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy_boxes(sna, alu,
 			       src_bo, src_dx, src_dy,
@@ -2559,7 +2568,7 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 {
 	DBG(("%s (alu=%d)\n", __FUNCTION__, alu));
 
-	if (sna->kgem.mode == KGEM_BLT &&
+	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
 	    sna_blt_copy(sna, alu,
 			 src_bo, dst_bo,
@@ -2604,8 +2613,15 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
-	if (kgem_bo_is_dirty(src_bo))
+	if (kgem_bo_is_dirty(src_bo)) {
+		if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
+		    sna_blt_copy(sna, alu,
+				 src_bo, dst_bo,
+				 dst->drawable.bitsPerPixel,
+				 op))
+			return TRUE;
 		kgem_emit_flush(&sna->kgem);
+	}
 
 	gen5_copy_bind_surfaces(sna, &op->base);
 	gen5_align_vertex(sna, &op->base);
