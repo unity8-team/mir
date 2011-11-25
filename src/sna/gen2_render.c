@@ -1258,6 +1258,17 @@ gen2_render_composite(struct sna *sna,
 		return FALSE;
 	}
 
+#if NO_COMPOSITE
+	if (mask)
+		return FALSE;
+
+	return sna_blt_composite(sna, op,
+				 src, dst,
+				 src_x, src_y,
+				 dst_x, dst_y,
+				 width, height, tmp);
+#endif
+
 	/* Try to use the BLT engine unless it implies a
 	 * 3D -> 2D context switch.
 	 */
