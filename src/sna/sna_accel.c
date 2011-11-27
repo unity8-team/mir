@@ -741,6 +741,12 @@ done:
 		DBG(("%s: applying cpu damage\n", __FUNCTION__));
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
 		sna_damage_add(&priv->cpu_damage, region);
+		if (sna_damage_is_all(&priv->cpu_damage,
+				      pixmap->drawable.width,
+				      pixmap->drawable.height)) {
+			DBG(("%s: replaced entire pixmap\n", __FUNCTION__));
+			sna_pixmap_destroy_gpu_bo(sna, priv);
+		}
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
 	}
