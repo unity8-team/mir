@@ -7282,13 +7282,11 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			b[0] = br00 | (1 + len);
 			b[1] = (uint16_t)y1 << 16 | (uint16_t)x1;
 			b[2] = (uint16_t)(y1+h) << 16 | (uint16_t)(x1+w);
-			{
-				uint32_t *glyph = (uint32_t*)c->bits;
-				b += 3;
+			 {
+				uint64_t *src = (uint64_t *)c->bits;
+				uint64_t *dst = (uint64_t *)(b + 3);
 				do  {
-					*b++ = *glyph++;
-					*b++ = *glyph++;
-
+					*dst++ = *src++;
 					len -= 2;
 				} while (len);
 			}
