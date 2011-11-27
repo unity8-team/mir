@@ -1401,7 +1401,7 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 		     __FUNCTION__,height));
 		tiling = I915_TILING_X;
 	}
-	if (tiling && width * bpp >= 8 * 4096) {
+	if (tiling && width * bpp > 8 * (4096 - 64)) {
 		DBG(("%s: TLB miss between lines %dx%d (pitch=%d), forcing tiling %d\n",
 		     __FUNCTION__,
 		     width, height, width*bpp/8,
