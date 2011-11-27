@@ -7371,6 +7371,12 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 		return false;
 	}
 
+	/* Skip empty glyphs */
+	if (w == 1 && h == 1 && (in->bits[0] & 1) == 0) {
+		out->bits = (void *)-1;
+		return false;
+	}
+
 	w = (w + 7) >> 3;
 
 	out->metrics = in->metrics;
