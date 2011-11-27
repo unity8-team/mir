@@ -2701,13 +2701,18 @@ gen7_emit_copy_state(struct sna *sna,
 	gen7_emit_state(sna, op, offset);
 }
 
+static inline bool untiled_tlb_miss(struct kgem_bo *bo)
+{
+	return bo->tiling == I915_TILING_NONE && bo->pitch >= 4096;
+}
+
 static inline bool prefer_blt_copy(struct sna *sna,
 				   struct kgem_bo *src_bo,
 				   struct kgem_bo *dst_bo)
 {
-	return (src_bo->tiling == I915_TILING_NONE ||
-		dst_bo->tiling == I915_TILING_NONE ||
-		sna->kgem.ring == KGEM_BLT);
+	return (sna->kgem.ring == KGEM_BLT ||
+		untiled_tlb_miss(src_bo) ||
+		untiled_tlb_miss(dst_bo));
 }
 
 static Bool
