@@ -741,7 +741,8 @@ done:
 		DBG(("%s: applying cpu damage\n", __FUNCTION__));
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
 		sna_damage_add(&priv->cpu_damage, region);
-		if (sna_damage_is_all(&priv->cpu_damage,
+		if (priv->gpu_bo &&
+		    sna_damage_is_all(&priv->cpu_damage,
 				      pixmap->drawable.width,
 				      pixmap->drawable.height)) {
 			DBG(("%s: replaced entire pixmap\n", __FUNCTION__));
@@ -1437,7 +1438,8 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
 		sna_damage_subtract(&priv->gpu_damage, region);
 		sna_damage_add(&priv->cpu_damage, region);
-		if (sna_damage_is_all(&priv->cpu_damage,
+		if (priv->gpu_bo &&
+		    sna_damage_is_all(&priv->cpu_damage,
 				      pixmap->drawable.width,
 				      pixmap->drawable.height)) {
 			DBG(("%s: replaced entire pixmap\n", __FUNCTION__));
