@@ -626,8 +626,8 @@ void sna_write_boxes(struct sna *sna,
 		     const BoxRec *box, int n);
 
 struct kgem_bo *sna_replace(struct sna *sna,
+			    PixmapPtr pixmap,
 			    struct kgem_bo *bo,
-			    int width, int height, int bpp,
 			    const void *src, int stride);
 
 Bool

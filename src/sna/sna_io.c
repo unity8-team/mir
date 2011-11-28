@@ -424,22 +424,28 @@ void sna_write_boxes(struct sna *sna,
 }
 
 struct kgem_bo *sna_replace(struct sna *sna,
+			    PixmapPtr pixmap,
 			    struct kgem_bo *bo,
-			    int width, int height, int bpp,
 			    const void *src, int stride)
 {
 	struct kgem *kgem = &sna->kgem;
 	void *dst;
 
 	DBG(("%s(handle=%d, %dx%d, bpp=%d, tiling=%d)\n",
-	     __FUNCTION__, bo->handle, width, height, bpp, bo->tiling));
+	     __FUNCTION__, bo->handle,
+	     pixmap->drawable.width,
+	     pixmap->drawable.height,
+	     pixmap->drawable.bitsPerPixel,
+	     bo->tiling));
 
 	if (kgem_bo_is_busy(bo)) {
 		struct kgem_bo *new_bo;
 
 		new_bo = kgem_create_2d(kgem,
-					width, height, bpp, bo->tiling,
-					CREATE_INACTIVE);
+					pixmap->drawable.width,
+					pixmap->drawable.height,
+					pixmap->drawable.bitsPerPixel,
+					bo->tiling, CREATE_INACTIVE);
 		if (new_bo) {
 			kgem_bo_destroy(kgem, bo);
 			bo = new_bo;
@@ -447,18 +453,19 @@ struct kgem_bo *sna_replace(struct sna *sna,
 	}
 
 	if (bo->tiling == I915_TILING_NONE && bo->pitch == stride) {
-		kgem_bo_write(kgem, bo, src, (height-1)*stride + width*bpp/8);
-		return bo;
-	}
-
-	dst = kgem_bo_map(kgem, bo, PROT_READ | PROT_WRITE);
-	if (dst) {
-		memcpy_blt(src, dst, bpp,
-			   stride, bo->pitch,
-			   0, 0,
-			   0, 0,
-			   width, height);
-		munmap(dst, bo->size);
+		kgem_bo_write(kgem, bo, src,
+			      (pixmap->drawable.height-1)*stride + pixmap->drawable.width*pixmap->drawable.bitsPerPixel/8);
+	} else {
+		dst = kgem_bo_map(kgem, bo, PROT_READ | PROT_WRITE);
+		if (dst) {
+			memcpy_blt(src, dst, pixmap->drawable.bitsPerPixel,
+				   stride, bo->pitch,
+				   0, 0,
+				   0, 0,
+				   pixmap->drawable.width,
+				   pixmap->drawable.height);
+			munmap(dst, bo->size);
+		}
 	}
 
 	return bo;

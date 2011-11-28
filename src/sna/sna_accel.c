@@ -796,10 +796,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 			    box->y2 >= pixmap->drawable.height) {
 				priv->gpu_bo =
 					sna_replace(sna,
+						    pixmap,
 						    priv->gpu_bo,
-						    pixmap->drawable.width,
-						    pixmap->drawable.height,
-						    pixmap->drawable.bitsPerPixel,
 						    pixmap->devPrivate.ptr,
 						    pixmap->devKind);
 			} else {
@@ -1106,10 +1104,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 			    box->y2 >= pixmap->drawable.height) {
 				priv->gpu_bo =
 					sna_replace(sna,
+						    pixmap,
 						    priv->gpu_bo,
-						    pixmap->drawable.width,
-						    pixmap->drawable.height,
-						    pixmap->drawable.bitsPerPixel,
 						    pixmap->devPrivate.ptr,
 						    pixmap->devKind);
 			} else {
@@ -1343,11 +1339,7 @@ sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	    box->x2 >= pixmap->drawable.width &&
 	    box->y2 >= pixmap->drawable.height) {
 		priv->gpu_bo =
-			sna_replace(sna, priv->gpu_bo,
-				    pixmap->drawable.width,
-				    pixmap->drawable.height,
-				    pixmap->drawable.bitsPerPixel,
-				    bits, stride);
+			sna_replace(sna, pixmap, priv->gpu_bo, bits, stride);
 		return TRUE;
 	}
 
@@ -2149,10 +2141,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 				dst_priv->gpu_bo =
 					sna_replace(sna,
+						    dst_pixmap,
 						    dst_priv->gpu_bo,
-						    dst_pixmap->drawable.width,
-						    dst_pixmap->drawable.height,
-						    bpp, bits, stride);
+						    bits, stride);
 
 				sna_damage_destroy(&dst_priv->cpu_damage);
 				sna_damage_all(&dst_priv->gpu_damage,
