@@ -1496,7 +1496,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 {
 	struct list *cache;
 	struct kgem_bo *bo, *next;
-	uint32_t pitch, tiled_height[3], size;
+	uint32_t pitch, untiled_pitch, tiled_height[3], size;
 	uint32_t handle;
 	int exact = flags & CREATE_EXACT;
 	int i;
@@ -1514,6 +1514,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (flags & CREATE_INACTIVE)
 		goto skip_active_search;
 
+	untiled_pitch = ALIGN(width * bpp / 8, 64);
 	for (i = 0; i <= I915_TILING_Y; i++)
 		tiled_height[i] = kgem_aligned_height(kgem, height, i);
 
@@ -1537,7 +1538,7 @@ search_active: /* Best active match first */
 				continue;
 			}
 		} else
-			bo->pitch = pitch;
+			bo->pitch = untiled_pitch;
 
 		s = bo->pitch * tiled_height[bo->tiling];
 		if (s <= bo->size) {
@@ -1640,7 +1641,7 @@ next_bo:
 	if (tiling != I915_TILING_NONE)
 		bo->tiling = gem_set_tiling(kgem->fd, handle, tiling, pitch);
 
-	assert (bo->size >= bo->pitch * kgem_aligned_height(kgem, height, bo->tiling));
+	assert(bo->size >= bo->pitch * kgem_aligned_height(kgem, height, bo->tiling));
 
 	DBG(("  new pitch=%d, tiling=%d, handle=%d, id=%d\n",
 	     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
