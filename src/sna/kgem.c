@@ -207,6 +207,7 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
 		return FALSE;
 
+	assert(!kgem_busy(kgem, bo->handle));
 	bo->needs_flush = false;
 	if (bo->gpu)
 		kgem_retire(kgem);
@@ -690,11 +691,8 @@ bool kgem_retire(struct kgem *kgem)
 			list_del(&bo->request);
 			bo->rq = NULL;
 
-#if 0
-			/* XXX we loose track of a write-flush somewhere? */
-			if (!bo->needs_flush)
+			if (bo->needs_flush)
 				bo->needs_flush = kgem_busy(kgem, bo->handle);
-#endif
 			bo->gpu = bo->needs_flush;
 
 			if (bo->refcnt == 0) {
@@ -709,6 +707,7 @@ bool kgem_retire(struct kgem *kgem)
 						DBG(("%s: moving %d to inactive\n",
 						     __FUNCTION__, bo->handle));
 						bo->purged = true;
+						assert(!kgem_busy(kgem,bo->handle));
 						list_move(&bo->list,
 							  inactive(kgem, bo->size));
 						retired = true;
@@ -1791,12 +1790,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 		assert(!bo->purged);
 
-		if (bo->exec == NULL) {
+		if (bo->exec == NULL)
 			_kgem_add_bo(kgem, bo);
-			if (bo->needs_flush &&
-			    (read_write_domain >> 16) != I915_GEM_DOMAIN_RENDER)
-				bo->needs_flush = false;
-		}
 
 		if (read_write_domain & KGEM_RELOC_FENCED && kgem->gen < 40) {
 			if (bo->tiling &&
@@ -1832,10 +1827,13 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
 	void *ptr;
 
+	assert(!kgem_busy(kgem, bo->handle));
+
 	ptr = gem_mmap(kgem->fd, bo->handle, bo->size, prot);
 	if (ptr == NULL)
 		return NULL;
 
+	assert(!kgem_busy(kgem, bo->handle));
 	bo->needs_flush = false;
 	if (bo->gpu)
 		kgem_retire(kgem);
@@ -1952,6 +1950,7 @@ void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write)
 	set_domain.write_domain = for_write ? I915_GEM_DOMAIN_CPU : 0;
 
 	drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
+	assert(!kgem_busy(kgem, bo->handle));
 	bo->needs_flush = false;
 	if (bo->gpu) {
 		kgem->sync = false;
@@ -2310,6 +2309,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		gem_read(kgem->fd,
 			 bo->base.handle, (char *)(bo+1)+offset,
 			 offset, length);
+		assert(!kgem_busy(kgem, bo->base.handle));
 		bo->base.needs_flush = false;
 		if (bo->base.gpu)
 			kgem_retire(kgem);
