@@ -1398,23 +1398,17 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 		goto done;
 	}
 
-	/* Before the G33, we only have a small GTT to play with and tiled
-	 * surfaces always require full fence regions and so cause excessive
-	 * aperture thrashing.
-	 */
-	if (kgem->gen < 33) {
-		if (tiling == I915_TILING_X && width * bpp < 8*512/2) {
-			DBG(("%s: too thin [%d] for TILING_X\n",
-			     __FUNCTION__, width));
-			tiling = I915_TILING_NONE;
-			goto done;
-		}
-		if (tiling == I915_TILING_Y && width * bpp < 8*32/2) {
-			DBG(("%s: too thin [%d] for TILING_Y\n",
-			     __FUNCTION__, width));
-			tiling = I915_TILING_NONE;
-			goto done;
-		}
+	if (tiling == I915_TILING_X && width * bpp < 8*512/2) {
+		DBG(("%s: too thin [%d] for TILING_X\n",
+		     __FUNCTION__, width));
+		tiling = I915_TILING_NONE;
+		goto done;
+	}
+	if (tiling == I915_TILING_Y && width * bpp < 8*32/2) {
+		DBG(("%s: too thin [%d] for TILING_Y\n",
+		     __FUNCTION__, width));
+		tiling = I915_TILING_NONE;
+		goto done;
 	}
 
 	if (tiling && ALIGN(height, 2) * ALIGN(width*bpp, 8*64) <= 4096 * 8) {
