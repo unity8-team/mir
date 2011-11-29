@@ -1953,6 +1953,7 @@ gen7_render_video(struct sna *sna,
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
 		kgem_submit(&sna->kgem);
 
@@ -2343,6 +2344,7 @@ gen7_render_composite(struct sna *sna,
 	tmp->boxes = gen7_render_composite_boxes;
 	tmp->done  = gen7_render_composite_done;
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
 			   NULL))
@@ -2651,6 +2653,7 @@ gen7_render_composite_spans(struct sna *sna,
 	tmp->boxes = gen7_render_composite_spans_boxes;
 	tmp->done  = gen7_render_composite_spans_done;
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
 			   NULL))
@@ -2793,6 +2796,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
@@ -2940,6 +2944,7 @@ gen7_render_copy(struct sna *sna, uint8_t alu,
 	op->base.u.gen7.nr_inputs = 1;
 	op->base.u.gen7.ve_id = 1;
 
+	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
 
