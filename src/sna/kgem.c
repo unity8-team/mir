@@ -1804,16 +1804,18 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
 	void *ptr;
 
-	assert(!kgem_busy(kgem, bo->handle));
+	assert(prot == PROT_READ || !kgem_busy(kgem, bo->handle));
 
 	ptr = gem_mmap(kgem->fd, bo->handle, bo->size, prot);
 	if (ptr == NULL)
 		return NULL;
 
-	assert(!kgem_busy(kgem, bo->handle));
-	bo->needs_flush = false;
-	if (bo->gpu)
-		kgem_retire(kgem);
+	if (prot & PROT_WRITE) {
+		assert(!kgem_busy(kgem, bo->handle));
+		bo->needs_flush = false;
+		if (bo->gpu)
+			kgem_retire(kgem);
+	}
 
 	return ptr;
 }
