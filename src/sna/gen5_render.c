@@ -1856,20 +1856,29 @@ gen5_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
 	}
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
+	priv = sna_pixmap(op->dst.pixmap);
+
 	op->dst.width  = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 	op->dst.format = dst->format;
-	priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
-	if (priv == NULL)
-		return FALSE;
 
 	DBG(("%s: pixmap=%p, format=%08x\n", __FUNCTION__,
 	     op->dst.pixmap, (unsigned int)op->dst.format));
 
+	op->dst.bo = NULL;
+	if (priv && priv->gpu_bo == NULL) {
+		op->dst.bo = priv->cpu_bo;
+		op->damage = &priv->cpu_damage;
+	}
+	if (op->dst.bo == NULL) {
+		priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
+		if (priv == NULL)
+			return FALSE;
 
-	op->dst.bo = priv->gpu_bo;
-	op->damage = &priv->gpu_damage;
-	if (sna_damage_is_all(&priv->gpu_damage, op->dst.width, op->dst.height))
+		op->dst.bo = priv->gpu_bo;
+		op->damage = &priv->gpu_damage;
+	}
+	if (sna_damage_is_all(op->damage, op->dst.width, op->dst.height))
 		op->damage = NULL;
 
 	DBG(("%s: bo=%p, damage=%p\n", __FUNCTION__, op->dst.bo, op->damage));

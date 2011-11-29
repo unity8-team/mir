@@ -2048,10 +2048,9 @@ gen6_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 
 		op->dst.bo = priv->gpu_bo;
 		op->damage = &priv->gpu_damage;
-		if (sna_damage_is_all(&priv->gpu_damage,
-				      op->dst.width, op->dst.height))
-			op->damage = NULL;
 	}
+	if (sna_damage_is_all(op->damage, op->dst.width, op->dst.height))
+		op->damage = NULL;
 
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
