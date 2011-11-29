@@ -259,13 +259,17 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
-	if (w == pixmap->drawable.width || h == pixmap->drawable.height) {
-		DBG(("%s: migrating whole pixmap (%dx%d) for source\n",
+	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
+		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d)\n",
 		     __FUNCTION__,
-		     pixmap->drawable.width,
-		     pixmap->drawable.height));
+		     pixmap->drawable.width, pixmap->drawable.height,
+		     box->x1, box->y1, box->x2, box->y2));
 		return TRUE;
 	}
+
+	/* ignore tiny fractions */
+	if (64*w*h < pixmap->drawable.width * pixmap->drawable.height)
+		return FALSE;
 
 	count = SOURCE_BIAS;
 	priv = sna_pixmap(pixmap);
