@@ -603,7 +603,7 @@ NV40EXADoneComposite(PixmapPtr pdPix)
 #define NV30_3D_CHIPSET_4X_MASK 0x00000baf
 #define NV44TCL_CHIPSET_4X_MASK 0x00005450
 Bool
-NVAccelInitNV30_3D(ScrnInfoPtr pScrn)
+NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;

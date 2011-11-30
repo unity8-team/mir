@@ -58,7 +58,7 @@ NV50SyncToVBlank(PixmapPtr ppix, BoxPtr box)
 }
 
 Bool
-NVAccelInitNV50_3D(ScrnInfoPtr pScrn)
+NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
