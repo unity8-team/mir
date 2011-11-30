@@ -164,9 +164,16 @@ static int gem_write(int fd, uint32_t handle,
 
 	VG_CLEAR(pwrite);
 	pwrite.handle = handle;
-	pwrite.offset = offset;
-	pwrite.size = length;
-	pwrite.data_ptr = (uintptr_t)src;
+	/* align the transfer to cachelines; fortuitously this is safe! */
+	if ((offset | length) & 63) {
+		pwrite.offset = offset & ~63;
+		pwrite.size = ALIGN(offset+length, 64) - pwrite.offset;
+		pwrite.data_ptr = (uintptr_t)src + pwrite.offset - offset;
+	} else {
+		pwrite.offset = offset;
+		pwrite.size = length;
+		pwrite.data_ptr = (uintptr_t)src;
+	}
 	return drmIoctl(fd, DRM_IOCTL_I915_GEM_PWRITE, &pwrite);
 }
 
