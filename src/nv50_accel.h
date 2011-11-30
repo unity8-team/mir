@@ -3,6 +3,12 @@
 
 #include "nv04_pushbuf.h"
 
+#include "hwdefs/nv50_2d.xml.h"
+#include "hwdefs/nv50_3d.xml.h"
+#include "hwdefs/nv50_defs.xml.h"
+#include "hwdefs/nv50_texture.h"
+#include "hwdefs/nv_3ddefs.xml.h"
+
 /* "Tesla scratch buffer" offsets */
 #define PVP_OFFSET  0x00000000 /* Vertex program */
 #define PFP_OFFSET  0x00001000 /* Fragment program */
@@ -30,10 +36,10 @@ VTX1s(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *tesla = pNv->Nv3D;
 
-	BEGIN_RING(chan, tesla, NV50TCL_VTX_ATTR_2F_X(8), 2);
+	BEGIN_RING(chan, tesla, NV50_3D_VTX_ATTR_2F_X(8), 2);
 	OUT_RINGf (chan, sx);
 	OUT_RINGf (chan, sy);
-	BEGIN_RING(chan, tesla, NV50TCL_VTX_ATTR_2I(0), 1);
+	BEGIN_RING(chan, tesla, NV50_3D_VTX_ATTR_2I(0), 1);
  	OUT_RING  (chan, (dy << 16) | dx);
 }
 
@@ -44,12 +50,12 @@ VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *tesla = pNv->Nv3D;
 
-	BEGIN_RING(chan, tesla, NV50TCL_VTX_ATTR_2F_X(8), 4);
+	BEGIN_RING(chan, tesla, NV50_3D_VTX_ATTR_2F_X(8), 4);
 	OUT_RINGf (chan, s1x);
 	OUT_RINGf (chan, s1y);
 	OUT_RINGf (chan, s2x);
 	OUT_RINGf (chan, s2y);
-	BEGIN_RING(chan, tesla, NV50TCL_VTX_ATTR_2I(0), 1);
+	BEGIN_RING(chan, tesla, NV50_3D_VTX_ATTR_2I(0), 1);
  	OUT_RING  (chan, (dy << 16) | dx);
 }
 

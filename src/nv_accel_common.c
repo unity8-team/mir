@@ -23,6 +23,11 @@
 #include "nv_include.h"
 #include "nv04_pushbuf.h"
 
+#include "hwdefs/nv_object.xml.h"
+#include "hwdefs/nv_m2mf.xml.h"
+#include "hwdefs/nv01_2d.xml.h"
+#include "hwdefs/nv50_2d.xml.h"
+
 Bool
 nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 			 int usage_hint, int *pitch, struct nouveau_bo **bo)
@@ -173,8 +178,8 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *surf2d;
 	uint32_t class;
 
-	class = (pNv->Architecture >= NV_ARCH_10) ? NV10_CONTEXT_SURFACES_2D :
-						    NV04_CONTEXT_SURFACES_2D;
+	class = (pNv->Architecture >= NV_ARCH_10) ? NV10_SURFACE_2D :
+						    NV04_SURFACE_2D;
 
 	if (!pNv->NvContextSurfaces) {
 		if (nouveau_grobj_alloc(chan, NvContextSurfaces, class,
@@ -183,10 +188,10 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 	}
 	surf2d = pNv->NvContextSurfaces;
 
-	BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, surf2d, NV04_SURFACE_2D_DMA_NOTIFY, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, surf2d,
-		   NV04_CONTEXT_SURFACES_2D_DMA_IMAGE_SOURCE, 2);
+		   NV04_SURFACE_2D_DMA_IMAGE_SOURCE, 2);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 
@@ -239,19 +244,19 @@ NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret)
 {
 	switch (pPix->drawable.bitsPerPixel) {
 	case 32:
-		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_A8R8G8B8;
+		*fmt_ret = NV04_SURFACE_2D_FORMAT_A8R8G8B8;
 		break;
 	case 24:
-		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_X8R8G8B8_Z8R8G8B8;
+		*fmt_ret = NV04_SURFACE_2D_FORMAT_X8R8G8B8_Z8R8G8B8;
 		break;
 	case 16:
 		if (pPix->drawable.depth == 16)
-			*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_R5G6B5;
+			*fmt_ret = NV04_SURFACE_2D_FORMAT_R5G6B5;
 		else
-			*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_X1R5G5B5_Z1R5G5B5;
+			*fmt_ret = NV04_SURFACE_2D_FORMAT_X1R5G5B5_Z1R5G5B5;
 		break;
 	case 8:
-		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_Y8;
+		*fmt_ret = NV04_SURFACE_2D_FORMAT_Y8;
 		break;
 	default:
 		return FALSE;
@@ -265,16 +270,16 @@ NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPict, int *fmt_ret)
 {
 	switch (pPict->format) {
 	case PICT_a8r8g8b8:
-		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_A8R8G8B8;
+		*fmt_ret = NV04_SURFACE_2D_FORMAT_A8R8G8B8;
 		break;
 	case PICT_x8r8g8b8:
-		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_X8R8G8B8_Z8R8G8B8;
+		*fmt_ret = NV04_SURFACE_2D_FORMAT_X8R8G8B8_Z8R8G8B8;
 		break;
 	case PICT_r5g6b5:
-		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_R5G6B5;
+		*fmt_ret = NV04_SURFACE_2D_FORMAT_R5G6B5;
 		break;
 	case PICT_a8:
-		*fmt_ret = NV04_CONTEXT_SURFACES_2D_FORMAT_Y8;
+		*fmt_ret = NV04_SURFACE_2D_FORMAT_Y8;
 		break;
 	default:
 		return FALSE;
@@ -301,23 +306,22 @@ NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *patt;
 
 	if (!pNv->NvImagePattern) {
-		if (nouveau_grobj_alloc(chan, NvImagePattern,
-					NV04_IMAGE_PATTERN,
+		if (nouveau_grobj_alloc(chan, NvImagePattern, NV04_PATTERN,
 					&pNv->NvImagePattern))
 			return FALSE;
 	}
 	patt = pNv->NvImagePattern;
 
-	BEGIN_RING(chan, patt, NV04_IMAGE_PATTERN_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, patt, NV01_PATTERN_DMA_NOTIFY, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_RING(chan, patt, NV04_IMAGE_PATTERN_MONOCHROME_FORMAT, 3);
+	BEGIN_RING(chan, patt, NV01_PATTERN_MONOCHROME_FORMAT, 3);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-	OUT_RING  (chan, NV04_IMAGE_PATTERN_MONOCHROME_FORMAT_LE);
+	OUT_RING  (chan, NV01_PATTERN_MONOCHROME_FORMAT_LE);
 #else
-	OUT_RING  (chan, NV04_IMAGE_PATTERN_MONOCHROME_FORMAT_CGA6);
+	OUT_RING  (chan, NV01_PATTERN_MONOCHROME_FORMAT_CGA6);
 #endif
-	OUT_RING  (chan, NV04_IMAGE_PATTERN_MONOCHROME_SHAPE_8X8);
-	OUT_RING  (chan, NV04_IMAGE_PATTERN_PATTERN_SELECT_MONO);
+	OUT_RING  (chan, NV01_PATTERN_MONOCHROME_SHAPE_8X8);
+	OUT_RING  (chan, NV04_PATTERN_PATTERN_SELECT_MONO);
 
 	return TRUE;
 }
@@ -330,13 +334,12 @@ NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *rop;
 
 	if (!pNv->NvRop) {
-		if (nouveau_grobj_alloc(chan, NvRop, NV03_CONTEXT_ROP,
-					&pNv->NvRop))
+		if (nouveau_grobj_alloc(chan, NvRop, NV03_ROP, &pNv->NvRop))
 			return FALSE;
 	}
 	rop = pNv->NvRop;
 
-	BEGIN_RING(chan, rop, NV03_CONTEXT_ROP_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, rop, NV01_ROP_DMA_NOTIFY, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
 
 	pNv->currentRop = ~0;
@@ -351,31 +354,30 @@ NVAccelInitRectangle(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *rect;
 
 	if (!pNv->NvRectangle) {
-		if (nouveau_grobj_alloc(chan, NvRectangle,
-					NV04_GDI_RECTANGLE_TEXT,
+		if (nouveau_grobj_alloc(chan, NvRectangle, NV04_GDI,
 					&pNv->NvRectangle))
 			return FALSE;
 	}
 	rect = pNv->NvRectangle;
 
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, rect, NV04_GDI_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_DMA_FONTS, 1);
+	BEGIN_RING(chan, rect, NV04_GDI_DMA_FONTS, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_SURFACE, 1);
+	BEGIN_RING(chan, rect, NV04_GDI_SURFACE, 1);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_ROP, 1);
+	BEGIN_RING(chan, rect, NV04_GDI_ROP, 1);
 	OUT_RING  (chan, pNv->NvRop->handle);
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_PATTERN, 1);
+	BEGIN_RING(chan, rect, NV04_GDI_PATTERN, 1);
 	OUT_RING  (chan, pNv->NvImagePattern->handle);
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
-	OUT_RING  (chan, NV04_GDI_RECTANGLE_TEXT_OPERATION_ROP_AND);
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_MONOCHROME_FORMAT, 1);
+	BEGIN_RING(chan, rect, NV04_GDI_OPERATION, 1);
+	OUT_RING  (chan, NV04_GDI_OPERATION_ROP_AND);
+	BEGIN_RING(chan, rect, NV04_GDI_MONOCHROME_FORMAT, 1);
 	/* XXX why putting 1 like renouveau dump, swap the text */
 #if 1 || X_BYTE_ORDER == X_BIG_ENDIAN
-	OUT_RING  (chan, NV04_GDI_RECTANGLE_TEXT_MONOCHROME_FORMAT_LE);
+	OUT_RING  (chan, NV04_GDI_MONOCHROME_FORMAT_LE);
 #else
-	OUT_RING  (chan, NV04_GDI_RECTANGLE_TEXT_MONOCHROME_FORMAT_CGA6);
+	OUT_RING  (chan, NV04_GDI_MONOCHROME_FORMAT_CGA6);
 #endif
 
 	return TRUE;
@@ -389,7 +391,7 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *blit;
 	uint32_t class;
 
-	class = (pNv->dev->chipset >= 0x11) ? NV12_IMAGE_BLIT : NV04_IMAGE_BLIT;
+	class = (pNv->dev->chipset >= 0x11) ? NV15_BLIT : NV04_BLIT;
 
 	if (!pNv->NvImageBlit) {
 		if (nouveau_grobj_alloc(chan, NvImageBlit, class,
@@ -398,21 +400,20 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	}
 	blit = pNv->NvImageBlit;
 
-	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, blit, NV01_BLIT_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_COLOR_KEY, 1);
+	BEGIN_RING(chan, blit, NV01_BLIT_COLOR_KEY, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_SURFACE, 1);
+	BEGIN_RING(chan, blit, NV04_BLIT_SURFACES, 1);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
-	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_CLIP_RECTANGLE, 3);
+	BEGIN_RING(chan, blit, NV01_BLIT_CLIP, 3);
 	OUT_RING  (chan, chan->nullobj->handle);
 	OUT_RING  (chan, pNv->NvImagePattern->handle);
 	OUT_RING  (chan, pNv->NvRop->handle);
-	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_OPERATION, 1);
-	OUT_RING  (chan, NV01_IMAGE_BLIT_OPERATION_ROP_AND);
-
-	if (blit->grclass == NV12_IMAGE_BLIT) {
-		BEGIN_RING(chan, blit, 0x0120, 3);
+	BEGIN_RING(chan, blit, NV01_BLIT_OPERATION, 1);
+	OUT_RING  (chan, NV01_BLIT_OPERATION_ROP_AND);
+	if (blit->grclass == NV15_BLIT) {
+		BEGIN_RING(chan, blit, NV15_BLIT_FLIP_SET_READ, 3);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 2);
@@ -431,16 +432,16 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
-		class = NV04_SCALED_IMAGE_FROM_MEMORY;
+		class = NV04_SIFM;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
 	case NV_ARCH_30:
-		class = NV10_SCALED_IMAGE_FROM_MEMORY;
+		class = NV10_SIFM;
 		break;
 	case NV_ARCH_40:
 	default:
-		class = NV10_SCALED_IMAGE_FROM_MEMORY | 0x3000;
+		class = NV40_SIFM;
 		break;
 	}
 
@@ -451,8 +452,7 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 	}
 	sifm = pNv->NvScaledImage;
 
-	BEGIN_RING(chan, sifm,
-			 NV03_SCALED_IMAGE_FROM_MEMORY_DMA_NOTIFY, 7);
+	BEGIN_RING(chan, sifm, NV03_SIFM_DMA_NOTIFY, 7);
 	OUT_RING  (chan, pNv->notify0->handle);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, chan->nullobj->handle);
@@ -461,12 +461,11 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, pNv->NvContextBeta4->handle);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
 	if (pNv->Architecture>=NV_ARCH_10) {
-	BEGIN_RING(chan, sifm,
-			 NV05_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION, 1);
-	OUT_RING  (chan, NV05_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION_DITHER);
+		BEGIN_RING(chan, sifm, NV05_SIFM_COLOR_CONVERSION, 1);
+		OUT_RING  (chan, NV05_SIFM_COLOR_CONVERSION_DITHER);
 	}
-	BEGIN_RING(chan, sifm, NV03_SCALED_IMAGE_FROM_MEMORY_OPERATION, 1);
-	OUT_RING  (chan, NV03_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
+	BEGIN_RING(chan, sifm, NV03_SIFM_OPERATION, 1);
+	OUT_RING  (chan, NV03_SIFM_OPERATION_SRCCOPY);
 
 	return TRUE;
 }
@@ -479,14 +478,13 @@ NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *clip;
 
 	if (!pNv->NvClipRectangle) {
-		if (nouveau_grobj_alloc(pNv->chan, NvClipRectangle,
-					NV01_CONTEXT_CLIP_RECTANGLE,
+		if (nouveau_grobj_alloc(pNv->chan, NvClipRectangle, NV01_CLIP,
 					&pNv->NvClipRectangle))
 			return FALSE;
 	}
 	clip = pNv->NvClipRectangle;
 
-	BEGIN_RING(chan, clip, NV01_CONTEXT_CLIP_RECTANGLE_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, clip, NV01_CLIP_DMA_NOTIFY, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
 
 	return TRUE;
@@ -502,9 +500,9 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	uint32_t class;
 
 	if (pNv->Architecture < NV_ARCH_50)
-		class = NV04_MEMORY_TO_MEMORY_FORMAT;
+		class = NV03_M2MF;
 	else
-		class = NV50_MEMORY_TO_MEMORY_FORMAT;
+		class = NV50_M2MF;
 
 	if (!pNv->NvMemFormat) {
 		if (nouveau_grobj_alloc(chan, NvMemFormat, class,
@@ -513,9 +511,9 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	}
 	m2mf = pNv->NvMemFormat;
 
-	BEGIN_RING(chan, m2mf, NV04_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, m2mf, NV03_M2MF_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_RING(chan, m2mf, NV04_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
+	BEGIN_RING(chan, m2mf, NV03_M2MF_DMA_BUFFER_IN, 2);
 	OUT_RING  (chan, chan->vram->handle);
 	OUT_RING  (chan, chan->vram->handle);
 
@@ -532,14 +530,14 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
-		class = NV04_IMAGE_FROM_CPU;
+		class = NV04_IFC;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
 	case NV_ARCH_30:
 	case NV_ARCH_40:
 	default:
-		class = NV10_IMAGE_FROM_CPU;
+		class = NV10_IFC;
 		break;
 	}
 
@@ -550,24 +548,24 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 	}
 	ifc = pNv->NvImageFromCpu;
 
-	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_DMA_NOTIFY, 1);
+	BEGIN_RING(chan, ifc, NV01_IFC_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_CLIP_RECTANGLE, 1);
+	BEGIN_RING(chan, ifc, NV01_IFC_CLIP, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_PATTERN, 1);
+	BEGIN_RING(chan, ifc, NV01_IFC_PATTERN, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
-	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_ROP, 1);
+	BEGIN_RING(chan, ifc, NV01_IFC_ROP, 1);
 	OUT_RING  (chan, chan->nullobj->handle);
 	if (pNv->Architecture >= NV_ARCH_10) {
-		BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_BETA1, 1);
+		BEGIN_RING(chan, ifc, NV01_IFC_BETA, 1);
 		OUT_RING  (chan, chan->nullobj->handle);
-		BEGIN_RING(chan, ifc, NV04_IMAGE_FROM_CPU_BETA4, 1);
+		BEGIN_RING(chan, ifc, NV04_IFC_BETA4, 1);
 		OUT_RING  (chan, chan->nullobj->handle);
 	}
-	BEGIN_RING(chan, ifc, NV04_IMAGE_FROM_CPU_SURFACE, 1);
+	BEGIN_RING(chan, ifc, NV04_IFC_SURFACE, 1);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
-	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_OPERATION, 1);
-	OUT_RING  (chan, NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
+	BEGIN_RING(chan, ifc, NV01_IFC_OPERATION, 1);
+	OUT_RING  (chan, NV01_IFC_OPERATION_SRCCOPY);
 
 	return TRUE;
 }

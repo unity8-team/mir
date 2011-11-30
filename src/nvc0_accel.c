@@ -70,8 +70,8 @@ NVAccelInit2D_NVC0(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 1);
 	BEGIN_RING(chan, pNv->Nv2D, NV50_2D_DRAW_SHAPE, 2);
 	OUT_RING  (chan, 4);
-	OUT_RING  (chan, NV50_SURFACE_FORMAT_R5G6B5_UNORM);
-	BEGIN_RING(chan, pNv->Nv2D, NV50_2D_PATTERN_FORMAT, 2);
+	OUT_RING  (chan, NV50_SURFACE_FORMAT_B5G6R5_UNORM);
+	BEGIN_RING(chan, pNv->Nv2D, NV50_2D_PATTERN_COLOR_FORMAT, 2);
 	OUT_RING  (chan, 2);
 	OUT_RING  (chan, 1);
 	FIRE_RING (chan);
@@ -109,7 +109,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	if (MARK_RING(chan, 512, 32))
 		return FALSE;
 
-	BEGIN_RING(chan, m2mf, NVC0_M2MF_NOTIFY_ADDRESS_HIGH, 3);
+	BEGIN_RING(chan, m2mf, NVC0_M2MF_QUERY_ADDRESS_HIGH, 3);
 	OUT_RELOCh(chan, bo, NTFY_OFFSET, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
 	OUT_RELOCl(chan, bo, NTFY_OFFSET, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
 	OUT_RING  (chan, 0);
@@ -119,12 +119,12 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	OUT_RELOCl(chan, bo, NTFY_OFFSET, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, fermi, NVC0_3D_MULTISAMPLE_COLOR_ENABLE, 1);
+	BEGIN_RING(chan, fermi, NVC0_3D_CSAA_ENABLE, 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, fermi, NVC0_3D_MULTISAMPLE_ZETA_ENABLE, 1);
+	BEGIN_RING(chan, fermi, NVC0_3D_MULTISAMPLE_ENABLE, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, fermi, NVC0_3D_MULTISAMPLE_MODE, 1);
-	OUT_RING  (chan, NVC0_3D_MULTISAMPLE_MODE_1X);
+	OUT_RING  (chan, NVC0_3D_MULTISAMPLE_MODE_MS1);
 
 	BEGIN_RING(chan, fermi, NVC0_3D_COND_MODE, 1);
 	OUT_RING  (chan, NVC0_3D_COND_MODE_ALWAYS);
@@ -132,7 +132,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 1);
 	BEGIN_RING(chan, fermi, NVC0_3D_ZETA_ENABLE, 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, fermi, NVC0_3D_VIEWPORT_CLIP_RECTS_EN, 2);
+	BEGIN_RING(chan, fermi, NVC0_3D_CLIP_RECTS_EN, 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, fermi, NVC0_3D_CLIPID_ENABLE, 1);
@@ -150,7 +150,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, fermi, NVC0_3D_SCREEN_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, (8192 << 16) | 0);
 	OUT_RING  (chan, (8192 << 16) | 0);
-	BEGIN_RING(chan, fermi, NVC0_3D_Y_ORIGIN_BOTTOM, 1);
+	BEGIN_RING(chan, fermi, NVC0_3D_SCREEN_Y_CONTROL, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, fermi, NVC0_3D_WINDOW_OFFSET_X, 2);
 	OUT_RING  (chan, 0);
@@ -690,7 +690,7 @@ NVAccelInit3D_NVC0(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 1);
 	BEGIN_RING(chan, fermi, NVC0_3D_SP_SELECT(4), 1);
 	OUT_RING  (chan, 0x40);
-	BEGIN_RING(chan, fermi, NVC0_3D_GP_BUILTIN_RESULT_EN, 1);
+	BEGIN_RING(chan, fermi, NVC0_3D_LAYER, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, fermi, NVC0_3D_SP_SELECT(3), 1);
 	OUT_RING  (chan, 0x30);

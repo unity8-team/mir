@@ -34,7 +34,6 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 #include "nv50_accel.h"
-#include "nv50_texture.h"
 
 extern Atom xvSyncToVBlank, xvSetDefaults;
 extern Atom xvBrightness, xvContrast, xvHue, xvSaturation;
@@ -75,46 +74,46 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	if (MARK_RING(chan, 256, 18))
 		return FALSE;
 
-	BEGIN_RING(chan, tesla, NV50TCL_RT_ADDRESS_HIGH(0), 5);
+	BEGIN_RING(chan, tesla, NV50_3D_RT_ADDRESS_HIGH(0), 5);
 	if (OUT_RELOCh(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
 	    OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
 	switch (ppix->drawable.bitsPerPixel) {
-	case 32: OUT_RING  (chan, NV50TCL_RT_FORMAT_A8R8G8B8_UNORM); break;
-	case 24: OUT_RING  (chan, NV50TCL_RT_FORMAT_X8R8G8B8_UNORM); break;
-	case 16: OUT_RING  (chan, NV50TCL_RT_FORMAT_R5G6B5_UNORM); break;
-	case 15: OUT_RING  (chan, NV50TCL_RT_FORMAT_X1R5G5B5_UNORM); break;
+	case 32: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGRA8_UNORM); break;
+	case 24: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGRX8_UNORM); break;
+	case 16: OUT_RING  (chan, NV50_SURFACE_FORMAT_B5G6R5_UNORM); break;
+	case 15: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGR5_X1_UNORM); break;
 	}
 	OUT_RING  (chan, bo->tile_mode << 4);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, tesla, NV50TCL_RT_HORIZ(0), 2);
+	BEGIN_RING(chan, tesla, NV50_3D_RT_HORIZ(0), 2);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, ppix->drawable.height);
-	BEGIN_RING(chan, tesla, NV50TCL_RT_ARRAY_MODE, 1);
+	BEGIN_RING(chan, tesla, NV50_3D_RT_ARRAY_MODE, 1);
 	OUT_RING  (chan, 1);
 
-	BEGIN_RING(chan, tesla, NV50TCL_BLEND_ENABLE(0), 1);
+	BEGIN_RING(chan, tesla, NV50_3D_BLEND_ENABLE(0), 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, tesla, NV50TCL_TIC_ADDRESS_HIGH, 3);
+	BEGIN_RING(chan, tesla, NV50_3D_TIC_ADDRESS_HIGH, 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
 	OUT_RING  (chan, 0x00000800);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
+	BEGIN_RING(chan, tesla, NV50_3D_CB_DEF_ADDRESS_HIGH, 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	OUT_RING  (chan, (CB_TIC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
+	OUT_RING  (chan, (CB_TIC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_RING(chan, tesla, NV50_3D_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TIC);
-	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 16);
+	BEGIN_RING_NI(chan, tesla, NV50_3D_CB_DATA(0), 16);
 	if (id == FOURCC_YV12 || id == FOURCC_I420) {
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
@@ -199,23 +198,23 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	OUT_RING  (chan, 0x00000000);
 	}
 
-	BEGIN_RING(chan, tesla, NV50TCL_TSC_ADDRESS_HIGH, 3);
+	BEGIN_RING(chan, tesla, NV50_3D_TSC_ADDRESS_HIGH, 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
 	OUT_RING  (chan, 0x00000000);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
+	BEGIN_RING(chan, tesla, NV50_3D_CB_DEF_ADDRESS_HIGH, 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	OUT_RING  (chan, (CB_TSC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
+	OUT_RING  (chan, (CB_TSC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_RING(chan, tesla, NV50_3D_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TSC);
-	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 16);
+	BEGIN_RING_NI(chan, tesla, NV50_3D_CB_DATA(0), 16);
 	OUT_RING  (chan, NV50TSC_1_0_WRAPS_CLAMP_TO_EDGE |
 			 NV50TSC_1_0_WRAPT_CLAMP_TO_EDGE |
 			 NV50TSC_1_0_WRAPR_CLAMP_TO_EDGE);
@@ -241,27 +240,27 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	OUT_RING  (chan, 0x00000000);
 	OUT_RING  (chan, 0x00000000);
 
-	BEGIN_RING(chan, tesla, NV50TCL_VP_ADDRESS_HIGH, 2);
+	BEGIN_RING(chan, tesla, NV50_3D_VP_ADDRESS_HIGH, 2);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	BEGIN_RING(chan, tesla, NV50TCL_FP_ADDRESS_HIGH, 2);
+	BEGIN_RING(chan, tesla, NV50_3D_FP_ADDRESS_HIGH, 2);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	BEGIN_RING(chan, tesla, NV50TCL_FP_START_ID, 1);
+	BEGIN_RING(chan, tesla, NV50_3D_FP_START_ID, 1);
 	OUT_RING  (chan, PFP_NV12);
 
 	BEGIN_RING(chan, tesla, 0x1334, 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, tesla, NV50TCL_BIND_TIC(2), 1);
+	BEGIN_RING(chan, tesla, NV50_3D_BIND_TIC(2), 1);
 	OUT_RING  (chan, 1);
-	BEGIN_RING(chan, tesla, NV50TCL_BIND_TIC(2), 1);
+	BEGIN_RING(chan, tesla, NV50_3D_BIND_TIC(2), 1);
 	OUT_RING  (chan, 0x203);
 
 	return TRUE;
@@ -323,20 +322,20 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 				return BadAlloc;
 		}
 
-		/* NV50TCL_SCISSOR_VERT_T_SHIFT is wrong, because it was deducted with
+		/* NV50_3D_SCISSOR_VERT_T_SHIFT is wrong, because it was deducted with
 		* origin lying at the bottom left. This will be changed to _MIN_ and _MAX_
 		* later, because it is origin dependent.
 		*/
-		BEGIN_RING(chan, tesla, NV50TCL_SCISSOR_HORIZ(0), 2);
-		OUT_RING  (chan, sx2 << NV50TCL_SCISSOR_HORIZ_MAX_SHIFT | sx1);
-		OUT_RING  (chan, sy2 << NV50TCL_SCISSOR_VERT_MAX_SHIFT | sy1 );
+		BEGIN_RING(chan, tesla, NV50_3D_SCISSOR_HORIZ(0), 2);
+		OUT_RING  (chan, sx2 << NV50_3D_SCISSOR_HORIZ_MAX__SHIFT | sx1);
+		OUT_RING  (chan, sy2 << NV50_3D_SCISSOR_VERT_MAX__SHIFT | sy1 );
 
-		BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
-		OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_TRIANGLES);
+		BEGIN_RING(chan, tesla, NV50_3D_VERTEX_BEGIN_GL, 1);
+		OUT_RING  (chan, NV50_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
 		VTX2s(pNv, tx1, ty1, tx1, ty1, sx1, sy1);
 		VTX2s(pNv, tx2+(tx2-tx1), ty1, tx2+(tx2-tx1), ty1, sx2+(sx2-sx1), sy1);
 		VTX2s(pNv, tx1, ty2+(ty2-ty1), tx1, ty2+(ty2-ty1), sx1, sy2+(sy2-sy1));
-		BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
+		BEGIN_RING(chan, tesla, NV50_3D_VERTEX_END_GL, 1);
 		OUT_RING  (chan, 0);
 
 		pbox++;
@@ -407,7 +406,7 @@ nv50_xv_csc_update(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	if (MARK_RING(chan, 64, 2))
 		return;
 
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
+	BEGIN_RING(chan, tesla, NV50_3D_CB_DEF_ADDRESS_HIGH, 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_DATA,
 		       NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_DATA,
@@ -415,10 +414,10 @@ nv50_xv_csc_update(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 		MARK_UNDO(chan);
 		return;
 	}
-	OUT_RING  (chan, (CB_PFP << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
+	OUT_RING  (chan, (CB_PFP << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
+	BEGIN_RING(chan, tesla, NV50_3D_CB_ADDR, 1);
 	OUT_RING  (chan, CB_PFP);
-	BEGIN_RING_NI(chan, tesla, NV50TCL_CB_DATA(0), 10);
+	BEGIN_RING_NI(chan, tesla, NV50_3D_CB_DATA(0), 10);
 	OUT_RINGf (chan, yco);
 	OUT_RINGf (chan, off[0]);
 	OUT_RINGf (chan, off[1]);

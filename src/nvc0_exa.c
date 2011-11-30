@@ -24,7 +24,6 @@
 #include "nv_include.h"
 #include "nv_rop.h"
 #include "nvc0_accel.h"
-#include "nv50_texture.h"
 
 #define NOUVEAU_BO(a, b, c) (NOUVEAU_BO_##a | NOUVEAU_BO_##b | NOUVEAU_BO_##c)
 
@@ -257,12 +256,12 @@ NVC0EXA2DSurfaceFormat(PixmapPtr ppix, uint32_t *fmt)
 	NVC0EXA_LOCALS(ppix);
 
 	switch (ppix->drawable.bitsPerPixel) {
-	case 8 : *fmt = NV50_2D_SRC_FORMAT_R8_UNORM; break;
-	case 15: *fmt = NV50_2D_SRC_FORMAT_X1R5G5B5_UNORM; break;
-	case 16: *fmt = NV50_2D_SRC_FORMAT_R5G6B5_UNORM; break;
-	case 24: *fmt = NV50_2D_SRC_FORMAT_X8R8G8B8_UNORM; break;
-	case 30: *fmt = NV50_2D_SRC_FORMAT_A2B10G10R10_UNORM; break;
-	case 32: *fmt = NV50_2D_SRC_FORMAT_A8R8G8B8_UNORM; break;
+	case 8 : *fmt = NV50_SURFACE_FORMAT_R8_UNORM; break;
+	case 15: *fmt = NV50_SURFACE_FORMAT_BGR5_X1_UNORM; break;
+	case 16: *fmt = NV50_SURFACE_FORMAT_B5G6R5_UNORM; break;
+	case 24: *fmt = NV50_SURFACE_FORMAT_BGRX8_UNORM; break;
+	case 30: *fmt = NV50_SURFACE_FORMAT_RGB10_A2_UNORM; break;
+	case 32: *fmt = NV50_SURFACE_FORMAT_BGRA8_UNORM; break;
 	default:
 		 NOUVEAU_FALLBACK("Unknown surface format for bpp=%d\n",
 				  ppix->drawable.bitsPerPixel);
@@ -353,10 +352,10 @@ NVC0EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 		OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
 		return;
 	} else {
-		OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY_PREMULT);
+		OUT_RING  (chan, NV50_2D_OPERATION_ROP);
 	}
 
-	BEGIN_RING(chan, eng2d, NV50_2D_PATTERN_FORMAT, 2);
+	BEGIN_RING(chan, eng2d, NV50_2D_PATTERN_COLOR_FORMAT, 2);
 	switch (pdpix->drawable.bitsPerPixel) {
 	case  8: OUT_RING  (chan, 3); break;
 	case 15: OUT_RING  (chan, 1); break;
@@ -502,7 +501,7 @@ NVC0EXACopy(PixmapPtr pdpix, int srcX , int srcY,
 	NVC0EXA_LOCALS(pdpix);
 
 	WAIT_RING (chan, 17);
-	BEGIN_RING(chan, eng2d, NV50_2D_SERIALIZE, 1);
+	BEGIN_RING(chan, eng2d, NV50_GRAPH_SERIALIZE, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, eng2d, 0x088c, 1);
 	OUT_RING  (chan, 0);
@@ -656,20 +655,20 @@ NVC0EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
 	switch (ppict->format) {
-	case PICT_a8r8g8b8: format = NV50_SURFACE_FORMAT_A8R8G8B8_UNORM; break;
-	case PICT_x8r8g8b8: format = NV50_SURFACE_FORMAT_X8R8G8B8_UNORM; break;
-	case PICT_r5g6b5:   format = NV50_SURFACE_FORMAT_R5G6B5_UNORM; break;
-	case PICT_a8:       format = NV50_SURFACE_FORMAT_A8_UNORM; break;
-	case PICT_x1r5g5b5: format = NV50_SURFACE_FORMAT_X1R5G5B5_UNORM; break;
-	case PICT_a1r5g5b5: format = NV50_SURFACE_FORMAT_A1R5G5B5_UNORM; break;
-	case PICT_x8b8g8r8: format = NV50_SURFACE_FORMAT_X8B8G8R8_UNORM; break;
+	case PICT_a8r8g8b8: format = NV50_SURFACE_FORMAT_BGRA8_UNORM; break;
+	case PICT_x8r8g8b8: format = NV50_SURFACE_FORMAT_BGRX8_UNORM; break;
+	case PICT_r5g6b5  : format = NV50_SURFACE_FORMAT_B5G6R5_UNORM; break;
+	case PICT_a8      : format = NV50_SURFACE_FORMAT_A8_UNORM; break;
+	case PICT_x1r5g5b5: format = NV50_SURFACE_FORMAT_BGR5_X1_UNORM; break;
+	case PICT_a1r5g5b5: format = NV50_SURFACE_FORMAT_BGR5_A1_UNORM; break;
+	case PICT_x8b8g8r8: format = NV50_SURFACE_FORMAT_RGBX8_UNORM; break;
 	case PICT_a2b10g10r10:
 	case PICT_x2b10g10r10:
-		format = NV50_SURFACE_FORMAT_A2B10G10R10_UNORM;
+		format = NV50_SURFACE_FORMAT_RGB10_A2_UNORM;
 		break;
 	case PICT_a2r10g10b10:
 	case PICT_x2r10g10b10:
-		format = NV50_SURFACE_FORMAT_A2R10G10B10_UNORM;
+		format = NV50_SURFACE_FORMAT_BGR10_A2_UNORM;
 		break;
 	default:
 		NOUVEAU_FALLBACK("invalid picture format\n");
@@ -1041,7 +1040,7 @@ NVC0EXAPrepareComposite(int op,
 		NOUVEAU_FALLBACK("comp-alpha");
 	*/
 
-	BEGIN_RING(chan, eng2d, NV50_2D_SERIALIZE, 1);
+	BEGIN_RING(chan, eng2d, NV50_GRAPH_SERIALIZE, 1);
 	OUT_RING  (chan, 0);
 
 	if (!NVC0EXARenderTarget(pdpix, pdpict)) {

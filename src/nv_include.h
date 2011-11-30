@@ -69,7 +69,6 @@
 #include "nv_type.h"
 #include "nv_proto.h"
 #include "nv_dma.h"
-#include "nouveau_class.h"
 #include "sarea.h"
 
 #include "nouveau_drmif.h"

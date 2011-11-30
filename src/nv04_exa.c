@@ -25,6 +25,8 @@
 
 #include "nv04_pushbuf.h"
 
+#include "hwdefs/nv01_2d.xml.h"
+
 static void 
 NV04EXASetPattern(ScrnInfoPtr pScrn, CARD32 clr0, CARD32 clr1,
 		  CARD32 pat0, CARD32 pat1)
@@ -33,7 +35,7 @@ NV04EXASetPattern(ScrnInfoPtr pScrn, CARD32 clr0, CARD32 clr1,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *patt = pNv->NvImagePattern;
 
-	BEGIN_RING(chan, patt, NV04_IMAGE_PATTERN_MONOCHROME_COLOR0, 4);
+	BEGIN_RING(chan, patt, NV01_PATTERN_MONOCHROME_COLOR(0), 4);
 	OUT_RING  (chan, clr0);
 	OUT_RING  (chan, clr1);
 	OUT_RING  (chan, pat0);
@@ -50,7 +52,7 @@ NV04EXASetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 	if (planemask != ~0) {
 		NV04EXASetPattern(pScrn, 0, planemask, ~0, ~0);
 		if (pNv->currentRop != (alu + 32)) {
-			BEGIN_RING(chan, rop, NV03_CONTEXT_ROP_ROP, 1);
+			BEGIN_RING(chan, rop, NV01_ROP_ROP, 1);
 			OUT_RING  (chan, NVROP[alu].copy_planemask);
 			pNv->currentRop = alu + 32;
 		}
@@ -58,7 +60,7 @@ NV04EXASetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 	if (pNv->currentRop != alu) {
 		if(pNv->currentRop >= 16)
 			NV04EXASetPattern(pScrn, ~0, ~0, ~0, ~0);
-		BEGIN_RING(chan, rop, NV03_CONTEXT_ROP_ROP, 1);
+		BEGIN_RING(chan, rop, NV01_ROP_ROP, 1);
 		OUT_RING  (chan, NVROP[alu].copy);
 		pNv->currentRop = alu;
 	}
@@ -82,7 +84,7 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *rect = pNv->NvRectangle;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pPixmap);
-	unsigned int fmt, pitch, fmt2 = NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8;
+	unsigned int fmt, pitch, fmt2 = NV04_GDI_COLOR_FORMAT_A8R8G8B8;
 
 	if (MARK_RING(chan, 64, 2))
 		return FALSE;
@@ -91,11 +93,11 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
+		BEGIN_RING(chan, rect, NV04_GDI_OPERATION, 1);
 		OUT_RING  (chan, 1); /* ROP_AND */
 		NV04EXASetROP(pScrn, alu, planemask);
 	} else {
-		BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
+		BEGIN_RING(chan, rect, NV04_GDI_OPERATION, 1);
 		OUT_RING  (chan, 3); /* SRCCOPY */
 	}
 
@@ -105,9 +107,9 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 
 	if (pPixmap->drawable.bitsPerPixel == 16) {
 		if (pPixmap->drawable.depth == 16) {
-			fmt2 = NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A16R5G6B5;
+			fmt2 = NV04_GDI_COLOR_FORMAT_A16R5G6B5;
 		} else if (pPixmap->drawable.depth == 15) {
-			fmt2 = NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_X16A1R5G5B5;
+			fmt2 = NV04_GDI_COLOR_FORMAT_X16A1R5G5B5;
 		}
 	}
 
@@ -115,10 +117,10 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	 * alpha channel gets forced to 0xFF for some reason.  We're using 
 	 * SURFACE_FORMAT_Y32 as a workaround
 	 */
-	if (fmt == NV04_CONTEXT_SURFACES_2D_FORMAT_A8R8G8B8)
-		fmt = NV04_CONTEXT_SURFACES_2D_FORMAT_Y32;
+	if (fmt == NV04_SURFACE_2D_FORMAT_A8R8G8B8)
+		fmt = NV04_SURFACE_2D_FORMAT_Y32;
 
-	BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+	BEGIN_RING(chan, surf2d, NV04_SURFACE_2D_FORMAT, 4);
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, (pitch << 16) | pitch);
 	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
@@ -127,9 +129,9 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 		return FALSE;
 	}
 
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
+	BEGIN_RING(chan, rect, NV04_GDI_COLOR_FORMAT, 1);
 	OUT_RING  (chan, fmt2);
-	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
+	BEGIN_RING(chan, rect, NV04_GDI_COLOR1_A, 1);
 	OUT_RING (chan, fg);
 
 	pNv->pdpix = pPixmap;
@@ -150,8 +152,7 @@ NV04EXASolid (PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	int width = x2-x1;
 	int height = y2-y1;
 
-	BEGIN_RING(chan, rect,
-		   NV04_GDI_RECTANGLE_TEXT_UNCLIPPED_RECTANGLE_POINT(0), 2);
+	BEGIN_RING(chan, rect, NV04_GDI_UNCLIPPED_RECTANGLE_POINT(0), 2);
 	OUT_RING  (chan, (x1 << 16) | y1);
 	OUT_RING  (chan, (width << 16) | height);
 
@@ -208,16 +209,16 @@ NV04EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
 			return FALSE;
 		}
 
-		BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_OPERATION, 1);
+		BEGIN_RING(chan, blit, NV01_BLIT_OPERATION, 1);
 		OUT_RING  (chan, 1); /* ROP_AND */
 
 		NV04EXASetROP(pScrn, alu, planemask);
 	} else {
-		BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_OPERATION, 1);
+		BEGIN_RING(chan, blit, NV01_BLIT_OPERATION, 1);
 		OUT_RING  (chan, 3); /* SRCCOPY */
 	}
 
-	BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+	BEGIN_RING(chan, surf2d, NV04_SURFACE_2D_FORMAT, 4);
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, (exaGetPixmapPitch(pDstPixmap) << 16) |
 		   (exaGetPixmapPitch(pSrcPixmap)));
@@ -264,13 +265,13 @@ NV04EXACopy(PixmapPtr pDstPixmap, int srcX, int srcY, int dstX, int dstY,
 		if (MARK_RING(chan, 10, 1))
 			return;
 
-		BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_POINT_IN, 3);
+		BEGIN_RING(chan, blit, NV01_BLIT_POINT_IN, 3);
 		OUT_RING  (chan, (srcY << 16) | srcX);
 		OUT_RING  (chan, (dstY << 16) | dstX);
 		OUT_RING  (chan, (split_height  << 16) | width);
 
 		BEGIN_RING(chan, surf2d,
-			   NV04_CONTEXT_SURFACES_2D_OFFSET_DESTIN, 1);
+			   NV04_SURFACE_2D_OFFSET_DESTIN, 1);
 		OUT_RELOCl(chan, dst_bo, split_dstY * dst_pitch,
 			   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
@@ -279,7 +280,7 @@ NV04EXACopy(PixmapPtr pDstPixmap, int srcX, int srcY, int dstX, int dstY,
 		dstY = 0;
 	}
 
-	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_POINT_IN, 3);
+	BEGIN_RING(chan, blit, NV01_BLIT_POINT_IN, 3);
 	OUT_RING  (chan, (srcY << 16) | srcX);
 	OUT_RING  (chan, (dstY << 16) | dstX);
 	OUT_RING  (chan, (height  << 16) | width);
@@ -312,7 +313,7 @@ NV04EXAStateIFCSubmit(struct nouveau_channel *chan)
 	if (MARK_RING(chan, 64, 2))
 		return FALSE;
 
-	BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+	BEGIN_RING(chan, surf2d, NV04_SURFACE_2D_FORMAT, 4);
 	OUT_RING  (chan, surf_fmt);
 	OUT_RING  (chan, (exaGetPixmapPitch(pNv->pdpix) << 16) |
 			  exaGetPixmapPitch(pNv->pdpix));
@@ -321,7 +322,7 @@ NV04EXAStateIFCSubmit(struct nouveau_channel *chan)
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_POINT, 3);
+	BEGIN_RING(chan, ifc, NV01_IFC_POINT, 3);
 	OUT_RING  (chan, (pNv->point_y << 16) | pNv->point_x);
 	OUT_RING  (chan, (pNv->height_out << 16) | pNv->width_out);
 	OUT_RING  (chan, (pNv->height_in << 16) | pNv->width_in);
@@ -377,11 +378,11 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	if (id > 1792)
 		return FALSE;
 
-	BEGIN_RING(chan, clip, NV01_CONTEXT_CLIP_RECTANGLE_POINT, 2);
+	BEGIN_RING(chan, clip, NV01_CLIP_POINT, 2);
 	OUT_RING  (chan, (y << 16) | x);
 	OUT_RING  (chan, (h << 16) | w);
-	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_OPERATION, 2);
-	OUT_RING  (chan, NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
+	BEGIN_RING(chan, ifc, NV01_IFC_OPERATION, 2);
+	OUT_RING  (chan, NV01_IFC_OPERATION_SRCCOPY);
 	OUT_RING  (chan, ifc_fmt);
 
 	pNv->point_x = x;
@@ -398,7 +399,7 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		h--;
 	while (h--) {
 		/* send a line */
-		BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_COLOR(0), id);
+		BEGIN_RING(chan, ifc, NV01_IFC_COLOR(0), id);
 		OUT_RINGp (chan, src, id);
 
 		src += src_pitch;
@@ -407,7 +408,7 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	if (padbytes) {
 		char padding[8];
 		int aux = (padbytes + 7) >> 2;
-		BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_COLOR(0), id);
+		BEGIN_RING(chan, ifc, NV01_IFC_COLOR(0), id);
 		OUT_RINGp (chan, src, id - aux);
 		memcpy(padding, src + (id - aux) * 4, padbytes);
 		OUT_RINGp (chan, padding, aux);

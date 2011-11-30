@@ -2,6 +2,13 @@
 #define __NVC0_ACCEL_H__
 
 #include "nvc0_pushbuf.h"
+#include "hwdefs/nv_object.xml.h"
+#include "hwdefs/nv50_2d.xml.h"
+#include "hwdefs/nvc0_3d.xml.h"
+#include "hwdefs/nvc0_m2mf.xml.h"
+#include "hwdefs/nv50_defs.xml.h"
+#include "hwdefs/nv50_texture.h"
+#include "hwdefs/nv_3ddefs.xml.h"
 
 /* scratch buffer offsets */
 #define CODE_OFFSET 0x00000 /* Code */

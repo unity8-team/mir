@@ -33,7 +33,6 @@
 
 #include "nv_include.h"
 #include "nvc0_accel.h"
-#include "nv50_texture.h"
 
 extern Atom xvSyncToVBlank, xvSetDefaults;
 
@@ -134,10 +133,10 @@ nvc0_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, ppix->drawable.height);
 	switch (ppix->drawable.bitsPerPixel) {
-	case 32: OUT_RING  (chan, NV50_SURFACE_FORMAT_A8R8G8B8_UNORM); break;
-	case 24: OUT_RING  (chan, NV50_SURFACE_FORMAT_X8R8G8B8_UNORM); break;
-	case 16: OUT_RING  (chan, NV50_SURFACE_FORMAT_R5G6B5_UNORM); break;
-	case 15: OUT_RING  (chan, NV50_SURFACE_FORMAT_X1R5G5B5_UNORM); break;
+	case 32: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGRA8_UNORM); break;
+	case 24: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGRX8_UNORM); break;
+	case 16: OUT_RING  (chan, NV50_SURFACE_FORMAT_B5G6R5_UNORM); break;
+	case 15: OUT_RING  (chan, NV50_SURFACE_FORMAT_BGR5_X1_UNORM); break;
 	}
 	OUT_RING  (chan, bo->tile_mode);
 	OUT_RING  (chan, 1);

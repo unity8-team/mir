@@ -496,7 +496,6 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	NVPtr pNv = NVPTR(crtc->scrn);
 
 	if (rotate_pixmap)
 		FreeScratchPixmapHeader(rotate_pixmap);

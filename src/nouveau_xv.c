@@ -39,6 +39,8 @@
 
 #include "vl_hwmc.h"
 
+#include "hwdefs/nv_m2mf.xml.h"
+
 #define IMAGE_MAX_W 2046
 #define IMAGE_MAX_H 2046
 
@@ -1120,16 +1122,15 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 		if (MARK_RING(chan, 64, 4))
 			return FALSE;
 
-		BEGIN_RING(chan, m2mf,
-			   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
+		BEGIN_RING(chan, m2mf, NV03_M2MF_DMA_BUFFER_IN, 2);
 		OUT_RING  (chan, pNv->chan->gart->handle);
 		OUT_RING  (chan, pNv->chan->vram->handle);
 
 		if (pNv->Architecture >= NV_ARCH_50) {
-			BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_IN, 1);
+			BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_IN, 1);
 			OUT_RING  (chan, 1);
 
-			BEGIN_RING(chan, m2mf, NV50_MEMORY_TO_MEMORY_FORMAT_LINEAR_OUT, 7);
+			BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_OUT, 7);
 			OUT_RING  (chan, 0);
 			OUT_RING  (chan, destination_buffer->tile_mode << 4);
 			OUT_RING  (chan, dstPitch);
@@ -1144,8 +1145,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 		    !(action_flags & CONVERT_TO_YUY2)) {
 			/* we start the color plane transfer separately */
 
-			BEGIN_RING(chan, m2mf,
-				   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+			BEGIN_RING(chan, m2mf, NV03_M2MF_OFFSET_IN, 8);
 			if (OUT_RELOCl(chan, destination_buffer,
 				       line_len * nlines,
 				       NOUVEAU_BO_GART | NOUVEAU_BO_RD) ||
@@ -1163,8 +1163,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 			OUT_RING  (chan, 0);
 		}
 
-		BEGIN_RING(chan, m2mf,
-			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+		BEGIN_RING(chan, m2mf, NV03_M2MF_OFFSET_IN, 8);
 		if (OUT_RELOCl(chan, destination_buffer, 0,
 			       NOUVEAU_BO_GART | NOUVEAU_BO_RD) ||
 		    OUT_RELOCl(chan, pPriv->video_mem, offset,

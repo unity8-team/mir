@@ -39,6 +39,8 @@
 #include "nv30_shaders.h"
 #include "nv04_pushbuf.h"
 
+#include "hwdefs/nv30-40_3d.xml.h"
+
 extern Atom xvSyncToVBlank, xvSetDefaults;
 
 /*
@@ -118,10 +120,10 @@ NV40_LoadFilterTable(ScrnInfoPtr pScrn)
 
 #define SWIZZLE(ts0x,ts0y,ts0z,ts0w,ts1x,ts1y,ts1z,ts1w)				\
 	(										\
-	NV40TCL_TEX_SWIZZLE_S0_X_##ts0x | NV40TCL_TEX_SWIZZLE_S0_Y_##ts0y	|	\
-	NV40TCL_TEX_SWIZZLE_S0_Z_##ts0z | NV40TCL_TEX_SWIZZLE_S0_W_##ts0w	|	\
-	NV40TCL_TEX_SWIZZLE_S1_X_##ts1x | NV40TCL_TEX_SWIZZLE_S1_Y_##ts1y 	|	\
-	NV40TCL_TEX_SWIZZLE_S1_Z_##ts1z | NV40TCL_TEX_SWIZZLE_S1_W_##ts1w		\
+	NV30_3D_TEX_SWIZZLE_S0_X_##ts0x | NV30_3D_TEX_SWIZZLE_S0_Y_##ts0y	|	\
+	NV30_3D_TEX_SWIZZLE_S0_Z_##ts0z | NV30_3D_TEX_SWIZZLE_S0_W_##ts0w	|	\
+	NV30_3D_TEX_SWIZZLE_S1_X_##ts1x | NV30_3D_TEX_SWIZZLE_S1_Y_##ts1y 	|	\
+	NV30_3D_TEX_SWIZZLE_S1_Z_##ts1z | NV30_3D_TEX_SWIZZLE_S1_W_##ts1w		\
 	)
 
 /*
@@ -142,15 +144,15 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 
 	switch(unit) {
 	case 0:
-		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_A8R8G8B8;
+		card_fmt = NV40_3D_TEX_FORMAT_FORMAT_A8R8G8B8;
 		card_swz = SWIZZLE(S1, S1, S1, S1, X, Y, Z, W);
 		break;
 	case 1:
-		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_L8;
+		card_fmt = NV40_3D_TEX_FORMAT_FORMAT_L8;
 		card_swz = SWIZZLE(S1, S1, S1, S1, X, X, X, X);
 		break;
 	case 2:
-		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_A8L8;
+		card_fmt = NV40_3D_TEX_FORMAT_FORMAT_A8L8;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 		card_swz = SWIZZLE(S1, S1, S1, S1, Z, W, X, Y); /* x = V, y = U */
 #else
@@ -159,54 +161,54 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 		break;
 	}
 
-	BEGIN_RING(chan, curie, NV40TCL_TEX_OFFSET(unit), 8);
+	BEGIN_RING(chan, curie, NV30_3D_TEX_OFFSET(unit), 8);
 	if (OUT_RELOCl(chan, src, offset, tex_reloc))
 		return FALSE;
 	if (unit==0) {
 		if (OUT_RELOCd(chan, src, card_fmt | 0x8000 |
-			       NV40TCL_TEX_FORMAT_DIMS_1D |
-			       NV40TCL_TEX_FORMAT_NO_BORDER |
-			       (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
+			       NV30_3D_TEX_FORMAT_DIMS_1D |
+			       NV30_3D_TEX_FORMAT_NO_BORDER |
+			       (1 << NV40_3D_TEX_FORMAT_MIPMAP_COUNT__SHIFT),
 			       tex_reloc | NOUVEAU_BO_OR,
-			       NV40TCL_TEX_FORMAT_DMA0,
-			       NV40TCL_TEX_FORMAT_DMA1))
+			       NV30_3D_TEX_FORMAT_DMA0,
+			       NV30_3D_TEX_FORMAT_DMA1))
 			return FALSE;
-		OUT_RING  (chan, NV40TCL_TEX_WRAP_S_REPEAT |
-				 NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
-				 NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
+		OUT_RING  (chan, NV30_3D_TEX_WRAP_S_REPEAT |
+				 NV30_3D_TEX_WRAP_T_CLAMP_TO_EDGE |
+				 NV30_3D_TEX_WRAP_R_CLAMP_TO_EDGE);
 	} else {
 		if (OUT_RELOCd(chan, src, card_fmt | 0x8000 |
-			       NV40TCL_TEX_FORMAT_LINEAR |
-			       NV40TCL_TEX_FORMAT_RECT |
-			       NV40TCL_TEX_FORMAT_DIMS_2D |
-			       NV40TCL_TEX_FORMAT_NO_BORDER |
-			       (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
+			       NV40_3D_TEX_FORMAT_LINEAR |
+			       NV40_3D_TEX_FORMAT_RECT |
+			       NV30_3D_TEX_FORMAT_DIMS_2D |
+			       NV30_3D_TEX_FORMAT_NO_BORDER |
+			       (1 << NV40_3D_TEX_FORMAT_MIPMAP_COUNT__SHIFT),
 			       tex_reloc | NOUVEAU_BO_OR,
-			       NV40TCL_TEX_FORMAT_DMA0,
-			       NV40TCL_TEX_FORMAT_DMA1))
+			       NV30_3D_TEX_FORMAT_DMA0,
+			       NV30_3D_TEX_FORMAT_DMA1))
 			return FALSE;
-		OUT_RING  (chan, NV40TCL_TEX_WRAP_S_CLAMP_TO_EDGE |
-				 NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
-				 NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
+		OUT_RING  (chan, NV30_3D_TEX_WRAP_S_CLAMP_TO_EDGE |
+				 NV30_3D_TEX_WRAP_T_CLAMP_TO_EDGE |
+				 NV30_3D_TEX_WRAP_R_CLAMP_TO_EDGE);
 	}
 
-	OUT_RING  (chan, NV40TCL_TEX_ENABLE_ENABLE);
+	OUT_RING  (chan, NV40_3D_TEX_ENABLE_ENABLE);
 	OUT_RING  (chan, card_swz);
 	if (unit == 0)
-		OUT_RING  (chan, NV40TCL_TEX_FILTER_SIGNED_ALPHA |
-				 NV40TCL_TEX_FILTER_SIGNED_RED |
-				 NV40TCL_TEX_FILTER_SIGNED_GREEN |
-				 NV40TCL_TEX_FILTER_SIGNED_BLUE |
-				 NV40TCL_TEX_FILTER_MIN_LINEAR |
-				 NV40TCL_TEX_FILTER_MAG_LINEAR | 0x3fd6);
+		OUT_RING  (chan, NV30_3D_TEX_FILTER_SIGNED_ALPHA |
+				 NV30_3D_TEX_FILTER_SIGNED_RED |
+				 NV30_3D_TEX_FILTER_SIGNED_GREEN |
+				 NV30_3D_TEX_FILTER_SIGNED_BLUE |
+				 NV30_3D_TEX_FILTER_MIN_LINEAR |
+				 NV30_3D_TEX_FILTER_MAG_LINEAR | 0x3fd6);
 	else
-		OUT_RING  (chan, NV40TCL_TEX_FILTER_MIN_LINEAR |
-				 NV40TCL_TEX_FILTER_MAG_LINEAR | 0x3fd6);
+		OUT_RING  (chan, NV30_3D_TEX_FILTER_MIN_LINEAR |
+				 NV30_3D_TEX_FILTER_MAG_LINEAR | 0x3fd6);
 	OUT_RING  (chan, (width << 16) | height);
 	OUT_RING  (chan, 0); /* border ARGB */
 
-	BEGIN_RING(chan, curie, NV40TCL_TEX_SIZE1(unit), 1);
-	OUT_RING  (chan, (1 << NV40TCL_TEX_SIZE1_DEPTH_SHIFT) |
+	BEGIN_RING(chan, curie, NV40_3D_TEX_SIZE1(unit), 1);
+	OUT_RING  (chan, (1 << NV40_3D_TEX_SIZE1_DEPTH__SHIFT) |
 			 (uint16_t) src_pitch);
 
 	return TRUE;
@@ -217,16 +219,16 @@ NV40GetSurfaceFormat(PixmapPtr ppix, int *fmt_ret)
 {
 	switch (ppix->drawable.bitsPerPixel) {
 	case 32:
-		*fmt_ret = NV40TCL_RT_FORMAT_COLOR_A8R8G8B8;
+		*fmt_ret = NV30_3D_RT_FORMAT_COLOR_A8R8G8B8;
 		break;
 	case 24:
-		*fmt_ret = NV40TCL_RT_FORMAT_COLOR_X8R8G8B8;
+		*fmt_ret = NV30_3D_RT_FORMAT_COLOR_X8R8G8B8;
 		break;
 	case 16:
-		*fmt_ret = NV40TCL_RT_FORMAT_COLOR_R5G6B5;
+		*fmt_ret = NV30_3D_RT_FORMAT_COLOR_R5G6B5;
 		break;
 	case 8:
-		*fmt_ret = NV40TCL_RT_FORMAT_COLOR_B8;
+		*fmt_ret = NV30_3D_RT_FORMAT_COLOR_B8;
 		break;
 	default:
 		return FALSE;
@@ -241,10 +243,10 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 }
 
 #define VERTEX_OUT(sx,sy,dx,dy) do {                                           \
-	BEGIN_RING(chan, curie, NV40TCL_VTX_ATTR_2F_X(8), 4);                  \
+	BEGIN_RING(chan, curie, NV30_3D_VTX_ATTR_2F_X(8), 4);                  \
 	OUT_RINGf (chan, (sx)); OUT_RINGf (chan, (sy));                        \
 	OUT_RINGf (chan, (sx)/2.0); OUT_RINGf (chan, (sy)/2.0);                \
-	BEGIN_RING(chan, curie, NV40TCL_VTX_ATTR_2I(0), 1);                    \
+	BEGIN_RING(chan, curie, NV30_3D_VTX_ATTR_2I(0), 1);                    \
  	OUT_RING  (chan, ((dy)<<16)|(dx));                                     \
 } while(0)
 
@@ -287,13 +289,13 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		return BadImplementation;
 
 	/* Disable blending */
-	BEGIN_RING(chan, curie, NV40TCL_BLEND_ENABLE, 1);
+	BEGIN_RING(chan, curie, NV30_3D_BLEND_FUNC_ENABLE, 1);
 	OUT_RING  (chan, 0);
 
 	/* Setup surface */
-	BEGIN_RING(chan, curie, NV40TCL_RT_FORMAT, 3);
-	OUT_RING  (chan, NV40TCL_RT_FORMAT_TYPE_LINEAR |
-			 NV40TCL_RT_FORMAT_ZETA_Z24S8 | dst_format);
+	BEGIN_RING(chan, curie, NV30_3D_RT_FORMAT, 3);
+	OUT_RING  (chan, NV30_3D_RT_FORMAT_TYPE_LINEAR |
+			 NV30_3D_RT_FORMAT_ZETA_Z24S8 | dst_format);
 	OUT_RING  (chan, exaGetPixmapPitch(ppix));
 	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR)) {
 		MARK_UNDO(chan);
@@ -332,9 +334,9 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)
 	 */
-	BEGIN_RING(chan, curie, NV40TCL_TEX_CACHE_CTL, 1);
+	BEGIN_RING(chan, curie, NV40_3D_TEX_CACHE_CTL, 1);
 	OUT_RING  (chan, 2);
-	BEGIN_RING(chan, curie, NV40TCL_TEX_CACHE_CTL, 1);
+	BEGIN_RING(chan, curie, NV40_3D_TEX_CACHE_CTL, 1);
 	OUT_RING  (chan, 1);
 
 	/* Just before rendering we wait for vblank in the non-composited case. */
@@ -349,8 +351,8 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	X2 = (float)(x2>>16)+(float)(x2&0xFFFF)/(float)0x10000;
 	Y2 = (float)(y2>>16)+(float)(y2&0xFFFF)/(float)0x10000;
 
-	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (chan, NV40TCL_BEGIN_END_TRIANGLES);
+	BEGIN_RING(chan, curie, NV30_3D_VERTEX_BEGIN_END, 1);
+	OUT_RING  (chan, NV30_3D_VERTEX_BEGIN_END_TRIANGLES);
 
 	while(nbox--) {
 		float tx1=X1+(float)(pbox->x1 - dstBox->x1)*(X2-X1)/(float)(drw_w);
@@ -362,7 +364,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		int sy1=pbox->y1;
 		int sy2=pbox->y2;
 
-		BEGIN_RING(chan, curie, NV40TCL_SCISSOR_HORIZ, 2);
+		BEGIN_RING(chan, curie, NV30_3D_SCISSOR_HORIZ, 2);
 		OUT_RING  (chan, (sx2 << 16) | 0);
 		OUT_RING  (chan, (sy2 << 16) | 0);
 
@@ -373,8 +375,8 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		pbox++;
 	}
 
-	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (chan, NV40TCL_BEGIN_END_STOP);
+	BEGIN_RING(chan, curie, NV30_3D_VERTEX_BEGIN_END, 1);
+	OUT_RING  (chan, NV30_3D_VERTEX_BEGIN_END_STOP);
 
 	FIRE_RING (chan);
 

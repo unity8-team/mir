@@ -26,6 +26,8 @@
 #include "nv_include.h"
 #include "nv30_shaders.h"
 #include "nv04_pushbuf.h"
+#include "hwdefs/nv_object.xml.h"
+#include "hwdefs/nv30-40_3d.xml.h"
 
 typedef struct nv_pict_surface_format {
 	int	 pict_fmt;
@@ -125,37 +127,37 @@ NV30EXAHackupA8Shaders(ScrnInfoPtr pScrn)
 }
 
 /* should be in nouveau_reg.h at some point.. */
-#define NV34TCL_TX_SWIZZLE_UNIT_S0_X_ZERO	 0
-#define NV34TCL_TX_SWIZZLE_UNIT_S0_X_ONE	 1
-#define NV34TCL_TX_SWIZZLE_UNIT_S0_X_S1		 2
+#define NV30_3D_TEX_SWIZZLE_UNIT_S0_X_ZERO	 0
+#define NV30_3D_TEX_SWIZZLE_UNIT_S0_X_ONE	 1
+#define NV30_3D_TEX_SWIZZLE_UNIT_S0_X_S1		 2
 
-#define NV34TCL_TX_SWIZZLE_UNIT_S0_X_SHIFT	14
-#define NV34TCL_TX_SWIZZLE_UNIT_S0_Y_SHIFT	12
-#define NV34TCL_TX_SWIZZLE_UNIT_S0_Z_SHIFT	10
-#define NV34TCL_TX_SWIZZLE_UNIT_S0_W_SHIFT	 8
+#define NV30_3D_TEX_SWIZZLE_UNIT_S0_X_SHIFT	14
+#define NV30_3D_TEX_SWIZZLE_UNIT_S0_Y_SHIFT	12
+#define NV30_3D_TEX_SWIZZLE_UNIT_S0_Z_SHIFT	10
+#define NV30_3D_TEX_SWIZZLE_UNIT_S0_W_SHIFT	 8
 
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_X_X		 3
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_X_Y		 2
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_X_Z		 1
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_X_W		 0
+#define NV30_3D_TEX_SWIZZLE_UNIT_S1_X_X		 3
+#define NV30_3D_TEX_SWIZZLE_UNIT_S1_X_Y		 2
+#define NV30_3D_TEX_SWIZZLE_UNIT_S1_X_Z		 1
+#define NV30_3D_TEX_SWIZZLE_UNIT_S1_X_W		 0
 
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_X_SHIFT	 6
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_Y_SHIFT	 4
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_Z_SHIFT	 2
-#define NV34TCL_TX_SWIZZLE_UNIT_S1_W_SHIFT	 0
+#define NV30_3D_TEX_SWIZZLE_UNIT_S1_X_SHIFT	 6
+#define NV30_3D_TEX_SWIZZLE_UNIT_S1_Y_SHIFT	 4
+#define NV30_3D_TEX_SWIZZLE_UNIT_S1_Z_SHIFT	 2
+#define NV30_3D_TEX_SWIZZLE_UNIT_S1_W_SHIFT	 0
 
 #define _(r,tf,ts0x,ts0y,ts0z,ts0w,ts1x,ts1y,ts1z,ts1w)                       \
   {                                                                           \
   PICT_##r,                                                                   \
   (tf),                                                                       \
-  (NV34TCL_TX_SWIZZLE_UNIT_S0_X_##ts0x << NV34TCL_TX_SWIZZLE_UNIT_S0_X_SHIFT)|\
-  (NV34TCL_TX_SWIZZLE_UNIT_S0_X_##ts0y << NV34TCL_TX_SWIZZLE_UNIT_S0_Y_SHIFT)|\
-  (NV34TCL_TX_SWIZZLE_UNIT_S0_X_##ts0z << NV34TCL_TX_SWIZZLE_UNIT_S0_Z_SHIFT)|\
-  (NV34TCL_TX_SWIZZLE_UNIT_S0_X_##ts0w << NV34TCL_TX_SWIZZLE_UNIT_S0_W_SHIFT)|\
-  (NV34TCL_TX_SWIZZLE_UNIT_S1_X_##ts1x << NV34TCL_TX_SWIZZLE_UNIT_S1_X_SHIFT)|\
-  (NV34TCL_TX_SWIZZLE_UNIT_S1_X_##ts1y << NV34TCL_TX_SWIZZLE_UNIT_S1_Y_SHIFT)|\
-  (NV34TCL_TX_SWIZZLE_UNIT_S1_X_##ts1z << NV34TCL_TX_SWIZZLE_UNIT_S1_Z_SHIFT)|\
-  (NV34TCL_TX_SWIZZLE_UNIT_S1_X_##ts1w << NV34TCL_TX_SWIZZLE_UNIT_S1_W_SHIFT)\
+  (NV30_3D_TEX_SWIZZLE_UNIT_S0_X_##ts0x << NV30_3D_TEX_SWIZZLE_UNIT_S0_X_SHIFT)|\
+  (NV30_3D_TEX_SWIZZLE_UNIT_S0_X_##ts0y << NV30_3D_TEX_SWIZZLE_UNIT_S0_Y_SHIFT)|\
+  (NV30_3D_TEX_SWIZZLE_UNIT_S0_X_##ts0z << NV30_3D_TEX_SWIZZLE_UNIT_S0_Z_SHIFT)|\
+  (NV30_3D_TEX_SWIZZLE_UNIT_S0_X_##ts0w << NV30_3D_TEX_SWIZZLE_UNIT_S0_W_SHIFT)|\
+  (NV30_3D_TEX_SWIZZLE_UNIT_S1_X_##ts1x << NV30_3D_TEX_SWIZZLE_UNIT_S1_X_SHIFT)|\
+  (NV30_3D_TEX_SWIZZLE_UNIT_S1_X_##ts1y << NV30_3D_TEX_SWIZZLE_UNIT_S1_Y_SHIFT)|\
+  (NV30_3D_TEX_SWIZZLE_UNIT_S1_X_##ts1z << NV30_3D_TEX_SWIZZLE_UNIT_S1_Z_SHIFT)|\
+  (NV30_3D_TEX_SWIZZLE_UNIT_S1_X_##ts1w << NV30_3D_TEX_SWIZZLE_UNIT_S1_W_SHIFT)\
   }
 
 static nv_pict_texture_format_t
@@ -196,18 +198,18 @@ NV30_GetPictTextureFormat(int format)
 	return NULL;
 }
 
-#define NV34TCL_BF_ZERO                                     0x0000
-#define NV34TCL_BF_ONE                                      0x0001
-#define NV34TCL_BF_SRC_COLOR                                0x0300
-#define NV34TCL_BF_ONE_MINUS_SRC_COLOR                      0x0301
-#define NV34TCL_BF_SRC_ALPHA                                0x0302
-#define NV34TCL_BF_ONE_MINUS_SRC_ALPHA                      0x0303
-#define NV34TCL_BF_DST_ALPHA                                0x0304
-#define NV34TCL_BF_ONE_MINUS_DST_ALPHA                      0x0305
-#define NV34TCL_BF_DST_COLOR                                0x0306
-#define NV34TCL_BF_ONE_MINUS_DST_COLOR                      0x0307
-#define NV34TCL_BF_ALPHA_SATURATE                           0x0308
-#define BF(bf) NV34TCL_BF_##bf
+#define NV30_3D_BF_ZERO                                     0x0000
+#define NV30_3D_BF_ONE                                      0x0001
+#define NV30_3D_BF_SRC_COLOR                                0x0300
+#define NV30_3D_BF_ONE_MINUS_SRC_COLOR                      0x0301
+#define NV30_3D_BF_SRC_ALPHA                                0x0302
+#define NV30_3D_BF_ONE_MINUS_SRC_ALPHA                      0x0303
+#define NV30_3D_BF_DST_ALPHA                                0x0304
+#define NV30_3D_BF_ONE_MINUS_DST_ALPHA                      0x0305
+#define NV30_3D_BF_DST_COLOR                                0x0306
+#define NV30_3D_BF_ONE_MINUS_DST_COLOR                      0x0307
+#define NV30_3D_BF_ALPHA_SATURATE                           0x0308
+#define BF(bf) NV30_3D_BF_##bf
 
 static nv_pict_op_t 
 NV30PictOp[] = {
@@ -289,10 +291,10 @@ NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 	}
 
 	if (sblend == BF(ONE) && dblend == BF(ZERO)) {
-		BEGIN_RING(chan, rankine, NV34TCL_BLEND_FUNC_ENABLE, 1);
+		BEGIN_RING(chan, rankine, NV30_3D_BLEND_FUNC_ENABLE, 1);
 		OUT_RING  (chan, 0);
 	} else {
-		BEGIN_RING(chan, rankine, NV34TCL_BLEND_FUNC_ENABLE, 3);
+		BEGIN_RING(chan, rankine, NV30_3D_BLEND_FUNC_ENABLE, 3);
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, (sblend << 16) | sblend);
 		OUT_RING  (chan, (dblend << 16) | dblend);
@@ -322,28 +324,28 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	else
 		card_filter = 1;
 
-	BEGIN_RING(chan, rankine, NV34TCL_TX_OFFSET(unit), 8);
+	BEGIN_RING(chan, rankine, NV30_3D_TEX_OFFSET(unit), 8);
 	if (OUT_RELOCl(chan, bo, 0, tex_reloc) ||
-	    OUT_RELOCd(chan, bo, NV34TCL_TX_FORMAT_DIMS_2D | (1 << 16) | 8 |
-		       (fmt->card_fmt << NV34TCL_TX_FORMAT_FORMAT_SHIFT) |
+	    OUT_RELOCd(chan, bo, NV30_3D_TEX_FORMAT_DIMS_2D | (1 << 16) | 8 |
+		       (fmt->card_fmt << NV30_3D_TEX_FORMAT_FORMAT__SHIFT) |
 		       (log2i(pPix->drawable.width) <<
-			NV34TCL_TX_FORMAT_BASE_SIZE_U_SHIFT) |
+			NV30_3D_TEX_FORMAT_BASE_SIZE_U__SHIFT) |
 		       (log2i(pPix->drawable.height) <<
-			NV34TCL_TX_FORMAT_BASE_SIZE_V_SHIFT),
+			NV30_3D_TEX_FORMAT_BASE_SIZE_V__SHIFT),
 		       tex_reloc | NOUVEAU_BO_OR,
-		       NV34TCL_TX_FORMAT_DMA0, NV34TCL_TX_FORMAT_DMA1))
+		       NV30_3D_TEX_FORMAT_DMA0, NV30_3D_TEX_FORMAT_DMA1))
 		return FALSE;
-	OUT_RING  (chan, (card_repeat << NV34TCL_TX_WRAP_S_SHIFT) |
-			(card_repeat << NV34TCL_TX_WRAP_T_SHIFT) |
-			(card_repeat << NV34TCL_TX_WRAP_R_SHIFT));
-	OUT_RING  (chan, NV34TCL_TX_ENABLE_ENABLE);
-	OUT_RING  (chan, (((uint32_t)exaGetPixmapPitch(pPix)) << NV34TCL_TX_SWIZZLE_RECT_PITCH_SHIFT ) | 
+	OUT_RING  (chan, (card_repeat << NV30_3D_TEX_WRAP_S__SHIFT) |
+			(card_repeat << NV30_3D_TEX_WRAP_T__SHIFT) |
+			(card_repeat << NV30_3D_TEX_WRAP_R__SHIFT));
+	OUT_RING  (chan, NV30_3D_TEX_ENABLE_ENABLE);
+	OUT_RING  (chan, (((uint32_t)exaGetPixmapPitch(pPix)) << NV30_3D_TEX_SWIZZLE_RECT_PITCH__SHIFT ) | 
 			fmt->card_swz);
 
-	OUT_RING  (chan, (card_filter << NV34TCL_TX_FILTER_MINIFY_SHIFT) /* min */ |
-			(card_filter << NV34TCL_TX_FILTER_MAGNIFY_SHIFT) /* mag */ |
+	OUT_RING  (chan, (card_filter << NV30_3D_TEX_FILTER_MIN__SHIFT) /* min */ |
+			(card_filter << NV30_3D_TEX_FILTER_MAG__SHIFT) /* mag */ |
 			0x2000 /* engine lock */);
-	OUT_RING  (chan, (pPix->drawable.width << NV34TCL_TX_NPOT_SIZE_W_SHIFT) | pPix->drawable.height);
+	OUT_RING  (chan, (pPix->drawable.width << NV30_3D_TEX_NPOT_SIZE_W__SHIFT) | pPix->drawable.height);
 	OUT_RING  (chan, 0); /* border ARGB */
 
 	state->unit[unit].width		= (float)pPix->drawable.width;
@@ -370,7 +372,7 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 
 	uint32_t pitch = (uint32_t)exaGetPixmapPitch(pPix);
 
-	BEGIN_RING(chan, rankine, NV34TCL_RT_FORMAT, 3);
+	BEGIN_RING(chan, rankine, NV30_3D_RT_FORMAT, 3);
 	OUT_RING  (chan, fmt->card_fmt); /* format */
 	OUT_RING  (chan, pitch << 16 | pitch);
 	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
@@ -571,16 +573,16 @@ NV30EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 }
 
 #define CV_OUTm(sx,sy,mx,my,dx,dy) do {                                        \
-	BEGIN_RING(chan, rankine, NV34TCL_VTX_ATTR_2F_X(8), 4);                   \
+	BEGIN_RING(chan, rankine, NV30_3D_VTX_ATTR_2F_X(8), 4);                   \
 	OUT_RINGf (chan, (sx)); OUT_RINGf (chan, (sy));                        \
 	OUT_RINGf (chan, (mx)); OUT_RINGf (chan, (my));                        \
-	BEGIN_RING(chan, rankine, NV34TCL_VTX_ATTR_2I(0), 1);                     \
+	BEGIN_RING(chan, rankine, NV30_3D_VTX_ATTR_2I(0), 1);                     \
 	OUT_RING  (chan, ((dy)<<16)|(dx));                                     \
 } while(0)
 #define CV_OUT(sx,sy,dx,dy) do {                                               \
-	BEGIN_RING(chan, rankine, NV34TCL_VTX_ATTR_2F_X(8), 2);                   \
+	BEGIN_RING(chan, rankine, NV30_3D_VTX_ATTR_2F_X(8), 2);                   \
 	OUT_RINGf (chan, (sx)); OUT_RINGf (chan, (sy));                        \
-	BEGIN_RING(chan, rankine, NV34TCL_VTX_ATTR_2I(0), 1);                     \
+	BEGIN_RING(chan, rankine, NV30_3D_VTX_ATTR_2I(0), 1);                     \
 	OUT_RING  (chan, ((dy)<<16)|(dx));                                     \
 } while(0)
 
@@ -603,11 +605,11 @@ NV30EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	/* We're drawing a triangle, we need to scissor it to a quad. */
 	/* The scissors are here for a good reason, we don't get the full image, but just a part. */
 	/* Handling the cliprects is done for us already. */
-	BEGIN_RING(chan, rankine, NV34TCL_SCISSOR_HORIZ, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, (width << 16) | dstX);
 	OUT_RING  (chan, (height << 16) | dstY);
-	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
-	OUT_RING  (chan, NV34TCL_VERTEX_BEGIN_END_TRIANGLES);
+	BEGIN_RING(chan, rankine, NV30_3D_VERTEX_BEGIN_END, 1);
+	OUT_RING  (chan, NV30_3D_VERTEX_BEGIN_END_TRIANGLES);
 
 #if 0
 	ErrorF("Composite [%dx%d] (%d,%d)IN(%d,%d)OP(%d,%d)\n",width,height,srcX,srcY,maskX,maskY,dstX,dstY);
@@ -648,7 +650,7 @@ NV30EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 		CV_OUT(sX2 , sY2 , dstX + 2*width	, 	dstY + height);
 	}
 
-	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_VERTEX_BEGIN_END, 1);
 	OUT_RING  (chan, 0);
 }
 
@@ -676,7 +678,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 
 #define NV30TCL_CHIPSET_3X_MASK 0x00000003
 #define NV35TCL_CHIPSET_3X_MASK 0x000001e0
-#define NV34TCL_CHIPSET_3X_MASK 0x00000010
+#define NV30_3D_CHIPSET_3X_MASK 0x00000010
 
 	chipset = pNv->dev->chipset;
 	if ((chipset & 0xf0) != NV_ARCH_30)
@@ -684,11 +686,11 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	chipset &= 0xf;
 
 	if (NV30TCL_CHIPSET_3X_MASK & (1<<chipset))
-		class = NV30TCL;
+		class = NV30_3D;
 	else if (NV35TCL_CHIPSET_3X_MASK & (1<<chipset))
-		class = NV35TCL;
-	else if (NV34TCL_CHIPSET_3X_MASK & (1<<chipset))
-		class = NV34TCL;
+		class = NV35_3D;
+	else if (NV30_3D_CHIPSET_3X_MASK & (1<<chipset))
+		class = NV34_3D;
 	else {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "NV30EXA: Unknown chipset NV3%1x\n", chipset);
@@ -712,20 +714,20 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 		}
 	}
 
-	BEGIN_RING(chan, rankine, NV34TCL_DMA_TEXTURE0, 3);
+	BEGIN_RING(chan, rankine, NV30_3D_DMA_TEXTURE0, 3);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, pNv->chan->gart->handle);
 	OUT_RING  (chan, pNv->chan->vram->handle);
-	BEGIN_RING(chan, rankine, NV34TCL_DMA_IN_MEMORY7, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_DMA_UNK1AC, 1);
 	OUT_RING  (chan, pNv->chan->vram->handle);
-	BEGIN_RING(chan, rankine, NV34TCL_DMA_COLOR0, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_DMA_COLOR0, 2);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, pNv->chan->vram->handle);
-	BEGIN_RING(chan, rankine, NV34TCL_DMA_IN_MEMORY8, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_DMA_UNK1B0, 1);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 
 	for (i=1; i<8; i++) {
-		BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_CLIP_HORIZ(i), 2);
+		BEGIN_RING(chan, rankine, NV30_3D_VIEWPORT_CLIP_HORIZ(i), 2);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, 0);
 	}
@@ -769,56 +771,56 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, rankine, 0x1d88, 1);
 	OUT_RING  (chan, 0x00001200);
 
-	BEGIN_RING(chan, rankine, NV34TCL_RC_ENABLE, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_RC_ENABLE, 1);
 	OUT_RING  (chan, 0);
 
 	/* Attempt to setup a known state.. Probably missing a heap of
 	 * stuff here..
 	 */
-	BEGIN_RING(chan, rankine, NV34TCL_STENCIL_FRONT_ENABLE, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_STENCIL_ENABLE(0), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, rankine, NV34TCL_STENCIL_BACK_ENABLE, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_STENCIL_ENABLE(1), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, rankine, NV34TCL_ALPHA_FUNC_ENABLE, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_ALPHA_FUNC_ENABLE, 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, rankine, NV34TCL_DEPTH_WRITE_ENABLE, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_DEPTH_WRITE_ENABLE, 2);
 	OUT_RING  (chan, 0); /* wr disable */
 	OUT_RING  (chan, 0); /* test disable */
-	BEGIN_RING(chan, rankine, NV34TCL_COLOR_MASK, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_COLOR_MASK, 1);
 	OUT_RING  (chan, 0x01010101); /* TR,TR,TR,TR */
-	BEGIN_RING(chan, rankine, NV34TCL_CULL_FACE_ENABLE, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_CULL_FACE_ENABLE, 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, rankine, NV34TCL_BLEND_FUNC_ENABLE, 5);
+	BEGIN_RING(chan, rankine, NV30_3D_BLEND_FUNC_ENABLE, 5);
 	OUT_RING  (chan, 0);				/* Blend enable */
 	OUT_RING  (chan, 0);				/* Blend src */
 	OUT_RING  (chan, 0);				/* Blend dst */
 	OUT_RING  (chan, 0x00000000);			/* Blend colour */
 	OUT_RING  (chan, 0x8006);			/* FUNC_ADD */
-	BEGIN_RING(chan, rankine, NV34TCL_COLOR_LOGIC_OP_ENABLE, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_COLOR_LOGIC_OP_ENABLE, 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0x1503 /*GL_COPY*/);
-	BEGIN_RING(chan, rankine, NV34TCL_DITHER_ENABLE, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_DITHER_ENABLE, 1);
 	OUT_RING  (chan, 1);
-	BEGIN_RING(chan, rankine, NV34TCL_SHADE_MODEL, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_SHADE_MODEL, 1);
 	OUT_RING  (chan, 0x1d01 /*GL_SMOOTH*/);
-	BEGIN_RING(chan, rankine, NV34TCL_POLYGON_OFFSET_FACTOR,2);
+	BEGIN_RING(chan, rankine, NV30_3D_POLYGON_OFFSET_FACTOR,2);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
-	BEGIN_RING(chan, rankine, NV34TCL_POLYGON_MODE_FRONT, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_POLYGON_MODE_FRONT, 2);
 	OUT_RING  (chan, 0x1b02 /*GL_FILL*/);
 	OUT_RING  (chan, 0x1b02 /*GL_FILL*/);
 	/* - Disable texture units
 	 * - Set fragprog to MOVR result.color, fragment.color */
 	for (i=0;i<4;i++) {
-		BEGIN_RING(chan, rankine, NV34TCL_TX_ENABLE(i), 1);
+		BEGIN_RING(chan, rankine, NV30_3D_TEX_ENABLE(i), 1);
 		OUT_RING  (chan, 0);
 	}
 	/* Polygon stipple */
-	BEGIN_RING(chan, rankine, NV34TCL_POLYGON_STIPPLE_PATTERN(0), 0x20);
+	BEGIN_RING(chan, rankine, NV30_3D_POLYGON_STIPPLE_PATTERN(0), 0x20);
 	for (i=0;i<0x20;i++)
 		OUT_RING  (chan, 0xFFFFFFFF);
 
-	BEGIN_RING(chan, rankine, NV34TCL_DEPTH_RANGE_NEAR, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_DEPTH_RANGE_NEAR, 2);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 1.0);
 
@@ -834,28 +836,28 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	int w=4096;
 	int h=4096;
 	int pitch=4096*4;
-	BEGIN_RING(chan, rankine, NV34TCL_RT_HORIZ, 5);
+	BEGIN_RING(chan, rankine, NV30_3D_RT_HORIZ, 5);
 	OUT_RING  (chan, w<<16);
 	OUT_RING  (chan, h<<16);
 	OUT_RING  (chan, 0x148); /* format */
 	OUT_RING  (chan, pitch << 16 | pitch);
 	OUT_RING  (chan, 0x0);
-	BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_TX_ORIGIN, 1);
+	BEGIN_RING(chan, rankine, NV30_3D_VIEWPORT_TX_ORIGIN, 1);
 	OUT_RING  (chan, 0);
         BEGIN_RING(chan, rankine, 0x0a00, 2);
         OUT_RING  (chan, (w<<16) | 0);
         OUT_RING  (chan, (h<<16) | 0);
-	BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_CLIP_HORIZ(0), 2);
+	BEGIN_RING(chan, rankine, NV30_3D_VIEWPORT_CLIP_HORIZ(0), 2);
 	OUT_RING  (chan, (w-1)<<16);
 	OUT_RING  (chan, (h-1)<<16);
-	BEGIN_RING(chan, rankine, NV34TCL_SCISSOR_HORIZ, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, w<<16);
 	OUT_RING  (chan, h<<16);
-	BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_HORIZ, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_VIEWPORT_HORIZ, 2);
 	OUT_RING  (chan, w<<16);
 	OUT_RING  (chan, h<<16);
 
-	BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_TRANSLATE_X, 8);
+	BEGIN_RING(chan, rankine, NV30_3D_VIEWPORT_TRANSLATE_X, 8);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
@@ -865,25 +867,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RINGf (chan, 1.0);
 	OUT_RINGf (chan, 0.0);
 
-	BEGIN_RING(chan, rankine, NV34TCL_MODELVIEW_MATRIX(0), 16);
-	OUT_RINGf (chan, 1.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 1.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 1.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 0.0);
-	OUT_RINGf (chan, 1.0);
-
-	BEGIN_RING(chan, rankine, NV34TCL_PROJECTION_MATRIX(0), 16);
+	BEGIN_RING(chan, rankine, NV30_3D_MODELVIEW_MATRIX(0), 16);
 	OUT_RINGf (chan, 1.0);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
@@ -901,7 +885,25 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 1.0);
 
-	BEGIN_RING(chan, rankine, NV34TCL_SCISSOR_HORIZ, 2);
+	BEGIN_RING(chan, rankine, NV30_3D_PROJECTION_MATRIX(0), 16);
+	OUT_RINGf (chan, 1.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 1.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 1.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 0.0);
+	OUT_RINGf (chan, 1.0);
+
+	BEGIN_RING(chan, rankine, NV30_3D_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, 4096<<16);
 	OUT_RING  (chan, 4096<<16);
 
