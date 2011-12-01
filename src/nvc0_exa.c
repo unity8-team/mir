@@ -27,182 +27,6 @@
 
 #define NOUVEAU_BO(a, b, c) (NOUVEAU_BO_##a | NOUVEAU_BO_##b | NOUVEAU_BO_##c)
 
-Bool
-NVC0AccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
-		      char *dst, unsigned dst_pitch)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pspix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_bo *bo = nouveau_pixmap_bo(pspix);
-	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
-	const int cpp = pspix->drawable.bitsPerPixel / 8;
-	const int line_len = w * cpp;
-	const int line_limit = (128 << 10) / line_len;
-	unsigned src_offset = 0, src_pitch = 0, tiled = 1;
-
-	if (!nv50_style_tiled_pixmap(pspix)) {
-		tiled = 0;
-		src_pitch = exaGetPixmapPitch(pspix);
-		src_offset = (y * src_pitch) + (x * cpp);
-	} else {
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_TILING_MODE_IN, 5);
-		OUT_RING  (chan, bo->tile_mode);
-		OUT_RING  (chan, pspix->drawable.width * cpp);
-		OUT_RING  (chan, pspix->drawable.height);
-		OUT_RING  (chan, 1);
-		OUT_RING  (chan, 0);
-	}
-
-	while (h) {
-		const char *src;
-		int line_count, i;
-
-		/* GART size >= 128 KiB assumed */
-		line_count = h;
-		if (line_count > line_limit)
-			line_count = line_limit;
-
-		MARK_RING(chan, 16, 4);
-
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_OFFSET_OUT_HIGH, 2);
-		OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO(GART, GART, WR));
-		OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO(GART, GART, WR));
-
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_OFFSET_IN_HIGH, 6);
-		OUT_RELOCh(chan, bo, src_offset, NOUVEAU_BO(VRAM, GART, RD));
-		OUT_RELOCl(chan, bo, src_offset, NOUVEAU_BO(VRAM, GART, RD));
-		OUT_RING  (chan, src_pitch);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, line_count);
-
-		if (tiled) {
-			BEGIN_RING(chan, m2mf,
-				   NVC0_M2MF_TILING_POSITION_IN_X, 2);
-			OUT_RING  (chan, x * cpp);
-			OUT_RING  (chan, y);
-		}
-
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_EXEC, 1);
-		OUT_RING  (chan, 0x100000 | (tiled << 8));
-
-		if (nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD)) {
-			MARK_UNDO(chan);
-			return FALSE;
-		}
-		src = pNv->GART->map;
-
-		if (dst_pitch == line_len) {
-			memcpy(dst, src, dst_pitch * line_count);
-			dst += dst_pitch * line_count;
-		} else {
-			for (i = 0; i < line_count; ++i) {
-				memcpy(dst, src, line_len);
-				src += line_len;
-				dst += dst_pitch;
-			}
-		}
-		nouveau_bo_unmap(pNv->GART);
-
-		if (!tiled)
-			src_offset += line_count * src_pitch;
-		h -= line_count;
-		y += line_count;
-	}
-
-	return TRUE;
-}
-
-Bool
-NVC0AccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
-		    const char *src, int src_pitch)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pdpix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_bo *bo = nouveau_pixmap_bo(pdpix);
-	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
-	int cpp = pdpix->drawable.bitsPerPixel / 8;
-	int line_len = w * cpp;
-	int line_limit = (128 << 10) / line_len;
-	unsigned dst_offset = 0, dst_pitch = 0, tiled = 1;
-
-	if (!nv50_style_tiled_pixmap(pdpix)) {
-		tiled = 0;
-		dst_pitch = exaGetPixmapPitch(pdpix);
-		dst_offset = (y * dst_pitch) + (x * cpp);
-	} else {
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_TILING_MODE_OUT, 5);
-		OUT_RING  (chan, bo->tile_mode);
-		OUT_RING  (chan, pdpix->drawable.width * cpp);
-		OUT_RING  (chan, pdpix->drawable.height);
-		OUT_RING  (chan, 1);
-		OUT_RING  (chan, 0);
-	}
-
-	while (h) {
-		char *dst;
-		int i, line_count;
-
-		line_count = h;
-		if (line_count > line_limit)
-			line_count = line_limit;
-
-		if (nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR))
-			return FALSE;
-		dst = pNv->GART->map;
-
-		if (src_pitch == line_len) {
-			memcpy(dst, src, src_pitch * line_count);
-			src += src_pitch * line_count;
-		} else {
-			for (i = 0; i < line_count; i++) {
-				memcpy(dst, src, line_len);
-				src += src_pitch;
-				dst += line_len;
-                        }
-		}
-		nouveau_bo_unmap(pNv->GART);
-
-		if (MARK_RING(chan, 16, 4))
-			return FALSE;
-
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_OFFSET_IN_HIGH, 2);
-		OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO(GART, GART, RD));
-		OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO(GART, GART, RD));
-
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_OFFSET_OUT_HIGH, 2);
-		OUT_RELOCh(chan, bo, dst_offset, NOUVEAU_BO(VRAM, GART, WR));
-		OUT_RELOCl(chan, bo, dst_offset, NOUVEAU_BO(VRAM, GART, WR));
-
-		if (tiled) {
-			BEGIN_RING(chan, m2mf,
-				   NVC0_M2MF_TILING_POSITION_OUT_X, 2);
-			OUT_RING  (chan, x * cpp);
-			OUT_RING  (chan, y);
-		}
-
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_PITCH_IN, 4);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, dst_pitch);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, line_count);
-
-		BEGIN_RING(chan, m2mf, NVC0_M2MF_EXEC, 1);
-		OUT_RING  (chan, 0x100000 | (tiled << 4));
-		FIRE_RING (chan);
-
-		if (!tiled)
-			dst_offset += line_count * dst_pitch;
-		h -= line_count;
-		y += line_count;
-	}
-
-	return TRUE;
-}
-
-
 struct nvc0_exa_state {
 	struct {
 		PictTransformPtr transform;
@@ -1201,3 +1025,93 @@ NVC0EXADoneComposite(PixmapPtr pdpix)
 	chan->flush_notify = NULL;
 }
 
+Bool
+NVC0EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
+		struct nouveau_bo *src, int src_dom, int src_pitch,
+		int src_h, int src_x, int src_y, struct nouveau_bo *dst,
+		int dst_dom, int dst_pitch, int dst_h, int dst_x, int dst_y)
+{
+	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
+	struct nouveau_channel *chan = m2mf->channel;
+	unsigned src_off = 0, dst_off = 0;
+	unsigned exec = 0;
+
+	if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+		BEGIN_RING(chan, m2mf, NVC0_M2MF_TILING_MODE_IN, 5);
+		OUT_RING  (chan, src->tile_mode);
+		OUT_RING  (chan, src_pitch);
+		OUT_RING  (chan, src_h);
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 0);
+	} else {
+		BEGIN_RING(chan, m2mf, NVC0_M2MF_PITCH_IN, 1);
+		OUT_RING  (chan, src_pitch);
+
+		exec |= NVC0_M2MF_EXEC_LINEAR_IN;
+	}
+
+	if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+		BEGIN_RING(chan, m2mf, NVC0_M2MF_TILING_MODE_OUT, 5);
+		OUT_RING  (chan, dst->tile_mode);
+		OUT_RING  (chan, dst_pitch);
+		OUT_RING  (chan, dst_h);
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 0);
+	} else {
+		BEGIN_RING(chan, m2mf, NVC0_M2MF_PITCH_OUT, 1);
+		OUT_RING  (chan, dst_pitch);
+
+		exec |= NVC0_M2MF_EXEC_LINEAR_OUT;
+	}
+
+	while (h) {
+		int line_count = h;
+		if (line_count > 2047)
+			line_count = 2047;
+
+		if (MARK_RING (chan, 32, 4))
+			return FALSE;
+
+		if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+			BEGIN_RING(chan, m2mf, NVC0_M2MF_TILING_POSITION_IN_X, 2);
+			OUT_RING  (chan, src_x * cpp);
+			OUT_RING  (chan, src_y);
+		} else {
+			src_off = src_y * src_pitch + src_x * cpp;
+		}
+
+		if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+			BEGIN_RING(chan, m2mf, NVC0_M2MF_TILING_POSITION_OUT_X, 2);
+			OUT_RING  (chan, dst_x * cpp);
+			OUT_RING  (chan, dst_y);
+		} else {
+			dst_off = dst_y * dst_pitch + dst_x * cpp;
+		}
+
+		BEGIN_RING(chan, m2mf, NVC0_M2MF_OFFSET_OUT_HIGH, 2);
+		if (OUT_RELOCh(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR) ||
+		    OUT_RELOCl(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
+
+		BEGIN_RING(chan, m2mf, NVC0_M2MF_OFFSET_IN_HIGH, 2);
+		if (OUT_RELOCh(chan, src, src_off, src_dom | NOUVEAU_BO_RD) ||
+		    OUT_RELOCl(chan, src, src_off, src_dom | NOUVEAU_BO_RD)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
+
+		BEGIN_RING(chan, m2mf, NVC0_M2MF_LINE_LENGTH_IN, 2);
+		OUT_RING  (chan, w * cpp);
+		OUT_RING  (chan, line_count);
+		BEGIN_RING(chan, m2mf, NVC0_M2MF_EXEC, 1);
+		OUT_RING  (chan, NVC0_M2MF_EXEC_QUERY_SHORT | exec);
+
+		src_y += line_count;
+		dst_y += line_count;
+		h  -= line_count;
+	}
+
+	return TRUE;
+}

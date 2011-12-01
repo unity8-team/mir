@@ -999,3 +999,92 @@ NV50EXADoneComposite(PixmapPtr pdpix)
 	chan->flush_notify = NULL;
 }
 
+Bool
+NV50EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
+		struct nouveau_bo *src, int src_dom, int src_pitch,
+		int src_h, int src_x, int src_y, struct nouveau_bo *dst,
+		int dst_dom, int dst_pitch, int dst_h, int dst_x, int dst_y)
+{
+	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
+	struct nouveau_channel *chan = m2mf->channel;
+	unsigned src_off = 0, dst_off = 0;
+
+	if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+		BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_IN, 6);
+		OUT_RING  (chan, 0);
+		OUT_RING  (chan, src->tile_mode << 4);
+		OUT_RING  (chan, src_pitch);
+		OUT_RING  (chan, src_h);
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 0);
+	} else {
+		BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_IN, 1);
+		OUT_RING  (chan, 1);
+		BEGIN_RING(chan, m2mf, NV03_M2MF_PITCH_IN, 1);
+		OUT_RING  (chan, src_pitch);
+	}
+
+	if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+		BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_OUT, 6);
+		OUT_RING  (chan, 0);
+		OUT_RING  (chan, dst->tile_mode << 4);
+		OUT_RING  (chan, dst_pitch);
+		OUT_RING  (chan, dst_h);
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 0);
+	} else {
+		BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_OUT, 1);
+		OUT_RING  (chan, 1);
+		BEGIN_RING(chan, m2mf, NV03_M2MF_PITCH_OUT, 1);
+		OUT_RING  (chan, dst_pitch);
+	}
+
+	while (h) {
+		int line_count = h;
+		if (line_count > 2047)
+			line_count = 2047;
+
+		if (MARK_RING (chan, 32, 4))
+			return FALSE;
+
+		if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+			BEGIN_RING(chan, m2mf, NV50_M2MF_TILING_POSITION_IN, 1);
+			OUT_RING  (chan, (src_y << 16) | (src_x * cpp));
+		} else {
+			src_off = src_y * src_pitch + src_x * cpp;
+		}
+
+		if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+			BEGIN_RING(chan, m2mf, NV50_M2MF_TILING_POSITION_OUT, 1);
+			OUT_RING  (chan, (dst_y << 16) | (dst_x * cpp));
+		} else {
+			dst_off = dst_y * dst_pitch + dst_x * cpp;
+		}
+
+		BEGIN_RING(chan, m2mf, NV50_M2MF_OFFSET_IN_HIGH, 2);
+		if (OUT_RELOCh(chan, src, src_off, src_dom | NOUVEAU_BO_RD) ||
+		    OUT_RELOCh(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
+
+		BEGIN_RING(chan, m2mf, NV03_M2MF_OFFSET_IN, 2);
+		if (OUT_RELOCl(chan, src, src_off, src_dom | NOUVEAU_BO_RD) ||
+		    OUT_RELOCl(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR)) {
+			MARK_UNDO(chan);
+			return FALSE;
+		}
+
+		BEGIN_RING(chan, m2mf, NV03_M2MF_LINE_LENGTH_IN, 4);
+		OUT_RING  (chan, w * cpp);
+		OUT_RING  (chan, line_count);
+		OUT_RING  (chan, 0x00000101);
+		OUT_RING  (chan, 0x00000000);
+
+		src_y += line_count;
+		dst_y += line_count;
+		h  -= line_count;
+	}
+
+	return TRUE;
+}

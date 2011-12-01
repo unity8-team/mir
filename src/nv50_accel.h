@@ -8,6 +8,7 @@
 #include "hwdefs/nv50_defs.xml.h"
 #include "hwdefs/nv50_texture.h"
 #include "hwdefs/nv_3ddefs.xml.h"
+#include "hwdefs/nv_m2mf.xml.h"
 
 /* "Tesla scratch buffer" offsets */
 #define PVP_OFFSET  0x00000000 /* Vertex program */

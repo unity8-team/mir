@@ -43,231 +43,25 @@ NVAccelMemcpyRect(char *dst, const char *src, int height, int dst_pitch,
 	return TRUE;
 }
 
-static inline Bool
-NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
-		    char *dst, unsigned dst_pitch)
+static Bool
+NVAccelM2MF(NVPtr pNv, int w, int h, int cpp,
+	    struct nouveau_bo *src, int sd, int sp, int sh, int sx, int sy,
+	    struct nouveau_bo *dst, int dd, int dp, int dh, int dx, int dy)
 {
-	ScrnInfoPtr pScrn = xf86Screens[pspix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
-	struct nouveau_bo *bo = nouveau_pixmap_bo(pspix);
-	unsigned cpp = pspix->drawable.bitsPerPixel / 8;
-	unsigned line_len = w * cpp;
-	unsigned src_offset = 0, src_pitch = 0, linear = 0;
-	/* Maximum DMA transfer */
-	unsigned line_count = pNv->GART->size / line_len;
-
-	if (!nv50_style_tiled_pixmap(pspix)) {
-		linear     = 1;
-		src_pitch  = exaGetPixmapPitch(pspix);
-		src_offset += (y * src_pitch) + (x * cpp);
-	}
-
-	/* HW limitations */
-	if (line_count > 2047)
-		line_count = 2047;
-
-	while (h) {
-		int i;
-		char *src;
-
-		if (line_count > h)
-			line_count = h;
-
-		if (MARK_RING(chan, 32, 6))
-			return FALSE;
-
-		BEGIN_RING(chan, m2mf, NV03_M2MF_DMA_BUFFER_IN, 2);
-		if (OUT_RELOCo(chan, bo, NOUVEAU_BO_GART | NOUVEAU_BO_VRAM |
-			       NOUVEAU_BO_RD) ||
-		    OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART |
-			       NOUVEAU_BO_WR)) {
-			MARK_UNDO(chan);
-			return FALSE;
-		}
-
-		if (pNv->Architecture >= NV_ARCH_50) {
-			if (!linear) {
-				BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_IN, 7);
-				OUT_RING  (chan, 0);
-				OUT_RING  (chan, bo->tile_mode << 4);
-				OUT_RING  (chan, pspix->drawable.width * cpp);
-				OUT_RING  (chan, pspix->drawable.height);
-				OUT_RING  (chan, 1);
-				OUT_RING  (chan, 0);
-				OUT_RING  (chan, (y << 16) | (x * cpp));
-			} else {
-				BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_IN, 1);
-				OUT_RING  (chan, 1);
-			}
-
-			BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_OUT, 1);
-			OUT_RING  (chan, 1);
-
-			BEGIN_RING(chan, m2mf, NV50_M2MF_OFFSET_IN_HIGH, 2);
-			if (OUT_RELOCh(chan, bo, src_offset, NOUVEAU_BO_GART |
-				       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
-			    OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
-				       NOUVEAU_BO_WR)) {
-				MARK_UNDO(chan);
-				return FALSE;
-			}
-		}
-
-		BEGIN_RING(chan, m2mf, NV03_M2MF_OFFSET_IN, 8);
-		if (OUT_RELOCl(chan, bo, src_offset, NOUVEAU_BO_GART |
-			       NOUVEAU_BO_VRAM | NOUVEAU_BO_RD) ||
-		    OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO_GART |
-			       NOUVEAU_BO_WR)) {
-			MARK_UNDO(chan);
-			return FALSE;
-		}
-		OUT_RING  (chan, src_pitch);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, line_count);
-		OUT_RING  (chan, (1<<8)|1);
-		OUT_RING  (chan, 0);
-
-		if (nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD)) {
-			MARK_UNDO(chan);
-			return FALSE;
-		}
-		src = pNv->GART->map;
-		if (dst_pitch == line_len) {
-			memcpy(dst, src, dst_pitch * line_count);
-			dst += dst_pitch * line_count;
-		} else {
-			for (i = 0; i < line_count; i++) {
-				memcpy(dst, src, line_len);
-				src += line_len;
-				dst += dst_pitch;
-			}
-		}
-		nouveau_bo_unmap(pNv->GART);
-
-		if (linear)
-			src_offset += line_count * src_pitch;
-		h -= line_count;
-		y += line_count;
-	}
-
-	return TRUE;
-}
-
-static inline Bool
-NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
-		  const char *src, int src_pitch)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pdpix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
-	struct nouveau_bo *bo = nouveau_pixmap_bo(pdpix);
-	unsigned cpp = pdpix->drawable.bitsPerPixel / 8;
-	unsigned line_len = w * cpp;
-	unsigned dst_offset = 0, dst_pitch = 0, linear = 0;
-	/* Maximum DMA transfer */
-	unsigned line_count = pNv->GART->size / line_len;
-
-	if (!nv50_style_tiled_pixmap(pdpix)) {
-		linear     = 1;
-		dst_pitch  = exaGetPixmapPitch(pdpix);
-		dst_offset += (y * dst_pitch) + (x * cpp);
-	}
-
-	/* HW limitations */
-	if (line_count > 2047)
-		line_count = 2047;
-
-	while (h) {
-		int i;
-		char *dst;
-
-		if (line_count > h)
-			line_count = h;
-
-		/* Upload to GART */
-		if (nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR))
-			return FALSE;
-		dst = pNv->GART->map;
-		if (src_pitch == line_len) {
-			memcpy(dst, src, src_pitch * line_count);
-			src += src_pitch * line_count;
-		} else {
-			for (i = 0; i < line_count; i++) {
-				memcpy(dst, src, line_len);
-				src += src_pitch;
-				dst += line_len;
-			}
-		}
-		nouveau_bo_unmap(pNv->GART);
-
-		if (MARK_RING(chan, 32, 6))
-			return FALSE;
-
-		BEGIN_RING(chan, m2mf, NV03_M2MF_DMA_BUFFER_IN, 2);
-		if (OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART |
-			       NOUVEAU_BO_RD) ||
-		    OUT_RELOCo(chan, bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
-			       NOUVEAU_BO_WR)) {
-			MARK_UNDO(chan);
-			return FALSE;
-		}
-
-		if (pNv->Architecture >= NV_ARCH_50) {
-			BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_IN, 1);
-			OUT_RING  (chan, 1);
-
-			if (!linear) {
-				BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_OUT, 7);
-				OUT_RING  (chan, 0);
-				OUT_RING  (chan, bo->tile_mode << 4);
-				OUT_RING  (chan, pdpix->drawable.width * cpp);
-				OUT_RING  (chan, pdpix->drawable.height);
-				OUT_RING  (chan, 1);
-				OUT_RING  (chan, 0);
-				OUT_RING  (chan, (y << 16) | (x * cpp));
-			} else {
-				BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_OUT, 1);
-				OUT_RING  (chan, 1);
-			}
-
-			BEGIN_RING(chan, m2mf, NV50_M2MF_OFFSET_IN_HIGH, 2);
-			if (OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
-				       NOUVEAU_BO_RD) ||
-			    OUT_RELOCh(chan, bo, dst_offset, NOUVEAU_BO_VRAM |
-				       NOUVEAU_BO_GART | NOUVEAU_BO_WR)) {
-				MARK_UNDO(chan);
-				return FALSE;
-			}
-		}
-
-		/* DMA to VRAM */
-		BEGIN_RING(chan, m2mf, NV03_M2MF_OFFSET_IN, 8);
-		if (OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO_GART |
-			       NOUVEAU_BO_RD) ||
-		    OUT_RELOCl(chan, bo, dst_offset, NOUVEAU_BO_VRAM |
-			       NOUVEAU_BO_GART | NOUVEAU_BO_WR)) {
-			MARK_UNDO(chan);
-			return FALSE;
-		}
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, dst_pitch);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, line_count);
-		OUT_RING  (chan, (1<<8)|1);
-		OUT_RING  (chan, 0);
-		FIRE_RING (chan);
-
-		if (linear)
-			dst_offset += line_count * dst_pitch;
-		h -= line_count;
-		y += line_count;
-	}
-
-	return TRUE;
+	if (pNv->Architecture >= NV_ARCH_C0)
+		return NVC0EXARectM2MF(pNv, w, h, cpp,
+				       src, sd, sp, sh, sx, sy,
+				       dst, dd, dp, dh, dx, dy);
+	else
+	if (pNv->Architecture >= NV_ARCH_50)
+		return NV50EXARectM2MF(pNv, w, h, cpp,
+				       src, sd, sp, sh, sx, sy,
+				       dst, dd, dp, dh, dx, dy);
+	else
+		return NV04EXARectM2MF(pNv, w, h, cpp,
+				       src, sd, sp, sh, sx, sy,
+				       dst, dd, dp, dh, dx, dy);
+	return FALSE;
 }
 
 static int
@@ -369,7 +163,8 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 	ScrnInfoPtr pScrn = xf86Screens[pspix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_bo *bo;
-	int src_pitch, cpp, offset;
+	int src_pitch, tmp_pitch, cpp, offset;
+	int max_lines, lines, i;
 	const char *src;
 	Bool ret;
 
@@ -377,18 +172,42 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 	cpp = pspix->drawable.bitsPerPixel >> 3;
 	offset = (y * src_pitch) + (x * cpp);
 
-	if (pNv->GART) {
-		if (pNv->Architecture >= NV_ARCH_C0) {
-			if (NVC0AccelDownloadM2MF(pspix, x, y, w, h,
-						  dst, dst_pitch))
-				return TRUE;
+	if (!pNv->GART)
+		goto memcpy;
+
+	tmp_pitch = w * cpp;
+	max_lines = pNv->GART->size / tmp_pitch;
+	while (h) {
+		lines = max_lines;
+		if (lines > h)
+			lines = h;
+
+		if (!NVAccelM2MF(pNv, w, lines, cpp, nouveau_pixmap_bo(pspix),
+				 NOUVEAU_BO_VRAM, src_pitch,
+				 pspix->drawable.height, x, y, pNv->GART,
+				 NOUVEAU_BO_GART, tmp_pitch, lines, 0, 0))
+			goto memcpy;
+
+		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD);
+		if (src_pitch == tmp_pitch) {
+			memcpy(dst, pNv->GART->map, dst_pitch * lines);
+			dst += dst_pitch * lines;
 		} else {
-			if (NVAccelDownloadM2MF(pspix, x, y, w, h,
-						dst, dst_pitch))
-				return TRUE;
+			src = pNv->GART->map;
+			for (i = 0; i < lines; i++) {
+				memcpy(dst, src, tmp_pitch);
+				src += tmp_pitch;
+				dst += dst_pitch;
+			}
 		}
+		nouveau_bo_unmap(pNv->GART);
+
+		/* next! */
+		h -= lines;
+		y += lines;
 	}
 
+memcpy:
 	bo = nouveau_pixmap_bo(pspix);
 	if (nouveau_bo_map(bo, NOUVEAU_BO_RD))
 		return FALSE;
@@ -404,8 +223,9 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pdpix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
+	int dst_pitch, tmp_pitch, cpp;
+	int max_lines, lines, i;
 	struct nouveau_bo *bo;
-	int dst_pitch, cpp;
 	char *dst;
 	Bool ret;
 
@@ -438,22 +258,46 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 	}
 
 	/* try gart-based transfer */
-	if (pNv->GART) {
-		if (pNv->Architecture < NV_ARCH_C0) {
-			ret = NVAccelUploadM2MF(pdpix, x, y, w, h,
-						src, src_pitch);
-		} else {
-			ret = NVC0AccelUploadM2MF(pdpix, x, y, w, h,
-						  src, src_pitch);
-		}
+	if (!pNv->GART)
+		goto memcpy;
 
-		if (ret) {
-			exaMarkSync(pdpix->drawable.pScreen);
-			return TRUE;
+	tmp_pitch = w * cpp;
+	max_lines = pNv->GART->size / tmp_pitch;
+	while (h) {
+		lines = max_lines;
+		if (lines > h)
+			lines = h;
+
+		nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR);
+		if (src_pitch == tmp_pitch) {
+			memcpy(pNv->GART->map, src, src_pitch * lines);
+			src += src_pitch * lines;
+		} else {
+			dst = pNv->GART->map;
+			for (i = 0; i < lines; i++) {
+				memcpy(dst, src, tmp_pitch);
+				src += src_pitch;
+				dst += tmp_pitch;
+			}
 		}
+		nouveau_bo_unmap(pNv->GART);
+
+		if (!NVAccelM2MF(pNv, w, lines, cpp, pNv->GART,
+				 NOUVEAU_BO_GART, tmp_pitch, lines, 0, 0,
+				 nouveau_pixmap_bo(pdpix), NOUVEAU_BO_VRAM,
+				 dst_pitch, pdpix->drawable.height, x, y))
+			goto memcpy;
+
+		/* next! */
+		h -= lines;
+		y += lines;
 	}
 
+	exaMarkSync(pdpix->drawable.pScreen);
+	return TRUE;
+
 	/* fallback to memcpy-based transfer */
+memcpy:
 	bo = nouveau_pixmap_bo(pdpix);
 	if (nouveau_bo_map(bo, NOUVEAU_BO_WR))
 		return FALSE;

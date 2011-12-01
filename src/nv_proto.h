@@ -78,6 +78,9 @@ void NV04EXACopy(PixmapPtr, int, int, int, int, int, int);
 void NV04EXADoneCopy(PixmapPtr);
 Bool NV04EXAUploadIFC(ScrnInfoPtr, const char *src, int src_pitch,
 		      PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
+Bool NV04EXARectM2MF(NVPtr pNv, int, int, int,
+		     struct nouveau_bo *, int, int, int, int, int,
+		     struct nouveau_bo *, int, int, int, int, int);
 
 /* in nv10_exa.c */
 Bool NVAccelInitNV10TCL(ScrnInfoPtr pScrn);
@@ -153,6 +156,9 @@ void NV50EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV50EXADoneComposite(PixmapPtr);
 Bool NV50EXAUploadSIFC(const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
+Bool NV50EXARectM2MF(NVPtr pNv, int, int, int,
+		     struct nouveau_bo *, int, int, int, int, int,
+		     struct nouveau_bo *, int, int, int, int, int);
 
 /* in nvc0_exa.c */
 Bool NVC0AccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
@@ -173,6 +179,9 @@ void NVC0EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NVC0EXADoneComposite(PixmapPtr);
 Bool NVC0EXAUploadSIFC(const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
+Bool NVC0EXARectM2MF(NVPtr pNv, int, int, int,
+		     struct nouveau_bo *, int, int, int, int, int,
+		     struct nouveau_bo *, int, int, int, int, int);
 
 /* nv50_xv.c */
 int nv50_xv_image_put(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
