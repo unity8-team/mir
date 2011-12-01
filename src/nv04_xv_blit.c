@@ -34,8 +34,7 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
-#include "nv04_pushbuf.h"
-
+#include "hwdefs/nv_object.xml.h"
 #include "hwdefs/nv01_2d.xml.h"
 
 #define FOURCC_RGB 0x0000003
@@ -82,9 +81,6 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
         CARD32         dst_size, dst_point;
         CARD32         src_point, src_format;
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
-	struct nouveau_grobj *rect = pNv->NvRectangle;
-	struct nouveau_grobj *sifm = pNv->NvScaledImage;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
         int dst_format;
 
@@ -94,7 +90,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	if (MARK_RING(chan, 64, 4))
 		return BadImplementation;
 
-        BEGIN_RING(chan, surf2d, NV04_SURFACE_2D_FORMAT, 4);
+        BEGIN_NV04(chan, NV04_SF2D(FORMAT), 4);
         OUT_RING  (chan, dst_format);
         OUT_RING  (chan, (exaGetPixmapPitch(ppix) << 16) | exaGetPixmapPitch(ppix));
         if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
@@ -134,24 +130,26 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 		NV11SyncToVBlank(ppix, dstBox);
         }
 
+	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
+	OUT_RING  (chan, pNv->NvScaledImage->handle);
         if (pNv->dev->chipset >= 0x05) {
-                BEGIN_RING(chan, sifm, NV03_SIFM_COLOR_FORMAT, 2);
+                BEGIN_NV04(chan, NV03_SIFM(COLOR_FORMAT), 2);
                 OUT_RING  (chan, src_format);
                 OUT_RING  (chan, NV03_SIFM_OPERATION_SRCCOPY);
         } else {
-                BEGIN_RING(chan, sifm, NV03_SIFM_COLOR_FORMAT, 1);
+                BEGIN_NV04(chan, NV03_SIFM(COLOR_FORMAT), 1);
                 OUT_RING  (chan, src_format);
         }
 
 
-	BEGIN_RING(chan, sifm, NV03_SIFM_DMA_IMAGE, 1);
+	BEGIN_NV04(chan, NV03_SIFM(DMA_IMAGE), 1);
 	OUT_RELOCo(chan, src, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
 			      NOUVEAU_BO_RD);
         while (nbox--) {
-                BEGIN_RING(chan, rect, NV04_GDI_COLOR1_A, 1);
+                BEGIN_NV04(chan, NV04_RECT(COLOR1_A), 1);
                 OUT_RING  (chan, 0);
 
-                BEGIN_RING(chan, sifm, NV03_SIFM_CLIP_POINT, 6);
+                BEGIN_NV04(chan, NV03_SIFM(CLIP_POINT), 6);
                 OUT_RING  (chan, (pbox->y1 << 16) | pbox->x1);
                 OUT_RING  (chan, ((pbox->y2 - pbox->y1) << 16) |
                                  (pbox->x2 - pbox->x1));
@@ -160,7 +158,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                 OUT_RING  (chan, dsdx);
                 OUT_RING  (chan, dtdy);
 
-                BEGIN_RING(chan, sifm, NV03_SIFM_SIZE, 4);
+                BEGIN_NV04(chan, NV03_SIFM(SIZE), 4);
                 OUT_RING  (chan, (height << 16) | width);
                 OUT_RING  (chan, src_pitch);
 		if (OUT_RELOCl(chan, src, src_offset, NOUVEAU_BO_VRAM |

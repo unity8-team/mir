@@ -1,7 +1,6 @@
 #ifndef __NVC0_ACCEL_H__
 #define __NVC0_ACCEL_H__
 
-#include "nvc0_pushbuf.h"
 #include "hwdefs/nv_object.xml.h"
 #include "hwdefs/nv50_2d.xml.h"
 #include "hwdefs/nvc0_3d.xml.h"
@@ -42,18 +41,17 @@ static __inline__ void
 VTX1s(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)
 {
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *fermi = pNv->Nv3D;
 
-	BEGIN_RING(chan, fermi, NVC0_3D_VTX_ATTR_DEFINE, 3);
+	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
 	OUT_RING  (chan, VTX_ATTR(1, 2, FLOAT, 4));
 	OUT_RINGf (chan, sx);
 	OUT_RINGf (chan, sy);
 #if 1
-	BEGIN_RING(chan, fermi, NVC0_3D_VTX_ATTR_DEFINE, 2);
+	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 2);
 	OUT_RING  (chan, VTX_ATTR(0, 2, USCALED, 2));
 	OUT_RING  (chan, (dy << 16) | dx);
 #else
-	BEGIN_RING(chan, fermi, NVC0_3D_VTX_ATTR_DEFINE, 3);
+	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
 	OUT_RING  (chan, VTX_ATTR(0, 2, FLOAT, 4));
 	OUT_RINGf (chan, (float)dx);
 	OUT_RINGf (chan, (float)dy);
@@ -65,22 +63,21 @@ VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y,
       unsigned dx, unsigned dy)
 {
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *fermi = pNv->Nv3D;
 
-	BEGIN_RING(chan, fermi, NVC0_3D_VTX_ATTR_DEFINE, 3);
+	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
 	OUT_RING  (chan, VTX_ATTR(1, 2, FLOAT, 4));
 	OUT_RINGf (chan, s1x);
 	OUT_RINGf (chan, s1y);
-	BEGIN_RING(chan, fermi, NVC0_3D_VTX_ATTR_DEFINE, 3);
+	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
 	OUT_RING  (chan, VTX_ATTR(2, 2, FLOAT, 4));
 	OUT_RINGf (chan, s2x);
 	OUT_RINGf (chan, s2y);
 #if 1
-	BEGIN_RING(chan, fermi, NVC0_3D_VTX_ATTR_DEFINE, 2);
+	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 2);
 	OUT_RING  (chan, VTX_ATTR(0, 2, USCALED, 2));
 	OUT_RING  (chan, (dy << 16) | dx);
 #else
-	BEGIN_RING(chan, fermi, NVC0_3D_VTX_ATTR_DEFINE, 3);
+	BEGIN_NVC0(chan, NVC0_3D(VTX_ATTR_DEFINE), 3);
 	OUT_RING  (chan, VTX_ATTR(0, 2, FLOAT, 4));
 	OUT_RINGf (chan, (float)dx);
 	OUT_RINGf (chan, (float)dy);

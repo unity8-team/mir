@@ -28,7 +28,6 @@
 #endif
 
 #include "nv_include.h"
-#include "nv04_pushbuf.h"
 
 #include "hwdefs/nv_object.xml.h"
 #include "hwdefs/nv10_3d.xml.h"
@@ -376,7 +375,6 @@ static Bool
 setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 {
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *celsius = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pixmap);
 	unsigned tex_reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
 	long w = pict->pDrawable->width,
@@ -389,7 +387,7 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 		get_tex_format(pict) |
 		0x50 /* UNK */;
 
-	BEGIN_RING(chan, celsius, NV10_3D_TEX_OFFSET(unit), 1);
+	BEGIN_NV04(chan, NV10_3D(TEX_OFFSET(unit)), 1);
 	if (OUT_RELOCl(chan, bo, 0, tex_reloc))
 		return FALSE;
 
@@ -402,22 +400,22 @@ setup_texture(NVPtr pNv, int unit, PicturePtr pict, PixmapPtr pixmap)
 		 */
 		w = (w + 1) &~ 1;
 
-		BEGIN_RING(chan, celsius, NV10_3D_TEX_NPOT_PITCH(unit), 1);
+		BEGIN_NV04(chan, NV10_3D(TEX_NPOT_PITCH(unit)), 1);
 		OUT_RING  (chan, exaGetPixmapPitch(pixmap) << 16);
 
-		BEGIN_RING(chan, celsius, NV10_3D_TEX_NPOT_SIZE(unit), 1);
+		BEGIN_NV04(chan, NV10_3D(TEX_NPOT_SIZE(unit)), 1);
 		OUT_RING  (chan, w << 16 | h);
 	}
 
-	BEGIN_RING(chan, celsius, NV10_3D_TEX_FORMAT(unit), 1 );
+	BEGIN_NV04(chan, NV10_3D(TEX_FORMAT(unit)), 1 );
 	if (OUT_RELOCd(chan, bo, txfmt, tex_reloc | NOUVEAU_BO_OR,
 		       NV10_3D_TEX_FORMAT_DMA0, NV10_3D_TEX_FORMAT_DMA1))
 		return FALSE;
 
-	BEGIN_RING(chan, celsius, NV10_3D_TEX_ENABLE(unit), 1 );
+	BEGIN_NV04(chan, NV10_3D(TEX_ENABLE(unit)), 1 );
 	OUT_RING  (chan, NV10_3D_TEX_ENABLE_ENABLE);
 
-	BEGIN_RING(chan, celsius, NV10_3D_TEX_FILTER(unit), 1);
+	BEGIN_NV04(chan, NV10_3D(TEX_FILTER(unit)), 1);
 	if (pict->filter == PictFilterNearest)
 		OUT_RING(chan, (NV10_3D_TEX_FILTER_MAGNIFY_NEAREST |
 				NV10_3D_TEX_FILTER_MINIFY_NEAREST));
@@ -432,15 +430,14 @@ static Bool
 setup_render_target(NVPtr pNv, PicturePtr pict, PixmapPtr pixmap)
 {
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *celsius = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pixmap);
 
-	BEGIN_RING(chan, celsius, NV10_3D_RT_FORMAT, 2);
+	BEGIN_NV04(chan, NV10_3D(RT_FORMAT), 2);
 	OUT_RING  (chan, get_rt_format(pict));
 	OUT_RING  (chan, (exaGetPixmapPitch(pixmap) << 16 |
 			  exaGetPixmapPitch(pixmap)));
 
-	BEGIN_RING(chan, celsius, NV10_3D_COLOR_OFFSET, 1);
+	BEGIN_NV04(chan, NV10_3D(COLOR_OFFSET), 1);
 	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
 		return FALSE;
 
@@ -488,7 +485,6 @@ static void
 setup_combiners(NVPtr pNv, PicturePtr src, PicturePtr mask)
 {
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *celsius = pNv->Nv3D;
 	uint32_t rc_in_alpha = 0, rc_in_rgb = 0;
 
 	if (PICT_FORMAT_A(src->format))
@@ -532,9 +528,9 @@ setup_combiners(NVPtr pNv, PicturePtr src, PicturePtr mask)
 			rc_in_rgb |= RC_IN_ONE(B);
 	}
 
-	BEGIN_RING(chan, celsius, NV10_3D_RC_IN_ALPHA(0), 1);
+	BEGIN_NV04(chan, NV10_3D(RC_IN_ALPHA(0)), 1);
 	OUT_RING  (chan, rc_in_alpha);
-	BEGIN_RING(chan, celsius, NV10_3D_RC_IN_RGB(0), 1);
+	BEGIN_NV04(chan, NV10_3D(RC_IN_RGB(0)), 1);
 	OUT_RING  (chan, rc_in_rgb);
 }
 
@@ -542,7 +538,6 @@ static void
 setup_blend_function(NVPtr pNv)
 {
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *celsius = pNv->Nv3D;
 	struct pict_op *op = &nv10_pict_op[pNv->alu];
 	int src_factor = op->src;
 	int dst_factor = op->dst;
@@ -562,10 +557,10 @@ setup_blend_function(NVPtr pNv)
 			dst_factor = DF(ONE_MINUS_SRC_COLOR);
 	}
 
-	BEGIN_RING(chan, celsius, NV10_3D_BLEND_FUNC_SRC, 2);
+	BEGIN_NV04(chan, NV10_3D(BLEND_FUNC_SRC), 2);
 	OUT_RING  (chan, src_factor);
 	OUT_RING  (chan, dst_factor);
-	BEGIN_RING(chan, celsius, NV10_3D_BLEND_FUNC_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(BLEND_FUNC_ENABLE), 1);
 	OUT_RING  (chan, 1);
 }
 
@@ -655,19 +650,18 @@ emit_vertex(NVPtr pNv, int i, PictVector pos[],
 	    PictVector tex0[], PictVector tex1[])
 {
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *celsius = pNv->Nv3D;
 
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_TX0_2F_S, 2);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_TX0_2F_S), 2);
 	OUT_RINGi (chan, tex0[i], 0);
 	OUT_RINGi (chan, tex0[i], 1);
 
 	if (tex1) {
-		BEGIN_RING(chan, celsius, NV10_3D_VERTEX_TX1_2F_S, 2);
+		BEGIN_NV04(chan, NV10_3D(VERTEX_TX1_2F_S), 2);
 		OUT_RINGi (chan, tex1[i], 0);
 		OUT_RINGi (chan, tex1[i], 1);
 	}
 
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_POS_3F_X, 3);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_POS_3F_X), 3);
 	OUT_RINGi (chan, pos[i], 0);
 	OUT_RINGi (chan, pos[i], 1);
 	OUT_RINGf (chan, 0);
@@ -690,7 +684,6 @@ NV10EXAComposite(PixmapPtr pix_dst,
 	ScrnInfoPtr pScrn = xf86Screens[pix_dst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *celsius = pNv->Nv3D;
 	PicturePtr mask = pNv->pmpict,
 		src = pNv->pspict;
 	PictVector dstq[4] = QUAD(dstX, dstY, width, height),
@@ -702,12 +695,12 @@ NV10EXAComposite(PixmapPtr pix_dst,
 		MAP(transform_vertex, mask->transform, maskq);
 
 	WAIT_RING (chan, 64);
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_BEGIN_END, 1);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_BEGIN_END), 1);
 	OUT_RING  (chan, NV10_3D_VERTEX_BEGIN_END_QUADS);
 
 	MAP(emit_vertex, pNv, dstq, srcq, mask ? maskq : NULL);
 
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_BEGIN_END, 1);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_BEGIN_END), 1);
 	OUT_RING  (chan, NV10_3D_VERTEX_BEGIN_END_STOP);
 }
 
@@ -726,7 +719,6 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *celsius;
 	uint32_t class = 0;
 	int i;
 
@@ -747,112 +739,113 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
 			return FALSE;
 	}
-	celsius = pNv->Nv3D;
 
-	BEGIN_RING(chan, celsius, NV10_3D_DMA_NOTIFY, 1);
+	BEGIN_NV04(chan, NV01_SUBC(3D, OBJECT), 1);
+	OUT_RING  (chan, pNv->Nv3D->handle);
+	BEGIN_NV04(chan, NV10_3D(DMA_NOTIFY), 1);
 	OUT_RING  (chan, chan->nullobj->handle);
 
-	BEGIN_RING(chan, celsius, NV10_3D_DMA_TEXTURE0, 2);
+	BEGIN_NV04(chan, NV10_3D(DMA_TEXTURE0), 2);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, pNv->chan->gart->handle);
 
-	BEGIN_RING(chan, celsius, NV10_3D_DMA_COLOR, 2);
+	BEGIN_NV04(chan, NV10_3D(DMA_COLOR), 2);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 
-	BEGIN_RING(chan, celsius, NV04_GRAPH_NOP, 1);
+	BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, celsius, NV10_3D_RT_HORIZ, 2);
+	BEGIN_NV04(chan, NV10_3D(RT_HORIZ), 2);
 	OUT_RING  (chan, 2048 << 16 | 0);
 	OUT_RING  (chan, 2048 << 16 | 0);
 
-	BEGIN_RING(chan, celsius, NV10_3D_ZETA_OFFSET, 1);
+	BEGIN_NV04(chan, NV10_3D(ZETA_OFFSET), 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, celsius, NV10_3D_VIEWPORT_CLIP_MODE, 1);
+	BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_MODE), 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, celsius, NV10_3D_VIEWPORT_CLIP_HORIZ(0), 1);
+	BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_HORIZ(0)), 1);
 	OUT_RING  (chan, 0x7ff << 16 | 0x800800);
-	BEGIN_RING(chan, celsius, NV10_3D_VIEWPORT_CLIP_VERT(0), 1);
+	BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_VERT(0)), 1);
 	OUT_RING  (chan, 0x7ff << 16 | 0x800800);
 
 	for (i = 1; i < 8; i++) {
-		BEGIN_RING(chan, celsius, NV10_3D_VIEWPORT_CLIP_HORIZ(i), 1);
+		BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_HORIZ(i)), 1);
 		OUT_RING  (chan, 0);
-		BEGIN_RING(chan, celsius, NV10_3D_VIEWPORT_CLIP_VERT(i), 1);
+		BEGIN_NV04(chan, NV10_3D(VIEWPORT_CLIP_VERT(i)), 1);
 		OUT_RING  (chan, 0);
 	}
 
-	BEGIN_RING(chan, celsius, 0x290, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x290), 1);
 	OUT_RING  (chan, (0x10<<16)|1);
-	BEGIN_RING(chan, celsius, 0x3f4, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x3f4), 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, celsius, NV04_GRAPH_NOP, 1);
+	BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
 	OUT_RING  (chan, 0);
 
 	if (class != NV10_3D_CLASS) {
 		/* For nv11, nv17 */
-		BEGIN_RING(chan, celsius, 0x120, 3);
+		BEGIN_NV04(chan, SUBC_3D(0x120), 3);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 2);
 
-		BEGIN_RING(chan, pNv->NvImageBlit, 0x120, 3);
+		BEGIN_NV04(chan, SUBC_BLIT(0x120), 3);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 2);
 
-		BEGIN_RING(chan, celsius, NV04_GRAPH_NOP, 1);
+		BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
 		OUT_RING  (chan, 0);
 	}
 
-	BEGIN_RING(chan, celsius, NV04_GRAPH_NOP, 1);
+	BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
 	OUT_RING  (chan, 0);
 
 	/* Set state */
-	BEGIN_RING(chan, celsius, NV10_3D_FOG_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(FOG_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_ALPHA_FUNC_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(ALPHA_FUNC_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_ALPHA_FUNC_FUNC, 2);
+	BEGIN_NV04(chan, NV10_3D(ALPHA_FUNC_FUNC), 2);
 	OUT_RING  (chan, 0x207);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_TEX_ENABLE(0), 2);
+	BEGIN_NV04(chan, NV10_3D(TEX_ENABLE(0)), 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_RC_IN_ALPHA(0), 6);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
+	BEGIN_NV04(chan, NV10_3D(RC_IN_ALPHA(0)), 6);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_RC_OUT_ALPHA(0), 6);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
+	BEGIN_NV04(chan, NV10_3D(RC_OUT_ALPHA(0)), 6);
 	OUT_RING  (chan, 0x00000c00);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0x00000c00);
 	OUT_RING  (chan, 0x18000000);
 	OUT_RING  (chan, 0x300c0000);
 	OUT_RING  (chan, 0x00001c80);
-	BEGIN_RING(chan, celsius, NV10_3D_BLEND_FUNC_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(BLEND_FUNC_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_DITHER_ENABLE, 2);
+	BEGIN_NV04(chan, NV10_3D(DITHER_ENABLE), 2);
 	OUT_RING  (chan, 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_LINE_SMOOTH_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(LINE_SMOOTH_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_WEIGHT_ENABLE, 2);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_WEIGHT_ENABLE), 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_BLEND_FUNC_SRC, 4);
+	BEGIN_NV04(chan, NV10_3D(BLEND_FUNC_SRC), 4);
 	OUT_RING  (chan, 1);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0x8006);
-	BEGIN_RING(chan, celsius, NV10_3D_STENCIL_MASK, 8);
+	BEGIN_NV04(chan, NV10_3D(STENCIL_MASK), 8);
 	OUT_RING  (chan, 0xff);
 	OUT_RING  (chan, 0x207);
 	OUT_RING  (chan, 0);
@@ -861,113 +854,113 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0x1e00);
 	OUT_RING  (chan, 0x1e00);
 	OUT_RING  (chan, 0x1d01);
-	BEGIN_RING(chan, celsius, NV10_3D_NORMALIZE_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(NORMALIZE_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_FOG_ENABLE, 2);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_LIGHT_MODEL, 1);
-	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_SEPARATE_SPECULAR_ENABLE, 1);
-	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_ENABLED_LIGHTS, 1);
-	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_POLYGON_OFFSET_POINT_ENABLE, 3);
+	BEGIN_NV04(chan, NV10_3D(FOG_ENABLE), 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
+	BEGIN_NV04(chan, NV10_3D(LIGHT_MODEL), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_DEPTH_FUNC, 1);
+	BEGIN_NV04(chan, NV10_3D(SEPARATE_SPECULAR_ENABLE), 1);
+	OUT_RING  (chan, 0);
+	BEGIN_NV04(chan, NV10_3D(ENABLED_LIGHTS), 1);
+	OUT_RING  (chan, 0);
+	BEGIN_NV04(chan, NV10_3D(POLYGON_OFFSET_POINT_ENABLE), 3);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
+	BEGIN_NV04(chan, NV10_3D(DEPTH_FUNC), 1);
 	OUT_RING  (chan, 0x201);
-	BEGIN_RING(chan, celsius, NV10_3D_DEPTH_WRITE_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(DEPTH_WRITE_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_DEPTH_TEST_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(DEPTH_TEST_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_POLYGON_OFFSET_FACTOR, 2);
+	BEGIN_NV04(chan, NV10_3D(POLYGON_OFFSET_FACTOR), 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_POINT_SIZE, 1);
+	BEGIN_NV04(chan, NV10_3D(POINT_SIZE), 1);
 	OUT_RING  (chan, 8);
-	BEGIN_RING(chan, celsius, NV10_3D_POINT_PARAMETERS_ENABLE, 2);
+	BEGIN_NV04(chan, NV10_3D(POINT_PARAMETERS_ENABLE), 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_LINE_WIDTH, 1);
+	BEGIN_NV04(chan, NV10_3D(LINE_WIDTH), 1);
 	OUT_RING  (chan, 8);
-	BEGIN_RING(chan, celsius, NV10_3D_LINE_SMOOTH_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(LINE_SMOOTH_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_POLYGON_MODE_FRONT, 2);
+	BEGIN_NV04(chan, NV10_3D(POLYGON_MODE_FRONT), 2);
 	OUT_RING  (chan, 0x1b02);
 	OUT_RING  (chan, 0x1b02);
-	BEGIN_RING(chan, celsius, NV10_3D_CULL_FACE, 2);
+	BEGIN_NV04(chan, NV10_3D(CULL_FACE), 2);
 	OUT_RING  (chan, 0x405);
 	OUT_RING  (chan, 0x901);
-	BEGIN_RING(chan, celsius, NV10_3D_POLYGON_SMOOTH_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(POLYGON_SMOOTH_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_CULL_FACE_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(CULL_FACE_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_TEX_GEN_MODE(0, 0), 8);
+	BEGIN_NV04(chan, NV10_3D(TEX_GEN_MODE(0, 0)), 8);
 	for (i = 0; i < 8; i++)
 		OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, celsius, NV10_3D_FOG_COEFF(0), 3);
+	BEGIN_NV04(chan, NV10_3D(FOG_COEFF(0)), 3);
 	OUT_RING  (chan, 0x3fc00000);	/* -1.50 */
 	OUT_RING  (chan, 0xbdb8aa0a);	/* -0.09 */
 	OUT_RING  (chan, 0);		/*  0.00 */
 
-	BEGIN_RING(chan, celsius, NV04_GRAPH_NOP, 1);
+	BEGIN_NV04(chan, NV04_GRAPH(3D, NOP), 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, celsius, NV10_3D_FOG_MODE, 2);
+	BEGIN_NV04(chan, NV10_3D(FOG_MODE), 2);
 	OUT_RING  (chan, 0x802);
 	OUT_RING  (chan, 2);
 	/* for some reason VIEW_MATRIX_ENABLE need to be 6 instead of 4 when
 	 * using texturing, except when using the texture matrix
 	 */
-	BEGIN_RING(chan, celsius, NV10_3D_VIEW_MATRIX_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(VIEW_MATRIX_ENABLE), 1);
 	OUT_RING  (chan, 6);
-	BEGIN_RING(chan, celsius, NV10_3D_COLOR_MASK, 1);
+	BEGIN_NV04(chan, NV10_3D(COLOR_MASK), 1);
 	OUT_RING  (chan, 0x01010101);
 
-	BEGIN_RING(chan, celsius, NV10_3D_PROJECTION_MATRIX(0), 16);
+	BEGIN_NV04(chan, NV10_3D(PROJECTION_MATRIX(0)), 16);
 	for(i = 0; i < 16; i++)
 		OUT_RINGf(chan, i/4 == i%4 ? 1.0 : 0.0);
 
-	BEGIN_RING(chan, celsius, NV10_3D_DEPTH_RANGE_NEAR, 2);
+	BEGIN_NV04(chan, NV10_3D(DEPTH_RANGE_NEAR), 2);
 	OUT_RING  (chan, 0);
 	OUT_RINGf (chan, 65536.0);
 
-	BEGIN_RING(chan, celsius, NV10_3D_VIEWPORT_TRANSLATE_X, 4);
+	BEGIN_NV04(chan, NV10_3D(VIEWPORT_TRANSLATE_X), 4);
 	OUT_RINGf (chan, -2048.0);
 	OUT_RINGf (chan, -2048.0);
 	OUT_RINGf (chan, 0);
 	OUT_RING  (chan, 0);
 
 	/* Set vertex component */
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_COL_4F_R, 4);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_COL_4F_R), 4);
 	OUT_RINGf (chan, 1.0);
 	OUT_RINGf (chan, 1.0);
 	OUT_RINGf (chan, 1.0);
 	OUT_RINGf (chan, 1.0);
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_COL2_3F_R, 3);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_COL2_3F_R), 3);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_NOR_3F_X, 3);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_NOR_3F_X), 3);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0);
 	OUT_RINGf (chan, 1.0);
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_TX0_4F_S, 4);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_TX0_4F_S), 4);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 1.0);
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_TX1_4F_S, 4);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_TX1_4F_S), 4);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 1.0);
-	BEGIN_RING(chan, celsius, NV10_3D_VERTEX_FOG_1F, 1);
+	BEGIN_NV04(chan, NV10_3D(VERTEX_FOG_1F), 1);
 	OUT_RINGf (chan, 0.0);
-	BEGIN_RING(chan, celsius, NV10_3D_EDGEFLAG_ENABLE, 1);
+	BEGIN_NV04(chan, NV10_3D(EDGEFLAG_ENABLE), 1);
 	OUT_RING  (chan, 1);
 
 	return TRUE;

@@ -24,7 +24,6 @@
 #include "nv_include.h"
 #include "nv_rop.h"
 
-#include "nv04_pushbuf.h"
 #include "nv50_accel.h"
 
 struct nv50_exa_state {
@@ -42,8 +41,6 @@ static struct nv50_exa_state exa_state;
 	ScrnInfoPtr pScrn = xf86Screens[(p)->drawable.pScreen->myNum]; \
 	NVPtr pNv = NVPTR(pScrn);                                      \
 	struct nouveau_channel *chan = pNv->chan; (void)chan;          \
-	struct nouveau_grobj *eng2d = pNv->Nv2D; (void)eng2d;          \
-	struct nouveau_grobj *tesla = pNv->Nv3D; (void)tesla;          \
 	struct nv50_exa_state *state = &exa_state; (void)state
 
 #define BF(f) NV50_BLEND_FACTOR_##f
@@ -97,7 +94,7 @@ static void NV50EXASetClip(PixmapPtr ppix, int x, int y, int w, int h)
 {
 	NV50EXA_LOCALS(ppix);
 
-	BEGIN_RING(chan, eng2d, NV50_2D_CLIP_X, 4);
+	BEGIN_NV04(chan, NV50_2D(CLIP_X), 4);
 	OUT_RING  (chan, x);
 	OUT_RING  (chan, y);
 	OUT_RING  (chan, w);
@@ -119,13 +116,13 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 	bo_flags |= is_src ? NOUVEAU_BO_RD : NOUVEAU_BO_WR;
 
 	if (!nv50_style_tiled_pixmap(ppix)) {
-		BEGIN_RING(chan, eng2d, mthd, 2);
+		BEGIN_NV04(chan, SUBC_2D(mthd), 2);
 		OUT_RING  (chan, fmt);
 		OUT_RING  (chan, 1);
-		BEGIN_RING(chan, eng2d, mthd + 0x14, 1);
+		BEGIN_NV04(chan, SUBC_2D(mthd + 0x14), 1);
 		OUT_RING  (chan, (uint32_t)exaGetPixmapPitch(ppix));
 	} else {
-		BEGIN_RING(chan, eng2d, mthd, 5);
+		BEGIN_NV04(chan, SUBC_2D(mthd), 5);
 		OUT_RING  (chan, fmt);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, bo->tile_mode << 4);
@@ -133,7 +130,7 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 		OUT_RING  (chan, 0);
 	}
 
-	BEGIN_RING(chan, eng2d, mthd + 0x18, 4);
+	BEGIN_NV04(chan, SUBC_2D(mthd + 0x18), 4);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, ppix->drawable.height);
 	if (OUT_RELOCh(chan, bo, 0, bo_flags) ||
@@ -151,7 +148,7 @@ NV50EXASetPattern(PixmapPtr pdpix, int col0, int col1, int pat0, int pat1)
 {
 	NV50EXA_LOCALS(pdpix);
 
-	BEGIN_RING(chan, eng2d, NV50_2D_PATTERN_COLOR(0), 4);
+	BEGIN_NV04(chan, NV50_2D(PATTERN_COLOR(0)), 4);
 	OUT_RING  (chan, col0);
 	OUT_RING  (chan, col1);
 	OUT_RING  (chan, pat0);
@@ -169,7 +166,7 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	else
 		rop = NVROP[alu].copy;
 
-	BEGIN_RING(chan, eng2d, NV50_2D_OPERATION, 1);
+	BEGIN_NV04(chan, NV50_2D(OPERATION), 1);
 	if (alu == GXcopy && EXA_PM_IS_SOLID(&pdpix->drawable, planemask)) {
 		OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
 		return;
@@ -177,7 +174,7 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 		OUT_RING  (chan, NV50_2D_OPERATION_ROP);
 	}
 
-	BEGIN_RING(chan, eng2d, NV50_2D_PATTERN_COLOR_FORMAT, 2);
+	BEGIN_NV04(chan, NV50_2D(PATTERN_COLOR_FORMAT), 2);
 	switch (pdpix->drawable.bitsPerPixel) {
 		case  8: OUT_RING  (chan, 3); break;
 		case 15: OUT_RING  (chan, 1); break;
@@ -204,7 +201,7 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	}
 
 	if (pNv->currentRop != alu) {
-		BEGIN_RING(chan, eng2d, NV50_2D_ROP, 1);
+		BEGIN_NV04(chan, NV50_2D(ROP), 1);
 		OUT_RING  (chan, rop);
 		pNv->currentRop = alu;
 	}
@@ -239,7 +236,7 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 
 	NV50EXASetROP(pdpix, alu, planemask);
 
-	BEGIN_RING(chan, eng2d, NV50_2D_DRAW_SHAPE, 3);
+	BEGIN_NV04(chan, NV50_2D(DRAW_SHAPE), 3);
 	OUT_RING  (chan, NV50_2D_DRAW_SHAPE_RECTANGLES);
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, fg);
@@ -258,7 +255,7 @@ NV50EXASolid(PixmapPtr pdpix, int x1, int y1, int x2, int y2)
 	NV50EXA_LOCALS(pdpix);
 
 	WAIT_RING (chan, 5);
-	BEGIN_RING(chan, eng2d, NV50_2D_DRAW_POINT32_X(0), 4);
+	BEGIN_NV04(chan, NV50_2D(DRAW_POINT32_X(0)), 4);
 	OUT_RING  (chan, x1);
 	OUT_RING  (chan, y1);
 	OUT_RING  (chan, x2);
@@ -323,11 +320,11 @@ NV50EXACopy(PixmapPtr pdpix, int srcX , int srcY,
 	NV50EXA_LOCALS(pdpix);
 
 	WAIT_RING (chan, 17);
-	BEGIN_RING(chan, eng2d, 0x0110, 1);
+	BEGIN_NV04(chan, SUBC_2D(0x0110), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, eng2d, 0x088c, 1);
+	BEGIN_NV04(chan, SUBC_2D(0x088c), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, eng2d, NV50_2D_BLIT_DST_X, 12);
+	BEGIN_NV04(chan, NV50_2D(BLIT_DST_X), 12);
 	OUT_RING  (chan, dstX);
 	OUT_RING  (chan, dstY);
 	OUT_RING  (chan, width);
@@ -389,12 +386,12 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 	/* If the pitch isn't aligned to a dword, then you can get corruption at the end of a line. */
 	NV50EXASetClip(pdpix, x, y, w, h);
 
-	BEGIN_RING(chan, eng2d, NV50_2D_OPERATION, 1);
+	BEGIN_NV04(chan, NV50_2D(OPERATION), 1);
 	OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
-	BEGIN_RING(chan, eng2d, NV50_2D_SIFC_BITMAP_ENABLE, 2);
+	BEGIN_NV04(chan, NV50_2D(SIFC_BITMAP_ENABLE), 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, sifc_fmt);
-	BEGIN_RING(chan, eng2d, NV50_2D_SIFC_WIDTH, 10);
+	BEGIN_NV04(chan, NV50_2D(SIFC_WIDTH), 10);
 	OUT_RING  (chan, (line_dwords * 4) / cpp);
 	OUT_RING  (chan, h);
 	OUT_RING  (chan, 0);
@@ -417,7 +414,7 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 			int size = count > 1792 ? 1792 : count;
 
 			WAIT_RING (chan, size + 1);
-			BEGIN_RING_NI(chan, eng2d, NV50_2D_SIFC_DATA, size);
+			BEGIN_NI04(chan, NV50_2D(SIFC_DATA), size);
 			OUT_RINGp (chan, p, size);
 
 			p += size * 4;
@@ -496,17 +493,17 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 		NOUVEAU_FALLBACK("invalid picture format\n");
 	}
 
-	BEGIN_RING(chan, tesla, NV50_3D_RT_ADDRESS_HIGH(0), 5);
+	BEGIN_NV04(chan, NV50_3D(RT_ADDRESS_HIGH(0)), 5);
 	if (OUT_RELOCh(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
 	    OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR))
 		return FALSE;
 	OUT_RING  (chan, format);
 	OUT_RING  (chan, bo->tile_mode << 4);
 	OUT_RING  (chan, 0x00000000);
-	BEGIN_RING(chan, tesla, NV50_3D_RT_HORIZ(0), 2);
+	BEGIN_NV04(chan, NV50_3D(RT_HORIZ(0)), 2);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, ppix->drawable.height);
-	BEGIN_RING(chan, tesla, NV50_3D_RT_ARRAY_MODE, 1);
+	BEGIN_NV04(chan, NV50_3D(RT_ARRAY_MODE), 1);
 	OUT_RING  (chan, 0x00000001);
 
 	return TRUE;
@@ -588,19 +585,19 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	if (!nv50_style_tiled_pixmap(ppix))
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
-	BEGIN_RING(chan, tesla, NV50_3D_TIC_ADDRESS_HIGH, 3);
+	BEGIN_NV04(chan, NV50_3D(TIC_ADDRESS_HIGH), 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags))
 		return FALSE;
 	OUT_RING  (chan, 0x00000800);
-	BEGIN_RING(chan, tesla, NV50_3D_CB_DEF_ADDRESS_HIGH, 3);
+	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags))
 		return FALSE;
 	OUT_RING  (chan, (CB_TIC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_RING(chan, tesla, NV50_3D_CB_ADDR, 1);
+	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
 	OUT_RING  (chan, CB_TIC | ((unit * 8) << NV50_3D_CB_ADDR_ID__SHIFT));
-	BEGIN_RING_NI(chan, tesla, NV50_3D_CB_DATA(0), 8);
+	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 8);
 
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
@@ -682,19 +679,19 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	OUT_RING  (chan, 0x03000000);
 	OUT_RING  (chan, 0x00000000);
 
-	BEGIN_RING(chan, tesla, NV50_3D_TSC_ADDRESS_HIGH, 3);
+	BEGIN_NV04(chan, NV50_3D(TSC_ADDRESS_HIGH), 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags))
 		return FALSE;
 	OUT_RING  (chan, 0x00000000);
-	BEGIN_RING(chan, tesla, NV50_3D_CB_DEF_ADDRESS_HIGH, 3);
+	BEGIN_NV04(chan, NV50_3D(CB_DEF_ADDRESS_HIGH), 3);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags))
 		return FALSE;
 	OUT_RING  (chan, (CB_TSC << NV50_3D_CB_DEF_SET_BUFFER__SHIFT) | 0x4000);
-	BEGIN_RING(chan, tesla, NV50_3D_CB_ADDR, 1);
+	BEGIN_NV04(chan, NV50_3D(CB_ADDR), 1);
 	OUT_RING  (chan, CB_TSC | ((unit * 8) << NV50_3D_CB_ADDR_ID__SHIFT));
-	BEGIN_RING_NI(chan, tesla, NV50_3D_CB_DATA(0), 8);
+	BEGIN_NI04(chan, NV50_3D(CB_DATA(0)), 8);
 	if (ppict->repeat) {
 		switch (ppict->repeatType) {
 		case RepeatPad:
@@ -776,18 +773,18 @@ NV50EXABlend(PixmapPtr ppix, PicturePtr ppict, int op, int component_alpha)
 	}
 
 	if (sblend == BF(ONE) && dblend == BF(ZERO)) {
-		BEGIN_RING(chan, tesla, NV50_3D_BLEND_ENABLE(0), 1);
+		BEGIN_NV04(chan, NV50_3D(BLEND_ENABLE(0)), 1);
 		OUT_RING  (chan, 0);
 	} else {
-		BEGIN_RING(chan, tesla, NV50_3D_BLEND_ENABLE(0), 1);
+		BEGIN_NV04(chan, NV50_3D(BLEND_ENABLE(0)), 1);
 		OUT_RING  (chan, 1);
-		BEGIN_RING(chan, tesla, NV50_3D_BLEND_EQUATION_RGB, 5);
+		BEGIN_NV04(chan, NV50_3D(BLEND_EQUATION_RGB), 5);
 		OUT_RING  (chan, NV50_3D_BLEND_EQUATION_RGB_FUNC_ADD);
 		OUT_RING  (chan, sblend);
 		OUT_RING  (chan, dblend);
 		OUT_RING  (chan, NV50_3D_BLEND_EQUATION_ALPHA_FUNC_ADD);
 		OUT_RING  (chan, sblend);
-		BEGIN_RING(chan, tesla, NV50_3D_BLEND_FUNC_DST_ALPHA, 1);
+		BEGIN_NV04(chan, NV50_3D(BLEND_FUNC_DST_ALPHA), 1);
 		OUT_RING  (chan, dblend);
 	}
 }
@@ -840,7 +837,7 @@ NV50EXAPrepareComposite(int op,
 	if (MARK_RING (chan, 144, 4 + 2 + 2 * 10))
 		NOUVEAU_FALLBACK("ring space\n");
 
-	BEGIN_RING(chan, eng2d, 0x0110, 1);
+	BEGIN_NV04(chan, SUBC_2D(0x0110), 1);
 	OUT_RING  (chan, 0);
 
 	if (!NV50EXARenderTarget(pdpix, pdpict)) {
@@ -851,14 +848,14 @@ NV50EXAPrepareComposite(int op,
 	NV50EXABlend(pdpix, pdpict, op, pmpict && pmpict->componentAlpha &&
 		     PICT_FORMAT_RGB(pmpict->format));
 
-	BEGIN_RING(chan, tesla, NV50_3D_VP_ADDRESS_HIGH, 2);
+	BEGIN_NV04(chan, NV50_3D(VP_ADDRESS_HIGH), 2);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags)) {
 		MARK_UNDO(chan);
 		return FALSE;
 	}
 
-	BEGIN_RING(chan, tesla, NV50_3D_FP_ADDRESS_HIGH, 2);
+	BEGIN_NV04(chan, NV50_3D(FP_ADDRESS_HIGH), 2);
 	if (OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags) ||
 	    OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags)) {
 		MARK_UNDO(chan);
@@ -877,7 +874,7 @@ NV50EXAPrepareComposite(int op,
 		}
 		state->have_mask = TRUE;
 
-		BEGIN_RING(chan, tesla, NV50_3D_FP_START_ID, 1);
+		BEGIN_NV04(chan, NV50_3D(FP_START_ID), 1);
 		if (pdpict->format == PICT_a8) {
 			OUT_RING  (chan, PFP_C_A8);
 		} else {
@@ -894,19 +891,19 @@ NV50EXAPrepareComposite(int op,
 	} else {
 		state->have_mask = FALSE;
 
-		BEGIN_RING(chan, tesla, NV50_3D_FP_START_ID, 1);
+		BEGIN_NV04(chan, NV50_3D(FP_START_ID), 1);
 		if (pdpict->format == PICT_a8)
 			OUT_RING  (chan, PFP_S_A8);
 		else
 			OUT_RING  (chan, PFP_S);
 	}
 
-	BEGIN_RING(chan, tesla, 0x1334, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1334), 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, tesla, NV50_3D_BIND_TIC(2), 1);
+	BEGIN_NV04(chan, NV50_3D(BIND_TIC(2)), 1);
 	OUT_RING  (chan, 1);
-	BEGIN_RING(chan, tesla, NV50_3D_BIND_TIC(2), 1);
+	BEGIN_NV04(chan, NV50_3D(BIND_TIC(2)), 1);
 	OUT_RING  (chan, 0x203);
 
 	pNv->alu = op;
@@ -949,10 +946,10 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 	float sX0, sX1, sX2, sY0, sY1, sY2;
 
 	WAIT_RING (chan, 28);
-	BEGIN_RING(chan, tesla, NV50_3D_SCISSOR_HORIZ(0), 2);
+	BEGIN_NV04(chan, NV50_3D(SCISSOR_HORIZ(0)), 2);
 	OUT_RING  (chan, (dx + w) << 16 | dx);
 	OUT_RING  (chan, (dy + h) << 16 | dy);
-	BEGIN_RING(chan, tesla, NV50_3D_VERTEX_BEGIN_GL, 1);
+	BEGIN_NV04(chan, NV50_3D(VERTEX_BEGIN_GL), 1);
 	OUT_RING  (chan, NV50_3D_VERTEX_BEGIN_GL_PRIMITIVE_TRIANGLES);
 
 	NV50EXATransform(state->unit[0].transform, sx, sy + (h * 2),
@@ -987,7 +984,7 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 		VTX1s(pNv, sX2, sY2, dx + (w * 2), dy);
 	}
 
-	BEGIN_RING(chan, tesla, NV50_3D_VERTEX_END_GL, 1);
+	BEGIN_NV04(chan, NV50_3D(VERTEX_END_GL), 1);
 	OUT_RING  (chan, 0);
 }
 
@@ -1010,7 +1007,7 @@ NV50EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 	unsigned src_off = 0, dst_off = 0;
 
 	if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-		BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_IN, 6);
+		BEGIN_NV04(chan, NV50_M2MF(LINEAR_IN), 6);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, src->tile_mode << 4);
 		OUT_RING  (chan, src_pitch);
@@ -1018,14 +1015,14 @@ NV50EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 0);
 	} else {
-		BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_IN, 1);
+		BEGIN_NV04(chan, NV50_M2MF(LINEAR_IN), 1);
 		OUT_RING  (chan, 1);
-		BEGIN_RING(chan, m2mf, NV03_M2MF_PITCH_IN, 1);
+		BEGIN_NV04(chan, NV03_M2MF(PITCH_IN), 1);
 		OUT_RING  (chan, src_pitch);
 	}
 
 	if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-		BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_OUT, 6);
+		BEGIN_NV04(chan, NV50_M2MF(LINEAR_OUT), 6);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, dst->tile_mode << 4);
 		OUT_RING  (chan, dst_pitch);
@@ -1033,9 +1030,9 @@ NV50EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 0);
 	} else {
-		BEGIN_RING(chan, m2mf, NV50_M2MF_LINEAR_OUT, 1);
+		BEGIN_NV04(chan, NV50_M2MF(LINEAR_OUT), 1);
 		OUT_RING  (chan, 1);
-		BEGIN_RING(chan, m2mf, NV03_M2MF_PITCH_OUT, 1);
+		BEGIN_NV04(chan, NV03_M2MF(PITCH_OUT), 1);
 		OUT_RING  (chan, dst_pitch);
 	}
 
@@ -1048,34 +1045,34 @@ NV50EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 			return FALSE;
 
 		if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-			BEGIN_RING(chan, m2mf, NV50_M2MF_TILING_POSITION_IN, 1);
+			BEGIN_NV04(chan, NV50_M2MF(TILING_POSITION_IN), 1);
 			OUT_RING  (chan, (src_y << 16) | (src_x * cpp));
 		} else {
 			src_off = src_y * src_pitch + src_x * cpp;
 		}
 
 		if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-			BEGIN_RING(chan, m2mf, NV50_M2MF_TILING_POSITION_OUT, 1);
+			BEGIN_NV04(chan, NV50_M2MF(TILING_POSITION_OUT), 1);
 			OUT_RING  (chan, (dst_y << 16) | (dst_x * cpp));
 		} else {
 			dst_off = dst_y * dst_pitch + dst_x * cpp;
 		}
 
-		BEGIN_RING(chan, m2mf, NV50_M2MF_OFFSET_IN_HIGH, 2);
+		BEGIN_NV04(chan, NV50_M2MF(OFFSET_IN_HIGH), 2);
 		if (OUT_RELOCh(chan, src, src_off, src_dom | NOUVEAU_BO_RD) ||
 		    OUT_RELOCh(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR)) {
 			MARK_UNDO(chan);
 			return FALSE;
 		}
 
-		BEGIN_RING(chan, m2mf, NV03_M2MF_OFFSET_IN, 2);
+		BEGIN_NV04(chan, NV03_M2MF(OFFSET_IN), 2);
 		if (OUT_RELOCl(chan, src, src_off, src_dom | NOUVEAU_BO_RD) ||
 		    OUT_RELOCl(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR)) {
 			MARK_UNDO(chan);
 			return FALSE;
 		}
 
-		BEGIN_RING(chan, m2mf, NV03_M2MF_LINE_LENGTH_IN, 4);
+		BEGIN_NV04(chan, NV03_M2MF(LINE_LENGTH_IN), 4);
 		OUT_RING  (chan, w * cpp);
 		OUT_RING  (chan, line_count);
 		OUT_RING  (chan, 0x00000101);

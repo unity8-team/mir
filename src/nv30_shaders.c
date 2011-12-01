@@ -22,7 +22,6 @@
 
 
 #include "nv30_shaders.h"
-#include "nv04_pushbuf.h"
 
 #include "hwdefs/nv30-40_3d.xml.h"
 
@@ -51,15 +50,14 @@ void NV30_UploadFragProg(NVPtr pNv, nv_shader_t *shader, int *hw_offset)
 void NV40_UploadVtxProg(NVPtr pNv, nv_shader_t *shader, int *hw_id)
 {
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 	int i;
 
 	shader->hw_id = *hw_id;
 
-	BEGIN_RING(chan, curie, NV30_3D_VP_UPLOAD_FROM_ID, 1);
+	BEGIN_NV04(chan, NV30_3D(VP_UPLOAD_FROM_ID), 1);
 	OUT_RING  (chan, (shader->hw_id));
 	for (i=0; i<shader->size; i+=4) {
-		BEGIN_RING(chan, curie, NV30_3D_VP_UPLOAD_INST(0), 4);
+		BEGIN_NV04(chan, NV30_3D(VP_UPLOAD_INST(0)), 4);
 		OUT_RING  (chan, shader->data[i + 0]);
 		OUT_RING  (chan, shader->data[i + 1]);
 		OUT_RING  (chan, shader->data[i + 2]);
@@ -73,20 +71,19 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *rankine = pNv->Nv3D;
 
-	BEGIN_RING(chan, rankine, NV30_3D_FP_ACTIVE_PROGRAM, 1);
+	BEGIN_NV04(chan, NV30_3D(FP_ACTIVE_PROGRAM), 1);
 	if (OUT_RELOC(chan, pNv->shader_mem, shader->hw_id, NOUVEAU_BO_VRAM |
 		      NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
 		      NV30_3D_FP_ACTIVE_PROGRAM_DMA0,
 		      NV30_3D_FP_ACTIVE_PROGRAM_DMA1))
 		return FALSE;
-	BEGIN_RING(chan, rankine, NV30_3D_FP_REG_CONTROL, 1);
+	BEGIN_NV04(chan, NV30_3D(FP_REG_CONTROL), 1);
 	OUT_RING  (chan, (1 << 16)| 0xf);
-	BEGIN_RING(chan, rankine, NV30_3D_MULTISAMPLE_CONTROL, 1);
+	BEGIN_NV04(chan, NV30_3D(MULTISAMPLE_CONTROL), 1);
 	OUT_RING  (chan, 0xffff0000);
 
-	BEGIN_RING(chan, rankine, NV30_3D_FP_CONTROL,1);
+	BEGIN_NV04(chan, NV30_3D(FP_CONTROL),1);
 	OUT_RING  (chan, (shader->card_priv.NV30FP.num_regs-1)/2);
 
 	return TRUE;
@@ -97,11 +94,10 @@ NV40_LoadVtxProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 
-	BEGIN_RING(chan, curie, NV30_3D_VP_START_FROM_ID, 1);
+	BEGIN_NV04(chan, NV30_3D(VP_START_FROM_ID), 1);
 	OUT_RING  (chan, (shader->hw_id));
-	BEGIN_RING(chan, curie, NV40_3D_VP_ATTRIB_EN, 2);
+	BEGIN_NV04(chan, NV40_3D(VP_ATTRIB_EN), 2);
 	OUT_RING  (chan, shader->card_priv.NV30VP.vp_in_reg);
 	OUT_RING  (chan, shader->card_priv.NV30VP.vp_out_reg);
 }
@@ -111,16 +107,15 @@ NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 
-	BEGIN_RING(chan, curie, NV30_3D_FP_ACTIVE_PROGRAM, 1);
+	BEGIN_NV04(chan, NV30_3D(FP_ACTIVE_PROGRAM), 1);
 	if (OUT_RELOC(chan, pNv->shader_mem, shader->hw_id, NOUVEAU_BO_VRAM |
 		      NOUVEAU_BO_GART | NOUVEAU_BO_RD | NOUVEAU_BO_LOW |
 		      NOUVEAU_BO_OR,
 		      NV30_3D_FP_ACTIVE_PROGRAM_DMA0,
 		      NV30_3D_FP_ACTIVE_PROGRAM_DMA1))
 		return FALSE;
-	BEGIN_RING(chan, curie, NV30_3D_FP_CONTROL, 1);
+	BEGIN_NV04(chan, NV30_3D(FP_CONTROL), 1);
 	OUT_RING  (chan, shader->card_priv.NV30FP.num_regs <<
 			 NV40_3D_FP_CONTROL_TEMP_COUNT__SHIFT);
 

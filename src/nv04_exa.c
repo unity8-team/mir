@@ -23,7 +23,6 @@
 #include "nv_include.h"
 #include "nv_rop.h"
 
-#include "nv04_pushbuf.h"
 
 #include "hwdefs/nv_object.xml.h"
 #include "hwdefs/nv_m2mf.xml.h"
@@ -35,9 +34,10 @@ NV04EXASetPattern(ScrnInfoPtr pScrn, CARD32 clr0, CARD32 clr1,
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *patt = pNv->NvImagePattern;
 
-	BEGIN_RING(chan, patt, NV01_PATTERN_MONOCHROME_COLOR(0), 4);
+	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
+	OUT_RING  (chan, pNv->NvImagePattern->handle);
+	BEGIN_NV04(chan, NV01_PATT(MONOCHROME_COLOR(0)), 4);
 	OUT_RING  (chan, clr0);
 	OUT_RING  (chan, clr1);
 	OUT_RING  (chan, pat0);
@@ -49,12 +49,13 @@ NV04EXASetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *rop = pNv->NvRop;
 	
 	if (planemask != ~0) {
 		NV04EXASetPattern(pScrn, 0, planemask, ~0, ~0);
 		if (pNv->currentRop != (alu + 32)) {
-			BEGIN_RING(chan, rop, NV01_ROP_ROP, 1);
+			BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
+			OUT_RING  (chan, pNv->NvRop->handle);
+			BEGIN_NV04(chan, NV01_ROP(ROP), 1);
 			OUT_RING  (chan, NVROP[alu].copy_planemask);
 			pNv->currentRop = alu + 32;
 		}
@@ -62,7 +63,9 @@ NV04EXASetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 	if (pNv->currentRop != alu) {
 		if(pNv->currentRop >= 16)
 			NV04EXASetPattern(pScrn, ~0, ~0, ~0, ~0);
-		BEGIN_RING(chan, rop, NV01_ROP_ROP, 1);
+		BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
+		OUT_RING  (chan, pNv->NvRop->handle);
+		BEGIN_NV04(chan, NV01_ROP(ROP), 1);
 		OUT_RING  (chan, NVROP[alu].copy);
 		pNv->currentRop = alu;
 	}
@@ -83,8 +86,6 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
-	struct nouveau_grobj *rect = pNv->NvRectangle;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pPixmap);
 	unsigned int fmt, pitch, fmt2 = NV04_GDI_COLOR_FORMAT_A8R8G8B8;
 
@@ -95,11 +96,11 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		BEGIN_RING(chan, rect, NV04_GDI_OPERATION, 1);
+		BEGIN_NV04(chan, NV04_RECT(OPERATION), 1);
 		OUT_RING  (chan, 1); /* ROP_AND */
 		NV04EXASetROP(pScrn, alu, planemask);
 	} else {
-		BEGIN_RING(chan, rect, NV04_GDI_OPERATION, 1);
+		BEGIN_NV04(chan, NV04_RECT(OPERATION), 1);
 		OUT_RING  (chan, 3); /* SRCCOPY */
 	}
 
@@ -122,7 +123,7 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	if (fmt == NV04_SURFACE_2D_FORMAT_A8R8G8B8)
 		fmt = NV04_SURFACE_2D_FORMAT_Y32;
 
-	BEGIN_RING(chan, surf2d, NV04_SURFACE_2D_FORMAT, 4);
+	BEGIN_NV04(chan, NV04_SF2D(FORMAT), 4);
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, (pitch << 16) | pitch);
 	if (OUT_RELOCl(chan, bo, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR) ||
@@ -131,9 +132,9 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 		return FALSE;
 	}
 
-	BEGIN_RING(chan, rect, NV04_GDI_COLOR_FORMAT, 1);
+	BEGIN_NV04(chan, NV04_RECT(COLOR_FORMAT), 1);
 	OUT_RING  (chan, fmt2);
-	BEGIN_RING(chan, rect, NV04_GDI_COLOR1_A, 1);
+	BEGIN_NV04(chan, NV04_RECT(COLOR1_A), 1);
 	OUT_RING (chan, fg);
 
 	pNv->pdpix = pPixmap;
@@ -150,11 +151,10 @@ NV04EXASolid (PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *rect = pNv->NvRectangle;
 	int width = x2-x1;
 	int height = y2-y1;
 
-	BEGIN_RING(chan, rect, NV04_GDI_UNCLIPPED_RECTANGLE_POINT(0), 2);
+	BEGIN_NV04(chan, NV04_RECT(UNCLIPPED_RECTANGLE_POINT(0)), 2);
 	OUT_RING  (chan, (x1 << 16) | y1);
 	OUT_RING  (chan, (width << 16) | height);
 
@@ -188,8 +188,6 @@ NV04EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
 	ScrnInfoPtr pScrn = xf86Screens[pSrcPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
-	struct nouveau_grobj *blit = pNv->NvImageBlit;
 	struct nouveau_bo *src_bo = nouveau_pixmap_bo(pSrcPixmap);
 	struct nouveau_bo *dst_bo = nouveau_pixmap_bo(pDstPixmap);
 	int fmt;
@@ -211,16 +209,16 @@ NV04EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
 			return FALSE;
 		}
 
-		BEGIN_RING(chan, blit, NV01_BLIT_OPERATION, 1);
+		BEGIN_NV04(chan, NV01_BLIT(OPERATION), 1);
 		OUT_RING  (chan, 1); /* ROP_AND */
 
 		NV04EXASetROP(pScrn, alu, planemask);
 	} else {
-		BEGIN_RING(chan, blit, NV01_BLIT_OPERATION, 1);
+		BEGIN_NV04(chan, NV01_BLIT(OPERATION), 1);
 		OUT_RING  (chan, 3); /* SRCCOPY */
 	}
 
-	BEGIN_RING(chan, surf2d, NV04_SURFACE_2D_FORMAT, 4);
+	BEGIN_NV04(chan, NV04_SF2D(FORMAT), 4);
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, (exaGetPixmapPitch(pDstPixmap) << 16) |
 		   (exaGetPixmapPitch(pSrcPixmap)));
@@ -245,7 +243,6 @@ NV04EXACopy(PixmapPtr pDstPixmap, int srcX, int srcY, int dstX, int dstY,
 	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *blit = pNv->NvImageBlit;
 	int split_dstY = NOUVEAU_ALIGN(dstY + 1, 64);
 	int split_height = split_dstY - dstY;
 
@@ -260,20 +257,18 @@ NV04EXACopy(PixmapPtr pDstPixmap, int srcX, int srcY, int dstX, int dstY,
 		 * different (not nicer) trick to achieve the same
 		 * effect.
 		 */
-		struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 		struct nouveau_bo *dst_bo = nouveau_pixmap_bo(pNv->pdpix);
 		unsigned dst_pitch = exaGetPixmapPitch(pNv->pdpix);
 
 		if (MARK_RING(chan, 10, 1))
 			return;
 
-		BEGIN_RING(chan, blit, NV01_BLIT_POINT_IN, 3);
+		BEGIN_NV04(chan, NV01_BLIT(POINT_IN), 3);
 		OUT_RING  (chan, (srcY << 16) | srcX);
 		OUT_RING  (chan, (dstY << 16) | dstX);
 		OUT_RING  (chan, (split_height  << 16) | width);
 
-		BEGIN_RING(chan, surf2d,
-			   NV04_SURFACE_2D_OFFSET_DESTIN, 1);
+		BEGIN_NV04(chan, NV04_SF2D(OFFSET_DESTIN), 1);
 		OUT_RELOCl(chan, dst_bo, split_dstY * dst_pitch,
 			   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
@@ -282,7 +277,7 @@ NV04EXACopy(PixmapPtr pDstPixmap, int srcX, int srcY, int dstX, int dstY,
 		dstY = 0;
 	}
 
-	BEGIN_RING(chan, blit, NV01_BLIT_POINT_IN, 3);
+	BEGIN_NV04(chan, NV01_BLIT(POINT_IN), 3);
 	OUT_RING  (chan, (srcY << 16) | srcX);
 	OUT_RING  (chan, (dstY << 16) | dstX);
 	OUT_RING  (chan, (height  << 16) | width);
@@ -305,8 +300,6 @@ NV04EXAStateIFCSubmit(struct nouveau_channel *chan)
 {
 	ScrnInfoPtr pScrn = chan->user_private;
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
-	struct nouveau_grobj *ifc = pNv->NvImageFromCpu;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pNv->pdpix);
 	int surf_fmt;
 
@@ -315,7 +308,7 @@ NV04EXAStateIFCSubmit(struct nouveau_channel *chan)
 	if (MARK_RING(chan, 64, 2))
 		return FALSE;
 
-	BEGIN_RING(chan, surf2d, NV04_SURFACE_2D_FORMAT, 4);
+	BEGIN_NV04(chan, NV04_SF2D(FORMAT), 4);
 	OUT_RING  (chan, surf_fmt);
 	OUT_RING  (chan, (exaGetPixmapPitch(pNv->pdpix) << 16) |
 			  exaGetPixmapPitch(pNv->pdpix));
@@ -324,7 +317,7 @@ NV04EXAStateIFCSubmit(struct nouveau_channel *chan)
 		MARK_UNDO(chan);
 		return FALSE;
 	}
-	BEGIN_RING(chan, ifc, NV01_IFC_POINT, 3);
+	BEGIN_NV04(chan, NV01_IFC(POINT), 3);
 	OUT_RING  (chan, (pNv->point_y << 16) | pNv->point_x);
 	OUT_RING  (chan, (pNv->height_out << 16) | pNv->width_out);
 	OUT_RING  (chan, (pNv->height_in << 16) | pNv->width_in);
@@ -345,8 +338,6 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	NVPtr pNv = NVPTR(pScrn);
 	ScreenPtr pScreen = pDst->drawable.pScreen;
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *clip = pNv->NvClipRectangle;
-	struct nouveau_grobj *ifc = pNv->NvImageFromCpu;
 	int line_len = w * cpp;
 	int iw, id, surf_fmt, ifc_fmt;
 	int padbytes;
@@ -380,10 +371,12 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	if (id > 1792)
 		return FALSE;
 
-	BEGIN_RING(chan, clip, NV01_CLIP_POINT, 2);
+	BEGIN_NV04(chan, NV01_SUBC(MISC, OBJECT), 1);
+	OUT_RING  (chan, pNv->NvClipRectangle->handle);
+	BEGIN_NV04(chan, NV01_CLIP(POINT), 2);
 	OUT_RING  (chan, (y << 16) | x);
 	OUT_RING  (chan, (h << 16) | w);
-	BEGIN_RING(chan, ifc, NV01_IFC_OPERATION, 2);
+	BEGIN_NV04(chan, NV01_IFC(OPERATION), 2);
 	OUT_RING  (chan, NV01_IFC_OPERATION_SRCCOPY);
 	OUT_RING  (chan, ifc_fmt);
 
@@ -401,7 +394,7 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		h--;
 	while (h--) {
 		/* send a line */
-		BEGIN_RING(chan, ifc, NV01_IFC_COLOR(0), id);
+		BEGIN_NV04(chan, NV01_IFC(COLOR(0)), id);
 		OUT_RINGp (chan, src, id);
 
 		src += src_pitch;
@@ -410,7 +403,7 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	if (padbytes) {
 		char padding[8];
 		int aux = (padbytes + 7) >> 2;
-		BEGIN_RING(chan, ifc, NV01_IFC_COLOR(0), id);
+		BEGIN_NV04(chan, NV01_IFC(COLOR(0)), id);
 		OUT_RINGp (chan, src, id - aux);
 		memcpy(padding, src + (id - aux) * 4, padbytes);
 		OUT_RINGp (chan, padding, aux);
@@ -429,8 +422,7 @@ NV04EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		int src_h, int src_x, int src_y, struct nouveau_bo *dst,
 		int dst_dom, int dst_pitch, int dst_h, int dst_x, int dst_y)
 {
-	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
-	struct nouveau_channel *chan = m2mf->channel;
+	struct nouveau_channel *chan = pNv->chan;
 	unsigned src_off = src_y * src_pitch + src_x * cpp;
 	unsigned dst_off = dst_y * dst_pitch + dst_x * cpp;
 
@@ -443,13 +435,13 @@ NV04EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		if (MARK_RING (chan, 16, 4))
 			return FALSE;
 
-		BEGIN_RING(chan, m2mf, NV03_M2MF_DMA_BUFFER_IN, 2);
+		BEGIN_NV04(chan, NV03_M2MF(DMA_BUFFER_IN), 2);
 		if (OUT_RELOCo(chan, src, src_dom | NOUVEAU_BO_RD) ||
 		    OUT_RELOCo(chan, dst, dst_dom | NOUVEAU_BO_WR)) {
 			MARK_UNDO(chan);
 			return FALSE;
 		}
-		BEGIN_RING(chan, m2mf, NV03_M2MF_OFFSET_IN, 8);
+		BEGIN_NV04(chan, NV03_M2MF(OFFSET_IN), 8);
 		if (OUT_RELOCl(chan, src, src_off, src_dom | NOUVEAU_BO_RD) ||
 		    OUT_RELOCl(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR)) {
 			MARK_UNDO(chan);
@@ -461,9 +453,9 @@ NV04EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		OUT_RING  (chan, line_count);
 		OUT_RING  (chan, 0x00000101);
 		OUT_RING  (chan, 0x00000000);
-		BEGIN_RING(chan, m2mf, NV04_GRAPH_NOP, 1);
+		BEGIN_NV04(chan, NV04_GRAPH(M2MF, NOP), 1);
 		OUT_RING  (chan, 0x00000000);
-		BEGIN_RING(chan, m2mf, NV03_M2MF_OFFSET_OUT, 1);
+		BEGIN_NV04(chan, NV03_M2MF(OFFSET_OUT), 1);
 		OUT_RING  (chan, 0x00000000);
 
 		src_off += src_pitch * line_count;

@@ -22,7 +22,6 @@
 
 #include "nv_include.h"
 #include "nv30_shaders.h"
-#include "nv04_pushbuf.h"
 
 #include "hwdefs/nv_object.xml.h"
 #include "hwdefs/nv30-40_3d.xml.h"
@@ -192,7 +191,6 @@ NV40_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 	uint32_t sblend, dblend;
 
 	sblend = blend->src_card_op;
@@ -223,10 +221,10 @@ NV40_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 	}
 
 	if (sblend == SF(ONE) && dblend == DF(ZERO)) {
-		BEGIN_RING(chan, curie, NV30_3D_BLEND_FUNC_ENABLE, 1);
+		BEGIN_NV04(chan, NV30_3D(BLEND_FUNC_ENABLE), 1);
 		OUT_RING  (chan, 0);
 	} else {
-		BEGIN_RING(chan, curie, NV30_3D_BLEND_FUNC_ENABLE, 5);
+		BEGIN_NV04(chan, NV30_3D(BLEND_FUNC_ENABLE), 5);
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, sblend);
 		OUT_RING  (chan, dblend);
@@ -241,7 +239,6 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pPix);
 	unsigned tex_reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
 	nv_pict_texture_format_t *fmt;
@@ -251,7 +248,7 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	if (!fmt)
 		return FALSE;
 
-	BEGIN_RING(chan, curie, NV30_3D_TEX_OFFSET(unit), 8);
+	BEGIN_NV04(chan, NV30_3D(TEX_OFFSET(unit)), 8);
 	if (OUT_RELOCl(chan, bo, 0, tex_reloc) ||
 	    OUT_RELOCd(chan, bo, fmt->card_fmt | NV40_3D_TEX_FORMAT_LINEAR |
 		       NV30_3D_TEX_FORMAT_DIMS_2D | 0x8000 |
@@ -296,7 +293,7 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	}
 	OUT_RING  (chan, (pPix->drawable.width << 16) | pPix->drawable.height);
 	OUT_RING  (chan, 0); /* border ARGB */
-	BEGIN_RING(chan, curie, NV40_3D_TEX_SIZE1(unit), 1);
+	BEGIN_NV04(chan, NV40_3D(TEX_SIZE1(unit)), 1);
 	OUT_RING  (chan, (1 << NV40_3D_TEX_SIZE1_DEPTH__SHIFT) |
 			 (uint32_t)exaGetPixmapPitch(pPix));
 
@@ -311,7 +308,6 @@ NV40_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(pPix);
 	nv_pict_surface_format_t *fmt;
 
@@ -321,7 +317,7 @@ NV40_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 		return FALSE;
 	}
 
-	BEGIN_RING(chan, curie, NV30_3D_RT_FORMAT, 3);
+	BEGIN_NV04(chan, NV30_3D(RT_FORMAT), 3);
 	OUT_RING  (chan, NV30_3D_RT_FORMAT_TYPE_LINEAR |
 		   NV30_3D_RT_FORMAT_ZETA_Z24S8 |
 		   fmt->card_fmt);
@@ -421,7 +417,6 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 	ScrnInfoPtr pScrn = xf86Screens[psPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 	nv_pict_op_t *blend;
 	int fpid = NV40EXA_FPID_PASS_COL0;
 	NV40EXA_STATE;
@@ -474,9 +469,9 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)
 	 */
-	BEGIN_RING(chan, curie, NV40_3D_TEX_CACHE_CTL, 1);
+	BEGIN_NV04(chan, NV40_3D(TEX_CACHE_CTL), 1);
 	OUT_RING  (chan, 2);
-	BEGIN_RING(chan, curie, NV40_3D_TEX_CACHE_CTL, 1);
+	BEGIN_NV04(chan, NV40_3D(TEX_CACHE_CTL), 1);
 	OUT_RING  (chan, 1);
 
 	pNv->alu = op;
@@ -512,16 +507,16 @@ NV40EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 }
 
 #define CV_OUTm(sx,sy,mx,my,dx,dy) do {                                        \
-	BEGIN_RING(chan, curie, NV30_3D_VTX_ATTR_2F_X(8), 4);                  \
+	BEGIN_NV04(chan, NV30_3D(VTX_ATTR_2F_X(8)), 4);                  \
 	OUT_RINGf (chan, (sx)); OUT_RINGf (chan, (sy));                        \
 	OUT_RINGf (chan, (mx)); OUT_RINGf (chan, (my));                        \
-	BEGIN_RING(chan, curie, NV30_3D_VTX_ATTR_2I(0), 1);                    \
+	BEGIN_NV04(chan, NV30_3D(VTX_ATTR_2I(0)), 1);                    \
 	OUT_RING  (chan, ((dy)<<16)|(dx));                                     \
 } while(0)
 #define CV_OUT(sx,sy,dx,dy) do {                                               \
-	BEGIN_RING(chan, curie, NV30_3D_VTX_ATTR_2F_X(8), 2);                  \
+	BEGIN_NV04(chan, NV30_3D(VTX_ATTR_2F_X(8)), 2);                  \
 	OUT_RINGf (chan, (sx)); OUT_RINGf (chan, (sy));                        \
-	BEGIN_RING(chan, curie, NV30_3D_VTX_ATTR_2I(0), 1);                    \
+	BEGIN_NV04(chan, NV30_3D(VTX_ATTR_2I(0)), 1);                    \
 	OUT_RING  (chan, ((dy)<<16)|(dx));                                     \
 } while(0)
 
@@ -534,7 +529,6 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 	float sX0, sX1, sX2, sY0, sY1, sY2;
 	float mX0, mX1, mX2, mY0, mY1, mY2;
 	NV40EXA_STATE;
@@ -546,10 +540,10 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	 * image, but just a part.
 	 */
 	/* Handling the cliprects is done for us already. */
-	BEGIN_RING(chan, curie, NV30_3D_SCISSOR_HORIZ, 2);
+	BEGIN_NV04(chan, NV30_3D(SCISSOR_HORIZ), 2);
 	OUT_RING  (chan, (width << 16) | dstX);
 	OUT_RING  (chan, (height << 16) | dstY);
-	BEGIN_RING(chan, curie, NV30_3D_VERTEX_BEGIN_END, 1);
+	BEGIN_NV04(chan, NV30_3D(VERTEX_BEGIN_END), 1);
 	OUT_RING  (chan, NV30_3D_VERTEX_BEGIN_END_TRIANGLES);
 
 	NV40EXATransformCoord(state->unit[0].transform, srcX, srcY - height,
@@ -586,7 +580,7 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 		CV_OUT(sX2, sY2, dstX + 2*width, dstY + height);
 	}
 
-	BEGIN_RING(chan, curie, NV30_3D_VERTEX_BEGIN_END, 1);
+	BEGIN_NV04(chan, NV30_3D(VERTEX_BEGIN_END), 1);
 	OUT_RING  (chan, NV30_3D_VERTEX_BEGIN_END_STOP);
 }
 
@@ -607,7 +601,6 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie;
 	uint32_t class = 0, chipset;
 	int next_hw_id = 0, next_hw_offset = 0, i;
 
@@ -635,7 +628,6 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
 			return FALSE;
 	}
-	curie = pNv->Nv3D;
 
 	if (!pNv->shader_mem) {
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
@@ -648,43 +640,45 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 		}
 	}
 
-	BEGIN_RING(chan, curie, NV30_3D_DMA_NOTIFY, 1);
+	BEGIN_NV04(chan, NV01_SUBC(3D, OBJECT), 1);
+	OUT_RING  (chan, pNv->Nv3D->handle);
+	BEGIN_NV04(chan, NV30_3D(DMA_NOTIFY), 1);
 	OUT_RING  (chan, pNv->notify0->handle);
-	BEGIN_RING(chan, curie, NV30_3D_DMA_TEXTURE0, 2);
+	BEGIN_NV04(chan, NV30_3D(DMA_TEXTURE0), 2);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, pNv->chan->gart->handle);
-	BEGIN_RING(chan, curie, NV30_3D_DMA_COLOR0, 2);
+	BEGIN_NV04(chan, NV30_3D(DMA_COLOR0), 2);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 	OUT_RING  (chan, pNv->chan->vram->handle);
 
 	/* voodoo */
-	BEGIN_RING(chan, curie, 0x1ea4, 3);
+	BEGIN_NV04(chan, SUBC_3D(0x1ea4), 3);
 	OUT_RING  (chan, 0x00000010);
 	OUT_RING  (chan, 0x01000100);
 	OUT_RING  (chan, 0xff800006);
-	BEGIN_RING(chan, curie, 0x1fc4, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1fc4), 1);
 	OUT_RING  (chan, 0x06144321);
-	BEGIN_RING(chan, curie, 0x1fc8, 2);
+	BEGIN_NV04(chan, SUBC_3D(0x1fc8), 2);
 	OUT_RING  (chan, 0xedcba987);
 	OUT_RING  (chan, 0x00000021);
-	BEGIN_RING(chan, curie, 0x1fd0, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1fd0), 1);
 	OUT_RING  (chan, 0x00171615);
-	BEGIN_RING(chan, curie, 0x1fd4, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1fd4), 1);
 	OUT_RING  (chan, 0x001b1a19);
-	BEGIN_RING(chan, curie, 0x1ef8, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1ef8), 1);
 	OUT_RING  (chan, 0x0020ffff);
-	BEGIN_RING(chan, curie, 0x1d64, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1d64), 1);
 	OUT_RING  (chan, 0x00d30000);
-	BEGIN_RING(chan, curie, 0x1e94, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1e94), 1);
 	OUT_RING  (chan, 0x00000001);
 
 	/* This removes the the stair shaped tearing that i get. */
 	/* Verified on one G70 card that it doesn't cause regressions for people without the problem. */
 	/* The blob sets this up by default for NV43. */
-	BEGIN_RING(chan, curie, 0x1450, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1450), 1);
 	OUT_RING  (chan, 0x0000000F);
 
-	BEGIN_RING(chan, curie, NV30_3D_VIEWPORT_TRANSLATE_X, 8);
+	BEGIN_NV04(chan, NV30_3D(VIEWPORT_TRANSLATE_X), 8);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
@@ -696,58 +690,58 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 
 	/* default 3D state */
 	/*XXX: replace with the same state that the DRI emits on startup */
-	BEGIN_RING(chan, curie, NV30_3D_STENCIL_ENABLE(0), 1);
+	BEGIN_NV04(chan, NV30_3D(STENCIL_ENABLE(0)), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, curie, NV30_3D_STENCIL_ENABLE(1), 1);
+	BEGIN_NV04(chan, NV30_3D(STENCIL_ENABLE(1)), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, curie, NV30_3D_ALPHA_FUNC_ENABLE, 1);
+	BEGIN_NV04(chan, NV30_3D(ALPHA_FUNC_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, curie, NV30_3D_DEPTH_WRITE_ENABLE, 2);
+	BEGIN_NV04(chan, NV30_3D(DEPTH_WRITE_ENABLE), 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0); 
-	BEGIN_RING(chan, curie, NV30_3D_COLOR_MASK, 1);
+	BEGIN_NV04(chan, NV30_3D(COLOR_MASK), 1);
 	OUT_RING  (chan, 0x01010101); /* TR,TR,TR,TR */
-	BEGIN_RING(chan, curie, NV30_3D_CULL_FACE_ENABLE, 1);
+	BEGIN_NV04(chan, NV30_3D(CULL_FACE_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, curie, NV30_3D_BLEND_FUNC_ENABLE, 1);
+	BEGIN_NV04(chan, NV30_3D(BLEND_FUNC_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, curie, NV30_3D_COLOR_LOGIC_OP_ENABLE, 2);
+	BEGIN_NV04(chan, NV30_3D(COLOR_LOGIC_OP_ENABLE), 2);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, NV30_3D_COLOR_LOGIC_OP_OP_COPY);
-	BEGIN_RING(chan, curie, NV30_3D_DITHER_ENABLE, 1);
+	BEGIN_NV04(chan, NV30_3D(DITHER_ENABLE), 1);
 	OUT_RING  (chan, 0);
-	BEGIN_RING(chan, curie, NV30_3D_SHADE_MODEL, 1);
+	BEGIN_NV04(chan, NV30_3D(SHADE_MODEL), 1);
 	OUT_RING  (chan, NV30_3D_SHADE_MODEL_SMOOTH);
-	BEGIN_RING(chan, curie, NV30_3D_POLYGON_OFFSET_FACTOR,2);
+	BEGIN_NV04(chan, NV30_3D(POLYGON_OFFSET_FACTOR),2);
 	OUT_RINGf (chan, 0.0);
 	OUT_RINGf (chan, 0.0);
-	BEGIN_RING(chan, curie, NV30_3D_POLYGON_MODE_FRONT, 2);
+	BEGIN_NV04(chan, NV30_3D(POLYGON_MODE_FRONT), 2);
 	OUT_RING  (chan, NV30_3D_POLYGON_MODE_FRONT_FILL);
 	OUT_RING  (chan, NV30_3D_POLYGON_MODE_BACK_FILL);
-	BEGIN_RING(chan, curie, NV30_3D_POLYGON_STIPPLE_PATTERN(0), 0x20);
+	BEGIN_NV04(chan, NV30_3D(POLYGON_STIPPLE_PATTERN(0)), 0x20);
 	for (i=0;i<0x20;i++)
 		OUT_RING  (chan, 0xFFFFFFFF);
 	for (i=0;i<16;i++) {
-		BEGIN_RING(chan, curie, NV30_3D_TEX_ENABLE(i), 1);
+		BEGIN_NV04(chan, NV30_3D(TEX_ENABLE(i)), 1);
 		OUT_RING  (chan, 0);
 	}
 
-	BEGIN_RING(chan, curie, 0x1d78, 1);
+	BEGIN_NV04(chan, SUBC_3D(0x1d78), 1);
 	OUT_RING  (chan, 0x110);
 
-	BEGIN_RING(chan, curie, NV30_3D_RT_ENABLE, 1);
+	BEGIN_NV04(chan, NV30_3D(RT_ENABLE), 1);
 	OUT_RING  (chan, NV30_3D_RT_ENABLE_COLOR0);
 
-	BEGIN_RING(chan, curie, NV30_3D_RT_HORIZ, 2);
+	BEGIN_NV04(chan, NV30_3D(RT_HORIZ), 2);
 	OUT_RING  (chan, (4096 << 16));
 	OUT_RING  (chan, (4096 << 16));
-	BEGIN_RING(chan, curie, NV30_3D_SCISSOR_HORIZ, 2);
+	BEGIN_NV04(chan, NV30_3D(SCISSOR_HORIZ), 2);
 	OUT_RING  (chan, (4096 << 16));
 	OUT_RING  (chan, (4096 << 16));
-	BEGIN_RING(chan, curie, NV30_3D_VIEWPORT_HORIZ, 2);
+	BEGIN_NV04(chan, NV30_3D(VIEWPORT_HORIZ), 2);
 	OUT_RING  (chan, (4096 << 16));
 	OUT_RING  (chan, (4096 << 16));
-	BEGIN_RING(chan, curie, NV30_3D_VIEWPORT_CLIP_HORIZ(0), 2);
+	BEGIN_NV04(chan, NV30_3D(VIEWPORT_CLIP_HORIZ(0)), 2);
 	OUT_RING  (chan, (4095 << 16));
 	OUT_RING  (chan, (4095 << 16));
 

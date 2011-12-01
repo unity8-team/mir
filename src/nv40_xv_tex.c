@@ -37,7 +37,6 @@
 #include "nv_dma.h"
 
 #include "nv30_shaders.h"
-#include "nv04_pushbuf.h"
 
 #include "hwdefs/nv30-40_3d.xml.h"
 
@@ -137,7 +136,6 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 	uint32_t tex_reloc = NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD;
 	uint32_t card_fmt = 0;
 	uint32_t card_swz = 0;
@@ -161,7 +159,7 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 		break;
 	}
 
-	BEGIN_RING(chan, curie, NV30_3D_TEX_OFFSET(unit), 8);
+	BEGIN_NV04(chan, NV30_3D(TEX_OFFSET(unit)), 8);
 	if (OUT_RELOCl(chan, src, offset, tex_reloc))
 		return FALSE;
 	if (unit==0) {
@@ -207,7 +205,7 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 	OUT_RING  (chan, (width << 16) | height);
 	OUT_RING  (chan, 0); /* border ARGB */
 
-	BEGIN_RING(chan, curie, NV40_3D_TEX_SIZE1(unit), 1);
+	BEGIN_NV04(chan, NV40_3D(TEX_SIZE1(unit)), 1);
 	OUT_RING  (chan, (1 << NV40_3D_TEX_SIZE1_DEPTH__SHIFT) |
 			 (uint16_t) src_pitch);
 
@@ -243,10 +241,10 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 }
 
 #define VERTEX_OUT(sx,sy,dx,dy) do {                                           \
-	BEGIN_RING(chan, curie, NV30_3D_VTX_ATTR_2F_X(8), 4);                  \
+	BEGIN_NV04(chan, NV30_3D(VTX_ATTR_2F_X(8)), 4);                  \
 	OUT_RINGf (chan, (sx)); OUT_RINGf (chan, (sy));                        \
 	OUT_RINGf (chan, (sx)/2.0); OUT_RINGf (chan, (sy)/2.0);                \
-	BEGIN_RING(chan, curie, NV30_3D_VTX_ATTR_2I(0), 1);                    \
+	BEGIN_NV04(chan, NV30_3D(VTX_ATTR_2I(0)), 1);                    \
  	OUT_RING  (chan, ((dy)<<16)|(dx));                                     \
 } while(0)
 
@@ -263,7 +261,6 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 	Bool bicubic = pPriv->bicubic;
 	float X1, X2, Y1, Y2;
@@ -289,11 +286,11 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		return BadImplementation;
 
 	/* Disable blending */
-	BEGIN_RING(chan, curie, NV30_3D_BLEND_FUNC_ENABLE, 1);
+	BEGIN_NV04(chan, NV30_3D(BLEND_FUNC_ENABLE), 1);
 	OUT_RING  (chan, 0);
 
 	/* Setup surface */
-	BEGIN_RING(chan, curie, NV30_3D_RT_FORMAT, 3);
+	BEGIN_NV04(chan, NV30_3D(RT_FORMAT), 3);
 	OUT_RING  (chan, NV30_3D_RT_FORMAT_TYPE_LINEAR |
 			 NV30_3D_RT_FORMAT_ZETA_Z24S8 | dst_format);
 	OUT_RING  (chan, exaGetPixmapPitch(ppix));
@@ -334,9 +331,9 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)
 	 */
-	BEGIN_RING(chan, curie, NV40_3D_TEX_CACHE_CTL, 1);
+	BEGIN_NV04(chan, NV40_3D(TEX_CACHE_CTL), 1);
 	OUT_RING  (chan, 2);
-	BEGIN_RING(chan, curie, NV40_3D_TEX_CACHE_CTL, 1);
+	BEGIN_NV04(chan, NV40_3D(TEX_CACHE_CTL), 1);
 	OUT_RING  (chan, 1);
 
 	/* Just before rendering we wait for vblank in the non-composited case. */
@@ -351,7 +348,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	X2 = (float)(x2>>16)+(float)(x2&0xFFFF)/(float)0x10000;
 	Y2 = (float)(y2>>16)+(float)(y2&0xFFFF)/(float)0x10000;
 
-	BEGIN_RING(chan, curie, NV30_3D_VERTEX_BEGIN_END, 1);
+	BEGIN_NV04(chan, NV30_3D(VERTEX_BEGIN_END), 1);
 	OUT_RING  (chan, NV30_3D_VERTEX_BEGIN_END_TRIANGLES);
 
 	while(nbox--) {
@@ -364,7 +361,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		int sy1=pbox->y1;
 		int sy2=pbox->y2;
 
-		BEGIN_RING(chan, curie, NV30_3D_SCISSOR_HORIZ, 2);
+		BEGIN_NV04(chan, NV30_3D(SCISSOR_HORIZ), 2);
 		OUT_RING  (chan, (sx2 << 16) | 0);
 		OUT_RING  (chan, (sy2 << 16) | 0);
 
@@ -375,7 +372,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		pbox++;
 	}
 
-	BEGIN_RING(chan, curie, NV30_3D_VERTEX_BEGIN_END, 1);
+	BEGIN_NV04(chan, NV30_3D(VERTEX_BEGIN_END), 1);
 	OUT_RING  (chan, NV30_3D_VERTEX_BEGIN_END_STOP);
 
 	FIRE_RING (chan);
