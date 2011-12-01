@@ -68,24 +68,24 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 
 	switch (pNv->dev->chipset & 0xf0) {
 	case 0x50:
-		class = NV50_3D;
+		class = NV50_3D_CLASS;
 		break;
 	case 0x80:
 	case 0x90:
-		class = NV84_3D;
+		class = NV84_3D_CLASS;
 		break;
 	case 0xa0:
 		switch (pNv->dev->chipset) {
 		case 0xa0:
 		case 0xaa:
 		case 0xac:
-			class = NVA0_3D;
+			class = NVA0_3D_CLASS;
 			break;
 		case 0xaf:
-			class = NVAF_3D;
+			class = NVAF_3D_CLASS;
 			break;
 		default:
-			class = NVA3_3D;
+			class = NVA3_3D_CLASS;
 			break;
 		}
 		break;

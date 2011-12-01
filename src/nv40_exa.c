@@ -618,16 +618,16 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	if ((chipset & 0xf0) == NV_ARCH_40) {
 		chipset &= 0xf;
 		if (NV30_3D_CHIPSET_4X_MASK & (1<<chipset))
-			class = NV40_3D;
+			class = NV40_3D_CLASS;
 		else if (NV44TCL_CHIPSET_4X_MASK & (1<<chipset))
-			class = NV44_3D;
+			class = NV44_3D_CLASS;
 		else {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 					"NV40EXA: Unknown chipset NV4%1x\n", chipset);
 			return FALSE;
 		}
 	} else if ( (chipset & 0xf0) == 0x60) {
-		class = NV44_3D;
+		class = NV44_3D_CLASS;
 	} else
 		return TRUE;
 

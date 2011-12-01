@@ -735,13 +735,13 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 		return FALSE;
 
 	if (pNv->dev->chipset >= 0x20 || pNv->dev->chipset == 0x1a)
-		class = NV15_3D;
+		class = NV15_3D_CLASS;
 	else if (pNv->dev->chipset >= 0x17)
-		class = NV17_3D;
+		class = NV17_3D_CLASS;
 	else if (pNv->dev->chipset >= 0x11)
-		class = NV15_3D;
+		class = NV15_3D_CLASS;
 	else
-		class = NV10_3D;
+		class = NV10_3D_CLASS;
 
 	if (!pNv->Nv3D) {
 		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
@@ -793,7 +793,7 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, celsius, NV04_GRAPH_NOP, 1);
 	OUT_RING  (chan, 0);
 
-	if (class != NV10_3D) {
+	if (class != NV10_3D_CLASS) {
 		/* For nv11, nv17 */
 		BEGIN_RING(chan, celsius, 0x120, 3);
 		OUT_RING  (chan, 0);

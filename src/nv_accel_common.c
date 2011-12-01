@@ -178,8 +178,8 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *surf2d;
 	uint32_t class;
 
-	class = (pNv->Architecture >= NV_ARCH_10) ? NV10_SURFACE_2D :
-						    NV04_SURFACE_2D;
+	class = (pNv->Architecture >= NV_ARCH_10) ? NV10_SURFACE_2D_CLASS :
+						    NV04_SURFACE_2D_CLASS;
 
 	if (!pNv->NvContextSurfaces) {
 		if (nouveau_grobj_alloc(chan, NvContextSurfaces, class,
@@ -306,7 +306,8 @@ NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *patt;
 
 	if (!pNv->NvImagePattern) {
-		if (nouveau_grobj_alloc(chan, NvImagePattern, NV04_PATTERN,
+		if (nouveau_grobj_alloc(chan, NvImagePattern,
+					NV04_PATTERN_CLASS,
 					&pNv->NvImagePattern))
 			return FALSE;
 	}
@@ -334,7 +335,8 @@ NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *rop;
 
 	if (!pNv->NvRop) {
-		if (nouveau_grobj_alloc(chan, NvRop, NV03_ROP, &pNv->NvRop))
+		if (nouveau_grobj_alloc(chan, NvRop, NV03_ROP_CLASS,
+					&pNv->NvRop))
 			return FALSE;
 	}
 	rop = pNv->NvRop;
@@ -354,7 +356,7 @@ NVAccelInitRectangle(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *rect;
 
 	if (!pNv->NvRectangle) {
-		if (nouveau_grobj_alloc(chan, NvRectangle, NV04_GDI,
+		if (nouveau_grobj_alloc(chan, NvRectangle, NV04_GDI_CLASS,
 					&pNv->NvRectangle))
 			return FALSE;
 	}
@@ -391,7 +393,7 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *blit;
 	uint32_t class;
 
-	class = (pNv->dev->chipset >= 0x11) ? NV15_BLIT : NV04_BLIT;
+	class = (pNv->dev->chipset >= 0x11) ? NV15_BLIT_CLASS : NV04_BLIT_CLASS;
 
 	if (!pNv->NvImageBlit) {
 		if (nouveau_grobj_alloc(chan, NvImageBlit, class,
@@ -412,7 +414,7 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, pNv->NvRop->handle);
 	BEGIN_RING(chan, blit, NV01_BLIT_OPERATION, 1);
 	OUT_RING  (chan, NV01_BLIT_OPERATION_ROP_AND);
-	if (blit->grclass == NV15_BLIT) {
+	if (blit->grclass == NV15_BLIT_CLASS) {
 		BEGIN_RING(chan, blit, NV15_BLIT_FLIP_SET_READ, 3);
 		OUT_RING  (chan, 0);
 		OUT_RING  (chan, 1);
@@ -432,16 +434,16 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
-		class = NV04_SIFM;
+		class = NV04_SIFM_CLASS;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
 	case NV_ARCH_30:
-		class = NV10_SIFM;
+		class = NV10_SIFM_CLASS;
 		break;
 	case NV_ARCH_40:
 	default:
-		class = NV40_SIFM;
+		class = NV40_SIFM_CLASS;
 		break;
 	}
 
@@ -478,7 +480,8 @@ NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *clip;
 
 	if (!pNv->NvClipRectangle) {
-		if (nouveau_grobj_alloc(pNv->chan, NvClipRectangle, NV01_CLIP,
+		if (nouveau_grobj_alloc(pNv->chan, NvClipRectangle,
+					NV01_CLIP_CLASS,
 					&pNv->NvClipRectangle))
 			return FALSE;
 	}
@@ -500,9 +503,9 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	uint32_t class;
 
 	if (pNv->Architecture < NV_ARCH_50)
-		class = NV03_M2MF;
+		class = NV03_M2MF_CLASS;
 	else
-		class = NV50_M2MF;
+		class = NV50_M2MF_CLASS;
 
 	if (!pNv->NvMemFormat) {
 		if (nouveau_grobj_alloc(chan, NvMemFormat, class,
@@ -530,14 +533,14 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
-		class = NV04_IFC;
+		class = NV04_IFC_CLASS;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
 	case NV_ARCH_30:
 	case NV_ARCH_40:
 	default:
-		class = NV10_IFC;
+		class = NV10_IFC_CLASS;
 		break;
 	}
 
@@ -578,7 +581,7 @@ NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
 	struct nouveau_grobj *eng2d;
 
 	if (!pNv->Nv2D) {
-		if (nouveau_grobj_alloc(chan, Nv2D, NV50_2D, &pNv->Nv2D))
+		if (nouveau_grobj_alloc(chan, Nv2D, NV50_2D_CLASS, &pNv->Nv2D))
 			return FALSE;
 	}
 	eng2d = pNv->Nv2D;

@@ -686,11 +686,11 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	chipset &= 0xf;
 
 	if (NV30TCL_CHIPSET_3X_MASK & (1<<chipset))
-		class = NV30_3D;
+		class = NV30_3D_CLASS;
 	else if (NV35TCL_CHIPSET_3X_MASK & (1<<chipset))
-		class = NV35_3D;
+		class = NV35_3D_CLASS;
 	else if (NV30_3D_CHIPSET_3X_MASK & (1<<chipset))
-		class = NV34_3D;
+		class = NV34_3D_CLASS;
 	else {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "NV30EXA: Unknown chipset NV3%1x\n", chipset);
