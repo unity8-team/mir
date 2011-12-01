@@ -73,6 +73,7 @@ struct kgem_bo {
 	uint32_t cpu_read : 1;
 	uint32_t cpu_write : 1;
 	uint32_t vmap : 1;
+	uint32_t io : 1;
 	uint32_t flush : 1;
 	uint32_t sync : 1;
 	uint32_t purged : 1;

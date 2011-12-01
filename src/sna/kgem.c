@@ -611,7 +611,20 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	if (NO_CACHE)
 		goto destroy;
 
-	if(!bo->reusable)
+	if (bo->io) {
+		/* transfer the handle to a minimum bo */
+		struct kgem_bo *base = malloc(sizeof(*base));
+		if (base) {
+			memcpy(base, bo, sizeof (*base));
+			base->reusable = true;
+			list_init(&base->list);
+			list_replace(&bo->request, &base->request);
+			free(bo);
+			bo = base;
+		}
+	}
+
+	if (!bo->reusable)
 		goto destroy;
 
 	if (!bo->rq && !bo->needs_flush) {
@@ -820,18 +833,6 @@ static void kgem_finish_partials(struct kgem *kgem)
 			bo->need_io = 0;
 		}
 
-		/* transfer the handle to a minimum bo */
-		if (bo->base.refcnt == 1 && !bo->base.vmap) {
-			struct kgem_bo *base = malloc(sizeof(*base));
-			if (base) {
-				memcpy(base, &bo->base, sizeof (*base));
-				base->reusable = true;
-				list_init(&base->list);
-				list_replace(&bo->base.request, &base->request);
-				free(bo);
-				bo = (struct kgem_partial_bo *)base;
-			}
-		}
 		kgem_bo_unref(kgem, &bo->base);
 	}
 }
@@ -2148,6 +2149,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 		bo->need_io = write;
+		bo->base.io = write;
 	} else {
 		__kgem_bo_init(&bo->base, handle, alloc);
 		bo->base.vmap = true;
