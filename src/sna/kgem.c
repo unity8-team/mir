@@ -2116,14 +2116,23 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	alloc = (flags & KGEM_BUFFER_LAST) ? 4096 : 32 * 1024;
 	alloc = ALIGN(size, alloc);
 
-	bo = malloc(sizeof(*bo) + alloc);
-	if (bo == NULL)
-		return NULL;
-
 	handle = 0;
-	if (kgem->has_vmap)
+	if (kgem->has_vmap) {
+		bo = malloc(sizeof(*bo) + alloc);
+		if (bo == NULL)
+			return NULL;
+
 		handle = gem_vmap(kgem->fd, bo+1, alloc, write);
-	if (handle == 0) {
+		if (handle) {
+			__kgem_bo_init(&bo->base, handle, alloc);
+			bo->base.vmap = true;
+			bo->need_io = 0;
+			goto init;
+		} else
+			free(bo);
+	}
+
+	{
 		struct kgem_bo *old;
 
 		old = NULL;
@@ -2132,6 +2141,11 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (old == NULL)
 			old = search_linear_cache(kgem, alloc, false);
 		if (old) {
+			alloc = old->size;
+			bo = malloc(sizeof(*bo) + alloc);
+			if (bo == NULL)
+				return NULL;
+
 			memcpy(&bo->base, old, sizeof(*old));
 			if (old->rq)
 				list_replace(&old->request,
@@ -2141,6 +2155,10 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			free(old);
 			bo->base.refcnt = 1;
 		} else {
+			bo = malloc(sizeof(*bo) + alloc);
+			if (bo == NULL)
+				return NULL;
+
 			if (!__kgem_bo_init(&bo->base,
 					    gem_create(kgem->fd, alloc),
 					    alloc)) {
@@ -2150,11 +2168,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		}
 		bo->need_io = write;
 		bo->base.io = write;
-	} else {
-		__kgem_bo_init(&bo->base, handle, alloc);
-		bo->base.vmap = true;
-		bo->need_io = 0;
 	}
+init:
 	bo->base.reusable = false;
 
 	bo->alloc = alloc;
