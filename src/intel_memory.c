@@ -182,13 +182,17 @@ static void intel_set_gem_max_sizes(ScrnInfoPtr scrn)
 	size_t agp_size = agp_aperture_size(intel->PciInfo,
 					    INTEL_INFO(intel)->gen);
 
-	/* The chances of being able to mmap an object larger than this
-	 * are slim, so don't try. */
-	intel->max_gtt_map_size = agp_size / 2;
+	/* The chances of being able to mmap an object larger than
+	 * agp_size/2 are slim. Moreover, we may be forced to fallback
+	 * using a gtt mapping as both the source and a mask, as well
+	 * as a destination and all need to fit into the aperture.
+	 */
+	intel->max_gtt_map_size = agp_size / 4;
 
 	/* Let objects be tiled up to the size where only 4 would fit in
-	 * the aperture, presuming best case alignment.  */
-	intel->max_tiling_size = agp_size / 4;
+	 * the aperture, presuming best case alignment. Also if we
+	 * cannot mmap it using the GTT we will be stuck. */
+	intel->max_tiling_size = intel->max_gtt_map_size;
 
 	/* Large BOs will tend to hit SW fallbacks frequently, and also will
 	 * tend to fail to successfully map when doing SW fallbacks because we
