@@ -542,7 +542,6 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc);
 unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   uint32_t tiling_mode);
-void intel_set_gem_max_sizes(ScrnInfoPtr scrn);
 
 drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int w, int h, int cpp,
