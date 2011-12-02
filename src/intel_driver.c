@@ -1170,8 +1170,6 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 			   strerror(errno));
 	}
 
-	intel_set_gem_max_sizes(scrn);
-
 	if (!xf86SetDesiredModes(scrn))
 		return FALSE;
 

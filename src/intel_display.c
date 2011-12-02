@@ -409,8 +409,6 @@ intel_crtc_apply(xf86CrtcPtr crtc)
 		}
 	}
 
-	intel_set_gem_max_sizes(scrn);
-
 	if (scrn->pScreen)
 		xf86_reload_cursors(scrn->pScreen);
 
