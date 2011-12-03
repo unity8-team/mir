@@ -574,6 +574,7 @@ static void kgem_fixup_self_relocs(struct kgem *kgem, struct kgem_bo *bo)
 	for (n = 0; n < kgem->nreloc; n++) {
 		if (kgem->reloc[n].target_handle == 0) {
 			kgem->reloc[n].target_handle = bo->handle;
+			kgem->reloc[n].presumed_offset = bo->presumed_offset;
 			kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
 				kgem->reloc[n].delta + bo->presumed_offset;
 		}
