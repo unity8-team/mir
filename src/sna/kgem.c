@@ -1097,7 +1097,6 @@ void _kgem_submit(struct kgem *kgem)
 		}
 	}
 
-	kgem_retire(kgem);
 	kgem_commit(kgem);
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
