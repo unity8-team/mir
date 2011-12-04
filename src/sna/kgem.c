@@ -448,13 +448,13 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 			tile_width = 512;
 			tile_height = 16;
 		} else {
-			tile_width = 64;
+			tile_width = bpp > 8 ? 64 : 4;
 			tile_height = 2;
 		}
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		tile_width = 64;
+		tile_width = bpp > 8 ? 64 : 4;
 		tile_height = 2;
 		break;
 	case I915_TILING_X:
@@ -1516,7 +1516,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (flags & CREATE_INACTIVE)
 		goto skip_active_search;
 
-	untiled_pitch = ALIGN(width * bpp / 8, 64);
+	untiled_pitch = ALIGN(width * bpp / 8, bpp > 8 ? 64 : 4);
 	for (i = 0; i <= I915_TILING_Y; i++)
 		tiled_height[i] = kgem_aligned_height(kgem, height, i);
 
