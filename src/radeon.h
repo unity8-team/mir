@@ -1667,6 +1667,7 @@ static __inline__ int radeon_timedout(const struct timeval *endtime)
 enum {
     RADEON_CREATE_PIXMAP_TILING_MACRO = 0x10000000,
     RADEON_CREATE_PIXMAP_TILING_MICRO = 0x20000000,
+    RADEON_CREATE_PIXMAP_DEPTH = 0x40000000, /* for r200 */
 };
 
 #endif /* _RADEON_H_ */

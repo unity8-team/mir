@@ -121,6 +121,8 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
 		else
 		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+		if (IS_R200_3D)
+		    flags |= RADEON_CREATE_PIXMAP_DEPTH;
 		break;
 	    case DRI2BufferDepthStencil:
 		if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -132,6 +134,8 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 			need_enlarge = 1;
 		} else
 		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+		if (IS_R200_3D)
+		    flags |= RADEON_CREATE_PIXMAP_DEPTH;
 		break;
 	    case DRI2BufferBackLeft:
 	    case DRI2BufferBackRight:
@@ -271,6 +275,8 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+	    if (IS_R200_3D)
+		flags |= RADEON_CREATE_PIXMAP_DEPTH;
 	    break;
 	case DRI2BufferDepthStencil:
 	    /* macro is the preferred setting, but the 2D detiling for software
@@ -282,6 +288,8 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 		    need_enlarge = 1;
 	    } else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
+	    if (IS_R200_3D)
+		flags |= RADEON_CREATE_PIXMAP_DEPTH;
 	    break;
 	case DRI2BufferBackLeft:
 	case DRI2BufferBackRight:
