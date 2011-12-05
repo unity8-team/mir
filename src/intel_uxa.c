@@ -720,10 +720,8 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	    (access == UXA_ACCESS_RW || priv->batch_write))
 		intel_batch_submit(scrn);
 
-	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
-		ret = drm_intel_gem_bo_map_gtt(bo);
-	else
-		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
+	assert(bo->size <= intel->max_gtt_map_size);
+	ret = drm_intel_gem_bo_map_gtt(bo);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "%s: bo map (use gtt? %d, access %d) failed: %s\n",
@@ -738,6 +736,21 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	priv->busy = 0;
 
 	return TRUE;
+}
+
+static void intel_uxa_finish_access(PixmapPtr pixmap, uxa_access_t access)
+{
+	struct intel_pixmap *priv;
+
+	if (access == UXA_GLAMOR_ACCESS_RW || access == UXA_GLAMOR_ACCESS_RO)
+		return;
+
+	priv = intel_get_pixmap_private(pixmap);
+	if (priv == NULL)
+		return;
+
+	drm_intel_gem_bo_unmap_gtt(priv->bo);
+	pixmap->devPrivate.ptr = NULL;
 }
 
 static Bool intel_uxa_pixmap_put_image(PixmapPtr pixmap,
@@ -1305,6 +1318,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->get_image = intel_uxa_get_image;
 
 	intel->uxa_driver->prepare_access = intel_uxa_prepare_access;
+	intel->uxa_driver->finish_access = intel_uxa_finish_access;
 	intel->uxa_driver->pixmap_is_offscreen = intel_uxa_pixmap_is_offscreen;
 
 	screen->CreatePixmap = intel_uxa_create_pixmap;
