@@ -121,7 +121,7 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 		    flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
 		else
 		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
-		if (IS_R200_3D || info->ChipFamiy == CHIP_FAMILY_RV200)
+		if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		    flags |= RADEON_CREATE_PIXMAP_DEPTH;
 		break;
 	    case DRI2BufferDepthStencil:
@@ -134,7 +134,7 @@ radeon_dri2_create_buffers(DrawablePtr drawable,
 			need_enlarge = 1;
 		} else
 		    flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
-		if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200)
+		if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		    flags |= RADEON_CREATE_PIXMAP_DEPTH;
 		break;
 	    case DRI2BufferBackLeft:
@@ -275,7 +275,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 		flags = RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
-	    if (IS_R200_3D)
+	    if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		flags |= RADEON_CREATE_PIXMAP_DEPTH;
 	    break;
 	case DRI2BufferDepthStencil:
@@ -288,7 +288,7 @@ radeon_dri2_create_buffer(DrawablePtr drawable,
 		    need_enlarge = 1;
 	    } else
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
-	    if (IS_R200_3D)
+	    if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		flags |= RADEON_CREATE_PIXMAP_DEPTH;
 	    break;
 	case DRI2BufferBackLeft:
