@@ -473,7 +473,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
     	    if (usage_hint & RADEON_CREATE_PIXMAP_TILING_MICRO)
                 tiling |= RADEON_TILING_MICRO;
 	}
-	if ((usage_hint & RADEON_CREATE_PIXMAP_DEPTH) && IS_R200_3D)
+	if (usage_hint & RADEON_CREATE_PIXMAP_DEPTH)
  	   	tiling |= RADEON_TILING_MACRO | RADEON_TILING_MICRO;
 		
     }
