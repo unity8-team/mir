@@ -1385,7 +1385,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	int16_t dx, dy;
 	int n;
 
-	if (!priv->gpu_bo)
+	if (!priv)
 		return false;
 
 	if (priv->gpu_only)
