@@ -1142,13 +1142,28 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 			continue;
 
 		if (!strcmp(props->name, "DPMS")) {
+			/* Record thevalue of the backlight before turning
+			 * off the display, and reset if after turnging it on.
+			 * Order is important as the kernel may record and also
+			 * reset the backlight across DPMS. Hence we need to
+			 * record the value before the kernel modifies it
+			 * and reapply it afterwards.
+			 */
+			if (dpms == DPMSModeOff)
+				sna_output_dpms_backlight(output,
+							  sna_output->dpms_mode,
+							  dpms);
+
 			drmModeConnectorSetProperty(sna->kgem.fd,
 						    sna_output->output_id,
 						    props->prop_id,
 						    dpms);
-			sna_output_dpms_backlight(output,
-						      sna_output->dpms_mode,
-						      dpms);
+
+			if (dpms != DPMSModeOff)
+				sna_output_dpms_backlight(output,
+							  sna_output->dpms_mode,
+							  dpms);
+
 			sna_output->dpms_mode = dpms;
 			drmModeFreeProperty(props);
 			return;

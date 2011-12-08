@@ -944,13 +944,19 @@ intel_output_dpms(xf86OutputPtr output, int dpms)
 			continue;
 
 		if (!strcmp(props->name, "DPMS")) {
+			/* Make sure to reverse the order between on and off. */
+			if (dpms == DPMSModeOff)
+				intel_output_dpms_backlight(output,
+							    intel_output->dpms_mode,
+							    dpms);
 			drmModeConnectorSetProperty(mode->fd,
 						    intel_output->output_id,
 						    props->prop_id,
 						    dpms);
-			intel_output_dpms_backlight(output,
-						      intel_output->dpms_mode,
-						      dpms);
+			if (dpms != DPMSModeOff)
+				intel_output_dpms_backlight(output,
+							    intel_output->dpms_mode,
+							    dpms);
 			intel_output->dpms_mode = dpms;
 			drmModeFreeProperty(props);
 			return;
