@@ -900,6 +900,9 @@ sna_render_picture_fixup(struct sna *sna,
 		     __FUNCTION__, channel->pict_format, pitch, picture->format));
 	}
 
+	if (picture->pDrawable)
+		sna_drawable_move_to_cpu(picture->pDrawable, false);
+
 	channel->bo = kgem_create_buffer(&sna->kgem,
 					 pitch*h, KGEM_BUFFER_WRITE,
 					 &ptr);
@@ -922,9 +925,6 @@ sna_render_picture_fixup(struct sna *sna,
 		kgem_bo_destroy(&sna->kgem, channel->bo);
 		return 0;
 	}
-
-	if (picture->pDrawable)
-		sna_drawable_move_to_cpu(picture->pDrawable, false);
 
 	src = image_from_pict(picture, FALSE, &dx, &dy);
 	if (src == NULL) {
