@@ -585,6 +585,7 @@ static uint32_t gen4_check_filter(PicturePtr picture)
 	case PictFilterBilinear:
 		return TRUE;
 	default:
+		DBG(("%s: unknown filter: %d\n", __FUNCTION__, picture->filter));
 		return FALSE;
 	}
 }
@@ -617,6 +618,8 @@ static bool gen4_check_repeat(PicturePtr picture)
 	case RepeatReflect:
 		return TRUE;
 	default:
+		DBG(("%s: unknown repeat: %d\n",
+		     __FUNCTION__, picture->repeatType));
 		return FALSE;
 	}
 }
@@ -1735,17 +1738,23 @@ gen4_composite_picture(struct sna *sna,
 	if (sna_picture_is_solid(picture, &color))
 		return gen4_composite_solid_init(sna, channel, color);
 
-	if (picture->pDrawable == NULL)
+	if (picture->pDrawable == NULL) {
+		DBG(("%s: procedural source fixup\n", __FUNCTION__));
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
+	}
 
-	if (!gen4_check_repeat(picture))
+	if (!gen4_check_repeat(picture)) {
+		DBG(("%s: unknown repeat mode fixup\n", __FUNCTION__));
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
+	}
 
-	if (!gen4_check_filter(picture))
+	if (!gen4_check_filter(picture)) {
+		DBG(("%s: unhandled filter fixup\n", __FUNCTION__));
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
+	}
 
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
 	channel->filter = picture->filter;
@@ -1884,6 +1893,109 @@ try_blt(struct sna *sna,
 	return picture_is_cpu(source);
 }
 
+static bool
+is_solid(PicturePtr picture)
+{
+	return  picture->pDrawable->width == 1 &&
+		picture->pDrawable->height == 1 &&
+		picture->repeat;
+}
+
+static bool
+is_gradient(PicturePtr picture)
+{
+	if (picture->pDrawable)
+		return FALSE;
+
+	return picture->pSourcePict->type != SourcePictTypeSolidFill;
+}
+
+static bool
+source_fallback(PicturePtr p)
+{
+	return is_gradient(p) || !gen4_check_filter(p) || !gen4_check_repeat(p);
+}
+
+static bool
+gen4_composite_fallback(struct sna *sna,
+			PicturePtr src,
+			PicturePtr mask,
+			PicturePtr dst)
+{
+	struct sna_pixmap *priv;
+	PixmapPtr src_pixmap;
+	PixmapPtr mask_pixmap;
+	PixmapPtr dst_pixmap;
+
+	if (!gen4_check_dst_format(dst->format)) {
+		DBG(("%s: unknown destination format: %d\n",
+		     __FUNCTION__, dst->format));
+		return TRUE;
+	}
+
+	dst_pixmap = get_drawable_pixmap(dst->pDrawable);
+	src_pixmap = src->pDrawable ? get_drawable_pixmap(src->pDrawable) : NULL;
+	mask_pixmap = (mask && mask->pDrawable) ? get_drawable_pixmap(mask->pDrawable) : NULL;
+
+	/* If we are using the destination as a source and need to
+	 * readback in order to upload the source, do it all
+	 * on the cpu.
+	 */
+	if (src_pixmap == dst_pixmap && source_fallback(src)) {
+		DBG(("%s: src is dst and will fallback\n",__FUNCTION__));
+		return TRUE;
+	}
+	if (mask_pixmap == dst_pixmap && source_fallback(mask)) {
+		DBG(("%s: mask is dst and will fallback\n",__FUNCTION__));
+		return TRUE;
+	}
+
+	/* If anything is on the GPU, push everything out to the GPU */
+	priv = sna_pixmap(dst_pixmap);
+	if (priv && priv->gpu_damage) {
+		DBG(("%s: dst is already on the GPU, try to use GPU\n",
+		     __FUNCTION__));
+		return FALSE;
+	}
+
+	if (src_pixmap && !is_solid(src) && !source_fallback(src)) {
+		priv = sna_pixmap(src_pixmap);
+		if (priv && priv->gpu_damage) {
+			DBG(("%s: src is already on the GPU, try to use GPU\n",
+			     __FUNCTION__));
+			return FALSE;
+		}
+	}
+	if (mask_pixmap && !is_solid(mask) && !source_fallback(mask)) {
+		priv = sna_pixmap(mask_pixmap);
+		if (priv && priv->gpu_damage) {
+			DBG(("%s: mask is already on the GPU, try to use GPU\n",
+			     __FUNCTION__));
+			return FALSE;
+		}
+	}
+
+	/* However if the dst is not on the GPU and we need to
+	 * render one of the sources using the CPU, we may
+	 * as well do the entire operation in place onthe CPU.
+	 */
+	if (source_fallback(src)) {
+		DBG(("%s: dst is on the CPU and src will fallback\n",
+		     __FUNCTION__));
+		return TRUE;
+	}
+
+	if (mask && source_fallback(mask)) {
+		DBG(("%s: dst is on the CPU and mask will fallback\n",
+		     __FUNCTION__));
+		return TRUE;
+	}
+
+	DBG(("%s: dst is not on the GPU and the operation should not fallback\n",
+	     __FUNCTION__));
+	return FALSE;
+}
+
 static Bool
 gen4_render_composite(struct sna *sna,
 		      uint8_t op,
@@ -1921,6 +2033,9 @@ gen4_render_composite(struct sna *sna,
 			      dst_x, dst_y,
 			      width, height, tmp))
 		return TRUE;
+
+	if (gen4_composite_fallback(sna, src, mask, dst))
+		return FALSE;
 
 	if (need_tiling(sna, width, height))
 		return sna_tiling_composite(op, src, mask, dst,
