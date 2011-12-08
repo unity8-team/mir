@@ -3040,15 +3040,15 @@ sna_composite_trapezoids(CARD8 op,
 		for (n = 0; n < ntrap && rectilinear; n++) {
 			int lx1 = pixman_fixed_to_int(traps[n].left.p1.x + pixman_fixed_1_minus_e/2);
 			int lx2 = pixman_fixed_to_int(traps[n].left.p2.x + pixman_fixed_1_minus_e/2);
-			int rx1 = pixman_fixed_to_int(traps[n].left.p1.x + pixman_fixed_1_minus_e/2);
-			int rx2 = pixman_fixed_to_int(traps[n].left.p2.x + pixman_fixed_1_minus_e/2);
+			int rx1 = pixman_fixed_to_int(traps[n].right.p1.x + pixman_fixed_1_minus_e/2);
+			int rx2 = pixman_fixed_to_int(traps[n].right.p2.x + pixman_fixed_1_minus_e/2);
 			rectilinear &= lx1 == lx2 && rx1 == rx2;
 		}
 	} else if (dst->polyMode != PolyModePrecise) {
 		for (n = 0; n < ntrap && rectilinear; n++) {
 			int lx1 = pixman_fixed_to_grid(traps[n].left.p1.x);
-			int lx2 = pixman_fixed_to_grid(traps[n].right.p2.x);
-			int rx1 = pixman_fixed_to_grid(traps[n].left.p1.x);
+			int lx2 = pixman_fixed_to_grid(traps[n].left.p2.x);
+			int rx1 = pixman_fixed_to_grid(traps[n].right.p1.x);
 			int rx2 = pixman_fixed_to_grid(traps[n].right.p2.x);
 			int top = pixman_fixed_to_grid(traps[n].top);
 			int bot = pixman_fixed_to_grid(traps[n].bottom);
