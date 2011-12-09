@@ -216,6 +216,7 @@ enum {
 	INACTIVE_TIMER,
 	NUM_TIMERS
 };
+#define NUM_FINE_TIMERS 1
 
 struct sna {
 	ScrnInfoPtr scrn;
