@@ -8513,11 +8513,16 @@ static void sna_accel_create_timers(struct sna *sna)
 {
 	int id;
 
+	/* XXX Can we replace this with OSTimer provided by dix? */
+
 #ifdef CLOCK_MONOTONIC_COARSE
 	for (id = 0; id < NUM_FINE_TIMERS; id++)
 		sna->timer[id] = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-	for (; id < NUM_TIMERS; id++)
+	for (; id < NUM_TIMERS; id++) {
 		sna->timer[id] = timerfd_create(CLOCK_MONOTONIC_COARSE, TFD_NONBLOCK);
+		if (sna->timer[id] == -1)
+			sna->timer[id] = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	}
 #else
 	for (id = 0; id < NUM_TIMERS; id++)
 		sna->timer[id] = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
