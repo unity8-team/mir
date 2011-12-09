@@ -92,21 +92,17 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 		nbox = REGION_NUM_RECTS(pClip);
 		pbox = REGION_RECTS(pClip);
 		while (nbox--) {
-			if (pbox->y1 > y || pbox->y2 <= y)
-				continue;
+			int X1 = x1, X2 = x2;
+			if (X1 < pbox->x1)
+				X1 = pbox->x1;
 
-			if (x1 < pbox->x1)
-				x1 = pbox->x1;
+			if (X2 > pbox->x2)
+				X2 = pbox->x2;
 
-			if (x2 > pbox->x2)
-				x2 = pbox->x2;
-
-			if (x2 <= x1)
-				continue;
-
-			(*uxa_screen->info->solid) (dst_pixmap,
-						    x1 + off_x, y + off_y,
-						    x2 + off_x, y + 1 + off_y);
+			if (X2 > X1 && pbox->y1 <= y && pbox->y2 > y)
+				(*uxa_screen->info->solid) (dst_pixmap,
+							    X1 + off_x, y + off_y,
+							    X2 + off_x, y + 1 + off_y);
 			pbox++;
 		}
 	}
