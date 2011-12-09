@@ -1,0 +1,48 @@
+commit 429a36f7481b9bfd5ed137642d2916d69a713557
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Dec 9 09:54:12 2011 +0000
+
+    uxa: Fix clip processing for uxa_fill_spans()
+    
+    Fixes regression from e0066e77e026b0dd0daa0c3765473c7d63aa6753
+    (uxa: Simplify Composite solid acceleration for spans by only clipping
+    once) [2.15.901]
+    
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=43649
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+diff --git a/uxa/uxa-accel.c b/uxa/uxa-accel.c
+index 21957a3..e4afd13 100644
+--- a/uxa/uxa-accel.c
++++ b/uxa/uxa-accel.c
+@@ -92,21 +92,17 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
+ 		nbox = REGION_NUM_RECTS(pClip);
+ 		pbox = REGION_RECTS(pClip);
+ 		while (nbox--) {
+-			if (pbox->y1 > y || pbox->y2 <= y)
+-				continue;
+-
+-			if (x1 < pbox->x1)
+-				x1 = pbox->x1;
++			int X1 = x1, X2 = x2;
++			if (X1 < pbox->x1)
++				X1 = pbox->x1;
+ 
+-			if (x2 > pbox->x2)
+-				x2 = pbox->x2;
+-
+-			if (x2 <= x1)
+-				continue;
++			if (X2 > pbox->x2)
++				X2 = pbox->x2;
+ 
+-			(*uxa_screen->info->solid) (dst_pixmap,
+-						    x1 + off_x, y + off_y,
+-						    x2 + off_x, y + 1 + off_y);
++			if (X2 > X1 && pbox->y1 <= y && pbox->y2 > y)
++				(*uxa_screen->info->solid) (dst_pixmap,
++							    X1 + off_x, y + off_y,
++							    X2 + off_x, y + 1 + off_y);
+ 			pbox++;
+ 		}
+ 	}

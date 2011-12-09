@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.15.901-1ubuntu4) precise; urgency=low
+
+  * Add 103_fix_uxa_fill_spans.patch: Fix clip processing for
+    uxa_fill_spans().  Fixes regression in LibreOffice causing partially
+    unpainted areas in its welcome panel.
+    (LP: #901959)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 09 Dec 2011 11:31:16 -0800
+
 xserver-xorg-video-intel (2:2.15.901-1ubuntu3) precise; urgency=low
 
   * Add 102_remove_surface_binding_cache.patch:
