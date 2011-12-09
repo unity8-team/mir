@@ -135,6 +135,7 @@ struct sna_pixmap {
 	struct sna_damage *gpu_damage, *cpu_damage;
 
 	struct list list;
+	struct list inactive;
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
@@ -212,6 +213,7 @@ enum {
 enum {
 	FLUSH_TIMER = 0,
 	EXPIRE_TIMER,
+	INACTIVE_TIMER,
 	NUM_TIMERS
 };
 
@@ -229,6 +231,8 @@ struct sna {
 
 	struct list deferred_free;
 	struct list dirty_pixmaps;
+	struct list active_pixmaps;
+	struct list inactive_clock[2];
 
 	PixmapPtr front, shadow;
 	PixmapPtr freed_pixmap;

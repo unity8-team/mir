@@ -171,6 +171,8 @@ static void sna_pixmap_destroy_gpu_bo(struct sna *sna, struct sna_pixmap *priv)
 		priv->gpu_bo = NULL;
 	}
 
+	list_del(&priv->inactive);
+
 	/* and reset the upload counter */
 	priv->source_count = SOURCE_BIAS;
 }
@@ -180,6 +182,7 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 
 	list_del(&priv->list);
+	list_del(&priv->inactive);
 
 	sna_damage_destroy(&priv->gpu_damage);
 	sna_damage_destroy(&priv->cpu_damage);
@@ -301,6 +304,7 @@ static struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
 		return NULL;
 
 	list_init(&priv->list);
+	list_init(&priv->inactive);
 	priv->pixmap = pixmap;
 
 	sna_set_pixmap(pixmap, priv);
@@ -386,6 +390,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		priv = sna_pixmap(pixmap);
 		memset(priv, 0, sizeof(*priv));
 		list_init(&priv->list);
+		list_init(&priv->inactive);
 		priv->pixmap = pixmap;
 	} else {
 		pixmap = create_pixmap(sna, screen, 0, 0, depth,
@@ -818,6 +823,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 done:
 	if (priv->cpu_damage == NULL)
 		list_del(&priv->list);
+	if (!priv->gpu_only && !priv->pinned)
+		list_move(&priv->inactive, &sna->active_pixmaps);
 }
 
 static inline Bool
@@ -993,6 +1000,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	priv->pinned = 0;
 	priv->mapped = 0;
 	list_init(&priv->list);
+	list_init(&priv->inactive);
 
 	priv->pixmap = pixmap;
 	sna_set_pixmap(pixmap, priv);
@@ -1128,6 +1136,8 @@ done:
 	sna_damage_reduce_all(&priv->gpu_damage,
 			      pixmap->drawable.width, pixmap->drawable.height);
 	list_del(&priv->list);
+	if (!priv->gpu_only && !priv->pinned)
+		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->gpu = true;
 	return priv;
 }
@@ -8477,6 +8487,28 @@ static Bool sna_accel_do_expire(struct sna *sna)
 	return FALSE;
 }
 
+static Bool sna_accel_do_inactive(struct sna *sna)
+{
+	struct itimerspec to;
+
+	return_if_timer_active(INACTIVE_TIMER);
+
+	if (list_is_empty(&sna->active_pixmaps))
+		return FALSE;
+
+	if (sna->timer[INACTIVE_TIMER] == -1)
+		return FALSE;
+
+	/* Periodic expiration after every 60s. */
+	to.it_interval.tv_sec = 60;
+	to.it_interval.tv_nsec = 0;
+	to.it_value = to.it_interval;
+	timerfd_settime(sna->timer[INACTIVE_TIMER], 0, &to, NULL);
+
+	sna->timer_active |= 1 << INACTIVE_TIMER;
+	return FALSE;
+}
+
 static void sna_accel_create_timers(struct sna *sna)
 {
 	int id;
@@ -8494,6 +8526,7 @@ static void sna_accel_create_timers(struct sna *sna)
 }
 static Bool sna_accel_do_flush(struct sna *sna) { return sna_accel_scanout(sna) != NULL; }
 static Bool sna_accel_do_expire(struct sna *sna) { return sna->kgem.need_expire; }
+static Bool sna_accel_do_inactive(struct sna *sna) { return FALSE; }
 static void sna_accel_drain_timer(struct sna *sna, int id) { }
 static void _sna_accel_disarm_timer(struct sna *sna, int id) { }
 #endif
@@ -8526,13 +8559,57 @@ static void sna_accel_expire(struct sna *sna)
 		_sna_accel_disarm_timer(sna, EXPIRE_TIMER);
 }
 
+static void sna_accel_inactive(struct sna *sna)
+{
+	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)GetTimeInMillis()));
+
+	/* clear out the oldest inactive pixmaps */
+	while (!list_is_empty(&sna->inactive_clock[1])) {
+		struct sna_pixmap *priv;
+
+		priv = list_first_entry(&sna->inactive_clock[1],
+					struct sna_pixmap,
+					inactive);
+		if (priv->pinned) {
+			list_del(&priv->inactive);
+		} else {
+			DBG(("%s: discarding GPU bo handle=%d\n",
+			     __FUNCTION__, priv->gpu_bo->handle));
+			sna_pixmap_move_to_cpu(priv->pixmap, true);
+		}
+
+		/* XXX Rather than discarding the GPU buffer here, we
+		 * could mark it purgeable and allow the shrinker to
+		 * reap its storage only under memory pressure.
+		 */
+	}
+
+	/* Age the current inactive pixmaps */
+	sna->inactive_clock[1].next = sna->inactive_clock[0].next;
+	sna->inactive_clock[0].next->prev = &sna->inactive_clock[1];
+	sna->inactive_clock[0].prev->next = &sna->inactive_clock[1];
+	sna->inactive_clock[1].prev = sna->inactive_clock[0].prev;
+
+	sna->inactive_clock[0].next = sna->active_pixmaps.next;
+	sna->active_pixmaps.next->prev = &sna->inactive_clock[0];
+	sna->active_pixmaps.prev->next = &sna->inactive_clock[0];
+	sna->inactive_clock[0].prev = sna->active_pixmaps.prev;
+
+	list_init(&sna->active_pixmaps);
+
+	if (list_is_empty(&sna->inactive_clock[1]) &&
+	    list_is_empty(&sna->inactive_clock[0]))
+		_sna_accel_disarm_timer(sna, INACTIVE_TIMER);
+}
+
 static void sna_accel_install_timers(struct sna *sna)
 {
-	if (sna->timer[FLUSH_TIMER] != -1)
-		AddGeneralSocket(sna->timer[FLUSH_TIMER]);
+	int n;
 
-	if (sna->timer[EXPIRE_TIMER] != -1)
-		AddGeneralSocket(sna->timer[EXPIRE_TIMER]);
+	for (n = 0; n < NUM_TIMERS; n++) {
+		if (sna->timer[n] != -1)
+			AddGeneralSocket(sna->timer[n]);
+	}
 }
 
 Bool sna_accel_pre_init(struct sna *sna)
@@ -8552,8 +8629,11 @@ Bool sna_accel_init(ScreenPtr screen, struct sna *sna)
 	screen->RealizeFont = sna_realize_font;
 	screen->UnrealizeFont = sna_unrealize_font;
 
-	list_init(&sna->dirty_pixmaps);
 	list_init(&sna->deferred_free);
+	list_init(&sna->dirty_pixmaps);
+	list_init(&sna->active_pixmaps);
+	list_init(&sna->inactive_clock[0]);
+	list_init(&sna->inactive_clock[1]);
 
 	AddGeneralSocket(sna->kgem.fd);
 	sna_accel_install_timers(sna);
@@ -8673,6 +8753,9 @@ void sna_accel_block_handler(struct sna *sna)
 
 	if (sna_accel_do_expire(sna))
 		sna_accel_expire(sna);
+
+	if (sna_accel_do_inactive(sna))
+		sna_accel_inactive(sna);
 }
 
 void sna_accel_wakeup_handler(struct sna *sna)
