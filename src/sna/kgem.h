@@ -347,6 +347,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_throttle(struct kgem *kgem);
+#define MAX_INACTIVE_TIME 10
 bool kgem_expire_cache(struct kgem *kgem);
 void kgem_cleanup_cache(struct kgem *kgem);
 

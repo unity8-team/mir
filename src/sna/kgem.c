@@ -1159,7 +1159,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 		list_for_each_entry(bo, &kgem->inactive[i], list) {
 			assert(bo->purged);
 			if (bo->delta) {
-				expire = now - 5;
+				expire = now - MAX_INACTIVE_TIME;
 				break;
 			}
 

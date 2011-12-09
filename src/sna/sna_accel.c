@@ -8474,13 +8474,9 @@ static Bool sna_accel_do_expire(struct sna *sna)
 	if (sna->timer[EXPIRE_TIMER] == -1)
 		return TRUE;
 
-	/* Initial expiration after 5s. */
-	to.it_value.tv_sec = 5;
-	to.it_value.tv_nsec = 0;
-
-	/* Then periodic update every 10s.*/
-	to.it_interval.tv_sec = 10;
+	to.it_interval.tv_sec = MAX_INACTIVE_TIME;
 	to.it_interval.tv_nsec = 0;
+	to.it_value = to.it_interval;
 	timerfd_settime(sna->timer[EXPIRE_TIMER], 0, &to, NULL);
 
 	sna->timer_active |= 1 << EXPIRE_TIMER;
