@@ -181,6 +181,7 @@ kgem_replace_bo(struct kgem *kgem,
 enum {
 	CREATE_EXACT = 0x1,
 	CREATE_INACTIVE = 0x2,
+	CREATE_SCANOUT = 0x4,
 };
 struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			       int width,

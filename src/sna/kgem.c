@@ -433,6 +433,7 @@ static uint32_t kgem_get_unique_id(struct kgem *kgem)
 
 static uint32_t kgem_surface_size(struct kgem *kgem,
 				  bool relaxed_fencing,
+				  bool scanout,
 				  uint32_t width,
 				  uint32_t height,
 				  uint32_t bpp,
@@ -447,13 +448,13 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 			tile_width = 512;
 			tile_height = 16;
 		} else {
-			tile_width = bpp > 8 ? 64 : 4;
+			tile_width = scanout ? 64 : 4;
 			tile_height = 2;
 		}
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		tile_width = bpp > 8 ? 64 : 4;
+		tile_width = scanout ? 64 : 4;
 		tile_height = 2;
 		break;
 	case I915_TILING_X:
@@ -1373,7 +1374,7 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 
 	/* First check that we can fence the whole object */
 	if (tiling &&
-	    kgem_surface_size(kgem, false,
+	    kgem_surface_size(kgem, false, false,
 			      width, height, bpp, tiling,
 			      &pitch) > kgem->max_object_size) {
 		DBG(("%s: too large (%dx%d) to be fenced, discarding tiling\n",
@@ -1405,8 +1406,8 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 	}
 
 	if (tiling == I915_TILING_X && width * bpp < 8*512/2) {
-		DBG(("%s: too thin [%d] for TILING_X\n",
-		     __FUNCTION__, width));
+		DBG(("%s: too thin [width %d, %d bpp] for TILING_X\n",
+		     __FUNCTION__, width, bpp));
 		tiling = I915_TILING_NONE;
 		goto done;
 	}
@@ -1444,10 +1445,10 @@ static bool _kgem_can_create_2d(struct kgem *kgem,
 	if (tiling < 0)
 		tiling = -tiling;
 
-	size = kgem_surface_size(kgem, false,
+	size = kgem_surface_size(kgem, false, false,
 				 width, height, bpp, tiling, &pitch);
 	if (size == 0 || size > kgem->max_object_size)
-		size = kgem_surface_size(kgem, false,
+		size = kgem_surface_size(kgem, false, false,
 					 width, height, bpp,
 					 I915_TILING_NONE, &pitch);
 	return size > 0 && size <= kgem->max_object_size;
@@ -1504,11 +1505,14 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (tiling < 0)
 		tiling = -tiling, exact = 1;
 
-	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d)\n", __FUNCTION__,
-	     width, height, bpp, tiling, !!exact, !!(flags & CREATE_INACTIVE)));
+	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, scanout?=%d)\n", __FUNCTION__,
+	     width, height, bpp, tiling,
+	     !!exact, !!(flags & CREATE_INACTIVE), !!(flags & CREATE_SCANOUT)));
 
 	assert(_kgem_can_create_2d(kgem, width, height, bpp, exact ? -tiling : tiling));
-	size = kgem_surface_size(kgem, kgem->has_relaxed_fencing,
+	size = kgem_surface_size(kgem,
+				 kgem->has_relaxed_fencing,
+				 flags & CREATE_SCANOUT,
 				 width, height, bpp, tiling, &pitch);
 	assert(size && size <= kgem->max_object_size);
 	if (flags & CREATE_INACTIVE)

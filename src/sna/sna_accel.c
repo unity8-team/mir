@@ -1037,7 +1037,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 		if (priv->cpu_damage)
 			flags |= CREATE_INACTIVE;
 		if (pixmap->usage_hint == SNA_CREATE_FB)
-			flags |= CREATE_EXACT;
+			flags |= CREATE_EXACT | CREATE_SCANOUT;
 
 		priv->gpu_bo = kgem_create_2d(&sna->kgem,
 					      pixmap->drawable.width,
