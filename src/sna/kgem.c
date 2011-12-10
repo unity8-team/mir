@@ -2356,3 +2356,85 @@ void kgem_bo_set_binding(struct kgem_bo *bo, uint32_t format, uint16_t offset)
 		bo->binding.next = b;
 	}
 }
+
+struct kgem_bo *
+kgem_replace_bo(struct kgem *kgem,
+		struct kgem_bo *src,
+		uint32_t width,
+		uint32_t height,
+		uint32_t pitch,
+		uint32_t bpp)
+{
+	struct kgem_bo *dst;
+	uint32_t br00, br13;
+	uint32_t handle;
+	uint32_t size;
+	uint32_t *b;
+
+	DBG(("%s: replacing bo handle=%d, size=%dx%d pitch=%d, with pitch=%d\n",
+	     __FUNCTION__, src->handle,  width, height, src->pitch, pitch));
+
+	/* We only expect to be called to fixup small buffers, hence why
+	 * we only attempt to allocate a linear bo.
+	 */
+	assert(src->tiling == I915_TILING_NONE);
+
+	size = height * pitch;
+
+	dst = search_linear_cache(kgem, size, true);
+	if (dst == NULL)
+		dst = search_linear_cache(kgem, size, false);
+	if (dst == NULL) {
+		handle = gem_create(kgem->fd, size);
+		if (handle == 0)
+			return NULL;
+
+		dst = __kgem_bo_alloc(handle, size);
+	}
+	dst->pitch = pitch;
+
+	kgem_set_mode(kgem, KGEM_BLT);
+	if (!kgem_check_batch(kgem, 8) ||
+	    !kgem_check_reloc(kgem, 2) ||
+	    !kgem_check_bo_fenced(kgem, src, dst, NULL)) {
+		_kgem_submit(kgem);
+		_kgem_set_mode(kgem, KGEM_BLT);
+	}
+
+	br00 = XY_SRC_COPY_BLT_CMD;
+	br13 = pitch;
+	pitch = src->pitch;
+	if (kgem->gen >= 40 && src->tiling) {
+		br00 |= BLT_SRC_TILED;
+		pitch >>= 2;
+	}
+
+	br13 |= 0xcc << 16;
+	switch (bpp) {
+	default:
+	case 32: br00 |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
+		 br13 |= 1 << 25; /* RGB8888 */
+	case 16: br13 |= 1 << 24; /* RGB565 */
+	case 8: break;
+	}
+
+	b = kgem->batch + kgem->nbatch;
+	b[0] = br00;
+	b[1] = br13;
+	b[2] = 0;
+	b[3] = height << 16 | width;
+	b[4] = kgem_add_reloc(kgem, kgem->nbatch + 4, dst,
+			      I915_GEM_DOMAIN_RENDER << 16 |
+			      I915_GEM_DOMAIN_RENDER |
+			      KGEM_RELOC_FENCED,
+			      0);
+	b[5] = 0;
+	b[6] = pitch;
+	b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src,
+			      I915_GEM_DOMAIN_RENDER << 16 |
+			      KGEM_RELOC_FENCED,
+			      0);
+	kgem->nbatch += 8;
+
+	return dst;
+}

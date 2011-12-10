@@ -170,6 +170,14 @@ int kgem_choose_tiling(struct kgem *kgem,
 		       int tiling, int width, int height, int bpp);
 bool kgem_can_create_2d(struct kgem *kgem,
 			int width, int height, int bpp, int tiling);
+
+struct kgem_bo *
+kgem_replace_bo(struct kgem *kgem,
+		struct kgem_bo *src,
+		uint32_t width,
+		uint32_t height,
+		uint32_t pitch,
+		uint32_t bpp);
 enum {
 	CREATE_EXACT = 0x1,
 	CREATE_INACTIVE = 0x2,

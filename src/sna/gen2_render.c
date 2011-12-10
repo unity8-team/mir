@@ -1186,7 +1186,8 @@ gen2_composite_picture(struct sna *sna,
 }
 
 static Bool
-gen2_composite_set_target(struct sna_composite_op *op,
+gen2_composite_set_target(struct sna *sna,
+			  struct sna_composite_op *op,
 			  PicturePtr dst)
 {
 	struct sna_pixmap *priv;
@@ -1199,6 +1200,22 @@ gen2_composite_set_target(struct sna_composite_op *op,
 	priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
 	if (priv == NULL)
 		return FALSE;
+
+	if (priv->gpu_bo->pitch < 8) {
+		struct kgem_bo *bo;
+
+		if (priv->pinned)
+			return FALSE;
+
+		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
+				     op->dst.width, op->dst.height, 16,
+				     op->dst.pixmap->drawable.bitsPerPixel);
+		if (bo == NULL)
+			return FALSE;
+
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = bo;
+	}
 
 	op->dst.bo = priv->gpu_bo;
 	op->damage = &priv->gpu_damage;
@@ -1396,7 +1413,7 @@ gen2_render_composite(struct sna *sna,
 					    width,  height,
 					    tmp);
 
-	if (!gen2_composite_set_target(tmp, dst)) {
+	if (!gen2_composite_set_target(sna, tmp, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
@@ -1822,7 +1839,7 @@ gen2_render_composite_spans(struct sna *sna,
 	if (need_tiling(sna, width, height))
 		return FALSE;
 
-	if (!gen2_composite_set_target(&tmp->base, dst)) {
+	if (!gen2_composite_set_target(sna, &tmp->base, dst)) {
 		DBG(("%s: unable to set render target\n",
 		     __FUNCTION__));
 		return FALSE;
