@@ -71,7 +71,7 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 				tile_mode = 0x00;
 
 			if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
-				tile_flags = 0x1100; /* S8Z24 */
+				tile_flags = (bpp == 16) ? 0x0100 : 0x1100; /* Z16 : Z24S8 */
 			else
 				tile_flags = 0xfe00;
 
@@ -90,7 +90,7 @@ nouveau_allocate_surface(ScrnInfoPtr scrn, int width, int height, int bpp,
 				tile_mode = 0;
 
 			if (usage_hint & NOUVEAU_CREATE_PIXMAP_ZETA)
-				tile_flags = 0x22800;
+				tile_flags = (bpp == 16) ? 0x26c00 : 0x22800;
 			else if (usage_hint & NOUVEAU_CREATE_PIXMAP_SCANOUT)
 				tile_flags = (bpp == 16 ? 0x7000 : 0x7a00);
 			else

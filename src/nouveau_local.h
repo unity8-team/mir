@@ -79,6 +79,14 @@ static inline int round_down_pow2(int x)
 	return 1 << log2i(x);
 }
 
+static inline int round_up_pow2(int x)
+{
+   int r = round_down_pow2(x);
+   if (r < x)
+      r <<= 1;
+   return r;
+}
+
 #define SWAP(x, y) do {			\
 		typeof(x) __z = (x);	\
 		(x) = (y);		\

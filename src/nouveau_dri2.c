@@ -46,7 +46,11 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 
 		ppix->refcnt++;
 	} else {
+		int bpp;
 		unsigned int usage_hint = NOUVEAU_CREATE_PIXMAP_TILED;
+
+		/* 'format' is just depth */
+		bpp = round_up_pow2(format);
 
 		if (attachment == DRI2BufferDepth ||
 		    attachment == DRI2BufferDepthStencil)
@@ -55,7 +59,7 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 			usage_hint |= NOUVEAU_CREATE_PIXMAP_SCANOUT;
 
 		ppix = pScreen->CreatePixmap(pScreen, pDraw->width,
-					     pDraw->height, pDraw->depth,
+					     pDraw->height, bpp,
 					     usage_hint);
 	}
 
