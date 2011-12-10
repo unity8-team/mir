@@ -2992,6 +2992,208 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	return true;
 }
 
+struct inplace {
+	uint32_t stride;
+	uint8_t *ptr;
+	uint8_t opacity;
+};
+
+static void
+tor_blt_inplace(struct sna *sna,
+		struct sna_composite_spans_op *op,
+		pixman_region16_t *clip,
+		const BoxRec *box,
+		int coverage)
+{
+	struct inplace *in = (struct inplace *)op;
+	uint8_t *ptr = in->ptr;
+	int h, w;
+
+	coverage = (int)coverage * in->opacity / FAST_SAMPLES_XY;
+
+	ptr += box->y1 * in->stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	if ((w | h) == 1) {
+		*ptr = coverage;
+	} else if (w == 1) {
+		do {
+			*ptr = coverage;
+			ptr += in->stride;
+		} while (--h);
+	} else do {
+		memset(ptr, coverage, w);
+		ptr += in->stride;
+	} while (--h);
+}
+
+static void
+tor_blt_inplace_clipped(struct sna *sna,
+			struct sna_composite_spans_op *op,
+			pixman_region16_t *clip,
+			const BoxRec *box,
+			int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--){
+		tor_blt_inplace(sna, op, NULL,  box, coverage);
+		box++;
+	}
+	pixman_region_fini(&region);
+}
+
+static void
+tor_blt_inplace_mono(struct sna *sna,
+		     struct sna_composite_spans_op *op,
+		     pixman_region16_t *clip,
+		     const BoxRec *box,
+		     int coverage)
+{
+	tor_blt_inplace(sna, op, clip, box,
+			coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_inplace_clipped_mono(struct sna *sna,
+			     struct sna_composite_spans_op *op,
+			     pixman_region16_t *clip,
+			     const BoxRec *box,
+			     int coverage)
+{
+	tor_blt_inplace_clipped(sna, op, clip, box,
+				coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
+static bool
+trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
+		       PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
+		       int ntrap, xTrapezoid *traps)
+{
+	struct tor tor;
+	struct inplace inplace;
+	span_func_t span;
+	PixmapPtr pixmap;
+	RegionRec region;
+	uint32_t color;
+	int16_t dst_x, dst_y;
+	int dx, dy;
+	int n;
+
+	if (NO_SCAN_CONVERTER)
+		return false;
+
+	if (dst->polyMode == PolyModePrecise) {
+		DBG(("%s: fallback -- precise rasterisation requested\n",
+		     __FUNCTION__));
+		return false;
+	}
+	if (dst->alphaMap || src->alphaMap) {
+		DBG(("%s: fallback -- alphamaps\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if (dst->format != PICT_a8 || op != PictOpSrc ||
+	    !sna_picture_is_solid(src, &color)) {
+		DBG(("%s: fallback -- can not perform operation in place\n",
+		     __FUNCTION__));
+		return false;
+	}
+
+	if (maskFormat == NULL && ntrap > 1) {
+		DBG(("%s: individual rasterisation requested\n",
+		     __FUNCTION__));
+		do {
+			/* XXX unwind errors? */
+			if (!trapezoid_span_inplace(op, src, dst, NULL,
+						    src_x, src_y, 1, traps++))
+				return false;
+		} while (--ntrap);
+		return true;
+	}
+
+	miTrapezoidBounds(ntrap, traps, &region.extents);
+	if (region.extents.y1 >= region.extents.y2 ||
+	    region.extents.x1 >= region.extents.x2)
+		return true;
+
+	DBG(("%s: extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (!sna_compute_composite_extents(&region.extents,
+					   src, NULL, dst,
+					   src_x, src_y,
+					   0, 0,
+					   region.extents.x1, region.extents.y1,
+					   region.extents.x2 - region.extents.x1,
+					   region.extents.y2 - region.extents.y1))
+		return true;
+
+	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	if (tor_init(&tor, &region.extents, 2*ntrap))
+		return true;
+
+	dx = dst->pDrawable->x * FAST_SAMPLES_X;
+	dy = dst->pDrawable->y * FAST_SAMPLES_Y;
+
+	for (n = 0; n < ntrap; n++) {
+		xTrapezoid t;
+
+		if (!project_trapezoid_onto_grid(&traps[n], dx, dy, &t))
+			continue;
+
+		if (pixman_fixed_to_int(traps[n].top) >= region.extents.y2 - dst->pDrawable->y ||
+		    pixman_fixed_to_int(traps[n].bottom) < region.extents.y1 - dst->pDrawable->y)
+			continue;
+
+		tor_add_edge(&tor, &t, &t.left, 1);
+		tor_add_edge(&tor, &t, &t.right, -1);
+	}
+
+	if (dst->pCompositeClip->data) {
+		if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+			span = tor_blt_inplace_clipped_mono;
+		else
+			span = tor_blt_inplace_clipped;
+	} else {
+		if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+			span = tor_blt_inplace_mono;
+		else
+			span = tor_blt_inplace;
+	}
+
+	region.data = NULL;
+	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
+
+	pixmap = get_drawable_pixmap(dst->pDrawable);
+	get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
+
+	inplace.ptr = pixmap->devPrivate.ptr;
+	inplace.ptr += dst_y * pixmap->devKind + dst_x;
+	inplace.stride = pixmap->devKind;
+	inplace.opacity = color >> 24;
+
+	tor_render(NULL, &tor, (void*)&inplace,
+		   dst->pCompositeClip, span, true);
+
+	tor_fini(&tor);
+
+	return true;
+}
+
 static bool
 trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 			PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
@@ -3167,6 +3369,12 @@ sna_composite_trapezoids(CARD8 op,
 		goto fallback;
 	}
 
+	if (!is_gpu(dst->pDrawable)) {
+		if (trapezoid_span_inplace(op, src, dst, maskFormat,
+					   xSrc, ySrc, ntrap, traps))
+			return;
+	}
+
 	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
 		DBG(("%s: fallback -- dst is too small, %dx%d\n",
 		     __FUNCTION__,
@@ -3237,6 +3445,10 @@ sna_composite_trapezoids(CARD8 op,
 		return;
 
 fallback:
+	if (trapezoid_span_inplace(op, src, dst, maskFormat,
+				   xSrc, ySrc, ntrap, traps))
+		return;
+
 	if (trapezoid_span_fallback(op, src, dst, maskFormat,
 				    xSrc, ySrc, ntrap, traps))
 		return;
@@ -3657,7 +3869,7 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 {
 	DBG(("%s (%d, %d) x %d\n", __FUNCTION__, x, y, n));
 
-	if (picture_is_gpu (picture)) {
+	if (is_gpu(picture->pDrawable)) {
 		if (trap_span_converter(picture, x, y, n, t))
 			return;
 

@@ -70,7 +70,7 @@ static inline Bool
 is_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv && priv->gpu_bo;
+	return priv && priv->gpu_damage;
 }
 
 static inline Bool
