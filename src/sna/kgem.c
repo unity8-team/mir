@@ -214,7 +214,6 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
 		return FALSE;
 
-	assert(!kgem_busy(kgem, bo->handle));
 	bo->needs_flush = false;
 	if (bo->gpu)
 		kgem_retire(kgem);
@@ -728,7 +727,6 @@ bool kgem_retire(struct kgem *kgem)
 						DBG(("%s: moving %d to inactive\n",
 						     __FUNCTION__, bo->handle));
 						bo->purged = true;
-						assert(!kgem_busy(kgem,bo->handle));
 						list_move(&bo->list,
 							  inactive(kgem, bo->size));
 						retired = true;
@@ -1812,14 +1810,11 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
 	void *ptr;
 
-	assert(prot == PROT_READ || !kgem_busy(kgem, bo->handle));
-
 	ptr = gem_mmap(kgem->fd, bo->handle, bo->size, prot);
 	if (ptr == NULL)
 		return NULL;
 
 	if (prot & PROT_WRITE) {
-		assert(!kgem_busy(kgem, bo->handle));
 		bo->needs_flush = false;
 		if (bo->gpu)
 			kgem_retire(kgem);
