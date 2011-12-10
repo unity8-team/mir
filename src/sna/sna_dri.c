@@ -428,6 +428,9 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		 * as well).
 		 */
 		kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	} else if (sna->kgem.mode == KGEM_NONE) {
+		/* Otherwise employ the BLT unless it means a context switch */
+		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
 	damage(pixmap, region);
