@@ -1849,11 +1849,7 @@ gen5_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
 
 	DBG(("%s: dst=%p\n", __FUNCTION__, dst));
 
-	if (!gen5_check_dst_format(dst->format)) {
-		DBG(("%s: incompatible dst format %08x\n",
-		     __FUNCTION__, dst->format));
-		return FALSE;
-	}
+	assert(gen5_check_dst_format(dst->format));
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	priv = sna_pixmap(op->dst.pixmap);
