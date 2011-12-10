@@ -2015,6 +2015,31 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     src_priv ? src_priv->cpu_bo : NULL,
 	     replaces));
 
+	if (replaces) {
+		if (dst_priv && src_priv && src_priv->gpu_damage == NULL) {
+			if (sna_pixmap_move_to_gpu(src_pixmap)) {
+				DBG(("%s: transferring src GPU bo to dst\n", __FUNCTION__));
+				if (dst_priv->gpu_bo)
+					kgem_bo_destroy(&sna->kgem, dst_priv->gpu_bo);
+				sna_damage_destroy(&dst_priv->cpu_damage);
+				sna_damage_all(&dst_priv->gpu_damage,
+					       dst_pixmap->drawable.width,
+					       dst_pixmap->drawable.height);
+
+				dst_priv->gpu_bo = src_priv->gpu_bo;
+				src_priv->gpu_bo = NULL;
+
+				sna_damage_all(&src_priv->cpu_damage,
+					       src_pixmap->drawable.width,
+					       src_pixmap->drawable.height);
+				return;
+			}
+		}
+
+		if (!src_priv || src_priv->gpu_bo == NULL || src_priv->cpu_damage)
+			goto fallback;
+	}
+
 	/* Try to maintain the data on the GPU */
 	if (dst_priv && dst_priv->gpu_bo == NULL &&
 	    src_priv && src_priv->gpu_bo != NULL) {
