@@ -3409,9 +3409,11 @@ gen3_render_video(struct sna *sna,
 
 	DBG(("%s: %dx%d -> %dx%d\n", __FUNCTION__, src_w, src_h, drw_w, drw_h));
 
+	dst_bo = sna_pixmap_get_bo(pixmap);
+
 	if (pixmap->drawable.width > 2048 ||
 	    pixmap->drawable.height > 2048 ||
-	    !gen3_check_pitch_3d(sna_pixmap_get_bo(pixmap))) {
+	    !gen3_check_pitch_3d(dst_bo)) {
 		int bpp = pixmap->drawable.bitsPerPixel;
 
 		dst_bo = kgem_create_2d(&sna->kgem,
@@ -3427,8 +3429,6 @@ gen3_render_video(struct sna *sna,
 		pix_yoff = -dyo;
 		copy = 1;
 	} else {
-		dst_bo = sna_pixmap_get_bo(pixmap);
-
 		width = pixmap->drawable.width;
 		height = pixmap->drawable.height;
 
