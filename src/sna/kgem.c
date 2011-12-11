@@ -607,6 +607,8 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	if (bo->map) {
+		DBG(("%s: releasing vma for handle=%d, count=%d\n",
+		     __FUNCTION__, bo->handle, kgem->vma_count-1));
 		munmap(bo->map, bo->size);
 		list_del(&bo->vma);
 		kgem->vma_count--;
@@ -1871,8 +1873,8 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 		bo->map = ptr;
 		kgem->vma_count++;
 
-		DBG(("%s: caching vma for %d\n",
-		     __FUNCTION__, bo->handle));
+		DBG(("%s: caching vma for %d, count=%d\n",
+		     __FUNCTION__, bo->handle, kgem->vma_count));
 	}
 
 	if (bo->needs_flush | bo->gpu) {
@@ -1896,6 +1898,8 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 
 void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo)
 {
+	DBG(("%s: (debug) releasing vma for handle=%d, count=%d\n",
+	     __FUNCTION__, bo->handle, kgem->vma_count-1));
 	assert(bo->map);
 
 	munmap(bo->map, bo->size);
