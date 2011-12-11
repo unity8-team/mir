@@ -2201,25 +2201,6 @@ gen3_composite_set_target(struct sna *sna,
 	if (priv == NULL)
 		return FALSE;
 
-	/* XXX This should only be necessary if we fail to disable depth! */
-#if 0
-	if (priv->gpu_bo->pitch < 16) {
-		struct kgem_bo *bo;
-
-		if (priv->pinned)
-			return FALSE;
-
-		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
-				     op->dst.width, op->dst.height, 16,
-				     op->dst.pixmap->drawable.bitsPerPixel);
-		if (bo == NULL)
-			return FALSE;
-
-		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
-		priv->gpu_bo = bo;
-	}
-#endif
-
 	op->dst.bo = priv->gpu_bo;
 	op->damage = &priv->gpu_damage;
 	if (sna_damage_is_all(op->damage, op->dst.width, op->dst.height))
