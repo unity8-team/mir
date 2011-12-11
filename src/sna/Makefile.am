@@ -91,6 +91,7 @@ libsna_la_SOURCES += \
 endif
 
 if DEBUG
+AM_CFLAGS += @VALGRIND_CFLAGS@
 libsna_la_SOURCES += \
 	kgem_debug.c \
 	kgem_debug.h \

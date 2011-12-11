@@ -40,7 +40,7 @@
 #define fastcall
 #endif
 
-#ifdef HAVE_VALGRIND_H
+#ifdef HAVE_VALGRIND
 #define VG(x) x
 #else
 #define VG(x)

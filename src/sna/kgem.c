@@ -39,6 +39,11 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#ifdef HAVE_VALGRIND
+#include <valgrind.h>
+#include <memcheck.h>
+#endif
+
 static inline void list_move(struct list *list, struct list *head)
 {
 	__list_del(list->prev, list->next);
@@ -181,6 +186,7 @@ static int gem_read(int fd, uint32_t handle, const void *dst,
 		    int offset, int length)
 {
 	struct drm_i915_gem_pread pread;
+	int ret;
 
 	DBG(("%s(handle=%d, len=%d)\n", __FUNCTION__,
 	     handle, length));
@@ -190,7 +196,12 @@ static int gem_read(int fd, uint32_t handle, const void *dst,
 	pread.offset = offset;
 	pread.size = length;
 	pread.data_ptr = (uintptr_t)dst;
-	return drmIoctl(fd, DRM_IOCTL_I915_GEM_PREAD, &pread);
+	ret = drmIoctl(fd, DRM_IOCTL_I915_GEM_PREAD, &pread);
+	if (ret)
+		return ret;
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(dst, length));
+	return 0;
 }
 
 static bool

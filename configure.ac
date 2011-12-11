@@ -263,6 +263,8 @@ if test "x$DEBUG" != xno; then
 fi
 if test "x$DEBUG" = xfull; then
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
+	PKG_CHECK_MODULES(VALGRIND, [valgrind],
+			  AC_DEFINE([HAVE_VALGRIND], 0, [Use valgind intrinsics to suppress false warings]),)
         CFLAGS="$CFLAGS -O0 -ggdb3"
 fi
 
