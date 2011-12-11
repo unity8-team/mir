@@ -2013,7 +2013,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     replaces));
 
 	if (replaces) {
-		if (dst_priv && src_priv && src_priv->gpu_damage == NULL) {
+		if (dst_priv && !dst_priv->pinned &&
+		    src_priv && !src_priv->pinned &&
+		    src_priv->gpu_damage == NULL) {
 			if (sna_pixmap_move_to_gpu(src_pixmap)) {
 				DBG(("%s: transferring src GPU bo to dst\n", __FUNCTION__));
 				if (dst_priv->gpu_bo)
