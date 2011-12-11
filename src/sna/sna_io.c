@@ -80,8 +80,6 @@ static void read_boxes_inplace(struct kgem *kgem,
 			   box->x2 - box->x1, box->y2 - box->y1);
 		box++;
 	} while (--n);
-
-	munmap(src, bo->size);
 }
 
 void sna_read_boxes(struct sna *sna,
@@ -283,8 +281,6 @@ static void write_boxes_inplace(struct kgem *kgem,
 			   box->x2 - box->x1, box->y2 - box->y1);
 		box++;
 	} while (--n);
-
-	munmap(dst, bo->size);
 }
 
 void sna_write_boxes(struct sna *sna,
@@ -464,7 +460,6 @@ struct kgem_bo *sna_replace(struct sna *sna,
 				   0, 0,
 				   pixmap->drawable.width,
 				   pixmap->drawable.height);
-			munmap(dst, bo->size);
 		}
 	}
 

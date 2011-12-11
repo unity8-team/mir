@@ -45,6 +45,12 @@ static inline void list_move(struct list *list, struct list *head)
 	list_add(list, head);
 }
 
+static inline void list_move_tail(struct list *list, struct list *head)
+{
+	__list_del(list->prev, list->next);
+	list_add_tail(list, head);
+}
+
 static inline void list_replace(struct list *old,
 				struct list *new)
 {
@@ -75,6 +81,7 @@ static inline void list_replace(struct list *old,
 #endif
 
 #define PAGE_SIZE 4096
+#define MAX_VMA_CACHE 128
 
 struct kgem_partial_bo {
 	struct kgem_bo base;
@@ -125,7 +132,6 @@ static int gem_set_tiling(int fd, uint32_t handle, int tiling, int stride)
 static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
 {
 	struct drm_i915_gem_mmap_gtt mmap_arg;
-	struct drm_i915_gem_set_domain set_domain;
 	void *ptr;
 
 	DBG(("%s(handle=%d, size=%d, prot=%s)\n", __FUNCTION__,
@@ -143,12 +149,6 @@ static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
 		assert(0);
 		ptr = NULL;
 	}
-
-	VG_CLEAR(set_domain);
-	set_domain.handle = handle;
-	set_domain.read_domains = I915_GEM_DOMAIN_GTT;
-	set_domain.write_domain = prot & PROT_WRITE ? I915_GEM_DOMAIN_GTT : 0;
-	drmIoctl(fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 
 	return ptr;
 }
@@ -274,6 +274,7 @@ static struct kgem_bo *__kgem_bo_init(struct kgem_bo *bo,
 	bo->cpu_write = true;
 	list_init(&bo->request);
 	list_init(&bo->list);
+	list_init(&bo->vma);
 
 	return bo;
 }
@@ -352,6 +353,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	list_init(&kgem->partial);
 	list_init(&kgem->requests);
 	list_init(&kgem->flushing);
+	list_init(&kgem->vma_cache);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		list_init(&kgem->inactive[i]);
 	for (i = 0; i < ARRAY_SIZE(kgem->active); i++)
@@ -594,6 +596,12 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 		b = next;
 	}
 
+	if (bo->map) {
+		munmap(bo->map, bo->size);
+		list_del(&bo->vma);
+		kgem->vma_count--;
+	}
+
 	list_del(&bo->list);
 	list_del(&bo->request);
 	gem_close(kgem->fd, bo->handle);
@@ -620,6 +628,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 			base->reusable = true;
 			list_init(&base->list);
 			list_replace(&bo->request, &base->request);
+			list_replace(&bo->vma, &base->vma);
 			free(bo);
 			bo = base;
 		}
@@ -1814,17 +1823,74 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
 	void *ptr;
 
-	ptr = gem_mmap(kgem->fd, bo->handle, bo->size, prot);
-	if (ptr == NULL)
-		return NULL;
+	ptr = bo->map;
+	if (ptr == NULL) {
+		/* vma are limited on a per-process basis to around 64k.
+		 * This includes all malloc arenas as well as other file
+		 * mappings. In order to be fair and not hog the cache,
+		 * and more importantly not to exhaust that limit and to
+		 * start failing mappings, we keep our own number of open
+		 * vma to within a conservative value.
+		 */
+		while (kgem->vma_count > MAX_VMA_CACHE) {
+			struct kgem_bo *old;
 
-	if (prot & PROT_WRITE) {
+			old = list_first_entry(&kgem->vma_cache,
+					       struct kgem_bo,
+					       vma);
+			DBG(("%s: discarding vma cache for %d\n",
+			     __FUNCTION__, old->handle));
+			munmap(old->map, old->size);
+			old->map = NULL;
+			list_del(&old->vma);
+			kgem->vma_count--;
+		}
+
+		ptr = gem_mmap(kgem->fd, bo->handle, bo->size,
+			       PROT_READ | PROT_WRITE);
+		if (ptr == NULL)
+			return NULL;
+
+		/* Cache this mapping to avoid the overhead of an
+		 * excruciatingly slow GTT pagefault. This is more an
+		 * issue with compositing managers which need to frequently
+		 * flush CPU damage to their GPU bo.
+		 */
+		bo->map = ptr;
+		kgem->vma_count++;
+
+		DBG(("%s: caching vma for %d\n",
+		     __FUNCTION__, bo->handle));
+	}
+
+	if (bo->needs_flush | bo->gpu) {
+		struct drm_i915_gem_set_domain set_domain;
+
+		VG_CLEAR(set_domain);
+		set_domain.handle = bo->handle;
+		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+		set_domain.write_domain = prot & PROT_WRITE ? I915_GEM_DOMAIN_GTT : 0;
+		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
+
 		bo->needs_flush = false;
 		if (bo->gpu)
 			kgem_retire(kgem);
 	}
 
+	list_move_tail(&bo->vma, &kgem->vma_cache);
+
 	return ptr;
+}
+
+void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo)
+{
+	assert(bo->map);
+
+	munmap(bo->map, bo->size);
+	bo->map = NULL;
+
+	list_del(&bo->vma);
+	kgem->vma_count--;
 }
 
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
@@ -2151,6 +2217,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 					     &bo->base.request);
 			else
 				list_init(&bo->base.request);
+			list_replace(&old->vma,
+				     &bo->base.vma);
 			free(old);
 			bo->base.refcnt = 1;
 		} else {

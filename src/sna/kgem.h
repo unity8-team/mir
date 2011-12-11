@@ -47,7 +47,9 @@ struct kgem_bo {
 
 	struct list list;
 	struct list request;
+	struct list vma;
 
+	void *map;
 	struct kgem_request *rq;
 	struct drm_i915_gem_exec_object2 *exec;
 
@@ -103,6 +105,7 @@ struct kgem {
 	struct list flushing, active[16], inactive[16];
 	struct list partial;
 	struct list requests;
+	struct list vma_cache;
 	struct kgem_request *next_request;
 
 	uint16_t nbatch;
@@ -110,6 +113,7 @@ struct kgem {
 	uint16_t nexec;
 	uint16_t nreloc;
 	uint16_t nfence;
+	uint16_t vma_count;
 
 	uint32_t flush:1;
 	uint32_t sync:1;
@@ -314,6 +318,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t delta);
 
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot);
+void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,

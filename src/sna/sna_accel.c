@@ -187,9 +187,6 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 	sna_damage_destroy(&priv->gpu_damage);
 	sna_damage_destroy(&priv->cpu_damage);
 
-	if (priv->mapped)
-		munmap(pixmap->devPrivate.ptr, priv->gpu_bo->size);
-
 	/* Always release the gpu bo back to the lower levels of caching */
 	if (priv->gpu_bo)
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
@@ -1407,9 +1404,10 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 	/* XXX performing the upload inplace is currently about 20x slower
 	 * for putimage10 on gen6 -- mostly due to slow page faulting in kernel.
+	 * So we try again with vma caching and only for pixmaps who will be
+	 * immediately flushed...
 	 */
-#if 0
-	if (priv->gpu_bo->rq == NULL &&
+	if (priv->flush &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
 		if (region_subsumes_drawable(region, &pixmap->drawable)) {
@@ -1425,7 +1423,6 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 		return true;
 	}
-#endif
 
 	if (priv->cpu_bo)
 		kgem_bo_sync(&sna->kgem, priv->cpu_bo, true);
