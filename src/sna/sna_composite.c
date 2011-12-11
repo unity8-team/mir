@@ -49,6 +49,12 @@ region_is_singular(pixman_region16_t *region)
 	return region->data == NULL;
 }
 
+static inline bool
+region_is_empty(pixman_region16_t *region)
+{
+	return region->data && region->data->numRects == 0;
+}
+
 static inline pixman_bool_t
 clip_to_dst(pixman_region16_t *region,
 	    pixman_region16_t *clip,
@@ -84,7 +90,7 @@ clip_to_dst(pixman_region16_t *region,
 		}
 
 		return TRUE;
-	} else if (!pixman_region_not_empty(clip)) {
+	} else if (region_is_empty(clip)) {
 		return FALSE;
 	} else {
 		if (dx | dy)
@@ -94,7 +100,7 @@ clip_to_dst(pixman_region16_t *region,
 		if (dx | dy)
 			pixman_region_translate(region, dx, dy);
 
-		return pixman_region_not_empty(region);
+		return !region_is_empty(region);
 	}
 }
 
@@ -116,7 +122,7 @@ clip_to_src(RegionPtr region, PicturePtr p, int dx, int	 dy)
 				-(p->clipOrigin.x + dx),
 				-(p->clipOrigin.y + dy));
 
-	return result && pixman_region_not_empty(region);
+	return result && !region_is_empty(region);
 }
 
 Bool
@@ -231,7 +237,7 @@ sna_compute_composite_region(RegionPtr region,
 		     region->extents.x2, region->extents.y2));
 	}
 
-	return pixman_region_not_empty(region);
+	return !region_is_empty(region);
 }
 
 static void
@@ -404,6 +410,11 @@ sna_composite(CARD8 op,
 	     mask_x, mask_y,
 	     dst_x, dst_y, dst->pDrawable->x, dst->pDrawable->y,
 	     width, height));
+
+	if (region_is_empty(dst->pCompositeClip)) {
+		DBG(("%s: empty clip, skipping\n", __FUNCTION__));
+		return;
+	}
 
 	if (mask && sna_composite_mask_is_opaque(mask)) {
 		DBG(("%s: removing opaque %smask\n",
@@ -594,6 +605,11 @@ sna_composite_rectangles(CARD8		 op,
 	if (!num_rects)
 		return;
 
+	if (region_is_empty(dst->pCompositeClip)) {
+		DBG(("%s: empty clip, skipping\n", __FUNCTION__));
+		return;
+	}
+
 	if (color->alpha <= 0x00ff) {
 		switch (op) {
 		case PictOpOver:
@@ -631,11 +647,6 @@ sna_composite_rectangles(CARD8		 op,
 	}
 	DBG(("%s: converted to op %d\n", __FUNCTION__, op));
 
-	if (!pixman_region_not_empty(dst->pCompositeClip)) {
-		DBG(("%s: empty clip, skipping\n", __FUNCTION__));
-		return;
-	}
-
 	if (!_pixman_region_init_clipped_rectangles(&region,
 						    num_rects, rects,
 						    dst->pDrawable->x, dst->pDrawable->y,
@@ -652,7 +663,7 @@ sna_composite_rectangles(CARD8		 op,
 	     RegionNumRects(&region)));
 
 	if (!pixman_region_intersect(&region, &region, dst->pCompositeClip) ||
-	    !pixman_region_not_empty(&region)) {
+	    region_is_empty(&region)) {
 		DBG(("%s: zero-intersection between rectangles and clip\n",
 		     __FUNCTION__));
 		pixman_region_fini(&region);
