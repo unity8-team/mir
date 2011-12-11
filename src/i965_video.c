@@ -551,17 +551,19 @@ static void gen7_create_src_surface_state(ScrnInfoPtr scrn,
 }
 
 static void i965_create_binding_table(ScrnInfoPtr scrn,
-				drm_intel_bo *bind_bo,
-				int n_surf)
+				      drm_intel_bo *bind_bo,
+				      int n_surf)
 {
-	uint32_t binding_table[8];
+	uint32_t binding_table[n_surf];
 	int i;
 
 	/* Set up a binding table for our surfaces.  Only the PS will use it */
 	for (i = 0; i < n_surf; i++)
 		binding_table[i] = i * SURFACE_STATE_PADDED_SIZE;
 
-	dri_bo_subdata(bind_bo, 0, sizeof(uint32_t)*n_surf, binding_table);
+	dri_bo_subdata(bind_bo,
+		       n_surf * SURFACE_STATE_PADDED_SIZE,
+		       sizeof(binding_table), binding_table);
 }
 
 static drm_intel_bo *i965_create_sampler_state(ScrnInfoPtr scrn)
