@@ -507,6 +507,14 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 	return tile_width;
 }
 
+static uint32_t kgem_untiled_pitch(struct kgem *kgem,
+				   uint32_t width,
+				   uint32_t bpp,
+				   bool scanout)
+{
+	return ALIGN(width * bpp / 8, scanout ? 64 : 4);
+}
+
 static uint32_t kgem_aligned_height(struct kgem *kgem,
 				    uint32_t height, uint32_t tiling)
 {
@@ -1527,7 +1535,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (flags & CREATE_INACTIVE)
 		goto skip_active_search;
 
-	untiled_pitch = ALIGN(width * bpp / 8, bpp > 8 ? 64 : 4);
+	untiled_pitch = kgem_untiled_pitch(kgem,
+					   width, bpp,
+					   flags & CREATE_SCANOUT);
 	for (i = 0; i <= I915_TILING_Y; i++)
 		tiled_height[i] = kgem_aligned_height(kgem, height, i);
 
