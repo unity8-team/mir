@@ -94,6 +94,12 @@ static const struct blendinfo {
 	/* Add */	{0, 0, BLENDFACT_ONE, BLENDFACT_ONE},
 };
 
+#define S6_COLOR_WRITE_ONLY \
+	(S6_COLOR_WRITE_ENABLE | \
+	 BLENDFUNC_ADD << S6_CBUF_BLEND_FUNC_SHIFT | \
+	 BLENDFACT_ONE << S6_CBUF_SRC_BLEND_FACT_SHIFT | \
+	 BLENDFACT_ZERO << S6_CBUF_DST_BLEND_FACT_SHIFT)
+
 static const struct formatinfo {
 	unsigned int fmt, xfmt;
 	uint32_t card_fmt;
@@ -139,6 +145,9 @@ static uint32_t gen3_get_blend_cntl(int op,
 {
 	uint32_t sblend = gen3_blend_op[op].src_blend;
 	uint32_t dblend = gen3_blend_op[op].dst_blend;
+
+	if (op <= PictOpSrc) /* for clear and src disable blending */
+		return S6_COLOR_WRITE_ONLY;
 
 	/* If there's no dst alpha channel, adjust the blend op so that we'll
 	 * treat it as always 1.
@@ -1161,13 +1170,14 @@ static void gen3_emit_invariant(struct sna *sna)
 		  CSB_TCB(6, 6) |
 		  CSB_TCB(7, 7));
 
-	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | I1_LOAD_S(4) | I1_LOAD_S(5) | 2);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(3) | I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
 	OUT_BATCH(0); /* Disable texture coordinate wrap-shortest */
 	OUT_BATCH((1 << S4_POINT_WIDTH_SHIFT) |
 		  S4_LINE_WIDTH_ONE |
 		  S4_CULLMODE_NONE |
 		  S4_VFMT_XY);
 	OUT_BATCH(0); /* Disable fog/stencil. *Enable* write mask. */
+	OUT_BATCH(S6_COLOR_WRITE_ONLY); /* Disable blending, depth */
 
 	OUT_BATCH(_3DSTATE_SCISSOR_ENABLE_CMD | DISABLE_SCISSOR_RECT);
 	OUT_BATCH(_3DSTATE_DEPTH_SUBRECT_DISABLE);
@@ -2191,6 +2201,8 @@ gen3_composite_set_target(struct sna *sna,
 	if (priv == NULL)
 		return FALSE;
 
+	/* XXX This should only be necessary if we fail to disable depth! */
+#if 0
 	if (priv->gpu_bo->pitch < 16) {
 		struct kgem_bo *bo;
 
@@ -2206,6 +2218,7 @@ gen3_composite_set_target(struct sna *sna,
 		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 		priv->gpu_bo = bo;
 	}
+#endif
 
 	op->dst.bo = priv->gpu_bo;
 	op->damage = &priv->gpu_damage;
