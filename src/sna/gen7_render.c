@@ -3163,7 +3163,7 @@ gen7_render_fill_boxes(struct sna *sna,
 	return FALSE;
 #endif
 
-	if (op ==PictOpClear)
+	if (op == PictOpClear)
 		pixel = 0;
 	else if (!sna_get_pixel_from_rgba(&pixel,
 				     color->red,
