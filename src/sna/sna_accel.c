@@ -2013,7 +2013,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     replaces));
 
 	if (replaces) {
-		if (dst_priv && !dst_priv->pinned &&
+		if (src_pixmap->drawable.width == dst_pixmap->drawable.width &&
+		    src_pixmap->drawable.height == dst_pixmap->drawable.height &&
+		    dst_priv && !dst_priv->pinned && 0 &&
 		    src_priv && !src_priv->pinned &&
 		    src_priv->gpu_damage == NULL) {
 			if (sna_pixmap_move_to_gpu(src_pixmap)) {
