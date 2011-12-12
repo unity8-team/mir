@@ -139,7 +139,6 @@ struct sna_pixmap {
 
 #define SOURCE_BIAS 4
 	uint16_t source_count;
-	uint8_t mapped :1;
 	uint8_t pinned :1;
 	uint8_t gpu_only :1;
 	uint8_t flush :1;

@@ -204,7 +204,6 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 		sna->freed_pixmap = pixmap;
 		priv->gpu_bo = NULL;
 		priv->cpu_bo = NULL;
-		priv->mapped = 0;
 		return false;
 	}
 
@@ -486,27 +485,25 @@ static void sna_pixmap_map_to_cpu(struct sna *sna,
 				 PixmapPtr pixmap,
 				 struct sna_pixmap *priv)
 {
+	ScreenPtr screen = pixmap->drawable.pScreen;
+	void *ptr;
+
 	DBG(("%s: AWOOGA, AWOOGA!\n", __FUNCTION__));
 
-	if (priv->mapped == 0) {
-		ScreenPtr screen = pixmap->drawable.pScreen;
-		void *ptr;
-
-		ptr = kgem_bo_map(&sna->kgem,
-				  priv->gpu_bo,
-				  PROT_READ | PROT_WRITE);
-		assert(ptr != NULL);
-
-		screen->ModifyPixmapHeader(pixmap,
-					   pixmap->drawable.width,
-					   pixmap->drawable.height,
-					   pixmap->drawable.depth,
-					   pixmap->drawable.bitsPerPixel,
-					   priv->gpu_bo->pitch,
-					   ptr);
-		priv->mapped = 1;
-	}
 	kgem_bo_submit(&sna->kgem, priv->gpu_bo);
+
+	ptr = kgem_bo_map(&sna->kgem,
+			  priv->gpu_bo,
+			  PROT_READ | PROT_WRITE);
+	assert(ptr != NULL);
+
+	screen->ModifyPixmapHeader(pixmap,
+				   pixmap->drawable.width,
+				   pixmap->drawable.height,
+				   pixmap->drawable.depth,
+				   pixmap->drawable.bitsPerPixel,
+				   priv->gpu_bo->pitch,
+				   ptr);
 }
 
 static inline void list_move(struct list *list, struct list *head)
@@ -995,7 +992,6 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	priv->cpu_damage = priv->gpu_damage = NULL;
 	priv->gpu_only = 0;
 	priv->pinned = 0;
-	priv->mapped = 0;
 	list_init(&priv->list);
 	list_init(&priv->inactive);
 
