@@ -1909,9 +1909,11 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 
 void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo)
 {
+	if (bo->map == NULL)
+		return;
+
 	DBG(("%s: (debug) releasing vma for handle=%d, count=%d\n",
 	     __FUNCTION__, bo->handle, kgem->vma_count-1));
-	assert(bo->map);
 
 	munmap(bo->map, bo->size);
 	bo->map = NULL;

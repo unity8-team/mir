@@ -133,6 +133,7 @@ struct sna_pixmap {
 	PixmapPtr pixmap;
 	struct kgem_bo *gpu_bo, *cpu_bo;
 	struct sna_damage *gpu_damage, *cpu_damage;
+	void *ptr;
 
 	struct list list;
 	struct list inactive;
@@ -143,6 +144,7 @@ struct sna_pixmap {
 	uint8_t gpu_only :1;
 	uint8_t flush :1;
 	uint8_t gpu :1;
+	uint8_t freed :1;
 };
 
 struct sna_glyph {

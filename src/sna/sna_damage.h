@@ -145,13 +145,14 @@ static inline void sna_damage_reduce_all(struct sna_damage **damage,
 	if (*damage == NULL)
 		return;
 
+	if ((*damage)->n && (*damage = _sna_damage_reduce(*damage)) == NULL)
+		return;
+
 	if ((*damage)->mode == DAMAGE_ADD &&
 	    (*damage)->extents.x1 <= 0 &&
 	    (*damage)->extents.y1 <= 0 &&
 	    (*damage)->extents.x2 >= width &&
 	    (*damage)->extents.y2 >= height) {
-		if ((*damage)->n)
-			*damage = _sna_damage_reduce(*damage);
 		if ((*damage)->region.data == NULL)
 			*damage = _sna_damage_all(*damage, width, height);
 	}
