@@ -2027,15 +2027,11 @@ static void gen6_render_composite_done(struct sna *sna,
 }
 
 static Bool
-gen6_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
+gen6_composite_set_target(struct sna *sna,
+			  struct sna_composite_op *op,
+			  PicturePtr dst)
 {
 	struct sna_pixmap *priv;
-
-	if (!gen6_check_dst_format(dst->format)) {
-		DBG(("%s: unsupported target format %08x\n",
-		     __FUNCTION__, dst->format));
-		return FALSE;
-	}
 
 	op->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	op->dst.width  = op->dst.pixmap->drawable.width;
@@ -2044,10 +2040,17 @@ gen6_composite_set_target(struct sna_composite_op *op, PicturePtr dst)
 	priv = sna_pixmap(op->dst.pixmap);
 
 	op->dst.bo = NULL;
-	if (priv && priv->gpu_bo == NULL) {
+#if USE_VMAP
+	if (priv && priv->gpu_bo == NULL &&
+	    I915_TILING_NONE == kgem_choose_tiling(&sna->kgem,
+						   I915_TILING_X,
+						   op->dst.width,
+						   op->dst.height,
+						   op->dst.pixmap->drawable.bitsPerPixel)) {
 		op->dst.bo = priv->cpu_bo;
 		op->damage = &priv->cpu_damage;
 	}
+#endif
 	if (op->dst.bo == NULL) {
 		priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
 		if (priv == NULL)
@@ -2241,7 +2244,7 @@ gen6_render_composite(struct sna *sna,
 					    tmp);
 
 	tmp->op = op;
-	if (!gen6_composite_set_target(tmp, dst))
+	if (!gen6_composite_set_target(sna, tmp, dst))
 		return FALSE;
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
@@ -2599,7 +2602,7 @@ gen6_render_composite_spans(struct sna *sna,
 		return FALSE;
 
 	tmp->base.op = op;
-	if (!gen6_composite_set_target(&tmp->base, dst))
+	if (!gen6_composite_set_target(sna, &tmp->base, dst))
 		return FALSE;
 	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
