@@ -438,7 +438,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 #else
 		return create_pixmap(to_sna_from_screen(screen), screen,
 				     width, height, depth,
-				     usage),
+				     usage);
 #endif
 
 	if (usage == SNA_CREATE_SCRATCH)
