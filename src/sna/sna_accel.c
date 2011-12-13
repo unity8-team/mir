@@ -213,10 +213,10 @@ static void sna_pixmap_alloc_cpu(struct sna *sna,
 
 static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 {
-	DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
-	     __FUNCTION__, priv->cpu_bo->handle, priv->cpu_bo->size));
-
 	if (priv->cpu_bo) {
+		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
+		     __FUNCTION__, priv->cpu_bo->handle, priv->cpu_bo->size));
+
 		kgem_bo_unmap__cpu(&sna->kgem, priv->cpu_bo, priv->ptr);
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 
