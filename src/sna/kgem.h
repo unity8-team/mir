@@ -319,6 +319,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot);
 void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo);
+void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
+void kgem_bo_unmap__cpu(struct kgem *kgem, struct kgem_bo *bo, void *ptr);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,

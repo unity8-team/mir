@@ -86,7 +86,11 @@ static inline void list_replace(struct list *old,
 #endif
 
 #define PAGE_SIZE 4096
-#define MAX_VMA_CACHE 128
+#define MAX_VMA_CACHE 256
+
+#define IS_CPU_MAP(ptr) ((uintptr_t)(ptr) & 1)
+#define CPU_MAP(ptr) ((void*)((uintptr_t)(ptr) & ~1))
+#define MAKE_CPU_MAP(ptr) ((void*)((uintptr_t)(ptr) | 1))
 
 struct kgem_partial_bo {
 	struct kgem_bo base;
@@ -618,9 +622,10 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	if (bo->map) {
-		DBG(("%s: releasing vma for handle=%d, count=%d\n",
-		     __FUNCTION__, bo->handle, kgem->vma_count-1));
-		munmap(bo->map, bo->size);
+		DBG(("%s: releasing %s vma for handle=%d, count=%d\n",
+		       __FUNCTION__, IS_CPU_MAP(bo->map) ? "CPU" : "GTT",
+		       bo->handle, kgem->vma_count-1));
+		munmap(CPU_MAP(bo->map), bo->size);
 		list_del(&bo->vma);
 		kgem->vma_count--;
 	}
@@ -657,34 +662,39 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		}
 	}
 
-	if (!bo->reusable)
+	if (!bo->reusable) {
+		DBG(("%s: handle=%d, not reusable\n",
+		     __FUNCTION__, bo->handle));
 		goto destroy;
-
-	if (!bo->rq && !bo->needs_flush) {
-		assert(!bo->purged);
-
-		DBG(("%s: handle=%d, purged\n", __FUNCTION__, bo->handle));
-
-		if (!gem_madvise(kgem->fd, bo->handle, I915_MADV_DONTNEED)) {
-			kgem->need_purge |= bo->gpu;
-			goto destroy;
-		}
-
-		bo->purged = true;
 	}
 
 	kgem->need_expire = true;
 	if (bo->rq) {
 		DBG(("%s: handle=%d -> active\n", __FUNCTION__, bo->handle));
 		list_move(&bo->list, active(kgem, bo->size));
-	} else if (bo->purged) {
-		DBG(("%s: handle=%d -> inactive\n", __FUNCTION__, bo->handle));
-		list_move(&bo->list, inactive(kgem, bo->size));
-	} else {
+	} else if (bo->needs_flush) {
 		DBG(("%s: handle=%d -> flushing\n", __FUNCTION__, bo->handle));
 		assert(list_is_empty(&bo->request));
 		list_add(&bo->request, &kgem->flushing);
 		list_move(&bo->list, active(kgem, bo->size));
+	} else {
+		if (!IS_CPU_MAP(bo->map)) {
+			assert(!bo->purged);
+
+			DBG(("%s: handle=%d, purged\n",
+			     __FUNCTION__, bo->handle));
+
+			if (!gem_madvise(kgem->fd, bo->handle,
+					 I915_MADV_DONTNEED)) {
+				kgem->need_purge |= bo->gpu;
+				goto destroy;
+			}
+
+			bo->purged = true;
+		}
+
+		DBG(("%s: handle=%d -> inactive\n", __FUNCTION__, bo->handle));
+		list_move(&bo->list, inactive(kgem, bo->size));
 	}
 
 	return;
@@ -1188,7 +1198,6 @@ bool kgem_expire_cache(struct kgem *kgem)
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
 		idle &= list_is_empty(&kgem->inactive[i]);
 		list_for_each_entry(bo, &kgem->inactive[i], list) {
-			assert(bo->purged);
 			if (bo->delta) {
 				expire = now - MAX_INACTIVE_TIME;
 				break;
@@ -1213,8 +1222,9 @@ bool kgem_expire_cache(struct kgem *kgem)
 			bo = list_last_entry(&kgem->inactive[i],
 					     struct kgem_bo, list);
 
-			if (gem_madvise(kgem->fd, bo->handle,
-					I915_MADV_DONTNEED) &&
+			if ((!bo->purged ||
+			     gem_madvise(kgem->fd, bo->handle,
+					 I915_MADV_DONTNEED)) &&
 			    bo->delta > expire) {
 				idle = false;
 				break;
@@ -1844,32 +1854,47 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 	return delta;
 }
 
+static void kgem_trim_vma_cache(struct kgem *kgem)
+{
+	/* vma are limited on a per-process basis to around 64k.
+	 * This includes all malloc arenas as well as other file
+	 * mappings. In order to be fair and not hog the cache,
+	 * and more importantly not to exhaust that limit and to
+	 * start failing mappings, we keep our own number of open
+	 * vma to within a conservative value.
+	 */
+	while (kgem->vma_count > MAX_VMA_CACHE) {
+		struct kgem_bo *old;
+
+		old = list_first_entry(&kgem->vma_cache,
+				       struct kgem_bo,
+				       vma);
+		DBG(("%s: discarding %s vma cache for %d\n",
+		     __FUNCTION__, IS_CPU_MAP(old->map) ? "CPU" : "GTT",
+		     old->handle));
+		munmap(CPU_MAP(old->map), old->size);
+		old->map = NULL;
+		list_del(&old->vma);
+		kgem->vma_count--;
+	}
+}
+
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
 	void *ptr;
 
+	if (IS_CPU_MAP(bo->map)) {
+		DBG(("%s: discarding CPU vma cache for %d\n",
+		       __FUNCTION__, bo->handle));
+		munmap(CPU_MAP(bo->map), bo->size);
+		bo->map = NULL;
+		list_del(&bo->vma);
+		kgem->vma_count--;
+	}
+
 	ptr = bo->map;
 	if (ptr == NULL) {
-		/* vma are limited on a per-process basis to around 64k.
-		 * This includes all malloc arenas as well as other file
-		 * mappings. In order to be fair and not hog the cache,
-		 * and more importantly not to exhaust that limit and to
-		 * start failing mappings, we keep our own number of open
-		 * vma to within a conservative value.
-		 */
-		while (kgem->vma_count > MAX_VMA_CACHE) {
-			struct kgem_bo *old;
-
-			old = list_first_entry(&kgem->vma_cache,
-					       struct kgem_bo,
-					       vma);
-			DBG(("%s: discarding vma cache for %d\n",
-			     __FUNCTION__, old->handle));
-			munmap(old->map, old->size);
-			old->map = NULL;
-			list_del(&old->vma);
-			kgem->vma_count--;
-		}
+		kgem_trim_vma_cache(kgem);
 
 		ptr = gem_mmap(kgem->fd, bo->handle, bo->size,
 			       PROT_READ | PROT_WRITE);
@@ -1907,6 +1932,53 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 	return ptr;
 }
 
+void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
+{
+	struct drm_i915_gem_mmap mmap_arg;
+
+	DBG(("%s(handle=%d, size=%d)\n", __FUNCTION__, bo->handle, bo->size));
+
+	if (IS_CPU_MAP(bo->map)) {
+		void *ptr = CPU_MAP(bo->map);
+		list_del(&bo->vma);
+		kgem->vma_count--;
+		bo->map = NULL;
+		return ptr;
+	}
+
+	if (bo->map) {
+		DBG(("%s: discarding GTT vma cache for %d\n",
+		       __FUNCTION__, bo->handle));
+		munmap(CPU_MAP(bo->map), bo->size);
+		bo->map = NULL;
+		list_del(&bo->vma);
+		kgem->vma_count--;
+	}
+
+	kgem_trim_vma_cache(kgem);
+
+	VG_CLEAR(mmap_arg);
+	mmap_arg.handle = bo->handle;
+	mmap_arg.offset = 0;
+	mmap_arg.size = bo->size;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MMAP, &mmap_arg)) {
+		assert(0);
+		return NULL;
+	}
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(mmap_arg.addr_ptr, bo->size));
+	return (void *)(uintptr_t)mmap_arg.addr_ptr;
+}
+
+void kgem_bo_unmap__cpu(struct kgem *kgem, struct kgem_bo *bo, void *ptr)
+{
+	assert(bo->map == NULL);
+
+	bo->map = MAKE_CPU_MAP(ptr);
+	list_move(&bo->vma, &kgem->vma_cache);
+	kgem->vma_count++;
+}
+
 void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo)
 {
 	if (bo->map == NULL)
@@ -1915,7 +1987,7 @@ void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: (debug) releasing vma for handle=%d, count=%d\n",
 	     __FUNCTION__, bo->handle, kgem->vma_count-1));
 
-	munmap(bo->map, bo->size);
+	munmap(CPU_MAP(bo->map), bo->size);
 	bo->map = NULL;
 
 	list_del(&bo->vma);
