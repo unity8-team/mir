@@ -245,6 +245,59 @@ void no_render_init(struct sna *sna)
 		sna->kgem.ring = KGEM_BLT;
 }
 
+static struct kgem_bo *
+use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
+{
+	struct sna_pixmap *priv;
+
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL || priv->cpu_bo == NULL) {
+		DBG(("%s: no cpu bo\n", __FUNCTION__));
+		return NULL;
+	}
+
+	if (priv->gpu_bo &&
+	    sna_damage_contains_box(priv->cpu_damage,
+				    box) == PIXMAN_REGION_OUT) {
+		DBG(("%s: has GPU bo and no damage to upload\n", __FUNCTION__));
+		return NULL;
+	}
+
+	if (sna_damage_contains_box(priv->gpu_damage,
+				    box) != PIXMAN_REGION_OUT) {
+		DBG(("%s: box is damaged on the GPU\n", __FUNCTION__));
+		return NULL;
+	}
+
+	if (pixmap->usage_hint)
+		goto done;
+
+	if (priv->gpu_bo) {
+		if (priv->gpu_bo != I915_TILING_NONE) {
+			DBG(("%s: GPU bo exists and is tiled [%d], upload\n",
+			     __FUNCTION__, priv->gpu_bo->tiling));
+			return NULL;
+		}
+	} else {
+		int w = box->x2 - box->x1;
+		int h = box->y2 - box->y1;
+		if (priv->source_count*w*h >= pixmap->drawable.width * pixmap->drawable.height &&
+		    I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_X,
+							   pixmap->drawable.width,
+							   pixmap->drawable.height,
+							   pixmap->drawable.bitsPerPixel)) {
+			DBG(("%s: pitch (%d) requires tiling\n",
+			     __FUNCTION__, priv->cpu_bo->pitch));
+			return NULL;
+		}
+	}
+
+done:
+	DBG(("%s for box=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
+	return kgem_bo_reference(priv->cpu_bo);
+}
+
 static Bool
 move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 {
@@ -425,7 +478,8 @@ sna_render_pixmap_bo(struct sna *sna,
 	     channel->offset[0], channel->offset[1],
 	     pixmap->drawable.width, pixmap->drawable.height));
 
-	if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
+	bo = use_cpu_bo(sna, pixmap, &box);
+	if (bo == NULL && texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
 		/* If we are using transient data, it is better to copy
 		 * to an amalgamated upload buffer so that we don't
 		 * stall on releasing the cpu bo immediately upon
@@ -795,7 +849,7 @@ sna_render_picture_extract(struct sna *sna,
 					      &box,
 					      pixmap->devKind,
 					      pixmap->drawable.bitsPerPixel);
-		if (!bo) {
+		if (bo == NULL) {
 			DBG(("%s: failed to upload source image, using clear\n",
 			     __FUNCTION__));
 			return 0;
