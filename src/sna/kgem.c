@@ -2571,6 +2571,7 @@ kgem_replace_bo(struct kgem *kgem,
 	}
 	dst->pitch = pitch;
 	dst->unique_id = kgem_get_unique_id(kgem);
+	dst->refcnt = 1;
 
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 8) ||
