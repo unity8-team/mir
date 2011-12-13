@@ -413,6 +413,7 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 		return FALSE;
 
 	drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
+	drm_intel_bufmgr_gem_set_vma_cache_size(intel->bufmgr, 512);
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
