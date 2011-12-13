@@ -1807,13 +1807,13 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 {
 	int index;
 
-	assert(bo->refcnt);
 	assert((read_write_domain & 0x7fff) == 0 || bo != NULL);
 
 	index = kgem->nreloc++;
 	assert(index < ARRAY_SIZE(kgem->reloc));
 	kgem->reloc[index].offset = pos * sizeof(kgem->batch[0]);
 	if (bo) {
+		assert(bo->refcnt);
 		assert(!bo->purged);
 
 		delta += bo->delta;
