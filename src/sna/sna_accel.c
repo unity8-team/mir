@@ -1441,11 +1441,15 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	int16_t dx, dy;
 	int n;
 
-	if (!priv)
-		return false;
-
 	if (gc->alu != GXcopy)
 		return false;
+
+	if (!priv) {
+		if (drawable->depth < 8)
+			return false;
+
+		goto blt;
+	}
 
 	/* XXX performing the upload inplace is currently about 20x slower
 	 * for putimage10 on gen6 -- mostly due to slow page faulting in kernel.
@@ -1496,6 +1500,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if (priv->flush)
 		list_move(&priv->list, &sna->dirty_pixmaps);
 
+blt:
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	x += dx + drawable->x;
 	y += dy + drawable->y;
