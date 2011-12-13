@@ -1888,7 +1888,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
 	void *ptr;
 
-	assert(bo->refcnt);
+	assert(bo->refcnt || bo->exec); /* allow for debugging purposes */
 	assert(!bo->purged);
 
 	if (IS_CPU_MAP(bo->map)) {
