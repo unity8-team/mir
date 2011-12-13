@@ -525,7 +525,8 @@ gen2_get_batch(struct sna *sna)
 
 static void gen2_emit_target(struct sna *sna, const struct sna_composite_op *op)
 {
-	assert (sna->render_state.gen2.vertex_offset == 0);
+	assert(op->dst.bo->pitch >= 8 && op->dst.bo->pitch <= 8192);
+	assert(sna->render_state.gen2.vertex_offset == 0);
 
 	if (sna->render_state.gen2.target == op->dst.bo->unique_id) {
 		kgem_bo_mark_dirty(op->dst.bo);
@@ -1208,7 +1209,7 @@ gen2_composite_set_target(struct sna *sna,
 			return FALSE;
 
 		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
-				     op->dst.width, op->dst.height, 16,
+				     op->dst.width, op->dst.height, 8,
 				     op->dst.pixmap->drawable.bitsPerPixel);
 		if (bo == NULL)
 			return FALSE;
@@ -2055,7 +2056,7 @@ gen2_render_fill_boxes(struct sna *sna,
 
 	if (dst->drawable.width > 2048 ||
 	    dst->drawable.height > 2048 ||
-	    dst_bo->pitch > 8192 ||
+	    dst_bo->pitch < 8 || dst_bo->pitch > 8192 ||
 	    !gen2_check_dst_format(format))
 		return gen2_render_fill_boxes_try_blt(sna, op, format, color,
 						      dst, dst_bo,
@@ -2248,7 +2249,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 	/* Must use the BLT if we can't RENDER... */
 	if (dst->drawable.width > 2048 ||
 	    dst->drawable.height > 2048 ||
-	    dst_bo->pitch > 8192)
+	    dst_bo->pitch < 8 || dst_bo->pitch > 8192)
 		return sna_blt_fill(sna, alu,
 				    dst_bo, dst->drawable.bitsPerPixel,
 				    color,
@@ -2324,7 +2325,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	/* Must use the BLT if we can't RENDER... */
 	if (dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
-	    bo->pitch > 8192)
+	    bo->pitch < 8 || bo->pitch > 8192)
 		return gen2_render_fill_one_try_blt(sna, dst, bo, color,
 						    x1, y1, x2, y2, alu);
 
@@ -2483,7 +2484,7 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 	    src_bo->pitch > 8192 ||
 	    src->drawable.width > 2048 ||
 	    src->drawable.height > 2048 ||
-	    dst_bo->pitch > 8192 ||
+	    dst_bo->pitch < 8 || dst_bo->pitch > 8192 ||
 	    dst->drawable.width > 2048 ||
 	    dst->drawable.height > 2048) {
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
@@ -2618,7 +2619,8 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	/* Must use the BLT if we can't RENDER... */
 	if (src->drawable.width > 2048 || src->drawable.height > 2048 ||
 	    dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
-	    src_bo->pitch > 8192 || dst_bo->pitch > 8192) {
+	    src_bo->pitch > 8192 ||
+	    dst_bo->pitch < 8 || dst_bo->pitch > 8192) {
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
