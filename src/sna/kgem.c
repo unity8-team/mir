@@ -224,6 +224,8 @@ kgem_busy(struct kgem *kgem, int handle)
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length)
 {
+	assert(bo->refcnt);
+	assert(!bo->purged);
 	assert(!kgem_busy(kgem, bo->handle));
 
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
@@ -817,6 +819,8 @@ static void kgem_commit(struct kgem *kgem)
 	struct kgem_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &rq->buffers, request) {
+		assert(!bo->purged);
+
 		bo->presumed_offset = bo->exec->offset;
 		bo->binding.offset = 0;
 		bo->exec = NULL;
@@ -1803,7 +1807,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 {
 	int index;
 
-	assert ((read_write_domain & 0x7fff) == 0 || bo != NULL);
+	assert(bo->refcnt);
+	assert((read_write_domain & 0x7fff) == 0 || bo != NULL);
 
 	index = kgem->nreloc++;
 	assert(index < ARRAY_SIZE(kgem->reloc));
@@ -1883,6 +1888,9 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
 	void *ptr;
 
+	assert(bo->refcnt);
+	assert(!bo->purged);
+
 	if (IS_CPU_MAP(bo->map)) {
 		DBG(("%s: discarding CPU vma cache for %d\n",
 		       __FUNCTION__, bo->handle));
@@ -1937,6 +1945,8 @@ void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
 	struct drm_i915_gem_mmap mmap_arg;
 
 	DBG(("%s(handle=%d, size=%d)\n", __FUNCTION__, bo->handle, bo->size));
+	assert(bo->refcnt);
+	assert(!bo->purged);
 
 	if (IS_CPU_MAP(bo->map)) {
 		void *ptr = CPU_MAP(bo->map);
