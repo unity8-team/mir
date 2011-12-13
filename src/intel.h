@@ -279,6 +279,7 @@ typedef struct intel_screen_private {
 	struct list flush_pixmaps;
 	struct list in_flight;
 	drm_intel_bo *wa_scratch_bo;
+	OsTimerPtr cache_expire;
 
 	/* For Xvideo */
 	Bool use_overlay;

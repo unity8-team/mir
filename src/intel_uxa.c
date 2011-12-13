@@ -965,6 +965,23 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 	return ret;
 }
 
+static CARD32 intel_cache_expire(OsTimerPtr timer, CARD32 now, pointer data)
+{
+	intel_screen_private *intel = data;
+
+	/* We just want to create and destroy a bo as this causes libdrm
+	 * to reap its caches. However, since we can't remove that buffer
+	 * from the cache due to its own activity, we want to use something
+	 * that we know we will reuse later. The most frequently reused buffer
+	 * we have is the batchbuffer, and the best way to trigger its
+	 * reallocation is to submit a flush.
+	 */
+	intel_batch_emit_flush(intel->scrn);
+	intel_batch_submit(intel->scrn);
+
+	return 0;
+}
+
 static void intel_flush_rendering(intel_screen_private *intel)
 {
 	if (intel->needs_flush == 0)
@@ -977,6 +994,9 @@ static void intel_flush_rendering(intel_screen_private *intel)
 		intel_batch_emit_flush(intel->scrn);
 		intel_batch_submit(intel->scrn);
 	}
+
+	intel->cache_expire = TimerSet(intel->cache_expire, 0, 3000,
+				       intel_cache_expire, intel);
 
 	intel->needs_flush = 0;
 }

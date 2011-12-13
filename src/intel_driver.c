@@ -1200,6 +1200,9 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 
 	intel_glamor_close_screen(screen);
 
+	TimerFree(intel->cache_expire);
+	intel->cache_expire = NULL;
+
 	if (intel->uxa_driver) {
 		uxa_driver_fini(screen);
 		free(intel->uxa_driver);
