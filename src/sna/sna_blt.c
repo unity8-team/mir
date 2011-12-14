@@ -1140,6 +1140,9 @@ prepare_blt_put(struct sna *sna,
 				       GXcopy))
 			return FALSE;
 	} else {
+		if (!sna_pixmap_move_to_cpu(src, false))
+			return FALSE;
+
 		op->blt   = blt_put_composite;
 		op->box   = blt_put_composite_box;
 		op->boxes = blt_put_composite_boxes;
