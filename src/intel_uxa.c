@@ -1023,6 +1023,7 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
+	struct intel_pixmap *priv;
 	PixmapPtr pixmap;
 
 	if (w > 32767 || h > 32767)
@@ -1038,9 +1039,10 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		return fbCreatePixmap(screen, w, h, depth, usage);
 
 	pixmap = fbCreatePixmap(screen, 0, 0, depth, usage);
+	if (pixmap == NullPixmap)
+		return pixmap;
 
 	if (w && h) {
-		struct intel_pixmap *priv;
 		unsigned int size, tiling;
 		int stride;
 
@@ -1070,10 +1072,8 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		 * frequently, and also will tend to fail to successfully map when doing
 		 * SW fallbacks because we overcommit address space for BO access.
 		 */
-		if (size > intel->max_bo_size || stride >= KB(32)) {
-			fbDestroyPixmap(pixmap);
-			return fbCreatePixmap(screen, w, h, depth, usage);
-		}
+		if (size > intel->max_bo_size || stride >= KB(32))
+			goto fallback_pixmap;
 
 		/* Perform a preliminary search for an in-flight bo */
 		if (usage != UXA_CREATE_PIXMAP_FOR_MAP) {
@@ -1106,21 +1106,20 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 				}
 
 				list_del(&priv->in_flight);
-				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 				intel_set_pixmap_private(pixmap, priv);
 
+				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
+
 				if (!intel_glamor_create_textured_pixmap(pixmap))
-					intel_set_pixmap_bo(pixmap, NULL);
+					goto fallback_bo;
 
 				return pixmap;
 			}
 		}
 
 		priv = calloc(1, sizeof (struct intel_pixmap));
-		if (priv == NULL) {
-			fbDestroyPixmap(pixmap);
-			return NullPixmap;
-		}
+		if (priv == NULL)
+			goto fallback_pixmap;
 
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP) {
 			priv->busy = 0;
@@ -1132,11 +1131,8 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 								 "pixmap",
 								 size, 0);
 		}
-		if (!priv->bo) {
-			free(priv);
-			fbDestroyPixmap(pixmap);
-			return NullPixmap;
-		}
+		if (!priv->bo)
+			goto fallback_priv;
 
 		if (tiling != I915_TILING_NONE)
 			drm_intel_bo_set_tiling(priv->bo, &tiling, stride);
@@ -1144,11 +1140,12 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		priv->tiling = tiling;
 		priv->offscreen = 1;
 
-		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
-
 		list_init(&priv->batch);
 		list_init(&priv->flush);
 		intel_set_pixmap_private(pixmap, priv);
+
+		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
+
 		/* Create textured pixmap failed means glamor fail to create
 		 * a texture from the BO for some reasons, and then glamor
 		 * create a new texture attached to the pixmap, and all the
@@ -1157,10 +1154,18 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		 * BO if it is the case.
 		 */
 		if (!intel_glamor_create_textured_pixmap(pixmap))
-			intel_set_pixmap_bo(pixmap, NULL);
+			goto fallback_bo;
 	}
 
 	return pixmap;
+
+fallback_bo:
+	dri_bo_unreference(priv->bo);
+fallback_priv:
+	free(priv);
+fallback_pixmap:
+	fbDestroyPixmap(pixmap);
+	return fbCreatePixmap(screen, w, h, depth, usage);
 }
 
 static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
