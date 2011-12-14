@@ -189,17 +189,12 @@ intel_glamor_create_screen_image(ScreenPtr screen, int handle, int stride)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel;
-	PixmapPtr pixmap;
 
 	intel = intel_get_screen_private(scrn);
 	if ((intel->uxa_flags & UXA_USE_GLAMOR) == 0)
 		return TRUE;
 
-	if (!glamor_egl_create_textured_screen(screen, handle, stride))
-		return FALSE;
-
-	pixmap = screen->GetScreenPixmap(screen);
-	return TRUE;
+	return glamor_egl_create_textured_screen(screen, handle, stride);
 }
 
 Bool
