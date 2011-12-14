@@ -1006,13 +1006,17 @@ sna_render_picture_fixup(struct sna *sna,
 		src = dst;
 		dst = pixman_image_create_bits(channel->pict_format,
 					       w, h, ptr, pitch);
-
-		pixman_image_composite(PictOpSrc, src, NULL, dst,
-				       0, 0,
-				       0, 0,
-				       0, 0,
-				       w, h);
-		pixman_image_unref(src);
+		if (dst) {
+			pixman_image_composite(PictOpSrc, src, NULL, dst,
+					       0, 0,
+					       0, 0,
+					       0, 0,
+					       w, h);
+			pixman_image_unref(src);
+		} else {
+			memset(ptr, 0, h*pitch);
+			dst = src;
+		}
 	}
 	pixman_image_unref(dst);
 
