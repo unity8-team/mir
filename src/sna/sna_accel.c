@@ -313,16 +313,24 @@ static bool sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 	struct kgem_bo *bo;
 	BoxRec box;
 
-	if (priv->pinned)
+	DBG(("%s: changing tiling %d -> %d for %dx%d pixmap\n",
+	     __FUNCTION__, priv->gpu_bo->tiling, tiling,
+	     pixmap->drawable.width, pixmap->drawable.height));
+
+	if (priv->pinned) {
+		DBG(("%s: can't convert pinned bo\n", __FUNCTION__));
 		return false;
+	}
 
 	bo = kgem_create_2d(&sna->kgem,
 			    pixmap->drawable.width,
 			    pixmap->drawable.height,
 			    pixmap->drawable.bitsPerPixel,
 			    tiling, 0);
-	if (bo == NULL)
+	if (bo == NULL) {
+		DBG(("%s: allocation failed\n", __FUNCTION__));
 		return false;
+	}
 
 	box.x1 = box.y1 = 0;
 	box.x2 = pixmap->drawable.width;
@@ -332,6 +340,7 @@ static bool sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 				    pixmap, priv->gpu_bo, 0, 0,
 				    pixmap, bo, 0, 0,
 				    &box, 1)) {
+		DBG(("%s: copy failed\n", __FUNCTION__));
 		kgem_bo_destroy(&sna->kgem, bo);
 		return false;
 	}
@@ -1583,6 +1592,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		return false;
 
 	if (priv->gpu_bo->tiling == I915_TILING_Y) {
+		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
 			return false;
 	}
@@ -1703,6 +1713,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		return false;
 
 	if (bo->tiling == I915_TILING_Y) {
+		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
 			return false;
 
@@ -6993,6 +7004,7 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 	if (bo->tiling == I915_TILING_Y) {
 		PixmapPtr pixmap = get_drawable_pixmap(drawable);
 
+		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		/* This is cheating, but only the gpu_bo can be tiled */
 		assert(bo == sna_pixmap(pixmap)->gpu_bo);
 
@@ -7305,6 +7317,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 
 	bo = priv->gpu_bo;
 	if (bo->tiling == I915_TILING_Y) {
+		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X)) {
 			DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
 			return false;
@@ -7868,6 +7881,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
 
 	if (priv->gpu_bo->tiling == I915_TILING_Y) {
+		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X)) {
 			DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
 			return false;
@@ -8161,6 +8175,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	uint8_t rop = copy_ROP[gc->alu];
 
 	if (priv->gpu_bo->tiling == I915_TILING_Y) {
+		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
 			return false;
 	}
