@@ -879,6 +879,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 			bo->need_io = 0;
 		}
 
+		VG(VALGRIND_MAKE_MEM_NOACCESS(bo+1, bo->alloc));
 		kgem_bo_unref(kgem, &bo->base);
 	}
 }
