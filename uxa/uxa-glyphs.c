@@ -307,6 +307,9 @@ uxa_glyph_unrealize(ScreenPtr screen,
 	struct uxa_glyph *priv;
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
 
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
+		glamor_glyph_unrealize(screen, glyph);
+
 	/* Use Lookup in case we have not attached to this glyph. */
 	priv = dixLookupPrivate(&glyph->devPrivates, &uxa_glyph_key);
 	if (priv == NULL)
@@ -316,9 +319,6 @@ uxa_glyph_unrealize(ScreenPtr screen,
 
 	uxa_glyph_set_private(glyph, NULL);
 	free(priv);
-
-	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
-		glamor_glyph_unrealize(screen, glyph);
 }
 
 /* Cut and paste from render/glyph.c - probably should export it instead */
