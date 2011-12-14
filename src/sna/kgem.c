@@ -307,14 +307,15 @@ static struct kgem_bo *__kgem_bo_alloc(int handle, int size)
 	return __kgem_bo_init(bo, handle, size);
 }
 
+static struct kgem_request _kgem_static_request;
+
 static struct kgem_request *__kgem_request_alloc(void)
 {
 	struct kgem_request *rq;
 
 	rq = malloc(sizeof(*rq));
-	assert(rq);
 	if (rq == NULL)
-		return rq;
+		rq = &_kgem_static_request;
 
 	list_init(&rq->buffers);
 
@@ -394,8 +395,6 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	if (gen < 40) {
 		if (!DBG_NO_RELAXED_FENCING) {
-			drm_i915_getparam_t gp;
-
 			v = 0;
 			VG_CLEAR(gp);
 			gp.param = I915_PARAM_HAS_RELAXED_FENCING;
@@ -834,9 +833,26 @@ static void kgem_commit(struct kgem *kgem)
 		}
 	}
 
-	list_add_tail(&rq->list, &kgem->requests);
-	kgem->next_request = __kgem_request_alloc();
-	kgem->need_retire = 1;
+	if (rq == &_kgem_static_request) {
+		struct drm_i915_gem_set_domain set_domain;
+
+		VG_CLEAR(set_domain);
+		set_domain.handle = rq->bo->handle;
+		set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
+		if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain)) {
+			DBG(("%s: sync: GPU hang detected\n", __FUNCTION__));
+			kgem->wedged = 1;
+		}
+
+		kgem_retire(kgem);
+		gem_close(kgem->fd, rq->bo->handle);
+	} else {
+		list_add_tail(&rq->list, &kgem->requests);
+		kgem->need_retire = 1;
+	}
+
+	kgem->next_request = NULL;
 }
 
 static void kgem_close_list(struct kgem *kgem, struct list *head)
@@ -955,19 +971,33 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle)
 
 void kgem_reset(struct kgem *kgem)
 {
-	struct kgem_request *rq = kgem->next_request;
-	struct kgem_bo *bo;
+	if (kgem->next_request) {
+		struct kgem_request *rq = kgem->next_request;
 
-	while (!list_is_empty(&rq->buffers)) {
-		bo = list_first_entry(&rq->buffers, struct kgem_bo, request);
+		while (!list_is_empty(&rq->buffers)) {
+			struct kgem_bo *bo =
+				list_first_entry(&rq->buffers,
+						 struct kgem_bo,
+						 request);
 
-		bo->binding.offset = 0;
-		bo->exec = NULL;
-		bo->dirty = false;
-		bo->cpu_read = false;
-		bo->cpu_write = false;
+			bo->binding.offset = 0;
+			bo->exec = NULL;
+			bo->dirty = false;
+			bo->cpu_read = false;
+			bo->cpu_write = false;
+			bo->rq = NULL;
 
-		list_del(&bo->request);
+			list_del(&bo->request);
+
+			if (!bo->refcnt) {
+				DBG(("%s: discarding handle=%d\n",
+				     __FUNCTION__, bo->handle));
+				kgem_bo_free(kgem, bo);
+			}
+		}
+
+		if (kgem->next_request != &_kgem_static_request)
+			free(kgem->next_request);
 	}
 
 	kgem->nfence = 0;
@@ -979,6 +1009,8 @@ void kgem_reset(struct kgem *kgem)
 	kgem->surface = ARRAY_SIZE(kgem->batch);
 	kgem->mode = KGEM_NONE;
 	kgem->flush = 0;
+
+	kgem->next_request = __kgem_request_alloc();
 
 	kgem_sna_reset(kgem);
 }
@@ -1127,7 +1159,6 @@ void _kgem_submit(struct kgem *kgem)
 
 			if (DEBUG_FLUSH_SYNC) {
 				struct drm_i915_gem_set_domain set_domain;
-				int ret;
 
 				VG_CLEAR(set_domain);
 				set_domain.handle = handle;
@@ -1141,9 +1172,9 @@ void _kgem_submit(struct kgem *kgem)
 				}
 			}
 		}
-	}
 
-	kgem_commit(kgem);
+		kgem_commit(kgem);
+	}
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
 
