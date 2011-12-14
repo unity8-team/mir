@@ -8746,7 +8746,8 @@ static void sna_accel_inactive(struct sna *sna)
 
 		count = bytes = 0;
 		list_for_each_entry(priv, &sna->inactive_clock[1], inactive)
-			count++, bytes += priv->gpu_bo->size;
+			if (!priv->pinned)
+				count++, bytes += priv->gpu_bo->size;
 
 		DBG(("%s: trimming %d inactive GPU buffers, %d bytes\n",
 		    __FUNCTION__, count, bytes));
@@ -8782,19 +8783,17 @@ static void sna_accel_inactive(struct sna *sna)
 		priv = list_first_entry(&sna->inactive_clock[1],
 					struct sna_pixmap,
 					inactive);
-		if (priv->pinned) {
-			list_del(&priv->inactive);
-		} else {
-			bool ret = sna_pixmap_move_to_cpu(priv->pixmap, true);
-			DBG(("%s: discarding GPU bo handle=%d (success? %d)\n",
-			     __FUNCTION__, priv->gpu_bo->handle, ret));
-			(void)ret;
-		}
-
 		/* XXX Rather than discarding the GPU buffer here, we
 		 * could mark it purgeable and allow the shrinker to
 		 * reap its storage only under memory pressure.
 		 */
+		list_del(&priv->inactive);
+		if (!priv->pinned) {
+			DBG(("%s: discarding inactive GPU bo handle=%d\n",
+			     __FUNCTION__, priv->gpu_bo->handle));
+			if (!sna_pixmap_move_to_cpu(priv->pixmap, true))
+				list_add(&priv->inactive, &preserve);
+		}
 	}
 
 	/* Age the current inactive pixmaps */
