@@ -559,7 +559,9 @@ get_pixel(PicturePtr picture)
 
 	DBG(("%s: %p\n", __FUNCTION__, pixmap));
 
-	sna_pixmap_move_to_cpu(pixmap, false);
+	if (!sna_pixmap_move_to_cpu(pixmap, false))
+		return 0;
+
 	switch (pixmap->drawable.bitsPerPixel) {
 	case 32: return *(uint32_t *)pixmap->devPrivate.ptr;
 	case 16: return *(uint16_t *)pixmap->devPrivate.ptr;

@@ -478,8 +478,7 @@ sna_composite(CARD8 op,
 	apply_damage(&tmp, &region);
 	tmp.done(sna, &tmp);
 
-	REGION_UNINIT(NULL, &region);
-	return;
+	goto out;
 
 fallback:
 	DBG(("%s -- fallback dst=(%d, %d)+(%d, %d), size=(%d, %d)\n",
@@ -488,18 +487,24 @@ fallback:
 	     dst->pDrawable->x, dst->pDrawable->y,
 	     width, height));
 
-	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
-	if (dst->alphaMap)
-		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true))
+		goto out;
+	if (dst->alphaMap &&
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true))
+		goto out;
 	if (src->pDrawable) {
-		sna_drawable_move_to_cpu(src->pDrawable, false);
-		if (src->alphaMap)
-			sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false);
+		if (!sna_drawable_move_to_cpu(src->pDrawable, false))
+			goto out;
+		if (src->alphaMap &&
+		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false))
+			goto out;
 	}
 	if (mask && mask->pDrawable) {
-		sna_drawable_move_to_cpu(mask->pDrawable, false);
-		if (mask->alphaMap)
-			sna_drawable_move_to_cpu(mask->alphaMap->pDrawable, false);
+		if (!sna_drawable_move_to_cpu(mask->pDrawable, false))
+			goto out;
+		if (mask->alphaMap &&
+		    !sna_drawable_move_to_cpu(mask->alphaMap->pDrawable, false))
+			goto out;
 	}
 
 	DBG(("%s: fallback -- fbComposite\n", __FUNCTION__));
@@ -508,6 +513,8 @@ fallback:
 		    mask_x, mask_y,
 		    dst_x, dst_y,
 		    width, height);
+out:
+	REGION_UNINIT(NULL, &region);
 }
 
 static int16_t bound(int16_t a, uint16_t b)
@@ -732,9 +739,11 @@ sna_composite_rectangles(CARD8		 op,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, true);
-	if (dst->alphaMap)
-		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, true))
+		goto done;
+	if (dst->alphaMap &&
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true))
+		goto done;
 
 	if (op == PictOpSrc || op == PictOpClear) {
 		int nbox = REGION_NUM_RECTS(&region);

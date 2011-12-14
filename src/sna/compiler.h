@@ -33,11 +33,13 @@
 #define unlikely(expr) (__builtin_expect (!!(expr), 0))
 #define noinline __attribute__((noinline))
 #define fastcall __attribute__((regparm(3)))
+#define must_check __attribute__((warn_unused_result))
 #else
 #define likely(expr) (expr)
 #define unlikely(expr) (expr)
 #define noinline
 #define fastcall
+#define must_check
 #endif
 
 #ifdef HAVE_VALGRIND

@@ -425,26 +425,25 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap);
 PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 				   int width, int height, int depth);
 
-void sna_pixmap_move_to_cpu(PixmapPtr pixmap, bool write);
 struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap);
 struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap);
 
-void
-sna_drawable_move_region_to_cpu(DrawablePtr drawable,
-				RegionPtr region,
-				Bool write);
+bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, bool write);
+bool must_check sna_drawable_move_region_to_cpu(DrawablePtr drawable,
+						RegionPtr region,
+						Bool write);
 
-static inline void
+static inline bool must_check
 sna_drawable_move_to_cpu(DrawablePtr drawable, bool write)
 {
 	RegionRec region;
 
 	pixman_region_init_rect(&region,
 				0, 0, drawable->width, drawable->height);
-	sna_drawable_move_region_to_cpu(drawable, &region, write);
+	return sna_drawable_move_region_to_cpu(drawable, &region, write);
 }
 
-static inline Bool
+static inline bool must_check
 sna_drawable_move_to_gpu(DrawablePtr drawable)
 {
 	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable)) != NULL;
