@@ -292,6 +292,14 @@ void
 uxa_get_image(DrawablePtr pDrawable, int x, int y, int w, int h,
 	      unsigned int format, unsigned long planeMask, char *d);
 
+void
+uxa_get_spans(DrawablePtr pDrawable, int wMax, DDXPointPtr ppt,
+	      int *pwidth, int nspans, char *pdstStart);
+
+void
+uxa_add_traps(PicturePtr pPicture,
+	      INT16 x_off, INT16 y_off, int ntrap, xTrap * traps);
+
 extern const GCOps uxa_ops;
 
 #ifdef RENDER

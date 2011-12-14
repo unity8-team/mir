@@ -521,7 +521,7 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 	screen->GetImage = uxa_get_image;
 
 	uxa_screen->SavedGetSpans = screen->GetSpans;
-	screen->GetSpans = uxa_check_get_spans;
+	screen->GetSpans = uxa_get_spans;
 
 	uxa_screen->SavedCopyWindow = screen->CopyWindow;
 	screen->CopyWindow = uxa_copy_window;
@@ -559,7 +559,7 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 			ps->Trapezoids = uxa_trapezoids;
 
 			uxa_screen->SavedAddTraps = ps->AddTraps;
-			ps->AddTraps = uxa_check_add_traps;
+			ps->AddTraps = uxa_add_traps;
 		}
 	}
 #endif

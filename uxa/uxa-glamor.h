@@ -37,8 +37,20 @@
 #ifdef USE_GLAMOR
 #include "glamor.h"
 #else
-#define glamor_fill_spans_nf(...)  FALSE
-#define glamor_poly_fill_rect_nf(...) FALSE
+#define glamor_fill_spans_nf(...)	FALSE
+#define glamor_poly_fill_rect_nf(...)	FALSE
+#define glamor_put_image_nf(...)	FALSE
+#define glamor_copy_n_to_n_nf(...)	FALSE
+#define glamor_get_spans_nf(...)	FALSE
+#define glamor_set_spans_nf(...)	FALSE
+#define glamor_get_image_nf(...)	FALSE
+#define glamor_glyphs_nf(...)		FALSE
+#define glamor_glyph_unrealize(...)	;
+#define glamor_composite_nf(...)	FALSE
+#define glamor_composite_rects_nf(...)	FALSE
+#define glamor_trapezoids_nf(...)	FALSE
+#define glamor_triangles_nf(...)	FALSE
+#define glamor_add_traps_nf(...)	FALSE
 #endif
 
 #endif /* UXA_GLAMOR_H */

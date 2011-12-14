@@ -1108,6 +1108,10 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 				list_del(&priv->in_flight);
 				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 				intel_set_pixmap_private(pixmap, priv);
+
+				if (!intel_glamor_create_textured_pixmap(pixmap))
+					intel_set_pixmap_bo(pixmap, NULL);
+
 				return pixmap;
 			}
 		}
@@ -1145,8 +1149,15 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		list_init(&priv->batch);
 		list_init(&priv->flush);
 		intel_set_pixmap_private(pixmap, priv);
-
-		intel_glamor_create_textured_pixmap(pixmap);
+		/* Create textured pixmap failed means glamor fail to create
+		 * a texture from the BO for some reasons, and then glamor
+		 * create a new texture attached to the pixmap, and all the
+		 * consequent rendering operations on this pixmap will never
+		 * fallback to UXA path, so we don't need to hold the useless
+		 * BO if it is the case.
+		 */
+		if (!intel_glamor_create_textured_pixmap(pixmap))
+			intel_set_pixmap_bo(pixmap, NULL);
 	}
 
 	return pixmap;
