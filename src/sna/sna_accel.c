@@ -7506,6 +7506,8 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 
 	out->metrics = in->metrics;
 	out->bits = malloc(w*h);
+	if (out->bits == NULL)
+		return false;
 
 	src = (uint8_t *)in->bits;
 	dst = (uint8_t *)out->bits;
