@@ -1415,7 +1415,13 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
 		return NULL;
 
 	DBG(("%s: new handle=%d\n", __FUNCTION__, handle));
-	return __kgem_bo_alloc(handle, size);
+	bo = __kgem_bo_alloc(handle, size);
+	if (bo == NULL) {
+		gem_close(kgem->fd, size);
+		return NULL;
+	}
+
+	return bo;
 }
 
 int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int bpp)
@@ -2600,6 +2606,10 @@ kgem_replace_bo(struct kgem *kgem,
 			return NULL;
 
 		dst = __kgem_bo_alloc(handle, size);
+		if (dst== NULL) {
+			gem_close(kgem->fd, handle);
+			return NULL;
+		}
 	}
 	dst->pitch = pitch;
 	dst->unique_id = kgem_get_unique_id(kgem);
