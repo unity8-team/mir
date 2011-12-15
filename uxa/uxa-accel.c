@@ -714,12 +714,12 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDrawable->pScreen);
 	RegionPtr pClip = fbGetCompositeClip(pGC);
 	PixmapPtr pPixmap;
-	register BoxPtr pbox;
+	RegionPtr pReg;
+	BoxPtr pbox;
 	int fullX1, fullX2, fullY1, fullY2;
 	int xoff, yoff;
 	int xorg, yorg;
 	int n;
-	RegionPtr pReg = RECTS_TO_REGION(pScreen, nrect, prect, CT_UNSORTED);
 
 	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
 		int ok;
@@ -729,12 +729,13 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 		uxa_finish_access(pDrawable, UXA_GLAMOR_ACCESS_RW);
 
 		if (!ok)
-			goto fallback;
+			uxa_check_poly_fill_rect(pDrawable, pGC, nrect, prect);
 
 		return;
 	}
 
 	/* Compute intersection of rects and clip region */
+	pReg = RECTS_TO_REGION(pScreen, nrect, prect, CT_UNSORTED);
 	REGION_TRANSLATE(pScreen, pReg, pDrawable->x, pDrawable->y);
 	REGION_INTERSECT(pScreen, pReg, pClip, pReg);
 
