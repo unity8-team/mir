@@ -1072,7 +1072,7 @@ void _kgem_submit(struct kgem *kgem)
 		assert(rq->bo->gpu == 0);
 		if (kgem_batch_write(kgem, handle) == 0) {
 			struct drm_i915_gem_execbuffer2 execbuf;
-			int ret;
+			int ret, retry = 3;
 
 			VG_CLEAR(execbuf);
 			execbuf.buffers_ptr = (uintptr_t)kgem->exec;
@@ -1100,13 +1100,13 @@ void _kgem_submit(struct kgem *kgem)
 			ret = drmIoctl(kgem->fd,
 				       DRM_IOCTL_I915_GEM_EXECBUFFER2,
 				       &execbuf);
-			while (ret == -1 && errno == EBUSY) {
+			while (ret == -1 && errno == EBUSY && retry--) {
 				drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE);
 				ret = drmIoctl(kgem->fd,
 					       DRM_IOCTL_I915_GEM_EXECBUFFER2,
 					       &execbuf);
 			}
-			if (ret == -1 && errno == EIO) {
+			if (ret == -1 && (errno == EIO || errno == EBUSY)) {
 				DBG(("%s: GPU hang detected\n", __FUNCTION__));
 				kgem->wedged = 1;
 				ret = 0;
