@@ -201,11 +201,16 @@ sna_tiling_composite_done(struct sna *sna,
 			} else {
 				DBG(("%s -- falback\n", __FUNCTION__));
 
-				sna_drawable_move_to_cpu(tile->dst->pDrawable, true);
-				if (tile->src->pDrawable)
-					sna_drawable_move_to_cpu(tile->src->pDrawable, false);
-				if (tile->mask && tile->mask->pDrawable)
-					sna_drawable_move_to_cpu(tile->mask->pDrawable, false);
+				if (!sna_drawable_move_to_cpu(tile->dst->pDrawable, true))
+					goto done;
+
+				if (tile->src->pDrawable &&
+				    !sna_drawable_move_to_cpu(tile->src->pDrawable, false))
+					goto done;
+
+				if (tile->mask && tile->mask->pDrawable &&
+				    !sna_drawable_move_to_cpu(tile->mask->pDrawable, false))
+					goto done;
 
 				fbComposite(tile->op,
 					    tile->src, tile->mask, tile->dst,

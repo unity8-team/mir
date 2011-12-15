@@ -954,8 +954,9 @@ sna_render_picture_fixup(struct sna *sna,
 		     __FUNCTION__, channel->pict_format, pitch, picture->format));
 	}
 
-	if (picture->pDrawable)
-		sna_drawable_move_to_cpu(picture->pDrawable, false);
+	if (picture->pDrawable &&
+	    !sna_drawable_move_to_cpu(picture->pDrawable, false))
+		return 0;
 
 	channel->bo = kgem_create_buffer(&sna->kgem,
 					 pitch*h, KGEM_BUFFER_WRITE,
@@ -1098,7 +1099,8 @@ sna_render_picture_convert(struct sna *sna,
 		return 0;
 	}
 
-	sna_pixmap_move_to_cpu(pixmap, false);
+	if (!sna_pixmap_move_to_cpu(pixmap, false))
+		return 0;
 
 	src = pixman_image_create_bits(picture->format,
 				       pixmap->drawable.width,

@@ -3176,7 +3176,8 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	region.data = NULL;
-	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true))
+		return true;
 
 	pixmap = get_drawable_pixmap(dst->pDrawable);
 	get_drawable_deltas(dst->pDrawable, pixmap, &dst_x, &dst_y);
@@ -3312,13 +3313,17 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		region.extents.y2 = dst_y + extents.y2;
 		region.data = NULL;
 
-		sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
-		if (dst->alphaMap)
-			sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true))
+			goto done;
+		if (dst->alphaMap  &&
+		    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true))
+			goto done;
 		if (src->pDrawable) {
-			sna_drawable_move_to_cpu(src->pDrawable, false);
-			if (src->alphaMap)
-				sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false);
+			if (!sna_drawable_move_to_cpu(src->pDrawable, false))
+				goto done;
+			if (src->alphaMap &&
+			    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false))
+				goto done;
 		}
 
 		fbComposite(op, src, mask, dst,
@@ -3327,6 +3332,7 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 			    0, 0,
 			    dst_x, dst_y,
 			    extents.x2, extents.y2);
+done:
 		FreePicture(mask, 0);
 	}
 	tor_fini(&tor);
@@ -3881,8 +3887,8 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 	}
 
 	DBG(("%s -- fallback\n", __FUNCTION__));
-	sna_drawable_move_to_cpu(picture->pDrawable, true);
-	fbAddTraps(picture, x, y, n, t);
+	if (sna_drawable_move_to_cpu(picture->pDrawable, true))
+		fbAddTraps(picture, x, y, n, t);
 }
 
 static inline void

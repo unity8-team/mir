@@ -1023,13 +1023,17 @@ glyphs_fallback(CARD8 op,
 	if (!RegionNotEmpty(&region))
 		return;
 
-	sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true);
-	if (dst->alphaMap)
-		sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true);
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true))
+		return;
+	if (dst->alphaMap &&
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true))
+		return;
 	if (src->pDrawable) {
-		sna_drawable_move_to_cpu(src->pDrawable, false);
-		if (src->alphaMap)
-			sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false);
+		if (!sna_drawable_move_to_cpu(src->pDrawable, false))
+			return;
+		if (src->alphaMap &&
+		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false))
+			return;
 	}
 	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);
 
