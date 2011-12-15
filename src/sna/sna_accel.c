@@ -6560,7 +6560,6 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
-	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	PixmapPtr stipple = gc->stipple;
 	const DDXPointRec *origin = &gc->patOrg;
 	int16_t dx, dy;
