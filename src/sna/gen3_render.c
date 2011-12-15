@@ -3410,6 +3410,8 @@ gen3_render_video(struct sna *sna,
 	DBG(("%s: %dx%d -> %dx%d\n", __FUNCTION__, src_w, src_h, drw_w, drw_h));
 
 	dst_bo = sna_pixmap_get_bo(pixmap);
+	if (dst_bo == NULL)
+		return FALSE;
 
 	if (pixmap->drawable.width > 2048 ||
 	    pixmap->drawable.height > 2048 ||

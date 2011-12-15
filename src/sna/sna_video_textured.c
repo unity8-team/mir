@@ -227,6 +227,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
 	Bool flush = false;
+	Bool ret;
 
 	if (!sna_pixmap(pixmap))
 		return BadAlloc;
@@ -265,10 +266,12 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		flush = sna_wait_for_scanline(sna, pixmap, crtc,
 					      &clip->extents);
 
-	sna->render.video(sna, video, &frame, clip,
-			  src_w, src_h,
-			  drw_w, drw_h,
-			  pixmap);
+	ret = Success;
+	if (!sna->render.video(sna, video, &frame, clip,
+			       src_w, src_h,
+			       drw_w, drw_h,
+			       pixmap))
+		ret = BadAlloc;
 
 	kgem_bo_destroy(&sna->kgem, frame.bo);
 
@@ -280,7 +283,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	if (flush)
 		kgem_submit(&sna->kgem);
 
-	return Success;
+	return ret;
 }
 
 static int
