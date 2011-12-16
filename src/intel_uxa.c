@@ -1024,7 +1024,7 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct intel_pixmap *priv;
-	PixmapPtr pixmap;
+	PixmapPtr pixmap, new_pixmap = NULL;
 
 	if (w > 32767 || h > 32767)
 		return NullPixmap;
@@ -1111,8 +1111,7 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 
 				if (!intel_glamor_create_textured_pixmap(pixmap))
-					goto fallback_bo;
-
+					goto fallback_glamor;
 				return pixmap;
 			}
 		}
@@ -1146,26 +1145,42 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 
-		/* Create textured pixmap failed means glamor fail to create
-		 * a texture from the BO for some reasons, and then glamor
-		 * create a new texture attached to the pixmap, and all the
-		 * consequent rendering operations on this pixmap will never
-		 * fallback to UXA path, so we don't need to hold the useless
-		 * BO if it is the case.
-		 */
 		if (!intel_glamor_create_textured_pixmap(pixmap))
-			goto fallback_bo;
+			goto fallback_glamor;
 	}
 
 	return pixmap;
 
-fallback_bo:
+fallback_glamor:
+	if (usage & INTEL_CREATE_PIXMAP_DRI2) {
+	/* XXX need further work to handle the DRI2 failure case.
+	 * Glamor don't know how to handle a BO only pixmap. Put
+	 * a warning indicator here.
+	 */
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "Failed to create textured DRI2 pixmap.");
+		return pixmap;
+	}
+	/* Create textured pixmap failed means glamor failed to
+	 * create a texture from current BO for some reasons. We turn
+	 * to create a new glamor pixmap and clean up current one.
+	 * One thing need to be noted, this new pixmap doesn't
+	 * has a priv and bo attached to it. It's glamor's responsbility
+	 * to take care of it. Glamor will mark this new pixmap as a
+	 * texture only pixmap and will never fallback to DDX layer
+	 * afterwards.
+	 */
+	new_pixmap = intel_glamor_create_pixmap(screen, w, h,
+						depth, usage);
 	dri_bo_unreference(priv->bo);
 fallback_priv:
 	free(priv);
 fallback_pixmap:
 	fbDestroyPixmap(pixmap);
-	return fbCreatePixmap(screen, w, h, depth, usage);
+	if (new_pixmap)
+		return new_pixmap;
+	else
+		return fbCreatePixmap(screen, w, h, depth, usage);
 }
 
 static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)

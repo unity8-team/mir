@@ -78,6 +78,13 @@ intel_glamor_pre_init(ScrnInfoPtr scrn)
 	return TRUE;
 }
 
+PixmapPtr
+intel_glamor_create_pixmap(ScreenPtr screen, int w, int h,
+			   int depth, unsigned int usage)
+{
+	return glamor_create_pixmap(screen, w, h, depth, usage);
+}
+
 Bool
 intel_glamor_create_textured_pixmap(PixmapPtr pixmap)
 {
