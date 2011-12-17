@@ -105,6 +105,7 @@ struct kgem {
 	struct list partial;
 	struct list requests;
 	struct list vma_cache;
+	struct list vma_inactive;
 	struct kgem_request *next_request;
 
 	uint16_t nbatch;

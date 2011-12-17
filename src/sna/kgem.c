@@ -392,6 +392,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	list_init(&kgem->requests);
 	list_init(&kgem->flushing);
 	list_init(&kgem->vma_cache);
+	list_init(&kgem->vma_inactive);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		list_init(&kgem->inactive[i]);
 	for (i = 0; i < ARRAY_SIZE(kgem->active); i++)
@@ -716,6 +717,8 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		DBG(("%s: handle=%d -> inactive\n", __FUNCTION__, bo->handle));
 		assert(!kgem_busy(kgem, bo->handle));
 		list_move(&bo->list, inactive(kgem, bo->size));
+		if (bo->map)
+			list_move(&bo->vma, &kgem->vma_inactive);
 		kgem->need_expire = true;
 	}
 
@@ -749,6 +752,7 @@ bool kgem_retire(struct kgem *kgem)
 			bo->purged = true;
 			bo->needs_flush = false;
 			bo->gpu = false;
+			assert(bo->rq == NULL);
 			list_move(&bo->list, inactive(kgem, bo->size));
 			list_del(&bo->request);
 		} else
@@ -813,6 +817,7 @@ bool kgem_retire(struct kgem *kgem)
 		if (gem_madvise(kgem->fd, rq->bo->handle, I915_MADV_DONTNEED)) {
 			rq->bo->purged = true;
 			assert(rq->bo->gpu == 0);
+			assert(rq->bo->rq == NULL);
 			list_move(&rq->bo->list, inactive(kgem, rq->bo->size));
 			retired = true;
 		} else {
@@ -1375,6 +1380,10 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		list_del(&bo->list);
 		if (bo->rq == NULL)
 			list_del(&bo->request);
+		if (bo->map) {
+			assert(!list_is_empty(&bo->vma));
+			list_move_tail(&bo->vma, &kgem->vma_cache);
+		}
 
 		bo->tiling = I915_TILING_NONE;
 		bo->pitch = 0;
@@ -1624,8 +1633,56 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				 flags & CREATE_SCANOUT,
 				 width, height, bpp, tiling, &pitch);
 	assert(size && size <= kgem->max_object_size);
-	if (flags & CREATE_INACTIVE)
+
+	if (flags & CREATE_INACTIVE) {
+		/* We presume that we will need to upload to this bo,
+		 * and so would prefer to have an active VMA.
+		 */
+		list_for_each_entry(bo, &kgem->vma_inactive, vma) {
+			assert(bo->refcnt == 0);
+			assert(bo->map);
+			assert(bo->rq == NULL);
+			assert(list_is_empty(&bo->request));
+
+			if (size > bo->size || 2*size < bo->size) {
+				DBG(("inactive vma too small/large: %d < %d\n",
+				     bo->size, size));
+				continue;
+			}
+
+			if (bo->tiling != tiling ||
+			    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
+				DBG(("inactive vma with wrong tiling: %d < %d\n",
+				     bo->tiling, tiling));
+				continue;
+			}
+
+			bo->pitch = pitch;
+			list_del(&bo->list);
+
+			if (bo->purged) {
+				if (!gem_madvise(kgem->fd, bo->handle,
+						 I915_MADV_WILLNEED)) {
+					kgem_bo_free(kgem, bo);
+					break;
+				}
+
+				bo->purged = false;
+			}
+
+			bo->delta = 0;
+			bo->unique_id = kgem_get_unique_id(kgem);
+			list_move_tail(&bo->vma, &kgem->vma_cache);
+			assert(bo->pitch);
+			DBG(("  from inactive vma: pitch=%d, tiling=%d: handle=%d, id=%d\n",
+			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			assert(bo->reusable);
+			assert(bo->gpu == 0 && !kgem_busy(kgem, bo->handle));
+			return kgem_bo_reference(bo);
+		}
+
 		goto skip_active_search;
+	}
 
 	untiled_pitch = kgem_untiled_pitch(kgem,
 					   width, bpp,
@@ -1724,6 +1781,9 @@ skip_active_search:
 
 			bo->purged = false;
 		}
+
+		if (bo->map)
+			list_move_tail(&bo->vma, &kgem->vma_cache);
 
 		bo->delta = 0;
 		bo->unique_id = kgem_get_unique_id(kgem);
@@ -1946,9 +2006,15 @@ static void kgem_trim_vma_cache(struct kgem *kgem)
 	while (kgem->vma_count > MAX_VMA_CACHE) {
 		struct kgem_bo *old;
 
-		old = list_first_entry(&kgem->vma_cache,
-				       struct kgem_bo,
-				       vma);
+		if (list_is_empty(&kgem->vma_inactive)) {
+			old = list_first_entry(&kgem->vma_cache,
+					       struct kgem_bo,
+					       vma);
+		} else {
+			old = list_last_entry(&kgem->vma_inactive,
+					      struct kgem_bo,
+					      vma);
+		}
 		DBG(("%s: discarding %s vma cache for %d\n",
 		     __FUNCTION__, IS_CPU_MAP(old->map) ? "CPU" : "GTT",
 		     old->handle));
