@@ -2201,6 +2201,26 @@ gen3_composite_set_target(struct sna *sna,
 	if (priv == NULL)
 		return FALSE;
 
+	/* For single-stream mode there should be no minimum alignment
+	 * required, except that the width must be at least 2 elements.
+	 */
+	if (priv->gpu_bo->pitch < 2*op->dst.pixmap->drawable.bitsPerPixel) {
+		struct kgem_bo *bo;
+
+		if (priv->pinned)
+			return FALSE;
+
+		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
+				     op->dst.width, op->dst.height,
+				     2*op->dst.pixmap->drawable.bitsPerPixel,
+				     op->dst.pixmap->drawable.bitsPerPixel);
+		if (bo == NULL)
+			return FALSE;
+
+		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+		priv->gpu_bo = bo;
+	}
+
 	op->dst.bo = priv->gpu_bo;
 	op->damage = &priv->gpu_damage;
 	if (sna_damage_is_all(op->damage, op->dst.width, op->dst.height))
