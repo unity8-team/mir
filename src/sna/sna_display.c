@@ -1704,6 +1704,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	if (old_fb_id)
 		drmModeRmFB(sna->kgem.fd, old_fb_id);
+	sna_pixmap_get_bo(old_front)->needs_flush = true;
 	scrn->pScreen->DestroyPixmap(old_front);
 
 	return TRUE;
@@ -1834,7 +1835,6 @@ sna_page_flip(struct sna *sna,
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
-		bo->cpu_read = bo->cpu_write = false;
 		bo->gpu = true;
 
 		/* Although the kernel performs an implicit flush upon

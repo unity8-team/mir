@@ -319,9 +319,6 @@ static void damage(PixmapPtr pixmap, RegionPtr region)
 	struct sna_pixmap *priv;
 
 	priv = sna_pixmap(pixmap);
-	if (priv->gpu_only)
-		return;
-
 	if (region == NULL) {
 damage_all:
 		sna_damage_all(&priv->gpu_damage,
@@ -346,12 +343,11 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 	struct sna_pixmap *priv;
 
 	priv = sna_pixmap(pixmap);
-	if (!priv->gpu_only) {
-		sna_damage_all(&priv->gpu_damage,
-				pixmap->drawable.width,
-				pixmap->drawable.height);
-		sna_damage_destroy(&priv->cpu_damage);
-	}
+	sna_damage_all(&priv->gpu_damage,
+		       pixmap->drawable.width,
+		       pixmap->drawable.height);
+	sna_damage_destroy(&priv->cpu_damage);
+
 	assert(priv->gpu_bo->refcnt > 1);
 	priv->gpu_bo->refcnt--;
 	priv->gpu_bo = ref(bo);

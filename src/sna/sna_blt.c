@@ -559,7 +559,7 @@ get_pixel(PicturePtr picture)
 
 	DBG(("%s: %p\n", __FUNCTION__, pixmap));
 
-	if (!sna_pixmap_move_to_cpu(pixmap, false))
+	if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
 		return 0;
 
 	switch (pixmap->drawable.bitsPerPixel) {
@@ -981,11 +981,8 @@ static void blt_vmap_done(struct sna *sna, const struct sna_composite_op *op)
 	struct kgem_bo *bo = (struct kgem_bo *)op->u.blt.src_pixmap;
 
 	blt_done(sna, op);
-	if (bo) {
-		struct kgem *kgem = &sna->kgem;
-		kgem_bo_sync(kgem, bo, true);
-		kgem_bo_destroy(kgem, bo);
-	}
+	if (bo)
+		kgem_bo_destroy(&sna->kgem, bo);
 }
 
 fastcall static void
@@ -1113,11 +1110,9 @@ prepare_blt_put(struct sna *sna,
 	DBG(("%s\n", __FUNCTION__));
 
 	if (priv) {
-		if (!priv->gpu_only) {
-			src_bo = priv->cpu_bo;
-			if (!src_bo)
-				src_bo = pixmap_vmap(&sna->kgem, src);
-		}
+		src_bo = priv->cpu_bo;
+		if (!src_bo)
+			src_bo = pixmap_vmap(&sna->kgem, src);
 	} else {
 		src_bo = kgem_create_map(&sna->kgem,
 					 src->devPrivate.ptr,
@@ -1140,7 +1135,7 @@ prepare_blt_put(struct sna *sna,
 				       GXcopy))
 			return FALSE;
 	} else {
-		if (!sna_pixmap_move_to_cpu(src, false))
+		if (!sna_pixmap_move_to_cpu(src, MOVE_READ))
 			return FALSE;
 
 		op->blt   = blt_put_composite;
@@ -1185,8 +1180,6 @@ has_cpu_area(PixmapPtr pixmap, int x, int y, int w, int h)
 		return TRUE;
 	if (!priv->gpu_bo)
 		return TRUE;
-	if (priv->gpu_only)
-		return FALSE;
 
 	if (priv->gpu_damage == NULL)
 		return TRUE;

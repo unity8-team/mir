@@ -347,9 +347,6 @@ _texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
 	if (priv == NULL)
 		return TRUE;
 
-	if (priv->gpu_only)
-		return FALSE;
-
 	if (priv->gpu_bo == NULL)
 		return TRUE;
 
@@ -955,7 +952,7 @@ sna_render_picture_fixup(struct sna *sna,
 	}
 
 	if (picture->pDrawable &&
-	    !sna_drawable_move_to_cpu(picture->pDrawable, false))
+	    !sna_drawable_move_to_cpu(picture->pDrawable, MOVE_READ))
 		return 0;
 
 	channel->bo = kgem_create_buffer(&sna->kgem,
@@ -1099,7 +1096,7 @@ sna_render_picture_convert(struct sna *sna,
 		return 0;
 	}
 
-	if (!sna_pixmap_move_to_cpu(pixmap, false))
+	if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
 		return 0;
 
 	src = pixman_image_create_bits(picture->format,

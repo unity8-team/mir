@@ -79,6 +79,7 @@
 #define NO_GLYPH_CACHE 0
 #define NO_GLYPHS_TO_DST 0
 #define NO_GLYPHS_VIA_MASK 0
+#define NO_SMALL_MASK 0
 #define NO_GLYPHS_SLOW 0
 
 #define CACHE_PICTURE_SIZE 1024
@@ -642,7 +643,6 @@ static bool
 clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	assert(priv->gpu_only);
 	return sna->render.fill_one(sna, pixmap, priv->gpu_bo, 0,
 				    0, 0,
 				    pixmap->drawable.width,
@@ -711,7 +711,8 @@ glyphs_via_mask(struct sna *sna,
 	}
 
 	component_alpha = NeedsComponent(format->format);
-	if ((uint32_t)width * height * format->depth < 8 * 4096) {
+	if (!NO_SMALL_MASK &&
+	    (uint32_t)width * height * format->depth < 8 * 4096) {
 		pixman_image_t *mask_image;
 		int s;
 
@@ -1023,16 +1024,22 @@ glyphs_fallback(CARD8 op,
 	if (!RegionNotEmpty(&region))
 		return;
 
-	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true))
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+					     MOVE_READ | MOVE_WRITE))
 		return;
 	if (dst->alphaMap &&
-	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true))
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
+				      MOVE_READ | MOVE_WRITE))
 		return;
+
 	if (src->pDrawable) {
-		if (!sna_drawable_move_to_cpu(src->pDrawable, false))
+		if (!sna_drawable_move_to_cpu(src->pDrawable,
+					      MOVE_READ))
 			return;
+
 		if (src->alphaMap &&
-		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false))
+		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+					      MOVE_READ))
 			return;
 	}
 	RegionTranslate(&region, -dst->pDrawable->x, -dst->pDrawable->y);

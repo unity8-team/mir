@@ -401,6 +401,7 @@ sna_composite(CARD8 op,
 {
 	struct sna *sna = to_sna_from_drawable(dst->pDrawable);
 	struct sna_composite_op tmp;
+	unsigned flags;
 	RegionRec region;
 	int dx, dy;
 
@@ -486,24 +487,34 @@ fallback:
 	     dst_x, dst_y,
 	     dst->pDrawable->x, dst->pDrawable->y,
 	     width, height));
-
-	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true))
+	if (op == PictOpSrc || op == PictOpClear)
+		flags = MOVE_WRITE;
+	else
+		flags = MOVE_WRITE | MOVE_READ;
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, flags))
 		goto out;
 	if (dst->alphaMap &&
-	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true))
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
+				      MOVE_WRITE | MOVE_READ))
 		goto out;
 	if (src->pDrawable) {
-		if (!sna_drawable_move_to_cpu(src->pDrawable, false))
+		if (!sna_drawable_move_to_cpu(src->pDrawable,
+					      MOVE_READ))
 			goto out;
+
 		if (src->alphaMap &&
-		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false))
+		    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+					      MOVE_READ))
 			goto out;
 	}
 	if (mask && mask->pDrawable) {
-		if (!sna_drawable_move_to_cpu(mask->pDrawable, false))
+		if (!sna_drawable_move_to_cpu(mask->pDrawable,
+					      MOVE_READ))
 			goto out;
+
 		if (mask->alphaMap &&
-		    !sna_drawable_move_to_cpu(mask->alphaMap->pDrawable, false))
+		    !sna_drawable_move_to_cpu(mask->alphaMap->pDrawable,
+					      MOVE_READ))
 			goto out;
 	}
 
@@ -708,7 +719,7 @@ sna_composite_rectangles(CARD8		 op,
 	 */
 	if (op == PictOpSrc || op == PictOpClear) {
 		priv = sna_pixmap_attach(pixmap);
-		if (priv && !priv->gpu_only)
+		if (priv)
 			sna_damage_subtract(&priv->cpu_damage, &region);
 	}
 
@@ -730,19 +741,22 @@ sna_composite_rectangles(CARD8		 op,
 		goto fallback;
 	}
 
-	if (!priv->gpu_only) {
-		assert_pixmap_contains_box(pixmap, RegionExtents(&region));
-		sna_damage_add(&priv->gpu_damage, &region);
-	}
+	assert_pixmap_contains_box(pixmap, RegionExtents(&region));
+	sna_damage_add(&priv->gpu_damage, &region);
 
 	goto done;
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, true))
+	if (op <= PictOpSrc)
+		error = MOVE_WRITE;
+	else
+		error = MOVE_WRITE | MOVE_READ;
+	if (!sna_drawable_move_region_to_cpu(&pixmap->drawable, &region, error))
 		goto done;
+
 	if (dst->alphaMap &&
-	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true))
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, error))
 		goto done;
 
 	if (op == PictOpSrc || op == PictOpClear) {

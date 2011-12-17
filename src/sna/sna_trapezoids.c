@@ -3176,7 +3176,8 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	region.data = NULL;
-	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true))
+	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+					     MOVE_READ | MOVE_WRITE))
 		return true;
 
 	pixmap = get_drawable_pixmap(dst->pDrawable);
@@ -3313,16 +3314,20 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		region.extents.y2 = dst_y + extents.y2;
 		region.data = NULL;
 
-		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, true))
+		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
+						     MOVE_READ | MOVE_WRITE))
 			goto done;
 		if (dst->alphaMap  &&
-		    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, true))
+		    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
+					      MOVE_READ | MOVE_WRITE))
 			goto done;
 		if (src->pDrawable) {
-			if (!sna_drawable_move_to_cpu(src->pDrawable, false))
+			if (!sna_drawable_move_to_cpu(src->pDrawable,
+						      MOVE_READ))
 				goto done;
 			if (src->alphaMap &&
-			    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable, false))
+			    !sna_drawable_move_to_cpu(src->alphaMap->pDrawable,
+						      MOVE_READ))
 				goto done;
 		}
 
@@ -3661,20 +3666,18 @@ skip:
 static void mark_damaged(PixmapPtr pixmap, struct sna_pixmap *priv,
 			 BoxPtr box, int16_t x, int16_t y)
 {
-	if (!priv->gpu_only) {
-		box->x1 += x; box->x2 += x;
-		box->y1 += y; box->y2 += y;
-		if (box->x1 <= 0 && box->y1 <= 0 &&
-		    box->x2 >= pixmap->drawable.width &&
-		    box->y2 >= pixmap->drawable.height) {
-			sna_damage_destroy(&priv->cpu_damage);
-			sna_damage_all(&priv->gpu_damage,
-				       pixmap->drawable.width,
-				       pixmap->drawable.height);
-		} else {
-			sna_damage_add_box(&priv->gpu_damage, box);
-			sna_damage_subtract_box(&priv->cpu_damage, box);
-		}
+	box->x1 += x; box->x2 += x;
+	box->y1 += y; box->y2 += y;
+	if (box->x1 <= 0 && box->y1 <= 0 &&
+	    box->x2 >= pixmap->drawable.width &&
+	    box->y2 >= pixmap->drawable.height) {
+		sna_damage_destroy(&priv->cpu_damage);
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
+	} else {
+		sna_damage_add_box(&priv->gpu_damage, box);
+		sna_damage_subtract_box(&priv->cpu_damage, box);
 	}
 }
 
@@ -3887,7 +3890,8 @@ sna_add_traps(PicturePtr picture, INT16 x, INT16 y, int n, xTrap *t)
 	}
 
 	DBG(("%s -- fallback\n", __FUNCTION__));
-	if (sna_drawable_move_to_cpu(picture->pDrawable, true))
+	if (sna_drawable_move_to_cpu(picture->pDrawable,
+				     MOVE_READ | MOVE_WRITE))
 		fbAddTraps(picture, x, y, n, t);
 }
 

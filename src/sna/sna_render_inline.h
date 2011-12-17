@@ -74,6 +74,13 @@ is_gpu(DrawablePtr drawable)
 }
 
 static inline Bool
+is_busy_cpu(DrawablePtr drawable)
+{
+	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+	return priv && priv->cpu_bo && priv->cpu_bo->gpu;
+}
+
+static inline Bool
 is_cpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
@@ -91,7 +98,7 @@ static inline Bool
 too_small(DrawablePtr drawable)
 {
 	return ((uint32_t)drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) &&
-		!is_dirty_gpu(drawable);
+		!(is_dirty_gpu(drawable) || is_busy_cpu(drawable));
 }
 
 static inline Bool
@@ -99,7 +106,7 @@ picture_is_gpu(PicturePtr picture)
 {
 	if (!picture || !picture->pDrawable)
 		return FALSE;
-	return is_gpu(picture->pDrawable);
+	return is_gpu(picture->pDrawable) || is_busy_cpu(picture->pDrawable);
 }
 
 static inline Bool sna_blt_compare_depth(DrawablePtr src, DrawablePtr dst)

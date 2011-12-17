@@ -71,9 +71,8 @@ struct kgem_bo {
 	uint32_t reusable : 1;
 	uint32_t dirty : 1;
 	uint32_t gpu : 1;
+	uint32_t cpu : 1;
 	uint32_t needs_flush : 1;
-	uint32_t cpu_read : 1;
-	uint32_t cpu_write : 1;
 	uint32_t vmap : 1;
 	uint32_t io : 1;
 	uint32_t flush : 1;
@@ -320,6 +319,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot);
 void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
+void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_unmap__cpu(struct kgem *kgem, struct kgem_bo *bo, void *ptr);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
@@ -352,7 +352,6 @@ static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 	bo->dirty = true;
 }
 
-void kgem_bo_sync(struct kgem *kgem, struct kgem_bo *bo, bool for_write);
 void kgem_sync(struct kgem *kgem);
 
 #define KGEM_BUFFER_WRITE	0x1

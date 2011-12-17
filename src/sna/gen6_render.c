@@ -2041,10 +2041,9 @@ gen6_composite_set_target(struct sna *sna,
 	op->dst.width  = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 	op->dst.format = dst->format;
-	priv = sna_pixmap(op->dst.pixmap);
 
 	op->dst.bo = NULL;
-#if USE_VMAP
+	priv = sna_pixmap(op->dst.pixmap);
 	if (priv && priv->gpu_bo == NULL &&
 	    I915_TILING_NONE == kgem_choose_tiling(&sna->kgem,
 						   I915_TILING_X,
@@ -2054,7 +2053,6 @@ gen6_composite_set_target(struct sna *sna,
 		op->dst.bo = priv->cpu_bo;
 		op->damage = &priv->cpu_damage;
 	}
-#endif
 	if (op->dst.bo == NULL) {
 		priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
 		if (priv == NULL)
@@ -2154,7 +2152,7 @@ gen6_composite_fallback(struct sna *sna,
 
 	/* If anything is on the GPU, push everything out to the GPU */
 	priv = sna_pixmap(dst_pixmap);
-	if (priv && priv->gpu_damage) {
+	if (priv && (priv->gpu_damage || (priv->cpu_bo && priv->cpu_bo->gpu))) {
 		DBG(("%s: dst is already on the GPU, try to use GPU\n",
 		     __FUNCTION__));
 		return FALSE;

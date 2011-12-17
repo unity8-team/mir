@@ -94,6 +94,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DEBUG_NO_RENDER 0
 #define DEBUG_NO_BLT 0
 #define DEBUG_NO_IO 0
+#define DEBUG_NO_LLC 0
 
 #define DEBUG_FLUSH_CACHE 0
 #define DEBUG_FLUSH_BATCH 0
@@ -141,7 +142,6 @@ struct sna_pixmap {
 #define SOURCE_BIAS 4
 	uint16_t source_count;
 	uint8_t pinned :1;
-	uint8_t gpu_only :1;
 	uint8_t flush :1;
 	uint8_t gpu :1;
 	uint8_t freed :1;
@@ -428,19 +428,21 @@ PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap);
 struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap);
 
-bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, bool write);
+#define MOVE_WRITE 0x1
+#define MOVE_READ 0x2
+bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
 bool must_check sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 						RegionPtr region,
-						Bool write);
+						unsigned flags);
 
 static inline bool must_check
-sna_drawable_move_to_cpu(DrawablePtr drawable, bool write)
+sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
 {
 	RegionRec region;
 
 	pixman_region_init_rect(&region,
 				0, 0, drawable->width, drawable->height);
-	return sna_drawable_move_region_to_cpu(drawable, &region, write);
+	return sna_drawable_move_region_to_cpu(drawable, &region, flags);
 }
 
 static inline bool must_check
