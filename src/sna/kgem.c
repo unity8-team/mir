@@ -354,12 +354,24 @@ agp_aperture_size(struct pci_device *dev, int gen)
 	return dev->regions[gen < 30 ? 0 : 2].size;
 }
 
-void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
+static int gem_param(struct kgem *kgem, int name)
 {
 	drm_i915_getparam_t gp;
+	int v = 0;
+
+	VG_CLEAR(gp);
+	gp.param = name;
+	gp.value = &v;
+	drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp);
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(&v, sizeof(v)));
+	return v;
+}
+
+void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
+{
 	struct drm_i915_gem_get_aperture aperture;
 	unsigned int i;
-	int v;
 
 	memset(kgem, 0, sizeof(*kgem));
 
@@ -380,27 +392,15 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->next_request = __kgem_request_alloc();
 
 #if defined(USE_VMAP) && defined(I915_PARAM_HAS_VMAP)
-	if (!DBG_NO_VMAP) {
-		drm_i915_getparam_t gp;
-
-		v = 0;
-		VG_CLEAR(gp);
-		gp.param = I915_PARAM_HAS_VMAP;
-		gp.value = &v;
-		drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp);
-		kgem->has_vmap = v > 0;
-	}
+	if (!DBG_NO_VMAP)
+		kgem->has_vmap = gem_param(kgem, I915_PARAM_HAS_VMAP) > 0;
 #endif
 	DBG(("%s: using vmap=%d\n", __FUNCTION__, kgem->has_vmap));
 
 	if (gen < 40) {
 		if (!DBG_NO_RELAXED_FENCING) {
-			v = 0;
-			VG_CLEAR(gp);
-			gp.param = I915_PARAM_HAS_RELAXED_FENCING;
-			gp.value = &v;
-			drmIoctl(kgem->fd, DRM_IOCTL_I915_GETPARAM, &gp);
-			kgem->has_relaxed_fencing = v > 0;
+			kgem->has_relaxed_fencing =
+				gem_param(kgem, I915_PARAM_HAS_RELAXED_FENCING);
 		}
 	} else
 		kgem->has_relaxed_fencing = 1;
@@ -429,13 +429,9 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		kgem->max_object_size = kgem->aperture_low;
 	DBG(("%s: max object size %d\n", __FUNCTION__, kgem->max_object_size));
 
-	v = 8;
-	VG_CLEAR(gp);
-	gp.param = I915_PARAM_NUM_FENCES_AVAIL;
-	gp.value = &v;
-	(void)drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp);
-	kgem->fence_max = v - 2;
-
+	kgem->fence_max = gem_param(kgem, I915_PARAM_NUM_FENCES_AVAIL) - 2;
+	if (kgem->fence_max < 0)
+		kgem->fence_max = 5;
 	DBG(("%s: max fences=%d\n", __FUNCTION__, kgem->fence_max));
 }
 
