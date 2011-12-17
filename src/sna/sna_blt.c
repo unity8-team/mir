@@ -1492,6 +1492,7 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 {
 	struct kgem *kgem = &sna->kgem;
 	uint32_t br13, cmd, *b;
+	bool overwrites;
 
 	DBG(("%s: box=((%d, %d), (%d, %d))\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
@@ -1526,14 +1527,29 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	}
 
 	/* All too frequently one blt completely overwrites the previous */
-	if (kgem->nbatch >= 6 &&
-	    (alu == GXcopy || alu == GXclear || alu == GXset) &&
+	overwrites = alu == GXcopy || alu == GXclear || alu == GXset;
+	if (overwrites && kgem->nbatch >= 6 &&
 	    kgem->batch[kgem->nbatch-6] == cmd &&
 	    *(uint64_t *)&kgem->batch[kgem->nbatch-4] == *(uint64_t *)box &&
 	    kgem->reloc[kgem->nreloc-1].target_handle == bo->handle) {
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-5] = br13;
 		kgem->batch[kgem->nbatch-1] = color;
+		return TRUE;
+	}
+	if (overwrites && kgem->nbatch >= 8 &&
+	    (kgem->batch[kgem->nbatch-8] & 0xffc0000f) == XY_SRC_COPY_BLT_CMD &&
+	    *(uint64_t *)&kgem->batch[kgem->nbatch-6] == *(uint64_t *)box &&
+	    kgem->reloc[kgem->nreloc-2].target_handle == bo->handle) {
+		DBG(("%s: replacing last copy\n", __FUNCTION__));
+		kgem->batch[kgem->nbatch-8] = cmd;
+		kgem->batch[kgem->nbatch-7] = br13;
+		kgem->batch[kgem->nbatch-3] = color;
+		/* Keep the src bo as part of the execlist, just remove
+		 * its relocation entry.
+		 */
+		kgem->nreloc--;
+		kgem->nbatch -= 2;
 		return TRUE;
 	}
 
