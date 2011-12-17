@@ -70,8 +70,7 @@ struct kgem_bo {
 	uint32_t tiling : 2;
 	uint32_t reusable : 1;
 	uint32_t dirty : 1;
-	uint32_t gpu : 1;
-	uint32_t cpu : 1;
+	uint32_t domain : 2;
 	uint32_t needs_flush : 1;
 	uint32_t vmap : 1;
 	uint32_t io : 1;
@@ -79,6 +78,10 @@ struct kgem_bo {
 	uint32_t sync : 1;
 	uint32_t purged : 1;
 };
+#define DOMAIN_NONE 0
+#define DOMAIN_CPU 1
+#define DOMAIN_GTT 2
+#define DOMAIN_GPU 3
 
 struct kgem_request {
 	struct list list;
@@ -330,12 +333,10 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: gpu? %d exec? %d, rq? %d\n",
-		 __FUNCTION__, bo->gpu, bo->exec != NULL, bo->rq != NULL));
-
+	DBG_HDR(("%s: domain: %d exec? %d, rq? %d\n",
+		 __FUNCTION__, bo->domain, bo->exec != NULL, bo->rq != NULL));
 	assert(bo->proxy == NULL);
-	assert(bo->gpu || bo->rq == NULL);
-	return bo->gpu;
+	return bo->rq;
 }
 
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)

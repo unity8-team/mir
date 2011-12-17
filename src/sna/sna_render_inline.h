@@ -77,7 +77,7 @@ static inline Bool
 is_busy_cpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv && priv->cpu_bo && priv->cpu_bo->gpu;
+	return priv && priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
 }
 
 static inline Bool

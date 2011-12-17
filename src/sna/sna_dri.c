@@ -295,8 +295,6 @@ static void _sna_dri_destroy_buffer(struct sna *sna, DRI2Buffer2Ptr buffer)
 			screen->DestroyPixmap(private->pixmap);
 		}
 
-		private->bo->gpu =
-			private->bo->needs_flush || private->bo->rq != NULL;
 		private->bo->flush = 0;
 		kgem_bo_destroy(&sna->kgem, private->bo);
 

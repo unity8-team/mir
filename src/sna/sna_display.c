@@ -1835,8 +1835,6 @@ sna_page_flip(struct sna *sna,
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
-		bo->gpu = true;
-
 		/* Although the kernel performs an implicit flush upon
 		 * page-flipping, marking the bo as requiring a flush
 		 * here ensures that the buffer goes into the active cache

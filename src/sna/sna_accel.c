@@ -619,7 +619,11 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		assert(flags == MOVE_WRITE);
 
 		if (priv->inplace && priv->gpu_bo && INPLACE_MAP) {
-			if (priv->gpu_bo->gpu) {
+			if (kgem_bo_is_busy(priv->gpu_bo) &&
+			    priv->gpu_bo->exec == NULL)
+				kgem_retire(&sna->kgem);
+
+			if (kgem_bo_is_busy(priv->gpu_bo)) {
 				sna_pixmap_destroy_gpu_bo(sna, priv);
 				if (!sna_pixmap_move_to_gpu(pixmap))
 					goto skip_inplace_map;
@@ -642,11 +646,11 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		}
 
 skip_inplace_map:
-		if (priv->cpu_bo && priv->cpu_bo->gpu) {
+		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) {
 			if (priv->cpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
 
-			if (priv->cpu_bo->gpu) {
+			if (kgem_bo_is_busy(priv->cpu_bo)) {
 				DBG(("%s: discarding busy CPU bo\n", __FUNCTION__));
 				sna_pixmap_free_cpu(sna, priv);
 			}
@@ -736,7 +740,7 @@ region_subsumes_drawable(RegionPtr region, DrawablePtr drawable)
 
 static bool sync_will_stall(struct kgem_bo *bo)
 {
-	return bo->gpu | bo->needs_flush;
+	return kgem_bo_is_busy(bo);
 }
 
 bool
@@ -2183,14 +2187,14 @@ static bool copy_use_gpu_bo(struct sna *sna,
 	if (!priv->cpu_bo)
 	       return false;
 
-	if (priv->cpu_bo->gpu) {
+	if (kgem_bo_is_busy(priv->cpu_bo)) {
 		if (priv->cpu_bo->exec)
 			return true;
 
 		kgem_retire(&sna->kgem);
 	}
 
-	return priv->cpu_bo->gpu;
+	return kgem_bo_is_busy(priv->cpu_bo);
 }
 
 static void
@@ -2257,7 +2261,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 	/* Try to maintain the data on the GPU */
 	if (dst_priv && dst_priv->gpu_bo == NULL &&
-	    src_priv && (src_priv->gpu_bo != NULL || (src_priv->cpu_bo && src_priv->cpu_bo->gpu))) {
+	    src_priv && (src_priv->gpu_bo != NULL || (src_priv->cpu_bo && kgem_bo_is_busy(src_priv->cpu_bo)))) {
 		uint32_t tiling =
 			sna_pixmap_choose_tiling(dst_pixmap,
 						 src_priv->gpu_bo->tiling);
@@ -8716,7 +8720,7 @@ static void sna_deferred_free(struct sna *sna)
 	struct sna_pixmap *priv, *next;
 
 	list_for_each_entry_safe(priv, next, &sna->deferred_free, list) {
-		if (priv->cpu_bo->gpu)
+		if (kgem_bo_is_busy(priv->cpu_bo))
 			continue;
 
 		list_del(&priv->list);

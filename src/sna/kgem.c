@@ -241,8 +241,11 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		return FALSE;
 
 	bo->needs_flush = false;
-	if (bo->gpu)
+	if (bo->domain == DOMAIN_GPU) {
+		kgem->sync = false;
 		kgem_retire(kgem);
+	}
+	bo->domain = DOMAIN_NONE;
 	return TRUE;
 }
 
@@ -296,7 +299,7 @@ static struct kgem_bo *__kgem_bo_init(struct kgem_bo *bo,
 	bo->handle = handle;
 	bo->size = size;
 	bo->reusable = true;
-	bo->cpu = true;
+	bo->domain = DOMAIN_CPU;
 	list_init(&bo->request);
 	list_init(&bo->list);
 	list_init(&bo->vma);
@@ -591,6 +594,9 @@ kgem_add_handle(struct kgem *kgem, struct kgem_bo *bo)
 {
 	struct drm_i915_gem_exec_object2 *exec;
 
+	DBG(("%s: handle=%d, index=%d\n",
+	     __FUNCTION__, bo->handle, kgem->nexec));
+
 	assert(kgem->nexec < ARRAY_SIZE(kgem->exec));
 	exec = memset(&kgem->exec[kgem->nexec++], 0, sizeof(*exec));
 	exec->handle = bo->handle;
@@ -605,7 +611,6 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 {
 	bo->exec = kgem_add_handle(kgem, bo);
 	bo->rq = kgem->next_request;
-	bo->gpu = true;
 
 	list_move(&bo->request, &kgem->next_request->buffers);
 
@@ -723,6 +728,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		assert(list_is_empty(&bo->request));
 		list_add(&bo->request, &kgem->flushing);
 		list_move(&bo->list, active(kgem, bo->size));
+		bo->rq = &_kgem_static_request;
 	} else {
 		if (!IS_CPU_MAP(bo->map)) {
 			assert(!bo->purged);
@@ -732,7 +738,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_DONTNEED)) {
-				kgem->need_purge |= bo->gpu;
+				kgem->need_purge |= bo->domain == DOMAIN_GPU;
 				goto destroy;
 			}
 
@@ -776,8 +782,9 @@ bool kgem_retire(struct kgem *kgem)
 		if (gem_madvise(kgem->fd, bo->handle, I915_MADV_DONTNEED)) {
 			bo->purged = true;
 			bo->needs_flush = false;
-			bo->gpu = false;
-			assert(bo->rq == NULL);
+			bo->domain = DOMAIN_NONE;
+			assert(bo->rq == &_kgem_static_request);
+			bo->rq = NULL;
 			list_move(&bo->list, inactive(kgem, bo->size));
 			list_del(&bo->request);
 		} else
@@ -807,7 +814,8 @@ bool kgem_retire(struct kgem *kgem)
 
 			if (bo->needs_flush)
 				bo->needs_flush = kgem_busy(kgem, bo->handle);
-			bo->gpu = bo->needs_flush;
+			if (!bo->needs_flush)
+				bo->domain = DOMAIN_NONE;
 
 			if (bo->refcnt == 0) {
 				if (bo->reusable) {
@@ -815,6 +823,7 @@ bool kgem_retire(struct kgem *kgem)
 						DBG(("%s: moving %d to flushing\n",
 						     __FUNCTION__, bo->handle));
 						list_add(&bo->request, &kgem->flushing);
+						bo->rq = &_kgem_static_request;
 					} else if(gem_madvise(kgem->fd,
 							      bo->handle,
 							      I915_MADV_DONTNEED)) {
@@ -841,8 +850,8 @@ bool kgem_retire(struct kgem *kgem)
 		assert(rq->bo->refcnt == 0);
 		if (gem_madvise(kgem->fd, rq->bo->handle, I915_MADV_DONTNEED)) {
 			rq->bo->purged = true;
-			assert(rq->bo->gpu == 0);
 			assert(rq->bo->rq == NULL);
+			assert(list_is_empty(&rq->bo->request));
 			list_move(&rq->bo->list, inactive(kgem, rq->bo->size));
 			retired = true;
 		} else {
@@ -871,15 +880,19 @@ static void kgem_commit(struct kgem *kgem)
 		assert(!bo->purged);
 
 		bo->presumed_offset = bo->exec->offset;
-		bo->binding.offset = 0;
 		bo->exec = NULL;
-		bo->dirty = false;
-		bo->cpu = false;
+
+		DBG(("%s: release handle=%d (proxy? %d)\n",
+		     __FUNCTION__, bo->handle, bo->proxy != NULL));
 
 		if (!bo->refcnt && !bo->reusable) {
 			kgem_bo_free(kgem, bo);
 			continue;
 		}
+
+		bo->binding.offset = 0;
+		bo->domain = DOMAIN_GPU;
+		bo->dirty = false;
 	}
 
 	if (rq == &_kgem_static_request) {
@@ -977,7 +990,7 @@ static void kgem_cleanup(struct kgem *kgem)
 					      request);
 			list_del(&bo->request);
 			bo->rq = NULL;
-			bo->gpu = false;
+			bo->domain = DOMAIN_NONE;
 			if (bo->refcnt == 0)
 				kgem_bo_free(kgem, bo);
 		}
@@ -1118,7 +1131,6 @@ void _kgem_submit(struct kgem *kgem)
 		kgem_fixup_self_relocs(kgem, rq->bo);
 		kgem_finish_partials(kgem);
 
-		assert(rq->bo->gpu == 0);
 		if (kgem_batch_write(kgem, handle) == 0) {
 			struct drm_i915_gem_execbuffer2 execbuf;
 			int ret, retry = 3;
@@ -1390,7 +1402,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		if (bo->purged) {
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_WILLNEED)) {
-				kgem->need_purge |= bo->gpu;
+				kgem->need_purge |= bo->domain == DOMAIN_GPU;
 				continue;
 			}
 
@@ -1418,7 +1430,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		     use_active ? "active" : "inactive"));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
-		assert(use_active || bo->gpu == 0);
+		assert(use_active || bo->domain != DOMAIN_GPU);
 		//assert(use_active || !kgem_busy(kgem, bo->handle));
 		return bo;
 	}
@@ -1702,7 +1714,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			DBG(("  from inactive vma: pitch=%d, tiling=%d: handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 			assert(bo->reusable);
-			assert(bo->gpu == 0 && !kgem_busy(kgem, bo->handle));
+			assert(bo->domain != DOMAIN_GPU && !kgem_busy(kgem, bo->handle));
 			return kgem_bo_reference(bo);
 		}
 
@@ -1746,7 +1758,7 @@ search_active: /* Best active match first */
 			if (bo->purged) {
 				if (!gem_madvise(kgem->fd, bo->handle,
 						 I915_MADV_WILLNEED)) {
-					kgem->need_purge |= bo->gpu;
+					kgem->need_purge |= bo->domain == DOMAIN_GPU;
 					kgem_bo_free(kgem, bo);
 					bo = NULL;
 					goto search_active;
@@ -1800,7 +1812,7 @@ skip_active_search:
 		if (bo->purged) {
 			if (!gem_madvise(kgem->fd, bo->handle,
 					 I915_MADV_WILLNEED)) {
-				kgem->need_purge |= bo->gpu;
+				kgem->need_purge |= bo->domain == DOMAIN_GPU;
 				goto next_bo;
 			}
 
@@ -1817,7 +1829,7 @@ skip_active_search:
 		     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
-		assert((flags & CREATE_INACTIVE) == 0 || bo->gpu == 0);
+		assert((flags & CREATE_INACTIVE) == 0 || bo->domain != DOMAIN_GPU);
 		assert((flags & CREATE_INACTIVE) == 0 ||
 		       !kgem_busy(kgem, bo->handle));
 		return kgem_bo_reference(bo);
@@ -1967,6 +1979,9 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 {
 	int index;
 
+	DBG(("%s: handle=%d, pos=%d, delta=%d, domains=%08x\n",
+	     __FUNCTION__, bo ? bo->handle : 0, pos, delta, read_write_domain));
+
 	assert((read_write_domain & 0x7fff) == 0 || bo != NULL);
 
 	index = kgem->nreloc++;
@@ -1978,6 +1993,9 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 		delta += bo->delta;
 		if (bo->proxy) {
+			DBG(("%s: adding proxy for handle=%d\n",
+			     __FUNCTION__, bo->handle));
+			assert(bo->handle == bo->proxy->handle);
 			/* need to release the cache upon batch submit */
 			list_move(&bo->request, &kgem->next_request->buffers);
 			bo->exec = &_kgem_dummy_exec;
@@ -1989,7 +2007,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 		if (bo->exec == NULL)
 			_kgem_add_bo(kgem, bo);
 
-		if (read_write_domain & KGEM_RELOC_FENCED && kgem->gen < 40) {
+		if (kgem->gen < 40 && read_write_domain & KGEM_RELOC_FENCED) {
 			if (bo->tiling &&
 			    (bo->exec->flags & EXEC_OBJECT_NEEDS_FENCE) == 0) {
 				assert(kgem->nfence < kgem->fence_max);
@@ -2049,7 +2067,7 @@ static void kgem_trim_vma_cache(struct kgem *kgem)
 		list_del(&old->vma);
 		kgem->vma_count--;
 
-		if (!old->gpu && old->refcnt == 0)
+		if (old->domain != DOMAIN_GPU && old->refcnt == 0)
 			kgem_bo_free(kgem, old);
 	}
 }
@@ -2091,11 +2109,11 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 		     __FUNCTION__, bo->handle, kgem->vma_count));
 	}
 
-	if (bo->needs_flush | bo->gpu) {
+	if (bo->domain != DOMAIN_GTT) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: sync: needs_flush? %d, gpu? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->gpu));
+		DBG(("%s: sync: needs_flush? %d, domain? %d\n", __FUNCTION__,
+		     bo->needs_flush, bo->domain));
 
 		/* XXX use PROT_READ to avoid the write flush? */
 
@@ -2106,10 +2124,11 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 
 		bo->needs_flush = false;
-		if (bo->gpu) {
+		if (bo->domain == DOMAIN_GPU) {
 			kgem->sync = false;
 			kgem_retire(kgem);
 		}
+		bo->domain = DOMAIN_GTT;
 	}
 
 	list_move_tail(&bo->vma, &kgem->vma_cache);
@@ -2288,11 +2307,11 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 	kgem_bo_submit(kgem, bo);
 
 	/* XXX assumes bo is snoopable */
-	if (!bo->cpu) {
+	if (bo->domain != DOMAIN_CPU) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: sync: needs_flush? %d, gpu? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->gpu, kgem_busy(kgem, bo->handle)));
+		DBG(("%s: sync: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
+		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->handle;
@@ -2302,11 +2321,11 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 		assert(!kgem_busy(kgem, bo->handle));
 		bo->needs_flush = false;
-		if (bo->gpu) {
+		if (bo->domain == DOMAIN_GPU) {
 			kgem->sync = false;
 			kgem_retire(kgem);
 		}
-		bo->cpu = true;
+		bo->domain = DOMAIN_CPU;
 	}
 }
 
@@ -2732,11 +2751,11 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 			 offset, length);
 		assert(!kgem_busy(kgem, bo->base.handle));
 		bo->base.needs_flush = false;
-		if (bo->base.gpu) {
+		if (bo->base.domain == DOMAIN_GPU) {
 			kgem->sync = false;
 			kgem_retire(kgem);
 		}
-		assert(bo->base.gpu == false);
+		bo->base.domain = DOMAIN_NONE;
 	} else
 		kgem_bo_sync__cpu(kgem, &bo->base);
 }
