@@ -362,6 +362,29 @@ agp_aperture_size(struct pci_device *dev, int gen)
 	return dev->regions[gen < 30 ? 0 : 2].size;
 }
 
+static size_t
+cpu_cache_size(void)
+{
+	FILE *file = fopen("/proc/cpuinfo", "r");
+	size_t size = -1;
+	if (file) {
+		size_t len = 0;
+		char *line = NULL;
+		while (getline(&line, &len, file) != -1) {
+			int mb;
+			if (sscanf(line, "cache size : %d KB", &mb) == 1) {
+				size = mb * 1024;
+				break;
+			}
+		}
+		free(line);
+		fclose(file);
+	}
+	if (size == -1)
+		ErrorF("Unknown CPU cache size\n");
+	return size;
+}
+
 static int gem_param(struct kgem *kgem, int name)
 {
 	drm_i915_getparam_t gp;
@@ -387,6 +410,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->gen = gen;
 	kgem->wedged = drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE) == -EIO;
 	kgem->wedged |= DBG_NO_HW;
+
+	kgem->cpu_cache_pages = cpu_cache_size() >> 12;
 
 	list_init(&kgem->partial);
 	list_init(&kgem->requests);
