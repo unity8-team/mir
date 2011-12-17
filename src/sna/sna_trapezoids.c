@@ -2095,7 +2095,7 @@ free_boxes:
 	return ret;
 }
 
-static inline int coverage(int samples, pixman_fixed_t f)
+static inline int grid_coverage(int samples, pixman_fixed_t f)
 {
 	return (samples * pixman_fixed_frac(f) + pixman_fixed_1/2) / pixman_fixed_1;
 }
@@ -2155,7 +2155,7 @@ composite_unaligned_trap_row(struct sna *sna,
 		box.x2 = x2 + 1;
 
 		opacity = covered;
-		opacity *= coverage(SAMPLES_X, trap->right.p1.x) - coverage(SAMPLES_X, trap->left.p1.x);
+		opacity *= grid_coverage(SAMPLES_X, trap->right.p1.x) - grid_coverage(SAMPLES_X, trap->left.p1.x);
 
 		if (opacity)
 			composite_unaligned_box(sna, tmp, &box,
@@ -2166,7 +2166,7 @@ composite_unaligned_trap_row(struct sna *sna,
 			box.x2 = x1++;
 
 			opacity = covered;
-			opacity *= SAMPLES_X - coverage(SAMPLES_X, trap->left.p1.x);
+			opacity *= SAMPLES_X - grid_coverage(SAMPLES_X, trap->left.p1.x);
 
 			if (opacity)
 				composite_unaligned_box(sna, tmp, &box,
@@ -2186,7 +2186,7 @@ composite_unaligned_trap_row(struct sna *sna,
 			box.x2 = x2 + 1;
 
 			opacity = covered;
-			opacity *= coverage(SAMPLES_X, trap->right.p1.x);
+			opacity *= grid_coverage(SAMPLES_X, trap->right.p1.x);
 
 			if (opacity)
 				composite_unaligned_box(sna, tmp, &box,
@@ -2210,13 +2210,13 @@ composite_unaligned_trap(struct sna *sna,
 	if (y1 == y2) {
 		composite_unaligned_trap_row(sna, tmp, trap, dx,
 					     y1, y1 + 1,
-					     coverage(SAMPLES_Y, trap->bottom) - coverage(SAMPLES_Y, trap->top),
+					     grid_coverage(SAMPLES_Y, trap->bottom) - grid_coverage(SAMPLES_Y, trap->top),
 					     clip);
 	} else {
 		if (pixman_fixed_frac(trap->top)) {
 			composite_unaligned_trap_row(sna, tmp, trap, dx,
 						     y1, y1 + 1,
-						     SAMPLES_Y - coverage(SAMPLES_Y, trap->top),
+						     SAMPLES_Y - grid_coverage(SAMPLES_Y, trap->top),
 						     clip);
 			y1++;
 		}
@@ -2230,7 +2230,7 @@ composite_unaligned_trap(struct sna *sna,
 		if (pixman_fixed_frac(trap->bottom))
 			composite_unaligned_trap_row(sna, tmp, trap, dx,
 						     y2, y2 + 1,
-						     coverage(SAMPLES_Y, trap->bottom),
+						     grid_coverage(SAMPLES_Y, trap->bottom),
 						     clip);
 	}
 }
@@ -2295,13 +2295,13 @@ blt_unaligned_box_row(PixmapPtr scratch,
 		blt_opacity(scratch,
 			    x1, x1+1,
 			    y1, y2,
-			    covered * (coverage(SAMPLES_X, trap->right.p1.x) - coverage(SAMPLES_X, trap->left.p1.x)));
+			    covered * (grid_coverage(SAMPLES_X, trap->right.p1.x) - grid_coverage(SAMPLES_X, trap->left.p1.x)));
 	} else {
 		if (pixman_fixed_frac(trap->left.p1.x))
 			blt_opacity(scratch,
 				    x1, x1+1,
 				    y1, y2,
-				    covered * (SAMPLES_X - coverage(SAMPLES_X, trap->left.p1.x)));
+				    covered * (SAMPLES_X - grid_coverage(SAMPLES_X, trap->left.p1.x)));
 
 		if (x2 > x1 + 1) {
 			blt_opacity(scratch,
@@ -2314,7 +2314,7 @@ blt_unaligned_box_row(PixmapPtr scratch,
 			blt_opacity(scratch,
 				    x2, x2 + 1,
 				    y1, y2,
-				    covered * coverage(SAMPLES_X, trap->right.p1.x));
+				    covered * grid_coverage(SAMPLES_X, trap->right.p1.x));
 	}
 }
 
@@ -2374,11 +2374,11 @@ composite_unaligned_boxes_fallback(CARD8 op,
 
 		if (y1 == y2) {
 			blt_unaligned_box_row(scratch, &extents, t, y1, y1 + 1,
-					      coverage(SAMPLES_Y, t->bottom) - coverage(SAMPLES_Y, t->top));
+					      grid_coverage(SAMPLES_Y, t->bottom) - grid_coverage(SAMPLES_Y, t->top));
 		} else {
 			if (pixman_fixed_frac(t->top))
 				blt_unaligned_box_row(scratch, &extents, t, y1, y1 + 1,
-						      SAMPLES_Y - coverage(SAMPLES_Y, t->top));
+						      SAMPLES_Y - grid_coverage(SAMPLES_Y, t->top));
 
 			if (y2 > y1 + 1)
 				blt_unaligned_box_row(scratch, &extents, t, y1+1, y2,
@@ -2386,7 +2386,7 @@ composite_unaligned_boxes_fallback(CARD8 op,
 
 			if (pixman_fixed_frac(t->bottom))
 				blt_unaligned_box_row(scratch, &extents, t, y2, y2+1,
-						      coverage(SAMPLES_Y, t->bottom));
+						      grid_coverage(SAMPLES_Y, t->bottom));
 		}
 
 		mask = CreatePicture(0, &scratch->drawable,

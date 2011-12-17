@@ -1093,7 +1093,6 @@ glyphs_fallback(CARD8 op,
 			GlyphPtr g = *glyphs++;
 			PicturePtr picture;
 			pixman_image_t *glyph_image;
-			int dx, dy;
 
 			if (g->info.width == 0 || g->info.height == 0)
 				goto next_glyph;
@@ -1109,7 +1108,7 @@ glyphs_fallback(CARD8 op,
 			if (mask_format) {
 				DBG(("%s: glyph+(%d,%d) to mask (%d, %d)x(%d, %d)\n",
 				     __FUNCTION__,
-				     dx,dy,
+				     dx, dy,
 				     x - g->info.x,
 				     y - g->info.y,
 				     g->info.width,

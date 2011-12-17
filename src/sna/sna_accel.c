@@ -841,11 +841,11 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 
 	region_set(&r, box);
 	if (sna_damage_intersect(priv->cpu_damage, &r, &i)) {
-		BoxPtr box = REGION_RECTS(&i);
 		int n = REGION_NUM_RECTS(&i);
 		struct kgem_bo *src_bo;
 		Bool ok = FALSE;
 
+		box = REGION_RECTS(&i);
 		src_bo = pixmap_vmap(&sna->kgem, pixmap);
 		if (src_bo)
 			ok = sna->render.copy_boxes(sna, GXcopy,
@@ -1774,10 +1774,10 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			src = (uint8_t*)bits + (box->y1 - y) * src_stride + bx1/8;
 			src_stride -= bw;
 			do {
-				int i = bw;
+				int j = bw;
 				do {
 					*dst++ = byte_reverse(*src++);
-				} while (--i);
+				} while (--j);
 				dst += bstride;
 				src += src_stride;
 			} while (--bh);
@@ -6270,13 +6270,15 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 								 w, h,
 								 dst_x + dx, dst_y + dy);
 							if (damage) {
-								BoxRec box;
-								box.x1 = dst_x + dx;
-								box.y1 = dst_y + dy;
-								box.x2 = box.x1 + w;
-								box.y2 = box.y1 + h;
-								assert_pixmap_contains_box(pixmap, &box);
-								sna_damage_add_box(damage, &box);
+								BoxRec b;
+
+								b.x1 = dst_x + dx;
+								b.y1 = dst_y + dy;
+								b.x2 = b.x1 + w;
+								b.y2 = b.y1 + h;
+
+								assert_pixmap_contains_box(pixmap, &b);
+								sna_damage_add_box(damage, &b);
 							}
 
 							dst_x += w;
@@ -6328,15 +6330,15 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 								 w, h,
 								 dst_x + dx, dst_y + dy);
 							if (damage) {
-								BoxRec box;
+								BoxRec b;
 
-								box.x1 = dst_x + dx;
-								box.y1 = dst_y + dy;
-								box.x2 = box.x1 + w;
-								box.y2 = box.y1 + h;
+								b.x1 = dst_x + dx;
+								b.y1 = dst_y + dy;
+								b.x2 = b.x1 + w;
+								b.y2 = b.y1 + h;
 
-								assert_pixmap_contains_box(pixmap, &box);
-								sna_damage_add_box(damage, &box);
+								assert_pixmap_contains_box(pixmap, &b);
+								sna_damage_add_box(damage, &b);
 							}
 
 							dst_x += w;
@@ -6401,11 +6403,11 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 		uint8_t *dst = (uint8_t *)pat;
 		const uint8_t *src = gc->stipple->devPrivate.ptr;
 		int stride = gc->stipple->devKind;
-		int n = gc->stipple->drawable.height;
+		int j = gc->stipple->drawable.height;
 		do {
 			*dst++ = byte_reverse(*src);
 			src += stride;
-		} while (--n);
+		} while (--j);
 	}
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
