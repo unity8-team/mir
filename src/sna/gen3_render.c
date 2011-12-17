@@ -3870,6 +3870,7 @@ gen3_render_fill_boxes(struct sna *sna,
 	tmp.floats_per_rect = 6;
 	tmp.rb_reversed = 0;
 	tmp.has_component_alpha = 0;
+	tmp.need_magic_ca_pass = false;
 
 	gen3_init_solid(&tmp.src, pixel);
 	tmp.mask.u.gen3.type = SHADER_NONE;
