@@ -379,12 +379,18 @@ static struct sna_pixmap *_sna_pixmap_attach(struct sna *sna,
 #elif FORCE_INPLACE < 0
 	priv->inplace = 0;
 #else
-	/* If the pixmap is larger than 2x the L2 cache, we presume that
-	 * it will always be quicker to upload directly than to copy via
-	 * the shadow.
+	/* If the typical operation on the pixmap is larger than the
+	 * L2 cache, we presume that it will always be quicker to
+	 * upload directly than to copy via the shadow.
+	 *
+	 * "Typical operation" is currently chosen to maximise
+	 * x11perf on the various chipsets.
 	 */
 	priv->inplace =
-		(pixmap->devKind * pixmap->drawable.height >> 13) > sna->kgem.cpu_cache_pages;
+		(min(pixmap->drawable.width, 500) *
+		 min(pixmap->drawable.height, 500) *
+		 pixmap->drawable.bitsPerPixel >> 15) >
+		sna->kgem.cpu_cache_pages;
 #endif
 	list_init(&priv->list);
 	list_init(&priv->inactive);
@@ -598,6 +604,20 @@ static inline void list_move(struct list *list, struct list *head)
 	list_add(list, head);
 }
 
+static inline bool pixmap_inplace(struct sna *sna,
+				  PixmapPtr pixmap,
+				  struct sna_pixmap *priv)
+{
+	if (!INPLACE_MAP)
+		return false;
+
+	if (priv->inplace)
+		return true;
+
+	return (pixmap->devKind * pixmap->drawable.height >> 12) >
+		sna->kgem.cpu_cache_pages;
+}
+
 bool
 sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 {
@@ -618,7 +638,7 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
 
-		if (priv->inplace && priv->gpu_bo && INPLACE_MAP) {
+		if (priv->gpu_bo && pixmap_inplace(sna, pixmap, priv)) {
 			if (kgem_bo_is_busy(priv->gpu_bo) &&
 			    priv->gpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
@@ -743,6 +763,23 @@ static bool sync_will_stall(struct kgem_bo *bo)
 	return kgem_bo_is_busy(bo);
 }
 
+static inline bool region_inplace(struct sna *sna,
+				  PixmapPtr pixmap,
+				  RegionPtr region,
+				  struct sna_pixmap *priv)
+{
+	if (!INPLACE_MAP)
+		return false;
+
+	if (priv->inplace)
+		return true;
+
+	return ((region->extents.x2 - region->extents.x1) *
+		(region->extents.y2 - region->extents.y1) *
+		pixmap->drawable.bitsPerPixel >> 15)
+		> sna->kgem.cpu_cache_pages;
+}
+
 bool
 sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				RegionPtr region,
@@ -781,7 +818,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
 
-		if (priv->inplace && priv->gpu_bo && INPLACE_MAP) {
+		if (priv->gpu_bo && region_inplace(sna, pixmap, region, priv)) {
 			if (sync_will_stall(priv->gpu_bo) &&
 			    priv->gpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
@@ -2179,9 +2216,10 @@ fallback:
 }
 
 static bool copy_use_gpu_bo(struct sna *sna,
-			    struct sna_pixmap *priv)
+			    struct sna_pixmap *priv,
+			    RegionPtr region)
 {
-	if (priv->inplace)
+	if (region_inplace(sna, priv->pixmap, region, priv))
 		return true;
 
 	if (!priv->cpu_bo)
@@ -2282,7 +2320,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	}
 
 	if (dst_priv && dst_priv->gpu_bo) {
-		if (!src_priv && !copy_use_gpu_bo(sna, dst_priv)) {
+		if (!src_priv && !copy_use_gpu_bo(sna, dst_priv, &region)) {
 			DBG(("%s: fallback - src_priv=%p and not use dst gpu bo\n",
 			     __FUNCTION__, src_priv));
 			goto fallback;
