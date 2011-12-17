@@ -702,11 +702,6 @@ sna_composite_rectangles(CARD8		 op,
 
 	boxes = pixman_region_rectangles(&region, &num_boxes);
 
-	if (too_small(dst->pDrawable)) {
-		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
-		goto fallback;
-	}
-
 	/* If we going to be overwriting any CPU damage with a subsequent
 	 * operation, then we may as well delete it without moving it
 	 * first to the GPU.
@@ -715,6 +710,11 @@ sna_composite_rectangles(CARD8		 op,
 		priv = sna_pixmap_attach(pixmap);
 		if (priv && !priv->gpu_only)
 			sna_damage_subtract(&priv->cpu_damage, &region);
+	}
+
+	if (too_small(dst->pDrawable)) {
+		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
+		goto fallback;
 	}
 
 	priv = sna_pixmap_move_to_gpu(pixmap);
