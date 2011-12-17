@@ -142,11 +142,12 @@ AC_ARG_ENABLE(uxa,
 			     [Enable Unified Acceleration Architecture (UXA) [default=yes]]),
 	      [UXA="$enableval"],
 	      [UXA=yes])
+AC_MSG_RESULT([$UXA])
 AM_CONDITIONAL(UXA, test x$UXA != xno)
 if test "x$UXA" != "xno"; then
 	AC_DEFINE(USE_UXA, 1, [Enable UXA support])
+	PKG_CHECK_MODULES(DRMINTEL, [libdrm_intel >= 2.4.29])
 fi
-AC_MSG_RESULT([$UXA])
 
 AC_MSG_CHECKING([whether to include GLAMOR support])
 AC_ARG_ENABLE(glamor,
@@ -187,7 +188,7 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.29])
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.24]) # libdrm_intel is checked separately
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
 PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6],, DRI2=no)
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])

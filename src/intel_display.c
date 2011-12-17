@@ -40,6 +40,7 @@
 
 #include "intel.h"
 #include "intel_bufmgr.h"
+#include "xf86drm.h"
 #include "xf86drmMode.h"
 #include "X11/Xatom.h"
 #include "X11/extensions/dpmsconst.h"

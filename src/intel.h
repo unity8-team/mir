@@ -63,7 +63,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xorg-server.h"
 #include <pciaccess.h>
 
-#include "xf86drm.h"
 #define _XF86DRI_SERVER_
 #include "dri2.h"
 #include "intel_bufmgr.h"

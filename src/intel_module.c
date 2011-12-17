@@ -31,14 +31,12 @@
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86cmap.h"
+#include "xf86drmMode.h"
 
 #include "common.h"
-#include "intel.h"
 #include "intel_driver.h"
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
-
-#include <xf86drmMode.h>
 
 static struct intel_device_info *chipset_info;
 
@@ -140,6 +138,8 @@ static const SymTabRec _intel_chipsets[] = {
 	{PCI_CHIP_IVYBRIDGE_S_GT1,		"Ivybridge Server" },
 	{-1,					NULL}
 };
+#define NUM_CHIPSETS (sizeof(_intel_chipsets) / sizeof(_intel_chipsets[0]))
+
 SymTabRec *intel_chipsets = (SymTabRec *) _intel_chipsets;
 
 #define INTEL_DEVICE_MATCH(d,i) \
@@ -298,7 +298,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 			    intptr_t		match_data)
 {
 	ScrnInfoPtr scrn;
-	PciChipsets intel_pci_chipsets[ARRAY_SIZE(_intel_chipsets)];
+	PciChipsets intel_pci_chipsets[NUM_CHIPSETS];
 	unsigned i;
 
 	chipset_info = (void *)match_data;
@@ -319,7 +319,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 #endif
 	}
 
-	for (i = 0; i < ARRAY_SIZE(_intel_chipsets); i++) {
+	for (i = 0; i < NUM_CHIPSETS; i++) {
 		intel_pci_chipsets[i].numChipset = intel_chipsets[i].token;
 		intel_pci_chipsets[i].PCIid = intel_chipsets[i].token;
 		intel_pci_chipsets[i].dummy = NULL;
