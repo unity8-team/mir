@@ -796,8 +796,7 @@ bool kgem_retire(struct kgem *kgem)
 			retired = true;
 		} else {
 			kgem->need_purge = 1;
-			gem_close(kgem->fd, rq->bo->handle);
-			free(rq->bo);
+			kgem_bo_free(kgem, rq->bo);
 		}
 
 		list_del(&rq->list);
