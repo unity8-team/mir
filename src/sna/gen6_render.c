@@ -1680,7 +1680,8 @@ gen6_composite_create_blend_state(struct sna_static_stream *stream)
 			blend->blend0.dest_blend_factor = dst;
 			blend->blend0.source_blend_factor = src;
 			blend->blend0.blend_func = GEN6_BLENDFUNCTION_ADD;
-			blend->blend0.blend_enable = 1;
+			blend->blend0.blend_enable =
+				!(dst == GEN6_BLENDFACTOR_ZERO && src == GEN6_BLENDFACTOR_ONE);
 
 			blend->blend1.post_blend_clamp_enable = 1;
 			blend->blend1.pre_blend_clamp_enable = 1;

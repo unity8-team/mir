@@ -3358,7 +3358,8 @@ static uint32_t gen5_create_cc_unit_state(struct sna_static_stream *stream)
 			struct gen5_cc_unit_state *state =
 				(struct gen5_cc_unit_state *)ptr;
 
-			state->cc3.blend_enable = 1;	/* enable color blend */
+			state->cc3.blend_enable =
+				!(j == GEN5_BLENDFACTOR_ZERO && i == GEN5_BLENDFACTOR_ONE);
 			state->cc4.cc_viewport_state_offset = vp >> 5;
 
 			state->cc5.logicop_func = 0xc;	/* COPY */
