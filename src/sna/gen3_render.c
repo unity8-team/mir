@@ -2137,7 +2137,7 @@ gen3_composite_picture(struct sna *sna,
 }
 
 static inline Bool
-picture_is_cpu(PicturePtr picture)
+source_use_blt(struct sna *sna, PicturePtr picture)
 {
 	if (!picture->pDrawable)
 		return FALSE;
@@ -2148,12 +2148,21 @@ picture_is_cpu(PicturePtr picture)
 	    picture->repeat)
 		return FALSE;
 
+	if (too_large(picture->pDrawable->width,
+		      picture->pDrawable->height))
+		return TRUE;
+
+	/* If we can sample directly from user-space, do so */
+	if (sna->kgem.has_vmap)
+		return FALSE;
+
 	return is_cpu(picture->pDrawable);
 }
 
 static Bool
 try_blt(struct sna *sna,
-	PicturePtr source,
+	PicturePtr dst,
+	PicturePtr src,
 	int width, int height)
 {
 	if (sna->kgem.mode != KGEM_RENDER) {
@@ -2167,12 +2176,15 @@ try_blt(struct sna *sna,
 		return TRUE;
 	}
 
-	/* If we can sample directly from user-space, do so */
-	if (sna->kgem.has_vmap)
-		return FALSE;
+	if (too_large(dst->pDrawable->width, dst->pDrawable->height)) {
+		DBG(("%s: target too large for 3D pipe (%d, %d)\n",
+		     __FUNCTION__,
+		     dst->pDrawable->width, dst->pDrawable->height));
+		return TRUE;
+	}
 
 	/* is the source picture only in cpu memory e.g. a shm pixmap? */
-	return picture_is_cpu(source);
+	return source_use_blt(sna, src);
 }
 
 static void
@@ -2397,7 +2409,7 @@ gen3_render_composite(struct sna *sna,
 	 * 3D -> 2D context switch.
 	 */
 	if (mask == NULL &&
-	    try_blt(sna, src, width, height) &&
+	    try_blt(sna, dst, src, width, height) &&
 	    sna_blt_composite(sna,
 			      op, src, dst,
 			      src_x, src_y,

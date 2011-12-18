@@ -1238,7 +1238,8 @@ gen2_composite_set_target(struct sna *sna,
 
 static Bool
 try_blt(struct sna *sna,
-	PicturePtr source,
+	PicturePtr dst,
+	PicturePtr src,
 	int width, int height)
 {
 	uint32_t color;
@@ -1254,14 +1255,27 @@ try_blt(struct sna *sna,
 		return TRUE;
 	}
 
+	if (too_large(dst->pDrawable->width, dst->pDrawable->height)) {
+		DBG(("%s: target too large for 3D pipe (%d, %d)\n",
+		     __FUNCTION__,
+		     dst->pDrawable->width, dst->pDrawable->height));
+		return TRUE;
+	}
+
 	/* If it is a solid, try to use the BLT paths */
-	if (sna_picture_is_solid(source, &color))
+	if (sna_picture_is_solid(src, &color))
 		return TRUE;
 
-	if (!source->pDrawable)
+	if (!src->pDrawable)
 		return FALSE;
 
-	return is_cpu(source->pDrawable);
+	if (too_large(src->pDrawable->width, src->pDrawable->height)) {
+		DBG(("%s: source too large for 3D pipe (%d, %d)\n",
+		     __FUNCTION__,
+		     src->pDrawable->width, src->pDrawable->height));
+		return TRUE;
+	}
+	return is_cpu(src->pDrawable);
 }
 
 static bool
@@ -1402,7 +1416,7 @@ gen2_render_composite(struct sna *sna,
 	 * 3D -> 2D context switch.
 	 */
 	if (mask == NULL &&
-	    try_blt(sna, src, width, height) &&
+	    try_blt(sna, dst, src, width, height) &&
 	    sna_blt_composite(sna,
 			      op, src, dst,
 			      src_x, src_y,
