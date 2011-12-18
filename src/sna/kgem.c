@@ -700,6 +700,7 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 	struct kgem_bo_binding *b;
 
 	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
+	assert(bo->refcnt == 0);
 	assert(bo->exec == NULL);
 
 	b = bo->binding.next;
@@ -781,6 +782,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		list_move(&bo->list, active(kgem, bo->size));
 		bo->rq = &_kgem_static_request;
 	} else {
+		assert(bo->exec == NULL);
 		if (!IS_CPU_MAP(bo->map)) {
 			if (!kgem_bo_set_purgeable(kgem, bo)) {
 				kgem->need_purge |= bo->domain == DOMAIN_GPU;
@@ -1319,6 +1321,26 @@ static void kgem_expire_partial(struct kgem *kgem)
 	}
 }
 
+void kgem_purge_cache(struct kgem *kgem)
+{
+	struct kgem_bo *bo, *next;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
+		list_for_each_entry_safe(bo, next, &kgem->inactive[i], list)
+			if (!kgem_bo_is_retained(kgem, bo))
+				kgem_bo_free(kgem, bo);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(kgem->active); i++) {
+		list_for_each_entry_safe(bo, next, &kgem->active[i], list)
+			if (!kgem_bo_is_retained(kgem, bo))
+				kgem_bo_free(kgem, bo);
+	}
+
+	kgem->need_purge = false;
+}
+
 bool kgem_expire_cache(struct kgem *kgem)
 {
 	time_t now, expire;
@@ -1332,6 +1354,9 @@ bool kgem_expire_cache(struct kgem *kgem)
 		kgem_cleanup(kgem);
 
 	kgem_expire_partial(kgem);
+
+	if (kgem->need_purge)
+		kgem_purge_cache(kgem);
 
 	time(&now);
 	expire = 0;
@@ -1348,15 +1373,13 @@ bool kgem_expire_cache(struct kgem *kgem)
 			bo->delta = now;
 		}
 	}
-	if (!kgem->need_purge) {
-		if (idle) {
-			DBG(("%s: idle\n", __FUNCTION__));
-			kgem->need_expire = false;
-			return false;
-		}
-		if (expire == 0)
-			return true;
+	if (idle) {
+		DBG(("%s: idle\n", __FUNCTION__));
+		kgem->need_expire = false;
+		return false;
 	}
+	if (expire == 0)
+		return true;
 
 	idle = true;
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
@@ -1377,10 +1400,9 @@ bool kgem_expire_cache(struct kgem *kgem)
 		}
 	}
 
-	DBG(("%s: purge? %d -- expired %d objects, %d bytes, idle? %d\n",
-	     __FUNCTION__, kgem->need_purge,  count, size, idle));
+	DBG(("%s: expired %d objects, %d bytes, idle? %d\n",
+	     __FUNCTION__, count, size, idle));
 
-	kgem->need_purge = false;
 	kgem->need_expire = !idle;
 	return !idle;
 	(void)count;
@@ -1440,6 +1462,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 
 		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
 			kgem->need_purge |= bo->domain == DOMAIN_GPU;
+			kgem_bo_free(kgem, bo);
 			continue;
 		}
 
@@ -1817,8 +1840,10 @@ skip_active_search:
 		    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
 			if (tiling != gem_set_tiling(kgem->fd,
 						     bo->handle,
-						     tiling, pitch))
-				goto next_bo;
+						     tiling, pitch)) {
+				kgem_bo_free(kgem, bo);
+				continue;
+			}
 
 			if (bo->map) {
 				munmap(CPU_MAP(bo->map), bo->size);
@@ -1837,7 +1862,8 @@ skip_active_search:
 
 		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
 			kgem->need_purge |= bo->domain == DOMAIN_GPU;
-			goto next_bo;
+			kgem_bo_free(kgem, bo);
+			continue;
 		}
 
 		if (bo->map)
@@ -1854,10 +1880,6 @@ skip_active_search:
 		assert((flags & CREATE_INACTIVE) == 0 ||
 		       !kgem_busy(kgem, bo->handle));
 		return kgem_bo_reference(bo);
-
-next_bo:
-		kgem_bo_free(kgem, bo);
-		continue;
 	}
 
 	if (flags & CREATE_INACTIVE && !list_is_empty(&kgem->requests)) {

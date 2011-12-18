@@ -9262,11 +9262,10 @@ void sna_accel_wakeup_handler(struct sna *sna)
 {
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
+	if (sna->kgem.need_purge)
+		kgem_purge_cache(&sna->kgem);
 
 	sna_deferred_free(sna);
-
-	if (sna->kgem.need_purge)
-		kgem_expire_cache(&sna->kgem);
 }
 
 void sna_accel_free(struct sna *sna)
