@@ -2408,6 +2408,19 @@ gen7_render_composite(struct sna *sna,
 		break;
 	}
 
+	/* Did we just switch rings to prepare the source? */
+	if (sna->kgem.ring == KGEM_BLT && mask == NULL &&
+	    sna_blt_composite(sna, op,
+			      src, dst,
+			      src_x, src_y,
+			      dst_x, dst_y,
+			      width, height, tmp)) {
+		if (tmp->redirect.real_bo)
+			kgem_bo_destroy(&sna->kgem, tmp->redirect.real_bo);
+		kgem_bo_destroy(&sna->kgem, tmp->src.bo);
+		return TRUE;
+	}
+
 	tmp->is_affine = tmp->src.is_affine;
 	tmp->has_component_alpha = FALSE;
 	tmp->need_magic_ca_pass = FALSE;

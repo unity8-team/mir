@@ -2078,7 +2078,7 @@ gen6_composite_set_target(struct sna *sna,
 
 static Bool
 try_blt(struct sna *sna,
-       	PicturePtr dst, PicturePtr src,
+	PicturePtr dst, PicturePtr src,
 	int width, int height)
 {
 	if (sna->kgem.ring == KGEM_BLT) {
@@ -2293,6 +2293,19 @@ gen6_render_composite(struct sna *sna,
 	case 1:
 		gen6_composite_channel_convert(&tmp->src);
 		break;
+	}
+
+	/* Did we just switch rings to prepare the source? */
+	if (sna->kgem.ring == KGEM_BLT && mask == NULL &&
+	    sna_blt_composite(sna, op,
+			      src, dst,
+			      src_x, src_y,
+			      dst_x, dst_y,
+			      width, height, tmp)) {
+		if (tmp->redirect.real_bo)
+			kgem_bo_destroy(&sna->kgem, tmp->redirect.real_bo);
+		kgem_bo_destroy(&sna->kgem, tmp->src.bo);
+		return TRUE;
 	}
 
 	tmp->is_affine = tmp->src.is_affine;
