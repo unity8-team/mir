@@ -46,6 +46,8 @@
 
 static inline void _list_del(struct list *list)
 {
+	assert(list->prev->next == list);
+	assert(list->next->prev == list);
 	__list_del(list->prev, list->next);
 }
 
@@ -821,6 +823,10 @@ bool kgem_retire(struct kgem *kgem)
 	DBG(("%s\n", __FUNCTION__));
 
 	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
+		assert(bo->refcnt == 0);
+		assert(bo->rq == &_kgem_static_request);
+		assert(bo->exec == NULL);
+
 		if (kgem_busy(kgem, bo->handle))
 			break;
 
@@ -829,7 +835,6 @@ bool kgem_retire(struct kgem *kgem)
 		if (kgem_bo_set_purgeable(kgem, bo)) {
 			bo->needs_flush = false;
 			bo->domain = DOMAIN_NONE;
-			assert(bo->rq == &_kgem_static_request);
 			bo->rq = NULL;
 			list_move(&bo->list, inactive(kgem, bo->size));
 			list_del(&bo->request);
@@ -1449,11 +1454,15 @@ void kgem_cleanup_cache(struct kgem *kgem)
 static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 {
-	struct kgem_bo *bo;
+	struct kgem_bo *bo, *next;
 	struct list *cache;
 
 	cache = use_active ? active(kgem, size): inactive(kgem, size);
-	list_for_each_entry(bo, cache, list) {
+	list_for_each_entry_safe(bo, next, cache, list) {
+		assert(bo->refcnt == 0);
+		assert(bo->reusable);
+		assert(!!bo->rq == !!use_active);
+
 		if (size > bo->size)
 			continue;
 
@@ -1485,8 +1494,6 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		DBG(("  %s: found handle=%d (size=%d) in linear %s cache\n",
 		     __FUNCTION__, bo->handle, bo->size,
 		     use_active ? "active" : "inactive"));
-		assert(bo->refcnt == 0);
-		assert(bo->reusable);
 		assert(use_active || bo->domain != DOMAIN_GPU);
 		//assert(use_active || !kgem_busy(kgem, bo->handle));
 		return bo;
