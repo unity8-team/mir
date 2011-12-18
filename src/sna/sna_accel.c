@@ -187,7 +187,8 @@ static void sna_pixmap_destroy_gpu_bo(struct sna *sna, struct sna_pixmap *priv)
 static bool must_check
 sna_pixmap_alloc_cpu(struct sna *sna,
 		     PixmapPtr pixmap,
-		     struct sna_pixmap *priv)
+		     struct sna_pixmap *priv,
+		     bool from_gpu)
 {
 	assert(priv->ptr == NULL);
 	assert(pixmap->devKind);
@@ -201,7 +202,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 					      pixmap->drawable.height,
 					      pixmap->drawable.bitsPerPixel,
 					      I915_TILING_NONE,
-					      CREATE_INACTIVE);
+					      from_gpu ? 0 : CREATE_INACTIVE);
 		DBG(("%s: allocated CPU handle=%d\n", __FUNCTION__,
 		     priv->cpu_bo->handle));
 
@@ -685,7 +686,7 @@ skip_inplace_map:
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_alloc_cpu(sna, pixmap, priv))
+	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
 		return false;
 
 	if (priv->gpu_bo == NULL) {
@@ -856,7 +857,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_alloc_cpu(sna, pixmap, priv))
+	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
 		return false;
 
 	if (priv->gpu_bo == NULL)
@@ -1680,7 +1681,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_alloc_cpu(sna, pixmap, priv))
+	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, false))
 		return true;
 
 	if (region_subsumes_drawable(region, &pixmap->drawable)) {
@@ -8974,7 +8975,7 @@ sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 	assert (!priv->flush);
 
 	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_alloc_cpu(sna, pixmap, priv))
+	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
 		return false;
 
 	if (priv->gpu_damage) {
