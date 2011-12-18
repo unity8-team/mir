@@ -1709,43 +1709,45 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		/* We presume that we will need to upload to this bo,
 		 * and so would prefer to have an active VMA.
 		 */
-		list_for_each_entry(bo, &kgem->vma_inactive, vma) {
-			assert(bo->refcnt == 0);
-			assert(bo->map);
-			assert(bo->rq == NULL);
-			assert(list_is_empty(&bo->request));
+		do {
+			list_for_each_entry(bo, &kgem->vma_inactive, vma) {
+				assert(bo->refcnt == 0);
+				assert(bo->map);
+				assert(bo->rq == NULL);
+				assert(list_is_empty(&bo->request));
 
-			if (size > bo->size || 2*size < bo->size) {
-				DBG(("inactive vma too small/large: %d < %d\n",
-				     bo->size, size));
-				continue;
+				if (size > bo->size || 2*size < bo->size) {
+					DBG(("inactive vma too small/large: %d < %d\n",
+					     bo->size, size));
+					continue;
+				}
+
+				if (bo->tiling != tiling ||
+				    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
+					DBG(("inactive vma with wrong tiling: %d < %d\n",
+					     bo->tiling, tiling));
+					continue;
+				}
+
+				bo->pitch = pitch;
+				list_del(&bo->list);
+
+				if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
+					kgem_bo_free(kgem, bo);
+					break;
+				}
+
+				bo->delta = 0;
+				bo->unique_id = kgem_get_unique_id(kgem);
+				list_move_tail(&bo->vma, &kgem->vma_cache);
+				assert(bo->pitch);
+				DBG(("  from inactive vma: pitch=%d, tiling=%d: handle=%d, id=%d\n",
+				     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+				assert(bo->reusable);
+				assert(bo->domain != DOMAIN_GPU && !kgem_busy(kgem, bo->handle));
+				return kgem_bo_reference(bo);
 			}
-
-			if (bo->tiling != tiling ||
-			    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
-				DBG(("inactive vma with wrong tiling: %d < %d\n",
-				     bo->tiling, tiling));
-				continue;
-			}
-
-			bo->pitch = pitch;
-			list_del(&bo->list);
-
-			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
-				kgem_bo_free(kgem, bo);
-				break;
-			}
-
-			bo->delta = 0;
-			bo->unique_id = kgem_get_unique_id(kgem);
-			list_move_tail(&bo->vma, &kgem->vma_cache);
-			assert(bo->pitch);
-			DBG(("  from inactive vma: pitch=%d, tiling=%d: handle=%d, id=%d\n",
-			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
-			assert(bo->reusable);
-			assert(bo->domain != DOMAIN_GPU && !kgem_busy(kgem, bo->handle));
-			return kgem_bo_reference(bo);
-		}
+		} while (kgem_retire(kgem));
 
 		goto skip_active_search;
 	}
@@ -2077,17 +2079,21 @@ static void kgem_trim_vma_cache(struct kgem *kgem)
 					      struct kgem_bo,
 					      vma);
 		}
-		DBG(("%s: discarding %s vma cache for %d\n",
-		     __FUNCTION__, IS_CPU_MAP(old->map) ? "CPU" : "GTT",
-		     old->handle));
+		DBG(("%s: discarding %s %s vma cache for %d\n",
+		     __FUNCTION__,
+		     list_is_empty(&kgem->vma_inactive) ? "cached" : "inactive",
+		     IS_CPU_MAP(old->map) ? "CPU" : "GTT", old->handle));
 		assert(old->map);
 		munmap(CPU_MAP(old->map), old->size);
 		old->map = NULL;
 		list_del(&old->vma);
 		kgem->vma_count--;
 
-		if (old->rq == NULL && old->refcnt == 0)
+		if (old->rq == NULL && old->refcnt == 0) {
+			DBG(("%s: discarding unused vma bo handle=%d\n",
+			     __FUNCTION__, old->handle));
 			kgem_bo_free(kgem, old);
+}
 	}
 }
 
