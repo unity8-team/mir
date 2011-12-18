@@ -1747,7 +1747,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				assert(bo->domain != DOMAIN_GPU && !kgem_busy(kgem, bo->handle));
 				return kgem_bo_reference(bo);
 			}
-		} while (kgem_retire(kgem));
+		} while (!list_is_empty(&kgem->vma_cache) && kgem_retire(kgem));
 
 		goto skip_active_search;
 	}
