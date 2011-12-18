@@ -1179,6 +1179,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem_fixup_self_relocs(kgem, rq->bo);
 		kgem_finish_partials(kgem);
 
+		assert(!rq->bo->needs_flush);
 		if (kgem_batch_write(kgem, handle) == 0) {
 			struct drm_i915_gem_execbuffer2 execbuf;
 			int ret, retry = 3;
@@ -1481,7 +1482,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 			continue;
 
 		list_del(&bo->list);
-		if (bo->rq == NULL)
+		if (bo->rq == &_kgem_static_request)
 			list_del(&bo->request);
 		if (bo->map) {
 			assert(!list_is_empty(&bo->vma));
@@ -1495,6 +1496,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		     __FUNCTION__, bo->handle, bo->size,
 		     use_active ? "active" : "inactive"));
 		assert(use_active || bo->domain != DOMAIN_GPU);
+		assert(!bo->needs_flush || use_active);
 		//assert(use_active || !kgem_busy(kgem, bo->handle));
 		return bo;
 	}
@@ -1813,7 +1815,7 @@ search_active: /* Best active match first */
 		s = bo->pitch * tiled_height[bo->tiling];
 		if (s <= bo->size) {
 			list_del(&bo->list);
-			if (bo->rq == NULL)
+			if (bo->rq == &_kgem_static_request)
 				list_del(&bo->request);
 
 			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
