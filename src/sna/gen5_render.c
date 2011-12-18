@@ -2174,8 +2174,19 @@ gen5_render_composite(struct sna *sna,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo, NULL))
 		kgem_submit(&sna->kgem);
 
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
+	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
+		if (mask == NULL &&
+		    tmp->redirect.real_bo == NULL &&
+		    sna_blt_composite(sna, op,
+				      src, dst,
+				      src_x, src_y,
+				      dst_x, dst_y,
+				      width, height, tmp)) {
+			kgem_bo_destroy(&sna->kgem, tmp->src.bo);
+			return TRUE;
+		}
 		kgem_emit_flush(&sna->kgem);
+	}
 
 	gen5_bind_surfaces(sna, tmp);
 	gen5_align_vertex(sna, tmp);
