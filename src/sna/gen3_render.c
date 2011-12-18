@@ -64,6 +64,8 @@ enum {
 	SHADER_OPACITY,
 };
 
+#define MAX_3D_SIZE 2048
+
 #define OUT_BATCH(v) batch_emit(sna, v)
 #define OUT_BATCH_F(v) batch_emit_float(sna, v)
 #define OUT_VERTEX(v) vertex_emit(sna, v)
@@ -121,6 +123,11 @@ static const struct formatinfo {
 };
 
 #define xFixedToDouble(f) pixman_fixed_to_double(f)
+
+static inline bool too_large(int width, int height)
+{
+	return (width | height) > MAX_3D_SIZE;
+}
 
 static inline uint32_t gen3_buf_tiling(uint32_t tiling)
 {
@@ -2121,7 +2128,7 @@ gen3_composite_picture(struct sna *sna,
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
 						  x, y, w, h, dst_x, dst_y);
 
-	if (pixmap->drawable.width > 2048 || pixmap->drawable.height > 2048)
+	if (too_large(pixmap->drawable.width, pixmap->drawable.height))
 		return sna_render_picture_extract(sna, picture, channel,
 						  x, y, w, h, dst_x, dst_y);
 
@@ -2154,7 +2161,7 @@ try_blt(struct sna *sna,
 		return TRUE;
 	}
 
-	if (width > 2048 || height > 2048) {
+	if (too_large(width, height)) {
 		DBG(("%s: operation too large for 3D pipe (%d, %d)\n",
 		     __FUNCTION__, width, height));
 		return TRUE;
@@ -2430,7 +2437,7 @@ gen3_render_composite(struct sna *sna,
 
 	tmp->op = op;
 	tmp->rb_reversed = gen3_dst_rb_reversed(tmp->dst.format);
-	if (tmp->dst.width > 2048 || tmp->dst.height > 2048 ||
+	if (too_large(tmp->dst.width, tmp->dst.height) ||
 	    !gen3_check_pitch_3d(tmp->dst.bo)) {
 		if (!sna_render_composite_redirect(sna, tmp,
 						   dst_x, dst_y, width, height))
@@ -2963,7 +2970,7 @@ gen3_render_composite_spans(struct sna *sna,
 
 	tmp->base.op = op;
 	tmp->base.rb_reversed = gen3_dst_rb_reversed(tmp->base.dst.format);
-	if (tmp->base.dst.width > 2048 || tmp->base.dst.height > 2048 ||
+	if (too_large(tmp->base.dst.width, tmp->base.dst.height) ||
 	    !gen3_check_pitch_3d(tmp->base.dst.bo)) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
 						   dst_x, dst_y, width, height))
@@ -3442,8 +3449,7 @@ gen3_render_video(struct sna *sna,
 	if (dst_bo == NULL)
 		return FALSE;
 
-	if (pixmap->drawable.width > 2048 ||
-	    pixmap->drawable.height > 2048 ||
+	if (too_large(pixmap->drawable.width, pixmap->drawable.height) ||
 	    !gen3_check_pitch_3d(dst_bo)) {
 		int bpp = pixmap->drawable.bitsPerPixel;
 
@@ -3601,11 +3607,9 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	if (!(alu == GXcopy || alu == GXclear) ||
 	    src_bo == dst_bo || /* XXX handle overlap using 3D ? */
 	    src_bo->pitch > 8192 ||
-	    src->drawable.width > 2048 ||
-	    src->drawable.height > 2048 ||
+	    too_large(src->drawable.width, src->drawable.height) ||
 	    dst_bo->pitch > 8192 ||
-	    dst->drawable.width > 2048 ||
-	    dst->drawable.height > 2048) {
+	    too_large(dst->drawable.width, dst->drawable.height)) {
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
@@ -3741,8 +3745,8 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 
 	/* Must use the BLT if we can't RENDER... */
 	if (!(alu == GXcopy || alu == GXclear) ||
-	    src->drawable.width > 2048 || src->drawable.height > 2048 ||
-	    dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
+	    too_large(src->drawable.width, src->drawable.height) ||
+	    too_large(dst->drawable.width, dst->drawable.height) ||
 	    src_bo->pitch > 8192 || dst_bo->pitch > 8192) {
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
@@ -3861,8 +3865,7 @@ gen3_render_fill_boxes(struct sna *sna,
 	     __FUNCTION__, op, (int)format,
 	     color->red, color->green, color->blue, color->alpha));
 
-	if (dst->drawable.width > 2048 ||
-	    dst->drawable.height > 2048 ||
+	if (too_large(dst->drawable.width, dst->drawable.height) ||
 	    dst_bo->pitch > 8192 ||
 	    !gen3_check_dst_format(format))
 		return gen3_render_fill_boxes_try_blt(sna, op, format, color,
@@ -4032,7 +4035,7 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 
 	/* Must use the BLT if we can't RENDER... */
 	if (!(alu == GXcopy || alu == GXclear) ||
-	    dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
+	    too_large(dst->drawable.width, dst->drawable.height) ||
 	    dst_bo->pitch > 8192)
 		return sna_blt_fill(sna, alu,
 				    dst_bo, dst->drawable.bitsPerPixel,
@@ -4112,7 +4115,7 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	/* Must use the BLT if we can't RENDER... */
 	if (!(alu == GXcopy || alu == GXclear) ||
-	    dst->drawable.width > 2048 || dst->drawable.height > 2048 ||
+	    too_large(dst->drawable.width, dst->drawable.height) ||
 	    bo->pitch > 8192)
 		return gen3_render_fill_one_try_blt(sna, dst, bo, color,
 						    x1, y1, x2, y2, alu);
@@ -4189,6 +4192,6 @@ Bool gen3_render_init(struct sna *sna)
 	render->flush = gen3_render_flush;
 	render->fini = gen3_render_fini;
 
-	render->max_3d_size = 2048;
+	render->max_3d_size = MAX_3D_SIZE;
 	return TRUE;
 }
