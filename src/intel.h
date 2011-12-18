@@ -721,8 +721,6 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 	return pixmap == screen->GetScreenPixmap(screen);
 }
 
-const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
-
 Bool intel_uxa_init(ScreenPtr pScreen);
 Bool intel_uxa_create_screen_resources(ScreenPtr pScreen);
 void intel_uxa_block_handler(intel_screen_private *intel);
