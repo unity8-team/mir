@@ -2647,7 +2647,7 @@ gen6_render_composite_spans(struct sna *sna,
 		return FALSE;
 	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
-	if (tmp->base.dst.width > 8192 || tmp->base.dst.height > 8192) {
+	if (too_large(tmp->base.dst.width, tmp->base.dst.height)) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
 						   dst_x, dst_y, width, height))
 			return FALSE;
@@ -3371,7 +3371,7 @@ gen6_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	/* Must use the BLT if we can't RENDER... */
 	if (!(alu == GXcopy || alu == GXclear) ||
-	    dst->drawable.width > 8192 || dst->drawable.height > 8192)
+	    too_large(dst->drawable.width, dst->drawable.height))
 		return gen6_render_fill_one_try_blt(sna, dst, bo, color,
 						    x1, y1, x2, y2, alu);
 

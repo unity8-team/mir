@@ -56,6 +56,8 @@
 #define DBG_NO_STATE_CACHE 0
 #define DBG_NO_SURFACE_CACHE 0
 
+#define MAX_3D_SIZE 8192
+
 #define GEN5_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 
 /* Set up a default static partitioning of the URB, which is supposed to
@@ -277,6 +279,11 @@ gen5_emit_pipelined_pointers(struct sna *sna,
 #define OUT_BATCH(v) batch_emit(sna, v)
 #define OUT_VERTEX(x,y) vertex_emit_2s(sna, x,y)
 #define OUT_VERTEX_F(v) vertex_emit(sna, v)
+
+static inline bool too_large(int width, int height)
+{
+	return (width | height) > MAX_3D_SIZE;
+}
 
 static int
 gen5_choose_composite_kernel(int op, Bool has_mask, Bool is_ca, Bool is_affine)
@@ -1811,7 +1818,7 @@ gen5_composite_picture(struct sna *sna,
 		return sna_render_picture_convert(sna, picture, channel, pixmap,
 						  x, y, w, h, dst_x, dst_y);
 
-	if (pixmap->drawable.width > 8192 || pixmap->drawable.height > 8192)
+	if (too_large(pixmap->drawable.width, pixmap->drawable.height))
 		return sna_render_picture_extract(sna, picture, channel,
 						  x, y, w, h, dst_x, dst_y);
 
@@ -1899,8 +1906,7 @@ picture_is_cpu(PicturePtr picture)
 	    picture->repeat)
 		return FALSE;
 
-	if (picture->pDrawable->width > 8192 ||
-	    picture->pDrawable->height > 8192)
+	if (too_large(picture->pDrawable->width, picture->pDrawable->height))
 		return TRUE;
 
 	return is_cpu(picture->pDrawable);
@@ -1916,14 +1922,13 @@ try_blt(struct sna *sna,
 		return TRUE;
 	}
 
-	if (width > 8192 || height > 8192) {
+	if (too_large(width, height)) {
 		DBG(("%s: operation too large for 3D pipe (%d, %d)\n",
 		     __FUNCTION__, width, height));
 		return TRUE;
 	}
 
-	if (dst->pDrawable->width > 8192 ||
-	    dst->pDrawable->height > 8192)
+	if (too_large(dst->pDrawable->width, dst->pDrawable->height))
 		return TRUE;
 
 	/* is the source picture only in cpu memory e.g. a shm pixmap? */
@@ -2088,7 +2093,7 @@ gen5_render_composite(struct sna *sna,
 
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
-	if (tmp->dst.width > 8192 || tmp->dst.height > 8192) {
+	if (too_large(tmp->dst.width, tmp->dst.height)) {
 		if (!sna_render_composite_redirect(sna, tmp,
 						   dst_x, dst_y, width, height))
 			return FALSE;
@@ -2455,7 +2460,7 @@ gen5_render_composite_spans(struct sna *sna,
 		return FALSE;
 	sna_render_reduce_damage(&tmp->base, dst_x, dst_y, width, height);
 
-	if (tmp->base.dst.width > 8192 || tmp->base.dst.height > 8192) {
+	if (too_large(tmp->base.dst.width, tmp->base.dst.height)) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
 						   dst_x, dst_y, width, height))
 			return FALSE;
@@ -2575,8 +2580,8 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 		return TRUE;
 
 	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
-	    src->drawable.width > 8192 || src->drawable.height > 8192 ||
-	    dst->drawable.width > 8192 || dst->drawable.height > 8192) {
+	    too_large(src->drawable.width, src->drawable.height) ||
+	    too_large(dst->drawable.width, dst->drawable.height)) {
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
@@ -2724,8 +2729,8 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 		return TRUE;
 
 	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
-	    src->drawable.width > 8192 || src->drawable.height > 8192 ||
-	    dst->drawable.width > 8192 || dst->drawable.height > 8192) {
+	    too_large(src->drawable.width, src->drawable.height) ||
+	    too_large(dst->drawable.width, dst->drawable.height)) {
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
@@ -2840,8 +2845,7 @@ gen5_render_fill_boxes(struct sna *sna,
 	}
 
 	if (prefer_blt_fill(sna) ||
-	    dst->drawable.width > 8192 ||
-	    dst->drawable.height > 8192 ||
+	    too_large(dst->drawable.width, dst->drawable.height) ||
 	    !gen5_check_dst_format(format)) {
 		uint8_t alu = -1;
 
@@ -2868,8 +2872,7 @@ gen5_render_fill_boxes(struct sna *sna,
 				       pixel, box, n))
 			return TRUE;
 
-		if (dst->drawable.width > 8192 ||
-		    dst->drawable.height > 8192 ||
+		if (too_large(dst->drawable.width, dst->drawable.height) ||
 		    !gen5_check_dst_format(format))
 			return FALSE;
 	}
@@ -3053,7 +3056,7 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 		return TRUE;
 
 	if (!(alu == GXcopy || alu == GXclear) ||
-	    dst->drawable.width > 8192 || dst->drawable.height > 8192)
+	    too_large(dst->drawable.width, dst->drawable.height))
 		return sna_blt_fill(sna, alu,
 				    dst_bo, dst->drawable.bitsPerPixel,
 				    color,
@@ -3143,7 +3146,7 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	/* Must use the BLT if we can't RENDER... */
 	if (!(alu == GXcopy || alu == GXclear) ||
-	    dst->drawable.width > 8192 || dst->drawable.height > 8192)
+	    too_large(dst->drawable.width, dst->drawable.height))
 		return gen5_render_fill_one_try_blt(sna, dst, bo, color,
 						    x1, y1, x2, y2, alu);
 
@@ -3511,6 +3514,6 @@ Bool gen5_render_init(struct sna *sna)
 	sna->render.reset = gen5_render_reset;
 	sna->render.fini = gen5_render_fini;
 
-	sna->render.max_3d_size = 8192;
+	sna->render.max_3d_size = MAX_3D_SIZE;
 	return TRUE;
 }
