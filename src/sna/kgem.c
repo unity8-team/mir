@@ -1483,6 +1483,12 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 					first = bo;
 				continue;
 			}
+		} else {
+			if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
+				if (first == NULL)
+					first = bo;
+				continue;
+			}
 		}
 
 		if (I915_TILING_NONE != bo->tiling) {
