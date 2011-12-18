@@ -273,7 +273,8 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		goto done;
 
 	if (priv->gpu_bo) {
-		if (priv->gpu_bo != I915_TILING_NONE) {
+		if (priv->gpu_bo != I915_TILING_NONE &&
+		    priv->cpu_bo->pitch >= 4096) {
 			DBG(("%s: GPU bo exists and is tiled [%d], upload\n",
 			     __FUNCTION__, priv->gpu_bo->tiling));
 			return NULL;
