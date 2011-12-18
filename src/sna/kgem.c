@@ -1338,12 +1338,6 @@ void kgem_purge_cache(struct kgem *kgem)
 				kgem_bo_free(kgem, bo);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(kgem->active); i++) {
-		list_for_each_entry_safe(bo, next, &kgem->active[i], list)
-			if (!kgem_bo_is_retained(kgem, bo))
-				kgem_bo_free(kgem, bo);
-	}
-
 	kgem->need_purge = false;
 }
 
@@ -1393,8 +1387,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 			bo = list_last_entry(&kgem->inactive[i],
 					     struct kgem_bo, list);
 
-			if (kgem_bo_is_retained(kgem, bo) &&
-			    bo->delta > expire) {
+			if (bo->delta > expire) {
 				idle = false;
 				break;
 			}
