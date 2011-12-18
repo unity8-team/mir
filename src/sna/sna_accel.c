@@ -2219,6 +2219,9 @@ static bool copy_use_gpu_bo(struct sna *sna,
 			    struct sna_pixmap *priv,
 			    RegionPtr region)
 {
+	if (priv->flush)
+		return true;
+
 	if (region_inplace(sna, priv->pixmap, region, priv))
 		return true;
 
