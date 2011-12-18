@@ -2077,6 +2077,15 @@ gen5_render_composite(struct sna *sna,
 		DBG(("%s: failed to set composite target\n", __FUNCTION__));
 		return FALSE;
 	}
+
+	if (mask == NULL && sna->kgem.mode == KGEM_BLT  &&
+	    sna_blt_composite(sna, op,
+			      src, dst,
+			      src_x, src_y,
+			      dst_x, dst_y,
+			      width, height, tmp))
+		return TRUE;
+
 	sna_render_reduce_damage(tmp, dst_x, dst_y, width, height);
 
 	if (tmp->dst.width > 8192 || tmp->dst.height > 8192) {
