@@ -1899,11 +1899,17 @@ picture_is_cpu(PicturePtr picture)
 	    picture->repeat)
 		return FALSE;
 
+	if (picture->pDrawable->width > 8192 ||
+	    picture->pDrawable->height > 8192)
+		return TRUE;
+
 	return is_cpu(picture->pDrawable);
 }
 
 static Bool
-try_blt(struct sna *sna, PicturePtr source, int width, int height)
+try_blt(struct sna *sna,
+	PicturePtr dst, PicturePtr src,
+	int width, int height)
 {
 	if (sna->kgem.mode == KGEM_BLT) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
@@ -1916,8 +1922,12 @@ try_blt(struct sna *sna, PicturePtr source, int width, int height)
 		return TRUE;
 	}
 
+	if (dst->pDrawable->width > 8192 ||
+	    dst->pDrawable->height > 8192)
+		return TRUE;
+
 	/* is the source picture only in cpu memory e.g. a shm pixmap? */
-	return picture_is_cpu(source);
+	return picture_is_cpu(src);
 }
 
 static bool
@@ -2044,7 +2054,7 @@ gen5_render_composite(struct sna *sna,
 	}
 
 	if (mask == NULL &&
-	    try_blt(sna, src, width, height) &&
+	    try_blt(sna, dst, src, width, height) &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,

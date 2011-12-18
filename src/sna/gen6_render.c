@@ -2077,7 +2077,9 @@ gen6_composite_set_target(struct sna *sna,
 }
 
 static Bool
-try_blt(struct sna *sna, int width, int height)
+try_blt(struct sna *sna,
+       	PicturePtr dst, PicturePtr src,
+	int width, int height)
 {
 	if (sna->kgem.ring == KGEM_BLT) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
@@ -2087,6 +2089,21 @@ try_blt(struct sna *sna, int width, int height)
 	if (too_large(width, height)) {
 		DBG(("%s: operation too large for 3D pipe (%d, %d)\n",
 		     __FUNCTION__, width, height));
+		return TRUE;
+	}
+
+	if (too_large(dst->pDrawable->width, dst->pDrawable->height)) {
+		DBG(("%s: dst too large for 3D pipe (%d, %d)\n",
+		     __FUNCTION__,
+		     dst->pDrawable->width, dst->pDrawable->height));
+		return TRUE;
+	}
+
+	if (src->pDrawable &&
+	    too_large(src->pDrawable->width, src->pDrawable->height)) {
+		DBG(("%s: src too large for 3D pipe (%d, %d)\n",
+		     __FUNCTION__,
+		     src->pDrawable->width, src->pDrawable->height));
 		return TRUE;
 	}
 
@@ -2226,7 +2243,7 @@ gen6_render_composite(struct sna *sna,
 	     width, height, sna->kgem.ring));
 
 	if (mask == NULL &&
-	    try_blt(sna, width, height) &&
+	    try_blt(sna, dst, src, width, height) &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,
