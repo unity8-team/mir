@@ -80,6 +80,7 @@ static inline void list_replace(struct list *old,
 #define DBG_NO_HW 0
 #define DBG_NO_TILING 0
 #define DBG_NO_VMAP 0
+#define DBG_NO_MADV 0
 #define DBG_NO_RELAXED_FENCING 0
 #define DBG_DUMP 0
 
@@ -266,19 +267,69 @@ static uint32_t gem_create(int fd, int size)
 }
 
 static bool
-gem_madvise(int fd, uint32_t handle, uint32_t state)
+kgem_bo_set_purgeable(struct kgem *kgem, struct kgem_bo *bo)
 {
+#if DBG_NO_MADV
+	return true;
+#else
 	struct drm_i915_gem_madvise madv;
-	int ret;
+
+	assert(bo->exec == NULL);
+	assert(!bo->purged);
 
 	VG_CLEAR(madv);
-	madv.handle = handle;
-	madv.madv = state;
-	madv.retained = 1;
-	ret = drmIoctl(fd, DRM_IOCTL_I915_GEM_MADVISE, &madv);
+	madv.handle = bo->handle;
+	madv.madv = I915_MADV_DONTNEED;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MADVISE, &madv) == 0) {
+		bo->purged = 1;
+		return madv.retained;
+	}
 
-	return madv.retained;
-	(void)ret;
+	return true;
+#endif
+}
+
+static bool
+kgem_bo_is_retained(struct kgem *kgem, struct kgem_bo *bo)
+{
+#if DBG_NO_MADV
+	return true;
+#else
+	struct drm_i915_gem_madvise madv;
+
+	if (!bo->purged)
+		return true;
+
+	VG_CLEAR(madv);
+	madv.handle = bo->handle;
+	madv.madv = I915_MADV_DONTNEED;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MADVISE, &madv) == 0)
+		return madv.retained;
+
+	return false;
+#endif
+}
+
+static bool
+kgem_bo_clear_purgeable(struct kgem *kgem, struct kgem_bo *bo)
+{
+#if DBG_NO_MADV
+	return true;
+#else
+	struct drm_i915_gem_madvise madv;
+
+	assert(bo->purged);
+
+	VG_CLEAR(madv);
+	madv.handle = bo->handle;
+	madv.madv = I915_MADV_WILLNEED;
+	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MADVISE, &madv) == 0) {
+		bo->purged = 0;
+		return madv.retained;
+	}
+
+	return false;
+#endif
 }
 
 static void gem_close(int fd, uint32_t handle)
@@ -731,18 +782,12 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		bo->rq = &_kgem_static_request;
 	} else {
 		if (!IS_CPU_MAP(bo->map)) {
-			assert(!bo->purged);
-
-			DBG(("%s: handle=%d, purged\n",
-			     __FUNCTION__, bo->handle));
-
-			if (!gem_madvise(kgem->fd, bo->handle,
-					 I915_MADV_DONTNEED)) {
+			if (!kgem_bo_set_purgeable(kgem, bo)) {
 				kgem->need_purge |= bo->domain == DOMAIN_GPU;
 				goto destroy;
 			}
-
-			bo->purged = true;
+			DBG(("%s: handle=%d, purged\n",
+			     __FUNCTION__, bo->handle));
 		}
 
 		DBG(("%s: handle=%d -> inactive\n", __FUNCTION__, bo->handle));
@@ -779,8 +824,7 @@ bool kgem_retire(struct kgem *kgem)
 
 		DBG(("%s: moving %d from flush to inactive\n",
 		     __FUNCTION__, bo->handle));
-		if (gem_madvise(kgem->fd, bo->handle, I915_MADV_DONTNEED)) {
-			bo->purged = true;
+		if (kgem_bo_set_purgeable(kgem, bo)) {
 			bo->needs_flush = false;
 			bo->domain = DOMAIN_NONE;
 			assert(bo->rq == &_kgem_static_request);
@@ -812,6 +856,7 @@ bool kgem_retire(struct kgem *kgem)
 			list_del(&bo->request);
 			bo->rq = NULL;
 
+			assert(bo->exec == NULL);
 			if (bo->needs_flush)
 				bo->needs_flush = kgem_busy(kgem, bo->handle);
 			if (!bo->needs_flush)
@@ -824,12 +869,9 @@ bool kgem_retire(struct kgem *kgem)
 						     __FUNCTION__, bo->handle));
 						list_add(&bo->request, &kgem->flushing);
 						bo->rq = &_kgem_static_request;
-					} else if(gem_madvise(kgem->fd,
-							      bo->handle,
-							      I915_MADV_DONTNEED)) {
+					} else if(kgem_bo_set_purgeable(kgem, bo)) {
 						DBG(("%s: moving %d to inactive\n",
 						     __FUNCTION__, bo->handle));
-						bo->purged = true;
 						list_move(&bo->list,
 							  inactive(kgem, bo->size));
 						retired = true;
@@ -848,8 +890,7 @@ bool kgem_retire(struct kgem *kgem)
 
 		rq->bo->refcnt--;
 		assert(rq->bo->refcnt == 0);
-		if (gem_madvise(kgem->fd, rq->bo->handle, I915_MADV_DONTNEED)) {
-			rq->bo->purged = true;
+		if (kgem_bo_set_purgeable(kgem, rq->bo)) {
 			assert(rq->bo->rq == NULL);
 			assert(list_is_empty(&rq->bo->request));
 			list_move(&rq->bo->list, inactive(kgem, rq->bo->size));
@@ -1172,7 +1213,7 @@ void _kgem_submit(struct kgem *kgem)
 				kgem->wedged = 1;
 				ret = 0;
 			}
-#if DEBUG_KGEM
+#if !NDEBUG
 			if (ret < 0) {
 				int i;
 				ErrorF("batch (end=%d, size=%d) submit failed: %d\n",
@@ -1213,10 +1254,10 @@ void _kgem_submit(struct kgem *kgem)
 					       kgem->reloc[i].write_domain,
 					       (int)kgem->reloc[i].presumed_offset);
 				}
-				abort();
+				FatalError("SNA: failed to submit batchbuffer: ret=%d\n",
+					   errno);
 			}
 #endif
-			assert(ret == 0);
 
 			if (DEBUG_FLUSH_SYNC) {
 				struct drm_i915_gem_set_domain set_domain;
@@ -1323,9 +1364,7 @@ bool kgem_expire_cache(struct kgem *kgem)
 			bo = list_last_entry(&kgem->inactive[i],
 					     struct kgem_bo, list);
 
-			if ((!bo->purged ||
-			     gem_madvise(kgem->fd, bo->handle,
-					 I915_MADV_DONTNEED)) &&
+			if (kgem_bo_is_retained(kgem, bo) &&
 			    bo->delta > expire) {
 				idle = false;
 				break;
@@ -1399,14 +1438,9 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		if (use_active && bo->tiling != I915_TILING_NONE)
 			continue;
 
-		if (bo->purged) {
-			if (!gem_madvise(kgem->fd, bo->handle,
-					 I915_MADV_WILLNEED)) {
-				kgem->need_purge |= bo->domain == DOMAIN_GPU;
-				continue;
-			}
-
-			bo->purged = false;
+		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
+			kgem->need_purge |= bo->domain == DOMAIN_GPU;
+			continue;
 		}
 
 		if (I915_TILING_NONE != bo->tiling &&
@@ -1697,14 +1731,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			bo->pitch = pitch;
 			list_del(&bo->list);
 
-			if (bo->purged) {
-				if (!gem_madvise(kgem->fd, bo->handle,
-						 I915_MADV_WILLNEED)) {
-					kgem_bo_free(kgem, bo);
-					break;
-				}
-
-				bo->purged = false;
+			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
+				kgem_bo_free(kgem, bo);
+				break;
 			}
 
 			bo->delta = 0;
@@ -1755,16 +1784,11 @@ search_active: /* Best active match first */
 			if (bo->rq == NULL)
 				list_del(&bo->request);
 
-			if (bo->purged) {
-				if (!gem_madvise(kgem->fd, bo->handle,
-						 I915_MADV_WILLNEED)) {
-					kgem->need_purge |= bo->domain == DOMAIN_GPU;
-					kgem_bo_free(kgem, bo);
-					bo = NULL;
-					goto search_active;
-				}
-
-				bo->purged = false;
+			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
+				kgem->need_purge |= bo->domain == DOMAIN_GPU;
+				kgem_bo_free(kgem, bo);
+				bo = NULL;
+				goto search_active;
 			}
 
 			bo->unique_id = kgem_get_unique_id(kgem);
@@ -1809,14 +1833,9 @@ skip_active_search:
 		list_del(&bo->list);
 		assert(list_is_empty(&bo->request));
 
-		if (bo->purged) {
-			if (!gem_madvise(kgem->fd, bo->handle,
-					 I915_MADV_WILLNEED)) {
-				kgem->need_purge |= bo->domain == DOMAIN_GPU;
-				goto next_bo;
-			}
-
-			bo->purged = false;
+		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
+			kgem->need_purge |= bo->domain == DOMAIN_GPU;
+			goto next_bo;
 		}
 
 		if (bo->map)
@@ -2067,7 +2086,7 @@ static void kgem_trim_vma_cache(struct kgem *kgem)
 		list_del(&old->vma);
 		kgem->vma_count--;
 
-		if (old->domain != DOMAIN_GPU && old->refcnt == 0)
+		if (old->rq == NULL && old->refcnt == 0)
 			kgem_bo_free(kgem, old);
 	}
 }
