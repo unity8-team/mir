@@ -2089,6 +2089,9 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 
 static void kgem_trim_vma_cache(struct kgem *kgem)
 {
+	if (kgem->vma_count > MAX_VMA_CACHE && kgem->need_purge)
+		kgem_purge_cache(kgem);
+
 	/* vma are limited on a per-process basis to around 64k.
 	 * This includes all malloc arenas as well as other file
 	 * mappings. In order to be fair and not hog the cache,
