@@ -1446,9 +1446,10 @@ void kgem_cleanup_cache(struct kgem *kgem)
 }
 
 static struct kgem_bo *
-search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
+search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 {
-	struct kgem_bo *bo, *next;
+	struct kgem_bo *bo, *next, *first = NULL;
+	bool use_active = (flags & CREATE_INACTIVE) == 0;
 	struct list *cache;
 
 	cache = use_active ? active(kgem, size): inactive(kgem, size);
@@ -1469,10 +1470,29 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 			continue;
 		}
 
-		if (I915_TILING_NONE != bo->tiling &&
-		    gem_set_tiling(kgem->fd, bo->handle,
-				   I915_TILING_NONE, 0) != I915_TILING_NONE)
-			continue;
+		if (bo->map) {
+			if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
+				int for_cpu = !!(flags & CREATE_CPU_MAP);
+				if (IS_CPU_MAP(bo->map) != for_cpu) {
+					if (first == NULL)
+						first = bo;
+					continue;
+				}
+			} else {
+				if (first == NULL)
+					first = bo;
+				continue;
+			}
+		}
+
+		if (I915_TILING_NONE != bo->tiling) {
+			if (use_active)
+				continue;
+
+			if (gem_set_tiling(kgem->fd, bo->handle,
+					   I915_TILING_NONE, 0) != I915_TILING_NONE)
+				continue;
+		}
 
 		list_del(&bo->list);
 		if (bo->rq == &_kgem_static_request)
@@ -1492,6 +1512,44 @@ search_linear_cache(struct kgem *kgem, unsigned int size, bool use_active)
 		assert(!bo->needs_flush || use_active);
 		//assert(use_active || !kgem_busy(kgem, bo->handle));
 		return bo;
+	}
+
+	if (first) {
+		if (I915_TILING_NONE != first->tiling) {
+			if (use_active)
+				return NULL;
+
+			if (gem_set_tiling(kgem->fd, first->handle,
+					   I915_TILING_NONE, 0) != I915_TILING_NONE)
+				return NULL;
+
+			if (first->map) {
+				munmap(CPU_MAP(first->map), first->size);
+				first->map = NULL;
+
+				list_del(&first->vma);
+				kgem->vma_count--;
+			}
+		}
+
+		list_del(&first->list);
+		if (first->rq == &_kgem_static_request)
+			list_del(&first->request);
+		if (first->map) {
+			assert(!list_is_empty(&first->vma));
+			list_move_tail(&first->vma, &kgem->vma_cache);
+		}
+
+		first->tiling = I915_TILING_NONE;
+		first->pitch = 0;
+		first->delta = 0;
+		DBG(("  %s: found handle=%d (size=%d) in linear %s cache\n",
+		     __FUNCTION__, first->handle, first->size,
+		     use_active ? "active" : "inactive"));
+		assert(use_active || first->domain != DOMAIN_GPU);
+		assert(!first->needs_flush || use_active);
+		//assert(use_active || !kgem_busy(kgem, first->handle));
+		return first;
 	}
 
 	return NULL;
@@ -1528,13 +1586,13 @@ struct kgem_bo *kgem_create_linear(struct kgem *kgem, int size)
 	DBG(("%s(%d)\n", __FUNCTION__, size));
 
 	size = ALIGN(size, PAGE_SIZE);
-	bo = search_linear_cache(kgem, size, false);
+	bo = search_linear_cache(kgem, size, CREATE_INACTIVE);
 	if (bo)
 		return kgem_bo_reference(bo);
 
 	if (!list_is_empty(&kgem->requests)) {
 		if (kgem_retire(kgem)) {
-			bo = search_linear_cache(kgem, size, false);
+			bo = search_linear_cache(kgem, size, CREATE_INACTIVE);
 			if (bo)
 				return kgem_bo_reference(bo);
 		}
@@ -1719,9 +1777,12 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (tiling < 0)
 		tiling = -tiling, exact = 1;
 
-	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, scanout?=%d)\n", __FUNCTION__,
+	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, cpu-mapping=%d, gtt-mapping=%d, scanout?=%d)\n", __FUNCTION__,
 	     width, height, bpp, tiling,
-	     !!exact, !!(flags & CREATE_INACTIVE), !!(flags & CREATE_SCANOUT)));
+	     !!exact, !!(flags & CREATE_INACTIVE),
+	     !!(flags & CREATE_CPU_MAP),
+	     !!(flags & CREATE_GTT_MAP),
+	     !!(flags & CREATE_SCANOUT)));
 
 	assert(_kgem_can_create_2d(kgem, width, height, bpp, exact ? -tiling : tiling));
 	size = kgem_surface_size(kgem,
@@ -1730,7 +1791,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				 width, height, bpp, tiling, &pitch);
 	assert(size && size <= kgem->max_object_size);
 
-	if (flags & CREATE_INACTIVE) {
+	if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
+		int for_cpu = !!(flags & CREATE_CPU_MAP);
 		/* We presume that we will need to upload to this bo,
 		 * and so would prefer to have an active VMA.
 		 */
@@ -1740,6 +1802,9 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				assert(bo->map);
 				assert(bo->rq == NULL);
 				assert(list_is_empty(&bo->request));
+
+				if (IS_CPU_MAP(bo->map) != for_cpu)
+					continue;
 
 				if (size > bo->size || 2*size < bo->size) {
 					DBG(("inactive vma too small/large: %d < %d\n",
@@ -2580,9 +2645,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 		old = NULL;
 		if (!write)
-			old = search_linear_cache(kgem, alloc, true);
+			old = search_linear_cache(kgem, alloc, CREATE_CPU_MAP);
 		if (old == NULL)
-			old = search_linear_cache(kgem, alloc, false);
+			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE | CREATE_CPU_MAP);
 		if (old) {
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
@@ -2621,9 +2686,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 		old = NULL;
 		if (!write)
-			old = search_linear_cache(kgem, alloc, true);
+			old = search_linear_cache(kgem, alloc, 0);
 		if (old == NULL)
-			old = search_linear_cache(kgem, alloc, false);
+			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
 		if (old) {
 			alloc = old->size;
 			bo = malloc(sizeof(*bo) + alloc);
@@ -2873,9 +2938,9 @@ kgem_replace_bo(struct kgem *kgem,
 
 	size = height * pitch;
 
-	dst = search_linear_cache(kgem, size, true);
+	dst = search_linear_cache(kgem, size, 0);
 	if (dst == NULL)
-		dst = search_linear_cache(kgem, size, false);
+		dst = search_linear_cache(kgem, size, CREATE_INACTIVE);
 	if (dst == NULL) {
 		handle = gem_create(kgem->fd, size);
 		if (handle == 0)

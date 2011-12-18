@@ -202,7 +202,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 					      pixmap->drawable.height,
 					      pixmap->drawable.bitsPerPixel,
 					      I915_TILING_NONE,
-					      from_gpu ? 0 : CREATE_INACTIVE);
+					      from_gpu ? 0 : CREATE_CPU_MAP | CREATE_INACTIVE);
 		DBG(("%s: allocated CPU handle=%d\n", __FUNCTION__,
 		     priv->cpu_bo->handle));
 
@@ -1286,7 +1286,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 					       pixmap->drawable.bitsPerPixel,
 					       sna_pixmap_choose_tiling(pixmap,
 									default_tiling(pixmap)),
-					       priv->cpu_damage ? CREATE_INACTIVE : 0);
+					       priv->cpu_damage ? CREATE_GTT_MAP | CREATE_INACTIVE : 0);
 		if (priv->gpu_bo == NULL) {
 			assert(list_is_empty(&priv->list));
 			return NULL;

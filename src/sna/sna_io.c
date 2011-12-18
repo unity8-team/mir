@@ -441,7 +441,8 @@ struct kgem_bo *sna_replace(struct sna *sna,
 					pixmap->drawable.width,
 					pixmap->drawable.height,
 					pixmap->drawable.bitsPerPixel,
-					bo->tiling, CREATE_INACTIVE);
+					bo->tiling,
+					CREATE_GTT_MAP | CREATE_INACTIVE);
 		if (new_bo) {
 			kgem_bo_destroy(kgem, bo);
 			bo = new_bo;
