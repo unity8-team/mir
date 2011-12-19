@@ -1341,6 +1341,10 @@ done:
 	sna_damage_reduce_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height);
+	if (priv->mapped) {
+		pixmap->devPrivate.ptr = NULL;
+		priv->mapped = 0;
+	}
 	list_del(&priv->list);
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
