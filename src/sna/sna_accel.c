@@ -190,7 +190,10 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 		     struct sna_pixmap *priv,
 		     bool from_gpu)
 {
-	assert(priv->ptr == NULL);
+	/* Restore after a GTT mapping? */
+	if (priv->ptr)
+		goto done;
+
 	assert(pixmap->devKind);
 
 	if (!DEBUG_NO_LLC && sna->kgem.gen >= 60) {
@@ -219,6 +222,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 		priv->ptr = malloc(pixmap->devKind * pixmap->drawable.height);
 
 	assert(priv->ptr);
+done:
 	pixmap->devPrivate.ptr = priv->ptr;
 	return priv->ptr != NULL;
 }
