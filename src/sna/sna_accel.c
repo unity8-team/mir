@@ -1048,20 +1048,29 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	extents.y1 += dy;
 	extents.y2 += dy;
 
-	if (priv->cpu_damage == NULL)
-		goto done;
+	if (priv->gpu) {
+		if (priv->gpu_damage &&
+		    sna_damage_contains_box(priv->gpu_damage,
+					    &extents) != PIXMAN_REGION_OUT)
+			goto move_to_gpu;
 
-	if (sna_damage_contains_box(priv->cpu_damage,
-				    &extents) == PIXMAN_REGION_OUT)
-		goto done;
+		if (priv->cpu_damage &&
+		    sna_damage_contains_box(priv->cpu_damage,
+					    &extents) != PIXMAN_REGION_OUT)
+			return FALSE;
+	} else {
+		if (priv->cpu_damage == NULL ||
+		    sna_damage_contains_box(priv->cpu_damage,
+					    &extents) == PIXMAN_REGION_OUT)
+			goto done;
 
-	if (!priv->gpu || priv->gpu_damage == NULL)
-		return FALSE;
+		if (priv->gpu_damage == NULL ||
+		    sna_damage_contains_box(priv->gpu_damage,
+					    &extents) == PIXMAN_REGION_OUT)
+			return FALSE;
+	}
 
-	if (sna_damage_contains_box(priv->gpu_damage,
-				    &extents) == PIXMAN_REGION_OUT)
-		return FALSE;
-
+move_to_gpu:
 	sna_pixmap_move_area_to_gpu(pixmap, &extents);
 done:
 	if (sna_damage_contains_box(priv->gpu_damage,
