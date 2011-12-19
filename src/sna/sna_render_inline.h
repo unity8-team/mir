@@ -52,7 +52,7 @@ static inline int batch_space(struct sna *sna)
 
 static inline void batch_emit(struct sna *sna, uint32_t dword)
 {
-	assert(sna->kgem.nbatch < sna->kgem.surface);
+	assert(sna->kgem.nbatch + KGEM_BATCH_RESERVED < sna->kgem.surface);
 	sna->kgem.batch[sna->kgem.nbatch++] = dword;
 }
 

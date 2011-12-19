@@ -277,9 +277,14 @@ static inline bool kgem_check_batch(struct kgem *kgem, int num_dwords)
 	return likely(kgem->nbatch + num_dwords + KGEM_BATCH_RESERVED <= kgem->surface);
 }
 
-static inline bool kgem_check_reloc(struct kgem *kgem, int num_reloc)
+static inline bool kgem_check_reloc(struct kgem *kgem, int n)
 {
-	return likely(kgem->nreloc + num_reloc <= KGEM_RELOC_SIZE(kgem));
+	return likely(kgem->nreloc + n <= KGEM_RELOC_SIZE(kgem));
+}
+
+static inline bool kgem_check_exec(struct kgem *kgem, int n)
+{
+	return likely(kgem->nexec + n <= KGEM_EXEC_SIZE(kgem));
 }
 
 static inline bool kgem_check_batch_with_surfaces(struct kgem *kgem,

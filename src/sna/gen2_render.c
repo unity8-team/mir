@@ -499,14 +499,22 @@ static void gen2_emit_invariant(struct sna *sna)
 	sna->render_state.gen2.need_invariant = FALSE;
 }
 
+static bool
+gen2_check_batch(struct sna *sna)
+{
+	return (kgem_check_batch(&sna->kgem, 30+40) &&
+		kgem_check_reloc(&sna->kgem, 3) &&
+		kgem_check_exec(&sna->kgem, 3));
+}
+
 static void
 gen2_get_batch(struct sna *sna)
 {
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
-	if (!kgem_check_batch(&sna->kgem, 28+40)) {
+	if (!kgem_check_batch(&sna->kgem, 30+40)) {
 		DBG(("%s: flushing batch: size %d > %d\n",
-		     __FUNCTION__, 28+40,
+		     __FUNCTION__, 30+40,
 		     sna->kgem.surface-sna->kgem.nbatch));
 		kgem_submit(&sna->kgem);
 	}
@@ -1537,12 +1545,13 @@ gen2_render_composite(struct sna *sna,
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
 		if (tmp->src.bo == tmp->dst.bo || tmp->mask.bo == tmp->dst.bo) {
 			kgem_emit_flush(&sna->kgem);
-		} else {
+		} else if (gen2_check_batch(sna)) {
 			BATCH(_3DSTATE_MODES_5_CMD |
 			      PIPELINE_FLUSH_RENDER_CACHE |
 			      PIPELINE_FLUSH_TEXTURE_CACHE);
 			kgem_clear_dirty(&sna->kgem);
-		}
+		} else
+			kgem_submit(&sna->kgem);
 	}
 
 	gen2_emit_composite_state(sna, tmp);

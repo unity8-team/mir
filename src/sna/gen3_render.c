@@ -1198,11 +1198,19 @@ static void gen3_emit_invariant(struct sna *sna)
 	sna->render_state.gen3.need_invariant = FALSE;
 }
 
+#define MAX_OBJECTS 3 /* worst case: dst + src + mask  */
+
+static bool
+gen3_check_batch(struct sna *sna)
+{
+	return (kgem_check_batch(&sna->kgem, 200) &&
+		kgem_check_reloc(&sna->kgem, MAX_OBJECTS) &&
+		kgem_check_exec(&sna->kgem, MAX_OBJECTS));
+}
+
 static void
 gen3_get_batch(struct sna *sna)
 {
-#define MAX_OBJECTS 3 /* worst case: dst + src + mask  */
-
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
 	if (!kgem_check_batch(&sna->kgem, 200)) {
@@ -2619,12 +2627,13 @@ gen3_render_composite(struct sna *sna,
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
 		if (tmp->src.bo == tmp->dst.bo || tmp->mask.bo == tmp->dst.bo) {
 			kgem_emit_flush(&sna->kgem);
-		} else {
+		} else if (gen3_check_batch(sna)) {
 			OUT_BATCH(_3DSTATE_MODES_5_CMD |
 				  PIPELINE_FLUSH_RENDER_CACHE |
 				  PIPELINE_FLUSH_TEXTURE_CACHE);
 			kgem_clear_dirty(&sna->kgem);
-		}
+		} else
+			kgem_submit(&sna->kgem);
 	}
 
 	gen3_emit_composite_state(sna, tmp);
