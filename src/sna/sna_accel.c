@@ -624,6 +624,9 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
 
+		sna_damage_destroy(&priv->cpu_damage);
+		sna_damage_destroy(&priv->gpu_damage);
+
 		if (priv->gpu_bo && pixmap_inplace(sna, pixmap, priv)) {
 			if (kgem_bo_is_busy(priv->gpu_bo) &&
 			    priv->gpu_bo->exec == NULL)
