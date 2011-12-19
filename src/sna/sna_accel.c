@@ -837,6 +837,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
+
+		sna_damage_subtract(&priv->gpu_damage, region);
 	}
 
 	if (priv->mapped) {
