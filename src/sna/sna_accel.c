@@ -62,7 +62,6 @@
 #define USE_SPANS 0
 #define USE_ZERO_SPANS 1
 #define USE_BO_FOR_SCRATCH_PIXMAP 1
-#define INPLACE_MAP 1
 
 static int sna_font_key;
 
@@ -380,24 +379,6 @@ static struct sna_pixmap *_sna_pixmap_attach(struct sna *sna,
 	if (!priv)
 		return NULL;
 
-#if FORCE_INPLACE > 0
-	priv->inplace = 1;
-#elif FORCE_INPLACE < 0
-	priv->inplace = 0;
-#else
-	/* If the typical operation on the pixmap is larger than the
-	 * L2 cache, we presume that it will always be quicker to
-	 * upload directly than to copy via the shadow.
-	 *
-	 * "Typical operation" is currently chosen to maximise
-	 * x11perf on the various chipsets.
-	 */
-	priv->inplace =
-		(min(pixmap->drawable.width, 500) *
-		 min(pixmap->drawable.height, 500) *
-		 pixmap->drawable.bitsPerPixel >> 15) >
-		sna->kgem.cpu_cache_pages;
-#endif
 	list_init(&priv->list);
 	list_init(&priv->inactive);
 	priv->pixmap = pixmap;
@@ -510,7 +491,6 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	}
 
 	priv->freed = 1;
-	priv->inplace = 1;
 	sna_damage_all(&priv->gpu_damage, width, height);
 
 	miModifyPixmapHeader(pixmap,
@@ -614,10 +594,10 @@ static inline bool pixmap_inplace(struct sna *sna,
 				  PixmapPtr pixmap,
 				  struct sna_pixmap *priv)
 {
-	if (!INPLACE_MAP)
-		return false;
+	if (FORCE_INPLACE)
+		return FORCE_INPLACE > 0;
 
-	if (priv->inplace)
+	if (priv->mapped)
 		return true;
 
 	return (pixmap->devKind * pixmap->drawable.height >> 12) >
@@ -774,16 +754,16 @@ static inline bool region_inplace(struct sna *sna,
 				  RegionPtr region,
 				  struct sna_pixmap *priv)
 {
-	if (!INPLACE_MAP)
-		return false;
+	if (FORCE_INPLACE)
+		return FORCE_INPLACE > 0;
 
-	if (priv->inplace)
+	if (priv->mapped)
 		return true;
 
 	return ((region->extents.x2 - region->extents.x1) *
 		(region->extents.y2 - region->extents.y1) *
 		pixmap->drawable.bitsPerPixel >> 15)
-		> sna->kgem.half_cpu_cache_pages;
+		>= sna->kgem.half_cpu_cache_pages/2;
 }
 
 bool
@@ -985,7 +965,6 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	assert(priv->gpu);
 	assert(priv->gpu_bo);
 
 	sna_damage_reduce(&priv->cpu_damage);
@@ -1038,6 +1017,7 @@ done:
 		list_del(&priv->list);
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
+	priv->gpu = true;
 }
 
 static inline Bool
@@ -1628,7 +1608,8 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	 * So we try again with vma caching and only for pixmaps who will be
 	 * immediately flushed...
 	 */
-	if ((priv->flush || (priv->inplace && priv->gpu_bo)) &&
+	if ((priv->flush ||
+	     (priv->gpu_bo && region_inplace(sna, pixmap, region, priv))) &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
 		if (region_subsumes_drawable(region, &pixmap->drawable)) {
