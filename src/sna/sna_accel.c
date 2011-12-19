@@ -4474,6 +4474,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_damage **damage;
 	RegionRec region;
 	unsigned flags;
 
@@ -4516,7 +4517,6 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 
 	if (gc->fillStyle == FillSolid) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		struct sna_damage **damage;
 
 		DBG(("%s: trying solid fill [%08lx]\n",
 		     __FUNCTION__, gc->fgPixel));
@@ -4553,7 +4553,6 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 		}
 	} else if (flags & 4) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		struct sna_damage **damage;
 
 		/* Try converting these to a set of rectangles instead */
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
@@ -4626,7 +4625,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 
 spans_fallback:
 	if (USE_SPANS &&
-	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
+	    sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		switch (gc->lineStyle) {
 		case LineSolid:
@@ -5991,6 +5990,7 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_damage **damage;
 	RegionRec region;
 	unsigned flags;
 
@@ -6025,7 +6025,6 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	    gc->joinStyle == JoinMiter &&
 	    PM_IS_SOLID(drawable, gc->planemask)) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		struct sna_damage **damage;
 
 		DBG(("%s: trying blt solid fill [%08lx] paths\n",
 		     __FUNCTION__, gc->fgPixel));
@@ -6044,7 +6043,7 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	/* Not a trivial outline, but we still maybe able to break it
 	 * down into simpler operations that we can accelerate.
 	 */
-	if (sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
+	if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 		miPolyRectangle(drawable, gc, n, r);
 		return;
 	}
@@ -6135,6 +6134,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_damage **damage;
 	RegionRec region;
 
 	DBG(("%s(n=%d, lineWidth=%d\n", __FUNCTION__, n, gc->lineWidth));
@@ -6159,7 +6159,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 
 	/* For "simple" cases use the miPolyArc to spans path */
 	if (USE_SPANS && arc_to_spans(gc, n) &&
-	    sna_drawable_use_gpu_bo(drawable, &region.extents, NULL)) {
+	    sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
 		/* XXX still around 10x slower for x11perf -ellipse */
 		if (gc->lineWidth == 0)
