@@ -1032,6 +1032,11 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 
 	if (priv == NULL)
 		return FALSE;
+
+	if (pixmap->devPrivate.ptr == NULL &&
+	    !sna_pixmap_move_to_gpu(pixmap))
+		return FALSE;
+
 	if (priv->gpu_bo == NULL)
 		return FALSE;
 
