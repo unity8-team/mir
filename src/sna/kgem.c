@@ -467,7 +467,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->wedged = drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE) == -EIO;
 	kgem->wedged |= DBG_NO_HW;
 
-	kgem->cpu_cache_pages = cpu_cache_size() >> 12;
+	kgem->half_cpu_cache_pages = cpu_cache_size() >> 13;
 
 	list_init(&kgem->partial);
 	list_init(&kgem->requests);

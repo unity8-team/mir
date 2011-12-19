@@ -621,7 +621,7 @@ static inline bool pixmap_inplace(struct sna *sna,
 		return true;
 
 	return (pixmap->devKind * pixmap->drawable.height >> 12) >
-		sna->kgem.cpu_cache_pages;
+		sna->kgem.half_cpu_cache_pages;
 }
 
 bool
@@ -783,7 +783,7 @@ static inline bool region_inplace(struct sna *sna,
 	return ((region->extents.x2 - region->extents.x1) *
 		(region->extents.y2 - region->extents.y1) *
 		pixmap->drawable.bitsPerPixel >> 15)
-		> sna->kgem.cpu_cache_pages;
+		> sna->kgem.half_cpu_cache_pages;
 }
 
 bool

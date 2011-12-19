@@ -130,7 +130,7 @@ struct kgem {
 	uint32_t has_relaxed_fencing :1;
 
 	uint16_t fence_max;
-	uint16_t cpu_cache_pages;
+	uint16_t half_cpu_cache_pages;
 	uint32_t aperture_high, aperture_low, aperture;
 	uint32_t aperture_fenced, aperture_mappable;
 	uint32_t max_object_size;
