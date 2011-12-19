@@ -128,10 +128,9 @@ AC_ARG_ENABLE(sna,
 	      [SNA=no])
 AM_CONDITIONAL(SNA, test x$SNA != xno)
 required_xorg_xserver_version=1.6
-required_pixman_version=0.16
+required_pixman_version=0.24
 if test "x$SNA" != "xno"; then
 	required_xorg_xserver_version=1.10
-	required_pixman_version=0.23
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
 fi
 AC_MSG_RESULT([$SNA])
