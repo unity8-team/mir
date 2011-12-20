@@ -291,6 +291,13 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 	if (sna->kgem.gen == 21)
 		return I915_TILING_X;
 
+	if (pixmap->usage_hint == CREATE_PIXMAP_USAGE_BACKING_PIXMAP) {
+		/* Treat this like a window, and require accelerated
+		 * scrolling i.e. overlapped blits.
+		 */
+		return I915_TILING_X;
+	}
+
 	return sna_damage_is_all(&priv->cpu_damage,
 				 pixmap->drawable.width,
 				 pixmap->drawable.height) ? I915_TILING_Y : sna->default_tiling;
