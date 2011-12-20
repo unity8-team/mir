@@ -102,7 +102,7 @@ void sna_read_boxes(struct sna *sna,
 
 	if (DEBUG_NO_IO || kgem->wedged ||
 	    !kgem_bo_is_busy(src_bo) ||
-	    src_bo->tiling == I915_TILING_Y) {
+	    src_bo->tiling != I915_TILING_X) {
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
 				   dst, dst_dx, dst_dy,
