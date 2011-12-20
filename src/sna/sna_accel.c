@@ -322,7 +322,7 @@ static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap, uint32_t tiling)
 				  pixmap->drawable.bitsPerPixel);
 }
 
-static bool sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
+struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
@@ -335,7 +335,7 @@ static bool sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 
 	if (priv->pinned) {
 		DBG(("%s: can't convert pinned bo\n", __FUNCTION__));
-		return false;
+		return NULL;
 	}
 
 	bo = kgem_create_2d(&sna->kgem,
@@ -345,7 +345,7 @@ static bool sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 			    tiling, 0);
 	if (bo == NULL) {
 		DBG(("%s: allocation failed\n", __FUNCTION__));
-		return false;
+		return NULL;
 	}
 
 	box.x1 = box.y1 = 0;
@@ -362,8 +362,7 @@ static bool sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 	}
 
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
-	priv->gpu_bo = bo;
-	return true;
+	return priv->gpu_bo = bo;
 }
 
 static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
@@ -7273,11 +7272,9 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		/* This is cheating, but only the gpu_bo can be tiled */
 		assert(bo == sna_pixmap(pixmap)->gpu_bo);
-
-		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
+		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
+		if (bo == NULL)
 			return false;
-
-		bo = sna_pixmap(pixmap)->gpu_bo;
 	}
 
 	if (!sna_drawable_move_to_cpu(&stipple->drawable, MOVE_READ))
@@ -7589,11 +7586,11 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	bo = priv->gpu_bo;
 	if (bo->tiling == I915_TILING_Y) {
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
-		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X)) {
+		bo = sna_pixmap_change_tiling(pixmap, I915_TILING_X);
+		if (bo == NULL) {
 			DBG(("%s -- fallback, dst uses Y-tiling\n", __FUNCTION__));
 			return false;
 		}
-		bo = priv->gpu_bo;
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);

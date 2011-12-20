@@ -2520,16 +2520,11 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 	    too_large(src->drawable.width, src->drawable.height) ||
 	    src_bo->pitch > 8192 ||
 	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    dst_bo->pitch < 8 || dst_bo->pitch > 8192) {
-		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-			return FALSE;
-
-		return sna_blt_copy_boxes(sna, alu,
-					  src_bo, src_dx, src_dy,
-					  dst_bo, dst_dx, dst_dy,
-					  dst->drawable.bitsPerPixel,
-					  box, n);
-	}
+	    dst_bo->pitch < 8 || dst_bo->pitch > 8192)
+		return sna_blt_copy_boxes_fallback(sna, alu,
+						   src, src_bo, src_dx, src_dy,
+						   dst, dst_bo, dst_dx, dst_dy,
+						   box, n);
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);

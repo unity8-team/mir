@@ -522,6 +522,10 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 			struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 			int bpp,
 			const BoxRec *box, int n);
+Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
+				 PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+				 PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+				 const BoxRec *box, int nbox);
 
 Bool sna_get_pixel_from_rgba(uint32_t *pixel,
 			     uint16_t red,

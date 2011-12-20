@@ -428,6 +428,7 @@ PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 
 struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap);
 struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap);
+struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
 #define MOVE_WRITE 0x1
 #define MOVE_READ 0x2
