@@ -991,6 +991,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 				DBG(("%s: discarding unused partial array: %d/%d\n",
 				     __FUNCTION__, bo->used, bo->alloc));
 
+				bo->base.refcnt = 0; /* for valgrind */
 				kgem_bo_free(kgem, &bo->base);
 			}
 
