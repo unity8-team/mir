@@ -269,9 +269,6 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		return NULL;
 	}
 
-	if (pixmap->usage_hint)
-		goto done;
-
 	if (priv->gpu_bo) {
 		if (priv->gpu_bo != I915_TILING_NONE &&
 		    priv->cpu_bo->pitch >= 4096) {
@@ -282,6 +279,10 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 	} else {
 		int w = box->x2 - box->x1;
 		int h = box->y2 - box->y1;
+
+		if (pixmap->usage_hint)
+			goto done;
+
 		if (priv->source_count*w*h >= pixmap->drawable.width * pixmap->drawable.height &&
 		    I915_TILING_NONE != kgem_choose_tiling(&sna->kgem, I915_TILING_X,
 							   pixmap->drawable.width,
