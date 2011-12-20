@@ -837,8 +837,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
-
-		sna_damage_subtract(&priv->gpu_damage, region);
 	}
 
 	if (priv->mapped) {
@@ -853,6 +851,12 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if (priv->gpu_bo == NULL)
 		goto done;
 
+	if ((flags & MOVE_READ) == 0) {
+		assert(flags == MOVE_WRITE);
+		sna_damage_subtract(&priv->gpu_damage, region);
+		goto done;
+	}
+
 	if (sna_damage_contains_box(priv->gpu_damage,
 				    REGION_EXTENTS(NULL, region)) != PIXMAN_REGION_OUT) {
 		DBG(("%s: region (%dx%d) intersects gpu damage\n",
@@ -860,10 +864,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		     region->extents.x2 - region->extents.x1,
 		     region->extents.y2 - region->extents.y1));
 
-		if ((flags & MOVE_READ) == 0) {
-			assert(flags == MOVE_WRITE);
-			sna_damage_subtract(&priv->gpu_damage, region);
-		} else if ((flags & MOVE_WRITE) == 0 &&
+		if ((flags & MOVE_WRITE) == 0 &&
 			   region->extents.x2 - region->extents.x1 == 1 &&
 			   region->extents.y2 - region->extents.y1 == 1) {
 			/*  Often associated with synchronisation, KISS */
