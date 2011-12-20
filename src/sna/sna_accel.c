@@ -375,6 +375,7 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 static inline void sna_set_pixmap(PixmapPtr pixmap, struct sna_pixmap *sna)
 {
 	dixSetPrivate(&pixmap->devPrivates, &sna_pixmap_index, sna);
+	assert(sna_pixmap(pixmap) == sna);
 }
 
 static struct sna_pixmap *
@@ -592,17 +593,17 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		if (pixmap == NullPixmap)
 			return NullPixmap;
 
+		pixmap->drawable.width = width;
+		pixmap->drawable.height = height;
+		pixmap->devKind = pad;
+		pixmap->devPrivate.ptr = NULL;
+
 		if (sna_pixmap_attach(pixmap) == NULL) {
 			free(pixmap);
 			return create_pixmap(sna, screen,
 					     width, height, depth,
 					     usage);
 		}
-
-		pixmap->drawable.width = width;
-		pixmap->drawable.height = height;
-		pixmap->devKind = pad;
-		pixmap->devPrivate.ptr = NULL;
 	}
 
 	return pixmap;
