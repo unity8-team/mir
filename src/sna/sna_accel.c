@@ -469,16 +469,21 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 			  uint32_t tiling)
 {
 	struct sna *sna = to_sna_from_screen(screen);
-	PixmapPtr pixmap;
 	struct sna_pixmap *priv;
-	int bpp = BitsPerPixel(depth);
+	PixmapPtr pixmap;
+	int bpp;
 
 	DBG(("%s(%d, %d, %d, tiling=%d)\n", __FUNCTION__,
 	     width, height, depth, tiling));
 
+	if (depth < 8)
+		return create_pixmap(sna, screen, width, height, depth,
+				     CREATE_PIXMAP_USAGE_SCRATCH);
+
 	if (tiling == I915_TILING_Y && !sna->have_render)
 		tiling = I915_TILING_X;
 
+	bpp = BitsPerPixel(depth);
 	tiling = kgem_choose_tiling(&sna->kgem, tiling, width, height, bpp);
 	if (!kgem_can_create_2d(&sna->kgem, width, height, bpp, tiling))
 		return create_pixmap(sna, screen, width, height, depth,
