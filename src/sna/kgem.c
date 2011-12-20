@@ -1698,7 +1698,7 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 	}
 
 	if (tiling && ALIGN(height, 2) * ALIGN(width*bpp, 8*64) <= 4096 * 8) {
-		DBG(("%s: too small [%d] for TILING_%c\n", __FUNCTION__,
+		DBG(("%s: too small [%d bytes] for TILING_%c\n", __FUNCTION__,
 		     ALIGN(height, 2) * ALIGN(width*bpp, 8*64) / 8,
 		     tiling == I915_TILING_X ? 'X' : 'Y'));
 		tiling = I915_TILING_NONE;
