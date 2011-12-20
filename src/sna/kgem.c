@@ -243,7 +243,7 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
 		return FALSE;
 
-	bo->needs_flush = false;
+	bo->needs_flush = !bo->flush;
 	if (bo->domain == DOMAIN_GPU) {
 		kgem->sync = false;
 		kgem_retire(kgem);
@@ -773,6 +773,9 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		     __FUNCTION__, bo->handle));
 		goto destroy;
 	}
+
+	assert(bo->vmap == false && bo->sync == false);
+	bo->flush = false;
 
 	if (bo->rq) {
 		DBG(("%s: handle=%d -> active\n", __FUNCTION__, bo->handle));
@@ -2247,7 +2250,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 
-		bo->needs_flush = false;
+		bo->needs_flush = !bo->flush;
 		if (bo->domain == DOMAIN_GPU) {
 			kgem->sync = false;
 			kgem_retire(kgem);
@@ -2353,7 +2356,7 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 	/* Henceforth, we need to broadcast all updates to clients and
 	 * flush our rendering before doing so.
 	 */
-	bo->flush = 1;
+	bo->flush = true;
 	if (bo->exec)
 		kgem->flush = 1;
 
@@ -2443,7 +2446,7 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 		assert(!kgem_busy(kgem, bo->handle));
-		bo->needs_flush = false;
+		bo->needs_flush = !bo->flush;
 		if (bo->domain == DOMAIN_GPU) {
 			kgem->sync = false;
 			kgem_retire(kgem);
@@ -2873,7 +2876,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 			 bo->base.handle, (char *)(bo+1)+offset,
 			 offset, length);
 		assert(!kgem_busy(kgem, bo->base.handle));
-		bo->base.needs_flush = false;
+		bo->base.needs_flush = !bo->base.flush;
 		if (bo->base.domain == DOMAIN_GPU) {
 			kgem->sync = false;
 			kgem_retire(kgem);
