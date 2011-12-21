@@ -303,9 +303,10 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 				 pixmap->drawable.height) ? I915_TILING_Y : sna->default_tiling;
 }
 
-static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap, uint32_t tiling)
+static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
+	uint32_t tiling = default_tiling(pixmap);
 	uint32_t bit;
 
 	/* Use tiling by default, but disable per user request */
@@ -1290,8 +1291,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 					      pixmap->drawable.width,
 					      pixmap->drawable.height,
 					      pixmap->drawable.bitsPerPixel,
-					      sna_pixmap_choose_tiling(pixmap,
-								       default_tiling(pixmap)),
+					      sna_pixmap_choose_tiling(pixmap),
 					      flags);
 		if (priv->gpu_bo == NULL)
 			return NULL;
@@ -1329,8 +1329,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 					       pixmap->drawable.width,
 					       pixmap->drawable.height,
 					       pixmap->drawable.bitsPerPixel,
-					       sna_pixmap_choose_tiling(pixmap,
-									default_tiling(pixmap)),
+					       sna_pixmap_choose_tiling(pixmap),
 					       priv->cpu_damage ? CREATE_GTT_MAP | CREATE_INACTIVE : 0);
 		if (priv->gpu_bo == NULL) {
 			assert(list_is_empty(&priv->list));
@@ -2354,9 +2353,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	/* Try to maintain the data on the GPU */
 	if (dst_priv && dst_priv->gpu_bo == NULL &&
 	    src_priv && (src_priv->gpu_bo != NULL || (src_priv->cpu_bo && kgem_bo_is_busy(src_priv->cpu_bo)))) {
-		uint32_t tiling =
-			sna_pixmap_choose_tiling(dst_pixmap,
-						 src_priv->gpu_bo->tiling);
+		uint32_t tiling = sna_pixmap_choose_tiling(dst_pixmap);
 
 		DBG(("%s: create dst GPU bo for upload\n", __FUNCTION__));
 
