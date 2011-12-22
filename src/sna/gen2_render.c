@@ -1155,6 +1155,12 @@ gen2_composite_picture(struct sna *sna,
 						x, y, w, h, dst_x, dst_y);
 	}
 
+	if (picture->alphaMap) {
+		DBG(("%s -- fallback, alphamap\n", __FUNCTION__));
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, w, h, dst_x, dst_y);
+	}
+
 	if (!gen2_check_repeat(picture)) {
 		DBG(("%s -- fallback, unhandled repeat %d\n",
 		     __FUNCTION__, picture->repeat));

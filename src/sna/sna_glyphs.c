@@ -1225,8 +1225,8 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
-	if (dst->alphaMap || src->alphaMap) {
-		DBG(("%s: fallback -- alpha maps\n", __FUNCTION__));
+	if (dst->alphaMap) {
+		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
 		goto fallback;
 	}
 

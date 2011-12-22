@@ -437,7 +437,7 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	if (dst->alphaMap || src->alphaMap || (mask && mask->alphaMap)) {
+	if (dst->alphaMap) {
 		DBG(("%s: fallback due to unhandled alpha-map\n", __FUNCTION__));
 		goto fallback;
 	}

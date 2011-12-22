@@ -3094,8 +3094,8 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		     __FUNCTION__));
 		return false;
 	}
-	if (dst->alphaMap || src->alphaMap) {
-		DBG(("%s: fallback -- alphamaps\n",
+	if (dst->alphaMap) {
+		DBG(("%s: fallback -- dst alphamap\n",
 		     __FUNCTION__));
 		return false;
 	}
@@ -3374,9 +3374,8 @@ sna_composite_trapezoids(CARD8 op,
 		goto fallback;
 	}
 
-	if (dst->alphaMap || src->alphaMap) {
-		DBG(("%s: fallback -- alpha maps=(dst=%p, src=%p)\n",
-		     __FUNCTION__, dst->alphaMap, src->alphaMap));
+	if (dst->alphaMap) {
+		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
 		goto fallback;
 	}
 

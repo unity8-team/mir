@@ -2099,6 +2099,12 @@ gen3_composite_picture(struct sna *sna,
 		return ret;
 	}
 
+	if (picture->alphaMap) {
+		DBG(("%s -- fallback, alphamap\n", __FUNCTION__));
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, w, h, dst_x, dst_y);
+	}
+
 	if (sna_picture_is_solid(picture, &color))
 		return gen3_init_solid(channel, color);
 

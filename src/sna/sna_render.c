@@ -1014,6 +1014,73 @@ sna_render_picture_convolve(struct sna *sna,
 	return 1;
 }
 
+static int
+sna_render_picture_flatten(struct sna *sna,
+			   PicturePtr picture,
+			   struct sna_composite_channel *channel,
+			   int16_t x, int16_t y,
+			   int16_t w, int16_t h,
+			   int16_t dst_x, int16_t dst_y)
+{
+	ScreenPtr screen = picture->pDrawable->pScreen;
+	PixmapPtr pixmap;
+	PicturePtr tmp, alpha;
+	int old_format, error;
+
+	assert(picture->pDrawable);
+	assert(picture->alphaMap);
+	assert(w <= sna->render.max_3d_size && h <= sna->render.max_3d_size);
+
+	/* XXX shortcut a8? */
+
+	pixmap = screen->CreatePixmap(screen, w, h, 32, SNA_CREATE_SCRATCH);
+	if (pixmap == NullPixmap)
+		return 0;
+
+	tmp = CreatePicture(0, &pixmap->drawable,
+			    PictureMatchFormat(screen, 32, PICT_a8r8g8b8),
+			    0, NULL, serverClient, &error);
+	screen->DestroyPixmap(pixmap);
+	if (tmp == NULL)
+		return 0;
+
+	old_format = picture->format;
+	picture->format = PICT_FORMAT(PICT_FORMAT_BPP(picture->format),
+				      PICT_FORMAT_TYPE(picture->format),
+				      0,
+				      PICT_FORMAT_R(picture->format),
+				      PICT_FORMAT_G(picture->format),
+				      PICT_FORMAT_B(picture->format));
+
+	alpha = picture->alphaMap;
+	picture->alphaMap = NULL;
+
+	sna_composite(PictOpSrc, picture, alpha, tmp,
+		      x, y,
+		      x + picture->alphaOrigin.x, y + picture->alphaOrigin.y,
+		      0, 0,
+		      w, h);
+
+	picture->format = old_format;
+	picture->alphaMap = alpha;
+
+	channel->height = h;
+	channel->width  = w;
+	channel->filter = PictFilterNearest;
+	channel->repeat = RepeatNone;
+	channel->pict_format = PIXMAN_a8r8g8b8;
+	channel->is_affine = TRUE;
+	channel->transform = NULL;
+	channel->scale[0] = 1.f / w;
+	channel->scale[1] = 1.f / h;
+	channel->offset[0] = -dst_x;
+	channel->offset[1] = -dst_y;
+	channel->bo = kgem_bo_reference(sna_pixmap_get_bo(pixmap));
+	FreePicture(tmp, 0);
+
+	return 1;
+}
+
 int
 sna_render_picture_fixup(struct sna *sna,
 			 PicturePtr picture,
@@ -1040,6 +1107,16 @@ sna_render_picture_fixup(struct sna *sna,
 	if (w > sna->render.max_3d_size || h > sna->render.max_3d_size) {
 		DBG(("%s: fallback - too large (%dx%d)\n", __FUNCTION__, w, h));
 		return -1;
+	}
+
+	if (picture->alphaMap) {
+		DBG(("%s: alphamap\n", __FUNCTION__));
+		if ((is_gpu(picture->pDrawable) || is_gpu(picture->alphaMap->pDrawable))) {
+			return sna_render_picture_flatten(sna, picture, channel,
+							  x, y, w, y, dst_x, dst_y);
+		}
+
+		goto do_fixup;
 	}
 
 	if (picture->filter == PictFilterConvolution) {
