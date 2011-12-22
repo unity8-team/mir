@@ -139,7 +139,15 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 {
 	BoxRec r;
 
-	if (width == 0 || height == 0 || op->damage == NULL)
+	if (op->damage == NULL || *op->damage == NULL)
+		return;
+
+	if ((*op->damage)->mode == DAMAGE_ALL) {
+		op->damage = NULL;
+		return;
+	}
+
+	if (width == 0 || height == 0)
 		return;
 
 	r.x1 = dst_x + op->dst.x;
