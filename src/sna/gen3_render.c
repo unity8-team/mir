@@ -2297,9 +2297,15 @@ is_solid(PicturePtr picture)
 }
 
 static bool
+has_alphamap(PicturePtr p)
+{
+	return p->alphaMap != NULL;
+}
+
+static bool
 source_fallback(PicturePtr p)
 {
-	return !gen3_check_filter(p->filter) || !gen3_check_repeat(p);
+	return has_alphamap(p) || !gen3_check_filter(p->filter) || !gen3_check_repeat(p);
 }
 
 static bool

@@ -2241,9 +2241,15 @@ is_gradient(PicturePtr picture)
 }
 
 static bool
+has_alphamap(PicturePtr p)
+{
+	return p->alphaMap != NULL;
+}
+
+static bool
 source_fallback(PicturePtr p)
 {
-	return is_gradient(p) || !gen7_check_filter(p) || !gen7_check_repeat(p);
+	return has_alphamap(p) || is_gradient(p) || !gen7_check_filter(p) || !gen7_check_repeat(p);
 }
 
 static bool
