@@ -8815,6 +8815,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	}
 
 	kgem_submit(&sna->kgem);
+	sna->kgem.flush_now = 0;
 
 	if (sna->kgem.sync) {
 		kgem_sync(&sna->kgem);
@@ -8901,7 +8902,7 @@ static Bool sna_accel_do_flush(struct sna *sna)
 
 	if (sna->kgem.flush_now) {
 		sna->kgem.flush_now = 0;
-		if (priv->gpu_bo->rq != NULL) {
+		if (priv->gpu_bo->exec) {
 			DBG(("%s -- forcing flush\n", __FUNCTION__));
 			sna_accel_drain_timer(sna, FLUSH_TIMER);
 			return TRUE;
@@ -8910,7 +8911,7 @@ static Bool sna_accel_do_flush(struct sna *sna)
 
 	return_if_timer_active(FLUSH_TIMER);
 
-	if (priv->cpu_damage == NULL && priv->gpu_bo->rq == NULL) {
+	if (priv->cpu_damage == NULL && priv->gpu_bo->exec == NULL) {
 		DBG(("%s -- no pending write to scanout\n", __FUNCTION__));
 		return FALSE;
 	}
@@ -9031,6 +9032,7 @@ static bool sna_accel_flush(struct sna *sna)
 		sna_pixmap_move_to_gpu(priv->pixmap);
 	sna->kgem.busy = !nothing_to_do;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
+	sna->kgem.flush_now = 0;
 	return need_throttle;
 }
 
