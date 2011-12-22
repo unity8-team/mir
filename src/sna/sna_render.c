@@ -921,6 +921,99 @@ sna_render_picture_extract(struct sna *sna,
 	return 1;
 }
 
+static int
+sna_render_picture_convolve(struct sna *sna,
+			    PicturePtr picture,
+			    struct sna_composite_channel *channel,
+			    int16_t x, int16_t y,
+			    int16_t w, int16_t h,
+			    int16_t dst_x, int16_t dst_y)
+{
+	ScreenPtr screen = picture->pDrawable->pScreen;
+	PixmapPtr pixmap;
+	PicturePtr tmp;
+	pixman_fixed_t *params = picture->filter_params;
+	int x_off = (params[0] - pixman_fixed_1) >> 1;
+	int y_off = (params[1] - pixman_fixed_1) >> 1;
+	int cw = pixman_fixed_to_int(params[0]);
+	int ch = pixman_fixed_to_int(params[1]);
+	int i, j, error, depth;
+
+	/* Lame multi-pass accumulation implementation of a general convolution
+	 * that works everywhere.
+	 */
+
+	assert(picture->pDrawable);
+	assert(picture->filter == PictFilterConvolution);
+	assert(w <= sna->render.max_3d_size && h <= sna->render.max_3d_size);
+
+	if (PICT_FORMAT_RGB(picture->format) == 0) {
+		channel->pict_format = PIXMAN_a8;
+		depth = 8;
+	} else {
+		channel->pict_format = PIXMAN_a8r8g8b8;
+		depth = 32;
+	}
+
+	pixmap = screen->CreatePixmap(screen, w, h, depth, SNA_CREATE_SCRATCH);
+	if (pixmap == NullPixmap)
+		return 0;
+
+	tmp = CreatePicture(0, &pixmap->drawable,
+			    PictureMatchFormat(screen, depth, channel->pict_format),
+			    0, NULL, serverClient, &error);
+	screen->DestroyPixmap(pixmap);
+	if (tmp == NULL)
+		return 0;
+
+	if (!sna->render.fill_one(sna, pixmap, sna_pixmap_get_bo(pixmap), 0,
+				  0, 0, w, h, GXclear)) {
+		FreePicture(tmp, 0);
+		return 0;
+	}
+
+	picture->filter = PictFilterBilinear;
+	params += 2;
+	for (j = 0; j < ch; j++) {
+		for (i = 0; i < cw; i++) {
+			xRenderColor color;
+			PicturePtr alpha;
+
+			color.alpha = *params++;
+			color.red = color.green = color.blue = 0;
+
+			if (color.alpha <= 0x00ff)
+				continue;
+
+			alpha = CreateSolidPicture(0, &color, &error);
+			if (alpha) {
+				sna_composite(PictOpAdd, picture, alpha, tmp,
+					      x, y,
+					      0, 0,
+					      x_off-i, y_off-j,
+					      w, h);
+				FreePicture(alpha, 0);
+			}
+		}
+	}
+	picture->filter = PictFilterConvolution;
+
+	channel->height = h;
+	channel->width  = w;
+	channel->filter = PictFilterNearest;
+	channel->repeat = RepeatNone;
+	channel->is_affine = TRUE;
+	channel->transform = NULL;
+	channel->scale[0] = 1.f / w;
+	channel->scale[1] = 1.f / h;
+	channel->offset[0] = -dst_x;
+	channel->offset[1] = -dst_y;
+	channel->bo = kgem_bo_reference(sna_pixmap_get_bo(pixmap));
+	FreePicture(tmp, 0);
+
+	return 1;
+}
+
 int
 sna_render_picture_fixup(struct sna *sna,
 			 PicturePtr picture,
@@ -949,6 +1042,17 @@ sna_render_picture_fixup(struct sna *sna,
 		return -1;
 	}
 
+	if (picture->filter == PictFilterConvolution) {
+		DBG(("%s: convolution\n", __FUNCTION__));
+		if (picture->pDrawable && is_gpu(picture->pDrawable)) {
+			return sna_render_picture_convolve(sna, picture, channel,
+							   x, y, w, y, dst_x, dst_y);
+		}
+
+		goto do_fixup;
+	}
+
+do_fixup:
 	if (PICT_FORMAT_RGB(picture->format) == 0) {
 		pitch = ALIGN(w, 4);
 		channel->pict_format = PIXMAN_a8;

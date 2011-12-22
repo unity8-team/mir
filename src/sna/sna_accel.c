@@ -491,6 +491,11 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	if (tiling == I915_TILING_Y && !sna->have_render)
 		tiling = I915_TILING_X;
 
+	  if (tiling == I915_TILING_Y &&
+	      (width > sna->render.max_3d_size ||
+	       height > sna->render.max_3d_size))
+		  tiling = I915_TILING_X;
+
 	bpp = BitsPerPixel(depth);
 	tiling = kgem_choose_tiling(&sna->kgem, tiling, width, height, bpp);
 	if (!kgem_can_create_2d(&sna->kgem, width, height, bpp, tiling))
