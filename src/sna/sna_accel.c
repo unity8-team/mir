@@ -6283,7 +6283,13 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 						 gc->alu)) {
 				if (damage) {
 					assert_pixmap_contains_box(pixmap, &r);
-					sna_damage_add_box(damage, &r);
+					if (r.x2 - r.x1 == pixmap->drawable.width &&
+					    r.y2 - r.y1 == pixmap->drawable.height)
+						sna_damage_all(damage,
+							       pixmap->drawable.width,
+							       pixmap->drawable.height);
+					else
+						sna_damage_add_box(damage, &r);
 				}
 			} else
 				success = false;

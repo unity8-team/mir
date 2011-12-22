@@ -742,7 +742,17 @@ sna_composite_rectangles(CARD8		 op,
 	}
 
 	assert_pixmap_contains_box(pixmap, RegionExtents(&region));
-	sna_damage_add(&priv->gpu_damage, &region);
+
+	/* Clearing a pixmap after creation is a common operation, so take
+	 * advantage and reduce further damage operations.
+	 */
+	if (region.data == NULL &&
+	    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
+	    region.extents.y2 - region.extents.y1 == pixmap->drawable.height)
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width, pixmap->drawable.height);
+	else
+		sna_damage_add(&priv->gpu_damage, &region);
 
 	goto done;
 
@@ -759,7 +769,7 @@ fallback:
 	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, error))
 		goto done;
 
-	if (op == PictOpSrc || op == PictOpClear) {
+	if (op <= PictOpSrc) {
 		int nbox = REGION_NUM_RECTS(&region);
 		BoxPtr box = REGION_RECTS(&region);
 		uint32_t pixel;
