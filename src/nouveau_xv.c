@@ -93,6 +93,14 @@ static XF86VideoEncodingRec DummyEncodingTex =
 	{1, 1}
 };
 
+static XF86VideoEncodingRec DummyEncodingNV50 =
+{
+	0,
+	"XV_IMAGE",
+	8192, 8192,
+	{1, 1}
+};
+
 #define NUM_FORMATS_ALL 6
 
 XF86VideoFormatRec NVFormats[NUM_FORMATS_ALL] =
@@ -1975,7 +1983,7 @@ NV50SetupTexturedVideo (ScreenPtr pScreen)
 	adapt->flags		= 0;
 	adapt->name		= "Nouveau GeForce 8/9 Textured Video";
 	adapt->nEncodings	= 1;
-	adapt->pEncodings	= &DummyEncodingTex;
+	adapt->pEncodings	= &DummyEncodingNV50;
 	adapt->nFormats		= NUM_FORMATS_ALL;
 	adapt->pFormats		= NVFormats;
 	adapt->nPorts		= NUM_TEXTURE_PORTS;
