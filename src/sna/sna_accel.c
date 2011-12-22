@@ -8970,8 +8970,8 @@ static Bool sna_accel_do_inactive(struct sna *sna)
 	if (sna->timer[INACTIVE_TIMER] == -1)
 		return FALSE;
 
-	/* Periodic expiration after every 60s. */
-	to.it_interval.tv_sec = 60;
+	/* Periodic expiration after every 2 minutes. */
+	to.it_interval.tv_sec = 120;
 	to.it_interval.tv_nsec = 0;
 	to.it_value = to.it_interval;
 	timerfd_settime(sna->timer[INACTIVE_TIMER], 0, &to, NULL);
