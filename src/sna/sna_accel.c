@@ -1347,6 +1347,18 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 			assert(list_is_empty(&priv->list));
 			return NULL;
 		}
+
+		if (priv->cpu_damage == NULL) {
+			/* Presume that we will only ever write to the GPU
+			 * bo. Readbacks are expensive but fairly constant
+			 * in cost for all sizes i.e. it is the act of
+			 * synchronisation that takes the most time. This is
+			 * mitigated by avoiding fallbacks in the first place.
+			 */
+			sna_damage_all(&priv->gpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
+		}
 	}
 
 	if (priv->cpu_damage == NULL)
