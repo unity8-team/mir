@@ -508,8 +508,13 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		sna->freed_pixmap = NULL;
 
 		pixmap->usage_hint = CREATE_PIXMAP_USAGE_SCRATCH;
-		pixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
 		pixmap->refcnt = 1;
+
+		pixmap->drawable.width = width;
+		pixmap->drawable.height = height;
+		pixmap->drawable.depth = depth;
+		pixmap->drawable.bitsPerPixel = bpp;
+		pixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
 
 		priv = _sna_pixmap_reset(pixmap);
 	} else {
@@ -518,12 +523,20 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		if (pixmap == NullPixmap)
 			return NullPixmap;
 
+		pixmap->drawable.width = width;
+		pixmap->drawable.height = height;
+		pixmap->drawable.depth = depth;
+		pixmap->drawable.bitsPerPixel = bpp;
+
 		priv = _sna_pixmap_attach(sna, pixmap);
 		if (!priv) {
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
 		}
 	}
+
+	pixmap->devKind = PixmapBytePad(width, depth);
+	pixmap->devPrivate.ptr = NULL;
 
 	priv->gpu_bo = kgem_create_2d(&sna->kgem,
 				      width, height, bpp, tiling,
@@ -537,12 +550,6 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	priv->header = true;
 	sna_damage_all(&priv->gpu_damage, width, height);
 
-	pixmap->drawable.width = width;
-	pixmap->drawable.height = height;
-	pixmap->drawable.depth = depth;
-	pixmap->drawable.bitsPerPixel = bpp;
-	pixmap->devKind = PixmapBytePad(width, depth);
-	pixmap->devPrivate.ptr = NULL;
 
 	return pixmap;
 }
