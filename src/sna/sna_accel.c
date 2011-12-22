@@ -9096,7 +9096,7 @@ sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 
 static void sna_accel_inactive(struct sna *sna)
 {
-	struct sna_pixmap *priv, *next;
+	struct sna_pixmap *priv;
 	struct list preserve;
 
 	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)GetTimeInMillis()));
@@ -9128,18 +9128,8 @@ static void sna_accel_inactive(struct sna *sna)
 	}
 #endif
 
-	list_init(&preserve);
-	list_for_each_entry_safe(priv, next, &sna->active_pixmaps, inactive) {
-		if (priv->ptr &&
-		    sna_damage_is_all(&priv->gpu_damage,
-				      priv->pixmap->drawable.width,
-				      priv->pixmap->drawable.height)) {
-			sna_pixmap_free_cpu(sna, priv);
-			list_move(&priv->inactive, &preserve);
-		}
-	}
-
 	/* clear out the oldest inactive pixmaps */
+	list_init(&preserve);
 	while (!list_is_empty(&sna->inactive_clock[1])) {
 		priv = list_first_entry(&sna->inactive_clock[1],
 					struct sna_pixmap,
@@ -9149,7 +9139,18 @@ static void sna_accel_inactive(struct sna *sna)
 		 * reap its storage only under memory pressure.
 		 */
 		list_del(&priv->inactive);
-		if (!priv->pinned) {
+		if (priv->pinned)
+			continue;
+
+		if (priv->ptr &&
+		    sna_damage_is_all(&priv->gpu_damage,
+				      priv->pixmap->drawable.width,
+				      priv->pixmap->drawable.height)) {
+			DBG(("%s: discarding inactive CPU shadow\n",
+			     __FUNCTION__));
+			sna_pixmap_free_cpu(sna, priv);
+			list_add(&priv->inactive, &preserve);
+		} else {
 			DBG(("%s: discarding inactive GPU bo handle=%d\n",
 			     __FUNCTION__, priv->gpu_bo->handle));
 			if (!sna_pixmap_free_gpu(sna, priv))
