@@ -418,13 +418,15 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 
 Bool
 NV04EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
-		struct nouveau_bo *src, int src_dom, int src_pitch,
-		int src_h, int src_x, int src_y, struct nouveau_bo *dst,
-		int dst_dom, int dst_pitch, int dst_h, int dst_x, int dst_y)
+		struct nouveau_bo *src, uint32_t src_off, int src_dom,
+		int src_pitch, int src_h, int src_x, int src_y,
+		struct nouveau_bo *dst, uint32_t dst_off, int dst_dom,
+		int dst_pitch, int dst_h, int dst_x, int dst_y)
 {
 	struct nouveau_channel *chan = pNv->chan;
-	unsigned src_off = src_y * src_pitch + src_x * cpp;
-	unsigned dst_off = dst_y * dst_pitch + dst_x * cpp;
+
+	src_off += src_y * src_pitch + src_x * cpp;
+	dst_off += dst_y * dst_pitch + dst_x * cpp;
 
 	while (h) {
 		int line_count = h;

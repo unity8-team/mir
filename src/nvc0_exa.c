@@ -1024,13 +1024,13 @@ NVC0EXADoneComposite(PixmapPtr pdpix)
 
 Bool
 NVC0EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
-		struct nouveau_bo *src, int src_dom, int src_pitch,
-		int src_h, int src_x, int src_y, struct nouveau_bo *dst,
-		int dst_dom, int dst_pitch, int dst_h, int dst_x, int dst_y)
+		struct nouveau_bo *src, uint32_t src_off, int src_dom,
+		int src_pitch, int src_h, int src_x, int src_y,
+		struct nouveau_bo *dst, uint32_t dst_off, int dst_dom,
+		int dst_pitch, int dst_h, int dst_x, int dst_y)
 {
 	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
 	struct nouveau_channel *chan = m2mf->channel;
-	unsigned src_off = 0, dst_off = 0;
 	unsigned exec = 0;
 
 	if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
@@ -1044,6 +1044,7 @@ NVC0EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		BEGIN_NVC0(chan, NVC0_M2MF(PITCH_IN), 1);
 		OUT_RING  (chan, src_pitch);
 
+		src_off += src_y * src_pitch + src_x * cpp;
 		exec |= NVC0_M2MF_EXEC_LINEAR_IN;
 	}
 
@@ -1058,6 +1059,7 @@ NVC0EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		BEGIN_NVC0(chan, NVC0_M2MF(PITCH_OUT), 1);
 		OUT_RING  (chan, dst_pitch);
 
+		dst_off += dst_y * dst_pitch + dst_x * cpp;
 		exec |= NVC0_M2MF_EXEC_LINEAR_OUT;
 	}
 
@@ -1068,22 +1070,6 @@ NVC0EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 
 		if (MARK_RING (chan, 32, 4))
 			return FALSE;
-
-		if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-			BEGIN_NVC0(chan, NVC0_M2MF(TILING_POSITION_IN_X), 2);
-			OUT_RING  (chan, src_x * cpp);
-			OUT_RING  (chan, src_y);
-		} else {
-			src_off = src_y * src_pitch + src_x * cpp;
-		}
-
-		if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
-			BEGIN_NVC0(chan, NVC0_M2MF(TILING_POSITION_OUT_X), 2);
-			OUT_RING  (chan, dst_x * cpp);
-			OUT_RING  (chan, dst_y);
-		} else {
-			dst_off = dst_y * dst_pitch + dst_x * cpp;
-		}
 
 		BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
 		if (OUT_RELOCh(chan, dst, dst_off, dst_dom | NOUVEAU_BO_WR) ||
@@ -1097,6 +1083,22 @@ NVC0EXARectM2MF(NVPtr pNv, int w, int h, int cpp,
 		    OUT_RELOCl(chan, src, src_off, src_dom | NOUVEAU_BO_RD)) {
 			MARK_UNDO(chan);
 			return FALSE;
+		}
+
+		if (src->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+			BEGIN_NVC0(chan, NVC0_M2MF(TILING_POSITION_IN_X), 2);
+			OUT_RING  (chan, src_x * cpp);
+			OUT_RING  (chan, src_y);
+		} else {
+			src_off += line_count * src_pitch;
+		}
+
+		if (dst->tile_flags & NOUVEAU_BO_TILE_LAYOUT_MASK) {
+			BEGIN_NVC0(chan, NVC0_M2MF(TILING_POSITION_OUT_X), 2);
+			OUT_RING  (chan, dst_x * cpp);
+			OUT_RING  (chan, dst_y);
+		} else {
+			dst_off += line_count * dst_pitch;
 		}
 
 		BEGIN_NVC0(chan, NVC0_M2MF(LINE_LENGTH_IN), 2);

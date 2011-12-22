@@ -42,24 +42,24 @@ NVAccelMemcpyRect(char *dst, const char *src, int height, int dst_pitch,
 	return TRUE;
 }
 
-static Bool
-NVAccelM2MF(NVPtr pNv, int w, int h, int cpp,
+Bool
+NVAccelM2MF(NVPtr pNv, int w, int h, int cpp, uint32_t srcoff, uint32_t dstoff,
 	    struct nouveau_bo *src, int sd, int sp, int sh, int sx, int sy,
 	    struct nouveau_bo *dst, int dd, int dp, int dh, int dx, int dy)
 {
 	if (pNv->Architecture >= NV_ARCH_C0)
 		return NVC0EXARectM2MF(pNv, w, h, cpp,
-				       src, sd, sp, sh, sx, sy,
-				       dst, dd, dp, dh, dx, dy);
+				       src, srcoff, sd, sp, sh, sx, sy,
+				       dst, dstoff, dd, dp, dh, dx, dy);
 	else
 	if (pNv->Architecture >= NV_ARCH_50)
 		return NV50EXARectM2MF(pNv, w, h, cpp,
-				       src, sd, sp, sh, sx, sy,
-				       dst, dd, dp, dh, dx, dy);
+				       src, srcoff, sd, sp, sh, sx, sy,
+				       dst, dstoff, dd, dp, dh, dx, dy);
 	else
 		return NV04EXARectM2MF(pNv, w, h, cpp,
-				       src, sd, sp, sh, sx, sy,
-				       dst, dd, dp, dh, dx, dy);
+				       src, srcoff, sd, sp, sh, sx, sy,
+				       dst, dstoff, dd, dp, dh, dx, dy);
 	return FALSE;
 }
 
@@ -181,10 +181,11 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 		if (lines > h)
 			lines = h;
 
-		if (!NVAccelM2MF(pNv, w, lines, cpp, nouveau_pixmap_bo(pspix),
-				 NOUVEAU_BO_VRAM, src_pitch,
-				 pspix->drawable.height, x, y, pNv->GART,
-				 NOUVEAU_BO_GART, tmp_pitch, lines, 0, 0))
+		if (!NVAccelM2MF(pNv, w, lines, cpp, 0, 0,
+				 nouveau_pixmap_bo(pspix), NOUVEAU_BO_VRAM,
+				 src_pitch, pspix->drawable.height, x, y,
+				 pNv->GART, NOUVEAU_BO_GART, tmp_pitch,
+				 lines, 0, 0))
 			goto memcpy;
 
 		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD);
@@ -281,7 +282,7 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 		}
 		nouveau_bo_unmap(pNv->GART);
 
-		if (!NVAccelM2MF(pNv, w, lines, cpp, pNv->GART,
+		if (!NVAccelM2MF(pNv, w, lines, cpp, 0, 0, pNv->GART,
 				 NOUVEAU_BO_GART, tmp_pitch, lines, 0, 0,
 				 nouveau_pixmap_bo(pdpix), NOUVEAU_BO_VRAM,
 				 dst_pitch, pdpix->drawable.height, x, y))

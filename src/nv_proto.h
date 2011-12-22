@@ -43,6 +43,10 @@ void  NVTakedownDma(ScrnInfoPtr pScrn);
 Bool nouveau_exa_init(ScreenPtr pScreen);
 Bool nouveau_exa_pixmap_is_onscreen(PixmapPtr pPixmap);
 bool nv50_style_tiled_pixmap(PixmapPtr ppix);
+Bool NVAccelM2MF(NVPtr pNv, int w, int h, int cpp, uint32_t srco, uint32_t dsto,
+		 struct nouveau_bo *s, int sd, int sp, int sh, int sx, int sy,
+		 struct nouveau_bo *d, int dd, int dp, int dh, int dx, int dy);
+
 
 /* in nouveau_wfb.c */
 void nouveau_wfb_setup_wrap(ReadMemoryProcPtr *, WriteMemoryProcPtr *,
@@ -79,8 +83,8 @@ void NV04EXADoneCopy(PixmapPtr);
 Bool NV04EXAUploadIFC(ScrnInfoPtr, const char *src, int src_pitch,
 		      PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
 Bool NV04EXARectM2MF(NVPtr pNv, int, int, int,
-		     struct nouveau_bo *, int, int, int, int, int,
-		     struct nouveau_bo *, int, int, int, int, int);
+		     struct nouveau_bo *, uint32_t, int, int, int, int, int,
+		     struct nouveau_bo *, uint32_t, int, int, int, int, int);
 
 /* in nv10_exa.c */
 Bool NVAccelInitNV10TCL(ScrnInfoPtr pScrn);
@@ -157,8 +161,8 @@ void NV50EXADoneComposite(PixmapPtr);
 Bool NV50EXAUploadSIFC(const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
 Bool NV50EXARectM2MF(NVPtr pNv, int, int, int,
-		     struct nouveau_bo *, int, int, int, int, int,
-		     struct nouveau_bo *, int, int, int, int, int);
+		     struct nouveau_bo *, uint32_t, int, int, int, int, int,
+		     struct nouveau_bo *, uint32_t, int, int, int, int, int);
 
 /* in nvc0_exa.c */
 Bool NVC0AccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
@@ -180,8 +184,8 @@ void NVC0EXADoneComposite(PixmapPtr);
 Bool NVC0EXAUploadSIFC(const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
 Bool NVC0EXARectM2MF(NVPtr pNv, int, int, int,
-		     struct nouveau_bo *, int, int, int, int, int,
-		     struct nouveau_bo *, int, int, int, int, int);
+		     struct nouveau_bo *, uint32_t, int, int, int, int, int,
+		     struct nouveau_bo *, uint32_t, int, int, int, int, int);
 
 /* nv50_xv.c */
 int nv50_xv_image_put(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
@@ -199,8 +203,6 @@ int nvc0_xv_image_put(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
 		      BoxPtr, int, int, int, int, uint16_t, uint16_t,
 		      uint16_t, uint16_t, uint16_t, uint16_t,
 		      RegionPtr, PixmapPtr, NVPortPrivPtr);
-void nvc0_xv_m2mf(struct nouveau_grobj *, struct nouveau_bo *, int, int, int,
-		  struct nouveau_bo *, int);
 void nvc0_xv_csc_update(NVPtr, float, float *, float *, float *);
 
 /* To support EXA 2.0, 2.1 has this in the header */

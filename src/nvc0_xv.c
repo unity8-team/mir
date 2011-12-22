@@ -36,58 +36,6 @@
 
 extern Atom xvSyncToVBlank, xvSetDefaults;
 
-void
-nvc0_xv_m2mf(struct nouveau_grobj *m2mf,
-	     struct nouveau_bo *dst, int uv_offset, int dst_pitch, int nlines,
-	     struct nouveau_bo *src, int line_len)
-{
-	struct nouveau_channel *chan = m2mf->channel;
-
-	BEGIN_NVC0(chan, NVC0_M2MF(TILING_MODE_OUT), 5);
-	OUT_RING  (chan, dst->tile_mode);
-	OUT_RING  (chan, dst_pitch);
-	OUT_RING  (chan, nlines);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NVC0(chan, NVC0_M2MF(TILING_POSITION_OUT_X), 2);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-
-	if (uv_offset) {
-		BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_IN_HIGH), 2);
-		OUT_RELOCh(chan, src, line_len * nlines,
-				 NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-		OUT_RELOCl(chan, src, line_len * nlines,
-				 NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-		BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-		OUT_RELOCh(chan, dst, uv_offset,
-				 NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-		OUT_RELOCl(chan, dst, uv_offset,
-				 NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-		BEGIN_NVC0(chan, NVC0_M2MF(PITCH_IN), 4);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, dst_pitch);
-		OUT_RING  (chan, line_len);
-		OUT_RING  (chan, nlines >> 1);
-		BEGIN_NVC0(chan, NVC0_M2MF(EXEC), 1);
-		OUT_RING  (chan, 0x00100010);
-	}
-
-	BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_IN_HIGH), 2);
-	OUT_RELOCh(chan, src, 0, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-	OUT_RELOCl(chan, src, 0, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-	BEGIN_NVC0(chan, NVC0_M2MF(OFFSET_OUT_HIGH), 2);
-	OUT_RELOCh(chan, dst, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	OUT_RELOCl(chan, dst, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	BEGIN_NVC0(chan, NVC0_M2MF(PITCH_IN), 4);
-	OUT_RING  (chan, line_len);
-	OUT_RING  (chan, dst_pitch);
-	OUT_RING  (chan, line_len);
-	OUT_RING  (chan, nlines);
-	BEGIN_NVC0(chan, NVC0_M2MF(EXEC), 1);
-	OUT_RING  (chan, 0x00100010);
-}
-
 static Bool
 nvc0_xv_check_image_put(PixmapPtr ppix)
 {
