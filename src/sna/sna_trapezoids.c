@@ -3177,7 +3177,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	region.data = NULL;
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-					     MOVE_READ | MOVE_WRITE))
+					     MOVE_WRITE))
 		return true;
 
 	pixmap = get_drawable_pixmap(dst->pDrawable);
