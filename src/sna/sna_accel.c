@@ -1090,7 +1090,8 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	if (priv == NULL)
 		return FALSE;
 
-	if (pixmap->devPrivate.ptr == NULL &&
+	if (priv->cpu_damage == NULL &&
+	    sna_pixmap_choose_tiling(pixmap) != I915_TILING_NONE &&
 	    !sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE))
 		return FALSE;
 
