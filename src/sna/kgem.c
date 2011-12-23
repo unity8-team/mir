@@ -520,8 +520,8 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: max object size %d\n", __FUNCTION__, kgem->max_object_size));
 
 	kgem->fence_max = gem_param(kgem, I915_PARAM_NUM_FENCES_AVAIL) - 2;
-	if (kgem->fence_max < 0)
-		kgem->fence_max = 5;
+	if ((int)kgem->fence_max < 0)
+		kgem->fence_max = 5; /* minimum safe value for all hw */
 	DBG(("%s: max fences=%d\n", __FUNCTION__, kgem->fence_max));
 }
 
