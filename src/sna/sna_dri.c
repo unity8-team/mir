@@ -127,7 +127,7 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 {
 	struct sna_pixmap *priv;
 
-	priv = sna_pixmap_force_to_gpu(pixmap);
+	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL)
 		return NULL;
 

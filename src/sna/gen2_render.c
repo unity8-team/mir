@@ -1220,7 +1220,7 @@ gen2_composite_set_target(struct sna *sna,
 	op->dst.width  = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 
-	priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
+	priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_WRITE | MOVE_READ);
 	if (priv == NULL)
 		return FALSE;
 

@@ -508,7 +508,7 @@ sna_render_pixmap_bo(struct sna *sna,
 	}
 
 	if (bo == NULL) {
-		priv = sna_pixmap_force_to_gpu(pixmap);
+		priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
 		if (priv) {
 			bo = kgem_bo_reference(priv->gpu_bo);
 		} else {
@@ -617,7 +617,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 		PixmapPtr tmp;
 		int error, i, j, ww, hh, ni, nj;
 
-		if (!sna_pixmap_force_to_gpu(pixmap))
+		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_READ))
 			goto fixup;
 
 		tmp = screen->CreatePixmap(screen,
@@ -862,7 +862,7 @@ sna_render_picture_extract(struct sna *sna,
 			return 0;
 		}
 	} else {
-		if (!sna_pixmap_move_to_gpu(pixmap)) {
+		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_READ)) {
 			DBG(("%s: falback -- pixmap is not on the GPU\n",
 			     __FUNCTION__));
 			return sna_render_picture_fixup(sna, picture, channel,
@@ -1376,7 +1376,7 @@ sna_render_composite_redirect(struct sna *sna,
 		return FALSE;
 	}
 
-	if (!sna_pixmap_move_to_gpu(op->dst.pixmap))
+	if (!sna_pixmap_move_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE))
 		return FALSE;
 
 	/* We can process the operation in a single pass,

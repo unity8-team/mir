@@ -685,7 +685,7 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 
 			if (kgem_bo_is_busy(priv->gpu_bo)) {
 				sna_pixmap_destroy_gpu_bo(sna, priv);
-				if (!sna_pixmap_move_to_gpu(pixmap))
+				if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE))
 					goto skip_inplace_map;
 			}
 
@@ -882,7 +882,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				kgem_retire(&sna->kgem);
 			if (sync_will_stall(priv->cpu_bo)) {
 				sna_damage_subtract(&priv->cpu_damage, region);
-				if (!sna_pixmap_move_to_gpu(pixmap))
+				if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE))
 					return false;
 
 				sna_pixmap_free_cpu(sna, priv);
@@ -1091,7 +1091,7 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 		return FALSE;
 
 	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_move_to_gpu(pixmap))
+	    !sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE))
 		return FALSE;
 
 	if (priv->gpu_bo == NULL)
@@ -1270,7 +1270,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 }
 
 struct sna_pixmap *
-sna_pixmap_force_to_gpu(PixmapPtr pixmap)
+sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 {
 	struct sna_pixmap *priv;
 
@@ -1311,14 +1311,14 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap)
 		DBG(("%s: created gpu bo\n", __FUNCTION__));
 	}
 
-	if (!sna_pixmap_move_to_gpu(pixmap))
+	if (!sna_pixmap_move_to_gpu(pixmap, flags))
 		return NULL;
 
 	return priv;
 }
 
 struct sna_pixmap *
-sna_pixmap_move_to_gpu(PixmapPtr pixmap)
+sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
@@ -1348,7 +1348,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 			return NULL;
 		}
 
-		if (priv->cpu_damage == NULL) {
+		if (flags & MOVE_WRITE && priv->cpu_damage == NULL) {
 			/* Presume that we will only ever write to the GPU
 			 * bo. Readbacks are expensive but fairly constant
 			 * in cost for all sizes i.e. it is the act of
@@ -1360,6 +1360,9 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap)
 				       pixmap->drawable.height);
 		}
 	}
+
+	if ((flags & MOVE_READ) == 0)
+		sna_damage_destroy(&priv->cpu_damage);
 
 	if (priv->cpu_damage == NULL)
 		goto done;
@@ -1741,7 +1744,8 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			} else {
 				if (!region_subsumes_drawable(region, &pixmap->drawable)) {
 					sna_damage_subtract(&priv->cpu_damage, region);
-					if (!sna_pixmap_move_to_gpu(pixmap))
+					if (!sna_pixmap_move_to_gpu(pixmap,
+								    MOVE_WRITE))
 						return false;
 				}
 
@@ -2220,7 +2224,7 @@ sna_self_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		get_drawable_deltas(dst, pixmap, &tx, &ty);
 
 	if (priv && priv->gpu_bo) {
-		if (!sna_pixmap_move_to_gpu(pixmap)) {
+		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ)) {
 			DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
 			     __FUNCTION__));
 			goto fallback;
@@ -2401,7 +2405,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			goto fallback;
 		}
 
-		if (alu != GXcopy && !sna_pixmap_move_to_gpu(dst_pixmap)) {
+		if (alu != GXcopy && !sna_pixmap_move_to_gpu(dst_pixmap, MOVE_READ | MOVE_WRITE)) {
 			DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
 			     __FUNCTION__));
 			goto fallback;
@@ -2409,7 +2413,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 		if (src_priv &&
 		    move_to_gpu(src_pixmap, src_priv, &region.extents, alu) &&
-		    sna_pixmap_move_to_gpu(src_pixmap)) {
+		    sna_pixmap_move_to_gpu(src_pixmap, MOVE_READ)) {
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->gpu_bo, src_dx, src_dy,
 						    dst_pixmap, dst_priv->gpu_bo, dst_dx, dst_dy,
@@ -6477,7 +6481,7 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 					      n, rect,
 					      extents, clipped);
 
-	if (!sna_pixmap_move_to_gpu(tile))
+	if (!sna_pixmap_move_to_gpu(tile, MOVE_READ))
 		return FALSE;
 
 	if (!sna_copy_init_blt(&copy, sna,
@@ -8811,7 +8815,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 		struct sna_pixmap *priv = list_first_entry(&sna->dirty_pixmaps,
 							   struct sna_pixmap,
 							   list);
-		sna_pixmap_move_to_gpu(priv->pixmap);
+		sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ);
 	}
 
 	kgem_submit(&sna->kgem);
@@ -9029,7 +9033,7 @@ static bool sna_accel_flush(struct sna *sna)
 	if (nothing_to_do && !sna->kgem.busy)
 		_sna_accel_disarm_timer(sna, FLUSH_TIMER);
 	else
-		sna_pixmap_move_to_gpu(priv->pixmap);
+		sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ);
 	sna->kgem.busy = !nothing_to_do;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 	sna->kgem.flush_now = 0;

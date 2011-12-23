@@ -426,8 +426,8 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap);
 PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 				   int width, int height, int depth);
 
-struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap);
-struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap);
+struct sna_pixmap *sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags);
+struct sna_pixmap *sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags);
 struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
 #define MOVE_WRITE 0x1
@@ -448,9 +448,9 @@ sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
 }
 
 static inline bool must_check
-sna_drawable_move_to_gpu(DrawablePtr drawable)
+sna_drawable_move_to_gpu(DrawablePtr drawable, unsigned flags)
 {
-	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable)) != NULL;
+	return sna_pixmap_move_to_gpu(get_drawable_pixmap(drawable), flags) != NULL;
 }
 
 static inline Bool
@@ -469,7 +469,7 @@ static inline struct kgem_bo *sna_pixmap_pin(PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
 
-	priv = sna_pixmap_force_to_gpu(pixmap);
+	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (!priv)
 		return NULL;
 

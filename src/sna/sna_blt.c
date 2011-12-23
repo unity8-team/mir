@@ -1247,7 +1247,7 @@ sna_blt_composite(struct sna *sna,
 	}
 
 	tmp->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
-	priv = sna_pixmap_move_to_gpu(tmp->dst.pixmap);
+	priv = sna_pixmap_move_to_gpu(tmp->dst.pixmap, MOVE_WRITE | MOVE_READ);
 	if (priv == NULL || priv->gpu_bo->tiling == I915_TILING_Y) {
 		DBG(("%s: dst not on the gpu or using Y-tiling\n",
 		     __FUNCTION__));
@@ -1360,7 +1360,7 @@ sna_blt_composite(struct sna *sna,
 		ret = prepare_blt_copy(sna, tmp);
 	else if (has_cpu_area(blt->src_pixmap, x, y, width, height))
 		ret = prepare_blt_put(sna, tmp);
-	else if (sna_pixmap_move_to_gpu(blt->src_pixmap))
+	else if (sna_pixmap_move_to_gpu(blt->src_pixmap, MOVE_READ))
 		ret = prepare_blt_copy(sna, tmp);
 	else
 		ret = prepare_blt_put(sna, tmp);

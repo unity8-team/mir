@@ -1610,7 +1610,7 @@ gen4_render_video(struct sna *sna,
 
 	DBG(("%s: %dx%d -> %dx%d\n", __FUNCTION__, src_w, src_h, drw_w, drw_h));
 
-	priv = sna_pixmap_force_to_gpu(pixmap);
+	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL)
 		return FALSE;
 
@@ -1837,7 +1837,7 @@ gen4_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
 	op->dst.width  = op->dst.pixmap->drawable.width;
 	op->dst.height = op->dst.pixmap->drawable.height;
 	op->dst.format = dst->format;
-	priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
+	priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL)
 		return FALSE;
 

@@ -1654,7 +1654,7 @@ gen5_render_video(struct sna *sna,
 
 	DBG(("%s: %dx%d -> %dx%d\n", __FUNCTION__, src_w, src_h, drw_w, drw_h));
 
-	priv = sna_pixmap_force_to_gpu(pixmap);
+	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL)
 		return FALSE;
 
@@ -1883,7 +1883,7 @@ gen5_composite_set_target(PicturePtr dst, struct sna_composite_op *op)
 		op->damage = &priv->cpu_damage;
 	}
 	if (op->dst.bo == NULL) {
-		priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
+		priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
 		if (priv == NULL)
 			return FALSE;
 

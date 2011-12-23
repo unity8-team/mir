@@ -1814,7 +1814,7 @@ gen6_render_video(struct sna *sna,
 	     REGION_EXTENTS(NULL, dstRegion)->x2,
 	     REGION_EXTENTS(NULL, dstRegion)->y2));
 
-	priv = sna_pixmap_force_to_gpu(pixmap);
+	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL)
 		return FALSE;
 
@@ -2060,7 +2060,7 @@ gen6_composite_set_target(struct sna *sna,
 		op->damage = &priv->cpu_damage;
 	}
 	if (op->dst.bo == NULL) {
-		priv = sna_pixmap_force_to_gpu(op->dst.pixmap);
+		priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
 		if (priv == NULL)
 			return FALSE;
 

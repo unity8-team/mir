@@ -717,7 +717,7 @@ sna_composite_rectangles(CARD8		 op,
 	 * operation, then we may as well delete it without moving it
 	 * first to the GPU.
 	 */
-	if (op == PictOpSrc || op == PictOpClear) {
+	if (op <= PictOpSrc) {
 		priv = sna_pixmap_attach(pixmap);
 		if (priv)
 			sna_damage_subtract(&priv->cpu_damage, &region);
@@ -728,7 +728,7 @@ sna_composite_rectangles(CARD8		 op,
 		goto fallback;
 	}
 
-	priv = sna_pixmap_move_to_gpu(pixmap);
+	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL) {
 		DBG(("%s: fallback due to no GPU bo\n", __FUNCTION__));
 		goto fallback;
