@@ -697,13 +697,9 @@ static void kgem_fixup_self_relocs(struct kgem *kgem, struct kgem_bo *bo)
 	}
 }
 
-static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
+static void kgem_bo_binding_free(struct kgem *kgem, struct kgem_bo *bo)
 {
 	struct kgem_bo_binding *b;
-
-	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
-	assert(bo->refcnt == 0);
-	assert(bo->exec == NULL);
 
 	b = bo->binding.next;
 	while (b) {
@@ -711,6 +707,15 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 		free (b);
 		b = next;
 	}
+}
+
+static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
+{
+	DBG(("%s: handle=%d\n", __FUNCTION__, bo->handle));
+	assert(bo->refcnt == 0);
+	assert(bo->exec == NULL);
+
+	kgem_bo_binding_free(kgem, bo);
 
 	if (bo->map) {
 		DBG(("%s: releasing %s vma for handle=%d, count=%d\n",
@@ -1991,10 +1996,9 @@ skip_active_search:
 void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	if (bo->proxy) {
-		kgem_bo_unref(kgem, bo->proxy);
-
-		assert(bo->binding.next == NULL);
 		assert(bo->map == NULL);
+		kgem_bo_unref(kgem, bo->proxy);
+		kgem_bo_binding_free(kgem, bo);
 		_list_del(&bo->request);
 		free(bo);
 		return;
