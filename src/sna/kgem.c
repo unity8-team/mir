@@ -1059,7 +1059,7 @@ static void kgem_cleanup(struct kgem *kgem)
 	kgem_close_inactive(kgem);
 }
 
-static int kgem_batch_write(struct kgem *kgem, uint32_t handle)
+static int kgem_batch_write(struct kgem *kgem, uint32_t handle, uint32_t size)
 {
 	int ret;
 
@@ -1072,10 +1072,12 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle)
 				 kgem->batch);
 
 	/* Are the batch pages conjoint with the surface pages? */
-	if (kgem->surface < kgem->nbatch + PAGE_SIZE/4)
+	if (kgem->surface < kgem->nbatch + PAGE_SIZE/4) {
+		assert(size == sizeof(kgem->batch));
 		return gem_write(kgem->fd, handle,
 				 0, sizeof(kgem->batch),
 				 kgem->batch);
+	}
 
 	/* Disjoint surface/batch, upload separately */
 	ret = gem_write(kgem->fd, handle,
@@ -1085,7 +1087,7 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle)
 		return ret;
 
 	return gem_write(kgem->fd, handle,
-			sizeof(uint32_t)*kgem->surface,
+			sizeof(uint32_t)*kgem->surface - (sizeof(kgem->batch)-size),
 			sizeof(kgem->batch) - sizeof(uint32_t)*kgem->surface,
 			kgem->batch + kgem->surface);
 }
@@ -1134,6 +1136,31 @@ void kgem_reset(struct kgem *kgem)
 	kgem_sna_reset(kgem);
 }
 
+static int compact_batch_surface(struct kgem *kgem)
+{
+	int size, shrink, n;
+
+	/* See if we can pack the contents into one or two pages */
+	size = ARRAY_SIZE(kgem->batch) - kgem->surface + kgem->nbatch;
+	if (size > 2048)
+		return sizeof(kgem->batch);
+	else if (size > 1024)
+		size = 8192, shrink = 2*4096;
+	else
+		size = 4096, shrink = 3*4096;
+
+	for (n = 0; n < kgem->nreloc; n++) {
+		if (kgem->reloc[n].read_domains == I915_GEM_DOMAIN_INSTRUCTION &&
+		    kgem->reloc[n].target_handle == 0)
+			kgem->reloc[n].delta -= shrink;
+
+		if (kgem->reloc[n].offset >= size)
+			kgem->reloc[n].offset -= shrink;
+	}
+
+	return size;
+}
+
 void _kgem_submit(struct kgem *kgem)
 {
 	struct kgem_request *rq;
@@ -1164,7 +1191,7 @@ void _kgem_submit(struct kgem *kgem)
 
 	rq = kgem->next_request;
 	if (kgem->surface != ARRAY_SIZE(kgem->batch))
-		size = sizeof(kgem->batch);
+		size = compact_batch_surface(kgem);
 	else
 		size = kgem->nbatch * sizeof(kgem->batch[0]);
 	rq->bo = kgem_create_linear(kgem, size);
@@ -1189,7 +1216,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem_finish_partials(kgem);
 
 		assert(!rq->bo->needs_flush);
-		if (kgem_batch_write(kgem, handle) == 0) {
+		if (kgem_batch_write(kgem, handle, size) == 0) {
 			struct drm_i915_gem_execbuffer2 execbuf;
 			int ret, retry = 3;
 
