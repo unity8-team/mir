@@ -2394,6 +2394,43 @@ gen3_composite_fallback(struct sna *sna,
 	return FALSE;
 }
 
+static int
+reuse_source(struct sna *sna,
+	     PicturePtr src, struct sna_composite_channel *sc, int src_x, int src_y,
+	     PicturePtr mask, struct sna_composite_channel *mc, int msk_x, int msk_y)
+{
+	if (src->pDrawable == NULL || mask->pDrawable != src->pDrawable)
+		return FALSE;
+
+	DBG(("%s: mask reuses source drawable\n", __FUNCTION__));
+
+	if (src_x != msk_x || src_y != msk_y)
+		return FALSE;
+
+	if (!sna_transform_equal(src->transform, mask->transform))
+		return FALSE;
+
+	if (!sna_picture_alphamap_equal(src, mask))
+		return FALSE;
+
+	if (!gen3_check_repeat(mask))
+		return FALSE;
+
+	if (!gen3_check_filter(mask->filter))
+		return FALSE;
+
+	DBG(("%s: reusing source channel for mask with a twist\n",
+	     __FUNCTION__));
+
+	*mc = *sc;
+	mc->repeat = gen3_texture_repeat(mask->repeat ? mask->repeatType : RepeatNone);
+	mc->filter = gen3_filter(mask->filter);
+	mc->pict_format = mask->format;
+	gen3_composite_channel_set_format(mc, mask->format);
+	mc->bo = kgem_bo_reference(mc->bo);
+	return TRUE;
+}
+
 static Bool
 gen3_render_composite(struct sna *sna,
 		      uint8_t op,
@@ -2499,20 +2536,24 @@ gen3_render_composite(struct sna *sna,
 	tmp->need_magic_ca_pass = FALSE;
 	tmp->has_component_alpha = FALSE;
 	if (mask && tmp->src.u.gen3.type != SHADER_ZERO) {
-		tmp->mask.u.gen3.type = SHADER_TEXTURE;
-		DBG(("%s: preparing mask\n", __FUNCTION__));
-		switch (gen3_composite_picture(sna, mask, tmp, &tmp->mask,
-					       mask_x, mask_y,
-					       width,  height,
-					       dst_x,  dst_y)) {
-		case -1:
-			goto cleanup_src;
-		case 0:
-			tmp->mask.u.gen3.type = SHADER_ZERO;
-			break;
-		case 1:
-			gen3_composite_channel_convert(&tmp->mask);
-			break;
+		if (!reuse_source(sna,
+				  src, &tmp->src, src_x, src_y,
+				  mask, &tmp->mask, mask_x, mask_y)) {
+			tmp->mask.u.gen3.type = SHADER_TEXTURE;
+			DBG(("%s: preparing mask\n", __FUNCTION__));
+			switch (gen3_composite_picture(sna, mask, tmp, &tmp->mask,
+						       mask_x, mask_y,
+						       width,  height,
+						       dst_x,  dst_y)) {
+			case -1:
+				goto cleanup_src;
+			case 0:
+				tmp->mask.u.gen3.type = SHADER_ZERO;
+				break;
+			case 1:
+				gen3_composite_channel_convert(&tmp->mask);
+				break;
+			}
 		}
 		DBG(("%s: mask type=%d\n", __FUNCTION__, tmp->mask.u.gen3.type));
 

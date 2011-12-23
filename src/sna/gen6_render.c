@@ -2225,6 +2225,43 @@ gen6_composite_fallback(struct sna *sna,
 	return FALSE;
 }
 
+static int
+reuse_source(struct sna *sna,
+	     PicturePtr src, struct sna_composite_channel *sc, int src_x, int src_y,
+	     PicturePtr mask, struct sna_composite_channel *mc, int msk_x, int msk_y)
+{
+	if (src->pDrawable == NULL || mask->pDrawable != src->pDrawable)
+		return FALSE;
+
+	DBG(("%s: mask reuses source drawable\n", __FUNCTION__));
+
+	if (src_x != msk_x || src_y != msk_y)
+		return FALSE;
+
+	if (!sna_transform_equal(src->transform, mask->transform))
+		return FALSE;
+
+	if (!sna_picture_alphamap_equal(src, mask))
+		return FALSE;
+
+	if (!gen6_check_repeat(mask))
+		return FALSE;
+
+	if (!gen6_check_filter(mask))
+		return FALSE;
+
+	DBG(("%s: reusing source channel for mask with a twist\n",
+	     __FUNCTION__));
+
+	*mc = *sc;
+	mc->repeat = gen6_repeat(mask->repeat ? mask->repeatType : RepeatNone);
+	mc->filter = gen6_filter(mask->filter);
+	mc->pict_format = mask->format;
+	mc->card_format = gen6_get_card_format(mask->format);
+	mc->bo = kgem_bo_reference(mc->bo);
+	return TRUE;
+}
+
 static Bool
 gen6_render_composite(struct sna *sna,
 		      uint8_t op,
@@ -2347,17 +2384,21 @@ gen6_render_composite(struct sna *sna,
 			}
 		}
 
-		switch (gen6_composite_picture(sna, mask, &tmp->mask,
-					       msk_x, msk_y,
-					       width, height,
-					       dst_x, dst_y)) {
-		case -1:
-			goto cleanup_src;
-		case 0:
-			gen6_composite_solid_init(sna, &tmp->mask, 0);
-		case 1:
-			gen6_composite_channel_convert(&tmp->mask);
-			break;
+		if (!reuse_source(sna,
+				  src, &tmp->src, src_x, src_y,
+				  mask, &tmp->mask, msk_x, msk_y)) {
+			switch (gen6_composite_picture(sna, mask, &tmp->mask,
+						       msk_x, msk_y,
+						       width, height,
+						       dst_x, dst_y)) {
+			case -1:
+				goto cleanup_src;
+			case 0:
+				gen6_composite_solid_init(sna, &tmp->mask, 0);
+			case 1:
+				gen6_composite_channel_convert(&tmp->mask);
+				break;
+			}
 		}
 
 		tmp->is_affine &= tmp->mask.is_affine;

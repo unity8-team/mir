@@ -507,7 +507,7 @@ _sna_get_transformed_coordinates(int x, int y,
 
 void
 sna_get_transformed_coordinates(int x, int y,
-			       	const PictTransform *transform,
+				const PictTransform *transform,
 				float *x_out, float *y_out);
 
 Bool
@@ -520,6 +520,31 @@ Bool sna_transform_is_integer_translation(const PictTransform *t,
 					  int16_t *tx, int16_t *ty);
 Bool sna_transform_is_translation(const PictTransform *t,
 				  pixman_fixed_t *tx, pixman_fixed_t *ty);
+
+static inline bool
+sna_transform_equal(const PictTransform *a, const PictTransform *b)
+{
+	if (a == b)
+		return true;
+
+	if (a == NULL || b == NULL)
+		return false;
+
+	return memcmp(a, b, sizeof(*a)) == 0;
+}
+
+static inline bool
+sna_picture_alphamap_equal(PicturePtr a, PicturePtr b)
+{
+	if (a->alphaMap != b->alphaMap)
+		return false;
+
+	if (a->alphaMap)
+		return false;
+
+	return (a->alphaOrigin.x == b->alphaOrigin.x &&
+		a->alphaOrigin.y == b->alphaOrigin.y);
+}
 
 static inline bool wedged(struct sna *sna)
 {
