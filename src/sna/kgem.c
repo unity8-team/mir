@@ -171,6 +171,23 @@ static void *gem_mmap(int fd, uint32_t handle, int size, int prot)
 	return ptr;
 }
 
+static int __gem_write(int fd, uint32_t handle,
+		     int offset, int length,
+		     const void *src)
+{
+	struct drm_i915_gem_pwrite pwrite;
+
+	DBG(("%s(handle=%d, offset=%d, len=%d)\n", __FUNCTION__,
+	     handle, offset, length));
+
+	VG_CLEAR(pwrite);
+	pwrite.handle = handle;
+	pwrite.offset = offset;
+	pwrite.size = length;
+	pwrite.data_ptr = (uintptr_t)src;
+	return drmIoctl(fd, DRM_IOCTL_I915_GEM_PWRITE, &pwrite);
+}
+
 static int gem_write(int fd, uint32_t handle,
 		     int offset, int length,
 		     const void *src)
@@ -1086,7 +1103,9 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle, uint32_t size)
 	if (ret)
 		return ret;
 
-	return gem_write(kgem->fd, handle,
+	assert(kgem->nbatch*sizeof(uint32_t) <=
+	       sizeof(uint32_t)*kgem->surface - (sizeof(kgem->batch)-size));
+	return __gem_write(kgem->fd, handle,
 			sizeof(uint32_t)*kgem->surface - (sizeof(kgem->batch)-size),
 			sizeof(kgem->batch) - sizeof(uint32_t)*kgem->surface,
 			kgem->batch + kgem->surface);
