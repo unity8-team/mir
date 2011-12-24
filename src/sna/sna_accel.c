@@ -888,6 +888,23 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
+
+		if (priv->gpu_bo == NULL &&
+		    sna_pixmap_choose_tiling(pixmap) != I915_TILING_NONE &&
+		    region_inplace(sna, pixmap, region, priv)) {
+			sna_damage_subtract(&priv->cpu_damage, region);
+			if (sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE)) {
+				pixmap->devPrivate.ptr =
+					kgem_bo_map(&sna->kgem, priv->gpu_bo,
+						    PROT_WRITE);
+				priv->mapped = 1;
+
+				sna_damage_add(&priv->gpu_damage, region);
+
+				priv->gpu = true;
+				return true;
+			}
+		}
 	}
 
 	if (priv->mapped) {
