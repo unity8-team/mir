@@ -135,7 +135,7 @@ static const char *_debug_describe_damage(char *buf, int max,
 			sprintf(damage_str, "%c[ ...]",
 				damage->mode == DAMAGE_SUBTRACT ? '-' : '+');
 		} else
-			damage_str = "";
+			damage_str[0] = '\0';
 		snprintf(buf, max, "[[(%d, %d), (%d, %d)]: %s %s]",
 			 damage->extents.x1, damage->extents.y1,
 			 damage->extents.x2, damage->extents.y2,
@@ -922,10 +922,10 @@ struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 
 static bool box_contains(const BoxRec *a, const BoxRec *b)
 {
-	if (b->x2 <= a->x1 || b->x1 >= a->x2)
+	if (b->x1 < a->x1 || b->x2 > a->x2)
 		return false;
 
-	if (b->y2 <= a->y1 || b->y1 >= a->y2)
+	if (b->y1 < a->y1 || b->y2 > a->y2)
 		return false;
 
 	return true;
@@ -1042,6 +1042,11 @@ inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *da
 		return damage;
 
 	if (damage->mode != DAMAGE_SUBTRACT) {
+		if (box_contains(box, &damage->extents)) {
+			__sna_damage_destroy(damage);
+			return NULL;
+		}
+
 		if (damage->dirty)
 			__sna_damage_reduce(damage);
 
