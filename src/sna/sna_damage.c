@@ -50,6 +50,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 static struct sna_damage *__freed_damage;
 
+static inline bool region_is_singular(RegionRec *r)
+{
+	return r->data == NULL;
+}
+
 #if DEBUG_DAMAGE
 #undef DBG
 #define DBG(x) ErrorF x
@@ -915,6 +920,17 @@ struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 	return _sna_damage_all(damage, width, height);
 }
 
+static bool box_contains(const BoxRec *a, const BoxRec *b)
+{
+	if (b->x2 <= a->x1 || b->x1 >= a->x2)
+		return false;
+
+	if (b->y2 <= a->y1 || b->y1 >= a->y2)
+		return false;
+
+	return true;
+}
+
 static inline Bool sna_damage_maybe_contains_box(struct sna_damage *damage,
 						 const BoxRec *box)
 {
@@ -947,6 +963,12 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 		return damage;
 
 	if (damage->mode != DAMAGE_SUBTRACT) {
+		if (region_is_singular(region) &&
+		    box_contains(&region->extents, &damage->extents)) {
+			__sna_damage_destroy(damage);
+			return NULL;
+		}
+
 		if (damage->dirty)
 			__sna_damage_reduce(damage);
 
@@ -960,8 +982,8 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 			return NULL;
 		}
 
-		if (REGION_NUM_RECTS(&damage->region) == 1 &&
-		    REGION_NUM_RECTS(region) == 1) {
+		if (region_is_singular(&damage->region) &&
+		    region_is_singular(region)) {
 			pixman_region_subtract(&damage->region,
 					       &damage->region,
 					       region);
@@ -1028,7 +1050,7 @@ inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *da
 			return NULL;
 		}
 
-		if (REGION_NUM_RECTS(&damage->region) == 1) {
+		if (region_is_singular(&damage->region)) {
 			pixman_region16_t region;
 
 			pixman_region_init_rects(&region, box, 1);
