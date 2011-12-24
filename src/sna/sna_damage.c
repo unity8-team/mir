@@ -962,13 +962,13 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 	if (!sna_damage_maybe_contains_box(damage, &region->extents))
 		return damage;
 
-	if (damage->mode != DAMAGE_SUBTRACT) {
-		if (region_is_singular(region) &&
-		    box_contains(&region->extents, &damage->extents)) {
-			__sna_damage_destroy(damage);
-			return NULL;
-		}
+	if (region_is_singular(region) &&
+	    box_contains(&region->extents, &damage->extents)) {
+		__sna_damage_destroy(damage);
+		return NULL;
+	}
 
+	if (damage->mode != DAMAGE_SUBTRACT) {
 		if (damage->dirty)
 			__sna_damage_reduce(damage);
 
@@ -1041,12 +1041,12 @@ inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *da
 	if (!sna_damage_maybe_contains_box(damage, box))
 		return damage;
 
-	if (damage->mode != DAMAGE_SUBTRACT) {
-		if (box_contains(box, &damage->extents)) {
-			__sna_damage_destroy(damage);
-			return NULL;
-		}
+	if (box_contains(box, &damage->extents)) {
+		__sna_damage_destroy(damage);
+		return NULL;
+	}
 
+	if (damage->mode != DAMAGE_SUBTRACT) {
 		if (damage->dirty)
 			__sna_damage_reduce(damage);
 
