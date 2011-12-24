@@ -6,7 +6,6 @@
 
 #include "compiler.h"
 
-struct sna_damage_elt;
 struct sna_damage_box;
 
 struct sna_damage {
@@ -17,10 +16,13 @@ struct sna_damage {
 		DAMAGE_SUBTRACT,
 		DAMAGE_ALL,
 	} mode;
-	int n, size;
-	struct sna_damage_elt *elts;
-	struct sna_damage_box *last_box;
-	struct list boxes;
+	int remain, dirty;
+	BoxPtr box;
+	struct {
+		struct list list;
+		int size;
+		BoxRec box[8];
+	} embedded_box;
 };
 
 fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
@@ -133,7 +135,7 @@ static inline void sna_damage_reduce(struct sna_damage **damage)
 	if (*damage == NULL)
 		return;
 
-	if ((*damage)->n)
+	if ((*damage)->dirty)
 		*damage = _sna_damage_reduce(*damage);
 }
 
@@ -145,7 +147,7 @@ static inline void sna_damage_reduce_all(struct sna_damage **damage,
 	if (*damage == NULL)
 		return;
 
-	if ((*damage)->n && (*damage = _sna_damage_reduce(*damage)) == NULL)
+	if ((*damage)->dirty && (*damage = _sna_damage_reduce(*damage)) == NULL)
 		return;
 
 	if ((*damage)->mode == DAMAGE_ADD &&
