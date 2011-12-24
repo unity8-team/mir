@@ -87,8 +87,7 @@ static bool map_will_stall(struct kgem *kgem, struct kgem_bo *bo)
 	if (kgem_bo_is_busy(bo))
 		return true;
 
-	if (bo->presumed_offset &&
-	    bo->presumed_offset + bo->size >= kgem->aperture_mappable)
+	if (!kgem_bo_is_mappable(kgem, bo))
 		return true;
 
 	return false;

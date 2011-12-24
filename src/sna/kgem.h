@@ -338,6 +338,21 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length);
 
+int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo);
+
+static inline bool kgem_bo_is_mappable(struct kgem *kgem,
+				       struct kgem_bo *bo)
+{
+	DBG_HDR(("%s: offset: %d size: %d\n",
+		 __FUNCTION__, bo->presumed_offset, bo->size));
+
+	if (kgem->gen < 40 && bo->tiling &&
+	    bo->presumed_offset & (kgem_bo_fenced_size(kgem, bo) - 1))
+			return false;
+
+	return bo->presumed_offset + bo->size <= kgem->aperture_mappable;
+}
+
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 {
 	DBG_HDR(("%s: domain: %d exec? %d, rq? %d\n",

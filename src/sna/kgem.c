@@ -1848,7 +1848,7 @@ bool kgem_can_create_2d(struct kgem *kgem,
 }
 #endif
 
-static int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo)
+inline int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo)
 {
 	unsigned int size;
 

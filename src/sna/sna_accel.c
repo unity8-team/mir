@@ -814,6 +814,9 @@ static inline bool region_inplace(struct sna *sna,
 	if (priv->mapped)
 		return true;
 
+	if (priv->gpu_bo && !kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo))
+		return false;
+
 	return ((region->extents.x2 - region->extents.x1) *
 		(region->extents.y2 - region->extents.y1) *
 		pixmap->drawable.bitsPerPixel >> 12)
@@ -1747,7 +1750,9 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	 * immediately flushed...
 	 */
 	if ((priv->flush ||
-	     (priv->gpu_bo && region_inplace(sna, pixmap, region, priv))) &&
+	     (priv->gpu_bo &&
+	      region_inplace(sna, pixmap, region, priv) &&
+	      !kgem_bo_is_busy(priv->gpu_bo))) &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
 		if (region_subsumes_drawable(region, &pixmap->drawable)) {
