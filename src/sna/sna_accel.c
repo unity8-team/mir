@@ -7391,6 +7391,8 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(draw);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna_damage **damage;
 	RegionRec region;
 	unsigned flags;
 
@@ -7415,6 +7417,11 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (FORCE_FALLBACK)
 		goto fallback;
 
+	if (priv == NULL) {
+		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
+		goto fallback;
+	}
+
 	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
@@ -7423,15 +7430,16 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (!PM_IS_SOLID(draw, gc->planemask))
 		goto fallback;
 
+	if (n == 1 && (flags & 2) == 0 &&
+	    gc->fillStyle != FillStippled && alu_overwrites(gc->alu)) {
+		region.data = NULL;
+		sna_damage_subtract(&priv->cpu_damage, &region);
+	}
+
 	if (gc->fillStyle == FillSolid ||
 	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
 	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
-		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		struct sna_damage **damage;
 		uint32_t color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
-
-		if (alu_overwrites(gc->alu))
-			sna_damage_subtract(&priv->cpu_damage, &region);
 
 		DBG(("%s: solid fill [%08x], testing for blt\n",
 		     __FUNCTION__, color));
@@ -7450,9 +7458,6 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 					   &region.extents, flags & 2))
 			return;
 	} else if (gc->fillStyle == FillTiled) {
-		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		struct sna_damage **damage;
-
 		DBG(("%s: tiled fill, testing for blt\n", __FUNCTION__));
 
 		if (sna_drawable_use_gpu_bo(draw, &region.extents, &damage) &&
@@ -7469,9 +7474,6 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 						 &region.extents, flags & 2))
 			return;
 	} else {
-		struct sna_pixmap *priv = sna_pixmap(pixmap);
-		struct sna_damage **damage;
-
 		DBG(("%s: stippled fill, testing for blt\n", __FUNCTION__));
 
 		if (sna_drawable_use_gpu_bo(draw, &region.extents, &damage) &&
