@@ -1507,6 +1507,44 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 	bool use_active = (flags & CREATE_INACTIVE) == 0;
 	struct list *cache;
 
+	if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
+		int for_cpu = !!(flags & CREATE_CPU_MAP);
+		assert(use_active == false);
+		list_for_each_entry(bo, &kgem->vma_inactive, vma) {
+			if (IS_CPU_MAP(bo->map) != for_cpu)
+				continue;
+
+			if (size > bo->size || 2*size < bo->size)
+				continue;
+
+			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
+				kgem->need_purge |= bo->domain == DOMAIN_GPU;
+				kgem_bo_free(kgem, bo);
+				break;
+			}
+
+			if (I915_TILING_NONE != bo->tiling &&
+			    gem_set_tiling(kgem->fd, bo->handle,
+					   I915_TILING_NONE, 0) != I915_TILING_NONE)
+				continue;
+
+			list_del(&bo->list);
+			if (bo->rq == &_kgem_static_request)
+				list_del(&bo->request);
+			list_move_tail(&bo->vma, &kgem->vma_cache);
+
+			bo->tiling = I915_TILING_NONE;
+			bo->pitch = 0;
+			bo->delta = 0;
+			DBG(("  %s: found handle=%d (size=%d) in linear vma cache\n",
+			     __FUNCTION__, bo->handle, bo->size));
+			assert(use_active || bo->domain != DOMAIN_GPU);
+			assert(!bo->needs_flush || use_active);
+			//assert(use_active || !kgem_busy(kgem, bo->handle));
+			return bo;
+		}
+	}
+
 	cache = use_active ? active(kgem, size): inactive(kgem, size);
 	list_for_each_entry_safe(bo, next, cache, list) {
 		assert(bo->refcnt == 0);
@@ -1529,19 +1567,25 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 			if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 				int for_cpu = !!(flags & CREATE_CPU_MAP);
 				if (IS_CPU_MAP(bo->map) != for_cpu) {
-					if (first == NULL)
-						first = bo;
+					if (first != NULL)
+						break;
+
+					first = bo;
 					continue;
 				}
 			} else {
-				if (first == NULL)
-					first = bo;
+				if (first != NULL)
+					break;
+
+				first = bo;
 				continue;
 			}
 		} else {
 			if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
-				if (first == NULL)
-					first = bo;
+				if (first != NULL)
+					break;
+
+				first = bo;
 				continue;
 			}
 		}
