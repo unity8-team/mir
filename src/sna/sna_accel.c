@@ -2379,9 +2379,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     src_priv ? src_priv->cpu_bo : NULL,
 	     replaces));
 
+	if (replaces)
+		sna_damage_destroy(&dst_priv->cpu_damage);
+
 	/* Try to maintain the data on the GPU */
 	if (dst_priv && dst_priv->gpu_bo == NULL &&
-	    src_priv && (src_priv->gpu_bo != NULL || (src_priv->cpu_bo && kgem_bo_is_busy(src_priv->cpu_bo)))) {
+	    ((dst_priv->cpu_damage == NULL && copy_use_gpu_bo(sna, dst_priv, &region)) ||
+	     (src_priv && (src_priv->gpu_bo != NULL || (src_priv->cpu_bo && kgem_bo_is_busy(src_priv->cpu_bo)))))) {
 		uint32_t tiling = sna_pixmap_choose_tiling(dst_pixmap);
 
 		DBG(("%s: create dst GPU bo for upload\n", __FUNCTION__));
