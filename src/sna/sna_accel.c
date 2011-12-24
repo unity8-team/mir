@@ -2396,7 +2396,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     src_priv ? src_priv->cpu_bo : NULL,
 	     replaces));
 
-	if (replaces)
+	if (dst_priv && replaces)
 		sna_damage_destroy(&dst_priv->cpu_damage);
 
 	/* Try to maintain the data on the GPU */
