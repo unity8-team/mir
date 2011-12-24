@@ -206,7 +206,7 @@ static bool _sna_damage_create_boxes(struct sna_damage *damage,
 	if (box == NULL)
 		return false;
 
-	list_add(&box->list, &damage->embedded_box.list);
+	list_add_tail(&box->list, &damage->embedded_box.list);
 
 	box->size = damage->remain = n;
 	damage->box = (BoxRec *)(box + 1);
@@ -400,6 +400,7 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 	boxes = damage->embedded_box.box;
 	list_for_each_entry(iter, &damage->embedded_box.list, list)
 		nboxes += iter->size;
+	DBG(("   nboxes=%d, residual=%d\n", nboxes, damage->remain));
 	nboxes -= damage->remain;
 	if (nboxes == 0)
 		goto done;
@@ -414,6 +415,7 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 			int len = iter->size;
 			if (n + len > nboxes)
 				len = nboxes - n;
+			DBG(("   copy %d/%d boxes from %d\n", len, iter->size, n));
 			memcpy(boxes + n, iter+1, len * sizeof(BoxRec));
 			n += len;
 		}
