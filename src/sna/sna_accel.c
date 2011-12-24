@@ -7373,6 +7373,19 @@ sna_poly_fill_rect_extents(DrawablePtr drawable, GCPtr gc,
 	return 1 | clipped << 1;
 }
 
+static bool alu_overwrites(uint8_t alu)
+{
+	switch (alu) {
+	case GXclear:
+	case GXcopy:
+	case GXcopyInverted:
+	case GXset:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void
 sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 {
@@ -7416,6 +7429,9 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 		uint32_t color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
+
+		if (alu_overwrites(gc->alu))
+			sna_damage_subtract(&priv->cpu_damage, &region);
 
 		DBG(("%s: solid fill [%08x], testing for blt\n",
 		     __FUNCTION__, color));
