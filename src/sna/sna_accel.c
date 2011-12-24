@@ -816,8 +816,8 @@ static inline bool region_inplace(struct sna *sna,
 
 	return ((region->extents.x2 - region->extents.x1) *
 		(region->extents.y2 - region->extents.y1) *
-		pixmap->drawable.bitsPerPixel >> 15)
-		>= sna->kgem.half_cpu_cache_pages/2;
+		pixmap->drawable.bitsPerPixel >> 12)
+		>= sna->kgem.half_cpu_cache_pages;
 }
 
 bool
