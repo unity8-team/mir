@@ -1030,7 +1030,7 @@ done:
 	return true;
 }
 
-static void
+static bool
 sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
@@ -1039,7 +1039,27 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	assert(priv->gpu_bo);
+	if (priv->gpu_bo == NULL) {
+		struct sna *sna = to_sna_from_pixmap(pixmap);
+		unsigned flags;
+
+		flags = 0;
+		if (priv->cpu_damage)
+			flags |= CREATE_INACTIVE;
+		if (pixmap->usage_hint == SNA_CREATE_FB)
+			flags |= CREATE_EXACT | CREATE_SCANOUT;
+
+		priv->gpu_bo = kgem_create_2d(&sna->kgem,
+					      pixmap->drawable.width,
+					      pixmap->drawable.height,
+					      pixmap->drawable.bitsPerPixel,
+					      sna_pixmap_choose_tiling(pixmap),
+					      flags);
+		if (priv->gpu_bo == NULL)
+			return false;
+
+		DBG(("%s: created gpu bo\n", __FUNCTION__));
+	}
 
 	sna_damage_reduce(&priv->cpu_damage);
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
@@ -1092,6 +1112,14 @@ done:
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->gpu = true;
+	return true;
+}
+
+static inline bool
+box_inplace(PixmapPtr pixmap, const BoxRec *box)
+{
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	return ((box->x2 - box->x1) * (box->y2 - box->y1) * pixmap->drawable.bitsPerPixel >> 15) >= sna->kgem.half_cpu_cache_pages;
 }
 
 static inline Bool
@@ -1112,7 +1140,9 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	    !sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE))
 		return FALSE;
 
-	if (priv->gpu_bo == NULL)
+	if (priv->gpu_bo == NULL &&
+	    sna_pixmap_choose_tiling(pixmap) != I915_TILING_NONE &&
+	    !box_inplace(pixmap, box))
 		return FALSE;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -1137,7 +1167,7 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 		if (priv->cpu_damage == NULL ||
 		    sna_damage_contains_box(priv->cpu_damage,
 					    &extents) == PIXMAN_REGION_OUT)
-			goto done;
+			goto move_to_gpu;
 
 		if (priv->gpu_damage == NULL ||
 		    sna_damage_contains_box(priv->gpu_damage,
@@ -1146,8 +1176,8 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	}
 
 move_to_gpu:
-	sna_pixmap_move_area_to_gpu(pixmap, &extents);
-done:
+	if (!sna_pixmap_move_area_to_gpu(pixmap, &extents))
+		return FALSE;
 	if (sna_damage_contains_box(priv->gpu_damage,
 				    &extents) != PIXMAN_REGION_IN)
 		*damage = &priv->gpu_damage;

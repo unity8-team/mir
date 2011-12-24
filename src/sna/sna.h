@@ -177,7 +177,7 @@ static inline PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 		return get_window_pixmap((WindowPtr)drawable);
 }
 
-static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
+constant static inline struct sna_pixmap *sna_pixmap(PixmapPtr pixmap)
 {
 	return ((void **)pixmap->devPrivates)[1];
 }
@@ -322,25 +322,25 @@ extern PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap);
 
 void sna_mode_delete_fb(struct sna *sna, uint32_t fb);
 
-static inline struct sna *
+constant static inline struct sna *
 to_sna(ScrnInfoPtr scrn)
 {
 	return (struct sna *)(scrn->driverPrivate);
 }
 
-static inline struct sna *
+constant static inline struct sna *
 to_sna_from_screen(ScreenPtr screen)
 {
 	return to_sna(xf86Screens[screen->myNum]);
 }
 
-static inline struct sna *
+constant static inline struct sna *
 to_sna_from_pixmap(PixmapPtr pixmap)
 {
 	return *(void **)pixmap->devPrivates;
 }
 
-static inline struct sna *
+constant static inline struct sna *
 to_sna_from_drawable(DrawablePtr drawable)
 {
 	return to_sna_from_screen(drawable->pScreen);
