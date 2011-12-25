@@ -361,6 +361,21 @@ static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
 	return bo->rq;
 }
 
+static inline bool kgem_bo_map_will_stall(struct kgem *kgem, struct kgem_bo *bo)
+{
+	DBG(("%s? handle=%d, domain=%d, offset=%x, size=%x\n",
+	     __FUNCTION__, bo->handle,
+	     bo->domain, bo->presumed_offset, bo->size));
+
+	if (kgem_bo_is_busy(bo))
+		return true;
+
+	if (bo->presumed_offset == 0)
+		return !list_is_empty(&kgem->requests);
+
+	return !kgem_bo_is_mappable(kgem, bo);
+}
+
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 {
 	if (bo == NULL)
@@ -370,6 +385,7 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 		bo = bo->proxy;
 	return bo->dirty;
 }
+
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
 	if (bo->proxy)

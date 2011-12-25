@@ -82,17 +82,6 @@ static void read_boxes_inplace(struct kgem *kgem,
 	} while (--n);
 }
 
-static bool map_will_stall(struct kgem *kgem, struct kgem_bo *bo)
-{
-	if (kgem_bo_is_busy(bo))
-		return true;
-
-	if (!kgem_bo_is_mappable(kgem, bo))
-		return true;
-
-	return false;
-}
-
 void sna_read_boxes(struct sna *sna,
 		    struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		    PixmapPtr dst, int16_t dst_dx, int16_t dst_dy,
@@ -119,7 +108,8 @@ void sna_read_boxes(struct sna *sna,
 		return;
 	}
 
-	if (src_bo->tiling != I915_TILING_X && !map_will_stall(kgem, src_bo)){
+	if (src_bo->tiling != I915_TILING_X &&
+	    !kgem_bo_map_will_stall(kgem, src_bo)) {
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
 				   dst, dst_dx, dst_dy,
@@ -314,7 +304,7 @@ void sna_write_boxes(struct sna *sna,
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
 	if (DEBUG_NO_IO || kgem->wedged || dst_bo->tiling == I915_TILING_Y ||
-	    !map_will_stall(kgem, dst_bo)) {
+	    !kgem_bo_map_will_stall(kgem, dst_bo)) {
 		write_boxes_inplace(kgem,
 				    src, stride, bpp, src_dx, src_dy,
 				    dst_bo, dst_dx, dst_dy,

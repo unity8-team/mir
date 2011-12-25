@@ -303,7 +303,7 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 				 pixmap->drawable.height) ? I915_TILING_Y : sna->default_tiling;
 }
 
-static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
+constant static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	uint32_t tiling = default_tiling(pixmap);
@@ -814,13 +814,28 @@ static inline bool region_inplace(struct sna *sna,
 	if (priv->mapped)
 		return true;
 
-	if (priv->gpu_bo && !kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo))
-		return false;
-
 	return ((region->extents.x2 - region->extents.x1) *
 		(region->extents.y2 - region->extents.y1) *
 		pixmap->drawable.bitsPerPixel >> 12)
 		>= sna->kgem.half_cpu_cache_pages;
+}
+
+static bool
+sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
+{
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);;
+
+	assert(priv->gpu_bo == NULL);
+	priv->gpu_bo =
+		kgem_create_2d(&sna->kgem,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height,
+			       pixmap->drawable.bitsPerPixel,
+			       sna_pixmap_choose_tiling(pixmap),
+			       CREATE_GTT_MAP | CREATE_INACTIVE);
+
+	return priv->gpu_bo != NULL;
 }
 
 bool
@@ -866,14 +881,20 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			    priv->gpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
 
-			if (!sync_will_stall(priv->gpu_bo)) {
+			if (!kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo)) {
 				pixmap->devPrivate.ptr =
 					kgem_bo_map(&sna->kgem, priv->gpu_bo,
 						    PROT_WRITE);
 				priv->mapped = 1;
 
 				sna_damage_subtract(&priv->cpu_damage, region);
-				sna_damage_add(&priv->gpu_damage, region);
+				if (priv->cpu_damage == NULL)
+					sna_damage_all(&priv->gpu_damage,
+						       pixmap->drawable.width,
+						       pixmap->drawable.height);
+				else
+					sna_damage_add(&priv->gpu_damage,
+						       region);
 
 				priv->gpu = true;
 				return true;
@@ -894,19 +915,23 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 		if (priv->gpu_bo == NULL &&
 		    sna_pixmap_choose_tiling(pixmap) != I915_TILING_NONE &&
-		    region_inplace(sna, pixmap, region, priv)) {
-			sna_damage_subtract(&priv->cpu_damage, region);
-			if (sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE)) {
-				pixmap->devPrivate.ptr =
-					kgem_bo_map(&sna->kgem, priv->gpu_bo,
-						    PROT_WRITE);
-				priv->mapped = 1;
+		    region_inplace(sna, pixmap, region, priv) &&
+		    sna_pixmap_create_mappable_gpu(pixmap)) {
+			pixmap->devPrivate.ptr =
+				kgem_bo_map(&sna->kgem, priv->gpu_bo,
+					    PROT_WRITE);
+			priv->mapped = 1;
 
+			sna_damage_subtract(&priv->cpu_damage, region);
+			if (priv->cpu_damage == NULL)
+				sna_damage_all(&priv->gpu_damage,
+					       pixmap->drawable.width,
+					       pixmap->drawable.height);
+			else
 				sna_damage_add(&priv->gpu_damage, region);
 
-				priv->gpu = true;
-				return true;
-			}
+			priv->gpu = true;
+			return true;
 		}
 	}
 
@@ -1752,7 +1777,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	if ((priv->flush ||
 	     (priv->gpu_bo &&
 	      region_inplace(sna, pixmap, region, priv) &&
-	      !kgem_bo_is_busy(priv->gpu_bo))) &&
+	      !kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo))) &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
 		if (region_subsumes_drawable(region, &pixmap->drawable)) {
