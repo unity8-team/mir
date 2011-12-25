@@ -9110,7 +9110,7 @@ static bool sna_accel_flush(struct sna *sna)
 
 	if (nothing_to_do && !sna->kgem.busy)
 		_sna_accel_disarm_timer(sna, FLUSH_TIMER);
-	else
+	if (priv->cpu_damage)
 		sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ);
 	sna->kgem.busy = !nothing_to_do;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
