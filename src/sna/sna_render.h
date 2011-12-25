@@ -527,12 +527,37 @@ Bool sna_blt_copy_boxes_fallback(struct sna *sna, uint8_t alu,
 				 PixmapPtr dst, struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 				 const BoxRec *box, int nbox);
 
-Bool sna_get_pixel_from_rgba(uint32_t *pixel,
+Bool _sna_get_pixel_from_rgba(uint32_t *pixel,
 			     uint16_t red,
 			     uint16_t green,
 			     uint16_t blue,
 			     uint16_t alpha,
 			     uint32_t format);
+
+static inline Bool
+sna_get_pixel_from_rgba(uint32_t * pixel,
+			uint16_t red,
+			uint16_t green,
+			uint16_t blue,
+			uint16_t alpha,
+			uint32_t format)
+{
+	switch (format) {
+	case PICT_x8r8g8b8:
+		alpha = 0xffff;
+	case PICT_a8r8g8b8:
+		*pixel = ((alpha >> 8 << 24) |
+			  (red >> 8 << 16) |
+			  (green & 0xff00) |
+			  (blue >> 8));
+		return TRUE;
+	case PICT_a8:
+		*pixel = alpha >> 8;
+		return TRUE;
+	}
+
+	return _sna_get_pixel_from_rgba(pixel, red, green, blue, alpha, format);
+}
 
 int
 sna_render_pixmap_bo(struct sna *sna,
