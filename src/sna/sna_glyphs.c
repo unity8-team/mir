@@ -172,6 +172,9 @@ static Bool realize_glyph_caches(struct sna *sna)
 		if (!pixmap)
 			goto bail;
 
+		/* Prevent the cache from ever being paged out */
+		sna_pixmap(pixmap)->pinned = true;
+
 		component_alpha = NeedsComponent(pPictFormat->format);
 		picture = CreatePicture(0, &pixmap->drawable, pPictFormat,
 					CPComponentAlpha, &component_alpha,
