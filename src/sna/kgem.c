@@ -559,7 +559,7 @@ static uint32_t kgem_untiled_pitch(struct kgem *kgem,
 	/* XXX workaround an issue on gen3 where we appear to fail to
 	 * disable dual-stream mode */
 	return ALIGN(width * bpp,
-		     scanout || (kgem->gen >= 30 && kgem->gen < 33) ? 8*64 : 8*4) >> 3;
+		     scanout || kgem->gen < 40 ? 8*64 : 8*4) >> 3;
 }
 
 static uint32_t kgem_surface_size(struct kgem *kgem,
@@ -585,7 +585,7 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		tile_width = scanout || kgem->gen < 33 ? 64 : 4;
+		tile_width = scanout || kgem->gen < 40 ? 64 : 4;
 		tile_height = 2;
 		break;
 	case I915_TILING_X:
