@@ -7786,6 +7786,9 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			int w8 = (w + 7) >> 3;
 			int x1, y1, len;
 
+			if (c->bits == (void *)1)
+				goto skip;
+
 			len = (w8 * h + 7) >> 3 << 1;
 			DBG(("%s glyph: (%d, %d) x (%d[%d], %d), len=%d\n" ,__FUNCTION__,
 			     x,y, w, w8, h, len));
@@ -7920,9 +7923,9 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 	}
 
 	/* Skip empty glyphs */
-	if (w == 1 && h == 1 && (in->bits[0] & 1) == 0) {
-		out->bits = (void *)-1;
-		return false;
+	if ((w|h) == 1 && (in->bits[0] & 1) == 0) {
+		out->bits = (void *)1;
+		return true;
 	}
 
 	w = (w + 7) >> 3;
