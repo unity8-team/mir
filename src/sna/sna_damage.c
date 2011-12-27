@@ -213,7 +213,7 @@ static bool _sna_damage_create_boxes(struct sna_damage *damage,
 	return true;
 }
 
-static void
+static struct sna_damage *
 _sna_damage_create_elt(struct sna_damage *damage,
 		       const BoxRec *boxes, int count)
 {
@@ -233,17 +233,18 @@ _sna_damage_create_elt(struct sna_damage *damage,
 		count -=n;
 		boxes += n;
 		if (count == 0)
-			return;
+			return damage;
 	}
 
 	DBG(("    %s(): new elt\n", __FUNCTION__));
 
-	if (!_sna_damage_create_boxes(damage, count))
-		return;
+	if (_sna_damage_create_boxes(damage, count)) {
+		memcpy(damage->box, boxes, count * sizeof(BoxRec));
+		damage->box += count;
+		damage->remain -= count;
+	}
 
-	 memcpy(damage->box, boxes, count * sizeof(BoxRec));
-	 damage->box += count;
-	 damage->remain -= count;
+	 return damage;
 }
 
 static void
@@ -470,8 +471,6 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 					     &region->extents) == PIXMAN_REGION_IN)
 		return damage;
 
-	_sna_damage_create_elt(damage,
-			       REGION_RECTS(region), REGION_NUM_RECTS(region));
 
 	if (damage->extents.x1 > region->extents.x1)
 		damage->extents.x1 = region->extents.x1;
@@ -483,7 +482,9 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 	if (damage->extents.y2 < region->extents.y2)
 		damage->extents.y2 = region->extents.y2;
 
-	return damage;
+	return _sna_damage_create_elt(damage,
+				      REGION_RECTS(region),
+				      REGION_NUM_RECTS(region));
 }
 
 #if DEBUG_DAMAGE
@@ -843,8 +844,6 @@ inline static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
 					     (BoxPtr)box) == PIXMAN_REGION_IN)
 		return damage;
 
-	_sna_damage_create_elt(damage, box, 1);
-
 	if (damage->extents.x1 > box->x1)
 		damage->extents.x1 = box->x1;
 	if (damage->extents.x2 < box->x2)
@@ -855,7 +854,7 @@ inline static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
 	if (damage->extents.y2 < box->y2)
 		damage->extents.y2 = box->y2;
 
-	return damage;
+	return _sna_damage_create_elt(damage, box, 1);
 }
 
 #if DEBUG_DAMAGE
@@ -997,10 +996,9 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 		damage->mode = DAMAGE_SUBTRACT;
 	}
 
-	_sna_damage_create_elt(damage,
-			       REGION_RECTS(region), REGION_NUM_RECTS(region));
-
-	return damage;
+	return _sna_damage_create_elt(damage,
+				      REGION_RECTS(region),
+				      REGION_NUM_RECTS(region));
 }
 
 #if DEBUG_DAMAGE
@@ -1072,8 +1070,7 @@ inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *da
 		damage->mode = DAMAGE_SUBTRACT;
 	}
 
-	_sna_damage_create_elt(damage, box, 1);
-	return damage;
+	return _sna_damage_create_elt(damage, box, 1);
 }
 
 #if DEBUG_DAMAGE
