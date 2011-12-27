@@ -1169,8 +1169,8 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 		return FALSE;
 
 	if (priv->gpu_bo == NULL &&
-	    sna_pixmap_choose_tiling(pixmap) != I915_TILING_NONE &&
-	    !box_inplace(pixmap, box))
+	    (sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE ||
+	     !box_inplace(pixmap, box)))
 		return FALSE;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
