@@ -106,9 +106,10 @@ void sna_read_boxes(struct sna *sna,
 		    (box[n].x2 + src_dx) * dst->drawable.bitsPerPixel/8 > src_bo->pitch ||
 		    (box[n].y2 + src_dy) * src_bo->pitch > src_bo->size)
 		{
-			FatalError("source out-of-bounds box[%d]=(%d, %d), (%d, %d) + (%d, %d), pitch=%d, size=%d\n",
+			FatalError("source out-of-bounds box[%d]=(%d, %d), (%d, %d) + (%d, %d), pitch=%d, size=%d\n", n,
 				   box[n].x1, box[n].y1,
 				   box[n].x2, box[n].y2,
+				   src_dx, src_dy,
 				   src_bo->pitch, src_bo->size);
 		}
 	}
