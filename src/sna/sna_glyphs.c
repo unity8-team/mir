@@ -152,6 +152,9 @@ static Bool realize_glyph_caches(struct sna *sna)
 
 	DBG(("%s\n", __FUNCTION__));
 
+	if (sna->kgem.wedged || !sna->have_render)
+		return TRUE;
+
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		struct sna_glyph_cache *cache = &sna->render.glyph[i];
 		PixmapPtr pixmap;
