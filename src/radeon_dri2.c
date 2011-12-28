@@ -751,6 +751,16 @@ can_exchange(ScrnInfoPtr pScrn, DrawablePtr draw,
     return TRUE;
 }
 
+static Bool
+can_flip(ScrnInfoPtr pScrn, DrawablePtr draw,
+	 DRI2BufferPtr front, DRI2BufferPtr back)
+{
+    return draw->type == DRAWABLE_WINDOW &&
+	   RADEONPTR(pScrn)->allowPageFlip &&
+	   DRI2CanFlip(draw) &&
+	   can_exchange(pScrn, draw, front, back);
+}
+
 static void
 radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPtr back)
 {
@@ -790,7 +800,6 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
                                      unsigned int tv_usec, void *event_data)
 {
     DRI2FrameEventPtr event = event_data;
-    RADEONInfoPtr info;
     DrawablePtr drawable;
     ScreenPtr screen;
     ScrnInfoPtr scrn;
@@ -809,13 +818,10 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
 
     screen = drawable->pScreen;
     scrn = xf86Screens[screen->myNum];
-    info = RADEONPTR(scrn);
 
     switch (event->type) {
     case DRI2_FLIP:
-	if (info->allowPageFlip &&
-	    DRI2CanFlip(drawable) &&
-	    can_exchange(scrn, drawable, event->front, event->back) &&
+	if (can_flip(scrn, drawable, event->front, event->back) &&
 	    radeon_dri2_schedule_flip(scrn,
 				      event->client,
 				      drawable,
@@ -1190,9 +1196,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     current_msc = vbl.reply.sequence;
 
     /* Flips need to be submitted one frame before */
-    if (info->allowPageFlip &&
-	DRI2CanFlip(draw) &&
-	can_exchange(scrn, draw, front, back)) {
+    if (can_flip(scrn, draw, front, back)) {
 	swap_type = DRI2_FLIP;
 	flip = 1;
     }
