@@ -100,6 +100,20 @@ void sna_read_boxes(struct sna *sna,
 	     __FUNCTION__, nbox, src_bo->handle, src_dx, src_dy,
 	     dst->drawable.width, dst->drawable.height, dst_dx, dst_dy));
 
+#ifndef NDEBUG
+	for (n = 0; n < nbox; n++) {
+		if (box[n].x1 + src_dx < 0 || box[n].y1 + src_dy < 0 ||
+		    (box[n].x2 + src_dx) * dst->drawable.bitsPerPixel/8 > src_bo->pitch ||
+		    (box[n].y2 + src_dy) * src_bo->pitch > src_bo->size)
+		{
+			FatalError("source out-of-bounds box[%d]=(%d, %d), (%d, %d) + (%d, %d), pitch=%d, size=%d\n",
+				   box[n].x1, box[n].y1,
+				   box[n].x2, box[n].y2,
+				   src_bo->pitch, src_bo->size);
+		}
+	}
+#endif
+
 	if (DEBUG_NO_IO || kgem->wedged || src_bo->tiling == I915_TILING_Y) {
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
