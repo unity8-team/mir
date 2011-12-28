@@ -70,14 +70,14 @@ static inline Bool
 is_gpu(DrawablePtr drawable)
 {
 	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv && priv->gpu_damage;
-}
 
-static inline Bool
-is_busy_cpu(DrawablePtr drawable)
-{
-	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv && priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
+	if (priv == NULL)
+		return false;
+
+	if (priv->gpu_damage)
+		return true;
+
+	return priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo);
 }
 
 static inline Bool
@@ -88,17 +88,9 @@ is_cpu(DrawablePtr drawable)
 }
 
 static inline Bool
-is_dirty_gpu(DrawablePtr drawable)
-{
-	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
-	return priv && priv->gpu_bo && priv->gpu_damage;
-}
-
-static inline Bool
 too_small(DrawablePtr drawable)
 {
-	return ((uint32_t)drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) &&
-		!(is_dirty_gpu(drawable) || is_busy_cpu(drawable));
+	return ((uint32_t)drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) && !is_gpu(drawable);
 }
 
 static inline Bool
@@ -106,7 +98,7 @@ picture_is_gpu(PicturePtr picture)
 {
 	if (!picture || !picture->pDrawable)
 		return FALSE;
-	return is_gpu(picture->pDrawable) || is_busy_cpu(picture->pDrawable);
+	return is_gpu(picture->pDrawable);
 }
 
 static inline Bool sna_blt_compare_depth(DrawablePtr src, DrawablePtr dst)
