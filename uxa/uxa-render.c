@@ -196,10 +196,8 @@ uxa_print_composite_fallback(const char *func, CARD8 op,
 	       "  op   %s, \n"
 	       "  src  %s, \n"
 	       "  mask %s, \n"
-	       "  dst  %s, \n"
-	       "  screen %s\n",
-	       func, op_to_string (op), srcdesc, maskdesc, dstdesc,
-	       uxa_screen->swappedOut ? "swapped out" : "normal");
+	       "  dst  %s, \n",
+	       func, op_to_string (op), srcdesc, maskdesc, dstdesc);
 }
 
 Bool uxa_op_reads_destination(CARD8 op)
@@ -1581,7 +1579,7 @@ uxa_composite(CARD8 op,
 		return;
 	}
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+	if (uxa_screen->force_fallback)
 		goto fallback;
 
 	if (!uxa_drawable_is_offscreen(pDst->pDrawable))
@@ -1939,7 +1937,7 @@ uxa_trapezoids(CARD8 op, PicturePtr src, PicturePtr dst,
 		return;
 	}
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback) {
+	if (uxa_screen->force_fallback) {
 fallback:
 		uxa_check_trapezoids(op, src, dst, maskFormat, xSrc, ySrc, ntrap, traps);
 		return;
@@ -2168,7 +2166,7 @@ uxa_triangles(CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 		return;
 	}
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback) {
+	if (uxa_screen->force_fallback) {
 fallback:
 		uxa_check_triangles(op, pSrc, pDst, maskFormat,
 				    xSrc, ySrc, ntri, tris);

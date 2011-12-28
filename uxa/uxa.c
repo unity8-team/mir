@@ -333,21 +333,6 @@ static RegionPtr uxa_bitmap_to_region(PixmapPtr pPix)
 	return ret;
 }
 
-static void uxa_xorg_enable_disable_fb_access(int index, Bool enable)
-{
-	ScreenPtr screen = screenInfo.screens[index];
-	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
-
-	if (!enable && uxa_screen->disableFbCount++ == 0)
-		uxa_screen->swappedOut = TRUE;
-
-	if (enable && --uxa_screen->disableFbCount == 0)
-		uxa_screen->swappedOut = FALSE;
-
-	if (uxa_screen->SavedEnableDisableFBAccess)
-		uxa_screen->SavedEnableDisableFBAccess(index, enable);
-}
-
 void uxa_set_fallback_debug(ScreenPtr screen, Bool enable)
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
@@ -453,7 +438,6 @@ uxa_driver_t *uxa_driver_alloc(void)
 Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 {
 	uxa_screen_t *uxa_screen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 
 	if (!uxa_driver)
 		return FALSE;
@@ -532,9 +516,6 @@ Bool uxa_driver_init(ScreenPtr screen, uxa_driver_t * uxa_driver)
 
 	uxa_screen->SavedBitmapToRegion = screen->BitmapToRegion;
 	screen->BitmapToRegion = uxa_bitmap_to_region;
-
-	uxa_screen->SavedEnableDisableFBAccess = scrn->EnableDisableFBAccess;
-	scrn->EnableDisableFBAccess = uxa_xorg_enable_disable_fb_access;
 
 #ifdef RENDER
 	{

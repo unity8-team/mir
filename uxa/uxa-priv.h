@@ -134,9 +134,6 @@ typedef struct {
 
 	Bool force_fallback;
 	Bool fallback_debug;
-	Bool swappedOut;
-	unsigned disableFbCount;
-	unsigned offScreenCounter;
 
 	uxa_glyph_cache_t glyphCaches[UXA_NUM_GLYPH_CACHE_FORMATS];
 	Bool glyph_cache_initialized;

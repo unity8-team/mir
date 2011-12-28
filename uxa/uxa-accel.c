@@ -65,7 +65,7 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 		return;
 	}
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+	if (uxa_screen->force_fallback)
 		goto fallback;
 
 	if (pGC->fillStyle != FillSolid)
@@ -133,7 +133,7 @@ uxa_do_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	if (format != ZPixmap || bpp < 8)
 		return FALSE;
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+	if (uxa_screen->force_fallback)
 		return FALSE;
 
 	if (!uxa_screen->info->put_image)
@@ -392,7 +392,7 @@ uxa_copy_n_to_n(DrawablePtr pSrcDrawable,
 		return;
 	}
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+	if (uxa_screen->force_fallback)
 		goto fallback;
 
 	pSrcPixmap = uxa_get_drawable_pixmap(pSrcDrawable);
@@ -541,7 +541,7 @@ uxa_copy_area(DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable, GCPtr pGC,
 {
 	uxa_screen_t *uxa_screen = uxa_get_screen(pDstDrawable->pScreen);
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback) {
+	if (uxa_screen->force_fallback) {
 		return uxa_check_copy_area(pSrcDrawable, pDstDrawable, pGC,
 					   srcx, srcy, width, height, dstx,
 					   dsty);
@@ -742,7 +742,7 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
 	if (!REGION_NUM_RECTS(pReg))
 		goto out;
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+	if (uxa_screen->force_fallback)
 		goto fallback;
 
 	pPixmap = uxa_get_offscreen_pixmap (pDrawable, &xoff, &yoff);
@@ -1108,7 +1108,7 @@ uxa_get_image(DrawablePtr pDrawable, int x, int y, int w, int h,
 		return;
 	}
 
-	if (uxa_screen->swappedOut || uxa_screen->force_fallback)
+	if (uxa_screen->force_fallback)
 		goto fallback;
 
 	pPix = uxa_get_offscreen_pixmap(pDrawable, &xoff, &yoff);
