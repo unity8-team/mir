@@ -338,16 +338,15 @@ damage_all:
 
 static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 {
-	struct sna_pixmap *priv;
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
 
-	priv = sna_pixmap(pixmap);
 	sna_damage_all(&priv->gpu_damage,
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
 	sna_damage_destroy(&priv->cpu_damage);
 
-	assert(priv->gpu_bo->refcnt > 1);
-	priv->gpu_bo->refcnt--;
+	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = ref(bo);
 }
 
@@ -725,10 +724,10 @@ sna_dri_page_flip(struct sna *sna, struct sna_dri_frame_event *info)
 	if (info->count == 0)
 		return FALSE;
 
-	set_bo(sna->front, bo);
-
 	info->old_front.name = info->front->name;
 	info->old_front.bo = get_private(info->front)->bo;
+
+	set_bo(sna->front, bo);
 
 	info->front->name = info->back->name;
 	get_private(info->front)->bo = bo;
