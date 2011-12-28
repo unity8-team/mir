@@ -2999,17 +2999,17 @@ struct inplace {
 };
 
 static void
-tor_blt_inplace(struct sna *sna,
-		struct sna_composite_spans_op *op,
-		pixman_region16_t *clip,
-		const BoxRec *box,
-		int coverage)
+tor_blt_src(struct sna *sna,
+	    struct sna_composite_spans_op *op,
+	    pixman_region16_t *clip,
+	    const BoxRec *box,
+	    int coverage)
 {
 	struct inplace *in = (struct inplace *)op;
 	uint8_t *ptr = in->ptr;
 	int h, w;
 
-	coverage = (int)coverage * in->opacity / FAST_SAMPLES_XY;
+	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
 
 	ptr += box->y1 * in->stride + box->x1;
 
@@ -3029,11 +3029,11 @@ tor_blt_inplace(struct sna *sna,
 }
 
 static void
-tor_blt_inplace_clipped(struct sna *sna,
-			struct sna_composite_spans_op *op,
-			pixman_region16_t *clip,
-			const BoxRec *box,
-			int coverage)
+tor_blt_src_clipped(struct sna *sna,
+		    struct sna_composite_spans_op *op,
+		    pixman_region16_t *clip,
+		    const BoxRec *box,
+		    int coverage)
 {
 	pixman_region16_t region;
 	int n;
@@ -3042,33 +3042,100 @@ tor_blt_inplace_clipped(struct sna *sna,
 	RegionIntersect(&region, &region, clip);
 	n = REGION_NUM_RECTS(&region);
 	box = REGION_RECTS(&region);
-	while (n--){
-		tor_blt_inplace(sna, op, NULL,  box, coverage);
-		box++;
-	}
+	while (n--)
+		tor_blt_src(sna, op, NULL, box++, coverage);
 	pixman_region_fini(&region);
 }
 
 static void
-tor_blt_inplace_mono(struct sna *sna,
-		     struct sna_composite_spans_op *op,
-		     pixman_region16_t *clip,
-		     const BoxRec *box,
-		     int coverage)
+tor_blt_src_mono(struct sna *sna,
+		 struct sna_composite_spans_op *op,
+		 pixman_region16_t *clip,
+		 const BoxRec *box,
+		 int coverage)
 {
-	tor_blt_inplace(sna, op, clip, box,
-			coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+	tor_blt_src(sna, op, clip, box,
+		    coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
 }
 
 static void
-tor_blt_inplace_clipped_mono(struct sna *sna,
-			     struct sna_composite_spans_op *op,
-			     pixman_region16_t *clip,
-			     const BoxRec *box,
-			     int coverage)
+tor_blt_src_clipped_mono(struct sna *sna,
+			 struct sna_composite_spans_op *op,
+			 pixman_region16_t *clip,
+			 const BoxRec *box,
+			 int coverage)
 {
-	tor_blt_inplace_clipped(sna, op, clip, box,
-				coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+	tor_blt_src_clipped(sna, op, clip, box,
+			    coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_in(struct sna *sna,
+	   struct sna_composite_spans_op *op,
+	   pixman_region16_t *clip,
+	   const BoxRec *box,
+	   int coverage)
+{
+	struct inplace *in = (struct inplace *)op;
+	uint8_t *ptr = in->ptr;
+	int h, w, i;
+
+	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
+	if (coverage == 0) {
+		tor_blt_src(sna, op, clip, box, 0);
+		return;
+	}
+
+	ptr += box->y1 * in->stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	do {
+		for (i = 0; i < w; i++)
+			ptr[i] = (ptr[i] * coverage) >> 8;
+		ptr += in->stride;
+	} while (--h);
+}
+
+static void
+tor_blt_in_clipped(struct sna *sna,
+		   struct sna_composite_spans_op *op,
+		   pixman_region16_t *clip,
+		   const BoxRec *box,
+		   int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		tor_blt_in(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
+static void
+tor_blt_in_mono(struct sna *sna,
+		struct sna_composite_spans_op *op,
+		pixman_region16_t *clip,
+		const BoxRec *box,
+		int coverage)
+{
+	tor_blt_in(sna, op, clip, box,
+		   coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_in_clipped_mono(struct sna *sna,
+			struct sna_composite_spans_op *op,
+			pixman_region16_t *clip,
+			const BoxRec *box,
+			int coverage)
+{
+	tor_blt_in_clipped(sna, op, clip, box,
+			   coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
 }
 
 static bool
@@ -3100,7 +3167,11 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
-	if (dst->format != PICT_a8 || op != PictOpSrc ||
+	DBG(("%s: format=%x, op=%d, color=%x\n",
+	     __FUNCTION__, dst->format, op, color));
+
+	if (dst->format != PICT_a8 ||
+	    !(op == PictOpSrc || op == PictOpIn) ||
 	    !sna_picture_is_solid(src, &color)) {
 		DBG(("%s: fallback -- can not perform operation in place\n",
 		     __FUNCTION__));
@@ -3163,16 +3234,30 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		tor_add_edge(&tor, &t, &t.right, -1);
 	}
 
-	if (dst->pCompositeClip->data) {
-		if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-			span = tor_blt_inplace_clipped_mono;
-		else
-			span = tor_blt_inplace_clipped;
+	if (op == PictOpSrc) {
+		if (dst->pCompositeClip->data) {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_src_clipped_mono;
+			else
+				span = tor_blt_src_clipped;
+		} else {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_src_mono;
+			else
+				span = tor_blt_src;
+		}
 	} else {
-		if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
-			span = tor_blt_inplace_mono;
-		else
-			span = tor_blt_inplace;
+		if (dst->pCompositeClip->data) {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_in_clipped_mono;
+			else
+				span = tor_blt_in_clipped;
+		} else {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_in_mono;
+			else
+				span = tor_blt_in;
+		}
 	}
 
 	region.data = NULL;
@@ -3377,12 +3462,6 @@ sna_composite_trapezoids(CARD8 op,
 	if (dst->alphaMap) {
 		DBG(("%s: fallback -- dst alpha map\n", __FUNCTION__));
 		goto fallback;
-	}
-
-	if (!is_gpu(dst->pDrawable)) {
-		if (trapezoid_span_inplace(op, src, dst, maskFormat,
-					   xSrc, ySrc, ntrap, traps))
-			return;
 	}
 
 	if (too_small(dst->pDrawable) && !picture_is_gpu(src)) {
