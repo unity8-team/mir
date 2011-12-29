@@ -86,7 +86,7 @@ intel_drv_la_SOURCES += \
 	 $(NULL)
 endif
 
-if DRI
+if DRI2
 intel_drv_la_SOURCES += \
 	intel_dri.c \
 	$(NULL)
