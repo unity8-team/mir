@@ -783,6 +783,7 @@ done:
 			list_move(&priv->list, &sna->dirty_pixmaps);
 	}
 
+	priv->source_count = SOURCE_BIAS;
 	priv->gpu = false;
 	return true;
 }
@@ -1063,6 +1064,7 @@ done:
 	if (dx | dy)
 		RegionTranslate(region, -dx, -dy);
 
+	priv->source_count = SOURCE_BIAS;
 	priv->gpu = false;
 	return true;
 }
@@ -1867,6 +1869,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	}
 	if (priv->flush)
 		list_move(&priv->list, &sna->dirty_pixmaps);
+	priv->source_count = SOURCE_BIAS;
 
 blt:
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -9204,6 +9207,7 @@ sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 		       pixmap->drawable.height);
 	sna_pixmap_destroy_gpu_bo(sna, priv);
 
+	priv->source_count = SOURCE_BIAS;
 	priv->gpu = false;
 	return true;
 }

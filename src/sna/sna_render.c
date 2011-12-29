@@ -337,7 +337,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	count = SOURCE_BIAS;
 	priv = sna_pixmap(pixmap);
 	if (priv)
-		count = ++priv->source_count;
+		count = priv->source_count++;
 
 	DBG(("%s: migrate box (%d, %d), (%d, %d)? source count=%d, fraction=%d/%d [%d]\n",
 	     __FUNCTION__,
@@ -346,7 +346,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	     pixmap->drawable.width * pixmap->drawable.height,
 	     pixmap->drawable.width * pixmap->drawable.height / (w*h)));
 
-	return count*w*h >= pixmap->drawable.width * pixmap->drawable.height;
+	return count*w*h > pixmap->drawable.width * pixmap->drawable.height;
 }
 
 static Bool
