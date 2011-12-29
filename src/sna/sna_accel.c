@@ -802,6 +802,23 @@ region_subsumes_drawable(RegionPtr region, DrawablePtr drawable)
 		extents->y2 >= drawable->height;
 }
 
+static bool
+region_subsumes_gpu_damage(const RegionRec *region, struct sna_pixmap *priv)
+{
+	if (region->data)
+		return false;
+
+	if (priv->gpu_damage) {
+		const BoxRec *extents = &region->extents;
+		const BoxRec *damage = &priv->gpu_damage->extents;
+		if (extents->x2 < damage->x2 || extents->x1 > damage->x1 ||
+		    extents->y2 < damage->y2 || extents->y1 > damage->y1)
+			return false;
+	}
+
+	return true;
+}
+
 static bool sync_will_stall(struct kgem_bo *bo)
 {
 	return kgem_bo_is_busy(bo);
@@ -1715,6 +1732,10 @@ sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	     __FUNCTION__, nbox,
 	     box->x1, box->y1, box->x2, box->y2));
 
+	if (priv->gpu_bo == NULL &&
+	    !sna_pixmap_create_mappable_gpu(pixmap))
+		return FALSE;
+
 	assert(priv->gpu_bo);
 
 	if (gc->alu == GXcopy &&
@@ -1780,15 +1801,21 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		goto blt;
 	}
 
+	if (!priv->pinned && priv->gpu_bo &&
+	    region_subsumes_gpu_damage(region, priv) &&
+	    kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo)) {
+		sna_damage_destroy(&priv->gpu_damage);
+		sna_pixmap_destroy_gpu_bo(sna, priv);
+	}
+
 	/* XXX performing the upload inplace is currently about 20x slower
 	 * for putimage10 on gen6 -- mostly due to slow page faulting in kernel.
 	 * So we try again with vma caching and only for pixmaps who will be
 	 * immediately flushed...
 	 */
 	if ((priv->flush ||
-	     (priv->gpu_bo &&
-	      region_inplace(sna, pixmap, region, priv) &&
-	      !kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo))) &&
+	     (region_inplace(sna, pixmap, region, priv) &&
+	      (priv->gpu_bo == NULL || !kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo)))) &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
 		if (region_subsumes_drawable(region, &pixmap->drawable)) {
