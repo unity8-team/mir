@@ -1195,9 +1195,11 @@ Bool sna_damage_intersect(struct sna_damage *damage,
 	       _debug_describe_region(region_buf, sizeof(region_buf), region));
 
 	ret = _sna_damage_intersect(damage, region, result);
-	ErrorF("  = %d %s\n",
-	       ret,
-	       _debug_describe_region(region_buf, sizeof(region_buf), result));
+	if (ret)
+		ErrorF("  = %s\n",
+		       _debug_describe_region(region_buf, sizeof(region_buf), result));
+	else
+		ErrorF("  = none\n");
 
 	return ret;
 }
