@@ -1112,11 +1112,11 @@ static int _sna_damage_contains_box(struct sna_damage *damage,
 	if (!sna_damage_maybe_contains_box(damage, box))
 		return PIXMAN_REGION_OUT;
 
-	if (damage->mode == DAMAGE_SUBTRACT)
-		__sna_damage_reduce(damage);
-
 	ret = pixman_region_contains_rectangle(&damage->region, (BoxPtr)box);
-	if (ret != PIXMAN_REGION_OUT || !damage->dirty)
+	if (!damage->dirty)
+		return ret;
+
+	if (damage->mode == DAMAGE_ADD && ret == PIXMAN_REGION_IN)
 		return ret;
 
 	__sna_damage_reduce(damage);
