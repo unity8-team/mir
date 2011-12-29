@@ -9162,9 +9162,8 @@ static void _sna_accel_disarm_timer(struct sna *sna, int id) { }
 static bool sna_accel_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
-	bool nothing_to_do =
-		priv->cpu_damage == NULL && priv->gpu_bo->rq == NULL;
-	bool need_throttle = sna->kgem.busy;
+	bool nothing_to_do = priv->cpu_damage == NULL && sna->kgem.nbatch == 0;
+	bool need_throttle = priv->gpu_bo->rq;
 
 	DBG(("%s (time=%ld), nothing_to_do=%d, busy? %d\n",
 	     __FUNCTION__, (long)GetTimeInMillis(),
