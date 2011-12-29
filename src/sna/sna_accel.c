@@ -692,6 +692,9 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			pixmap->devPrivate.ptr =
 				kgem_bo_map(&sna->kgem, priv->gpu_bo,
 					    PROT_WRITE);
+			if (pixmap->devPrivate.ptr == NULL)
+				goto skip_inplace_map;
+
 			priv->mapped = 1;
 
 			sna_damage_all(&priv->gpu_damage,
@@ -885,6 +888,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				pixmap->devPrivate.ptr =
 					kgem_bo_map(&sna->kgem, priv->gpu_bo,
 						    PROT_WRITE);
+				if (pixmap->devPrivate.ptr == NULL)
+					return false;
+
 				priv->mapped = 1;
 
 				sna_damage_subtract(&priv->cpu_damage, region);
@@ -920,6 +926,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			pixmap->devPrivate.ptr =
 				kgem_bo_map(&sna->kgem, priv->gpu_bo,
 					    PROT_WRITE);
+			if (pixmap->devPrivate.ptr == NULL)
+				return false;
+
 			priv->mapped = 1;
 
 			sna_damage_subtract(&priv->cpu_damage, region);
