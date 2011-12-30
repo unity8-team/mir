@@ -704,7 +704,6 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			if (priv->cpu_bo)
 				sna_pixmap_free_cpu(sna, priv);
 
-			priv->gpu = true;
 			return true;
 		}
 
@@ -784,7 +783,6 @@ done:
 	}
 
 	priv->source_count = SOURCE_BIAS;
-	priv->gpu = false;
 	return true;
 }
 
@@ -920,7 +918,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					sna_damage_add(&priv->gpu_damage,
 						       region);
 
-				priv->gpu = true;
 				return true;
 			}
 		}
@@ -957,7 +954,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			else
 				sna_damage_add(&priv->gpu_damage, region);
 
-			priv->gpu = true;
 			return true;
 		}
 	}
@@ -1082,7 +1078,6 @@ done:
 		RegionTranslate(region, -dx, -dy);
 
 	priv->source_count = SOURCE_BIAS;
-	priv->gpu = false;
 	return true;
 }
 
@@ -1167,7 +1162,6 @@ done:
 		list_del(&priv->list);
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
-	priv->gpu = true;
 	return true;
 }
 
@@ -1191,14 +1185,10 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	if (priv == NULL)
 		return FALSE;
 
-	if (priv->cpu_damage == NULL &&
-	    sna_pixmap_choose_tiling(pixmap) != I915_TILING_NONE &&
-	    !sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE))
-		return FALSE;
-
 	if (priv->gpu_bo == NULL &&
 	    (sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE ||
-	     !box_inplace(pixmap, box)))
+	     (priv->cpu_damage && !box_inplace(pixmap, box)) ||
+	     !sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ)))
 		return FALSE;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -1209,37 +1199,47 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	extents.y1 += dy;
 	extents.y2 += dy;
 
-	if (priv->gpu) {
-		if (priv->gpu_damage &&
-		    sna_damage_contains_box(priv->gpu_damage,
-					    &extents) != PIXMAN_REGION_OUT)
-			goto move_to_gpu;
+	if (priv->gpu_damage) {
+		int ret = sna_damage_contains_box(priv->gpu_damage, &extents);
+		if (ret == PIXMAN_REGION_IN) {
+			DBG(("%s: region wholly contained within GPU damage\n",
+			     __FUNCTION__));
+			*damage = NULL;
+			return TRUE;
+		}
 
-		if (priv->cpu_damage &&
-		    sna_damage_contains_box(priv->cpu_damage,
-					    &extents) != PIXMAN_REGION_OUT)
-			return FALSE;
-	} else {
-		if (priv->cpu_damage == NULL ||
-		    sna_damage_contains_box(priv->cpu_damage,
-					    &extents) == PIXMAN_REGION_OUT)
+		if (ret != PIXMAN_REGION_OUT && kgem_bo_is_busy(priv->gpu_bo)) {
+			DBG(("%s: region partially contained within busy GPU damage\n",
+			     __FUNCTION__));
 			goto move_to_gpu;
+		}
+	}
 
-		if (priv->gpu_damage == NULL ||
-		    sna_damage_contains_box(priv->gpu_damage,
-					    &extents) == PIXMAN_REGION_OUT)
+	if (priv->cpu_damage) {
+		int ret = sna_damage_contains_box(priv->cpu_damage, &extents);
+		if (ret == PIXMAN_REGION_IN) {
+			DBG(("%s: region wholly contained within CPU damage\n",
+			     __FUNCTION__));
 			return FALSE;
+		}
+
+		if (box_inplace(pixmap, box)) {
+			DBG(("%s: forcing inplace\n", __FUNCTION__));
+			goto move_to_gpu;
+		}
+
+		if (ret != PIXMAN_REGION_OUT && !kgem_bo_is_busy(priv->gpu_bo)) {
+			DBG(("%s: region partially contained within idle CPU damage\n",
+			     __FUNCTION__));
+			return FALSE;
+		}
 	}
 
 move_to_gpu:
 	if (!sna_pixmap_move_area_to_gpu(pixmap, &extents))
 		return FALSE;
-	if (sna_damage_contains_box(priv->gpu_damage,
-				    &extents) != PIXMAN_REGION_IN)
-		*damage = &priv->gpu_damage;
-	else
-		*damage = NULL;
 
+	*damage = &priv->gpu_damage;
 	return TRUE;
 }
 
@@ -1248,9 +1248,16 @@ sna_drawable_use_gpu_bo(DrawablePtr drawable,
 			const BoxRec *box,
 			struct sna_damage ***damage)
 {
-	Bool ret = _sna_drawable_use_gpu_bo(drawable, box, damage);
+	Bool ret;
+
+	DBG(("%s((%d, %d), (%d, %d))...\n", __FUNCTION__,
+	     box->x1, box->y1, box->x2, box->y2));
+
+	ret = _sna_drawable_use_gpu_bo(drawable, box, damage);
+
 	DBG(("%s((%d, %d), (%d, %d)) = %d\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2, ret));
+
 	return ret;
 }
 
@@ -1521,7 +1528,6 @@ done:
 	list_del(&priv->list);
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
-	priv->gpu = true;
 	return priv;
 }
 
@@ -5561,8 +5567,8 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	if (gc->fillStyle == FillSolid) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
 
-		DBG(("%s: trying blt solid fill [%08lx] paths\n",
-		     __FUNCTION__, gc->fgPixel));
+		DBG(("%s: trying blt solid fill [%08lx, flags=%x] paths\n",
+		     __FUNCTION__, gc->fgPixel,flags));
 
 		if (flags & 4) {
 			if (sna_drawable_use_gpu_bo(drawable,
@@ -9234,7 +9240,6 @@ sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 	sna_pixmap_destroy_gpu_bo(sna, priv);
 
 	priv->source_count = SOURCE_BIAS;
-	priv->gpu = false;
 	return true;
 }
 
