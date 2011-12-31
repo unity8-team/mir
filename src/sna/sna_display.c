@@ -749,7 +749,9 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 
 	DBG(("%s(%d, %d)\n", __FUNCTION__, width, height));
 
-	shadow = scrn->pScreen->CreatePixmap(scrn->pScreen, width, height, scrn->depth, 0);
+	shadow = scrn->pScreen->CreatePixmap(scrn->pScreen,
+					     width, height, scrn->depth,
+					     SNA_CREATE_FB);
 	if (!shadow)
 		return NULL;
 
