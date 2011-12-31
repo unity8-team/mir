@@ -193,7 +193,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 	if (priv->ptr)
 		goto done;
 
-	assert(pixmap->devKind);
+	assert(priv->stride);
 
 	if (!DEBUG_NO_LLC && sna->kgem.gen >= 60) {
 		DBG(("%s: allocating CPU buffer (%dx%d)\n", __FUNCTION__,
@@ -213,16 +213,18 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 			if (priv->ptr == NULL) {
 				kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 				priv->cpu_bo = NULL;
-			}
+			} else
+				priv->stride = priv->cpu_bo->pitch;
 		}
 	}
 
 	if (priv->ptr == NULL)
-		priv->ptr = malloc(pixmap->devKind * pixmap->drawable.height);
+		priv->ptr = malloc(priv->stride * pixmap->drawable.height);
 
 	assert(priv->ptr);
 done:
 	pixmap->devPrivate.ptr = priv->ptr;
+	pixmap->devKind = priv->stride;
 	return priv->ptr != NULL;
 }
 
@@ -272,9 +274,6 @@ static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
 	if (!sna->freed_pixmap && priv->header) {
 		sna->freed_pixmap = pixmap;
 		assert(priv->ptr == NULL);
-		priv->gpu_bo = NULL;
-		priv->cpu_bo = NULL;
-		priv->mapped = 0;
 		return false;
 	}
 
@@ -535,7 +534,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		}
 	}
 
-	pixmap->devKind = PixmapBytePad(width, depth);
+	priv->stride = PixmapBytePad(width, depth);
 	pixmap->devPrivate.ptr = NULL;
 
 	priv->gpu_bo = kgem_create_2d(&sna->kgem,
@@ -549,7 +548,6 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 
 	priv->header = true;
 	sna_damage_all(&priv->gpu_damage, width, height);
-
 
 	return pixmap;
 }
@@ -601,6 +599,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		sna_pixmap_attach(pixmap);
 	} else {
 		struct sna *sna = to_sna_from_screen(screen);
+		struct sna_pixmap *priv;
 
 		pixmap = create_pixmap(sna, screen, 0, 0, depth, usage);
 		if (pixmap == NullPixmap)
@@ -611,12 +610,15 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		pixmap->devKind = pad;
 		pixmap->devPrivate.ptr = NULL;
 
-		if (sna_pixmap_attach(pixmap) == NULL) {
+		priv = sna_pixmap_attach(pixmap);
+		if (priv == NULL) {
 			free(pixmap);
 			return create_pixmap(sna, screen,
 					     width, height, depth,
 					     usage);
 		}
+
+		priv->stride = pad;
 	}
 
 	return pixmap;
@@ -678,7 +680,8 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		sna_damage_destroy(&priv->cpu_damage);
 		sna_damage_destroy(&priv->gpu_damage);
 
-		if (priv->gpu_bo && pixmap_inplace(sna, pixmap, priv)) {
+		if (priv->stride && priv->gpu_bo &&
+		    pixmap_inplace(sna, pixmap, priv)) {
 			if (kgem_bo_is_busy(priv->gpu_bo) &&
 			    priv->gpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
@@ -696,6 +699,7 @@ sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 				goto skip_inplace_map;
 
 			priv->mapped = 1;
+			pixmap->devKind = priv->gpu_bo->pitch;
 
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
@@ -895,7 +899,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
 
-		if (priv->gpu_bo && region_inplace(sna, pixmap, region, priv)) {
+		if (priv->stride && priv->gpu_bo &&
+		    region_inplace(sna, pixmap, region, priv)) {
 			if (sync_will_stall(priv->gpu_bo) &&
 			    priv->gpu_bo->exec == NULL)
 				kgem_retire(&sna->kgem);
@@ -908,6 +913,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 					return false;
 
 				priv->mapped = 1;
+				pixmap->devKind = priv->gpu_bo->pitch;
 
 				sna_damage_subtract(&priv->cpu_damage, region);
 				if (priv->cpu_damage == NULL)
@@ -945,6 +951,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				return false;
 
 			priv->mapped = 1;
+			pixmap->devKind = priv->gpu_bo->pitch;
 
 			sna_damage_subtract(&priv->cpu_damage, region);
 			if (priv->cpu_damage == NULL)

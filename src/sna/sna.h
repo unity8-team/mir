@@ -139,6 +139,8 @@ struct sna_pixmap {
 	struct list list;
 	struct list inactive;
 
+	uint32_t stride;
+
 #define SOURCE_BIAS 4
 	uint16_t source_count;
 	uint8_t pinned :1;
