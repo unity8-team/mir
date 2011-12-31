@@ -317,7 +317,12 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
 		bool upload = true;
 
-		if (pixmap->devKind * pixmap->drawable.height <= 4096) {
+		if (pixmap->devKind * pixmap->drawable.height <= 4096 ||
+		    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
+				       I915_TILING_X,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height,
+				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE) {
 			priv = sna_pixmap(pixmap);
 			upload = priv && priv->source_count++ > SOURCE_BIAS;
 		}
@@ -338,6 +343,12 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	priv = sna_pixmap(pixmap);
 	if (priv)
 		count = priv->source_count++;
+
+	if (kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem, I915_TILING_X,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height,
+			       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
+		count -= SOURCE_BIAS;
 
 	DBG(("%s: migrate box (%d, %d), (%d, %d)? source count=%d, fraction=%d/%d [%d]\n",
 	     __FUNCTION__,
