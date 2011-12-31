@@ -413,7 +413,7 @@ static void i965_create_dst_surface_state(ScrnInfoPtr scrn,
 
 	dest_surf_state.ss1.base_addr =
 	    intel_emit_reloc(surf_bo, offset + offsetof(struct brw_surface_state, ss1),
-			     pixmap_bo, 0, I915_GEM_DOMAIN_SAMPLER, 0);
+			     pixmap_bo, 0, I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER);
 
 	dest_surf_state.ss2.height = pixmap->drawable.height - 1;
 	dest_surf_state.ss2.width = pixmap->drawable.width - 1;
