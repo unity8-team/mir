@@ -7425,6 +7425,215 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 	return true;
 }
 
+static void
+sna_poly_fill_rect_stippled_n_box(struct sna *sna,
+				  struct kgem_bo *bo,
+				  uint32_t br00, uint32_t br13,
+				  GCPtr gc,
+				  BoxRec *box,
+				  DDXPointRec *origin)
+{
+	int x1, x2, y1, y2;
+	uint32_t *b;
+
+	for (y1 = box->y1; y1 < box->y2; y1 = y2) {
+		int oy = (y1 - origin->y)  % gc->stipple->drawable.height;
+
+		y2 = box->y2;
+		if (y2 - y1 > gc->stipple->drawable.height - oy)
+			y2 = y1 + gc->stipple->drawable.height - oy;
+
+		for (x1 = box->x1; x1 < box->x2; x1 = x2) {
+			int bx1, bx2, bw, bh, len, ox;
+			uint8_t *dst, *src;
+
+			x2 = box->x2;
+			ox = (x1 - origin->x) % gc->stipple->drawable.width;
+			bx1 = ox & ~7;
+			bx2 = ox + (x2 - x1);
+			if (bx2 - bx1 > gc->stipple->drawable.width) {
+				bx2 = bx1 + gc->stipple->drawable.width;
+				x2 = x1 + (bx2 - bx1);
+			}
+			bx2 = (bx2 + 7) &~7;
+			bw = (bx2 - bx1)/8;
+			bw = ALIGN(bw, 2);
+			bh = y2 - y1;
+
+			DBG(("%s: box(%d, %d), (%d, %d) pat=(%d, %d)\n",
+			     __FUNCTION__, x1, y1, x2, y2, ox, oy));
+
+			len = bw*bh;
+			len = ALIGN(len, 8) / 4;
+			if (!kgem_check_batch(&sna->kgem, 7+len) ||
+			    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
+			    !kgem_check_reloc(&sna->kgem, 1)) {
+				_kgem_submit(&sna->kgem);
+				_kgem_set_mode(&sna->kgem, KGEM_BLT);
+			}
+
+			b = sna->kgem.batch + sna->kgem.nbatch;
+			b[0] = XY_MONO_SRC_COPY_IMM | (5 + len) | br00;
+			b[0] |= (ox & 7) << 17;
+			b[1] = br13;
+			b[2] = y1 << 16 | x1;
+			b[3] = y2 << 16 | x2;
+			b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
+					      bo,
+					      I915_GEM_DOMAIN_RENDER << 16 |
+					      I915_GEM_DOMAIN_RENDER |
+					      KGEM_RELOC_FENCED,
+					      0);
+			b[5] = gc->bgPixel;
+			b[6] = gc->fgPixel;
+
+			sna->kgem.nbatch += 7 + len;
+
+			dst = (uint8_t *)&b[7];
+			len = gc->stipple->devKind;
+			src = gc->stipple->devPrivate.ptr;
+			src += oy*len + ox/8;
+			len -= bw;
+			do {
+				int i = bw;
+				do {
+					*dst++ = byte_reverse(*src++);
+					*dst++ = byte_reverse(*src++);
+					i -= 2;
+				} while (i);
+				src += len;
+			} while (--bh);
+		}
+	}
+}
+
+static bool
+sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
+				  struct kgem_bo *bo,
+				  struct sna_damage **damage,
+				  GCPtr gc, int n, xRectangle *r,
+				  const BoxRec *extents, unsigned clipped)
+{
+	PixmapPtr pixmap = get_drawable_pixmap(drawable);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	DDXPointRec origin = gc->patOrg;
+	int16_t dx, dy;
+	uint32_t br00, br13;
+
+	DBG(("%s: upload (%d, %d), (%d, %d), origin (%d, %d)\n", __FUNCTION__,
+	     extents->x1, extents->y1,
+	     extents->x2, extents->y2,
+	     origin.x, origin.y));
+
+	if (gc->stipple->drawable.width > 32 ||
+	    gc->stipple->drawable.height > 32)
+		return false;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	kgem_set_mode(&sna->kgem, KGEM_BLT);
+
+	br00 = 3 << 20;
+	br13 = bo->pitch;
+	if (sna->kgem.gen >= 40) {
+		if (bo->tiling)
+			br00 |= BLT_DST_TILED;
+		br13 >>= 2;
+	}
+	br13 |= (gc->fillStyle == FillStippled) << 29;
+	br13 |= blt_depth(drawable->depth) << 24;
+	br13 |= copy_ROP[gc->alu] << 16;
+
+	origin.x += dx + drawable->x;
+	origin.y += dy + drawable->y;
+
+	if (!clipped) {
+		dx += drawable->x;
+		dy += drawable->y;
+
+		sna_damage_add_rectangles(damage, r, n, dx, dy);
+		do {
+			BoxRec box;
+
+			box.x1 = r->x + dx;
+			box.y1 = r->y + dy;
+			box.x2 = box.x1 + r->width;
+			box.y2 = box.y1 + r->height;
+
+			sna_poly_fill_rect_stippled_n_box(sna, bo,
+							  br00, br13, gc,
+							  &box, &origin);
+			r++;
+		} while (--n);
+	} else {
+		RegionRec clip;
+
+		region_set(&clip, extents);
+		region_maybe_clip(&clip, gc->pCompositeClip);
+		if (!RegionNotEmpty(&clip))
+			return true;
+
+		if (clip.data == NULL) {
+			do {
+				BoxRec box;
+
+				box.x1 = r->x + drawable->x;
+				box.x2 = bound(r->x, r->width);
+				box.y1 = r->y + drawable->y;
+				box.y2 = bound(r->y, r->height);
+				r++;
+
+				if (!box_intersect(&box, &clip.extents))
+					continue;
+
+				box.x1 += dx; box.x2 += dx;
+				box.y1 += dy; box.y2 += dy;
+
+				sna_poly_fill_rect_stippled_n_box(sna, bo,
+								  br00, br13, gc,
+								  &box, &origin);
+			} while (--n);
+		} else {
+			const BoxRec * const clip_start = RegionBoxptr(&clip);
+			const BoxRec * const clip_end = clip_start + clip.data->numRects;
+			const BoxRec *c;
+
+			do {
+				BoxRec unclipped;
+
+				unclipped.x1 = r->x + drawable->x;
+				unclipped.x2 = bound(r->x, r->width);
+				unclipped.y1 = r->y + drawable->y;
+				unclipped.y2 = bound(r->y, r->height);
+				r++;
+
+				c = find_clip_box_for_y(clip_start,
+							clip_end,
+							unclipped.y1);
+				while (c != clip_end) {
+					BoxRec box;
+
+					if (unclipped.y2 <= c->y1)
+						break;
+
+					box = unclipped;
+					if (!box_intersect(&box, c++))
+						continue;
+
+					box.x1 += dx; box.x2 += dx;
+					box.y1 += dy; box.y2 += dy;
+
+					sna_poly_fill_rect_stippled_n_box(sna, bo,
+									  br00, br13, gc,
+									  &box, &origin);
+				}
+			} while (--n);
+		}
+	}
+
+	sna->blt_state.fill_bo = 0;
+	return true;
+}
+
 static bool
 sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 				struct kgem_bo *bo,
@@ -7470,9 +7679,11 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 			return sna_poly_fill_rect_stippled_1_blt(drawable, bo, damage,
 								 gc, n, rect,
 								 extents, clipped);
+	} else {
+		return sna_poly_fill_rect_stippled_n_blt(drawable, bo, damage,
+							 gc, n, rect,
+							 extents, clipped);
 	}
-
-	return false;
 }
 
 static unsigned
