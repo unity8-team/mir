@@ -588,6 +588,7 @@ static drm_intel_bo *gen7_create_sampler_state(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen7_sampler_state sampler_state;
 
+	memset(&sampler_state, 0, sizeof(sampler_state));
 	sampler_state.ss0.min_filter = BRW_MAPFILTER_LINEAR;
 	sampler_state.ss0.mag_filter = BRW_MAPFILTER_LINEAR;
 	sampler_state.ss3.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
@@ -605,6 +606,7 @@ static drm_intel_bo *i965_create_vs_state(ScrnInfoPtr scrn)
 	struct brw_vs_unit_state vs_state;
 
 	/* Set up the vertex shader to be disabled (passthrough) */
+	memset(&vs_state, 0, sizeof(vs_state));
 	if (IS_GEN5(intel))
 		vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES >> 2;
 	else
@@ -794,6 +796,7 @@ static drm_intel_bo *i965_create_cc_vp_state(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct brw_cc_viewport cc_viewport;
 
+	memset(&cc_viewport, 0, sizeof(cc_viewport));
 	cc_viewport.min_depth = -1.e35;
 	cc_viewport.max_depth = 1.e35;
 
@@ -1360,6 +1363,7 @@ gen6_create_cc_state(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen6_color_calc_state cc_state;
 
+	memset(&cc_state, 0, sizeof(cc_state));
 	cc_state.constant_r = 1.0;
 	cc_state.constant_g = 0.0;
 	cc_state.constant_b = 1.0;
@@ -1376,6 +1380,7 @@ gen6_create_blend_state(ScrnInfoPtr scrn)
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	struct gen6_blend_state blend_state;
 
+	memset(&blend_state, 0, sizeof(blend_state));
 	blend_state.blend1.logic_op_enable = 1;
 	blend_state.blend1.logic_op_func = 0xc;
 	blend_state.blend1.pre_blend_clamp_enable = 1;
