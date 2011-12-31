@@ -1788,7 +1788,7 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 		tiling = I915_TILING_NONE;
 		goto done;
 	}
-	if (tiling == I915_TILING_Y && width * bpp <= 8*32/2) {
+	if (tiling == I915_TILING_Y && width * bpp <= 8*128/2) {
 		DBG(("%s: too thin [%d] for TILING_Y\n",
 		     __FUNCTION__, width));
 		tiling = I915_TILING_NONE;
