@@ -9182,7 +9182,7 @@ static bool sna_accel_flush(struct sna *sna)
 	sna->kgem.busy = !nothing_to_do;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 	sna->kgem.flush_now = 0;
-	return need_throttle;
+	return need_throttle && !sna->kgem.busy;
 }
 
 static void sna_accel_expire(struct sna *sna)
@@ -9461,9 +9461,6 @@ void sna_accel_close(struct sna *sna)
 static void sna_accel_throttle(struct sna *sna)
 {
 	if (sna->flags & SNA_NO_THROTTLE)
-		return;
-
-	if (list_is_empty(&sna->kgem.requests))
 		return;
 
 	DBG(("%s (time=%ld)\n", __FUNCTION__, (long)GetTimeInMillis()));
