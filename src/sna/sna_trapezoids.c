@@ -3138,6 +3138,80 @@ tor_blt_in_clipped_mono(struct sna *sna,
 			   coverage < FAST_SAMPLES_XY/2 ? 0 : FAST_SAMPLES_XY);
 }
 
+static void
+tor_blt_add(struct sna *sna,
+	    struct sna_composite_spans_op *op,
+	    pixman_region16_t *clip,
+	    const BoxRec *box,
+	    int coverage)
+{
+	struct inplace *in = (struct inplace *)op;
+	uint8_t *ptr = in->ptr;
+	int h, w, v, i;
+
+	coverage = coverage * in->opacity / FAST_SAMPLES_XY;
+	if (coverage == 0)
+		return;
+
+	ptr += box->y1 * in->stride + box->x1;
+
+	h = box->y2 - box->y1;
+	w = box->x2 - box->x1;
+	if ((w | h) == 1) {
+		v = coverage + *ptr;
+		*ptr = v >= 255 ? 255 : v;
+	} else {
+		do {
+			for (i = 0; i < w; i++) {
+				v = coverage + ptr[i];
+				ptr[i] = v >= 255 ? 255 : v;
+			}
+			ptr += in->stride;
+		} while (--h);
+	}
+}
+
+static void
+tor_blt_add_clipped(struct sna *sna,
+		    struct sna_composite_spans_op *op,
+		    pixman_region16_t *clip,
+		    const BoxRec *box,
+		    int coverage)
+{
+	pixman_region16_t region;
+	int n;
+
+	pixman_region_init_rects(&region, box, 1);
+	RegionIntersect(&region, &region, clip);
+	n = REGION_NUM_RECTS(&region);
+	box = REGION_RECTS(&region);
+	while (n--)
+		tor_blt_add(sna, op, NULL, box++, coverage);
+	pixman_region_fini(&region);
+}
+
+static void
+tor_blt_add_mono(struct sna *sna,
+		 struct sna_composite_spans_op *op,
+		 pixman_region16_t *clip,
+		 const BoxRec *box,
+		 int coverage)
+{
+	if (coverage >= FAST_SAMPLES_XY/2)
+		tor_blt_add(sna, op, clip, box, FAST_SAMPLES_XY);
+}
+
+static void
+tor_blt_add_clipped_mono(struct sna *sna,
+			 struct sna_composite_spans_op *op,
+			 pixman_region16_t *clip,
+			 const BoxRec *box,
+			 int coverage)
+{
+	if (coverage >= FAST_SAMPLES_XY/2)
+		tor_blt_add_clipped(sna, op, clip, box, FAST_SAMPLES_XY);
+}
+
 static bool
 trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		       PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
@@ -3167,16 +3241,25 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return false;
 	}
 
-	DBG(("%s: format=%x, op=%d, color=%x\n",
-	     __FUNCTION__, dst->format, op, color));
-
-	if (dst->format != PICT_a8 ||
-	    !(op == PictOpSrc || op == PictOpIn) ||
-	    !sna_picture_is_solid(src, &color)) {
-		DBG(("%s: fallback -- can not perform operation in place\n",
-		     __FUNCTION__));
+	if (dst->format != PICT_a8 || !sna_picture_is_solid(src, &color)) {
+		DBG(("%s: fallback -- can not perform operation in place, format=%x\n",
+		     __FUNCTION__, dst->format));
 		return false;
 	}
+
+	switch (op) {
+	case PictOpSrc:
+	case PictOpIn:
+	case PictOpAdd:
+		break;
+	default:
+		DBG(("%s: fallback -- can not perform op [%d] in place\n",
+		     __FUNCTION__, op));
+		return false;
+	}
+
+	DBG(("%s: format=%x, op=%d, color=%x\n",
+	     __FUNCTION__, dst->format, op, color));
 
 	if (maskFormat == NULL && ntrap > 1) {
 		DBG(("%s: individual rasterisation requested\n",
@@ -3246,7 +3329,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 			else
 				span = tor_blt_src;
 		}
-	} else {
+	} else if (op == PictOpIn) {
 		if (dst->pCompositeClip->data) {
 			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
 				span = tor_blt_in_clipped_mono;
@@ -3257,6 +3340,18 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 				span = tor_blt_in_mono;
 			else
 				span = tor_blt_in;
+		}
+	} else {
+		if (dst->pCompositeClip->data) {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_add_clipped_mono;
+			else
+				span = tor_blt_add_clipped;
+		} else {
+			if (maskFormat ? maskFormat->depth < 8 : dst->polyEdge == PolyEdgeSharp)
+				span = tor_blt_add_mono;
+			else
+				span = tor_blt_add;
 		}
 	}
 
