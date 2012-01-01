@@ -1820,7 +1820,8 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	 */
 	if ((priv->flush ||
 	     (region_inplace(sna, pixmap, region, priv) &&
-	      (priv->gpu_bo == NULL || !kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo)))) &&
+	      ((priv->gpu_bo == NULL && priv->cpu_bo == NULL) ||
+	       (priv->gpu_bo != NULL && !kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo))))) &&
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
 		if (region_subsumes_drawable(region, &pixmap->drawable)) {
