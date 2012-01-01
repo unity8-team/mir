@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.17.0+git20120101-2) experimental; urgency=low
+
+  * Build against Xserver 1.12 RC1 (Closes: #653914).
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 01 Jan 2012 14:58:27 +0100
+
 xserver-xorg-video-intel (2:2.17.0+git20120101-1) experimental; urgency=low
 
   * New upstream snapshot:
