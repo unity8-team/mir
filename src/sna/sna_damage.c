@@ -196,7 +196,7 @@ static bool _sna_damage_create_boxes(struct sna_damage *damage,
 	box = list_entry(damage->embedded_box.list.prev,
 			 struct sna_damage_box,
 			 list);
-	n = 2*box->size;
+	n = 4*box->size;
 	if (n < count)
 		n = ALIGN(count, 64);
 
@@ -388,8 +388,8 @@ static void free_list(struct list *head)
 static void __sna_damage_reduce(struct sna_damage *damage)
 {
 	int n, nboxes;
-	BoxPtr boxes;
-	pixman_region16_t tmp, *region = &damage->region;
+	BoxPtr boxes, free_boxes = NULL;
+	pixman_region16_t *region = &damage->region;
 	struct sna_damage_box *iter;
 
 	assert(damage->mode != DAMAGE_ALL);
@@ -398,38 +398,72 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 	DBG(("    reduce: before region.n=%d\n", REGION_NUM_RECTS(region)));
 
 	nboxes = damage->embedded_box.size;
-	boxes = damage->embedded_box.box;
 	list_for_each_entry(iter, &damage->embedded_box.list, list)
 		nboxes += iter->size;
 	DBG(("   nboxes=%d, residual=%d\n", nboxes, damage->remain));
 	nboxes -= damage->remain;
 	if (nboxes == 0)
 		goto done;
-	if (nboxes > damage->embedded_box.size) {
+	if (damage->mode == DAMAGE_ADD)
+		nboxes += REGION_NUM_RECTS(region);
+
+	iter = list_entry(damage->embedded_box.list.prev,
+			  struct sna_damage_box,
+			  list);
+	n = iter->size - damage->remain;
+	boxes = (BoxRec *)(iter+1);
+	if (nboxes > iter->size) {
 		boxes = malloc(sizeof(BoxRec)*nboxes);
 		if (boxes == NULL)
 			goto done;
 
-		memcpy(boxes, damage->embedded_box.box, sizeof(damage->embedded_box.box));
-		n = damage->embedded_box.size;
-		list_for_each_entry(iter, &damage->embedded_box.list, list) {
-			int len = iter->size;
-			if (n + len > nboxes)
-				len = nboxes - n;
-			DBG(("   copy %d/%d boxes from %d\n", len, iter->size, n));
-			memcpy(boxes + n, iter+1, len * sizeof(BoxRec));
-			n += len;
-		}
-		assert(n == nboxes);
+		free_boxes = boxes;
 	}
 
-	pixman_region_init_rects(&tmp, boxes, nboxes);
-	if (damage->mode == DAMAGE_ADD)
-		pixman_region_union(region, region, &tmp);
-	else
+	if (boxes != damage->embedded_box.box) {
+		if (list_is_empty(&damage->embedded_box.list)) {
+			memcpy(boxes,
+			       damage->embedded_box.box,
+			       n*sizeof(BoxRec));
+		} else {
+			if (damage->mode == DAMAGE_ADD)
+				nboxes -= REGION_NUM_RECTS(region);
+
+			memcpy(boxes,
+			       damage->embedded_box.box,
+			       sizeof(damage->embedded_box.box));
+			n = damage->embedded_box.size;
+
+			list_for_each_entry(iter, &damage->embedded_box.list, list) {
+				int len = iter->size;
+				if (n + len > nboxes)
+					len = nboxes - n;
+				DBG(("   copy %d/%d boxes from %d\n", len, iter->size, n));
+				memcpy(boxes + n, iter+1, len * sizeof(BoxRec));
+				n += len;
+			}
+
+			if (damage->mode == DAMAGE_ADD)
+				nboxes += REGION_NUM_RECTS(region);
+		}
+	}
+
+	if (damage->mode == DAMAGE_ADD) {
+		memcpy(boxes + n,
+		       REGION_RECTS(region),
+		       REGION_NUM_RECTS(region)*sizeof(BoxRec));
+		assert(n + REGION_NUM_RECTS(region) == nboxes);
+		pixman_region_fini(region);
+		pixman_region_init_rects(region, boxes, nboxes);
+	} else {
+		pixman_region16_t tmp;
+
+		pixman_region_init_rects(&tmp, boxes, nboxes);
 		pixman_region_subtract(region, region, &tmp);
-	pixman_region_fini(&tmp);
-	if (boxes != damage->embedded_box.box)
+		pixman_region_fini(&tmp);
+	}
+
+	if (free_boxes)
 		free(boxes);
 
 	damage->extents = region->extents;
@@ -969,6 +1003,15 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 		return NULL;
 	}
 
+	if (damage->mode == DAMAGE_ALL) {
+		pixman_region_subtract(&damage->region,
+				       &damage->region,
+				       region);
+		damage->extents = damage->region.extents;
+		damage->mode = DAMAGE_ADD;
+		return damage;
+	}
+
 	if (damage->mode != DAMAGE_SUBTRACT) {
 		if (damage->dirty)
 			__sna_damage_reduce(damage);
@@ -989,7 +1032,6 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 					       &damage->region,
 					       region);
 			damage->extents = damage->region.extents;
-			damage->mode = DAMAGE_ADD; /* reduce from ALL */
 			return damage;
 		}
 
