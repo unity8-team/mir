@@ -721,8 +721,6 @@ skip_inplace_map:
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
-
-		sna_damage_destroy(&priv->gpu_damage);
 	}
 
 	if (priv->mapped) {
@@ -733,11 +731,6 @@ skip_inplace_map:
 	if (pixmap->devPrivate.ptr == NULL &&
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
 		return false;
-
-	if (priv->gpu_bo == NULL) {
-		DBG(("%s: no GPU bo\n", __FUNCTION__));
-		goto done;
-	}
 
 	if (priv->gpu_damage) {
 		BoxPtr box;
@@ -769,7 +762,6 @@ skip_inplace_map:
 		priv->gpu_damage = NULL;
 	}
 
-done:
 	if (priv->cpu_bo) {
 		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
