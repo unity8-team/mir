@@ -368,7 +368,10 @@ decode_2d(struct kgem *kgem, uint32_t offset)
 
 static int (*decode_3d(int gen))(struct kgem*, uint32_t)
 {
-	if (gen >= 60) {
+	if (gen >= 80) {
+	} else if (gen >= 70) {
+		return kgem_gen7_decode_3d;
+	} else if (gen >= 60) {
 		return kgem_gen6_decode_3d;
 	} else if (gen >= 50) {
 		return kgem_gen5_decode_3d;
@@ -384,7 +387,10 @@ static int (*decode_3d(int gen))(struct kgem*, uint32_t)
 
 static void (*finish_state(int gen))(struct kgem*)
 {
-	if (gen >= 60) {
+	if (gen >= 80) {
+	} else if (gen >= 70) {
+		return kgem_gen7_finish_state;
+	} else if (gen >= 60) {
 		return kgem_gen6_finish_state;
 	} else if (gen >= 50) {
 		return kgem_gen5_finish_state;

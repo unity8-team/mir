@@ -70,13 +70,12 @@ static const XF86VideoEncodingRec DummyEncoding[1] = {
 };
 
 #define NUM_FORMATS 3
-
-static XF86VideoFormatRec Formats[NUM_FORMATS] = {
+static const XF86VideoFormatRec Formats[NUM_FORMATS] = {
 	{15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
 #define NUM_ATTRIBUTES 5
-static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
+static const XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
 	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
@@ -85,7 +84,7 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES] = {
 };
 
 #define GAMMA_ATTRIBUTES 6
-static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
+static const XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA0"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA1"},
 	{XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA2"},
@@ -95,8 +94,7 @@ static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
 };
 
 #define NUM_IMAGES 4
-
-static XF86ImageRec Images[NUM_IMAGES] = {
+static const XF86ImageRec Images[NUM_IMAGES] = {
 	XVIMAGE_YUY2,
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
@@ -467,7 +465,6 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 	struct sna_video_frame frame;
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
-	int top, left, npixels, nlines;
 
 	DBG(("%s: src: (%d,%d)(%d,%d), dst: (%d,%d)(%d,%d), width %d, height %d\n",
 	     __FUNCTION__,
@@ -483,15 +480,16 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 	if (src_h >= (drw_h * 8))
 		drw_h = src_h / 7;
 
+	sna_video_frame_init(sna, video, id, width, height, &frame);
+
 	if (!sna_video_clip_helper(scrn,
 				   video,
+				   &frame,
 				   &crtc,
 				   &dstBox,
 				   src_x, src_y, drw_x, drw_y,
 				   src_w, src_h, drw_w, drw_h,
-				   id,
-				   &top, &left, &npixels, &nlines, clip,
-				   width, height))
+				   clip))
 		return Success;
 
 	if (!crtc) {
@@ -502,12 +500,16 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 		return Success;
 	}
 
-	sna_video_frame_init(sna, video, id, width, height, &frame);
-
 	/* overlay can't handle rotation natively, store it for the copy func */
 	video->rotation = crtc->rotation;
-	if (!sna_video_copy_data(sna, video, &frame,
-				 top, left, npixels, nlines, buf)) {
+
+	frame.bo = sna_video_buffer(sna, video, &frame);
+	if (frame.bo == NULL) {
+		DBG(("%s: failed to allocate video bo\n", __FUNCTION__));
+		return BadAlloc;
+	}
+
+	if (!sna_video_copy_data(sna, video, &frame, buf)) {
 		DBG(("%s: failed to copy video data\n", __FUNCTION__));
 		return BadAlloc;
 	}
@@ -518,7 +520,7 @@ sna_video_overlay_put_image(ScrnInfoPtr scrn,
 		return BadAlloc;
 	}
 
-	sna_video_frame_fini(sna, video, &frame);
+	sna_video_buffer_fini(sna, video);
 
 	/* update cliplist */
 	if (!REGION_EQUAL(scrn->pScreen, &video->clip, clip)) {
@@ -656,7 +658,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 		adaptor->pEncodings->height = IMAGE_MAX_HEIGHT_LEGACY;
 	}
 	adaptor->nFormats = NUM_FORMATS;
-	adaptor->pFormats = Formats;
+	adaptor->pFormats = (XF86VideoFormatPtr)Formats;
 	adaptor->nPorts = 1;
 	adaptor->pPortPrivates = (DevUnion *)&adaptor[1];
 
@@ -678,7 +680,7 @@ XF86VideoAdaptorPtr sna_video_overlay_setup(struct sna *sna,
 		att += GAMMA_ATTRIBUTES;
 	}
 	adaptor->nImages = NUM_IMAGES;
-	adaptor->pImages = Images;
+	adaptor->pImages = (XF86ImagePtr)Images;
 	adaptor->PutVideo = NULL;
 	adaptor->PutStill = NULL;
 	adaptor->GetVideo = NULL;

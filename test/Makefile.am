@@ -3,6 +3,7 @@ stress_TESTS = \
 	basic-copyarea \
 	basic-copyarea-size \
 	basic-putimage \
+	basic-lines \
 	basic-stress \
 	render-fill \
 	render-trapezoid \

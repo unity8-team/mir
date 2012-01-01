@@ -57,14 +57,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86Pci.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
-#include "vgaHW.h"
 #include "xf86Crtc.h"
 #include "xf86RandR12.h"
 
 #include "xorg-server.h"
 #include <pciaccess.h>
 
-#include "xf86drm.h"
 #define _XF86DRI_SERVER_
 #include "dri2.h"
 #include "intel_bufmgr.h"
@@ -76,7 +74,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <libudev.h>
 #endif
 
-#include "uxa.h"
 /* XXX
  * The X server gained an *almost* identical implementation in 1.9.
  *
@@ -176,7 +173,6 @@ struct intel_pixmap {
 
 	struct list flush, batch, in_flight;
 
-	uint16_t src_bound, dst_bound;
 	uint16_t stride;
 	uint8_t tiling;
 	int8_t busy :2;
@@ -282,6 +278,7 @@ typedef struct intel_screen_private {
 	struct list flush_pixmaps;
 	struct list in_flight;
 	drm_intel_bo *wa_scratch_bo;
+	OsTimerPtr cache_expire;
 
 	/* For Xvideo */
 	Bool use_overlay;
@@ -318,7 +315,8 @@ typedef struct intel_screen_private {
 	void (*batch_flush) (struct intel_screen_private *intel);
 	void (*batch_commit_notify) (struct intel_screen_private *intel);
 
-	uxa_driver_t *uxa_driver;
+	struct _UxaDriver *uxa_driver;
+	int uxa_flags;
 	Bool need_sync;
 	int accel_pixmap_offset_alignment;
 	int accel_max_x;
@@ -544,7 +542,6 @@ int intel_crtc_to_pipe(xf86CrtcPtr crtc);
 unsigned long intel_get_fence_size(intel_screen_private *intel, unsigned long size);
 unsigned long intel_get_fence_pitch(intel_screen_private *intel, unsigned long pitch,
 				   uint32_t tiling_mode);
-void intel_set_gem_max_sizes(ScrnInfoPtr scrn);
 
 drm_intel_bo *intel_allocate_framebuffer(ScrnInfoPtr scrn,
 					int w, int h, int cpp,
@@ -637,7 +634,7 @@ intel_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 				    float *x_out, float *y_out, float *z_out);
 
 static inline void
-intel_debug_fallback(ScrnInfoPtr scrn, char *format, ...)
+intel_debug_fallback(ScrnInfoPtr scrn, const char *format, ...)
 {
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 	va_list ap;
@@ -723,8 +720,6 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 
 	return pixmap == screen->GetScreenPixmap(screen);
 }
-
-const OptionInfoRec *intel_uxa_available_options(int chipid, int busid);
 
 Bool intel_uxa_init(ScreenPtr pScreen);
 Bool intel_uxa_create_screen_resources(ScreenPtr pScreen);

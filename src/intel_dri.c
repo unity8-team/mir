@@ -53,11 +53,12 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
+#include "xf86drm.h"
 
 #include "windowstr.h"
 #include "shadow.h"
-
 #include "xaarop.h"
+#include "fb.h"
 
 #include "intel.h"
 #include "i830_reg.h"

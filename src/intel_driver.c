@@ -48,13 +48,14 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86.h"
 #include "xf86_OSproc.h"
 #include "xf86cmap.h"
+#include "xf86drm.h"
 #include "compiler.h"
 #include "mibstore.h"
-#include "vgaHW.h"
 #include "mipointer.h"
 #include "micmap.h"
 #include "shadowfb.h"
 #include <X11/extensions/randr.h>
+#include <X11/extensions/dpmsconst.h>
 #include "fb.h"
 #include "miscstruct.h"
 #include "dixstruct.h"
@@ -70,10 +71,13 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include "legacy/legacy.h"
+#include "uxa.h"
 
 #include <sys/ioctl.h>
 #include "i915_drm.h"
 #include <xf86drmMode.h>
+
+#include "intel_glamor.h"
 
 /* *INDENT-OFF* */
 /*
@@ -410,6 +414,7 @@ static int intel_init_bufmgr(intel_screen_private *intel)
 		return FALSE;
 
 	drm_intel_bufmgr_gem_enable_reuse(intel->bufmgr);
+	drm_intel_bufmgr_gem_set_vma_cache_size(intel->bufmgr, 512);
 	drm_intel_bufmgr_gem_enable_fenced_relocs(intel->bufmgr);
 
 	list_init(&intel->batch_pixmaps);
@@ -712,6 +717,13 @@ static Bool I830PreInit(ScrnInfoPtr scrn, int flags)
 		return FALSE;
 	}
 
+	if (!intel_glamor_pre_init(scrn)) {
+		PreInitCleanup(scrn);
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			"Failed to pre init glamor display.\n");
+		return FALSE;
+	}
+
 	/* Load the dri2 module if requested. */
 	if (intel->directRenderingType != DRI_DISABLED)
 		xf86LoadSubModule(scrn, "dri2");
@@ -813,8 +825,10 @@ intel_flush_callback(CallbackListPtr *list,
 		     pointer user_data, pointer call_data)
 {
 	ScrnInfoPtr scrn = user_data;
-	if (scrn->vtSema)
+	if (scrn->vtSema) {
 		intel_batch_submit(scrn);
+		intel_glamor_flush(intel_get_screen_private(scrn));
+	}
 }
 
 #if HAVE_UDEV
@@ -1110,6 +1124,8 @@ static void I830FreeScreen(int scrnIndex, int flags)
 	ScrnInfoPtr scrn = xf86Screens[scrnIndex];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
 
+	intel_glamor_free_screen(scrnIndex, flags);
+
 	if (intel) {
 		intel_mode_fini(intel);
 		intel_close_drm_master(intel);
@@ -1118,9 +1134,6 @@ static void I830FreeScreen(int scrnIndex, int flags)
 		free(intel);
 		scrn->driverPrivate = NULL;
 	}
-
-	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
 
 static void I830LeaveVT(int scrnIndex, int flags)
@@ -1159,8 +1172,6 @@ static Bool I830EnterVT(int scrnIndex, int flags)
 			   strerror(errno));
 	}
 
-	intel_set_gem_max_sizes(scrn);
-
 	if (!xf86SetDesiredModes(scrn))
 		return FALSE;
 
@@ -1188,6 +1199,11 @@ static Bool I830CloseScreen(int scrnIndex, ScreenPtr screen)
 	}
 
 	DeleteCallback(&FlushCallback, intel_flush_callback, scrn);
+
+	intel_glamor_close_screen(screen);
+
+	TimerFree(intel->cache_expire);
+	intel->cache_expire = NULL;
 
 	if (intel->uxa_driver) {
 		uxa_driver_fini(screen);

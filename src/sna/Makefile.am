@@ -35,6 +35,7 @@ libsna_la_SOURCES = \
 	compiler.h \
 	kgem.c \
 	kgem.h \
+	rop.h \
 	sna.h \
 	sna_accel.c \
 	sna_blt.c \
@@ -73,7 +74,7 @@ libsna_la_SOURCES = \
 	gen7_render.h \
 	$(NULL)
 
-if DRI
+if DRI2
 libsna_la_SOURCES += \
 	sna_dri.c \
 	$(NULL)
@@ -90,6 +91,7 @@ libsna_la_SOURCES += \
 endif
 
 if DEBUG
+AM_CFLAGS += @VALGRIND_CFLAGS@
 libsna_la_SOURCES += \
 	kgem_debug.c \
 	kgem_debug.h \
@@ -98,6 +100,7 @@ libsna_la_SOURCES += \
 	kgem_debug_gen4.c \
 	kgem_debug_gen5.c \
 	kgem_debug_gen6.c \
+	kgem_debug_gen7.c \
 	$(NULL)
 endif
 

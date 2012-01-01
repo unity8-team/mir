@@ -50,7 +50,7 @@ Bool uxa_prepare_access_gc(GCPtr pGC)
 		if (!uxa_prepare_access
 		    (&pGC->tile.pixmap->drawable, UXA_ACCESS_RO)) {
 			if (pGC->stipple)
-				uxa_finish_access(&pGC->stipple->drawable);
+				uxa_finish_access(&pGC->stipple->drawable, UXA_ACCESS_RO);
 			return FALSE;
 		}
 	return TRUE;
@@ -62,10 +62,38 @@ Bool uxa_prepare_access_gc(GCPtr pGC)
 void uxa_finish_access_gc(GCPtr pGC)
 {
 	if (pGC->fillStyle == FillTiled)
-		uxa_finish_access(&pGC->tile.pixmap->drawable);
+		uxa_finish_access(&pGC->tile.pixmap->drawable, UXA_ACCESS_RO);
 	if (pGC->stipple)
-		uxa_finish_access(&pGC->stipple->drawable);
+		uxa_finish_access(&pGC->stipple->drawable, UXA_ACCESS_RO);
 }
+
+Bool uxa_picture_prepare_access(PicturePtr picture, int mode)
+{
+	if (picture->pDrawable == NULL)
+		return TRUE;
+
+	if (!uxa_prepare_access(picture->pDrawable, mode))
+		return FALSE;
+
+	if (picture->alphaMap &&
+	    !uxa_prepare_access(picture->alphaMap->pDrawable, mode)) {
+		uxa_finish_access(picture->pDrawable, mode);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+void uxa_picture_finish_access(PicturePtr picture, int mode)
+{
+	if (picture->pDrawable == NULL)
+		return;
+
+	uxa_finish_access(picture->pDrawable, mode);
+	if (picture->alphaMap)
+		uxa_finish_access(picture->alphaMap->pDrawable, mode);
+}
+
 
 char uxa_drawable_location(DrawablePtr pDrawable)
 {
@@ -86,7 +114,7 @@ uxa_check_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int nspans,
 				    fSorted);
 			uxa_finish_access_gc(pGC);
 		}
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -100,7 +128,7 @@ uxa_check_set_spans(DrawablePtr pDrawable, GCPtr pGC, char *psrc,
 		      uxa_drawable_location(pDrawable)));
 	if (uxa_prepare_access(pDrawable, UXA_ACCESS_RW)) {
 		fbSetSpans(pDrawable, pGC, psrc, ppt, pwidth, nspans, fSorted);
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -116,7 +144,7 @@ uxa_check_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
 	if (uxa_prepare_access(pDrawable, UXA_ACCESS_RW)) {
 		fbPutImage(pDrawable, pGC, depth, x, y, w, h, leftPad, format,
 			   bits);
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -135,9 +163,9 @@ uxa_check_copy_area(DrawablePtr pSrc, DrawablePtr pDst, GCPtr pGC,
 			ret =
 			    fbCopyArea(pSrc, pDst, pGC, srcx, srcy, w, h, dstx,
 				       dsty);
-			uxa_finish_access(pSrc);
+			uxa_finish_access(pSrc, UXA_ACCESS_RO);
 		}
-		uxa_finish_access(pDst);
+		uxa_finish_access(pDst, UXA_ACCESS_RW);
 	}
 	return ret;
 }
@@ -158,9 +186,9 @@ uxa_check_copy_plane(DrawablePtr pSrc, DrawablePtr pDst, GCPtr pGC,
 			ret =
 			    fbCopyPlane(pSrc, pDst, pGC, srcx, srcy, w, h, dstx,
 					dsty, bitPlane);
-			uxa_finish_access(pSrc);
+			uxa_finish_access(pSrc, UXA_ACCESS_RO);
 		}
-		uxa_finish_access(pDst);
+		uxa_finish_access(pDst, UXA_ACCESS_RW);
 	}
 	return ret;
 }
@@ -175,7 +203,7 @@ uxa_check_poly_point(DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
 		      uxa_drawable_location(pDrawable)));
 	if (uxa_prepare_access(pDrawable, UXA_ACCESS_RW)) {
 		fbPolyPoint(pDrawable, pGC, mode, npt, pptInit);
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -195,7 +223,7 @@ uxa_check_poly_lines(DrawablePtr pDrawable, GCPtr pGC,
 				fbPolyLine(pDrawable, pGC, mode, npt, ppt);
 				uxa_finish_access_gc(pGC);
 			}
-			uxa_finish_access(pDrawable);
+			uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 		}
 		return;
 	}
@@ -219,7 +247,7 @@ uxa_check_poly_segment(DrawablePtr pDrawable, GCPtr pGC,
 					      pSegInit);
 				uxa_finish_access_gc(pGC);
 			}
-			uxa_finish_access(pDrawable);
+			uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 		}
 		return;
 	}
@@ -246,7 +274,7 @@ uxa_check_poly_arc(DrawablePtr pDrawable, GCPtr pGC, int narcs, xArc * pArcs)
 				fbPolyArc(pDrawable, pGC, narcs, pArcs);
 				uxa_finish_access_gc(pGC);
 			}
-			uxa_finish_access(pDrawable);
+			uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 		}
 		return;
 	}
@@ -268,7 +296,7 @@ uxa_check_poly_fill_rect(DrawablePtr pDrawable, GCPtr pGC,
 			fbPolyFillRect(pDrawable, pGC, nrect, prect);
 			uxa_finish_access_gc(pGC);
 		}
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -287,7 +315,7 @@ uxa_check_image_glyph_blt(DrawablePtr pDrawable, GCPtr pGC,
 					pglyphBase);
 			uxa_finish_access_gc(pGC);
 		}
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -307,7 +335,7 @@ uxa_check_poly_glyph_blt(DrawablePtr pDrawable, GCPtr pGC,
 				       pglyphBase);
 			uxa_finish_access_gc(pGC);
 		}
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -327,9 +355,9 @@ uxa_check_push_pixels(GCPtr pGC, PixmapPtr pBitmap,
 					     y);
 				uxa_finish_access_gc(pGC);
 			}
-			uxa_finish_access(&pBitmap->drawable);
+			uxa_finish_access(&pBitmap->drawable, UXA_ACCESS_RO);
 		}
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RW);
 	}
 }
 
@@ -344,7 +372,7 @@ uxa_check_get_spans(DrawablePtr pDrawable,
 		      uxa_drawable_location(pDrawable)));
 	if (uxa_prepare_access(pDrawable, UXA_ACCESS_RO)) {
 		fbGetSpans(pDrawable, wMax, ppt, pwidth, nspans, pdstStart);
-		uxa_finish_access(pDrawable);
+		uxa_finish_access(pDrawable, UXA_ACCESS_RO);
 	}
 }
 
@@ -362,24 +390,20 @@ uxa_check_composite(CARD8 op,
 
 	UXA_FALLBACK(("from picts %p/%p to pict %p\n", pSrc, pMask, pDst));
 
-	if (uxa_prepare_access(pDst->pDrawable, UXA_ACCESS_RW)) {
-		if (pSrc->pDrawable == NULL ||
-		    uxa_prepare_access(pSrc->pDrawable, UXA_ACCESS_RO)) {
-			if (!pMask || pMask->pDrawable == NULL ||
-			    uxa_prepare_access(pMask->pDrawable, UXA_ACCESS_RO))
-			{
+	if (uxa_picture_prepare_access(pDst, UXA_ACCESS_RW)) {
+		if (uxa_picture_prepare_access(pSrc, UXA_ACCESS_RO)) {
+			if (!pMask || uxa_picture_prepare_access(pMask, UXA_ACCESS_RO)) {
 				fbComposite(op, pSrc, pMask, pDst,
 					    xSrc, ySrc,
 					    xMask, yMask,
 					    xDst, yDst,
 					    width, height);
-				if (pMask && pMask->pDrawable != NULL)
-					uxa_finish_access(pMask->pDrawable);
+				if (pMask)
+					uxa_picture_finish_access(pMask, UXA_ACCESS_RO);
 			}
-			if (pSrc->pDrawable != NULL)
-				uxa_finish_access(pSrc->pDrawable);
+			uxa_picture_finish_access(pSrc, UXA_ACCESS_RO);
 		}
-		uxa_finish_access(pDst->pDrawable);
+		uxa_picture_finish_access(pDst, UXA_ACCESS_RW);
 	}
 }
 
@@ -391,9 +415,9 @@ uxa_check_add_traps(PicturePtr pPicture,
 
 	UXA_FALLBACK(("to pict %p (%c)\n", pPicture,
 		      uxa_drawable_location(pPicture->pDrawable)));
-	if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
+	if (uxa_picture_prepare_access(pPicture, UXA_ACCESS_RW)) {
 		fbAddTraps(pPicture, x_off, y_off, ntrap, traps);
-		uxa_finish_access(pPicture->pDrawable);
+		uxa_picture_finish_access(pPicture, UXA_ACCESS_RW);
 	}
 }
 
@@ -424,7 +448,7 @@ CARD32 uxa_get_pixmap_first_pixel(PixmapPtr pPixmap)
 		pixel = *(CARD8 *) fb;
 		break;
 	}
-	uxa_finish_access(&pPixmap->drawable);
+	uxa_finish_access(&pPixmap->drawable, UXA_ACCESS_RO);
 
 	return pixel;
 }
