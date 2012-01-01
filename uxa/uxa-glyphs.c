@@ -65,6 +65,7 @@
 #include <stdlib.h>
 
 #include "uxa-priv.h"
+#include "uxa-glamor.h"
 #include "../src/common.h"
 
 #include "mipict.h"
@@ -304,6 +305,10 @@ uxa_glyph_unrealize(ScreenPtr screen,
 		    GlyphPtr glyph)
 {
 	struct uxa_glyph *priv;
+	uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR)
+		glamor_glyph_unrealize(screen, glyph);
 
 	/* Use Lookup in case we have not attached to this glyph. */
 	priv = dixLookupPrivate(&glyph->devPrivates, &uxa_glyph_key);
@@ -1033,6 +1038,19 @@ next_glyph:
 	return 0;
 }
 
+static Bool
+is_solid(PicturePtr picture)
+{
+	if (picture->pSourcePict) {
+		SourcePict *source = picture->pSourcePict;
+		return source->type == SourcePictTypeSolidFill;
+	} else {
+		return (picture->repeat &&
+			picture->pDrawable->width  == 1 &&
+			picture->pDrawable->height == 1);
+	}
+}
+
 void
 uxa_glyphs(CARD8 op,
 	   PicturePtr pSrc,
@@ -1049,11 +1067,29 @@ uxa_glyphs(CARD8 op,
 	int width, height, ret;
 	PicturePtr localDst = pDst;
 
+	if (uxa_screen->info->flags & UXA_USE_GLAMOR) {
+		int ok;
+
+		uxa_picture_prepare_access(pDst, UXA_GLAMOR_ACCESS_RW);
+		uxa_picture_prepare_access(pSrc, UXA_GLAMOR_ACCESS_RO);
+		ok = glamor_glyphs_nf(op,
+				     pSrc, pDst, maskFormat,
+				     xSrc, ySrc, nlist, list, glyphs);
+		uxa_picture_finish_access(pSrc, UXA_GLAMOR_ACCESS_RO);
+		uxa_picture_finish_access(pDst, UXA_GLAMOR_ACCESS_RW);
+
+		if (!ok)
+			goto fallback;
+
+		return;
+	}
+
 	if (!uxa_screen->info->prepare_composite ||
-	    uxa_screen->swappedOut ||
 	    uxa_screen->force_fallback ||
 	    !uxa_drawable_is_offscreen(pDst->pDrawable) ||
-	    pDst->alphaMap || pSrc->alphaMap) {
+	    pDst->alphaMap || pSrc->alphaMap ||
+	    /* XXX we fail to handle (rare) non-solid sources correctly. */
+	    !is_solid(pSrc)) {
 fallback:
 	    uxa_check_glyphs(op, pSrc, pDst, maskFormat, xSrc, ySrc, nlist, list, glyphs);
 	    return;

@@ -101,11 +101,13 @@ int main(int argc, char **argv)
 		test_compare(&test,
 			     real.a, real.format,
 			     ref.a, ref.format,
-			     0, 0, size, size);
+			     0, 0, size, size,
+			     "");
 		test_compare(&test,
 			     real.b, real.format,
 			     ref.b, ref.format,
-			     0, 0, size, size);
+			     0, 0, size, size,
+			     "");
 
 		target_fini(&test.real, &real);
 		target_fini(&test.ref, &ref);

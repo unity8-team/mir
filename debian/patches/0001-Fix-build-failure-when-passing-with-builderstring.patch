@@ -1,6 +1,6 @@
-From 6cb8b4b52169f32f93f73493a5f87324877196cf Mon Sep 17 00:00:00 2001
+From d96feed041266a7629e4839e1294f3074679891a Mon Sep 17 00:00:00 2001
 From: Cyril Brulebois <kibi@debian.org>
-Date: Mon, 7 Nov 2011 23:27:09 +0100
+Date: Mon, 7 Nov 2011 23:29:29 +0100
 Subject: [PATCH] Fix build failure when passing --with-builderstring.
 
 If --with-builderstring="foo" is passed to configure (and sna enabled):
@@ -16,10 +16,10 @@ Signed-off-by: Cyril Brulebois <kibi@debian.org>
  1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/src/sna/sna_driver.c b/src/sna/sna_driver.c
-index 83abdb3..767cd2c 100644
+index 770a5bd..763a5a3 100644
 --- a/src/sna/sna_driver.c
 +++ b/src/sna/sna_driver.c
-@@ -1020,7 +1020,7 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
+@@ -1068,7 +1068,7 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
  #if defined(USE_GIT_DESCRIBE)
  	xf86DrvMsg(scrn->scrnIndex, X_INFO,
  		   "SNA compiled from %s\n", git_version);
@@ -29,5 +29,5 @@ index 83abdb3..767cd2c 100644
  		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
  #endif
 -- 
-1.7.7.1
+1.7.7.3
 

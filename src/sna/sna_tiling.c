@@ -37,8 +37,6 @@
 #if DEBUG_RENDER
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 struct sna_tile_state {
@@ -201,13 +199,39 @@ sna_tiling_composite_done(struct sna *sna,
 				}
 				tmp.done(sna, &tmp);
 			} else {
+				unsigned int flags;
 				DBG(("%s -- falback\n", __FUNCTION__));
 
-				sna_drawable_move_to_cpu(tile->dst->pDrawable, true);
-				if (tile->src->pDrawable)
-					sna_drawable_move_to_cpu(tile->src->pDrawable, false);
-				if (tile->mask && tile->mask->pDrawable)
-					sna_drawable_move_to_cpu(tile->mask->pDrawable, false);
+				if (tile->op <= PictOpSrc)
+					flags = MOVE_WRITE;
+				else
+					flags = MOVE_WRITE | MOVE_READ;
+				if (!sna_drawable_move_to_cpu(tile->dst->pDrawable,
+							      flags))
+					goto done;
+				if (tile->dst->alphaMap &&
+				    !sna_drawable_move_to_cpu(tile->dst->alphaMap->pDrawable,
+							      flags))
+					goto done;
+
+				if (tile->src->pDrawable &&
+				    !sna_drawable_move_to_cpu(tile->src->pDrawable,
+							      MOVE_READ))
+					goto done;
+				if (tile->src->alphaMap &&
+				    !sna_drawable_move_to_cpu(tile->src->alphaMap->pDrawable,
+							      MOVE_READ))
+					goto done;
+
+				if (tile->mask && tile->mask->pDrawable &&
+				    !sna_drawable_move_to_cpu(tile->mask->pDrawable,
+							      MOVE_READ))
+					goto done;
+
+				if (tile->mask && tile->mask->alphaMap &&
+				    !sna_drawable_move_to_cpu(tile->mask->alphaMap->pDrawable,
+							      MOVE_READ))
+					goto done;
 
 				fbComposite(tile->op,
 					    tile->src, tile->mask, tile->dst,

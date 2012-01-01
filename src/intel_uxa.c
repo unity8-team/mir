@@ -31,14 +31,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
-#include "xf86.h"
-#include "xaarop.h"
+#include <xf86.h>
+#include <xaarop.h>
+#include <string.h>
+#include <errno.h>
+
 #include "intel.h"
+#include "intel_glamor.h"
+#include "uxa.h"
+
 #include "i830_reg.h"
 #include "i915_drm.h"
 #include "brw_defines.h"
-#include <string.h>
-#include <errno.h>
 
 static const int I830CopyROP[16] = {
 	ROP_0,			/* GXclear */
@@ -636,7 +640,6 @@ void intel_set_pixmap_bo(PixmapPtr pixmap, dri_bo * bo)
 		if (priv->bo == bo)
 			return;
 
-		priv->dst_bound = priv->src_bound = 0;
 		if (list_is_empty(&priv->batch)) {
 			dri_bo_unreference(priv->bo);
 		} else if (!drm_intel_bo_is_reusable(priv->bo)) {
@@ -703,18 +706,28 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	dri_bo *bo = priv->bo;
 	int ret;
 
+	/* Transitioning to glamor acceleration, we need to flush all pending
+	 * usage by UXA. */
+	if (access == UXA_GLAMOR_ACCESS_RW || access == UXA_GLAMOR_ACCESS_RO) {
+		if (!list_is_empty(&priv->batch))
+			intel_batch_submit(scrn);
+		return TRUE;
+	}
+
+	/* When falling back to swrast, flush all pending operations */
+	intel_glamor_flush(intel);
 	if (!list_is_empty(&priv->batch) &&
 	    (access == UXA_ACCESS_RW || priv->batch_write))
 		intel_batch_submit(scrn);
 
-	if (priv->tiling || bo->size <= intel->max_gtt_map_size)
-		ret = drm_intel_gem_bo_map_gtt(bo);
-	else
-		ret = dri_bo_map(bo, access == UXA_ACCESS_RW);
+	assert(bo->size <= intel->max_gtt_map_size);
+	ret = drm_intel_gem_bo_map_gtt(bo);
 	if (ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "%s: bo map failed: %s\n",
+			   "%s: bo map (use gtt? %d, access %d) failed: %s\n",
 			   __FUNCTION__,
+			   priv->tiling || bo->size <= intel->max_gtt_map_size,
+			   access,
 			   strerror(-ret));
 		return FALSE;
 	}
@@ -723,6 +736,21 @@ static Bool intel_uxa_prepare_access(PixmapPtr pixmap, uxa_access_t access)
 	priv->busy = 0;
 
 	return TRUE;
+}
+
+static void intel_uxa_finish_access(PixmapPtr pixmap, uxa_access_t access)
+{
+	struct intel_pixmap *priv;
+
+	if (access == UXA_GLAMOR_ACCESS_RW || access == UXA_GLAMOR_ACCESS_RO)
+		return;
+
+	priv = intel_get_pixmap_private(pixmap);
+	if (priv == NULL)
+		return;
+
+	drm_intel_gem_bo_unmap_gtt(priv->bo);
+	pixmap->devPrivate.ptr = NULL;
 }
 
 static Bool intel_uxa_pixmap_put_image(PixmapPtr pixmap,
@@ -937,6 +965,23 @@ static Bool intel_uxa_get_image(PixmapPtr pixmap,
 	return ret;
 }
 
+static CARD32 intel_cache_expire(OsTimerPtr timer, CARD32 now, pointer data)
+{
+	intel_screen_private *intel = data;
+
+	/* We just want to create and destroy a bo as this causes libdrm
+	 * to reap its caches. However, since we can't remove that buffer
+	 * from the cache due to its own activity, we want to use something
+	 * that we know we will reuse later. The most frequently reused buffer
+	 * we have is the batchbuffer, and the best way to trigger its
+	 * reallocation is to submit a flush.
+	 */
+	intel_batch_emit_flush(intel->scrn);
+	intel_batch_submit(intel->scrn);
+
+	return 0;
+}
+
 static void intel_flush_rendering(intel_screen_private *intel)
 {
 	if (intel->needs_flush == 0)
@@ -949,6 +994,9 @@ static void intel_flush_rendering(intel_screen_private *intel)
 		intel_batch_emit_flush(intel->scrn);
 		intel_batch_submit(intel->scrn);
 	}
+
+	intel->cache_expire = TimerSet(intel->cache_expire, 0, 3000,
+				       intel_cache_expire, intel);
 
 	intel->needs_flush = 0;
 }
@@ -965,6 +1013,7 @@ void intel_uxa_block_handler(intel_screen_private *intel)
 	 * and beyond rendering results may not hit the
 	 * framebuffer until significantly later.
 	 */
+	intel_glamor_flush(intel);
 	intel_flush_rendering(intel);
 }
 
@@ -974,7 +1023,8 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	intel_screen_private *intel = intel_get_screen_private(scrn);
-	PixmapPtr pixmap;
+	struct intel_pixmap *priv;
+	PixmapPtr pixmap, new_pixmap = NULL;
 
 	if (w > 32767 || h > 32767)
 		return NullPixmap;
@@ -989,9 +1039,10 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		return fbCreatePixmap(screen, w, h, depth, usage);
 
 	pixmap = fbCreatePixmap(screen, 0, 0, depth, usage);
+	if (pixmap == NullPixmap)
+		return pixmap;
 
 	if (w && h) {
-		struct intel_pixmap *priv;
 		unsigned int size, tiling;
 		int stride;
 
@@ -1021,10 +1072,8 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		 * frequently, and also will tend to fail to successfully map when doing
 		 * SW fallbacks because we overcommit address space for BO access.
 		 */
-		if (size > intel->max_bo_size || stride >= KB(32)) {
-			fbDestroyPixmap(pixmap);
-			return fbCreatePixmap(screen, w, h, depth, usage);
-		}
+		if (size > intel->max_bo_size || stride >= KB(32))
+			goto fallback_pixmap;
 
 		/* Perform a preliminary search for an in-flight bo */
 		if (usage != UXA_CREATE_PIXMAP_FOR_MAP) {
@@ -1057,17 +1106,19 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 				}
 
 				list_del(&priv->in_flight);
-				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 				intel_set_pixmap_private(pixmap, priv);
+
+				screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
+
+				if (!intel_glamor_create_textured_pixmap(pixmap))
+					goto fallback_glamor;
 				return pixmap;
 			}
 		}
 
 		priv = calloc(1, sizeof (struct intel_pixmap));
-		if (priv == NULL) {
-			fbDestroyPixmap(pixmap);
-			return NullPixmap;
-		}
+		if (priv == NULL)
+			goto fallback_pixmap;
 
 		if (usage == UXA_CREATE_PIXMAP_FOR_MAP) {
 			priv->busy = 0;
@@ -1079,11 +1130,8 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 								 "pixmap",
 								 size, 0);
 		}
-		if (!priv->bo) {
-			free(priv);
-			fbDestroyPixmap(pixmap);
-			return NullPixmap;
-		}
+		if (!priv->bo)
+			goto fallback_priv;
 
 		if (tiling != I915_TILING_NONE)
 			drm_intel_bo_set_tiling(priv->bo, &tiling, stride);
@@ -1091,20 +1139,56 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		priv->tiling = tiling;
 		priv->offscreen = 1;
 
-		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
-
 		list_init(&priv->batch);
 		list_init(&priv->flush);
 		intel_set_pixmap_private(pixmap, priv);
+
+		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
+
+		if (!intel_glamor_create_textured_pixmap(pixmap))
+			goto fallback_glamor;
 	}
 
 	return pixmap;
+
+fallback_glamor:
+	if (usage & INTEL_CREATE_PIXMAP_DRI2) {
+	/* XXX need further work to handle the DRI2 failure case.
+	 * Glamor don't know how to handle a BO only pixmap. Put
+	 * a warning indicator here.
+	 */
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "Failed to create textured DRI2 pixmap.");
+		return pixmap;
+	}
+	/* Create textured pixmap failed means glamor failed to
+	 * create a texture from current BO for some reasons. We turn
+	 * to create a new glamor pixmap and clean up current one.
+	 * One thing need to be noted, this new pixmap doesn't
+	 * has a priv and bo attached to it. It's glamor's responsbility
+	 * to take care of it. Glamor will mark this new pixmap as a
+	 * texture only pixmap and will never fallback to DDX layer
+	 * afterwards.
+	 */
+	new_pixmap = intel_glamor_create_pixmap(screen, w, h,
+						depth, usage);
+	dri_bo_unreference(priv->bo);
+fallback_priv:
+	free(priv);
+fallback_pixmap:
+	fbDestroyPixmap(pixmap);
+	if (new_pixmap)
+		return new_pixmap;
+	else
+		return fbCreatePixmap(screen, w, h, depth, usage);
 }
 
 static Bool intel_uxa_destroy_pixmap(PixmapPtr pixmap)
 {
-	if (pixmap->refcnt == 1)
+	if (pixmap->refcnt == 1) {
+		intel_glamor_destroy_pixmap(pixmap);
 		intel_set_pixmap_bo(pixmap, NULL);
+	}
 	fbDestroyPixmap(pixmap);
 	return TRUE;
 }
@@ -1134,6 +1218,9 @@ Bool intel_uxa_create_screen_resources(ScreenPtr screen)
 					   NULL);
 		scrn->displayWidth = intel->front_pitch / intel->cpp;
 	}
+
+	if (!intel_glamor_create_screen_resources(screen))
+		return FALSE;
 
 	return TRUE;
 }
@@ -1282,6 +1369,7 @@ Bool intel_uxa_init(ScreenPtr screen)
 	intel->uxa_driver->get_image = intel_uxa_get_image;
 
 	intel->uxa_driver->prepare_access = intel_uxa_prepare_access;
+	intel->uxa_driver->finish_access = intel_uxa_finish_access;
 	intel->uxa_driver->pixmap_is_offscreen = intel_uxa_pixmap_is_offscreen;
 
 	screen->CreatePixmap = intel_uxa_create_pixmap;
@@ -1296,6 +1384,8 @@ Bool intel_uxa_init(ScreenPtr screen)
 
 	uxa_set_fallback_debug(screen, intel->fallback_debug);
 	uxa_set_force_fallback(screen, intel->force_fallback);
+
+	intel_glamor_init(screen);
 
 	return TRUE;
 }

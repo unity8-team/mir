@@ -42,36 +42,23 @@
 #if DEBUG_VIDEO_TEXTURED
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 static Atom xvBrightness, xvContrast, xvSyncToVblank;
 
-/* client libraries expect an encoding */
-static const XF86VideoEncodingRec DummyEncoding[1] = {
-	{
-		0,
-		"XV_IMAGE",
-		8192, 8192,
-		{1, 1}
-	}
-};
-
 #define NUM_FORMATS 3
-
-static XF86VideoFormatRec Formats[NUM_FORMATS] = {
+static const XF86VideoFormatRec Formats[NUM_FORMATS] = {
 	{15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
 //#define NUM_TEXTURED_ATTRIBUTES 3
-#define NUM_TEXTURED_ATTRIBUTES 0
-static XF86AttributeRec TexturedAttributes[] = {
+#define NUM_TEXTURED_ATTRIBUTES 1
+static const XF86AttributeRec TexturedAttributes[] = {
+	{XvSettable | XvGettable, -1, 1, "XV_SYNC_TO_VBLANK"},
 	{XvSettable | XvGettable, -128, 127, "XV_BRIGHTNESS"},
 	{XvSettable | XvGettable, 0, 255, "XV_CONTRAST"},
-	{XvSettable | XvGettable, -1, 1, "XV_SYNC_TO_VBLANK"},
 };
 
 #ifdef SNA_XVMC
@@ -82,7 +69,7 @@ static XF86AttributeRec TexturedAttributes[] = {
 #define XVMC_IMAGE 0
 #endif
 
-static XF86ImageRec Images[NUM_IMAGES] = {
+static const XF86ImageRec Images[NUM_IMAGES] = {
 	XVIMAGE_YUY2,
 	XVIMAGE_YV12,
 	XVIMAGE_I420,
@@ -239,24 +226,23 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	BoxRec dstBox;
 	xf86CrtcPtr crtc;
-	int top, left, npixels, nlines;
 	Bool flush = false;
+	Bool ret;
 
 	if (!sna_pixmap(pixmap))
 		return BadAlloc;
 
-	if (!sna_video_clip_helper(scrn, video, &crtc, &dstBox,
-				   src_x, src_y, drw_x, drw_y,
-				   src_w, src_h, drw_w, drw_h,
-				   id,
-				   &top, &left, &npixels, &nlines,
-				   clip, width, height))
-		return Success;
-
 	sna_video_frame_init(sna, video, id, width, height, &frame);
 
+	if (!sna_video_clip_helper(scrn, video, &frame,
+				   &crtc, &dstBox,
+				   src_x, src_y, drw_x, drw_y,
+				   src_w, src_h, drw_w, drw_h,
+				   clip))
+		return Success;
+
 	if (xvmc_passthrough(id)) {
-		if (IS_I915G(sna) || IS_I915GM(sna)) {
+		if (sna->kgem.gen == 30) {
 			/* XXX: i915 is not support and needs some
 			 * serious care.  grep for KMS in i915_hwmc.c */
 			return BadAlloc;
@@ -266,22 +252,28 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		if (frame.bo == NULL)
 			return BadAlloc;
 	} else {
-		if (!sna_video_copy_data(sna, video, &frame,
-					 top, left, npixels, nlines,
-					 buf))
+		frame.bo = kgem_create_linear(&sna->kgem, frame.size);
+		if (frame.bo == NULL)
 			return BadAlloc;
+
+		if (!sna_video_copy_data(sna, video, &frame, buf)) {
+			kgem_bo_destroy(&sna->kgem, frame.bo);
+			return BadAlloc;
+		}
 	}
 
 	if (crtc && video->SyncToVblank != 0)
 		flush = sna_wait_for_scanline(sna, pixmap, crtc,
 					      &clip->extents);
 
-	sna->render.video(sna, video, &frame, clip,
-			  src_w, src_h,
-			  drw_w, drw_h,
-			  pixmap);
+	ret = Success;
+	if (!sna->render.video(sna, video, &frame, clip,
+			       src_w, src_h,
+			       drw_w, drw_h,
+			       pixmap))
+		ret = BadAlloc;
 
-	sna_video_frame_fini(sna, video, &frame);
+	kgem_bo_destroy(&sna->kgem, frame.bo);
 
 	DamageDamageRegion(drawable, clip);
 
@@ -291,7 +283,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	if (flush)
 		kgem_submit(&sna->kgem);
 
-	return Success;
+	return ret;
 }
 
 static int
@@ -408,10 +400,15 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	adaptor->flags = 0;
 	adaptor->name = "Intel(R) Textured Video";
 	adaptor->nEncodings = 1;
-	adaptor->pEncodings = xnfalloc(sizeof(DummyEncoding));
-	memcpy(adaptor->pEncodings, DummyEncoding, sizeof(DummyEncoding));
+	adaptor->pEncodings = xnfalloc(sizeof(XF86VideoEncodingRec));
+	adaptor->pEncodings[0].id = 0;
+	adaptor->pEncodings[0].name = "XV_IMAGE";
+	adaptor->pEncodings[0].width = sna->render.max_3d_size;
+	adaptor->pEncodings[0].height = sna->render.max_3d_size;
+	adaptor->pEncodings[0].rate.numerator = 1;
+	adaptor->pEncodings[0].rate.denominator = 1;
 	adaptor->nFormats = NUM_FORMATS;
-	adaptor->pFormats = Formats;
+	adaptor->pFormats = (XF86VideoFormatPtr)Formats;
 	adaptor->nPorts = nports;
 	adaptor->pPortPrivates = devUnions;
 	adaptor->nAttributes = NUM_TEXTURED_ATTRIBUTES;
@@ -419,7 +416,7 @@ XF86VideoAdaptorPtr sna_video_textured_setup(struct sna *sna,
 	memcpy(attrs, TexturedAttributes,
 	       NUM_TEXTURED_ATTRIBUTES * sizeof(XF86AttributeRec));
 	adaptor->nImages = NUM_IMAGES;
-	adaptor->pImages = Images;
+	adaptor->pImages = (XF86ImagePtr)Images;
 	adaptor->PutVideo = NULL;
 	adaptor->PutStill = NULL;
 	adaptor->GetVideo = NULL;

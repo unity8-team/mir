@@ -39,6 +39,8 @@
 
 #include <xorgVersion.h>
 #include <X11/Xatom.h>
+#include <X11/extensions/dpmsconst.h>
+#include <xf86DDC.h>
 
 #include "sna.h"
 #include "sna_reg.h"
@@ -146,6 +148,7 @@ static uint32_t gem_create(int fd, int size)
 {
 	struct drm_i915_gem_create create;
 
+	VG_CLEAR(create);
 	create.handle = 0;
 	create.size = ALIGN(size, 4096);
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_CREATE, &create);
@@ -157,6 +160,7 @@ static void gem_close(int fd, uint32_t handle)
 {
 	struct drm_gem_close close;
 
+	VG_CLEAR(close);
 	close.handle = handle;
 	(void)drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &close);
 }
@@ -483,7 +487,7 @@ static struct kgem_bo *sna_create_bo_for_fbcon(struct sna *sna,
 	 * using a normal bo and so that when we call gem_close on it we
 	 * delete our reference and not fbcon's!
 	 */
-	memset(&flink, 0, sizeof(flink));
+	VG_CLEAR(flink);
 	flink.handle = fbcon->handle;
 	ret = drmIoctl(sna->kgem.fd, DRM_IOCTL_GEM_FLINK, &flink);
 	if (ret)
@@ -585,6 +589,27 @@ cleanup_fbcon:
 	drmModeFreeFB(fbcon);
 }
 
+static void update_flush_interval(struct sna *sna)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(sna->scrn);
+	int i, max_vrefresh = 0;
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		if (!xf86_config->crtc[i]->enabled)
+			continue;
+
+		max_vrefresh = max(max_vrefresh,
+				   xf86ModeVRefresh(&xf86_config->crtc[i]->mode));
+	}
+
+	if (max_vrefresh == 0)
+		max_vrefresh = 40;
+
+	sna->vblank_interval = 1000 * 1000 * 1000 / max_vrefresh; /* Hz -> ns */
+	DBG(("max_vrefresh=%d, vblank_interval=%d ns\n",
+	       max_vrefresh, sna->vblank_interval));
+}
+
 static Bool
 sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			Rotation rotation, int x, int y)
@@ -652,15 +677,16 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	kgem_submit(&sna->kgem);
 
 	mode_to_kmode(&sna_crtc->kmode, mode);
-	ret = sna_crtc_apply(crtc);
-	if (!ret) {
+	if (!sna_crtc_apply(crtc)) {
 		crtc->x = saved_x;
 		crtc->y = saved_y;
 		crtc->rotation = saved_rotation;
 		crtc->mode = saved_mode;
+		return FALSE;
 	}
 
-	return ret;
+	update_flush_interval(sna);
+	return TRUE;
 }
 
 static void
@@ -685,6 +711,7 @@ sna_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	struct sna_crtc *sna_crtc = crtc->driver_private;
 	struct drm_i915_gem_pwrite pwrite;
 
+	VG_CLEAR(pwrite);
 	pwrite.handle = sna_crtc->cursor;
 	pwrite.offset = 0;
 	pwrite.size = 64*64*4;
@@ -722,7 +749,9 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 
 	DBG(("%s(%d, %d)\n", __FUNCTION__, width, height));
 
-	shadow = scrn->pScreen->CreatePixmap(scrn->pScreen, width, height, scrn->depth, 0);
+	shadow = scrn->pScreen->CreatePixmap(scrn->pScreen,
+					     width, height, scrn->depth,
+					     SNA_CREATE_FB);
 	if (!shadow)
 		return NULL;
 
@@ -837,6 +866,7 @@ sna_crtc_init(ScrnInfoPtr scrn, struct sna_mode *mode, int num)
 	sna_crtc->id = mode_crtc->crtc_id;
 	drmModeFreeCrtc(mode_crtc);
 
+	VG_CLEAR(get_pipe);
 	get_pipe.pipe = 0;
 	get_pipe.crtc_id = sna_crtc->id;
 	drmIoctl(sna->kgem.fd,
@@ -1114,13 +1144,28 @@ sna_output_dpms(xf86OutputPtr output, int dpms)
 			continue;
 
 		if (!strcmp(props->name, "DPMS")) {
+			/* Record thevalue of the backlight before turning
+			 * off the display, and reset if after turnging it on.
+			 * Order is important as the kernel may record and also
+			 * reset the backlight across DPMS. Hence we need to
+			 * record the value before the kernel modifies it
+			 * and reapply it afterwards.
+			 */
+			if (dpms == DPMSModeOff)
+				sna_output_dpms_backlight(output,
+							  sna_output->dpms_mode,
+							  dpms);
+
 			drmModeConnectorSetProperty(sna->kgem.fd,
 						    sna_output->output_id,
 						    props->prop_id,
 						    dpms);
-			sna_output_dpms_backlight(output,
-						      sna_output->dpms_mode,
-						      dpms);
+
+			if (dpms != DPMSModeOff)
+				sna_output_dpms_backlight(output,
+							  sna_output->dpms_mode,
+							  dpms);
+
 			sna_output->dpms_mode = dpms;
 			drmModeFreeProperty(props);
 			return;
@@ -1661,6 +1706,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
 	if (old_fb_id)
 		drmModeRmFB(sna->kgem.fd, old_fb_id);
+	sna_pixmap_get_bo(old_front)->needs_flush = true;
 	scrn->pScreen->DestroyPixmap(old_front);
 
 	return TRUE;
@@ -1747,20 +1793,15 @@ PixmapPtr sna_set_screen_pixmap(struct sna *sna, PixmapPtr pixmap)
 }
 
 int
-sna_do_pageflip(struct sna *sna,
-		PixmapPtr pixmap,
-		void *data,
-		int ref_crtc_hw_id,
-		uint32_t *old_fb)
+sna_page_flip(struct sna *sna,
+	      struct kgem_bo *bo,
+	      void *data,
+	      int ref_crtc_hw_id,
+	      uint32_t *old_fb)
 {
 	ScrnInfoPtr scrn = sna->scrn;
 	struct sna_mode *mode = &sna->mode;
-	struct kgem_bo *bo;
 	int count;
-
-	bo = sna_pixmap_pin(pixmap);
-	if (!bo)
-		return 0;
 
 	*old_fb = mode->fb_id;
 
@@ -1796,16 +1837,13 @@ sna_do_pageflip(struct sna *sna,
 	count = do_page_flip(sna, data, ref_crtc_hw_id);
 	DBG(("%s: page flipped %d crtcs\n", __FUNCTION__, count));
 	if (count) {
-		sna->mode.fb_pixmap = pixmap->drawable.serialNumber;
-		bo->cpu_read = bo->cpu_write = false;
-		bo->gpu = true;
-
 		/* Although the kernel performs an implicit flush upon
 		 * page-flipping, marking the bo as requiring a flush
 		 * here ensures that the buffer goes into the active cache
 		 * upon release.
 		 */
 		bo->needs_flush = true;
+		bo->reusable = true;
 	} else {
 		drmModeRmFB(sna->kgem.fd, mode->fb_id);
 		mode->fb_id = *old_fb;
@@ -1814,13 +1852,10 @@ sna_do_pageflip(struct sna *sna,
 	return count;
 }
 
-void sna_mode_delete_fb(struct sna *sna, PixmapPtr pixmap, uint32_t fb)
+void sna_mode_delete_fb(struct sna *sna, uint32_t fb)
 {
 	if (fb)
 		drmModeRmFB(sna->kgem.fd, fb);
-
-	if (pixmap)
-		pixmap->drawable.pScreen->DestroyPixmap(pixmap);
 }
 
 static const xf86CrtcConfigFuncsRec sna_crtc_config_funcs = {

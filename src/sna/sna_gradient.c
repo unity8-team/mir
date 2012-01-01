@@ -213,6 +213,8 @@ sna_render_flush_solid(struct sna *sna)
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 
 	DBG(("sna_render_flush_solid(size=%d)\n", cache->size));
+	assert(cache->dirty);
+	assert(cache->size);
 
 	kgem_bo_write(&sna->kgem, cache->cache_bo,
 		      cache->color, cache->size*sizeof(uint32_t));
@@ -226,10 +228,10 @@ sna_render_finish_solid(struct sna *sna, bool force)
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 	int i;
 
-	DBG(("sna_render_finish_solid(force=%d, busy=%d, dirty=%d)\n",
-	     force, cache->cache_bo->gpu, cache->dirty));
+	DBG(("sna_render_finish_solid(force=%d, domain=%d, busy=%d, dirty=%d)\n",
+	     force, cache->cache_bo->domain, cache->cache_bo->rq != NULL, cache->dirty));
 
-	if (!force && !cache->cache_bo->gpu)
+	if (!force && cache->cache_bo->domain != DOMAIN_GPU)
 		return;
 
 	if (cache->dirty)
@@ -258,6 +260,8 @@ sna_render_get_solid(struct sna *sna, uint32_t color)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
 	int i;
+
+	DBG(("%s: %08x\n", __FUNCTION__, color));
 
 	if ((color & 0xffffff) == 0) /* alpha only */
 		return kgem_bo_reference(sna->render.alpha_cache.bo[color>>24]);

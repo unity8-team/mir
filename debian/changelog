@@ -1,16 +1,21 @@
-xserver-xorg-video-intel (2:2.16.901-1) experimental; urgency=low
+xserver-xorg-video-intel (2:2.17.0+git20120101-1) experimental; urgency=low
 
-  * New upstream release candidate:
-    - A couple of critical stability fixes for SandyBridge and IvyBridge.
-  * Add a libpixman-1-dev build-dep: 0.16 is enough for a regular build,
-    but enabling SNA would pull 0.23.
-  * Pass --with-builderstring. At the moment, it's only needed when
-    enabling SNA (which we don't, following upstream's default), but let's
-    do that right now.
-  * Add 0001-Fix-build-failure-when-passing-with-builderstring.patch
-    accordingly.
+  * New upstream snapshot:
+    - Merge from upstream master up to 770a953ff0.
+  * Enable SNA support, as suggested by upstream. It should be usable now
+    and regression reports are welcome.
+  * Add patch to support passing a builder string:
+    - 0001-Fix-build-failure-when-passing-with-builderstring.patch
+  * Pass a builder string, as done in the server.
 
- -- Cyril Brulebois <kibi@debian.org>  Mon, 07 Nov 2011 23:32:52 +0100
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 01 Jan 2012 06:34:09 +0100
+
+xserver-xorg-video-intel (2:2.17.0-1) unstable; urgency=low
+
+  [ Timo Aaltonen ]
+  * New upstream release. (Closes: #635953)
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 19 Nov 2011 12:46:57 +0100
 
 xserver-xorg-video-intel (2:2.16.0-1) unstable; urgency=low
 

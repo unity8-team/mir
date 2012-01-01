@@ -102,7 +102,7 @@ static void gen3_update_vertex_buffer_addr(struct kgem *kgem,
 	ptr = (char *)base + kgem->reloc[i].delta;
 
 	if (state.vb.current)
-		munmap(state.vb.base, state.vb.current->size);
+		kgem_bo_unmap(kgem, state.vb.current);
 
 	state.vb.current = bo;
 	state.vb.base = base;
@@ -1613,7 +1613,7 @@ int kgem_gen3_decode_3d(struct kgem *kgem, uint32_t offset)
 void kgem_gen3_finish_state(struct kgem *kgem)
 {
 	if (state.vb.current)
-		munmap(state.vb.base, state.vb.current->size);
+		kgem_bo_unmap(kgem, state.vb.current);
 
 	memset(&state, 0, sizeof(state));
 }

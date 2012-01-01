@@ -34,19 +34,18 @@
 #if DEBUG_BLT
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 void
 memcpy_blt(const void *src, void *dst, int bpp,
-	   uint16_t src_stride, uint16_t dst_stride,
+	   int32_t src_stride, int32_t dst_stride,
 	   int16_t src_x, int16_t src_y,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height)
 {
 	uint8_t *src_bytes;
 	uint8_t *dst_bytes;
+	int byte_width;
 
 	assert(width && height);
 	assert(bpp >= 8);
@@ -55,19 +54,55 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	     __FUNCTION__, src_x, src_y, dst_x, dst_y, width, height, src_stride, dst_stride));
 
 	bpp /= 8;
-	width *= bpp;
 
 	src_bytes = (uint8_t *)src + src_stride * src_y + src_x * bpp;
 	dst_bytes = (uint8_t *)dst + dst_stride * dst_y + dst_x * bpp;
 
-	if (width == src_stride && width == dst_stride) {
-		memcpy(dst_bytes, src_bytes, width * height);
+	byte_width = width * bpp;
+	if (byte_width == src_stride && byte_width == dst_stride) {
+		memcpy(dst_bytes, src_bytes, byte_width * height);
 		return;
 	}
 
-	do {
-		memcpy(dst_bytes, src_bytes, width);
-		src_bytes += src_stride;
-		dst_bytes += dst_stride;
-	} while (--height);
+	switch (byte_width) {
+	case 1:
+		do {
+			*dst_bytes = *src_bytes;
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+
+	case 2:
+		do {
+			*(uint16_t *)dst_bytes = *(uint16_t *)src_bytes;
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+
+	case 4:
+		do {
+			*(uint32_t *)dst_bytes = *(uint32_t *)src_bytes;
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+
+	case 8:
+		do {
+			*(uint64_t *)dst_bytes = *(uint64_t *)src_bytes;
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+
+	default:
+		do {
+			memcpy(dst_bytes, src_bytes, byte_width);
+			src_bytes += src_stride;
+			dst_bytes += dst_stride;
+		} while (--height);
+		break;
+	}
 }

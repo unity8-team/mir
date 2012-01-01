@@ -6,7 +6,6 @@
 
 #include "compiler.h"
 
-struct sna_damage_elt;
 struct sna_damage_box;
 
 struct sna_damage {
@@ -17,10 +16,13 @@ struct sna_damage {
 		DAMAGE_SUBTRACT,
 		DAMAGE_ALL,
 	} mode;
-	int n, size;
-	struct sna_damage_elt *elts;
-	struct sna_damage_box *last_box;
-	struct list boxes;
+	int remain, dirty;
+	BoxPtr box;
+	struct {
+		struct list list;
+		int size;
+		BoxRec box[8];
+	} embedded_box;
 };
 
 fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
@@ -79,9 +81,6 @@ static inline bool sna_damage_is_all(struct sna_damage **damage,
 	if (*damage == NULL)
 		return false;
 
-	if ((*damage)->n)
-		return false;
-
 	switch ((*damage)->mode) {
 	case DAMAGE_ALL:
 		return true;
@@ -89,6 +88,10 @@ static inline bool sna_damage_is_all(struct sna_damage **damage,
 		return false;
 	default:
 	case DAMAGE_ADD:
+		if ((*damage)->extents.x2 < width  || (*damage)->extents.x1 > 0)
+			return false;
+		if ((*damage)->extents.y2 < height || (*damage)->extents.y1 > 0)
+			return false;
 		*damage = _sna_damage_is_all(*damage, width, height);
 		return (*damage)->mode == DAMAGE_ALL;
 	}
@@ -132,7 +135,30 @@ static inline void sna_damage_reduce(struct sna_damage **damage)
 	if (*damage == NULL)
 		return;
 
-	*damage = _sna_damage_reduce(*damage);
+	if ((*damage)->dirty)
+		*damage = _sna_damage_reduce(*damage);
+}
+
+static inline void sna_damage_reduce_all(struct sna_damage **damage,
+					 int width, int height)
+{
+	DBG(("%s(width=%d, height=%d)\n", __FUNCTION__, width, height));
+
+	if (*damage == NULL)
+		return;
+
+	if ((*damage)->mode == DAMAGE_ADD &&
+	    (*damage)->extents.x1 <= 0 &&
+	    (*damage)->extents.y1 <= 0 &&
+	    (*damage)->extents.x2 >= width &&
+	    (*damage)->extents.y2 >= height) {
+		if ((*damage)->dirty &&
+		    (*damage = _sna_damage_reduce(*damage)) == NULL)
+			return;
+
+		if ((*damage)->region.data == NULL)
+			*damage = _sna_damage_all(*damage, width, height);
+	}
 }
 
 void __sna_damage_destroy(struct sna_damage *damage);

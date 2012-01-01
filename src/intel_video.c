@@ -61,6 +61,7 @@
 #include "xf86PciInfo.h"
 #include "xf86Pci.h"
 #include "xf86fbman.h"
+#include "xf86drm.h"
 #include "regionstr.h"
 #include "randrstr.h"
 #include "windowstr.h"

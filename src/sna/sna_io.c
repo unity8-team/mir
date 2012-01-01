@@ -38,11 +38,11 @@
 #if DEBUG_IO
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
 
 #define PITCH(x, y) ALIGN((x)*(y), 4)
+
+/* XXX Need to avoid using GTT fenced access for I915_TILING_Y on 855GM */
 
 static void read_boxes_inplace(struct kgem *kgem,
 			       struct kgem_bo *bo, int16_t src_dx, int16_t src_dy,
@@ -63,6 +63,16 @@ static void read_boxes_inplace(struct kgem *kgem,
 		return;
 
 	do {
+		assert(box->x1 + src_dx >= 0);
+		assert(box->y1 + src_dy >= 0);
+		assert(box->x2 + src_dx <= pixmap->drawable.width);
+		assert(box->y2 + src_dy <= pixmap->drawable.height);
+
+		assert(box->x1 + dst_dx >= 0);
+		assert(box->y1 + dst_dy >= 0);
+		assert(box->x2 + dst_dx <= pixmap->drawable.width);
+		assert(box->y2 + dst_dy <= pixmap->drawable.height);
+
 		memcpy_blt(src, dst, bpp,
 			   src_pitch, dst_pitch,
 			   box->x1 + src_dx, box->y1 + src_dy,
@@ -70,8 +80,6 @@ static void read_boxes_inplace(struct kgem *kgem,
 			   box->x2 - box->x1, box->y2 - box->y1);
 		box++;
 	} while (--n);
-
-	munmap(src, bo->size);
 }
 
 void sna_read_boxes(struct sna *sna,
@@ -92,9 +100,31 @@ void sna_read_boxes(struct sna *sna,
 	     __FUNCTION__, nbox, src_bo->handle, src_dx, src_dy,
 	     dst->drawable.width, dst->drawable.height, dst_dx, dst_dy));
 
-	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_is_busy(src_bo) ||
-	    src_bo->tiling == I915_TILING_Y) {
+#ifndef NDEBUG
+	for (n = 0; n < nbox; n++) {
+		if (box[n].x1 + src_dx < 0 || box[n].y1 + src_dy < 0 ||
+		    (box[n].x2 + src_dx) * dst->drawable.bitsPerPixel/8 > src_bo->pitch ||
+		    (box[n].y2 + src_dy) * src_bo->pitch > src_bo->size)
+		{
+			FatalError("source out-of-bounds box[%d]=(%d, %d), (%d, %d) + (%d, %d), pitch=%d, size=%d\n", n,
+				   box[n].x1, box[n].y1,
+				   box[n].x2, box[n].y2,
+				   src_dx, src_dy,
+				   src_bo->pitch, src_bo->size);
+		}
+	}
+#endif
+
+	if (DEBUG_NO_IO || kgem->wedged || src_bo->tiling == I915_TILING_Y) {
+		read_boxes_inplace(kgem,
+				   src_bo, src_dx, src_dy,
+				   dst, dst_dx, dst_dy,
+				   box, nbox);
+		return;
+	}
+
+	if (src_bo->tiling != I915_TILING_X &&
+	    !kgem_bo_map_will_stall(kgem, src_bo)) {
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
 				   dst, dst_dx, dst_dy,
@@ -123,8 +153,6 @@ void sna_read_boxes(struct sna *sna,
 	}
 
 	cmd = XY_SRC_COPY_BLT_CMD;
-	if (cpp == 4)
-		cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 	src_pitch = src_bo->pitch;
 	if (kgem->gen >= 40 && src_bo->tiling) {
 		cmd |= BLT_SRC_TILED;
@@ -134,7 +162,8 @@ void sna_read_boxes(struct sna *sna,
 	br13 = 0xcc << 16;
 	switch (cpp) {
 	default:
-	case 4: br13 |= 1 << 25; /* RGB8888 */
+	case 4: cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
+		br13 |= 1 << 25; /* RGB8888 */
 	case 2: br13 |= 1 << 24; /* RGB565 */
 	case 1: break;
 	}
@@ -274,8 +303,6 @@ static void write_boxes_inplace(struct kgem *kgem,
 			   box->x2 - box->x1, box->y2 - box->y1);
 		box++;
 	} while (--n);
-
-	munmap(dst, bo->size);
 }
 
 void sna_write_boxes(struct sna *sna,
@@ -291,9 +318,8 @@ void sna_write_boxes(struct sna *sna,
 
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
-	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_is_busy(dst_bo) ||
-	    dst_bo->tiling == I915_TILING_Y) {
+	if (DEBUG_NO_IO || kgem->wedged || dst_bo->tiling == I915_TILING_Y ||
+	    !kgem_bo_map_will_stall(kgem, dst_bo)) {
 		write_boxes_inplace(kgem,
 				    src, stride, bpp, src_dx, src_dy,
 				    dst_bo, dst_dx, dst_dy,
@@ -415,23 +441,29 @@ void sna_write_boxes(struct sna *sna,
 }
 
 struct kgem_bo *sna_replace(struct sna *sna,
+			    PixmapPtr pixmap,
 			    struct kgem_bo *bo,
-			    int width, int height, int bpp,
 			    const void *src, int stride)
 {
 	struct kgem *kgem = &sna->kgem;
 	void *dst;
 
 	DBG(("%s(handle=%d, %dx%d, bpp=%d, tiling=%d)\n",
-	     __FUNCTION__, bo->handle, width, height, bpp, bo->tiling));
+	     __FUNCTION__, bo->handle,
+	     pixmap->drawable.width,
+	     pixmap->drawable.height,
+	     pixmap->drawable.bitsPerPixel,
+	     bo->tiling));
 
-	assert(bo->reusable);
 	if (kgem_bo_is_busy(bo)) {
 		struct kgem_bo *new_bo;
 
 		new_bo = kgem_create_2d(kgem,
-					width, height, bpp, bo->tiling,
-					CREATE_INACTIVE);
+					pixmap->drawable.width,
+					pixmap->drawable.height,
+					pixmap->drawable.bitsPerPixel,
+					bo->tiling,
+					CREATE_GTT_MAP | CREATE_INACTIVE);
 		if (new_bo) {
 			kgem_bo_destroy(kgem, bo);
 			bo = new_bo;
@@ -439,18 +471,18 @@ struct kgem_bo *sna_replace(struct sna *sna,
 	}
 
 	if (bo->tiling == I915_TILING_NONE && bo->pitch == stride) {
-		kgem_bo_write(kgem, bo, src, (height-1)*stride + width*bpp/8);
-		return bo;
-	}
-
-	dst = kgem_bo_map(kgem, bo, PROT_READ | PROT_WRITE);
-	if (dst) {
-		memcpy_blt(src, dst, bpp,
-			   stride, bo->pitch,
-			   0, 0,
-			   0, 0,
-			   width, height);
-		munmap(dst, bo->size);
+		kgem_bo_write(kgem, bo, src,
+			      (pixmap->drawable.height-1)*stride + pixmap->drawable.width*pixmap->drawable.bitsPerPixel/8);
+	} else {
+		dst = kgem_bo_map(kgem, bo, PROT_READ | PROT_WRITE);
+		if (dst) {
+			memcpy_blt(src, dst, pixmap->drawable.bitsPerPixel,
+				   stride, bo->pitch,
+				   0, 0,
+				   0, 0,
+				   pixmap->drawable.width,
+				   pixmap->drawable.height);
+		}
 	}
 
 	return bo;

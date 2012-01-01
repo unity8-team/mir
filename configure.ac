@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.63])
 AC_INIT([xf86-video-intel],
-        [2.16.901],
+        [2.17.0],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-intel])
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -120,23 +120,47 @@ AC_ARG_ENABLE(kms-only, AS_HELP_STRING([--enable-kms-only],
               [KMS_ONLY="$enableval"],
               [KMS_ONLY=no])
 
+AC_MSG_CHECKING([whether to include SNA support])
 AC_ARG_ENABLE(sna,
 	      AS_HELP_STRING([--enable-sna],
 			     [Enable SandyBridge's New Acceleration (SNA) [default=no]]),
 	      [SNA="$enableval"],
 	      [SNA=no])
 AM_CONDITIONAL(SNA, test x$SNA != xno)
-AC_MSG_CHECKING([whether to include SNA support])
-
 required_xorg_xserver_version=1.6
-required_pixman_version=0.16
+required_pixman_version=0.24
 if test "x$SNA" != "xno"; then
 	required_xorg_xserver_version=1.10
-	required_pixman_version=0.23
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
 fi
 AC_MSG_RESULT([$SNA])
 
+AC_MSG_CHECKING([whether to include UXA support])
+AC_ARG_ENABLE(uxa,
+	      AS_HELP_STRING([--enable-uxa],
+			     [Enable Unified Acceleration Architecture (UXA) [default=yes]]),
+	      [UXA="$enableval"],
+	      [UXA=yes])
+AC_MSG_RESULT([$UXA])
+AM_CONDITIONAL(UXA, test x$UXA != xno)
+if test "x$UXA" != "xno"; then
+	AC_DEFINE(USE_UXA, 1, [Enable UXA support])
+	PKG_CHECK_MODULES(DRMINTEL, [libdrm_intel >= 2.4.29])
+fi
+
+AC_MSG_CHECKING([whether to include GLAMOR support])
+AC_ARG_ENABLE(glamor,
+	      AS_HELP_STRING([--enable-glamor],
+			     [Enable glamor, a new GL-based acceleration [default=no]]),
+	      [GLAMOR="$enableval"],
+	      [GLAMOR=no])
+AC_MSG_RESULT([$GLAMOR])
+AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
+if test "x$GLAMOR" != "xno"; then
+	PKG_CHECK_MODULES(LIBGLAMOR, [glamor])
+	PKG_CHECK_MODULES(LIBGLAMOR_EGL, [glamor-egl])
+	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
+fi
 
 AC_ARG_ENABLE(vmap,
 	      AS_HELP_STRING([--enable-vmap],
@@ -163,9 +187,9 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= $required_xorg_xserver_version xproto fontsproto pixman-1 >= $required_pixman_version $REQUIRED_MODULES])
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.23])
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.24]) # libdrm_intel is checked separately
 PKG_CHECK_MODULES(DRI, [xf86driproto], , DRI=no)
-PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6])
+PKG_CHECK_MODULES(DRI2, [dri2proto >= 2.6],, DRI2=no)
 PKG_CHECK_MODULES(PCIACCESS, [pciaccess >= 0.10])
 
 sdkdir=`$PKG_CONFIG --variable=sdkdir xorg-server`
@@ -208,6 +232,10 @@ else
                 AC_MSG_ERROR([DRI requested but prerequisites not found])
         fi
 fi
+AM_CONDITIONAL(DRI2, test x$DRI2 != xno)
+if test "x$DRI2" != "xno"; then
+        AC_DEFINE(USE_DRI2,1,[Enable DRI2 driver support])
+fi
 
 if test "$XVMC" = yes; then
 	PKG_CHECK_MODULES(XVMCLIB,
@@ -232,9 +260,12 @@ if test "x$DEBUG" = xno; then
 fi
 if test "x$DEBUG" != xno; then
 	AC_DEFINE(HAS_EXTRA_DEBUG,1,[Enable additional debugging])
+	PKG_CHECK_MODULES(VALGRIND, [valgrind],
+			  AC_DEFINE([HAVE_VALGRIND], 1, [Use valgrind intrinsics to suppress false warings]),)
 fi
 if test "x$DEBUG" = xfull; then
 	AC_DEFINE(HAS_DEBUG_FULL,1,[Enable all debugging])
+        CFLAGS="$CFLAGS -O0 -ggdb3"
 fi
 
 AC_CHECK_HEADERS([sys/timerfd.h])

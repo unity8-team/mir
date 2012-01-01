@@ -89,7 +89,7 @@ static void gen6_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 
 	i = data[0] >> 26;
 	if (state.vb[i].current)
-		munmap(state.vb[i].base, state.vb[i].current->size);
+		kgem_bo_unmap(kgem, state.vb[i].current);
 
 	state.vb[i].current = bo;
 	state.vb[i].base = base;
@@ -130,7 +130,7 @@ static void gen6_update_dynamic_buffer(struct kgem *kgem, const uint32_t offset)
 	}
 
 	if (state.dynamic_state.current)
-		munmap(state.dynamic_state.base, state.dynamic_state.current->size);
+		kgem_bo_unmap(kgem, state.dynamic_state.current);
 
 	state.dynamic_state.current = bo;
 	state.dynamic_state.base = base;
@@ -306,7 +306,7 @@ static void finish_vertex_buffers(struct kgem *kgem)
 
 	for (i = 0; i < ARRAY_SIZE(state.vb); i++)
 		if (state.vb[i].current)
-			munmap(state.vb[i].base, state.vb[i].current->size);
+			kgem_bo_unmap(kgem, state.vb[i].current);
 }
 
 static void finish_state(struct kgem *kgem)
@@ -314,7 +314,7 @@ static void finish_state(struct kgem *kgem)
 	finish_vertex_buffers(kgem);
 
 	if (state.dynamic_state.current)
-		munmap(state.dynamic_state.base, state.dynamic_state.current->size);
+		kgem_bo_unmap(kgem, state.dynamic_state.base);
 
 	memset(&state, 0, sizeof(state));
 }
@@ -482,7 +482,7 @@ static void
 put_reloc(struct kgem *kgem, struct reloc *r)
 {
 	if (r->bo != NULL)
-		munmap(r->base, r->bo->size);
+		kgem_bo_unmap(kgem, r->bo);
 }
 
 static const char *
