@@ -445,8 +445,7 @@ done:
 inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 						  RegionPtr region)
 {
-	if (!RegionNotEmpty(region))
-		return damage;
+	assert(RegionNotEmpty(region));
 
 	if (!damage) {
 		damage = _sna_damage_create();
@@ -907,8 +906,13 @@ struct sna_damage *_sna_damage_all(struct sna_damage *damage,
 struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 				      int width, int height)
 {
-	if (damage->dirty)
+	if (damage->dirty) {
 		__sna_damage_reduce(damage);
+		if (!RegionNotEmpty(&damage->region)) {
+			__sna_damage_destroy(damage);
+			return NULL;
+		}
+	}
 
 	if (damage->region.data)
 		return damage;
@@ -952,16 +956,12 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 	if (damage == NULL)
 		return NULL;
 
-	if (!RegionNotEmpty(&damage->region)) {
-		__sna_damage_destroy(damage);
-		return NULL;
-	}
-
-	if (!RegionNotEmpty(region))
-		return damage;
+	assert(RegionNotEmpty(region));
 
 	if (!sna_damage_maybe_contains_box(damage, &region->extents))
 		return damage;
+
+	assert(RegionNotEmpty(&damage->region));
 
 	if (region_is_singular(region) &&
 	    box_contains(&region->extents, &damage->extents)) {
@@ -1033,13 +1033,10 @@ inline static struct sna_damage *__sna_damage_subtract_box(struct sna_damage *da
 	if (damage == NULL)
 		return NULL;
 
-	if (!RegionNotEmpty(&damage->region)) {
-		__sna_damage_destroy(damage);
-		return NULL;
-	}
-
 	if (!sna_damage_maybe_contains_box(damage, box))
 		return damage;
+
+	assert(RegionNotEmpty(&damage->region));
 
 	if (box_contains(box, &damage->extents)) {
 		__sna_damage_destroy(damage);
