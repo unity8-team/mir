@@ -108,6 +108,7 @@ struct kgem_partial_bo {
 	uint32_t write : 1;
 };
 
+static struct kgem_bo *__kgem_freed_bo;
 static struct drm_i915_gem_exec_object2 _kgem_dummy_exec;
 
 static void kgem_sna_reset(struct kgem *kgem)
@@ -381,9 +382,14 @@ static struct kgem_bo *__kgem_bo_alloc(int handle, int size)
 {
 	struct kgem_bo *bo;
 
-	bo = malloc(sizeof(*bo));
-	if (bo == NULL)
-		return NULL;
+	if (__kgem_freed_bo) {
+		bo = __kgem_freed_bo;
+		__kgem_freed_bo = *(struct kgem_bo **)bo;
+	} else {
+		bo = malloc(sizeof(*bo));
+		if (bo == NULL)
+			return NULL;
+	}
 
 	return __kgem_bo_init(bo, handle, size);
 }
@@ -747,7 +753,12 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 	_list_del(&bo->list);
 	_list_del(&bo->request);
 	gem_close(kgem->fd, bo->handle);
-	free(bo);
+
+	if (!bo->io) {
+		*(struct kgem_bo **)bo = __kgem_freed_bo;
+		__kgem_freed_bo = bo;
+	} else
+		free(bo);
 }
 
 static bool is_mmaped_buffer(struct kgem_partial_bo *bo)
