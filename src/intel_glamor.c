@@ -135,7 +135,6 @@ intel_glamor_finish_access(PixmapPtr pixmap, uxa_access_t access)
 		break;
 	case UXA_GLAMOR_ACCESS_RW:
 		intel_glamor_need_flush(&pixmap->drawable);
-		glamor_block_handler(pixmap->drawable.pScreen);
 		break;
 	default:
 		ErrorF("Invalid access mode %d\n", access);
