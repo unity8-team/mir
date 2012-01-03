@@ -2094,10 +2094,49 @@ skip_active_search:
 	return bo;
 }
 
+static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
+{
+	struct kgem_partial_bo *io = (struct kgem_partial_bo *)bo->proxy;
+
+	if (list_is_empty(&io->base.list))
+		    return;
+
+	if (bo->size == io->used) {
+		assert(io->base.exec == NULL);
+		assert(io->base.refcnt >= 2);
+		list_del(&io->base.list);
+		--io->base.refcnt;
+	} else if (bo->delta + bo->size == io->used) {
+		int remain;
+
+		io->used = bo->delta;
+		remain = io->alloc - io->used;
+		while (io->base.list.prev != &kgem->partial) {
+			struct kgem_partial_bo *p;
+
+			p = list_entry(&io->base.list.prev,
+				       struct kgem_partial_bo,
+				       base.list);
+			if (remain < p->alloc - p->used)
+				break;
+
+			io->base.list.prev = p->base.list.prev;
+			p->base.list.prev->next = &io->base.list;
+			p->base.list.prev = &io->base.list;
+
+			p->base.list.next = io->base.list.next;
+			io->base.list.next->prev = &p->base.list;
+			io->base.list.next = &p->base.list;
+		}
+	}
+}
+
 void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 {
 	if (bo->proxy) {
 		assert(bo->map == NULL);
+		if (bo->io && bo->exec == NULL)
+			_kgem_bo_delete_partial(kgem, bo);
 		kgem_bo_unref(kgem, bo->proxy);
 		kgem_bo_binding_free(kgem, bo);
 		_list_del(&bo->request);
@@ -2639,6 +2678,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	if (bo == NULL)
 		return NULL;
 
+	bo->io = target->io;
 	bo->reusable = false;
 	bo->proxy = kgem_bo_reference(target);
 	bo->delta = offset;
