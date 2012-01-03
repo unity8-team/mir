@@ -1146,11 +1146,16 @@ has_gpu_area(PixmapPtr pixmap, int x, int y, int w, int h)
 
 	if (priv->cpu_damage == NULL)
 		return TRUE;
+	if (priv->cpu_damage->mode == DAMAGE_ALL)
+		return FALSE;
 
 	area.x1 = x;
 	area.y1 = y;
 	area.x2 = x + w;
 	area.y2 = y + h;
+	if (priv->gpu_damage &&
+	    sna_damage_contains_box__no_reduce(priv->gpu_damage, &area))
+		return TRUE;
 
 	return sna_damage_contains_box(priv->cpu_damage,
 				       &area) == PIXMAN_REGION_OUT;
@@ -1164,16 +1169,19 @@ has_cpu_area(PixmapPtr pixmap, int x, int y, int w, int h)
 
 	if (!priv)
 		return TRUE;
-	if (!priv->gpu_bo)
-		return TRUE;
-
 	if (priv->gpu_damage == NULL)
 		return TRUE;
+	if (priv->gpu_damage->mode == DAMAGE_ALL)
+		return FALSE;
 
 	area.x1 = x;
 	area.y1 = y;
 	area.x2 = x + w;
 	area.y2 = y + h;
+	if (priv->cpu_damage &&
+	    sna_damage_contains_box__no_reduce(priv->cpu_damage, &area))
+		return TRUE;
+
 	return sna_damage_contains_box(priv->gpu_damage,
 				       &area) == PIXMAN_REGION_OUT;
 }
@@ -1185,8 +1193,13 @@ reduce_damage(struct sna_composite_op *op,
 {
 	BoxRec r;
 
-	if (op->damage == NULL)
+	if (op->damage == NULL || *op->damage == NULL)
 		return;
+
+	if ((*op->damage)->mode == DAMAGE_ALL) {
+		op->damage = NULL;
+		return;
+	}
 
 	r.x1 = dst_x + op->dst.x;
 	r.x2 = r.x1 + width;
@@ -1194,7 +1207,7 @@ reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+	if (sna_damage_contains_box__no_reduce(*op->damage, &r))
 		op->damage = NULL;
 }
 

@@ -1291,10 +1291,8 @@ _sna_drawable_use_cpu_bo(DrawablePtr drawable,
 		return FALSE;
 
 done:
-	if (sna_damage_contains_box(priv->cpu_damage,
-				    &extents) != PIXMAN_REGION_IN)
-		*damage = &priv->cpu_damage;
-	else
+	*damage = &priv->cpu_damage;
+	if (sna_damage_contains_box__no_reduce(priv->cpu_damage, &extents))
 		*damage = NULL;
 
 	return TRUE;

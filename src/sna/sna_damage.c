@@ -970,7 +970,7 @@ static bool box_contains(const BoxRec *a, const BoxRec *b)
 	return true;
 }
 
-static inline Bool sna_damage_maybe_contains_box(struct sna_damage *damage,
+static inline Bool sna_damage_maybe_contains_box(const struct sna_damage *damage,
 						 const BoxRec *box)
 {
 	if (box->x2 <= damage->extents.x1 ||
@@ -1189,6 +1189,21 @@ int sna_damage_contains_box(struct sna_damage *damage,
 	return _sna_damage_contains_box(damage, box);
 }
 #endif
+
+bool sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
+					const BoxRec *box)
+{
+	int ret;
+
+	assert(damage && damage->mode != DAMAGE_ALL);
+	if (!sna_damage_maybe_contains_box(damage, box))
+		return false;
+
+	ret = pixman_region_contains_rectangle((RegionPtr)&damage->region,
+					       (BoxPtr)box);
+	return (!damage->dirty || damage->mode == DAMAGE_ADD) &&
+		ret == PIXMAN_REGION_IN;
+}
 
 static Bool _sna_damage_intersect(struct sna_damage *damage,
 				  RegionPtr region, RegionPtr result)
