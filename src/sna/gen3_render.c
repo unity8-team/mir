@@ -2150,25 +2150,24 @@ gen3_composite_picture(struct sna *sna,
 				    x, y, w, h, dst_x, dst_y);
 }
 
-static inline Bool
+static inline bool
 source_use_blt(struct sna *sna, PicturePtr picture)
 {
+	/* If it is a solid, try to use the BLT paths */
 	if (!picture->pDrawable)
-		return FALSE;
+		return picture->pSourcePict->type == SourcePictTypeSolidFill;
 
-	/* If it is a solid, try to use the render paths */
 	if (picture->pDrawable->width  == 1 &&
 	    picture->pDrawable->height == 1 &&
 	    picture->repeat)
-		return FALSE;
+		return true;
 
-	if (too_large(picture->pDrawable->width,
-		      picture->pDrawable->height))
-		return TRUE;
+	if (too_large(picture->pDrawable->width, picture->pDrawable->height))
+		return true;
 
 	/* If we can sample directly from user-space, do so */
 	if (sna->kgem.has_vmap)
-		return FALSE;
+		return false;
 
 	return is_cpu(picture->pDrawable);
 }
