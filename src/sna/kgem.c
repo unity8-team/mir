@@ -1895,20 +1895,20 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	struct kgem_bo *bo, *next;
 	uint32_t pitch, untiled_pitch, tiled_height[3], size;
 	uint32_t handle;
-	int exact = flags & CREATE_EXACT;
 	int i;
 
 	if (tiling < 0)
-		tiling = -tiling, exact = 1;
+		tiling = -tiling, flags |= CREATE_EXACT;
 
 	DBG(("%s(%dx%d, bpp=%d, tiling=%d, exact=%d, inactive=%d, cpu-mapping=%d, gtt-mapping=%d, scanout?=%d)\n", __FUNCTION__,
 	     width, height, bpp, tiling,
-	     !!exact, !!(flags & CREATE_INACTIVE),
+	     !!(flags & CREATE_EXACT),
+	     !!(flags & CREATE_INACTIVE),
 	     !!(flags & CREATE_CPU_MAP),
 	     !!(flags & CREATE_GTT_MAP),
 	     !!(flags & CREATE_SCANOUT)));
 
-	assert(_kgem_can_create_2d(kgem, width, height, bpp, exact ? -tiling : tiling));
+	assert(_kgem_can_create_2d(kgem, width, height, bpp, flags & CREATE_EXACT ? -tiling : tiling));
 	size = kgem_surface_size(kgem,
 				 kgem->has_relaxed_fencing,
 				 flags & CREATE_SCANOUT,
@@ -1972,17 +1972,11 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	for (i = 0; i <= I915_TILING_Y; i++)
 		tiled_height[i] = kgem_aligned_height(kgem, height, i);
 
+	next = NULL;
+	cache = active(kgem, size);
 search_active: /* Best active match first */
-	list_for_each_entry(bo, active(kgem, size), list) {
+	list_for_each_entry(bo, cache, list) {
 		uint32_t s;
-
-		if (exact) {
-			if (bo->tiling != tiling)
-				continue;
-		} else {
-			if (bo->tiling > tiling)
-				continue;
-		}
 
 		if (bo->tiling) {
 			if (bo->pitch < pitch) {
@@ -1996,6 +1990,12 @@ search_active: /* Best active match first */
 
 		s = bo->pitch * tiled_height[bo->tiling];
 		if (s <= bo->size) {
+			if (bo->tiling != tiling) {
+				if (next == NULL && bo->tiling < tiling)
+					next = bo;
+				continue;
+			}
+
 			list_del(&bo->list);
 			if (bo->rq == &_kgem_static_request)
 				list_del(&bo->request);
@@ -2009,11 +2009,30 @@ search_active: /* Best active match first */
 
 			bo->unique_id = kgem_get_unique_id(kgem);
 			bo->delta = 0;
-			DBG(("  from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
 			return kgem_bo_reference(bo);
+		}
+	}
+
+	if (next && (flags & CREATE_EXACT) == 0) {
+		list_del(&next->list);
+		if (next->rq == &_kgem_static_request)
+			list_del(&next->request);
+
+		if (next->purged && !kgem_bo_clear_purgeable(kgem, next)) {
+			kgem->need_purge |= next->domain == DOMAIN_GPU;
+			kgem_bo_free(kgem, next);
+		} else {
+			next->unique_id = kgem_get_unique_id(kgem);
+			next->delta = 0;
+			DBG(("  2:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+			     next->pitch, next->tiling, next->handle, next->unique_id));
+			assert(next->refcnt == 0);
+			assert(next->reusable);
+			return kgem_bo_reference(next);
 		}
 	}
 
