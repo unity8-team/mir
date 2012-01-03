@@ -556,6 +556,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 				   int width, int height, int depth,
 				   unsigned int usage)
 {
+	struct sna *sna = to_sna_from_screen(screen);
 	PixmapPtr pixmap;
 	int pad, size;
 
@@ -568,7 +569,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 						 width, height, depth,
 						 I915_TILING_X);
 #else
-		return create_pixmap(to_sna_from_screen(screen), screen,
+		return create_pixmap(sna, screen,
 				     width, height, depth,
 				     usage);
 #endif
@@ -583,22 +584,26 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 						 width, height, depth,
 						 I915_TILING_X);
 
+	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE ||
+	    !kgem_can_create_2d(&sna->kgem, width, height,
+				BitsPerPixel(depth), I915_TILING_NONE))
+		return create_pixmap(sna, screen, width, height, depth, usage);
+
 #if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 	if (width == 0 || height == 0)
-		usage = CREATE_PIXMAP_USAGE_SCRATCH_HEADER;
+		return create_pixmap(sna, screen, width, height, depth, usage);
 #endif
 
 	pad = PixmapBytePad(width, depth);
 	size = pad * height;
 	if (size <= 4096) {
-		pixmap = create_pixmap(to_sna_from_screen(screen), screen,
+		pixmap = create_pixmap(sna, screen,
 				       width, height, depth, usage);
 		if (pixmap == NullPixmap)
 			return NullPixmap;
 
 		sna_pixmap_attach(pixmap);
 	} else {
-		struct sna *sna = to_sna_from_screen(screen);
 		struct sna_pixmap *priv;
 
 		pixmap = create_pixmap(sna, screen, 0, 0, depth, usage);
@@ -610,12 +615,11 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		pixmap->devKind = pad;
 		pixmap->devPrivate.ptr = NULL;
 
-		priv = sna_pixmap_attach(pixmap);
+		priv = _sna_pixmap_attach(sna, pixmap);
 		if (priv == NULL) {
 			free(pixmap);
 			return create_pixmap(sna, screen,
-					     width, height, depth,
-					     usage);
+					     width, height, depth, usage);
 		}
 
 		priv->stride = pad;
