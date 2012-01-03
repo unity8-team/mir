@@ -45,12 +45,14 @@
 #define glamor_set_spans_nf(...)	FALSE
 #define glamor_get_image_nf(...)	FALSE
 #define glamor_glyphs_nf(...)		FALSE
-#define glamor_glyph_unrealize(...)	;
+#define glamor_glyph_unrealize(...)	do { } while(0)
 #define glamor_composite_nf(...)	FALSE
 #define glamor_composite_rects_nf(...)	FALSE
 #define glamor_trapezoids_nf(...)	FALSE
 #define glamor_triangles_nf(...)	FALSE
 #define glamor_add_traps_nf(...)	FALSE
+#define glamor_create_gc(...)		FALSE
+#define glamor_validate_gc(...)		do { } while(0)
 #endif
 
 #endif /* UXA_GLAMOR_H */
