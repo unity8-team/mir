@@ -1814,6 +1814,14 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 		goto done;
 	}
 
+	if (tiling && width * bpp >= 8 * 4096 / 2) {
+		DBG(("%s: TLB near-miss between lines %dx%d (pitch=%d), forcing tiling %d\n",
+		     __FUNCTION__,
+		     width, height, width*bpp/8,
+		     tiling));
+		return -tiling;
+	}
+
 done:
 	DBG(("%s: %dx%d -> %d\n", __FUNCTION__, width, height, tiling));
 	return tiling;
