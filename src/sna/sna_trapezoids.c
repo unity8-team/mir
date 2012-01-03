@@ -1966,7 +1966,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 }
 
 static Bool
-composite_aligned_boxes(CARD8 op,
+composite_aligned_boxes(struct sna *sna,
+			CARD8 op,
 			PicturePtr src,
 			PicturePtr dst,
 			PictFormatPtr maskFormat,
@@ -1975,7 +1976,6 @@ composite_aligned_boxes(CARD8 op,
 {
 	BoxRec stack_boxes[64], *boxes, extents;
 	pixman_region16_t region, clip;
-	struct sna *sna;
 	struct sna_composite_op tmp;
 	Bool ret = true;
 	int dx, dy, n, num_boxes;
@@ -2045,7 +2045,6 @@ composite_aligned_boxes(CARD8 op,
 	}
 
 	memset(&tmp, 0, sizeof(tmp));
-	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.composite(sna, op, src, NULL, dst,
 				   src_x,  src_y,
 				   0, 0,
@@ -2409,14 +2408,14 @@ composite_unaligned_boxes_fallback(CARD8 op,
 }
 
 static Bool
-composite_unaligned_boxes(CARD8 op,
+composite_unaligned_boxes(struct sna *sna,
+			  CARD8 op,
 			  PicturePtr src,
 			  PicturePtr dst,
 			  PictFormatPtr maskFormat,
 			  INT16 src_x, INT16 src_y,
 			  int ntrap, xTrapezoid *traps)
 {
-	struct sna *sna;
 	BoxRec extents;
 	struct sna_composite_spans_op tmp;
 	pixman_region16_t clip;
@@ -2432,7 +2431,6 @@ composite_unaligned_boxes(CARD8 op,
 	if (ntrap > 1 && maskFormat)
 		return false;
 
-	sna = to_sna_from_drawable(dst->pDrawable);
 	if (!sna->render.composite_spans)
 		return composite_unaligned_boxes_fallback(op, src, dst, src_x, src_y, ntrap, traps);
 
@@ -3606,13 +3604,13 @@ sna_composite_trapezoids(CARD8 op,
 	     __FUNCTION__, rectilinear, pixel_aligned));
 	if (rectilinear) {
 		if (pixel_aligned) {
-			if (composite_aligned_boxes(op, src, dst,
+			if (composite_aligned_boxes(sna, op, src, dst,
 						    maskFormat,
 						    xSrc, ySrc,
 						    ntrap, traps))
 			    return;
 		} else {
-			if (composite_unaligned_boxes(op, src, dst,
+			if (composite_unaligned_boxes(sna, op, src, dst,
 						      maskFormat,
 						      xSrc, ySrc,
 						      ntrap, traps))
