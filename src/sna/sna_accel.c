@@ -658,7 +658,7 @@ static inline bool pixmap_inplace(struct sna *sna,
 }
 
 bool
-sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
+_sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
@@ -885,7 +885,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		DBG(("%s: region subsumes drawable\n", __FUNCTION__));
 		if (dx | dy)
 			RegionTranslate(region, -dx, -dy);
-		return sna_pixmap_move_to_cpu(pixmap, flags);
+		return _sna_pixmap_move_to_cpu(pixmap, flags);
 	}
 
 	if ((flags & MOVE_READ) == 0) {

@@ -433,7 +433,17 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
 #define MOVE_WRITE 0x1
 #define MOVE_READ 0x2
-bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
+bool must_check _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
+static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags)
+{
+	if (flags == MOVE_READ) {
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
+		if (priv == NULL || priv->gpu_damage == NULL)
+			return true;
+	}
+
+	return _sna_pixmap_move_to_cpu(pixmap, flags);
+}
 bool must_check sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 						RegionPtr region,
 						unsigned flags);
