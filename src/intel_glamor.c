@@ -192,19 +192,6 @@ intel_glamor_flush(intel_screen_private * intel)
 }
 
 Bool
-intel_glamor_create_screen_image(ScreenPtr screen, int handle, int stride)
-{
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	intel_screen_private *intel;
-
-	intel = intel_get_screen_private(scrn);
-	if ((intel->uxa_flags & UXA_USE_GLAMOR) == 0)
-		return TRUE;
-
-	return glamor_egl_create_textured_screen(screen, handle, stride);
-}
-
-Bool
 intel_glamor_close_screen(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];

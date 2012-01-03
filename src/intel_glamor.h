@@ -35,7 +35,6 @@
 Bool intel_glamor_pre_init(ScrnInfoPtr scrn);
 Bool intel_glamor_init(ScreenPtr screen);
 Bool intel_glamor_create_screen_resources(ScreenPtr screen);
-Bool intel_glamor_create_screen_image(ScreenPtr screen, int handle, int stride);
 Bool intel_glamor_close_screen(ScreenPtr screen);
 void intel_glamor_free_screen(int scrnIndex, int flags);
 
@@ -51,7 +50,6 @@ PixmapPtr intel_glamor_create_pixmap(ScreenPtr screen, int w, int h,
 static inline Bool intel_glamor_pre_init(ScrnInfoPtr scrn) { return TRUE; }
 static inline Bool intel_glamor_init(ScreenPtr screen) { return TRUE; }
 static inline Bool intel_glamor_create_screen_resources(ScreenPtr screen) { return TRUE; }
-static inline Bool intel_glamor_create_screen_image(ScreenPtr screen, int handle, int stride) { return TRUE; }
 static inline Bool intel_glamor_close_screen(ScreenPtr screen) { return TRUE; }
 static inline void intel_glamor_free_screen(int scrnIndex, int flags) { }
 
