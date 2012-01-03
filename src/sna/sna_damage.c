@@ -48,6 +48,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * cheapy discard no-ops.
  */
 
+struct sna_damage_box {
+	struct list list;
+	int size;
+} __attribute__((packed));
+
 static struct sna_damage *__freed_damage;
 
 static inline bool region_is_singular(RegionRec *r)
@@ -181,11 +186,6 @@ static struct sna_damage *_sna_damage_create(void)
 
 	return damage;
 }
-
-struct sna_damage_box {
-	struct list list;
-	int size;
-};
 
 static bool _sna_damage_create_boxes(struct sna_damage *damage,
 				     int count)

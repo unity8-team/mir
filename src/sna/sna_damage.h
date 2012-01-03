@@ -6,8 +6,6 @@
 
 #include "compiler.h"
 
-struct sna_damage_box;
-
 struct sna_damage {
 	BoxRec extents;
 	pixman_region16_t region;
