@@ -2399,13 +2399,20 @@ reuse_source(struct sna *sna,
 	     PicturePtr src, struct sna_composite_channel *sc, int src_x, int src_y,
 	     PicturePtr mask, struct sna_composite_channel *mc, int msk_x, int msk_y)
 {
-	if (src->pDrawable == NULL || mask->pDrawable != src->pDrawable)
+	if (src_x != msk_x || src_y != msk_y)
+		return FALSE;
+
+	if (mask == src) {
+		*mc = *sc;
+		if (mc->bo)
+			kgem_bo_reference(mc->bo);
+		return TRUE;
+	}
+
+	if ((src->pDrawable == NULL || mask->pDrawable != src->pDrawable))
 		return FALSE;
 
 	DBG(("%s: mask reuses source drawable\n", __FUNCTION__));
-
-	if (src_x != msk_x || src_y != msk_y)
-		return FALSE;
 
 	if (!sna_transform_equal(src->transform, mask->transform))
 		return FALSE;
@@ -2427,7 +2434,8 @@ reuse_source(struct sna *sna,
 	mc->filter = gen3_filter(mask->filter);
 	mc->pict_format = mask->format;
 	gen3_composite_channel_set_format(mc, mask->format);
-	mc->bo = kgem_bo_reference(mc->bo);
+	if (mc->bo)
+		kgem_bo_reference(mc->bo);
 	return TRUE;
 }
 
