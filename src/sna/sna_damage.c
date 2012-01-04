@@ -219,7 +219,8 @@ _sna_damage_create_elt(struct sna_damage *damage,
 {
 	int n;
 
-	DBG(("    %s: prev=(remain %d)\n", __FUNCTION__, damage->remain));
+	DBG(("    %s: prev=(remain %d), count=%d\n",
+	     __FUNCTION__, damage->remain, count));
 
 	damage->dirty = true;
 	n = count;
@@ -297,7 +298,8 @@ _sna_damage_create_elt_from_rectangles(struct sna_damage *damage,
 {
 	int i, n;
 
-	DBG(("    %s: prev=(remain %d)\n", __FUNCTION__, damage->remain));
+	DBG(("    %s: prev=(remain %d), count=%d\n",
+	     __FUNCTION__, damage->remain, count));
 
 	n = count;
 	if (n > damage->remain)
@@ -340,7 +342,8 @@ _sna_damage_create_elt_from_points(struct sna_damage *damage,
 {
 	int i, n;
 
-	DBG(("    %s: prev=(remain %d)\n", __FUNCTION__, damage->remain));
+	DBG(("    %s: prev=(remain %d), count=%d\n",
+	     __FUNCTION__, damage->remain, count));
 
 	n = count;
 	if (n > damage->remain)
@@ -412,6 +415,7 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 			  list);
 	n = iter->size - damage->remain;
 	boxes = (BoxRec *)(iter+1);
+	DBG(("   last box count=%d/%d, need=%d\n", n, iter->size, nboxes));
 	if (nboxes > iter->size) {
 		boxes = malloc(sizeof(BoxRec)*nboxes);
 		if (boxes == NULL)
@@ -422,29 +426,36 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 
 	if (boxes != damage->embedded_box.box) {
 		if (list_is_empty(&damage->embedded_box.list)) {
+			DBG(("   copying embedded boxes\n"));
 			memcpy(boxes,
 			       damage->embedded_box.box,
 			       n*sizeof(BoxRec));
 		} else {
-			if (damage->mode == DAMAGE_ADD)
-				nboxes -= REGION_NUM_RECTS(region);
-
-			memcpy(boxes,
-			       damage->embedded_box.box,
-			       sizeof(damage->embedded_box.box));
-			n = damage->embedded_box.size;
-
-			list_for_each_entry(iter, &damage->embedded_box.list, list) {
-				int len = iter->size;
-				if (n + len > nboxes)
-					len = nboxes - n;
-				DBG(("   copy %d/%d boxes from %d\n", len, iter->size, n));
-				memcpy(boxes + n, iter+1, len * sizeof(BoxRec));
-				n += len;
+			if (boxes != (BoxPtr)(iter+1)) {
+				DBG(("   copying %d boxes from last\n", n));
+				memcpy(boxes, iter+1, n*sizeof(BoxRec));
 			}
 
-			if (damage->mode == DAMAGE_ADD)
-				nboxes += REGION_NUM_RECTS(region);
+			iter = list_entry(iter->list.prev,
+					  struct sna_damage_box,
+					  list);
+			while (&iter->list != &damage->embedded_box.list) {
+				DBG(("   copy %d boxes from %d\n",
+				     iter->size, n));
+				memcpy(boxes + n, iter+1,
+				       iter->size * sizeof(BoxRec));
+				n += iter->size;
+
+				iter = list_entry(iter->list.prev,
+						  struct sna_damage_box,
+						  list);
+			}
+
+			DBG(("   copying embedded boxes to %d\n", n));
+			memcpy(boxes + n,
+			       damage->embedded_box.box,
+			       sizeof(damage->embedded_box.box));
+			n += damage->embedded_box.size;
 		}
 	}
 
@@ -455,18 +466,27 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 		assert(n + REGION_NUM_RECTS(region) == nboxes);
 		pixman_region_fini(region);
 		pixman_region_init_rects(region, boxes, nboxes);
+
+		assert(damage->extents.x1 == region->extents.x1 &&
+		       damage->extents.y1 == region->extents.y1 &&
+		       damage->extents.x2 == region->extents.x2 &&
+		       damage->extents.y2 == region->extents.y2);
 	} else {
 		pixman_region16_t tmp;
 
 		pixman_region_init_rects(&tmp, boxes, nboxes);
 		pixman_region_subtract(region, region, &tmp);
 		pixman_region_fini(&tmp);
+
+		assert(damage->extents.x1 <= region->extents.x1 &&
+		       damage->extents.y1 <= region->extents.y1 &&
+		       damage->extents.x2 >= region->extents.x2 &&
+		       damage->extents.y2 >= region->extents.y2);
+		damage->extents = region->extents;
 	}
 
 	if (free_boxes)
 		free(boxes);
-
-	damage->extents = region->extents;
 
 done:
 	damage->mode = DAMAGE_ADD;
@@ -595,7 +615,7 @@ __sna_damage_add_boxes(struct sna_damage *damage,
 	_sna_damage_create_elt_from_boxes(damage, box, n, dx, dy);
 
 	if (REGION_NUM_RECTS(&damage->region) == 0) {
-		damage->region.extents = box[0];
+		damage->region.extents = damage->embedded_box.box[0];
 		damage->region.data = NULL;
 		damage->extents = extents;
 	} else {
@@ -698,10 +718,7 @@ __sna_damage_add_rectangles(struct sna_damage *damage,
 	_sna_damage_create_elt_from_rectangles(damage, r, n, dx, dy);
 
 	if (REGION_NUM_RECTS(&damage->region) == 0) {
-		damage->region.extents.x1 = r[0].x + dx;
-		damage->region.extents.x2 = r[0].x + r[0].width + dx;
-		damage->region.extents.y1 = r[0].y + dy;
-		damage->region.extents.y2 = r[0].y + r[0].height + dy;
+		damage->region.extents = damage->embedded_box.box[0];
 		damage->region.data = NULL;
 		damage->extents = extents;
 	} else {
@@ -795,10 +812,7 @@ __sna_damage_add_points(struct sna_damage *damage,
 	_sna_damage_create_elt_from_points(damage, p, n, dx, dy);
 
 	if (REGION_NUM_RECTS(&damage->region) == 0) {
-		damage->region.extents.x1 = p[0].x + dx;
-		damage->region.extents.x2 = p[0].x + dx + 1;
-		damage->region.extents.y1 = p[0].y + dy;
-		damage->region.extents.y2 = p[0].y + dy + 1;
+		damage->region.extents = damage->embedded_box.box[0];
 		damage->region.data = NULL;
 		damage->extents = extents;
 	} else {
@@ -940,12 +954,18 @@ struct sna_damage *_sna_damage_all(struct sna_damage *damage,
 struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 				      int width, int height)
 {
+	DBG(("%s(%d, %d)%s\n", __FUNCTION__, width, height,
+	     damage->dirty ? "*" : ""));
+	assert(damage->mode == DAMAGE_ADD);
+
+	assert(damage->extents.x1 == 0 &&
+	       damage->extents.y1 == 0 &&
+	       damage->extents.x2 == width &&
+	       damage->extents.y2 == height);
+
 	if (damage->dirty) {
 		__sna_damage_reduce(damage);
-		if (!RegionNotEmpty(&damage->region)) {
-			__sna_damage_destroy(damage);
-			return NULL;
-		}
+		assert(RegionNotEmpty(&damage->region));
 	}
 
 	if (damage->region.data)
