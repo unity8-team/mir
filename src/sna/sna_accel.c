@@ -225,11 +225,14 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 done:
 	pixmap->devPrivate.ptr = priv->ptr;
 	pixmap->devKind = priv->stride;
+	assert(priv->stride);
 	return priv->ptr != NULL;
 }
 
 static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 {
+	assert(priv->stride);
+
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
 		     __FUNCTION__, priv->cpu_bo->handle, priv->cpu_bo->size));
@@ -941,7 +944,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			}
 		}
 
-		if (priv->gpu_bo == NULL &&
+		if (priv->gpu_bo == NULL && priv->stride &&
 		    sna_pixmap_choose_tiling(pixmap) != I915_TILING_NONE &&
 		    region_inplace(sna, pixmap, region, priv) &&
 		    sna_pixmap_create_mappable_gpu(pixmap)) {
