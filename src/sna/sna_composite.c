@@ -43,6 +43,22 @@
 
 #define BOUND(v)	(INT16) ((v) < MINSHORT ? MINSHORT : (v) > MAXSHORT ? MAXSHORT : (v))
 
+static PicturePtr clear;
+
+Bool sna_composite_create(struct sna *sna)
+{
+	xRenderColor color ={ 0 };
+	int error;
+
+	clear = CreateSolidPicture(0, &color, &error);
+	return clear != NULL;
+}
+
+void sna_composite_close(struct sna *sna)
+{
+	FreePicture(clear, 0);
+}
+
 static inline bool
 region_is_singular(pixman_region16_t *region)
 {
@@ -415,6 +431,12 @@ sna_composite(CARD8 op,
 	if (region_is_empty(dst->pCompositeClip)) {
 		DBG(("%s: empty clip, skipping\n", __FUNCTION__));
 		return;
+	}
+
+	if (op == PictOpClear) {
+		DBG(("%s: discarind sourceand mask for clear\n", __FUNCTION__));
+		mask = NULL;
+		src = clear;
 	}
 
 	if (mask && sna_composite_mask_is_opaque(mask)) {

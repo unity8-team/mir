@@ -135,7 +135,6 @@ intel_glamor_finish_access(PixmapPtr pixmap, uxa_access_t access)
 		break;
 	case UXA_GLAMOR_ACCESS_RW:
 		intel_glamor_need_flush(&pixmap->drawable);
-		glamor_block_handler(pixmap->drawable.pScreen);
 		break;
 	default:
 		ErrorF("Invalid access mode %d\n", access);
@@ -189,19 +188,6 @@ intel_glamor_flush(intel_screen_private * intel)
 	screen = screenInfo.screens[intel->scrn->scrnIndex];
 	if (intel->uxa_flags & UXA_USE_GLAMOR)
 		glamor_block_handler(screen);
-}
-
-Bool
-intel_glamor_create_screen_image(ScreenPtr screen, int handle, int stride)
-{
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	intel_screen_private *intel;
-
-	intel = intel_get_screen_private(scrn);
-	if ((intel->uxa_flags & UXA_USE_GLAMOR) == 0)
-		return TRUE;
-
-	return glamor_egl_create_textured_screen(screen, handle, stride);
 }
 
 Bool

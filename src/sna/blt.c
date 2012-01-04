@@ -60,8 +60,8 @@ memcpy_blt(const void *src, void *dst, int bpp,
 
 	byte_width = width * bpp;
 	if (byte_width == src_stride && byte_width == dst_stride) {
-		memcpy(dst_bytes, src_bytes, byte_width * height);
-		return;
+		byte_width *= height;
+		height = 1;
 	}
 
 	switch (byte_width) {

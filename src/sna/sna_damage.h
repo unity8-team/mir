@@ -6,8 +6,6 @@
 
 #include "compiler.h"
 
-struct sna_damage_box;
-
 struct sna_damage {
 	BoxRec extents;
 	pixman_region16_t region;
@@ -126,6 +124,8 @@ Bool sna_damage_intersect(struct sna_damage *damage,
 
 int sna_damage_contains_box(struct sna_damage *damage,
 			    const BoxRec *box);
+bool sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
+					const BoxRec *box);
 
 int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes);
 

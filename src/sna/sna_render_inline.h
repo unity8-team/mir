@@ -47,7 +47,7 @@ static inline float pack_2s(int16_t x, int16_t y)
 
 static inline int batch_space(struct sna *sna)
 {
-	return KGEM_BATCH_SIZE(&sna->kgem) - sna->kgem.nbatch;
+	return sna->kgem.surface - sna->kgem.nbatch - KGEM_BATCH_RESERVED;
 }
 
 static inline void batch_emit(struct sna *sna, uint32_t dword)
@@ -148,7 +148,7 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_contains_box(*op->damage, &r) == PIXMAN_REGION_IN)
+	if (sna_damage_contains_box__no_reduce(*op->damage, &r))
 		op->damage = NULL;
 }
 
