@@ -897,6 +897,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		return true;
 	}
 
+	if (priv->stride == 0 && priv->gpu_bo == NULL && flags & MOVE_WRITE)
+		return _sna_pixmap_move_to_cpu(pixmap, flags);
+
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	DBG(("%s: delta=(%d, %d)\n", __FUNCTION__, dx, dy));
 	if (dx | dy)
