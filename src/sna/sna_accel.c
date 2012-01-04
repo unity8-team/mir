@@ -9652,6 +9652,9 @@ Bool sna_accel_create(struct sna *sna)
 	if (!sna_gradients_create(sna))
 		return FALSE;
 
+	if (!sna_composite_create(sna))
+		return FALSE;
+
 	return TRUE;
 }
 
@@ -9663,8 +9666,9 @@ void sna_accel_close(struct sna *sna)
 		sna->freed_pixmap = NULL;
 	}
 
-	sna_glyphs_close(sna);
+	sna_composite_close(sna);
 	sna_gradients_close(sna);
+	sna_glyphs_close(sna);
 
 	DeleteCallback(&FlushCallback, sna_accel_flush_callback, sna);
 

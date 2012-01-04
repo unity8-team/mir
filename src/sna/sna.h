@@ -604,6 +604,9 @@ void sna_accel_free(struct sna *sna);
 Bool sna_accel_create(struct sna *sna);
 void sna_copy_fbcon(struct sna *sna);
 
+Bool sna_composite_create(struct sna *sna);
+void sna_composite_close(struct sna *sna);
+
 void sna_composite(CARD8 op,
 		   PicturePtr src,
 		   PicturePtr mask,
