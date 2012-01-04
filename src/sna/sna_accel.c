@@ -7008,6 +7008,58 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 }
 
 static bool
+sna_poly_fill_rect_stippled_nxm_blt(DrawablePtr drawable,
+				    struct kgem_bo *bo,
+				    struct sna_damage **damage,
+				    GCPtr gc, int n, xRectangle *r,
+				    const BoxRec *extents, unsigned clipped)
+{
+	PixmapPtr scratch, stipple;
+	uint8_t bytes[8], *dst = bytes;
+	const uint8_t *src, *end;
+	int j, stride;
+	bool ret;
+
+	DBG(("%s: expanding %dx%d stipple to 8x8\n",
+	     __FUNCTION__,
+	     gc->stipple->drawable.width,
+	     gc->stipple->drawable.height));
+
+	scratch = GetScratchPixmapHeader(drawable->pScreen,
+					 8, 8, 1, 1, 1, bytes);
+	if (scratch == NullPixmap)
+		return false;
+
+	stipple = gc->stipple;
+	gc->stipple = scratch;
+
+	stride = stipple->devKind;
+	src = stipple->devPrivate.ptr;
+	end = src + stride * stipple->drawable.height;
+	for(j = 0; j < 8; j++) {
+		switch (stipple->drawable.width) {
+		case 1: *dst = (*src & 1) * 0xff; break;
+		case 2: *dst = (*src & 3) * 0x55; break;
+		case 4: *dst = (*src & 15) * 0x11; break;
+		case 8: *dst = *src; break;
+		default: assert(0); break;
+		}
+		dst++;
+		src += stride;
+		if (src == end)
+			src = stipple->devPrivate.ptr;
+	}
+
+	ret = sna_poly_fill_rect_stippled_8x8_blt(drawable, bo, damage,
+						  gc, n, r, extents, clipped);
+
+	gc->stipple = stipple;
+	FreeScratchPixmapHeader(scratch);
+
+	return ret;
+}
+
+static bool
 sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 				  struct kgem_bo *bo,
 				  struct sna_damage **damage,
@@ -7685,8 +7737,15 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 	     extents->y2 - gc->patOrg.y - drawable->y,
 	     stipple->drawable.width, stipple->drawable.height));
 
-	if (stipple->drawable.width == 8 && stipple->drawable.height == 8)
+	if ((stipple->drawable.width | stipple->drawable.height) == 8)
 		return sna_poly_fill_rect_stippled_8x8_blt(drawable, bo, damage,
+							   gc, n, rect,
+							   extents, clipped);
+
+	if ((stipple->drawable.width | stipple->drawable.height) <= 0xc &&
+	    is_power_of_two(stipple->drawable.width) &&
+	    is_power_of_two(stipple->drawable.height))
+		return sna_poly_fill_rect_stippled_nxm_blt(drawable, bo, damage,
 							   gc, n, rect,
 							   extents, clipped);
 

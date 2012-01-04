@@ -703,4 +703,9 @@ memcpy_blt(const void *src, void *dst, int bpp,
 #define SNA_CREATE_FB 0x10
 #define SNA_CREATE_SCRATCH 0x11
 
+inline static bool is_power_of_two(unsigned x)
+{
+	return (x & (x-1)) == 0;
+}
+
 #endif /* _SNA_H */
