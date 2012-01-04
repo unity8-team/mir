@@ -7474,15 +7474,15 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 			bx2 = ox + (x2 - x1);
 			if (bx2 - bx1 > gc->stipple->drawable.width) {
 				bx2 = bx1 + gc->stipple->drawable.width;
-				x2 = x1 + (bx2 - bx1);
+				x2 = x1 + (bx1-ox) + gc->stipple->drawable.width;
 			}
-			bx2 = (bx2 + 7) &~7;
+			bx2 = (bx2 + 7) & ~7;
 			bw = (bx2 - bx1)/8;
 			bw = ALIGN(bw, 2);
 			bh = y2 - y1;
 
-			DBG(("%s: box(%d, %d), (%d, %d) pat=(%d, %d)\n",
-			     __FUNCTION__, x1, y1, x2, y2, ox, oy));
+			DBG(("%s: box(%d, %d), (%d, %d) pat=(%d, %d), up=(%d, %d)\n",
+			     __FUNCTION__, x1, y1, x2, y2, ox, oy, bx1, bx2));
 
 			len = bw*bh;
 			len = ALIGN(len, 8) / 4;
@@ -7494,8 +7494,7 @@ sna_poly_fill_rect_stippled_n_box(struct sna *sna,
 			}
 
 			b = sna->kgem.batch + sna->kgem.nbatch;
-			b[0] = XY_MONO_SRC_COPY_IMM | (5 + len) | br00;
-			b[0] |= (ox & 7) << 17;
+			b[0] = br00 | (5 + len) | (ox & 7) << 17;
 			b[1] = br13;
 			b[2] = y1 << 16 | x1;
 			b[3] = y2 << 16 | x2;
@@ -7541,10 +7540,11 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 	int16_t dx, dy;
 	uint32_t br00, br13;
 
-	DBG(("%s: upload (%d, %d), (%d, %d), origin (%d, %d)\n", __FUNCTION__,
+	DBG(("%s: upload (%d, %d), (%d, %d), origin (%d, %d), clipped=%d\n", __FUNCTION__,
 	     extents->x1, extents->y1,
 	     extents->x2, extents->y2,
-	     origin.x, origin.y));
+	     origin.x, origin.y,
+	     clipped));
 
 	if (gc->stipple->drawable.width > 32 ||
 	    gc->stipple->drawable.height > 32)
@@ -7553,7 +7553,7 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 
-	br00 = 3 << 20;
+	br00 = XY_MONO_SRC_COPY_IMM | 3 << 20;
 	br13 = bo->pitch;
 	if (sna->kgem.gen >= 40) {
 		if (bo->tiling)
