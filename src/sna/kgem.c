@@ -520,7 +520,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->max_batch_size = ARRAY_SIZE(kgem->batch);
 	if (gen == 22)
 		/* 865g cannot handle a batch spanning multiple pages */
-		kgem->max_batch_size = 4096;
+		kgem->max_batch_size = PAGE_SIZE / sizeof(uint32_t);
 
 	kgem->half_cpu_cache_pages = cpu_cache_size() >> 13;
 
