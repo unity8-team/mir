@@ -563,6 +563,11 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
 
+	if (wedged(sna))
+		return create_pixmap(sna, screen,
+				     width, height, depth,
+				     usage);
+
 	if (usage == CREATE_PIXMAP_USAGE_SCRATCH)
 #if USE_BO_FOR_SCRATCH_PIXMAP
 		return sna_pixmap_create_scratch(screen,
