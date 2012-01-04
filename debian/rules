@@ -29,3 +29,15 @@ override_dh_shlibdeps:
 
 %:
 	dh $@ --with quilt,autoreconf,xsf --builddirectory=build/
+
+# Snapshots should only target experimental:
+generate-snapshot: UPSTREAM_VERSION = $(shell echo $(SOURCE_VERSION) | sed 's/^[0-9]*://;s/-.*$$//')
+generate-snapshot: UPSTREAM_BRANCH ?= upstream-experimental
+generate-snapshot: ORIG             = ../$(SOURCE_NAME)_$(UPSTREAM_VERSION).orig.tar.gz
+generate-snapshot:
+	if [ -f $(ORIG) ]; then \
+	  echo "$(ORIG) already exists, stopping"; exit 1; \
+	fi
+	git archive --format=tar --prefix=$(SOURCE_NAME)-$(UPSTREAM_VERSION)/ $(UPSTREAM_BRANCH) \
+	  | gzip -9 > $(ORIG)
+	pristine-tar commit $(ORIG) $(UPSTREAM_BRANCH)

@@ -116,6 +116,7 @@ struct kgem {
 	uint16_t nexec;
 	uint16_t nreloc;
 	uint16_t nfence;
+	uint16_t max_batch_size;
 	uint16_t vma_count;
 
 	uint32_t flush:1;
@@ -146,7 +147,7 @@ struct kgem {
 #define KGEM_EXEC_RESERVED 1
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
-#define KGEM_BATCH_SIZE(K) (ARRAY_SIZE((K)->batch)-KGEM_BATCH_RESERVED)
+#define KGEM_BATCH_SIZE(K) ((K)->max_batch_size-KGEM_BATCH_RESERVED)
 #define KGEM_EXEC_SIZE(K) (int)(ARRAY_SIZE((K)->exec)-KGEM_EXEC_RESERVED)
 #define KGEM_RELOC_SIZE(K) (int)(ARRAY_SIZE((K)->reloc)-KGEM_RELOC_RESERVED)
 

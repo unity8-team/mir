@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.17.0+git20120104-1) experimental; urgency=low
+
+  * New upstream snapshot:
+    - Merge from upstream master up to 4119e68fb1.
+  * Implement a generate-snapshot rule to ease packaging snapshots.
+
+ -- Cyril Brulebois <kibi@debian.org>  Wed, 04 Jan 2012 22:19:19 +0100
+
 xserver-xorg-video-intel (2:2.17.0+git20120101-2) experimental; urgency=low
 
   * Build against Xserver 1.12 RC1 (Closes: #653914).

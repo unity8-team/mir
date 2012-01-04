@@ -433,7 +433,17 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling);
 
 #define MOVE_WRITE 0x1
 #define MOVE_READ 0x2
-bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
+bool must_check _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags);
+static inline bool must_check sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned flags)
+{
+	if (flags == MOVE_READ) {
+		struct sna_pixmap *priv = sna_pixmap(pixmap);
+		if (priv == NULL || priv->gpu_damage == NULL)
+			return true;
+	}
+
+	return _sna_pixmap_move_to_cpu(pixmap, flags);
+}
 bool must_check sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 						RegionPtr region,
 						unsigned flags);
@@ -594,6 +604,9 @@ void sna_accel_free(struct sna *sna);
 Bool sna_accel_create(struct sna *sna);
 void sna_copy_fbcon(struct sna *sna);
 
+Bool sna_composite_create(struct sna *sna);
+void sna_composite_close(struct sna *sna);
+
 void sna_composite(CARD8 op,
 		   PicturePtr src,
 		   PicturePtr mask,
@@ -689,5 +702,10 @@ memcpy_blt(const void *src, void *dst, int bpp,
 
 #define SNA_CREATE_FB 0x10
 #define SNA_CREATE_SCRATCH 0x11
+
+inline static bool is_power_of_two(unsigned x)
+{
+	return (x & (x-1)) == 0;
+}
 
 #endif /* _SNA_H */

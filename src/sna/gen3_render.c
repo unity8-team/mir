@@ -2150,25 +2150,24 @@ gen3_composite_picture(struct sna *sna,
 				    x, y, w, h, dst_x, dst_y);
 }
 
-static inline Bool
+static inline bool
 source_use_blt(struct sna *sna, PicturePtr picture)
 {
+	/* If it is a solid, try to use the BLT paths */
 	if (!picture->pDrawable)
-		return FALSE;
+		return picture->pSourcePict->type == SourcePictTypeSolidFill;
 
-	/* If it is a solid, try to use the render paths */
 	if (picture->pDrawable->width  == 1 &&
 	    picture->pDrawable->height == 1 &&
 	    picture->repeat)
-		return FALSE;
+		return true;
 
-	if (too_large(picture->pDrawable->width,
-		      picture->pDrawable->height))
-		return TRUE;
+	if (too_large(picture->pDrawable->width, picture->pDrawable->height))
+		return true;
 
 	/* If we can sample directly from user-space, do so */
 	if (sna->kgem.has_vmap)
-		return FALSE;
+		return false;
 
 	return is_cpu(picture->pDrawable);
 }
@@ -2272,10 +2271,10 @@ gen3_composite_set_target(struct sna *sna,
 	return TRUE;
 }
 
-static inline uint8_t mult(uint32_t s, uint32_t m, int shift)
+static inline uint8_t multa(uint32_t s, uint32_t m, int shift)
 {
 	s = (s >> shift) & 0xff;
-	m = (m >> shift) & 0xff;
+	m >>= 24;
 	return (s * m) >> 8;
 }
 
@@ -2292,7 +2291,6 @@ static inline bool is_constant_ps(uint32_t type)
 		return false;
 	}
 }
-
 
 static bool
 is_solid(PicturePtr picture)
@@ -2316,6 +2314,7 @@ source_fallback(PicturePtr p)
 
 static bool
 gen3_composite_fallback(struct sna *sna,
+			uint8_t op,
 			PicturePtr src,
 			PicturePtr mask,
 			PicturePtr dst)
@@ -2345,6 +2344,15 @@ gen3_composite_fallback(struct sna *sna,
 	}
 	if (mask_pixmap == dst_pixmap && source_fallback(mask)) {
 		DBG(("%s: mask is dst and will fallback\n",__FUNCTION__));
+		return TRUE;
+	}
+
+	if (mask &&
+	    mask->componentAlpha && PICT_FORMAT_RGB(mask->format) &&
+	    op != PictOpOver)
+	{
+		DBG(("%s: component-alpha mask with op=%d, should fallback\n",
+		     __FUNCTION__, op));
 		return TRUE;
 	}
 
@@ -2399,13 +2407,20 @@ reuse_source(struct sna *sna,
 	     PicturePtr src, struct sna_composite_channel *sc, int src_x, int src_y,
 	     PicturePtr mask, struct sna_composite_channel *mc, int msk_x, int msk_y)
 {
-	if (src->pDrawable == NULL || mask->pDrawable != src->pDrawable)
+	if (src_x != msk_x || src_y != msk_y)
+		return FALSE;
+
+	if (mask == src) {
+		*mc = *sc;
+		if (mc->bo)
+			kgem_bo_reference(mc->bo);
+		return TRUE;
+	}
+
+	if ((src->pDrawable == NULL || mask->pDrawable != src->pDrawable))
 		return FALSE;
 
 	DBG(("%s: mask reuses source drawable\n", __FUNCTION__));
-
-	if (src_x != msk_x || src_y != msk_y)
-		return FALSE;
 
 	if (!sna_transform_equal(src->transform, mask->transform))
 		return FALSE;
@@ -2427,7 +2442,8 @@ reuse_source(struct sna *sna,
 	mc->filter = gen3_filter(mask->filter);
 	mc->pict_format = mask->format;
 	gen3_composite_channel_set_format(mc, mask->format);
-	mc->bo = kgem_bo_reference(mc->bo);
+	if (mc->bo)
+		kgem_bo_reference(mc->bo);
 	return TRUE;
 }
 
@@ -2475,7 +2491,7 @@ gen3_render_composite(struct sna *sna,
 			      tmp))
 		return TRUE;
 
-	if (gen3_composite_fallback(sna, src, mask, dst))
+	if (gen3_composite_fallback(sna, op, src, mask, dst))
 		return FALSE;
 
 	if (need_tiling(sna, width, height))
@@ -2556,7 +2572,6 @@ gen3_render_composite(struct sna *sna,
 			}
 		}
 		DBG(("%s: mask type=%d\n", __FUNCTION__, tmp->mask.u.gen3.type));
-
 		if (tmp->mask.u.gen3.type == SHADER_ZERO) {
 			if (tmp->src.bo) {
 				kgem_bo_destroy(&sna->kgem,
@@ -2567,53 +2582,60 @@ gen3_render_composite(struct sna *sna,
 			tmp->mask.u.gen3.type = SHADER_NONE;
 		}
 
-		if (tmp->mask.u.gen3.type != SHADER_NONE &&
-		    mask->componentAlpha && PICT_FORMAT_RGB(mask->format)) {
-			/* Check if it's component alpha that relies on a source alpha
-			 * and on the source value.  We can only get one of those
-			 * into the single source value that we get to blend with.
-			 */
-			tmp->has_component_alpha = TRUE;
-			if (tmp->mask.u.gen3.type == SHADER_WHITE) {
-				tmp->mask.u.gen3.type = SHADER_NONE;
-				tmp->has_component_alpha = FALSE;
-			} else if (is_constant_ps(tmp->src.u.gen3.type) &&
-				   is_constant_ps(tmp->mask.u.gen3.type)) {
-				uint32_t a,r,g,b;
+		if (tmp->mask.u.gen3.type != SHADER_NONE) {
+			if (mask->componentAlpha && PICT_FORMAT_RGB(mask->format)) {
+				/* Check if it's component alpha that relies on a source alpha
+				 * and on the source value.  We can only get one of those
+				 * into the single source value that we get to blend with.
+				 */
+				DBG(("%s: component-alpha mask: %d\n",
+				     __FUNCTION__, tmp->mask.u.gen3.type));
+				tmp->has_component_alpha = TRUE;
+				if (tmp->mask.u.gen3.type == SHADER_WHITE) {
+					tmp->mask.u.gen3.type = SHADER_NONE;
+					tmp->has_component_alpha = FALSE;
+				} else if (gen3_blend_op[op].src_alpha &&
+					   (gen3_blend_op[op].src_blend != BLENDFACT_ZERO)) {
+					if (op != PictOpOver)
+						goto cleanup_mask;
 
-				a = mult(tmp->src.u.gen3.mode,
-					 tmp->mask.u.gen3.mode,
-					 24);
-				r = mult(tmp->src.u.gen3.mode,
-					 tmp->mask.u.gen3.mode,
-					 16);
-				g = mult(tmp->src.u.gen3.mode,
-					 tmp->mask.u.gen3.mode,
-					 8);
-				b = mult(tmp->src.u.gen3.mode,
-					 tmp->mask.u.gen3.mode,
-					 0);
+					tmp->need_magic_ca_pass = TRUE;
+					tmp->op = PictOpOutReverse;
+					sna->render.vertex_start = sna->render.vertex_index;
+				}
+			} else {
+				if (tmp->mask.is_opaque) {
+					tmp->mask.u.gen3.type = SHADER_NONE;
+					tmp->has_component_alpha = FALSE;
+				} else if (is_constant_ps(tmp->src.u.gen3.type) &&
+					   is_constant_ps(tmp->mask.u.gen3.type)) {
+					uint32_t a,r,g,b;
 
-				DBG(("%s: combining constant source/mask: %x x %x -> %x\n",
-				     __FUNCTION__,
-				     tmp->src.u.gen3.mode,
-				     tmp->mask.u.gen3.mode,
-				     a << 24 | r << 16 | g << 8 | b));
+					a = multa(tmp->src.u.gen3.mode,
+						  tmp->mask.u.gen3.mode,
+						  24);
+					r = multa(tmp->src.u.gen3.mode,
+						  tmp->mask.u.gen3.mode,
+						  16);
+					g = multa(tmp->src.u.gen3.mode,
+						  tmp->mask.u.gen3.mode,
+						  8);
+					b = multa(tmp->src.u.gen3.mode,
+						  tmp->mask.u.gen3.mode,
+						  0);
 
-				tmp->src.u.gen3.type = SHADER_CONSTANT;
-				tmp->src.u.gen3.mode =
-					a << 24 | r << 16 | g << 8 | b;
+					DBG(("%s: combining constant source/mask: %x x %x -> %x\n",
+					     __FUNCTION__,
+					     tmp->src.u.gen3.mode,
+					     tmp->mask.u.gen3.mode,
+					     a << 24 | r << 16 | g << 8 | b));
 
-				tmp->mask.u.gen3.type = SHADER_NONE;
-				tmp->has_component_alpha = FALSE;
-			} else if (gen3_blend_op[op].src_alpha &&
-				   (gen3_blend_op[op].src_blend != BLENDFACT_ZERO)) {
-				if (op != PictOpOver)
-					goto cleanup_mask;
+					tmp->src.u.gen3.type = SHADER_CONSTANT;
+					tmp->src.u.gen3.mode =
+						a << 24 | r << 16 | g << 8 | b;
 
-				tmp->need_magic_ca_pass = TRUE;
-				tmp->op = PictOpOutReverse;
-				sna->render.vertex_start = sna->render.vertex_index;
+					tmp->mask.u.gen3.type = SHADER_NONE;
+				}
 			}
 		}
 	}
@@ -3029,7 +3051,7 @@ gen3_render_composite_spans(struct sna *sna,
 		return FALSE;
 	}
 
-	if (gen3_composite_fallback(sna, src, NULL, dst))
+	if (gen3_composite_fallback(sna, op, src, NULL, dst))
 		return FALSE;
 
 	if (need_tiling(sna, width, height))

@@ -1,3 +1,372 @@
+commit 4119e68fb157fc612bce5e9c5669112ce35b4ca1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 19:35:30 2012 +0000
+
+    sna/damage: Fix reduction to copy the boxes correctly
+    
+    We need to be carefully to copy the boxes in a strict lifo order so as
+    to avoid overwritting the last boxes when reusing the array allocations.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 71b0924b586d9a60397e92e941e3d0cfa636ee61
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 19:34:41 2012 +0000
+
+    sna: Mark tiny CPU pixmaps as completely dirty
+    
+    Avoid the overhead of tracking damage on small pixmaps when using CPU
+    rasterisation; the extra cost of sending the whole pixmap compared to
+    the damage is negligble should it ever be required on the GPU.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fc14e63256a9b756c7c77ffe73f2f13784396c5a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 19:33:30 2012 +0000
+
+    sna: Only request page size allocations for the replacement buffer
+    
+    A precondition on bo creation is that the size must be page aligned.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 89739b711f42c3dbed7d3f4e6da0cdd61a5205ae
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 17:41:16 2012 +0000
+
+    sna: Expand small stipples into 8x8 patterns
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 878fbfe509da0a25dff8515d6d3b38ca3826466e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 16:56:55 2012 +0000
+
+    sna: Align tiled stipple uploads with the stipple pixmap correctly
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 28a222a66bb450c7f6d61aef16fe73332854c8ce
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 12:48:25 2012 +0000
+
+    sna: Always prefer to use cacheable operations after the GPU is wedged
+    
+    As rasterisation will be performed upon the CPU we need to avoid the
+    readbacks form uncached memory and so we should restrict ourselves to
+    only create further damage within the CPU pixmap.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 99ff83a3bebf1aa25c44a87f2c344307d20bc062
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 12:35:12 2012 +0000
+
+    sna: Prevent creation of bo purely for GTT mapping when wedged
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a7c35fa4c3155d10ad75ac33aefb03dafa010aba
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 12:33:09 2012 +0000
+
+    sna: Only allow mappable pixmaps to be mapped
+    
+    If we did not allocate the pixel data, such as for wedged pixmaps or
+    scratch buffers, then we cannot perform the pointer dance nor do we want
+    to create the GPU buffer.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2cbc97d28aae138566e49df05e16d274b533ea86
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 12:32:06 2012 +0000
+
+    sna: Force creation of ordinary pixmaps when wedged.
+    
+    If the pixmap was intended for scanout, then the GPU bo will be created
+    upon attachment to the fb.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f6cc73ba66f34d190b7c17421a62aa1256698431
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 12:56:31 2012 +0000
+
+    sna: The batch is counted in dwords, not bytes!
+    
+    Yikes, I choose the wrong units for the max_batch_size.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 227fbb90c4884bbc58c6c0cfff9663ec9ca54171
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 11:47:32 2012 +0000
+
+    sna: Carefully free the freed_pixmap upon exit
+    
+    As the contents of the pixmap are now rubbish, we need to manually
+    destroy it rather than pass it to the normal sna_pixmap_destroy()
+    routines.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0ed758cd2176ee4f34e03d05d05130d52d75e577
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 12:18:20 2012 +0000
+
+    sna: Limit batch to a single page on 865g
+    
+    Verified on real hw, this undocumented (at least in the bspec before me)
+    bug truly exists.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3449f1cbe184a618e662d2a662167f05362b82e5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 02:38:16 2012 +0000
+
+    sna: Guard against NULL damage deref
+    
+    The fast version of damage checking assumes that the damage has already
+    been determined to be non-NULL, so make sure it is.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 04a6260016fb5ebefc1056ed6acf5001ec535d5c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 01:14:19 2012 +0000
+
+    sna: Fix typo during partial list deletion
+    
+    And keep the asserts that lead to its discovery.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f1dc1eadd84097fc691e85c636535ceeeb601a18
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 4 00:09:30 2012 +0000
+
+    sna/gen3: Remove incorrect premultiplication of solid component-alpha mask
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8cb9b8d7d7a1eb62eb3b20e6a50d3f1c9bde40c1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 23:13:24 2012 +0000
+
+    sna: Discard mask and source for PictOpClear
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit feb75c55d6105a9ecc5f5ec7830276d1654918b9
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Sat Dec 31 21:18:15 2011 +0800
+
+    uxa/glamor: Route some missing drawing function to glamor
+    
+    We have to route all the drawing function to glamor first, when
+    glamor is enabled. This adds a few more functions that were previously
+    just falling back to swrast and passes them to glamor instead.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f4ea732d7181d4ef7f97fb2585e87cdcaef99d46
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Tue Dec 27 17:09:17 2011 +0800
+
+    uxa/glamor: Let glamor do the GC validation
+    
+    If we are using GLAMOR, then a tile pixmap or stipple pixmap
+    may be pure glamor pixmap and thus UXA will not know how to
+    render to them, and we need to let glamor do the validation.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e8aa9cedbfca09e22d46ec8882b9bebb3eb83022
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Tue Dec 27 17:09:16 2011 +0800
+
+    uxa/glamor: Remove extraneous flush
+    
+    When glamor is enabled, a pixmap will not be accessed by UXA's
+    accelerated functions. Only unaccelerated functions may access those
+    pixmaps, and before each unaccelerated rendering, it calls
+    uxa_prepare_access which will do a glFlush. Combined with a flush before
+    sending to DRI clients, we no longer need to flush after every
+    operation.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4ca94ed91fab7a9de5eed1053b891e8420cdf43d
+Author: Zhigang Gong <zhigang.gong@linux.intel.com>
+Date:   Tue Dec 27 17:09:15 2011 +0800
+
+    uxa/glamor: Remove dead code.
+    
+    Signed-off-by: Zhigang Gong <zhigang.gong@linux.intel.com>
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5576afc7d12ec0f028e416f4b4a076fc6d3c29d9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 16:48:52 2012 +0000
+
+    sna: Inline checks for over-sized buffers during pixmap creation
+    
+    Make the tests for acceptable GPU pixmaps explicit and upfront.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b2dc17678fa3a548be61e1055d4d321dbd6494c3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 15:50:21 2012 +0000
+
+    sna: Always search for an exact active match first from the bo-cache
+    
+    And accept second-best only if permitted by flags.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit caf41ae23d263c7baed6b23a80693690c4dfe563
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 15:11:13 2012 +0000
+
+    sna: Force tiling on medium pitches if not reduced for other reasons
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1b688ca0cfc1e623f896e60a6a6abf724d57efb4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 14:18:05 2012 +0000
+
+    sna: Delete the last buffer if destroyed without being used on the GPU
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4a68e7277104d7dccbdc4739eb5651902b9ccc20
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 12:19:24 2012 +0000
+
+    sna/gen3: Prefer to use the blitter for solid fills
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 199e357dc693cfe232464e4faa82d9223a8325d6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 12:16:48 2012 +0000
+
+    sna/trapezoids: Pass the sna pointer to the callees
+    
+    Avoid the repeated multiple indirect dereferences.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit bd7aa1754dcf9d58d7deb92d99da9b78c91a0eb2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 12:46:40 2012 +0000
+
+    sna: Avoid unnecessary call overhead for read-only move-to-cpu
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 294c8791c435acf5933109fbcab85623a55b2c6c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 12:09:51 2012 +0000
+
+    sna: Use a cheaper no-reduction damage check for simply discarding further damage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7ff42e9c83cdb17660a64901497704b38032af8c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 19:15:07 2012 +0000
+
+    sna/damage: Mark the box as packed so that the embedded_box is aligned correctly
+    
+    valgrind was complaining about an overlapping memcpy on a 64-bit
+    platform as gcc padded the sna_damage_box to 28 bytes...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4652a20de5fee0d5d1a8baadc4a93b6a93525564
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 3 21:20:09 2012 +0000
+
+    sna/gen3: Check for a non-NULL bo before incrementing its ref in reuse_source()
+    
+    For gen3, we may reduce a source into a constant operator and so
+    dispense with keeping a bo. When duplicated into the mask channel, we
+    then need to be careful not to dereference the NULL pointer.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 777fcc9b11e8cbfe942aa6bf898749f552acb3cf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 1 16:03:42 2012 +0000
+
+    sna: Prefer not to force the creation of gpu bo for pixmap uploads
+    
+    As this causes a significant regression when benchmarking firefox on SNB
+    with firefox-planet-gnome if we already have CPU buffers.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1a6c16a24cb74f82df9757c034c50f2cf141523f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 1 14:32:48 2012 +0000
+
+    sna: Keep a freelist of buffers
+    
+    As reallocation of bo is the most frequent cause of malloc/free.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f008a2a90c632d843f07846426f6d14af728c13b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 1 10:24:49 2012 +0000
+
+    sna: Tune blt routine
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b57c7248acc2ad6a51b7eac74449d155defc998f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 1 14:10:20 2012 +0000
+
+    sna: Delete some redundant code
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 83d16455b70e2f0348e51f95128d4fcae3736e7f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 1 13:58:44 2012 +0000
+
+    sna: Eliminate one union pass when reducing damage-add
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2f5b769e7144c7b85010429e6d8aebf9c9fc1628
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 1 10:00:37 2012 +0000
+
+    sna: Move some checks against programming errors to asserts
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 24bf59c43fbedd9d85c913ac3c7f0e752c232eb4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Dec 31 18:57:57 2011 +0000
+
+    Revert "sna: Increase the minimum alignment constraint for g33"
+    
+    This reverts commit 2934e778f01cdf1307732b248b11a31c0e79e866. The actual
+    cause of the bug I was seeing on my PNV box turned out to be
+    a1f585a3d0a, so time to reinvestigate the alignment issues.
+
 commit 770a953ff03bb8328c3f29e274d225528840f30c
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Sat Dec 31 17:19:08 2011 +0000
