@@ -9664,7 +9664,8 @@ void sna_accel_close(struct sna *sna)
 {
 	if (sna->freed_pixmap) {
 		assert(sna->freed_pixmap->refcnt == 1);
-		sna_destroy_pixmap(sna->freed_pixmap);
+		free(sna_pixmap(sna->freed_pixmap));
+		fbDestroyPixmap(sna->freed_pixmap);
 		sna->freed_pixmap = NULL;
 	}
 
