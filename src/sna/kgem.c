@@ -3131,6 +3131,7 @@ kgem_replace_bo(struct kgem *kgem,
 	assert(src->tiling == I915_TILING_NONE);
 
 	size = height * pitch;
+	size = ALIGN(size, PAGE_SIZE);
 
 	dst = search_linear_cache(kgem, size, 0);
 	if (dst == NULL)
