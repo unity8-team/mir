@@ -517,6 +517,11 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	kgem->wedged = drmCommandNone(kgem->fd, DRM_I915_GEM_THROTTLE) == -EIO;
 	kgem->wedged |= DBG_NO_HW;
 
+	kgem->max_batch_size = ARRAY_SIZE(kgem->batch);
+	if (gen == 22)
+		/* 865g cannot handle a batch spanning multiple pages */
+		kgem->max_batch_size = 4096;
+
 	kgem->half_cpu_cache_pages = cpu_cache_size() >> 13;
 
 	list_init(&kgem->partial);
@@ -1121,7 +1126,7 @@ static int kgem_batch_write(struct kgem *kgem, uint32_t handle, uint32_t size)
 	assert(!kgem_busy(kgem, handle));
 
 	/* If there is no surface data, just upload the batch */
-	if (kgem->surface == ARRAY_SIZE(kgem->batch))
+	if (kgem->surface == kgem->max_batch_size)
 		return gem_write(kgem->fd, handle,
 				 0, sizeof(uint32_t)*kgem->nbatch,
 				 kgem->batch);
@@ -1184,7 +1189,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->aperture = 0;
 	kgem->aperture_fenced = 0;
 	kgem->nbatch = 0;
-	kgem->surface = ARRAY_SIZE(kgem->batch);
+	kgem->surface = kgem->max_batch_size;
 	kgem->mode = KGEM_NONE;
 	kgem->flush = 0;
 
@@ -1198,7 +1203,7 @@ static int compact_batch_surface(struct kgem *kgem)
 	int size, shrink, n;
 
 	/* See if we can pack the contents into one or two pages */
-	size = ARRAY_SIZE(kgem->batch) - kgem->surface + kgem->nbatch;
+	size = kgem->max_batch_size - kgem->surface + kgem->nbatch;
 	if (size > 2048)
 		return sizeof(kgem->batch);
 	else if (size > 1024)
@@ -1237,7 +1242,7 @@ void _kgem_submit(struct kgem *kgem)
 	     kgem->mode, kgem->ring, batch_end, kgem->nbatch, kgem->surface,
 	     kgem->nreloc, kgem->nexec, kgem->nfence, kgem->aperture));
 
-	assert(kgem->nbatch <= ARRAY_SIZE(kgem->batch));
+	assert(kgem->nbatch <= kgem->max_batch_size);
 	assert(kgem->nbatch <= kgem->surface);
 	assert(kgem->nreloc <= ARRAY_SIZE(kgem->reloc));
 	assert(kgem->nexec < ARRAY_SIZE(kgem->exec));
@@ -1247,7 +1252,7 @@ void _kgem_submit(struct kgem *kgem)
 #endif
 
 	rq = kgem->next_request;
-	if (kgem->surface != ARRAY_SIZE(kgem->batch))
+	if (kgem->surface != kgem->max_batch_size)
 		size = compact_batch_surface(kgem);
 	else
 		size = kgem->nbatch * sizeof(kgem->batch[0]);

@@ -47,7 +47,7 @@ static inline float pack_2s(int16_t x, int16_t y)
 
 static inline int batch_space(struct sna *sna)
 {
-	return KGEM_BATCH_SIZE(&sna->kgem) - sna->kgem.nbatch;
+	return sna->kgem.surface - sna->kgem.nbatch - KGEM_BATCH_RESERVED;
 }
 
 static inline void batch_emit(struct sna *sna, uint32_t dword)
