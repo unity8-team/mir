@@ -853,6 +853,9 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);;
 
+	if (wedged(sna))
+		return false;
+
 	assert(priv->gpu_bo == NULL);
 	priv->gpu_bo =
 		kgem_create_2d(&sna->kgem,
