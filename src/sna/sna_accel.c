@@ -1296,7 +1296,9 @@ _sna_drawable_use_cpu_bo(DrawablePtr drawable,
 
 done:
 	*damage = &priv->cpu_damage;
-	if (sna_damage_contains_box__no_reduce(priv->cpu_damage, &extents))
+	if (priv->cpu_damage &&
+	    (priv->cpu_damage->mode == DAMAGE_ALL ||
+	     sna_damage_contains_box__no_reduce(priv->cpu_damage, &extents)))
 		*damage = NULL;
 
 	return TRUE;
