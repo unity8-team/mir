@@ -111,6 +111,33 @@ struct kgem_partial_bo {
 static struct kgem_bo *__kgem_freed_bo;
 static struct drm_i915_gem_exec_object2 _kgem_dummy_exec;
 
+#ifndef NDEBUG
+static bool validate_partials(struct kgem *kgem)
+{
+	struct kgem_partial_bo *bo, *next;
+
+	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
+		if (bo->base.list.next == &kgem->partial)
+			return true;
+		if (bo->alloc - bo->used < next->alloc - next->used) {
+			ErrorF("this rem: %d, next rem: %d\n",
+			       bo->alloc - bo->used,
+			       next->alloc - next->used);
+			goto err;
+		}
+	}
+	return true;
+
+err:
+	list_for_each_entry(bo, &kgem->partial, base.list)
+		ErrorF("bo: used=%d / %d, rem=%d\n",
+		       bo->used, bo->alloc, bo->alloc - bo->used);
+	return false;
+}
+#else
+#define validate_partials(kgem) 1
+#endif
+
 static void kgem_sna_reset(struct kgem *kgem)
 {
 	struct sna *sna = container_of(kgem, struct sna, kgem);
@@ -2141,12 +2168,13 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 		while (io->base.list.prev != &kgem->partial) {
 			struct kgem_partial_bo *p;
 
-			p = list_entry(&io->base.list.prev,
+			p = list_entry(io->base.list.prev,
 				       struct kgem_partial_bo,
 				       base.list);
-			if (remain < p->alloc - p->used)
+			if (remain <= p->alloc - p->used)
 				break;
 
+			assert(p->base.list.next == &io->base.list);
 			io->base.list.prev = p->base.list.prev;
 			p->base.list.prev->next = &io->base.list;
 			p->base.list.prev = &io->base.list;
@@ -2154,8 +2182,13 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 			p->base.list.next = io->base.list.next;
 			io->base.list.next->prev = &p->base.list;
 			io->base.list.next = &p->base.list;
+
+			assert(p->base.list.next->prev == &p->base.list);
+			assert(io->base.list.prev->next == &io->base.list);
 		}
 	}
+
+	assert(validate_partials(kgem));
 }
 
 void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
@@ -2711,31 +2744,6 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	bo->delta = offset;
 	return bo;
 }
-
-#ifndef NDEBUG
-static bool validate_partials(struct kgem *kgem)
-{
-	struct kgem_partial_bo *bo, *next;
-
-	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
-		if (bo->base.list.next == &kgem->partial)
-			return true;
-		if (bo->alloc - bo->used < next->alloc - next->used) {
-			ErrorF("this rem: %d, next rem: %d\n",
-			       bo->alloc - bo->used,
-			       next->alloc - next->used);
-			goto err;
-		}
-	}
-	return true;
-
-err:
-	list_for_each_entry(bo, &kgem->partial, base.list)
-		ErrorF("bo: used=%d / %d, rem=%d\n",
-		       bo->used, bo->alloc, bo->alloc - bo->used);
-	return false;
-}
-#endif
 
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
