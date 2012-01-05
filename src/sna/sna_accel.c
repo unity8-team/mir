@@ -1901,6 +1901,14 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			sna_damage_add(&priv->gpu_damage, region);
 		}
 
+		/* And mark as having a valid GTT mapping for future uploads */
+		pixmap->devPrivate.ptr =
+			kgem_bo_map(&sna->kgem, priv->gpu_bo, PROT_WRITE);
+		if (pixmap->devPrivate.ptr) {
+			priv->mapped = 1;
+			pixmap->devKind = priv->gpu_bo->pitch;
+		}
+
 		return true;
 	}
 
