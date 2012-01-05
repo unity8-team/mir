@@ -9499,7 +9499,7 @@ static bool sna_accel_flush(struct sna *sna)
 	sna->kgem.busy = !nothing_to_do;
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 	sna->kgem.flush_now = 0;
-	return need_throttle && !sna->kgem.busy;
+	return need_throttle;
 }
 
 static void sna_accel_expire(struct sna *sna)
