@@ -2157,7 +2157,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	struct sna_damage **damage;
-	struct kgem_bo *bo = priv->gpu_bo;
+	struct kgem_bo *bo;
 	int16_t dx, dy;
 	unsigned i, skip;
 
@@ -2169,6 +2169,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 				     &damage))
 		return false;
 
+	bo = priv->gpu_bo;
 	if (bo->tiling == I915_TILING_Y) {
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
@@ -8977,14 +8978,14 @@ sna_push_pixels_solid_blt(GCPtr gc,
 	int n;
 	uint8_t rop = copy_ROP[gc->alu];
 
+	if (!sna_drawable_use_gpu_bo(drawable, &region->extents, &damage))
+		return false;
+
 	if (priv->gpu_bo->tiling == I915_TILING_Y) {
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
 		if (!sna_pixmap_change_tiling(pixmap, I915_TILING_X))
 			return false;
 	}
-
-	if (!sna_drawable_use_gpu_bo(drawable, &region->extents, &damage))
-		return false;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	RegionTranslate(region, dx, dy);
