@@ -1552,7 +1552,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 
 	if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 		int for_cpu = !!(flags & CREATE_CPU_MAP);
-		assert(use_active == false);
+		assert(for_cpu || use_active == false);
 		list_for_each_entry(bo, &kgem->vma_inactive, vma) {
 			if (IS_CPU_MAP(bo->map) != for_cpu)
 				continue;
