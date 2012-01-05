@@ -5895,12 +5895,12 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
     if (pRADEONEnt->HasCRTC2 && !info->IsSecondary) {
 	if (info->crtc2_on && xf86_config->num_crtc > 1) {
 	    crtc = xf86_config->crtc[1];
-	    crtc->funcs->dpms(crtc, DPMSModeOn);
+	    radeon_do_crtc_dpms(crtc, DPMSModeOn);
 	}
     }
     if (info->crtc_on) {
 	crtc = xf86_config->crtc[0];
-	crtc->funcs->dpms(crtc, DPMSModeOn);
+	radeon_do_crtc_dpms(crtc, DPMSModeOn);
     }
 
 #ifdef WITH_VGAHW

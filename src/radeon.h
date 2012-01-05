@@ -1147,6 +1147,7 @@ extern void RADEONWaitForVLineMMIO(ScrnInfoPtr pScrn, PixmapPtr pPix,
 
 /* radeon_crtc.c */
 extern void radeon_crtc_dpms(xf86CrtcPtr crtc, int mode);
+extern void radeon_do_crtc_dpms(xf86CrtcPtr crtc, int mode);
 extern void radeon_crtc_load_lut(xf86CrtcPtr crtc);
 extern void radeon_crtc_modeset_ioctl(xf86CrtcPtr crtc, Bool post);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask);
