@@ -3213,7 +3213,8 @@ tor_blt_add_clipped_mono(struct sna *sna,
 static bool
 trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		       PictFormatPtr maskFormat, INT16 src_x, INT16 src_y,
-		       int ntrap, xTrapezoid *traps)
+		       int ntrap, xTrapezoid *traps,
+		       bool fallback)
 {
 	struct tor tor;
 	struct inplace inplace;
@@ -3246,9 +3247,11 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 
 	switch (op) {
-	case PictOpSrc:
 	case PictOpIn:
 	case PictOpAdd:
+		if (!fallback && is_gpu(dst->pDrawable))
+			return false;
+	case PictOpSrc:
 		break;
 	default:
 		DBG(("%s: fallback -- can not perform op [%d] in place\n",
@@ -3265,7 +3268,8 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		do {
 			/* XXX unwind errors? */
 			if (!trapezoid_span_inplace(op, src, dst, NULL,
-						    src_x, src_y, 1, traps++))
+						    src_x, src_y, 1, traps++,
+						    fallback))
 				return false;
 		} while (--ntrap);
 		return true;
@@ -3355,7 +3359,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	region.data = NULL;
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
-					     MOVE_WRITE))
+					     op == PictOpSrc ? MOVE_WRITE : MOVE_WRITE | MOVE_READ))
 		return true;
 
 	pixmap = get_drawable_pixmap(dst->pDrawable);
@@ -3622,13 +3626,19 @@ sna_composite_trapezoids(CARD8 op,
 				     xSrc, ySrc, ntrap, traps))
 		return;
 
+	if (trapezoid_span_inplace(op, src, dst, maskFormat,
+				   xSrc, ySrc, ntrap, traps,
+				   false))
+		return;
+
 	if (trapezoid_mask_converter(op, src, dst, maskFormat,
 				     xSrc, ySrc, ntrap, traps))
 		return;
 
 fallback:
 	if (trapezoid_span_inplace(op, src, dst, maskFormat,
-				   xSrc, ySrc, ntrap, traps))
+				   xSrc, ySrc, ntrap, traps,
+				   true))
 		return;
 
 	if (trapezoid_span_fallback(op, src, dst, maskFormat,
