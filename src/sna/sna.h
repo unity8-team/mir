@@ -572,6 +572,9 @@ static inline struct kgem_bo *pixmap_vmap(struct kgem *kgem, PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
 
+	if (!kgem->has_vmap)
+		return NULL;
+
 	if (unlikely(kgem->wedged))
 		return NULL;
 
