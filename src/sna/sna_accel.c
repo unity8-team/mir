@@ -760,7 +760,7 @@ skip_inplace_map:
 
 			dst_bo = NULL;
 			if (sna->kgem.gen >= 30)
-				dst_bo = pixmap_vmap(&sna->kgem, pixmap);
+				dst_bo = priv->cpu_bo;
 			if (dst_bo)
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->gpu_bo, 0, 0,
@@ -1056,7 +1056,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 				dst_bo = NULL;
 				if (sna->kgem.gen >= 30)
-					dst_bo = pixmap_vmap(&sna->kgem, pixmap);
+					dst_bo = priv->cpu_bo;
 				if (dst_bo)
 					ok = sna->render.copy_boxes(sna, GXcopy,
 								    pixmap, priv->gpu_bo, 0, 0,
@@ -1148,7 +1148,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 		Bool ok = FALSE;
 
 		box = REGION_RECTS(&i);
-		src_bo = pixmap_vmap(&sna->kgem, pixmap);
+		src_bo = priv->cpu_bo;
 		if (src_bo)
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, src_bo, 0, 0,
@@ -1508,7 +1508,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 		struct kgem_bo *src_bo;
 		Bool ok = FALSE;
 
-		src_bo = pixmap_vmap(&sna->kgem, pixmap);
+		src_bo = priv->cpu_bo;
 		if (src_bo)
 			ok = sna->render.copy_boxes(sna, GXcopy,
 						    pixmap, src_bo, 0, 0,
@@ -9511,7 +9511,7 @@ sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 
 			dst_bo = NULL;
 			if (sna->kgem.gen >= 30)
-				dst_bo = pixmap_vmap(&sna->kgem, pixmap);
+				dst_bo = priv->cpu_bo;
 			if (dst_bo)
 				ok = sna->render.copy_boxes(sna, GXcopy,
 							    pixmap, priv->gpu_bo, 0, 0,
