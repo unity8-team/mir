@@ -441,11 +441,25 @@ sna_render_pixmap_bo(struct sna *sna,
 		     int16_t w, int16_t h,
 		     int16_t dst_x, int16_t dst_y)
 {
-	struct kgem_bo *bo = NULL;
+	struct kgem_bo *bo;
 	struct sna_pixmap *priv;
 	BoxRec box;
 
-	DBG(("%s (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w,h));
+	DBG(("%s (%d, %d)x(%d, %d)/(%d, %d)\n", __FUNCTION__,
+	     x, y, w,h, pixmap->drawable.height, pixmap->drawable.width));
+
+	channel->height = pixmap->drawable.height;
+	channel->width  = pixmap->drawable.width;
+	channel->scale[0] = 1.f / pixmap->drawable.width;
+	channel->scale[1] = 1.f / pixmap->drawable.height;
+	channel->offset[0] = x - dst_x;
+	channel->offset[1] = y - dst_y;
+
+	priv = sna_pixmap(pixmap);
+	if (priv && priv->gpu_damage && priv->gpu_damage->mode == DAMAGE_ALL) {
+		channel->bo = kgem_bo_reference(priv->gpu_bo);
+		return 1;
+	}
 
 	/* XXX handle transformed repeat */
 	if (w == 0 || h == 0 || channel->transform) {
@@ -489,13 +503,6 @@ sna_render_pixmap_bo(struct sna *sna,
 		     __FUNCTION__));
 		return 0;
 	}
-
-	channel->height = pixmap->drawable.height;
-	channel->width  = pixmap->drawable.width;
-	channel->scale[0] = 1.f / pixmap->drawable.width;
-	channel->scale[1] = 1.f / pixmap->drawable.height;
-	channel->offset[0] = x - dst_x;
-	channel->offset[1] = y - dst_y;
 
 	DBG(("%s: offset=(%d, %d), size=(%d, %d)\n",
 	     __FUNCTION__,
