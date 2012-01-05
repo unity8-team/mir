@@ -318,7 +318,7 @@ void sna_write_boxes(struct sna *sna,
 
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
-	if (DEBUG_NO_IO || kgem->wedged || dst_bo->tiling == I915_TILING_Y ||
+	if (DEBUG_NO_IO || kgem->wedged ||
 	    !kgem_bo_map_will_stall(kgem, dst_bo)) {
 fallback:
 		write_boxes_inplace(kgem,
@@ -329,7 +329,7 @@ fallback:
 	}
 
 	/* Try to avoid switching rings... */
-	if (kgem->ring == KGEM_RENDER) {
+	if (dst_bo->tiling == I915_TILING_Y || kgem->ring == KGEM_RENDER) {
 		PixmapRec tmp;
 		BoxRec extents;
 
