@@ -1072,6 +1072,7 @@ extern void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 extern void RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
 extern void RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void radeon_save_palette_on_demand(ScrnInfoPtr pScrn, int palID);
 
 extern void RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn, radeon_tvdac_ptr tvdac);
 extern void RADEONGetTMDSInfoFromTable(ScrnInfoPtr pScrn, radeon_tmds_ptr tmds);

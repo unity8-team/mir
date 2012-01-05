@@ -663,8 +663,8 @@ typedef struct {
 
 				/* Pallet */
     Bool              palette_valid;
-    uint32_t          palette[256];
-    uint32_t          palette2[256];
+    Bool	      palette_saved[2];
+    uint32_t          palette[2][256];
 
     uint32_t          disp2_req_cntl1;
     uint32_t          disp2_req_cntl2;

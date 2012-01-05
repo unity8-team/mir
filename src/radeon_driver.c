@@ -4477,22 +4477,17 @@ static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 }
 
 /* Read palette data */
-static void RADEONSavePalette(ScrnInfoPtr pScrn, RADEONSavePtr save)
+static void RADEONSavePalette(ScrnInfoPtr pScrn, int palID, RADEONSavePtr save)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     int            i;
 
-    PAL_SELECT(1);
+    PAL_SELECT(palID);
     INPAL_START(0);
-    for (i = 0; i < 256; i++) {
-	save->palette2[i] = INREG(RADEON_PALETTE_30_DATA);
-    }
 
-    PAL_SELECT(0);
-    INPAL_START(0);
     for (i = 0; i < 256; i++) {
-	save->palette[i] = INREG(RADEON_PALETTE_30_DATA);
+	save->palette[palID][i] = INREG(RADEON_PALETTE_30_DATA);
     }
 }
 
@@ -4502,16 +4497,21 @@ static void RADEONRestorePalette(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     unsigned char *RADEONMMIO = info->MMIO;
     int            i;
 
-    PAL_SELECT(1);
-    OUTPAL_START(0);
-    for (i = 0; i < 256; i++) {
-	OUTREG(RADEON_PALETTE_30_DATA, restore->palette2[i]);
+    if (restore->palette_saved[1]) {
+	ErrorF("Restore Palette 2\n");
+	PAL_SELECT(1);
+	OUTPAL_START(0);
+	for (i = 0; i < 256; i++) {
+	    OUTREG(RADEON_PALETTE_30_DATA, restore->palette[1][i]);
+	}
     }
-
-    PAL_SELECT(0);
-    OUTPAL_START(0);
-    for (i = 0; i < 256; i++) {
-	OUTREG(RADEON_PALETTE_30_DATA, restore->palette[i]);
+    if (restore->palette_saved[0]) {
+	ErrorF("Restore Palette 1\n");
+	PAL_SELECT(0);
+	OUTPAL_START(0);
+	for (i = 0; i < 256; i++) {
+	    OUTREG(RADEON_PALETTE_30_DATA, restore->palette[0][i]);
+	}
     }
 }
 
@@ -5737,6 +5737,20 @@ RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     }
 }
 
+void radeon_save_palette_on_demand(ScrnInfoPtr pScrn, int palID)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONSavePtr  save       = info->SavedReg;
+
+    if (save->palette_saved[palID] == TRUE)
+        return;
+
+    if (!IS_AVIVO_VARIANT)
+        RADEONSavePalette(pScrn, palID, save);
+
+    save->palette_saved[palID] = TRUE;
+}
+
 /* Save everything needed to restore the original VC state */
 static void RADEONSave(ScrnInfoPtr pScrn)
 {
@@ -5760,12 +5774,9 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	 * setup in the card at all !!
 	 */
 	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE); /* Save mode only */
-# elif defined(__linux__)
+# else
 	/* Save only mode * & fonts */	
 	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
-# else
-	/* Save mode * & fonts & cmap */
-	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_ALL);
 # endif
 	vgaHWLock(hwp);
     }
@@ -5790,7 +5801,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	RADEONSaveCrtcRegisters(pScrn, save);
 	RADEONSaveFPRegisters(pScrn, save);
 	RADEONSaveDACRegisters(pScrn, save);
-	RADEONSavePalette(pScrn, save);
+	/* Palette saving is done on demand now */
 
 	if (pRADEONEnt->HasCRTC2) {
 	    RADEONSaveCrtc2Registers(pScrn, save);
@@ -5844,6 +5855,7 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 	    RADEONRestoreMemMapRegisters(pScrn, restore);
 	    RADEONRestoreCommonRegisters(pScrn, restore);
 
+	    RADEONRestorePalette(pScrn, restore);
 	    if (pRADEONEnt->HasCRTC2) {
 		RADEONRestoreCrtc2Registers(pScrn, restore);
 		RADEONRestorePLL2Registers(pScrn, restore);
@@ -5900,10 +5912,8 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 	* write VGA fonts, will find a better solution in the future
 	*/
        vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE );
-# elif defined(__linux__)
-       vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
 # else 
-       vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_ALL );
+       vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
 # endif
        vgaHWLock(hwp);
     }
@@ -5917,7 +5927,6 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
     else if (IS_AVIVO_VARIANT)
 	avivo_restore_vga_regs(pScrn, restore);
     else {
-	RADEONRestorePalette(pScrn, restore);
 	RADEONRestoreDACRegisters(pScrn, restore);
     }
 #if 0

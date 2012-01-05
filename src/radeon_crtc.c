@@ -510,6 +510,8 @@ radeon_crtc_load_lut(xf86CrtcPtr crtc)
     if (!crtc->enabled)
 	return;
 
+    radeon_save_palette_on_demand(pScrn, radeon_crtc->crtc_id);
+
     if (IS_DCE4_VARIANT) {
 	OUTREG(EVERGREEN_DC_LUT_CONTROL + radeon_crtc->crtc_offset, 0);
 
