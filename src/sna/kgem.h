@@ -75,6 +75,7 @@ struct kgem_bo {
 	uint32_t vmap : 1;
 	uint32_t io : 1;
 	uint32_t flush : 1;
+	uint32_t scanout : 1;
 	uint32_t sync : 1;
 	uint32_t purged : 1;
 };
@@ -124,6 +125,7 @@ struct kgem {
 	uint32_t need_expire:1;
 	uint32_t need_purge:1;
 	uint32_t need_retire:1;
+	uint32_t scanout:1;
 	uint32_t flush_now:1;
 	uint32_t busy:1;
 

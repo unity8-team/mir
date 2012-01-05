@@ -725,6 +725,7 @@ void _kgem_add_bo(struct kgem *kgem, struct kgem_bo *bo)
 	/* XXX is it worth working around gcc here? */
 	kgem->flush |= bo->flush;
 	kgem->sync |= bo->sync;
+	kgem->scanout |= bo->scanout;
 }
 
 static uint32_t kgem_end_batch(struct kgem *kgem)
@@ -840,7 +841,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	assert(bo->vmap == false && bo->sync == false);
-	bo->flush = false;
+	bo->scanout = bo->flush = false;
 
 	if (bo->rq) {
 		DBG(("%s: handle=%d -> active\n", __FUNCTION__, bo->handle));
@@ -1192,6 +1193,7 @@ void kgem_reset(struct kgem *kgem)
 	kgem->surface = kgem->max_batch_size;
 	kgem->mode = KGEM_NONE;
 	kgem->flush = 0;
+	kgem->scanout = 0;
 
 	kgem->next_request = __kgem_request_alloc();
 
@@ -1388,8 +1390,8 @@ void _kgem_submit(struct kgem *kgem)
 	if (kgem->wedged)
 		kgem_cleanup(kgem);
 
+	kgem->flush_now = kgem->scanout;
 	kgem_reset(kgem);
-	kgem->flush_now = 1;
 
 	assert(kgem->next_request != NULL);
 }
