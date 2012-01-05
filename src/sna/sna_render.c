@@ -505,7 +505,6 @@ sna_render_pixmap_bo(struct sna *sna,
 		 */
 		if (pixmap->usage_hint != CREATE_PIXMAP_USAGE_SCRATCH_HEADER &&
 		    w * pixmap->drawable.bitsPerPixel * h > 8*4096) {
-			priv = sna_pixmap_attach(pixmap);
 			bo = pixmap_vmap(&sna->kgem, pixmap);
 			if (bo)
 				bo = kgem_bo_reference(bo);

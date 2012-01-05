@@ -410,8 +410,8 @@ _sna_pixmap_reset(PixmapPtr pixmap)
 	return _sna_pixmap_init(priv, pixmap);
 }
 
-static struct sna_pixmap *_sna_pixmap_attach(struct sna *sna,
-					     PixmapPtr pixmap)
+static struct sna_pixmap *__sna_pixmap_attach(struct sna *sna,
+					      PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
 
@@ -423,16 +423,18 @@ static struct sna_pixmap *_sna_pixmap_attach(struct sna *sna,
 	return _sna_pixmap_init(priv, pixmap);
 }
 
-struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
+struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
 {
-	struct sna *sna;
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
 
-	priv = sna_pixmap(pixmap);
-	if (priv)
-		return priv;
+	DBG(("%s: serial=%ld, %dx%d, usage=%d\n",
+	     __FUNCTION__,
+	     pixmap->drawable.serialNumber,
+	     pixmap->drawable.width,
+	     pixmap->drawable.height,
+	     pixmap->usage_hint));
 
-	sna = to_sna_from_pixmap(pixmap);
 	switch (pixmap->usage_hint) {
 	case CREATE_PIXMAP_USAGE_GLYPH_PICTURE:
 #if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
@@ -454,7 +456,17 @@ struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
 		break;
 	}
 
-	return _sna_pixmap_attach(sna, pixmap);
+	priv = __sna_pixmap_attach(sna, pixmap);
+	if (priv == NULL)
+		return NULL;
+
+	DBG(("%s: created priv and marking all cpu damaged\n", __FUNCTION__));
+
+	sna_damage_all(&priv->cpu_damage,
+		       pixmap->drawable.width,
+		       pixmap->drawable.height);
+
+	return priv;
 }
 
 static inline PixmapPtr
@@ -467,6 +479,13 @@ create_pixmap(struct sna *sna, ScreenPtr screen,
 	pixmap = fbCreatePixmap(screen, width, height, depth, usage);
 	if (pixmap == NullPixmap)
 		return NullPixmap;
+
+	DBG(("%s: serial=%ld, usage=%d, %dx%d\n",
+	     __FUNCTION__,
+	     pixmap->drawable.serialNumber,
+	     pixmap->usage_hint,
+	     pixmap->drawable.width,
+	     pixmap->drawable.height));
 
 	assert(sna_private_index.offset == 0);
 	dixSetPrivate(&pixmap->devPrivates, &sna_private_index, sna);
@@ -518,6 +537,13 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		pixmap->drawable.bitsPerPixel = bpp;
 		pixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
 
+		DBG(("%s: serial=%ld, usage=%d, %dx%d\n",
+		     __FUNCTION__,
+		     pixmap->drawable.serialNumber,
+		     pixmap->usage_hint,
+		     pixmap->drawable.width,
+		     pixmap->drawable.height));
+
 		priv = _sna_pixmap_reset(pixmap);
 	} else {
 		pixmap = create_pixmap(sna, screen, 0, 0, depth,
@@ -530,7 +556,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		pixmap->drawable.depth = depth;
 		pixmap->drawable.bitsPerPixel = bpp;
 
-		priv = _sna_pixmap_attach(sna, pixmap);
+		priv = __sna_pixmap_attach(sna, pixmap);
 		if (!priv) {
 			fbDestroyPixmap(pixmap);
 			return NullPixmap;
@@ -610,7 +636,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		if (pixmap == NullPixmap)
 			return NullPixmap;
 
-		sna_pixmap_attach(pixmap);
+		__sna_pixmap_attach(sna, pixmap);
 	} else {
 		struct sna_pixmap *priv;
 
@@ -623,7 +649,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		pixmap->devKind = pad;
 		pixmap->devPrivate.ptr = NULL;
 
-		priv = _sna_pixmap_attach(sna, pixmap);
+		priv = __sna_pixmap_attach(sna, pixmap);
 		if (priv == NULL) {
 			free(pixmap);
 			return create_pixmap(sna, screen,
@@ -1363,6 +1389,11 @@ sna_pixmap_create_upload(ScreenPtr screen,
 		pixmap->usage_hint = CREATE_PIXMAP_USAGE_SCRATCH;
 		pixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
 		pixmap->refcnt = 1;
+
+		DBG(("%s: serial=%ld, usage=%d\n",
+		     __FUNCTION__,
+		     pixmap->drawable.serialNumber,
+		     pixmap->usage_hint));
 	} else {
 		pixmap = create_pixmap(sna, screen, 0, 0, depth,
 				       CREATE_PIXMAP_USAGE_SCRATCH);
@@ -1410,19 +1441,11 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	DBG(("%s(pixmap=%p)\n", __FUNCTION__, pixmap));
 
-	priv = sna_pixmap(pixmap);
-	if (priv == NULL) {
-		priv = sna_pixmap_attach(pixmap);
-		if (priv == NULL)
-			return NULL;
+	priv = sna_pixmap_attach(pixmap);
+	if (priv == NULL)
+		return NULL;
 
-		DBG(("%s: created priv and marking all cpu damaged\n",
-		     __FUNCTION__));
-		sna_damage_all(&priv->cpu_damage,
-				 pixmap->drawable.width,
-				 pixmap->drawable.height);
-	}
-
+	/* Unlike move-to-gpu, we ignore wedged and always create the GPU bo */
 	if (priv->gpu_bo == NULL) {
 		struct sna *sna = to_sna_from_pixmap(pixmap);
 		unsigned flags;
@@ -1459,7 +1482,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	BoxPtr box;
 	int n;
 
-	DBG(("%s()\n", __FUNCTION__));
+	DBG(("%s(pixmap=%ld, usage=%d)\n",
+	     __FUNCTION__, pixmap->drawable.serialNumber, pixmap->usage_hint));
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL)
@@ -1516,9 +1540,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    box, n);
 		if (!ok) {
 			if (n == 1 && !priv->pinned &&
-			    box->x1 <= 0 && box->y1 <= 0 &&
-			    box->x2 >= pixmap->drawable.width &&
-			    box->y2 >= pixmap->drawable.height) {
+			    (box->x2 - box->x1) >= pixmap->drawable.width &&
+			    (box->y2 - box->y1) >= pixmap->drawable.height) {
 				priv->gpu_bo =
 					sna_replace(sna,
 						    pixmap,

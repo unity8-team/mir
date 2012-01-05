@@ -422,7 +422,17 @@ static inline Bool pixmap_is_scanout(PixmapPtr pixmap)
 	return pixmap == screen->GetScreenPixmap(screen);
 }
 
-struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap);
+struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap);
+inline static struct sna_pixmap *sna_pixmap_attach(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv;
+
+	priv = sna_pixmap(pixmap);
+	if (priv)
+		return priv;
+
+	return _sna_pixmap_attach(pixmap);
+}
 
 PixmapPtr sna_pixmap_create_upload(ScreenPtr screen,
 				   int width, int height, int depth);

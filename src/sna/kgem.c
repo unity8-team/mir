@@ -2158,7 +2158,7 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 	struct kgem_partial_bo *io = (struct kgem_partial_bo *)bo->proxy;
 
 	if (list_is_empty(&io->base.list))
-		    return;
+		return;
 
 	if (bo->size == io->used) {
 		assert(io->base.exec == NULL);
