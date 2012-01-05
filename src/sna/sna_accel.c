@@ -870,9 +870,29 @@ static inline bool region_inplace(struct sna *sna,
 	if (wedged(sna))
 		return false;
 
-	if (priv->mapped)
+	if (priv->mapped) {
+		DBG(("%s: already mapped\n", __FUNCTION__));
 		return true;
+	}
 
+	if (priv->cpu_damage) {
+		const BoxRec *extents = &region->extents;
+		const BoxRec *damage = &priv->cpu_damage->extents;
+		if (extents->x2 < damage->x2 || extents->x1 > damage->x1 ||
+		    extents->y2 < damage->y2 || extents->y1 > damage->y1) {
+			DBG(("%s: uncovered CPU damage pending\n", __FUNCTION__));
+			return false;
+		}
+	}
+
+	DBG(("%s: (%dx%d), inplace? %d\n",
+	     __FUNCTION__,
+	     region->extents.x2 - region->extents.x1,
+	     region->extents.y2 - region->extents.y1,
+	     ((region->extents.x2 - region->extents.x1) *
+	      (region->extents.y2 - region->extents.y1) *
+	      pixmap->drawable.bitsPerPixel >> 12)
+	     >= sna->kgem.half_cpu_cache_pages));
 	return ((region->extents.x2 - region->extents.x1) *
 		(region->extents.y2 - region->extents.y1) *
 		pixmap->drawable.bitsPerPixel >> 12)
