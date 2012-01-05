@@ -320,10 +320,71 @@ void sna_write_boxes(struct sna *sna,
 
 	if (DEBUG_NO_IO || kgem->wedged || dst_bo->tiling == I915_TILING_Y ||
 	    !kgem_bo_map_will_stall(kgem, dst_bo)) {
+fallback:
 		write_boxes_inplace(kgem,
 				    src, stride, bpp, src_dx, src_dy,
 				    dst_bo, dst_dx, dst_dy,
 				    box, nbox);
+		return;
+	}
+
+	/* Try to avoid switching rings... */
+	if (kgem->ring == KGEM_RENDER) {
+		PixmapRec tmp;
+		BoxRec extents;
+
+		extents = box[0];
+		for (n = 1; n < nbox; n++) {
+			if (box[n].x1 < extents.x1)
+				extents.x1 = box[n].x1;
+			if (box[n].x2 > extents.x2)
+				extents.x2 = box[n].x2;
+
+			if (box[n].y1 < extents.y1)
+				extents.y1 = box[n].y1;
+			if (box[n].y2 > extents.y2)
+				extents.y2 = box[n].y2;
+		}
+
+		tmp.drawable.width = extents.x2 - extents.x1;
+		tmp.drawable.height = extents.y2 - extents.y1;
+		tmp.drawable.depth = bpp;
+		tmp.drawable.bitsPerPixel = bpp;
+		tmp.devPrivate.ptr = NULL;
+
+		tmp.devKind = tmp.drawable.width * bpp / 8;
+		tmp.devKind = ALIGN(tmp.devKind, 4);
+
+		src_bo = kgem_create_buffer(kgem,
+					    tmp.drawable.height * tmp.devKind,
+					    KGEM_BUFFER_WRITE,
+					    &ptr);
+		if (!src_bo)
+			goto fallback;
+
+		src_bo->pitch = tmp.devKind;
+
+		for (n = 0; n < nbox; n++) {
+			memcpy_blt(src, ptr, bpp,
+				   stride, tmp.devKind,
+				   box[n].x1 + src_dx,
+				   box[n].y1 + src_dy,
+				   box[n].x1 - extents.x1,
+				   box[n].y1 - extents.y1,
+				   box[n].x2 - box[n].x1,
+				   box[n].y2 - box[n].y1);
+		}
+
+		n = sna->render.copy_boxes(sna, GXcopy,
+					   &tmp, src_bo, -extents.x1, -extents.y1,
+					   &tmp, dst_bo, dst_dx, dst_dy,
+					   box, nbox);
+
+		kgem_bo_destroy(&sna->kgem, src_bo);
+
+		if (!n)
+			goto fallback;
+
 		return;
 	}
 
