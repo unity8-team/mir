@@ -2817,6 +2817,37 @@ static inline bool prefer_blt_copy(struct sna *sna,
 		untiled_tlb_miss(dst_bo));
 }
 
+static inline bool
+overlaps(struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+	 struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+	 const BoxRec *box, int n)
+{
+	BoxRec extents;
+
+	if (src_bo != dst_bo)
+		return false;
+
+	extents = box[0];
+	while (--n) {
+		box++;
+
+		if (box->x1 < extents.x1)
+			extents.x1 = box->x1;
+		if (box->x2 > extents.x2)
+			extents.x2 = box->x2;
+
+		if (box->y1 < extents.y1)
+			extents.y1 = box->y1;
+		if (box->y2 > extents.y2)
+			extents.y2 = box->y2;
+	}
+
+	return (extents.x2 + src_dx > extents.x1 + dst_dx &&
+		extents.x1 + src_dx < extents.x2 + dst_dx &&
+		extents.y2 + src_dy > extents.y1 + dst_dy &&
+		extents.y1 + src_dy < extents.y2 + dst_dy);
+}
+
 static Bool
 gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 		       PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
@@ -2836,9 +2867,12 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 				  box, n);
 #endif
 
-	DBG(("%s (%d, %d)->(%d, %d) x %d, alu=%x, self-copy=%d\n",
+	DBG(("%s (%d, %d)->(%d, %d) x %d, alu=%x, self-copy=%d, overlaps? %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n, alu,
-	     src_bo == dst_bo));
+	     src_bo == dst_bo,
+	     overlaps(src_bo, src_dx, src_dy,
+		      dst_bo, dst_dx, dst_dy,
+		      box, n)));
 
 	if (prefer_blt_copy(sna, src_bo, dst_bo) &&
 	    sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
@@ -2849,7 +2883,10 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 			       box, n))
 		return TRUE;
 
-	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
+	if (!(alu == GXcopy || alu == GXclear) ||
+	    overlaps(src_bo, src_dx, src_dy,
+		     dst_bo, dst_dx, dst_dy,
+		     box, n) ||
 	    too_large(src->drawable.width, src->drawable.height) ||
 	    too_large(dst->drawable.width, dst->drawable.height))
 		return sna_blt_copy_boxes_fallback(sna, alu,
