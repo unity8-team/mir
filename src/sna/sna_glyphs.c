@@ -307,7 +307,12 @@ glyph_cache(ScreenPtr screen,
 
 	if (glyph->info.width > GLYPH_MAX_SIZE ||
 	    glyph->info.height > GLYPH_MAX_SIZE) {
-		((PixmapPtr)glyph_picture->pDrawable)->usage_hint = 0;
+		PixmapPtr pixmap = (PixmapPtr)glyph_picture->pDrawable;
+		assert(glyph_picture->pDrawable->type == DRAWABLE_PIXMAP);
+		if (pixmap->drawable.depth >= 8) {
+			pixmap->usage_hint = SNA_CREATE_GLYPH;
+			sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
+		}
 		return FALSE;
 	}
 
