@@ -374,6 +374,12 @@ _texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
 	if (!priv->cpu_damage)
 		return FALSE;
 
+	if (priv->cpu_damage->mode == DAMAGE_ALL)
+		return TRUE;
+
+	if (sna_damage_contains_box__no_reduce(priv->cpu_damage, box))
+		return TRUE;
+
 	if (sna_damage_contains_box(priv->gpu_damage, box) != PIXMAN_REGION_OUT)
 		return FALSE;
 
