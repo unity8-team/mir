@@ -440,6 +440,8 @@ struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
 #if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 	case CREATE_PIXMAP_USAGE_SCRATCH_HEADER:
 #endif
+		DBG(("%s: not attaching due to crazy usage: %d\n",
+		     __FUNCTION__, pixmap->usage_hint));
 		return NULL;
 
 	case SNA_CREATE_FB:
@@ -597,6 +599,12 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 				     width, height, depth,
 				     usage);
 
+#if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
+	if (width == 0 || height == 0)
+		return create_pixmap(sna, screen, width, height, depth,
+				     CREATE_PIXMAP_USAGE_SCRATCH_HEADER);
+#endif
+
 	if (usage == CREATE_PIXMAP_USAGE_SCRATCH)
 #if USE_BO_FOR_SCRATCH_PIXMAP
 		return sna_pixmap_create_scratch(screen,
@@ -622,11 +630,6 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	    !kgem_can_create_2d(&sna->kgem, width, height,
 				BitsPerPixel(depth), I915_TILING_NONE))
 		return create_pixmap(sna, screen, width, height, depth, usage);
-
-#if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
-	if (width == 0 || height == 0)
-		return create_pixmap(sna, screen, width, height, depth, usage);
-#endif
 
 	pad = PixmapBytePad(width, depth);
 	size = pad * height;
