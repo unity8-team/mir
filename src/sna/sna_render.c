@@ -323,7 +323,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 				       pixmap->drawable.width,
 				       pixmap->drawable.height,
 				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE) {
-			priv = sna_pixmap(pixmap);
+			priv = sna_pixmap_attach(pixmap);
 			upload = priv && priv->source_count++ > SOURCE_BIAS;
 		}
 
@@ -340,7 +340,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 		return FALSE;
 
 	count = SOURCE_BIAS;
-	priv = sna_pixmap(pixmap);
+	priv = sna_pixmap_attach(pixmap);
 	if (priv)
 		count = priv->source_count++;
 
