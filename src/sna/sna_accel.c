@@ -1251,14 +1251,18 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	BoxRec extents;
 	int16_t dx, dy;
 
-	if (priv == NULL)
+	if (priv == NULL) {
+		DBG(("%s: not attached\n", __FUNCTION__));
 		return FALSE;
+	}
 
 	if (priv->gpu_bo == NULL &&
 	    (sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE ||
 	     (priv->cpu_damage && !box_inplace(pixmap, box)) ||
-	     !sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ)))
+	     !sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ))) {
+		DBG(("%s: no GPU bo allocated\n", __FUNCTION__));
 		return FALSE;
+	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 
@@ -1267,6 +1271,9 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	extents.x2 += dx;
 	extents.y1 += dy;
 	extents.y2 += dy;
+
+	DBG(("%s extents (%d, %d), (%d, %d)\n", __FUNCTION__,
+	     extents.x1, extents.y1, extents.x2, extents.y2));
 
 	if (priv->gpu_damage) {
 		int ret = sna_damage_contains_box(priv->gpu_damage, &extents);
@@ -1305,8 +1312,10 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	}
 
 move_to_gpu:
-	if (!sna_pixmap_move_area_to_gpu(pixmap, &extents))
+	if (!sna_pixmap_move_area_to_gpu(pixmap, &extents)) {
+		DBG(("%s: failed to move-to-gpu, fallback\n", __FUNCTION__));
 		return FALSE;
+	}
 
 	*damage = &priv->gpu_damage;
 	return TRUE;
