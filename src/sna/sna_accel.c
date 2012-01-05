@@ -1968,6 +1968,11 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
 
+	if (priv->mapped) {
+		pixmap->devPrivate.ptr = NULL;
+		priv->mapped = 0;
+	}
+
 	if (pixmap->devPrivate.ptr == NULL &&
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, false))
 		return true;
@@ -9559,6 +9564,11 @@ sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 	PixmapPtr pixmap = priv->pixmap;
 
 	assert (!priv->flush);
+
+	if (priv->mapped) {
+		pixmap->devPrivate.ptr = NULL;
+		priv->mapped = 0;
+	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
