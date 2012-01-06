@@ -1872,6 +1872,88 @@ static int operator_is_bounded(uint8_t op)
 	}
 }
 
+inline static xFixed
+line_x_for_y(const xLineFixed *l, xFixed y, bool ceil)
+{
+	xFixed_32_32 ex = (xFixed_32_32)(y - l->p1.y) * (l->p2.x - l->p1.x);
+	xFixed d = l->p2.y - l->p1.y;
+
+	if (ceil)
+		ex += (d - 1);
+
+	return l->p1.x + (xFixed) (ex / d);
+}
+
+#define pixman_fixed_integer_floor(V) pixman_fixed_to_int(V)
+#define pixman_fixed_integer_ceil(V) pixman_fixed_to_int(pixman_fixed_ceil(V))
+
+static void
+trapezoids_bounds(int n, const xTrapezoid *t, BoxPtr box)
+{
+	xFixed x1, y1, x2, y2;
+
+	/* XXX need 33 bits... */
+	x1 = y1 = INT_MAX / 2;
+	x2 = y2 = INT_MIN / 2;
+
+	do {
+		xFixed fx1, fx2, v;
+
+		if (!xTrapezoidValid(t))
+			continue;
+
+		if (t->top < y1)
+			y1 = t->top;
+		if (t->bottom > y2)
+			y2 = t->bottom;
+
+		if (((t->left.p1.x - x1) | (t->left.p2.x - x1)) < 0) {
+			if (pixman_fixed_floor(t->left.p1.x) == pixman_fixed_floor(t->left.p2.x)) {
+				x1 = pixman_fixed_floor(t->left.p1.x);
+			} else {
+				if (t->left.p1.y == t->top)
+					fx1 = t->left.p1.x;
+				else
+					fx1 = line_x_for_y(&t->left, t->top, false);
+
+				if (t->left.p2.y == t->bottom)
+					fx2 = t->left.p2.x;
+				else
+					fx2 = line_x_for_y(&t->left, t->bottom, false);
+
+				v = min(fx1, fx2);
+				if (v < x1)
+					x1 = pixman_fixed_floor(v);
+			}
+		}
+
+		if (((x2 - t->right.p1.x) | (x2 - t->right.p2.x)) < 0) {
+			if (pixman_fixed_floor(t->right.p1.x) == pixman_fixed_floor(t->right.p2.x)) {
+				x2 = pixman_fixed_ceil(t->right.p1.x);
+			} else  {
+				if (t->right.p1.y == t->top)
+					fx1 = t->right.p1.x;
+				else
+					fx1 = line_x_for_y(&t->right, t->top, true);
+
+				if (t->right.p2.y == t->bottom)
+					fx2 = t->right.p2.x;
+				else
+					fx2 = line_x_for_y(&t->right, t->bottom, true);
+
+				v = max(fx1, fx2);
+				if (v > x2)
+					x2 = pixman_fixed_ceil(v);
+			}
+		}
+	} while (t++, --n);
+
+	box->x1 = pixman_fixed_to_int(x1);
+	box->x2 = pixman_fixed_to_int(x2);
+	box->y1 = pixman_fixed_integer_floor(y1);
+	box->y2 = pixman_fixed_integer_ceil(y2);
+}
+
 static void
 trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		    PictFormatPtr maskFormat, INT16 xSrc, INT16 ySrc,
@@ -1892,7 +1974,7 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
 		dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
 
-		miTrapezoidBounds(ntrap, traps, &bounds);
+		trapezoids_bounds(ntrap, traps, &bounds);
 		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
 			return;
 
@@ -2585,7 +2667,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
 	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
 
-	miTrapezoidBounds(ntrap, traps, &extents);
+	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
@@ -2742,7 +2824,7 @@ trapezoid_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	dst_x = pixman_fixed_to_int(traps[0].left.p1.x);
 	dst_y = pixman_fixed_to_int(traps[0].left.p1.y);
 
-	miTrapezoidBounds(ntrap, traps, &extents);
+	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
@@ -2905,7 +2987,7 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		return true;
 	}
 
-	miTrapezoidBounds(ntrap, traps, &extents);
+	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
@@ -3275,7 +3357,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		return true;
 	}
 
-	miTrapezoidBounds(ntrap, traps, &region.extents);
+	trapezoids_bounds(ntrap, traps, &region.extents);
 	if (region.extents.y1 >= region.extents.y2 ||
 	    region.extents.x1 >= region.extents.x2)
 		return true;
@@ -3414,7 +3496,7 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		return true;
 	}
 
-	miTrapezoidBounds(ntrap, traps, &extents);
+	trapezoids_bounds(ntrap, traps, &extents);
 	if (extents.y1 >= extents.y2 || extents.x1 >= extents.x2)
 		return true;
 
@@ -3840,9 +3922,6 @@ skip:
 	FreePicture(src, 0);
 	return true;
 }
-
-#define pixman_fixed_integer_floor(V) pixman_fixed_to_int(pixman_fixed_floor(V))
-#define pixman_fixed_integer_ceil(V) pixman_fixed_to_int(pixman_fixed_ceil(V))
 
 static void mark_damaged(PixmapPtr pixmap, struct sna_pixmap *priv,
 			 BoxPtr box, int16_t x, int16_t y)
