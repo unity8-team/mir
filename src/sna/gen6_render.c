@@ -228,7 +228,7 @@ static const struct formatinfo {
 #define OUT_VERTEX_F(v) vertex_emit(sna, v)
 
 static uint32_t gen6_get_blend(int op,
-			       Bool has_component_alpha,
+			       bool has_component_alpha,
 			       uint32_t dst_format)
 {
 	uint32_t src, dst;
@@ -570,15 +570,23 @@ gen6_emit_invariant(struct sna *sna)
 }
 
 static bool
-gen6_emit_cc(struct sna *sna, uint32_t blend_offset)
+gen6_emit_cc(struct sna *sna,
+	     int op, bool has_component_alpha, uint32_t dst_format)
 {
 	struct gen6_render_state *render = &sna->render_state.gen6;
+	uint32_t blend;
 
-	if (render->blend == blend_offset)
+	blend = gen6_get_blend(op, has_component_alpha, dst_format);
+
+	DBG(("%s(op=%d, ca=%d, format=%x): new=%x, current=%x\n",
+	     __FUNCTION__,
+	     op, has_component_alpha, dst_format,
+	     blend, render->blend));
+	if (render->blend == blend)
 		return false;
 
 	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
-	OUT_BATCH((render->cc_blend + blend_offset) | 1);
+	OUT_BATCH((render->cc_blend + blend) | 1);
 	if (render->blend == (unsigned)-1) {
 		OUT_BATCH(1);
 		OUT_BATCH(1);
@@ -587,7 +595,7 @@ gen6_emit_cc(struct sna *sna, uint32_t blend_offset)
 		OUT_BATCH(0);
 	}
 
-	render->blend = blend_offset;
+	render->blend = blend;
 	return true;
 }
 
@@ -804,9 +812,9 @@ gen6_emit_state(struct sna *sna,
 	bool need_flush;
 
 	need_flush = gen6_emit_cc(sna,
-				  gen6_get_blend(op->op,
-						 op->has_component_alpha,
-						 op->dst.format));
+				  op->op,
+				  op->has_component_alpha,
+				  op->dst.format);
 
 	DBG(("%s: sampler src=(%d, %d), mask=(%d, %d), offset=%d\n",
 	     __FUNCTION__,
@@ -845,9 +853,7 @@ static void gen6_magic_ca_pass(struct sna *sna,
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
 
-	need_flush =
-		gen6_emit_cc(sna,
-			     gen6_get_blend(PictOpAdd, TRUE, op->dst.format));
+	need_flush = gen6_emit_cc(sna, PictOpAdd, TRUE, op->dst.format);
 	gen6_emit_wm(sna,
 		     gen6_choose_composite_kernel(PictOpAdd,
 						  TRUE, TRUE,
