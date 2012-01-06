@@ -1763,7 +1763,7 @@ bool sna_blt_copy(struct sna *sna, uint8_t alu,
 	return TRUE;
 }
 
-static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
+static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 			     struct kgem_bo *bo, int bpp,
 			     uint32_t color,
 			     const BoxRec *box)
@@ -1831,6 +1831,13 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 		return TRUE;
 	}
 
+	/* If we are currently emitting SCANLINES, keep doing so */
+	if (sna->blt_state.fill_bo == bo->handle &&
+	    sna->blt_state.fill_pixel == color &&
+	    (sna->blt_state.fill_alu == alu ||
+	     sna->blt_state.fill_alu == ~alu))
+		return FALSE;
+
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 6) ||
 	    !kgem_check_reloc(kgem, 1) ||
@@ -1851,7 +1858,9 @@ static Bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	b[5] = color;
 	kgem->nbatch += 6;
 
-	sna->blt_state.fill_bo = 0;
+	sna->blt_state.fill_bo = bo->handle;
+	sna->blt_state.fill_pixel = color;
+	sna->blt_state.fill_alu = ~alu;
 	return TRUE;
 }
 
@@ -1875,8 +1884,8 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		return FALSE;
 	}
 
-	if (nbox == 1)
-		return sna_blt_fill_box(sna, alu, bo, bpp, pixel, box);
+	if (nbox == 1 && sna_blt_fill_box(sna, alu, bo, bpp, pixel, box))
+		return TRUE;
 
 	br13 = bo->pitch;
 	cmd = XY_SCANLINE_BLT;
@@ -1969,7 +1978,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 			b = kgem->batch + kgem->nbatch;
 			kgem->nbatch += 3;
 			b[0] = cmd;
-			*(uint64_t *)(b+1) = *(uint64_t *)box;
+			*(uint64_t *)(b+1) = *(const uint64_t *)box;
 			box++;
 		} while (--nbox_this_time);
 
