@@ -707,16 +707,19 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
 
-	DBG(("%s(pixmap=%p, flags=%x)\n", __FUNCTION__, pixmap, flags));
+	DBG(("%s(pixmap=%ld, flags=%x)\n", __FUNCTION__,
+	     pixmap->drawable.serialNumber, flags));
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
-		DBG(("%s: not attached to %p\n", __FUNCTION__, pixmap));
+		DBG(("%s: not attached\n", __FUNCTION__));
 		return true;
 	}
 
-	DBG(("%s: gpu_bo=%p, gpu_damage=%p\n",
-	     __FUNCTION__, priv->gpu_bo, priv->gpu_damage));
+	DBG(("%s: gpu_bo=%d, gpu_damage=%p\n",
+	     __FUNCTION__,
+	     priv->gpu_bo ? priv->gpu_bo->handle : 0,
+	     priv->gpu_damage));
 
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
@@ -766,6 +769,11 @@ skip_inplace_map:
 		}
 	}
 
+	if (priv->cpu_damage && priv->cpu_damage->mode == DAMAGE_ALL) {
+		DBG(("%s: CPU all-damaged\n", __FUNCTION__));
+		goto done;
+	}
+
 	if (priv->mapped) {
 		pixmap->devPrivate.ptr = NULL;
 		priv->mapped = 0;
@@ -805,11 +813,6 @@ skip_inplace_map:
 		priv->gpu_damage = NULL;
 	}
 
-	if (priv->cpu_bo) {
-		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
-		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
-	}
-
 	if (flags & MOVE_WRITE) {
 		DBG(("%s: marking as damaged\n", __FUNCTION__));
 		sna_damage_all(&priv->cpu_damage,
@@ -819,9 +822,16 @@ skip_inplace_map:
 
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
+
+		priv->source_count = SOURCE_BIAS;
 	}
 
-	priv->source_count = SOURCE_BIAS;
+done:
+	if (priv->cpu_bo) {
+		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
+		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+	}
+
 	return true;
 }
 
