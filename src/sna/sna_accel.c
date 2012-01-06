@@ -232,6 +232,7 @@ done:
 static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 {
 	assert(priv->stride);
+	assert(priv->cpu_damage == NULL);
 
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
@@ -245,7 +246,6 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 		free(priv->ptr);
 
 	priv->pixmap->devPrivate.ptr = priv->ptr = NULL;
-	list_del(&priv->list);
 	priv->mapped = 0;
 }
 
@@ -748,7 +748,6 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
-			sna_damage_destroy(&priv->cpu_damage);
 			if (priv->cpu_bo)
 				sna_pixmap_free_cpu(sna, priv);
 
@@ -1227,11 +1226,12 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 
 		sna_damage_subtract(&priv->cpu_damage, &r);
 		RegionUninit(&i);
+
+		if (priv->cpu_damage == NULL)
+			list_del(&priv->list);
 	}
 
 done:
-	if (priv->cpu_damage == NULL)
-		list_del(&priv->list);
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	return true;
@@ -1594,6 +1594,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	__sna_damage_destroy(priv->cpu_damage);
 	priv->cpu_damage = NULL;
+	list_del(&priv->list);
 
 done:
 	sna_damage_reduce_all(&priv->gpu_damage,
@@ -1603,7 +1604,6 @@ done:
 		pixmap->devPrivate.ptr = NULL;
 		priv->mapped = 0;
 	}
-	list_del(&priv->list);
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	return priv;
@@ -1958,7 +1958,8 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 					if (!sna_pixmap_move_to_gpu(pixmap,
 								    MOVE_WRITE))
 						return false;
-				}
+				} else
+					sna_damage_destroy(&priv->cpu_damage);
 
 				sna_pixmap_free_cpu(sna, priv);
 			}
@@ -9326,6 +9327,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 		struct sna_pixmap *priv = list_first_entry(&sna->dirty_pixmaps,
 							   struct sna_pixmap,
 							   list);
+		assert(priv->cpu_damage != NULL);
 		sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ);
 	}
 
