@@ -3439,6 +3439,7 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 		}
 	}
 
+	DBG(("%s: move-to-cpu\n", __FUNCTION__));
 	region.data = NULL;
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
 					     op == PictOpSrc ? MOVE_WRITE : MOVE_WRITE | MOVE_READ))
@@ -3578,6 +3579,7 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		region.extents.y2 = dst_y + extents.y2;
 		region.data = NULL;
 
+		DBG(("%s: move-to-cpu\n", __FUNCTION__));
 		if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region,
 						     MOVE_READ | MOVE_WRITE))
 			goto done;
@@ -3595,6 +3597,7 @@ trapezoid_span_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 				goto done;
 		}
 
+		DBG(("%s: fbComposite()\n", __FUNCTION__));
 		fbComposite(op, src, mask, dst,
 			    src_x + dst_x - pixman_fixed_to_int(traps[0].left.p1.x),
 			    src_y + dst_y - pixman_fixed_to_int(traps[0].left.p1.y),
