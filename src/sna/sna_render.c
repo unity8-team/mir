@@ -256,21 +256,28 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		return NULL;
 	}
 
-	if (priv->gpu_bo &&
-	    sna_damage_contains_box(priv->cpu_damage,
-				    box) == PIXMAN_REGION_OUT) {
-		DBG(("%s: has GPU bo and no damage to upload\n", __FUNCTION__));
-		return NULL;
-	}
-
-	if (sna_damage_contains_box(priv->gpu_damage,
-				    box) != PIXMAN_REGION_OUT) {
-		DBG(("%s: box is damaged on the GPU\n", __FUNCTION__));
-		return NULL;
-	}
-
 	if (priv->gpu_bo) {
-		if (priv->gpu_bo != I915_TILING_NONE &&
+		switch (sna_damage_contains_box(priv->cpu_damage, box)) {
+		case PIXMAN_REGION_OUT:
+			DBG(("%s: has GPU bo and no damage to upload\n",
+			     __FUNCTION__));
+			return NULL;
+
+		case PIXMAN_REGION_IN:
+			DBG(("%s: has GPU bo but box is completely on CPU\n",
+			     __FUNCTION__));
+			break;
+		default:
+			if (sna_damage_contains_box(priv->gpu_damage,
+						    box) != PIXMAN_REGION_OUT) {
+				DBG(("%s: box is damaged on the GPU\n",
+				     __FUNCTION__));
+				return NULL;
+			}
+			break;
+		}
+
+		if (priv->gpu_bo->tiling != I915_TILING_NONE &&
 		    priv->cpu_bo->pitch >= 4096) {
 			DBG(("%s: GPU bo exists and is tiled [%d], upload\n",
 			     __FUNCTION__, priv->gpu_bo->tiling));
