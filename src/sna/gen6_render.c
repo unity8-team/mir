@@ -693,11 +693,11 @@ gen6_emit_wm(struct sna *sna, unsigned int kernel, int nr_surfaces, int nr_input
 	OUT_BATCH(0);
 }
 
-static bool
+static void
 gen6_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (sna->render_state.gen6.surface_table == offset)
-		return false;
+		return;
 
 	/* Binding table pointers */
 	OUT_BATCH(GEN6_3DSTATE_BINDING_TABLE_POINTERS |
@@ -709,7 +709,6 @@ gen6_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(offset*4);
 
 	sna->render_state.gen6.surface_table = offset;
-	return true;
 }
 
 static void
@@ -720,6 +719,8 @@ gen6_emit_drawing_rectangle(struct sna *sna,
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
 
+	force |= sna->render_state.gen6.target != op->dst.bo->handle;
+
 	if (!force &&
 	    sna->render_state.gen6.drawrect_limit == limit &&
 	    sna->render_state.gen6.drawrect_offset == offset)
@@ -727,6 +728,7 @@ gen6_emit_drawing_rectangle(struct sna *sna,
 
 	sna->render_state.gen6.drawrect_offset = offset;
 	sna->render_state.gen6.drawrect_limit = limit;
+	sna->render_state.gen6.target = op->dst.bo->handle;
 
 	OUT_BATCH(GEN6_3DSTATE_DRAWING_RECTANGLE | (4 - 2));
 	OUT_BATCH(0);
@@ -848,7 +850,7 @@ gen6_emit_state(struct sna *sna,
 	gen6_emit_vertex_elements(sna, op);
 
 	/* XXX updating the binding table requires a non-pipelined cmd? */
-	need_flush |= gen6_emit_binding_table(sna, wm_binding_table);
+	gen6_emit_binding_table(sna, wm_binding_table);
 	gen6_emit_drawing_rectangle(sna, op, need_flush & !flushed);
 }
 
@@ -3581,6 +3583,7 @@ static void gen6_render_reset(struct sna *sna)
 	sna->render_state.gen6.samplers = -1;
 	sna->render_state.gen6.blend = -1;
 	sna->render_state.gen6.kernel = -1;
+	sna->render_state.gen6.target = -1;
 	sna->render_state.gen6.drawrect_offset = -1;
 	sna->render_state.gen6.drawrect_limit = -1;
 	sna->render_state.gen6.surface_table = -1;
