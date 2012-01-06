@@ -1214,11 +1214,10 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 						    pixmap->devPrivate.ptr,
 						    pixmap->devKind);
 			} else {
-				sna_write_boxes(sna,
+				sna_write_boxes(sna, pixmap,
 						priv->gpu_bo, 0, 0,
 						pixmap->devPrivate.ptr,
 						pixmap->devKind,
-						pixmap->drawable.bitsPerPixel,
 						0, 0,
 						box, n);
 			}
@@ -1581,11 +1580,10 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 						    pixmap->devPrivate.ptr,
 						    pixmap->devKind);
 			} else {
-				sna_write_boxes(sna,
+				sna_write_boxes(sna, pixmap,
 						priv->gpu_bo, 0, 0,
 						pixmap->devPrivate.ptr,
 						pixmap->devKind,
-						pixmap->drawable.bitsPerPixel,
 						0, 0,
 						box, n);
 			}
@@ -1847,11 +1845,10 @@ sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	}
 
 	if (!ok && gc->alu == GXcopy) {
-		sna_write_boxes(sna,
+		sna_write_boxes(sna, pixmap,
 				priv->gpu_bo, 0, 0,
 				bits,
 				stride,
-				pixmap->drawable.bitsPerPixel,
 				-x, -y,
 				box, nbox);
 		ok = TRUE;
@@ -2774,11 +2771,10 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			} else {
 				DBG(("%s: dst is on the GPU, src is on the CPU, uploading\n",
 				     __FUNCTION__));
-				sna_write_boxes(sna,
+				sna_write_boxes(sna, dst_pixmap,
 						dst_priv->gpu_bo, dst_dx, dst_dy,
 						src_pixmap->devPrivate.ptr,
 						src_pixmap->devKind,
-						src_pixmap->drawable.bitsPerPixel,
 						src_dx, src_dy,
 						box, n);
 

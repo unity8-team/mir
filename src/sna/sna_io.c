@@ -305,9 +305,9 @@ static void write_boxes_inplace(struct kgem *kgem,
 	} while (--n);
 }
 
-void sna_write_boxes(struct sna *sna,
+void sna_write_boxes(struct sna *sna, PixmapPtr dst,
 		     struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		     const void *src, int stride, int bpp, int16_t src_dx, int16_t src_dy,
+		     const void *src, int stride, int16_t src_dx, int16_t src_dy,
 		     const BoxRec *box, int nbox)
 {
 	struct kgem *kgem = &sna->kgem;
@@ -322,7 +322,7 @@ void sna_write_boxes(struct sna *sna,
 	    !kgem_bo_map_will_stall(kgem, dst_bo)) {
 fallback:
 		write_boxes_inplace(kgem,
-				    src, stride, bpp, src_dx, src_dy,
+				    src, stride, dst->drawable.bitsPerPixel, src_dx, src_dy,
 				    dst_bo, dst_dx, dst_dy,
 				    box, nbox);
 		return;
@@ -348,11 +348,14 @@ fallback:
 
 		tmp.drawable.width = extents.x2 - extents.x1;
 		tmp.drawable.height = extents.y2 - extents.y1;
-		tmp.drawable.depth = bpp;
-		tmp.drawable.bitsPerPixel = bpp;
+		tmp.drawable.depth = dst->drawable.depth;
+		tmp.drawable.bitsPerPixel = dst->drawable.bitsPerPixel;
 		tmp.devPrivate.ptr = NULL;
 
-		tmp.devKind = tmp.drawable.width * bpp / 8;
+		assert(tmp.drawable.width);
+		assert(tmp.drawable.height);
+
+		tmp.devKind = tmp.drawable.width * tmp.drawable.bitsPerPixel / 8;
 		tmp.devKind = ALIGN(tmp.devKind, 4);
 
 		src_bo = kgem_create_buffer(kgem,
@@ -365,7 +368,7 @@ fallback:
 		src_bo->pitch = tmp.devKind;
 
 		for (n = 0; n < nbox; n++) {
-			memcpy_blt(src, ptr, bpp,
+			memcpy_blt(src, ptr, tmp.drawable.bitsPerPixel,
 				   stride, tmp.devKind,
 				   box[n].x1 + src_dx,
 				   box[n].y1 + src_dy,
@@ -377,7 +380,7 @@ fallback:
 
 		n = sna->render.copy_boxes(sna, GXcopy,
 					   &tmp, src_bo, -extents.x1, -extents.y1,
-					   &tmp, dst_bo, dst_dx, dst_dy,
+					   dst, dst_bo, dst_dx, dst_dy,
 					   box, nbox);
 
 		kgem_bo_destroy(&sna->kgem, src_bo);
@@ -389,17 +392,16 @@ fallback:
 	}
 
 	cmd = XY_SRC_COPY_BLT_CMD;
-	if (bpp == 32)
-		cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
 	br13 = dst_bo->pitch;
 	if (kgem->gen >= 40 && dst_bo->tiling) {
 		cmd |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
 	br13 |= 0xcc << 16;
-	switch (bpp) {
+	switch (dst->drawable.bitsPerPixel) {
 	default:
-	case 32: br13 |= 1 << 25; /* RGB8888 */
+	case 32: cmd |= BLT_WRITE_ALPHA | BLT_WRITE_RGB;
+		 br13 |= 1 << 25; /* RGB8888 */
 	case 16: br13 |= 1 << 24; /* RGB565 */
 	case 8: break;
 	}
@@ -431,7 +433,7 @@ fallback:
 		for (n = 0; n < nbox_this_time; n++) {
 			int height = box[n].y2 - box[n].y1;
 			int width = box[n].x2 - box[n].x1;
-			offset += PITCH(width, bpp >> 3) * height;
+			offset += PITCH(width, dst->drawable.bitsPerPixel >> 3) * height;
 		}
 
 		src_bo = kgem_create_buffer(kgem, offset,
@@ -444,7 +446,7 @@ fallback:
 		do {
 			int height = box->y2 - box->y1;
 			int width = box->x2 - box->x1;
-			int pitch = PITCH(width, bpp >> 3);
+			int pitch = PITCH(width, dst->drawable.bitsPerPixel >> 3);
 			uint32_t *b;
 
 			DBG(("  %s: box src=(%d, %d), dst=(%d, %d) size=(%d, %d), dst offset=%d, dst pitch=%d\n",
@@ -455,13 +457,14 @@ fallback:
 			     offset, pitch));
 
 			assert(box->x1 + src_dx >= 0);
-			assert((box->x2 + src_dx)*bpp <= 8*stride);
+			assert((box->x2 + src_dx)*dst->drawable.bitsPerPixel <= 8*stride);
 			assert(box->y1 + src_dy >= 0);
 
 			assert(box->x1 + dst_dx >= 0);
 			assert(box->y1 + dst_dy >= 0);
 
-			memcpy_blt(src, (char *)ptr + offset, bpp,
+			memcpy_blt(src, (char *)ptr + offset,
+				   dst->drawable.bitsPerPixel,
 				   stride, pitch,
 				   box->x1 + src_dx, box->y1 + src_dy,
 				   0, 0,

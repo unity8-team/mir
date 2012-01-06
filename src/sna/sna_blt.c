@@ -1006,9 +1006,9 @@ blt_put_composite(struct sna *sna,
 		box.x2 = dst_x + r->width;
 		box.y2 = dst_y + r->height;
 
-		sna_write_boxes(sna,
+		sna_write_boxes(sna, dst,
 				dst_priv->gpu_bo, 0, 0,
-				data, pitch, bpp, src_x, src_y,
+				data, pitch, src_x, src_y,
 				&box, 1);
 	}
 }
@@ -1038,11 +1038,10 @@ fastcall static void blt_put_composite_box(struct sna *sna,
 			sna_replace(sna, op->dst.pixmap, op->dst.bo,
 				    data, pitch);
 	} else {
-		sna_write_boxes(sna,
+		sna_write_boxes(sna, op->dst.pixmap,
 				op->dst.bo, op->dst.x, op->dst.y,
 				src->devPrivate.ptr,
 				src->devKind,
-				src->drawable.bitsPerPixel,
 				op->u.blt.sx, op->u.blt.sy,
 				box, 1);
 	}
@@ -1074,11 +1073,10 @@ static void blt_put_composite_boxes(struct sna *sna,
 			sna_replace(sna, op->dst.pixmap, op->dst.bo,
 				    data, pitch);
 	} else {
-		sna_write_boxes(sna,
+		sna_write_boxes(sna, op->dst.pixmap,
 				op->dst.bo, op->dst.x, op->dst.y,
 				src->devPrivate.ptr,
 				src->devKind,
-				src->drawable.bitsPerPixel,
 				op->u.blt.sx, op->u.blt.sy,
 				box, n);
 	}

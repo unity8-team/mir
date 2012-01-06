@@ -681,9 +681,9 @@ void sna_read_boxes(struct sna *sna,
 		    struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		    PixmapPtr dst, int16_t dst_dx, int16_t dst_dy,
 		    const BoxRec *box, int n);
-void sna_write_boxes(struct sna *sna,
+void sna_write_boxes(struct sna *sna, PixmapPtr dst,
 		     struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
-		     const void *src, int stride, int bpp, int16_t src_dx, int16_t src_dy,
+		     const void *src, int stride, int16_t src_dx, int16_t src_dy,
 		     const BoxRec *box, int n);
 
 struct kgem_bo *sna_replace(struct sna *sna,
