@@ -106,3 +106,108 @@ memcpy_blt(const void *src, void *dst, int bpp,
 		break;
 	}
 }
+
+void
+memcpy_xor(const void *src, void *dst, int bpp,
+	   int32_t src_stride, int32_t dst_stride,
+	   int16_t src_x, int16_t src_y,
+	   int16_t dst_x, int16_t dst_y,
+	   uint16_t width, uint16_t height,
+	   uint32_t and, uint32_t or)
+{
+	uint8_t *src_bytes;
+	uint8_t *dst_bytes;
+	int i;
+
+	assert(width && height);
+	assert(bpp >= 8);
+
+	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d, pitch=%d/%d, bpp=%d, and=%x, xor=%x\n",
+	     __FUNCTION__,
+	     src_x, src_y, dst_x, dst_y,
+	     width, height,
+	     src_stride, dst_stride,
+	     bpp, and, or));
+
+	bpp /= 8;
+	src_bytes = (uint8_t *)src + src_stride * src_y + src_x * bpp;
+	dst_bytes = (uint8_t *)dst + dst_stride * dst_y + dst_x * bpp;
+
+	if (and == 0xffffffff) {
+		switch (bpp) {
+		case 1:
+			do {
+				for (i = 0; i < width; i++)
+					dst_bytes[i] = src_bytes[i] | or;
+
+				src_bytes += src_stride;
+				dst_bytes += dst_stride;
+			} while (--height);
+			break;
+
+		case 2:
+			do {
+				uint16_t *d = (uint16_t *)dst_bytes;
+				uint16_t *s = (uint16_t *)src_bytes;
+
+				for (i = 0; i < width; i++)
+					d[i] = s[i] | or;
+
+				src_bytes += src_stride;
+				dst_bytes += dst_stride;
+			} while (--height);
+			break;
+
+		case 4:
+			do {
+				uint32_t *d = (uint32_t *)dst_bytes;
+				uint32_t *s = (uint32_t *)src_bytes;
+
+				for (i = 0; i < width; i++)
+					d[i] = s[i] | or;
+
+				src_bytes += src_stride;
+				dst_bytes += dst_stride;
+			} while (--height);
+			break;
+		}
+	} else {
+		switch (bpp) {
+		case 1:
+			do {
+				for (i = 0; i < width; i++)
+					dst_bytes[i] = (src_bytes[i] & and) | or;
+
+				src_bytes += src_stride;
+				dst_bytes += dst_stride;
+			} while (--height);
+			break;
+
+		case 2:
+			do {
+				uint16_t *d = (uint16_t *)dst_bytes;
+				uint16_t *s = (uint16_t *)src_bytes;
+
+				for (i = 0; i < width; i++)
+					d[i] = (s[i] & and) | or;
+
+				src_bytes += src_stride;
+				dst_bytes += dst_stride;
+			} while (--height);
+			break;
+
+		case 4:
+			do {
+				uint32_t *d = (uint32_t *)dst_bytes;
+				uint32_t *s = (uint32_t *)src_bytes;
+
+				for (i = 0; i < width; i++)
+					d[i] = (s[i] & and) | or;
+
+				src_bytes += src_stride;
+				dst_bytes += dst_stride;
+			} while (--height);
+			break;
+		}
+	}
+}

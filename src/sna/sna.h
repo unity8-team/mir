@@ -685,6 +685,11 @@ void sna_write_boxes(struct sna *sna, PixmapPtr dst,
 		     struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 		     const void *src, int stride, int16_t src_dx, int16_t src_dy,
 		     const BoxRec *box, int n);
+void sna_write_boxes__xor(struct sna *sna, PixmapPtr dst,
+			  struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			  const void *src, int stride, int16_t src_dx, int16_t src_dy,
+			  const BoxRec *box, int nbox,
+			  uint32_t and, uint32_t or);
 
 struct kgem_bo *sna_replace(struct sna *sna,
 			    PixmapPtr pixmap,
@@ -712,6 +717,14 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	   int16_t src_x, int16_t src_y,
 	   int16_t dst_x, int16_t dst_y,
 	   uint16_t width, uint16_t height);
+
+void
+memcpy_xor(const void *src, void *dst, int bpp,
+	   int32_t src_stride, int32_t dst_stride,
+	   int16_t src_x, int16_t src_y,
+	   int16_t dst_x, int16_t dst_y,
+	   uint16_t width, uint16_t height,
+	   uint32_t and, uint32_t or);
 
 #define SNA_CREATE_FB 0x10
 #define SNA_CREATE_SCRATCH 0x11
