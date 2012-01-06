@@ -585,6 +585,17 @@ gen6_emit_cc(struct sna *sna,
 	if (render->blend == blend)
 		return false;
 
+	if (op == PictOpClear) {
+		uint32_t src;
+
+		/* We can emulate a clear using src, which is beneficial if
+		 * the blend unit is already disabled.
+		 */
+		src = BLEND_OFFSET(GEN6_BLENDFACTOR_ONE, GEN6_BLENDFACTOR_ZERO);
+		if (render->blend == src)
+			return false;
+	}
+
 	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
 	OUT_BATCH((render->cc_blend + blend) | 1);
 	if (render->blend == (unsigned)-1) {
