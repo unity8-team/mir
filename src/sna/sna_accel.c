@@ -1507,6 +1507,20 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 			return NULL;
 
 		DBG(("%s: created gpu bo\n", __FUNCTION__));
+
+		if (flags & MOVE_WRITE && priv->cpu_damage == NULL) {
+			/* Presume that we will only ever write to the GPU
+			 * bo. Readbacks are expensive but fairly constant
+			 * in cost for all sizes i.e. it is the act of
+			 * synchronisation that takes the most time. This is
+			 * mitigated by avoiding fallbacks in the first place.
+			 */
+			sna_damage_all(&priv->gpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
+			DBG(("%s: marking as all-damaged for GPU\n",
+			     __FUNCTION__));
+		}
 	}
 
 	if (!sna_pixmap_move_to_gpu(pixmap, flags))
@@ -1557,6 +1571,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
+			DBG(("%s: marking as all-damaged for GPU\n",
+			     __FUNCTION__));
 		}
 	}
 
