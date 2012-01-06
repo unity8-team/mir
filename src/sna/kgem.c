@@ -1996,9 +1996,10 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				return kgem_bo_reference(bo);
 			}
 		} while (!list_is_empty(&kgem->vma_cache) && kgem_retire(kgem));
-
-		goto skip_active_search;
 	}
+
+	if (flags & CREATE_INACTIVE)
+		goto skip_active_search;
 
 	untiled_pitch = kgem_untiled_pitch(kgem,
 					   width, bpp,
