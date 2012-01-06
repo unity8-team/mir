@@ -5556,14 +5556,10 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 			 BoxPtr out)
 {
 	BoxRec box;
-	int extra = gc->lineWidth;
 	bool clipped, can_blit;
 
 	if (n == 0)
 		return 0;
-
-	if (gc->capStyle != CapProjecting)
-		extra >>= 1;
 
 	if (seg->x2 >= seg->x1) {
 		box.x1 = seg->x1;
@@ -5607,11 +5603,16 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 	box.x2++;
 	box.y2++;
 
-	if (extra) {
-		box.x1 -= extra;
-		box.x2 += extra;
-		box.y1 -= extra;
-		box.y2 += extra;
+	if (gc->lineWidth) {
+		int extra = gc->lineWidth;
+		if (gc->capStyle != CapProjecting)
+			extra >>= 1;
+		if (extra) {
+			box.x1 -= extra;
+			box.x2 += extra;
+			box.y1 -= extra;
+			box.y2 += extra;
+		}
 	}
 
 	DBG(("%s: unclipped, untranslated extents (%d, %d), (%d, %d)\n",
@@ -5628,8 +5629,8 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 static void
 sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 {
-	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	struct sna *sna = to_sna_from_pixmap(pixmap);
+	PixmapPtr pixmap;
+	struct sna *sna;
 	struct sna_damage **damage;
 	RegionRec region;
 	unsigned flags;
@@ -5649,6 +5650,9 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 
 	if (FORCE_FALLBACK)
 		goto fallback;
+
+	pixmap = get_drawable_pixmap(drawable);
+	sna = to_sna_from_pixmap(pixmap);
 
 	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
