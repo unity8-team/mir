@@ -166,7 +166,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
-	if (sna->blt_state.fill_bo != bo->handle ||
+	if (sna->blt_state.fill_bo != bo->unique_id ||
 	    sna->blt_state.fill_pixel != pixel ||
 	    sna->blt_state.fill_alu != alu)
 	{
@@ -1913,7 +1913,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
-	if (sna->blt_state.fill_bo != bo->handle ||
+	if (sna->blt_state.fill_bo != bo->unique_id ||
 	    sna->blt_state.fill_pixel != pixel ||
 	    sna->blt_state.fill_alu != alu)
 	{
