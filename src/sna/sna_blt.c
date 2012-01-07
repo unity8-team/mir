@@ -195,7 +195,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 		b[8] = 0;
 		kgem->nbatch += 9;
 
-		sna->blt_state.fill_bo = bo->handle;
+		sna->blt_state.fill_bo = bo->unique_id;
 		sna->blt_state.fill_pixel = pixel;
 		sna->blt_state.fill_alu = alu;
 	}
@@ -1786,15 +1786,6 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	}
 	assert(br13 < MAXSHORT);
 
-	if (alu == GXclear)
-		color = 0;
-	else if (alu == GXcopy) {
-		if (color == 0)
-			alu = GXclear;
-		else if (color == -1)
-			alu = GXset;
-	}
-
 	br13 |= fill_ROP[alu] << 16;
 	switch (bpp) {
 	default: assert(0);
@@ -1813,7 +1804,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 		DBG(("%s: replacing last fill\n", __FUNCTION__));
 		kgem->batch[kgem->nbatch-5] = br13;
 		kgem->batch[kgem->nbatch-1] = color;
-		return TRUE;
+		return true;
 	}
 	if (overwrites && kgem->nbatch >= 8 &&
 	    (kgem->batch[kgem->nbatch-8] & 0xffc0000f) == XY_SRC_COPY_BLT_CMD &&
@@ -1828,15 +1819,18 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 		 */
 		kgem->nreloc--;
 		kgem->nbatch -= 2;
-		return TRUE;
+		return true;
 	}
 
 	/* If we are currently emitting SCANLINES, keep doing so */
-	if (sna->blt_state.fill_bo == bo->handle &&
+	if (sna->blt_state.fill_bo == bo->unique_id &&
 	    sna->blt_state.fill_pixel == color &&
 	    (sna->blt_state.fill_alu == alu ||
-	     sna->blt_state.fill_alu == ~alu))
-		return FALSE;
+	     sna->blt_state.fill_alu == ~alu)) {
+		DBG(("%s: matching last fill, converting to scanlines\n",
+		     __FUNCTION__));
+		return false;
+	}
 
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_batch(kgem, 6) ||
@@ -1858,10 +1852,10 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	b[5] = color;
 	kgem->nbatch += 6;
 
-	sna->blt_state.fill_bo = bo->handle;
+	sna->blt_state.fill_bo = bo->unique_id;
 	sna->blt_state.fill_pixel = color;
 	sna->blt_state.fill_alu = ~alu;
-	return TRUE;
+	return true;
 }
 
 Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
@@ -1884,6 +1878,15 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		return FALSE;
 	}
 
+	if (alu == GXclear)
+		pixel = 0;
+	else if (alu == GXcopy) {
+		if (pixel == 0)
+			alu = GXclear;
+		else if (pixel == -1)
+			alu = GXset;
+	}
+
 	if (nbox == 1 && sna_blt_fill_box(sna, alu, bo, bpp, pixel, box))
 		return TRUE;
 
@@ -1894,15 +1897,6 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		br13 >>= 2;
 	}
 	assert(br13 < MAXSHORT);
-
-	if (alu == GXclear)
-		pixel = 0;
-	else if (alu == GXcopy) {
-		if (pixel == 0)
-			alu = GXclear;
-		else if (pixel == -1)
-			alu = GXset;
-	}
 
 	br13 |= 1<<31 | fill_ROP[alu] << 16;
 	switch (bpp) {
@@ -1948,7 +1942,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 		b[8] = 0;
 		kgem->nbatch += 9;
 
-		sna->blt_state.fill_bo = bo->handle;
+		sna->blt_state.fill_bo = bo->unique_id;
 		sna->blt_state.fill_pixel = pixel;
 		sna->blt_state.fill_alu = alu;
 	}
