@@ -1410,7 +1410,6 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	PixmapPtr pixmap;
 	struct sna_pixmap *priv;
 	int bpp = BitsPerPixel(depth);
-	int pad = ALIGN(width * bpp / 8, 4);
 	void *ptr;
 
 	DBG(("%s(%d, %d, %d)\n", __FUNCTION__, width, height, depth));
@@ -1453,23 +1452,22 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	priv = _sna_pixmap_reset(pixmap);
 	priv->header = true;
 
-	priv->gpu_bo = kgem_create_buffer(&sna->kgem,
-					  pad*height, KGEM_BUFFER_WRITE,
-					  &ptr);
+	priv->gpu_bo = kgem_create_buffer_2d(&sna->kgem,
+					     width, height, bpp,
+					     KGEM_BUFFER_WRITE,
+					     &ptr);
 	if (!priv->gpu_bo) {
 		free(priv);
 		fbDestroyPixmap(pixmap);
 		return NullPixmap;
 	}
 
-	priv->gpu_bo->pitch = pad;
-
 	pixmap->drawable.width = width;
 	pixmap->drawable.height = height;
 	pixmap->drawable.depth = depth;
 	pixmap->drawable.bitsPerPixel = bpp;
 	pixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
-	pixmap->devKind = pad;
+	pixmap->devKind = priv->gpu_bo->pitch;
 	pixmap->devPrivate.ptr = ptr;
 
 	return pixmap;

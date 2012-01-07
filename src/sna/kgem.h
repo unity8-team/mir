@@ -403,6 +403,10 @@ void kgem_sync(struct kgem *kgem);
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
 				   void **ret);
+struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
+				      int width, int height, int bpp,
+				      uint32_t flags,
+				      void **ret);
 void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_throttle(struct kgem *kgem);

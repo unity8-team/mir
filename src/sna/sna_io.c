@@ -346,30 +346,27 @@ fallback:
 				extents.y2 = box[n].y2;
 		}
 
-		tmp.drawable.width = extents.x2 - extents.x1;
+		tmp.drawable.width  = extents.x2 - extents.x1;
 		tmp.drawable.height = extents.y2 - extents.y1;
-		tmp.drawable.depth = dst->drawable.depth;
+		tmp.drawable.depth  = dst->drawable.depth;
 		tmp.drawable.bitsPerPixel = dst->drawable.bitsPerPixel;
 		tmp.devPrivate.ptr = NULL;
 
 		assert(tmp.drawable.width);
 		assert(tmp.drawable.height);
 
-		tmp.devKind = tmp.drawable.width * tmp.drawable.bitsPerPixel / 8;
-		tmp.devKind = ALIGN(tmp.devKind, 4);
-
-		src_bo = kgem_create_buffer(kgem,
-					    tmp.drawable.height * tmp.devKind,
-					    KGEM_BUFFER_WRITE,
-					    &ptr);
+		src_bo = kgem_create_buffer_2d(kgem,
+					       tmp.drawable.width,
+					       tmp.drawable.height,
+					       tmp.drawable.bitsPerPixel,
+					       KGEM_BUFFER_WRITE,
+					       &ptr);
 		if (!src_bo)
 			goto fallback;
 
-		src_bo->pitch = tmp.devKind;
-
 		for (n = 0; n < nbox; n++) {
 			memcpy_blt(src, ptr, tmp.drawable.bitsPerPixel,
-				   stride, tmp.devKind,
+				   stride, src_bo->pitch,
 				   box[n].x1 + src_dx,
 				   box[n].y1 + src_dy,
 				   box[n].x1 - extents.x1,
@@ -594,21 +591,18 @@ fallback:
 		assert(tmp.drawable.width);
 		assert(tmp.drawable.height);
 
-		tmp.devKind = tmp.drawable.width * tmp.drawable.bitsPerPixel / 8;
-		tmp.devKind = ALIGN(tmp.devKind, 4);
-
-		src_bo = kgem_create_buffer(kgem,
-					    tmp.drawable.height * tmp.devKind,
-					    KGEM_BUFFER_WRITE,
-					    &ptr);
+		src_bo = kgem_create_buffer_2d(kgem,
+					       tmp.drawable.width,
+					       tmp.drawable.height,
+					       tmp.drawable.bitsPerPixel,
+					       KGEM_BUFFER_WRITE,
+					       &ptr);
 		if (!src_bo)
 			goto fallback;
 
-		src_bo->pitch = tmp.devKind;
-
 		for (n = 0; n < nbox; n++) {
 			memcpy_xor(src, ptr, tmp.drawable.bitsPerPixel,
-				   stride, tmp.devKind,
+				   stride, src_bo->pitch,
 				   box[n].x1 + src_dx,
 				   box[n].y1 + src_dy,
 				   box[n].x1 - extents.x1,

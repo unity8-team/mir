@@ -1129,7 +1129,6 @@ sna_render_picture_fixup(struct sna *sna,
 			 int16_t dst_x, int16_t dst_y)
 {
 	pixman_image_t *dst, *src;
-	uint32_t pitch;
 	int dx, dy;
 	void *ptr;
 
@@ -1169,25 +1168,23 @@ sna_render_picture_fixup(struct sna *sna,
 	}
 
 do_fixup:
-	if (PICT_FORMAT_RGB(picture->format) == 0) {
-		pitch = ALIGN(w, 4);
+	if (PICT_FORMAT_RGB(picture->format) == 0)
 		channel->pict_format = PIXMAN_a8;
-	} else {
-		pitch = sizeof(uint32_t)*w;
+	else
 		channel->pict_format = PIXMAN_a8r8g8b8;
-	}
 	if (channel->pict_format != picture->format) {
-		DBG(("%s: converting to %08x (pitch=%d) from %08x\n",
-		     __FUNCTION__, channel->pict_format, pitch, picture->format));
+		DBG(("%s: converting to %08x from %08x\n",
+		     __FUNCTION__, channel->pict_format, picture->format));
 	}
 
 	if (picture->pDrawable &&
 	    !sna_drawable_move_to_cpu(picture->pDrawable, MOVE_READ))
 		return 0;
 
-	channel->bo = kgem_create_buffer(&sna->kgem,
-					 pitch*h, KGEM_BUFFER_WRITE,
-					 &ptr);
+	channel->bo = kgem_create_buffer_2d(&sna->kgem,
+					    w, h, PIXMAN_FORMAT_BPP(channel->pict_format),
+					    KGEM_BUFFER_WRITE,
+					    &ptr);
 	if (!channel->bo) {
 		DBG(("%s: failed to create upload buffer, using clear\n",
 		     __FUNCTION__));
@@ -1195,12 +1192,12 @@ do_fixup:
 	}
 
 	/* XXX Convolution filter? */
-	memset(ptr, 0, pitch*h);
-	channel->bo->pitch = pitch;
+	memset(ptr, 0, channel->bo->size);
 
 	/* Composite in the original format to preserve idiosyncracies */
 	if (picture->format == channel->pict_format)
-		dst = pixman_image_create_bits(picture->format, w, h, ptr, pitch);
+		dst = pixman_image_create_bits(picture->format,
+					       w, h, ptr, channel->bo->pitch);
 	else
 		dst = pixman_image_create_bits(picture->format, w, h, NULL, 0);
 	if (!dst) {
@@ -1233,7 +1230,7 @@ do_fixup:
 
 		src = dst;
 		dst = pixman_image_create_bits(channel->pict_format,
-					       w, h, ptr, pitch);
+					       w, h, ptr, channel->bo->pitch);
 		if (dst) {
 			pixman_image_composite(PictOpSrc, src, NULL, dst,
 					       0, 0,
@@ -1242,7 +1239,7 @@ do_fixup:
 					       w, h);
 			pixman_image_unref(src);
 		} else {
-			memset(ptr, 0, h*pitch);
+			memset(ptr, 0, channel->bo->size);
 			dst = src;
 		}
 	}
@@ -1273,7 +1270,6 @@ sna_render_picture_convert(struct sna *sna,
 			   int16_t w, int16_t h,
 			   int16_t dst_x, int16_t dst_y)
 {
-	uint32_t pitch;
 	pixman_image_t *src, *dst;
 	BoxRec box;
 	void *ptr;
@@ -1338,27 +1334,26 @@ sna_render_picture_convert(struct sna *sna,
 		return 0;
 
 	if (PICT_FORMAT_RGB(picture->format) == 0) {
-		pitch = ALIGN(w, 4);
 		channel->pict_format = PIXMAN_a8;
-		DBG(("%s: converting to a8 (pitch=%d) from %08x\n",
-		     __FUNCTION__, pitch, picture->format));
+		DBG(("%s: converting to a8 from %08x\n",
+		     __FUNCTION__, picture->format));
 	} else {
-		pitch = sizeof(uint32_t)*w;
 		channel->pict_format = PIXMAN_a8r8g8b8;
-		DBG(("%s: converting to a8r8g8b8 (pitch=%d) from %08x\n",
-		     __FUNCTION__, pitch, picture->format));
+		DBG(("%s: converting to a8r8g8b8 from %08x\n",
+		     __FUNCTION__, picture->format));
 	}
 
-	channel->bo = kgem_create_buffer(&sna->kgem,
-					 pitch*h, KGEM_BUFFER_WRITE,
-					 &ptr);
+	channel->bo = kgem_create_buffer_2d(&sna->kgem,
+					    w, h, PIXMAN_FORMAT_BPP(channel->pict_format),
+					    KGEM_BUFFER_WRITE,
+					    &ptr);
 	if (!channel->bo) {
 		pixman_image_unref(src);
 		return 0;
 	}
 
-	channel->bo->pitch = pitch;
-	dst = pixman_image_create_bits(channel->pict_format, w, h, ptr, pitch);
+	dst = pixman_image_create_bits(channel->pict_format,
+				       w, h, ptr, channel->bo->pitch);
 	if (!dst) {
 		kgem_bo_destroy(&sna->kgem, channel->bo);
 		pixman_image_unref(src);

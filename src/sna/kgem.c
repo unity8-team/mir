@@ -2957,6 +2957,34 @@ done:
 	return kgem_create_proxy(&bo->base, offset, size);
 }
 
+struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
+				      int width, int height, int bpp,
+				      uint32_t flags,
+				      void **ret)
+{
+	struct kgem_bo *bo;
+	int stride;
+
+	stride = width * bpp >> 3;
+	stride = ALIGN(stride, 4);
+
+	bo = kgem_create_buffer(kgem, stride * ALIGN(height, 2), flags, ret);
+	if (bo == NULL)
+		return NULL;
+
+	if (height & 1) {
+		/* Having padded this surface to ensure that accesses to
+		 * the last pair of rows is valid, remove the padding so
+		 * that it can be allocated to other pixmaps.
+		 */
+		((struct kgem_partial_bo *)bo->proxy)->used -= stride;
+		bo->size -= stride;
+	}
+
+	bo->pitch = stride;
+	return bo;
+}
+
 struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
 					 BoxPtr box,
@@ -2964,25 +2992,22 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 {
 	int width = box->x2 - box->x1;
 	int height = box->y2 - box->y1;
-	int dst_stride = ALIGN(width * bpp, 32) >> 3;
-	int size = dst_stride * height;
 	struct kgem_bo *bo;
 	void *dst;
 
 	DBG(("%s : (%d, %d), (%d, %d), stride=%d, bpp=%d\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2, stride, bpp));
 
-	bo = kgem_create_buffer(kgem, size, KGEM_BUFFER_WRITE, &dst);
-	if (bo == NULL)
-		return NULL;
+	bo = kgem_create_buffer_2d(kgem,
+				   width, height, bpp,
+				   KGEM_BUFFER_WRITE, &dst);
+	if (bo)
+		memcpy_blt(data, dst, bpp,
+			   stride, bo->pitch,
+			   box->x1, box->y1,
+			   0, 0,
+			   width, height);
 
-	memcpy_blt(data, dst, bpp,
-		   stride, dst_stride,
-		   box->x1, box->y1,
-		   0, 0,
-		   width, height);
-
-	bo->pitch = dst_stride;
 	return bo;
 }
 
@@ -2993,8 +3018,6 @@ struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
 						int width, int height,
 						int stride, int bpp)
 {
-	int dst_stride = ALIGN(width * bpp / 2, 32) >> 3;
-	int size = dst_stride * height / 2;
 	struct kgem_bo *bo;
 	pixman_image_t *src_image, *dst_image;
 	pixman_transform_t t;
@@ -3003,12 +3026,14 @@ struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
 	DBG(("%s : (%d, %d), (%d, %d), stride=%d, bpp=%d\n",
 	     __FUNCTION__, x, y, width, height, stride, bpp));
 
-	bo = kgem_create_buffer(kgem, size, KGEM_BUFFER_WRITE, &dst);
+	bo = kgem_create_buffer_2d(kgem,
+				   width, height, bpp,
+				   KGEM_BUFFER_WRITE, &dst);
 	if (bo == NULL)
 		return NULL;
 
 	dst_image = pixman_image_create_bits(format, width/2, height/2,
-					     dst, dst_stride);
+					     dst, bo->pitch);
 	if (dst_image == NULL)
 		goto cleanup_bo;
 
@@ -3034,7 +3059,6 @@ struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
 	pixman_image_unref(src_image);
 	pixman_image_unref(dst_image);
 
-	bo->pitch = dst_stride;
 	return bo;
 
 cleanup_dst:
