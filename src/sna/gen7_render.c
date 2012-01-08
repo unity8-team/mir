@@ -55,6 +55,7 @@
 #define NO_COPY_BOXES 0
 #define NO_FILL 0
 #define NO_FILL_BOXES 0
+#define NO_CLEAR 0
 
 #define GEN7_MAX_SIZE 16384
 
@@ -3608,6 +3609,102 @@ gen7_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	return TRUE;
 }
 
+static Bool
+gen7_render_clear_try_blt(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
+{
+	BoxRec box;
+
+	box.x1 = 0;
+	box.y1 = 0;
+	box.x2 = dst->drawable.width;
+	box.y2 = dst->drawable.height;
+
+	return sna_blt_fill_boxes(sna, GXclear,
+				  bo, dst->drawable.bitsPerPixel,
+				  0, &box, 1);
+}
+
+static Bool
+gen7_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
+{
+	struct sna_composite_op tmp;
+
+#if NO_CLEAR
+	return gen7_render_clear_try_blt(sna, dst, bo);
+#endif
+
+	DBG(("%s: %dx%d\n",
+	     __FUNCTION__,
+	     dst->drawable.width,
+	     dst->drawable.height));
+
+	/* Prefer to use the BLT if already engaged */
+	if (sna->kgem.ring == KGEM_BLT &&
+	    gen7_render_clear_try_blt(sna, dst, bo))
+		return TRUE;
+
+	/* Must use the BLT if we can't RENDER... */
+	if (too_large(dst->drawable.width, dst->drawable.height))
+		return gen7_render_clear_try_blt(sna, dst, bo);
+
+	tmp.op = PictOpClear;
+
+	tmp.dst.pixmap = dst;
+	tmp.dst.width  = dst->drawable.width;
+	tmp.dst.height = dst->drawable.height;
+	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
+	tmp.dst.bo = bo;
+	tmp.dst.x = tmp.dst.y = 0;
+
+	tmp.src.bo = sna_render_get_solid(sna, 0);
+	tmp.src.filter = SAMPLER_FILTER_NEAREST;
+	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
+
+	tmp.mask.bo = NULL;
+	tmp.mask.filter = SAMPLER_FILTER_NEAREST;
+	tmp.mask.repeat = SAMPLER_EXTEND_NONE;
+
+	tmp.is_affine = TRUE;
+	tmp.floats_per_vertex = 3;
+	tmp.floats_per_rect = 9;
+	tmp.has_component_alpha = 0;
+	tmp.need_magic_ca_pass = FALSE;
+
+	tmp.u.gen7.wm_kernel = GEN6_WM_KERNEL_NOMASK;
+	tmp.u.gen7.nr_surfaces = 2;
+	tmp.u.gen7.nr_inputs = 1;
+	tmp.u.gen7.ve_id = 1;
+
+	if (!kgem_check_bo(&sna->kgem, bo, NULL))
+		_kgem_submit(&sna->kgem);
+
+	gen7_emit_fill_state(sna, &tmp);
+	gen7_align_vertex(sna, &tmp);
+
+	if (!gen7_get_rectangles(sna, &tmp, 1)) {
+		gen7_emit_fill_state(sna, &tmp);
+		gen7_get_rectangles(sna, &tmp, 1);
+	}
+
+	OUT_VERTEX(dst->drawable.width, dst->drawable.height);
+	OUT_VERTEX_F(1);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(0, dst->drawable.height);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(1);
+
+	OUT_VERTEX(0, 0);
+	OUT_VERTEX_F(0);
+	OUT_VERTEX_F(0);
+
+	gen7_vertex_flush(sna);
+	kgem_bo_destroy(&sna->kgem, tmp.src.bo);
+	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+
+	return TRUE;
+}
+
 static void gen7_render_flush(struct sna *sna)
 {
 	gen7_vertex_finish(sna, TRUE);
@@ -3711,6 +3808,7 @@ Bool gen7_render_init(struct sna *sna)
 	sna->render.fill_boxes = gen7_render_fill_boxes;
 	sna->render.fill = gen7_render_fill;
 	sna->render.fill_one = gen7_render_fill_one;
+	sna->render.clear = gen7_render_clear;
 
 	sna->render.flush = gen7_render_flush;
 	sna->render.reset = gen7_render_reset;

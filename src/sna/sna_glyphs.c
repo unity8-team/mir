@@ -654,11 +654,7 @@ static bool
 clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	return sna->render.fill_one(sna, pixmap, priv->gpu_bo, 0,
-				    0, 0,
-				    pixmap->drawable.width,
-				    pixmap->drawable.height,
-				    GXclear);
+	return sna->render.clear(sna, pixmap, priv->gpu_bo);
 }
 
 static Bool

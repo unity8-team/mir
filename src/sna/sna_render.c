@@ -197,6 +197,18 @@ no_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 				  color, &box, 1);
 }
 
+static Bool
+no_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
+{
+	DBG(("%s: pixmap=%ld %dx%d\n", __FUNCTION__,
+	     dst->drawable.serialNumber,
+	     dst->drawable.width,
+	     dst->drawable.height));
+	return sna->render.fill_one(sna, dst, bo, 0,
+				    0, 0, dst->drawable.width, dst->drawable.height,
+				    GXclear);
+}
+
 static void no_render_reset(struct sna *sna)
 {
 	(void)sna;
@@ -235,6 +247,7 @@ void no_render_init(struct sna *sna)
 	render->fill_boxes = no_render_fill_boxes;
 	render->fill = no_render_fill;
 	render->fill_one = no_render_fill_one;
+	render->clear = no_render_clear;
 
 	render->reset = no_render_reset;
 	render->flush = no_render_flush;
