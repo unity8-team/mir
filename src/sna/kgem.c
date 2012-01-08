@@ -2883,6 +2883,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			return NULL;
 		}
 
+		if (write)
+			kgem_bo_sync__cpu(kgem, &bo->base);
+
 		bo->need_io = false;
 		bo->base.io = true;
 
