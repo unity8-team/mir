@@ -2614,6 +2614,9 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	}
 
 	bo->reusable = false;
+	bo->vmap = true;
+	bo->sync = true;
+
 	DBG(("%s(ptr=%p, size=%d, read_only=%d) => handle=%d\n",
 	     __FUNCTION__, ptr, size, read_only, handle));
 	return bo;

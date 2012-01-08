@@ -250,7 +250,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 {
 	struct sna_pixmap *priv;
 
-	priv = sna_pixmap(pixmap);
+	priv = sna_pixmap_attach(pixmap);
 	if (priv == NULL || priv->cpu_bo == NULL) {
 		DBG(("%s: no cpu bo\n", __FUNCTION__));
 		return NULL;
@@ -526,24 +526,12 @@ sna_render_pixmap_bo(struct sna *sna,
 	     pixmap->drawable.width, pixmap->drawable.height));
 
 	bo = use_cpu_bo(sna, pixmap, &box);
-	if (bo == NULL && texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
-		/* If we are using transient data, it is better to copy
-		 * to an amalgamated upload buffer so that we don't
-		 * stall on releasing the cpu bo immediately upon
-		 * completion of the operation.
-		 */
-		if (pixmap->usage_hint != CREATE_PIXMAP_USAGE_SCRATCH_HEADER &&
-		    w * pixmap->drawable.bitsPerPixel * h > 8*4096) {
-			bo = pixmap_vmap(&sna->kgem, pixmap);
-			if (bo)
-				bo = kgem_bo_reference(bo);
-		}
-
-		if (bo == NULL) {
-			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
-			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-			bo = upload(sna, channel, pixmap, &box);
-		}
+	if (bo == NULL &&
+	    texture_is_cpu(pixmap, &box) &&
+	    !move_to_gpu(pixmap, &box)) {
+		DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
+		bo = upload(sna, channel, pixmap, &box);
 	}
 
 	if (bo == NULL) {

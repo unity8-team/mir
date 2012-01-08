@@ -436,10 +436,12 @@ struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
 	     pixmap->usage_hint));
 
 	switch (pixmap->usage_hint) {
-	case CREATE_PIXMAP_USAGE_GLYPH_PICTURE:
-#if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 	case CREATE_PIXMAP_USAGE_SCRATCH_HEADER:
+#if !FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
+		if (sna->kgem.has_vmap)
+			break;
 #endif
+	case CREATE_PIXMAP_USAGE_GLYPH_PICTURE:
 		DBG(("%s: not attaching due to crazy usage: %d\n",
 		     __FUNCTION__, pixmap->usage_hint));
 		return NULL;
@@ -467,6 +469,15 @@ struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
 	sna_damage_all(&priv->cpu_damage,
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
+
+	if (pixmap->usage_hint == CREATE_PIXMAP_USAGE_SCRATCH_HEADER) {
+		priv->cpu_bo = kgem_create_map(&sna->kgem,
+					       pixmap->devPrivate.ptr,
+					       pixmap_size(pixmap),
+					       0);
+		if (priv->cpu_bo)
+			priv->cpu_bo->pitch = pixmap->devKind;
+	}
 
 	return priv;
 }
@@ -1535,6 +1546,8 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	BoxPtr box;
 	int n;
 
+	assert(pixmap->usage_hint != CREATE_PIXMAP_USAGE_SCRATCH_HEADER);
+
 	DBG(("%s(pixmap=%ld, usage=%d)\n",
 	     __FUNCTION__, pixmap->drawable.serialNumber, pixmap->usage_hint));
 
@@ -2429,9 +2442,13 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 	if (priv->gpu_bo)
 		return TRUE;
 
-	if (priv->cpu_bo)
+	if (priv->cpu_bo) {
+		if (pixmap->usage_hint)
+			return FALSE;
+
 		return (priv->source_count++-SOURCE_BIAS) * w*h >=
 			(int)pixmap->drawable.width * pixmap->drawable.height;
+	}
 
 	if (alu != GXcopy)
 		return TRUE;
@@ -2689,7 +2706,9 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 							    &region);
 				RegionTranslate(&region, -dst_dx, -dst_dy);
 			}
-		} else if (src_priv && src_priv->cpu_bo) {
+		} else if ((src_priv ||
+			    (src_priv = _sna_pixmap_attach(src_pixmap))) &&
+			   src_priv->cpu_bo) {
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->cpu_bo, src_dx, src_dy,
 						    dst_pixmap, dst_priv->gpu_bo, dst_dx, dst_dy,

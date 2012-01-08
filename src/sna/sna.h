@@ -578,35 +578,6 @@ static inline uint32_t pixmap_size(PixmapPtr pixmap)
 		pixmap->drawable.width * pixmap->drawable.bitsPerPixel/8;
 }
 
-static inline struct kgem_bo *pixmap_vmap(struct kgem *kgem, PixmapPtr pixmap)
-{
-	struct sna_pixmap *priv;
-
-	if (!kgem->has_vmap)
-		return NULL;
-
-	if (unlikely(kgem->wedged))
-		return NULL;
-
-	priv = sna_pixmap_attach(pixmap);
-	if (priv == NULL)
-		return NULL;
-
-	if (priv->cpu_bo == NULL) {
-		priv->cpu_bo = kgem_create_map(kgem,
-					       pixmap->devPrivate.ptr,
-					       pixmap_size(pixmap),
-					       0);
-		if (priv->cpu_bo) {
-			priv->cpu_bo->pitch = pixmap->devKind;
-			if (pixmap->usage_hint == CREATE_PIXMAP_USAGE_SCRATCH_HEADER)
-				priv->cpu_bo->sync = true;
-		}
-	}
-
-	return priv->cpu_bo;
-}
-
 Bool sna_accel_pre_init(struct sna *sna);
 Bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
 void sna_accel_block_handler(struct sna *sna);

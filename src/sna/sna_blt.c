@@ -1350,7 +1350,7 @@ prepare_blt_put(struct sna *sna,
 		uint32_t alpha_fixup)
 {
 	PixmapPtr src = op->u.blt.src_pixmap;
-	struct sna_pixmap *priv = sna_pixmap(src);
+	struct sna_pixmap *priv = sna_pixmap_attach(src);
 	struct kgem_bo *src_bo = NULL;
 	struct kgem_bo *free_bo = NULL;
 
@@ -1358,8 +1358,6 @@ prepare_blt_put(struct sna *sna,
 
 	if (priv) {
 		src_bo = priv->cpu_bo;
-		if (!src_bo)
-			src_bo = pixmap_vmap(&sna->kgem, src);
 	} else {
 		src_bo = kgem_create_map(&sna->kgem,
 					 src->devPrivate.ptr,
