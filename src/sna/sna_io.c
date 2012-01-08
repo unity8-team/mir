@@ -305,6 +305,46 @@ static void write_boxes_inplace(struct kgem *kgem,
 	} while (--n);
 }
 
+static bool upload_inplace(struct kgem *kgem,
+			   struct kgem_bo *bo,
+			   const BoxRec *box,
+			   int n, int bpp)
+{
+	if (DEBUG_NO_IO)
+		return true;
+
+	if (unlikely(kgem->wedged))
+		return true;
+
+	/* If we are writing through the GTT, check first if we might be
+	 * able to almagamate a series of small writes into a single
+	 * operation.
+	 */
+	if (!bo->map) {
+		BoxRec extents;
+
+		extents = box[0];
+		while (--n) {
+			box++;
+			if (box->x1 < extents.x1)
+				extents.x1 = box->x1;
+			if (box->x2 > extents.x2)
+				extents.x2 = box->x2;
+
+			if (box->y1 < extents.y1)
+				extents.y1 = box->y1;
+			if (box->y2 > extents.y2)
+				extents.y2 = box->y2;
+		}
+
+		if ((extents.x2 - extents.x1) * (extents.y2 - extents.y1) * bpp >> 12
+		    < kgem->half_cpu_cache_pages)
+			return false;
+	}
+
+	return !kgem_bo_map_will_stall(kgem, bo);
+}
+
 void sna_write_boxes(struct sna *sna, PixmapPtr dst,
 		     struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 		     const void *src, int stride, int16_t src_dx, int16_t src_dy,
@@ -318,8 +358,7 @@ void sna_write_boxes(struct sna *sna, PixmapPtr dst,
 
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
-	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_map_will_stall(kgem, dst_bo)) {
+	if (upload_inplace(kgem, dst_bo, box, nbox, dst->drawable.bitsPerPixel)) {
 fallback:
 		write_boxes_inplace(kgem,
 				    src, stride, dst->drawable.bitsPerPixel, src_dx, src_dy,
@@ -551,8 +590,7 @@ void sna_write_boxes__xor(struct sna *sna, PixmapPtr dst,
 
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
-	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_map_will_stall(kgem, dst_bo)) {
+	if (upload_inplace(kgem, dst_bo, box, nbox, dst->drawable.bitsPerPixel)) {
 fallback:
 		write_boxes_inplace__xor(kgem,
 					 src, stride, dst->drawable.bitsPerPixel, src_dx, src_dy,
