@@ -45,7 +45,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "compiler.h"
 #include <xf86_OSproc.h>
-#include <xf86PciInfo.h>
 #include <xf86Pci.h>
 #include <xf86Cursor.h>
 #include <xf86xv.h>
