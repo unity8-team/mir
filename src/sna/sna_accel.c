@@ -2446,6 +2446,10 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 		if (pixmap->usage_hint)
 			return FALSE;
 
+		if (priv->cpu_bo->size <= 4096 ||
+		    sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE)
+			return FALSE;
+
 		return (priv->source_count++-SOURCE_BIAS) * w*h >=
 			(int)pixmap->drawable.width * pixmap->drawable.height;
 	}
