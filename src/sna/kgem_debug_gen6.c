@@ -88,8 +88,6 @@ static void gen6_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 	ptr = (char *)base + kgem->reloc[i].delta;
 
 	i = data[0] >> 26;
-	if (state.vb[i].current)
-		kgem_bo_unmap(kgem, state.vb[i].current);
 
 	state.vb[i].current = bo;
 	state.vb[i].base = base;
@@ -128,9 +126,6 @@ static void gen6_update_dynamic_buffer(struct kgem *kgem, const uint32_t offset)
 		base = NULL;
 		ptr = NULL;
 	}
-
-	if (state.dynamic_state.current)
-		kgem_bo_unmap(kgem, state.dynamic_state.current);
 
 	state.dynamic_state.current = bo;
 	state.dynamic_state.base = base;
@@ -300,22 +295,8 @@ static void primitive_out(struct kgem *kgem, uint32_t *data)
 	}
 }
 
-static void finish_vertex_buffers(struct kgem *kgem)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(state.vb); i++)
-		if (state.vb[i].current)
-			kgem_bo_unmap(kgem, state.vb[i].current);
-}
-
 static void finish_state(struct kgem *kgem)
 {
-	finish_vertex_buffers(kgem);
-
-	if (state.dynamic_state.current)
-		kgem_bo_unmap(kgem, state.dynamic_state.base);
-
 	memset(&state, 0, sizeof(state));
 }
 
@@ -478,13 +459,6 @@ get_reloc(struct kgem *kgem,
 	return (char *)base + (delta & ~3);
 }
 
-static void
-put_reloc(struct kgem *kgem, struct reloc *r)
-{
-	if (r->bo != NULL)
-		kgem_bo_unmap(kgem, r->bo);
-}
-
 static const char *
 gen6_filter_to_string(uint32_t filter)
 {
@@ -539,8 +513,6 @@ gen6_decode_sampler_state(struct kgem *kgem, const uint32_t *reloc)
 	ErrorF("  Sampler 1:\n");
 	ErrorF("    filter: min=%s, mag=%s\n", min, mag);
 	ErrorF("    wrap: s=%s, t=%s, r=%s\n", s_wrap, t_wrap, r_wrap);
-
-	put_reloc(kgem, &r);
 }
 
 static const char *
@@ -604,8 +576,6 @@ gen6_decode_blend(struct kgem *kgem, const uint32_t *reloc)
 	ErrorF("  Blend (%s): function %s, src=%s, dst=%s\n",
 	       blend->blend0.blend_enable ? "enabled" : "disabled",
 	       func, src, dst);
-
-	put_reloc(kgem, &r);
 }
 
 int kgem_gen6_decode_3d(struct kgem *kgem, uint32_t offset)

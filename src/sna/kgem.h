@@ -63,8 +63,10 @@ struct kgem_bo {
 	uint32_t refcnt;
 	uint32_t handle;
 	uint32_t presumed_offset;
-	uint32_t size;
 	uint32_t delta;
+	uint32_t size:28;
+	uint32_t bucket:4;
+#define MAX_OBJECT_SIZE (1 << 28)
 
 	uint32_t pitch : 18; /* max 128k */
 	uint32_t tiling : 2;
@@ -90,6 +92,14 @@ struct kgem_request {
 	struct list buffers;
 };
 
+enum {
+	MAP_GTT = 0,
+	MAP_CPU,
+	NUM_MAP_TYPES,
+};
+
+#define NUM_CACHE_BUCKETS 16
+
 struct kgem {
 	int fd;
 	int wedged;
@@ -105,12 +115,15 @@ struct kgem {
 		KGEM_BLT,
 	} mode, ring;
 
-	struct list flushing, active[16], inactive[16];
+	struct list flushing, active[NUM_CACHE_BUCKETS], inactive[NUM_CACHE_BUCKETS];
 	struct list partial;
 	struct list requests;
-	struct list vma_cache;
-	struct list vma_inactive;
 	struct kgem_request *next_request;
+
+	struct {
+		struct list inactive[NUM_CACHE_BUCKETS];
+		int16_t count;
+	} vma[NUM_MAP_TYPES];
 
 	uint16_t nbatch;
 	uint16_t surface;
@@ -118,7 +131,6 @@ struct kgem {
 	uint16_t nreloc;
 	uint16_t nfence;
 	uint16_t max_batch_size;
-	uint16_t vma_count;
 
 	uint32_t flush:1;
 	uint32_t sync:1;
@@ -332,10 +344,8 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t delta);
 
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot);
-void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
-void kgem_bo_unmap__cpu(struct kgem *kgem, struct kgem_bo *bo, void *ptr);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
