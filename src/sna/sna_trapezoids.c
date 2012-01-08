@@ -3331,9 +3331,9 @@ trapezoid_span_inplace(CARD8 op, PicturePtr src, PicturePtr dst,
 	switch (op) {
 	case PictOpIn:
 	case PictOpAdd:
+	case PictOpSrc:
 		if (!fallback && is_gpu(dst->pDrawable))
 			return false;
-	case PictOpSrc:
 		break;
 	default:
 		DBG(("%s: fallback -- can not perform op [%d] in place\n",
