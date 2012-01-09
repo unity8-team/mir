@@ -1595,6 +1595,24 @@ sna_blt_composite(struct sna *sna,
 		return FALSE;
 	}
 
+	if (!sna_transform_is_integer_translation(src->transform, &tx, &ty)) {
+		DBG(("%s: source transform is not an integer translation\n",
+		     __FUNCTION__));
+		return FALSE;
+	}
+	x += tx;
+	y += ty;
+
+	if ((x > src->pDrawable->width ||
+	     y > src->pDrawable->height ||
+	     x + width < 0 ||
+	     y + height < 0) &&
+	    (!src->repeat || src->repeatType == RepeatNone)) {
+		DBG(("%s: source is outside of valid area, converting to clear\n",
+		     __FUNCTION__));
+		return prepare_blt_clear(sna, tmp);
+	}
+
 	alpha_fixup = 0;
 	if (!(dst->format == src_format ||
 	      dst->format == alphaless(src_format) ||
@@ -1606,14 +1624,6 @@ sna_blt_composite(struct sna *sna,
 		     __FUNCTION__, (unsigned)src_format, dst->format));
 		return FALSE;
 	}
-
-	if (!sna_transform_is_integer_translation(src->transform, &tx, &ty)) {
-		DBG(("%s: source transform is not an integer translation\n",
-		     __FUNCTION__));
-		return FALSE;
-	}
-	x += tx;
-	y += ty;
 
 	/* XXX tiling? */
 	if (x < 0 || y < 0 ||
