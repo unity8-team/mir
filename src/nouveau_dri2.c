@@ -49,8 +49,8 @@ nouveau_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
 		int bpp;
 		unsigned int usage_hint = NOUVEAU_CREATE_PIXMAP_TILED;
 
-		/* 'format' is just depth */
-		bpp = round_up_pow2(format);
+		/* 'format' is just depth (or 0, or maybe it depends on the caller) */
+		bpp = round_up_pow2(format ? format : pDraw->depth);
 
 		if (attachment == DRI2BufferDepth ||
 		    attachment == DRI2BufferDepthStencil)
