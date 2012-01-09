@@ -466,10 +466,10 @@ sna_render_pixmap_bo(struct sna *sna,
 	BoxRec box;
 
 	DBG(("%s (%d, %d)x(%d, %d)/(%d, %d)\n", __FUNCTION__,
-	     x, y, w,h, pixmap->drawable.height, pixmap->drawable.width));
+	     x, y, w,h, pixmap->drawable.width, pixmap->drawable.height));
 
-	channel->height = pixmap->drawable.height;
 	channel->width  = pixmap->drawable.width;
+	channel->height = pixmap->drawable.height;
 	channel->scale[0] = 1.f / pixmap->drawable.width;
 	channel->scale[1] = 1.f / pixmap->drawable.height;
 	channel->offset[0] = x - dst_x;
