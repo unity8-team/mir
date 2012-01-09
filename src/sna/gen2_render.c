@@ -60,19 +60,6 @@
 #define BATCH_F(v) batch_emit_float(sna, v)
 #define VERTEX(v) batch_emit_float(sna, v)
 
-/* TODO: Remaining items for the sufficiently motivated reader
- *
- * - Linear gradients (radial do require pixel shaders)
- *   - generate 1-d ramp for texture
- *   - compute 1-d texture coordinate using a linear projection matrix
- *   - issues? 1-stop, degenerate, fallback.
- *
- * - vmap
- *   - the texture sampler can use any type of memory apparently.
- *
- * - memory compaction?
- */
-
 static const struct blendinfo {
 	Bool dst_alpha;
 	Bool src_alpha;
@@ -262,9 +249,9 @@ gen2_emit_texture(struct sna *sna,
 		  const struct sna_composite_channel *channel,
 		  int unit)
 {
-	uint32_t filter;
-	uint32_t wrap_mode;
+	uint32_t wrap_mode_u, wrap_mode_v;
 	uint32_t texcoordtype;
+	uint32_t filter;
 
 	if (channel->is_affine)
 		texcoordtype = TEXCOORDTYPE_CARTESIAN;
@@ -275,18 +262,22 @@ gen2_emit_texture(struct sna *sna,
 	default:
 		assert(0);
 	case RepeatNone:
-		wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
+		wrap_mode_u = TEXCOORDMODE_CLAMP_BORDER;
 		break;
 	case RepeatNormal:
-		wrap_mode = TEXCOORDMODE_WRAP;
+		wrap_mode_u = TEXCOORDMODE_WRAP;
 		break;
 	case RepeatPad:
-		wrap_mode = TEXCOORDMODE_CLAMP;
+		wrap_mode_u = TEXCOORDMODE_CLAMP;
 		break;
 	case RepeatReflect:
-		wrap_mode = TEXCOORDMODE_MIRROR;
+		wrap_mode_u = TEXCOORDMODE_MIRROR;
 		break;
 	}
+	if (channel->is_linear)
+		wrap_mode_v = TEXCOORDMODE_WRAP;
+	else
+		wrap_mode_v = wrap_mode_u;
 
 	switch (channel->filter) {
 	default:
@@ -309,7 +300,7 @@ gen2_emit_texture(struct sna *sna,
 			     I915_GEM_DOMAIN_SAMPLER << 16,
 			     0));
 	BATCH(((channel->height - 1) << TM0S1_HEIGHT_SHIFT) |
-	      ((channel->width - 1) << TM0S1_WIDTH_SHIFT) |
+	      ((channel->width - 1)  << TM0S1_WIDTH_SHIFT) |
 	      gen2_get_card_format(sna, channel->pict_format) |
 	      gen2_sampler_tiling_bits(channel->bo->tiling));
 	BATCH((channel->bo->pitch / 4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
@@ -317,10 +308,9 @@ gen2_emit_texture(struct sna *sna,
 	BATCH(0);	/* default color */
 
 	BATCH(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
-	      ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
-	      texcoordtype |
-	      ENABLE_ADDR_V_CNTL | TEXCOORD_ADDR_V_MODE(wrap_mode) |
-	      ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
+	      ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL | texcoordtype |
+	      ENABLE_ADDR_V_CNTL | TEXCOORD_ADDR_V_MODE(wrap_mode_v) |
+	      ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode_u));
 }
 
 static void
@@ -693,6 +683,21 @@ gen2_emit_composite_dstcoord(struct sna *sna, int dstX, int dstY)
 	VERTEX(dstY);
 }
 
+inline static void
+gen2_emit_composite_linear(struct sna *sna,
+			   const struct sna_composite_channel *channel,
+			   int16_t x, int16_t y)
+{
+	float v;
+
+	v = (x * channel->u.gen2.linear_dx +
+	     y * channel->u.gen2.linear_dy +
+	     channel->u.gen2.linear_offset);
+	DBG(("%s: (%d, %d) -> %f\n", __FUNCTION__, x, y, v));
+	VERTEX(v);
+	VERTEX(v);
+}
+
 static void
 gen2_emit_composite_texcoord(struct sna *sna,
 			     const struct sna_composite_channel *channel,
@@ -727,9 +732,14 @@ gen2_emit_composite_vertex(struct sna *sna,
 			   int16_t dstX, int16_t dstY)
 {
 	gen2_emit_composite_dstcoord(sna, dstX, dstY);
-	if (!op->src.is_solid)
+	if (op->src.is_linear)
+		gen2_emit_composite_linear(sna, &op->src, srcX, srcY);
+	else if (!op->src.is_solid)
 		gen2_emit_composite_texcoord(sna, &op->src, srcX, srcY);
-	if (op->mask.bo)
+
+	if (op->mask.is_linear)
+		gen2_emit_composite_linear(sna, &op->mask, mskX, mskY);
+	else if (op->mask.bo)
 		gen2_emit_composite_texcoord(sna, &op->mask, mskX, mskY);
 }
 
@@ -772,6 +782,27 @@ gen2_emit_composite_primitive_constant(struct sna *sna,
 	gen2_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
 	gen2_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
 	gen2_emit_composite_dstcoord(sna, dst_x, dst_y);
+}
+
+fastcall static void
+gen2_emit_composite_primitive_linear(struct sna *sna,
+				       const struct sna_composite_op *op,
+				       const struct sna_composite_rectangles *r)
+{
+	int16_t dst_x = r->dst.x + op->dst.x;
+	int16_t dst_y = r->dst.y + op->dst.y;
+
+	gen2_emit_composite_dstcoord(sna, dst_x + r->width, dst_y + r->height);
+	gen2_emit_composite_linear(sna, &op->src,
+				   r->src.x + r->width, r->src.y + r->height);
+
+	gen2_emit_composite_dstcoord(sna, dst_x, dst_y + r->height);
+	gen2_emit_composite_linear(sna, &op->src,
+				   r->src.x, r->src.y + r->height);
+
+	gen2_emit_composite_dstcoord(sna, dst_x, dst_y);
+	gen2_emit_composite_linear(sna, &op->src,
+				   r->src.x, r->src.y);
 }
 
 fastcall static void
@@ -862,7 +893,8 @@ gen2_emit_composite_primitive_constant_identity_mask(struct sna *sna,
 static void gen2_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
-	uint32_t ablend, cblend;
+	uint32_t ablend, cblend, *src, *dst;
+	int n;
 
 	if (!op->need_magic_ca_pass)
 		return;
@@ -880,10 +912,12 @@ static void gen2_magic_ca_pass(struct sna *sna,
 	BATCH(ablend);
 	sna->render_state.gen2.ls2 = 0;
 
-	memcpy(sna->kgem.batch + sna->kgem.nbatch,
-	       sna->kgem.batch + sna->render_state.gen2.vertex_offset,
-	       (1 + sna->render.vertex_index)*sizeof(uint32_t));
-	sna->kgem.nbatch += 1 + sna->render.vertex_index;
+	src = sna->kgem.batch + sna->render_state.gen2.vertex_offset;
+	dst = sna->kgem.batch + sna->kgem.nbatch;
+	n = 1 + sna->render.vertex_index;
+	sna->kgem.nbatch += n;
+	while (n--)
+		*dst++ = *src++;
 }
 
 static void gen2_vertex_flush(struct sna *sna)
@@ -1044,6 +1078,7 @@ gen2_composite_solid_init(struct sna *sna,
 	channel->repeat = RepeatNormal;
 	channel->is_affine = TRUE;
 	channel->is_solid  = TRUE;
+	channel->is_linear = FALSE;
 	channel->transform = NULL;
 	channel->width  = 1;
 	channel->height = 1;
@@ -1054,6 +1089,118 @@ gen2_composite_solid_init(struct sna *sna,
 
 	channel->scale[0]  = channel->scale[1]  = 1;
 	channel->offset[0] = channel->offset[1] = 0;
+	return channel->bo != NULL;
+}
+
+#define xFixedToDouble(f) pixman_fixed_to_double(f)
+
+static Bool
+gen2_composite_linear_init(struct sna *sna,
+			   PicturePtr picture,
+			   struct sna_composite_channel *channel,
+			   int x, int y,
+			   int w, int h,
+			   int dst_x, int dst_y)
+{
+	PictLinearGradient *linear =
+		(PictLinearGradient *)picture->pSourcePict;
+	pixman_fixed_t tx, ty;
+	float x0, y0, sf;
+	float dx, dy;
+
+	DBG(("%s: p1=(%f, %f), p2=(%f, %f)\n",
+	     __FUNCTION__,
+	     xFixedToDouble(linear->p1.x), xFixedToDouble(linear->p1.y),
+	     xFixedToDouble(linear->p2.x), xFixedToDouble(linear->p2.y)));
+
+	if (linear->p2.x == linear->p1.x && linear->p2.y == linear->p1.y)
+		return 0;
+
+	if (!sna_transform_is_affine(picture->transform)) {
+		DBG(("%s: fallback due to projective transform\n",
+		     __FUNCTION__));
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, w, h, dst_x, dst_y);
+	}
+
+	channel->bo = sna_render_get_gradient(sna, (PictGradient *)linear);
+	if (!channel->bo)
+		return 0;
+
+	channel->filter = PictFilterNearest;
+	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
+	channel->is_affine = TRUE;
+	channel->is_opaque = FALSE;
+	channel->is_solid  = FALSE;
+	channel->is_linear = TRUE;
+	channel->transform = NULL;
+	channel->width  = channel->bo->pitch / 4;
+	channel->height = 1;
+	channel->pict_format = PICT_a8r8g8b8;
+
+	channel->scale[0]  = channel->scale[1]  = 1;
+	channel->offset[0] = channel->offset[1] = 0;
+
+	if (sna_transform_is_translation(picture->transform, &tx, &ty)) {
+		dx = xFixedToDouble(linear->p2.x - linear->p1.x);
+		dy = xFixedToDouble(linear->p2.y - linear->p1.y);
+
+		x0 = xFixedToDouble(linear->p1.x);
+		y0 = xFixedToDouble(linear->p1.y);
+
+		if (tx | ty) {
+			x0 -= pixman_fixed_to_double(tx);
+			y0 -= pixman_fixed_to_double(ty);
+		}
+	} else {
+		struct pixman_f_vector p1, p2;
+		struct pixman_f_transform m, inv;
+
+		DBG(("%s: transform = [%f %f %f, %f %f %f, %f %f %f]\n",
+		     __FUNCTION__,
+		     pixman_fixed_to_double(picture->transform->matrix[0][0]),
+		     pixman_fixed_to_double(picture->transform->matrix[0][1]),
+		     pixman_fixed_to_double(picture->transform->matrix[0][2]),
+		     pixman_fixed_to_double(picture->transform->matrix[1][0]),
+		     pixman_fixed_to_double(picture->transform->matrix[1][1]),
+		     pixman_fixed_to_double(picture->transform->matrix[1][2]),
+		     pixman_fixed_to_double(picture->transform->matrix[2][0]),
+		     pixman_fixed_to_double(picture->transform->matrix[2][1]),
+		     pixman_fixed_to_double(picture->transform->matrix[2][2])));
+
+		pixman_f_transform_from_pixman_transform(&m,
+							 picture->transform);
+		if (!pixman_f_transform_invert(&inv, &m))
+			return 0;
+
+		p1.v[0] = linear->p1.x;
+		p1.v[1] = linear->p1.y;
+		p1.v[2] = pixman_fixed_1;
+		pixman_f_transform_point(&inv, &p1);
+
+		p2.v[0] = linear->p2.x;
+		p2.v[1] = linear->p2.y;
+		p2.v[2] = pixman_fixed_1;
+		pixman_f_transform_point(&inv, &p2);
+
+		dx = p2.v[0] - p1.v[0];
+		dy = p2.v[1] - p1.v[1];
+
+		x0 = p1.v[0];
+		y0 = p1.v[1];
+	}
+
+	sf = dx*dx + dy*dy;
+	dx /= sf;
+	dy /= sf;
+
+	channel->u.gen2.linear_dx = dx;
+	channel->u.gen2.linear_dy = dy;
+	channel->u.gen2.linear_offset = -dx*(x0+x-dst_x) + -dy*(y0+y-dst_y);
+
+	DBG(("%s: dx=%f, dy=%f, offset=%f\n",
+	     __FUNCTION__, dx, dy, channel->u.gen2.linear_offset));
+
 	return channel->bo != NULL;
 }
 
@@ -1115,7 +1262,7 @@ gen2_check_card_format(struct sna *sna,
 			if (sna->kgem.gen >= 21)
 				return TRUE;
 
-			if ( source_is_covered(picture, x, y, w,h)) {
+			if (source_is_covered(picture, x, y, w,h)) {
 				channel->is_opaque = true;
 				return TRUE;
 			}
@@ -1143,23 +1290,10 @@ gen2_composite_picture(struct sna *sna,
 	     __FUNCTION__, x, y, w, h, dst_x, dst_y));
 
 	channel->is_solid = FALSE;
-	channel->card_format = -1;
+	channel->is_linear = FALSE;
 
 	if (sna_picture_is_solid(picture, &color))
 		return gen2_composite_solid_init(sna, channel, color);
-
-	if (picture->pDrawable == NULL) {
-		DBG(("%s -- fallback, unhandled source %d\n",
-		     __FUNCTION__, picture->pSourcePict->type));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
-	}
-
-	if (picture->alphaMap) {
-		DBG(("%s -- fallback, alphamap\n", __FUNCTION__));
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
-	}
 
 	if (!gen2_check_repeat(picture)) {
 		DBG(("%s -- fallback, unhandled repeat %d\n",
@@ -1171,6 +1305,25 @@ gen2_composite_picture(struct sna *sna,
 	if (!gen2_check_filter(picture)) {
 		DBG(("%s -- fallback, unhandled filter %d\n",
 		     __FUNCTION__, picture->filter));
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, w, h, dst_x, dst_y);
+	}
+
+	if (picture->pDrawable == NULL) {
+		if (picture->pSourcePict->type == SourcePictTypeLinear)
+			return gen2_composite_linear_init(sna, picture, channel,
+							  x, y,
+							  w, h,
+							  dst_x, dst_y);
+
+		DBG(("%s -- fallback, unhandled source %d\n",
+		     __FUNCTION__, picture->pSourcePict->type));
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, w, h, dst_x, dst_y);
+	}
+
+	if (picture->alphaMap) {
+		DBG(("%s -- fallback, alphamap\n", __FUNCTION__));
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
 	}
@@ -1301,12 +1454,18 @@ is_solid(PicturePtr picture)
 }
 
 static bool
-is_gradient(PicturePtr picture)
+is_unhandled_gradient(PicturePtr picture)
 {
 	if (picture->pDrawable)
 		return FALSE;
 
-	return picture->pSourcePict->type != SourcePictTypeSolidFill;
+	switch (picture->pSourcePict->type) {
+	case SourcePictTypeSolidFill:
+	case SourcePictTypeLinear:
+		return FALSE;
+	default:
+		return TRUE;
+	}
 }
 
 static bool
@@ -1318,7 +1477,10 @@ has_alphamap(PicturePtr p)
 static bool
 source_fallback(PicturePtr p)
 {
-	return has_alphamap(p) || is_gradient(p) || !gen2_check_filter(p) || !gen2_check_repeat(p);
+	return (has_alphamap(p) ||
+		is_unhandled_gradient(p) ||
+		!gen2_check_filter(p) ||
+		!gen2_check_repeat(p));
 }
 
 static bool
@@ -1578,6 +1740,8 @@ gen2_render_composite(struct sna *sna,
 	} else {
 		if (tmp->src.is_solid)
 			tmp->prim_emit = gen2_emit_composite_primitive_constant;
+		else if (tmp->src.is_linear)
+			tmp->prim_emit = gen2_emit_composite_primitive_linear;
 		else if (tmp->src.transform == NULL)
 			tmp->prim_emit = gen2_emit_composite_primitive_identity;
 		else if (tmp->src.is_affine)
@@ -1641,6 +1805,38 @@ gen2_emit_composite_spans_primitive_constant(struct sna *sna,
 	v[6] = v[3];
 	v[7] = op->base.dst.y + box->y1;
 	*((uint32_t *)v + 8) = alpha;
+}
+
+fastcall static void
+gen2_emit_composite_spans_primitive_linear(struct sna *sna,
+					     const struct sna_composite_spans_op *op,
+					     const BoxRec *box,
+					     float opacity)
+{
+	union {
+		float f;
+		uint32_t u;
+	} alpha;
+
+	alpha.u = (uint8_t)(255 * opacity) << 24;
+
+	gen2_emit_composite_dstcoord(sna,
+				     op->base.dst.x + box->x2,
+				     op->base.dst.y + box->y2);
+	VERTEX(alpha.f);
+	gen2_emit_composite_linear(sna, &op->base.src, box->x2, box->y2);
+
+	gen2_emit_composite_dstcoord(sna,
+				     op->base.dst.x + box->x1,
+				     op->base.dst.y + box->y2);
+	VERTEX(alpha.f);
+	gen2_emit_composite_linear(sna, &op->base.src, box->x1, box->y2);
+
+	gen2_emit_composite_dstcoord(sna,
+				     op->base.dst.x + box->x1,
+				     op->base.dst.y + box->y1);
+	VERTEX(alpha.f);
+	gen2_emit_composite_linear(sna, &op->base.src, box->x1, box->y1);
 }
 
 fastcall static void
@@ -1723,7 +1919,11 @@ gen2_emit_composite_spans_vertex(struct sna *sna,
 {
 	gen2_emit_composite_dstcoord(sna, x + op->base.dst.x, y + op->base.dst.y);
 	BATCH((uint8_t)(opacity * 255) << 24);
-	gen2_emit_composite_texcoord(sna, &op->base.src, x, y);
+	assert(!op->base.src.is_solid);
+	if (op->base.src.is_linear)
+		gen2_emit_composite_linear(sna, &op->base.src, x, y);
+	else
+		gen2_emit_composite_texcoord(sna, &op->base.src, x, y);
 }
 
 fastcall static void
@@ -1746,7 +1946,7 @@ gen2_emit_spans_pipeline(struct sna *sna,
 
 	cblend =
 		TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_MODULATE |
-	       	TB0C_ARG1_SEL_DIFFUSE | TB0C_ARG1_REPLICATE_ALPHA |
+		TB0C_ARG1_SEL_DIFFUSE | TB0C_ARG1_REPLICATE_ALPHA |
 		TB0C_OUTPUT_WRITE_CURRENT;
 	ablend =
 		TB0A_RESULT_SCALE_1X | TB0A_OP_MODULATE |
@@ -1962,6 +2162,9 @@ gen2_render_composite_spans(struct sna *sna,
 	tmp->base.floats_per_vertex = 3;
 	if (tmp->base.src.is_solid) {
 		tmp->prim_emit = gen2_emit_composite_spans_primitive_constant;
+	} else if (tmp->base.src.is_linear) {
+		tmp->base.floats_per_vertex += 2;
+		tmp->prim_emit = gen2_emit_composite_spans_primitive_linear;
 	} else {
 		assert(tmp->base.src.bo);
 		tmp->base.floats_per_vertex += tmp->base.src.is_affine ? 2 : 3;

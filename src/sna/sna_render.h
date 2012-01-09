@@ -50,6 +50,7 @@ struct sna_composite_op {
 		uint32_t repeat;
 		uint32_t is_affine : 1;
 		uint32_t is_solid : 1;
+		uint32_t is_linear : 1;
 		uint32_t is_opaque : 1;
 		uint32_t alpha_fixup : 1;
 		uint32_t rb_reversed : 1;
@@ -59,6 +60,9 @@ struct sna_composite_op {
 		union {
 			struct {
 				uint32_t pixel;
+				float linear_dx;
+				float linear_dy;
+				float linear_offset;
 			} gen2;
 			struct gen3_shader_channel {
 				int type;
