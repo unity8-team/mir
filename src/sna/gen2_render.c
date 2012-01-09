@@ -1100,12 +1100,12 @@ gen2_composite_solid_init(struct sna *sna,
 	channel->height = 1;
 	channel->pict_format = PICT_a8r8g8b8;
 
-	channel->bo = sna_render_get_solid(sna, color);
+	channel->bo = NULL;
 	channel->u.gen2.pixel = color;
 
 	channel->scale[0]  = channel->scale[1]  = 1;
 	channel->offset[0] = channel->offset[1] = 0;
-	return channel->bo != NULL;
+	return TRUE;
 }
 
 #define xFixedToDouble(f) pixman_fixed_to_double(f)
@@ -1738,6 +1738,10 @@ gen2_render_composite(struct sna *sna,
 				tmp->op = PictOpOutReverse;
 			}
 		}
+
+		/* convert solid to a texture (pure convenience) */
+		if (tmp->mask.is_solid)
+			tmp->mask.bo = sna_render_get_solid(sna, tmp->mask.u.gen2.pixel);
 	}
 
 	tmp->floats_per_vertex = 2;
