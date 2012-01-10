@@ -163,7 +163,7 @@ sna_copy_init_blt(struct sna_copy_op *copy,
 	return sna->render.copy(sna, alu, src, src_bo, dst, dst_bo, copy);
 }
 
-static void sna_pixmap_destroy_gpu_bo(struct sna *sna, struct sna_pixmap *priv)
+static void sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 {
 	sna_damage_destroy(&priv->gpu_damage);
 
@@ -743,7 +743,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 				kgem_retire(&sna->kgem);
 
 			if (kgem_bo_is_busy(priv->gpu_bo)) {
-				sna_pixmap_destroy_gpu_bo(sna, priv);
+				sna_pixmap_free_gpu(sna, priv);
 				if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE))
 					goto skip_inplace_map;
 			}
@@ -827,7 +827,7 @@ skip_inplace_map:
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
-		sna_pixmap_destroy_gpu_bo(sna, priv);
+		sna_pixmap_free_gpu(sna, priv);
 
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
@@ -1158,7 +1158,7 @@ done:
 				      pixmap->drawable.width,
 				      pixmap->drawable.height)) {
 			DBG(("%s: replaced entire pixmap\n", __FUNCTION__));
-			sna_pixmap_destroy_gpu_bo(sna, priv);
+			sna_pixmap_free_gpu(sna, priv);
 		}
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
@@ -1921,7 +1921,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	    region_subsumes_gpu_damage(region, priv) &&
 	    kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo)) {
 		sna_damage_destroy(&priv->gpu_damage);
-		sna_pixmap_destroy_gpu_bo(sna, priv);
+		sna_pixmap_free_gpu(sna, priv);
 	}
 
 	/* XXX performing the upload inplace is currently about 20x slower
@@ -2015,7 +2015,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
-		sna_pixmap_destroy_gpu_bo(sna, priv);
+		sna_pixmap_free_gpu(sna, priv);
 	} else {
 		sna_damage_subtract(&priv->gpu_damage, region);
 		sna_damage_add(&priv->cpu_damage, region);
@@ -2024,7 +2024,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 				      pixmap->drawable.width,
 				      pixmap->drawable.height)) {
 			DBG(("%s: replaced entire pixmap\n", __FUNCTION__));
-			sna_pixmap_destroy_gpu_bo(sna, priv);
+			sna_pixmap_free_gpu(sna, priv);
 		}
 	}
 	if (priv->flush)
@@ -9609,61 +9609,6 @@ static void sna_accel_expire(struct sna *sna)
 		_sna_accel_disarm_timer(sna, EXPIRE_TIMER);
 }
 
-static bool
-sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
-{
-	PixmapPtr pixmap = priv->pixmap;
-
-	assert (!priv->flush);
-
-	if (priv->mapped) {
-		pixmap->devPrivate.ptr = NULL;
-		priv->mapped = 0;
-	}
-
-	if (pixmap->devPrivate.ptr == NULL &&
-	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
-		return false;
-
-	if (priv->gpu_damage) {
-		BoxPtr box;
-		int n;
-
-		DBG(("%s: flushing GPU damage\n", __FUNCTION__));
-
-		n = sna_damage_get_boxes(priv->gpu_damage, &box);
-		if (n) {
-			struct kgem_bo *dst_bo;
-			Bool ok = FALSE;
-
-			dst_bo = NULL;
-			if (sna->kgem.gen >= 30)
-				dst_bo = priv->cpu_bo;
-			if (dst_bo)
-				ok = sna->render.copy_boxes(sna, GXcopy,
-							    pixmap, priv->gpu_bo, 0, 0,
-							    pixmap, dst_bo, 0, 0,
-							    box, n);
-			if (!ok)
-				sna_read_boxes(sna,
-					       priv->gpu_bo, 0, 0,
-					       pixmap, 0, 0,
-					       box, n);
-		}
-
-		__sna_damage_destroy(priv->gpu_damage);
-		priv->gpu_damage = NULL;
-	}
-
-	sna_damage_all(&priv->cpu_damage,
-		       pixmap->drawable.width,
-		       pixmap->drawable.height);
-	sna_pixmap_destroy_gpu_bo(sna, priv);
-
-	priv->source_count = SOURCE_BIAS;
-	return true;
-}
-
 static void sna_accel_inactive(struct sna *sna)
 {
 	struct sna_pixmap *priv;
@@ -9723,7 +9668,8 @@ static void sna_accel_inactive(struct sna *sna)
 		} else {
 			DBG(("%s: discarding inactive GPU bo handle=%d\n",
 			     __FUNCTION__, priv->gpu_bo->handle));
-			if (!sna_pixmap_free_gpu(sna, priv))
+			if (!sna_pixmap_move_to_cpu(priv->pixmap,
+						    MOVE_READ | MOVE_WRITE))
 				list_add(&priv->inactive, &preserve);
 		}
 	}
