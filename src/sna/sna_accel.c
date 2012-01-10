@@ -114,6 +114,11 @@ static inline void region_maybe_clip(RegionRec *r, RegionRec *clip)
 		RegionIntersect(r, r, clip);
 }
 
+static inline bool region_is_singular(const RegionRec *r)
+{
+	return r->data == NULL;
+}
+
 typedef struct box32 {
 	int32_t x1, y1, x2, y2;
 } Box32Rec;
@@ -1723,7 +1728,7 @@ static inline bool clip_box(BoxPtr box, GCPtr gc)
 
 	clip = &gc->pCompositeClip->extents;
 
-	clipped = gc->pCompositeClip->data != NULL;
+	clipped = !region_is_singular(gc->pCompositeClip);
 	if (box->x1 < clip->x1)
 		box->x1 = clip->x1, clipped = true;
 	if (box->x2 > clip->x2)
@@ -1754,7 +1759,7 @@ static inline bool trim_and_translate_box(BoxPtr box, DrawablePtr d, GCPtr gc)
 
 static inline bool box32_clip(Box32Rec *box, GCPtr gc)
 {
-	bool clipped = gc->pCompositeClip->data != NULL;
+	bool clipped = !region_is_singular(gc->pCompositeClip);
 	const BoxRec *clip = &gc->pCompositeClip->extents;
 
 	if (box->x1 < clip->x1)
@@ -6566,7 +6571,7 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 	     drawable->x, drawable->y,
 	     clipped));
 
-	if (n == 1 && gc->pCompositeClip->data == NULL) {
+	if (n == 1 && region_is_singular(gc->pCompositeClip)) {
 		BoxRec r;
 		bool success = true;
 
@@ -7988,7 +7993,8 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (!PM_IS_SOLID(draw, gc->planemask))
 		goto fallback;
 
-	if (n == 1 && (flags & 2) == 0 &&
+	if (n == 1 &&
+	    region_is_singular(gc->pCompositeClip) &&
 	    gc->fillStyle != FillStippled && alu_overwrites(gc->alu)) {
 		region.data = NULL;
 		sna_damage_subtract(&priv->cpu_damage, &region);
