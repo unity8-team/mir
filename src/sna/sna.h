@@ -665,6 +665,11 @@ struct kgem_bo *sna_replace(struct sna *sna,
 			    PixmapPtr pixmap,
 			    struct kgem_bo *bo,
 			    const void *src, int stride);
+struct kgem_bo *sna_replace__xor(struct sna *sna,
+				 PixmapPtr pixmap,
+				 struct kgem_bo *bo,
+				 const void *src, int stride,
+				 uint32_t and, uint32_t or);
 
 Bool
 sna_compute_composite_extents(BoxPtr extents,

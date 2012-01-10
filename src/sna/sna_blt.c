@@ -1289,18 +1289,34 @@ blt_put_composite_with_alpha(struct sna *sna,
 	int16_t dst_y = r->dst.y + op->dst.y;
 	int16_t src_x = r->src.x + op->u.blt.sx;
 	int16_t src_y = r->src.y + op->u.blt.sy;
-	BoxRec box;
 
-	box.x1 = dst_x;
-	box.y1 = dst_y;
-	box.x2 = dst_x + r->width;
-	box.y2 = dst_y + r->height;
+	if (!dst_priv->pinned &&
+	    dst_x <= 0 && dst_y <= 0 &&
+	    dst_x + r->width >= op->dst.width &&
+	    dst_y + r->height >= op->dst.height) {
+		int bpp = dst->drawable.bitsPerPixel / 8;
 
-	sna_write_boxes__xor(sna, dst,
-			     dst_priv->gpu_bo, 0, 0,
-			     data, pitch, src_x, src_y,
-			     &box, 1,
-			     0xffffffff, op->u.blt.pixel);
+		data += (src_x - dst_x) * bpp;
+		data += (src_y - dst_y) * pitch;
+
+		dst_priv->gpu_bo =
+			sna_replace__xor(sna, op->dst.pixmap, dst_priv->gpu_bo,
+					 data, pitch,
+					 0xffffffff, op->u.blt.pixel);
+	} else {
+		BoxRec box;
+
+		box.x1 = dst_x;
+		box.y1 = dst_y;
+		box.x2 = dst_x + r->width;
+		box.y2 = dst_y + r->height;
+
+		sna_write_boxes__xor(sna, dst,
+				     dst_priv->gpu_bo, 0, 0,
+				     data, pitch, src_x, src_y,
+				     &box, 1,
+				     0xffffffff, op->u.blt.pixel);
+	}
 }
 
 fastcall static void
@@ -1309,18 +1325,35 @@ blt_put_composite_box_with_alpha(struct sna *sna,
 				 const BoxRec *box)
 {
 	PixmapPtr src = op->u.blt.src_pixmap;
+	struct sna_pixmap *dst_priv = sna_pixmap(op->dst.pixmap);
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d)\n", __FUNCTION__,
 	     op->u.blt.sx, op->u.blt.sy,
 	     op->dst.x, op->dst.y));
 
-	sna_write_boxes__xor(sna, op->dst.pixmap,
-			     op->dst.bo, op->dst.x, op->dst.y,
-			     src->devPrivate.ptr,
-			     src->devKind,
-			     op->u.blt.sx, op->u.blt.sy,
-			     box, 1,
-			     0xffffffff, op->u.blt.pixel);
+	if (!dst_priv->pinned &&
+	    box->x2 - box->x1 == op->dst.width &&
+	    box->y2 - box->y1 == op->dst.height) {
+		int pitch = src->devKind;
+		int bpp = src->drawable.bitsPerPixel / 8;
+		char *data = src->devPrivate.ptr;
+
+		data += (box->y1 + op->u.blt.sy) * pitch;
+		data += (box->x1 + op->u.blt.sx) * bpp;
+
+		dst_priv->gpu_bo =
+			sna_replace__xor(sna, op->dst.pixmap, op->dst.bo,
+					 data, pitch,
+					 0xffffffff, op->u.blt.pixel);
+	} else {
+		sna_write_boxes__xor(sna, op->dst.pixmap,
+				     op->dst.bo, op->dst.x, op->dst.y,
+				     src->devPrivate.ptr,
+				     src->devKind,
+				     op->u.blt.sx, op->u.blt.sy,
+				     box, 1,
+				     0xffffffff, op->u.blt.pixel);
+	}
 }
 
 static void
@@ -1329,19 +1362,36 @@ blt_put_composite_boxes_with_alpha(struct sna *sna,
 				   const BoxRec *box, int n)
 {
 	PixmapPtr src = op->u.blt.src_pixmap;
+	struct sna_pixmap *dst_priv = sna_pixmap(op->dst.pixmap);
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), [(%d, %d), (%d, %d) x %d]\n", __FUNCTION__,
 	     op->u.blt.sx, op->u.blt.sy,
 	     op->dst.x, op->dst.y,
 	     box->x1, box->y1, box->x2, box->y2, n));
 
-	sna_write_boxes__xor(sna, op->dst.pixmap,
-			     op->dst.bo, op->dst.x, op->dst.y,
-			     src->devPrivate.ptr,
-			     src->devKind,
-			     op->u.blt.sx, op->u.blt.sy,
-			     box, n,
-			     0xffffffff, op->u.blt.pixel);
+	if (n == 1 && !dst_priv->pinned &&
+	    box->x2 - box->x1 == op->dst.width &&
+	    box->y2 - box->y1 == op->dst.height) {
+		int pitch = src->devKind;
+		int bpp = src->drawable.bitsPerPixel / 8;
+		char *data = src->devPrivate.ptr;
+
+		data += (box->y1 + op->u.blt.sy) * pitch;
+		data += (box->x1 + op->u.blt.sx) * bpp;
+
+		dst_priv->gpu_bo =
+			sna_replace__xor(sna, op->dst.pixmap, op->dst.bo,
+					 data, pitch,
+					 0xffffffff, op->u.blt.pixel);
+	} else {
+		sna_write_boxes__xor(sna, op->dst.pixmap,
+				     op->dst.bo, op->dst.x, op->dst.y,
+				     src->devPrivate.ptr,
+				     src->devKind,
+				     op->u.blt.sx, op->u.blt.sy,
+				     box, n,
+				     0xffffffff, op->u.blt.pixel);
+	}
 }
 
 static Bool
