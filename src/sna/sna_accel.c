@@ -298,9 +298,14 @@ static inline uint32_t default_tiling(PixmapPtr pixmap)
 		return I915_TILING_X;
 	}
 
-	return sna_damage_is_all(&priv->cpu_damage,
+	if (sna_damage_is_all(&priv->cpu_damage,
 				 pixmap->drawable.width,
-				 pixmap->drawable.height) ? I915_TILING_Y : sna->default_tiling;
+				 pixmap->drawable.height)) {
+		sna_damage_destroy(&priv->gpu_damage);
+		return I915_TILING_Y;
+	}
+
+	return sna->default_tiling;
 }
 
 constant static uint32_t sna_pixmap_choose_tiling(PixmapPtr pixmap)
@@ -1919,10 +1924,8 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 	if (!priv->pinned && priv->gpu_bo &&
 	    region_subsumes_gpu_damage(region, priv) &&
-	    kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo)) {
-		sna_damage_destroy(&priv->gpu_damage);
+	    kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo))
 		sna_pixmap_free_gpu(sna, priv);
-	}
 
 	/* XXX performing the upload inplace is currently about 20x slower
 	 * for putimage10 on gen6 -- mostly due to slow page faulting in kernel.
@@ -9663,6 +9666,7 @@ static void sna_accel_inactive(struct sna *sna)
 				      priv->pixmap->drawable.height)) {
 			DBG(("%s: discarding inactive CPU shadow\n",
 			     __FUNCTION__));
+			sna_damage_destroy(&priv->cpu_damage);
 			sna_pixmap_free_cpu(sna, priv);
 			list_add(&priv->inactive, &preserve);
 		} else {
