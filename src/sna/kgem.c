@@ -2581,6 +2581,7 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 }
 
 #if defined(USE_VMAP) && defined(I915_PARAM_HAS_VMAP)
+#define HAVE_VMAP 1
 static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 {
 	struct drm_i915_gem_vmap vmap;
@@ -2627,6 +2628,7 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	return bo;
 }
 #else
+#define HAVE_VMAP 0
 static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 {
 	return 0;
@@ -2821,23 +2823,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	alloc = (flags & KGEM_BUFFER_LAST) ? 4096 : 32 * 1024;
 	alloc = ALIGN(size, alloc);
 
-	handle = 0;
-	if (kgem->has_vmap) {
-		bo = malloc(sizeof(*bo) + alloc);
-		if (bo == NULL)
-			return NULL;
-
-		handle = gem_vmap(kgem->fd, bo+1, alloc, write);
-		if (handle) {
-			__kgem_bo_init(&bo->base, handle, alloc);
-			bo->base.vmap = true;
-			bo->need_io = 0;
-			bo->mem = bo + 1;
-			goto init;
-		} else
-			free(bo);
-	}
-
 	if (!DEBUG_NO_LLC && kgem->gen >= 60) {
 		struct kgem_bo *old;
 
@@ -2890,6 +2875,21 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		bo->base.io = true;
 
 		alloc = bo->base.size;
+	} else if (HAVE_VMAP && kgem->has_vmap) {
+		bo = malloc(sizeof(*bo) + alloc);
+		if (bo == NULL)
+			return NULL;
+
+		handle = gem_vmap(kgem->fd, bo+1, alloc, write);
+		if (handle) {
+			__kgem_bo_init(&bo->base, handle, alloc);
+			bo->base.vmap = true;
+			bo->need_io = 0;
+			bo->mem = bo + 1;
+		} else {
+			free(bo);
+			return NULL;
+		}
 	} else {
 		struct kgem_bo *old;
 
@@ -2932,7 +2932,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		}
 		bo->base.io = true;
 	}
-init:
 	bo->base.reusable = false;
 
 	bo->alloc = alloc;
