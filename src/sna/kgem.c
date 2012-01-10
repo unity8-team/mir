@@ -1159,19 +1159,20 @@ static void kgem_finish_partials(struct kgem *kgem)
 
 		assert(bo->base.rq == kgem->next_request);
 		if (bo->need_io && bo->used < bo->base.size / 2) {
-			int size = PAGE_ALIGN(bo->used);
 			struct kgem_bo *shrink;
 
-			shrink = search_linear_cache(kgem, size,
+			shrink = search_linear_cache(kgem,
+						     PAGE_ALIGN(bo->used),
 						     CREATE_INACTIVE);
 			if (shrink) {
 				int n;
 
-				DBG(("%s: shrnking %d to %d, handle %d to %d\n",
+				DBG(("%s: used=%d, shrinking %d to %d, handle %d to %d\n",
 				     __FUNCTION__,
-				     bo->base.size, shrink->size,
+				     bo->used, bo->base.size, shrink->size,
 				     bo->base.handle, shrink->handle));
 
+				assert(bo->used <= shrink->size);
 				gem_write(kgem->fd, shrink->handle,
 					  0, bo->used, bo->mem);
 
@@ -1388,6 +1389,8 @@ void _kgem_submit(struct kgem *kgem)
 	assert(kgem->nexec < ARRAY_SIZE(kgem->exec));
 	assert(kgem->nfence <= kgem->fence_max);
 
+	kgem_finish_partials(kgem);
+
 	rq = kgem->next_request;
 	if (kgem->surface != kgem->max_batch_size)
 		size = compact_batch_surface(kgem);
@@ -1414,7 +1417,6 @@ void _kgem_submit(struct kgem *kgem)
 		list_add(&rq->bo->request, &rq->buffers);
 
 		kgem_fixup_self_relocs(kgem, rq->bo);
-		kgem_finish_partials(kgem);
 
 #if DEBUG_BATCH
 		__kgem_batch_debug(kgem, batch_end);
