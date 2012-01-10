@@ -1079,8 +1079,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		     region->extents.y2 - region->extents.y1));
 
 		if ((flags & MOVE_WRITE) == 0 &&
-			   region->extents.x2 - region->extents.x1 == 1 &&
-			   region->extents.y2 - region->extents.y1 == 1) {
+		    region->extents.x2 - region->extents.x1 == 1 &&
+		    region->extents.y2 - region->extents.y1 == 1) {
 			/*  Often associated with synchronisation, KISS */
 			sna_read_boxes(sna,
 				       priv->gpu_bo, 0, 0,
@@ -6753,11 +6753,16 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 
 	tile_width = tile->drawable.width;
 	tile_height = tile->drawable.height;
-	if (tile_width == 1 && tile_height == 1)
+	if ((tile_width | tile_height) == 1)
 		return sna_poly_fill_rect_blt(drawable, bo, damage,
 					      gc, get_pixel(tile),
 					      n, rect,
 					      extents, clipped);
+
+	/* XXX [248]x[238] tiling can be reduced to a pattern fill.
+	 * Also we can do the lg2 reduction for BLT and use repeat modes for
+	 * RENDER.
+	 */
 
 	if (!sna_pixmap_move_to_gpu(tile, MOVE_READ))
 		return FALSE;
