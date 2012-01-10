@@ -1139,12 +1139,12 @@ static void kgem_finish_partials(struct kgem *kgem)
 	struct kgem_partial_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
-		assert(bo->base.domain != DOMAIN_GPU);
 		if (!bo->write) {
 			assert(bo->base.exec);
 			goto decouple;
 		}
 
+		assert(bo->base.domain != DOMAIN_GPU);
 		if (!bo->base.exec)
 			continue;
 
