@@ -112,7 +112,7 @@ static const struct formatinfo {
 static inline bool
 too_large(int width, int height)
 {
-	return (width | height) > MAX_3D_SIZE;
+	return width > MAX_3D_SIZE || height > MAX_3D_SIZE;
 }
 
 static inline uint32_t
@@ -2365,10 +2365,21 @@ gen2_render_fill_boxes(struct sna *sna,
 
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
 	    dst_bo->pitch < 8 || dst_bo->pitch > 8192 ||
-	    !gen2_check_dst_format(format))
-		return gen2_render_fill_boxes_try_blt(sna, op, format, color,
-						      dst, dst_bo,
-						      box, n);
+	    !gen2_check_dst_format(format)) {
+		DBG(("%s: try blt, too large or incompatible destination\n",
+		     __FUNCTION__));
+		if (gen2_render_fill_boxes_try_blt(sna, op, format, color,
+						   dst, dst_bo,
+						   box, n))
+			return TRUE;
+
+		if (!gen2_check_dst_format(format))
+			return FALSE;
+
+		assert(dst_bo->pitch >= 8);
+		return sna_tiling_fill_boxes(sna, op, format, color,
+					     dst, dst_bo, box, n);
+	}
 
 	if (prefer_blt_fill(sna) &&
 	    gen2_render_fill_boxes_try_blt(sna, op, format, color,

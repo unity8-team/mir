@@ -1954,7 +1954,7 @@ gen6_composite_solid_init(struct sna *sna,
 
 static inline bool too_large(int width, int height)
 {
-	return (width | height) > GEN6_MAX_SIZE;
+	return width > GEN6_MAX_SIZE || height > GEN6_MAX_SIZE;
 }
 
 static int
@@ -3191,9 +3191,12 @@ gen6_render_fill_boxes(struct sna *sna,
 				       pixel, box, n))
 			return TRUE;
 
-		if (too_large(dst->drawable.width, dst->drawable.height) ||
-		    !gen6_check_dst_format(format))
+		if (!gen6_check_dst_format(format))
 			return FALSE;
+
+		if (too_large(dst->drawable.width, dst->drawable.height))
+			return sna_tiling_fill_boxes(sna, op, format, color,
+						     dst, dst_bo, box, n);
 	}
 
 #if NO_FILL_BOXES

@@ -282,7 +282,7 @@ gen5_emit_pipelined_pointers(struct sna *sna,
 
 static inline bool too_large(int width, int height)
 {
-	return (width | height) > MAX_3D_SIZE;
+	return width > MAX_3D_SIZE || height > MAX_3D_SIZE;
 }
 
 static int
@@ -2920,9 +2920,12 @@ gen5_render_fill_boxes(struct sna *sna,
 				       pixel, box, n))
 			return TRUE;
 
-		if (too_large(dst->drawable.width, dst->drawable.height) ||
-		    !gen5_check_dst_format(format))
+		if (!gen5_check_dst_format(format))
 			return FALSE;
+
+		if (too_large(dst->drawable.width, dst->drawable.height))
+			return sna_tiling_fill_boxes(sna, op, format, color,
+						     dst, dst_bo, box, n);
 	}
 
 	if (op == PictOpClear)

@@ -2580,10 +2580,12 @@ gen4_render_fill_boxes(struct sna *sna,
 				       pixel, box, n))
 			return TRUE;
 
-		if (dst->drawable.width > 8192 ||
-		    dst->drawable.height > 8192 ||
-		    !gen4_check_dst_format(format))
+		if (!gen4_check_dst_format(format))
 			return FALSE;
+
+		if (dst->drawable.width > 8192 || dst->drawable.height > 8192)
+			return sna_tiling_fill_boxes(sna, op, format, color,
+						     dst, dst_bo, box, n);
 	}
 
 #if NO_FILL_BOXES

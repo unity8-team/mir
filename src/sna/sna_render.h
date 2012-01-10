@@ -495,6 +495,12 @@ Bool sna_tiling_composite(uint32_t op,
 			  int16_t dst_x, int16_t dst_y,
 			  int16_t width, int16_t height,
 			  struct sna_composite_op *tmp);
+Bool sna_tiling_fill_boxes(struct sna *sna,
+			   CARD8 op,
+			   PictFormat format,
+			   const xRenderColor *color,
+			   PixmapPtr dst, struct kgem_bo *dst_bo,
+			   const BoxRec *box, int n);
 
 Bool sna_blt_composite(struct sna *sna,
 		       uint32_t op,

@@ -126,7 +126,7 @@ static const struct formatinfo {
 
 static inline bool too_large(int width, int height)
 {
-	return (width | height) > MAX_3D_SIZE;
+	return width > MAX_3D_SIZE || height > MAX_3D_SIZE;
 }
 
 static inline uint32_t gen3_buf_tiling(uint32_t tiling)
@@ -3885,8 +3885,11 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 	uint8_t alu = GXcopy;
 	uint32_t pixel;
 
-	if (dst_bo->tiling == I915_TILING_Y)
+	if (dst_bo->tiling == I915_TILING_Y) {
+		DBG(("%s: y-tiling, can't blit\n", __FUNCTION__));
+		assert(!too_large(dst->drawable.width, dst->drawable.height));
 		return FALSE;
+	}
 
 	if (color->alpha >= 0xff00) {
 		if (op == PictOpOver)
@@ -3905,15 +3908,18 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 		if (color->alpha <= 0x00ff)
 			alu = GXclear;
 		else if (!sna_get_pixel_from_rgba(&pixel,
-						    color->red,
-						    color->green,
-						    color->blue,
-						    color->alpha,
-						    format))
+						  color->red,
+						  color->green,
+						  color->blue,
+						  color->alpha,
+						  format)) {
+			DBG(("%s: unknown format %x\n", __FUNCTION__, format));
 			return FALSE;
-	} else
+		}
+	} else {
+		DBG(("%s: unhandle op %d\n", __FUNCTION__, alu));
 		return FALSE;
-
+	}
 
 	return sna_blt_fill_boxes(sna, alu,
 				  dst_bo, dst->drawable.bitsPerPixel,
@@ -3958,10 +3964,20 @@ gen3_render_fill_boxes(struct sna *sna,
 
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
 	    dst_bo->pitch > 8192 ||
-	    !gen3_check_dst_format(format))
-		return gen3_render_fill_boxes_try_blt(sna, op, format, color,
-						      dst, dst_bo,
-						      box, n);
+	    !gen3_check_dst_format(format)) {
+		DBG(("%s: try blt, too large or incompatible destination\n",
+		     __FUNCTION__));
+		if (gen3_render_fill_boxes_try_blt(sna, op, format, color,
+						   dst, dst_bo,
+						   box, n))
+			return TRUE;
+
+		if (!gen3_check_dst_format(format))
+			return FALSE;
+
+		return sna_tiling_fill_boxes(sna, op, format, color,
+					     dst, dst_bo, box, n);
+	}
 
 	if (prefer_fill_blt(sna) &&
 	    gen3_render_fill_boxes_try_blt(sna, op, format, color,
@@ -3977,8 +3993,10 @@ gen3_render_fill_boxes(struct sna *sna,
 					     color->green,
 					     color->blue,
 					     color->alpha,
-					     PICT_a8r8g8b8))
+					     PICT_a8r8g8b8)) {
+			assert(0);
 			return FALSE;
+		}
 	}
 	DBG(("%s: using shader for op=%d, format=%x, pixel=%x\n",
 	     __FUNCTION__, op, (int)format, pixel));

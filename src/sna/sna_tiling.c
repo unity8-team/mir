@@ -307,3 +307,104 @@ sna_tiling_composite(uint32_t op,
 	tmp->u.priv = tile;
 	return TRUE;
 }
+
+Bool
+sna_tiling_fill_boxes(struct sna *sna,
+		      CARD8 op,
+		      PictFormat format,
+		      const xRenderColor *color,
+		      PixmapPtr dst, struct kgem_bo *dst_bo,
+		      const BoxRec *box, int n)
+{
+	RegionRec region, tile, this;
+	struct kgem_bo *bo;
+	Bool ret = FALSE;
+
+	pixman_region_init_rects(&region, box, n);
+
+	DBG(("%s (op=%d, format=%x, color=(%04x,%04x,%04x, %04x), tile.size=%d, box=%dx[(%d, %d), (%d, %d)])\n",
+	     __FUNCTION__, op, (int)format,
+	     color->red, color->green, color->blue, color->alpha,
+	     sna->render.max_3d_size, n,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	for (tile.extents.y1 = tile.extents.y2 = region.extents.y1;
+	     tile.extents.y2 < region.extents.y2;
+	     tile.extents.y1 = tile.extents.y2) {
+		tile.extents.y2 = tile.extents.y1 + sna->render.max_3d_size;
+		if (tile.extents.y2 > region.extents.y2)
+			tile.extents.y2 = region.extents.y2;
+
+		for (tile.extents.x1 = tile.extents.x2 = region.extents.x1;
+		     tile.extents.x2 < region.extents.x2;
+		     tile.extents.x1 = tile.extents.x2) {
+			PixmapRec tmp;
+
+			tile.extents.x2 = tile.extents.x1 + sna->render.max_3d_size;
+			if (tile.extents.x2 > region.extents.x2)
+				tile.extents.x2 = region.extents.x2;
+
+			tile.data = NULL;
+
+			RegionNull(&this);
+			RegionIntersect(&this, &region, &tile);
+			if (!RegionNotEmpty(&this))
+				continue;
+
+			tmp.drawable.width  = this.extents.x2 - this.extents.x1;
+			tmp.drawable.height = this.extents.y2 - this.extents.y1;
+			tmp.drawable.depth  = dst->drawable.depth;
+			tmp.drawable.bitsPerPixel = dst->drawable.bitsPerPixel;
+			tmp.devPrivate.ptr = NULL;
+
+			bo = kgem_create_2d(&sna->kgem,
+					    tmp.drawable.width,
+					    tmp.drawable.height,
+					    dst->drawable.bitsPerPixel,
+					    kgem_choose_tiling(&sna->kgem,
+							       I915_TILING_X,
+							       tmp.drawable.width,
+							       tmp.drawable.height,
+							       dst->drawable.bitsPerPixel),
+					    CREATE_SCANOUT);
+			if (bo) {
+				int16_t dx = this.extents.x1;
+				int16_t dy = this.extents.y1;
+
+				assert(bo->pitch <= 8192);
+				assert(bo->tiling != I915_TILING_Y);
+
+				if (!sna->render.copy_boxes(sna, GXcopy,
+							     dst, dst_bo, 0, 0,
+							     &tmp, bo, -dx, -dy,
+							     REGION_RECTS(&this), REGION_NUM_RECTS(&this)))
+					goto err;
+
+				RegionTranslate(&this, -dx, -dy);
+				if (!sna->render.fill_boxes(sna, op, format, color,
+							     &tmp, bo,
+							     REGION_RECTS(&this), REGION_NUM_RECTS(&this)))
+					goto err;
+
+				if (!sna->render.copy_boxes(sna, GXcopy,
+							     &tmp, bo, 0, 0,
+							     dst, dst_bo, dx, dy,
+							     REGION_RECTS(&this), REGION_NUM_RECTS(&this)))
+					goto err;
+
+				kgem_bo_destroy(&sna->kgem, bo);
+			}
+			RegionUninit(&this);
+		}
+	}
+
+	ret = TRUE;
+	goto done;
+err:
+	kgem_bo_destroy(&sna->kgem, bo);
+	RegionUninit(&this);
+done:
+	pixman_region_fini(&region);
+	return ret;
+}
