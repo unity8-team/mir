@@ -3036,7 +3036,7 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 	struct kgem_bo *bo;
 	int stride;
 
-	stride = width * bpp >> 3;
+	stride = ALIGN(width, 2) * bpp >> 3;
 	stride = ALIGN(stride, 4);
 
 	bo = kgem_create_buffer(kgem, stride * ALIGN(height, 2), flags, ret);
