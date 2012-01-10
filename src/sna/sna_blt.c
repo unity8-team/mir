@@ -1440,6 +1440,9 @@ prepare_blt_put(struct sna *sna,
 						 GXcopy);
 		}
 	} else {
+		if (alpha_fixup)
+			return FALSE; /* XXX */
+
 		if (!sna_pixmap_move_to_cpu(src, MOVE_READ))
 			return FALSE;
 
