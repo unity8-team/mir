@@ -905,29 +905,33 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(list_is_empty(&bo->list));
 	if (bo->rq) {
 		DBG(("%s: handle=%d -> active\n", __FUNCTION__, bo->handle));
-		list_move(&bo->list, &kgem->active[bo->bucket]);
-	} else if (bo->needs_flush) {
-		DBG(("%s: handle=%d -> flushing\n", __FUNCTION__, bo->handle));
-		assert(list_is_empty(&bo->request));
-		list_add(&bo->request, &kgem->flushing);
-		list_move(&bo->list, &kgem->active[bo->bucket]);
-		bo->rq = &_kgem_static_request;
-	} else {
-		assert(bo->exec == NULL);
-		if (!IS_CPU_MAP(bo->map)) {
-			if (!kgem_bo_set_purgeable(kgem, bo)) {
-				kgem->need_purge |= bo->domain == DOMAIN_GPU;
-				goto destroy;
-			}
-			DBG(("%s: handle=%d, purged\n",
-			     __FUNCTION__, bo->handle));
-		}
-
-		DBG(("%s: handle=%d -> inactive\n", __FUNCTION__, bo->handle));
-		kgem_bo_move_to_inactive(kgem, bo);
-		kgem->need_expire = true;
+		list_add(&bo->list, &kgem->active[bo->bucket]);
+		return;
 	}
 
+	assert(bo->exec == NULL);
+	assert(list_is_empty(&bo->request));
+
+	if (bo->needs_flush &&
+	    (bo->needs_flush = kgem_busy(kgem, bo->handle))) {
+		DBG(("%s: handle=%d -> flushing\n", __FUNCTION__, bo->handle));
+		list_add(&bo->request, &kgem->flushing);
+		list_add(&bo->list, &kgem->active[bo->bucket]);
+		bo->rq = &_kgem_static_request;
+		return;
+	}
+
+	if (!IS_CPU_MAP(bo->map)) {
+		if (!kgem_bo_set_purgeable(kgem, bo)) {
+			kgem->need_purge |= bo->domain == DOMAIN_GPU;
+			goto destroy;
+		}
+		DBG(("%s: handle=%d, purged\n",
+		     __FUNCTION__, bo->handle));
+	}
+
+	DBG(("%s: handle=%d -> inactive\n", __FUNCTION__, bo->handle));
+	kgem_bo_move_to_inactive(kgem, bo);
 	return;
 
 destroy:
@@ -2577,7 +2581,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 
-		bo->needs_flush = !bo->flush;
+		bo->needs_flush = bo->flush;
 		if (bo->domain == DOMAIN_GPU)
 			kgem_retire(kgem);
 		bo->domain = DOMAIN_GTT;
