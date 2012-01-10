@@ -371,10 +371,16 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 				    &box, 1)) {
 		DBG(("%s: copy failed\n", __FUNCTION__));
 		kgem_bo_destroy(&sna->kgem, bo);
-		return false;
+		return NULL;
 	}
 
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+
+	if (priv->mapped) {
+		pixmap->devPrivate.ptr = NULL;
+		priv->mapped = 0;
+	}
+
 	return priv->gpu_bo = bo;
 }
 
