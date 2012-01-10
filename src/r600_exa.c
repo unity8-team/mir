@@ -730,6 +730,7 @@ R600Copy(PixmapPtr pDst,
 	uint32_t orig_src_tiling_flags = accel_state->src_obj[0].tiling_flags;
 	uint32_t orig_dst_tiling_flags = accel_state->dst_obj.tiling_flags;
 	struct radeon_bo *orig_bo = accel_state->dst_obj.bo;
+	int orig_rop = accel_state->rop;
 
 #if defined(XF86DRM_MODE)
 	if (info->cs) {
@@ -747,6 +748,7 @@ R600Copy(PixmapPtr pDst,
 	accel_state->dst_obj.bo = accel_state->copy_area_bo;
 	accel_state->dst_obj.offset = tmp_offset;
 	accel_state->dst_obj.tiling_flags = 0;
+	accel_state->rop = 3;
 	R600DoPrepareCopy(pScrn);
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 	R600DoCopy(pScrn);
@@ -760,6 +762,7 @@ R600Copy(PixmapPtr pDst,
 	accel_state->dst_obj.bo = orig_bo;
 	accel_state->dst_obj.offset = orig_offset;
 	accel_state->dst_obj.tiling_flags = orig_dst_tiling_flags;
+	accel_state->rop = orig_rop;
 	R600DoPrepareCopy(pScrn);
 	R600AppendCopyVertex(pScrn, dstX, dstY, dstX, dstY, w, h);
 	R600DoCopyVline(pDst);
