@@ -916,13 +916,17 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->request));
 
-	if (bo->needs_flush &&
-	    (bo->needs_flush = kgem_busy(kgem, bo->handle))) {
-		DBG(("%s: handle=%d -> flushing\n", __FUNCTION__, bo->handle));
-		list_add(&bo->request, &kgem->flushing);
-		list_add(&bo->list, &kgem->active[bo->bucket]);
-		bo->rq = &_kgem_static_request;
-		return;
+	if (bo->needs_flush) {
+		if ((bo->needs_flush = kgem_busy(kgem, bo->handle))) {
+			DBG(("%s: handle=%d -> flushing\n",
+			     __FUNCTION__, bo->handle));
+			list_add(&bo->request, &kgem->flushing);
+			list_add(&bo->list, &kgem->active[bo->bucket]);
+			bo->rq = &_kgem_static_request;
+			return;
+		}
+
+		bo->domain = DOMAIN_NONE;
 	}
 
 	if (!IS_CPU_MAP(bo->map)) {
