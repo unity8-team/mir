@@ -334,6 +334,7 @@ kgem_bo_set_purgeable(struct kgem *kgem, struct kgem_bo *bo)
 	madv.madv = I915_MADV_DONTNEED;
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MADVISE, &madv) == 0) {
 		bo->purged = 1;
+		kgem->need_purge |= !madv.retained && bo->domain == DOMAIN_GPU;
 		return madv.retained;
 	}
 
@@ -377,6 +378,7 @@ kgem_bo_clear_purgeable(struct kgem *kgem, struct kgem_bo *bo)
 	madv.madv = I915_MADV_WILLNEED;
 	if (drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_MADVISE, &madv) == 0) {
 		bo->purged = !madv.retained;
+		kgem->need_purge |= !madv.retained && bo->domain == DOMAIN_GPU;
 		return madv.retained;
 	}
 
@@ -827,6 +829,7 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	assert(!kgem_busy(kgem, bo->handle));
 	assert(!bo->proxy);
 	assert(!bo->io);
+	assert(!bo->needs_flush);
 	assert(bo->rq == NULL);
 	assert(bo->domain != DOMAIN_GPU);
 
@@ -898,11 +901,12 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		goto destroy;
 	}
 
-	assert(bo->vmap == false && bo->sync == false);
-	bo->scanout = bo->flush = false;
-
 	assert(list_is_empty(&bo->vma));
 	assert(list_is_empty(&bo->list));
+	assert(bo->vmap == false && bo->sync == false);
+	assert(bo->io == false);
+
+	bo->scanout = bo->flush = false;
 	if (bo->rq) {
 		DBG(("%s: handle=%d -> active\n", __FUNCTION__, bo->handle));
 		list_add(&bo->list, &kgem->active[bo->bucket]);
@@ -922,10 +926,8 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	}
 
 	if (!IS_CPU_MAP(bo->map)) {
-		if (!kgem_bo_set_purgeable(kgem, bo)) {
-			kgem->need_purge |= bo->domain == DOMAIN_GPU;
+		if (!kgem_bo_set_purgeable(kgem, bo))
 			goto destroy;
-		}
 		DBG(("%s: handle=%d, purged\n",
 		     __FUNCTION__, bo->handle));
 	}
@@ -955,6 +957,7 @@ bool kgem_retire(struct kgem *kgem)
 	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
 		assert(bo->refcnt == 0);
 		assert(bo->rq == &_kgem_static_request);
+		assert(bo->domain == DOMAIN_GPU);
 		assert(bo->exec == NULL);
 
 		if (kgem_busy(kgem, bo->handle))
@@ -991,51 +994,54 @@ bool kgem_retire(struct kgem *kgem)
 					      struct kgem_bo,
 					      request);
 
+			assert(bo->rq == rq);
+			assert(bo->exec == NULL);
+			assert(bo->domain == DOMAIN_GPU);
+
 			list_del(&bo->request);
 			bo->rq = NULL;
 
-			assert(bo->exec == NULL);
 			if (bo->needs_flush)
 				bo->needs_flush = kgem_busy(kgem, bo->handle);
 			if (!bo->needs_flush)
 				bo->domain = DOMAIN_NONE;
 
-			if (bo->refcnt == 0) {
-				if (bo->reusable) {
-					if (bo->needs_flush) {
-						DBG(("%s: moving %d to flushing\n",
-						     __FUNCTION__, bo->handle));
-						list_add(&bo->request, &kgem->flushing);
-						bo->rq = &_kgem_static_request;
-					} else if(kgem_bo_set_purgeable(kgem, bo)) {
-						DBG(("%s: moving %d to inactive\n",
-						     __FUNCTION__, bo->handle));
-						kgem_bo_move_to_inactive(kgem, bo);
-						retired = true;
-					} else {
-						DBG(("%s: closing %d\n",
-						     __FUNCTION__, bo->handle));
-						kgem_bo_free(kgem, bo);
-					}
-				} else {
-					DBG(("%s: closing %d\n",
-					     __FUNCTION__, bo->handle));
-					kgem_bo_free(kgem, bo);
-				}
+			if (bo->refcnt)
+				continue;
+
+			if (!bo->reusable) {
+				DBG(("%s: closing %d\n",
+				     __FUNCTION__, bo->handle));
+				kgem_bo_free(kgem, bo);
+				continue;
+			}
+
+			if (bo->needs_flush) {
+				DBG(("%s: moving %d to flushing\n",
+				     __FUNCTION__, bo->handle));
+				list_add(&bo->request, &kgem->flushing);
+				bo->rq = &_kgem_static_request;
+			} else if (kgem_bo_set_purgeable(kgem, bo)) {
+				DBG(("%s: moving %d to inactive\n",
+				     __FUNCTION__, bo->handle));
+				kgem_bo_move_to_inactive(kgem, bo);
+				retired = true;
+			} else {
+				DBG(("%s: closing %d\n",
+				     __FUNCTION__, bo->handle));
+				kgem_bo_free(kgem, bo);
 			}
 		}
 
 		rq->bo->refcnt--;
 		assert(rq->bo->refcnt == 0);
+		assert(rq->bo->rq == NULL);
+		assert(list_is_empty(&rq->bo->request));
 		if (kgem_bo_set_purgeable(kgem, rq->bo)) {
-			assert(rq->bo->rq == NULL);
-			assert(list_is_empty(&rq->bo->request));
 			kgem_bo_move_to_inactive(kgem, rq->bo);
 			retired = true;
-		} else {
-			kgem->need_purge = 1;
+		} else
 			kgem_bo_free(kgem, rq->bo);
-		}
 
 		_list_del(&rq->list);
 		free(rq);
@@ -1059,6 +1065,7 @@ static void kgem_commit(struct kgem *kgem)
 		     __FUNCTION__, bo->handle, bo->proxy != NULL));
 
 		assert(!bo->purged);
+		assert(bo->proxy || bo->rq == rq);
 
 		bo->presumed_offset = bo->exec->offset;
 		bo->exec = NULL;
@@ -1071,6 +1078,12 @@ static void kgem_commit(struct kgem *kgem)
 		bo->binding.offset = 0;
 		bo->domain = DOMAIN_GPU;
 		bo->dirty = false;
+
+		if (bo->proxy) {
+			/* proxies are not used for domain tracking */
+			list_del(&bo->request);
+			bo->rq = NULL;
+		}
 	}
 
 	if (rq == &_kgem_static_request) {
@@ -1418,6 +1431,7 @@ void _kgem_submit(struct kgem *kgem)
 		kgem->exec[i].rsvd2 = 0;
 
 		rq->bo->exec = &kgem->exec[i];
+		rq->bo->rq = rq; /* useful sanity check */
 		list_add(&rq->bo->request, &rq->buffers);
 
 		kgem_fixup_self_relocs(kgem, rq->bo);
@@ -1731,7 +1745,6 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 			}
 
 			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
-				kgem->need_purge |= bo->domain == DOMAIN_GPU;
 				kgem_bo_free(kgem, bo);
 				break;
 			}
@@ -1768,7 +1781,6 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 			continue;
 
 		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
-			kgem->need_purge |= bo->domain == DOMAIN_GPU;
 			kgem_bo_free(kgem, bo);
 			continue;
 		}
@@ -2179,7 +2191,6 @@ search_active: /* Best active match first */
 			}
 
 			if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
-				kgem->need_purge |= bo->domain == DOMAIN_GPU;
 				kgem_bo_free(kgem, bo);
 				bo = NULL;
 				goto search_active;
@@ -2203,7 +2214,6 @@ search_active: /* Best active match first */
 			list_del(&next->request);
 
 		if (next->purged && !kgem_bo_clear_purgeable(kgem, next)) {
-			kgem->need_purge |= next->domain == DOMAIN_GPU;
 			kgem_bo_free(kgem, next);
 		} else {
 			kgem_bo_remove_from_active(kgem, next);
@@ -2244,7 +2254,6 @@ skip_active_search:
 		}
 
 		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
-			kgem->need_purge |= bo->domain == DOMAIN_GPU;
 			kgem_bo_free(kgem, bo);
 			continue;
 		}
@@ -2545,6 +2554,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 
 	assert(bo->refcnt || bo->exec); /* allow for debugging purposes */
 	assert(!bo->purged);
+	assert(list_is_empty(&bo->list));
 
 	if (IS_CPU_MAP(bo->map))
 		kgem_bo_release_map(kgem, bo);
@@ -2597,6 +2607,7 @@ void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s(handle=%d, size=%d)\n", __FUNCTION__, bo->handle, bo->size));
 	assert(bo->refcnt);
 	assert(!bo->purged);
+	assert(list_is_empty(&bo->list));
 
 	if (IS_CPU_MAP(bo->map))
 		return CPU_MAP(bo->map);
@@ -2910,6 +2921,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			else
 				list_init(&bo->base.request);
 			list_replace(&old->vma, &bo->base.vma);
+			list_init(&bo->base.list);
 			free(old);
 			bo->base.refcnt = 1;
 		} else {
@@ -2976,6 +2988,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			else
 				list_init(&bo->base.request);
 			list_replace(&old->vma, &bo->base.vma);
+			list_init(&bo->base.list);
 			free(old);
 			bo->base.refcnt = 1;
 		} else {
