@@ -746,6 +746,9 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	     priv->gpu_bo ? priv->gpu_bo->handle : 0,
 	     priv->gpu_damage));
 
+	if (priv->cpu_damage && priv->cpu_damage->mode == DAMAGE_ALL)
+		goto done;
+
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
 
@@ -995,6 +998,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
 	}
 
+	if (priv->cpu_damage && priv->cpu_damage->mode == DAMAGE_ALL)
+		goto done;
+
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
 
@@ -1195,6 +1201,9 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 	RegionRec i, r;
 
 	DBG(("%s()\n", __FUNCTION__));
+
+	if (priv->gpu_damage && priv->gpu_damage->mode == DAMAGE_ALL)
+		goto done;
 
 	if (priv->gpu_bo == NULL) {
 		struct sna *sna = to_sna_from_pixmap(pixmap);
@@ -1487,6 +1496,13 @@ sna_pixmap_create_upload(ScreenPtr screen,
 		return NullPixmap;
 	}
 
+	/* Marking both the shadow and the GPU bo is a little dubious,
+	 * but will work so long as we always check before doing the
+	 * transfer.
+	 */
+	sna_damage_all(&priv->gpu_damage, width, height);
+	sna_damage_all(&priv->cpu_damage, width, height);
+
 	pixmap->drawable.width = width;
 	pixmap->drawable.height = height;
 	pixmap->drawable.depth = depth;
@@ -1568,6 +1584,9 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL)
 		return NULL;
+
+	if (priv->gpu_damage && priv->gpu_damage->mode == DAMAGE_ALL)
+		goto done;
 
 	sna_damage_reduce(&priv->cpu_damage);
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
