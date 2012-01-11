@@ -820,13 +820,24 @@ indirect_replace(struct sna *sna,
 					     &box, 1);
 	} else {
 		uint32_t cmd, br13, *b;
+		int pitch;
+
+		pitch = pixmap->drawable.width * pixmap->drawable.bitsPerPixel;
+		pitch = ALIGN(pitch, 32) >> 3;
 
 		src_bo = kgem_create_buffer(kgem,
-					    stride * pixmap->drawable.height,
+					    pitch * pixmap->drawable.height,
 					    KGEM_BUFFER_WRITE,
 					    &ptr);
 		if (!src_bo)
 			return false;
+
+		memcpy_blt(src, ptr, pixmap->drawable.bitsPerPixel,
+			   stride, pitch,
+			   0, 0,
+			   0, 0,
+			   pixmap->drawable.width,
+			   pixmap->drawable.height);
 
 		cmd = XY_SRC_COPY_BLT_CMD;
 		br13 = bo->pitch;
@@ -852,8 +863,6 @@ indirect_replace(struct sna *sna,
 			_kgem_set_mode(kgem, KGEM_BLT);
 		}
 
-		memcpy(ptr, src, stride * pixmap->drawable.height);
-
 		b = kgem->batch + kgem->nbatch;
 		b[0] = cmd;
 		b[1] = br13;
@@ -865,7 +874,7 @@ indirect_replace(struct sna *sna,
 				      KGEM_RELOC_FENCED,
 				      0);
 		b[5] = 0;
-		b[6] = stride;
+		b[6] = pitch;
 		b[7] = kgem_add_reloc(kgem, kgem->nbatch + 7, src_bo,
 				      I915_GEM_DOMAIN_RENDER << 16 |
 				      KGEM_RELOC_FENCED,
