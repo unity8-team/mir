@@ -594,6 +594,12 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	DBG(("%s: aperture mappable=%d [%d]\n", __FUNCTION__,
 	     kgem->aperture_mappable, kgem->aperture_mappable / (1024*1024)));
 
+	kgem->min_alignment = 4;
+	if (gen < 60)
+		/* XXX workaround an issue where we appear to fail to
+		 * disable dual-stream mode */
+		kgem->min_alignment = 64;
+
 	kgem->max_object_size = kgem->aperture_mappable / 2;
 	if (kgem->max_object_size > kgem->aperture_low)
 		kgem->max_object_size = kgem->aperture_low;
@@ -621,10 +627,8 @@ static uint32_t kgem_untiled_pitch(struct kgem *kgem,
 				   uint32_t width, uint32_t bpp,
 				   bool scanout)
 {
-	/* XXX workaround an issue on gen3 where we appear to fail to
-	 * disable dual-stream mode */
-	return ALIGN(width * bpp,
-		     scanout || (kgem->gen >= 30 && kgem->gen < 33) ? 8*64 : 8*4) >> 3;
+	width = width * bpp >> 3;
+	return ALIGN(width, scanout ? 64 : kgem->min_alignment);
 }
 
 static uint32_t kgem_surface_size(struct kgem *kgem,
@@ -644,13 +648,13 @@ static uint32_t kgem_surface_size(struct kgem *kgem,
 			tile_width = 512;
 			tile_height = 16;
 		} else {
-			tile_width = scanout ? 64 : 4;
+			tile_width = scanout ? 64 : kgem->min_alignment;
 			tile_height = 2;
 		}
 	} else switch (tiling) {
 	default:
 	case I915_TILING_NONE:
-		tile_width = scanout || kgem->gen < 33 ? 64 : 4;
+		tile_width = scanout ? 64 : kgem->min_alignment;
 		tile_height = 2;
 		break;
 	case I915_TILING_X:
@@ -3077,7 +3081,7 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 	int stride;
 
 	stride = ALIGN(width, 2) * bpp >> 3;
-	stride = ALIGN(stride, 4);
+	stride = ALIGN(stride, kgem->min_alignment);
 
 	bo = kgem_create_buffer(kgem, stride * ALIGN(height, 2), flags, ret);
 	if (bo == NULL)

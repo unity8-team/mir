@@ -148,6 +148,7 @@ struct kgem {
 	uint16_t half_cpu_cache_pages;
 	uint32_t aperture_high, aperture_low, aperture;
 	uint32_t aperture_fenced, aperture_mappable;
+	uint32_t min_alignment;
 	uint32_t max_object_size;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
