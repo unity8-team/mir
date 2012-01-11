@@ -2603,6 +2603,48 @@ gen6_emit_composite_spans_solid(struct sna *sna,
 }
 
 fastcall static void
+gen6_emit_composite_spans_simple(struct sna *sna,
+				 const struct sna_composite_spans_op *op,
+				 const BoxRec *box,
+				 float opacity)
+{
+	float *v;
+	union {
+		struct sna_coordinate p;
+		float f;
+	} dst;
+
+	float xx = op->base.src.transform->matrix[0][0];
+	float x0 = op->base.src.transform->matrix[0][2];
+	float yy = op->base.src.transform->matrix[1][1];
+	float y0 = op->base.src.transform->matrix[1][2];
+	float sx = op->base.src.scale[0];
+	float sy = op->base.src.scale[1];
+	int16_t tx = op->base.src.offset[0];
+	int16_t ty = op->base.src.offset[1];
+
+	v = sna->render.vertex_data + sna->render.vertex_used;
+	sna->render.vertex_used += 3*5;
+
+	dst.p.x = box->x2;
+	dst.p.y = box->y2;
+	v[0] = dst.f;
+	v[1] = ((box->x2 + tx) * xx + x0) * sx;
+	v[7] = v[2] = ((box->y2 + ty) * yy + y0) * sy;
+	v[13] = v[8] = v[3] = opacity;
+	v[9] = v[4] = 1;
+
+	dst.p.x = box->x1;
+	v[5] = dst.f;
+	v[11] = v[6] = ((box->x1 + tx) * xx + x0) * sx;
+
+	dst.p.y = box->y1;
+	v[10] = dst.f;
+	v[12] = ((box->y1 + ty) * yy + y0) * sy;
+	v[14] = 0;
+}
+
+fastcall static void
 gen6_emit_composite_spans_affine(struct sna *sna,
 				 const struct sna_composite_spans_op *op,
 				 const BoxRec *box,
@@ -2755,8 +2797,15 @@ gen6_render_composite_spans(struct sna *sna,
 	tmp->prim_emit = gen6_emit_composite_spans_primitive;
 	if (tmp->base.src.is_solid)
 		tmp->prim_emit = gen6_emit_composite_spans_solid;
-	else if (tmp->base.is_affine)
-		tmp->prim_emit = gen6_emit_composite_spans_affine;
+	else if (tmp->base.is_affine) {
+		if (tmp->base.src.transform->matrix[0][1] == 0 &&
+		    tmp->base.src.transform->matrix[1][0] == 0) {
+			tmp->base.src.scale[0] /= tmp->base.src.transform->matrix[2][2];
+			tmp->base.src.scale[1] /= tmp->base.src.transform->matrix[2][2];
+			tmp->prim_emit = gen6_emit_composite_spans_simple;
+		} else
+			tmp->prim_emit = gen6_emit_composite_spans_affine;
+	}
 	tmp->base.floats_per_vertex = 5 + 2*!tmp->base.is_affine;
 	tmp->base.floats_per_rect = 3 * tmp->base.floats_per_vertex;
 
