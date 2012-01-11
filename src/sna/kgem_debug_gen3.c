@@ -97,7 +97,7 @@ static void gen3_update_vertex_buffer_addr(struct kgem *kgem,
 			if (bo->handle == handle)
 				break;
 		assert(&bo->request != &kgem->next_request->buffers);
-		base = kgem_bo_map(kgem, bo, PROT_READ);
+		base = kgem_bo_map__debug(kgem, bo);
 	}
 	ptr = (char *)base + kgem->reloc[i].delta;
 

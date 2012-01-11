@@ -284,6 +284,20 @@ kgem_busy(struct kgem *kgem, int handle)
 	return busy.busy;
 }
 
+static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
+{
+	assert(!kgem_busy(kgem, bo->handle));
+
+	if (bo->domain == DOMAIN_GPU)
+		kgem_retire(kgem);
+
+	if (bo->exec == NULL) {
+		bo->rq = NULL;
+		list_del(&bo->request);
+		bo->needs_flush = bo->flush;
+	}
+}
+
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length)
 {
@@ -295,9 +309,7 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		return FALSE;
 
 	DBG(("%s: flush=%d, domain=%d\n", __FUNCTION__, bo->flush, bo->domain));
-	bo->needs_flush = bo->flush;
-	if (bo->domain == DOMAIN_GPU)
-		kgem_retire(kgem);
+	kgem_bo_retire(kgem, bo);
 	bo->domain = DOMAIN_NONE;
 	return TRUE;
 }
@@ -2556,7 +2568,8 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 {
 	void *ptr;
 
-	assert(bo->refcnt || bo->exec); /* allow for debugging purposes */
+	assert(bo->refcnt);
+	assert(bo->exec == NULL);
 	assert(!bo->purged);
 	assert(list_is_empty(&bo->list));
 
@@ -2595,13 +2608,21 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
 		set_domain.write_domain = I915_GEM_DOMAIN_GTT;
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
 
-		bo->needs_flush = bo->flush;
-		if (bo->domain == DOMAIN_GPU)
-			kgem_retire(kgem);
+		kgem_bo_retire(kgem, bo);
 		bo->domain = DOMAIN_GTT;
 	}
 
 	return ptr;
+}
+
+void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo)
+{
+	if (bo->map)
+		return bo->map;
+
+	kgem_trim_vma_cache(kgem, MAP_GTT, bo->bucket);
+	return bo->map = gem_mmap(kgem->fd, bo->handle, bo->size,
+				  PROT_READ | PROT_WRITE);
 }
 
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
@@ -2753,10 +2774,8 @@ void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
 		set_domain.write_domain = I915_GEM_DOMAIN_CPU;
 
 		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
-		assert(!kgem_busy(kgem, bo->handle));
-		bo->needs_flush = bo->flush;
-		if (bo->domain == DOMAIN_GPU)
-			kgem_retire(kgem);
+
+		kgem_bo_retire(kgem, bo);
 		bo->domain = DOMAIN_CPU;
 	}
 }
@@ -3208,10 +3227,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		gem_read(kgem->fd,
 			 bo->base.handle, (char *)(bo+1)+offset,
 			 offset, length);
-		assert(!kgem_busy(kgem, bo->base.handle));
-		bo->base.needs_flush = bo->base.flush;
-		if (bo->base.domain == DOMAIN_GPU)
-			kgem_retire(kgem);
+		kgem_bo_retire(kgem, &bo->base);
 		bo->base.domain = DOMAIN_NONE;
 	} else
 		kgem_bo_sync__cpu(kgem, &bo->base);
