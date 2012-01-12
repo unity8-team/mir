@@ -112,6 +112,7 @@ struct kgem_partial_bo {
 	uint32_t used;
 	uint32_t need_io : 1;
 	uint32_t write : 1;
+	uint32_t shrink : 1;
 };
 
 static struct kgem_bo *__kgem_freed_bo;
@@ -1195,7 +1196,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 		}
 
 		assert(bo->base.rq == kgem->next_request);
-		if (bo->need_io && bo->used < bo->base.size / 2) {
+		if (bo->shrink && bo->used < bo->base.size / 2) {
 			struct kgem_bo *shrink;
 
 			shrink = search_linear_cache(kgem,
@@ -2886,11 +2887,13 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 					DBG(("%s: reusing write buffer for read of %d bytes? used=%d, total=%d\n",
 					     __FUNCTION__, size, bo->used, bo->base.size));
 					offset = 0;
+					bo->shrink = 0;
 					goto done;
 				} else if (bo->used + size <= bo->base.size) {
 					DBG(("%s: reusing unfinished write buffer for read of %d bytes? used=%d, total=%d\n",
 					     __FUNCTION__, size, bo->used, bo->base.size));
 					offset = bo->used;
+					bo->shrink = 0;
 					goto done;
 				}
 			}
@@ -3036,6 +3039,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 	bo->used = size;
 	bo->write = write;
+	bo->shrink = bo->need_io;
 	offset = 0;
 
 	list_add(&bo->base.list, &kgem->partial);
