@@ -9757,20 +9757,26 @@ static void _sna_accel_disarm_timer(struct sna *sna, int id) { }
 static bool sna_accel_flush(struct sna *sna)
 {
 	struct sna_pixmap *priv = sna_accel_scanout(sna);
-	bool nothing_to_do = priv->cpu_damage == NULL && sna->kgem.nbatch == 0;
 	bool need_throttle = priv->gpu_bo->rq;
+	bool busy = priv->cpu_damage || need_throttle;
 
-	DBG(("%s (time=%ld), nothing_to_do=%d, busy? %d\n",
+	DBG(("%s (time=%ld), cpu damage? %p, exec? %d nbatch=%d, busy? %d, need_throttle=%d\n",
 	     __FUNCTION__, (long)GetTimeInMillis(),
-	     nothing_to_do, sna->kgem.busy));
+	     priv->cpu_damage,
+	     priv->gpu_bo->exec != NULL,
+	     sna->kgem.nbatch,
+	     sna->kgem.busy, need_throttle));
 
-	if (nothing_to_do && !sna->kgem.busy)
+	if (!sna->kgem.busy && !busy)
 		_sna_accel_disarm_timer(sna, FLUSH_TIMER);
+	sna->kgem.busy = busy;
+
 	if (priv->cpu_damage)
 		sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ);
-	sna->kgem.busy = !nothing_to_do;
+
 	kgem_bo_flush(&sna->kgem, priv->gpu_bo);
 	sna->kgem.flush_now = 0;
+
 	return need_throttle;
 }
 
