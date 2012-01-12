@@ -1687,8 +1687,10 @@ gen4_render_video(struct sna *sna,
 
 		FLUSH();
 
-		sna_damage_add_box(&priv->gpu_damage, &r);
-		sna_damage_subtract_box(&priv->cpu_damage, &r);
+		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
+			sna_damage_add_box(&priv->gpu_damage, &r);
+			sna_damage_subtract_box(&priv->cpu_damage, &r);
+		}
 		box++;
 	}
 
