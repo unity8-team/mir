@@ -69,7 +69,7 @@ no_render_composite(struct sna *sna,
 		    int16_t width, int16_t height,
 		    struct sna_composite_op *tmp)
 {
-	DBG(("%s ()\n", __FUNCTION__));
+	DBG(("%s (op=%d, mask? %d)\n", __FUNCTION__, op, mask != NULL));
 
 	if (mask == NULL &&
 	    sna_blt_composite(sna,
