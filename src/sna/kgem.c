@@ -2335,12 +2335,7 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 	DBG(("%s: size=%d, offset=%d, parent used=%d\n",
 	     __FUNCTION__, bo->size, bo->delta, io->used));
 
-	if (bo->size == io->used) {
-		assert(io->base.exec == NULL);
-		assert(io->base.refcnt >= 2);
-		list_del(&io->base.list);
-		--io->base.refcnt;
-	} else if (bo->delta + bo->size == io->used) {
+	if (bo->delta + bo->size == io->used) {
 		io->used = bo->delta;
 		bubble_sort_partial(kgem, io);
 	}
