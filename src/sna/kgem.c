@@ -596,7 +596,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	     kgem->aperture_mappable, kgem->aperture_mappable / (1024*1024)));
 
 	kgem->min_alignment = 4;
-	if (gen < 60)
+	if (gen < 60 && 0)
 		/* XXX workaround an issue where we appear to fail to
 		 * disable dual-stream mode */
 		kgem->min_alignment = 64;
