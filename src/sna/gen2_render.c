@@ -1077,12 +1077,11 @@ static void gen2_render_composite_done(struct sna *sna,
 	sna->render.op = NULL;
 	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
-	sna_render_composite_redirect_done(sna, op);
-
-	if (op->src.bo)
-		kgem_bo_destroy(&sna->kgem, op->src.bo);
 	if (op->mask.bo)
 		kgem_bo_destroy(&sna->kgem, op->mask.bo);
+	if (op->src.bo)
+		kgem_bo_destroy(&sna->kgem, op->src.bo);
+	sna_render_composite_redirect_done(sna, op);
 }
 
 static Bool
@@ -2111,9 +2110,10 @@ gen2_render_composite_spans_done(struct sna *sna,
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	sna_render_composite_redirect_done(sna, &op->base);
 	if (op->base.src.bo)
 		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
+
+	sna_render_composite_redirect_done(sna, &op->base);
 }
 
 static Bool

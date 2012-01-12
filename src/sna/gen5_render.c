@@ -1852,12 +1852,12 @@ gen5_render_composite_done(struct sna *sna,
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	sna_render_composite_redirect_done(sna, op);
-
-	if (op->src.bo)
-		kgem_bo_destroy(&sna->kgem, op->src.bo);
 	if (op->mask.bo)
 		kgem_bo_destroy(&sna->kgem, op->mask.bo);
+	if (op->src.bo)
+		kgem_bo_destroy(&sna->kgem, op->src.bo);
+
+	sna_render_composite_redirect_done(sna, op);
 }
 
 static Bool
@@ -2479,9 +2479,10 @@ gen5_render_composite_spans_done(struct sna *sna,
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	sna_render_composite_redirect_done(sna, &op->base);
 	if (op->base.src.bo)
 		kgem_bo_destroy(&sna->kgem, op->base.src.bo);
+
+	sna_render_composite_redirect_done(sna, &op->base);
 }
 
 static Bool

@@ -1816,12 +1816,12 @@ gen4_render_composite_done(struct sna *sna,
 
 	DBG(("%s()\n", __FUNCTION__));
 
-	sna_render_composite_redirect_done(sna, op);
-
-	if (op->src.bo)
-		kgem_bo_destroy(&sna->kgem, op->src.bo);
 	if (op->mask.bo)
 		kgem_bo_destroy(&sna->kgem, op->mask.bo);
+	if (op->src.bo)
+		kgem_bo_destroy(&sna->kgem, op->src.bo);
+
+	sna_render_composite_redirect_done(sna, op);
 }
 
 static Bool
