@@ -477,13 +477,14 @@ sna_render_pixmap_bo(struct sna *sna,
 
 	priv = sna_pixmap(pixmap);
 	if (priv) {
-		if (priv->gpu_bo && priv->cpu_damage == NULL) {
+		if (priv->gpu_bo &&
+		    (DAMAGE_IS_ALL(priv->gpu_damage) || !priv->cpu_damage)) {
 			channel->bo = kgem_bo_reference(priv->gpu_bo);
 			return 1;
 		}
 
 		if (priv->cpu_bo &&
-		    DAMAGE_IS_ALL(priv->cpu_damage) &&
+		    (DAMAGE_IS_ALL(priv->cpu_damage) || !priv->gpu_damage) &&
 		    priv->cpu_bo->pitch < 4096) {
 			channel->bo = kgem_bo_reference(priv->cpu_bo);
 			return 1;
