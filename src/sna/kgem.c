@@ -3091,7 +3091,6 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 
 	if (height & 1) {
 		struct kgem_partial_bo *io = (struct kgem_partial_bo *)bo->proxy;
-		int remain;
 
 		/* Having padded this surface to ensure that accesses to
 		 * the last pair of rows is valid, remove the padding so
@@ -3099,32 +3098,7 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 		 */
 		io->used -= stride;
 		bo->size -= stride;
-
-		/* And bubble-sort the partial back into place */
-		remain = io->base.size - io->used;
-		while (io->base.list.prev != &kgem->partial) {
-			struct kgem_partial_bo *p;
-
-			p = list_entry(io->base.list.prev,
-				       struct kgem_partial_bo,
-				       base.list);
-			if (remain <= p->base.size - p->used)
-				break;
-
-			assert(p->base.list.next == &io->base.list);
-			io->base.list.prev = p->base.list.prev;
-			p->base.list.prev->next = &io->base.list;
-			p->base.list.prev = &io->base.list;
-
-			p->base.list.next = io->base.list.next;
-			io->base.list.next->prev = &p->base.list;
-			io->base.list.next = &p->base.list;
-
-			assert(p->base.list.next->prev == &p->base.list);
-			assert(io->base.list.prev->next == &io->base.list);
-		}
-
-		assert(validate_partials(kgem));
+		bubble_sort_partial(kgem, io);
 	}
 
 	bo->pitch = stride;
