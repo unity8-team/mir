@@ -2261,12 +2261,13 @@ gen3_composite_set_target(struct sna *sna,
 	get_drawable_deltas(dst->pDrawable, op->dst.pixmap,
 			    &op->dst.x, &op->dst.y);
 
-	DBG(("%s: pixmap=%p, format=%08x, size=%dx%d, pitch=%d, delta=(%d,%d)\n",
+	DBG(("%s: pixmap=%p, format=%08x, size=%dx%d, pitch=%d, delta=(%d,%d),damage=%p\n",
 	     __FUNCTION__,
 	     op->dst.pixmap, (int)op->dst.format,
 	     op->dst.width, op->dst.height,
 	     op->dst.bo->pitch,
-	     op->dst.x, op->dst.y));
+	     op->dst.x, op->dst.y,
+	     op->damage ? *op->damage : (void *)-1));
 
 	return TRUE;
 }
@@ -3054,8 +3055,11 @@ gen3_render_composite_spans(struct sna *sna,
 	if (gen3_composite_fallback(sna, op, src, NULL, dst))
 		return FALSE;
 
-	if (need_tiling(sna, width, height))
+	if (need_tiling(sna, width, height)) {
+		DBG(("%s: fallback, operation (%dx%d) too wide for pipeline\n",
+		     __FUNCTION__, width, height));
 		return FALSE;
+	}
 
 	if (!gen3_composite_set_target(sna, &tmp->base, dst)) {
 		DBG(("%s: unable to set render target\n",
@@ -3913,7 +3917,7 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 						  color->blue,
 						  color->alpha,
 						  format)) {
-			DBG(("%s: unknown format %x\n", __FUNCTION__, format));
+			DBG(("%s: unknown format %lx\n", __FUNCTION__, format));
 			return FALSE;
 		}
 	} else {

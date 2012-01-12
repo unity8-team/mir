@@ -578,7 +578,8 @@ void sna_copy_fbcon(struct sna *sna)
 				    scratch, bo, sx, sy,
 				    sna->front, priv->gpu_bo, dx, dy,
 				    &box, 1);
-	sna_damage_add_box(&priv->gpu_damage, &box);
+	if (!DAMAGE_IS_ALL(priv->gpu_damage))
+		sna_damage_add_box(&priv->gpu_damage, &box);
 
 	kgem_bo_destroy(&sna->kgem, bo);
 

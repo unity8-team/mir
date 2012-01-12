@@ -344,7 +344,7 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t read_write_domains,
 			uint32_t delta);
 
-void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot);
+void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
@@ -358,12 +358,15 @@ int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo);
 static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 				       struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: offset: %d size: %d\n",
-		 __FUNCTION__, bo->presumed_offset, bo->size));
+	DBG_HDR(("%s: domain=%d, offset: %d size: %d\n",
+		 __FUNCTION__, bo->domain, bo->presumed_offset, bo->size));
+
+	if (bo->domain == DOMAIN_GTT)
+		return true;
 
 	if (kgem->gen < 40 && bo->tiling &&
 	    bo->presumed_offset & (kgem_bo_fenced_size(kgem, bo) - 1))
-			return false;
+		return false;
 
 	return bo->presumed_offset + bo->size <= kgem->aperture_mappable;
 }

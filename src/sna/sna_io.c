@@ -58,7 +58,7 @@ static void read_boxes_inplace(struct kgem *kgem,
 
 	kgem_bo_submit(kgem, bo);
 
-	src = kgem_bo_map(kgem, bo, PROT_READ);
+	src = kgem_bo_map(kgem, bo);
 	if (src == NULL)
 		return;
 
@@ -285,7 +285,7 @@ static void write_boxes_inplace(struct kgem *kgem,
 
 	kgem_bo_submit(kgem, bo);
 
-	dst = kgem_bo_map(kgem, bo, PROT_READ | PROT_WRITE);
+	dst = kgem_bo_map(kgem, bo);
 	if (dst == NULL)
 		return;
 
@@ -555,7 +555,7 @@ write_boxes_inplace__xor(struct kgem *kgem,
 
 	kgem_bo_submit(kgem, bo);
 
-	dst = kgem_bo_map(kgem, bo, PROT_READ | PROT_WRITE);
+	dst = kgem_bo_map(kgem, bo);
 	if (dst == NULL)
 		return;
 
@@ -788,7 +788,12 @@ indirect_replace(struct sna *sna,
 	void *ptr;
 	bool ret;
 
-	if (pixmap->devKind * pixmap->drawable.height >> 12 > kgem->half_cpu_cache_pages)
+	DBG(("%s: size=%d vs %d\n",
+	     __FUNCTION__,
+	     (int)pixmap->devKind * pixmap->drawable.height >> 12,
+	     kgem->half_cpu_cache_pages));
+
+	if ((int)pixmap->devKind * pixmap->drawable.height >> 12 > kgem->half_cpu_cache_pages)
 		return false;
 
 	if (bo->tiling == I915_TILING_Y || kgem->ring == KGEM_RENDER) {
@@ -924,7 +929,7 @@ struct kgem_bo *sna_replace(struct sna *sna,
 		kgem_bo_write(kgem, bo, src,
 			      (pixmap->drawable.height-1)*stride + pixmap->drawable.width*pixmap->drawable.bitsPerPixel/8);
 	} else {
-		dst = kgem_bo_map(kgem, bo, PROT_READ | PROT_WRITE);
+		dst = kgem_bo_map(kgem, bo);
 		if (dst) {
 			memcpy_blt(src, dst, pixmap->drawable.bitsPerPixel,
 				   stride, bo->pitch,
@@ -969,7 +974,7 @@ struct kgem_bo *sna_replace__xor(struct sna *sna,
 		}
 	}
 
-	dst = kgem_bo_map(kgem, bo, PROT_READ | PROT_WRITE);
+	dst = kgem_bo_map(kgem, bo);
 	if (dst) {
 		memcpy_xor(src, dst, pixmap->drawable.bitsPerPixel,
 			   stride, bo->pitch,

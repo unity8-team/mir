@@ -172,7 +172,7 @@ static struct sna_damage *_sna_damage_create(void)
 
 	if (__freed_damage) {
 		damage = __freed_damage;
-		__freed_damage = NULL;
+		__freed_damage = *(void **)__freed_damage;
 	} else {
 		damage = malloc(sizeof(*damage));
 		if (damage == NULL)
@@ -929,8 +929,8 @@ fastcall struct sna_damage *_sna_damage_add_box(struct sna_damage *damage,
 }
 #endif
 
-struct sna_damage *_sna_damage_all(struct sna_damage *damage,
-				   int width, int height)
+struct sna_damage *__sna_damage_all(struct sna_damage *damage,
+				    int width, int height)
 {
 	DBG(("%s(%d, %d)\n", __FUNCTION__, width, height));
 
@@ -1157,8 +1157,8 @@ fastcall struct sna_damage *_sna_damage_subtract_box(struct sna_damage *damage,
 }
 #endif
 
-static int _sna_damage_contains_box(struct sna_damage *damage,
-				    const BoxRec *box)
+static int __sna_damage_contains_box(struct sna_damage *damage,
+				     const BoxRec *box)
 {
 	int ret;
 
@@ -1183,8 +1183,8 @@ static int _sna_damage_contains_box(struct sna_damage *damage,
 }
 
 #if DEBUG_DAMAGE
-int sna_damage_contains_box(struct sna_damage *damage,
-			    const BoxRec *box)
+int _sna_damage_contains_box(struct sna_damage *damage,
+			     const BoxRec *box)
 {
 	char damage_buf[1000];
 	int ret;
@@ -1193,7 +1193,7 @@ int sna_damage_contains_box(struct sna_damage *damage,
 	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
 	     box->x1, box->y1, box->x2, box->y2));
 
-	ret = _sna_damage_contains_box(damage, box);
+	ret = __sna_damage_contains_box(damage, box);
 	ErrorF("  = %d", ret);
 	if (ret)
 		ErrorF(" [(%d, %d), (%d, %d)...]",
@@ -1203,15 +1203,15 @@ int sna_damage_contains_box(struct sna_damage *damage,
 	return ret;
 }
 #else
-int sna_damage_contains_box(struct sna_damage *damage,
-			    const BoxRec *box)
+int _sna_damage_contains_box(struct sna_damage *damage,
+			     const BoxRec *box)
 {
-	return _sna_damage_contains_box(damage, box);
+	return __sna_damage_contains_box(damage, box);
 }
 #endif
 
-bool sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
-					const BoxRec *box)
+bool _sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
+					 const BoxRec *box)
 {
 	int ret;
 
@@ -1225,17 +1225,10 @@ bool sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
 		ret == PIXMAN_REGION_IN;
 }
 
-static Bool _sna_damage_intersect(struct sna_damage *damage,
-				  RegionPtr region, RegionPtr result)
+static Bool __sna_damage_intersect(struct sna_damage *damage,
+				   RegionPtr region, RegionPtr result)
 {
-	if (!damage)
-		return FALSE;
-
-	if (damage->mode == DAMAGE_ALL) {
-		RegionCopy(result, region);
-		return TRUE;
-	}
-
+	assert(damage && damage->mode != DAMAGE_ALL);
 	if (region->extents.x2 <= damage->extents.x1 ||
 	    region->extents.x1 >= damage->extents.x2)
 		return FALSE;
@@ -1257,8 +1250,8 @@ static Bool _sna_damage_intersect(struct sna_damage *damage,
 }
 
 #if DEBUG_DAMAGE
-Bool sna_damage_intersect(struct sna_damage *damage,
-			  RegionPtr region, RegionPtr result)
+Bool _sna_damage_intersect(struct sna_damage *damage,
+			   RegionPtr region, RegionPtr result)
 {
 	char damage_buf[1000];
 	char region_buf[120];
@@ -1268,7 +1261,7 @@ Bool sna_damage_intersect(struct sna_damage *damage,
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
 	       _debug_describe_region(region_buf, sizeof(region_buf), region));
 
-	ret = _sna_damage_intersect(damage, region, result);
+	ret = __sna_damage_intersect(damage, region, result);
 	if (ret)
 		ErrorF("  = %s\n",
 		       _debug_describe_region(region_buf, sizeof(region_buf), result));
@@ -1278,17 +1271,16 @@ Bool sna_damage_intersect(struct sna_damage *damage,
 	return ret;
 }
 #else
-Bool sna_damage_intersect(struct sna_damage *damage,
+Bool _sna_damage_intersect(struct sna_damage *damage,
 			  RegionPtr region, RegionPtr result)
 {
-	return _sna_damage_intersect(damage, region, result);
+	return __sna_damage_intersect(damage, region, result);
 }
 #endif
 
-static int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
+static int __sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 {
-	if (!damage)
-		return 0;
+	assert(damage && damage->mode != DAMAGE_ALL);
 
 	if (damage->dirty)
 		__sna_damage_reduce(damage);
@@ -1311,7 +1303,7 @@ struct sna_damage *_sna_damage_reduce(struct sna_damage *damage)
 }
 
 #if DEBUG_DAMAGE
-int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
+int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 {
 	char damage_buf[1000];
 	int count;
@@ -1319,15 +1311,15 @@ int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 	ErrorF("%s(%s)...\n", __FUNCTION__,
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
 
-	count = _sna_damage_get_boxes(damage, boxes);
+	count = __sna_damage_get_boxes(damage, boxes);
 	ErrorF("  = %d\n", count);
 
 	return count;
 }
 #else
-int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
+int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 {
-	return _sna_damage_get_boxes(damage, boxes);
+	return __sna_damage_get_boxes(damage, boxes);
 }
 #endif
 
@@ -1336,10 +1328,8 @@ void __sna_damage_destroy(struct sna_damage *damage)
 	free_list(&damage->embedded_box.list);
 
 	pixman_region_fini(&damage->region);
-	if (__freed_damage == NULL)
-		__freed_damage = damage;
-	else
-		free(damage);
+	*(void **)damage = __freed_damage;
+	__freed_damage = damage;
 }
 
 #if DEBUG_DAMAGE && TEST_DAMAGE

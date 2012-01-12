@@ -83,7 +83,7 @@ static void gen7_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 			if (bo->handle == reloc)
 				break;
 		assert(&bo->request != &kgem->next_request->buffers);
-		base = kgem_bo_map(kgem, bo, PROT_READ);
+		base = kgem_bo_map__debug(kgem, bo);
 	}
 	ptr = (char *)base + kgem->reloc[i].delta;
 
@@ -118,7 +118,7 @@ static void gen7_update_dynamic_buffer(struct kgem *kgem, const uint32_t offset)
 				if (bo->handle == reloc)
 					break;
 			assert(&bo->request != &kgem->next_request->buffers);
-			base = kgem_bo_map(kgem, bo, PROT_READ);
+			base = kgem_bo_map__debug(kgem, bo);
 		}
 		ptr = (char *)base + (kgem->reloc[i].delta & ~1);
 	} else {
@@ -450,7 +450,7 @@ get_reloc(struct kgem *kgem,
 				if (bo->handle == handle)
 					break;
 			assert(&bo->request != &kgem->next_request->buffers);
-			base = kgem_bo_map(kgem, bo, PROT_READ);
+			base = kgem_bo_map__debug(kgem, bo);
 			r->bo = bo;
 			r->base = base;
 		}

@@ -134,7 +134,9 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 	if (op->damage == NULL || *op->damage == NULL)
 		return;
 
-	if ((*op->damage)->mode == DAMAGE_ALL) {
+	if (DAMAGE_IS_ALL(*op->damage)) {
+		DBG(("%s: damage-all, dicarding damage\n",
+		     __FUNCTION__));
 		op->damage = NULL;
 		return;
 	}
@@ -148,8 +150,11 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_contains_box__no_reduce(*op->damage, &r))
+	if (sna_damage_contains_box__no_reduce(*op->damage, &r)) {
+		DBG(("%s: damage contains render extents, dicarding damage\n",
+		     __FUNCTION__));
 		op->damage = NULL;
+	}
 }
 
 #endif /* SNA_RENDER_INLINE_H */

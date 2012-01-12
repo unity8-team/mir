@@ -394,7 +394,7 @@ _texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
 	if (!priv->cpu_damage)
 		return FALSE;
 
-	if (priv->cpu_damage->mode == DAMAGE_ALL)
+	if (DAMAGE_IS_ALL(priv->cpu_damage))
 		return TRUE;
 
 	if (sna_damage_contains_box__no_reduce(priv->cpu_damage, box))
@@ -483,7 +483,7 @@ sna_render_pixmap_bo(struct sna *sna,
 		}
 
 		if (priv->cpu_bo &&
-		    priv->cpu_damage && priv->cpu_damage->mode == DAMAGE_ALL &&
+		    DAMAGE_IS_ALL(priv->cpu_damage) &&
 		    priv->cpu_bo->pitch < 4096) {
 			channel->bo = kgem_bo_reference(priv->cpu_bo);
 			return 1;
@@ -1448,7 +1448,7 @@ sna_render_composite_redirect(struct sna *sna,
 	op->dst.y = -y;
 	op->dst.width  = width;
 	op->dst.height = height;
-	op->damage = &priv->gpu_damage;
+	op->damage = NULL;
 	return TRUE;
 }
 

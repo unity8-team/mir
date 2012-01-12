@@ -2568,13 +2568,13 @@ static void kgem_trim_vma_cache(struct kgem *kgem, int type, int bucket)
 	}
 }
 
-void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot)
+void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 {
 	void *ptr;
 
 	assert(bo->refcnt);
-	assert(bo->exec == NULL);
 	assert(!bo->purged);
+	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
 
 	if (IS_CPU_MAP(bo->map))
@@ -3082,6 +3082,9 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 
 	stride = ALIGN(width, 2) * bpp >> 3;
 	stride = ALIGN(stride, kgem->min_alignment);
+
+	DBG(("%s: %dx%d, %d bpp, stride=%d\n",
+	     __FUNCTION__, width, height, bpp, stride));
 
 	bo = kgem_create_buffer(kgem, stride * ALIGN(height, 2), flags, ret);
 	if (bo == NULL)
