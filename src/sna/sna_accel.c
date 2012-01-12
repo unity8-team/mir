@@ -4976,8 +4976,9 @@ static void
 sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	      int mode, int n, DDXPointPtr pt)
 {
-	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	struct sna *sna = to_sna_from_pixmap(pixmap);
+	PixmapPtr pixmap;
+	struct sna *sna;
+	struct sna_pixmap *priv;
 	struct sna_damage **damage;
 	RegionRec region;
 	unsigned flags;
@@ -4997,6 +4998,8 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	if (FORCE_FALLBACK)
 		goto fallback;
 
+	pixmap = get_drawable_pixmap(drawable);
+	sna = to_sna_from_pixmap(pixmap);
 	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
@@ -5013,15 +5016,26 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto fallback;
 
-	if (gc->lineStyle != LineSolid)
+	priv = sna_pixmap(pixmap);
+	if (!priv) {
+		DBG(("%s: not attached to pixmap %ld\n",
+		     __FUNCTION__, pixmap->drawable.serialNumber));
+		goto fallback;
+	}
+
+	if (gc->lineStyle != LineSolid) {
+		DBG(("%s: lineStyle, %d, is not solid\n",
+		     __FUNCTION__, gc->lineStyle));
 		goto spans_fallback;
+	}
 	if (!(gc->lineWidth == 0 ||
-	      (gc->lineWidth == 1 && (n == 1 || gc->alu == GXcopy))))
+	      (gc->lineWidth == 1 && (n == 1 || gc->alu == GXcopy)))) {
+		DBG(("%s: non-zero lineWidth %d\n",
+		     __FUNCTION__, gc->lineWidth));
 		goto spans_fallback;
+	}
 
 	if (gc->fillStyle == FillSolid) {
-		struct sna_pixmap *priv = sna_pixmap(pixmap);
-
 		DBG(("%s: trying solid fill [%08lx]\n",
 		     __FUNCTION__, gc->fgPixel));
 
@@ -5056,8 +5070,6 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 
 		}
 	} else if (flags & 4) {
-		struct sna_pixmap *priv = sna_pixmap(pixmap);
-
 		/* Try converting these to a set of rectangles instead */
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 			DDXPointRec p1, p2;
@@ -5132,15 +5144,26 @@ spans_fallback:
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		switch (gc->lineStyle) {
+		default:
+			assert(0);
 		case LineSolid:
-			if (gc->lineWidth == 0)
+			if (gc->lineWidth == 0) {
+				DBG(("%s: miZeroLine\n", __FUNCTION__));
 				miZeroLine(drawable, gc, mode, n, pt);
-			else
+			} else {
+				DBG(("%s: miWideLine\n", __FUNCTION__));
 				miWideLine(drawable, gc, mode, n, pt);
+			}
 			break;
 		case LineOnOffDash:
 		case LineDoubleDash:
-			miWideDash(drawable, gc, mode, n, pt);
+			if (gc->lineWidth == 0) {
+				DBG(("%s: miZeroDashLine\n", __FUNCTION__));
+				miZeroDashLine(drawable, gc, mode, n, pt);
+			} else {
+				DBG(("%s: miWideDash\n", __FUNCTION__));
+				miWideDash(drawable, gc, mode, n, pt);
+			}
 			break;
 		}
 		return;
