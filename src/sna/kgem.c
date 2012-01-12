@@ -1432,6 +1432,10 @@ void _kgem_submit(struct kgem *kgem)
 
 	kgem_finish_partials(kgem);
 
+#if DEBUG_BATCH
+	__kgem_batch_debug(kgem, batch_end);
+#endif
+
 	rq = kgem->next_request;
 	if (kgem->surface != kgem->max_batch_size)
 		size = compact_batch_surface(kgem);
@@ -1459,10 +1463,6 @@ void _kgem_submit(struct kgem *kgem)
 		list_add(&rq->bo->request, &rq->buffers);
 
 		kgem_fixup_self_relocs(kgem, rq->bo);
-
-#if DEBUG_BATCH
-		__kgem_batch_debug(kgem, batch_end);
-#endif
 
 		if (kgem_batch_write(kgem, handle, size) == 0) {
 			struct drm_i915_gem_execbuffer2 execbuf;
@@ -2343,8 +2343,6 @@ static void _kgem_bo_delete_partial(struct kgem *kgem, struct kgem_bo *bo)
 		io->used = bo->delta;
 		bubble_sort_partial(kgem, io);
 	}
-
-	assert(validate_partials(kgem));
 }
 
 void _kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
@@ -2860,6 +2858,8 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	struct kgem_bo *bo;
 
 	assert(target->proxy == NULL);
+	DBG(("%s: target handle=%d, offset=%d, length=%d, io=%d\n",
+	     __FUNCTION__, target->handle, offset, length, target->io));
 
 	bo = __kgem_bo_alloc(target->handle, length);
 	if (bo == NULL)
