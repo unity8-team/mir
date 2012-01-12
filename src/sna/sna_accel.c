@@ -7369,7 +7369,7 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 					b[8] = pat[1];
 					sna->kgem.nbatch += 9;
 				}
-			} while (n--);
+			} while (--n);
 		} else {
 			const BoxRec * const clip_start = RegionBoxptr(&clip);
 			const BoxRec * const clip_end = clip_start + clip.data->numRects;
