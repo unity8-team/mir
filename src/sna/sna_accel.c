@@ -2525,9 +2525,15 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 	region.extents.y2 = region.extents.y1 + h;
 	region.data = NULL;
 
-	RegionIntersect(&region, &region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
-		return;
+	if (!region_is_singular(gc->pCompositeClip) ||
+	    gc->pCompositeClip->extents.x1 > region.extents.x1 ||
+	    gc->pCompositeClip->extents.y1 > region.extents.y1 ||
+	    gc->pCompositeClip->extents.x2 < region.extents.x2 ||
+	    gc->pCompositeClip->extents.y2 < region.extents.y2) {
+		RegionIntersect(&region, &region, gc->pCompositeClip);
+		if (!RegionNotEmpty(&region))
+			return;
+	}
 
 	RegionTranslate(&region, dx, dy);
 
