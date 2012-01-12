@@ -113,6 +113,7 @@ struct kgem_partial_bo {
 	uint32_t need_io : 1;
 	uint32_t write : 1;
 	uint32_t shrink : 1;
+	uint32_t mmapped : 1;
 };
 
 static struct kgem_bo *__kgem_freed_bo;
@@ -306,6 +307,7 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 	assert(!bo->purged);
 	assert(!kgem_busy(kgem, bo->handle));
 
+	assert(length <= bo->size);
 	if (gem_write(kgem->fd, bo->handle, 0, length, data))
 		return FALSE;
 
@@ -835,11 +837,6 @@ static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
 		free(bo);
 }
 
-static bool is_mmaped_buffer(struct kgem_partial_bo *bo)
-{
-	return bo->mem != bo+1;
-}
-
 inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 					    struct kgem_bo *bo)
 {
@@ -1244,6 +1241,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 			DBG(("%s: handle=%d, uploading %d/%d\n",
 			     __FUNCTION__, bo->base.handle, bo->used, bo->base.size));
 			assert(!kgem_busy(kgem, bo->base.handle));
+			assert(bo->used <= bo->base.size);
 			gem_write(kgem->fd, bo->base.handle,
 				  0, bo->used, bo->mem);
 			bo->need_io = 0;
@@ -2866,6 +2864,19 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	return bo;
 }
 
+static struct kgem_partial_bo *partial_bo_alloc(int size)
+{
+	struct kgem_partial_bo *bo;
+
+	bo = malloc(sizeof(*bo) + 128 + size);
+	if (bo) {
+		bo->mem = (void *)ALIGN((uintptr_t)bo + sizeof(*bo), 64);
+		bo->mmapped = false;
+	}
+
+	return bo;
+}
+
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
 				   void **ret)
@@ -2972,19 +2983,19 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 
 		bo->need_io = false;
 		bo->base.io = true;
+		bo->mmapped = true;
 
 		alloc = bo->base.size;
 	} else if (HAVE_VMAP && kgem->has_vmap) {
-		bo = malloc(sizeof(*bo) + alloc);
+		bo = partial_bo_alloc(alloc);
 		if (bo == NULL)
 			return NULL;
 
-		handle = gem_vmap(kgem->fd, bo+1, alloc, write);
+		handle = gem_vmap(kgem->fd, bo->mem, alloc, write);
 		if (handle) {
 			__kgem_bo_init(&bo->base, handle, alloc);
 			bo->base.vmap = true;
 			bo->need_io = false;
-			bo->mem = bo + 1;
 		} else {
 			free(bo);
 			return NULL;
@@ -2999,12 +3010,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
 		if (old) {
 			alloc = old->size;
-			bo = malloc(sizeof(*bo) + alloc);
+			bo = partial_bo_alloc(alloc);
 			if (bo == NULL)
 				return NULL;
-
-			bo->mem = bo + 1;
-			bo->need_io = write;
 
 			memcpy(&bo->base, old, sizeof(*old));
 			if (old->rq)
@@ -3017,7 +3025,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			free(old);
 			bo->base.refcnt = 1;
 		} else {
-			bo = malloc(sizeof(*bo) + alloc);
+			bo = partial_bo_alloc(alloc);
 			if (bo == NULL)
 				return NULL;
 
@@ -3027,9 +3035,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				free(bo);
 				return NULL;
 			}
-			bo->mem = bo + 1;
-			bo->need_io = write;
 		}
+		bo->need_io = write;
 		bo->base.io = true;
 	}
 	bo->base.reusable = false;
@@ -3203,9 +3210,9 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	DBG(("%s(offset=%d, length=%d, vmap=%d)\n", __FUNCTION__,
 	     offset, length, bo->base.vmap));
 
-	if (!bo->base.vmap && !is_mmaped_buffer(bo)) {
+	if (!bo->base.vmap && !bo->mmapped) {
 		gem_read(kgem->fd,
-			 bo->base.handle, (char *)(bo+1)+offset,
+			 bo->base.handle, (char *)bo->mem+offset,
 			 offset, length);
 		kgem_bo_retire(kgem, &bo->base);
 		bo->base.domain = DOMAIN_NONE;
