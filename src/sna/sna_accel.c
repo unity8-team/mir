@@ -883,7 +883,7 @@ region_subsumes_damage(const RegionRec *region, struct sna_damage *damage)
 
 	re = &region->extents;
 	de = &DAMAGE_PTR(damage)->extents;
-	DBG(("%s: region (%d, %d), (%d, %d), extents (%d, %d), (%d, %d)\n",
+	DBG(("%s: region (%d, %d), (%d, %d), damage (%d, %d), (%d, %d)\n",
 	     __FUNCTION__,
 	     re->x1, re->y1, re->x2, re->y2,
 	     de->x1, de->y1, de->x2, de->y2));
