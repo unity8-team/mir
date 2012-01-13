@@ -764,6 +764,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 
 		sna_damage_destroy(&priv->cpu_damage);
 		sna_damage_destroy(&priv->gpu_damage);
+		list_del(&priv->list);
 
 		if (priv->stride && priv->gpu_bo &&
 		    pixmap_inplace(sna, pixmap, priv)) {
@@ -1788,7 +1789,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
-		goto done;
+		goto active;
 	}
 
 	if ((flags & MOVE_READ) == 0)
@@ -1864,12 +1865,13 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 
 	__sna_damage_destroy(DAMAGE_PTR(priv->cpu_damage));
 	priv->cpu_damage = NULL;
+done:
 	list_del(&priv->list);
 
-done:
 	sna_damage_reduce_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height);
+active:
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	return priv;
@@ -2179,9 +2181,10 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
-			if (region_subsumes_drawable(region, &pixmap->drawable))
+			if (region_subsumes_drawable(region, &pixmap->drawable)) {
 				sna_damage_destroy(&priv->cpu_damage);
-			else
+				list_del(&priv->list);
+			} else
 				sna_damage_subtract(&priv->cpu_damage, region);
 			if (priv->cpu_damage == NULL)
 				sna_damage_all(&priv->gpu_damage,
@@ -2220,9 +2223,10 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 				if (sna_put_image_upload_blt(drawable, gc, region,
 							     x, y, w, h, bits, stride)) {
 					if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
-						if (region_subsumes_drawable(region, &pixmap->drawable))
+						if (region_subsumes_drawable(region, &pixmap->drawable)) {
 							sna_damage_destroy(&priv->cpu_damage);
-						else
+							list_del(&priv->list);
+						} else
 							sna_damage_subtract(&priv->cpu_damage, region);
 						if (priv->cpu_damage == NULL)
 							sna_damage_all(&priv->gpu_damage,
@@ -2240,8 +2244,10 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 					if (!sna_pixmap_move_to_gpu(pixmap,
 								    MOVE_WRITE))
 						return false;
-				} else
+				} else {
 					sna_damage_destroy(&priv->cpu_damage);
+					list_del(&priv->list);
+				}
 
 				sna_pixmap_free_cpu(sna, priv);
 			}
@@ -9957,6 +9963,8 @@ static void sna_accel_inactive(struct sna *sna)
 			DBG(("%s: discarding inactive CPU shadow\n",
 			     __FUNCTION__));
 			sna_damage_destroy(&priv->cpu_damage);
+			list_del(&priv->list);
+
 			sna_pixmap_free_cpu(sna, priv);
 			list_add(&priv->inactive, &preserve);
 		} else {
