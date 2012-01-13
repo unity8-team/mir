@@ -9657,6 +9657,7 @@ sna_accel_flush_callback(CallbackListPtr *list,
 			 pointer user_data, pointer call_data)
 {
 	struct sna *sna = user_data;
+	struct list preserve;
 
 	if ((sna->kgem.sync|sna->kgem.flush) == 0 &&
 	    list_is_empty(&sna->dirty_pixmaps))
@@ -9665,12 +9666,20 @@ sna_accel_flush_callback(CallbackListPtr *list,
 	DBG(("%s\n", __FUNCTION__));
 
 	/* flush any pending damage from shadow copies to tfp clients */
+	list_init(&preserve);
 	while (!list_is_empty(&sna->dirty_pixmaps)) {
 		struct sna_pixmap *priv = list_first_entry(&sna->dirty_pixmaps,
 							   struct sna_pixmap,
 							   list);
 		assert(priv->cpu_damage != NULL);
-		sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ);
+		if (!sna_pixmap_move_to_gpu(priv->pixmap, MOVE_READ))
+			list_move(&priv->list, &preserve);
+	}
+	if (!list_is_empty(&preserve)) {
+		sna->dirty_pixmaps.next = preserve.next;
+		preserve.next->prev = &sna->dirty_pixmaps;
+		preserve.prev->next = &sna->dirty_pixmaps;
+		sna->dirty_pixmaps.prev = preserve.prev;
 	}
 
 	kgem_submit(&sna->kgem);
