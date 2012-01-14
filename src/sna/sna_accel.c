@@ -1640,7 +1640,8 @@ sna_drawable_use_cpu_bo(DrawablePtr drawable,
 
 PixmapPtr
 sna_pixmap_create_upload(ScreenPtr screen,
-			 int width, int height, int depth)
+			 int width, int height, int depth,
+			 unsigned flags)
 {
 	struct sna *sna = to_sna_from_screen(screen);
 	PixmapPtr pixmap;
@@ -1690,7 +1691,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 
 	priv->gpu_bo = kgem_create_buffer_2d(&sna->kgem,
 					     width, height, bpp,
-					     KGEM_BUFFER_WRITE,
+					     flags,
 					     &ptr);
 	if (!priv->gpu_bo) {
 		free(priv);
@@ -2399,7 +2400,7 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 		upload = kgem_create_buffer(&sna->kgem,
 					    bstride*bh,
-					    KGEM_BUFFER_WRITE,
+					    KGEM_BUFFER_WRITE_INPLACE,
 					    &ptr);
 		if (!upload)
 			break;
@@ -2529,7 +2530,7 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 			upload = kgem_create_buffer(&sna->kgem,
 						    bstride*bh,
-						    KGEM_BUFFER_WRITE,
+						    KGEM_BUFFER_WRITE_INPLACE,
 						    &ptr);
 			if (!upload)
 				break;
@@ -3018,7 +3019,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			tmp = sna_pixmap_create_upload(src->pScreen,
 						       src->width,
 						       src->height,
-						       src->depth);
+						       src->depth,
+						       KGEM_BUFFER_WRITE_INPLACE);
 			if (tmp == NullPixmap)
 				return;
 
@@ -3909,7 +3911,7 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 
 			upload = kgem_create_buffer(&sna->kgem,
 						    bstride*bh,
-						    KGEM_BUFFER_WRITE,
+						    KGEM_BUFFER_WRITE_INPLACE,
 						    &ptr);
 			if (!upload)
 				break;
@@ -4029,7 +4031,7 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 
 		upload = kgem_create_buffer(&sna->kgem,
 					    bstride*bh,
-					    KGEM_BUFFER_WRITE,
+					    KGEM_BUFFER_WRITE_INPLACE,
 					    &ptr);
 		if (!upload)
 			break;
@@ -7594,7 +7596,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 
 				upload = kgem_create_buffer(&sna->kgem,
 							    bstride*bh,
-							    KGEM_BUFFER_WRITE,
+							    KGEM_BUFFER_WRITE_INPLACE,
 							    &ptr);
 				if (!upload)
 					break;
@@ -7733,7 +7735,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 
 					upload = kgem_create_buffer(&sna->kgem,
 								    bstride*bh,
-								    KGEM_BUFFER_WRITE,
+								    KGEM_BUFFER_WRITE_INPLACE,
 								    &ptr);
 					if (!upload)
 						break;
@@ -7873,7 +7875,7 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 
 						upload = kgem_create_buffer(&sna->kgem,
 									    bstride*bh,
-									    KGEM_BUFFER_WRITE,
+									    KGEM_BUFFER_WRITE_INPLACE,
 									    &ptr);
 						if (!upload)
 							break;
@@ -9386,7 +9388,7 @@ sna_push_pixels_solid_blt(GCPtr gc,
 
 		upload = kgem_create_buffer(&sna->kgem,
 					    bstride*bh,
-					    KGEM_BUFFER_WRITE,
+					    KGEM_BUFFER_WRITE_INPLACE,
 					    &ptr);
 		if (!upload)
 			break;

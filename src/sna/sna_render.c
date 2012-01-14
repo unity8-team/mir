@@ -1185,7 +1185,7 @@ do_fixup:
 
 	channel->bo = kgem_create_buffer_2d(&sna->kgem,
 					    w, h, PIXMAN_FORMAT_BPP(channel->pict_format),
-					    KGEM_BUFFER_WRITE,
+					    KGEM_BUFFER_WRITE_INPLACE,
 					    &ptr);
 	if (!channel->bo) {
 		DBG(("%s: failed to create upload buffer, using clear\n",
@@ -1347,7 +1347,7 @@ sna_render_picture_convert(struct sna *sna,
 
 	channel->bo = kgem_create_buffer_2d(&sna->kgem,
 					    w, h, PIXMAN_FORMAT_BPP(channel->pict_format),
-					    KGEM_BUFFER_WRITE,
+					    KGEM_BUFFER_WRITE_INPLACE,
 					    &ptr);
 	if (!channel->bo) {
 		pixman_image_unref(src);

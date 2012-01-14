@@ -414,7 +414,11 @@ static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 void kgem_sync(struct kgem *kgem);
 
 #define KGEM_BUFFER_WRITE	0x1
-#define KGEM_BUFFER_LAST	0x2
+#define KGEM_BUFFER_INPLACE	0x2
+#define KGEM_BUFFER_LAST	0x4
+
+#define KGEM_BUFFER_WRITE_INPLACE (KGEM_BUFFER_WRITE | KGEM_BUFFER_INPLACE)
+
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
 				   void **ret);

@@ -2003,7 +2003,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth);
+						   width, height, depth,
+						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 
@@ -2438,7 +2439,7 @@ composite_unaligned_boxes_fallback(CARD8 op,
 		scratch = sna_pixmap_create_upload(screen,
 						   extents.x2 - extents.x1,
 						   extents.y2 - extents.y1,
-						   8);
+						   8, KGEM_BUFFER_WRITE);
 		if (!scratch)
 			continue;
 
@@ -3018,7 +3019,9 @@ trapezoid_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	DBG(("%s: mask (%dx%d), dx=(%d, %d)\n",
 	     __FUNCTION__, extents.x2, extents.y2, dx, dy));
-	scratch = sna_pixmap_create_upload(screen, extents.x2, extents.y2, 8);
+	scratch = sna_pixmap_create_upload(screen,
+					   extents.x2, extents.y2, 8,
+					   KGEM_BUFFER_WRITE_INPLACE);
 	if (!scratch)
 		return true;
 
@@ -3998,7 +4001,7 @@ trap_mask_converter(PicturePtr picture,
 	scratch = sna_pixmap_create_upload(screen,
 					   extents.x2-extents.x1,
 					   extents.y2-extents.y1,
-					   8);
+					   8, KGEM_BUFFER_WRITE_INPLACE);
 	if (!scratch)
 		return true;
 
@@ -4109,7 +4112,9 @@ trap_upload(PicturePtr picture,
 
 	DBG(("%s: tmp (%dx%d) depth=%d\n",
 	     __FUNCTION__, width, height, depth));
-	scratch = sna_pixmap_create_upload(screen, width, height, depth);
+	scratch = sna_pixmap_create_upload(screen,
+					   width, height, depth,
+					   KGEM_BUFFER_WRITE);
 	if (!scratch)
 		return true;
 
@@ -4510,7 +4515,9 @@ triangles_mask_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 
 	DBG(("%s: mask (%dx%d)\n",
 	     __FUNCTION__, extents.x2, extents.y2));
-	scratch = sna_pixmap_create_upload(screen, extents.x2, extents.y2, 8);
+	scratch = sna_pixmap_create_upload(screen,
+					   extents.x2, extents.y2, 8,
+					   KGEM_BUFFER_WRITE_INPLACE);
 	if (!scratch)
 		return true;
 
@@ -4615,7 +4622,8 @@ triangles_fallback(CARD8 op,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth);
+						   width, height, depth,
+						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 
@@ -4857,7 +4865,8 @@ tristrip_fallback(CARD8 op,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth);
+						   width, height, depth,
+						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 
@@ -4991,7 +5000,8 @@ trifan_fallback(CARD8 op,
 		DBG(("%s: mask (%dx%d) depth=%d, format=%08x\n",
 		     __FUNCTION__, width, height, depth, format));
 		scratch = sna_pixmap_create_upload(screen,
-						   width, height, depth);
+						   width, height, depth,
+						   KGEM_BUFFER_WRITE);
 		if (!scratch)
 			return;
 

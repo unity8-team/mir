@@ -398,7 +398,7 @@ fallback:
 					       tmp.drawable.width,
 					       tmp.drawable.height,
 					       tmp.drawable.bitsPerPixel,
-					       KGEM_BUFFER_WRITE,
+					       KGEM_BUFFER_WRITE_INPLACE,
 					       &ptr);
 		if (!src_bo)
 			goto fallback;
@@ -473,7 +473,7 @@ fallback:
 		}
 
 		src_bo = kgem_create_buffer(kgem, offset,
-					    KGEM_BUFFER_WRITE | (nbox ? KGEM_BUFFER_LAST : 0),
+					    KGEM_BUFFER_WRITE_INPLACE | (nbox ? KGEM_BUFFER_LAST : 0),
 					    &ptr);
 		if (!src_bo)
 			break;
@@ -633,7 +633,7 @@ fallback:
 					       tmp.drawable.width,
 					       tmp.drawable.height,
 					       tmp.drawable.bitsPerPixel,
-					       KGEM_BUFFER_WRITE,
+					       KGEM_BUFFER_WRITE_INPLACE,
 					       &ptr);
 		if (!src_bo)
 			goto fallback;
@@ -709,7 +709,7 @@ fallback:
 		}
 
 		src_bo = kgem_create_buffer(kgem, offset,
-					    KGEM_BUFFER_WRITE | (nbox ? KGEM_BUFFER_LAST : 0),
+					    KGEM_BUFFER_WRITE_INPLACE | (nbox ? KGEM_BUFFER_LAST : 0),
 					    &ptr);
 		if (!src_bo)
 			break;
@@ -803,7 +803,7 @@ indirect_replace(struct sna *sna,
 					       pixmap->drawable.width,
 					       pixmap->drawable.height,
 					       pixmap->drawable.bitsPerPixel,
-					       KGEM_BUFFER_WRITE,
+					       KGEM_BUFFER_WRITE_INPLACE,
 					       &ptr);
 		if (!src_bo)
 			return false;
@@ -832,7 +832,7 @@ indirect_replace(struct sna *sna,
 
 		src_bo = kgem_create_buffer(kgem,
 					    pitch * pixmap->drawable.height,
-					    KGEM_BUFFER_WRITE,
+					    KGEM_BUFFER_WRITE_INPLACE,
 					    &ptr);
 		if (!src_bo)
 			return false;
@@ -907,7 +907,8 @@ struct kgem_bo *sna_replace(struct sna *sna,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling));
 
-	if (indirect_replace(sna, pixmap, bo, src, stride))
+	if ((!bo->map || bo->rq) &&
+	    indirect_replace(sna, pixmap, bo, src, stride))
 		return bo;
 
 	if (kgem_bo_is_busy(bo)) {

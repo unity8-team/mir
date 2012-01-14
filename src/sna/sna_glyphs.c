@@ -730,7 +730,8 @@ glyphs_via_mask(struct sna *sna,
 upload:
 		pixmap = sna_pixmap_create_upload(screen,
 						  width, height,
-						  format->depth);
+						  format->depth,
+						  KGEM_BUFFER_WRITE);
 		if (!pixmap)
 			return FALSE;
 

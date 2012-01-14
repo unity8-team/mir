@@ -86,6 +86,7 @@ static inline void list_replace(struct list *old,
 #define DBG_NO_TILING 0
 #define DBG_NO_VMAP 0
 #define DBG_NO_MADV 0
+#define DBG_NO_MAP_UPLOAD 0
 #define DBG_NO_RELAXED_FENCING 0
 #define DBG_DUMP 0
 
@@ -111,7 +112,7 @@ struct kgem_partial_bo {
 	void *mem;
 	uint32_t used;
 	uint32_t need_io : 1;
-	uint32_t write : 1;
+	uint32_t write : 2;
 	uint32_t mmapped : 1;
 };
 
@@ -2579,7 +2580,6 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 {
 	void *ptr;
 
-	assert(bo->refcnt);
 	assert(!bo->purged);
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
@@ -2641,7 +2641,6 @@ void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
 	struct drm_i915_gem_mmap mmap_arg;
 
 	DBG(("%s(handle=%d, size=%d)\n", __FUNCTION__, bo->handle, bo->size));
-	assert(bo->refcnt);
 	assert(!bo->purged);
 	assert(list_is_empty(&bo->list));
 
@@ -2897,12 +2896,14 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   void **ret)
 {
 	struct kgem_partial_bo *bo;
-	bool write = !!(flags & KGEM_BUFFER_WRITE);
 	unsigned offset, alloc;
 	uint32_t handle;
 
-	DBG(("%s: size=%d, flags=%x [write=%d, last=%d]\n",
-	     __FUNCTION__, size, flags, write, flags & KGEM_BUFFER_LAST));
+	DBG(("%s: size=%d, flags=%x [write?=%d, inplace?=%d, last?=%d]\n",
+	     __FUNCTION__, size, flags,
+	     !!(flags & KGEM_BUFFER_WRITE),
+	     !!(flags & KGEM_BUFFER_INPLACE),
+	     !!(flags & KGEM_BUFFER_LAST)));
 	assert(size);
 
 	list_for_each_entry(bo, &kgem->partial, base.list) {
@@ -2923,9 +2924,10 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 
-		if (bo->write != write) {
-			DBG(("%s: skip write %d buffer, need %d\n",
-			     __FUNCTION__, bo->write, write));
+		if ((bo->write & KGEM_BUFFER_WRITE) != (flags & KGEM_BUFFER_WRITE) ||
+		    (bo->write & ~flags) & KGEM_BUFFER_INPLACE) {
+			DBG(("%s: skip write %x buffer, need %x\n",
+			     __FUNCTION__, bo->write, flags));
 			continue;
 		}
 
@@ -2942,9 +2944,11 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		break;
 	}
 
-	alloc = (flags & KGEM_BUFFER_LAST) ? 4096 : 32 * 1024;
-	alloc = ALIGN(size, alloc);
+	/* Be a little more generous and hope to hold fewer mmappings */
+	alloc = ALIGN(size, kgem->aperture_mappable >> 10);
+	bo = NULL;
 
+#if !DBG_NO_MAP_UPLOAD
 	if (!DEBUG_NO_LLC && kgem->gen >= 60) {
 		struct kgem_bo *old;
 
@@ -2952,11 +2956,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (bo == NULL)
 			return NULL;
 
-		/* Be a little more generous and hope to hold fewer mmappings */
-		alloc = ALIGN(size, 128*1024);
-
 		old = NULL;
-		if (!write)
+		if ((flags & KGEM_BUFFER_WRITE) == 0)
 			old = search_linear_cache(kgem, alloc, CREATE_CPU_MAP);
 		if (old == NULL)
 			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE | CREATE_CPU_MAP);
@@ -2985,72 +2986,145 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		}
 
 		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
-		if (bo->mem == NULL) {
+		if (bo->mem) {
+			if (flags & KGEM_BUFFER_WRITE)
+				kgem_bo_sync__cpu(kgem, &bo->base);
+
+			bo->need_io = false;
+			bo->base.io = true;
+			bo->mmapped = true;
+
+			alloc = bo->base.size;
+		} else {
 			bo->base.refcnt = 0; /* for valgrind */
 			kgem_bo_free(kgem, &bo->base);
-			return NULL;
+			bo = NULL;
 		}
-
-		if (write)
-			kgem_bo_sync__cpu(kgem, &bo->base);
-
-		bo->need_io = false;
-		bo->base.io = true;
-		bo->mmapped = true;
-
-		alloc = bo->base.size;
-	} else if (HAVE_VMAP && kgem->has_vmap) {
-		bo = partial_bo_alloc(alloc);
-		if (bo == NULL)
-			return NULL;
-
-		handle = gem_vmap(kgem->fd, bo->mem, alloc, write);
-		if (handle) {
-			__kgem_bo_init(&bo->base, handle, alloc);
-			bo->base.vmap = true;
-			bo->need_io = false;
-		} else {
-			free(bo);
-			return NULL;
-		}
-	} else {
+	} else if ((flags & KGEM_BUFFER_WRITE_INPLACE) == KGEM_BUFFER_WRITE_INPLACE) {
 		struct kgem_bo *old;
 
-		old = NULL;
-		if (!write)
-			old = search_linear_cache(kgem, alloc, 0);
-		if (old == NULL)
-			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
+		/* The issue with using a GTT upload buffer is that we may
+		 * cause eviction-stalls in order to free up some GTT space.
+		 * An is-mappable? ioctl could help us detect when we are
+		 * about to block, or some per-page magic in the kernel.
+		 *
+		 * XXX This is especially noticeable on memory constrained
+		 * devices like gen2 or with relatively slow gpu like i3.
+		 */
+		old = search_linear_cache(kgem, alloc,
+					  CREATE_INACTIVE | CREATE_GTT_MAP);
+#if HAVE_I915_GEM_BUFFER_INFO
 		if (old) {
-			alloc = old->size;
-			bo = partial_bo_alloc(alloc);
+			struct drm_i915_gem_buffer_info info;
+
+			/* An example of such a non-blocking ioctl might work */
+
+			VG_CLEAR(info);
+			info.handle = handle;
+			if (drmIoctl(kgem->fd,
+				     DRM_IOCTL_I915_GEM_BUFFER_INFO,
+				     &fino) == 0) {
+				old->presumed_offset = info.addr;
+				if ((info.flags & I915_GEM_MAPPABLE) == 0) {
+					kgem_bo_move_to_inactive(kgem, old);
+					old = NULL;
+				}
+			}
+		}
+#endif
+		if (old) {
+			DBG(("%s: reusing handle=%d for buffer\n",
+			     __FUNCTION__, old->handle));
+
+			bo = malloc(sizeof(*bo));
 			if (bo == NULL)
 				return NULL;
 
 			memcpy(&bo->base, old, sizeof(*old));
 			if (old->rq)
-				list_replace(&old->request,
-					     &bo->base.request);
+				list_replace(&old->request, &bo->base.request);
 			else
 				list_init(&bo->base.request);
 			list_replace(&old->vma, &bo->base.vma);
 			list_init(&bo->base.list);
 			free(old);
-			bo->base.refcnt = 1;
-		} else {
+
+			bo->mem = kgem_bo_map(kgem, &bo->base);
+			if (bo->mem) {
+				bo->need_io = false;
+				bo->base.io = true;
+				bo->mmapped = true;
+				bo->base.refcnt = 1;
+
+				alloc = bo->base.size;
+			} else {
+				kgem_bo_free(kgem, &bo->base);
+				bo = NULL;
+			}
+		}
+	}
+#endif
+
+	if (bo == NULL) {
+		/* Be more parsimonious with pwrite/pread buffers */
+		if ((flags & KGEM_BUFFER_INPLACE) == 0)
+			alloc = PAGE_ALIGN(size);
+		flags &= ~KGEM_BUFFER_INPLACE;
+
+		if (HAVE_VMAP && kgem->has_vmap) {
 			bo = partial_bo_alloc(alloc);
 			if (bo == NULL)
 				return NULL;
 
-			if (!__kgem_bo_init(&bo->base,
-					    gem_create(kgem->fd, alloc),
-					    alloc)) {
+			handle = gem_vmap(kgem->fd, bo->mem, alloc,
+					  (flags & KGEM_BUFFER_WRITE) == 0);
+			if (handle) {
+				__kgem_bo_init(&bo->base, handle, alloc);
+				bo->base.vmap = true;
+				bo->need_io = false;
+			} else {
 				free(bo);
 				return NULL;
 			}
+		} else {
+			struct kgem_bo *old;
+
+			old = NULL;
+			if ((flags & KGEM_BUFFER_WRITE) == 0)
+				old = search_linear_cache(kgem, alloc, 0);
+			if (old == NULL)
+				old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
+			if (old) {
+				alloc = old->size;
+				bo = partial_bo_alloc(alloc);
+				if (bo == NULL)
+					return NULL;
+
+				memcpy(&bo->base, old, sizeof(*old));
+				if (old->rq)
+					list_replace(&old->request,
+						     &bo->base.request);
+				else
+					list_init(&bo->base.request);
+				list_replace(&old->vma, &bo->base.vma);
+				list_init(&bo->base.list);
+				free(old);
+				bo->base.refcnt = 1;
+			} else {
+				bo = partial_bo_alloc(alloc);
+				if (bo == NULL)
+					return NULL;
+
+				if (!__kgem_bo_init(&bo->base,
+						    gem_create(kgem->fd, alloc),
+						    alloc)) {
+					free(bo);
+					return NULL;
+				}
+			}
+			bo->need_io = flags & KGEM_BUFFER_WRITE;
+			bo->base.io = true;
 		}
-		bo->need_io = write;
-		bo->base.io = true;
 	}
 	bo->base.reusable = false;
 	assert(bo->base.size == alloc);
@@ -3058,7 +3132,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	assert(!bo->need_io || bo->base.domain != DOMAIN_GPU);
 
 	bo->used = size;
-	bo->write = write;
+	bo->write = flags & KGEM_BUFFER_WRITE_INPLACE;
 	offset = 0;
 
 	list_add(&bo->base.list, &kgem->partial);
@@ -3139,7 +3213,7 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 
 	bo = kgem_create_buffer_2d(kgem,
 				   width, height, bpp,
-				   KGEM_BUFFER_WRITE, &dst);
+				   KGEM_BUFFER_WRITE_INPLACE, &dst);
 	if (bo)
 		memcpy_blt(data, dst, bpp,
 			   stride, bo->pitch,
@@ -3167,7 +3241,8 @@ struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
 
 	bo = kgem_create_buffer_2d(kgem,
 				   width, height, bpp,
-				   KGEM_BUFFER_WRITE, &dst);
+				   KGEM_BUFFER_WRITE_INPLACE,
+				   &dst);
 	if (bo == NULL)
 		return NULL;
 
