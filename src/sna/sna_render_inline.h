@@ -90,7 +90,18 @@ is_cpu(DrawablePtr drawable)
 static inline Bool
 too_small(DrawablePtr drawable)
 {
-	return ((uint32_t)drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) && !is_gpu(drawable);
+	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+
+	if (priv == NULL)
+		return true;
+
+	if (priv->gpu_damage)
+		return false;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return false;
+
+	return !priv->gpu;
 }
 
 static inline Bool

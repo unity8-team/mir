@@ -690,6 +690,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		}
 
 		priv->stride = pad;
+		priv->gpu = true;
 	}
 
 	return pixmap;
