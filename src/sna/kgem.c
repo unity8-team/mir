@@ -85,6 +85,7 @@ static inline void list_replace(struct list *old,
 #define DBG_NO_HW 0
 #define DBG_NO_TILING 0
 #define DBG_NO_VMAP 0
+#define DBG_NO_SEMAPHORES 0
 #define DBG_NO_MADV 0
 #define DBG_NO_MAP_UPLOAD 0
 #define DBG_NO_RELAXED_FENCING 0
@@ -531,6 +532,25 @@ static int gem_param(struct kgem *kgem, int name)
 	return v;
 }
 
+static bool semaphores_enabled(void)
+{
+	FILE *file;
+	bool detected = false;
+
+	if (DBG_NO_SEMAPHORES)
+		return false;
+
+	file = fopen("/sys/module/i915/parameters/semaphores", "r");
+	if (file) {
+		int value;
+		if (fscanf(file, "%d", &value) == 1)
+			detected = value > 0;
+		fclose(file);
+	}
+
+	return detected;
+}
+
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
@@ -579,8 +599,14 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		}
 	} else
 		kgem->has_relaxed_fencing = 1;
-	DBG(("%s: has relaxed fencing=%d\n", __FUNCTION__,
+	DBG(("%s: has relaxed fencing? %d\n", __FUNCTION__,
 	     kgem->has_relaxed_fencing));
+
+	kgem->has_semaphores = false;
+	if (gen >= 60 && semaphores_enabled())
+		kgem->has_semaphores = true;
+	DBG(("%s: semaphores enabled? %d\n", __FUNCTION__,
+	     kgem->has_semaphores));
 
 	VG_CLEAR(aperture);
 	aperture.aper_size = 64*1024*1024;
@@ -1380,6 +1406,8 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nbatch = 0;
 	kgem->surface = kgem->max_batch_size;
 	kgem->mode = KGEM_NONE;
+	if (kgem->has_semaphores)
+		kgem->ring = KGEM_NONE;
 	kgem->flush = 0;
 	kgem->scanout = 0;
 
