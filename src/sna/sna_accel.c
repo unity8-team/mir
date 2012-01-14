@@ -243,6 +243,7 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 {
 	assert(priv->stride);
 	assert(priv->cpu_damage == NULL);
+	assert(list_is_empty(&priv->list));
 
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
@@ -750,11 +751,6 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		return true;
 	}
 
-	if (DAMAGE_IS_ALL(priv->cpu_damage)) {
-		DBG(("%s: all-damaged\n", __FUNCTION__));
-		goto done;
-	}
-
 	DBG(("%s: gpu_bo=%d, gpu_damage=%p\n",
 	     __FUNCTION__,
 	     priv->gpu_bo ? priv->gpu_bo->handle : 0,
@@ -762,10 +758,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
-
-		sna_damage_destroy(&priv->cpu_damage);
 		sna_damage_destroy(&priv->gpu_damage);
-		list_del(&priv->list);
 
 		if (priv->stride && priv->gpu_bo &&
 		    pixmap_inplace(sna, pixmap, priv)) {
@@ -790,6 +783,8 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
+			sna_damage_destroy(&priv->cpu_damage);
+			list_del(&priv->list);
 			if (priv->cpu_bo)
 				sna_pixmap_free_cpu(sna, priv);
 
@@ -803,6 +798,8 @@ skip_inplace_map:
 
 			if (kgem_bo_is_busy(priv->cpu_bo)) {
 				DBG(("%s: discarding busy CPU bo\n", __FUNCTION__));
+				sna_damage_destroy(&priv->cpu_damage);
+				list_del(&priv->list);
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
