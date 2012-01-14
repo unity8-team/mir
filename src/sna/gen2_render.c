@@ -492,14 +492,6 @@ static void gen2_emit_invariant(struct sna *sna)
 	sna->render_state.gen2.need_invariant = FALSE;
 }
 
-static bool
-gen2_check_batch(struct sna *sna)
-{
-	return (kgem_check_batch(&sna->kgem, 30+40) &&
-		kgem_check_reloc(&sna->kgem, 3) &&
-		kgem_check_exec(&sna->kgem, 3));
-}
-
 static void
 gen2_get_batch(struct sna *sna)
 {
@@ -1780,19 +1772,18 @@ gen2_render_composite(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
+	gen2_emit_composite_state(sna, tmp);
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
 		if (tmp->src.bo == tmp->dst.bo || tmp->mask.bo == tmp->dst.bo) {
 			kgem_emit_flush(&sna->kgem);
-		} else if (gen2_check_batch(sna)) {
+		} else {
 			BATCH(_3DSTATE_MODES_5_CMD |
 			      PIPELINE_FLUSH_RENDER_CACHE |
 			      PIPELINE_FLUSH_TEXTURE_CACHE);
 			kgem_clear_dirty(&sna->kgem);
-		} else
-			kgem_submit(&sna->kgem);
+		}
+		assert(sna->kgem.mode == KGEM_RENDER);
 	}
-
-	gen2_emit_composite_state(sna, tmp);
 	return TRUE;
 
 cleanup_src:
@@ -2190,17 +2181,6 @@ gen2_render_composite_spans(struct sna *sna,
 			tmp->prim_emit = gen2_emit_composite_spans_primitive_identity_source;
 		else if (tmp->base.src.is_affine)
 			tmp->prim_emit = gen2_emit_composite_spans_primitive_affine_source;
-
-		if (kgem_bo_is_dirty(tmp->base.src.bo)) {
-			if (tmp->base.src.bo == tmp->base.dst.bo) {
-				kgem_emit_flush(&sna->kgem);
-			} else {
-				BATCH(_3DSTATE_MODES_5_CMD |
-				      PIPELINE_FLUSH_RENDER_CACHE |
-				      PIPELINE_FLUSH_TEXTURE_CACHE);
-				kgem_clear_dirty(&sna->kgem);
-			}
-		}
 	}
 	tmp->base.floats_per_rect = 3*tmp->base.floats_per_vertex;
 
@@ -2214,6 +2194,17 @@ gen2_render_composite_spans(struct sna *sna,
 		kgem_submit(&sna->kgem);
 
 	gen2_emit_composite_spans_state(sna, tmp);
+	if (kgem_bo_is_dirty(tmp->base.src.bo)) {
+		if (tmp->base.src.bo == tmp->base.dst.bo) {
+			kgem_emit_flush(&sna->kgem);
+		} else {
+			BATCH(_3DSTATE_MODES_5_CMD |
+			      PIPELINE_FLUSH_RENDER_CACHE |
+			      PIPELINE_FLUSH_TEXTURE_CACHE);
+			kgem_clear_dirty(&sna->kgem);
+		}
+		assert(sna->kgem.mode == KGEM_RENDER);
+	}
 	return TRUE;
 
 cleanup_dst:

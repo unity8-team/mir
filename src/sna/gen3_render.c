@@ -1200,14 +1200,6 @@ static void gen3_emit_invariant(struct sna *sna)
 
 #define MAX_OBJECTS 3 /* worst case: dst + src + mask  */
 
-static bool
-gen3_check_batch(struct sna *sna)
-{
-	return (kgem_check_batch(&sna->kgem, 200) &&
-		kgem_check_reloc(&sna->kgem, MAX_OBJECTS) &&
-		kgem_check_exec(&sna->kgem, MAX_OBJECTS));
-}
-
 static void
 gen3_get_batch(struct sna *sna)
 {
@@ -2752,19 +2744,19 @@ gen3_render_composite(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
+	gen3_emit_composite_state(sna, tmp);
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
 		if (tmp->src.bo == tmp->dst.bo || tmp->mask.bo == tmp->dst.bo) {
 			kgem_emit_flush(&sna->kgem);
-		} else if (gen3_check_batch(sna)) {
+		} else {
 			OUT_BATCH(_3DSTATE_MODES_5_CMD |
 				  PIPELINE_FLUSH_RENDER_CACHE |
 				  PIPELINE_FLUSH_TEXTURE_CACHE);
 			kgem_clear_dirty(&sna->kgem);
-		} else
-			kgem_submit(&sna->kgem);
+		}
+		assert(sna->kgem.mode == KGEM_RENDER);
 	}
 
-	gen3_emit_composite_state(sna, tmp);
 	gen3_align_vertex(sna, tmp);
 	return TRUE;
 
@@ -3193,6 +3185,7 @@ gen3_render_composite_spans(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
+	gen3_emit_composite_state(sna, &tmp->base);
 	if (kgem_bo_is_dirty(tmp->base.src.bo)) {
 		if (tmp->base.src.bo == tmp->base.dst.bo) {
 			kgem_emit_flush(&sna->kgem);
@@ -3202,9 +3195,9 @@ gen3_render_composite_spans(struct sna *sna,
 				  PIPELINE_FLUSH_TEXTURE_CACHE);
 			kgem_clear_dirty(&sna->kgem);
 		}
+		assert(sna->kgem.mode == KGEM_RENDER);
 	}
 
-	gen3_emit_composite_state(sna, &tmp->base);
 	gen3_align_vertex(sna, &tmp->base);
 	return TRUE;
 
