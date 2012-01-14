@@ -44,6 +44,12 @@
 #define DBG(x) ErrorF x
 #endif
 
+#if 0
+#define __DBG(x) ErrorF x
+#else
+#define __DBG(x)
+#endif
+
 #define NO_ACCEL 0
 #define NO_ALIGNED_BOXES 0
 #define NO_UNALIGNED_BOXES 0
@@ -571,8 +577,8 @@ cell_list_add_subspan(struct cell_list *cells,
 	FAST_SAMPLES_X_TO_INT_FRAC(x1, ix1, fx1);
 	FAST_SAMPLES_X_TO_INT_FRAC(x2, ix2, fx2);
 
-	DBG(("%s: x1=%d (%d+%d), x2=%d (%d+%d)\n", __FUNCTION__,
-	     x1, ix1, fx1, x2, ix2, fx2));
+	__DBG(("%s: x1=%d (%d+%d), x2=%d (%d+%d)\n", __FUNCTION__,
+	       x1, ix1, fx1, x2, ix2, fx2));
 
 	cell = cell_list_find(cells, ix1);
 	if (ix1 != ix2) {
@@ -677,15 +683,15 @@ polygon_add_edge(struct polygon *polygon,
 	grid_scaled_y_t ymin = polygon->ymin;
 	grid_scaled_y_t ymax = polygon->ymax;
 
-	DBG(("%s: edge=(%d [%d.%d], %d [%d.%d]), (%d [%d.%d], %d [%d.%d]), top=%d [%d.%d], bottom=%d [%d.%d], dir=%d\n",
-	     __FUNCTION__,
-	     x1, FAST_SAMPLES_INT(x1), FAST_SAMPLES_FRAC(x1),
-	     y1, FAST_SAMPLES_INT(y1), FAST_SAMPLES_FRAC(y1),
-	     x2, FAST_SAMPLES_INT(x2), FAST_SAMPLES_FRAC(x2),
-	     y2, FAST_SAMPLES_INT(y2), FAST_SAMPLES_FRAC(y2),
-	     top, FAST_SAMPLES_INT(top), FAST_SAMPLES_FRAC(top),
-	     bottom, FAST_SAMPLES_INT(bottom), FAST_SAMPLES_FRAC(bottom),
-	     dir));
+	__DBG(("%s: edge=(%d [%d.%d], %d [%d.%d]), (%d [%d.%d], %d [%d.%d]), top=%d [%d.%d], bottom=%d [%d.%d], dir=%d\n",
+	       __FUNCTION__,
+	       x1, FAST_SAMPLES_INT(x1), FAST_SAMPLES_FRAC(x1),
+	       y1, FAST_SAMPLES_INT(y1), FAST_SAMPLES_FRAC(y1),
+	       x2, FAST_SAMPLES_INT(x2), FAST_SAMPLES_FRAC(x2),
+	       y2, FAST_SAMPLES_INT(y2), FAST_SAMPLES_FRAC(y2),
+	       top, FAST_SAMPLES_INT(top), FAST_SAMPLES_FRAC(top),
+	       bottom, FAST_SAMPLES_INT(bottom), FAST_SAMPLES_FRAC(bottom),
+	       dir));
 	assert (dy > 0);
 
 	e->dy = dy;
@@ -732,8 +738,8 @@ polygon_add_line(struct polygon *polygon,
 	if (dy == 0)
 		return;
 
-	DBG(("%s: line=(%d, %d), (%d, %d)\n",
-	     __FUNCTION__, (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y));
+	__DBG(("%s: line=(%d, %d), (%d, %d)\n",
+	       __FUNCTION__, (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y));
 
 	e->dir = 1;
 	if (dy < 0) {
@@ -1066,11 +1072,11 @@ tor_fini(struct tor *converter)
 static int
 tor_init(struct tor *converter, const BoxRec *box, int num_edges)
 {
-	DBG(("%s: (%d, %d),(%d, %d) x (%d, %d), num_edges=%d\n",
-	     __FUNCTION__,
-	     box->x1, box->y1, box->x2, box->y2,
-	     FAST_SAMPLES_X, FAST_SAMPLES_Y,
-	     num_edges));
+	__DBG(("%s: (%d, %d),(%d, %d) x (%d, %d), num_edges=%d\n",
+	       __FUNCTION__,
+	       box->x1, box->y1, box->x2, box->y2,
+	       FAST_SAMPLES_X, FAST_SAMPLES_Y,
+	       num_edges));
 
 	converter->xmin = box->x1;
 	converter->ymin = box->y1;
@@ -1120,7 +1126,7 @@ tor_blt_span(struct sna *sna,
 	     const BoxRec *box,
 	     int coverage)
 {
-	DBG(("%s: %d -> %d @ %d\n", __FUNCTION__, box->x1, box->x2, coverage));
+	__DBG(("%s: %d -> %d @ %d\n", __FUNCTION__, box->x1, box->x2, coverage));
 
 	op->box(sna, op, box, AREA_TO_ALPHA(coverage));
 	apply_damage_box(&op->base, box);
@@ -1137,7 +1143,7 @@ tor_blt_span_clipped(struct sna *sna,
 	float opacity;
 
 	opacity = AREA_TO_ALPHA(coverage);
-	DBG(("%s: %d -> %d @ %f\n", __FUNCTION__, box->x1, box->x2, opacity));
+	__DBG(("%s: %d -> %d @ %f\n", __FUNCTION__, box->x1, box->x2, opacity));
 
 	pixman_region_init_rects(&region, box, 1);
 	RegionIntersect(&region, &region, clip);
@@ -1219,9 +1225,9 @@ tor_blt(struct sna *sna,
 
 	/* Skip cells to the left of the clip region. */
 	while (cell->x < xmin) {
-		DBG(("%s: skipping cell (%d, %d, %d)\n",
-		     __FUNCTION__,
-		     cell->x, cell->covered_height, cell->uncovered_area));
+		__DBG(("%s: skipping cell (%d, %d, %d)\n",
+		       __FUNCTION__,
+		       cell->x, cell->covered_height, cell->uncovered_area));
 
 		cover += cell->covered_height;
 		cell = cell->next;
@@ -1239,17 +1245,17 @@ tor_blt(struct sna *sna,
 		if (x >= xmax)
 			break;
 
-		DBG(("%s: cell=(%d, %d, %d), cover=%d, max=%d\n", __FUNCTION__,
-		     cell->x, cell->covered_height, cell->uncovered_area,
-		     cover, xmax));
+		__DBG(("%s: cell=(%d, %d, %d), cover=%d, max=%d\n", __FUNCTION__,
+		       cell->x, cell->covered_height, cell->uncovered_area,
+		       cover, xmax));
 
 		box.x2 = x;
 		if (box.x2 > box.x1 && (unbounded || cover)) {
-			DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
-			     box.x1, box.y1,
-			     box.x2 - box.x1,
-			     box.y2 - box.y1,
-			     cover));
+			__DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+			       box.x1, box.y1,
+			       box.x2 - box.x1,
+			       box.y2 - box.y1,
+			       cover));
 			span(sna, op, clip, &box, cover);
 		}
 		box.x1 = box.x2;
@@ -1260,11 +1266,11 @@ tor_blt(struct sna *sna,
 			int area = cover - cell->uncovered_area;
 			box.x2 = x + 1;
 			if (unbounded || area) {
-				DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
-				     box.x1, box.y1,
-				     box.x2 - box.x1,
-				     box.y2 - box.y1,
-				     area));
+				__DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+				       box.x1, box.y1,
+				       box.x2 - box.x1,
+				       box.y2 - box.y1,
+				       area));
 				span(sna, op, clip, &box, area);
 			}
 			box.x1 = box.x2;
@@ -1273,11 +1279,11 @@ tor_blt(struct sna *sna,
 
 	box.x2 = xmax;
 	if (box.x2 > box.x1 && (unbounded || cover)) {
-		DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
-		     box.x1, box.y1,
-		     box.x2 - box.x1,
-		     box.y2 - box.y1,
-		     cover));
+		__DBG(("%s: span (%d, %d)x(%d, %d) @ %d\n", __FUNCTION__,
+		       box.x1, box.y1,
+		       box.x2 - box.x1,
+		       box.y2 - box.y1,
+		       cover));
 		span(sna, op, clip, &box, cover);
 	}
 }
@@ -1325,7 +1331,7 @@ tor_render(struct sna *sna,
 	struct active_list *active = converter->active;
 	struct edge *buckets[FAST_SAMPLES_Y] = { 0 };
 
-	DBG(("%s: unbounded=%d\n", __FUNCTION__, unbounded));
+	__DBG(("%s: unbounded=%d\n", __FUNCTION__, unbounded));
 
 	/* Render each pixel row. */
 	for (i = 0; i < h; i = j) {
@@ -1341,8 +1347,8 @@ tor_render(struct sna *sna,
 				active->is_vertical = 1;
 				for (; j < h && !polygon->y_buckets[j]; j++)
 					;
-				DBG(("%s: no new edges and no exisiting edges, skipping, %d -> %d\n",
-				     __FUNCTION__, i, j));
+				__DBG(("%s: no new edges and no exisiting edges, skipping, %d -> %d\n",
+				       __FUNCTION__, i, j));
 
 				if (unbounded)
 					tor_blt_empty(sna, op, clip, span, i+ymin, j-i, xmin, xmax);
@@ -1352,12 +1358,12 @@ tor_render(struct sna *sna,
 			do_full_step = can_full_step(active);
 		}
 
-		DBG(("%s: y=%d [%d], do_full_step=%d, new edges=%d, min_height=%d, vertical=%d\n",
-		     __FUNCTION__,
-		     i, i+ymin, do_full_step,
-		     polygon->y_buckets[i] != NULL,
-		     active->min_height,
-		     active->is_vertical));
+		__DBG(("%s: y=%d [%d], do_full_step=%d, new edges=%d, min_height=%d, vertical=%d\n",
+		       __FUNCTION__,
+		       i, i+ymin, do_full_step,
+		       polygon->y_buckets[i] != NULL,
+		       active->min_height,
+		       active->is_vertical));
 		if (do_full_step) {
 			nonzero_row(active, coverages);
 
@@ -1372,8 +1378,8 @@ tor_render(struct sna *sna,
 				if (j != i + 1)
 					step_edges(active, j - (i + 1));
 
-				DBG(("%s: vertical edges, full step (%d, %d)\n",
-				    __FUNCTION__,  i, j));
+				__DBG(("%s: vertical edges, full step (%d, %d)\n",
+				       __FUNCTION__,  i, j));
 			}
 		} else {
 			grid_scaled_y_t suby;
@@ -1488,12 +1494,12 @@ mono_add_line(struct mono *mono,
 	pixman_fixed_t dy;
 	int y, ytop, ybot;
 
-	DBG(("%s: top=%d, bottom=%d, line=(%d, %d), (%d, %d) delta=%dx%d, dir=%d\n",
-	     __FUNCTION__,
-	     (int)top, (int)bottom,
-	     (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y,
-	     dst_x, dst_y,
-	     dir));
+	__DBG(("%s: top=%d, bottom=%d, line=(%d, %d), (%d, %d) delta=%dx%d, dir=%d\n",
+	       __FUNCTION__,
+	       (int)top, (int)bottom,
+	       (int)p1->x, (int)p1->y, (int)p2->x, (int)p2->y,
+	       dst_x, dst_y,
+	       dir));
 
 	if (top > bottom) {
 		xPointFixed *t;
@@ -1516,7 +1522,7 @@ mono_add_line(struct mono *mono,
 	ybot = MIN(y, mono->clip.extents.y2);
 
 	if (ybot <= ytop) {
-		DBG(("discard clipped line\n"));
+		__DBG(("discard clipped line\n"));
 		return;
 	}
 
@@ -1697,7 +1703,7 @@ mono_span(struct mono *c, int x1, int x2, BoxPtr box)
 	if (x2 <= x1)
 		return;
 
-	DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
+	__DBG(("%s [%d, %d]\n", __FUNCTION__, x1, x2));
 
 	box->x1 = x1;
 	box->x2 = x2;
@@ -1978,8 +1984,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 		if (bounds.y1 >= bounds.y2 || bounds.x1 >= bounds.x2)
 			return;
 
-		DBG(("%s: bounds (%d, %d), (%d, %d)\n",
-		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+		DBG(("%s: bounds (%d, %d), (%d, %d)\n", __FUNCTION__,
+		     bounds.x1, bounds.y1, bounds.x2, bounds.y2));
 
 		if (!sna_compute_composite_extents(&bounds,
 						   src, NULL, dst,
@@ -1990,8 +1996,8 @@ trapezoids_fallback(CARD8 op, PicturePtr src, PicturePtr dst,
 						   bounds.y2 - bounds.y1))
 			return;
 
-		DBG(("%s: extents (%d, %d), (%d, %d)\n",
-		     __FUNCTION__, bounds.x1, bounds.y1, bounds.x2, bounds.y2));
+		DBG(("%s: extents (%d, %d), (%d, %d)\n", __FUNCTION__,
+		     bounds.x1, bounds.y1, bounds.x2, bounds.y2));
 
 		width  = bounds.x2 - bounds.x1;
 		height = bounds.y2 - bounds.y1;
