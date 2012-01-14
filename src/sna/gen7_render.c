@@ -2305,7 +2305,7 @@ gen7_composite_fallback(struct sna *sna,
 
 	if (src_pixmap && !is_solid(src) && !source_fallback(src)) {
 		priv = sna_pixmap(src_pixmap);
-		if (priv && priv->gpu_damage) {
+		if (priv && priv->gpu_damage && !priv->cpu_damage) {
 			DBG(("%s: src is already on the GPU, try to use GPU\n",
 			     __FUNCTION__));
 			return FALSE;
@@ -2313,7 +2313,7 @@ gen7_composite_fallback(struct sna *sna,
 	}
 	if (mask_pixmap && !is_solid(mask) && !source_fallback(mask)) {
 		priv = sna_pixmap(mask_pixmap);
-		if (priv && priv->gpu_damage) {
+		if (priv && priv->gpu_damage && !priv->cpu_damage) {
 			DBG(("%s: mask is already on the GPU, try to use GPU\n",
 			     __FUNCTION__));
 			return FALSE;
