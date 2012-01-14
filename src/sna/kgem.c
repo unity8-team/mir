@@ -858,7 +858,7 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 			bo->map = NULL;
 		}
 		if (bo->map) {
-			list_move_tail(&bo->vma, &kgem->vma[type].inactive[bo->bucket]);
+			list_move(&bo->vma, &kgem->vma[type].inactive[bo->bucket]);
 			kgem->vma[type].count++;
 		}
 	}
@@ -2552,9 +2552,7 @@ static void kgem_trim_vma_cache(struct kgem *kgem, int type, int bucket)
 		     j++) {
 			struct list *head = &kgem->vma[type].inactive[i++%ARRAY_SIZE(kgem->vma[type].inactive)];
 			if (!list_is_empty(head))
-				bo = list_first_entry(head,
-						      struct kgem_bo,
-						      vma);
+				bo = list_last_entry(head, struct kgem_bo, vma);
 		}
 		if (bo == NULL)
 			break;
