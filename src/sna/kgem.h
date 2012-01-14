@@ -285,6 +285,8 @@ static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 
 static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
+	assert(kgem->mode == KGEM_NONE);
+	kgem->context_switch(kgem, mode);
 	kgem->mode = mode;
 }
 

@@ -1939,8 +1939,10 @@ gen6_render_video(struct sna *sna,
 	tmp.u.gen6.ve_id = 1;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	}
 
 	if (kgem_bo_is_dirty(frame->bo))
 		kgem_emit_flush(&sna->kgem);
@@ -2539,8 +2541,10 @@ gen6_render_composite(struct sna *sna,
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
-			   NULL))
+			   NULL)) {
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	}
 
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
 		kgem_emit_flush(&sna->kgem);
@@ -2939,8 +2943,10 @@ gen6_render_composite_spans(struct sna *sna,
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
-			   NULL))
+			   NULL)){
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	}
 
 	if (kgem_bo_is_dirty(tmp->base.src.bo))
 		kgem_emit_flush(&sna->kgem);
@@ -3113,8 +3119,10 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.u.gen6.ve_id = 1;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	}
 
 	if (kgem_bo_is_dirty(src_bo))
 		kgem_emit_flush(&sna->kgem);
@@ -3260,8 +3268,10 @@ gen6_render_copy(struct sna *sna, uint8_t alu,
 	op->base.u.gen6.ve_id = 1;
 
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	}
 
 	if (kgem_bo_is_dirty(src_bo))
 		kgem_emit_flush(&sna->kgem);

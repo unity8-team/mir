@@ -976,6 +976,7 @@ inline static int gen2_get_rectangles(struct sna *sna,
 	if (rem < need + size) {
 		gen2_vertex_flush(sna, op);
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 		return 0;
 	}
 

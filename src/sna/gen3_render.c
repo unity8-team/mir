@@ -3540,6 +3540,7 @@ gen3_video_get_batch(struct sna *sna)
 		     __FUNCTION__,
 		     batch_space(sna), 120));
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
 	if (sna->kgem.nreloc + 4 > KGEM_RELOC_SIZE(&sna->kgem)) {
@@ -3548,6 +3549,7 @@ gen3_video_get_batch(struct sna *sna)
 		     sna->kgem.nreloc + 4,
 		     (int)KGEM_RELOC_SIZE(&sna->kgem)));
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
 	if (sna->kgem.nexec + 2 > KGEM_EXEC_SIZE(&sna->kgem)) {
@@ -3556,6 +3558,7 @@ gen3_video_get_batch(struct sna *sna)
 		     sna->kgem.nexec + 2,
 		     (int)KGEM_EXEC_SIZE(&sna->kgem)));
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
 	if (sna->render_state.gen3.need_invariant)

@@ -96,14 +96,6 @@ static void nop_done(struct sna *sna, const struct sna_composite_op *op)
 	(void)op;
 }
 
-static void blt_done(struct sna *sna, const struct sna_composite_op *op)
-{
-	struct kgem *kgem = &sna->kgem;
-
-	_kgem_set_mode(kgem, KGEM_BLT);
-	(void)op;
-}
-
 static void gen6_blt_copy_done(struct sna *sna, const struct sna_composite_op *op)
 {
 	struct kgem *kgem = &sna->kgem;
@@ -114,8 +106,6 @@ static void gen6_blt_copy_done(struct sna *sna, const struct sna_composite_op *o
 		b[1] = b[2] = 0;
 		kgem->nbatch += 3;
 	}
-
-	_kgem_set_mode(kgem, KGEM_BLT);
 	(void)op;
 }
 
@@ -919,7 +909,7 @@ prepare_blt_clear(struct sna *sna,
 		op->box   = blt_composite_fill_box_no_offset;
 		op->boxes = blt_composite_fill_boxes_no_offset;
 	}
-	op->done  = blt_done;
+	op->done  = nop_done;
 
 	return sna_blt_fill_init(sna, &op->u.blt,
 				 op->dst.bo,
@@ -942,7 +932,7 @@ prepare_blt_fill(struct sna *sna,
 		op->box   = blt_composite_fill_box_no_offset;
 		op->boxes = blt_composite_fill_boxes_no_offset;
 	}
-	op->done  = blt_done;
+	op->done  = nop_done;
 
 	return sna_blt_fill_init(sna, &op->u.blt, op->dst.bo,
 				 op->dst.pixmap->drawable.bitsPerPixel,
@@ -1129,7 +1119,7 @@ prepare_blt_copy(struct sna *sna,
 	if (sna->kgem.gen >= 60)
 		op->done  = gen6_blt_copy_done;
 	else
-		op->done  = blt_done;
+		op->done  = nop_done;
 
 	if (alpha_fixup) {
 		op->blt   = blt_composite_copy_with_alpha;
@@ -1158,7 +1148,6 @@ static void blt_vmap_done(struct sna *sna, const struct sna_composite_op *op)
 {
 	struct kgem_bo *bo = (struct kgem_bo *)op->u.blt.src_pixmap;
 
-	blt_done(sna, op);
 	if (bo)
 		kgem_bo_destroy(&sna->kgem, bo);
 }
@@ -1740,7 +1729,6 @@ fastcall static void sna_blt_fill_op_boxes(struct sna *sna,
 static void sna_blt_fill_op_done(struct sna *sna,
 				 const struct sna_fill_op *fill)
 {
-	blt_done(sna, &fill->base);
 }
 
 bool sna_blt_fill(struct sna *sna, uint8_t alu,
@@ -1786,7 +1774,6 @@ static void sna_blt_copy_op_blt(struct sna *sna,
 static void sna_blt_copy_op_done(struct sna *sna,
 				 const struct sna_copy_op *op)
 {
-	blt_done(sna, &op->base);
 }
 
 static void gen6_blt_copy_op_done(struct sna *sna,
