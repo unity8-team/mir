@@ -1106,19 +1106,29 @@ glyphs_fallback(CARD8 op,
 		y += list->yOff;
 		while (n--) {
 			GlyphPtr g = *glyphs++;
-			PicturePtr picture;
 			pixman_image_t *glyph_image;
 
 			if (g->info.width == 0 || g->info.height == 0)
 				goto next_glyph;
 
-			picture = GlyphPicture(g)[screen];
-			if (picture == NULL)
-				goto next_glyph;
+			glyph_image = sna_glyph(g)->image;
+			if (glyph_image == NULL) {
+				PicturePtr picture;
+				int dx, dy;
 
-			glyph_image = image_from_pict(picture, FALSE, &dx, &dy);
-			if (!glyph_image)
-				goto next_glyph;
+				picture = GlyphPicture(g)[screen];
+				if (picture == NULL)
+					goto next_glyph;
+
+				glyph_image = image_from_pict(picture,
+							      FALSE,
+							      &dx, &dy);
+				if (!glyph_image)
+					goto next_glyph;
+
+				assert(dx == 0 && dy == 0);
+				sna_glyph(g)->image = glyph_image;
+			}
 
 			if (mask_format) {
 				DBG(("%s: glyph+(%d,%d) to mask (%d, %d)x(%d, %d)\n",
@@ -1163,8 +1173,6 @@ glyphs_fallback(CARD8 op,
 						       g->info.width,
 						       g->info.height);
 			}
-			free_pixman_pict(picture, glyph_image);
-
 next_glyph:
 			x += g->info.xOff;
 			y += g->info.yOff;
