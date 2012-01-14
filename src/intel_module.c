@@ -38,6 +38,10 @@
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
 
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,6,99,0,0)
+#include <xf86Resources.h>
+#endif
+
 static struct intel_device_info *chipset_info;
 
 static const struct intel_device_info intel_i81x_info = {
@@ -322,7 +326,11 @@ static Bool intel_pci_probe(DriverPtr		driver,
 	for (i = 0; i < NUM_CHIPSETS; i++) {
 		intel_pci_chipsets[i].numChipset = intel_chipsets[i].token;
 		intel_pci_chipsets[i].PCIid = intel_chipsets[i].token;
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,6,99,0,0)
+		intel_pci_chipsets[i].resList = RES_SHARED_VGA;
+#else
 		intel_pci_chipsets[i].dummy = NULL;
+#endif
 	}
 
 	scrn = xf86ConfigPciEntity(NULL, 0, entity_num, intel_pci_chipsets,
