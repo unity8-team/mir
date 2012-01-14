@@ -28,19 +28,21 @@
 #include "config.h"
 #endif
 
-#include "xf86.h"
-#include "xf86_OSproc.h"
-#include "xf86cmap.h"
-#include "xf86drmMode.h"
+#include <xf86.h>
+#include <xf86_OSproc.h>
+#include <xf86cmap.h>
+#include <xf86drmMode.h>
+
+#include <xorgVersion.h>
+
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,6,99,0,0)
+#include <xf86Resources.h>
+#endif
 
 #include "common.h"
 #include "intel_driver.h"
 #include "legacy/legacy.h"
 #include "sna/sna_module.h"
-
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,6,99,0,0)
-#include <xf86Resources.h>
-#endif
 
 static struct intel_device_info *chipset_info;
 
