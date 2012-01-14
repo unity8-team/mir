@@ -239,6 +239,9 @@ void no_render_init(struct sna *sna)
 
 	memset (render,0, sizeof (*render));
 
+	render->vertices = render->vertex_data;
+	render->vertex_size = ARRAY_SIZE(render->vertex_data);
+
 	render->composite = no_render_composite;
 
 	render->copy_boxes = no_render_copy_boxes;

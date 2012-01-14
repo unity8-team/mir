@@ -1013,37 +1013,104 @@ static void gen7_vertex_flush(struct sna *sna)
 		gen7_magic_ca_pass(sna, sna->render.op);
 }
 
-static void gen7_vertex_finish(struct sna *sna, Bool last)
+static int gen7_vertex_finish(struct sna *sna)
 {
 	struct kgem_bo *bo;
-	unsigned int i, delta;
+	unsigned int i;
 
 	gen7_vertex_flush(sna);
 	if (!sna->render.vertex_used)
-		return;
+		return sna->render.vertex_size;
 
 	/* Note: we only need dword alignment (currently) */
 
-	if (last && sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
-		DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
-		     sna->render.vertex_used, sna->kgem.nbatch));
-		memcpy(sna->kgem.batch + sna->kgem.nbatch,
-		       sna->render.vertex_data,
-		       sna->render.vertex_used * 4);
-		delta = sna->kgem.nbatch * 4;
-		bo = NULL;
-		sna->kgem.nbatch += sna->render.vertex_used;
-	} else {
-		bo = kgem_create_linear(&sna->kgem, 4*sna->render.vertex_used);
-		if (bo && !kgem_bo_write(&sna->kgem, bo,
-					 sna->render.vertex_data,
-					 4*sna->render.vertex_used)) {
-			kgem_bo_destroy(&sna->kgem, bo);
-			return;
+	bo = sna->render.vbo;
+	if (bo) {
+		for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
+			if (sna->render.vertex_reloc[i]) {
+				DBG(("%s: reloc[%d] = %d\n", __FUNCTION__,
+				     i, sna->render.vertex_reloc[i]));
+
+				sna->kgem.batch[sna->render.vertex_reloc[i]] =
+					kgem_add_reloc(&sna->kgem,
+						       sna->render.vertex_reloc[i],
+						       bo,
+						       I915_GEM_DOMAIN_VERTEX << 16,
+						       0);
+				sna->kgem.batch[sna->render.vertex_reloc[i]+1] =
+					kgem_add_reloc(&sna->kgem,
+						       sna->render.vertex_reloc[i]+1,
+						       bo,
+						       I915_GEM_DOMAIN_VERTEX << 16,
+						       sna->render.vertex_used * 4 - 1);
+				sna->render.vertex_reloc[i] = 0;
+			}
 		}
-		delta = 0;
-		DBG(("%s: new vbo: %d\n", __FUNCTION__,
-		     sna->render.vertex_used));
+
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+		sna->render_state.gen7.vb_id = 0;
+
+		kgem_bo_destroy(&sna->kgem, bo);
+	}
+
+	sna->render.vertices = NULL;
+	sna->render.vbo = kgem_create_linear(&sna->kgem, 256*1024);
+	if (sna->render.vbo)
+		sna->render.vertices = kgem_bo_map__cpu(&sna->kgem, sna->render.vbo);
+	if (sna->render.vertices == NULL) {
+		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+		sna->render.vbo = NULL;
+		return 0;
+	}
+
+	kgem_bo_sync__cpu(&sna->kgem, sna->render.vbo);
+	if (sna->render.vertex_used) {
+		memcpy(sna->render.vertices,
+		       sna->render.vertex_data,
+		       sizeof(float)*sna->render.vertex_used);
+	}
+	sna->render.vertex_size = 64 * 1024 - 1;
+	return sna->render.vertex_size - sna->render.vertex_used;
+}
+
+static void gen7_vertex_close(struct sna *sna)
+{
+	struct kgem_bo *bo;
+	unsigned int i, delta = 0;
+
+	gen7_vertex_flush(sna);
+	if (!sna->render.vertex_used) {
+		assert(sna->render.vbo == NULL);
+		assert(sna->render.vertices == sna->render.vertex_data);
+		assert(sna->render.vertex_size == ARRAY_SIZE(sna->render.vertex_data));
+		return;
+	}
+
+	DBG(("%s: used=%d\n", __FUNCTION__, sna->render.vertex_used));
+
+	bo = sna->render.vbo;
+	if (bo == NULL) {
+		if (sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
+			DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
+			     sna->render.vertex_used, sna->kgem.nbatch));
+			memcpy(sna->kgem.batch + sna->kgem.nbatch,
+			       sna->render.vertex_data,
+			       sna->render.vertex_used * 4);
+			delta = sna->kgem.nbatch * 4;
+			bo = NULL;
+			sna->kgem.nbatch += sna->render.vertex_used;
+		} else {
+			bo = kgem_create_linear(&sna->kgem, 4*sna->render.vertex_used);
+			if (bo && !kgem_bo_write(&sna->kgem, bo,
+						 sna->render.vertex_data,
+						 4*sna->render.vertex_used)) {
+				kgem_bo_destroy(&sna->kgem, bo);
+				goto reset;
+			}
+			DBG(("%s: new vbo: %d\n", __FUNCTION__,
+			     sna->render.vertex_used));
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(sna->render.vertex_reloc); i++) {
@@ -1070,9 +1137,14 @@ static void gen7_vertex_finish(struct sna *sna, Bool last)
 	if (bo)
 		kgem_bo_destroy(&sna->kgem, bo);
 
+reset:
 	sna->render.vertex_used = 0;
 	sna->render.vertex_index = 0;
 	sna->render_state.gen7.vb_id = 0;
+
+	sna->render.vbo = NULL;
+	sna->render.vertices = sna->render.vertex_data;
+	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
 }
 
 static void null_create(struct sna_static_stream *stream)
@@ -1231,7 +1303,7 @@ gen7_emit_composite_primitive_solid(struct sna *sna,
 		float f;
 	} dst;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 9;
 
 	dst.p.x = r->dst.x + r->width;
@@ -1262,7 +1334,7 @@ gen7_emit_composite_primitive_identity_source(struct sna *sna,
 	} dst;
 	float *v;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 9;
 
 	dst.p.x = r->dst.x + r->width;
@@ -1291,7 +1363,7 @@ gen7_emit_composite_primitive_affine_source(struct sna *sna,
 	} dst;
 	float *v;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 9;
 
 	dst.p.x = r->dst.x + r->width;
@@ -1344,7 +1416,7 @@ gen7_emit_composite_primitive_identity_source_mask(struct sna *sna,
 	w = r->width;
 	h = r->height;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 15;
 
 	dst.p.x = r->dst.x + r->width;
@@ -1573,10 +1645,7 @@ static int gen7_get_rectangles__flush(struct sna *sna, bool ca)
 	if (sna->kgem.nreloc > KGEM_RELOC_SIZE(&sna->kgem) - 1)
 		return 0;
 
-	gen7_vertex_finish(sna, FALSE);
-	sna->render.vertex_index = 0;
-
-	return  ARRAY_SIZE(sna->render.vertex_data);
+	return gen7_vertex_finish(sna);
 }
 
 inline static int gen7_get_rectangles(struct sna *sna,
@@ -1690,6 +1759,9 @@ static void
 gen7_align_vertex(struct sna *sna, const struct sna_composite_op *op)
 {
 	if (op->floats_per_vertex != sna->render_state.gen7.floats_per_vertex) {
+		if (sna->render.vertex_size - sna->render.vertex_used < 2*op->floats_per_rect)
+			gen7_vertex_finish(sna);
+
 		DBG(("aligning vertex: was %d, now %d floats per vertex, %d->%d\n",
 		     sna->render_state.gen7.floats_per_vertex,
 		     op->floats_per_vertex,
@@ -3022,7 +3094,7 @@ gen7_render_copy_boxes(struct sna *sna, uint8_t alu,
 		}
 		n -= n_this_time;
 
-		v = sna->render.vertex_data + sna->render.vertex_used;
+		v = sna->render.vertices + sna->render.vertex_used;
 		sna->render.vertex_used += 9 * n_this_time;
 		do {
 
@@ -3713,7 +3785,7 @@ gen7_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 
 static void gen7_render_flush(struct sna *sna)
 {
-	gen7_vertex_finish(sna, TRUE);
+	gen7_vertex_close(sna);
 }
 
 static void

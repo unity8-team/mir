@@ -271,9 +271,13 @@ struct sna_render {
 	uint16_t vertex_start;
 	uint16_t vertex_index;
 	uint16_t vertex_used;
+	uint16_t vertex_size;
 	uint16_t vertex_reloc[8];
 
-	float vertex_data[16*1024];
+	struct kgem_bo *vbo;
+	float *vertices;
+
+	float vertex_data[1024];
 	const struct sna_composite_op *op;
 };
 

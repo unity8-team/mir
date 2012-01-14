@@ -456,7 +456,7 @@ gen3_emit_composite_primitive_identity_source(struct sna *sna,
 	float h = r->height;
 	float *v;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 12;
 
 	v[8] = v[4] = r->dst.x + op->dst.x;
@@ -516,7 +516,7 @@ gen3_emit_composite_primitive_constant_identity_mask(struct sna *sna,
 	float h = r->height;
 	float *v;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 12;
 
 	v[8] = v[4] = r->dst.x + op->dst.x;
@@ -552,7 +552,7 @@ gen3_emit_composite_primitive_identity_source_mask(struct sna *sna,
 	w = r->width;
 	h = r->height;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 18;
 
 	v[0] = dst_x + w;
@@ -597,7 +597,7 @@ gen3_emit_composite_primitive_affine_source_mask(struct sna *sna,
 	w = r->width;
 	h = r->height;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 18;
 
 	v[0] = dst_x + w;
@@ -1512,54 +1512,107 @@ static void gen3_vertex_flush(struct sna *sna)
 	sna->render_state.gen3.vertex_offset = 0;
 }
 
-static void gen3_vertex_finish(struct sna *sna, Bool last)
+static int gen3_vertex_finish(struct sna *sna)
 {
 	struct kgem_bo *bo;
-	int delta;
-
-	DBG(("%s: last? %d\n", __FUNCTION__, last));
 
 	gen3_vertex_flush(sna);
 	if (!sna->render.vertex_used)
-		return;
+		return sna->render.vertex_size;
 
-	if (last && sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
-		DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
-		     sna->render.vertex_used, sna->kgem.nbatch));
-		memcpy(sna->kgem.batch + sna->kgem.nbatch,
+	bo = sna->render.vbo;
+	if (bo) {
+		DBG(("%s: reloc = %d\n", __FUNCTION__,
+		     sna->render.vertex_reloc[0]));
+
+		sna->kgem.batch[sna->render.vertex_reloc[0]] =
+			kgem_add_reloc(&sna->kgem, sna->render.vertex_reloc[0],
+				       bo, I915_GEM_DOMAIN_VERTEX << 16, 0);
+
+		sna->render.vertex_reloc[0] = 0;
+		sna->render.vertex_used = 0;
+		sna->render.vertex_index = 0;
+
+		kgem_bo_destroy(&sna->kgem, bo);
+	}
+
+	sna->render.vertices = NULL;
+	sna->render.vbo = kgem_create_linear(&sna->kgem, 256*1024);
+	if (sna->render.vbo)
+		sna->render.vertices = kgem_bo_map(&sna->kgem, sna->render.vbo);
+	if (sna->render.vertices == NULL) {
+		kgem_bo_destroy(&sna->kgem, sna->render.vbo);
+		sna->render.vbo = NULL;
+		return 0;
+	}
+
+	if (sna->render.vertex_used) {
+		memcpy(sna->render.vertices,
 		       sna->render.vertex_data,
-		       sna->render.vertex_used * 4);
-		delta = sna->kgem.nbatch * 4;
-		bo = NULL;
-		sna->kgem.nbatch += sna->render.vertex_used;
-	} else {
-		bo = kgem_create_linear(&sna->kgem, 4*sna->render.vertex_used);
-		if (bo && !kgem_bo_write(&sna->kgem, bo,
-					 sna->render.vertex_data,
-					 4*sna->render.vertex_used)) {
-			kgem_bo_destroy(&sna->kgem, bo);
-			return;
+		       sizeof(float)*sna->render.vertex_used);
+	}
+	sna->render.vertex_size = 64 * 1024 - 1;
+	return sna->render.vertex_size - sna->render.vertex_used;
+}
+
+static void gen3_vertex_close(struct sna *sna)
+{
+	struct kgem_bo *bo;
+	int delta = 0;
+
+	gen3_vertex_flush(sna);
+
+	if (!sna->render.vertex_used) {
+		assert(sna->render.vbo == NULL);
+		assert(sna->render.vertices == sna->render.vertex_data);
+		assert(sna->render.vertex_size == ARRAY_SIZE(sna->render.vertex_data));
+		return;
+	}
+
+	DBG(("%s: used=%d\n", __FUNCTION__, sna->render.vertex_used));
+
+	bo = sna->render.vbo;
+	if (bo == NULL) {
+		if (sna->kgem.nbatch + sna->render.vertex_used <= sna->kgem.surface) {
+			DBG(("%s: copy to batch: %d @ %d\n", __FUNCTION__,
+			     sna->render.vertex_used, sna->kgem.nbatch));
+			memcpy(sna->kgem.batch + sna->kgem.nbatch,
+			       sna->render.vertex_data,
+			       sna->render.vertex_used * 4);
+			delta = sna->kgem.nbatch * 4;
+			bo = NULL;
+			sna->kgem.nbatch += sna->render.vertex_used;
+		} else {
+			bo = kgem_create_linear(&sna->kgem,
+						4*sna->render.vertex_used);
+			if (bo && !kgem_bo_write(&sna->kgem, bo,
+						 sna->render.vertex_data,
+						 4*sna->render.vertex_used)) {
+				kgem_bo_destroy(&sna->kgem, bo);
+				goto reset;
+			}
+			DBG(("%s: new vbo: %d\n", __FUNCTION__,
+			     sna->render.vertex_used));
 		}
-		delta = 0;
-		DBG(("%s: new vbo: %d\n", __FUNCTION__,
-		     sna->render.vertex_used));
 	}
 
 	DBG(("%s: reloc = %d\n", __FUNCTION__,
 	     sna->render.vertex_reloc[0]));
 
 	sna->kgem.batch[sna->render.vertex_reloc[0]] =
-		kgem_add_reloc(&sna->kgem,
-			       sna->render.vertex_reloc[0],
-			       bo,
-			       I915_GEM_DOMAIN_VERTEX << 16,
-			       delta);
+		kgem_add_reloc(&sna->kgem, sna->render.vertex_reloc[0],
+			       bo, I915_GEM_DOMAIN_VERTEX << 16, delta);
+	if (bo)
+		kgem_bo_destroy(&sna->kgem, bo);
+
+reset:
 	sna->render.vertex_reloc[0] = 0;
 	sna->render.vertex_used = 0;
 	sna->render.vertex_index = 0;
 
-	if (bo)
-		kgem_bo_destroy(&sna->kgem, bo);
+	sna->render.vbo = NULL;
+	sna->render.vertices = sna->render.vertex_data;
+	sna->render.vertex_size = ARRAY_SIZE(sna->render.vertex_data);
 }
 
 static bool gen3_rectangle_begin(struct sna *sna,
@@ -1612,10 +1665,7 @@ static int gen3_get_rectangles__flush(struct sna *sna, bool ca)
 	if (sna->kgem.nreloc > KGEM_RELOC_SIZE(&sna->kgem) - 1)
 		return 0;
 
-	gen3_vertex_finish(sna, FALSE);
-	assert(sna->render.vertex_index == 0);
-	assert(sna->render.vertex_used == 0);
-	return ARRAY_SIZE(sna->render.vertex_data);
+	return gen3_vertex_finish(sna);
 }
 
 inline static int gen3_get_rectangles(struct sna *sna,
@@ -1647,7 +1697,7 @@ inline static int gen3_get_rectangles(struct sna *sna,
 	sna->render.vertex_index += 3*want;
 
 	assert(want);
-	assert(sna->render.vertex_index * op->floats_per_vertex <= ARRAY_SIZE(sna->render.vertex_data));
+	assert(sna->render.vertex_index * op->floats_per_vertex <= sna->render.vertex_size);
 	return want;
 }
 
@@ -2205,6 +2255,9 @@ gen3_align_vertex(struct sna *sna,
 		  struct sna_composite_op *op)
 {
 	if (op->floats_per_vertex != sna->render_state.gen3.last_floats_per_vertex) {
+		if (sna->render.vertex_size - sna->render.vertex_used < 2*op->floats_per_rect)
+			gen3_vertex_finish(sna);
+
 		DBG(("aligning vertex: was %d, now %d floats per vertex, %d->%d\n",
 		     sna->render_state.gen3.last_floats_per_vertex,
 		     op->floats_per_vertex,
@@ -2747,7 +2800,7 @@ gen3_emit_composite_spans_primitive_zero(struct sna *sna,
 					 const BoxRec *box,
 					 float opacity)
 {
-	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	float *v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 6;
 
 	v[0] = op->base.dst.x + box->x2;
@@ -2766,7 +2819,7 @@ gen3_emit_composite_spans_primitive_zero_no_offset(struct sna *sna,
 						   const BoxRec *box,
 						   float opacity)
 {
-	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	float *v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 6;
 
 	v[0] = box->x2;
@@ -2781,7 +2834,7 @@ gen3_emit_composite_spans_primitive_constant(struct sna *sna,
 					     const BoxRec *box,
 					     float opacity)
 {
-	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	float *v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 9;
 
 	v[0] = op->base.dst.x + box->x2;
@@ -2797,7 +2850,7 @@ gen3_emit_composite_spans_primitive_constant_no_offset(struct sna *sna,
 						       const BoxRec *box,
 						       float opacity)
 {
-	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	float *v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 9;
 
 	v[0] = box->x2;
@@ -2813,7 +2866,7 @@ gen3_emit_composite_spans_primitive_identity_source(struct sna *sna,
 						    const BoxRec *box,
 						    float opacity)
 {
-	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	float *v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 15;
 
 	v[0] = op->base.dst.x + box->x2;
@@ -2844,7 +2897,7 @@ gen3_emit_composite_spans_primitive_affine_source(struct sna *sna,
 	PictTransform *transform = op->base.src.transform;
 	float x, y, *v;
 
-	v = sna->render.vertex_data + sna->render.vertex_used;
+	v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 15;
 
 	v[0]  = op->base.dst.x + box->x2;
@@ -2883,7 +2936,7 @@ gen3_emit_composite_spans_primitive_identity_gradient(struct sna *sna,
 						      const BoxRec *box,
 						      float opacity)
 {
-	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	float *v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 15;
 
 	v[0] = op->base.dst.x + box->x2;
@@ -2912,7 +2965,7 @@ gen3_emit_composite_spans_primitive_affine_gradient(struct sna *sna,
 						    float opacity)
 {
 	PictTransform *transform = op->base.src.transform;
-	float *v = sna->render.vertex_data + sna->render.vertex_used;
+	float *v = sna->render.vertices + sna->render.vertex_used;
 	sna->render.vertex_used += 15;
 
 	v[0] = op->base.dst.x + box->x2;
@@ -4278,7 +4331,7 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 static void gen3_render_flush(struct sna *sna)
 {
-	gen3_vertex_finish(sna, TRUE);
+	gen3_vertex_close(sna);
 }
 
 static void

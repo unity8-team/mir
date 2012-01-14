@@ -19,17 +19,17 @@ static inline bool need_redirect(struct sna *sna, PixmapPtr dst)
 
 static inline int vertex_space(struct sna *sna)
 {
-	return ARRAY_SIZE(sna->render.vertex_data) - sna->render.vertex_used;
+	return sna->render.vertex_size - sna->render.vertex_used;
 }
 static inline void vertex_emit(struct sna *sna, float v)
 {
-	assert(sna->render.vertex_used < ARRAY_SIZE(sna->render.vertex_data));
-	sna->render.vertex_data[sna->render.vertex_used++] = v;
+	assert(sna->render.vertex_used < sna->render.vertex_size);
+	sna->render.vertices[sna->render.vertex_used++] = v;
 }
 static inline void vertex_emit_2s(struct sna *sna, int16_t x, int16_t y)
 {
-	int16_t *v = (int16_t *)&sna->render.vertex_data[sna->render.vertex_used++];
-	assert(sna->render.vertex_used <= ARRAY_SIZE(sna->render.vertex_data));
+	int16_t *v = (int16_t *)&sna->render.vertices[sna->render.vertex_used++];
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
 	v[0] = x;
 	v[1] = y;
 }
