@@ -1218,6 +1218,7 @@ gen3_get_batch(struct sna *sna)
 		     __FUNCTION__, 200,
 		     sna->kgem.surface-sna->kgem.nbatch));
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
 	if (sna->kgem.nreloc > KGEM_RELOC_SIZE(&sna->kgem) - MAX_OBJECTS) {
@@ -1226,6 +1227,7 @@ gen3_get_batch(struct sna *sna)
 		     sna->kgem.nreloc,
 		     (int)KGEM_RELOC_SIZE(&sna->kgem) - MAX_OBJECTS));
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
 	if (sna->kgem.nexec > KGEM_EXEC_SIZE(&sna->kgem) - MAX_OBJECTS - 1) {
@@ -1234,6 +1236,7 @@ gen3_get_batch(struct sna *sna)
 		     sna->kgem.nexec,
 		     (int)KGEM_EXEC_SIZE(&sna->kgem) - MAX_OBJECTS - 1));
 		kgem_submit(&sna->kgem);
+		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
 	if (sna->render_state.gen3.need_invariant)
@@ -1492,9 +1495,7 @@ static void gen3_magic_ca_pass(struct sna *sna,
 
 static void gen3_vertex_flush(struct sna *sna)
 {
-	if (sna->render_state.gen3.vertex_offset == 0 ||
-	    sna->render.vertex_index == sna->render.vertex_start)
-		return;
+	assert(sna->render_state.gen3.vertex_offset);
 
 	DBG(("%s[%x] = %d\n", __FUNCTION__,
 	     4*sna->render_state.gen3.vertex_offset,
@@ -1506,9 +1507,6 @@ static void gen3_vertex_flush(struct sna *sna)
 	sna->kgem.batch[sna->render_state.gen3.vertex_offset + 1] =
 		sna->render.vertex_start;
 
-	if (sna->render.op)
-		gen3_magic_ca_pass(sna, sna->render.op);
-
 	sna->render_state.gen3.vertex_offset = 0;
 }
 
@@ -1516,9 +1514,7 @@ static int gen3_vertex_finish(struct sna *sna)
 {
 	struct kgem_bo *bo;
 
-	gen3_vertex_flush(sna);
-	if (!sna->render.vertex_used)
-		return sna->render.vertex_size;
+	assert(sna->render.vertex_used);
 
 	bo = sna->render.vbo;
 	if (bo) {
@@ -1559,8 +1555,6 @@ static void gen3_vertex_close(struct sna *sna)
 {
 	struct kgem_bo *bo;
 	int delta = 0;
-
-	gen3_vertex_flush(sna);
 
 	if (!sna->render.vertex_used) {
 		assert(sna->render.vbo == NULL);
@@ -1656,9 +1650,15 @@ static bool gen3_rectangle_begin(struct sna *sna,
 	return true;
 }
 
-static int gen3_get_rectangles__flush(struct sna *sna, bool ca)
+static int gen3_get_rectangles__flush(struct sna *sna,
+				      const struct sna_composite_op *op)
 {
-	if (!kgem_check_batch(&sna->kgem, ca ? 105: 5))
+	if (sna->render_state.gen3.vertex_offset) {
+		gen3_vertex_flush(sna);
+		gen3_magic_ca_pass(sna, op);
+	}
+
+	if (!kgem_check_batch(&sna->kgem, op->need_magic_ca_pass ? 105: 5))
 		return 0;
 	if (sna->kgem.nexec > KGEM_EXEC_SIZE(&sna->kgem) - 2)
 		return 0;
@@ -1681,7 +1681,7 @@ inline static int gen3_get_rectangles(struct sna *sna,
 	if (op->floats_per_rect > rem) {
 		DBG(("flushing vbo for %s: %d < %d\n",
 		     __FUNCTION__, rem, op->floats_per_rect));
-		rem = gen3_get_rectangles__flush(sna, op->need_magic_ca_pass);
+		rem = gen3_get_rectangles__flush(sna, op);
 		if (rem == 0)
 			return 0;
 	}
@@ -1791,13 +1791,12 @@ static void
 gen3_render_composite_done(struct sna *sna,
 			   const struct sna_composite_op *op)
 {
-	assert(sna->render.op == op);
-
-	gen3_vertex_flush(sna);
-	sna->render.op = NULL;
-	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
-
 	DBG(("%s()\n", __FUNCTION__));
+
+	if (sna->render_state.gen3.vertex_offset) {
+		gen3_vertex_flush(sna);
+		gen3_magic_ca_pass(sna, op);
+	}
 
 	if (op->mask.bo)
 		kgem_bo_destroy(&sna->kgem, op->mask.bo);
@@ -2767,8 +2766,6 @@ gen3_render_composite(struct sna *sna,
 
 	gen3_emit_composite_state(sna, tmp);
 	gen3_align_vertex(sna, tmp);
-
-	sna->render.op = tmp;
 	return TRUE;
 
 cleanup_mask:
@@ -3069,8 +3066,8 @@ fastcall static void
 gen3_render_composite_spans_done(struct sna *sna,
 				 const struct sna_composite_spans_op *op)
 {
-	gen3_vertex_flush(sna);
-	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	if (sna->render_state.gen3.vertex_offset)
+		gen3_vertex_flush(sna);
 
 	DBG(("%s()\n", __FUNCTION__));
 
@@ -3828,7 +3825,6 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 	} while (n);
 
 	gen3_vertex_flush(sna);
-	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	return TRUE;
 }
 
@@ -3863,8 +3859,8 @@ gen3_render_copy_blt(struct sna *sna,
 static void
 gen3_render_copy_done(struct sna *sna, const struct sna_copy_op *op)
 {
-	gen3_vertex_flush(sna);
-	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	if (sna->render_state.gen3.vertex_offset)
+		gen3_vertex_flush(sna);
 }
 
 static Bool
@@ -4103,7 +4099,6 @@ gen3_render_fill_boxes(struct sna *sna,
 	} while (n);
 
 	gen3_vertex_flush(sna);
-	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	return TRUE;
 }
 
@@ -4175,8 +4170,8 @@ gen3_render_fill_op_boxes(struct sna *sna,
 static void
 gen3_render_fill_op_done(struct sna *sna, const struct sna_fill_op *op)
 {
-	gen3_vertex_flush(sna);
-	_kgem_set_mode(&sna->kgem, KGEM_RENDER);
+	if (sna->render_state.gen3.vertex_offset)
+		gen3_vertex_flush(sna);
 }
 
 static Bool

@@ -278,7 +278,6 @@ struct sna_render {
 	float *vertices;
 
 	float vertex_data[1024];
-	const struct sna_composite_op *op;
 };
 
 struct gen2_render_state {
