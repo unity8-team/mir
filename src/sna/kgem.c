@@ -851,8 +851,15 @@ inline static void kgem_bo_move_to_inactive(struct kgem *kgem,
 	list_move(&bo->list, &kgem->inactive[bo->bucket]);
 	if (bo->map) {
 		int type = IS_CPU_MAP(bo->map);
-		list_move_tail(&bo->vma, &kgem->vma[type].inactive[bo->bucket]);
-		kgem->vma[type].count++;
+		if (!type && !kgem_bo_is_mappable(kgem, bo)) {
+			list_del(&bo->vma);
+			munmap(CPU_MAP(bo->map), bo->size);
+			bo->map = NULL;
+		}
+		if (bo->map) {
+			list_move_tail(&bo->vma, &kgem->vma[type].inactive[bo->bucket]);
+			kgem->vma[type].count++;
+		}
 	}
 
 	kgem->need_expire = true;
