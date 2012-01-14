@@ -412,14 +412,6 @@ gen6_choose_composite_kernel(int op, Bool has_mask, Bool is_ca, Bool is_affine)
 }
 
 static void
-gen6_emit_sip(struct sna *sna)
-{
-	/* Set system instruction pointer */
-	OUT_BATCH(GEN6_STATE_SIP | 0);
-	OUT_BATCH(0);
-}
-
-static void
 gen6_emit_urb(struct sna *sna)
 {
 	OUT_BATCH(GEN6_3DSTATE_URB | (3 - 2));
@@ -555,7 +547,6 @@ gen6_emit_invariant(struct sna *sna)
 	OUT_BATCH(GEN6_3DSTATE_SAMPLE_MASK | (2 - 2));
 	OUT_BATCH(1);
 
-	gen6_emit_sip(sna);
 	gen6_emit_urb(sna);
 
 	gen6_emit_state_base_address(sna);
@@ -2185,7 +2176,7 @@ try_blt(struct sna *sna,
 	PicturePtr dst, PicturePtr src,
 	int width, int height)
 {
-	if (sna->kgem.ring == KGEM_BLT) {
+	if (sna->kgem.ring != KGEM_RENDER) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return TRUE;
 	}
@@ -3002,7 +2993,7 @@ static inline bool prefer_blt_copy(struct sna *sna,
 				   struct kgem_bo *src_bo,
 				   struct kgem_bo *dst_bo)
 {
-	return (sna->kgem.ring == KGEM_BLT ||
+	return (sna->kgem.ring != KGEM_RENDER ||
 		untiled_tlb_miss(src_bo) ||
 		untiled_tlb_miss(dst_bo));
 }
