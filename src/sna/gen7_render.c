@@ -3280,6 +3280,12 @@ gen7_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 	gen7_emit_state(sna, op, offset);
 }
 
+static inline bool prefer_blt_fill(struct sna *sna,
+				   struct kgem_bo *bo)
+{
+	return sna->kgem.ring != KGEM_RENDER || untiled_tlb_miss(bo);
+}
+
 static Bool
 gen7_render_fill_boxes(struct sna *sna,
 		       CARD8 op,
@@ -3301,7 +3307,7 @@ gen7_render_fill_boxes(struct sna *sna,
 		return FALSE;
 	}
 
-	if (sna->kgem.ring != KGEM_RENDER ||
+	if (prefer_blt_fill(sna, dst_bo) ||
 	    too_large(dst->drawable.width, dst->drawable.height) ||
 	    !gen7_check_dst_format(format)) {
 		uint8_t alu = -1;
@@ -3524,7 +3530,7 @@ gen7_render_fill(struct sna *sna, uint8_t alu,
 			    op);
 #endif
 
-	if (sna->kgem.ring != KGEM_RENDER &&
+	if (prefer_blt_fill(sna, dst_bo) &&
 	    sna_blt_fill(sna, alu,
 			 dst_bo, dst->drawable.bitsPerPixel,
 			 color,
@@ -3618,7 +3624,7 @@ gen7_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 #endif
 
 	/* Prefer to use the BLT if already engaged */
-	if (sna->kgem.ring != KGEM_RENDER &&
+	if (prefer_blt_fill(sna, bo) &&
 	    gen7_render_fill_one_try_blt(sna, dst, bo, color,
 					 x1, y1, x2, y2, alu))
 		return TRUE;
