@@ -3335,6 +3335,7 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 			 offset, length);
 		kgem_bo_retire(kgem, &bo->base);
 		bo->base.domain = DOMAIN_NONE;
+		bo->base.reusable = false; /* in the CPU cache now */
 	} else
 		kgem_bo_sync__cpu(kgem, &bo->base);
 }
