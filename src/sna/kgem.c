@@ -104,7 +104,6 @@ static inline void list_replace(struct list *old,
 #define MAX_CPU_VMA_CACHE INT16_MAX
 #define MAP_PRESERVE_TIME 10
 
-#define IS_CPU_MAP(ptr) ((uintptr_t)(ptr) & 1)
 #define CPU_MAP(ptr) ((void*)((uintptr_t)(ptr) & ~1))
 #define MAKE_CPU_MAP(ptr) ((void*)((uintptr_t)(ptr) | 1))
 
@@ -2614,8 +2613,13 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
 
-	if (IS_CPU_MAP(bo->map))
+	if (IS_CPU_MAP(bo->map)) {
+		if (bo->tiling == I915_TILING_NONE) {
+			kgem_bo_sync__cpu(kgem, bo);
+			return CPU_MAP(bo->map);
+		}
 		kgem_bo_release_map(kgem, bo);
+	}
 
 	ptr = bo->map;
 	if (ptr == NULL) {

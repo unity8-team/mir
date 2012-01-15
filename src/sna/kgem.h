@@ -50,6 +50,8 @@ struct kgem_bo {
 	struct list vma;
 
 	void *map;
+#define IS_CPU_MAP(ptr) ((uintptr_t)(ptr) & 1)
+#define IS_GTT_MAP(ptr) (ptr && ((uintptr_t)(ptr) & 1) == 0)
 	struct kgem_request *rq;
 	struct drm_i915_gem_exec_object2 *exec;
 
@@ -373,6 +375,16 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 		return false;
 
 	return bo->presumed_offset + bo->size <= kgem->aperture_mappable;
+}
+
+static inline bool kgem_bo_mapped(struct kgem_bo *bo)
+{
+	DBG_HDR(("%s: map=%p, tiling=%d\n", __FUNCTION__, bo->map, bo->tiling));
+
+	if (bo->map == NULL)
+		return false;
+
+	return IS_CPU_MAP(bo->map) == !bo->tiling;
 }
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)

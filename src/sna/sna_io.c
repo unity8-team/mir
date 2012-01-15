@@ -906,7 +906,7 @@ struct kgem_bo *sna_replace(struct sna *sna,
 	     pixmap->drawable.bitsPerPixel,
 	     bo->tiling));
 
-	if ((!bo->map || bo->rq) &&
+	if ((!kgem_bo_mapped(bo) || bo->rq) &&
 	    indirect_replace(sna, pixmap, bo, src, stride))
 		return bo;
 
