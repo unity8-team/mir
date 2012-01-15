@@ -115,16 +115,15 @@ void sna_read_boxes(struct sna *sna,
 	}
 #endif
 
-	if (DEBUG_NO_IO || kgem->wedged || src_bo->tiling == I915_TILING_Y) {
-		read_boxes_inplace(kgem,
-				   src_bo, src_dx, src_dy,
-				   dst, dst_dx, dst_dy,
-				   box, nbox);
-		return;
-	}
+	/* XXX The gpu is faster to perform detiling in bulk, but takes
+	 * longer to setup and retrieve the results, with an additional
+	 * copy. The long term solution is to use snoopable bo and avoid
+	 * this path.
+	 */
 
-	if (src_bo->tiling != I915_TILING_X &&
-	    !kgem_bo_map_will_stall(kgem, src_bo)) {
+	if (DEBUG_NO_IO || kgem->wedged ||
+	    !kgem_bo_map_will_stall(kgem, src_bo) ||
+	    src_bo->tiling != I915_TILING_X) {
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
 				   dst, dst_dx, dst_dy,
