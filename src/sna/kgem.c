@@ -1848,6 +1848,15 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 			continue;
 		}
 
+		if (I915_TILING_NONE != bo->tiling) {
+			if (use_active)
+				continue;
+
+			if (gem_set_tiling(kgem->fd, bo->handle,
+					   I915_TILING_NONE, 0) != I915_TILING_NONE)
+				continue;
+		}
+
 		if (bo->map) {
 			if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 				int for_cpu = !!(flags & CREATE_CPU_MAP);
@@ -1875,15 +1884,6 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 			}
 		}
 
-		if (I915_TILING_NONE != bo->tiling) {
-			if (use_active)
-				continue;
-
-			if (gem_set_tiling(kgem->fd, bo->handle,
-					   I915_TILING_NONE, 0) != I915_TILING_NONE)
-				continue;
-		}
-
 		if (use_active)
 			kgem_bo_remove_from_active(kgem, bo);
 		else
@@ -1903,9 +1903,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 
 	if (first) {
 		if (I915_TILING_NONE != first->tiling) {
-			if (use_active)
-				return NULL;
-
+			assert(!use_active);
 			if (gem_set_tiling(kgem->fd, first->handle,
 					   I915_TILING_NONE, 0) != I915_TILING_NONE)
 				return NULL;
