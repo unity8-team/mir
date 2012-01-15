@@ -1107,7 +1107,7 @@ bool kgem_retire(struct kgem *kgem)
 	}
 
 	kgem->need_retire = !list_is_empty(&kgem->requests);
-	if (!kgem->need_retire && kgem->ring)
+	if (kgem->ring && (kgem->has_semaphores || !kgem->need_retire))
 		kgem->ring = kgem->mode;
 	DBG(("%s -- need_retire=%d\n", __FUNCTION__, kgem->need_retire));
 
@@ -1412,8 +1412,6 @@ void kgem_reset(struct kgem *kgem)
 	kgem->nbatch = 0;
 	kgem->surface = kgem->max_batch_size;
 	kgem->mode = KGEM_NONE;
-	if (kgem->has_semaphores)
-		kgem->ring = KGEM_NONE;
 	kgem->flush = 0;
 	kgem->scanout = 0;
 
