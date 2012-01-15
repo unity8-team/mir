@@ -622,8 +622,14 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	if (kgem->aperture_mappable == 0 ||
 	    kgem->aperture_mappable > aperture.aper_size)
 		kgem->aperture_mappable = aperture.aper_size;
-	DBG(("%s: aperture mappable=%d [%d]\n", __FUNCTION__,
+	DBG(("%s: aperture mappable=%d [%d MiB]\n", __FUNCTION__,
 	     kgem->aperture_mappable, kgem->aperture_mappable / (1024*1024)));
+
+	kgem->partial_buffer_size = 64 * 1024;
+	while (kgem->partial_buffer_size < kgem->aperture_mappable >> 10)
+		kgem->partial_buffer_size *= 2;
+	DBG(("%s: partial buffer size=%d [%d KiB]\n", __FUNCTION__,
+	     kgem->partial_buffer_size, kgem->partial_buffer_zie / 1024));
 
 	kgem->min_alignment = 4;
 	if (gen < 60)
@@ -2971,7 +2977,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	}
 
 	/* Be a little more generous and hope to hold fewer mmappings */
-	alloc = ALIGN(size, kgem->aperture_mappable >> 10);
+	alloc = ALIGN(size, kgem->partial_buffer_size);
 	bo = NULL;
 
 #if !DBG_NO_MAP_UPLOAD
