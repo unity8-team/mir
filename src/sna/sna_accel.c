@@ -1020,6 +1020,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		return true;
 	}
 
+	if (DAMAGE_IS_ALL(priv->cpu_damage))
+		goto out;
+
 	if (priv->stride == 0 && priv->gpu_bo == NULL && flags & MOVE_WRITE)
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
 
@@ -1034,9 +1037,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			RegionTranslate(region, -dx, -dy);
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
 	}
-
-	if (DAMAGE_IS_ALL(priv->cpu_damage))
-		goto done;
 
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags == MOVE_WRITE);
@@ -1292,11 +1292,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 done:
-	if (priv->cpu_bo) {
-		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
-		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
-	}
-
 	if (flags & MOVE_WRITE && !DAMAGE_IS_ALL(priv->cpu_damage)) {
 		DBG(("%s: applying cpu damage\n", __FUNCTION__));
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
@@ -1315,6 +1310,11 @@ done:
 	if (dx | dy)
 		RegionTranslate(region, -dx, -dy);
 
+out:
+	if (priv->cpu_bo) {
+		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
+		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+	}
 	return true;
 }
 
