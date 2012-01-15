@@ -319,6 +319,29 @@ static Bool gen7_check_dst_format(PictFormat format)
 	return FALSE;
 }
 
+static bool gen7_check_format(PicturePtr p)
+{
+	switch (p->format) {
+	case PICT_a8r8g8b8:
+	case PICT_x8r8g8b8:
+	case PICT_a8b8g8r8:
+	case PICT_x8b8g8r8:
+	case PICT_a2r10g10b10:
+	case PICT_x2r10g10b10:
+	case PICT_r8g8b8:
+	case PICT_r5g6b5:
+	case PICT_x1r5g5b5:
+	case PICT_a1r5g5b5:
+	case PICT_a8:
+	case PICT_a4r4g4b4:
+	case PICT_x4r4g4b4:
+		return true;
+	default:
+		DBG(("%s: unhandled format: %x\n", __FUNCTION__, p->format));
+		return false;
+	}
+}
+
 static uint32_t gen7_get_dest_format_for_depth(int depth)
 {
 	switch (depth) {
@@ -1212,6 +1235,7 @@ static uint32_t gen7_get_card_format(PictFormat format)
 		if (gen7_tex_formats[i].pict_fmt == format)
 			return gen7_tex_formats[i].card_fmt;
 	}
+	assert(0);
 	return -1;
 }
 
@@ -2165,6 +2189,10 @@ gen7_composite_picture(struct sna *sna,
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
 
+	if (!gen7_check_format(picture))
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, w, h, dst_x, dst_y);
+
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
 	channel->filter = picture->filter;
 
@@ -2186,9 +2214,6 @@ gen7_composite_picture(struct sna *sna,
 		channel->transform = picture->transform;
 
 	channel->card_format = gen7_get_card_format(picture->format);
-	if (channel->card_format == (unsigned)-1)
-		return sna_render_picture_convert(sna, picture, channel, pixmap,
-						  x, y, w, h, dst_x, dst_y);
 
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height)) {
 		DBG(("%s: extracting from pixmap %dx%d\n", __FUNCTION__,
@@ -2332,7 +2357,7 @@ has_alphamap(PicturePtr p)
 static bool
 source_fallback(PicturePtr p)
 {
-	return has_alphamap(p) || is_gradient(p) || !gen7_check_filter(p) || !gen7_check_repeat(p);
+	return has_alphamap(p) || is_gradient(p) || !gen7_check_filter(p) || !gen7_check_repeat(p) || !gen7_check_format(p);
 }
 
 static bool
@@ -2420,13 +2445,28 @@ reuse_source(struct sna *sna,
 	     PicturePtr src, struct sna_composite_channel *sc, int src_x, int src_y,
 	     PicturePtr mask, struct sna_composite_channel *mc, int msk_x, int msk_y)
 {
+	uint32_t color;
+
+	if (src_x != msk_x || src_y != msk_y)
+		return FALSE;
+
+	if (src == mask) {
+		DBG(("%s: mask is source\n", __FUNCTION__));
+		*mc = *sc;
+		mc->bo = kgem_bo_reference(mc->bo);
+		return TRUE;
+	}
+
+	if (sna_picture_is_solid(mask, &color))
+		return gen7_composite_solid_init(sna, mc, color);
+
+	if (sc->is_solid)
+		return FALSE;
+
 	if (src->pDrawable == NULL || mask->pDrawable != src->pDrawable)
 		return FALSE;
 
 	DBG(("%s: mask reuses source drawable\n", __FUNCTION__));
-
-	if (src_x != msk_x || src_y != msk_y)
-		return FALSE;
 
 	if (!sna_transform_equal(src->transform, mask->transform))
 		return FALSE;
@@ -2438,6 +2478,9 @@ reuse_source(struct sna *sna,
 		return FALSE;
 
 	if (!gen7_check_filter(mask))
+		return FALSE;
+
+	if (!gen7_check_format(mask))
 		return FALSE;
 
 	DBG(("%s: reusing source channel for mask with a twist\n",
