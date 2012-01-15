@@ -229,7 +229,10 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	Bool flush = false;
 	Bool ret;
 
-	if (!sna_pixmap(pixmap))
+	if (buf == 0)
+		return BadAlloc;
+
+	if (!sna_pixmap_is_gpu(pixmap))
 		return BadAlloc;
 
 	sna_video_frame_init(sna, video, id, width, height, &frame);
