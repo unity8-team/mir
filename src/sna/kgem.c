@@ -2730,7 +2730,6 @@ uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo)
 }
 
 #if defined(USE_VMAP) && defined(I915_PARAM_HAS_VMAP)
-#define HAVE_VMAP 1
 static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
 {
 	struct drm_i915_gem_vmap vmap;
@@ -2775,27 +2774,6 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	DBG(("%s(ptr=%p, size=%d, read_only=%d) => handle=%d\n",
 	     __FUNCTION__, ptr, size, read_only, handle));
 	return bo;
-}
-#else
-#define HAVE_VMAP 0
-static uint32_t gem_vmap(int fd, void *ptr, int size, int read_only)
-{
-	return 0;
-	(void)fd;
-	(void)ptr;
-	(void)size;
-	(void)read_only;
-}
-
-struct kgem_bo *kgem_create_map(struct kgem *kgem,
-				void *ptr, uint32_t size,
-				bool read_only)
-{
-	return NULL;
-	(void)kgem;
-	(void)ptr;
-	(void)size;
-	(void)read_only;
 }
 #endif
 
@@ -2929,7 +2907,6 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 {
 	struct kgem_partial_bo *bo;
 	unsigned offset, alloc;
-	uint32_t handle;
 
 	DBG(("%s: size=%d, flags=%x [write?=%d, inplace?=%d, last?=%d]\n",
 	     __FUNCTION__, size, flags,
@@ -3098,65 +3075,48 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 #endif
 
 	if (bo == NULL) {
+		struct kgem_bo *old;
+
 		/* Be more parsimonious with pwrite/pread buffers */
 		if ((flags & KGEM_BUFFER_INPLACE) == 0)
 			alloc = PAGE_ALIGN(size);
 		flags &= ~KGEM_BUFFER_INPLACE;
 
-		if (HAVE_VMAP && kgem->has_vmap) {
+		old = NULL;
+		if ((flags & KGEM_BUFFER_WRITE) == 0)
+			old = search_linear_cache(kgem, alloc, 0);
+		if (old == NULL)
+			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
+		if (old) {
+			alloc = old->size;
 			bo = partial_bo_alloc(alloc);
 			if (bo == NULL)
 				return NULL;
 
-			handle = gem_vmap(kgem->fd, bo->mem, alloc,
-					  (flags & KGEM_BUFFER_WRITE) == 0);
-			if (handle) {
-				__kgem_bo_init(&bo->base, handle, alloc);
-				bo->base.vmap = true;
-				bo->need_io = false;
-			} else {
+			memcpy(&bo->base, old, sizeof(*old));
+			if (old->rq)
+				list_replace(&old->request,
+					     &bo->base.request);
+			else
+				list_init(&bo->base.request);
+			list_replace(&old->vma, &bo->base.vma);
+			list_init(&bo->base.list);
+			free(old);
+			bo->base.refcnt = 1;
+		} else {
+			bo = partial_bo_alloc(alloc);
+			if (bo == NULL)
+				return NULL;
+
+			if (!__kgem_bo_init(&bo->base,
+					    gem_create(kgem->fd, alloc),
+					    alloc)) {
 				free(bo);
 				return NULL;
 			}
-		} else {
-			struct kgem_bo *old;
-
-			old = NULL;
-			if ((flags & KGEM_BUFFER_WRITE) == 0)
-				old = search_linear_cache(kgem, alloc, 0);
-			if (old == NULL)
-				old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
-			if (old) {
-				alloc = old->size;
-				bo = partial_bo_alloc(alloc);
-				if (bo == NULL)
-					return NULL;
-
-				memcpy(&bo->base, old, sizeof(*old));
-				if (old->rq)
-					list_replace(&old->request,
-						     &bo->base.request);
-				else
-					list_init(&bo->base.request);
-				list_replace(&old->vma, &bo->base.vma);
-				list_init(&bo->base.list);
-				free(old);
-				bo->base.refcnt = 1;
-			} else {
-				bo = partial_bo_alloc(alloc);
-				if (bo == NULL)
-					return NULL;
-
-				if (!__kgem_bo_init(&bo->base,
-						    gem_create(kgem->fd, alloc),
-						    alloc)) {
-					free(bo);
-					return NULL;
-				}
-			}
-			bo->need_io = flags & KGEM_BUFFER_WRITE;
-			bo->base.io = true;
 		}
+		bo->need_io = flags & KGEM_BUFFER_WRITE;
+		bo->base.io = true;
 	}
 	bo->base.reusable = false;
 	assert(bo->base.size == alloc);
@@ -3329,15 +3289,33 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	DBG(("%s(offset=%d, length=%d, vmap=%d)\n", __FUNCTION__,
 	     offset, length, bo->base.vmap));
 
-	if (!bo->base.vmap && !bo->mmapped) {
+	if (bo->mmapped) {
+		struct drm_i915_gem_set_domain set_domain;
+
+		DBG(("%s: sync: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
+		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
+
+		VG_CLEAR(set_domain);
+		set_domain.handle = bo->base.handle;
+		if (IS_CPU_MAP(bo->base.map)) {
+			set_domain.read_domains = I915_GEM_DOMAIN_CPU;
+			set_domain.write_domain = I915_GEM_DOMAIN_CPU;
+			bo->base.domain = DOMAIN_CPU;
+		} else {
+			set_domain.read_domains = I915_GEM_DOMAIN_GTT;
+			set_domain.write_domain = I915_GEM_DOMAIN_GTT;
+			bo->base.domain = DOMAIN_GTT;
+		}
+
+		drmIoctl(kgem->fd, DRM_IOCTL_I915_GEM_SET_DOMAIN, &set_domain);
+	} else {
 		gem_read(kgem->fd,
 			 bo->base.handle, (char *)bo->mem+offset,
 			 offset, length);
-		kgem_bo_retire(kgem, &bo->base);
 		bo->base.domain = DOMAIN_NONE;
 		bo->base.reusable = false; /* in the CPU cache now */
-	} else
-		kgem_bo_sync__cpu(kgem, &bo->base);
+	}
+	kgem_bo_retire(kgem, &bo->base);
 }
 
 uint32_t kgem_bo_get_binding(struct kgem_bo *bo, uint32_t format)
