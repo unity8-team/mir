@@ -1505,15 +1505,32 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 		return FALSE;
 	}
 
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
+		*damage = NULL;
+		return TRUE;
+	}
+
 	if (DAMAGE_IS_ALL(priv->cpu_damage))
 		return FALSE;
 
-	if (priv->gpu_bo == NULL &&
-	    (sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE ||
-	     (priv->cpu_damage && !box_inplace(pixmap, box)) ||
-	     !sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ))) {
-		DBG(("%s: no GPU bo allocated\n", __FUNCTION__));
-		return FALSE;
+	if (priv->gpu_bo == NULL) {
+		if (sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE) {
+			DBG(("%s: untiled, will not force allocation\n",
+			     __FUNCTION__));
+			return FALSE;
+		}
+
+		if (priv->cpu_damage && !box_inplace(pixmap, box)) {
+			DBG(("%s: damaged with a small operation, will not force allocation\n",
+			     __FUNCTION__));
+			return FALSE;
+		}
+
+		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_WRITE | MOVE_READ))
+			return FALSE;
+
+		DBG(("%s: allocated GPU bo for operation\n", __FUNCTION__));
+		goto done;
 	}
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -1536,11 +1553,18 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 			return TRUE;
 		}
 
-		if (ret != PIXMAN_REGION_OUT && kgem_bo_is_busy(priv->gpu_bo)) {
+		if (ret != PIXMAN_REGION_OUT &&
+		    (priv->cpu_bo || kgem_bo_is_busy(priv->gpu_bo))) {
 			DBG(("%s: region partially contained within busy GPU damage\n",
 			     __FUNCTION__));
 			goto move_to_gpu;
 		}
+	}
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo)) {
+		DBG(("%s: busy CPU bo, prefer to use GPU\n",
+		     __FUNCTION__));
+		goto move_to_gpu;
 	}
 
 	if (priv->cpu_damage) {
@@ -1556,7 +1580,8 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 			goto move_to_gpu;
 		}
 
-		if (ret != PIXMAN_REGION_OUT && !kgem_bo_is_busy(priv->gpu_bo)) {
+		if (ret != PIXMAN_REGION_OUT &&
+		    (priv->cpu_bo || !kgem_bo_is_busy(priv->gpu_bo))) {
 			DBG(("%s: region partially contained within idle CPU damage\n",
 			     __FUNCTION__));
 			return FALSE;
@@ -1569,6 +1594,7 @@ move_to_gpu:
 		return FALSE;
 	}
 
+done:
 	*damage = DAMAGE_IS_ALL(priv->gpu_damage) ? NULL : &priv->gpu_damage;
 	return TRUE;
 }
