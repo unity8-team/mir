@@ -2775,6 +2775,13 @@ struct kgem_bo *kgem_create_map(struct kgem *kgem,
 	     __FUNCTION__, ptr, size, read_only, handle));
 	return bo;
 }
+#else
+struct kgem_bo *kgem_create_map(struct kgem *kgem,
+				void *ptr, uint32_t size,
+				bool read_only)
+{
+	return 0;
+}
 #endif
 
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo)
