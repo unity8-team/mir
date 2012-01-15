@@ -281,6 +281,56 @@ static uint32_t gen3_get_dst_format(uint32_t format)
 #undef BIAS
 }
 
+static Bool gen3_check_format(PicturePtr p)
+{
+	switch (p->format) {
+	case PICT_a8:
+	case PICT_a8r8g8b8:
+	case PICT_x8r8g8b8:
+	case PICT_a8b8g8r8:
+	case PICT_x8b8g8r8:
+	case PICT_a2r10g10b10:
+	case PICT_a2b10g10r10:
+	case PICT_r5g6b5:
+	case PICT_b5g6r5:
+	case PICT_a1r5g5b5:
+	case PICT_a1b5g5r5:
+	case PICT_a4r4g4b4:
+	case PICT_a4b4g4r4:
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
+static Bool gen3_check_xformat(PicturePtr p)
+{
+	switch (p->format) {
+	case PICT_a8r8g8b8:
+	case PICT_x8r8g8b8:
+	case PICT_a8b8g8r8:
+	case PICT_x8b8g8r8:
+	case PICT_r5g6b5:
+	case PICT_b5g6r5:
+	case PICT_a1r5g5b5:
+	case PICT_x1r5g5b5:
+	case PICT_a1b5g5r5:
+	case PICT_x1b5g5r5:
+	case PICT_a2r10g10b10:
+	case PICT_x2r10g10b10:
+	case PICT_a2b10g10r10:
+	case PICT_x2b10g10r10:
+	case PICT_a8:
+	case PICT_a4r4g4b4:
+	case PICT_x4r4g4b4:
+	case PICT_a4b4g4r4:
+	case PICT_x4b4g4r4:
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
 static uint32_t gen3_texture_repeat(uint32_t repeat)
 {
 #define REPEAT(x) \
@@ -353,9 +403,9 @@ static uint32_t gen3_filter(uint32_t filter)
 	}
 }
 
-static bool gen3_check_filter(uint32_t filter)
+static bool gen3_check_filter(PicturePtr p)
 {
-	switch (filter) {
+	switch (p->filter) {
 	case PictFilterNearest:
 	case PictFilterBilinear:
 		return TRUE;
@@ -2153,7 +2203,7 @@ gen3_composite_picture(struct sna *sna,
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
 
-	if (!gen3_check_filter(picture->filter))
+	if (!gen3_check_filter(picture))
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
 
@@ -2354,7 +2404,7 @@ has_alphamap(PicturePtr p)
 static bool
 source_fallback(PicturePtr p)
 {
-	return has_alphamap(p) || !gen3_check_filter(p->filter) || !gen3_check_repeat(p);
+	return has_alphamap(p) || !gen3_check_xformat(p) || !gen3_check_filter(p) || !gen3_check_repeat(p);
 }
 
 static bool
@@ -2465,6 +2515,9 @@ reuse_source(struct sna *sna,
 	if ((src->pDrawable == NULL || mask->pDrawable != src->pDrawable))
 		return FALSE;
 
+	if (sc->is_solid)
+		return FALSE;
+
 	DBG(("%s: mask reuses source drawable\n", __FUNCTION__));
 
 	if (!sna_transform_equal(src->transform, mask->transform))
@@ -2476,7 +2529,10 @@ reuse_source(struct sna *sna,
 	if (!gen3_check_repeat(mask))
 		return FALSE;
 
-	if (!gen3_check_filter(mask->filter))
+	if (!gen3_check_filter(mask))
+		return FALSE;
+
+	if (!gen3_check_format(mask))
 		return FALSE;
 
 	DBG(("%s: reusing source channel for mask with a twist\n",
