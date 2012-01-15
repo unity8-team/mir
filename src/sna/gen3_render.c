@@ -4019,7 +4019,8 @@ gen3_render_fill_boxes_try_blt(struct sna *sna,
 						  color->blue,
 						  color->alpha,
 						  format)) {
-			DBG(("%s: unknown format %lx\n", __FUNCTION__, format));
+			DBG(("%s: unknown format %x\n", __FUNCTION__,
+			     (uint32_t)format));
 			return FALSE;
 		}
 	} else {

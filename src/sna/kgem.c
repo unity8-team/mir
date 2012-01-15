@@ -629,7 +629,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	while (kgem->partial_buffer_size < kgem->aperture_mappable >> 10)
 		kgem->partial_buffer_size *= 2;
 	DBG(("%s: partial buffer size=%d [%d KiB]\n", __FUNCTION__,
-	     kgem->partial_buffer_size, kgem->partial_buffer_zie / 1024));
+	     kgem->partial_buffer_size, kgem->partial_buffer_size / 1024));
 
 	kgem->min_alignment = 4;
 	if (gen < 60)
@@ -3292,8 +3292,11 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 	if (bo->mmapped) {
 		struct drm_i915_gem_set_domain set_domain;
 
-		DBG(("%s: sync: needs_flush? %d, domain? %d, busy? %d\n", __FUNCTION__,
-		     bo->needs_flush, bo->domain, kgem_busy(kgem, bo->handle)));
+		DBG(("%s: sync: needs_flush? %d, domain? %d, busy? %d\n",
+		     __FUNCTION__,
+		     bo->base.needs_flush,
+		     bo->base.domain,
+		     kgem_busy(kgem, bo->base.handle)));
 
 		VG_CLEAR(set_domain);
 		set_domain.handle = bo->base.handle;

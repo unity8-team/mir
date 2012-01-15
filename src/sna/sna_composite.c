@@ -434,7 +434,7 @@ sna_composite(CARD8 op,
 	}
 
 	if (op == PictOpClear) {
-		DBG(("%s: discarind sourceand mask for clear\n", __FUNCTION__));
+		DBG(("%s: discarding source and mask for clear\n", __FUNCTION__));
 		mask = NULL;
 		src = clear;
 	}
