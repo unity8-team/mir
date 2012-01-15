@@ -199,6 +199,24 @@ gen2_get_card_format(struct sna *sna, uint32_t format)
 }
 
 static uint32_t
+gen2_check_format(struct sna *sna, PicturePtr p)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(i8xx_tex_formats); i++)
+		if (i8xx_tex_formats[i].fmt == p->format)
+			return true;
+
+	if (sna->kgem.gen > 21) {
+		for (i = 0; i < ARRAY_SIZE(i85x_tex_formats); i++)
+			if (i85x_tex_formats[i].fmt == p->format)
+				return true;
+	}
+
+	return false;
+}
+
+static uint32_t
 gen2_sampler_tiling_bits(uint32_t tiling)
 {
 	uint32_t bits = 0;
@@ -1578,13 +1596,28 @@ reuse_source(struct sna *sna,
 	     PicturePtr src, struct sna_composite_channel *sc, int src_x, int src_y,
 	     PicturePtr mask, struct sna_composite_channel *mc, int msk_x, int msk_y)
 {
+	uint32_t color;
+
+	if (src_x != msk_x || src_y != msk_y)
+		return FALSE;
+
+	if (src == mask) {
+		DBG(("%s: mask is source\n", __FUNCTION__));
+		*mc = *sc;
+		mc->bo = kgem_bo_reference(mc->bo);
+		return TRUE;
+	}
+
+	if (sna_picture_is_solid(mask, &color))
+		return gen2_composite_solid_init(sna, mc, color);
+
+	if (sc->is_solid)
+		return FALSE;
+
 	if (src->pDrawable == NULL || mask->pDrawable != src->pDrawable)
 		return FALSE;
 
 	DBG(("%s: mask reuses source drawable\n", __FUNCTION__));
-
-	if (src_x != msk_x || src_y != msk_y)
-		return FALSE;
 
 	if (!sna_transform_equal(src->transform, mask->transform))
 		return FALSE;
@@ -1596,6 +1629,9 @@ reuse_source(struct sna *sna,
 		return FALSE;
 
 	if (!gen2_check_filter(mask))
+		return FALSE;
+
+	if (!gen2_check_format(sna, mask))
 		return FALSE;
 
 	DBG(("%s: reusing source channel for mask with a twist\n",
