@@ -208,7 +208,6 @@ static const struct formatinfo {
 	{PICT_r8g8b8, GEN6_SURFACEFORMAT_R8G8B8_UNORM},
 	{PICT_r5g6b5, GEN6_SURFACEFORMAT_B5G6R5_UNORM},
 	{PICT_a1r5g5b5, GEN6_SURFACEFORMAT_B5G5R5A1_UNORM},
-	{PICT_x1r5g5b5, GEN6_SURFACEFORMAT_B5G5R5X1_UNORM},
 	{PICT_a2r10g10b10, GEN6_SURFACEFORMAT_B10G10R10A2_UNORM},
 	{PICT_x2r10g10b10, GEN6_SURFACEFORMAT_B10G10R10X2_UNORM},
 	{PICT_a2b10g10r10, GEN6_SURFACEFORMAT_R10G10B10A2_UNORM},
@@ -311,9 +310,9 @@ static Bool gen6_check_dst_format(PictFormat format)
 	return FALSE;
 }
 
-static bool gen6_check_format(PicturePtr p)
+static bool gen6_check_format(uint32_t format)
 {
-	switch (p->format) {
+	switch (format) {
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
 	case PICT_a8b8g8r8:
@@ -322,41 +321,14 @@ static bool gen6_check_format(PicturePtr p)
 	case PICT_x2r10g10b10:
 	case PICT_r8g8b8:
 	case PICT_r5g6b5:
-	case PICT_x1r5g5b5:
 	case PICT_a1r5g5b5:
 	case PICT_a8:
 	case PICT_a4r4g4b4:
 	case PICT_x4r4g4b4:
 		return true;
 	default:
-		DBG(("%s: unhandled format: %x\n", __FUNCTION__, p->format));
+		DBG(("%s: unhandled format: %x\n", __FUNCTION__, format));
 		return false;
-	}
-}
-
-static uint32_t gen6_get_dest_format_for_depth(int depth)
-{
-	switch (depth) {
-	default: assert(0);
-	case 32:
-	case 24: return GEN6_SURFACEFORMAT_B8G8R8A8_UNORM;
-	case 30: return GEN6_SURFACEFORMAT_B10G10R10A2_UNORM;
-	case 16: return GEN6_SURFACEFORMAT_B5G6R5_UNORM;
-	case 15: return GEN6_SURFACEFORMAT_B5G5R5A1_UNORM;
-	case 8:  return GEN6_SURFACEFORMAT_A8_UNORM;
-	}
-}
-
-static uint32_t gen6_get_card_format_for_depth(int depth)
-{
-	switch (depth) {
-	default: assert(0);
-	case 32: return GEN6_SURFACEFORMAT_B8G8R8A8_UNORM;
-	case 30: return GEN6_SURFACEFORMAT_B10G10R10X2_UNORM;
-	case 24: return GEN6_SURFACEFORMAT_B8G8R8X8_UNORM;
-	case 16: return GEN6_SURFACEFORMAT_B5G6R5_UNORM;
-	case 15: return GEN6_SURFACEFORMAT_B5G5R5X1_UNORM;
-	case 8:  return GEN6_SURFACEFORMAT_A8_UNORM;
 	}
 }
 
@@ -1937,7 +1909,7 @@ gen6_render_video(struct sna *sna,
 	tmp.dst.pixmap = pixmap;
 	tmp.dst.width  = pixmap->drawable.width;
 	tmp.dst.height = pixmap->drawable.height;
-	tmp.dst.format = sna_format_for_depth(pixmap->drawable.depth);
+	tmp.dst.format = sna_render_format_for_depth(pixmap->drawable.depth);
 	tmp.dst.bo = priv->gpu_bo;
 
 	tmp.src.filter = SAMPLER_FILTER_BILINEAR;
@@ -2093,10 +2065,6 @@ gen6_composite_picture(struct sna *sna,
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
 
-	if (!gen6_check_format(picture))
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
-
 	channel->repeat = picture->repeat ? picture->repeatType : RepeatNone;
 	channel->filter = picture->filter;
 
@@ -2118,6 +2086,9 @@ gen6_composite_picture(struct sna *sna,
 		channel->transform = picture->transform;
 
 	channel->card_format = gen6_get_card_format(picture->format);
+	if (channel->card_format == (unsigned)-1)
+		return sna_render_picture_convert(sna, picture, channel, pixmap,
+						  x, y, w, h, dst_x, dst_y);
 
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height)) {
 		DBG(("%s: extracting from pixmap %dx%d\n", __FUNCTION__,
@@ -2261,7 +2232,7 @@ has_alphamap(PicturePtr p)
 static bool
 source_fallback(PicturePtr p)
 {
-	return has_alphamap(p) || is_gradient(p) || !gen6_check_filter(p) || !gen6_check_repeat(p) || !gen6_check_format(p);
+	return has_alphamap(p) || is_gradient(p) || !gen6_check_filter(p) || !gen6_check_repeat(p) || !gen6_check_format(p->format);
 }
 
 static bool
@@ -2384,7 +2355,7 @@ reuse_source(struct sna *sna,
 	if (!gen6_check_filter(mask))
 		return FALSE;
 
-	if (!gen6_check_format(mask))
+	if (!gen6_check_format(mask->format))
 		return FALSE;
 
 	DBG(("%s: reusing source channel for mask with a twist\n",
@@ -3011,7 +2982,7 @@ gen6_emit_copy_state(struct sna *sna,
 	binding_table[0] =
 		gen6_bind_bo(sna,
 			     op->dst.bo, op->dst.width, op->dst.height,
-			     gen6_get_dest_format_for_depth(op->dst.pixmap->drawable.depth),
+			     gen6_get_dest_format(op->dst.format),
 			     TRUE);
 	binding_table[1] =
 		gen6_bind_bo(sna,
@@ -3113,11 +3084,26 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 		     dst_bo, dst_dx, dst_dy,
 		     box, n) ||
 	    too_large(src->drawable.width, src->drawable.height) ||
-	    too_large(dst->drawable.width, dst->drawable.height))
+	    too_large(dst->drawable.width, dst->drawable.height)) {
+fallback:
+	    if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
+		    return false;
+
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
 						   dst, dst_bo, dst_dx, dst_dy,
 						   box, n);
+	}
+
+	if (dst->drawable.depth == src->drawable.depth) {
+		tmp.dst.format = sna_render_format_for_depth(dst->drawable.depth);
+		tmp.src.pict_format = tmp.dst.format;
+	} else {
+		tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
+		tmp.src.pict_format = sna_format_for_depth(src->drawable.depth);
+	}
+	if (!gen6_check_format(tmp.src.pict_format))
+		goto fallback;
 
 	tmp.op = alu == GXcopy ? PictOpSrc : PictOpClear;
 
@@ -3125,7 +3111,6 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.dst.x = tmp.dst.y = 0;
 	tmp.dst.width  = dst->drawable.width;
 	tmp.dst.height = dst->drawable.height;
-	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = dst_bo;
 	tmp.dst.x = dst_dx;
 	tmp.dst.y = dst_dy;
@@ -3134,7 +3119,7 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
 	tmp.src.repeat = SAMPLER_EXTEND_NONE;
 	tmp.src.card_format =
-		gen6_get_card_format_for_depth(src->drawable.depth),
+		gen6_get_card_format(tmp.src.pict_format);
 	tmp.src.width  = src->drawable.width;
 	tmp.src.height = src->drawable.height;
 
@@ -3269,6 +3254,7 @@ gen6_render_copy(struct sna *sna, uint8_t alu,
 	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
 	    too_large(src->drawable.width, src->drawable.height) ||
 	    too_large(dst->drawable.width, dst->drawable.height)) {
+fallback:
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
@@ -3277,17 +3263,26 @@ gen6_render_copy(struct sna *sna, uint8_t alu,
 				    op);
 	}
 
+	if (dst->drawable.depth == src->drawable.depth) {
+		op->base.dst.format = sna_render_format_for_depth(dst->drawable.depth);
+		op->base.src.pict_format = op->base.dst.format;
+	} else {
+		op->base.dst.format = sna_format_for_depth(dst->drawable.depth);
+		op->base.src.pict_format = sna_format_for_depth(src->drawable.depth);
+	}
+	if (!gen6_check_format(op->base.src.pict_format))
+		goto fallback;
+
 	op->base.op = alu == GXcopy ? PictOpSrc : PictOpClear;
 
 	op->base.dst.pixmap = dst;
 	op->base.dst.width  = dst->drawable.width;
 	op->base.dst.height = dst->drawable.height;
-	op->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	op->base.dst.bo = dst_bo;
 
 	op->base.src.bo = src_bo;
 	op->base.src.card_format =
-		gen6_get_card_format_for_depth(src->drawable.depth),
+		gen6_get_card_format(op->base.src.pict_format);
 	op->base.src.width  = src->drawable.width;
 	op->base.src.height = src->drawable.height;
 	op->base.src.scale[0] = 1.f/src->drawable.width;

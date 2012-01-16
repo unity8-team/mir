@@ -379,6 +379,7 @@ void sna_kgem_flush(struct kgem *kgem);
 void sna_kgem_context_switch(struct kgem *kgem, int new_mode);
 
 CARD32 sna_format_for_depth(int depth);
+CARD32 sna_render_format_for_depth(int depth);
 
 void sna_debug_flush(struct sna *sna);
 

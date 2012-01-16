@@ -257,7 +257,6 @@ static const struct formatinfo {
 	{PICT_r8g8b8, GEN5_SURFACEFORMAT_R8G8B8_UNORM},
 	{PICT_r5g6b5, GEN5_SURFACEFORMAT_B5G6R5_UNORM},
 	{PICT_a1r5g5b5, GEN5_SURFACEFORMAT_B5G5R5A1_UNORM},
-	{PICT_x1r5g5b5, GEN5_SURFACEFORMAT_B5G5R5X1_UNORM},
 	{PICT_a2r10g10b10, GEN5_SURFACEFORMAT_B10G10R10A2_UNORM},
 	{PICT_x2r10g10b10, GEN5_SURFACEFORMAT_B10G10R10X2_UNORM},
 	{PICT_a2b10g10r10, GEN5_SURFACEFORMAT_R10G10B10A2_UNORM},
@@ -563,9 +562,9 @@ static Bool gen5_check_dst_format(PictFormat format)
 	}
 }
 
-static bool gen5_check_format(PicturePtr p)
+static bool gen5_check_format(uint32_t format)
 {
-	switch (p->format) {
+	switch (format) {
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
 	case PICT_a8b8g8r8:
@@ -574,41 +573,14 @@ static bool gen5_check_format(PicturePtr p)
 	case PICT_x2r10g10b10:
 	case PICT_r8g8b8:
 	case PICT_r5g6b5:
-	case PICT_x1r5g5b5:
 	case PICT_a1r5g5b5:
 	case PICT_a8:
 	case PICT_a4r4g4b4:
 	case PICT_x4r4g4b4:
 		return true;
 	default:
-		DBG(("%s: unhandled format: %x\n", __FUNCTION__, p->format));
+		DBG(("%s: unhandled format: %x\n", __FUNCTION__, format));
 		return false;
-	}
-}
-
-static uint32_t gen5_get_dest_format_for_depth(int depth)
-{
-	switch (depth) {
-	case 32:
-	case 24:
-	default: return GEN5_SURFACEFORMAT_B8G8R8A8_UNORM;
-	case 30: return GEN5_SURFACEFORMAT_B10G10R10A2_UNORM;
-	case 16: return GEN5_SURFACEFORMAT_B5G6R5_UNORM;
-	case 15: return GEN5_SURFACEFORMAT_B5G5R5A1_UNORM;
-	case 8:  return GEN5_SURFACEFORMAT_A8_UNORM;
-	}
-}
-
-static uint32_t gen5_get_card_format_for_depth(int depth)
-{
-	switch (depth) {
-	case 32:
-	default: return GEN5_SURFACEFORMAT_B8G8R8A8_UNORM;
-	case 30: return GEN5_SURFACEFORMAT_B10G10R10X2_UNORM;
-	case 24: return GEN5_SURFACEFORMAT_B8G8R8X8_UNORM;
-	case 16: return GEN5_SURFACEFORMAT_B5G6R5_UNORM;
-	case 15: return GEN5_SURFACEFORMAT_B5G5R5X1_UNORM;
-	case 8:  return GEN5_SURFACEFORMAT_A8_UNORM;
 	}
 }
 
@@ -679,7 +651,6 @@ static uint32_t gen5_get_card_format(PictFormat format)
 		if (gen5_tex_formats[i].pict_fmt == format)
 			return gen5_tex_formats[i].card_fmt;
 	}
-	assert(0);
 	return -1;
 }
 
@@ -1725,7 +1696,7 @@ static void gen5_video_bind_surfaces(struct sna *sna,
 	binding_table[0] =
 		gen5_bind_bo(sna,
 			     op->dst.bo, op->dst.width, op->dst.height,
-			     gen5_get_dest_format_for_depth(op->dst.format),
+			     gen5_get_dest_format(op->dst.format),
 			     TRUE);
 	for (n = 0; n < n_src; n++) {
 		binding_table[1+n] =
@@ -1897,10 +1868,6 @@ gen5_composite_picture(struct sna *sna,
 						x, y, w, h, dst_x, dst_y);
 	}
 
-	if (!gen5_check_format(picture))
-		return sna_render_picture_fixup(sna, picture, channel,
-						x, y, w, h, dst_x, dst_y);
-
 	if (!gen5_check_repeat(picture))
 		return sna_render_picture_fixup(sna, picture, channel,
 						x, y, w, h, dst_x, dst_y);
@@ -1930,6 +1897,9 @@ gen5_composite_picture(struct sna *sna,
 		channel->transform = picture->transform;
 
 	channel->card_format = gen5_get_card_format(picture->format);
+	if (channel->card_format == -1)
+		return sna_render_picture_convert(sna, picture, channel, pixmap,
+						  x, y, w, h, dst_x, dst_y);
 
 	if (too_large(pixmap->drawable.width, pixmap->drawable.height))
 		return sna_render_picture_extract(sna, picture, channel,
@@ -2079,7 +2049,7 @@ source_fallback(PicturePtr p)
 		is_gradient(p) ||
 		!gen5_check_filter(p) ||
 		!gen5_check_repeat(p) ||
-		!gen5_check_format(p));
+		!gen5_check_format(p->format));
 }
 
 static bool
@@ -2202,7 +2172,7 @@ reuse_source(struct sna *sna,
 	if (!gen5_check_filter(mask))
 		return FALSE;
 
-	if (!gen5_check_format(mask))
+	if (!gen5_check_format(mask->format))
 		return FALSE;
 
 	DBG(("%s: reusing source channel for mask with a twist\n",
@@ -2719,7 +2689,7 @@ gen5_copy_bind_surfaces(struct sna *sna,
 	binding_table[0] =
 		gen5_bind_bo(sna,
 			     op->dst.bo, op->dst.width, op->dst.height,
-			     gen5_get_dest_format_for_depth(op->dst.pixmap->drawable.depth),
+			     gen5_get_dest_format(op->dst.pixmap->drawable.depth),
 			     TRUE);
 	binding_table[1] =
 		gen5_bind_bo(sna,
@@ -2764,11 +2734,26 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
 	    too_large(src->drawable.width, src->drawable.height) ||
-	    too_large(dst->drawable.width, dst->drawable.height))
+	    too_large(dst->drawable.width, dst->drawable.height)) {
+fallback:
+	    if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
+		    return FALSE;
+
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
 						   dst, dst_bo, dst_dx, dst_dy,
 						   box, n);
+	}
+
+	if (dst->drawable.depth == src->drawable.depth) {
+		tmp.dst.format = sna_render_format_for_depth(dst->drawable.depth);
+		tmp.src.pict_format = tmp.dst.format;
+	} else {
+		tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
+		tmp.src.pict_format = sna_format_for_depth(src->drawable.depth);
+	}
+	if (!gen5_check_format(tmp.src.pict_format))
+		goto fallback;
 
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n));
@@ -2780,7 +2765,6 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.dst.pixmap = dst;
 	tmp.dst.width  = dst->drawable.width;
 	tmp.dst.height = dst->drawable.height;
-	tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 	tmp.dst.bo = dst_bo;
 	tmp.dst.x = dst_dx;
 	tmp.dst.y = dst_dy;
@@ -2789,7 +2773,7 @@ gen5_render_copy_boxes(struct sna *sna, uint8_t alu,
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
 	tmp.src.repeat = SAMPLER_EXTEND_NONE;
 	tmp.src.card_format =
-		gen5_get_card_format_for_depth(src->drawable.depth),
+		gen5_get_card_format(tmp.src.pict_format);
 	tmp.src.width  = src->drawable.width;
 	tmp.src.height = src->drawable.height;
 
@@ -2909,6 +2893,7 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 	if (!(alu == GXcopy || alu == GXclear) || src_bo == dst_bo ||
 	    too_large(src->drawable.width, src->drawable.height) ||
 	    too_large(dst->drawable.width, dst->drawable.height)) {
+fallback:
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
@@ -2916,6 +2901,16 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 				    dst->drawable.bitsPerPixel,
 				    op);
 	}
+
+	if (dst->drawable.depth == src->drawable.depth) {
+		op->base.dst.format = sna_render_format_for_depth(dst->drawable.depth);
+		op->base.src.pict_format = op->base.dst.format;
+	} else {
+		op->base.dst.format = sna_format_for_depth(dst->drawable.depth);
+		op->base.src.pict_format = sna_format_for_depth(src->drawable.depth);
+	}
+	if (!gen5_check_format(op->base.src.pict_format))
+		goto fallback;
 
 	op->base.op = alu == GXcopy ? PictOpSrc : PictOpClear;
 
@@ -2927,7 +2922,7 @@ gen5_render_copy(struct sna *sna, uint8_t alu,
 
 	op->base.src.bo = src_bo;
 	op->base.src.card_format =
-		gen5_get_card_format_for_depth(src->drawable.depth),
+		gen5_get_card_format(op->base.src.pict_format);
 	op->base.src.width  = src->drawable.width;
 	op->base.src.height = src->drawable.height;
 	op->base.src.scale[0] = 1.f/src->drawable.width;
