@@ -495,9 +495,12 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	tmp.boxes(sna, &tmp,
-		  REGION_RECTS(&region),
-		  REGION_NUM_RECTS(&region));
+	if (region.data == NULL)
+		tmp.box(sna, &tmp, &region.extents);
+	else
+		tmp.boxes(sna, &tmp,
+			  REGION_BOXPTR(&region),
+			  REGION_NUM_RECTS(&region));
 	apply_damage(&tmp, &region);
 	tmp.done(sna, &tmp);
 
