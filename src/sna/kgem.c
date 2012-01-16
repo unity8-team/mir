@@ -1224,7 +1224,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 
 	list_for_each_entry_safe(bo, next, &kgem->partial, base.list) {
 		if (!bo->write) {
-			assert(bo->base.exec);
+			assert(bo->base.exec || bo->base.refcnt > 1);
 			goto decouple;
 		}
 
