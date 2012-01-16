@@ -1699,7 +1699,8 @@ gen6_render_composite_blt(struct sna *sna,
 			  const struct sna_composite_op *op,
 			  const struct sna_composite_rectangles *r)
 {
-	if (!gen6_get_rectangles(sna, op, 1)) {
+	if (unlikely(!gen6_get_rectangles(sna, op, 1))) {
+		_kgem_submit(&sna->kgem);
 		gen6_emit_composite_state(sna, op);
 		gen6_get_rectangles(sna, op, 1);
 	}
@@ -1714,7 +1715,8 @@ gen6_render_composite_box(struct sna *sna,
 {
 	struct sna_composite_rectangles r;
 
-	if (!gen6_get_rectangles(sna, op, 1)) {
+	if (unlikely(!gen6_get_rectangles(sna, op, 1))) {
+		_kgem_submit(&sna->kgem);
 		gen6_emit_composite_state(sna, op);
 		gen6_get_rectangles(sna, op, 1);
 	}
@@ -1741,9 +1743,11 @@ gen6_render_composite_boxes(struct sna *sna,
 
 	do {
 		int nbox_this_time = gen6_get_rectangles(sna, op, nbox);
-		if (nbox_this_time == 0) {
+		if (unlikely(nbox_this_time == 0)) {
+			_kgem_submit(&sna->kgem);
 			gen6_emit_composite_state(sna, op);
 			nbox_this_time = gen6_get_rectangles(sna, op, nbox);
+			assert(nbox_this_time);
 		}
 		nbox -= nbox_this_time;
 		do {
@@ -1992,7 +1996,8 @@ gen6_render_video(struct sna *sna,
 		r.y1 = box->y1 + pix_yoff;
 		r.y2 = box->y2 + pix_yoff;
 
-		if (!gen6_get_rectangles(sna, &tmp, 1)) {
+		if (unlikely(!gen6_get_rectangles(sna, &tmp, 1))) {
+			_kgem_submit(&sna->kgem);
 			gen6_emit_video_state(sna, &tmp, frame);
 			gen6_get_rectangles(sna, &tmp, 1);
 		}
@@ -2825,7 +2830,8 @@ gen6_render_composite_spans_box(struct sna *sna,
 	     box->x2 - box->x1,
 	     box->y2 - box->y1));
 
-	if (gen6_get_rectangles(sna, &op->base, 1) == 0) {
+	if (unlikely(gen6_get_rectangles(sna, &op->base, 1) == 0)) {
+		_kgem_submit(&sna->kgem);
 		gen6_emit_composite_state(sna, &op->base);
 		gen6_get_rectangles(sna, &op->base, 1);
 	}
@@ -2849,9 +2855,11 @@ gen6_render_composite_spans_boxes(struct sna *sna,
 		int nbox_this_time;
 
 		nbox_this_time = gen6_get_rectangles(sna, &op->base, nbox);
-		if (nbox_this_time == 0) {
+		if (unlikely(nbox_this_time == 0)) {
+			_kgem_submit(&sna->kgem);
 			gen6_emit_composite_state(sna, &op->base);
 			nbox_this_time = gen6_get_rectangles(sna, &op->base, nbox);
+			assert(nbox_this_time);
 		}
 		nbox -= nbox_this_time;
 
@@ -3161,7 +3169,8 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	do {
 		float *v;
 		int n_this_time = gen6_get_rectangles(sna, &tmp, n);
-		if (n_this_time == 0) {
+		if (unlikely(n_this_time == 0)) {
+			_kgem_submit(&sna->kgem);
 			gen6_emit_copy_state(sna, &tmp);
 			n_this_time = gen6_get_rectangles(sna, &tmp, n);
 		}
@@ -3201,7 +3210,8 @@ gen6_render_copy_blt(struct sna *sna,
 		     int16_t w,  int16_t h,
 		     int16_t dx, int16_t dy)
 {
-	if (!gen6_get_rectangles(sna, &op->base, 1)) {
+	if (unlikely(!gen6_get_rectangles(sna, &op->base, 1))) {
+		_kgem_submit(&sna->kgem);
 		gen6_emit_copy_state(sna, &op->base);
 		gen6_get_rectangles(sna, &op->base, 1);
 	}
@@ -3453,7 +3463,8 @@ gen6_render_fill_boxes(struct sna *sna,
 
 	do {
 		int n_this_time = gen6_get_rectangles(sna, &tmp, n);
-		if (n_this_time == 0) {
+		if (unlikely(n_this_time == 0)) {
+			_kgem_submit(&sna->kgem);
 			gen6_emit_fill_state(sna, &tmp);
 			n_this_time = gen6_get_rectangles(sna, &tmp, n);
 		}
@@ -3489,7 +3500,8 @@ gen6_render_op_fill_blt(struct sna *sna,
 {
 	DBG(("%s: (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w, h));
 
-	if (!gen6_get_rectangles(sna, &op->base, 1)) {
+	if (unlikely(!gen6_get_rectangles(sna, &op->base, 1))) {
+		_kgem_submit(&sna->kgem);
 		gen6_emit_fill_state(sna, &op->base);
 		gen6_get_rectangles(sna, &op->base, 1);
 	}
@@ -3515,7 +3527,8 @@ gen6_render_op_fill_box(struct sna *sna,
 	DBG(("%s: (%d, %d),(%d, %d)\n", __FUNCTION__,
 	     box->x1, box->y1, box->x2, box->y2));
 
-	if (!gen6_get_rectangles(sna, &op->base, 1)) {
+	if (unlikely(!gen6_get_rectangles(sna, &op->base, 1))) {
+		_kgem_submit(&sna->kgem);
 		gen6_emit_fill_state(sna, &op->base);
 		gen6_get_rectangles(sna, &op->base, 1);
 	}
@@ -3544,7 +3557,8 @@ gen6_render_op_fill_boxes(struct sna *sna,
 
 	do {
 		int nbox_this_time = gen6_get_rectangles(sna, &op->base, nbox);
-		if (nbox_this_time == 0) {
+		if (unlikely(nbox_this_time == 0)) {
+			_kgem_submit(&sna->kgem);
 			gen6_emit_fill_state(sna, &op->base);
 			nbox_this_time = gen6_get_rectangles(sna, &op->base, nbox);
 		}
@@ -3735,7 +3749,8 @@ gen6_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	gen6_emit_fill_state(sna, &tmp);
 	gen6_align_vertex(sna, &tmp);
 
-	if (!gen6_get_rectangles(sna, &tmp, 1)) {
+	if (unlikely(!gen6_get_rectangles(sna, &tmp, 1))) {
+		_kgem_submit(&sna->kgem);
 		gen6_emit_fill_state(sna, &tmp);
 		gen6_get_rectangles(sna, &tmp, 1);
 	}
@@ -3831,7 +3846,8 @@ gen6_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 	gen6_emit_fill_state(sna, &tmp);
 	gen6_align_vertex(sna, &tmp);
 
-	if (!gen6_get_rectangles(sna, &tmp, 1)) {
+	if (unlikely(!gen6_get_rectangles(sna, &tmp, 1))) {
+		_kgem_submit(&sna->kgem);
 		gen6_emit_fill_state(sna, &tmp);
 		gen6_get_rectangles(sna, &tmp, 1);
 	}
