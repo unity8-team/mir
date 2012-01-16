@@ -472,7 +472,7 @@ sna_video_copy_data(struct sna *sna,
 	}
 
 	/* copy data */
-	dst = kgem_bo_map(&sna->kgem, frame->bo, PROT_READ | PROT_WRITE);
+	dst = kgem_bo_map(&sna->kgem, frame->bo);
 	if (dst == NULL)
 		return FALSE;
 

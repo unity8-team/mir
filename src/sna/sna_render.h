@@ -50,6 +50,7 @@ struct sna_composite_op {
 		uint32_t repeat;
 		uint32_t is_affine : 1;
 		uint32_t is_solid : 1;
+		uint32_t is_linear : 1;
 		uint32_t is_opaque : 1;
 		uint32_t alpha_fixup : 1;
 		uint32_t rb_reversed : 1;
@@ -59,6 +60,9 @@ struct sna_composite_op {
 		union {
 			struct {
 				uint32_t pixel;
+				float linear_dx;
+				float linear_dy;
+				float linear_offset;
 			} gen2;
 			struct gen3_shader_channel {
 				int type;
@@ -219,6 +223,7 @@ struct sna_render {
 			 uint32_t color,
 			 int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 			 uint8_t alu);
+	Bool (*clear)(struct sna *sna, PixmapPtr dst, struct kgem_bo *dst_bo);
 
 	Bool (*copy_boxes)(struct sna *sna, uint8_t alu,
 			   PixmapPtr src, struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
@@ -266,16 +271,19 @@ struct sna_render {
 	uint16_t vertex_start;
 	uint16_t vertex_index;
 	uint16_t vertex_used;
+	uint16_t vertex_size;
 	uint16_t vertex_reloc[8];
 
-	float vertex_data[16*1024];
-	const struct sna_composite_op *op;
+	struct kgem_bo *vbo;
+	float *vertices;
+
+	float vertex_data[1024];
 };
 
 struct gen2_render_state {
 	uint32_t target;
 	Bool need_invariant;
-	Bool logic_op_enabled;
+	uint32_t logic_op_enabled;
 	uint32_t ls1, ls2, vft;
 	uint32_t diffuse;
 	uint32_t specular;
@@ -383,6 +391,7 @@ struct gen6_render_state {
 	uint32_t blend;
 	uint32_t samplers;
 	uint32_t kernel;
+	uint32_t target;
 
 	uint16_t num_sf_outputs;
 	uint16_t vb_id;
@@ -489,6 +498,12 @@ Bool sna_tiling_composite(uint32_t op,
 			  int16_t dst_x, int16_t dst_y,
 			  int16_t width, int16_t height,
 			  struct sna_composite_op *tmp);
+Bool sna_tiling_fill_boxes(struct sna *sna,
+			   CARD8 op,
+			   PictFormat format,
+			   const xRenderColor *color,
+			   PixmapPtr dst, struct kgem_bo *dst_bo,
+			   const BoxRec *box, int n);
 
 Bool sna_blt_composite(struct sna *sna,
 		       uint32_t op,

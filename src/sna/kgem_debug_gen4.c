@@ -84,13 +84,11 @@ static void gen4_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 			if (bo->handle == reloc)
 				break;
 		assert(&bo->request != &kgem->next_request->buffers);
-		base = kgem_bo_map(kgem, bo, PROT_READ);
+		base = kgem_bo_map__debug(kgem, bo);
 	}
 	ptr = (char *)base + kgem->reloc[i].delta;
 
 	i = data[0] >> 27;
-	if (state.vb[i].current)
-		kgem_bo_unmap(kgem, state.vb[i].current);
 
 	state.vb[i].current = bo;
 	state.vb[i].base = base;
@@ -407,20 +405,13 @@ get_reloc(struct kgem *kgem,
 				if (bo->handle == handle)
 					break;
 			assert(&bo->request != &kgem->next_request->buffers);
-			base = kgem_bo_map(kgem, bo, PROT_READ);
+			base = kgem_bo_map__debug(kgem, bo);
 			r->bo = bo;
 			r->base = base;
 		}
 	}
 
 	return (char *)base + delta;
-}
-
-static void
-put_reloc(struct kgem *kgem, struct reloc *r)
-{
-	if (r->bo != NULL)
-		kgem_bo_unmap(kgem, r->bo);
 }
 #endif
 
@@ -691,21 +682,7 @@ int kgem_gen4_decode_3d(struct kgem *kgem, uint32_t offset)
 	return len;
 }
 
-static void finish_vertex_buffers(struct kgem *kgem)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(state.vb); i++)
-		if (state.vb[i].current)
-			kgem_bo_unmap(kgem, state.vb[i].current);
-}
-
 void kgem_gen4_finish_state(struct kgem *kgem)
 {
-	finish_vertex_buffers(kgem);
-
-	if (state.dynamic_state.current)
-		kgem_bo_unmap(kgem, state.dynamic_state.base);
-
 	memset(&state, 0, sizeof(state));
 }

@@ -1,3 +1,1490 @@
+commit 5df7147b0934dadc63459c2c0f33e0663692425a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 15 10:28:00 2012 +0000
+
+    sna: Restore the kgem_create_map() symbol
+    
+    As the stub is exported to the driver even in the absence of vmapping.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit be53740c6f0bb182e3d88f0597f127732c839316
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 15 10:16:13 2012 +0000
+
+    sna: Various DBG typos
+    
+    Fix some mispellings inside the DBG messages
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 349e9a7b94199e759acaaccac3abf5e28f3c246f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 15 10:04:11 2012 +0000
+
+    sna: Prefer read-boxes inplace again
+    
+    Using the gpu to do the detiling just incurs extra latency and an extra
+    copy, so go back to using a fence and GTT mapping for the common path.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 09dc8b1b358aa33836d511b75f92e8d096bc7e59
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 23:21:29 2012 +0000
+
+    sna/gen7: Check reused source for validity
+    
+    Be sure the mask picture has a valid format even though it points to the
+    same pixels as the valid source. And also be wary if the source was
+    converted to a solid, but the mask is not.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d9871f01d8c4584c1f39eb09b51d5461863934e9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 23:21:29 2012 +0000
+
+    sna/gen6: Check reused source for validity
+    
+    Be sure the mask picture has a valid format even though it points to the
+    same pixels as the valid source. And also be wary if the source was
+    converted to a solid, but the mask is not.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1d6030322e2c3bae87a0173a32fb8d341dea560c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 23:21:29 2012 +0000
+
+    sna/gen5: Check reused source for validity
+    
+    Be sure the mask picture has a valid format even though it points to the
+    same pixels as the valid source. And also be wary if the source was
+    converted to a solid, but the mask is not.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0e4a24ef6c186909c99a501cb606994b5c10a813
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 23:21:29 2012 +0000
+
+    sna/gen4: Check reused source for validity
+    
+    Be sure the mask picture has a valid format even though it points to the
+    same pixels as the valid source. And also be wary if the source was
+    converted to a solid, but the mask is not.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ea299f2523d5adeca84274bb7003cde8ec743a44
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 23:21:29 2012 +0000
+
+    sna/gen3: Check reused source for validity
+    
+    Be sure the mask picture has a valid format even though it points to the
+    same pixels as the valid source. And also be wary if the source was
+    converted to a solid, but the mask is not.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 007da2f97894814eaded4d24e0481f950ca7bd00
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 23:21:29 2012 +0000
+
+    sna/gen2: Check reused source for validity
+    
+    Be sure the mask picture has a valid format even though it points to the
+    same pixels as the valid source. And also be wary if the source was
+    converted to a solid, but the mask is not.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1d55b42fbd77e85ab8930b78bb5a9e3bccbca49e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 23:44:23 2012 +0000
+
+    sna: Fix read back of partial mmapped buffers
+    
+    Do not move a GTT mapped buffer into the CPU domain, it causes untold
+    pain for no benefit!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 046e945173397e5fee36a231303b68a6bc9d809d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 23:25:52 2012 +0000
+
+    sna: Discard read buffers after use
+    
+    Rather than pollute the cache with bo that are known not to be in the
+    GTT and are no longer useful, drop the bo after we read from it.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 421ee0bb53321e9fb2f17c850c51b80cc385bf57
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 15 00:46:47 2012 +0000
+
+    sna: Do not assume that the mappable aperture size is a power of two
+    
+    And instead derive a power-of-two alignment value for partial buffer
+    sizes from the mappable aperture size and use that during
+    kgem_create_buffer()
+    
+    Reported-by: Clemens Eisserer <linuxhippy@gmail.com>
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=44682
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5d5da35c9fab4e7154921861ecbb83befb8840e5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 18:28:24 2012 +0000
+
+    sna/gen[23]: Check for room in the batch before emitting pipeline flushes
+    
+    Use a single idiom and reuse the check built into the state emission,
+    for both spans/boxes paths.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f7e4799687d5010ea0b56aeb6fbbb2e854b1b363
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 16:53:38 2012 +0000
+
+    sna/gen6: Allow greater use of BLT
+    
+    Typically we will be bound to the RENDER ring as once engaged we try not
+    to switch. However, with semaphores enabled we may switch more freely
+    and there it is advantageous to use as much of the faster BLT as is
+    feasible.
+    
+    The most contentious point here is the choice of whether to use BLT for
+    copies by default. microbenchmarks (compwinwin) benefit from the
+    coallescing performed in the render batch, but the more complex traces
+    seem to prefer utilizing the blitter. The debate will continue...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c1ce34d4509a3f3e963d82ac0569a21706892f8e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 15:08:18 2012 +0000
+
+    sna/gen6: Tidy markup for when using the BLT is truly preferrable
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b64751dbdb1b88b91ad97aaf995b4261876cf860
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 13:50:50 2012 +0000
+
+    sna: Be more lenient wrt switching rings if the kernel supports semaphores
+    
+    If the kernel uses GPU semaphores for its coherency mechanism between
+    rings rather than CPU waits, allow the ring to be chosen on the basis
+    of the subsequent operation following a submission of batch. (However,
+    since batches are likely to be submitted in the middle of a draw, then
+    the likelihood is for ddx to remain on one ring until forced to switch
+    for an operation or idle, which is the same situation as before and so
+    the difference is miniscule.)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 295a22d2709b2442b5254968437f897dac22a0ec
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 14:12:25 2012 +0000
+
+    sna: Ensure that the batch mode is always declared before emitting dwords
+    
+    Initially, the batch->mode was only set upon an actual mode switch,
+    batch submission would not reset the mode. However, to facilitate fast
+    ring switching with semaphores, reseting the mode upon batch submission
+    is desired which means that if we submit the batch in the middle of an
+    operation we must redeclare its mode before continuing.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0d2a50772200d868d094f90dc1d30c1b4d7930ba
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 11:03:55 2012 +0000
+
+    sna/glyphs: Cache the glyph image on the fallback path as well
+    
+    The glyph cache grew to accommodate the fallback pixman image for mask
+    generation, and is equally applicable along the full fallback path.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f3e0ba4f65db2b85f89aa3868d153434bc41c811
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 10:17:27 2012 +0000
+
+    sna/gen5: Disable render glyphs_to_dst
+    
+    Processing more than a single rectangle using the CA path on ILK is
+    extremely hit-or-miss, often resulting in the absence of the second
+    primitive (ie. the glyphs are cleared but not added.) This is
+    reminiscent of the complete breakage of the BRW shaders, none of which
+    can handle more than a single rectangle.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fb92818ba4dc81ce62d58a87b5af6cb1e3a96708
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 01:48:11 2012 +0000
+
+    sna: Pass render operation to flush and avoid the implicit flush-on-batch-end
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a62429a1f79b8fa4a5ddaf61b2bc80fc8dbe576c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 19:00:01 2012 +0000
+
+    sna: Upload continuation vertices into mmapped buffers
+    
+    In the common case, we expect a very small number of vertices which will
+    fit into the batch along with the commands. However, in full flow we
+    overflow the on-stack buffer and likely several continuation buffers.
+    Streaming those straight into the GTT seems like a good idea, with the
+    usual caveats over aperture pressure. (Since these are linear we could
+    use snoopable bo for the architectures that support such for vertex
+    buffers and if we had kernel support.)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 24df8ab9742f771cfeb6d30bd8a61a17a9e22ca7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 16:15:21 2012 +0000
+
+    sna: Reverse the chronological sort order of inactive vma entries
+    
+    The goal is to reuse the most recently bound GTT mapping in the hope
+    that is still mappable at the time of reuse.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2f26bbe3dd55bfe26b6f93fc1f9e9813fc11f7c4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 15:59:51 2012 +0000
+
+    sna: Remove the short-circuiting of all-damage in move_to_cpu
+    
+    To allow a replacement of the complete pixmap to be performed in place.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c81dba18e6a308d716a11b90da6e53ca7f5f8a02
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 14:21:13 2012 +0000
+
+    sna: Hint whether we prefer to use the GPU for a pixmap
+    
+    This includes the condition where the pixmap is too large, as well as
+    being too small, to be allocatable on the GPU. It is only a hint set
+    during creation, and may be overridden if required.
+    
+    This fixes the regression in ocitysmap which decided to render glyphs
+    into a GPU mask for a destination that does not fit into the aperture.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2bd942d55314426d7f429d7ccc0b62a622a79009
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 14:08:34 2012 +0000
+
+    sna/trapezoids: Quieten the debugging of the gory details of the rasteriser
+    
+    Hide the noise under another level of debugging so that hopefully the
+    reason why it chose a particular path become clear.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5dbcfc2ee3af64846298dbcb20db27c93b3d57f2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 13:52:10 2012 +0000
+
+    sna: Be more lenient in not forcing to the GPU if the sources have CPU damage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 20ff4a1d73cc10e1f53050b19b8799ccbb5c7d04
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 13:30:13 2012 +0000
+
+    sna: Use top_srcdir to detect .git rather than top_builddir
+    
+    For srcdir != builddir builds, we need to be searching the source tree
+    for the git id.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a4d5d725996b94e314ae7697c7a597ed2f60e8cd
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 10:41:44 2012 +0000
+
+    sna: Experiment with GTT mmapped upload buffers
+    
+    In a few places, we can stream the source into the GTT and so upload in
+    place through the WC mapping. Notably, in many other places we want to
+    rasterise on a partial in cacheable memory. So we need to notify the
+    backend of the intended usage for the buffer and when we think it is
+    appropriate we can allocate a GTT mapped pointer for zero-copy upload.
+    
+    The biggest improvement tends to be in the PutComposite style of
+    microbenchmark, yet throughput for trapezoid masks seems to suffer (e.g.
+    swfdec-giant-steps on i3 and gen2 in general). As expected, the culprit
+    of the regression is the aperture pressure causing eviction stalls, which
+    the pwrite paths sidesteps by doing a cached copy when there is no GTT
+    space. This could be alleviated with an is-mappable ioctl predicting when
+    use of the buffer would block and so falling back in those cases to
+    pwrite. However, I suspect that this will improve dispatch latency in
+    the common idle case for which I have no good metric.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 252f3818250ecf4776f20afa8111d7f1f6f29c18
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 11:30:32 2012 +0000
+
+    sna: Relinquish the GTT mmap on inactive buffers if moved out of the aperture
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9c73dd91e90810116c215060bac434c5e8174f5f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 14 17:00:01 2012 +0000
+
+    Include <xorgVersion.h> to repair build
+    
+    intel_module.c:41:48: error: missing binary operator before token "("
+
+commit b213f6e876f29cbcaccffeeb733726be4c91529e
+Author: Stefan Dirsch <sndirsch@suse.de>
+Date:   Sat Jan 14 05:43:33 2012 +0100
+
+    Make driver backwards compatible for server 1.6.x.
+    
+    Signed-off-by: Stefan Dirsch <sndirsch@suse.de>
+
+commit 94217a4dd908f1368dfdef90797ce74a081663fb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 10:03:28 2012 +0000
+
+    sna: Decouple dirty pixmaps from list if we fail to upload them
+    
+    Rather than iterate endlessly trying to upload the same pixmap when
+    failing to flush dirty CPU damage, try again on the next flush.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 65ef369c733ab45945a7d5fe4b76fe5c7167b51b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 13 09:58:40 2012 +0000
+
+    sna: Decouple from CPU dirty list after removing all CPU damage
+    
+    In the paths where we discard CPU damage, we also need to remove it
+    from the dirty list so that we do not iterate over it during flush.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0845fcef9e664eb100b55ad1cc20743844deee58
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 23:45:03 2012 +0000
+
+    sna: Correct iteration counter for stippled blits
+    
+    ==7215== Invalid read of size 2
+    ==7215==    at 0x51A72F3: sna_poly_fill_rect_stippled_8x8_blt
+    (sna_accel.c:7340)
+    ==7215==    by 0x51A9CDF: sna_poly_fill_rect_stippled_blt
+    (sna_accel.c:8163)
+    ==7215==    by 0x51A3878: sna_poly_segment (sna_accel.c:6090)
+    ==7215==    by 0x216C02: damagePolySegment (damage.c:1096)
+    ==7215==    by 0x13F6E8: ProcPolySegment (dispatch.c:1771)
+    ==7215==    by 0x1436B4: Dispatch (dispatch.c:437)
+    ==7215==    by 0x131279: main (main.c:287)
+    ==7215==  Address 0x6f851e8 is 0 bytes after a block of size 32 alloc'd
+    ==7215==    at 0x4825DEC: malloc (vg_replace_malloc.c:261)
+    ==7215==    by 0x51A3558: sna_poly_segment (sna_accel.c:6049)
+    ==7215==    by 0x216C02: damagePolySegment (damage.c:1096)
+    ==7215==    by 0x13F6E8: ProcPolySegment (dispatch.c:1771)
+    ==7215==    by 0x1436B4: Dispatch (dispatch.c:437)
+    ==7215==    by 0x131279: main (main.c:287)
+    
+    An example being the stippled outline in gimp, the yellow marching ants,
+    would randomly walk over the entire image.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5c2c6474efd4dbc5a0fc9c68ef4e5b5e5cfee415
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 23:11:05 2012 +0000
+
+    sna/dri: Hook up a compile option to switch colour buffers to Y-tiling
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 59b79e5952fdc40f8c50f74a72a19363cb426140
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 21:05:39 2012 +0000
+
+    sna: Reorder composite-done to destroy mask bo before source bo
+    
+    Just in the unlikely event that we hit the delete-partial-upload path
+    which prefers destroying the last bo first.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 983b755313df8a0d256c59c32ec4106e35f237aa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 21:05:16 2012 +0000
+
+    sna/damage: Fix union of extents with dirty damage but no region
+    
+    By failing to account for certain paths which would create a damage elt
+    without fully initialisating the damage region (only the damage extents),
+    we would later overwrite the damage extents with only the extents for
+    this operation (rather than the union of this operation with the current
+    damage). This fixes a regression from 098592ca5d,
+    (sna: Remove the independent tracking of elts from boxes).
+    
+    Include the associated damage migration debugging code of the callers.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8d2f1eefe142b65db7d8821ba0f80fdb0902b2d5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 21:08:41 2012 +0000
+
+    sna: Pass a hint that we may like to perform the fallback in place
+    
+    If we do not read back from the destination, we may prefer to utilize a
+    GTT mapping and perform the fallback inplace. For the rare event that we
+    wish to fallback and do not already have a shadow...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 48ab72754d0069a3247c5fee8c353a6b593eaed9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 21:07:15 2012 +0000
+
+    sna: Use the GPU bo if it is all damaged
+    
+    By marking the scratch upload pixmap as damaged in both domains, we
+    confused the texture upload path and made it upload the pixmap a second
+    time. If either bo is all-damaged, use it!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 20a4d7181983c7fed289844be49ccaf3f56965c6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 21:05:51 2012 +0000
+
+    sna: Dump batch contents for debugging before modification
+    
+    We need to dump the batch contents before the maps are made by the
+    construction of the batch itself.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7932a2a259069bb7d19af8566f7b7704f6c2eade
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 14:06:22 2012 +0000
+
+    sna: Update for removal of backwards compatible miWideDash
+    
+    miWideDash() no longer calls miZeroLineDash() when called with
+    gc->lineWidth==0, we need to do so ourselves.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b7cefddd467bfd0c100219969712a0133475004c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 13:17:43 2012 +0000
+
+    sna: Re-enable min-alignment workaround on pre-SNB hw
+    
+    Confirmed as still being required for both gen3 and gen4. One day I will
+    get single-stream mode working, just not today apparently.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 978e1aeceab3c1a524f7d7a070fe04f37530c8d9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 11:38:56 2012 +0000
+
+    sna: Only shrink a partial buffer if it is no longer used.
+    
+    The condition on being able to shrink a buffer is more severe than just
+    whether we are reading from the buffer, but also we cannot swap the
+    handles if the existing handle remains exposed via a proxy.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d3169154d18600e0d41db5f833fad52970e17b55
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 11:36:05 2012 +0000
+
+    sna: Improve a DBG message
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2a22990968aebd53a7bfeaf19e58ee609b980e5f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 11:22:06 2012 +0000
+
+    sna: Prevent 60Hz wakeups if the client stops in mid-render
+    
+    Only continue to wake up if the scanout remains active.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1c0e9916caef6594511009c8cb79071ac0d82090
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 11:12:56 2012 +0000
+
+    sna: Align the partial buffer contents to cachelines
+    
+    To enable Daniel's faster pwrite paths. Only one step removed from using
+    whole page alignment...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1e4080318f58fd51f37792eefd367e2e4c813ea3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 10:47:19 2012 +0000
+
+    sna: Replace the open-coded bubble sort of the partial list
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7290ced5791f9860b00901fa9a4545ab5a067fae
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 02:59:43 2012 +0000
+
+    sna/video: Fix for changes in damage api
+    
+    We can avoid both calls to modify the damage with one simple check.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 87e6dcb3b06c274ecba5de56d4e86fec73e46dbb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 02:09:22 2012 +0000
+
+    sna: Don't call RegionIntersect for the trivial PutImage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 1bd6665093574372248a0743e5630e68aac653ed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 01:37:08 2012 +0000
+
+    sna: Disable the min alignment workaround
+    
+    Allow all generations to use the minimum alignment of 4 bytes again as
+    it appears to be working for me... Or at least what remains broken seems
+    to be irrespective of this alignment.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 112b8959261712aaa82f92af0aca4b97fa7c7f03
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 01:38:18 2012 +0000
+
+    sna: Prevent shrinking a partial buffer stolen for a read
+    
+    If we reuse a partial buffer for a read, we cannot shrink it during
+    upload to the device as we do not track how many bytes we actually need
+    for the read operation.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b09ae4c20313fea7af11f77cd673039635d4dcc7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 12 00:58:08 2012 +0000
+
+    sna: Don't drop expired partial bo immediately, wait until dispatch
+    
+    As the partial bo may be coupled into the execlist, we may as well hang
+    onto the memory to service the next partial buffer request until it
+    expires in the next dispatch.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a3c42565a8f557b2e7f7ff7bfa45b13b606f2968
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 16:39:45 2012 +0000
+
+    sna: Store damage-all in the low bit of the damage pointer
+    
+    Avoid the function call overhead by inspecting the low bit to see if it
+    is all-damaged already.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c64a9d0683e047a7eb041df78db746f6dd387b5e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 19:51:42 2012 +0000
+
+    sna: Choose a stride for the indirect replacement
+    
+    Don't blithely assume that the incoming bytes are appropriately aligned
+    for the destination buffer. Indeed we may be replacing the destination
+    bo with the shadow bytes out of another,larger, pixmap, in which case we
+    do need to create a stride that is appropriate for the upload an
+    perform the 2D copy.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b82851e74d5010ee08938ee42fa44c29fed633b1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 15:42:00 2012 +0000
+
+    sna: Mark upload pixmaps as being wholly GPU damaged
+    
+    So that subsequent code resists performing CPU operations with them
+    (after they have been populated.)
+    
+    Marking both sides as wholly damaged breaks the rules, but should work
+    out so long as we check whether we can perform the operation within the
+    target damage first.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2a5ab05f1690484c230e8f876a3f7aefb371af71
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 15:24:28 2012 +0000
+
+    sna: Use a minimum alignment of 64
+    
+    We should be able to reduce this by disabling dual-stream mode of the
+    GPU (which we want to achieve any way for 2D performance). Artefacts
+    in small uploads demonstrate that we fail to do.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=44150
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e94807759eb6cfb10bd2d372fa71cc64a730bc7c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 12:13:18 2012 +0000
+
+    sna/gen6: Special case spans with no transform
+    
+    As the no transform is a special case of affine, we were attempting to
+    deference the NULL transform in order to determine if it was a simple
+    no-rotation matrix. As the operation is extremely simple, add a special
+    case vertex program to speed it up.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0a5313900ec9a7c499eb5051f3a5f078a9b0bbde
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 12:09:13 2012 +0000
+
+    sna: Explicitly retire the bo following a serialisation point
+    
+    This is to keep the sanity checks in order, but conceptually should be
+    useful as well.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2add5991a7d186d8271cb79ae4f62dad7b4ca243
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 11:33:19 2012 +0000
+
+    sna: Mark the bo as no longer in the GPU domain after clearing needs_flush
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fec70985719eec75b7fa799bddc3115fb329ab86
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 10:57:57 2012 +0000
+
+    sna: Add assertions to track requests
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a93c93be76f6d5d2b481971349aabd15f282c3e8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Wed Jan 11 00:05:20 2012 +0000
+
+    sna/gen6: Add a vertex program for a simple (affine, no rotation) spans
+    
+    I long for the day when this code is obsolete... Until then, this gives
+    a nice boost in the fishtank.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3cf5da1090ac777044912ec24619d349d1f6b521
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 23:32:29 2012 +0000
+
+    sna: Amalgamate small replacements into upload buffers
+    
+    Similar for the standard io paths, try to reuse an upload buffer for a
+    small replacement pixmap.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f0e3f6b5bebf7471d3e3e84bd9b2d8469eb64093
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 22:12:41 2012 +0000
+
+    sna: Check needs-flush status immediately upon destroy
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b4ae6dbaedd774f250b610b1e7323897c4abe23a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 21:25:28 2012 +0000
+
+    sna: Align the small upload buffers to 2 texels, and the pitch to dwords
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=44150
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 46f6c6917effbc43305367581cc1bbaa962c0251
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 20:34:09 2012 +0000
+
+    sna: A partial read buffer is allowed to be in the GPU domain
+    
+    As we can create the read buffer from an active cached bo, it may
+    already be in the GPU domain by the time we first finish it, so fix the
+    broken assertion.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3c26055639f789b211f7db982e65ec0b86b23d4a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 20:06:51 2012 +0000
+
+    sna: Shrink the partial upload buffers before compacting the batch
+    
+    So that the relocation entries point into the contiguous surface/batch
+    and can be trivially fixed up.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 7b077a4d3d549cde79d5b876289203788294493c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 18:40:53 2012 +0000
+
+    sna: Make the check for a single fill-rectangle clearer before modifying damage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ca2a07adc45273dc1abeb4b3ba7f88461aaf9c00
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 17:13:38 2012 +0000
+
+    sna: Release the stale GTT mapping after recreating the bo with new tiling
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8dd913fd3a093b54fc024fea2b31a3db2518db8d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 10:38:43 2012 +0000
+
+    sna: Add reminder about possible future tiling optimisations
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 21948578d0d87f38447ef1ae44fada406949bca8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 03:19:16 2012 +0000
+
+    sna: Disable the inline xRGB to ARGB upload conversion
+    
+    As we have to upload the dirty data anyway, setting the
+    alpha-channel to 0xff should be free. Not so for firefox-asteroids on
+    Atom at least.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 87f73b043426c47efa7670fb65bdcc7dfcf71fc3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 01:42:37 2012 +0000
+
+    sna/gen[23]: Tile render fill to oversized bo
+    
+    If we are forced to perform a render operation to a bo too large to fit
+    in the pipeline, copy to an intermediate and split the operation into
+    tiles rather than fallback.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2ccb31c5a4120efb940168c5e52154add01b0586
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 01:41:09 2012 +0000
+
+    sna: Shrink upoads buffers
+    
+    If we do not fill the whole upload buffer, we may be able to reuse a
+    smaller buffer that is currently bound in the GTT. Ideally, this will
+    keep our RSS trim.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 572cc76be5c78102166f2b3640640e21acdfa129
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 09:13:34 2012 +0000
+
+    sna: Destroy the counter damage after a reduction-to-all
+    
+    If, for instance, we reduce the GPU damage to all we know that there can
+    be no CPU damage even though it may still have a region with a list of
+    subtractions. Take advantage of this knowledge and cheaply discard that
+    damage without having to evaluate it.
+    
+    This should prevent a paranoid assertion that there is no cpu damage
+    when discarding the CPU bo for an active pixmap.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4a255e13164440b797e5ac11dcbf72f0827a3094
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 16:34:23 2012 +0000
+
+    sna: Replace the free-inactive-gpu-bo with the generic code
+    
+    The function was semantically equivalent to moving the pixmap to the CPU
+    for writing, so replace it with a call to the generic function.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c1d403266a611a68081690d19f6debb8e343095f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 00:41:05 2012 +0000
+
+    sna: Allow for xRGB uploads to replace their target bo
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 406776cd955c3c384d4a537300e21eebe4413666
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Tue Jan 10 00:25:14 2012 +0000
+
+    sna: Rearrange buffer allocation to prefer llc bo over vmaps
+    
+    If we can create snoopable bo, we prefer to use those as creating a vmap
+    forces a new bo creation increasing GTT pressure.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b76865fa3deff2f44a1158914a124b9c81d67eca
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 9 22:11:21 2012 +0000
+
+    sna/gen2: Try to avoid creating a bo for solid colours
+    
+    As we try to use the diffuse/specular and only resort to using a texture
+    operation for convenience in the rare case of a solid mask.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 981aae104a96b41db88cc381cc7592818f3e1298
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 9 22:02:40 2012 +0000
+
+    sna/gen2: Eliminate some switching between logic op and blend
+    
+    If the new mode can be done either using a logic op or with the blend
+    unit, prefer the currently enabled unit.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d65b7f9cf46a48e3bfb37c0b75df55aa1e7bff41
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 9 21:58:03 2012 +0000
+
+    sna/blt: Rearrange to reduce a out-of-bounds copy to a clear
+    
+    If we asked to use the BLT, try to avoid trigging a context switch for
+    a trivial case where we sample outside of a NONE source and so can
+    reduce the operation to a clear.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 09e54c553680cbc2f3b4319cdab0f3d1af1574a8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Mon Jan 9 14:04:41 2012 +0000
+
+    sna/gen2: Add poor-man's linear gradient support
+    
+    Convert the linear gradient to a texture ramp and compute the texture
+    coordinates in the standard manner.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6c70558ae7298db94724c931d88a730ef0151608
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 20:48:48 2012 +0000
+
+    sna: mark the cpu bo used for the upload buffer as in CPU domain
+    
+    For correctness we need to inform GEM of the change of domain for the
+    buffer so that it knows to invalidate any caches when it is next used by
+    the GPU.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9ec31af02922bb016d0dfba07bc60cdca35b36f8
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 15:52:17 2012 +0000
+
+    sna/io: Combine small uploads into single writes
+    
+    For a small update, try and amalgamate the upload buffer.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4db1bb3fd81b51e74b7f3e90078627d9d96fbefe
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 14:20:40 2012 +0000
+
+    Removed deprecated xf86PciInfo.h includes
+    
+    The driver should and does provide its own PCI-IDs.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 54232d1a5da51d0f68fe099436bb0a1a2e249954
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 15:22:58 2012 +0000
+
+    sna: Add ricer stripes to memcpy_xor
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c037b4f542a7b21cbaecedec259da3589db10039
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 08:58:41 2012 +0000
+
+    sna: Tune cache size for cpu bo cache
+    
+    This helps SNB on cairo-traces that utilize lots of temporary uploads
+    (rasterised sources and masks for instance), but comes at a cost of
+    regressing others...
+    
+    In order to counter the regression from increasing the GTT cache size,
+    the CPU/GTT vma cache are split and accounted separately.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 26042b2660d87044e1920a1267d9984c00c9566a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 11:45:11 2012 +0000
+
+    sna: Bubble sort the partial buffer list back into order after trimming padding
+    
+    After reducing the used size in the partial buffer, we need to resort
+    the list to maintain the list in decreasing amount of available space.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3f7ea44bf19a03ee81b683885c9c2416092254a3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 02:27:28 2012 +0000
+
+    sna/gen[67]: Hook into the clear operation for glyph masks
+    
+    Allow SandyBridge to specialise its clear routine to reduce the number
+    of ring switches. It may be interesting to specialise the clear routines
+    even further and use the special render clear commands...
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 803ac5c6b992cb5448c67b11345b87a5d2b9c60d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 01:38:09 2012 +0000
+
+    sna/trapezoids: Don't risk stalling for inplace SRC trapezoids
+    
+    Optimistically we would replace the GPU damage with the new set of
+    trapezoids. However, if any partial damage remains then the next
+    operation which is often to composite another layer of trapezoids (for
+    complex clipmasks) using IN will then stall.
+    
+    This fixes a regression in firefox-fishbowl (and lesser regressions
+    throughout the cairo-traces).
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 0229841c0d705138d6317a22ba80f4fa10d26acc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 01:46:24 2012 +0000
+
+    sna: Do not upload an untiled GPU bo if we already have a CPU bo
+    
+    Continuing the tuning for sna_copy_boxes.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 42eb9b7c4b55b620d9652ad3a54c8ab0a76fd7c2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 00:21:26 2012 +0000
+
+    sna: Trim usage of vmapping
+    
+    The first, and likely only, goal is to support SHMPixmap efficiently
+    (and without compromising SHMImage!) which we want to preserve as vmaps
+    and never create a GPU bo. For all other use cases, we will want to
+    create snoopable CPU bo ala the LLC buffers on SandyBridge.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e52f0204939924181480feec6d1511259169c8f1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sun Jan 8 00:20:11 2012 +0000
+
+    sna: Do not move-to-gpu for sna_copy_boxes if we have a cpu bo
+    
+    We trade-off the extra copy in the hope that as we haven't used the GPU
+    bo before then, we won't need it again.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c05e90aa99c093431a74a94ceba27d7dce49d05b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 7 18:23:43 2012 +0000
+
+    sna: Missing chunks from last commit
+    
+    And update the check for reusing the blit!
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 292aebfcdc042b08d3a5a21f839e6aec1175359e
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 7 18:09:47 2012 +0000
+
+    sna: Prevent reuse of scanlines after the buffer is destroyed
+    
+    Once the buffer is destroyed, it may be reallocated with a new pitch. We
+    could track handle and pitch, but it is easier to simply restart the
+    blit after the buffer is freed.
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=44277
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=44555
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d7d07d1df3ffc889ccc32c2ed44ce374e37f851d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Sat Jan 7 10:37:01 2012 +0000
+
+    sna: Pad upload buffers to ensure there are an even number of rows
+    
+    One restriction common to all generations is that samplers access pairs
+    of rows and so we need to pad the buffer to accommodate access to that
+    second row. Do so unconditionally along paths that may be used by the
+    render pipeline.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit e2ad0f6272c776939499c6202fb60bdcc2e955fa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 17:11:00 2012 +0000
+
+    sna/blt: Amalgamate many PolyFillRect of single boxes
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c085de905c30cb5bae6b339841badf1e105c6ee6
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 15:47:47 2012 +0000
+
+    sna: Also mark a bo created by force-to-gpu as being all-damaged
+    
+    Similar to the action taken into move-to-gpu so that we forgo the
+    overhead of damage tracking when the initial act of creation is on the
+    render paths.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 9f1935bb4e894264053d94e53c99d5ad607700fb
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 15:26:11 2012 +0000
+
+    sna: Support performing alpha-fixup on the source
+    
+    By inlining the swizzling of the alpha-channel we can support BLT copies
+    from an alpha-less pixmap to an alpha-destination.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 141001df6c9c3485c500ed531a214c09b46c1d3b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 13:35:27 2012 +0000
+
+    sna: always skip active search when requested for find an inactive bo
+    
+    References: https://bugs.freedesktop.org/show_bug.cgi?id=44504
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit eac0d9652b2399f8c36ba0288db6fe347ed78dc9
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 12:39:49 2012 +0000
+
+    sna: Optimise sna_poly_segment() for the frequent no-op case
+    
+    Strange as it may seem... But the principle of doing less work with
+    greater locality should help everywhere, just not as noticeable when
+    real work is performed.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a3699fff5ada85e4dea739aade25ebbb728e18f4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 12:15:46 2012 +0000
+
+    sna: Only force a pipeline flush for a change of destination, not sources
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2fefee6015ed2df52c8513ae180ca83c01ff83c0
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 12:10:27 2012 +0000
+
+    sna/gen6: Reuse current no-blending setup for PictOpClear
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 800ca0b4d1194544fe2461f91cbdc632c4d3dd7a
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 12:00:43 2012 +0000
+
+    sna/gen6: Tidy emission of CC state (blending)
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit b9c9e9970cdb542173e3ed0da2bef614abedd3f7
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 11:38:31 2012 +0000
+
+    sna/trapezoids: Add debug markers for move-to-cpu
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 2841c5fee79c42bca3e098ec620755d341b6888f
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 11:32:54 2012 +0000
+
+    sna: fast path move-to-cpu of an all-damaged CPU bo
+    
+    When the bo is already completely damaged on the CPU, all we need to do
+    is to sync with the CPU bo.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 07f1724ba5759772043fc4c5d1163ddd640004c2
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 11:00:38 2012 +0000
+
+    sna: Pass the real destination pixmap to sna_write_boxes()
+    
+    Faking it for the render upload simply isn't good enough, since we need
+    the correct drawrect.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5c2e9a98715eeddd8dfdff9fe3871bde659484cc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 02:26:39 2012 +0000
+
+    sna/trapezoids: Use a slightly faster miTrapezoidBounds()
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 75f61678249018c84872c61b4609ba9d3d0d73dc
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 01:38:42 2012 +0000
+
+    sna: Only need to remove the pixmap from the dirty CPU list when clearing damage
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 86cc2cd3343c16b12e35e2048c113481f49196cf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 01:31:15 2012 +0000
+
+    sna: The condition for automatically using the GPU source is no CPU damage
+    
+    With no CPU damage to upload, we know that there is no reason not to use
+    the GPU bo.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 69c556c310da544ddb66c2441f5d06dca29fb9f3
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Fri Jan 6 00:21:29 2012 +0000
+
+    sna: Rearrange use-cpu-bo to avoid reducing GPU damage
+    
+    If we spot that the region is wholly contained within the CPU damage
+    initially, we can conclude that is not in the GPU damage without
+    reduction.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 34c4dbe825a45315b05f0bd49539cbcf5de276f1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 23:18:37 2012 +0000
+
+    sna/gen6: Only force BLT if the src and dst overlaps for self-copy
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit fc79af7a4abf1f0ceccacf23e8467ee2872eec09
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 23:06:17 2012 +0000
+
+    sna: Only force a batch continuation if the scanout is written to
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit c16c16d2553aa9a8bf9b0b0b367715b59020a357
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 22:51:55 2012 +0000
+
+    sna/gen6: Enable reuse of source Picture
+    
+    Check if the source and mask are identical pictures and just copy the
+    source channel to the mask in that case.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f642b08870c6d7686368e053962075c153f76f86
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 22:26:09 2012 +0000
+
+    sna: Quickly handle the common case of using a CPU source pixmap
+    
+    For the common case (at least with llc bo) where we are immediately
+    using an uploaded image from its linear buffer, check upfront before
+    computing the sampled region for transfer to the GPU.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 8a9baa59e9d0c0761b82f23734514f6847a9bcc1
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 22:16:31 2012 +0000
+
+    sna: Quickly handle the common case of using a GPU source pixmap
+    
+    For the common case of glyphs, the pixmap is entirely on the GPU which
+    can be quickly tested before performing the more complex transformations
+    to determine how much pixel data we need to upload.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit d4dad6e3723d70d78247f29f86079862af175266
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 21:39:24 2012 +0000
+
+    sna: Check that the GTT is no longer mapped before ensuring the shadow pointer
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 352f0a3ffb8ae8503bb2fab779ea84f4e6d76317
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 21:33:26 2012 +0000
+
+    sna: Only mark the pixmap as GTT mapped if the private owns the pixels
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 3061382f98c0b284c250c1a36f7a4fee22046664
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 21:05:52 2012 +0000
+
+    sna: Make sure that we do not attach to SHM pixmaps in ignorance
+    
+    Without xserver support for notification of when scratch pixmaps are
+    reused, we simply cannot attach our privates to them lest we cause
+    corruption with SHM pixmaps.
+    
+    This is a recent regression back unto an old, old xserver issue.
+    
+    Reported-by: Paul Neumann <paul104x@yahoo.de>
+    Bugzilla: https://bugs.freedesktop.org/show_bug.cgi?id=44503
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f7431726338e72d7a989e838f48aecdab15ab366
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 20:26:30 2012 +0000
+
+    sna: Add more debugging to use-gpu-bo
+    
+    To aide debugging in conjunction with compositors and their crazy
+    offsets.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 53c943b551b86402067ea96cd9fcca2848e84387
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 18:41:26 2012 +0000
+
+    sna: Check for usable pixmap before deference its private
+    
+    Beware the NULL pointer and early deference.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 307276d7da99ceb84c175e412452e5d86d615cf4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 14:26:05 2012 +0000
+
+    sna: Enable using the render pipeline for uploads to Y-tiled pixmaps
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f9451aaa39e1d77b08d2201f5c4a44ab834f2237
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 14:22:21 2012 +0000
+
+    sna: Mark the upload as having acquired the GTT mapping
+    
+    In order for the entire PutImage to be performed inplace, we need to
+    maintain the tendency to keep doing inplace operations. This hint is
+    provided by tracking whether or not the last operation used the GTT
+    mapping. However, that hint was not being provided by zpixmap_blt.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit ce93c00a33a395986ffc0d33aae85d2c23aabc5d
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 14:20:55 2012 +0000
+
+    sna: Avoid operating inplace if we have pending CPU damage
+    
+    If the operation does not replace existing CPU damage, we are likely to
+    want to reuse the pixmap again on the CPU, so avoid mixing CPU/GPU
+    operations.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit f5d02d90f3349f33341954fc55824d12a7829e6c
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 12:56:21 2012 +0000
+
+    sna: Avoid switching rings for uploading data
+    
+    On systems that incur painful overhead for ring switches, it is usually
+    better to create a large buffer and perform a sparse copy on the same
+    ring than create a compact buffer and use the BLT.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a42111ff94911d5fad34e6dbac8aa4a11b2d8032
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 12:12:22 2012 +0000
+
+    sna/trapezoids: Try creating the trapezoids mask inplace if not using spans
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4c6ccbd46a1681c73382b79a0246f7d8cb097606
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 11:09:01 2012 +0000
+
+    sna: Throttle, throttle, throttle.
+    
+    This reverts 281425551bdab7eb38ae167a3205b14ae3599c49 as it was causing
+    insufferable lag in firefox.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit dbb495c3aeef34eab2aabfdfaafb81facdea4100
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 10:34:08 2012 +0000
+
+    sna: Attach to the pixmap for source counting when deferring uploads
+    
+    If we decide to defer the upload for this instance of the source pixmap,
+    mark it so. Then if we do use it again we will upload it to a GPU bo and
+    hopefully reuse those pixels.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 292097590ba0f81b7505aedb2a4fbd18021641a5
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 10:31:15 2012 +0000
+
+    sna: Try doing a cheap is-contained check before reducing damage
+    
+    If the pixmap is entirely within the current CPU damage, we can forgo
+    reducing either the GPU or CPU damage when checking whether we need to
+    upload dirty pixels for a source texture.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 5ddae8bf21067e7d2a031a6b9020c02ab977cfed
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 10:27:37 2012 +0000
+
+    sna: Check the composite-rectangles will be on the GPU before forcibly attaching
+    
+    If we think that the operation is better performed on the CPU, avoid the
+    overhead of manipulating our privates.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 6ffd3605640bacaf0d744075622463aacf78d797
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 10:25:12 2012 +0000
+
+    sna: Deferred attachment to a pixmap needs to mark the pixmap as entirely dirty
+    
+    As demonstrated with oversized glyphs and a chain of catastrophy, when
+    attaching our private to a pixmap after creation we need to mark the
+    entire CPU pixmap as dirty as we never tracked exactly which bits were
+    dirtied.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit a09ebe0b6cc66d08e52b57851d9b8a6a1f71df2b
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 10:23:25 2012 +0000
+
+    sna: Immediately upload oversized glyphs
+    
+    Glyphs, even large ones, we suspect will be reused and so the deferred
+    upload is counterproductive. Upload them immediately and mark them as
+    special creatures for later debugging.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 797b27365dc09a3f84349a33cffbfdc67cba0baa
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 10:30:47 2012 +0000
+
+    sna: Don't perform a deferred attachment for vmapping if not supported
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 23e3959e1f603c3ba0bd4f01128290241cf93edf
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 04:00:32 2012 +0000
+
+    sna: Use the created cpu-bo for upload and download
+    
+    As we explicitly create CPU bo when wanted, we no longer desire to
+    spontaneously create vmaps for simply uploading to the GPU bo.
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+commit 4530b87e445aea30ccbe751699963118ad5672d4
+Author: Chris Wilson <chris@chris-wilson.co.uk>
+Date:   Thu Jan 5 00:01:27 2012 +0000
+
+    sna: Fix assertion as we may want to create active bo with cpu mappings
+    
+    Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+
 commit 4119e68fb157fc612bce5e9c5669112ce35b4ca1
 Author: Chris Wilson <chris@chris-wilson.co.uk>
 Date:   Wed Jan 4 19:35:30 2012 +0000

@@ -69,7 +69,7 @@ no_render_composite(struct sna *sna,
 		    int16_t width, int16_t height,
 		    struct sna_composite_op *tmp)
 {
-	DBG(("%s ()\n", __FUNCTION__));
+	DBG(("%s (op=%d, mask? %d)\n", __FUNCTION__, op, mask != NULL));
 
 	if (mask == NULL &&
 	    sna_blt_composite(sna,
@@ -197,6 +197,18 @@ no_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 				  color, &box, 1);
 }
 
+static Bool
+no_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
+{
+	DBG(("%s: pixmap=%ld %dx%d\n", __FUNCTION__,
+	     dst->drawable.serialNumber,
+	     dst->drawable.width,
+	     dst->drawable.height));
+	return sna->render.fill_one(sna, dst, bo, 0,
+				    0, 0, dst->drawable.width, dst->drawable.height,
+				    GXclear);
+}
+
 static void no_render_reset(struct sna *sna)
 {
 	(void)sna;
@@ -227,6 +239,9 @@ void no_render_init(struct sna *sna)
 
 	memset (render,0, sizeof (*render));
 
+	render->vertices = render->vertex_data;
+	render->vertex_size = ARRAY_SIZE(render->vertex_data);
+
 	render->composite = no_render_composite;
 
 	render->copy_boxes = no_render_copy_boxes;
@@ -235,6 +250,7 @@ void no_render_init(struct sna *sna)
 	render->fill_boxes = no_render_fill_boxes;
 	render->fill = no_render_fill;
 	render->fill_one = no_render_fill_one;
+	render->clear = no_render_clear;
 
 	render->reset = no_render_reset;
 	render->flush = no_render_flush;
@@ -250,27 +266,34 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 {
 	struct sna_pixmap *priv;
 
-	priv = sna_pixmap(pixmap);
+	priv = sna_pixmap_attach(pixmap);
 	if (priv == NULL || priv->cpu_bo == NULL) {
 		DBG(("%s: no cpu bo\n", __FUNCTION__));
 		return NULL;
 	}
 
-	if (priv->gpu_bo &&
-	    sna_damage_contains_box(priv->cpu_damage,
-				    box) == PIXMAN_REGION_OUT) {
-		DBG(("%s: has GPU bo and no damage to upload\n", __FUNCTION__));
-		return NULL;
-	}
-
-	if (sna_damage_contains_box(priv->gpu_damage,
-				    box) != PIXMAN_REGION_OUT) {
-		DBG(("%s: box is damaged on the GPU\n", __FUNCTION__));
-		return NULL;
-	}
-
 	if (priv->gpu_bo) {
-		if (priv->gpu_bo != I915_TILING_NONE &&
+		switch (sna_damage_contains_box(priv->cpu_damage, box)) {
+		case PIXMAN_REGION_OUT:
+			DBG(("%s: has GPU bo and no damage to upload\n",
+			     __FUNCTION__));
+			return NULL;
+
+		case PIXMAN_REGION_IN:
+			DBG(("%s: has GPU bo but box is completely on CPU\n",
+			     __FUNCTION__));
+			break;
+		default:
+			if (sna_damage_contains_box(priv->gpu_damage,
+						    box) != PIXMAN_REGION_OUT) {
+				DBG(("%s: box is damaged on the GPU\n",
+				     __FUNCTION__));
+				return NULL;
+			}
+			break;
+		}
+
+		if (priv->gpu_bo->tiling != I915_TILING_NONE &&
 		    priv->cpu_bo->pitch >= 4096) {
 			DBG(("%s: GPU bo exists and is tiled [%d], upload\n",
 			     __FUNCTION__, priv->gpu_bo->tiling));
@@ -323,7 +346,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 				       pixmap->drawable.width,
 				       pixmap->drawable.height,
 				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE) {
-			priv = sna_pixmap(pixmap);
+			priv = sna_pixmap_attach(pixmap);
 			upload = priv && priv->source_count++ > SOURCE_BIAS;
 		}
 
@@ -340,7 +363,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 		return FALSE;
 
 	count = SOURCE_BIAS;
-	priv = sna_pixmap(pixmap);
+	priv = sna_pixmap_attach(pixmap);
 	if (priv)
 		count = priv->source_count++;
 
@@ -373,6 +396,12 @@ _texture_is_cpu(PixmapPtr pixmap, const BoxRec *box)
 
 	if (!priv->cpu_damage)
 		return FALSE;
+
+	if (DAMAGE_IS_ALL(priv->cpu_damage))
+		return TRUE;
+
+	if (sna_damage_contains_box__no_reduce(priv->cpu_damage, box))
+		return TRUE;
 
 	if (sna_damage_contains_box(priv->gpu_damage, box) != PIXMAN_REGION_OUT)
 		return FALSE;
@@ -435,11 +464,35 @@ sna_render_pixmap_bo(struct sna *sna,
 		     int16_t w, int16_t h,
 		     int16_t dst_x, int16_t dst_y)
 {
-	struct kgem_bo *bo = NULL;
+	struct kgem_bo *bo;
 	struct sna_pixmap *priv;
 	BoxRec box;
 
-	DBG(("%s (%d, %d)x(%d, %d)\n", __FUNCTION__, x, y, w,h));
+	DBG(("%s (%d, %d)x(%d, %d)/(%d, %d)\n", __FUNCTION__,
+	     x, y, w,h, pixmap->drawable.width, pixmap->drawable.height));
+
+	channel->width  = pixmap->drawable.width;
+	channel->height = pixmap->drawable.height;
+	channel->scale[0] = 1.f / pixmap->drawable.width;
+	channel->scale[1] = 1.f / pixmap->drawable.height;
+	channel->offset[0] = x - dst_x;
+	channel->offset[1] = y - dst_y;
+
+	priv = sna_pixmap(pixmap);
+	if (priv) {
+		if (priv->gpu_bo &&
+		    (DAMAGE_IS_ALL(priv->gpu_damage) || !priv->cpu_damage)) {
+			channel->bo = kgem_bo_reference(priv->gpu_bo);
+			return 1;
+		}
+
+		if (priv->cpu_bo &&
+		    (DAMAGE_IS_ALL(priv->cpu_damage) || !priv->gpu_damage) &&
+		    priv->cpu_bo->pitch < 4096) {
+			channel->bo = kgem_bo_reference(priv->cpu_bo);
+			return 1;
+		}
+	}
 
 	/* XXX handle transformed repeat */
 	if (w == 0 || h == 0 || channel->transform) {
@@ -484,38 +537,18 @@ sna_render_pixmap_bo(struct sna *sna,
 		return 0;
 	}
 
-	channel->height = pixmap->drawable.height;
-	channel->width  = pixmap->drawable.width;
-	channel->scale[0] = 1.f / pixmap->drawable.width;
-	channel->scale[1] = 1.f / pixmap->drawable.height;
-	channel->offset[0] = x - dst_x;
-	channel->offset[1] = y - dst_y;
-
 	DBG(("%s: offset=(%d, %d), size=(%d, %d)\n",
 	     __FUNCTION__,
 	     channel->offset[0], channel->offset[1],
 	     pixmap->drawable.width, pixmap->drawable.height));
 
 	bo = use_cpu_bo(sna, pixmap, &box);
-	if (bo == NULL && texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
-		/* If we are using transient data, it is better to copy
-		 * to an amalgamated upload buffer so that we don't
-		 * stall on releasing the cpu bo immediately upon
-		 * completion of the operation.
-		 */
-		if (pixmap->usage_hint != CREATE_PIXMAP_USAGE_SCRATCH_HEADER &&
-		    w * pixmap->drawable.bitsPerPixel * h > 8*4096) {
-			priv = sna_pixmap_attach(pixmap);
-			bo = pixmap_vmap(&sna->kgem, pixmap);
-			if (bo)
-				bo = kgem_bo_reference(bo);
-		}
-
-		if (bo == NULL) {
-			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
-			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-			bo = upload(sna, channel, pixmap, &box);
-		}
+	if (bo == NULL &&
+	    texture_is_cpu(pixmap, &box) &&
+	    !move_to_gpu(pixmap, &box)) {
+		DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
+		     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
+		bo = upload(sna, channel, pixmap, &box);
 	}
 
 	if (bo == NULL) {
@@ -1101,7 +1134,6 @@ sna_render_picture_fixup(struct sna *sna,
 			 int16_t dst_x, int16_t dst_y)
 {
 	pixman_image_t *dst, *src;
-	uint32_t pitch;
 	int dx, dy;
 	void *ptr;
 
@@ -1141,25 +1173,23 @@ sna_render_picture_fixup(struct sna *sna,
 	}
 
 do_fixup:
-	if (PICT_FORMAT_RGB(picture->format) == 0) {
-		pitch = ALIGN(w, 4);
+	if (PICT_FORMAT_RGB(picture->format) == 0)
 		channel->pict_format = PIXMAN_a8;
-	} else {
-		pitch = sizeof(uint32_t)*w;
+	else
 		channel->pict_format = PIXMAN_a8r8g8b8;
-	}
 	if (channel->pict_format != picture->format) {
-		DBG(("%s: converting to %08x (pitch=%d) from %08x\n",
-		     __FUNCTION__, channel->pict_format, pitch, picture->format));
+		DBG(("%s: converting to %08x from %08x\n",
+		     __FUNCTION__, channel->pict_format, picture->format));
 	}
 
 	if (picture->pDrawable &&
 	    !sna_drawable_move_to_cpu(picture->pDrawable, MOVE_READ))
 		return 0;
 
-	channel->bo = kgem_create_buffer(&sna->kgem,
-					 pitch*h, KGEM_BUFFER_WRITE,
-					 &ptr);
+	channel->bo = kgem_create_buffer_2d(&sna->kgem,
+					    w, h, PIXMAN_FORMAT_BPP(channel->pict_format),
+					    KGEM_BUFFER_WRITE_INPLACE,
+					    &ptr);
 	if (!channel->bo) {
 		DBG(("%s: failed to create upload buffer, using clear\n",
 		     __FUNCTION__));
@@ -1167,12 +1197,12 @@ do_fixup:
 	}
 
 	/* XXX Convolution filter? */
-	memset(ptr, 0, pitch*h);
-	channel->bo->pitch = pitch;
+	memset(ptr, 0, channel->bo->size);
 
 	/* Composite in the original format to preserve idiosyncracies */
 	if (picture->format == channel->pict_format)
-		dst = pixman_image_create_bits(picture->format, w, h, ptr, pitch);
+		dst = pixman_image_create_bits(picture->format,
+					       w, h, ptr, channel->bo->pitch);
 	else
 		dst = pixman_image_create_bits(picture->format, w, h, NULL, 0);
 	if (!dst) {
@@ -1205,7 +1235,7 @@ do_fixup:
 
 		src = dst;
 		dst = pixman_image_create_bits(channel->pict_format,
-					       w, h, ptr, pitch);
+					       w, h, ptr, channel->bo->pitch);
 		if (dst) {
 			pixman_image_composite(PictOpSrc, src, NULL, dst,
 					       0, 0,
@@ -1214,7 +1244,7 @@ do_fixup:
 					       w, h);
 			pixman_image_unref(src);
 		} else {
-			memset(ptr, 0, h*pitch);
+			memset(ptr, 0, channel->bo->size);
 			dst = src;
 		}
 	}
@@ -1245,7 +1275,6 @@ sna_render_picture_convert(struct sna *sna,
 			   int16_t w, int16_t h,
 			   int16_t dst_x, int16_t dst_y)
 {
-	uint32_t pitch;
 	pixman_image_t *src, *dst;
 	BoxRec box;
 	void *ptr;
@@ -1310,27 +1339,26 @@ sna_render_picture_convert(struct sna *sna,
 		return 0;
 
 	if (PICT_FORMAT_RGB(picture->format) == 0) {
-		pitch = ALIGN(w, 4);
 		channel->pict_format = PIXMAN_a8;
-		DBG(("%s: converting to a8 (pitch=%d) from %08x\n",
-		     __FUNCTION__, pitch, picture->format));
+		DBG(("%s: converting to a8 from %08x\n",
+		     __FUNCTION__, picture->format));
 	} else {
-		pitch = sizeof(uint32_t)*w;
 		channel->pict_format = PIXMAN_a8r8g8b8;
-		DBG(("%s: converting to a8r8g8b8 (pitch=%d) from %08x\n",
-		     __FUNCTION__, pitch, picture->format));
+		DBG(("%s: converting to a8r8g8b8 from %08x\n",
+		     __FUNCTION__, picture->format));
 	}
 
-	channel->bo = kgem_create_buffer(&sna->kgem,
-					 pitch*h, KGEM_BUFFER_WRITE,
-					 &ptr);
+	channel->bo = kgem_create_buffer_2d(&sna->kgem,
+					    w, h, PIXMAN_FORMAT_BPP(channel->pict_format),
+					    KGEM_BUFFER_WRITE_INPLACE,
+					    &ptr);
 	if (!channel->bo) {
 		pixman_image_unref(src);
 		return 0;
 	}
 
-	channel->bo->pitch = pitch;
-	dst = pixman_image_create_bits(channel->pict_format, w, h, ptr, pitch);
+	dst = pixman_image_create_bits(channel->pict_format,
+				       w, h, ptr, channel->bo->pitch);
 	if (!dst) {
 		kgem_bo_destroy(&sna->kgem, channel->bo);
 		pixman_image_unref(src);
@@ -1424,7 +1452,7 @@ sna_render_composite_redirect(struct sna *sna,
 	op->dst.y = -y;
 	op->dst.width  = width;
 	op->dst.height = height;
-	op->damage = &priv->gpu_damage;
+	op->damage = NULL;
 	return TRUE;
 }
 

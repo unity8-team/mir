@@ -19,17 +19,17 @@ static inline bool need_redirect(struct sna *sna, PixmapPtr dst)
 
 static inline int vertex_space(struct sna *sna)
 {
-	return ARRAY_SIZE(sna->render.vertex_data) - sna->render.vertex_used;
+	return sna->render.vertex_size - sna->render.vertex_used;
 }
 static inline void vertex_emit(struct sna *sna, float v)
 {
-	assert(sna->render.vertex_used < ARRAY_SIZE(sna->render.vertex_data));
-	sna->render.vertex_data[sna->render.vertex_used++] = v;
+	assert(sna->render.vertex_used < sna->render.vertex_size);
+	sna->render.vertices[sna->render.vertex_used++] = v;
 }
 static inline void vertex_emit_2s(struct sna *sna, int16_t x, int16_t y)
 {
-	int16_t *v = (int16_t *)&sna->render.vertex_data[sna->render.vertex_used++];
-	assert(sna->render.vertex_used <= ARRAY_SIZE(sna->render.vertex_data));
+	int16_t *v = (int16_t *)&sna->render.vertices[sna->render.vertex_used++];
+	assert(sna->render.vertex_used <= sna->render.vertex_size);
 	v[0] = x;
 	v[1] = y;
 }
@@ -52,6 +52,7 @@ static inline int batch_space(struct sna *sna)
 
 static inline void batch_emit(struct sna *sna, uint32_t dword)
 {
+	assert(sna->kgem.mode != KGEM_NONE);
 	assert(sna->kgem.nbatch + KGEM_BATCH_RESERVED < sna->kgem.surface);
 	sna->kgem.batch[sna->kgem.nbatch++] = dword;
 }
@@ -90,7 +91,18 @@ is_cpu(DrawablePtr drawable)
 static inline Bool
 too_small(DrawablePtr drawable)
 {
-	return ((uint32_t)drawable->width * drawable->height * drawable->bitsPerPixel <= 8*4096) && !is_gpu(drawable);
+	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+
+	if (priv == NULL)
+		return true;
+
+	if (priv->gpu_damage)
+		return false;
+
+	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+		return false;
+
+	return !priv->gpu;
 }
 
 static inline Bool
@@ -134,7 +146,9 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 	if (op->damage == NULL || *op->damage == NULL)
 		return;
 
-	if ((*op->damage)->mode == DAMAGE_ALL) {
+	if (DAMAGE_IS_ALL(*op->damage)) {
+		DBG(("%s: damage-all, dicarding damage\n",
+		     __FUNCTION__));
 		op->damage = NULL;
 		return;
 	}
@@ -148,8 +162,11 @@ sna_render_reduce_damage(struct sna_composite_op *op,
 	r.y1 = dst_y + op->dst.y;
 	r.y2 = r.y1 + height;
 
-	if (sna_damage_contains_box__no_reduce(*op->damage, &r))
+	if (sna_damage_contains_box__no_reduce(*op->damage, &r)) {
+		DBG(("%s: damage contains render extents, dicarding damage\n",
+		     __FUNCTION__));
 		op->damage = NULL;
+	}
 }
 
 #endif /* SNA_RENDER_INLINE_H */

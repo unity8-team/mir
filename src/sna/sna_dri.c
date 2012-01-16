@@ -56,6 +56,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DBG(x) ErrorF x
 #endif
 
+#define COLOR_PREFER_TILING_Y 0
+
 enum frame_event_type {
 	DRI2_SWAP,
 	DRI2_SWAP_THROTTLE,
@@ -122,6 +124,18 @@ static inline struct kgem_bo *ref(struct kgem_bo *bo)
 	return bo;
 }
 
+/* Prefer to enable TILING_Y if this buffer will never be a
+ * candidate for pageflipping
+ */
+static bool color_use_tiling_y(struct sna *sna, DrawablePtr drawable)
+{
+	if (!COLOR_PREFER_TILING_Y)
+		return false;
+
+	return (drawable->width != sna->front->drawable.width ||
+		drawable->height != sna->front->drawable.height);
+}
+
 static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 					  PixmapPtr pixmap)
 {
@@ -134,8 +148,9 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	if (priv->flush)
 		return ref(priv->gpu_bo);
 
-	if (priv->cpu_damage)
-		list_add(&priv->list, &sna->dirty_pixmaps);
+	if (priv->gpu_bo->tiling != I915_TILING_Y &&
+	    color_use_tiling_y(sna, &pixmap->drawable))
+		sna_pixmap_change_tiling(pixmap, I915_TILING_Y);
 
 	/* We need to submit any modifications to and reads from this
 	 * buffer before we send any reply to the Client.
@@ -194,7 +209,8 @@ sna_dri_create_buffer(DrawablePtr drawable,
 				    drawable->width,
 				    drawable->height,
 				    drawable->bitsPerPixel,
-				    I915_TILING_X, CREATE_EXACT);
+				    color_use_tiling_y(sna, drawable) ?  I915_TILING_Y : I915_TILING_X,
+				    CREATE_EXACT);
 		break;
 
 	case DRI2BufferStencil:
@@ -317,6 +333,9 @@ static void damage(PixmapPtr pixmap, RegionPtr region)
 	struct sna_pixmap *priv;
 
 	priv = sna_pixmap(pixmap);
+	if (DAMAGE_IS_ALL(priv->gpu_damage))
+		return;
+
 	if (region == NULL) {
 damage_all:
 		sna_damage_all(&priv->gpu_damage,
@@ -421,9 +440,6 @@ sna_dri_copy(struct sna *sna, DrawablePtr draw, RegionPtr region,
 		 * as well).
 		 */
 		kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	} else if (sna->kgem.mode == KGEM_NONE) {
-		/* Otherwise employ the BLT unless it means a context switch */
-		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
 	damage(pixmap, region);

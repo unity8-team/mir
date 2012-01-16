@@ -63,8 +63,10 @@ struct kgem_bo {
 	uint32_t refcnt;
 	uint32_t handle;
 	uint32_t presumed_offset;
-	uint32_t size;
 	uint32_t delta;
+	uint32_t size:28;
+	uint32_t bucket:4;
+#define MAX_OBJECT_SIZE (1 << 28)
 
 	uint32_t pitch : 18; /* max 128k */
 	uint32_t tiling : 2;
@@ -75,6 +77,7 @@ struct kgem_bo {
 	uint32_t vmap : 1;
 	uint32_t io : 1;
 	uint32_t flush : 1;
+	uint32_t scanout : 1;
 	uint32_t sync : 1;
 	uint32_t purged : 1;
 };
@@ -88,6 +91,14 @@ struct kgem_request {
 	struct kgem_bo *bo;
 	struct list buffers;
 };
+
+enum {
+	MAP_GTT = 0,
+	MAP_CPU,
+	NUM_MAP_TYPES,
+};
+
+#define NUM_CACHE_BUCKETS 16
 
 struct kgem {
 	int fd;
@@ -104,12 +115,15 @@ struct kgem {
 		KGEM_BLT,
 	} mode, ring;
 
-	struct list flushing, active[16], inactive[16];
+	struct list flushing, active[NUM_CACHE_BUCKETS], inactive[NUM_CACHE_BUCKETS];
 	struct list partial;
 	struct list requests;
-	struct list vma_cache;
-	struct list vma_inactive;
 	struct kgem_request *next_request;
+
+	struct {
+		struct list inactive[NUM_CACHE_BUCKETS];
+		int16_t count;
+	} vma[NUM_MAP_TYPES];
 
 	uint16_t nbatch;
 	uint16_t surface;
@@ -117,24 +131,27 @@ struct kgem {
 	uint16_t nreloc;
 	uint16_t nfence;
 	uint16_t max_batch_size;
-	uint16_t vma_count;
 
 	uint32_t flush:1;
 	uint32_t sync:1;
 	uint32_t need_expire:1;
 	uint32_t need_purge:1;
 	uint32_t need_retire:1;
+	uint32_t scanout:1;
 	uint32_t flush_now:1;
 	uint32_t busy:1;
 
 	uint32_t has_vmap :1;
 	uint32_t has_relaxed_fencing :1;
+	uint32_t has_semaphores :1;
 
 	uint16_t fence_max;
 	uint16_t half_cpu_cache_pages;
 	uint32_t aperture_high, aperture_low, aperture;
 	uint32_t aperture_fenced, aperture_mappable;
+	uint32_t min_alignment;
 	uint32_t max_object_size;
+	uint32_t partial_buffer_size;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
 	uint32_t batch[4*1024];
@@ -270,6 +287,8 @@ static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 
 static inline void _kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
+	assert(kgem->mode == KGEM_NONE);
+	kgem->context_switch(kgem, mode);
 	kgem->mode = mode;
 }
 
@@ -329,11 +348,10 @@ uint32_t kgem_add_reloc(struct kgem *kgem,
 			uint32_t read_write_domains,
 			uint32_t delta);
 
-void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo, int prot);
-void kgem_bo_unmap(struct kgem *kgem, struct kgem_bo *bo);
+void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo);
+void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo);
 void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo);
 void kgem_bo_sync__cpu(struct kgem *kgem, struct kgem_bo *bo);
-void kgem_bo_unmap__cpu(struct kgem *kgem, struct kgem_bo *bo, void *ptr);
 uint32_t kgem_bo_flink(struct kgem *kgem, struct kgem_bo *bo);
 
 Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
@@ -344,12 +362,15 @@ int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo);
 static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 				       struct kgem_bo *bo)
 {
-	DBG_HDR(("%s: offset: %d size: %d\n",
-		 __FUNCTION__, bo->presumed_offset, bo->size));
+	DBG_HDR(("%s: domain=%d, offset: %d size: %d\n",
+		 __FUNCTION__, bo->domain, bo->presumed_offset, bo->size));
+
+	if (bo->domain == DOMAIN_GTT)
+		return true;
 
 	if (kgem->gen < 40 && bo->tiling &&
 	    bo->presumed_offset & (kgem_bo_fenced_size(kgem, bo) - 1))
-			return false;
+		return false;
 
 	return bo->presumed_offset + bo->size <= kgem->aperture_mappable;
 }
@@ -397,10 +418,18 @@ static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 void kgem_sync(struct kgem *kgem);
 
 #define KGEM_BUFFER_WRITE	0x1
-#define KGEM_BUFFER_LAST	0x2
+#define KGEM_BUFFER_INPLACE	0x2
+#define KGEM_BUFFER_LAST	0x4
+
+#define KGEM_BUFFER_WRITE_INPLACE (KGEM_BUFFER_WRITE | KGEM_BUFFER_INPLACE)
+
 struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				   uint32_t size, uint32_t flags,
 				   void **ret);
+struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
+				      int width, int height, int bpp,
+				      uint32_t flags,
+				      void **ret);
 void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *bo);
 
 void kgem_throttle(struct kgem *kgem);

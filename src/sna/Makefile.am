@@ -105,7 +105,7 @@ libsna_la_SOURCES += \
 endif
 
 if HAVE_DOT_GIT
-git_version.h: $(top_builddir)/.git/HEAD $(shell sed -e '/ref:/!d' -e 's#ref: *#$(top_builddir)/.git/#' < $(top_builddir)/.git/HEAD)
+git_version.h: $(top_srcdir)/.git/HEAD $(shell sed -e '/ref:/!d' -e 's#ref: *#$(top_srcdir)/.git/#' < $(top_srcdir)/.git/HEAD)
 	@echo "Recording git-tree used for compilation: `git describe`"
 	@V=`git describe`; echo "static const char git_version[] = \"$$V\";" > git_version.h
 sna_driver.c: git_version.h
