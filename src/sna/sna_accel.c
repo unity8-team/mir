@@ -1023,7 +1023,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if (DAMAGE_IS_ALL(priv->cpu_damage))
 		goto out;
 
-	if (priv->stride == 0 && priv->gpu_bo == NULL && flags & MOVE_WRITE)
+	if (priv->gpu_bo == NULL && !priv->gpu && flags & MOVE_WRITE)
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -1514,7 +1514,7 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 		return FALSE;
 
 	if (priv->gpu_bo == NULL) {
-		if (sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE) {
+		if (!priv->gpu) {
 			DBG(("%s: untiled, will not force allocation\n",
 			     __FUNCTION__));
 			return FALSE;
@@ -2731,12 +2731,11 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 	if (priv->gpu_bo)
 		return TRUE;
 
-	if (priv->cpu_bo) {
-		if (pixmap->usage_hint)
-			return FALSE;
+	if (!priv->gpu)
+		return FALSE;
 
-		if (priv->cpu_bo->size <= 4096 ||
-		    sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE)
+	if (priv->cpu_bo) {
+		if (sna_pixmap_choose_tiling(pixmap) == I915_TILING_NONE)
 			return FALSE;
 
 		return (priv->source_count++-SOURCE_BIAS) * w*h >=
