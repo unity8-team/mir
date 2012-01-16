@@ -391,7 +391,6 @@ struct gen6_render_state {
 	uint32_t blend;
 	uint32_t samplers;
 	uint32_t kernel;
-	uint32_t target;
 
 	uint16_t num_sf_outputs;
 	uint16_t vb_id;
