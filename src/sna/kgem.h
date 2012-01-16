@@ -146,6 +146,8 @@ struct kgem {
 	uint32_t has_vmap :1;
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_semaphores :1;
+	uint32_t has_llc :1;
+	uint32_t has_cpu_bo :1;
 
 	uint16_t fence_max;
 	uint16_t half_cpu_cache_pages;

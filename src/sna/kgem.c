@@ -85,6 +85,7 @@ static inline void list_replace(struct list *old,
 #define DBG_NO_HW 0
 #define DBG_NO_TILING 0
 #define DBG_NO_VMAP 0
+#define DBG_NO_LLC 0
 #define DBG_NO_SEMAPHORES 0
 #define DBG_NO_MADV 0
 #define DBG_NO_MAP_UPLOAD 0
@@ -600,6 +601,13 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		kgem->has_relaxed_fencing = 1;
 	DBG(("%s: has relaxed fencing? %d\n", __FUNCTION__,
 	     kgem->has_relaxed_fencing));
+
+	kgem->has_llc = false;
+	if (!DBG_NO_LLC && gen >= 60)
+		kgem->has_llc = true;
+	kgem->has_cpu_bo = kgem->has_llc;
+	DBG(("%s: cpu bo enabled %d: llc? %d\n", __FUNCTION__,
+	     kgem->has_cpu_bo, kgem->has_llc));
 
 	kgem->has_semaphores = false;
 	if (gen >= 60 && semaphores_enabled())
@@ -2170,6 +2178,8 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 
 	if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 		int for_cpu = !!(flags & CREATE_CPU_MAP);
+		if (kgem->has_llc && tiling == I915_TILING_NONE)
+			for_cpu = 1;
 		/* We presume that we will need to upload to this bo,
 		 * and so would prefer to have an active VMA.
 		 */
@@ -2604,13 +2614,14 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
 
-	if (IS_CPU_MAP(bo->map)) {
-		if (bo->tiling == I915_TILING_NONE) {
-			kgem_bo_sync__cpu(kgem, bo);
-			return CPU_MAP(bo->map);
-		}
-		kgem_bo_release_map(kgem, bo);
+	if (kgem->has_llc && bo->tiling == I915_TILING_NONE) {
+		ptr = kgem_bo_map__cpu(kgem, bo);
+		kgem_bo_sync__cpu(kgem, bo);
+		return ptr;
 	}
+
+	if (IS_CPU_MAP(bo->map))
+		kgem_bo_release_map(kgem, bo);
 
 	ptr = bo->map;
 	if (ptr == NULL) {
@@ -2958,7 +2969,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	bo = NULL;
 
 #if !DBG_NO_MAP_UPLOAD
-	if (!DEBUG_NO_LLC && kgem->gen >= 60) {
+	if (kgem->has_cpu_bo) {
 		struct kgem_bo *old;
 
 		bo = malloc(sizeof(*bo));

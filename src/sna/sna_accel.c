@@ -205,7 +205,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 
 	assert(priv->stride);
 
-	if (!DEBUG_NO_LLC && sna->kgem.gen >= 60) {
+	if (sna->kgem.has_cpu_bo) {
 		DBG(("%s: allocating CPU buffer (%dx%d)\n", __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height));
 
