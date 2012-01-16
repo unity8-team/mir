@@ -12,6 +12,7 @@ stress_TESTS = \
 	render-composite-solid \
 	render-copyarea \
 	render-copyarea-size \
+	render-copy-alphaless \
 	mixed-stress \
 	$(NULL)
 

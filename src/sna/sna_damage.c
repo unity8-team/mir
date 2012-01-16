@@ -172,7 +172,7 @@ static struct sna_damage *_sna_damage_create(void)
 
 	if (__freed_damage) {
 		damage = __freed_damage;
-		__freed_damage = NULL;
+		__freed_damage = *(void **)__freed_damage;
 	} else {
 		damage = malloc(sizeof(*damage));
 		if (damage == NULL)
@@ -248,7 +248,7 @@ _sna_damage_create_elt(struct sna_damage *damage,
 	 return damage;
 }
 
-static void
+static struct sna_damage *
 _sna_damage_create_elt_from_boxes(struct sna_damage *damage,
 				  const BoxRec *boxes, int count,
 				  int16_t dx, int16_t dy)
@@ -273,13 +273,13 @@ _sna_damage_create_elt_from_boxes(struct sna_damage *damage,
 		count -=n;
 		boxes += n;
 		if (count == 0)
-			return;
+			return damage;
 	}
 
 	DBG(("    %s(): new elt\n", __FUNCTION__));
 
 	if (!_sna_damage_create_boxes(damage, count))
-		return;
+		return damage;
 
 	for (i = 0; i < count; i++) {
 		damage->box[i].x1 = boxes[i].x1 + dx;
@@ -289,9 +289,11 @@ _sna_damage_create_elt_from_boxes(struct sna_damage *damage,
 	}
 	damage->box += i;
 	damage->remain -= i;
+
+	return damage;
 }
 
-static void
+static struct sna_damage *
 _sna_damage_create_elt_from_rectangles(struct sna_damage *damage,
 				       const xRectangle *r, int count,
 				       int16_t dx, int16_t dy)
@@ -317,13 +319,13 @@ _sna_damage_create_elt_from_rectangles(struct sna_damage *damage,
 		count -=n;
 		r += n;
 		if (count == 0)
-			return;
+			return damage;
 	}
 
 	DBG(("    %s(): new elt\n", __FUNCTION__));
 
 	if (!_sna_damage_create_boxes(damage, count))
-		return;
+		return damage;
 
 	for (i = 0; i < count; i++) {
 		damage->box[i].x1 = r[i].x + dx;
@@ -333,9 +335,11 @@ _sna_damage_create_elt_from_rectangles(struct sna_damage *damage,
 	}
 	damage->box += n;
 	damage->remain -= n;
+
+	return damage;
 }
 
-static void
+static struct sna_damage *
 _sna_damage_create_elt_from_points(struct sna_damage *damage,
 				   const DDXPointRec *p, int count,
 				   int16_t dx, int16_t dy)
@@ -361,13 +365,13 @@ _sna_damage_create_elt_from_points(struct sna_damage *damage,
 		count -=n;
 		p += n;
 		if (count == 0)
-			return;
+			return damage;
 	}
 
 	DBG(("    %s(): new elt\n", __FUNCTION__));
 
 	if (! _sna_damage_create_boxes(damage, count))
-		return;
+		return damage;
 
 	for (i = 0; i < count; i++) {
 		damage->box[i].x1 = p[i].x + dx;
@@ -377,6 +381,8 @@ _sna_damage_create_elt_from_points(struct sna_damage *damage,
 	}
 	damage->box += count;
 	damage->remain -= count;
+
+	return damage;
 }
 
 static void free_list(struct list *head)
@@ -407,6 +413,21 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 	nboxes -= damage->remain;
 	if (nboxes == 0)
 		goto done;
+	if (nboxes == 1) {
+		pixman_region16_t tmp;
+
+		tmp.extents = damage->embedded_box.box[0];
+		tmp.data = NULL;
+
+		if (damage->mode == DAMAGE_ADD)
+			pixman_region_union(region, region, &tmp);
+		else
+			pixman_region_subtract(region, region, &tmp);
+		damage->extents = region->extents;
+
+		goto done;
+	}
+
 	if (damage->mode == DAMAGE_ADD)
 		nboxes += REGION_NUM_RECTS(region);
 
@@ -496,6 +517,23 @@ done:
 	DBG(("    reduce: after region.n=%d\n", REGION_NUM_RECTS(region)));
 }
 
+static void damage_union(struct sna_damage *damage, const BoxRec *box)
+{
+	if (damage->extents.x2 < damage->extents.x1) {
+		damage->extents = *box;
+	} else {
+		if (damage->extents.x1 > box->x1)
+			damage->extents.x1 = box->x1;
+		if (damage->extents.x2 < box->x2)
+			damage->extents.x2 = box->x2;
+
+		if (damage->extents.y1 > box->y1)
+			damage->extents.y1 = box->y1;
+		if (damage->extents.y2 < box->y2)
+			damage->extents.y2 = box->y2;
+	}
+}
+
 inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 						  RegionPtr region)
 {
@@ -516,7 +554,7 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 
 	if (REGION_NUM_RECTS(&damage->region) <= 1) {
 		pixman_region_union(&damage->region, &damage->region, region);
-		damage->extents = damage->region.extents;
+		damage_union(damage, &region->extents);
 		return damage;
 	}
 
@@ -524,17 +562,7 @@ inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
 					     &region->extents) == PIXMAN_REGION_IN)
 		return damage;
 
-
-	if (damage->extents.x1 > region->extents.x1)
-		damage->extents.x1 = region->extents.x1;
-	if (damage->extents.x2 < region->extents.x2)
-		damage->extents.x2 = region->extents.x2;
-
-	if (damage->extents.y1 > region->extents.y1)
-		damage->extents.y1 = region->extents.y1;
-	if (damage->extents.y2 < region->extents.y2)
-		damage->extents.y2 = region->extents.y2;
-
+	damage_union(damage, &region->extents);
 	return _sna_damage_create_elt(damage,
 				      REGION_RECTS(region),
 				      REGION_NUM_RECTS(region));
@@ -565,6 +593,50 @@ fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
 	return __sna_damage_add(damage, region);
 }
 #endif
+
+static void _pixman_region_union_box(RegionRec *region, const BoxRec *box)
+{
+	RegionRec u = { *box, NULL };
+	pixman_region_union(region, region, &u);
+}
+
+static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
+					       const BoxRec *box)
+{
+	if (box->y2 <= box->y1 || box->x2 <= box->x1)
+		return damage;
+
+	if (!damage) {
+		damage = _sna_damage_create();
+		if (damage == NULL)
+			return NULL;
+	} else switch (damage->mode) {
+	case DAMAGE_ALL:
+		return damage;
+	case DAMAGE_SUBTRACT:
+		__sna_damage_reduce(damage);
+	case DAMAGE_ADD:
+		break;
+	}
+
+	switch (REGION_NUM_RECTS(&damage->region)) {
+	case 0:
+		pixman_region_init_rects(&damage->region, box, 1);
+		damage_union(damage, box);
+		return damage;
+	case 1:
+		_pixman_region_union_box(&damage->region, box);
+		damage_union(damage, box);
+		return damage;
+	}
+
+	if (pixman_region_contains_rectangle(&damage->region,
+					     (BoxPtr)box) == PIXMAN_REGION_IN)
+		return damage;
+
+	damage_union(damage, box);
+	return _sna_damage_create_elt(damage, box, 1);
+}
 
 inline static struct sna_damage *
 __sna_damage_add_boxes(struct sna_damage *damage,
@@ -608,29 +680,15 @@ __sna_damage_add_boxes(struct sna_damage *damage,
 	extents.y1 += dy;
 	extents.y2 += dy;
 
+	if (n == 1)
+		return __sna_damage_add_box(damage, &extents);
+
 	if (pixman_region_contains_rectangle(&damage->region,
 					     &extents) == PIXMAN_REGION_IN)
 		return damage;
 
-	_sna_damage_create_elt_from_boxes(damage, box, n, dx, dy);
-
-	if (REGION_NUM_RECTS(&damage->region) == 0) {
-		damage->region.extents = damage->embedded_box.box[0];
-		damage->region.data = NULL;
-		damage->extents = extents;
-	} else {
-		if (damage->extents.x1 > extents.x1)
-			damage->extents.x1 = extents.x1;
-		if (damage->extents.x2 < extents.x2)
-			damage->extents.x2 = extents.x2;
-
-		if (damage->extents.y1 > extents.y1)
-			damage->extents.y1 = extents.y1;
-		if (damage->extents.y2 < extents.y2)
-			damage->extents.y2 = extents.y2;
-	}
-
-	return damage;
+	damage_union(damage, &extents);
+	return _sna_damage_create_elt_from_boxes(damage, box, n, dx, dy);
 }
 
 #if DEBUG_DAMAGE
@@ -659,12 +717,6 @@ struct sna_damage *_sna_damage_add_boxes(struct sna_damage *damage,
 	return __sna_damage_add_boxes(damage, b, n, dx, dy);
 }
 #endif
-
-static void _pixman_region_union_box(RegionRec *region, const BoxRec *box)
-{
-	RegionRec u = { *box, NULL };
-	pixman_region_union(region, region, &u);
-}
 
 inline static struct sna_damage *
 __sna_damage_add_rectangles(struct sna_damage *damage,
@@ -698,6 +750,9 @@ __sna_damage_add_rectangles(struct sna_damage *damage,
 	extents.y1 += dy;
 	extents.y2 += dy;
 
+	if (n == 1)
+		return __sna_damage_add_box(damage, &extents);
+
 	if (!damage) {
 		damage = _sna_damage_create();
 		if (damage == NULL)
@@ -715,25 +770,8 @@ __sna_damage_add_rectangles(struct sna_damage *damage,
 					     &extents) == PIXMAN_REGION_IN)
 		return damage;
 
-	_sna_damage_create_elt_from_rectangles(damage, r, n, dx, dy);
-
-	if (REGION_NUM_RECTS(&damage->region) == 0) {
-		damage->region.extents = damage->embedded_box.box[0];
-		damage->region.data = NULL;
-		damage->extents = extents;
-	} else {
-		if (damage->extents.x1 > extents.x1)
-			damage->extents.x1 = extents.x1;
-		if (damage->extents.x2 < extents.x2)
-			damage->extents.x2 = extents.x2;
-
-		if (damage->extents.y1 > extents.y1)
-			damage->extents.y1 = extents.y1;
-		if (damage->extents.y2 < extents.y2)
-			damage->extents.y2 = extents.y2;
-	}
-
-	return damage;
+	damage_union(damage, &extents);
+	return _sna_damage_create_elt_from_rectangles(damage, r, n, dx, dy);
 }
 
 #if DEBUG_DAMAGE
@@ -792,6 +830,9 @@ __sna_damage_add_points(struct sna_damage *damage,
 	extents.y1 += dy;
 	extents.y2 += dy + 1;
 
+	if (n == 1)
+		return __sna_damage_add_box(damage, &extents);
+
 	if (!damage) {
 		damage = _sna_damage_create();
 		if (damage == NULL)
@@ -809,23 +850,8 @@ __sna_damage_add_points(struct sna_damage *damage,
 					     &extents) == PIXMAN_REGION_IN)
 		return damage;
 
+	damage_union(damage, &extents);
 	_sna_damage_create_elt_from_points(damage, p, n, dx, dy);
-
-	if (REGION_NUM_RECTS(&damage->region) == 0) {
-		damage->region.extents = damage->embedded_box.box[0];
-		damage->region.data = NULL;
-		damage->extents = extents;
-	} else {
-		if (damage->extents.x1 > extents.x1)
-			damage->extents.x1 = extents.x1;
-		if (damage->extents.x2 < extents.x2)
-			damage->extents.x2 = extents.x2;
-
-		if (damage->extents.y1 > extents.y1)
-			damage->extents.y1 = extents.y1;
-		if (damage->extents.y2 < extents.y2)
-			damage->extents.y2 = extents.y2;
-	}
 
 	return damage;
 }
@@ -857,53 +883,6 @@ struct sna_damage *_sna_damage_add_points(struct sna_damage *damage,
 }
 #endif
 
-inline static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
-						      const BoxRec *box)
-{
-	if (box->y2 <= box->y1 || box->x2 <= box->x1)
-		return damage;
-
-	if (!damage) {
-		damage = _sna_damage_create();
-		if (damage == NULL)
-			return NULL;
-	} else switch (damage->mode) {
-	case DAMAGE_ALL:
-		return damage;
-	case DAMAGE_SUBTRACT:
-		__sna_damage_reduce(damage);
-	case DAMAGE_ADD:
-		break;
-	}
-
-	switch (REGION_NUM_RECTS(&damage->region)) {
-	case 0:
-		pixman_region_init_rects(&damage->region, box, 1);
-		damage->extents = *box;
-		return damage;
-	case 1:
-		_pixman_region_union_box(&damage->region, box);
-		damage->extents = damage->region.extents;
-		return damage;
-	}
-
-	if (pixman_region_contains_rectangle(&damage->region,
-					     (BoxPtr)box) == PIXMAN_REGION_IN)
-		return damage;
-
-	if (damage->extents.x1 > box->x1)
-		damage->extents.x1 = box->x1;
-	if (damage->extents.x2 < box->x2)
-		damage->extents.x2 = box->x2;
-
-	if (damage->extents.y1 > box->y1)
-		damage->extents.y1 = box->y1;
-	if (damage->extents.y2 < box->y2)
-		damage->extents.y2 = box->y2;
-
-	return _sna_damage_create_elt(damage, box, 1);
-}
-
 #if DEBUG_DAMAGE
 fastcall struct sna_damage *_sna_damage_add_box(struct sna_damage *damage,
 						const BoxRec *box)
@@ -929,8 +908,8 @@ fastcall struct sna_damage *_sna_damage_add_box(struct sna_damage *damage,
 }
 #endif
 
-struct sna_damage *_sna_damage_all(struct sna_damage *damage,
-				   int width, int height)
+struct sna_damage *__sna_damage_all(struct sna_damage *damage,
+				    int width, int height)
 {
 	DBG(("%s(%d, %d)\n", __FUNCTION__, width, height));
 
@@ -971,12 +950,16 @@ struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 	if (damage->region.data)
 		return damage;
 
+	DBG(("%s: (%d, %d), (%d, %d)\n", __FUNCTION__,
+	     damage->extents.x1, damage->extents.y1,
+	     damage->extents.x2, damage->extents.y2));
+
 	assert(damage->extents.x1 == 0 &&
 	       damage->extents.y1 == 0 &&
 	       damage->extents.x2 == width &&
 	       damage->extents.y2 == height);
 
-	return _sna_damage_all(damage, width, height);
+	return __sna_damage_all(damage, width, height);
 }
 
 static bool box_contains(const BoxRec *a, const BoxRec *b)
@@ -1157,8 +1140,8 @@ fastcall struct sna_damage *_sna_damage_subtract_box(struct sna_damage *damage,
 }
 #endif
 
-static int _sna_damage_contains_box(struct sna_damage *damage,
-				    const BoxRec *box)
+static int __sna_damage_contains_box(struct sna_damage *damage,
+				     const BoxRec *box)
 {
 	int ret;
 
@@ -1183,8 +1166,8 @@ static int _sna_damage_contains_box(struct sna_damage *damage,
 }
 
 #if DEBUG_DAMAGE
-int sna_damage_contains_box(struct sna_damage *damage,
-			    const BoxRec *box)
+int _sna_damage_contains_box(struct sna_damage *damage,
+			     const BoxRec *box)
 {
 	char damage_buf[1000];
 	int ret;
@@ -1193,7 +1176,7 @@ int sna_damage_contains_box(struct sna_damage *damage,
 	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
 	     box->x1, box->y1, box->x2, box->y2));
 
-	ret = _sna_damage_contains_box(damage, box);
+	ret = __sna_damage_contains_box(damage, box);
 	ErrorF("  = %d", ret);
 	if (ret)
 		ErrorF(" [(%d, %d), (%d, %d)...]",
@@ -1203,39 +1186,31 @@ int sna_damage_contains_box(struct sna_damage *damage,
 	return ret;
 }
 #else
-int sna_damage_contains_box(struct sna_damage *damage,
-			    const BoxRec *box)
+int _sna_damage_contains_box(struct sna_damage *damage,
+			     const BoxRec *box)
 {
-	return _sna_damage_contains_box(damage, box);
+	return __sna_damage_contains_box(damage, box);
 }
 #endif
 
-bool sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
-					const BoxRec *box)
+bool _sna_damage_contains_box__no_reduce(const struct sna_damage *damage,
+					 const BoxRec *box)
 {
-	int ret;
-
 	assert(damage && damage->mode != DAMAGE_ALL);
+	if (damage->mode == DAMAGE_SUBTRACT)
+		return false;
+
 	if (!sna_damage_maybe_contains_box(damage, box))
 		return false;
 
-	ret = pixman_region_contains_rectangle((RegionPtr)&damage->region,
-					       (BoxPtr)box);
-	return (!damage->dirty || damage->mode == DAMAGE_ADD) &&
-		ret == PIXMAN_REGION_IN;
+	return pixman_region_contains_rectangle((RegionPtr)&damage->region,
+						(BoxPtr)box) == PIXMAN_REGION_IN;
 }
 
-static Bool _sna_damage_intersect(struct sna_damage *damage,
-				  RegionPtr region, RegionPtr result)
+static Bool __sna_damage_intersect(struct sna_damage *damage,
+				   RegionPtr region, RegionPtr result)
 {
-	if (!damage)
-		return FALSE;
-
-	if (damage->mode == DAMAGE_ALL) {
-		RegionCopy(result, region);
-		return TRUE;
-	}
-
+	assert(damage && damage->mode != DAMAGE_ALL);
 	if (region->extents.x2 <= damage->extents.x1 ||
 	    region->extents.x1 >= damage->extents.x2)
 		return FALSE;
@@ -1257,8 +1232,8 @@ static Bool _sna_damage_intersect(struct sna_damage *damage,
 }
 
 #if DEBUG_DAMAGE
-Bool sna_damage_intersect(struct sna_damage *damage,
-			  RegionPtr region, RegionPtr result)
+Bool _sna_damage_intersect(struct sna_damage *damage,
+			   RegionPtr region, RegionPtr result)
 {
 	char damage_buf[1000];
 	char region_buf[120];
@@ -1268,7 +1243,7 @@ Bool sna_damage_intersect(struct sna_damage *damage,
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
 	       _debug_describe_region(region_buf, sizeof(region_buf), region));
 
-	ret = _sna_damage_intersect(damage, region, result);
+	ret = __sna_damage_intersect(damage, region, result);
 	if (ret)
 		ErrorF("  = %s\n",
 		       _debug_describe_region(region_buf, sizeof(region_buf), result));
@@ -1278,17 +1253,16 @@ Bool sna_damage_intersect(struct sna_damage *damage,
 	return ret;
 }
 #else
-Bool sna_damage_intersect(struct sna_damage *damage,
+Bool _sna_damage_intersect(struct sna_damage *damage,
 			  RegionPtr region, RegionPtr result)
 {
-	return _sna_damage_intersect(damage, region, result);
+	return __sna_damage_intersect(damage, region, result);
 }
 #endif
 
-static int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
+static int __sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 {
-	if (!damage)
-		return 0;
+	assert(damage && damage->mode != DAMAGE_ALL);
 
 	if (damage->dirty)
 		__sna_damage_reduce(damage);
@@ -1311,7 +1285,7 @@ struct sna_damage *_sna_damage_reduce(struct sna_damage *damage)
 }
 
 #if DEBUG_DAMAGE
-int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
+int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 {
 	char damage_buf[1000];
 	int count;
@@ -1319,15 +1293,15 @@ int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 	ErrorF("%s(%s)...\n", __FUNCTION__,
 	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
 
-	count = _sna_damage_get_boxes(damage, boxes);
+	count = __sna_damage_get_boxes(damage, boxes);
 	ErrorF("  = %d\n", count);
 
 	return count;
 }
 #else
-int sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
+int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 {
-	return _sna_damage_get_boxes(damage, boxes);
+	return __sna_damage_get_boxes(damage, boxes);
 }
 #endif
 
@@ -1336,10 +1310,8 @@ void __sna_damage_destroy(struct sna_damage *damage)
 	free_list(&damage->embedded_box.list);
 
 	pixman_region_fini(&damage->region);
-	if (__freed_damage == NULL)
-		__freed_damage = damage;
-	else
-		free(damage);
+	*(void **)damage = __freed_damage;
+	__freed_damage = damage;
 }
 
 #if DEBUG_DAMAGE && TEST_DAMAGE

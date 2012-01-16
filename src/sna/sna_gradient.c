@@ -104,7 +104,7 @@ sna_render_get_gradient(struct sna *sna,
 	int i, width;
 	struct kgem_bo *bo;
 
-	DBG(("%s: %dx[%f:%x...%f:%x...%f:%x]\n", __FUNCTION__,
+	DBG(("%s: %dx[%f:%x ... %f:%x ... %f:%x]\n", __FUNCTION__,
 	     pattern->nstops,
 	     pattern->stops[0].x / 65536.,
 	     pattern->stops[0].color.alpha >> 8 << 24 |

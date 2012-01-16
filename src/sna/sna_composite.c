@@ -434,7 +434,7 @@ sna_composite(CARD8 op,
 	}
 
 	if (op == PictOpClear) {
-		DBG(("%s: discarind sourceand mask for clear\n", __FUNCTION__));
+		DBG(("%s: discarding source and mask for clear\n", __FUNCTION__));
 		mask = NULL;
 		src = clear;
 	}
@@ -735,6 +735,11 @@ sna_composite_rectangles(CARD8		 op,
 
 	boxes = pixman_region_rectangles(&region, &num_boxes);
 
+	if (too_small(dst->pDrawable)) {
+		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
+		goto fallback;
+	}
+
 	/* If we going to be overwriting any CPU damage with a subsequent
 	 * operation, then we may as well delete it without moving it
 	 * first to the GPU.
@@ -743,11 +748,6 @@ sna_composite_rectangles(CARD8		 op,
 		priv = sna_pixmap_attach(pixmap);
 		if (priv)
 			sna_damage_subtract(&priv->cpu_damage, &region);
-	}
-
-	if (too_small(dst->pDrawable)) {
-		DBG(("%s: fallback, dst is too small\n", __FUNCTION__));
-		goto fallback;
 	}
 
 	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
@@ -763,18 +763,20 @@ sna_composite_rectangles(CARD8		 op,
 		goto fallback;
 	}
 
-	assert_pixmap_contains_box(pixmap, RegionExtents(&region));
-
 	/* Clearing a pixmap after creation is a common operation, so take
 	 * advantage and reduce further damage operations.
 	 */
-	if (region.data == NULL &&
-	    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
-	    region.extents.y2 - region.extents.y1 == pixmap->drawable.height)
-		sna_damage_all(&priv->gpu_damage,
-			       pixmap->drawable.width, pixmap->drawable.height);
-	else
-		sna_damage_add(&priv->gpu_damage, &region);
+	if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
+		assert_pixmap_contains_box(pixmap, RegionExtents(&region));
+
+		if (region.data == NULL &&
+		    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
+		    region.extents.y2 - region.extents.y1 == pixmap->drawable.height)
+			sna_damage_all(&priv->gpu_damage,
+				       pixmap->drawable.width, pixmap->drawable.height);
+		else
+			sna_damage_add(&priv->gpu_damage, &region);
+	}
 
 	goto done;
 

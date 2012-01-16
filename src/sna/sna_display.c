@@ -428,6 +428,7 @@ sna_crtc_restore(struct sna *sna)
 		return;
 
 	assert(bo->tiling != I915_TILING_Y);
+	bo->scanout = true;
 
 	DBG(("%s: create fb %dx%d@%d/%d\n",
 	     __FUNCTION__,
@@ -577,7 +578,8 @@ void sna_copy_fbcon(struct sna *sna)
 				    scratch, bo, sx, sy,
 				    sna->front, priv->gpu_bo, dx, dy,
 				    &box, 1);
-	sna_damage_add_box(&priv->gpu_damage, &box);
+	if (!DAMAGE_IS_ALL(priv->gpu_damage))
+		sna_damage_add_box(&priv->gpu_damage, &box);
 
 	kgem_bo_destroy(&sna->kgem, bo);
 
@@ -646,6 +648,7 @@ sna_crtc_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     scrn->depth, scrn->bitsPerPixel));
 
 		assert(bo->tiling != I915_TILING_Y);
+		bo->scanout = true;
 		ret = drmModeAddFB(sna->kgem.fd,
 				   scrn->virtualX, scrn->virtualY,
 				   scrn->depth, scrn->bitsPerPixel,
@@ -762,6 +765,7 @@ sna_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 	}
 
 	assert(bo->tiling != I915_TILING_Y);
+	bo->scanout = true;
 	if (drmModeAddFB(sna->kgem.fd,
 			 width, height, scrn->depth, scrn->bitsPerPixel,
 			 bo->pitch, bo->handle,
@@ -1670,6 +1674,7 @@ sna_crtc_resize(ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	assert(bo->tiling != I915_TILING_Y);
+	bo->scanout = true;
 	if (drmModeAddFB(sna->kgem.fd, width, height,
 			 scrn->depth, scrn->bitsPerPixel,
 			 bo->pitch, bo->handle,

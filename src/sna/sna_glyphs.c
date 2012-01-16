@@ -307,7 +307,12 @@ glyph_cache(ScreenPtr screen,
 
 	if (glyph->info.width > GLYPH_MAX_SIZE ||
 	    glyph->info.height > GLYPH_MAX_SIZE) {
-		((PixmapPtr)glyph_picture->pDrawable)->usage_hint = 0;
+		PixmapPtr pixmap = (PixmapPtr)glyph_picture->pDrawable;
+		assert(glyph_picture->pDrawable->type == DRAWABLE_PIXMAP);
+		if (pixmap->drawable.depth >= 8) {
+			pixmap->usage_hint = SNA_CREATE_GLYPH;
+			sna_pixmap_force_to_gpu(pixmap, MOVE_READ);
+		}
 		return FALSE;
 	}
 
@@ -649,11 +654,7 @@ static bool
 clear_pixmap(struct sna *sna, PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
-	return sna->render.fill_one(sna, pixmap, priv->gpu_bo, 0,
-				    0, 0,
-				    pixmap->drawable.width,
-				    pixmap->drawable.height,
-				    GXclear);
+	return sna->render.clear(sna, pixmap, priv->gpu_bo);
 }
 
 static Bool
@@ -729,7 +730,8 @@ glyphs_via_mask(struct sna *sna,
 upload:
 		pixmap = sna_pixmap_create_upload(screen,
 						  width, height,
-						  format->depth);
+						  format->depth,
+						  KGEM_BUFFER_WRITE);
 		if (!pixmap)
 			return FALSE;
 
@@ -1104,19 +1106,29 @@ glyphs_fallback(CARD8 op,
 		y += list->yOff;
 		while (n--) {
 			GlyphPtr g = *glyphs++;
-			PicturePtr picture;
 			pixman_image_t *glyph_image;
 
 			if (g->info.width == 0 || g->info.height == 0)
 				goto next_glyph;
 
-			picture = GlyphPicture(g)[screen];
-			if (picture == NULL)
-				goto next_glyph;
+			glyph_image = sna_glyph(g)->image;
+			if (glyph_image == NULL) {
+				PicturePtr picture;
+				int dx, dy;
 
-			glyph_image = image_from_pict(picture, FALSE, &dx, &dy);
-			if (!glyph_image)
-				goto next_glyph;
+				picture = GlyphPicture(g)[screen];
+				if (picture == NULL)
+					goto next_glyph;
+
+				glyph_image = image_from_pict(picture,
+							      FALSE,
+							      &dx, &dy);
+				if (!glyph_image)
+					goto next_glyph;
+
+				assert(dx == 0 && dy == 0);
+				sna_glyph(g)->image = glyph_image;
+			}
 
 			if (mask_format) {
 				DBG(("%s: glyph+(%d,%d) to mask (%d, %d)x(%d, %d)\n",
@@ -1161,8 +1173,6 @@ glyphs_fallback(CARD8 op,
 						       g->info.width,
 						       g->info.height);
 			}
-			free_pixman_pict(picture, glyph_image);
-
 next_glyph:
 			x += g->info.xOff;
 			y += g->info.yOff;
@@ -1231,11 +1241,16 @@ sna_glyphs(CARD8 op,
 		goto fallback;
 	}
 
+	_mask = mask;
 	/* XXX discard the mask for non-overlapping glyphs? */
 
-	if (!mask ||
+	/* XXX more shader breakage?: CA to dst is fubar on ilk */
+	if (sna->kgem.gen == 50 && !_mask)
+		_mask = list[0].format;
+
+	if (!_mask ||
 	    (((nlist == 1 && list->len == 1) || op == PictOpAdd) &&
-	     dst->format == (mask->depth << 24 | mask->format))) {
+	     dst->format == (_mask->depth << 24 | _mask->format))) {
 		if (glyphs_to_dst(sna, op,
 				  src, dst,
 				  src_x, src_y,
@@ -1243,7 +1258,6 @@ sna_glyphs(CARD8 op,
 			return;
 	}
 
-	_mask = mask;
 	if (!_mask)
 		_mask = glyphs_format(nlist, list, glyphs);
 	if (_mask) {
