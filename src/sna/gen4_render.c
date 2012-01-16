@@ -1459,7 +1459,7 @@ gen4_emit_vertex_elements(struct sna *sna,
 static void
 gen4_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
-	       	uint16_t wm_binding_table)
+		uint16_t wm_binding_table)
 {
 	gen4_emit_binding_table(sna, wm_binding_table);
 	gen4_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
@@ -2422,6 +2422,8 @@ fallback:
 						   box, n);
 	}
 
+	memset(&tmp, 0, sizeof(tmp));
+
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n));
 
@@ -2434,8 +2436,6 @@ fallback:
 	}
 	if (!gen4_check_format(tmp.src.pict_format))
 		goto fallback;
-
-	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.op = alu == GXcopy ? PictOpSrc : PictOpClear;
 

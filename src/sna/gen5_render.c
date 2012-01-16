@@ -2689,7 +2689,7 @@ gen5_copy_bind_surfaces(struct sna *sna,
 	binding_table[0] =
 		gen5_bind_bo(sna,
 			     op->dst.bo, op->dst.width, op->dst.height,
-			     gen5_get_dest_format(op->dst.pixmap->drawable.depth),
+			     gen5_get_dest_format(op->dst.format),
 			     TRUE);
 	binding_table[1] =
 		gen5_bind_bo(sna,
@@ -2745,6 +2745,8 @@ fallback:
 						   box, n);
 	}
 
+	memset(&tmp, 0, sizeof(tmp));
+
 	if (dst->drawable.depth == src->drawable.depth) {
 		tmp.dst.format = sna_render_format_for_depth(dst->drawable.depth);
 		tmp.src.pict_format = tmp.dst.format;
@@ -2752,13 +2754,14 @@ fallback:
 		tmp.dst.format = sna_format_for_depth(dst->drawable.depth);
 		tmp.src.pict_format = sna_format_for_depth(src->drawable.depth);
 	}
-	if (!gen5_check_format(tmp.src.pict_format))
+	if (!gen5_check_format(tmp.src.pict_format)) {
+		DBG(("%s: unsupported source format, %x, use BLT\n",
+		     __FUNCTION__, tmp.src.pict_format));
 		goto fallback;
+	}
 
 	DBG(("%s (%d, %d)->(%d, %d) x %d\n",
 	     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy, n));
-
-	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.op = alu == GXcopy ? PictOpSrc : PictOpClear;
 
@@ -2917,7 +2920,6 @@ fallback:
 	op->base.dst.pixmap = dst;
 	op->base.dst.width  = dst->drawable.width;
 	op->base.dst.height = dst->drawable.height;
-	op->base.dst.format = sna_format_for_depth(dst->drawable.depth);
 	op->base.dst.bo = dst_bo;
 
 	op->base.src.bo = src_bo;
@@ -3057,11 +3059,11 @@ gen5_render_fill_boxes(struct sna *sna,
 	if (op == PictOpClear)
 		pixel = 0;
 	else if (!sna_get_pixel_from_rgba(&pixel,
-				     color->red,
-				     color->green,
-				     color->blue,
-				     color->alpha,
-				     PICT_a8r8g8b8))
+					  color->red,
+					  color->green,
+					  color->blue,
+					  color->alpha,
+					  PICT_a8r8g8b8))
 		return FALSE;
 
 	memset(&tmp, 0, sizeof(tmp));

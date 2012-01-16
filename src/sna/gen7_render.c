@@ -2985,7 +2985,7 @@ gen7_emit_copy_state(struct sna *sna,
 	binding_table[0] =
 		gen7_bind_bo(sna,
 			     op->dst.bo, op->dst.width, op->dst.height,
-			     gen7_get_dest_format(op->dst.pixmap->drawable.depth),
+			     gen7_get_dest_format(op->dst.format),
 			     TRUE);
 	binding_table[1] =
 		gen7_bind_bo(sna,
