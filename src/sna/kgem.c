@@ -2884,9 +2884,10 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 {
 	struct kgem_bo *bo;
 
-	assert(target->proxy == NULL);
 	DBG(("%s: target handle=%d, offset=%d, length=%d, io=%d\n",
 	     __FUNCTION__, target->handle, offset, length, target->io));
+	assert(target->proxy == NULL);
+	assert(target->tiling == I915_TILING_NONE);
 
 	bo = __kgem_bo_alloc(target->handle, length);
 	if (bo == NULL)

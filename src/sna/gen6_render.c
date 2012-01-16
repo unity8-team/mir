@@ -1663,7 +1663,7 @@ static void gen6_emit_composite_state(struct sna *sna,
 				     FALSE);
 	}
 
-	if (sna->kgem.surface == offset&&
+	if (sna->kgem.surface == offset &&
 	    *(uint64_t *)(sna->kgem.batch + sna->render_state.gen6.surface_table) == *(uint64_t*)binding_table &&
 	    (op->mask.bo == NULL ||
 	     sna->kgem.batch[sna->render_state.gen6.surface_table+2] == binding_table[2])) {

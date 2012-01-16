@@ -2560,6 +2560,8 @@ gen3_render_composite(struct sna *sna,
 		      int16_t width,  int16_t height,
 		      struct sna_composite_op *tmp)
 {
+	bool need_flush;
+
 	DBG(("%s()\n", __FUNCTION__));
 
 	if (op >= ARRAY_SIZE(gen3_blend_op)) {
@@ -2800,8 +2802,10 @@ gen3_render_composite(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
+	need_flush =
+		kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo);
 	gen3_emit_composite_state(sna, tmp);
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
+	if (need_flush) {
 		if (tmp->src.bo == tmp->dst.bo || tmp->mask.bo == tmp->dst.bo) {
 			kgem_emit_flush(&sna->kgem);
 		} else {
@@ -2811,6 +2815,7 @@ gen3_render_composite(struct sna *sna,
 			kgem_clear_dirty(&sna->kgem);
 		}
 		assert(sna->kgem.mode == KGEM_RENDER);
+		kgem_bo_mark_dirty(tmp->dst.bo);
 	}
 
 	gen3_align_vertex(sna, tmp);
@@ -3136,7 +3141,7 @@ gen3_render_composite_spans(struct sna *sna,
 			    unsigned flags,
 			    struct sna_composite_spans_op *tmp)
 {
-	bool no_offset;
+	bool no_offset, need_flush;
 
 	DBG(("%s(src=(%d, %d), dst=(%d, %d), size=(%d, %d))\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, width, height));
@@ -3241,8 +3246,9 @@ gen3_render_composite_spans(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
+	need_flush = kgem_bo_is_dirty(tmp->base.src.bo);
 	gen3_emit_composite_state(sna, &tmp->base);
-	if (kgem_bo_is_dirty(tmp->base.src.bo)) {
+	if (need_flush) {
 		if (tmp->base.src.bo == tmp->base.dst.bo) {
 			kgem_emit_flush(&sna->kgem);
 		} else {
@@ -3252,6 +3258,7 @@ gen3_render_composite_spans(struct sna *sna,
 			kgem_clear_dirty(&sna->kgem);
 		}
 		assert(sna->kgem.mode == KGEM_RENDER);
+		kgem_bo_mark_dirty(tmp->base.dst.bo);
 	}
 
 	gen3_align_vertex(sna, &tmp->base);
