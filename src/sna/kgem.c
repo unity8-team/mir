@@ -523,7 +523,7 @@ cpu_cache_size(void)
 static int gem_param(struct kgem *kgem, int name)
 {
 	drm_i915_getparam_t gp;
-	int v = 0;
+	int v = -1; /* No param uses the sign bit, reserve it for errors */
 
 	VG_CLEAR(gp);
 	gp.param = name;
@@ -597,7 +597,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	if (gen < 40) {
 		if (!DBG_NO_RELAXED_FENCING) {
 			kgem->has_relaxed_fencing =
-				gem_param(kgem, I915_PARAM_HAS_RELAXED_FENCING);
+				gem_param(kgem, I915_PARAM_HAS_RELAXED_FENCING) > 0;
 		}
 	} else
 		kgem->has_relaxed_fencing = 1;
@@ -605,8 +605,17 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	     kgem->has_relaxed_fencing));
 
 	kgem->has_llc = false;
-	if (!DBG_NO_LLC && gen >= 60)
-		kgem->has_llc = true;
+	if (!DBG_NO_LLC) {
+		int has_llc = -1;
+#if defined(I915_PARAM_HAS_LLC) /* Expected in libdrm-2.4.31 */
+		has_llc = gem_param(kgem, I915_PARAM_HAS_LLC);
+#endif
+		if (has_llc == -1) {
+			DBG(("%s: no kernel/drm support for HAS_LLC, assuming support for LLC based on GPU generation\n", __FUNCTION__));
+			has_llc = gen >= 60;
+		}
+		kgem->has_llc = has_llc;
+	}
 	kgem->has_cpu_bo = kgem->has_llc;
 	DBG(("%s: cpu bo enabled %d: llc? %d\n", __FUNCTION__,
 	     kgem->has_cpu_bo, kgem->has_llc));
