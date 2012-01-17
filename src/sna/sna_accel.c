@@ -223,8 +223,10 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 			if (priv->ptr == NULL) {
 				kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 				priv->cpu_bo = NULL;
-			} else
+			} else {
+				kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 				priv->stride = priv->cpu_bo->pitch;
+			}
 		}
 	}
 
