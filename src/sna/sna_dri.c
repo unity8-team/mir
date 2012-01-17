@@ -342,6 +342,7 @@ damage_all:
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
 		sna_damage_destroy(&priv->cpu_damage);
+		priv->undamaged = false;
 	} else {
 		BoxPtr box = RegionExtents(region);
 		if (region->data == NULL &&
@@ -364,6 +365,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
 	sna_damage_destroy(&priv->cpu_damage);
+	priv->undamaged = false;
 
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = ref(bo);

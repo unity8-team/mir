@@ -774,10 +774,11 @@ sna_composite_rectangles(CARD8		 op,
 
 		if (region.data == NULL &&
 		    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
-		    region.extents.y2 - region.extents.y1 == pixmap->drawable.height)
+		    region.extents.y2 - region.extents.y1 == pixmap->drawable.height) {
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width, pixmap->drawable.height);
-		else
+			priv->undamaged = false;
+		} else
 			sna_damage_add(&priv->gpu_damage, &region);
 	}
 
