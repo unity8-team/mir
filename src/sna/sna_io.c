@@ -89,8 +89,9 @@ void sna_read_boxes(struct sna *sna,
 {
 	struct kgem *kgem = &sna->kgem;
 	struct kgem_bo *dst_bo;
-	int tmp_nbox;
+	BoxRec extents;
 	const BoxRec *tmp_box;
+	int tmp_nbox;
 	char *src;
 	void *ptr;
 	int src_pitch, cpp, offset;
@@ -123,11 +124,76 @@ void sna_read_boxes(struct sna *sna,
 
 	if (DEBUG_NO_IO || kgem->wedged ||
 	    !kgem_bo_map_will_stall(kgem, src_bo) ||
-	    src_bo->tiling != I915_TILING_X) {
+	    src_bo->tiling == I915_TILING_NONE) {
+fallback:
 		read_boxes_inplace(kgem,
 				   src_bo, src_dx, src_dy,
 				   dst, dst_dx, dst_dy,
 				   box, nbox);
+		return;
+	}
+
+	/* Is it worth detiling? */
+	extents = box[0];
+	for (n = 1; n < nbox; n++) {
+		if (box[n].x1 < extents.x1)
+			extents.x1 = box[n].x1;
+		if (box[n].x2 > extents.x2)
+			extents.x2 = box[n].x2;
+
+		if (box[n].y1 < extents.y1)
+			extents.y1 = box[n].y1;
+		if (box[n].y2 > extents.y2)
+			extents.y2 = box[n].y2;
+	}
+	if ((extents.y2 - extents.y1) * src_bo->pitch < 4096)
+		goto fallback;
+
+	/* Try to avoid switching rings... */
+	if (src_bo->tiling == I915_TILING_Y || kgem->ring == KGEM_RENDER) {
+		PixmapRec tmp;
+
+		tmp.drawable.width  = extents.x2 - extents.x1;
+		tmp.drawable.height = extents.y2 - extents.y1;
+		tmp.drawable.depth  = dst->drawable.depth;
+		tmp.drawable.bitsPerPixel = dst->drawable.bitsPerPixel;
+		tmp.devPrivate.ptr = NULL;
+
+		assert(tmp.drawable.width);
+		assert(tmp.drawable.height);
+
+		dst_bo = kgem_create_buffer_2d(kgem,
+					       tmp.drawable.width,
+					       tmp.drawable.height,
+					       tmp.drawable.bitsPerPixel,
+					       KGEM_BUFFER_LAST,
+					       &ptr);
+		if (!dst_bo)
+			goto fallback;
+
+		if (!sna->render.copy_boxes(sna, GXcopy,
+					    dst, src_bo, src_dx, src_dy,
+					    &tmp, dst_bo, -extents.x1, -extents.y1,
+					    box, nbox)) {
+			kgem_bo_destroy(&sna->kgem, dst_bo);
+			goto fallback;
+		}
+
+		kgem_bo_submit(&sna->kgem, dst_bo);
+		kgem_buffer_read_sync(kgem, dst_bo);
+
+		for (n = 0; n < nbox; n++) {
+			memcpy_blt(ptr, dst->devPrivate.ptr, tmp.drawable.bitsPerPixel,
+				   dst_bo->pitch, dst->devKind,
+				   box[n].x1 - extents.x1,
+				   box[n].y1 - extents.y1,
+				   box[n].x1 + dst_dx,
+				   box[n].y1 + dst_dy,
+				   box[n].x2 - box[n].x1,
+				   box[n].y2 - box[n].y1);
+		}
+
+		kgem_bo_destroy(&sna->kgem, dst_bo);
 		return;
 	}
 
