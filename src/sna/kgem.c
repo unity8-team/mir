@@ -289,14 +289,16 @@ kgem_busy(struct kgem *kgem, int handle)
 
 static void kgem_bo_retire(struct kgem *kgem, struct kgem_bo *bo)
 {
+	DBG(("%s: handle=%d, domain=%d\n",
+	     __FUNCTION__, bo->handle, bo->domain));
 	assert(!kgem_busy(kgem, bo->handle));
 
 	if (bo->domain == DOMAIN_GPU)
 		kgem_retire(kgem);
 
 	if (bo->exec == NULL) {
-		DBG(("%s: retiring bo handle=%d (needed flush? %d)\n",
-		     __FUNCTION__, bo->handle, bo->needs_flush));
+		DBG(("%s: retiring bo handle=%d (needed flush? %d), rq? %d\n",
+		     __FUNCTION__, bo->handle, bo->needs_flush, bo->rq != NULL));
 		bo->rq = NULL;
 		list_del(&bo->request);
 		bo->needs_flush = bo->flush;

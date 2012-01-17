@@ -2206,6 +2206,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	    sna_put_image_upload_blt(drawable, gc, region,
 				     x, y, w, h, bits, stride)) {
 		if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
+			DBG(("%s: marking damage\n", __FUNCTION__));
 			if (region_subsumes_drawable(region, &pixmap->drawable)) {
 				sna_damage_destroy(&priv->cpu_damage);
 				list_del(&priv->list);
@@ -2264,16 +2265,19 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 					return true;
 				}
 			} else {
-				if (!region_subsumes_drawable(region, &pixmap->drawable)) {
-					sna_damage_subtract(&priv->cpu_damage, region);
-					if (!sna_pixmap_move_to_gpu(pixmap,
-								    MOVE_WRITE))
-						return false;
-				} else {
-					sna_damage_destroy(&priv->cpu_damage);
-					list_del(&priv->list);
+				DBG(("%s: cpu bo will stall, upload damage and discard\n",
+				     __FUNCTION__));
+				if (priv->cpu_damage) {
+					if (!region_subsumes_drawable(region, &pixmap->drawable)) {
+						sna_damage_subtract(&priv->cpu_damage, region);
+						if (!sna_pixmap_move_to_gpu(pixmap,
+									    MOVE_WRITE))
+							return false;
+					} else {
+						sna_damage_destroy(&priv->cpu_damage);
+						list_del(&priv->list);
+					}
 				}
-
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
@@ -2292,6 +2296,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		return true;
 
 	if (!DAMAGE_IS_ALL(priv->cpu_damage)) {
+		DBG(("%s: marking damage\n", __FUNCTION__));
 		if (region_subsumes_drawable(region, &pixmap->drawable)) {
 			DBG(("%s: replacing entire pixmap\n", __FUNCTION__));
 			sna_damage_all(&priv->cpu_damage,

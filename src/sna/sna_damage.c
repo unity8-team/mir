@@ -933,7 +933,7 @@ struct sna_damage *__sna_damage_all(struct sna_damage *damage,
 struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 				      int width, int height)
 {
-	DBG(("%s(%d, %d)%s\n", __FUNCTION__, width, height,
+	DBG(("%s(%d, %d)%s?\n", __FUNCTION__, width, height,
 	     damage->dirty ? "*" : ""));
 	assert(damage->mode == DAMAGE_ADD);
 
@@ -947,8 +947,10 @@ struct sna_damage *_sna_damage_is_all(struct sna_damage *damage,
 		assert(RegionNotEmpty(&damage->region));
 	}
 
-	if (damage->region.data)
+	if (damage->region.data) {
+		DBG(("%s: no, not singular\n", __FUNCTION__));
 		return damage;
+	}
 
 	DBG(("%s: (%d, %d), (%d, %d)\n", __FUNCTION__,
 	     damage->extents.x1, damage->extents.y1,
