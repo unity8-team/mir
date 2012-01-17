@@ -287,8 +287,8 @@ _sna_damage_create_elt_from_boxes(struct sna_damage *damage,
 		damage->box[i].y1 = boxes[i].y1 + dy;
 		damage->box[i].y2 = boxes[i].y2 + dy;
 	}
-	damage->box += i;
-	damage->remain -= i;
+	damage->box += count;
+	damage->remain -= count;
 
 	return damage;
 }
@@ -333,8 +333,8 @@ _sna_damage_create_elt_from_rectangles(struct sna_damage *damage,
 		damage->box[i].y1 = r[i].y + dy;
 		damage->box[i].y2 = damage->box[i].y1 + r[i].height;
 	}
-	damage->box += n;
-	damage->remain -= n;
+	damage->box += count;
+	damage->remain -= count;
 
 	return damage;
 }
