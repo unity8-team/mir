@@ -1289,7 +1289,7 @@ static void kgem_finish_partials(struct kgem *kgem)
 			}
 		}
 
-		if (bo->need_io) {
+		if (bo->used && bo->need_io) {
 			DBG(("%s: handle=%d, uploading %d/%d\n",
 			     __FUNCTION__, bo->base.handle, bo->used, bo->base.size));
 			assert(!kgem_busy(kgem, bo->base.handle));
@@ -3176,6 +3176,7 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 	struct kgem_bo *bo;
 	int stride;
 
+	assert(width > 0 && height > 0);
 	stride = ALIGN(width, 2) * bpp >> 3;
 	stride = ALIGN(stride, kgem->min_alignment);
 
@@ -3193,7 +3194,8 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 		 * the last pair of rows is valid, remove the padding so
 		 * that it can be allocated to other pixmaps.
 		 */
-		io->used -= stride;
+		if (io->used)
+			io->used -= stride;
 		bo->size -= stride;
 		bubble_sort_partial(kgem, io);
 	}
