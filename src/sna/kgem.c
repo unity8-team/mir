@@ -2966,10 +2966,10 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	}
 
 	/* Be a little more generous and hope to hold fewer mmappings */
-	alloc = ALIGN(size, kgem->partial_buffer_size);
 	bo = NULL;
 
 #if !DBG_NO_MAP_UPLOAD
+	alloc = ALIGN(size, kgem->partial_buffer_size);
 	if (kgem->has_cpu_bo) {
 		struct kgem_bo *old;
 
@@ -3084,6 +3084,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 	}
+#else
+	alloc = ALIGN(size, 64*1024);
 #endif
 
 	if (bo == NULL) {
