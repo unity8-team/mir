@@ -2280,6 +2280,9 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 						list_del(&priv->list);
 					}
 				}
+				sna_damage_all(&priv->gpu_damage,
+					       pixmap->drawable.width,
+					       pixmap->drawable.height);
 				sna_pixmap_free_cpu(sna, priv);
 			}
 		}
