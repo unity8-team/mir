@@ -184,7 +184,7 @@ static void sna_pixmap_free_gpu(struct sna *sna, struct sna_pixmap *priv)
 
 	if (priv->mapped) {
 		priv->pixmap->devPrivate.ptr = NULL;
-		priv->mapped = 0;
+		priv->mapped = false;
 	}
 
 	list_del(&priv->inactive);
@@ -257,7 +257,7 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 		free(priv->ptr);
 
 	priv->pixmap->devPrivate.ptr = priv->ptr = NULL;
-	priv->mapped = 0;
+	priv->mapped = false;
 }
 
 static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
@@ -392,7 +392,7 @@ struct kgem_bo *sna_pixmap_change_tiling(PixmapPtr pixmap, uint32_t tiling)
 
 	if (priv->mapped) {
 		pixmap->devPrivate.ptr = NULL;
-		priv->mapped = 0;
+		priv->mapped = false;
 	}
 
 	return priv->gpu_bo = bo;
@@ -780,7 +780,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 			if (pixmap->devPrivate.ptr == NULL)
 				goto skip_inplace_map;
 
-			priv->mapped = 1;
+			priv->mapped = true;
 			pixmap->devKind = priv->gpu_bo->pitch;
 
 			sna_damage_all(&priv->gpu_damage,
@@ -816,7 +816,7 @@ skip_inplace_map:
 
 	if (priv->mapped) {
 		pixmap->devPrivate.ptr = NULL;
-		priv->mapped = 0;
+		priv->mapped = false;
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
@@ -1059,7 +1059,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 				if (pixmap->devPrivate.ptr == NULL)
 					return false;
 
-				priv->mapped = 1;
+				priv->mapped = true;
 				pixmap->devKind = priv->gpu_bo->pitch;
 
 				sna_damage_subtract(&priv->cpu_damage, region);
@@ -1097,7 +1097,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			if (pixmap->devPrivate.ptr == NULL)
 				return false;
 
-			priv->mapped = 1;
+			priv->mapped = true;
 			pixmap->devKind = priv->gpu_bo->pitch;
 
 			sna_damage_subtract(&priv->cpu_damage, region);
@@ -1125,19 +1125,19 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		pixmap->devPrivate.ptr =
 			kgem_bo_map(&sna->kgem, priv->gpu_bo);
 		if (pixmap->devPrivate.ptr != NULL) {
-			priv->mapped = 1;
+			priv->mapped = true;
 			pixmap->devKind = priv->gpu_bo->pitch;
 			if (!DAMAGE_IS_ALL(priv->gpu_damage))
 				sna_damage_add(&priv->gpu_damage, region);
 			return true;
 		}
 
-		priv->mapped = 0;
+		priv->mapped = false;
 	}
 
 	if (priv->mapped) {
 		pixmap->devPrivate.ptr = NULL;
-		priv->mapped = 0;
+		priv->mapped = false;
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&
@@ -1410,6 +1410,14 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 
 	if (priv->cpu_damage == NULL)
 		goto done;
+
+	if (priv->mapped) {
+		assert(priv->stride);
+		pixmap->devPrivate.ptr = priv->ptr;
+		pixmap->devKind = priv->stride;
+		priv->mapped = false;
+	}
+	assert(pixmap->devPrivate.ptr != NULL);
 
 	region_set(&r, box);
 	if (MIGRATE_ALL || region_subsumes_damage(&r, priv->cpu_damage)) {
@@ -1873,6 +1881,12 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	if (priv->cpu_damage == NULL)
 		goto done;
 
+	if (priv->mapped) {
+		assert(priv->stride);
+		pixmap->devPrivate.ptr = priv->ptr;
+		pixmap->devKind = priv->stride;
+		priv->mapped = false;
+	}
 	assert(pixmap->devPrivate.ptr != NULL);
 
 	n = sna_damage_get_boxes(priv->cpu_damage, &box);
@@ -2249,7 +2263,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			pixmap->devPrivate.ptr =
 				kgem_bo_map(&sna->kgem, priv->gpu_bo);
 			if (pixmap->devPrivate.ptr) {
-				priv->mapped = 1;
+				priv->mapped = true;
 				pixmap->devKind = priv->gpu_bo->pitch;
 			}
 		}
@@ -2319,7 +2333,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 
 	if (priv->mapped) {
 		pixmap->devPrivate.ptr = NULL;
-		priv->mapped = 0;
+		priv->mapped = false;
 	}
 
 	if (pixmap->devPrivate.ptr == NULL &&

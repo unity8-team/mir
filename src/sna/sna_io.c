@@ -354,6 +354,8 @@ static void write_boxes_inplace(struct kgem *kgem,
 	if (dst == NULL)
 		return;
 
+	assert(dst != src);
+
 	do {
 		DBG(("%s: (%d, %d) -> (%d, %d) x (%d, %d) [bpp=%d, src_pitch=%d, dst_pitch=%d]\n", __FUNCTION__,
 		     box->x1 + src_dx, box->y1 + src_dy,
