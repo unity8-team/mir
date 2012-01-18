@@ -396,24 +396,12 @@ static bool upload_inplace(struct kgem *kgem,
 	 * operation.
 	 */
 	if (!bo->map) {
-		BoxRec extents;
-
-		extents = box[0];
-		while (--n) {
+		unsigned int bytes = 0;
+		while (n--) {
+			bytes += (box->x2 - box->x1) * (box->y2 - box->y1);
 			box++;
-			if (box->x1 < extents.x1)
-				extents.x1 = box->x1;
-			if (box->x2 > extents.x2)
-				extents.x2 = box->x2;
-
-			if (box->y1 < extents.y1)
-				extents.y1 = box->y1;
-			if (box->y2 > extents.y2)
-				extents.y2 = box->y2;
 		}
-
-		if ((extents.x2 - extents.x1) * (extents.y2 - extents.y1) * bpp >> 12
-		    < kgem->half_cpu_cache_pages)
+		if (bytes * bpp >> 12 < kgem->half_cpu_cache_pages)
 			return false;
 	}
 
