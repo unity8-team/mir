@@ -54,7 +54,6 @@
 #define DBG(x) ErrorF x
 #endif
 
-#define FORCE_GPU_ONLY 0
 #define FORCE_INPLACE 0
 #define FORCE_FALLBACK 0
 #define FORCE_FLUSH 0
@@ -654,11 +653,6 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		return sna_pixmap_create_scratch(screen,
 						 width, height, depth,
 						 I915_TILING_Y);
-
-	if (FORCE_GPU_ONLY && width && height)
-		return sna_pixmap_create_scratch(screen,
-						 width, height, depth,
-						 I915_TILING_X);
 
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE ||
 	    !kgem_can_create_2d(&sna->kgem, width, height,
