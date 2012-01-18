@@ -3591,29 +3591,12 @@ gen3_emit_video_state(struct sna *sna,
 static void
 gen3_video_get_batch(struct sna *sna)
 {
-	if (!kgem_check_batch(&sna->kgem, 120)) {
-		DBG(("%s: flushing batch: nbatch %d < %d\n",
-		     __FUNCTION__,
-		     batch_space(sna), 120));
-		kgem_submit(&sna->kgem);
-		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	}
+	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 
-	if (sna->kgem.nreloc + 4 > KGEM_RELOC_SIZE(&sna->kgem)) {
-		DBG(("%s: flushing batch: reloc %d >= %d\n",
-		     __FUNCTION__,
-		     sna->kgem.nreloc + 4,
-		     (int)KGEM_RELOC_SIZE(&sna->kgem)));
-		kgem_submit(&sna->kgem);
-		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
-	}
-
-	if (sna->kgem.nexec + 2 > KGEM_EXEC_SIZE(&sna->kgem)) {
-		DBG(("%s: flushing batch: exec %d >= %d\n",
-		     __FUNCTION__,
-		     sna->kgem.nexec + 2,
-		     (int)KGEM_EXEC_SIZE(&sna->kgem)));
-		kgem_submit(&sna->kgem);
+	if (!kgem_check_batch(&sna->kgem, 120) ||
+	    !kgem_check_reloc(&sna->kgem, 4) ||
+	    !kgem_check_exec(&sna->kgem, 2)) {
+		_kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
