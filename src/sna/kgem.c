@@ -1139,9 +1139,9 @@ static void kgem_commit(struct kgem *kgem)
 	struct kgem_bo *bo, *next;
 
 	list_for_each_entry_safe(bo, next, &rq->buffers, request) {
-		DBG(("%s: release handle=%d (proxy? %d), dirty? %d flush? %d\n",
+		DBG(("%s: release handle=%d (proxy? %d), dirty? %d flush? %d -> offset=%x\n",
 		     __FUNCTION__, bo->handle, bo->proxy != NULL,
-		     bo->dirty, bo->needs_flush));
+		     bo->dirty, bo->needs_flush, (unsigned)bo->exec->offset));
 
 		assert(!bo->purged);
 		assert(bo->proxy || bo->rq == rq);
@@ -2614,6 +2614,9 @@ static void kgem_trim_vma_cache(struct kgem *kgem, int type, int bucket)
 void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 {
 	void *ptr;
+
+	DBG(("%s: handle=%d, tiling=%d, map=%p, domain=%d\n", __FUNCTION__,
+	     bo->handle, bo->tiling, bo->map, bo->domain));
 
 	assert(!bo->purged);
 	assert(bo->exec == NULL);

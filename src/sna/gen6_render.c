@@ -2423,7 +2423,7 @@ gen6_render_composite(struct sna *sna,
 	if (!gen6_composite_set_target(sna, tmp, dst))
 		return FALSE;
 
-	if (mask == NULL && sna->kgem.mode == KGEM_BLT  &&
+	if (mask == NULL && sna->kgem.mode == KGEM_BLT &&
 	    sna_blt_composite(sna, op,
 			      src, dst,
 			      src_x, src_y,

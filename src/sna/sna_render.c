@@ -41,6 +41,9 @@
 #define NO_FIXUP 0
 #define NO_EXTRACT 0
 
+#define DBG_FORCE_UPLOAD 0
+#define DBG_NO_CPU_BO 0
+
 CARD32
 sna_format_for_depth(int depth)
 {
@@ -289,6 +292,9 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 {
 	struct sna_pixmap *priv;
 
+	if (DBG_NO_CPU_BO)
+		return NULL;
+
 	priv = sna_pixmap_attach(pixmap);
 	if (priv == NULL || priv->cpu_bo == NULL) {
 		DBG(("%s: no cpu bo\n", __FUNCTION__));
@@ -352,11 +358,17 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	struct sna_pixmap *priv;
 	int count, w, h;
 
+	if (DBG_FORCE_UPLOAD > 0)
+		return FALSE;
+
 	if (pixmap->usage_hint) {
 		DBG(("%s: not migrating pixmap due to usage_hint=%d\n",
 		     __FUNCTION__, pixmap->usage_hint));
 		return FALSE;
 	}
+
+	if (DBG_FORCE_UPLOAD < 0)
+		return TRUE;
 
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;

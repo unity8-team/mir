@@ -342,11 +342,10 @@ static void write_boxes_inplace(struct kgem *kgem,
 				struct kgem_bo *bo, int16_t dst_dx, int16_t dst_dy,
 				const BoxRec *box, int n)
 {
-	int dst_pitch = bo->pitch;
-	int src_pitch = stride;
 	void *dst;
 
-	DBG(("%s x %d, tiling=%d\n", __FUNCTION__, n, bo->tiling));
+	DBG(("%s x %d, handle=%d, tiling=%d\n",
+	     __FUNCTION__, n, bo->handle, bo->tiling));
 
 	kgem_bo_submit(kgem, bo);
 
@@ -361,10 +360,19 @@ static void write_boxes_inplace(struct kgem *kgem,
 		     box->x1 + src_dx, box->y1 + src_dy,
 		     box->x1 + dst_dx, box->y1 + dst_dy,
 		     box->x2 - box->x1, box->y2 - box->y1,
-		     bpp, src_pitch, dst_pitch));
+		     bpp, stride, bo->pitch));
+
+		assert(box->x1 + dst_dx >= 0);
+		assert((box->x2 + dst_dx)*bpp <= 8*bo->pitch);
+		assert(box->y1 + dst_dy >= 0);
+		assert((box->y2 + dst_dy)*bo->pitch <= bo->size);
+
+		assert(box->x1 + src_dx >= 0);
+		assert((box->x2 + src_dx)*bpp <= 8*stride);
+		assert(box->y1 + src_dy >= 0);
 
 		memcpy_blt(src, dst, bpp,
-			   src_pitch, dst_pitch,
+			   stride, bo->pitch,
 			   box->x1 + src_dx, box->y1 + src_dy,
 			   box->x1 + dst_dx, box->y1 + dst_dy,
 			   box->x2 - box->x1, box->y2 - box->y1);
