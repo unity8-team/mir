@@ -859,6 +859,7 @@ static void kgem_bo_release_map(struct kgem *kgem, struct kgem_bo *bo)
 	     __FUNCTION__, type ? "CPU" : "GTT",
 	     bo->handle, kgem->vma[type].count));
 
+	VG(if (type) VALGRIND_FREELIKE_BLOCK(CPU_MAP(bo->map), 0));
 	munmap(CPU_MAP(bo->map), bo->size);
 	bo->map = NULL;
 
@@ -2606,6 +2607,7 @@ static void kgem_trim_vma_cache(struct kgem *kgem, int type, int bucket)
 		assert(bo->map);
 		assert(bo->rq == NULL);
 
+		VG(if (type) VALGRIND_FREELIKE_BLOCK(CPU_MAP(bo->map), 0));
 		munmap(CPU_MAP(bo->map), bo->size);
 		bo->map = NULL;
 		list_del(&bo->vma);
@@ -2706,6 +2708,8 @@ void *kgem_bo_map__cpu(struct kgem *kgem, struct kgem_bo *bo)
 		assert(0);
 		return NULL;
 	}
+
+	VG(VALGRIND_MALLOCLIKE_BLOCK(mmap_arg.addr_ptr, bo->size, 0, 1));
 
 	DBG(("%s: caching CPU vma for %d\n", __FUNCTION__, bo->handle));
 	bo->map = MAKE_CPU_MAP(mmap_arg.addr_ptr);
