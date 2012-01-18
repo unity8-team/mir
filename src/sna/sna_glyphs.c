@@ -1224,9 +1224,8 @@ sna_glyphs(CARD8 op,
 	if (FALLBACK || DEBUG_NO_RENDER)
 		goto fallback;
 
-	if (sna->kgem.wedged || !sna->have_render) {
-		DBG(("%s: no render (wedged=%d)\n",
-		     __FUNCTION__, sna->kgem.wedged));
+	if (wedged(sna)) {
+		DBG(("%s: wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 

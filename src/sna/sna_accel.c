@@ -623,12 +623,12 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 {
 	struct sna *sna = to_sna_from_screen(screen);
 	PixmapPtr pixmap;
-	int pad, size;
+	int pad;
 
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
 
-	if (wedged(sna))
+	if (wedged(sna) || !sna->have_render)
 		return create_pixmap(sna, screen,
 				     width, height, depth,
 				     usage);
@@ -666,8 +666,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		return create_pixmap(sna, screen, width, height, depth, usage);
 
 	pad = PixmapBytePad(width, depth);
-	size = pad * height;
-	if (size <= 4096) {
+	if (pad*height <= 4096) {
 		pixmap = create_pixmap(sna, screen,
 				       width, height, depth, usage);
 		if (pixmap == NullPixmap)
