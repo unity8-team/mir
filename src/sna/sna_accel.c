@@ -1235,21 +1235,24 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 			if (region_subsumes_damage(r, priv->gpu_damage)) {
 				BoxPtr box;
 				int n;
-				Bool ok;
 
-				ok = FALSE;
 				n = sna_damage_get_boxes(priv->gpu_damage,
 							 &box);
-				if (priv->cpu_bo && sna->kgem.gen >= 30)
-					ok = sna->render.copy_boxes(sna, GXcopy,
-								    pixmap, priv->gpu_bo, 0, 0,
-								    pixmap, priv->cpu_bo, 0, 0,
-								    box, n);
-				if (!ok)
-					sna_read_boxes(sna,
-						       priv->gpu_bo, 0, 0,
-						       pixmap, 0, 0,
-						       box, n);
+				if (n) {
+					Bool ok = FALSE;
+
+					if (priv->cpu_bo && sna->kgem.gen >= 30)
+						ok = sna->render.copy_boxes(sna, GXcopy,
+									    pixmap, priv->gpu_bo, 0, 0,
+									    pixmap, priv->cpu_bo, 0, 0,
+									    box, n);
+
+					if (!ok)
+						sna_read_boxes(sna,
+							       priv->gpu_bo, 0, 0,
+							       pixmap, 0, 0,
+							       box, n);
+				}
 
 				sna_damage_destroy(&priv->gpu_damage);
 				priv->undamaged = true;
@@ -1430,33 +1433,36 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 
 	region_set(&r, box);
 	if (MIGRATE_ALL || region_subsumes_damage(&r, priv->cpu_damage)) {
-		Bool ok;
 		int n;
 
 		n = sna_damage_get_boxes(priv->cpu_damage, &box);
-		ok = FALSE;
-		if (priv->cpu_bo)
-			ok = sna->render.copy_boxes(sna, GXcopy,
-						    pixmap, priv->cpu_bo, 0, 0,
-						    pixmap, priv->gpu_bo, 0, 0,
-						    box, n);
-		if (!ok) {
-			if (n == 1 && !priv->pinned &&
-			    box->x1 <= 0 && box->y1 <= 0 &&
-			    box->x2 >= pixmap->drawable.width &&
-			    box->y2 >= pixmap->drawable.height) {
-				priv->gpu_bo =
-					sna_replace(sna, pixmap,
-						    priv->gpu_bo,
-						    pixmap->devPrivate.ptr,
-						    pixmap->devKind);
-			} else {
-				sna_write_boxes(sna, pixmap,
-						priv->gpu_bo, 0, 0,
-						pixmap->devPrivate.ptr,
-						pixmap->devKind,
-						0, 0,
-						box, n);
+		if (n) {
+			Bool ok;
+
+			ok = FALSE;
+			if (priv->cpu_bo)
+				ok = sna->render.copy_boxes(sna, GXcopy,
+							    pixmap, priv->cpu_bo, 0, 0,
+							    pixmap, priv->gpu_bo, 0, 0,
+							    box, n);
+			if (!ok) {
+				if (n == 1 && !priv->pinned &&
+				    box->x1 <= 0 && box->y1 <= 0 &&
+				    box->x2 >= pixmap->drawable.width &&
+				    box->y2 >= pixmap->drawable.height) {
+					priv->gpu_bo =
+						sna_replace(sna, pixmap,
+							    priv->gpu_bo,
+							    pixmap->devPrivate.ptr,
+							    pixmap->devKind);
+				} else {
+					sna_write_boxes(sna, pixmap,
+							priv->gpu_bo, 0, 0,
+							pixmap->devPrivate.ptr,
+							pixmap->devKind,
+							0, 0,
+							box, n);
+				}
 			}
 		}
 
