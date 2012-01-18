@@ -3881,7 +3881,7 @@ gen6_render_context_switch(struct kgem *kgem,
 	 DBG(("%s: from %d to %d\n", __FUNCTION__, kgem->mode, new_mode));
 
 	if (kgem->mode)
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
 
 	kgem->ring = new_mode;
 }

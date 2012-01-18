@@ -3843,7 +3843,7 @@ gen7_render_context_switch(struct kgem *kgem,
 		return;
 
 	if (kgem->mode)
-		_kgem_submit(kgem);
+		kgem_submit(kgem);
 
 	kgem->ring = new_mode;
 }
