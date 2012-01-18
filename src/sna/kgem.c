@@ -1874,6 +1874,8 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 			if (gem_set_tiling(kgem->fd, bo->handle,
 					   I915_TILING_NONE, 0) != I915_TILING_NONE)
 				continue;
+
+			bo->tiling = I915_TILING_NONE;
 		}
 
 		if (bo->map) {
@@ -1908,7 +1910,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 		else
 			kgem_bo_remove_from_inactive(kgem, bo);
 
-		bo->tiling = I915_TILING_NONE;
+		assert(bo->tiling == I915_TILING_NONE);
 		bo->pitch = 0;
 		bo->delta = 0;
 		DBG(("  %s: found handle=%d (size=%d) in linear %s cache\n",
@@ -1921,22 +1923,13 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 	}
 
 	if (first) {
-		if (I915_TILING_NONE != first->tiling) {
-			assert(!use_active);
-			if (gem_set_tiling(kgem->fd, first->handle,
-					   I915_TILING_NONE, 0) != I915_TILING_NONE)
-				return NULL;
-
-			if (first->map)
-				kgem_bo_release_map(kgem, first);
-		}
+		assert(first->tiling == I915_TILING_NONE);
 
 		if (use_active)
 			kgem_bo_remove_from_active(kgem, first);
 		else
 			kgem_bo_remove_from_inactive(kgem, first);
 
-		first->tiling = I915_TILING_NONE;
 		first->pitch = 0;
 		first->delta = 0;
 		DBG(("  %s: found handle=%d (size=%d) in linear %s cache\n",
