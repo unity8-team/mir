@@ -1125,9 +1125,9 @@ bool kgem_retire(struct kgem *kgem)
 	}
 
 	kgem->need_retire = !list_is_empty(&kgem->requests);
-	if (kgem->ring && (kgem->has_semaphores || !kgem->need_retire))
-		kgem->ring = kgem->mode;
 	DBG(("%s -- need_retire=%d\n", __FUNCTION__, kgem->need_retire));
+
+	kgem->retire(kgem);
 
 	return retired;
 }

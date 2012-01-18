@@ -158,6 +158,8 @@ struct kgem {
 	uint32_t partial_buffer_size;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
+	void (*retire)(struct kgem *kgem);
+
 	uint32_t batch[4*1024];
 	struct drm_i915_gem_exec_object2 exec[256];
 	struct drm_i915_gem_relocation_entry reloc[384];

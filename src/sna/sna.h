@@ -374,11 +374,6 @@ void sna_dri_close(struct sna *sna, ScreenPtr pScreen);
 extern Bool sna_crtc_on(xf86CrtcPtr crtc);
 int sna_crtc_to_pipe(xf86CrtcPtr crtc);
 
-/* sna_render.c */
-void sna_kgem_reset(struct kgem *kgem);
-void sna_kgem_flush(struct kgem *kgem);
-void sna_kgem_context_switch(struct kgem *kgem, int new_mode);
-
 CARD32 sna_format_for_depth(int depth);
 CARD32 sna_render_format_for_depth(int depth);
 

@@ -3848,6 +3848,13 @@ gen7_render_context_switch(struct kgem *kgem,
 	kgem->ring = new_mode;
 }
 
+static void
+gen7_render_retire(struct kgem *kgem)
+{
+	if (kgem->ring && (kgem->has_semaphores || !kgem->need_retire))
+		kgem->ring = kgem->mode;
+}
+
 static void gen7_render_reset(struct sna *sna)
 {
 	sna->render_state.gen7.needs_invariant = TRUE;
@@ -3920,6 +3927,7 @@ Bool gen7_render_init(struct sna *sna)
 		return FALSE;
 
 	sna->kgem.context_switch = gen7_render_context_switch;
+	sna->kgem.retire = gen7_render_retire;
 
 	sna->render.composite = gen7_render_composite;
 #if !NO_COMPOSITE_SPANS
