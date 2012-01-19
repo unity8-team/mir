@@ -58,8 +58,8 @@
 #define FORCE_FALLBACK 0
 #define FORCE_FLUSH 0
 
-#define USE_SPANS 0
 #define USE_INPLACE 1
+#define USE_WIDE_SPANS 0 /* -1 force CPU, 1 force GPU */
 #define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
 #define USE_BO_FOR_SCRATCH_PIXMAP 1
 
@@ -5334,6 +5334,70 @@ use_zero_spans(DrawablePtr drawable, GCPtr gc, const BoxRec *extents)
 	return ret;
 }
 
+/* Only use our spans code if the destination is busy and we can't perform
+ * the operation in place.
+ *
+ * Currently it looks to be faster to use the CPU for wide spans on all
+ * platforms, slow MI code. But that does not take into account the true
+ * cost of readback?
+ */
+inline static bool
+_use_wide_spans(DrawablePtr drawable, GCPtr gc, const BoxRec *extents)
+{
+	PixmapPtr pixmap;
+	struct sna_pixmap *priv;
+	BoxRec area;
+	int16_t dx, dy;
+
+	if (USE_WIDE_SPANS)
+		return USE_WIDE_SPANS > 0;
+
+	if ((drawable_gc_flags(drawable, gc, false) & MOVE_INPLACE_HINT) == 0)
+		return TRUE;
+
+	/* XXX check for GPU stalls on the gc (stipple, tile, etc) */
+
+	pixmap = get_drawable_pixmap(drawable);
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return FALSE;
+
+	if (DAMAGE_IS_ALL(priv->cpu_damage))
+		return FALSE;
+
+	if (priv->stride == 0 || priv->gpu_bo == NULL)
+		return FALSE;
+
+	if (!kgem_bo_is_busy(priv->gpu_bo))
+		return FALSE;
+
+	if (DAMAGE_IS_ALL(priv->gpu_damage))
+		return TRUE;
+
+	if (priv->gpu_damage == NULL)
+		return FALSE;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	area = *extents;
+	area.x1 += dx;
+	area.x2 += dx;
+	area.y1 += dy;
+	area.y2 += dy;
+	DBG(("%s extents (%d, %d), (%d, %d)\n", __FUNCTION__,
+	     area.x1, area.y1, area.x2, area.y2));
+
+	return sna_damage_contains_box(priv->gpu_damage,
+				       &area) != PIXMAN_REGION_OUT;
+}
+
+static bool
+use_wide_spans(DrawablePtr drawable, GCPtr gc, const BoxRec *extents)
+{
+	bool ret = _use_wide_spans(drawable, gc, extents);
+	DBG(("%s? %d\n", __FUNCTION__, ret));
+	return ret;
+}
+
 static void
 sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	      int mode, int n, DDXPointPtr pt)
@@ -5505,7 +5569,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	}
 
 spans_fallback:
-	if (USE_SPANS &&
+	if (use_wide_spans(drawable, gc, &region.extents) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		switch (gc->lineStyle) {
@@ -6377,7 +6441,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 
 	/* XXX Do we really want to base this decision on the amalgam ? */
 spans_fallback:
-	if (USE_SPANS &&
+	if (use_wide_spans(drawable, gc, &region.extents) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
 		int i;
@@ -7076,7 +7140,8 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 		goto fallback;
 
 	/* For "simple" cases use the miPolyArc to spans path */
-	if (USE_SPANS && arc_to_spans(gc, n) &&
+	if (use_wide_spans(drawable, gc, &region.extents) &&
+	    arc_to_spans(gc, n) &&
 	    sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
 		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
 		/* XXX still around 10x slower for x11perf -ellipse */
