@@ -2949,7 +2949,7 @@ gen6_render_composite_spans(struct sna *sna,
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
-			   NULL)){
+			   NULL)) {
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
@@ -3086,8 +3086,8 @@ gen6_render_copy_boxes(struct sna *sna, uint8_t alu,
 	    too_large(src->drawable.width, src->drawable.height) ||
 	    too_large(dst->drawable.width, dst->drawable.height)) {
 fallback:
-	    if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
-		    return false;
+		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
+			return false;
 
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
