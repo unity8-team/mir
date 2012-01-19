@@ -5192,18 +5192,10 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 		      BoxPtr out)
 {
 	BoxRec box;
-	int extra = gc->lineWidth >> 1;
 	bool clip, blt = true;
 
 	if (n == 0)
 		return 0;
-
-	if (n > 1) {
-		if (gc->joinStyle == JoinMiter)
-			extra = 6 * gc->lineWidth;
-		else if (gc->capStyle == CapProjecting)
-			extra = gc->lineWidth;
-	}
 
 	box.x2 = box.x1 = pt->x;
 	box.y2 = box.y1 = pt->y;
@@ -5234,11 +5226,20 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 	box.x2++;
 	box.y2++;
 
-	if (extra) {
-		box.x1 -= extra;
-		box.x2 += extra;
-		box.y1 -= extra;
-		box.y2 += extra;
+	if (gc->lineWidth) {
+		int extra = gc->lineWidth >> 1;
+		if (n > 1) {
+			if (gc->joinStyle == JoinMiter)
+				extra = 6 * gc->lineWidth;
+			else if (gc->capStyle == CapProjecting)
+				extra = gc->lineWidth;
+		}
+		if (extra) {
+			box.x1 -= extra;
+			box.x2 += extra;
+			box.y1 -= extra;
+			box.y2 += extra;
+		}
 	}
 
 	clip = trim_and_translate_box(&box, drawable, gc);
