@@ -60,7 +60,7 @@
 
 #define USE_SPANS 0
 #define USE_INPLACE 1
-#define USE_ZERO_SPANS 1
+#define USE_ZERO_SPANS 1 /* -1 force CPU, 1 force GPU */
 #define USE_BO_FOR_SCRATCH_PIXMAP 1
 
 #define MIGRATE_ALL 0
@@ -1148,8 +1148,6 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (flags & MOVE_INPLACE_HINT &&
 	    priv->stride && priv->gpu_bo &&
-	    (DAMAGE_IS_ALL(priv->gpu_damage) ||
-	     region_inplace(sna, pixmap, region, priv)) &&
 	    sna_pixmap_move_area_to_gpu(pixmap, &region->extents)) {
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
@@ -5250,6 +5248,69 @@ sna_poly_line_extents(DrawablePtr drawable, GCPtr gc,
 	return 1 | blt << 2 | clip << 1;
 }
 
+/* Only use our spans code if the destination is busy and we can't perform
+ * the operation in place.
+ *
+ * Currently it looks to be faster to use the GPU for zero spans on all
+ * platforms.
+ */
+inline static bool
+_use_zero_spans(DrawablePtr drawable, GCPtr gc, const BoxRec *extents)
+{
+	PixmapPtr pixmap;
+	struct sna_pixmap *priv;
+	BoxRec area;
+	int16_t dx, dy;
+
+	if (USE_ZERO_SPANS)
+		return USE_ZERO_SPANS > 0;
+
+	if ((drawable_gc_flags(drawable, gc, false) & MOVE_INPLACE_HINT) == 0)
+		return TRUE;
+
+	/* XXX check for GPU stalls on the gc (stipple, tile, etc) */
+
+	pixmap = get_drawable_pixmap(drawable);
+	priv = sna_pixmap(pixmap);
+	if (priv == NULL)
+		return FALSE;
+
+	if (DAMAGE_IS_ALL(priv->cpu_damage))
+		return FALSE;
+
+	if (priv->stride == 0 || priv->gpu_bo == NULL)
+		return FALSE;
+
+	if (!kgem_bo_is_busy(priv->gpu_bo))
+		return FALSE;
+
+	if (DAMAGE_IS_ALL(priv->gpu_damage))
+		return TRUE;
+
+	if (priv->gpu_damage == NULL)
+		return FALSE;
+
+	get_drawable_deltas(drawable, pixmap, &dx, &dy);
+	area = *extents;
+	area.x1 += dx;
+	area.x2 += dx;
+	area.y1 += dy;
+	area.y2 += dy;
+	DBG(("%s extents (%d, %d), (%d, %d)\n", __FUNCTION__,
+	     area.x1, area.y1, area.x2, area.y2));
+
+	return sna_damage_contains_box(priv->gpu_damage,
+				       &area) != PIXMAN_REGION_OUT;
+}
+
+static bool
+use_zero_spans(DrawablePtr drawable, GCPtr gc, const BoxRec *extents)
+{
+	bool ret = _use_zero_spans(drawable, gc, extents);
+	DBG(("%s? %d\n", __FUNCTION__, ret));
+	return ret;
+}
+
 static void
 sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	      int mode, int n, DDXPointPtr pt)
@@ -5339,7 +5400,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 					      &region.extents, flags & 2))
 				return;
 		} else { /* !rectilinear */
-			if (USE_ZERO_SPANS &&
+			if (use_zero_spans(drawable, gc, &region.extents) &&
 			    sna_drawable_use_gpu_bo(drawable,
 						    &region.extents,
 						    &damage) &&
@@ -6219,7 +6280,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 						 &region.extents, flags & 2))
 				return;
 		} else {
-			if (USE_ZERO_SPANS &&
+			if (use_zero_spans(drawable, gc, &region.extents) &&
 			    sna_drawable_use_gpu_bo(drawable,
 						    &region.extents,
 						    &damage) &&
