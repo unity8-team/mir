@@ -2575,9 +2575,8 @@ sna_put_xybitmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			b[0] |= 3 << 20;
 		b[0] |= ((box->x1 - x) & 7) << 17;
 		b[1] = priv->gpu_bo->pitch;
-		if (sna->kgem.gen >= 40) {
-			if (priv->gpu_bo->tiling)
-				b[0] |= BLT_DST_TILED;
+		if (sna->kgem.gen >= 40 && priv->gpu_bo->tiling) {
+			b[0] |= BLT_DST_TILED;
 			b[1] >>= 2;
 		}
 		b[1] |= blt_depth(drawable->depth) << 24;
@@ -2705,9 +2704,8 @@ sna_put_xypixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 				b[0] |= 3 << 20;
 			b[0] |= ((box->x1 - x) & 7) << 17;
 			b[1] = bo->pitch;
-			if (sna->kgem.gen >= 40) {
-				if (bo->tiling)
-					b[0] |= BLT_DST_TILED;
+			if (sna->kgem.gen >= 40 && bo->tiling) {
+				b[0] |= BLT_DST_TILED;
 				b[1] >>= 2;
 			}
 			b[1] |= 1 << 31; /* solid pattern */
@@ -4012,9 +4010,8 @@ sna_copy_bitmap_blt(DrawablePtr _bitmap, DrawablePtr drawable, GCPtr gc,
 
 	br00 = 3 << 20;
 	br13 = priv->gpu_bo->pitch;
-	if (sna->kgem.gen >= 40) {
-		if (priv->gpu_bo->tiling)
-			br00 |= BLT_DST_TILED;
+	if (sna->kgem.gen >= 40 && priv->gpu_bo->tiling) {
+		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
 	br13 |= blt_depth(drawable->depth) << 24;
@@ -4177,9 +4174,8 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 	if (drawable->bitsPerPixel == 32)
 		br00 |= 3 << 20;
 	br13 = priv->gpu_bo->pitch;
-	if (sna->kgem.gen >= 40) {
-		if (priv->gpu_bo->tiling)
-			br00 |= BLT_DST_TILED;
+	if (sna->kgem.gen >= 40 && priv->gpu_bo->tiling) {
+		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
 	br13 |= blt_depth(drawable->depth) << 24;
@@ -7619,9 +7615,8 @@ sna_poly_fill_rect_stippled_8x8_blt(DrawablePtr drawable,
 			br00 |= 3 << 20;
 
 		br13 = bo->pitch;
-		if (sna->kgem.gen >= 40) {
-			if (bo->tiling)
-				br00 |= BLT_DST_TILED;
+		if (sna->kgem.gen >= 40 && bo->tiling) {
+			br00 |= BLT_DST_TILED;
 			br13 >>= 2;
 		}
 		br13 |= (gc->fillStyle == FillStippled) << 28;
@@ -7859,9 +7854,8 @@ sna_poly_fill_rect_stippled_1_blt(DrawablePtr drawable,
 
 	br00 = 3 << 20;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40) {
-		if (bo->tiling)
-			br00 |= BLT_DST_TILED;
+	if (sna->kgem.gen >= 40 && bo->tiling) {
+		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
 	br13 |= (gc->fillStyle == FillStippled) << 29;
@@ -8383,9 +8377,8 @@ sna_poly_fill_rect_stippled_n_blt(DrawablePtr drawable,
 
 	br00 = XY_MONO_SRC_COPY_IMM | 3 << 20;
 	br13 = bo->pitch;
-	if (sna->kgem.gen >= 40) {
-		if (bo->tiling)
-			br00 |= BLT_DST_TILED;
+	if (sna->kgem.gen >= 40 && bo->tiling) {
+		br00 |= BLT_DST_TILED;
 		br13 >>= 2;
 	}
 	br13 |= (gc->fillStyle == FillStippled) << 29;
@@ -8854,9 +8847,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	b = sna->kgem.batch + sna->kgem.nbatch;
 	b[0] = XY_SETUP_BLT | 3 << 20;
 	b[1] = bo->pitch;
-	if (sna->kgem.gen >= 40) {
-		if (bo->tiling)
-			b[0] |= BLT_DST_TILED;
+	if (sna->kgem.gen >= 40 && bo->tiling) {
+		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
 	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
@@ -8909,9 +8901,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = XY_SETUP_BLT | 3 << 20;
 				b[1] = bo->pitch;
-				if (sna->kgem.gen >= 40) {
-					if (bo->tiling)
-						b[0] |= BLT_DST_TILED;
+				if (sna->kgem.gen >= 40 && bo->tiling) {
+					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
 				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
@@ -9450,9 +9441,8 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	b = sna->kgem.batch + sna->kgem.nbatch;
 	b[0] = XY_SETUP_BLT | 1 << 20;
 	b[1] = priv->gpu_bo->pitch;
-	if (sna->kgem.gen >= 40) {
-		if (priv->gpu_bo->tiling)
-			b[0] |= BLT_DST_TILED;
+	if (sna->kgem.gen >= 40 && priv->gpu_bo->tiling) {
+		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
 	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
@@ -9505,9 +9495,8 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 				b = sna->kgem.batch + sna->kgem.nbatch;
 				b[0] = XY_SETUP_BLT | 1 << 20;
 				b[1] = priv->gpu_bo->pitch;
-				if (sna->kgem.gen >= 40) {
-					if (priv->gpu_bo->tiling)
-						b[0] |= BLT_DST_TILED;
+				if (sna->kgem.gen >= 40 && priv->gpu_bo->tiling) {
+					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
 				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
@@ -9801,9 +9790,8 @@ sna_push_pixels_solid_blt(GCPtr gc,
 			b[0] |= 3 << 20;
 		b[0] |= ((box->x1 - region->extents.x1) & 7) << 17;
 		b[1] = priv->gpu_bo->pitch;
-		if (sna->kgem.gen >= 40) {
-			if (priv->gpu_bo->tiling)
-				b[0] |= BLT_DST_TILED;
+		if (sna->kgem.gen >= 40 && priv->gpu_bo->tiling) {
+			b[0] |= BLT_DST_TILED;
 			b[1] >>= 2;
 		}
 		b[1] |= 1 << 29;
