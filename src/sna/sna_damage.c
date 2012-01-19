@@ -534,66 +534,6 @@ static void damage_union(struct sna_damage *damage, const BoxRec *box)
 	}
 }
 
-inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
-						  RegionPtr region)
-{
-	assert(RegionNotEmpty(region));
-
-	if (!damage) {
-		damage = _sna_damage_create();
-		if (damage == NULL)
-			return NULL;
-	} else switch (damage->mode) {
-	case DAMAGE_ALL:
-		return damage;
-	case DAMAGE_SUBTRACT:
-		__sna_damage_reduce(damage);
-	case DAMAGE_ADD:
-		break;
-	}
-
-	if (REGION_NUM_RECTS(&damage->region) <= 1) {
-		pixman_region_union(&damage->region, &damage->region, region);
-		damage_union(damage, &region->extents);
-		return damage;
-	}
-
-	if (pixman_region_contains_rectangle(&damage->region,
-					     &region->extents) == PIXMAN_REGION_IN)
-		return damage;
-
-	damage_union(damage, &region->extents);
-	return _sna_damage_create_elt(damage,
-				      REGION_RECTS(region),
-				      REGION_NUM_RECTS(region));
-}
-
-#if DEBUG_DAMAGE
-fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
-					    RegionPtr region)
-{
-	char region_buf[120];
-	char damage_buf[1000];
-
-	DBG(("%s(%s + %s)\n", __FUNCTION__,
-	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
-	     _debug_describe_region(region_buf, sizeof(region_buf), region)));
-
-	damage = __sna_damage_add(damage, region);
-
-	ErrorF("  = %s\n",
-	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
-
-	return damage;
-}
-#else
-fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
-					    RegionPtr region)
-{
-	return __sna_damage_add(damage, region);
-}
-#endif
-
 static void _pixman_region_union_box(RegionRec *region, const BoxRec *box)
 {
 	RegionRec u = { *box, NULL };
@@ -637,6 +577,69 @@ static struct sna_damage *__sna_damage_add_box(struct sna_damage *damage,
 	damage_union(damage, box);
 	return _sna_damage_create_elt(damage, box, 1);
 }
+
+inline static struct sna_damage *__sna_damage_add(struct sna_damage *damage,
+						  RegionPtr region)
+{
+	assert(RegionNotEmpty(region));
+
+	if (!damage) {
+		damage = _sna_damage_create();
+		if (damage == NULL)
+			return NULL;
+	} else switch (damage->mode) {
+	case DAMAGE_ALL:
+		return damage;
+	case DAMAGE_SUBTRACT:
+		__sna_damage_reduce(damage);
+	case DAMAGE_ADD:
+		break;
+	}
+
+	if (region->data == NULL)
+		return __sna_damage_add_box(damage, &region->extents);
+
+	if (REGION_NUM_RECTS(&damage->region) <= 1) {
+		pixman_region_union(&damage->region, &damage->region, region);
+		damage_union(damage, &region->extents);
+		return damage;
+	}
+
+	if (pixman_region_contains_rectangle(&damage->region,
+					     &region->extents) == PIXMAN_REGION_IN)
+		return damage;
+
+	damage_union(damage, &region->extents);
+	return _sna_damage_create_elt(damage,
+				      REGION_RECTS(region),
+				      REGION_NUM_RECTS(region));
+}
+
+#if DEBUG_DAMAGE
+fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
+					    RegionPtr region)
+{
+	char region_buf[120];
+	char damage_buf[1000];
+
+	DBG(("%s(%s + %s)\n", __FUNCTION__,
+	     _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
+	     _debug_describe_region(region_buf, sizeof(region_buf), region)));
+
+	damage = __sna_damage_add(damage, region);
+
+	ErrorF("  = %s\n",
+	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+
+	return damage;
+}
+#else
+fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
+					    RegionPtr region)
+{
+	return __sna_damage_add(damage, region);
+}
+#endif
 
 inline static struct sna_damage *
 __sna_damage_add_boxes(struct sna_damage *damage,
