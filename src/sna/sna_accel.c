@@ -796,7 +796,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	     priv->gpu_damage));
 
 	if ((flags & MOVE_READ) == 0) {
-		assert(flags == MOVE_WRITE);
+		assert(flags & MOVE_WRITE);
 		sna_damage_destroy(&priv->gpu_damage);
 
 		if (priv->gpu && pixmap_inplace(sna, pixmap, priv)) {
@@ -1076,7 +1076,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 	if ((flags & MOVE_READ) == 0) {
-		assert(flags == MOVE_WRITE);
+		assert(flags & MOVE_WRITE);
 
 		if (priv->stride && priv->gpu_bo &&
 		    region_inplace(sna, pixmap, region, priv)) {
@@ -1181,7 +1181,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 		goto done;
 
 	if ((flags & MOVE_READ) == 0) {
-		assert(flags == MOVE_WRITE);
+		assert(flags & MOVE_WRITE);
 		sna_damage_subtract(&priv->gpu_damage, region);
 		goto done;
 	}
@@ -1380,32 +1380,38 @@ static bool alu_overwrites(uint8_t alu)
 	}
 }
 
-inline static unsigned drawable_gc_flags(DrawablePtr draw, GCPtr gc)
+inline static unsigned drawable_gc_flags(DrawablePtr draw,
+					 GCPtr gc,
+					 bool read)
 {
-	unsigned flags = MOVE_READ | MOVE_WRITE;
-
-	if (!USE_INPLACE)
-		return flags;
+	unsigned flags;
 
 	if (!alu_overwrites(gc->alu)) {
 		DBG(("%s: read due to alu %d\n", __FUNCTION__, gc->alu));
-		return flags;
+		return MOVE_READ | MOVE_WRITE;
 	}
 
 	if (!PM_IS_SOLID(draw, gc->planemask)) {
 		DBG(("%s: read due to planemask %lx\n",
 		     __FUNCTION__, gc->planemask));
-		return flags;
+		return MOVE_READ | MOVE_WRITE;
 	}
 
 	if (gc->fillStyle == FillStippled) {
 		DBG(("%s: read due to fill %d\n",
 		     __FUNCTION__, gc->fillStyle));
-		return flags;
+		return MOVE_READ | MOVE_WRITE;
 	}
 
 	DBG(("%s: try operating on drawable inplace\n", __FUNCTION__));
-	return flags | MOVE_INPLACE_HINT;
+	flags = MOVE_WRITE;
+	if (USE_INPLACE)
+		flags |= MOVE_INPLACE_HINT;
+	if (read) {
+		DBG(("%s: partial write\n", __FUNCTION__));
+		flags |= MOVE_READ;
+	}
+	return flags;
 }
 
 static bool
@@ -2806,7 +2812,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable, gc,
+							       true)))
 		goto out;
 
 	DBG(("%s: fbPutImage(%d, %d, %d, %d)\n",
@@ -3910,7 +3917,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable,
+							       gc, true)))
 		goto out;
 
 	fbFillSpans(drawable, gc, n, pt, width, sorted);
@@ -3946,7 +3954,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable,
+							       gc, true)))
 		goto out;
 
 	fbSetSpans(drawable, gc, src, pt, width, n, sorted);
@@ -4575,7 +4584,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable, gc,
+							       n > 1)))
 		goto out;
 
 	DBG(("%s: fbPolyPoint\n", __FUNCTION__));
@@ -5457,7 +5467,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable, gc,
+							       n > 2)))
 		goto out;
 
 	DBG(("%s: fbPolyLine\n", __FUNCTION__));
@@ -6313,7 +6324,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable, gc,
+							       n > 1)))
 		goto out;
 
 	DBG(("%s: fbPolySegment\n", __FUNCTION__));
@@ -6866,7 +6878,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable,
+							       gc, true)))
 		goto out;
 
 	DBG(("%s: fbPolyRectangle\n", __FUNCTION__));
@@ -6995,7 +7008,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable,
+							       gc, true)))
 		goto out;
 
 	/* XXX may still fallthrough to miZeroPolyArc */
@@ -8515,11 +8529,9 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, draw))
 		goto out;
 
-	flags = MOVE_WRITE;
-	if (gc->fillStyle == FillStippled  ||
-	    !(gc->alu == GXcopy || gc->alu == GXclear || gc->alu == GXset))
-		flags |= MOVE_READ;
-	if (!sna_drawable_move_region_to_cpu(draw, &region, flags))
+	if (!sna_drawable_move_region_to_cpu(draw, &region,
+					     drawable_gc_flags(draw, gc,
+							       n > 1)))
 		goto out;
 
 	DBG(("%s: fallback - fbPolyFillRect\n", __FUNCTION__));
@@ -8971,7 +8983,8 @@ force_fallback:
 			goto out;
 
 		if (!sna_drawable_move_region_to_cpu(drawable, &region,
-						     MOVE_READ | MOVE_WRITE))
+						     drawable_gc_flags(drawable,
+								       gc, true)))
 			goto out;
 
 		DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
@@ -9052,7 +9065,7 @@ force_fallback:
 		if (!sna_gc_move_to_cpu(gc, drawable))
 			goto out;
 		if (!sna_drawable_move_region_to_cpu(drawable, &region,
-						     MOVE_READ | MOVE_WRITE))
+						     drawable_gc_flags(drawable, gc, true)))
 			goto out;
 
 		DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
@@ -9133,7 +9146,8 @@ force_fallback:
 		if (!sna_gc_move_to_cpu(gc, drawable))
 			goto out;
 		if (!sna_drawable_move_region_to_cpu(drawable, &region,
-						     drawable_gc_flags(drawable, gc)))
+						     drawable_gc_flags(drawable,
+								       gc, n > 1)))
 			goto out;
 
 		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
@@ -9207,7 +9221,8 @@ force_fallback:
 		if (!sna_gc_move_to_cpu(gc, drawable))
 			goto out;
 		if(!sna_drawable_move_region_to_cpu(drawable, &region,
-						    drawable_gc_flags(drawable, gc)))
+						    drawable_gc_flags(drawable,
+								      gc, n > 1)))
 			goto out;
 
 		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
@@ -9457,7 +9472,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable,
+							       gc, n > 1)))
 		goto out;
 
 	DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
@@ -9524,7 +9540,8 @@ fallback:
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     MOVE_READ | MOVE_WRITE))
+					     drawable_gc_flags(drawable,
+							       gc, true)))
 		goto out;
 	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 	fbPolyGlyphBlt(drawable, gc, x, y, n, info, base);
@@ -9700,7 +9717,8 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 	if (!sna_pixmap_move_to_cpu(bitmap, MOVE_READ))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
-					     drawable_gc_flags(drawable, gc)))
+					     drawable_gc_flags(drawable,
+							       gc, false)))
 		goto out;
 
 	DBG(("%s: fallback, fbPushPixels(%d, %d, %d %d)\n",
