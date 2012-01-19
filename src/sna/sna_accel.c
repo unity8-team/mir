@@ -65,7 +65,26 @@
 
 #define MIGRATE_ALL 0
 
+#define ACCEL_FILL_SPANS 1
+#define ACCEL_SET_SPANS 1
 #define ACCEL_PUT_IMAGE 1
+#define ACCEL_COPY_AREA 1
+#define ACCEL_COPY_PLANE 1
+#define ACCEL_POLY_POINT 1
+#define ACCEL_POLY_LINE 1
+#define ACCEL_POLY_SEGMENT 1
+#define ACCEL_POLY_RECTANGLE 1
+#define ACCEL_POLY_ARC 1
+//#define ACCEL_FILL_POLYGON 1
+#define ACCEL_POLY_FILL_RECT 1
+//#define ACCEL_POLY_FILL_ARC 1
+#define ACCEL_POLY_TEXT8 1
+#define ACCEL_POLY_TEXT16 1
+#define ACCEL_IMAGE_TEXT8 1
+#define ACCEL_IMAGE_TEXT16 1
+#define ACCEL_IMAGE_GLYPH 1
+#define ACCEL_POLY_GLYPH 1
+#define ACCEL_PUSH_PIXELS 1
 
 static int sna_font_key;
 
@@ -759,8 +778,11 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv;
 
-	DBG(("%s(pixmap=%ld, flags=%x)\n", __FUNCTION__,
-	     pixmap->drawable.serialNumber, flags));
+	DBG(("%s(pixmap=%ld, %dx%d, flags=%x)\n", __FUNCTION__,
+	     pixmap->drawable.serialNumber,
+	     pixmap->drawable.width,
+	     pixmap->drawable.height,
+	     flags));
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
@@ -3324,7 +3346,8 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	DBG(("%s: src=(%d, %d)x(%d, %d) -> dst=(%d, %d)\n",
 	     __FUNCTION__, src_x, src_y, width, height, dst_x, dst_y));
 
-	if (wedged(sna) || !PM_IS_SOLID(dst, gc->planemask)) {
+	if (FORCE_FALLBACK || !ACCEL_COPY_AREA || wedged(sna) ||
+	    !PM_IS_SOLID(dst, gc->planemask)) {
 		RegionRec region, *ret;
 
 		DBG(("%s: -- fallback, wedged=%d, solid=%d [%x]\n",
@@ -3791,6 +3814,9 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	if (FORCE_FALLBACK)
 		goto fallback;
 
+	if (!ACCEL_FILL_SPANS)
+		goto fallback;
+
 	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
@@ -3893,6 +3919,13 @@ sna_set_spans(DrawablePtr drawable, GCPtr gc, char *src,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 
+	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (!ACCEL_SET_SPANS)
+		goto fallback;
+
+fallback:
 	region.data = NULL;
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
@@ -4301,6 +4334,12 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (!RegionNotEmpty(&region))
 		return NULL;
 
+	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (!ACCEL_COPY_PLANE)
+		goto fallback;
+
 	if (wedged(sna))
 		goto fallback;
 
@@ -4483,6 +4522,9 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	     flags));
 
 	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (!ACCEL_POLY_POINT)
 		goto fallback;
 
 	if (wedged(sna)) {
@@ -5209,6 +5251,9 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	     region.extents.x2, region.extents.y2));
 
 	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (!ACCEL_POLY_LINE)
 		goto fallback;
 
 	pixmap = get_drawable_pixmap(drawable);
@@ -6093,6 +6138,9 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	if (FORCE_FALLBACK)
 		goto fallback;
 
+	if (!ACCEL_POLY_SEGMENT)
+		goto fallback;
+
 	pixmap = get_drawable_pixmap(drawable);
 	sna = to_sna_from_pixmap(pixmap);
 
@@ -6755,6 +6803,9 @@ sna_poly_rectangle(DrawablePtr drawable, GCPtr gc, int n, xRectangle *r)
 	if (FORCE_FALLBACK)
 		goto fallback;
 
+	if (!ACCEL_POLY_RECTANGLE)
+		goto fallback;
+
 	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
@@ -6891,6 +6942,9 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	     region.extents.x2, region.extents.y2));
 
 	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (!ACCEL_POLY_ARC)
 		goto fallback;
 
 	if (wedged(sna)) {
@@ -8357,6 +8411,9 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (FORCE_FALLBACK)
 		goto fallback;
 
+	if (!ACCEL_POLY_FILL_RECT)
+		goto fallback;
+
 	if (priv == NULL) {
 		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
 		goto fallback;
@@ -8863,6 +8920,12 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
+	if (FORCE_FALLBACK)
+		goto force_fallback;
+
+	if (!ACCEL_POLY_TEXT8)
+		goto force_fallback;
+
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph8(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -8887,6 +8950,7 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 		return x + extents.overallRight;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, true)) {
+force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     Linear8Bit, &n, info);
@@ -8937,6 +9001,12 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
+	if (FORCE_FALLBACK)
+		goto force_fallback;
+
+	if (!ACCEL_POLY_TEXT16)
+		goto force_fallback;
+
 	for (i = n =  0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -8961,6 +9031,7 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 		return x + extents.overallRight;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, true)) {
+force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
@@ -9012,6 +9083,12 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
+	if (FORCE_FALLBACK)
+		goto force_fallback;
+
+	if (!ACCEL_IMAGE_TEXT8)
+		goto force_fallback;
+
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph8(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -9036,6 +9113,7 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 		return;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, false)) {
+force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     Linear8Bit, &n, info);
@@ -9078,6 +9156,12 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
+	if (FORCE_FALLBACK)
+		goto force_fallback;
+
+	if (!ACCEL_IMAGE_TEXT16)
+		goto force_fallback;
+
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -9102,6 +9186,7 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 		return;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, false)) {
+force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
 				     FONTLASTROW(gc->font) ? TwoD16Bit : Linear16Bit,
@@ -9340,6 +9425,9 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	if (FORCE_FALLBACK)
 		goto fallback;
 
+	if (!ACCEL_IMAGE_GLYPH)
+		goto fallback;
+
 	if (wedged(sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
@@ -9402,6 +9490,9 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 		return;
 
 	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (!ACCEL_POLY_GLYPH)
 		goto fallback;
 
 	if (wedged(sna)) {
