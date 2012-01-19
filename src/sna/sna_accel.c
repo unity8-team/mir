@@ -3361,6 +3361,18 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		region.extents.y2 = region.extents.y1 + height;
 		region.data = NULL;
 		RegionIntersect(&region, &region, gc->pCompositeClip);
+
+		{
+			RegionRec clip;
+
+			clip.extents.x1 = -(src_x - dst_x - dst->x + src->x);
+			clip.extents.y1 = -(src_y - dst_y - dst->y + src->y);
+			clip.extents.x2 = clip.extents.x1 + src->width;
+			clip.extents.y2 = clip.extents.y1 + src->height;
+			clip.data = NULL;
+
+			RegionIntersect(&region, &region, &clip);
+		}
 		if (!RegionNotEmpty(&region))
 			return NULL;
 
