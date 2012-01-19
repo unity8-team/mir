@@ -1170,6 +1170,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (flags & MOVE_INPLACE_HINT &&
 	    priv->stride && priv->gpu_bo &&
+	    !(priv->cpu_damage &&
+	      sna_damage_contains_box__no_reduce(priv->cpu_damage,
+						 &region->extents)) &&
 	    sna_pixmap_move_area_to_gpu(pixmap, &region->extents)) {
 		assert(flags & MOVE_WRITE);
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
