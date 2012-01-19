@@ -866,6 +866,28 @@ skip_inplace_map:
 		goto done;
 	}
 
+	if (flags & MOVE_INPLACE_HINT &&
+	    priv->stride && priv->gpu_bo &&
+	    sna_pixmap_move_to_gpu(pixmap, flags)) {
+		assert(flags & MOVE_WRITE);
+		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
+
+		DBG(("%s: operate inplace\n", __FUNCTION__));
+
+		pixmap->devPrivate.ptr =
+			kgem_bo_map(&sna->kgem, priv->gpu_bo);
+		if (pixmap->devPrivate.ptr != NULL) {
+			priv->mapped = true;
+			pixmap->devKind = priv->gpu_bo->pitch;
+			sna_damage_all(&priv->gpu_damage,
+				       pixmap->drawable.width,
+				       pixmap->drawable.height);
+			return true;
+		}
+
+		priv->mapped = false;
+	}
+
 	if (priv->mapped) {
 		pixmap->devPrivate.ptr = NULL;
 		priv->mapped = false;
@@ -1149,6 +1171,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if (flags & MOVE_INPLACE_HINT &&
 	    priv->stride && priv->gpu_bo &&
 	    sna_pixmap_move_area_to_gpu(pixmap, &region->extents)) {
+		assert(flags & MOVE_WRITE);
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
 		DBG(("%s: operate inplace\n", __FUNCTION__));
