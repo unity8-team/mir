@@ -141,12 +141,12 @@ static const char *_debug_describe_damage(char *buf, int max,
 				damage->mode == DAMAGE_SUBTRACT ? '-' : '+');
 		} else
 			damage_str[0] = '\0';
-		snprintf(buf, max, "[[(%d, %d), (%d, %d)]: %s %s]",
+		snprintf(buf, max, "[[(%d, %d), (%d, %d)]: %s %s]%c",
 			 damage->extents.x1, damage->extents.y1,
 			 damage->extents.x2, damage->extents.y2,
 			 _debug_describe_region(region_str, str_max,
 						&damage->region),
-			 damage_str);
+			 damage_str, damage->dirty ? '*' : ' ');
 	}
 
 	return buf;
@@ -257,6 +257,7 @@ _sna_damage_create_elt_from_boxes(struct sna_damage *damage,
 
 	DBG(("    %s: prev=(remain %d)\n", __FUNCTION__, damage->remain));
 
+	damage->dirty = true;
 	n = count;
 	if (n > damage->remain)
 		n = damage->remain;
@@ -303,6 +304,7 @@ _sna_damage_create_elt_from_rectangles(struct sna_damage *damage,
 	DBG(("    %s: prev=(remain %d), count=%d\n",
 	     __FUNCTION__, damage->remain, count));
 
+	damage->dirty = true;
 	n = count;
 	if (n > damage->remain)
 		n = damage->remain;
@@ -349,6 +351,7 @@ _sna_damage_create_elt_from_points(struct sna_damage *damage,
 	DBG(("    %s: prev=(remain %d), count=%d\n",
 	     __FUNCTION__, damage->remain, count));
 
+	damage->dirty = true;
 	n = count;
 	if (n > damage->remain)
 		n = damage->remain;
