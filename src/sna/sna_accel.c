@@ -5534,18 +5534,25 @@ sna_poly_segment_blt(DrawablePtr drawable,
 							b->x2--;
 					}
 
-					b->x1 += dx;
-					b->x2 += dx;
-					b->y1 += dy;
-					b->y2 += dy;
-					b++;
+					/* XXX does a degenerate segment
+					 * become a point?
+					 */
+					if (b->y2 > b->y1 && b->x2 > b->x1) {
+						b->x1 += dx;
+						b->x2 += dx;
+						b->y1 += dy;
+						b->y2 += dy;
+						b++;
+					}
 					seg++;
 				} while (--nbox);
 
-				fill.boxes(sna, &fill, boxes, b-boxes);
-				if (damage)
-					sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
-				b = boxes;
+				if (b != boxes) {
+					fill.boxes(sna, &fill, boxes, b-boxes);
+					if (damage)
+						sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+					b = boxes;
+				}
 			} while (n);
 		} else {
 			do {
@@ -5580,14 +5587,17 @@ sna_poly_segment_blt(DrawablePtr drawable,
 							b->x2--;
 					}
 
-					b++;
+					if (b->y2 > b->y1 && b->x2 > b->x1)
+						b++;
 					seg++;
 				} while (--nbox);
 
-				fill.boxes(sna, &fill, boxes, b-boxes);
-				if (damage)
-					sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
-				b = boxes;
+				if (b != boxes) {
+					fill.boxes(sna, &fill, boxes, b-boxes);
+					if (damage)
+						sna_damage_add_boxes(damage, boxes, b-boxes, 0, 0);
+					b = boxes;
+				}
 			} while (n);
 		}
 	} else {
