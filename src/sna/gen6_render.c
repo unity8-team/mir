@@ -1832,7 +1832,6 @@ static uint32_t gen6_bind_video_source(struct sna *sna,
 	ss = memset(sna->kgem.batch + sna->kgem.surface, 0, sizeof(*ss));
 	ss->ss0.surface_type = GEN6_SURFACE_2D;
 	ss->ss0.surface_format = src_surf_format;
-	ss->ss0.color_blend = 1;
 
 	ss->ss1.base_addr =
 		kgem_add_reloc(&sna->kgem,
