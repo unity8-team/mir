@@ -637,6 +637,17 @@ static void gen2_emit_composite_state(struct sna *sna,
 	int tex;
 
 	gen2_get_batch(sna);
+
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		if (op->src.bo == op->dst.bo || op->mask.bo == op->dst.bo)
+			BATCH(MI_FLUSH | MI_INVALIDATE_MAP_CACHE);
+		else
+			BATCH(_3DSTATE_MODES_5_CMD |
+			      PIPELINE_FLUSH_RENDER_CACHE |
+			      PIPELINE_FLUSH_TEXTURE_CACHE);
+		kgem_clear_dirty(&sna->kgem);
+	}
+
 	gen2_emit_target(sna, op);
 
 	unwind = sna->kgem.nbatch;
@@ -1657,8 +1668,6 @@ gen2_render_composite(struct sna *sna,
 		      int16_t width,  int16_t height,
 		      struct sna_composite_op *tmp)
 {
-	bool need_flush;
-
 	DBG(("%s()\n", __FUNCTION__));
 
 	if (op >= ARRAY_SIZE(gen2_blend_op)) {
@@ -1810,21 +1819,7 @@ gen2_render_composite(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
-	need_flush =
-		kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo);
 	gen2_emit_composite_state(sna, tmp);
-	if (need_flush) {
-		if (tmp->src.bo == tmp->dst.bo || tmp->mask.bo == tmp->dst.bo) {
-			kgem_emit_flush(&sna->kgem);
-		} else {
-			BATCH(_3DSTATE_MODES_5_CMD |
-			      PIPELINE_FLUSH_RENDER_CACHE |
-			      PIPELINE_FLUSH_TEXTURE_CACHE);
-			kgem_clear_dirty(&sna->kgem);
-		}
-		assert(sna->kgem.mode == KGEM_RENDER);
-		kgem_bo_mark_dirty(tmp->dst.bo);
-	}
 	return TRUE;
 
 cleanup_src:
@@ -2159,8 +2154,6 @@ gen2_render_composite_spans(struct sna *sna,
 			    unsigned flags,
 			    struct sna_composite_spans_op *tmp)
 {
-	bool need_flush;
-
 	DBG(("%s(src=(%d, %d), dst=(%d, %d), size=(%d, %d))\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, width, height));
 
@@ -2236,20 +2229,7 @@ gen2_render_composite_spans(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
-	need_flush = tmp->base.src.bo;
 	gen2_emit_composite_spans_state(sna, tmp);
-	if (need_flush) {
-		if (tmp->base.src.bo == tmp->base.dst.bo) {
-			kgem_emit_flush(&sna->kgem);
-		} else {
-			BATCH(_3DSTATE_MODES_5_CMD |
-			      PIPELINE_FLUSH_RENDER_CACHE |
-			      PIPELINE_FLUSH_TEXTURE_CACHE);
-			kgem_clear_dirty(&sna->kgem);
-		}
-		assert(sna->kgem.mode == KGEM_RENDER);
-		kgem_bo_mark_dirty(tmp->base.dst.bo);
-	}
 	return TRUE;
 
 cleanup_dst:
@@ -2774,6 +2754,16 @@ static void gen2_emit_copy_state(struct sna *sna, const struct sna_composite_op 
 	uint32_t ls1, v;
 
 	gen2_get_batch(sna);
+
+	if (kgem_bo_is_dirty(op->src.bo)) {
+		if (op->src.bo == op->dst.bo)
+			BATCH(MI_FLUSH | MI_INVALIDATE_MAP_CACHE);
+		else
+			BATCH(_3DSTATE_MODES_5_CMD |
+			      PIPELINE_FLUSH_RENDER_CACHE |
+			      PIPELINE_FLUSH_TEXTURE_CACHE);
+		kgem_clear_dirty(&sna->kgem);
+	}
 	gen2_emit_target(sna, op);
 
 	ls1 = sna->kgem.nbatch;
@@ -2844,9 +2834,6 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.op = alu;
@@ -2980,15 +2967,13 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	tmp->base.dst.bo = dst_bo;
 
 	gen2_render_copy_setup_source(&tmp->base.src, src, src_bo);
+	tmp->base.mask.bo = NULL;
 
 	tmp->base.floats_per_vertex = 4;
 	tmp->base.floats_per_rect = 12;
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
 
 	tmp->blt  = gen2_render_copy_blt;
 	tmp->done = gen2_render_copy_done;

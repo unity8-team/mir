@@ -269,16 +269,11 @@ static inline void kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		_kgem_bo_destroy(kgem, bo);
 }
 
-void kgem_emit_flush(struct kgem *kgem);
 void kgem_clear_dirty(struct kgem *kgem);
 
 static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
 	assert(!kgem->wedged);
-
-#if DEBUG_FLUSH_CACHE
-	kgem_emit_flush(kgem);
-#endif
 
 #if DEBUG_FLUSH_BATCH
 	kgem_submit(kgem);

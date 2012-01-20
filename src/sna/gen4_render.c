@@ -1263,7 +1263,6 @@ gen4_emit_state_base_address(struct sna *sna)
 static void
 gen4_emit_invariant(struct sna *sna)
 {
-	OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 	if (sna->kgem.gen >= 45)
 		OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
@@ -1465,6 +1464,12 @@ gen4_emit_state(struct sna *sna,
 	gen4_emit_pipelined_pointers(sna, op, op->op, op->u.gen4.wm_kernel);
 	gen4_emit_vertex_elements(sna, op);
 	gen4_emit_drawing_rectangle(sna, op);
+
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		OUT_BATCH(MI_FLUSH);
+		kgem_clear_dirty(&sna->kgem);
+		kgem_bo_mark_dirty(op->dst.bo);
+	}
 }
 
 static void
@@ -1723,9 +1728,6 @@ gen4_render_video(struct sna *sna,
 
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(frame->bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen4_video_bind_surfaces(sna, &tmp, frame);
 	gen4_align_vertex(sna, &tmp);
@@ -2308,9 +2310,6 @@ gen4_render_composite(struct sna *sna,
 			   NULL))
 		kgem_submit(&sna->kgem);
 
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
-		kgem_emit_flush(&sna->kgem);
-
 	gen4_bind_surfaces(sna, tmp);
 	gen4_align_vertex(sna, tmp);
 	return TRUE;
@@ -2454,6 +2453,8 @@ fallback:
 	tmp.src.width  = src->drawable.width;
 	tmp.src.height = src->drawable.height;
 
+	tmp.mask.bo = NULL;
+
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
@@ -2461,9 +2462,6 @@ fallback:
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen4_copy_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
@@ -2558,6 +2556,8 @@ fallback:
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 
+	op->base.mask.bo = NULL;
+
 	op->base.is_affine = true;
 	op->base.floats_per_vertex = 3;
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
@@ -2565,9 +2565,6 @@ fallback:
 
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen4_copy_bind_surfaces(sna, &op->base);
 	gen4_align_vertex(sna, &op->base);

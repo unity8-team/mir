@@ -705,13 +705,13 @@ gen7_emit_invariant(struct sna *sna)
 	sna->render_state.gen7.needs_invariant = FALSE;
 }
 
-static bool
+static void
 gen7_emit_cc(struct sna *sna, uint32_t blend_offset)
 {
 	struct gen7_render_state *render = &sna->render_state.gen7;
 
 	if (render->blend == blend_offset)
-		return false;
+		return;
 
 	/* XXX can have upto 8 blend states preload, selectable via
 	 * Render Target Index. What other side-effects of Render Target Index?
@@ -722,7 +722,6 @@ gen7_emit_cc(struct sna *sna, uint32_t blend_offset)
 	OUT_BATCH((render->cc_blend + blend_offset) | 1);
 
 	render->blend = blend_offset;
-	return true;
 }
 
 static void
@@ -797,11 +796,11 @@ gen7_emit_wm(struct sna *sna, unsigned int kernel, int nr_surfaces, int nr_input
 	OUT_BATCH(0); /* kernel 2 */
 }
 
-static bool
+static void
 gen7_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (sna->render_state.gen7.surface_table == offset)
-		return false;
+		return;
 
 	/* Binding table pointers */
 	assert(is_aligned(4*offset, 32));
@@ -809,19 +808,16 @@ gen7_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(offset*4);
 
 	sna->render_state.gen7.surface_table = offset;
-	return true;
 }
 
 static void
 gen7_emit_drawing_rectangle(struct sna *sna,
-			    const struct sna_composite_op *op,
-			    bool force)
+			    const struct sna_composite_op *op)
 {
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
 
-	if (!force &&
-	    sna->render_state.gen7.drawrect_limit == limit &&
+	if (sna->render_state.gen7.drawrect_limit == limit &&
 	    sna->render_state.gen7.drawrect_offset == offset)
 		return;
 
@@ -915,19 +911,32 @@ gen7_emit_vertex_elements(struct sna *sna,
 }
 
 static void
+gen7_emit_flush(struct sna *sna)
+{
+	OUT_BATCH(GEN7_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(GEN7_PIPE_CONTROL_WC_FLUSH |
+		  GEN7_PIPE_CONTROL_TC_FLUSH |
+		  GEN7_PIPE_CONTROL_CS_STALL);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+}
+
+static void
 gen7_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
 
 {
-	bool flushed =
-		(sna->kgem.batch[sna->kgem.nbatch-1] & (0xff<<23)) == MI_FLUSH;
-	bool need_flush;
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		gen7_emit_flush(sna);
+		kgem_clear_dirty(&sna->kgem);
+		kgem_bo_mark_dirty(op->dst.bo);
+	}
 
-	need_flush = gen7_emit_cc(sna,
-				  gen7_get_blend(op->op,
-						 op->has_component_alpha,
-						 op->dst.format));
+	gen7_emit_cc(sna,
+		     gen7_get_blend(op->op,
+				    op->has_component_alpha,
+				    op->dst.format));
 
 	DBG(("%s: sampler src=(%d, %d), mask=(%d, %d), offset=%d\n",
 	     __FUNCTION__,
@@ -949,16 +958,14 @@ gen7_emit_state(struct sna *sna,
 		     op->u.gen7.nr_inputs);
 	gen7_emit_vertex_elements(sna, op);
 
-	/* XXX updating the binding table requires a non-pipelined cmd? */
-	need_flush |= gen7_emit_binding_table(sna, wm_binding_table);
-	gen7_emit_drawing_rectangle(sna, op, need_flush & !flushed);
+	gen7_emit_binding_table(sna, wm_binding_table);
+	gen7_emit_drawing_rectangle(sna, op);
 }
 
 static void gen7_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
 	struct gen7_render_state *state = &sna->render_state.gen7;
-	bool need_flush;
 
 	if (!op->need_magic_ca_pass)
 		return;
@@ -966,20 +973,14 @@ static void gen7_magic_ca_pass(struct sna *sna,
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
 
-	need_flush =
-		gen7_emit_cc(sna,
-			     gen7_get_blend(PictOpAdd, TRUE, op->dst.format));
+	gen7_emit_flush(sna);
+
+	gen7_emit_cc(sna, gen7_get_blend(PictOpAdd, TRUE, op->dst.format));
 	gen7_emit_wm(sna,
 		     gen7_choose_composite_kernel(PictOpAdd,
 						  TRUE, TRUE,
 						  op->is_affine),
 		     3, 2);
-
-	/* XXX We apparently need a non-pipelined op to flush the
-	 * pipeline before changing blend state.
-	 */
-	if (need_flush)
-		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	OUT_BATCH(GEN7_3DPRIMITIVE | (7- 2));
 	OUT_BATCH(GEN7_3DPRIMITIVE_VERTEX_SEQUENTIAL | _3DPRIM_RECTLIST);
@@ -2012,8 +2013,11 @@ gen7_render_video(struct sna *sna,
 	tmp.dst.format = sna_format_for_depth(pixmap->drawable.depth);
 	tmp.dst.bo = priv->gpu_bo;
 
+	tmp.src.bo = frame->bo;
 	tmp.src.filter = SAMPLER_FILTER_BILINEAR;
 	tmp.src.repeat = SAMPLER_EXTEND_PAD;
+
+	tmp.mask.bo = NULL;
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
@@ -2034,9 +2038,6 @@ gen7_render_video(struct sna *sna,
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
-
-	if (kgem_bo_is_dirty(frame->bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen7_emit_video_state(sna, &tmp, frame);
 	gen7_align_vertex(sna, &tmp);
@@ -2650,9 +2651,6 @@ gen7_render_composite(struct sna *sna,
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
-		kgem_emit_flush(&sna->kgem);
-
 	gen7_emit_composite_state(sna, tmp);
 	gen7_align_vertex(sna, tmp);
 	return TRUE;
@@ -3011,6 +3009,8 @@ gen7_render_composite_spans(struct sna *sna,
 		break;
 	}
 
+	tmp->base.mask.bo = NULL;
+
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = FALSE;
 	tmp->base.need_magic_ca_pass = FALSE;
@@ -3053,9 +3053,6 @@ gen7_render_composite_spans(struct sna *sna,
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
-
-	if (kgem_bo_is_dirty(tmp->base.src.bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen7_emit_composite_state(sna, &tmp->base);
 	gen7_align_vertex(sna, &tmp->base);
@@ -3244,9 +3241,6 @@ fallback:
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
-
 	gen7_emit_copy_state(sna, &tmp);
 	gen7_align_vertex(sna, &tmp);
 
@@ -3390,6 +3384,8 @@ fallback:
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 
+	op->base.mask.bo = NULL;
+
 	op->base.is_affine = true;
 	op->base.floats_per_vertex = 3;
 	op->base.floats_per_rect = 9;
@@ -3404,9 +3400,6 @@ fallback:
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
-
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen7_emit_copy_state(sna, &op->base);
 	gen7_align_vertex(sna, &op->base);
@@ -3937,7 +3930,7 @@ gen7_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 	tmp.has_component_alpha = 0;
 	tmp.need_magic_ca_pass = FALSE;
 
-	tmp.u.gen7.wm_kernel = GEN6_WM_KERNEL_NOMASK;
+	tmp.u.gen7.wm_kernel = GEN7_WM_KERNEL_NOMASK;
 	tmp.u.gen7.nr_surfaces = 2;
 	tmp.u.gen7.nr_inputs = 1;
 	tmp.u.gen7.ve_id = 1;

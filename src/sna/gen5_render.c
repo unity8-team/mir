@@ -1484,6 +1484,12 @@ gen5_emit_state(struct sna *sna,
 	if (gen5_emit_pipelined_pointers(sna, op, op->op, op->u.gen5.wm_kernel))
 		gen5_emit_urb(sna);
 	gen5_emit_vertex_elements(sna, op);
+
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		OUT_BATCH(MI_FLUSH);
+		kgem_clear_dirty(&sna->kgem);
+		kgem_bo_mark_dirty(op->dst.bo);
+	}
 }
 
 static void gen5_bind_surfaces(struct sna *sna,
@@ -1744,6 +1750,8 @@ gen5_render_video(struct sna *sna,
 
 	tmp.src.filter = SAMPLER_FILTER_BILINEAR;
 	tmp.src.repeat = SAMPLER_EXTEND_PAD;
+	tmp.src.bo = frame->bo;
+	tmp.mask.bo = NULL;
 	tmp.u.gen5.wm_kernel =
 		is_planar_fourcc(frame->id) ? WM_KERNEL_VIDEO_PLANAR : WM_KERNEL_VIDEO_PACKED;
 	tmp.u.gen5.ve_id = 1;
@@ -1753,9 +1761,6 @@ gen5_render_video(struct sna *sna,
 
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(frame->bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen5_video_bind_surfaces(sna, &tmp, frame);
 	gen5_align_vertex(sna, &tmp);
@@ -2353,7 +2358,6 @@ gen5_render_composite(struct sna *sna,
 			kgem_bo_destroy(&sna->kgem, tmp->src.bo);
 			return TRUE;
 		}
-		kgem_emit_flush(&sna->kgem);
 	}
 
 	gen5_bind_surfaces(sna, tmp);
@@ -2632,6 +2636,7 @@ gen5_render_composite_spans(struct sna *sna,
 		break;
 	}
 
+	tmp->base.mask.bo = NULL;
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = FALSE;
 	tmp->base.need_magic_ca_pass = FALSE;
@@ -2660,9 +2665,6 @@ gen5_render_composite_spans(struct sna *sna,
 			   tmp->base.dst.bo, tmp->base.src.bo,
 			   NULL))
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(tmp->base.src.bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen5_bind_surfaces(sna, &tmp->base);
 	gen5_align_vertex(sna, &tmp->base);
@@ -2797,8 +2799,6 @@ fallback:
 				       dst->drawable.bitsPerPixel,
 				       box, n))
 			return TRUE;
-
-		kgem_emit_flush(&sna->kgem);
 	}
 
 	gen5_copy_bind_surfaces(sna, &tmp);
@@ -2948,7 +2948,6 @@ fallback:
 				 dst->drawable.bitsPerPixel,
 				 op))
 			return TRUE;
-		kgem_emit_flush(&sna->kgem);
 	}
 
 	gen5_copy_bind_surfaces(sna, &op->base);

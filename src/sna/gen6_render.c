@@ -556,7 +556,7 @@ gen6_emit_invariant(struct sna *sna)
 	sna->render_state.gen6.needs_invariant = FALSE;
 }
 
-static bool
+static void
 gen6_emit_cc(struct sna *sna,
 	     int op, bool has_component_alpha, uint32_t dst_format)
 {
@@ -570,7 +570,7 @@ gen6_emit_cc(struct sna *sna,
 	     op, has_component_alpha, dst_format,
 	     blend, render->blend));
 	if (render->blend == blend)
-		return false;
+		return;
 
 	if (op == PictOpClear) {
 		uint32_t src;
@@ -580,7 +580,7 @@ gen6_emit_cc(struct sna *sna,
 		 */
 		src = BLEND_OFFSET(GEN6_BLENDFACTOR_ONE, GEN6_BLENDFACTOR_ZERO);
 		if (render->blend == src)
-			return false;
+			return;
 	}
 
 	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
@@ -594,7 +594,6 @@ gen6_emit_cc(struct sna *sna,
 	}
 
 	render->blend = blend;
-	return true;
 }
 
 static void
@@ -680,11 +679,11 @@ gen6_emit_wm(struct sna *sna, unsigned int kernel, int nr_surfaces, int nr_input
 	OUT_BATCH(0);
 }
 
-static bool
+static void
 gen6_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (sna->render_state.gen6.surface_table == offset)
-		return false;
+		return;
 
 	/* Binding table pointers */
 	OUT_BATCH(GEN6_3DSTATE_BINDING_TABLE_POINTERS |
@@ -696,19 +695,27 @@ gen6_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(offset*4);
 
 	sna->render_state.gen6.surface_table = offset;
-	return true;
 }
 
-static void
-gen6_emit_drawing_rectangle(struct sna *sna,
-			    const struct sna_composite_op *op,
-			    bool force)
+static bool
+gen6_need_drawing_rectangle(struct sna *sna,
+			    const struct sna_composite_op *op)
 {
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
 
-	if (!force &&
-	    sna->render_state.gen6.drawrect_limit == limit &&
+	return (sna->render_state.gen6.drawrect_limit != limit ||
+		sna->render_state.gen6.drawrect_offset != offset);
+}
+
+static void
+gen6_emit_drawing_rectangle(struct sna *sna,
+			    const struct sna_composite_op *op)
+{
+	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
+	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
+
+	if (sna->render_state.gen6.drawrect_limit == limit &&
 	    sna->render_state.gen6.drawrect_offset == offset)
 		return;
 
@@ -800,28 +807,54 @@ gen6_emit_vertex_elements(struct sna *sna,
 }
 
 static void
+gen6_emit_flush(struct sna *sna)
+{
+	OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(GEN6_PIPE_CONTROL_WC_FLUSH |
+		  GEN6_PIPE_CONTROL_TC_FLUSH |
+		  GEN6_PIPE_CONTROL_CS_STALL);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+}
+
+static void
 gen6_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
-
 {
-	bool flushed =
-		(sna->kgem.batch[sna->kgem.nbatch-1] & (0xff<<23)) == MI_FLUSH;
-	bool need_flush;
+	/* [DevSNB-C+{W/A}] Before any depth stall flush (including those
+	 * produced by non-pipelined state commands), software needs to first
+	 * send a PIPE_CONTROL with no bits set except Post-Sync Operation !=
+	 * 0.
+	 *
+	 * [Dev-SNB{W/A}]: Pipe-control with CS-stall bit set must be sent
+	 * BEFORE the pipe-control with a post-sync op and no write-cache
+	 * flushes.
+	 */
+	if (gen6_need_drawing_rectangle(sna, op)) {
+		OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
+		OUT_BATCH(GEN6_PIPE_CONTROL_CS_STALL |
+			  GEN6_PIPE_CONTROL_STALL_AT_SCOREBOARD);
+		OUT_BATCH(0);
+		OUT_BATCH(0);
 
-	need_flush = gen6_emit_cc(sna,
-				  op->op,
-				  op->has_component_alpha,
-				  op->dst.format);
+		OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
+		OUT_BATCH(GEN6_PIPE_CONTROL_WRITE_TIME);
+		OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
+					 sna->render_state.gen6.general_bo,
+					 I915_GEM_DOMAIN_INSTRUCTION << 16 |
+					 I915_GEM_DOMAIN_INSTRUCTION,
+					 64));
+		OUT_BATCH(0);
+	}
 
-	DBG(("%s: sampler src=(%d, %d), mask=(%d, %d), offset=%d\n",
-	     __FUNCTION__,
-	     op->src.filter, op->src.repeat,
-	     op->mask.filter, op->mask.repeat,
-	     (int)SAMPLER_OFFSET(op->src.filter,
-				 op->src.repeat,
-				 op->mask.filter,
-				 op->mask.repeat)));
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		gen6_emit_flush(sna);
+		kgem_clear_dirty(&sna->kgem);
+		kgem_bo_mark_dirty(op->dst.bo);
+	}
+
+	gen6_emit_cc(sna, op->op, op->has_component_alpha, op->dst.format);
 	gen6_emit_sampler(sna,
 			  SAMPLER_OFFSET(op->src.filter,
 					 op->src.repeat,
@@ -833,20 +866,14 @@ gen6_emit_state(struct sna *sna,
 		     op->u.gen6.nr_surfaces,
 		     op->u.gen6.nr_inputs);
 	gen6_emit_vertex_elements(sna, op);
-
-	/* XXX updating the binding table requires a non-pipelined cmd?
-	 * The '>' in KDE menus suggest that every binding table update
-	 * requires a subsequent non-pipelined op, or maybe a pipelined flush?
-	 */
-	need_flush |= gen6_emit_binding_table(sna, wm_binding_table);
-	gen6_emit_drawing_rectangle(sna, op, need_flush & !flushed);
+	gen6_emit_binding_table(sna, wm_binding_table);
+	gen6_emit_drawing_rectangle(sna, op);
 }
 
 static void gen6_magic_ca_pass(struct sna *sna,
 			       const struct sna_composite_op *op)
 {
 	struct gen6_render_state *state = &sna->render_state.gen6;
-	bool need_flush;
 
 	if (!op->need_magic_ca_pass)
 		return;
@@ -854,18 +881,14 @@ static void gen6_magic_ca_pass(struct sna *sna,
 	DBG(("%s: CA fixup (%d -> %d)\n", __FUNCTION__,
 	     sna->render.vertex_start, sna->render.vertex_index));
 
-	need_flush = gen6_emit_cc(sna, PictOpAdd, TRUE, op->dst.format);
+	gen6_emit_flush(sna);
+
+	gen6_emit_cc(sna, PictOpAdd, TRUE, op->dst.format);
 	gen6_emit_wm(sna,
 		     gen6_choose_composite_kernel(PictOpAdd,
 						  TRUE, TRUE,
 						  op->is_affine),
 		     3, 2);
-
-	/* XXX We apparently need a non-pipelined op to flush the
-	 * pipeline before changing blend state.
-	 */
-	if (need_flush)
-		OUT_BATCH(MI_FLUSH | MI_INHIBIT_RENDER_CACHE_FLUSH);
 
 	OUT_BATCH(GEN6_3DPRIMITIVE |
 		  GEN6_3DPRIMITIVE_VERTEX_SEQUENTIAL |
@@ -1033,6 +1056,14 @@ typedef struct gen6_surface_state_padded {
 static void null_create(struct sna_static_stream *stream)
 {
 	/* A bunch of zeros useful for legacy border color and depth-stencil */
+	sna_static_stream_map(stream, 64, 64);
+}
+
+static void scratch_create(struct sna_static_stream *stream)
+{
+	/* 64 bytes of scratch space for random writes, such as
+	 * the pipe-control w/a.
+	 */
 	sna_static_stream_map(stream, 64, 64);
 }
 
@@ -1912,8 +1943,11 @@ gen6_render_video(struct sna *sna,
 	tmp.dst.format = sna_render_format_for_depth(pixmap->drawable.depth);
 	tmp.dst.bo = priv->gpu_bo;
 
+	tmp.src.bo = frame->bo;
 	tmp.src.filter = SAMPLER_FILTER_BILINEAR;
 	tmp.src.repeat = SAMPLER_EXTEND_PAD;
+
+	tmp.mask.bo = NULL;
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
@@ -1934,9 +1968,6 @@ gen6_render_video(struct sna *sna,
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
-
-	if (kgem_bo_is_dirty(frame->bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen6_emit_video_state(sna, &tmp, frame);
 	gen6_align_vertex(sna, &tmp);
@@ -2549,9 +2580,6 @@ gen6_render_composite(struct sna *sna,
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo))
-		kgem_emit_flush(&sna->kgem);
-
 	gen6_emit_composite_state(sna, tmp);
 	gen6_align_vertex(sna, tmp);
 	return TRUE;
@@ -2911,6 +2939,8 @@ gen6_render_composite_spans(struct sna *sna,
 		break;
 	}
 
+	tmp->base.mask.bo = NULL;
+
 	tmp->base.is_affine = tmp->base.src.is_affine;
 	tmp->base.has_component_alpha = FALSE;
 	tmp->base.need_magic_ca_pass = FALSE;
@@ -2953,9 +2983,6 @@ gen6_render_composite_spans(struct sna *sna,
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
-
-	if (kgem_bo_is_dirty(tmp->base.src.bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen6_emit_composite_state(sna, &tmp->base);
 	gen6_align_vertex(sna, &tmp->base);
@@ -3144,9 +3171,6 @@ fallback:
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
-
 	gen6_emit_copy_state(sna, &tmp);
 	gen6_align_vertex(sna, &tmp);
 
@@ -3290,6 +3314,8 @@ fallback:
 	op->base.src.filter = SAMPLER_FILTER_NEAREST;
 	op->base.src.repeat = SAMPLER_EXTEND_NONE;
 
+	op->base.mask.bo = NULL;
+
 	op->base.is_affine = true;
 	op->base.floats_per_vertex = 3;
 	op->base.floats_per_rect = 9;
@@ -3304,9 +3330,6 @@ fallback:
 		kgem_submit(&sna->kgem);
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
-
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
 
 	gen6_emit_copy_state(sna, &op->base);
 	gen6_align_vertex(sna, &op->base);
@@ -3441,6 +3464,8 @@ gen6_render_fill_boxes(struct sna *sna,
 	tmp.src.bo = sna_render_get_solid(sna, pixel);
 	tmp.src.filter = SAMPLER_FILTER_NEAREST;
 	tmp.src.repeat = SAMPLER_EXTEND_REPEAT;
+
+	tmp.mask.bo = NULL;
 
 	tmp.is_affine = TRUE;
 	tmp.floats_per_vertex = 3;
@@ -3927,6 +3952,7 @@ static Bool gen6_render_setup(struct sna *sna)
 	 * dumps, you know it points to zero.
 	 */
 	null_create(&general);
+	scratch_create(&general);
 
 	for (m = 0; m < GEN6_KERNEL_COUNT; m++)
 		state->wm_kernel[m] =

@@ -2854,41 +2854,6 @@ void kgem_clear_dirty(struct kgem *kgem)
 		bo->dirty = false;
 }
 
-/* Flush the contents of the RenderCache and invalidate the TextureCache */
-void kgem_emit_flush(struct kgem *kgem)
-{
-	if (kgem->nbatch == 0)
-		return;
-
-	if (!kgem_check_batch(kgem,  4)) {
-		_kgem_submit(kgem);
-		return;
-	}
-
-	DBG(("%s()\n", __FUNCTION__));
-
-	if (kgem->ring == KGEM_BLT) {
-		kgem->batch[kgem->nbatch++] = MI_FLUSH_DW | 2;
-		kgem->batch[kgem->nbatch++] = 0;
-		kgem->batch[kgem->nbatch++] = 0;
-		kgem->batch[kgem->nbatch++] = 0;
-	} else if (kgem->gen >= 50 && 0) {
-		kgem->batch[kgem->nbatch++] = PIPE_CONTROL | 2;
-		kgem->batch[kgem->nbatch++] =
-			PIPE_CONTROL_WC_FLUSH |
-			PIPE_CONTROL_TC_FLUSH |
-			PIPE_CONTROL_NOWRITE;
-		kgem->batch[kgem->nbatch++] = 0;
-		kgem->batch[kgem->nbatch++] = 0;
-	} else {
-		if ((kgem->batch[kgem->nbatch-1] & (0xff<<23)) == MI_FLUSH)
-			kgem->nbatch--;
-		kgem->batch[kgem->nbatch++] = MI_FLUSH | MI_INVALIDATE_MAP_CACHE;
-	}
-
-	kgem_clear_dirty(kgem);
-}
-
 struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 				  int offset, int length)
 {
