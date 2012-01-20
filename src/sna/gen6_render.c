@@ -679,11 +679,11 @@ gen6_emit_wm(struct sna *sna, unsigned int kernel, int nr_surfaces, int nr_input
 	OUT_BATCH(0);
 }
 
-static void
+static bool
 gen6_emit_binding_table(struct sna *sna, uint16_t offset)
 {
 	if (sna->render_state.gen6.surface_table == offset)
-		return;
+		return false;
 
 	/* Binding table pointers */
 	OUT_BATCH(GEN6_3DSTATE_BINDING_TABLE_POINTERS |
@@ -695,6 +695,7 @@ gen6_emit_binding_table(struct sna *sna, uint16_t offset)
 	OUT_BATCH(offset*4);
 
 	sna->render_state.gen6.surface_table = offset;
+	return true;
 }
 
 static bool
@@ -822,6 +823,8 @@ gen6_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
 {
+	bool need_stall;
+
 	/* [DevSNB-C+{W/A}] Before any depth stall flush (including those
 	 * produced by non-pipelined state commands), software needs to first
 	 * send a PIPE_CONTROL with no bits set except Post-Sync Operation !=
@@ -848,12 +851,6 @@ gen6_emit_state(struct sna *sna,
 		OUT_BATCH(0);
 	}
 
-	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
-		gen6_emit_flush(sna);
-		kgem_clear_dirty(&sna->kgem);
-		kgem_bo_mark_dirty(op->dst.bo);
-	}
-
 	gen6_emit_cc(sna, op->op, op->has_component_alpha, op->dst.format);
 	gen6_emit_sampler(sna,
 			  SAMPLER_OFFSET(op->src.filter,
@@ -866,8 +863,22 @@ gen6_emit_state(struct sna *sna,
 		     op->u.gen6.nr_surfaces,
 		     op->u.gen6.nr_inputs);
 	gen6_emit_vertex_elements(sna, op);
-	gen6_emit_binding_table(sna, wm_binding_table);
+	need_stall = gen6_emit_binding_table(sna, wm_binding_table);
 	gen6_emit_drawing_rectangle(sna, op);
+
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		gen6_emit_flush(sna);
+		kgem_clear_dirty(&sna->kgem);
+		kgem_bo_mark_dirty(op->dst.bo);
+		need_stall = false;
+	}
+	if (need_stall) {
+		OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
+		OUT_BATCH(GEN6_PIPE_CONTROL_CS_STALL |
+			  GEN6_PIPE_CONTROL_STALL_AT_SCOREBOARD);
+		OUT_BATCH(0);
+		OUT_BATCH(0);
+	}
 }
 
 static void gen6_magic_ca_pass(struct sna *sna,
