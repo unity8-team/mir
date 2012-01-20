@@ -716,17 +716,13 @@ gen6_emit_drawing_rectangle(struct sna *sna,
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
 
-	if (sna->render_state.gen6.drawrect_limit == limit &&
-	    sna->render_state.gen6.drawrect_offset == offset)
-		return;
-
-	sna->render_state.gen6.drawrect_offset = offset;
-	sna->render_state.gen6.drawrect_limit = limit;
-
 	OUT_BATCH(GEN6_3DSTATE_DRAWING_RECTANGLE | (4 - 2));
 	OUT_BATCH(0);
 	OUT_BATCH(limit);
 	OUT_BATCH(offset);
+
+	sna->render_state.gen6.drawrect_offset = offset;
+	sna->render_state.gen6.drawrect_limit = limit;
 }
 
 static void
@@ -825,6 +821,20 @@ gen6_emit_state(struct sna *sna,
 {
 	bool need_stall;
 
+	gen6_emit_cc(sna, op->op, op->has_component_alpha, op->dst.format);
+	gen6_emit_sampler(sna,
+			  SAMPLER_OFFSET(op->src.filter,
+					 op->src.repeat,
+					 op->mask.filter,
+					 op->mask.repeat));
+	gen6_emit_sf(sna, op->mask.bo != NULL);
+	gen6_emit_wm(sna,
+		     op->u.gen6.wm_kernel,
+		     op->u.gen6.nr_surfaces,
+		     op->u.gen6.nr_inputs);
+	gen6_emit_vertex_elements(sna, op);
+	need_stall = gen6_emit_binding_table(sna, wm_binding_table);
+
 	/* [DevSNB-C+{W/A}] Before any depth stall flush (including those
 	 * produced by non-pipelined state commands), software needs to first
 	 * send a PIPE_CONTROL with no bits set except Post-Sync Operation !=
@@ -849,23 +859,10 @@ gen6_emit_state(struct sna *sna,
 					 I915_GEM_DOMAIN_INSTRUCTION,
 					 64));
 		OUT_BATCH(0);
+
+		gen6_emit_drawing_rectangle(sna, op);
+		need_stall = false;
 	}
-
-	gen6_emit_cc(sna, op->op, op->has_component_alpha, op->dst.format);
-	gen6_emit_sampler(sna,
-			  SAMPLER_OFFSET(op->src.filter,
-					 op->src.repeat,
-					 op->mask.filter,
-					 op->mask.repeat));
-	gen6_emit_sf(sna, op->mask.bo != NULL);
-	gen6_emit_wm(sna,
-		     op->u.gen6.wm_kernel,
-		     op->u.gen6.nr_surfaces,
-		     op->u.gen6.nr_inputs);
-	gen6_emit_vertex_elements(sna, op);
-	need_stall = gen6_emit_binding_table(sna, wm_binding_table);
-	gen6_emit_drawing_rectangle(sna, op);
-
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		gen6_emit_flush(sna);
 		kgem_clear_dirty(&sna->kgem);
