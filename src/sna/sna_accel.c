@@ -9099,12 +9099,6 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
-	if (FORCE_FALLBACK)
-		goto force_fallback;
-
-	if (!ACCEL_POLY_TEXT8)
-		goto force_fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph8(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -9127,6 +9121,12 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return x + extents.overallRight;
+
+	if (FORCE_FALLBACK)
+		goto force_fallback;
+
+	if (!ACCEL_POLY_TEXT8)
+		goto force_fallback;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, true)) {
 force_fallback:
@@ -9181,13 +9181,7 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
-	if (FORCE_FALLBACK)
-		goto force_fallback;
-
-	if (!ACCEL_POLY_TEXT16)
-		goto force_fallback;
-
-	for (i = n =  0; i < count; i++) {
+	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
 			n++;
 	}
@@ -9209,6 +9203,12 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return x + extents.overallRight;
+
+	if (FORCE_FALLBACK)
+		goto force_fallback;
+
+	if (!ACCEL_POLY_TEXT16)
+		goto force_fallback;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, true)) {
 force_fallback:
@@ -9263,12 +9263,6 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
-	if (FORCE_FALLBACK)
-		goto force_fallback;
-
-	if (!ACCEL_IMAGE_TEXT8)
-		goto force_fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph8(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -9291,6 +9285,12 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
+
+	if (FORCE_FALLBACK)
+		goto force_fallback;
+
+	if (!ACCEL_IMAGE_TEXT8)
+		goto force_fallback;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, false)) {
 force_fallback:
@@ -9337,12 +9337,6 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	if (drawable->depth < 8)
 		goto fallback;
 
-	if (FORCE_FALLBACK)
-		goto force_fallback;
-
-	if (!ACCEL_IMAGE_TEXT16)
-		goto force_fallback;
-
 	for (i = n = 0; i < count; i++) {
 		if (sna_get_glyph16(gc->font, priv, chars[i], &info[n]))
 			n++;
@@ -9365,6 +9359,12 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
+
+	if (FORCE_FALLBACK)
+		goto force_fallback;
+
+	if (!ACCEL_IMAGE_TEXT16)
+		goto force_fallback;
 
 	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, false)) {
 force_fallback:
@@ -9615,10 +9615,8 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 
 	if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
-				   damage, &region, false)) {
-		RegionUninit(&region);
-		return;
-	}
+				   damage, &region, false))
+		goto out;
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
@@ -9683,10 +9681,8 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 
 	if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
-				   damage, &region, true)) {
-		RegionUninit(&region);
-		return;
-	}
+				   damage, &region, true))
+		goto out;
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
