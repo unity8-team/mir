@@ -699,22 +699,39 @@ gen6_emit_binding_table(struct sna *sna, uint16_t offset)
 }
 
 static bool
-gen6_need_drawing_rectangle(struct sna *sna,
-			    const struct sna_composite_op *op)
-{
-	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
-	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
-
-	return (sna->render_state.gen6.drawrect_limit != limit ||
-		sna->render_state.gen6.drawrect_offset != offset);
-}
-
-static void
 gen6_emit_drawing_rectangle(struct sna *sna,
 			    const struct sna_composite_op *op)
 {
 	uint32_t limit = (op->dst.height - 1) << 16 | (op->dst.width - 1);
 	uint32_t offset = (uint16_t)op->dst.y << 16 | (uint16_t)op->dst.x;
+
+	if  (sna->render_state.gen6.drawrect_limit  == limit &&
+	     sna->render_state.gen6.drawrect_offset == offset)
+		return false;
+
+	/* [DevSNB-C+{W/A}] Before any depth stall flush (including those
+	 * produced by non-pipelined state commands), software needs to first
+	 * send a PIPE_CONTROL with no bits set except Post-Sync Operation !=
+	 * 0.
+	 *
+	 * [Dev-SNB{W/A}]: Pipe-control with CS-stall bit set must be sent
+	 * BEFORE the pipe-control with a post-sync op and no write-cache
+	 * flushes.
+	 */
+	OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(GEN6_PIPE_CONTROL_CS_STALL |
+		  GEN6_PIPE_CONTROL_STALL_AT_SCOREBOARD);
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+
+	OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
+	OUT_BATCH(GEN6_PIPE_CONTROL_WRITE_TIME);
+	OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
+				 sna->render_state.gen6.general_bo,
+				 I915_GEM_DOMAIN_INSTRUCTION << 16 |
+				 I915_GEM_DOMAIN_INSTRUCTION,
+				 64));
+	OUT_BATCH(0);
 
 	OUT_BATCH(GEN6_3DSTATE_DRAWING_RECTANGLE | (4 - 2));
 	OUT_BATCH(0);
@@ -723,6 +740,7 @@ gen6_emit_drawing_rectangle(struct sna *sna,
 
 	sna->render_state.gen6.drawrect_offset = offset;
 	sna->render_state.gen6.drawrect_limit = limit;
+	return true;
 }
 
 static void
@@ -834,35 +852,8 @@ gen6_emit_state(struct sna *sna,
 		     op->u.gen6.nr_inputs);
 	gen6_emit_vertex_elements(sna, op);
 	need_stall = gen6_emit_binding_table(sna, wm_binding_table);
-
-	/* [DevSNB-C+{W/A}] Before any depth stall flush (including those
-	 * produced by non-pipelined state commands), software needs to first
-	 * send a PIPE_CONTROL with no bits set except Post-Sync Operation !=
-	 * 0.
-	 *
-	 * [Dev-SNB{W/A}]: Pipe-control with CS-stall bit set must be sent
-	 * BEFORE the pipe-control with a post-sync op and no write-cache
-	 * flushes.
-	 */
-	if (gen6_need_drawing_rectangle(sna, op)) {
-		OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
-		OUT_BATCH(GEN6_PIPE_CONTROL_CS_STALL |
-			  GEN6_PIPE_CONTROL_STALL_AT_SCOREBOARD);
-		OUT_BATCH(0);
-		OUT_BATCH(0);
-
-		OUT_BATCH(GEN6_PIPE_CONTROL | (4 - 2));
-		OUT_BATCH(GEN6_PIPE_CONTROL_WRITE_TIME);
-		OUT_BATCH(kgem_add_reloc(&sna->kgem, sna->kgem.nbatch,
-					 sna->render_state.gen6.general_bo,
-					 I915_GEM_DOMAIN_INSTRUCTION << 16 |
-					 I915_GEM_DOMAIN_INSTRUCTION,
-					 64));
-		OUT_BATCH(0);
-
-		gen6_emit_drawing_rectangle(sna, op);
+	if (gen6_emit_drawing_rectangle(sna, op))
 		need_stall = false;
-	}
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
 		gen6_emit_flush(sna);
 		kgem_clear_dirty(&sna->kgem);
