@@ -2218,6 +2218,7 @@ gen2_render_composite_spans(struct sna *sna,
 		else if (tmp->base.src.is_affine)
 			tmp->prim_emit = gen2_emit_composite_spans_primitive_affine_source;
 	}
+	tmp->base.mask.bo = NULL;
 	tmp->base.floats_per_rect = 3*tmp->base.floats_per_vertex;
 
 	tmp->box   = gen2_render_composite_spans_box;

@@ -1979,6 +1979,7 @@ gen3_init_solid(struct sna_composite_channel *channel, uint32_t color)
 	else if (color == 0xffffffff)
 		channel->u.gen3.type = SHADER_WHITE;
 
+	channel->bo = NULL;
 	channel->is_opaque = (color & 0xff000000) == 0xff000000;
 	channel->is_affine = 1;
 	channel->alpha_fixup = 0;
@@ -4321,6 +4322,7 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	gen3_init_solid(&tmp.src,
 			sna_rgba_for_color(color, dst->drawable.depth));
+	tmp.mask.bo = NULL;
 	tmp.mask.u.gen3.type = SHADER_NONE;
 	tmp.u.gen3.num_constants = 0;
 
