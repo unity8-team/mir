@@ -9009,6 +9009,8 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 	int stride = GLYPHWIDTHBYTESPADDED(in);
 	uint8_t *dst, *src;
 
+	out->metrics = in->metrics;
+
 	/* Skip empty glyphs */
 	if (w == 0 || h == 0 || ((w|h) == 1 && (in->bits[0] & 1) == 0)) {
 		out->bits = (void *)1;
@@ -9017,7 +9019,6 @@ static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
 
 	w = (w + 7) >> 3;
 
-	out->metrics = in->metrics;
 	out->bits = malloc((w*h + 7) & ~7);
 	if (out->bits == NULL)
 		return false;
