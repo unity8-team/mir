@@ -3178,6 +3178,7 @@ struct kgem_bo *kgem_create_buffer_2d(struct kgem *kgem,
 	}
 
 	bo->pitch = stride;
+	bo->unique_id = kgem_get_unique_id(kgem);
 	return bo;
 }
 
