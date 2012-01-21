@@ -421,6 +421,7 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
+	DBG_HDR(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	if (bo->proxy)
 		bo = bo->proxy;
 	bo->dirty = true;

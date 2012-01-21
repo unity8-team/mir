@@ -1298,6 +1298,9 @@ static void gen3_emit_target(struct sna *sna,
 	if (bo->unique_id != state->current_dst) {
 		uint32_t v;
 
+		DBG(("%s: setting new target id=%d, handle=%d\n",
+		     __FUNCTION__, bo->unique_id, bo->handle));
+
 		OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 		OUT_BATCH(BUF_3D_ID_COLOR_BACK |
 			  gen3_buf_tiling(bo->tiling) |
