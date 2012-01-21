@@ -1667,12 +1667,13 @@ sna_blt_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	/* XXX tiling? */
+	/* XXX tiling? fixup extend none? */
 	if (x < 0 || y < 0 ||
 	    x + width > src->pDrawable->width ||
 	    y + height > src->pDrawable->height) {
-		DBG(("%s: source extends outside of valid area\n",
-		     __FUNCTION__));
+		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid drawable %dx%d\n",
+		     __FUNCTION__,
+		     x, y, x+width, y+width, src->pDrawable->width, src->pDrawable->height));
 		return FALSE;
 	}
 
@@ -1680,10 +1681,14 @@ sna_blt_composite(struct sna *sna,
 	get_drawable_deltas(src->pDrawable, blt->src_pixmap, &tx, &ty);
 	x += tx + src->pDrawable->x;
 	y += ty + src->pDrawable->y;
-	assert(x >= 0);
-	assert(y >= 0);
-	assert(x + width <= blt->src_pixmap->drawable.width);
-	assert(y + height <= blt->src_pixmap->drawable.height);
+	if (x < 0 || y < 0 ||
+	    x + width > blt->src_pixmap->drawable.width ||
+	    y + height > blt->src_pixmap->drawable.height) {
+		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid pixmap %dx%d\n",
+		     __FUNCTION__,
+		     x, y, x+width, y+width, blt->src_pixmap->drawable.width, blt->src_pixmap->drawable.height));
+		return FALSE;
+	}
 
 	tmp->u.blt.sx = x - dst_x;
 	tmp->u.blt.sy = y - dst_y;
