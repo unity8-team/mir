@@ -2,6 +2,4 @@
 
 # Ubuntu patches
 101_copy-fb.patch
-102_remove_surface_binding_cache.patch
 103_fix_uxa_fill_spans.patch
-120_check_privates.patch

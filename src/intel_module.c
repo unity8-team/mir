@@ -298,8 +298,8 @@ static Bool intel_pci_probe(DriverPtr		driver,
 			    intptr_t		match_data)
 {
 	ScrnInfoPtr scrn;
-	PciChipsets intel_pci_chipsets[ARRAY_SIZE(intel_chipsets)];
-	int i;
+	PciChipsets intel_pci_chipsets[ARRAY_SIZE(_intel_chipsets)];
+	unsigned i;
 
 	chipset_info = (void *)match_data;
 
@@ -319,7 +319,7 @@ static Bool intel_pci_probe(DriverPtr		driver,
 #endif
 	}
 
-	for (i = 0; i < ARRAY_SIZE(intel_chipsets); i++) {
+	for (i = 0; i < ARRAY_SIZE(_intel_chipsets); i++) {
 		intel_pci_chipsets[i].numChipset = intel_chipsets[i].token;
 		intel_pci_chipsets[i].PCIid = intel_chipsets[i].token;
 		intel_pci_chipsets[i].dummy = NULL;
@@ -346,8 +346,10 @@ static Bool intel_pci_probe(DriverPtr		driver,
 		default:
 #if USE_SNA
 			sna_init_scrn(scrn, entity_num);
-#else
+#elif USE_UXA
 			intel_init_scrn(scrn);
+#else
+			scrn = NULL;
 #endif
 			break;
 		}
@@ -387,8 +389,10 @@ intel_available_options(int chipid, int busid)
 	default:
 #if USE_SNA
 		return sna_available_options(chipid, busid);
-#else
+#elif USE_UXA
 		return intel_uxa_available_options(chipid, busid);
+#else
+		return NULL;
 #endif
 	}
 }

@@ -1,3 +1,51 @@
+xserver-xorg-video-intel (2:2.17.0-1ubuntu3) precise; urgency=low
+
+  * Readd 103_fix_uxa_fill_spans.patch from 2:2.15.901-1ubuntu4, it
+    wasn't commited to git and was lost in the merge.
+
+ -- Robert Hooker <sarvatt@ubuntu.com>  Sun, 22 Jan 2012 11:57:26 -0500
+
+xserver-xorg-video-intel (2:2.17.0-1ubuntu2) precise; urgency=low
+
+  * Rebuild against Xserver 1.11
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Fri, 20 Jan 2012 14:46:13 +1100
+
+xserver-xorg-video-intel (2:2.17.0-1ubuntu1) precise; urgency=low
+
+  * Merge from Debian.  Remaining Ubuntu changes:
+    - 101_copy-fb.patch
+      + Plymouth integration patch
+    - debian/xserver-xorg-video-intel.install:
+    - debian/xserver-xorg-video-intel.preinst.in:
+    - debian/xserver-xorg-video-intel.postinst.in:
+      + Remove obsolete /etc/modprobe.d/i915-kms.conf file on upgrades.
+        KMS is the kernel default.  Drop after Precise LTS.
+    - debian/apport-gpu-error-intel.py:
+    - debian/control:
+    - debian/rules:
+    - debian/xserver-xorg-video-intel.install:
+    - debian/xserver-xorg-video-intel.udev
+      + Add apport hook, triggered on udev GPU error event
+  * 101_copy-fb.patch; refresh.
+  * Drop 102_remove_surface_binding_cache.patch; included upstream.
+  * Drop 120_check_privates.patch; fixed at a different level upstream.
+
+ -- Christopher James Halse Rogers <raof@ubuntu.com>  Tue, 20 Dec 2011 10:47:25 +1100
+
+xserver-xorg-video-intel (2:2.17.0-1) unstable; urgency=low
+
+  [ Timo Aaltonen ]
+  * New upstream release. (Closes: #635953)
+
+ -- Cyril Brulebois <kibi@debian.org>  Sat, 19 Nov 2011 12:46:57 +0100
+
+xserver-xorg-video-intel (2:2.16.0-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Cyril Brulebois <kibi@debian.org>  Sun, 28 Aug 2011 13:15:24 +0200
+
 xserver-xorg-video-intel (2:2.15.901-1ubuntu4) precise; urgency=low
 
   * Add 103_fix_uxa_fill_spans.patch: Fix clip processing for

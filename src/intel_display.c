@@ -42,6 +42,8 @@
 #include "intel_bufmgr.h"
 #include "xf86drmMode.h"
 #include "X11/Xatom.h"
+#include "X11/extensions/dpmsconst.h"
+#include "xf86DDC.h"
 
 struct intel_mode {
 	int fd;

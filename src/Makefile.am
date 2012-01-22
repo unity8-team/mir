@@ -27,13 +27,12 @@ SUBDIRS = xvmc render_program legacy
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
 AM_CFLAGS = @CWARNFLAGS@ @XORG_CFLAGS@ @UDEV_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
-	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa -I$(top_srcdir)/src/render_program
+	@PCIACCESS_CFLAGS@
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
-intel_drv_la_LIBADD = @UDEV_LIBS@ -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la legacy/liblegacy.la
-intel_drv_la_LIBADD += @PCIACCESS_LIBS@
+intel_drv_la_LIBADD = legacy/liblegacy.la @PCIACCESS_LIBS@
 
 if SNA
 SUBDIRS += sna
@@ -43,11 +42,17 @@ endif
 NULL:=#
 
 intel_drv_la_SOURCES = \
+	intel_module.c \
+	$(NULL)
+
+if UXA
+AM_CFLAGS += -I$(top_srcdir)/uxa -I$(top_srcdir)/src/render_program
+intel_drv_la_LIBADD += @UDEV_LIBS@ @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la
+intel_drv_la_SOURCES += \
          brw_defines.h \
          brw_structs.h \
          common.h \
          intel.h \
-	 intel_module.c \
          intel_batchbuffer.c \
          intel_batchbuffer.h \
 	 intel_display.c \
@@ -86,4 +91,5 @@ intel_drv_la_SOURCES += \
 	intel_hwmc.h \
 	intel_hwmc.c \
 	$(NULL)
+endif
 endif

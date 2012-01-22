@@ -79,7 +79,7 @@ static inline Bool sna_video_xvmc_setup(struct sna *sna,
 
 void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(video->old_buf); i++) {
 		if (video->old_buf[i]) {
@@ -94,16 +94,25 @@ void sna_video_free_buffers(struct sna *sna, struct sna_video *video)
 	}
 }
 
-void sna_video_frame_fini(struct sna *sna,
-			  struct sna_video *video,
-			  struct sna_video_frame *frame)
+struct kgem_bo *
+sna_video_buffer(struct sna *sna,
+		 struct sna_video *video,
+		 struct sna_video_frame *frame)
+{
+	/* Free the current buffer if we're going to have to reallocate */
+	if (video->buf && video->buf->size < frame->size)
+		sna_video_free_buffers(sna, video);
+
+	if (video->buf == NULL)
+		video->buf = kgem_create_linear(&sna->kgem, frame->size);
+
+	return video->buf;
+}
+
+void sna_video_buffer_fini(struct sna *sna,
+			   struct sna_video *video)
 {
 	struct kgem_bo *bo;
-
-	if (!frame->bo->reusable) {
-		kgem_bo_destroy(&sna->kgem, frame->bo);
-		return;
-	}
 
 	bo = video->old_buf[1];
 	video->old_buf[1] = video->old_buf[0];
@@ -114,15 +123,14 @@ void sna_video_frame_fini(struct sna *sna,
 Bool
 sna_video_clip_helper(ScrnInfoPtr scrn,
 		      struct sna_video *video,
+		      struct sna_video_frame *frame,
 		      xf86CrtcPtr * crtc_ret,
 		      BoxPtr dst,
 		      short src_x, short src_y,
 		      short drw_x, short drw_y,
 		      short src_w, short src_h,
 		      short drw_w, short drw_h,
-		      int id,
-		      int *top, int* left, int* npixels, int *nlines,
-		      RegionPtr reg, INT32 width, INT32 height)
+		      RegionPtr reg)
 {
 	Bool ret;
 	RegionRec crtc_region_local;
@@ -145,8 +153,7 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	 * For overlay video, compute the relevant CRTC and
 	 * clip video to that
 	 */
-	crtc = sna_covering_crtc(scrn, dst, video->desired_crtc,
-				   &crtc_box);
+	crtc = sna_covering_crtc(scrn, dst, video->desired_crtc, &crtc_box);
 
 	/* For textured video, we don't actually want to clip at all. */
 	if (crtc && !video->textured) {
@@ -157,18 +164,18 @@ sna_video_clip_helper(ScrnInfoPtr scrn,
 	*crtc_ret = crtc;
 
 	ret = xf86XVClipVideoHelper(dst, &x1, &x2, &y1, &y2,
-				    crtc_region, width, height);
+				    crtc_region, frame->width, frame->height);
 	if (crtc_region != reg)
 		RegionUninit(&crtc_region_local);
 
-	*top = y1 >> 16;
-	*left = (x1 >> 16) & ~1;
-	*npixels = ALIGN(((x2 + 0xffff) >> 16), 2) - *left;
-	if (is_planar_fourcc(id)) {
-		*top &= ~1;
-		*nlines = ALIGN(((y2 + 0xffff) >> 16), 2) - *top;
+	frame->top = y1 >> 16;
+	frame->left = (x1 >> 16) & ~1;
+	frame->npixels = ALIGN(((x2 + 0xffff) >> 16), 2) - frame->left;
+	if (is_planar_fourcc(frame->id)) {
+		frame->top &= ~1;
+		frame->nlines = ALIGN(((y2 + 0xffff) >> 16), 2) - frame->top;
 	} else
-		*nlines = ((y2 + 0xffff) >> 16) - *top;
+		frame->nlines = ((y2 + 0xffff) >> 16) - frame->top;
 
 	return ret;
 }
@@ -247,39 +254,24 @@ sna_video_frame_init(struct sna *sna,
 	}
 }
 
-static struct kgem_bo *
-sna_video_buffer(struct sna *sna,
-		 struct sna_video *video,
-		 struct sna_video_frame *frame)
+static void sna_memcpy_plane(uint8_t *dst, const uint8_t *src,
+			     int height, int width,
+			     int dstPitch, int srcPitch,
+			     Rotation rotation)
 {
-	/* Free the current buffer if we're going to have to reallocate */
-	if (video->buf && video->buf->size < frame->size)
-		sna_video_free_buffers(sna, video);
-
-	if (video->buf == NULL)
-		video->buf = kgem_create_linear(&sna->kgem, frame->size);
-
-	return video->buf;
-}
-
-static void sna_memcpy_plane(unsigned char *dst, unsigned char *src,
-			       int height, int width,
-			       int dstPitch, int srcPitch, Rotation rotation)
-{
+	const uint8_t *s;
 	int i, j = 0;
-	unsigned char *s;
 
 	switch (rotation) {
 	case RR_Rotate_0:
 		/* optimise for the case of no clipping */
 		if (srcPitch == dstPitch && srcPitch == width)
 			memcpy(dst, src, srcPitch * height);
-		else
-			for (i = 0; i < height; i++) {
-				memcpy(dst, src, width);
-				src += srcPitch;
-				dst += dstPitch;
-			}
+		else while (height--) {
+			memcpy(dst, src, width);
+			src += srcPitch;
+			dst += dstPitch;
+		}
 		break;
 	case RR_Rotate_90:
 		for (i = 0; i < height; i++) {
@@ -313,80 +305,63 @@ static void sna_memcpy_plane(unsigned char *dst, unsigned char *src,
 }
 
 static void
-sna_copy_planar_data(struct sna *sna,
-		     struct sna_video *video,
+sna_copy_planar_data(struct sna_video *video,
 		     const struct sna_video_frame *frame,
-		     unsigned char *src,
-		     unsigned char *dst,
-		     int srcPitch, int srcPitch2,
-		     int srcH, int top, int left)
+		     const uint8_t *src, uint8_t *dst)
 {
-	unsigned char *src1, *dst1;
+	uint8_t *d;
+	int w = frame->npixels;
+	int h = frame->nlines;
+	int pitch;
 
-	/* Copy Y data */
-	src1 = src + (top * srcPitch) + left;
+	pitch = ALIGN(frame->width, 4);
+	sna_memcpy_plane(dst, src + frame->top * pitch + frame->left,
+			 h, w, frame->pitch[1], pitch, video->rotation);
 
-	sna_memcpy_plane(dst, src1,
-			 frame->height, frame->width,
-			 frame->pitch[1], srcPitch,
-			 video->rotation);
+	src += frame->height * pitch; /* move over Luma plane */
 
-	/* Copy V data for YV12, or U data for I420 */
-	src1 = src +		/* start of YUV data */
-	    (srcH * srcPitch) +	/* move over Luma plane */
-	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
-	    (left >> 1);	/* move left by left pixels */
+	/* align to beginning of chroma planes */
+	pitch = ALIGN((frame->width >> 1), 0x4);
+	src += (frame->top >> 1) * pitch + (frame->left >> 1);
+	w >>= 1;
+	h >>= 1;
 
 	if (frame->id == FOURCC_I420)
-		dst1 = dst + frame->UBufOffset;
+		d = dst + frame->UBufOffset;
 	else
-		dst1 = dst + frame->VBufOffset;
+		d = dst + frame->VBufOffset;
 
-	sna_memcpy_plane(dst1, src1,
-			 frame->height / 2, frame->width / 2,
-			 frame->pitch[0], srcPitch2,
-			 video->rotation);
+	sna_memcpy_plane(d, src, h, w, frame->pitch[0], pitch, video->rotation);
+	src += (frame->height >> 1) * pitch; /* move over Chroma plane */
 
-	/* Copy U data for YV12, or V data for I420 */
-	src1 = src +		/* start of YUV data */
-	    (srcH * srcPitch) +	/* move over Luma plane */
-	    ((srcH >> 1) * srcPitch2) +	/* move over Chroma plane */
-	    ((top >> 1) * srcPitch2) +	/* move down from by top lines */
-	    (left >> 1);	/* move left by left pixels */
 	if (frame->id == FOURCC_I420)
-		dst1 = dst + frame->VBufOffset;
+		d = dst + frame->VBufOffset;
 	else
-		dst1 = dst + frame->UBufOffset;
+		d = dst + frame->UBufOffset;
 
-	sna_memcpy_plane(dst1, src1,
-			 frame->height / 2, frame->width / 2,
-			 frame->pitch[0], srcPitch2,
-			 video->rotation);
+	sna_memcpy_plane(d, src, h, w, frame->pitch[0], pitch, video->rotation);
 }
 
 static void
-sna_copy_packed_data(struct sna *sna,
-		     struct sna_video *video,
+sna_copy_packed_data(struct sna_video *video,
 		     const struct sna_video_frame *frame,
-		     unsigned char *buf,
-		     unsigned char *dst,
-		     int srcPitch,
-		     int top, int left)
+		     const uint8_t *buf,
+		     uint8_t *dst)
 {
-	int w = frame->width;
-	int h = frame->height;
-	unsigned char *src;
-	unsigned char *s;
+	int pitch = frame->width << 1;
+	const uint8_t *src, *s;
+	int w = frame->npixels;
+	int h = frame->nlines;
 	int i, j;
 
-	src = buf + (top * srcPitch) + (left << 1);
+	src = buf + (frame->top * pitch) + (frame->left << 1);
 
 	switch (video->rotation) {
 	case RR_Rotate_0:
 		w <<= 1;
 		for (i = 0; i < h; i++) {
 			memcpy(dst, src, w);
-			src += srcPitch;
+			src += pitch;
 			dst += frame->pitch[0];
 		}
 		break;
@@ -396,25 +371,20 @@ sna_copy_packed_data(struct sna *sna,
 			s = src;
 			for (j = 0; j < w; j++) {
 				/* Copy Y */
-				dst[(i + 0) + ((w - j - 1) * frame->pitch[0])] = *s++;
-				(void)*s++;
+				dst[(i + 0) + ((w - j - 1) * frame->pitch[0])] = *s;
+				s += 2;
 			}
-			src += srcPitch;
+			src += pitch;
 		}
 		h >>= 1;
-		src = buf + (top * srcPitch) + (left << 1);
+		src = buf + (frame->top * pitch) + (frame->left << 1);
 		for (i = 0; i < h; i += 2) {
 			for (j = 0; j < w; j += 2) {
 				/* Copy U */
-				dst[((i * 2) + 1) + ((w - j - 1) * frame->pitch[0])] =
-				    src[(j * 2) + 1 + (i * srcPitch)];
-				dst[((i * 2) + 1) + ((w - j - 2) * frame->pitch[0])] =
-				    src[(j * 2) + 1 + ((i + 1) * srcPitch)];
-				/* Copy V */
-				dst[((i * 2) + 3) + ((w - j - 1) * frame->pitch[0])] =
-				    src[(j * 2) + 3 + (i * srcPitch)];
-				dst[((i * 2) + 3) + ((w - j - 2) * frame->pitch[0])] =
-				    src[(j * 2) + 3 + ((i + 1) * srcPitch)];
+				dst[((i * 2) + 1) + ((w - j - 1) * frame->pitch[0])] = src[(j * 2) + 1 + (i * pitch)];
+				dst[((i * 2) + 1) + ((w - j - 2) * frame->pitch[0])] = src[(j * 2) + 1 + ((i + 1) * pitch)];
+				/* Copy V */ dst[((i * 2) + 3) + ((w - j - 1) * frame->pitch[0])] = src[(j * 2) + 3 + (i * pitch)];
+				dst[((i * 2) + 3) + ((w - j - 2) * frame->pitch[0])] = src[(j * 2) + 3 + ((i + 1) * pitch)];
 			}
 		}
 		break;
@@ -423,16 +393,12 @@ sna_copy_packed_data(struct sna *sna,
 		for (i = 0; i < h; i++) {
 			s = src;
 			for (j = 0; j < w; j += 4) {
-				dst[(w - j - 4) + ((h - i - 1) * frame->pitch[0])] =
-				    *s++;
-				dst[(w - j - 3) + ((h - i - 1) * frame->pitch[0])] =
-				    *s++;
-				dst[(w - j - 2) + ((h - i - 1) * frame->pitch[0])] =
-				    *s++;
-				dst[(w - j - 1) + ((h - i - 1) * frame->pitch[0])] =
-				    *s++;
+				dst[(w - j - 4) + ((h - i - 1) * frame->pitch[0])] = *s++;
+				dst[(w - j - 3) + ((h - i - 1) * frame->pitch[0])] = *s++;
+				dst[(w - j - 2) + ((h - i - 1) * frame->pitch[0])] = *s++;
+				dst[(w - j - 1) + ((h - i - 1) * frame->pitch[0])] = *s++;
 			}
-			src += srcPitch;
+			src += pitch;
 		}
 		break;
 	case RR_Rotate_270:
@@ -441,27 +407,21 @@ sna_copy_packed_data(struct sna *sna,
 			s = src;
 			for (j = 0; j < w; j++) {
 				/* Copy Y */
-				dst[(h - i - 2) + (j * frame->pitch[0])] = *s++;
-				(void)*s++;
+				dst[(h - i - 2) + (j * frame->pitch[0])] = *s;
+				s += 2;
 			}
-			src += srcPitch;
+			src += pitch;
 		}
 		h >>= 1;
-		src = buf + (top * srcPitch) + (left << 1);
+		src = buf + (frame->top * pitch) + (frame->left << 1);
 		for (i = 0; i < h; i += 2) {
 			for (j = 0; j < w; j += 2) {
 				/* Copy U */
-				dst[(((h - i) * 2) - 3) + (j * frame->pitch[0])] =
-				    src[(j * 2) + 1 + (i * srcPitch)];
-				dst[(((h - i) * 2) - 3) +
-				    ((j + 1) * frame->pitch[0])] =
-				    src[(j * 2) + 1 + ((i + 1) * srcPitch)];
+				dst[(((h - i) * 2) - 3) + (j * frame->pitch[0])] = src[(j * 2) + 1 + (i * pitch)];
+				dst[(((h - i) * 2) - 3) + ((j + 1) * frame->pitch[0])] = src[(j * 2) + 1 + ((i + 1) * pitch)];
 				/* Copy V */
-				dst[(((h - i) * 2) - 1) + (j * frame->pitch[0])] =
-				    src[(j * 2) + 3 + (i * srcPitch)];
-				dst[(((h - i) * 2) - 1) +
-				    ((j + 1) * frame->pitch[0])] =
-				    src[(j * 2) + 3 + ((i + 1) * srcPitch)];
+				dst[(((h - i) * 2) - 1) + (j * frame->pitch[0])] = src[(j * 2) + 3 + (i * pitch)];
+				dst[(((h - i) * 2) - 1) + ((j + 1) * frame->pitch[0])] = src[(j * 2) + 3 + ((i + 1) * pitch)];
 			}
 		}
 		break;
@@ -472,13 +432,10 @@ Bool
 sna_video_copy_data(struct sna *sna,
 		    struct sna_video *video,
 		    struct sna_video_frame *frame,
-		    int top, int left,
-		    int npixels, int nlines,
-		    unsigned char *buf)
+		    const uint8_t *buf)
 {
-	unsigned char *dst;
+	uint8_t *dst;
 
-	frame->bo = sna_video_buffer(sna, video, frame);
 	if (frame->bo == NULL)
 		return FALSE;
 
@@ -491,7 +448,7 @@ sna_video_copy_data(struct sna *sna,
 			};
 			if (pitch[0] == frame->pitch[0] &&
 			    pitch[1] == frame->pitch[1] &&
-			    top == 0 && left == 0) {
+			    frame->top == 0 && frame->left == 0) {
 				kgem_bo_write(&sna->kgem, frame->bo,
 					      buf,
 					      pitch[1]*frame->height +
@@ -507,8 +464,8 @@ sna_video_copy_data(struct sna *sna,
 		} else {
 			if (frame->width*2 == frame->pitch[0]) {
 				kgem_bo_write(&sna->kgem, frame->bo,
-					      buf + (top * frame->width*2) + (left << 1),
-					      frame->height*frame->width*2);
+					      buf + (frame->top * frame->width*2) + (frame->left << 1),
+					      frame->nlines*frame->width*2);
 				return TRUE;
 			}
 		}
@@ -519,24 +476,12 @@ sna_video_copy_data(struct sna *sna,
 	if (dst == NULL)
 		return FALSE;
 
-	if (is_planar_fourcc(frame->id)) {
-		int srcPitch = ALIGN(frame->width, 0x4);
-		int srcPitch2 = ALIGN((frame->width >> 1), 0x4);
+	if (is_planar_fourcc(frame->id))
+		sna_copy_planar_data(video, frame, buf, dst);
+	else
+		sna_copy_packed_data(video, frame, buf, dst);
 
-		sna_copy_planar_data(sna, video, frame,
-				     buf, dst,
-				     srcPitch, srcPitch2,
-				     nlines, top, left);
-	} else {
-		int srcPitch = frame->width << 1;
-
-		sna_copy_packed_data(sna, video, frame,
-				     buf, dst,
-				     srcPitch,
-				     top, left);
-	}
-
-	munmap(dst, video->buf->size);
+	munmap(dst, frame->bo->size);
 	return TRUE;
 }
 

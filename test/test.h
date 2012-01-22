@@ -43,7 +43,7 @@ void test_init(struct test *test, int argc, char **argv);
 void test_compare(struct test *real,
 		  Drawable real_draw, XRenderPictFormat *real_format,
 		  Drawable ref_draw, XRenderPictFormat *ref_format,
-		  int x, int y, int w, int h);
+		  int x, int y, int w, int h, const char *info);
 
 #define MAX_DELTA 3
 int pixel_difference(uint32_t a, uint32_t b);

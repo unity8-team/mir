@@ -45,21 +45,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 #include <errno.h>
 
-#include "xf86.h"
-#include "xf86_OSproc.h"
-#include "xf86cmap.h"
+#include <xf86cmap.h>
+#include <micmap.h>
+#include <fb.h>
+
 #include "compiler.h"
-#include "mibstore.h"
-#include "vgaHW.h"
-#include "mipointer.h"
-#include "micmap.h"
-#include "shadowfb.h"
-#include <X11/extensions/randr.h>
-#include "fb.h"
-#include "miscstruct.h"
-#include "dixstruct.h"
-#include "xf86xv.h"
-#include <X11/extensions/Xv.h>
 #include "sna.h"
 #include "sna_module.h"
 #include "sna_video.h"
@@ -71,12 +61,20 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/poll.h>
 #include "i915_drm.h"
 
+#if HAVE_DOT_GIT
+#include "git_version.h"
+#endif
+
 #if DEBUG_DRIVER
 #undef DBG
 #define DBG(x) ErrorF x
-#else
-#define NDEBUG 1
 #endif
+
+DevPrivateKeyRec sna_private_index;
+DevPrivateKeyRec sna_pixmap_index;
+DevPrivateKeyRec sna_gc_index;
+DevPrivateKeyRec sna_glyph_key;
+DevPrivateKeyRec sna_glyph_image_key;
 
 static OptionInfoRec sna_options[] = {
    {OPTION_TILING_FB,	"LinearFramebuffer",	OPTV_BOOLEAN,	{0},	FALSE},
@@ -89,6 +87,7 @@ static OptionInfoRec sna_options[] = {
    {OPTION_RELAXED_FENCING,	"UseRelaxedFencing",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_VMAP,	"UseVmap",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_ZAPHOD,	"ZaphodHeads",	OPTV_STRING,	{0},	FALSE},
+   {OPTION_DELAYED_FLUSH,	"DelayedFlush",	OPTV_BOOLEAN,	{0},	TRUE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 
@@ -189,21 +188,40 @@ static Bool sna_create_screen_resources(ScreenPtr screen)
 					  screen->height,
 					  screen->rootDepth,
 					  SNA_CREATE_FB);
-	if (!sna->front)
-		return FALSE;
+	if (!sna->front) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Unable to create front buffer %dx%d at depth %d\n",
+			   screen->width,
+			   screen->height,
+			   screen->rootDepth);
 
-	if (!sna_pixmap_force_to_gpu(sna->front))
+		return FALSE;
+	}
+
+	if (!sna_pixmap_force_to_gpu(sna->front)) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Failed to allocate video resources for front buffer %dx%d at depth %d\n",
+			   screen->width,
+			   screen->height,
+			   screen->rootDepth);
 		goto cleanup_front;
+	}
 
 	screen->SetScreenPixmap(sna->front);
 
-	if (!sna_accel_create(sna))
+	if (!sna_accel_create(sna)) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Failed to initialise acceleration routines\n");
 		goto cleanup_front;
+	}
 
 	sna_copy_fbcon(sna);
 
-	if (!sna_enter_vt(screen->myNum, 0))
+	if (!sna_enter_vt(screen->myNum, 0)) {
+		xf86DrvMsg(screen->myNum, X_ERROR,
+			   "[intel] Failed to become DRM master\n");
 		goto cleanup_front;
+	}
 
 	return TRUE;
 
@@ -501,9 +519,14 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 	if (xf86ReturnOptValBool(sna->Options, OPTION_TILING_FB, FALSE))
 		sna->tiling &= ~SNA_TILING_FB;
 
+	/* Default fail-safe value of 75 Hz */
+	sna->vblank_interval = 1000 * 1000 * 1000 / 75;
+
 	sna->flags = 0;
 	if (!xf86ReturnOptValBool(sna->Options, OPTION_THROTTLE, TRUE))
 		sna->flags |= SNA_NO_THROTTLE;
+	if (!xf86ReturnOptValBool(sna->Options, OPTION_DELAYED_FLUSH, TRUE))
+		sna->flags |= SNA_NO_DELAYED_FLUSH;
 
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Framebuffer %s\n",
 		   sna->tiling & SNA_TILING_FB ? "tiled" : "linear");
@@ -513,6 +536,8 @@ static Bool sna_pre_init(ScrnInfoPtr scrn, int flags)
 		   sna->tiling & SNA_TILING_3D ? "tiled" : "linear");
 	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Throttling %sabled\n",
 		   sna->flags & SNA_NO_THROTTLE ? "dis" : "en");
+	xf86DrvMsg(scrn->scrnIndex, X_CONFIG, "Delayed flush %sabled\n",
+		   sna->flags & SNA_NO_DELAYED_FLUSH ? "dis" : "en");
 
 	if (!sna_mode_pre_init(scrn, sna)) {
 		PreInitCleanup(scrn);
@@ -557,12 +582,15 @@ static void
 sna_block_handler(int i, pointer data, pointer timeout, pointer read_mask)
 {
 	struct sna *sna = data;
+	struct timeval **tv = timeout;
 
-	DBG(("%s\n", __FUNCTION__));
+	DBG(("%s (tv=%ld.%06ld)\n", __FUNCTION__,
+	     *tv ? (*tv)->tv_sec : -1, *tv ? (*tv)->tv_usec : 0));
 
 	sna->BlockHandler(i, sna->BlockData, timeout, read_mask);
 
-	sna_accel_block_handler(sna);
+	if (*tv == NULL || ((*tv)->tv_usec | (*tv)->tv_sec))
+		sna_accel_block_handler(sna);
 }
 
 static void
@@ -576,12 +604,12 @@ sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 	if ((int)result < 0)
 		return;
 
-	if (FD_ISSET(sna->kgem.fd, (fd_set*)read_mask))
-		sna_dri_wakeup(sna);
-
 	sna->WakeupHandler(i, sna->WakeupData, result, read_mask);
 
 	sna_accel_wakeup_handler(sna);
+
+	if (FD_ISSET(sna->kgem.fd, (fd_set*)read_mask))
+		sna_dri_wakeup(sna);
 }
 
 #if HAVE_UDEV
@@ -745,11 +773,7 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 	xf86_cursors_fini(screen);
 
 	/* XXX unhook devPrivate otherwise fbCloseScreen frees it! */
-	if (sna->front) {
-		screen->DestroyPixmap(sna->front);
-		sna->front = NULL;
-		screen->devPrivate = NULL;
-	}
+	screen->devPrivate = NULL;
 
 	screen->CloseScreen = sna->CloseScreen;
 	(*screen->CloseScreen) (scrnIndex, screen);
@@ -760,9 +784,37 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 	}
 
 	sna_mode_remove_fb(sna);
+	if (sna->front) {
+		screen->DestroyPixmap(sna->front);
+		sna->front = NULL;
+	}
 	xf86GARTCloseScreen(scrnIndex);
 
 	scrn->vtSema = FALSE;
+	return TRUE;
+}
+
+static Bool
+sna_register_all_privates(void)
+{
+	if (!dixRegisterPrivateKey(&sna_private_index, PRIVATE_PIXMAP, 0))
+		return FALSE;
+	assert(sna_private_index.offset == 0);
+
+	if (!dixRegisterPrivateKey(&sna_pixmap_index, PRIVATE_PIXMAP, 0))
+		return FALSE;
+	assert(sna_pixmap_index.offset == sizeof(void*));
+
+	if (!dixRegisterPrivateKey(&sna_gc_index, PRIVATE_GC,
+				   sizeof(struct sna_gc)))
+		return FALSE;
+	assert(sna_gc_index.offset == 0);
+
+	if (!dixRegisterPrivateKey(&sna_glyph_key, PRIVATE_GLYPH,
+				   sizeof(struct sna_glyph)))
+		return FALSE;
+	assert(sna_glyph_key.offset == 0);
+
 	return TRUE;
 }
 
@@ -776,14 +828,10 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 
 	DBG(("%s\n", __FUNCTION__));
 
-	scrn->videoRam = device->regions[2].size / 1024;
+	if (!sna_register_all_privates())
+		return FALSE;
 
-#ifdef DRI2
-	sna->directRenderingOpen = sna_dri_open(sna, screen);
-	if (sna->directRenderingOpen)
-		xf86DrvMsg(scrn->scrnIndex, X_INFO,
-			   "direct rendering: DRI2 Enabled\n");
-#endif
+	scrn->videoRam = device->regions[2].size / 1024;
 
 	miClearVisualTypes();
 	if (!miSetVisualTypes(scrn->depth,
@@ -798,6 +846,7 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 			  scrn->xDpi, scrn->yDpi,
 			  scrn->displayWidth, scrn->bitsPerPixel))
 		return FALSE;
+	assert(fbGetWinPrivateKey()->offset == 0);
 
 	if (scrn->bitsPerPixel > 8) {
 		/* Fixup RGB ordering */
@@ -877,6 +926,12 @@ sna_screen_init(int scrnIndex, ScreenPtr screen, int argc, char **argv)
 	xf86DPMSInit(screen, xf86DPMSSet, 0);
 
 	sna_video_init(sna, screen);
+#if USE_DRI2
+	sna->directRenderingOpen = sna_dri_open(sna, screen);
+	if (sna->directRenderingOpen)
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "direct rendering: DRI2 Enabled\n");
+#endif
 
 	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(scrn->scrnIndex, scrn->options);
@@ -909,9 +964,6 @@ static void sna_free_screen(int scrnIndex, int flags)
 	}
 
 	sna_close_drm_master(scrn);
-
-	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 }
 
 /*
@@ -1013,7 +1065,16 @@ void sna_init_scrn(ScrnInfoPtr scrn, int entity_num)
 {
 	EntityInfoPtr entity;
 
+#if defined(USE_GIT_DESCRIBE)
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled from %s\n", git_version);
+#elif BUILDER_DESCRIPTION
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "SNA compiled: %s\n", BUILDER_DESCRIPTION);
+#endif
+
 	DBG(("%s\n", __FUNCTION__));
+	DBG(("pixman version: %s\n", pixman_version_string()));
 
 	sna_device_key = xf86AllocateEntityPrivateIndex();
 

@@ -904,6 +904,7 @@ i965_emit_video_setup(ScrnInfoPtr scrn, drm_intel_bo * surface_state_binding_tab
 
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_VIDEO;
+	intel->needs_3d_invariant = TRUE;
 
 	urb_vs_start = 0;
 	urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -1665,6 +1666,7 @@ gen6_emit_video_setup(ScrnInfoPtr scrn,
 	assert(n_src_surf == 1 || n_src_surf == 6);
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_VIDEO;
+	intel->needs_3d_invariant = TRUE;
 
 	gen6_upload_invariant_states(intel);
 	gen6_upload_state_base_address(scrn, surface_state_binding_table_bo);
@@ -1774,6 +1776,7 @@ gen7_emit_video_setup(ScrnInfoPtr scrn,
 	assert(n_src_surf == 1 || n_src_surf == 6);
 	IntelEmitInvarientState(scrn);
 	intel->last_3d = LAST_3D_VIDEO;
+	intel->needs_3d_invariant = TRUE;
 
 	gen6_upload_invariant_states(intel);
 	gen6_upload_state_base_address(scrn, surface_state_binding_table_bo);

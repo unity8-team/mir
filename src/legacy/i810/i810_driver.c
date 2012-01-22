@@ -234,7 +234,6 @@ I810DoDDC(ScrnInfoPtr pScrn, int index)
 static Bool
 I810PreInit(ScrnInfoPtr pScrn, int flags)
 {
-   vgaHWPtr hwp;
    I810Ptr pI810;
    ClockRangePtr clockRanges;
    int i;
@@ -270,8 +269,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    /* Allocate a vgaHWRec */
    if (!vgaHWGetHWRec(pScrn))
       return FALSE;
-   hwp = VGAHWPTR(pScrn);
-   pI810->ioBase = hwp->PIOOffset;
 
    pI810->PciInfo = xf86GetPciInfoForEntity(pI810->pEnt->index);
 
@@ -377,9 +374,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
     * because it is controlled by options [no]vbe and [no]ddc
     */
    I810DoDDC(pScrn, pI810->pEnt->index);
-
-   /* We have to use PIO to probe, because we haven't mapped yet */
-   I810SetPIOAccess(pI810);
 
    intel_detect_chipset(pScrn, pI810->PciInfo, &chipset);
 
@@ -658,8 +652,6 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    }
 #endif
 
-   /*  We won't be using the VGA access after the probe */
-   I810SetMMIOAccess(pI810);
    return TRUE;
 }
 
@@ -796,7 +788,7 @@ DoSave(ScrnInfoPtr pScrn, vgaRegPtr vgaReg, I810RegPtr i810Reg,
     * into the fields of the vgaI810Rec structure goes here.
     */
    i810Reg->IOControl = hwp->readCrtc(hwp, IO_CTNL);
-   i810Reg->AddressMapping = pI810->readControl(pI810, GRX, ADDRESS_MAPPING);
+   i810Reg->AddressMapping = hwp->readGr(hwp, ADDRESS_MAPPING);
    i810Reg->BitBLTControl = INREG8(BITBLT_CNTL);
    i810Reg->VideoClk2_M = INREG16(VCLK2_VCO_M);
    i810Reg->VideoClk2_N = INREG16(VCLK2_VCO_N);
@@ -991,10 +983,10 @@ DoRestore(ScrnInfoPtr pScrn, vgaRegPtr vgaReg, I810RegPtr i810Reg,
    temp |= i810Reg->InterlaceControl;
    hwp->writeCrtc(hwp, INTERLACE_CNTL, temp);
 
-   temp = pI810->readControl(pI810, GRX, ADDRESS_MAPPING);
+   temp = hwp->readGr(hwp, ADDRESS_MAPPING);
    temp &= 0xE0;			/* Save reserved bits 7:5 */
    temp |= i810Reg->AddressMapping;
-   pI810->writeControl(pI810, GRX, ADDRESS_MAPPING, temp);
+   hwp->writeGr(hwp, ADDRESS_MAPPING, temp);
 
    /* Setting the OVRACT Register for video overlay */
    {
@@ -2067,6 +2059,7 @@ I810DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
    I810Ptr pI810;
    unsigned char SEQ01 = 0;
    int DPMSSyncSelect = 0;
+   vgaHWPtr hwp;
 
    pI810 = I810PTR(pScrn);
    switch (PowerManagementMode) {
@@ -2092,9 +2085,11 @@ I810DisplayPowerManagementSet(ScrnInfoPtr pScrn, int PowerManagementMode,
       break;
    }
 
+   hwp = VGAHWPTR(pScrn);
+
    /* Turn the screen on/off */
-   SEQ01 |= pI810->readControl(pI810, SRX, 0x01) & ~0x20;
-   pI810->writeControl(pI810, SRX, 0x01, SEQ01);
+   SEQ01 |= hwp->readSeq(hwp, 0x01) & ~0x20;
+   hwp->writeSeq(hwp, 0x01, SEQ01);
 
    /* Set the DPMS mode */
    OUTREG8(DPMS_SYNC_SELECT, DPMSSyncSelect);

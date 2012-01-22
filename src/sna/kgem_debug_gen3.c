@@ -1156,7 +1156,6 @@ gen3_decode_3d_1d(struct kgem *kgem, uint32_t offset)
 			if (data[1] & (1 << map)) {
 				int width, height, pitch, dword;
 				struct drm_i915_gem_relocation_entry *reloc;
-				struct kgem_bo *bo = NULL;
 				const char *tiling;
 
 				reloc = kgem_debug_get_reloc_entry(kgem, &data[i] - kgem->batch);
