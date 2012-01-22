@@ -3090,7 +3090,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			goto fallback;
 		}
 
-		if (alu != GXcopy && !sna_pixmap_move_to_gpu(dst_pixmap, MOVE_READ | MOVE_WRITE)) {
+		if (!sna_pixmap_move_to_gpu(dst_pixmap,
+					    MOVE_WRITE | (alu_overwrites(alu) ? 0 : MOVE_READ))) {
 			DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
 			     __FUNCTION__));
 			goto fallback;
@@ -3121,9 +3122,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					assert_pixmap_contains_box(dst_pixmap,
 								   RegionExtents(&region));
 					sna_damage_add(&dst_priv->gpu_damage, &region);
-					if (alu == GXcopy)
-						sna_damage_subtract(&dst_priv->cpu_damage,
-								    &region);
 					RegionTranslate(&region, -dst_dx, -dst_dy);
 				}
 			}
@@ -3152,9 +3150,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					assert_pixmap_contains_box(dst_pixmap,
 								   RegionExtents(&region));
 					sna_damage_add(&dst_priv->gpu_damage, &region);
-					if (alu == GXcopy)
-						sna_damage_subtract(&dst_priv->cpu_damage,
-								    &region);
 					RegionTranslate(&region, -dst_dx, -dst_dy);
 				}
 			}
@@ -3262,8 +3257,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 								   RegionExtents(&region));
 					sna_damage_add(&dst_priv->gpu_damage,
 						       &region);
-					sna_damage_subtract(&dst_priv->cpu_damage,
-							    &region);
 					RegionTranslate(&region, -dst_dx, -dst_dy);
 				}
 			}
