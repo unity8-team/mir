@@ -671,11 +671,17 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 	w = box.x2 - box.x1;
 	h = box.y2 - box.y1;
+	DBG(("%s: sample area (%d, %d), (%d, %d): %dx%d\n",
+	     __FUNCTION__, box.x1, box.y1, box.x2, box.y2, w, h));
 	assert(w && h);
-	if (w > 2*sna->render.max_3d_size || h > 2*sna->render.max_3d_size)
+	if (w > 2*sna->render.max_3d_size || h > 2*sna->render.max_3d_size) {
+		DBG(("%s: sample size too large for pixman downscaling\n",
+		     __FUNCTION__));
 		goto fixup;
+	}
 
 	if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
+		DBG(("%s: uploading partial texture\n", __FUNCTION__));
 		bo = kgem_upload_source_image_halved(&sna->kgem,
 						     picture->format,
 						     pixmap->devPrivate.ptr,
@@ -746,8 +752,8 @@ static int sna_render_picture_downsample(struct sna *sna,
 			ni = 1;
 		}
 
-		DBG(("%s downsampling using %dx%d GPU tiles\n",
-		     __FUNCTION__, ww, hh));
+		DBG(("%s %d:%d downsampling using %dx%d GPU tiles\n",
+		     __FUNCTION__, nj, ni, ww, hh));
 
 		for (i = 0; i < ni; i++) {
 			BoxRec b;
@@ -766,6 +772,9 @@ static int sna_render_picture_downsample(struct sna *sna,
 					b.x2 = w/2;
 				else
 					b.x2 = b.x1 + ww;
+
+				DBG(("%s: tile %d:%d, box=(%d,%d), (%d, %d)\n",
+				     __FUNCTION__, i, j, b.x1, b.y1, b.x2, b.y2));
 
 				memset(&op, 0, sizeof(op));
 				if (!sna->render.composite(sna,
