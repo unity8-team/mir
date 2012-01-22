@@ -373,17 +373,20 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	w = box->x2 - box->x1;
 	h = box->y2 - box->y1;
 	if (w == pixmap->drawable.width && h == pixmap->drawable.height) {
-		bool upload = true;
+		bool upload;
 
-		if (pixmap->devKind * pixmap->drawable.height <= 4096 ||
+		priv = sna_pixmap_attach(pixmap);
+		if (!priv)
+			return false;
+
+		upload = true;
+		if (!priv->gpu ||
 		    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
 				       I915_TILING_X,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height,
-				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE) {
-			priv = sna_pixmap_attach(pixmap);
-			upload = priv && priv->source_count++ > SOURCE_BIAS;
-		}
+				       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
+			upload = priv->source_count++ > SOURCE_BIAS;
 
 		DBG(("%s: migrating whole pixmap (%dx%d) for source (%d,%d),(%d,%d)? %d\n",
 		     __FUNCTION__,
@@ -397,12 +400,14 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 	if (64*w*h < pixmap->drawable.width * pixmap->drawable.height)
 		return FALSE;
 
-	count = SOURCE_BIAS;
 	priv = sna_pixmap_attach(pixmap);
-	if (priv)
-		count = priv->source_count++;
+	if (!priv)
+		return FALSE;
 
-	if (kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem, I915_TILING_X,
+	count = priv->source_count++;
+	if (!priv->gpu ||
+	    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
+			       I915_TILING_X,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height,
 			       pixmap->drawable.bitsPerPixel) == I915_TILING_NONE)
