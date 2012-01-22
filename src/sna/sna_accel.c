@@ -798,6 +798,7 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 	if ((flags & MOVE_READ) == 0) {
 		assert(flags & MOVE_WRITE);
 		sna_damage_destroy(&priv->gpu_damage);
+		priv->clear = false;
 
 		if (priv->gpu && pixmap_inplace(sna, pixmap, priv)) {
 			DBG(("%s: write inplace\n", __FUNCTION__));
@@ -882,6 +883,7 @@ skip_inplace_map:
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width,
 				       pixmap->drawable.height);
+			priv->clear = false;
 			return true;
 		}
 
@@ -896,6 +898,28 @@ skip_inplace_map:
 	if (pixmap->devPrivate.ptr == NULL &&
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
 		return false;
+
+	if (priv->clear) {
+		DBG(("%s: applying clear [%08x]\n",
+		     __FUNCTION__, priv->clear_color));
+
+		if (priv->cpu_bo) {
+			DBG(("%s: syncing CPU bo\n", __FUNCTION__));
+			kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
+		}
+
+		pixman_fill(pixmap->devPrivate.ptr,
+			    pixmap->devKind/sizeof(uint32_t),
+			    pixmap->drawable.bitsPerPixel,
+			    0, 0,
+			    pixmap->drawable.width,
+			    pixmap->drawable.height,
+			    priv->clear_color);
+
+		sna_damage_destroy(&priv->gpu_damage);
+		priv->undamaged = true;
+		priv->clear = false;
+	}
 
 	if (priv->gpu_damage) {
 		BoxPtr box;
@@ -1081,6 +1105,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage))
 		goto out;
+
+	if (priv->clear)
+		return _sna_pixmap_move_to_cpu(pixmap, flags);
 
 	if (priv->gpu_bo == NULL && !priv->gpu && flags & MOVE_WRITE)
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
@@ -1575,6 +1602,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 done:
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
+	priv->clear = false;
 	return true;
 }
 
@@ -2008,6 +2036,7 @@ done:
 active:
 	if (!priv->pinned)
 		list_move(&priv->inactive, &sna->active_pixmaps);
+	priv->clear = false;
 	return priv;
 }
 
@@ -2341,6 +2370,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 			}
 		}
 
+		priv->clear = false;
 		return true;
 	}
 
@@ -2373,6 +2403,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 							sna_damage_add(&priv->gpu_damage, region);
 					}
 
+					priv->clear = false;
 					return true;
 				}
 			} else {
@@ -2436,6 +2467,7 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		}
 		if (priv->flush)
 			list_move(&priv->list, &sna->dirty_pixmaps);
+		priv->clear = false;
 	}
 
 blt:
@@ -2969,7 +3001,7 @@ fallback:
 				      alu, -1, bpp,
 				      reverse, upsidedown);
 				box++;
-			}while (--n);
+			} while (--n);
 		}
 	}
 }
@@ -3097,7 +3129,62 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			goto fallback;
 		}
 
-		if (src_priv &&
+		if (src_priv && src_priv->clear) {
+			DBG(("%s: applying src clear[%08x] to dst\n",
+			     __FUNCTION__, src_priv->clear_color));
+			RegionTranslate(&region, dst_dx, dst_dy);
+			if (n == 1) {
+				if (!sna->render.fill_one(sna,
+							  dst_pixmap,
+							  dst_priv->gpu_bo,
+							  src_priv->clear_color,
+							  box->x1, box->y1,
+							  box->x2, box->y2,
+							  alu)) {
+					DBG(("%s: unsupported fill\n",
+					     __FUNCTION__));
+					goto fallback;
+				}
+			} else {
+				struct sna_fill_op fill;
+
+				if (!sna_fill_init_blt(&fill, sna,
+						       dst_pixmap, dst_priv->gpu_bo,
+						       alu, src_priv->clear_color)) {
+					DBG(("%s: unsupported fill\n",
+					     __FUNCTION__));
+					goto fallback;
+				}
+
+				fill.boxes(sna, &fill, box, n);
+				fill.done(sna, &fill);
+			}
+
+			if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
+				if (replaces) {
+					sna_damage_destroy(&dst_priv->cpu_damage);
+					sna_damage_all(&dst_priv->gpu_damage,
+						       dst_pixmap->drawable.width,
+						       dst_pixmap->drawable.height);
+					list_del(&dst_priv->list);
+					dst_priv->undamaged = false;
+
+					dst_priv->clear = true;
+					dst_priv->clear_color = src_priv->clear_color;
+				} else {
+					assert_pixmap_contains_box(dst_pixmap,
+								   RegionExtents(&region));
+					sna_damage_add(&dst_priv->gpu_damage, &region);
+				}
+				RegionTranslate(&region, -dst_dx, -dst_dy);
+			}
+
+			if (replaces) {
+				DBG(("%s: mark dst as clear\n", __FUNCTION__));
+				dst_priv->clear = true;
+				dst_priv->clear_color = src_priv->clear_color;
+			}
+		} else if (src_priv &&
 		    move_to_gpu(src_pixmap, src_priv, &region.extents, alu) &&
 		    sna_pixmap_move_to_gpu(src_pixmap, MOVE_READ)) {
 			if (!sna->render.copy_boxes(sna, alu,
@@ -3261,11 +3348,43 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				}
 			}
 		}
+
+		goto out;
+	}
+
+fallback:
+	if (alu == GXcopy && src_priv && src_priv->clear) {
+		DBG(("%s: copying clear [%08x]\n",
+		     __FUNCTION__, src_priv->clear_color));
+
+		RegionTranslate(&region, dst_dx, dst_dy);
+		box = REGION_RECTS(&region);
+		n = REGION_NUM_RECTS(&region);
+
+		if (dst_priv) {
+			assert_pixmap_contains_box(dst_pixmap,
+						   RegionExtents(&region));
+
+			if (!sna_drawable_move_region_to_cpu(&dst_pixmap->drawable,
+							     &region,
+							     MOVE_WRITE | MOVE_INPLACE_HINT))
+				goto out;
+		}
+
+		do {
+			pixman_fill(dst_pixmap->devPrivate.ptr,
+				    dst_pixmap->devKind/sizeof(uint32_t),
+				    dst_pixmap->drawable.bitsPerPixel,
+				    box->x1, box->y1,
+				    box->x2 - box->x1,
+				    box->y2 - box->y1,
+				    src_priv->clear_color);
+			box++;
+		} while (--n);
 	} else {
 		FbBits *dst_bits, *src_bits;
 		int dst_stride, src_stride;
 
-fallback:
 		DBG(("%s: fallback -- src=(%d, %d), dst=(%d, %d)\n",
 		     __FUNCTION__, src_dx, src_dy, dst_dx, dst_dy));
 		if (src_priv) {
@@ -3351,9 +3470,10 @@ fallback:
 				      alu, -1, bpp,
 				      reverse, upsidedown);
 				box++;
-			}while (--n);
+			} while (--n);
 		}
 	}
+
 out:
 	RegionUninit(&region);
 }
@@ -7218,6 +7338,18 @@ sna_poly_fill_rect_blt(DrawablePtr drawable,
 						sna_pixmap(pixmap)->undamaged = false;
 					} else
 						sna_damage_add_box(damage, &r);
+				}
+
+				if ((gc->alu == GXcopy || gc->alu == GXclear) &&
+				    r.x2 - r.x1 == pixmap->drawable.width &&
+				    r.y2 - r.y1 == pixmap->drawable.height) {
+					struct sna_pixmap *priv = sna_pixmap(pixmap);
+
+					priv->clear = true;
+					priv->clear_color = gc->alu == GXcopy ? pixel : 0;
+
+					DBG(("%s: pixmap=%ld, marking clear [%08x]\n",
+					     __FUNCTION__, pixmap->drawable.serialNumber, priv->clear_color));
 				}
 			} else
 				success = false;
