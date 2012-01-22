@@ -1035,7 +1035,6 @@ bool kgem_retire(struct kgem *kgem)
 	list_for_each_entry_safe(bo, next, &kgem->flushing, request) {
 		assert(bo->refcnt == 0);
 		assert(bo->rq == &_kgem_static_request);
-		assert(bo->domain == DOMAIN_GPU);
 		assert(bo->exec == NULL);
 
 		if (kgem_busy(kgem, bo->handle))
