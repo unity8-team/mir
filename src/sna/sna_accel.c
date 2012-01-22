@@ -3283,9 +3283,10 @@ fallback:
 			assert_pixmap_contains_box(dst_pixmap,
 						   RegionExtents(&region));
 
-			mode = MOVE_WRITE;
-			if (alu != GXcopy)
-				mode |= MOVE_READ;
+			if (alu_overwrites(alu))
+				mode = MOVE_WRITE | MOVE_INPLACE_HINT;
+			else
+				mode = MOVE_WRITE | MOVE_READ;
 			if (!sna_drawable_move_region_to_cpu(&dst_pixmap->drawable,
 							     &region, mode))
 				goto out;
