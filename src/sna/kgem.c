@@ -3224,7 +3224,7 @@ struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
 	     __FUNCTION__, x, y, width, height, stride, bpp));
 
 	bo = kgem_create_buffer_2d(kgem,
-				   width, height, bpp,
+				   width/2, height/2, bpp,
 				   KGEM_BUFFER_WRITE_INPLACE,
 				   &dst);
 	if (bo == NULL)
