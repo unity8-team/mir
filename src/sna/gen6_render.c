@@ -556,7 +556,7 @@ gen6_emit_invariant(struct sna *sna)
 	sna->render_state.gen6.needs_invariant = FALSE;
 }
 
-static void
+static bool
 gen6_emit_cc(struct sna *sna,
 	     int op, bool has_component_alpha, uint32_t dst_format)
 {
@@ -570,7 +570,7 @@ gen6_emit_cc(struct sna *sna,
 	     op, has_component_alpha, dst_format,
 	     blend, render->blend));
 	if (render->blend == blend)
-		return;
+		return op <= PictOpSrc;
 
 	if (op == PictOpClear) {
 		uint32_t src;
@@ -580,7 +580,7 @@ gen6_emit_cc(struct sna *sna,
 		 */
 		src = BLEND_OFFSET(GEN6_BLENDFACTOR_ONE, GEN6_BLENDFACTOR_ZERO);
 		if (render->blend == src)
-			return;
+			return true;
 	}
 
 	OUT_BATCH(GEN6_3DSTATE_CC_STATE_POINTERS | (4 - 2));
@@ -594,6 +594,7 @@ gen6_emit_cc(struct sna *sna,
 	}
 
 	render->blend = blend;
+	return op <= PictOpSrc;
 }
 
 static void
@@ -837,9 +838,10 @@ gen6_emit_state(struct sna *sna,
 		const struct sna_composite_op *op,
 		uint16_t wm_binding_table)
 {
-	bool need_stall;
+	bool need_stall = wm_binding_table & 1;
 
-	gen6_emit_cc(sna, op->op, op->has_component_alpha, op->dst.format);
+	if (gen6_emit_cc(sna, op->op, op->has_component_alpha, op->dst.format))
+		need_stall = false;
 	gen6_emit_sampler(sna,
 			  SAMPLER_OFFSET(op->src.filter,
 					 op->src.repeat,
@@ -851,7 +853,7 @@ gen6_emit_state(struct sna *sna,
 		     op->u.gen6.nr_surfaces,
 		     op->u.gen6.nr_inputs);
 	gen6_emit_vertex_elements(sna, op);
-	need_stall = gen6_emit_binding_table(sna, wm_binding_table);
+	need_stall |= gen6_emit_binding_table(sna, wm_binding_table & ~1);
 	if (gen6_emit_drawing_rectangle(sna, op))
 		need_stall = false;
 	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
@@ -1641,8 +1643,10 @@ static void gen6_emit_composite_state(struct sna *sna,
 {
 	uint32_t *binding_table;
 	uint16_t offset;
+	bool dirty;
 
 	gen6_get_batch(sna);
+	dirty = kgem_bo_is_dirty(op->dst.bo);
 
 	binding_table = gen6_composite_get_binding_table(sna, &offset);
 
@@ -1674,7 +1678,7 @@ static void gen6_emit_composite_state(struct sna *sna,
 		offset = sna->render_state.gen6.surface_table;
 	}
 
-	gen6_emit_state(sna, op, offset);
+	gen6_emit_state(sna, op, offset | dirty);
 }
 
 static void
@@ -1849,9 +1853,11 @@ static void gen6_emit_video_state(struct sna *sna,
 	int src_pitch[6];
 	uint32_t *binding_table;
 	uint16_t offset;
+	bool dirty;
 	int n_src, n;
 
 	gen6_get_batch(sna);
+	dirty = kgem_bo_is_dirty(op->dst.bo);
 
 	src_surf_base[0] = 0;
 	src_surf_base[1] = 0;
@@ -1902,7 +1908,7 @@ static void gen6_emit_video_state(struct sna *sna,
 					       src_surf_format);
 	}
 
-	gen6_emit_state(sna, op, offset);
+	gen6_emit_state(sna, op, offset | dirty);
 }
 
 static Bool
@@ -2999,8 +3005,10 @@ gen6_emit_copy_state(struct sna *sna,
 {
 	uint32_t *binding_table;
 	uint16_t offset;
+	bool dirty;
 
 	gen6_get_batch(sna);
+	dirty = kgem_bo_is_dirty(op->dst.bo);
 
 	binding_table = gen6_composite_get_binding_table(sna, &offset);
 
@@ -3021,7 +3029,7 @@ gen6_emit_copy_state(struct sna *sna,
 		offset = sna->render_state.gen6.surface_table;
 	}
 
-	gen6_emit_state(sna, op, offset);
+	gen6_emit_state(sna, op, offset | dirty);
 }
 
 static inline bool untiled_tlb_miss(struct kgem_bo *bo)
@@ -3342,8 +3350,10 @@ gen6_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 {
 	uint32_t *binding_table;
 	uint16_t offset;
+	bool dirty;
 
 	gen6_get_batch(sna);
+	dirty = kgem_bo_is_dirty(op->dst.bo);
 
 	binding_table = gen6_composite_get_binding_table(sna, &offset);
 
@@ -3365,7 +3375,7 @@ gen6_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 		offset = sna->render_state.gen6.surface_table;
 	}
 
-	gen6_emit_state(sna, op, offset);
+	gen6_emit_state(sna, op, offset | dirty);
 }
 
 static inline bool prefer_blt_fill(struct sna *sna,
