@@ -3133,6 +3133,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			DBG(("%s: applying src clear[%08x] to dst\n",
 			     __FUNCTION__, src_priv->clear_color));
 			RegionTranslate(&region, dst_dx, dst_dy);
+			box = REGION_RECTS(&region);
+			n = REGION_NUM_RECTS(&region);
 			if (n == 1) {
 				if (!sna->render.fill_one(sna,
 							  dst_pixmap,
@@ -3176,7 +3178,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 								   RegionExtents(&region));
 					sna_damage_add(&dst_priv->gpu_damage, &region);
 				}
-				RegionTranslate(&region, -dst_dx, -dst_dy);
 			}
 
 			if (replaces) {
