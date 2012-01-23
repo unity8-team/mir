@@ -117,17 +117,17 @@ static bool sna_blt_fill_init(struct sna *sna,
 			      uint32_t pixel)
 {
 	struct kgem *kgem = &sna->kgem;
-	int pitch;
 
+	assert(bo->tiling != I915_TILING_Y);
 	blt->bo[0] = bo;
 
-	pitch = bo->pitch;
+	blt->br13 = bo->pitch;
 	blt->cmd = XY_SCANLINE_BLT;
-	if (kgem->gen >= 40 && blt->bo[0]->tiling) {
-		blt->cmd |= 1 << 11;
-		pitch >>= 2;
+	if (kgem->gen >= 40 && bo->tiling) {
+		blt->cmd |= BLT_DST_TILED;
+		blt->br13 >>= 2;
 	}
-	assert(pitch < MAXSHORT);
+	assert(blt->br13 < MAXSHORT);
 
 	if (alu == GXclear)
 		pixel = 0;
@@ -138,7 +138,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 			alu = GXset;
 	}
 
-	blt->br13 = 1<<31 | (fill_ROP[alu] << 16) | pitch;
+	blt->br13 |= 1<<31 | (fill_ROP[alu] << 16);
 	switch (bpp) {
 	default: assert(0);
 	case 32: blt->br13 |= 1 << 25; /* RGB8888 */

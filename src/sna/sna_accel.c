@@ -75,7 +75,7 @@
 #define ACCEL_POLY_SEGMENT 1
 #define ACCEL_POLY_RECTANGLE 1
 #define ACCEL_POLY_ARC 1
-//#define ACCEL_FILL_POLYGON 1
+#define ACCEL_POLY_FILL_POLYGON 1
 #define ACCEL_POLY_FILL_RECT 1
 //#define ACCEL_POLY_FILL_ARC 1
 #define ACCEL_POLY_TEXT8 1
@@ -3597,6 +3597,251 @@ find_clip_box_for_y(const BoxRec *begin, const BoxRec *end, int16_t y)
 	return find_clip_box_for_y(mid, end, y);
 }
 
+static void
+sna_fill_spans__cpu(DrawablePtr drawable,
+		    GCPtr gc, int n,
+		    DDXPointPtr pt, int *width, int sorted)
+{
+	BoxRec extents;
+
+	DBG(("%s x %d\n", __FUNCTION__, n));
+
+	extents = gc->pCompositeClip->extents;
+	while (n--) {
+		BoxRec b;
+
+		DBG(("%s: (%d, %d) + %d\n",
+		     __FUNCTION__, pt->x, pt->y, *width));
+
+		*(DDXPointRec *)&b = *pt++;
+		b.x2 = b.x1 + *width++;
+		b.y2 = b.y1 + 1;
+
+		if (!box_intersect(&b, &extents))
+			continue;
+
+		if (region_is_singular(gc->pCompositeClip)) {
+			fbFill(drawable, gc, b.x1, b.y1, b.x2 - b.x1, 1);
+		} else {
+			const BoxRec * const clip_start = RegionBoxptr(gc->pCompositeClip);
+			const BoxRec * const clip_end = clip_start + gc->pCompositeClip->data->numRects;
+			const BoxRec *c;
+
+			c = find_clip_box_for_y(clip_start,
+						clip_end,
+						b.y1);
+			while (c != clip_end) {
+				int16_t x1, x2;
+
+				if (b.y2 <= c->y1)
+					break;
+
+				if (b.x1 >= c->x2)
+					break;
+				if (b.x2 <= c->x1) {
+					c++;
+					continue;
+				}
+
+				x1 = c->x1;
+				x2 = c->x2;
+				c++;
+
+				if (x1 < b.x1)
+					x1 = b.x1;
+				if (x2 > b.x2)
+					x2 = b.x2;
+				if (x2 > x1)
+					fbFill(drawable, gc,
+					       x1, b.y1, x2 - x1, 1);
+			}
+		}
+	}
+}
+
+struct sna_fill_spans {
+	struct sna *sna;
+	PixmapPtr pixmap;
+	RegionRec region;
+	unsigned flags;
+	struct sna_damage **damage;
+	int16_t dx, dy;
+	void *op;
+};
+
+static void
+sna_fill_spans__fill(DrawablePtr drawable,
+		     GCPtr gc, int n,
+		     DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+	BoxRec box[512];
+
+	DBG(("%s: alu=%d, fg=%08lx, count=%d\n",
+	     __FUNCTION__, gc->alu, gc->fgPixel, n));
+
+	assert(n);
+	do {
+		BoxRec *b = box;
+		int nbox = n;
+		if (nbox > ARRAY_SIZE(box))
+			nbox = ARRAY_SIZE(box);
+		n -= nbox;
+		do {
+			*(DDXPointRec *)b = *pt++;
+			b->x2 = b->x1 + (int)*width++;
+			b->y2 = b->y1 + 1;
+			DBG(("%s: (%d, %d), (%d, %d)\n",
+			     __FUNCTION__, b->x1, b->y1, b->x2, b->y2));
+			if (b->x2 > b->x1)
+				b++;
+		} while (--nbox);
+		if (b != box)
+			op->boxes(data->sna, op, box, b - box);
+	} while (n);
+}
+
+static void
+sna_fill_spans__fill_offset(DrawablePtr drawable,
+			    GCPtr gc, int n,
+			    DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+	BoxRec box[512];
+
+	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
+
+	do {
+		BoxRec *b = box;
+		int nbox = n;
+		if (nbox > ARRAY_SIZE(box))
+			nbox = ARRAY_SIZE(box);
+		n -= nbox;
+		do {
+			*(DDXPointRec *)b = *pt++;
+			b->x1 += data->dx;
+			b->y1 += data->dy;
+			b->x2 = b->x1 + (int)*width++;
+			b->y2 = b->y1 + 1;
+			if (b->x2 > b->x1)
+				b++;
+		} while (--nbox);
+		if (b != box)
+			op->boxes(data->sna, op, box, b - box);
+	} while (n);
+}
+
+static void
+sna_fill_spans__fill_clip_extents(DrawablePtr drawable,
+				  GCPtr gc, int n,
+				  DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+	const BoxRec *extents = &data->region.extents;
+	BoxRec box[512], *b = box, *const last_box = box + ARRAY_SIZE(box);
+
+	DBG(("%s: alu=%d, fg=%08lx, count=%d, extents=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__, gc->alu, gc->fgPixel, n,
+	     extents->x1, extents->y1,
+	     extents->x2, extents->y2));
+
+	assert(n);
+	do {
+		*(DDXPointRec *)b = *pt++;
+		b->x2 = b->x1 + (int)*width++;
+		b->y2 = b->y1 + 1;
+		if (box_intersect(b, extents)) {
+			b->x1 += data->dx;
+			b->x2 += data->dx;
+			b->y1 += data->dy;
+			b->y2 += data->dy;
+			if (++b == last_box) {
+				op->boxes(data->sna, op, box, last_box - box);
+				b = box;
+			}
+		}
+	} while (--n);
+	if (b != box)
+		op->boxes(data->sna, op, box, b - box);
+}
+
+static void
+sna_fill_spans__fill_clip_boxes(DrawablePtr drawable,
+				GCPtr gc, int n,
+				DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+	BoxRec box[512], *b = box, *const last_box = box + ARRAY_SIZE(box);
+	const BoxRec * const clip_start = RegionBoxptr(&data->region);
+	const BoxRec * const clip_end = clip_start + data->region.data->numRects;
+
+	DBG(("%s: alu=%d, fg=%08lx, count=%d, extents=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__, gc->alu, gc->fgPixel, n,
+	     data->region.extents.x1, data->region.extents.y1,
+	     data->region.extents.x2, data->region.extents.y2));
+
+	assert(n);
+	do {
+		int16_t X1 = pt->x;
+		int16_t y = pt->y;
+		int16_t X2 = X1 + (int)*width;
+		const BoxRec *c;
+
+		pt++;
+		width++;
+
+		if (y < data->region.extents.y1 || data->region.extents.y2 <= y)
+			continue;
+
+		if (X1 < data->region.extents.x1)
+			X1 = data->region.extents.x1;
+
+		if (X2 > data->region.extents.x2)
+			X2 = data->region.extents.x2;
+
+		if (X1 >= X2)
+			continue;
+
+		c = find_clip_box_for_y(clip_start, clip_end, y);
+		while (c != clip_end) {
+			if (y + 1 <= c->y1)
+				break;
+
+			if (X1 >= c->x2)
+				break;
+			if (X2 <= c->x1) {
+				c++;
+				continue;
+			}
+
+			b->x1 = c->x1;
+			b->x2 = c->x2;
+			c++;
+
+			if (b->x1 < X1)
+				b->x1 = X1;
+			if (b->x2 > X2)
+				b->x2 = X2;
+			if (b->x2 <= b->x1)
+				continue;
+
+			b->x1 += data->dx;
+			b->x2 += data->dx;
+			b->y1 = y + data->dy;
+			b->y2 = b->y1 + 1;
+			if (++b == last_box) {
+				op->boxes(data->sna, op, box, last_box - box);
+				b = box;
+			}
+		}
+	} while (--n);
+	if (b != box)
+		op->boxes(data->sna, op, box, b - box);
+}
 
 static Bool
 sna_fill_spans_blt(DrawablePtr drawable,
@@ -4061,7 +4306,7 @@ fallback:
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(drawable, &region,
 					     drawable_gc_flags(drawable,
-							       gc, true)))
+							       gc, n > 1)))
 		goto out;
 
 	fbFillSpans(drawable, gc, n, pt, width, sorted);
@@ -7505,6 +7750,146 @@ get_pixel(PixmapPtr pixmap)
 	}
 }
 
+static bool
+gc_is_solid(GCPtr gc, uint32_t *color)
+{
+	if (gc->fillStyle == FillSolid ||
+	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
+	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
+		*color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
+		return true;
+	}
+
+	return false;
+}
+
+static void
+sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
+		      int shape, int mode,
+		      int n, DDXPointPtr pt)
+{
+	struct sna_fill_spans data;
+	struct sna_pixmap *priv;
+
+	DBG(("%s(n=%d, PlaneMask: %lx (solid %d), solid fill: %d [style=%d, tileIsPixel=%d], alu=%d)\n", __FUNCTION__,
+	     n, gc->planemask, !!PM_IS_SOLID(draw, gc->planemask),
+	     (gc->fillStyle == FillSolid ||
+	      (gc->fillStyle == FillTiled && gc->tileIsPixel)),
+	     gc->fillStyle, gc->tileIsPixel,
+	     gc->alu));
+
+	data.flags = sna_poly_point_extents(draw, gc, mode, n, pt,
+					    &data.region.extents);
+	if (data.flags == 0) {
+		DBG(("%s, nothing to do\n", __FUNCTION__));
+		return;
+	}
+
+	DBG(("%s: extents(%d, %d), (%d, %d), flags=%x\n", __FUNCTION__,
+	     data.region.extents.x1, data.region.extents.y1,
+	     data.region.extents.x2, data.region.extents.y2,
+	     data.flags));
+
+	data.region.data = NULL;
+
+	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (!ACCEL_POLY_FILL_POLYGON)
+		goto fallback;
+
+	data.pixmap = get_drawable_pixmap(draw);
+	data.sna = to_sna_from_pixmap(data.pixmap);
+	priv = sna_pixmap(data.pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (wedged(data.sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (!PM_IS_SOLID(draw, gc->planemask))
+		goto fallback;
+
+	if (sna_drawable_use_gpu_bo(draw,
+				    &data.region.extents,
+				    &data.damage)) {
+		uint32_t color;
+
+		get_drawable_deltas(draw, data.pixmap, &data.dx, &data.dy);
+
+		if (gc_is_solid(gc, &color)) {
+			struct sna_fill_op fill;
+
+			if (!sna_fill_init_blt(&fill,
+					       data.sna, data.pixmap,
+					       priv->gpu_bo, gc->alu, color))
+				goto fallback;
+
+			data.op = &fill;
+			sna_gc(gc)->priv = &data;
+
+			if ((data.flags & 2) == 0) {
+				if (data.dx | data.dy)
+					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill;
+			} else {
+				region_maybe_clip(&data.region,
+						  gc->pCompositeClip);
+				if (!RegionNotEmpty(&data.region))
+					return;
+
+				if (region_is_singular(&data.region))
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+			}
+			assert(gc->miTranslate);
+			miFillPolygon(draw, gc, shape, mode, n, pt);
+			gc->ops->FillSpans = sna_fill_spans;
+
+			fill.done(data.sna, &fill);
+			if (data.damage)
+				sna_damage_add(data.damage, &data.region);
+			RegionUninit(&data.region);
+			return;
+		}
+
+		/* XXX */
+		miFillPolygon(draw, gc, shape, mode, n, pt);
+		return;
+	}
+
+fallback:
+	DBG(("%s: fallback (%d, %d), (%d, %d)\n", __FUNCTION__,
+	     data.region.extents.x1, data.region.extents.y1,
+	     data.region.extents.x2, data.region.extents.y2));
+	region_maybe_clip(&data.region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&data.region)) {
+		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
+		return;
+	}
+
+	if (!sna_gc_move_to_cpu(gc, draw))
+		goto out;
+
+	if (!sna_drawable_move_region_to_cpu(draw, &data.region,
+					     drawable_gc_flags(draw, gc,
+							       true)))
+		goto out;
+
+	DBG(("%s: fallback -- miFillPolygon -> sna_fill_spans__cpu\n", __FUNCTION__));
+	gc->ops->FillSpans = sna_fill_spans__cpu;
+	miFillPolygon(draw, gc, shape, mode, n, pt);
+	gc->ops->FillSpans = sna_fill_spans;
+out:
+	RegionUninit(&data.region);
+}
+
 static Bool
 sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 			     struct kgem_bo *bo,
@@ -10015,7 +10400,7 @@ out:
 	RegionUninit(&region);
 }
 
-static const GCOps sna_gc_ops = {
+static GCOps sna_gc_ops = {
 	sna_fill_spans,
 	sna_set_spans,
 	sna_put_image,
@@ -10026,7 +10411,7 @@ static const GCOps sna_gc_ops = {
 	sna_poly_segment,
 	sna_poly_rectangle,
 	sna_poly_arc,
-	miFillPolygon,
+	sna_poly_fill_polygon,
 	sna_poly_fill_rect,
 	miPolyFillArc,
 	sna_poly_text8,
@@ -10051,7 +10436,7 @@ sna_validate_gc(GCPtr gc, unsigned long changes, DrawablePtr drawable)
 	sna_gc(gc)->changes |= changes;
 }
 
-static const GCFuncs sna_gc_funcs = {
+static GCFuncs sna_gc_funcs = {
 	sna_validate_gc,
 	miChangeGC,
 	miCopyGC,
@@ -10066,8 +10451,8 @@ static int sna_create_gc(GCPtr gc)
 	if (!fbCreateGC(gc))
 		return FALSE;
 
-	gc->funcs = (GCFuncs *)&sna_gc_funcs;
-	gc->ops = (GCOps *)&sna_gc_ops;
+	gc->funcs = &sna_gc_funcs;
+	gc->ops = &sna_gc_ops;
 	return TRUE;
 }
 
