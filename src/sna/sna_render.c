@@ -643,6 +643,12 @@ static int sna_render_picture_downsample(struct sna *sna,
 		oy = v.vector[1] / v.vector[2];
 	}
 
+	/* Align the origin to an even pixel so that the sampling of
+	 * partial images is stable.
+	 */
+	box.x1 &= ~1;
+	box.y1 &= ~1;
+
 	if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
 		if (box.x1 < 0)
 			box.x1 = 0;
