@@ -7814,7 +7814,8 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 	if (!PM_IS_SOLID(draw, gc->planemask))
 		goto fallback;
 
-	if (sna_drawable_use_gpu_bo(draw,
+	if (use_wide_spans(draw, gc, &data.region.extents) &&
+	    sna_drawable_use_gpu_bo(draw,
 				    &data.region.extents,
 				    &data.damage)) {
 		uint32_t color;
