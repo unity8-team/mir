@@ -727,8 +727,10 @@ static Bool sna_destroy_pixmap(PixmapPtr pixmap)
 
 static inline void list_move(struct list *list, struct list *head)
 {
-	__list_del(list->prev, list->next);
-	list_add(list, head);
+	if (list->prev != head) {
+		__list_del(list->prev, list->next);
+		list_add(list, head);
+	}
 }
 
 static inline bool pixmap_inplace(struct sna *sna,
@@ -1630,6 +1632,10 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		*damage = NULL;
+		if (!priv->pinned)
+			list_move(&priv->inactive,
+				  &to_sna_from_pixmap(pixmap)->active_pixmaps);
+		priv->clear = false;
 		return TRUE;
 	}
 
