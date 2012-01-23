@@ -8735,11 +8735,17 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	if (!PM_IS_SOLID(draw, gc->planemask))
 		goto fallback;
 
-	if (n == 1 &&
-	    region_is_singular(gc->pCompositeClip) &&
+	/* Clear the cpu damage so that we refresh the GPU status of the
+	 * pixmap upon a redraw after a period of inactivity.
+	 */
+	if (priv->cpu_damage &&
+	    n == 1 && region_is_singular(gc->pCompositeClip) &&
 	    gc->fillStyle != FillStippled && alu_overwrites(gc->alu)) {
 		region.data = NULL;
-		sna_damage_subtract(&priv->cpu_damage, &region);
+		if (region_subsumes_damage(&region, priv->cpu_damage)) {
+			sna_damage_destroy(&priv->cpu_damage);
+			list_del(&priv->list);
+		}
 	}
 
 	if (gc->fillStyle == FillSolid ||
