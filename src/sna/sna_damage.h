@@ -101,6 +101,7 @@ static inline bool sna_damage_is_all(struct sna_damage **_damage,
 	case DAMAGE_SUBTRACT:
 		return false;
 	default:
+		assert(0);
 	case DAMAGE_ADD:
 		if (damage->extents.x2 < width  || damage->extents.x1 > 0)
 			return false;
@@ -140,6 +141,7 @@ static inline void sna_damage_subtract(struct sna_damage **damage,
 				       RegionPtr region)
 {
 	*damage = _sna_damage_subtract(DAMAGE_PTR(*damage), region);
+	assert(*damage == NULL || (*damage)->mode != DAMAGE_ALL);
 }
 
 fastcall struct sna_damage *_sna_damage_subtract_box(struct sna_damage *damage,
@@ -148,6 +150,7 @@ static inline void sna_damage_subtract_box(struct sna_damage **damage,
 					   const BoxRec *box)
 {
 	*damage = _sna_damage_subtract_box(DAMAGE_PTR(*damage), box);
+	assert(*damage == NULL || (*damage)->mode != DAMAGE_ALL);
 }
 
 Bool _sna_damage_intersect(struct sna_damage *damage,
