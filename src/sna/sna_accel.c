@@ -8330,16 +8330,21 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 		do {
 			xRectangle r = *rect++;
 			int16_t tile_y = (r.y - origin->y) % tile_height;
+			if (tile_y < 0)
+				tile_y += tile_height;
 
 			r.y += dy;
 			do {
 				int16_t width = r.width;
-				int16_t x = r.x + dx;
-				int16_t tile_x = (r.x - origin->x) % tile_width;
+				int16_t x = r.x + dx, tile_x;
 				int16_t h = tile_height - tile_y;
 				if (h > r.height)
 					h = r.height;
 				r.height -= h;
+
+				tile_x = (r.x - origin->x) % tile_width;
+				if (tile_x < 0)
+					tile_x += tile_width;
 
 				do {
 					int16_t w = tile_width - tile_x;
@@ -8382,14 +8387,20 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 					int height = r.y2 - r.y1;
 					int dst_y = r.y1;
 					int tile_y = (r.y1 - drawable->y - origin->y) % tile_height;
+					if (tile_y < 0)
+						tile_y += tile_height;
+
 					while (height) {
 						int width = r.x2 - r.x1;
-						int dst_x = r.x1;
-						int tile_x = (r.x1 - drawable->x - origin->x) % tile_width;
+						int dst_x = r.x1, tile_x;
 						int h = tile_height - tile_y;
 						if (h > height)
 							h = height;
 						height -= h;
+
+						tile_x = (r.x1 - drawable->x - origin->x) % tile_width;
+						if (tile_x < 0)
+							tile_x += tile_width;
 
 						while (width > 0) {
 							int w = tile_width - tile_x;
@@ -8442,14 +8453,20 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 					int height = box->y2 - box->y1;
 					int dst_y = box->y1;
 					int tile_y = (box->y1 - drawable->y - origin->y) % tile_height;
+					if (tile_y < 0)
+						tile_y += tile_height;
+
 					while (height) {
 						int width = box->x2 - box->x1;
-						int dst_x = box->x1;
-						int tile_x = (box->x1 - drawable->x - origin->x) % tile_width;
+						int dst_x = box->x1, tile_x;
 						int h = tile_height - tile_y;
 						if (h > height)
 							h = height;
 						height -= h;
+
+						tile_x = (box->x1 - drawable->x - origin->x) % tile_width;
+						if (tile_x < 0)
+							tile_x += tile_width;
 
 						while (width > 0) {
 							int w = tile_width - tile_x;
