@@ -1478,7 +1478,7 @@ inline static unsigned drawable_gc_flags(DrawablePtr draw,
 
 	if (fbGetGCPrivate(gc)->and) {
 		DBG(("%s: read due to rop %d:%x\n",
-		     __FUNCTION__, gc->alu, fbGetGCPrivate(gc)->and));
+		     __FUNCTION__, gc->alu, (unsigned)fbGetGCPrivate(gc)->and));
 		return MOVE_READ | MOVE_WRITE;
 	}
 
@@ -5595,7 +5595,7 @@ sna_poly_line_blt(DrawablePtr drawable,
 	DDXPointRec last;
 	int16_t dx, dy;
 
-	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, pixel));
+	DBG(("%s: alu=%d, fg=%08x\n", __FUNCTION__, gc->alu, (unsigned)pixel));
 
 	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, pixel))
 		return FALSE;
@@ -6049,8 +6049,8 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 	}
 
 	if (gc_is_solid(gc, &color)) {
-		DBG(("%s: trying solid fill [%08lx]\n",
-		     __FUNCTION__, color));
+		DBG(("%s: trying solid fill [%08x]\n",
+		     __FUNCTION__, (unsigned)color));
 
 		if (data.flags & 4) {
 			if (sna_drawable_use_gpu_bo(drawable,
@@ -6984,8 +6984,8 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	if (gc->lineStyle != LineSolid || gc->lineWidth > 1)
 		goto spans_fallback;
 	if (gc_is_solid(gc, &color)) {
-		DBG(("%s: trying blt solid fill [%08lx, flags=%x] paths\n",
-		     __FUNCTION__, color, data.flags));
+		DBG(("%s: trying blt solid fill [%08x, flags=%x] paths\n",
+		     __FUNCTION__, (unsigned)color, data.flags));
 
 		if (data.flags & 4) {
 			if (sna_drawable_use_gpu_bo(drawable,
