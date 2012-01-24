@@ -871,6 +871,8 @@ skip_inplace_map:
 
 	if (flags & MOVE_INPLACE_HINT &&
 	    priv->stride && priv->gpu_bo &&
+	    !kgem_bo_is_busy(priv->gpu_bo) &&
+	    pixmap_inplace(sna, pixmap, priv) &&
 	    sna_pixmap_move_to_gpu(pixmap, flags)) {
 		assert(flags & MOVE_WRITE);
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
@@ -1021,6 +1023,25 @@ region_subsumes_damage(const RegionRec *region, struct sna_damage *damage)
 						(BoxPtr)de) == PIXMAN_REGION_IN;
 }
 
+static bool
+region_overlaps_damage(const RegionRec *region, struct sna_damage *damage)
+{
+	const BoxRec *re, *de;
+
+	DBG(("%s?\n", __FUNCTION__));
+	assert(damage);
+
+	re = &region->extents;
+	de = &DAMAGE_PTR(damage)->extents;
+	DBG(("%s: region (%d, %d), (%d, %d), damage (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     re->x1, re->y1, re->x2, re->y2,
+	     de->x1, de->y1, de->x2, de->y2));
+
+	return (re->x1 < de->x2 && re->x2 > de->x1 &&
+		re->y1 < de->y2 && re->y2 > de->y1);
+}
+
 #ifndef NDEBUG
 static bool
 pixmap_contains_damage(PixmapPtr pixmap, struct sna_damage *damage)
@@ -1057,13 +1078,8 @@ static inline bool region_inplace(struct sna *sna,
 		return true;
 	}
 
-	if (priv->mapped) {
-		DBG(("%s: already mapped\n", __FUNCTION__));
-		return true;
-	}
-
 	if (priv->cpu_damage &&
-	    region_subsumes_damage(region, priv->cpu_damage)) {
+	    region_overlaps_damage(region, priv->cpu_damage)) {
 		DBG(("%s: uncovered CPU damage pending\n", __FUNCTION__));
 		return false;
 	}
@@ -1199,9 +1215,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (flags & MOVE_INPLACE_HINT &&
 	    priv->stride && priv->gpu_bo &&
-	    !(priv->cpu_damage &&
-	      sna_damage_contains_box__no_reduce(priv->cpu_damage,
-						 &region->extents)) &&
+	    !kgem_bo_is_busy(priv->gpu_bo) &&
+	    region_inplace(sna, pixmap, region, priv) &&
 	    sna_pixmap_move_area_to_gpu(pixmap, &region->extents)) {
 		assert(flags & MOVE_WRITE);
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
@@ -2314,6 +2329,11 @@ static bool upload_inplace(struct sna *sna,
 			   struct sna_pixmap *priv,
 			   RegionRec *region)
 {
+	if (priv->mapped) {
+		DBG(("%s: already mapped\n", __FUNCTION__));
+		return true;
+	}
+
 	if (!region_inplace(sna, pixmap, region, priv))
 		return false;
 
@@ -3029,19 +3049,27 @@ static bool copy_use_gpu_bo(struct sna *sna,
 			    struct sna_pixmap *priv,
 			    RegionPtr region)
 {
-	if (region_inplace(sna, priv->pixmap, region, priv))
+	if (region_inplace(sna, priv->pixmap, region, priv)) {
+		DBG(("%s: perform in place, use gpu bo\n", __FUNCTION__));
 		return true;
+	}
 
-	if (!priv->cpu_bo)
+	if (!priv->cpu_bo) {
+		DBG(("%s: no cpu bo, copy to shadow\n", __FUNCTION__));
 		return false;
+	}
 
 	if (kgem_bo_is_busy(priv->cpu_bo)) {
-		if (priv->cpu_bo->exec)
+		if (priv->cpu_bo->exec) {
+			DBG(("%s: cpu bo is busy, use gpu bo\n", __FUNCTION__));
 			return true;
+		}
 
 		kgem_retire(&sna->kgem);
 	}
 
+	DBG(("%s: cpu bo busy? %d\n", __FUNCTION__,
+	     kgem_bo_is_busy(priv->cpu_bo)));
 	return kgem_bo_is_busy(priv->cpu_bo);
 }
 
