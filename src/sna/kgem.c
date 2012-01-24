@@ -486,9 +486,9 @@ static struct list *inactive(struct kgem *kgem, int size)
 	return &kgem->inactive[cache_bucket(size)];
 }
 
-static struct list *active(struct kgem *kgem, int size)
+static struct list *active(struct kgem *kgem, int size, int tiling)
 {
-	return &kgem->active[cache_bucket(size)];
+	return &kgem->active[cache_bucket(size)][tiling];
 }
 
 static size_t
@@ -577,8 +577,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	list_init(&kgem->flushing);
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++)
 		list_init(&kgem->inactive[i]);
-	for (i = 0; i < ARRAY_SIZE(kgem->active); i++)
-		list_init(&kgem->active[i]);
+	for (i = 0; i < ARRAY_SIZE(kgem->active); i++) {
+		for (j = 0; j < ARRAY_SIZE(kgem->active[i]); j++)
+			list_init(&kgem->active[i][j]);
+	}
 	for (i = 0; i < ARRAY_SIZE(kgem->vma); i++) {
 		for (j = 0; j < ARRAY_SIZE(kgem->vma[i].inactive); j++)
 			list_init(&kgem->vma[i].inactive[j]);
@@ -983,7 +985,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	bo->scanout = bo->flush = false;
 	if (bo->rq) {
 		DBG(("%s: handle=%d -> active\n", __FUNCTION__, bo->handle));
-		list_add(&bo->list, &kgem->active[bo->bucket]);
+		list_add(&bo->list, &kgem->active[bo->bucket][bo->tiling]);
 		return;
 	}
 
@@ -995,7 +997,7 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 			DBG(("%s: handle=%d -> flushing\n",
 			     __FUNCTION__, bo->handle));
 			list_add(&bo->request, &kgem->flushing);
-			list_add(&bo->list, &kgem->active[bo->bucket]);
+			list_add(&bo->list, &kgem->active[bo->bucket][bo->tiling]);
 			bo->rq = &_kgem_static_request;
 			return;
 		}
@@ -1808,7 +1810,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 
 	if (!use_active &&
 	    list_is_empty(inactive(kgem, size)) &&
-	    !list_is_empty(active(kgem, size)) &&
+	    !list_is_empty(active(kgem, size, I915_TILING_NONE)) &&
 	    !kgem_retire(kgem))
 		return NULL;
 
@@ -1849,7 +1851,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 		}
 	}
 
-	cache = use_active ? active(kgem, size) : inactive(kgem, size);
+	cache = use_active ? active(kgem, size, I915_TILING_NONE) : inactive(kgem, size);
 	list_for_each_entry(bo, cache, list) {
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
@@ -2157,7 +2159,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 {
 	struct list *cache;
 	struct kgem_bo *bo, *next;
-	uint32_t pitch, untiled_pitch, tiled_height[3], size;
+	uint32_t pitch, untiled_pitch, tiled_height, size;
 	uint32_t handle;
 	int i;
 
@@ -2232,66 +2234,96 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	if (flags & CREATE_INACTIVE)
 		goto skip_active_search;
 
-	untiled_pitch = kgem_untiled_pitch(kgem,
-					   width, bpp,
-					   flags & CREATE_SCANOUT);
-	for (i = 0; i <= I915_TILING_Y; i++)
-		tiled_height[i] = kgem_aligned_height(kgem, height, i);
+	/* Best active match */
+	cache = active(kgem, size, tiling);
+	if (tiling) {
+		tiled_height = kgem_aligned_height(kgem, height, tiling);
+		list_for_each_entry(bo, cache, list) {
+			assert(bo->bucket == cache_bucket(size));
+			assert(!bo->purged);
+			assert(bo->refcnt == 0);
+			assert(bo->reusable);
+			assert(bo->tiling == tiling);
 
-	/* Best active match, or first near-miss */
-	next = NULL;
-	cache = active(kgem, size);
-	list_for_each_entry(bo, cache, list) {
-		assert(bo->bucket == cache_bucket(size));
-		assert(!bo->purged);
-		assert(bo->refcnt == 0);
-		assert(bo->reusable);
-
-		if (bo->tiling) {
 			if (bo->pitch < pitch) {
 				DBG(("tiled and pitch too small: tiling=%d, (want %d), pitch=%d, need %d\n",
 				     bo->tiling, tiling,
 				     bo->pitch, pitch));
 				continue;
 			}
-		} else
-			bo->pitch = untiled_pitch;
 
-		if (bo->pitch * tiled_height[bo->tiling] > bo->size)
-			continue;
 
-		if (bo->tiling != tiling) {
-			if (next == NULL && bo->tiling < tiling)
-				next = bo;
-			continue;
+			if (bo->pitch * tiled_height > bo->size)
+				continue;
+
+			kgem_bo_remove_from_active(kgem, bo);
+
+			bo->unique_id = kgem_get_unique_id(kgem);
+			bo->delta = 0;
+			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			return kgem_bo_reference(bo);
 		}
+	} else {
+		list_for_each_entry(bo, cache, list) {
+			assert(bo->bucket == cache_bucket(size));
+			assert(!bo->purged);
+			assert(bo->refcnt == 0);
+			assert(bo->reusable);
+			assert(bo->tiling == tiling);
 
-		kgem_bo_remove_from_active(kgem, bo);
+			if (bo->size < size)
+				continue;
 
-		bo->unique_id = kgem_get_unique_id(kgem);
-		bo->delta = 0;
-		DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
-		     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
-		return kgem_bo_reference(bo);
+			kgem_bo_remove_from_active(kgem, bo);
+
+			bo->pitch = pitch;
+			bo->unique_id = kgem_get_unique_id(kgem);
+			bo->delta = 0;
+			DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+			return kgem_bo_reference(bo);
+		}
 	}
 
-	if (next && (flags & CREATE_EXACT) == 0) {
-		list_del(&next->list);
-		if (next->rq == &_kgem_static_request)
-			list_del(&next->request);
+	if ((flags & CREATE_EXACT) == 0) { /* allow an active near-miss? */
+		untiled_pitch = kgem_untiled_pitch(kgem,
+						   width, bpp,
+						   flags & CREATE_SCANOUT);
+		i = tiling;
+		while (--i >= 0) {
+			tiled_height = kgem_surface_size(kgem,
+							 kgem->has_relaxed_fencing,
+							 flags & CREATE_SCANOUT,
+							 width, height, bpp, tiling, &pitch);
+			cache = active(kgem, tiled_height, i);
+			tiled_height = kgem_aligned_height(kgem, height, i);
+			list_for_each_entry(bo, cache, list) {
+				assert(!bo->purged);
+				assert(bo->refcnt == 0);
+				assert(bo->reusable);
 
-		if (next->purged && !kgem_bo_clear_purgeable(kgem, next)) {
-			kgem_bo_free(kgem, next);
-		} else {
-			kgem_bo_remove_from_active(kgem, next);
+				if (bo->tiling) {
+					if (bo->pitch < pitch) {
+						DBG(("tiled and pitch too small: tiling=%d, (want %d), pitch=%d, need %d\n",
+						     bo->tiling, tiling,
+						     bo->pitch, pitch));
+						continue;
+					}
+				} else
+					bo->pitch = untiled_pitch;
 
-			next->unique_id = kgem_get_unique_id(kgem);
-			next->delta = 0;
-			DBG(("  2:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
-			     next->pitch, next->tiling, next->handle, next->unique_id));
-			assert(next->refcnt == 0);
-			assert(next->reusable);
-			return kgem_bo_reference(next);
+				if (bo->pitch * tiled_height > bo->size)
+					continue;
+
+				kgem_bo_remove_from_active(kgem, bo);
+
+				bo->unique_id = kgem_get_unique_id(kgem);
+				bo->delta = 0;
+				DBG(("  1:from active: pitch=%d, tiling=%d, handle=%d, id=%d\n",
+				     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
+				return kgem_bo_reference(bo);
+			}
 		}
 	}
 

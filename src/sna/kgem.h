@@ -117,7 +117,7 @@ struct kgem {
 		KGEM_BLT,
 	} mode, ring;
 
-	struct list flushing, active[NUM_CACHE_BUCKETS], inactive[NUM_CACHE_BUCKETS];
+	struct list flushing, active[NUM_CACHE_BUCKETS][3], inactive[NUM_CACHE_BUCKETS];
 	struct list partial;
 	struct list requests;
 	struct kgem_request *next_request;
