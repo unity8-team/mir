@@ -3670,6 +3670,114 @@ struct sna_fill_spans {
 };
 
 static void
+sna_poly_point__fill(DrawablePtr drawable, GCPtr gc,
+		     int mode, int n, DDXPointPtr pt)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+	BoxRec box[512];
+	DDXPointRec last;
+
+	DBG(("%s: count=%d\n", __FUNCTION__, n));
+
+	last.x = drawable->x + data->dx;
+	last.y = drawable->y + data->dy;
+	while (n) {
+		BoxRec *b = box;
+		unsigned nbox = n;
+		if (nbox > ARRAY_SIZE(box))
+			nbox = ARRAY_SIZE(box);
+		n -= nbox;
+		do {
+			*(DDXPointRec *)b = *pt++;
+
+			b->x1 += last.x;
+			b->y1 += last.y;
+			if (mode == CoordModePrevious)
+				last = *(DDXPointRec *)b;
+
+			b->x2 = b->x1 + 1;
+			b->y2 = b->y1 + 1;
+			b++;
+		} while (--nbox);
+		op->boxes(data->sna, op, box, b - box);
+	}
+}
+
+static void
+sna_poly_point__fill_clip_extents(DrawablePtr drawable, GCPtr gc,
+				  int mode, int n, DDXPointPtr pt)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+	const BoxRec *extents = &data->region.extents;
+	BoxRec box[512], *b = box;
+	const BoxRec *const last_box = b + ARRAY_SIZE(box);
+	DDXPointRec last;
+
+	DBG(("%s: count=%d\n", __FUNCTION__, n));
+
+	last.x = drawable->x + data->dx;
+	last.y = drawable->y + data->dy;
+	while (n--) {
+		*(DDXPointRec *)b = *pt++;
+
+		b->x1 += last.x;
+		b->y1 += last.y;
+		if (mode == CoordModePrevious)
+			last = *(DDXPointRec *)b;
+
+		if (b->x1 >= extents->x1 && b->x1 < extents->x2 &&
+		    b->y1 >= extents->y1 && b->y1 < extents->y2) {
+			b->x2 = b->x1 + 1;
+			b->y2 = b->y1 + 1;
+			if (++b == last_box) {
+				op->boxes(data->sna, op, box, last_box - box);
+				b = box;
+			}
+		}
+	}
+	if (b != box)
+		op->boxes(data->sna, op, box, b - box);
+}
+
+static void
+sna_poly_point__fill_clip_boxes(DrawablePtr drawable, GCPtr gc,
+				int mode, int n, DDXPointPtr pt)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	struct sna_fill_op *op = data->op;
+	RegionRec *clip = &data->region;
+	BoxRec box[512], *b = box;
+	const BoxRec *const last_box = b + ARRAY_SIZE(box);
+	DDXPointRec last;
+
+	DBG(("%s: count=%d\n", __FUNCTION__, n));
+
+	last.x = drawable->x + data->dx;
+	last.y = drawable->y + data->dy;
+	while (n--) {
+		*(DDXPointRec *)b = *pt++;
+
+		b->x1 += last.x;
+		b->y1 += last.y;
+		if (mode == CoordModePrevious)
+			last = *(DDXPointRec *)b;
+
+		if (RegionContainsPoint(clip, b->x1, b->y1, NULL)) {
+			b->x2 = b->x1 + 1;
+			b->y2 = b->y1 + 1;
+			if (++b == last_box) {
+				op->boxes(data->sna, op, box, last_box - box);
+				b = box;
+			}
+		}
+	}
+	if (b != box)
+		op->boxes(data->sna, op, box, b - box);
+}
+
+static void
 sna_fill_spans__fill(DrawablePtr drawable,
 		     GCPtr gc, int n,
 		     DDXPointPtr pt, int *width, int sorted)
@@ -4956,6 +5064,13 @@ sna_poly_point_extents(DrawablePtr drawable, GCPtr gc,
 
 	*out = box;
 	return 1 | clipped << 1;
+}
+
+static void
+sna_poly_point__cpu(DrawablePtr drawable, GCPtr gc,
+	       int mode, int n, DDXPointPtr pt)
+{
+	fbPolyPoint(drawable, gc, mode, n, pt);
 }
 
 static void
@@ -7608,22 +7723,28 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 					gc->ops->FillSpans = sna_fill_spans__fill_offset;
 				else
 					gc->ops->FillSpans = sna_fill_spans__fill;
+				gc->ops->PolyPoint = sna_poly_point__fill;
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
 				if (!RegionNotEmpty(&data.region))
 					return;
 
-				if (region_is_singular(&data.region))
+				if (region_is_singular(&data.region)) {
 					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
-				else
+					gc->ops->PolyPoint = sna_poly_point__fill_clip_extents;
+				} else {
 					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+					gc->ops->PolyPoint = sna_poly_point__fill_clip_boxes;
+				}
 			}
 			assert(gc->miTranslate);
 			if (gc->lineWidth == 0)
 				miZeroPolyArc(drawable, gc, n, arc);
 			else
 				miPolyArc(drawable, gc, n, arc);
+
+			gc->ops->PolyPoint = sna_poly_point;
 			gc->ops->FillSpans = sna_fill_spans;
 
 			fill.done(data.sna, &fill);
@@ -7657,10 +7778,12 @@ fallback:
 	/* Install FillSpans in case we hit a fallback path in fbPolyArc */
 	sna_gc(gc)->priv = &data.region;
 	gc->ops->FillSpans = sna_fill_spans__cpu;
+	gc->ops->PolyPoint = sna_poly_point__cpu;
 
 	DBG(("%s -- fbPolyArc\n", __FUNCTION__));
 	fbPolyArc(drawable, gc, n, arc);
 
+	gc->ops->PolyPoint = sna_poly_point;
 	gc->ops->FillSpans = sna_fill_spans;
 out:
 	RegionUninit(&data.region);
