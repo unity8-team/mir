@@ -125,6 +125,10 @@ static const uint8_t fill_ROP[] = {
 	ROP_1
 };
 
+static const GCOps sna_gc_ops;
+static const GCOps sna_gc_ops__cpu;
+static GCOps sna_gc_ops__tmp;
+
 static inline void region_set(RegionRec *r, const BoxRec *b)
 {
 	r->extents = *b;
@@ -6209,9 +6213,9 @@ spans_fallback:
 
 			if ((data.flags & 2) == 0) {
 				if (data.dx | data.dy)
-					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
@@ -6219,12 +6223,13 @@ spans_fallback:
 					return;
 
 				if (region_is_singular(&data.region))
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
 			}
 			assert(gc->miTranslate);
 
+			gc->ops = &sna_gc_ops__tmp;
 			miZeroLine(drawable, gc, mode, n, pt);
 			fill.done(data.sna, &fill);
 		} else {
@@ -6233,7 +6238,8 @@ spans_fallback:
 			 * FillSpans.
 			 */
 			data.bo = priv->gpu_bo;
-			gc->ops->FillSpans = sna_fill_spans__gpu;
+			sna_gc_ops__tmp.FillSpans = sna_fill_spans__gpu;
+			gc->ops = &sna_gc_ops__tmp;
 
 			switch (gc->lineStyle) {
 			default:
@@ -6260,7 +6266,7 @@ spans_fallback:
 			}
 		}
 
-		gc->ops->FillSpans = sna_fill_spans;
+		gc->ops = (GCOps *)&sna_gc_ops;
 		if (data.damage)
 			sna_damage_add(data.damage, &data.region);
 		RegionUninit(&data.region);
@@ -6282,12 +6288,13 @@ fallback:
 
 	/* Install FillSpans in case we hit a fallback path in fbPolyLine */
 	sna_gc(gc)->priv = &data.region;
-	gc->ops->FillSpans = sna_fill_spans__cpu;
+	assert(gc->ops == (GCOps *)&sna_gc_ops);
+	gc->ops = (GCOps *)&sna_gc_ops__cpu;
 
 	DBG(("%s: fbPolyLine\n", __FUNCTION__));
 	fbPolyLine(drawable, gc, mode, n, pt);
 
-	gc->ops->FillSpans = sna_fill_spans;
+	gc->ops = (GCOps *)&sna_gc_ops;
 out:
 	RegionUninit(&data.region);
 }
@@ -7144,9 +7151,9 @@ spans_fallback:
 
 			if ((data.flags & 2) == 0) {
 				if (data.dx | data.dy)
-					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
@@ -7154,11 +7161,12 @@ spans_fallback:
 					return;
 
 				if (region_is_singular(&data.region))
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
 			}
 			assert(gc->miTranslate);
+			gc->ops = &sna_gc_ops__tmp;
 			for (i = 0; i < n; i++)
 				line(drawable, gc, CoordModeOrigin, 2,
 				     (DDXPointPtr)&seg[i]);
@@ -7166,14 +7174,15 @@ spans_fallback:
 			fill.done(data.sna, &fill);
 		} else {
 			data.bo = priv->gpu_bo;
-			gc->ops->FillSpans = sna_fill_spans__gpu;
+			sna_gc_ops__tmp.FillSpans = sna_fill_spans__gpu;
+			gc->ops = &sna_gc_ops__tmp;
 
 			for (i = 0; i < n; i++)
 				line(drawable, gc, CoordModeOrigin, 2,
 				     (DDXPointPtr)&seg[i]);
 		}
 
-		gc->ops->FillSpans = sna_fill_spans;
+		gc->ops = (GCOps *)&sna_gc_ops;
 		if (data.damage)
 			sna_damage_add(data.damage, &data.region);
 		RegionUninit(&data.region);
@@ -7195,12 +7204,13 @@ fallback:
 
 	/* Install FillSpans in case we hit a fallback path in fbPolySegment */
 	sna_gc(gc)->priv = &data.region;
-	gc->ops->FillSpans = sna_fill_spans__cpu;
+	assert(gc->ops == (GCOps *)&sna_gc_ops);
+	gc->ops = (GCOps *)&sna_gc_ops__cpu;
 
 	DBG(("%s: fbPolySegment\n", __FUNCTION__));
 	fbPolySegment(drawable, gc, n, seg);
 
-	gc->ops->FillSpans = sna_fill_spans;
+	gc->ops = (GCOps *)&sna_gc_ops;
 out:
 	RegionUninit(&data.region);
 }
@@ -7871,10 +7881,10 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 
 			if ((data.flags & 2) == 0) {
 				if (data.dx | data.dy)
-					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill;
-				gc->ops->PolyPoint = sna_poly_point__fill;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
+				sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill;
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
@@ -7882,21 +7892,20 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 					return;
 
 				if (region_is_singular(&data.region)) {
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
-					gc->ops->PolyPoint = sna_poly_point__fill_clip_extents;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
+					sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill_clip_extents;
 				} else {
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
-					gc->ops->PolyPoint = sna_poly_point__fill_clip_boxes;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
+					sna_gc_ops__tmp.PolyPoint = sna_poly_point__fill_clip_boxes;
 				}
 			}
 			assert(gc->miTranslate);
+			gc->ops = &sna_gc_ops__tmp;
 			if (gc->lineWidth == 0)
 				miZeroPolyArc(drawable, gc, n, arc);
 			else
 				miPolyArc(drawable, gc, n, arc);
-
-			gc->ops->PolyPoint = sna_poly_point;
-			gc->ops->FillSpans = sna_fill_spans;
+			gc->ops = (GCOps *)&sna_gc_ops;
 
 			fill.done(data.sna, &fill);
 			if (data.damage)
@@ -7928,14 +7937,13 @@ fallback:
 
 	/* Install FillSpans in case we hit a fallback path in fbPolyArc */
 	sna_gc(gc)->priv = &data.region;
-	gc->ops->FillSpans = sna_fill_spans__cpu;
-	gc->ops->PolyPoint = sna_poly_point__cpu;
+	assert(gc->ops == (GCOps *)&sna_gc_ops);
+	gc->ops = (GCOps *)&sna_gc_ops__cpu;
 
 	DBG(("%s -- fbPolyArc\n", __FUNCTION__));
 	fbPolyArc(drawable, gc, n, arc);
 
-	gc->ops->PolyPoint = sna_poly_point;
-	gc->ops->FillSpans = sna_fill_spans;
+	gc->ops = (GCOps *)&sna_gc_ops;
 out:
 	RegionUninit(&data.region);
 }
@@ -8218,9 +8226,9 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 
 			if ((data.flags & 2) == 0) {
 				if (data.dx | data.dy)
-					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
@@ -8228,22 +8236,24 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 					return;
 
 				if (region_is_singular(&data.region))
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
 			}
 			assert(gc->miTranslate);
+			gc->ops = &sna_gc_ops__tmp;
 
 			miFillPolygon(draw, gc, shape, mode, n, pt);
 			fill.done(data.sna, &fill);
 		} else {
 			data.bo = priv->gpu_bo;
-			gc->ops->FillSpans = sna_fill_spans__gpu;
+			sna_gc_ops__tmp.FillSpans = sna_fill_spans__gpu;
+			gc->ops = &sna_gc_ops__tmp;
 
 			miFillPolygon(draw, gc, shape, mode, n, pt);
 		}
 
-		gc->ops->FillSpans = sna_fill_spans;
+		gc->ops = (GCOps *)&sna_gc_ops;
 		if (data.damage)
 			sna_damage_add(data.damage, &data.region);
 		RegionUninit(&data.region);
@@ -8270,10 +8280,11 @@ fallback:
 	DBG(("%s: fallback -- miFillPolygon -> sna_fill_spans__cpu\n",
 	     __FUNCTION__));
 	sna_gc(gc)->priv = &data.region;
-	gc->ops->FillSpans = sna_fill_spans__cpu;
+	assert(gc->ops == (GCOps *)&sna_gc_ops);
+	gc->ops = (GCOps *)&sna_gc_ops__cpu;
 
 	miFillPolygon(draw, gc, shape, mode, n, pt);
-	gc->ops->FillSpans = sna_fill_spans;
+	gc->ops = (GCOps *)&sna_gc_ops;
 out:
 	RegionUninit(&data.region);
 }
@@ -9745,9 +9756,9 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 
 			if ((data.flags & 2) == 0) {
 				if (data.dx | data.dy)
-					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_offset;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill;
 			} else {
 				region_maybe_clip(&data.region,
 						  gc->pCompositeClip);
@@ -9755,22 +9766,24 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 					return;
 
 				if (region_is_singular(&data.region))
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_extents;
 				else
-					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+					sna_gc_ops__tmp.FillSpans = sna_fill_spans__fill_clip_boxes;
 			}
 			assert(gc->miTranslate);
+			gc->ops = &sna_gc_ops__tmp;
 
 			miPolyFillArc(draw, gc, n, arc);
 			fill.done(data.sna, &fill);
 		} else {
 			data.bo = priv->gpu_bo;
-			gc->ops->FillSpans = sna_fill_spans__gpu;
+			sna_gc_ops__tmp.FillSpans = sna_fill_spans__gpu;
+			gc->ops = &sna_gc_ops__tmp;
 
 			miPolyFillArc(draw, gc, n, arc);
 		}
 
-		gc->ops->FillSpans = sna_fill_spans;
+		gc->ops = (GCOps *)&sna_gc_ops;
 		if (data.damage)
 			sna_damage_add(data.damage, &data.region);
 		RegionUninit(&data.region);
@@ -9797,10 +9810,11 @@ fallback:
 	DBG(("%s: fallback -- miFillPolygon -> sna_fill_spans__cpu\n",
 	     __FUNCTION__));
 	sna_gc(gc)->priv = &data.region;
-	gc->ops->FillSpans = sna_fill_spans__cpu;
+	assert(gc->ops == (GCOps *)&sna_gc_ops);
+	gc->ops = (GCOps *)&sna_gc_ops__cpu;
 
 	miPolyFillArc(draw, gc, n, arc);
-	gc->ops->FillSpans = sna_fill_spans;
+	gc->ops = (GCOps *)&sna_gc_ops;
 out:
 	RegionUninit(&data.region);
 }
@@ -10929,7 +10943,53 @@ out:
 	RegionUninit(&region);
 }
 
-static GCOps sna_gc_ops = {
+static const GCOps sna_gc_ops = {
+	sna_fill_spans,
+	sna_set_spans,
+	sna_put_image,
+	sna_copy_area,
+	sna_copy_plane,
+	sna_poly_point,
+	sna_poly_line,
+	sna_poly_segment,
+	sna_poly_rectangle,
+	sna_poly_arc,
+	sna_poly_fill_polygon,
+	sna_poly_fill_rect,
+	sna_poly_fill_arc,
+	sna_poly_text8,
+	sna_poly_text16,
+	sna_image_text8,
+	sna_image_text16,
+	sna_image_glyph,
+	sna_poly_glyph,
+	sna_push_pixels,
+};
+
+static const GCOps sna_gc_ops__cpu = {
+	sna_fill_spans__cpu,
+	sna_set_spans,
+	sna_put_image,
+	sna_copy_area,
+	sna_copy_plane,
+	sna_poly_point__cpu,
+	sna_poly_line,
+	sna_poly_segment,
+	sna_poly_rectangle,
+	sna_poly_arc,
+	sna_poly_fill_polygon,
+	sna_poly_fill_rect,
+	sna_poly_fill_arc,
+	sna_poly_text8,
+	sna_poly_text16,
+	sna_image_text8,
+	sna_image_text16,
+	sna_image_glyph,
+	sna_poly_glyph,
+	sna_push_pixels,
+};
+
+static GCOps sna_gc_ops__tmp = {
 	sna_fill_spans,
 	sna_set_spans,
 	sna_put_image,
@@ -10965,7 +11025,7 @@ sna_validate_gc(GCPtr gc, unsigned long changes, DrawablePtr drawable)
 	sna_gc(gc)->changes |= changes;
 }
 
-static GCFuncs sna_gc_funcs = {
+static const GCFuncs sna_gc_funcs = {
 	sna_validate_gc,
 	miChangeGC,
 	miCopyGC,
@@ -10980,8 +11040,8 @@ static int sna_create_gc(GCPtr gc)
 	if (!fbCreateGC(gc))
 		return FALSE;
 
-	gc->funcs = &sna_gc_funcs;
-	gc->ops = &sna_gc_ops;
+	gc->funcs = (GCFuncs *)&sna_gc_funcs;
+	gc->ops = (GCOps *)&sna_gc_ops;
 	return TRUE;
 }
 
