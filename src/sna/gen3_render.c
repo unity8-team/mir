@@ -3610,6 +3610,7 @@ gen3_render_video(struct sna *sna,
 		  short drw_w, short drw_h,
 		  PixmapPtr pixmap)
 {
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	BoxPtr pbox = REGION_RECTS(dstRegion);
 	int nbox = REGION_NUM_RECTS(dstRegion);
 	int dxo = dstRegion->extents.x1;
@@ -3623,7 +3624,7 @@ gen3_render_video(struct sna *sna,
 
 	DBG(("%s: %dx%d -> %dx%d\n", __FUNCTION__, src_w, src_h, drw_w, drw_h));
 
-	dst_bo = sna_pixmap_get_bo(pixmap);
+	dst_bo = priv->gpu_bo;
 	if (dst_bo == NULL)
 		return FALSE;
 
@@ -3721,12 +3722,28 @@ gen3_render_video(struct sna *sna,
 #endif
 		sna_blt_copy_boxes(sna, GXcopy,
 				   dst_bo, -dxo, -dyo,
-				   sna_pixmap_get_bo(pixmap), pix_xoff, pix_yoff,
+				   priv->gpu_bo, pix_xoff, pix_yoff,
 				   pixmap->drawable.bitsPerPixel,
 				   REGION_RECTS(dstRegion),
 				   REGION_NUM_RECTS(dstRegion));
 
 		kgem_bo_destroy(&sna->kgem, dst_bo);
+	}
+
+	if (!DAMAGE_IS_ALL(priv->gpu_damage)) {
+		if ((pix_xoff | pix_yoff) == 0) {
+			sna_damage_add(&priv->gpu_damage, dstRegion);
+			sna_damage_subtract(&priv->cpu_damage, dstRegion);
+		} else {
+			sna_damage_add_boxes(&priv->gpu_damage,
+					     REGION_RECTS(dstRegion),
+					     REGION_NUM_RECTS(dstRegion),
+					     pix_xoff, pix_yoff);
+			sna_damage_subtract_boxes(&priv->cpu_damage,
+						  REGION_RECTS(dstRegion),
+						  REGION_NUM_RECTS(dstRegion),
+						  pix_xoff, pix_yoff);
+		}
 	}
 
 	return TRUE;

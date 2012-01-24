@@ -153,6 +153,18 @@ static inline void sna_damage_subtract_box(struct sna_damage **damage,
 	assert(*damage == NULL || (*damage)->mode != DAMAGE_ALL);
 }
 
+fastcall struct sna_damage *_sna_damage_subtract_boxes(struct sna_damage *damage,
+						       const BoxRec *box, int n,
+						       int dx, int dy);
+static inline void sna_damage_subtract_boxes(struct sna_damage **damage,
+					     const BoxRec *box, int n,
+					     int dx, int dy)
+{
+	*damage = _sna_damage_subtract_boxes(DAMAGE_PTR(*damage),
+					     box, n, dx, dy);
+	assert(*damage == NULL || (*damage)->mode != DAMAGE_ALL);
+}
+
 Bool _sna_damage_intersect(struct sna_damage *damage,
 			  RegionPtr region, RegionPtr result);
 

@@ -1148,6 +1148,88 @@ fastcall struct sna_damage *_sna_damage_subtract_box(struct sna_damage *damage,
 }
 #endif
 
+static struct sna_damage *__sna_damage_subtract_boxes(struct sna_damage *damage,
+						      const BoxRec *box, int n,
+						      int dx, int dy)
+{
+	BoxRec extents;
+	int i;
+
+	if (damage == NULL)
+		return NULL;
+
+	assert(n);
+
+	extents = box[0];
+	for (i = 1; i < n; i++) {
+		if (extents.x1 > box[i].x1)
+			extents.x1 = box[i].x1;
+		if (extents.x2 < box[i].x2)
+			extents.x2 = box[i].x2;
+		if (extents.y1 > box[i].y1)
+			extents.y1 = box[i].y1;
+		if (extents.y2 < box[i].y2)
+			extents.y2 = box[i].y2;
+	}
+
+	assert(extents.y2 > extents.y1 && extents.x2 > extents.x1);
+
+	extents.x1 += dx;
+	extents.x2 += dx;
+	extents.y1 += dy;
+	extents.y2 += dy;
+
+	if (!sna_damage_maybe_contains_box(damage, &extents))
+		return damage;
+
+	if (n == 1)
+		return __sna_damage_subtract_box(damage, &extents);
+
+	if (damage->mode != DAMAGE_SUBTRACT) {
+		if (damage->dirty)
+			__sna_damage_reduce(damage);
+
+		if (!pixman_region_not_empty(&damage->region)) {
+			__sna_damage_destroy(damage);
+			return NULL;
+		}
+
+		damage->mode = DAMAGE_SUBTRACT;
+	}
+
+	return _sna_damage_create_elt_from_boxes(damage, box, n, dx, dy);
+}
+
+#if DEBUG_DAMAGE
+fastcall struct sna_damage *_sna_damage_subtract_boxes(struct sna_damage *damage,
+						       const BoxRec *box, int n,
+						       int dx, int dy)
+{
+	char damage_buf[1000];
+	char region_buf[120];
+
+	ErrorF("%s(%s - [(%d,%d), (%d,%d)...x%d])...\n", __FUNCTION__,
+	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage),
+	       box->x1 + dx, box->y1 + dy,
+	       box->x2 + dx, box->y2 + dy,
+	       n);
+
+	damage = __sna_damage_subtract_boxes(damage, box, n, dx, dy);
+
+	ErrorF("  = %s\n",
+	       _debug_describe_damage(damage_buf, sizeof(damage_buf), damage));
+
+	return damage;
+}
+#else
+fastcall struct sna_damage *_sna_damage_subtract_boxes(struct sna_damage *damage,
+						       const BoxRec *box, int n,
+						       int dx, int dy)
+{
+	return __sna_damage_subtract_boxes(damage, box, n, dx, dy);
+}
+#endif
+
 static int __sna_damage_contains_box(struct sna_damage *damage,
 				     const BoxRec *box)
 {
