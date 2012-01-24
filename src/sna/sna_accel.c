@@ -7629,21 +7629,6 @@ sna_poly_arc_extents(DrawablePtr drawable, GCPtr gc,
 }
 
 static bool
-arc_to_spans(GCPtr gc, int n)
-{
-	if (gc->lineStyle != LineSolid)
-		return false;
-
-	if (gc->lineWidth == 0)
-		return true;
-
-	if (n == 1)
-		return true;
-
-	return false;
-}
-
-static bool
 gc_is_solid(GCPtr gc, uint32_t *color)
 {
 	if (gc->fillStyle == FillSolid ||
@@ -7697,9 +7682,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto fallback;
 
-	/* For "simple" cases use the miPolyArc to spans path */
 	if (use_wide_spans(drawable, gc, &data.region.extents) &&
-	    arc_to_spans(gc, n) &&
 	    sna_drawable_use_gpu_bo(drawable,
 				    &data.region.extents, &data.damage)) {
 		uint32_t color;
