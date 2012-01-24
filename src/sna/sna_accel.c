@@ -3789,8 +3789,7 @@ sna_fill_spans__fill(DrawablePtr drawable,
 	DBG(("%s: alu=%d, fg=%08lx, count=%d\n",
 	     __FUNCTION__, gc->alu, gc->fgPixel, n));
 
-	assert(n);
-	do {
+	while (n) {
 		BoxRec *b = box;
 		int nbox = n;
 		if (nbox > ARRAY_SIZE(box))
@@ -3807,7 +3806,7 @@ sna_fill_spans__fill(DrawablePtr drawable,
 		} while (--nbox);
 		if (b != box)
 			op->boxes(data->sna, op, box, b - box);
-	} while (n);
+	}
 }
 
 static void
@@ -3821,7 +3820,7 @@ sna_fill_spans__fill_offset(DrawablePtr drawable,
 
 	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
 
-	do {
+	while (n) {
 		BoxRec *b = box;
 		int nbox = n;
 		if (nbox > ARRAY_SIZE(box))
@@ -3838,7 +3837,7 @@ sna_fill_spans__fill_offset(DrawablePtr drawable,
 		} while (--nbox);
 		if (b != box)
 			op->boxes(data->sna, op, box, b - box);
-	} while (n);
+	}
 }
 
 static void
@@ -3856,8 +3855,7 @@ sna_fill_spans__fill_clip_extents(DrawablePtr drawable,
 	     extents->x1, extents->y1,
 	     extents->x2, extents->y2));
 
-	assert(n);
-	do {
+	while (n--) {
 		*(DDXPointRec *)b = *pt++;
 		b->x2 = b->x1 + (int)*width++;
 		b->y2 = b->y1 + 1;
@@ -3871,7 +3869,7 @@ sna_fill_spans__fill_clip_extents(DrawablePtr drawable,
 				b = box;
 			}
 		}
-	} while (--n);
+	}
 	if (b != box)
 		op->boxes(data->sna, op, box, b - box);
 }
@@ -3892,8 +3890,7 @@ sna_fill_spans__fill_clip_boxes(DrawablePtr drawable,
 	     data->region.extents.x1, data->region.extents.y1,
 	     data->region.extents.x2, data->region.extents.y2));
 
-	assert(n);
-	do {
+	while (n--) {
 		int16_t X1 = pt->x;
 		int16_t y = pt->y;
 		int16_t X2 = X1 + (int)*width;
@@ -3946,7 +3943,7 @@ sna_fill_spans__fill_clip_boxes(DrawablePtr drawable,
 				b = box;
 			}
 		}
-	} while (--n);
+	}
 	if (b != box)
 		op->boxes(data->sna, op, box, b - box);
 }
@@ -4277,6 +4274,8 @@ sna_fill_spans__gpu(DrawablePtr drawable, GCPtr gc, int n,
 	     __FUNCTION__, n, pt[0].x, pt[0].y, width[0], sorted));
 
 	assert(PM_IS_SOLID(drawable, gc->planemask));
+	if (n == 0)
+		return;
 
 	if (gc->fillStyle == FillSolid) {
 		sna_fill_spans_blt(drawable,
