@@ -77,7 +77,7 @@
 #define ACCEL_POLY_ARC 1
 #define ACCEL_POLY_FILL_POLYGON 1
 #define ACCEL_POLY_FILL_RECT 1
-//#define ACCEL_POLY_FILL_ARC 1
+#define ACCEL_POLY_FILL_ARC 1
 #define ACCEL_POLY_TEXT8 1
 #define ACCEL_POLY_TEXT16 1
 #define ACCEL_IMAGE_TEXT8 1
@@ -7464,17 +7464,17 @@ out:
 	RegionUninit(&region);
 }
 
-static Bool
+static unsigned
 sna_poly_arc_extents(DrawablePtr drawable, GCPtr gc,
 		     int n, xArc *arc,
 		     BoxPtr out)
 {
-	int extra = gc->lineWidth >> 1;
 	BoxRec box;
+	bool clipped;
 	int v;
 
 	if (n == 0)
-		return true;
+		return 0;
 
 	box.x1 = arc->x;
 	box.x2 = bound(box.x1, arc->width);
@@ -7495,19 +7495,23 @@ sna_poly_arc_extents(DrawablePtr drawable, GCPtr gc,
 			box.y2 = v;
 	}
 
-	if (extra) {
-		box.x1 -= extra;
-		box.x2 += extra;
-		box.y1 -= extra;
-		box.y2 += extra;
+	v = gc->lineWidth >> 1;
+	if (v) {
+		box.x1 -= v;
+		box.x2 += v;
+		box.y1 -= v;
+		box.y2 += v;
 	}
 
 	box.x2++;
 	box.y2++;
 
-	trim_and_translate_box(&box, drawable, gc);
+	clipped = trim_and_translate_box(&box, drawable, gc);
+	if (box_empty(&box))
+		return 0;
+
 	*out = box;
-	return box_empty(&box);
+	return 1 | clipped << 1;
 }
 
 static bool
@@ -7535,7 +7539,7 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 
 	DBG(("%s(n=%d, lineWidth=%d\n", __FUNCTION__, n, gc->lineWidth));
 
-	if (sna_poly_arc_extents(drawable, gc, n, arc, &region.extents))
+	if (sna_poly_arc_extents(drawable, gc, n, arc, &region.extents) == 0)
 		return;
 
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
@@ -9331,6 +9335,137 @@ out:
 	RegionUninit(&region);
 }
 
+static void
+sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
+{
+	struct sna_fill_spans data;
+	struct sna_pixmap *priv;
+
+	DBG(("%s(n=%d, PlaneMask: %lx (solid %d), solid fill: %d [style=%d, tileIsPixel=%d], alu=%d)\n", __FUNCTION__,
+	     n, gc->planemask, !!PM_IS_SOLID(draw, gc->planemask),
+	     (gc->fillStyle == FillSolid ||
+	      (gc->fillStyle == FillTiled && gc->tileIsPixel)),
+	     gc->fillStyle, gc->tileIsPixel,
+	     gc->alu));
+
+	data.flags = sna_poly_arc_extents(draw, gc, n, arc,
+					  &data.region.extents);
+	if (data.flags == 0)
+		return;
+
+	DBG(("%s: extents(%d, %d), (%d, %d), flags=%x\n", __FUNCTION__,
+	     data.region.extents.x1, data.region.extents.y1,
+	     data.region.extents.x2, data.region.extents.y2,
+	     data.flags));
+
+	data.region.data = NULL;
+
+	if (FORCE_FALLBACK)
+		goto fallback;
+
+	if (!ACCEL_POLY_FILL_ARC)
+		goto fallback;
+
+	data.pixmap = get_drawable_pixmap(draw);
+	data.sna = to_sna_from_pixmap(data.pixmap);
+	priv = sna_pixmap(data.pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (wedged(data.sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (!PM_IS_SOLID(draw, gc->planemask))
+		goto fallback;
+
+	if (use_wide_spans(draw, gc, &data.region.extents) &&
+	    sna_drawable_use_gpu_bo(draw,
+				    &data.region.extents,
+				    &data.damage)) {
+		uint32_t color;
+
+		get_drawable_deltas(draw, data.pixmap, &data.dx, &data.dy);
+
+		if (gc_is_solid(gc, &color)) {
+			struct sna_fill_op fill;
+
+			if (!sna_fill_init_blt(&fill,
+					       data.sna, data.pixmap,
+					       priv->gpu_bo, gc->alu, color))
+				goto fallback;
+
+			data.op = &fill;
+			sna_gc(gc)->priv = &data;
+
+			if ((data.flags & 2) == 0) {
+				if (data.dx | data.dy)
+					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill;
+			} else {
+				region_maybe_clip(&data.region,
+						  gc->pCompositeClip);
+				if (!RegionNotEmpty(&data.region))
+					return;
+
+				if (region_is_singular(&data.region))
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+			}
+			assert(gc->miTranslate);
+			miPolyFillArc(draw, gc, n, arc);
+
+			fill.done(data.sna, &fill);
+		} else {
+			data.bo = priv->gpu_bo;
+			gc->ops->FillSpans = sna_fill_spans__gpu;
+
+			miPolyFillArc(draw, gc, n, arc);
+
+			gc->ops->FillSpans = sna_fill_spans;
+		}
+
+		gc->ops->FillSpans = sna_fill_spans;
+		if (data.damage)
+			sna_damage_add(data.damage, &data.region);
+		RegionUninit(&data.region);
+		return;
+	}
+
+fallback:
+	DBG(("%s: fallback (%d, %d), (%d, %d)\n", __FUNCTION__,
+	     data.region.extents.x1, data.region.extents.y1,
+	     data.region.extents.x2, data.region.extents.y2));
+	region_maybe_clip(&data.region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&data.region)) {
+		DBG(("%s: nothing to do, all clipped\n", __FUNCTION__));
+		return;
+	}
+
+	if (!sna_gc_move_to_cpu(gc, draw))
+		goto out;
+
+	if (!sna_drawable_move_region_to_cpu(draw, &data.region,
+					     drawable_gc_flags(draw, gc,
+							       true)))
+		goto out;
+
+	DBG(("%s: fallback -- miFillPolygon -> sna_fill_spans__cpu\n",
+	     __FUNCTION__));
+	sna_gc(gc)->priv = &data.region;
+	gc->ops->FillSpans = sna_fill_spans__cpu;
+
+	miPolyFillArc(draw, gc, n, arc);
+	gc->ops->FillSpans = sna_fill_spans;
+out:
+	RegionUninit(&data.region);
+}
+
 struct sna_font {
 	CharInfoRec glyphs8[256];
 	CharInfoRec *glyphs16[256];
@@ -10468,7 +10603,7 @@ static GCOps sna_gc_ops = {
 	sna_poly_arc,
 	sna_poly_fill_polygon,
 	sna_poly_fill_rect,
-	miPolyFillArc,
+	sna_poly_fill_arc,
 	sna_poly_text8,
 	sna_poly_text16,
 	sna_image_text8,
