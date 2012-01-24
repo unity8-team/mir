@@ -3664,6 +3664,7 @@ struct sna_fill_spans {
 	PixmapPtr pixmap;
 	RegionRec region;
 	unsigned flags;
+	struct kgem_bo *bo;
 	struct sna_damage **damage;
 	int16_t dx, dy;
 	void *op;
@@ -4145,6 +4146,71 @@ done:
 	return TRUE;
 }
 
+static Bool
+sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
+			     struct kgem_bo *bo,
+			     struct sna_damage **damage,
+			     GCPtr gc, int n, xRectangle *rect,
+			     const BoxRec *extents, unsigned clipped);
+
+static bool
+sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
+				struct kgem_bo *bo,
+				struct sna_damage **damage,
+				GCPtr gc, int n, xRectangle *rect,
+				const BoxRec *extents, unsigned clipped);
+
+static void
+sna_fill_spans__gpu(DrawablePtr drawable, GCPtr gc, int n,
+		    DDXPointPtr pt, int *width, int sorted)
+{
+	struct sna_fill_spans *data = sna_gc(gc)->priv;
+
+	DBG(("%s(n=%d, pt[0]=(%d, %d)+%d, sorted=%d\n",
+	     __FUNCTION__, n, pt[0].x, pt[0].y, width[0], sorted));
+
+	assert(PM_IS_SOLID(drawable, gc->planemask));
+
+	if (gc->fillStyle == FillSolid) {
+		sna_fill_spans_blt(drawable,
+				   data->bo, data->damage,
+				   gc, n, pt, width, sorted,
+				   &data->region.extents, data->flags & 2);
+	} else {
+		/* Try converting these to a set of rectangles instead */
+		xRectangle *rect;
+		int i;
+
+		DBG(("%s: converting to rectagnles\n", __FUNCTION__));
+
+		rect = malloc (n * sizeof (xRectangle));
+		if (rect == NULL)
+			return;
+
+		for (i = 0; i < n; i++) {
+			rect[i].x = pt[i].x - drawable->x;
+			rect[i].width = width[i];
+			rect[i].y = pt[i].y - drawable->y;
+			rect[i].height = 1;
+		}
+
+		if (gc->fillStyle == FillTiled) {
+			sna_poly_fill_rect_tiled_blt(drawable,
+						     data->bo, data->damage,
+						     gc, n, rect,
+						     &data->region.extents,
+						     data->flags & 2);
+		} else {
+			sna_poly_fill_rect_stippled_blt(drawable,
+							data->bo, data->damage,
+							gc, n, rect,
+							&data->region.extents,
+							data->flags & 2);
+		}
+		free (rect);
+	}
+}
+
 static unsigned
 sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 		  int n, DDXPointPtr pt, int *width,
@@ -4183,20 +4249,6 @@ sna_spans_extents(DrawablePtr drawable, GCPtr gc,
 	*out = box;
 	return 1 | clipped << 1;
 }
-
-static Bool
-sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
-			     struct kgem_bo *bo,
-			     struct sna_damage **damage,
-			     GCPtr gc, int n, xRectangle *rect,
-			     const BoxRec *extents, unsigned clipped);
-
-static bool
-sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
-				struct kgem_bo *bo,
-				struct sna_damage **damage,
-				GCPtr gc, int n, xRectangle *rect,
-				const BoxRec *extents, unsigned clipped);
 
 static void
 sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
@@ -7820,6 +7872,7 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 				    &data.damage)) {
 		uint32_t color;
 
+		sna_gc(gc)->priv = &data;
 		get_drawable_deltas(draw, data.pixmap, &data.dx, &data.dy);
 
 		if (gc_is_solid(gc, &color)) {
@@ -7831,7 +7884,6 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 				goto fallback;
 
 			data.op = &fill;
-			sna_gc(gc)->priv = &data;
 
 			if ((data.flags & 2) == 0) {
 				if (data.dx | data.dy)
@@ -7850,18 +7902,20 @@ sna_poly_fill_polygon(DrawablePtr draw, GCPtr gc,
 					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
 			}
 			assert(gc->miTranslate);
-			miFillPolygon(draw, gc, shape, mode, n, pt);
-			gc->ops->FillSpans = sna_fill_spans;
 
+			miFillPolygon(draw, gc, shape, mode, n, pt);
 			fill.done(data.sna, &fill);
-			if (data.damage)
-				sna_damage_add(data.damage, &data.region);
-			RegionUninit(&data.region);
-			return;
+		} else {
+			data.bo = priv->gpu_bo;
+			gc->ops->FillSpans = sna_fill_spans__gpu;
+
+			miFillPolygon(draw, gc, shape, mode, n, pt);
 		}
 
-		/* XXX */
-		miFillPolygon(draw, gc, shape, mode, n, pt);
+		gc->ops->FillSpans = sna_fill_spans;
+		if (data.damage)
+			sna_damage_add(data.damage, &data.region);
+		RegionUninit(&data.region);
 		return;
 	}
 
