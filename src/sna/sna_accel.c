@@ -1482,8 +1482,8 @@ inline static unsigned drawable_gc_flags(DrawablePtr draw,
 		return MOVE_READ | MOVE_WRITE;
 	}
 
-	DBG(("%s: try operating on drawable inplace\n", __FUNCTION__));
-	assert(drawable_gc_inplace_hint(draw, gc));
+	DBG(("%s: try operating on drawable inplace [hint? %d]\n",
+	     __FUNCTION__, drawable_gc_inplace_hint(draw, gc)));
 
 	flags = MOVE_WRITE;
 	if (USE_INPLACE)
