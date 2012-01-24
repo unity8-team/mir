@@ -3217,9 +3217,6 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 						       dst_pixmap->drawable.height);
 					list_del(&dst_priv->list);
 					dst_priv->undamaged = false;
-
-					dst_priv->clear = true;
-					dst_priv->clear_color = src_priv->clear_color;
 				} else {
 					assert_pixmap_contains_box(dst_pixmap,
 								   RegionExtents(&region));
@@ -3260,9 +3257,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 					RegionTranslate(&region, -dst_dx, -dst_dy);
 				}
 			}
-		} else if ((src_priv ||
-			    (src_priv = _sna_pixmap_attach(src_pixmap))) &&
-			   src_priv->cpu_bo) {
+		} else if (src_priv && src_priv->cpu_bo) {
 			if (!sna->render.copy_boxes(sna, alu,
 						    src_pixmap, src_priv->cpu_bo, src_dx, src_dy,
 						    dst_pixmap, dst_priv->gpu_bo, dst_dx, dst_dy,
