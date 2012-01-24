@@ -751,7 +751,7 @@ static inline bool pixmap_inplace(struct sna *sna,
 }
 
 static bool
-sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box);
+sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned flags);
 
 static bool
 sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
@@ -1217,7 +1217,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	    priv->stride && priv->gpu_bo &&
 	    !kgem_bo_is_busy(priv->gpu_bo) &&
 	    region_inplace(sna, pixmap, region, priv) &&
-	    sna_pixmap_move_area_to_gpu(pixmap, &region->extents)) {
+	    sna_pixmap_move_area_to_gpu(pixmap, &region->extents, flags)) {
 		assert(flags & MOVE_WRITE);
 		kgem_bo_submit(&sna->kgem, priv->gpu_bo);
 
@@ -1496,7 +1496,7 @@ inline static unsigned drawable_gc_flags(DrawablePtr draw,
 }
 
 static bool
-sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
+sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 {
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
@@ -1534,6 +1534,9 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box)
 			goto done;
 		}
 	}
+
+	if ((flags & MOVE_READ) == 0)
+		sna_damage_subtract_box(&priv->cpu_damage, box);
 
 	sna_damage_reduce(&priv->cpu_damage);
 	if (priv->cpu_damage == NULL) {
@@ -1746,7 +1749,8 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	}
 
 move_to_gpu:
-	if (!sna_pixmap_move_area_to_gpu(pixmap, &extents)) {
+	if (!sna_pixmap_move_area_to_gpu(pixmap, &extents,
+					 MOVE_READ | MOVE_WRITE)) {
 		DBG(("%s: failed to move-to-gpu, fallback\n", __FUNCTION__));
 		return FALSE;
 	}
@@ -3138,8 +3142,19 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (dst_priv == NULL)
 		goto fallback;
 
-	if (replaces)
+	if (src_priv == NULL && !copy_use_gpu_bo(sna, dst_priv, &region)) {
+		DBG(("%s: fallback - unattached to source and not use dst gpu bo\n",
+		     __FUNCTION__));
+		goto fallback;
+	}
+
+	if (replaces) {
+		sna_damage_destroy(&dst_priv->gpu_damage);
 		sna_damage_destroy(&dst_priv->cpu_damage);
+		list_del(&dst_priv->list);
+		dst_priv->undamaged = true;
+		dst_priv->clear = false;
+	}
 
 	/* Try to maintain the data on the GPU */
 	if (dst_priv->gpu_bo == NULL &&
@@ -3163,17 +3178,23 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	}
 
 	if (dst_priv->gpu_bo) {
-		if (!src_priv && !copy_use_gpu_bo(sna, dst_priv, &region)) {
-			DBG(("%s: fallback - src_priv=%p and not use dst gpu bo\n",
-			     __FUNCTION__, src_priv));
-			goto fallback;
-		}
-
-		if (!sna_pixmap_move_to_gpu(dst_pixmap,
-					    MOVE_WRITE | (alu_overwrites(alu) ? 0 : MOVE_READ))) {
-			DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
-			     __FUNCTION__));
-			goto fallback;
+		if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
+			BoxRec extents = region.extents;
+			extents.x1 += dst_dx;
+			extents.x2 += dst_dx;
+			extents.y1 += dst_dy;
+			extents.y2 += dst_dy;
+			if (!sna_pixmap_move_area_to_gpu(dst_pixmap, &extents,
+							 MOVE_WRITE | (n == 1 && alu_overwrites(alu) ? 0 : MOVE_READ))) {
+				DBG(("%s: fallback - not a pure copy and failed to move dst to GPU\n",
+				     __FUNCTION__));
+				goto fallback;
+			}
+		} else {
+			dst_priv->clear = false;
+			if (!dst_priv->pinned)
+				list_move(&dst_priv->inactive,
+					  &sna->active_pixmaps);
 		}
 
 		if (src_priv && src_priv->clear) {
