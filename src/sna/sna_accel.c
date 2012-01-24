@@ -6121,37 +6121,71 @@ spans_fallback:
 
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		get_drawable_deltas(drawable, data.pixmap, &data.dx, &data.dy);
-
-		/* Note that the WideDash functions alternate between filling
-		 * using fgPixel and bgPixel so we need to reset state between
-		 * FillSpans.
-		 */
-		data.bo = priv->gpu_bo;
 		sna_gc(gc)->priv = &data;
-		gc->ops->FillSpans = sna_fill_spans__gpu;
 
-		switch (gc->lineStyle) {
-		default:
-			assert(0);
-		case LineSolid:
-			if (gc->lineWidth == 0) {
-				DBG(("%s: miZeroLine\n", __FUNCTION__));
-				miZeroLine(drawable, gc, mode, n, pt);
+		if (gc->lineWidth == 0 &&
+		    gc->lineStyle == LineSolid &&
+		    gc_is_solid(gc, &color)) {
+			struct sna_fill_op fill;
+
+			if (!sna_fill_init_blt(&fill,
+					       data.sna, data.pixmap,
+					       priv->gpu_bo, gc->alu, color))
+				goto fallback;
+
+			data.op = &fill;
+
+			if ((data.flags & 2) == 0) {
+				if (data.dx | data.dy)
+					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill;
 			} else {
-				DBG(("%s: miWideLine\n", __FUNCTION__));
-				miWideLine(drawable, gc, mode, n, pt);
+				region_maybe_clip(&data.region,
+						  gc->pCompositeClip);
+				if (!RegionNotEmpty(&data.region))
+					return;
+
+				if (region_is_singular(&data.region))
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
 			}
-			break;
-		case LineOnOffDash:
-		case LineDoubleDash:
-			if (gc->lineWidth == 0) {
-				DBG(("%s: miZeroDashLine\n", __FUNCTION__));
-				miZeroDashLine(drawable, gc, mode, n, pt);
-			} else {
-				DBG(("%s: miWideDash\n", __FUNCTION__));
-				miWideDash(drawable, gc, mode, n, pt);
+			assert(gc->miTranslate);
+
+			miZeroLine(drawable, gc, mode, n, pt);
+			fill.done(data.sna, &fill);
+		} else {
+			/* Note that the WideDash functions alternate between filling
+			 * using fgPixel and bgPixel so we need to reset state between
+			 * FillSpans.
+			 */
+			data.bo = priv->gpu_bo;
+			gc->ops->FillSpans = sna_fill_spans__gpu;
+
+			switch (gc->lineStyle) {
+			default:
+				assert(0);
+			case LineSolid:
+				if (gc->lineWidth == 0) {
+					DBG(("%s: miZeroLine\n", __FUNCTION__));
+					miZeroLine(drawable, gc, mode, n, pt);
+				} else {
+					DBG(("%s: miWideLine\n", __FUNCTION__));
+					miWideLine(drawable, gc, mode, n, pt);
+				}
+				break;
+			case LineOnOffDash:
+			case LineDoubleDash:
+				if (gc->lineWidth == 0) {
+					DBG(("%s: miZeroDashLine\n", __FUNCTION__));
+					miZeroDashLine(drawable, gc, mode, n, pt);
+				} else {
+					DBG(("%s: miWideDash\n", __FUNCTION__));
+					miWideDash(drawable, gc, mode, n, pt);
+				}
+				break;
 			}
-			break;
 		}
 
 		gc->ops->FillSpans = sna_fill_spans;
