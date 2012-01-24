@@ -11276,7 +11276,7 @@ static void _sna_accel_disarm_timer(struct sna *sna, int id)
 
 #define return_if_timer_active(id) do {					\
 	if (sna->timer_active & (1<<(id)))				\
-		return read_timer(sna->timer[id]) > 0;			\
+		return (sna->timer_ready & (1<<(id))) && read_timer(sna->timer[id]) > 0;			\
 } while (0)
 
 static Bool sna_accel_do_flush(struct sna *sna)
@@ -11687,14 +11687,23 @@ void sna_accel_block_handler(struct sna *sna)
 
 	if (sna_accel_do_inactive(sna))
 		sna_accel_inactive(sna);
+
+	sna->timer_ready = 0;
 }
 
-void sna_accel_wakeup_handler(struct sna *sna)
+void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready)
 {
+	int id, active;
+
 	if (sna->kgem.need_retire)
 		kgem_retire(&sna->kgem);
 	if (sna->kgem.need_purge)
 		kgem_purge_cache(&sna->kgem);
+
+	active = sna->timer_active & ~sna->timer_ready;
+	for (id = 0; id < NUM_TIMERS; id++)
+		if (active & (1 << id) && FD_ISSET(sna->timer[id], ready))
+			sna->timer_ready |= 1 << id;
 
 	sna_deferred_free(sna);
 }

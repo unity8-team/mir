@@ -231,7 +231,8 @@ struct sna {
 #define SNA_NO_DELAYED_FLUSH	0x2
 
 	int timer[NUM_TIMERS];
-	int timer_active;
+	uint16_t timer_active;
+	uint16_t timer_ready;
 
 	int vblank_interval;
 
@@ -581,7 +582,7 @@ static inline uint32_t pixmap_size(PixmapPtr pixmap)
 Bool sna_accel_pre_init(struct sna *sna);
 Bool sna_accel_init(ScreenPtr sreen, struct sna *sna);
 void sna_accel_block_handler(struct sna *sna);
-void sna_accel_wakeup_handler(struct sna *sna);
+void sna_accel_wakeup_handler(struct sna *sna, fd_set *ready);
 void sna_accel_close(struct sna *sna);
 void sna_accel_free(struct sna *sna);
 

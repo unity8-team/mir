@@ -606,7 +606,7 @@ sna_wakeup_handler(int i, pointer data, unsigned long result, pointer read_mask)
 
 	sna->WakeupHandler(i, sna->WakeupData, result, read_mask);
 
-	sna_accel_wakeup_handler(sna);
+	sna_accel_wakeup_handler(sna, read_mask);
 
 	if (FD_ISSET(sna->kgem.fd, (fd_set*)read_mask))
 		sna_dri_wakeup(sna);
@@ -761,7 +761,6 @@ static Bool sna_close_screen(int scrnIndex, ScreenPtr screen)
 #endif
 
 	/* drain the event queues */
-	sna_accel_wakeup_handler(sna);
 	if (sna_dri_has_pending_events(sna))
 		sna_dri_wakeup(sna);
 
