@@ -3951,8 +3951,8 @@ sna_fill_spans__fill_clip_boxes(DrawablePtr drawable,
 static Bool
 sna_fill_spans_blt(DrawablePtr drawable,
 		   struct kgem_bo *bo, struct sna_damage **damage,
-		   GCPtr gc, int n,
-		   DDXPointPtr pt, int *width, int sorted,
+		   GCPtr gc, uint32_t pixel,
+		   int n, DDXPointPtr pt, int *width, int sorted,
 		   const BoxRec *extents, unsigned clipped)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -3971,7 +3971,7 @@ sna_fill_spans_blt(DrawablePtr drawable,
 	DBG(("%s: alu=%d, fg=%08lx, damge=%p, clipped?=%d\n",
 	     __FUNCTION__, gc->alu, gc->fgPixel, damage, clipped));
 
-	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, pixel))
 		return false;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -4264,11 +4264,25 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 				GCPtr gc, int n, xRectangle *rect,
 				const BoxRec *extents, unsigned clipped);
 
+static bool
+gc_is_solid(GCPtr gc, uint32_t *color)
+{
+	if (gc->fillStyle == FillSolid ||
+	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
+	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
+		*color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
+		return true;
+	}
+
+	return false;
+}
+
 static void
 sna_fill_spans__gpu(DrawablePtr drawable, GCPtr gc, int n,
 		    DDXPointPtr pt, int *width, int sorted)
 {
 	struct sna_fill_spans *data = sna_gc(gc)->priv;
+	uint32_t color;
 
 	DBG(("%s(n=%d, pt[0]=(%d, %d)+%d, sorted=%d\n",
 	     __FUNCTION__, n, pt[0].x, pt[0].y, width[0], sorted));
@@ -4277,10 +4291,10 @@ sna_fill_spans__gpu(DrawablePtr drawable, GCPtr gc, int n,
 	if (n == 0)
 		return;
 
-	if (gc->fillStyle == FillSolid) {
+	if (gc_is_solid(gc, &color)) {
 		sna_fill_spans_blt(drawable,
 				   data->bo, data->damage,
-				   gc, n, pt, width, sorted,
+				   gc, color, n, pt, width, sorted,
 				   &data->region.extents, data->flags & 2);
 	} else {
 		/* Try converting these to a set of rectangles instead */
@@ -4364,6 +4378,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
+	uint32_t color;
 
 	DBG(("%s(n=%d, pt[0]=(%d, %d)+%d, sorted=%d\n",
 	     __FUNCTION__, n, pt[0].x, pt[0].y, width[0], sorted));
@@ -4393,7 +4408,7 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto fallback;
 
-	if (gc->fillStyle == FillSolid) {
+	if (gc_is_solid(gc, &color)) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
@@ -4403,14 +4418,14 @@ sna_fill_spans(DrawablePtr drawable, GCPtr gc, int n,
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
 		    sna_fill_spans_blt(drawable,
 				       priv->gpu_bo, damage,
-				       gc, n, pt, width, sorted,
+				       gc, color, n, pt, width, sorted,
 				       &region.extents, flags & 2))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &region.extents, &damage) &&
 		    sna_fill_spans_blt(drawable,
 				       priv->cpu_bo, damage,
-				       gc, n, pt, width, sorted,
+				       gc, color, n, pt, width, sorted,
 				       &region.extents, flags & 2))
 			return;
 	} else {
@@ -5926,19 +5941,6 @@ use_wide_spans(DrawablePtr drawable, GCPtr gc, const BoxRec *extents)
 	bool ret = _use_wide_spans(drawable, gc, extents);
 	DBG(("%s? %d\n", __FUNCTION__, ret));
 	return ret;
-}
-
-static bool
-gc_is_solid(GCPtr gc, uint32_t *color)
-{
-	if (gc->fillStyle == FillSolid ||
-	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
-	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
-		*color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
-		return true;
-	}
-
-	return false;
 }
 
 static void
