@@ -1802,7 +1802,7 @@ void kgem_cleanup_cache(struct kgem *kgem)
 static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 {
-	struct kgem_bo *bo, *next, *first = NULL;
+	struct kgem_bo *bo, *first = NULL;
 	bool use_active = (flags & CREATE_INACTIVE) == 0;
 	struct list *cache;
 
@@ -1850,7 +1850,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 	}
 
 	cache = use_active ? active(kgem, size) : inactive(kgem, size);
-	list_for_each_entry_safe(bo, next, cache, list) {
+	list_for_each_entry(bo, cache, list) {
 		assert(bo->refcnt == 0);
 		assert(bo->reusable);
 		assert(!!bo->rq == !!use_active);
@@ -1863,7 +1863,7 @@ search_linear_cache(struct kgem *kgem, unsigned int size, unsigned flags)
 
 		if (bo->purged && !kgem_bo_clear_purgeable(kgem, bo)) {
 			kgem_bo_free(kgem, bo);
-			continue;
+			break;
 		}
 
 		if (I915_TILING_NONE != bo->tiling) {
