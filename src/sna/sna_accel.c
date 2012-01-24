@@ -6299,6 +6299,13 @@ out:
 	RegionUninit(&data.region);
 }
 
+static void
+sna_poly_line__cpu(DrawablePtr drawable, GCPtr gc,
+		   int mode, int n, DDXPointPtr pt)
+{
+	fbPolyLine(drawable, gc, mode, n, pt);
+}
+
 static Bool
 sna_poly_segment_blt(DrawablePtr drawable,
 		     struct kgem_bo *bo,
@@ -10973,7 +10980,7 @@ static const GCOps sna_gc_ops__cpu = {
 	sna_copy_area,
 	sna_copy_plane,
 	sna_poly_point__cpu,
-	sna_poly_line,
+	sna_poly_line__cpu,
 	sna_poly_segment,
 	sna_poly_rectangle,
 	sna_poly_arc,
