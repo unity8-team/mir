@@ -2900,6 +2900,7 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 		return NULL;
 
 	bo->io = target->io;
+	bo->dirty = target->dirty;
 	bo->reusable = false;
 	bo->proxy = kgem_bo_reference(target);
 	bo->delta = offset;
