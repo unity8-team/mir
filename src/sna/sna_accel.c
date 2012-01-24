@@ -668,7 +668,7 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
 
-	if (wedged(sna) || !sna->have_render)
+	if (depth < 8 || wedged(sna) || !sna->have_render)
 		return create_pixmap(sna, screen,
 				     width, height, depth,
 				     usage);
