@@ -9777,6 +9777,7 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 		uint32_t color;
 
 		get_drawable_deltas(draw, data.pixmap, &data.dx, &data.dy);
+		sna_gc(gc)->priv = &data;
 
 		if (gc_is_solid(gc, &color)) {
 			struct sna_fill_op fill;
@@ -9787,7 +9788,6 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 				goto fallback;
 
 			data.op = &fill;
-			sna_gc(gc)->priv = &data;
 
 			if ((data.flags & 2) == 0) {
 				if (data.dx | data.dy)
