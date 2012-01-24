@@ -1433,22 +1433,27 @@ static bool alu_overwrites(uint8_t alu)
 	}
 }
 
+inline static bool drawable_gc_inplace_hint(DrawablePtr draw, GCPtr gc)
+{
+	if (!alu_overwrites(gc->alu))
+		return false;
+
+	if (!PM_IS_SOLID(draw, gc->planemask))
+		return false;
+
+	if (gc->fillStyle == FillStippled)
+		return false;
+
+	return true;
+}
+
 inline static unsigned drawable_gc_flags(DrawablePtr draw,
 					 GCPtr gc,
 					 bool read)
 {
 	unsigned flags;
 
-	if (!alu_overwrites(gc->alu)) {
-		DBG(("%s: read due to alu %d\n", __FUNCTION__, gc->alu));
-		return MOVE_READ | MOVE_WRITE;
-	}
-
-	if (!PM_IS_SOLID(draw, gc->planemask)) {
-		DBG(("%s: read due to planemask %lx\n",
-		     __FUNCTION__, gc->planemask));
-		return MOVE_READ | MOVE_WRITE;
-	}
+	assert(sna_gc(gc)->changes == 0);
 
 	if (gc->fillStyle == FillStippled) {
 		DBG(("%s: read due to fill %d\n",
@@ -1456,7 +1461,15 @@ inline static unsigned drawable_gc_flags(DrawablePtr draw,
 		return MOVE_READ | MOVE_WRITE;
 	}
 
+	if (fbGetGCPrivate(gc)->and) {
+		DBG(("%s: read due to rop %d:%x\n",
+		     __FUNCTION__, gc->alu, fbGetGCPrivate(gc)->and));
+		return MOVE_READ | MOVE_WRITE;
+	}
+
 	DBG(("%s: try operating on drawable inplace\n", __FUNCTION__));
+	assert(drawable_gc_inplace_hint(draw, gc));
+
 	flags = MOVE_WRITE;
 	if (USE_INPLACE)
 		flags |= MOVE_INPLACE_HINT;
@@ -4482,6 +4495,7 @@ fallback:
 							       gc, n > 1)))
 		goto out;
 
+	DBG(("%s: fbFillSpans\n", __FUNCTION__));
 	fbFillSpans(drawable, gc, n, pt, width, sorted);
 out:
 	RegionUninit(&region);
@@ -4519,6 +4533,7 @@ fallback:
 							       gc, true)))
 		goto out;
 
+	DBG(("%s: fbSetSpans\n", __FUNCTION__));
 	fbSetSpans(drawable, gc, src, pt, width, n, sorted);
 out:
 	RegionUninit(&region);
@@ -5835,7 +5850,7 @@ _use_zero_spans(DrawablePtr drawable, GCPtr gc, const BoxRec *extents)
 	if (USE_ZERO_SPANS)
 		return USE_ZERO_SPANS > 0;
 
-	if ((drawable_gc_flags(drawable, gc, false) & MOVE_INPLACE_HINT) == 0)
+	if (!drawable_gc_inplace_hint(drawable, gc))
 		return TRUE;
 
 	/* XXX check for GPU stalls on the gc (stipple, tile, etc) */
@@ -5899,7 +5914,7 @@ _use_wide_spans(DrawablePtr drawable, GCPtr gc, const BoxRec *extents)
 	if (USE_WIDE_SPANS)
 		return USE_WIDE_SPANS > 0;
 
-	if ((drawable_gc_flags(drawable, gc, false) & MOVE_INPLACE_HINT) == 0)
+	if (!drawable_gc_inplace_hint(drawable, gc))
 		return TRUE;
 
 	/* XXX check for GPU stalls on the gc (stipple, tile, etc) */
@@ -8204,7 +8219,6 @@ fallback:
 
 	if (!sna_gc_move_to_cpu(gc, draw))
 		goto out;
-
 	if (!sna_drawable_move_region_to_cpu(draw, &data.region,
 					     drawable_gc_flags(draw, gc,
 							       true)))
@@ -9536,7 +9550,6 @@ fallback:
 
 	if (!sna_gc_move_to_cpu(gc, draw))
 		goto out;
-
 	if (!sna_drawable_move_region_to_cpu(draw, &region,
 					     drawable_gc_flags(draw, gc,
 							       n > 1)))
@@ -9716,7 +9729,6 @@ fallback:
 
 	if (!sna_gc_move_to_cpu(gc, draw))
 		goto out;
-
 	if (!sna_drawable_move_region_to_cpu(draw, &data.region,
 					     drawable_gc_flags(draw, gc,
 							       true)))
@@ -10117,7 +10129,6 @@ force_fallback:
 
 		if (!sna_gc_move_to_cpu(gc, drawable))
 			goto out;
-
 		if (!sna_drawable_move_region_to_cpu(drawable, &region,
 						     drawable_gc_flags(drawable,
 								       gc, true)))
@@ -10356,9 +10367,9 @@ force_fallback:
 
 		if (!sna_gc_move_to_cpu(gc, drawable))
 			goto out;
-		if(!sna_drawable_move_region_to_cpu(drawable, &region,
-						    drawable_gc_flags(drawable,
-								      gc, n > 1)))
+		if (!sna_drawable_move_region_to_cpu(drawable, &region,
+						     drawable_gc_flags(drawable,
+								       gc, n > 1)))
 			goto out;
 
 		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
@@ -10673,6 +10684,7 @@ fallback:
 					     drawable_gc_flags(drawable,
 							       gc, true)))
 		goto out;
+
 	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 	fbPolyGlyphBlt(drawable, gc, x, y, n, info, base);
 
