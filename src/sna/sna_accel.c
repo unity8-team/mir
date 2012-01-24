@@ -6687,12 +6687,6 @@ rectangle_continue:
 						continue;
 
 					length = abs(x2 - x1);
-
-					/* if we've clipped the endpoint, always draw the full length
-					 * of the segment, because then the capstyle doesn't matter
-					 */
-					if (pt2_clipped)
-						length++;
 					if (length == 0)
 						continue;
 
@@ -6713,7 +6707,7 @@ rectangle_continue:
 
 				b->x1 = x1;
 				b->y2 = b->y1 = y1;
-				while (length--) {
+				while (--length) {
 					e += e1;
 					x1++;
 					if (e >= 0) {
@@ -6765,12 +6759,6 @@ X_continue2:
 						continue;
 
 					length = abs(y2 - y1);
-
-					/* if we've clipped the endpoint, always draw the full length
-					 * of the segment, because then the capstyle doesn't matter
-					 */
-					if (pt2_clipped)
-						length++;
 					if (length == 0)
 						continue;
 
@@ -6792,7 +6780,7 @@ X_continue2:
 
 				b->x2 = b->x1 = x1;
 				b->y1 = y1;
-				while (length--) {
+				while (--length) {
 					e += e1;
 					y1 += sdy;
 					if (e >= 0) {
