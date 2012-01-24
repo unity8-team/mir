@@ -3602,11 +3602,12 @@ sna_fill_spans__cpu(DrawablePtr drawable,
 		    GCPtr gc, int n,
 		    DDXPointPtr pt, int *width, int sorted)
 {
+	RegionRec *clip = sna_gc(gc)->priv;
 	BoxRec extents;
 
 	DBG(("%s x %d\n", __FUNCTION__, n));
 
-	extents = gc->pCompositeClip->extents;
+	extents = clip->extents;
 	while (n--) {
 		BoxRec b;
 
@@ -3620,16 +3621,14 @@ sna_fill_spans__cpu(DrawablePtr drawable,
 		if (!box_intersect(&b, &extents))
 			continue;
 
-		if (region_is_singular(gc->pCompositeClip)) {
+		if (region_is_singular(clip)) {
 			fbFill(drawable, gc, b.x1, b.y1, b.x2 - b.x1, 1);
 		} else {
-			const BoxRec * const clip_start = RegionBoxptr(gc->pCompositeClip);
-			const BoxRec * const clip_end = clip_start + gc->pCompositeClip->data->numRects;
+			const BoxRec * const clip_start = RegionBoxptr(clip);
+			const BoxRec * const clip_end = clip_start + clip->data->numRects;
 			const BoxRec *c;
 
-			c = find_clip_box_for_y(clip_start,
-						clip_end,
-						b.y1);
+			c = find_clip_box_for_y(clip_start, clip_end, b.y1);
 			while (c != clip_end) {
 				int16_t x1, x2;
 
@@ -7941,8 +7940,11 @@ fallback:
 							       true)))
 		goto out;
 
-	DBG(("%s: fallback -- miFillPolygon -> sna_fill_spans__cpu\n", __FUNCTION__));
+	DBG(("%s: fallback -- miFillPolygon -> sna_fill_spans__cpu\n",
+	     __FUNCTION__));
+	sna_gc(gc)->priv = &data.region;
 	gc->ops->FillSpans = sna_fill_spans__cpu;
+
 	miFillPolygon(draw, gc, shape, mode, n, pt);
 	gc->ops->FillSpans = sna_fill_spans;
 out:
