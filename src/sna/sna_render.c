@@ -737,6 +737,8 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 		tmp_src = CreatePicture(0, &pixmap->drawable, format, 0, NULL,
 					serverClient, &error);
+		tmp_src->repeat = true;
+		tmp_src->repeatType = RepeatPad;
 		tmp_src->filter = PictFilterBilinear;
 		memset(&t, 0, sizeof(t));
 		t.matrix[0][0] = 2 << 16;

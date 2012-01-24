@@ -3278,6 +3278,7 @@ struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
 	t.matrix[2][2] = 1 << 16;
 	pixman_image_set_transform(src_image, &t);
 	pixman_image_set_filter(src_image, PIXMAN_FILTER_BILINEAR, NULL, 0);
+	pixman_image_set_repeat(src_image, PIXMAN_REPEAT_PAD);
 
 	pixman_image_composite(PIXMAN_OP_SRC,
 			       src_image, NULL, dst_image,
