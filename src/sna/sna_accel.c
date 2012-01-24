@@ -4264,7 +4264,7 @@ sna_poly_fill_rect_stippled_blt(DrawablePtr drawable,
 				GCPtr gc, int n, xRectangle *rect,
 				const BoxRec *extents, unsigned clipped);
 
-static bool
+static inline bool
 gc_is_solid(GCPtr gc, uint32_t *color)
 {
 	if (gc->fillStyle == FillSolid ||
@@ -4965,7 +4965,8 @@ static Bool
 sna_poly_point_blt(DrawablePtr drawable,
 		   struct kgem_bo *bo,
 		   struct sna_damage **damage,
-		   GCPtr gc, int mode, int n, DDXPointPtr pt,
+		   GCPtr gc, uint32_t pixel,
+		   int mode, int n, DDXPointPtr pt,
 		   bool clipped)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -4978,7 +4979,7 @@ sna_poly_point_blt(DrawablePtr drawable,
 	DBG(("%s: alu=%d, pixel=%08lx, clipped?=%d\n",
 	     __FUNCTION__, gc->alu, gc->fgPixel, clipped));
 
-	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, pixel))
 		return FALSE;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -5095,6 +5096,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	RegionRec region;
 	unsigned flags;
+	uint32_t color;
 
 	DBG(("%s(mode=%d, n=%d, pt[0]=(%d, %d)\n",
 	     __FUNCTION__, mode, n, pt[0].x, pt[0].y));
@@ -5119,8 +5121,7 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 		goto fallback;
 	}
 
-	if (gc->fillStyle == FillSolid &&
-	    PM_IS_SOLID(drawable, gc->planemask)) {
+	if (PM_IS_SOLID(drawable, gc->planemask) && gc_is_solid(gc, &color)) {
 		struct sna_pixmap *priv = sna_pixmap(pixmap);
 		struct sna_damage **damage;
 
@@ -5130,13 +5131,13 @@ sna_poly_point(DrawablePtr drawable, GCPtr gc,
 		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage) &&
 		    sna_poly_point_blt(drawable,
 				       priv->gpu_bo, damage,
-				       gc, mode, n, pt, flags & 2))
+				       gc, color, mode, n, pt, flags & 2))
 			return;
 
 		if (sna_drawable_use_cpu_bo(drawable, &region.extents, &damage) &&
 		    sna_poly_point_blt(drawable,
 				       priv->cpu_bo, damage,
-				       gc, mode, n, pt, flags & 2))
+				       gc, color, mode, n, pt, flags & 2))
 			return;
 	}
 
@@ -5545,7 +5546,8 @@ static Bool
 sna_poly_line_blt(DrawablePtr drawable,
 		  struct kgem_bo *bo,
 		  struct sna_damage **damage,
-		  GCPtr gc, int mode, int n, DDXPointPtr pt,
+		  GCPtr gc, uint32_t pixel,
+		  int mode, int n, DDXPointPtr pt,
 		  const BoxRec *extents, bool clipped)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -5555,9 +5557,9 @@ sna_poly_line_blt(DrawablePtr drawable,
 	DDXPointRec last;
 	int16_t dx, dy;
 
-	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, gc->fgPixel));
+	DBG(("%s: alu=%d, fg=%08lx\n", __FUNCTION__, gc->alu, pixel));
 
-	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, pixel))
 		return FALSE;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -5949,6 +5951,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 {
 	struct sna_pixmap *priv;
 	struct sna_fill_spans data;
+	uint32_t color;
 
 	DBG(("%s(mode=%d, n=%d, pt[0]=(%d, %d), lineWidth=%d\n",
 	     __FUNCTION__, mode, n, pt[0].x, pt[0].y, gc->lineWidth));
@@ -6007,9 +6010,9 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 		goto spans_fallback;
 	}
 
-	if (gc->fillStyle == FillSolid) {
+	if (gc_is_solid(gc, &color)) {
 		DBG(("%s: trying solid fill [%08lx]\n",
-		     __FUNCTION__, gc->fgPixel));
+		     __FUNCTION__, color));
 
 		if (data.flags & 4) {
 			if (sna_drawable_use_gpu_bo(drawable,
@@ -6017,7 +6020,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 						    &data.damage) &&
 			    sna_poly_line_blt(drawable,
 					      priv->gpu_bo, data.damage,
-					      gc, mode, n, pt,
+					      gc, color, mode, n, pt,
 					      &data.region.extents,
 					      data.flags & 2))
 				return;
@@ -6027,7 +6030,7 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 						    &data.damage) &&
 			    sna_poly_line_blt(drawable,
 					      priv->cpu_bo, data.damage,
-					      gc, mode, n, pt,
+					      gc, color, mode, n, pt,
 					      &data.region.extents,
 					      data.flags & 2))
 				return;
@@ -6118,8 +6121,6 @@ sna_poly_line(DrawablePtr drawable, GCPtr gc,
 spans_fallback:
 	if (use_wide_spans(drawable, gc, &data.region.extents) &&
 	    sna_drawable_use_gpu_bo(drawable, &data.region.extents, &data.damage)) {
-		uint32_t color;
-
 		DBG(("%s: converting line into spans\n", __FUNCTION__));
 		get_drawable_deltas(drawable, data.pixmap, &data.dx, &data.dy);
 		sna_gc(gc)->priv = &data;
@@ -6225,7 +6226,8 @@ static Bool
 sna_poly_segment_blt(DrawablePtr drawable,
 		     struct kgem_bo *bo,
 		     struct sna_damage **damage,
-		     GCPtr gc, int n, xSegment *seg,
+		     GCPtr gc, uint32_t pixel,
+		     int n, xSegment *seg,
 		     const BoxRec *extents, unsigned clipped)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
@@ -6237,7 +6239,7 @@ sna_poly_segment_blt(DrawablePtr drawable,
 	DBG(("%s: n=%d, alu=%d, fg=%08lx, clipped=%d\n",
 	     __FUNCTION__, n, gc->alu, gc->fgPixel, clipped));
 
-	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, gc->fgPixel))
+	if (!sna_fill_init_blt(&fill, sna, pixmap, bo, gc->alu, pixel))
 		return FALSE;
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -6895,6 +6897,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 {
 	struct sna_pixmap *priv;
 	struct sna_fill_spans data;
+	uint32_t color;
 
 	DBG(("%s(n=%d, first=((%d, %d), (%d, %d)), lineWidth=%d\n",
 	     __FUNCTION__,
@@ -6942,9 +6945,9 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 		goto fallback;
 	if (gc->lineStyle != LineSolid || gc->lineWidth > 1)
 		goto spans_fallback;
-	if (gc->fillStyle == FillSolid) {
+	if (gc_is_solid(gc, &color)) {
 		DBG(("%s: trying blt solid fill [%08lx, flags=%x] paths\n",
-		     __FUNCTION__, gc->fgPixel, data.flags));
+		     __FUNCTION__, color, data.flags));
 
 		if (data.flags & 4) {
 			if (sna_drawable_use_gpu_bo(drawable,
@@ -6952,7 +6955,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 						    &data.damage) &&
 			    sna_poly_segment_blt(drawable,
 						 priv->gpu_bo, data.damage,
-						 gc, n, seg,
+						 gc, color, n, seg,
 						 &data.region.extents,
 						 data.flags & 2))
 				return;
@@ -6962,7 +6965,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 						    &data.damage) &&
 			    sna_poly_segment_blt(drawable,
 						 priv->cpu_bo, data.damage,
-						 gc, n, seg,
+						 gc, color, n, seg,
 						 &data.region.extents,
 						 data.flags & 2))
 				return;
@@ -7031,7 +7034,7 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 				i = sna_poly_fill_rect_stippled_blt(drawable,
 								    priv->gpu_bo, data.damage,
 								    gc, n, rect,
-								    &data.region.extents, 
+								    &data.region.extents,
 								    data.flags & 2);
 			}
 			free (rect);
@@ -7045,7 +7048,6 @@ spans_fallback:
 	if (use_wide_spans(drawable, gc, &data.region.extents) &&
 	    sna_drawable_use_gpu_bo(drawable, &data.region.extents, &data.damage)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
-		uint32_t color;
 		int i;
 
 		DBG(("%s: converting segments into spans\n", __FUNCTION__));
@@ -9418,6 +9420,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 	struct sna_damage **damage;
 	RegionRec region;
 	unsigned flags;
+	uint32_t color;
 
 	DBG(("%s(n=%d, PlaneMask: %lx (solid %d), solid fill: %d [style=%d, tileIsPixel=%d], alu=%d)\n", __FUNCTION__,
 	     n, gc->planemask, !!PM_IS_SOLID(draw, gc->planemask),
@@ -9469,11 +9472,7 @@ sna_poly_fill_rect(DrawablePtr draw, GCPtr gc, int n, xRectangle *rect)
 		}
 	}
 
-	if (gc->fillStyle == FillSolid ||
-	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
-	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
-		uint32_t color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
-
+	if (gc_is_solid(gc, &color)) {
 		DBG(("%s: solid fill [%08x], testing for blt\n",
 		     __FUNCTION__, color));
 
