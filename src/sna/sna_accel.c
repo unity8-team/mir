@@ -4389,11 +4389,15 @@ sna_fill_spans__gpu(DrawablePtr drawable, GCPtr gc, int n,
 	if (n == 0)
 		return;
 
+	/* The mi routines do not attempt to keep the spans it generates
+	 * within the clip, so we must run them through the clipper.
+	 */
+
 	if (gc_is_solid(gc, &color)) {
 		sna_fill_spans_blt(drawable,
-				   data->bo, data->damage,
+				   data->bo, NULL,
 				   gc, color, n, pt, width, sorted,
-				   &data->region.extents, data->flags & 2);
+				   &data->region.extents, 2);
 	} else {
 		/* Try converting these to a set of rectangles instead */
 		xRectangle *rect;
@@ -4414,16 +4418,14 @@ sna_fill_spans__gpu(DrawablePtr drawable, GCPtr gc, int n,
 
 		if (gc->fillStyle == FillTiled) {
 			sna_poly_fill_rect_tiled_blt(drawable,
-						     data->bo, data->damage,
+						     data->bo, NULL,
 						     gc, n, rect,
-						     &data->region.extents,
-						     data->flags & 2);
+						     &data->region.extents, 2);
 		} else {
 			sna_poly_fill_rect_stippled_blt(drawable,
-							data->bo, data->damage,
+							data->bo, NULL,
 							gc, n, rect,
-							&data->region.extents,
-							data->flags & 2);
+							&data->region.extents, 2);
 		}
 		free (rect);
 	}
