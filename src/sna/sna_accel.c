@@ -296,8 +296,9 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 	} else
 		free(priv->ptr);
 
-	priv->pixmap->devPrivate.ptr = priv->ptr = NULL;
-	priv->mapped = false;
+	priv->ptr = NULL;
+	if (!priv->mapped)
+		priv->pixmap->devPrivate.ptr = NULL;
 }
 
 static Bool sna_destroy_private(PixmapPtr pixmap, struct sna_pixmap *priv)
