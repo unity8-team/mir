@@ -168,9 +168,27 @@ static void _assert_pixmap_contains_box(PixmapPtr pixmap, BoxPtr box, const char
 		assert(0);
 	}
 }
+
+static void _assert_drawable_contains_box(DrawablePtr drawable, const BoxRec *box, const char *function)
+{
+	if (box->x1 < drawable->x ||
+	    box->y1 < drawable->y ||
+	    box->x2 > drawable->x + drawable->width ||
+	    box->y2 > drawable->y + drawable->height)
+	{
+		ErrorF("%s: damage box is beyond the drawable: box=(%d, %d), (%d, %d), drawable=(%d, %d)x(%d, %d)\n",
+		       __FUNCTION__,
+		       box->x1, box->y1, box->x2, box->y2,
+		       drawable->x, drawable->y,
+		       drawable->width, drawable->height);
+		assert(0);
+	}
+}
 #define assert_pixmap_contains_box(p, b) _assert_pixmap_contains_box(p, b, __FUNCTION__)
+#define assert_drawable_contains_box(d, b) _assert_drawable_contains_box(d, b, __FUNCTION__)
 #else
 #define assert_pixmap_contains_box(p, b)
+#define assert_drawable_contains_box(d, b)
 #endif
 
 inline static bool
@@ -1054,10 +1072,10 @@ pixmap_contains_damage(PixmapPtr pixmap, struct sna_damage *damage)
 		return true;
 
 	damage = DAMAGE_PTR(damage);
-	return damage->extents.x2 <= pixmap->drawable.width &&
+	return (damage->extents.x2 <= pixmap->drawable.width &&
 		damage->extents.y2 <= pixmap->drawable.height &&
 		damage->extents.x1 >= 0 &&
-		damage->extents.y1 >= 0;
+		damage->extents.y1 >= 0);
 }
 #endif
 
@@ -1118,6 +1136,8 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	     RegionExtents(region)->x1, RegionExtents(region)->y1,
 	     RegionExtents(region)->x2, RegionExtents(region)->y2,
 	     flags));
+
+	assert_pixmap_contains_box(pixmap, &region->extents);
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
@@ -1508,6 +1528,8 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 
 	DBG(("%s()\n", __FUNCTION__));
 
+	assert_pixmap_contains_box(pixmap, box);
+
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		goto done;
 
@@ -1660,6 +1682,8 @@ _sna_drawable_use_gpu_bo(DrawablePtr drawable,
 	BoxRec extents;
 	int16_t dx, dy;
 
+	assert_drawable_contains_box(drawable, box);
+
 	if (priv == NULL) {
 		DBG(("%s: not attached\n", __FUNCTION__));
 		return FALSE;
@@ -1791,6 +1815,8 @@ _sna_drawable_use_cpu_bo(DrawablePtr drawable,
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
 	BoxRec extents;
 	int16_t dx, dy;
+
+	assert_drawable_contains_box(drawable, box);
 
 	if (priv == NULL || priv->cpu_bo == NULL)
 		return FALSE;
