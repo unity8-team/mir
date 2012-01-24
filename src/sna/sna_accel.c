@@ -7044,6 +7044,7 @@ spans_fallback:
 	if (use_wide_spans(drawable, gc, &data.region.extents) &&
 	    sna_drawable_use_gpu_bo(drawable, &data.region.extents, &data.damage)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
+		uint32_t color;
 		int i;
 
 		DBG(("%s: converting segments into spans\n", __FUNCTION__));
@@ -7066,14 +7067,50 @@ spans_fallback:
 		}
 
 		get_drawable_deltas(drawable, data.pixmap, &data.dx, &data.dy);
-
-		data.bo = priv->gpu_bo;
 		sna_gc(gc)->priv = &data;
-		gc->ops->FillSpans = sna_fill_spans__gpu;
 
-		for (i = 0; i < n; i++)
-			line(drawable, gc, CoordModeOrigin, 2,
-			     (DDXPointPtr)&seg[i]);
+		if (gc->lineWidth == 0 &&
+		    gc->lineStyle == LineSolid &&
+		    gc_is_solid(gc, &color)) {
+			struct sna_fill_op fill;
+
+			if (!sna_fill_init_blt(&fill,
+					       data.sna, data.pixmap,
+					       priv->gpu_bo, gc->alu, color))
+				goto fallback;
+
+			data.op = &fill;
+
+			if ((data.flags & 2) == 0) {
+				if (data.dx | data.dy)
+					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill;
+			} else {
+				region_maybe_clip(&data.region,
+						  gc->pCompositeClip);
+				if (!RegionNotEmpty(&data.region))
+					return;
+
+				if (region_is_singular(&data.region))
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+			}
+			assert(gc->miTranslate);
+			for (i = 0; i < n; i++)
+				line(drawable, gc, CoordModeOrigin, 2,
+				     (DDXPointPtr)&seg[i]);
+
+			fill.done(data.sna, &fill);
+		} else {
+			data.bo = priv->gpu_bo;
+			gc->ops->FillSpans = sna_fill_spans__gpu;
+
+			for (i = 0; i < n; i++)
+				line(drawable, gc, CoordModeOrigin, 2,
+				     (DDXPointPtr)&seg[i]);
+		}
 
 		gc->ops->FillSpans = sna_fill_spans;
 		if (data.damage)
