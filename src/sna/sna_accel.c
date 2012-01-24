@@ -6892,24 +6892,24 @@ sna_poly_segment_extents(DrawablePtr drawable, GCPtr gc,
 static void
 sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 {
-	PixmapPtr pixmap;
-	struct sna *sna;
-	struct sna_damage **damage;
-	RegionRec region;
-	unsigned flags;
+	struct sna_pixmap *priv;
+	struct sna_fill_spans data;
 
 	DBG(("%s(n=%d, first=((%d, %d), (%d, %d)), lineWidth=%d\n",
 	     __FUNCTION__,
 	     n, seg->x1, seg->y1, seg->x2, seg->y2,
 	     gc->lineWidth));
 
-	flags = sna_poly_segment_extents(drawable, gc, n, seg, &region.extents);
-	if (flags == 0)
+	data.flags = sna_poly_segment_extents(drawable, gc, n, seg,
+					      &data.region.extents);
+	if (data.flags == 0)
 		return;
 
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
-	     region.extents.x1, region.extents.y1,
-	     region.extents.x2, region.extents.y2));
+	     data.region.extents.x1, data.region.extents.y1,
+	     data.region.extents.x2, data.region.extents.y2));
+
+	data.region.data = NULL;
 
 	if (FORCE_FALLBACK)
 		goto fallback;
@@ -6917,10 +6917,15 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	if (!ACCEL_POLY_SEGMENT)
 		goto fallback;
 
-	pixmap = get_drawable_pixmap(drawable);
-	sna = to_sna_from_pixmap(pixmap);
+	data.pixmap = get_drawable_pixmap(drawable);
+	data.sna = to_sna_from_pixmap(data.pixmap);
+	priv = sna_pixmap(data.pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
+		goto fallback;
+	}
 
-	if (wedged(sna)) {
+	if (wedged(data.sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -6931,50 +6936,50 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 	     gc->lineStyle, gc->lineStyle == LineSolid,
 	     gc->lineWidth,
 	     gc->planemask, PM_IS_SOLID(drawable, gc->planemask),
-	     flags & 4));
+	     data.flags & 4));
 	if (!PM_IS_SOLID(drawable, gc->planemask))
 		goto fallback;
 	if (gc->lineStyle != LineSolid || gc->lineWidth > 1)
 		goto spans_fallback;
 	if (gc->fillStyle == FillSolid) {
-		struct sna_pixmap *priv = sna_pixmap(pixmap);
-
 		DBG(("%s: trying blt solid fill [%08lx, flags=%x] paths\n",
-		     __FUNCTION__, gc->fgPixel,flags));
+		     __FUNCTION__, gc->fgPixel, data.flags));
 
-		if (flags & 4) {
+		if (data.flags & 4) {
 			if (sna_drawable_use_gpu_bo(drawable,
-						    &region.extents,
-						    &damage) &&
+						    &data.region.extents,
+						    &data.damage) &&
 			    sna_poly_segment_blt(drawable,
-						 priv->gpu_bo, damage,
+						 priv->gpu_bo, data.damage,
 						 gc, n, seg,
-						 &region.extents, flags & 2))
+						 &data.region.extents,
+						 data.flags & 2))
 				return;
 
 			if (sna_drawable_use_cpu_bo(drawable,
-						    &region.extents,
-						    &damage) &&
+						    &data.region.extents,
+						    &data.damage) &&
 			    sna_poly_segment_blt(drawable,
-						 priv->cpu_bo, damage,
+						 priv->cpu_bo, data.damage,
 						 gc, n, seg,
-						 &region.extents, flags & 2))
+						 &data.region.extents,
+						 data.flags & 2))
 				return;
 		} else {
-			if (use_zero_spans(drawable, gc, &region.extents) &&
+			if (use_zero_spans(drawable, gc, &data.region.extents) &&
 			    sna_drawable_use_gpu_bo(drawable,
-						    &region.extents,
-						    &damage) &&
+						    &data.region.extents,
+						    &data.damage) &&
 			    sna_poly_zero_segment_blt(drawable,
-						      priv->gpu_bo, damage,
-						      gc, n, seg, &region.extents, flags & 2))
+						      priv->gpu_bo, data.damage,
+						      gc, n, seg,
+						      &data.region.extents,
+						      data.flags & 2))
 				return;
 		}
-	} else if (flags & 4) {
-		struct sna_pixmap *priv = sna_pixmap(pixmap);
-
+	} else if (data.flags & 4) {
 		/* Try converting these to a set of rectangles instead */
-		if (sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
+		if (sna_drawable_use_gpu_bo(drawable, &data.region.extents, &data.damage)) {
 			xRectangle *rect;
 			int i;
 
@@ -7017,14 +7022,16 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 
 			if (gc->fillStyle == FillTiled) {
 				i = sna_poly_fill_rect_tiled_blt(drawable,
-								 priv->gpu_bo, damage,
+								 priv->gpu_bo, data.damage,
 								 gc, n, rect,
-								 &region.extents, flags & 2);
+								 &data.region.extents,
+								 data.flags & 2);
 			} else {
 				i = sna_poly_fill_rect_stippled_blt(drawable,
-								    priv->gpu_bo, damage,
+								    priv->gpu_bo, data.damage,
 								    gc, n, rect,
-								    &region.extents, flags & 2);
+								    &data.region.extents, 
+								    data.flags & 2);
 			}
 			free (rect);
 
@@ -7033,10 +7040,9 @@ sna_poly_segment(DrawablePtr drawable, GCPtr gc, int n, xSegment *seg)
 		}
 	}
 
-	/* XXX Do we really want to base this decision on the amalgam ? */
 spans_fallback:
-	if (use_wide_spans(drawable, gc, &region.extents) &&
-	    sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
+	if (use_wide_spans(drawable, gc, &data.region.extents) &&
+	    sna_drawable_use_gpu_bo(drawable, &data.region.extents, &data.damage)) {
 		void (*line)(DrawablePtr, GCPtr, int, int, DDXPointPtr);
 		int i;
 
@@ -7052,39 +7058,53 @@ spans_fallback:
 			break;
 		case LineOnOffDash:
 		case LineDoubleDash:
-			line = miWideDash;
+			if (gc->lineWidth == 0)
+				line = miZeroDashLine;
+			else
+				line = miWideDash;
 			break;
 		}
+
+		get_drawable_deltas(drawable, data.pixmap, &data.dx, &data.dy);
+
+		data.bo = priv->gpu_bo;
+		sna_gc(gc)->priv = &data;
+		gc->ops->FillSpans = sna_fill_spans__gpu;
 
 		for (i = 0; i < n; i++)
 			line(drawable, gc, CoordModeOrigin, 2,
 			     (DDXPointPtr)&seg[i]);
+
+		gc->ops->FillSpans = sna_fill_spans;
+		if (data.damage)
+			sna_damage_add(data.damage, &data.region);
+		RegionUninit(&data.region);
 		return;
 	}
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	if (gc->lineWidth) {
-		miPolySegment(drawable, gc, n, seg);
-		return;
-	}
-
-	region.data = NULL;
-	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	region_maybe_clip(&data.region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&data.region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
-	if (!sna_drawable_move_region_to_cpu(drawable, &region,
+	if (!sna_drawable_move_region_to_cpu(drawable, &data.region,
 					     drawable_gc_flags(drawable, gc,
 							       n > 1)))
 		goto out;
 
+	/* Install FillSpans in case we hit a fallback path in fbPolySegment */
+	sna_gc(gc)->priv = &data.region;
+	gc->ops->FillSpans = sna_fill_spans__cpu;
+
 	DBG(("%s: fbPolySegment\n", __FUNCTION__));
 	fbPolySegment(drawable, gc, n, seg);
+
+	gc->ops->FillSpans = sna_fill_spans;
 out:
-	RegionUninit(&region);
+	RegionUninit(&data.region);
 }
 
 static unsigned
