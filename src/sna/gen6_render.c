@@ -2028,6 +2028,7 @@ gen6_render_video(struct sna *sna,
 		}
 		box++;
 	}
+	priv->clear = false;
 
 	gen6_vertex_flush(sna);
 	return TRUE;
