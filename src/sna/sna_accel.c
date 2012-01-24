@@ -3495,6 +3495,17 @@ fallback:
 				     src_dx, src_dy,
 				     dst_dx, dst_dy,
 				     src_stride, dst_stride));
+
+				assert(box->x1 + src_dx >= 0);
+				assert(box->y1 + src_dy >= 0);
+				assert(box->x2 + src_dx <= src_pixmap->drawable.width);
+				assert(box->y2 + src_dy <= src_pixmap->drawable.height);
+
+				assert(box->x1 + dst_dx >= 0);
+				assert(box->y1 + dst_dy >= 0);
+				assert(box->x2 + dst_dx <= dst_pixmap->drawable.width);
+				assert(box->y2 + dst_dy <= dst_pixmap->drawable.height);
+
 				memcpy_blt(src_bits, dst_bits, bpp,
 					   src_stride, dst_stride,
 					   box->x1, box->y1,
