@@ -734,9 +734,19 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 		tmp_dst = CreatePicture(0, &tmp->drawable, format, 0, NULL,
 					serverClient, &error);
+		if (!tmp_dst) {
+			screen->DestroyPixmap(tmp);
+			goto fixup;
+		}
 
 		tmp_src = CreatePicture(0, &pixmap->drawable, format, 0, NULL,
 					serverClient, &error);
+		if (!tmp_src) {
+			FreePicture(tmp_dst, 0);
+			screen->DestroyPixmap(tmp);
+			goto fixup;
+		}
+
 		tmp_src->repeat = true;
 		tmp_src->repeatType = RepeatPad;
 		tmp_src->filter = PictFilterBilinear;
