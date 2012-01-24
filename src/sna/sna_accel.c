@@ -7528,22 +7528,37 @@ arc_to_spans(GCPtr gc, int n)
 	return false;
 }
 
+static bool
+gc_is_solid(GCPtr gc, uint32_t *color)
+{
+	if (gc->fillStyle == FillSolid ||
+	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
+	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
+		*color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
+		return true;
+	}
+
+	return false;
+}
+
 static void
 sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 {
-	PixmapPtr pixmap = get_drawable_pixmap(drawable);
-	struct sna *sna = to_sna_from_pixmap(pixmap);
-	struct sna_damage **damage;
-	RegionRec region;
+	struct sna_fill_spans data;
+	struct sna_pixmap *priv;
 
 	DBG(("%s(n=%d, lineWidth=%d\n", __FUNCTION__, n, gc->lineWidth));
 
-	if (sna_poly_arc_extents(drawable, gc, n, arc, &region.extents) == 0)
+	data.flags = sna_poly_arc_extents(drawable, gc, n, arc,
+					  &data.region.extents);
+	if (data.flags == 0)
 		return;
 
 	DBG(("%s: extents=(%d, %d), (%d, %d)\n", __FUNCTION__,
-	     region.extents.x1, region.extents.y1,
-	     region.extents.x2, region.extents.y2));
+	     data.region.extents.x1, data.region.extents.y1,
+	     data.region.extents.x2, data.region.extents.y2));
+
+	data.region.data = NULL;
 
 	if (FORCE_FALLBACK)
 		goto fallback;
@@ -7551,7 +7566,15 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 	if (!ACCEL_POLY_ARC)
 		goto fallback;
 
-	if (wedged(sna)) {
+	data.pixmap = get_drawable_pixmap(drawable);
+	data.sna = to_sna_from_pixmap(data.pixmap);
+	priv = sna_pixmap(data.pixmap);
+	if (priv == NULL) {
+		DBG(("%s: fallback -- unattached\n", __FUNCTION__));
+		goto fallback;
+	}
+
+	if (wedged(data.sna)) {
 		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
@@ -7560,10 +7583,56 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 		goto fallback;
 
 	/* For "simple" cases use the miPolyArc to spans path */
-	if (use_wide_spans(drawable, gc, &region.extents) &&
+	if (use_wide_spans(drawable, gc, &data.region.extents) &&
 	    arc_to_spans(gc, n) &&
-	    sna_drawable_use_gpu_bo(drawable, &region.extents, &damage)) {
+	    sna_drawable_use_gpu_bo(drawable,
+				    &data.region.extents, &data.damage)) {
+		uint32_t color;
+
 		DBG(("%s: converting arcs into spans\n", __FUNCTION__));
+		get_drawable_deltas(drawable, data.pixmap, &data.dx, &data.dy);
+
+		if (gc_is_solid(gc, &color)) {
+			struct sna_fill_op fill;
+
+			if (!sna_fill_init_blt(&fill,
+					       data.sna, data.pixmap,
+					       priv->gpu_bo, gc->alu, color))
+				goto fallback;
+
+			data.op = &fill;
+			sna_gc(gc)->priv = &data;
+
+			if ((data.flags & 2) == 0) {
+				if (data.dx | data.dy)
+					gc->ops->FillSpans = sna_fill_spans__fill_offset;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill;
+			} else {
+				region_maybe_clip(&data.region,
+						  gc->pCompositeClip);
+				if (!RegionNotEmpty(&data.region))
+					return;
+
+				if (region_is_singular(&data.region))
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_extents;
+				else
+					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
+			}
+			assert(gc->miTranslate);
+			if (gc->lineWidth == 0)
+				miZeroPolyArc(drawable, gc, n, arc);
+			else
+				miPolyArc(drawable, gc, n, arc);
+			gc->ops->FillSpans = sna_fill_spans;
+
+			fill.done(data.sna, &fill);
+			if (data.damage)
+				sna_damage_add(data.damage, &data.region);
+			RegionUninit(&data.region);
+			return;
+		}
+
 		/* XXX still around 10x slower for x11perf -ellipse */
 		if (gc->lineWidth == 0)
 			miZeroPolyArc(drawable, gc, n, arc);
@@ -7574,29 +7643,27 @@ sna_poly_arc(DrawablePtr drawable, GCPtr gc, int n, xArc *arc)
 
 fallback:
 	DBG(("%s -- fallback\n", __FUNCTION__));
-	if (gc->lineWidth) {
-		DBG(("%s -- miPolyArc\n", __FUNCTION__));
-		miPolyArc(drawable, gc, n, arc);
-		return;
-	}
-
-	region.data = NULL;
-	region_maybe_clip(&region, gc->pCompositeClip);
-	if (!RegionNotEmpty(&region))
+	region_maybe_clip(&data.region, gc->pCompositeClip);
+	if (!RegionNotEmpty(&data.region))
 		return;
 
 	if (!sna_gc_move_to_cpu(gc, drawable))
 		goto out;
-	if (!sna_drawable_move_region_to_cpu(drawable, &region,
+	if (!sna_drawable_move_region_to_cpu(drawable, &data.region,
 					     drawable_gc_flags(drawable,
 							       gc, true)))
 		goto out;
 
-	/* XXX may still fallthrough to miZeroPolyArc */
+	/* Install FillSpans in case we hit a fallback path in fbPolyArc */
+	sna_gc(gc)->priv = &data.region;
+	gc->ops->FillSpans = sna_fill_spans__cpu;
+
 	DBG(("%s -- fbPolyArc\n", __FUNCTION__));
 	fbPolyArc(drawable, gc, n, arc);
+
+	gc->ops->FillSpans = sna_fill_spans;
 out:
-	RegionUninit(&region);
+	RegionUninit(&data.region);
 }
 
 static Bool
@@ -7803,19 +7870,6 @@ get_pixel(PixmapPtr pixmap)
 	case 16: return *(uint16_t *)pixmap->devPrivate.ptr;
 	default: return *(uint8_t *)pixmap->devPrivate.ptr;
 	}
-}
-
-static bool
-gc_is_solid(GCPtr gc, uint32_t *color)
-{
-	if (gc->fillStyle == FillSolid ||
-	    (gc->fillStyle == FillTiled && gc->tileIsPixel) ||
-	    (gc->fillStyle == FillOpaqueStippled && gc->bgPixel == gc->fgPixel)) {
-		*color = gc->fillStyle == FillTiled ? gc->tile.pixel : gc->fgPixel;
-		return true;
-	}
-
-	return false;
 }
 
 static void
@@ -9420,16 +9474,14 @@ sna_poly_fill_arc(DrawablePtr draw, GCPtr gc, int n, xArc *arc)
 					gc->ops->FillSpans = sna_fill_spans__fill_clip_boxes;
 			}
 			assert(gc->miTranslate);
-			miPolyFillArc(draw, gc, n, arc);
 
+			miPolyFillArc(draw, gc, n, arc);
 			fill.done(data.sna, &fill);
 		} else {
 			data.bo = priv->gpu_bo;
 			gc->ops->FillSpans = sna_fill_spans__gpu;
 
 			miPolyFillArc(draw, gc, n, arc);
-
-			gc->ops->FillSpans = sna_fill_spans;
 		}
 
 		gc->ops->FillSpans = sna_fill_spans;
