@@ -717,7 +717,8 @@ static int sna_render_picture_downsample(struct sna *sna,
 			goto fixup;
 
 		tmp = screen->CreatePixmap(screen,
-					   w/2, h/2, pixmap->drawable.depth,
+					   (w+1)/2, (h+1)/2,
+					   pixmap->drawable.depth,
 					   SNA_CREATE_SCRATCH);
 		if (!tmp)
 			goto fixup;
@@ -760,18 +761,18 @@ static int sna_render_picture_downsample(struct sna *sna,
 		ValidatePicture(tmp_src);
 
 		if (w > sna->render.max_3d_size) {
-			ww = w/4;
+			ww = (w+3)/4;
 			nj = 2;
 		} else {
-			ww = w/2;
+			ww = (w+1)/2;
 			nj = 1;
 		}
 
 		if (h > sna->render.max_3d_size) {
-			hh = h/4;
+			hh = (h+3)/4;
 			ni = 2;
 		} else {
-			hh = h/2;
+			hh = (h+1)/2;
 			ni = 1;
 		}
 
@@ -783,7 +784,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 			b.y1 = hh*i;
 			if (i == ni - 1)
-				b.y2 = h/2;
+				b.y2 = (h+1)/2;
 			else
 				b.y2 = b.y1 + hh;
 
@@ -792,7 +793,7 @@ static int sna_render_picture_downsample(struct sna *sna,
 
 				b.x1 = ww*j;
 				if (j == nj - 1)
-					b.x2 = w/2;
+					b.x2 = (w+1)/2;
 				else
 					b.x2 = b.x1 + ww;
 
@@ -850,8 +851,8 @@ static int sna_render_picture_downsample(struct sna *sna,
 	channel->offset[1] = y - dst_y;
 	channel->scale[0] = 1.f/w;
 	channel->scale[1] = 1.f/h;
-	channel->width  = w / 2;
-	channel->height = h / 2;
+	channel->width  = (w + 1) / 2;
+	channel->height = (h + 1) / 2;
 	channel->bo = bo;
 	return 1;
 
