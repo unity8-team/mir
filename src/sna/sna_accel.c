@@ -3597,8 +3597,13 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 {
 	struct sna *sna = to_sna_from_drawable(dst);
 
-	DBG(("%s: src=(%d, %d)x(%d, %d) -> dst=(%d, %d)\n",
-	     __FUNCTION__, src_x, src_y, width, height, dst_x, dst_y));
+	if (gc->planemask == 0)
+		return NULL;
+
+	DBG(("%s: src=(%d, %d)x(%d, %d)+(%d, %d) -> dst=(%d, %d)+(%d, %d)\n",
+	     __FUNCTION__,
+	     src_x, src_y, width, height, src->x, src->y,
+	     dst_x, dst_y, dst->x, dst->y));
 
 	if (FORCE_FALLBACK || !ACCEL_COPY_AREA || wedged(sna) ||
 	    !PM_IS_SOLID(dst, gc->planemask)) {
@@ -3616,6 +3621,11 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		region.data = NULL;
 		RegionIntersect(&region, &region, gc->pCompositeClip);
 
+		DBG(("%s: dst extents (%d, %d), (%d, %d)\n",
+		     __FUNCTION__,
+		     region.extents.x1, region.extents.y1,
+		     region.extents.x2, region.extents.y2));
+
 		{
 			RegionRec clip;
 
@@ -3625,8 +3635,18 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			clip.extents.y2 = clip.extents.y1 + src->height;
 			clip.data = NULL;
 
+			DBG(("%s: src extents (%d, %d), (%d, %d)\n",
+			     __FUNCTION__,
+			     clip.extents.x1, clip.extents.y1,
+			     clip.extents.x2, clip.extents.y2));
+
 			RegionIntersect(&region, &region, &clip);
 		}
+		DBG(("%s: dst^src extents (%d, %d), (%d, %d)\n",
+		     __FUNCTION__,
+		     region.extents.x1, region.extents.y1,
+		     region.extents.x2, region.extents.y2));
+
 		if (!RegionNotEmpty(&region))
 			return NULL;
 
