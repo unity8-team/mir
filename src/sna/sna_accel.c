@@ -4827,8 +4827,6 @@ sna_copy_plane_blt(DrawablePtr source, DrawablePtr drawable, GCPtr gc,
 	if (n == 0)
 		return;
 
-	if (!sna_pixmap_move_to_cpu(src_pixmap, MOVE_READ))
-		return;
 	get_drawable_deltas(source, src_pixmap, &dx, &dy);
 	sx += dx;
 	sy += dy;
@@ -5027,6 +5025,9 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d\n", __FUNCTION__,
 	     src_x, src_y, dst_x, dst_y, w, h));
 
+	if (gc->planemask == 0)
+		return NULL;
+
 	if (src->bitsPerPixel == 1 && (bit&1) == 0)
 		return miHandleExposures(src, dst, gc,
 					 src_x, src_y,
@@ -5068,6 +5069,17 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	if (!RegionNotEmpty(&region))
 		return NULL;
 
+	RegionTranslate(&region,
+			src_x - dst_x - dst->x + src->x,
+			src_y - dst_y - dst->y + src->y);
+
+	if (!sna_drawable_move_region_to_cpu(src, &region, MOVE_READ))
+		goto out;
+
+	RegionTranslate(&region,
+			-(src_x - dst_x - dst->x + src->x),
+			-(src_y - dst_y - dst->y + src->y));
+
 	if (FORCE_FALLBACK)
 		goto fallback;
 
@@ -5075,6 +5087,9 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		goto fallback;
 
 	if (wedged(sna))
+		goto fallback;
+
+	if (!PM_IS_SOLID(dst, gc->planemask))
 		goto fallback;
 
 	if (sna_drawable_use_gpu_bo(dst, &region.extents, &damage)) {
@@ -5096,15 +5111,8 @@ fallback:
 	ret = NULL;
 	if (!sna_gc_move_to_cpu(gc, dst))
 		goto out;
-
 	if (!sna_drawable_move_region_to_cpu(dst, &region,
 					     MOVE_READ | MOVE_WRITE))
-		goto out;
-
-	RegionTranslate(&region,
-			src_x - dst_x - dst->x + src->x,
-			src_y - dst_y - dst->y + src->y);
-	if (!sna_drawable_move_region_to_cpu(src, &region, MOVE_READ))
 		goto out;
 
 	DBG(("%s: fbCopyPlane(%d, %d, %d, %d, %d,%d) %x\n",
