@@ -5038,7 +5038,33 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	region.extents.x2 = region.extents.x1 + w;
 	region.extents.y2 = region.extents.y1 + h;
 	region.data = NULL;
-	region_maybe_clip(&region, gc->pCompositeClip);
+	RegionIntersect(&region, &region, gc->pCompositeClip);
+
+	DBG(("%s: dst extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	{
+		RegionRec clip;
+
+		clip.extents.x1 = src->x - (src->x + src_x) + (dst->x + dst_x);
+		clip.extents.y1 = src->y - (src->y + src_y) + (dst->y + dst_y);
+		clip.extents.x2 = clip.extents.x1 + src->width;
+		clip.extents.y2 = clip.extents.y1 + src->height;
+		clip.data = NULL;
+
+		DBG(("%s: src extents (%d, %d), (%d, %d)\n",
+		     __FUNCTION__,
+		     clip.extents.x1, clip.extents.y1,
+		     clip.extents.x2, clip.extents.y2));
+
+		RegionIntersect(&region, &region, &clip);
+	}
+	DBG(("%s: dst^src extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
 	if (!RegionNotEmpty(&region))
 		return NULL;
 
