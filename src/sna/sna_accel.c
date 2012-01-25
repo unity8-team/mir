@@ -5026,13 +5026,10 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     src_x, src_y, dst_x, dst_y, w, h));
 
 	if (gc->planemask == 0)
-		return NULL;
+		goto empty;
 
 	if (src->bitsPerPixel == 1 && (bit&1) == 0)
-		return miHandleExposures(src, dst, gc,
-					 src_x, src_y,
-					 w, h,
-					 dst_x, dst_y, bit);
+		goto empty;
 
 	region.extents.x1 = dst_x + dst->x;
 	region.extents.y1 = dst_y + dst->y;
@@ -5067,7 +5064,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 	if (!RegionNotEmpty(&region))
-		return NULL;
+		goto empty;
 
 	RegionTranslate(&region,
 			src_x - dst_x - dst->x + src->x,
@@ -5121,6 +5118,11 @@ fallback:
 out:
 	RegionUninit(&region);
 	return ret;
+empty:
+	return miHandleExposures(src, dst, gc,
+				 src_x, src_y,
+				 w, h,
+				 dst_x, dst_y, bit);
 }
 
 static Bool
