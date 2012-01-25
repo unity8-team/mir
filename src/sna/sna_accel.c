@@ -5019,7 +5019,7 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 {
 	PixmapPtr pixmap = get_drawable_pixmap(dst);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
-	RegionRec region, *ret;
+	RegionRec region, *ret = NULL;
 	struct sna_damage **damage;
 
 	DBG(("%s: src=(%d, %d), dst=(%d, %d), size=%dx%d\n", __FUNCTION__,
@@ -5105,7 +5105,6 @@ sna_copy_plane(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 
 fallback:
 	DBG(("%s: fallback\n", __FUNCTION__));
-	ret = NULL;
 	if (!sna_gc_move_to_cpu(gc, dst))
 		goto out;
 	if (!sna_drawable_move_region_to_cpu(dst, &region,
