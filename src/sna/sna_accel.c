@@ -922,6 +922,13 @@ skip_inplace_map:
 		priv->mapped = false;
 	}
 
+	if (priv->clear) {
+		if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
+			sna_pixmap_free_cpu(sna, priv);
+		sna_damage_destroy(&priv->gpu_damage);
+		priv->undamaged = true;
+	}
+
 	if (pixmap->devPrivate.ptr == NULL &&
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, priv->gpu_damage != NULL))
 		return false;
@@ -943,8 +950,6 @@ skip_inplace_map:
 			    pixmap->drawable.height,
 			    priv->clear_color);
 
-		sna_damage_destroy(&priv->gpu_damage);
-		priv->undamaged = true;
 		priv->clear = false;
 	}
 
