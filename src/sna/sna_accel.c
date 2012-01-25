@@ -1143,7 +1143,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	     RegionExtents(region)->x2, RegionExtents(region)->y2,
 	     flags));
 
-	assert_pixmap_contains_box(pixmap, &region->extents);
+	assert_drawable_contains_box(drawable, &region->extents);
 
 	priv = sna_pixmap(pixmap);
 	if (priv == NULL) {
@@ -11101,6 +11101,16 @@ sna_get_image(DrawablePtr drawable,
 	region.extents.x2 = region.extents.x1 + w;
 	region.extents.y2 = region.extents.y1 + h;
 	region.data = NULL;
+
+	if (region.extents.x1 < drawable->x)
+		region.extents.x1 = drawable->x;
+	if (region.extents.x2 > drawable->x + drawable->width)
+		region.extents.x2 = drawable->x + drawable->width;
+
+	if (region.extents.y1 < drawable->y)
+		region.extents.y1 = drawable->y;
+	if (region.extents.y2 > drawable->y + drawable->height)
+		region.extents.y2 = drawable->y + drawable->height;
 
 	if (!sna_drawable_move_region_to_cpu(drawable, &region, MOVE_READ))
 		return;
