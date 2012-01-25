@@ -3629,8 +3629,8 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 		{
 			RegionRec clip;
 
-			clip.extents.x1 = -(src_x - dst_x - dst->x + src->x);
-			clip.extents.y1 = -(src_y - dst_y - dst->y + src->y);
+			clip.extents.x1 = src->x - (src->x + src_x) + (dst->x + dst_x);
+			clip.extents.y1 = src->y - (src->y + src_y) + (dst->y + dst_y);
 			clip.extents.x2 = clip.extents.x1 + src->width;
 			clip.extents.y2 = clip.extents.y1 + src->height;
 			clip.data = NULL;
