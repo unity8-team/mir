@@ -1255,54 +1255,55 @@ static void kgem_finish_partials(struct kgem *kgem)
 		}
 
 		assert(bo->base.rq == kgem->next_request);
-		if (bo->base.refcnt == 1 && bo->used < bo->base.size / 2) {
-			struct kgem_bo *shrink;
-
-			shrink = search_linear_cache(kgem,
-						     PAGE_ALIGN(bo->used),
-						     CREATE_INACTIVE);
-			if (shrink) {
-				int n;
-
-				DBG(("%s: used=%d, shrinking %d to %d, handle %d to %d\n",
-				     __FUNCTION__,
-				     bo->used, bo->base.size, shrink->size,
-				     bo->base.handle, shrink->handle));
-
-				assert(bo->used <= shrink->size);
-				gem_write(kgem->fd, shrink->handle,
-					  0, bo->used, bo->mem);
-
-				for (n = 0; n < kgem->nreloc; n++) {
-					if (kgem->reloc[n].target_handle == bo->base.handle) {
-						kgem->reloc[n].target_handle = shrink->handle;
-						kgem->reloc[n].presumed_offset = shrink->presumed_offset;
-						kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
-							kgem->reloc[n].delta + shrink->presumed_offset;
-					}
-				}
-
-				bo->base.exec->handle = shrink->handle;
-				bo->base.exec->offset = shrink->presumed_offset;
-				shrink->exec = bo->base.exec;
-				shrink->rq = bo->base.rq;
-				list_replace(&bo->base.request,
-					     &shrink->request);
-				list_init(&bo->base.request);
-				shrink->needs_flush = bo->base.dirty;
-
-				bo->base.exec = NULL;
-				bo->base.rq = NULL;
-				bo->base.dirty = false;
-				bo->base.needs_flush = false;
-				bo->used = 0;
-
-				bubble_sort_partial(kgem, bo);
-				continue;
-			}
-		}
-
 		if (bo->used && bo->need_io) {
+			if (bo->base.refcnt == 1 &&
+			    bo->used < bo->base.size / 2) {
+				struct kgem_bo *shrink;
+
+				shrink = search_linear_cache(kgem,
+							     PAGE_ALIGN(bo->used),
+							     CREATE_INACTIVE);
+				if (shrink) {
+					int n;
+
+					DBG(("%s: used=%d, shrinking %d to %d, handle %d to %d\n",
+					     __FUNCTION__,
+					     bo->used, bo->base.size, shrink->size,
+					     bo->base.handle, shrink->handle));
+
+					assert(bo->used <= shrink->size);
+					gem_write(kgem->fd, shrink->handle,
+						  0, bo->used, bo->mem);
+
+					for (n = 0; n < kgem->nreloc; n++) {
+						if (kgem->reloc[n].target_handle == bo->base.handle) {
+							kgem->reloc[n].target_handle = shrink->handle;
+							kgem->reloc[n].presumed_offset = shrink->presumed_offset;
+							kgem->batch[kgem->reloc[n].offset/sizeof(kgem->batch[0])] =
+								kgem->reloc[n].delta + shrink->presumed_offset;
+						}
+					}
+
+					bo->base.exec->handle = shrink->handle;
+					bo->base.exec->offset = shrink->presumed_offset;
+					shrink->exec = bo->base.exec;
+					shrink->rq = bo->base.rq;
+					list_replace(&bo->base.request,
+						     &shrink->request);
+					list_init(&bo->base.request);
+					shrink->needs_flush = bo->base.dirty;
+
+					bo->base.exec = NULL;
+					bo->base.rq = NULL;
+					bo->base.dirty = false;
+					bo->base.needs_flush = false;
+					bo->used = 0;
+
+					bubble_sort_partial(kgem, bo);
+					continue;
+				}
+			}
+
 			DBG(("%s: handle=%d, uploading %d/%d\n",
 			     __FUNCTION__, bo->base.handle, bo->used, bo->base.size));
 			assert(!kgem_busy(kgem, bo->base.handle));
