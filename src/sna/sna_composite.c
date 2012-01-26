@@ -519,8 +519,7 @@ fallback:
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, flags))
 		goto out;
 	if (dst->alphaMap &&
-	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
-				      MOVE_WRITE | MOVE_READ))
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, flags))
 		goto out;
 	if (src->pDrawable) {
 		if (!sna_drawable_move_to_cpu(src->pDrawable,
