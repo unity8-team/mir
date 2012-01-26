@@ -632,6 +632,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	aperture.aper_size = 64*1024*1024;
 	(void)drmIoctl(fd, DRM_IOCTL_I915_GEM_GET_APERTURE, &aperture);
 
+	kgem->aperture_total = aperture.aper_size;
 	kgem->aperture_high = aperture.aper_size * 3/4;
 	kgem->aperture_low = aperture.aper_size * 1/4;
 	DBG(("%s: aperture low=%d [%d], high=%d [%d]\n", __FUNCTION__,
@@ -657,12 +658,17 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		 * disable dual-stream mode */
 		kgem->min_alignment = 64;
 
-	kgem->max_object_size = kgem->aperture_mappable / 2;
-	if (kgem->max_object_size > kgem->aperture_low)
-		kgem->max_object_size = kgem->aperture_low;
-	if (kgem->max_object_size > MAX_OBJECT_SIZE)
-		kgem->max_object_size = MAX_OBJECT_SIZE;
-	DBG(("%s: max object size %d\n", __FUNCTION__, kgem->max_object_size));
+	kgem->max_gpu_size = kgem->aperture_mappable / 2;
+	if (kgem->max_gpu_size > kgem->aperture_low)
+		kgem->max_gpu_size = kgem->aperture_low;
+	if (kgem->max_gpu_size > MAX_OBJECT_SIZE)
+		kgem->max_gpu_size = MAX_OBJECT_SIZE;
+
+	kgem->max_cpu_size = kgem->aperture_total / 2;
+	if (kgem->max_cpu_size > MAX_OBJECT_SIZE)
+		kgem->max_cpu_size = MAX_OBJECT_SIZE;
+	DBG(("%s: max object size (tiled=%d, linear=%d)\n",
+	     __FUNCTION__, kgem->max_gpu_size, kgem->max_cpu_size));
 
 	kgem->fence_max = gem_param(kgem, I915_PARAM_NUM_FENCES_AVAIL) - 2;
 	if ((int)kgem->fence_max < 0)
@@ -979,6 +985,9 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		goto destroy;
 	}
 
+	if (!kgem->has_llc && IS_CPU_MAP(bo->map) && bo->domain != DOMAIN_CPU)
+		kgem_bo_release_map(kgem, bo);
+
 	assert(list_is_empty(&bo->vma));
 	assert(list_is_empty(&bo->list));
 	assert(bo->vmap == false && bo->sync == false);
@@ -1010,6 +1019,10 @@ static void __kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 	if (!IS_CPU_MAP(bo->map)) {
 		if (!kgem_bo_set_purgeable(kgem, bo))
 			goto destroy;
+
+		if (!kgem->has_llc && bo->domain == DOMAIN_CPU)
+			goto destroy;
+
 		DBG(("%s: handle=%d, purged\n",
 		     __FUNCTION__, bo->handle));
 	}
@@ -1121,8 +1134,11 @@ bool kgem_retire(struct kgem *kgem)
 		if (kgem_bo_set_purgeable(kgem, rq->bo)) {
 			kgem_bo_move_to_inactive(kgem, rq->bo);
 			retired = true;
-		} else
+		} else {
+			DBG(("%s: closing %d\n",
+			     __FUNCTION__, rq->bo->handle));
 			kgem_bo_free(kgem, rq->bo);
+		}
 
 		_list_del(&rq->list);
 		free(rq);
@@ -1679,9 +1695,13 @@ void kgem_purge_cache(struct kgem *kgem)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(kgem->inactive); i++) {
-		list_for_each_entry_safe(bo, next, &kgem->inactive[i], list)
-			if (!kgem_bo_is_retained(kgem, bo))
+		list_for_each_entry_safe(bo, next, &kgem->inactive[i], list) {
+			if (!kgem_bo_is_retained(kgem, bo)) {
+				DBG(("%s: purging %d\n",
+				     __FUNCTION__, bo->handle));
 				kgem_bo_free(kgem, bo);
+			}
+		}
 	}
 
 	kgem->need_purge = false;
@@ -1748,6 +1768,8 @@ bool kgem_expire_cache(struct kgem *kgem)
 				count++;
 				size += bo->size;
 				kgem_bo_free(kgem, bo);
+				DBG(("%s: expiring %d\n",
+				     __FUNCTION__, bo->handle));
 			}
 		}
 		if (!list_is_empty(&preserve)) {
@@ -2033,7 +2055,7 @@ int kgem_choose_tiling(struct kgem *kgem, int tiling, int width, int height, int
 	if (tiling &&
 	    kgem_surface_size(kgem, false, false,
 			      width, height, bpp, tiling,
-			      &pitch) > kgem->max_object_size) {
+			      &pitch) > kgem->max_gpu_size) {
 		DBG(("%s: too large (%dx%d) to be fenced, discarding tiling\n",
 		     __FUNCTION__, width, height));
 		tiling = I915_TILING_NONE;
@@ -2096,43 +2118,46 @@ done:
 	return tiling;
 }
 
-static bool _kgem_can_create_2d(struct kgem *kgem,
-				int width, int height, int bpp, int tiling)
+bool kgem_can_create_cpu(struct kgem *kgem,
+			 int width, int height, int depth)
 {
 	uint32_t pitch, size;
 
-	if (bpp < 8)
+	if (depth < 8 || kgem->wedged)
 		return false;
-
-	if (tiling >= 0 && kgem->wedged)
-		return false;
-
-	if (tiling < 0)
-		tiling = -tiling;
 
 	size = kgem_surface_size(kgem, false, false,
-				 width, height, bpp, tiling, &pitch);
-	if (size == 0 || size >= kgem->max_object_size)
-		size = kgem_surface_size(kgem, false, false,
-					 width, height, bpp,
-					 I915_TILING_NONE, &pitch);
-	return size > 0 && size < kgem->max_object_size;
+				 width, height, BitsPerPixel(depth),
+				 I915_TILING_NONE, &pitch);
+	return size > 0 && size < kgem->max_cpu_size;
+}
+
+static bool _kgem_can_create_gpu(struct kgem *kgem,
+				 int width, int height, int bpp)
+{
+	uint32_t pitch, size;
+
+	if (bpp < 8 || kgem->wedged)
+		return false;
+
+	size = kgem_surface_size(kgem, false, false,
+				 width, height, bpp, I915_TILING_NONE,
+				 &pitch);
+	return size > 0 && size < kgem->max_gpu_size;
 }
 
 #if DEBUG_KGEM
-bool kgem_can_create_2d(struct kgem *kgem,
-			int width, int height, int bpp, int tiling)
+bool kgem_can_create_gpu(struct kgem *kgem, int width, int height, int bpp)
 {
-	bool ret = _kgem_can_create_2d(kgem, width, height, bpp, tiling);
-	DBG(("%s(%dx%d, bpp=%d, tiling=%d) = %d\n", __FUNCTION__,
-	     width, height, bpp, tiling, ret));
+	bool ret = _kgem_can_create_gpu(kgem, width, height, bpp);
+	DBG(("%s(%dx%d, bpp=%d) = %d\n", __FUNCTION__,
+	     width, height, bpp, ret));
 	return ret;
 }
 #else
-bool kgem_can_create_2d(struct kgem *kgem,
-			int width, int height, int bpp, int tiling)
+bool kgem_can_create_gpu(struct kgem *kgem, int width, int height, int bpp)
 {
-	return _kgem_can_create_2d(kgem, width, height, bpp, tiling);
+	return _kgem_can_create_gpu(kgem, width, height, bpp);
 }
 #endif
 
@@ -2177,12 +2202,12 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	     !!(flags & CREATE_GTT_MAP),
 	     !!(flags & CREATE_SCANOUT)));
 
-	assert(_kgem_can_create_2d(kgem, width, height, bpp, flags & CREATE_EXACT ? -tiling : tiling));
 	size = kgem_surface_size(kgem,
 				 kgem->has_relaxed_fencing,
 				 flags & CREATE_SCANOUT,
 				 width, height, bpp, tiling, &pitch);
-	assert(size && size <= kgem->max_object_size);
+	assert(size && size < kgem->max_cpu_size);
+	assert(tiling == I915_TILING_NONE || size < kgem->max_gpu_size);
 
 	if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 		int for_cpu = !!(flags & CREATE_CPU_MAP);
@@ -2341,6 +2366,9 @@ skip_active_search:
 			     bo->size, size));
 			continue;
 		}
+
+		if ((flags & CREATE_CPU_MAP) == 0 && IS_CPU_MAP(bo->map))
+			continue;
 
 		if (bo->tiling != tiling ||
 		    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
@@ -2643,8 +2671,11 @@ static void kgem_trim_vma_cache(struct kgem *kgem, int type, int bucket)
 		list_del(&bo->vma);
 		kgem->vma[type].count--;
 
-		if (!bo->purged && !kgem_bo_set_purgeable(kgem, bo))
+		if (!bo->purged && !kgem_bo_set_purgeable(kgem, bo)) {
+			DBG(("%s: freeing unpurgeable old mapping\n",
+			     __FUNCTION__));
 			kgem_bo_free(kgem, bo);
+		}
 	}
 }
 

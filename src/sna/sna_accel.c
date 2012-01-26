@@ -245,7 +245,7 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 
 	assert(priv->stride);
 
-	if (sna->kgem.has_cpu_bo) {
+	if (sna->kgem.has_cpu_bo || !priv->gpu) {
 		DBG(("%s: allocating CPU buffer (%dx%d)\n", __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height));
 
@@ -515,11 +515,10 @@ struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
 		break;
 
 	default:
-		if (!kgem_can_create_2d(&sna->kgem,
-					pixmap->drawable.width,
-					pixmap->drawable.height,
-					pixmap->drawable.bitsPerPixel,
-					I915_TILING_NONE))
+		if (!kgem_can_create_gpu(&sna->kgem,
+					 pixmap->drawable.width,
+					 pixmap->drawable.height,
+					 pixmap->drawable.bitsPerPixel))
 			return NULL;
 		break;
 	}
@@ -586,6 +585,11 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 		return create_pixmap(sna, screen, width, height, depth,
 				     CREATE_PIXMAP_USAGE_SCRATCH);
 
+	bpp = BitsPerPixel(depth);
+	if (!kgem_can_create_gpu(&sna->kgem, width, height, bpp))
+		return create_pixmap(sna, screen, width, height, depth,
+				     CREATE_PIXMAP_USAGE_SCRATCH);
+
 	if (tiling == I915_TILING_Y && !sna->have_render)
 		tiling = I915_TILING_X;
 
@@ -594,11 +598,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	     height > sna->render.max_3d_size))
 		tiling = I915_TILING_X;
 
-	bpp = BitsPerPixel(depth);
 	tiling = kgem_choose_tiling(&sna->kgem, tiling, width, height, bpp);
-	if (!kgem_can_create_2d(&sna->kgem, width, height, bpp, tiling))
-		return create_pixmap(sna, screen, width, height, depth,
-				     CREATE_PIXMAP_USAGE_SCRATCH);
 
 	/* you promise never to access this via the cpu... */
 	if (sna->freed_pixmap) {
@@ -669,7 +669,10 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
 
-	if (depth < 8 || wedged(sna) || !sna->have_render)
+	if (!kgem_can_create_cpu(&sna->kgem, width, height, depth))
+		return create_pixmap(sna, screen, width, height, depth, usage);
+
+	if (!sna->have_render)
 		return create_pixmap(sna, screen,
 				     width, height, depth,
 				     usage);
@@ -696,13 +699,11 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 						 width, height, depth,
 						 I915_TILING_Y);
 
-	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE ||
-	    !kgem_can_create_2d(&sna->kgem, width, height,
-				BitsPerPixel(depth), I915_TILING_NONE))
+	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE)
 		return create_pixmap(sna, screen, width, height, depth, usage);
 
 	pad = PixmapBytePad(width, depth);
-	if (pad*height <= 4096) {
+	if (pad * height <= 4096) {
 		pixmap = create_pixmap(sna, screen,
 				       width, height, depth, usage);
 		if (pixmap == NullPixmap)
@@ -729,7 +730,9 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		}
 
 		priv->stride = pad;
-		priv->gpu = true;
+		priv->gpu = kgem_can_create_gpu(&sna->kgem,
+						width, height,
+						pixmap->drawable.bitsPerPixel);
 	}
 
 	return pixmap;
@@ -1821,12 +1824,16 @@ _sna_drawable_use_cpu_bo(DrawablePtr drawable,
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna_pixmap *priv = sna_pixmap(pixmap);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
 	BoxRec extents;
 	int16_t dx, dy;
 
 	assert_drawable_contains_box(drawable, box);
 
 	if (priv == NULL || priv->cpu_bo == NULL)
+		return FALSE;
+
+	if (!sna->kgem.has_llc && priv->cpu_bo->domain == DOMAIN_CPU)
 		return FALSE;
 
 	if (DAMAGE_IS_ALL(priv->cpu_damage)) {
@@ -1876,9 +1883,7 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	assert(width);
 	assert(height);
 	if (!sna->have_render ||
-	    !kgem_can_create_2d(&sna->kgem,
-				width, height, bpp,
-				I915_TILING_NONE))
+	    !kgem_can_create_gpu(&sna->kgem, width, height, bpp))
 		return create_pixmap(sna, screen, width, height, depth,
 				     CREATE_PIXMAP_USAGE_SCRATCH);
 
@@ -2024,7 +2029,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	sna_damage_reduce(&priv->cpu_damage);
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
 	if (priv->gpu_bo == NULL) {
-		if (!wedged(sna))
+		if (!wedged(sna) && priv->gpu)
 			priv->gpu_bo =
 				kgem_create_2d(&sna->kgem,
 					       pixmap->drawable.width,
@@ -3195,24 +3200,19 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 	}
 
 	/* Try to maintain the data on the GPU */
-	if (dst_priv->gpu_bo == NULL &&
+	if (dst_priv->gpu_bo == NULL && dst_priv->gpu &&
 	    ((dst_priv->cpu_damage == NULL && copy_use_gpu_bo(sna, dst_priv, &region)) ||
 	     (src_priv && (src_priv->gpu_bo != NULL || (src_priv->cpu_bo && kgem_bo_is_busy(src_priv->cpu_bo)))))) {
 		uint32_t tiling = sna_pixmap_choose_tiling(dst_pixmap);
 
 		DBG(("%s: create dst GPU bo for upload\n", __FUNCTION__));
 
-		if (kgem_can_create_2d(&sna->kgem,
+		dst_priv->gpu_bo =
+			kgem_create_2d(&sna->kgem,
 				       dst_pixmap->drawable.width,
 				       dst_pixmap->drawable.height,
 				       dst_pixmap->drawable.bitsPerPixel,
-				       tiling))
-			dst_priv->gpu_bo =
-				kgem_create_2d(&sna->kgem,
-					       dst_pixmap->drawable.width,
-					       dst_pixmap->drawable.height,
-					       dst_pixmap->drawable.bitsPerPixel,
-					       tiling, 0);
+				       tiling, 0);
 	}
 
 	if (dst_priv->gpu_bo) {
