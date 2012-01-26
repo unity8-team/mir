@@ -11154,11 +11154,13 @@ sna_get_image(DrawablePtr drawable,
 	      char *dst)
 {
 	RegionRec region;
+	DDXPointRec origin;
 
 	DBG(("%s (%d, %d, %d, %d)\n", __FUNCTION__, x, y, w, h));
 
-	region.extents.x1 = x + drawable->x;
-	region.extents.y1 = y + drawable->y;
+	/* XXX should be clipped already according to the spec... */
+	origin.x = region.extents.x1 = x + drawable->x;
+	origin.y = region.extents.y1 = y + drawable->y;
 	region.extents.x2 = region.extents.x1 + w;
 	region.extents.y2 = region.extents.y1 + h;
 	region.data = NULL;
@@ -11173,14 +11175,46 @@ sna_get_image(DrawablePtr drawable,
 			region.extents.y1 = drawable->y;
 		if (region.extents.y2 > drawable->y + drawable->height)
 			region.extents.y2 = drawable->y + drawable->height;
-	} else
-		RegionIntersect(&region, &region,
-				&((WindowPtr)drawable)->borderClip);
+	} else {
+		pixman_box16_t *c = &((WindowPtr)drawable)->borderClip.extents;
+		pixman_box16_t *r = &region.extents;
+
+		if (r->x1 < c->x1)
+			r->x1 = c->x1;
+		if (r->x2 > c->x2)
+			r->x2 = c->x2;
+
+		if (r->y1 < c->y1)
+			r->y1 = c->y1;
+		if (r->y2 > c->y2)
+			r->y2 = c->y2;
+	}
 
 	if (!sna_drawable_move_region_to_cpu(drawable, &region, MOVE_READ))
 		return;
 
-	fbGetImage(drawable, x, y, w, h, format, mask, dst);
+	if (format == ZPixmap &&
+	    drawable->bitsPerPixel >= 8 &&
+	    PM_IS_SOLID(drawable, mask)) {
+		PixmapPtr pixmap = get_drawable_pixmap(drawable);
+		int16_t dx, dy;
+
+		DBG(("%s: copy box (%d, %d), (%d, %d), origin (%d, %d)\n",
+		     __FUNCTION__,
+		     region.extents.x1, region.extents.y1,
+		     region.extents.x2, region.extents.y2,
+		     origin.x, origin.y));
+		get_drawable_deltas(drawable, pixmap, &dx, &dy);
+		memcpy_blt(pixmap->devPrivate.ptr, dst, drawable->bitsPerPixel,
+			   pixmap->devKind, PixmapBytePad(w, drawable->depth),
+			   region.extents.x1 + dx,
+			   region.extents.y1 + dy,
+			   region.extents.x1 - origin.x,
+			   region.extents.y1 - origin.y,
+			   region.extents.x2 - region.extents.x1,
+			   region.extents.y2 - region.extents.y1);
+	} else
+		fbGetImage(drawable, x, y, w, h, format, mask, dst);
 }
 
 static void
