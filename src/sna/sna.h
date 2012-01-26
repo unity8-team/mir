@@ -465,7 +465,8 @@ sna_drawable_move_to_cpu(DrawablePtr drawable, unsigned flags)
 	RegionRec region;
 
 	pixman_region_init_rect(&region,
-				0, 0, drawable->width, drawable->height);
+				drawable->x, drawable->y,
+				drawable->width, drawable->height);
 	return sna_drawable_move_region_to_cpu(drawable, &region, flags);
 }
 
