@@ -295,7 +295,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 	if (DBG_NO_CPU_BO)
 		return NULL;
 
-	priv = sna_pixmap_attach(pixmap);
+	priv = sna_pixmap(pixmap);
 	if (priv == NULL || priv->cpu_bo == NULL) {
 		DBG(("%s: no cpu bo\n", __FUNCTION__));
 		return NULL;
@@ -332,7 +332,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		int w = box->x2 - box->x1;
 		int h = box->y2 - box->y1;
 
-		if (pixmap->usage_hint)
+		if (!priv->gpu)
 			goto done;
 
 		if (priv->source_count*w*h >= pixmap->drawable.width * pixmap->drawable.height &&
@@ -349,7 +349,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 done:
 	DBG(("%s for box=(%d, %d), (%d, %d)\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2));
-	return kgem_bo_reference(priv->cpu_bo);
+	return priv->cpu_bo;
 }
 
 static Bool
@@ -583,22 +583,24 @@ sna_render_pixmap_bo(struct sna *sna,
 	     pixmap->drawable.width, pixmap->drawable.height));
 
 	bo = use_cpu_bo(sna, pixmap, &box);
-	if (bo == NULL &&
-	    texture_is_cpu(pixmap, &box) &&
-	    !move_to_gpu(pixmap, &box)) {
-		DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
-		     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
-		bo = upload(sna, channel, pixmap, &box);
-	}
-
-	if (bo == NULL) {
-		priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
-		if (priv) {
-			bo = kgem_bo_reference(priv->gpu_bo);
-		} else {
-			DBG(("%s: failed to upload pixmap to gpu, uploading CPU box (%d, %d), (%d, %d) instead\n",
+	if (bo) {
+		bo = kgem_bo_reference(bo);
+	} else {
+		if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
+			DBG(("%s: uploading CPU box (%d, %d), (%d, %d)\n",
 			     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
 			bo = upload(sna, channel, pixmap, &box);
+		}
+
+		if (bo == NULL) {
+			priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
+			if (priv) {
+				bo = kgem_bo_reference(priv->gpu_bo);
+			} else {
+				DBG(("%s: failed to upload pixmap to gpu, uploading CPU box (%d, %d), (%d, %d) instead\n",
+				     __FUNCTION__, box.x1, box.y1, box.x2, box.y2));
+				bo = upload(sna, channel, pixmap, &box);
+			}
 		}
 	}
 
@@ -870,7 +872,7 @@ sna_render_picture_extract(struct sna *sna,
 			   int16_t w, int16_t h,
 			   int16_t dst_x, int16_t dst_y)
 {
-	struct kgem_bo *bo = NULL;
+	struct kgem_bo *bo = NULL, *src_bo;
 	PixmapPtr pixmap = get_drawable_pixmap(picture->pDrawable);
 	int16_t ox, oy, ow, oh;
 	BoxRec box;
@@ -962,47 +964,46 @@ sna_render_picture_extract(struct sna *sna,
 						     dst_x, dst_y);
 	}
 
-	if (texture_is_cpu(pixmap, &box) && !move_to_gpu(pixmap, &box)) {
-		bo = kgem_upload_source_image(&sna->kgem,
-					      pixmap->devPrivate.ptr,
-					      &box,
-					      pixmap->devKind,
-					      pixmap->drawable.bitsPerPixel);
-		if (bo == NULL) {
-			DBG(("%s: failed to upload source image, using clear\n",
-			     __FUNCTION__));
-			return 0;
-		}
-	} else {
-		if (!sna_pixmap_move_to_gpu(pixmap, MOVE_READ)) {
-			DBG(("%s: falback -- pixmap is not on the GPU\n",
-			     __FUNCTION__));
-			return sna_render_picture_fixup(sna, picture, channel,
-							x, y, ow, oh, dst_x, dst_y);
-		}
+	src_bo = use_cpu_bo(sna, pixmap, &box);
+	if (src_bo == NULL) {
+		if (texture_is_cpu(pixmap, &box) &&
+		    !move_to_gpu(pixmap, &box)) {
+			bo = kgem_upload_source_image(&sna->kgem,
+						      pixmap->devPrivate.ptr,
+						      &box,
+						      pixmap->devKind,
+						      pixmap->drawable.bitsPerPixel);
+		} else {
+			struct sna_pixmap *priv;
 
+			priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
+			if (priv)
+				src_bo = priv->gpu_bo;
+		}
+	}
+
+	if (src_bo) {
 		bo = kgem_create_2d(&sna->kgem, w, h,
 				    pixmap->drawable.bitsPerPixel,
 				    kgem_choose_tiling(&sna->kgem,
 						       I915_TILING_X, w, h,
 						       pixmap->drawable.bitsPerPixel),
 				    0);
-		if (!bo) {
-			DBG(("%s: failed to create bo, using clear\n",
-			     __FUNCTION__));
-			return 0;
-		}
-
-		if (!sna_blt_copy_boxes(sna, GXcopy,
-					sna_pixmap_get_bo(pixmap), 0, 0,
+		if (bo && !sna_blt_copy_boxes(sna, GXcopy,
+					src_bo, 0, 0,
 					bo, -box.x1, -box.y1,
 					pixmap->drawable.bitsPerPixel,
 					&box, 1)) {
-			DBG(("%s: fallback -- unable to copy boxes\n",
-			     __FUNCTION__));
-			return sna_render_picture_fixup(sna, picture, channel,
-							x, y, ow, oh, dst_x, dst_y);
+			kgem_bo_destroy(&sna->kgem, bo);
+			bo = NULL;
 		}
+	}
+
+	if (bo == NULL) {
+		DBG(("%s: falback -- pixmap is not on the GPU\n",
+		     __FUNCTION__));
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, ow, oh, dst_x, dst_y);
 	}
 
 	if (ox == x && oy == y) {
