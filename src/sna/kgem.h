@@ -363,9 +363,15 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 	if (bo->domain == DOMAIN_GTT)
 		return true;
 
+	if (IS_GTT_MAP(bo->map))
+		return true;
+
 	if (kgem->gen < 40 && bo->tiling &&
 	    bo->presumed_offset & (kgem_bo_fenced_size(kgem, bo) - 1))
 		return false;
+
+	if (!bo->presumed_offset)
+		return bo->size <= kgem->aperture_mappable / 4;
 
 	return bo->presumed_offset + bo->size <= kgem->aperture_mappable;
 }

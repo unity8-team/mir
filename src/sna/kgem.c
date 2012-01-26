@@ -658,15 +658,22 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 		 * disable dual-stream mode */
 		kgem->min_alignment = 64;
 
-	kgem->max_gpu_size = kgem->aperture_mappable / 2;
-	if (kgem->max_gpu_size > kgem->aperture_low)
-		kgem->max_gpu_size = kgem->aperture_low;
-	if (kgem->max_gpu_size > MAX_OBJECT_SIZE)
-		kgem->max_gpu_size = MAX_OBJECT_SIZE;
-
 	kgem->max_cpu_size = kgem->aperture_total / 2;
 	if (kgem->max_cpu_size > MAX_OBJECT_SIZE)
 		kgem->max_cpu_size = MAX_OBJECT_SIZE;
+
+	kgem->max_gpu_size = -1;
+	if (gen < 40) {
+		/* If we have to use fences for blitting, we have to make
+		 * sure we can fit them into the aperture.
+		 */
+		kgem->max_gpu_size = kgem->aperture_mappable / 2;
+		if (kgem->max_gpu_size > kgem->aperture_low)
+			kgem->max_gpu_size = kgem->aperture_low;
+	}
+	if (kgem->max_gpu_size > kgem->max_cpu_size)
+		kgem->max_gpu_size = kgem->max_cpu_size;
+
 	DBG(("%s: max object size (tiled=%d, linear=%d)\n",
 	     __FUNCTION__, kgem->max_gpu_size, kgem->max_cpu_size));
 
@@ -2729,6 +2736,8 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 
 	ptr = bo->map;
 	if (ptr == NULL) {
+		assert(bo->size <= kgem->aperture_mappable / 4);
+
 		kgem_trim_vma_cache(kgem, MAP_GTT, bo->bucket);
 
 		ptr = gem_mmap(kgem->fd, bo->handle, bo->size,
