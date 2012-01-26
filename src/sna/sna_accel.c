@@ -2907,6 +2907,9 @@ sna_put_image(DrawablePtr drawable, GCPtr gc, int depth,
 
 	RegionTranslate(&region, dx, dy);
 
+	if (FORCE_FALLBACK)
+		goto fallback;
+
 	if (wedged(sna))
 		goto fallback;
 
