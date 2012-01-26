@@ -191,12 +191,6 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
 					 BoxPtr box,
 					 int stride, int bpp);
-struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
-						pixman_format_code_t format,
-						const void *data,
-						int x, int y,
-						int width, int height,
-						int stride, int bpp);
 
 int kgem_choose_tiling(struct kgem *kgem,
 		       int tiling, int width, int height, int bpp);

@@ -57,6 +57,8 @@ struct sna_composite_op {
 		int16_t offset[2];
 		float scale[2];
 
+		pixman_transform_t embedded_transform;
+
 		union {
 			struct {
 				uint32_t pixel;
