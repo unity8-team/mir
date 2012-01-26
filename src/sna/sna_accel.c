@@ -797,7 +797,7 @@ sna_pixmap_create_mappable_gpu(PixmapPtr pixmap)
 			       sna_pixmap_choose_tiling(pixmap),
 			       CREATE_GTT_MAP | CREATE_INACTIVE);
 
-	return priv->gpu_bo != NULL;
+	return priv->gpu_bo && kgem_bo_is_mappable(&sna->kgem, priv->gpu_bo);
 }
 
 bool
@@ -835,7 +835,8 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 				    priv->gpu_bo->exec == NULL)
 					kgem_retire(&sna->kgem);
 
-				if (kgem_bo_is_busy(priv->gpu_bo)) {
+				if (kgem_bo_map_will_stall(&sna->kgem,
+							   priv->gpu_bo)) {
 					if (priv->pinned)
 						goto skip_inplace_map;
 
@@ -897,7 +898,7 @@ skip_inplace_map:
 
 	if (flags & MOVE_INPLACE_HINT &&
 	    priv->stride && priv->gpu_bo &&
-	    !kgem_bo_is_busy(priv->gpu_bo) &&
+	    !kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo) &&
 	    pixmap_inplace(sna, pixmap, priv) &&
 	    sna_pixmap_move_to_gpu(pixmap, flags)) {
 		assert(flags & MOVE_WRITE);
@@ -1250,7 +1251,7 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 
 	if (flags & MOVE_INPLACE_HINT &&
 	    priv->stride && priv->gpu_bo &&
-	    !kgem_bo_is_busy(priv->gpu_bo) &&
+	    !kgem_bo_map_will_stall(&sna->kgem, priv->gpu_bo) &&
 	    region_inplace(sna, pixmap, region, priv) &&
 	    sna_pixmap_move_area_to_gpu(pixmap, &region->extents, flags)) {
 		assert(flags & MOVE_WRITE);

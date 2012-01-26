@@ -122,8 +122,7 @@ void sna_read_boxes(struct sna *sna,
 	 * this path.
 	 */
 
-	if (DEBUG_NO_IO || kgem->wedged ||
-	    !kgem_bo_map_will_stall(kgem, src_bo) ||
+	if (!kgem_bo_map_will_stall(kgem, src_bo) ||
 	    src_bo->tiling == I915_TILING_NONE) {
 fallback:
 		read_boxes_inplace(kgem,
@@ -386,10 +385,7 @@ static bool upload_inplace(struct kgem *kgem,
 			   int n, int bpp)
 {
 	if (DEBUG_NO_IO)
-		return true;
-
-	if (unlikely(kgem->wedged))
-		return true;
+		return kgem_bo_is_mappable(kgem, bo);
 
 	/* If we are writing through the GTT, check first if we might be
 	 * able to almagamate a series of small writes into a single
@@ -993,14 +989,27 @@ struct kgem_bo *sna_replace(struct sna *sna,
 		kgem_bo_write(kgem, bo, src,
 			      (pixmap->drawable.height-1)*stride + pixmap->drawable.width*pixmap->drawable.bitsPerPixel/8);
 	} else {
-		dst = kgem_bo_map(kgem, bo);
-		if (dst) {
-			memcpy_blt(src, dst, pixmap->drawable.bitsPerPixel,
-				   stride, bo->pitch,
-				   0, 0,
-				   0, 0,
-				   pixmap->drawable.width,
-				   pixmap->drawable.height);
+		if (kgem_bo_is_mappable(kgem, bo)) {
+			dst = kgem_bo_map(kgem, bo);
+			if (dst) {
+				memcpy_blt(src, dst, pixmap->drawable.bitsPerPixel,
+					   stride, bo->pitch,
+					   0, 0,
+					   0, 0,
+					   pixmap->drawable.width,
+					   pixmap->drawable.height);
+			}
+		} else {
+			BoxRec box;
+
+			box.x1 = box.y1 = 0;
+			box.x2 = pixmap->drawable.width;
+			box.y2 = pixmap->drawable.height;
+
+			sna_write_boxes(sna, pixmap,
+					bo, 0, 0,
+					src, stride, 0, 0,
+					&box, 1);
 		}
 	}
 
@@ -1038,15 +1047,29 @@ struct kgem_bo *sna_replace__xor(struct sna *sna,
 		}
 	}
 
-	dst = kgem_bo_map(kgem, bo);
-	if (dst) {
-		memcpy_xor(src, dst, pixmap->drawable.bitsPerPixel,
-			   stride, bo->pitch,
-			   0, 0,
-			   0, 0,
-			   pixmap->drawable.width,
-			   pixmap->drawable.height,
-			   and, or);
+	if (kgem_bo_is_mappable(kgem, bo)) {
+		dst = kgem_bo_map(kgem, bo);
+		if (dst) {
+			memcpy_xor(src, dst, pixmap->drawable.bitsPerPixel,
+				   stride, bo->pitch,
+				   0, 0,
+				   0, 0,
+				   pixmap->drawable.width,
+				   pixmap->drawable.height,
+				   and, or);
+		}
+	} else {
+		BoxRec box;
+
+		box.x1 = box.y1 = 0;
+		box.x2 = pixmap->drawable.width;
+		box.y2 = pixmap->drawable.height;
+
+		sna_write_boxes__xor(sna, pixmap,
+				     bo, 0, 0,
+				     src, stride, 0, 0,
+				     &box, 1,
+				     and, or);
 	}
 
 	return bo;

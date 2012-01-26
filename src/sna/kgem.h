@@ -394,13 +394,19 @@ static inline bool kgem_bo_map_will_stall(struct kgem *kgem, struct kgem_bo *bo)
 	     __FUNCTION__, bo->handle,
 	     bo->domain, bo->presumed_offset, bo->size));
 
+	if (!kgem_bo_is_mappable(kgem, bo))
+		return true;
+
+	if (kgem->wedged)
+		return false;
+
 	if (kgem_bo_is_busy(bo))
 		return true;
 
 	if (bo->presumed_offset == 0)
 		return !list_is_empty(&kgem->requests);
 
-	return !kgem_bo_is_mappable(kgem, bo);
+	return false;
 }
 
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
