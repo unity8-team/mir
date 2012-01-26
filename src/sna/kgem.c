@@ -634,7 +634,7 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	kgem->aperture_total = aperture.aper_size;
 	kgem->aperture_high = aperture.aper_size * 3/4;
-	kgem->aperture_low = aperture.aper_size * 1/4;
+	kgem->aperture_low = aperture.aper_size * 1/3;
 	DBG(("%s: aperture low=%d [%d], high=%d [%d]\n", __FUNCTION__,
 	     kgem->aperture_low, kgem->aperture_low / (1024*1024),
 	     kgem->aperture_high, kgem->aperture_high / (1024*1024)));
@@ -2484,9 +2484,6 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 	int num_exec = 0;
 	int size = 0;
 
-	if (kgem->aperture > kgem->aperture_low)
-		return false;
-
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
 		if (bo->exec)
@@ -2496,6 +2493,12 @@ bool kgem_check_bo(struct kgem *kgem, ...)
 		num_exec++;
 	}
 	va_end(ap);
+
+	if (!size)
+		return true;
+
+	if (kgem->aperture > kgem->aperture_low)
+		return false;
 
 	if (size + kgem->aperture > kgem->aperture_high)
 		return false;
@@ -2514,9 +2517,6 @@ bool kgem_check_bo_fenced(struct kgem *kgem, ...)
 	int num_exec = 0;
 	int size = 0;
 	int fenced_size = 0;
-
-	if (unlikely (kgem->aperture > kgem->aperture_low))
-		return false;
 
 	va_start(ap, kgem);
 	while ((bo = va_arg(ap, struct kgem_bo *))) {
@@ -2544,13 +2544,19 @@ bool kgem_check_bo_fenced(struct kgem *kgem, ...)
 	if (fenced_size + kgem->aperture_fenced > kgem->aperture_mappable)
 		return false;
 
+	if (kgem->nfence + num_fence > kgem->fence_max)
+		return false;
+
+	if (!size)
+		return true;
+
+	if (kgem->aperture > kgem->aperture_low)
+		return false;
+
 	if (size + kgem->aperture > kgem->aperture_high)
 		return false;
 
 	if (kgem->nexec + num_exec >= KGEM_EXEC_SIZE(kgem))
-		return false;
-
-	if (kgem->nfence + num_fence >= kgem->fence_max)
 		return false;
 
 	return true;
