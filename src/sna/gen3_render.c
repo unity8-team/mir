@@ -2337,32 +2337,42 @@ gen3_composite_set_target(struct sna *sna,
 	op->dst.height = op->dst.pixmap->drawable.height;
 	priv = sna_pixmap(op->dst.pixmap);
 
-	priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
-	if (priv == NULL)
-		return FALSE;
-
-	/* For single-stream mode there should be no minimum alignment
-	 * required, except that the width must be at least 2 elements.
-	 */
-	if (priv->gpu_bo->pitch < 2*op->dst.pixmap->drawable.bitsPerPixel) {
-		struct kgem_bo *bo;
-
-		if (priv->pinned)
-			return FALSE;
-
-		bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
-				     op->dst.width, op->dst.height,
-				     2*op->dst.pixmap->drawable.bitsPerPixel,
-				     op->dst.pixmap->drawable.bitsPerPixel);
-		if (bo == NULL)
-			return FALSE;
-
-		kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
-		priv->gpu_bo = bo;
+	op->dst.bo = NULL;
+	priv = sna_pixmap(op->dst.pixmap);
+	if (priv &&
+	    priv->gpu_bo == NULL &&
+	    priv->cpu_bo && priv->cpu_bo->domain != DOMAIN_CPU) {
+		op->dst.bo = priv->cpu_bo;
+		op->damage = &priv->cpu_damage;
 	}
+	if (op->dst.bo == NULL) {
+		priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
+		if (priv == NULL)
+			return FALSE;
 
-	op->dst.bo = priv->gpu_bo;
-	op->damage = &priv->gpu_damage;
+		/* For single-stream mode there should be no minimum alignment
+		 * required, except that the width must be at least 2 elements.
+		 */
+		if (priv->gpu_bo->pitch < 2*op->dst.pixmap->drawable.bitsPerPixel) {
+			struct kgem_bo *bo;
+
+			if (priv->pinned)
+				return FALSE;
+
+			bo = kgem_replace_bo(&sna->kgem, priv->gpu_bo,
+					     op->dst.width, op->dst.height,
+					     2*op->dst.pixmap->drawable.bitsPerPixel,
+					     op->dst.pixmap->drawable.bitsPerPixel);
+			if (bo == NULL)
+				return FALSE;
+
+			kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
+			priv->gpu_bo = bo;
+		}
+
+		op->dst.bo = priv->gpu_bo;
+		op->damage = &priv->gpu_damage;
+	}
 	if (sna_damage_is_all(op->damage, op->dst.width, op->dst.height))
 		op->damage = NULL;
 
@@ -2475,7 +2485,9 @@ gen3_composite_fallback(struct sna *sna,
 
 	if (src_pixmap && !is_solid(src) && !source_fallback(src)) {
 		priv = sna_pixmap(src_pixmap);
-		if (priv && priv->gpu_damage && !priv->cpu_damage) {
+		if (priv &&
+		    ((priv->gpu_damage && !priv->cpu_damage) ||
+		     (priv->cpu_bo && priv->cpu_bo->domain != DOMAIN_CPU))) {
 			DBG(("%s: src is already on the GPU, try to use GPU\n",
 			     __FUNCTION__));
 			return FALSE;
@@ -2483,7 +2495,9 @@ gen3_composite_fallback(struct sna *sna,
 	}
 	if (mask_pixmap && !is_solid(mask) && !source_fallback(mask)) {
 		priv = sna_pixmap(mask_pixmap);
-		if (priv && priv->gpu_damage && !priv->cpu_damage) {
+		if (priv &&
+		    ((priv->gpu_damage && !priv->cpu_damage) ||
+		     (priv->cpu_bo && priv->cpu_bo->domain != DOMAIN_CPU))) {
 			DBG(("%s: mask is already on the GPU, try to use GPU\n",
 			     __FUNCTION__));
 			return FALSE;
