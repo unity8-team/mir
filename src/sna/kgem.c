@@ -2189,7 +2189,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	struct kgem_bo *bo, *next;
 	uint32_t pitch, untiled_pitch, tiled_height, size;
 	uint32_t handle;
-	int i;
+	int i, bucket, retry;
 
 	if (tiling < 0)
 		tiling = -tiling, flags |= CREATE_EXACT;
@@ -2208,6 +2208,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				 width, height, bpp, tiling, &pitch);
 	assert(size && size < kgem->max_cpu_size);
 	assert(tiling == I915_TILING_NONE || size < kgem->max_gpu_size);
+	bucket = cache_bucket(size);
 
 	if (flags & (CREATE_CPU_MAP | CREATE_GTT_MAP)) {
 		int for_cpu = !!(flags & CREATE_CPU_MAP);
@@ -2216,10 +2217,10 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		/* We presume that we will need to upload to this bo,
 		 * and so would prefer to have an active VMA.
 		 */
-		cache = &kgem->vma[for_cpu].inactive[cache_bucket(size)];
+		cache = &kgem->vma[for_cpu].inactive[bucket];
 		do {
 			list_for_each_entry(bo, cache, vma) {
-				assert(bo->bucket == cache_bucket(size));
+				assert(bo->bucket == bucket);
 				assert(bo->refcnt == 0);
 				assert(bo->map);
 				assert(IS_CPU_MAP(bo->map) == for_cpu);
@@ -2263,13 +2264,17 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		goto skip_active_search;
 
 	/* Best active match */
-	cache = active(kgem, size, tiling);
+	retry = NUM_CACHE_BUCKETS - bucket;
+	if (retry > 3)
+		retry = 3;
+search_again:
+	cache = &kgem->active[bucket][tiling];
 	if (tiling) {
 		tiled_height = kgem_aligned_height(kgem, height, tiling);
 		list_for_each_entry(bo, cache, list) {
-			assert(bo->bucket == cache_bucket(size));
 			assert(!bo->purged);
 			assert(bo->refcnt == 0);
+			assert(bo->bucket == bucket);
 			assert(bo->reusable);
 			assert(bo->tiling == tiling);
 
@@ -2279,7 +2284,6 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 				     bo->pitch, pitch));
 				continue;
 			}
-
 
 			if (bo->pitch * tiled_height > bo->size)
 				continue;
@@ -2294,7 +2298,7 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 		}
 	} else {
 		list_for_each_entry(bo, cache, list) {
-			assert(bo->bucket == cache_bucket(size));
+			assert(bo->bucket == bucket);
 			assert(!bo->purged);
 			assert(bo->refcnt == 0);
 			assert(bo->reusable);
@@ -2312,6 +2316,11 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 			     bo->pitch, bo->tiling, bo->handle, bo->unique_id));
 			return kgem_bo_reference(bo);
 		}
+	}
+
+	if (--retry && flags & CREATE_EXACT) {
+		bucket++;
+		goto search_again;
 	}
 
 	if ((flags & CREATE_EXACT) == 0) { /* allow an active near-miss? */
@@ -2356,10 +2365,15 @@ struct kgem_bo *kgem_create_2d(struct kgem *kgem,
 	}
 
 skip_active_search:
+	bucket = cache_bucket(size);
+	retry = NUM_CACHE_BUCKETS - bucket;
+	if (retry > 3)
+		retry = 3;
+search_inactive:
 	/* Now just look for a close match and prefer any currently active */
-	cache = inactive(kgem, size);
+	cache = &kgem->inactive[bucket];
 	list_for_each_entry_safe(bo, next, cache, list) {
-		assert(bo->bucket == cache_bucket(size));
+		assert(bo->bucket == bucket);
 
 		if (size > bo->size) {
 			DBG(("inactive too small: %d < %d\n",
@@ -2409,8 +2423,13 @@ skip_active_search:
 	if (flags & CREATE_INACTIVE && !list_is_empty(&kgem->requests)) {
 		if (kgem_retire(kgem)) {
 			flags &= ~CREATE_INACTIVE;
-			goto skip_active_search;
+			goto search_inactive;
 		}
+	}
+
+	if (--retry) {
+		bucket++;
+		goto search_inactive;
 	}
 
 	handle = gem_create(kgem->fd, size);
