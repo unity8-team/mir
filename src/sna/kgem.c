@@ -865,8 +865,10 @@ static void kgem_bo_release_map(struct kgem *kgem, struct kgem_bo *bo)
 	munmap(CPU_MAP(bo->map), bo->size);
 	bo->map = NULL;
 
-	list_del(&bo->vma);
-	kgem->vma[type].count--;
+	if (!list_is_empty(&bo->vma)) {
+		list_del(&bo->vma);
+		kgem->vma[type].count--;
+	}
 }
 
 static void kgem_bo_free(struct kgem *kgem, struct kgem_bo *bo)
@@ -2393,6 +2395,7 @@ skip_active_search:
 		return NULL;
 	}
 
+	bo->domain = DOMAIN_CPU;
 	bo->unique_id = kgem_get_unique_id(kgem);
 	bo->pitch = pitch;
 	if (tiling != I915_TILING_NONE)
@@ -2598,6 +2601,8 @@ static void kgem_trim_vma_cache(struct kgem *kgem, int type, int bucket)
 {
 	int i, j;
 
+	DBG(("%s: type=%d, count=%d (bucket: %d)\n",
+	     __FUNCTION__, type, kgem->vma[type].count, bucket));
 	if (kgem->vma[type].count <= 0)
 	       return;
 
@@ -2647,14 +2652,17 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 {
 	void *ptr;
 
-	DBG(("%s: handle=%d, tiling=%d, map=%p, domain=%d\n", __FUNCTION__,
-	     bo->handle, bo->tiling, bo->map, bo->domain));
+	DBG(("%s: handle=%d, offset=%d, tiling=%d, map=%p, domain=%d\n", __FUNCTION__,
+	     bo->handle, bo->presumed_offset, bo->tiling, bo->map, bo->domain));
 
 	assert(!bo->purged);
 	assert(bo->exec == NULL);
 	assert(list_is_empty(&bo->list));
 
-	if (kgem->has_llc && bo->tiling == I915_TILING_NONE) {
+	if (bo->tiling == I915_TILING_NONE &&
+	    (kgem->has_llc || bo->domain == bo->presumed_offset)) {
+		DBG(("%s: converting request for GTT map into CPU map\n",
+		     __FUNCTION__));
 		ptr = kgem_bo_map__cpu(kgem, bo);
 		kgem_bo_sync__cpu(kgem, bo);
 		return ptr;
@@ -3110,6 +3118,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (old == NULL)
 			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
 		if (old) {
+			DBG(("%s: reusing ordinary handle %d for io\n",
+			     __FUNCTION__, old->handle));
 			alloc = old->size;
 			bo = partial_bo_alloc(alloc);
 			if (bo == NULL)
@@ -3125,20 +3135,55 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			list_init(&bo->base.list);
 			free(old);
 			bo->base.refcnt = 1;
+
+			bo->need_io = flags & KGEM_BUFFER_WRITE;
+			bo->base.io = true;
 		} else {
-			bo = partial_bo_alloc(alloc);
+			bo = malloc(sizeof(*bo));
 			if (bo == NULL)
 				return NULL;
 
-			if (!__kgem_bo_init(&bo->base,
-					    gem_create(kgem->fd, alloc),
-					    alloc)) {
-				free(bo);
+			old = search_linear_cache(kgem, alloc,
+						  CREATE_INACTIVE | CREATE_CPU_MAP);
+			if (old) {
+				DBG(("%s: reusing cpu map handle=%d for buffer\n",
+				     __FUNCTION__, old->handle));
+
+				memcpy(&bo->base, old, sizeof(*old));
+				if (old->rq)
+					list_replace(&old->request, &bo->base.request);
+				else
+					list_init(&bo->base.request);
+				list_replace(&old->vma, &bo->base.vma);
+				list_init(&bo->base.list);
+				free(old);
+				bo->base.refcnt = 1;
+			} else {
+				if (!__kgem_bo_init(&bo->base,
+						    gem_create(kgem->fd, alloc),
+						    alloc)) {
+					free(bo);
+					return NULL;
+				}
+				DBG(("%s: created handle=%d for buffer\n",
+				     __FUNCTION__, bo->base.handle));
+
+				bo->base.domain = DOMAIN_CPU;
+			}
+
+			bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
+			if (bo->mem == NULL) {
+				kgem_bo_free(kgem, &bo->base);
 				return NULL;
 			}
+
+			if (flags & KGEM_BUFFER_WRITE)
+				kgem_bo_sync__cpu(kgem, &bo->base);
+
+			bo->need_io = false;
+			bo->base.io = true;
+			bo->mmapped = true;
 		}
-		bo->need_io = flags & KGEM_BUFFER_WRITE;
-		bo->base.io = true;
 	}
 	bo->base.reusable = false;
 	assert(bo->base.size == alloc);
@@ -3343,8 +3388,8 @@ void kgem_buffer_read_sync(struct kgem *kgem, struct kgem_bo *_bo)
 		gem_read(kgem->fd,
 			 bo->base.handle, (char *)bo->mem+offset,
 			 offset, length);
+		kgem_bo_map__cpu(kgem, &bo->base);
 		bo->base.domain = DOMAIN_NONE;
-		bo->base.reusable = false; /* in the CPU cache now */
 	}
 	kgem_bo_retire(kgem, &bo->base);
 }
