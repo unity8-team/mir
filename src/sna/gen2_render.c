@@ -1558,7 +1558,7 @@ gen2_composite_fallback(struct sna *sna,
 
 	/* If anything is on the GPU, push everything out to the GPU */
 	priv = sna_pixmap(dst_pixmap);
-	if (priv && priv->gpu_damage) {
+	if (priv && priv->gpu_damage && !priv->clear) {
 		DBG(("%s: dst is already on the GPU, try to use GPU\n",
 		     __FUNCTION__));
 		return FALSE;
