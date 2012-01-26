@@ -106,6 +106,17 @@ too_small(DrawablePtr drawable)
 }
 
 static inline Bool
+unattached(DrawablePtr drawable)
+{
+	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+
+	if (priv == NULL)
+		return true;
+
+	return priv->gpu_bo == NULL && priv->cpu_bo == NULL;
+}
+
+static inline Bool
 picture_is_gpu(PicturePtr picture)
 {
 	if (!picture || !picture->pDrawable)

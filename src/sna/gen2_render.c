@@ -1514,12 +1514,19 @@ has_alphamap(PicturePtr p)
 }
 
 static bool
+need_upload(PicturePtr p)
+{
+	return p->pDrawable && unattached(p->pDrawable);
+}
+
+static bool
 source_fallback(PicturePtr p)
 {
 	return (has_alphamap(p) ||
 		is_unhandled_gradient(p) ||
 		!gen2_check_filter(p) ||
-		!gen2_check_repeat(p));
+		!gen2_check_repeat(p) ||
+		need_upload(p));
 }
 
 static bool

@@ -2333,9 +2333,20 @@ has_alphamap(PicturePtr p)
 }
 
 static bool
+need_upload(PicturePtr p)
+{
+	return p->pDrawable && unattached(p->pDrawable);
+}
+
+static bool
 source_fallback(PicturePtr p)
 {
-	return has_alphamap(p) || is_gradient(p) || !gen7_check_filter(p) || !gen7_check_repeat(p) || !gen7_check_format(p->format);
+	return (has_alphamap(p) ||
+		is_gradient(p) ||
+		!gen7_check_filter(p) ||
+		!gen7_check_repeat(p) ||
+		!gen7_check_format(p->format) ||
+		need_upload(p));
 }
 
 static bool
