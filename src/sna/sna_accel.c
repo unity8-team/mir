@@ -2016,8 +2016,10 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	     __FUNCTION__, pixmap->drawable.serialNumber, pixmap->usage_hint));
 
 	priv = sna_pixmap(pixmap);
-	if (priv == NULL)
+	if (priv == NULL) {
+		DBG(("%s: not attached\n", __FUNCTION__));
 		return NULL;
+	}
 
 	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		DBG(("%s: already all-damaged\n", __FUNCTION__));
@@ -2039,6 +2041,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 					       sna_pixmap_choose_tiling(pixmap),
 					       priv->cpu_damage ? CREATE_GTT_MAP | CREATE_INACTIVE : 0);
 		if (priv->gpu_bo == NULL) {
+			DBG(("%s: not creating GPU bo\n", __FUNCTION__));
 			assert(list_is_empty(&priv->list));
 			return NULL;
 		}
@@ -8391,6 +8394,45 @@ out:
 	RegionUninit(&data.region);
 }
 
+static struct kgem_bo *
+sna_pixmap_get_source_bo(PixmapPtr pixmap)
+{
+	struct sna_pixmap *priv = sna_pixmap(pixmap);
+
+	if (priv == NULL) {
+		struct kgem_bo *upload;
+		struct sna *sna = to_sna_from_pixmap(pixmap);
+		void *ptr;
+
+		upload = kgem_create_buffer_2d(&sna->kgem,
+					       pixmap->drawable.width,
+					       pixmap->drawable.height,
+					       pixmap->drawable.bitsPerPixel,
+					       KGEM_BUFFER_WRITE_INPLACE,
+					       &ptr);
+		memcpy_blt(pixmap->devPrivate.ptr, ptr,
+			   pixmap->drawable.bitsPerPixel,
+			   pixmap->devKind, upload->pitch,
+			   0, 0,
+			   0, 0,
+			   pixmap->drawable.width,
+			   pixmap->drawable.height);
+
+		return upload;
+	}
+
+	if (priv->gpu_damage && !sna_pixmap_move_to_gpu(pixmap, MOVE_READ))
+		return NULL;
+
+	if (priv->cpu_damage && priv->cpu_bo)
+		return kgem_bo_reference(priv->cpu_bo);
+
+	if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+		return NULL;
+
+	return kgem_bo_reference(priv->gpu_bo);
+}
+
 static Bool
 sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 			     struct kgem_bo *bo,
@@ -8401,6 +8443,7 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	PixmapPtr tile = gc->tile.pixmap;
+	struct kgem_bo *tile_bo;
 	const DDXPointRec * const origin = &gc->patOrg;
 	struct sna_copy_op copy;
 	CARD32 alu = gc->alu;
@@ -8412,25 +8455,30 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 
 	tile_width = tile->drawable.width;
 	tile_height = tile->drawable.height;
-	if ((tile_width | tile_height) == 1)
+	if ((tile_width | tile_height) == 1) {
+		DBG(("%s: single pixel tile pixmap ,converting to solid fill\n",
+		     __FUNCTION__));
 		return sna_poly_fill_rect_blt(drawable, bo, damage,
 					      gc, get_pixel(tile),
 					      n, rect,
 					      extents, clipped);
+	}
 
 	/* XXX [248]x[238] tiling can be reduced to a pattern fill.
 	 * Also we can do the lg2 reduction for BLT and use repeat modes for
 	 * RENDER.
 	 */
 
-	if (!sna_pixmap_move_to_gpu(tile, MOVE_READ))
+	tile_bo = sna_pixmap_get_source_bo(tile);
+	if (tile_bo == NULL) {
+		DBG(("%s: unable to move tile go GPU, fallback\n",
+		     __FUNCTION__));
 		return FALSE;
+	}
 
-	if (!sna_copy_init_blt(&copy, sna,
-			       tile, sna_pixmap_get_bo(tile),
-			       pixmap, bo,
-			       alu)) {
+	if (!sna_copy_init_blt(&copy, sna, tile, tile_bo, pixmap, bo, alu)) {
 		DBG(("%s: unsupported blt\n", __FUNCTION__));
+		kgem_bo_destroy(&sna->kgem, tile_bo);
 		return FALSE;
 	}
 
@@ -8620,6 +8668,7 @@ sna_poly_fill_rect_tiled_blt(DrawablePtr drawable,
 	}
 done:
 	copy.done(sna, &copy);
+	kgem_bo_destroy(&sna->kgem, tile_bo);
 	return TRUE;
 }
 
