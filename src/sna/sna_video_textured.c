@@ -235,11 +235,16 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	     drw_x, drw_y, drw_w, drw_h,
 	     id, width, height, sync));
 
-	if (buf == 0)
+	if (buf == 0) {
+		DBG(("%s: garbage video buffer\n", __FUNCTION__));
 		return BadAlloc;
+	}
 
-	if (!sna_pixmap_is_gpu(pixmap))
+	if (!sna_pixmap_is_gpu(pixmap)) {
+		DBG(("%s: attempting to render to a non-GPU pixmap\n",
+		     __FUNCTION__));
 		return BadAlloc;
+	}
 
 	sna_video_frame_init(sna, video, id, width, height, &frame);
 
@@ -261,16 +266,21 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		}
 
 		frame.bo = kgem_create_for_name(&sna->kgem, *(uint32_t*)buf);
-		if (frame.bo == NULL)
+		if (frame.bo == NULL) {
+			DBG(("%s: failed to open bo\n", __FUNCTION__));
 			return BadAlloc;
+		}
 
 		assert(frame.bo->size >= frame.size);
 	} else {
 		frame.bo = kgem_create_linear(&sna->kgem, frame.size);
-		if (frame.bo == NULL)
+		if (frame.bo == NULL) {
+			DBG(("%s: failed to allocate bo\n", __FUNCTION__));
 			return BadAlloc;
+		}
 
 		if (!sna_video_copy_data(sna, video, &frame, buf)) {
+			DBG(("%s: failed to copy frame\n", __FUNCTION__));
 			kgem_bo_destroy(&sna->kgem, frame.bo);
 			return BadAlloc;
 		}
@@ -281,13 +291,14 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 					      &clip->extents);
 
 	ret = Success;
-	if (sna->render.video(sna, video, &frame, clip,
+	if (!sna->render.video(sna, video, &frame, clip,
 			      src_w, src_h,
 			      drw_w, drw_h,
-			      pixmap))
-		DamageDamageRegion(drawable, clip);
-	else
+			      pixmap)) {
+		DBG(("%s: failed to render video\n", __FUNCTION__));
 		ret = BadAlloc;
+	} else
+		DamageDamageRegion(drawable, clip);
 
 	kgem_bo_destroy(&sna->kgem, frame.bo);
 
