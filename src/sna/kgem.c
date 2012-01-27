@@ -2967,7 +2967,6 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 	DBG(("%s: target handle=%d, offset=%d, length=%d, io=%d\n",
 	     __FUNCTION__, target->handle, offset, length, target->io));
 	assert(target->proxy == NULL);
-	assert(target->tiling == I915_TILING_NONE);
 
 	bo = __kgem_bo_alloc(target->handle, length);
 	if (bo == NULL)
@@ -2975,9 +2974,11 @@ struct kgem_bo *kgem_create_proxy(struct kgem_bo *target,
 
 	bo->io = target->io;
 	bo->dirty = target->dirty;
-	bo->reusable = false;
+	bo->tiling = target->tiling;
+	bo->pitch = target->pitch;
 	bo->proxy = kgem_bo_reference(target);
 	bo->delta = offset;
+	bo->reusable = false;
 	return bo;
 }
 

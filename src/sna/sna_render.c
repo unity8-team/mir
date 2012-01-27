@@ -800,6 +800,103 @@ cleanup_tmp:
 	return ret;
 }
 
+static int
+sna_render_picture_partial(struct sna *sna,
+			   PicturePtr picture,
+			   struct sna_composite_channel *channel,
+			   int16_t x, int16_t y,
+			   int16_t w, int16_t h,
+			   int16_t dst_x, int16_t dst_y)
+{
+	struct kgem_bo *bo = NULL;
+	PixmapPtr pixmap = get_drawable_pixmap(picture->pDrawable);
+	BoxRec box;
+
+	DBG(("%s (%d, %d)x(%d, %d) [dst=(%d, %d)]\n",
+	     __FUNCTION__, x, y, w, h, dst_x, dst_y));
+
+	box.x1 = x;
+	box.y1 = y;
+	box.x2 = x + w;
+	box.y2 = y + h;
+	if (channel->transform)
+		pixman_transform_bounds(channel->transform, &box);
+
+	DBG(("%s sample=(%d, %d), (%d, %d): (%d, %d)/(%d, %d), repeat=%d\n", __FUNCTION__,
+	     box.x1, box.y1, box.x2, box.y2, w, h,
+	     pixmap->drawable.width, pixmap->drawable.height,
+	     channel->repeat));
+
+	if (channel->repeat == RepeatNone || channel->repeat == RepeatPad) {
+		if (box.x1 < 0)
+			box.x1 = 0;
+		if (box.y1 < 0)
+			box.y1 = 0;
+		if (box.x2 > pixmap->drawable.width)
+			box.x2 = pixmap->drawable.width;
+		if (box.y2 > pixmap->drawable.height)
+			box.y2 = pixmap->drawable.height;
+	} else {
+		if (box.x1 < 0 ||
+		    box.y1 < 0 ||
+		    box.x2 > pixmap->drawable.width ||
+		    box.y2 > pixmap->drawable.height) {
+			box.x1 = box.y1 = 0;
+			box.x2 = pixmap->drawable.width;
+			box.y2 = pixmap->drawable.height;
+
+			if (!channel->is_affine)
+				return 0;
+		}
+	}
+
+	/* Presume worst case tile-row alignment for Y-tiling */
+	box.y1 = box.y1 & (64 - 1);
+	box.y2 = ALIGN(box.y2, 64);
+	w = box.x2 - box.x1;
+	h = box.y2 - box.y1;
+	DBG(("%s box=(%d, %d), (%d, %d): (%d, %d)/(%d, %d)\n", __FUNCTION__,
+	     box.x1, box.y1, box.x2, box.y2, w, h,
+	     pixmap->drawable.width, pixmap->drawable.height));
+	if (w <= 0 || h <= 0 || h > sna->render.max_3d_size)
+		return 0;
+
+	memset(&channel->embedded_transform,
+	       0,
+	       sizeof(channel->embedded_transform));
+	channel->embedded_transform.matrix[0][0] = 1 << 16;
+	channel->embedded_transform.matrix[0][2] = 0;
+	channel->embedded_transform.matrix[1][1] = 1 << 16;
+	channel->embedded_transform.matrix[1][2] = -box.y1 << 16;
+	channel->embedded_transform.matrix[2][2] = 1 << 16;
+	if (channel->transform)
+		pixman_transform_multiply(&channel->embedded_transform,
+					  &channel->embedded_transform,
+					  channel->transform);
+	channel->transform = &channel->embedded_transform;
+
+	if (use_cpu_bo(sna, pixmap, &box)) {
+		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
+			return 0;
+
+		bo = sna_pixmap(pixmap)->cpu_bo;
+	} else {
+		if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+			return 0;
+
+		bo = sna_pixmap(pixmap)->gpu_bo;
+	}
+
+	channel->offset[0] = x - dst_x;
+	channel->offset[1] = y - dst_y;
+	channel->scale[0] = 1.f/pixmap->drawable.width;
+	channel->scale[1] = 1.f/h;
+	channel->width  = pixmap->drawable.width;
+	channel->height = h;
+	channel->bo = kgem_create_proxy(bo, box.y1 * bo->pitch, h * bo->pitch);
+	return channel->bo != NULL;
+}
+
 int
 sna_render_picture_extract(struct sna *sna,
 			   PicturePtr picture,
@@ -824,6 +921,12 @@ sna_render_picture_extract(struct sna *sna,
 		DBG(("%s: fallback -- unknown bounds\n", __FUNCTION__));
 		return -1;
 	}
+
+	if (pixmap->drawable.width < sna->render.max_3d_size &&
+	    sna_render_picture_partial(sna, picture, channel,
+				       x, y, w, h,
+				       dst_x, dst_y))
+		return 1;
 
 	ow = w;
 	oh = h;
