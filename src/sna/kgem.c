@@ -3001,6 +3001,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 {
 	struct kgem_partial_bo *bo;
 	unsigned offset, alloc;
+	struct kgem_bo *old;
 
 	DBG(("%s: size=%d, flags=%x [write?=%d, inplace?=%d, last?=%d]\n",
 	     __FUNCTION__, size, flags,
@@ -3008,6 +3009,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	     !!(flags & KGEM_BUFFER_INPLACE),
 	     !!(flags & KGEM_BUFFER_LAST)));
 	assert(size);
+	/* we should never be asked to create anything TOO large */
+	assert(size < kgem->max_cpu_buffer);
 
 	list_for_each_entry(bo, &kgem->partial, base.list) {
 		if (flags == KGEM_BUFFER_LAST && bo->write) {
@@ -3047,14 +3050,10 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		break;
 	}
 
-	/* Be a little more generous and hope to hold fewer mmappings */
-	bo = NULL;
-
 #if !DBG_NO_MAP_UPLOAD
-	alloc = ALIGN(size, kgem->partial_buffer_size);
+	/* Be a little more generous and hope to hold fewer mmappings */
+	alloc = ALIGN(2*size, kgem->partial_buffer_size);
 	if (kgem->has_cpu_bo) {
-		struct kgem_bo *old;
-
 		bo = malloc(sizeof(*bo));
 		if (bo == NULL)
 			return NULL;
@@ -3098,14 +3097,18 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			bo->mmapped = true;
 
 			alloc = bo->base.size;
+			goto init;
 		} else {
 			bo->base.refcnt = 0; /* for valgrind */
 			kgem_bo_free(kgem, &bo->base);
 			bo = NULL;
 		}
-	} else if ((flags & KGEM_BUFFER_WRITE_INPLACE) == KGEM_BUFFER_WRITE_INPLACE) {
-		struct kgem_bo *old;
+	}
 
+	if (alloc > kgem->aperture_mappable / 4)
+		flags &= ~KGEM_BUFFER_INPLACE;
+
+	if ((flags & KGEM_BUFFER_WRITE_INPLACE) == KGEM_BUFFER_WRITE_INPLACE) {
 		/* The issue with using a GTT upload buffer is that we may
 		 * cause eviction-stalls in order to free up some GTT space.
 		 * An is-mappable? ioctl could help us detect when we are
@@ -3160,6 +3163,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 				bo->base.refcnt = 1;
 
 				alloc = bo->base.size;
+				goto init;
 			} else {
 				kgem_bo_free(kgem, &bo->base);
 				bo = NULL;
@@ -3169,88 +3173,84 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 #else
 	alloc = ALIGN(size, 64*1024);
 #endif
+	/* Be more parsimonious with pwrite/pread buffers */
+	if ((flags & KGEM_BUFFER_INPLACE) == 0)
+		alloc = PAGE_ALIGN(size);
+	flags &= ~KGEM_BUFFER_INPLACE;
 
-	if (bo == NULL) {
-		struct kgem_bo *old;
+	old = NULL;
+	if ((flags & KGEM_BUFFER_WRITE) == 0)
+		old = search_linear_cache(kgem, alloc, 0);
+	if (old == NULL)
+		old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
+	if (old) {
+		DBG(("%s: reusing ordinary handle %d for io\n",
+		     __FUNCTION__, old->handle));
+		alloc = old->size;
+		bo = partial_bo_alloc(alloc);
+		if (bo == NULL)
+			return NULL;
 
-		/* Be more parsimonious with pwrite/pread buffers */
-		if ((flags & KGEM_BUFFER_INPLACE) == 0)
-			alloc = PAGE_ALIGN(size);
-		flags &= ~KGEM_BUFFER_INPLACE;
+		memcpy(&bo->base, old, sizeof(*old));
+		if (old->rq)
+			list_replace(&old->request,
+				     &bo->base.request);
+		else
+			list_init(&bo->base.request);
+		list_replace(&old->vma, &bo->base.vma);
+		list_init(&bo->base.list);
+		free(old);
+		bo->base.refcnt = 1;
 
-		old = NULL;
-		if ((flags & KGEM_BUFFER_WRITE) == 0)
-			old = search_linear_cache(kgem, alloc, 0);
-		if (old == NULL)
-			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE);
+		bo->need_io = flags & KGEM_BUFFER_WRITE;
+		bo->base.io = true;
+	} else {
+		bo = malloc(sizeof(*bo));
+		if (bo == NULL)
+			return NULL;
+
+		old = search_linear_cache(kgem, alloc,
+					  CREATE_INACTIVE | CREATE_CPU_MAP);
 		if (old) {
-			DBG(("%s: reusing ordinary handle %d for io\n",
+			DBG(("%s: reusing cpu map handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
-			alloc = old->size;
-			bo = partial_bo_alloc(alloc);
-			if (bo == NULL)
-				return NULL;
 
 			memcpy(&bo->base, old, sizeof(*old));
 			if (old->rq)
-				list_replace(&old->request,
-					     &bo->base.request);
+				list_replace(&old->request, &bo->base.request);
 			else
 				list_init(&bo->base.request);
 			list_replace(&old->vma, &bo->base.vma);
 			list_init(&bo->base.list);
 			free(old);
 			bo->base.refcnt = 1;
-
-			bo->need_io = flags & KGEM_BUFFER_WRITE;
-			bo->base.io = true;
 		} else {
-			bo = malloc(sizeof(*bo));
-			if (bo == NULL)
-				return NULL;
-
-			old = search_linear_cache(kgem, alloc,
-						  CREATE_INACTIVE | CREATE_CPU_MAP);
-			if (old) {
-				DBG(("%s: reusing cpu map handle=%d for buffer\n",
-				     __FUNCTION__, old->handle));
-
-				memcpy(&bo->base, old, sizeof(*old));
-				if (old->rq)
-					list_replace(&old->request, &bo->base.request);
-				else
-					list_init(&bo->base.request);
-				list_replace(&old->vma, &bo->base.vma);
-				list_init(&bo->base.list);
-				free(old);
-				bo->base.refcnt = 1;
-			} else {
-				if (!__kgem_bo_init(&bo->base,
-						    gem_create(kgem->fd, alloc),
-						    alloc)) {
-					free(bo);
-					return NULL;
-				}
-				DBG(("%s: created handle=%d for buffer\n",
-				     __FUNCTION__, bo->base.handle));
-
-				bo->base.domain = DOMAIN_CPU;
-			}
-
-			bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
-			if (bo->mem == NULL) {
-				kgem_bo_free(kgem, &bo->base);
+			if (!__kgem_bo_init(&bo->base,
+					    gem_create(kgem->fd, alloc),
+					    alloc)) {
+				free(bo);
 				return NULL;
 			}
+			DBG(("%s: created handle=%d for buffer\n",
+			     __FUNCTION__, bo->base.handle));
 
-			if (flags & KGEM_BUFFER_WRITE)
-				kgem_bo_sync__cpu(kgem, &bo->base);
-
-			bo->need_io = false;
-			bo->base.io = true;
-			bo->mmapped = true;
+			bo->base.domain = DOMAIN_CPU;
 		}
+
+		bo->mem = kgem_bo_map__cpu(kgem, &bo->base);
+		if (bo->mem == NULL) {
+			kgem_bo_free(kgem, &bo->base);
+			return NULL;
+		}
+
+		if (flags & KGEM_BUFFER_WRITE)
+			kgem_bo_sync__cpu(kgem, &bo->base);
+
+		bo->need_io = false;
+		bo->base.io = true;
+		bo->mmapped = true;
 	}
+init:
 	bo->base.reusable = false;
 	assert(bo->base.size == alloc);
 	assert(!bo->need_io || !bo->base.needs_flush);
