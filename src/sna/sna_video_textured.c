@@ -229,6 +229,12 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 	Bool flush = false;
 	Bool ret;
 
+	DBG(("%s: src=(%d, %d),(%d, %d), dst=(%d, %d),(%d, %d), id=%d, sizep=%dx%d, sync?=%d\n",
+	     __FUNCTION__,
+	     src_x, src_y, src_w, src_h,
+	     drw_x, drw_y, drw_w, drw_h,
+	     id, width, height, sync));
+
 	if (buf == 0)
 		return BadAlloc;
 
@@ -245,6 +251,9 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		return Success;
 
 	if (xvmc_passthrough(id)) {
+		DBG(("%s: using passthough, name=%d\n",
+		     __FUNCTION__, *(uint32_t *)buf));
+
 		if (sna->kgem.gen < 31) {
 			/* XXX: i915 is not support and needs some
 			 * serious care.  grep for KMS in i915_hwmc.c */
@@ -254,6 +263,8 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		frame.bo = kgem_create_for_name(&sna->kgem, *(uint32_t*)buf);
 		if (frame.bo == NULL)
 			return BadAlloc;
+
+		assert(frame.bo->size >= frame.size);
 	} else {
 		frame.bo = kgem_create_linear(&sna->kgem, frame.size);
 		if (frame.bo == NULL)
@@ -270,15 +281,15 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 					      &clip->extents);
 
 	ret = Success;
-	if (!sna->render.video(sna, video, &frame, clip,
-			       src_w, src_h,
-			       drw_w, drw_h,
-			       pixmap))
+	if (sna->render.video(sna, video, &frame, clip,
+			      src_w, src_h,
+			      drw_w, drw_h,
+			      pixmap))
+		DamageDamageRegion(drawable, clip);
+	else
 		ret = BadAlloc;
 
 	kgem_bo_destroy(&sna->kgem, frame.bo);
-
-	DamageDamageRegion(drawable, clip);
 
 	/* Push the frame to the GPU as soon as possible so
 	 * we can hit the next vsync.
