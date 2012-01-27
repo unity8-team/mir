@@ -1519,14 +1519,39 @@ sna_render_composite_redirect(struct sna *sna,
 	if (!width || !height)
 		return FALSE;
 
-	priv = sna_pixmap(op->dst.pixmap);
-	if (priv->gpu_bo == NULL) {
+	priv = sna_pixmap_force_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE);
+	if (priv == NULL) {
 		DBG(("%s: fallback -- no GPU bo attached\n", __FUNCTION__));
 		return FALSE;
 	}
 
-	if (!sna_pixmap_move_to_gpu(op->dst.pixmap, MOVE_READ | MOVE_WRITE))
-		return FALSE;
+	if (op->dst.pixmap->drawable.width <= sna->render.max_3d_size) {
+		int y1, y2;
+
+		assert(op->dst.pixmap.drawable.height > sna->render.max_3d_size);
+		y1 =  y + op->dst.y;
+		y2 =  y1 + height;
+		y1 &= y1 & (64 - 1);
+		y2 = ALIGN(y2, 64);
+
+		if (y2 - y1 <= sna->render.max_3d_size) {
+			t->box.x2 = t->box.x1 = op->dst.x;
+			t->box.y2 = t->box.y1 = op->dst.y;
+			t->real_bo = priv->gpu_bo;
+			t->real_damage = op->damage;
+			if (op->damage) {
+				t->damage = sna_damage_create();
+				op->damage = &t->damage;
+			}
+
+			op->dst.bo = kgem_create_proxy(priv->gpu_bo,
+						       y1 * priv->gpu_bo->pitch,
+						       (y2 - y1) * priv->gpu_bo->pitch);
+			op->dst.y += -y1;
+			op->dst.height = y2 - y1;
+			return TRUE;
+		}
+	}
 
 	/* We can process the operation in a single pass,
 	 * but the target is too large for the 3D pipeline.
@@ -1557,12 +1582,17 @@ sna_render_composite_redirect(struct sna *sna,
 	}
 
 	t->real_bo = priv->gpu_bo;
+	t->real_damage = op->damage;
+	if (op->damage) {
+		t->damage = sna_damage_create();
+		op->damage = &t->damage;
+	}
+
 	op->dst.bo = bo;
 	op->dst.x = -x;
 	op->dst.y = -y;
 	op->dst.width  = width;
 	op->dst.height = height;
-	op->damage = NULL;
 	return TRUE;
 }
 
@@ -1573,13 +1603,20 @@ sna_render_composite_redirect_done(struct sna *sna,
 	const struct sna_composite_redirect *t = &op->redirect;
 
 	if (t->real_bo) {
-		DBG(("%s: copying temporary to dst\n", __FUNCTION__));
-
-		sna_blt_copy_boxes(sna, GXcopy,
-				   op->dst.bo, -t->box.x1, -t->box.y1,
-				   t->real_bo, 0, 0,
-				   op->dst.pixmap->drawable.bitsPerPixel,
-				   &t->box, 1);
+		if (t->box.x2 > t->box.x1) {
+			DBG(("%s: copying temporary to dst\n", __FUNCTION__));
+			sna_blt_copy_boxes(sna, GXcopy,
+					   op->dst.bo, -t->box.x1, -t->box.y1,
+					   t->real_bo, 0, 0,
+					   op->dst.pixmap->drawable.bitsPerPixel,
+					   &t->box, 1);
+		}
+		if (t->damage) {
+			sna_damage_combine(t->real_damage, t->damage,
+					   t->box.x1 - op->dst.x,
+					   t->box.y1 - op->dst.y);
+			__sna_damage_destroy(t->damage);
+		}
 
 		kgem_bo_destroy(&sna->kgem, op->dst.bo);
 	}

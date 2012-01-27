@@ -86,6 +86,7 @@ struct sna_composite_op {
 
 	struct sna_composite_redirect {
 		struct kgem_bo *real_bo;
+		struct sna_damage **real_damage, *damage;
 		BoxRec box;
 	} redirect;
 

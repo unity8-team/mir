@@ -187,6 +187,11 @@ static struct sna_damage *_sna_damage_create(void)
 	return damage;
 }
 
+struct sna_damage *sna_damage_create(void)
+{
+	return _sna_damage_create();
+}
+
 static bool _sna_damage_create_boxes(struct sna_damage *damage,
 				     int count)
 {
@@ -1394,6 +1399,21 @@ int _sna_damage_get_boxes(struct sna_damage *damage, BoxPtr *boxes)
 	return __sna_damage_get_boxes(damage, boxes);
 }
 #endif
+
+struct sna_damage *_sna_damage_combine(struct sna_damage *l,
+				       struct sna_damage *r,
+				       int dx, int dy)
+{
+	if (r->dirty)
+		__sna_damage_reduce(r);
+
+	if (pixman_region_not_empty(&r->region)) {
+		pixman_region_translate(&r->region, dx, dy);
+		l = __sna_damage_add(l, &r->region);
+	}
+
+	return l;
+}
 
 void __sna_damage_destroy(struct sna_damage *damage)
 {

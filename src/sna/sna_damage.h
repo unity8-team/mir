@@ -27,6 +27,18 @@ struct sna_damage {
 #define DAMAGE_MARK_ALL(ptr) ((struct sna_damage *)(((uintptr_t)(ptr))|1))
 #define DAMAGE_PTR(ptr) ((struct sna_damage *)(((uintptr_t)(ptr))&~1))
 
+struct sna_damage *sna_damage_create(void);
+
+struct sna_damage *_sna_damage_combine(struct sna_damage *l,
+				       struct sna_damage *r,
+				       int dx, int dy);
+static inline void sna_damage_combine(struct sna_damage **l,
+				      struct sna_damage *r,
+				      int dx, int dy)
+{
+	*l = _sna_damage_combine(*l, r, dx, dy);
+}
+
 fastcall struct sna_damage *_sna_damage_add(struct sna_damage *damage,
 					    RegionPtr region);
 static inline void sna_damage_add(struct sna_damage **damage,
