@@ -3010,7 +3010,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 	     !!(flags & KGEM_BUFFER_LAST)));
 	assert(size);
 	/* we should never be asked to create anything TOO large */
-	assert(size < kgem->max_cpu_buffer);
+	assert(size < kgem->max_cpu_size);
 
 	list_for_each_entry(bo, &kgem->partial, base.list) {
 		if (flags == KGEM_BUFFER_LAST && bo->write) {
@@ -3053,6 +3053,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 #if !DBG_NO_MAP_UPLOAD
 	/* Be a little more generous and hope to hold fewer mmappings */
 	alloc = ALIGN(2*size, kgem->partial_buffer_size);
+	if (alloc >= kgem->max_cpu_size)
+		alloc = PAGE_ALIGN(size);
 	if (kgem->has_cpu_bo) {
 		bo = malloc(sizeof(*bo));
 		if (bo == NULL)
