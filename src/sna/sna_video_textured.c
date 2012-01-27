@@ -240,7 +240,7 @@ sna_video_textured_put_image(ScrnInfoPtr scrn,
 		return BadAlloc;
 	}
 
-	if (!sna_pixmap_is_gpu(pixmap)) {
+	if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE)) {
 		DBG(("%s: attempting to render to a non-GPU pixmap\n",
 		     __FUNCTION__));
 		return BadAlloc;
