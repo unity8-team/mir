@@ -44,6 +44,27 @@
 
 /* XXX Need to avoid using GTT fenced access for I915_TILING_Y on 855GM */
 
+static Bool
+box_intersect(BoxPtr a, const BoxRec *b)
+{
+	if (a->x1 < b->x1)
+		a->x1 = b->x1;
+	if (a->x2 > b->x2)
+		a->x2 = b->x2;
+	if (a->y1 < b->y1)
+		a->y1 = b->y1;
+	if (a->y2 > b->y2)
+		a->y2 = b->y2;
+
+	return a->x1 < a->x2 && a->y1 < a->y2;
+}
+
+static inline bool must_tile(struct sna *sna, int width, int height)
+{
+	return (width  > sna->render.max_3d_size ||
+		height > sna->render.max_3d_size);
+}
+
 static void read_boxes_inplace(struct kgem *kgem,
 			       struct kgem_bo *bo, int16_t src_dx, int16_t src_dy,
 			       PixmapPtr pixmap, int16_t dst_dx, int16_t dst_dy,
@@ -105,13 +126,13 @@ void sna_read_boxes(struct sna *sna,
 	for (n = 0; n < nbox; n++) {
 		if (box[n].x1 + src_dx < 0 || box[n].y1 + src_dy < 0 ||
 		    (box[n].x2 + src_dx) * dst->drawable.bitsPerPixel/8 > src_bo->pitch ||
-		    (box[n].y2 + src_dy) * src_bo->pitch > src_bo->size)
+		    (box[n].y2 + src_dy) * src_bo->pitch > kgem_bo_size(src_bo))
 		{
 			FatalError("source out-of-bounds box[%d]=(%d, %d), (%d, %d) + (%d, %d), pitch=%d, size=%d\n", n,
 				   box[n].x1, box[n].y1,
 				   box[n].x2, box[n].y2,
 				   src_dx, src_dy,
-				   src_bo->pitch, src_bo->size);
+				   src_bo->pitch, kgem_bo_size(src_bo));
 		}
 	}
 #endif
@@ -132,7 +153,6 @@ fallback:
 		return;
 	}
 
-	/* Is it worth detiling? */
 	extents = box[0];
 	for (n = 1; n < nbox; n++) {
 		if (box[n].x1 < extents.x1)
@@ -145,11 +165,16 @@ fallback:
 		if (box[n].y2 > extents.y2)
 			extents.y2 = box[n].y2;
 	}
-	if ((extents.y2 - extents.y1) * src_bo->pitch < 4096)
-		goto fallback;
+	if (kgem_bo_is_mappable(kgem, src_bo)) {
+		/* Is it worth detiling? */
+		if ((extents.y2 - extents.y1) * src_bo->pitch < 4096)
+			goto fallback;
+	}
 
 	/* Try to avoid switching rings... */
-	if (src_bo->tiling == I915_TILING_Y || kgem->ring == KGEM_RENDER) {
+	if (kgem->ring == KGEM_RENDER ||
+	    !kgem_bo_can_blt(kgem, src_bo) ||
+	    must_tile(sna, extents.x2 - extents.x1, extents.y2 - extents.y1)) {
 		PixmapRec tmp;
 
 		tmp.drawable.width  = extents.x2 - extents.x1;
@@ -161,38 +186,124 @@ fallback:
 		assert(tmp.drawable.width);
 		assert(tmp.drawable.height);
 
-		dst_bo = kgem_create_buffer_2d(kgem,
-					       tmp.drawable.width,
-					       tmp.drawable.height,
-					       tmp.drawable.bitsPerPixel,
-					       KGEM_BUFFER_LAST,
-					       &ptr);
-		if (!dst_bo)
-			goto fallback;
+		if (must_tile(sna, tmp.drawable.width, tmp.drawable.height)) {
+			BoxRec tile, stack[64], *clipped, *c;
+			int step;
 
-		if (!sna->render.copy_boxes(sna, GXcopy,
-					    dst, src_bo, src_dx, src_dy,
-					    &tmp, dst_bo, -extents.x1, -extents.y1,
-					    box, nbox)) {
+			if (n > ARRAY_SIZE(stack)) {
+				clipped = malloc(sizeof(BoxRec) * n);
+				if (clipped == NULL)
+					goto fallback;
+			} else
+				clipped = stack;
+
+			step = MIN(sna->render.max_3d_size,
+				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
+			DBG(("%s: tiling download, using %dx%d tiles\n",
+			     __FUNCTION__, step, step));
+
+			for (tile.y1 = extents.y1; tile.y1 < extents.y2; tile.y1 = tile.y2) {
+				tile.y2 = tile.y1 + step;
+				if (tile.y2 > extents.y2)
+					tile.y2 = extents.y2;
+
+				for (tile.x1 = extents.x1; tile.x1 < extents.x2; tile.x1 = tile.x2) {
+					tile.x2 = tile.x1 + step;
+					if (tile.x2 > extents.x2)
+						tile.x2 = extents.x2;
+
+					tmp.drawable.width  = tile.x2 - tile.x1;
+					tmp.drawable.height = tile.y2 - tile.y1;
+
+					c = clipped;
+					for (n = 0; n < nbox; n++) {
+						*c = box[n];
+						if (!box_intersect(c, &tile))
+							continue;
+
+						DBG(("%s: box(%d, %d), (%d, %d), src=(%d, %d), dst=(%d, %d)\n",
+						     __FUNCTION__,
+						     c->x1, c->y1,
+						     c->x2, c->y2,
+						     src_dx, src_dy,
+						     c->x1 - tile.x1,
+						     c->y1 - tile.y1));
+						c++;
+					}
+					if (c == clipped)
+						continue;
+
+					dst_bo = kgem_create_buffer_2d(kgem,
+								       tmp.drawable.width,
+								       tmp.drawable.height,
+								       tmp.drawable.bitsPerPixel,
+								       KGEM_BUFFER_LAST,
+								       &ptr);
+					if (!dst_bo)
+						goto fallback;
+
+					if (!sna->render.copy_boxes(sna, GXcopy,
+								    dst, src_bo, src_dx, src_dy,
+								    &tmp, dst_bo, -tile.x1, -tile.y1,
+								    clipped, c-clipped)) {
+						kgem_bo_destroy(&sna->kgem, dst_bo);
+						goto fallback;
+					}
+
+					kgem_bo_submit(&sna->kgem, dst_bo);
+					kgem_buffer_read_sync(kgem, dst_bo);
+
+					while (c-- != clipped) {
+						memcpy_blt(ptr, dst->devPrivate.ptr, tmp.drawable.bitsPerPixel,
+							   dst_bo->pitch, dst->devKind,
+							   c->x1 - tile.x1,
+							   c->y1 - tile.y1,
+							   c->x1 + dst_dx,
+							   c->y1 + dst_dy,
+							   c->x2 - c->x1,
+							   c->y2 - c->y1);
+					}
+
+					kgem_bo_destroy(&sna->kgem, dst_bo);
+				}
+			}
+
+			if (clipped != stack)
+				free(clipped);
+		} else {
+			dst_bo = kgem_create_buffer_2d(kgem,
+						       tmp.drawable.width,
+						       tmp.drawable.height,
+						       tmp.drawable.bitsPerPixel,
+						       KGEM_BUFFER_LAST,
+						       &ptr);
+			if (!dst_bo)
+				goto fallback;
+
+			if (!sna->render.copy_boxes(sna, GXcopy,
+						    dst, src_bo, src_dx, src_dy,
+						    &tmp, dst_bo, -extents.x1, -extents.y1,
+						    box, nbox)) {
+				kgem_bo_destroy(&sna->kgem, dst_bo);
+				goto fallback;
+			}
+
+			kgem_bo_submit(&sna->kgem, dst_bo);
+			kgem_buffer_read_sync(kgem, dst_bo);
+
+			for (n = 0; n < nbox; n++) {
+				memcpy_blt(ptr, dst->devPrivate.ptr, tmp.drawable.bitsPerPixel,
+					   dst_bo->pitch, dst->devKind,
+					   box[n].x1 - extents.x1,
+					   box[n].y1 - extents.y1,
+					   box[n].x1 + dst_dx,
+					   box[n].y1 + dst_dy,
+					   box[n].x2 - box[n].x1,
+					   box[n].y2 - box[n].y1);
+			}
+
 			kgem_bo_destroy(&sna->kgem, dst_bo);
-			goto fallback;
 		}
-
-		kgem_bo_submit(&sna->kgem, dst_bo);
-		kgem_buffer_read_sync(kgem, dst_bo);
-
-		for (n = 0; n < nbox; n++) {
-			memcpy_blt(ptr, dst->devPrivate.ptr, tmp.drawable.bitsPerPixel,
-				   dst_bo->pitch, dst->devKind,
-				   box[n].x1 - extents.x1,
-				   box[n].y1 - extents.y1,
-				   box[n].x1 + dst_dx,
-				   box[n].y1 + dst_dy,
-				   box[n].x2 - box[n].x1,
-				   box[n].y2 - box[n].y1);
-		}
-
-		kgem_bo_destroy(&sna->kgem, dst_bo);
 		return;
 	}
 
@@ -270,7 +381,7 @@ fallback:
 			assert(tmp_box[n].x1 + src_dx >= 0);
 			assert((tmp_box[n].x2 + src_dx) * dst->drawable.bitsPerPixel/8 <= src_bo->pitch);
 			assert(tmp_box[n].y1 + src_dy >= 0);
-			assert((tmp_box[n].y2 + src_dy) * src_bo->pitch <= src_bo->size);
+			assert((tmp_box[n].y2 + src_dy) * src_bo->pitch <= kgem_bo_size(src_bo));
 
 			b[0] = cmd;
 			b[1] = br13 | pitch;
@@ -299,7 +410,7 @@ fallback:
 		_kgem_set_mode(kgem, KGEM_BLT);
 		tmp_box += nbox_this_time;
 	} while (1);
-	assert(offset == dst_bo->size);
+	assert(offset == kgem_buffer_size(dst_bo));
 
 	kgem_buffer_read_sync(kgem, dst_bo);
 
@@ -331,12 +442,12 @@ fallback:
 
 		src += pitch * height;
 	} while (--nbox);
-	assert(src - (char *)ptr == dst_bo->size);
+	assert(src - (char *)ptr == kgem_buffer_size(dst_bo));
 	kgem_bo_destroy(kgem, dst_bo);
 	sna->blt_state.fill_bo = 0;
 }
 
-static void write_boxes_inplace(struct kgem *kgem,
+static bool write_boxes_inplace(struct kgem *kgem,
 				const void *src, int stride, int bpp, int16_t src_dx, int16_t src_dy,
 				struct kgem_bo *bo, int16_t dst_dx, int16_t dst_dy,
 				const BoxRec *box, int n)
@@ -346,11 +457,14 @@ static void write_boxes_inplace(struct kgem *kgem,
 	DBG(("%s x %d, handle=%d, tiling=%d\n",
 	     __FUNCTION__, n, bo->handle, bo->tiling));
 
+	if (!kgem_bo_is_mappable(kgem, bo))
+		return false;
+
 	kgem_bo_submit(kgem, bo);
 
 	dst = kgem_bo_map(kgem, bo);
 	if (dst == NULL)
-		return;
+		return false;
 
 	assert(dst != src);
 
@@ -364,7 +478,7 @@ static void write_boxes_inplace(struct kgem *kgem,
 		assert(box->x1 + dst_dx >= 0);
 		assert((box->x2 + dst_dx)*bpp <= 8*bo->pitch);
 		assert(box->y1 + dst_dy >= 0);
-		assert((box->y2 + dst_dy)*bo->pitch <= bo->size);
+		assert((box->y2 + dst_dy)*bo->pitch <= kgem_bo_size(bo));
 
 		assert(box->x1 + src_dx >= 0);
 		assert((box->x2 + src_dx)*bpp <= 8*stride);
@@ -377,6 +491,7 @@ static void write_boxes_inplace(struct kgem *kgem,
 			   box->x2 - box->x1, box->y2 - box->y1);
 		box++;
 	} while (--n);
+	return true;
 }
 
 static bool upload_inplace(struct kgem *kgem,
@@ -384,9 +499,6 @@ static bool upload_inplace(struct kgem *kgem,
 			   const BoxRec *box,
 			   int n, int bpp)
 {
-	if (DEBUG_NO_IO)
-		return kgem_bo_is_mappable(kgem, bo);
-
 	/* If we are writing through the GTT, check first if we might be
 	 * able to almagamate a series of small writes into a single
 	 * operation.
@@ -404,13 +516,14 @@ static bool upload_inplace(struct kgem *kgem,
 	return !kgem_bo_map_will_stall(kgem, bo);
 }
 
-void sna_write_boxes(struct sna *sna, PixmapPtr dst,
+bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
 		     struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 		     const void *src, int stride, int16_t src_dx, int16_t src_dy,
 		     const BoxRec *box, int nbox)
 {
 	struct kgem *kgem = &sna->kgem;
 	struct kgem_bo *src_bo;
+	BoxRec extents;
 	void *ptr;
 	int offset;
 	int n, cmd, br13;
@@ -419,30 +532,30 @@ void sna_write_boxes(struct sna *sna, PixmapPtr dst,
 
 	if (upload_inplace(kgem, dst_bo, box, nbox, dst->drawable.bitsPerPixel)) {
 fallback:
-		write_boxes_inplace(kgem,
-				    src, stride, dst->drawable.bitsPerPixel, src_dx, src_dy,
-				    dst_bo, dst_dx, dst_dy,
-				    box, nbox);
-		return;
+		return write_boxes_inplace(kgem,
+					   src, stride, dst->drawable.bitsPerPixel, src_dx, src_dy,
+					   dst_bo, dst_dx, dst_dy,
+					   box, nbox);
+	}
+
+	extents = box[0];
+	for (n = 1; n < nbox; n++) {
+		if (box[n].x1 < extents.x1)
+			extents.x1 = box[n].x1;
+		if (box[n].x2 > extents.x2)
+			extents.x2 = box[n].x2;
+
+		if (box[n].y1 < extents.y1)
+			extents.y1 = box[n].y1;
+		if (box[n].y2 > extents.y2)
+			extents.y2 = box[n].y2;
 	}
 
 	/* Try to avoid switching rings... */
-	if (dst_bo->tiling == I915_TILING_Y || kgem->ring == KGEM_RENDER) {
+	if (kgem->ring == KGEM_RENDER ||
+	    !kgem_bo_can_blt(kgem, dst_bo) ||
+	    must_tile(sna, extents.x2 - extents.x1, extents.y2 - extents.y1)) {
 		PixmapRec tmp;
-		BoxRec extents;
-
-		extents = box[0];
-		for (n = 1; n < nbox; n++) {
-			if (box[n].x1 < extents.x1)
-				extents.x1 = box[n].x1;
-			if (box[n].x2 > extents.x2)
-				extents.x2 = box[n].x2;
-
-			if (box[n].y1 < extents.y1)
-				extents.y1 = box[n].y1;
-			if (box[n].y2 > extents.y2)
-				extents.y2 = box[n].y2;
-		}
 
 		tmp.drawable.width  = extents.x2 - extents.x1;
 		tmp.drawable.height = extents.y2 - extents.y1;
@@ -453,37 +566,130 @@ fallback:
 		assert(tmp.drawable.width);
 		assert(tmp.drawable.height);
 
-		src_bo = kgem_create_buffer_2d(kgem,
-					       tmp.drawable.width,
-					       tmp.drawable.height,
-					       tmp.drawable.bitsPerPixel,
-					       KGEM_BUFFER_WRITE_INPLACE,
-					       &ptr);
-		if (!src_bo)
-			goto fallback;
+		DBG(("%s: upload (%d, %d)x(%d, %d), max %dx%d\n",
+		     __FUNCTION__,
+		     extents.x1, extents.y1,
+		     tmp.drawable.width, tmp.drawable.height,
+		     sna->render.max_3d_size, sna->render.max_3d_size));
+		if (must_tile(sna, tmp.drawable.width, tmp.drawable.height)) {
+			BoxRec tile, stack[64], *clipped, *c;
+			int step;
 
-		for (n = 0; n < nbox; n++) {
-			memcpy_blt(src, ptr, tmp.drawable.bitsPerPixel,
-				   stride, src_bo->pitch,
-				   box[n].x1 + src_dx,
-				   box[n].y1 + src_dy,
-				   box[n].x1 - extents.x1,
-				   box[n].y1 - extents.y1,
-				   box[n].x2 - box[n].x1,
-				   box[n].y2 - box[n].y1);
+			step = MIN(sna->render.max_3d_size,
+				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
+			DBG(("%s: tiling upload, using %dx%d tiles\n",
+			     __FUNCTION__, step, step));
+
+			if (n > ARRAY_SIZE(stack)) {
+				clipped = malloc(sizeof(BoxRec) * n);
+				if (clipped == NULL)
+					goto fallback;
+			} else
+				clipped = stack;
+
+			for (tile.y1 = extents.y1; tile.y1 < extents.y2; tile.y1 = tile.y2) {
+				tile.y2 = tile.y1 + step;
+				if (tile.y2 > extents.y2)
+					tile.y2 = extents.y2;
+
+				for (tile.x1 = extents.x1; tile.x1 < extents.x2; tile.x1 = tile.x2) {
+					tile.x2 = tile.x1 + step;
+					if (tile.x2 > extents.x2)
+						tile.x2 = extents.x2;
+
+					tmp.drawable.width  = tile.x2 - tile.x1;
+					tmp.drawable.height = tile.y2 - tile.y1;
+
+					src_bo = kgem_create_buffer_2d(kgem,
+								       tmp.drawable.width,
+								       tmp.drawable.height,
+								       tmp.drawable.bitsPerPixel,
+								       KGEM_BUFFER_WRITE_INPLACE,
+								       &ptr);
+					if (!src_bo)
+						goto fallback;
+
+					c = clipped;
+					for (n = 0; n < nbox; n++) {
+						*c = box[n];
+						if (!box_intersect(c, &tile))
+							continue;
+
+						DBG(("%s: box(%d, %d), (%d, %d), src=(%d, %d), dst=(%d, %d)\n",
+						     __FUNCTION__,
+						     c->x1, c->y1,
+						     c->x2, c->y2,
+						     src_dx, src_dy,
+						     c->x1 - tile.x1,
+						     c->y1 - tile.y1));
+						memcpy_blt(src, ptr, tmp.drawable.bitsPerPixel,
+							   stride, src_bo->pitch,
+							   c->x1 + src_dx,
+							   c->y1 + src_dy,
+							   c->x1 - tile.x1,
+							   c->y1 - tile.y1,
+							   c->x2 - c->x1,
+							   c->y2 - c->y1);
+						c++;
+					}
+
+					if (c != clipped)
+						n = sna->render.copy_boxes(sna, GXcopy,
+									   &tmp, src_bo, -tile.x1, -tile.y1,
+									   dst, dst_bo, dst_dx, dst_dy,
+									   clipped, c - clipped);
+					else
+						n = 1;
+
+					kgem_bo_destroy(&sna->kgem, src_bo);
+
+					if (!n)
+						goto fallback;
+				}
+			}
+
+			if (clipped != stack)
+				free(clipped);
+		} else {
+			src_bo = kgem_create_buffer_2d(kgem,
+						       tmp.drawable.width,
+						       tmp.drawable.height,
+						       tmp.drawable.bitsPerPixel,
+						       KGEM_BUFFER_WRITE_INPLACE,
+						       &ptr);
+			if (!src_bo)
+				goto fallback;
+
+			for (n = 0; n < nbox; n++) {
+				DBG(("%s: box(%d, %d), (%d, %d), src=(%d, %d), dst=(%d, %d)\n",
+				     __FUNCTION__,
+				     box[n].x1, box[n].y1,
+				     box[n].x2, box[n].y2,
+				     src_dx, src_dy,
+				     box[n].x1 - extents.x1,
+				     box[n].y1 - extents.y1));
+				memcpy_blt(src, ptr, tmp.drawable.bitsPerPixel,
+					   stride, src_bo->pitch,
+					   box[n].x1 + src_dx,
+					   box[n].y1 + src_dy,
+					   box[n].x1 - extents.x1,
+					   box[n].y1 - extents.y1,
+					   box[n].x2 - box[n].x1,
+					   box[n].y2 - box[n].y1);
+			}
+
+			n = sna->render.copy_boxes(sna, GXcopy,
+						   &tmp, src_bo, -extents.x1, -extents.y1,
+						   dst, dst_bo, dst_dx, dst_dy,
+						   box, nbox);
+
+			kgem_bo_destroy(&sna->kgem, src_bo);
+
+			if (!n)
+				goto fallback;
 		}
 
-		n = sna->render.copy_boxes(sna, GXcopy,
-					   &tmp, src_bo, -extents.x1, -extents.y1,
-					   dst, dst_bo, dst_dx, dst_dy,
-					   box, nbox);
-
-		kgem_bo_destroy(&sna->kgem, src_bo);
-
-		if (!n)
-			goto fallback;
-
-		return;
+		return true;
 	}
 
 	cmd = XY_SRC_COPY_BLT_CMD;
@@ -586,7 +792,7 @@ fallback:
 			box++;
 			offset += pitch * height;
 		} while (--nbox_this_time);
-		assert(offset == src_bo->size);
+		assert(offset == kgem_buffer_size(src_bo));
 
 		if (nbox) {
 			_kgem_submit(kgem);
@@ -597,6 +803,7 @@ fallback:
 	} while (nbox);
 
 	sna->blt_state.fill_bo = 0;
+	return true;
 }
 
 static void
@@ -823,7 +1030,7 @@ fallback:
 			box++;
 			offset += pitch * height;
 		} while (--nbox_this_time);
-		assert(offset == src_bo->size);
+		assert(offset == kgem_buffer_size(src_bo));
 
 		if (nbox) {
 			_kgem_submit(kgem);
@@ -951,11 +1158,12 @@ indirect_replace(struct sna *sna,
 	return ret;
 }
 
-struct kgem_bo *sna_replace(struct sna *sna,
-			    PixmapPtr pixmap,
-			    struct kgem_bo *bo,
-			    const void *src, int stride)
+bool sna_replace(struct sna *sna,
+		 PixmapPtr pixmap,
+		 struct kgem_bo **_bo,
+		 const void *src, int stride)
 {
+	struct kgem_bo *bo = *_bo;
 	struct kgem *kgem = &sna->kgem;
 	void *dst;
 
@@ -968,7 +1176,7 @@ struct kgem_bo *sna_replace(struct sna *sna,
 
 	if ((!kgem_bo_mapped(bo) || bo->rq) &&
 	    indirect_replace(sna, pixmap, bo, src, stride))
-		return bo;
+		return true;
 
 	if (kgem_bo_is_busy(bo)) {
 		struct kgem_bo *new_bo;
@@ -979,26 +1187,26 @@ struct kgem_bo *sna_replace(struct sna *sna,
 					pixmap->drawable.bitsPerPixel,
 					bo->tiling,
 					CREATE_GTT_MAP | CREATE_INACTIVE);
-		if (new_bo) {
-			kgem_bo_destroy(kgem, bo);
+		if (new_bo)
 			bo = new_bo;
-		}
 	}
 
 	if (bo->tiling == I915_TILING_NONE && bo->pitch == stride) {
-		kgem_bo_write(kgem, bo, src,
-			      (pixmap->drawable.height-1)*stride + pixmap->drawable.width*pixmap->drawable.bitsPerPixel/8);
+		if (!kgem_bo_write(kgem, bo, src,
+				   (pixmap->drawable.height-1)*stride + pixmap->drawable.width*pixmap->drawable.bitsPerPixel/8))
+			goto err;
 	} else {
 		if (kgem_bo_is_mappable(kgem, bo)) {
 			dst = kgem_bo_map(kgem, bo);
-			if (dst) {
-				memcpy_blt(src, dst, pixmap->drawable.bitsPerPixel,
-					   stride, bo->pitch,
-					   0, 0,
-					   0, 0,
-					   pixmap->drawable.width,
-					   pixmap->drawable.height);
-			}
+			if (!dst)
+				goto err;
+
+			memcpy_blt(src, dst, pixmap->drawable.bitsPerPixel,
+				   stride, bo->pitch,
+				   0, 0,
+				   0, 0,
+				   pixmap->drawable.width,
+				   pixmap->drawable.height);
 		} else {
 			BoxRec box;
 
@@ -1006,14 +1214,23 @@ struct kgem_bo *sna_replace(struct sna *sna,
 			box.x2 = pixmap->drawable.width;
 			box.y2 = pixmap->drawable.height;
 
-			sna_write_boxes(sna, pixmap,
-					bo, 0, 0,
-					src, stride, 0, 0,
-					&box, 1);
+			if (!sna_write_boxes(sna, pixmap,
+					     bo, 0, 0,
+					     src, stride, 0, 0,
+					     &box, 1))
+				goto err;
 		}
 	}
 
-	return bo;
+	if (bo != *_bo)
+		kgem_bo_destroy(kgem, *_bo);
+	*_bo = bo;
+	return true;
+
+err:
+	if (bo != *_bo)
+		kgem_bo_destroy(kgem, bo);
+	return false;
 }
 
 struct kgem_bo *sna_replace__xor(struct sna *sna,

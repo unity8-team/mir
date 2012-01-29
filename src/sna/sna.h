@@ -92,7 +92,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define DEBUG_NO_RENDER 0
 #define DEBUG_NO_BLT 0
-#define DEBUG_NO_IO 0
 
 #define DEBUG_FLUSH_BATCH 0
 #define DEBUG_FLUSH_SYNC 0
@@ -647,7 +646,7 @@ void sna_read_boxes(struct sna *sna,
 		    struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
 		    PixmapPtr dst, int16_t dst_dx, int16_t dst_dy,
 		    const BoxRec *box, int n);
-void sna_write_boxes(struct sna *sna, PixmapPtr dst,
+bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
 		     struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
 		     const void *src, int stride, int16_t src_dx, int16_t src_dy,
 		     const BoxRec *box, int n);
@@ -657,10 +656,10 @@ void sna_write_boxes__xor(struct sna *sna, PixmapPtr dst,
 			  const BoxRec *box, int nbox,
 			  uint32_t and, uint32_t or);
 
-struct kgem_bo *sna_replace(struct sna *sna,
-			    PixmapPtr pixmap,
-			    struct kgem_bo *bo,
-			    const void *src, int stride);
+bool sna_replace(struct sna *sna,
+		 PixmapPtr pixmap,
+		 struct kgem_bo **bo,
+		 const void *src, int stride);
 struct kgem_bo *sna_replace__xor(struct sna *sna,
 				 PixmapPtr pixmap,
 				 struct kgem_bo *bo,

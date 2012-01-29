@@ -243,9 +243,14 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 	if (priv->ptr)
 		goto done;
 
+	DBG(("%s: pixmap=%ld\n", __FUNCTION__, pixmap->drawable.serialNumber));
 	assert(priv->stride);
 
-	if (sna->kgem.has_cpu_bo || !priv->gpu) {
+	if ((sna->kgem.has_cpu_bo || !priv->gpu) &&
+	    kgem_can_create_cpu(&sna->kgem,
+				pixmap->drawable.width,
+				pixmap->drawable.height,
+				pixmap->drawable.bitsPerPixel)) {
 		DBG(("%s: allocating CPU buffer (%dx%d)\n", __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height));
 
@@ -270,8 +275,11 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 		}
 	}
 
-	if (priv->ptr == NULL)
+	if (priv->ptr == NULL) {
+		DBG(("%s: allocating ordinary memory for shadow pixels [%d bytes]\n",
+		     __FUNCTION__, priv->stride * pixmap->drawable.height));
 		priv->ptr = malloc(priv->stride * pixmap->drawable.height);
+	}
 
 	assert(priv->ptr);
 done:
@@ -289,7 +297,7 @@ static void sna_pixmap_free_cpu(struct sna *sna, struct sna_pixmap *priv)
 
 	if (priv->cpu_bo) {
 		DBG(("%s: discarding CPU buffer, handle=%d, size=%d\n",
-		     __FUNCTION__, priv->cpu_bo->handle, priv->cpu_bo->size));
+		     __FUNCTION__, priv->cpu_bo->handle, kgem_bo_size(priv->cpu_bo)));
 
 		kgem_bo_destroy(&sna->kgem, priv->cpu_bo);
 		priv->cpu_bo = NULL;
@@ -515,10 +523,10 @@ struct sna_pixmap *_sna_pixmap_attach(PixmapPtr pixmap)
 		break;
 
 	default:
-		if (!kgem_can_create_gpu(&sna->kgem,
-					 pixmap->drawable.width,
-					 pixmap->drawable.height,
-					 pixmap->drawable.bitsPerPixel))
+		if (!kgem_can_create_2d(&sna->kgem,
+					pixmap->drawable.width,
+					pixmap->drawable.height,
+					pixmap->drawable.depth))
 			return NULL;
 		break;
 	}
@@ -669,8 +677,11 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
 
-	if (!kgem_can_create_cpu(&sna->kgem, width, height, depth))
+	if (!kgem_can_create_2d(&sna->kgem, width, height, depth)) {
+		DBG(("%s: can not use GPU, just creating shadow\n",
+		     __FUNCTION__));
 		return create_pixmap(sna, screen, width, height, depth, usage);
+	}
 
 	if (!sna->have_render)
 		return create_pixmap(sna, screen,
@@ -704,6 +715,8 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 
 	pad = PixmapBytePad(width, depth);
 	if (pad * height <= 4096) {
+		DBG(("%s: small buffer [%d], attaching to shadow pixmap\n",
+		     __FUNCTION__, pad * height));
 		pixmap = create_pixmap(sna, screen,
 				       width, height, depth, usage);
 		if (pixmap == NullPixmap)
@@ -712,6 +725,9 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		__sna_pixmap_attach(sna, pixmap);
 	} else {
 		struct sna_pixmap *priv;
+
+		DBG(("%s: creating GPU pixmap %dx%d, stride=%d\n",
+		     __FUNCTION__, width, height, pad));
 
 		pixmap = create_pixmap(sna, screen, 0, 0, depth, usage);
 		if (pixmap == NullPixmap)
@@ -1609,19 +1625,20 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 				    box->x1 <= 0 && box->y1 <= 0 &&
 				    box->x2 >= pixmap->drawable.width &&
 				    box->y2 >= pixmap->drawable.height) {
-					priv->gpu_bo =
-						sna_replace(sna, pixmap,
-							    priv->gpu_bo,
-							    pixmap->devPrivate.ptr,
-							    pixmap->devKind);
+					ok = sna_replace(sna, pixmap,
+							 &priv->gpu_bo,
+							 pixmap->devPrivate.ptr,
+							 pixmap->devKind);
 				} else {
-					sna_write_boxes(sna, pixmap,
-							priv->gpu_bo, 0, 0,
-							pixmap->devPrivate.ptr,
-							pixmap->devKind,
-							0, 0,
-							box, n);
+					ok = sna_write_boxes(sna, pixmap,
+							     priv->gpu_bo, 0, 0,
+							     pixmap->devPrivate.ptr,
+							     pixmap->devKind,
+							     0, 0,
+							     box, n);
 				}
+				if (!ok)
+					return false;
 			}
 		}
 
@@ -1637,12 +1654,14 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, 1);
 		if (!ok)
-			sna_write_boxes(sna, pixmap,
-					priv->gpu_bo, 0, 0,
-					pixmap->devPrivate.ptr,
-					pixmap->devKind,
-					0, 0,
-					box, 1);
+			ok = sna_write_boxes(sna, pixmap,
+					     priv->gpu_bo, 0, 0,
+					     pixmap->devPrivate.ptr,
+					     pixmap->devKind,
+					     0, 0,
+					     box, 1);
+		if (!ok)
+			return false;
 
 		sna_damage_subtract(&priv->cpu_damage, &r);
 		priv->undamaged = true;
@@ -1658,12 +1677,14 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 						    pixmap, priv->gpu_bo, 0, 0,
 						    box, n);
 		if (!ok)
-			sna_write_boxes(sna, pixmap,
-					priv->gpu_bo, 0, 0,
-					pixmap->devPrivate.ptr,
-					pixmap->devKind,
-					0, 0,
-					box, n);
+			ok = sna_write_boxes(sna, pixmap,
+					     priv->gpu_bo, 0, 0,
+					     pixmap->devPrivate.ptr,
+					     pixmap->devKind,
+					     0, 0,
+					     box, n);
+		if (!ok)
+			return false;
 
 		sna_damage_subtract(&priv->cpu_damage, &r);
 		priv->undamaged = true;
@@ -1671,7 +1692,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 	}
 
 done:
-	if (!priv->pinned)
+	if (!priv->pinned && priv->gpu)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->clear = false;
 	return true;
@@ -1811,7 +1832,7 @@ done:
 
 use_gpu_bo:
 	priv->clear = false;
-	if (!priv->pinned)
+	if (!priv->pinned && priv->gpu)
 		list_move(&priv->inactive,
 			  &to_sna_from_pixmap(pixmap)->active_pixmaps);
 	*damage = NULL;
@@ -1978,6 +1999,17 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 	if (!sna_pixmap_move_to_gpu(pixmap, flags))
 		return NULL;
 
+	/* For large bo, try to keep only a single copy around */
+	if (!priv->gpu && priv->ptr) {
+		sna_damage_all(&priv->gpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
+		sna_damage_destroy(&priv->cpu_damage);
+		priv->undamaged = false;
+		list_del(&priv->list);
+		sna_pixmap_free_cpu(to_sna_from_pixmap(pixmap), priv);
+	}
+
 	return priv;
 }
 
@@ -2070,19 +2102,20 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 			if (n == 1 && !priv->pinned &&
 			    (box->x2 - box->x1) >= pixmap->drawable.width &&
 			    (box->y2 - box->y1) >= pixmap->drawable.height) {
-				priv->gpu_bo =
-					sna_replace(sna, pixmap,
-						    priv->gpu_bo,
-						    pixmap->devPrivate.ptr,
-						    pixmap->devKind);
+				ok = sna_replace(sna, pixmap,
+						 &priv->gpu_bo,
+						 pixmap->devPrivate.ptr,
+						 pixmap->devKind);
 			} else {
-				sna_write_boxes(sna, pixmap,
+				ok = sna_write_boxes(sna, pixmap,
 						priv->gpu_bo, 0, 0,
 						pixmap->devPrivate.ptr,
 						pixmap->devKind,
 						0, 0,
 						box, n);
 			}
+			if (!ok)
+				return NULL;
 		}
 	}
 
@@ -2098,7 +2131,7 @@ done:
 	if (DAMAGE_IS_ALL(priv->gpu_damage))
 		priv->undamaged = false;
 active:
-	if (!priv->pinned)
+	if (!priv->pinned && priv->gpu)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->clear = false;
 	return priv;
@@ -2321,11 +2354,8 @@ sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	    !priv->pinned && nbox == 1 &&
 	    box->x1 <= 0 && box->y1 <= 0 &&
 	    box->x2 >= pixmap->drawable.width &&
-	    box->y2 >= pixmap->drawable.height) {
-		priv->gpu_bo =
-			sna_replace(sna, pixmap, priv->gpu_bo, bits, stride);
-		return TRUE;
-	}
+	    box->y2 >= pixmap->drawable.height)
+		return sna_replace(sna, pixmap, &priv->gpu_bo, bits, stride);
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
 	x += dx + drawable->x;
@@ -2341,15 +2371,13 @@ sna_put_image_upload_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 		kgem_bo_destroy(&sna->kgem, src_bo);
 	}
 
-	if (!ok && gc->alu == GXcopy) {
-		sna_write_boxes(sna, pixmap,
-				priv->gpu_bo, 0, 0,
-				bits,
-				stride,
-				-x, -y,
-				box, nbox);
-		ok = TRUE;
-	}
+	if (!ok && gc->alu == GXcopy)
+		ok = sna_write_boxes(sna, pixmap,
+				     priv->gpu_bo, 0, 0,
+				     bits,
+				     stride,
+				     -x, -y,
+				     box, nbox);
 
 	return ok;
 }
@@ -3213,7 +3241,7 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			}
 		} else {
 			dst_priv->clear = false;
-			if (!dst_priv->pinned)
+			if (!dst_priv->pinned && dst_priv->gpu)
 				list_move(&dst_priv->inactive,
 					  &sna->active_pixmaps);
 		}
@@ -3400,10 +3428,10 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				assert(src_dy + box->y1 + dst_pixmap->drawable.height <= src_pixmap->drawable.height);
 				assert(src_dx + box->x1 + dst_pixmap->drawable.width <= src_pixmap->drawable.width);
 
-				dst_priv->gpu_bo =
-					sna_replace(sna, dst_pixmap,
-						    dst_priv->gpu_bo,
-						    bits, stride);
+				if (!sna_replace(sna, dst_pixmap,
+						 &dst_priv->gpu_bo,
+						 bits, stride))
+					goto fallback;
 
 				if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
 					sna_damage_destroy(&dst_priv->cpu_damage);
@@ -3416,12 +3444,13 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			} else {
 				DBG(("%s: dst is on the GPU, src is on the CPU, uploading into dst\n",
 				     __FUNCTION__));
-				sna_write_boxes(sna, dst_pixmap,
-						dst_priv->gpu_bo, dst_dx, dst_dy,
-						src_pixmap->devPrivate.ptr,
-						src_pixmap->devKind,
-						src_dx, src_dy,
-						box, n);
+				if (!sna_write_boxes(sna, dst_pixmap,
+						     dst_priv->gpu_bo, dst_dx, dst_dy,
+						     src_pixmap->devPrivate.ptr,
+						     src_pixmap->devKind,
+						     src_dx, src_dy,
+						     box, n))
+					goto fallback;
 
 				if (!DAMAGE_IS_ALL(dst_priv->gpu_damage)) {
 					RegionTranslate(&region, dst_dx, dst_dy);
@@ -11502,7 +11531,7 @@ static void sna_accel_inactive(struct sna *sna)
 		count = bytes = 0;
 		list_for_each_entry(priv, &sna->inactive_clock[1], inactive)
 			if (!priv->pinned)
-				count++, bytes += priv->gpu_bo->size;
+				count++, bytes += kgem_bo_size(priv->gpu_bo);
 
 		DBG(("%s: trimming %d inactive GPU buffers, %d bytes\n",
 		    __FUNCTION__, count, bytes));
@@ -11528,6 +11557,9 @@ static void sna_accel_inactive(struct sna *sna)
 		priv = list_first_entry(&sna->inactive_clock[1],
 					struct sna_pixmap,
 					inactive);
+		assert(priv->gpu);
+		assert(priv->gpu_bo);
+
 		/* XXX Rather than discarding the GPU buffer here, we
 		 * could mark it purgeable and allow the shrinker to
 		 * reap its storage only under memory pressure.

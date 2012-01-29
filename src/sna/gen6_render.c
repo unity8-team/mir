@@ -1193,6 +1193,7 @@ gen6_bind_bo(struct sna *sna,
 			       bo, domains, 0);
 	ss[2] = ((width - 1)  << GEN6_SURFACE_WIDTH_SHIFT |
 		 (height - 1) << GEN6_SURFACE_HEIGHT_SHIFT);
+	assert(bo->pitch <= (1 << 18));
 	ss[3] = (gen6_tiling_bits(bo->tiling) |
 		 (bo->pitch - 1) << GEN6_SURFACE_PITCH_SHIFT);
 	ss[4] = 0;
@@ -3136,10 +3137,19 @@ fallback:
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return false;
 
-		return sna_blt_copy_boxes_fallback(sna, alu,
-						   src, src_bo, src_dx, src_dy,
-						   dst, dst_bo, dst_dx, dst_dy,
-						   box, n);
+		if (sna_blt_copy_boxes_fallback(sna, alu,
+						 src, src_bo, src_dx, src_dy,
+						 dst, dst_bo, dst_dx, dst_dy,
+						 box, n))
+			return true;
+
+		return false;
+#if 0
+		return sna_tiling_copy_boxes(sna,
+					     src, src_bo, src_dx, src_dy,
+					     dst, dst_bo, dst_dx, dst_dy,
+					     box, n);
+#endif
 	}
 
 	if (dst->drawable.depth == src->drawable.depth) {

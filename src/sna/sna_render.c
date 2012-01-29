@@ -696,6 +696,11 @@ static int sna_render_picture_downsample(struct sna *sna,
 	DBG(("%s: creating temporary GPU bo %dx%d\n",
 	     __FUNCTION__, width, height));
 
+	if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+		return sna_render_picture_fixup(sna, picture, channel,
+						x, y, ow, oh,
+						dst_x, dst_y);
+
 	tmp = screen->CreatePixmap(screen,
 				   width, height,
 				   pixmap->drawable.depth,
@@ -1306,9 +1311,6 @@ do_fixup:
 		return 0;
 	}
 
-	/* XXX Convolution filter? */
-	memset(ptr, 0, channel->bo->size);
-
 	/* Composite in the original format to preserve idiosyncracies */
 	if (picture->format == channel->pict_format)
 		dst = pixman_image_create_bits(picture->format,
@@ -1354,7 +1356,7 @@ do_fixup:
 					       w, h);
 			pixman_image_unref(src);
 		} else {
-			memset(ptr, 0, channel->bo->size);
+			memset(ptr, 0, kgem_buffer_size(channel->bo));
 			dst = src;
 		}
 	}
@@ -1528,7 +1530,7 @@ sna_render_composite_redirect(struct sna *sna,
 	if (op->dst.pixmap->drawable.width <= sna->render.max_3d_size) {
 		int y1, y2;
 
-		assert(op->dst.pixmap.drawable.height > sna->render.max_3d_size);
+		assert(op->dst.pixmap->drawable.height > sna->render.max_3d_size);
 		y1 =  y + op->dst.y;
 		y2 =  y1 + height;
 		y1 &= y1 & (64 - 1);

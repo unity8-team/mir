@@ -66,10 +66,16 @@ struct kgem_bo {
 	uint32_t handle;
 	uint32_t presumed_offset;
 	uint32_t delta;
-	uint32_t size:28;
-	uint32_t bucket:4;
-#define MAX_OBJECT_SIZE (1 << 28)
-
+	union {
+		struct {
+			uint32_t count:27;
+#define PAGE_SIZE 4096
+			uint32_t bucket:5;
+#define NUM_CACHE_BUCKETS 16
+#define MAX_CACHE_SIZE (1 << (NUM_CACHE_BUCKETS+12))
+		} pages;
+		uint32_t bytes;
+	} size;
 	uint32_t pitch : 18; /* max 128k */
 	uint32_t tiling : 2;
 	uint32_t reusable : 1;
@@ -100,8 +106,6 @@ enum {
 	NUM_MAP_TYPES,
 };
 
-#define NUM_CACHE_BUCKETS 16
-
 struct kgem {
 	int fd;
 	int wedged;
@@ -117,7 +121,10 @@ struct kgem {
 		KGEM_BLT,
 	} mode, ring;
 
-	struct list flushing, active[NUM_CACHE_BUCKETS][3], inactive[NUM_CACHE_BUCKETS];
+	struct list flushing;
+	struct list large;
+	struct list active[NUM_CACHE_BUCKETS][3];
+	struct list inactive[NUM_CACHE_BUCKETS];
 	struct list partial;
 	struct list requests;
 	struct kgem_request *next_request;
@@ -154,7 +161,7 @@ struct kgem {
 	uint32_t aperture_total, aperture_high, aperture_low, aperture_mappable;
 	uint32_t aperture, aperture_fenced;
 	uint32_t min_alignment;
-	uint32_t max_gpu_size, max_cpu_size;
+	uint32_t max_gpu_size, max_cpu_size, max_object_size;
 	uint32_t partial_buffer_size;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
@@ -194,8 +201,9 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 
 int kgem_choose_tiling(struct kgem *kgem,
 		       int tiling, int width, int height, int bpp);
+bool kgem_can_create_2d(struct kgem *kgem, int width, int height, int depth);
 bool kgem_can_create_gpu(struct kgem *kgem, int width, int height, int bpp);
-bool kgem_can_create_cpu(struct kgem *kgem, int width, int height, int depth);
+bool kgem_can_create_cpu(struct kgem *kgem, int width, int height, int bpp);
 
 struct kgem_bo *
 kgem_replace_bo(struct kgem *kgem,
@@ -354,11 +362,46 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 
 int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo);
 
+static inline int kgem_bo_size(struct kgem_bo *bo)
+{
+	assert(!(bo->proxy && bo->io));
+	return PAGE_SIZE * bo->size.pages.count;
+}
+
+static inline int kgem_buffer_size(struct kgem_bo *bo)
+{
+	assert(bo->proxy && bo->io);
+	return bo->size.bytes;
+}
+
+static inline bool kgem_bo_can_blt(struct kgem *kgem,
+				   struct kgem_bo *bo)
+{
+	int pitch;
+
+	if (bo->tiling == I915_TILING_Y) {
+		DBG(("%s: can not blt to handle=%d, tiling=Y\n",
+		     __FUNCTION__, bo->handle));
+		return false;
+	}
+
+	pitch = bo->pitch;
+	if (kgem->gen >= 40 && bo->tiling)
+		pitch /= 4;
+	if (pitch > MAXSHORT) {
+		DBG(("%s: can not blt to handle=%d, adjusted pitch=%d\n",
+		     __FUNCTION__, pitch));
+		return false;
+	}
+
+	return true;
+}
+
 static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 				       struct kgem_bo *bo)
 {
 	DBG_HDR(("%s: domain=%d, offset: %d size: %d\n",
-		 __FUNCTION__, bo->domain, bo->presumed_offset, bo->size));
+		 __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
 
 	if (bo->domain == DOMAIN_GTT)
 		return true;
@@ -371,9 +414,9 @@ static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 		return false;
 
 	if (!bo->presumed_offset)
-		return bo->size <= kgem->aperture_mappable / 4;
+		return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
 
-	return bo->presumed_offset + bo->size <= kgem->aperture_mappable;
+	return bo->presumed_offset + kgem_bo_size(bo) <= kgem->aperture_mappable;
 }
 
 static inline bool kgem_bo_mapped(struct kgem_bo *bo)
