@@ -556,7 +556,7 @@ static Bool gen4_check_dst_format(PictFormat format)
 	case PICT_x4r4g4b4:
 		return TRUE;
 	default:
-		DBG(("%s: unhandled format: %x\n", __FUNCTION__, format));
+		DBG(("%s: unhandled format: %x\n", __FUNCTION__, (int)format));
 		return FALSE;
 	}
 }
@@ -1726,8 +1726,10 @@ gen4_render_video(struct sna *sna,
 	tmp.floats_per_vertex = 3;
 	tmp.u.gen4.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL));
+	}
 
 	gen4_video_bind_surfaces(sna, &tmp, frame);
 	gen4_align_vertex(sna, &tmp);
@@ -2319,13 +2321,21 @@ gen4_render_composite(struct sna *sna,
 
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
-			   NULL))
+			   NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				     tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
+				     NULL))
+			goto cleanup_mask;
+	}
 
 	gen4_bind_surfaces(sna, tmp);
 	gen4_align_vertex(sna, tmp);
 	return TRUE;
 
+cleanup_mask:
+	if (tmp->mask.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->mask.bo);
 cleanup_src:
 	if (tmp->src.bo)
 		kgem_bo_destroy(&sna->kgem, tmp->src.bo);
@@ -2400,6 +2410,8 @@ gen4_render_copy_boxes(struct sna *sna, uint8_t alu,
 {
 	struct sna_composite_op tmp;
 
+	DBG(("%s x %d\n", __FUNCTION__, n));
+
 #if NO_COPY_BOXES
 	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 		return FALSE;
@@ -2472,8 +2484,11 @@ fallback:
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
+	}
 
 	gen4_copy_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
@@ -2512,6 +2527,12 @@ gen4_render_copy(struct sna *sna, uint8_t alu,
 		 PixmapPtr dst, struct kgem_bo *dst_bo,
 		 struct sna_copy_op *op)
 {
+	DBG(("%s: src=%ld, dst=%ld, alu=%d\n",
+	     __FUNCTION__,
+	     src->drawable.serialNumber,
+	     dst->drawable.serialNumber,
+	     alu));
+
 #if NO_COPY
 	if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 		return FALSE;
@@ -2575,8 +2596,11 @@ fallback:
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
 	op->base.u.gen4.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
+	}
 
 	gen4_copy_bind_surfaces(sna, &op->base);
 	gen4_align_vertex(sna, &op->base);
@@ -2731,8 +2755,10 @@ gen4_render_fill_boxes(struct sna *sna,
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
+	}
 
 	gen4_fill_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);
@@ -2844,8 +2870,10 @@ gen4_render_fill(struct sna *sna, uint8_t alu,
 	op->base.u.gen4.wm_kernel = WM_KERNEL;
 	op->base.u.gen4.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))  {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
+	}
 
 	gen4_fill_bind_surfaces(sna, &op->base);
 	gen4_align_vertex(sna, &op->base);
@@ -2883,6 +2911,8 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 		     uint8_t alu)
 {
 	struct sna_composite_op tmp;
+
+	DBG(("%s: color=%08x\n", __FUNCTION__, color));
 
 #if NO_FILL_ONE
 	return gen4_render_fill_one_try_blt(sna, dst, bo, color,
@@ -2929,8 +2959,10 @@ gen4_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.u.gen4.wm_kernel = WM_KERNEL;
 	tmp.u.gen4.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, bo, NULL));
+	}
 
 	gen4_fill_bind_surfaces(sna, &tmp);
 	gen4_align_vertex(sna, &tmp);

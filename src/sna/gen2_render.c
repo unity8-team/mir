@@ -1824,12 +1824,20 @@ gen2_render_composite(struct sna *sna,
 
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
-			   NULL))
+			   NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
+				   NULL))
+			goto cleanup_mask;
+	}
 
 	gen2_emit_composite_state(sna, tmp);
 	return TRUE;
 
+cleanup_mask:
+	if (tmp->mask.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->mask.bo);
 cleanup_src:
 	if (tmp->src.bo)
 		kgem_bo_destroy(&sna->kgem, tmp->src.bo);
@@ -2235,12 +2243,20 @@ gen2_render_composite_spans(struct sna *sna,
 
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
-			   NULL))
+			   NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->base.dst.bo, tmp->base.src.bo,
+				   NULL))
+			goto cleanup_src;
+	}
 
 	gen2_emit_composite_spans_state(sna, tmp);
 	return TRUE;
 
+cleanup_src:
+	if (tmp->base.src.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->base.src.bo);
 cleanup_dst:
 	if (tmp->base.redirect.real_bo)
 		kgem_bo_destroy(&sna->kgem, tmp->base.dst.bo);
@@ -2435,8 +2451,10 @@ gen2_render_fill_boxes(struct sna *sna,
 	tmp.floats_per_vertex = 2;
 	tmp.floats_per_rect = 6;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
+	}
 
 	gen2_emit_fill_composite_state(sna, &tmp, pixel);
 
@@ -2675,6 +2693,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 		if (gen2_render_fill_one_try_blt(sna, dst, bo, color,
 						 x1, y1, x2, y2, alu))
 			return TRUE;
+		assert(kgem_check_bo(&sna->kgem, bo, NULL));
 	}
 
 	tmp.op = alu;
@@ -2835,14 +2854,19 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 	    too_large(src->drawable.width, src->drawable.height) ||
 	    src_bo->pitch > MAX_3D_PITCH ||
 	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH)
+	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH) {
+fallback:
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
 						   dst, dst_bo, dst_dx, dst_dy,
 						   box, n);
+	}
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
+	}
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.op = alu;
@@ -2960,6 +2984,7 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	    too_large(dst->drawable.width, dst->drawable.height) ||
 	    src_bo->pitch > MAX_3D_PITCH ||
 	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH) {
+fallback:
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
@@ -2982,8 +3007,11 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	tmp->base.floats_per_vertex = 4;
 	tmp->base.floats_per_rect = 12;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
+	}
 
 	tmp->blt  = gen2_render_copy_blt;
 	tmp->done = gen2_render_copy_done;

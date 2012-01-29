@@ -1971,6 +1971,7 @@ gen6_render_video(struct sna *sna,
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL));
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
@@ -2596,6 +2597,10 @@ gen6_render_composite(struct sna *sna,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
 			   NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
+				   NULL))
+			goto cleanup_mask;
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
@@ -2603,6 +2608,9 @@ gen6_render_composite(struct sna *sna,
 	gen6_align_vertex(sna, tmp);
 	return TRUE;
 
+cleanup_mask:
+	if (tmp->mask.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->mask.bo);
 cleanup_src:
 	if (tmp->src.bo)
 		kgem_bo_destroy(&sna->kgem, tmp->src.bo);
@@ -3000,6 +3008,10 @@ gen6_render_composite_spans(struct sna *sna,
 			   tmp->base.dst.bo, tmp->base.src.bo,
 			   NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->base.dst.bo, tmp->base.src.bo,
+				   NULL))
+			goto cleanup_src;
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
@@ -3007,6 +3019,9 @@ gen6_render_composite_spans(struct sna *sna,
 	gen6_align_vertex(sna, &tmp->base);
 	return TRUE;
 
+cleanup_src:
+	if (tmp->base.src.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->base.src.bo);
 cleanup_dst:
 	if (tmp->base.redirect.real_bo)
 		kgem_bo_destroy(&sna->kgem, tmp->base.dst.bo);
@@ -3198,6 +3213,8 @@ fallback:
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
@@ -3358,6 +3375,8 @@ fallback:
 	kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
 		_kgem_set_mode(&sna->kgem, KGEM_RENDER);
 	}
 
@@ -3508,8 +3527,10 @@ gen6_render_fill_boxes(struct sna *sna,
 	tmp.u.gen6.nr_inputs = 1;
 	tmp.u.gen6.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
+	}
 
 	gen6_emit_fill_state(sna, &tmp);
 	gen6_align_vertex(sna, &tmp);
@@ -3705,8 +3726,10 @@ gen6_render_fill(struct sna *sna, uint8_t alu,
 	op->base.u.gen6.nr_inputs = 1;
 	op->base.u.gen6.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
+	}
 
 	gen6_emit_fill_state(sna, &op->base);
 	gen6_align_vertex(sna, &op->base);
@@ -3796,8 +3819,10 @@ gen6_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.u.gen6.nr_inputs = 1;
 	tmp.u.gen6.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, bo, NULL));
+	}
 
 	gen6_emit_fill_state(sna, &tmp);
 	gen6_align_vertex(sna, &tmp);
@@ -3893,8 +3918,10 @@ gen6_render_clear(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo)
 	tmp.u.gen6.nr_inputs = 1;
 	tmp.u.gen6.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, bo, NULL));
+	}
 
 	gen6_emit_fill_state(sna, &tmp);
 	gen6_align_vertex(sna, &tmp);

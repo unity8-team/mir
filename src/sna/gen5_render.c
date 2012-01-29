@@ -557,7 +557,7 @@ static Bool gen5_check_dst_format(PictFormat format)
 	case PICT_x4r4g4b4:
 		return TRUE;
 	default:
-		DBG(("%s: unhandled format: %x\n", __FUNCTION__, format));
+		DBG(("%s: unhandled format: %x\n", __FUNCTION__, (int)format));
 		return FALSE;
 	}
 }
@@ -1759,8 +1759,10 @@ gen5_render_video(struct sna *sna,
 	tmp.floats_per_vertex = 3;
 	tmp.floats_per_rect = 9;
 
-	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, tmp.dst.bo, frame->bo, NULL));
+	}
 
 	gen5_video_bind_surfaces(sna, &tmp, frame);
 	gen5_align_vertex(sna, &tmp);
@@ -2352,8 +2354,12 @@ gen5_render_composite(struct sna *sna,
 	tmp->done  = gen5_render_composite_done;
 
 	if (!kgem_check_bo(&sna->kgem,
-			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo, NULL))
+			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->dst.bo, tmp->src.bo, tmp->mask.bo, NULL))
+			goto cleanup_mask;
+	}
 
 	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
 		if (mask == NULL &&
@@ -2372,6 +2378,9 @@ gen5_render_composite(struct sna *sna,
 	gen5_align_vertex(sna, tmp);
 	return TRUE;
 
+cleanup_mask:
+	if (tmp->mask.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->mask.bo);
 cleanup_src:
 	if (tmp->src.bo)
 		kgem_bo_destroy(&sna->kgem, tmp->src.bo);
@@ -2671,13 +2680,21 @@ gen5_render_composite_spans(struct sna *sna,
 
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
-			   NULL))
+			   NULL))  {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->base.dst.bo, tmp->base.src.bo,
+				   NULL))
+			goto cleanup_src;
+	}
 
 	gen5_bind_surfaces(sna, &tmp->base);
 	gen5_align_vertex(sna, &tmp->base);
 	return TRUE;
 
+cleanup_src:
+	if (tmp->base.src.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->base.src.bo);
 cleanup_dst:
 	if (tmp->base.redirect.real_bo)
 		kgem_bo_destroy(&sna->kgem, tmp->base.dst.bo);
@@ -2796,8 +2813,11 @@ fallback:
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
 	tmp.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
+	}
 
 	if (kgem_bo_is_dirty(src_bo)) {
 		if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
@@ -2946,8 +2966,11 @@ fallback:
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
 	op->base.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))  {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
+	}
 
 	if (kgem_bo_is_dirty(src_bo)) {
 		if (sna_blt_compare_depth(&src->drawable, &dst->drawable) &&
@@ -3093,8 +3116,10 @@ gen5_render_fill_boxes(struct sna *sna,
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
 	tmp.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
+	}
 
 	gen5_fill_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
@@ -3280,8 +3305,10 @@ gen5_render_fill(struct sna *sna, uint8_t alu,
 	op->base.u.gen5.wm_kernel = WM_KERNEL;
 	op->base.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
+	}
 
 	gen5_fill_bind_surfaces(sna, &op->base);
 	gen5_align_vertex(sna, &op->base);
@@ -3369,8 +3396,10 @@ gen5_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	tmp.u.gen5.wm_kernel = WM_KERNEL;
 	tmp.u.gen5.ve_id = 1;
 
-	if (!kgem_check_bo(&sna->kgem, bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, bo, NULL));
+	}
 
 	gen5_fill_bind_surfaces(sna, &tmp);
 	gen5_align_vertex(sna, &tmp);
