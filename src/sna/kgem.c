@@ -2501,9 +2501,6 @@ search_inactive:
 			continue;
 		}
 
-		if ((flags & CREATE_CPU_MAP) == 0 && IS_CPU_MAP(bo->map))
-			continue;
-
 		if (bo->tiling != tiling ||
 		    (tiling != I915_TILING_NONE && bo->pitch != pitch)) {
 			if (tiling != gem_set_tiling(kgem->fd,
