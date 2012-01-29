@@ -4097,5 +4097,6 @@ Bool gen7_render_init(struct sna *sna)
 	sna->render.fini = gen7_render_fini;
 
 	sna->render.max_3d_size = GEN7_MAX_SIZE;
+	sna->render.max_3d_pitch = 1 << 18;
 	return TRUE;
 }

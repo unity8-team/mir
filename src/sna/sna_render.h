@@ -186,6 +186,7 @@ struct sna_copy_op {
 
 struct sna_render {
 	int max_3d_size;
+	int max_3d_pitch;
 
 	Bool (*composite)(struct sna *sna, uint8_t op,
 			  PicturePtr dst, PicturePtr src, PicturePtr mask,

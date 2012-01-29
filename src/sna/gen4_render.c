@@ -3220,5 +3220,6 @@ Bool gen4_render_init(struct sna *sna)
 	sna->render.fini = gen4_render_fini;
 
 	sna->render.max_3d_size = 8192;
+	sna->render.max_3d_pitch = 1 << 18;
 	return TRUE;
 }

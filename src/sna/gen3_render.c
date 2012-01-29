@@ -65,6 +65,7 @@ enum {
 };
 
 #define MAX_3D_SIZE 2048
+#define MAX_3D_PITCH 8192
 
 #define OUT_BATCH(v) batch_emit(sna, v)
 #define OUT_BATCH_F(v) batch_emit_float(sna, v)
@@ -143,7 +144,7 @@ static inline uint32_t gen3_buf_tiling(uint32_t tiling)
 static inline Bool
 gen3_check_pitch_3d(struct kgem_bo *bo)
 {
-	return bo->pitch <= 8192;
+	return bo->pitch <= MAX_3D_PITCH;
 }
 
 static uint32_t gen3_get_blend_cntl(int op,
@@ -3826,9 +3827,9 @@ gen3_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	if (!(alu == GXcopy || alu == GXclear) ||
 	    src_bo == dst_bo || /* XXX handle overlap using 3D ? */
-	    src_bo->pitch > 8192 ||
+	    src_bo->pitch > MAX_3D_PITCH ||
 	    too_large(src->drawable.width, src->drawable.height) ||
-	    dst_bo->pitch > 8192 ||
+	    dst_bo->pitch > MAX_3D_PITCH ||
 	    too_large(dst->drawable.width, dst->drawable.height))
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
@@ -3959,7 +3960,7 @@ gen3_render_copy(struct sna *sna, uint8_t alu,
 	if (!(alu == GXcopy || alu == GXclear) ||
 	    too_large(src->drawable.width, src->drawable.height) ||
 	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    src_bo->pitch > 8192 || dst_bo->pitch > 8192) {
+	    src_bo->pitch > MAX_3D_PITCH || dst_bo->pitch > MAX_3D_PITCH) {
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
@@ -4083,7 +4084,7 @@ gen3_render_fill_boxes(struct sna *sna,
 	     color->red, color->green, color->blue, color->alpha));
 
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
-	    dst_bo->pitch > 8192 ||
+	    dst_bo->pitch > MAX_3D_PITCH ||
 	    !gen3_check_dst_format(format)) {
 		DBG(("%s: try blt, too large or incompatible destination\n",
 		     __FUNCTION__));
@@ -4265,7 +4266,7 @@ gen3_render_fill(struct sna *sna, uint8_t alu,
 	/* Must use the BLT if we can't RENDER... */
 	if (!(alu == GXcopy || alu == GXclear) ||
 	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    dst_bo->pitch > 8192)
+	    dst_bo->pitch > MAX_3D_PITCH)
 		return sna_blt_fill(sna, alu,
 				    dst_bo, dst->drawable.bitsPerPixel,
 				    color,
@@ -4346,7 +4347,7 @@ gen3_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 	/* Must use the BLT if we can't RENDER... */
 	if (!(alu == GXcopy || alu == GXclear) ||
 	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    bo->pitch > 8192)
+	    bo->pitch > MAX_3D_PITCH)
 		return gen3_render_fill_one_try_blt(sna, dst, bo, color,
 						    x1, y1, x2, y2, alu);
 
@@ -4424,5 +4425,6 @@ Bool gen3_render_init(struct sna *sna)
 	render->fini = gen3_render_fini;
 
 	render->max_3d_size = MAX_3D_SIZE;
+	render->max_3d_pitch = MAX_3D_PITCH;
 	return TRUE;
 }

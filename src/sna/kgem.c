@@ -704,6 +704,39 @@ static uint32_t kgem_untiled_pitch(struct kgem *kgem,
 	return ALIGN(width, scanout ? 64 : kgem->min_alignment);
 }
 
+void kgem_get_tile_size(struct kgem *kgem, int tiling,
+			int *tile_width, int *tile_height, int *tile_size)
+{
+	if (kgem->gen < 30) {
+		if (tiling) {
+			*tile_width = 512;
+			*tile_height = 16;
+			*tile_size = 2048;
+		} else {
+			*tile_width = 1;
+			*tile_height = 1;
+			*tile_size = 1;
+		}
+	} else switch (tiling) {
+	default:
+	case I915_TILING_NONE:
+		*tile_width = 1;
+		*tile_height = 1;
+		*tile_size = 1;
+		break;
+	case I915_TILING_X:
+		*tile_width = 512;
+		*tile_height = 8;
+		*tile_size = 4096;
+		break;
+	case I915_TILING_Y:
+		*tile_width = kgem->gen <= 30 ? 512 : 128;
+		*tile_height = 32;
+		*tile_size = 4096;
+		break;
+	}
+}
+
 static uint32_t kgem_surface_size(struct kgem *kgem,
 				  bool relaxed_fencing,
 				  bool scanout,

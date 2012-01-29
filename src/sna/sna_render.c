@@ -816,9 +816,26 @@ sna_render_picture_partial(struct sna *sna,
 	struct kgem_bo *bo = NULL;
 	PixmapPtr pixmap = get_drawable_pixmap(picture->pDrawable);
 	BoxRec box;
+	int tile_width, tile_height, tile_size;
+	int offset;
 
 	DBG(("%s (%d, %d)x(%d, %d) [dst=(%d, %d)]\n",
 	     __FUNCTION__, x, y, w, h, dst_x, dst_y));
+
+	if (use_cpu_bo(sna, pixmap, &box)) {
+		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
+			return 0;
+
+		bo = sna_pixmap(pixmap)->cpu_bo;
+	} else {
+		if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
+			return 0;
+
+		bo = sna_pixmap(pixmap)->gpu_bo;
+	}
+
+	if (bo->pitch > sna->render.max_3d_pitch)
+		return 0;
 
 	box.x1 = x;
 	box.y1 = y;
@@ -855,51 +872,65 @@ sna_render_picture_partial(struct sna *sna,
 		}
 	}
 
-	/* Presume worst case tile-row alignment for Y-tiling */
-	box.y1 = box.y1 & (64 - 1);
-	box.y2 = ALIGN(box.y2, 64);
+	kgem_get_tile_size(&sna->kgem, bo->tiling,
+			   &tile_width, &tile_height, &tile_size);
+
+	/* Ensure we align to an even tile row */
+	box.y1 = box.y1 & ~(2*tile_height - 1);
+	box.y2 = ALIGN(box.y2, 2*tile_height);
+	if (box.y2 > pixmap->drawable.height)
+		box.y2 = pixmap->drawable.height;
+
+	box.x1 = box.x1 & ~(tile_width * 8 / pixmap->drawable.bitsPerPixel - 1);
+	box.x2 = ALIGN(box.x2, tile_width * 8 / pixmap->drawable.bitsPerPixel);
+	if (box.x2 > pixmap->drawable.width)
+		box.x2 = pixmap->drawable.width;
+
 	w = box.x2 - box.x1;
 	h = box.y2 - box.y1;
 	DBG(("%s box=(%d, %d), (%d, %d): (%d, %d)/(%d, %d)\n", __FUNCTION__,
 	     box.x1, box.y1, box.x2, box.y2, w, h,
 	     pixmap->drawable.width, pixmap->drawable.height));
-	if (w <= 0 || h <= 0 || h > sna->render.max_3d_size)
+	if (w <= 0 || h <= 0 ||
+	    w > sna->render.max_3d_size ||
+	    h > sna->render.max_3d_size)
 		return 0;
 
-	memset(&channel->embedded_transform,
-	       0,
-	       sizeof(channel->embedded_transform));
-	channel->embedded_transform.matrix[0][0] = 1 << 16;
-	channel->embedded_transform.matrix[0][2] = 0;
-	channel->embedded_transform.matrix[1][1] = 1 << 16;
-	channel->embedded_transform.matrix[1][2] = -box.y1 << 16;
-	channel->embedded_transform.matrix[2][2] = 1 << 16;
-	if (channel->transform)
+	/* How many tiles across are we? */
+	offset = box.x1 * pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
+	channel->bo = kgem_create_proxy(bo,
+					box.y1 * bo->pitch + offset,
+					h * bo->pitch);
+	if (channel->bo == NULL)
+		return 0;
+
+	channel->bo->pitch = bo->pitch;
+
+	if (channel->transform) {
+		memset(&channel->embedded_transform,
+		       0,
+		       sizeof(channel->embedded_transform));
+		channel->embedded_transform.matrix[0][0] = 1 << 16;
+		channel->embedded_transform.matrix[0][2] = -box.x1 << 16;
+		channel->embedded_transform.matrix[1][1] = 1 << 16;
+		channel->embedded_transform.matrix[1][2] = -box.y1 << 16;
+		channel->embedded_transform.matrix[2][2] = 1 << 16;
 		pixman_transform_multiply(&channel->embedded_transform,
 					  &channel->embedded_transform,
 					  channel->transform);
-	channel->transform = &channel->embedded_transform;
-
-	if (use_cpu_bo(sna, pixmap, &box)) {
-		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
-			return 0;
-
-		bo = sna_pixmap(pixmap)->cpu_bo;
+		channel->transform = &channel->embedded_transform;
 	} else {
-		if (!sna_pixmap_force_to_gpu(pixmap, MOVE_READ))
-			return 0;
-
-		bo = sna_pixmap(pixmap)->gpu_bo;
+		x -= box.x1;
+		y -= box.y1;
 	}
 
 	channel->offset[0] = x - dst_x;
 	channel->offset[1] = y - dst_y;
-	channel->scale[0] = 1.f/pixmap->drawable.width;
+	channel->scale[0] = 1.f/w;
 	channel->scale[1] = 1.f/h;
-	channel->width  = pixmap->drawable.width;
+	channel->width  = w;
 	channel->height = h;
-	channel->bo = kgem_create_proxy(bo, box.y1 * bo->pitch, h * bo->pitch);
-	return channel->bo != NULL;
+	return 1;
 }
 
 int
@@ -927,8 +958,7 @@ sna_render_picture_extract(struct sna *sna,
 		return -1;
 	}
 
-	if (pixmap->drawable.width < sna->render.max_3d_size &&
-	    sna_render_picture_partial(sna, picture, channel,
+	if (sna_render_picture_partial(sna, picture, channel,
 				       x, y, w, h,
 				       dst_x, dst_y))
 		return 1;
@@ -1527,30 +1557,67 @@ sna_render_composite_redirect(struct sna *sna,
 		return FALSE;
 	}
 
-	if (op->dst.pixmap->drawable.width <= sna->render.max_3d_size) {
-		int y1, y2;
+	if (op->dst.bo->pitch <= sna->render.max_3d_pitch) {
+		int tile_width, tile_height, tile_size;
+		BoxRec box;
+		int w, h;
 
-		assert(op->dst.pixmap->drawable.height > sna->render.max_3d_size);
-		y1 =  y + op->dst.y;
-		y2 =  y1 + height;
-		y1 &= y1 & (64 - 1);
-		y2 = ALIGN(y2, 64);
+		kgem_get_tile_size(&sna->kgem, op->dst.bo->tiling,
+				   &tile_width, &tile_height, &tile_size);
 
-		if (y2 - y1 <= sna->render.max_3d_size) {
+		box.x1 = x;
+		box.x2 = x + width;
+		box.y1 = y;
+		box.y2 = y + height;
+
+		/* Ensure we align to an even tile row */
+		box.y1 = box.y1 & ~(2*tile_height - 1);
+		box.y2 = ALIGN(box.y2, 2*tile_height);
+		if (box.y2 > op->dst.pixmap->drawable.height)
+			box.y2 = op->dst.pixmap->drawable.height;
+
+		box.x1 = box.x1 & ~(tile_width * 8 / op->dst.pixmap->drawable.bitsPerPixel - 1);
+		box.x2 = ALIGN(box.x2, tile_width * 8 / op->dst.pixmap->drawable.bitsPerPixel);
+		if (box.x2 > op->dst.pixmap->drawable.width)
+			box.x2 = op->dst.pixmap->drawable.width;
+
+		w = box.x2 - box.x1;
+		h = box.y2 - box.y1;
+		DBG(("%s box=(%d, %d), (%d, %d): (%d, %d)/(%d, %d)\n", __FUNCTION__,
+		     box.x1, box.y1, box.x2, box.y2, w, h,
+		     op->dst.pixmap->drawable.width,
+		     op->dst.pixmap->drawable.height));
+		if (w <= sna->render.max_3d_size &&
+		    h <= sna->render.max_3d_size) {
+			int offset;
+
 			t->box.x2 = t->box.x1 = op->dst.x;
 			t->box.y2 = t->box.y1 = op->dst.y;
-			t->real_bo = priv->gpu_bo;
+			t->real_bo = op->dst.bo;
 			t->real_damage = op->damage;
 			if (op->damage) {
 				t->damage = sna_damage_create();
 				op->damage = &t->damage;
 			}
 
-			op->dst.bo = kgem_create_proxy(priv->gpu_bo,
-						       y1 * priv->gpu_bo->pitch,
-						       (y2 - y1) * priv->gpu_bo->pitch);
-			op->dst.y += -y1;
-			op->dst.height = y2 - y1;
+			/* How many tiles across are we? */
+			offset = box.x1 * op->dst.pixmap->drawable.bitsPerPixel / 8 / tile_width * tile_size;
+			op->dst.bo = kgem_create_proxy(op->dst.bo,
+						       box.y1 * op->dst.bo->pitch + offset,
+						       h * op->dst.bo->pitch);
+			if (!op->dst.bo) {
+				t->real_bo = NULL;
+				if (t->damage)
+					__sna_damage_destroy(t->damage);
+				return FALSE;
+			}
+
+			op->dst.bo->pitch = t->real_bo->pitch;
+
+			op->dst.x += -box.x1;
+			op->dst.y += -box.y1;
+			op->dst.width  = w;
+			op->dst.height = h;
 			return TRUE;
 		}
 	}
@@ -1583,7 +1650,7 @@ sna_render_composite_redirect(struct sna *sna,
 		return FALSE;
 	}
 
-	t->real_bo = priv->gpu_bo;
+	t->real_bo = op->dst.bo;
 	t->real_damage = op->damage;
 	if (op->damage) {
 		t->damage = sna_damage_create();
