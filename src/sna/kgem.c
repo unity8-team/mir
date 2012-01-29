@@ -672,9 +672,15 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	}
 	if (kgem->max_gpu_size > kgem->max_cpu_size)
 		kgem->max_gpu_size = kgem->max_cpu_size;
+	kgem->max_tile_size = kgem->aperture_total / 4;
+	if (kgem->max_tile_size < kgem->max_gpu_size / 2)
+		kgem->max_tile_size = kgem->max_gpu_size / 2;
 
-	DBG(("%s: max object size (tiled=%d, linear=%d)\n",
-	     __FUNCTION__, kgem->max_gpu_size, kgem->max_cpu_size));
+	DBG(("%s: max object size (gpu=%d, cpu=%d, tile=%d)\n",
+	     __FUNCTION__,
+	     kgem->max_gpu_size,
+	     kgem->max_cpu_size,
+	     kgem->max_tile_size));
 
 	/* Convert the aperture thresholds to pages */
 	kgem->aperture_low /= PAGE_SIZE;

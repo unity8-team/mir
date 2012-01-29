@@ -62,7 +62,8 @@ box_intersect(BoxPtr a, const BoxRec *b)
 static inline bool must_tile(struct sna *sna, int width, int height)
 {
 	return (width  > sna->render.max_3d_size ||
-		height > sna->render.max_3d_size);
+		height > sna->render.max_3d_size ||
+		width * height * 4 > sna->kgem.max_tile_size);
 }
 
 static void read_boxes_inplace(struct kgem *kgem,
@@ -199,6 +200,9 @@ fallback:
 
 			step = MIN(sna->render.max_3d_size,
 				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
+			while (step * step * 4 > sna->kgem.max_tile_size)
+				step /= 2;
+
 			DBG(("%s: tiling download, using %dx%d tiles\n",
 			     __FUNCTION__, step, step));
 
@@ -577,6 +581,9 @@ fallback:
 
 			step = MIN(sna->render.max_3d_size,
 				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
+			while (step * step * 4 > sna->kgem.max_tile_size)
+				step /= 2;
+
 			DBG(("%s: tiling upload, using %dx%d tiles\n",
 			     __FUNCTION__, step, step));
 

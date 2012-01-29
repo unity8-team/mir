@@ -138,7 +138,11 @@ sna_tiling_composite_done(struct sna *sna,
 {
 	struct sna_tile_state *tile = op->u.priv;
 	struct sna_composite_op tmp;
-	int x, y, n, step = sna->render.max_3d_size;
+	int x, y, n, step;
+
+	step = sna->render.max_3d_size;
+	while (step * step * 4 > sna->kgem.max_tile_size)
+		step /= 2;
 
 	DBG(("%s -- %dx%d, count=%d\n", __FUNCTION__,
 	     tile->width, tile->height, tile->rect_count));
@@ -318,21 +322,26 @@ sna_tiling_fill_boxes(struct sna *sna,
 {
 	RegionRec region, tile, this;
 	struct kgem_bo *bo;
+	int step;
 	Bool ret = FALSE;
 
 	pixman_region_init_rects(&region, box, n);
 
+	step = sna->render.max_3d_size;
+	while (step * step * 4 > sna->kgem.max_tile_size)
+		step /= 2;
+
 	DBG(("%s (op=%d, format=%x, color=(%04x,%04x,%04x, %04x), tile.size=%d, box=%dx[(%d, %d), (%d, %d)])\n",
 	     __FUNCTION__, op, (int)format,
 	     color->red, color->green, color->blue, color->alpha,
-	     sna->render.max_3d_size, n,
+	     step, n,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 
 	for (tile.extents.y1 = tile.extents.y2 = region.extents.y1;
 	     tile.extents.y2 < region.extents.y2;
 	     tile.extents.y1 = tile.extents.y2) {
-		tile.extents.y2 = tile.extents.y1 + sna->render.max_3d_size;
+		tile.extents.y2 = tile.extents.y1 + step;
 		if (tile.extents.y2 > region.extents.y2)
 			tile.extents.y2 = region.extents.y2;
 
@@ -341,7 +350,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 		     tile.extents.x1 = tile.extents.x2) {
 			PixmapRec tmp;
 
-			tile.extents.x2 = tile.extents.x1 + sna->render.max_3d_size;
+			tile.extents.x2 = tile.extents.x1 + step;
 			if (tile.extents.x2 > region.extents.x2)
 				tile.extents.x2 = region.extents.x2;
 
