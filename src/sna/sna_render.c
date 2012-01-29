@@ -1044,7 +1044,7 @@ sna_render_picture_extract(struct sna *sna,
 			return 0;
 	} else {
 		bool upload = true;
-		if (!texture_is_cpu(pixmap, &box) &&
+		if (!texture_is_cpu(pixmap, &box) ||
 		    move_to_gpu(pixmap, &box)) {
 			struct sna_pixmap *priv;
 

@@ -3490,6 +3490,12 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 	DBG(("%s : (%d, %d), (%d, %d), stride=%d, bpp=%d\n",
 	     __FUNCTION__, box->x1, box->y1, box->x2, box->y2, stride, bpp));
 
+	assert(data);
+	assert(width > 0);
+	assert(height > 0);
+	assert(stride);
+	assert(bpp);
+
 	bo = kgem_create_buffer_2d(kgem,
 				   width, height, bpp,
 				   KGEM_BUFFER_WRITE_INPLACE, &dst);
