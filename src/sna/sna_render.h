@@ -507,6 +507,10 @@ Bool sna_tiling_fill_boxes(struct sna *sna,
 			   const xRenderColor *color,
 			   PixmapPtr dst, struct kgem_bo *dst_bo,
 			   const BoxRec *box, int n);
+Bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
+			   struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			   struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			   int bpp, const BoxRec *box, int nbox);
 
 Bool sna_blt_composite(struct sna *sna,
 		       uint32_t op,

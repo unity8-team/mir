@@ -153,6 +153,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 	if (!kgem_check_bo_fenced(kgem, bo, NULL) ||
 	    !kgem_check_batch(kgem, 12)) {
 		_kgem_submit(kgem);
+		assert(kgem_check_bo_fenced(kgem, bo, NULL));
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -290,6 +291,8 @@ static Bool sna_blt_copy_init(struct sna *sna,
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, src, dst, NULL))
+			return FALSE;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -337,6 +340,8 @@ static Bool sna_blt_alpha_fixup_init(struct sna *sna,
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, src, dst, NULL))
+			return FALSE;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -1109,8 +1114,11 @@ prepare_blt_copy(struct sna *sna,
 	if (!kgem_bo_can_blt(&sna->kgem, priv->gpu_bo))
 		return FALSE;
 
-	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL)) {
+	if (!kgem_check_bo_fenced(&sna->kgem, op->dst.bo, priv->gpu_bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		if (!kgem_check_bo_fenced(&sna->kgem,
+					  op->dst.bo, priv->gpu_bo, NULL))
+			return FALSE;
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
@@ -1594,6 +1602,7 @@ sna_blt_composite(struct sna *sna,
 
 	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		assert(kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL));
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
@@ -1891,6 +1900,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	    !kgem_check_reloc(kgem, 1) ||
 	    !kgem_check_bo_fenced(kgem, bo, NULL)) {
 		_kgem_submit(kgem);
+		assert(kgem_check_bo_fenced(&sna->kgem, bo, NULL));
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -1964,6 +1974,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	if (!kgem_check_bo_fenced(kgem, bo, NULL) ||
 	    !kgem_check_batch(kgem, 12)) {
 		_kgem_submit(kgem);
+		assert(kgem_check_bo_fenced(&sna->kgem, bo, NULL));
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -2127,6 +2138,11 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	    !kgem_check_reloc(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL))
+			return sna_tiling_copy_boxes(sna, alu,
+						     src_bo, src_dx, src_dy,
+						     dst_bo, dst_dx, dst_dy,
+						     bpp, box, nbox);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
