@@ -3973,6 +3973,8 @@ trap_mask_converter(PicturePtr picture,
 
 	pixmap = get_drawable_pixmap(picture->pDrawable);
 	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
+	if (priv == NULL)
+		return false;
 
 	/* XXX strict adherence to the Render specification */
 	if (picture->polyMode == PolyModePrecise) {

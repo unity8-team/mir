@@ -1043,20 +1043,23 @@ sna_render_picture_extract(struct sna *sna,
 		if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
 			return 0;
 	} else {
-		if (texture_is_cpu(pixmap, &box) &&
-		    !move_to_gpu(pixmap, &box)) {
+		bool upload = true;
+		if (!texture_is_cpu(pixmap, &box) &&
+		    move_to_gpu(pixmap, &box)) {
+			struct sna_pixmap *priv;
+
+			priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
+			if (priv) {
+				src_bo = priv->gpu_bo;
+				upload = false;
+			}
+		}
+		if (upload)
 			bo = kgem_upload_source_image(&sna->kgem,
 						      pixmap->devPrivate.ptr,
 						      &box,
 						      pixmap->devKind,
 						      pixmap->drawable.bitsPerPixel);
-		} else {
-			struct sna_pixmap *priv;
-
-			priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
-			if (priv)
-				src_bo = priv->gpu_bo;
-		}
 	}
 	if (src_bo) {
 		bo = kgem_create_2d(&sna->kgem, w, h,
