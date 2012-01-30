@@ -2211,6 +2211,10 @@ bool kgem_can_create_cpu(struct kgem *kgem,
 	size = kgem_surface_size(kgem, false, false,
 				 width, height, bpp,
 				 I915_TILING_NONE, &pitch);
+	DBG(("%s? %d, cpu size %d, max %d\n",
+	     __FUNCTION__,
+	     size > 0 && size <= kgem->max_cpu_size,
+	     size, kgem->max_cpu_size));
 	return size > 0 && size <= kgem->max_cpu_size;
 }
 
@@ -2223,8 +2227,15 @@ static bool _kgem_can_create_gpu(struct kgem *kgem,
 		return false;
 
 	size = kgem_surface_size(kgem, false, false,
-				 width, height, bpp, I915_TILING_NONE,
+				 width, height, bpp,
+				 kgem_choose_tiling(kgem,
+						    I915_TILING_X,
+						    width, height, bpp),
 				 &pitch);
+	DBG(("%s? %d, gpu size %d, max %d\n",
+	     __FUNCTION__,
+	     size > 0 && size < kgem->max_gpu_size,
+	     size, kgem->max_gpu_size));
 	return size > 0 && size < kgem->max_gpu_size;
 }
 
