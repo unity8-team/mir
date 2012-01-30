@@ -1565,6 +1565,9 @@ sna_render_composite_redirect(struct sna *sna,
 		BoxRec box;
 		int w, h;
 
+		DBG(("%s: dst pitch (%d) fits within render pipeline (%d)\n",
+		     __FUNCTION__, op->dst.bo->pitch, sna->render.max_3d_pitch));
+
 		kgem_get_tile_size(&sna->kgem, op->dst.bo->tiling,
 				   &tile_width, &tile_height, &tile_size);
 
@@ -1615,10 +1618,11 @@ sna_render_composite_redirect(struct sna *sna,
 				return FALSE;
 			}
 
+			assert(op->dst.bo != t->real_bo);
 			op->dst.bo->pitch = t->real_bo->pitch;
 
-			op->dst.x += -box.x1;
-			op->dst.y += -box.y1;
+			op->dst.x -= box.x1;
+			op->dst.y -= box.y1;
 			op->dst.width  = w;
 			op->dst.height = h;
 			return TRUE;
@@ -1675,6 +1679,8 @@ sna_render_composite_redirect_done(struct sna *sna,
 	const struct sna_composite_redirect *t = &op->redirect;
 
 	if (t->real_bo) {
+		assert(op->dst.bo != t->real_bo);
+
 		if (t->box.x2 > t->box.x1) {
 			DBG(("%s: copying temporary to dst\n", __FUNCTION__));
 			sna_blt_copy_boxes(sna, GXcopy,

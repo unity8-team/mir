@@ -140,12 +140,15 @@ sna_tiling_composite_done(struct sna *sna,
 	struct sna_composite_op tmp;
 	int x, y, n, step;
 
+	/* Use a small step to accommodate enlargement through tile alignment */
 	step = sna->render.max_3d_size;
+	if (tile->dst_x & (8*512 / tile->dst->pDrawable->bitsPerPixel - 1))
+		step /= 2;
 	while (step * step * 4 > sna->kgem.max_tile_size)
 		step /= 2;
 
-	DBG(("%s -- %dx%d, count=%d\n", __FUNCTION__,
-	     tile->width, tile->height, tile->rect_count));
+	DBG(("%s -- %dx%d, count=%d, step size=%d\n", __FUNCTION__,
+	     tile->width, tile->height, tile->rect_count, step));
 
 	if (tile->rect_count == 0)
 		goto done;
