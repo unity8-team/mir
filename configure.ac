@@ -132,6 +132,7 @@ required_pixman_version=0.24
 if test "x$SNA" != "xno"; then
 	required_xorg_xserver_version=1.10
 	AC_DEFINE(USE_SNA, 1, [Enable SNA support])
+	AC_CHECK_HEADERS([sys/sysinfo.h])
 fi
 AC_MSG_RESULT([$SNA])
 

@@ -145,7 +145,7 @@ struct sna_pixmap {
 	uint8_t flush :1;
 	uint8_t clear :1;
 	uint8_t undamaged :1;
-	uint8_t gpu :1;
+	uint8_t create :3;
 	uint8_t header :1;
 };
 

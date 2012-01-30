@@ -44,6 +44,10 @@
 #include <memcheck.h>
 #endif
 
+#if HAVE_SYS_SYSINFO_H
+#include <sys/sysinfo.h>
+#endif
+
 static struct kgem_bo *
 search_linear_cache(struct kgem *kgem, unsigned int num_pages, unsigned flags);
 
@@ -498,6 +502,18 @@ agp_aperture_size(struct pci_device *dev, int gen)
 }
 
 static size_t
+total_ram_size(void)
+{
+#if HAVE_SYS_SYSINFO_H
+	struct sysinfo info;
+	if (sysinfo(&info) == 0)
+		return info.totalram * info.mem_unit;
+#endif
+
+	return 0;
+}
+
+static size_t
 cpu_cache_size(void)
 {
 	FILE *file = fopen("/proc/cpuinfo", "r");
@@ -556,6 +572,7 @@ static bool semaphores_enabled(void)
 void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 {
 	struct drm_i915_gem_get_aperture aperture;
+	size_t totalram;
 	unsigned int i, j;
 
 	memset(kgem, 0, sizeof(*kgem));
@@ -679,6 +696,24 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	if (kgem->max_tile_size > kgem->max_gpu_size / 2)
 		kgem->max_tile_size = kgem->max_gpu_size / 2;
 
+	totalram = total_ram_size();
+	if (totalram == 0) {
+		DBG(("%s: total ram size unknown, assuming maximum of total aperture\n"));
+		totalram = kgem->aperture_total;
+	}
+	if (kgem->max_object_size > totalram / 2)
+		kgem->max_object_size = totalram / 2;
+	if (kgem->max_cpu_size > totalram / 2)
+		kgem->max_cpu_size = totalram / 2;
+	if (kgem->max_gpu_size > totalram / 4)
+		kgem->max_gpu_size = totalram / 4;
+
+	kgem->large_object_size = MAX_CACHE_SIZE;
+	if (kgem->large_object_size > kgem->max_gpu_size)
+		kgem->large_object_size = kgem->max_gpu_size;
+
+	DBG(("%s: large object thresold=%d\n",
+	     __FUNCTION__, kgem->large_object_size));
 	DBG(("%s: max object size (gpu=%d, cpu=%d, tile=%d)\n",
 	     __FUNCTION__,
 	     kgem->max_gpu_size,
@@ -2179,83 +2214,40 @@ done:
 	return tiling;
 }
 
-bool kgem_can_create_2d(struct kgem *kgem,
-			 int width, int height, int depth)
+unsigned kgem_can_create_2d(struct kgem *kgem,
+			    int width, int height, int depth)
 {
 	int bpp = BitsPerPixel(depth);
 	uint32_t pitch, size;
+	unsigned flags = 0;
 
 	if (depth < 8 || kgem->wedged)
-		return false;
-
-	size = kgem_surface_size(kgem, false, false,
-				 width, height, bpp,
-				 I915_TILING_X, &pitch);
-	if (size > 0 && size <= kgem->max_object_size)
-		return true;
+		return 0;
 
 	size = kgem_surface_size(kgem, false, false,
 				 width, height, bpp,
 				 I915_TILING_NONE, &pitch);
-	if (size > 0 && size <= kgem->max_object_size)
-		return true;
-
-	return false;
-}
-
-bool kgem_can_create_cpu(struct kgem *kgem,
-			 int width, int height, int bpp)
-{
-	uint32_t pitch, size;
-
-	if (bpp < 8 || kgem->wedged)
-		return false;
+	if (size > 0 && size <= kgem->max_cpu_size)
+		flags |= KGEM_CAN_CREATE_CPU | KGEM_CAN_CREATE_GPU;
+	if (size > kgem->large_object_size)
+		flags |= KGEM_CAN_CREATE_LARGE;
+	if (size > kgem->max_object_size)
+		return 0;
 
 	size = kgem_surface_size(kgem, false, false,
 				 width, height, bpp,
-				 I915_TILING_NONE, &pitch);
-	DBG(("%s? %d, cpu size %d, max %d\n",
-	     __FUNCTION__,
-	     size > 0 && size <= kgem->max_cpu_size,
-	     size, kgem->max_cpu_size));
-	return size > 0 && size <= kgem->max_cpu_size;
-}
-
-static bool _kgem_can_create_gpu(struct kgem *kgem,
-				 int width, int height, int bpp)
-{
-	uint32_t pitch, size;
-
-	if (bpp < 8 || kgem->wedged)
-		return false;
-
-	size = kgem_surface_size(kgem, false, false,
-				 width, height, bpp,
-				 kgem_choose_tiling(kgem,
-						    I915_TILING_X,
+				 kgem_choose_tiling(kgem, I915_TILING_X,
 						    width, height, bpp),
 				 &pitch);
-	DBG(("%s? %d, gpu size %d, max %d\n",
-	     __FUNCTION__,
-	     size > 0 && size < kgem->max_gpu_size,
-	     size, kgem->max_gpu_size));
-	return size > 0 && size < kgem->max_gpu_size;
-}
+	if (size > 0 && size <= kgem->max_gpu_size)
+		flags |= KGEM_CAN_CREATE_GPU;
+	if (size > kgem->large_object_size)
+		flags |= KGEM_CAN_CREATE_LARGE;
+	if (size > kgem->max_object_size)
+		return 0;
 
-#if DEBUG_KGEM
-bool kgem_can_create_gpu(struct kgem *kgem, int width, int height, int bpp)
-{
-	bool ret = _kgem_can_create_gpu(kgem, width, height, bpp);
-	DBG(("%s(%dx%d, bpp=%d) = %d\n", __FUNCTION__,
-	     width, height, bpp, ret));
-	return ret;
+	return flags;
 }
-#else
-bool kgem_can_create_gpu(struct kgem *kgem, int width, int height, int bpp)
-{
-	return _kgem_can_create_gpu(kgem, width, height, bpp);
-}
-#endif
 
 inline int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo)
 {

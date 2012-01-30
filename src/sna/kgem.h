@@ -161,7 +161,8 @@ struct kgem {
 	uint32_t aperture_total, aperture_high, aperture_low, aperture_mappable;
 	uint32_t aperture, aperture_fenced;
 	uint32_t min_alignment;
-	uint32_t max_tile_size, max_gpu_size, max_cpu_size, max_object_size;
+	uint32_t max_tile_size, max_gpu_size, max_cpu_size;
+	uint32_t large_object_size, max_object_size;
 	uint32_t partial_buffer_size;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
@@ -201,9 +202,10 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 
 int kgem_choose_tiling(struct kgem *kgem,
 		       int tiling, int width, int height, int bpp);
-bool kgem_can_create_2d(struct kgem *kgem, int width, int height, int depth);
-bool kgem_can_create_gpu(struct kgem *kgem, int width, int height, int bpp);
-bool kgem_can_create_cpu(struct kgem *kgem, int width, int height, int bpp);
+unsigned kgem_can_create_2d(struct kgem *kgem, int width, int height, int depth);
+#define KGEM_CAN_CREATE_GPU	0x1
+#define KGEM_CAN_CREATE_CPU	0x2
+#define KGEM_CAN_CREATE_LARGE	0x4
 
 struct kgem_bo *
 kgem_replace_bo(struct kgem *kgem,

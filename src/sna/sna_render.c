@@ -332,7 +332,7 @@ use_cpu_bo(struct sna *sna, PixmapPtr pixmap, const BoxRec *box)
 		int w = box->x2 - box->x1;
 		int h = box->y2 - box->y1;
 
-		if (!priv->gpu)
+		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0)
 			goto done;
 
 		if (priv->source_count*w*h >= pixmap->drawable.width * pixmap->drawable.height &&
@@ -380,7 +380,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 			return false;
 
 		upload = true;
-		if (!priv->gpu ||
+		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
 		    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
 				       I915_TILING_X,
 				       pixmap->drawable.width,
@@ -405,7 +405,7 @@ move_to_gpu(PixmapPtr pixmap, const BoxRec *box)
 		return FALSE;
 
 	count = priv->source_count++;
-	if (!priv->gpu ||
+	if ((priv->create & KGEM_CAN_CREATE_GPU) == 0 ||
 	    kgem_choose_tiling(&to_sna_from_pixmap(pixmap)->kgem,
 			       I915_TILING_X,
 			       pixmap->drawable.width,

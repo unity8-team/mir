@@ -246,11 +246,8 @@ sna_pixmap_alloc_cpu(struct sna *sna,
 	DBG(("%s: pixmap=%ld\n", __FUNCTION__, pixmap->drawable.serialNumber));
 	assert(priv->stride);
 
-	if ((sna->kgem.has_cpu_bo || !priv->gpu) &&
-	    kgem_can_create_cpu(&sna->kgem,
-				pixmap->drawable.width,
-				pixmap->drawable.height,
-				pixmap->drawable.bitsPerPixel)) {
+	if ((sna->kgem.has_cpu_bo || (priv->create & KGEM_CAN_CREATE_GPU) == 0) &&
+	    (priv->create & KGEM_CAN_CREATE_CPU)) {
 		DBG(("%s: allocating CPU buffer (%dx%d)\n", __FUNCTION__,
 		     pixmap->drawable.width, pixmap->drawable.height));
 
@@ -589,15 +586,7 @@ sna_pixmap_create_scratch(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d, tiling=%d)\n", __FUNCTION__,
 	     width, height, depth, tiling));
 
-	if (depth < 8)
-		return create_pixmap(sna, screen, width, height, depth,
-				     CREATE_PIXMAP_USAGE_SCRATCH);
-
 	bpp = BitsPerPixel(depth);
-	if (!kgem_can_create_gpu(&sna->kgem, width, height, bpp))
-		return create_pixmap(sna, screen, width, height, depth,
-				     CREATE_PIXMAP_USAGE_SCRATCH);
-
 	if (tiling == I915_TILING_Y && !sna->have_render)
 		tiling = I915_TILING_X;
 
@@ -672,46 +661,47 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 {
 	struct sna *sna = to_sna_from_screen(screen);
 	PixmapPtr pixmap;
+	unsigned flags;
 	int pad;
 
 	DBG(("%s(%d, %d, %d, usage=%x)\n", __FUNCTION__,
 	     width, height, depth, usage));
 
-	if (!kgem_can_create_2d(&sna->kgem, width, height, depth)) {
+	if (!sna->have_render)
+		goto fallback;
+
+	flags = kgem_can_create_2d(&sna->kgem, width, height, depth);
+	if (flags == 0) {
 		DBG(("%s: can not use GPU, just creating shadow\n",
 		     __FUNCTION__));
-		return create_pixmap(sna, screen, width, height, depth, usage);
+		goto fallback;
 	}
-
-	if (!sna->have_render)
-		return create_pixmap(sna, screen,
-				     width, height, depth,
-				     usage);
 
 #if FAKE_CREATE_PIXMAP_USAGE_SCRATCH_HEADER
 	if (width == 0 || height == 0)
-		return create_pixmap(sna, screen, width, height, depth,
-				     CREATE_PIXMAP_USAGE_SCRATCH_HEADER);
+		goto fallback;
 #endif
 
-	if (usage == CREATE_PIXMAP_USAGE_SCRATCH)
-#if USE_BO_FOR_SCRATCH_PIXMAP
-		return sna_pixmap_create_scratch(screen,
-						 width, height, depth,
-						 I915_TILING_X);
-#else
-	return create_pixmap(sna, screen,
-			     width, height, depth,
-			     usage);
-#endif
+	if (usage == CREATE_PIXMAP_USAGE_SCRATCH) {
+		if (flags & KGEM_CAN_CREATE_GPU)
+			return sna_pixmap_create_scratch(screen,
+							 width, height, depth,
+							 I915_TILING_X);
+		else
+			goto fallback;
+	}
 
-	if (usage == SNA_CREATE_SCRATCH)
-		return sna_pixmap_create_scratch(screen,
-						 width, height, depth,
-						 I915_TILING_Y);
+	if (usage == SNA_CREATE_SCRATCH) {
+		if (flags & KGEM_CAN_CREATE_GPU)
+			return sna_pixmap_create_scratch(screen,
+							 width, height, depth,
+							 I915_TILING_Y);
+		else
+			goto fallback;
+	}
 
 	if (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE)
-		return create_pixmap(sna, screen, width, height, depth, usage);
+		goto fallback;
 
 	pad = PixmapBytePad(width, depth);
 	if (pad * height <= 4096) {
@@ -741,17 +731,17 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 		priv = __sna_pixmap_attach(sna, pixmap);
 		if (priv == NULL) {
 			free(pixmap);
-			return create_pixmap(sna, screen,
-					     width, height, depth, usage);
+			goto fallback;
 		}
 
 		priv->stride = pad;
-		priv->gpu = kgem_can_create_gpu(&sna->kgem,
-						width, height,
-						pixmap->drawable.bitsPerPixel);
+		priv->create = flags;
 	}
 
 	return pixmap;
+
+fallback:
+	return create_pixmap(sna, screen, width, height, depth, usage);
 }
 
 static Bool sna_destroy_pixmap(PixmapPtr pixmap)
@@ -844,7 +834,8 @@ _sna_pixmap_move_to_cpu(PixmapPtr pixmap, unsigned int flags)
 		sna_damage_destroy(&priv->gpu_damage);
 		priv->clear = false;
 
-		if (priv->gpu && pixmap_inplace(sna, pixmap, priv)) {
+		if (priv->create & KGEM_CAN_CREATE_GPU &&
+		    pixmap_inplace(sna, pixmap, priv)) {
 			DBG(("%s: write inplace\n", __FUNCTION__));
 			if (priv->gpu_bo) {
 				if (kgem_bo_is_busy(priv->gpu_bo) &&
@@ -1004,7 +995,7 @@ skip_inplace_map:
 		priv->undamaged = true;
 	}
 
-	if (flags & MOVE_WRITE) {
+	if (flags & MOVE_WRITE || priv->create & KGEM_CAN_CREATE_LARGE) {
 		DBG(("%s: marking as damaged\n", __FUNCTION__));
 		sna_damage_all(&priv->cpu_damage,
 			       pixmap->drawable.width,
@@ -1179,7 +1170,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	if (priv->clear)
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
 
-	if (priv->gpu_bo == NULL && !priv->gpu && flags & MOVE_WRITE)
+	if (priv->gpu_bo == NULL &&
+	    (priv->create & KGEM_CAN_CREATE_GPU) == 0 &&
+	    flags & MOVE_WRITE)
 		return _sna_pixmap_move_to_cpu(pixmap, flags);
 
 	get_drawable_deltas(drawable, pixmap, &dx, &dy);
@@ -1692,7 +1685,7 @@ sna_pixmap_move_area_to_gpu(PixmapPtr pixmap, BoxPtr box, unsigned int flags)
 	}
 
 done:
-	if (!priv->pinned && priv->gpu)
+	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->clear = false;
 	return true;
@@ -1733,7 +1726,7 @@ sna_drawable_use_bo(DrawablePtr drawable,
 		goto use_cpu_bo;
 
 	if (priv->gpu_bo == NULL) {
-		if (!priv->gpu) {
+		if ((priv->create & KGEM_CAN_CREATE_GPU) == 0) {
 			DBG(("%s: untiled, will not force allocation\n",
 			     __FUNCTION__));
 			goto use_cpu_bo;
@@ -1832,7 +1825,7 @@ done:
 
 use_gpu_bo:
 	priv->clear = false;
-	if (!priv->pinned && priv->gpu)
+	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive,
 			  &to_sna_from_pixmap(pixmap)->active_pixmaps);
 	*damage = NULL;
@@ -1883,10 +1876,6 @@ sna_pixmap_create_upload(ScreenPtr screen,
 	DBG(("%s(%d, %d, %d)\n", __FUNCTION__, width, height, depth));
 	assert(width);
 	assert(height);
-	if (!sna->have_render ||
-	    !kgem_can_create_gpu(&sna->kgem, width, height, bpp))
-		return create_pixmap(sna, screen, width, height, depth,
-				     CREATE_PIXMAP_USAGE_SCRATCH);
 
 	if (sna->freed_pixmap) {
 		pixmap = sna->freed_pixmap;
@@ -2000,7 +1989,7 @@ sna_pixmap_force_to_gpu(PixmapPtr pixmap, unsigned flags)
 		return NULL;
 
 	/* For large bo, try to keep only a single copy around */
-	if (!priv->gpu && priv->ptr) {
+	if (priv->create & KGEM_CAN_CREATE_LARGE && priv->ptr) {
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
@@ -2043,7 +2032,7 @@ sna_pixmap_move_to_gpu(PixmapPtr pixmap, unsigned flags)
 	sna_damage_reduce(&priv->cpu_damage);
 	DBG(("%s: CPU damage? %d\n", __FUNCTION__, priv->cpu_damage != NULL));
 	if (priv->gpu_bo == NULL) {
-		if (!wedged(sna) && priv->gpu)
+		if (!wedged(sna) && priv->create & KGEM_CAN_CREATE_GPU)
 			priv->gpu_bo =
 				kgem_create_2d(&sna->kgem,
 					       pixmap->drawable.width,
@@ -2128,10 +2117,13 @@ done:
 	sna_damage_reduce_all(&priv->gpu_damage,
 			      pixmap->drawable.width,
 			      pixmap->drawable.height);
-	if (DAMAGE_IS_ALL(priv->gpu_damage))
+	if (DAMAGE_IS_ALL(priv->gpu_damage)) {
 		priv->undamaged = false;
+		if (priv->ptr)
+			sna_pixmap_free_cpu(sna, priv);
+	}
 active:
-	if (!priv->pinned && priv->gpu)
+	if (!priv->pinned && (priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 		list_move(&priv->inactive, &sna->active_pixmaps);
 	priv->clear = false;
 	return priv;
@@ -2984,7 +2976,7 @@ move_to_gpu(PixmapPtr pixmap, struct sna_pixmap *priv,
 	if (priv->gpu_bo)
 		return TRUE;
 
-	if (!priv->gpu)
+	if ((priv->create & KGEM_CAN_CREATE_GPU) == 0)
 		return FALSE;
 
 	if (priv->cpu_bo) {
@@ -3241,7 +3233,8 @@ sna_copy_boxes(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 			}
 		} else {
 			dst_priv->clear = false;
-			if (!dst_priv->pinned && dst_priv->gpu)
+			if (!dst_priv->pinned &&
+			    (dst_priv->create & KGEM_CAN_CREATE_LARGE) == 0)
 				list_move(&dst_priv->inactive,
 					  &sna->active_pixmaps);
 		}
@@ -11557,7 +11550,7 @@ static void sna_accel_inactive(struct sna *sna)
 		priv = list_first_entry(&sna->inactive_clock[1],
 					struct sna_pixmap,
 					inactive);
-		assert(priv->gpu);
+		assert((priv->create & KGEM_CAN_CREATE_LARGE) == 0);
 		assert(priv->gpu_bo);
 
 		/* XXX Rather than discarding the GPU buffer here, we
