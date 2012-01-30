@@ -2533,6 +2533,26 @@ sna_put_zpixmap_blt(DrawablePtr drawable, GCPtr gc, RegionPtr region,
 	    !sna_pixmap_alloc_cpu(sna, pixmap, priv, false))
 		return true;
 
+	if (priv->clear) {
+		DBG(("%s: applying clear [%08x]\n",
+		     __FUNCTION__, priv->clear_color));
+
+		pixman_fill(pixmap->devPrivate.ptr,
+			    pixmap->devKind/sizeof(uint32_t),
+			    pixmap->drawable.bitsPerPixel,
+			    0, 0,
+			    pixmap->drawable.width,
+			    pixmap->drawable.height,
+			    priv->clear_color);
+
+		sna_damage_all(&priv->cpu_damage,
+			       pixmap->drawable.width,
+			       pixmap->drawable.height);
+		sna_pixmap_free_gpu(sna, priv);
+		priv->undamaged = false;
+		priv->clear = false;
+	}
+
 	if (!DAMAGE_IS_ALL(priv->cpu_damage)) {
 		DBG(("%s: marking damage\n", __FUNCTION__));
 		if (region_subsumes_drawable(region, &pixmap->drawable)) {
