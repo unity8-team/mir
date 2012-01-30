@@ -3365,6 +3365,7 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 		if (old) {
 			DBG(("%s: reusing cpu map handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
+			alloc = num_pages(old);
 
 			memcpy(&bo->base, old, sizeof(*old));
 			if (old->rq)
