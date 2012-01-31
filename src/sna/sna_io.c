@@ -61,7 +61,7 @@ box_intersect(BoxPtr a, const BoxRec *b)
 
 static inline bool upload_too_large(struct sna *sna, int width, int height)
 {
-	return width * height * 4 > sna->kgem.max_tile_size;
+	return width * height * 4 > sna->kgem.max_upload_tile_size;
 }
 
 static inline bool must_tile(struct sna *sna, int width, int height)
@@ -209,7 +209,7 @@ fallback:
 
 			step = MIN(sna->render.max_3d_size,
 				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
-			while (step * step * 4 > sna->kgem.max_tile_size)
+			while (step * step * 4 > sna->kgem.max_upload_tile_size)
 				step /= 2;
 
 			DBG(("%s: tiling download, using %dx%d tiles\n",
@@ -595,7 +595,7 @@ fallback:
 tile:
 			step = MIN(sna->render.max_3d_size,
 				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
-			while (step * step * 4 > sna->kgem.max_tile_size)
+			while (step * step * 4 > sna->kgem.max_upload_tile_size)
 				step /= 2;
 
 			DBG(("%s: tiling upload, using %dx%d tiles\n",

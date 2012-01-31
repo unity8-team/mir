@@ -161,7 +161,8 @@ struct kgem {
 	uint32_t aperture_total, aperture_high, aperture_low, aperture_mappable;
 	uint32_t aperture, aperture_fenced;
 	uint32_t min_alignment;
-	uint32_t max_tile_size, max_gpu_size, max_cpu_size;
+	uint32_t max_upload_tile_size, max_copy_tile_size;
+	uint32_t max_gpu_size, max_cpu_size;
 	uint32_t large_object_size, max_object_size;
 	uint32_t partial_buffer_size;
 

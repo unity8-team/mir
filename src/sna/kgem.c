@@ -692,9 +692,13 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 	if (kgem->max_gpu_size > kgem->max_cpu_size)
 		kgem->max_gpu_size = kgem->max_cpu_size;
 
-	kgem->max_tile_size = MAX_CACHE_SIZE;
-	if (kgem->max_tile_size > kgem->max_gpu_size / 2)
-		kgem->max_tile_size = kgem->max_gpu_size / 2;
+	kgem->max_upload_tile_size = kgem->aperture_mappable / 2;
+	if (kgem->max_upload_tile_size > kgem->max_gpu_size / 2)
+		kgem->max_upload_tile_size = kgem->max_gpu_size / 2;
+
+	kgem->max_copy_tile_size = (MAX_CACHE_SIZE + 1)/2;
+	if (kgem->max_copy_tile_size > kgem->max_gpu_size / 2)
+		kgem->max_copy_tile_size = kgem->max_gpu_size / 2;
 
 	totalram = total_ram_size();
 	if (totalram == 0) {
@@ -3197,9 +3201,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 #if !DBG_NO_MAP_UPLOAD
 	/* Be a little more generous and hope to hold fewer mmappings */
 	alloc = ALIGN(2*size, kgem->partial_buffer_size);
-	if (alloc > kgem->max_tile_size)
+	if (alloc > MAX_CACHE_SIZE)
 		alloc = ALIGN(size, kgem->partial_buffer_size);
-	if (alloc > kgem->max_tile_size)
+	if (alloc > MAX_CACHE_SIZE)
 		alloc = PAGE_ALIGN(size);
 	alloc /= PAGE_SIZE;
 	if (kgem->has_cpu_bo) {

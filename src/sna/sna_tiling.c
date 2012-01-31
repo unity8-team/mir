@@ -144,7 +144,7 @@ sna_tiling_composite_done(struct sna *sna,
 	step = sna->render.max_3d_size;
 	if (tile->dst_x & (8*512 / tile->dst->pDrawable->bitsPerPixel - 1))
 		step /= 2;
-	while (step * step * 4 > sna->kgem.max_tile_size)
+	while (step * step * 4 > sna->kgem.max_copy_tile_size)
 		step /= 2;
 
 	DBG(("%s -- %dx%d, count=%d, step size=%d\n", __FUNCTION__,
@@ -331,7 +331,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 	pixman_region_init_rects(&region, box, n);
 
 	step = sna->render.max_3d_size;
-	while (step * step * 4 > sna->kgem.max_tile_size)
+	while (step * step * 4 > sna->kgem.max_copy_tile_size)
 		step /= 2;
 
 	DBG(("%s (op=%d, format=%x, color=(%04x,%04x,%04x, %04x), tile.size=%d, box=%dx[(%d, %d), (%d, %d)])\n",
@@ -444,7 +444,7 @@ Bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
 	pixman_region_init_rects(&region, box, nbox);
 
 	step = sna->render.max_3d_size;
-	while (step * step * 4 > sna->kgem.max_tile_size)
+	while (step * step * 4 > sna->kgem.max_copy_tile_size)
 		step /= 2;
 
 	DBG(("%s (alu=%d), tile.size=%d, box=%dx[(%d, %d), (%d, %d)])\n",
