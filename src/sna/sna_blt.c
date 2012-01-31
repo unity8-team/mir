@@ -682,7 +682,8 @@ sna_picture_is_solid(PicturePtr picture, uint32_t *color)
 	if (!is_solid(picture))
 		return FALSE;
 
-	*color = get_solid_color(picture, PICT_a8r8g8b8);
+	if (color)
+		*color = get_solid_color(picture, PICT_a8r8g8b8);
 	return TRUE;
 }
 

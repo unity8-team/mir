@@ -1992,12 +1992,6 @@ picture_is_cpu(PicturePtr picture)
 	if (!picture->pDrawable)
 		return FALSE;
 
-	/* If it is a solid, try to use the render paths */
-	if (picture->pDrawable->width == 1 &&
-	    picture->pDrawable->height == 1 &&
-	    picture->repeat)
-		return FALSE;
-
 	if (too_large(picture->pDrawable->width, picture->pDrawable->height))
 		return TRUE;
 
@@ -2009,7 +2003,7 @@ try_blt(struct sna *sna,
 	PicturePtr dst, PicturePtr src,
 	int width, int height)
 {
-	if (sna->kgem.mode == KGEM_BLT) {
+	if (sna->kgem.mode != KGEM_RENDER) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return TRUE;
 	}
@@ -2021,6 +2015,10 @@ try_blt(struct sna *sna,
 	}
 
 	if (too_large(dst->pDrawable->width, dst->pDrawable->height))
+		return TRUE;
+
+	/* The blitter is much faster for solids */
+	if (sna_picture_is_solid(src, NULL))
 		return TRUE;
 
 	/* is the source picture only in cpu memory e.g. a shm pixmap? */
@@ -2733,13 +2731,18 @@ gen5_copy_bind_surfaces(struct sna *sna,
 	gen5_emit_state(sna, op, offset);
 }
 
+static inline bool untiled_tlb_miss(struct kgem_bo *bo)
+{
+	return bo->tiling == I915_TILING_NONE && bo->pitch >= 4096;
+}
+
 static inline bool prefer_blt_copy(struct sna *sna,
 				   struct kgem_bo *src_bo,
 				   struct kgem_bo *dst_bo)
 {
-	return (src_bo->tiling == I915_TILING_NONE ||
-		dst_bo->tiling == I915_TILING_NONE ||
-		sna->kgem.mode == KGEM_BLT);
+	return (sna->kgem.ring != KGEM_RENDER ||
+		untiled_tlb_miss(src_bo) ||
+		untiled_tlb_miss(dst_bo));
 }
 
 static Bool
