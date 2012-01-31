@@ -716,8 +716,8 @@ static PixmapPtr sna_create_pixmap(ScreenPtr screen,
 	} else {
 		struct sna_pixmap *priv;
 
-		DBG(("%s: creating GPU pixmap %dx%d, stride=%d\n",
-		     __FUNCTION__, width, height, pad));
+		DBG(("%s: creating GPU pixmap %dx%d, stride=%d, flags=%x\n",
+		     __FUNCTION__, width, height, pad, flags));
 
 		pixmap = create_pixmap(sna, screen, 0, 0, depth, usage);
 		if (pixmap == NullPixmap)

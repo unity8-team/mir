@@ -59,11 +59,16 @@ box_intersect(BoxPtr a, const BoxRec *b)
 	return a->x1 < a->x2 && a->y1 < a->y2;
 }
 
+static inline bool upload_too_large(struct sna *sna, int width, int height)
+{
+	return width * height * 4 > sna->kgem.max_tile_size;
+}
+
 static inline bool must_tile(struct sna *sna, int width, int height)
 {
 	return (width  > sna->render.max_3d_size ||
 		height > sna->render.max_3d_size ||
-		width * height * 4 > sna->kgem.max_tile_size);
+		upload_too_large(sna, width, height));
 }
 
 static void read_boxes_inplace(struct kgem *kgem,
@@ -118,6 +123,7 @@ void sna_read_boxes(struct sna *sna,
 	void *ptr;
 	int src_pitch, cpp, offset;
 	int n, cmd, br13;
+	bool can_blt;
 
 	DBG(("%s x %d, src=(handle=%d, offset=(%d,%d)), dst=(size=(%d, %d), offset=(%d,%d))\n",
 	     __FUNCTION__, nbox, src_bo->handle, src_dx, src_dy,
@@ -154,12 +160,16 @@ fallback:
 		return;
 	}
 
+	can_blt = kgem_bo_can_blt(kgem, src_bo);
 	extents = box[0];
 	for (n = 1; n < nbox; n++) {
 		if (box[n].x1 < extents.x1)
 			extents.x1 = box[n].x1;
 		if (box[n].x2 > extents.x2)
 			extents.x2 = box[n].x2;
+
+		if (can_blt)
+			can_blt = (box[n].x2 - box[n].x1) * dst->drawable.bitsPerPixel < 8 * (MAXSHORT - 4);
 
 		if (box[n].y1 < extents.y1)
 			extents.y1 = box[n].y1;
@@ -173,9 +183,8 @@ fallback:
 	}
 
 	/* Try to avoid switching rings... */
-	if (kgem->ring == KGEM_RENDER ||
-	    !kgem_bo_can_blt(kgem, src_bo) ||
-	    must_tile(sna, extents.x2 - extents.x1, extents.y2 - extents.y1)) {
+	if (!can_blt || kgem->ring == KGEM_RENDER ||
+	    upload_too_large(sna, extents.x2 - extents.x1, extents.y2 - extents.y1)) {
 		PixmapRec tmp;
 
 		tmp.drawable.width  = extents.x2 - extents.x1;
@@ -531,6 +540,7 @@ bool sna_write_boxes(struct sna *sna, PixmapPtr dst,
 	void *ptr;
 	int offset;
 	int n, cmd, br13;
+	bool can_blt;
 
 	DBG(("%s x %d\n", __FUNCTION__, nbox));
 
@@ -542,12 +552,16 @@ fallback:
 					   box, nbox);
 	}
 
+	can_blt = kgem_bo_can_blt(kgem, dst_bo);
 	extents = box[0];
 	for (n = 1; n < nbox; n++) {
 		if (box[n].x1 < extents.x1)
 			extents.x1 = box[n].x1;
 		if (box[n].x2 > extents.x2)
 			extents.x2 = box[n].x2;
+
+		if (can_blt)
+			can_blt = (box[n].x2 - box[n].x1) * dst->drawable.bitsPerPixel < 8 * (MAXSHORT - 4);
 
 		if (box[n].y1 < extents.y1)
 			extents.y1 = box[n].y1;
@@ -556,9 +570,8 @@ fallback:
 	}
 
 	/* Try to avoid switching rings... */
-	if (kgem->ring == KGEM_RENDER ||
-	    !kgem_bo_can_blt(kgem, dst_bo) ||
-	    must_tile(sna, extents.x2 - extents.x1, extents.y2 - extents.y1)) {
+	if (!can_blt || kgem->ring == KGEM_RENDER ||
+	    upload_too_large(sna, extents.x2 - extents.x1, extents.y2 - extents.y1)) {
 		PixmapRec tmp;
 
 		tmp.drawable.width  = extents.x2 - extents.x1;
@@ -579,6 +592,7 @@ fallback:
 			BoxRec tile, stack[64], *clipped, *c;
 			int step;
 
+tile:
 			step = MIN(sna->render.max_3d_size,
 				   8*(MAXSHORT&~63) / dst->drawable.bitsPerPixel);
 			while (step * step * 4 > sna->kgem.max_tile_size)
@@ -693,7 +707,7 @@ fallback:
 			kgem_bo_destroy(&sna->kgem, src_bo);
 
 			if (!n)
-				goto fallback;
+				goto tile;
 		}
 
 		return true;
@@ -1069,8 +1083,12 @@ indirect_replace(struct sna *sna,
 	if ((int)pixmap->devKind * pixmap->drawable.height >> 12 > kgem->half_cpu_cache_pages)
 		return false;
 
-	if (bo->tiling == I915_TILING_Y || kgem->ring == KGEM_RENDER) {
+	if (kgem->ring == KGEM_RENDER || !kgem_bo_can_blt(kgem, bo)) {
 		BoxRec box;
+
+		assert(!must_tile(sna,
+				  pixmap->drawable.width,
+				  pixmap->drawable.height));
 
 		src_bo = kgem_create_buffer_2d(kgem,
 					       pixmap->drawable.width,
