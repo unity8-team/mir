@@ -719,11 +719,10 @@ void kgem_init(struct kgem *kgem, int fd, struct pci_device *dev, int gen)
 
 	DBG(("%s: large object thresold=%d\n",
 	     __FUNCTION__, kgem->large_object_size));
-	DBG(("%s: max object size (gpu=%d, cpu=%d, tile=%d)\n",
+	DBG(("%s: max object size (gpu=%d, cpu=%d, tile upload=%d, copy=%d)\n",
 	     __FUNCTION__,
-	     kgem->max_gpu_size,
-	     kgem->max_cpu_size,
-	     kgem->max_tile_size));
+	     kgem->max_gpu_size, kgem->max_cpu_size,
+	     kgem->max_upload_tile_size, kgem->max_copy_tile_size));
 
 	/* Convert the aperture thresholds to pages */
 	kgem->aperture_low /= PAGE_SIZE;

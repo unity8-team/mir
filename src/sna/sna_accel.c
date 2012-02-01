@@ -9968,7 +9968,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	      int _x, int _y, unsigned int _n,
 	      CharInfoPtr *_info,
 	      RegionRec *clip,
-	      bool transparent)
+	      uint32_t fg, uint32_t bg)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
@@ -9979,10 +9979,10 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	int16_t dx, dy;
 	uint32_t br00;
 
-	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
+	uint8_t rop = bg == -1 ? copy_ROP[gc->alu] : ROP_S;
 
-	DBG(("%s (%d, %d) x %d, transparent? %d, alu=%d\n",
-	     __FUNCTION__, _x, _y, _n, transparent, rop));
+	DBG(("%s (%d, %d) x %d, fg=%08x, bg=%08x alu=%02x\n",
+	     __FUNCTION__, _x, _y, _n, fg, bg, rop));
 
 	if (wedged(sna)) {
 		DBG(("%s -- fallback, wedged\n", __FUNCTION__));
@@ -10025,7 +10025,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
-	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+	b[1] |= 1 << 30 | (bg == -1) << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
 	b[2] = extents->y1 << 16 | extents->x1;
 	b[3] = extents->y2 << 16 | extents->x2;
 	b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
@@ -10033,8 +10033,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			      I915_GEM_DOMAIN_RENDER |
 			      KGEM_RELOC_FENCED,
 			      0);
-	b[5] = gc->bgPixel;
-	b[6] = gc->fgPixel;
+	b[5] = bg;
+	b[6] = fg;
 	b[7] = 0;
 	sna->kgem.nbatch += 8;
 
@@ -10079,7 +10079,7 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
-				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+				b[1] |= 1 << 30 | (bg == -1) << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
 				b[2] = extents->y1 << 16 | extents->x1;
 				b[3] = extents->y2 << 16 | extents->x2;
 				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
@@ -10087,8 +10087,8 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 						      I915_GEM_DOMAIN_RENDER |
 						      KGEM_RELOC_FENCED,
 						      0);
-				b[5] = gc->bgPixel;
-				b[6] = gc->fgPixel;
+				b[5] = bg;
+				b[6] = fg;
 				b[7] = 0;
 				sna->kgem.nbatch += 8;
 			}
@@ -10269,6 +10269,7 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	ExtentInfoRec extents;
 	RegionRec region;
 	long unsigned i, n;
+	uint32_t fg;
 
 	if (drawable->depth < 8)
 		goto fallback;
@@ -10302,7 +10303,13 @@ sna_poly_text8(DrawablePtr drawable, GCPtr gc,
 	if (!ACCEL_POLY_TEXT8)
 		goto force_fallback;
 
-	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, true)) {
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		return false;
+
+	if (!gc_is_solid(gc, &fg))
+		goto force_fallback;
+
+	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, fg, -1)) {
 force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
@@ -10350,6 +10357,7 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	ExtentInfoRec extents;
 	RegionRec region;
 	long unsigned i, n;
+	uint32_t fg;
 
 	if (drawable->depth < 8)
 		goto fallback;
@@ -10383,7 +10391,13 @@ sna_poly_text16(DrawablePtr drawable, GCPtr gc,
 	if (!ACCEL_POLY_TEXT16)
 		goto force_fallback;
 
-	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, true)) {
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		return false;
+
+	if (!gc_is_solid(gc, &fg))
+		goto force_fallback;
+
+	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, fg, -1)) {
 force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
@@ -10465,7 +10479,10 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	if (!ACCEL_IMAGE_TEXT8)
 		goto force_fallback;
 
-	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, false)) {
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto force_fallback;
+
+	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, gc->fgPixel, gc->bgPixel)) {
 force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
@@ -10539,7 +10556,10 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	if (!ACCEL_IMAGE_TEXT16)
 		goto force_fallback;
 
-	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, false)) {
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto force_fallback;
+
+	if (!sna_glyph_blt(drawable, gc, x, y, n, info, &region, gc->fgPixel, gc->bgPixel)) {
 force_fallback:
 		DBG(("%s: fallback\n", __FUNCTION__));
 		gc->font->get_glyphs(gc->font, count, (unsigned char *)chars,
@@ -10580,14 +10600,14 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		       struct kgem_bo *bo,
 		       struct sna_damage **damage,
 		       RegionPtr clip,
-		       bool transparent)
+		       uint32_t fg, uint32_t bg)
 {
 	PixmapPtr pixmap = get_drawable_pixmap(drawable);
 	struct sna *sna = to_sna_from_pixmap(pixmap);
 	const BoxRec *extents, *last_extents;
 	uint32_t *b;
 	int16_t dx, dy;
-	uint8_t rop = transparent ? copy_ROP[gc->alu] : ROP_S;
+	uint8_t rop = bg == -1 ? copy_ROP[gc->alu] : ROP_S;
 
 	if (bo->tiling == I915_TILING_Y) {
 		DBG(("%s: converting bo from Y-tiling\n", __FUNCTION__));
@@ -10619,7 +10639,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 		b[0] |= BLT_DST_TILED;
 		b[1] >>= 2;
 	}
-	b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+	b[1] |= 1 << 30 | (bg == -1) << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
 	b[2] = extents->y1 << 16 | extents->x1;
 	b[3] = extents->y2 << 16 | extents->x2;
 	b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4, bo,
@@ -10627,8 +10647,8 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 			      I915_GEM_DOMAIN_RENDER |
 			      KGEM_RELOC_FENCED,
 			      0);
-	b[5] = gc->bgPixel;
-	b[6] = gc->fgPixel;
+	b[5] = bg;
+	b[6] = fg;
 	b[7] = 0;
 	sna->kgem.nbatch += 8;
 
@@ -10672,7 +10692,7 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 					b[0] |= BLT_DST_TILED;
 					b[1] >>= 2;
 				}
-				b[1] |= 1 << 30 | transparent << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
+				b[1] |= 1 << 30 | (bg == -1) << 29 | blt_depth(drawable->depth) << 24 | rop << 16;
 				b[2] = extents->y1 << 16 | extents->x1;
 				b[3] = extents->y2 << 16 | extents->x2;
 				b[4] = kgem_add_reloc(&sna->kgem, sna->kgem.nbatch + 4,
@@ -10681,8 +10701,8 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 						      I915_GEM_DOMAIN_RENDER |
 						      KGEM_RELOC_FENCED,
 						      0);
-				b[5] = gc->bgPixel;
-				b[6] = gc->fgPixel;
+				b[5] = bg;
+				b[6] = fg;
 				b[7] = 0;
 				sna->kgem.nbatch += 8;
 			}
@@ -10786,9 +10806,13 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 		goto fallback;
 	}
 
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto fallback;
+
 	if ((bo = sna_drawable_use_bo(drawable, &region.extents, &damage)) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
-				   bo, damage, &region, false))
+				   bo, damage, &region,
+				   gc->fgPixel, gc->bgPixel))
 		goto out;
 
 fallback:
@@ -10818,6 +10842,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	RegionRec region;
 	struct sna_damage **damage;
 	struct kgem_bo *bo;
+	uint32_t fg;
 
 	if (n == 0)
 		return;
@@ -10853,9 +10878,15 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 		goto fallback;
 	}
 
+	if (!PM_IS_SOLID(drawable, gc->planemask))
+		goto fallback;
+
+	if (!gc_is_solid(gc, &fg))
+		goto fallback;
+
 	if ((bo = sna_drawable_use_bo(drawable, &region.extents, &damage)) &&
 	    sna_reversed_glyph_blt(drawable, gc, x, y, n, info, base,
-				   bo, damage, &region, true))
+				   bo, damage, &region, fg, -1))
 		goto out;
 
 fallback:
