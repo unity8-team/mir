@@ -104,6 +104,8 @@ static inline void list_replace(struct list *old,
 #endif
 
 #define PAGE_ALIGN(x) ALIGN(x, PAGE_SIZE)
+#define NUM_PAGES(x) (((x) + PAGE_SIZE-1) / PAGE_SIZE)
+
 #define MAX_GTT_VMA_CACHE 512
 #define MAX_CPU_VMA_CACHE INT16_MAX
 #define MAP_PRESERVE_TIME 10
@@ -3215,6 +3217,8 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			old = search_linear_cache(kgem, alloc, CREATE_CPU_MAP);
 		if (old == NULL)
 			old = search_linear_cache(kgem, alloc, CREATE_INACTIVE | CREATE_CPU_MAP);
+		if (old == NULL)
+			old = search_linear_cache(kgem, NUM_PAGES(size), CREATE_INACTIVE | CREATE_CPU_MAP);
 		if (old) {
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
@@ -3290,6 +3294,9 @@ struct kgem_bo *kgem_create_buffer(struct kgem *kgem,
 			}
 		}
 #endif
+		if (old == NULL)
+			old = search_linear_cache(kgem, NUM_PAGES(size),
+						  CREATE_INACTIVE | CREATE_GTT_MAP);
 		if (old) {
 			DBG(("%s: reusing handle=%d for buffer\n",
 			     __FUNCTION__, old->handle));
