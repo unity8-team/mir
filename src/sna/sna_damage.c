@@ -514,8 +514,7 @@ static void __sna_damage_reduce(struct sna_damage *damage)
 		damage->extents = region->extents;
 	}
 
-	if (free_boxes)
-		free(boxes);
+	free(free_boxes);
 
 done:
 	damage->mode = DAMAGE_ADD;
@@ -1048,6 +1047,7 @@ static struct sna_damage *__sna_damage_subtract(struct sna_damage *damage,
 					       &damage->region,
 					       region);
 			damage->extents = damage->region.extents;
+			assert(pixman_region_not_empty(&damage->region));
 			return damage;
 		}
 

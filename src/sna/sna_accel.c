@@ -80,11 +80,67 @@
 #define ACCEL_POLY_FILL_ARC 1
 #define ACCEL_POLY_TEXT8 1
 #define ACCEL_POLY_TEXT16 1
+#define ACCEL_POLY_GLYPH 1
 #define ACCEL_IMAGE_TEXT8 1
 #define ACCEL_IMAGE_TEXT16 1
 #define ACCEL_IMAGE_GLYPH 1
-#define ACCEL_POLY_GLYPH 1
 #define ACCEL_PUSH_PIXELS 1
+
+#if 0
+static void __sna_fallback_flush(DrawablePtr d)
+{
+	PixmapPtr pixmap = get_drawable_pixmap(d);
+	struct sna *sna = to_sna_from_pixmap(pixmap);
+	struct sna_pixmap *priv;
+	BoxRec box;
+	PixmapPtr tmp;
+	int i, j;
+	char *src, *dst;
+
+	DBG(("%s: uploading CPU damage...\n", __FUNCTION__));
+	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ);
+	if (priv == NULL)
+		return;
+
+	DBG(("%s: downloading GPU damage...\n", __FUNCTION__));
+	if (!sna_pixmap_move_to_cpu(pixmap, MOVE_READ))
+		return;
+
+	box.x1 = box.y1 = 0;
+	box.x2 = pixmap->drawable.width;
+	box.y2 = pixmap->drawable.height;
+
+	tmp = fbCreatePixmap(pixmap->drawable.pScreen,
+			     pixmap->drawable.width,
+			     pixmap->drawable.height,
+			     pixmap->drawable.depth,
+			     0);
+
+	DBG(("%s: comparing with direct read...\n", __FUNCTION__));
+	sna_read_boxes(sna,
+		       priv->gpu_bo, 0, 0,
+		       tmp, 0, 0,
+		       &box, 1);
+
+	src = pixmap->devPrivate.ptr;
+	dst = tmp->devPrivate.ptr;
+	for (i = 0; i < tmp->drawable.height; i++) {
+		if (memcmp(src, dst, tmp->drawable.width * tmp->drawable.bitsPerPixel >> 3)) {
+			for (j = 0; src[j] == dst[j]; j++)
+				;
+			ErrorF("mismatch at (%d, %d)\n",
+			       8*j / tmp->drawable.bitsPerPixel, i);
+			abort();
+		}
+		src += pixmap->devKind;
+		dst += tmp->devKind;
+	}
+	fbDestroyPixmap(tmp);
+}
+#define FALLBACK_FLUSH(d) __sna_fallback_flush(d)
+#else
+#define FALLBACK_FLUSH(d)
+#endif
 
 static int sna_font_key;
 
@@ -1453,8 +1509,9 @@ sna_drawable_move_region_to_cpu(DrawablePtr drawable,
 	}
 
 done:
-	if (flags & MOVE_WRITE && !DAMAGE_IS_ALL(priv->cpu_damage)) {
+	if (flags & MOVE_WRITE) {
 		DBG(("%s: applying cpu damage\n", __FUNCTION__));
+		assert(!DAMAGE_IS_ALL(priv->cpu_damage));
 		assert_pixmap_contains_box(pixmap, RegionExtents(region));
 		sna_damage_add(&priv->cpu_damage, region);
 		if (priv->gpu_bo &&
@@ -2982,6 +3039,7 @@ fallback:
 	DBG(("%s: fbPutImage(%d, %d, %d, %d)\n",
 	     __FUNCTION__, x, y, w, h));
 	fbPutImage(drawable, gc, depth, x, y, w, h, left, format, bits);
+	FALLBACK_FLUSH(drawable);
 out:
 	RegionUninit(&region);
 }
@@ -3694,6 +3752,7 @@ sna_copy_area(DrawablePtr src, DrawablePtr dst, GCPtr gc,
 				  src_x, src_y,
 				  width, height,
 				  dst_x, dst_y);
+		FALLBACK_FLUSH(dst);
 out:
 		RegionUninit(&region);
 		return ret;
@@ -4625,6 +4684,7 @@ fallback:
 
 	DBG(("%s: fbFillSpans\n", __FUNCTION__));
 	fbFillSpans(drawable, gc, n, pt, width, sorted);
+	FALLBACK_FLUSH(drawable);
 out:
 	RegionUninit(&region);
 }
@@ -4663,6 +4723,7 @@ fallback:
 
 	DBG(("%s: fbSetSpans\n", __FUNCTION__));
 	fbSetSpans(drawable, gc, src, pt, width, n, sorted);
+	FALLBACK_FLUSH(drawable);
 out:
 	RegionUninit(&region);
 }
@@ -5137,6 +5198,7 @@ fallback:
 	DBG(("%s: fbCopyPlane(%d, %d, %d, %d, %d,%d) %x\n",
 	     __FUNCTION__, src_x, src_y, w, h, dst_x, dst_y, (unsigned)bit));
 	ret = fbCopyPlane(src, dst, gc, src_x, src_y, w, h, dst_x, dst_y, bit);
+	FALLBACK_FLUSH(dst);
 out:
 	RegionUninit(&region);
 	return ret;
@@ -5336,6 +5398,7 @@ fallback:
 
 	DBG(("%s: fbPolyPoint\n", __FUNCTION__));
 	fbPolyPoint(drawable, gc, mode, n, pt);
+	FALLBACK_FLUSH(drawable);
 out:
 	RegionUninit(&region);
 }
@@ -6389,6 +6452,7 @@ fallback:
 
 	DBG(("%s: fbPolyLine\n", __FUNCTION__));
 	fbPolyLine(drawable, gc, mode, n, pt);
+	FALLBACK_FLUSH(drawable);
 
 	gc->ops = (GCOps *)&sna_gc_ops;
 out:
@@ -7301,6 +7365,7 @@ fallback:
 
 	DBG(("%s: fbPolySegment\n", __FUNCTION__));
 	fbPolySegment(drawable, gc, n, seg);
+	FALLBACK_FLUSH(drawable);
 
 	gc->ops = (GCOps *)&sna_gc_ops;
 out:
@@ -7850,6 +7915,7 @@ fallback:
 
 	DBG(("%s: fbPolyRectangle\n", __FUNCTION__));
 	fbPolyRectangle(drawable, gc, n, r);
+	FALLBACK_FLUSH(drawable);
 out:
 	RegionUninit(&region);
 }
@@ -8027,6 +8093,7 @@ fallback:
 
 	DBG(("%s -- fbPolyArc\n", __FUNCTION__));
 	fbPolyArc(drawable, gc, n, arc);
+	FALLBACK_FLUSH(drawable);
 
 	gc->ops = (GCOps *)&sna_gc_ops;
 out:
@@ -9792,6 +9859,7 @@ fallback:
 			}
 		} while (--n);
 	}
+	FALLBACK_FLUSH(draw);
 out:
 	RegionUninit(&region);
 }
@@ -10332,6 +10400,7 @@ force_fallback:
 		DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 		fbPolyGlyphBlt(drawable, gc, x, y, n,
 			       info, FONTGLYPHS(gc->font));
+		FALLBACK_FLUSH(drawable);
 	}
 out:
 	RegionUninit(&region);
@@ -10420,6 +10489,7 @@ force_fallback:
 		DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 		fbPolyGlyphBlt(drawable, gc, x, y, n,
 			       info, FONTGLYPHS(gc->font));
+		FALLBACK_FLUSH(drawable);
 	}
 out:
 	RegionUninit(&region);
@@ -10517,6 +10587,7 @@ force_fallback:
 		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 		fbImageGlyphBlt(drawable, gc, x, y, n,
 				info, FONTGLYPHS(gc->font));
+		FALLBACK_FLUSH(drawable);
 	}
 out:
 	RegionUninit(&region);
@@ -10607,6 +10678,7 @@ force_fallback:
 		DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 		fbImageGlyphBlt(drawable, gc, x, y, n,
 				info, FONTGLYPHS(gc->font));
+		FALLBACK_FLUSH(drawable);
 	}
 out:
 	RegionUninit(&region);
@@ -10869,6 +10941,7 @@ fallback:
 
 	DBG(("%s: fallback -- fbImageGlyphBlt\n", __FUNCTION__));
 	fbImageGlyphBlt(drawable, gc, x, y, n, info, base);
+	FALLBACK_FLUSH(drawable);
 
 out:
 	RegionUninit(&region);
@@ -10943,6 +11016,7 @@ fallback:
 
 	DBG(("%s: fallback -- fbPolyGlyphBlt\n", __FUNCTION__));
 	fbPolyGlyphBlt(drawable, gc, x, y, n, info, base);
+	FALLBACK_FLUSH(drawable);
 
 out:
 	RegionUninit(&region);
@@ -11123,6 +11197,7 @@ sna_push_pixels(GCPtr gc, PixmapPtr bitmap, DrawablePtr drawable,
 	DBG(("%s: fallback, fbPushPixels(%d, %d, %d %d)\n",
 	     __FUNCTION__, w, h, x, y));
 	fbPushPixels(gc, bitmap, drawable, w, h, x, y);
+	FALLBACK_FLUSH(drawable);
 out:
 	RegionUninit(&region);
 }
