@@ -2210,12 +2210,23 @@ gen6_composite_set_target(struct sna *sna,
 	return TRUE;
 }
 
+static bool prefer_blt_ring(struct sna *sna)
+{
+	return sna->kgem.ring != KGEM_RENDER;
+}
+
+static bool
+is_solid(PicturePtr picture)
+{
+	return sna_picture_is_solid(picture, NULL);
+}
+
 static Bool
 try_blt(struct sna *sna,
 	PicturePtr dst, PicturePtr src,
 	int width, int height)
 {
-	if (sna->kgem.ring != KGEM_RENDER) {
+	if (prefer_blt_ring(sna)) {
 		DBG(("%s: already performing BLT\n", __FUNCTION__));
 		return TRUE;
 	}
@@ -2241,15 +2252,12 @@ try_blt(struct sna *sna,
 		return TRUE;
 	}
 
-	return FALSE;
-}
+	if (sna->kgem.has_semaphores) {
+		if (is_solid(src))
+			return TRUE;
+	}
 
-static bool
-is_solid(PicturePtr picture)
-{
-	return  picture->pDrawable->width == 1 &&
-		picture->pDrawable->height == 1 &&
-		picture->repeat;
+	return FALSE;
 }
 
 static bool
@@ -3071,7 +3079,7 @@ static inline bool prefer_blt_copy(struct sna *sna,
 				   struct kgem_bo *src_bo,
 				   struct kgem_bo *dst_bo)
 {
-	return (sna->kgem.ring != KGEM_RENDER ||
+	return (prefer_blt_ring(sna) ||
 		untiled_tlb_miss(src_bo) ||
 		untiled_tlb_miss(dst_bo));
 }
@@ -3424,7 +3432,7 @@ gen6_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 static inline bool prefer_blt_fill(struct sna *sna,
 				   struct kgem_bo *bo)
 {
-	return sna->kgem.ring != KGEM_RENDER || untiled_tlb_miss(bo);
+	return sna->kgem.has_semaphores || prefer_blt_ring(sna) || untiled_tlb_miss(bo);
 }
 
 static Bool
