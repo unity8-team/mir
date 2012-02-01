@@ -359,7 +359,8 @@ to_sna_from_kgem(struct kgem *kgem)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #endif
 #define ALIGN(i,m)	(((i) + (m) - 1) & ~((m) - 1))
-#define MIN(a,b)	((a) < (b) ? (a) : (b))
+#define MIN(a,b)	((a) <= (b) ? (a) : (b))
+#define MAX(a,b)	((a) >= (b) ? (a) : (b))
 
 extern xf86CrtcPtr sna_covering_crtc(ScrnInfoPtr scrn,
 				     const BoxRec *box,

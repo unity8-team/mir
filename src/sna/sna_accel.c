@@ -10011,6 +10011,11 @@ sna_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	extents = REGION_RECTS(clip);
 	last_extents = extents + REGION_NUM_RECTS(clip);
 
+	if (bg != -1) /* emulate miImageGlyphBlt */
+		sna_blt_fill_boxes(sna, GXcopy,
+				   bo, drawable->bitsPerPixel,
+				   bg, extents, REGION_NUM_RECTS(clip));
+
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
 	    !kgem_check_bo_fenced(&sna->kgem, bo, NULL) ||
@@ -10174,6 +10179,8 @@ sna_glyph_extents(FontPtr font,
 
 		extents->overallWidth += p->metrics.characterWidth;
 	}
+
+	assert(extents->overallWidth > 0);
 }
 
 static bool sna_set_glyph(CharInfoPtr in, CharInfoPtr out)
@@ -10458,10 +10465,17 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 		return;
 
 	sna_glyph_extents(gc->font, info, n, &extents);
-	region.extents.x1 = x + extents.overallLeft;
-	region.extents.y1 = y - extents.overallAscent;
-	region.extents.x2 = x + extents.overallRight;
-	region.extents.y2 = y + extents.overallDescent;
+	region.extents.x1 = x + MIN(0, extents.overallLeft);
+	region.extents.y1 = y - extents.fontAscent;
+	region.extents.x2 = x + MAX(extents.overallWidth, extents.overallRight);
+	region.extents.y2 = y + extents.fontDescent;
+
+	DBG(("%s: count=%ld/%d, extents=(left=%d, right=%d, width=%d, ascent=%d, descent=%d), box=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__, n, count,
+	     extents.overallLeft, extents.overallRight, extents.overallWidth,
+	     extents.fontAscent, extents.fontDescent,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
 
 	translate_box(&region.extents, drawable);
 	clip_box(&region.extents, gc);
@@ -10472,6 +10486,11 @@ sna_image_text8(DrawablePtr drawable, GCPtr gc,
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
+
+	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
 
 	if (FORCE_FALLBACK)
 		goto force_fallback;
@@ -10535,10 +10554,17 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 		return;
 
 	sna_glyph_extents(gc->font, info, n, &extents);
-	region.extents.x1 = x + extents.overallLeft;
-	region.extents.y1 = y - extents.overallAscent;
-	region.extents.x2 = x + extents.overallRight;
-	region.extents.y2 = y + extents.overallDescent;
+	region.extents.x1 = x + MIN(0, extents.overallLeft);
+	region.extents.y1 = y - extents.fontAscent;
+	region.extents.x2 = x + MAX(extents.overallWidth, extents.overallRight);
+	region.extents.y2 = y + extents.fontDescent;
+
+	DBG(("%s: count=%ld/%d, extents=(left=%d, right=%d, width=%d, ascent=%d, descent=%d), box=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__, n, count,
+	     extents.overallLeft, extents.overallRight, extents.overallWidth,
+	     extents.fontAscent, extents.fontDescent,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
 
 	translate_box(&region.extents, drawable);
 	clip_box(&region.extents, gc);
@@ -10549,6 +10575,11 @@ sna_image_text16(DrawablePtr drawable, GCPtr gc,
 	region_maybe_clip(&region, gc->pCompositeClip);
 	if (!RegionNotEmpty(&region))
 		return;
+
+	DBG(("%s: clipped extents (%d, %d), (%d, %d)\n",
+	     __FUNCTION__,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
 
 	if (FORCE_FALLBACK)
 		goto force_fallback;
@@ -10624,6 +10655,11 @@ sna_reversed_glyph_blt(DrawablePtr drawable, GCPtr gc,
 	RegionTranslate(clip, dx, dy);
 	extents = REGION_RECTS(clip);
 	last_extents = extents + REGION_NUM_RECTS(clip);
+
+	if (bg != -1) /* emulate miImageGlyphBlt */
+		sna_blt_fill_boxes(sna, GXcopy,
+				   bo, drawable->bitsPerPixel,
+				   bg, extents, REGION_NUM_RECTS(clip));
 
 	kgem_set_mode(&sna->kgem, KGEM_BLT);
 	if (!kgem_check_batch(&sna->kgem, 16) ||
@@ -10775,11 +10811,18 @@ sna_image_glyph(DrawablePtr drawable, GCPtr gc,
 	if (n == 0)
 		return;
 
-	QueryGlyphExtents(gc->font, info, n, &extents);
-	region.extents.x1 = x + extents.overallLeft;
-	region.extents.y1 = y - extents.overallAscent;
-	region.extents.x2 = x + extents.overallRight;
-	region.extents.y2 = y + extents.overallDescent;
+	sna_glyph_extents(gc->font, info, n, &extents);
+	region.extents.x1 = x + MIN(0, extents.overallLeft);
+	region.extents.y1 = y - extents.fontAscent;
+	region.extents.x2 = x + MAX(extents.overallWidth, extents.overallRight);
+	region.extents.y2 = y + extents.fontDescent;
+
+	DBG(("%s: count=%d, extents=(left=%d, right=%d, width=%d, ascent=%d, descent=%d), box=(%d, %d), (%d, %d)\n",
+	     __FUNCTION__, n,
+	     extents.overallLeft, extents.overallRight, extents.overallWidth,
+	     extents.fontAscent, extents.fontDescent,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
 
 	translate_box(&region.extents, drawable);
 	clip_box(&region.extents, gc);
@@ -10847,7 +10890,7 @@ sna_poly_glyph(DrawablePtr drawable, GCPtr gc,
 	if (n == 0)
 		return;
 
-	QueryGlyphExtents(gc->font, info, n, &extents);
+	sna_glyph_extents(gc->font, info, n, &extents);
 	region.extents.x1 = x + extents.overallLeft;
 	region.extents.y1 = y - extents.overallAscent;
 	region.extents.x2 = x + extents.overallRight;
