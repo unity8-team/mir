@@ -839,9 +839,6 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
     if (!crtc)
 	return;
 
-    if (stop < start)
-	return;
-
     if (!crtc->enabled)
 	return;
 
@@ -864,7 +861,7 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
     start = max(start, 0);
     stop = min(stop, crtc->mode.VDisplay);
 
-    if (start > crtc->mode.VDisplay)
+    if (start >= stop)
 	return;
 
     if (IS_AVIVO_VARIANT) {

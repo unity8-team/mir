@@ -345,9 +345,6 @@ r600_cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
     if (!crtc)
         return;
 
-    if (stop < start)
-        return;
-
     if (!crtc->enabled)
         return;
 
@@ -370,7 +367,7 @@ r600_cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
     start = max(start, 0);
     stop = min(stop, crtc->mode.VDisplay);
 
-    if (start > crtc->mode.VDisplay)
+    if (start >= stop)
         return;
 
     /* on r5xx+ vline starts at viewport_y */

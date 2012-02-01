@@ -284,9 +284,6 @@ void evergreen_cp_wait_vline_sync(ScrnInfoPtr pScrn, PixmapPtr pPix,
 
     drmmode_crtc = crtc->driver_private;
 
-    if (stop < start)
-        return;
-
     if (!crtc->enabled)
         return;
 
@@ -309,7 +306,7 @@ void evergreen_cp_wait_vline_sync(ScrnInfoPtr pScrn, PixmapPtr pPix,
     start = max(start, 0);
     stop = min(stop, crtc->mode.VDisplay);
 
-    if (start > crtc->mode.VDisplay)
+    if (start >= stop)
         return;
 
     /* on r5xx+ vline starts at viewport_y */
