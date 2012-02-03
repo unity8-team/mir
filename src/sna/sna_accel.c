@@ -1070,7 +1070,8 @@ done:
 		DBG(("%s: syncing CPU bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
-
+	assert(pixmap->devPrivate.ptr);
+	assert(pixmap->devKind);
 	return true;
 }
 
@@ -1534,6 +1535,8 @@ out:
 		DBG(("%s: syncing cpu bo\n", __FUNCTION__));
 		kgem_bo_sync__cpu(&sna->kgem, priv->cpu_bo);
 	}
+	assert(pixmap->devPrivate.ptr);
+	assert(pixmap->devKind);
 	return true;
 }
 
