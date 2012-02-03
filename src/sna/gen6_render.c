@@ -57,6 +57,8 @@
 #define NO_FILL_BOXES 0
 #define NO_CLEAR 0
 
+#define NO_RING_SWITCH 1
+
 #define GEN6_MAX_SIZE 8192
 
 static const uint32_t ps_kernel_nomask_affine[][4] = {
@@ -2215,6 +2217,11 @@ static bool prefer_blt_ring(struct sna *sna)
 	return sna->kgem.ring != KGEM_RENDER;
 }
 
+static bool can_switch_rings(struct sna *sna)
+{
+	return sna->kgem.has_semaphores && !NO_RING_SWITCH;
+}
+
 static bool
 is_solid(PicturePtr picture)
 {
@@ -2252,7 +2259,7 @@ try_blt(struct sna *sna,
 		return TRUE;
 	}
 
-	if (sna->kgem.has_semaphores) {
+	if (can_switch_rings(sna)) {
 		if (is_solid(src))
 			return TRUE;
 	}
@@ -3432,7 +3439,9 @@ gen6_emit_fill_state(struct sna *sna, const struct sna_composite_op *op)
 static inline bool prefer_blt_fill(struct sna *sna,
 				   struct kgem_bo *bo)
 {
-	return sna->kgem.has_semaphores || prefer_blt_ring(sna) || untiled_tlb_miss(bo);
+	return (can_switch_rings(sna) ||
+		prefer_blt_ring(sna) ||
+		untiled_tlb_miss(bo));
 }
 
 static Bool
