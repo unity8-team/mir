@@ -2658,6 +2658,13 @@ choose_span(PicturePtr dst,
 }
 
 static bool
+sna_drawable_is_clear(DrawablePtr d)
+{
+	struct sna_pixmap *priv = sna_pixmap(get_drawable_pixmap(d));
+	return priv && priv->clear && priv->clear_color == 0;
+}
+
+static bool
 mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 			       INT16 src_x, INT16 src_y,
 			       int ntrap, xTrapezoid *traps)
@@ -2666,6 +2673,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	int16_t dst_x, dst_y;
 	int16_t dx, dy;
+	bool was_clear;
 	int n;
 
 	if (NO_SCAN_CONVERTER)
@@ -2709,6 +2717,8 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	if (!mono_init(&mono, 2*ntrap))
 		return false;
 
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
+
 	for (n = 0; n < ntrap; n++) {
 		if (!xTrapezoidValid(&traps[n]))
 			continue;
@@ -2741,7 +2751,7 @@ mono_trapezoids_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	mono.op.done(mono.sna, &mono.op);
 	mono_fini(&mono);
 
-	if (!operator_is_bounded(op)) {
+	if (!was_clear && !operator_is_bounded(op)) {
 		xPointFixed p1, p2;
 
 		if (!mono_init(&mono, 2+2*ntrap))
@@ -4223,6 +4233,7 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	BoxRec extents;
 	int16_t dst_x, dst_y;
 	int16_t dx, dy;
+	bool was_clear;
 	int n;
 
 	mono.sna = to_sna_from_drawable(dst->pDrawable);
@@ -4261,6 +4272,8 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 	     src_x + mono.clip.extents.x1 - dst_x - dx,
 	     src_y + mono.clip.extents.y1 - dst_y - dy));
 
+	was_clear = sna_drawable_is_clear(dst->pDrawable);
+
 	if (mono_init(&mono, 3*count))
 		return false;
 
@@ -4289,7 +4302,7 @@ mono_triangles_span_converter(CARD8 op, PicturePtr src, PicturePtr dst,
 		mono.op.done(mono.sna, &mono.op);
 	}
 
-	if (!operator_is_bounded(op)) {
+	if (!was_clear && !operator_is_bounded(op)) {
 		xPointFixed p1, p2;
 
 		if (!mono_init(&mono, 2+3*count))
