@@ -42,7 +42,6 @@
 static struct state {
 	struct vertex_buffer {
 		int handle;
-		void *base;
 		const char *ptr;
 		int pitch;
 
@@ -67,7 +66,7 @@ static void gen6_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 {
 	uint32_t reloc = sizeof(uint32_t) * (&data[1] - kgem->batch);
 	struct kgem_bo *bo = NULL;
-	void *base, *ptr;
+	void *base;
 	int i;
 
 	for (i = 0; i < kgem->nreloc; i++)
@@ -85,13 +84,12 @@ static void gen6_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 		assert(&bo->request != &kgem->next_request->buffers);
 		base = kgem_bo_map__debug(kgem, bo);
 	}
-	ptr = (char *)base + kgem->reloc[i].delta;
 
+	base = (char *)base + kgem->reloc[i].delta;
 	i = data[0] >> 26;
 
 	state.vb[i].current = bo;
-	state.vb[i].base = base;
-	state.vb[i].ptr = ptr;
+	state.vb[i].ptr = base;
 	state.vb[i].pitch = data[0] & 0x7ff;
 }
 
@@ -268,10 +266,8 @@ static void indirect_vertex_out(struct kgem *kgem, uint32_t v)
 		const struct vertex_buffer *vb = &state.vb[ve->buffer];
 		const void *ptr = vb->ptr + v * vb->pitch + ve->offset;
 
-		if (!ve->valid)
-			continue;
-
-		ve_out(ve, ptr);
+		if (ve->valid)
+			ve_out(ve, ptr);
 
 		while (++i <= state.num_ve && !state.ve[i].valid)
 			;

@@ -2917,7 +2917,7 @@ void *kgem_bo_map(struct kgem *kgem, struct kgem_bo *bo)
 void *kgem_bo_map__debug(struct kgem *kgem, struct kgem_bo *bo)
 {
 	if (bo->map)
-		return bo->map;
+		return CPU_MAP(bo->map);
 
 	kgem_trim_vma_cache(kgem, MAP_GTT, bucket(bo));
 	return bo->map = gem_mmap(kgem->fd, bo->handle, bytes(bo),
