@@ -138,10 +138,17 @@ sna_tiling_composite_done(struct sna *sna,
 {
 	struct sna_tile_state *tile = op->u.priv;
 	struct sna_composite_op tmp;
-	int x, y, n, step = sna->render.max_3d_size;
+	int x, y, n, step;
 
-	DBG(("%s -- %dx%d, count=%d\n", __FUNCTION__,
-	     tile->width, tile->height, tile->rect_count));
+	/* Use a small step to accommodate enlargement through tile alignment */
+	step = sna->render.max_3d_size;
+	if (tile->dst_x & (8*512 / tile->dst->pDrawable->bitsPerPixel - 1))
+		step /= 2;
+	while (step * step * 4 > sna->kgem.max_copy_tile_size)
+		step /= 2;
+
+	DBG(("%s -- %dx%d, count=%d, step size=%d\n", __FUNCTION__,
+	     tile->width, tile->height, tile->rect_count, step));
 
 	if (tile->rect_count == 0)
 		goto done;
@@ -318,21 +325,26 @@ sna_tiling_fill_boxes(struct sna *sna,
 {
 	RegionRec region, tile, this;
 	struct kgem_bo *bo;
+	int step;
 	Bool ret = FALSE;
 
 	pixman_region_init_rects(&region, box, n);
 
+	step = sna->render.max_3d_size;
+	while (step * step * 4 > sna->kgem.max_copy_tile_size)
+		step /= 2;
+
 	DBG(("%s (op=%d, format=%x, color=(%04x,%04x,%04x, %04x), tile.size=%d, box=%dx[(%d, %d), (%d, %d)])\n",
 	     __FUNCTION__, op, (int)format,
 	     color->red, color->green, color->blue, color->alpha,
-	     sna->render.max_3d_size, n,
+	     step, n,
 	     region.extents.x1, region.extents.y1,
 	     region.extents.x2, region.extents.y2));
 
 	for (tile.extents.y1 = tile.extents.y2 = region.extents.y1;
 	     tile.extents.y2 < region.extents.y2;
 	     tile.extents.y1 = tile.extents.y2) {
-		tile.extents.y2 = tile.extents.y1 + sna->render.max_3d_size;
+		tile.extents.y2 = tile.extents.y1 + step;
 		if (tile.extents.y2 > region.extents.y2)
 			tile.extents.y2 = region.extents.y2;
 
@@ -341,7 +353,7 @@ sna_tiling_fill_boxes(struct sna *sna,
 		     tile.extents.x1 = tile.extents.x2) {
 			PixmapRec tmp;
 
-			tile.extents.x2 = tile.extents.x1 + sna->render.max_3d_size;
+			tile.extents.x2 = tile.extents.x1 + step;
 			if (tile.extents.x2 > region.extents.x2)
 				tile.extents.x2 = region.extents.x2;
 
@@ -391,6 +403,102 @@ sna_tiling_fill_boxes(struct sna *sna,
 							     &tmp, bo, 0, 0,
 							     dst, dst_bo, dx, dy,
 							     REGION_RECTS(&this), REGION_NUM_RECTS(&this)))
+					goto err;
+
+				kgem_bo_destroy(&sna->kgem, bo);
+			}
+			RegionUninit(&this);
+		}
+	}
+
+	ret = TRUE;
+	goto done;
+err:
+	kgem_bo_destroy(&sna->kgem, bo);
+	RegionUninit(&this);
+done:
+	pixman_region_fini(&region);
+	return ret;
+}
+
+Bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
+			   struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			   struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			   int bpp, const BoxRec *box, int nbox)
+{
+	RegionRec region, tile, this;
+	struct kgem_bo *bo;
+	int step;
+	Bool ret = FALSE;
+
+	if (!kgem_bo_can_blt(&sna->kgem, src_bo) ||
+	    !kgem_bo_can_blt(&sna->kgem, dst_bo)) {
+		/* XXX */
+		DBG(("%s: tiling blt fail: src?=%d, dst?=%d\n",
+		     __FUNCTION__,
+		     kgem_bo_can_blt(&sna->kgem, src_bo),
+		     kgem_bo_can_blt(&sna->kgem, dst_bo)));
+		return FALSE;
+	}
+
+	pixman_region_init_rects(&region, box, nbox);
+
+	step = sna->render.max_3d_size;
+	while (step * step * 4 > sna->kgem.max_copy_tile_size)
+		step /= 2;
+
+	DBG(("%s (alu=%d), tile.size=%d, box=%dx[(%d, %d), (%d, %d)])\n",
+	     __FUNCTION__, alu, step, nbox,
+	     region.extents.x1, region.extents.y1,
+	     region.extents.x2, region.extents.y2));
+
+	for (tile.extents.y1 = tile.extents.y2 = region.extents.y1;
+	     tile.extents.y2 < region.extents.y2;
+	     tile.extents.y1 = tile.extents.y2) {
+		tile.extents.y2 = tile.extents.y1 + step;
+		if (tile.extents.y2 > region.extents.y2)
+			tile.extents.y2 = region.extents.y2;
+
+		for (tile.extents.x1 = tile.extents.x2 = region.extents.x1;
+		     tile.extents.x2 < region.extents.x2;
+		     tile.extents.x1 = tile.extents.x2) {
+			int w, h;
+
+			tile.extents.x2 = tile.extents.x1 + step;
+			if (tile.extents.x2 > region.extents.x2)
+				tile.extents.x2 = region.extents.x2;
+
+			tile.data = NULL;
+
+			RegionNull(&this);
+			RegionIntersect(&this, &region, &tile);
+			if (!RegionNotEmpty(&this))
+				continue;
+
+			w = this.extents.x2 - this.extents.x1;
+			h = this.extents.y2 - this.extents.y1;
+			bo = kgem_create_2d(&sna->kgem, w, h, bpp,
+					    kgem_choose_tiling(&sna->kgem,
+							       I915_TILING_X,
+							       w, h, bpp),
+					    0);
+			if (bo) {
+				int16_t dx = this.extents.x1;
+				int16_t dy = this.extents.y1;
+
+				assert(bo->pitch <= 8192);
+				assert(bo->tiling != I915_TILING_Y);
+
+				if (!sna_blt_copy_boxes(sna, alu,
+							src_bo, src_dx, src_dy,
+							bo, -dx, -dy,
+							bpp, REGION_RECTS(&this), REGION_NUM_RECTS(&this)))
+					goto err;
+
+				if (!sna_blt_copy_boxes(sna, alu,
+							bo, -dx, -dy,
+							dst_bo, dst_dx, dst_dy,
+							bpp, REGION_RECTS(&this), REGION_NUM_RECTS(&this)))
 					goto err;
 
 				kgem_bo_destroy(&sna->kgem, bo);

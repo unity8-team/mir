@@ -79,7 +79,7 @@ static void gen5_update_vertex_buffer(struct kgem *kgem, const uint32_t *data)
 	} else {
 		bo = kgem_debug_get_bo_for_reloc_entry(kgem, reloc);
 		base = kgem_bo_map__debug(kgem, bo);
-		size = bo->size;
+		size = kgem_bo_size(bo);
 	}
 	ptr = (char *)base + reloc->delta;
 

@@ -154,6 +154,8 @@ memcpy_blt(const void *src, void *dst, int bpp,
 	uint8_t *dst_bytes;
 	int byte_width;
 
+	assert(src);
+	assert(dst);
 	assert(width && height);
 	assert(bpp >= 8);
 

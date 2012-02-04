@@ -55,6 +55,7 @@
 #define PREFER_BLT_COPY 1
 
 #define MAX_3D_SIZE 2048
+#define MAX_3D_PITCH 8192
 
 #define BATCH(v) batch_emit(sna, v)
 #define BATCH_F(v) batch_emit_float(sna, v)
@@ -547,7 +548,7 @@ gen2_get_batch(struct sna *sna)
 
 static void gen2_emit_target(struct sna *sna, const struct sna_composite_op *op)
 {
-	assert(op->dst.bo->pitch >= 8 && op->dst.bo->pitch <= 8192);
+	assert(op->dst.bo->pitch >= 8 && op->dst.bo->pitch <= MAX_3D_PITCH);
 	assert(sna->render_state.gen2.vertex_offset == 0);
 
 	if (sna->render_state.gen2.target == op->dst.bo->unique_id) {
@@ -637,6 +638,17 @@ static void gen2_emit_composite_state(struct sna *sna,
 	int tex;
 
 	gen2_get_batch(sna);
+
+	if (kgem_bo_is_dirty(op->src.bo) || kgem_bo_is_dirty(op->mask.bo)) {
+		if (op->src.bo == op->dst.bo || op->mask.bo == op->dst.bo)
+			BATCH(MI_FLUSH | MI_INVALIDATE_MAP_CACHE);
+		else
+			BATCH(_3DSTATE_MODES_5_CMD |
+			      PIPELINE_FLUSH_RENDER_CACHE |
+			      PIPELINE_FLUSH_TEXTURE_CACHE);
+		kgem_clear_dirty(&sna->kgem);
+	}
+
 	gen2_emit_target(sna, op);
 
 	unwind = sna->kgem.nbatch;
@@ -1503,12 +1515,19 @@ has_alphamap(PicturePtr p)
 }
 
 static bool
+need_upload(PicturePtr p)
+{
+	return p->pDrawable && unattached(p->pDrawable);
+}
+
+static bool
 source_fallback(PicturePtr p)
 {
 	return (has_alphamap(p) ||
 		is_unhandled_gradient(p) ||
 		!gen2_check_filter(p) ||
-		!gen2_check_repeat(p));
+		!gen2_check_repeat(p) ||
+		need_upload(p));
 }
 
 static bool
@@ -1547,7 +1566,7 @@ gen2_composite_fallback(struct sna *sna,
 
 	/* If anything is on the GPU, push everything out to the GPU */
 	priv = sna_pixmap(dst_pixmap);
-	if (priv && priv->gpu_damage) {
+	if (priv && priv->gpu_damage && !priv->clear) {
 		DBG(("%s: dst is already on the GPU, try to use GPU\n",
 		     __FUNCTION__));
 		return FALSE;
@@ -1718,7 +1737,7 @@ gen2_render_composite(struct sna *sna,
 
 	tmp->op = op;
 	if (too_large(tmp->dst.width, tmp->dst.height) ||
-	    tmp->dst.bo->pitch > 8192) {
+	    tmp->dst.bo->pitch > MAX_3D_PITCH) {
 		if (!sna_render_composite_redirect(sna, tmp,
 						   dst_x, dst_y, width, height))
 			return FALSE;
@@ -1805,23 +1824,20 @@ gen2_render_composite(struct sna *sna,
 
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
-			   NULL))
+			   NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->dst.bo, tmp->src.bo, tmp->mask.bo,
+				   NULL))
+			goto cleanup_mask;
+	}
 
 	gen2_emit_composite_state(sna, tmp);
-	if (kgem_bo_is_dirty(tmp->src.bo) || kgem_bo_is_dirty(tmp->mask.bo)) {
-		if (tmp->src.bo == tmp->dst.bo || tmp->mask.bo == tmp->dst.bo) {
-			kgem_emit_flush(&sna->kgem);
-		} else {
-			BATCH(_3DSTATE_MODES_5_CMD |
-			      PIPELINE_FLUSH_RENDER_CACHE |
-			      PIPELINE_FLUSH_TEXTURE_CACHE);
-			kgem_clear_dirty(&sna->kgem);
-		}
-		assert(sna->kgem.mode == KGEM_RENDER);
-	}
 	return TRUE;
 
+cleanup_mask:
+	if (tmp->mask.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->mask.bo);
 cleanup_src:
 	if (tmp->src.bo)
 		kgem_bo_destroy(&sna->kgem, tmp->src.bo);
@@ -2185,7 +2201,7 @@ gen2_render_composite_spans(struct sna *sna,
 
 	tmp->base.op = op;
 	if (too_large(tmp->base.dst.width, tmp->base.dst.height) ||
-	    tmp->base.dst.bo->pitch > 8192) {
+	    tmp->base.dst.bo->pitch > MAX_3D_PITCH) {
 		if (!sna_render_composite_redirect(sna, &tmp->base,
 						   dst_x, dst_y, width, height))
 			return FALSE;
@@ -2218,6 +2234,7 @@ gen2_render_composite_spans(struct sna *sna,
 		else if (tmp->base.src.is_affine)
 			tmp->prim_emit = gen2_emit_composite_spans_primitive_affine_source;
 	}
+	tmp->base.mask.bo = NULL;
 	tmp->base.floats_per_rect = 3*tmp->base.floats_per_vertex;
 
 	tmp->box   = gen2_render_composite_spans_box;
@@ -2226,23 +2243,20 @@ gen2_render_composite_spans(struct sna *sna,
 
 	if (!kgem_check_bo(&sna->kgem,
 			   tmp->base.dst.bo, tmp->base.src.bo,
-			   NULL))
+			   NULL)) {
 		kgem_submit(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem,
+				   tmp->base.dst.bo, tmp->base.src.bo,
+				   NULL))
+			goto cleanup_src;
+	}
 
 	gen2_emit_composite_spans_state(sna, tmp);
-	if (kgem_bo_is_dirty(tmp->base.src.bo)) {
-		if (tmp->base.src.bo == tmp->base.dst.bo) {
-			kgem_emit_flush(&sna->kgem);
-		} else {
-			BATCH(_3DSTATE_MODES_5_CMD |
-			      PIPELINE_FLUSH_RENDER_CACHE |
-			      PIPELINE_FLUSH_TEXTURE_CACHE);
-			kgem_clear_dirty(&sna->kgem);
-		}
-		assert(sna->kgem.mode == KGEM_RENDER);
-	}
 	return TRUE;
 
+cleanup_src:
+	if (tmp->base.src.bo)
+		kgem_bo_destroy(&sna->kgem, tmp->base.src.bo);
 cleanup_dst:
 	if (tmp->base.redirect.real_bo)
 		kgem_bo_destroy(&sna->kgem, tmp->base.dst.bo);
@@ -2391,7 +2405,7 @@ gen2_render_fill_boxes(struct sna *sna,
 	     color->red, color->green, color->blue, color->alpha));
 
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
-	    dst_bo->pitch < 8 || dst_bo->pitch > 8192 ||
+	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH ||
 	    !gen2_check_dst_format(format)) {
 		DBG(("%s: try blt, too large or incompatible destination\n",
 		     __FUNCTION__));
@@ -2437,8 +2451,10 @@ gen2_render_fill_boxes(struct sna *sna,
 	tmp.floats_per_vertex = 2;
 	tmp.floats_per_rect = 6;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, NULL)) {
 		kgem_submit(&sna->kgem);
+		assert(kgem_check_bo(&sna->kgem, dst_bo, NULL));
+	}
 
 	gen2_emit_fill_composite_state(sna, &tmp, pixel);
 
@@ -2592,7 +2608,7 @@ gen2_render_fill(struct sna *sna, uint8_t alu,
 
 	/* Must use the BLT if we can't RENDER... */
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
-	    dst_bo->pitch < 8 || dst_bo->pitch > 8192)
+	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH)
 		return sna_blt_fill(sna, alu,
 				    dst_bo, dst->drawable.bitsPerPixel,
 				    color,
@@ -2668,7 +2684,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 
 	/* Must use the BLT if we can't RENDER... */
 	if (too_large(dst->drawable.width, dst->drawable.height) ||
-	    bo->pitch < 8 || bo->pitch > 8192)
+	    bo->pitch < 8 || bo->pitch > MAX_3D_PITCH)
 		return gen2_render_fill_one_try_blt(sna, dst, bo, color,
 						    x1, y1, x2, y2, alu);
 
@@ -2677,6 +2693,7 @@ gen2_render_fill_one(struct sna *sna, PixmapPtr dst, struct kgem_bo *bo,
 		if (gen2_render_fill_one_try_blt(sna, dst, bo, color,
 						 x1, y1, x2, y2, alu))
 			return TRUE;
+		assert(kgem_check_bo(&sna->kgem, bo, NULL));
 	}
 
 	tmp.op = alu;
@@ -2765,6 +2782,16 @@ static void gen2_emit_copy_state(struct sna *sna, const struct sna_composite_op 
 	uint32_t ls1, v;
 
 	gen2_get_batch(sna);
+
+	if (kgem_bo_is_dirty(op->src.bo)) {
+		if (op->src.bo == op->dst.bo)
+			BATCH(MI_FLUSH | MI_INVALIDATE_MAP_CACHE);
+		else
+			BATCH(_3DSTATE_MODES_5_CMD |
+			      PIPELINE_FLUSH_RENDER_CACHE |
+			      PIPELINE_FLUSH_TEXTURE_CACHE);
+		kgem_clear_dirty(&sna->kgem);
+	}
 	gen2_emit_target(sna, op);
 
 	ls1 = sna->kgem.nbatch;
@@ -2825,19 +2852,21 @@ gen2_render_copy_boxes(struct sna *sna, uint8_t alu,
 
 	if (src_bo == dst_bo || /* XXX handle overlap using 3D ? */
 	    too_large(src->drawable.width, src->drawable.height) ||
-	    src_bo->pitch > 8192 ||
+	    src_bo->pitch > MAX_3D_PITCH ||
 	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    dst_bo->pitch < 8 || dst_bo->pitch > 8192)
+	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH) {
+fallback:
 		return sna_blt_copy_boxes_fallback(sna, alu,
 						   src, src_bo, src_dx, src_dy,
 						   dst, dst_bo, dst_dx, dst_dy,
 						   box, n);
+	}
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
+	}
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.op = alu;
@@ -2953,7 +2982,9 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	/* Must use the BLT if we can't RENDER... */
 	if (too_large(src->drawable.width, src->drawable.height) ||
 	    too_large(dst->drawable.width, dst->drawable.height) ||
-	    src_bo->pitch > 8192 || dst_bo->pitch < 8 || dst_bo->pitch > 8192) {
+	    src_bo->pitch > MAX_3D_PITCH ||
+	    dst_bo->pitch < 8 || dst_bo->pitch > MAX_3D_PITCH) {
+fallback:
 		if (!sna_blt_compare_depth(&src->drawable, &dst->drawable))
 			return FALSE;
 
@@ -2971,15 +3002,16 @@ gen2_render_copy(struct sna *sna, uint8_t alu,
 	tmp->base.dst.bo = dst_bo;
 
 	gen2_render_copy_setup_source(&tmp->base.src, src, src_bo);
+	tmp->base.mask.bo = NULL;
 
 	tmp->base.floats_per_vertex = 4;
 	tmp->base.floats_per_rect = 12;
 
-	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+	if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL)) {
 		kgem_submit(&sna->kgem);
-
-	if (kgem_bo_is_dirty(src_bo))
-		kgem_emit_flush(&sna->kgem);
+		if (!kgem_check_bo(&sna->kgem, dst_bo, src_bo, NULL))
+			goto fallback;
+	}
 
 	tmp->blt  = gen2_render_copy_blt;
 	tmp->done = gen2_render_copy_done;
@@ -3043,5 +3075,6 @@ Bool gen2_render_init(struct sna *sna)
 	render->flush = gen2_render_flush;
 
 	render->max_3d_size = MAX_3D_SIZE;
+	render->max_3d_pitch = MAX_3D_PITCH;
 	return TRUE;
 }

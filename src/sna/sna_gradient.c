@@ -314,6 +314,8 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 	uint32_t color[256];
 	int i;
 
+	DBG(("%s\n", __FUNCTION__));
+
 	cache->cache_bo = kgem_create_linear(&sna->kgem, sizeof(color));
 	if (!cache->cache_bo)
 		return FALSE;
@@ -332,6 +334,8 @@ static Bool sna_alpha_cache_init(struct sna *sna)
 static Bool sna_solid_cache_init(struct sna *sna)
 {
 	struct sna_solid_cache *cache = &sna->render.solid_cache;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	cache->cache_bo =
 		kgem_create_linear(&sna->kgem, sizeof(cache->color));
@@ -354,6 +358,8 @@ static Bool sna_solid_cache_init(struct sna *sna)
 
 Bool sna_gradients_create(struct sna *sna)
 {
+	DBG(("%s\n", __FUNCTION__));
+
 	if (!sna_alpha_cache_init(sna))
 		return FALSE;
 
@@ -366,6 +372,8 @@ Bool sna_gradients_create(struct sna *sna)
 void sna_gradients_close(struct sna *sna)
 {
 	int i;
+
+	DBG(("%s\n", __FUNCTION__));
 
 	for (i = 0; i < 256; i++) {
 		if (sna->render.alpha_cache.bo[i])

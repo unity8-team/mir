@@ -57,6 +57,8 @@ struct sna_composite_op {
 		int16_t offset[2];
 		float scale[2];
 
+		pixman_transform_t embedded_transform;
+
 		union {
 			struct {
 				uint32_t pixel;
@@ -84,6 +86,7 @@ struct sna_composite_op {
 
 	struct sna_composite_redirect {
 		struct kgem_bo *real_bo;
+		struct sna_damage **real_damage, *damage;
 		BoxRec box;
 	} redirect;
 
@@ -183,6 +186,7 @@ struct sna_copy_op {
 
 struct sna_render {
 	int max_3d_size;
+	int max_3d_pitch;
 
 	Bool (*composite)(struct sna *sna, uint8_t op,
 			  PicturePtr dst, PicturePtr src, PicturePtr mask,
@@ -391,7 +395,6 @@ struct gen6_render_state {
 	uint32_t blend;
 	uint32_t samplers;
 	uint32_t kernel;
-	uint32_t target;
 
 	uint16_t num_sf_outputs;
 	uint16_t vb_id;
@@ -504,6 +507,10 @@ Bool sna_tiling_fill_boxes(struct sna *sna,
 			   const xRenderColor *color,
 			   PixmapPtr dst, struct kgem_bo *dst_bo,
 			   const BoxRec *box, int n);
+Bool sna_tiling_copy_boxes(struct sna *sna, uint8_t alu,
+			   struct kgem_bo *src_bo, int16_t src_dx, int16_t src_dy,
+			   struct kgem_bo *dst_bo, int16_t dst_dx, int16_t dst_dy,
+			   int bpp, const BoxRec *box, int nbox);
 
 Bool sna_blt_composite(struct sna *sna,
 		       uint32_t op,

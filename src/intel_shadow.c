@@ -30,7 +30,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include "xf86.h"
-#include "xaarop.h"
 #include "intel.h"
 #include "i830_reg.h"
 
@@ -101,7 +100,6 @@ static void intel_shadow_memcpy(intel_screen_private *intel)
 void intel_shadow_blt(intel_screen_private *intel)
 {
 	ScrnInfoPtr scrn = intel->scrn;
-	unsigned int dst_pitch;
 	uint32_t blt, br13;
 	RegionPtr region;
 	BoxPtr box;
@@ -113,27 +111,23 @@ void intel_shadow_blt(intel_screen_private *intel)
 		return;
 	}
 
-	dst_pitch = intel->front_pitch;
 
 	blt = XY_SRC_COPY_BLT_CMD;
-	if (intel->cpp == 4)
-		blt |= (XY_SRC_COPY_BLT_WRITE_ALPHA |
-				XY_SRC_COPY_BLT_WRITE_RGB);
 
-	if (INTEL_INFO(intel)->gen >= 40) {
-		if (intel->front_tiling) {
-			dst_pitch >>= 2;
-			blt |= XY_SRC_COPY_BLT_DST_TILED;
-		}
+	br13 = intel->front_pitch;
+	if (intel->front_tiling && INTEL_INFO(intel)->gen >= 40) {
+		br13 >>= 2;
+		blt |= XY_SRC_COPY_BLT_DST_TILED;
 	}
-
-	br13 = ROP_S << 16 | dst_pitch;
 	switch (intel->cpp) {
 		default:
-		case 4: br13 |= 1 << 25; /* RGB8888 */
+		case 4: blt |=
+			XY_SRC_COPY_BLT_WRITE_ALPHA | XY_SRC_COPY_BLT_WRITE_RGB;
+			br13 |= 1 << 25; /* RGB8888 */
 		case 2: br13 |= 1 << 24; /* RGB565 */
 		case 1: break;
 	}
+	br13 |= 0xcc << 16; /* copy */
 
 	region = DamageRegion(intel->shadow_damage);
 	box = REGION_RECTS(region);

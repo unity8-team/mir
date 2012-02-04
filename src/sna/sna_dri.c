@@ -127,19 +127,37 @@ static inline struct kgem_bo *ref(struct kgem_bo *bo)
 /* Prefer to enable TILING_Y if this buffer will never be a
  * candidate for pageflipping
  */
-static bool color_use_tiling_y(struct sna *sna, DrawablePtr drawable)
+static uint32_t color_tiling(struct sna *sna, DrawablePtr drawable)
 {
-	if (!COLOR_PREFER_TILING_Y)
-		return false;
+	uint32_t tiling;
 
-	return (drawable->width != sna->front->drawable.width ||
-		drawable->height != sna->front->drawable.height);
+	if (COLOR_PREFER_TILING_Y &&
+	    (drawable->width  != sna->front->drawable.width ||
+	     drawable->height != sna->front->drawable.height))
+		tiling = I915_TILING_Y;
+	else
+		tiling = I915_TILING_X;
+
+	return kgem_choose_tiling(&sna->kgem, -tiling,
+				  drawable->width,
+				  drawable->height,
+				  drawable->bitsPerPixel);
+}
+
+static uint32_t other_tiling(struct sna *sna, DrawablePtr drawable)
+{
+	/* XXX Can mix color X / depth Y? */
+	return kgem_choose_tiling(&sna->kgem, -I915_TILING_Y,
+				  drawable->width,
+				  drawable->height,
+				  drawable->bitsPerPixel);
 }
 
 static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 					  PixmapPtr pixmap)
 {
 	struct sna_pixmap *priv;
+	uint32_t tiling;
 
 	priv = sna_pixmap_force_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
 	if (priv == NULL)
@@ -148,9 +166,9 @@ static struct kgem_bo *sna_pixmap_set_dri(struct sna *sna,
 	if (priv->flush)
 		return ref(priv->gpu_bo);
 
-	if (priv->gpu_bo->tiling != I915_TILING_Y &&
-	    color_use_tiling_y(sna, &pixmap->drawable))
-		sna_pixmap_change_tiling(pixmap, I915_TILING_Y);
+	tiling = color_tiling(sna, &pixmap->drawable);
+	if (priv->gpu_bo->tiling != tiling)
+		sna_pixmap_change_tiling(pixmap, tiling);
 
 	/* We need to submit any modifications to and reads from this
 	 * buffer before we send any reply to the Client.
@@ -209,7 +227,7 @@ sna_dri_create_buffer(DrawablePtr drawable,
 				    drawable->width,
 				    drawable->height,
 				    drawable->bitsPerPixel,
-				    color_use_tiling_y(sna, drawable) ?  I915_TILING_Y : I915_TILING_X,
+				    color_tiling(sna, drawable),
 				    CREATE_EXACT);
 		break;
 
@@ -252,8 +270,7 @@ sna_dri_create_buffer(DrawablePtr drawable,
 		bpp = format ? format : drawable->bitsPerPixel,
 		bo = kgem_create_2d(&sna->kgem,
 				    drawable->width, drawable->height, bpp,
-				    //sna->kgem.gen >= 40 ? I915_TILING_Y : I915_TILING_X,
-				    I915_TILING_Y,
+				    other_tiling(sna, drawable),
 				    CREATE_EXACT);
 		break;
 
@@ -342,6 +359,7 @@ damage_all:
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
 		sna_damage_destroy(&priv->cpu_damage);
+		priv->undamaged = false;
 	} else {
 		BoxPtr box = RegionExtents(region);
 		if (region->data == NULL &&
@@ -364,6 +382,7 @@ static void set_bo(PixmapPtr pixmap, struct kgem_bo *bo)
 		       pixmap->drawable.width,
 		       pixmap->drawable.height);
 	sna_damage_destroy(&priv->cpu_damage);
+	priv->undamaged = false;
 
 	kgem_bo_destroy(&sna->kgem, priv->gpu_bo);
 	priv->gpu_bo = ref(bo);

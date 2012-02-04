@@ -100,7 +100,7 @@ sna_video_buffer(struct sna *sna,
 		 struct sna_video_frame *frame)
 {
 	/* Free the current buffer if we're going to have to reallocate */
-	if (video->buf && video->buf->size < frame->size)
+	if (video->buf && kgem_bo_size(video->buf) < frame->size)
 		sna_video_free_buffers(sna, video);
 
 	if (video->buf == NULL)

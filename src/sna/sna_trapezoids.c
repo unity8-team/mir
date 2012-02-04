@@ -3644,9 +3644,8 @@ sna_composite_trapezoids(CARD8 op,
 	if (NO_ACCEL)
 		goto fallback;
 
-	if (wedged(sna) || !sna->have_render) {
-		DBG(("%s: fallback -- wedged=%d, have_render=%d\n",
-		     __FUNCTION__, sna->kgem.wedged, sna->have_render));
+	if (wedged(sna)) {
+		DBG(("%s: fallback -- wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 
@@ -3947,6 +3946,8 @@ static void mark_damaged(PixmapPtr pixmap, struct sna_pixmap *priv,
 		sna_damage_all(&priv->gpu_damage,
 			       pixmap->drawable.width,
 			       pixmap->drawable.height);
+		list_del(&priv->list);
+		priv->undamaged = false;
 	} else {
 		sna_damage_add_box(&priv->gpu_damage, box);
 		sna_damage_subtract_box(&priv->cpu_damage, box);
@@ -3972,6 +3973,8 @@ trap_mask_converter(PicturePtr picture,
 
 	pixmap = get_drawable_pixmap(picture->pDrawable);
 	priv = sna_pixmap_move_to_gpu(pixmap, MOVE_READ | MOVE_WRITE);
+	if (priv == NULL)
+		return false;
 
 	/* XXX strict adherence to the Render specification */
 	if (picture->polyMode == PolyModePrecise) {
