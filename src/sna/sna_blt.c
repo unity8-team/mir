@@ -117,17 +117,17 @@ static bool sna_blt_fill_init(struct sna *sna,
 			      uint32_t pixel)
 {
 	struct kgem *kgem = &sna->kgem;
-	int pitch;
 
+	assert(bo->tiling != I915_TILING_Y);
 	blt->bo[0] = bo;
 
-	pitch = bo->pitch;
+	blt->br13 = bo->pitch;
 	blt->cmd = XY_SCANLINE_BLT;
-	if (kgem->gen >= 40 && blt->bo[0]->tiling) {
-		blt->cmd |= 1 << 11;
-		pitch >>= 2;
+	if (kgem->gen >= 40 && bo->tiling) {
+		blt->cmd |= BLT_DST_TILED;
+		blt->br13 >>= 2;
 	}
-	assert(pitch < MAXSHORT);
+	assert(blt->br13 < MAXSHORT);
 
 	if (alu == GXclear)
 		pixel = 0;
@@ -138,7 +138,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 			alu = GXset;
 	}
 
-	blt->br13 = 1<<31 | (fill_ROP[alu] << 16) | pitch;
+	blt->br13 |= 1<<31 | (fill_ROP[alu] << 16);
 	switch (bpp) {
 	default: assert(0);
 	case 32: blt->br13 |= 1 << 25; /* RGB8888 */
@@ -153,6 +153,7 @@ static bool sna_blt_fill_init(struct sna *sna,
 	if (!kgem_check_bo_fenced(kgem, bo, NULL) ||
 	    !kgem_check_batch(kgem, 12)) {
 		_kgem_submit(kgem);
+		assert(kgem_check_bo_fenced(kgem, bo, NULL));
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -235,7 +236,7 @@ inline static void sna_blt_fill_one(struct sna *sna,
 
 	assert(x >= 0);
 	assert(y >= 0);
-	assert((y+height) * blt->bo[0]->pitch <= blt->bo[0]->size);
+	assert((y+height) * blt->bo[0]->pitch <= kgem_bo_size(blt->bo[0]));
 
 	if (!kgem_check_batch(kgem, 3))
 		sna_blt_fill_begin(sna, blt);
@@ -290,6 +291,8 @@ static Bool sna_blt_copy_init(struct sna *sna,
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, src, dst, NULL))
+			return FALSE;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -337,6 +340,8 @@ static Bool sna_blt_alpha_fixup_init(struct sna *sna,
 	kgem_set_mode(kgem, KGEM_BLT);
 	if (!kgem_check_bo_fenced(kgem, src, dst, NULL)) {
 		_kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, src, dst, NULL))
+			return FALSE;
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -358,10 +363,10 @@ static void sna_blt_alpha_fixup_one(struct sna *sna,
 
 	assert(src_x >= 0);
 	assert(src_y >= 0);
-	assert((src_y + height) * blt->bo[0]->pitch <= blt->bo[0]->size);
+	assert((src_y + height) * blt->bo[0]->pitch <= kgem_bo_size(blt->bo[0]));
 	assert(dst_x >= 0);
 	assert(dst_y >= 0);
-	assert((dst_y + height) * blt->bo[1]->pitch <= blt->bo[1]->size);
+	assert((dst_y + height) * blt->bo[1]->pitch <= kgem_bo_size(blt->bo[1]));
 	assert(width > 0);
 	assert(height > 0);
 
@@ -409,10 +414,10 @@ static void sna_blt_copy_one(struct sna *sna,
 
 	assert(src_x >= 0);
 	assert(src_y >= 0);
-	assert((src_y + height) * blt->bo[0]->pitch <= blt->bo[0]->size);
+	assert((src_y + height) * blt->bo[0]->pitch <= kgem_bo_size(blt->bo[0]));
 	assert(dst_x >= 0);
 	assert(dst_y >= 0);
-	assert((dst_y + height) * blt->bo[1]->pitch <= blt->bo[1]->size);
+	assert((dst_y + height) * blt->bo[1]->pitch <= kgem_bo_size(blt->bo[1]));
 	assert(width > 0);
 	assert(height > 0);
 
@@ -677,7 +682,8 @@ sna_picture_is_solid(PicturePtr picture, uint32_t *color)
 	if (!is_solid(picture))
 		return FALSE;
 
-	*color = get_solid_color(picture, PICT_a8r8g8b8);
+	if (color)
+		*color = get_solid_color(picture, PICT_a8r8g8b8);
 	return TRUE;
 }
 
@@ -787,7 +793,7 @@ inline static void _sna_blt_fill_box(struct sna *sna,
 
 	assert(box->x1 >= 0);
 	assert(box->y1 >= 0);
-	assert(box->y2 * blt->bo[0]->pitch <= blt->bo[0]->size);
+	assert(box->y2 * blt->bo[0]->pitch <= kgem_bo_size(blt->bo[0]));
 
 	if (!kgem_check_batch(kgem, 3))
 		sna_blt_fill_begin(sna, blt);
@@ -1106,11 +1112,14 @@ prepare_blt_copy(struct sna *sna,
 	PixmapPtr src = op->u.blt.src_pixmap;
 	struct sna_pixmap *priv = sna_pixmap(src);
 
-	if (priv->gpu_bo->tiling == I915_TILING_Y)
+	if (!kgem_bo_can_blt(&sna->kgem, priv->gpu_bo))
 		return FALSE;
 
-	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL)) {
+	if (!kgem_check_bo_fenced(&sna->kgem, op->dst.bo, priv->gpu_bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		if (!kgem_check_bo_fenced(&sna->kgem,
+					  op->dst.bo, priv->gpu_bo, NULL))
+			return FALSE;
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
@@ -1176,9 +1185,8 @@ blt_put_composite(struct sna *sna,
 		data += (src_x - dst_x) * bpp / 8;
 		data += (src_y - dst_y) * pitch;
 
-		dst_priv->gpu_bo =
-			sna_replace(sna, op->dst.pixmap, dst_priv->gpu_bo,
-				    data, pitch);
+		sna_replace(sna, op->dst.pixmap, &dst_priv->gpu_bo,
+			    data, pitch);
 	} else {
 		BoxRec box;
 
@@ -1215,9 +1223,8 @@ fastcall static void blt_put_composite_box(struct sna *sna,
 		data += (box->y1 + op->u.blt.sy) * pitch;
 		data += (box->x1 + op->u.blt.sx) * bpp;
 
-		dst_priv->gpu_bo =
-			sna_replace(sna, op->dst.pixmap, op->dst.bo,
-				    data, pitch);
+		sna_replace(sna, op->dst.pixmap, &dst_priv->gpu_bo,
+			    data, pitch);
 	} else {
 		sna_write_boxes(sna, op->dst.pixmap,
 				op->dst.bo, op->dst.x, op->dst.y,
@@ -1250,9 +1257,8 @@ static void blt_put_composite_boxes(struct sna *sna,
 		data += (box->y1 + op->u.blt.sy) * pitch;
 		data += (box->x1 + op->u.blt.sx) * bpp;
 
-		dst_priv->gpu_bo =
-			sna_replace(sna, op->dst.pixmap, op->dst.bo,
-				    data, pitch);
+		sna_replace(sna, op->dst.pixmap, &dst_priv->gpu_bo,
+			    data, pitch);
 	} else {
 		sna_write_boxes(sna, op->dst.pixmap,
 				op->dst.bo, op->dst.x, op->dst.y,
@@ -1573,9 +1579,13 @@ sna_blt_composite(struct sna *sna,
 
 	tmp->dst.pixmap = get_drawable_pixmap(dst->pDrawable);
 	priv = sna_pixmap_move_to_gpu(tmp->dst.pixmap, MOVE_WRITE | MOVE_READ);
-	if (priv == NULL || priv->gpu_bo->tiling == I915_TILING_Y) {
-		DBG(("%s: dst not on the gpu or using Y-tiling\n",
-		     __FUNCTION__));
+	if (priv == NULL) {
+		DBG(("%s: dst not attached\n", __FUNCTION__));
+		return FALSE;
+	}
+	if (!kgem_bo_can_blt(&sna->kgem, priv->gpu_bo)) {
+		DBG(("%s: can not blit to dst, tiling? %d, pitch? %d\n",
+		     __FUNCTION__, priv->gpu_bo->tiling, priv->gpu_bo->pitch));
 		return FALSE;
 	}
 
@@ -1593,6 +1603,7 @@ sna_blt_composite(struct sna *sna,
 
 	if (!kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL)) {
 		_kgem_submit(&sna->kgem);
+		assert(kgem_check_bo_fenced(&sna->kgem, priv->gpu_bo, NULL));
 		_kgem_set_mode(&sna->kgem, KGEM_BLT);
 	}
 
@@ -1667,12 +1678,13 @@ sna_blt_composite(struct sna *sna,
 		return FALSE;
 	}
 
-	/* XXX tiling? */
+	/* XXX tiling? fixup extend none? */
 	if (x < 0 || y < 0 ||
 	    x + width > src->pDrawable->width ||
 	    y + height > src->pDrawable->height) {
-		DBG(("%s: source extends outside of valid area\n",
-		     __FUNCTION__));
+		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid drawable %dx%d\n",
+		     __FUNCTION__,
+		     x, y, x+width, y+width, src->pDrawable->width, src->pDrawable->height));
 		return FALSE;
 	}
 
@@ -1680,10 +1692,14 @@ sna_blt_composite(struct sna *sna,
 	get_drawable_deltas(src->pDrawable, blt->src_pixmap, &tx, &ty);
 	x += tx + src->pDrawable->x;
 	y += ty + src->pDrawable->y;
-	assert(x >= 0);
-	assert(y >= 0);
-	assert(x + width <= blt->src_pixmap->drawable.width);
-	assert(y + height <= blt->src_pixmap->drawable.height);
+	if (x < 0 || y < 0 ||
+	    x + width > blt->src_pixmap->drawable.width ||
+	    y + height > blt->src_pixmap->drawable.height) {
+		DBG(("%s: source extends outside (%d, %d), (%d, %d) of valid pixmap %dx%d\n",
+		     __FUNCTION__,
+		     x, y, x+width, y+width, blt->src_pixmap->drawable.width, blt->src_pixmap->drawable.height));
+		return FALSE;
+	}
 
 	tmp->u.blt.sx = x - dst_x;
 	tmp->u.blt.sy = y - dst_y;
@@ -1742,7 +1758,7 @@ bool sna_blt_fill(struct sna *sna, uint8_t alu,
 
 	DBG(("%s(alu=%d, pixel=%x, bpp=%d)\n", __FUNCTION__, alu, pixel, bpp));
 
-	if (bo->tiling == I915_TILING_Y) {
+	if (!kgem_bo_can_blt(&sna->kgem, bo)) {
 		DBG(("%s: rejected due to incompatible Y-tiling\n",
 		     __FUNCTION__));
 		return FALSE;
@@ -1792,10 +1808,10 @@ bool sna_blt_copy(struct sna *sna, uint8_t alu,
 	return FALSE;
 #endif
 
-	if (src->tiling == I915_TILING_Y)
+	if (!kgem_bo_can_blt(&sna->kgem, src))
 		return FALSE;
 
-	if (dst->tiling == I915_TILING_Y)
+	if (!kgem_bo_can_blt(&sna->kgem, dst))
 		return FALSE;
 
 	if (!sna_blt_copy_init(sna, &op->base.u.blt,
@@ -1885,6 +1901,7 @@ static bool sna_blt_fill_box(struct sna *sna, uint8_t alu,
 	    !kgem_check_reloc(kgem, 1) ||
 	    !kgem_check_bo_fenced(kgem, bo, NULL)) {
 		_kgem_submit(kgem);
+		assert(kgem_check_bo_fenced(&sna->kgem, bo, NULL));
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -1921,7 +1938,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	DBG(("%s (%d, %08x, %d) x %d\n",
 	     __FUNCTION__, bpp, pixel, alu, nbox));
 
-	if (bo->tiling == I915_TILING_Y) {
+	if (!kgem_bo_can_blt(kgem, bo)) {
 		DBG(("%s: fallback -- dst uses Y-tiling\n", __FUNCTION__));
 		return FALSE;
 	}
@@ -1958,6 +1975,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 	if (!kgem_check_bo_fenced(kgem, bo, NULL) ||
 	    !kgem_check_batch(kgem, 12)) {
 		_kgem_submit(kgem);
+		assert(kgem_check_bo_fenced(&sna->kgem, bo, NULL));
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 
@@ -2015,7 +2033,7 @@ Bool sna_blt_fill_boxes(struct sna *sna, uint8_t alu,
 
 			assert(box->x1 >= 0);
 			assert(box->y1 >= 0);
-			assert(box->y2 * bo->pitch <= bo->size);
+			assert(box->y2 * bo->pitch <= kgem_bo_size(bo));
 
 			b = kgem->batch + kgem->nbatch;
 			kgem->nbatch += 3;
@@ -2070,8 +2088,13 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	    src_bo->tiling, dst_bo->tiling,
 	    src_bo->pitch, dst_bo->pitch));
 
-	if (src_bo->tiling == I915_TILING_Y || dst_bo->tiling == I915_TILING_Y)
+	if (!kgem_bo_can_blt(kgem, src_bo) || !kgem_bo_can_blt(kgem, dst_bo)) {
+		DBG(("%s: cannot blt to src? %d or dst? %d\n",
+		     __FUNCTION__,
+		     kgem_bo_can_blt(kgem, src_bo),
+		     kgem_bo_can_blt(kgem, dst_bo)));
 		return FALSE;
+	}
 
 	cmd = XY_SRC_COPY_BLT_CMD;
 	if (bpp == 32)
@@ -2082,7 +2105,7 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 		cmd |= BLT_SRC_TILED;
 		src_pitch >>= 2;
 	}
-	assert(src_pitch < MAXSHORT);
+	assert(src_pitch <= MAXSHORT);
 
 	br13 = dst_bo->pitch;
 	if (kgem->gen >= 40 && dst_bo->tiling) {
@@ -2116,6 +2139,11 @@ Bool sna_blt_copy_boxes(struct sna *sna, uint8_t alu,
 	    !kgem_check_reloc(kgem, 2) ||
 	    !kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL)) {
 		_kgem_submit(kgem);
+		if (!kgem_check_bo_fenced(kgem, dst_bo, src_bo, NULL))
+			return sna_tiling_copy_boxes(sna, alu,
+						     src_bo, src_dx, src_dy,
+						     dst_bo, dst_dx, dst_dy,
+						     bpp, box, nbox);
 		_kgem_set_mode(kgem, KGEM_BLT);
 	}
 

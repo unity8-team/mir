@@ -1026,6 +1026,12 @@ intel_uxa_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	struct intel_pixmap *priv;
 	PixmapPtr pixmap, new_pixmap = NULL;
 
+	if (!(usage & INTEL_CREATE_PIXMAP_DRI2)) {
+		pixmap = intel_glamor_create_pixmap(screen, w, h, depth, usage);
+		if (pixmap)
+			return pixmap;
+	}
+
 	if (w > 32767 || h > 32767)
 		return NullPixmap;
 

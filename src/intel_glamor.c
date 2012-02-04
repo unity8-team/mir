@@ -36,6 +36,7 @@
 #include <glamor.h>
 
 #include "intel.h"
+#include "i915_drm.h"
 #include "intel_glamor.h"
 #include "uxa.h"
 
@@ -98,6 +99,7 @@ intel_glamor_create_textured_pixmap(PixmapPtr pixmap)
 	priv = intel_get_pixmap_private(pixmap);
 	if (glamor_egl_create_textured_pixmap(pixmap, priv->bo->handle,
 					      priv->stride)) {
+		drm_intel_bo_disable_reuse(priv->bo);
 		priv->pinned = 1;
 		return TRUE;
 	} else

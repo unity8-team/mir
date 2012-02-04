@@ -50,6 +50,8 @@ struct kgem_bo {
 	struct list vma;
 
 	void *map;
+#define IS_CPU_MAP(ptr) ((uintptr_t)(ptr) & 1)
+#define IS_GTT_MAP(ptr) (ptr && ((uintptr_t)(ptr) & 1) == 0)
 	struct kgem_request *rq;
 	struct drm_i915_gem_exec_object2 *exec;
 
@@ -64,10 +66,16 @@ struct kgem_bo {
 	uint32_t handle;
 	uint32_t presumed_offset;
 	uint32_t delta;
-	uint32_t size:28;
-	uint32_t bucket:4;
-#define MAX_OBJECT_SIZE (1 << 28)
-
+	union {
+		struct {
+			uint32_t count:27;
+#define PAGE_SIZE 4096
+			uint32_t bucket:5;
+#define NUM_CACHE_BUCKETS 16
+#define MAX_CACHE_SIZE (1 << (NUM_CACHE_BUCKETS+12))
+		} pages;
+		uint32_t bytes;
+	} size;
 	uint32_t pitch : 18; /* max 128k */
 	uint32_t tiling : 2;
 	uint32_t reusable : 1;
@@ -98,8 +106,6 @@ enum {
 	NUM_MAP_TYPES,
 };
 
-#define NUM_CACHE_BUCKETS 16
-
 struct kgem {
 	int fd;
 	int wedged;
@@ -115,7 +121,10 @@ struct kgem {
 		KGEM_BLT,
 	} mode, ring;
 
-	struct list flushing, active[NUM_CACHE_BUCKETS], inactive[NUM_CACHE_BUCKETS];
+	struct list flushing;
+	struct list large;
+	struct list active[NUM_CACHE_BUCKETS][3];
+	struct list inactive[NUM_CACHE_BUCKETS];
 	struct list partial;
 	struct list requests;
 	struct kgem_request *next_request;
@@ -144,16 +153,22 @@ struct kgem {
 	uint32_t has_vmap :1;
 	uint32_t has_relaxed_fencing :1;
 	uint32_t has_semaphores :1;
+	uint32_t has_llc :1;
+	uint32_t has_cpu_bo :1;
 
 	uint16_t fence_max;
 	uint16_t half_cpu_cache_pages;
-	uint32_t aperture_high, aperture_low, aperture;
-	uint32_t aperture_fenced, aperture_mappable;
+	uint32_t aperture_total, aperture_high, aperture_low, aperture_mappable;
+	uint32_t aperture, aperture_fenced;
 	uint32_t min_alignment;
-	uint32_t max_object_size;
+	uint32_t max_upload_tile_size, max_copy_tile_size;
+	uint32_t max_gpu_size, max_cpu_size;
+	uint32_t large_object_size, max_object_size;
 	uint32_t partial_buffer_size;
 
 	void (*context_switch)(struct kgem *kgem, int new_mode);
+	void (*retire)(struct kgem *kgem);
+
 	uint32_t batch[4*1024];
 	struct drm_i915_gem_exec_object2 exec[256];
 	struct drm_i915_gem_relocation_entry reloc[384];
@@ -185,17 +200,13 @@ struct kgem_bo *kgem_upload_source_image(struct kgem *kgem,
 					 const void *data,
 					 BoxPtr box,
 					 int stride, int bpp);
-struct kgem_bo *kgem_upload_source_image_halved(struct kgem *kgem,
-						pixman_format_code_t format,
-						const void *data,
-						int x, int y,
-						int width, int height,
-						int stride, int bpp);
 
 int kgem_choose_tiling(struct kgem *kgem,
 		       int tiling, int width, int height, int bpp);
-bool kgem_can_create_2d(struct kgem *kgem,
-			int width, int height, int bpp, int tiling);
+unsigned kgem_can_create_2d(struct kgem *kgem, int width, int height, int depth);
+#define KGEM_CAN_CREATE_GPU	0x1
+#define KGEM_CAN_CREATE_CPU	0x2
+#define KGEM_CAN_CREATE_LARGE	0x4
 
 struct kgem_bo *
 kgem_replace_bo(struct kgem *kgem,
@@ -263,16 +274,11 @@ static inline void kgem_bo_destroy(struct kgem *kgem, struct kgem_bo *bo)
 		_kgem_bo_destroy(kgem, bo);
 }
 
-void kgem_emit_flush(struct kgem *kgem);
 void kgem_clear_dirty(struct kgem *kgem);
 
 static inline void kgem_set_mode(struct kgem *kgem, enum kgem_mode mode)
 {
 	assert(!kgem->wedged);
-
-#if DEBUG_FLUSH_CACHE
-	kgem_emit_flush(kgem);
-#endif
 
 #if DEBUG_FLUSH_BATCH
 	kgem_submit(kgem);
@@ -358,21 +364,74 @@ Bool kgem_bo_write(struct kgem *kgem, struct kgem_bo *bo,
 		   const void *data, int length);
 
 int kgem_bo_fenced_size(struct kgem *kgem, struct kgem_bo *bo);
+void kgem_get_tile_size(struct kgem *kgem, int tiling,
+			int *tile_width, int *tile_height, int *tile_size);
+
+static inline int kgem_bo_size(struct kgem_bo *bo)
+{
+	assert(!(bo->proxy && bo->io));
+	return PAGE_SIZE * bo->size.pages.count;
+}
+
+static inline int kgem_buffer_size(struct kgem_bo *bo)
+{
+	assert(bo->proxy && bo->io);
+	return bo->size.bytes;
+}
+
+static inline bool kgem_bo_can_blt(struct kgem *kgem,
+				   struct kgem_bo *bo)
+{
+	int pitch;
+
+	if (bo->tiling == I915_TILING_Y) {
+		DBG(("%s: can not blt to handle=%d, tiling=Y\n",
+		     __FUNCTION__, bo->handle));
+		return false;
+	}
+
+	pitch = bo->pitch;
+	if (kgem->gen >= 40 && bo->tiling)
+		pitch /= 4;
+	if (pitch > MAXSHORT) {
+		DBG(("%s: can not blt to handle=%d, adjusted pitch=%d\n",
+		     __FUNCTION__, pitch));
+		return false;
+	}
+
+	return true;
+}
 
 static inline bool kgem_bo_is_mappable(struct kgem *kgem,
 				       struct kgem_bo *bo)
 {
 	DBG_HDR(("%s: domain=%d, offset: %d size: %d\n",
-		 __FUNCTION__, bo->domain, bo->presumed_offset, bo->size));
+		 __FUNCTION__, bo->domain, bo->presumed_offset, kgem_bo_size(bo)));
 
 	if (bo->domain == DOMAIN_GTT)
+		return true;
+
+	if (IS_GTT_MAP(bo->map))
 		return true;
 
 	if (kgem->gen < 40 && bo->tiling &&
 	    bo->presumed_offset & (kgem_bo_fenced_size(kgem, bo) - 1))
 		return false;
 
-	return bo->presumed_offset + bo->size <= kgem->aperture_mappable;
+	if (!bo->presumed_offset)
+		return kgem_bo_size(bo) <= kgem->aperture_mappable / 4;
+
+	return bo->presumed_offset + kgem_bo_size(bo) <= kgem->aperture_mappable;
+}
+
+static inline bool kgem_bo_mapped(struct kgem_bo *bo)
+{
+	DBG_HDR(("%s: map=%p, tiling=%d\n", __FUNCTION__, bo->map, bo->tiling));
+
+	if (bo->map == NULL)
+		return false;
+
+	return IS_CPU_MAP(bo->map) == !bo->tiling;
 }
 
 static inline bool kgem_bo_is_busy(struct kgem_bo *bo)
@@ -389,13 +448,19 @@ static inline bool kgem_bo_map_will_stall(struct kgem *kgem, struct kgem_bo *bo)
 	     __FUNCTION__, bo->handle,
 	     bo->domain, bo->presumed_offset, bo->size));
 
+	if (!kgem_bo_is_mappable(kgem, bo))
+		return true;
+
+	if (kgem->wedged)
+		return false;
+
 	if (kgem_bo_is_busy(bo))
 		return true;
 
 	if (bo->presumed_offset == 0)
 		return !list_is_empty(&kgem->requests);
 
-	return !kgem_bo_is_mappable(kgem, bo);
+	return false;
 }
 
 static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
@@ -403,15 +468,12 @@ static inline bool kgem_bo_is_dirty(struct kgem_bo *bo)
 	if (bo == NULL)
 		return FALSE;
 
-	if (bo->proxy)
-		bo = bo->proxy;
 	return bo->dirty;
 }
 
 static inline void kgem_bo_mark_dirty(struct kgem_bo *bo)
 {
-	if (bo->proxy)
-		bo = bo->proxy;
+	DBG_HDR(("%s: handle=%d\n", __FUNCTION__, bo->handle));
 	bo->dirty = true;
 }
 

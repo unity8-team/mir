@@ -157,12 +157,15 @@ static Bool realize_glyph_caches(struct sna *sna)
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		struct sna_glyph_cache *cache = &sna->render.glyph[i];
+		struct sna_pixmap *priv;
 		PixmapPtr pixmap;
-		PicturePtr picture;
+		PicturePtr picture = NULL;
+		PictFormatPtr pPictFormat;
 		CARD32 component_alpha;
 		int depth = PIXMAN_FORMAT_DEPTH(formats[i]);
 		int error;
-		PictFormatPtr pPictFormat = PictureMatchFormat(screen, depth, formats[i]);
+
+		pPictFormat = PictureMatchFormat(screen, depth, formats[i]);
 		if (!pPictFormat)
 			goto bail;
 
@@ -175,16 +178,18 @@ static Bool realize_glyph_caches(struct sna *sna)
 		if (!pixmap)
 			goto bail;
 
-		/* Prevent the cache from ever being paged out */
-		sna_pixmap(pixmap)->pinned = true;
+		priv = sna_pixmap(pixmap);
+		if (priv != NULL) {
+			/* Prevent the cache from ever being paged out */
+			priv->pinned = true;
 
-		component_alpha = NeedsComponent(pPictFormat->format);
-		picture = CreatePicture(0, &pixmap->drawable, pPictFormat,
-					CPComponentAlpha, &component_alpha,
-					serverClient, &error);
+			component_alpha = NeedsComponent(pPictFormat->format);
+			picture = CreatePicture(0, &pixmap->drawable, pPictFormat,
+						CPComponentAlpha, &component_alpha,
+						serverClient, &error);
+		}
 
 		screen->DestroyPixmap(pixmap);
-
 		if (!picture)
 			goto bail;
 
@@ -1224,9 +1229,8 @@ sna_glyphs(CARD8 op,
 	if (FALLBACK || DEBUG_NO_RENDER)
 		goto fallback;
 
-	if (sna->kgem.wedged || !sna->have_render) {
-		DBG(("%s: no render (wedged=%d)\n",
-		     __FUNCTION__, sna->kgem.wedged));
+	if (wedged(sna)) {
+		DBG(("%s: wedged\n", __FUNCTION__));
 		goto fallback;
 	}
 

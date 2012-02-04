@@ -495,9 +495,12 @@ sna_composite(CARD8 op,
 		goto fallback;
 	}
 
-	tmp.boxes(sna, &tmp,
-		  REGION_RECTS(&region),
-		  REGION_NUM_RECTS(&region));
+	if (region.data == NULL)
+		tmp.box(sna, &tmp, &region.extents);
+	else
+		tmp.boxes(sna, &tmp,
+			  REGION_BOXPTR(&region),
+			  REGION_NUM_RECTS(&region));
 	apply_damage(&tmp, &region);
 	tmp.done(sna, &tmp);
 
@@ -516,8 +519,7 @@ fallback:
 	if (!sna_drawable_move_region_to_cpu(dst->pDrawable, &region, flags))
 		goto out;
 	if (dst->alphaMap &&
-	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable,
-				      MOVE_WRITE | MOVE_READ))
+	    !sna_drawable_move_to_cpu(dst->alphaMap->pDrawable, flags))
 		goto out;
 	if (src->pDrawable) {
 		if (!sna_drawable_move_to_cpu(src->pDrawable,
@@ -771,10 +773,24 @@ sna_composite_rectangles(CARD8		 op,
 
 		if (region.data == NULL &&
 		    region.extents.x2 - region.extents.x1 == pixmap->drawable.width &&
-		    region.extents.y2 - region.extents.y1 == pixmap->drawable.height)
+		    region.extents.y2 - region.extents.y1 == pixmap->drawable.height) {
 			sna_damage_all(&priv->gpu_damage,
 				       pixmap->drawable.width, pixmap->drawable.height);
-		else
+			priv->undamaged = false;
+			if (op <= PictOpSrc) {
+				priv->clear = true;
+				priv->clear_color = 0;
+				if (op == PictOpSrc)
+					sna_get_pixel_from_rgba(&priv->clear_color,
+								color->red,
+								color->green,
+								color->blue,
+								color->alpha,
+								dst->format);
+				DBG(("%s: marking clear [%08x]\n",
+				     __FUNCTION__, priv->clear_color));
+			}
+		} else
 			sna_damage_add(&priv->gpu_damage, &region);
 	}
 

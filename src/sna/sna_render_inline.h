@@ -102,7 +102,18 @@ too_small(DrawablePtr drawable)
 	if (priv->cpu_bo && kgem_bo_is_busy(priv->cpu_bo))
 		return false;
 
-	return !priv->gpu;
+	return (priv->create & KGEM_CAN_CREATE_GPU) == 0;
+}
+
+static inline Bool
+unattached(DrawablePtr drawable)
+{
+	struct sna_pixmap *priv = sna_pixmap_from_drawable(drawable);
+
+	if (priv == NULL)
+		return true;
+
+	return priv->gpu_bo == NULL && priv->cpu_bo == NULL;
 }
 
 static inline Bool
